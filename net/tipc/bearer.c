@@ -259,9 +259,8 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 	u32 i;
 
 	if (!bearer_name_validate(name, &b_names)) {
-		errstr = "illegal name";
 		NL_SET_ERR_MSG(extack, "Illegal name");
-		goto rejected;
+		return res;
 	}
 
 	if (prio > TIPC_MAX_LINK_PRI && prio != TIPC_MEDIA_LINK_PRI) {
@@ -352,15 +351,17 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 		goto rejected;
 	}
 
+	/* Create monitoring data before accepting activate messages */
+	if (tipc_mon_create(net, bearer_id)) {
+		bearer_disable(net, b);
+		kfree_skb(skb);
+		return -ENOMEM;
+	}
+
 	test_and_set_bit_lock(0, &b->up);
 	rcu_assign_pointer(tn->bearer_list[bearer_id], b);
 	if (skb)
 		tipc_bearer_xmit_skb(net, bearer_id, skb, &b->bcast_addr);
-
-	if (tipc_mon_create(net, bearer_id)) {
-		bearer_disable(net, b);
-		return -ENOMEM;
-	}
 
 	pr_info("Enabled bearer <%s>, priority %u\n", name, prio);
 
@@ -768,7 +769,7 @@ void tipc_clone_to_loopback(struct net *net, struct sk_buff_head *pkts)
 		skb->pkt_type = PACKET_HOST;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		skb->protocol = eth_type_trans(skb, dev);
-		netif_rx_ni(skb);
+		netif_rx(skb);
 	}
 }
 
@@ -787,7 +788,7 @@ int tipc_attach_loopback(struct net *net)
 	if (!dev)
 		return -ENODEV;
 
-	dev_hold_track(dev, &tn->loopback_pt.dev_tracker, GFP_KERNEL);
+	netdev_hold(dev, &tn->loopback_pt.dev_tracker, GFP_KERNEL);
 	tn->loopback_pt.dev = dev;
 	tn->loopback_pt.type = htons(ETH_P_TIPC);
 	tn->loopback_pt.func = tipc_loopback_rcv_pkt;
@@ -800,7 +801,7 @@ void tipc_detach_loopback(struct net *net)
 	struct tipc_net *tn = tipc_net(net);
 
 	dev_remove_pack(&tn->loopback_pt);
-	dev_put_track(net->loopback_dev, &tn->loopback_pt.dev_tracker);
+	netdev_put(net->loopback_dev, &tn->loopback_pt.dev_tracker);
 }
 
 /* Caller should hold rtnl_lock to protect the bearer */

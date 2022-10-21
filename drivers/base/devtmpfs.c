@@ -17,7 +17,7 @@
 #include <linux/syscalls.h>
 #include <linux/mount.h>
 #include <linux/device.h>
-#include <linux/genhd.h>
+#include <linux/blkdev.h>
 #include <linux/namei.h>
 #include <linux/fs.h>
 #include <linux/shmem_fs.h>
@@ -81,10 +81,8 @@ static struct file_system_type internal_fs_type = {
 	.name = "devtmpfs",
 #ifdef CONFIG_TMPFS
 	.init_fs_context = shmem_init_fs_context,
-	.parameters	= shmem_fs_parameters,
 #else
 	.init_fs_context = ramfs_init_fs_context,
-	.parameters	= ramfs_fs_parameters,
 #endif
 	.kill_sb = kill_litter_super,
 };
@@ -484,6 +482,7 @@ int __init devtmpfs_init(void)
 	if (err) {
 		printk(KERN_ERR "devtmpfs: unable to create devtmpfs %i\n", err);
 		unregister_filesystem(&dev_fs_type);
+		thread = NULL;
 		return err;
 	}
 

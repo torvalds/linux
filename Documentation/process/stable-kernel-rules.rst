@@ -35,7 +35,9 @@ Rules on what kind of patches are accepted, and which ones are not, into the
 Procedure for submitting patches to the -stable tree
 ----------------------------------------------------
 
- - Security patches should not be handled (solely) by the -stable review
+.. note::
+
+   Security patches should not be handled (solely) by the -stable review
    process but should follow the procedures in
    :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`.
 
@@ -81,8 +83,8 @@ it to be applied to.
 :ref:`option_2` and :ref:`option_3` are more useful if the patch isn't deemed
 worthy at the time it is applied to a public git tree (for instance, because
 it deserves more regression testing first).  :ref:`option_3` is especially
-useful if the patch needs some special handling to apply to an older kernel
-(e.g., if API's have changed in the meantime).
+useful if the original upstream patch needs to be backported (for example
+the backport needs some special handling due to e.g. API changes).
 
 Note that for :ref:`option_3`, if the patch deviates from the original
 upstream patch (for example because it had to be backported) this must be very
@@ -94,6 +96,12 @@ text, like this:
 .. code-block:: none
 
     commit <sha1> upstream.
+
+or alternatively:
+
+.. code-block:: none
+
+    [ Upstream commit <sha1> ]
 
 Additionally, some patches submitted via :ref:`option_1` may have additional
 patch prerequisites which can be cherry-picked. This can be specified in the
@@ -151,8 +159,17 @@ Review cycle
  - If the patch is rejected by a member of the committee, or linux-kernel
    members object to the patch, bringing up issues that the maintainers and
    members did not realize, the patch will be dropped from the queue.
- - At the end of the review cycle, the ACKed patches will be added to the
-   latest -stable release, and a new -stable release will happen.
+ - The ACKed patches will be posted again as part of release candidate (-rc)
+   to be tested by developers and testers.
+ - Usually only one -rc release is made, however if there are any outstanding
+   issues, some patches may be modified or dropped or additional patches may
+   be queued. Additional -rc releases are then released and tested until no
+   issues are found.
+ - Responding to the -rc releases can be done on the mailing list by sending
+   a "Tested-by:" email with any testing information desired. The "Tested-by:"
+   tags will be collected and added to the release commit.
+ - At the end of the review cycle, the new -stable release will be released
+   containing all the queued and tested patches.
  - Security patches will be accepted into the -stable tree directly from the
    security kernel team, and not go through the normal review cycle.
    Contact the kernel security team for more details on this procedure.
@@ -168,7 +185,16 @@ Trees
  - The finalized and tagged releases of all stable kernels can be found
    in separate branches per version at:
 
-	https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
+	https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+
+ - The release candidate of all stable kernel versions can be found at:
+
+        https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable-rc.git/
+
+   .. warning::
+      The -stable-rc tree is a snapshot in time of the stable-queue tree and
+      will change frequently, hence will be rebased often. It should only be
+      used for testing purposes (e.g. to be consumed by CI systems).
 
 
 Review committee

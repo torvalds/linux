@@ -103,7 +103,8 @@ static struct snd_soc_dai_driver fsl_aud2htx_dai = {
 };
 
 static const struct snd_soc_component_driver fsl_aud2htx_component = {
-	.name	= "fsl-aud2htx",
+	.name			= "fsl-aud2htx",
+	.legacy_dai_naming	= 1,
 };
 
 static const struct reg_default fsl_aud2htx_reg_defaults[] = {
@@ -233,17 +234,25 @@ static int fsl_aud2htx_probe(struct platform_device *pdev)
 
 	regcache_cache_only(aud2htx->regmap, true);
 
+	/*
+	 * Register platform component before registering cpu dai for there
+	 * is not defer probe for platform component in snd_soc_add_pcm_runtime().
+	 */
+	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to pcm register\n");
+		pm_runtime_disable(&pdev->dev);
+		return ret;
+	}
+
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &fsl_aud2htx_component,
 					      &fsl_aud2htx_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register ASoC DAI\n");
+		pm_runtime_disable(&pdev->dev);
 		return ret;
 	}
-
-	ret = imx_pcm_dma_init(pdev, IMX_DEFAULT_DMABUF_SIZE);
-	if (ret)
-		dev_err(&pdev->dev, "failed to init imx pcm dma: %d\n", ret);
 
 	return ret;
 }

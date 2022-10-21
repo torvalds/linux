@@ -117,6 +117,10 @@ static void clk_generated_best_diff(struct clk_rate_request *req,
 		tmp_rate = parent_rate;
 	else
 		tmp_rate = parent_rate / div;
+
+	if (tmp_rate < req->min_rate || tmp_rate > req->max_rate)
+		return;
+
 	tmp_diff = abs(req->rate - tmp_rate);
 
 	if (*best_diff < 0 || *best_diff >= tmp_diff) {
@@ -132,7 +136,6 @@ static int clk_generated_determine_rate(struct clk_hw *hw,
 {
 	struct clk_generated *gck = to_clk_generated(hw);
 	struct clk_hw *parent = NULL;
-	struct clk_rate_request req_parent = *req;
 	long best_rate = -EINVAL;
 	unsigned long min_rate, parent_rate;
 	int best_diff = -1;
@@ -188,7 +191,9 @@ static int clk_generated_determine_rate(struct clk_hw *hw,
 		goto end;
 
 	for (div = 1; div < GENERATED_MAX_DIV + 2; div++) {
-		req_parent.rate = req->rate * div;
+		struct clk_rate_request req_parent;
+
+		clk_hw_forward_rate_request(hw, req, parent, &req_parent, req->rate * div);
 		if (__clk_determine_rate(parent, &req_parent))
 			continue;
 		clk_generated_best_diff(req, parent, req_parent.rate, div,

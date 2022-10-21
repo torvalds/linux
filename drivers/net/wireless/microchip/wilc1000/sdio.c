@@ -26,7 +26,9 @@ static const struct sdio_device_id wilc_sdio_ids[] = {
 struct wilc_sdio {
 	bool irq_gpio;
 	u32 block_size;
+	bool isinit;
 	int has_thrpt_enh3;
+	u8 *cmd53_buf;
 };
 
 struct sdio_cmd52 {
@@ -46,6 +48,7 @@ struct sdio_cmd53 {
 	u32 count:		9;
 	u8 *buffer;
 	u32 block_size;
+	bool use_global_buf;
 };
 
 static const struct wilc_hif_func wilc_hif_sdio;
@@ -90,6 +93,8 @@ static int wilc_sdio_cmd53(struct wilc *wilc, struct sdio_cmd53 *cmd)
 {
 	struct sdio_func *func = container_of(wilc->dev, struct sdio_func, dev);
 	int size, ret;
+	struct wilc_sdio *sdio_priv = wilc->bus_data;
+	u8 *buf = cmd->buffer;
 
 	sdio_claim_host(func);
 
@@ -100,12 +105,23 @@ static int wilc_sdio_cmd53(struct wilc *wilc, struct sdio_cmd53 *cmd)
 	else
 		size = cmd->count;
 
+	if (cmd->use_global_buf) {
+		if (size > sizeof(u32))
+			return -EINVAL;
+
+		buf = sdio_priv->cmd53_buf;
+	}
+
 	if (cmd->read_write) {  /* write */
-		ret = sdio_memcpy_toio(func, cmd->address,
-				       (void *)cmd->buffer, size);
+		if (cmd->use_global_buf)
+			memcpy(buf, cmd->buffer, size);
+
+		ret = sdio_memcpy_toio(func, cmd->address, buf, size);
 	} else {        /* read */
-		ret = sdio_memcpy_fromio(func, (void *)cmd->buffer,
-					 cmd->address,  size);
+		ret = sdio_memcpy_fromio(func, buf, cmd->address, size);
+
+		if (cmd->use_global_buf)
+			memcpy(cmd->buffer, buf, size);
 	}
 
 	sdio_release_host(func);
@@ -126,6 +142,12 @@ static int wilc_sdio_probe(struct sdio_func *func,
 	sdio_priv = kzalloc(sizeof(*sdio_priv), GFP_KERNEL);
 	if (!sdio_priv)
 		return -ENOMEM;
+
+	sdio_priv->cmd53_buf = kzalloc(sizeof(u32), GFP_KERNEL);
+	if (!sdio_priv->cmd53_buf) {
+		ret = -ENOMEM;
+		goto free;
+	}
 
 	ret = wilc_cfg80211_init(&wilc, &func->dev, WILC_HIF_SDIO,
 				 &wilc_hif_sdio);
@@ -160,6 +182,7 @@ dispose_irq:
 	irq_dispose_mapping(wilc->dev_irq_num);
 	wilc_netdev_cleanup(wilc);
 free:
+	kfree(sdio_priv->cmd53_buf);
 	kfree(sdio_priv);
 	return ret;
 }
@@ -171,6 +194,7 @@ static void wilc_sdio_remove(struct sdio_func *func)
 
 	clk_disable_unprepare(wilc->rtc_clk);
 	wilc_netdev_cleanup(wilc);
+	kfree(sdio_priv->cmd53_buf);
 	kfree(sdio_priv);
 }
 
@@ -191,6 +215,13 @@ static int wilc_sdio_reset(struct wilc *wilc)
 		return ret;
 	}
 	return 0;
+}
+
+static bool wilc_sdio_is_init(struct wilc *wilc)
+{
+	struct wilc_sdio *sdio_priv = wilc->bus_data;
+
+	return sdio_priv->isinit;
 }
 
 static int wilc_sdio_suspend(struct device *dev)
@@ -367,8 +398,9 @@ static int wilc_sdio_write_reg(struct wilc *wilc, u32 addr, u32 data)
 		cmd.address = WILC_SDIO_FBR_DATA_REG;
 		cmd.block_mode = 0;
 		cmd.increment = 1;
-		cmd.count = 4;
+		cmd.count = sizeof(u32);
 		cmd.buffer = (u8 *)&data;
+		cmd.use_global_buf = true;
 		cmd.block_size = sdio_priv->block_size;
 		ret = wilc_sdio_cmd53(wilc, &cmd);
 		if (ret)
@@ -406,6 +438,7 @@ static int wilc_sdio_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 	nblk = size / block_size;
 	nleft = size % block_size;
 
+	cmd.use_global_buf = false;
 	if (nblk > 0) {
 		cmd.block_mode = 1;
 		cmd.increment = 1;
@@ -484,8 +517,9 @@ static int wilc_sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 		cmd.address = WILC_SDIO_FBR_DATA_REG;
 		cmd.block_mode = 0;
 		cmd.increment = 1;
-		cmd.count = 4;
+		cmd.count = sizeof(u32);
 		cmd.buffer = (u8 *)data;
+		cmd.use_global_buf = true;
 
 		cmd.block_size = sdio_priv->block_size;
 		ret = wilc_sdio_cmd53(wilc, &cmd);
@@ -527,6 +561,7 @@ static int wilc_sdio_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 	nblk = size / block_size;
 	nleft = size % block_size;
 
+	cmd.use_global_buf = false;
 	if (nblk > 0) {
 		cmd.block_mode = 1;
 		cmd.increment = 1;
@@ -581,6 +616,9 @@ static int wilc_sdio_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 
 static int wilc_sdio_deinit(struct wilc *wilc)
 {
+	struct wilc_sdio *sdio_priv = wilc->bus_data;
+
+	sdio_priv->isinit = false;
 	return 0;
 }
 
@@ -598,7 +636,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	cmd.read_write = 1;
 	cmd.function = 0;
 	cmd.raw = 1;
-	cmd.address = SDIO_FBR_BASE(func->num);
+	cmd.address = SDIO_FBR_BASE(1);
 	cmd.data = SDIO_FBR_ENABLE_CSA;
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {
@@ -700,6 +738,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 			 sdio_priv->has_thrpt_enh3);
 	}
 
+	sdio_priv->isinit = true;
 	return 0;
 }
 
@@ -981,6 +1020,7 @@ static const struct wilc_hif_func wilc_hif_sdio = {
 	.enable_interrupt = wilc_sdio_enable_interrupt,
 	.disable_interrupt = wilc_sdio_disable_interrupt,
 	.hif_reset = wilc_sdio_reset,
+	.hif_is_init = wilc_sdio_is_init,
 };
 
 static int wilc_sdio_resume(struct device *dev)

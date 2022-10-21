@@ -118,6 +118,7 @@ struct cec_adap_ops {
 	int (*adap_monitor_all_enable)(struct cec_adapter *adap, bool enable);
 	int (*adap_monitor_pin_enable)(struct cec_adapter *adap, bool enable);
 	int (*adap_log_addr)(struct cec_adapter *adap, u8 logical_addr);
+	void (*adap_configured)(struct cec_adapter *adap, bool configured);
 	int (*adap_transmit)(struct cec_adapter *adap, u8 attempts,
 			     u32 signal_free_time, struct cec_msg *msg);
 	void (*adap_status)(struct cec_adapter *adap, struct seq_file *file);
@@ -163,6 +164,13 @@ struct cec_adap_ops {
  * @wait_queue:		queue of transmits waiting for a reply
  * @transmitting:	CEC messages currently being transmitted
  * @transmit_in_progress: true if a transmit is in progress
+ * @transmit_in_progress_aborted: true if a transmit is in progress is to be
+ *			aborted. This happens if the logical address is
+ *			invalidated while the transmit is ongoing. In that
+ *			case the transmit will finish, but will not retransmit
+ *			and be marked as ABORTED.
+ * @xfer_timeout_ms:	the transfer timeout in ms.
+ *			If 0, then timeout after 2.1 ms.
  * @kthread_config:	kthread used to configure a CEC adapter
  * @config_completion:	used to signal completion of the config kthread
  * @kthread:		main CEC processing thread
@@ -175,7 +183,9 @@ struct cec_adap_ops {
  * @needs_hpd:		if true, then the HDMI HotPlug Detect pin must be high
  *	in order to transmit or receive CEC messages. This is usually a HW
  *	limitation.
+ * @is_enabled:		the CEC adapter is enabled
  * @is_configuring:	the CEC adapter is configuring (i.e. claiming LAs)
+ * @must_reconfigure:	while configuring, the PA changed, so reclaim LAs
  * @is_configured:	the CEC adapter is configured (i.e. has claimed LAs)
  * @cec_pin_is_high:	if true then the CEC pin is high. Only used with the
  *	CEC pin framework.
@@ -217,6 +227,8 @@ struct cec_adapter {
 	struct list_head wait_queue;
 	struct cec_data *transmitting;
 	bool transmit_in_progress;
+	bool transmit_in_progress_aborted;
+	unsigned int xfer_timeout_ms;
 
 	struct task_struct *kthread_config;
 	struct completion config_completion;
@@ -231,7 +243,9 @@ struct cec_adapter {
 
 	u16 phys_addr;
 	bool needs_hpd;
+	bool is_enabled;
 	bool is_configuring;
+	bool must_reconfigure;
 	bool is_configured;
 	bool cec_pin_is_high;
 	bool adap_controls_phys_addr;

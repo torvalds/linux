@@ -10,6 +10,10 @@
 #ifndef AF_PHONET_H
 #define AF_PHONET_H
 
+#include <linux/phonet.h>
+#include <linux/skbuff.h>
+#include <net/sock.h>
+
 /*
  * The lower layers may not require more space, ever. Make sure it's
  * enough.

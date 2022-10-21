@@ -2,7 +2,7 @@
 #include <errno.h>
 #include <inttypes.h>
 /* For the CPU_* macros */
-#include <pthread.h>
+#include <sched.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -22,7 +22,7 @@
 static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __maybe_unused,
 						  int subtest __maybe_unused)
 {
-	int err = -1, fd, idx;
+	int err = TEST_FAIL, fd, idx;
 	struct perf_cpu cpu;
 	struct perf_cpu_map *cpus;
 	struct evsel *evsel;
@@ -49,6 +49,7 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 	if (IS_ERR(evsel)) {
 		tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "syscalls", "sys_enter_openat");
 		pr_debug("%s\n", errbuf);
+		err = TEST_SKIP;
 		goto out_cpu_map_delete;
 	}
 
@@ -56,6 +57,7 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 		pr_debug("failed to open counter: %s, "
 			 "tweak /proc/sys/kernel/perf_event_paranoid?\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
+		err = TEST_SKIP;
 		goto out_evsel_delete;
 	}
 
@@ -88,7 +90,7 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 
 	evsel->core.cpus = perf_cpu_map__get(cpus);
 
-	err = 0;
+	err = TEST_OK;
 
 	perf_cpu_map__for_each_cpu(cpu, idx, cpus) {
 		unsigned int expected;
@@ -98,7 +100,7 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 
 		if (evsel__read_on_cpu(evsel, idx, 0) < 0) {
 			pr_debug("evsel__read_on_cpu\n");
-			err = -1;
+			err = TEST_FAIL;
 			break;
 		}
 
@@ -106,7 +108,7 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 		if (perf_counts(evsel->counts, idx, 0)->val != expected) {
 			pr_debug("evsel__read_on_cpu: expected to intercept %d calls on cpu %d, got %" PRIu64 "\n",
 				 expected, cpu.cpu, perf_counts(evsel->counts, idx, 0)->val);
-			err = -1;
+			err = TEST_FAIL;
 		}
 	}
 
@@ -122,4 +124,15 @@ out_thread_map_delete:
 	return err;
 }
 
-DEFINE_SUITE("Detect openat syscall event on all cpus", openat_syscall_event_on_all_cpus);
+
+static struct test_case tests__openat_syscall_event_on_all_cpus[] = {
+	TEST_CASE_REASON("Detect openat syscall event on all cpus",
+			 openat_syscall_event_on_all_cpus,
+			 "permissions"),
+	{	.name = NULL, }
+};
+
+struct test_suite suite__openat_syscall_event_on_all_cpus = {
+	.desc = "Detect openat syscall event on all cpus",
+	.test_cases = tests__openat_syscall_event_on_all_cpus,
+};

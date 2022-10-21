@@ -21,6 +21,12 @@
 #include <linux/panic.h>
 #include <linux/printk.h>
 
+struct warn_args;
+struct pt_regs;
+
+void __warn(const char *file, int line, void *caller, unsigned taint,
+	    struct pt_regs *regs, struct warn_args *args);
+
 #ifdef CONFIG_BUG
 
 #ifdef CONFIG_GENERIC_BUG
@@ -110,11 +116,6 @@ extern __printf(1, 2) void __warn_printk(const char *fmt, ...);
 #endif
 
 /* used internally by panic.c */
-struct warn_args;
-struct pt_regs;
-
-void __warn(const char *file, int line, void *caller, unsigned taint,
-	    struct pt_regs *regs, struct warn_args *args);
 
 #ifndef WARN_ON
 #define WARN_ON(condition) ({						\
@@ -217,22 +218,6 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
  * warning.
  */
 # define WARN_ON_SMP(x)			({0;})
-#endif
-
-/*
- * WARN_ON_FUNCTION_MISMATCH() warns if a value doesn't match a
- * function address, and can be useful for catching issues with
- * callback functions, for example.
- *
- * With CONFIG_CFI_CLANG, the warning is disabled because the
- * compiler replaces function addresses taken in C code with
- * local jump table addresses, which breaks cross-module function
- * address equality.
- */
-#if defined(CONFIG_CFI_CLANG) && defined(CONFIG_MODULES)
-# define WARN_ON_FUNCTION_MISMATCH(x, fn) ({ 0; })
-#else
-# define WARN_ON_FUNCTION_MISMATCH(x, fn) WARN_ON_ONCE((x) != (fn))
 #endif
 
 #endif /* __ASSEMBLY__ */

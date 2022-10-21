@@ -75,7 +75,7 @@ skl_hda_add_dai_link(struct snd_soc_card *card, struct snd_soc_dai_link *link)
 	struct skl_hda_private *ctx = snd_soc_card_get_drvdata(card);
 	int ret = 0;
 
-	dev_dbg(card->dev, "%s: dai link name - %s\n", __func__, link->name);
+	dev_dbg(card->dev, "dai link name - %s\n", link->name);
 	link->platforms->name = ctx->platform_name;
 	link->nonatomic = 1;
 
@@ -190,7 +190,7 @@ static void skl_set_hda_codec_autosuspend_delay(struct snd_soc_card *card)
 			 * all codecs are on the same bus, so it's sufficient
 			 * to look up only the first one
 			 */
-			snd_hda_set_power_save(hda_pvt->codec.bus,
+			snd_hda_set_power_save(hda_pvt->codec->bus,
 					       HDA_CODEC_AUTOSUSPEND_DELAY_MS);
 			break;
 		}
@@ -203,7 +203,7 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 	struct skl_hda_private *ctx;
 	int ret;
 
-	dev_dbg(&pdev->dev, "%s: entry\n", __func__);
+	dev_dbg(&pdev->dev, "entry\n");
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)

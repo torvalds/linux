@@ -7,12 +7,13 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_blend.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_managed.h>
-#include <drm/drm_plane_helper.h>
 
 #include <video/imx-ipu-v3.h>
 
@@ -124,14 +125,14 @@ static inline unsigned long
 drm_plane_state_to_eba(struct drm_plane_state *state, int plane)
 {
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_cma_object *cma_obj;
+	struct drm_gem_dma_object *dma_obj;
 	int x = state->src.x1 >> 16;
 	int y = state->src.y1 >> 16;
 
-	cma_obj = drm_fb_cma_get_gem_obj(fb, plane);
-	BUG_ON(!cma_obj);
+	dma_obj = drm_fb_dma_get_gem_obj(fb, plane);
+	BUG_ON(!dma_obj);
 
-	return cma_obj->paddr + fb->offsets[plane] + fb->pitches[plane] * y +
+	return dma_obj->dma_addr + fb->offsets[plane] + fb->pitches[plane] * y +
 	       fb->format->cpp[plane] * x;
 }
 
@@ -139,18 +140,18 @@ static inline unsigned long
 drm_plane_state_to_ubo(struct drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_cma_object *cma_obj;
+	struct drm_gem_dma_object *dma_obj;
 	unsigned long eba = drm_plane_state_to_eba(state, 0);
 	int x = state->src.x1 >> 16;
 	int y = state->src.y1 >> 16;
 
-	cma_obj = drm_fb_cma_get_gem_obj(fb, 1);
-	BUG_ON(!cma_obj);
+	dma_obj = drm_fb_dma_get_gem_obj(fb, 1);
+	BUG_ON(!dma_obj);
 
 	x /= fb->format->hsub;
 	y /= fb->format->vsub;
 
-	return cma_obj->paddr + fb->offsets[1] + fb->pitches[1] * y +
+	return dma_obj->dma_addr + fb->offsets[1] + fb->pitches[1] * y +
 	       fb->format->cpp[1] * x - eba;
 }
 
@@ -158,18 +159,18 @@ static inline unsigned long
 drm_plane_state_to_vbo(struct drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_cma_object *cma_obj;
+	struct drm_gem_dma_object *dma_obj;
 	unsigned long eba = drm_plane_state_to_eba(state, 0);
 	int x = state->src.x1 >> 16;
 	int y = state->src.y1 >> 16;
 
-	cma_obj = drm_fb_cma_get_gem_obj(fb, 2);
-	BUG_ON(!cma_obj);
+	dma_obj = drm_fb_dma_get_gem_obj(fb, 2);
+	BUG_ON(!dma_obj);
 
 	x /= fb->format->hsub;
 	y /= fb->format->vsub;
 
-	return cma_obj->paddr + fb->offsets[2] + fb->pitches[2] * y +
+	return dma_obj->dma_addr + fb->offsets[2] + fb->pitches[2] * y +
 	       fb->format->cpp[2] * x - eba;
 }
 
@@ -297,7 +298,6 @@ void ipu_plane_disable_deferred(struct drm_plane *plane)
 
 static void ipu_plane_state_reset(struct drm_plane *plane)
 {
-	unsigned int zpos = (plane->type == DRM_PLANE_TYPE_PRIMARY) ? 0 : 1;
 	struct ipu_plane_state *ipu_state;
 
 	if (plane->state) {
@@ -309,13 +309,8 @@ static void ipu_plane_state_reset(struct drm_plane *plane)
 
 	ipu_state = kzalloc(sizeof(*ipu_state), GFP_KERNEL);
 
-	if (ipu_state) {
+	if (ipu_state)
 		__drm_atomic_helper_plane_reset(plane, &ipu_state->base);
-		ipu_state->base.zpos = zpos;
-		ipu_state->base.normalized_zpos = zpos;
-		ipu_state->base.color_encoding = DRM_COLOR_YCBCR_BT601;
-		ipu_state->base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
-	}
 }
 
 static struct drm_plane_state *
@@ -397,8 +392,8 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 
 	ret = drm_atomic_helper_check_plane_state(new_state, crtc_state,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
 						  can_position, true);
 	if (ret)
 		return ret;

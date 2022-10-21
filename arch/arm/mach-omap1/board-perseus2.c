@@ -19,17 +19,16 @@
 #include <linux/smc91x.h>
 #include <linux/omapfb.h>
 #include <linux/platform_data/keypad-omap.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/tc.h>
-#include <mach/mux.h>
+#include "tc.h"
+#include "mux.h"
 #include "flash.h"
-
-#include <mach/hardware.h>
-
+#include "hardware.h"
 #include "iomap.h"
 #include "common.h"
 #include "fpga.h"
@@ -288,6 +287,12 @@ static void __init omap_perseus2_init(void)
 	omap_cfg_reg(E4_7XX_KBC2);
 	omap_cfg_reg(F4_7XX_KBC3);
 	omap_cfg_reg(E3_7XX_KBC4);
+
+	if (IS_ENABLED(CONFIG_SPI_OMAP_UWIRE)) {
+		/* configure pins: MPU_UW_nSCS1, MPU_UW_SDO, MPU_UW_SCLK */
+		int val = omap_readl(OMAP7XX_IO_CONF_9) & ~0x00EEE000;
+		omap_writel(val | 0x00AAA000, OMAP7XX_IO_CONF_9);
+	}
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 

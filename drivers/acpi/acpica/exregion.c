@@ -3,7 +3,7 @@
  *
  * Module Name: exregion - ACPI default op_region (address space) handlers
  *
- * Copyright (C) 2000 - 2021, Intel Corp.
+ * Copyright (C) 2000 - 2022, Intel Corp.
  *
  *****************************************************************************/
 

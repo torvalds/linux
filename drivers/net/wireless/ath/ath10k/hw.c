@@ -11,6 +11,7 @@
 #include "hif.h"
 #include "wmi-ops.h"
 #include "bmi.h"
+#include "rx_desc.h"
 
 const struct ath10k_hw_regs qca988x_regs = {
 	.rtc_soc_base_address		= 0x00004000,
@@ -83,7 +84,7 @@ const struct ath10k_hw_regs qca99x0_regs = {
 	.ce5_base_address			= 0x0004b400,
 	.ce6_base_address			= 0x0004b800,
 	.ce7_base_address			= 0x0004bc00,
-	/* Note: qca99x0 supports upto 12 Copy Engines. Other than address of
+	/* Note: qca99x0 supports up to 12 Copy Engines. Other than address of
 	 * CE0 and CE1 no other copy engine is directly referred in the code.
 	 * It is not really necessary to assign address for newly supported
 	 * CEs in this address table.
@@ -119,7 +120,7 @@ const struct ath10k_hw_regs qca4019_regs = {
 	.ce5_base_address                       = 0x0004b400,
 	.ce6_base_address                       = 0x0004b800,
 	.ce7_base_address                       = 0x0004bc00,
-	/* qca4019 supports upto 12 copy engines. Since base address
+	/* qca4019 supports up to 12 copy engines. Since base address
 	 * of ce8 to ce11 are not directly referred in the code,
 	 * no need have them in separate members in this table.
 	 *      Copy Engine             Address
@@ -923,7 +924,7 @@ static void ath10k_hw_map_target_mem(struct ath10k *ar, u32 msb)
 	ath10k_hif_write32(ar, address, msb);
 }
 
-/* 1. Write to memory region of target, such as IRAM adn DRAM.
+/* 1. Write to memory region of target, such as IRAM and DRAM.
  * 2. Target address( 0 ~ 00100000 & 0x00400000~0x00500000)
  *    can be written directly. See ath10k_pci_targ_cpu_to_ce_addr() too.
  * 3. In order to access the region other than the above,
@@ -1134,21 +1135,7 @@ const struct ath10k_hw_ops qca988x_ops = {
 	.is_rssi_enable = ath10k_htt_tx_rssi_enable,
 };
 
-static int ath10k_qca99x0_rx_desc_get_l3_pad_bytes(struct htt_rx_desc *rxd)
-{
-	return MS(__le32_to_cpu(rxd->msdu_end.qca99x0.info1),
-		  RX_MSDU_END_INFO1_L3_HDR_PAD);
-}
-
-static bool ath10k_qca99x0_rx_desc_msdu_limit_error(struct htt_rx_desc *rxd)
-{
-	return !!(rxd->msdu_end.common.info0 &
-		  __cpu_to_le32(RX_MSDU_END_INFO0_MSDU_LIMIT_ERR));
-}
-
 const struct ath10k_hw_ops qca99x0_ops = {
-	.rx_desc_get_l3_pad_bytes = ath10k_qca99x0_rx_desc_get_l3_pad_bytes,
-	.rx_desc_get_msdu_limit_error = ath10k_qca99x0_rx_desc_msdu_limit_error,
 	.is_rssi_enable = ath10k_htt_tx_rssi_enable,
 };
 

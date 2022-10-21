@@ -1159,7 +1159,8 @@ static int nr_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	}
 
 	/* Now we can treat all alike */
-	if ((skb = skb_recv_datagram(sk, flags & ~MSG_DONTWAIT, flags & MSG_DONTWAIT, &er)) == NULL) {
+	skb = skb_recv_datagram(sk, flags, &er);
+	if (!skb) {
 		release_sock(sk);
 		return er;
 	}

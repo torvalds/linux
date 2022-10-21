@@ -146,7 +146,7 @@
 };
 
 &easrc {
-	fsl,asrc-rate  = <48000>;
+	fsl,asrc-rate = <48000>;
 	status = "okay";
 };
 
@@ -175,13 +175,14 @@
 	pinctrl-0 = <&pinctrl_uart3>;
 	assigned-clocks = <&clk IMX8MN_CLK_UART3>;
 	assigned-clock-parents = <&clk IMX8MN_SYS_PLL1_80M>;
+	uart-has-rtscts;
 	status = "okay";
 };
 
 &usbotg1 {
 	vbus-supply = <&reg_usb_otg_vbus>;
 	disable-over-current;
-	dr_mode="otg";
+	dr_mode = "otg";
 	status = "okay";
 };
 
@@ -258,6 +259,8 @@
 		fsl,pins = <
 			MX8MN_IOMUXC_ECSPI1_SCLK_UART3_DCE_RX	0x40
 			MX8MN_IOMUXC_ECSPI1_MOSI_UART3_DCE_TX	0x40
+			MX8MN_IOMUXC_ECSPI1_MISO_UART3_DCE_CTS_B	0x40
+			MX8MN_IOMUXC_ECSPI1_SS0_UART3_DCE_RTS_B	0x40
 		>;
 	};
 

@@ -17,15 +17,20 @@ description: |+
 
 properties:
   compatible:
-    items:
+    oneOf:
+      - items:
+          - const: samsung,exynosautov9-uart
+          - const: samsung,exynos850-uart
       - enum:
           - apple,s5l-uart
+          - axis,artpec8-uart
           - samsung,s3c2410-uart
           - samsung,s3c2412-uart
           - samsung,s3c2440-uart
           - samsung,s3c6400-uart
           - samsung,s5pv210-uart
           - samsung,exynos4210-uart
+          - samsung,exynos5433-uart
           - samsung,exynos850-uart
 
   reg:
@@ -35,7 +40,6 @@ properties:
     description: |
       The size (in bytes) of the IO accesses that should be performed
       on the device.
-    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [ 1, 4 ]
 
   clocks:
@@ -66,6 +70,9 @@ properties:
     description: RX interrupt and optionally TX interrupt.
     minItems: 1
     maxItems: 2
+
+  power-domains:
+    maxItems: 1
 
   samsung,uart-fifosize:
     description: The fifo size supported by the UART channel.
@@ -98,7 +105,6 @@ allOf:
           maxItems: 3
         clock-names:
           minItems: 2
-          maxItems: 3
           items:
             - const: uart
             - pattern: '^clk_uart_baud[0-1]$'
@@ -110,15 +116,14 @@ allOf:
           contains:
             enum:
               - apple,s5l-uart
+              - axis,artpec8-uart
               - samsung,exynos4210-uart
+              - samsung,exynos5433-uart
     then:
       properties:
         clocks:
-          minItems: 2
           maxItems: 2
         clock-names:
-          minItems: 2
-          maxItems: 2
           items:
             - const: uart
             - const: clk_uart_baud0

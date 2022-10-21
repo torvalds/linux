@@ -12,17 +12,26 @@
 /* return value for btrfs_log_dentry_safe that means we don't need to log it at all */
 #define BTRFS_NO_LOG_SYNC 256
 
+/* We can't use the tree log for whatever reason, force a transaction commit */
+#define BTRFS_LOG_FORCE_COMMIT				(1)
+
 struct btrfs_log_ctx {
 	int log_ret;
 	int log_transid;
 	bool log_new_dentries;
 	bool logging_new_name;
+	bool logging_new_delayed_dentries;
+	/* Indicate if the inode being logged was logged before. */
+	bool logged_before;
 	/* Tracks the last logged dir item/index key offset. */
 	u64 last_dir_item_offset;
 	struct inode *inode;
 	struct list_head list;
 	/* Only used for fast fsyncs. */
 	struct list_head ordered_extents;
+	struct list_head conflict_inodes;
+	int num_conflict_inodes;
+	bool logging_conflict_inodes;
 };
 
 static inline void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx,
@@ -32,9 +41,14 @@ static inline void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx,
 	ctx->log_transid = 0;
 	ctx->log_new_dentries = false;
 	ctx->logging_new_name = false;
+	ctx->logging_new_delayed_dentries = false;
+	ctx->logged_before = false;
 	ctx->inode = inode;
 	INIT_LIST_HEAD(&ctx->list);
 	INIT_LIST_HEAD(&ctx->ordered_extents);
+	INIT_LIST_HEAD(&ctx->conflict_inodes);
+	ctx->num_conflict_inodes = 0;
+	ctx->logging_conflict_inodes = false;
 }
 
 static inline void btrfs_release_log_ctx_extents(struct btrfs_log_ctx *ctx)
@@ -86,7 +100,7 @@ void btrfs_record_unlink_dir(struct btrfs_trans_handle *trans,
 void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
 				   struct btrfs_inode *dir);
 void btrfs_log_new_name(struct btrfs_trans_handle *trans,
-			struct btrfs_inode *inode, struct btrfs_inode *old_dir,
-			struct dentry *parent);
+			struct dentry *old_dentry, struct btrfs_inode *old_dir,
+			u64 old_dir_index, struct dentry *parent);
 
 #endif

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -42,6 +42,12 @@ enum iwl_debug_cmds {
 	 * &struct iwl_buf_alloc_cmd
 	 */
 	BUFFER_ALLOCATION = 0x8,
+	/**
+	 * @FW_DUMP_COMPLETE_CMD:
+	 * sends command to fw once dump collection completed
+	 * &struct iwl_dbg_dump_complete_cmd
+	 */
+	FW_DUMP_COMPLETE_CMD = 0xB,
 	/**
 	 * @MFU_ASSERT_DUMP_NTF:
 	 * &struct iwl_mfu_assert_dump_notif
@@ -234,7 +240,7 @@ struct iwl_mfu_assert_dump_notif {
 	__le16   index_num;
 	__le16   parts_num;
 	__le32   data_size;
-	__le32   data[0];
+	__le32   data[];
 } __packed; /* MFU_DUMP_ASSERT_API_S_VER_1 */
 
 /**
@@ -270,7 +276,7 @@ struct iwl_mvm_marker {
 	u8 marker_id;
 	__le16 reserved;
 	__le64 timestamp;
-	__le32 metadata[0];
+	__le32 metadata[];
 } __packed; /* MARKER_API_S_VER_1 */
 
 /**
@@ -403,5 +409,16 @@ struct iwl_dbgc1_info {
 struct iwl_dbg_host_event_cfg_cmd {
 	__le32 enabled_severities;
 } __packed; /* DEBUG_HOST_EVENT_CFG_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_dbg_dump_complete_cmd - dump complete cmd
+ *
+ * @tp: timepoint whose dump has completed
+ * @tp_data: timepoint data
+ */
+struct iwl_dbg_dump_complete_cmd {
+	__le32 tp;
+	__le32 tp_data;
+} __packed; /* FW_DUMP_COMPLETE_CMD_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_debug_h__ */

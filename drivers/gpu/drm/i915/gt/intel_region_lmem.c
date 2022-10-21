@@ -4,67 +4,117 @@
  */
 
 #include "i915_drv.h"
+#include "i915_pci.h"
+#include "i915_reg.h"
 #include "intel_memory_region.h"
+#include "intel_pci_config.h"
 #include "intel_region_lmem.h"
 #include "intel_region_ttm.h"
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
 #include "gem/i915_gem_ttm.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_mcr.h"
+#include "gt/intel_gt_regs.h"
 
-static int init_fake_lmem_bar(struct intel_memory_region *mem)
+#ifdef CONFIG_64BIT
+static void _release_bars(struct pci_dev *pdev)
 {
-	struct drm_i915_private *i915 = mem->i915;
-	struct i915_ggtt *ggtt = &i915->ggtt;
-	unsigned long n;
+	int resno;
+
+	for (resno = PCI_STD_RESOURCES; resno < PCI_STD_RESOURCE_END; resno++) {
+		if (pci_resource_len(pdev, resno))
+			pci_release_resource(pdev, resno);
+	}
+}
+
+static void
+_resize_bar(struct drm_i915_private *i915, int resno, resource_size_t size)
+{
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	int bar_size = pci_rebar_bytes_to_size(size);
 	int ret;
 
-	/* We want to 1:1 map the mappable aperture to our reserved region */
+	_release_bars(pdev);
 
-	mem->fake_mappable.start = 0;
-	mem->fake_mappable.size = resource_size(&mem->region);
-	mem->fake_mappable.color = I915_COLOR_UNEVICTABLE;
-
-	ret = drm_mm_reserve_node(&ggtt->vm.mm, &mem->fake_mappable);
-	if (ret)
-		return ret;
-
-	mem->remap_addr = dma_map_resource(i915->drm.dev,
-					   mem->region.start,
-					   mem->fake_mappable.size,
-					   DMA_BIDIRECTIONAL,
-					   DMA_ATTR_FORCE_CONTIGUOUS);
-	if (dma_mapping_error(i915->drm.dev, mem->remap_addr)) {
-		drm_mm_remove_node(&mem->fake_mappable);
-		return -EINVAL;
-	}
-
-	for (n = 0; n < mem->fake_mappable.size >> PAGE_SHIFT; ++n) {
-		ggtt->vm.insert_page(&ggtt->vm,
-				     mem->remap_addr + (n << PAGE_SHIFT),
-				     n << PAGE_SHIFT,
-				     I915_CACHE_NONE, 0);
-	}
-
-	mem->region = (struct resource)DEFINE_RES_MEM(mem->remap_addr,
-						      mem->fake_mappable.size);
-
-	return 0;
-}
-
-static void release_fake_lmem_bar(struct intel_memory_region *mem)
-{
-	if (!drm_mm_node_allocated(&mem->fake_mappable))
+	ret = pci_resize_resource(pdev, resno, bar_size);
+	if (ret) {
+		drm_info(&i915->drm, "Failed to resize BAR%d to %dM (%pe)\n",
+			 resno, 1 << bar_size, ERR_PTR(ret));
 		return;
+	}
 
-	drm_mm_remove_node(&mem->fake_mappable);
-
-	dma_unmap_resource(mem->i915->drm.dev,
-			   mem->remap_addr,
-			   mem->fake_mappable.size,
-			   DMA_BIDIRECTIONAL,
-			   DMA_ATTR_FORCE_CONTIGUOUS);
+	drm_info(&i915->drm, "BAR%d resized to %dM\n", resno, 1 << bar_size);
 }
+
+static void i915_resize_lmem_bar(struct drm_i915_private *i915, resource_size_t lmem_size)
+{
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	struct pci_bus *root = pdev->bus;
+	struct resource *root_res;
+	resource_size_t rebar_size;
+	resource_size_t current_size;
+	u32 pci_cmd;
+	int i;
+
+	current_size = roundup_pow_of_two(pci_resource_len(pdev, GEN12_LMEM_BAR));
+
+	if (i915->params.lmem_bar_size) {
+		u32 bar_sizes;
+
+		rebar_size = i915->params.lmem_bar_size *
+			(resource_size_t)SZ_1M;
+		bar_sizes = pci_rebar_get_possible_sizes(pdev, GEN12_LMEM_BAR);
+
+		if (rebar_size == current_size)
+			return;
+
+		if (!(bar_sizes & BIT(pci_rebar_bytes_to_size(rebar_size))) ||
+		    rebar_size >= roundup_pow_of_two(lmem_size)) {
+			rebar_size = lmem_size;
+
+			drm_info(&i915->drm,
+				 "Given bar size is not within supported size, setting it to default: %llu\n",
+				 (u64)lmem_size >> 20);
+		}
+	} else {
+		rebar_size = current_size;
+
+		if (rebar_size != roundup_pow_of_two(lmem_size))
+			rebar_size = lmem_size;
+		else
+			return;
+	}
+
+	/* Find out if root bus contains 64bit memory addressing */
+	while (root->parent)
+		root = root->parent;
+
+	pci_bus_for_each_resource(root, root_res, i) {
+		if (root_res && root_res->flags & (IORESOURCE_MEM | IORESOURCE_MEM_64) &&
+		    root_res->start > 0x100000000ull)
+			break;
+	}
+
+	/* pci_resize_resource will fail anyways */
+	if (!root_res) {
+		drm_info(&i915->drm, "Can't resize LMEM BAR - platform support is missing\n");
+		return;
+	}
+
+	/* First disable PCI memory decoding references */
+	pci_read_config_dword(pdev, PCI_COMMAND, &pci_cmd);
+	pci_write_config_dword(pdev, PCI_COMMAND,
+			       pci_cmd & ~PCI_COMMAND_MEMORY);
+
+	_resize_bar(i915, GEN12_LMEM_BAR, rebar_size);
+
+	pci_assign_unassigned_bus_resources(pdev->bus);
+	pci_write_config_dword(pdev, PCI_COMMAND, pci_cmd);
+}
+#else
+static void i915_resize_lmem_bar(struct drm_i915_private *i915, resource_size_t lmem_size) {}
+#endif
 
 static int
 region_lmem_release(struct intel_memory_region *mem)
@@ -73,7 +123,6 @@ region_lmem_release(struct intel_memory_region *mem)
 
 	ret = intel_region_ttm_fini(mem);
 	io_mapping_fini(&mem->iomap);
-	release_fake_lmem_bar(mem);
 
 	return ret;
 }
@@ -83,17 +132,10 @@ region_lmem_init(struct intel_memory_region *mem)
 {
 	int ret;
 
-	if (mem->i915->params.fake_lmem_start) {
-		ret = init_fake_lmem_bar(mem);
-		GEM_BUG_ON(ret);
-	}
-
 	if (!io_mapping_init_wc(&mem->iomap,
 				mem->io_start,
-				resource_size(&mem->region))) {
-		ret = -EIO;
-		goto out_no_io;
-	}
+				mem->io_size))
+		return -EIO;
 
 	ret = intel_region_ttm_init(mem);
 	if (ret)
@@ -103,8 +145,6 @@ region_lmem_init(struct intel_memory_region *mem)
 
 out_no_buddy:
 	io_mapping_fini(&mem->iomap);
-out_no_io:
-	release_fake_lmem_bar(mem);
 
 	return ret;
 }
@@ -114,50 +154,6 @@ static const struct intel_memory_region_ops intel_region_lmem_ops = {
 	.release = region_lmem_release,
 	.init_object = __i915_gem_ttm_object_init,
 };
-
-struct intel_memory_region *
-intel_gt_setup_fake_lmem(struct intel_gt *gt)
-{
-	struct drm_i915_private *i915 = gt->i915;
-	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
-	struct intel_memory_region *mem;
-	resource_size_t mappable_end;
-	resource_size_t io_start;
-	resource_size_t start;
-
-	if (!HAS_LMEM(i915))
-		return ERR_PTR(-ENODEV);
-
-	if (!i915->params.fake_lmem_start)
-		return ERR_PTR(-ENODEV);
-
-	GEM_BUG_ON(i915_ggtt_has_aperture(&i915->ggtt));
-
-	/* Your mappable aperture belongs to me now! */
-	mappable_end = pci_resource_len(pdev, 2);
-	io_start = pci_resource_start(pdev, 2);
-	start = i915->params.fake_lmem_start;
-
-	mem = intel_memory_region_create(i915,
-					 start,
-					 mappable_end,
-					 PAGE_SIZE,
-					 io_start,
-					 INTEL_MEMORY_LOCAL,
-					 0,
-					 &intel_region_lmem_ops);
-	if (!IS_ERR(mem)) {
-		drm_info(&i915->drm, "Intel graphics fake LMEM: %pR\n",
-			 &mem->region);
-		drm_info(&i915->drm,
-			 "Intel graphics fake LMEM IO start: %llx\n",
-			(u64)mem->io_start);
-		drm_info(&i915->drm, "Intel graphics fake LMEM size: %llx\n",
-			 (u64)resource_size(&mem->region));
-	}
-
-	return mem;
-}
 
 static bool get_legacy_lowmem_region(struct intel_uncore *uncore,
 				     u64 *start, u32 *size)
@@ -199,18 +195,54 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 	struct intel_memory_region *mem;
 	resource_size_t min_page_size;
 	resource_size_t io_start;
+	resource_size_t io_size;
 	resource_size_t lmem_size;
 	int err;
 
 	if (!IS_DGFX(i915))
 		return ERR_PTR(-ENODEV);
 
-	/* Stolen starts from GSMBASE on DG1 */
-	lmem_size = intel_uncore_read64(uncore, GEN12_GSMBASE);
+	if (!i915_pci_resource_valid(pdev, GEN12_LMEM_BAR))
+		return ERR_PTR(-ENXIO);
 
-	io_start = pci_resource_start(pdev, 2);
-	if (GEM_WARN_ON(lmem_size > pci_resource_len(pdev, 2)))
-		return ERR_PTR(-ENODEV);
+	if (HAS_FLAT_CCS(i915)) {
+		resource_size_t lmem_range;
+		u64 tile_stolen, flat_ccs_base;
+
+		lmem_range = intel_gt_mcr_read_any(&i915->gt0, XEHP_TILE0_ADDR_RANGE) & 0xFFFF;
+		lmem_size = lmem_range >> XEHP_TILE_LMEM_RANGE_SHIFT;
+		lmem_size *= SZ_1G;
+
+		flat_ccs_base = intel_gt_mcr_read_any(gt, XEHP_FLAT_CCS_BASE_ADDR);
+		flat_ccs_base = (flat_ccs_base >> XEHP_CCS_BASE_SHIFT) * SZ_64K;
+
+		if (GEM_WARN_ON(lmem_size < flat_ccs_base))
+			return ERR_PTR(-EIO);
+
+		tile_stolen = lmem_size - flat_ccs_base;
+
+		/* If the FLAT_CCS_BASE_ADDR register is not populated, flag an error */
+		if (tile_stolen == lmem_size)
+			drm_err(&i915->drm,
+				"CCS_BASE_ADDR register did not have expected value\n");
+
+		lmem_size -= tile_stolen;
+	} else {
+		/* Stolen starts from GSMBASE without CCS */
+		lmem_size = intel_uncore_read64(&i915->uncore, GEN12_GSMBASE);
+	}
+
+	i915_resize_lmem_bar(i915, lmem_size);
+
+	if (i915->params.lmem_size > 0) {
+		lmem_size = min_t(resource_size_t, lmem_size,
+				  mul_u32_u32(i915->params.lmem_size, SZ_1M));
+	}
+
+	io_start = pci_resource_start(pdev, GEN12_LMEM_BAR);
+	io_size = min(pci_resource_len(pdev, GEN12_LMEM_BAR), lmem_size);
+	if (!io_size)
+		return ERR_PTR(-EIO);
 
 	min_page_size = HAS_64K_PAGES(i915) ? I915_GTT_PAGE_SIZE_64K :
 						I915_GTT_PAGE_SIZE_4K;
@@ -219,6 +251,7 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 					 lmem_size,
 					 min_page_size,
 					 io_start,
+					 io_size,
 					 INTEL_MEMORY_LOCAL,
 					 0,
 					 &intel_region_lmem_ops);
@@ -232,8 +265,14 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 	drm_dbg(&i915->drm, "Local memory: %pR\n", &mem->region);
 	drm_dbg(&i915->drm, "Local memory IO start: %pa\n",
 		&mem->io_start);
+	drm_info(&i915->drm, "Local memory IO size: %pa\n",
+		 &mem->io_size);
 	drm_info(&i915->drm, "Local memory available: %pa\n",
 		 &lmem_size);
+
+	if (io_size < lmem_size)
+		drm_info(&i915->drm, "Using a reduced BAR size of %lluMiB. Consider enabling 'Resizable BAR' or similar, if available in the BIOS.\n",
+			 (u64)io_size >> 20);
 
 	return mem;
 

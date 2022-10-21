@@ -49,9 +49,6 @@ void __init early_set_mem_enc_dec_hypercall(unsigned long vaddr, int npages,
 
 void __init mem_encrypt_free_decrypted_mem(void);
 
-/* Architecture __weak replacement functions */
-void __init mem_encrypt_init(void);
-
 void __init sev_es_init_vc_handling(void);
 
 #define __bss_decrypted __section(".bss..decrypted")
@@ -88,6 +85,11 @@ static inline void mem_encrypt_free_decrypted_mem(void) { }
 #define __bss_decrypted
 
 #endif	/* CONFIG_AMD_MEM_ENCRYPT */
+
+/* Architecture __weak replacement functions */
+void __init mem_encrypt_init(void);
+
+void add_encrypt_protection_map(void);
 
 /*
  * The __sme_pa() and __sme_pa_nodebug() macros are meant for use when

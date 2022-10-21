@@ -146,14 +146,11 @@ int sctp_sched_set_sched(struct sctp_association *asoc,
 
 		/* Give the next scheduler a clean slate. */
 		for (i = 0; i < asoc->stream.outcnt; i++) {
-			void *p = SCTP_SO(&asoc->stream, i)->ext;
+			struct sctp_stream_out_ext *ext = SCTP_SO(&asoc->stream, i)->ext;
 
-			if (!p)
+			if (!ext)
 				continue;
-
-			p += offsetofend(struct sctp_stream_out_ext, outq);
-			memset(p, 0, sizeof(struct sctp_stream_out_ext) -
-				     offsetofend(struct sctp_stream_out_ext, outq));
+			memset_after(ext, 0, outq);
 		}
 	}
 
@@ -163,7 +160,7 @@ int sctp_sched_set_sched(struct sctp_association *asoc,
 		if (!SCTP_SO(&asoc->stream, i)->ext)
 			continue;
 
-		ret = n->init_sid(&asoc->stream, i, GFP_KERNEL);
+		ret = n->init_sid(&asoc->stream, i, GFP_ATOMIC);
 		if (ret)
 			goto err;
 	}

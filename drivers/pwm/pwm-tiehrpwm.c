@@ -216,7 +216,7 @@ static void configure_polarity(struct ehrpwm_pwm_chip *pc, int chan)
  * duty_ns   = 10^9 * (ps_divval * duty_cycles) / PWM_CLK_RATE
  */
 static int ehrpwm_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			     int duty_ns, int period_ns)
+			     u64 duty_ns, u64 period_ns)
 {
 	struct ehrpwm_pwm_chip *pc = to_ehrpwm_pwm_chip(chip);
 	u32 period_cycles, duty_cycles;
@@ -401,12 +401,42 @@ static void ehrpwm_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 	pc->period_cycles[pwm->hwpwm] = 0;
 }
 
+static int ehrpwm_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			    const struct pwm_state *state)
+{
+	int err;
+	bool enabled = pwm->state.enabled;
+
+	if (state->polarity != pwm->state.polarity) {
+		if (enabled) {
+			ehrpwm_pwm_disable(chip, pwm);
+			enabled = false;
+		}
+
+		err = ehrpwm_pwm_set_polarity(chip, pwm, state->polarity);
+		if (err)
+			return err;
+	}
+
+	if (!state->enabled) {
+		if (enabled)
+			ehrpwm_pwm_disable(chip, pwm);
+		return 0;
+	}
+
+	err = ehrpwm_pwm_config(chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!enabled)
+		err = ehrpwm_pwm_enable(chip, pwm);
+
+	return err;
+}
+
 static const struct pwm_ops ehrpwm_pwm_ops = {
 	.free = ehrpwm_pwm_free,
-	.config = ehrpwm_pwm_config,
-	.set_polarity = ehrpwm_pwm_set_polarity,
-	.enable = ehrpwm_pwm_enable,
-	.disable = ehrpwm_pwm_disable,
+	.apply = ehrpwm_pwm_apply,
 	.owner = THIS_MODULE,
 };
 

@@ -336,14 +336,12 @@ static int fdp_nci_i2c_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int fdp_nci_i2c_remove(struct i2c_client *client)
+static void fdp_nci_i2c_remove(struct i2c_client *client)
 {
 	struct fdp_i2c_phy *phy = i2c_get_clientdata(client);
 
 	fdp_nci_remove(phy->ndev);
 	fdp_nci_i2c_disable(phy);
-
-	return 0;
 }
 
 static const struct acpi_device_id fdp_nci_i2c_acpi_match[] = {

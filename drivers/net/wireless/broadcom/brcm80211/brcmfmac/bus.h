@@ -6,6 +6,8 @@
 #ifndef BRCMFMAC_BUS_H
 #define BRCMFMAC_BUS_H
 
+#include <linux/kernel.h>
+#include <linux/firmware.h>
 #include "debug.h"
 
 /* IDs of the 6 default common rings of msgbuf protocol */
@@ -34,6 +36,11 @@ enum brcmf_bus_protocol_type {
 	BRCMF_PROTO_MSGBUF
 };
 
+/* Firmware blobs that may be available */
+enum brcmf_blob_type {
+	BRCMF_BLOB_CLM,
+};
+
 struct brcmf_mp_device;
 
 struct brcmf_bus_dcmd {
@@ -60,7 +67,7 @@ struct brcmf_bus_dcmd {
  * @wowl_config: specify if dongle is configured for wowl when going to suspend
  * @get_ramsize: obtain size of device memory.
  * @get_memdump: obtain device memory dump in provided buffer.
- * @get_fwname: obtain firmware name.
+ * @get_blob: obtain a firmware blob.
  *
  * This structure provides an abstract interface towards the
  * bus specific driver. For control messages to common driver
@@ -77,8 +84,8 @@ struct brcmf_bus_ops {
 	void (*wowl_config)(struct device *dev, bool enabled);
 	size_t (*get_ramsize)(struct device *dev);
 	int (*get_memdump)(struct device *dev, void *data, size_t len);
-	int (*get_fwname)(struct device *dev, const char *ext,
-			  unsigned char *fw_name);
+	int (*get_blob)(struct device *dev, const struct firmware **fw,
+			enum brcmf_blob_type type);
 	void (*debugfs_create)(struct device *dev);
 	int (*reset)(struct device *dev);
 };
@@ -89,7 +96,7 @@ struct brcmf_bus_ops {
  *
  * @commonrings: commonrings which are always there.
  * @flowrings: commonrings which are dynamically created and destroyed for data.
- * @rx_dataoffset: if set then all rx data has this this offset.
+ * @rx_dataoffset: if set then all rx data has this offset.
  * @max_rxbufpost: maximum number of buffers to post for rx.
  * @max_flowrings: maximum number of tx flow rings supported.
  * @max_submissionrings: maximum number of submission rings(h2d) supported.
@@ -220,10 +227,10 @@ int brcmf_bus_get_memdump(struct brcmf_bus *bus, void *data, size_t len)
 }
 
 static inline
-int brcmf_bus_get_fwname(struct brcmf_bus *bus, const char *ext,
-			 unsigned char *fw_name)
+int brcmf_bus_get_blob(struct brcmf_bus *bus, const struct firmware **fw,
+		       enum brcmf_blob_type type)
 {
-	return bus->ops->get_fwname(bus->dev, ext, fw_name);
+	return bus->ops->get_blob(bus->dev, fw, type);
 }
 
 static inline

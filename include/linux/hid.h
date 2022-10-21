@@ -314,15 +314,6 @@ struct hid_item {
 #define HID_BAT_ABSOLUTESTATEOFCHARGE	0x00850065
 
 #define HID_VD_ASUS_CUSTOM_MEDIA_KEYS	0xff310076
-/*
- * HID report types --- Ouch! HID spec says 1 2 3!
- */
-
-#define HID_INPUT_REPORT	0
-#define HID_OUTPUT_REPORT	1
-#define HID_FEATURE_REPORT	2
-
-#define HID_REPORT_TYPES	3
 
 /*
  * HID connect requests
@@ -342,12 +333,12 @@ struct hid_item {
  * HID device quirks.
  */
 
-/* 
+/*
  * Increase this if you need to configure more HID quirks at module load time
  */
 #define MAX_USBHID_BOOT_QUIRKS 4
 
-#define HID_QUIRK_INVERT			BIT(0)
+/* BIT(0) reserved for backward compatibility, was HID_QUIRK_INVERT */
 #define HID_QUIRK_NOTOUCH			BIT(1)
 #define HID_QUIRK_IGNORE			BIT(2)
 #define HID_QUIRK_NOGET				BIT(3)
@@ -476,31 +467,50 @@ struct hid_field {
 	unsigned  report_count;		/* number of this field in the report */
 	unsigned  report_type;		/* (input,output,feature) */
 	__s32    *value;		/* last known value(s) */
+	__s32    *new_value;		/* newly read value(s) */
+	__s32    *usages_priorities;	/* priority of each usage when reading the report
+					 * bits 8-16 are reserved for hid-input usage
+					 */
 	__s32     logical_minimum;
 	__s32     logical_maximum;
 	__s32     physical_minimum;
 	__s32     physical_maximum;
 	__s32     unit_exponent;
 	unsigned  unit;
+	bool      ignored;		/* this field is ignored in this event */
 	struct hid_report *report;	/* associated report */
 	unsigned index;			/* index into report->field[] */
 	/* hidinput data */
 	struct hid_input *hidinput;	/* associated input structure */
 	__u16 dpad;			/* dpad input code */
+	unsigned int slot_idx;		/* slot index in a report */
 };
 
 #define HID_MAX_FIELDS 256
 
+struct hid_field_entry {
+	struct list_head list;
+	struct hid_field *field;
+	unsigned int index;
+	__s32 priority;
+};
+
 struct hid_report {
 	struct list_head list;
 	struct list_head hidinput_list;
+	struct list_head field_entry_list;		/* ordered list of input fields */
 	unsigned int id;				/* id of this report */
-	unsigned int type;				/* report type */
+	enum hid_report_type type;			/* report type */
 	unsigned int application;			/* application usage for this report */
 	struct hid_field *field[HID_MAX_FIELDS];	/* fields of the report */
+	struct hid_field_entry *field_entries;		/* allocated memory of input field_entry */
 	unsigned maxfield;				/* maximum valid field index */
 	unsigned size;					/* size of the report (bits) */
 	struct hid_device *device;			/* associated device */
+
+	/* tool related state */
+	bool tool_active;				/* whether the current tool is active */
+	unsigned int tool;				/* BTN_TOOL_* */
 };
 
 #define HID_MAX_IDS 256
@@ -639,6 +649,8 @@ struct hid_device {							/* device report descriptor */
 	struct list_head debug_list;
 	spinlock_t  debug_list_lock;
 	wait_queue_head_t debug_wait;
+
+	unsigned int id;						/* system unique id */
 };
 
 #define to_hid_device(pdev) \
@@ -905,20 +917,21 @@ extern int hidinput_connect(struct hid_device *hid, unsigned int force);
 extern void hidinput_disconnect(struct hid_device *);
 
 int hid_set_field(struct hid_field *, unsigned, __s32);
-int hid_input_report(struct hid_device *, int type, u8 *, u32, int);
+int hid_input_report(struct hid_device *hid, enum hid_report_type type, u8 *data, u32 size,
+		     int interrupt);
 struct hid_field *hidinput_get_led_field(struct hid_device *hid);
 unsigned int hidinput_count_leds(struct hid_device *hid);
 __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code);
 void hid_output_report(struct hid_report *report, __u8 *data);
-int __hid_request(struct hid_device *hid, struct hid_report *rep, int reqtype);
+int __hid_request(struct hid_device *hid, struct hid_report *rep, enum hid_class_request reqtype);
 u8 *hid_alloc_report_buf(struct hid_report *report, gfp_t flags);
 struct hid_device *hid_allocate_device(void);
 struct hid_report *hid_register_report(struct hid_device *device,
-				       unsigned int type, unsigned int id,
+				       enum hid_report_type type, unsigned int id,
 				       unsigned int application);
 int hid_parse_report(struct hid_device *hid, __u8 *start, unsigned size);
 struct hid_report *hid_validate_values(struct hid_device *hid,
-				       unsigned int type, unsigned int id,
+				       enum hid_report_type type, unsigned int id,
 				       unsigned int field_index,
 				       unsigned int report_counts);
 
@@ -1087,10 +1100,11 @@ void hid_hw_stop(struct hid_device *hdev);
 int __must_check hid_hw_open(struct hid_device *hdev);
 void hid_hw_close(struct hid_device *hdev);
 void hid_hw_request(struct hid_device *hdev,
-		    struct hid_report *report, int reqtype);
+		    struct hid_report *report, enum hid_class_request reqtype);
 int hid_hw_raw_request(struct hid_device *hdev,
 		       unsigned char reportnum, __u8 *buf,
-		       size_t len, unsigned char rtype, int reqtype);
+		       size_t len, enum hid_report_type rtype,
+		       enum hid_class_request reqtype);
 int hid_hw_output_report(struct hid_device *hdev, __u8 *buf, size_t len);
 
 /**
@@ -1118,7 +1132,7 @@ static inline int hid_hw_power(struct hid_device *hdev, int level)
  * @reqtype: hid request type
  */
 static inline int hid_hw_idle(struct hid_device *hdev, int report, int idle,
-		int reqtype)
+		enum hid_class_request reqtype)
 {
 	if (hdev->ll_driver->idle)
 		return hdev->ll_driver->idle(hdev, report, idle, reqtype);
@@ -1163,8 +1177,8 @@ static inline u32 hid_report_len(struct hid_report *report)
 	return DIV_ROUND_UP(report->size, 8) + (report->id > 0);
 }
 
-int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, u32 size,
-		int interrupt);
+int hid_report_raw_event(struct hid_device *hid, enum hid_report_type type, u8 *data, u32 size,
+			 int interrupt);
 
 /* HID quirks API */
 unsigned long hid_lookup_quirk(const struct hid_device *hdev);

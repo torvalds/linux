@@ -155,10 +155,10 @@ static int omap_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 	if (priv->jack_detect > 0) {
 		hs_jack_gpios[0].gpio = priv->jack_detect;
 
-		ret = snd_soc_card_jack_new(rtd->card, "Headset Jack",
-					    SND_JACK_HEADSET, &priv->hs_jack,
-					    hs_jack_pins,
-					    ARRAY_SIZE(hs_jack_pins));
+		ret = snd_soc_card_jack_new_pins(rtd->card, "Headset Jack",
+						 SND_JACK_HEADSET,
+						 &priv->hs_jack, hs_jack_pins,
+						 ARRAY_SIZE(hs_jack_pins));
 		if (ret)
 			return ret;
 

@@ -137,7 +137,11 @@ A few EV_KEY codes have special meanings:
     code should be set to a value of 1. When the tool is no longer interacting
     with the input device, the BTN_TOOL_<name> code should be reset to 0. All
     trackpads, tablets, and touchscreens should use at least one BTN_TOOL_<name>
-    code when events are generated.
+    code when events are generated. Likewise all trackpads, tablets, and
+    touchscreens should export only one BTN_TOOL_<name> at a time. To not break
+    existing userspace, it is recommended to not switch tool in one EV_SYN frame
+    but first emitting the old BTN_TOOL_<name> at 0, then emit one SYN_REPORT
+    and then set the new BTN_TOOL_<name> at 1.
 
 * BTN_TOUCH:
 
@@ -230,6 +234,12 @@ A few EV_ABS codes have special meanings:
     proximity and set to 0 when the tool leaves detectable proximity.
     BTN_TOOL_<name> signals the type of tool that is currently detected by the
     hardware and is otherwise independent of ABS_DISTANCE and/or BTN_TOUCH.
+
+* ABS_PROFILE:
+
+  - Used to describe the state of a multi-value profile switch.  An event is
+    emitted only when the selected profile changes, indicating the newly
+    selected profile value.
 
 * ABS_MT_<name>:
 

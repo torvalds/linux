@@ -363,16 +363,16 @@ static const struct sunxi_desc_pin h616_pins[] = {
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
 		  SUNXI_FUNCTION(0x2, "uart2"),		/* CTS */
-		  SUNXI_FUNCTION(0x3, "i2s3"),	/* DO0 */
+		  SUNXI_FUNCTION(0x3, "i2s3_dout0"),	/* DO0 */
 		  SUNXI_FUNCTION(0x4, "spi1"),		/* MISO */
-		  SUNXI_FUNCTION(0x5, "i2s3"),	/* DI1 */
+		  SUNXI_FUNCTION(0x5, "i2s3_din1"),	/* DI1 */
 		  SUNXI_FUNCTION_IRQ_BANK(0x6, 6, 8)),	/* PH_EINT8 */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(H, 9),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
-		  SUNXI_FUNCTION(0x3, "i2s3"),	/* DI0 */
+		  SUNXI_FUNCTION(0x3, "i2s3_din0"),	/* DI0 */
 		  SUNXI_FUNCTION(0x4, "spi1"),		/* CS1 */
-		  SUNXI_FUNCTION(0x3, "i2s3"),	/* DO1 */
+		  SUNXI_FUNCTION(0x5, "i2s3_dout1"),	/* DO1 */
 		  SUNXI_FUNCTION_IRQ_BANK(0x6, 6, 9)),	/* PH_EINT9 */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(H, 10),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
@@ -525,7 +525,7 @@ static const struct sunxi_pinctrl_desc h616_pinctrl_data = {
 	.irq_banks = ARRAY_SIZE(h616_irq_bank_map),
 	.irq_bank_map = h616_irq_bank_map,
 	.irq_read_needs_mux = true,
-	.io_bias_cfg_variant = BIAS_VOLTAGE_PIO_POW_MODE_SEL,
+	.io_bias_cfg_variant = BIAS_VOLTAGE_PIO_POW_MODE_CTL,
 };
 
 static int h616_pinctrl_probe(struct platform_device *pdev)

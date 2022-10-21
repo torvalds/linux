@@ -9,7 +9,7 @@
 #ifndef __MEI_HDCP_H__
 #define __MEI_HDCP_H__
 
-#include <drm/drm_hdcp.h>
+#include <drm/display/drm_hdcp.h>
 
 /* me_hdcp_status: Enumeration of all HDCP Status Codes */
 enum me_hdcp_status {

@@ -76,6 +76,7 @@ config WIREGUARD
 	tristate "WireGuard secure network tunnel"
 	depends on NET && INET
 	depends on IPV6 || !IPV6
+	depends on !KMSAN # KMSAN doesn't support the crypto configs below
 	select NET_UDP_TUNNEL
 	select DST_CACHE
 	select CRYPTO
@@ -85,8 +86,6 @@ config WIREGUARD
 	select CRYPTO_POLY1305_X86_64 if X86 && 64BIT
 	select CRYPTO_BLAKE2S_X86 if X86 && 64BIT
 	select CRYPTO_CURVE25519_X86 if X86 && 64BIT
-	select ARM_CRYPTO if ARM
-	select ARM64_CRYPTO if ARM64
 	select CRYPTO_CHACHA20_NEON if ARM || (ARM64 && KERNEL_MODE_NEON)
 	select CRYPTO_POLY1305_NEON if ARM64 && KERNEL_MODE_NEON
 	select CRYPTO_POLY1305_ARM if ARM
@@ -94,6 +93,7 @@ config WIREGUARD
 	select CRYPTO_CURVE25519_NEON if ARM && KERNEL_MODE_NEON
 	select CRYPTO_CHACHA_MIPS if CPU_MIPS32_R2
 	select CRYPTO_POLY1305_MIPS if MIPS
+	select CRYPTO_CHACHA_S390 if S390
 	help
 	  WireGuard is a secure, fast, and easy to use replacement for IPSec
 	  that uses modern cryptography and clever networking tricks. It's
@@ -498,6 +498,10 @@ config NET_SB1000
 	  If you don't have this card, of course say N.
 
 source "drivers/net/phy/Kconfig"
+
+source "drivers/net/pse-pd/Kconfig"
+
+source "drivers/net/can/Kconfig"
 
 source "drivers/net/mctp/Kconfig"
 

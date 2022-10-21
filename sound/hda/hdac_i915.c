@@ -116,16 +116,21 @@ static int i915_component_master_match(struct device *dev, int subcomponent,
 	return 0;
 }
 
-/* check whether intel graphics is present */
-static bool i915_gfx_present(void)
+/* check whether Intel graphics is present and reachable */
+static int i915_gfx_present(struct pci_dev *hdac_pci)
 {
-	static const struct pci_device_id ids[] = {
-		{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_ANY_ID),
-		  .class = PCI_BASE_CLASS_DISPLAY << 16,
-		  .class_mask = 0xff << 16 },
-		{}
-	};
-	return pci_dev_present(ids);
+	struct pci_dev *display_dev = NULL;
+
+	for_each_pci_dev(display_dev) {
+		if (display_dev->vendor == PCI_VENDOR_ID_INTEL &&
+		    (display_dev->class >> 16) == PCI_BASE_CLASS_DISPLAY &&
+		    connectivity_check(display_dev, hdac_pci)) {
+			pci_dev_put(display_dev);
+			return true;
+		}
+	}
+
+	return false;
 }
 
 /**
@@ -145,7 +150,7 @@ int snd_hdac_i915_init(struct hdac_bus *bus)
 	struct drm_audio_component *acomp;
 	int err;
 
-	if (!i915_gfx_present())
+	if (!i915_gfx_present(to_pci_dev(bus->dev)))
 		return -ENODEV;
 
 	err = snd_hdac_acomp_init(bus, NULL,
@@ -160,8 +165,8 @@ int snd_hdac_i915_init(struct hdac_bus *bus)
 		if (!IS_ENABLED(CONFIG_MODULES) ||
 		    !request_module("i915")) {
 			/* 60s timeout */
-			wait_for_completion_timeout(&acomp->master_bind_complete,
-						    msecs_to_jiffies(60 * 1000));
+			wait_for_completion_killable_timeout(&acomp->master_bind_complete,
+							     msecs_to_jiffies(60 * 1000));
 		}
 	}
 	if (!acomp->ops) {

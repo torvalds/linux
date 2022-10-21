@@ -17,6 +17,7 @@
 
 #define INTEL_PT_IN_TX		(1 << 0)
 #define INTEL_PT_ABORT_TX	(1 << 1)
+#define INTEL_PT_IFLAG		(1 << 2)
 #define INTEL_PT_ASYNC		(1 << 2)
 #define INTEL_PT_FUP_IP		(1 << 3)
 #define INTEL_PT_SAMPLE_IPC	(1 << 4)
@@ -35,6 +36,8 @@ enum intel_pt_sample_type {
 	INTEL_PT_TRACE_END	= 1 << 10,
 	INTEL_PT_BLK_ITEMS	= 1 << 11,
 	INTEL_PT_PSB_EVT	= 1 << 12,
+	INTEL_PT_EVT		= 1 << 13,
+	INTEL_PT_IFLAG_CHG	= 1 << 14,
 };
 
 enum intel_pt_period_type {
@@ -55,6 +58,7 @@ enum {
 	INTEL_PT_ERR_LOST,
 	INTEL_PT_ERR_UNK,
 	INTEL_PT_ERR_NELOOP,
+	INTEL_PT_ERR_EPTW,
 	INTEL_PT_ERR_MAX,
 };
 
@@ -209,10 +213,24 @@ struct intel_pt_vmcs_info {
 	bool error_printed;
 };
 
+/*
+ * Maximum number of event trace data in one go, assuming at most 1 per type
+ * and 6-bits of type in the EVD packet.
+ */
+#define INTEL_PT_MAX_EVDS 64
+
+/* Event trace data from EVD packet */
+struct intel_pt_evd {
+	int type;
+	uint64_t payload;
+};
+
 struct intel_pt_state {
 	enum intel_pt_sample_type type;
 	bool from_nr;
 	bool to_nr;
+	bool from_iflag;
+	bool to_iflag;
 	int err;
 	uint64_t from_ip;
 	uint64_t to_ip;
@@ -234,6 +252,10 @@ struct intel_pt_state {
 	int insn_len;
 	char insn[INTEL_PT_INSN_BUF_SZ];
 	struct intel_pt_blk_items items;
+	int cfe_type;
+	int cfe_vector;
+	int evd_cnt;
+	struct intel_pt_evd *evd;
 };
 
 struct intel_pt_insn;

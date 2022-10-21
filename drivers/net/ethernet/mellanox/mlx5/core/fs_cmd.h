@@ -38,7 +38,7 @@
 struct mlx5_flow_cmds {
 	int (*create_flow_table)(struct mlx5_flow_root_namespace *ns,
 				 struct mlx5_flow_table *ft,
-				 unsigned int size,
+				 struct mlx5_flow_table_attr *ft_attr,
 				 struct mlx5_flow_table *next_ft);
 	int (*destroy_flow_table)(struct mlx5_flow_root_namespace *ns,
 				  struct mlx5_flow_table *ft);
@@ -101,6 +101,9 @@ struct mlx5_flow_cmds {
 				    u16 format_id, u32 *match_mask);
 	int (*destroy_match_definer)(struct mlx5_flow_root_namespace *ns,
 				     int definer_id);
+
+	u32 (*get_capabilities)(struct mlx5_flow_root_namespace *ns,
+				enum fs_flow_table_type ft_type);
 };
 
 int mlx5_cmd_fc_alloc(struct mlx5_core_dev *dev, u32 *id);

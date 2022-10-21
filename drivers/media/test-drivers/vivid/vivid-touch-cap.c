@@ -210,7 +210,7 @@ static void vivid_fill_buff_noise(__s16 *tch_buf, int size)
 
 	/* Fill 10% of the values within range -3 and 3, zero the others */
 	for (i = 0; i < size; i++) {
-		unsigned int rand = get_random_int();
+		unsigned int rand = get_random_u32();
 
 		if (rand % 10)
 			tch_buf[i] = 0;
@@ -221,7 +221,7 @@ static void vivid_fill_buff_noise(__s16 *tch_buf, int size)
 
 static inline int get_random_pressure(void)
 {
-	return get_random_int() % VIVID_PRESSURE_LIMIT;
+	return prandom_u32_max(VIVID_PRESSURE_LIMIT);
 }
 
 static void vivid_tch_buf_set(struct v4l2_pix_format *f,
@@ -262,7 +262,7 @@ void vivid_fillbuff_tch(struct vivid_dev *dev, struct vivid_buffer *buf)
 
 	__s16 *tch_buf = vb2_plane_vaddr(&buf->vb.vb2_buf, 0);
 
-	buf->vb.sequence = dev->touch_cap_seq_count;
+	buf->vb.sequence = dev->touch_cap_with_seq_wrap_count;
 	test_pattern = (buf->vb.sequence / TCH_SEQ_COUNT) % TEST_CASE_MAX;
 	test_pat_idx = buf->vb.sequence % TCH_SEQ_COUNT;
 
@@ -272,7 +272,7 @@ void vivid_fillbuff_tch(struct vivid_dev *dev, struct vivid_buffer *buf)
 		return;
 
 	if (test_pat_idx == 0)
-		dev->tch_pat_random = get_random_int();
+		dev->tch_pat_random = get_random_u32();
 	rand = dev->tch_pat_random;
 
 	switch (test_pattern) {

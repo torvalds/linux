@@ -45,30 +45,8 @@ MODULE_ALIAS_NFCT_HELPER("pptp");
 
 static DEFINE_SPINLOCK(nf_pptp_lock);
 
-int
-(*nf_nat_pptp_hook_outbound)(struct sk_buff *skb,
-			     struct nf_conn *ct, enum ip_conntrack_info ctinfo,
-			     unsigned int protoff, struct PptpControlHeader *ctlh,
-			     union pptp_ctrl_union *pptpReq) __read_mostly;
-EXPORT_SYMBOL_GPL(nf_nat_pptp_hook_outbound);
-
-int
-(*nf_nat_pptp_hook_inbound)(struct sk_buff *skb,
-			    struct nf_conn *ct, enum ip_conntrack_info ctinfo,
-			    unsigned int protoff, struct PptpControlHeader *ctlh,
-			    union pptp_ctrl_union *pptpReq) __read_mostly;
-EXPORT_SYMBOL_GPL(nf_nat_pptp_hook_inbound);
-
-void
-(*nf_nat_pptp_hook_exp_gre)(struct nf_conntrack_expect *expect_orig,
-			    struct nf_conntrack_expect *expect_reply)
-			    __read_mostly;
-EXPORT_SYMBOL_GPL(nf_nat_pptp_hook_exp_gre);
-
-void
-(*nf_nat_pptp_hook_expectfn)(struct nf_conn *ct,
-			     struct nf_conntrack_expect *exp) __read_mostly;
-EXPORT_SYMBOL_GPL(nf_nat_pptp_hook_expectfn);
+const struct nf_nat_pptp_hook __rcu *nf_nat_pptp_hook;
+EXPORT_SYMBOL_GPL(nf_nat_pptp_hook);
 
 #if defined(DEBUG) || defined(CONFIG_DYNAMIC_DEBUG)
 /* PptpControlMessageType names */
@@ -111,8 +89,8 @@ EXPORT_SYMBOL(pptp_msg_name);
 static void pptp_expectfn(struct nf_conn *ct,
 			 struct nf_conntrack_expect *exp)
 {
+	const struct nf_nat_pptp_hook *hook;
 	struct net *net = nf_ct_net(ct);
-	typeof(nf_nat_pptp_hook_expectfn) nf_nat_pptp_expectfn;
 	pr_debug("increasing timeouts\n");
 
 	/* increase timeout of GRE data channel conntrack entry */
@@ -122,9 +100,9 @@ static void pptp_expectfn(struct nf_conn *ct,
 	/* Can you see how rusty this code is, compared with the pre-2.6.11
 	 * one? That's what happened to my shiny newnat of 2002 ;( -HW */
 
-	nf_nat_pptp_expectfn = rcu_dereference(nf_nat_pptp_hook_expectfn);
-	if (nf_nat_pptp_expectfn && ct->master->status & IPS_NAT_MASK)
-		nf_nat_pptp_expectfn(ct, exp);
+	hook = rcu_dereference(nf_nat_pptp_hook);
+	if (hook && ct->master->status & IPS_NAT_MASK)
+		hook->expectfn(ct, exp);
 	else {
 		struct nf_conntrack_tuple inv_t;
 		struct nf_conntrack_expect *exp_other;
@@ -209,9 +187,9 @@ static void pptp_destroy_siblings(struct nf_conn *ct)
 static int exp_gre(struct nf_conn *ct, __be16 callid, __be16 peer_callid)
 {
 	struct nf_conntrack_expect *exp_orig, *exp_reply;
+	const struct nf_nat_pptp_hook *hook;
 	enum ip_conntrack_dir dir;
 	int ret = 1;
-	typeof(nf_nat_pptp_hook_exp_gre) nf_nat_pptp_exp_gre;
 
 	exp_orig = nf_ct_expect_alloc(ct);
 	if (exp_orig == NULL)
@@ -239,9 +217,9 @@ static int exp_gre(struct nf_conn *ct, __be16 callid, __be16 peer_callid)
 			  IPPROTO_GRE, &callid, &peer_callid);
 	exp_reply->expectfn = pptp_expectfn;
 
-	nf_nat_pptp_exp_gre = rcu_dereference(nf_nat_pptp_hook_exp_gre);
-	if (nf_nat_pptp_exp_gre && ct->status & IPS_NAT_MASK)
-		nf_nat_pptp_exp_gre(exp_orig, exp_reply);
+	hook = rcu_dereference(nf_nat_pptp_hook);
+	if (hook && ct->status & IPS_NAT_MASK)
+		hook->exp_gre(exp_orig, exp_reply);
 	if (nf_ct_expect_related(exp_orig, 0) != 0)
 		goto out_put_both;
 	if (nf_ct_expect_related(exp_reply, 0) != 0)
@@ -279,9 +257,9 @@ pptp_inbound_pkt(struct sk_buff *skb, unsigned int protoff,
 		 enum ip_conntrack_info ctinfo)
 {
 	struct nf_ct_pptp_master *info = nfct_help_data(ct);
+	const struct nf_nat_pptp_hook *hook;
 	u_int16_t msg;
 	__be16 cid = 0, pcid = 0;
-	typeof(nf_nat_pptp_hook_inbound) nf_nat_pptp_inbound;
 
 	msg = ntohs(ctlh->messageType);
 	pr_debug("inbound control message %s\n", pptp_msg_name(msg));
@@ -383,10 +361,9 @@ pptp_inbound_pkt(struct sk_buff *skb, unsigned int protoff,
 		goto invalid;
 	}
 
-	nf_nat_pptp_inbound = rcu_dereference(nf_nat_pptp_hook_inbound);
-	if (nf_nat_pptp_inbound && ct->status & IPS_NAT_MASK)
-		return nf_nat_pptp_inbound(skb, ct, ctinfo,
-					   protoff, ctlh, pptpReq);
+	hook = rcu_dereference(nf_nat_pptp_hook);
+	if (hook && ct->status & IPS_NAT_MASK)
+		return hook->inbound(skb, ct, ctinfo, protoff, ctlh, pptpReq);
 	return NF_ACCEPT;
 
 invalid:
@@ -407,9 +384,9 @@ pptp_outbound_pkt(struct sk_buff *skb, unsigned int protoff,
 		  enum ip_conntrack_info ctinfo)
 {
 	struct nf_ct_pptp_master *info = nfct_help_data(ct);
+	const struct nf_nat_pptp_hook *hook;
 	u_int16_t msg;
 	__be16 cid = 0, pcid = 0;
-	typeof(nf_nat_pptp_hook_outbound) nf_nat_pptp_outbound;
 
 	msg = ntohs(ctlh->messageType);
 	pr_debug("outbound control message %s\n", pptp_msg_name(msg));
@@ -479,10 +456,9 @@ pptp_outbound_pkt(struct sk_buff *skb, unsigned int protoff,
 		goto invalid;
 	}
 
-	nf_nat_pptp_outbound = rcu_dereference(nf_nat_pptp_hook_outbound);
-	if (nf_nat_pptp_outbound && ct->status & IPS_NAT_MASK)
-		return nf_nat_pptp_outbound(skb, ct, ctinfo,
-					    protoff, ctlh, pptpReq);
+	hook = rcu_dereference(nf_nat_pptp_hook);
+	if (hook && ct->status & IPS_NAT_MASK)
+		return hook->outbound(skb, ct, ctinfo, protoff, ctlh, pptpReq);
 	return NF_ACCEPT;
 
 invalid:

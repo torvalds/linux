@@ -102,7 +102,7 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	rtc: m41t00@68 {
+	rtc: rtc@68 {
 		compatible = "st,m41t00";
 		reg = <0x68>;
 	};
@@ -174,7 +174,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_interrupt_fpga>;
 			interrupt-parent = <&gpio2>;
-			interrupts= <9 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <9 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
 			#interrupt-cells = <1>;
 		};

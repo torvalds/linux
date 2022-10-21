@@ -239,13 +239,6 @@ void die_if_kernel(char *str, struct pt_regs *regs, long err)
 	/* unlock the pdc lock if necessary */
 	pdc_emergency_unlock();
 
-	/* maybe the kernel hasn't booted very far yet and hasn't been able 
-	 * to initialize the serial or STI console. In that case we should 
-	 * re-enable the pdc console, so that the user will be able to 
-	 * identify the problem. */
-	if (!console_drivers)
-		pdc_console_restart();
-	
 	if (err)
 		printk(KERN_CRIT "%s (pid %d): %s (code %ld)\n",
 			current->comm, task_pid_nr(current), str, err);
@@ -302,7 +295,10 @@ static void handle_break(struct pt_regs *regs)
 		parisc_kprobe_break_handler(regs);
 		return;
 	}
-
+	if (unlikely(iir == PARISC_KPROBES_BREAK_INSN2)) {
+		parisc_kprobe_ss_handler(regs);
+		return;
+	}
 #endif
 
 #ifdef CONFIG_KGDB
@@ -426,10 +422,6 @@ void parisc_terminate(char *msg, struct pt_regs *regs, int code, unsigned long o
 	/* unlock the pdc lock if necessary */
 	pdc_emergency_unlock();
 
-	/* restart pdc console if necessary */
-	if (!console_drivers)
-		pdc_console_restart();
-
 	/* Not all paths will gutter the processor... */
 	switch(code){
 
@@ -466,7 +458,7 @@ void parisc_terminate(char *msg, struct pt_regs *regs, int code, unsigned long o
 	 * panic notifiers, and we should call panic
 	 * directly from the location that we wish. 
 	 * e.g. We should not call panic from
-	 * parisc_terminate, but rather the oter way around.
+	 * parisc_terminate, but rather the other way around.
 	 * This hack works, prints the panic message twice,
 	 * and it enables reboot timers!
 	 */
@@ -479,9 +471,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	unsigned long fault_space = 0;
 	int si_code;
 
-	if (code == 1)
-	    pdc_console_restart();  /* switch back to pdc if HPMC */
-	else if (!irqs_disabled_flags(regs->gr[0]))
+	if (!irqs_disabled_flags(regs->gr[0]))
 	    local_irq_enable();
 
 	/* Security check:
@@ -538,11 +528,6 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	case  3:
 		/* Recovery counter trap */
 		regs->gr[0] &= ~PSW_R;
-
-#ifdef CONFIG_KPROBES
-		if (parisc_kprobe_ss_handler(regs))
-			return;
-#endif
 
 #ifdef CONFIG_KGDB
 		if (kgdb_single_step) {
@@ -662,6 +647,8 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 			 by hand. Technically we need to emulate:
 			 fdc,fdce,pdc,"fic,4f",prober,probeir,probew, probeiw
 		*/
+		if (code == 17 && handle_nadtlb_fault(regs))
+			return;
 		fault_address = regs->ior;
 		fault_space = regs->isr;
 		break;

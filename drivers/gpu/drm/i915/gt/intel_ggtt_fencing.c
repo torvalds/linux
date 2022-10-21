@@ -3,10 +3,15 @@
  * Copyright © 2008-2015 Intel Corporation
  */
 
+#include <linux/highmem.h>
+
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "i915_scatterlist.h"
 #include "i915_pvinfo.h"
 #include "i915_vgpu.h"
+#include "intel_gt_regs.h"
+#include "intel_mchbar_regs.h"
 
 /**
  * DOC: fence register handling
@@ -425,7 +430,6 @@ int i915_vma_pin_fence(struct i915_vma *vma)
 	 * must keep the device awake whilst using the fence.
 	 */
 	assert_rpm_wakelock_held(vma->vm->gt->uncore->rpm);
-	GEM_BUG_ON(!i915_vma_is_pinned(vma));
 	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
 
 	err = mutex_lock_interruptible(&vma->vm->mutex);
@@ -723,13 +727,13 @@ static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 		 * bit17 dependent, and so we need to also prevent the pages
 		 * from being moved.
 		 */
-		i915->quirks |= QUIRK_PIN_SWIZZLED_PAGES;
+		i915->gem_quirks |= GEM_QUIRK_PIN_SWIZZLED_PAGES;
 		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
 		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 	}
 
-	i915->ggtt.bit_6_swizzle_x = swizzle_x;
-	i915->ggtt.bit_6_swizzle_y = swizzle_y;
+	to_gt(i915)->ggtt->bit_6_swizzle_x = swizzle_x;
+	to_gt(i915)->ggtt->bit_6_swizzle_y = swizzle_y;
 }
 
 /*
@@ -838,7 +842,6 @@ void intel_ggtt_init_fences(struct i915_ggtt *ggtt)
 
 	INIT_LIST_HEAD(&ggtt->fence_list);
 	INIT_LIST_HEAD(&ggtt->userfault_list);
-	intel_wakeref_auto_init(&ggtt->userfault_wakeref, uncore->rpm);
 
 	detect_bit_6_swizzle(ggtt);
 
@@ -896,7 +899,7 @@ void intel_gt_init_swizzling(struct intel_gt *gt)
 	struct intel_uncore *uncore = gt->uncore;
 
 	if (GRAPHICS_VER(i915) < 5 ||
-	    i915->ggtt.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_NONE)
+	    to_gt(i915)->ggtt->bit_6_swizzle_x == I915_BIT_6_SWIZZLE_NONE)
 		return;
 
 	intel_uncore_rmw(uncore, DISP_ARB_CTL, 0, DISP_TILE_SURFACE_SWIZZLING);

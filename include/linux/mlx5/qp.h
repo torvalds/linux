@@ -162,6 +162,8 @@ enum {
 	MLX5_SEND_WQE_MAX_WQEBBS	= 16,
 };
 
+#define MLX5_SEND_WQE_MAX_SIZE (MLX5_SEND_WQE_MAX_WQEBBS * MLX5_SEND_WQE_BB)
+
 enum {
 	MLX5_WQE_FMR_PERM_LOCAL_READ	= 1 << 27,
 	MLX5_WQE_FMR_PERM_LOCAL_WRITE	= 1 << 28,
@@ -202,6 +204,9 @@ struct mlx5_wqe_fmr_seg {
 struct mlx5_wqe_ctrl_seg {
 	__be32			opmod_idx_opcode;
 	__be32			qpn_ds;
+
+	struct_group(trailer,
+
 	u8			signature;
 	u8			rsvd[2];
 	u8			fm_ce_se;
@@ -211,6 +216,8 @@ struct mlx5_wqe_ctrl_seg {
 		__be32		umr_mkey;
 		__be32		tis_tir_num;
 	};
+
+	); /* end of trailer group */
 };
 
 #define MLX5_WQE_CTRL_DS_MASK 0x3f
@@ -247,6 +254,7 @@ enum {
 
 enum {
 	MLX5_ETH_WQE_FT_META_IPSEC = BIT(0),
+	MLX5_ETH_WQE_FT_META_MACSEC = BIT(1),
 };
 
 struct mlx5_wqe_eth_seg {
@@ -466,6 +474,12 @@ struct mlx5_mtt {
 
 struct mlx5_klm {
 	__be32		bcount;
+	__be32		key;
+	__be64		va;
+};
+
+struct mlx5_ksm {
+	__be32		reserved;
 	__be32		key;
 	__be64		va;
 };

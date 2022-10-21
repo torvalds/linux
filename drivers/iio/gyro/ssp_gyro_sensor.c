@@ -113,7 +113,6 @@ static int ssp_gyro_probe(struct platform_device *pdev)
 	indio_dev->available_scan_masks = ssp_gyro_scan_mask;
 
 	ret = devm_iio_kfifo_buffer_setup(&pdev->dev, indio_dev,
-					  INDIO_BUFFER_SOFTWARE,
 					  &ssp_gyro_buffer_ops);
 	if (ret)
 		return ret;
@@ -142,3 +141,4 @@ module_platform_driver(ssp_gyro_driver);
 MODULE_AUTHOR("Karol Wrona <k.wrona@samsung.com>");
 MODULE_DESCRIPTION("Samsung sensorhub gyroscopes driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_SSP_SENSORS);

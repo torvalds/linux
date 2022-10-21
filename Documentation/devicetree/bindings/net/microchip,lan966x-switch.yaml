@@ -38,6 +38,8 @@ properties:
       - description: register based extraction
       - description: frame dma based extraction
       - description: analyzer interrupt
+      - description: ptp interrupt
+      - description: ptp external interrupt
 
   interrupt-names:
     minItems: 1
@@ -45,16 +47,16 @@ properties:
       - const: xtr
       - const: fdma
       - const: ana
+      - const: ptp
+      - const: ptp-ext
 
   resets:
     items:
       - description: Reset controller used for switch core reset (soft reset)
-      - description: Reset controller used for releasing the phy from reset
 
   reset-names:
     items:
       - const: switch
-      - const: phy
 
   ethernet-ports:
     type: object
@@ -143,8 +145,8 @@ examples:
       reg-names = "cpu", "gcb";
       interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
       interrupt-names = "xtr";
-      resets = <&switch_reset 0>, <&phy_reset 0>;
-      reset-names = "switch", "phy";
+      resets = <&switch_reset 0>;
+      reset-names = "switch";
       ethernet-ports {
         #address-cells = <1>;
         #size-cells = <0>;

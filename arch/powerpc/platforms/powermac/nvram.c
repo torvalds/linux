@@ -17,9 +17,9 @@
 #include <linux/memblock.h>
 #include <linux/completion.h>
 #include <linux/spinlock.h>
+#include <linux/of_address.h>
 #include <asm/sections.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/nvram.h>
 
@@ -71,7 +71,7 @@ struct core99_header {
 static int nvram_naddrs;
 static volatile unsigned char __iomem *nvram_data;
 static int is_core_99;
-static int core99_bank = 0;
+static int core99_bank;
 static int nvram_partitions[3];
 // XXX Turn that into a sem
 static DEFINE_RAW_SPINLOCK(nv_lock);

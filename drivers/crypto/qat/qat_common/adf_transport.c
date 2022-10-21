@@ -8,6 +8,9 @@
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
 
+#define ADF_MAX_RING_THRESHOLD		80
+#define ADF_PERCENT(tot, percent)	(((tot) * (percent)) / 100)
+
 static inline u32 adf_modulo(u32 data, u32 shift)
 {
 	u32 div = data >> shift;
@@ -75,6 +78,11 @@ static void adf_disable_ring_irq(struct adf_etr_bank_data *bank, u32 ring)
 	spin_unlock_bh(&bank->lock);
 	csr_ops->write_csr_int_col_en(bank->csr_addr, bank->bank_number,
 				      bank->irq_mask);
+}
+
+bool adf_ring_nearly_full(struct adf_etr_ring_data *ring)
+{
+	return atomic_read(ring->inflights) > ring->threshold;
 }
 
 int adf_send_message(struct adf_etr_ring_data *ring, u32 *msg)
@@ -217,6 +225,7 @@ int adf_create_ring(struct adf_accel_dev *accel_dev, const char *section,
 	struct adf_etr_bank_data *bank;
 	struct adf_etr_ring_data *ring;
 	char val[ADF_CFG_MAX_VAL_LEN_IN_BYTES];
+	int max_inflights;
 	u32 ring_num;
 	int ret;
 
@@ -263,6 +272,8 @@ int adf_create_ring(struct adf_accel_dev *accel_dev, const char *section,
 	ring->ring_size = adf_verify_ring_size(msg_size, num_msgs);
 	ring->head = 0;
 	ring->tail = 0;
+	max_inflights = ADF_MAX_INFLIGHTS(ring->ring_size, ring->msg_size);
+	ring->threshold = ADF_PERCENT(max_inflights, ADF_MAX_RING_THRESHOLD);
 	atomic_set(ring->inflights, 0);
 	ret = adf_init_ring(ring);
 	if (ret)

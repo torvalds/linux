@@ -542,18 +542,38 @@ static const struct pinctrl_pin_desc uniphier_ld20_pins[] = {
 			     175, UNIPHIER_PIN_PULL_DOWN),
 };
 
-static const unsigned ain1_pins[] = {150, 151, 152, 153, 154, 155, 156};
-static const int ain1_muxvals[] = {4, 4, 4, 4, 4, 4, 4};
-static const unsigned ain2_pins[] = {116, 117, 118, 119, 120, 121, 122};
-static const int ain2_muxvals[] = {26, 26, 26, 26, 26, 26, 26};
+static const unsigned ain1_pins[] = {150, 151, 152, 153};
+static const int ain1_muxvals[] = {4, 4, 4, 4};
+static const unsigned ain1_dat2_pins[] = {154};
+static const int ain1_dat2_muxvals[] = {4};
+static const unsigned ain1_dat4_pins[] = {155, 156};
+static const int ain1_dat4_muxvals[] = {4, 4};
+static const unsigned ain2_pins[] = {116, 117, 118, 119};
+static const int ain2_muxvals[] = {26, 26, 26, 26};
+static const unsigned ain2_dat2_pins[] = {120};
+static const int ain2_dat2_muxvals[] = {26};
+static const unsigned ain2_dat4_pins[] = {121, 122};
+static const int ain2_dat4_muxvals[] = {26, 26};
 static const unsigned ain3_pins[] = {116, 117, 118, 119};
 static const int ain3_muxvals[] = {27, 27, 27, 27};
-static const unsigned aout1_pins[] = {137, 138, 139, 140, 141, 142};
-static const int aout1_muxvals[] = {0, 0, 0, 0, 0, 0};
-static const unsigned aout1b_pins[] = {150, 151, 152, 153, 154, 155, 156};
-static const int aout1b_muxvals[] = {1, 1, 1, 1, 1, 1, 1};
-static const unsigned aout2_pins[] = {165, 157, 162, 158, 159, 160, 161};
-static const int aout2_muxvals[] = {2, 2, 2, 1, 1, 1, 1};
+static const unsigned aout1_pins[] = {137, 138, 139, 140};
+static const int aout1_muxvals[] = {0, 0, 0, 0};
+static const unsigned aout1_dat2_pins[] = {141};
+static const int aout1_dat2_muxvals[] = {0};
+static const unsigned aout1_dat4_pins[] = {142, 156};
+static const int aout1_dat4_muxvals[] = {0, 1};
+static const unsigned aout1b_pins[] = {150, 151, 152, 153};
+static const int aout1b_muxvals[] = {1, 1, 1, 1};
+static const unsigned aout1b_dat2_pins[] = {154};
+static const int aout1b_dat2_muxvals[] = {1};
+static const unsigned aout1b_dat4_pins[] = {155, 156};
+static const int aout1b_dat4_muxvals[] = {1, 1};
+static const unsigned aout2_pins[] = {165, 157, 162, 158};
+static const int aout2_muxvals[] = {2, 2, 2, 1};
+static const unsigned aout2_dat2_pins[] = {159};
+static const int aout2_dat2_muxvals[] = {1};
+static const unsigned aout2_dat4_pins[] = {160, 161};
+static const int aout2_dat4_muxvals[] = {1, 1};
 static const unsigned aout3_pins[] = {166, 167, 168, 163};
 static const int aout3_muxvals[] = {2, 2, 2, 1};
 static const unsigned aout4_pins[] = {169, 170, 171, 164};
@@ -682,11 +702,21 @@ static const unsigned int gpio_range2_pins[] = {
 
 static const struct uniphier_pinctrl_group uniphier_ld20_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(ain1),
+	UNIPHIER_PINCTRL_GROUP(ain1_dat2),
+	UNIPHIER_PINCTRL_GROUP(ain1_dat4),
 	UNIPHIER_PINCTRL_GROUP(ain2),
+	UNIPHIER_PINCTRL_GROUP(ain2_dat2),
+	UNIPHIER_PINCTRL_GROUP(ain2_dat4),
 	UNIPHIER_PINCTRL_GROUP(ain3),
 	UNIPHIER_PINCTRL_GROUP(aout1),
+	UNIPHIER_PINCTRL_GROUP(aout1_dat2),
+	UNIPHIER_PINCTRL_GROUP(aout1_dat4),
 	UNIPHIER_PINCTRL_GROUP(aout1b),
+	UNIPHIER_PINCTRL_GROUP(aout1b_dat2),
+	UNIPHIER_PINCTRL_GROUP(aout1b_dat4),
 	UNIPHIER_PINCTRL_GROUP(aout2),
+	UNIPHIER_PINCTRL_GROUP(aout2_dat2),
+	UNIPHIER_PINCTRL_GROUP(aout2_dat4),
 	UNIPHIER_PINCTRL_GROUP(aout3),
 	UNIPHIER_PINCTRL_GROUP(aout4),
 	UNIPHIER_PINCTRL_GROUP(aoutiec1),
@@ -734,11 +764,17 @@ static const struct uniphier_pinctrl_group uniphier_ld20_groups[] = {
 	UNIPHIER_PINCTRL_GROUP_GPIO(gpio_range2),
 };
 
-static const char * const ain1_groups[] = {"ain1"};
-static const char * const ain2_groups[] = {"ain2"};
+static const char * const ain1_groups[] = {"ain1", "ain1_dat2",
+					   "ain1_dat4"};
+static const char * const ain2_groups[] = {"ain2", "ain2_dat2",
+					   "ain2_dat4"};
 static const char * const ain3_groups[] = {"ain3"};
-static const char * const aout1_groups[] = {"aout1", "aout1b"};
-static const char * const aout2_groups[] = {"aout2"};
+static const char * const aout1_groups[] = {"aout1", "aout1_dat2",
+					    "aout1_dat4",
+					    "aout1b", "aout1b_dat2",
+					    "aout1b_dat4"};
+static const char * const aout2_groups[] = {"aout2", "aout2_dat2",
+					    "aout2_dat4"};
 static const char * const aout3_groups[] = {"aout3"};
 static const char * const aout4_groups[] = {"aout4"};
 static const char * const aoutiec1_groups[] = {"aoutiec1"};

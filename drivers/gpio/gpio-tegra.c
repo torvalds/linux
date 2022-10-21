@@ -443,15 +443,12 @@ static int tegra_gpio_child_to_parent_hwirq(struct gpio_chip *chip,
 	return 0;
 }
 
-static void *tegra_gpio_populate_parent_fwspec(struct gpio_chip *chip,
-					       unsigned int parent_hwirq,
-					       unsigned int parent_type)
+static int tegra_gpio_populate_parent_fwspec(struct gpio_chip *chip,
+					     union gpio_irq_fwspec *gfwspec,
+					     unsigned int parent_hwirq,
+					     unsigned int parent_type)
 {
-	struct irq_fwspec *fwspec;
-
-	fwspec = kmalloc(sizeof(*fwspec), GFP_KERNEL);
-	if (!fwspec)
-		return NULL;
+	struct irq_fwspec *fwspec = &gfwspec->fwspec;
 
 	fwspec->fwnode = chip->irq.parent_domain->fwnode;
 	fwspec->param_count = 3;
@@ -459,7 +456,7 @@ static void *tegra_gpio_populate_parent_fwspec(struct gpio_chip *chip,
 	fwspec->param[1] = parent_hwirq;
 	fwspec->param[2] = parent_type;
 
-	return fwspec;
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -691,7 +688,6 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	tgi->gc.base			= 0;
 	tgi->gc.ngpio			= tgi->bank_count * 32;
 	tgi->gc.parent			= &pdev->dev;
-	tgi->gc.of_node			= pdev->dev.of_node;
 
 	tgi->ic.name			= "GPIO";
 	tgi->ic.irq_ack			= tegra_gpio_irq_ack;

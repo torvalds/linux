@@ -2,6 +2,7 @@
 menuconfig ARCH_GEMINI
 	bool "Cortina Systems Gemini"
 	depends on ARCH_MULTI_V4
+	depends on CPU_LITTLE_ENDIAN
 	select ARCH_HAS_RESET_CONTROLLER
 	select ARM_AMBA
 	select ARM_APPENDED_DTB # Old Redboot bootloaders deployed

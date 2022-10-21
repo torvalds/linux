@@ -593,7 +593,7 @@ static int test__hists_output(struct test_suite *test __maybe_unused, int subtes
 
 	TEST_ASSERT_VAL("No memory", evlist);
 
-	err = parse_events(evlist, "cpu-clock", NULL);
+	err = parse_event(evlist, "cpu-clock");
 	if (err)
 		goto out;
 	err = TEST_FAIL;

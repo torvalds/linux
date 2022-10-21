@@ -10,13 +10,15 @@
  *          Hans de Goede <hdegoede@redhat.com>
  */
 
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 #include <linux/export.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
@@ -267,8 +269,8 @@ static int vbox_primary_atomic_check(struct drm_plane *plane,
 	}
 
 	return drm_atomic_helper_check_plane_state(new_state, crtc_state,
-						   DRM_PLANE_HELPER_NO_SCALING,
-						   DRM_PLANE_HELPER_NO_SCALING,
+						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_NO_SCALING,
 						   false, true);
 }
 
@@ -349,8 +351,8 @@ static int vbox_cursor_atomic_check(struct drm_plane *plane,
 	}
 
 	ret = drm_atomic_helper_check_plane_state(new_state, crtc_state,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
 						  true, true);
 	if (ret)
 		return ret;
@@ -398,7 +400,7 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 	u32 height = new_state->crtc_h;
 	struct drm_shadow_plane_state *shadow_plane_state =
 		to_drm_shadow_plane_state(new_state);
-	struct dma_buf_map map = shadow_plane_state->data[0];
+	struct iosys_map map = shadow_plane_state->data[0];
 	u8 *src = map.vaddr; /* TODO: Use mapping abstraction properly */
 	size_t data_size, mask_size;
 	u32 flags;
@@ -475,7 +477,7 @@ static const struct drm_plane_helper_funcs vbox_cursor_helper_funcs = {
 static const struct drm_plane_funcs vbox_cursor_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
-	.destroy	= drm_primary_helper_destroy,
+	.destroy	= drm_plane_helper_destroy,
 	DRM_GEM_SHADOW_PLANE_FUNCS,
 };
 
@@ -494,7 +496,7 @@ static const struct drm_plane_helper_funcs vbox_primary_helper_funcs = {
 static const struct drm_plane_funcs vbox_primary_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
-	.destroy	= drm_primary_helper_destroy,
+	.destroy	= drm_plane_helper_destroy,
 	.reset		= drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,

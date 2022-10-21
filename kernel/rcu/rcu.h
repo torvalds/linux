@@ -12,16 +12,17 @@
 
 #include <trace/events/rcu.h>
 
-/* Offset to allow distinguishing irq vs. task-based idle entry/exit. */
-#define DYNTICK_IRQ_NONIDLE	((LONG_MAX / 2) + 1)
-
-
 /*
  * Grace-period counter management.
  */
 
 #define RCU_SEQ_CTR_SHIFT	2
 #define RCU_SEQ_STATE_MASK	((1 << RCU_SEQ_CTR_SHIFT) - 1)
+
+/* Low-order bit definition for polled grace-period APIs. */
+#define RCU_GET_STATE_COMPLETED	0x1
+
+extern int sysctl_sched_rt_runtime;
 
 /*
  * Return the counter portion of a sequence number previously returned
@@ -118,6 +119,18 @@ static inline bool rcu_seq_done(unsigned long *sp, unsigned long s)
 }
 
 /*
+ * Given a snapshot from rcu_seq_snap(), determine whether or not a
+ * full update-side operation has occurred, but do not allow the
+ * (ULONG_MAX / 2) safety-factor/guard-band.
+ */
+static inline bool rcu_seq_done_exact(unsigned long *sp, unsigned long s)
+{
+	unsigned long cur_s = READ_ONCE(*sp);
+
+	return ULONG_CMP_GE(cur_s, s) || ULONG_CMP_LT(cur_s, s - (2 * RCU_SEQ_STATE_MASK + 1));
+}
+
+/*
  * Has a grace period completed since the time the old gp_seq was collected?
  */
 static inline bool rcu_seq_completed_gp(unsigned long old, unsigned long new)
@@ -210,7 +223,9 @@ static inline bool rcu_stall_is_suppressed_at_boot(void)
 extern int rcu_cpu_stall_ftrace_dump;
 extern int rcu_cpu_stall_suppress;
 extern int rcu_cpu_stall_timeout;
+extern int rcu_exp_cpu_stall_timeout;
 int rcu_jiffies_till_stall_check(void);
+int rcu_exp_jiffies_till_stall_check(void);
 
 static inline bool rcu_stall_is_suppressed(void)
 {
@@ -523,6 +538,8 @@ static inline bool rcu_check_boost_fail(unsigned long gp_state, int *cpup) { ret
 static inline void show_rcu_gp_kthreads(void) { }
 static inline int rcu_get_gp_kthreads_prio(void) { return 0; }
 static inline void rcu_fwd_progress_check(unsigned long j) { }
+static inline void rcu_gp_slow_register(atomic_t *rgssp) { }
+static inline void rcu_gp_slow_unregister(atomic_t *rgssp) { }
 #else /* #ifdef CONFIG_TINY_RCU */
 bool rcu_dynticks_zero_in_eqs(int cpu, int *vp);
 unsigned long rcu_get_gp_seq(void);
@@ -534,14 +551,19 @@ int rcu_get_gp_kthreads_prio(void);
 void rcu_fwd_progress_check(unsigned long j);
 void rcu_force_quiescent_state(void);
 extern struct workqueue_struct *rcu_gp_wq;
+#ifdef CONFIG_RCU_EXP_KTHREAD
+extern struct kthread_worker *rcu_exp_gp_kworker;
+extern struct kthread_worker *rcu_exp_par_gp_kworker;
+#else /* !CONFIG_RCU_EXP_KTHREAD */
 extern struct workqueue_struct *rcu_par_gp_wq;
+#endif /* CONFIG_RCU_EXP_KTHREAD */
+void rcu_gp_slow_register(atomic_t *rgssp);
+void rcu_gp_slow_unregister(atomic_t *rgssp);
 #endif /* #else #ifdef CONFIG_TINY_RCU */
 
 #ifdef CONFIG_RCU_NOCB_CPU
-bool rcu_is_nocb_cpu(int cpu);
 void rcu_bind_current_to_nocb(void);
 #else
-static inline bool rcu_is_nocb_cpu(int cpu) { return false; }
 static inline void rcu_bind_current_to_nocb(void) { }
 #endif
 

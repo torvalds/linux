@@ -409,20 +409,19 @@ static void ism_create_system_eid(void)
 	memcpy(&SYSTEM_EID.type, tmp, 4);
 }
 
-static void ism_get_system_eid(struct smcd_dev *smcd, u8 **eid)
+static u8 *ism_get_system_eid(void)
 {
-	*eid = &SYSTEM_EID.seid_string[0];
+	return SYSTEM_EID.seid_string;
 }
 
 static u16 ism_get_chid(struct smcd_dev *smcd)
 {
-	struct ism_dev *ismdev;
+	struct ism_dev *ism = (struct ism_dev *)smcd->priv;
 
-	ismdev = (struct ism_dev *)smcd->priv;
-	if (!ismdev || !ismdev->pdev)
+	if (!ism || !ism->pdev)
 		return 0;
 
-	return to_zpci(ismdev->pdev)->pchid;
+	return to_zpci(ism->pdev)->pchid;
 }
 
 static void ism_handle_event(struct ism_dev *ism)
@@ -444,6 +443,7 @@ static irqreturn_t ism_handle_irq(int irq, void *data)
 	struct ism_dev *ism = data;
 	unsigned long bit, end;
 	unsigned long *bv;
+	u16 dmbemask;
 
 	bv = (void *) &ism->sba->dmb_bits[ISM_DMB_WORD_OFFSET];
 	end = sizeof(ism->sba->dmb_bits) * BITS_PER_BYTE - ISM_DMB_BIT_OFFSET;
@@ -457,9 +457,10 @@ static irqreturn_t ism_handle_irq(int irq, void *data)
 			break;
 
 		clear_bit_inv(bit, bv);
+		dmbemask = ism->sba->dmbe_mask[bit + ISM_DMB_BIT_OFFSET];
 		ism->sba->dmbe_mask[bit + ISM_DMB_BIT_OFFSET] = 0;
 		barrier();
-		smcd_handle_irq(ism->smcd, bit + ISM_DMB_BIT_OFFSET);
+		smcd_handle_irq(ism->smcd, bit + ISM_DMB_BIT_OFFSET, dmbemask);
 	}
 
 	if (ism->sba->e) {

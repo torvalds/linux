@@ -13,6 +13,7 @@
 #include <asm/sections.h>
 #include <asm/mmu.h>
 #include <asm/tlb.h>
+#include <asm/firmware.h>
 
 #include <mm/mmu_decl.h>
 
@@ -255,7 +256,7 @@ pmd_t hash__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addres
 	 * the __collapse_huge_page_copy can result in copying
 	 * the old content.
 	 */
-	flush_tlb_pmd_range(vma->vm_mm, &pmd, address);
+	flush_hash_table_pmd_range(vma->vm_mm, &pmd, address);
 	return pmd;
 }
 
@@ -377,7 +378,7 @@ int hash__has_transparent_hugepage(void)
 	if (mmu_psize_defs[MMU_PAGE_16M].shift != PMD_SHIFT)
 		return 0;
 	/*
-	 * We need to make sure that we support 16MB hugepage in a segement
+	 * We need to make sure that we support 16MB hugepage in a segment
 	 * with base page size 64K or 4K. We only enable THP with a PAGE_SIZE
 	 * of 64K.
 	 */
@@ -540,7 +541,7 @@ void hash__mark_rodata_ro(void)
 	unsigned long start, end, pp;
 
 	start = (unsigned long)_stext;
-	end = (unsigned long)__init_begin;
+	end = (unsigned long)__end_rodata;
 
 	pp = htab_convert_pte_flags(pgprot_val(PAGE_KERNEL_ROX), HPTE_USE_KERNEL_KEY);
 

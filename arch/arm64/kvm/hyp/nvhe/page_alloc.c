@@ -102,7 +102,7 @@ static void __hyp_attach_page(struct hyp_pool *pool,
 	 * Only the first struct hyp_page of a high-order page (otherwise known
 	 * as the 'head') should have p->order set. The non-head pages should
 	 * have p->order = HYP_NO_ORDER. Here @p may no longer be the head
-	 * after coallescing, so make sure to mark it HYP_NO_ORDER proactively.
+	 * after coalescing, so make sure to mark it HYP_NO_ORDER proactively.
 	 */
 	p->order = HYP_NO_ORDER;
 	for (; (order + 1) < pool->max_order; order++) {
@@ -110,7 +110,7 @@ static void __hyp_attach_page(struct hyp_pool *pool,
 		if (!buddy)
 			break;
 
-		/* Take the buddy out of its list, and coallesce with @p */
+		/* Take the buddy out of its list, and coalesce with @p */
 		page_remove_from_list(buddy);
 		buddy->order = HYP_NO_ORDER;
 		p = min(p, buddy);

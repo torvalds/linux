@@ -665,9 +665,8 @@ int vmci_ctx_add_notification(u32 context_id, u32 remote_cid)
 int vmci_ctx_remove_notification(u32 context_id, u32 remote_cid)
 {
 	struct vmci_ctx *context;
-	struct vmci_handle_list *notifier, *tmp;
+	struct vmci_handle_list *notifier = NULL, *iter, *tmp;
 	struct vmci_handle handle;
-	bool found = false;
 
 	context = vmci_ctx_get(context_id);
 	if (!context)
@@ -676,23 +675,23 @@ int vmci_ctx_remove_notification(u32 context_id, u32 remote_cid)
 	handle = vmci_make_handle(remote_cid, VMCI_EVENT_HANDLER);
 
 	spin_lock(&context->lock);
-	list_for_each_entry_safe(notifier, tmp,
+	list_for_each_entry_safe(iter, tmp,
 				 &context->notifier_list, node) {
-		if (vmci_handle_is_equal(notifier->handle, handle)) {
-			list_del_rcu(&notifier->node);
+		if (vmci_handle_is_equal(iter->handle, handle)) {
+			list_del_rcu(&iter->node);
 			context->n_notifiers--;
-			found = true;
+			notifier = iter;
 			break;
 		}
 	}
 	spin_unlock(&context->lock);
 
-	if (found)
+	if (notifier)
 		kvfree_rcu(notifier);
 
 	vmci_ctx_put(context);
 
-	return found ? VMCI_SUCCESS : VMCI_ERROR_NOT_FOUND;
+	return notifier ? VMCI_SUCCESS : VMCI_ERROR_NOT_FOUND;
 }
 
 static int vmci_ctx_get_chkpt_notifiers(struct vmci_ctx *context,

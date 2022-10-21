@@ -165,10 +165,12 @@ static void lan966x_port_link_up(struct lan966x_port *port)
 		break;
 	}
 
+	lan966x_taprio_speed_set(port, config->speed);
+
 	/* Also the GIGA_MODE_ENA(1) needs to be set regardless of the
 	 * port speed for QSGMII ports.
 	 */
-	if (config->portmode == PHY_INTERFACE_MODE_QSGMII)
+	if (phy_interface_num_ports(config->portmode) == 4)
 		mode = DEV_MAC_MODE_CFG_GIGA_MODE_ENA_SET(1);
 
 	lan_wr(config->duplex | mode,
@@ -331,10 +333,14 @@ int lan966x_port_pcs_set(struct lan966x_port *port,
 	struct lan966x *lan966x = port->lan966x;
 	bool inband_aneg = false;
 	bool outband;
+	bool full_preamble = false;
+
+	if (config->portmode == PHY_INTERFACE_MODE_QUSGMII)
+		full_preamble = true;
 
 	if (config->inband) {
 		if (config->portmode == PHY_INTERFACE_MODE_SGMII ||
-		    config->portmode == PHY_INTERFACE_MODE_QSGMII)
+		    phy_interface_num_ports(config->portmode) == 4)
 			inband_aneg = true; /* Cisco-SGMII in-band-aneg */
 		else if (config->portmode == PHY_INTERFACE_MODE_1000BASEX &&
 			 config->autoneg)
@@ -345,9 +351,15 @@ int lan966x_port_pcs_set(struct lan966x_port *port,
 		outband = true;
 	}
 
-	/* Disable or enable inband */
-	lan_rmw(DEV_PCS1G_MODE_CFG_SGMII_MODE_ENA_SET(outband),
-		DEV_PCS1G_MODE_CFG_SGMII_MODE_ENA,
+	/* Disable or enable inband.
+	 * For QUSGMII, we rely on the preamble to transmit data such as
+	 * timestamps, therefore force full preamble transmission, and prevent
+	 * premable shortening
+	 */
+	lan_rmw(DEV_PCS1G_MODE_CFG_SGMII_MODE_ENA_SET(outband) |
+		DEV_PCS1G_MODE_CFG_SAVE_PREAMBLE_ENA_SET(full_preamble),
+		DEV_PCS1G_MODE_CFG_SGMII_MODE_ENA |
+		DEV_PCS1G_MODE_CFG_SAVE_PREAMBLE_ENA,
 		lan966x, DEV_PCS1G_MODE_CFG(port->chip_port));
 
 	/* Enable PCS */
@@ -393,7 +405,10 @@ void lan966x_port_init(struct lan966x_port *port)
 
 	lan966x_port_config_down(port);
 
-	if (config->portmode != PHY_INTERFACE_MODE_QSGMII)
+	if (lan966x->fdma)
+		lan966x_fdma_netdev_init(lan966x, port->dev);
+
+	if (phy_interface_num_ports(config->portmode) != 4)
 		return;
 
 	lan_rmw(DEV_CLOCK_CFG_PCS_RX_RST_SET(0) |

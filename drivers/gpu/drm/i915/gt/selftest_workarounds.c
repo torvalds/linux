@@ -3,6 +3,7 @@
  * Copyright © 2018 Intel Corporation
  */
 
+#include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"

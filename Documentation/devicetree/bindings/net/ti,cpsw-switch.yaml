@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/ti,cpsw-switch.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: TI SoC Ethernet Switch Controller (CPSW) Device Tree Bindings
+title: TI SoC Ethernet Switch Controller (CPSW)
 
 maintainers:
   - Grygorii Strashko <grygorii.strashko@ti.com>
@@ -77,6 +77,8 @@ properties:
 
   ethernet-ports:
     type: object
+    additionalProperties: false
+
     properties:
       '#address-cells':
         const: 1
@@ -88,8 +90,8 @@ properties:
         type: object
         description: CPSW external ports
 
-        allOf:
-          - $ref: ethernet-controller.yaml#
+        $ref: ethernet-controller.yaml#
+        unevaluatedProperties: false
 
         properties:
           reg:
@@ -118,6 +120,7 @@ properties:
 
   cpts:
     type: object
+    unevaluatedProperties: false
     description:
       The Common Platform Time Sync (CPTS) module
 

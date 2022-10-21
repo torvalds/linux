@@ -123,18 +123,6 @@
  */
 #define CIFS_SESS_KEY_SIZE (16)
 
-/*
- * Size of the smb3 signing key
- */
-#define SMB3_SIGN_KEY_SIZE (16)
-
-/*
- * Size of the smb3 encryption/decryption key storage.
- * This size is big enough to store any cipher key types.
- */
-#define SMB3_ENC_DEC_KEY_SIZE (32)
-
-#define CIFS_CLIENT_CHALLENGE_SIZE (8)
 #define CIFS_SERVER_CHALLENGE_SIZE (8)
 #define CIFS_HMAC_MD5_HASH_SIZE (16)
 #define CIFS_CPHTXT_SIZE (16)
@@ -495,7 +483,7 @@ put_bcc(__u16 count, struct smb_hdr *hdr)
 typedef struct negotiate_req {
 	struct smb_hdr hdr;	/* wct = 0 */
 	__le16 ByteCount;
-	unsigned char DialectsArray[1];
+	unsigned char DialectsArray[];
 } __attribute__((packed)) NEGOTIATE_REQ;
 
 #define MIN_TZ_ADJ (15 * 60) /* minimum grid for timezones in seconds */
@@ -520,13 +508,14 @@ typedef struct negotiate_rsp {
 	__u8 EncryptionKeyLength;
 	__u16 ByteCount;
 	union {
-		unsigned char EncryptionKey[1];	/* cap extended security off */
+		/* cap extended security off */
+		DECLARE_FLEX_ARRAY(unsigned char, EncryptionKey);
 		/* followed by Domain name - if extended security is off */
 		/* followed by 16 bytes of server GUID */
 		/* then security blob if cap_extended_security negotiated */
 		struct {
 			unsigned char GUID[SMB1_CLIENT_GUID_SIZE];
-			unsigned char SecurityBlob[1];
+			unsigned char SecurityBlob[];
 		} __attribute__((packed)) extended_response;
 	} __attribute__((packed)) u;
 } __attribute__((packed)) NEGOTIATE_RSP;
@@ -1658,7 +1647,7 @@ struct smb_t2_rsp {
 #define SMB_FIND_FILE_ID_FULL_DIR_INFO    0x105
 #define SMB_FIND_FILE_ID_BOTH_DIR_INFO    0x106
 #define SMB_FIND_FILE_UNIX                0x202
-#define SMB_FIND_FILE_POSIX_INFO          0x064
+/* #define SMB_FIND_FILE_POSIX_INFO          0x064 */
 
 typedef struct smb_com_transaction2_qpi_req {
 	struct smb_hdr hdr;	/* wct = 14+ */

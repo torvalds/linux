@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0-only
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/clock/rockchip,rk3399-cru.yaml#
@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Rockchip RK3399 Clock and Reset Unit
 
 maintainers:
-  - Xing Zheng <zhengxing@rock-chips.com>
+  - Elaine Zhang <zhangqing@rock-chips.com>
   - Heiko Stuebner <heiko@sntech.de>
 
 description: |
@@ -22,11 +22,11 @@ description: |
   There are several clocks that are generated outside the SoC. It is expected
   that they are defined using standard clock bindings with following
   clock-output-names:
-    - "xin24m" - crystal input - required,
-    - "xin32k" - rtc clock - optional,
-    - "clkin_gmac" - external GMAC clock - optional,
-    - "clkin_i2s" - external I2S clock - optional,
-    - "pclkin_cif" - external ISP clock - optional,
+    - "xin24m"           - crystal input                          - required,
+    - "xin32k"           - rtc clock                              - optional,
+    - "clkin_gmac"       - external GMAC clock                    - optional,
+    - "clkin_i2s"        - external I2S clock                     - optional,
+    - "pclkin_cif"       - external ISP clock                     - optional,
     - "clk_usbphy0_480m" - output clock of the pll in the usbphy0
     - "clk_usbphy1_480m" - output clock of the pll in the usbphy1
 
@@ -46,24 +46,15 @@ properties:
     const: 1
 
   clocks:
-    minItems: 1
+    maxItems: 1
 
-  assigned-clocks:
-    minItems: 1
-    maxItems: 64
-
-  assigned-clock-parents:
-    minItems: 1
-    maxItems: 64
-
-  assigned-clock-rates:
-    minItems: 1
-    maxItems: 64
+  clock-names:
+    const: xin24m
 
   rockchip,grf:
     $ref: /schemas/types.yaml#/definitions/phandle
-    description: >
-      phandle to the syscon managing the "general register files". It is used
+    description:
+      Phandle to the syscon managing the "general register files". It is used
       for GRF muxes, if missing any muxes present in the GRF will not be
       available.
 
@@ -77,7 +68,7 @@ additionalProperties: false
 
 examples:
   - |
-    pmucru: pmu-clock-controller@ff750000 {
+    pmucru: clock-controller@ff750000 {
       compatible = "rockchip,rk3399-pmucru";
       reg = <0xff750000 0x1000>;
       #clock-cells = <1>;

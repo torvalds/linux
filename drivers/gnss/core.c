@@ -217,7 +217,7 @@ static void gnss_device_release(struct device *dev)
 
 	kfree(gdev->write_buf);
 	kfifo_free(&gdev->read_fifo);
-	ida_simple_remove(&gnss_minors, gdev->id);
+	ida_free(&gnss_minors, gdev->id);
 	kfree(gdev);
 }
 
@@ -232,7 +232,7 @@ struct gnss_device *gnss_allocate_device(struct device *parent)
 	if (!gdev)
 		return NULL;
 
-	id = ida_simple_get(&gnss_minors, 0, GNSS_MINORS, GFP_KERNEL);
+	id = ida_alloc_max(&gnss_minors, GNSS_MINORS - 1, GFP_KERNEL);
 	if (id < 0) {
 		kfree(gdev);
 		return NULL;

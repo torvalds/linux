@@ -32,7 +32,7 @@ static phys_addr_t prom_mem_size[MAX_PROM_MEM] __initdata;
 static unsigned int nr_prom_mem __initdata;
 
 /*
- * For ARC firmware memory functions the unit of meassuring memory is always
+ * For ARC firmware memory functions the unit of measuring memory is always
  * a 4k page of memory
  */
 #define ARC_PAGE_SHIFT	12

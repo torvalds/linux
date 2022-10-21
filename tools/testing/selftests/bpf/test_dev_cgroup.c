@@ -15,9 +15,8 @@
 
 #include "cgroup_helpers.h"
 #include "testing_helpers.h"
-#include "bpf_rlimit.h"
 
-#define DEV_CGROUP_PROG "./dev_cgroup.o"
+#define DEV_CGROUP_PROG "./dev_cgroup.bpf.o"
 
 #define TEST_CGROUP "/test-bpf-based-device-cgroup/"
 
@@ -27,6 +26,9 @@ int main(int argc, char **argv)
 	int error = EXIT_FAILURE;
 	int prog_fd, cgroup_fd;
 	__u32 prog_cnt;
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	if (bpf_prog_test_load(DEV_CGROUP_PROG, BPF_PROG_TYPE_CGROUP_DEVICE,
 			  &obj, &prog_fd)) {

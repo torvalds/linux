@@ -26,6 +26,7 @@
 
 int acp_dsp_stream_config(struct snd_sof_dev *sdev, struct acp_dsp_stream *stream)
 {
+	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	unsigned int pte_reg, pte_size, phy_addr_offset, index;
 	int stream_tag = stream->stream_tag;
 	u32 low, high, offset, reg_val;
@@ -88,7 +89,8 @@ int acp_dsp_stream_config(struct snd_sof_dev *sdev, struct acp_dsp_stream *strea
 
 	/* write phy_addr in scratch memory */
 
-	phy_addr_offset = offsetof(struct scratch_reg_conf, reg_offset);
+	phy_addr_offset = sdev->debug_box.offset +
+			  offsetof(struct scratch_reg_conf, reg_offset);
 	index = stream_tag - 1;
 	phy_addr_offset = phy_addr_offset + index * 4;
 
@@ -96,7 +98,8 @@ int acp_dsp_stream_config(struct snd_sof_dev *sdev, struct acp_dsp_stream *strea
 			  phy_addr_offset, stream->reg_offset);
 
 	/* Group Enable */
-	reg_val = ACP_SRAM_PTE_OFFSET + offset;
+	offset = offset + sdev->debug_box.offset;
+	reg_val = desc->sram_pte_offset + offset;
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, pte_reg, reg_val | BIT(31));
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, pte_size, PAGE_SIZE_4K_ENABLE);
 
@@ -114,6 +117,9 @@ int acp_dsp_stream_config(struct snd_sof_dev *sdev, struct acp_dsp_stream *strea
 		/* Move to next physically contiguous page */
 		offset += 8;
 	}
+
+	/* Flush ATU Cache after PTE Update */
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACPAXI2AXI_ATU_CTRL, ACP_ATU_CACHE_INVALID);
 
 	return 0;
 }

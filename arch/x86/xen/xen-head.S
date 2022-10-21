@@ -25,8 +25,13 @@
 SYM_CODE_START(hypercall_page)
 	.rept (PAGE_SIZE / 32)
 		UNWIND_HINT_FUNC
-		.skip 31, 0x90
-		RET
+		ANNOTATE_NOENDBR
+		ANNOTATE_UNRET_SAFE
+		ret
+		/*
+		 * Xen will write the hypercall page, and sort out ENDBR.
+		 */
+		.skip 31, 0xcc
 	.endr
 
 #define HYPERCALL(n) \
@@ -41,17 +46,9 @@ SYM_CODE_END(hypercall_page)
 	__INIT
 SYM_CODE_START(startup_xen)
 	UNWIND_HINT_EMPTY
+	ANNOTATE_NOENDBR
 	cld
 
-	/* Clear .bss */
-	xor %eax,%eax
-	mov $__bss_start, %rdi
-	mov $__bss_stop, %rcx
-	sub %rdi, %rcx
-	shr $3, %rcx
-	rep stosq
-
-	mov %rsi, xen_start_info
 	mov initial_stack(%rip), %rsp
 
 	/* Set up %gs.
@@ -66,6 +63,7 @@ SYM_CODE_START(startup_xen)
 	cdq
 	wrmsr
 
+	mov	%rsi, %rdi
 	call xen_start_kernel
 SYM_CODE_END(startup_xen)
 	__FINIT
@@ -74,6 +72,7 @@ SYM_CODE_END(startup_xen)
 .pushsection .text
 SYM_CODE_START(asm_cpu_bringup_and_idle)
 	UNWIND_HINT_EMPTY
+	ENDBR
 
 	call cpu_bringup_and_idle
 SYM_CODE_END(asm_cpu_bringup_and_idle)

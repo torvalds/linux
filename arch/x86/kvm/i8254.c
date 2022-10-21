@@ -305,15 +305,13 @@ void kvm_pit_set_reinject(struct kvm_pit *pit, bool reinject)
 	 * So, deactivate APICv when PIT is in reinject mode.
 	 */
 	if (reinject) {
-		kvm_request_apicv_update(kvm, false,
-					 APICV_INHIBIT_REASON_PIT_REINJ);
+		kvm_set_apicv_inhibit(kvm, APICV_INHIBIT_REASON_PIT_REINJ);
 		/* The initial state is preserved while ps->reinject == 0. */
 		kvm_pit_reset_reinject(pit);
 		kvm_register_irq_ack_notifier(kvm, &ps->irq_ack_notifier);
 		kvm_register_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
 	} else {
-		kvm_request_apicv_update(kvm, true,
-					 APICV_INHIBIT_REASON_PIT_REINJ);
+		kvm_clear_apicv_inhibit(kvm, APICV_INHIBIT_REASON_PIT_REINJ);
 		kvm_unregister_irq_ack_notifier(kvm, &ps->irq_ack_notifier);
 		kvm_unregister_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
 	}
@@ -593,7 +591,10 @@ static int speaker_ioport_write(struct kvm_vcpu *vcpu,
 		return -EOPNOTSUPP;
 
 	mutex_lock(&pit_state->lock);
-	pit_state->speaker_data_on = (val >> 1) & 1;
+	if (val & (1 << 1))
+		pit_state->flags |= KVM_PIT_FLAGS_SPEAKER_DATA_ON;
+	else
+		pit_state->flags &= ~KVM_PIT_FLAGS_SPEAKER_DATA_ON;
 	pit_set_gate(pit, 2, val & 1);
 	mutex_unlock(&pit_state->lock);
 	return 0;
@@ -614,8 +615,9 @@ static int speaker_ioport_read(struct kvm_vcpu *vcpu,
 	refresh_clock = ((unsigned int)ktime_to_ns(ktime_get()) >> 14) & 1;
 
 	mutex_lock(&pit_state->lock);
-	ret = ((pit_state->speaker_data_on << 1) | pit_get_gate(pit, 2) |
-		(pit_get_out(pit, 2) << 5) | (refresh_clock << 4));
+	ret = (!!(pit_state->flags & KVM_PIT_FLAGS_SPEAKER_DATA_ON) << 1) |
+		pit_get_gate(pit, 2) | (pit_get_out(pit, 2) << 5) |
+		(refresh_clock << 4);
 	if (len > sizeof(ret))
 		len = sizeof(ret);
 	memcpy(data, (char *)&ret, len);

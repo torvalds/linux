@@ -6,6 +6,7 @@
 #ifndef QCOM_VADC_COMMON_H
 #define QCOM_VADC_COMMON_H
 
+#include <linux/math.h>
 #include <linux/types.h>
 
 #define VADC_CONV_TIME_MIN_US			2000
@@ -80,16 +81,6 @@ struct vadc_linear_graph {
 };
 
 /**
- * struct vadc_prescale_ratio - Represent scaling ratio for ADC input.
- * @num: the inverse numerator of the gain applied to the input channel.
- * @den: the inverse denominator of the gain applied to the input channel.
- */
-struct vadc_prescale_ratio {
-	u32 num;
-	u32 den;
-};
-
-/**
  * enum vadc_scale_fn_type - Scaling function to convert ADC code to
  *				physical scaled units for the channel.
  * SCALE_DEFAULT: Default scaling to convert raw adc code to voltage (uV).
@@ -144,12 +135,12 @@ struct adc5_data {
 
 int qcom_vadc_scale(enum vadc_scale_fn_type scaletype,
 		    const struct vadc_linear_graph *calib_graph,
-		    const struct vadc_prescale_ratio *prescale,
+		    const struct u32_fract *prescale,
 		    bool absolute,
 		    u16 adc_code, int *result_mdec);
 
 struct qcom_adc5_scale_type {
-	int (*scale_fn)(const struct vadc_prescale_ratio *prescale,
+	int (*scale_fn)(const struct u32_fract *prescale,
 		const struct adc5_data *data, u16 adc_code, int *result);
 };
 
@@ -160,6 +151,8 @@ int qcom_adc5_hw_scale(enum vadc_scale_fn_type scaletype,
 
 u16 qcom_adc_tm5_temp_volt_scale(unsigned int prescale_ratio,
 				 u32 full_scale_code_volt, int temp);
+
+u16 qcom_adc_tm5_gen2_temp_res_scale(int temp);
 
 int qcom_adc5_prescaling_from_dt(u32 num, u32 den);
 

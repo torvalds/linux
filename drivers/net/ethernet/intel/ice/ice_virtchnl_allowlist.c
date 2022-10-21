@@ -55,6 +55,15 @@ static const u32 vlan_allowlist_opcodes[] = {
 	VIRTCHNL_OP_ENABLE_VLAN_STRIPPING, VIRTCHNL_OP_DISABLE_VLAN_STRIPPING,
 };
 
+/* VIRTCHNL_VF_OFFLOAD_VLAN_V2 */
+static const u32 vlan_v2_allowlist_opcodes[] = {
+	VIRTCHNL_OP_GET_OFFLOAD_VLAN_V2_CAPS, VIRTCHNL_OP_ADD_VLAN_V2,
+	VIRTCHNL_OP_DEL_VLAN_V2, VIRTCHNL_OP_ENABLE_VLAN_STRIPPING_V2,
+	VIRTCHNL_OP_DISABLE_VLAN_STRIPPING_V2,
+	VIRTCHNL_OP_ENABLE_VLAN_INSERTION_V2,
+	VIRTCHNL_OP_DISABLE_VLAN_INSERTION_V2,
+};
+
 /* VIRTCHNL_VF_OFFLOAD_RSS_PF */
 static const u32 rss_pf_allowlist_opcodes[] = {
 	VIRTCHNL_OP_CONFIG_RSS_KEY, VIRTCHNL_OP_CONFIG_RSS_LUT,
@@ -89,6 +98,7 @@ static const struct allowlist_opcode_info allowlist_opcodes[] = {
 	ALLOW_ITEM(VIRTCHNL_VF_OFFLOAD_RSS_PF, rss_pf_allowlist_opcodes),
 	ALLOW_ITEM(VIRTCHNL_VF_OFFLOAD_ADV_RSS_PF, adv_rss_pf_allowlist_opcodes),
 	ALLOW_ITEM(VIRTCHNL_VF_OFFLOAD_FDIR_PF, fdir_pf_allowlist_opcodes),
+	ALLOW_ITEM(VIRTCHNL_VF_OFFLOAD_VLAN_V2, vlan_v2_allowlist_opcodes),
 };
 
 /**

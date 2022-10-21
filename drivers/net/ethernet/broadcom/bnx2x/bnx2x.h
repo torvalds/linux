@@ -1271,7 +1271,7 @@ struct bnx2x_fw_stats_data {
 	struct per_port_stats		port;
 	struct per_pf_stats		pf;
 	struct fcoe_statistics_params	fcoe;
-	struct per_queue_stats		queue_stats[1];
+	struct per_queue_stats		queue_stats[];
 };
 
 /* Public slow path states */
@@ -2533,6 +2533,4 @@ void bnx2x_register_phc(struct bnx2x *bp);
  * Meant for implicit re-load flows.
  */
 int bnx2x_vlan_reconfigure_vid(struct bnx2x *bp);
-int bnx2x_init_firmware(struct bnx2x *bp);
-void bnx2x_release_firmware(struct bnx2x *bp);
 #endif /* bnx2x.h */

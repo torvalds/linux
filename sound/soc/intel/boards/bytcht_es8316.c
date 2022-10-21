@@ -219,10 +219,10 @@ static int byt_cht_es8316_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 	}
 
-	ret = snd_soc_card_jack_new(card, "Headset",
-				    SND_JACK_HEADSET | SND_JACK_BTN_0,
-				    &priv->jack, byt_cht_es8316_jack_pins,
-				    ARRAY_SIZE(byt_cht_es8316_jack_pins));
+	ret = snd_soc_card_jack_new_pins(card, "Headset",
+					 SND_JACK_HEADSET | SND_JACK_BTN_0,
+					 &priv->jack, byt_cht_es8316_jack_pins,
+					 ARRAY_SIZE(byt_cht_es8316_jack_pins));
 	if (ret) {
 		dev_err(card->dev, "jack creation failed %d\n", ret);
 		return ret;
@@ -265,7 +265,7 @@ static int byt_cht_es8316_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	ret = snd_soc_dai_set_fmt(asoc_rtd_to_cpu(rtd, 0),
 				SND_SOC_DAIFMT_I2S     |
 				SND_SOC_DAIFMT_NB_NF   |
-				SND_SOC_DAIFMT_CBC_CFC
+				SND_SOC_DAIFMT_BP_FP
 		);
 	if (ret < 0) {
 		dev_err(rtd->dev, "can't set format to I2S, err %d\n", ret);
@@ -497,7 +497,7 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	byt_cht_es8316_card.dev = dev;
 	platform_name = mach->mach_params.platform;
 
@@ -535,7 +535,6 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->mclk))
 		return dev_err_probe(dev, PTR_ERR(priv->mclk), "clk_get pmc_plt_clk_3 failed\n");
 
-	/* get speaker enable GPIO */
 	codec_dev = acpi_get_first_physical_node(adev);
 	if (!codec_dev)
 		return -EPROBE_DEFER;
@@ -561,6 +560,7 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* get speaker enable GPIO */
 	devm_acpi_dev_add_driver_gpios(codec_dev, byt_cht_es8316_gpios);
 	priv->speaker_en_gpio =
 		gpiod_get_optional(codec_dev, "speaker-enable",

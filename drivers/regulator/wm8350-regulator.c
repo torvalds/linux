@@ -1112,7 +1112,7 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 	if (pdev->id < WM8350_DCDC_1 || pdev->id > WM8350_ISINK_B)
 		return -ENODEV;
 
-	/* do any regulatior specific init */
+	/* do any regulator specific init */
 	switch (pdev->id) {
 	case WM8350_DCDC_1:
 		val = wm8350_reg_read(wm8350, WM8350_DCDC1_LOW_POWER);

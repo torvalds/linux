@@ -2,7 +2,7 @@
 #ifndef _FS_CEPH_MDS_METRIC_H
 #define _FS_CEPH_MDS_METRIC_H
 
-#include <linux/types.h>
+#include <linux/ceph/types.h>
 #include <linux/percpu_counter.h>
 #include <linux/ktime.h>
 
@@ -19,27 +19,39 @@ enum ceph_metric_type {
 	CLIENT_METRIC_TYPE_OPENED_INODES,
 	CLIENT_METRIC_TYPE_READ_IO_SIZES,
 	CLIENT_METRIC_TYPE_WRITE_IO_SIZES,
+	CLIENT_METRIC_TYPE_AVG_READ_LATENCY,
+	CLIENT_METRIC_TYPE_STDEV_READ_LATENCY,
+	CLIENT_METRIC_TYPE_AVG_WRITE_LATENCY,
+	CLIENT_METRIC_TYPE_STDEV_WRITE_LATENCY,
+	CLIENT_METRIC_TYPE_AVG_METADATA_LATENCY,
+	CLIENT_METRIC_TYPE_STDEV_METADATA_LATENCY,
 
-	CLIENT_METRIC_TYPE_MAX = CLIENT_METRIC_TYPE_WRITE_IO_SIZES,
+	CLIENT_METRIC_TYPE_MAX = CLIENT_METRIC_TYPE_STDEV_METADATA_LATENCY,
 };
 
 /*
  * This will always have the highest metric bit value
  * as the last element of the array.
  */
-#define CEPHFS_METRIC_SPEC_CLIENT_SUPPORTED {	\
-	CLIENT_METRIC_TYPE_CAP_INFO,		\
-	CLIENT_METRIC_TYPE_READ_LATENCY,	\
-	CLIENT_METRIC_TYPE_WRITE_LATENCY,	\
-	CLIENT_METRIC_TYPE_METADATA_LATENCY,	\
-	CLIENT_METRIC_TYPE_DENTRY_LEASE,	\
-	CLIENT_METRIC_TYPE_OPENED_FILES,	\
-	CLIENT_METRIC_TYPE_PINNED_ICAPS,	\
-	CLIENT_METRIC_TYPE_OPENED_INODES,	\
-	CLIENT_METRIC_TYPE_READ_IO_SIZES,	\
-	CLIENT_METRIC_TYPE_WRITE_IO_SIZES,	\
-						\
-	CLIENT_METRIC_TYPE_MAX,			\
+#define CEPHFS_METRIC_SPEC_CLIENT_SUPPORTED {	   \
+	CLIENT_METRIC_TYPE_CAP_INFO,		   \
+	CLIENT_METRIC_TYPE_READ_LATENCY,	   \
+	CLIENT_METRIC_TYPE_WRITE_LATENCY,	   \
+	CLIENT_METRIC_TYPE_METADATA_LATENCY,	   \
+	CLIENT_METRIC_TYPE_DENTRY_LEASE,	   \
+	CLIENT_METRIC_TYPE_OPENED_FILES,	   \
+	CLIENT_METRIC_TYPE_PINNED_ICAPS,	   \
+	CLIENT_METRIC_TYPE_OPENED_INODES,	   \
+	CLIENT_METRIC_TYPE_READ_IO_SIZES,	   \
+	CLIENT_METRIC_TYPE_WRITE_IO_SIZES,	   \
+	CLIENT_METRIC_TYPE_AVG_READ_LATENCY,	   \
+	CLIENT_METRIC_TYPE_STDEV_READ_LATENCY,	   \
+	CLIENT_METRIC_TYPE_AVG_WRITE_LATENCY,	   \
+	CLIENT_METRIC_TYPE_STDEV_WRITE_LATENCY,	   \
+	CLIENT_METRIC_TYPE_AVG_METADATA_LATENCY,   \
+	CLIENT_METRIC_TYPE_STDEV_METADATA_LATENCY, \
+						   \
+	CLIENT_METRIC_TYPE_MAX,			   \
 }
 
 struct ceph_metric_header {
@@ -60,22 +72,28 @@ struct ceph_metric_cap {
 /* metric read latency header */
 struct ceph_metric_read_latency {
 	struct ceph_metric_header header;
-	__le32 sec;
-	__le32 nsec;
+	struct ceph_timespec lat;
+	struct ceph_timespec avg;
+	__le64 sq_sum;
+	__le64 count;
 } __packed;
 
 /* metric write latency header */
 struct ceph_metric_write_latency {
 	struct ceph_metric_header header;
-	__le32 sec;
-	__le32 nsec;
+	struct ceph_timespec lat;
+	struct ceph_timespec avg;
+	__le64 sq_sum;
+	__le64 count;
 } __packed;
 
 /* metric metadata latency header */
 struct ceph_metric_metadata_latency {
 	struct ceph_metric_header header;
-	__le32 sec;
-	__le32 nsec;
+	struct ceph_timespec lat;
+	struct ceph_timespec avg;
+	__le64 sq_sum;
+	__le64 count;
 } __packed;
 
 /* metric dentry lease header */
@@ -140,6 +158,7 @@ struct ceph_metric {
 	u64 size_min;
 	u64 size_max;
 	ktime_t latency_sum;
+	ktime_t latency_avg;
 	ktime_t latency_sq_sum;
 	ktime_t latency_min;
 	ktime_t latency_max;

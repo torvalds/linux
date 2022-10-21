@@ -45,11 +45,21 @@ struct instruction {
 	unsigned int len;
 	enum insn_type type;
 	unsigned long immediate;
-	bool dead_end, ignore, ignore_alts;
-	bool hint;
-	bool retpoline_safe;
+
+	u16 dead_end		: 1,
+	   ignore		: 1,
+	   ignore_alts		: 1,
+	   hint			: 1,
+	   save			: 1,
+	   restore		: 1,
+	   retpoline_safe	: 1,
+	   noendbr		: 1,
+	   entry		: 1;
+		/* 7 bit hole */
+
 	s8 instr;
 	u8 visited;
+
 	struct alt_group *alt_group;
 	struct symbol *call_dest;
 	struct instruction *jump_dest;
@@ -61,6 +71,11 @@ struct instruction {
 	struct list_head stack_ops;
 	struct cfi_state *cfi;
 };
+
+#define VISITED_BRANCH		0x01
+#define VISITED_BRANCH_UACCESS	0x02
+#define VISITED_BRANCH_MASK	0x03
+#define VISITED_ENTRY		0x04
 
 static inline bool is_static_jump(struct instruction *insn)
 {

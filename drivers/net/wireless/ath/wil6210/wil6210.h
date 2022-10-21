@@ -82,7 +82,6 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 #define WIL6210_MAX_TX_RINGS	(24) /* HW limit */
 #define WIL6210_MAX_CID		(20) /* max number of stations */
 #define WIL6210_RX_DESC_MAX_CID	(8)  /* HW limit */
-#define WIL6210_NAPI_BUDGET	(16) /* arbitrary */
 #define WIL_MAX_AMPDU_SIZE	(64 * 1024) /* FW/HW limit */
 #define WIL_MAX_AGG_WSIZE	(32) /* FW/HW limit */
 #define WIL_MAX_AMPDU_SIZE_128	(128 * 1024) /* FW/HW limit */

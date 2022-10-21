@@ -45,6 +45,12 @@ typically between calling iget_locked() and unlocking the inode.
 
 At some point that will become mandatory.
 
+**mandatory**
+
+The foo_inode_info should always be allocated through alloc_inode_sb() rather
+than kmem_cache_alloc() or kmalloc() related to set up the inode reclaim context
+correctly.
+
 ---
 
 **mandatory**
@@ -618,7 +624,7 @@ any symlink that might use page_follow_link_light/page_put_link() must
 have inode_nohighmem(inode) called before anything might start playing with
 its pagecache.  No highmem pages should end up in the pagecache of such
 symlinks.  That includes any preseeding that might be done during symlink
-creation.  __page_symlink() will honour the mapping gfp flags, so once
+creation.  page_symlink() will honour the mapping gfp flags, so once
 you've done inode_nohighmem() it's safe to use, but if you allocate and
 insert the page manually, make sure to use the right gfp flags.
 
@@ -908,3 +914,32 @@ Calling conventions for file_open_root() changed; now it takes struct path *
 instead of passing mount and dentry separately.  For callers that used to
 pass <mnt, mnt->mnt_root> pair (i.e. the root of given mount), a new helper
 is provided - file_open_root_mnt().  In-tree users adjusted.
+
+---
+
+**mandatory**
+
+no_llseek is gone; don't set .llseek to that - just leave it NULL instead.
+Checks for "does that file have llseek(2), or should it fail with ESPIPE"
+should be done by looking at FMODE_LSEEK in file->f_mode.
+
+---
+
+*mandatory*
+
+filldir_t (readdir callbacks) calling conventions have changed.  Instead of
+returning 0 or -E... it returns bool now.  false means "no more" (as -E... used
+to) and true - "keep going" (as 0 in old calling conventions).  Rationale:
+callers never looked at specific -E... values anyway.  ->iterate() and
+->iterate_shared() instance require no changes at all, all filldir_t ones in
+the tree converted.
+
+---
+
+**mandatory**
+
+Calling conventions for ->tmpfile() have changed.  It now takes a struct
+file pointer instead of struct dentry pointer.  d_tmpfile() is similarly
+changed to simplify callers.  The passed file is in a non-open state and on
+success must be opened before returning (e.g. by calling
+finish_open_simple()).

@@ -11,7 +11,7 @@
 #ifndef _INCLUDE_PALMT5_H_
 #define _INCLUDE_PALMT5_H_
 
-#include <mach/irqs.h> /* PXA_GPIO_TO_IRQ */
+#include "irqs.h" /* PXA_GPIO_TO_IRQ */
 
 /** HERE ARE GPIOs **/
 

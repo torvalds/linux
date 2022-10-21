@@ -28,9 +28,11 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 static inline int prepare_hugepage_range(struct file *file,
 			unsigned long addr, unsigned long len)
 {
-	if (len & ~HPAGE_MASK)
+	struct hstate *h = hstate_file(file);
+
+	if (len & ~huge_page_mask(h))
 		return -EINVAL;
-	if (addr & ~HPAGE_MASK)
+	if (addr & ~huge_page_mask(h))
 		return -EINVAL;
 	return 0;
 }
@@ -45,15 +47,15 @@ static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
 				  pte_t *ptep, unsigned long sz)
 {
 	if ((pte_val(*ptep) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
-		pte_val(*ptep) = _REGION3_ENTRY_EMPTY;
+		set_pte(ptep, __pte(_REGION3_ENTRY_EMPTY));
 	else
-		pte_val(*ptep) = _SEGMENT_ENTRY_EMPTY;
+		set_pte(ptep, __pte(_SEGMENT_ENTRY_EMPTY));
 }
 
-static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
-					 unsigned long address, pte_t *ptep)
+static inline pte_t huge_ptep_clear_flush(struct vm_area_struct *vma,
+					  unsigned long address, pte_t *ptep)
 {
-	huge_ptep_get_and_clear(vma->vm_mm, address, ptep);
+	return huge_ptep_get_and_clear(vma->vm_mm, address, ptep);
 }
 
 static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
@@ -85,6 +87,11 @@ static inline int huge_pte_none(pte_t pte)
 	return pte_none(pte);
 }
 
+static inline int huge_pte_none_mostly(pte_t pte)
+{
+	return huge_pte_none(pte);
+}
+
 static inline int huge_pte_write(pte_t pte)
 {
 	return pte_write(pte);
@@ -113,6 +120,21 @@ static inline pte_t huge_pte_wrprotect(pte_t pte)
 static inline pte_t huge_pte_modify(pte_t pte, pgprot_t newprot)
 {
 	return pte_modify(pte, newprot);
+}
+
+static inline pte_t huge_pte_mkuffd_wp(pte_t pte)
+{
+	return pte;
+}
+
+static inline pte_t huge_pte_clear_uffd_wp(pte_t pte)
+{
+	return pte;
+}
+
+static inline int huge_pte_uffd_wp(pte_t pte)
+{
+	return 0;
 }
 
 static inline bool gigantic_page_runtime_supported(void)

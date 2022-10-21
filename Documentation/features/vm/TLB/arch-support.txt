@@ -11,13 +11,12 @@
     |         arm: | TODO |
     |       arm64: | N/A  |
     |        csky: | TODO |
-    |       h8300: |  ..  |
     |     hexagon: | TODO |
     |        ia64: | TODO |
+    |       loong: | TODO |
     |        m68k: |  ..  |
     |  microblaze: |  ..  |
     |        mips: | TODO |
-    |       nds32: | TODO |
     |       nios2: |  ..  |
     |    openrisc: |  ..  |
     |      parisc: | TODO |

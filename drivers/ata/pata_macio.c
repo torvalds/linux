@@ -666,8 +666,7 @@ static u8 pata_macio_bmdma_status(struct ata_port *ap)
 	 * a multi-block transfer.
 	 *
 	 * - The dbdma fifo hasn't yet finished flushing to
-	 * to system memory when the disk interrupt occurs.
-	 *
+	 * system memory when the disk interrupt occurs.
 	 */
 
 	/* First check for errors */
@@ -853,12 +852,8 @@ static int pata_macio_slave_config(struct scsi_device *sdev)
 #ifdef CONFIG_PM_SLEEP
 static int pata_macio_do_suspend(struct pata_macio_priv *priv, pm_message_t mesg)
 {
-	int rc;
-
 	/* First, core libata suspend to do most of the work */
-	rc = ata_host_suspend(priv->host, mesg);
-	if (rc)
-		return rc;
+	ata_host_suspend(priv->host, mesg);
 
 	/* Restore to default timings */
 	pata_macio_default_timings(priv);
@@ -1032,7 +1027,7 @@ static void pmac_macio_calc_timing_masks(struct pata_macio_priv *priv,
 		}
 		i++;
 	}
-	dev_dbg(priv->dev, "Supported masks: PIO=%lx, MWDMA=%lx, UDMA=%lx\n",
+	dev_dbg(priv->dev, "Supported masks: PIO=%x, MWDMA=%x, UDMA=%x\n",
 		pinfo->pio_mask, pinfo->mwdma_mask, pinfo->udma_mask);
 }
 
@@ -1333,19 +1328,11 @@ static int pata_macio_pci_resume(struct pci_dev *pdev)
 
 static const struct of_device_id pata_macio_match[] =
 {
-	{
-	.name 		= "IDE",
-	},
-	{
-	.name 		= "ATA",
-	},
-	{
-	.type		= "ide",
-	},
-	{
-	.type		= "ata",
-	},
-	{},
+	{ .name = "IDE", },
+	{ .name = "ATA", },
+	{ .type = "ide", },
+	{ .type = "ata", },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, pata_macio_match);
 

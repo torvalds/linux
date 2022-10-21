@@ -21,6 +21,8 @@
 #include "nfs.h"
 #include "internal.h"
 
+#include "nfstrace.h"
+
 #define NFSDBG_FACILITY		NFSDBG_MOUNT
 
 #if IS_ENABLED(CONFIG_NFS_V3)
@@ -80,6 +82,7 @@ enum nfs_param {
 	Opt_source,
 	Opt_tcp,
 	Opt_timeo,
+	Opt_trunkdiscovery,
 	Opt_udp,
 	Opt_v,
 	Opt_vers,
@@ -180,6 +183,7 @@ static const struct fs_parameter_spec nfs_fs_parameters[] = {
 	fsparam_string("source",	Opt_source),
 	fsparam_flag  ("tcp",		Opt_tcp),
 	fsparam_u32   ("timeo",		Opt_timeo),
+	fsparam_flag_no("trunkdiscovery", Opt_trunkdiscovery),
 	fsparam_flag  ("udp",		Opt_udp),
 	fsparam_flag  ("v2",		Opt_v),
 	fsparam_flag  ("v3",		Opt_v),
@@ -282,7 +286,6 @@ static int nfs_verify_server_address(struct sockaddr *addr)
 	}
 	}
 
-	dfprintk(MOUNT, "NFS: Invalid IP address specified\n");
 	return 0;
 }
 
@@ -376,7 +379,7 @@ static int nfs_parse_security_flavors(struct fs_context *fc,
 	char *string = param->string, *p;
 	int ret;
 
-	dfprintk(MOUNT, "NFS: parsing %s=%s option\n", param->key, param->string);
+	trace_nfs_mount_assign(param->key, string);
 
 	while ((p = strsep(&string, ":")) != NULL) {
 		if (!*p)
@@ -478,11 +481,11 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 	unsigned int len;
 	int ret, opt;
 
-	dfprintk(MOUNT, "NFS:   parsing nfs mount option '%s'\n", param->key);
+	trace_nfs_mount_option(param);
 
 	opt = fs_parse(fc, nfs_fs_parameters, param, &result);
 	if (opt < 0)
-		return ctx->sloppy ? 1 : opt;
+		return (opt == -ENOPARAM && ctx->sloppy) ? 1 : opt;
 
 	if (fc->security)
 		ctx->has_sec_mnt_opts = 1;
@@ -515,7 +518,7 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		if (result.negated)
 			ctx->flags &= ~NFS_MOUNT_SOFTREVAL;
 		else
-			ctx->flags &= NFS_MOUNT_SOFTREVAL;
+			ctx->flags |= NFS_MOUNT_SOFTREVAL;
 		break;
 	case Opt_posix:
 		if (result.negated)
@@ -528,6 +531,12 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 			ctx->flags |= NFS_MOUNT_NOCTO;
 		else
 			ctx->flags &= ~NFS_MOUNT_NOCTO;
+		break;
+	case Opt_trunkdiscovery:
+		if (result.negated)
+			ctx->flags &= ~NFS_MOUNT_TRUNK_DISCOVERY;
+		else
+			ctx->flags |= NFS_MOUNT_TRUNK_DISCOVERY;
 		break;
 	case Opt_ac:
 		if (result.negated)
@@ -675,6 +684,7 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 			return ret;
 		break;
 	case Opt_vers:
+		trace_nfs_mount_assign(param->key, param->string);
 		ret = nfs_parse_version_string(fc, param->string);
 		if (ret < 0)
 			return ret;
@@ -686,6 +696,7 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		break;
 
 	case Opt_proto:
+		trace_nfs_mount_assign(param->key, param->string);
 		protofamily = AF_INET;
 		switch (lookup_constant(nfs_xprt_protocol_tokens, param->string, -1)) {
 		case Opt_xprt_udp6:
@@ -721,6 +732,7 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		break;
 
 	case Opt_mountproto:
+		trace_nfs_mount_assign(param->key, param->string);
 		mountfamily = AF_INET;
 		switch (lookup_constant(nfs_xprt_protocol_tokens, param->string, -1)) {
 		case Opt_xprt_udp6:
@@ -743,6 +755,7 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		break;
 
 	case Opt_addr:
+		trace_nfs_mount_assign(param->key, param->string);
 		len = rpc_pton(fc->net_ns, param->string, param->size,
 			       &ctx->nfs_server.address,
 			       sizeof(ctx->nfs_server._address));
@@ -751,16 +764,19 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		ctx->nfs_server.addrlen = len;
 		break;
 	case Opt_clientaddr:
+		trace_nfs_mount_assign(param->key, param->string);
 		kfree(ctx->client_address);
 		ctx->client_address = param->string;
 		param->string = NULL;
 		break;
 	case Opt_mounthost:
+		trace_nfs_mount_assign(param->key, param->string);
 		kfree(ctx->mount_server.hostname);
 		ctx->mount_server.hostname = param->string;
 		param->string = NULL;
 		break;
 	case Opt_mountaddr:
+		trace_nfs_mount_assign(param->key, param->string);
 		len = rpc_pton(fc->net_ns, param->string, param->size,
 			       &ctx->mount_server.address,
 			       sizeof(ctx->mount_server._address));
@@ -838,7 +854,6 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 		 */
 	case Opt_sloppy:
 		ctx->sloppy = true;
-		dfprintk(MOUNT, "NFS:   relaxing parsing rules\n");
 		break;
 	}
 
@@ -871,10 +886,8 @@ static int nfs_parse_source(struct fs_context *fc,
 	size_t len;
 	const char *end;
 
-	if (unlikely(!dev_name || !*dev_name)) {
-		dfprintk(MOUNT, "NFS: device name not specified\n");
+	if (unlikely(!dev_name || !*dev_name))
 		return -EINVAL;
-	}
 
 	/* Is the host name protected with square brakcets? */
 	if (*dev_name == '[') {
@@ -914,7 +927,7 @@ static int nfs_parse_source(struct fs_context *fc,
 	if (!ctx->nfs_server.export_path)
 		goto out_nomem;
 
-	dfprintk(MOUNT, "NFS: MNTPATH: '%s'\n", ctx->nfs_server.export_path);
+	trace_nfs_mount_path(ctx->nfs_server.export_path);
 	return 0;
 
 out_bad_devname:
@@ -1108,7 +1121,6 @@ out_no_sec:
 	return nfs_invalf(fc, "NFS: nfs_mount_data version supports only AUTH_SYS");
 
 out_nomem:
-	dfprintk(MOUNT, "NFS: not enough memory to handle mount options");
 	return -ENOMEM;
 
 out_no_address:
@@ -1240,7 +1252,7 @@ static int nfs4_parse_monolithic(struct fs_context *fc,
 	if (IS_ERR(c))
 		return PTR_ERR(c);
 	ctx->nfs_server.export_path = c;
-	dfprintk(MOUNT, "NFS: MNTPATH: '%s'\n", c);
+	trace_nfs_mount_path(c);
 
 	c = strndup_user(data->client_addr.data, 16);
 	if (IS_ERR(c))

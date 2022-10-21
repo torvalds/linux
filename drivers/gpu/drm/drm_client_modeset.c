@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/string_helpers.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_client.h>
@@ -18,6 +19,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_print.h>
 
@@ -157,22 +159,31 @@ drm_connector_has_preferred_mode(struct drm_connector *connector, int width, int
 	return NULL;
 }
 
-static struct drm_display_mode *
-drm_connector_pick_cmdline_mode(struct drm_connector *connector)
+static struct drm_display_mode *drm_connector_pick_cmdline_mode(struct drm_connector *connector)
 {
 	struct drm_cmdline_mode *cmdline_mode;
 	struct drm_display_mode *mode;
 	bool prefer_non_interlace;
 
+	/*
+	 * Find a user-defined mode. If the user gave us a valid
+	 * mode on the kernel command line, it will show up in this
+	 * list.
+	 */
+
+	list_for_each_entry(mode, &connector->modes, head) {
+		if (mode->type & DRM_MODE_TYPE_USERDEF)
+			return mode;
+	}
+
 	cmdline_mode = &connector->cmdline_mode;
 	if (cmdline_mode->specified == false)
 		return NULL;
 
-	/* attempt to find a matching mode in the list of modes
-	 *  we have gotten so far, if not add a CVT mode that conforms
+	/*
+	 * Attempt to find a matching mode in the list of modes we
+	 * have gotten so far.
 	 */
-	if (cmdline_mode->rb || cmdline_mode->margins)
-		goto create_mode;
 
 	prefer_non_interlace = !cmdline_mode->interlace;
 again:
@@ -206,12 +217,7 @@ again:
 		goto again;
 	}
 
-create_mode:
-	mode = drm_mode_create_from_cmdline_mode(connector->dev, cmdline_mode);
-	if (mode)
-		list_add(&mode->head, &connector->modes);
-
-	return mode;
+	return NULL;
 }
 
 static bool drm_connector_enabled(struct drm_connector *connector, bool strict)
@@ -241,7 +247,7 @@ static void drm_client_connectors_enabled(struct drm_connector **connectors,
 		connector = connectors[i];
 		enabled[i] = drm_connector_enabled(connector, true);
 		DRM_DEBUG_KMS("connector %d enabled? %s\n", connector->base.id,
-			      connector->display_info.non_desktop ? "non desktop" : enabled[i] ? "yes" : "no");
+			      connector->display_info.non_desktop ? "non desktop" : str_yes_no(enabled[i]));
 
 		any_enabled |= enabled[i];
 	}

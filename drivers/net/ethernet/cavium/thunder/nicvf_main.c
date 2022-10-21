@@ -1472,8 +1472,7 @@ int nicvf_open(struct net_device *netdev)
 		}
 		cq_poll->cq_idx = qidx;
 		cq_poll->nicvf = nic;
-		netif_napi_add(netdev, &cq_poll->napi, nicvf_poll,
-			       NAPI_POLL_WEIGHT);
+		netif_napi_add(netdev, &cq_poll->napi, nicvf_poll);
 		napi_enable(&cq_poll->napi);
 		nic->napi[qidx] = cq_poll;
 	}
@@ -2023,9 +2022,6 @@ static void nicvf_set_rx_mode_task(struct work_struct *work_arg)
 	struct nicvf *nic = container_of(vf_work, struct nicvf, rx_mode_work);
 	u8 mode;
 	struct xcast_addr_list *mc;
-
-	if (!vf_work)
-		return;
 
 	/* Save message data locally to prevent them from
 	 * being overwritten by next ndo_set_rx_mode call().

@@ -34,7 +34,7 @@ CHANNEL
 Front		front left/right channels
 Surround	rear left/right in 4.0/5.1 surround
 CLFE		C/LFE channels
-Center		center cannel
+Center		center channel
 LFE		LFE channel
 Side		side left/right for 7.1 surround
 ============	==================================================

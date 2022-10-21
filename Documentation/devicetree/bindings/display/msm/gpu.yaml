@@ -58,12 +58,15 @@ properties:
       - const: ocmem
 
   iommus:
-    maxItems: 1
+    minItems: 1
+    maxItems: 64
 
   sram:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     minItems: 1
     maxItems: 4
+    items:
+      maxItems: 1
     description: |
       phandles to one or more reserved on-chip SRAM regions.
       phandle to the On Chip Memory (OCMEM) that's present on some a3xx and
@@ -79,6 +82,7 @@ properties:
 
   zap-shader:
     type: object
+    additionalProperties: false
     description: |
       For a5xx and a6xx devices this node contains a memory-region that
       points to reserved memory to store the zap shader that can be used to

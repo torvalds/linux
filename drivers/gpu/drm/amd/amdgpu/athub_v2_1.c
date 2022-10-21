@@ -74,6 +74,7 @@ int athub_v2_1_set_clockgating(struct amdgpu_device *adev,
 	case IP_VERSION(2, 1, 0):
 	case IP_VERSION(2, 1, 1):
 	case IP_VERSION(2, 1, 2):
+	case IP_VERSION(2, 4, 0):
 		athub_v2_1_update_medium_grain_clock_gating(adev, state == AMD_CG_STATE_GATE);
 		athub_v2_1_update_medium_grain_light_sleep(adev, state == AMD_CG_STATE_GATE);
 		break;
@@ -84,7 +85,7 @@ int athub_v2_1_set_clockgating(struct amdgpu_device *adev,
 	return 0;
 }
 
-void athub_v2_1_get_clockgating(struct amdgpu_device *adev, u32 *flags)
+void athub_v2_1_get_clockgating(struct amdgpu_device *adev, u64 *flags)
 {
 	int data;
 

@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * NXP Wireless LAN device driver: USB specific handling
  *
  * Copyright 2011-2020 NXP
- *
- * This software file (the "File") is distributed by NXP
- * under the terms of the GNU General Public License Version 2, June 1991
- * (the "License").  You may use, redistribute and/or modify this File in
- * accordance with the terms and conditions of the License, a copy of which
- * is available by writing to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or on the
- * worldwide web at http://www.gnu.org/licenses/old-licenses/gpl-2.0.txt.
- *
- * THE FILE IS DISTRIBUTED AS-IS, WITHOUT WARRANTY OF ANY KIND, AND THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
- * ARE EXPRESSLY DISCLAIMED.  The License provides additional details about
- * this warranty disclaimer.
  */
 
 #include "main.h"
@@ -923,14 +911,14 @@ static int mwifiex_usb_prepare_tx_aggr_skb(struct mwifiex_adapter *adapter,
 		memcpy(payload, skb_tmp->data, skb_tmp->len);
 		if (skb_queue_empty(&port->tx_aggr.aggr_list)) {
 			/* do not padding for last packet*/
-			*(u16 *)payload = cpu_to_le16(skb_tmp->len);
-			*(u16 *)&payload[2] =
+			*(__le16 *)payload = cpu_to_le16(skb_tmp->len);
+			*(__le16 *)&payload[2] =
 				cpu_to_le16(MWIFIEX_TYPE_AGGR_DATA_V2 | 0x80);
 			skb_trim(skb_aggr, skb_aggr->len - pad);
 		} else {
 			/* add aggregation interface header */
-			*(u16 *)payload = cpu_to_le16(skb_tmp->len + pad);
-			*(u16 *)&payload[2] =
+			*(__le16 *)payload = cpu_to_le16(skb_tmp->len + pad);
+			*(__le16 *)&payload[2] =
 				cpu_to_le16(MWIFIEX_TYPE_AGGR_DATA_V2);
 		}
 
@@ -1109,9 +1097,9 @@ send_aggr_buf:
 		}
 
 		payload = skb->data;
-		*(u16 *)&payload[2] =
+		*(__le16 *)&payload[2] =
 			cpu_to_le16(MWIFIEX_TYPE_AGGR_DATA_V2 | 0x80);
-		*(u16 *)payload = cpu_to_le16(skb->len);
+		*(__le16 *)payload = cpu_to_le16(skb->len);
 		skb_send = skb;
 		context = &port->tx_data_list[port->tx_data_ix++];
 		return mwifiex_usb_construct_send_urb(adapter, port, ep,

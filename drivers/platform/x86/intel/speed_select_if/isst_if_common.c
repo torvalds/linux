@@ -277,28 +277,37 @@ static int isst_if_get_platform_info(void __user *argp)
 	return 0;
 }
 
+#define ISST_MAX_BUS_NUMBER	2
 
 struct isst_if_cpu_info {
 	/* For BUS 0 and BUS 1 only, which we need for PUNIT interface */
-	int bus_info[2];
-	struct pci_dev *pci_dev[2];
+	int bus_info[ISST_MAX_BUS_NUMBER];
+	struct pci_dev *pci_dev[ISST_MAX_BUS_NUMBER];
 	int punit_cpu_id;
 	int numa_node;
 };
 
+struct isst_if_pkg_info {
+	struct pci_dev *pci_dev[ISST_MAX_BUS_NUMBER];
+};
+
 static struct isst_if_cpu_info *isst_cpu_info;
+static struct isst_if_pkg_info *isst_pkg_info;
+
 #define ISST_MAX_PCI_DOMAINS	8
 
 static struct pci_dev *_isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn)
 {
 	struct pci_dev *matched_pci_dev = NULL;
 	struct pci_dev *pci_dev = NULL;
-	int no_matches = 0;
+	int no_matches = 0, pkg_id;
 	int i, bus_number;
 
-	if (bus_no < 0 || bus_no > 1 || cpu < 0 || cpu >= nr_cpu_ids ||
-	    cpu >= num_possible_cpus())
+	if (bus_no < 0 || bus_no >= ISST_MAX_BUS_NUMBER || cpu < 0 ||
+	    cpu >= nr_cpu_ids || cpu >= num_possible_cpus())
 		return NULL;
+
+	pkg_id = topology_physical_package_id(cpu);
 
 	bus_number = isst_cpu_info[cpu].bus_info[bus_no];
 	if (bus_number < 0)
@@ -324,6 +333,8 @@ static struct pci_dev *_isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn
 		}
 
 		if (node == isst_cpu_info[cpu].numa_node) {
+			isst_pkg_info[pkg_id].pci_dev[bus_no] = _pci_dev;
+
 			pci_dev = _pci_dev;
 			break;
 		}
@@ -341,6 +352,10 @@ static struct pci_dev *_isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn
 	 */
 	if (!pci_dev && no_matches == 1)
 		pci_dev = matched_pci_dev;
+
+	/* Return pci_dev pointer for any matched CPU in the package */
+	if (!pci_dev)
+		pci_dev = isst_pkg_info[pkg_id].pci_dev[bus_no];
 
 	return pci_dev;
 }
@@ -361,8 +376,8 @@ struct pci_dev *isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn)
 {
 	struct pci_dev *pci_dev;
 
-	if (bus_no < 0 || bus_no > 1 || cpu < 0 || cpu >= nr_cpu_ids ||
-	    cpu >= num_possible_cpus())
+	if (bus_no < 0 || bus_no >= ISST_MAX_BUS_NUMBER  || cpu < 0 ||
+	    cpu >= nr_cpu_ids || cpu >= num_possible_cpus())
 		return NULL;
 
 	pci_dev = isst_cpu_info[cpu].pci_dev[bus_no];
@@ -417,10 +432,19 @@ static int isst_if_cpu_info_init(void)
 	if (!isst_cpu_info)
 		return -ENOMEM;
 
+	isst_pkg_info = kcalloc(topology_max_packages(),
+				sizeof(*isst_pkg_info),
+				GFP_KERNEL);
+	if (!isst_pkg_info) {
+		kfree(isst_cpu_info);
+		return -ENOMEM;
+	}
+
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
 				"platform/x86/isst-if:online",
 				isst_if_cpu_online, NULL);
 	if (ret < 0) {
+		kfree(isst_pkg_info);
 		kfree(isst_cpu_info);
 		return ret;
 	}
@@ -433,6 +457,7 @@ static int isst_if_cpu_info_init(void)
 static void isst_if_cpu_info_exit(void)
 {
 	cpuhp_remove_state(isst_if_online_id);
+	kfree(isst_pkg_info);
 	kfree(isst_cpu_info);
 };
 
@@ -596,7 +621,10 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 	return ret;
 }
 
-static DEFINE_MUTEX(punit_misc_dev_lock);
+/* Lock to prevent module registration when already opened by user space */
+static DEFINE_MUTEX(punit_misc_dev_open_lock);
+/* Lock to allow one share misc device for all ISST interace */
+static DEFINE_MUTEX(punit_misc_dev_reg_lock);
 static int misc_usage_count;
 static int misc_device_ret;
 static int misc_device_open;
@@ -606,7 +634,7 @@ static int isst_if_open(struct inode *inode, struct file *file)
 	int i, ret = 0;
 
 	/* Fail open, if a module is going away */
-	mutex_lock(&punit_misc_dev_lock);
+	mutex_lock(&punit_misc_dev_open_lock);
 	for (i = 0; i < ISST_IF_DEV_MAX; ++i) {
 		struct isst_if_cmd_cb *cb = &punit_callbacks[i];
 
@@ -628,7 +656,7 @@ static int isst_if_open(struct inode *inode, struct file *file)
 	} else {
 		misc_device_open++;
 	}
-	mutex_unlock(&punit_misc_dev_lock);
+	mutex_unlock(&punit_misc_dev_open_lock);
 
 	return ret;
 }
@@ -637,7 +665,7 @@ static int isst_if_relase(struct inode *inode, struct file *f)
 {
 	int i;
 
-	mutex_lock(&punit_misc_dev_lock);
+	mutex_lock(&punit_misc_dev_open_lock);
 	misc_device_open--;
 	for (i = 0; i < ISST_IF_DEV_MAX; ++i) {
 		struct isst_if_cmd_cb *cb = &punit_callbacks[i];
@@ -645,7 +673,7 @@ static int isst_if_relase(struct inode *inode, struct file *f)
 		if (cb->registered)
 			module_put(cb->owner);
 	}
-	mutex_unlock(&punit_misc_dev_lock);
+	mutex_unlock(&punit_misc_dev_open_lock);
 
 	return 0;
 }
@@ -661,6 +689,43 @@ static struct miscdevice isst_if_char_driver = {
 	.name		= "isst_interface",
 	.fops		= &isst_if_char_driver_ops,
 };
+
+static int isst_misc_reg(void)
+{
+	mutex_lock(&punit_misc_dev_reg_lock);
+	if (misc_device_ret)
+		goto unlock_exit;
+
+	if (!misc_usage_count) {
+		misc_device_ret = isst_if_cpu_info_init();
+		if (misc_device_ret)
+			goto unlock_exit;
+
+		misc_device_ret = misc_register(&isst_if_char_driver);
+		if (misc_device_ret) {
+			isst_if_cpu_info_exit();
+			goto unlock_exit;
+		}
+	}
+	misc_usage_count++;
+
+unlock_exit:
+	mutex_unlock(&punit_misc_dev_reg_lock);
+
+	return misc_device_ret;
+}
+
+static void isst_misc_unreg(void)
+{
+	mutex_lock(&punit_misc_dev_reg_lock);
+	if (misc_usage_count)
+		misc_usage_count--;
+	if (!misc_usage_count && !misc_device_ret) {
+		misc_deregister(&isst_if_char_driver);
+		isst_if_cpu_info_exit();
+	}
+	mutex_unlock(&punit_misc_dev_reg_lock);
+}
 
 /**
  * isst_if_cdev_register() - Register callback for IOCTL
@@ -679,38 +744,31 @@ static struct miscdevice isst_if_char_driver = {
  */
 int isst_if_cdev_register(int device_type, struct isst_if_cmd_cb *cb)
 {
-	if (misc_device_ret)
-		return misc_device_ret;
+	int ret;
 
 	if (device_type >= ISST_IF_DEV_MAX)
 		return -EINVAL;
 
-	mutex_lock(&punit_misc_dev_lock);
+	mutex_lock(&punit_misc_dev_open_lock);
+	/* Device is already open, we don't want to add new callbacks */
 	if (misc_device_open) {
-		mutex_unlock(&punit_misc_dev_lock);
+		mutex_unlock(&punit_misc_dev_open_lock);
 		return -EAGAIN;
-	}
-	if (!misc_usage_count) {
-		int ret;
-
-		misc_device_ret = misc_register(&isst_if_char_driver);
-		if (misc_device_ret)
-			goto unlock_exit;
-
-		ret = isst_if_cpu_info_init();
-		if (ret) {
-			misc_deregister(&isst_if_char_driver);
-			misc_device_ret = ret;
-			goto unlock_exit;
-		}
 	}
 	memcpy(&punit_callbacks[device_type], cb, sizeof(*cb));
 	punit_callbacks[device_type].registered = 1;
-	misc_usage_count++;
-unlock_exit:
-	mutex_unlock(&punit_misc_dev_lock);
+	mutex_unlock(&punit_misc_dev_open_lock);
 
-	return misc_device_ret;
+	ret = isst_misc_reg();
+	if (ret) {
+		/*
+		 * No need of mutex as the misc device register failed
+		 * as no one can open device yet. Hence no contention.
+		 */
+		punit_callbacks[device_type].registered = 0;
+		return ret;
+	}
+	return 0;
 }
 EXPORT_SYMBOL_GPL(isst_if_cdev_register);
 
@@ -725,16 +783,12 @@ EXPORT_SYMBOL_GPL(isst_if_cdev_register);
  */
 void isst_if_cdev_unregister(int device_type)
 {
-	mutex_lock(&punit_misc_dev_lock);
-	misc_usage_count--;
+	isst_misc_unreg();
+	mutex_lock(&punit_misc_dev_open_lock);
 	punit_callbacks[device_type].registered = 0;
 	if (device_type == ISST_IF_DEV_MBOX)
 		isst_delete_hash();
-	if (!misc_usage_count && !misc_device_ret) {
-		misc_deregister(&isst_if_char_driver);
-		isst_if_cpu_info_exit();
-	}
-	mutex_unlock(&punit_misc_dev_lock);
+	mutex_unlock(&punit_misc_dev_open_lock);
 }
 EXPORT_SYMBOL_GPL(isst_if_cdev_unregister);
 

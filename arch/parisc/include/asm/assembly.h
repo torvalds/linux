@@ -47,6 +47,12 @@
 #define PRIV_USER	3
 #define PRIV_KERNEL	0
 
+/* Space register used inside kernel */
+#define SR_KERNEL	0
+#define SR_TEMP1	1
+#define SR_TEMP2	2
+#define SR_USER		3
+
 #ifdef __ASSEMBLY__
 
 #ifdef CONFIG_64BIT
@@ -137,7 +143,7 @@
 	depd,z	\r, 63-(\sa), 64-(\sa), \t
 	.endm
 
-	/* Shift Right - note the r and t can NOT be the same! */
+	/* Shift Right for 32-bit. Clobbers upper 32-bit on PA2.0. */
 	.macro shr r, sa, t
 	extru \r, 31-(\sa), 32-(\sa), \t
 	.endm
@@ -165,6 +171,16 @@
 	depdi	\i, 32+(\p), \len, \t
 #else
 	depi	\i, \p, \len, \t
+#endif
+	.endm
+
+	/* The depw instruction leaves the most significant 32 bits of the
+	 * target register in an undefined state on PA 2.0 systems. */
+	.macro dep_safe i, p, len, t
+#ifdef CONFIG_64BIT
+	depd	\i, 32+(\p), \len, \t
+#else
+	depw	\i, \p, \len, \t
 #endif
 	.endm
 

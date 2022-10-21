@@ -366,6 +366,19 @@ int vmmouse_detect(struct psmouse *psmouse, bool set_properties)
 }
 
 /**
+ * vmmouse_reset - Disable vmmouse and reset
+ *
+ * @psmouse: Pointer to the psmouse struct
+ *
+ * Tries to disable vmmouse mode before enter suspend.
+ */
+static void vmmouse_reset(struct psmouse *psmouse)
+{
+	vmmouse_disable(psmouse);
+	psmouse_reset(psmouse);
+}
+
+/**
  * vmmouse_disconnect - Take down vmmouse driver
  *
  * @psmouse: Pointer to the psmouse struct
@@ -472,6 +485,7 @@ int vmmouse_init(struct psmouse *psmouse)
 	psmouse->protocol_handler = vmmouse_process_byte;
 	psmouse->disconnect = vmmouse_disconnect;
 	psmouse->reconnect = vmmouse_reconnect;
+	psmouse->cleanup = vmmouse_reset;
 
 	return 0;
 

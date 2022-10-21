@@ -4,7 +4,7 @@
  * Copyright (C) 2020 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
- * See Documentation/watch_queue.rst
+ * See Documentation/core-api/watch_queue.rst
  */
 
 #define pr_fmt(fmt) "watchq: " fmt
@@ -34,6 +34,27 @@ MODULE_LICENSE("GPL");
 #define WATCH_QUEUE_NOTE_SIZE 128
 #define WATCH_QUEUE_NOTES_PER_PAGE (PAGE_SIZE / WATCH_QUEUE_NOTE_SIZE)
 
+/*
+ * This must be called under the RCU read-lock, which makes
+ * sure that the wqueue still exists. It can then take the lock,
+ * and check that the wqueue hasn't been destroyed, which in
+ * turn makes sure that the notification pipe still exists.
+ */
+static inline bool lock_wqueue(struct watch_queue *wqueue)
+{
+	spin_lock_bh(&wqueue->lock);
+	if (unlikely(wqueue->defunct)) {
+		spin_unlock_bh(&wqueue->lock);
+		return false;
+	}
+	return true;
+}
+
+static inline void unlock_wqueue(struct watch_queue *wqueue)
+{
+	spin_unlock_bh(&wqueue->lock);
+}
+
 static void watch_queue_pipe_buf_release(struct pipe_inode_info *pipe,
 					 struct pipe_buffer *buf)
 {
@@ -54,6 +75,7 @@ static void watch_queue_pipe_buf_release(struct pipe_inode_info *pipe,
 	bit += page->index;
 
 	set_bit(bit, wqueue->notes_bitmap);
+	generic_pipe_buf_release(pipe, buf);
 }
 
 // No try_steal function => no stealing
@@ -68,6 +90,10 @@ static const struct pipe_buf_operations watch_queue_pipe_buf_ops = {
 
 /*
  * Post a notification to a watch queue.
+ *
+ * Must be called with the RCU lock for reading, and the
+ * watch_queue lock held, which guarantees that the pipe
+ * hasn't been released.
  */
 static bool post_one_notification(struct watch_queue *wqueue,
 				  struct watch_notification *n)
@@ -83,9 +109,6 @@ static bool post_one_notification(struct watch_queue *wqueue,
 		return false;
 
 	spin_lock_irq(&pipe->rd_wait.lock);
-
-	if (wqueue->defunct)
-		goto out;
 
 	mask = pipe->ring_size - 1;
 	head = pipe->head;
@@ -112,7 +135,7 @@ static bool post_one_notification(struct watch_queue *wqueue,
 	buf->offset = offset;
 	buf->len = len;
 	buf->flags = PIPE_BUF_FLAG_WHOLE;
-	pipe->head = head + 1;
+	smp_store_release(&pipe->head, head + 1); /* vs pipe_read() */
 
 	if (!test_and_clear_bit(note, wqueue->notes_bitmap)) {
 		spin_unlock_irq(&pipe->rd_wait.lock);
@@ -202,7 +225,10 @@ void __post_watch_notification(struct watch_list *wlist,
 		if (security_post_notification(watch->cred, cred, n) < 0)
 			continue;
 
-		post_one_notification(wqueue, n);
+		if (lock_wqueue(wqueue)) {
+			post_one_notification(wqueue, n);
+			unlock_wqueue(wqueue);
+		}
 	}
 
 	rcu_read_unlock();
@@ -219,7 +245,6 @@ long watch_queue_set_size(struct pipe_inode_info *pipe, unsigned int nr_notes)
 	struct page **pages;
 	unsigned long *bitmap;
 	unsigned long user_bufs;
-	unsigned int bmsize;
 	int ret, i, nr_pages;
 
 	if (!wqueue)
@@ -243,7 +268,8 @@ long watch_queue_set_size(struct pipe_inode_info *pipe, unsigned int nr_notes)
 		goto error;
 	}
 
-	ret = pipe_resize_ring(pipe, nr_notes);
+	nr_notes = nr_pages * WATCH_QUEUE_NOTES_PER_PAGE;
+	ret = pipe_resize_ring(pipe, roundup_pow_of_two(nr_notes));
 	if (ret < 0)
 		goto error;
 
@@ -258,21 +284,19 @@ long watch_queue_set_size(struct pipe_inode_info *pipe, unsigned int nr_notes)
 		pages[i]->index = i * WATCH_QUEUE_NOTES_PER_PAGE;
 	}
 
-	bmsize = (nr_notes + BITS_PER_LONG - 1) / BITS_PER_LONG;
-	bmsize *= sizeof(unsigned long);
-	bitmap = kmalloc(bmsize, GFP_KERNEL);
+	bitmap = bitmap_alloc(nr_notes, GFP_KERNEL);
 	if (!bitmap)
 		goto error_p;
 
-	memset(bitmap, 0xff, bmsize);
+	bitmap_fill(bitmap, nr_notes);
 	wqueue->notes = pages;
 	wqueue->notes_bitmap = bitmap;
 	wqueue->nr_pages = nr_pages;
-	wqueue->nr_notes = nr_pages * WATCH_QUEUE_NOTES_PER_PAGE;
+	wqueue->nr_notes = nr_notes;
 	return 0;
 
 error_p:
-	for (i = 0; i < nr_pages; i++)
+	while (--i >= 0)
 		__free_page(pages[i]);
 	kfree(pages);
 error:
@@ -320,7 +344,7 @@ long watch_queue_set_filter(struct pipe_inode_info *pipe,
 		    tf[i].info_mask & WATCH_INFO_LENGTH)
 			goto err_filter;
 		/* Ignore any unknown types */
-		if (tf[i].type >= sizeof(wfilter->type_filter) * 8)
+		if (tf[i].type >= WATCH_TYPE__NR)
 			continue;
 		nr_filter++;
 	}
@@ -336,7 +360,7 @@ long watch_queue_set_filter(struct pipe_inode_info *pipe,
 
 	q = wfilter->filters;
 	for (i = 0; i < filter.nr_filters; i++) {
-		if (tf[i].type >= sizeof(wfilter->type_filter) * BITS_PER_LONG)
+		if (tf[i].type >= WATCH_TYPE__NR)
 			continue;
 
 		q->type			= tf[i].type;
@@ -371,6 +395,8 @@ static void __put_watch_queue(struct kref *kref)
 
 	for (i = 0; i < wqueue->nr_pages; i++)
 		__free_page(wqueue->notes[i]);
+	kfree(wqueue->notes);
+	bitmap_free(wqueue->notes_bitmap);
 
 	wfilter = rcu_access_pointer(wqueue->filter);
 	if (wfilter)
@@ -395,6 +421,7 @@ static void free_watch(struct rcu_head *rcu)
 	put_watch_queue(rcu_access_pointer(watch->queue));
 	atomic_dec(&watch->cred->user->nr_watches);
 	put_cred(watch->cred);
+	kfree(watch);
 }
 
 static void __put_watch(struct kref *kref)
@@ -427,6 +454,33 @@ void init_watch(struct watch *watch, struct watch_queue *wqueue)
 	rcu_assign_pointer(watch->queue, wqueue);
 }
 
+static int add_one_watch(struct watch *watch, struct watch_list *wlist, struct watch_queue *wqueue)
+{
+	const struct cred *cred;
+	struct watch *w;
+
+	hlist_for_each_entry(w, &wlist->watchers, list_node) {
+		struct watch_queue *wq = rcu_access_pointer(w->queue);
+		if (wqueue == wq && watch->id == w->id)
+			return -EBUSY;
+	}
+
+	cred = current_cred();
+	if (atomic_inc_return(&cred->user->nr_watches) > task_rlimit(current, RLIMIT_NOFILE)) {
+		atomic_dec(&cred->user->nr_watches);
+		return -EAGAIN;
+	}
+
+	watch->cred = get_cred(cred);
+	rcu_assign_pointer(watch->watch_list, wlist);
+
+	kref_get(&wqueue->usage);
+	kref_get(&watch->usage);
+	hlist_add_head(&watch->queue_node, &wqueue->watches);
+	hlist_add_head_rcu(&watch->list_node, &wlist->watchers);
+	return 0;
+}
+
 /**
  * add_watch_to_object - Add a watch on an object to a watch list
  * @watch: The watch to add
@@ -441,33 +495,21 @@ void init_watch(struct watch *watch, struct watch_queue *wqueue)
  */
 int add_watch_to_object(struct watch *watch, struct watch_list *wlist)
 {
-	struct watch_queue *wqueue = rcu_access_pointer(watch->queue);
-	struct watch *w;
+	struct watch_queue *wqueue;
+	int ret = -ENOENT;
 
-	hlist_for_each_entry(w, &wlist->watchers, list_node) {
-		struct watch_queue *wq = rcu_access_pointer(w->queue);
-		if (wqueue == wq && watch->id == w->id)
-			return -EBUSY;
+	rcu_read_lock();
+
+	wqueue = rcu_access_pointer(watch->queue);
+	if (lock_wqueue(wqueue)) {
+		spin_lock(&wlist->lock);
+		ret = add_one_watch(watch, wlist, wqueue);
+		spin_unlock(&wlist->lock);
+		unlock_wqueue(wqueue);
 	}
 
-	watch->cred = get_current_cred();
-	rcu_assign_pointer(watch->watch_list, wlist);
-
-	if (atomic_inc_return(&watch->cred->user->nr_watches) >
-	    task_rlimit(current, RLIMIT_NOFILE)) {
-		atomic_dec(&watch->cred->user->nr_watches);
-		put_cred(watch->cred);
-		return -EAGAIN;
-	}
-
-	spin_lock_bh(&wqueue->lock);
-	kref_get(&wqueue->usage);
-	kref_get(&watch->usage);
-	hlist_add_head(&watch->queue_node, &wqueue->watches);
-	spin_unlock_bh(&wqueue->lock);
-
-	hlist_add_head(&watch->list_node, &wlist->watchers);
-	return 0;
+	rcu_read_unlock();
+	return ret;
 }
 EXPORT_SYMBOL(add_watch_to_object);
 
@@ -518,20 +560,15 @@ found:
 
 	wqueue = rcu_dereference(watch->queue);
 
-	/* We don't need the watch list lock for the next bit as RCU is
-	 * protecting *wqueue from deallocation.
-	 */
-	if (wqueue) {
+	if (lock_wqueue(wqueue)) {
 		post_one_notification(wqueue, &n.watch);
-
-		spin_lock_bh(&wqueue->lock);
 
 		if (!hlist_unhashed(&watch->queue_node)) {
 			hlist_del_init_rcu(&watch->queue_node);
 			put_watch(watch);
 		}
 
-		spin_unlock_bh(&wqueue->lock);
+		unlock_wqueue(wqueue);
 	}
 
 	if (wlist->release_watch) {
@@ -566,7 +603,7 @@ void watch_queue_clear(struct watch_queue *wqueue)
 	rcu_read_lock();
 	spin_lock_bh(&wqueue->lock);
 
-	/* Prevent new additions and prevent notifications from happening */
+	/* Prevent new notifications from being stored. */
 	wqueue->defunct = true;
 
 	while (!hlist_empty(&wqueue->watches)) {

@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/pagemap.h>
 #include <linux/blkdev.h>
-#include <linux/genhd.h>
 #include "../blk.h"
 
 /*
@@ -25,13 +24,13 @@ struct parsed_partitions {
 };
 
 typedef struct {
-	struct page *v;
+	struct folio *v;
 } Sector;
 
 void *read_part_sector(struct parsed_partitions *state, sector_t n, Sector *p);
 static inline void put_dev_sector(Sector p)
 {
-	put_page(p.v);
+	folio_put(p.v);
 }
 
 static inline void

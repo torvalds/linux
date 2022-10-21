@@ -1357,10 +1357,10 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 		is_ht = common->vif_info[0].is_ht;
 		is_sgi = common->vif_info[0].sgi;
 	} else {
-		rate_bitmap = sta->supp_rates[band];
-		is_ht = sta->ht_cap.ht_supported;
-		if ((sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20) ||
-		    (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40))
+		rate_bitmap = sta->deflink.supp_rates[band];
+		is_ht = sta->deflink.ht_cap.ht_supported;
+		if ((sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_20) ||
+		    (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40))
 			is_sgi = true;
 	}
 
@@ -1635,7 +1635,6 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 			struct ieee80211_vif *vif)
 {
 	struct rsi_common *common = adapter->priv;
-	struct ieee80211_bss_conf *bss = &vif->bss_conf;
 	struct rsi_request_ps *ps;
 	struct rsi_ps_info *ps_info;
 	struct sk_buff *skb;
@@ -1669,7 +1668,7 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 	ps->ps_sleep.sleep_duration =
 		cpu_to_le32(ps_info->deep_sleep_wakeup_period);
 
-	if (bss->assoc)
+	if (vif->cfg.assoc)
 		ps->ps_sleep.connected_sleep = RSI_CONNECTED_SLEEP;
 	else
 		ps->ps_sleep.connected_sleep = RSI_DEEP_SLEEP;

@@ -93,7 +93,7 @@ static void liteuart_timer(struct timer_list *t)
 	mod_timer(&uart->timer, jiffies + uart_poll_timeout(port));
 }
 
-static void liteuart_putchar(struct uart_port *port, int ch)
+static void liteuart_putchar(struct uart_port *port, unsigned char ch)
 {
 	while (litex_read8(port->membase + OFF_TXFULL))
 		cpu_relax();
@@ -178,7 +178,7 @@ static void liteuart_shutdown(struct uart_port *port)
 }
 
 static void liteuart_set_termios(struct uart_port *port, struct ktermios *new,
-				 struct ktermios *old)
+				 const struct ktermios *old)
 {
 	unsigned int baud;
 	unsigned long flags;

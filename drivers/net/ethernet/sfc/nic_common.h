@@ -195,6 +195,11 @@ static inline void efx_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
 		efx->type->sensor_event(efx, ev);
 }
 
+static inline unsigned int efx_rx_recycle_ring_size(const struct efx_nic *efx)
+{
+	return efx->type->rx_recycle_ring_size(efx);
+}
+
 /* Some statistics are computed as A - B where A and B each increase
  * linearly with some hardware counter(s) and the counters are read
  * asynchronously.  If the counters contributing to B are always read

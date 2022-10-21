@@ -52,6 +52,25 @@
 		pwms = <&pwm1 0 25000 0>;
 	};
 
+	battery: battery {
+		compatible = "simple-battery";
+		charge-full-design-microamp-hours = <3000000>;
+		charge-term-current-microamp = <300000>;
+		constant-charge-current-max-microamp = <2000000>;
+		constant-charge-voltage-max-microvolt = <4200000>;
+		factory-internal-resistance-micro-ohms = <180000>;
+		voltage-max-design-microvolt = <4100000>;
+		voltage-min-design-microvolt = <3500000>;
+
+		ocv-capacity-celsius = <20>;
+		ocv-capacity-table-0 =	<4046950 100>, <4001920 95>, <3967900 90>, <3919950 85>,
+					<3888450 80>, <3861850 75>, <3831540 70>, <3799130 65>,
+					<3768190 60>, <3745650 55>, <3726610 50>, <3711630 45>,
+					<3696720 40>, <3685660 35>, <3674950 30>, <3663050 25>,
+					<3649470 20>, <3635260 15>, <3616920 10>, <3592440 5>,
+					<3574170 0>;
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -71,82 +90,82 @@
 		 * |------------------------------------------------|
 		 */
 
-		sw1 {
+		button-sw1 {
 			gpios = <&gpio1 RK_PB4 GPIO_ACTIVE_LOW>;
 			label = "DPAD-UP";
 			linux,code = <BTN_DPAD_UP>;
 		};
-		sw2 {
+		button-sw2 {
 			gpios = <&gpio1 RK_PB5 GPIO_ACTIVE_LOW>;
 			label = "DPAD-DOWN";
 			linux,code = <BTN_DPAD_DOWN>;
 		};
-		sw3 {
+		button-sw3 {
 			gpios = <&gpio1 RK_PB6 GPIO_ACTIVE_LOW>;
 			label = "DPAD-LEFT";
 			linux,code = <BTN_DPAD_LEFT>;
 		};
-		sw4 {
+		button-sw4 {
 			gpios = <&gpio1 RK_PB7 GPIO_ACTIVE_LOW>;
 			label = "DPAD-RIGHT";
 			linux,code = <BTN_DPAD_RIGHT>;
 		};
-		sw5 {
+		button-sw5 {
 			gpios = <&gpio1 RK_PA2 GPIO_ACTIVE_LOW>;
 			label = "BTN-A";
 			linux,code = <BTN_EAST>;
 		};
-		sw6 {
+		button-sw6 {
 			gpios = <&gpio1 RK_PA5 GPIO_ACTIVE_LOW>;
 			label = "BTN-B";
 			linux,code = <BTN_SOUTH>;
 		};
-		sw7 {
+		button-sw7 {
 			gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_LOW>;
 			label = "BTN-Y";
 			linux,code = <BTN_WEST>;
 		};
-		sw8 {
+		button-sw8 {
 			gpios = <&gpio1 RK_PA7 GPIO_ACTIVE_LOW>;
 			label = "BTN-X";
 			linux,code = <BTN_NORTH>;
 		};
-		sw9 {
+		button-sw9 {
 			gpios = <&gpio2 RK_PA0 GPIO_ACTIVE_LOW>;
 			label = "F1";
 			linux,code = <BTN_TRIGGER_HAPPY1>;
 		};
-		sw10 {
+		button-sw10 {
 			gpios = <&gpio2 RK_PA1 GPIO_ACTIVE_LOW>;
 			label = "F2";
 			linux,code = <BTN_TRIGGER_HAPPY2>;
 		};
-		sw11 {
+		button-sw11 {
 			gpios = <&gpio2 RK_PA2 GPIO_ACTIVE_LOW>;
 			label = "F3";
 			linux,code = <BTN_TRIGGER_HAPPY3>;
 		};
-		sw12 {
+		button-sw12 {
 			gpios = <&gpio2 RK_PA3 GPIO_ACTIVE_LOW>;
 			label = "F4";
 			linux,code = <BTN_TRIGGER_HAPPY4>;
 		};
-		sw13 {
+		button-sw13 {
 			gpios = <&gpio2 RK_PA4 GPIO_ACTIVE_LOW>;
 			label = "F5";
 			linux,code = <BTN_TRIGGER_HAPPY5>;
 		};
-		sw14 {
+		button-sw14 {
 			gpios = <&gpio2 RK_PA5 GPIO_ACTIVE_LOW>;
 			label = "F6";
 			linux,code = <BTN_TRIGGER_HAPPY6>;
 		};
-		sw15 {
+		button-sw15 {
 			gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_LOW>;
 			label = "TOP-LEFT";
 			linux,code = <BTN_TL>;
 		};
-		sw16 {
+		button-sw16 {
 			gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_LOW>;
 			label = "TOP-RIGHT";
 			linux,code = <BTN_TR>;
@@ -470,6 +489,13 @@
 				regulator-always-on;
 				regulator-boot-on;
 			};
+		};
+
+		rk817_charger: charger {
+			monitored-battery = <&battery>;
+			rockchip,resistor-sense-micro-ohms = <10000>;
+			rockchip,sleep-enter-current-microamp = <300000>;
+			rockchip,sleep-filter-current-microamp = <100000>;
 		};
 
 		rk817_codec: codec {

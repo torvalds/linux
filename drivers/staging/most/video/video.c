@@ -52,7 +52,7 @@ struct comp_fh {
 	u32 offs;
 };
 
-static struct list_head video_devices = LIST_HEAD_INIT(video_devices);
+static LIST_HEAD(video_devices);
 static DEFINE_SPINLOCK(list_lock);
 
 static inline bool data_ready(struct most_video_dev *mdev)

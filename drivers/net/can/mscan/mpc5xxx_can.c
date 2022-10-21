@@ -14,6 +14,8 @@
 #include <linux/platform_device.h>
 #include <linux/netdevice.h>
 #include <linux/can/dev.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <sysdev/fsl_soc.h>
 #include <linux/clk.h>
@@ -61,7 +63,7 @@ static u32 mpc52xx_can_get_clock(struct platform_device *ofdev,
 	else
 		*mscan_clksrc = MSCAN_CLKSRC_XTAL;
 
-	freq = mpc5xxx_get_bus_frequency(ofdev->dev.of_node);
+	freq = mpc5xxx_get_bus_frequency(&ofdev->dev);
 	if (!freq)
 		return 0;
 

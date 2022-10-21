@@ -44,7 +44,8 @@
 		: "0" (dst), "r" (a1), "r" (a2), "r" (a3), "r" (a4))
 
 static void
-xor_arm4regs_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
+xor_arm4regs_2(unsigned long bytes, unsigned long * __restrict p1,
+	       const unsigned long * __restrict p2)
 {
 	unsigned int lines = bytes / sizeof(unsigned long) / 4;
 	register unsigned int a1 __asm__("r4");
@@ -64,8 +65,9 @@ xor_arm4regs_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
 }
 
 static void
-xor_arm4regs_3(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-		unsigned long *p3)
+xor_arm4regs_3(unsigned long bytes, unsigned long * __restrict p1,
+	       const unsigned long * __restrict p2,
+	       const unsigned long * __restrict p3)
 {
 	unsigned int lines = bytes / sizeof(unsigned long) / 4;
 	register unsigned int a1 __asm__("r4");
@@ -86,8 +88,10 @@ xor_arm4regs_3(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 }
 
 static void
-xor_arm4regs_4(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-		unsigned long *p3, unsigned long *p4)
+xor_arm4regs_4(unsigned long bytes, unsigned long * __restrict p1,
+	       const unsigned long * __restrict p2,
+	       const unsigned long * __restrict p3,
+	       const unsigned long * __restrict p4)
 {
 	unsigned int lines = bytes / sizeof(unsigned long) / 2;
 	register unsigned int a1 __asm__("r8");
@@ -105,8 +109,11 @@ xor_arm4regs_4(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 }
 
 static void
-xor_arm4regs_5(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-		unsigned long *p3, unsigned long *p4, unsigned long *p5)
+xor_arm4regs_5(unsigned long bytes, unsigned long * __restrict p1,
+	       const unsigned long * __restrict p2,
+	       const unsigned long * __restrict p3,
+	       const unsigned long * __restrict p4,
+	       const unsigned long * __restrict p5)
 {
 	unsigned int lines = bytes / sizeof(unsigned long) / 2;
 	register unsigned int a1 __asm__("r8");
@@ -146,7 +153,8 @@ static struct xor_block_template xor_block_arm4regs = {
 extern struct xor_block_template const xor_block_neon_inner;
 
 static void
-xor_neon_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
+xor_neon_2(unsigned long bytes, unsigned long * __restrict p1,
+	   const unsigned long * __restrict p2)
 {
 	if (in_interrupt()) {
 		xor_arm4regs_2(bytes, p1, p2);
@@ -158,8 +166,9 @@ xor_neon_2(unsigned long bytes, unsigned long *p1, unsigned long *p2)
 }
 
 static void
-xor_neon_3(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-		unsigned long *p3)
+xor_neon_3(unsigned long bytes, unsigned long * __restrict p1,
+	   const unsigned long * __restrict p2,
+	   const unsigned long * __restrict p3)
 {
 	if (in_interrupt()) {
 		xor_arm4regs_3(bytes, p1, p2, p3);
@@ -171,8 +180,10 @@ xor_neon_3(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 }
 
 static void
-xor_neon_4(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-		unsigned long *p3, unsigned long *p4)
+xor_neon_4(unsigned long bytes, unsigned long * __restrict p1,
+	   const unsigned long * __restrict p2,
+	   const unsigned long * __restrict p3,
+	   const unsigned long * __restrict p4)
 {
 	if (in_interrupt()) {
 		xor_arm4regs_4(bytes, p1, p2, p3, p4);
@@ -184,8 +195,11 @@ xor_neon_4(unsigned long bytes, unsigned long *p1, unsigned long *p2,
 }
 
 static void
-xor_neon_5(unsigned long bytes, unsigned long *p1, unsigned long *p2,
-		unsigned long *p3, unsigned long *p4, unsigned long *p5)
+xor_neon_5(unsigned long bytes, unsigned long * __restrict p1,
+	   const unsigned long * __restrict p2,
+	   const unsigned long * __restrict p3,
+	   const unsigned long * __restrict p4,
+	   const unsigned long * __restrict p5)
 {
 	if (in_interrupt()) {
 		xor_arm4regs_5(bytes, p1, p2, p3, p4, p5);

@@ -20,7 +20,6 @@
 
 #include "cgroup_helpers.h"
 #include "testing_helpers.h"
-#include "bpf_rlimit.h"
 
 #define CHECK(condition, tag, format...) ({		\
 	int __ret = !!(condition);			\
@@ -49,7 +48,7 @@ static int bpf_find_map(const char *test, struct bpf_object *obj,
 int main(int argc, char **argv)
 {
 	const char *probe_name = "syscalls/sys_enter_nanosleep";
-	const char *file = "get_cgroup_id_kern.o";
+	const char *file = "get_cgroup_id_kern.bpf.o";
 	int err, bytes, efd, prog_fd, pmu_fd;
 	int cgroup_fd, cgidmap_fd, pidmap_fd;
 	struct perf_event_attr attr = {};
@@ -66,6 +65,9 @@ int main(int argc, char **argv)
 	cgroup_fd = cgroup_setup_and_join(TEST_CGROUP);
 	if (CHECK(cgroup_fd < 0, "cgroup_setup_and_join", "err %d errno %d\n", cgroup_fd, errno))
 		return 1;
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	err = bpf_prog_test_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
 	if (CHECK(err, "bpf_prog_test_load", "err %d errno %d\n", err, errno))

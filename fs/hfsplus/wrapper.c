@@ -12,7 +12,6 @@
 #include <linux/fs.h>
 #include <linux/blkdev.h>
 #include <linux/cdrom.h>
-#include <linux/genhd.h>
 #include <asm/unaligned.h>
 
 #include "hfsplus_fs.h"
@@ -46,8 +45,9 @@ struct hfsplus_wd {
  * will work correctly.
  */
 int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
-		       void *buf, void **data, int op, int op_flags)
+		       void *buf, void **data, blk_opf_t opf)
 {
+	const enum req_op op = opf & REQ_OP_MASK;
 	struct bio *bio;
 	int ret = 0;
 	u64 io_size;
@@ -64,12 +64,10 @@ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
 	offset = start & (io_size - 1);
 	sector &= ~((io_size >> HFSPLUS_SECTOR_SHIFT) - 1);
 
-	bio = bio_alloc(GFP_NOIO, 1);
+	bio = bio_alloc(sb->s_bdev, 1, opf, GFP_NOIO);
 	bio->bi_iter.bi_sector = sector;
-	bio_set_dev(bio, sb->s_bdev);
-	bio_set_op_attrs(bio, op, op_flags);
 
-	if (op != WRITE && data)
+	if (op != REQ_OP_WRITE && data)
 		*data = (u8 *)buf + offset;
 
 	while (io_size > 0) {
@@ -187,7 +185,7 @@ int hfsplus_read_wrapper(struct super_block *sb)
 reread:
 	error = hfsplus_submit_bio(sb, part_start + HFSPLUS_VOLHEAD_SECTOR,
 				   sbi->s_vhdr_buf, (void **)&sbi->s_vhdr,
-				   REQ_OP_READ, 0);
+				   REQ_OP_READ);
 	if (error)
 		goto out_free_backup_vhdr;
 
@@ -219,8 +217,7 @@ reread:
 
 	error = hfsplus_submit_bio(sb, part_start + part_size - 2,
 				   sbi->s_backup_vhdr_buf,
-				   (void **)&sbi->s_backup_vhdr, REQ_OP_READ,
-				   0);
+				   (void **)&sbi->s_backup_vhdr, REQ_OP_READ);
 	if (error)
 		goto out_free_backup_vhdr;
 

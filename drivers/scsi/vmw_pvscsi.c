@@ -1324,7 +1324,6 @@ static u32 pvscsi_get_max_targets(struct pvscsi_adapter *adapter)
 	 * indicate success.
 	 */
 	header = config_page;
-	memset(header, 0, sizeof *header);
 	header->hostStatus = BTSTAT_INVPARAM;
 	header->scsiStatus = SDSTAT_CHECK;
 

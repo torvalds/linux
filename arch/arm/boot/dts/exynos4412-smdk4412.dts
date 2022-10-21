@@ -133,14 +133,14 @@
 };
 
 &pinctrl_1 {
-	keypad_rows: keypad-rows {
+	keypad_rows: keypad-rows-pins {
 		samsung,pins = "gpx2-0", "gpx2-1", "gpx2-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_3>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	keypad_cols: keypad-cols {
+	keypad_cols: keypad-cols-pins {
 		samsung,pins = "gpx1-0", "gpx1-1", "gpx1-2", "gpx1-3",
 			       "gpx1-4", "gpx1-5", "gpx1-6", "gpx1-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_3>;

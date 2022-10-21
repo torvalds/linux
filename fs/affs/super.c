@@ -100,7 +100,7 @@ static struct inode *affs_alloc_inode(struct super_block *sb)
 {
 	struct affs_inode_info *i;
 
-	i = kmem_cache_alloc(affs_inode_cachep, GFP_KERNEL);
+	i = alloc_inode_sb(sb, affs_inode_cachep, GFP_KERNEL);
 	if (!i)
 		return NULL;
 
@@ -276,7 +276,7 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 			char *vol = match_strdup(&args[0]);
 			if (!vol)
 				return 0;
-			strlcpy(volume, vol, 32);
+			strscpy(volume, vol, 32);
 			kfree(vol);
 			break;
 		}

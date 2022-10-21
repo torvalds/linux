@@ -281,6 +281,8 @@ static __maybe_unused int max98373_resume(struct device *dev)
 					   msecs_to_jiffies(MAX98373_PROBE_TIMEOUT));
 	if (!time) {
 		dev_err(dev, "Initialization not complete, timed out\n");
+		sdw_show_ping_status(slave->bus, true);
+
 		return -ETIMEDOUT;
 	}
 
@@ -862,6 +864,16 @@ static int max98373_sdw_probe(struct sdw_slave *slave,
 	return max98373_init(slave, regmap);
 }
 
+static int max98373_sdw_remove(struct sdw_slave *slave)
+{
+	struct max98373_priv *max98373 = dev_get_drvdata(&slave->dev);
+
+	if (max98373->first_hw_init)
+		pm_runtime_disable(&slave->dev);
+
+	return 0;
+}
+
 #if defined(CONFIG_OF)
 static const struct of_device_id max98373_of_match[] = {
 	{ .compatible = "maxim,max98373", },
@@ -893,7 +905,7 @@ static struct sdw_driver max98373_sdw_driver = {
 		.pm = &max98373_pm,
 	},
 	.probe = max98373_sdw_probe,
-	.remove = NULL,
+	.remove = max98373_sdw_remove,
 	.ops = &max98373_slave_ops,
 	.id_table = max98373_id,
 };

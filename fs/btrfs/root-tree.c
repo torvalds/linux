@@ -278,6 +278,21 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 
 		WARN_ON(!test_bit(BTRFS_ROOT_ORPHAN_ITEM_INSERTED, &root->state));
 		if (btrfs_root_refs(&root->root_item) == 0) {
+			struct btrfs_key drop_key;
+
+			btrfs_disk_key_to_cpu(&drop_key, &root->root_item.drop_progress);
+			/*
+			 * If we have a non-zero drop_progress then we know we
+			 * made it partly through deleting this snapshot, and
+			 * thus we need to make sure we block any balance from
+			 * happening until this snapshot is completely dropped.
+			 */
+			if (drop_key.objectid != 0 || drop_key.type != 0 ||
+			    drop_key.offset != 0) {
+				set_bit(BTRFS_FS_UNFINISHED_DROPS, &fs_info->flags);
+				set_bit(BTRFS_ROOT_UNFINISHED_DROP, &root->state);
+			}
+
 			set_bit(BTRFS_ROOT_DEAD_TREE, &root->state);
 			btrfs_add_dead_root(root);
 		}
@@ -322,7 +337,6 @@ int btrfs_del_root_ref(struct btrfs_trans_handle *trans, u64 root_id,
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
 	unsigned long ptr;
-	int err = 0;
 	int ret;
 
 	path = btrfs_alloc_path();
@@ -334,9 +348,9 @@ int btrfs_del_root_ref(struct btrfs_trans_handle *trans, u64 root_id,
 	key.offset = ref_id;
 again:
 	ret = btrfs_search_slot(trans, tree_root, &key, path, -1, 1);
-	if (ret < 0)
+	if (ret < 0) {
 		goto out;
-	if (ret == 0) {
+	} else if (ret == 0) {
 		leaf = path->nodes[0];
 		ref = btrfs_item_ptr(leaf, path->slots[0],
 				     struct btrfs_root_ref);
@@ -344,18 +358,18 @@ again:
 		if ((btrfs_root_ref_dirid(leaf, ref) != dirid) ||
 		    (btrfs_root_ref_name_len(leaf, ref) != name_len) ||
 		    memcmp_extent_buffer(leaf, name, ptr, name_len)) {
-			err = -ENOENT;
+			ret = -ENOENT;
 			goto out;
 		}
 		*sequence = btrfs_root_ref_sequence(leaf, ref);
 
 		ret = btrfs_del_item(trans, tree_root, path);
-		if (ret) {
-			err = ret;
+		if (ret)
 			goto out;
-		}
-	} else
-		err = -ENOENT;
+	} else {
+		ret = -ENOENT;
+		goto out;
+	}
 
 	if (key.type == BTRFS_ROOT_BACKREF_KEY) {
 		btrfs_release_path(path);
@@ -367,7 +381,7 @@ again:
 
 out:
 	btrfs_free_path(path);
-	return err;
+	return ret;
 }
 
 /*
@@ -494,7 +508,8 @@ int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 		/* One for parent inode, two for dir entries */
 		qgroup_num_bytes = 3 * fs_info->nodesize;
 		ret = btrfs_qgroup_reserve_meta_prealloc(root,
-				qgroup_num_bytes, true);
+							 qgroup_num_bytes, true,
+							 false);
 		if (ret)
 			return ret;
 	}

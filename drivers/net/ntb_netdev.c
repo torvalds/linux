@@ -119,7 +119,7 @@ static void ntb_netdev_rx_handler(struct ntb_transport_qp *qp, void *qp_data,
 	skb->protocol = eth_type_trans(skb, ndev);
 	skb->ip_summed = CHECKSUM_NONE;
 
-	if (netif_rx(skb) == NET_RX_DROP) {
+	if (__netif_rx(skb) == NET_RX_DROP) {
 		ndev->stats.rx_errors++;
 		ndev->stats.rx_dropped++;
 	} else {
@@ -364,9 +364,9 @@ static void ntb_get_drvinfo(struct net_device *ndev,
 {
 	struct ntb_netdev *dev = netdev_priv(ndev);
 
-	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
-	strlcpy(info->version, NTB_NETDEV_VER, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(dev->pdev), sizeof(info->bus_info));
+	strscpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strscpy(info->version, NTB_NETDEV_VER, sizeof(info->version));
+	strscpy(info->bus_info, pci_name(dev->pdev), sizeof(info->bus_info));
 }
 
 static int ntb_get_link_ksettings(struct net_device *dev,

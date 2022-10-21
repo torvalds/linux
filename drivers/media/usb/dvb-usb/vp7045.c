@@ -172,13 +172,21 @@ static int vp7045_usb_probe(struct usb_interface *intf,
 				   THIS_MODULE, NULL, adapter_nr);
 }
 
-static struct usb_device_id vp7045_usb_table [] = {
-	    { USB_DEVICE(USB_VID_VISIONPLUS, USB_PID_TWINHAN_VP7045_COLD) },
-	    { USB_DEVICE(USB_VID_VISIONPLUS, USB_PID_TWINHAN_VP7045_WARM) },
-	    { USB_DEVICE(USB_VID_VISIONPLUS, USB_PID_DNTV_TINYUSB2_COLD) },
-	    { USB_DEVICE(USB_VID_VISIONPLUS, USB_PID_DNTV_TINYUSB2_WARM) },
-	    { 0 },
+enum {
+	VISIONPLUS_VP7045_COLD,
+	VISIONPLUS_VP7045_WARM,
+	VISIONPLUS_TINYUSB2_COLD,
+	VISIONPLUS_TINYUSB2_WARM,
 };
+
+static struct usb_device_id vp7045_usb_table[] = {
+	DVB_USB_DEV(VISIONPLUS, VISIONPLUS_VP7045_COLD),
+	DVB_USB_DEV(VISIONPLUS, VISIONPLUS_VP7045_WARM),
+	DVB_USB_DEV(VISIONPLUS, VISIONPLUS_TINYUSB2_COLD),
+	DVB_USB_DEV(VISIONPLUS, VISIONPLUS_TINYUSB2_WARM),
+	{ }
+};
+
 MODULE_DEVICE_TABLE(usb, vp7045_usb_table);
 
 static struct dvb_usb_device_properties vp7045_properties = {
@@ -221,12 +229,12 @@ static struct dvb_usb_device_properties vp7045_properties = {
 	.num_device_descs = 2,
 	.devices = {
 		{ .name = "Twinhan USB2.0 DVB-T receiver (TwinhanDTV Alpha/MagicBox II)",
-		  .cold_ids = { &vp7045_usb_table[0], NULL },
-		  .warm_ids = { &vp7045_usb_table[1], NULL },
+		  .cold_ids = { &vp7045_usb_table[VISIONPLUS_VP7045_COLD], NULL },
+		  .warm_ids = { &vp7045_usb_table[VISIONPLUS_VP7045_WARM], NULL },
 		},
 		{ .name = "DigitalNow TinyUSB 2 DVB-t Receiver",
-		  .cold_ids = { &vp7045_usb_table[2], NULL },
-		  .warm_ids = { &vp7045_usb_table[3], NULL },
+		  .cold_ids = { &vp7045_usb_table[VISIONPLUS_TINYUSB2_COLD], NULL },
+		  .warm_ids = { &vp7045_usb_table[VISIONPLUS_TINYUSB2_WARM], NULL },
 		},
 		{ NULL },
 	}

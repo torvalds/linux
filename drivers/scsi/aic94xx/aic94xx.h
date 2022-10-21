@@ -60,7 +60,6 @@ void asd_set_dmamode(struct domain_device *dev);
 /* ---------- TMFs ---------- */
 int  asd_abort_task(struct sas_task *);
 int  asd_abort_task_set(struct domain_device *, u8 *lun);
-int  asd_clear_aca(struct domain_device *, u8 *lun);
 int  asd_clear_task_set(struct domain_device *, u8 *lun);
 int  asd_lu_reset(struct domain_device *, u8 *lun);
 int  asd_I_T_nexus_reset(struct domain_device *dev);

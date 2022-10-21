@@ -96,6 +96,14 @@
 
 #define HCLGEVF_RSS_IND_TBL_SIZE		512
 
+#define HCLGEVF_TQP_MEM_SIZE		0x10000
+#define HCLGEVF_MEM_BAR			4
+/* in the bar4, the first half is for roce, and the second half is for nic */
+#define HCLGEVF_NIC_MEM_OFFSET(hdev)	\
+	(pci_resource_len((hdev)->pdev, HCLGEVF_MEM_BAR) >> 1)
+#define HCLGEVF_TQP_MEM_OFFSET(hdev, i)		\
+	(HCLGEVF_NIC_MEM_OFFSET(hdev) + HCLGEVF_TQP_MEM_SIZE * (i))
+
 #define HCLGEVF_MAC_MAX_FRAME		9728
 
 #define HCLGEVF_STATS_TIMER_INTERVAL	36U
@@ -285,5 +293,5 @@ void hclgevf_update_speed_duplex(struct hclgevf_dev *hdev, u32 speed,
 void hclgevf_reset_task_schedule(struct hclgevf_dev *hdev);
 void hclgevf_mbx_task_schedule(struct hclgevf_dev *hdev);
 void hclgevf_update_port_base_vlan_info(struct hclgevf_dev *hdev, u16 state,
-					u8 *port_base_vlan_info, u8 data_size);
+			struct hclge_mbx_port_base_vlan *port_base_vlan);
 #endif

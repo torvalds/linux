@@ -45,43 +45,6 @@ enum {
 	MAX_WATCH_ADDRESSES = 4
 };
 
-enum {
-	ADDRESS_WATCH_REG_ADDR_HI = 0,
-	ADDRESS_WATCH_REG_ADDR_LO,
-	ADDRESS_WATCH_REG_CNTL,
-	ADDRESS_WATCH_REG_MAX
-};
-
-/*  not defined in the CI/KV reg file  */
-enum {
-	ADDRESS_WATCH_REG_CNTL_ATC_BIT = 0x10000000UL,
-	ADDRESS_WATCH_REG_CNTL_DEFAULT_MASK = 0x00FFFFFF,
-	ADDRESS_WATCH_REG_ADDLOW_MASK_EXTENSION = 0x03000000,
-	/* extend the mask to 26 bits to match the low address field */
-	ADDRESS_WATCH_REG_ADDLOW_SHIFT = 6,
-	ADDRESS_WATCH_REG_ADDHIGH_MASK = 0xFFFF
-};
-
-static const uint32_t watchRegs[MAX_WATCH_ADDRESSES * ADDRESS_WATCH_REG_MAX] = {
-	mmTCP_WATCH0_ADDR_H, mmTCP_WATCH0_ADDR_L, mmTCP_WATCH0_CNTL,
-	mmTCP_WATCH1_ADDR_H, mmTCP_WATCH1_ADDR_L, mmTCP_WATCH1_CNTL,
-	mmTCP_WATCH2_ADDR_H, mmTCP_WATCH2_ADDR_L, mmTCP_WATCH2_CNTL,
-	mmTCP_WATCH3_ADDR_H, mmTCP_WATCH3_ADDR_L, mmTCP_WATCH3_CNTL
-};
-
-union TCP_WATCH_CNTL_BITS {
-	struct {
-		uint32_t mask:24;
-		uint32_t vmid:4;
-		uint32_t atc:1;
-		uint32_t mode:2;
-		uint32_t valid:1;
-	} bitfields, bits;
-	uint32_t u32All;
-	signed int i32All;
-	float f32All;
-};
-
 static void lock_srbm(struct amdgpu_device *adev, uint32_t mec, uint32_t pipe,
 			uint32_t queue, uint32_t vmid)
 {
@@ -221,7 +184,7 @@ static int kgd_hqd_load(struct amdgpu_device *adev, void *mqd,
 
 	/* read_user_ptr may take the mm->mmap_lock.
 	 * release srbm_mutex to avoid circular dependency between
-	 * srbm_mutex->mm_sem->reservation_ww_class_mutex->srbm_mutex.
+	 * srbm_mutex->mmap_lock->reservation_ww_class_mutex->srbm_mutex.
 	 */
 	release_queue(adev);
 	valid_wptr = read_user_wptr(mm, wptr, wptr_val);
@@ -529,55 +492,6 @@ static int kgd_hqd_sdma_destroy(struct amdgpu_device *adev, void *mqd,
 	return 0;
 }
 
-static int kgd_address_watch_disable(struct amdgpu_device *adev)
-{
-	union TCP_WATCH_CNTL_BITS cntl;
-	unsigned int i;
-
-	cntl.u32All = 0;
-
-	cntl.bitfields.valid = 0;
-	cntl.bitfields.mask = ADDRESS_WATCH_REG_CNTL_DEFAULT_MASK;
-	cntl.bitfields.atc = 1;
-
-	/* Turning off this address until we set all the registers */
-	for (i = 0; i < MAX_WATCH_ADDRESSES; i++)
-		WREG32(watchRegs[i * ADDRESS_WATCH_REG_MAX +
-			ADDRESS_WATCH_REG_CNTL], cntl.u32All);
-
-	return 0;
-}
-
-static int kgd_address_watch_execute(struct amdgpu_device *adev,
-					unsigned int watch_point_id,
-					uint32_t cntl_val,
-					uint32_t addr_hi,
-					uint32_t addr_lo)
-{
-	union TCP_WATCH_CNTL_BITS cntl;
-
-	cntl.u32All = cntl_val;
-
-	/* Turning off this watch point until we set all the registers */
-	cntl.bitfields.valid = 0;
-	WREG32(watchRegs[watch_point_id * ADDRESS_WATCH_REG_MAX +
-		ADDRESS_WATCH_REG_CNTL], cntl.u32All);
-
-	WREG32(watchRegs[watch_point_id * ADDRESS_WATCH_REG_MAX +
-		ADDRESS_WATCH_REG_ADDR_HI], addr_hi);
-
-	WREG32(watchRegs[watch_point_id * ADDRESS_WATCH_REG_MAX +
-		ADDRESS_WATCH_REG_ADDR_LO], addr_lo);
-
-	/* Enable the watch point */
-	cntl.bitfields.valid = 1;
-
-	WREG32(watchRegs[watch_point_id * ADDRESS_WATCH_REG_MAX +
-		ADDRESS_WATCH_REG_CNTL], cntl.u32All);
-
-	return 0;
-}
-
 static int kgd_wave_control_execute(struct amdgpu_device *adev,
 					uint32_t gfx_index_val,
 					uint32_t sq_cmd)
@@ -600,13 +514,6 @@ static int kgd_wave_control_execute(struct amdgpu_device *adev,
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	return 0;
-}
-
-static uint32_t kgd_address_watch_get_offset(struct amdgpu_device *adev,
-					unsigned int watch_point_id,
-					unsigned int reg_offset)
-{
-	return watchRegs[watch_point_id * ADDRESS_WATCH_REG_MAX + reg_offset];
 }
 
 static bool get_atc_vmid_pasid_mapping_info(struct amdgpu_device *adev,
@@ -665,10 +572,7 @@ const struct kfd2kgd_calls gfx_v7_kfd2kgd = {
 	.hqd_sdma_is_occupied = kgd_hqd_sdma_is_occupied,
 	.hqd_destroy = kgd_hqd_destroy,
 	.hqd_sdma_destroy = kgd_hqd_sdma_destroy,
-	.address_watch_disable = kgd_address_watch_disable,
-	.address_watch_execute = kgd_address_watch_execute,
 	.wave_control_execute = kgd_wave_control_execute,
-	.address_watch_get_offset = kgd_address_watch_get_offset,
 	.get_atc_vmid_pasid_mapping_info = get_atc_vmid_pasid_mapping_info,
 	.set_scratch_backing_va = set_scratch_backing_va,
 	.set_vm_context_page_table_base = set_vm_context_page_table_base,

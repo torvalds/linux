@@ -139,7 +139,7 @@ static bool scsi_eh_should_retry_cmd(struct scsi_cmnd *cmd)
  *
  * Note: this function must be called only for a command that has timed out.
  * Because the block layer marks a request as complete before it calls
- * scsi_times_out(), a .scsi_done() call from the LLD for a command that has
+ * scsi_timeout(), a .scsi_done() call from the LLD for a command that has
  * timed out do not have any effect. Hence it is safe to call
  * scsi_finish_command() from this function.
  */
@@ -316,7 +316,7 @@ void scsi_eh_scmd_add(struct scsi_cmnd *scmd)
 }
 
 /**
- * scsi_times_out - Timeout function for normal scsi commands.
+ * scsi_timeout - Timeout function for normal scsi commands.
  * @req:	request that is timing out.
  *
  * Notes:
@@ -325,7 +325,7 @@ void scsi_eh_scmd_add(struct scsi_cmnd *scmd)
  *     normal completion function determines that the timer has already
  *     fired, then it mustn't do anything.
  */
-enum blk_eh_timer_return scsi_times_out(struct request *req)
+enum blk_eh_timer_return scsi_timeout(struct request *req)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
 	enum blk_eh_timer_return rtn = BLK_EH_DONE;
@@ -334,6 +334,7 @@ enum blk_eh_timer_return scsi_times_out(struct request *req)
 	trace_scsi_dispatch_cmd_timeout(scmd);
 	scsi_log_completion(scmd, TIMEOUT_ERROR);
 
+	atomic_inc(&scmd->device->iotmo_cnt);
 	if (host->eh_deadline != -1 && !host->last_reset)
 		host->last_reset = jiffies;
 
@@ -463,14 +464,12 @@ static void scsi_report_sense(struct scsi_device *sdev,
 			evt_type = SDEV_EVT_LUN_CHANGE_REPORTED;
 			scsi_report_lun_change(sdev);
 			sdev_printk(KERN_WARNING, sdev,
-				    "Warning! Received an indication that the "
 				    "LUN assignments on this target have "
 				    "changed. The Linux SCSI layer does not "
 				    "automatically remap LUN assignments.\n");
 		} else if (sshdr->asc == 0x3f)
 			sdev_printk(KERN_WARNING, sdev,
-				    "Warning! Received an indication that the "
-				    "operating parameters on this target have "
+				    "Operating parameters on this target have "
 				    "changed. The Linux SCSI layer does not "
 				    "automatically adjust these parameters.\n");
 
@@ -484,8 +483,13 @@ static void scsi_report_sense(struct scsi_device *sdev,
 
 		if (sshdr->asc == 0x29) {
 			evt_type = SDEV_EVT_POWER_ON_RESET_OCCURRED;
-			sdev_printk(KERN_WARNING, sdev,
-				    "Power-on or device reset occurred\n");
+			/*
+			 * Do not print message if it is an expected side-effect
+			 * of runtime PM.
+			 */
+			if (!sdev->silence_suspend)
+				sdev_printk(KERN_WARNING, sdev,
+					    "Power-on or device reset occurred\n");
 		}
 
 		if (sshdr->asc == 0x2a && sshdr->ascq == 0x01) {
@@ -509,6 +513,11 @@ static void scsi_report_sense(struct scsi_device *sdev,
 		set_bit(evt_type, sdev->pending_events);
 		schedule_work(&sdev->event_work);
 	}
+}
+
+static inline void set_scsi_ml_byte(struct scsi_cmnd *cmd, u8 status)
+{
+	cmd->result = (cmd->result & 0xffff00ff) | (status << 8);
 }
 
 /**
@@ -641,7 +650,7 @@ enum scsi_disposition scsi_check_sense(struct scsi_cmnd *scmd)
 	case DATA_PROTECT:
 		if (sshdr.asc == 0x27 && sshdr.ascq == 0x07) {
 			/* Thin provisioning hard threshold reached */
-			set_host_byte(scmd, DID_ALLOC_FAILURE);
+			set_scsi_ml_byte(scmd, SCSIML_STAT_NOSPC);
 			return SUCCESS;
 		}
 		fallthrough;
@@ -649,14 +658,14 @@ enum scsi_disposition scsi_check_sense(struct scsi_cmnd *scmd)
 	case VOLUME_OVERFLOW:
 	case MISCOMPARE:
 	case BLANK_CHECK:
-		set_host_byte(scmd, DID_TARGET_FAILURE);
+		set_scsi_ml_byte(scmd, SCSIML_STAT_TGT_FAILURE);
 		return SUCCESS;
 
 	case MEDIUM_ERROR:
 		if (sshdr.asc == 0x11 || /* UNRECOVERED READ ERR */
 		    sshdr.asc == 0x13 || /* AMNF DATA FIELD */
 		    sshdr.asc == 0x14) { /* RECORD NOT FOUND */
-			set_host_byte(scmd, DID_MEDIUM_ERROR);
+			set_scsi_ml_byte(scmd, SCSIML_STAT_MED_ERROR);
 			return SUCCESS;
 		}
 		return NEEDS_RETRY;
@@ -665,7 +674,7 @@ enum scsi_disposition scsi_check_sense(struct scsi_cmnd *scmd)
 		if (scmd->device->retry_hwerror)
 			return ADD_TO_MLQUEUE;
 		else
-			set_host_byte(scmd, DID_TARGET_FAILURE);
+			set_scsi_ml_byte(scmd, SCSIML_STAT_TGT_FAILURE);
 		fallthrough;
 
 	case ILLEGAL_REQUEST:
@@ -675,7 +684,7 @@ enum scsi_disposition scsi_check_sense(struct scsi_cmnd *scmd)
 		    sshdr.asc == 0x24 || /* Invalid field in cdb */
 		    sshdr.asc == 0x26 || /* Parameter value invalid */
 		    sshdr.asc == 0x27) { /* Write protected */
-			set_host_byte(scmd, DID_TARGET_FAILURE);
+			set_scsi_ml_byte(scmd, SCSIML_STAT_TGT_FAILURE);
 		}
 		return SUCCESS;
 
@@ -980,7 +989,7 @@ static void scsi_abort_eh_cmnd(struct scsi_cmnd *scmd)
  * @scmd:       SCSI command structure to hijack
  * @ses:        structure to save restore information
  * @cmnd:       CDB to send. Can be NULL if no new cmnd is needed
- * @cmnd_size:  size in bytes of @cmnd (must be <= BLK_MAX_CDB)
+ * @cmnd_size:  size in bytes of @cmnd (must be <= MAX_COMMAND_SIZE)
  * @sense_bytes: size of sense data to copy. or 0 (if != 0 @cmnd is ignored)
  *
  * This function is used to save a scsi command information before re-execution
@@ -1002,22 +1011,21 @@ void scsi_eh_prep_cmnd(struct scsi_cmnd *scmd, struct scsi_eh_save *ses,
 	 * command.
 	 */
 	ses->cmd_len = scmd->cmd_len;
-	ses->cmnd = scmd->cmnd;
 	ses->data_direction = scmd->sc_data_direction;
 	ses->sdb = scmd->sdb;
 	ses->result = scmd->result;
-	ses->resid_len = scmd->req.resid_len;
+	ses->resid_len = scmd->resid_len;
 	ses->underflow = scmd->underflow;
 	ses->prot_op = scmd->prot_op;
 	ses->eh_eflags = scmd->eh_eflags;
 
 	scmd->prot_op = SCSI_PROT_NORMAL;
 	scmd->eh_eflags = 0;
-	scmd->cmnd = ses->eh_cmnd;
-	memset(scmd->cmnd, 0, BLK_MAX_CDB);
+	memcpy(ses->cmnd, scmd->cmnd, sizeof(ses->cmnd));
+	memset(scmd->cmnd, 0, sizeof(scmd->cmnd));
 	memset(&scmd->sdb, 0, sizeof(scmd->sdb));
 	scmd->result = 0;
-	scmd->req.resid_len = 0;
+	scmd->resid_len = 0;
 
 	if (sense_bytes) {
 		scmd->sdb.length = min_t(unsigned, SCSI_SENSE_BUFFERSIZE,
@@ -1033,7 +1041,7 @@ void scsi_eh_prep_cmnd(struct scsi_cmnd *scmd, struct scsi_eh_save *ses,
 	} else {
 		scmd->sc_data_direction = DMA_NONE;
 		if (cmnd) {
-			BUG_ON(cmnd_size > BLK_MAX_CDB);
+			BUG_ON(cmnd_size > sizeof(scmd->cmnd));
 			memcpy(scmd->cmnd, cmnd, cmnd_size);
 			scmd->cmd_len = COMMAND_SIZE(scmd->cmnd[0]);
 		}
@@ -1066,11 +1074,11 @@ void scsi_eh_restore_cmnd(struct scsi_cmnd* scmd, struct scsi_eh_save *ses)
 	 * Restore original data
 	 */
 	scmd->cmd_len = ses->cmd_len;
-	scmd->cmnd = ses->cmnd;
+	memcpy(scmd->cmnd, ses->cmnd, sizeof(ses->cmnd));
 	scmd->sc_data_direction = ses->data_direction;
 	scmd->sdb = ses->sdb;
 	scmd->result = ses->result;
-	scmd->req.resid_len = ses->resid_len;
+	scmd->resid_len = ses->resid_len;
 	scmd->underflow = ses->underflow;
 	scmd->prot_op = ses->prot_op;
 	scmd->eh_eflags = ses->eh_eflags;
@@ -1775,7 +1783,7 @@ static void scsi_eh_offline_sdevs(struct list_head *work_q,
  * scsi_noretry_cmd - determine if command should be failed fast
  * @scmd:	SCSI cmd to examine.
  */
-int scsi_noretry_cmd(struct scsi_cmnd *scmd)
+bool scsi_noretry_cmd(struct scsi_cmnd *scmd)
 {
 	struct request *req = scsi_cmd_to_rq(scmd);
 
@@ -1785,19 +1793,19 @@ int scsi_noretry_cmd(struct scsi_cmnd *scmd)
 	case DID_TIME_OUT:
 		goto check_type;
 	case DID_BUS_BUSY:
-		return req->cmd_flags & REQ_FAILFAST_TRANSPORT;
+		return !!(req->cmd_flags & REQ_FAILFAST_TRANSPORT);
 	case DID_PARITY:
-		return req->cmd_flags & REQ_FAILFAST_DEV;
+		return !!(req->cmd_flags & REQ_FAILFAST_DEV);
 	case DID_ERROR:
 		if (get_status_byte(scmd) == SAM_STAT_RESERVATION_CONFLICT)
-			return 0;
+			return false;
 		fallthrough;
 	case DID_SOFT_ERROR:
-		return req->cmd_flags & REQ_FAILFAST_DRIVER;
+		return !!(req->cmd_flags & REQ_FAILFAST_DRIVER);
 	}
 
 	if (!scsi_status_is_check_condition(scmd->result))
-		return 0;
+		return false;
 
 check_type:
 	/*
@@ -1805,9 +1813,9 @@ check_type:
 	 * the check condition was retryable.
 	 */
 	if (req->cmd_flags & REQ_FAILFAST_DEV || blk_rq_is_passthrough(req))
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 /**
@@ -1981,10 +1989,8 @@ enum scsi_disposition scsi_decide_disposition(struct scsi_cmnd *scmd)
 	case SAM_STAT_RESERVATION_CONFLICT:
 		sdev_printk(KERN_INFO, scmd->device,
 			    "reservation conflict\n");
-		set_host_byte(scmd, DID_NEXUS_FAILURE);
+		set_scsi_ml_byte(scmd, SCSIML_STAT_RESV_CONFLICT);
 		return SUCCESS; /* causes immediate i/o error */
-	default:
-		return FAILED;
 	}
 	return FAILED;
 
@@ -2004,9 +2010,11 @@ maybe_retry:
 	}
 }
 
-static void eh_lock_door_done(struct request *req, blk_status_t status)
+static enum rq_end_io_ret eh_lock_door_done(struct request *req,
+					    blk_status_t status)
 {
 	blk_mq_free_request(req);
+	return RQ_END_IO_NONE;
 }
 
 /**
@@ -2022,27 +2030,28 @@ static void eh_lock_door_done(struct request *req, blk_status_t status)
  */
 static void scsi_eh_lock_door(struct scsi_device *sdev)
 {
+	struct scsi_cmnd *scmd;
 	struct request *req;
-	struct scsi_request *rq;
 
 	req = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN, 0);
 	if (IS_ERR(req))
 		return;
-	rq = scsi_req(req);
+	scmd = blk_mq_rq_to_pdu(req);
 
-	rq->cmd[0] = ALLOW_MEDIUM_REMOVAL;
-	rq->cmd[1] = 0;
-	rq->cmd[2] = 0;
-	rq->cmd[3] = 0;
-	rq->cmd[4] = SCSI_REMOVAL_PREVENT;
-	rq->cmd[5] = 0;
-	rq->cmd_len = COMMAND_SIZE(rq->cmd[0]);
+	scmd->cmnd[0] = ALLOW_MEDIUM_REMOVAL;
+	scmd->cmnd[1] = 0;
+	scmd->cmnd[2] = 0;
+	scmd->cmnd[3] = 0;
+	scmd->cmnd[4] = SCSI_REMOVAL_PREVENT;
+	scmd->cmnd[5] = 0;
+	scmd->cmd_len = COMMAND_SIZE(scmd->cmnd[0]);
+	scmd->allowed = 5;
 
 	req->rq_flags |= RQF_QUIET;
 	req->timeout = 10 * HZ;
-	rq->retries = 5;
+	req->end_io = eh_lock_door_done;
 
-	blk_execute_rq_nowait(req, true, eh_lock_door_done);
+	blk_execute_rq_nowait(req, true);
 }
 
 /**
@@ -2399,7 +2408,6 @@ scsi_ioctl_reset(struct scsi_device *dev, int __user *arg)
 
 	scmd = (struct scsi_cmnd *)(rq + 1);
 	scsi_init_command(dev, scmd);
-	scmd->cmnd = scsi_req(rq)->cmd;
 
 	scmd->submitter = SUBMITTED_BY_SCSI_RESET_IOCTL;
 	memset(&scmd->sdb, 0, sizeof(scmd->sdb));

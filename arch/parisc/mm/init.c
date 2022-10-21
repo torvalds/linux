@@ -337,9 +337,9 @@ static void __init setup_bootmem(void)
 
 static bool kernel_set_to_readonly;
 
-static void __init map_pages(unsigned long start_vaddr,
-			     unsigned long start_paddr, unsigned long size,
-			     pgprot_t pgprot, int force)
+static void __ref map_pages(unsigned long start_vaddr,
+			    unsigned long start_paddr, unsigned long size,
+			    pgprot_t pgprot, int force)
 {
 	pmd_t *pmd;
 	pte_t *pg_table;
@@ -449,7 +449,7 @@ void __init set_kernel_text_rw(int enable_read_write)
 	flush_tlb_all();
 }
 
-void __ref free_initmem(void)
+void free_initmem(void)
 {
 	unsigned long init_begin = (unsigned long)__init_begin;
 	unsigned long init_end = (unsigned long)__init_end;
@@ -463,7 +463,6 @@ void __ref free_initmem(void)
 	/* The init text pages are marked R-X.  We have to
 	 * flush the icache and mark them RW-
 	 *
-	 * This is tricky, because map_pages is in the init section.
 	 * Do a dummy remap of the data section first (the data
 	 * section is already PAGE_KERNEL) to pull in the TLB entries
 	 * for map_kernel */
@@ -554,6 +553,12 @@ void __init mem_init(void)
 	BUILD_BUG_ON(PT_INITIAL > PTRS_PER_PMD);
 #else
 	BUILD_BUG_ON(PT_INITIAL > PTRS_PER_PGD);
+#endif
+
+#ifdef CONFIG_64BIT
+	/* avoid ldil_%L() asm statements to sign-extend into upper 32-bits */
+	BUILD_BUG_ON(__PAGE_OFFSET >= 0x80000000);
+	BUILD_BUG_ON(TMPALIAS_MAP_START >= 0x80000000);
 #endif
 
 	high_memory = __va((max_pfn << PAGE_SHIFT));
@@ -717,7 +722,7 @@ static unsigned long space_id[SID_ARRAY_SIZE] = { 1 }; /* disallow space 0 */
 static unsigned long dirty_space_id[SID_ARRAY_SIZE];
 static unsigned long space_id_index;
 static unsigned long free_space_ids = NR_SPACE_IDS - 1;
-static unsigned long dirty_space_ids = 0;
+static unsigned long dirty_space_ids;
 
 static DEFINE_SPINLOCK(sid_lock);
 
@@ -866,3 +871,23 @@ void flush_tlb_all(void)
 	spin_unlock(&sid_lock);
 }
 #endif
+
+static const pgprot_t protection_map[16] = {
+	[VM_NONE]					= PAGE_NONE,
+	[VM_READ]					= PAGE_READONLY,
+	[VM_WRITE]					= PAGE_NONE,
+	[VM_WRITE | VM_READ]				= PAGE_READONLY,
+	[VM_EXEC]					= PAGE_EXECREAD,
+	[VM_EXEC | VM_READ]				= PAGE_EXECREAD,
+	[VM_EXEC | VM_WRITE]				= PAGE_EXECREAD,
+	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_EXECREAD,
+	[VM_SHARED]					= PAGE_NONE,
+	[VM_SHARED | VM_READ]				= PAGE_READONLY,
+	[VM_SHARED | VM_WRITE]				= PAGE_WRITEONLY,
+	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_SHARED,
+	[VM_SHARED | VM_EXEC]				= PAGE_EXECREAD,
+	[VM_SHARED | VM_EXEC | VM_READ]			= PAGE_EXECREAD,
+	[VM_SHARED | VM_EXEC | VM_WRITE]		= PAGE_RWX,
+	[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= PAGE_RWX
+};
+DECLARE_VM_GET_PAGE_PROT

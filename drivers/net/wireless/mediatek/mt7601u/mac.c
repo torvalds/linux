@@ -385,7 +385,7 @@ void mt7601u_mac_set_ampdu_factor(struct mt7601u_dev *dev)
 		msta = container_of(wcid, struct mt76_sta, wcid);
 		sta = container_of(msta, struct ieee80211_sta, drv_priv);
 
-		min_factor = min(min_factor, sta->ht_cap.ampdu_factor);
+		min_factor = min(min_factor, sta->deflink.ht_cap.ampdu_factor);
 	}
 	rcu_read_unlock();
 

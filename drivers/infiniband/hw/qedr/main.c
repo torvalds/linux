@@ -500,7 +500,6 @@ static void qedr_sync_free_irqs(struct qedr_dev *dev)
 		if (dev->int_info.msix_cnt) {
 			idx = i * dev->num_hwfns + dev->affin_hwfn_idx;
 			vector = dev->int_info.msix[idx].vector;
-			synchronize_irq(vector);
 			free_irq(vector, &dev->cnq_array[i]);
 		}
 	}

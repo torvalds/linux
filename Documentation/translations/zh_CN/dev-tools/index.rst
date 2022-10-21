@@ -25,6 +25,7 @@ Documentation/translations/zh_CN/dev-tools/testing-overview.rst
    sparse
    gcov
    kasan
+   gdb-kernel-debugging
 
 Todolist:
 
@@ -34,7 +35,6 @@ Todolist:
  - kmemleak
  - kcsan
  - kfence
- - gdb-kernel-debugging
  - kgdb
  - kselftest
  - kunit/index

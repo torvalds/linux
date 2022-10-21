@@ -7,17 +7,27 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Solomon Goldentek Display GKTW70SDAE4SE 7" WVGA LVDS Display Panel
 
 maintainers:
-  - Neil Armstrong <narmstrong@baylibre.com>
+  - Neil Armstrong <neil.armstrong@linaro.org>
   - Thierry Reding <thierry.reding@gmail.com>
 
 allOf:
-  - $ref: lvds.yaml#
+  - $ref: panel-common.yaml#
+  - $ref: /schemas/display/lvds.yaml/#
+
+select:
+  properties:
+    compatible:
+      contains:
+        const: sgd,gktw70sdae4se
+
+  required:
+    - compatible
 
 properties:
   compatible:
     items:
       - const: sgd,gktw70sdae4se
-      - {} # panel-lvds, but not listed here to avoid false select
+      - const: panel-lvds
 
   data-mapping:
     const: jeida-18
@@ -35,6 +45,11 @@ additionalProperties: false
 
 required:
   - compatible
+  - port
+  - data-mapping
+  - width-mm
+  - height-mm
+  - panel-timing
 
 examples:
   - |+

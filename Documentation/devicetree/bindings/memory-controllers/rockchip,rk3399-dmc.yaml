@@ -1,0 +1,384 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# %YAML 1.2
+---
+$id: http://devicetree.org/schemas/memory-controllers/rockchip,rk3399-dmc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip rk3399 DMC (Dynamic Memory Controller) device
+
+maintainers:
+  - Brian Norris <briannorris@chromium.org>
+
+properties:
+  compatible:
+    enum:
+      - rockchip,rk3399-dmc
+
+  devfreq-events:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Node to get DDR loading. Refer to
+      Documentation/devicetree/bindings/devfreq/event/rockchip-dfi.txt.
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: dmc_clk
+
+  operating-points-v2: true
+
+  center-supply:
+    description:
+      DMC regulator supply.
+
+  rockchip,pmu:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the syscon managing the "PMU general register files".
+
+  interrupts:
+    maxItems: 1
+    description:
+      The CPU interrupt number. It should be a DCF interrupt. When DDR DVFS
+      finishes, a DCF interrupt is triggered.
+
+  rockchip,ddr3_speed_bin:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      For values, reference include/dt-bindings/clock/rk3399-ddr.h. Selects the
+      DDR3 cl-trp-trcd type. It must be set according to "Speed Bin" in DDR3
+      datasheet; DO NOT use a smaller "Speed Bin" than specified for the DDR3
+      being used.
+
+  rockchip,pd_idle:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Configure the PD_IDLE value. Defines the power-down idle period in which
+      memories are placed into power-down mode if bus is idle for PD_IDLE DFI
+      clock cycles.
+      See also rockchip,pd-idle-ns.
+
+  rockchip,sr_idle:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Configure the SR_IDLE value. Defines the self-refresh idle period in
+      which memories are placed into self-refresh mode if bus is idle for
+      SR_IDLE * 1024 DFI clock cycles (DFI clocks freq is half of DRAM clock).
+      See also rockchip,sr-idle-ns.
+    default: 0
+
+  rockchip,sr_mc_gate_idle:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Defines the memory self-refresh and controller clock gating idle period.
+      Memories are placed into self-refresh mode and memory controller clock
+      arg gating started if bus is idle for sr_mc_gate_idle*1024 DFI clock
+      cycles.
+      See also rockchip,sr-mc-gate-idle-ns.
+
+  rockchip,srpd_lite_idle:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Defines the self-refresh power down idle period in which memories are
+      placed into self-refresh power down mode if bus is idle for
+      srpd_lite_idle * 1024 DFI clock cycles. This parameter is for LPDDR4
+      only.
+      See also rockchip,srpd-lite-idle-ns.
+
+  rockchip,standby_idle:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Defines the standby idle period in which memories are placed into
+      self-refresh mode. The controller, pi, PHY and DRAM clock will be gated
+      if bus is idle for standby_idle * DFI clock cycles.
+      See also rockchip,standby-idle-ns.
+
+  rockchip,dram_dll_dis_freq:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Defines the DDR3 DLL bypass frequency in MHz. When DDR frequency is less
+      than DRAM_DLL_DISB_FREQ, DDR3 DLL will be bypassed.
+      Note: if DLL was bypassed, the odt will also stop working.
+
+  rockchip,phy_dll_dis_freq:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Defines the PHY dll bypass frequency in MHz (Mega Hz). When DDR frequency
+      is less than DRAM_DLL_DISB_FREQ, PHY DLL will be bypassed.
+      Note: PHY DLL and PHY ODT are independent.
+
+  rockchip,auto_pd_dis_freq:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Defines the auto PD disable frequency in MHz.
+
+  rockchip,ddr3_odt_dis_freq:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1000000  # In case anyone thought this was MHz.
+    description:
+      When the DRAM type is DDR3, this parameter defines the ODT disable
+      frequency in Hz. When the DDR frequency is less then ddr3_odt_dis_freq,
+      the ODT on the DRAM side and controller side are both disabled.
+
+  rockchip,ddr3_drv:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the DRAM type is DDR3, this parameter defines the DRAM side drive
+      strength in ohms.
+    default: 40
+
+  rockchip,ddr3_odt:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the DRAM type is DDR3, this parameter defines the DRAM side ODT
+      strength in ohms.
+    default: 120
+
+  rockchip,phy_ddr3_ca_drv:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the DRAM type is DDR3, this parameter defines the phy side CA line
+      (incluing command line, address line and clock line) drive strength.
+    default: 40
+
+  rockchip,phy_ddr3_dq_drv:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the DRAM type is DDR3, this parameter defines the PHY side DQ line
+      (including DQS/DQ/DM line) drive strength.
+    default: 40
+
+  rockchip,phy_ddr3_odt:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the DRAM type is DDR3, this parameter defines the PHY side ODT
+      strength.
+    default: 240
+
+  rockchip,lpddr3_odt_dis_freq:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1000000  # In case anyone thought this was MHz.
+    description:
+      When the DRAM type is LPDDR3, this parameter defines then ODT disable
+      frequency in Hz. When DDR frequency is less then ddr3_odt_dis_freq, the
+      ODT on the DRAM side and controller side are both disabled.
+
+  rockchip,lpddr3_drv:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the DRAM type is LPDDR3, this parameter defines the DRAM side drive
+      strength in ohms.
+    default: 34
+
+  rockchip,lpddr3_odt:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the DRAM type is LPDDR3, this parameter defines the DRAM side ODT
+      strength in ohms.
+    default: 240
+
+  rockchip,phy_lpddr3_ca_drv:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the DRAM type is LPDDR3, this parameter defines the PHY side CA line
+      (including command line, address line and clock line) drive strength.
+    default: 40
+
+  rockchip,phy_lpddr3_dq_drv:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the DRAM type is LPDDR3, this parameter defines the PHY side DQ line
+      (including DQS/DQ/DM line) drive strength.
+    default: 40
+
+  rockchip,phy_lpddr3_odt:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When dram type is LPDDR3, this parameter define the phy side odt
+      strength, default value is 240.
+
+  rockchip,lpddr4_odt_dis_freq:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1000000  # In case anyone thought this was MHz.
+    description:
+      When the DRAM type is LPDDR4, this parameter defines the ODT disable
+      frequency in Hz. When the DDR frequency is less then ddr3_odt_dis_freq,
+      the ODT on the DRAM side and controller side are both disabled.
+
+  rockchip,lpddr4_drv:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the DRAM type is LPDDR4, this parameter defines the DRAM side drive
+      strength in ohms.
+    default: 60
+
+  rockchip,lpddr4_dq_odt:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the DRAM type is LPDDR4, this parameter defines the DRAM side ODT on
+      DQS/DQ line strength in ohms.
+    default: 40
+
+  rockchip,lpddr4_ca_odt:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the DRAM type is LPDDR4, this parameter defines the DRAM side ODT on
+      CA line strength in ohms.
+    default: 40
+
+  rockchip,phy_lpddr4_ca_drv:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the DRAM type is LPDDR4, this parameter defines the PHY side CA line
+      (including command address line) drive strength.
+    default: 40
+
+  rockchip,phy_lpddr4_ck_cs_drv:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the DRAM type is LPDDR4, this parameter defines the PHY side clock
+      line and CS line drive strength.
+    default: 80
+
+  rockchip,phy_lpddr4_dq_drv:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the DRAM type is LPDDR4, this parameter defines the PHY side DQ line
+      (including DQS/DQ/DM line) drive strength.
+    default: 80
+
+  rockchip,phy_lpddr4_odt:
+    deprecated: true
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the DRAM type is LPDDR4, this parameter defines the PHY side ODT
+      strength.
+    default: 60
+
+  rockchip,pd-idle-ns:
+    description:
+      Configure the PD_IDLE value in nanoseconds. Defines the power-down idle
+      period in which memories are placed into power-down mode if bus is idle
+      for PD_IDLE nanoseconds.
+
+  rockchip,sr-idle-ns:
+    description:
+      Configure the SR_IDLE value in nanoseconds. Defines the self-refresh idle
+      period in which memories are placed into self-refresh mode if bus is idle
+      for SR_IDLE nanoseconds.
+    default: 0
+
+  rockchip,sr-mc-gate-idle-ns:
+    description:
+      Defines the memory self-refresh and controller clock gating idle period in nanoseconds.
+      Memories are placed into self-refresh mode and memory controller clock
+      arg gating started if bus is idle for sr_mc_gate_idle nanoseconds.
+
+  rockchip,srpd-lite-idle-ns:
+    description:
+      Defines the self-refresh power down idle period in which memories are
+      placed into self-refresh power down mode if bus is idle for
+      srpd_lite_idle nanoseonds. This parameter is for LPDDR4 only.
+
+  rockchip,standby-idle-ns:
+    description:
+      Defines the standby idle period in which memories are placed into
+      self-refresh mode. The controller, pi, PHY and DRAM clock will be gated
+      if bus is idle for standby_idle nanoseconds.
+
+  rockchip,pd-idle-dis-freq-hz:
+    description:
+      Defines the power-down idle disable frequency in Hz. When the DDR
+      frequency is greater than pd-idle-dis-freq, power-down idle is disabled.
+      See also rockchip,pd-idle-ns.
+
+  rockchip,sr-idle-dis-freq-hz:
+    description:
+      Defines the self-refresh idle disable frequency in Hz. When the DDR
+      frequency is greater than sr-idle-dis-freq, self-refresh idle is
+      disabled. See also rockchip,sr-idle-ns.
+
+  rockchip,sr-mc-gate-idle-dis-freq-hz:
+    description:
+      Defines the self-refresh and memory-controller clock gating disable
+      frequency in Hz. When the DDR frequency is greater than
+      sr-mc-gate-idle-dis-freq, the clock will not be gated when idle. See also
+      rockchip,sr-mc-gate-idle-ns.
+
+  rockchip,srpd-lite-idle-dis-freq-hz:
+    description:
+      Defines the self-refresh power down idle disable frequency in Hz. When
+      the DDR frequency is greater than srpd-lite-idle-dis-freq, memory will
+      not be placed into self-refresh power down mode when idle. See also
+      rockchip,srpd-lite-idle-ns.
+
+  rockchip,standby-idle-dis-freq-hz:
+    description:
+      Defines the standby idle disable frequency in Hz. When the DDR frequency
+      is greater than standby-idle-dis-freq, standby idle is disabled. See also
+      rockchip,standby-idle-ns.
+
+required:
+  - compatible
+  - devfreq-events
+  - clocks
+  - clock-names
+  - operating-points-v2
+  - center-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/rk3399-cru.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    memory-controller {
+      compatible = "rockchip,rk3399-dmc";
+      devfreq-events = <&dfi>;
+      rockchip,pmu = <&pmu>;
+      interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+      clocks = <&cru SCLK_DDRC>;
+      clock-names = "dmc_clk";
+      operating-points-v2 = <&dmc_opp_table>;
+      center-supply = <&ppvar_centerlogic>;
+      rockchip,pd-idle-ns = <160>;
+      rockchip,sr-idle-ns = <10240>;
+      rockchip,sr-mc-gate-idle-ns = <40960>;
+      rockchip,srpd-lite-idle-ns = <61440>;
+      rockchip,standby-idle-ns = <81920>;
+      rockchip,ddr3_odt_dis_freq = <333000000>;
+      rockchip,lpddr3_odt_dis_freq = <333000000>;
+      rockchip,lpddr4_odt_dis_freq = <333000000>;
+      rockchip,pd-idle-dis-freq-hz = <1000000000>;
+      rockchip,sr-idle-dis-freq-hz = <1000000000>;
+      rockchip,sr-mc-gate-idle-dis-freq-hz = <1000000000>;
+      rockchip,srpd-lite-idle-dis-freq-hz = <0>;
+      rockchip,standby-idle-dis-freq-hz = <928000000>;
+    };

@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
-obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
+
+# Please keep keymaps alphabetically sorted by directory name
+#(e. g. LC_ALL=C sort Makefile)
+obj-$(CONFIG_RC_MAP) += \
+			rc-adstech-dvb-t-pci.o \
 			rc-alink-dtu-m.o \
 			rc-anysee.o \
 			rc-apac-viewcomp.o \
@@ -9,17 +13,17 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-ati-tv-wonder-hd-600.o \
 			rc-ati-x10.o \
 			rc-avermedia-a16d.o \
-			rc-avermedia.o \
 			rc-avermedia-cardbus.o \
 			rc-avermedia-dvbt.o \
 			rc-avermedia-m135a.o \
 			rc-avermedia-m733a-rm-k6.o \
+			rc-avermedia.o \
 			rc-avermedia-rm-ks.o \
 			rc-avertv-303.o \
 			rc-azurewave-ad-tu700.o \
 			rc-beelink-gs1.o \
-			rc-behold.o \
 			rc-behold-columbus.o \
+			rc-behold.o \
 			rc-budget-ci-old.o \
 			rc-cinergy-1400.o \
 			rc-cinergy.o \
@@ -39,8 +43,8 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-dvico-portable.o \
 			rc-em-terratec.o \
 			rc-encore-enltv2.o \
-			rc-encore-enltv.o \
 			rc-encore-enltv-fm53.o \
+			rc-encore-enltv.o \
 			rc-evga-indtube.o \
 			rc-eztv.o \
 			rc-flydvb.o \
@@ -50,6 +54,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-geekbox.o \
 			rc-genius-tvgo-a11mce.o \
 			rc-gotview7135.o \
+			rc-hauppauge.o \
 			rc-hisi-poplar.o \
 			rc-hisi-tv-demo.o \
 			rc-imon-mce.o \
@@ -67,14 +72,14 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-leadtek-y04g0051.o \
 			rc-lme2510.o \
 			rc-manli.o \
-			rc-mecool-kii-pro.o \
 			rc-mecool-kiii-pro.o \
-			rc-medion-x10.o \
+			rc-mecool-kii-pro.o \
 			rc-medion-x10-digitainer.o \
+			rc-medion-x10.o \
 			rc-medion-x10-or2x.o \
 			rc-minix-neo.o \
-			rc-msi-digivox-ii.o \
 			rc-msi-digivox-iii.o \
+			rc-msi-digivox-ii.o \
 			rc-msi-tvanywhere.o \
 			rc-msi-tvanywhere-plus.o \
 			rc-nebula.o \
@@ -87,20 +92,20 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-pinnacle-color.o \
 			rc-pinnacle-grey.o \
 			rc-pinnacle-pctv-hd.o \
-			rc-pixelview.o \
-			rc-pixelview-mk12.o \
 			rc-pixelview-002t.o \
+			rc-pixelview-mk12.o \
 			rc-pixelview-new.o \
+			rc-pixelview.o \
 			rc-powercolor-real-angel.o \
 			rc-proteus-2309.o \
 			rc-purpletv.o \
 			rc-pv951.o \
-			rc-hauppauge.o \
 			rc-rc6-mce.o \
 			rc-real-audio-220-32-keys.o \
 			rc-reddo.o \
 			rc-snapstream-firefly.o \
 			rc-streamzap.o \
+			rc-su3000.o \
 			rc-tanix-tx3mini.o \
 			rc-tanix-tx5max.o \
 			rc-tbs-nec.o \
@@ -109,16 +114,16 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-terratec-cinergy-c-pci.o \
 			rc-terratec-cinergy-s2-hd.o \
 			rc-terratec-cinergy-xs.o \
-			rc-terratec-slim.o \
 			rc-terratec-slim-2.o \
+			rc-terratec-slim.o \
 			rc-tevii-nec.o \
 			rc-tivo.o \
-			rc-total-media-in-hand.o \
 			rc-total-media-in-hand-02.o \
+			rc-total-media-in-hand.o \
 			rc-trekstor.o \
 			rc-tt-1500.o \
-			rc-twinhan-dtv-cab-ci.o \
 			rc-twinhan1027.o \
+			rc-twinhan-dtv-cab-ci.o \
 			rc-vega-s9x.o \
 			rc-videomate-m1f.o \
 			rc-videomate-s350.o \
@@ -128,8 +133,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-wetek-play2.o \
 			rc-winfast.o \
 			rc-winfast-usbii-deluxe.o \
-			rc-su3000.o \
+			rc-x96max.o \
 			rc-xbox-360.o \
 			rc-xbox-dvd.o \
-			rc-x96max.o \
 			rc-zx-irdec.o

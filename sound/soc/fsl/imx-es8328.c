@@ -48,7 +48,7 @@ static int imx_es8328_dai_init(struct snd_soc_pcm_runtime *rtd)
 	if (gpio_is_valid(data->jack_gpio)) {
 		ret = snd_soc_card_jack_new(rtd->card, "Headphone",
 					    SND_JACK_HEADPHONE | SND_JACK_BTN_0,
-					    &headset_jack, NULL, 0);
+					    &headset_jack);
 		if (ret)
 			return ret;
 
@@ -87,6 +87,7 @@ static int imx_es8328_probe(struct platform_device *pdev)
 	if (int_port > MUX_PORT_MAX || int_port == 0) {
 		dev_err(dev, "mux-int-port: hardware only has %d mux ports\n",
 			MUX_PORT_MAX);
+		ret = -EINVAL;
 		goto fail;
 	}
 

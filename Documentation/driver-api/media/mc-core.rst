@@ -42,9 +42,16 @@ Allocation of the structure is handled by the media device driver, usually by
 embedding the :c:type:`media_device` instance in a larger driver-specific
 structure.
 
-Drivers register media device instances by calling
-:c:func:`__media_device_register()` via the macro ``media_device_register()``
-and unregistered by calling :c:func:`media_device_unregister()`.
+Drivers initialise media device instances by calling
+:c:func:`media_device_init()`. After initialising a media device instance, it is
+registered by calling :c:func:`__media_device_register()` via the macro
+``media_device_register()`` and unregistered by calling
+:c:func:`media_device_unregister()`. An initialised media device must be
+eventually cleaned up by calling :c:func:`media_device_cleanup()`.
+
+Note that it is not allowed to unregister a media device instance that was not
+previously registered, or clean up a media device instance that was not
+previously initialised.
 
 Entities
 ^^^^^^^^
@@ -179,8 +186,9 @@ is required and the graph structure can be freed normally.
 
 Helper functions can be used to find a link between two given pads, or a pad
 connected to another pad through an enabled link
-:c:func:`media_entity_find_link()` and
-:c:func:`media_entity_remote_pad()`.
+(:c:func:`media_entity_find_link()`, :c:func:`media_pad_remote_pad_first()`,
+:c:func:`media_entity_remote_source_pad_unique()` and
+:c:func:`media_pad_remote_pad_unique()`).
 
 Use count and power handling
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

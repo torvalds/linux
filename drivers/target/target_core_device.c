@@ -75,7 +75,7 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd)
 			return TCM_WRITE_PROTECTED;
 		}
 
-		se_lun = rcu_dereference(deve->se_lun);
+		se_lun = deve->se_lun;
 
 		if (!percpu_ref_tryget_live(&se_lun->lun_ref)) {
 			se_lun = NULL;
@@ -152,7 +152,7 @@ int transport_lookup_tmr_lun(struct se_cmd *se_cmd)
 	rcu_read_lock();
 	deve = target_nacl_find_deve(nacl, se_cmd->orig_fe_lun);
 	if (deve) {
-		se_lun = rcu_dereference(deve->se_lun);
+		se_lun = deve->se_lun;
 
 		if (!percpu_ref_tryget_live(&se_lun->lun_ref)) {
 			se_lun = NULL;
@@ -216,7 +216,7 @@ struct se_dev_entry *core_get_se_deve_from_rtpi(
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(deve, &nacl->lun_entry_hlist, link) {
-		lun = rcu_dereference(deve->se_lun);
+		lun = deve->se_lun;
 		if (!lun) {
 			pr_err("%s device entries device pointer is"
 				" NULL, but Initiator has access.\n",
@@ -243,11 +243,8 @@ void core_free_device_list_for_node(
 	struct se_dev_entry *deve;
 
 	mutex_lock(&nacl->lun_entry_mutex);
-	hlist_for_each_entry_rcu(deve, &nacl->lun_entry_hlist, link) {
-		struct se_lun *lun = rcu_dereference_check(deve->se_lun,
-					lockdep_is_held(&nacl->lun_entry_mutex));
-		core_disable_device_list_for_node(lun, deve, nacl, tpg);
-	}
+	hlist_for_each_entry_rcu(deve, &nacl->lun_entry_hlist, link)
+		core_disable_device_list_for_node(deve->se_lun, deve, nacl, tpg);
 	mutex_unlock(&nacl->lun_entry_mutex);
 }
 
@@ -334,8 +331,7 @@ int core_enable_device_list_for_node(
 	mutex_lock(&nacl->lun_entry_mutex);
 	orig = target_nacl_find_deve(nacl, mapped_lun);
 	if (orig && orig->se_lun) {
-		struct se_lun *orig_lun = rcu_dereference_check(orig->se_lun,
-					lockdep_is_held(&nacl->lun_entry_mutex));
+		struct se_lun *orig_lun = orig->se_lun;
 
 		if (orig_lun != lun) {
 			pr_err("Existing orig->se_lun doesn't match new lun"
@@ -355,8 +351,8 @@ int core_enable_device_list_for_node(
 			return -EINVAL;
 		}
 
-		rcu_assign_pointer(new->se_lun, lun);
-		rcu_assign_pointer(new->se_lun_acl, lun_acl);
+		new->se_lun = lun;
+		new->se_lun_acl = lun_acl;
 		hlist_del_rcu(&orig->link);
 		hlist_add_head_rcu(&new->link, &nacl->lun_entry_hlist);
 		mutex_unlock(&nacl->lun_entry_mutex);
@@ -374,8 +370,8 @@ int core_enable_device_list_for_node(
 		return 0;
 	}
 
-	rcu_assign_pointer(new->se_lun, lun);
-	rcu_assign_pointer(new->se_lun_acl, lun_acl);
+	new->se_lun = lun;
+	new->se_lun_acl = lun_acl;
 	hlist_add_head_rcu(&new->link, &nacl->lun_entry_hlist);
 	mutex_unlock(&nacl->lun_entry_mutex);
 
@@ -434,9 +430,6 @@ void core_disable_device_list_for_node(
 	kref_put(&orig->pr_kref, target_pr_kref_release);
 	wait_for_completion(&orig->pr_comp);
 
-	rcu_assign_pointer(orig->se_lun, NULL);
-	rcu_assign_pointer(orig->se_lun_acl, NULL);
-
 	kfree_rcu(orig, rcu_head);
 
 	core_scsi3_free_pr_reg_from_nacl(dev, nacl);
@@ -457,10 +450,7 @@ void core_clear_lun_from_tpg(struct se_lun *lun, struct se_portal_group *tpg)
 
 		mutex_lock(&nacl->lun_entry_mutex);
 		hlist_for_each_entry_rcu(deve, &nacl->lun_entry_hlist, link) {
-			struct se_lun *tmp_lun = rcu_dereference_check(deve->se_lun,
-					lockdep_is_held(&nacl->lun_entry_mutex));
-
-			if (lun != tmp_lun)
+			if (lun != deve->se_lun)
 				continue;
 
 			core_disable_device_list_for_node(lun, deve, nacl, tpg);
@@ -829,28 +819,26 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 }
 
 /*
- * Check if the underlying struct block_device request_queue supports
- * the QUEUE_FLAG_DISCARD bit for UNMAP/WRITE_SAME in SCSI + TRIM
- * in ATA and we need to set TPE=1
+ * Check if the underlying struct block_device supports discard and if yes
+ * configure the UNMAP parameters.
  */
 bool target_configure_unmap_from_queue(struct se_dev_attrib *attrib,
-				       struct request_queue *q)
+				       struct block_device *bdev)
 {
-	int block_size = queue_logical_block_size(q);
+	int block_size = bdev_logical_block_size(bdev);
 
-	if (!blk_queue_discard(q))
+	if (!bdev_max_discard_sectors(bdev))
 		return false;
 
 	attrib->max_unmap_lba_count =
-		q->limits.max_discard_sectors >> (ilog2(block_size) - 9);
+		bdev_max_discard_sectors(bdev) >> (ilog2(block_size) - 9);
 	/*
 	 * Currently hardcoded to 1 in Linux/SCSI code..
 	 */
 	attrib->max_unmap_block_desc_count = 1;
-	attrib->unmap_granularity = q->limits.discard_granularity / block_size;
-	attrib->unmap_granularity_alignment = q->limits.discard_alignment /
-								block_size;
-	attrib->unmap_zeroes_data = !!(q->limits.max_write_zeroes_sectors);
+	attrib->unmap_granularity = bdev_discard_granularity(bdev) / block_size;
+	attrib->unmap_granularity_alignment =
+		bdev_discard_alignment(bdev) / block_size;
 	return true;
 }
 EXPORT_SYMBOL(target_configure_unmap_from_queue);
@@ -962,6 +950,12 @@ int target_configure_device(struct se_device *dev)
 	ret = dev->transport->configure_device(dev);
 	if (ret)
 		goto out_free_index;
+
+	if (dev->transport->configure_unmap &&
+	    dev->transport->configure_unmap(dev)) {
+		pr_debug("Discard support available, but disabled by default.\n");
+	}
+
 	/*
 	 * XXX: there is not much point to have two different values here..
 	 */

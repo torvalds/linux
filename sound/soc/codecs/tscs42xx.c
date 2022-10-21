@@ -1197,9 +1197,9 @@ static int tscs42xx_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_component *component = codec_dai->component;
 	int ret;
 
-	/* Slave mode not supported since it needs always-on frame clock */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	/* Consumer mode not supported since it needs always-on frame clock */
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		ret = snd_soc_component_update_bits(component,
 				R_AIC1, RM_AIC1_MS, RV_AIC1_MS_MASTER);
 		if (ret < 0) {
@@ -1358,7 +1358,6 @@ static const struct snd_soc_component_driver soc_codec_dev_tscs42xx = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static inline void init_coeff_ram_cache(struct tscs42xx *tscs42xx)
@@ -1409,8 +1408,7 @@ static const struct reg_sequence tscs42xx_patch[] = {
 static char const * const src_names[TSCS42XX_PLL_SRC_CNT] = {
 	"xtal", "mclk1", "mclk2"};
 
-static int tscs42xx_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+static int tscs42xx_i2c_probe(struct i2c_client *i2c)
 {
 	struct tscs42xx *tscs42xx;
 	int src;
@@ -1505,7 +1503,7 @@ static struct i2c_driver tscs42xx_i2c_driver = {
 		.name = "tscs42xx",
 		.of_match_table = tscs42xx_of_match,
 	},
-	.probe =    tscs42xx_i2c_probe,
+	.probe_new = tscs42xx_i2c_probe,
 	.id_table = tscs42xx_i2c_id,
 };
 

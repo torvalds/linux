@@ -123,7 +123,6 @@ static int brcmf_c_process_clm_blob(struct brcmf_if *ifp)
 	struct brcmf_bus *bus = drvr->bus_if;
 	struct brcmf_dload_data_le *chunk_buf;
 	const struct firmware *clm = NULL;
-	u8 clm_name[BRCMF_FW_NAME_LEN];
 	u32 chunk_len;
 	u32 datalen;
 	u32 cumulative_len;
@@ -133,15 +132,8 @@ static int brcmf_c_process_clm_blob(struct brcmf_if *ifp)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	memset(clm_name, 0, sizeof(clm_name));
-	err = brcmf_bus_get_fwname(bus, ".clm_blob", clm_name);
-	if (err) {
-		bphy_err(drvr, "get CLM blob file name failed (%d)\n", err);
-		return err;
-	}
-
-	err = firmware_request_nowarn(&clm, clm_name, bus->dev);
-	if (err) {
+	err = brcmf_bus_get_blob(bus, &clm, BRCMF_BLOB_CLM);
+	if (err || !clm) {
 		brcmf_info("no clm_blob available (err=%d), device may have limited channels available\n",
 			   err);
 		return 0;
@@ -190,6 +182,31 @@ done:
 	return err;
 }
 
+int brcmf_c_set_cur_etheraddr(struct brcmf_if *ifp, const u8 *addr)
+{
+	s32 err;
+
+	err = brcmf_fil_iovar_data_set(ifp, "cur_etheraddr", addr, ETH_ALEN);
+	if (err < 0)
+		bphy_err(ifp->drvr, "Setting cur_etheraddr failed, %d\n", err);
+
+	return err;
+}
+
+/* On some boards there is no eeprom to hold the nvram, in this case instead
+ * a board specific nvram is loaded from /lib/firmware. On most boards the
+ * macaddr setting in the /lib/firmware nvram file is ignored because the
+ * wifibt chip has a unique MAC programmed into the chip itself.
+ * But in some cases the actual MAC from the /lib/firmware nvram file gets
+ * used, leading to MAC conflicts.
+ * The MAC addresses in the troublesome nvram files seem to all come from
+ * the same nvram file template, so we only need to check for 1 known
+ * address to detect this.
+ */
+static const u8 brcmf_default_mac_address[ETH_ALEN] = {
+	0x00, 0x90, 0x4c, 0xc5, 0x12, 0x38
+};
+
 int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
@@ -202,13 +219,30 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	char *ptr;
 	s32 err;
 
-	/* retreive mac address */
-	err = brcmf_fil_iovar_data_get(ifp, "cur_etheraddr", ifp->mac_addr,
-				       sizeof(ifp->mac_addr));
-	if (err < 0) {
-		bphy_err(drvr, "Retrieving cur_etheraddr failed, %d\n", err);
-		goto done;
+	if (is_valid_ether_addr(ifp->mac_addr)) {
+		/* set mac address */
+		err = brcmf_c_set_cur_etheraddr(ifp, ifp->mac_addr);
+		if (err < 0)
+			goto done;
+	} else {
+		/* retrieve mac address */
+		err = brcmf_fil_iovar_data_get(ifp, "cur_etheraddr", ifp->mac_addr,
+					       sizeof(ifp->mac_addr));
+		if (err < 0) {
+			bphy_err(drvr, "Retrieving cur_etheraddr failed, %d\n", err);
+			goto done;
+		}
+
+		if (ether_addr_equal_unaligned(ifp->mac_addr, brcmf_default_mac_address)) {
+			bphy_err(drvr, "Default MAC is used, replacing with random MAC to avoid conflicts\n");
+			eth_random_addr(ifp->mac_addr);
+			ifp->ndev->addr_assign_type = NET_ADDR_RANDOM;
+			err = brcmf_c_set_cur_etheraddr(ifp, ifp->mac_addr);
+			if (err < 0)
+				goto done;
+		}
 	}
+
 	memcpy(ifp->drvr->mac, ifp->mac_addr, sizeof(ifp->drvr->mac));
 	memcpy(ifp->drvr->wiphy->perm_addr, ifp->drvr->mac, ETH_ALEN);
 
@@ -219,7 +253,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 				     &revinfo, sizeof(revinfo));
 	if (err < 0) {
 		bphy_err(drvr, "retrieving revision info failed, %d\n", err);
-		strlcpy(ri->chipname, "UNKNOWN", sizeof(ri->chipname));
+		strscpy(ri->chipname, "UNKNOWN", sizeof(ri->chipname));
 	} else {
 		ri->vendorid = le32_to_cpu(revinfo.vendorid);
 		ri->deviceid = le32_to_cpu(revinfo.deviceid);
@@ -272,7 +306,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 
 	/* locate firmware version number for ethtool */
 	ptr = strrchr(buf, ' ') + 1;
-	strlcpy(ifp->drvr->fwver, ptr, sizeof(ifp->drvr->fwver));
+	strscpy(ifp->drvr->fwver, ptr, sizeof(ifp->drvr->fwver));
 
 	/* Query for 'clmver' to get CLM version info from firmware */
 	memset(buf, 0, sizeof(buf));
@@ -382,11 +416,11 @@ static void brcmf_mp_attach(void)
 	 * if not set then if available use the platform data version. To make
 	 * sure it gets initialized at all, always copy the module param version
 	 */
-	strlcpy(brcmf_mp_global.firmware_path, brcmf_firmware_path,
+	strscpy(brcmf_mp_global.firmware_path, brcmf_firmware_path,
 		BRCMF_FW_ALTPATH_LEN);
 	if ((brcmfmac_pdata) && (brcmfmac_pdata->fw_alternative_path) &&
 	    (brcmf_mp_global.firmware_path[0] == '\0')) {
-		strlcpy(brcmf_mp_global.firmware_path,
+		strscpy(brcmf_mp_global.firmware_path,
 			brcmfmac_pdata->fw_alternative_path,
 			BRCMF_FW_ALTPATH_LEN);
 	}

@@ -96,7 +96,7 @@ int adf_vf2pf_request_version(struct adf_accel_dev *accel_dev)
 int adf_vf2pf_get_capabilities(struct adf_accel_dev *accel_dev)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct capabilities_v3 cap_msg = { { 0 }, };
+	struct capabilities_v3 cap_msg = { 0 };
 	unsigned int len = sizeof(cap_msg);
 
 	if (accel_dev->vf.pf_compat_ver < ADF_PFVF_COMPAT_CAPABILITIES)
@@ -141,7 +141,7 @@ int adf_vf2pf_get_capabilities(struct adf_accel_dev *accel_dev)
 
 int adf_vf2pf_get_ring_to_svc(struct adf_accel_dev *accel_dev)
 {
-	struct ring_to_svc_map_v1 rts_map_msg = { { 0 }, };
+	struct ring_to_svc_map_v1 rts_map_msg = { 0 };
 	unsigned int len = sizeof(rts_map_msg);
 
 	if (accel_dev->vf.pf_compat_ver < ADF_PFVF_COMPAT_RING_TO_SVC_MAP)

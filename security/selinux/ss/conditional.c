@@ -152,6 +152,8 @@ static void cond_list_destroy(struct policydb *p)
 	for (i = 0; i < p->cond_list_len; i++)
 		cond_node_destroy(&p->cond_list[i]);
 	kfree(p->cond_list);
+	p->cond_list = NULL;
+	p->cond_list_len = 0;
 }
 
 void cond_policydb_destroy(struct policydb *p)
@@ -441,7 +443,6 @@ int cond_read_list(struct policydb *p, void *fp)
 	return 0;
 err:
 	cond_list_destroy(p);
-	p->cond_list = NULL;
 	return rc;
 }
 
@@ -566,8 +567,6 @@ void cond_compute_xperms(struct avtab *ctab, struct avtab_key *key,
 		if (node->key.specified & AVTAB_ENABLED)
 			services_compute_xperms_decision(xpermd, node);
 	}
-	return;
-
 }
 /* Determine whether additional permissions are granted by the conditional
  * av table, and if so, add them to the result

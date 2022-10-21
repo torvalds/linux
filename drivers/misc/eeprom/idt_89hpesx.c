@@ -566,7 +566,7 @@ static int idt_eeprom_read_byte(struct idt_89hpesx_dev *pdev, u16 memaddr,
 		eeseq.memaddr = cpu_to_le16(memaddr);
 		ret = pdev->smb_write(pdev, &smbseq);
 		if (ret != 0) {
-			dev_err(dev, "Failed to init eeprom addr 0x%02hhx",
+			dev_err(dev, "Failed to init eeprom addr 0x%02x",
 				memaddr);
 			break;
 		}
@@ -575,7 +575,7 @@ static int idt_eeprom_read_byte(struct idt_89hpesx_dev *pdev, u16 memaddr,
 		smbseq.bytecnt = EEPROM_RD_CNT;
 		ret = pdev->smb_read(pdev, &smbseq);
 		if (ret != 0) {
-			dev_err(dev, "Failed to read eeprom data 0x%02hhx",
+			dev_err(dev, "Failed to read eeprom data 0x%02x",
 				memaddr);
 			break;
 		}
@@ -810,7 +810,7 @@ static int idt_csr_read(struct idt_89hpesx_dev *pdev, u16 csraddr, u32 *data)
 	smbseq.bytecnt = CSR_RD_CNT;
 	ret = pdev->smb_read(pdev, &smbseq);
 	if (ret != 0) {
-		dev_err(dev, "Failed to read csr 0x%04hx",
+		dev_err(dev, "Failed to read csr 0x%04x",
 			CSR_REAL_ADDR(csraddr));
 		goto err_mutex_unlock;
 	}
@@ -909,14 +909,18 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
 	u32 csraddr, csrval;
 	char *buf;
 
+	if (*offp)
+		return 0;
+
 	/* Copy data from User-space */
 	buf = kmalloc(count + 1, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	ret = simple_write_to_buffer(buf, count, offp, ubuf, count);
-	if (ret < 0)
+	if (copy_from_user(buf, ubuf, count)) {
+		ret = -EFAULT;
 		goto free_buf;
+	}
 	buf[count] = 0;
 
 	/* Find position of colon in the buffer */
@@ -1071,7 +1075,7 @@ static const struct i2c_device_id *idt_ee_match_id(struct fwnode_handle *fwnode)
 		return NULL;
 
 	p = strchr(compatible, ',');
-	strlcpy(devname, p ? p + 1 : compatible, sizeof(devname));
+	strscpy(devname, p ? p + 1 : compatible, sizeof(devname));
 	/* Search through the device name */
 	while (id->name[0]) {
 		if (strcmp(devname, id->name) == 0)
@@ -1401,7 +1405,7 @@ err_free_pdev:
 /*
  * idt_remove() - IDT 89HPESx driver remove() callback method
  */
-static int idt_remove(struct i2c_client *client)
+static void idt_remove(struct i2c_client *client)
 {
 	struct idt_89hpesx_dev *pdev = i2c_get_clientdata(client);
 
@@ -1413,8 +1417,6 @@ static int idt_remove(struct i2c_client *client)
 
 	/* Discard driver data structure */
 	idt_free_pdev(pdev);
-
-	return 0;
 }
 
 /*

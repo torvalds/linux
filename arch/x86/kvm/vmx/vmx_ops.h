@@ -8,9 +8,9 @@
 
 #include "evmcs.h"
 #include "vmcs.h"
-#include "x86.h"
+#include "../x86.h"
 
-asmlinkage void vmread_error(unsigned long field, bool fault);
+void vmread_error(unsigned long field, bool fault);
 __attribute__((regparm(0))) void vmread_error_trampoline(unsigned long field,
 							 bool fault);
 void vmwrite_error(unsigned long field, unsigned long value);

@@ -271,8 +271,12 @@ static FORCE_INLINE int LZ4_decompress_generic(
 			ip += length;
 			op += length;
 
-			/* Necessarily EOF, due to parsing restrictions */
-			if (!partialDecoding || (cpy == oend))
+			/* Necessarily EOF when !partialDecoding.
+			 * When partialDecoding, it is EOF if we've either
+			 * filled the output buffer or
+			 * can't proceed with reading an offset for following match.
+			 */
+			if (!partialDecoding || (cpy == oend) || (ip >= (iend - 2)))
 				break;
 		} else {
 			/* may overwrite up to WILDCOPYLENGTH beyond cpy */
@@ -503,9 +507,9 @@ static int LZ4_decompress_safe_withSmallPrefix(const char *source, char *dest,
 				      (BYTE *)dest - prefixSize, NULL, 0);
 }
 
-int LZ4_decompress_safe_forceExtDict(const char *source, char *dest,
-				     int compressedSize, int maxOutputSize,
-				     const void *dictStart, size_t dictSize)
+static int LZ4_decompress_safe_forceExtDict(const char *source, char *dest,
+					    int compressedSize, int maxOutputSize,
+					    const void *dictStart, size_t dictSize)
 {
 	return LZ4_decompress_generic(source, dest,
 				      compressedSize, maxOutputSize,

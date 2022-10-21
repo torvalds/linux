@@ -48,6 +48,11 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe,
 		return -EINVAL;
 	}
 
+	if (!can_single_step(ppc_inst_val(ppc_inst_read(auprobe->insn)))) {
+		pr_info_ratelimited("Cannot register a uprobe on instructions that can't be single stepped\n");
+		return -ENOTSUPP;
+	}
+
 	return 0;
 }
 

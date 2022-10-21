@@ -18,7 +18,7 @@
 #include <uapi/drm/i915_drm.h>
 
 #include "gt/intel_sseu.h"
-#include "i915_reg.h"
+#include "i915_reg_defs.h"
 #include "intel_wakeref.h"
 
 struct drm_i915_private;
@@ -55,7 +55,7 @@ struct i915_oa_config {
 
 	struct attribute_group sysfs_metric;
 	struct attribute *attrs[2];
-	struct device_attribute sysfs_metric_id;
+	struct kobj_attribute sysfs_metric_id;
 
 	struct kref ref;
 	struct rcu_head rcu;

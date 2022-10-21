@@ -19,8 +19,7 @@
 #include "internal.h"
 #include "iostat.h"
 #include "fscache.h"
-
-#define NFSDBG_FACILITY		NFSDBG_FSCACHE
+#include "nfstrace.h"
 
 #define NFS_MAX_KEY_LEN 1000
 
@@ -128,8 +127,6 @@ int nfs_fscache_get_super_cookie(struct super_block *sb, const char *uniq, int u
 	vcookie = fscache_acquire_volume(key,
 					 NULL, /* preferred_cache */
 					 NULL, 0 /* coherency_data */);
-	dfprintk(FSCACHE, "NFS: get superblock cookie (0x%p/0x%p)\n",
-		 nfss, vcookie);
 	if (IS_ERR(vcookie)) {
 		if (vcookie != ERR_PTR(-EBUSY)) {
 			kfree(key);
@@ -152,9 +149,6 @@ void nfs_fscache_release_super_cookie(struct super_block *sb)
 {
 	struct nfs_server *nfss = NFS_SB(sb);
 
-	dfprintk(FSCACHE, "NFS: releasing superblock cookie (0x%p/0x%p)\n",
-		 nfss, nfss->fscache);
-
 	fscache_relinquish_volume(nfss->fscache, NULL, false);
 	nfss->fscache = NULL;
 	kfree(nfss->fscache_uniq);
@@ -173,7 +167,7 @@ void nfs_fscache_init_inode(struct inode *inode)
 	if (!(nfss->fscache && S_ISREG(inode->i_mode)))
 		return;
 
-	nfs_fscache_update_auxdata(&auxdata, nfsi);
+	nfs_fscache_update_auxdata(&auxdata, inode);
 
 	nfsi->fscache = fscache_acquire_cookie(NFS_SB(inode->i_sb)->fscache,
 					       0,
@@ -181,7 +175,7 @@ void nfs_fscache_init_inode(struct inode *inode)
 					       nfsi->fh.size,
 					       &auxdata,      /* aux_data */
 					       sizeof(auxdata),
-					       i_size_read(&nfsi->vfs_inode));
+					       i_size_read(inode));
 }
 
 /*
@@ -191,8 +185,6 @@ void nfs_fscache_clear_inode(struct inode *inode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct fscache_cookie *cookie = nfs_i_fscache(inode);
-
-	dfprintk(FSCACHE, "NFS: clear cookie (0x%p/0x%p)\n", nfsi, cookie);
 
 	fscache_relinquish_cookie(cookie, false);
 	nfsi->fscache = NULL;
@@ -220,7 +212,6 @@ void nfs_fscache_clear_inode(struct inode *inode)
 void nfs_fscache_open_file(struct inode *inode, struct file *filp)
 {
 	struct nfs_fscache_inode_auxdata auxdata;
-	struct nfs_inode *nfsi = NFS_I(inode);
 	struct fscache_cookie *cookie = nfs_i_fscache(inode);
 	bool open_for_write = inode_is_open_for_write(inode);
 
@@ -229,8 +220,7 @@ void nfs_fscache_open_file(struct inode *inode, struct file *filp)
 
 	fscache_use_cookie(cookie, open_for_write);
 	if (open_for_write) {
-		dfprintk(FSCACHE, "NFS: nfsi 0x%p disabling cache\n", nfsi);
-		nfs_fscache_update_auxdata(&auxdata, nfsi);
+		nfs_fscache_update_auxdata(&auxdata, inode);
 		fscache_invalidate(cookie, &auxdata, i_size_read(inode),
 				   FSCACHE_INVAL_DIO_WRITE);
 	}
@@ -240,21 +230,11 @@ EXPORT_SYMBOL_GPL(nfs_fscache_open_file);
 void nfs_fscache_release_file(struct inode *inode, struct file *filp)
 {
 	struct nfs_fscache_inode_auxdata auxdata;
-	struct nfs_inode *nfsi = NFS_I(inode);
 	struct fscache_cookie *cookie = nfs_i_fscache(inode);
+	loff_t i_size = i_size_read(inode);
 
-	if (fscache_cookie_valid(cookie)) {
-		nfs_fscache_update_auxdata(&auxdata, nfsi);
-		fscache_unuse_cookie(cookie, &auxdata, NULL);
-	}
-}
-
-static inline void fscache_end_operation(struct netfs_cache_resources *cres)
-{
-	const struct netfs_cache_ops *ops = fscache_operation_valid(cres);
-
-	if (ops)
-		ops->end_operation(cres);
+	nfs_fscache_update_auxdata(&auxdata, inode);
+	fscache_unuse_cookie(cookie, &auxdata, &i_size);
 }
 
 /*
@@ -319,53 +299,44 @@ static int fscache_fallback_write_page(struct inode *inode, struct page *page,
 /*
  * Retrieve a page from fscache
  */
-int __nfs_readpage_from_fscache(struct inode *inode, struct page *page)
+int __nfs_fscache_read_page(struct inode *inode, struct page *page)
 {
 	int ret;
 
-	dfprintk(FSCACHE,
-		 "NFS: readpage_from_fscache(fsc:%p/p:%p(i:%lx f:%lx)/0x%p)\n",
-		 nfs_i_fscache(inode), page, page->index, page->flags, inode);
-
+	trace_nfs_fscache_read_page(inode, page);
 	if (PageChecked(page)) {
-		dfprintk(FSCACHE, "NFS:    readpage_from_fscache: PageChecked\n");
 		ClearPageChecked(page);
-		return 1;
+		ret = 1;
+		goto out;
 	}
 
 	ret = fscache_fallback_read_page(inode, page);
 	if (ret < 0) {
 		nfs_inc_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_READ_FAIL);
-		dfprintk(FSCACHE,
-			 "NFS:    readpage_from_fscache failed %d\n", ret);
 		SetPageChecked(page);
-		return ret;
+		goto out;
 	}
 
 	/* Read completed synchronously */
-	dfprintk(FSCACHE, "NFS:    readpage_from_fscache: read successful\n");
 	nfs_inc_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_READ_OK);
 	SetPageUptodate(page);
-	return 0;
+	ret = 0;
+out:
+	trace_nfs_fscache_read_page_exit(inode, page, ret);
+	return ret;
 }
 
 /*
  * Store a newly fetched page in fscache.  We can be certain there's no page
  * stored in the cache as yet otherwise we would've read it from there.
  */
-void __nfs_readpage_to_fscache(struct inode *inode, struct page *page)
+void __nfs_fscache_write_page(struct inode *inode, struct page *page)
 {
 	int ret;
 
-	dfprintk(FSCACHE,
-		 "NFS: readpage_to_fscache(fsc:%p/p:%p(i:%lx f:%lx))\n",
-		 nfs_i_fscache(inode), page, page->index, page->flags);
+	trace_nfs_fscache_write_page(inode, page);
 
 	ret = fscache_fallback_write_page(inode, page, true);
-
-	dfprintk(FSCACHE,
-		 "NFS:     readpage_to_fscache: p:%p(i:%lu f:%lx) ret %d\n",
-		 page, page->index, page->flags, ret);
 
 	if (ret != 0) {
 		nfs_inc_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_WRITTEN_FAIL);
@@ -373,4 +344,5 @@ void __nfs_readpage_to_fscache(struct inode *inode, struct page *page)
 	} else {
 		nfs_inc_fscache_stats(inode, NFSIOS_FSCACHE_PAGES_WRITTEN_OK);
 	}
+	trace_nfs_fscache_write_page_exit(inode, page, ret);
 }

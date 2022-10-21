@@ -1105,7 +1105,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8997 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm8997_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int wm8997_probe(struct platform_device *pdev)
@@ -1162,9 +1161,6 @@ static int wm8997_probe(struct platform_device *pdev)
 		regmap_update_bits(arizona->regmap, wm8997_digital_vu[i],
 				   WM8997_DIG_VU, WM8997_DIG_VU);
 
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_idle(&pdev->dev);
-
 	arizona_init_common(arizona);
 
 	ret = arizona_init_vol_limit(arizona);
@@ -1182,6 +1178,9 @@ static int wm8997_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register component: %d\n", ret);
 		goto err_spk_irqs;
 	}
+
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_idle(&pdev->dev);
 
 	return ret;
 

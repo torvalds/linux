@@ -135,7 +135,7 @@
 /* Link Down indication in WoWL mode: */
 #define BRCMF_WOWL_LINKDOWN		(1 << 31)
 
-#define BRCMF_WOWL_MAXPATTERNS		8
+#define BRCMF_WOWL_MAXPATTERNS		16
 #define BRCMF_WOWL_MAXPATTERNSIZE	128
 
 #define BRCMF_COUNTRY_BUF_SZ		4
@@ -1068,7 +1068,7 @@ struct brcmf_mkeep_alive_pkt_le {
 	__le32  period_msec;
 	__le16  len_bytes;
 	u8   keep_alive_id;
-	u8   data[0];
+	u8   data[];
 } __packed;
 
 #endif /* FWIL_TYPES_H_ */

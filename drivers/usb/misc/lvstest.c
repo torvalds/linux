@@ -437,7 +437,7 @@ static int lvs_rh_probe(struct usb_interface *intf,
 	INIT_WORK(&lvs->rh_work, lvs_rh_work);
 
 	pipe = usb_rcvintpipe(hdev, endpoint->bEndpointAddress);
-	maxp = usb_maxpacket(hdev, pipe, usb_pipeout(pipe));
+	maxp = usb_maxpacket(hdev, pipe);
 	usb_fill_int_urb(lvs->urb, hdev, pipe, &lvs->buffer[0], maxp,
 			lvs_rh_irq, lvs, endpoint->bInterval);
 

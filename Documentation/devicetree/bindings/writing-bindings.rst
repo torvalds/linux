@@ -53,11 +53,36 @@ Properties
 
 - DO use common property unit suffixes for properties with scientific units.
   Recommended suffixes are listed at
-  https://github.com/devicetree-org/dt-schema/blob/master/schemas/property-units.yaml
+  https://github.com/devicetree-org/dt-schema/blob/main/dtschema/schemas/property-units.yaml
 
 - DO define properties in terms of constraints. How many entries? What are
   possible values? What is the order?
 
+Typical cases and caveats
+=========================
+
+- Phandle entries, like clocks/dmas/interrupts/resets, should always be
+  explicitly ordered. Include the {clock,dma,interrupt,reset}-names if there is
+  more than one phandle. When used, both of these fields need the same
+  constraints (e.g.  list of items).
+
+- For names used in {clock,dma,interrupt,reset}-names, do not add any suffix,
+  e.g.: "tx" instead of "txirq" (for interrupt).
+
+- Properties without schema types (e.g. without standard suffix or not defined
+  by schema) need the type, even if this is an enum.
+
+- If schema includes other schema (e.g. /schemas/i2c/i2c-controller.yaml) use
+  "unevaluatedProperties:false". In other cases, usually use
+  "additionalProperties:false".
+
+- For sub-blocks/components of bigger device (e.g. SoC blocks) use rather
+  device-based compatible (e.g. SoC-based compatible), instead of custom
+  versioning of that component.
+  For example use "vendor,soc1234-i2c" instead of "vendor,i2c-v2".
+
+- "syscon" is not a generic property. Use vendor and type, e.g.
+  "vendor,power-manager-syscon".
 
 Board/SoC .dts Files
 ====================

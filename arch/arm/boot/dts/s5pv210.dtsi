@@ -117,7 +117,7 @@
 			};
 		};
 
-		pdma0: dma@e0900000 {
+		pdma0: dma-controller@e0900000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0xe0900000 0x1000>;
 			interrupt-parent = <&vic0>;
@@ -125,11 +125,9 @@
 			clocks = <&clocks CLK_PDMA0>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 		};
 
-		pdma1: dma@e0a00000 {
+		pdma1: dma-controller@e0a00000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0xe0a00000 0x1000>;
 			interrupt-parent = <&vic0>;
@@ -137,8 +135,6 @@
 			clocks = <&clocks CLK_PDMA1>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 		};
 
 		adc: adc@e1700000 {
@@ -239,8 +235,8 @@
 			reg = <0xeee30000 0x1000>;
 			interrupt-parent = <&vic2>;
 			interrupts = <16>;
-			dma-names = "rx", "tx", "tx-sec";
-			dmas = <&pdma1 9>, <&pdma1 10>, <&pdma1 11>;
+			dma-names = "tx", "rx", "tx-sec";
+			dmas = <&pdma1 10>, <&pdma1 9>, <&pdma1 11>;
 			clock-names = "iis",
 				      "i2s_opclk0",
 				      "i2s_opclk1";
@@ -259,8 +255,8 @@
 			reg = <0xe2100000 0x1000>;
 			interrupt-parent = <&vic2>;
 			interrupts = <17>;
-			dma-names = "rx", "tx";
-			dmas = <&pdma1 12>, <&pdma1 13>;
+			dma-names = "tx", "rx";
+			dmas = <&pdma1 13>, <&pdma1 12>;
 			clock-names = "iis", "i2s_opclk0";
 			clocks = <&clocks CLK_I2S1>, <&clocks SCLK_AUDIO1>;
 			pinctrl-names = "default";
@@ -274,8 +270,8 @@
 			reg = <0xe2a00000 0x1000>;
 			interrupt-parent = <&vic2>;
 			interrupts = <18>;
-			dma-names = "rx", "tx";
-			dmas = <&pdma1 14>, <&pdma1 15>;
+			dma-names = "tx", "rx";
+			dmas = <&pdma1 15>, <&pdma1 14>;
 			clock-names = "iis", "i2s_opclk0";
 			clocks = <&clocks CLK_I2S2>, <&clocks SCLK_AUDIO2>;
 			pinctrl-names = "default";
@@ -361,7 +357,7 @@
 			status = "disabled";
 		};
 
-		sdhci0: sdhci@eb000000 {
+		sdhci0: mmc@eb000000 {
 			compatible = "samsung,s3c6410-sdhci";
 			reg = <0xeb000000 0x100000>;
 			interrupt-parent = <&vic1>;
@@ -372,7 +368,7 @@
 			status = "disabled";
 		};
 
-		sdhci1: sdhci@eb100000 {
+		sdhci1: mmc@eb100000 {
 			compatible = "samsung,s3c6410-sdhci";
 			reg = <0xeb100000 0x100000>;
 			interrupt-parent = <&vic1>;
@@ -383,7 +379,7 @@
 			status = "disabled";
 		};
 
-		sdhci2: sdhci@eb200000 {
+		sdhci2: mmc@eb200000 {
 			compatible = "samsung,s3c6410-sdhci";
 			reg = <0xeb200000 0x100000>;
 			interrupt-parent = <&vic1>;
@@ -394,7 +390,7 @@
 			status = "disabled";
 		};
 
-		sdhci3: sdhci@eb300000 {
+		sdhci3: mmc@eb300000 {
 			compatible = "samsung,s3c6410-sdhci";
 			reg = <0xeb300000 0x100000>;
 			interrupt-parent = <&vic3>;
@@ -427,38 +423,28 @@
 			status = "disabled";
 		};
 
-		ehci: ehci@ec200000 {
+		ehci: usb@ec200000 {
 			compatible = "samsung,exynos4210-ehci";
 			reg = <0xec200000 0x100>;
 			interrupts = <23>;
 			interrupt-parent = <&vic1>;
 			clocks = <&clocks CLK_USB_HOST>;
 			clock-names = "usbhost";
-			#address-cells = <1>;
-			#size-cells = <0>;
+			phys = <&usbphy 1>;
+			phy-names = "host";
 			status = "disabled";
-
-			port@0 {
-				reg = <0>;
-				phys = <&usbphy 1>;
-			};
 		};
 
-		ohci: ohci@ec300000 {
+		ohci: usb@ec300000 {
 			compatible = "samsung,exynos4210-ohci";
 			reg = <0xec300000 0x100>;
 			interrupts = <23>;
 			interrupt-parent = <&vic1>;
 			clocks = <&clocks CLK_USB_HOST>;
 			clock-names = "usbhost";
-			#address-cells = <1>;
-			#size-cells = <0>;
+			phys = <&usbphy 1>;
+			phy-names = "host";
 			status = "disabled";
-
-			port@0 {
-				reg = <0>;
-				phys = <&usbphy 1>;
-			};
 		};
 
 		mfc: codec@f1700000 {
@@ -528,7 +514,7 @@
 			clock-names = "sclk_fimg2d", "fimg2d";
 		};
 
-		mdma1: mdma@fa200000 {
+		mdma1: dma-controller@fa200000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0xfa200000 0x1000>;
 			interrupt-parent = <&vic0>;
@@ -536,8 +522,6 @@
 			clocks = <&clocks CLK_MDMA>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <1>;
 		};
 
 		rotator: rotator@fa300000 {

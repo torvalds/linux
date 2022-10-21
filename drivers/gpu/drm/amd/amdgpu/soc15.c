@@ -375,39 +375,6 @@ static bool soc15_read_disabled_bios(struct amdgpu_device *adev)
 	return false;
 }
 
-static bool soc15_read_bios_from_rom(struct amdgpu_device *adev,
-				     u8 *bios, u32 length_bytes)
-{
-	u32 *dw_ptr;
-	u32 i, length_dw;
-	uint32_t rom_index_offset;
-	uint32_t rom_data_offset;
-
-	if (bios == NULL)
-		return false;
-	if (length_bytes == 0)
-		return false;
-	/* APU vbios image is part of sbios image */
-	if (adev->flags & AMD_IS_APU)
-		return false;
-
-	dw_ptr = (u32 *)bios;
-	length_dw = ALIGN(length_bytes, 4) / 4;
-
-	rom_index_offset =
-		adev->smuio.funcs->get_rom_index_offset(adev);
-	rom_data_offset =
-		adev->smuio.funcs->get_rom_data_offset(adev);
-
-	/* set rom index to 0 */
-	WREG32(rom_index_offset, 0);
-	/* read out the rom data */
-	for (i = 0; i < length_dw; i++)
-		dw_ptr[i] = RREG32(rom_data_offset);
-
-	return true;
-}
-
 static struct soc15_allowed_register_entry soc15_allowed_read_registers[] = {
 	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS)},
 	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS2)},
@@ -619,8 +586,8 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 static int soc15_asic_reset(struct amdgpu_device *adev)
 {
 	/* original raven doesn't have full asic reset */
-	if ((adev->apu_flags & AMD_APU_IS_RAVEN) &&
-	    !(adev->apu_flags & AMD_APU_IS_RAVEN2))
+	if ((adev->apu_flags & AMD_APU_IS_RAVEN) ||
+	    (adev->apu_flags & AMD_APU_IS_RAVEN2))
 		return 0;
 
 	switch (soc15_asic_reset_method(adev)) {
@@ -703,7 +670,7 @@ static void soc15_pcie_gen3_enable(struct amdgpu_device *adev)
 
 static void soc15_program_aspm(struct amdgpu_device *adev)
 {
-	if (!amdgpu_aspm)
+	if (!amdgpu_device_should_use_aspm(adev))
 		return;
 
 	if (!(adev->flags & AMD_IS_APU) &&
@@ -734,25 +701,12 @@ static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
 
 static void soc15_reg_base_init(struct amdgpu_device *adev)
 {
-	int r;
-
 	/* Set IP register base before any HW register access */
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_RAVEN:
-		vega10_reg_base_init(adev);
-		break;
 	case CHIP_RENOIR:
-		/* It's safe to do ip discovery here for Renoir,
-		 * it doesn't support SRIOV. */
-		if (amdgpu_discovery) {
-			r = amdgpu_discovery_reg_base_init(adev);
-			if (r == 0)
-				break;
-			DRM_WARN("failed to init reg base from ip discovery table, "
-				 "fallback to legacy init method\n");
-		}
 		vega10_reg_base_init(adev);
 		break;
 	case CHIP_VEGA20:
@@ -886,6 +840,10 @@ static bool soc15_need_reset_on_init(struct amdgpu_device *adev)
 {
 	u32 sol_reg;
 
+	/* CP hangs in IGT reloading test on RN, reset to WA */
+	if (adev->asic_type == CHIP_RENOIR)
+		return true;
+
 	/* Just return false for soc15 GPUs.  Reset does not seem to
 	 * be necessary.
 	 */
@@ -925,7 +883,7 @@ static void soc15_pre_asic_init(struct amdgpu_device *adev)
 static const struct amdgpu_asic_funcs soc15_asic_funcs =
 {
 	.read_disabled_bios = &soc15_read_disabled_bios,
-	.read_bios_from_rom = &soc15_read_bios_from_rom,
+	.read_bios_from_rom = &amdgpu_soc15_read_bios_from_rom,
 	.read_register = &soc15_read_register,
 	.reset = &soc15_asic_reset,
 	.reset_method = &soc15_asic_reset_method,
@@ -947,7 +905,7 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 static const struct amdgpu_asic_funcs vega20_asic_funcs =
 {
 	.read_disabled_bios = &soc15_read_disabled_bios,
-	.read_bios_from_rom = &soc15_read_bios_from_rom,
+	.read_bios_from_rom = &amdgpu_soc15_read_bios_from_rom,
 	.read_register = &soc15_read_register,
 	.reset = &soc15_asic_reset,
 	.reset_method = &soc15_asic_reset_method,
@@ -1114,8 +1072,11 @@ static int soc15_common_early_init(void *handle)
 				AMD_CG_SUPPORT_SDMA_LS |
 				AMD_CG_SUPPORT_VCN_MGCG;
 
+			/*
+			 * MMHUB PG needs to be disabled for Picasso for
+			 * stability reasons.
+			 */
 			adev->pg_flags = AMD_PG_SUPPORT_SDMA |
-				AMD_PG_SUPPORT_MMHUB |
 				AMD_PG_SUPPORT_VCN;
 		} else {
 			adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
@@ -1219,16 +1180,11 @@ static int soc15_common_early_init(void *handle)
 static int soc15_common_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int r = 0;
 
 	if (amdgpu_sriov_vf(adev))
 		xgpu_ai_mailbox_get_irq(adev);
 
-	if (adev->nbio.ras_funcs &&
-	    adev->nbio.ras_funcs->ras_late_init)
-		r = adev->nbio.ras_funcs->ras_late_init(adev);
-
-	return r;
+	return 0;
 }
 
 static int soc15_common_sw_init(void *handle)
@@ -1249,32 +1205,23 @@ static int soc15_common_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->nbio.ras_funcs &&
-	    adev->nbio.ras_funcs->ras_fini)
-		adev->nbio.ras_funcs->ras_fini(adev);
-
 	if (adev->df.funcs &&
 	    adev->df.funcs->sw_fini)
 		adev->df.funcs->sw_fini(adev);
 	return 0;
 }
 
-static void soc15_doorbell_range_init(struct amdgpu_device *adev)
+static void soc15_sdma_doorbell_range_init(struct amdgpu_device *adev)
 {
 	int i;
-	struct amdgpu_ring *ring;
 
-	/* sdma/ih doorbell range are programed by hypervisor */
+	/* sdma doorbell range is programed by hypervisor */
 	if (!amdgpu_sriov_vf(adev)) {
 		for (i = 0; i < adev->sdma.num_instances; i++) {
-			ring = &adev->sdma.instance[i].ring;
 			adev->nbio.funcs->sdma_doorbell_range(adev, i,
-				ring->use_doorbell, ring->doorbell_index,
+				true, adev->doorbell_index.sdma_engine[i] << 1,
 				adev->doorbell_index.sdma_doorbell_range);
 		}
-
-		adev->nbio.funcs->ih_doorbell_range(adev, adev->irq.ih.use_doorbell,
-						adev->irq.ih.doorbell_index);
 	}
 }
 
@@ -1299,10 +1246,11 @@ static int soc15_common_hw_init(void *handle)
 	soc15_enable_doorbell_aperture(adev, true);
 	/* HW doorbell routing policy: doorbell writing not
 	 * in SDMA/IH/MM/ACV range will be routed to CP. So
-	 * we need to init SDMA/IH/MM/ACV doorbell range prior
-	 * to CP ip block init and ring test.
+	 * we need to init SDMA doorbell range prior
+	 * to CP ip block init and ring test.  IH already
+	 * happens before CP.
 	 */
-	soc15_doorbell_range_init(adev);
+	soc15_sdma_doorbell_range_init(adev);
 
 	return 0;
 }
@@ -1318,11 +1266,11 @@ static int soc15_common_hw_fini(void *handle)
 
 	if (adev->nbio.ras_if &&
 	    amdgpu_ras_is_supported(adev, adev->nbio.ras_if->block)) {
-		if (adev->nbio.ras_funcs &&
-		    adev->nbio.ras_funcs->init_ras_controller_interrupt)
+		if (adev->nbio.ras &&
+		    adev->nbio.ras->init_ras_controller_interrupt)
 			amdgpu_irq_put(adev, &adev->nbio.ras_controller_irq, 0);
-		if (adev->nbio.ras_funcs &&
-		    adev->nbio.ras_funcs->init_ras_err_event_athub_interrupt)
+		if (adev->nbio.ras &&
+		    adev->nbio.ras->init_ras_err_event_athub_interrupt)
 			amdgpu_irq_put(adev, &adev->nbio.ras_err_event_athub_irq, 0);
 	}
 
@@ -1454,7 +1402,7 @@ static int soc15_common_set_clockgating_state(void *handle,
 	return 0;
 }
 
-static void soc15_common_get_clockgating_state(void *handle, u32 *flags)
+static void soc15_common_get_clockgating_state(void *handle, u64 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int data;

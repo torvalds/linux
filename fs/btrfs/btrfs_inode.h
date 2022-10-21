@@ -14,6 +14,13 @@
 #include "delayed-inode.h"
 
 /*
+ * Since we search a directory based on f_pos (struct dir_context::pos) we have
+ * to start at 2 since '.' and '..' have f_pos of 0 and 1 respectively, so
+ * everybody else has to start at 2 (see btrfs_real_readdir() and dir_emit_dots()).
+ */
+#define BTRFS_DIR_START_INDEX 2
+
+/*
  * ordered_data_close is set by truncate when a file that used
  * to have good data has been truncated to zero.  When it is set
  * the btrfs file release call will add this inode to the
@@ -58,6 +65,8 @@ enum {
 	 * on the same file.
 	 */
 	BTRFS_INODE_VERITY_IN_PROGRESS,
+	/* Set when this inode is a free space inode. */
+	BTRFS_INODE_FREE_SPACE_INODE,
 };
 
 /* in memory btrfs inode */
@@ -87,7 +96,8 @@ struct btrfs_inode {
 	/* special utility tree used to record which mirrors have already been
 	 * tried when checksums fail for a given block
 	 */
-	struct extent_io_tree io_failure_tree;
+	struct rb_root io_failure_tree;
+	spinlock_t io_failure_lock;
 
 	/*
 	 * Keep track of where the inode has extent items mapped in order to
@@ -173,8 +183,9 @@ struct btrfs_inode {
 	u64 disk_i_size;
 
 	/*
-	 * if this is a directory then index_cnt is the counter for the index
-	 * number for new files that are created
+	 * If this is a directory then index_cnt is the counter for the index
+	 * number for new files that are created. For an empty directory, this
+	 * must be initialized to BTRFS_DIR_START_INDEX.
 	 */
 	u64 index_cnt;
 
@@ -242,11 +253,6 @@ struct btrfs_inode {
 	struct inode vfs_inode;
 };
 
-static inline u32 btrfs_inode_sectorsize(const struct btrfs_inode *inode)
-{
-	return inode->root->fs_info->sectorsize;
-}
-
 static inline struct btrfs_inode *BTRFS_I(const struct inode *inode)
 {
 	return container_of(inode, struct btrfs_inode, vfs_inode);
@@ -264,25 +270,30 @@ static inline unsigned long btrfs_inode_hash(u64 objectid,
 	return (unsigned long)h;
 }
 
-static inline void btrfs_insert_inode_hash(struct inode *inode)
-{
-	unsigned long h = btrfs_inode_hash(inode->i_ino, BTRFS_I(inode)->root);
+#if BITS_PER_LONG == 32
 
-	__insert_inode_hash(inode, h);
-}
-
+/*
+ * On 32 bit systems the i_ino of struct inode is 32 bits (unsigned long), so
+ * we use the inode's location objectid which is a u64 to avoid truncation.
+ */
 static inline u64 btrfs_ino(const struct btrfs_inode *inode)
 {
 	u64 ino = inode->location.objectid;
 
-	/*
-	 * !ino: btree_inode
-	 * type == BTRFS_ROOT_ITEM_KEY: subvol dir
-	 */
-	if (!ino || inode->location.type == BTRFS_ROOT_ITEM_KEY)
+	/* type == BTRFS_ROOT_ITEM_KEY: subvol dir */
+	if (inode->location.type == BTRFS_ROOT_ITEM_KEY)
 		ino = inode->vfs_inode.i_ino;
 	return ino;
 }
+
+#else
+
+static inline u64 btrfs_ino(const struct btrfs_inode *inode)
+{
+	return inode->vfs_inode.i_ino;
+}
+
+#endif
 
 static inline void btrfs_i_size_write(struct btrfs_inode *inode, u64 size)
 {
@@ -292,14 +303,7 @@ static inline void btrfs_i_size_write(struct btrfs_inode *inode, u64 size)
 
 static inline bool btrfs_is_free_space_inode(struct btrfs_inode *inode)
 {
-	struct btrfs_root *root = inode->root;
-
-	if (root == root->fs_info->tree_root &&
-	    btrfs_ino(inode) != BTRFS_BTREE_INODE_OBJECTID)
-		return true;
-	if (inode->location.objectid == BTRFS_FREE_INO_OBJECTID)
-		return true;
-	return false;
+	return test_bit(BTRFS_INODE_FREE_SPACE_INODE, &inode->runtime_flags);
 }
 
 static inline bool is_data_inode(struct inode *inode)
@@ -333,6 +337,36 @@ static inline void btrfs_set_inode_last_sub_trans(struct btrfs_inode *inode)
 	spin_unlock(&inode->lock);
 }
 
+/*
+ * Should be called while holding the inode's VFS lock in exclusive mode or in a
+ * context where no one else can access the inode concurrently (during inode
+ * creation or when loading an inode from disk).
+ */
+static inline void btrfs_set_inode_full_sync(struct btrfs_inode *inode)
+{
+	set_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &inode->runtime_flags);
+	/*
+	 * The inode may have been part of a reflink operation in the last
+	 * transaction that modified it, and then a fsync has reset the
+	 * last_reflink_trans to avoid subsequent fsyncs in the same
+	 * transaction to do unnecessary work. So update last_reflink_trans
+	 * to the last_trans value (we have to be pessimistic and assume a
+	 * reflink happened).
+	 *
+	 * The ->last_trans is protected by the inode's spinlock and we can
+	 * have a concurrent ordered extent completion update it. Also set
+	 * last_reflink_trans to ->last_trans only if the former is less than
+	 * the later, because we can be called in a context where
+	 * last_reflink_trans was set to the current transaction generation
+	 * while ->last_trans was not yet updated in the current transaction,
+	 * and therefore has a lower value.
+	 */
+	spin_lock(&inode->lock);
+	if (inode->last_reflink_trans < inode->last_trans)
+		inode->last_reflink_trans = inode->last_trans;
+	spin_unlock(&inode->lock);
+}
+
 static inline bool btrfs_inode_in_log(struct btrfs_inode *inode, u64 generation)
 {
 	bool ret = false;
@@ -346,30 +380,16 @@ static inline bool btrfs_inode_in_log(struct btrfs_inode *inode, u64 generation)
 	return ret;
 }
 
-struct btrfs_dio_private {
-	struct inode *inode;
-
-	/*
-	 * Since DIO can use anonymous page, we cannot use page_offset() to
-	 * grab the file offset, thus need a dedicated member for file offset.
-	 */
-	u64 file_offset;
-	u64 disk_bytenr;
-	/* Used for bio::bi_size */
-	u32 bytes;
-
-	/*
-	 * References to this structure. There is one reference per in-flight
-	 * bio plus one while we're still setting up.
-	 */
-	refcount_t refs;
-
-	/* dio_bio came from fs/direct-io.c */
-	struct bio *dio_bio;
-
-	/* Array of checksums */
-	u8 csums[];
-};
+/*
+ * Check if the inode has flags compatible with compression
+ */
+static inline bool btrfs_inode_can_compress(const struct btrfs_inode *inode)
+{
+	if (inode->flags & BTRFS_INODE_NODATACOW ||
+	    inode->flags & BTRFS_INODE_NODATASUM)
+		return false;
+	return true;
+}
 
 /*
  * btrfs_inode_item stores flags in a u64, btrfs_inode stores them in two

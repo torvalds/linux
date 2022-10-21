@@ -17,7 +17,7 @@
 #include <linux/vfio.h>
 #include <linux/vgaarb.h>
 
-#include <linux/vfio_pci_core.h>
+#include "vfio_pci_priv.h"
 
 #ifdef __LITTLE_ENDIAN
 #define vfio_ioread64	ioread64
@@ -288,6 +288,7 @@ out:
 	return done;
 }
 
+#ifdef CONFIG_VFIO_PCI_VGA
 ssize_t vfio_pci_vga_rw(struct vfio_pci_core_device *vdev, char __user *buf,
 			       size_t count, loff_t *ppos, bool iswrite)
 {
@@ -355,6 +356,7 @@ ssize_t vfio_pci_vga_rw(struct vfio_pci_core_device *vdev, char __user *buf,
 
 	return done;
 }
+#endif
 
 static void vfio_pci_ioeventfd_do_write(struct vfio_pci_ioeventfd *ioeventfd,
 					bool test_mem)
@@ -410,8 +412,8 @@ static void vfio_pci_ioeventfd_thread(void *opaque, void *unused)
 	vfio_pci_ioeventfd_do_write(ioeventfd, ioeventfd->test_mem);
 }
 
-long vfio_pci_ioeventfd(struct vfio_pci_core_device *vdev, loff_t offset,
-			uint64_t data, int count, int fd)
+int vfio_pci_ioeventfd(struct vfio_pci_core_device *vdev, loff_t offset,
+		       uint64_t data, int count, int fd)
 {
 	struct pci_dev *pdev = vdev->pdev;
 	loff_t pos = offset & VFIO_PCI_OFFSET_MASK;

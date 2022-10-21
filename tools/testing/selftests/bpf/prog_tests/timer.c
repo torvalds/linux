@@ -6,7 +6,7 @@
 static int timer(struct timer *timer_skel)
 {
 	int err, prog_fd;
-	__u32 duration = 0, retval;
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
 
 	err = timer__attach(timer_skel);
 	if (!ASSERT_OK(err, "timer_attach"))
@@ -16,10 +16,9 @@ static int timer(struct timer *timer_skel)
 	ASSERT_EQ(timer_skel->data->callback2_check, 52, "callback2_check1");
 
 	prog_fd = bpf_program__fd(timer_skel->progs.test1);
-	err = bpf_prog_test_run(prog_fd, 1, NULL, 0,
-				NULL, NULL, &retval, &duration);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	ASSERT_OK(err, "test_run");
-	ASSERT_EQ(retval, 0, "test_run");
+	ASSERT_EQ(topts.retval, 0, "test_run");
 	timer__detach(timer_skel);
 
 	usleep(50); /* 10 usecs should be enough, but give it extra */

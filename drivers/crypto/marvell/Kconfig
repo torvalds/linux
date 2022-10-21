@@ -47,6 +47,7 @@ config CRYPTO_DEV_OCTEONTX2_CPT
 	select CRYPTO_SKCIPHER
 	select CRYPTO_HASH
 	select CRYPTO_AEAD
+	select NET_DEVLINK
 	help
 		This driver allows you to utilize the Marvell Cryptographic
 		Accelerator Unit(CPT) found in OcteonTX2 series of processors.

@@ -56,8 +56,7 @@ static int finish_range(handle_t *handle, struct inode *inode,
 	retval = ext4_ext_insert_extent(handle, inode, &path, &newext, 0);
 err_out:
 	up_write((&EXT4_I(inode)->i_data_sem));
-	ext4_ext_drop_refs(path);
-	kfree(path);
+	ext4_free_ext_path(path);
 	lb->first_pblock = 0;
 	return retval;
 }
@@ -417,7 +416,7 @@ int ext4_ext_migrate(struct inode *inode)
 	struct inode *tmp_inode = NULL;
 	struct migrate_struct lb;
 	unsigned long max_entries;
-	__u32 goal;
+	__u32 goal, tmp_csum_seed;
 	uid_t owner[2];
 
 	/*
@@ -438,7 +437,7 @@ int ext4_ext_migrate(struct inode *inode)
 
 	/*
 	 * Worst case we can touch the allocation bitmaps and a block
-	 * group descriptor block.  We do need need to worry about
+	 * group descriptor block.  We do need to worry about
 	 * credits for modifying the quota inode.
 	 */
 	handle = ext4_journal_start(inode, EXT4_HT_MIGRATE,
@@ -465,6 +464,7 @@ int ext4_ext_migrate(struct inode *inode)
 	 * the migration.
 	 */
 	ei = EXT4_I(inode);
+	tmp_csum_seed = EXT4_I(tmp_inode)->i_csum_seed;
 	EXT4_I(tmp_inode)->i_csum_seed = ei->i_csum_seed;
 	i_size_write(tmp_inode, i_size_read(inode));
 	/*
@@ -485,7 +485,7 @@ int ext4_ext_migrate(struct inode *inode)
 	 * when we add extents we extent the journal
 	 */
 	/*
-	 * Even though we take i_mutex we can still cause block
+	 * Even though we take i_rwsem we can still cause block
 	 * allocation via mmap write to holes. If we have allocated
 	 * new blocks we fail migrate.  New block allocation will
 	 * clear EXT4_STATE_EXT_MIGRATE flag.  The flag is updated
@@ -575,6 +575,7 @@ err_out:
 	 * the inode is not visible to user space.
 	 */
 	tmp_inode->i_blocks = 0;
+	EXT4_I(tmp_inode)->i_csum_seed = tmp_csum_seed;
 
 	/* Reset the extent details */
 	ext4_ext_tree_init(handle, tmp_inode);

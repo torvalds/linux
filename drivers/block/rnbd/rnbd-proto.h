@@ -128,7 +128,7 @@ enum rnbd_cache_policy {
  * @logical_block_size: logical block size device supports in bytes
  * @max_segments:	max segments hardware support in one transfer
  * @secure_discard:	supports secure discard
- * @rotation:		is a rotational disc?
+ * @obsolete_rotational: obsolete, not in used.
  * @cache_policy: 	support write-back caching or FUA?
  */
 struct rnbd_msg_open_rsp {
@@ -144,7 +144,7 @@ struct rnbd_msg_open_rsp {
 	__le16			logical_block_size;
 	__le16			max_segments;
 	__le16			secure_discard;
-	u8			rotational;
+	u8			obsolete_rotational;
 	u8			cache_policy;
 	u8			reserved[10];
 };
@@ -229,9 +229,9 @@ static inline bool rnbd_flags_supported(u32 flags)
 	return true;
 }
 
-static inline u32 rnbd_to_bio_flags(u32 rnbd_opf)
+static inline blk_opf_t rnbd_to_bio_flags(u32 rnbd_opf)
 {
-	u32 bio_opf;
+	blk_opf_t bio_opf;
 
 	switch (rnbd_op(rnbd_opf)) {
 	case RNBD_OP_READ:
@@ -248,9 +248,6 @@ static inline u32 rnbd_to_bio_flags(u32 rnbd_opf)
 		break;
 	case RNBD_OP_SECURE_ERASE:
 		bio_opf = REQ_OP_SECURE_ERASE;
-		break;
-	case RNBD_OP_WRITE_SAME:
-		bio_opf = REQ_OP_WRITE_SAME;
 		break;
 	default:
 		WARN(1, "Unknown RNBD type: %d (flags %d)\n",
@@ -284,15 +281,13 @@ static inline u32 rq_to_rnbd_flags(struct request *rq)
 	case REQ_OP_SECURE_ERASE:
 		rnbd_opf = RNBD_OP_SECURE_ERASE;
 		break;
-	case REQ_OP_WRITE_SAME:
-		rnbd_opf = RNBD_OP_WRITE_SAME;
-		break;
 	case REQ_OP_FLUSH:
 		rnbd_opf = RNBD_OP_FLUSH;
 		break;
 	default:
 		WARN(1, "Unknown request type %d (flags %llu)\n",
-		     req_op(rq), (unsigned long long)rq->cmd_flags);
+		     (__force u32)req_op(rq),
+		     (__force unsigned long long)rq->cmd_flags);
 		rnbd_opf = 0;
 	}
 

@@ -166,10 +166,9 @@ static int mc13xxx_spi_probe(struct spi_device *spi)
 	return mc13xxx_common_init(&spi->dev);
 }
 
-static int mc13xxx_spi_remove(struct spi_device *spi)
+static void mc13xxx_spi_remove(struct spi_device *spi)
 {
 	mc13xxx_common_exit(&spi->dev);
-	return 0;
 }
 
 static struct spi_driver mc13xxx_spi_driver = {

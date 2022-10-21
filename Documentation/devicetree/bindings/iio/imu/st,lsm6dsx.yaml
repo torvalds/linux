@@ -14,23 +14,30 @@ description:
 
 properties:
   compatible:
-    enum:
-      - st,lsm6ds3
-      - st,lsm6ds3h
-      - st,lsm6dsl
-      - st,lsm6dsm
-      - st,ism330dlc
-      - st,lsm6dso
-      - st,asm330lhh
-      - st,lsm6dsox
-      - st,lsm6dsr
-      - st,lsm6ds3tr-c
-      - st,ism330dhcx
-      - st,lsm9ds1-imu
-      - st,lsm6ds0
-      - st,lsm6dsrx
-      - st,lsm6dst
-      - st,lsm6dsop
+    oneOf:
+      - enum:
+          - st,lsm6ds3
+          - st,lsm6ds3h
+          - st,lsm6dsl
+          - st,lsm6dsm
+          - st,ism330dlc
+          - st,lsm6dso
+          - st,asm330lhh
+          - st,lsm6dsox
+          - st,lsm6dsr
+          - st,lsm6ds3tr-c
+          - st,ism330dhcx
+          - st,lsm9ds1-imu
+          - st,lsm6ds0
+          - st,lsm6dsrx
+          - st,lsm6dst
+          - st,lsm6dsop
+      - items:
+          - const: st,asm330lhhx
+          - const: st,lsm6dsr
+      - items:
+          - const: st,lsm6dstx
+          - const: st,lsm6dst
 
   reg:
     maxItems: 1
@@ -40,8 +47,6 @@ properties:
     maxItems: 2
     description:
       Supports up to 2 interrupt lines via the INT1 and INT2 pins.
-
-  spi-max-frequency: true
 
   vdd-supply:
     description: if defined provides VDD power to the sensor.
@@ -77,11 +82,14 @@ properties:
   wakeup-source:
     $ref: /schemas/types.yaml#/definitions/flag
 
-additionalProperties: false
-
 required:
   - compatible
   - reg
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

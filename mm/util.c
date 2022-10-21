@@ -27,6 +27,7 @@
 #include <linux/uaccess.h>
 
 #include "internal.h"
+#include "swap.h"
 
 /**
  * kfree_const - conditionally free memory
@@ -271,38 +272,6 @@ void *memdup_user_nul(const void __user *src, size_t len)
 }
 EXPORT_SYMBOL(memdup_user_nul);
 
-void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
-		struct vm_area_struct *prev)
-{
-	struct vm_area_struct *next;
-
-	vma->vm_prev = prev;
-	if (prev) {
-		next = prev->vm_next;
-		prev->vm_next = vma;
-	} else {
-		next = mm->mmap;
-		mm->mmap = vma;
-	}
-	vma->vm_next = next;
-	if (next)
-		next->vm_prev = vma;
-}
-
-void __vma_unlink_list(struct mm_struct *mm, struct vm_area_struct *vma)
-{
-	struct vm_area_struct *prev, *next;
-
-	next = vma->vm_next;
-	prev = vma->vm_prev;
-	if (prev)
-		prev->vm_next = next;
-	else
-		mm->mmap = next;
-	if (next)
-		next->vm_prev = prev;
-}
-
 /* Check if the vma is being used as a stack by this task */
 int vma_is_stack_for_current(struct vm_area_struct *vma)
 {
@@ -343,8 +312,40 @@ unsigned long randomize_stack_top(unsigned long stack_top)
 #endif
 }
 
+/**
+ * randomize_page - Generate a random, page aligned address
+ * @start:	The smallest acceptable address the caller will take.
+ * @range:	The size of the area, starting at @start, within which the
+ *		random address must fall.
+ *
+ * If @start + @range would overflow, @range is capped.
+ *
+ * NOTE: Historical use of randomize_range, which this replaces, presumed that
+ * @start was already page aligned.  We now align it regardless.
+ *
+ * Return: A page aligned address within [start, start + range).  On error,
+ * @start is returned.
+ */
+unsigned long randomize_page(unsigned long start, unsigned long range)
+{
+	if (!PAGE_ALIGNED(start)) {
+		range -= PAGE_ALIGN(start) - start;
+		start = PAGE_ALIGN(start);
+	}
+
+	if (start > ULONG_MAX - range)
+		range = ULONG_MAX - start;
+
+	range >>= PAGE_SHIFT;
+
+	if (range == 0)
+		return start;
+
+	return start + (get_random_long() % range << PAGE_SHIFT);
+}
+
 #ifdef CONFIG_ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
-unsigned long arch_randomize_brk(struct mm_struct *mm)
+unsigned long __weak arch_randomize_brk(struct mm_struct *mm)
 {
 	/* Is the current task 32bit ? */
 	if (!IS_ENABLED(CONFIG_64BIT) || is_compat_task())
@@ -586,12 +587,25 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
 	if (ret || size <= PAGE_SIZE)
 		return ret;
 
-	/* Don't even allow crazy sizes */
-	if (WARN_ON_ONCE(size > INT_MAX))
+	/* non-sleeping allocations are not supported by vmalloc */
+	if (!gfpflags_allow_blocking(flags))
 		return NULL;
 
-	return __vmalloc_node(size, 1, flags, node,
-			__builtin_return_address(0));
+	/* Don't even allow crazy sizes */
+	if (unlikely(size > INT_MAX)) {
+		WARN_ON_ONCE(!(flags & __GFP_NOWARN));
+		return NULL;
+	}
+
+	/*
+	 * kvmalloc() can always use VM_ALLOW_HUGE_VMAP,
+	 * since the callers already cannot assume anything
+	 * about the resulting pointer, and cannot play
+	 * protection games.
+	 */
+	return __vmalloc_node_range(size, 1, VMALLOC_START, VMALLOC_END,
+			flags, PAGE_KERNEL, VM_ALLOW_HUGE_VMAP,
+			node, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(kvmalloc_node);
 
@@ -647,6 +661,56 @@ void *kvrealloc(const void *p, size_t oldsize, size_t newsize, gfp_t flags)
 }
 EXPORT_SYMBOL(kvrealloc);
 
+/**
+ * __vmalloc_array - allocate memory for a virtually contiguous array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ */
+void *__vmalloc_array(size_t n, size_t size, gfp_t flags)
+{
+	size_t bytes;
+
+	if (unlikely(check_mul_overflow(n, size, &bytes)))
+		return NULL;
+	return __vmalloc(bytes, flags);
+}
+EXPORT_SYMBOL(__vmalloc_array);
+
+/**
+ * vmalloc_array - allocate memory for a virtually contiguous array.
+ * @n: number of elements.
+ * @size: element size.
+ */
+void *vmalloc_array(size_t n, size_t size)
+{
+	return __vmalloc_array(n, size, GFP_KERNEL);
+}
+EXPORT_SYMBOL(vmalloc_array);
+
+/**
+ * __vcalloc - allocate and zero memory for a virtually contiguous array.
+ * @n: number of elements.
+ * @size: element size.
+ * @flags: the type of memory to allocate (see kmalloc).
+ */
+void *__vcalloc(size_t n, size_t size, gfp_t flags)
+{
+	return __vmalloc_array(n, size, flags | __GFP_ZERO);
+}
+EXPORT_SYMBOL(__vcalloc);
+
+/**
+ * vcalloc - allocate and zero memory for a virtually contiguous array.
+ * @n: number of elements.
+ * @size: element size.
+ */
+void *vcalloc(size_t n, size_t size)
+{
+	return __vmalloc_array(n, size, GFP_KERNEL | __GFP_ZERO);
+}
+EXPORT_SYMBOL(vcalloc);
+
 /* Neutral page->mapping pointer to address_space or anon_vma or other */
 void *page_rmapping(struct page *page)
 {
@@ -679,9 +743,8 @@ bool folio_mapped(struct folio *folio)
 }
 EXPORT_SYMBOL(folio_mapped);
 
-struct anon_vma *page_anon_vma(struct page *page)
+struct anon_vma *folio_anon_vma(struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
 	unsigned long mapping = (unsigned long)folio->mapping;
 
 	if ((mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
@@ -713,10 +776,10 @@ struct address_space *folio_mapping(struct folio *folio)
 		return swap_address_space(folio_swap_entry(folio));
 
 	mapping = folio->mapping;
-	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
+	if ((unsigned long)mapping & PAGE_MAPPING_FLAGS)
 		return NULL;
 
-	return (void *)((unsigned long)mapping & ~PAGE_MAPPING_FLAGS);
+	return mapping;
 }
 EXPORT_SYMBOL(folio_mapping);
 
@@ -739,6 +802,39 @@ int __page_mapcount(struct page *page)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__page_mapcount);
+
+/**
+ * folio_mapcount() - Calculate the number of mappings of this folio.
+ * @folio: The folio.
+ *
+ * A large folio tracks both how many times the entire folio is mapped,
+ * and how many times each individual page in the folio is mapped.
+ * This function calculates the total number of times the folio is
+ * mapped.
+ *
+ * Return: The number of times this folio is mapped.
+ */
+int folio_mapcount(struct folio *folio)
+{
+	int i, compound, nr, ret;
+
+	if (likely(!folio_test_large(folio)))
+		return atomic_read(&folio->_mapcount) + 1;
+
+	compound = folio_entire_mapcount(folio);
+	if (folio_test_hugetlb(folio))
+		return compound;
+	ret = compound;
+	nr = folio_nr_pages(folio);
+	for (i = 0; i < nr; i++)
+		ret += atomic_read(&folio_page(folio, i)->_mapcount) + 1;
+	/* File pages has compound_mapcount included in _mapcount */
+	if (!folio_test_anon(folio))
+		return ret - compound * nr;
+	if (folio_test_double_map(folio))
+		ret -= nr;
+	return ret;
+}
 
 /**
  * folio_copy - Copy the contents of one folio to another.
@@ -881,7 +977,7 @@ EXPORT_SYMBOL_GPL(vm_memory_committed);
  * succeed and -ENOMEM implies there is not.
  *
  * We currently support three overcommit policies, which are set via the
- * vm.overcommit_memory sysctl.  See Documentation/vm/overcommit-accounting.rst
+ * vm.overcommit_memory sysctl.  See Documentation/mm/overcommit-accounting.rst
  *
  * Strict overcommit modes added 2002 Feb 26 by Alan Cox.
  * Additional code 2002 Jul 20 by Robert Love.
@@ -928,6 +1024,8 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
 		return 0;
 error:
+	pr_warn_ratelimited("%s: pid: %d, comm: %s, no enough memory for the allocation\n",
+			    __func__, current->pid, current->comm);
 	vm_unacct_memory(pages);
 
 	return -ENOMEM;

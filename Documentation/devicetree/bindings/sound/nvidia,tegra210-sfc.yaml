@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/nvidia,tegra210-sfc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Tegra210 SFC Device Tree Bindings
+title: Tegra210 SFC
 
 description: |
   The Sampling Frequency Converter (SFC) converts the sampling frequency
@@ -28,6 +28,7 @@ properties:
       - const: nvidia,tegra210-sfc
       - items:
           - enum:
+              - nvidia,tegra234-sfc
               - nvidia,tegra194-sfc
               - nvidia,tegra186-sfc
           - const: nvidia,tegra210-sfc

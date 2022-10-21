@@ -55,6 +55,8 @@
 #define BTPROTO_CMTP	5
 #define BTPROTO_HIDP	6
 #define BTPROTO_AVDTP	7
+#define BTPROTO_ISO	8
+#define BTPROTO_LAST	BTPROTO_ISO
 
 #define SOL_HCI		0
 #define SOL_L2CAP	6
@@ -149,9 +151,50 @@ struct bt_voice {
 #define BT_MODE_LE_FLOWCTL	0x03
 #define BT_MODE_EXT_FLOWCTL	0x04
 
-#define BT_PKT_STATUS          16
+#define BT_PKT_STATUS           16
 
 #define BT_SCM_PKT_STATUS	0x03
+
+#define BT_ISO_QOS		17
+
+#define BT_ISO_QOS_CIG_UNSET	0xff
+#define BT_ISO_QOS_CIS_UNSET	0xff
+
+#define BT_ISO_QOS_BIG_UNSET	0xff
+#define BT_ISO_QOS_BIS_UNSET	0xff
+
+struct bt_iso_io_qos {
+	__u32 interval;
+	__u16 latency;
+	__u16 sdu;
+	__u8  phy;
+	__u8  rtn;
+};
+
+struct bt_iso_qos {
+	union {
+		__u8  cig;
+		__u8  big;
+	};
+	union {
+		__u8  cis;
+		__u8  bis;
+	};
+	union {
+		__u8  sca;
+		__u8  sync_interval;
+	};
+	__u8  packing;
+	__u8  framing;
+	struct bt_iso_io_qos in;
+	struct bt_iso_io_qos out;
+};
+
+#define BT_ISO_PHY_1M		0x01
+#define BT_ISO_PHY_2M		0x02
+#define BT_ISO_PHY_CODED	0x04
+#define BT_ISO_PHY_ANY		(BT_ISO_PHY_1M | BT_ISO_PHY_2M | \
+				 BT_ISO_PHY_CODED)
 
 #define BT_CODEC	19
 
@@ -176,6 +219,8 @@ struct bt_codecs {
 #define BT_CODEC_CVSD		0x02
 #define BT_CODEC_TRANSPARENT	0x03
 #define BT_CODEC_MSBC		0x05
+
+#define BT_ISO_BASE		20
 
 __printf(1, 2)
 void bt_info(const char *fmt, ...);
@@ -204,19 +249,21 @@ void bt_err_ratelimited(const char *fmt, ...);
 #define BT_DBG(fmt, ...)	pr_debug(fmt "\n", ##__VA_ARGS__)
 #endif
 
+#define bt_dev_name(hdev) ((hdev) ? (hdev)->name : "null")
+
 #define bt_dev_info(hdev, fmt, ...)				\
-	BT_INFO("%s: " fmt, (hdev)->name, ##__VA_ARGS__)
+	BT_INFO("%s: " fmt, bt_dev_name(hdev), ##__VA_ARGS__)
 #define bt_dev_warn(hdev, fmt, ...)				\
-	BT_WARN("%s: " fmt, (hdev)->name, ##__VA_ARGS__)
+	BT_WARN("%s: " fmt, bt_dev_name(hdev), ##__VA_ARGS__)
 #define bt_dev_err(hdev, fmt, ...)				\
-	BT_ERR("%s: " fmt, (hdev)->name, ##__VA_ARGS__)
+	BT_ERR("%s: " fmt, bt_dev_name(hdev), ##__VA_ARGS__)
 #define bt_dev_dbg(hdev, fmt, ...)				\
-	BT_DBG("%s: " fmt, (hdev)->name, ##__VA_ARGS__)
+	BT_DBG("%s: " fmt, bt_dev_name(hdev), ##__VA_ARGS__)
 
 #define bt_dev_warn_ratelimited(hdev, fmt, ...)			\
-	bt_warn_ratelimited("%s: " fmt, (hdev)->name, ##__VA_ARGS__)
+	bt_warn_ratelimited("%s: " fmt, bt_dev_name(hdev), ##__VA_ARGS__)
 #define bt_dev_err_ratelimited(hdev, fmt, ...)			\
-	bt_err_ratelimited("%s: " fmt, (hdev)->name, ##__VA_ARGS__)
+	bt_err_ratelimited("%s: " fmt, bt_dev_name(hdev), ##__VA_ARGS__)
 
 /* Connection and socket states */
 enum {
@@ -343,7 +390,7 @@ int  bt_sock_stream_recvmsg(struct socket *sock, struct msghdr *msg,
 __poll_t bt_sock_poll(struct file *file, struct socket *sock, poll_table *wait);
 int  bt_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 int  bt_sock_wait_state(struct sock *sk, int state, unsigned long timeo);
-int  bt_sock_wait_ready(struct sock *sk, unsigned long flags);
+int  bt_sock_wait_ready(struct sock *sk, unsigned int msg_flags);
 
 void bt_accept_enqueue(struct sock *parent, struct sock *sk, bool bh);
 void bt_accept_unlink(struct sock *sk);
@@ -492,7 +539,7 @@ static inline struct sk_buff *bt_skb_sendmmsg(struct sock *sk,
 	struct sk_buff *skb, **frag;
 
 	skb = bt_skb_sendmsg(sk, msg, len, mtu, headroom, tailroom);
-	if (IS_ERR_OR_NULL(skb))
+	if (IS_ERR(skb))
 		return skb;
 
 	len -= skb->len;
@@ -506,8 +553,7 @@ static inline struct sk_buff *bt_skb_sendmmsg(struct sock *sk,
 
 		tmp = bt_skb_sendmsg(sk, msg, len, mtu, headroom, tailroom);
 		if (IS_ERR(tmp)) {
-			kfree_skb(skb);
-			return tmp;
+			return skb;
 		}
 
 		len -= tmp->len;
@@ -520,6 +566,7 @@ static inline struct sk_buff *bt_skb_sendmmsg(struct sock *sk,
 }
 
 int bt_to_errno(u16 code);
+__u8 bt_status(int err);
 
 void hci_sock_set_flag(struct sock *sk, int nr);
 void hci_sock_clear_flag(struct sock *sk, int nr);
@@ -557,8 +604,30 @@ static inline void sco_exit(void)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_BT_LE)
+int iso_init(void);
+int iso_exit(void);
+bool iso_enabled(void);
+#else
+static inline int iso_init(void)
+{
+	return 0;
+}
+
+static inline int iso_exit(void)
+{
+	return 0;
+}
+
+static inline bool iso_enabled(void)
+{
+	return false;
+}
+#endif
+
 int mgmt_init(void);
 void mgmt_exit(void);
+void mgmt_cleanup(struct sock *sk);
 
 void bt_sock_reclassify_lock(struct sock *sk, int proto);
 

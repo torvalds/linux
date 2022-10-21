@@ -355,56 +355,6 @@ static inline u32 mii_adv_to_ethtool_adv_x(u32 adv)
 }
 
 /**
- * mii_lpa_mod_linkmode_adv_sgmii
- * @lp_advertising: pointer to destination link mode.
- * @lpa: value of the MII_LPA register
- *
- * A small helper function that translates MII_LPA bits to
- * linkmode advertisement settings for SGMII.
- * Leaves other bits unchanged.
- */
-static inline void
-mii_lpa_mod_linkmode_lpa_sgmii(unsigned long *lp_advertising, u32 lpa)
-{
-	u32 speed_duplex = lpa & LPA_SGMII_DPX_SPD_MASK;
-
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT, lp_advertising,
-			 speed_duplex == LPA_SGMII_1000HALF);
-
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, lp_advertising,
-			 speed_duplex == LPA_SGMII_1000FULL);
-
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, lp_advertising,
-			 speed_duplex == LPA_SGMII_100HALF);
-
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, lp_advertising,
-			 speed_duplex == LPA_SGMII_100FULL);
-
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, lp_advertising,
-			 speed_duplex == LPA_SGMII_10HALF);
-
-	linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, lp_advertising,
-			 speed_duplex == LPA_SGMII_10FULL);
-}
-
-/**
- * mii_lpa_to_linkmode_adv_sgmii
- * @advertising: pointer to destination link mode.
- * @lpa: value of the MII_LPA register
- *
- * A small helper function that translates MII_ADVERTISE bits
- * to linkmode advertisement settings when in SGMII mode.
- * Clears the old value of advertising.
- */
-static inline void mii_lpa_to_linkmode_lpa_sgmii(unsigned long *lp_advertising,
-						 u32 lpa)
-{
-	linkmode_zero(lp_advertising);
-
-	mii_lpa_mod_linkmode_lpa_sgmii(lp_advertising, lpa);
-}
-
-/**
  * mii_adv_mod_linkmode_adv_t
  * @advertising:pointer to destination link mode.
  * @adv: value of the MII_ADVERTISE register
@@ -593,6 +543,41 @@ static inline u8 mii_resolve_flowctrl_fdx(u16 lcladv, u16 rmtadv)
 	}
 
 	return cap;
+}
+
+/**
+ * mii_bmcr_encode_fixed - encode fixed speed/duplex settings to a BMCR value
+ * @speed: a SPEED_* value
+ * @duplex: a DUPLEX_* value
+ *
+ * Encode the speed and duplex to a BMCR value. 2500, 1000, 100 and 10 Mbps are
+ * supported. 2500Mbps is encoded to 1000Mbps. Other speeds are encoded as 10
+ * Mbps. Unknown duplex values are encoded to half-duplex.
+ */
+static inline u16 mii_bmcr_encode_fixed(int speed, int duplex)
+{
+	u16 bmcr;
+
+	switch (speed) {
+	case SPEED_2500:
+	case SPEED_1000:
+		bmcr = BMCR_SPEED1000;
+		break;
+
+	case SPEED_100:
+		bmcr = BMCR_SPEED100;
+		break;
+
+	case SPEED_10:
+	default:
+		bmcr = BMCR_SPEED10;
+		break;
+	}
+
+	if (duplex == DUPLEX_FULL)
+		bmcr |= BMCR_FULLDPLX;
+
+	return bmcr;
 }
 
 #endif /* __LINUX_MII_H__ */

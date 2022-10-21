@@ -141,7 +141,7 @@ SECTIONS
 
 #ifdef CONFIG_RETPOLINE
 		__indirect_thunk_start = .;
-		*(.text.__x86.indirect_thunk)
+		*(.text.__x86.*)
 		__indirect_thunk_end = .;
 #endif
 	} :text =0xcccc
@@ -283,6 +283,22 @@ SECTIONS
 		*(.retpoline_sites)
 		__retpoline_sites_end = .;
 	}
+
+	. = ALIGN(8);
+	.return_sites : AT(ADDR(.return_sites) - LOAD_OFFSET) {
+		__return_sites = .;
+		*(.return_sites)
+		__return_sites_end = .;
+	}
+#endif
+
+#ifdef CONFIG_X86_KERNEL_IBT
+	. = ALIGN(8);
+	.ibt_endbr_seal : AT(ADDR(.ibt_endbr_seal) - LOAD_OFFSET) {
+		__ibt_endbr_seal = .;
+		*(.ibt_endbr_seal)
+		__ibt_endbr_seal_end = .;
+	}
 #endif
 
 	/*
@@ -304,18 +320,6 @@ SECTIONS
 	 */
 	.altinstr_replacement : AT(ADDR(.altinstr_replacement) - LOAD_OFFSET) {
 		*(.altinstr_replacement)
-	}
-
-	/*
-	 * struct iommu_table_entry entries are injected in this section.
-	 * It is an array of IOMMUs which during run time gets sorted depending
-	 * on its dependency order. After rootfs_initcall is complete
-	 * this section can be safely removed.
-	 */
-	.iommu_table : AT(ADDR(.iommu_table) - LOAD_OFFSET) {
-		__iommu_table = .;
-		*(.iommu_table)
-		__iommu_table_end = .;
 	}
 
 	. = ALIGN(8);
@@ -391,7 +395,7 @@ SECTIONS
 	.brk : AT(ADDR(.brk) - LOAD_OFFSET) {
 		__brk_base = .;
 		. += 64 * 1024;		/* 64k alignment slop space */
-		*(.brk_reservation)	/* areas brk users have reserved */
+		*(.bss..brk)		/* areas brk users have reserved */
 		__brk_limit = .;
 	}
 

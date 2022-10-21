@@ -482,7 +482,7 @@ xchk_da_btree(
 	int				error;
 
 	/* Skip short format data structures; no btree to scan. */
-	if (!xfs_ifork_has_extents(XFS_IFORK_PTR(sc->ip, whichfork)))
+	if (!xfs_ifork_has_extents(xfs_ifork_ptr(sc->ip, whichfork)))
 		return 0;
 
 	/* Set up initial da state. */

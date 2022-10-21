@@ -28,6 +28,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fixed.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_vblank.h>
 #include <drm/radeon_drm.h>
 
@@ -616,13 +617,6 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 		}
 	}
 
-	if (radeon_encoder->is_mst_encoder) {
-		struct radeon_encoder_mst *mst_enc = radeon_encoder->enc_priv;
-		struct radeon_connector_atom_dig *dig_connector = mst_enc->connector->con_priv;
-
-		dp_clock = dig_connector->dp_clock;
-	}
-
 	/* use recommended ref_div for ss */
 	if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 		if (radeon_crtc->ss_enabled) {
@@ -971,9 +965,7 @@ static bool atombios_crtc_prepare_pll(struct drm_crtc *crtc, struct drm_display_
 	radeon_crtc->bpc = 8;
 	radeon_crtc->ss_enabled = false;
 
-	if (radeon_encoder->is_mst_encoder) {
-		radeon_dp_mst_prepare_pll(crtc, mode);
-	} else if ((radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) ||
+	if ((radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT | ATOM_DEVICE_DFP_SUPPORT)) ||
 	    (radeon_encoder_get_dp_bridge_encoder_id(radeon_crtc->encoder) != ENCODER_OBJECT_ID_NONE)) {
 		struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 		struct drm_connector *connector =

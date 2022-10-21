@@ -29,7 +29,7 @@
 
 		label = "GPIO Buttons";
 
-		volume-up {
+		button-volume-up {
 			label = "Volume Up";
 			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;

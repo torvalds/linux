@@ -17,10 +17,18 @@ struct nf_conn_labels {
 	unsigned long bits[NF_CT_LABELS_MAX_SIZE / sizeof(long)];
 };
 
+/* Can't use nf_ct_ext_find(), flow dissector cannot use symbols
+ * exported by nf_conntrack module.
+ */
 static inline struct nf_conn_labels *nf_ct_labels_find(const struct nf_conn *ct)
 {
 #ifdef CONFIG_NF_CONNTRACK_LABELS
-	return nf_ct_ext_find(ct, NF_CT_EXT_LABELS);
+	struct nf_ct_ext *ext = ct->ext;
+
+	if (!ext || !__nf_ct_ext_exist(ext, NF_CT_EXT_LABELS))
+		return NULL;
+
+	return (void *)ct->ext + ct->ext->offset[NF_CT_EXT_LABELS];
 #else
 	return NULL;
 #endif
@@ -45,12 +53,9 @@ int nf_connlabels_replace(struct nf_conn *ct,
 
 #ifdef CONFIG_NF_CONNTRACK_LABELS
 int nf_conntrack_labels_init(void);
-void nf_conntrack_labels_fini(void);
 int nf_connlabels_get(struct net *net, unsigned int bit);
 void nf_connlabels_put(struct net *net);
 #else
-static inline int nf_conntrack_labels_init(void) { return 0; }
-static inline void nf_conntrack_labels_fini(void) {}
 static inline int nf_connlabels_get(struct net *net, unsigned int bit) { return 0; }
 static inline void nf_connlabels_put(struct net *net) {}
 #endif

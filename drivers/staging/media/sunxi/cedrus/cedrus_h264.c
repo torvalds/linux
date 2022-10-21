@@ -38,7 +38,7 @@ struct cedrus_h264_sram_ref_pic {
 
 #define CEDRUS_H264_FRAME_NUM		18
 
-#define CEDRUS_NEIGHBOR_INFO_BUF_SIZE	(16 * SZ_1K)
+#define CEDRUS_NEIGHBOR_INFO_BUF_SIZE	(32 * SZ_1K)
 #define CEDRUS_MIN_PIC_INFO_BUF_SIZE       (130 * SZ_1K)
 
 static void cedrus_h264_write_sram(struct cedrus_dev *dev,
@@ -111,16 +111,16 @@ static void cedrus_write_frame_list(struct cedrus_ctx *ctx,
 	for (i = 0; i < ARRAY_SIZE(decode->dpb); i++) {
 		const struct v4l2_h264_dpb_entry *dpb = &decode->dpb[i];
 		struct cedrus_buffer *cedrus_buf;
-		int buf_idx;
+		struct vb2_buffer *buf;
 
 		if (!(dpb->flags & V4L2_H264_DPB_ENTRY_FLAG_VALID))
 			continue;
 
-		buf_idx = vb2_find_timestamp(cap_q, dpb->reference_ts, 0);
-		if (buf_idx < 0)
+		buf = vb2_find_buffer(cap_q, dpb->reference_ts);
+		if (!buf)
 			continue;
 
-		cedrus_buf = vb2_to_cedrus_buffer(cap_q->bufs[buf_idx]);
+		cedrus_buf = vb2_to_cedrus_buffer(buf);
 		position = cedrus_buf->codec.h264.position;
 		used_dpbs |= BIT(position);
 
@@ -186,7 +186,7 @@ static void _cedrus_write_ref_list(struct cedrus_ctx *ctx,
 		const struct v4l2_h264_dpb_entry *dpb;
 		const struct cedrus_buffer *cedrus_buf;
 		unsigned int position;
-		int buf_idx;
+		struct vb2_buffer *buf;
 		u8 dpb_idx;
 
 		dpb_idx = ref_list[i].index;
@@ -195,11 +195,11 @@ static void _cedrus_write_ref_list(struct cedrus_ctx *ctx,
 		if (!(dpb->flags & V4L2_H264_DPB_ENTRY_FLAG_ACTIVE))
 			continue;
 
-		buf_idx = vb2_find_timestamp(cap_q, dpb->reference_ts, 0);
-		if (buf_idx < 0)
+		buf = vb2_find_buffer(cap_q, dpb->reference_ts);
+		if (!buf)
 			continue;
 
-		cedrus_buf = vb2_to_cedrus_buffer(cap_q->bufs[buf_idx]);
+		cedrus_buf = vb2_to_cedrus_buffer(buf);
 		position = cedrus_buf->codec.h264.position;
 
 		sram_array[i] |= position << 1;
@@ -493,8 +493,7 @@ static void cedrus_h264_irq_disable(struct cedrus_ctx *ctx)
 		     reg & ~VE_H264_CTRL_INT_MASK);
 }
 
-static void cedrus_h264_setup(struct cedrus_ctx *ctx,
-			      struct cedrus_run *run)
+static int cedrus_h264_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 {
 	struct cedrus_dev *dev = ctx->dev;
 
@@ -510,6 +509,8 @@ static void cedrus_h264_setup(struct cedrus_ctx *ctx,
 	cedrus_write_frame_list(ctx, run);
 
 	cedrus_set_params(ctx, run);
+
+	return 0;
 }
 
 static int cedrus_h264_start(struct cedrus_ctx *ctx)

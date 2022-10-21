@@ -8,13 +8,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/export.h>
 
-#include <asm/setup.h>
-
-/* We export this macro for external modules like Alsa to know if
- * ppc_md.feature_call is implemented or not
- */
-#define CONFIG_PPC_HAS_FEATURE_CALLS
-
 struct pt_regs;
 struct pci_bus;	
 struct device_node;
@@ -98,6 +91,8 @@ struct machdep_calls {
 
 	/* Called during machine check exception to retrive fixup address. */
 	bool		(*mce_check_early_recovery)(struct pt_regs *regs);
+
+	void            (*machine_check_log_err)(void);
 
 	/* Motherboard/chipset features. This is a kind of general purpose
 	 * hook used to control some machine specific features (like reset
@@ -203,15 +198,12 @@ struct machdep_calls {
 	ssize_t (*cpu_release)(const char *, size_t);
 #endif
 
-#ifdef CONFIG_ARCH_RANDOM
 	int (*get_random_seed)(unsigned long *v);
-#endif
 };
 
 extern void e500_idle(void);
 extern void power4_idle(void);
 extern void ppc6xx_idle(void);
-extern void book3e_idle(void);
 
 /*
  * ppc_md contains a copy of the machine description structure for the
@@ -234,21 +226,6 @@ extern struct machdep_calls *machine_id;
 			__attribute__((weak));		 \
 		machine_id == &mach_##name; \
 	})
-
-#ifdef CONFIG_PPC_PMAC
-/*
- * Power macintoshes have either a CUDA, PMU or SMU controlling
- * system reset, power, NVRAM, RTC.
- */
-typedef enum sys_ctrler_kind {
-	SYS_CTRLER_UNKNOWN = 0,
-	SYS_CTRLER_CUDA = 1,
-	SYS_CTRLER_PMU = 2,
-	SYS_CTRLER_SMU = 3,
-} sys_ctrler_t;
-extern sys_ctrler_t sys_ctrler;
-
-#endif /* CONFIG_PPC_PMAC */
 
 static inline void log_error(char *buf, unsigned int err_type, int fatal)
 {

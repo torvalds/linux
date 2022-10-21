@@ -14,6 +14,7 @@
 #include <linux/time.h>
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/pagemap.h>
 #include <linux/stat.h>
 #include <linux/cred.h>
 #include <linux/errno.h>

@@ -159,7 +159,7 @@ extern long __ia32_sys_ni_syscall(const struct pt_regs *regs);
 #endif /* CONFIG_IA32_EMULATION */
 
 
-#ifdef CONFIG_X86_X32
+#ifdef CONFIG_X86_X32_ABI
 /*
  * For the x32 ABI, we need to create a stub for compat_sys_*() which is aware
  * of the x86-64-style parameter ordering of x32 syscalls. The syscalls common
@@ -177,12 +177,12 @@ extern long __ia32_sys_ni_syscall(const struct pt_regs *regs);
 
 #define __X32_COMPAT_SYS_NI(name)					\
 	__SYS_NI(x64, compat_sys_##name)
-#else /* CONFIG_X86_X32 */
+#else /* CONFIG_X86_X32_ABI */
 #define __X32_COMPAT_SYS_STUB0(name)
 #define __X32_COMPAT_SYS_STUBx(x, name, ...)
 #define __X32_COMPAT_COND_SYSCALL(name)
 #define __X32_COMPAT_SYS_NI(name)
-#endif /* CONFIG_X86_X32 */
+#endif /* CONFIG_X86_X32_ABI */
 
 
 #ifdef CONFIG_COMPAT

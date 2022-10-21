@@ -273,6 +273,7 @@ static int xfrm4_beet_encap_add(struct xfrm_state *x, struct sk_buff *skb)
  */
 static int xfrm4_tunnel_encap_add(struct xfrm_state *x, struct sk_buff *skb)
 {
+	bool small_ipv6 = (skb->protocol == htons(ETH_P_IPV6)) && (skb->len <= IPV6_MIN_MTU);
 	struct dst_entry *dst = skb_dst(skb);
 	struct iphdr *top_iph;
 	int flags;
@@ -303,7 +304,7 @@ static int xfrm4_tunnel_encap_add(struct xfrm_state *x, struct sk_buff *skb)
 	if (flags & XFRM_STATE_NOECN)
 		IP_ECN_clear(top_iph);
 
-	top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) ?
+	top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) || small_ipv6 ?
 		0 : (XFRM_MODE_SKB_CB(skb)->frag_off & htons(IP_DF));
 
 	top_iph->ttl = ip4_dst_hoplimit(xfrm_dst_child(dst));
@@ -533,7 +534,6 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 
 		x->curlft.bytes += skb->len;
 		x->curlft.packets++;
-		x->curlft.use_time = ktime_get_real_seconds();
 
 		spin_unlock_bh(&x->lock);
 

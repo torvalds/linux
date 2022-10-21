@@ -190,7 +190,7 @@ struct nt35510_config {
 	 * 6 = Hsync x 2
 	 * 7 = Hsync x 4
 	 * bits 4..6 in the upper nibble controls BTP, the boosting
-	 * amplification for the the step-up circuit:
+	 * amplification for the step-up circuit:
 	 * 0 = Disable
 	 * 1 = 1.5 x VDDB
 	 * 2 = 1.66 x VDDB
@@ -211,7 +211,7 @@ struct nt35510_config {
 	 * bits 0..2 in the lower nibble controls NCK, the booster clock
 	 * frequency, the values are the same as for PCK in @bt1ctr.
 	 * bits 4..5 in the upper nibble controls BTN, the boosting
-	 * amplification for the the step-up circuit.
+	 * amplification for the step-up circuit.
 	 * 0 = Disable
 	 * 1 = -1.5 x VDDB
 	 * 2 = -2 x VDDB
@@ -231,7 +231,7 @@ struct nt35510_config {
 	 * bits 0..2 in the lower nibble controls HCK, the booster clock
 	 * frequency, the values are the same as for PCK in @bt1ctr.
 	 * bits 4..5 in the upper nibble controls BTH, the boosting
-	 * amplification for the the step-up circuit.
+	 * amplification for the step-up circuit.
 	 * 0 = AVDD + VDDB
 	 * 1 = AVDD - AVEE
 	 * 2 = AVDD - AVEE + VDDB
@@ -250,7 +250,7 @@ struct nt35510_config {
 	 * bits 0..2 in the lower nibble controls LCK, the booster clock
 	 * frequency, the values are the same as for PCK in @bt1ctr.
 	 * bits 4..5 in the upper nibble controls BTL, the boosting
-	 * amplification for the the step-up circuit.
+	 * amplification for the step-up circuit.
 	 * 0 = AVEE + VCL
 	 * 1 = AVEE - AVDD
 	 * 2 = AVEE + VCL - AVDD
@@ -966,7 +966,7 @@ static int nt35510_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static int nt35510_remove(struct mipi_dsi_device *dsi)
+static void nt35510_remove(struct mipi_dsi_device *dsi)
 {
 	struct nt35510 *nt = mipi_dsi_get_drvdata(dsi);
 	int ret;
@@ -974,9 +974,10 @@ static int nt35510_remove(struct mipi_dsi_device *dsi)
 	mipi_dsi_detach(dsi);
 	/* Power off */
 	ret = nt35510_power_off(nt);
-	drm_panel_remove(&nt->panel);
+	if (ret)
+		dev_err(&dsi->dev, "Failed to power off\n");
 
-	return ret;
+	drm_panel_remove(&nt->panel);
 }
 
 /*

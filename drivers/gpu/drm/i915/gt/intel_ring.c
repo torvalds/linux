@@ -3,12 +3,14 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_object.h"
 
 #include "i915_drv.h"
 #include "i915_vma.h"
 #include "intel_engine.h"
+#include "intel_engine_regs.h"
 #include "intel_gpu_commands.h"
 #include "intel_ring.h"
 #include "intel_timeline.h"
@@ -297,7 +299,8 @@ u32 *intel_ring_begin(struct i915_request *rq, unsigned int num_dwords)
 	GEM_BUG_ON(ring->emit > ring->size - bytes);
 	GEM_BUG_ON(ring->space < bytes);
 	cs = ring->vaddr + ring->emit;
-	GEM_DEBUG_EXEC(memset32(cs, POISON_INUSE, bytes / sizeof(*cs)));
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		memset32(cs, POISON_INUSE, bytes / sizeof(*cs));
 	ring->emit += bytes;
 	ring->space -= bytes;
 

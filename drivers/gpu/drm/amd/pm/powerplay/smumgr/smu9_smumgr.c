@@ -126,7 +126,7 @@ int smu9_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 
 	ret = smu9_wait_for_response(hwmgr);
 	if (ret != 1)
-		pr_err("Failed to send message: 0x%x, ret value: 0x%x\n", msg, ret);
+		dev_err(adev->dev, "Failed to send message: 0x%x, ret value: 0x%x\n", msg, ret);
 
 	return 0;
 }

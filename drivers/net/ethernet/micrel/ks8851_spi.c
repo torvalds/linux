@@ -293,7 +293,7 @@ static void ks8851_wrfifo_spi(struct ks8851_net *ks, struct sk_buff *txp,
  */
 static void ks8851_rx_skb_spi(struct ks8851_net *ks, struct sk_buff *skb)
 {
-	netif_rx_ni(skb);
+	netif_rx(skb);
 }
 
 /**
@@ -413,7 +413,8 @@ static int ks8851_probe_spi(struct spi_device *spi)
 
 	spi->bits_per_word = 8;
 
-	ks = netdev_priv(netdev);
+	kss = netdev_priv(netdev);
+	ks = &kss->ks8851;
 
 	ks->lock = ks8851_lock_spi;
 	ks->unlock = ks8851_unlock_spi;
@@ -433,8 +434,6 @@ static int ks8851_probe_spi(struct spi_device *spi)
 		 IRQ_RXPSI)	/* RX process stop */
 	ks->rc_ier = STD_IRQ;
 
-	kss = to_ks8851_spi(ks);
-
 	kss->spidev = spi;
 	mutex_init(&kss->lock);
 	INIT_WORK(&kss->tx_work, ks8851_tx_work);
@@ -452,11 +451,9 @@ static int ks8851_probe_spi(struct spi_device *spi)
 	return ks8851_probe_common(netdev, dev, msg_enable);
 }
 
-static int ks8851_remove_spi(struct spi_device *spi)
+static void ks8851_remove_spi(struct spi_device *spi)
 {
 	ks8851_remove_common(&spi->dev);
-
-	return 0;
 }
 
 static const struct of_device_id ks8851_match_table[] = {

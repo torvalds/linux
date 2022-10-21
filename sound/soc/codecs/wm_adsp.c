@@ -97,13 +97,13 @@ struct wm_adsp_system_config_xm_hdr {
 	__be32 wdma[8];
 	__be32 build_job_name[3];
 	__be32 build_job_number;
-};
+} __packed;
 
 struct wm_halo_system_config_xm_hdr {
 	__be32 halo_heartbeat;
 	__be32 build_job_name[3];
 	__be32 build_job_number;
-};
+} __packed;
 
 struct wm_adsp_alg_xm_struct {
 	__be32 magic;
@@ -114,13 +114,13 @@ struct wm_adsp_alg_xm_struct {
 	__be32 high_water_mark;
 	__be32 low_water_mark;
 	__be64 smoothed_power;
-};
+} __packed;
 
 struct wm_adsp_host_buf_coeff_v1 {
 	__be32 host_buf_ptr;		/* Host buffer pointer */
 	__be32 versions;		/* Version numbers */
 	__be32 name[4];			/* The buffer name */
-};
+} __packed;
 
 struct wm_adsp_buffer {
 	__be32 buf1_base;		/* Base addr of first buffer area */
@@ -141,7 +141,7 @@ struct wm_adsp_buffer {
 	__be32 min_free;		/* min free space since stream start */
 	__be32 blocks_written[2];	/* total blocks written (64 bit) */
 	__be32 words_written[2];	/* total words written (64 bit) */
-};
+} __packed;
 
 struct wm_adsp_compr;
 
@@ -180,7 +180,7 @@ struct wm_adsp_compr {
 
 #define WM_ADSP_MIN_FRAGMENTS          1
 #define WM_ADSP_MAX_FRAGMENTS          256
-#define WM_ADSP_MIN_FRAGMENT_SIZE      (64 * CS_DSP_DATA_WORD_SIZE)
+#define WM_ADSP_MIN_FRAGMENT_SIZE      (16 * CS_DSP_DATA_WORD_SIZE)
 #define WM_ADSP_MAX_FRAGMENT_SIZE      (4096 * CS_DSP_DATA_WORD_SIZE)
 
 #define WM_ADSP_ALG_XM_STRUCT_MAGIC    0x49aec7
@@ -296,7 +296,12 @@ static const struct {
 		.num_caps = ARRAY_SIZE(trace_caps),
 		.caps = trace_caps,
 	},
-	[WM_ADSP_FW_SPK_PROT] = { .file = "spk-prot" },
+	[WM_ADSP_FW_SPK_PROT] = {
+		.file = "spk-prot",
+		.compr_direction = SND_COMPRESS_CAPTURE,
+		.num_caps = ARRAY_SIZE(trace_caps),
+		.caps = trace_caps,
+	},
 	[WM_ADSP_FW_SPK_CALI] = { .file = "spk-cali" },
 	[WM_ADSP_FW_SPK_DIAG] = { .file = "spk-diag" },
 	[WM_ADSP_FW_MISC] =     { .file = "misc" },
@@ -328,7 +333,7 @@ int wm_adsp_fw_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	struct wm_adsp *dsp = snd_soc_component_get_drvdata(component);
-	int ret = 0;
+	int ret = 1;
 
 	if (ucontrol->value.enumerated.item[0] == dsp[e->shift_l].fw)
 		return 0;
@@ -670,20 +675,11 @@ static void wm_adsp_control_remove(struct cs_dsp_coeff_ctl *cs_ctl)
 int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
 		      unsigned int alg, void *buf, size_t len)
 {
-	struct cs_dsp_coeff_ctl *cs_ctl;
+	struct cs_dsp_coeff_ctl *cs_ctl = cs_dsp_get_ctl(&dsp->cs_dsp, name, type, alg);
 	struct wm_coeff_ctl *ctl;
 	struct snd_kcontrol *kcontrol;
 	char ctl_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	int ret;
-
-	cs_ctl = cs_dsp_get_ctl(&dsp->cs_dsp, name, type, alg);
-	if (!cs_ctl)
-		return -EINVAL;
-
-	ctl = cs_ctl->priv;
-
-	if (len > cs_ctl->len)
-		return -EINVAL;
 
 	ret = cs_dsp_coeff_write_ctrl(cs_ctl, 0, buf, len);
 	if (ret)
@@ -691,6 +687,8 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
 
 	if (cs_ctl->flags & WMFW_CTL_FLAG_SYS)
 		return 0;
+
+	ctl = cs_ctl->priv;
 
 	if (dsp->component->name_prefix)
 		snprintf(ctl_name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "%s %s",
@@ -715,16 +713,8 @@ EXPORT_SYMBOL_GPL(wm_adsp_write_ctl);
 int wm_adsp_read_ctl(struct wm_adsp *dsp, const char *name, int type,
 		     unsigned int alg, void *buf, size_t len)
 {
-	struct cs_dsp_coeff_ctl *cs_ctl;
-
-	cs_ctl = cs_dsp_get_ctl(&dsp->cs_dsp, name, type, alg);
-	if (!cs_ctl)
-		return -EINVAL;
-
-	if (len > cs_ctl->len)
-		return -EINVAL;
-
-	return cs_dsp_coeff_read_ctrl(cs_ctl, 0, buf, len);
+	return cs_dsp_coeff_read_ctrl(cs_dsp_get_ctl(&dsp->cs_dsp, name, type, alg),
+				      0, buf, len);
 }
 EXPORT_SYMBOL_GPL(wm_adsp_read_ctl);
 
@@ -744,21 +734,48 @@ static void wm_adsp_release_firmware_files(struct wm_adsp *dsp,
 }
 
 static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
-					 const struct firmware **firmware,
-					 char **filename,
-					 char *suffix)
+					 const struct firmware **firmware, char **filename,
+					 const char *dir, const char *system_name,
+					 const char *asoc_component_prefix,
+					 const char *filetype)
 {
 	struct cs_dsp *cs_dsp = &dsp->cs_dsp;
+	char *s, c;
 	int ret = 0;
 
-	*filename = kasprintf(GFP_KERNEL, "%s-%s-%s.%s", dsp->part, dsp->fwf_name,
-			      wm_adsp_fw[dsp->fw].file, suffix);
+	if (system_name && asoc_component_prefix)
+		*filename = kasprintf(GFP_KERNEL, "%s%s-%s-%s-%s-%s.%s", dir, dsp->part,
+				      dsp->fwf_name, wm_adsp_fw[dsp->fw].file, system_name,
+				      asoc_component_prefix, filetype);
+	else if (system_name)
+		*filename = kasprintf(GFP_KERNEL, "%s%s-%s-%s-%s.%s", dir, dsp->part,
+				      dsp->fwf_name, wm_adsp_fw[dsp->fw].file, system_name,
+				      filetype);
+	else
+		*filename = kasprintf(GFP_KERNEL, "%s%s-%s-%s.%s", dir, dsp->part, dsp->fwf_name,
+				      wm_adsp_fw[dsp->fw].file, filetype);
+
 	if (*filename == NULL)
 		return -ENOMEM;
 
-	ret = request_firmware(firmware, *filename, cs_dsp->dev);
+	/*
+	 * Make sure that filename is lower-case and any non alpha-numeric
+	 * characters except full stop and forward slash are replaced with
+	 * hyphens.
+	 */
+	s = *filename;
+	while (*s) {
+		c = *s;
+		if (isalnum(c))
+			*s = tolower(c);
+		else if ((c != '.') && (c != '/'))
+			*s = '-';
+		s++;
+	}
+
+	ret = firmware_request_nowarn(firmware, *filename, cs_dsp->dev);
 	if (ret != 0) {
-		adsp_err(dsp, "Failed to request '%s'\n", *filename);
+		adsp_dbg(dsp, "Failed to request '%s'\n", *filename);
 		kfree(*filename);
 		*filename = NULL;
 	}
@@ -766,21 +783,69 @@ static int wm_adsp_request_firmware_file(struct wm_adsp *dsp,
 	return ret;
 }
 
+static const char *cirrus_dir = "cirrus/";
 static int wm_adsp_request_firmware_files(struct wm_adsp *dsp,
 					  const struct firmware **wmfw_firmware,
 					  char **wmfw_filename,
 					  const struct firmware **coeff_firmware,
 					  char **coeff_filename)
 {
+	const char *system_name = dsp->system_name;
+	const char *asoc_component_prefix = dsp->component->name_prefix;
 	int ret = 0;
 
-	ret = wm_adsp_request_firmware_file(dsp, wmfw_firmware, wmfw_filename, "wmfw");
-	if (ret != 0)
-		return ret;
+	if (system_name && asoc_component_prefix) {
+		if (!wm_adsp_request_firmware_file(dsp, wmfw_firmware, wmfw_filename,
+						   cirrus_dir, system_name,
+						   asoc_component_prefix, "wmfw")) {
+			adsp_dbg(dsp, "Found '%s'\n", *wmfw_filename);
+			wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
+						      cirrus_dir, system_name,
+						      asoc_component_prefix, "bin");
+			return 0;
+		}
+	}
 
-	wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename, "bin");
+	if (system_name) {
+		if (!wm_adsp_request_firmware_file(dsp, wmfw_firmware, wmfw_filename,
+						   cirrus_dir, system_name,
+						   NULL, "wmfw")) {
+			adsp_dbg(dsp, "Found '%s'\n", *wmfw_filename);
+			if (asoc_component_prefix)
+				wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
+							      cirrus_dir, system_name,
+							      asoc_component_prefix, "bin");
 
-	return 0;
+			if (!*coeff_firmware)
+				wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
+							      cirrus_dir, system_name,
+							      NULL, "bin");
+			return 0;
+		}
+	}
+
+	if (!wm_adsp_request_firmware_file(dsp, wmfw_firmware, wmfw_filename,
+					   "", NULL, NULL, "wmfw")) {
+		adsp_dbg(dsp, "Found '%s'\n", *wmfw_filename);
+		wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
+					      "", NULL, NULL, "bin");
+		return 0;
+	}
+
+	ret = wm_adsp_request_firmware_file(dsp, wmfw_firmware, wmfw_filename,
+					    cirrus_dir, NULL, NULL, "wmfw");
+	if (!ret) {
+		adsp_dbg(dsp, "Found '%s'\n", *wmfw_filename);
+		wm_adsp_request_firmware_file(dsp, coeff_firmware, coeff_filename,
+					      cirrus_dir, NULL, NULL, "bin");
+		return 0;
+	}
+
+	adsp_err(dsp, "Failed to request firmware <%s>%s-%s-%s<-%s<%s>>.wmfw\n",
+		 cirrus_dir, dsp->part, dsp->fwf_name, wm_adsp_fw[dsp->fw].file,
+		 system_name, asoc_component_prefix);
+
+	return -ENOENT;
 }
 
 static int wm_adsp_common_init(struct wm_adsp *dsp)
@@ -917,7 +982,7 @@ int wm_adsp2_preloader_put(struct snd_kcontrol *kcontrol,
 		snd_soc_dapm_sync(dapm);
 	}
 
-	return 0;
+	return 1;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_preloader_put);
 
@@ -1373,8 +1438,6 @@ static struct wm_adsp_compr_buf *wm_adsp_buffer_alloc(struct wm_adsp *dsp)
 
 	wm_adsp_buffer_clear(buf);
 
-	list_add_tail(&buf->list, &dsp->buffer_list);
-
 	return buf;
 }
 
@@ -1391,10 +1454,6 @@ static int wm_adsp_buffer_parse_legacy(struct wm_adsp *dsp)
 		return -EINVAL;
 	}
 
-	buf = wm_adsp_buffer_alloc(dsp);
-	if (!buf)
-		return -ENOMEM;
-
 	xmalg = dsp->sys_config_size / sizeof(__be32);
 
 	addr = alg_region->base + xmalg + ALG_XM_FIELD(magic);
@@ -1405,12 +1464,16 @@ static int wm_adsp_buffer_parse_legacy(struct wm_adsp *dsp)
 	if (magic != WM_ADSP_ALG_XM_STRUCT_MAGIC)
 		return -ENODEV;
 
+	buf = wm_adsp_buffer_alloc(dsp);
+	if (!buf)
+		return -ENOMEM;
+
 	addr = alg_region->base + xmalg + ALG_XM_FIELD(host_buf_ptr);
 	for (i = 0; i < 5; ++i) {
 		ret = cs_dsp_read_data_word(&dsp->cs_dsp, WMFW_ADSP2_XM, addr,
 					    &buf->host_buf_ptr);
 		if (ret < 0)
-			return ret;
+			goto err;
 
 		if (buf->host_buf_ptr)
 			break;
@@ -1418,18 +1481,27 @@ static int wm_adsp_buffer_parse_legacy(struct wm_adsp *dsp)
 		usleep_range(1000, 2000);
 	}
 
-	if (!buf->host_buf_ptr)
-		return -EIO;
+	if (!buf->host_buf_ptr) {
+		ret = -EIO;
+		goto err;
+	}
 
 	buf->host_buf_mem_type = WMFW_ADSP2_XM;
 
 	ret = wm_adsp_buffer_populate(buf);
 	if (ret < 0)
-		return ret;
+		goto err;
+
+	list_add_tail(&buf->list, &dsp->buffer_list);
 
 	compr_dbg(buf, "legacy host_buf_ptr=%x\n", buf->host_buf_ptr);
 
 	return 0;
+
+err:
+	kfree(buf);
+
+	return ret;
 }
 
 static int wm_adsp_buffer_parse_coeff(struct cs_dsp_coeff_ctl *cs_ctl)
@@ -1437,11 +1509,12 @@ static int wm_adsp_buffer_parse_coeff(struct cs_dsp_coeff_ctl *cs_ctl)
 	struct wm_adsp_host_buf_coeff_v1 coeff_v1;
 	struct wm_adsp_compr_buf *buf;
 	struct wm_adsp *dsp = container_of(cs_ctl->dsp, struct wm_adsp, cs_dsp);
-	unsigned int version;
+	unsigned int version = 0;
 	int ret, i;
 
 	for (i = 0; i < 5; ++i) {
-		ret = cs_dsp_coeff_read_ctrl(cs_ctl, 0, &coeff_v1, sizeof(coeff_v1));
+		ret = cs_dsp_coeff_read_ctrl(cs_ctl, 0, &coeff_v1,
+					     min(cs_ctl->len, sizeof(coeff_v1)));
 		if (ret < 0)
 			return ret;
 
@@ -1465,16 +1538,14 @@ static int wm_adsp_buffer_parse_coeff(struct cs_dsp_coeff_ctl *cs_ctl)
 
 	ret = wm_adsp_buffer_populate(buf);
 	if (ret < 0)
-		return ret;
+		goto err;
 
 	/*
 	 * v0 host_buffer coefficients didn't have versioning, so if the
 	 * control is one word, assume version 0.
 	 */
-	if (cs_ctl->len == 4) {
-		compr_dbg(buf, "host_buf_ptr=%x\n", buf->host_buf_ptr);
-		return 0;
-	}
+	if (cs_ctl->len == 4)
+		goto done;
 
 	version = be32_to_cpu(coeff_v1.versions) & HOST_BUF_COEFF_COMPAT_VER_MASK;
 	version >>= HOST_BUF_COEFF_COMPAT_VER_SHIFT;
@@ -1483,7 +1554,8 @@ static int wm_adsp_buffer_parse_coeff(struct cs_dsp_coeff_ctl *cs_ctl)
 		adsp_err(dsp,
 			 "Host buffer coeff ver %u > supported version %u\n",
 			 version, HOST_BUF_COEFF_SUPPORTED_COMPAT_VER);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	cs_dsp_remove_padding((u32 *)&coeff_v1.name, ARRAY_SIZE(coeff_v1.name));
@@ -1491,10 +1563,18 @@ static int wm_adsp_buffer_parse_coeff(struct cs_dsp_coeff_ctl *cs_ctl)
 	buf->name = kasprintf(GFP_KERNEL, "%s-dsp-%s", dsp->part,
 			      (char *)&coeff_v1.name);
 
+done:
+	list_add_tail(&buf->list, &dsp->buffer_list);
+
 	compr_dbg(buf, "host_buf_ptr=%x coeff version %u\n",
 		  buf->host_buf_ptr, version);
 
 	return version;
+
+err:
+	kfree(buf);
+
+	return ret;
 }
 
 static int wm_adsp_buffer_init(struct wm_adsp *dsp)
@@ -1522,10 +1602,10 @@ static int wm_adsp_buffer_init(struct wm_adsp *dsp)
 	if (list_empty(&dsp->buffer_list)) {
 		/* Fall back to legacy support */
 		ret = wm_adsp_buffer_parse_legacy(dsp);
-		if (ret) {
-			adsp_err(dsp, "Failed to parse legacy: %d\n", ret);
-			goto error;
-		}
+		if (ret == -ENODEV)
+			adsp_info(dsp, "Legacy support not available\n");
+		else if (ret)
+			adsp_warn(dsp, "Failed to parse legacy: %d\n", ret);
 	}
 
 	return 0;

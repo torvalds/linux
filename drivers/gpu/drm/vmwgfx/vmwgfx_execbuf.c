@@ -1172,7 +1172,7 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 
 	vmw_validation_preload_bo(sw_context->ctx);
 	vmw_bo = vmw_user_bo_noref_lookup(sw_context->filp, handle);
-	if (IS_ERR_OR_NULL(vmw_bo)) {
+	if (IS_ERR(vmw_bo)) {
 		VMW_DEBUG_USER("Could not find or use MOB buffer.\n");
 		return PTR_ERR(vmw_bo);
 	}
@@ -1226,7 +1226,7 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 
 	vmw_validation_preload_bo(sw_context->ctx);
 	vmw_bo = vmw_user_bo_noref_lookup(sw_context->filp, handle);
-	if (IS_ERR_OR_NULL(vmw_bo)) {
+	if (IS_ERR(vmw_bo)) {
 		VMW_DEBUG_USER("Could not find or use GMR region.\n");
 		return PTR_ERR(vmw_bo);
 	}
@@ -4501,7 +4501,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 			goto mksstats_out;
 		}
 
-		ret = vmw_wait_dma_fence(dev_priv->fman, in_fence);
+		ret = dma_fence_wait(in_fence, true);
 		if (ret)
 			goto out;
 	}

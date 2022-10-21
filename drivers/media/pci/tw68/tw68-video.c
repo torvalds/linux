@@ -712,12 +712,9 @@ static int tw68_s_input(struct file *file, void *priv, unsigned int i)
 static int tw68_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
 {
-	struct tw68_dev *dev = video_drvdata(file);
-
 	strscpy(cap->driver, "tw68", sizeof(cap->driver));
 	strscpy(cap->card, "Techwell Capture Card",
 		sizeof(cap->card));
-	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
 	return 0;
 }
 

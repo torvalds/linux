@@ -101,8 +101,6 @@ E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
  * demoted to the most advanced interrupt mode available.
  */
 E1000_PARAM(IntMode, "Interrupt Mode");
-#define MAX_INTMODE	2
-#define MIN_INTMODE	0
 
 /* Enable Smart Power Down of the PHY
  *

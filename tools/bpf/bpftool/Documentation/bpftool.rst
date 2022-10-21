@@ -20,7 +20,8 @@ SYNOPSIS
 
 	**bpftool** **version**
 
-	*OBJECT* := { **map** | **program** | **cgroup** | **perf** | **net** | **feature** }
+	*OBJECT* := { **map** | **program** | **link** | **cgroup** | **perf** | **net** | **feature** |
+	**btf** | **gen** | **struct_ops** | **iter** }
 
 	*OPTIONS* := { { **-V** | **--version** } | |COMMON_OPTIONS| }
 
@@ -31,6 +32,8 @@ SYNOPSIS
 	*PROG-COMMANDS* := { **show** | **list** | **dump jited** | **dump xlated** | **pin** |
 	**load** | **attach** | **detach** | **help** }
 
+	*LINK-COMMANDS* := { **show** | **list** | **pin** | **detach** | **help** }
+
 	*CGROUP-COMMANDS* := { **show** | **list** | **attach** | **detach** | **help** }
 
 	*PERF-COMMANDS* := { **show** | **list** | **help** }
@@ -38,6 +41,14 @@ SYNOPSIS
 	*NET-COMMANDS* := { **show** | **list** | **help** }
 
 	*FEATURE-COMMANDS* := { **probe** | **help** }
+
+	*BTF-COMMANDS* := { **show** | **list** | **dump** | **help** }
+
+	*GEN-COMMANDS* := { **object** | **skeleton** | **min_core_btf** | **help** }
+
+	*STRUCT-OPS-COMMANDS* := { **show** | **list** | **dump** | **register** | **unregister** | **help** }
+
+	*ITER-COMMANDS* := { **pin** | **help** }
 
 DESCRIPTION
 ===========

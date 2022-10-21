@@ -23,14 +23,19 @@ void bacct_add_tsk(struct user_namespace *user_ns,
 {
 	const struct cred *tcred;
 	u64 utime, stime, utimescaled, stimescaled;
-	u64 delta;
+	u64 now_ns, delta;
 	time64_t btime;
 
 	BUILD_BUG_ON(TS_COMM_LEN < TASK_COMM_LEN);
 
 	/* calculate task elapsed time in nsec */
-	delta = ktime_get_ns() - tsk->start_time;
+	now_ns = ktime_get_ns();
+	/* store whole group time first */
+	delta = now_ns - tsk->group_leader->start_time;
 	/* Convert to micro seconds */
+	do_div(delta, NSEC_PER_USEC);
+	stats->ac_tgetime = delta;
+	delta = now_ns - tsk->start_time;
 	do_div(delta, NSEC_PER_USEC);
 	stats->ac_etime = delta;
 	/* Convert to seconds for btime (note y2106 limit) */
@@ -51,6 +56,7 @@ void bacct_add_tsk(struct user_namespace *user_ns,
 	stats->ac_nice	 = task_nice(tsk);
 	stats->ac_sched	 = tsk->policy;
 	stats->ac_pid	 = task_pid_nr_ns(tsk, pid_ns);
+	stats->ac_tgid   = task_tgid_nr_ns(tsk, pid_ns);
 	rcu_read_lock();
 	tcred = __task_cred(tsk);
 	stats->ac_uid	 = from_kuid_munged(user_ns, tcred->uid);

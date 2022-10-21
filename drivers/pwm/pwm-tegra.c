@@ -85,22 +85,21 @@ static inline struct tegra_pwm_chip *to_tegra_pwm_chip(struct pwm_chip *chip)
 	return container_of(chip, struct tegra_pwm_chip, chip);
 }
 
-static inline u32 pwm_readl(struct tegra_pwm_chip *chip, unsigned int num)
+static inline u32 pwm_readl(struct tegra_pwm_chip *pc, unsigned int offset)
 {
-	return readl(chip->regs + (num << 4));
+	return readl(pc->regs + (offset << 4));
 }
 
-static inline void pwm_writel(struct tegra_pwm_chip *chip, unsigned int num,
-			     unsigned long val)
+static inline void pwm_writel(struct tegra_pwm_chip *pc, unsigned int offset, u32 value)
 {
-	writel(val, chip->regs + (num << 4));
+	writel(value, pc->regs + (offset << 4));
 }
 
 static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			    int duty_ns, int period_ns)
 {
 	struct tegra_pwm_chip *pc = to_tegra_pwm_chip(chip);
-	unsigned long long c = duty_ns, hz;
+	unsigned long long c = duty_ns;
 	unsigned long rate, required_clk_rate;
 	u32 val = 0;
 	int err;
@@ -157,11 +156,9 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		pc->clk_rate = clk_get_rate(pc->clk);
 	}
 
-	rate = pc->clk_rate >> PWM_DUTY_WIDTH;
-
 	/* Consider precision in PWM_SCALE_WIDTH rate calculation */
-	hz = DIV_ROUND_CLOSEST_ULL(100ULL * NSEC_PER_SEC, period_ns);
-	rate = DIV_ROUND_CLOSEST_ULL(100ULL * rate, hz);
+	rate = mul_u64_u64_div_u64(pc->clk_rate, period_ns,
+				   (u64)NSEC_PER_SEC << PWM_DUTY_WIDTH);
 
 	/*
 	 * Since the actual PWM divider is the register's frequency divider
@@ -170,6 +167,8 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 */
 	if (rate > 0)
 		rate--;
+	else
+		return -EINVAL;
 
 	/*
 	 * Make sure that the rate will fit in the register's frequency
@@ -231,34 +230,58 @@ static void tegra_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	pm_runtime_put_sync(pc->dev);
 }
 
+static int tegra_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			   const struct pwm_state *state)
+{
+	int err;
+	bool enabled = pwm->state.enabled;
+
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (enabled)
+			tegra_pwm_disable(chip, pwm);
+
+		return 0;
+	}
+
+	err = tegra_pwm_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!enabled)
+		err = tegra_pwm_enable(chip, pwm);
+
+	return err;
+}
+
 static const struct pwm_ops tegra_pwm_ops = {
-	.config = tegra_pwm_config,
-	.enable = tegra_pwm_enable,
-	.disable = tegra_pwm_disable,
+	.apply = tegra_pwm_apply,
 	.owner = THIS_MODULE,
 };
 
 static int tegra_pwm_probe(struct platform_device *pdev)
 {
-	struct tegra_pwm_chip *pwm;
+	struct tegra_pwm_chip *pc;
 	int ret;
 
-	pwm = devm_kzalloc(&pdev->dev, sizeof(*pwm), GFP_KERNEL);
-	if (!pwm)
+	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
+	if (!pc)
 		return -ENOMEM;
 
-	pwm->soc = of_device_get_match_data(&pdev->dev);
-	pwm->dev = &pdev->dev;
+	pc->soc = of_device_get_match_data(&pdev->dev);
+	pc->dev = &pdev->dev;
 
-	pwm->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(pwm->regs))
-		return PTR_ERR(pwm->regs);
+	pc->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(pc->regs))
+		return PTR_ERR(pc->regs);
 
-	platform_set_drvdata(pdev, pwm);
+	platform_set_drvdata(pdev, pc);
 
-	pwm->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(pwm->clk))
-		return PTR_ERR(pwm->clk);
+	pc->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(pc->clk))
+		return PTR_ERR(pc->clk);
 
 	ret = devm_tegra_core_dev_init_opp_table_common(&pdev->dev);
 	if (ret)
@@ -270,7 +293,7 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Set maximum frequency of the IP */
-	ret = dev_pm_opp_set_rate(pwm->dev, pwm->soc->max_frequency);
+	ret = dev_pm_opp_set_rate(pc->dev, pc->soc->max_frequency);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to set max frequency: %d\n", ret);
 		goto put_pm;
@@ -281,29 +304,29 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	 * clock register resolutions. Get the configured frequency
 	 * so that PWM period can be calculated more accurately.
 	 */
-	pwm->clk_rate = clk_get_rate(pwm->clk);
+	pc->clk_rate = clk_get_rate(pc->clk);
 
 	/* Set minimum limit of PWM period for the IP */
-	pwm->min_period_ns =
-	    (NSEC_PER_SEC / (pwm->soc->max_frequency >> PWM_DUTY_WIDTH)) + 1;
+	pc->min_period_ns =
+	    (NSEC_PER_SEC / (pc->soc->max_frequency >> PWM_DUTY_WIDTH)) + 1;
 
-	pwm->rst = devm_reset_control_get_exclusive(&pdev->dev, "pwm");
-	if (IS_ERR(pwm->rst)) {
-		ret = PTR_ERR(pwm->rst);
+	pc->rst = devm_reset_control_get_exclusive(&pdev->dev, "pwm");
+	if (IS_ERR(pc->rst)) {
+		ret = PTR_ERR(pc->rst);
 		dev_err(&pdev->dev, "Reset control is not found: %d\n", ret);
 		goto put_pm;
 	}
 
-	reset_control_deassert(pwm->rst);
+	reset_control_deassert(pc->rst);
 
-	pwm->chip.dev = &pdev->dev;
-	pwm->chip.ops = &tegra_pwm_ops;
-	pwm->chip.npwm = pwm->soc->num_channels;
+	pc->chip.dev = &pdev->dev;
+	pc->chip.ops = &tegra_pwm_ops;
+	pc->chip.npwm = pc->soc->num_channels;
 
-	ret = pwmchip_add(&pwm->chip);
+	ret = pwmchip_add(&pc->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
-		reset_control_assert(pwm->rst);
+		reset_control_assert(pc->rst);
 		goto put_pm;
 	}
 

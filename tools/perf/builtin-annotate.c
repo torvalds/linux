@@ -46,10 +46,17 @@ struct perf_annotate {
 	struct perf_tool tool;
 	struct perf_session *session;
 	struct annotation_options opts;
-	bool	   use_tui, use_stdio, use_stdio2, use_gtk;
+#ifdef HAVE_SLANG_SUPPORT
+	bool	   use_tui;
+#endif
+	bool	   use_stdio, use_stdio2;
+#ifdef HAVE_GTK2_SUPPORT
+	bool	   use_gtk;
+#endif
 	bool	   skip_missing;
 	bool	   has_br_stack;
 	bool	   group_set;
+	float	   min_percent;
 	const char *sym_hist_filter;
 	const char *cpu_list;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
@@ -190,7 +197,6 @@ static int process_branch_callback(struct evsel *evsel,
 	};
 
 	struct addr_location a;
-	int ret;
 
 	if (machine__resolve(machine, &a, sample) < 0)
 		return -1;
@@ -203,8 +209,7 @@ static int process_branch_callback(struct evsel *evsel,
 
 	hist__account_cycles(sample->branch_stack, al, sample, false, NULL);
 
-	ret = hist_entry_iter__add(&iter, &a, PERF_MAX_STACK_DEPTH, ann);
-	return ret;
+	return hist_entry_iter__add(&iter, &a, PERF_MAX_STACK_DEPTH, ann);
 }
 
 static bool has_annotation(struct perf_annotate *ann)
@@ -321,6 +326,17 @@ static void hists__find_annotations(struct hists *hists,
 		if (ann->sym_hist_filter &&
 		    (strcmp(he->ms.sym->name, ann->sym_hist_filter) != 0))
 			goto find_next;
+
+		if (ann->min_percent) {
+			float percent = 0;
+			u64 total = hists__total_period(hists);
+
+			if (total)
+				percent = 100.0 * he->stat.period / total;
+
+			if (percent < ann->min_percent)
+				goto find_next;
+		}
 
 		notes = symbol__annotation(he->ms.sym);
 		if (notes->src == NULL) {
@@ -455,6 +471,16 @@ out:
 	return ret;
 }
 
+static int parse_percent_limit(const struct option *opt, const char *str,
+			       int unset __maybe_unused)
+{
+	struct perf_annotate *ann = opt->value;
+	double pcnt = strtof(str, NULL);
+
+	ann->min_percent = pcnt;
+	return 0;
+}
+
 static const char * const annotate_usage[] = {
 	"perf annotate [<options>]",
 	NULL
@@ -502,8 +528,12 @@ int cmd_annotate(int argc, const char **argv)
 	OPT_BOOLEAN('q', "quiet", &quiet, "do now show any message"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
+#ifdef HAVE_GTK2_SUPPORT
 	OPT_BOOLEAN(0, "gtk", &annotate.use_gtk, "Use the GTK interface"),
+#endif
+#ifdef HAVE_SLANG_SUPPORT
 	OPT_BOOLEAN(0, "tui", &annotate.use_tui, "Use the TUI interface"),
+#endif
 	OPT_BOOLEAN(0, "stdio", &annotate.use_stdio, "Use the stdio interface"),
 	OPT_BOOLEAN(0, "stdio2", &annotate.use_stdio2, "Use the stdio interface"),
 	OPT_BOOLEAN(0, "ignore-vmlinux", &symbol_conf.ignore_vmlinux,
@@ -553,6 +583,8 @@ int cmd_annotate(int argc, const char **argv)
 	OPT_CALLBACK(0, "percent-type", &annotate.opts, "local-period",
 		     "Set percent type local/global-period/hits",
 		     annotate_parse_percent_type),
+	OPT_CALLBACK(0, "percent-limit", &annotate, "percent",
+		     "Don't show entries under that percent", parse_percent_limit),
 	OPT_CALLBACK_OPTARG(0, "itrace", &itrace_synth_opts, NULL, "opts",
 			    "Instruction Tracing options\n" ITRACE_HELP,
 			    itrace_parse_synth_opts),
@@ -586,10 +618,12 @@ int cmd_annotate(int argc, const char **argv)
 	if (annotate_check_args(&annotate.opts) < 0)
 		return -EINVAL;
 
+#ifdef HAVE_GTK2_SUPPORT
 	if (symbol_conf.show_nr_samples && annotate.use_gtk) {
 		pr_err("--show-nr-samples is not available in --gtk mode at this time\n");
 		return ret;
 	}
+#endif
 
 	ret = symbol__validate_sym_arguments();
 	if (ret)
@@ -624,10 +658,14 @@ int cmd_annotate(int argc, const char **argv)
 
 	if (annotate.use_stdio || annotate.use_stdio2)
 		use_browser = 0;
+#ifdef HAVE_SLANG_SUPPORT
 	else if (annotate.use_tui)
 		use_browser = 1;
+#endif
+#ifdef HAVE_GTK2_SUPPORT
 	else if (annotate.use_gtk)
 		use_browser = 2;
+#endif
 
 	setup_browser(true);
 

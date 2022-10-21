@@ -12,7 +12,9 @@
 #include <linux/rhashtable.h>
 #include <linux/time64.h>
 #include <linux/types.h>
+#include <net/flow_offload.h>
 #include <net/pkt_cls.h>
+#include <net/pkt_sched.h>
 #include <net/tcp.h>
 #include <linux/workqueue.h>
 #include <linux/idr.h>
@@ -48,6 +50,8 @@ struct nfp_app;
 #define NFP_FL_FEATS_IPV6_TUN		BIT(7)
 #define NFP_FL_FEATS_VLAN_QINQ		BIT(8)
 #define NFP_FL_FEATS_QOS_PPS		BIT(9)
+#define NFP_FL_FEATS_QOS_METER		BIT(10)
+#define NFP_FL_FEATS_DECAP_V2		BIT(11)
 #define NFP_FL_FEATS_HOST_ACK		BIT(31)
 
 #define NFP_FL_ENABLE_FLOW_MERGE	BIT(0)
@@ -63,7 +67,9 @@ struct nfp_app;
 	NFP_FL_FEATS_PRE_TUN_RULES | \
 	NFP_FL_FEATS_IPV6_TUN | \
 	NFP_FL_FEATS_VLAN_QINQ | \
-	NFP_FL_FEATS_QOS_PPS)
+	NFP_FL_FEATS_QOS_PPS | \
+	NFP_FL_FEATS_QOS_METER | \
+	NFP_FL_FEATS_DECAP_V2)
 
 struct nfp_fl_mask_id {
 	struct circ_buf mask_id_free_list;
@@ -82,12 +88,8 @@ struct nfp_fl_stats_id {
  * @offloaded_macs:	Hashtable of the offloaded MAC addresses
  * @ipv4_off_list:	List of IPv4 addresses to offload
  * @ipv6_off_list:	List of IPv6 addresses to offload
- * @neigh_off_list_v4:	List of IPv4 neighbour offloads
- * @neigh_off_list_v6:	List of IPv6 neighbour offloads
  * @ipv4_off_lock:	Lock for the IPv4 address list
  * @ipv6_off_lock:	Lock for the IPv6 address list
- * @neigh_off_lock_v4:	Lock for the IPv4 neighbour address list
- * @neigh_off_lock_v6:	Lock for the IPv6 neighbour address list
  * @mac_off_ids:	IDA to manage id assignment for offloaded MACs
  * @neigh_nb:		Notifier to monitor neighbour state
  */
@@ -95,14 +97,92 @@ struct nfp_fl_tunnel_offloads {
 	struct rhashtable offloaded_macs;
 	struct list_head ipv4_off_list;
 	struct list_head ipv6_off_list;
-	struct list_head neigh_off_list_v4;
-	struct list_head neigh_off_list_v6;
 	struct mutex ipv4_off_lock;
 	struct mutex ipv6_off_lock;
-	spinlock_t neigh_off_lock_v4;
-	spinlock_t neigh_off_lock_v6;
 	struct ida mac_off_ids;
 	struct notifier_block neigh_nb;
+};
+
+/**
+ * struct nfp_tun_neigh - basic neighbour data
+ * @dst_addr:	Destination MAC address
+ * @src_addr:	Source MAC address
+ * @port_id:	NFP port to output packet on - associated with source IPv4
+ */
+struct nfp_tun_neigh {
+	u8 dst_addr[ETH_ALEN];
+	u8 src_addr[ETH_ALEN];
+	__be32 port_id;
+};
+
+/**
+ * struct nfp_tun_neigh_ext - extended neighbour data
+ * @vlan_tpid:	VLAN_TPID match field
+ * @vlan_tci:	VLAN_TCI match field
+ * @host_ctx:	Host context ID to be saved here
+ */
+struct nfp_tun_neigh_ext {
+	__be16 vlan_tpid;
+	__be16 vlan_tci;
+	__be32 host_ctx;
+};
+
+/**
+ * struct nfp_tun_neigh_v4 - neighbour/route entry on the NFP for IPv4
+ * @dst_ipv4:	Destination IPv4 address
+ * @src_ipv4:	Source IPv4 address
+ * @common:	Neighbour/route common info
+ * @ext:	Neighbour/route extended info
+ */
+struct nfp_tun_neigh_v4 {
+	__be32 dst_ipv4;
+	__be32 src_ipv4;
+	struct nfp_tun_neigh common;
+	struct nfp_tun_neigh_ext ext;
+};
+
+/**
+ * struct nfp_tun_neigh_v6 - neighbour/route entry on the NFP for IPv6
+ * @dst_ipv6:	Destination IPv6 address
+ * @src_ipv6:	Source IPv6 address
+ * @common:	Neighbour/route common info
+ * @ext:	Neighbour/route extended info
+ */
+struct nfp_tun_neigh_v6 {
+	struct in6_addr dst_ipv6;
+	struct in6_addr src_ipv6;
+	struct nfp_tun_neigh common;
+	struct nfp_tun_neigh_ext ext;
+};
+
+/**
+ * struct nfp_neigh_entry
+ * @neigh_cookie:	Cookie for hashtable lookup
+ * @ht_node:		rhash_head entry for hashtable
+ * @list_head:		Needed as member of linked_nn_entries list
+ * @payload:		The neighbour info payload
+ * @flow:		Linked flow rule
+ * @is_ipv6:		Flag to indicate if payload is ipv6 or ipv4
+ */
+struct nfp_neigh_entry {
+	unsigned long neigh_cookie;
+	struct rhash_head ht_node;
+	struct list_head list_head;
+	char *payload;
+	struct nfp_predt_entry *flow;
+	bool is_ipv6;
+};
+
+/**
+ * struct nfp_predt_entry
+ * @list_head:		List head to attach to predt_list
+ * @flow_pay:		Direct link to flow_payload
+ * @nn_list:		List of linked nfp_neigh_entries
+ */
+struct nfp_predt_entry {
+	struct list_head list_head;
+	struct nfp_fl_payload *flow_pay;
+	struct list_head nn_list;
 };
 
 /**
@@ -191,11 +271,16 @@ struct nfp_fl_internal_ports {
  * @qos_stats_work:	Workqueue for qos stats processing
  * @qos_rate_limiters:	Current active qos rate limiters
  * @qos_stats_lock:	Lock on qos stats updates
+ * @meter_stats_lock:   Lock on meter stats updates
+ * @meter_table:	Hash table used to store the meter table
  * @pre_tun_rule_cnt:	Number of pre-tunnel rules offloaded
  * @merge_table:	Hash table to store merged flows
  * @ct_zone_table:	Hash table used to store the different zones
  * @ct_zone_wc:		Special zone entry for wildcarded zone matches
  * @ct_map_table:	Hash table used to referennce ct flows
+ * @predt_list:		List to keep track of decap pretun flows
+ * @neigh_table:	Table to keep track of neighbor entries
+ * @predt_lock:		Lock to serialise predt/neigh table updates
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -228,11 +313,16 @@ struct nfp_flower_priv {
 	struct delayed_work qos_stats_work;
 	unsigned int qos_rate_limiters;
 	spinlock_t qos_stats_lock; /* Protect the qos stats */
+	struct mutex meter_stats_lock; /* Protect the meter stats */
+	struct rhashtable meter_table;
 	int pre_tun_rule_cnt;
 	struct rhashtable merge_table;
 	struct rhashtable ct_zone_table;
 	struct nfp_fl_ct_zone_entry *ct_zone_wc;
 	struct rhashtable ct_map_table;
+	struct list_head predt_list;
+	struct rhashtable neigh_table;
+	spinlock_t predt_lock; /* Lock to serialise predt/neigh table updates */
 };
 
 /**
@@ -336,9 +426,14 @@ struct nfp_fl_payload {
 	struct list_head linked_flows;
 	bool in_hw;
 	struct {
+		struct nfp_predt_entry *predt;
 		struct net_device *dev;
+		__be16 vlan_tpid;
 		__be16 vlan_tci;
 		__be16 port_idx;
+		u8 loc_mac[ETH_ALEN];
+		u8 rem_mac[ETH_ALEN];
+		bool is_ipv6;
 	} pre_tun_rule;
 };
 
@@ -361,6 +456,7 @@ struct nfp_fl_payload_link {
 
 extern const struct rhashtable_params nfp_flower_table_params;
 extern const struct rhashtable_params merge_table_params;
+extern const struct rhashtable_params neigh_table_params;
 
 struct nfp_merge_info {
 	u64 parent_ctx;
@@ -372,6 +468,31 @@ struct nfp_fl_stats_frame {
 	__be32 pkt_count;
 	__be64 byte_count;
 	__be64 stats_cookie;
+};
+
+struct nfp_meter_stats_entry {
+	u64 pkts;
+	u64 bytes;
+	u64 drops;
+};
+
+struct nfp_meter_entry {
+	struct rhash_head ht_node;
+	u32 meter_id;
+	bool bps;
+	u32 rate;
+	u32 burst;
+	u64 used;
+	struct nfp_meter_stats {
+		u64 update;
+		struct nfp_meter_stats_entry curr;
+		struct nfp_meter_stats_entry prev;
+	} stats;
+};
+
+enum nfp_meter_op {
+	NFP_METER_ADD,
+	NFP_METER_DEL,
 };
 
 static inline bool
@@ -547,6 +668,10 @@ void
 nfp_flower_non_repr_priv_put(struct nfp_app *app, struct net_device *netdev);
 u32 nfp_flower_get_port_id_from_netdev(struct nfp_app *app,
 				       struct net_device *netdev);
+void nfp_tun_link_and_update_nn_entries(struct nfp_app *app,
+					struct nfp_predt_entry *predt);
+void nfp_tun_unlink_and_update_nn_entries(struct nfp_app *app,
+					  struct nfp_predt_entry *predt);
 int nfp_flower_xmit_pre_tun_flow(struct nfp_app *app,
 				 struct nfp_fl_payload *flow);
 int nfp_flower_xmit_pre_tun_del_flow(struct nfp_app *app,
@@ -569,4 +694,18 @@ nfp_flower_xmit_flow(struct nfp_app *app, struct nfp_fl_payload *nfp_flow,
 void
 nfp_flower_update_merge_stats(struct nfp_app *app,
 			      struct nfp_fl_payload *sub_flow);
+
+int nfp_setup_tc_act_offload(struct nfp_app *app,
+			     struct flow_offload_action *fl_act);
+int nfp_init_meter_table(struct nfp_app *app);
+void nfp_flower_stats_meter_request_all(struct nfp_flower_priv *fl_priv);
+void nfp_act_stats_reply(struct nfp_app *app, void *pmsg);
+int nfp_flower_offload_one_police(struct nfp_app *app, bool ingress,
+				  bool pps, u32 id, u32 rate, u32 burst);
+int nfp_flower_setup_meter_entry(struct nfp_app *app,
+				 const struct flow_action_entry *action,
+				 enum nfp_meter_op op,
+				 u32 meter_id);
+struct nfp_meter_entry *
+nfp_flower_search_meter_entry(struct nfp_app *app, u32 meter_id);
 #endif

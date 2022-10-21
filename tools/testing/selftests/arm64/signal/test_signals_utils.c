@@ -27,6 +27,8 @@ static int sig_copyctx = SIGTRAP;
 static char const *const feats_names[FMAX_END] = {
 	" SSBS ",
 	" SVE ",
+	" SME ",
+	" FA64 ",
 };
 
 #define MAX_FEATS_SZ	128
@@ -35,6 +37,8 @@ static char feats_string[MAX_FEATS_SZ];
 static inline char *feats_to_string(unsigned long feats)
 {
 	size_t flen = MAX_FEATS_SZ - 1;
+
+	feats_string[0] = '\0';
 
 	for (int i = 0; i < FMAX_END; i++) {
 		if (feats & (1UL << i)) {
@@ -161,15 +165,64 @@ static bool handle_signal_ok(struct tdescr *td,
 }
 
 static bool handle_signal_copyctx(struct tdescr *td,
-				  siginfo_t *si, void *uc)
+				  siginfo_t *si, void *uc_in)
 {
+	ucontext_t *uc = uc_in;
+	struct _aarch64_ctx *head;
+	struct extra_context *extra, *copied_extra;
+	size_t offset = 0;
+	size_t to_copy;
+
+	ASSERT_GOOD_CONTEXT(uc);
+
 	/* Mangling PC to avoid loops on original BRK instr */
-	((ucontext_t *)uc)->uc_mcontext.pc += 4;
-	memcpy(td->live_uc, uc, td->live_sz);
-	ASSERT_GOOD_CONTEXT(td->live_uc);
+	uc->uc_mcontext.pc += 4;
+
+	/*
+	 * Check for an preserve any extra data too with fixups.
+	 */
+	head = (struct _aarch64_ctx *)uc->uc_mcontext.__reserved;
+	head = get_header(head, EXTRA_MAGIC, td->live_sz, &offset);
+	if (head) {
+		extra = (struct extra_context *)head;
+
+		/*
+		 * The extra buffer must be immediately after the
+		 * extra_context and a 16 byte terminator. Include it
+		 * in the copy, this was previously validated in
+		 * ASSERT_GOOD_CONTEXT().
+		 */
+		to_copy = offset + sizeof(struct extra_context) + 16 +
+			extra->size;
+		copied_extra = (struct extra_context *)&(td->live_uc->uc_mcontext.__reserved[offset]);
+	} else {
+		copied_extra = NULL;
+		to_copy = sizeof(ucontext_t);
+	}
+
+	if (to_copy > td->live_sz) {
+		fprintf(stderr,
+			"Not enough space to grab context, %lu/%lu bytes\n",
+			td->live_sz, to_copy);
+		return false;
+	}
+
+	memcpy(td->live_uc, uc, to_copy);
+
+	/*
+	 * If there was any EXTRA_CONTEXT fix up the size to be the
+	 * struct extra_context and the following terminator record,
+	 * this means that the rest of the code does not need to have
+	 * special handling for the record and we don't need to fix up
+	 * datap for the new location.
+	 */
+	if (copied_extra)
+		copied_extra->head.size = sizeof(*copied_extra) + 16;
+
 	td->live_uc_valid = 1;
 	fprintf(stderr,
-		"GOOD CONTEXT grabbed from sig_copyctx handler\n");
+		"%lu byte GOOD CONTEXT grabbed from sig_copyctx handler\n",
+		to_copy);
 
 	return true;
 }
@@ -256,7 +309,7 @@ int test_init(struct tdescr *td)
 		td->minsigstksz = MINSIGSTKSZ;
 	fprintf(stderr, "Detected MINSTKSIGSZ:%d\n", td->minsigstksz);
 
-	if (td->feats_required) {
+	if (td->feats_required || td->feats_incompatible) {
 		td->feats_supported = 0;
 		/*
 		 * Checking for CPU required features using both the
@@ -266,16 +319,34 @@ int test_init(struct tdescr *td)
 			td->feats_supported |= FEAT_SSBS;
 		if (getauxval(AT_HWCAP) & HWCAP_SVE)
 			td->feats_supported |= FEAT_SVE;
+		if (getauxval(AT_HWCAP2) & HWCAP2_SME)
+			td->feats_supported |= FEAT_SME;
+		if (getauxval(AT_HWCAP2) & HWCAP2_SME_FA64)
+			td->feats_supported |= FEAT_SME_FA64;
 		if (feats_ok(td)) {
-			fprintf(stderr,
-				"Required Features: [%s] supported\n",
-				feats_to_string(td->feats_required &
-						td->feats_supported));
+			if (td->feats_required & td->feats_supported)
+				fprintf(stderr,
+					"Required Features: [%s] supported\n",
+					feats_to_string(td->feats_required &
+							td->feats_supported));
+			if (!(td->feats_incompatible & td->feats_supported))
+				fprintf(stderr,
+					"Incompatible Features: [%s] absent\n",
+					feats_to_string(td->feats_incompatible));
 		} else {
-			fprintf(stderr,
-				"Required Features: [%s] NOT supported\n",
-				feats_to_string(td->feats_required &
-						~td->feats_supported));
+			if ((td->feats_required & td->feats_supported) !=
+			    td->feats_supported)
+				fprintf(stderr,
+					"Required Features: [%s] NOT supported\n",
+					feats_to_string(td->feats_required &
+							~td->feats_supported));
+			if (td->feats_incompatible & td->feats_supported)
+				fprintf(stderr,
+					"Incompatible Features: [%s] supported\n",
+					feats_to_string(td->feats_incompatible &
+							~td->feats_supported));
+
+
 			td->result = KSFT_SKIP;
 			return 0;
 		}

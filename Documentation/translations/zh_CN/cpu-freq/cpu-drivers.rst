@@ -84,6 +84,8 @@ CPUfreq核心层注册一个cpufreq_driver结构体。
  .resume - 一个指向per-policy恢复函数的指针，该函数在关中断且在调节器再一次启动前被
  调用。
 
+ .ready - 一个指向per-policy准备函数的指针，该函数在策略完全初始化之后被调用。
+
  .attr - 一个指向NULL结尾的"struct freq_attr"列表的指针，该列表允许导出值到
  sysfs。
 

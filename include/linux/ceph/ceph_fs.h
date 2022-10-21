@@ -28,8 +28,8 @@
 
 
 #define CEPH_INO_ROOT   1
-#define CEPH_INO_CEPH   2       /* hidden .ceph dir */
-#define CEPH_INO_DOTDOT 3	/* used by ceph fuse for parent (..) */
+#define CEPH_INO_CEPH   2            /* hidden .ceph dir */
+#define CEPH_INO_GLOBAL_SNAPREALM  3 /* global dummy snaprealm */
 
 /* arbitrary limit on max # of monitors (cluster of 3 is typical) */
 #define CEPH_MAX_MON   31
@@ -328,6 +328,7 @@ enum {
 	CEPH_MDS_OP_LOOKUPPARENT = 0x00103,
 	CEPH_MDS_OP_LOOKUPINO  = 0x00104,
 	CEPH_MDS_OP_LOOKUPNAME = 0x00105,
+	CEPH_MDS_OP_GETVXATTR  = 0x00106,
 
 	CEPH_MDS_OP_SETXATTR   = 0x01105,
 	CEPH_MDS_OP_RMXATTR    = 0x01106,
@@ -432,9 +433,9 @@ union ceph_mds_request_args {
 		__le32 stripe_unit;          /* layout for newly created file */
 		__le32 stripe_count;         /* ... */
 		__le32 object_size;
-		__le32 file_replication;
-               __le32 mask;                 /* CEPH_CAP_* */
-               __le32 old_size;
+		__le32 pool;
+		__le32 mask;                 /* CEPH_CAP_* */
+		__le64 old_size;
 	} __attribute__ ((packed)) open;
 	struct {
 		__le32 flags;
@@ -767,7 +768,7 @@ struct ceph_mds_caps {
 	__le32 xattr_len;
 	__le64 xattr_version;
 
-	/* filelock */
+	/* a union of non-export and export bodies. */
 	__le64 size, max_size, truncate_size;
 	__le32 truncate_seq;
 	struct ceph_timespec mtime, atime, ctime;

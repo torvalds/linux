@@ -5,7 +5,6 @@
 #define _ICE_REPR_H_
 
 #include <net/dst_metadata.h>
-#include "ice.h"
 
 struct ice_repr {
 	struct ice_vsi *src_vsi;

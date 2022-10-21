@@ -150,7 +150,7 @@ void amdgpu_gart_table_vram_free(struct amdgpu_device *adev)
  * replaces them with the dummy page (all asics).
  * Returns 0 for success, -EINVAL for failure.
  */
-int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
+void amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 			int pages)
 {
 	unsigned t;
@@ -161,13 +161,11 @@ int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 	uint64_t flags = 0;
 	int idx;
 
-	if (!adev->gart.ready) {
-		WARN(1, "trying to unbind memory from uninitialized GART !\n");
-		return -EINVAL;
-	}
+	if (!adev->gart.ptr)
+		return;
 
 	if (!drm_dev_enter(adev_to_drm(adev), &idx))
-		return 0;
+		return;
 
 	t = offset / AMDGPU_GPU_PAGE_SIZE;
 	p = t / AMDGPU_GPU_PAGES_IN_CPU_PAGE;
@@ -188,7 +186,6 @@ int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
 		amdgpu_gmc_flush_gpu_tlb(adev, 0, i, 0);
 
 	drm_dev_exit(idx);
-	return 0;
 }
 
 /**
@@ -204,7 +201,7 @@ int amdgpu_gart_unbind(struct amdgpu_device *adev, uint64_t offset,
  * Map the dma_addresses into GART entries (all asics).
  * Returns 0 for success, -EINVAL for failure.
  */
-int amdgpu_gart_map(struct amdgpu_device *adev, uint64_t offset,
+void amdgpu_gart_map(struct amdgpu_device *adev, uint64_t offset,
 		    int pages, dma_addr_t *dma_addr, uint64_t flags,
 		    void *dst)
 {
@@ -212,13 +209,8 @@ int amdgpu_gart_map(struct amdgpu_device *adev, uint64_t offset,
 	unsigned i, j, t;
 	int idx;
 
-	if (!adev->gart.ready) {
-		WARN(1, "trying to bind memory to uninitialized GART !\n");
-		return -EINVAL;
-	}
-
 	if (!drm_dev_enter(adev_to_drm(adev), &idx))
-		return 0;
+		return;
 
 	t = offset / AMDGPU_GPU_PAGE_SIZE;
 
@@ -230,7 +222,6 @@ int amdgpu_gart_map(struct amdgpu_device *adev, uint64_t offset,
 		}
 	}
 	drm_dev_exit(idx);
-	return 0;
 }
 
 /**
@@ -246,20 +237,14 @@ int amdgpu_gart_map(struct amdgpu_device *adev, uint64_t offset,
  * (all asics).
  * Returns 0 for success, -EINVAL for failure.
  */
-int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
+void amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 		     int pages, dma_addr_t *dma_addr,
 		     uint64_t flags)
 {
-	if (!adev->gart.ready) {
-		WARN(1, "trying to bind memory to uninitialized GART !\n");
-		return -EINVAL;
-	}
-
 	if (!adev->gart.ptr)
-		return 0;
+		return;
 
-	return amdgpu_gart_map(adev, offset, pages, dma_addr, flags,
-			       adev->gart.ptr);
+	amdgpu_gart_map(adev, offset, pages, dma_addr, flags, adev->gart.ptr);
 }
 
 /**
@@ -273,6 +258,9 @@ int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 void amdgpu_gart_invalidate_tlb(struct amdgpu_device *adev)
 {
 	int i;
+
+	if (!adev->gart.ptr)
+		return;
 
 	mb();
 	amdgpu_device_flush_hdp(adev, NULL);

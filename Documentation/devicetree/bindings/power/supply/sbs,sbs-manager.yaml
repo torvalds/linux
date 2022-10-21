@@ -46,9 +46,7 @@ additionalProperties: false
 patternProperties:
   "^i2c@[1-4]$":
     type: object
-
-    allOf:
-      - $ref: /schemas/i2c/i2c-controller.yaml#
+    $ref: /schemas/i2c/i2c-controller.yaml#
 
 examples:
   - |

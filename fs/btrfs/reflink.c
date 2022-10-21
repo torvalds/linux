@@ -5,6 +5,7 @@
 #include "compression.h"
 #include "ctree.h"
 #include "delalloc-space.h"
+#include "disk-io.h"
 #include "reflink.h"
 #include "transaction.h"
 #include "subpage.h"
@@ -22,8 +23,10 @@ static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
 	int ret;
 
 	inode_inc_iversion(inode);
-	if (!no_time_update)
-		inode->i_mtime = inode->i_ctime = current_time(inode);
+	if (!no_time_update) {
+		inode->i_mtime = current_time(inode);
+		inode->i_ctime = inode->i_mtime;
+	}
 	/*
 	 * We round up to the block size at eof when determining which
 	 * extents to clone above, but shouldn't round up the file size.
@@ -89,7 +92,7 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 
 	clear_extent_bit(&inode->io_tree, file_offset, range_end,
 			 EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG,
-			 0, 0, NULL);
+			 NULL);
 	ret = btrfs_set_extent_delalloc(inode, file_offset, range_end, 0, NULL);
 	if (ret)
 		goto out_unlock;
@@ -110,7 +113,6 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 	if (comp_type == BTRFS_COMPRESS_NONE) {
 		memcpy_to_page(page, offset_in_page(file_offset), data_start,
 			       datal);
-		flush_dcache_page(page);
 	} else {
 		ret = btrfs_decompress(comp_type, data_start, page,
 				       offset_in_page(file_offset),
@@ -132,10 +134,8 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 	 *
 	 * So what's in the range [500, 4095] corresponds to zeroes.
 	 */
-	if (datal < block_size) {
+	if (datal < block_size)
 		memzero_page(page, datal, block_size - datal);
-		flush_dcache_page(page);
-	}
 
 	btrfs_page_set_uptodate(fs_info, page, file_offset, block_size);
 	btrfs_page_clear_checked(fs_info, page, file_offset, block_size);
@@ -277,7 +277,7 @@ copy_inline_extent:
 						  path->slots[0]),
 			    size);
 	btrfs_update_inode_bytes(BTRFS_I(dst), datal, drop_args.bytes_found);
-	set_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &BTRFS_I(dst)->runtime_flags);
+	btrfs_set_inode_full_sync(BTRFS_I(dst));
 	ret = btrfs_inode_set_file_extent_range(BTRFS_I(dst), 0, aligned_end);
 out:
 	if (!ret && !trans) {
@@ -344,6 +344,7 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 	int ret;
 	const u64 len = olen_aligned;
 	u64 last_dest_end = destoff;
+	u64 prev_extent_end = off;
 
 	ret = -ENOMEM;
 	buf = kvmalloc(fs_info->nodesize, GFP_KERNEL);
@@ -363,7 +364,6 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 	key.offset = off;
 
 	while (1) {
-		u64 next_key_min_offset = key.offset + 1;
 		struct btrfs_file_extent_item *extent;
 		u64 extent_gen;
 		int type;
@@ -431,14 +431,21 @@ process_slot:
 		 * The first search might have left us at an extent item that
 		 * ends before our target range's start, can happen if we have
 		 * holes and NO_HOLES feature enabled.
+		 *
+		 * Subsequent searches may leave us on a file range we have
+		 * processed before - this happens due to a race with ordered
+		 * extent completion for a file range that is outside our source
+		 * range, but that range was part of a file extent item that
+		 * also covered a leading part of our source range.
 		 */
-		if (key.offset + datal <= off) {
+		if (key.offset + datal <= prev_extent_end) {
 			path->slots[0]++;
 			goto process_slot;
 		} else if (key.offset >= off + len) {
 			break;
 		}
-		next_key_min_offset = key.offset + datal;
+
+		prev_extent_end = key.offset + datal;
 		size = btrfs_item_size(leaf, slot);
 		read_extent_buffer(leaf, buf, btrfs_item_ptr_offset(leaf, slot),
 				   size);
@@ -489,12 +496,14 @@ process_slot:
 			clone_info.file_offset = new_key.offset;
 			clone_info.extent_buf = buf;
 			clone_info.is_new_extent = false;
+			clone_info.update_times = !no_time_update;
 			ret = btrfs_replace_file_extents(BTRFS_I(inode), path,
 					drop_start, new_key.offset + datal - 1,
 					&clone_info, &trans);
 			if (ret)
 				goto out;
-		} else if (type == BTRFS_FILE_EXTENT_INLINE) {
+		} else {
+			ASSERT(type == BTRFS_FILE_EXTENT_INLINE);
 			/*
 			 * Inline extents always have to start at file offset 0
 			 * and can never be bigger then the sector size. We can
@@ -505,8 +514,12 @@ process_slot:
 			 */
 			ASSERT(key.offset == 0);
 			ASSERT(datal <= fs_info->sectorsize);
-			if (key.offset != 0 || datal > fs_info->sectorsize)
-				return -EUCLEAN;
+			if (WARN_ON(type != BTRFS_FILE_EXTENT_INLINE) ||
+			    WARN_ON(key.offset != 0) ||
+			    WARN_ON(datal > fs_info->sectorsize)) {
+				ret = -EUCLEAN;
+				goto out;
+			}
 
 			ret = clone_copy_inline_extent(inode, path, &new_key,
 						       drop_start, datal, size,
@@ -518,17 +531,22 @@ process_slot:
 		btrfs_release_path(path);
 
 		/*
-		 * If this is a new extent update the last_reflink_trans of both
-		 * inodes. This is used by fsync to make sure it does not log
-		 * multiple checksum items with overlapping ranges. For older
-		 * extents we don't need to do it since inode logging skips the
-		 * checksums for older extents. Also ignore holes and inline
-		 * extents because they don't have checksums in the csum tree.
+		 * Whenever we share an extent we update the last_reflink_trans
+		 * of each inode to the current transaction. This is needed to
+		 * make sure fsync does not log multiple checksum items with
+		 * overlapping ranges (because some extent items might refer
+		 * only to sections of the original extent). For the destination
+		 * inode we do this regardless of the generation of the extents
+		 * or even if they are inline extents or explicit holes, to make
+		 * sure a full fsync does not skip them. For the source inode,
+		 * we only need to update last_reflink_trans in case it's a new
+		 * extent that is not a hole or an inline extent, to deal with
+		 * the checksums problem on fsync.
 		 */
-		if (extent_gen == trans->transid && disko > 0) {
+		if (extent_gen == trans->transid && disko > 0)
 			BTRFS_I(src)->last_reflink_trans = trans->transid;
-			BTRFS_I(inode)->last_reflink_trans = trans->transid;
-		}
+
+		BTRFS_I(inode)->last_reflink_trans = trans->transid;
 
 		last_dest_end = ALIGN(new_key.offset + datal,
 				      fs_info->sectorsize);
@@ -540,7 +558,7 @@ process_slot:
 			break;
 
 		btrfs_release_path(path);
-		key.offset = next_key_min_offset;
+		key.offset = prev_extent_end;
 
 		if (fatal_signal_pending(current)) {
 			ret = -EINTR;
@@ -575,8 +593,7 @@ process_slot:
 		 * replaced file extent items.
 		 */
 		if (last_dest_end >= i_size_read(inode))
-			set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
-				&BTRFS_I(inode)->runtime_flags);
+			btrfs_set_inode_full_sync(BTRFS_I(inode));
 
 		ret = btrfs_replace_file_extents(BTRFS_I(inode), path,
 				last_dest_end, destoff + len - 1, NULL, &trans);
@@ -598,21 +615,30 @@ out:
 static void btrfs_double_extent_unlock(struct inode *inode1, u64 loff1,
 				       struct inode *inode2, u64 loff2, u64 len)
 {
-	unlock_extent(&BTRFS_I(inode1)->io_tree, loff1, loff1 + len - 1);
-	unlock_extent(&BTRFS_I(inode2)->io_tree, loff2, loff2 + len - 1);
+	unlock_extent(&BTRFS_I(inode1)->io_tree, loff1, loff1 + len - 1, NULL);
+	unlock_extent(&BTRFS_I(inode2)->io_tree, loff2, loff2 + len - 1, NULL);
 }
 
 static void btrfs_double_extent_lock(struct inode *inode1, u64 loff1,
 				     struct inode *inode2, u64 loff2, u64 len)
 {
+	u64 range1_end = loff1 + len - 1;
+	u64 range2_end = loff2 + len - 1;
+
 	if (inode1 < inode2) {
 		swap(inode1, inode2);
 		swap(loff1, loff2);
+		swap(range1_end, range2_end);
 	} else if (inode1 == inode2 && loff2 < loff1) {
 		swap(loff1, loff2);
+		swap(range1_end, range2_end);
 	}
-	lock_extent(&BTRFS_I(inode1)->io_tree, loff1, loff1 + len - 1);
-	lock_extent(&BTRFS_I(inode2)->io_tree, loff2, loff2 + len - 1);
+
+	lock_extent(&BTRFS_I(inode1)->io_tree, loff1, range1_end, NULL);
+	lock_extent(&BTRFS_I(inode2)->io_tree, loff2, range2_end, NULL);
+
+	btrfs_assert_inode_range_clean(BTRFS_I(inode1), loff1, range1_end);
+	btrfs_assert_inode_range_clean(BTRFS_I(inode2), loff2, range2_end);
 }
 
 static void btrfs_double_mmap_lock(struct inode *inode1, struct inode *inode2)
@@ -632,16 +658,19 @@ static void btrfs_double_mmap_unlock(struct inode *inode1, struct inode *inode2)
 static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 len,
 				   struct inode *dst, u64 dst_loff)
 {
-	const u64 bs = BTRFS_I(src)->root->fs_info->sb->s_blocksize;
+	struct btrfs_fs_info *fs_info = BTRFS_I(src)->root->fs_info;
+	const u64 bs = fs_info->sb->s_blocksize;
 	int ret;
 
 	/*
-	 * Lock destination range to serialize with concurrent readpages() and
+	 * Lock destination range to serialize with concurrent readahead() and
 	 * source range to serialize with relocation.
 	 */
 	btrfs_double_extent_lock(src, loff, dst, dst_loff, len);
 	ret = btrfs_clone(src, dst, loff, len, ALIGN(len, bs), dst_loff, 1);
 	btrfs_double_extent_unlock(src, loff, dst, dst_loff, len);
+
+	btrfs_btree_balance_dirty(fs_info);
 
 	return ret;
 }
@@ -730,7 +759,7 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	}
 
 	/*
-	 * Lock destination range to serialize with concurrent readpages() and
+	 * Lock destination range to serialize with concurrent readahead() and
 	 * source range to serialize with relocation.
 	 */
 	btrfs_double_extent_lock(src, off, inode, destoff, len);
@@ -752,6 +781,8 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 				round_down(destoff, PAGE_SIZE),
 				round_up(destoff + len, PAGE_SIZE) - 1);
 
+	btrfs_btree_balance_dirty(fs_info);
+
 	return ret;
 }
 
@@ -762,7 +793,6 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 	struct inode *inode_in = file_inode(file_in);
 	struct inode *inode_out = file_inode(file_out);
 	u64 bs = BTRFS_I(inode_out)->root->fs_info->sb->s_blocksize;
-	bool same_inode = inode_out == inode_in;
 	u64 wb_len;
 	int ret;
 
@@ -772,9 +802,7 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 		if (btrfs_root_readonly(root_out))
 			return -EROFS;
 
-		if (file_in->f_path.mnt != file_out->f_path.mnt ||
-		    inode_in->i_sb != inode_out->i_sb)
-			return -EXDEV;
+		ASSERT(inode_in->i_sb == inode_out->i_sb);
 	}
 
 	/* Don't make the dst file partly checksummed */
@@ -801,15 +829,6 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 		wb_len = ALIGN(inode_in->i_size, bs) - ALIGN_DOWN(pos_in, bs);
 	else
 		wb_len = ALIGN(*len, bs);
-
-	/*
-	 * Since we don't lock ranges, wait for ongoing lockless dio writes (as
-	 * any in progress could create its ordered extents after we wait for
-	 * existing ordered extents below).
-	 */
-	inode_dio_wait(inode_in);
-	if (!same_inode)
-		inode_dio_wait(inode_out);
 
 	/*
 	 * Workaround to make sure NOCOW buffered write reach disk as NOCOW.

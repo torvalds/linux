@@ -533,37 +533,37 @@
 };
 
 &pinctrl_1 {
-	bt_shutdown: bt-shutdown {
+	bt_shutdown: bt-shutdown-pins {
 		samsung,pins = "gpe1-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	bt_host_wakeup: bt-host-wakeup {
+	bt_host_wakeup: bt-host-wakeup-pins {
 		samsung,pins = "gpx2-6";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	bt_device_wakeup: bt-device-wakeup {
+	bt_device_wakeup: bt-device-wakeup-pins {
 		samsung,pins = "gpx3-1";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	lp3974_irq: lp3974-irq {
+	lp3974_irq: lp3974-irq-pins {
 		samsung,pins = "gpx0-7", "gpx2-7";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 
-	hdmi_hpd: hdmi-hpd {
+	hdmi_hpd: hdmi-hpd-pins {
 		samsung,pins = "gpx3-7";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 	};
 };
 
 &pinctrl_0 {
-	i2c_ddc_bus: i2c-ddc-bus {
+	i2c_ddc_bus: i2c-ddc-bus-pins {
 		samsung,pins = "gpe4-2", "gpe4-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
@@ -659,15 +659,13 @@
 };
 
 &soc {
-	mdma0: mdma@12840000 {
+	mdma0: dma-controller@12840000 {
 		compatible = "arm,pl330", "arm,primecell";
 		reg = <0x12840000 0x1000>;
 		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clock CLK_MDMA>;
 		clock-names = "apb_pclk";
 		#dma-cells = <1>;
-		#dma-channels = <8>;
-		#dma-requests = <1>;
 		power-domains = <&pd_lcd0>;
 	};
 };

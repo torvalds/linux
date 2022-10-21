@@ -346,8 +346,7 @@ static unsigned long dax_get_unmapped_area(struct file *filp,
 }
 
 static const struct address_space_operations dev_dax_aops = {
-	.set_page_dirty		= __set_page_dirty_no_writeback,
-	.invalidatepage		= noop_invalidatepage,
+	.dirty_folio	= noop_dirty_folio,
 };
 
 static int dax_open(struct inode *inode, struct file *filp)

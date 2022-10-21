@@ -38,7 +38,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/irqs.h>
+#include "irqs.h"
 #include "map.h"
 #include "gpio-samsung.h"
 #include "gpio-cfg.h"
@@ -1107,8 +1107,7 @@ struct platform_device s3c64xx_device_spi0 = {
 	},
 };
 
-void __init s3c64xx_spi0_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
-						int num_cs)
+void __init s3c64xx_spi0_set_platdata(int src_clk_nr, int num_cs)
 {
 	struct s3c64xx_spi_info pd;
 
@@ -1120,80 +1119,8 @@ void __init s3c64xx_spi0_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
 
 	pd.num_cs = num_cs;
 	pd.src_clk_nr = src_clk_nr;
-	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi0_cfg_gpio;
+	pd.cfg_gpio = s3c64xx_spi0_cfg_gpio;
 
 	s3c_set_platdata(&pd, sizeof(pd), &s3c64xx_device_spi0);
 }
 #endif /* CONFIG_S3C64XX_DEV_SPI0 */
-
-#ifdef CONFIG_S3C64XX_DEV_SPI1
-static struct resource s3c64xx_spi1_resource[] = {
-	[0] = DEFINE_RES_MEM(S3C_PA_SPI1, SZ_256),
-	[1] = DEFINE_RES_IRQ(IRQ_SPI1),
-};
-
-struct platform_device s3c64xx_device_spi1 = {
-	.name		= "s3c6410-spi",
-	.id		= 1,
-	.num_resources	= ARRAY_SIZE(s3c64xx_spi1_resource),
-	.resource	= s3c64xx_spi1_resource,
-	.dev = {
-		.dma_mask		= &samsung_device_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-
-void __init s3c64xx_spi1_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
-						int num_cs)
-{
-	struct s3c64xx_spi_info pd;
-
-	/* Reject invalid configuration */
-	if (!num_cs || src_clk_nr < 0) {
-		pr_err("%s: Invalid SPI configuration\n", __func__);
-		return;
-	}
-
-	pd.num_cs = num_cs;
-	pd.src_clk_nr = src_clk_nr;
-	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi1_cfg_gpio;
-
-	s3c_set_platdata(&pd, sizeof(pd), &s3c64xx_device_spi1);
-}
-#endif /* CONFIG_S3C64XX_DEV_SPI1 */
-
-#ifdef CONFIG_S3C64XX_DEV_SPI2
-static struct resource s3c64xx_spi2_resource[] = {
-	[0] = DEFINE_RES_MEM(S3C_PA_SPI2, SZ_256),
-	[1] = DEFINE_RES_IRQ(IRQ_SPI2),
-};
-
-struct platform_device s3c64xx_device_spi2 = {
-	.name		= "s3c6410-spi",
-	.id		= 2,
-	.num_resources	= ARRAY_SIZE(s3c64xx_spi2_resource),
-	.resource	= s3c64xx_spi2_resource,
-	.dev = {
-		.dma_mask		= &samsung_device_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-
-void __init s3c64xx_spi2_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
-						int num_cs)
-{
-	struct s3c64xx_spi_info pd;
-
-	/* Reject invalid configuration */
-	if (!num_cs || src_clk_nr < 0) {
-		pr_err("%s: Invalid SPI configuration\n", __func__);
-		return;
-	}
-
-	pd.num_cs = num_cs;
-	pd.src_clk_nr = src_clk_nr;
-	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi2_cfg_gpio;
-
-	s3c_set_platdata(&pd, sizeof(pd), &s3c64xx_device_spi2);
-}
-#endif /* CONFIG_S3C64XX_DEV_SPI2 */

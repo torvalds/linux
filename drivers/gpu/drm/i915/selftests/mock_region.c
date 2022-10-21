@@ -22,22 +22,19 @@ static void mock_region_put_pages(struct drm_i915_gem_object *obj,
 
 static int mock_region_get_pages(struct drm_i915_gem_object *obj)
 {
-	unsigned int flags;
 	struct sg_table *pages;
 	int err;
 
-	flags = 0;
-	if (obj->flags & I915_BO_ALLOC_CONTIGUOUS)
-		flags |= TTM_PL_FLAG_CONTIGUOUS;
-
 	obj->mm.res = intel_region_ttm_resource_alloc(obj->mm.region,
+						      obj->bo_offset,
 						      obj->base.size,
-						      flags);
+						      obj->flags);
 	if (IS_ERR(obj->mm.res))
 		return PTR_ERR(obj->mm.res);
 
 	obj->mm.rsgt = intel_region_ttm_resource_to_rsgt(obj->mm.region,
-							 obj->mm.res);
+							 obj->mm.res,
+							 obj->mm.region->min_page_size);
 	if (IS_ERR(obj->mm.rsgt)) {
 		err = PTR_ERR(obj->mm.rsgt);
 		goto err_free_resource;
@@ -62,6 +59,7 @@ static const struct drm_i915_gem_object_ops mock_region_obj_ops = {
 
 static int mock_object_init(struct intel_memory_region *mem,
 			    struct drm_i915_gem_object *obj,
+			    resource_size_t offset,
 			    resource_size_t size,
 			    resource_size_t page_size,
 			    unsigned int flags)
@@ -74,6 +72,8 @@ static int mock_object_init(struct intel_memory_region *mem,
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
 	i915_gem_object_init(obj, &mock_region_obj_ops, &lock_class, flags);
+
+	obj->bo_offset = offset;
 
 	obj->read_domains = I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT;
 
@@ -107,7 +107,8 @@ mock_region_create(struct drm_i915_private *i915,
 		   resource_size_t start,
 		   resource_size_t size,
 		   resource_size_t min_page_size,
-		   resource_size_t io_start)
+		   resource_size_t io_start,
+		   resource_size_t io_size)
 {
 	int instance = ida_alloc_max(&i915->selftest.mock_region_instances,
 				     TTM_NUM_MEM_TYPES - TTM_PL_PRIV - 1,
@@ -117,6 +118,7 @@ mock_region_create(struct drm_i915_private *i915,
 		return ERR_PTR(instance);
 
 	return intel_memory_region_create(i915, start, size, min_page_size,
-					  io_start, INTEL_MEMORY_MOCK, instance,
+					  io_start, io_size,
+					  INTEL_MEMORY_MOCK, instance,
 					  &mock_region_ops);
 }

@@ -18,7 +18,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_mm.h>
 #include <drm/drm_probe_helper.h>
@@ -59,8 +59,6 @@ void tilcdc_module_cleanup(struct tilcdc_module *mod)
 {
 	list_del(&mod->list);
 }
-
-static struct of_device_id tilcdc_of_match[];
 
 static int tilcdc_atomic_check(struct drm_device *dev,
 			       struct drm_atomic_state *state)
@@ -478,11 +476,11 @@ static void tilcdc_debugfs_init(struct drm_minor *minor)
 }
 #endif
 
-DEFINE_DRM_GEM_CMA_FOPS(fops);
+DEFINE_DRM_GEM_DMA_FOPS(fops);
 
 static const struct drm_driver tilcdc_driver = {
 	.driver_features    = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
-	DRM_GEM_CMA_DRIVER_OPS,
+	DRM_GEM_DMA_DRIVER_OPS,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init       = tilcdc_debugfs_init,
 #endif
@@ -587,7 +585,7 @@ static int tilcdc_pdev_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id tilcdc_of_match[] = {
+static const struct of_device_id tilcdc_of_match[] = {
 		{ .compatible = "ti,am33xx-tilcdc", },
 		{ .compatible = "ti,da850-tilcdc", },
 		{ },
@@ -606,6 +604,9 @@ static struct platform_driver tilcdc_platform_driver = {
 
 static int __init tilcdc_drm_init(void)
 {
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
 	DBG("init");
 	tilcdc_panel_init();
 	return platform_driver_register(&tilcdc_platform_driver);

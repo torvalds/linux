@@ -283,7 +283,7 @@ static const struct mtk_mux top_muxes[] = {
 
 static int clk_mt7986_topckgen_probe(struct platform_device *pdev)
 {
-	struct clk_onecell_data *clk_data;
+	struct clk_hw_onecell_data *clk_data;
 	struct device_node *node = pdev->dev.of_node;
 	int r;
 	void __iomem *base;
@@ -306,14 +306,14 @@ static int clk_mt7986_topckgen_probe(struct platform_device *pdev)
 	mtk_clk_register_muxes(top_muxes, ARRAY_SIZE(top_muxes), node,
 			       &mt7986_clk_lock, clk_data);
 
-	clk_prepare_enable(clk_data->clks[CLK_TOP_SYSAXI_SEL]);
-	clk_prepare_enable(clk_data->clks[CLK_TOP_SYSAPB_SEL]);
-	clk_prepare_enable(clk_data->clks[CLK_TOP_DRAMC_SEL]);
-	clk_prepare_enable(clk_data->clks[CLK_TOP_DRAMC_MD32_SEL]);
-	clk_prepare_enable(clk_data->clks[CLK_TOP_F26M_SEL]);
-	clk_prepare_enable(clk_data->clks[CLK_TOP_SGM_REG_SEL]);
+	clk_prepare_enable(clk_data->hws[CLK_TOP_SYSAXI_SEL]->clk);
+	clk_prepare_enable(clk_data->hws[CLK_TOP_SYSAPB_SEL]->clk);
+	clk_prepare_enable(clk_data->hws[CLK_TOP_DRAMC_SEL]->clk);
+	clk_prepare_enable(clk_data->hws[CLK_TOP_DRAMC_MD32_SEL]->clk);
+	clk_prepare_enable(clk_data->hws[CLK_TOP_F26M_SEL]->clk);
+	clk_prepare_enable(clk_data->hws[CLK_TOP_SGM_REG_SEL]->clk);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 
 	if (r) {
 		pr_err("%s(): could not register clock provider: %d\n",

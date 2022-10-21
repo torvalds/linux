@@ -52,6 +52,7 @@ struct perf_session {
 struct decomp {
 	struct decomp *next;
 	u64 file_pos;
+	const char *file_path;
 	size_t mmap_len;
 	u64 head;
 	size_t size;
@@ -87,7 +88,7 @@ int perf_session__peek_events(struct perf_session *session, u64 offset,
 int perf_session__process_events(struct perf_session *session);
 
 int perf_session__queue_event(struct perf_session *s, union perf_event *event,
-			      u64 timestamp, u64 file_offset);
+			      u64 timestamp, u64 file_offset, const char *file_path);
 
 void perf_tool__fill_defaults(struct perf_tool *tool);
 
@@ -153,5 +154,9 @@ int perf_session__deliver_synth_event(struct perf_session *session,
 
 int perf_event__process_id_index(struct perf_session *session,
 				 union perf_event *event);
+
+int perf_event__process_finished_round(struct perf_tool *tool,
+				       union perf_event *event,
+				       struct ordered_events *oe);
 
 #endif /* __PERF_SESSION_H */

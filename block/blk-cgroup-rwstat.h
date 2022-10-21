@@ -6,7 +6,7 @@
 #ifndef _BLK_CGROUP_RWSTAT_H
 #define _BLK_CGROUP_RWSTAT_H
 
-#include <linux/blk-cgroup.h>
+#include "blk-cgroup.h"
 
 enum blkg_rwstat_type {
 	BLKG_RWSTAT_READ,
@@ -59,20 +59,20 @@ void blkg_rwstat_recursive_sum(struct blkcg_gq *blkg, struct blkcg_policy *pol,
  * caller is responsible for synchronizing calls to this function.
  */
 static inline void blkg_rwstat_add(struct blkg_rwstat *rwstat,
-				   unsigned int op, uint64_t val)
+				   blk_opf_t opf, uint64_t val)
 {
 	struct percpu_counter *cnt;
 
-	if (op_is_discard(op))
+	if (op_is_discard(opf))
 		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_DISCARD];
-	else if (op_is_write(op))
+	else if (op_is_write(opf))
 		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_WRITE];
 	else
 		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_READ];
 
 	percpu_counter_add_batch(cnt, val, BLKG_STAT_CPU_BATCH);
 
-	if (op_is_sync(op))
+	if (op_is_sync(opf))
 		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_SYNC];
 	else
 		cnt = &rwstat->cpu_cnt[BLKG_RWSTAT_ASYNC];

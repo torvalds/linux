@@ -91,10 +91,10 @@ int rtw_set_sar_specs(struct rtw_dev *rtwdev,
 			return -EINVAL;
 
 		power = sar->sub_specs[i].power;
-		rtw_info(rtwdev, "On freq %u to %u, set SAR %d in 1/%lu dBm\n",
-			 rtw_common_sar_freq_ranges[idx].start_freq,
-			 rtw_common_sar_freq_ranges[idx].end_freq,
-			 power, BIT(RTW_COMMON_SAR_FCT));
+		rtw_dbg(rtwdev, RTW_DBG_REGD, "On freq %u to %u, set SAR %d in 1/%lu dBm\n",
+			rtw_common_sar_freq_ranges[idx].start_freq,
+			rtw_common_sar_freq_ranges[idx].end_freq,
+			power, BIT(RTW_COMMON_SAR_FCT));
 
 		for (j = 0; j < RTW_RF_PATH_MAX; j++) {
 			for (k = 0; k < RTW_RATE_SECTION_MAX; k++) {

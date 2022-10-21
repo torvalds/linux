@@ -4,7 +4,7 @@
 #define __HISI_HPRE_H
 
 #include <linux/list.h>
-#include "../qm.h"
+#include <linux/hisi_acc_qm.h>
 
 #define HPRE_SQE_SIZE			sizeof(struct hpre_sqe)
 #define HPRE_PF_DEF_Q_NUM		64
@@ -22,7 +22,8 @@ enum {
 	HPRE_CLUSTER0,
 	HPRE_CLUSTER1,
 	HPRE_CLUSTER2,
-	HPRE_CLUSTER3
+	HPRE_CLUSTER3,
+	HPRE_CLUSTERS_NUM_MAX
 };
 
 enum hpre_ctrl_dbgfs_file {
@@ -42,9 +43,6 @@ enum hpre_dfx_dbgfs_file {
 	HPRE_DFX_FILE_NUM
 };
 
-#define HPRE_CLUSTERS_NUM_V2		(HPRE_CLUSTER3 + 1)
-#define HPRE_CLUSTERS_NUM_V3		1
-#define HPRE_CLUSTERS_NUM_MAX		HPRE_CLUSTERS_NUM_V2
 #define HPRE_DEBUGFS_FILE_NUM (HPRE_DEBUG_FILE_NUM + HPRE_CLUSTERS_NUM_MAX - 1)
 
 struct hpre_debugfs_file {
@@ -105,5 +103,5 @@ struct hpre_sqe {
 struct hisi_qp *hpre_create_qp(u8 type);
 int hpre_algs_register(struct hisi_qm *qm);
 void hpre_algs_unregister(struct hisi_qm *qm);
-
+bool hpre_check_alg_support(struct hisi_qm *qm, u32 alg);
 #endif

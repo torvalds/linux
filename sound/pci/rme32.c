@@ -1875,7 +1875,7 @@ static void snd_rme32_card_free(struct snd_card *card)
 }
 
 static int
-snd_rme32_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
+__snd_rme32_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct rme32 *rme32;
@@ -1925,6 +1925,12 @@ snd_rme32_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
+}
+
+static int
+snd_rme32_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
+{
+	return snd_card_free_on_error(&pci->dev, __snd_rme32_probe(pci, pci_id));
 }
 
 static struct pci_driver rme32_driver = {

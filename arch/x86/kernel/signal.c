@@ -18,7 +18,6 @@
 #include <linux/kstrtox.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
-#include <linux/tracehook.h>
 #include <linux/unistd.h>
 #include <linux/stddef.h>
 #include <linux/personality.h>
@@ -94,7 +93,7 @@ static bool restore_sigcontext(struct pt_regs *regs,
 		return false;
 
 #ifdef CONFIG_X86_32
-	set_user_gs(regs, sc.gs);
+	loadsegment(gs, sc.gs);
 	regs->fs = sc.fs;
 	regs->es = sc.es;
 	regs->ds = sc.ds;
@@ -147,8 +146,10 @@ __unsafe_setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
 		     struct pt_regs *regs, unsigned long mask)
 {
 #ifdef CONFIG_X86_32
-	unsafe_put_user(get_user_gs(regs),
-				  (unsigned int __user *)&sc->gs, Efault);
+	unsigned int gs;
+	savesegment(gs, gs);
+
+	unsafe_put_user(gs,	  (unsigned int __user *)&sc->gs, Efault);
 	unsafe_put_user(regs->fs, (unsigned int __user *)&sc->fs, Efault);
 	unsafe_put_user(regs->es, (unsigned int __user *)&sc->es, Efault);
 	unsafe_put_user(regs->ds, (unsigned int __user *)&sc->ds, Efault);
@@ -861,11 +862,11 @@ static inline unsigned long get_nr_restart_syscall(const struct pt_regs *regs)
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-void arch_do_signal_or_restart(struct pt_regs *regs, bool has_signal)
+void arch_do_signal_or_restart(struct pt_regs *regs)
 {
 	struct ksignal ksig;
 
-	if (has_signal && get_signal(&ksig)) {
+	if (get_signal(&ksig)) {
 		/* Whee! Actually deliver the signal.  */
 		handle_signal(&ksig, regs);
 		return;

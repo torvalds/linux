@@ -43,6 +43,7 @@ out:
 int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 			 const struct htt_tx_done *tx_done)
 {
+	struct ieee80211_tx_status status;
 	struct ath10k *ar = htt->ar;
 	struct device *dev = ar->dev;
 	struct ieee80211_tx_info *info;
@@ -125,10 +126,22 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	    tx_done->ack_rssi != ATH10K_INVALID_RSSI) {
 		info->status.ack_signal = ATH10K_DEFAULT_NOISE_FLOOR +
 						tx_done->ack_rssi;
-		info->status.is_valid_ack_signal = true;
+		info->status.flags |= IEEE80211_TX_STATUS_ACK_SIGNAL_VALID;
 	}
 
-	ieee80211_tx_status(htt->ar->hw, msdu);
+	memset(&status, 0, sizeof(status));
+	status.skb = msdu;
+	status.info = info;
+
+	rcu_read_lock();
+
+	if (txq)
+		status.sta = txq->sta;
+
+	ieee80211_tx_status_ext(htt->ar->hw, &status);
+
+	rcu_read_unlock();
+
 	/* we do not own the msdu anymore */
 
 	return 0;

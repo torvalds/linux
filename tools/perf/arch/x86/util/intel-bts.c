@@ -110,7 +110,7 @@ static int intel_bts_recording_options(struct auxtrace_record *itr,
 			container_of(itr, struct intel_bts_recording, itr);
 	struct perf_pmu *intel_bts_pmu = btsr->intel_bts_pmu;
 	struct evsel *evsel, *intel_bts_evsel = NULL;
-	const struct perf_cpu_map *cpus = evlist->core.cpus;
+	const struct perf_cpu_map *cpus = evlist->core.user_requested_cpus;
 	bool privileged = perf_event_paranoid_check(-1);
 
 	if (opts->auxtrace_sample_mode) {
@@ -129,6 +129,7 @@ static int intel_bts_recording_options(struct auxtrace_record *itr,
 			}
 			evsel->core.attr.freq = 0;
 			evsel->core.attr.sample_period = 1;
+			evsel->needs_auxtrace_mmap = true;
 			intel_bts_evsel = evsel;
 			opts->full_auxtrace = true;
 		}
@@ -232,7 +233,7 @@ static int intel_bts_recording_options(struct auxtrace_record *itr,
 		struct evsel *tracking_evsel;
 		int err;
 
-		err = parse_events(evlist, "dummy:u", NULL);
+		err = parse_event(evlist, "dummy:u");
 		if (err)
 			return err;
 

@@ -25,16 +25,16 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drm_mipi_dsi.h>
-
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
-#include <drm/drm_dsc.h>
+#include <drm/display/drm_dsc.h>
+#include <drm/drm_mipi_dsi.h>
 #include <drm/drm_print.h>
+
 #include <video/mipi_display.h>
 
 /**
@@ -346,6 +346,7 @@ static int mipi_dsi_remove_device_fn(struct device *dev, void *priv)
 {
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
 
+	mipi_dsi_detach(dsi);
 	mipi_dsi_device_unregister(dsi);
 
 	return 0;
@@ -1236,7 +1237,9 @@ static int mipi_dsi_drv_remove(struct device *dev)
 	struct mipi_dsi_driver *drv = to_mipi_dsi_driver(dev->driver);
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
 
-	return drv->remove(dsi);
+	drv->remove(dsi);
+
+	return 0;
 }
 
 static void mipi_dsi_drv_shutdown(struct device *dev)

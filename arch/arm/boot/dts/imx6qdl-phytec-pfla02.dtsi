@@ -47,12 +47,12 @@
 		pinctrl-0 = <&pinctrl_leds>;
 		compatible = "gpio-leds";
 
-		green {
+		led_green: green {
 			label = "phyflex:green";
 			gpios = <&gpio1 30 0>;
 		};
 
-		red {
+		led_red: red {
 			label = "phyflex:red";
 			gpios = <&gpio2 31 0>;
 		};
@@ -204,6 +204,19 @@
 				regulator-max-microvolt = <3000000>;
 				regulator-always-on;
 			};
+		};
+
+		da9063_rtc: rtc {
+			compatible = "dlg,da9063-rtc";
+		};
+
+		da9063_wdog: watchdog {
+			compatible = "dlg,da9063-watchdog";
+		};
+
+		onkey {
+			compatible = "dlg,da9063-onkey";
+			status = "disabled";
 		};
 	};
 };

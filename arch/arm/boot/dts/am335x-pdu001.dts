@@ -353,7 +353,7 @@
 		};
 	};
 
-	mcp79400: mcp79400@6f {
+	mcp79400: rtc@6f {
 		compatible = "microchip,mcp7940x";
 		reg = <0x6f>;
 	};

@@ -151,7 +151,7 @@ Example for HSIC:
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		usbnet: smsc@1 {
+		usbnet: ethernet@1 {
 			compatible = "usb424,9730";
 			reg = <1>;
 		};

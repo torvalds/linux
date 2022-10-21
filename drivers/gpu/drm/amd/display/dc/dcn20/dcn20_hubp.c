@@ -617,6 +617,17 @@ void hubp2_cursor_set_attributes(
 			CURSOR0_DST_Y_OFFSET, 0,
 			 /* used to shift the cursor chunk request deadline */
 			CURSOR0_CHUNK_HDL_ADJUST, 3);
+
+	hubp->att.SURFACE_ADDR_HIGH  = attr->address.high_part;
+	hubp->att.SURFACE_ADDR       = attr->address.low_part;
+	hubp->att.size.bits.width    = attr->width;
+	hubp->att.size.bits.height   = attr->height;
+	hubp->att.cur_ctl.bits.mode  = attr->color_format;
+	hubp->att.cur_ctl.bits.pitch = hw_pitch;
+	hubp->att.cur_ctl.bits.line_per_chunk = lpc;
+	hubp->att.cur_ctl.bits.cur_2x_magnify = attr->attribute_flags.bits.ENABLE_MAGNIFICATION;
+	hubp->att.settings.bits.dst_y_offset  = 0;
+	hubp->att.settings.bits.chunk_hdl_adjust = 3;
 }
 
 void hubp2_dmdata_set_attributes(
@@ -706,17 +717,6 @@ bool hubp2_program_surface_flip_and_addr(
 	// Program VMID reg
 	REG_UPDATE(VMID_SETTINGS_0,
 			VMID, address->vmid);
-
-	if (address->type == PLN_ADDR_TYPE_GRPH_STEREO) {
-		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_MODE_FOR_STEREOSYNC, 0x1);
-		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_IN_STEREOSYNC, 0x1);
-
-	} else {
-		// turn off stereo if not in stereo
-		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_MODE_FOR_STEREOSYNC, 0x0);
-		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_IN_STEREOSYNC, 0x0);
-	}
-
 
 
 	/* HW automatically latch rest of address register on write to
@@ -942,10 +942,6 @@ void hubp2_set_blank_regs(struct hubp *hubp, bool blank)
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 	uint32_t blank_en = blank ? 1 : 0;
 
-	REG_UPDATE_2(DCHUBP_CNTL,
-			HUBP_BLANK_EN, blank_en,
-			HUBP_TTU_DISABLE, blank_en);
-
 	if (blank) {
 		uint32_t reg_val = REG_READ(DCHUBP_CNTL);
 
@@ -958,9 +954,13 @@ void hubp2_set_blank_regs(struct hubp *hubp, bool blank)
 			 */
 			REG_WAIT(DCHUBP_CNTL,
 					HUBP_NO_OUTSTANDING_REQ, 1,
-					1, 200);
+					1, 100000);
 		}
 	}
+
+	REG_UPDATE_2(DCHUBP_CNTL,
+			HUBP_BLANK_EN, blank_en,
+			HUBP_TTU_DISABLE, 0);
 }
 
 void hubp2_cursor_set_position(
@@ -977,6 +977,8 @@ void hubp2_cursor_set_position(
 	int cursor_width = (int)hubp->curs_attr.width;
 	uint32_t dst_x_offset;
 	uint32_t cur_en = pos->enable ? 1 : 0;
+
+	hubp->curs_pos = *pos;
 
 	/*
 	 * Guard aganst cursor_set_position() from being called with invalid
@@ -996,13 +998,10 @@ void hubp2_cursor_set_position(
 			src_y_offset = pos->y - pos->x_hotspot - param->viewport.y;
 		}
 	} else if (param->rotation == ROTATION_ANGLE_180) {
-		src_x_offset = pos->x - param->viewport.x;
-		src_y_offset = pos->y - param->viewport.y;
-	}
+		if (!param->mirror)
+			src_x_offset = pos->x - param->viewport.x;
 
-	if (param->mirror) {
-		x_hotspot = param->viewport.width - x_hotspot;
-		src_x_offset = param->viewport.x + param->viewport.width - src_x_offset;
+		src_y_offset = pos->y - param->viewport.y;
 	}
 
 	dst_x_offset = (src_x_offset >= 0) ? src_x_offset : 0;
@@ -1045,6 +1044,25 @@ void hubp2_cursor_set_position(
 	REG_SET(CURSOR_DST_OFFSET, 0,
 			CURSOR_DST_X_OFFSET, dst_x_offset);
 	/* TODO Handle surface pixel formats other than 4:4:4 */
+	/* Cursor Position Register Config */
+	hubp->pos.cur_ctl.bits.cur_enable = cur_en;
+	hubp->pos.position.bits.x_pos = pos->x;
+	hubp->pos.position.bits.y_pos = pos->y;
+	hubp->pos.hot_spot.bits.x_hot = x_hotspot;
+	hubp->pos.hot_spot.bits.y_hot = y_hotspot;
+	hubp->pos.dst_offset.bits.dst_x_offset = dst_x_offset;
+	/* Cursor Rectangle Cache
+	 * Cursor bitmaps have different hotspot values
+	 * There's a possibility that the above logic returns a negative value,
+	 * so we clamp them to 0
+	 */
+	if (src_x_offset < 0)
+		src_x_offset = 0;
+	if (src_y_offset < 0)
+		src_y_offset = 0;
+	/* Save necessary cursor info x, y position. w, h is saved in attribute func. */
+	hubp->cur_rect.x = src_x_offset + param->viewport.x;
+	hubp->cur_rect.y = src_y_offset + param->viewport.y;
 }
 
 void hubp2_clk_cntl(struct hubp *hubp, bool enable)

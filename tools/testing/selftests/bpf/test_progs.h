@@ -25,6 +25,7 @@ typedef __u16 __sum16;
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sys/param.h>
 #include <fcntl.h>
 #include <pthread.h>
 #include <linux/bpf.h>
@@ -37,7 +38,6 @@ typedef __u16 __sum16;
 #include <bpf/bpf_endian.h>
 #include "trace_helpers.h"
 #include "testing_helpers.h"
-#include "flow_dissector_load.h"
 
 enum verbosity {
 	VERBOSE_NONE,
@@ -46,16 +46,50 @@ enum verbosity {
 	VERBOSE_SUPER,
 };
 
-struct str_set {
-	const char **strs;
+struct test_filter {
+	char *name;
+	char **subtests;
+	int subtest_cnt;
+};
+
+struct test_filter_set {
+	struct test_filter *tests;
 	int cnt;
 };
 
 struct test_selector {
-	struct str_set whitelist;
-	struct str_set blacklist;
+	struct test_filter_set whitelist;
+	struct test_filter_set blacklist;
 	bool *num_set;
 	int num_set_len;
+};
+
+struct subtest_state {
+	char *name;
+	size_t log_cnt;
+	char *log_buf;
+	int error_cnt;
+	bool skipped;
+	bool filtered;
+
+	FILE *stdout;
+};
+
+struct test_state {
+	bool tested;
+	bool force_log;
+
+	int error_cnt;
+	int skip_cnt;
+	int sub_succ_cnt;
+
+	struct subtest_state *subtest_states;
+	int subtest_num;
+
+	size_t log_cnt;
+	char *log_buf;
+
+	FILE *stdout;
 };
 
 struct test_env {
@@ -70,12 +104,12 @@ struct test_env {
 	bool get_test_cnt;
 	bool list_test_names;
 
-	struct prog_test_def *test; /* current running tests */
+	struct prog_test_def *test; /* current running test */
+	struct test_state *test_state; /* current running test state */
+	struct subtest_state *subtest_state; /* current running subtest state */
 
 	FILE *stdout;
 	FILE *stderr;
-	char *log_buf;
-	size_t log_cnt;
 	int nr_cpus;
 
 	int succ_cnt; /* successful tests */
@@ -92,39 +126,51 @@ struct test_env {
 };
 
 #define MAX_LOG_TRUNK_SIZE 8192
+#define MAX_SUBTEST_NAME 1024
 enum msg_type {
 	MSG_DO_TEST = 0,
 	MSG_TEST_DONE = 1,
 	MSG_TEST_LOG = 2,
+	MSG_SUBTEST_DONE = 3,
 	MSG_EXIT = 255,
 };
 struct msg {
 	enum msg_type type;
 	union {
 		struct {
-			int test_num;
+			int num;
 		} do_test;
 		struct {
-			int test_num;
+			int num;
 			int sub_succ_cnt;
 			int error_cnt;
 			int skip_cnt;
 			bool have_log;
+			int subtest_num;
 		} test_done;
 		struct {
 			char log_buf[MAX_LOG_TRUNK_SIZE + 1];
 			bool is_last;
 		} test_log;
+		struct {
+			int num;
+			char name[MAX_SUBTEST_NAME + 1];
+			int error_cnt;
+			bool skipped;
+			bool filtered;
+			bool have_log;
+		} subtest_done;
 	};
 };
 
 extern struct test_env env;
 
-extern void test__force_log();
-extern bool test__start_subtest(const char *name);
-extern void test__skip(void);
-extern void test__fail(void);
-extern int test__join_cgroup(const char *path);
+void test__force_log(void);
+bool test__start_subtest(const char *name);
+void test__end_subtest(void);
+void test__skip(void);
+void test__fail(void);
+int test__join_cgroup(const char *path);
 
 #define PRINT_FAIL(format...)                                                  \
 	({                                                                     \
@@ -267,6 +313,17 @@ extern int test__join_cgroup(const char *path);
 	___ok;								\
 })
 
+#define ASSERT_HAS_SUBSTR(str, substr, name) ({				\
+	static int duration = 0;					\
+	const char *___str = str;					\
+	const char *___substr = substr;					\
+	bool ___ok = strstr(___str, ___substr) != NULL;			\
+	CHECK(!___ok, (name),						\
+	      "unexpected %s: '%s' is not a substring of '%s'\n",	\
+	      (name), ___substr, ___str);				\
+	___ok;								\
+})
+
 #define ASSERT_OK(res, name) ({						\
 	static int duration = 0;					\
 	long long ___res = (res);					\
@@ -327,11 +384,14 @@ int extract_build_id(char *build_id, size_t size);
 int kern_sync_rcu(void);
 int trigger_module_test_read(int read_sz);
 int trigger_module_test_write(int write_sz);
+int write_sysctl(const char *sysctl, const char *value);
 
 #ifdef __x86_64__
 #define SYS_NANOSLEEP_KPROBE_NAME "__x64_sys_nanosleep"
 #elif defined(__s390x__)
 #define SYS_NANOSLEEP_KPROBE_NAME "__s390x_sys_nanosleep"
+#elif defined(__aarch64__)
+#define SYS_NANOSLEEP_KPROBE_NAME "__arm64_sys_nanosleep"
 #else
 #define SYS_NANOSLEEP_KPROBE_NAME "sys_nanosleep"
 #endif

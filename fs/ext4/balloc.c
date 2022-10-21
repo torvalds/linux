@@ -411,6 +411,7 @@ verified:
  * ext4_read_block_bitmap_nowait()
  * @sb:			super block
  * @block_group:	given block group
+ * @ignore_locked:	ignore locked buffers
  *
  * Read the bitmap for a given block_group,and validate the
  * bits for block/inode/inode tables are set in the bitmaps
@@ -665,7 +666,7 @@ int ext4_should_retry_alloc(struct super_block *sb, int *retries)
 	 * it's possible we've just missed a transaction commit here,
 	 * so ignore the returned status
 	 */
-	jbd_debug(1, "%s: retrying operation after ENOSPC\n", sb->s_id);
+	ext4_debug("%s: retrying operation after ENOSPC\n", sb->s_id);
 	(void) jbd2_journal_force_commit_nested(sbi->s_journal);
 	return 1;
 }

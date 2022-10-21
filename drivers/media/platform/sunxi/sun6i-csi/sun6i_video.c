@@ -77,7 +77,7 @@ sun6i_video_remote_subdev(struct sun6i_video *video, u32 *pad)
 {
 	struct media_pad *remote;
 
-	remote = media_entity_remote_pad(&video->pad);
+	remote = media_pad_remote_pad_first(&video->pad);
 
 	if (!remote || !is_media_entity_v4l2_subdev(remote->entity))
 		return NULL;
@@ -177,7 +177,7 @@ static int sun6i_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	/*
 	 * CSI will lookup the next dma buffer for next frame before the
-	 * the current frame done IRQ triggered. This is not documented
+	 * current frame done IRQ triggered. This is not documented
 	 * but reported by Ondřej Jirman.
 	 * The BSP code has workaround for this too. It skip to mark the
 	 * first buffer as frame done for VB2 and pass the second buffer
@@ -368,7 +368,11 @@ static int sun6i_video_try_fmt(struct sun6i_video *video,
 	if (pixfmt->field == V4L2_FIELD_ANY)
 		pixfmt->field = V4L2_FIELD_NONE;
 
-	pixfmt->colorspace = V4L2_COLORSPACE_RAW;
+	if (pixfmt->pixelformat == V4L2_PIX_FMT_JPEG)
+		pixfmt->colorspace = V4L2_COLORSPACE_JPEG;
+	else
+		pixfmt->colorspace = V4L2_COLORSPACE_SRGB;
+
 	pixfmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	pixfmt->quantization = V4L2_QUANTIZATION_DEFAULT;
 	pixfmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
@@ -556,7 +560,7 @@ static int sun6i_video_link_validate(struct media_link *link)
 
 	video->mbus_code = 0;
 
-	if (!media_entity_remote_pad(link->sink->entity->pads)) {
+	if (!media_pad_remote_pad_first(link->sink->entity->pads)) {
 		dev_info(video->csi->dev,
 			 "video node %s pad not connected\n", vdev->name);
 		return -ENOLINK;

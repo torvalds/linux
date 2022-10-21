@@ -843,7 +843,7 @@ static int ov5645_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->index > 0)
 		return -EINVAL;
 
-	code->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	code->code = MEDIA_BUS_FMT_UYVY8_1X16;
 
 	return 0;
 }
@@ -852,7 +852,7 @@ static int ov5645_enum_frame_size(struct v4l2_subdev *subdev,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
-	if (fse->code != MEDIA_BUS_FMT_UYVY8_2X8)
+	if (fse->code != MEDIA_BUS_FMT_UYVY8_1X16)
 		return -EINVAL;
 
 	if (fse->index >= ARRAY_SIZE(ov5645_mode_info_data))
@@ -948,7 +948,7 @@ static int ov5645_set_format(struct v4l2_subdev *sd,
 					   format->which);
 	__format->width = __crop->width;
 	__format->height = __crop->height;
-	__format->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	__format->code = MEDIA_BUS_FMT_UYVY8_1X16;
 	__format->field = V4L2_FIELD_NONE;
 	__format->colorspace = V4L2_COLORSPACE_SRGB;
 
@@ -1256,7 +1256,7 @@ free_ctrl:
 	return ret;
 }
 
-static int ov5645_remove(struct i2c_client *client)
+static void ov5645_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov5645 *ov5645 = to_ov5645(sd);
@@ -1265,8 +1265,6 @@ static int ov5645_remove(struct i2c_client *client)
 	media_entity_cleanup(&ov5645->sd.entity);
 	v4l2_ctrl_handler_free(&ov5645->ctrls);
 	mutex_destroy(&ov5645->power_lock);
-
-	return 0;
 }
 
 static const struct i2c_device_id ov5645_id[] = {
@@ -1283,7 +1281,7 @@ MODULE_DEVICE_TABLE(of, ov5645_of_match);
 
 static struct i2c_driver ov5645_i2c_driver = {
 	.driver = {
-		.of_match_table = of_match_ptr(ov5645_of_match),
+		.of_match_table = ov5645_of_match,
 		.name  = "ov5645",
 	},
 	.probe_new = ov5645_probe,

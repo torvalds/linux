@@ -11,12 +11,14 @@ ignore define LIRC_SPACE
 ignore define LIRC_PULSE
 ignore define LIRC_FREQUENCY
 ignore define LIRC_TIMEOUT
+ignore define LIRC_OVERFLOW
 ignore define LIRC_VALUE
 ignore define LIRC_MODE2
 ignore define LIRC_IS_SPACE
 ignore define LIRC_IS_PULSE
 ignore define LIRC_IS_FREQUENCY
 ignore define LIRC_IS_TIMEOUT
+ignore define LIRC_IS_OVERFLOW
 
 ignore define LIRC_MODE2SEND
 ignore define LIRC_SEND2MODE
@@ -28,7 +30,8 @@ ignore define LIRC_CAN_REC
 
 ignore define LIRC_CAN_SEND_MASK
 ignore define LIRC_CAN_REC_MASK
-ignore define LIRC_CAN_SET_REC_DUTY_CYCLE
+ignore define LIRC_CAN_SET_REC_FILTER
+ignore define LIRC_CAN_NOTIFY_DECODE
 
 # Obsolete ioctls
 
@@ -75,6 +78,7 @@ ignore define PULSE_MASK
 ignore define LIRC_MODE2_SPACE
 ignore define LIRC_MODE2_PULSE
 ignore define LIRC_MODE2_TIMEOUT
+ignore define LIRC_MODE2_OVERFLOW
 
 ignore define LIRC_VALUE_MASK
 ignore define LIRC_MODE2_MASK

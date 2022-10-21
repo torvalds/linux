@@ -54,6 +54,8 @@ int intel_connector_init(struct intel_connector *connector)
 	__drm_atomic_helper_connector_reset(&connector->base,
 					    &conn_state->base);
 
+	INIT_LIST_HEAD(&connector->panel.fixed_modes);
+
 	return 0;
 }
 
@@ -100,7 +102,7 @@ void intel_connector_destroy(struct drm_connector *connector)
 	if (!IS_ERR_OR_NULL(intel_connector->edid))
 		kfree(intel_connector->edid);
 
-	intel_panel_fini(&intel_connector->panel);
+	intel_panel_fini(intel_connector);
 
 	drm_connector_cleanup(connector);
 
@@ -227,7 +229,7 @@ intel_attach_force_audio_property(struct drm_connector *connector)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_property *prop;
 
-	prop = dev_priv->force_audio_property;
+	prop = dev_priv->display.properties.force_audio;
 	if (prop == NULL) {
 		prop = drm_property_create_enum(dev, 0,
 					   "audio",
@@ -236,7 +238,7 @@ intel_attach_force_audio_property(struct drm_connector *connector)
 		if (prop == NULL)
 			return;
 
-		dev_priv->force_audio_property = prop;
+		dev_priv->display.properties.force_audio = prop;
 	}
 	drm_object_attach_property(&connector->base, prop, 0);
 }
@@ -254,7 +256,7 @@ intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_property *prop;
 
-	prop = dev_priv->broadcast_rgb_property;
+	prop = dev_priv->display.properties.broadcast_rgb;
 	if (prop == NULL) {
 		prop = drm_property_create_enum(dev, DRM_MODE_PROP_ENUM,
 					   "Broadcast RGB",
@@ -263,7 +265,7 @@ intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 		if (prop == NULL)
 			return;
 
-		dev_priv->broadcast_rgb_property = prop;
+		dev_priv->display.properties.broadcast_rgb = prop;
 	}
 
 	drm_object_attach_property(&connector->base, prop, 0);

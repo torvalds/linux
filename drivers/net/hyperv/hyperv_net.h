@@ -15,6 +15,7 @@
 #include <linux/list.h>
 #include <linux/hyperv.h>
 #include <linux/rndis.h>
+#include <linux/jhash.h>
 
 /* RSS related */
 #define OID_GEN_RECEIVE_SCALE_CAPABILITIES 0x00010203  /* query only */
@@ -237,6 +238,7 @@ int netvsc_recv_callback(struct net_device *net,
 void netvsc_channel_cb(void *context);
 int netvsc_poll(struct napi_struct *napi, int budget);
 
+void netvsc_xdp_xmit(struct sk_buff *skb, struct net_device *ndev);
 u32 netvsc_run_xdp(struct net_device *ndev, struct netvsc_channel *nvchan,
 		   struct xdp_buff *xdp);
 unsigned int netvsc_xdp_fraglen(unsigned int len);
@@ -246,6 +248,8 @@ int netvsc_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 		   struct netvsc_device *nvdev);
 int netvsc_vf_setxdp(struct net_device *vf_netdev, struct bpf_prog *prog);
 int netvsc_bpf(struct net_device *dev, struct netdev_bpf *bpf);
+int netvsc_ndoxdp_xmit(struct net_device *ndev, int n,
+		       struct xdp_frame **frames, u32 flags);
 
 int rndis_set_subchannel(struct net_device *ndev,
 			 struct netvsc_device *nvdev,
@@ -942,12 +946,21 @@ struct nvsc_rsc {
 #define NVSC_RSC_CSUM_INFO	BIT(1)	/* valid/present bit for 'csum_info' */
 #define NVSC_RSC_HASH_INFO	BIT(2)	/* valid/present bit for 'hash_info' */
 
-struct netvsc_stats {
+struct netvsc_stats_tx {
+	u64 packets;
+	u64 bytes;
+	u64 xdp_xmit;
+	struct u64_stats_sync syncp;
+};
+
+struct netvsc_stats_rx {
 	u64 packets;
 	u64 bytes;
 	u64 broadcast;
 	u64 multicast;
 	u64 xdp_drop;
+	u64 xdp_redirect;
+	u64 xdp_tx;
 	struct u64_stats_sync syncp;
 };
 
@@ -1038,13 +1051,63 @@ struct net_device_context {
 	u32 vf_alloc;
 	/* Serial number of the VF to team with */
 	u32 vf_serial;
-
+	/* completion variable to confirm vf association */
+	struct completion vf_add;
 	/* Is the current data path through the VF NIC? */
 	bool  data_path_is_vf;
 
 	/* Used to temporarily save the config info across hibernation */
 	struct netvsc_device_info *saved_netvsc_dev_info;
 };
+
+/* Azure hosts don't support non-TCP port numbers in hashing for fragmented
+ * packets. We can use ethtool to change UDP hash level when necessary.
+ */
+static inline u32 netvsc_get_hash(struct sk_buff *skb,
+				  const struct net_device_context *ndc)
+{
+	struct flow_keys flow;
+	u32 hash, pkt_proto = 0;
+	static u32 hashrnd __read_mostly;
+
+	net_get_random_once(&hashrnd, sizeof(hashrnd));
+
+	if (!skb_flow_dissect_flow_keys(skb, &flow, 0))
+		return 0;
+
+	switch (flow.basic.ip_proto) {
+	case IPPROTO_TCP:
+		if (flow.basic.n_proto == htons(ETH_P_IP))
+			pkt_proto = HV_TCP4_L4HASH;
+		else if (flow.basic.n_proto == htons(ETH_P_IPV6))
+			pkt_proto = HV_TCP6_L4HASH;
+
+		break;
+
+	case IPPROTO_UDP:
+		if (flow.basic.n_proto == htons(ETH_P_IP))
+			pkt_proto = HV_UDP4_L4HASH;
+		else if (flow.basic.n_proto == htons(ETH_P_IPV6))
+			pkt_proto = HV_UDP6_L4HASH;
+
+		break;
+	}
+
+	if (pkt_proto & ndc->l4_hash) {
+		return skb_get_hash(skb);
+	} else {
+		if (flow.basic.n_proto == htons(ETH_P_IP))
+			hash = jhash2((u32 *)&flow.addrs.v4addrs, 2, hashrnd);
+		else if (flow.basic.n_proto == htons(ETH_P_IPV6))
+			hash = jhash2((u32 *)&flow.addrs.v6addrs, 8, hashrnd);
+		else
+			return 0;
+
+		__skb_set_sw_hash(skb, hash, false);
+	}
+
+	return hash;
+}
 
 /* Per channel data */
 struct netvsc_channel {
@@ -1060,9 +1123,10 @@ struct netvsc_channel {
 
 	struct bpf_prog __rcu *bpf_prog;
 	struct xdp_rxq_info xdp_rxq;
+	bool xdp_flush;
 
-	struct netvsc_stats tx_stats;
-	struct netvsc_stats rx_stats;
+	struct netvsc_stats_tx tx_stats;
+	struct netvsc_stats_rx rx_stats;
 };
 
 /* Per netvsc device */

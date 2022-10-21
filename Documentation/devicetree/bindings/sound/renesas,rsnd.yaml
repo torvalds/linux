@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/renesas,rsnd.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Renesas R-Car Sound Driver Device Tree Bindings
+title: Renesas R-Car Sound Driver
 
 maintainers:
   - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
@@ -123,14 +123,14 @@ properties:
     $ref: audio-graph-port.yaml#
     unevaluatedProperties: false
 
-# use patternProperties to avoid naming "xxx,yyy" issue
-patternProperties:
-  "^rcar_sound,dvc$":
+  rcar_sound,dvc:
     description: DVC subnode.
     type: object
     patternProperties:
       "^dvc-[0-1]$":
         type: object
+        additionalProperties: false
+
         properties:
           dmas:
             maxItems: 1
@@ -141,30 +141,32 @@ patternProperties:
           - dma-names
     additionalProperties: false
 
-  "^rcar_sound,mix$":
+  rcar_sound,mix:
     description: MIX subnode.
     type: object
     patternProperties:
       "^mix-[0-1]$":
         type: object
-        # no properties
+        additionalProperties: false
     additionalProperties: false
 
-  "^rcar_sound,ctu$":
+  rcar_sound,ctu:
     description: CTU subnode.
     type: object
     patternProperties:
       "^ctu-[0-7]$":
         type: object
-        # no properties
+        additionalProperties: false
     additionalProperties: false
 
-  "^rcar_sound,src$":
+  rcar_sound,src:
     description: SRC subnode.
     type: object
     patternProperties:
       "^src-[0-9]$":
         type: object
+        additionalProperties: false
+
         properties:
           interrupts:
             maxItems: 1
@@ -182,12 +184,14 @@ patternProperties:
           - dma-names
     additionalProperties: false
 
-  "^rcar_sound,ssiu$":
+  rcar_sound,ssiu:
     description: SSIU subnode.
     type: object
     patternProperties:
       "^ssiu-[0-9]+$":
         type: object
+        additionalProperties: false
+
         properties:
           dmas:
             maxItems: 2
@@ -202,12 +206,14 @@ patternProperties:
           - dma-names
     additionalProperties: false
 
-  "^rcar_sound,ssi$":
+  rcar_sound,ssi:
     description: SSI subnode.
     type: object
     patternProperties:
       "^ssi-[0-9]$":
         type: object
+        additionalProperties: false
+
         properties:
           interrupts:
             maxItems: 1
@@ -239,12 +245,14 @@ patternProperties:
     additionalProperties: false
 
   # For DAI base
-  "^rcar_sound,dai$":
+  rcar_sound,dai:
     description: DAI subnode.
     type: object
     patternProperties:
       "^dai([0-9]+)?$":
         type: object
+        additionalProperties: false
+
         properties:
           playback:
             $ref: /schemas/types.yaml#/definitions/phandle-array

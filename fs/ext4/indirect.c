@@ -460,7 +460,7 @@ static int ext4_splice_branch(handle_t *handle,
 		 * the new i_size.  But that is not done here - it is done in
 		 * generic_commit_write->__mark_inode_dirty->ext4_dirty_inode.
 		 */
-		jbd_debug(5, "splicing indirect only\n");
+		ext4_debug("splicing indirect only\n");
 		BUFFER_TRACE(where->bh, "call ext4_handle_dirty_metadata");
 		err = ext4_handle_dirty_metadata(handle, ar->inode, where->bh);
 		if (err)
@@ -472,7 +472,7 @@ static int ext4_splice_branch(handle_t *handle,
 		err = ext4_mark_inode_dirty(handle, ar->inode);
 		if (unlikely(err))
 			goto err_out;
-		jbd_debug(5, "splicing direct\n");
+		ext4_debug("splicing direct\n");
 	}
 	return err;
 
@@ -696,7 +696,7 @@ static int ext4_ind_trunc_restart_fn(handle_t *handle, struct inode *inode,
 	 * Drop i_data_sem to avoid deadlock with ext4_map_blocks.  At this
 	 * moment, get_block can be called only for blocks inside i_size since
 	 * page cache has been already dropped and writes are blocked by
-	 * i_mutex. So we can safely drop the i_data_sem here.
+	 * i_rwsem. So we can safely drop the i_data_sem here.
 	 */
 	BUG_ON(EXT4_JOURNAL(inode) == NULL);
 	ext4_discard_preallocations(inode, 0);

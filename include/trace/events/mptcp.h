@@ -84,6 +84,7 @@ DECLARE_EVENT_CLASS(mptcp_dump_mpext,
 		__field(u8, reset_transient)
 		__field(u8, reset_reason)
 		__field(u8, csum_reqd)
+		__field(u8, infinite_map)
 	),
 
 	TP_fast_assign(
@@ -102,9 +103,10 @@ DECLARE_EVENT_CLASS(mptcp_dump_mpext,
 		__entry->reset_transient = mpext->reset_transient;
 		__entry->reset_reason = mpext->reset_reason;
 		__entry->csum_reqd = mpext->csum_reqd;
+		__entry->infinite_map = mpext->infinite_map;
 	),
 
-	TP_printk("data_ack=%llu data_seq=%llu subflow_seq=%u data_len=%u csum=%x use_map=%u dsn64=%u data_fin=%u use_ack=%u ack64=%u mpc_map=%u frozen=%u reset_transient=%u reset_reason=%u csum_reqd=%u",
+	TP_printk("data_ack=%llu data_seq=%llu subflow_seq=%u data_len=%u csum=%x use_map=%u dsn64=%u data_fin=%u use_ack=%u ack64=%u mpc_map=%u frozen=%u reset_transient=%u reset_reason=%u csum_reqd=%u infinite_map=%u",
 		  __entry->data_ack, __entry->data_seq,
 		  __entry->subflow_seq, __entry->data_len,
 		  __entry->csum, __entry->use_map,
@@ -112,8 +114,12 @@ DECLARE_EVENT_CLASS(mptcp_dump_mpext,
 		  __entry->use_ack, __entry->ack64,
 		  __entry->mpc_map, __entry->frozen,
 		  __entry->reset_transient, __entry->reset_reason,
-		  __entry->csum_reqd)
+		  __entry->csum_reqd, __entry->infinite_map)
 );
+
+DEFINE_EVENT(mptcp_dump_mpext, mptcp_sendmsg_frag,
+	TP_PROTO(struct mptcp_ext *mpext),
+	TP_ARGS(mpext));
 
 DEFINE_EVENT(mptcp_dump_mpext, get_mapping_status,
 	TP_PROTO(struct mptcp_ext *mpext),

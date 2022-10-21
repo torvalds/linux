@@ -61,6 +61,14 @@ static irqreturn_t cypress_sf_irq_handler(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
+static void cypress_sf_disable_regulators(void *arg)
+{
+	struct cypress_sf_data *touchkey = arg;
+
+	regulator_bulk_disable(ARRAY_SIZE(touchkey->regulators),
+			       touchkey->regulators);
+}
+
 static int cypress_sf_probe(struct i2c_client *client)
 {
 	struct cypress_sf_data *touchkey;
@@ -120,6 +128,12 @@ static int cypress_sf_probe(struct i2c_client *client)
 			"Failed to enable regulators: %d\n", error);
 		return error;
 	}
+
+	error = devm_add_action_or_reset(&client->dev,
+					 cypress_sf_disable_regulators,
+					 touchkey);
+	if (error)
+		return error;
 
 	touchkey->input_dev = devm_input_allocate_device(&client->dev);
 	if (!touchkey->input_dev) {

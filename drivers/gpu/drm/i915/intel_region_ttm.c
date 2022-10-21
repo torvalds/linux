@@ -12,6 +12,7 @@
 
 #include "intel_region_ttm.h"
 
+#include "gem/i915_gem_region.h"
 #include "gem/i915_gem_ttm.h" /* For the funcs/ops export only */
 /**
  * DOC: TTM support structure
@@ -87,6 +88,7 @@ int intel_region_ttm_init(struct intel_memory_region *mem)
 
 	ret = i915_ttm_buddy_man_init(bdev, mem_type, false,
 				      resource_size(&mem->region),
+				      mem->io_size,
 				      mem->min_page_size, PAGE_SIZE);
 	if (ret)
 		return ret;
@@ -150,6 +152,7 @@ int intel_region_ttm_fini(struct intel_memory_region *mem)
  * Convert an opaque TTM resource manager resource to a refcounted sg_table.
  * @mem: The memory region.
  * @res: The resource manager resource obtained from the TTM resource manager.
+ * @page_alignment: Required page alignment for each sg entry. Power of two.
  *
  * The gem backends typically use sg-tables for operations on the underlying
  * io_memory. So provide a way for the backends to translate the
@@ -159,16 +162,19 @@ int intel_region_ttm_fini(struct intel_memory_region *mem)
  */
 struct i915_refct_sgt *
 intel_region_ttm_resource_to_rsgt(struct intel_memory_region *mem,
-				  struct ttm_resource *res)
+				  struct ttm_resource *res,
+				  u32 page_alignment)
 {
 	if (mem->is_range_manager) {
 		struct ttm_range_mgr_node *range_node =
 			to_ttm_range_mgr_node(res);
 
 		return i915_rsgt_from_mm_node(&range_node->mm_nodes[0],
-					      mem->region.start);
+					      mem->region.start,
+					      page_alignment);
 	} else {
-		return i915_rsgt_from_buddy_resource(res, mem->region.start);
+		return i915_rsgt_from_buddy_resource(res, mem->region.start,
+						     page_alignment);
 	}
 }
 
@@ -190,6 +196,7 @@ intel_region_ttm_resource_to_rsgt(struct intel_memory_region *mem,
  */
 struct ttm_resource *
 intel_region_ttm_resource_alloc(struct intel_memory_region *mem,
+				resource_size_t offset,
 				resource_size_t size,
 				unsigned int flags)
 {
@@ -199,12 +206,28 @@ intel_region_ttm_resource_alloc(struct intel_memory_region *mem,
 	struct ttm_resource *res;
 	int ret;
 
+	if (flags & I915_BO_ALLOC_CONTIGUOUS)
+		place.flags |= TTM_PL_FLAG_CONTIGUOUS;
+	if (offset != I915_BO_INVALID_OFFSET) {
+		place.fpfn = offset >> PAGE_SHIFT;
+		place.lpfn = place.fpfn + (size >> PAGE_SHIFT);
+	} else if (mem->io_size && mem->io_size < mem->total) {
+		if (flags & I915_BO_ALLOC_GPU_ONLY) {
+			place.flags |= TTM_PL_FLAG_TOPDOWN;
+		} else {
+			place.fpfn = 0;
+			place.lpfn = mem->io_size >> PAGE_SHIFT;
+		}
+	}
+
 	mock_bo.base.size = size;
-	place.flags = flags;
+	mock_bo.bdev = &mem->i915->bdev;
 
 	ret = man->func->alloc(man, &mock_bo, &place, &res);
 	if (ret == -ENOSPC)
 		ret = -ENXIO;
+	if (!ret)
+		res->bo = NULL; /* Rather blow up, then some uaf */
 	return ret ? ERR_PTR(ret) : res;
 }
 
@@ -219,6 +242,11 @@ void intel_region_ttm_resource_free(struct intel_memory_region *mem,
 				    struct ttm_resource *res)
 {
 	struct ttm_resource_manager *man = mem->region_private;
+	struct ttm_buffer_object mock_bo = {};
+
+	mock_bo.base.size = res->num_pages << PAGE_SHIFT;
+	mock_bo.bdev = &mem->i915->bdev;
+	res->bo = &mock_bo;
 
 	man->func->free(man, res);
 }

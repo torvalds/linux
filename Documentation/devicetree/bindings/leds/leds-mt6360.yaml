@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   This module is part of the MT6360 MFD device.
-  see Documentation/devicetree/bindings/mfd/mt6360.yaml
+  see Documentation/devicetree/bindings/mfd/mediatek,mt6360.yaml
   Add MT6360 LED driver include 2-channel Flash LED with torch/strobe mode,
   and 4-channel RGB LED support Register/Flash/Breath Mode
 
@@ -42,8 +42,6 @@ patternProperties:
           - 3 # LED output ISINKML
           - 4 # LED output FLASH1
           - 5 # LED output FLASH2
-
-unevaluatedProperties: false
 
 required:
   - compatible

@@ -313,7 +313,7 @@ mv_xor_v2_tx_submit(struct dma_async_tx_descriptor *tx)
 		"%s sw_desc %p: async_tx %p\n",
 		__func__, sw_desc, &sw_desc->async_tx);
 
-	/* assign coookie */
+	/* assign cookie */
 	spin_lock_bh(&xor_dev->lock);
 	cookie = dma_cookie_assign(tx);
 
@@ -591,14 +591,14 @@ static void mv_xor_v2_tasklet(struct tasklet_struct *t)
 		dma_run_dependencies(&next_pending_sw_desc->async_tx);
 
 		/* Lock the channel */
-		spin_lock_bh(&xor_dev->lock);
+		spin_lock(&xor_dev->lock);
 
 		/* add the SW descriptor to the free descriptors list */
 		list_add(&next_pending_sw_desc->free_list,
 			 &xor_dev->free_sw_desc);
 
 		/* Release the channel */
-		spin_unlock_bh(&xor_dev->lock);
+		spin_unlock(&xor_dev->lock);
 
 		/* increment the next descriptor */
 		pending_ptr++;

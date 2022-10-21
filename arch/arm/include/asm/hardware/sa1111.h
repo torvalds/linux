@@ -13,8 +13,6 @@
 #ifndef _ASM_ARCH_SA1111
 #define _ASM_ARCH_SA1111
 
-#include <mach/bitfield.h>
-
 /*
  * Don't ask the (SAC) DMA engines to move less than this amount.
  */

@@ -287,7 +287,7 @@ static void digicolor_uart_shutdown(struct uart_port *port)
 
 static void digicolor_uart_set_termios(struct uart_port *port,
 				       struct ktermios *termios,
-				       struct ktermios *old)
+				       const struct ktermios *old)
 {
 	unsigned int baud, divisor;
 	u8 config = 0;
@@ -309,6 +309,8 @@ static void digicolor_uart_set_termios(struct uart_port *port,
 	case CS8:
 	default:
 		config |= UA_CONFIG_CHAR_LEN;
+		termios->c_cflag &= ~CSIZE;
+		termios->c_cflag |= CS8;
 		break;
 	}
 
@@ -381,7 +383,7 @@ static const struct uart_ops digicolor_uart_ops = {
 	.request_port	= digicolor_uart_request_port,
 };
 
-static void digicolor_uart_console_putchar(struct uart_port *port, int ch)
+static void digicolor_uart_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	while (digicolor_uart_tx_full(port))
 		cpu_relax();
@@ -471,11 +473,10 @@ static int digicolor_uart_probe(struct platform_device *pdev)
 	if (IS_ERR(uart_clk))
 		return PTR_ERR(uart_clk);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dp->port.mapbase = res->start;
-	dp->port.membase = devm_ioremap_resource(&pdev->dev, res);
+	dp->port.membase = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(dp->port.membase))
 		return PTR_ERR(dp->port.membase);
+	dp->port.mapbase = res->start;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)

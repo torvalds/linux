@@ -14,11 +14,10 @@ static const char *__doc__ = " XDP RX-queue info extract example\n\n"
 #include <string.h>
 #include <unistd.h>
 #include <locale.h>
-#include <sys/resource.h>
 #include <getopt.h>
 #include <net/if.h>
 #include <time.h>
-
+#include <limits.h>
 #include <arpa/inet.h>
 #include <linux/if_link.h>
 
@@ -44,6 +43,9 @@ static struct bpf_map *rx_queue_index_map;
 #define EXIT_FAIL_BPF		4
 #define EXIT_FAIL_MEM		5
 
+#define FAIL_MEM_SIG		INT_MAX
+#define FAIL_STAT_SIG		(INT_MAX - 1)
+
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
 	{"dev",		required_argument,	NULL, 'd' },
@@ -62,21 +64,27 @@ static void int_exit(int sig)
 	__u32 curr_prog_id = 0;
 
 	if (ifindex > -1) {
-		if (bpf_get_link_xdp_id(ifindex, &curr_prog_id, xdp_flags)) {
-			printf("bpf_get_link_xdp_id failed\n");
+		if (bpf_xdp_query_id(ifindex, xdp_flags, &curr_prog_id)) {
+			printf("bpf_xdp_query_id failed\n");
 			exit(EXIT_FAIL);
 		}
 		if (prog_id == curr_prog_id) {
 			fprintf(stderr,
 				"Interrupted: Removing XDP program on ifindex:%d device:%s\n",
 				ifindex, ifname);
-			bpf_set_link_xdp_fd(ifindex, -1, xdp_flags);
+			bpf_xdp_detach(ifindex, xdp_flags, NULL);
 		} else if (!curr_prog_id) {
 			printf("couldn't find a prog id on a given iface\n");
 		} else {
 			printf("program on interface changed, not removing\n");
 		}
 	}
+
+	if (sig == FAIL_MEM_SIG)
+		exit(EXIT_FAIL_MEM);
+	else if (sig == FAIL_STAT_SIG)
+		exit(EXIT_FAIL);
+
 	exit(EXIT_OK);
 }
 
@@ -141,7 +149,8 @@ static char* options2str(enum cfg_options_flags flag)
 	if (flag & READ_MEM)
 		return "read";
 	fprintf(stderr, "ERR: Unknown config option flags");
-	exit(EXIT_FAIL);
+	int_exit(FAIL_STAT_SIG);
+	return "unknown";
 }
 
 static void usage(char *argv[])
@@ -174,7 +183,7 @@ static __u64 gettime(void)
 	res = clock_gettime(CLOCK_MONOTONIC, &t);
 	if (res < 0) {
 		fprintf(stderr, "Error with gettimeofday! (%i)\n", res);
-		exit(EXIT_FAIL);
+		int_exit(FAIL_STAT_SIG);
 	}
 	return (__u64) t.tv_sec * NANOSEC_PER_SEC + t.tv_nsec;
 }
@@ -202,34 +211,34 @@ static struct datarec *alloc_record_per_cpu(void)
 	array = calloc(nr_cpus, sizeof(struct datarec));
 	if (!array) {
 		fprintf(stderr, "Mem alloc error (nr_cpus:%u)\n", nr_cpus);
-		exit(EXIT_FAIL_MEM);
+		int_exit(FAIL_MEM_SIG);
 	}
 	return array;
 }
 
 static struct record *alloc_record_per_rxq(void)
 {
-	unsigned int nr_rxqs = bpf_map__def(rx_queue_index_map)->max_entries;
+	unsigned int nr_rxqs = bpf_map__max_entries(rx_queue_index_map);
 	struct record *array;
 
 	array = calloc(nr_rxqs, sizeof(struct record));
 	if (!array) {
 		fprintf(stderr, "Mem alloc error (nr_rxqs:%u)\n", nr_rxqs);
-		exit(EXIT_FAIL_MEM);
+		int_exit(FAIL_MEM_SIG);
 	}
 	return array;
 }
 
 static struct stats_record *alloc_stats_record(void)
 {
-	unsigned int nr_rxqs = bpf_map__def(rx_queue_index_map)->max_entries;
+	unsigned int nr_rxqs = bpf_map__max_entries(rx_queue_index_map);
 	struct stats_record *rec;
 	int i;
 
 	rec = calloc(1, sizeof(struct stats_record));
 	if (!rec) {
 		fprintf(stderr, "Mem alloc error\n");
-		exit(EXIT_FAIL_MEM);
+		int_exit(FAIL_MEM_SIG);
 	}
 	rec->rxq = alloc_record_per_rxq();
 	for (i = 0; i < nr_rxqs; i++)
@@ -241,7 +250,7 @@ static struct stats_record *alloc_stats_record(void)
 
 static void free_stats_record(struct stats_record *r)
 {
-	unsigned int nr_rxqs = bpf_map__def(rx_queue_index_map)->max_entries;
+	unsigned int nr_rxqs = bpf_map__max_entries(rx_queue_index_map);
 	int i;
 
 	for (i = 0; i < nr_rxqs; i++)
@@ -289,7 +298,7 @@ static void stats_collect(struct stats_record *rec)
 	map_collect_percpu(fd, 0, &rec->stats);
 
 	fd = bpf_map__fd(rx_queue_index_map);
-	max_rxqs = bpf_map__def(rx_queue_index_map)->max_entries;
+	max_rxqs = bpf_map__max_entries(rx_queue_index_map);
 	for (i = 0; i < max_rxqs; i++)
 		map_collect_percpu(fd, i, &rec->rxq[i]);
 }
@@ -335,7 +344,7 @@ static void stats_print(struct stats_record *stats_rec,
 			struct stats_record *stats_prev,
 			int action, __u32 cfg_opt)
 {
-	unsigned int nr_rxqs = bpf_map__def(rx_queue_index_map)->max_entries;
+	unsigned int nr_rxqs = bpf_map__max_entries(rx_queue_index_map);
 	unsigned int nr_cpus = bpf_num_possible_cpus();
 	double pps = 0, err = 0;
 	struct record *rec, *prev;
@@ -450,14 +459,12 @@ static void stats_poll(int interval, int action, __u32 cfg_opt)
 int main(int argc, char **argv)
 {
 	__u32 cfg_options= NO_TOUCH ; /* Default: Don't touch packet memory */
-	struct bpf_prog_load_attr prog_load_attr = {
-		.prog_type	= BPF_PROG_TYPE_XDP,
-	};
 	struct bpf_prog_info info = {};
 	__u32 info_len = sizeof(info);
 	int prog_fd, map_fd, opt, err;
 	bool use_separators = true;
 	struct config cfg = { 0 };
+	struct bpf_program *prog;
 	struct bpf_object *obj;
 	struct bpf_map *map;
 	char filename[256];
@@ -471,10 +478,18 @@ int main(int argc, char **argv)
 	char *action_str = NULL;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	prog_load_attr.file = filename;
 
-	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj))
 		return EXIT_FAIL;
+
+	prog = bpf_object__next_program(obj, NULL);
+	bpf_program__set_type(prog, BPF_PROG_TYPE_XDP);
+
+	err = bpf_object__load(obj);
+	if (err)
+		return EXIT_FAIL;
+	prog_fd = bpf_program__fd(prog);
 
 	map =  bpf_object__find_map_by_name(obj, "config_map");
 	stats_global_map = bpf_object__find_map_by_name(obj, "stats_global_map");
@@ -582,7 +597,7 @@ int main(int argc, char **argv)
 	signal(SIGINT, int_exit);
 	signal(SIGTERM, int_exit);
 
-	if (bpf_set_link_xdp_fd(ifindex, prog_fd, xdp_flags) < 0) {
+	if (bpf_xdp_attach(ifindex, prog_fd, xdp_flags, NULL) < 0) {
 		fprintf(stderr, "link set xdp fd failed\n");
 		return EXIT_FAIL_XDP;
 	}

@@ -62,8 +62,6 @@
 #include <trace/events/skb.h>
 #include <net/busy_poll.h>
 
-#include "datagram.h"
-
 /*
  *	Is a socket 'connection oriented' ?
  */
@@ -310,12 +308,11 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk,
 EXPORT_SYMBOL(__skb_recv_datagram);
 
 struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned int flags,
-				  int noblock, int *err)
+				  int *err)
 {
 	int off = 0;
 
-	return __skb_recv_datagram(sk, &sk->sk_receive_queue,
-				   flags | (noblock ? MSG_DONTWAIT : 0),
+	return __skb_recv_datagram(sk, &sk->sk_receive_queue, flags,
 				   &off, err);
 }
 EXPORT_SYMBOL(skb_recv_datagram);
@@ -323,7 +320,6 @@ EXPORT_SYMBOL(skb_recv_datagram);
 void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
 {
 	consume_skb(skb);
-	sk_mem_reclaim_partial(sk);
 }
 EXPORT_SYMBOL(skb_free_datagram);
 
@@ -339,7 +335,6 @@ void __skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb, int len)
 	slow = lock_sock_fast(sk);
 	sk_peek_offset_bwd(sk, len);
 	skb_orphan(skb);
-	sk_mem_reclaim_partial(sk);
 	unlock_sock_fast(sk, slow);
 
 	/* skb is now orphaned, can be freed outside of locked section */
@@ -399,7 +394,6 @@ int skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags)
 				      NULL);
 
 	kfree_skb(skb);
-	sk_mem_reclaim_partial(sk);
 	return err;
 }
 EXPORT_SYMBOL(skb_kill_datagram);
@@ -616,10 +610,16 @@ fault:
 }
 EXPORT_SYMBOL(skb_copy_datagram_from_iter);
 
-int __zerocopy_sg_from_iter(struct sock *sk, struct sk_buff *skb,
-			    struct iov_iter *from, size_t length)
+int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
+			    struct sk_buff *skb, struct iov_iter *from,
+			    size_t length)
 {
-	int frag = skb_shinfo(skb)->nr_frags;
+	int frag;
+
+	if (msg && msg->msg_ubuf && msg->sg_from_iter)
+		return msg->sg_from_iter(sk, skb, from, length);
+
+	frag = skb_shinfo(skb)->nr_frags;
 
 	while (length && iov_iter_count(from)) {
 		struct page *pages[MAX_SKB_FRAGS];
@@ -632,12 +632,11 @@ int __zerocopy_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 		if (frag == MAX_SKB_FRAGS)
 			return -EMSGSIZE;
 
-		copied = iov_iter_get_pages(from, pages, length,
+		copied = iov_iter_get_pages2(from, pages, length,
 					    MAX_SKB_FRAGS - frag, &start);
 		if (copied < 0)
 			return -EFAULT;
 
-		iov_iter_advance(from, copied);
 		length -= copied;
 
 		truesize = PAGE_ALIGN(copied + start);
@@ -678,7 +677,7 @@ int __zerocopy_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 				page_ref_sub(last_head, refs);
 				refs = 0;
 			}
-			skb_fill_page_desc(skb, frag++, head, start, size);
+			skb_fill_page_desc_noacc(skb, frag++, head, start, size);
 		}
 		if (refs)
 			page_ref_sub(last_head, refs);
@@ -705,7 +704,7 @@ int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *from)
 	if (skb_copy_datagram_from_iter(skb, 0, from, copy))
 		return -EFAULT;
 
-	return __zerocopy_sg_from_iter(NULL, skb, from, ~0U);
+	return __zerocopy_sg_from_iter(NULL, NULL, skb, from, ~0U);
 }
 EXPORT_SYMBOL(zerocopy_sg_from_iter);
 

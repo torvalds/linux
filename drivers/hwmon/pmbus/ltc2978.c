@@ -196,6 +196,17 @@ static int ltc_read_byte_data(struct i2c_client *client, int page, int reg)
 	return pmbus_read_byte_data(client, page, reg);
 }
 
+static int ltc_write_byte_data(struct i2c_client *client, int page, int reg, u8 value)
+{
+	int ret;
+
+	ret = ltc_wait_ready(client);
+	if (ret < 0)
+		return ret;
+
+	return pmbus_write_byte_data(client, page, reg, value);
+}
+
 static int ltc_write_byte(struct i2c_client *client, int page, u8 byte)
 {
 	int ret;
@@ -551,7 +562,24 @@ static const struct i2c_device_id ltc2978_id[] = {
 MODULE_DEVICE_TABLE(i2c, ltc2978_id);
 
 #if IS_ENABLED(CONFIG_SENSORS_LTC2978_REGULATOR)
+#define LTC2978_ADC_RES	0xFFFF
+#define LTC2978_N_ADC	122
+#define LTC2978_MAX_UV	(LTC2978_ADC_RES * LTC2978_N_ADC)
+#define LTC2978_UV_STEP	1000
+#define LTC2978_N_VOLTAGES	((LTC2978_MAX_UV / LTC2978_UV_STEP) + 1)
+
 static const struct regulator_desc ltc2978_reg_desc[] = {
+	PMBUS_REGULATOR_STEP("vout", 0, LTC2978_N_VOLTAGES, LTC2978_UV_STEP),
+	PMBUS_REGULATOR_STEP("vout", 1, LTC2978_N_VOLTAGES, LTC2978_UV_STEP),
+	PMBUS_REGULATOR_STEP("vout", 2, LTC2978_N_VOLTAGES, LTC2978_UV_STEP),
+	PMBUS_REGULATOR_STEP("vout", 3, LTC2978_N_VOLTAGES, LTC2978_UV_STEP),
+	PMBUS_REGULATOR_STEP("vout", 4, LTC2978_N_VOLTAGES, LTC2978_UV_STEP),
+	PMBUS_REGULATOR_STEP("vout", 5, LTC2978_N_VOLTAGES, LTC2978_UV_STEP),
+	PMBUS_REGULATOR_STEP("vout", 6, LTC2978_N_VOLTAGES, LTC2978_UV_STEP),
+	PMBUS_REGULATOR_STEP("vout", 7, LTC2978_N_VOLTAGES, LTC2978_UV_STEP),
+};
+
+static const struct regulator_desc ltc2978_reg_desc_default[] = {
 	PMBUS_REGULATOR("vout", 0),
 	PMBUS_REGULATOR("vout", 1),
 	PMBUS_REGULATOR("vout", 2),
@@ -681,6 +709,7 @@ static int ltc2978_probe(struct i2c_client *client)
 	info = &data->info;
 	info->write_word_data = ltc2978_write_word_data;
 	info->write_byte = ltc_write_byte;
+	info->write_byte_data = ltc_write_byte_data;
 	info->read_word_data = ltc_read_word_data;
 	info->read_byte_data = ltc_read_byte_data;
 
@@ -827,10 +856,29 @@ static int ltc2978_probe(struct i2c_client *client)
 
 #if IS_ENABLED(CONFIG_SENSORS_LTC2978_REGULATOR)
 	info->num_regulators = info->pages;
-	info->reg_desc = ltc2978_reg_desc;
-	if (info->num_regulators > ARRAY_SIZE(ltc2978_reg_desc)) {
-		dev_err(&client->dev, "num_regulators too large!");
-		info->num_regulators = ARRAY_SIZE(ltc2978_reg_desc);
+	switch (data->id) {
+	case ltc2972:
+	case ltc2974:
+	case ltc2975:
+	case ltc2977:
+	case ltc2978:
+	case ltc2979:
+	case ltc2980:
+	case ltm2987:
+		info->reg_desc = ltc2978_reg_desc;
+		if (info->num_regulators > ARRAY_SIZE(ltc2978_reg_desc)) {
+			dev_warn(&client->dev, "num_regulators too large!");
+			info->num_regulators = ARRAY_SIZE(ltc2978_reg_desc);
+		}
+		break;
+	default:
+		info->reg_desc = ltc2978_reg_desc_default;
+		if (info->num_regulators > ARRAY_SIZE(ltc2978_reg_desc_default)) {
+			dev_warn(&client->dev, "num_regulators too large!");
+			info->num_regulators =
+			    ARRAY_SIZE(ltc2978_reg_desc_default);
+		}
+		break;
 	}
 #endif
 

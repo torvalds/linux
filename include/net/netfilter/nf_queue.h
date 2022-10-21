@@ -37,13 +37,13 @@ void nf_register_queue_handler(const struct nf_queue_handler *qh);
 void nf_unregister_queue_handler(void);
 void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict);
 
-void nf_queue_entry_get_refs(struct nf_queue_entry *entry);
+bool nf_queue_entry_get_refs(struct nf_queue_entry *entry);
 void nf_queue_entry_free(struct nf_queue_entry *entry);
 
 static inline void init_hashrandom(u32 *jhash_initval)
 {
 	while (*jhash_initval == 0)
-		*jhash_initval = prandom_u32();
+		*jhash_initval = get_random_u32();
 }
 
 static inline u32 hash_v4(const struct iphdr *iph, u32 initval)

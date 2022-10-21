@@ -42,7 +42,7 @@ patternProperties:
     description:
       The individual power management domains within this controller
     type: object
-    $ref: /power/apple,pmgr-pwrstate.yaml#
+    $ref: /schemas/power/apple,pmgr-pwrstate.yaml#
 
 required:
   - compatible

@@ -28,9 +28,9 @@
 
 static struct kmem_cache *ebitmap_node_cachep __ro_after_init;
 
-int ebitmap_cmp(struct ebitmap *e1, struct ebitmap *e2)
+int ebitmap_cmp(const struct ebitmap *e1, const struct ebitmap *e2)
 {
-	struct ebitmap_node *n1, *n2;
+	const struct ebitmap_node *n1, *n2;
 
 	if (e1->highbit != e2->highbit)
 		return 0;
@@ -50,9 +50,10 @@ int ebitmap_cmp(struct ebitmap *e1, struct ebitmap *e2)
 	return 1;
 }
 
-int ebitmap_cpy(struct ebitmap *dst, struct ebitmap *src)
+int ebitmap_cpy(struct ebitmap *dst, const struct ebitmap *src)
 {
-	struct ebitmap_node *n, *new, *prev;
+	struct ebitmap_node *new, *prev;
+	const struct ebitmap_node *n;
 
 	ebitmap_init(dst);
 	n = src->node;
@@ -78,7 +79,7 @@ int ebitmap_cpy(struct ebitmap *dst, struct ebitmap *src)
 	return 0;
 }
 
-int ebitmap_and(struct ebitmap *dst, struct ebitmap *e1, struct ebitmap *e2)
+int ebitmap_and(struct ebitmap *dst, const struct ebitmap *e1, const struct ebitmap *e2)
 {
 	struct ebitmap_node *n;
 	int bit, rc;
@@ -217,9 +218,9 @@ netlbl_import_failure:
  * if last_e2bit is non-zero, the highest set bit in e2 cannot exceed
  * last_e2bit.
  */
-int ebitmap_contains(struct ebitmap *e1, struct ebitmap *e2, u32 last_e2bit)
+int ebitmap_contains(const struct ebitmap *e1, const struct ebitmap *e2, u32 last_e2bit)
 {
-	struct ebitmap_node *n1, *n2;
+	const struct ebitmap_node *n1, *n2;
 	int i;
 
 	if (e1->highbit < e2->highbit)
@@ -258,9 +259,9 @@ int ebitmap_contains(struct ebitmap *e1, struct ebitmap *e2, u32 last_e2bit)
 	return 1;
 }
 
-int ebitmap_get_bit(struct ebitmap *e, unsigned long bit)
+int ebitmap_get_bit(const struct ebitmap *e, unsigned long bit)
 {
-	struct ebitmap_node *n;
+	const struct ebitmap_node *n;
 
 	if (e->highbit < bit)
 		return 0;
@@ -359,7 +360,6 @@ void ebitmap_destroy(struct ebitmap *e)
 
 	e->highbit = 0;
 	e->node = NULL;
-	return;
 }
 
 int ebitmap_read(struct ebitmap *e, void *fp)
@@ -468,7 +468,7 @@ bad:
 	goto out;
 }
 
-int ebitmap_write(struct ebitmap *e, void *fp)
+int ebitmap_write(const struct ebitmap *e, void *fp)
 {
 	struct ebitmap_node *n;
 	u32 count;

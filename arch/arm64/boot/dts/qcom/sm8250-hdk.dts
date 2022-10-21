@@ -53,10 +53,10 @@
 		vin-supply = <&vph_pwr>;
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
-		vol-up {
+		key-vol-up {
 			label = "Volume Up";
 			linux,code = <KEY_VOLUMEUP>;
 			gpios = <&pm8150_gpios 6 GPIO_ACTIVE_LOW>;

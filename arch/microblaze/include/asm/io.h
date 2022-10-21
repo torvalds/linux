@@ -30,8 +30,6 @@ extern resource_size_t isa_mem_base;
 #define PCI_IOBASE	((void __iomem *)_IO_BASE)
 #define IO_SPACE_LIMIT (0xFFFFFFFF)
 
-#define page_to_bus(page)	(page_to_phys(page))
-
 extern void iounmap(volatile void __iomem *addr);
 
 extern void __iomem *ioremap(phys_addr_t address, unsigned long size);

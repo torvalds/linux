@@ -14,8 +14,8 @@
 #include <linux/delay.h>
 #include <linux/serial_reg.h>
 #include <linux/serial_8250.h>
+#include <linux/of.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/termbits.h>
 
 #include "mpc10x.h"
@@ -123,6 +123,8 @@ static int __init ls_uarts_init(void)
 
 	avr_clock = *(u32*)of_get_property(avr, "clock-frequency", &len);
 	phys_addr = ((u32*)of_get_property(avr, "reg", &len))[0];
+
+	of_node_put(avr);
 
 	if (!avr_clock || !phys_addr)
 		return -EINVAL;

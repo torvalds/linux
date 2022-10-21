@@ -38,74 +38,6 @@ struct stm32_usart_info {
 
 #define UNDEF_REG 0xff
 
-/* Register offsets */
-struct stm32_usart_info stm32f4_info = {
-	.ofs = {
-		.isr	= 0x00,
-		.rdr	= 0x04,
-		.tdr	= 0x04,
-		.brr	= 0x08,
-		.cr1	= 0x0c,
-		.cr2	= 0x10,
-		.cr3	= 0x14,
-		.gtpr	= 0x18,
-		.rtor	= UNDEF_REG,
-		.rqr	= UNDEF_REG,
-		.icr	= UNDEF_REG,
-	},
-	.cfg = {
-		.uart_enable_bit = 13,
-		.has_7bits_data = false,
-		.fifosize = 1,
-	}
-};
-
-struct stm32_usart_info stm32f7_info = {
-	.ofs = {
-		.cr1	= 0x00,
-		.cr2	= 0x04,
-		.cr3	= 0x08,
-		.brr	= 0x0c,
-		.gtpr	= 0x10,
-		.rtor	= 0x14,
-		.rqr	= 0x18,
-		.isr	= 0x1c,
-		.icr	= 0x20,
-		.rdr	= 0x24,
-		.tdr	= 0x28,
-	},
-	.cfg = {
-		.uart_enable_bit = 0,
-		.has_7bits_data = true,
-		.has_swap = true,
-		.fifosize = 1,
-	}
-};
-
-struct stm32_usart_info stm32h7_info = {
-	.ofs = {
-		.cr1	= 0x00,
-		.cr2	= 0x04,
-		.cr3	= 0x08,
-		.brr	= 0x0c,
-		.gtpr	= 0x10,
-		.rtor	= 0x14,
-		.rqr	= 0x18,
-		.isr	= 0x1c,
-		.icr	= 0x20,
-		.rdr	= 0x24,
-		.tdr	= 0x28,
-	},
-	.cfg = {
-		.uart_enable_bit = 0,
-		.has_7bits_data = true,
-		.has_swap = true,
-		.has_wakeup = true,
-		.has_fifo = true,
-		.fifosize = 16,
-	}
-};
-
 /* USART_SR (F4) / USART_ISR (F7) */
 #define USART_SR_PE		BIT(0)
 #define USART_SR_FE		BIT(1)
@@ -251,6 +183,8 @@ struct stm32_usart_info stm32h7_info = {
 #define RX_BUF_P (RX_BUF_L / 2)	 /* dma rx buffer period     */
 #define TX_BUF_L RX_BUF_L	 /* dma tx buffer length     */
 
+#define STM32_USART_TIMEOUT_USEC USEC_PER_SEC /* 1s timeout in µs */
+
 struct stm32_port {
 	struct uart_port port;
 	struct clk *clk;
@@ -269,6 +203,7 @@ struct stm32_port {
 	bool hw_flow_control;
 	bool swap;		 /* swap RX & TX pins */
 	bool fifoen;
+	bool txdone;
 	int rxftcfg;		/* RX FIFO threshold CFG      */
 	int txftcfg;		/* TX FIFO threshold CFG      */
 	bool wakeup_src;

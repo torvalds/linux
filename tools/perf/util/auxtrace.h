@@ -48,6 +48,7 @@ enum auxtrace_type {
 	PERF_AUXTRACE_CS_ETM,
 	PERF_AUXTRACE_ARM_SPE,
 	PERF_AUXTRACE_S390_CPUMSF,
+	PERF_AUXTRACE_HISI_PTT,
 };
 
 enum itrace_period_type {
@@ -60,6 +61,7 @@ enum itrace_period_type {
 #define AUXTRACE_ERR_FLG_DATA_LOST	(1 << ('l' - 'a'))
 
 #define AUXTRACE_LOG_FLG_ALL_PERF_EVTS	(1 << ('a' - 'a'))
+#define AUXTRACE_LOG_FLG_ON_ERROR	(1 << ('e' - 'a'))
 #define AUXTRACE_LOG_FLG_USE_STDOUT	(1 << ('o' - 'a'))
 
 /**
@@ -76,6 +78,7 @@ enum itrace_period_type {
  * @pwr_events: whether to synthesize power events
  * @other_events: whether to synthesize other events recorded due to the use of
  *                aux_output
+ * @intr_events: whether to synthesize interrupt events
  * @errors: whether to synthesize decoder error events
  * @dont_decode: whether to skip decoding entirely
  * @log: write a decoding log
@@ -109,6 +112,7 @@ enum itrace_period_type {
  * @log_plus_flags: flags to affect what is logged
  * @log_minus_flags: flags to affect what is logged
  * @quick: quicker (less detailed) decoding
+ * @log_on_error_size: size of log to keep for outputting log only on errors
  */
 struct itrace_synth_opts {
 	bool			set;
@@ -120,6 +124,7 @@ struct itrace_synth_opts {
 	bool			ptwrites;
 	bool			pwr_events;
 	bool			other_events;
+	bool			intr_events;
 	bool			errors;
 	bool			dont_decode;
 	bool			log;
@@ -153,6 +158,7 @@ struct itrace_synth_opts {
 	unsigned int		log_plus_flags;
 	unsigned int		log_minus_flags;
 	unsigned int		quick;
+	unsigned int		log_on_error_size;
 };
 
 /**
@@ -342,6 +348,10 @@ struct auxtrace_mmap {
  * @idx: index of this mmap
  * @tid: tid for a per-thread mmap (also set if there is only 1 tid on a per-cpu
  *       mmap) otherwise %0
+ * @mmap_needed: set to %false for non-auxtrace events. This is needed because
+ *               auxtrace mmapping is done in the same code path as non-auxtrace
+ *               mmapping but not every evsel that needs non-auxtrace mmapping
+ *               also needs auxtrace mmapping.
  * @cpu: cpu number for a per-cpu mmap otherwise %-1
  */
 struct auxtrace_mmap_params {
@@ -351,6 +361,7 @@ struct auxtrace_mmap_params {
 	int		prot;
 	int		idx;
 	pid_t		tid;
+	bool		mmap_needed;
 	struct perf_cpu	cpu;
 };
 
@@ -488,8 +499,8 @@ void auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp,
 				unsigned int auxtrace_pages,
 				bool auxtrace_overwrite);
 void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
-				   struct evlist *evlist, int idx,
-				   bool per_cpu);
+				   struct evlist *evlist,
+				   struct evsel *evsel, int idx);
 
 typedef int (*process_auxtrace_t)(struct perf_tool *tool,
 				  struct mmap *map,
@@ -588,6 +599,10 @@ int auxtrace_index__process(int fd, u64 size, struct perf_session *session,
 			    bool needs_swap);
 void auxtrace_index__free(struct list_head *head);
 
+void auxtrace_synth_guest_error(struct perf_record_auxtrace_error *auxtrace_error, int type,
+				int code, int cpu, pid_t pid, pid_t tid, u64 ip,
+				const char *msg, u64 timestamp,
+				pid_t machine_pid, int vcpu);
 void auxtrace_synth_error(struct perf_record_auxtrace_error *auxtrace_error, int type,
 			  int code, int cpu, pid_t pid, pid_t tid, u64 ip,
 			  const char *msg, u64 timestamp);
@@ -636,6 +651,8 @@ bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
 "				p:	    		synthesize power events\n"			\
 "				o:			synthesize other events recorded due to the use\n" \
 "							of aux-output (refer to perf record)\n"	\
+"				I:			synthesize interrupt or similar (asynchronous) events\n" \
+"							(e.g. Intel PT Event Trace)\n" \
 "				e[flags]:		synthesize error events\n" \
 "							each flag must be preceded by + or -\n" \
 "							error flags are: o (overflow)\n" \
@@ -859,8 +876,8 @@ void auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp,
 				unsigned int auxtrace_pages,
 				bool auxtrace_overwrite);
 void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
-				   struct evlist *evlist, int idx,
-				   bool per_cpu);
+				   struct evlist *evlist,
+				   struct evsel *evsel, int idx);
 
 #define ITRACE_HELP ""
 

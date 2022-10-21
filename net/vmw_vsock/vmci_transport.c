@@ -75,6 +75,8 @@ static u32 vmci_transport_qp_resumed_sub_id = VMCI_INVALID_ID;
 
 static int PROTOCOL_OVERRIDE = -1;
 
+static struct vsock_transport vmci_transport; /* forward declaration */
+
 /* Helper function to convert from a VMCI error code to a VSock error code. */
 
 static s32 vmci_transport_error_to_vsock_error(s32 vmci_error)
@@ -882,7 +884,8 @@ static void vmci_transport_qp_resumed_cb(u32 sub_id,
 					 const struct vmci_event_data *e_data,
 					 void *client_data)
 {
-	vsock_for_each_connected_socket(vmci_transport_handle_detach);
+	vsock_for_each_connected_socket(&vmci_transport,
+					vmci_transport_handle_detach);
 }
 
 static void vmci_transport_recv_pkt_work(struct work_struct *work)
@@ -948,7 +951,7 @@ static int vmci_transport_recv_listen(struct sock *sk,
 	 * for ourself or any previous connection requests that we received.
 	 * If it's the latter, we try to find a socket in our list of pending
 	 * connections and, if we do, call the appropriate handler for the
-	 * state that that socket is in.  Otherwise we try to service the
+	 * state that socket is in.  Otherwise we try to service the
 	 * connection request.
 	 */
 	pending = vmci_transport_get_pending(sk, pkt);
@@ -1729,19 +1732,16 @@ static int vmci_transport_dgram_dequeue(struct vsock_sock *vsk,
 					int flags)
 {
 	int err;
-	int noblock;
 	struct vmci_datagram *dg;
 	size_t payload_len;
 	struct sk_buff *skb;
-
-	noblock = flags & MSG_DONTWAIT;
 
 	if (flags & MSG_OOB || flags & MSG_ERRQUEUE)
 		return -EOPNOTSUPP;
 
 	/* Retrieve the head sk_buff from the socket's receive queue. */
 	err = 0;
-	skb = skb_recv_datagram(&vsk->sk, flags, noblock, &err);
+	skb = skb_recv_datagram(&vsk->sk, flags, &err);
 	if (!skb)
 		return err;
 

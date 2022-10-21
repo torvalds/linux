@@ -21,6 +21,7 @@ properties:
           - fsl,imx28-fec
           - fsl,imx6q-fec
           - fsl,mvf600-fec
+          - fsl,s32v234-fec
       - items:
           - enum:
               - fsl,imx53-fec
@@ -58,6 +59,11 @@ properties:
               - fsl,imx8qxp-fec
           - const: fsl,imx8qm-fec
           - const: fsl,imx6sx-fec
+      - items:
+          - enum:
+              - fsl,imx8ulp-fec
+          - const: fsl,imx6ul-fec
+          - const: fsl,imx6q-fec
 
   reg:
     maxItems: 1
@@ -121,6 +127,10 @@ properties:
 
   mac-address: true
 
+  nvmem-cells: true
+
+  nvmem-cell-names: true
+
   tx-internal-delay-ps:
     enum: [0, 2000]
 
@@ -158,11 +168,13 @@ properties:
 
   fsl,stop-mode:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to general purpose register node
+          - description: the gpr register offset for ENET stop request
+          - description: the gpr bit offset for ENET stop request
     description:
       Register bits of stop mode control, the format is <&gpr req_gpr req_bit>.
-      gpr is the phandle to general purpose register node.
-      req_gpr is the gpr register offset for ENET stop request.
-      req_bit is the gpr bit offset for ENET stop request.
 
   mdio:
     $ref: mdio.yaml#
@@ -181,6 +193,7 @@ properties:
       Should specify the gpio for phy reset.
 
   phy-reset-duration:
+    $ref: /schemas/types.yaml#/definitions/uint32
     deprecated: true
     description:
       Reset duration in milliseconds.  Should present only if property
@@ -189,12 +202,14 @@ properties:
       and 1 millisecond will be used instead.
 
   phy-reset-active-high:
+    type: boolean
     deprecated: true
     description:
       If present then the reset sequence using the GPIO specified in the
       "phy-reset-gpios" property is reversed (H=reset state, L=operation state).
 
   phy-reset-post-delay:
+    $ref: /schemas/types.yaml#/definitions/uint32
     deprecated: true
     description:
       Post reset delay in milliseconds. If present then a delay of phy-reset-post-delay
@@ -211,7 +226,7 @@ required:
 # least undocumented properties. However, PHY may have a deprecated option to
 # place PHY OF properties in the MAC node, such as Micrel PHY, and we can find
 # these boards which is based on i.MX6QDL.
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

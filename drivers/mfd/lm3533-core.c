@@ -607,15 +607,13 @@ static int lm3533_i2c_probe(struct i2c_client *i2c,
 	return lm3533_device_init(lm3533);
 }
 
-static int lm3533_i2c_remove(struct i2c_client *i2c)
+static void lm3533_i2c_remove(struct i2c_client *i2c)
 {
 	struct lm3533 *lm3533 = i2c_get_clientdata(i2c);
 
 	dev_dbg(&i2c->dev, "%s\n", __func__);
 
 	lm3533_device_exit(lm3533);
-
-	return 0;
 }
 
 static const struct i2c_device_id lm3533_i2c_ids[] = {

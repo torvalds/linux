@@ -138,6 +138,7 @@ enum dc_edid_status {
 	EDID_BAD_CHECKSUM,
 	EDID_THE_SAME,
 	EDID_FALL_BACK,
+	EDID_PARTIAL_VALID,
 };
 
 enum act_return_status {
@@ -195,7 +196,10 @@ struct dc_panel_patch {
 	unsigned int disable_fec;
 	unsigned int extra_t3_ms;
 	unsigned int max_dsc_target_bpp_limit;
+	unsigned int embedded_tiled_slave;
+	unsigned int disable_fams;
 	unsigned int skip_avmute;
+	unsigned int mst_start_top_delay;
 };
 
 struct dc_edid_caps {
@@ -276,6 +280,8 @@ enum dc_timing_source {
 	TIMING_SOURCE_EDID_CEA_SVD,
 	TIMING_SOURCE_EDID_CVT_3BYTE,
 	TIMING_SOURCE_EDID_4BYTE,
+	TIMING_SOURCE_EDID_CEA_DISPLAYID_VTDB,
+	TIMING_SOURCE_EDID_CEA_RID,
 	TIMING_SOURCE_VBIOS,
 	TIMING_SOURCE_CV,
 	TIMING_SOURCE_TV,
@@ -395,14 +401,11 @@ struct dc_lttpr_caps {
 	uint8_t max_link_rate;
 	uint8_t phy_repeater_cnt;
 	uint8_t max_ext_timeout;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	union dp_main_link_channel_coding_lttpr_cap main_link_channel_coding;
 	union dp_128b_132b_supported_lttpr_link_rates supported_128b_132b_rates;
-#endif
 	uint8_t aux_rd_interval[MAX_REPEATER_CNT - 1];
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 struct dc_dongle_dfp_cap_ext {
 	bool supported;
 	uint16_t max_pixel_rate_in_mps;
@@ -414,7 +417,6 @@ struct dc_dongle_dfp_cap_ext {
 	struct dp_color_depth_caps ycbcr422_color_depth_caps;
 	struct dp_color_depth_caps ycbcr420_color_depth_caps;
 };
-#endif
 
 struct dc_dongle_caps {
 	/* dongle type (DP converter, CV smart dongle) */
@@ -429,10 +431,8 @@ struct dc_dongle_caps {
 	bool is_dp_hdmi_ycbcr420_converter;
 	uint32_t dp_hdmi_max_bpc;
 	uint32_t dp_hdmi_max_pixel_clk_in_khz;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	uint32_t dp_hdmi_frl_max_link_bw_in_kbps;
 	struct dc_dongle_dfp_cap_ext dfp_cap_ext;
-#endif
 };
 /* Scaling format */
 enum scaling_transformation {
@@ -662,10 +662,17 @@ enum dc_psr_state {
 	PSR_STATE4b,
 	PSR_STATE4c,
 	PSR_STATE4d,
+	PSR_STATE4_FULL_FRAME,
+	PSR_STATE4a_FULL_FRAME,
+	PSR_STATE4b_FULL_FRAME,
+	PSR_STATE4c_FULL_FRAME,
+	PSR_STATE4_FULL_FRAME_POWERUP,
 	PSR_STATE5,
 	PSR_STATE5a,
 	PSR_STATE5b,
 	PSR_STATE5c,
+	PSR_STATE_HWLOCK_MGR,
+	PSR_STATE_POLLVUPDATE,
 	PSR_STATE_INVALID = 0xFF
 };
 
@@ -677,6 +684,12 @@ struct psr_config {
 	unsigned int psr_sdp_transmit_line_num_deadline;
 	bool allow_smu_optimizations;
 	bool allow_multi_disp_optimizations;
+	/* Panel self refresh 2 selective update granularity required */
+	bool su_granularity_required;
+	/* psr2 selective update y granularity capability */
+	uint8_t su_y_granularity;
+	unsigned int line_time_in_us;
+	uint8_t rate_control_caps;
 };
 
 union dmcu_psr_level {
@@ -691,7 +704,9 @@ union dmcu_psr_level {
 		unsigned int SKIP_AUTO_STATE_ADVANCE:1;
 		unsigned int DISABLE_PSR_ENTRY_ABORT:1;
 		unsigned int SKIP_SINGLE_OTG_DISABLE:1;
-		unsigned int RESERVED:22;
+		unsigned int DISABLE_ALPM:1;
+		unsigned int ALPM_DEFAULT_PD_MODE:1;
+		unsigned int RESERVED:20;
 	} bits;
 	unsigned int u32all;
 };
@@ -780,6 +795,12 @@ struct psr_context {
 	unsigned int frame_delay;
 	bool allow_smu_optimizations;
 	bool allow_multi_disp_optimizations;
+	/* Panel self refresh 2 selective update granularity required */
+	bool su_granularity_required;
+	/* psr2 selective update y granularity capability */
+	uint8_t su_y_granularity;
+	unsigned int line_time_in_us;
+	uint8_t rate_control_caps;
 };
 
 struct colorspace_transform {
@@ -855,7 +876,8 @@ struct dc_context {
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct cp_psp cp_psp;
 #endif
-
+	uint32_t *dcn_reg_offsets;
+	uint32_t *nbio_reg_offsets;
 };
 
 /* DSC DPCD capabilities */

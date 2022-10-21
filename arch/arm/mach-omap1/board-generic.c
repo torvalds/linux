@@ -14,15 +14,13 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/mux.h>
-
-#include <mach/usb.h>
-
+#include "hardware.h"
+#include "mux.h"
+#include "usb.h"
 #include "common.h"
 
 /* assume no Mini-AB port */

@@ -31,12 +31,13 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_uapi.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_print.h>
 #include <drm/drm_self_refresh_helper.h>
 #include <drm/drm_vblank.h>
@@ -701,8 +702,12 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 
 		if (funcs->atomic_check)
 			ret = funcs->atomic_check(connector, state);
-		if (ret)
+		if (ret) {
+			drm_dbg_atomic(dev,
+				       "[CONNECTOR:%d:%s] driver check failed\n",
+				       connector->base.id, connector->name);
 			return ret;
+		}
 
 		connectors_mask |= BIT(i);
 	}
@@ -744,8 +749,12 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 
 		if (funcs->atomic_check)
 			ret = funcs->atomic_check(connector, state);
-		if (ret)
+		if (ret) {
+			drm_dbg_atomic(dev,
+				       "[CONNECTOR:%d:%s] driver check failed\n",
+				       connector->base.id, connector->name);
 			return ret;
+		}
 	}
 
 	/*
@@ -775,6 +784,45 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 	return mode_fixup(state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_check_modeset);
+
+/**
+ * drm_atomic_helper_check_wb_encoder_state() - Check writeback encoder state
+ * @encoder: encoder state to check
+ * @conn_state: connector state to check
+ *
+ * Checks if the writeback connector state is valid, and returns an error if it
+ * isn't.
+ *
+ * RETURNS:
+ * Zero for success or -errno
+ */
+int
+drm_atomic_helper_check_wb_encoder_state(struct drm_encoder *encoder,
+					 struct drm_connector_state *conn_state)
+{
+	struct drm_writeback_job *wb_job = conn_state->writeback_job;
+	struct drm_property_blob *pixel_format_blob;
+	struct drm_framebuffer *fb;
+	size_t i, nformats;
+	u32 *formats;
+
+	if (!wb_job || !wb_job->fb)
+		return 0;
+
+	pixel_format_blob = wb_job->connector->pixel_formats_blob_ptr;
+	nformats = pixel_format_blob->length / sizeof(u32);
+	formats = pixel_format_blob->data;
+	fb = wb_job->fb;
+
+	for (i = 0; i < nformats; i++)
+		if (fb->format->format == formats[i])
+			return 0;
+
+	drm_dbg_kms(encoder->dev, "Invalid pixel format %p4cc\n", &fb->format->format);
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL(drm_atomic_helper_check_wb_encoder_state);
 
 /**
  * drm_atomic_helper_check_plane_state() - Check plane state for validity
@@ -874,6 +922,61 @@ int drm_atomic_helper_check_plane_state(struct drm_plane_state *plane_state,
 	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_helper_check_plane_state);
+
+/**
+ * drm_atomic_helper_check_crtc_state() - Check CRTC state for validity
+ * @crtc_state: CRTC state to check
+ * @can_disable_primary_planes: can the CRTC be enabled without a primary plane?
+ *
+ * Checks that a desired CRTC update is valid. Drivers that provide
+ * their own CRTC handling rather than helper-provided implementations may
+ * still wish to call this function to avoid duplication of error checking
+ * code.
+ *
+ * Note that @can_disable_primary_planes only tests if the CRTC can be
+ * enabled without a primary plane. To test if a primary plane can be updated
+ * without a CRTC, use drm_atomic_helper_check_plane_state() in the plane's
+ * atomic check.
+ *
+ * RETURNS:
+ * Zero if update appears valid, error code on failure
+ */
+int drm_atomic_helper_check_crtc_state(struct drm_crtc_state *crtc_state,
+				       bool can_disable_primary_planes)
+{
+	struct drm_device *dev = crtc_state->crtc->dev;
+	struct drm_atomic_state *state = crtc_state->state;
+
+	if (!crtc_state->enable)
+		return 0;
+
+	/* needs at least one primary plane to be enabled */
+	if (!can_disable_primary_planes) {
+		bool has_primary_plane = false;
+		struct drm_plane *plane;
+
+		drm_for_each_plane_mask(plane, dev, crtc_state->plane_mask) {
+			struct drm_plane_state *plane_state;
+
+			if (plane->type != DRM_PLANE_TYPE_PRIMARY)
+				continue;
+			plane_state = drm_atomic_get_plane_state(state, plane);
+			if (IS_ERR(plane_state))
+				return PTR_ERR(plane_state);
+			if (plane_state->fb && plane_state->crtc) {
+				has_primary_plane = true;
+				break;
+			}
+		}
+		if (!has_primary_plane) {
+			drm_dbg_kms(dev, "Cannot enable CRTC without a primary plane.\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_atomic_helper_check_crtc_state);
 
 /**
  * drm_atomic_helper_check_planes - validate state object for planes changes
@@ -1011,9 +1114,19 @@ crtc_needs_disable(struct drm_crtc_state *old_state,
 		return drm_atomic_crtc_effectively_active(old_state);
 
 	/*
-	 * We need to run through the crtc_funcs->disable() function if the CRTC
-	 * is currently on, if it's transitioning to self refresh mode, or if
-	 * it's in self refresh mode and needs to be fully disabled.
+	 * We need to disable bridge(s) and CRTC if we're transitioning out of
+	 * self-refresh and changing CRTCs at the same time, because the
+	 * bridge tracks self-refresh status via CRTC state.
+	 */
+	if (old_state->self_refresh_active &&
+	    old_state->crtc != new_state->crtc)
+		return true;
+
+	/*
+	 * We also need to run through the crtc_funcs->disable() function if
+	 * the CRTC is currently on, if it's transitioning to self refresh
+	 * mode, or if it's in self refresh mode and needs to be fully
+	 * disabled.
 	 */
 	return old_state->active ||
 	       (old_state->self_refresh_active && !new_state->active) ||
@@ -1722,7 +1835,7 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 	struct drm_plane_state *old_plane_state = NULL;
 	struct drm_plane_state *new_plane_state = NULL;
 	const struct drm_plane_helper_funcs *funcs;
-	int i, n_planes = 0;
+	int i, ret, n_planes = 0;
 
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		if (drm_atomic_crtc_needs_modeset(crtc_state))
@@ -1733,19 +1846,34 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 		n_planes++;
 
 	/* FIXME: we support only single plane updates for now */
-	if (n_planes != 1)
+	if (n_planes != 1) {
+		drm_dbg_atomic(dev,
+			       "only single plane async updates are supported\n");
 		return -EINVAL;
+	}
 
 	if (!new_plane_state->crtc ||
-	    old_plane_state->crtc != new_plane_state->crtc)
+	    old_plane_state->crtc != new_plane_state->crtc) {
+		drm_dbg_atomic(dev,
+			       "[PLANE:%d:%s] async update cannot change CRTC\n",
+			       plane->base.id, plane->name);
 		return -EINVAL;
+	}
 
 	funcs = plane->helper_private;
-	if (!funcs->atomic_async_update)
+	if (!funcs->atomic_async_update) {
+		drm_dbg_atomic(dev,
+			       "[PLANE:%d:%s] driver does not support async updates\n",
+			       plane->base.id, plane->name);
 		return -EINVAL;
+	}
 
-	if (new_plane_state->fence)
+	if (new_plane_state->fence) {
+		drm_dbg_atomic(dev,
+			       "[PLANE:%d:%s] missing fence for async update\n",
+			       plane->base.id, plane->name);
 		return -EINVAL;
+	}
 
 	/*
 	 * Don't do an async update if there is an outstanding commit modifying
@@ -1760,7 +1888,12 @@ int drm_atomic_helper_async_check(struct drm_device *dev,
 		return -EBUSY;
 	}
 
-	return funcs->atomic_async_check(plane, state);
+	ret = funcs->atomic_async_check(plane, state);
+	if (ret != 0)
+		drm_dbg_atomic(dev,
+			       "[PLANE:%d:%s] driver async check failed\n",
+			       plane->base.id, plane->name);
+	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_helper_async_check);
 

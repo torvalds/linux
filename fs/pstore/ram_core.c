@@ -263,10 +263,10 @@ ssize_t persistent_ram_ecc_string(struct persistent_ram_zone *prz,
 
 	if (prz->corrected_bytes || prz->bad_blocks)
 		ret = snprintf(str, len, ""
-			"\n%d Corrected bytes, %d unrecoverable blocks\n",
+			"\nECC: %d Corrected bytes, %d unrecoverable blocks\n",
 			prz->corrected_bytes, prz->bad_blocks);
 	else
-		ret = snprintf(str, len, "\nNo errors detected\n");
+		ret = snprintf(str, len, "\nECC: No errors detected\n");
 
 	return ret;
 }

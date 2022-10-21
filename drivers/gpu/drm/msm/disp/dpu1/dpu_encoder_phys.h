@@ -1,15 +1,18 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
  */
 
 #ifndef __DPU_ENCODER_PHYS_H__
 #define __DPU_ENCODER_PHYS_H__
 
+#include <drm/drm_writeback.h>
 #include <linux/jiffies.h>
 
 #include "dpu_kms.h"
 #include "dpu_hw_intf.h"
+#include "dpu_hw_wb.h"
 #include "dpu_hw_pingpong.h"
 #include "dpu_hw_ctl.h"
 #include "dpu_hw_top.h"
@@ -84,16 +87,12 @@ struct dpu_encoder_virt_ops {
  * @is_master:			Whether this phys_enc is the current master
  *				encoder. Can be switched at enable time. Based
  *				on split_role and current mode (CMD/VID).
- * @mode_fixup:			DRM Call. Fixup a DRM mode.
- * @mode_set:			DRM Call. Set a DRM mode.
+ * @atomic_mode_set:		DRM Call. Set a DRM mode.
  *				This likely caches the mode, for use at enable.
  * @enable:			DRM Call. Enable a DRM mode.
  * @disable:			DRM Call. Disable mode.
  * @atomic_check:		DRM Call. Atomic check new DRM state.
  * @destroy:			DRM Call. Destroy and release resources.
- * @get_hw_resources:		Populate the structure with the hardware
- *				resources that this phys_enc is using.
- *				Expect no overlap between phys_encs.
  * @control_vblank_irq		Register/Deregister for VBLANK IRQ
  * @wait_for_commit_done:	Wait for hardware to have flushed the
  *				current pending frames to hardware
@@ -117,20 +116,15 @@ struct dpu_encoder_phys_ops {
 			struct dentry *debugfs_root);
 	void (*prepare_commit)(struct dpu_encoder_phys *encoder);
 	bool (*is_master)(struct dpu_encoder_phys *encoder);
-	bool (*mode_fixup)(struct dpu_encoder_phys *encoder,
-			const struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode);
-	void (*mode_set)(struct dpu_encoder_phys *encoder,
-			struct drm_display_mode *mode,
-			struct drm_display_mode *adjusted_mode);
+	void (*atomic_mode_set)(struct dpu_encoder_phys *encoder,
+			struct drm_crtc_state *crtc_state,
+			struct drm_connector_state *conn_state);
 	void (*enable)(struct dpu_encoder_phys *encoder);
 	void (*disable)(struct dpu_encoder_phys *encoder);
 	int (*atomic_check)(struct dpu_encoder_phys *encoder,
 			    struct drm_crtc_state *crtc_state,
 			    struct drm_connector_state *conn_state);
 	void (*destroy)(struct dpu_encoder_phys *encoder);
-	void (*get_hw_resources)(struct dpu_encoder_phys *encoder,
-				 struct dpu_encoder_hw_resources *hw_res);
 	int (*control_vblank_irq)(struct dpu_encoder_phys *enc, bool enable);
 	int (*wait_for_commit_done)(struct dpu_encoder_phys *phys_enc);
 	int (*wait_for_tx_complete)(struct dpu_encoder_phys *phys_enc);
@@ -144,6 +138,11 @@ struct dpu_encoder_phys_ops {
 	void (*restore)(struct dpu_encoder_phys *phys);
 	int (*get_line_count)(struct dpu_encoder_phys *phys);
 	int (*get_frame_count)(struct dpu_encoder_phys *phys);
+	void (*prepare_wb_job)(struct dpu_encoder_phys *phys_enc,
+			struct drm_writeback_job *job);
+	void (*cleanup_wb_job)(struct dpu_encoder_phys *phys_enc,
+			struct drm_writeback_job *job);
+	bool (*is_valid_for_commit)(struct dpu_encoder_phys *phys_enc);
 };
 
 /**
@@ -152,6 +151,7 @@ struct dpu_encoder_phys_ops {
  * @INTR_IDX_PINGPONG: Pingpong done unterrupt for cmd mode panel
  * @INTR_IDX_UNDERRUN: Underrun unterrupt for video and cmd mode panel
  * @INTR_IDX_RDPTR:    Readpointer done unterrupt for cmd mode panel
+ * @INTR_IDX_WB_DONE:  Writeback fone interrupt for virtual connector
  */
 enum dpu_intr_idx {
 	INTR_IDX_VSYNC,
@@ -159,22 +159,8 @@ enum dpu_intr_idx {
 	INTR_IDX_UNDERRUN,
 	INTR_IDX_CTL_START,
 	INTR_IDX_RDPTR,
+	INTR_IDX_WB_DONE,
 	INTR_IDX_MAX,
-};
-
-/**
- * dpu_encoder_irq - tracking structure for interrupts
- * @name:		string name of interrupt
- * @intr_idx:		Encoder interrupt enumeration
- * @irq_idx:		IRQ interface lookup index from DPU IRQ framework
- *			will be -EINVAL if IRQ is not registered
- * @irq_cb:		interrupt callback
- */
-struct dpu_encoder_irq {
-	const char *name;
-	enum dpu_intr_idx intr_idx;
-	int irq_idx;
-	struct dpu_irq_callback cb;
 };
 
 /**
@@ -182,19 +168,20 @@ struct dpu_encoder_irq {
  *	tied to a specific panel / sub-panel. Abstract type, sub-classed by
  *	phys_vid or phys_cmd for video mode or command mode encs respectively.
  * @parent:		Pointer to the containing virtual encoder
- * @connector:		If a mode is set, cached pointer to the active connector
  * @ops:		Operations exposed to the virtual encoder
  * @parent_ops:		Callbacks exposed by the parent to the phys_enc
  * @hw_mdptop:		Hardware interface to the top registers
  * @hw_ctl:		Hardware interface to the ctl registers
  * @hw_pp:		Hardware interface to the ping pong registers
  * @hw_intf:		Hardware interface to the intf registers
+ * @hw_wb:		Hardware interface to the wb registers
  * @dpu_kms:		Pointer to the dpu_kms top level
  * @cached_mode:	DRM mode cached at mode_set time, acted on in enable
  * @enabled:		Whether the encoder has enabled and running a mode
  * @split_role:		Role to play in a split-panel configuration
  * @intf_mode:		Interface mode
  * @intf_idx:		Interface index on dpu hardware
+ * @wb_idx:			Writeback index on dpu hardware
  * @enc_spinlock:	Virtual-Encoder-Wide Spin Lock for IRQ purposes
  * @enable_state:	Enable state tracking
  * @vblank_refcount:	Reference count of vblank request
@@ -207,22 +194,23 @@ struct dpu_encoder_irq {
  * @pending_ctlstart_cnt:	Atomic counter tracking the number of ctl start
  *                              pending.
  * @pending_kickoff_wq:		Wait queue for blocking until kickoff completes
- * @irq:			IRQ tracking structures
+ * @irq:			IRQ indices
  */
 struct dpu_encoder_phys {
 	struct drm_encoder *parent;
-	struct drm_connector *connector;
 	struct dpu_encoder_phys_ops ops;
 	const struct dpu_encoder_virt_ops *parent_ops;
 	struct dpu_hw_mdp *hw_mdptop;
 	struct dpu_hw_ctl *hw_ctl;
 	struct dpu_hw_pingpong *hw_pp;
 	struct dpu_hw_intf *hw_intf;
+	struct dpu_hw_wb *hw_wb;
 	struct dpu_kms *dpu_kms;
 	struct drm_display_mode cached_mode;
 	enum dpu_enc_split_role split_role;
 	enum dpu_intf_mode intf_mode;
 	enum dpu_intf intf_idx;
+	enum dpu_wb wb_idx;
 	spinlock_t *enc_spinlock;
 	enum dpu_enc_enable_state enable_state;
 	atomic_t vblank_refcount;
@@ -231,7 +219,7 @@ struct dpu_encoder_phys {
 	atomic_t pending_ctlstart_cnt;
 	atomic_t pending_kickoff_cnt;
 	wait_queue_head_t pending_kickoff_wq;
-	struct dpu_encoder_irq irq[INTR_IDX_MAX];
+	int irq[INTR_IDX_MAX];
 };
 
 static inline int dpu_encoder_phys_inc_pending(struct dpu_encoder_phys *phys)
@@ -239,6 +227,27 @@ static inline int dpu_encoder_phys_inc_pending(struct dpu_encoder_phys *phys)
 	atomic_inc_return(&phys->pending_ctlstart_cnt);
 	return atomic_inc_return(&phys->pending_kickoff_cnt);
 }
+
+/**
+ * struct dpu_encoder_phys_wb - sub-class of dpu_encoder_phys to handle command
+ *	mode specific operations
+ * @base:	Baseclass physical encoder structure
+ * @wbirq_refcount:     Reference count of writeback interrupt
+ * @wb_done_timeout_cnt: number of wb done irq timeout errors
+ * @wb_cfg:  writeback block config to store fb related details
+ * @wb_conn: backpointer to writeback connector
+ * @wb_job: backpointer to current writeback job
+ * @dest:   dpu buffer layout for current writeback output buffer
+ */
+struct dpu_encoder_phys_wb {
+	struct dpu_encoder_phys base;
+	atomic_t wbirq_refcount;
+	int wb_done_timeout_cnt;
+	struct dpu_hw_wb_cfg wb_cfg;
+	struct drm_writeback_connector *wb_conn;
+	struct drm_writeback_job *wb_job;
+	struct dpu_hw_fmt_layout dest;
+};
 
 /**
  * struct dpu_encoder_phys_cmd - sub-class of dpu_encoder_phys to handle command
@@ -268,6 +277,7 @@ struct dpu_encoder_phys_cmd {
  * @parent_ops:		Callbacks exposed by the parent to the phys_enc
  * @split_role:		Role to play in a split-panel configuration
  * @intf_idx:		Interface index this phys_enc will control
+ * @wb_idx:			Writeback index this phys_enc will control
  * @enc_spinlock:	Virtual-Encoder-Wide Spin Lock for IRQ purposes
  */
 struct dpu_enc_phys_init_params {
@@ -276,6 +286,7 @@ struct dpu_enc_phys_init_params {
 	const struct dpu_encoder_virt_ops *parent_ops;
 	enum dpu_enc_split_role split_role;
 	enum dpu_intf intf_idx;
+	enum dpu_wb wb_idx;
 	spinlock_t *enc_spinlock;
 };
 
@@ -308,6 +319,13 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(
 		struct dpu_enc_phys_init_params *p);
 
 /**
+ * dpu_encoder_phys_wb_init - initialize writeback encoder
+ * @init:	Pointer to init info structure with initialization params
+ */
+struct dpu_encoder_phys *dpu_encoder_phys_wb_init(
+		struct dpu_enc_phys_init_params *p);
+
+/**
  * dpu_encoder_helper_trigger_start - control start helper function
  *	This helper function may be optionally specified by physical
  *	encoders if they require ctl_start triggering.
@@ -325,12 +343,22 @@ static inline enum dpu_3d_blend_mode dpu_encoder_helper_get_3d_blend_mode(
 
 	dpu_cstate = to_dpu_crtc_state(phys_enc->parent->crtc->state);
 
+	/* Use merge_3d unless DSC MERGE topology is used */
 	if (phys_enc->split_role == ENC_ROLE_SOLO &&
-	    dpu_cstate->num_mixers == CRTC_DUAL_MIXERS)
+	    dpu_cstate->num_mixers == CRTC_DUAL_MIXERS &&
+	    !dpu_encoder_use_dsc_merge(phys_enc->parent))
 		return BLEND_3D_H_ROW_INT;
 
 	return BLEND_3D_NONE;
 }
+
+/**
+ * dpu_encoder_helper_get_dsc - get DSC blocks mask for the DPU encoder
+ *   This helper function is used by physical encoder to get DSC blocks mask
+ *   used for this encoder.
+ * @phys_enc: Pointer to physical encoder structure
+ */
+unsigned int dpu_encoder_helper_get_dsc(struct dpu_encoder_phys *phys_enc);
 
 /**
  * dpu_encoder_helper_split_config - split display configuration helper function
@@ -356,30 +384,20 @@ void dpu_encoder_helper_report_irq_timeout(struct dpu_encoder_phys *phys_enc,
  * dpu_encoder_helper_wait_for_irq - utility to wait on an irq.
  *	note: will call dpu_encoder_helper_wait_for_irq on timeout
  * @phys_enc: Pointer to physical encoder structure
- * @intr_idx: encoder interrupt index
+ * @irq: IRQ index
+ * @func: IRQ callback to be called in case of timeout
  * @wait_info: wait info struct
  * @Return: 0 or -ERROR
  */
 int dpu_encoder_helper_wait_for_irq(struct dpu_encoder_phys *phys_enc,
-		enum dpu_intr_idx intr_idx,
+		int irq,
+		void (*func)(void *arg, int irq_idx),
 		struct dpu_encoder_wait_info *wait_info);
 
 /**
- * dpu_encoder_helper_register_irq - register and enable an irq
+ * dpu_encoder_helper_phys_cleanup - helper to cleanup dpu pipeline
  * @phys_enc: Pointer to physical encoder structure
- * @intr_idx: encoder interrupt index
- * @Return: 0 or -ERROR
  */
-int dpu_encoder_helper_register_irq(struct dpu_encoder_phys *phys_enc,
-		enum dpu_intr_idx intr_idx);
-
-/**
- * dpu_encoder_helper_unregister_irq - unregister and disable an irq
- * @phys_enc: Pointer to physical encoder structure
- * @intr_idx: encoder interrupt index
- * @Return: 0 or -ERROR
- */
-int dpu_encoder_helper_unregister_irq(struct dpu_encoder_phys *phys_enc,
-		enum dpu_intr_idx intr_idx);
+void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc);
 
 #endif /* __dpu_encoder_phys_H__ */

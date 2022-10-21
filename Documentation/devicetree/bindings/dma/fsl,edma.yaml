@@ -1,0 +1,155 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/fsl,edma.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale enhanced Direct Memory Access(eDMA) Controller
+
+description: |
+  The eDMA channels have multiplex capability by programmable
+  memory-mapped registers. channels are split into two groups, called
+  DMAMUX0 and DMAMUX1, specific DMA request source can only be multiplexed
+  by any channel of certain group, DMAMUX0 or DMAMUX1, but not both.
+
+maintainers:
+  - Peng Fan <peng.fan@nxp.com>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,vf610-edma
+          - fsl,imx7ulp-edma
+      - items:
+          - const: fsl,ls1028a-edma
+          - const: fsl,vf610-edma
+
+  reg:
+    minItems: 2
+    maxItems: 3
+
+  interrupts:
+    minItems: 2
+    maxItems: 17
+
+  interrupt-names:
+    minItems: 2
+    maxItems: 17
+
+  "#dma-cells":
+    const: 2
+
+  dma-channels:
+    const: 32
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    maxItems: 2
+
+  big-endian:
+    description: |
+      If present registers and hardware scatter/gather descriptors of the
+      eDMA are implemented in big endian mode, otherwise in little mode.
+    type: boolean
+
+required:
+  - "#dma-cells"
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - dma-channels
+
+allOf:
+  - $ref: "dma-controller.yaml#"
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,vf610-edma
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: dmamux0
+            - const: dmamux1
+        interrupts:
+          maxItems: 2
+        interrupt-names:
+          items:
+            - const: edma-tx
+            - const: edma-err
+        reg:
+          maxItems: 3
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx7ulp-edma
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: dma
+            - const: dmamux0
+        interrupts:
+          maxItems: 17
+        reg:
+          maxItems: 2
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/vf610-clock.h>
+
+    edma0: dma-controller@40018000 {
+      #dma-cells = <2>;
+      compatible = "fsl,vf610-edma";
+      reg = <0x40018000 0x2000>,
+            <0x40024000 0x1000>,
+            <0x40025000 0x1000>;
+      interrupts = <0 8 IRQ_TYPE_LEVEL_HIGH>,
+                   <0 9 IRQ_TYPE_LEVEL_HIGH>;
+      interrupt-names = "edma-tx", "edma-err";
+      dma-channels = <32>;
+      clock-names = "dmamux0", "dmamux1";
+      clocks = <&clks VF610_CLK_DMAMUX0>, <&clks VF610_CLK_DMAMUX1>;
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/imx7ulp-clock.h>
+
+    edma1: dma-controller@40080000 {
+      #dma-cells = <2>;
+      compatible = "fsl,imx7ulp-edma";
+      reg = <0x40080000 0x2000>,
+            <0x40210000 0x1000>;
+      dma-channels = <32>;
+      interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
+                   /* last is eDMA2-ERR interrupt */
+                   <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+       clock-names = "dma", "dmamux0";
+       clocks = <&pcc2 IMX7ULP_CLK_DMA1>, <&pcc2 IMX7ULP_CLK_DMA_MUX1>;
+    };

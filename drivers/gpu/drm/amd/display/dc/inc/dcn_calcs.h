@@ -619,7 +619,7 @@ struct dcn_ip_params {
 };
 extern const struct dcn_ip_params dcn10_ip_defaults;
 
-bool dcn10_validate_bandwidth(
+bool dcn_validate_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate);
@@ -628,8 +628,23 @@ unsigned int dcn_find_dcfclk_suits_all(
 	const struct dc *dc,
 	struct dc_clocks *clocks);
 
-void dcn_bw_update_from_pplib(struct dc *dc);
-void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc);
+void dcn_get_soc_clks(
+		struct dc *dc,
+		int *min_fclk_khz,
+		int *min_dcfclk_khz,
+		int *socclk_khz);
+
+void dcn_bw_update_from_pplib_fclks(
+		struct dc *dc,
+		struct dm_pp_clock_levels_with_voltage *fclks);
+void dcn_bw_update_from_pplib_dcfclks(
+		struct dc *dc,
+		struct dm_pp_clock_levels_with_voltage *dcfclks);
+void dcn_bw_notify_pplib_of_wm_ranges(
+		struct dc *dc,
+		int min_fclk_khz,
+		int min_dcfclk_khz,
+		int socclk_khz);
 void dcn_bw_sync_calcs_and_dml(struct dc *dc);
 
 enum source_macro_tile_size swizzle_mode_to_macro_tile_size(enum swizzle_mode_values sw_mode);

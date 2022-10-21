@@ -28,20 +28,18 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/platform_data/omap1_bl.h>
+#include <linux/platform_data/keypad-omap.h>
+#include <linux/omap-dma.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
+#include "tc.h"
 #include "flash.h"
-#include <mach/mux.h>
-#include <linux/omap-dma.h>
-#include <mach/tc.h>
-#include <linux/platform_data/keypad-omap.h>
-
-#include <mach/hardware.h>
-#include <mach/usb.h>
-
+#include "mux.h"
+#include "hardware.h"
+#include "usb.h"
 #include "common.h"
 
 #define PALMZ71_USBDETECT_GPIO	0

@@ -3,6 +3,7 @@
 #define _ASM_X86_IRQ_STACK_H
 
 #include <linux/ptrace.h>
+#include <linux/objtool.h>
 
 #include <asm/processor.h>
 
@@ -99,7 +100,8 @@
 }
 
 #define ASM_CALL_ARG0							\
-	"call %P[__func]				\n"
+	"call %P[__func]				\n"		\
+	ASM_REACHABLE
 
 #define ASM_CALL_ARG1							\
 	"movq	%[arg1], %%rdi				\n"		\
@@ -201,7 +203,7 @@
 			      IRQ_CONSTRAINTS, regs, vector);		\
 }
 
-#ifndef CONFIG_PREEMPT_RT
+#ifdef CONFIG_SOFTIRQ_ON_OWN_STACK
 /*
  * Macro to invoke __do_softirq on the irq stack. This is only called from
  * task context when bottom halves are about to be reenabled and soft

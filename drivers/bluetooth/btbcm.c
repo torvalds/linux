@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/dmi.h>
+#include <linux/of.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -29,7 +30,7 @@
 #define BDADDR_BCM43341B (&(bdaddr_t) {{0xac, 0x1f, 0x00, 0x1b, 0x34, 0x43}})
 
 #define BCM_FW_NAME_LEN			64
-#define BCM_FW_NAME_COUNT_MAX		2
+#define BCM_FW_NAME_COUNT_MAX		4
 /* For kmalloc-ing the fw-name array instead of putting it on the stack */
 typedef char bcm_fw_name[BCM_FW_NAME_LEN];
 
@@ -402,6 +403,13 @@ static int btbcm_read_info(struct hci_dev *hdev)
 	bt_dev_info(hdev, "BCM: chip id %u", skb->data[1]);
 	kfree_skb(skb);
 
+	return 0;
+}
+
+static int btbcm_print_controller_features(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+
 	/* Read Controller Features */
 	skb = btbcm_read_controller_features(hdev);
 	if (IS_ERR(skb))
@@ -453,10 +461,13 @@ static const struct bcm_subver_table bcm_uart_subver_table[] = {
 	{ 0x6606, "BCM4345C5"	},	/* 003.006.006 */
 	{ 0x230f, "BCM4356A2"	},	/* 001.003.015 */
 	{ 0x220e, "BCM20702A1"  },	/* 001.002.014 */
+	{ 0x420d, "BCM4349B1"	},	/* 002.002.013 */
+	{ 0x420e, "BCM4349B1"	},	/* 002.002.014 */
 	{ 0x4217, "BCM4329B1"   },	/* 002.002.023 */
 	{ 0x6106, "BCM4359C0"	},	/* 003.001.006 */
 	{ 0x4106, "BCM4335A0"	},	/* 002.001.006 */
 	{ 0x410c, "BCM43430B0"	},	/* 002.001.012 */
+	{ 0x2119, "BCM4373A0"	},	/* 001.001.025 */
 	{ }
 };
 
@@ -476,18 +487,57 @@ static const struct bcm_subver_table bcm_usb_subver_table[] = {
 	{ }
 };
 
-int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done)
+/*
+ * This currently only looks up the device tree board appendix,
+ * but can be expanded to other mechanisms.
+ */
+static const char *btbcm_get_board_name(struct device *dev)
+{
+#ifdef CONFIG_OF
+	struct device_node *root;
+	char *board_type;
+	const char *tmp;
+	int len;
+	int i;
+
+	root = of_find_node_by_path("/");
+	if (!root)
+		return NULL;
+
+	if (of_property_read_string_index(root, "compatible", 0, &tmp))
+		return NULL;
+
+	/* get rid of any '/' in the compatible string */
+	len = strlen(tmp) + 1;
+	board_type = devm_kzalloc(dev, len, GFP_KERNEL);
+	strscpy(board_type, tmp, len);
+	for (i = 0; i < board_type[i]; i++) {
+		if (board_type[i] == '/')
+			board_type[i] = '-';
+	}
+	of_node_put(root);
+
+	return board_type;
+#else
+	return NULL;
+#endif
+}
+
+int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done, bool use_autobaud_mode)
 {
 	u16 subver, rev, pid, vid;
 	struct sk_buff *skb;
 	struct hci_rp_read_local_version *ver;
 	const struct bcm_subver_table *bcm_subver_table;
 	const char *hw_name = NULL;
+	const char *board_name;
 	char postfix[16] = "";
 	int fw_name_count = 0;
 	bcm_fw_name *fw_name;
 	const struct firmware *fw;
 	int i, err;
+
+	board_name = btbcm_get_board_name(&hdev->dev);
 
 	/* Reset */
 	err = btbcm_reset(hdev);
@@ -510,9 +560,16 @@ int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done)
 		if (err)
 			return err;
 	}
-	err = btbcm_print_local_name(hdev);
-	if (err)
-		return err;
+
+	if (!use_autobaud_mode) {
+		err = btbcm_print_controller_features(hdev);
+		if (err)
+			return err;
+
+		err = btbcm_print_local_name(hdev);
+		if (err)
+			return err;
+	}
 
 	bcm_subver_table = (hdev->bus == HCI_USB) ? bcm_usb_subver_table :
 						    bcm_uart_subver_table;
@@ -549,11 +606,21 @@ int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done)
 		return -ENOMEM;
 
 	if (hw_name) {
+		if (board_name) {
+			snprintf(fw_name[fw_name_count], BCM_FW_NAME_LEN,
+				 "brcm/%s%s.%s.hcd", hw_name, postfix, board_name);
+			fw_name_count++;
+		}
 		snprintf(fw_name[fw_name_count], BCM_FW_NAME_LEN,
 			 "brcm/%s%s.hcd", hw_name, postfix);
 		fw_name_count++;
 	}
 
+	if (board_name) {
+		snprintf(fw_name[fw_name_count], BCM_FW_NAME_LEN,
+			 "brcm/BCM%s.%s.hcd", postfix, board_name);
+		fw_name_count++;
+	}
 	snprintf(fw_name[fw_name_count], BCM_FW_NAME_LEN,
 		 "brcm/BCM%s.hcd", postfix);
 	fw_name_count++;
@@ -585,13 +652,13 @@ int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done)
 }
 EXPORT_SYMBOL_GPL(btbcm_initialize);
 
-int btbcm_finalize(struct hci_dev *hdev, bool *fw_load_done)
+int btbcm_finalize(struct hci_dev *hdev, bool *fw_load_done, bool use_autobaud_mode)
 {
 	int err;
 
 	/* Re-initialize if necessary */
 	if (*fw_load_done) {
-		err = btbcm_initialize(hdev, fw_load_done);
+		err = btbcm_initialize(hdev, fw_load_done, use_autobaud_mode);
 		if (err)
 			return err;
 	}
@@ -607,15 +674,16 @@ EXPORT_SYMBOL_GPL(btbcm_finalize);
 int btbcm_setup_patchram(struct hci_dev *hdev)
 {
 	bool fw_load_done = false;
+	bool use_autobaud_mode = false;
 	int err;
 
 	/* Initialize */
-	err = btbcm_initialize(hdev, &fw_load_done);
+	err = btbcm_initialize(hdev, &fw_load_done, use_autobaud_mode);
 	if (err)
 		return err;
 
 	/* Re-initialize after loading Patch */
-	return btbcm_finalize(hdev, &fw_load_done);
+	return btbcm_finalize(hdev, &fw_load_done, use_autobaud_mode);
 }
 EXPORT_SYMBOL_GPL(btbcm_setup_patchram);
 

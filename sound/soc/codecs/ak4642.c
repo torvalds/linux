@@ -559,7 +559,6 @@ static const struct snd_soc_component_driver soc_component_dev_ak4642 = {
 	.num_dapm_routes	= ARRAY_SIZE(ak4642_intercon),
 	.idle_bias_on		= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ak4642_regmap = {
@@ -630,8 +629,8 @@ static struct clk *ak4642_of_parse_mcko(struct device *dev)
 #endif
 
 static const struct of_device_id ak4642_of_match[];
-static int ak4642_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static const struct i2c_device_id ak4642_i2c_id[];
+static int ak4642_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct device_node *np = dev->of_node;
@@ -651,6 +650,8 @@ static int ak4642_i2c_probe(struct i2c_client *i2c,
 		if (of_id)
 			drvdata = of_id->data;
 	} else {
+		const struct i2c_device_id *id =
+			i2c_match_id(ak4642_i2c_id, i2c);
 		drvdata = (const struct ak4642_drvdata *)id->driver_data;
 	}
 
@@ -697,7 +698,7 @@ static struct i2c_driver ak4642_i2c_driver = {
 		.name = "ak4642-codec",
 		.of_match_table = ak4642_of_match,
 	},
-	.probe		= ak4642_i2c_probe,
+	.probe_new	= ak4642_i2c_probe,
 	.id_table	= ak4642_i2c_id,
 };
 

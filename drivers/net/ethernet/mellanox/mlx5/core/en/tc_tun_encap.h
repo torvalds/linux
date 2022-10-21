@@ -7,15 +7,19 @@
 #include "tc_priv.h"
 
 void mlx5e_detach_encap(struct mlx5e_priv *priv,
-			struct mlx5e_tc_flow *flow, int out_index);
+			struct mlx5e_tc_flow *flow,
+			struct mlx5_flow_attr *attr,
+			int out_index);
 
 int mlx5e_attach_encap(struct mlx5e_priv *priv,
 		       struct mlx5e_tc_flow *flow,
+		       struct mlx5_flow_attr *attr,
 		       struct net_device *mirred_dev,
 		       int out_index,
 		       struct netlink_ext_ack *extack,
 		       struct net_device **encap_dev,
 		       bool *encap_valid);
+
 int mlx5e_attach_decap(struct mlx5e_priv *priv,
 		       struct mlx5e_tc_flow *flow,
 		       struct netlink_ext_ack *extack);

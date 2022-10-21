@@ -34,33 +34,9 @@ int acp_sof_trace_release(struct snd_sof_dev *sdev)
 }
 EXPORT_SYMBOL_NS(acp_sof_trace_release, SND_SOC_SOF_AMD_COMMON);
 
-static int acp_sof_trace_prepare(struct snd_sof_dev *sdev,
-				 struct sof_ipc_dma_trace_params_ext *params)
+int acp_sof_trace_init(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
+		       struct sof_ipc_dma_trace_params_ext *dtrace_params)
 {
-	struct acp_dsp_stream *stream;
-	struct acp_dev_data *adata;
-	int ret;
-
-	adata = sdev->pdata->hw_pdata;
-	stream = adata->dtrace_stream;
-	stream->dmab = &sdev->dmatb;
-	stream->num_pages = NUM_PAGES;
-
-	ret = acp_dsp_stream_config(sdev, stream);
-	if (ret < 0) {
-		dev_err(sdev->dev, "Failed to configure trace stream\n");
-		return ret;
-	}
-
-	params->buffer.phy_addr = stream->reg_offset;
-	params->stream_tag = stream->stream_tag;
-
-	return 0;
-}
-
-int acp_sof_trace_init(struct snd_sof_dev *sdev, u32 *stream_tag)
-{
-	struct sof_ipc_dma_trace_params_ext *params;
 	struct acp_dsp_stream *stream;
 	struct acp_dev_data *adata;
 	int ret;
@@ -70,15 +46,19 @@ int acp_sof_trace_init(struct snd_sof_dev *sdev, u32 *stream_tag)
 	if (!stream)
 		return -ENODEV;
 
-	adata->dtrace_stream = stream;
-	params = container_of(stream_tag, struct sof_ipc_dma_trace_params_ext, stream_tag);
-	ret = acp_sof_trace_prepare(sdev, params);
+	stream->dmab = dmab;
+	stream->num_pages = NUM_PAGES;
+
+	ret = acp_dsp_stream_config(sdev, stream);
 	if (ret < 0) {
 		acp_dsp_stream_put(sdev, stream);
 		return ret;
 	}
 
-	*stream_tag = stream->stream_tag;
+	adata->dtrace_stream = stream;
+	dtrace_params->stream_tag = stream->stream_tag;
+	dtrace_params->buffer.phy_addr = stream->reg_offset;
+
 	return 0;
 }
 EXPORT_SYMBOL_NS(acp_sof_trace_init, SND_SOC_SOF_AMD_COMMON);

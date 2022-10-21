@@ -534,6 +534,11 @@ static int usnic_ib_pci_probe(struct pci_dev *pdev,
 	struct usnic_ib_vf *vf;
 	enum usnic_vnic_res_type res_type;
 
+	if (!device_iommu_mapped(&pdev->dev)) {
+		usnic_err("IOMMU required but not present or enabled.  USNIC QPs will not function w/o enabling IOMMU\n");
+		return -EPERM;
+	}
+
 	vf = kzalloc(sizeof(*vf), GFP_KERNEL);
 	if (!vf)
 		return -ENOMEM;
@@ -641,12 +646,6 @@ static int __init usnic_ib_init(void)
 	int err;
 
 	printk_once(KERN_INFO "%s", usnic_version);
-
-	err = usnic_uiom_init(DRV_NAME);
-	if (err) {
-		usnic_err("Unable to initialize umem with err %d\n", err);
-		return err;
-	}
 
 	err = pci_register_driver(&usnic_ib_pci_driver);
 	if (err) {

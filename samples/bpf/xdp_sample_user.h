@@ -61,7 +61,7 @@ static inline char *safe_strncpy(char *dst, const char *src, size_t size)
 
 #define __attach_tp(name)                                                      \
 	({                                                                     \
-		if (!bpf_program__is_tracing(skel->progs.name))                \
+		if (bpf_program__type(skel->progs.name) != BPF_PROG_TYPE_TRACING)\
 			return -EINVAL;                                        \
 		skel->links.name = bpf_program__attach(skel->progs.name);      \
 		if (!skel->links.name)                                         \

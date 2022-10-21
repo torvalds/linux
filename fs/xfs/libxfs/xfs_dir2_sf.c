@@ -237,7 +237,7 @@ xfs_dir2_block_sfsize(
 		       (i8count ?			/* inumber */
 				count * XFS_INO64_SIZE :
 				count * XFS_INO32_SIZE);
-		if (size > XFS_IFORK_DSIZE(dp))
+		if (size > xfs_inode_data_fork_size(dp))
 			return size;		/* size value is a failure */
 	}
 	/*
@@ -406,7 +406,7 @@ xfs_dir2_sf_addname(
 	 * Won't fit as shortform any more (due to size),
 	 * or the pick routine says it won't (due to offset values).
 	 */
-	if (new_isize > XFS_IFORK_DSIZE(dp) ||
+	if (new_isize > xfs_inode_data_fork_size(dp) ||
 	    (pick =
 	     xfs_dir2_sf_addname_pick(args, objchange, &sfep, &offset)) == 0) {
 		/*
@@ -710,7 +710,7 @@ xfs_dir2_sf_verify(
 	struct xfs_inode		*ip)
 {
 	struct xfs_mount		*mp = ip->i_mount;
-	struct xfs_ifork		*ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
+	struct xfs_ifork		*ifp = xfs_ifork_ptr(ip, XFS_DATA_FORK);
 	struct xfs_dir2_sf_hdr		*sfp;
 	struct xfs_dir2_sf_entry	*sfep;
 	struct xfs_dir2_sf_entry	*next_sfep;
@@ -865,7 +865,6 @@ xfs_dir2_sf_lookup(
 	struct xfs_inode	*dp = args->dp;
 	struct xfs_mount	*mp = dp->i_mount;
 	int			i;		/* entry index */
-	int			error;
 	xfs_dir2_sf_entry_t	*sfep;		/* shortform directory entry */
 	xfs_dir2_sf_hdr_t	*sfp;		/* shortform structure */
 	enum xfs_dacmp		cmp;		/* comparison result */
@@ -929,8 +928,7 @@ xfs_dir2_sf_lookup(
 	if (!ci_sfep)
 		return -ENOENT;
 	/* otherwise process the CI match as required by the caller */
-	error = xfs_dir_cilookup_result(args, ci_sfep->name, ci_sfep->namelen);
-	return error;
+	return xfs_dir_cilookup_result(args, ci_sfep->name, ci_sfep->namelen);
 }
 
 /*
@@ -1031,7 +1029,7 @@ xfs_dir2_sf_replace_needblock(
 	newsize = dp->i_df.if_bytes + (sfp->count + 1) * XFS_INO64_DIFF;
 
 	return inum > XFS_DIR2_MAX_SHORT_INUM &&
-	       sfp->i8count == 0 && newsize > XFS_IFORK_DSIZE(dp);
+	       sfp->i8count == 0 && newsize > xfs_inode_data_fork_size(dp);
 }
 
 /*

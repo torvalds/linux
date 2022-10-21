@@ -1456,7 +1456,7 @@ static int init_usbat(struct us_data *us, int devicetype)
 
 	us->extra = kzalloc(sizeof(struct usbat_info), GFP_NOIO);
 	if (!us->extra)
-		return 1;
+		return -ENOMEM;
 
 	info = (struct usbat_info *) (us->extra);
 
@@ -1465,7 +1465,7 @@ static int init_usbat(struct us_data *us, int devicetype)
 				 USBAT_UIO_OE1 | USBAT_UIO_OE0,
 				 USBAT_UIO_EPAD | USBAT_UIO_1);
 	if (rc != USB_STOR_XFER_GOOD)
-		return USB_STOR_TRANSPORT_ERROR;
+		return -EIO;
 
 	usb_stor_dbg(us, "INIT 1\n");
 
@@ -1473,42 +1473,42 @@ static int init_usbat(struct us_data *us, int devicetype)
 
 	rc = usbat_read_user_io(us, status);
 	if (rc != USB_STOR_TRANSPORT_GOOD)
-		return rc;
+		return -EIO;
 
 	usb_stor_dbg(us, "INIT 2\n");
 
 	rc = usbat_read_user_io(us, status);
 	if (rc != USB_STOR_XFER_GOOD)
-		return USB_STOR_TRANSPORT_ERROR;
+		return -EIO;
 
 	rc = usbat_read_user_io(us, status);
 	if (rc != USB_STOR_XFER_GOOD)
-		return USB_STOR_TRANSPORT_ERROR;
+		return -EIO;
 
 	usb_stor_dbg(us, "INIT 3\n");
 
 	rc = usbat_select_and_test_registers(us);
 	if (rc != USB_STOR_TRANSPORT_GOOD)
-		return rc;
+		return -EIO;
 
 	usb_stor_dbg(us, "INIT 4\n");
 
 	rc = usbat_read_user_io(us, status);
 	if (rc != USB_STOR_XFER_GOOD)
-		return USB_STOR_TRANSPORT_ERROR;
+		return -EIO;
 
 	usb_stor_dbg(us, "INIT 5\n");
 
 	/* Enable peripheral control signals and card detect */
 	rc = usbat_device_enable_cdt(us);
 	if (rc != USB_STOR_TRANSPORT_GOOD)
-		return rc;
+		return -EIO;
 
 	usb_stor_dbg(us, "INIT 6\n");
 
 	rc = usbat_read_user_io(us, status);
 	if (rc != USB_STOR_XFER_GOOD)
-		return USB_STOR_TRANSPORT_ERROR;
+		return -EIO;
 
 	usb_stor_dbg(us, "INIT 7\n");
 
@@ -1516,19 +1516,19 @@ static int init_usbat(struct us_data *us, int devicetype)
 
 	rc = usbat_read_user_io(us, status);
 	if (rc != USB_STOR_XFER_GOOD)
-		return USB_STOR_TRANSPORT_ERROR;
+		return -EIO;
 
 	usb_stor_dbg(us, "INIT 8\n");
 
 	rc = usbat_select_and_test_registers(us);
 	if (rc != USB_STOR_TRANSPORT_GOOD)
-		return rc;
+		return -EIO;
 
 	usb_stor_dbg(us, "INIT 9\n");
 
 	/* At this point, we need to detect which device we are using */
 	if (usbat_set_transport(us, info, devicetype))
-		return USB_STOR_TRANSPORT_ERROR;
+		return -EIO;
 
 	usb_stor_dbg(us, "INIT 10\n");
 
@@ -1539,11 +1539,11 @@ static int init_usbat(struct us_data *us, int devicetype)
 	rc = usbat_set_shuttle_features(us, (USBAT_FEAT_ETEN | USBAT_FEAT_ET2 | USBAT_FEAT_ET1),
 									0x00, 0x88, 0x08, subcountH, subcountL);
 	if (rc != USB_STOR_XFER_GOOD)
-		return USB_STOR_TRANSPORT_ERROR;
+		return -EIO;
 
 	usb_stor_dbg(us, "INIT 11\n");
 
-	return USB_STOR_TRANSPORT_GOOD;
+	return 0;
 }
 
 /*

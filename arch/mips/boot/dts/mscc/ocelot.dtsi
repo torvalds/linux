@@ -136,13 +136,14 @@
 			      <0x1880000 0x10000>,
 			      <0x1040000 0x10000>,
 			      <0x1050000 0x10000>,
-			      <0x1060000 0x10000>;
+			      <0x1060000 0x10000>,
+			      <0x1a0 0x1c4>;
 			reg-names = "sys", "rew", "qs", "ptp", "port0", "port1",
 				    "port2", "port3", "port4", "port5", "port6",
 				    "port7", "port8", "port9", "port10", "qsys",
-				    "ana", "s0", "s1", "s2";
-			interrupts = <18 21 22>;
-			interrupt-names = "ptp_rdy", "xtr", "inj";
+				    "ana", "s0", "s1", "s2", "fdma";
+			interrupts = <18 21 22 16>;
+			interrupt-names = "ptp_rdy", "xtr", "inj", "fdma";
 
 			ethernet-ports {
 				#address-cells = <1>;
@@ -225,7 +226,7 @@
 				function = "uart2";
 			};
 
-			miim1: miim1 {
+			miim1_pins: miim1-pins {
 				pins = "GPIO_14", "GPIO_15";
 				function = "miim";
 			};
@@ -261,7 +262,7 @@
 			reg = <0x10700c0 0x24>;
 			interrupts = <15>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&miim1>;
+			pinctrl-0 = <&miim1_pins>;
 			status = "disabled";
 		};
 

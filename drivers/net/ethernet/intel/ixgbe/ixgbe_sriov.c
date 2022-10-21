@@ -77,7 +77,7 @@ static int __ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
 	IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, IXGBE_PFDTXGSWC_VT_LBEN);
 	adapter->bridge_mode = BRIDGE_MODE_VEB;
 
-	/* limit trafffic classes based on VFs enabled */
+	/* limit traffic classes based on VFs enabled */
 	if ((adapter->hw.mac.type == ixgbe_mac_82599EB) && (num_vfs < 16)) {
 		adapter->dcb_cfg.num_tcs.pg_tcs = MAX_TRAFFIC_CLASS;
 		adapter->dcb_cfg.num_tcs.pfc_tcs = MAX_TRAFFIC_CLASS;
@@ -96,6 +96,7 @@ static int __ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
 	for (i = 0; i < num_vfs; i++) {
 		/* enable spoof checking for all VFs */
 		adapter->vfinfo[i].spoofchk_enabled = true;
+		adapter->vfinfo[i].link_enable = true;
 
 		/* We support VF RSS querying only for 82599 and x540
 		 * devices at the moment. These devices share RSS
@@ -204,10 +205,13 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter, unsigned int max_vfs)
 int ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 {
 	unsigned int num_vfs = adapter->num_vfs, vf;
+	unsigned long flags;
 	int rss;
 
+	spin_lock_irqsave(&adapter->vfs_lock, flags);
 	/* set num VFs to 0 to prevent access to vfinfo */
 	adapter->num_vfs = 0;
+	spin_unlock_irqrestore(&adapter->vfs_lock, flags);
 
 	/* put the reference to all of the vf devices */
 	for (vf = 0; vf < num_vfs; ++vf) {
@@ -820,6 +824,57 @@ static inline void ixgbe_write_qde(struct ixgbe_adapter *adapter, u32 vf,
 	}
 }
 
+/**
+ * ixgbe_set_vf_rx_tx - Set VF rx tx
+ * @adapter: Pointer to adapter struct
+ * @vf: VF identifier
+ *
+ * Set or reset correct transmit and receive for vf
+ **/
+static void ixgbe_set_vf_rx_tx(struct ixgbe_adapter *adapter, int vf)
+{
+	u32 reg_cur_tx, reg_cur_rx, reg_req_tx, reg_req_rx;
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 reg_offset, vf_shift;
+
+	vf_shift = vf % 32;
+	reg_offset = vf / 32;
+
+	reg_cur_tx = IXGBE_READ_REG(hw, IXGBE_VFTE(reg_offset));
+	reg_cur_rx = IXGBE_READ_REG(hw, IXGBE_VFRE(reg_offset));
+
+	if (adapter->vfinfo[vf].link_enable) {
+		reg_req_tx = reg_cur_tx | 1 << vf_shift;
+		reg_req_rx = reg_cur_rx | 1 << vf_shift;
+	} else {
+		reg_req_tx = reg_cur_tx & ~(1 << vf_shift);
+		reg_req_rx = reg_cur_rx & ~(1 << vf_shift);
+	}
+
+	/* The 82599 cannot support a mix of jumbo and non-jumbo PF/VFs.
+	 * For more info take a look at ixgbe_set_vf_lpe
+	 */
+	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+		struct net_device *dev = adapter->netdev;
+		int pf_max_frame = dev->mtu + ETH_HLEN;
+
+#if IS_ENABLED(CONFIG_FCOE)
+		if (dev->features & NETIF_F_FCOE_MTU)
+			pf_max_frame = max_t(int, pf_max_frame,
+					     IXGBE_FCOE_JUMBO_FRAME_SIZE);
+#endif /* CONFIG_FCOE */
+
+		if (pf_max_frame > ETH_FRAME_LEN)
+			reg_req_rx = reg_cur_rx & ~(1 << vf_shift);
+	}
+
+	/* Enable/Disable particular VF */
+	if (reg_cur_tx != reg_req_tx)
+		IXGBE_WRITE_REG(hw, IXGBE_VFTE(reg_offset), reg_req_tx);
+	if (reg_cur_rx != reg_req_rx)
+		IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset), reg_req_rx);
+}
+
 static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 {
 	struct ixgbe_ring_feature *vmdq = &adapter->ring_feature[RING_F_VMDQ];
@@ -845,11 +900,6 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 	vf_shift = vf % 32;
 	reg_offset = vf / 32;
 
-	/* enable transmit for vf */
-	reg = IXGBE_READ_REG(hw, IXGBE_VFTE(reg_offset));
-	reg |= BIT(vf_shift);
-	IXGBE_WRITE_REG(hw, IXGBE_VFTE(reg_offset), reg);
-
 	/* force drop enable for all VF Rx queues */
 	reg = IXGBE_QDE_ENABLE;
 	if (adapter->vfinfo[vf].pf_vlan)
@@ -857,27 +907,7 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 
 	ixgbe_write_qde(adapter, vf, reg);
 
-	/* enable receive for vf */
-	reg = IXGBE_READ_REG(hw, IXGBE_VFRE(reg_offset));
-	reg |= BIT(vf_shift);
-	/*
-	 * The 82599 cannot support a mix of jumbo and non-jumbo PF/VFs.
-	 * For more info take a look at ixgbe_set_vf_lpe
-	 */
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-		struct net_device *dev = adapter->netdev;
-		int pf_max_frame = dev->mtu + ETH_HLEN;
-
-#ifdef CONFIG_FCOE
-		if (dev->features & NETIF_F_FCOE_MTU)
-			pf_max_frame = max_t(int, pf_max_frame,
-					     IXGBE_FCOE_JUMBO_FRAME_SIZE);
-
-#endif /* CONFIG_FCOE */
-		if (pf_max_frame > ETH_FRAME_LEN)
-			reg &= ~BIT(vf_shift);
-	}
-	IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset), reg);
+	ixgbe_set_vf_rx_tx(adapter, vf);
 
 	/* enable VF mailbox for further messages */
 	adapter->vfinfo[vf].clear_to_send = true;
@@ -1157,9 +1187,9 @@ static int ixgbe_update_vf_xcast_mode(struct ixgbe_adapter *adapter,
 
 	switch (xcast_mode) {
 	case IXGBEVF_XCAST_MODE_NONE:
-		disable = IXGBE_VMOLR_BAM | IXGBE_VMOLR_ROMPE |
+		disable = IXGBE_VMOLR_ROMPE |
 			  IXGBE_VMOLR_MPE | IXGBE_VMOLR_UPE | IXGBE_VMOLR_VPE;
-		enable = 0;
+		enable = IXGBE_VMOLR_BAM;
 		break;
 	case IXGBEVF_XCAST_MODE_MULTI:
 		disable = IXGBE_VMOLR_MPE | IXGBE_VMOLR_UPE | IXGBE_VMOLR_VPE;
@@ -1181,9 +1211,9 @@ static int ixgbe_update_vf_xcast_mode(struct ixgbe_adapter *adapter,
 			return -EPERM;
 		}
 
-		disable = 0;
+		disable = IXGBE_VMOLR_VPE;
 		enable = IXGBE_VMOLR_BAM | IXGBE_VMOLR_ROMPE |
-			 IXGBE_VMOLR_MPE | IXGBE_VMOLR_UPE | IXGBE_VMOLR_VPE;
+			 IXGBE_VMOLR_MPE | IXGBE_VMOLR_UPE;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1198,6 +1228,26 @@ static int ixgbe_update_vf_xcast_mode(struct ixgbe_adapter *adapter,
 
 out:
 	msgbuf[1] = xcast_mode;
+
+	return 0;
+}
+
+static int ixgbe_get_vf_link_state(struct ixgbe_adapter *adapter,
+				   u32 *msgbuf, u32 vf)
+{
+	u32 *link_state = &msgbuf[1];
+
+	/* verify the PF is supporting the correct API */
+	switch (adapter->vfinfo[vf].vf_api) {
+	case ixgbe_mbox_api_12:
+	case ixgbe_mbox_api_13:
+	case ixgbe_mbox_api_14:
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	*link_state = adapter->vfinfo[vf].link_enable;
 
 	return 0;
 }
@@ -1267,6 +1317,9 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 	case IXGBE_VF_UPDATE_XCAST_MODE:
 		retval = ixgbe_update_vf_xcast_mode(adapter, msgbuf, vf);
 		break;
+	case IXGBE_VF_GET_LINK_STATE:
+		retval = ixgbe_get_vf_link_state(adapter, msgbuf, vf);
+		break;
 	case IXGBE_VF_IPSEC_ADD:
 		retval = ixgbe_ipsec_vf_add_sa(adapter, msgbuf, vf);
 		break;
@@ -1305,8 +1358,10 @@ static void ixgbe_rcv_ack_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 void ixgbe_msg_task(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
+	unsigned long flags;
 	u32 vf;
 
+	spin_lock_irqsave(&adapter->vfs_lock, flags);
 	for (vf = 0; vf < adapter->num_vfs; vf++) {
 		/* process any reset requests */
 		if (!ixgbe_check_for_rst(hw, vf))
@@ -1320,18 +1375,7 @@ void ixgbe_msg_task(struct ixgbe_adapter *adapter)
 		if (!ixgbe_check_for_ack(hw, vf))
 			ixgbe_rcv_ack_from_vf(adapter, vf);
 	}
-}
-
-void ixgbe_disable_tx_rx(struct ixgbe_adapter *adapter)
-{
-	struct ixgbe_hw *hw = &adapter->hw;
-
-	/* disable transmit and receive for all vfs */
-	IXGBE_WRITE_REG(hw, IXGBE_VFTE(0), 0);
-	IXGBE_WRITE_REG(hw, IXGBE_VFTE(1), 0);
-
-	IXGBE_WRITE_REG(hw, IXGBE_VFRE(0), 0);
-	IXGBE_WRITE_REG(hw, IXGBE_VFRE(1), 0);
+	spin_unlock_irqrestore(&adapter->vfs_lock, flags);
 }
 
 static inline void ixgbe_ping_vf(struct ixgbe_adapter *adapter, int vf)
@@ -1357,6 +1401,21 @@ void ixgbe_ping_all_vfs(struct ixgbe_adapter *adapter)
 			ping |= IXGBE_VT_MSGTYPE_CTS;
 		ixgbe_write_mbx(hw, &ping, 1, i);
 	}
+}
+
+/**
+ * ixgbe_set_all_vfs - update vfs queues
+ * @adapter: Pointer to adapter struct
+ *
+ * Update setting transmit and receive queues for all vfs
+ **/
+void ixgbe_set_all_vfs(struct ixgbe_adapter *adapter)
+{
+	int i;
+
+	for (i = 0 ; i < adapter->num_vfs; i++)
+		ixgbe_set_vf_link_state(adapter, i,
+					adapter->vfinfo[i].link_state);
 }
 
 int ixgbe_ndo_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
@@ -1654,6 +1713,84 @@ int ixgbe_ndo_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting)
 	}
 
 	return 0;
+}
+
+/**
+ * ixgbe_set_vf_link_state - Set link state
+ * @adapter: Pointer to adapter struct
+ * @vf: VF identifier
+ * @state: required link state
+ *
+ * Set a link force state on/off a single vf
+ **/
+void ixgbe_set_vf_link_state(struct ixgbe_adapter *adapter, int vf, int state)
+{
+	adapter->vfinfo[vf].link_state = state;
+
+	switch (state) {
+	case IFLA_VF_LINK_STATE_AUTO:
+		if (test_bit(__IXGBE_DOWN, &adapter->state))
+			adapter->vfinfo[vf].link_enable = false;
+		else
+			adapter->vfinfo[vf].link_enable = true;
+		break;
+	case IFLA_VF_LINK_STATE_ENABLE:
+		adapter->vfinfo[vf].link_enable = true;
+		break;
+	case IFLA_VF_LINK_STATE_DISABLE:
+		adapter->vfinfo[vf].link_enable = false;
+		break;
+	}
+
+	ixgbe_set_vf_rx_tx(adapter, vf);
+
+	/* restart the VF */
+	adapter->vfinfo[vf].clear_to_send = false;
+	ixgbe_ping_vf(adapter, vf);
+}
+
+/**
+ * ixgbe_ndo_set_vf_link_state - Set link state
+ * @netdev: network interface device structure
+ * @vf: VF identifier
+ * @state: required link state
+ *
+ * Set the link state of a specified VF, regardless of physical link state
+ **/
+int ixgbe_ndo_set_vf_link_state(struct net_device *netdev, int vf, int state)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	int ret = 0;
+
+	if (vf < 0 || vf >= adapter->num_vfs) {
+		dev_err(&adapter->pdev->dev,
+			"NDO set VF link - invalid VF identifier %d\n", vf);
+		return -EINVAL;
+	}
+
+	switch (state) {
+	case IFLA_VF_LINK_STATE_ENABLE:
+		dev_info(&adapter->pdev->dev,
+			 "NDO set VF %d link state %d - not supported\n",
+			vf, state);
+		break;
+	case IFLA_VF_LINK_STATE_DISABLE:
+		dev_info(&adapter->pdev->dev,
+			 "NDO set VF %d link state disable\n", vf);
+		ixgbe_set_vf_link_state(adapter, vf, state);
+		break;
+	case IFLA_VF_LINK_STATE_AUTO:
+		dev_info(&adapter->pdev->dev,
+			 "NDO set VF %d link state auto\n", vf);
+		ixgbe_set_vf_link_state(adapter, vf, state);
+		break;
+	default:
+		dev_err(&adapter->pdev->dev,
+			"NDO set VF %d - invalid link state %d\n", vf, state);
+		ret = -EINVAL;
+	}
+
+	return ret;
 }
 
 int ixgbe_ndo_set_vf_rss_query_en(struct net_device *netdev, int vf,

@@ -149,7 +149,6 @@ struct cbq_sched_data {
 	psched_time_t		now;		/* Cached timestamp */
 	unsigned int		pmask;
 
-	struct hrtimer		delay_timer;
 	struct qdisc_watchdog	watchdog;	/* Watchdog timer,
 						   started when CBQ has
 						   backlog, but cannot
@@ -439,81 +438,6 @@ static void cbq_overlimit(struct cbq_class *cl)
 
 		q->wd_expires = base_delay;
 	}
-}
-
-static psched_tdiff_t cbq_undelay_prio(struct cbq_sched_data *q, int prio,
-				       psched_time_t now)
-{
-	struct cbq_class *cl;
-	struct cbq_class *cl_prev = q->active[prio];
-	psched_time_t sched = now;
-
-	if (cl_prev == NULL)
-		return 0;
-
-	do {
-		cl = cl_prev->next_alive;
-		if (now - cl->penalized > 0) {
-			cl_prev->next_alive = cl->next_alive;
-			cl->next_alive = NULL;
-			cl->cpriority = cl->priority;
-			cl->delayed = 0;
-			cbq_activate_class(cl);
-
-			if (cl == q->active[prio]) {
-				q->active[prio] = cl_prev;
-				if (cl == q->active[prio]) {
-					q->active[prio] = NULL;
-					return 0;
-				}
-			}
-
-			cl = cl_prev->next_alive;
-		} else if (sched - cl->penalized > 0)
-			sched = cl->penalized;
-	} while ((cl_prev = cl) != q->active[prio]);
-
-	return sched - now;
-}
-
-static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
-{
-	struct cbq_sched_data *q = container_of(timer, struct cbq_sched_data,
-						delay_timer);
-	struct Qdisc *sch = q->watchdog.qdisc;
-	psched_time_t now;
-	psched_tdiff_t delay = 0;
-	unsigned int pmask;
-
-	now = psched_get_time();
-
-	pmask = q->pmask;
-	q->pmask = 0;
-
-	while (pmask) {
-		int prio = ffz(~pmask);
-		psched_tdiff_t tmp;
-
-		pmask &= ~(1<<prio);
-
-		tmp = cbq_undelay_prio(q, prio, now);
-		if (tmp > 0) {
-			q->pmask |= 1<<prio;
-			if (tmp < delay || delay == 0)
-				delay = tmp;
-		}
-	}
-
-	if (delay) {
-		ktime_t time;
-
-		time = 0;
-		time = ktime_add_ns(time, PSCHED_TICKS2NS(now + delay));
-		hrtimer_start(&q->delay_timer, time, HRTIMER_MODE_ABS_PINNED);
-	}
-
-	__netif_schedule(qdisc_root(sch));
-	return HRTIMER_NORESTART;
 }
 
 /*
@@ -1034,7 +958,6 @@ cbq_reset(struct Qdisc *sch)
 	q->tx_class = NULL;
 	q->tx_borrowed = NULL;
 	qdisc_watchdog_cancel(&q->watchdog);
-	hrtimer_cancel(&q->delay_timer);
 	q->toplevel = TC_CBQ_MAXLEVEL;
 	q->now = psched_get_time();
 
@@ -1052,11 +975,10 @@ cbq_reset(struct Qdisc *sch)
 			cl->cpriority = cl->priority;
 		}
 	}
-	sch->q.qlen = 0;
 }
 
 
-static int cbq_set_lss(struct cbq_class *cl, struct tc_cbq_lssopt *lss)
+static void cbq_set_lss(struct cbq_class *cl, struct tc_cbq_lssopt *lss)
 {
 	if (lss->change & TCF_CBQ_LSS_FLAGS) {
 		cl->share = (lss->flags & TCF_CBQ_LSS_ISOLATED) ? NULL : cl->tparent;
@@ -1074,7 +996,6 @@ static int cbq_set_lss(struct cbq_class *cl, struct tc_cbq_lssopt *lss)
 	}
 	if (lss->change & TCF_CBQ_LSS_OFFTIME)
 		cl->offtime = lss->offtime;
-	return 0;
 }
 
 static void cbq_rmprio(struct cbq_sched_data *q, struct cbq_class *cl)
@@ -1162,8 +1083,6 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt,
 	int err;
 
 	qdisc_watchdog_init(&q->watchdog, sch);
-	hrtimer_init(&q->delay_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_PINNED);
-	q->delay_timer.function = cbq_undelay;
 
 	err = cbq_opt_parse(tb, opt, extack);
 	if (err < 0)
@@ -1757,15 +1676,8 @@ static void cbq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 
 	for (h = 0; h < q->clhash.hashsize; h++) {
 		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hnode) {
-			if (arg->count < arg->skip) {
-				arg->count++;
-				continue;
-			}
-			if (arg->fn(sch, (unsigned long)cl, arg) < 0) {
-				arg->stop = 1;
+			if (!tc_qdisc_stats_dump(sch, (unsigned long)cl, arg))
 				return;
-			}
-			arg->count++;
 		}
 	}
 }

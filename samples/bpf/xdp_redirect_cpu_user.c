@@ -21,7 +21,6 @@ static const char *__doc__ =
 #include <string.h>
 #include <unistd.h>
 #include <locale.h>
-#include <sys/resource.h>
 #include <sys/sysinfo.h>
 #include <getopt.h>
 #include <net/if.h>
@@ -70,7 +69,7 @@ static void print_avail_progs(struct bpf_object *obj)
 
 	printf(" Programs to be used for -p/--progname:\n");
 	bpf_object__for_each_program(pos, obj) {
-		if (bpf_program__is_xdp(pos)) {
+		if (bpf_program__type(pos) == BPF_PROG_TYPE_XDP) {
 			if (!strncmp(bpf_program__name(pos), "xdp_prognum",
 				     sizeof("xdp_prognum") - 1))
 				printf(" %s\n", bpf_program__name(pos));

@@ -11,9 +11,9 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include "msm8998.dtsi"
+#include "pm8005.dtsi"
 #include "pm8998.dtsi"
 #include "pmi8998.dtsi"
-#include "pm8005.dtsi"
 
 / {
 	/* Required for bootloader to select correct board */
@@ -32,6 +32,19 @@
 			height = <1920>;
 			stride = <(1080 * 4)>;
 			format = "a8r8g8b8";
+			/*
+			* That's a lot of clocks, but it's necessary due
+			* to unused clk cleanup & no panel driver yet..
+			*/
+			clocks = <&mmcc MDSS_AHB_CLK>,
+				 <&mmcc MDSS_AXI_CLK>,
+				 <&mmcc MDSS_VSYNC_CLK>,
+				 <&mmcc MDSS_MDP_CLK>,
+				 <&mmcc MDSS_BYTE0_CLK>,
+				 <&mmcc MDSS_BYTE0_INTF_CLK>,
+				 <&mmcc MDSS_PCLK0_CLK>,
+				 <&mmcc MDSS_ESC0_CLK>;
+			power-domains = <&mmcc MDSS_GDSC>;
 		};
 	};
 
@@ -77,7 +90,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&vol_keys_default>;
 
-		vol-down {
+		button-vol-down {
 			label = "Volume down";
 			gpios = <&pm8998_gpio 5 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;
@@ -85,7 +98,7 @@
 			wakeup-source;
 		};
 
-		vol-up {
+		button-vol-up {
 			label = "Volume up";
 			gpios = <&pm8998_gpio 6 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
@@ -101,7 +114,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hall_sensor_default>;
 
-		hall-sensor {
+		event-hall-sensor {
 			label = "Hall Effect Sensor";
 			gpios = <&tlmm 124 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
@@ -188,6 +201,23 @@
 	};
 };
 
+&blsp1_i2c6 {
+	status = "okay";
+
+	nfc@28 {
+		compatible = "nxp,nxp-nci-i2c";
+		reg = <0x28>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <92 IRQ_TYPE_LEVEL_HIGH>;
+
+		enable-gpios = <&tlmm 116 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&nfc_int_active &nfc_enable_active>;
+	};
+};
+
 &blsp1_uart3 {
 	status = "okay";
 
@@ -228,32 +258,24 @@
 	status = "okay";
 };
 
-&pm8005_lsid1 {
-	pm8005-regulators {
-		compatible = "qcom,pm8005-regulators";
-
-		vdd_s1-supply = <&vph_pwr>;
-
-		pm8005_s1: s1 { /* VDD_GFX supply */
-			regulator-min-microvolt = <524000>;
-			regulator-max-microvolt = <1100000>;
-			regulator-enable-ramp-delay = <500>;
-
-			/* hack until we rig up the gpu consumer */
-			regulator-always-on;
-		};
+&pm8005_regulators {
+	/* VDD_GFX supply */
+	pm8005_s1: s1 {
+		regulator-min-microvolt = <524000>;
+		regulator-max-microvolt = <1100000>;
+		regulator-enable-ramp-delay = <500>;
+		/* Hack until we rig up the gpu consumer */
+		regulator-always-on;
 	};
 };
 
 &pm8998_gpio {
-	vol_keys_default: vol-keys-default {
-		pinconf {
-			pins = "gpio5", "gpio6";
-			function = "normal";
-			bias-pull-up;
-			input-enable;
-			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
-		};
+	vol_keys_default: vol-keys-state {
+		pins = "gpio5", "gpio6";
+		function = "normal";
+		bias-pull-up;
+		input-enable;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 	};
 };
 
@@ -301,91 +323,113 @@
 			regulator-min-microvolt = <1352000>;
 			regulator-max-microvolt = <1352000>;
 		};
+
 		vreg_s4a_1p8: s4 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			regulator-allow-set-load;
 		};
+
 		vreg_s5a_2p04: s5 {
 			regulator-min-microvolt = <1904000>;
 			regulator-max-microvolt = <2040000>;
 		};
+
 		vreg_s7a_1p025: s7 {
 			regulator-min-microvolt = <900000>;
 			regulator-max-microvolt = <1028000>;
 		};
+
 		vreg_l1a_0p875: l1 {
 			regulator-min-microvolt = <880000>;
 			regulator-max-microvolt = <880000>;
 		};
+
 		vreg_l2a_1p2: l2 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
 		};
+
 		vreg_l3a_1p0: l3 {
 			regulator-min-microvolt = <1000000>;
 			regulator-max-microvolt = <1000000>;
 		};
+
 		vreg_l5a_0p8: l5 {
 			regulator-min-microvolt = <800000>;
 			regulator-max-microvolt = <800000>;
 		};
+
 		vreg_l6a_1p8: l6 {
 			regulator-min-microvolt = <1808000>;
 			regulator-max-microvolt = <1808000>;
 		};
+
 		vreg_l7a_1p8: l7 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 		};
+
 		vreg_l8a_1p2: l8 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
 		};
+
 		vreg_l9a_1p8: l9 {
 			regulator-min-microvolt = <1808000>;
 			regulator-max-microvolt = <2960000>;
 		};
+
 		vreg_l10a_1p8: l10 {
 			regulator-min-microvolt = <1808000>;
 			regulator-max-microvolt = <2960000>;
 		};
+
 		vreg_l11a_1p0: l11 {
 			regulator-min-microvolt = <1000000>;
 			regulator-max-microvolt = <1000000>;
 		};
+
 		vreg_l12a_1p8: l12 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 		};
+
 		vreg_l13a_2p95: l13 {
 			regulator-min-microvolt = <1808000>;
 			regulator-max-microvolt = <2960000>;
 		};
+
 		vreg_l14a_1p88: l14 {
 			regulator-min-microvolt = <1880000>;
 			regulator-max-microvolt = <1880000>;
 		};
+
 		vreg_l15a_1p8: l15 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 		};
+
 		vreg_l16a_2p7: l16 {
 			regulator-min-microvolt = <2704000>;
 			regulator-max-microvolt = <2704000>;
 		};
+
 		vreg_l17a_1p3: l17 {
 			regulator-min-microvolt = <1304000>;
 			regulator-max-microvolt = <1304000>;
 		};
+
 		vreg_l18a_2p7: l18 {
 			regulator-min-microvolt = <2704000>;
 			regulator-max-microvolt = <2704000>;
 		};
+
 		vreg_l19a_3p0: l19 {
 			regulator-min-microvolt = <3008000>;
 			regulator-max-microvolt = <3008000>;
 		};
+
 		vreg_l20a_2p95: l20 {
 			regulator-min-microvolt = <2960000>;
 			regulator-max-microvolt = <2960000>;
@@ -394,34 +438,41 @@
 		vreg_l21a_2p95: l21 {
 			regulator-min-microvolt = <2960000>;
 			regulator-max-microvolt = <2960000>;
-			regulator-allow-set-load;
 			regulator-system-load = <800000>;
+			regulator-allow-set-load;
 		};
+
 		vreg_l22a_2p85: l22 {
 			regulator-min-microvolt = <2864000>;
 			regulator-max-microvolt = <2864000>;
 		};
+
 		vreg_l23a_3p3: l23 {
 			regulator-min-microvolt = <3312000>;
 			regulator-max-microvolt = <3312000>;
 		};
+
 		vreg_l24a_3p075: l24 {
 			regulator-min-microvolt = <3088000>;
 			regulator-max-microvolt = <3088000>;
 		};
+
 		vreg_l25a_3p3: l25 {
 			regulator-min-microvolt = <3104000>;
 			regulator-max-microvolt = <3312000>;
 		};
+
 		vreg_l26a_1p2: l26 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
 			regulator-allow-set-load;
 		};
+
 		vreg_l28_3p0: l28 {
 			regulator-min-microvolt = <3008000>;
 			regulator-max-microvolt = <3008000>;
 		};
+
 		vreg_lvs1a_1p8: lvs1 { };
 		vreg_lvs2a_1p8: lvs2 { };
 	};
@@ -460,6 +511,20 @@
 		pins = "gpio89";
 		function = "gpio";
 		drive-strength = <8>;
+		bias-pull-up;
+	};
+
+	nfc_int_active: nfc-int-active {
+		pins = "gpio92";
+		function = "gpio";
+		drive-strength = <6>;
+		bias-pull-up;
+	};
+
+	nfc_enable_active: nfc-enable-active {
+		pins = "gpio12", "gpio116";
+		function = "gpio";
+		drive-strength = <6>;
 		bias-pull-up;
 	};
 };

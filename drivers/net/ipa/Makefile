@@ -1,3 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Makefile for the Qualcomm IPA driver.
+
+IPA_VERSIONS		:=	3.1 3.5.1 4.2 4.5 4.9 4.11
+
 obj-$(CONFIG_QCOM_IPA)	+=	ipa.o
 
 ipa-y			:=	ipa_main.o ipa_power.o ipa_reg.o ipa_mem.o \
@@ -7,6 +13,6 @@ ipa-y			:=	ipa_main.o ipa_power.o ipa_reg.o ipa_mem.o \
 				ipa_resource.o ipa_qmi.o ipa_qmi_msg.o \
 				ipa_sysfs.o
 
-ipa-y			+=	ipa_data-v3.1.o ipa_data-v3.5.1.o \
-				ipa_data-v4.2.o ipa_data-v4.5.o \
-				ipa_data-v4.9.o ipa_data-v4.11.o
+ipa-y			+=	$(IPA_VERSIONS:%=reg/ipa_reg-v%.o)
+
+ipa-y			+=	$(IPA_VERSIONS:%=data/ipa_data-v%.o)

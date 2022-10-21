@@ -141,7 +141,7 @@ void __init plat_time_init(void)
 	/*
 	 * Set clock to 100Hz.
 	 *
-	 * The R4030 timer receives an input clock of 1kHz which is divieded by
+	 * The R4030 timer receives an input clock of 1kHz which is divided by
 	 * a programmable 4-bit divider.  This makes it fairly inflexible.
 	 */
 	r4030_write_reg32(JAZZ_TIMER_INTERVAL, 9);

@@ -96,19 +96,17 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
  */
 static int ttm_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
-	ttm->pages = kvmalloc_array(ttm->num_pages, sizeof(void*),
-			GFP_KERNEL | __GFP_ZERO);
+	ttm->pages = kvcalloc(ttm->num_pages, sizeof(void*), GFP_KERNEL);
 	if (!ttm->pages)
 		return -ENOMEM;
+
 	return 0;
 }
 
 static int ttm_dma_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
-	ttm->pages = kvmalloc_array(ttm->num_pages,
-				    sizeof(*ttm->pages) +
-				    sizeof(*ttm->dma_address),
-				    GFP_KERNEL | __GFP_ZERO);
+	ttm->pages = kvcalloc(ttm->num_pages, sizeof(*ttm->pages) +
+			      sizeof(*ttm->dma_address), GFP_KERNEL);
 	if (!ttm->pages)
 		return -ENOMEM;
 
@@ -118,11 +116,11 @@ static int ttm_dma_tt_alloc_page_directory(struct ttm_tt *ttm)
 
 static int ttm_sg_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
-	ttm->dma_address = kvmalloc_array(ttm->num_pages,
-					  sizeof(*ttm->dma_address),
-					  GFP_KERNEL | __GFP_ZERO);
+	ttm->dma_address = kvcalloc(ttm->num_pages, sizeof(*ttm->dma_address),
+				    GFP_KERNEL);
 	if (!ttm->dma_address)
 		return -ENOMEM;
+
 	return 0;
 }
 
@@ -134,9 +132,10 @@ void ttm_tt_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 static void ttm_tt_init_fields(struct ttm_tt *ttm,
 			       struct ttm_buffer_object *bo,
 			       uint32_t page_flags,
-			       enum ttm_caching caching)
+			       enum ttm_caching caching,
+			       unsigned long extra_pages)
 {
-	ttm->num_pages = PAGE_ALIGN(bo->base.size) >> PAGE_SHIFT;
+	ttm->num_pages = (PAGE_ALIGN(bo->base.size) >> PAGE_SHIFT) + extra_pages;
 	ttm->caching = ttm_cached;
 	ttm->page_flags = page_flags;
 	ttm->dma_address = NULL;
@@ -146,9 +145,10 @@ static void ttm_tt_init_fields(struct ttm_tt *ttm,
 }
 
 int ttm_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
-		uint32_t page_flags, enum ttm_caching caching)
+		uint32_t page_flags, enum ttm_caching caching,
+		unsigned long extra_pages)
 {
-	ttm_tt_init_fields(ttm, bo, page_flags, caching);
+	ttm_tt_init_fields(ttm, bo, page_flags, caching, extra_pages);
 
 	if (ttm_tt_alloc_page_directory(ttm)) {
 		pr_err("Failed allocating page table\n");
@@ -180,7 +180,7 @@ int ttm_sg_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
 {
 	int ret;
 
-	ttm_tt_init_fields(ttm, bo, page_flags, caching);
+	ttm_tt_init_fields(ttm, bo, page_flags, caching, 0);
 
 	if (page_flags & TTM_TT_FLAG_EXTERNAL)
 		ret = ttm_sg_tt_alloc_page_directory(ttm);
@@ -406,18 +406,18 @@ void ttm_tt_mgr_init(unsigned long num_pages, unsigned long num_dma32_pages)
 }
 
 static void ttm_kmap_iter_tt_map_local(struct ttm_kmap_iter *iter,
-				       struct dma_buf_map *dmap,
+				       struct iosys_map *dmap,
 				       pgoff_t i)
 {
 	struct ttm_kmap_iter_tt *iter_tt =
 		container_of(iter, typeof(*iter_tt), base);
 
-	dma_buf_map_set_vaddr(dmap, kmap_local_page_prot(iter_tt->tt->pages[i],
-							 iter_tt->prot));
+	iosys_map_set_vaddr(dmap, kmap_local_page_prot(iter_tt->tt->pages[i],
+						       iter_tt->prot));
 }
 
 static void ttm_kmap_iter_tt_unmap_local(struct ttm_kmap_iter *iter,
-					 struct dma_buf_map *map)
+					 struct iosys_map *map)
 {
 	kunmap_local(map->vaddr);
 }

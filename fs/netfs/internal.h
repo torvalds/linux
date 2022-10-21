@@ -5,6 +5,10 @@
  * Written by David Howells (dhowells@redhat.com)
  */
 
+#include <linux/netfs.h>
+#include <linux/fscache.h>
+#include <trace/events/netfs.h>
+
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -12,9 +16,38 @@
 #define pr_fmt(fmt) "netfs: " fmt
 
 /*
- * read_helper.c
+ * buffered_read.c
+ */
+void netfs_rreq_unlock_folios(struct netfs_io_request *rreq);
+
+/*
+ * io.c
+ */
+int netfs_begin_read(struct netfs_io_request *rreq, bool sync);
+
+/*
+ * main.c
  */
 extern unsigned int netfs_debug;
+
+/*
+ * objects.c
+ */
+struct netfs_io_request *netfs_alloc_request(struct address_space *mapping,
+					     struct file *file,
+					     loff_t start, size_t len,
+					     enum netfs_io_origin origin);
+void netfs_get_request(struct netfs_io_request *rreq, enum netfs_rreq_ref_trace what);
+void netfs_clear_subrequests(struct netfs_io_request *rreq, bool was_async);
+void netfs_put_request(struct netfs_io_request *rreq, bool was_async,
+		       enum netfs_rreq_ref_trace what);
+struct netfs_io_subrequest *netfs_alloc_subrequest(struct netfs_io_request *rreq);
+
+static inline void netfs_see_request(struct netfs_io_request *rreq,
+				     enum netfs_rreq_ref_trace what)
+{
+	trace_netfs_rreq_ref(rreq->debug_id, refcount_read(&rreq->ref), what);
+}
 
 /*
  * stats.c
@@ -54,6 +87,21 @@ static inline void netfs_stat_d(atomic_t *stat)
 #define netfs_stat(x) do {} while(0)
 #define netfs_stat_d(x) do {} while(0)
 #endif
+
+/*
+ * Miscellaneous functions.
+ */
+static inline bool netfs_is_cache_enabled(struct netfs_inode *ctx)
+{
+#if IS_ENABLED(CONFIG_FSCACHE)
+	struct fscache_cookie *cookie = ctx->cache;
+
+	return fscache_cookie_valid(cookie) && cookie->cache_priv &&
+		fscache_cookie_enabled(cookie);
+#else
+	return false;
+#endif
+}
 
 /*****************************************************************************/
 /*

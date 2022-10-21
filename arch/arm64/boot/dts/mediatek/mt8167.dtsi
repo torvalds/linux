@@ -36,9 +36,8 @@
 		};
 
 		scpsys: syscon@10006000 {
-			compatible = "syscon", "simple-mfd";
+			compatible = "mediatek,mt8167-scpsys", "syscon", "simple-mfd";
 			reg = <0 0x10006000 0 0x1000>;
-			#power-domain-cells = <1>;
 
 			spm: power-controller {
 				compatible = "mediatek,mt8167-power-controller";
@@ -174,7 +173,7 @@
 		iommu: m4u@10203000 {
 			compatible = "mediatek,mt8167-m4u";
 			reg = <0 0x10203000 0 0x1000>;
-			mediatek,larbs = <&larb0 &larb1 &larb2>;
+			mediatek,larbs = <&larb0>, <&larb1>, <&larb2>;
 			interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_LOW>;
 			#iommu-cells = <1>;
 		};

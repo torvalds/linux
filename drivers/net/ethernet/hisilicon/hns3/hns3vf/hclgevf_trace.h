@@ -29,7 +29,7 @@ TRACE_EVENT(hclge_vf_mbx_get,
 
 	TP_fast_assign(
 		__entry->vfid = req->dest_vfid;
-		__entry->code = req->msg.code;
+		__entry->code = le16_to_cpu(req->msg.code);
 		__assign_str(pciname, pci_name(hdev->pdev));
 		__assign_str(devname, &hdev->nic.kinfo.netdev->name);
 		memcpy(__entry->mbx_data, req,

@@ -62,6 +62,7 @@ Currently, these files are in /proc/sys/vm:
 - overcommit_memory
 - overcommit_ratio
 - page-cluster
+- page_lock_unfairness
 - panic_on_oom
 - percpu_pagelist_high_fraction
 - stat_interval
@@ -561,6 +562,43 @@ Change the minimum size of the hugepage pool.
 See Documentation/admin-guide/mm/hugetlbpage.rst
 
 
+hugetlb_optimize_vmemmap
+========================
+
+This knob is not available when the size of 'struct page' (a structure defined
+in include/linux/mm_types.h) is not power of two (an unusual system config could
+result in this).
+
+Enable (set to 1) or disable (set to 0) HugeTLB Vmemmap Optimization (HVO).
+
+Once enabled, the vmemmap pages of subsequent allocation of HugeTLB pages from
+buddy allocator will be optimized (7 pages per 2MB HugeTLB page and 4095 pages
+per 1GB HugeTLB page), whereas already allocated HugeTLB pages will not be
+optimized.  When those optimized HugeTLB pages are freed from the HugeTLB pool
+to the buddy allocator, the vmemmap pages representing that range needs to be
+remapped again and the vmemmap pages discarded earlier need to be rellocated
+again.  If your use case is that HugeTLB pages are allocated 'on the fly' (e.g.
+never explicitly allocating HugeTLB pages with 'nr_hugepages' but only set
+'nr_overcommit_hugepages', those overcommitted HugeTLB pages are allocated 'on
+the fly') instead of being pulled from the HugeTLB pool, you should weigh the
+benefits of memory savings against the more overhead (~2x slower than before)
+of allocation or freeing HugeTLB pages between the HugeTLB pool and the buddy
+allocator.  Another behavior to note is that if the system is under heavy memory
+pressure, it could prevent the user from freeing HugeTLB pages from the HugeTLB
+pool to the buddy allocator since the allocation of vmemmap pages could be
+failed, you have to retry later if your system encounter this situation.
+
+Once disabled, the vmemmap pages of subsequent allocation of HugeTLB pages from
+buddy allocator will not be optimized meaning the extra overhead at allocation
+time from buddy allocator disappears, whereas already optimized HugeTLB pages
+will not be affected.  If you want to make sure there are no optimized HugeTLB
+pages, you can set "nr_hugepages" to 0 first and then disable this.  Note that
+writing 0 to nr_hugepages will make any "in use" HugeTLB pages become surplus
+pages.  So, those surplus pages are still optimized until they are no longer
+in use.  You would need to wait for those surplus pages to be released before
+there are no optimized pages in the system.
+
+
 nr_hugepages_mempolicy
 ======================
 
@@ -720,7 +758,7 @@ and don't use much of it.
 
 The default value is 0.
 
-See Documentation/vm/overcommit-accounting.rst and
+See Documentation/mm/overcommit-accounting.rst and
 mm/util.c::__vm_enough_memory() for more information.
 
 
@@ -753,6 +791,14 @@ Lower values mean lower latencies for initial faults, but at the same time
 extra faults and I/O delays for following faults if they would have been part of
 that consecutive pages readahead would have brought in.
 
+
+page_lock_unfairness
+====================
+
+This value determines the number of times that the page lock can be
+stolen from under a waiter. After the lock is stolen the number of times
+specified in this file (default is 5), the "fair lock handoff" semantics
+will apply, and the waiter will only be awakened if the lock can be taken.
 
 panic_on_oom
 ============
@@ -880,6 +926,9 @@ calls without any restrictions.
 
 The default value is 0.
 
+Another way to control permissions for userfaultfd is to use
+/dev/userfaultfd instead of userfaultfd(2). See
+Documentation/admin-guide/mm/userfaultfd.rst.
 
 user_reserve_kbytes
 ===================

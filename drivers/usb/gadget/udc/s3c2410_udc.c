@@ -23,7 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/prefetch.h>
 #include <linux/io.h>
 
@@ -1265,7 +1265,7 @@ static int s3c2410_udc_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	struct s3c2410_ep	*ep = to_s3c2410_ep(_ep);
 	int			retval = -EINVAL;
 	unsigned long		flags;
-	struct s3c2410_request	*req = NULL;
+	struct s3c2410_request	*req = NULL, *iter;
 
 	dprintk(DEBUG_VERBOSE, "%s(%p,%p)\n", __func__, _ep, _req);
 
@@ -1277,13 +1277,14 @@ static int s3c2410_udc_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 	local_irq_save(flags);
 
-	list_for_each_entry(req, &ep->queue, queue) {
-		if (&req->req == _req) {
-			list_del_init(&req->queue);
-			_req->status = -ECONNRESET;
-			retval = 0;
-			break;
-		}
+	list_for_each_entry(iter, &ep->queue, queue) {
+		if (&iter->req != _req)
+			continue;
+		list_del_init(&iter->queue);
+		_req->status = -ECONNRESET;
+		req = iter;
+		retval = 0;
+		break;
 	}
 
 	if (retval == 0) {
@@ -1418,8 +1419,7 @@ static int s3c2410_udc_set_pullup(struct s3c2410_udc *udc, int is_on)
 {
 	dprintk(DEBUG_NORMAL, "%s()\n", __func__);
 
-	if (udc_info && (udc_info->udc_command ||
-		gpio_is_valid(udc_info->pullup_pin))) {
+	if (udc_info && (udc_info->udc_command || udc->pullup_gpiod)) {
 
 		if (is_on)
 			s3c2410_udc_enable(udc);
@@ -1466,9 +1466,7 @@ static irqreturn_t s3c2410_udc_vbus_irq(int irq, void *_dev)
 
 	dprintk(DEBUG_NORMAL, "%s()\n", __func__);
 
-	value = gpio_get_value(udc_info->vbus_pin) ? 1 : 0;
-	if (udc_info->vbus_pin_inverted)
-		value = !value;
+	value = gpiod_get_value(dev->vbus_gpiod);
 
 	if (value != dev->vbus)
 		s3c2410_udc_vbus_session(&dev->gadget, value);
@@ -1503,14 +1501,15 @@ static const struct usb_gadget_ops s3c2410_ops = {
 	.udc_stop		= s3c2410_udc_stop,
 };
 
-static void s3c2410_udc_command(enum s3c2410_udc_cmd_e cmd)
+static void s3c2410_udc_command(struct s3c2410_udc *udc,
+				enum s3c2410_udc_cmd_e cmd)
 {
 	if (!udc_info)
 		return;
 
 	if (udc_info->udc_command) {
 		udc_info->udc_command(cmd);
-	} else if (gpio_is_valid(udc_info->pullup_pin)) {
+	} else if (udc->pullup_gpiod) {
 		int value;
 
 		switch (cmd) {
@@ -1523,9 +1522,8 @@ static void s3c2410_udc_command(enum s3c2410_udc_cmd_e cmd)
 		default:
 			return;
 		}
-		value ^= udc_info->pullup_pin_inverted;
 
-		gpio_set_value(udc_info->pullup_pin, value);
+		gpiod_set_value(udc->pullup_gpiod, value);
 	}
 }
 
@@ -1550,7 +1548,7 @@ static void s3c2410_udc_disable(struct s3c2410_udc *dev)
 	udc_write(0x1F, S3C2410_UDC_EP_INT_REG);
 
 	/* Good bye, cruel world */
-	s3c2410_udc_command(S3C2410_UDC_P_DISABLE);
+	s3c2410_udc_command(dev, S3C2410_UDC_P_DISABLE);
 
 	/* Set speed to unknown */
 	dev->gadget.speed = USB_SPEED_UNKNOWN;
@@ -1612,7 +1610,7 @@ static void s3c2410_udc_enable(struct s3c2410_udc *dev)
 	udc_write(S3C2410_UDC_INT_EP0, S3C2410_UDC_EP_INT_EN_REG);
 
 	/* time to say "hello, world" */
-	s3c2410_udc_command(S3C2410_UDC_P_ENABLE);
+	s3c2410_udc_command(dev, S3C2410_UDC_P_ENABLE);
 }
 
 static int s3c2410_udc_start(struct usb_gadget *g,
@@ -1801,14 +1799,15 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 
 	dev_dbg(dev, "got irq %i\n", irq_usbd);
 
-	if (udc_info && udc_info->vbus_pin > 0) {
-		retval = gpio_request(udc_info->vbus_pin, "udc vbus");
-		if (retval < 0) {
-			dev_err(dev, "cannot claim vbus pin\n");
-			goto err_int;
-		}
+	udc->vbus_gpiod = gpiod_get_optional(dev, "vbus", GPIOD_IN);
+	if (IS_ERR(udc->vbus_gpiod)) {
+		retval = PTR_ERR(udc->vbus_gpiod);
+		goto err_int;
+	}
+	if (udc->vbus_gpiod) {
+		gpiod_set_consumer_name(udc->vbus_gpiod, "udc vbus");
 
-		irq = gpio_to_irq(udc_info->vbus_pin);
+		irq = gpiod_to_irq(udc->vbus_gpiod);
 		if (irq < 0) {
 			dev_err(dev, "no irq for gpio vbus pin\n");
 			retval = irq;
@@ -1832,16 +1831,12 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 		udc->vbus = 1;
 	}
 
-	if (udc_info && !udc_info->udc_command &&
-		gpio_is_valid(udc_info->pullup_pin)) {
-
-		retval = gpio_request_one(udc_info->pullup_pin,
-				udc_info->vbus_pin_inverted ?
-				GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW,
-				"udc pullup");
-		if (retval)
-			goto err_vbus_irq;
+	udc->pullup_gpiod = gpiod_get_optional(dev, "pullup", GPIOD_OUT_LOW);
+	if (IS_ERR(udc->pullup_gpiod)) {
+		retval = PTR_ERR(udc->pullup_gpiod);
+		goto err_vbus_irq;
 	}
+	gpiod_set_consumer_name(udc->pullup_gpiod, "udc pullup");
 
 	retval = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
 	if (retval)
@@ -1855,15 +1850,10 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_udc:
-	if (udc_info && !udc_info->udc_command &&
-			gpio_is_valid(udc_info->pullup_pin))
-		gpio_free(udc_info->pullup_pin);
 err_vbus_irq:
-	if (udc_info && udc_info->vbus_pin > 0)
-		free_irq(gpio_to_irq(udc_info->vbus_pin), udc);
+	if (udc->vbus_gpiod)
+		free_irq(gpiod_to_irq(udc->vbus_gpiod), udc);
 err_gpio_claim:
-	if (udc_info && udc_info->vbus_pin > 0)
-		gpio_free(udc_info->vbus_pin);
 err_int:
 	free_irq(irq_usbd, udc);
 err_udc_clk:
@@ -1884,7 +1874,6 @@ err_usb_bus_clk:
 static int s3c2410_udc_remove(struct platform_device *pdev)
 {
 	struct s3c2410_udc *udc = platform_get_drvdata(pdev);
-	unsigned int irq;
 
 	dev_dbg(&pdev->dev, "%s()\n", __func__);
 
@@ -1894,14 +1883,8 @@ static int s3c2410_udc_remove(struct platform_device *pdev)
 	usb_del_gadget_udc(&udc->gadget);
 	debugfs_remove(debugfs_lookup("registers", s3c2410_udc_debugfs_root));
 
-	if (udc_info && !udc_info->udc_command &&
-		gpio_is_valid(udc_info->pullup_pin))
-		gpio_free(udc_info->pullup_pin);
-
-	if (udc_info && udc_info->vbus_pin > 0) {
-		irq = gpio_to_irq(udc_info->vbus_pin);
-		free_irq(irq, udc);
-	}
+	if (udc->vbus_gpiod)
+		free_irq(gpiod_to_irq(udc->vbus_gpiod), udc);
 
 	free_irq(irq_usbd, udc);
 
@@ -1925,14 +1908,18 @@ static int s3c2410_udc_remove(struct platform_device *pdev)
 static int
 s3c2410_udc_suspend(struct platform_device *pdev, pm_message_t message)
 {
-	s3c2410_udc_command(S3C2410_UDC_P_DISABLE);
+	struct s3c2410_udc *udc = platform_get_drvdata(pdev);
+
+	s3c2410_udc_command(udc, S3C2410_UDC_P_DISABLE);
 
 	return 0;
 }
 
 static int s3c2410_udc_resume(struct platform_device *pdev)
 {
-	s3c2410_udc_command(S3C2410_UDC_P_ENABLE);
+	struct s3c2410_udc *udc = platform_get_drvdata(pdev);
+
+	s3c2410_udc_command(udc, S3C2410_UDC_P_ENABLE);
 
 	return 0;
 }

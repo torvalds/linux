@@ -91,6 +91,14 @@ struct gpd_dev_ops {
 	int (*stop)(struct device *dev);
 };
 
+struct genpd_governor_data {
+	s64 max_off_time_ns;
+	bool max_off_time_changed;
+	ktime_t next_wakeup;
+	bool cached_power_down_ok;
+	bool cached_power_down_state_idx;
+};
+
 struct genpd_power_state {
 	s64 power_off_latency_ns;
 	s64 power_on_latency_ns;
@@ -98,7 +106,7 @@ struct genpd_power_state {
 	u64 usage;
 	u64 rejected;
 	struct fwnode_handle *fwnode;
-	ktime_t idle_time;
+	u64 idle_time;
 	void *data;
 };
 
@@ -114,6 +122,7 @@ struct generic_pm_domain {
 	struct list_head child_links;	/* Links with PM domain as a child */
 	struct list_head dev_list;	/* List of devices */
 	struct dev_power_governor *gov;
+	struct genpd_governor_data *gd;	/* Data used by a genpd governor. */
 	struct work_struct power_off_work;
 	struct fwnode_handle *provider;	/* Identity of the domain provider */
 	bool has_provider;
@@ -134,11 +143,6 @@ struct generic_pm_domain {
 	int (*set_performance_state)(struct generic_pm_domain *genpd,
 				     unsigned int state);
 	struct gpd_dev_ops dev_ops;
-	s64 max_off_time_ns;	/* Maximum allowed "suspended" time. */
-	ktime_t next_wakeup;	/* Maintained by the domain governor */
-	bool max_off_time_changed;
-	bool cached_power_down_ok;
-	bool cached_power_down_state_idx;
 	int (*attach_dev)(struct generic_pm_domain *domain,
 			  struct device *dev);
 	void (*detach_dev)(struct generic_pm_domain *domain,
@@ -149,8 +153,8 @@ struct generic_pm_domain {
 			    unsigned int state_count);
 	unsigned int state_count; /* number of states */
 	unsigned int state_idx; /* state that genpd will go to when off */
-	ktime_t on_time;
-	ktime_t accounting_time;
+	u64 on_time;
+	u64 accounting_time;
 	const struct genpd_lock_ops *lock_ops;
 	union {
 		struct mutex mlock;
@@ -182,6 +186,7 @@ struct gpd_timing_data {
 	s64 suspend_latency_ns;
 	s64 resume_latency_ns;
 	s64 effective_constraint_ns;
+	ktime_t	next_wakeup;
 	bool constraint_changed;
 	bool cached_suspend_ok;
 };
@@ -193,14 +198,13 @@ struct pm_domain_data {
 
 struct generic_pm_domain_data {
 	struct pm_domain_data base;
-	struct gpd_timing_data td;
+	struct gpd_timing_data *td;
 	struct notifier_block nb;
 	struct notifier_block *power_nb;
 	int cpu;
 	unsigned int performance_state;
 	unsigned int default_pstate;
 	unsigned int rpm_pstate;
-	ktime_t	next_wakeup;
 	void *data;
 };
 

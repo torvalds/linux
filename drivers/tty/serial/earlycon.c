@@ -67,7 +67,7 @@ static void __init earlycon_init(struct earlycon_device *device,
 	if (*s)
 		earlycon->index = simple_strtoul(s, NULL, 10);
 	len = s - name;
-	strlcpy(earlycon->name, name, min(len + 1, sizeof(earlycon->name)));
+	strscpy(earlycon->name, name, min(len + 1, sizeof(earlycon->name)));
 	earlycon->data = &early_console_dev;
 }
 
@@ -123,7 +123,7 @@ static int __init parse_options(struct earlycon_device *device, char *options)
 		device->baud = simple_strtoul(options, NULL, 0);
 		length = min(strcspn(options, " ") + 1,
 			     (size_t)(sizeof(device->options)));
-		strlcpy(device->options, options, length);
+		strscpy(device->options, options, length);
 	}
 
 	return 0;
@@ -253,6 +253,9 @@ int __init of_setup_earlycon(const struct earlycon_id *match,
 	bool big_endian;
 	u64 addr;
 
+	if (early_con.flags & CON_ENABLED)
+		return -EALREADY;
+
 	spin_lock_init(&port->lock);
 	port->iotype = UPIO_MEM;
 	addr = of_flat_dt_translate_address(node);
@@ -301,7 +304,7 @@ int __init of_setup_earlycon(const struct earlycon_id *match,
 
 	if (options) {
 		early_console_dev.baud = simple_strtoul(options, NULL, 0);
-		strlcpy(early_console_dev.options, options,
+		strscpy(early_console_dev.options, options,
 			sizeof(early_console_dev.options));
 	}
 	earlycon_init(&early_console_dev, match->name);

@@ -14,6 +14,7 @@
  *
  */
 
+#include <dt-bindings/gpio/gpio.h>
 #include "qcom-ipq4019.dtsi"
 
 / {
@@ -64,7 +65,7 @@
 			};
 		};
 
-		blsp_dma: dma@7884000 {
+		blsp_dma: dma-controller@7884000 {
 			status = "okay";
 		};
 
@@ -72,7 +73,7 @@
 			pinctrl-0 = <&spi_0_pins>;
 			pinctrl-names = "default";
 			status = "okay";
-			cs-gpios = <&tlmm 54 0>;
+			cs-gpios = <&tlmm 54 GPIO_ACTIVE_HIGH>;
 
 			mx25l25635e@0 {
 				#address-cells = <1>;
@@ -89,7 +90,7 @@
 			status = "okay";
 		};
 
-		cryptobam: dma@8e04000 {
+		cryptobam: dma-controller@8e04000 {
 			status = "okay";
 		};
 

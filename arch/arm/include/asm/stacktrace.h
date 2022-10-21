@@ -14,9 +14,15 @@ struct stackframe {
 	unsigned long sp;
 	unsigned long lr;
 	unsigned long pc;
+
+	/* address of the LR value on the stack */
+	unsigned long *lr_addr;
 #ifdef CONFIG_KRETPROBES
 	struct llist_node *kr_cur;
 	struct task_struct *tsk;
+#endif
+#ifdef CONFIG_UNWINDER_FRAME_POINTER
+	bool ex_frame;
 #endif
 };
 
@@ -31,10 +37,17 @@ void arm_get_current_stackframe(struct pt_regs *regs, struct stackframe *frame)
 		frame->kr_cur = NULL;
 		frame->tsk = current;
 #endif
+#ifdef CONFIG_UNWINDER_FRAME_POINTER
+		frame->ex_frame = in_entry_text(frame->pc);
+#endif
 }
 
 extern int unwind_frame(struct stackframe *frame);
 extern void walk_stackframe(struct stackframe *frame,
 			    int (*fn)(struct stackframe *, void *), void *data);
+extern void dump_mem(const char *lvl, const char *str, unsigned long bottom,
+		     unsigned long top);
+extern void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+			   const char *loglvl);
 
 #endif	/* __ASM_STACKTRACE_H */

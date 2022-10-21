@@ -1487,6 +1487,9 @@ static unsigned long __init get_loops_per_jiffy(void)
 
 static void __init tsc_enable_sched_clock(void)
 {
+	loops_per_jiffy = get_loops_per_jiffy();
+	use_tsc_delay();
+
 	/* Sanitize TSC ADJUST before cyc2ns gets initialized */
 	tsc_store_and_check_tsc_adjust(true);
 	cyc2ns_init_boot_cpu();
@@ -1502,8 +1505,6 @@ void __init tsc_early_init(void)
 		return;
 	if (!determine_cpu_tsc_frequencies(true))
 		return;
-	loops_per_jiffy = get_loops_per_jiffy();
-
 	tsc_enable_sched_clock();
 }
 
@@ -1537,7 +1538,6 @@ void __init tsc_init(void)
 		enable_sched_clock_irqtime();
 
 	lpj_fine = get_loops_per_jiffy();
-	use_tsc_delay();
 
 	check_system_tsc_reliable();
 

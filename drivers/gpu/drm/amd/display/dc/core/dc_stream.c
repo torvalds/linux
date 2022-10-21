@@ -23,9 +23,6 @@
  *
  */
 
-#include <linux/delay.h>
-#include <linux/slab.h>
-
 #include "dm_services.h"
 #include "basics/dc_common.h"
 #include "dc.h"
@@ -33,6 +30,7 @@
 #include "resource.h"
 #include "ipp.h"
 #include "timing_generator.h"
+#include "dc_dmub_srv.h"
 
 #define DC_LOGGER dc->ctx->logger
 
@@ -273,15 +271,22 @@ static void program_cursor_attributes(
 		if (!pipe_to_program) {
 			pipe_to_program = pipe_ctx;
 			dc->hwss.cursor_lock(dc, pipe_to_program, true);
+			if (pipe_to_program->next_odm_pipe)
+				dc->hwss.cursor_lock(dc, pipe_to_program->next_odm_pipe, true);
 		}
 
 		dc->hwss.set_cursor_attribute(pipe_ctx);
+
+		dc_send_update_cursor_info_to_dmu(pipe_ctx, i);
 		if (dc->hwss.set_cursor_sdr_white_level)
 			dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
 	}
 
-	if (pipe_to_program)
+	if (pipe_to_program) {
 		dc->hwss.cursor_lock(dc, pipe_to_program, false);
+		if (pipe_to_program->next_odm_pipe)
+			dc->hwss.cursor_lock(dc, pipe_to_program->next_odm_pipe, false);
+	}
 }
 
 #ifndef TRIM_FSFT
@@ -309,9 +314,7 @@ bool dc_stream_set_cursor_attributes(
 	const struct dc_cursor_attributes *attributes)
 {
 	struct dc  *dc;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool reset_idle_optimizations = false;
-#endif
 
 	if (NULL == stream) {
 		dm_error("DC: dc_stream is NULL!\n");
@@ -328,9 +331,13 @@ bool dc_stream_set_cursor_attributes(
 	}
 
 	dc = stream->ctx->dc;
+
+	if (dc->debug.allow_sw_cursor_fallback && attributes->height * attributes->width * 4 > 16384)
+		if (stream->mall_stream_config.type == SUBVP_MAIN)
+			return false;
+
 	stream->cursor_attributes = *attributes;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	dc_z10_restore(dc);
 	/* disable idle optimizations while updating cursor */
 	if (dc->idle_optimizations_allowed) {
@@ -338,15 +345,12 @@ bool dc_stream_set_cursor_attributes(
 		reset_idle_optimizations = true;
 	}
 
-#endif
 	program_cursor_attributes(dc, stream, attributes);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* re-enable idle optimizations if necessary */
 	if (reset_idle_optimizations)
 		dc_allow_idle_optimizations(dc, true);
 
-#endif
 	return true;
 }
 
@@ -380,6 +384,8 @@ static void program_cursor_position(
 		}
 
 		dc->hwss.set_cursor_position(pipe_ctx);
+
+		dc_send_update_cursor_info_to_dmu(pipe_ctx, i);
 	}
 
 	if (pipe_to_program)
@@ -390,10 +396,8 @@ bool dc_stream_set_cursor_position(
 	struct dc_stream_state *stream,
 	const struct dc_cursor_position *position)
 {
-	struct dc  *dc;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+	struct dc  *dc = stream->ctx->dc;
 	bool reset_idle_optimizations = false;
-#endif
 
 	if (NULL == stream) {
 		dm_error("DC: dc_stream is NULL!\n");
@@ -406,25 +410,22 @@ bool dc_stream_set_cursor_position(
 	}
 
 	dc = stream->ctx->dc;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	dc_z10_restore(dc);
 
 	/* disable idle optimizations if enabling cursor */
-	if (dc->idle_optimizations_allowed && !stream->cursor_position.enable && position->enable) {
+	if (dc->idle_optimizations_allowed && (!stream->cursor_position.enable || dc->debug.exit_idle_opt_for_cursor_updates)
+			&& position->enable) {
 		dc_allow_idle_optimizations(dc, false);
 		reset_idle_optimizations = true;
 	}
 
-#endif
 	stream->cursor_position = *position;
 
 	program_cursor_position(dc, stream, position);
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* re-enable idle optimizations if necessary */
 	if (reset_idle_optimizations)
 		dc_allow_idle_optimizations(dc, true);
 
-#endif
 	return true;
 }
 
@@ -525,7 +526,7 @@ bool dc_stream_remove_writeback(struct dc *dc,
 	/* remove writeback info for disabled writeback pipes from stream */
 	for (i = 0, j = 0; i < stream->num_wb_info; i++) {
 		if (stream->writeback_info[i].wb_enabled) {
-			if (i != j)
+			if (j < i)
 				/* trim the array */
 				stream->writeback_info[j] = stream->writeback_info[i];
 			j++;
@@ -713,6 +714,20 @@ enum dc_status dc_stream_add_dsc_to_resource(struct dc *dc,
 	}
 }
 
+struct pipe_ctx *dc_stream_get_pipe_ctx(struct dc_stream_state *stream)
+{
+	int i = 0;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *pipe = &stream->ctx->dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream == stream)
+			return pipe;
+	}
+
+	return NULL;
+}
+
 void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 {
 	DC_LOG_DC(
@@ -737,5 +752,21 @@ void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 	DC_LOG_DC(
 			"\tlink: %d\n",
 			stream->link->link_index);
+
+	DC_LOG_DC(
+			"\tdsc: %d, mst_pbn: %d\n",
+			stream->timing.flags.DSC,
+			stream->timing.dsc_cfg.mst_pbn);
+
+	if (stream->sink) {
+		if (stream->sink->sink_signal != SIGNAL_TYPE_VIRTUAL &&
+			stream->sink->sink_signal != SIGNAL_TYPE_NONE) {
+
+			DC_LOG_DC(
+					"\tdispname: %s signal: %x\n",
+					stream->sink->edid_caps.display_name,
+					stream->signal);
+		}
+	}
 }
 

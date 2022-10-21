@@ -26,6 +26,7 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/polynomial.h>
 #include <linux/seqlock.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
@@ -65,7 +66,7 @@ static const struct pvt_sensor_info pvt_info[] = {
  *     48380,
  * where T = [-48380, 147438] mC and N = [0, 1023].
  */
-static const struct pvt_poly __maybe_unused poly_temp_to_N = {
+static const struct polynomial __maybe_unused poly_temp_to_N = {
 	.total_divider = 10000,
 	.terms = {
 		{4, 18322, 10000, 10000},
@@ -76,7 +77,7 @@ static const struct pvt_poly __maybe_unused poly_temp_to_N = {
 	}
 };
 
-static const struct pvt_poly poly_N_to_temp = {
+static const struct polynomial poly_N_to_temp = {
 	.total_divider = 1,
 	.terms = {
 		{4, -16743, 1000, 1},
@@ -97,7 +98,7 @@ static const struct pvt_poly poly_N_to_temp = {
  * N = (18658e-3*V - 11572) / 10,
  * V = N * 10^5 / 18658 + 11572 * 10^4 / 18658.
  */
-static const struct pvt_poly __maybe_unused poly_volt_to_N = {
+static const struct polynomial __maybe_unused poly_volt_to_N = {
 	.total_divider = 10,
 	.terms = {
 		{1, 18658, 1000, 1},
@@ -105,38 +106,13 @@ static const struct pvt_poly __maybe_unused poly_volt_to_N = {
 	}
 };
 
-static const struct pvt_poly poly_N_to_volt = {
+static const struct polynomial poly_N_to_volt = {
 	.total_divider = 10,
 	.terms = {
 		{1, 100000, 18658, 1},
 		{0, 115720000, 1, 18658}
 	}
 };
-
-/*
- * Here is the polynomial calculation function, which performs the
- * redistributed terms calculations. It's pretty straightforward. We walk
- * over each degree term up to the free one, and perform the redistributed
- * multiplication of the term coefficient, its divider (as for the rationale
- * fraction representation), data power and the rational fraction divider
- * leftover. Then all of this is collected in a total sum variable, which
- * value is normalized by the total divider before being returned.
- */
-static long pvt_calc_poly(const struct pvt_poly *poly, long data)
-{
-	const struct pvt_poly_term *term = poly->terms;
-	long tmp, ret = 0;
-	int deg;
-
-	do {
-		tmp = term->coef;
-		for (deg = 0; deg < term->deg; ++deg)
-			tmp = mult_frac(tmp, data, term->divider);
-		ret += tmp / term->divider_leftover;
-	} while ((term++)->deg);
-
-	return ret / poly->total_divider;
-}
 
 static inline u32 pvt_update(void __iomem *reg, u32 mask, u32 data)
 {
@@ -324,9 +300,9 @@ static int pvt_read_data(struct pvt_hwmon *pvt, enum pvt_sensor_type type,
 	} while (read_seqretry(&cache->data_seqlock, seq));
 
 	if (type == PVT_TEMP)
-		*val = pvt_calc_poly(&poly_N_to_temp, data);
+		*val = polynomial_calc(&poly_N_to_temp, data);
 	else
-		*val = pvt_calc_poly(&poly_N_to_volt, data);
+		*val = polynomial_calc(&poly_N_to_volt, data);
 
 	return 0;
 }
@@ -345,9 +321,9 @@ static int pvt_read_limit(struct pvt_hwmon *pvt, enum pvt_sensor_type type,
 		data = FIELD_GET(PVT_THRES_HI_MASK, data);
 
 	if (type == PVT_TEMP)
-		*val = pvt_calc_poly(&poly_N_to_temp, data);
+		*val = polynomial_calc(&poly_N_to_temp, data);
 	else
-		*val = pvt_calc_poly(&poly_N_to_volt, data);
+		*val = polynomial_calc(&poly_N_to_volt, data);
 
 	return 0;
 }
@@ -360,10 +336,10 @@ static int pvt_write_limit(struct pvt_hwmon *pvt, enum pvt_sensor_type type,
 
 	if (type == PVT_TEMP) {
 		val = clamp(val, PVT_TEMP_MIN, PVT_TEMP_MAX);
-		data = pvt_calc_poly(&poly_temp_to_N, val);
+		data = polynomial_calc(&poly_temp_to_N, val);
 	} else {
 		val = clamp(val, PVT_VOLT_MIN, PVT_VOLT_MAX);
-		data = pvt_calc_poly(&poly_volt_to_N, val);
+		data = polynomial_calc(&poly_volt_to_N, val);
 	}
 
 	/* Serialize limit update, since a part of the register is changed. */
@@ -522,9 +498,9 @@ static int pvt_read_data(struct pvt_hwmon *pvt, enum pvt_sensor_type type,
 		return -ETIMEDOUT;
 
 	if (type == PVT_TEMP)
-		*val = pvt_calc_poly(&poly_N_to_temp, data);
+		*val = polynomial_calc(&poly_N_to_temp, data);
 	else
-		*val = pvt_calc_poly(&poly_N_to_volt, data);
+		*val = polynomial_calc(&poly_N_to_volt, data);
 
 	return 0;
 }

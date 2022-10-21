@@ -12,10 +12,10 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_plane_helper.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 #include <drm/drm_vblank.h>
@@ -288,18 +288,18 @@ static void shmob_drm_crtc_compute_base(struct shmob_drm_crtc *scrtc,
 {
 	struct drm_crtc *crtc = &scrtc->crtc;
 	struct drm_framebuffer *fb = crtc->primary->fb;
-	struct drm_gem_cma_object *gem;
+	struct drm_gem_dma_object *gem;
 	unsigned int bpp;
 
 	bpp = scrtc->format->yuv ? 8 : scrtc->format->bpp;
-	gem = drm_fb_cma_get_gem_obj(fb, 0);
-	scrtc->dma[0] = gem->paddr + fb->offsets[0]
+	gem = drm_fb_dma_get_gem_obj(fb, 0);
+	scrtc->dma[0] = gem->dma_addr + fb->offsets[0]
 		      + y * fb->pitches[0] + x * bpp / 8;
 
 	if (scrtc->format->yuv) {
 		bpp = scrtc->format->bpp - 8;
-		gem = drm_fb_cma_get_gem_obj(fb, 1);
-		scrtc->dma[1] = gem->paddr + fb->offsets[1]
+		gem = drm_fb_dma_get_gem_obj(fb, 1);
+		scrtc->dma[1] = gem->dma_addr + fb->offsets[1]
 			      + y / (bpp == 4 ? 2 : 1) * fb->pitches[1]
 			      + x * (bpp == 16 ? 2 : 1);
 	}

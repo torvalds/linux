@@ -101,7 +101,7 @@ int dyn_event_release(const char *raw_command, struct dyn_event_operations *type
 		event = p + 1;
 		*p = '\0';
 	}
-	if (event[0] == '\0') {
+	if (!system && event[0] == '\0') {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -255,19 +255,14 @@ static const struct file_operations dynamic_events_ops = {
 /* Make a tracefs interface for controlling dynamic events */
 static __init int init_dynamic_event(void)
 {
-	struct dentry *entry;
 	int ret;
 
 	ret = tracing_init_dentry();
 	if (ret)
 		return 0;
 
-	entry = tracefs_create_file("dynamic_events", TRACE_MODE_WRITE, NULL,
-				    NULL, &dynamic_events_ops);
-
-	/* Event list interface */
-	if (!entry)
-		pr_warn("Could not create tracefs 'dynamic_events' entry\n");
+	trace_create_file("dynamic_events", TRACE_MODE_WRITE, NULL,
+			  NULL, &dynamic_events_ops);
 
 	return 0;
 }

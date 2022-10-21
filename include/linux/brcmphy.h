@@ -16,6 +16,7 @@
 #define PHY_ID_BCM5481			0x0143bca0
 #define PHY_ID_BCM5395			0x0143bcf0
 #define PHY_ID_BCM53125			0x03625f20
+#define PHY_ID_BCM53128			0x03625e10
 #define PHY_ID_BCM54810			0x03625d00
 #define PHY_ID_BCM54811			0x03625cc0
 #define PHY_ID_BCM5482			0x0143bcb0
@@ -292,6 +293,7 @@
 #define MII_BRCM_FET_SHDW_MC_FAME	0x4000	/* Force Auto MDIX enable */
 
 #define MII_BRCM_FET_SHDW_AUXMODE4	0x1a	/* Auxiliary mode 4 */
+#define MII_BRCM_FET_SHDW_AM4_STANDBY	0x0008	/* Standby enable */
 #define MII_BRCM_FET_SHDW_AM4_LED_MASK	0x0003
 #define MII_BRCM_FET_SHDW_AM4_LED_MODE1 0x0001
 

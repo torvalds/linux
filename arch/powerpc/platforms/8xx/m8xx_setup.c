@@ -17,19 +17,17 @@
 #include <linux/time.h>
 #include <linux/rtc.h>
 #include <linux/fsl_devices.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
 
 #include <asm/io.h>
 #include <asm/8xx_immap.h>
-#include <asm/prom.h>
 #include <asm/fs_pd.h>
 #include <mm/mmu_decl.h>
 
 #include "pic.h"
 
 #include "mpc8xx.h"
-
-extern int cpm_pic_init(void);
-extern int cpm_get_irq(void);
 
 /* A place holder for time base interrupts, if they are ever enabled. */
 static irqreturn_t timebase_interrupt(int irq, void *dev)
@@ -206,29 +204,4 @@ void __noreturn mpc8xx_restart(char *cmd)
 
 	in_8(&clk_r->res[0]);
 	panic("Restart failed\n");
-}
-
-static void cpm_cascade(struct irq_desc *desc)
-{
-	generic_handle_irq(cpm_get_irq());
-}
-
-/* Initialize the internal interrupt controllers.  The number of
- * interrupts supported can vary with the processor type, and the
- * 82xx family can have up to 64.
- * External interrupts can be either edge or level triggered, and
- * need to be initialized by the appropriate driver.
- */
-void __init mpc8xx_pics_init(void)
-{
-	int irq;
-
-	if (mpc8xx_pic_init()) {
-		printk(KERN_ERR "Failed interrupt 8xx controller  initialization\n");
-		return;
-	}
-
-	irq = cpm_pic_init();
-	if (irq)
-		irq_set_chained_handler(irq, cpm_cascade);
 }

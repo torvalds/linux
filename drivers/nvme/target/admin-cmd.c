@@ -449,7 +449,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	if (req->port->inline_data_size)
 		id->sgls |= cpu_to_le32(1 << 20);
 
-	strlcpy(id->subnqn, ctrl->subsys->subsysnqn, sizeof(id->subnqn));
+	strscpy(id->subnqn, ctrl->subsys->subsysnqn, sizeof(id->subnqn));
 
 	/*
 	 * Max command capsule size is sqe + in-capsule data size.
@@ -511,7 +511,11 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 		goto done;
 	}
 
-	nvmet_ns_revalidate(req->ns);
+	if (nvmet_ns_revalidate(req->ns)) {
+		mutex_lock(&req->ns->subsys->lock);
+		nvmet_ns_changed(req->ns->subsys, req->ns->nsid);
+		mutex_unlock(&req->ns->subsys->lock);
+	}
 
 	/*
 	 * nuse = ncap = nsze isn't always true, but we have no way to find
@@ -984,7 +988,7 @@ void nvmet_execute_async_event(struct nvmet_req *req)
 	ctrl->async_event_cmds[ctrl->nr_async_event_cmds++] = req;
 	mutex_unlock(&ctrl->lock);
 
-	schedule_work(&ctrl->async_event_work);
+	queue_work(nvmet_wq, &ctrl->async_event_work);
 }
 
 void nvmet_execute_keep_alive(struct nvmet_req *req)
@@ -1013,7 +1017,9 @@ u16 nvmet_parse_admin_cmd(struct nvmet_req *req)
 	u16 ret;
 
 	if (nvme_is_fabrics(cmd))
-		return nvmet_parse_fabrics_cmd(req);
+		return nvmet_parse_fabrics_admin_cmd(req);
+	if (unlikely(!nvmet_check_auth_status(req)))
+		return NVME_SC_AUTH_REQUIRED | NVME_SC_DNR;
 	if (nvmet_is_disc_subsys(nvmet_req_subsys(req)))
 		return nvmet_parse_discovery_cmd(req);
 

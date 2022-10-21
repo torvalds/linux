@@ -4,12 +4,6 @@
 
 #include <asm/page.h>
 
-#ifdef CONFIG_HUGETLB_PAGE
-#define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
-#endif
-#define HAVE_ARCH_UNMAPPED_AREA
-#define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
-
 #ifndef __ASSEMBLY__
 /*
  * Page size definition
@@ -202,7 +196,6 @@ static inline struct subpage_prot_table *mm_ctx_subpage_prot(mm_context_t *ctx)
 /*
  * The current system page and segment sizes
  */
-extern int mmu_linear_psize;
 extern int mmu_virtual_psize;
 extern int mmu_vmalloc_psize;
 extern int mmu_io_psize;
@@ -213,6 +206,7 @@ extern int mmu_io_psize;
 #define mmu_virtual_psize MMU_PAGE_4K
 #endif
 #endif
+extern int mmu_linear_psize;
 extern int mmu_vmemmap_psize;
 
 /* MMU initialization */

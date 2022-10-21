@@ -141,6 +141,14 @@ Description:
 		- "reverse": CC2 orientation
 		- "unknown": Orientation cannot be determined.
 
+What:		/sys/class/typec/<port>/select_usb_power_delivery
+Date:		May 2022
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:
+		Lists the USB Power Delivery Capabilities that the port can
+		advertise to the partner. The currently used capabilities are in
+		brackets. Selection happens by writing to the file.
+
 USB Type-C partner devices (eg. /sys/class/typec/port0-partner/)
 
 What:		/sys/class/typec/<port>-partner/accessory_mode

@@ -43,8 +43,6 @@
 #include <linux/hmm.h>
 #include <linux/pagemap.h>
 
-#include <rdma/ib_verbs.h>
-#include <rdma/ib_umem.h>
 #include <rdma/ib_umem_odp.h>
 
 #include "uverbs.h"
@@ -455,14 +453,14 @@ retry:
 			break;
 		}
 	}
-	/* upon sucesss lock should stay on hold for the callee */
+	/* upon success lock should stay on hold for the callee */
 	if (!ret)
 		ret = dma_index - start_idx;
 	else
 		mutex_unlock(&umem_odp->umem_mutex);
 
 out_put_mm:
-	mmput(owning_mm);
+	mmput_async(owning_mm);
 out_put_task:
 	if (owning_process)
 		put_task_struct(owning_process);

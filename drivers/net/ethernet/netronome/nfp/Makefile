@@ -5,6 +5,7 @@ nfp-objs := \
 	    nfpcore/nfp6000_pcie.o \
 	    nfpcore/nfp_cppcore.o \
 	    nfpcore/nfp_cpplib.o \
+	    nfpcore/nfp_dev.o \
 	    nfpcore/nfp_hwinfo.o \
 	    nfpcore/nfp_mip.o \
 	    nfpcore/nfp_mutex.o \
@@ -19,18 +20,25 @@ nfp-objs := \
 	    ccm_mbox.o \
 	    devlink_param.o \
 	    nfp_asm.o \
+	    nfd3/dp.o \
+	    nfd3/rings.o \
+	    nfd3/xsk.o \
+	    nfdk/dp.o \
+	    nfdk/rings.o \
 	    nfp_app.o \
 	    nfp_app_nic.o \
 	    nfp_devlink.o \
 	    nfp_hwmon.o \
 	    nfp_main.o \
 	    nfp_net_common.o \
+	    nfp_net_dp.o \
 	    nfp_net_ctrl.o \
 	    nfp_net_debugdump.o \
 	    nfp_net_ethtool.o \
 	    nfp_net_main.o \
 	    nfp_net_repr.o \
 	    nfp_net_sriov.o \
+	    nfp_net_xsk.o \
 	    nfp_netvf_main.o \
 	    nfp_port.o \
 	    nfp_shared_buf.o \

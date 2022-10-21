@@ -42,6 +42,8 @@
 #include "smu/smu_7_1_3_d.h"
 #include "mxgpu_vi.h"
 
+#include "amdgpu_reset.h"
+
 /* VI golden setting */
 static const u32 xgpu_fiji_mgcg_cgcg_init[] = {
 	mmRLC_CGTT_MGCG_OVERRIDE, 0xffffffff, 0xffffffff,
@@ -520,8 +522,16 @@ static void xgpu_vi_mailbox_flr_work(struct work_struct *work)
 	}
 
 	/* Trigger recovery due to world switch failure */
-	if (amdgpu_device_should_recover_gpu(adev))
-		amdgpu_device_gpu_recover(adev, NULL);
+	if (amdgpu_device_should_recover_gpu(adev)) {
+		struct amdgpu_reset_context reset_context;
+		memset(&reset_context, 0, sizeof(reset_context));
+
+		reset_context.method = AMD_RESET_METHOD_NONE;
+		reset_context.reset_req_dev = adev;
+		clear_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
+
+		amdgpu_device_gpu_recover(adev, NULL, &reset_context);
+	}
 }
 
 static int xgpu_vi_set_mailbox_rcv_irq(struct amdgpu_device *adev,
@@ -544,14 +554,17 @@ static int xgpu_vi_mailbox_rcv_irq(struct amdgpu_device *adev,
 {
 	int r;
 
-	/* trigger gpu-reset by hypervisor only if TDR disbaled */
+	/* trigger gpu-reset by hypervisor only if TDR disabled */
 	if (!amdgpu_gpu_recovery) {
 		/* see what event we get */
 		r = xgpu_vi_mailbox_rcv_msg(adev, IDH_FLR_NOTIFICATION);
 
 		/* only handle FLR_NOTIFY now */
-		if (!r)
-			schedule_work(&adev->virt.flr_work);
+		if (!r && !amdgpu_in_reset(adev))
+			WARN_ONCE(!amdgpu_reset_domain_schedule(adev->reset_domain,
+								&adev->virt.flr_work),
+				  "Failed to queue work! at %s",
+				  __func__);
 	}
 
 	return 0;

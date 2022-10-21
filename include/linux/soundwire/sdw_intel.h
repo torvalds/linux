@@ -9,35 +9,26 @@
 
 #define SDW_SHIM_BASE			0x2C000
 #define SDW_ALH_BASE			0x2C800
+#define SDW_SHIM_BASE_ACE		0x38000
+#define SDW_ALH_BASE_ACE		0x24000
 #define SDW_LINK_BASE			0x30000
 #define SDW_LINK_SIZE			0x10000
 
 /* Intel SHIM Registers Definition */
+/* LCAP */
 #define SDW_SHIM_LCAP			0x0
+#define SDW_SHIM_LCAP_LCOUNT_MASK	GENMASK(2, 0)
+
+/* LCTL */
 #define SDW_SHIM_LCTL			0x4
-#define SDW_SHIM_IPPTR			0x8
-#define SDW_SHIM_SYNC			0xC
-
-#define SDW_SHIM_CTLSCAP(x)		(0x010 + 0x60 * (x))
-#define SDW_SHIM_CTLS0CM(x)		(0x012 + 0x60 * (x))
-#define SDW_SHIM_CTLS1CM(x)		(0x014 + 0x60 * (x))
-#define SDW_SHIM_CTLS2CM(x)		(0x016 + 0x60 * (x))
-#define SDW_SHIM_CTLS3CM(x)		(0x018 + 0x60 * (x))
-#define SDW_SHIM_PCMSCAP(x)		(0x020 + 0x60 * (x))
-
-#define SDW_SHIM_PCMSYCHM(x, y)		(0x022 + (0x60 * (x)) + (0x2 * (y)))
-#define SDW_SHIM_PCMSYCHC(x, y)		(0x042 + (0x60 * (x)) + (0x2 * (y)))
-#define SDW_SHIM_PDMSCAP(x)		(0x062 + 0x60 * (x))
-#define SDW_SHIM_IOCTL(x)		(0x06C + 0x60 * (x))
-#define SDW_SHIM_CTMCTL(x)		(0x06E + 0x60 * (x))
-
-#define SDW_SHIM_WAKEEN			0x190
-#define SDW_SHIM_WAKESTS		0x192
 
 #define SDW_SHIM_LCTL_SPA		BIT(0)
 #define SDW_SHIM_LCTL_SPA_MASK		GENMASK(3, 0)
 #define SDW_SHIM_LCTL_CPA		BIT(8)
 #define SDW_SHIM_LCTL_CPA_MASK		GENMASK(11, 8)
+
+/* SYNC */
+#define SDW_SHIM_SYNC			0xC
 
 #define SDW_SHIM_SYNC_SYNCPRD_VAL_24	(24000 / SDW_CADENCE_GSYNC_KHZ - 1)
 #define SDW_SHIM_SYNC_SYNCPRD_VAL_38_4	(38400 / SDW_CADENCE_GSYNC_KHZ - 1)
@@ -47,19 +38,33 @@
 #define SDW_SHIM_SYNC_CMDSYNC		BIT(16)
 #define SDW_SHIM_SYNC_SYNCGO		BIT(24)
 
+/* Control stream capabililities and channel mask */
+#define SDW_SHIM_CTLSCAP(x)		(0x010 + 0x60 * (x))
+#define SDW_SHIM_CTLS0CM(x)		(0x012 + 0x60 * (x))
+#define SDW_SHIM_CTLS1CM(x)		(0x014 + 0x60 * (x))
+#define SDW_SHIM_CTLS2CM(x)		(0x016 + 0x60 * (x))
+#define SDW_SHIM_CTLS3CM(x)		(0x018 + 0x60 * (x))
+
+/* PCM Stream capabilities */
+#define SDW_SHIM_PCMSCAP(x)		(0x020 + 0x60 * (x))
+
 #define SDW_SHIM_PCMSCAP_ISS		GENMASK(3, 0)
 #define SDW_SHIM_PCMSCAP_OSS		GENMASK(7, 4)
 #define SDW_SHIM_PCMSCAP_BSS		GENMASK(12, 8)
+
+/* PCM Stream Channel Map */
+#define SDW_SHIM_PCMSYCHM(x, y)		(0x022 + (0x60 * (x)) + (0x2 * (y)))
+
+/* PCM Stream Channel Count */
+#define SDW_SHIM_PCMSYCHC(x, y)		(0x042 + (0x60 * (x)) + (0x2 * (y)))
 
 #define SDW_SHIM_PCMSYCM_LCHN		GENMASK(3, 0)
 #define SDW_SHIM_PCMSYCM_HCHN		GENMASK(7, 4)
 #define SDW_SHIM_PCMSYCM_STREAM		GENMASK(13, 8)
 #define SDW_SHIM_PCMSYCM_DIR		BIT(15)
 
-#define SDW_SHIM_PDMSCAP_ISS		GENMASK(3, 0)
-#define SDW_SHIM_PDMSCAP_OSS		GENMASK(7, 4)
-#define SDW_SHIM_PDMSCAP_BSS		GENMASK(12, 8)
-#define SDW_SHIM_PDMSCAP_CPSS		GENMASK(15, 13)
+/* IO control */
+#define SDW_SHIM_IOCTL(x)		(0x06C + 0x60 * (x))
 
 #define SDW_SHIM_IOCTL_MIF		BIT(0)
 #define SDW_SHIM_IOCTL_CO		BIT(1)
@@ -71,12 +76,22 @@
 #define SDW_SHIM_IOCTL_CIBD		BIT(8)
 #define SDW_SHIM_IOCTL_DIBD		BIT(9)
 
+/* Wake Enable*/
+#define SDW_SHIM_WAKEEN			0x190
+
+#define SDW_SHIM_WAKEEN_ENABLE		BIT(0)
+
+/* Wake Status */
+#define SDW_SHIM_WAKESTS		0x192
+
+#define SDW_SHIM_WAKESTS_STATUS		BIT(0)
+
+/* AC Timing control */
+#define SDW_SHIM_CTMCTL(x)		(0x06E + 0x60 * (x))
+
 #define SDW_SHIM_CTMCTL_DACTQE		BIT(0)
 #define SDW_SHIM_CTMCTL_DODS		BIT(1)
 #define SDW_SHIM_CTMCTL_DOAIS		GENMASK(4, 3)
-
-#define SDW_SHIM_WAKEEN_ENABLE		BIT(0)
-#define SDW_SHIM_WAKESTS_STATUS		BIT(0)
 
 /* Intel ALH Register definitions */
 #define SDW_ALH_STRMZCFG(x)		(0x000 + (0x4 * (x)))
@@ -119,6 +134,7 @@ struct sdw_intel_ops {
 			     struct sdw_intel_stream_params_data *params_data);
 	int (*free_stream)(struct device *dev,
 			   struct sdw_intel_stream_free_data *free_data);
+	int (*trigger)(struct snd_soc_dai *dai, int cmd, int stream);
 };
 
 /**

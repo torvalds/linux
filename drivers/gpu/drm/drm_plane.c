@@ -202,17 +202,13 @@ static int create_in_format_blob(struct drm_device *dev, struct drm_plane *plane
 
 	memcpy(formats_ptr(blob_data), plane->format_types, formats_size);
 
-	/* If we can't determine support, just bail */
-	if (!plane->funcs->format_mod_supported)
-		goto done;
-
 	mod = modifiers_ptr(blob_data);
 	for (i = 0; i < plane->modifier_count; i++) {
 		for (j = 0; j < plane->format_count; j++) {
-			if (plane->funcs->format_mod_supported(plane,
+			if (!plane->funcs->format_mod_supported ||
+			    plane->funcs->format_mod_supported(plane,
 							       plane->format_types[j],
 							       plane->modifiers[i])) {
-
 				mod->formats |= 1ULL << j;
 			}
 		}
@@ -223,7 +219,6 @@ static int create_in_format_blob(struct drm_device *dev, struct drm_plane *plane
 		mod++;
 	}
 
-done:
 	drm_object_attach_property(&plane->base, config->modifiers_property,
 				   blob->base.id);
 
@@ -242,11 +237,21 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 				      const char *name, va_list ap)
 {
 	struct drm_mode_config *config = &dev->mode_config;
+	static const uint64_t default_modifiers[] = {
+		DRM_FORMAT_MOD_LINEAR,
+	};
 	unsigned int format_modifier_count = 0;
 	int ret;
 
 	/* plane index is used with 32bit bitmasks */
 	if (WARN_ON(config->num_total_plane >= 32))
+		return -EINVAL;
+
+	/*
+	 * First driver to need more than 64 formats needs to fix this. Each
+	 * format is encoded as a bit and the current code only supports a u64.
+	 */
+	if (WARN_ON(format_count > 64))
 		return -EINVAL;
 
 	WARN_ON(drm_drv_uses_atomic_modeset(dev) &&
@@ -270,28 +275,21 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 		return -ENOMEM;
 	}
 
-	/*
-	 * First driver to need more than 64 formats needs to fix this. Each
-	 * format is encoded as a bit and the current code only supports a u64.
-	 */
-	if (WARN_ON(format_count > 64))
-		return -EINVAL;
-
 	if (format_modifiers) {
 		const uint64_t *temp_modifiers = format_modifiers;
 
 		while (*temp_modifiers++ != DRM_FORMAT_MOD_INVALID)
 			format_modifier_count++;
+	} else {
+		if (!dev->mode_config.fb_modifiers_not_supported) {
+			format_modifiers = default_modifiers;
+			format_modifier_count = ARRAY_SIZE(default_modifiers);
+		}
 	}
 
 	/* autoset the cap and check for consistency across all planes */
-	if (format_modifier_count) {
-		drm_WARN_ON(dev, !config->allow_fb_modifiers &&
-			    !list_empty(&config->plane_list));
-		config->allow_fb_modifiers = true;
-	} else {
-		drm_WARN_ON(dev, config->allow_fb_modifiers);
-	}
+	drm_WARN_ON(dev, config->fb_modifiers_not_supported &&
+				format_modifier_count);
 
 	plane->modifier_count = format_modifier_count;
 	plane->modifiers = kmalloc_array(format_modifier_count,
@@ -346,7 +344,7 @@ static int __drm_universal_plane_init(struct drm_device *dev,
 		drm_object_attach_property(&plane->base, config->prop_src_h, 0);
 	}
 
-	if (config->allow_fb_modifiers)
+	if (format_modifier_count)
 		create_in_format_blob(dev, plane);
 
 	return 0;
@@ -373,8 +371,8 @@ static int __drm_universal_plane_init(struct drm_device *dev,
  * drm_universal_plane_init() to let the DRM managed resource infrastructure
  * take care of cleanup and deallocation.
  *
- * Drivers supporting modifiers must set @format_modifiers on all their planes,
- * even those that only support DRM_FORMAT_MOD_LINEAR.
+ * Drivers that only support the DRM_FORMAT_MOD_LINEAR modifier support may set
+ * @format_modifiers to NULL. The plane will advertise the linear modifier.
  *
  * Returns:
  * Zero on success, error code on failure.
@@ -450,6 +448,44 @@ void *__drmm_universal_plane_alloc(struct drm_device *dev, size_t size,
 }
 EXPORT_SYMBOL(__drmm_universal_plane_alloc);
 
+void *__drm_universal_plane_alloc(struct drm_device *dev, size_t size,
+				  size_t offset, uint32_t possible_crtcs,
+				  const struct drm_plane_funcs *funcs,
+				  const uint32_t *formats, unsigned int format_count,
+				  const uint64_t *format_modifiers,
+				  enum drm_plane_type type,
+				  const char *name, ...)
+{
+	void *container;
+	struct drm_plane *plane;
+	va_list ap;
+	int ret;
+
+	if (drm_WARN_ON(dev, !funcs))
+		return ERR_PTR(-EINVAL);
+
+	container = kzalloc(size, GFP_KERNEL);
+	if (!container)
+		return ERR_PTR(-ENOMEM);
+
+	plane = container + offset;
+
+	va_start(ap, name);
+	ret = __drm_universal_plane_init(dev, plane, possible_crtcs, funcs,
+					 formats, format_count, format_modifiers,
+					 type, name, ap);
+	va_end(ap);
+	if (ret)
+		goto err_kfree;
+
+	return container;
+
+err_kfree:
+	kfree(container);
+	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL(__drm_universal_plane_alloc);
+
 int drm_plane_register_all(struct drm_device *dev)
 {
 	unsigned int num_planes = 0;
@@ -483,38 +519,6 @@ void drm_plane_unregister_all(struct drm_device *dev)
 			plane->funcs->early_unregister(plane);
 	}
 }
-
-/**
- * drm_plane_init - Initialize a legacy plane
- * @dev: DRM device
- * @plane: plane object to init
- * @possible_crtcs: bitmask of possible CRTCs
- * @funcs: callbacks for the new plane
- * @formats: array of supported formats (DRM_FORMAT\_\*)
- * @format_count: number of elements in @formats
- * @is_primary: plane type (primary vs overlay)
- *
- * Legacy API to initialize a DRM plane.
- *
- * New drivers should call drm_universal_plane_init() instead.
- *
- * Returns:
- * Zero on success, error code on failure.
- */
-int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
-		   uint32_t possible_crtcs,
-		   const struct drm_plane_funcs *funcs,
-		   const uint32_t *formats, unsigned int format_count,
-		   bool is_primary)
-{
-	enum drm_plane_type type;
-
-	type = is_primary ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
-	return drm_universal_plane_init(dev, plane, possible_crtcs, funcs,
-					formats, format_count,
-					NULL, type, NULL);
-}
-EXPORT_SYMBOL(drm_plane_init);
 
 /**
  * drm_plane_cleanup - Clean up the core plane usage

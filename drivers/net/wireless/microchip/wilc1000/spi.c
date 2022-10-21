@@ -191,11 +191,11 @@ static void wilc_wlan_power(struct wilc *wilc, bool on)
 		/* assert ENABLE: */
 		gpiod_set_value(gpios->enable, 1);
 		mdelay(5);
-		/* deassert RESET: */
-		gpiod_set_value(gpios->reset, 0);
-	} else {
 		/* assert RESET: */
 		gpiod_set_value(gpios->reset, 1);
+	} else {
+		/* deassert RESET: */
+		gpiod_set_value(gpios->reset, 0);
 		/* deassert ENABLE: */
 		gpiod_set_value(gpios->enable, 0);
 	}
@@ -240,7 +240,7 @@ free:
 	return ret;
 }
 
-static int wilc_bus_remove(struct spi_device *spi)
+static void wilc_bus_remove(struct spi_device *spi)
 {
 	struct wilc *wilc = spi_get_drvdata(spi);
 	struct wilc_spi *spi_priv = wilc->bus_data;
@@ -248,8 +248,6 @@ static int wilc_bus_remove(struct spi_device *spi)
 	clk_disable_unprepare(wilc->rtc_clk);
 	wilc_netdev_cleanup(wilc);
 	kfree(spi_priv);
-
-	return 0;
 }
 
 static const struct of_device_id wilc_of_match[] = {
@@ -727,10 +725,7 @@ static int wilc_spi_dma_rw(struct wilc *wilc, u8 cmd, u32 adr, u8 *b, u32 sz)
 		int nbytes;
 		u8 rsp;
 
-		if (sz <= DATA_PKT_SZ)
-			nbytes = sz;
-		else
-			nbytes = DATA_PKT_SZ;
+		nbytes = min_t(u32, sz, DATA_PKT_SZ);
 
 		/*
 		 * Data Response header
@@ -1034,6 +1029,13 @@ static int wilc_spi_reset(struct wilc *wilc)
 	return result;
 }
 
+static bool wilc_spi_is_init(struct wilc *wilc)
+{
+	struct wilc_spi *spi_priv = wilc->bus_data;
+
+	return spi_priv->isinit;
+}
+
 static int wilc_spi_deinit(struct wilc *wilc)
 {
 	struct wilc_spi *spi_priv = wilc->bus_data;
@@ -1255,4 +1257,5 @@ static const struct wilc_hif_func wilc_hif_spi = {
 	.hif_block_rx_ext = wilc_spi_read,
 	.hif_sync_ext = wilc_spi_sync_ext,
 	.hif_reset = wilc_spi_reset,
+	.hif_is_init = wilc_spi_is_init,
 };

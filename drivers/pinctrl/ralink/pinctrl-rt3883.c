@@ -3,7 +3,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
-#include "pinmux.h"
+#include "pinctrl-ralink.h"
 
 #define RT3883_GPIO_MODE_UART0_SHIFT	2
 #define RT3883_GPIO_MODE_UART0_MASK	0x7
@@ -39,9 +39,9 @@
 #define RT3883_GPIO_MODE_LNA_G_GPIO	0x3
 #define RT3883_GPIO_MODE_LNA_G		_RT3883_GPIO_MODE_LNA_G(RT3883_GPIO_MODE_LNA_G_MASK)
 
-static struct rt2880_pmx_func i2c_func[] =  { FUNC("i2c", 0, 1, 2) };
-static struct rt2880_pmx_func spi_func[] = { FUNC("spi", 0, 3, 4) };
-static struct rt2880_pmx_func uartf_func[] = {
+static struct ralink_pmx_func i2c_func[] =  { FUNC("i2c", 0, 1, 2) };
+static struct ralink_pmx_func spi_func[] = { FUNC("spi", 0, 3, 4) };
+static struct ralink_pmx_func uartf_func[] = {
 	FUNC("uartf", RT3883_GPIO_MODE_UARTF, 7, 8),
 	FUNC("pcm uartf", RT3883_GPIO_MODE_PCM_UARTF, 7, 8),
 	FUNC("pcm i2s", RT3883_GPIO_MODE_PCM_I2S, 7, 8),
@@ -50,21 +50,21 @@ static struct rt2880_pmx_func uartf_func[] = {
 	FUNC("gpio uartf", RT3883_GPIO_MODE_GPIO_UARTF, 7, 4),
 	FUNC("gpio i2s", RT3883_GPIO_MODE_GPIO_I2S, 7, 4),
 };
-static struct rt2880_pmx_func uartlite_func[] = { FUNC("uartlite", 0, 15, 2) };
-static struct rt2880_pmx_func jtag_func[] = { FUNC("jtag", 0, 17, 5) };
-static struct rt2880_pmx_func mdio_func[] = { FUNC("mdio", 0, 22, 2) };
-static struct rt2880_pmx_func lna_a_func[] = { FUNC("lna a", 0, 32, 3) };
-static struct rt2880_pmx_func lna_g_func[] = { FUNC("lna g", 0, 35, 3) };
-static struct rt2880_pmx_func pci_func[] = {
+static struct ralink_pmx_func uartlite_func[] = { FUNC("uartlite", 0, 15, 2) };
+static struct ralink_pmx_func jtag_func[] = { FUNC("jtag", 0, 17, 5) };
+static struct ralink_pmx_func mdio_func[] = { FUNC("mdio", 0, 22, 2) };
+static struct ralink_pmx_func lna_a_func[] = { FUNC("lna a", 0, 32, 3) };
+static struct ralink_pmx_func lna_g_func[] = { FUNC("lna g", 0, 35, 3) };
+static struct ralink_pmx_func pci_func[] = {
 	FUNC("pci-dev", 0, 40, 32),
 	FUNC("pci-host2", 1, 40, 32),
 	FUNC("pci-host1", 2, 40, 32),
 	FUNC("pci-fnc", 3, 40, 32)
 };
-static struct rt2880_pmx_func ge1_func[] = { FUNC("ge1", 0, 72, 12) };
-static struct rt2880_pmx_func ge2_func[] = { FUNC("ge2", 0, 84, 12) };
+static struct ralink_pmx_func ge1_func[] = { FUNC("ge1", 0, 72, 12) };
+static struct ralink_pmx_func ge2_func[] = { FUNC("ge2", 0, 84, 12) };
 
-static struct rt2880_pmx_group rt3883_pinmux_data[] = {
+static struct ralink_pmx_group rt3883_pinmux_data[] = {
 	GRP("i2c", i2c_func, 1, RT3883_GPIO_MODE_I2C),
 	GRP("spi", spi_func, 1, RT3883_GPIO_MODE_SPI),
 	GRP("uartf", uartf_func, RT3883_GPIO_MODE_UART0_MASK,
@@ -81,27 +81,27 @@ static struct rt2880_pmx_group rt3883_pinmux_data[] = {
 	{ 0 }
 };
 
-static int rt3883_pinmux_probe(struct platform_device *pdev)
+static int rt3883_pinctrl_probe(struct platform_device *pdev)
 {
-	return rt2880_pinmux_init(pdev, rt3883_pinmux_data);
+	return ralink_pinctrl_init(pdev, rt3883_pinmux_data);
 }
 
-static const struct of_device_id rt3883_pinmux_match[] = {
-	{ .compatible = "ralink,rt2880-pinmux" },
+static const struct of_device_id rt3883_pinctrl_match[] = {
+	{ .compatible = "ralink,rt3883-pinctrl" },
 	{}
 };
-MODULE_DEVICE_TABLE(of, rt3883_pinmux_match);
+MODULE_DEVICE_TABLE(of, rt3883_pinctrl_match);
 
-static struct platform_driver rt3883_pinmux_driver = {
-	.probe = rt3883_pinmux_probe,
+static struct platform_driver rt3883_pinctrl_driver = {
+	.probe = rt3883_pinctrl_probe,
 	.driver = {
-		.name = "rt2880-pinmux",
-		.of_match_table = rt3883_pinmux_match,
+		.name = "rt3883-pinctrl",
+		.of_match_table = rt3883_pinctrl_match,
 	},
 };
 
-static int __init rt3883_pinmux_init(void)
+static int __init rt3883_pinctrl_init(void)
 {
-	return platform_driver_register(&rt3883_pinmux_driver);
+	return platform_driver_register(&rt3883_pinctrl_driver);
 }
-core_initcall_sync(rt3883_pinmux_init);
+core_initcall_sync(rt3883_pinctrl_init);

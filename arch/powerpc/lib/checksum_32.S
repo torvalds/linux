@@ -116,9 +116,6 @@ EXPORT_SYMBOL(__csum_partial)
 	EX_TABLE(8 ## n ## 7b, fault);
 
 	.text
-	.stabs	"arch/powerpc/lib/",N_SO,0,0,0f
-	.stabs	"checksum_32.S",N_SO,0,0,0f
-0:
 
 CACHELINE_BYTES = L1_CACHE_BYTES
 LG_CACHELINE_BYTES = L1_CACHE_SHIFT

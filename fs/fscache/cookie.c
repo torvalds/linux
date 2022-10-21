@@ -30,7 +30,7 @@ static DEFINE_SPINLOCK(fscache_cookie_lru_lock);
 DEFINE_TIMER(fscache_cookie_lru_timer, fscache_cookie_lru_timed_out);
 static DECLARE_WORK(fscache_cookie_lru_work, fscache_cookie_lru_worker);
 static const char fscache_cookie_states[FSCACHE_COOKIE_STATE__NR] = "-LCAIFUWRD";
-unsigned int fscache_lru_cookie_timeout = 10 * HZ;
+static unsigned int fscache_lru_cookie_timeout = 10 * HZ;
 
 void fscache_print_cookie(struct fscache_cookie *cookie, char prefix)
 {
@@ -263,6 +263,8 @@ void fscache_caching_failed(struct fscache_cookie *cookie)
 {
 	clear_bit(FSCACHE_COOKIE_IS_CACHING, &cookie->flags);
 	fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_FAILED);
+	trace_fscache_cookie(cookie->debug_id, refcount_read(&cookie->ref),
+				fscache_cookie_failed);
 }
 EXPORT_SYMBOL(fscache_caching_failed);
 
@@ -372,17 +374,22 @@ nomem:
 	return NULL;
 }
 
+static inline bool fscache_cookie_is_dropped(struct fscache_cookie *cookie)
+{
+	return READ_ONCE(cookie->state) == FSCACHE_COOKIE_STATE_DROPPED;
+}
+
 static void fscache_wait_on_collision(struct fscache_cookie *candidate,
 				      struct fscache_cookie *wait_for)
 {
 	enum fscache_cookie_state *statep = &wait_for->state;
 
-	wait_var_event_timeout(statep, READ_ONCE(*statep) == FSCACHE_COOKIE_STATE_DROPPED,
+	wait_var_event_timeout(statep, fscache_cookie_is_dropped(wait_for),
 			       20 * HZ);
-	if (READ_ONCE(*statep) != FSCACHE_COOKIE_STATE_DROPPED) {
+	if (!fscache_cookie_is_dropped(wait_for)) {
 		pr_notice("Potential collision c=%08x old: c=%08x",
 			  candidate->debug_id, wait_for->debug_id);
-		wait_var_event(statep, READ_ONCE(*statep) == FSCACHE_COOKIE_STATE_DROPPED);
+		wait_var_event(statep, fscache_cookie_is_dropped(wait_for));
 	}
 }
 
@@ -517,7 +524,14 @@ static void fscache_perform_lookup(struct fscache_cookie *cookie)
 	}
 
 	fscache_see_cookie(cookie, fscache_cookie_see_active);
-	fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_ACTIVE);
+	spin_lock(&cookie->lock);
+	if (test_and_clear_bit(FSCACHE_COOKIE_DO_INVALIDATE, &cookie->flags))
+		__fscache_set_cookie_state(cookie,
+					   FSCACHE_COOKIE_STATE_INVALIDATING);
+	else
+		__fscache_set_cookie_state(cookie, FSCACHE_COOKIE_STATE_ACTIVE);
+	spin_unlock(&cookie->lock);
+	wake_up_cookie_state(cookie);
 	trace = fscache_access_lookup_cookie_end;
 
 out:
@@ -727,6 +741,9 @@ again_locked:
 		fallthrough;
 
 	case FSCACHE_COOKIE_STATE_FAILED:
+		if (test_and_clear_bit(FSCACHE_COOKIE_DO_INVALIDATE, &cookie->flags))
+			fscache_end_cookie_access(cookie, fscache_access_invalidate_cookie_end);
+
 		if (atomic_read(&cookie->n_accesses) != 0)
 			break;
 		if (test_bit(FSCACHE_COOKIE_DO_RELINQUISH, &cookie->flags)) {
@@ -751,6 +768,9 @@ again_locked:
 			cookie->volume->cache->ops->withdraw_cookie(cookie);
 			spin_lock(&cookie->lock);
 		}
+
+		if (test_and_clear_bit(FSCACHE_COOKIE_DO_INVALIDATE, &cookie->flags))
+			fscache_end_cookie_access(cookie, fscache_access_invalidate_cookie_end);
 
 		switch (state) {
 		case FSCACHE_COOKIE_STATE_RELINQUISHING:
@@ -1048,6 +1068,9 @@ void __fscache_invalidate(struct fscache_cookie *cookie,
 		return;
 
 	case FSCACHE_COOKIE_STATE_LOOKING_UP:
+		if (!test_and_set_bit(FSCACHE_COOKIE_DO_INVALIDATE, &cookie->flags))
+			__fscache_begin_cookie_access(cookie, fscache_access_invalidate_cookie);
+		fallthrough;
 	case FSCACHE_COOKIE_STATE_CREATING:
 		spin_unlock(&cookie->lock);
 		_leave(" [look %x]", cookie->inval_counter);
@@ -1069,6 +1092,7 @@ void __fscache_invalidate(struct fscache_cookie *cookie,
 }
 EXPORT_SYMBOL(__fscache_invalidate);
 
+#ifdef CONFIG_PROC_FS
 /*
  * Generate a list of extant cookies in /proc/fs/fscache/cookies
  */
@@ -1145,3 +1169,4 @@ const struct seq_operations fscache_cookies_seq_ops = {
 	.stop   = fscache_cookies_seq_stop,
 	.show   = fscache_cookies_seq_show,
 };
+#endif

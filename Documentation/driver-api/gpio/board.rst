@@ -6,7 +6,7 @@ This document explains how GPIOs can be assigned to given devices and functions.
 
 Note that it only applies to the new descriptor-based interface. For a
 description of the deprecated integer-based GPIO interface please refer to
-gpio-legacy.txt (actually, there is no real mapping possible with the old
+legacy.rst (actually, there is no real mapping possible with the old
 interface; you just fetch an integer from somewhere and request the
 corresponding GPIO).
 
@@ -71,14 +71,14 @@ with the help of _DSD (Device Specific Data), introduced in ACPI 5.1::
 
 	Device (FOO) {
 		Name (_CRS, ResourceTemplate () {
-			GpioIo (Exclusive, ..., IoRestrictionOutputOnly,
-				"\\_SB.GPI0") {15} // red
-			GpioIo (Exclusive, ..., IoRestrictionOutputOnly,
-				"\\_SB.GPI0") {16} // green
-			GpioIo (Exclusive, ..., IoRestrictionOutputOnly,
-				"\\_SB.GPI0") {17} // blue
-			GpioIo (Exclusive, ..., IoRestrictionOutputOnly,
-				"\\_SB.GPI0") {1} // power
+			GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionOutputOnly,
+				"\\_SB.GPI0", 0, ResourceConsumer) { 15 } // red
+			GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionOutputOnly,
+				"\\_SB.GPI0", 0, ResourceConsumer) { 16 } // green
+			GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionOutputOnly,
+				"\\_SB.GPI0", 0, ResourceConsumer) { 17 } // blue
+			GpioIo (Exclusive, PullNone, 0, 0, IoRestrictionOutputOnly,
+				"\\_SB.GPI0", 0, ResourceConsumer) { 1 } // power
 		})
 
 		Name (_DSD, Package () {
@@ -92,10 +92,7 @@ with the help of _DSD (Device Specific Data), introduced in ACPI 5.1::
 						^FOO, 2, 0, 1,
 					}
 				},
-				Package () {
-					"power-gpios",
-					Package () {^FOO, 3, 0, 0},
-				},
+				Package () { "power-gpios", Package () { ^FOO, 3, 0, 0 } },
 			}
 		})
 	}

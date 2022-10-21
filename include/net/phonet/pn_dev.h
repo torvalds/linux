@@ -10,6 +10,11 @@
 #ifndef PN_DEV_H
 #define PN_DEV_H
 
+#include <linux/list.h>
+#include <linux/mutex.h>
+
+struct net;
+
 struct phonet_device_list {
 	struct list_head list;
 	struct mutex lock;

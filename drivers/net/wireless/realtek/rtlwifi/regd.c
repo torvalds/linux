@@ -178,7 +178,7 @@ static void _rtl_reg_apply_beaconing_flags(struct wiphy *wiphy,
 	}
 }
 
-/* Allows active scan scan on Ch 12 and 13 */
+/* Allows active scan on Ch 12 and 13 */
 static void _rtl_reg_apply_active_scan_flags(struct wiphy *wiphy,
 					     enum nl80211_reg_initiator
 					     initiator)

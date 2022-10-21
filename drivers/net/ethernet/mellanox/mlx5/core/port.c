@@ -33,9 +33,10 @@
 #include <linux/mlx5/port.h>
 #include "mlx5_core.h"
 
-int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
-			 int size_in, void *data_out, int size_out,
-			 u16 reg_id, int arg, int write)
+/* calling with verbose false will not print error to log */
+int mlx5_access_reg(struct mlx5_core_dev *dev, void *data_in, int size_in,
+		    void *data_out, int size_out, u16 reg_id, int arg,
+		    int write, bool verbose)
 {
 	int outlen = MLX5_ST_SZ_BYTES(access_register_out) + size_out;
 	int inlen = MLX5_ST_SZ_BYTES(access_register_in) + size_in;
@@ -57,7 +58,9 @@ int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 	MLX5_SET(access_register_in, in, argument, arg);
 	MLX5_SET(access_register_in, in, register_id, reg_id);
 
-	err = mlx5_cmd_exec(dev, in, inlen, out, outlen);
+	err = mlx5_cmd_do(dev, in, inlen, out, outlen);
+	if (verbose)
+		err = mlx5_cmd_check(dev, err, in, out);
 	if (err)
 		goto out;
 
@@ -68,6 +71,15 @@ out:
 	kvfree(out);
 	kvfree(in);
 	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_access_reg);
+
+int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
+			 int size_in, void *data_out, int size_out,
+			 u16 reg_id, int arg, int write)
+{
+	return mlx5_access_reg(dev, data_in, size_in, data_out, size_out,
+			       reg_id, arg, write, true);
 }
 EXPORT_SYMBOL_GPL(mlx5_core_access_reg);
 
@@ -263,7 +275,6 @@ static int mlx5_query_module_num(struct mlx5_core_dev *dev, int *module_num)
 {
 	u32 in[MLX5_ST_SZ_DW(pmlp_reg)] = {0};
 	u32 out[MLX5_ST_SZ_DW(pmlp_reg)];
-	int module_mapping;
 	int err;
 
 	MLX5_SET(pmlp_reg, in, local_port, 1);
@@ -272,8 +283,9 @@ static int mlx5_query_module_num(struct mlx5_core_dev *dev, int *module_num)
 	if (err)
 		return err;
 
-	module_mapping = MLX5_GET(pmlp_reg, out, lane0_module_mapping);
-	*module_num = module_mapping & MLX5_EEPROM_IDENTIFIER_BYTE_MASK;
+	*module_num = MLX5_GET(lane_2_module_mapping,
+			       MLX5_ADDR_OF(pmlp_reg, out, lane0_module_mapping),
+			       module);
 
 	return 0;
 }
@@ -353,6 +365,12 @@ static void mlx5_sfp_eeprom_params_set(u16 *i2c_addr, int *page_num, u16 *offset
 	*offset -= MLX5_EEPROM_PAGE_LENGTH;
 }
 
+static int mlx5_mcia_max_bytes(struct mlx5_core_dev *dev)
+{
+	/* mcia supports either 12 dwords or 32 dwords */
+	return (MLX5_CAP_MCAM_FEATURE(dev, mcia_32dwords) ? 32 : 12) * sizeof(u32);
+}
+
 static int mlx5_query_mcia(struct mlx5_core_dev *dev,
 			   struct mlx5_module_eeprom_query_params *params, u8 *data)
 {
@@ -362,7 +380,7 @@ static int mlx5_query_mcia(struct mlx5_core_dev *dev,
 	void *ptr;
 	u16 size;
 
-	size = min_t(int, params->size, MLX5_EEPROM_MAX_BYTES);
+	size = min_t(int, params->size, mlx5_mcia_max_bytes(dev));
 
 	MLX5_SET(mcia_reg, in, l, 0);
 	MLX5_SET(mcia_reg, in, size, size);
@@ -406,23 +424,24 @@ int mlx5_query_module_eeprom(struct mlx5_core_dev *dev,
 
 	switch (module_id) {
 	case MLX5_MODULE_ID_SFP:
-		mlx5_sfp_eeprom_params_set(&query.i2c_address, &query.page, &query.offset);
+		mlx5_sfp_eeprom_params_set(&query.i2c_address, &query.page, &offset);
 		break;
 	case MLX5_MODULE_ID_QSFP:
 	case MLX5_MODULE_ID_QSFP_PLUS:
 	case MLX5_MODULE_ID_QSFP28:
-		mlx5_qsfp_eeprom_params_set(&query.i2c_address, &query.page, &query.offset);
+		mlx5_qsfp_eeprom_params_set(&query.i2c_address, &query.page, &offset);
 		break;
 	default:
 		mlx5_core_err(dev, "Module ID not recognized: 0x%x\n", module_id);
 		return -EINVAL;
 	}
 
-	if (query.offset + size > MLX5_EEPROM_PAGE_LENGTH)
+	if (offset + size > MLX5_EEPROM_PAGE_LENGTH)
 		/* Cross pages read, read until offset 256 in low page */
-		size -= offset + size - MLX5_EEPROM_PAGE_LENGTH;
+		size = MLX5_EEPROM_PAGE_LENGTH - offset;
 
 	query.size = size;
+	query.offset = offset;
 
 	return mlx5_query_mcia(dev, &query, data);
 }
@@ -432,34 +451,11 @@ int mlx5_query_module_eeprom_by_page(struct mlx5_core_dev *dev,
 				     struct mlx5_module_eeprom_query_params *params,
 				     u8 *data)
 {
-	u8 module_id;
 	int err;
 
 	err = mlx5_query_module_num(dev, &params->module_number);
 	if (err)
 		return err;
-
-	err = mlx5_query_module_id(dev, params->module_number, &module_id);
-	if (err)
-		return err;
-
-	switch (module_id) {
-	case MLX5_MODULE_ID_SFP:
-		if (params->page > 0)
-			return -EINVAL;
-		break;
-	case MLX5_MODULE_ID_QSFP:
-	case MLX5_MODULE_ID_QSFP28:
-	case MLX5_MODULE_ID_QSFP_PLUS:
-		if (params->page > 3)
-			return -EINVAL;
-		break;
-	case MLX5_MODULE_ID_DSFP:
-		break;
-	default:
-		mlx5_core_err(dev, "Module ID not recognized: 0x%x\n", module_id);
-		return -EINVAL;
-	}
 
 	if (params->i2c_address != MLX5_I2C_ADDR_HIGH &&
 	    params->i2c_address != MLX5_I2C_ADDR_LOW) {
@@ -496,29 +492,6 @@ int mlx5_query_port_vl_hw_cap(struct mlx5_core_dev *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_port_vl_hw_cap);
-
-int mlx5_core_query_ib_ppcnt(struct mlx5_core_dev *dev,
-			     u8 port_num, void *out, size_t sz)
-{
-	u32 *in;
-	int err;
-
-	in  = kvzalloc(sz, GFP_KERNEL);
-	if (!in) {
-		err = -ENOMEM;
-		return err;
-	}
-
-	MLX5_SET(ppcnt_reg, in, local_port, port_num);
-
-	MLX5_SET(ppcnt_reg, in, grp, MLX5_INFINIBAND_PORT_COUNTERS_GROUP);
-	err = mlx5_core_access_reg(dev, in, sz, out,
-				   sz, MLX5_REG_PPCNT, 0, 0);
-
-	kvfree(in);
-	return err;
-}
-EXPORT_SYMBOL_GPL(mlx5_core_query_ib_ppcnt);
 
 static int mlx5_query_pfcc_reg(struct mlx5_core_dev *dev, u32 *out,
 			       u32 out_size)

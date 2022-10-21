@@ -543,8 +543,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm9090 = {
 	.suspend_bias_off	= 1,
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
-	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm9090_regmap = {
@@ -561,8 +559,7 @@ static const struct regmap_config wm9090_regmap = {
 };
 
 
-static int wm9090_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm9090_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm9090_priv *wm9090;
 	unsigned int reg;
@@ -619,7 +616,7 @@ static struct i2c_driver wm9090_i2c_driver = {
 	.driver = {
 		.name = "wm9090",
 	},
-	.probe = wm9090_i2c_probe,
+	.probe_new = wm9090_i2c_probe,
 	.id_table = wm9090_id,
 };
 

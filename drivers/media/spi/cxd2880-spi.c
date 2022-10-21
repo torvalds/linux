@@ -625,7 +625,7 @@ fail_regulator:
 	return ret;
 }
 
-static int
+static void
 cxd2880_spi_remove(struct spi_device *spi)
 {
 	struct cxd2880_dvb_spi *dvb_spi = spi_get_drvdata(spi);
@@ -643,8 +643,6 @@ cxd2880_spi_remove(struct spi_device *spi)
 
 	kfree(dvb_spi);
 	pr_info("cxd2880_spi remove ok.\n");
-
-	return 0;
 }
 
 static const struct spi_device_id cxd2880_spi_id[] = {

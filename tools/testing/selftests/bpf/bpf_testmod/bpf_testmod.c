@@ -13,12 +13,91 @@
 #define CREATE_TRACE_POINTS
 #include "bpf_testmod-events.h"
 
+typedef int (*func_proto_typedef)(long);
+typedef int (*func_proto_typedef_nested1)(func_proto_typedef);
+typedef int (*func_proto_typedef_nested2)(func_proto_typedef_nested1);
+
 DEFINE_PER_CPU(int, bpf_testmod_ksym_percpu) = 123;
+long bpf_testmod_test_struct_arg_result;
+
+struct bpf_testmod_struct_arg_1 {
+	int a;
+};
+struct bpf_testmod_struct_arg_2 {
+	long a;
+	long b;
+};
+
+noinline int
+bpf_testmod_test_struct_arg_1(struct bpf_testmod_struct_arg_2 a, int b, int c) {
+	bpf_testmod_test_struct_arg_result = a.a + a.b  + b + c;
+	return bpf_testmod_test_struct_arg_result;
+}
+
+noinline int
+bpf_testmod_test_struct_arg_2(int a, struct bpf_testmod_struct_arg_2 b, int c) {
+	bpf_testmod_test_struct_arg_result = a + b.a + b.b + c;
+	return bpf_testmod_test_struct_arg_result;
+}
+
+noinline int
+bpf_testmod_test_struct_arg_3(int a, int b, struct bpf_testmod_struct_arg_2 c) {
+	bpf_testmod_test_struct_arg_result = a + b + c.a + c.b;
+	return bpf_testmod_test_struct_arg_result;
+}
+
+noinline int
+bpf_testmod_test_struct_arg_4(struct bpf_testmod_struct_arg_1 a, int b,
+			      int c, int d, struct bpf_testmod_struct_arg_2 e) {
+	bpf_testmod_test_struct_arg_result = a.a + b + c + d + e.a + e.b;
+	return bpf_testmod_test_struct_arg_result;
+}
+
+noinline int
+bpf_testmod_test_struct_arg_5(void) {
+	bpf_testmod_test_struct_arg_result = 1;
+	return bpf_testmod_test_struct_arg_result;
+}
 
 noinline void
 bpf_testmod_test_mod_kfunc(int i)
 {
 	*(int *)this_cpu_ptr(&bpf_testmod_ksym_percpu) = i;
+}
+
+struct bpf_testmod_btf_type_tag_1 {
+	int a;
+};
+
+struct bpf_testmod_btf_type_tag_2 {
+	struct bpf_testmod_btf_type_tag_1 __user *p;
+};
+
+struct bpf_testmod_btf_type_tag_3 {
+	struct bpf_testmod_btf_type_tag_1 __percpu *p;
+};
+
+noinline int
+bpf_testmod_test_btf_type_tag_user_1(struct bpf_testmod_btf_type_tag_1 __user *arg) {
+	BTF_TYPE_EMIT(func_proto_typedef);
+	BTF_TYPE_EMIT(func_proto_typedef_nested1);
+	BTF_TYPE_EMIT(func_proto_typedef_nested2);
+	return arg->a;
+}
+
+noinline int
+bpf_testmod_test_btf_type_tag_user_2(struct bpf_testmod_btf_type_tag_2 *arg) {
+	return arg->p->a;
+}
+
+noinline int
+bpf_testmod_test_btf_type_tag_percpu_1(struct bpf_testmod_btf_type_tag_1 __percpu *arg) {
+	return arg->a;
+}
+
+noinline int
+bpf_testmod_test_btf_type_tag_percpu_2(struct bpf_testmod_btf_type_tag_3 *arg) {
+	return arg->p->a;
 }
 
 noinline int bpf_testmod_loop_test(int n)
@@ -59,10 +138,18 @@ bpf_testmod_test_read(struct file *file, struct kobject *kobj,
 		.off = off,
 		.len = len,
 	};
+	struct bpf_testmod_struct_arg_1 struct_arg1 = {10};
+	struct bpf_testmod_struct_arg_2 struct_arg2 = {2, 3};
 	int i = 1;
 
 	while (bpf_testmod_return_ptr(i))
 		i++;
+
+	(void)bpf_testmod_test_struct_arg_1(struct_arg2, 1, 4);
+	(void)bpf_testmod_test_struct_arg_2(1, struct_arg2, 4);
+	(void)bpf_testmod_test_struct_arg_3(1, 4, struct_arg2);
+	(void)bpf_testmod_test_struct_arg_4(struct_arg1, 1, 2, 3, struct_arg2);
+	(void)bpf_testmod_test_struct_arg_5();
 
 	/* This is always true. Use the check to make sure the compiler
 	 * doesn't remove bpf_testmod_loop_test.
@@ -109,26 +196,31 @@ static struct bin_attribute bin_attr_bpf_testmod_file __ro_after_init = {
 	.write = bpf_testmod_test_write,
 };
 
-BTF_SET_START(bpf_testmod_kfunc_ids)
-BTF_ID(func, bpf_testmod_test_mod_kfunc)
-BTF_SET_END(bpf_testmod_kfunc_ids)
+BTF_SET8_START(bpf_testmod_check_kfunc_ids)
+BTF_ID_FLAGS(func, bpf_testmod_test_mod_kfunc)
+BTF_SET8_END(bpf_testmod_check_kfunc_ids)
 
-static DEFINE_KFUNC_BTF_ID_SET(&bpf_testmod_kfunc_ids, bpf_testmod_kfunc_btf_set);
+static const struct btf_kfunc_id_set bpf_testmod_kfunc_set = {
+	.owner = THIS_MODULE,
+	.set   = &bpf_testmod_check_kfunc_ids,
+};
+
+extern int bpf_fentry_test1(int a);
 
 static int bpf_testmod_init(void)
 {
 	int ret;
 
-	ret = sysfs_create_bin_file(kernel_kobj, &bin_attr_bpf_testmod_file);
-	if (ret)
+	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &bpf_testmod_kfunc_set);
+	if (ret < 0)
 		return ret;
-	register_kfunc_btf_id_set(&prog_test_kfunc_list, &bpf_testmod_kfunc_btf_set);
-	return 0;
+	if (bpf_fentry_test1(0) < 0)
+		return -EINVAL;
+	return sysfs_create_bin_file(kernel_kobj, &bin_attr_bpf_testmod_file);
 }
 
 static void bpf_testmod_exit(void)
 {
-	unregister_kfunc_btf_id_set(&prog_test_kfunc_list, &bpf_testmod_kfunc_btf_set);
 	return sysfs_remove_bin_file(kernel_kobj, &bin_attr_bpf_testmod_file);
 }
 

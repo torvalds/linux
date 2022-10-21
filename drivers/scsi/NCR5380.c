@@ -84,8 +84,7 @@
  * On command termination, the done function will be called as
  * appropriate.
  *
- * SCSI pointers are maintained in the SCp field of SCSI command
- * structures, being initialized after the command is connected
+ * The command data pointer is initialized after the command is connected
  * in NCR5380_select, and set as appropriate in NCR5380_information_transfer.
  * Note that in violation of the standard, an implicit SAVE POINTERS operation
  * is done, since some BROKEN disks fail to issue an explicit SAVE POINTERS.
@@ -145,40 +144,38 @@ static void bus_reset_cleanup(struct Scsi_Host *);
 
 static inline void initialize_SCp(struct scsi_cmnd *cmd)
 {
-	/*
-	 * Initialize the Scsi Pointer field so that all of the commands in the
-	 * various queues are valid.
-	 */
+	struct NCR5380_cmd *ncmd = NCR5380_to_ncmd(cmd);
 
 	if (scsi_bufflen(cmd)) {
-		cmd->SCp.buffer = scsi_sglist(cmd);
-		cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
-		cmd->SCp.this_residual = cmd->SCp.buffer->length;
+		ncmd->buffer = scsi_sglist(cmd);
+		ncmd->ptr = sg_virt(ncmd->buffer);
+		ncmd->this_residual = ncmd->buffer->length;
 	} else {
-		cmd->SCp.buffer = NULL;
-		cmd->SCp.ptr = NULL;
-		cmd->SCp.this_residual = 0;
+		ncmd->buffer = NULL;
+		ncmd->ptr = NULL;
+		ncmd->this_residual = 0;
 	}
 
-	cmd->SCp.Status = 0;
-	cmd->SCp.Message = 0;
+	ncmd->status = 0;
+	ncmd->message = 0;
 }
 
-static inline void advance_sg_buffer(struct scsi_cmnd *cmd)
+static inline void advance_sg_buffer(struct NCR5380_cmd *ncmd)
 {
-	struct scatterlist *s = cmd->SCp.buffer;
+	struct scatterlist *s = ncmd->buffer;
 
-	if (!cmd->SCp.this_residual && s && !sg_is_last(s)) {
-		cmd->SCp.buffer = sg_next(s);
-		cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
-		cmd->SCp.this_residual = cmd->SCp.buffer->length;
+	if (!ncmd->this_residual && s && !sg_is_last(s)) {
+		ncmd->buffer = sg_next(s);
+		ncmd->ptr = sg_virt(ncmd->buffer);
+		ncmd->this_residual = ncmd->buffer->length;
 	}
 }
 
 static inline void set_resid_from_SCp(struct scsi_cmnd *cmd)
 {
-	int resid = cmd->SCp.this_residual;
-	struct scatterlist *s = cmd->SCp.buffer;
+	struct NCR5380_cmd *ncmd = NCR5380_to_ncmd(cmd);
+	int resid = ncmd->this_residual;
+	struct scatterlist *s = ncmd->buffer;
 
 	if (s)
 		while (!sg_is_last(s)) {
@@ -564,7 +561,7 @@ static int NCR5380_queue_command(struct Scsi_Host *instance,
                                  struct scsi_cmnd *cmd)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-	struct NCR5380_cmd *ncmd = scsi_cmd_priv(cmd);
+	struct NCR5380_cmd *ncmd = NCR5380_to_ncmd(cmd);
 	unsigned long flags;
 
 #if (NDEBUG & NDEBUG_NO_WRITE)
@@ -672,7 +669,7 @@ static struct scsi_cmnd *dequeue_next_cmd(struct Scsi_Host *instance)
 static void requeue_cmd(struct Scsi_Host *instance, struct scsi_cmnd *cmd)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
-	struct NCR5380_cmd *ncmd = scsi_cmd_priv(cmd);
+	struct NCR5380_cmd *ncmd = NCR5380_to_ncmd(cmd);
 
 	if (hostdata->sensing == cmd) {
 		scsi_eh_restore_cmnd(cmd, &hostdata->ses);
@@ -757,6 +754,7 @@ static void NCR5380_main(struct work_struct *work)
 static void NCR5380_dma_complete(struct Scsi_Host *instance)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	struct NCR5380_cmd *ncmd = NCR5380_to_ncmd(hostdata->connected);
 	int transferred;
 	unsigned char **data;
 	int *count;
@@ -764,7 +762,7 @@ static void NCR5380_dma_complete(struct Scsi_Host *instance)
 	unsigned char p;
 
 	if (hostdata->read_overruns) {
-		p = hostdata->connected->SCp.phase;
+		p = ncmd->phase;
 		if (p & SR_IO) {
 			udelay(10);
 			if ((NCR5380_read(BUS_AND_STATUS_REG) &
@@ -801,8 +799,8 @@ static void NCR5380_dma_complete(struct Scsi_Host *instance)
 	transferred = hostdata->dma_len - NCR5380_dma_residual(hostdata);
 	hostdata->dma_len = 0;
 
-	data = (unsigned char **)&hostdata->connected->SCp.ptr;
-	count = &hostdata->connected->SCp.this_residual;
+	data = (unsigned char **)&ncmd->ptr;
+	count = &ncmd->this_residual;
 	*data += transferred;
 	*count -= transferred;
 
@@ -1498,7 +1496,7 @@ static int NCR5380_transfer_dma(struct Scsi_Host *instance,
 		return -1;
 	}
 
-	hostdata->connected->SCp.phase = p;
+	NCR5380_to_ncmd(hostdata->connected)->phase = p;
 
 	if (p & SR_IO) {
 		if (hostdata->read_overruns)
@@ -1690,7 +1688,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 #endif
 
 	while ((cmd = hostdata->connected)) {
-		struct NCR5380_cmd *ncmd = scsi_cmd_priv(cmd);
+		struct NCR5380_cmd *ncmd = NCR5380_to_ncmd(cmd);
 
 		tmp = NCR5380_read(STATUS_REG);
 		/* We only have a valid SCSI phase when REQ is asserted */
@@ -1705,17 +1703,17 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 			    sun3_dma_setup_done != cmd) {
 				int count;
 
-				advance_sg_buffer(cmd);
+				advance_sg_buffer(ncmd);
 
 				count = sun3scsi_dma_xfer_len(hostdata, cmd);
 
 				if (count > 0) {
 					if (cmd->sc_data_direction == DMA_TO_DEVICE)
 						sun3scsi_dma_send_setup(hostdata,
-						                        cmd->SCp.ptr, count);
+									ncmd->ptr, count);
 					else
 						sun3scsi_dma_recv_setup(hostdata,
-						                        cmd->SCp.ptr, count);
+									ncmd->ptr, count);
 					sun3_dma_setup_done = cmd;
 				}
 #ifdef SUN3_SCSI_VME
@@ -1755,11 +1753,11 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				 * scatter-gather list, move onto the next one.
 				 */
 
-				advance_sg_buffer(cmd);
+				advance_sg_buffer(ncmd);
 				dsprintk(NDEBUG_INFORMATION, instance,
 					"this residual %d, sg ents %d\n",
-					cmd->SCp.this_residual,
-					sg_nents(cmd->SCp.buffer));
+					ncmd->this_residual,
+					sg_nents(ncmd->buffer));
 
 				/*
 				 * The preferred transfer method is going to be
@@ -1778,7 +1776,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				if (transfersize > 0) {
 					len = transfersize;
 					if (NCR5380_transfer_dma(instance, &phase,
-					    &len, (unsigned char **)&cmd->SCp.ptr)) {
+					    &len, (unsigned char **)&ncmd->ptr)) {
 						/*
 						 * If the watchdog timer fires, all future
 						 * accesses to this device will use the
@@ -1794,13 +1792,13 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					/* Transfer a small chunk so that the
 					 * irq mode lock is not held too long.
 					 */
-					transfersize = min(cmd->SCp.this_residual,
+					transfersize = min(ncmd->this_residual,
 							   NCR5380_PIO_CHUNK_SIZE);
 					len = transfersize;
 					NCR5380_transfer_pio(instance, &phase, &len,
-					                     (unsigned char **)&cmd->SCp.ptr,
+							     (unsigned char **)&ncmd->ptr,
 							     0);
-					cmd->SCp.this_residual -= transfersize - len;
+					ncmd->this_residual -= transfersize - len;
 				}
 #ifdef CONFIG_SUN3
 				if (sun3_dma_setup_done == cmd)
@@ -1811,7 +1809,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				len = 1;
 				data = &tmp;
 				NCR5380_transfer_pio(instance, &phase, &len, &data, 0);
-				cmd->SCp.Message = tmp;
+				ncmd->message = tmp;
 
 				switch (tmp) {
 				case ABORT:
@@ -1828,15 +1826,15 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					hostdata->connected = NULL;
 					hostdata->busy[scmd_id(cmd)] &= ~(1 << cmd->device->lun);
 
-					set_status_byte(cmd, cmd->SCp.Status);
+					set_status_byte(cmd, ncmd->status);
 
 					set_resid_from_SCp(cmd);
 
 					if (cmd->cmnd[0] == REQUEST_SENSE)
 						complete_cmd(instance, cmd);
 					else {
-						if (cmd->SCp.Status == SAM_STAT_CHECK_CONDITION ||
-						    cmd->SCp.Status == SAM_STAT_COMMAND_TERMINATED) {
+						if (ncmd->status == SAM_STAT_CHECK_CONDITION ||
+						    ncmd->status == SAM_STAT_COMMAND_TERMINATED) {
 							dsprintk(NDEBUG_QUEUES, instance, "autosense: adding cmd %p to tail of autosense queue\n",
 							         cmd);
 							list_add_tail(&ncmd->list,
@@ -2000,7 +1998,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 				len = 1;
 				data = &tmp;
 				NCR5380_transfer_pio(instance, &phase, &len, &data, 0);
-				cmd->SCp.Status = tmp;
+				ncmd->status = tmp;
 				break;
 			default:
 				shost_printk(KERN_ERR, instance, "unknown phase\n");
@@ -2153,17 +2151,17 @@ static void NCR5380_reselect(struct Scsi_Host *instance)
 	if (sun3_dma_setup_done != tmp) {
 		int count;
 
-		advance_sg_buffer(tmp);
+		advance_sg_buffer(ncmd);
 
 		count = sun3scsi_dma_xfer_len(hostdata, tmp);
 
 		if (count > 0) {
 			if (tmp->sc_data_direction == DMA_TO_DEVICE)
 				sun3scsi_dma_send_setup(hostdata,
-				                        tmp->SCp.ptr, count);
+							ncmd->ptr, count);
 			else
 				sun3scsi_dma_recv_setup(hostdata,
-				                        tmp->SCp.ptr, count);
+							ncmd->ptr, count);
 			sun3_dma_setup_done = tmp;
 		}
 	}
@@ -2206,7 +2204,7 @@ static bool list_del_cmd(struct list_head *haystack,
                          struct scsi_cmnd *needle)
 {
 	if (list_find_cmd(haystack, needle)) {
-		struct NCR5380_cmd *ncmd = scsi_cmd_priv(needle);
+		struct NCR5380_cmd *ncmd = NCR5380_to_ncmd(needle);
 
 		list_del(&ncmd->list);
 		return true;

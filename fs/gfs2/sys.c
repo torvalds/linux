@@ -15,7 +15,7 @@
 #include <linux/kobject.h>
 #include <linux/uaccess.h>
 #include <linux/gfs2_ondisk.h>
-#include <linux/genhd.h>
+#include <linux/blkdev.h>
 
 #include "gfs2.h"
 #include "incore.h"

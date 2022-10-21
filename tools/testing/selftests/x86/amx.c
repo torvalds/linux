@@ -17,6 +17,8 @@
 #include <sys/syscall.h>
 #include <sys/wait.h>
 
+#include "../kselftest.h" /* For __cpuid_count() */
+
 #ifndef __x86_64__
 # error This test is 64-bit only
 #endif
@@ -43,13 +45,6 @@ static inline uint64_t xgetbv(uint32_t index)
 		     : "=a" (eax), "=d" (edx)
 		     : "c" (index));
 	return eax + ((uint64_t)edx << 32);
-}
-
-static inline void cpuid(uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
-{
-	asm volatile("cpuid;"
-		     : "=a" (*eax), "=b" (*ebx), "=c" (*ecx), "=d" (*edx)
-		     : "0" (*eax), "2" (*ecx));
 }
 
 static inline void xsave(struct xsave_buffer *xbuf, uint64_t rfbm)
@@ -115,9 +110,7 @@ static inline void check_cpuid_xsave(void)
 	 * support for the XSAVE feature set, including
 	 * XGETBV.
 	 */
-	eax = 1;
-	ecx = 0;
-	cpuid(&eax, &ebx, &ecx, &edx);
+	__cpuid_count(1, 0, eax, ebx, ecx, edx);
 	if (!(ecx & CPUID_LEAF1_ECX_XSAVE_MASK))
 		fatal_error("cpuid: no CPU xsave support");
 	if (!(ecx & CPUID_LEAF1_ECX_OSXSAVE_MASK))
@@ -140,9 +133,8 @@ static void check_cpuid_xtiledata(void)
 {
 	uint32_t eax, ebx, ecx, edx;
 
-	eax = CPUID_LEAF_XSTATE;
-	ecx = CPUID_SUBLEAF_XSTATE_USER;
-	cpuid(&eax, &ebx, &ecx, &edx);
+	__cpuid_count(CPUID_LEAF_XSTATE, CPUID_SUBLEAF_XSTATE_USER,
+		      eax, ebx, ecx, edx);
 
 	/*
 	 * EBX enumerates the size (in bytes) required by the XSAVE
@@ -153,10 +145,8 @@ static void check_cpuid_xtiledata(void)
 	 */
 	xbuf_size = ebx;
 
-	eax = CPUID_LEAF_XSTATE;
-	ecx = XFEATURE_XTILEDATA;
-
-	cpuid(&eax, &ebx, &ecx, &edx);
+	__cpuid_count(CPUID_LEAF_XSTATE, XFEATURE_XTILEDATA,
+		      eax, ebx, ecx, edx);
 	/*
 	 * eax: XTILEDATA state component size
 	 * ebx: XTILEDATA state component offset in user buffer
@@ -368,8 +358,15 @@ static void req_xtiledata_perm(void)
 
 static void validate_req_xcomp_perm(enum expected_result exp)
 {
-	unsigned long bitmask;
+	unsigned long bitmask, expected_bitmask;
 	long rc;
+
+	rc = syscall(SYS_arch_prctl, ARCH_GET_XCOMP_PERM, &bitmask);
+	if (rc) {
+		fatal_error("prctl(ARCH_GET_XCOMP_PERM) error: %ld", rc);
+	} else if (!(bitmask & XFEATURE_MASK_XTILECFG)) {
+		fatal_error("ARCH_GET_XCOMP_PERM returns XFEATURE_XTILECFG off.");
+	}
 
 	rc = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, XFEATURE_XTILEDATA);
 	if (exp == FAIL_EXPECTED) {
@@ -383,10 +380,15 @@ static void validate_req_xcomp_perm(enum expected_result exp)
 		fatal_error("ARCH_REQ_XCOMP_PERM saw unexpected failure.\n");
 	}
 
+	expected_bitmask = bitmask | XFEATURE_MASK_XTILEDATA;
+
 	rc = syscall(SYS_arch_prctl, ARCH_GET_XCOMP_PERM, &bitmask);
 	if (rc) {
 		fatal_error("prctl(ARCH_GET_XCOMP_PERM) error: %ld", rc);
-	} else if (bitmask & XFEATURE_MASK_XTILE) {
+	} else if (bitmask != expected_bitmask) {
+		fatal_error("ARCH_REQ_XCOMP_PERM set a wrong bitmask: %lx, expected: %lx.\n",
+			    bitmask, expected_bitmask);
+	} else {
 		printf("\tARCH_REQ_XCOMP_PERM is successful.\n");
 	}
 }

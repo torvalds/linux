@@ -416,7 +416,7 @@
 	pinctrl-names = "default";
 	status = "okay";
 
-	gd25lq128: spi-flash@0 {
+	gd25lq128: flash@0 {
 		compatible = "jedec,spi-nor";
 		#address-cells = <1>;
 		#size-cells = <1>;

@@ -166,7 +166,7 @@ void ctcm_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 		ch->logflags = 0;
 		priv->stats.rx_packets++;
 		priv->stats.rx_bytes += skblen;
-		netif_rx_ni(skb);
+		netif_rx(skb);
 		if (len > 0) {
 			skb_pull(pskb, header->length);
 			if (skb_tailroom(pskb) < LL_HEADER_LENGTH) {
@@ -1566,7 +1566,7 @@ static int ctcm_new_device(struct ccwgroup_device *cgdev)
 		goto out_dev;
 	}
 
-	strlcpy(priv->fsm->name, dev->name, sizeof(priv->fsm->name));
+	strscpy(priv->fsm->name, dev->name, sizeof(priv->fsm->name));
 
 	dev_info(&dev->dev,
 		"setup OK : r/w = %s/%s, protocol : %d\n",

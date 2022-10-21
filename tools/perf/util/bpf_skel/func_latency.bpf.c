@@ -39,6 +39,7 @@ struct {
 int enabled = 0;
 int has_cpu = 0;
 int has_task = 0;
+int use_nsec = 0;
 
 SEC("kprobe/func")
 int BPF_PROG(func_begin)
@@ -80,6 +81,7 @@ int BPF_PROG(func_end)
 {
 	__u64 tid;
 	__u64 *start;
+	__u64 cmp_base = use_nsec ? 1 : 1000;
 
 	if (!enabled)
 		return 0;
@@ -97,9 +99,9 @@ int BPF_PROG(func_end)
 		if (delta < 0)
 			return 0;
 
-		// calculate index using delta in usec
+		// calculate index using delta
 		for (key = 0; key < (NUM_BUCKET - 1); key++) {
-			if (delta < ((1000UL) << key))
+			if (delta < (cmp_base << key))
 				break;
 		}
 

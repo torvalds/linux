@@ -39,10 +39,10 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_module.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
@@ -64,7 +64,7 @@ static int tve200_modeset_init(struct drm_device *dev)
 	struct tve200_drm_dev_private *priv = dev->dev_private;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
-	int ret = 0;
+	int ret;
 
 	drm_mode_config_init(dev);
 	mode_config = &dev->mode_config;
@@ -92,6 +92,7 @@ static int tve200_modeset_init(struct drm_device *dev)
 		 * method to get the connector out of the bridge.
 		 */
 		dev_err(dev->dev, "the bridge is not a panel\n");
+		ret = -EINVAL;
 		goto out_bridge;
 	}
 
@@ -134,7 +135,7 @@ finish:
 	return ret;
 }
 
-DEFINE_DRM_GEM_CMA_FOPS(drm_fops);
+DEFINE_DRM_GEM_DMA_FOPS(drm_fops);
 
 static const struct drm_driver tve200_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
@@ -146,7 +147,7 @@ static const struct drm_driver tve200_drm_driver = {
 	.major = 1,
 	.minor = 0,
 	.patchlevel = 0,
-	DRM_GEM_CMA_DRIVER_OPS,
+	DRM_GEM_DMA_DRIVER_OPS,
 };
 
 static int tve200_probe(struct platform_device *pdev)
@@ -266,7 +267,7 @@ static struct platform_driver tve200_driver = {
 	.probe = tve200_probe,
 	.remove = tve200_remove,
 };
-module_platform_driver(tve200_driver);
+drm_module_platform_driver(tve200_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");

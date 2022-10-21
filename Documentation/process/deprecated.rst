@@ -71,6 +71,9 @@ Instead, the 2-factor form of the allocator should be used::
 
 	foo = kmalloc_array(count, size, GFP_KERNEL);
 
+Specifically, kmalloc() can be replaced with kmalloc_array(), and
+kzalloc() can be replaced with kcalloc().
+
 If no 2-factor form is available, the saturate-on-overflow helpers should
 be used::
 
@@ -91,9 +94,20 @@ Instead, use the helper::
         array usage and switch to a `flexible array member
         <#zero-length-and-one-element-arrays>`_ instead.
 
-See array_size(), array3_size(), and struct_size(),
-for more details as well as the related check_add_overflow() and
-check_mul_overflow() family of functions.
+For other calculations, please compose the use of the size_mul(),
+size_add(), and size_sub() helpers. For example, in the case of::
+
+	foo = krealloc(current_size + chunk_size * (count - 3), GFP_KERNEL);
+
+Instead, use the helpers::
+
+	foo = krealloc(size_add(current_size,
+				size_mul(chunk_size,
+					 size_sub(count, 3))), GFP_KERNEL);
+
+For more details, also see array3_size() and flex_array_size(),
+as well as the related check_mul_overflow(), check_add_overflow(),
+check_sub_overflow(), and check_shl_overflow() family of functions.
 
 simple_strtol(), simple_strtoll(), simple_strtoul(), simple_strtoull()
 ----------------------------------------------------------------------
@@ -124,17 +138,20 @@ be NUL terminated. This can lead to various linear read overflows and
 other misbehavior due to the missing termination. It also NUL-pads
 the destination buffer if the source contents are shorter than the
 destination buffer size, which may be a needless performance penalty
-for callers using only NUL-terminated strings. The safe replacement is
+for callers using only NUL-terminated strings.
+
+When the destination is required to be NUL-terminated, the replacement is
 strscpy(), though care must be given to any cases where the return value
 of strncpy() was used, since strscpy() does not return a pointer to the
 destination, but rather a count of non-NUL bytes copied (or negative
 errno when it truncates). Any cases still needing NUL-padding should
 instead use strscpy_pad().
 
-If a caller is using non-NUL-terminated strings, strncpy() can
-still be used, but destinations should be marked with the `__nonstring
+If a caller is using non-NUL-terminated strings, strtomem() should be
+used, and the destinations should be marked with the `__nonstring
 <https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html>`_
-attribute to avoid future compiler warnings.
+attribute to avoid future compiler warnings. For cases still needing
+NUL-padding, strtomem_pad() can be used.
 
 strlcpy()
 ---------

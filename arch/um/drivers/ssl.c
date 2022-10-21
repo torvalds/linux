@@ -47,9 +47,7 @@ static struct line_driver driver = {
 	.minor_start 		= 64,
 	.type 		 	= TTY_DRIVER_TYPE_SERIAL,
 	.subtype 	 	= 0,
-	.read_irq 		= SSL_IRQ,
 	.read_irq_name 		= "ssl",
-	.write_irq 		= SSL_WRITE_IRQ,
 	.write_irq_name 	= "ssl-write",
 	.mc  = {
 		.list		= LIST_HEAD_INIT(driver.mc.list),
@@ -108,7 +106,7 @@ static const struct tty_operations ssl_ops = {
 /* Changed by ssl_init and referenced by ssl_exit, which are both serialized
  * by being an initcall and exitcall, respectively.
  */
-static int ssl_init_done = 0;
+static int ssl_init_done;
 
 static void ssl_console_write(struct console *c, const char *string,
 			      unsigned len)

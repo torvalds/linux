@@ -50,7 +50,7 @@ struct ad5272_data {
 	struct i2c_client       *client;
 	struct mutex            lock;
 	const struct ad5272_cfg *cfg;
-	u8                      buf[2] ____cacheline_aligned;
+	u8                      buf[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 static const struct iio_chan_spec ad5272_channel = {

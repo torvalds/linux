@@ -2203,7 +2203,7 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 	dev->min_mtu = 0;
 	dev->max_mtu = ENET_PACKET_SIZE;
 
-	netif_napi_add(dev, &sc->napi, sbmac_poll, 16);
+	netif_napi_add_weight(dev, &sc->napi, sbmac_poll, 16);
 
 	dev->irq		= UNIT_INT(idx);
 
@@ -2534,7 +2534,12 @@ static int sbmac_probe(struct platform_device *pldev)
 	int err;
 
 	res = platform_get_resource(pldev, IORESOURCE_MEM, 0);
-	BUG_ON(!res);
+	if (!res) {
+		printk(KERN_ERR "%s: failed to get resource\n",
+		       dev_name(&pldev->dev));
+		err = -EINVAL;
+		goto out_out;
+	}
 	sbm_base = ioremap(res->start, resource_size(res));
 	if (!sbm_base) {
 		printk(KERN_ERR "%s: unable to map device registers\n",

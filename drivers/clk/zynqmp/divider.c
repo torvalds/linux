@@ -89,8 +89,8 @@ static unsigned long zynqmp_clk_divider_recalc_rate(struct clk_hw *hw,
 	ret = zynqmp_pm_clock_getdivider(clk_id, &div);
 
 	if (ret)
-		pr_warn_once("%s() get divider failed for %s, ret = %d\n",
-			     __func__, clk_name, ret);
+		pr_debug("%s() get divider failed for %s, ret = %d\n",
+			 __func__, clk_name, ret);
 
 	if (div_type == TYPE_DIV1)
 		value = div & 0xFFFF;
@@ -113,17 +113,20 @@ static unsigned long zynqmp_clk_divider_recalc_rate(struct clk_hw *hw,
 static void zynqmp_get_divider2_val(struct clk_hw *hw,
 				    unsigned long rate,
 				    struct zynqmp_clk_divider *divider,
-				    int *bestdiv)
+				    u32 *bestdiv)
 {
 	int div1;
 	int div2;
 	long error = LONG_MAX;
 	unsigned long div1_prate;
 	struct clk_hw *div1_parent_hw;
+	struct zynqmp_clk_divider *pdivider;
 	struct clk_hw *div2_parent_hw = clk_hw_get_parent(hw);
-	struct zynqmp_clk_divider *pdivider =
-				to_zynqmp_clk_divider(div2_parent_hw);
 
+	if (!div2_parent_hw)
+		return;
+
+	pdivider = to_zynqmp_clk_divider(div2_parent_hw);
 	if (!pdivider)
 		return;
 
@@ -177,8 +180,8 @@ static long zynqmp_clk_divider_round_rate(struct clk_hw *hw,
 		ret = zynqmp_pm_clock_getdivider(clk_id, &bestdiv);
 
 		if (ret)
-			pr_warn_once("%s() get divider failed for %s, ret = %d\n",
-				     __func__, clk_name, ret);
+			pr_debug("%s() get divider failed for %s, ret = %d\n",
+				 __func__, clk_name, ret);
 		if (div_type == TYPE_DIV1)
 			bestdiv = bestdiv & 0xFFFF;
 		else
@@ -244,8 +247,8 @@ static int zynqmp_clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
 	ret = zynqmp_pm_clock_setdivider(clk_id, div);
 
 	if (ret)
-		pr_warn_once("%s() set divider failed for %s, ret = %d\n",
-			     __func__, clk_name, ret);
+		pr_debug("%s() set divider failed for %s, ret = %d\n",
+			 __func__, clk_name, ret);
 
 	return ret;
 }

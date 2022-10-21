@@ -167,30 +167,6 @@ static const struct vnt_threshold vt3226_vnt_threshold[] = {
 	{41, 0xff, 0x00}
 };
 
-static const struct vnt_threshold vt3342_vnt_threshold[] = {
-	{0, 0x00, 0x38},	/* Max sensitivity */
-	{66, 0x00, 0x43},
-	{65, 0x00, 0x52},
-	{64, 0x00, 0x68},
-	{63, 0x00, 0x80},
-	{62, 0x00, 0x9c},
-	{61, 0x00, 0xc0},
-	{60, 0x00, 0xea},
-	{59, 0x01, 0x30},
-	{58, 0x01, 0x70},
-	{57, 0x01, 0xb0},
-	{56, 0x02, 0x30},
-	{55, 0x02, 0xc0},
-	{53, 0x04, 0x00},
-	{51, 0x07, 0x00},
-	{49, 0x0a, 0x00},
-	{47, 0x11, 0x00},
-	{45, 0x18, 0x00},
-	{43, 0x26, 0x00},
-	{42, 0x36, 0x00},
-	{41, 0xff, 0x00}
-};
-
 /*
  * Description: Set Antenna mode
  *
@@ -255,14 +231,10 @@ int vnt_vt3184_init(struct vnt_private *priv)
 	dev_dbg(&priv->usb->dev, "RF Type %d\n", priv->rf_type);
 
 	if ((priv->rf_type == RF_AL2230) ||
-	    (priv->rf_type == RF_AL2230S) ||
-	    (priv->rf_type == RF_AIROHA7230)) {
+	    (priv->rf_type == RF_AL2230S)) {
 		priv->bb_rx_conf = vnt_vt3184_al2230[10];
 		length = sizeof(vnt_vt3184_al2230);
 		addr = vnt_vt3184_al2230;
-
-		if (priv->rf_type == RF_AIROHA7230)
-			addr[0xd7] = 0x06;
 
 		priv->bb_vga[0] = 0x1c;
 		priv->bb_vga[1] = 0x10;
@@ -270,8 +242,7 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		priv->bb_vga[3] = 0x0;
 
 	} else if ((priv->rf_type == RF_VT3226) ||
-		   (priv->rf_type == RF_VT3226D0) ||
-		   (priv->rf_type == RF_VT3342A0)) {
+		   (priv->rf_type == RF_VT3226D0)) {
 		priv->bb_rx_conf = vnt_vt3184_vt3226d0[10];
 		length = sizeof(vnt_vt3184_vt3226d0);
 		c_addr = vnt_vt3184_vt3226d0;
@@ -305,7 +276,6 @@ int vnt_vt3184_init(struct vnt_private *priv)
 		goto end;
 
 	if ((priv->rf_type == RF_VT3226) ||
-	    (priv->rf_type == RF_VT3342A0) ||
 	    (priv->rf_type == RF_VT3226D0)) {
 		data = (priv->rf_type == RF_VT3226D0) ? 0x11 : 0x23;
 
@@ -446,7 +416,6 @@ int vnt_update_pre_ed_threshold(struct vnt_private *priv, int scanning)
 	switch (priv->rf_type) {
 	case RF_AL2230:
 	case RF_AL2230S:
-	case RF_AIROHA7230:
 		threshold = al2230_vnt_threshold;
 		length = ARRAY_SIZE(al2230_vnt_threshold);
 		break;
@@ -455,11 +424,6 @@ int vnt_update_pre_ed_threshold(struct vnt_private *priv, int scanning)
 	case RF_VT3226D0:
 		threshold = vt3226_vnt_threshold;
 		length = ARRAY_SIZE(vt3226_vnt_threshold);
-		break;
-
-	case RF_VT3342A0:
-		threshold = vt3342_vnt_threshold;
-		length = ARRAY_SIZE(vt3342_vnt_threshold);
 		break;
 	}
 

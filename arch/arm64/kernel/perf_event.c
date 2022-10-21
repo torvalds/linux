@@ -242,6 +242,16 @@ static struct attribute *armv8_pmuv3_event_attrs[] = {
 	ARMV8_EVENT_ATTR(l2d_cache_lmiss_rd, ARMV8_PMUV3_PERFCTR_L2D_CACHE_LMISS_RD),
 	ARMV8_EVENT_ATTR(l2i_cache_lmiss, ARMV8_PMUV3_PERFCTR_L2I_CACHE_LMISS),
 	ARMV8_EVENT_ATTR(l3d_cache_lmiss_rd, ARMV8_PMUV3_PERFCTR_L3D_CACHE_LMISS_RD),
+	ARMV8_EVENT_ATTR(trb_wrap, ARMV8_PMUV3_PERFCTR_TRB_WRAP),
+	ARMV8_EVENT_ATTR(trb_trig, ARMV8_PMUV3_PERFCTR_TRB_TRIG),
+	ARMV8_EVENT_ATTR(trcextout0, ARMV8_PMUV3_PERFCTR_TRCEXTOUT0),
+	ARMV8_EVENT_ATTR(trcextout1, ARMV8_PMUV3_PERFCTR_TRCEXTOUT1),
+	ARMV8_EVENT_ATTR(trcextout2, ARMV8_PMUV3_PERFCTR_TRCEXTOUT2),
+	ARMV8_EVENT_ATTR(trcextout3, ARMV8_PMUV3_PERFCTR_TRCEXTOUT3),
+	ARMV8_EVENT_ATTR(cti_trigout4, ARMV8_PMUV3_PERFCTR_CTI_TRIGOUT4),
+	ARMV8_EVENT_ATTR(cti_trigout5, ARMV8_PMUV3_PERFCTR_CTI_TRIGOUT5),
+	ARMV8_EVENT_ATTR(cti_trigout6, ARMV8_PMUV3_PERFCTR_CTI_TRIGOUT6),
+	ARMV8_EVENT_ATTR(cti_trigout7, ARMV8_PMUV3_PERFCTR_CTI_TRIGOUT7),
 	ARMV8_EVENT_ATTR(ldst_align_lat, ARMV8_PMUV3_PERFCTR_LDST_ALIGN_LAT),
 	ARMV8_EVENT_ATTR(ld_align_lat, ARMV8_PMUV3_PERFCTR_LD_ALIGN_LAT),
 	ARMV8_EVENT_ATTR(st_align_lat, ARMV8_PMUV3_PERFCTR_ST_ALIGN_LAT),
@@ -380,7 +390,7 @@ static const struct attribute_group armv8_pmuv3_caps_attr_group = {
  */
 static bool armv8pmu_has_long_event(struct arm_pmu *cpu_pmu)
 {
-	return (cpu_pmu->pmuver >= ID_AA64DFR0_PMUVER_8_5);
+	return (cpu_pmu->pmuver >= ID_AA64DFR0_EL1_PMUVer_V3P5);
 }
 
 static inline bool armv8pmu_event_has_user_read(struct perf_event *event)
@@ -1135,8 +1145,8 @@ static void __armv8pmu_probe_pmu(void *info)
 
 	dfr0 = read_sysreg(id_aa64dfr0_el1);
 	pmuver = cpuid_feature_extract_unsigned_field(dfr0,
-			ID_AA64DFR0_PMUVER_SHIFT);
-	if (pmuver == ID_AA64DFR0_PMUVER_IMP_DEF || pmuver == 0)
+			ID_AA64DFR0_EL1_PMUVer_SHIFT);
+	if (pmuver == ID_AA64DFR0_EL1_PMUVer_IMP_DEF || pmuver == 0)
 		return;
 
 	cpu_pmu->pmuver = pmuver;
@@ -1162,7 +1172,7 @@ static void __armv8pmu_probe_pmu(void *info)
 			     pmceid, ARMV8_PMUV3_MAX_COMMON_EVENTS);
 
 	/* store PMMIR_EL1 register for sysfs */
-	if (pmuver >= ID_AA64DFR0_PMUVER_8_4 && (pmceid_raw[1] & BIT(31)))
+	if (pmuver >= ID_AA64DFR0_EL1_PMUVer_V3P4 && (pmceid_raw[1] & BIT(31)))
 		cpu_pmu->reg_pmmir = read_cpuid(PMMIR_EL1);
 	else
 		cpu_pmu->reg_pmmir = 0;

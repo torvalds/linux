@@ -64,6 +64,7 @@ properties:
       - description: BCM47094 based boards
         items:
           - enum:
+              - asus,rt-ac88u
               - dlink,dir-885l
               - linksys,panamera
               - luxul,abr-4500-v1
@@ -83,9 +84,21 @@ properties:
               - brcm,bcm953012er
               - brcm,bcm953012hr
               - brcm,bcm953012k
+          - const: brcm,bcm53012
+          - const: brcm,bcm4708
+
+      - description: BCM53015 based boards
+        items:
+          - enum:
+              - meraki,mr26
+          - const: brcm,bcm53015
+          - const: brcm,bcm4708
+
+      - description: BCM53016 based boards
+        items:
+          - enum:
               - meraki,mr32
-          - const: brcm,brcm53012
-          - const: brcm,brcm53016
+          - const: brcm,bcm53016
           - const: brcm,bcm4708
 
 additionalProperties: true

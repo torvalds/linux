@@ -20,8 +20,9 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <asm/time.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/mpc52xx.h>
 
@@ -173,6 +174,8 @@ static void __init media5200_init_irq(void)
 		goto out;
 	pr_debug("%s: allocated irqhost\n", __func__);
 
+	of_node_put(fpga_np);
+
 	irq_set_handler_data(cascade_virq, &media5200_irq);
 	irq_set_chained_handler(cascade_virq, media5200_irq_cascade);
 
@@ -180,6 +183,7 @@ static void __init media5200_init_irq(void)
 
  out:
 	pr_err("Could not find Media5200 FPGA; PCI interrupts will not work\n");
+	of_node_put(fpga_np);
 }
 
 /*

@@ -40,6 +40,7 @@ ALL_TESTS="$ALL_TESTS 0004:1:1:uint_0001"
 ALL_TESTS="$ALL_TESTS 0005:3:1:int_0003"
 ALL_TESTS="$ALL_TESTS 0006:50:1:bitmap_0001"
 ALL_TESTS="$ALL_TESTS 0007:1:1:boot_int"
+ALL_TESTS="$ALL_TESTS 0008:1:1:match_int"
 
 function allow_user_defaults()
 {
@@ -785,6 +786,27 @@ sysctl_test_0007()
 	return $ksft_skip
 }
 
+sysctl_test_0008()
+{
+	TARGET="${SYSCTL}/match_int"
+	if [ ! -f $TARGET ]; then
+		echo "Skipping test for $TARGET as it is not present ..."
+		return $ksft_skip
+	fi
+
+	echo -n "Testing if $TARGET is matched in kernel"
+	ORIG_VALUE=$(cat "${TARGET}")
+
+	if [ $ORIG_VALUE -ne 1 ]; then
+		echo "TEST FAILED"
+		rc=1
+		test_rc
+	fi
+
+	echo "ok"
+	return 0
+}
+
 list_tests()
 {
 	echo "Test ID list:"
@@ -800,6 +822,7 @@ list_tests()
 	echo "0005 x $(get_test_count 0005) - tests proc_douintvec() array"
 	echo "0006 x $(get_test_count 0006) - tests proc_do_large_bitmap()"
 	echo "0007 x $(get_test_count 0007) - tests setting sysctl from kernel boot param"
+	echo "0008 x $(get_test_count 0008) - tests sysctl macro values match"
 }
 
 usage()

@@ -35,6 +35,13 @@
 
 #define VIMC_PIX_FMT_MAX_CODES 8
 
+extern unsigned int vimc_allocator;
+
+enum vimc_allocator_type {
+	VIMC_ALLOCATOR_VMALLOC = 0,
+	VIMC_ALLOCATOR_DMA_CONTIG = 1,
+};
+
 /**
  * vimc_colorimetry_clamp - Adjust colorimetry parameters
  *
@@ -160,10 +167,11 @@ struct vimc_ent_config {
  */
 bool vimc_is_source(struct media_entity *ent);
 
-extern struct vimc_ent_type vimc_sen_type;
-extern struct vimc_ent_type vimc_deb_type;
-extern struct vimc_ent_type vimc_sca_type;
-extern struct vimc_ent_type vimc_cap_type;
+extern struct vimc_ent_type vimc_sensor_type;
+extern struct vimc_ent_type vimc_debayer_type;
+extern struct vimc_ent_type vimc_scaler_type;
+extern struct vimc_ent_type vimc_capture_type;
+extern struct vimc_ent_type vimc_lens_type;
 
 /**
  * vimc_pix_map_by_index - get vimc_pix_map struct by its index

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
- * Copyright (C) 2019, 2021 Intel Corporation
+ * Copyright (C) 2019, 2021-2022 Intel Corporation
  * Author:     Luis Carlos Cobo <luisca@cozybit.com>
  */
 #include <linux/gfp.h>
@@ -61,8 +61,8 @@ static bool rssi_threshold_check(struct ieee80211_sub_if_data *sdata,
 	s32 rssi_threshold = sdata->u.mesh.mshcfg.rssi_threshold;
 	return rssi_threshold == 0 ||
 	       (sta &&
-		(s8)-ewma_signal_read(&sta->rx_stats_avg.signal) >
-						rssi_threshold);
+		(s8)-ewma_signal_read(&sta->deflink.rx_stats_avg.signal) >
+		rssi_threshold);
 }
 
 /**
@@ -125,7 +125,7 @@ static u32 mesh_set_short_slot_time(struct ieee80211_sub_if_data *sdata)
 			continue;
 
 		short_slot = false;
-		if (erp_rates & sta->sta.supp_rates[sband->band])
+		if (erp_rates & sta->sta.deflink.supp_rates[sband->band])
 			short_slot = true;
 		 else
 			break;
@@ -175,10 +175,10 @@ static u32 mesh_set_ht_prot_mode(struct ieee80211_sub_if_data *sdata)
 		    sta->mesh->plink_state != NL80211_PLINK_ESTAB)
 			continue;
 
-		if (sta->sta.bandwidth > IEEE80211_STA_RX_BW_20)
+		if (sta->sta.deflink.bandwidth > IEEE80211_STA_RX_BW_20)
 			continue;
 
-		if (!sta->sta.ht_cap.ht_supported) {
+		if (!sta->sta.deflink.ht_cap.ht_supported) {
 			mpl_dbg(sdata, "nonHT sta (%pM) is present\n",
 				       sta->sta.addr);
 			non_ht_sta = true;
@@ -415,7 +415,7 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
 	u32 rates, basic_rates = 0, changed = 0;
-	enum ieee80211_sta_rx_bandwidth bw = sta->sta.bandwidth;
+	enum ieee80211_sta_rx_bandwidth bw = sta->sta.deflink.bandwidth;
 
 	sband = ieee80211_get_sband(sdata);
 	if (!sband)
@@ -425,7 +425,7 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 					&basic_rates);
 
 	spin_lock_bh(&sta->mesh->plink_lock);
-	sta->rx_stats.last_rx = jiffies;
+	sta->deflink.rx_stats.last_rx = jiffies;
 
 	/* rates and capabilities don't change during peering */
 	if (sta->mesh->plink_state == NL80211_PLINK_ESTAB &&
@@ -433,38 +433,40 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	sta->mesh->processed_beacon = true;
 
-	if (sta->sta.supp_rates[sband->band] != rates)
+	if (sta->sta.deflink.supp_rates[sband->band] != rates)
 		changed |= IEEE80211_RC_SUPP_RATES_CHANGED;
-	sta->sta.supp_rates[sband->band] = rates;
+	sta->sta.deflink.supp_rates[sband->band] = rates;
 
 	if (ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
-					      elems->ht_cap_elem, sta))
+					      elems->ht_cap_elem,
+					      &sta->deflink))
 		changed |= IEEE80211_RC_BW_CHANGED;
 
 	ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
-					    elems->vht_cap_elem, sta);
+					    elems->vht_cap_elem,
+					    &sta->deflink);
 
 	ieee80211_he_cap_ie_to_sta_he_cap(sdata, sband, elems->he_cap,
 					  elems->he_cap_len,
 					  elems->he_6ghz_capa,
-					  sta);
+					  &sta->deflink);
 
-	if (bw != sta->sta.bandwidth)
+	if (bw != sta->sta.deflink.bandwidth)
 		changed |= IEEE80211_RC_BW_CHANGED;
 
 	/* HT peer is operating 20MHz-only */
 	if (elems->ht_operation &&
 	    !(elems->ht_operation->ht_param &
 	      IEEE80211_HT_PARAM_CHAN_WIDTH_ANY)) {
-		if (sta->sta.bandwidth != IEEE80211_STA_RX_BW_20)
+		if (sta->sta.deflink.bandwidth != IEEE80211_STA_RX_BW_20)
 			changed |= IEEE80211_RC_BW_CHANGED;
-		sta->sta.bandwidth = IEEE80211_STA_RX_BW_20;
+		sta->sta.deflink.bandwidth = IEEE80211_STA_RX_BW_20;
 	}
 
 	if (!test_sta_flag(sta, WLAN_STA_RATE_CONTROL))
 		rate_control_rate_init(sta);
 	else
-		rate_control_rate_update(local, sband, sta, changed);
+		rate_control_rate_update(local, sband, sta, 0, changed);
 out:
 	spin_unlock_bh(&sta->mesh->plink_lock);
 }
@@ -475,8 +477,7 @@ static int mesh_allocate_aid(struct ieee80211_sub_if_data *sdata)
 	unsigned long *aid_map;
 	int aid;
 
-	aid_map = kcalloc(BITS_TO_LONGS(IEEE80211_MAX_AID + 1),
-			  sizeof(*aid_map), GFP_KERNEL);
+	aid_map = bitmap_zalloc(IEEE80211_MAX_AID + 1, GFP_KERNEL);
 	if (!aid_map)
 		return -ENOMEM;
 
@@ -489,7 +490,7 @@ static int mesh_allocate_aid(struct ieee80211_sub_if_data *sdata)
 	rcu_read_unlock();
 
 	aid = find_first_zero_bit(aid_map, IEEE80211_MAX_AID + 1);
-	kfree(aid_map);
+	bitmap_free(aid_map);
 
 	if (aid > IEEE80211_MAX_AID)
 		return -ENOBUFS;
@@ -1228,8 +1229,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 		if (baselen > len)
 			return;
 	}
-	elems = ieee802_11_parse_elems(baseaddr, len - baselen, true,
-				       mgmt->bssid, NULL);
+	elems = ieee802_11_parse_elems(baseaddr, len - baselen, true, NULL);
 	mesh_process_plink_frame(sdata, mgmt, elems, rx_status);
 	kfree(elems);
 }

@@ -16,7 +16,7 @@ description: |+
   - compatible:     Should be one of the following:
                     "aspeed,ast2400-scu", "syscon", "simple-mfd"
 
-  Refer to the the bindings described in
+  Refer to the bindings described in
   Documentation/devicetree/bindings/mfd/syscon.yaml
 
 properties:
@@ -63,6 +63,12 @@ examples:
     syscon: scu@1e6e2000 {
         compatible = "aspeed,ast2400-scu", "syscon", "simple-mfd";
         reg = <0x1e6e2000 0x1a8>;
+        #clock-cells = <1>;
+        #reset-cells = <1>;
+
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0x0 0x1e6e2000 0x1000>;
 
         pinctrl: pinctrl {
             compatible = "aspeed,ast2400-pinctrl";

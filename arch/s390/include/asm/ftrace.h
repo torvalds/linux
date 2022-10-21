@@ -47,15 +47,17 @@ struct ftrace_regs {
 
 static __always_inline struct pt_regs *arch_ftrace_get_regs(struct ftrace_regs *fregs)
 {
-	return &fregs->regs;
+	struct pt_regs *regs = &fregs->regs;
+
+	if (test_pt_regs_flag(regs, PIF_FTRACE_FULL_REGS))
+		return regs;
+	return NULL;
 }
 
 static __always_inline void ftrace_instruction_pointer_set(struct ftrace_regs *fregs,
 							   unsigned long ip)
 {
-	struct pt_regs *regs = arch_ftrace_get_regs(fregs);
-
-	regs->psw.addr = ip;
+	fregs->regs.psw.addr = ip;
 }
 
 /*

@@ -4,6 +4,7 @@
  */
 
 #include <linux/kthread.h>
+#include <linux/string_helpers.h>
 #include <trace/events/dma_fence.h>
 #include <uapi/linux/sched/types.h>
 
@@ -398,7 +399,8 @@ static void insert_breadcrumb(struct i915_request *rq)
 	 * the request as it may have completed and raised the interrupt as
 	 * we were attaching it into the lists.
 	 */
-	irq_work_queue(&b->irq_work);
+	if (!b->irq_armed || __i915_request_is_complete(rq))
+		irq_work_queue(&b->irq_work);
 }
 
 bool i915_request_enable_breadcrumb(struct i915_request *rq)
@@ -512,7 +514,7 @@ void intel_engine_print_breadcrumbs(struct intel_engine_cs *engine,
 	if (!b)
 		return;
 
-	drm_printf(p, "IRQ: %s\n", enableddisabled(b->irq_armed));
+	drm_printf(p, "IRQ: %s\n", str_enabled_disabled(b->irq_armed));
 	if (!list_empty(&b->signalers))
 		print_signals(b, p);
 }

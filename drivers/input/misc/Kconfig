@@ -730,6 +730,24 @@ config INPUT_ADXL34X_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called adxl34x-spi.
 
+config INPUT_IBM_PANEL
+	tristate "IBM Operation Panel driver"
+	depends on I2C && I2C_SLAVE
+	help
+	  Say Y here if you have an IBM Operation Panel connected to your system
+	  over I2C. The panel is typically connected only to a system's service
+	  processor (BMC).
+
+	  If unsure, say N.
+
+	  The Operation Panel is a controller with some buttons and an LCD
+	  display that allows someone with physical access to the system to
+	  perform various administrative tasks. This driver only supports the part
+	  of the controller that sends commands to the system.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ibm-panel.
+
 config INPUT_IMS_PCU
 	tristate "IMS Passenger Control Unit driver"
 	depends on USB
@@ -761,6 +779,16 @@ config INPUT_IQS626A
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called iqs626a.
+
+config INPUT_IQS7222
+	tristate "Azoteq IQS7222A/B/C capacitive touch controller"
+	depends on I2C
+	help
+	  Say Y to enable support for the Azoteq IQS7222A/B/C family
+	  of capacitive touch controllers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called iqs7222.
 
 config INPUT_CMA3000
 	tristate "VTI CMA3000 Tri-axis accelerometer"
@@ -880,6 +908,15 @@ config INPUT_SC27XX_VIBRA
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called sc27xx_vibra.
+
+config INPUT_RT5120_PWRKEY
+	tristate "RT5120 PMIC power key support"
+	depends on MFD_RT5120 || COMPILE_TEST
+	help
+	  This enables support for RT5120 PMIC power key driver.
+
+	  To compile this driver as a module, choose M here. the module will
+	  be called rt5120-pwrkey.
 
 config INPUT_STPMIC1_ONKEY
 	tristate "STPMIC1 PMIC Onkey support"

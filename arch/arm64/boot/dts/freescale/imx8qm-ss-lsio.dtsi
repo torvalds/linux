@@ -56,6 +56,14 @@
 	compatible = "fsl,imx8-mu-scu", "fsl,imx8qm-mu", "fsl,imx6sx-mu";
 };
 
+&lsio_mu5 {
+	compatible = "fsl,imx8qm-mu", "fsl,imx6sx-mu";
+};
+
+&lsio_mu6 {
+	compatible = "fsl,imx8qm-mu", "fsl,imx6sx-mu";
+};
+
 &lsio_mu13 {
 	compatible = "fsl,imx8qm-mu", "fsl,imx6sx-mu";
 };

@@ -99,3 +99,17 @@ config INTEL_MENLOW
 	  Intel Menlow platform.
 
 	  If unsure, say N.
+
+config INTEL_HFI_THERMAL
+	bool "Intel Hardware Feedback Interface"
+	depends on NET
+	depends on CPU_SUP_INTEL
+	depends on X86_THERMAL_VECTOR
+	select THERMAL_NETLINK
+	help
+	  Select this option to enable the Hardware Feedback Interface. If
+	  selected, hardware provides guidance to the operating system on
+	  the performance and energy efficiency capabilities of each CPU.
+	  These capabilities may change as a result of changes in the operating
+	  conditions of the system such power and thermal limits. If selected,
+	  the kernel relays updates in CPUs' capabilities to userspace.

@@ -766,7 +766,7 @@ int hw_atl_b0_hw_ring_rx_init(struct aq_hw_s *self, struct aq_ring_s *aq_ring,
 	hw_atl_rdm_rx_desc_len_set(self, aq_ring->size / 8U, aq_ring->idx);
 
 	hw_atl_rdm_rx_desc_data_buff_size_set(self,
-					      AQ_CFG_RX_FRAME_MAX / 1024U,
+					      aq_ring->frame_max / 1024U,
 				       aq_ring->idx);
 
 	hw_atl_rdm_rx_desc_head_buff_size_set(self, 0U, aq_ring->idx);
@@ -889,6 +889,13 @@ int hw_atl_b0_hw_ring_tx_head_update(struct aq_hw_s *self,
 		err = -ENXIO;
 		goto err_exit;
 	}
+
+	/* Validate that the new hw_head_ is reasonable. */
+	if (hw_head_ >= ring->size) {
+		err = -ENXIO;
+		goto err_exit;
+	}
+
 	ring->hw_head = hw_head_;
 	err = aq_hw_err_from_flags(self);
 
@@ -969,15 +976,15 @@ int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self, struct aq_ring_s *ring)
 				  rxd_wb->status);
 		if (HW_ATL_B0_RXD_WB_STAT2_EOP & rxd_wb->status) {
 			buff->len = rxd_wb->pkt_len %
-				AQ_CFG_RX_FRAME_MAX;
+				ring->frame_max;
 			buff->len = buff->len ?
-				buff->len : AQ_CFG_RX_FRAME_MAX;
+				buff->len : ring->frame_max;
 			buff->next = 0U;
 			buff->is_eop = 1U;
 		} else {
 			buff->len =
-				rxd_wb->pkt_len > AQ_CFG_RX_FRAME_MAX ?
-				AQ_CFG_RX_FRAME_MAX : rxd_wb->pkt_len;
+				rxd_wb->pkt_len > ring->frame_max ?
+				ring->frame_max : rxd_wb->pkt_len;
 
 			if (buff->is_lro) {
 				/* LRO */

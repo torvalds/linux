@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/media/rc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Generic Infrared Remote Controller Device Tree Bindings
+title: Generic Infrared Remote Controller
 
 maintainers:
   - Mauro Carvalho Chehab <mchehab@kernel.org>
@@ -12,7 +12,7 @@ maintainers:
 
 properties:
   $nodename:
-    pattern: "^ir(@[a-f0-9]+)?$"
+    pattern: "^ir(-receiver)?(@[a-f0-9]+)?$"
 
   linux,rc-map-name:
     description:

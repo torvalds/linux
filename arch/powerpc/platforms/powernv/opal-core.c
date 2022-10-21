@@ -112,7 +112,7 @@ static void __init fill_prstatus(struct elf_prstatus *prstatus, int pir,
 			  struct pt_regs *regs)
 {
 	memset(prstatus, 0, sizeof(struct elf_prstatus));
-	elf_core_copy_kernel_regs(&(prstatus->pr_reg), regs);
+	elf_core_copy_regs(&(prstatus->pr_reg), regs);
 
 	/*
 	 * Overload PID with PIR value.
@@ -347,6 +347,8 @@ static int __init create_opalcore(void)
 	}
 	if (!dn || ret)
 		pr_warn("WARNING: Failed to read OPAL base & entry values\n");
+
+	of_node_put(dn);
 
 	/* Use count to keep track of the program headers */
 	count = 0;
@@ -603,7 +605,7 @@ static struct bin_attribute *mpipl_bin_attr[] = {
 
 };
 
-static struct attribute_group mpipl_group = {
+static const struct attribute_group mpipl_group = {
 	.attrs = mpipl_attr,
 	.bin_attrs =  mpipl_bin_attr,
 };

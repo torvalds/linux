@@ -76,35 +76,6 @@ extern unsigned long mm_cachebits;
 #define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_RONLY | _PAGE_ACCESSED | mm_cachebits)
 #define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | _PAGE_DIRTY | _PAGE_ACCESSED | mm_cachebits)
 
-/* Alternate definitions that are compile time constants, for
-   initializing protection_map.  The cachebits are fixed later.  */
-#define PAGE_NONE_C	__pgprot(_PAGE_PROTNONE | _PAGE_ACCESSED)
-#define PAGE_SHARED_C	__pgprot(_PAGE_PRESENT | _PAGE_ACCESSED)
-#define PAGE_COPY_C	__pgprot(_PAGE_PRESENT | _PAGE_RONLY | _PAGE_ACCESSED)
-#define PAGE_READONLY_C	__pgprot(_PAGE_PRESENT | _PAGE_RONLY | _PAGE_ACCESSED)
-
-/*
- * The m68k can't do page protection for execute, and considers that the same are read.
- * Also, write permissions imply read permissions. This is the closest we can get..
- */
-#define __P000	PAGE_NONE_C
-#define __P001	PAGE_READONLY_C
-#define __P010	PAGE_COPY_C
-#define __P011	PAGE_COPY_C
-#define __P100	PAGE_READONLY_C
-#define __P101	PAGE_READONLY_C
-#define __P110	PAGE_COPY_C
-#define __P111	PAGE_COPY_C
-
-#define __S000	PAGE_NONE_C
-#define __S001	PAGE_READONLY_C
-#define __S010	PAGE_SHARED_C
-#define __S011	PAGE_SHARED_C
-#define __S100	PAGE_READONLY_C
-#define __S101	PAGE_READONLY_C
-#define __S110	PAGE_SHARED_C
-#define __S111	PAGE_SHARED_C
-
 #define pmd_pgtable(pmd) ((pgtable_t)pmd_page_vaddr(pmd))
 
 /*
@@ -147,6 +118,7 @@ static inline void pud_set(pud_t *pudp, pmd_t *pmdp)
 #define pmd_present(pmd)	(pmd_val(pmd) & _PAGE_TABLE)
 #define pmd_clear(pmdp)		({ pmd_val(*pmdp) = 0; })
 
+#define pmd_pfn(pmd)		((pmd_val(pmd) & _TABLE_MASK) >> PAGE_SHIFT)
 /*
  * m68k does not have huge pages (020/030 actually could), but generic code
  * expects pmd_page() to exists, only to then DCE it all. Provide a dummy to

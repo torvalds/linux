@@ -191,7 +191,7 @@ IV. Notes
 
 Thanks to Kim Stearns of Packet Engines for providing a pair of G-NIC boards.
 Thanks to Bruce Faust of Digitalscape for providing both their SYM53C885 board
-and an AlphaStation to verifty the Alpha port!
+and an AlphaStation to verify the Alpha port!
 
 IVb. References
 
@@ -1340,9 +1340,9 @@ static void yellowfin_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo
 {
 	struct yellowfin_private *np = netdev_priv(dev);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
 static const struct ethtool_ops ethtool_ops = {

@@ -87,27 +87,25 @@ with the command.
 1.2.2 Completing a scmd w/ timeout
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The timeout handler is scsi_times_out().  When a timeout occurs, this
-function
+The timeout handler is scsi_timeout().  When a timeout occurs, this function
 
  1. invokes optional hostt->eh_timed_out() callback.  Return value can
     be one of
 
     - BLK_EH_RESET_TIMER
 	This indicates that more time is required to finish the
-	command.  Timer is restarted.  This action is counted as a
-	retry and only allowed scmd->allowed + 1(!) times.  Once the
-	limit is reached, action for BLK_EH_DONE is taken instead.
+	command.  Timer is restarted.
 
     - BLK_EH_DONE
         eh_timed_out() callback did not handle the command.
 	Step #2 is taken.
 
- 2. scsi_abort_command() is invoked to schedule an asynchrous abort.
-    Asynchronous abort are not invoked for commands which the
-    SCSI_EH_ABORT_SCHEDULED flag is set (this indicates that the command
-    already had been aborted once, and this is a retry which failed),
-    or when the EH deadline is expired. In these case Step #3 is taken.
+ 2. scsi_abort_command() is invoked to schedule an asynchronous abort which may
+    issue a retry scmd->allowed + 1 times.  Asynchronous aborts are not invoked
+    for commands for which the SCSI_EH_ABORT_SCHEDULED flag is set (this
+    indicates that the command already had been aborted once, and this is a
+    retry which failed), when retries are exceeded, or when the EH deadline is
+    expired. In these cases Step #3 is taken.
 
  3. scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD) is invoked for the
     command.  See [1-4] for more information.

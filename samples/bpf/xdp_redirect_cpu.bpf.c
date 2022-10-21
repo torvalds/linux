@@ -491,7 +491,7 @@ int  xdp_prognum5_lb_hash_ip_pairs(struct xdp_md *ctx)
 	return bpf_redirect_map(&cpu_map, cpu_dest, 0);
 }
 
-SEC("xdp_cpumap/redirect")
+SEC("xdp/cpumap")
 int xdp_redirect_cpu_devmap(struct xdp_md *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;
@@ -507,19 +507,19 @@ int xdp_redirect_cpu_devmap(struct xdp_md *ctx)
 	return bpf_redirect_map(&tx_port, 0, 0);
 }
 
-SEC("xdp_cpumap/pass")
+SEC("xdp/cpumap")
 int xdp_redirect_cpu_pass(struct xdp_md *ctx)
 {
 	return XDP_PASS;
 }
 
-SEC("xdp_cpumap/drop")
+SEC("xdp/cpumap")
 int xdp_redirect_cpu_drop(struct xdp_md *ctx)
 {
 	return XDP_DROP;
 }
 
-SEC("xdp_devmap/egress")
+SEC("xdp/devmap")
 int xdp_redirect_egress_prog(struct xdp_md *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;

@@ -272,9 +272,9 @@ static int uda134x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 	pr_debug("%s fmt: %08X\n", __func__, fmt);
 
-	/* codec supports only full slave mode */
-	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
-		printk(KERN_ERR "%s unsupported slave mode\n", __func__);
+	/* codec supports only full consumer mode */
+	if ((fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) != SND_SOC_DAIFMT_CBC_CFC) {
+		printk(KERN_ERR "%s unsupported clocking mode\n", __func__);
 		return -EINVAL;
 	}
 
@@ -450,7 +450,7 @@ static int uda134x_soc_probe(struct snd_soc_component *component)
 	struct uda134x_priv *uda134x = snd_soc_component_get_drvdata(component);
 	struct uda134x_platform_data *pd = uda134x->pd;
 	const struct snd_soc_dapm_widget *widgets;
-	unsigned num_widgets;
+	unsigned int num_widgets;
 	int ret;
 
 	printk(KERN_INFO "UDA134X SoC Audio Codec\n");
@@ -527,7 +527,6 @@ static const struct snd_soc_component_driver soc_component_dev_uda134x = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config uda134x_regmap_config = {

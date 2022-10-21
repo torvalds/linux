@@ -201,7 +201,7 @@ static void aqc111_get_drvinfo(struct net_device *net,
 
 	/* Inherit standard device info */
 	usbnet_get_drvinfo(net, info);
-	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+	strscpy(info->driver, DRIVER_NAME, sizeof(info->driver));
 	snprintf(info->fw_version, sizeof(info->fw_version), "%u.%u.%u",
 		 aqc111_data->fw_ver.major,
 		 aqc111_data->fw_ver.minor,
@@ -735,7 +735,7 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->features |= AQ_SUPPORT_FEATURE;
 	dev->net->vlan_features |= AQ_SUPPORT_VLAN_FEATURE;
 
-	netif_set_gso_max_size(dev->net, 65535);
+	netif_set_tso_max_size(dev->net, 65535);
 
 	aqc111_read_fw_version(dev, aqc111_data);
 	aqc111_data->autoneg = AUTONEG_ENABLE;
@@ -1102,9 +1102,14 @@ static int aqc111_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	if (start_of_descs != desc_offset)
 		goto err;
 
-	/* self check desc_offset from header*/
-	if (desc_offset >= skb_len)
+	/* self check desc_offset from header and make sure that the
+	 * bounds of the metadata array are inside the SKB
+	 */
+	if (pkt_count * 2 + desc_offset >= skb_len)
 		goto err;
+
+	/* Packets must not overlap the metadata array */
+	skb_trim(skb, desc_offset);
 
 	if (pkt_count == 0)
 		goto err;

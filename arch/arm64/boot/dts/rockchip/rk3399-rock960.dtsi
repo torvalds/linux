@@ -7,6 +7,7 @@
 
 #include "rk3399.dtsi"
 #include "rk3399-opp.dtsi"
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	aliases {
@@ -528,7 +529,7 @@
 		compatible = "brcm,bcm4329-fmac";
 		reg = <1>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <RK_PA3 GPIO_ACTIVE_HIGH>;
+		interrupts = <RK_PA3 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "host-wake";
 		pinctrl-names = "default";
 		pinctrl-0 = <&wifi_host_wake_l>;

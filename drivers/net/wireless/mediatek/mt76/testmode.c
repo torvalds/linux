@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: ISC
 /* Copyright (C) 2020 Felix Fietkau <nbd@nbd.name> */
+
+#include <linux/random.h>
 #include "mt76.h"
 
 const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
@@ -50,8 +52,8 @@ void mt76_testmode_tx_pending(struct mt76_phy *phy)
 	       q->queued < q->ndesc / 2) {
 		int ret;
 
-		ret = dev->queue_ops->tx_queue_skb(dev, q, skb_get(skb), wcid,
-						   NULL);
+		ret = dev->queue_ops->tx_queue_skb(dev, q, qid, skb_get(skb),
+						   wcid, NULL);
 		if (ret < 0)
 			break;
 
@@ -101,7 +103,6 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
 	u16 fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA |
 		 IEEE80211_FCTL_FROMDS;
 	struct mt76_testmode_data *td = &phy->test;
-	bool ext_phy = phy != &phy->dev->phy;
 	struct sk_buff **frag_tail, *head;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_hdr *hdr;
@@ -124,21 +125,21 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
 	if (!head)
 		return -ENOMEM;
 
-	hdr = __skb_put_zero(head, head_len);
+	hdr = __skb_put_zero(head, sizeof(*hdr));
 	hdr->frame_control = cpu_to_le16(fc);
 	memcpy(hdr->addr1, td->addr[0], ETH_ALEN);
 	memcpy(hdr->addr2, td->addr[1], ETH_ALEN);
 	memcpy(hdr->addr3, td->addr[2], ETH_ALEN);
 	skb_set_queue_mapping(head, IEEE80211_AC_BE);
+	get_random_bytes(__skb_put(head, head_len - sizeof(*hdr)),
+			 head_len - sizeof(*hdr));
 
 	info = IEEE80211_SKB_CB(head);
 	info->flags = IEEE80211_TX_CTL_INJECTED |
 		      IEEE80211_TX_CTL_NO_ACK |
 		      IEEE80211_TX_CTL_NO_PS_BUFFER;
 
-	if (ext_phy)
-		info->hw_queue |= MT_TX_HW_QUEUE_EXT_PHY;
-
+	info->hw_queue |= FIELD_PREP(MT_TX_HW_QUEUE_PHY, phy->band_idx);
 	frag_tail = &skb_shinfo(head)->frag_list;
 
 	for (i = 0; i < nfrags; i++) {
@@ -157,7 +158,7 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
 			return -ENOMEM;
 		}
 
-		__skb_put_zero(frag, frag_len);
+		get_random_bytes(__skb_put(frag, frag_len), frag_len);
 		head->len += frag->len;
 		head->data_len += frag->len;
 
@@ -409,7 +410,6 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt76_dev *dev = phy->dev;
 	struct mt76_testmode_data *td = &phy->test;
 	struct nlattr *tb[NUM_MT76_TM_ATTRS];
-	bool ext_phy = phy != &dev->phy;
 	u32 state;
 	int err;
 	int i;
@@ -447,8 +447,8 @@ int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_RATE_LDPC], &td->tx_rate_ldpc, 0, 1) ||
 	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_RATE_STBC], &td->tx_rate_stbc, 0, 1) ||
 	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_LTF], &td->tx_ltf, 0, 2) ||
-	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_ANTENNA], &td->tx_antenna_mask,
-			   1 << (ext_phy * 2), phy->antenna_mask << (ext_phy * 2)) ||
+	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_ANTENNA],
+			   &td->tx_antenna_mask, 0, 0xff) ||
 	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_SPE_IDX], &td->tx_spe_idx, 0, 27) ||
 	    mt76_tm_get_u8(tb[MT76_TM_ATTR_TX_DUTY_CYCLE],
 			   &td->tx_duty_cycle, 0, 99) ||

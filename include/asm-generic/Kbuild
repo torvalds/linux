@@ -5,6 +5,7 @@
 # asm headers from the host architecutre.)
 
 mandatory-y += atomic.h
+mandatory-y += archrandom.h
 mandatory-y += barrier.h
 mandatory-y += bitops.h
 mandatory-y += bug.h

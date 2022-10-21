@@ -314,6 +314,7 @@ enum irdma_cqp_op_type {
 #define IRDMA_AE_IB_REMOTE_ACCESS_ERROR					0x020d
 #define IRDMA_AE_IB_REMOTE_OP_ERROR					0x020e
 #define IRDMA_AE_WQE_LSMM_TOO_LONG					0x0220
+#define IRDMA_AE_INVALID_REQUEST					0x0223
 #define IRDMA_AE_DDP_INVALID_MSN_GAP_IN_MSN				0x0301
 #define IRDMA_AE_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER	0x0303
 #define IRDMA_AE_DDP_UBE_INVALID_DDP_VERSION				0x0304
@@ -964,7 +965,7 @@ enum irdma_cqp_op_type {
 			(_ring).head = ((_ring).head + 1) % size; \
 			(_retcode) = 0; \
 		} else { \
-			(_retcode) = IRDMA_ERR_RING_FULL; \
+			(_retcode) = -ENOMEM; \
 		} \
 	}
 #define IRDMA_RING_MOVE_HEAD_BY_COUNT(_ring, _count, _retcode) \
@@ -975,7 +976,7 @@ enum irdma_cqp_op_type {
 			(_ring).head = ((_ring).head + (_count)) % size; \
 			(_retcode) = 0; \
 		} else { \
-			(_retcode) = IRDMA_ERR_RING_FULL; \
+			(_retcode) = -ENOMEM; \
 		} \
 	}
 #define IRDMA_SQ_RING_MOVE_HEAD(_ring, _retcode) \
@@ -986,7 +987,7 @@ enum irdma_cqp_op_type {
 			(_ring).head = ((_ring).head + 1) % size; \
 			(_retcode) = 0; \
 		} else { \
-			(_retcode) = IRDMA_ERR_RING_FULL; \
+			(_retcode) = -ENOMEM; \
 		} \
 	}
 #define IRDMA_SQ_RING_MOVE_HEAD_BY_COUNT(_ring, _count, _retcode) \
@@ -997,7 +998,7 @@ enum irdma_cqp_op_type {
 			(_ring).head = ((_ring).head + (_count)) % size; \
 			(_retcode) = 0; \
 		} else { \
-			(_retcode) = IRDMA_ERR_RING_FULL; \
+			(_retcode) = -ENOMEM; \
 		} \
 	}
 #define IRDMA_RING_MOVE_HEAD_BY_COUNT_NOCHECK(_ring, _count) \

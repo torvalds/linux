@@ -3,7 +3,7 @@
  *
  * Name: actbl2.h - ACPI Table Definitions (tables not in ACPI spec)
  *
- * Copyright (C) 2000 - 2021, Intel Corp.
+ * Copyright (C) 2000 - 2022, Intel Corp.
  *
  *****************************************************************************/
 
@@ -25,6 +25,7 @@
  * the wrong signature.
  */
 #define ACPI_SIG_AGDI           "AGDI"	/* Arm Generic Diagnostic Dump and Reset Device Interface */
+#define ACPI_SIG_APMT           "APMT"	/* Arm Performance Monitoring Unit table */
 #define ACPI_SIG_BDAT           "BDAT"	/* BIOS Data ACPI Table */
 #define ACPI_SIG_IORT           "IORT"	/* IO Remapping Table */
 #define ACPI_SIG_IVRS           "IVRS"	/* I/O Virtualization Reporting Structure */
@@ -260,6 +261,85 @@ struct acpi_table_agdi {
 
 /*******************************************************************************
  *
+ * APMT - ARM Performance Monitoring Unit Table
+ *
+ * Conforms to:
+ * ARM Performance Monitoring Unit Architecture 1.0 Platform Design Document
+ * ARM DEN0117 v1.0 November 25, 2021
+ *
+ ******************************************************************************/
+
+struct acpi_table_apmt {
+	struct acpi_table_header header;	/* Common ACPI table header */
+};
+
+#define ACPI_APMT_NODE_ID_LENGTH                4
+
+/*
+ * APMT subtables
+ */
+struct acpi_apmt_node {
+	u16 length;
+	u8 flags;
+	u8 type;
+	u32 id;
+	u64 inst_primary;
+	u32 inst_secondary;
+	u64 base_address0;
+	u64 base_address1;
+	u32 ovflw_irq;
+	u32 reserved;
+	u32 ovflw_irq_flags;
+	u32 proc_affinity;
+	u32 impl_id;
+};
+
+/* Masks for Flags field above */
+
+#define ACPI_APMT_FLAGS_DUAL_PAGE               (1<<0)
+#define ACPI_APMT_FLAGS_AFFINITY                (1<<1)
+#define ACPI_APMT_FLAGS_ATOMIC                  (1<<2)
+
+/* Values for Flags dual page field above */
+
+#define ACPI_APMT_FLAGS_DUAL_PAGE_NSUPP         (0<<0)
+#define ACPI_APMT_FLAGS_DUAL_PAGE_SUPP          (1<<0)
+
+/* Values for Flags processor affinity field above */
+#define ACPI_APMT_FLAGS_AFFINITY_PROC           (0<<1)
+#define ACPI_APMT_FLAGS_AFFINITY_PROC_CONTAINER (1<<1)
+
+/* Values for Flags 64-bit atomic field above */
+#define ACPI_APMT_FLAGS_ATOMIC_NSUPP            (0<<2)
+#define ACPI_APMT_FLAGS_ATOMIC_SUPP             (1<<2)
+
+/* Values for Type field above */
+
+enum acpi_apmt_node_type {
+	ACPI_APMT_NODE_TYPE_MC = 0x00,
+	ACPI_APMT_NODE_TYPE_SMMU = 0x01,
+	ACPI_APMT_NODE_TYPE_PCIE_ROOT = 0x02,
+	ACPI_APMT_NODE_TYPE_ACPI = 0x03,
+	ACPI_APMT_NODE_TYPE_CACHE = 0x04,
+	ACPI_APMT_NODE_TYPE_COUNT
+};
+
+/* Masks for ovflw_irq_flags field above */
+
+#define ACPI_APMT_OVFLW_IRQ_FLAGS_MODE          (1<<0)
+#define ACPI_APMT_OVFLW_IRQ_FLAGS_TYPE          (1<<1)
+
+/* Values for ovflw_irq_flags mode field above */
+
+#define ACPI_APMT_OVFLW_IRQ_FLAGS_MODE_LEVEL    (0<<0)
+#define ACPI_APMT_OVFLW_IRQ_FLAGS_MODE_EDGE     (1<<0)
+
+/* Values for ovflw_irq_flags type field above */
+
+#define ACPI_APMT_OVFLW_IRQ_FLAGS_TYPE_WIRED    (0<<1)
+
+/*******************************************************************************
+ *
  * BDAT - BIOS Data ACPI Table
  *
  * Conforms to "BIOS Data ACPI Table", Interface Specification v4.0 Draft 5
@@ -277,7 +357,7 @@ struct acpi_table_bdat {
  * IORT - IO Remapping Table
  *
  * Conforms to "IO Remapping Table System Software on ARM Platforms",
- * Document number: ARM DEN 0049E.b, Feb 2021
+ * Document number: ARM DEN 0049E.d, Feb 2022
  *
  ******************************************************************************/
 
@@ -374,7 +454,8 @@ struct acpi_iort_root_complex {
 	u32 ats_attribute;
 	u32 pci_segment_number;
 	u8 memory_address_limit;	/* Memory address size limit */
-	u8 reserved[3];		/* Reserved, must be zero */
+	u16 pasid_capabilities;	/* PASID Capabilities */
+	u8 reserved[1];		/* Reserved, must be zero */
 };
 
 /* Masks for ats_attribute field above */
@@ -382,6 +463,9 @@ struct acpi_iort_root_complex {
 #define ACPI_IORT_ATS_SUPPORTED         (1)	/* The root complex ATS support */
 #define ACPI_IORT_PRI_SUPPORTED         (1<<1)	/* The root complex PRI support */
 #define ACPI_IORT_PASID_FWD_SUPPORTED   (1<<2)	/* The root complex PASID forward support */
+
+/* Masks for pasid_capabilities field above */
+#define ACPI_IORT_PASID_MAX_WIDTH       (0x1F)	/* Bits 0-4 */
 
 struct acpi_iort_smmu {
 	u64 base_address;	/* SMMU base address */
@@ -457,6 +541,25 @@ struct acpi_iort_rmr {
 	u32 rmr_count;
 	u32 rmr_offset;
 };
+
+/* Masks for Flags field above */
+#define ACPI_IORT_RMR_REMAP_PERMITTED      (1)
+#define ACPI_IORT_RMR_ACCESS_PRIVILEGE     (1<<1)
+
+/*
+ * Macro to access the Access Attributes in flags field above:
+ *  Access Attributes is encoded in bits 9:2
+ */
+#define ACPI_IORT_RMR_ACCESS_ATTRIBUTES(flags)          (((flags) >> 2) & 0xFF)
+
+/* Values for above Access Attributes */
+
+#define ACPI_IORT_RMR_ATTR_DEVICE_NGNRNE   0x00
+#define ACPI_IORT_RMR_ATTR_DEVICE_NGNRE    0x01
+#define ACPI_IORT_RMR_ATTR_DEVICE_NGRE     0x02
+#define ACPI_IORT_RMR_ATTR_DEVICE_GRE      0x03
+#define ACPI_IORT_RMR_ATTR_NORMAL_NC       0x04
+#define ACPI_IORT_RMR_ATTR_NORMAL_IWB_OWB  0x05
 
 struct acpi_iort_rmr_desc {
 	u64 base_address;
@@ -762,7 +865,8 @@ enum acpi_madt_type {
 	ACPI_MADT_TYPE_GENERIC_REDISTRIBUTOR = 14,
 	ACPI_MADT_TYPE_GENERIC_TRANSLATOR = 15,
 	ACPI_MADT_TYPE_MULTIPROC_WAKEUP = 16,
-	ACPI_MADT_TYPE_RESERVED = 17	/* 17 and greater are reserved */
+	ACPI_MADT_TYPE_RESERVED = 17,	/* 17 to 0x7F are reserved */
+	ACPI_MADT_TYPE_OEM_RESERVED = 0x80	/* 0x80 to 0xFF are reserved for OEM use */
 };
 
 /*
@@ -978,8 +1082,8 @@ struct acpi_madt_multiproc_wakeup {
 	u64 base_address;
 };
 
-#define ACPI_MULTIPROC_WAKEUP_MB_OS_SIZE	2032
-#define ACPI_MULTIPROC_WAKEUP_MB_FIRMWARE_SIZE	2048
+#define ACPI_MULTIPROC_WAKEUP_MB_OS_SIZE        2032
+#define ACPI_MULTIPROC_WAKEUP_MB_FIRMWARE_SIZE  2048
 
 struct acpi_madt_multiproc_wakeup_mailbox {
 	u16 command;
@@ -991,6 +1095,12 @@ struct acpi_madt_multiproc_wakeup_mailbox {
 };
 
 #define ACPI_MP_WAKE_COMMAND_WAKEUP    1
+
+/* 17: OEM data */
+
+struct acpi_madt_oem_data {
+	u8 oem_data[0];
+};
 
 /*
  * Common flags fields for MADT subtables
@@ -1597,7 +1707,7 @@ struct acpi_nhlt_mic_device_specific_config {
 
 /* Values for array_type_ext above */
 
-#define ACPI_NHLT_ARRAY_TYPE_RESERVED               0x09	// 9 and below are reserved
+#define ACPI_NHLT_ARRAY_TYPE_RESERVED               0x09	/* 9 and below are reserved */
 #define ACPI_NHLT_SMALL_LINEAR_2ELEMENT             0x0A
 #define ACPI_NHLT_BIG_LINEAR_2ELEMENT               0x0B
 #define ACPI_NHLT_FIRST_GEOMETRY_LINEAR_4ELEMENT    0x0C
@@ -1617,17 +1727,17 @@ struct acpi_nhlt_vendor_mic_count {
 struct acpi_nhlt_vendor_mic_config {
 	u8 type;
 	u8 panel;
-	u16 speaker_position_distance;	// mm
-	u16 horizontal_offset;	// mm
-	u16 vertical_offset;	// mm
-	u8 frequency_low_band;	// 5*hz
-	u8 frequency_high_band;	// 500*hz
-	u16 direction_angle;	// -180 - + 180
-	u16 elevation_angle;	// -180 - + 180
-	u16 work_vertical_angle_begin;	// -180 - + 180 with 2 deg step
-	u16 work_vertical_angle_end;	// -180 - + 180 with 2 deg step
-	u16 work_horizontal_angle_begin;	// -180 - + 180 with 2 deg step
-	u16 work_horizontal_angle_end;	// -180 - + 180 with 2 deg step
+	u16 speaker_position_distance;	/* mm */
+	u16 horizontal_offset;	/* mm */
+	u16 vertical_offset;	/* mm */
+	u8 frequency_low_band;	/* 5*Hz */
+	u8 frequency_high_band;	/* 500*Hz */
+	u16 direction_angle;	/* -180 - + 180 */
+	u16 elevation_angle;	/* -180 - + 180 */
+	u16 work_vertical_angle_begin;	/* -180 - + 180 with 2 deg step */
+	u16 work_vertical_angle_end;	/* -180 - + 180 with 2 deg step */
+	u16 work_horizontal_angle_begin;	/* -180 - + 180 with 2 deg step */
+	u16 work_horizontal_angle_end;	/* -180 - + 180 with 2 deg step */
 };
 
 /* Values for Type field above */
@@ -1638,9 +1748,9 @@ struct acpi_nhlt_vendor_mic_config {
 #define ACPI_NHLT_MIC_SUPER_CARDIOID        3
 #define ACPI_NHLT_MIC_HYPER_CARDIOID        4
 #define ACPI_NHLT_MIC_8_SHAPED              5
-#define ACPI_NHLT_MIC_RESERVED6             6	// 6 is reserved
+#define ACPI_NHLT_MIC_RESERVED6             6	/* 6 is reserved */
 #define ACPI_NHLT_MIC_VENDOR_DEFINED        7
-#define ACPI_NHLT_MIC_RESERVED              8	// 8 and above are reserved
+#define ACPI_NHLT_MIC_RESERVED              8	/* 8 and above are reserved */
 
 /* Values for Panel field above */
 
@@ -1650,12 +1760,12 @@ struct acpi_nhlt_vendor_mic_config {
 #define ACPI_NHLT_MIC_POSITION_RIGHT        3
 #define ACPI_NHLT_MIC_POSITION_FRONT        4
 #define ACPI_NHLT_MIC_POSITION_BACK         5
-#define ACPI_NHLT_MIC_POSITION_RESERVED     6	// 6 and above are reserved
+#define ACPI_NHLT_MIC_POSITION_RESERVED     6	/* 6 and above are reserved */
 
 struct acpi_nhlt_vendor_mic_device_specific_config {
 	struct acpi_nhlt_mic_device_specific_config mic_array_device_config;
 	u8 number_of_microphones;
-	struct acpi_nhlt_vendor_mic_config mic_config[];	// indexed by number_of_microphones
+	struct acpi_nhlt_vendor_mic_config mic_config[];	/* Indexed by number_of_microphones */
 };
 
 /* Microphone SNR and Sensitivity extension */
@@ -1668,30 +1778,21 @@ struct acpi_nhlt_mic_snr_sensitivity_extension {
 /* Render device with feedback */
 
 struct acpi_nhlt_render_feedback_device_specific_config {
-	u8 feedback_virtual_slot;	// render slot in case of capture
-	u16 feedback_channels;	// informative only
+	u8 feedback_virtual_slot;	/* Render slot in case of capture */
+	u16 feedback_channels;	/* Informative only */
 	u16 feedback_valid_bits_per_sample;
 };
 
-/* Linux-specific structures */
+/* Non documented structures */
 
-struct acpi_nhlt_linux_specific_count {
+struct acpi_nhlt_device_info_count {
 	u8 structure_count;
 };
 
-struct acpi_nhlt_linux_specific_data {
+struct acpi_nhlt_device_info {
 	u8 device_id[16];
 	u8 device_instance_id;
 	u8 device_port_id;
-};
-
-struct acpi_nhlt_linux_specific_data_b {
-	u8 specific_data[18];
-};
-
-struct acpi_nhlt_table_terminator {
-	u32 terminator_value;
-	u32 terminator_signature;
 };
 
 /*******************************************************************************
@@ -2319,7 +2420,7 @@ struct acpi_table_rgrt {
 	u16 version;
 	u8 image_type;
 	u8 reserved;
-	u8 image[0];
+	u8 image[];
 };
 
 /* image_type values */

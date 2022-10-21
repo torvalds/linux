@@ -327,7 +327,7 @@ struct _carl9170_tx_superdesc {
 struct _carl9170_tx_superframe {
 	struct _carl9170_tx_superdesc s;
 	struct _ar9170_tx_hwdesc f;
-	u8 frame_data[0];
+	u8 frame_data[];
 } __packed __aligned(4);
 
 #define	CARL9170_TX_SUPERDESC_LEN		24

@@ -3,7 +3,7 @@
 
 #include <net/inet6_hashtables.h>
 #include "en_accel/en_accel.h"
-#include "en_accel/tls.h"
+#include "en_accel/ktls.h"
 #include "en_accel/ktls_txrx.h"
 #include "en_accel/ktls_utils.h"
 #include "en_accel/fs_tcp.h"
@@ -43,7 +43,7 @@ struct mlx5e_ktls_rx_resync_ctx {
 };
 
 struct mlx5e_ktls_offload_context_rx {
-	struct tls12_crypto_info_aes_gcm_128 crypto_info;
+	union mlx5e_crypto_info crypto_info;
 	struct accel_rule rule;
 	struct sock *sk;
 	struct mlx5e_rq_stats *rq_stats;
@@ -111,7 +111,7 @@ static void accel_rule_handle_work(struct work_struct *work)
 	if (unlikely(test_bit(MLX5E_PRIV_RX_FLAG_DELETING, priv_rx->flags)))
 		goto out;
 
-	rule = mlx5e_accel_fs_add_sk(accel_rule->priv, priv_rx->sk,
+	rule = mlx5e_accel_fs_add_sk(accel_rule->priv->fs, priv_rx->sk,
 				     mlx5e_tir_get_tirn(&priv_rx->tir),
 				     MLX5_FS_DEFAULT_FLOW_TAG);
 	if (!IS_ERR_OR_NULL(rule))
@@ -231,8 +231,7 @@ mlx5e_set_ktls_rx_priv_ctx(struct tls_context *tls_ctx,
 	struct mlx5e_ktls_offload_context_rx **ctx =
 		__tls_driver_ctx(tls_ctx, TLS_OFFLOAD_CTX_DIR_RX);
 
-	BUILD_BUG_ON(sizeof(struct mlx5e_ktls_offload_context_rx *) >
-		     TLS_OFFLOAD_CONTEXT_SIZE_RX);
+	BUILD_BUG_ON(sizeof(priv_rx) > TLS_DRIVER_STATE_SIZE_RX);
 
 	*ctx = priv_rx;
 }
@@ -363,7 +362,6 @@ static void resync_init(struct mlx5e_ktls_rx_resync_ctx *resync,
 static void resync_handle_seq_match(struct mlx5e_ktls_offload_context_rx *priv_rx,
 				    struct mlx5e_channel *c)
 {
-	struct tls12_crypto_info_aes_gcm_128 *info = &priv_rx->crypto_info;
 	struct mlx5e_ktls_resync_resp *ktls_resync;
 	struct mlx5e_icosq *sq;
 	bool trigger_poll;
@@ -374,7 +372,31 @@ static void resync_handle_seq_match(struct mlx5e_ktls_offload_context_rx *priv_r
 
 	spin_lock_bh(&ktls_resync->lock);
 	spin_lock_bh(&priv_rx->lock);
-	memcpy(info->rec_seq, &priv_rx->resync.sw_rcd_sn_be, sizeof(info->rec_seq));
+	switch (priv_rx->crypto_info.crypto_info.cipher_type) {
+	case TLS_CIPHER_AES_GCM_128: {
+		struct tls12_crypto_info_aes_gcm_128 *info =
+			&priv_rx->crypto_info.crypto_info_128;
+
+		memcpy(info->rec_seq, &priv_rx->resync.sw_rcd_sn_be,
+		       sizeof(info->rec_seq));
+		break;
+	}
+	case TLS_CIPHER_AES_GCM_256: {
+		struct tls12_crypto_info_aes_gcm_256 *info =
+			&priv_rx->crypto_info.crypto_info_256;
+
+		memcpy(info->rec_seq, &priv_rx->resync.sw_rcd_sn_be,
+		       sizeof(info->rec_seq));
+		break;
+	}
+	default:
+		WARN_ONCE(1, "Unsupported cipher type %u\n",
+			  priv_rx->crypto_info.crypto_info.cipher_type);
+		spin_unlock_bh(&priv_rx->lock);
+		spin_unlock_bh(&ktls_resync->lock);
+		return;
+	}
+
 	if (list_empty(&priv_rx->list)) {
 		list_add_tail(&priv_rx->list, &ktls_resync->list);
 		trigger_poll = !test_and_set_bit(MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC, &sq->state);
@@ -462,6 +484,7 @@ static void resync_update_sn(struct mlx5e_rq *rq, struct sk_buff *skb)
 {
 	struct ethhdr *eth = (struct ethhdr *)(skb->data);
 	struct net_device *netdev = rq->netdev;
+	struct net *net = dev_net(netdev);
 	struct sock *sk = NULL;
 	unsigned int datalen;
 	struct iphdr *iph;
@@ -476,7 +499,7 @@ static void resync_update_sn(struct mlx5e_rq *rq, struct sk_buff *skb)
 		depth += sizeof(struct iphdr);
 		th = (void *)iph + sizeof(struct iphdr);
 
-		sk = inet_lookup_established(dev_net(netdev), &tcp_hashinfo,
+		sk = inet_lookup_established(net, net->ipv4.tcp_death_row.hashinfo,
 					     iph->saddr, th->source, iph->daddr,
 					     th->dest, netdev->ifindex);
 #if IS_ENABLED(CONFIG_IPV6)
@@ -486,7 +509,7 @@ static void resync_update_sn(struct mlx5e_rq *rq, struct sk_buff *skb)
 		depth += sizeof(struct ipv6hdr);
 		th = (void *)ipv6h + sizeof(struct ipv6hdr);
 
-		sk = __inet6_lookup_established(dev_net(netdev), &tcp_hashinfo,
+		sk = __inet6_lookup_established(net, net->ipv4.tcp_death_row.hashinfo,
 						&ipv6h->saddr, th->source,
 						&ipv6h->daddr, ntohs(th->dest),
 						netdev->ifindex, 0);
@@ -604,8 +627,20 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 
 	INIT_LIST_HEAD(&priv_rx->list);
 	spin_lock_init(&priv_rx->lock);
-	priv_rx->crypto_info  =
-		*(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
+	switch (crypto_info->cipher_type) {
+	case TLS_CIPHER_AES_GCM_128:
+		priv_rx->crypto_info.crypto_info_128 =
+			*(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
+		break;
+	case TLS_CIPHER_AES_GCM_256:
+		priv_rx->crypto_info.crypto_info_256 =
+			*(struct tls12_crypto_info_aes_gcm_256 *)crypto_info;
+		break;
+	default:
+		WARN_ONCE(1, "Unsupported cipher type %u\n",
+			  crypto_info->cipher_type);
+		return -EOPNOTSUPP;
+	}
 
 	rxq = mlx5e_ktls_sk_get_rxq(sk);
 	priv_rx->rxq = rxq;

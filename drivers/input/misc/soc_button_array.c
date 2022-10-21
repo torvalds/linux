@@ -85,13 +85,13 @@ static const struct dmi_system_id dmi_use_low_level_irq[] = {
 	},
 	{
 		/*
-		 * Lenovo Yoga Tab2 1051L, something messes with the home-button
+		 * Lenovo Yoga Tab2 1051F/1051L, something messes with the home-button
 		 * IRQ settings, leading to a non working home-button.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "60073"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "1051L"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "1051"),
 		},
 	},
 	{} /* Terminating entry */
@@ -470,6 +470,27 @@ static const struct soc_device_data soc_device_INT33D3 = {
 };
 
 /*
+ * Button info for Microsoft Surface 3 (non pro), this is indentical to
+ * the PNP0C40 info except that the home button is active-high.
+ *
+ * The Surface 3 Pro also has a MSHW0028 ACPI device, but that uses a custom
+ * version of the drivers/platform/x86/intel/hid.c 5 button array ACPI API
+ * instead. A check() callback is not necessary though as the Surface 3 Pro
+ * MSHW0028 ACPI device's resource table does not contain any GPIOs.
+ */
+static const struct soc_button_info soc_button_MSHW0028[] = {
+	{ "power", 0, EV_KEY, KEY_POWER, false, true, true },
+	{ "home", 1, EV_KEY, KEY_LEFTMETA, false, true, false },
+	{ "volume_up", 2, EV_KEY, KEY_VOLUMEUP, true, false, true },
+	{ "volume_down", 3, EV_KEY, KEY_VOLUMEDOWN, true, false, true },
+	{ }
+};
+
+static const struct soc_device_data soc_device_MSHW0028 = {
+	.button_info = soc_button_MSHW0028,
+};
+
+/*
  * Special device check for Surface Book 2 and Surface Pro (2017).
  * Both, the Surface Pro 4 (surfacepro3_button.c) and the above mentioned
  * devices use MSHW0040 for power and volume buttons, however the way they
@@ -535,7 +556,8 @@ static const struct acpi_device_id soc_button_acpi_match[] = {
 	{ "ID9001", (unsigned long)&soc_device_INT33D3 },
 	{ "ACPI0011", 0 },
 
-	/* Microsoft Surface Devices (5th and 6th generation) */
+	/* Microsoft Surface Devices (3th, 5th and 6th generation) */
+	{ "MSHW0028", (unsigned long)&soc_device_MSHW0028 },
 	{ "MSHW0040", (unsigned long)&soc_device_MSHW0040 },
 
 	{ }

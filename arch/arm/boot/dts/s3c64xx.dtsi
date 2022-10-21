@@ -59,7 +59,7 @@
 			#interrupt-cells = <1>;
 		};
 
-		sdhci0: sdhci@7c200000 {
+		sdhci0: mmc@7c200000 {
 			compatible = "samsung,s3c6410-sdhci";
 			reg = <0x7c200000 0x100>;
 			interrupt-parent = <&vic1>;
@@ -70,7 +70,7 @@
 			status = "disabled";
 		};
 
-		sdhci1: sdhci@7c300000 {
+		sdhci1: mmc@7c300000 {
 			compatible = "samsung,s3c6410-sdhci";
 			reg = <0x7c300000 0x100>;
 			interrupt-parent = <&vic1>;
@@ -81,7 +81,7 @@
 			status = "disabled";
 		};
 
-		sdhci2: sdhci@7c400000 {
+		sdhci2: mmc@7c400000 {
 			compatible = "samsung,s3c6410-sdhci";
 			reg = <0x7c400000 0x100>;
 			interrupt-parent = <&vic1>;
@@ -178,20 +178,12 @@
 			interrupt-parent = <&vic1>;
 			interrupts = <21>;
 
-			pctrl_int_map: pinctrl-interrupt-map {
-				interrupt-map = <0 &vic0 0>,
-						<1 &vic0 1>,
-						<2 &vic1 0>,
-						<3 &vic1 1>;
-				#address-cells = <0>;
-				#size-cells = <0>;
-				#interrupt-cells = <1>;
-			};
-
 			wakeup-interrupt-controller {
 				compatible = "samsung,s3c64xx-wakeup-eint";
-				interrupts = <0>, <1>, <2>, <3>;
-				interrupt-parent = <&pctrl_int_map>;
+				interrupts-extended = <&vic0 0>,
+						      <&vic0 1>,
+						      <&vic1 0>,
+						      <&vic1 1>;
 			};
 		};
 	};

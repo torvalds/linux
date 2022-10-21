@@ -34,18 +34,6 @@
  */
 #define BREAK_INSTR_SIZE		AARCH64_INSN_SIZE
 
-/*
- * BRK instruction encoding
- * The #imm16 value should be placed at bits[20:5] within BRK ins
- */
-#define AARCH64_BREAK_MON	0xd4200000
-
-/*
- * BRK instruction for provoking a fault on purpose
- * Unlike kgdb, #imm16 value with unallocated handler is used for faulting.
- */
-#define AARCH64_BREAK_FAULT	(AARCH64_BREAK_MON | (FAULT_BRK_IMM << 5))
-
 #define AARCH64_BREAK_KGDB_DYN_DBG	\
 	(AARCH64_BREAK_MON | (KGDB_DYN_DBG_BRK_IMM << 5))
 
@@ -76,7 +64,7 @@ struct task_struct;
 
 struct step_hook {
 	struct list_head node;
-	int (*fn)(struct pt_regs *regs, unsigned int esr);
+	int (*fn)(struct pt_regs *regs, unsigned long esr);
 };
 
 void register_user_step_hook(struct step_hook *hook);
@@ -87,7 +75,7 @@ void unregister_kernel_step_hook(struct step_hook *hook);
 
 struct break_hook {
 	struct list_head node;
-	int (*fn)(struct pt_regs *regs, unsigned int esr);
+	int (*fn)(struct pt_regs *regs, unsigned long esr);
 	u16 imm;
 	u16 mask; /* These bits are ignored when comparing with imm */
 };

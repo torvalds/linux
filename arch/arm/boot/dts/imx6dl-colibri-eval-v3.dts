@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0+ OR MIT
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
- * Copyright 2014-2020 Toradex
+ * Copyright 2014-2022 Toradex
  * Copyright 2012 Freescale Semiconductor, Inc.
  * Copyright 2011 Linaro Ltd.
  */
@@ -16,12 +16,6 @@
 	model = "Toradex Colibri iMX6DL/S on Colibri Evaluation Board V3";
 	compatible = "toradex,colibri_imx6dl-eval-v3", "toradex,colibri_imx6dl",
 		     "fsl,imx6dl";
-
-	/* Will be filled by the bootloader */
-	memory@10000000 {
-		device_type = "memory";
-		reg = <0x10000000 0>;
-	};
 
 	aliases {
 		i2c0 = &i2c2;
@@ -44,67 +38,6 @@
 		clock-frequency = <16000000>;
 		clock-output-names = "clk16m";
 	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_gpio_keys>;
-
-		wakeup {
-			label = "Wake-Up";
-			gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>; /* SODIMM 45 */
-			linux,code = <KEY_WAKEUP>;
-			debounce-interval = <10>;
-			wakeup-source;
-		};
-	};
-
-	lcd_display: disp0 {
-		compatible = "fsl,imx-parallel-display";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		interface-pix-fmt = "bgr666";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_ipu1_lcdif>;
-		status = "okay";
-
-		port@0 {
-			reg = <0>;
-
-			lcd_display_in: endpoint {
-				remote-endpoint = <&ipu1_di0_disp0>;
-			};
-		};
-
-		port@1 {
-			reg = <1>;
-
-			lcd_display_out: endpoint {
-				remote-endpoint = <&lcd_panel_in>;
-			};
-		};
-	};
-
-	panel: panel {
-		/*
-		 * edt,et057090dhu: EDT 5.7" LCD TFT
-		 * edt,et070080dh6: EDT 7.0" LCD TFT
-		 */
-		compatible = "edt,et057090dhu";
-		backlight = <&backlight>;
-
-		port {
-			lcd_panel_in: endpoint {
-				remote-endpoint = <&lcd_display_out>;
-			};
-		};
-	};
-};
-
-&backlight {
-	brightness-levels = <0 127 191 223 239 247 251 255>;
-	default-brightness-level = <1>;
-	status = "okay";
 };
 
 /* Colibri SSP */
@@ -113,17 +46,13 @@
 
 	mcp251x0: mcp251x@0 {
 		compatible = "microchip,mcp2515";
-		reg = <0>;
 		clocks = <&clk16m>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <27 0x2>;
+		reg = <0>;
 		spi-max-frequency = <10000000>;
 		status = "okay";
 	};
-};
-
-&hdmi {
-	status = "okay";
 };
 
 /*
@@ -131,21 +60,6 @@
  */
 &i2c3 {
 	status = "okay";
-
-	/*
-	 * Touchscreen is using SODIMM 28/30, also used for PWM<B>, PWM<C>,
-	 * aka pwm2, pwm3. so if you enable touchscreen, disable the pwms
-	 */
-	touchscreen@4a {
-		compatible = "atmel,maxtouch";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_pcap_1>;
-		reg = <0x4a>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;		/* SODIMM 28 */
-		reset-gpios = <&gpio2 10 GPIO_ACTIVE_LOW>;	/* SODIMM 30 */
-		status = "disabled";
-	};
 
 	/* M41T0M6 real time clock on carrier board */
 	rtc_i2c: rtc@68 {
@@ -162,24 +76,6 @@
 		&pinctrl_weim_gpio_5 &pinctrl_weim_gpio_6
 		&pinctrl_usbh_oc_1 &pinctrl_usbc_id_1
 	>;
-
-	pinctrl_pcap_1: pcap1grp {
-		fsl,pins = <
-			MX6QDL_PAD_GPIO_9__GPIO1_IO09	0x1b0b0 /* SODIMM 28 */
-			MX6QDL_PAD_SD4_DAT2__GPIO2_IO10	0x1b0b0 /* SODIMM 30 */
-		>;
-	};
-
-	pinctrl_mxt_ts: mxttsgrp {
-		fsl,pins = <
-			MX6QDL_PAD_EIM_CS1__GPIO2_IO24	0x130b0 /* SODIMM 107 */
-			MX6QDL_PAD_SD2_DAT1__GPIO1_IO14	0x130b0 /* SODIMM 106 */
-		>;
-	};
-};
-
-&ipu1_di0_disp0 {
-	remote-endpoint = <&lcd_display_in>;
 };
 
 &pwm1 {

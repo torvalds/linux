@@ -81,7 +81,7 @@ const struct regmap_config bme680_regmap_config = {
 	.volatile_table = &bme680_volatile_table,
 	.cache_type = REGCACHE_RBTREE,
 };
-EXPORT_SYMBOL(bme680_regmap_config);
+EXPORT_SYMBOL_NS(bme680_regmap_config, IIO_BME680);
 
 static const struct iio_chan_spec bme680_channels[] = {
 	{
@@ -638,7 +638,7 @@ static int bme680_read_temp(struct bme680_data *data, int *val)
 	comp_temp = bme680_compensate_temp(data, adc_temp);
 	/*
 	 * val might be NULL if we're called by the read_press/read_humid
-	 * routine which is callled to get t_fine value used in
+	 * routine which is called to get t_fine value used in
 	 * compensate_press/compensate_humid to get compensated
 	 * pressure/humidity readings.
 	 */
@@ -957,7 +957,7 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_GPL(bme680_core_probe);
+EXPORT_SYMBOL_NS_GPL(bme680_core_probe, IIO_BME680);
 
 MODULE_AUTHOR("Himanshu Jha <himanshujha199640@gmail.com>");
 MODULE_DESCRIPTION("Bosch BME680 Driver");

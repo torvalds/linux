@@ -60,3 +60,31 @@ For example::
 
 When a given field is not populated or its value provided by the platform
 firmware is invalid, the "not-defined" string is shown instead of the value.
+
+ACPI Fan Fine Grain Control
+=============================
+
+When _FIF object specifies support for fine grain control, then fan speed
+can be set from 0 to 100% with the recommended minimum "step size" via
+_FSL object. User can adjust fan speed using thermal sysfs cooling device.
+
+Here use can look at fan performance states for a reference speed (speed_rpm)
+and set it by changing cooling device cur_state. If the fine grain control
+is supported then user can also adjust to some other speeds which are
+not defined in the performance states.
+
+The support of fine grain control is presented via sysfs attribute
+"fine_grain_control". If fine grain control is present, this attribute
+will show "1" otherwise "0".
+
+This sysfs attribute is presented in the same directory as performance states.
+
+ACPI Fan Performance Feedback
+=============================
+
+The optional _FST object provides status information for the fan device.
+This includes field to provide current fan speed in revolutions per minute
+at which the fan is rotating.
+
+This speed is presented in the sysfs using the attribute "fan_speed_rpm",
+in the same directory as performance states.

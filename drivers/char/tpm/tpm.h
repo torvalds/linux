@@ -55,6 +55,7 @@ enum tpm_addr {
 #define TPM_WARN_DOING_SELFTEST 0x802
 #define TPM_ERR_DEACTIVATED     0x6
 #define TPM_ERR_DISABLED        0x7
+#define TPM_ERR_FAILEDSELFTEST  0x1C
 #define TPM_ERR_INVALID_POSTINIT 38
 
 #define TPM_TAG_RQU_COMMAND 193
@@ -234,6 +235,8 @@ int tpm2_prepare_space(struct tpm_chip *chip, struct tpm_space *space, u8 *cmd,
 		       size_t cmdsiz);
 int tpm2_commit_space(struct tpm_chip *chip, struct tpm_space *space, void *buf,
 		      size_t *bufsiz);
+int tpm_devs_add(struct tpm_chip *chip);
+void tpm_devs_remove(struct tpm_chip *chip);
 
 void tpm_bios_log_setup(struct tpm_chip *chip);
 void tpm_bios_log_teardown(struct tpm_chip *chip);

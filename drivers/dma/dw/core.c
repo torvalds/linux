@@ -29,9 +29,6 @@
  * (DW_ahb_dmac) which is used with various AMBA 2.0 systems (not all
  * of which use ARM any more).  See the "Databook" from Synopsys for
  * information beyond what licensees probably provide.
- *
- * The driver has been tested with the Atmel AT32AP7000, which does not
- * support descriptor writeback.
  */
 
 /* The set of bus widths supported by the DMA controller */

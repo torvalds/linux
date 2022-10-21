@@ -7,7 +7,9 @@
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
+#include <linux/sched/debug.h>
 #include <linux/errno.h>
+#include <trace/events/lock.h>
 
 int __percpu_init_rwsem(struct percpu_rw_semaphore *sem,
 			const char *name, struct lock_class_key *key)
@@ -162,7 +164,7 @@ static void percpu_rwsem_wait(struct percpu_rw_semaphore *sem, bool reader)
 	__set_current_state(TASK_RUNNING);
 }
 
-bool __percpu_down_read(struct percpu_rw_semaphore *sem, bool try)
+bool __sched __percpu_down_read(struct percpu_rw_semaphore *sem, bool try)
 {
 	if (__percpu_down_read_trylock(sem))
 		return true;
@@ -170,9 +172,11 @@ bool __percpu_down_read(struct percpu_rw_semaphore *sem, bool try)
 	if (try)
 		return false;
 
+	trace_contention_begin(sem, LCB_F_PERCPU | LCB_F_READ);
 	preempt_enable();
 	percpu_rwsem_wait(sem, /* .reader = */ true);
 	preempt_disable();
+	trace_contention_end(sem, 0);
 
 	return true;
 }
@@ -187,6 +191,12 @@ EXPORT_SYMBOL_GPL(__percpu_down_read);
 		__sum += per_cpu(var, cpu);				\
 	__sum;								\
 })
+
+bool percpu_is_read_locked(struct percpu_rw_semaphore *sem)
+{
+	return per_cpu_sum(*sem->read_count) != 0 && !atomic_read(&sem->block);
+}
+EXPORT_SYMBOL_GPL(percpu_is_read_locked);
 
 /*
  * Return true if the modular sum of the sem->read_count per-CPU variable is
@@ -211,10 +221,11 @@ static bool readers_active_check(struct percpu_rw_semaphore *sem)
 	return true;
 }
 
-void percpu_down_write(struct percpu_rw_semaphore *sem)
+void __sched percpu_down_write(struct percpu_rw_semaphore *sem)
 {
 	might_sleep();
 	rwsem_acquire(&sem->dep_map, 0, 0, _RET_IP_);
+	trace_contention_begin(sem, LCB_F_PERCPU | LCB_F_WRITE);
 
 	/* Notify readers to take the slow path. */
 	rcu_sync_enter(&sem->rss);
@@ -236,6 +247,7 @@ void percpu_down_write(struct percpu_rw_semaphore *sem)
 
 	/* Wait for all active readers to complete. */
 	rcuwait_wait_event(&sem->writer, readers_active_check(sem), TASK_UNINTERRUPTIBLE);
+	trace_contention_end(sem, 0);
 }
 EXPORT_SYMBOL_GPL(percpu_down_write);
 

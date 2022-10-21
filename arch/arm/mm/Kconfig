@@ -386,6 +386,7 @@ config CPU_V6
 	select CPU_PABRT_V6
 	select CPU_THUMB_CAPABLE
 	select CPU_TLB_V6 if MMU
+	select SMP_ON_UP if SMP
 
 # ARMv6k
 config CPU_V6K
@@ -630,7 +631,11 @@ config CPU_USE_DOMAINS
 	bool
 	help
 	  This option enables or disables the use of domain switching
-	  via the set_fs() function.
+	  using the DACR (domain access control register) to protect memory
+	  domains from each other. In Linux we use three domains: kernel, user
+	  and IO. The domains are used to protect userspace from kernelspace
+	  and to handle IO-space as a special type of memory by assigning
+	  manager or client roles to running code (such as a process).
 
 config CPU_V7M_NUM_IRQ
 	int "Number of external interrupts connected to the NVIC"
@@ -737,15 +742,29 @@ config SWP_EMULATE
 
 	  If unsure, say Y.
 
+choice
+	prompt "CPU Endianess"
+	default CPU_LITTLE_ENDIAN
+
+config CPU_LITTLE_ENDIAN
+	bool "Built little-endian kernel"
+	help
+	  Say Y if you plan on running a kernel in little-endian mode.
+	  This is the default and is used in practically all modern user
+	  space builds.
+
 config CPU_BIG_ENDIAN
 	bool "Build big-endian kernel"
-	depends on ARCH_SUPPORTS_BIG_ENDIAN
 	depends on !LD_IS_LLD
 	help
 	  Say Y if you plan on running a kernel in big-endian mode.
-	  Note that your board must be properly built and your board
-	  port must properly enable any big-endian related features
-	  of your chipset/board/processor.
+	  This works on many machines using ARMv6 or newer processors
+	  but requires big-endian user space.
+
+	  The only ARMv5 platform with big-endian support is
+	  Intel IXP4xx.
+
+endchoice
 
 config CPU_ENDIAN_BE8
 	bool
@@ -830,6 +849,7 @@ config CPU_BPREDICT_DISABLE
 
 config CPU_SPECTRE
 	bool
+	select GENERIC_CPU_VULNERABILITIES
 
 config HARDEN_BRANCH_PREDICTOR
 	bool "Harden the branch predictor against aliasing attacks" if EXPERT
@@ -849,6 +869,16 @@ config HARDEN_BRANCH_PREDICTOR
 	   the system firmware.
 
 	   If unsure, say Y.
+
+config HARDEN_BRANCH_HISTORY
+	bool "Harden Spectre style attacks against branch history" if EXPERT
+	depends on CPU_SPECTRE
+	default y
+	help
+	  Speculation attacks against some high-performance processors can
+	  make use of branch history to influence future speculation. When
+	  taking an exception, a sequence of branches overwrites the branch
+	  history, or branch history is invalidated.
 
 config TLS_REG_EMUL
 	bool
@@ -1109,12 +1139,6 @@ config ARM_DMA_MEM_BUFFERABLE
 
 config ARM_HEAVY_MB
 	bool
-
-config ARCH_SUPPORTS_BIG_ENDIAN
-	bool
-	help
-	  This option specifies the architecture can support big endian
-	  operation.
 
 config DEBUG_ALIGN_RODATA
 	bool "Make rodata strictly non-executable"

@@ -5,9 +5,6 @@
 
 #include "../include/osdep_service.h"
 #include "../include/drv_types.h"
-#include "../include/recv_osdep.h"
-#include "../include/xmit_osdep.h"
-#include "../include/mlme_osdep.h"
 #include "../include/sta_info.h"
 
 static void _rtw_init_stainfo(struct sta_info *psta)
@@ -101,23 +98,15 @@ u32	_rtw_init_sta_priv(struct	sta_priv *pstapriv)
 
 inline int rtw_stainfo_offset(struct sta_priv *stapriv, struct sta_info *sta)
 {
-	int offset = (((u8 *)sta) - stapriv->pstainfo_buf) / sizeof(struct sta_info);
-
-	if (!stainfo_offset_valid(offset))
-		DBG_88E("%s invalid offset(%d), out of range!!!", __func__, offset);
-
-	return offset;
+	return (((u8 *)sta) - stapriv->pstainfo_buf) / sizeof(struct sta_info);
 }
 
 inline struct sta_info *rtw_get_stainfo_by_offset(struct sta_priv *stapriv, int offset)
 {
-	if (!stainfo_offset_valid(offset))
-		DBG_88E("%s invalid offset(%d), out of range!!!", __func__, offset);
-
 	return (struct sta_info *)(stapriv->pstainfo_buf + offset * sizeof(struct sta_info));
 }
 
-u32	_rtw_free_sta_priv(struct	sta_priv *pstapriv)
+void _rtw_free_sta_priv(struct	sta_priv *pstapriv)
 {
 	struct list_head *phead, *plist;
 	struct sta_info *psta = NULL;
@@ -147,8 +136,31 @@ u32	_rtw_free_sta_priv(struct	sta_priv *pstapriv)
 
 		vfree(pstapriv->pallocated_stainfo_buf);
 	}
+}
 
-	return _SUCCESS;
+static void _rtw_reordering_ctrl_timeout_handler(struct timer_list *t)
+{
+	struct recv_reorder_ctrl *preorder_ctrl;
+
+	preorder_ctrl = from_timer(preorder_ctrl, t, reordering_ctrl_timer);
+	rtw_reordering_ctrl_timeout_handler(preorder_ctrl);
+}
+
+static void rtw_init_recv_timer(struct recv_reorder_ctrl *preorder_ctrl)
+{
+	timer_setup(&preorder_ctrl->reordering_ctrl_timer, _rtw_reordering_ctrl_timeout_handler, 0);
+}
+
+static void _addba_timer_hdl(struct timer_list *t)
+{
+	struct sta_info *psta = from_timer(psta, t, addba_retry_timer);
+
+	addba_timer_hdl(psta);
+}
+
+static void init_addba_retry_timer(struct adapter *padapter, struct sta_info *psta)
+{
+	timer_setup(&psta->addba_retry_timer, _addba_timer_hdl, 0);
 }
 
 struct	sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
@@ -480,9 +492,9 @@ u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)
 	spin_unlock_bh(&pacl_node_q->lock);
 
 	if (pacl_list->mode == 1)/* accept unless in deny list */
-		res = (match) ? false : true;
+		res = !match;
 	else if (pacl_list->mode == 2)/* deny unless in accept list */
-		res = (match) ? true : false;
+		res = match;
 	else
 		res = true;
 

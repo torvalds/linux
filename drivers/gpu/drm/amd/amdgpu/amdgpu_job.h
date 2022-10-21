@@ -23,6 +23,10 @@
 #ifndef __AMDGPU_JOB_H__
 #define __AMDGPU_JOB_H__
 
+#include <drm/gpu_scheduler.h>
+#include "amdgpu_sync.h"
+#include "amdgpu_ring.h"
+
 /* bit set means command submit involves a preamble IB */
 #define AMDGPU_PREAMBLE_IB_PRESENT          (1 << 0)
 /* bit set means preamble IB is first presented in belonging context */
@@ -45,12 +49,10 @@ struct amdgpu_job {
 	struct amdgpu_vm	*vm;
 	struct amdgpu_sync	sync;
 	struct amdgpu_sync	sched_sync;
-	struct amdgpu_ib	*ibs;
 	struct dma_fence	hw_fence;
-	struct dma_fence	*external_hw_fence;
+	struct dma_fence	*gang_submit;
 	uint32_t		preamble_status;
 	uint32_t                preemption_status;
-	uint32_t		num_ibs;
 	bool                    vm_needs_flush;
 	uint64_t		vm_pd_addr;
 	unsigned		vmid;
@@ -66,13 +68,25 @@ struct amdgpu_job {
 
 	/* job_run_counter >= 1 means a resubmit job */
 	uint32_t		job_run_counter;
+
+	uint32_t		num_ibs;
+	struct amdgpu_ib	ibs[];
 };
+
+static inline struct amdgpu_ring *amdgpu_job_ring(struct amdgpu_job *job)
+{
+	return to_amdgpu_ring(job->base.entity->rq->sched);
+}
 
 int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 		     struct amdgpu_job **job, struct amdgpu_vm *vm);
 int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
 		enum amdgpu_ib_pool_type pool, struct amdgpu_job **job);
+void amdgpu_job_set_resources(struct amdgpu_job *job, struct amdgpu_bo *gds,
+			      struct amdgpu_bo *gws, struct amdgpu_bo *oa);
 void amdgpu_job_free_resources(struct amdgpu_job *job);
+void amdgpu_job_set_gang_leader(struct amdgpu_job *job,
+				struct amdgpu_job *leader);
 void amdgpu_job_free(struct amdgpu_job *job);
 int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
 		      void *owner, struct dma_fence **f);

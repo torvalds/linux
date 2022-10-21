@@ -42,6 +42,26 @@ out:
 	return ret;
 }
 
+int mt7663u_mcu_power_on(struct mt7615_dev *dev)
+{
+	int ret;
+
+	ret = mt76u_vendor_request(&dev->mt76, MT_VEND_POWER_ON,
+				   USB_DIR_OUT | USB_TYPE_VENDOR,
+				   0x0, 0x1, NULL, 0);
+	if (ret)
+		return ret;
+
+	if (!mt76_poll_msec(dev, MT_CONN_ON_MISC,
+			    MT_TOP_MISC2_FW_PWR_ON,
+			    FW_STATE_PWR_ON << 1, 500)) {
+		dev_err(dev->mt76.dev, "Timeout for power on\n");
+		ret = -EIO;
+	}
+
+	return 0;
+}
+
 int mt7663u_mcu_init(struct mt7615_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7663u_mcu_ops = {
@@ -57,23 +77,17 @@ int mt7663u_mcu_init(struct mt7615_dev *dev)
 
 	mt76_set(dev, MT_UDMA_TX_QSEL, MT_FW_DL_EN);
 	if (test_and_clear_bit(MT76_STATE_POWER_OFF, &dev->mphy.state)) {
-		mt7615_mcu_restart(&dev->mt76);
-		if (!mt76_poll_msec(dev, MT_CONN_ON_MISC,
-				    MT_TOP_MISC2_FW_PWR_ON, 0, 500))
-			return -EIO;
-
-		ret = mt76u_vendor_request(&dev->mt76, MT_VEND_POWER_ON,
-					   USB_DIR_OUT | USB_TYPE_VENDOR,
-					   0x0, 0x1, NULL, 0);
+		ret = mt7615_mcu_restart(&dev->mt76);
 		if (ret)
 			return ret;
 
 		if (!mt76_poll_msec(dev, MT_CONN_ON_MISC,
-				    MT_TOP_MISC2_FW_PWR_ON,
-				    FW_STATE_PWR_ON << 1, 500)) {
-			dev_err(dev->mt76.dev, "Timeout for power on\n");
+				    MT_TOP_MISC2_FW_PWR_ON, 0, 500))
 			return -EIO;
-		}
+
+		ret = mt7663u_mcu_power_on(dev);
+		if (ret)
+			return ret;
 	}
 
 	ret = __mt7663_load_firmware(dev);

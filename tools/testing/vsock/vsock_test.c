@@ -16,6 +16,9 @@
 #include <linux/kernel.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <time.h>
+#include <sys/mman.h>
+#include <poll.h>
 
 #include "timeout.h"
 #include "control.h"
@@ -391,6 +394,311 @@ static void test_seqpacket_msg_trunc_server(const struct test_opts *opts)
 	close(fd);
 }
 
+static time_t current_nsec(void)
+{
+	struct timespec ts;
+
+	if (clock_gettime(CLOCK_REALTIME, &ts)) {
+		perror("clock_gettime(3) failed");
+		exit(EXIT_FAILURE);
+	}
+
+	return (ts.tv_sec * 1000000000ULL) + ts.tv_nsec;
+}
+
+#define RCVTIMEO_TIMEOUT_SEC 1
+#define READ_OVERHEAD_NSEC 250000000 /* 0.25 sec */
+
+static void test_seqpacket_timeout_client(const struct test_opts *opts)
+{
+	int fd;
+	struct timeval tv;
+	char dummy;
+	time_t read_enter_ns;
+	time_t read_overhead_ns;
+
+	fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	tv.tv_sec = RCVTIMEO_TIMEOUT_SEC;
+	tv.tv_usec = 0;
+
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (void *)&tv, sizeof(tv)) == -1) {
+		perror("setsockopt 'SO_RCVTIMEO'");
+		exit(EXIT_FAILURE);
+	}
+
+	read_enter_ns = current_nsec();
+
+	if (read(fd, &dummy, sizeof(dummy)) != -1) {
+		fprintf(stderr,
+			"expected 'dummy' read(2) failure\n");
+		exit(EXIT_FAILURE);
+	}
+
+	if (errno != EAGAIN) {
+		perror("EAGAIN expected");
+		exit(EXIT_FAILURE);
+	}
+
+	read_overhead_ns = current_nsec() - read_enter_ns -
+			1000000000ULL * RCVTIMEO_TIMEOUT_SEC;
+
+	if (read_overhead_ns > READ_OVERHEAD_NSEC) {
+		fprintf(stderr,
+			"too much time in read(2), %lu > %i ns\n",
+			read_overhead_ns, READ_OVERHEAD_NSEC);
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("WAITDONE");
+	close(fd);
+}
+
+static void test_seqpacket_timeout_server(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	control_expectln("WAITDONE");
+	close(fd);
+}
+
+#define BUF_PATTERN_1 'a'
+#define BUF_PATTERN_2 'b'
+
+static void test_seqpacket_invalid_rec_buffer_client(const struct test_opts *opts)
+{
+	int fd;
+	unsigned char *buf1;
+	unsigned char *buf2;
+	int buf_size = getpagesize() * 3;
+
+	fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	buf1 = malloc(buf_size);
+	if (!buf1) {
+		perror("'malloc()' for 'buf1'");
+		exit(EXIT_FAILURE);
+	}
+
+	buf2 = malloc(buf_size);
+	if (!buf2) {
+		perror("'malloc()' for 'buf2'");
+		exit(EXIT_FAILURE);
+	}
+
+	memset(buf1, BUF_PATTERN_1, buf_size);
+	memset(buf2, BUF_PATTERN_2, buf_size);
+
+	if (send(fd, buf1, buf_size, 0) != buf_size) {
+		perror("send failed");
+		exit(EXIT_FAILURE);
+	}
+
+	if (send(fd, buf2, buf_size, 0) != buf_size) {
+		perror("send failed");
+		exit(EXIT_FAILURE);
+	}
+
+	close(fd);
+}
+
+static void test_seqpacket_invalid_rec_buffer_server(const struct test_opts *opts)
+{
+	int fd;
+	unsigned char *broken_buf;
+	unsigned char *valid_buf;
+	int page_size = getpagesize();
+	int buf_size = page_size * 3;
+	ssize_t res;
+	int prot = PROT_READ | PROT_WRITE;
+	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+	int i;
+
+	fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Setup first buffer. */
+	broken_buf = mmap(NULL, buf_size, prot, flags, -1, 0);
+	if (broken_buf == MAP_FAILED) {
+		perror("mmap for 'broken_buf'");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Unmap "hole" in buffer. */
+	if (munmap(broken_buf + page_size, page_size)) {
+		perror("'broken_buf' setup");
+		exit(EXIT_FAILURE);
+	}
+
+	valid_buf = mmap(NULL, buf_size, prot, flags, -1, 0);
+	if (valid_buf == MAP_FAILED) {
+		perror("mmap for 'valid_buf'");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Try to fill buffer with unmapped middle. */
+	res = read(fd, broken_buf, buf_size);
+	if (res != -1) {
+		fprintf(stderr,
+			"expected 'broken_buf' read(2) failure, got %zi\n",
+			res);
+		exit(EXIT_FAILURE);
+	}
+
+	if (errno != ENOMEM) {
+		perror("unexpected errno of 'broken_buf'");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Try to fill valid buffer. */
+	res = read(fd, valid_buf, buf_size);
+	if (res < 0) {
+		perror("unexpected 'valid_buf' read(2) failure");
+		exit(EXIT_FAILURE);
+	}
+
+	if (res != buf_size) {
+		fprintf(stderr,
+			"invalid 'valid_buf' read(2), expected %i, got %zi\n",
+			buf_size, res);
+		exit(EXIT_FAILURE);
+	}
+
+	for (i = 0; i < buf_size; i++) {
+		if (valid_buf[i] != BUF_PATTERN_2) {
+			fprintf(stderr,
+				"invalid pattern for 'valid_buf' at %i, expected %hhX, got %hhX\n",
+				i, BUF_PATTERN_2, valid_buf[i]);
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	/* Unmap buffers. */
+	munmap(broken_buf, page_size);
+	munmap(broken_buf + page_size * 2, page_size);
+	munmap(valid_buf, buf_size);
+	close(fd);
+}
+
+#define RCVLOWAT_BUF_SIZE 128
+
+static void test_stream_poll_rcvlowat_server(const struct test_opts *opts)
+{
+	int fd;
+	int i;
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Send 1 byte. */
+	send_byte(fd, 1, 0);
+
+	control_writeln("SRVSENT");
+
+	/* Wait until client is ready to receive rest of data. */
+	control_expectln("CLNSENT");
+
+	for (i = 0; i < RCVLOWAT_BUF_SIZE - 1; i++)
+		send_byte(fd, 1, 0);
+
+	/* Keep socket in active state. */
+	control_expectln("POLLDONE");
+
+	close(fd);
+}
+
+static void test_stream_poll_rcvlowat_client(const struct test_opts *opts)
+{
+	unsigned long lowat_val = RCVLOWAT_BUF_SIZE;
+	char buf[RCVLOWAT_BUF_SIZE];
+	struct pollfd fds;
+	ssize_t read_res;
+	short poll_flags;
+	int fd;
+
+	fd = vsock_stream_connect(opts->peer_cid, 1234);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVLOWAT,
+		       &lowat_val, sizeof(lowat_val))) {
+		perror("setsockopt");
+		exit(EXIT_FAILURE);
+	}
+
+	control_expectln("SRVSENT");
+
+	/* At this point, server sent 1 byte. */
+	fds.fd = fd;
+	poll_flags = POLLIN | POLLRDNORM;
+	fds.events = poll_flags;
+
+	/* Try to wait for 1 sec. */
+	if (poll(&fds, 1, 1000) < 0) {
+		perror("poll");
+		exit(EXIT_FAILURE);
+	}
+
+	/* poll() must return nothing. */
+	if (fds.revents) {
+		fprintf(stderr, "Unexpected poll result %hx\n",
+			fds.revents);
+		exit(EXIT_FAILURE);
+	}
+
+	/* Tell server to send rest of data. */
+	control_writeln("CLNSENT");
+
+	/* Poll for data. */
+	if (poll(&fds, 1, 10000) < 0) {
+		perror("poll");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Only these two bits are expected. */
+	if (fds.revents != poll_flags) {
+		fprintf(stderr, "Unexpected poll result %hx\n",
+			fds.revents);
+		exit(EXIT_FAILURE);
+	}
+
+	/* Use MSG_DONTWAIT, if call is going to wait, EAGAIN
+	 * will be returned.
+	 */
+	read_res = recv(fd, buf, sizeof(buf), MSG_DONTWAIT);
+	if (read_res != RCVLOWAT_BUF_SIZE) {
+		fprintf(stderr, "Unexpected recv result %zi\n",
+			read_res);
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("POLLDONE");
+
+	close(fd);
+}
+
 static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM connection reset",
@@ -430,6 +738,21 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_SEQPACKET MSG_TRUNC flag",
 		.run_client = test_seqpacket_msg_trunc_client,
 		.run_server = test_seqpacket_msg_trunc_server,
+	},
+	{
+		.name = "SOCK_SEQPACKET timeout",
+		.run_client = test_seqpacket_timeout_client,
+		.run_server = test_seqpacket_timeout_server,
+	},
+	{
+		.name = "SOCK_SEQPACKET invalid receive buffer",
+		.run_client = test_seqpacket_invalid_rec_buffer_client,
+		.run_server = test_seqpacket_invalid_rec_buffer_server,
+	},
+	{
+		.name = "SOCK_STREAM poll() + SO_RCVLOWAT",
+		.run_client = test_stream_poll_rcvlowat_client,
+		.run_server = test_stream_poll_rcvlowat_server,
 	},
 	{},
 };

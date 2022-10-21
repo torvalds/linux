@@ -3,7 +3,6 @@
  * Stack trace management functions
  *
  *  Copyright IBM Corp. 2006
- *  Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
 #include <linux/stacktrace.h>

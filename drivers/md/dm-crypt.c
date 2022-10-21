@@ -234,7 +234,7 @@ static volatile unsigned long dm_crypt_pages_per_client;
 #define DM_CRYPT_MEMORY_PERCENT			2
 #define DM_CRYPT_MIN_PAGES_PER_CLIENT		(BIO_MAX_VECS * 16)
 
-static void clone_init(struct dm_crypt_io *, struct bio *);
+static void crypt_endio(struct bio *clone);
 static void kcryptd_queue_crypt(struct dm_crypt_io *io);
 static struct scatterlist *crypt_get_sg_data(struct crypt_config *cc,
 					     struct scatterlist *sg);
@@ -1364,11 +1364,10 @@ static int crypt_convert_block_aead(struct crypt_config *cc,
 	}
 
 	if (r == -EBADMSG) {
-		char b[BDEVNAME_SIZE];
 		sector_t s = le64_to_cpu(*sector);
 
-		DMERR_LIMIT("%s: INTEGRITY AEAD ERROR, sector %llu",
-			    bio_devname(ctx->bio_in, b), s);
+		DMERR_LIMIT("%pg: INTEGRITY AEAD ERROR, sector %llu",
+			    ctx->bio_in->bi_bdev, s);
 		dm_audit_log_bio(DM_MSG_PREFIX, "integrity-aead",
 				 ctx->bio_in, s, 0);
 	}
@@ -1672,11 +1671,10 @@ retry:
 	if (unlikely(gfp_mask & __GFP_DIRECT_RECLAIM))
 		mutex_lock(&cc->bio_alloc_lock);
 
-	clone = bio_alloc_bioset(GFP_NOIO, nr_iovecs, &cc->bs);
-	if (!clone)
-		goto out;
-
-	clone_init(io, clone);
+	clone = bio_alloc_bioset(cc->dev->bdev, nr_iovecs, io->base_bio->bi_opf,
+				 GFP_NOIO, &cc->bs);
+	clone->bi_private = io;
+	clone->bi_end_io = crypt_endio;
 
 	remaining_size = size;
 
@@ -1702,7 +1700,7 @@ retry:
 		bio_put(clone);
 		clone = NULL;
 	}
-out:
+
 	if (unlikely(gfp_mask & __GFP_DIRECT_RECLAIM))
 		mutex_unlock(&cc->bio_alloc_lock);
 
@@ -1829,15 +1827,7 @@ static void crypt_endio(struct bio *clone)
 	crypt_dec_pending(io);
 }
 
-static void clone_init(struct dm_crypt_io *io, struct bio *clone)
-{
-	struct crypt_config *cc = io->cc;
-
-	clone->bi_private = io;
-	clone->bi_end_io  = crypt_endio;
-	bio_set_dev(clone, cc->dev->bdev);
-	clone->bi_opf	  = io->base_bio->bi_opf;
-}
+#define CRYPT_MAP_READ_GFP GFP_NOWAIT
 
 static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
 {
@@ -1845,18 +1835,19 @@ static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
 	struct bio *clone;
 
 	/*
-	 * We need the original biovec array in order to decrypt
-	 * the whole bio data *afterwards* -- thanks to immutable
-	 * biovecs we don't need to worry about the block layer
-	 * modifying the biovec array; so leverage bio_clone_fast().
+	 * We need the original biovec array in order to decrypt the whole bio
+	 * data *afterwards* -- thanks to immutable biovecs we don't need to
+	 * worry about the block layer modifying the biovec array; so leverage
+	 * bio_alloc_clone().
 	 */
-	clone = bio_clone_fast(io->base_bio, gfp, &cc->bs);
+	clone = bio_alloc_clone(cc->dev->bdev, io->base_bio, gfp, &cc->bs);
 	if (!clone)
 		return 1;
+	clone->bi_private = io;
+	clone->bi_end_io = crypt_endio;
 
 	crypt_inc_pending(io);
 
-	clone_init(io, clone);
 	clone->bi_iter.bi_sector = cc->start + io->sector;
 
 	if (dm_crypt_integrity_io_alloc(io, clone)) {
@@ -1865,7 +1856,7 @@ static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
 		return 1;
 	}
 
-	submit_bio_noacct(clone);
+	dm_submit_bio_remap(io->base_bio, clone);
 	return 0;
 }
 
@@ -1891,7 +1882,7 @@ static void kcryptd_io_write(struct dm_crypt_io *io)
 {
 	struct bio *clone = io->ctx.bio_out;
 
-	submit_bio_noacct(clone);
+	dm_submit_bio_remap(io->base_bio, clone);
 }
 
 #define crypt_io_from_node(node) rb_entry((node), struct dm_crypt_io, rb_node)
@@ -1970,7 +1961,7 @@ static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int async)
 
 	if ((likely(!async) && test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags)) ||
 	    test_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags)) {
-		submit_bio_noacct(clone);
+		dm_submit_bio_remap(io->base_bio, clone);
 		return;
 	}
 
@@ -2006,7 +1997,6 @@ static bool kcryptd_crypt_write_inline(struct crypt_config *cc,
 	 */
 	switch (bio_op(ctx->bio_in)) {
 	case REQ_OP_WRITE:
-	case REQ_OP_WRITE_SAME:
 	case REQ_OP_WRITE_ZEROES:
 		return true;
 	default:
@@ -2179,11 +2169,10 @@ static void kcryptd_async_done(struct crypto_async_request *async_req,
 		error = cc->iv_gen_ops->post(cc, org_iv_of_dmreq(cc, dmreq), dmreq);
 
 	if (error == -EBADMSG) {
-		char b[BDEVNAME_SIZE];
 		sector_t s = le64_to_cpu(*org_sector_of_dmreq(cc, dmreq));
 
-		DMERR_LIMIT("%s: INTEGRITY AEAD ERROR, sector %llu",
-			    bio_devname(ctx->bio_in, b), s);
+		DMERR_LIMIT("%pg: INTEGRITY AEAD ERROR, sector %llu",
+			    ctx->bio_in->bi_bdev, s);
 		dm_audit_log_bio(DM_MSG_PREFIX, "integrity-aead",
 				 ctx->bio_in, s, 0);
 		io->error = BLK_STS_PROTECTION;
@@ -2590,7 +2579,7 @@ static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string
 
 static int get_key_size(char **key_string)
 {
-	return (*key_string[0] == ':') ? -EINVAL : strlen(*key_string) >> 1;
+	return (*key_string[0] == ':') ? -EINVAL : (int)(strlen(*key_string) >> 1);
 }
 
 #endif /* CONFIG_KEYS */
@@ -3373,6 +3362,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	ti->num_flush_bios = 1;
 	ti->limit_swap_bios = true;
+	ti->accounts_remapped_io = true;
 
 	dm_audit_log_ctr(DM_MSG_PREFIX, ti, 1);
 	return 0;
@@ -3441,12 +3431,17 @@ static int crypt_map(struct dm_target *ti, struct bio *bio)
 		io->ctx.r.req = (struct skcipher_request *)(io + 1);
 
 	if (bio_data_dir(io->base_bio) == READ) {
-		if (kcryptd_io_read(io, GFP_NOWAIT))
+		if (kcryptd_io_read(io, CRYPT_MAP_READ_GFP))
 			kcryptd_queue_read(io);
 	} else
 		kcryptd_queue_crypt(io);
 
 	return DM_MAPIO_SUBMITTED;
+}
+
+static char hex2asc(unsigned char c)
+{
+	return c + '0' + ((unsigned)(9 - c) >> 4 & 0x27);
 }
 
 static void crypt_status(struct dm_target *ti, status_type_t type,
@@ -3467,9 +3462,12 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 		if (cc->key_size > 0) {
 			if (cc->key_string)
 				DMEMIT(":%u:%s", cc->key_size, cc->key_string);
-			else
-				for (i = 0; i < cc->key_size; i++)
-					DMEMIT("%02x", cc->key[i]);
+			else {
+				for (i = 0; i < cc->key_size; i++) {
+					DMEMIT("%c%c", hex2asc(cc->key[i] >> 4),
+					       hex2asc(cc->key[i] & 0xf));
+				}
+			}
 		} else
 			DMEMIT("-");
 
@@ -3636,7 +3634,7 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 23, 0},
+	.version = {1, 24, 0},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,

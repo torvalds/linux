@@ -273,7 +273,7 @@ struct i2c_driver {
 
 	/* Standard driver model interfaces */
 	int (*probe)(struct i2c_client *client, const struct i2c_device_id *id);
-	int (*remove)(struct i2c_client *client);
+	void (*remove)(struct i2c_client *client);
 
 	/* New driver model interface to aid the seamless removal of the
 	 * current probe()'s, more commonly unused than used second parameter.
@@ -392,12 +392,8 @@ enum i2c_slave_event {
 int i2c_slave_register(struct i2c_client *client, i2c_slave_cb_t slave_cb);
 int i2c_slave_unregister(struct i2c_client *client);
 bool i2c_detect_slave_mode(struct device *dev);
-
-static inline int i2c_slave_event(struct i2c_client *client,
-				  enum i2c_slave_event event, u8 *val)
-{
-	return client->slave_cb(client, event, val);
-}
+int i2c_slave_event(struct i2c_client *client,
+		    enum i2c_slave_event event, u8 *val);
 #else
 static inline bool i2c_detect_slave_mode(struct device *dev) { return false; }
 #endif
@@ -541,7 +537,8 @@ i2c_register_board_info(int busnum, struct i2c_board_info const *info,
  *
  * The return codes from the ``master_xfer{_atomic}`` fields should indicate the
  * type of error code that occurred during the transfer, as documented in the
- * Kernel Documentation file Documentation/i2c/fault-codes.rst.
+ * Kernel Documentation file Documentation/i2c/fault-codes.rst. Otherwise, the
+ * number of messages executed should be returned.
  */
 struct i2c_algorithm {
 	/*

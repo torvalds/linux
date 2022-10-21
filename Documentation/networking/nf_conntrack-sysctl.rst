@@ -34,10 +34,13 @@ nf_conntrack_count - INTEGER (read-only)
 
 nf_conntrack_events - BOOLEAN
 	- 0 - disabled
-	- not 0 - enabled (default)
+	- 1 - enabled
+	- 2 - auto (default)
 
 	If this option is enabled, the connection tracking code will
 	provide userspace with connection tracking events via ctnetlink.
+	The default allocates the extension if a userspace program is
+	listening to ctnetlink events.
 
 nf_conntrack_expect_max - INTEGER
 	Maximum size of expectation table.  Default value is
@@ -66,15 +69,6 @@ nf_conntrack_generic_timeout - INTEGER (seconds)
 
 	Default for generic timeout.  This refers to layer 4 unknown/unsupported
 	protocols.
-
-nf_conntrack_helper - BOOLEAN
-	- 0 - disabled (default)
-	- not 0 - enabled
-
-	Enable automatic conntrack helper assignment.
-	If disabled it is required to set up iptables rules to assign
-	helpers to connections.  See the CT target description in the
-	iptables-extensions(8) man page for further information.
 
 nf_conntrack_icmp_timeout - INTEGER (seconds)
 	default 30

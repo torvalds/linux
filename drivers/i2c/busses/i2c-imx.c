@@ -66,7 +66,7 @@
 
 /* IMX I2C registers:
  * the I2C register offset is different between SoCs,
- * to provid support for all these chips, split the
+ * to provide support for all these chips, split the
  * register offset into a fixed base address and a
  * variable shift value, then the full register offset
  * will be calculated by
@@ -179,6 +179,12 @@ struct imx_i2c_hwdata {
 	unsigned int		ndivs;
 	unsigned int		i2sr_clr_opcode;
 	unsigned int		i2cr_ien_opcode;
+	/*
+	 * Errata ERR007805 or e7805:
+	 * I2C: When the I2C clock speed is configured for 400 kHz,
+	 * the SCL low period violates the I2C spec of 1.3 uS min.
+	 */
+	bool			has_err007805;
 };
 
 struct imx_i2c_dma {
@@ -240,6 +246,16 @@ static const struct imx_i2c_hwdata imx21_i2c_hwdata = {
 
 };
 
+static const struct imx_i2c_hwdata imx6_i2c_hwdata = {
+	.devtype		= IMX21_I2C,
+	.regshift		= IMX_I2C_REGSHIFT,
+	.clk_div		= imx_i2c_clk_div,
+	.ndivs			= ARRAY_SIZE(imx_i2c_clk_div),
+	.i2sr_clr_opcode	= I2SR_CLR_OPCODE_W0C,
+	.i2cr_ien_opcode	= I2CR_IEN_OPCODE_1,
+	.has_err007805		= true,
+};
+
 static struct imx_i2c_hwdata vf610_i2c_hwdata = {
 	.devtype		= VF610_I2C,
 	.regshift		= VF610_I2C_REGSHIFT,
@@ -266,6 +282,16 @@ MODULE_DEVICE_TABLE(platform, imx_i2c_devtype);
 static const struct of_device_id i2c_imx_dt_ids[] = {
 	{ .compatible = "fsl,imx1-i2c", .data = &imx1_i2c_hwdata, },
 	{ .compatible = "fsl,imx21-i2c", .data = &imx21_i2c_hwdata, },
+	{ .compatible = "fsl,imx6q-i2c", .data = &imx6_i2c_hwdata, },
+	{ .compatible = "fsl,imx6sl-i2c", .data = &imx6_i2c_hwdata, },
+	{ .compatible = "fsl,imx6sll-i2c", .data = &imx6_i2c_hwdata, },
+	{ .compatible = "fsl,imx6sx-i2c", .data = &imx6_i2c_hwdata, },
+	{ .compatible = "fsl,imx6ul-i2c", .data = &imx6_i2c_hwdata, },
+	{ .compatible = "fsl,imx7s-i2c", .data = &imx6_i2c_hwdata, },
+	{ .compatible = "fsl,imx8mm-i2c", .data = &imx6_i2c_hwdata, },
+	{ .compatible = "fsl,imx8mn-i2c", .data = &imx6_i2c_hwdata, },
+	{ .compatible = "fsl,imx8mp-i2c", .data = &imx6_i2c_hwdata, },
+	{ .compatible = "fsl,imx8mq-i2c", .data = &imx6_i2c_hwdata, },
 	{ .compatible = "fsl,vf610-i2c", .data = &vf610_i2c_hwdata, },
 	{ /* sentinel */ }
 };
@@ -550,6 +576,13 @@ static void i2c_imx_set_clk(struct imx_i2c_struct *i2c_imx,
 	struct imx_i2c_clk_pair *i2c_clk_div = i2c_imx->hwdata->clk_div;
 	unsigned int div;
 	int i;
+
+	if (i2c_imx->hwdata->has_err007805 && i2c_imx->bitrate > 384000) {
+		dev_dbg(&i2c_imx->adapter.dev,
+			"SoC errata ERR007805 or e7805 applies, bus frequency limited from %d Hz to 384000 Hz.\n",
+			i2c_imx->bitrate);
+		i2c_imx->bitrate = 384000;
+	}
 
 	/* Divider value calculation */
 	if (i2c_imx->cur_clk == i2c_clk_rate)
@@ -1539,9 +1572,7 @@ static int i2c_imx_remove(struct platform_device *pdev)
 	struct imx_i2c_struct *i2c_imx = platform_get_drvdata(pdev);
 	int irq, ret;
 
-	ret = pm_runtime_resume_and_get(&pdev->dev);
-	if (ret < 0)
-		return ret;
+	ret = pm_runtime_get_sync(&pdev->dev);
 
 	hrtimer_cancel(&i2c_imx->slave_timer);
 
@@ -1552,17 +1583,21 @@ static int i2c_imx_remove(struct platform_device *pdev)
 	if (i2c_imx->dma)
 		i2c_imx_dma_free(i2c_imx);
 
-	/* setup chip registers to defaults */
-	imx_i2c_write_reg(0, i2c_imx, IMX_I2C_IADR);
-	imx_i2c_write_reg(0, i2c_imx, IMX_I2C_IFDR);
-	imx_i2c_write_reg(0, i2c_imx, IMX_I2C_I2CR);
-	imx_i2c_write_reg(0, i2c_imx, IMX_I2C_I2SR);
+	if (ret >= 0) {
+		/* setup chip registers to defaults */
+		imx_i2c_write_reg(0, i2c_imx, IMX_I2C_IADR);
+		imx_i2c_write_reg(0, i2c_imx, IMX_I2C_IFDR);
+		imx_i2c_write_reg(0, i2c_imx, IMX_I2C_I2CR);
+		imx_i2c_write_reg(0, i2c_imx, IMX_I2C_I2SR);
+		clk_disable(i2c_imx->clk);
+	}
 
 	clk_notifier_unregister(i2c_imx->clk, &i2c_imx->clk_change_nb);
 	irq = platform_get_irq(pdev, 0);
 	if (irq >= 0)
 		free_irq(irq, i2c_imx);
-	clk_disable_unprepare(i2c_imx->clk);
+
+	clk_unprepare(i2c_imx->clk);
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);

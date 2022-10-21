@@ -41,13 +41,17 @@ properties:
           - adi,adp5585-02
             # Analog Devices ADP5589 Keypad Decoder and I/O Expansion
           - adi,adp5589
+            # Analog Devices LT7182S Dual Channel 6A, 20V PolyPhase Step-Down Silent Switcher
+          - adi,lt7182s
             # AMS iAQ-Core VOC Sensor
           - ams,iaq-core
             # i2c serial eeprom (24cxx)
           - at,24c08
             # i2c trusted platform module (TPM)
           - atmel,at97sc3204t
-            # i2c h/w symmetric crypto module
+            # ATSHA204 - i2c h/w symmetric crypto module
+          - atmel,atsha204
+            # ATSHA204A - i2c h/w symmetric crypto module
           - atmel,atsha204a
             # i2c h/w elliptic curve crypto module
           - atmel,atecc508a
@@ -77,7 +81,7 @@ properties:
           - delta,ahe50dc-fan
             # Delta Electronics DPS-650-AB power supply
           - delta,dps650ab
-          # Delta Electronics DPS920AB 920W 54V Power Supply
+            # Delta Electronics DPS920AB 920W 54V Power Supply
           - delta,dps920ab
             # 1/4 Brick DC/DC Regulated Power Module
           - delta,q54sj108a2
@@ -87,10 +91,10 @@ properties:
           - devantech,srf08
             # Devantech SRF10 ultrasonic ranger
           - devantech,srf10
+            # DH electronics GmbH on-board CPLD trivial SPI device
+          - dh,dhcom-board
             # DA9053: flexible system level PMIC with multicore support
           - dlg,da9053
-            # DA9063: system PMIC for quad-core application processors
-          - dlg,da9063
             # DMARD05: 3-axis I2C Accelerometer
           - domintech,dmard05
             # DMARD06: 3-axis I2C Accelerometer
@@ -123,24 +127,40 @@ properties:
           - ibm,cffps2
             # Infineon IR36021 digital POL buck controller
           - infineon,ir36021
-          # Infineon IR38060 Voltage Regulator
+            # Infineon IR38060 Voltage Regulator
           - infineon,ir38060
             # Infineon IR38064 Voltage Regulator
           - infineon,ir38064
-          # Infineon IR38164 Voltage Regulator
+            # Infineon IR38164 Voltage Regulator
           - infineon,ir38164
-          # Infineon IR38263 Voltage Regulator
+            # Infineon IR38263 Voltage Regulator
           - infineon,ir38263
             # Infineon SLB9635 (Soft-) I2C TPM (old protocol, max 100khz)
           - infineon,slb9635tt
             # Infineon SLB9645 I2C TPM (new protocol, max 400khz)
           - infineon,slb9645tt
+            # Infineon SLB9673 I2C TPM 2.0
+          - infineon,slb9673
             # Infineon TLV493D-A1B6 I2C 3D Magnetic Sensor
           - infineon,tlv493d-a1b6
+            # Infineon Multi-phase Digital VR Controller xdpe11280
+          - infineon,xdpe11280
             # Infineon Multi-phase Digital VR Controller xdpe12254
           - infineon,xdpe12254
             # Infineon Multi-phase Digital VR Controller xdpe12284
           - infineon,xdpe12284
+            # Infineon Multi-phase Digital VR Controller xdpe15284
+          - infineon,xdpe15284
+            # Infineon Multi-phase Digital VR Controller xdpe152c4
+          - infineon,xdpe152c4
+            # Injoinic IP5108 2.0A Power Bank IC with I2C
+          - injoinic,ip5108
+            # Injoinic IP5109 2.1A Power Bank IC with I2C
+          - injoinic,ip5109
+            # Injoinic IP5207 1.2A Power Bank IC with I2C
+          - injoinic,ip5207
+            # Injoinic IP5209 2.4A Power Bank IC with I2C
+          - injoinic,ip5209
             # Inspur Power System power supply unit version 1
           - inspur,ipsps1
             # Intersil ISL29028 Ambient Light and Proximity Sensor
@@ -157,6 +177,8 @@ properties:
           - maxim,ds1803-050
             # 100 kOhm digital potentiometer with I2C interface
           - maxim,ds1803-100
+            # 10 kOhm digital potentiometer with I2C interface
+          - maxim,ds3502
             # Low-Power, 4-/12-Channel, 2-Wire Serial, 12-Bit ADCs
           - maxim,max1237
             # Temperature Sensor, I2C interface
@@ -203,6 +225,8 @@ properties:
           - memsic,mxc6255
             # MEMSIC 3-axis accelerometer
           - memsic,mxc6655
+            # Menlo on-board CPLD trivial SPI device
+          - menlo,m53cpld
             # Microchip differential I2C ADC, 1 Channel, 18 bit
           - microchip,mcp3421
             # Microchip differential I2C ADC, 2 Channel, 18 bit
@@ -283,6 +307,8 @@ properties:
           - renesas,isl29501
             # S524AD0XF1 (128K/256K-bit Serial EEPROM for Low Power)
           - samsung,24ad0xd1
+            # Samsung Exynos SoC SATA PHY I2C device
+          - samsung,exynos-sataphy-i2c
             # Sensirion low power multi-pixel gas sensor with I2C interface
           - sensirion,sgpc3
             # Sensirion multi-pixel gas sensor with I2C interface
@@ -337,6 +363,7 @@ properties:
             # Thermometer with SPI interface
           - ti,tmp121
           - ti,tmp122
+          - ti,tmp125
             # Digital Temperature Sensor
           - ti,tmp275
             # TI DC-DC converter on PMBus
@@ -354,6 +381,8 @@ properties:
           - ti,tps544c25
             # Winbond/Nuvoton H/W Monitor
           - winbond,w83793
+            # Vicor Corporation Digital Supervisor
+          - vicor,pli1209bc
             # i2c trusted platform module (TPM)
           - winbond,wpct301
 

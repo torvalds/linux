@@ -14,7 +14,7 @@
 
 static const char *const r8a73a4_boards_compat_dt[] __initconst = {
 	"renesas,r8a73a4",
-	NULL,
+	NULL
 };
 
 DT_MACHINE_START(R8A73A4_DT, "Generic R8A73A4 (Flattened Device Tree)")

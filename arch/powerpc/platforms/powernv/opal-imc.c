@@ -211,7 +211,7 @@ static void disable_core_pmu_counters(void)
 					    get_hard_smp_processor_id(cpu));
 		if (rc)
 			pr_err("%s: Failed to stop Core (cpu = %d)\n",
-				__FUNCTION__, cpu);
+				__func__, cpu);
 	}
 	cpus_read_unlock();
 }

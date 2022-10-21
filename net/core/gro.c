@@ -93,6 +93,31 @@ void dev_remove_offload(struct packet_offload *po)
 EXPORT_SYMBOL(dev_remove_offload);
 
 /**
+ *	skb_eth_gso_segment - segmentation handler for ethernet protocols.
+ *	@skb: buffer to segment
+ *	@features: features for the output path (see dev->features)
+ *	@type: Ethernet Protocol ID
+ */
+struct sk_buff *skb_eth_gso_segment(struct sk_buff *skb,
+				    netdev_features_t features, __be16 type)
+{
+	struct sk_buff *segs = ERR_PTR(-EPROTONOSUPPORT);
+	struct packet_offload *ptype;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(ptype, &offload_base, list) {
+		if (ptype->type == type && ptype->callbacks.gso_segment) {
+			segs = ptype->callbacks.gso_segment(skb, features);
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return segs;
+}
+EXPORT_SYMBOL(skb_eth_gso_segment);
+
+/**
  *	skb_mac_gso_segment - mac layer segmentation handler.
  *	@skb: buffer to segment
  *	@features: features for the output path (see dev->features)
@@ -135,6 +160,7 @@ int skb_gro_receive(struct sk_buff *p, struct sk_buff *skb)
 	unsigned int gro_max_size;
 	unsigned int new_truesize;
 	struct sk_buff *lp;
+	int segs;
 
 	/* pairs with WRITE_ONCE() in netif_set_gro_max_size() */
 	gro_max_size = READ_ONCE(p->dev->gro_max_size);
@@ -142,6 +168,15 @@ int skb_gro_receive(struct sk_buff *p, struct sk_buff *skb)
 	if (unlikely(p->len + len >= gro_max_size || NAPI_GRO_CB(skb)->flush))
 		return -E2BIG;
 
+	if (unlikely(p->len + len >= GRO_LEGACY_MAX_SIZE)) {
+		if (p->protocol != htons(ETH_P_IPV6) ||
+		    skb_headroom(p) < sizeof(struct hop_jumbo_hdr) ||
+		    ipv6_hdr(p)->nexthdr != IPPROTO_TCP ||
+		    p->encapsulation)
+			return -E2BIG;
+	}
+
+	segs = NAPI_GRO_CB(skb)->count;
 	lp = NAPI_GRO_CB(p)->last;
 	pinfo = skb_shinfo(lp);
 
@@ -232,7 +267,7 @@ merge:
 	lp = p;
 
 done:
-	NAPI_GRO_CB(p)->count++;
+	NAPI_GRO_CB(p)->count += segs;
 	p->data_len += len;
 	p->truesize += delta_truesize;
 	p->len += len;
@@ -459,29 +494,29 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 
 		skb_set_network_header(skb, skb_gro_offset(skb));
 		skb_reset_mac_len(skb);
-		NAPI_GRO_CB(skb)->same_flow = 0;
-		NAPI_GRO_CB(skb)->flush = skb_is_gso(skb) || skb_has_frag_list(skb);
-		NAPI_GRO_CB(skb)->free = 0;
-		NAPI_GRO_CB(skb)->encap_mark = 0;
-		NAPI_GRO_CB(skb)->recursion_counter = 0;
-		NAPI_GRO_CB(skb)->is_fou = 0;
+		BUILD_BUG_ON(sizeof_field(struct napi_gro_cb, zeroed) != sizeof(u32));
+		BUILD_BUG_ON(!IS_ALIGNED(offsetof(struct napi_gro_cb, zeroed),
+					 sizeof(u32))); /* Avoid slow unaligned acc */
+		*(u32 *)&NAPI_GRO_CB(skb)->zeroed = 0;
+		NAPI_GRO_CB(skb)->flush = skb_has_frag_list(skb);
 		NAPI_GRO_CB(skb)->is_atomic = 1;
-		NAPI_GRO_CB(skb)->gro_remcsum_start = 0;
+		NAPI_GRO_CB(skb)->count = 1;
+		if (unlikely(skb_is_gso(skb))) {
+			NAPI_GRO_CB(skb)->count = skb_shinfo(skb)->gso_segs;
+			/* Only support TCP at the moment. */
+			if (!skb_is_gso_tcp(skb))
+				NAPI_GRO_CB(skb)->flush = 1;
+		}
 
 		/* Setup for GRO checksum validation */
 		switch (skb->ip_summed) {
 		case CHECKSUM_COMPLETE:
 			NAPI_GRO_CB(skb)->csum = skb->csum;
 			NAPI_GRO_CB(skb)->csum_valid = 1;
-			NAPI_GRO_CB(skb)->csum_cnt = 0;
 			break;
 		case CHECKSUM_UNNECESSARY:
 			NAPI_GRO_CB(skb)->csum_cnt = skb->csum_level + 1;
-			NAPI_GRO_CB(skb)->csum_valid = 0;
 			break;
-		default:
-			NAPI_GRO_CB(skb)->csum_cnt = 0;
-			NAPI_GRO_CB(skb)->csum_valid = 0;
 		}
 
 		pp = INDIRECT_CALL_INET(ptype->callbacks.gro_receive,
@@ -519,10 +554,10 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 	else
 		gro_list->count++;
 
-	NAPI_GRO_CB(skb)->count = 1;
 	NAPI_GRO_CB(skb)->age = jiffies;
 	NAPI_GRO_CB(skb)->last = skb;
-	skb_shinfo(skb)->gso_size = skb_gro_len(skb);
+	if (!skb_is_gso(skb))
+		skb_shinfo(skb)->gso_size = skb_gro_len(skb);
 	list_add(&skb->list, &gro_list->list);
 	ret = GRO_HELD;
 
@@ -634,7 +669,7 @@ static void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
 
 	skb->encapsulation = 0;
 	skb_shinfo(skb)->gso_type = 0;
-	skb->truesize = SKB_TRUESIZE(skb_end_offset(skb));
+	skb_shinfo(skb)->gso_size = 0;
 	if (unlikely(skb->slow_gro)) {
 		skb_orphan(skb);
 		skb_ext_reset(skb);

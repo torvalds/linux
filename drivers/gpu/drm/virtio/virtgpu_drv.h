@@ -37,6 +37,7 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_ioctl.h>
@@ -100,8 +101,6 @@ struct virtio_gpu_object {
 
 struct virtio_gpu_object_shmem {
 	struct virtio_gpu_object base;
-	struct sg_table *pages;
-	uint32_t mapped;
 };
 
 struct virtio_gpu_object_vram {
@@ -214,7 +213,6 @@ struct virtio_gpu_drv_cap_cache {
 };
 
 struct virtio_gpu_device {
-	struct device *dev;
 	struct drm_device *ddev;
 
 	struct virtio_device *vdev;
@@ -282,7 +280,7 @@ extern struct drm_ioctl_desc virtio_gpu_ioctls[DRM_VIRTIO_NUM_IOCTLS];
 void virtio_gpu_create_context(struct drm_device *dev, struct drm_file *file);
 
 /* virtgpu_kms.c */
-int virtio_gpu_init(struct drm_device *dev);
+int virtio_gpu_init(struct virtio_device *vdev, struct drm_device *dev);
 void virtio_gpu_deinit(struct drm_device *dev);
 void virtio_gpu_release(struct drm_device *dev);
 int virtio_gpu_driver_open(struct drm_device *dev, struct drm_file *file);

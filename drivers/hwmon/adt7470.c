@@ -19,6 +19,7 @@
 #include <linux/log2.h>
 #include <linux/kthread.h>
 #include <linux/regmap.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/util_macros.h>
 
@@ -294,11 +295,10 @@ static int adt7470_update_thread(void *p)
 		adt7470_read_temperatures(data);
 		mutex_unlock(&data->lock);
 
-		set_current_state(TASK_INTERRUPTIBLE);
 		if (kthread_should_stop())
 			break;
 
-		schedule_timeout(msecs_to_jiffies(data->auto_update_interval));
+		schedule_timeout_interruptible(msecs_to_jiffies(data->auto_update_interval));
 	}
 
 	return 0;
@@ -1296,12 +1296,11 @@ static int adt7470_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int adt7470_remove(struct i2c_client *client)
+static void adt7470_remove(struct i2c_client *client)
 {
 	struct adt7470_data *data = i2c_get_clientdata(client);
 
 	kthread_stop(data->auto_update);
-	return 0;
 }
 
 static const struct i2c_device_id adt7470_id[] = {

@@ -16,7 +16,7 @@
  * Copyright 1999-2001 Jeff Garzik <jgarzik@pobox.com>
  */
 
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
@@ -29,16 +29,19 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_format_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
@@ -312,28 +315,30 @@ static int cirrus_mode_set(struct cirrus_device *cirrus,
 	return 0;
 }
 
-static int cirrus_fb_blit_rect(struct drm_framebuffer *fb, const struct dma_buf_map *map,
+static int cirrus_fb_blit_rect(struct drm_framebuffer *fb,
+			       const struct iosys_map *vmap,
 			       struct drm_rect *rect)
 {
 	struct cirrus_device *cirrus = to_cirrus(fb->dev);
-	void __iomem *dst = cirrus->vram;
-	void *vmap = map->vaddr; /* TODO: Use mapping abstraction properly */
+	struct iosys_map dst;
 	int idx;
 
 	if (!drm_dev_enter(&cirrus->dev, &idx))
 		return -ENODEV;
 
+	iosys_map_set_vaddr_iomem(&dst, cirrus->vram);
+
 	if (cirrus->cpp == fb->format->cpp[0]) {
-		dst += drm_fb_clip_offset(fb->pitches[0], fb->format, rect);
-		drm_fb_memcpy_toio(dst, fb->pitches[0], vmap, fb, rect);
+		iosys_map_incr(&dst, drm_fb_clip_offset(fb->pitches[0], fb->format, rect));
+		drm_fb_memcpy(&dst, fb->pitches, vmap, fb, rect);
 
 	} else if (fb->format->cpp[0] == 4 && cirrus->cpp == 2) {
-		dst += drm_fb_clip_offset(cirrus->pitch, fb->format, rect);
-		drm_fb_xrgb8888_to_rgb565_toio(dst, cirrus->pitch, vmap, fb, rect, false);
+		iosys_map_incr(&dst, drm_fb_clip_offset(cirrus->pitch, fb->format, rect));
+		drm_fb_xrgb8888_to_rgb565(&dst, &cirrus->pitch, vmap, fb, rect, false);
 
 	} else if (fb->format->cpp[0] == 4 && cirrus->cpp == 3) {
-		dst += drm_fb_clip_offset(cirrus->pitch, fb->format, rect);
-		drm_fb_xrgb8888_to_rgb888_toio(dst, cirrus->pitch, vmap, fb, rect);
+		iosys_map_incr(&dst, drm_fb_clip_offset(cirrus->pitch, fb->format, rect));
+		drm_fb_xrgb8888_to_rgb888(&dst, &cirrus->pitch, vmap, fb, rect);
 
 	} else {
 		WARN_ON_ONCE("cpp mismatch");
@@ -344,7 +349,8 @@ static int cirrus_fb_blit_rect(struct drm_framebuffer *fb, const struct dma_buf_
 	return 0;
 }
 
-static int cirrus_fb_blit_fullscreen(struct drm_framebuffer *fb, const struct dma_buf_map *map)
+static int cirrus_fb_blit_fullscreen(struct drm_framebuffer *fb,
+				     const struct iosys_map *map)
 {
 	struct drm_rect fullscreen = {
 		.x1 = 0,
@@ -633,21 +639,7 @@ static struct pci_driver cirrus_pci_driver = {
 	.remove = cirrus_pci_remove,
 };
 
-static int __init cirrus_init(void)
-{
-	if (drm_firmware_drivers_only())
-		return -EINVAL;
-
-	return pci_register_driver(&cirrus_pci_driver);
-}
-
-static void __exit cirrus_exit(void)
-{
-	pci_unregister_driver(&cirrus_pci_driver);
-}
-
-module_init(cirrus_init);
-module_exit(cirrus_exit);
+drm_module_pci_driver(cirrus_pci_driver)
 
 MODULE_DEVICE_TABLE(pci, pciidlist);
 MODULE_LICENSE("GPL");

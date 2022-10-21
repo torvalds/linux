@@ -63,10 +63,10 @@ bool vlan_do_receive(struct sk_buff **skbp)
 	rx_stats = this_cpu_ptr(vlan_dev_priv(vlan_dev)->vlan_pcpu_stats);
 
 	u64_stats_update_begin(&rx_stats->syncp);
-	rx_stats->rx_packets++;
-	rx_stats->rx_bytes += skb->len;
+	u64_stats_inc(&rx_stats->rx_packets);
+	u64_stats_add(&rx_stats->rx_bytes, skb->len);
 	if (skb->pkt_type == PACKET_MULTICAST)
-		rx_stats->rx_multicast++;
+		u64_stats_inc(&rx_stats->rx_multicast);
 	u64_stats_update_end(&rx_stats->syncp);
 
 	return true;
@@ -467,12 +467,9 @@ static struct sk_buff *vlan_gro_receive(struct list_head *head,
 
 	off_vlan = skb_gro_offset(skb);
 	hlen = off_vlan + sizeof(*vhdr);
-	vhdr = skb_gro_header_fast(skb, off_vlan);
-	if (skb_gro_header_hard(skb, hlen)) {
-		vhdr = skb_gro_header_slow(skb, hlen, off_vlan);
-		if (unlikely(!vhdr))
-			goto out;
-	}
+	vhdr = skb_gro_header(skb, hlen, off_vlan);
+	if (unlikely(!vhdr))
+		goto out;
 
 	type = vhdr->h_vlan_encapsulated_proto;
 

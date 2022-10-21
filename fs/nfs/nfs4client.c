@@ -254,7 +254,7 @@ struct nfs_client *nfs4_alloc_client(const struct nfs_client_initdata *cl_init)
 			goto error;
 		ip_addr = (const char *)buf;
 	}
-	strlcpy(clp->cl_ipaddr, ip_addr, sizeof(clp->cl_ipaddr));
+	strscpy(clp->cl_ipaddr, ip_addr, sizeof(clp->cl_ipaddr));
 
 	err = nfs_idmap_new(clp);
 	if (err < 0) {
@@ -1161,9 +1161,9 @@ static int nfs4_init_server(struct nfs_server *server, struct fs_context *fc)
 		return error;
 
 	if (ctx->rsize)
-		server->rsize = nfs_block_size(ctx->rsize, NULL);
+		server->rsize = nfs_io_size(ctx->rsize, server->nfs_client->cl_proto);
 	if (ctx->wsize)
-		server->wsize = nfs_block_size(ctx->wsize, NULL);
+		server->wsize = nfs_io_size(ctx->wsize, server->nfs_client->cl_proto);
 
 	server->acregmin = ctx->acregmin * HZ;
 	server->acregmax = ctx->acregmax * HZ;

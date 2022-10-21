@@ -26,7 +26,7 @@
 
 #include "dsc.h"
 #include "dsc/dscc_types.h"
-#include <drm/drm_dsc.h>
+#include <drm/display/drm_dsc.h>
 
 #define TO_DCN20_DSC(dsc)\
 	container_of(dsc, struct dcn20_dsc, base)
@@ -444,7 +444,6 @@
 	type DSCCIF_UPDATE_TAKEN_ACK; \
 	type DSCRM_DSC_FORWARD_EN; \
 	type DSCRM_DSC_OPP_PIPE_SOURCE
-
 
 struct dcn20_dsc_registers {
 	uint32_t DSC_TOP_CONTROL;

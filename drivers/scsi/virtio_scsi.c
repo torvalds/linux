@@ -141,10 +141,10 @@ static void virtscsi_complete_cmd(struct virtio_scsi *vscsi, void *buf)
 		set_host_byte(sc, DID_TRANSPORT_DISRUPTED);
 		break;
 	case VIRTIO_SCSI_S_TARGET_FAILURE:
-		set_host_byte(sc, DID_TARGET_FAILURE);
+		set_host_byte(sc, DID_BAD_TARGET);
 		break;
 	case VIRTIO_SCSI_S_NEXUS_FAILURE:
-		set_host_byte(sc, DID_NEXUS_FAILURE);
+		set_status_byte(sc, SAM_STAT_RESERVATION_CONFLICT);
 		break;
 	default:
 		scmd_printk(KERN_WARNING, sc, "Unknown response %d",
@@ -711,12 +711,12 @@ static int virtscsi_abort(struct scsi_cmnd *sc)
 	return virtscsi_tmf(vscsi, cmd);
 }
 
-static int virtscsi_map_queues(struct Scsi_Host *shost)
+static void virtscsi_map_queues(struct Scsi_Host *shost)
 {
 	struct virtio_scsi *vscsi = shost_priv(shost);
 	struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
 
-	return blk_mq_virtio_map_queues(qmap, vscsi->vdev, 2);
+	blk_mq_virtio_map_queues(qmap, vscsi->vdev, 2);
 }
 
 static void virtscsi_commit_rqs(struct Scsi_Host *shost, u16 hwq)
@@ -988,7 +988,7 @@ static struct virtio_driver virtio_scsi_driver = {
 	.remove = virtscsi_remove,
 };
 
-static int __init init(void)
+static int __init virtio_scsi_init(void)
 {
 	int ret = -ENOMEM;
 
@@ -1020,14 +1020,14 @@ error:
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit virtio_scsi_fini(void)
 {
 	unregister_virtio_driver(&virtio_scsi_driver);
 	mempool_destroy(virtscsi_cmd_pool);
 	kmem_cache_destroy(virtscsi_cmd_cache);
 }
-module_init(init);
-module_exit(fini);
+module_init(virtio_scsi_init);
+module_exit(virtio_scsi_fini);
 
 MODULE_DEVICE_TABLE(virtio, id_table);
 MODULE_DESCRIPTION("Virtio SCSI HBA driver");

@@ -35,7 +35,9 @@
 #define MAX_HEIGHT 2160
 /* The minimum image width/height */
 #define MIN_WIDTH  16
-#define MIN_HEIGHT 16
+#define MIN_HEIGHT MIN_WIDTH
+/* Pixel Array control divider */
+#define PIXEL_ARRAY_DIV MIN_WIDTH
 /* The data_offset of plane 0 for the multiplanar formats */
 #define PLANE0_DATA_OFFSET 128
 
@@ -227,6 +229,7 @@ struct vivid_dev {
 	struct v4l2_ctrl		*bitmask;
 	struct v4l2_ctrl		*int_menu;
 	struct v4l2_ctrl		*ro_int32;
+	struct v4l2_ctrl		*pixel_array;
 	struct v4l2_ctrl		*test_pattern;
 	struct v4l2_ctrl		*colorspace;
 	struct v4l2_ctrl		*rgb_range_cap;
@@ -307,7 +310,7 @@ struct vivid_dev {
 	bool				dqbuf_error;
 	bool				req_validate_error;
 	bool				seq_wrap;
-	bool				time_wrap;
+	u64				time_wrap;
 	u64				time_wrap_offset;
 	unsigned			perc_dropped_buffers;
 	enum vivid_signal_mode		std_signal_mode[MAX_INPUTS];
@@ -437,6 +440,7 @@ struct vivid_dev {
 	bool				touch_cap_seq_resync;
 	u32				touch_cap_seq_start;
 	u32				touch_cap_seq_count;
+	u32				touch_cap_with_seq_wrap_count;
 	bool				touch_cap_streaming;
 	struct v4l2_fract		timeperframe_tch_cap;
 	struct v4l2_pix_format		tch_format;
@@ -524,7 +528,9 @@ struct vivid_dev {
 	struct task_struct		*kthread_sdr_cap;
 	unsigned long			jiffies_sdr_cap;
 	u32				sdr_cap_seq_offset;
+	u32				sdr_cap_seq_start;
 	u32				sdr_cap_seq_count;
+	u32				sdr_cap_with_seq_wrap_count;
 	bool				sdr_cap_seq_resync;
 
 	/* RDS generator */

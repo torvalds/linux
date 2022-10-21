@@ -59,7 +59,9 @@ static int bpf_jit_fixup_addresses(struct bpf_prog *fp, u32 *image,
 			 */
 			tmp_idx = ctx->idx;
 			ctx->idx = addrs[i] / 4;
-			bpf_jit_emit_func_call_rel(image, ctx, func_addr);
+			ret = bpf_jit_emit_func_call_rel(image, ctx, func_addr);
+			if (ret)
+				return ret;
 
 			/*
 			 * Restore ctx->idx here. This is safe as the length
@@ -70,13 +72,13 @@ static int bpf_jit_fixup_addresses(struct bpf_prog *fp, u32 *image,
 			tmp_idx = ctx->idx;
 			ctx->idx = addrs[i] / 4;
 #ifdef CONFIG_PPC32
-			PPC_LI32(ctx->b2p[insn[i].dst_reg] - 1, (u32)insn[i + 1].imm);
-			PPC_LI32(ctx->b2p[insn[i].dst_reg], (u32)insn[i].imm);
+			PPC_LI32(bpf_to_ppc(insn[i].dst_reg) - 1, (u32)insn[i + 1].imm);
+			PPC_LI32(bpf_to_ppc(insn[i].dst_reg), (u32)insn[i].imm);
 			for (j = ctx->idx - addrs[i] / 4; j < 4; j++)
 				EMIT(PPC_RAW_NOP());
 #else
 			func_addr = ((u64)(u32)insn[i].imm) | (((u64)(u32)insn[i + 1].imm) << 32);
-			PPC_LI64(b2p[insn[i].dst_reg], func_addr);
+			PPC_LI64(bpf_to_ppc(insn[i].dst_reg), func_addr);
 			/* overwrite rest with nops */
 			for (j = ctx->idx - addrs[i] / 4; j < 5; j++)
 				EMIT(PPC_RAW_NOP());
@@ -84,6 +86,22 @@ static int bpf_jit_fixup_addresses(struct bpf_prog *fp, u32 *image,
 			ctx->idx = tmp_idx;
 			i++;
 		}
+	}
+
+	return 0;
+}
+
+int bpf_jit_emit_exit_insn(u32 *image, struct codegen_context *ctx, int tmp_reg, long exit_addr)
+{
+	if (!exit_addr || is_offset_in_branch_range(exit_addr - (ctx->idx * 4))) {
+		PPC_JMP(exit_addr);
+	} else if (ctx->alt_exit_addr) {
+		if (WARN_ON(!is_offset_in_branch_range((long)ctx->alt_exit_addr - (ctx->idx * 4))))
+			return -1;
+		PPC_JMP(ctx->alt_exit_addr);
+	} else {
+		ctx->alt_exit_addr = ctx->idx * 4;
+		bpf_jit_build_epilogue(image, ctx);
 	}
 
 	return 0;
@@ -161,7 +179,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	}
 
 	memset(&cgctx, 0, sizeof(struct codegen_context));
-	memcpy(cgctx.b2p, b2p, sizeof(cgctx.b2p));
+	bpf_jit_init_reg_mapping(&cgctx);
 
 	/* Make sure that the stack is quadword aligned. */
 	cgctx.stack_size = round_up(fp->aux->stack_depth, 16);
@@ -177,8 +195,10 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	 * If we have seen a tail call, we need a second pass.
 	 * This is because bpf_jit_emit_common_epilogue() is called
 	 * from bpf_jit_emit_tail_call() with a not yet stable ctx->seen.
+	 * We also need a second pass if we ended up with too large
+	 * a program so as to ensure BPF_EXIT branches are in range.
 	 */
-	if (cgctx.seen & SEEN_TAILCALL) {
+	if (cgctx.seen & SEEN_TAILCALL || !is_offset_in_branch_range((long)cgctx.idx * 4)) {
 		cgctx.idx = 0;
 		if (bpf_jit_build_body(fp, 0, &cgctx, addrs, 0)) {
 			fp = org_fp;
@@ -193,6 +213,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	 * calculate total size from idx.
 	 */
 	bpf_jit_build_prologue(0, &cgctx);
+	addrs[fp->len] = cgctx.idx * 4;
 	bpf_jit_build_epilogue(0, &cgctx);
 
 	fixup_len = fp->aux->num_exentries * BPF_FIXUP_LEN * 4;
@@ -233,6 +254,7 @@ skip_init_ctx:
 	for (pass = 1; pass < 3; pass++) {
 		/* Now build the prologue, body code & epilogue for real. */
 		cgctx.idx = 0;
+		cgctx.alt_exit_addr = 0;
 		bpf_jit_build_prologue(code_base, &cgctx);
 		if (bpf_jit_build_body(fp, code_base, &cgctx, addrs, pass)) {
 			bpf_jit_binary_free(bpf_hdr);
@@ -254,7 +276,7 @@ skip_codegen_passes:
 		 */
 		bpf_jit_dump(flen, proglen, pass, code_base);
 
-#ifdef PPC64_ELF_ABI_v1
+#ifdef CONFIG_PPC64_ELF_ABI_V1
 	/* Function descriptor nastiness: Address + TOC */
 	((u64 *)image)[0] = (u64)code_base;
 	((u64 *)image)[1] = local_paca->kernel_toc;
@@ -264,7 +286,7 @@ skip_codegen_passes:
 	fp->jited = 1;
 	fp->jited_len = proglen + FUNCTION_DESCR_SIZE;
 
-	bpf_flush_icache(bpf_hdr, (u8 *)bpf_hdr + (bpf_hdr->pages * PAGE_SIZE));
+	bpf_flush_icache(bpf_hdr, (u8 *)bpf_hdr + bpf_hdr->size);
 	if (!fp->is_func || extra_pass) {
 		bpf_jit_binary_lock_ro(bpf_hdr);
 		bpf_prog_fill_jited_linfo(fp, addrs);

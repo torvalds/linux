@@ -44,8 +44,8 @@
 #define CNTACR_RWVT	BIT(4)
 #define CNTACR_RWPT	BIT(5)
 
-#define CNTVCT_LO	0x00
-#define CNTPCT_LO	0x08
+#define CNTPCT_LO	0x00
+#define CNTVCT_LO	0x08
 #define CNTFRQ		0x10
 #define CNTP_CVAL_LO	0x20
 #define CNTP_CTL	0x2c
@@ -473,6 +473,8 @@ static const struct arch_timer_erratum_workaround ool_workarounds[] = {
 		.desc = "ARM erratum 858921",
 		.read_cntpct_el0 = arm64_858921_read_cntpct_el0,
 		.read_cntvct_el0 = arm64_858921_read_cntvct_el0,
+		.set_next_event_phys = erratum_set_next_event_phys,
+		.set_next_event_virt = erratum_set_next_event_virt,
 	},
 #endif
 #ifdef CONFIG_SUN50I_ERRATUM_UNKNOWN1
@@ -880,10 +882,19 @@ static void __arch_timer_setup(unsigned type,
 	clockevents_config_and_register(clk, arch_timer_rate, 0xf, max_delta);
 }
 
-static void arch_timer_evtstrm_enable(int divider)
+static void arch_timer_evtstrm_enable(unsigned int divider)
 {
 	u32 cntkctl = arch_timer_get_cntkctl();
 
+#ifdef CONFIG_ARM64
+	/* ECV is likely to require a large divider. Use the EVNTIS flag. */
+	if (cpus_have_const_cap(ARM64_HAS_ECV) && divider > 15) {
+		cntkctl |= ARCH_TIMER_EVT_INTERVAL_SCALE;
+		divider -= 8;
+	}
+#endif
+
+	divider = min(divider, 15U);
 	cntkctl &= ~ARCH_TIMER_EVT_TRIGGER_MASK;
 	/* Set the divider and enable virtual event stream */
 	cntkctl |= (divider << ARCH_TIMER_EVT_TRIGGER_SHIFT)
@@ -912,7 +923,7 @@ static void arch_timer_configure_evtstream(void)
 		lsb++;
 
 	/* enable event stream */
-	arch_timer_evtstrm_enable(max(0, min(lsb, 15)));
+	arch_timer_evtstrm_enable(max(0, lsb));
 }
 
 static void arch_counter_set_user_access(void)

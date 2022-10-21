@@ -1685,7 +1685,7 @@ static struct list_head *qh_urb_transaction(struct oxu_hcd *oxu,
 		token |= (1 /* "in" */ << 8);
 	/* else it's already initted to "out" pid (0 << 8) */
 
-	maxpacket = max_packet(usb_maxpacket(urb->dev, urb->pipe, !is_input));
+	maxpacket = usb_maxpacket(urb->dev, urb->pipe);
 
 	/*
 	 * buffer gets wrapped in one or more qtds;
@@ -1796,7 +1796,7 @@ static struct ehci_qh *qh_make(struct oxu_hcd *oxu,
 
 	is_input = usb_pipein(urb->pipe);
 	type = usb_pipetype(urb->pipe);
-	maxp = usb_maxpacket(urb->dev, urb->pipe, !is_input);
+	maxp = usb_maxpacket(urb->dev, urb->pipe);
 
 	/* Compute interrupt scheduling parameters just once, and save.
 	 * - allowing for high bandwidth, how many nsec/uframe are used?
@@ -3909,8 +3909,10 @@ static int oxu_bus_suspend(struct usb_hcd *hcd)
 		}
 	}
 
+	spin_unlock_irq(&oxu->lock);
 	/* turn off now-idle HC */
 	del_timer_sync(&oxu->watchdog);
+	spin_lock_irq(&oxu->lock);
 	ehci_halt(oxu);
 	hcd->state = HC_STATE_SUSPENDED;
 
@@ -4223,13 +4225,9 @@ static int oxu_drv_probe(struct platform_device *pdev)
 	/*
 	 * Get the platform resources
 	 */
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(&pdev->dev,
-			"no IRQ! Check %s setup!\n", dev_name(&pdev->dev));
-		return -ENODEV;
-	}
-	irq = res->start;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 	dev_dbg(&pdev->dev, "IRQ resource %d\n", irq);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

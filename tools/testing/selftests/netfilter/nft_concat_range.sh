@@ -27,11 +27,11 @@ TYPES="net_port port_net net6_port port_proto net6_port_mac net6_port_mac_proto
        net6_port_net6_port net_port_mac_proto_net"
 
 # Reported bugs, also described by TYPE_ variables below
-BUGS="flush_remove_add"
+BUGS="flush_remove_add reload"
 
 # List of possible paths to pktgen script from kernel tree for performance tests
 PKTGEN_SCRIPT_PATHS="
-	../../../samples/pktgen/pktgen_bench_xmit_mode_netif_receive.sh
+	../../../../samples/pktgen/pktgen_bench_xmit_mode_netif_receive.sh
 	pktgen/pktgen_bench_xmit_mode_netif_receive.sh"
 
 # Definition of set types:
@@ -91,7 +91,7 @@ src
 start		1
 count		5
 src_delta	2000
-tools		sendip nc bash
+tools		sendip socat nc bash
 proto		udp
 
 race_repeat	3
@@ -116,7 +116,7 @@ src
 start		10
 count		5
 src_delta	2000
-tools		sendip nc bash
+tools		sendip socat nc bash
 proto		udp6
 
 race_repeat	3
@@ -141,7 +141,7 @@ src
 start		1
 count		5
 src_delta	2000
-tools		sendip nc bash
+tools		sendip socat nc bash
 proto		udp
 
 race_repeat	0
@@ -163,7 +163,7 @@ src		mac
 start		10
 count		5
 src_delta	2000
-tools		sendip nc bash
+tools		sendip socat nc bash
 proto		udp6
 
 race_repeat	0
@@ -185,7 +185,7 @@ src		mac proto
 start		10
 count		5
 src_delta	2000
-tools		sendip nc bash
+tools		sendip socat nc bash
 proto		udp6
 
 race_repeat	0
@@ -207,7 +207,7 @@ src		addr4
 start		1
 count		5
 src_delta	2000
-tools		sendip nc bash
+tools		sendip socat nc bash
 proto		udp
 
 race_repeat	3
@@ -227,7 +227,7 @@ src		addr6 port
 start		10
 count		5
 src_delta	2000
-tools		sendip nc
+tools		sendip socat nc
 proto		udp6
 
 race_repeat	3
@@ -247,7 +247,7 @@ src		mac proto addr4
 start		1
 count		5
 src_delta	2000
-tools		sendip nc bash
+tools		sendip socat nc bash
 proto		udp
 
 race_repeat	0
@@ -264,7 +264,7 @@ src		mac
 start		1
 count		5
 src_delta	2000
-tools		sendip nc bash
+tools		sendip socat nc bash
 proto		udp
 
 race_repeat	0
@@ -286,7 +286,7 @@ src		mac addr4
 start		1
 count		5
 src_delta	2000
-tools		sendip nc bash
+tools		sendip socat nc bash
 proto		udp
 
 race_repeat	0
@@ -337,7 +337,7 @@ src		addr4
 start		1
 count		5
 src_delta	2000
-tools		sendip nc
+tools		sendip socat nc
 proto		udp
 
 race_repeat	3
@@ -352,6 +352,23 @@ perf_duration	0
 # display	display text for test report
 TYPE_flush_remove_add="
 display		Add two elements, flush, re-add
+"
+
+TYPE_reload="
+display		net,mac with reload
+type_spec	ipv4_addr . ether_addr
+chain_spec	ip daddr . ether saddr
+dst		addr4
+src		mac
+start		1
+count		1
+src_delta	2000
+tools		sendip socat nc bash
+proto		udp
+
+race_repeat	0
+
+perf_duration	0
 "
 
 # Set template for all tests, types and rules are filled in depending on test
@@ -524,6 +541,24 @@ setup_send_udp() {
 			dst_port=
 			src_addr4=
 		}
+	elif command -v socat -v >/dev/null; then
+		send_udp() {
+			if [ -n "${src_addr4}" ]; then
+				B ip addr add "${src_addr4}" dev veth_b
+				__socatbind=",bind=${src_addr4}"
+				if [ -n "${src_port}" ];then
+					__socatbind="${__socatbind}:${src_port}"
+				fi
+			fi
+
+			ip addr add "${dst_addr4}" dev veth_a 2>/dev/null
+			[ -z "${dst_port}" ] && dst_port=12345
+
+			echo "test4" | B socat -t 0.01 STDIN UDP4-DATAGRAM:${dst_addr4}:${dst_port}"${__socatbind}"
+
+			src_addr4=
+			src_port=
+		}
 	elif command -v nc >/dev/null; then
 		if nc -u -w0 1.1.1.1 1 2>/dev/null; then
 			# OpenBSD netcat
@@ -588,6 +623,29 @@ setup_send_udp6() {
 			src_port=
 			dst_port=
 			src_addr6=
+		}
+	elif command -v socat -v >/dev/null; then
+		send_udp6() {
+			ip -6 addr add "${dst_addr6}" dev veth_a nodad \
+				2>/dev/null
+
+			__socatbind6=
+
+			if [ -n "${src_addr6}" ]; then
+				if [ -n "${src_addr6} != "${src_addr6_added} ]; then
+					B ip addr add "${src_addr6}" dev veth_b nodad
+
+					src_addr6_added=${src_addr6}
+				fi
+
+				__socatbind6=",bind=[${src_addr6}]"
+
+				if [ -n "${src_port}" ] ;then
+					__socatbind6="${__socatbind6}:${src_port}"
+				fi
+			fi
+
+			echo "test6" | B socat -t 0.01 STDIN UDP6-DATAGRAM:[${dst_addr6}]:${dst_port}"${__socatbind6}"
 		}
 	elif command -v nc >/dev/null && nc -u -w0 1.1.1.1 1 2>/dev/null; then
 		# GNU netcat might not work with IPv6, try next tool
@@ -1473,6 +1531,59 @@ test_bug_flush_remove_add() {
 	nft flush ruleset
 }
 
+# - add ranged element, check that packets match it
+# - reload the set, check packets still match
+test_bug_reload() {
+	setup veth send_"${proto}" set || return ${KSELFTEST_SKIP}
+	rstart=${start}
+
+	range_size=1
+	for i in $(seq "${start}" $((start + count))); do
+		end=$((start + range_size))
+
+		# Avoid negative or zero-sized port ranges
+		if [ $((end / 65534)) -gt $((start / 65534)) ]; then
+			start=${end}
+			end=$((end + 1))
+		fi
+		srcstart=$((start + src_delta))
+		srcend=$((end + src_delta))
+
+		add "$(format)" || return 1
+		range_size=$((range_size + 1))
+		start=$((end + range_size))
+	done
+
+	# check kernel does allocate pcpu sctrach map
+	# for reload with no elemet add/delete
+	( echo flush set inet filter test ;
+	  nft list set inet filter test ) | nft -f -
+
+	start=${rstart}
+	range_size=1
+
+	for i in $(seq "${start}" $((start + count))); do
+		end=$((start + range_size))
+
+		# Avoid negative or zero-sized port ranges
+		if [ $((end / 65534)) -gt $((start / 65534)) ]; then
+			start=${end}
+			end=$((end + 1))
+		fi
+		srcstart=$((start + src_delta))
+		srcend=$((end + src_delta))
+
+		for j in $(seq ${start} $((range_size / 2 + 1)) ${end}); do
+			send_match "${j}" $((j + src_delta)) || return 1
+		done
+
+		range_size=$((range_size + 1))
+		start=$((end + range_size))
+	done
+
+	nft flush ruleset
+}
+
 test_reported_issues() {
 	eval test_bug_"${subtest}"
 }
@@ -1531,4 +1642,4 @@ for name in ${TESTS}; do
 	done
 done
 
-[ ${passed} -eq 0 ] && exit ${KSELFTEST_SKIP}
+[ ${passed} -eq 0 ] && exit ${KSELFTEST_SKIP} || exit 0

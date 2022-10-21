@@ -36,6 +36,8 @@
 #define DMA_INTR_STATUS_MSK	GENMASK(7, 0)
 #define DMA_INTR_UNMASK_SET_MSK	GENMASK(31, 24)
 
+#define MTK_MUSB_CLKS_NUM	3
+
 struct mtk_glue {
 	struct device *dev;
 	struct musb *musb;
@@ -44,9 +46,7 @@ struct mtk_glue {
 	struct phy *phy;
 	struct usb_phy *xceiv;
 	enum phy_mode phy_mode;
-	struct clk *main;
-	struct clk *mcu;
-	struct clk *univpll;
+	struct clk_bulk_data clks[MTK_MUSB_CLKS_NUM];
 	enum usb_role role;
 	struct usb_role_switch *role_sw;
 };
@@ -55,64 +55,11 @@ static int mtk_musb_clks_get(struct mtk_glue *glue)
 {
 	struct device *dev = glue->dev;
 
-	glue->main = devm_clk_get(dev, "main");
-	if (IS_ERR(glue->main)) {
-		dev_err(dev, "fail to get main clock\n");
-		return PTR_ERR(glue->main);
-	}
+	glue->clks[0].id = "main";
+	glue->clks[1].id = "mcu";
+	glue->clks[2].id = "univpll";
 
-	glue->mcu = devm_clk_get(dev, "mcu");
-	if (IS_ERR(glue->mcu)) {
-		dev_err(dev, "fail to get mcu clock\n");
-		return PTR_ERR(glue->mcu);
-	}
-
-	glue->univpll = devm_clk_get(dev, "univpll");
-	if (IS_ERR(glue->univpll)) {
-		dev_err(dev, "fail to get univpll clock\n");
-		return PTR_ERR(glue->univpll);
-	}
-
-	return 0;
-}
-
-static int mtk_musb_clks_enable(struct mtk_glue *glue)
-{
-	int ret;
-
-	ret = clk_prepare_enable(glue->main);
-	if (ret) {
-		dev_err(glue->dev, "failed to enable main clock\n");
-		goto err_main_clk;
-	}
-
-	ret = clk_prepare_enable(glue->mcu);
-	if (ret) {
-		dev_err(glue->dev, "failed to enable mcu clock\n");
-		goto err_mcu_clk;
-	}
-
-	ret = clk_prepare_enable(glue->univpll);
-	if (ret) {
-		dev_err(glue->dev, "failed to enable univpll clock\n");
-		goto err_univpll_clk;
-	}
-
-	return 0;
-
-err_univpll_clk:
-	clk_disable_unprepare(glue->mcu);
-err_mcu_clk:
-	clk_disable_unprepare(glue->main);
-err_main_clk:
-	return ret;
-}
-
-static void mtk_musb_clks_disable(struct mtk_glue *glue)
-{
-	clk_disable_unprepare(glue->univpll);
-	clk_disable_unprepare(glue->mcu);
-	clk_disable_unprepare(glue->main);
+	return devm_clk_bulk_get(dev, MTK_MUSB_CLKS_NUM, glue->clks);
 }
 
 static int mtk_otg_switch_set(struct mtk_glue *glue, enum usb_role role)
@@ -390,7 +337,7 @@ static int mtk_musb_exit(struct musb *musb)
 	mtk_otg_switch_exit(glue);
 	phy_power_off(glue->phy);
 	phy_exit(glue->phy);
-	mtk_musb_clks_disable(glue);
+	clk_bulk_disable_unprepare(MTK_MUSB_CLKS_NUM, glue->clks);
 
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
@@ -528,7 +475,7 @@ static int mtk_musb_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
-	ret = mtk_musb_clks_enable(glue);
+	ret = clk_bulk_prepare_enable(MTK_MUSB_CLKS_NUM, glue->clks);
 	if (ret)
 		goto err_enable_clk;
 
@@ -551,7 +498,7 @@ static int mtk_musb_probe(struct platform_device *pdev)
 	return 0;
 
 err_device_register:
-	mtk_musb_clks_disable(glue);
+	clk_bulk_disable_unprepare(MTK_MUSB_CLKS_NUM, glue->clks);
 err_enable_clk:
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);

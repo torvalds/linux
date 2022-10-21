@@ -92,7 +92,7 @@ struct mcp320x {
 	struct mutex lock;
 	const struct mcp320x_chip_info *chip_info;
 
-	u8 tx_buf ____cacheline_aligned;
+	u8 tx_buf __aligned(IIO_DMA_MINALIGN);
 	u8 rx_buf[4];
 };
 
@@ -459,15 +459,13 @@ reg_disable:
 	return ret;
 }
 
-static int mcp320x_remove(struct spi_device *spi)
+static void mcp320x_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct mcp320x *adc = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	regulator_disable(adc->reg);
-
-	return 0;
 }
 
 static const struct of_device_id mcp320x_dt_ids[] = {

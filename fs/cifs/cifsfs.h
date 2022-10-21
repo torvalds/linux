@@ -38,7 +38,7 @@ static inline unsigned long cifs_get_time(struct dentry *dentry)
 	return (unsigned long) dentry->d_fsdata;
 }
 
-extern struct file_system_type cifs_fs_type;
+extern struct file_system_type cifs_fs_type, smb3_fs_type;
 extern const struct address_space_operations cifs_addr_ops;
 extern const struct address_space_operations cifs_addr_ops_smallbuf;
 
@@ -152,6 +152,7 @@ extern struct dentry *cifs_smb3_do_mount(struct file_system_type *fs_type,
 extern const struct export_operations cifs_export_ops;
 #endif /* CONFIG_CIFS_NFSD_EXPORT */
 
-#define SMB3_PRODUCT_BUILD 35
-#define CIFS_VERSION   "2.35"
+/* when changing internal version - update following two lines at same time */
+#define SMB3_PRODUCT_BUILD 39
+#define CIFS_VERSION   "2.39"
 #endif				/* _CIFSFS_H */

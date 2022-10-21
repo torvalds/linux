@@ -314,12 +314,11 @@ static int db7430_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int db7430_remove(struct spi_device *spi)
+static void db7430_remove(struct spi_device *spi)
 {
 	struct db7430 *db = spi_get_drvdata(spi);
 
 	drm_panel_remove(&db->panel);
-	return 0;
 }
 
 /*

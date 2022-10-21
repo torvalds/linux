@@ -1188,6 +1188,8 @@ void hubp1_cursor_set_position(
 	uint32_t dst_x_offset;
 	uint32_t cur_en = pos->enable ? 1 : 0;
 
+	hubp->curs_pos = *pos;
+
 	/*
 	 * Guard aganst cursor_set_position() from being called with invalid
 	 * attributes
@@ -1206,13 +1208,10 @@ void hubp1_cursor_set_position(
 			src_y_offset = pos->y - pos->x_hotspot - param->viewport.y;
 		}
 	} else if (param->rotation == ROTATION_ANGLE_180) {
-		src_x_offset = pos->x - param->viewport.x;
-		src_y_offset = pos->y - param->viewport.y;
-	}
+		if (!param->mirror)
+			src_x_offset = pos->x - param->viewport.x;
 
-	if (param->mirror) {
-		x_hotspot = param->viewport.width - x_hotspot;
-		src_x_offset = param->viewport.x + param->viewport.width - src_x_offset;
+		src_y_offset = pos->y - param->viewport.y;
 	}
 
 	dst_x_offset = (src_x_offset >= 0) ? src_x_offset : 0;
@@ -1311,6 +1310,20 @@ void hubp1_set_flip_int(struct hubp *hubp)
 	return;
 }
 
+/**
+ * hubp1_wait_pipe_read_start - wait for hubp ret path starting read.
+ *
+ * @hubp: hubp struct reference.
+ */
+static void hubp1_wait_pipe_read_start(struct hubp *hubp)
+{
+	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
+
+	REG_WAIT(HUBPRET_READ_LINE_STATUS,
+		PIPE_READ_VBLANK, 0,
+		 1, 1000);
+}
+
 void hubp1_init(struct hubp *hubp)
 {
 	//do nothing
@@ -1345,6 +1358,7 @@ static const struct hubp_funcs dcn10_hubp_funcs = {
 	.hubp_soft_reset = hubp1_soft_reset,
 	.hubp_in_blank = hubp1_in_blank,
 	.hubp_set_flip_int = hubp1_set_flip_int,
+	.hubp_wait_pipe_read_start = hubp1_wait_pipe_read_start,
 };
 
 /*****************************************/

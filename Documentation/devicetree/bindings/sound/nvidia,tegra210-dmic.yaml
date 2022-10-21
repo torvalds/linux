@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/nvidia,tegra210-dmic.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Tegra210 DMIC Controller Device Tree Bindings
+title: Tegra210 DMIC Controller
 
 description: |
   The Digital MIC (DMIC) Controller is used to interface with Pulse
@@ -28,6 +28,7 @@ properties:
       - const: nvidia,tegra210-dmic
       - items:
           - enum:
+              - nvidia,tegra234-dmic
               - nvidia,tegra194-dmic
               - nvidia,tegra186-dmic
           - const: nvidia,tegra210-dmic

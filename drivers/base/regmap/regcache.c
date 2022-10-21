@@ -133,6 +133,12 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 		return -EINVAL;
 	}
 
+	if (config->num_reg_defaults && !config->reg_defaults) {
+		dev_err(map->dev,
+			"Register defaults number are set without the reg!\n");
+		return -EINVAL;
+	}
+
 	for (i = 0; i < config->num_reg_defaults; i++)
 		if (config->reg_defaults[i].reg % map->reg_stride)
 			return -EINVAL;
@@ -183,8 +189,8 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 			return 0;
 	}
 
-	if (!map->max_register)
-		map->max_register = map->num_reg_defaults_raw;
+	if (!map->max_register && map->num_reg_defaults_raw)
+		map->max_register = (map->num_reg_defaults_raw  - 1) * map->reg_stride;
 
 	if (map->cache_ops->init) {
 		dev_dbg(map->dev, "Initializing %s cache\n",
@@ -495,7 +501,8 @@ EXPORT_SYMBOL_GPL(regcache_drop_region);
 void regcache_cache_only(struct regmap *map, bool enable)
 {
 	map->lock(map->lock_arg);
-	WARN_ON(map->cache_bypass && enable);
+	WARN_ON(map->cache_type != REGCACHE_NONE &&
+		map->cache_bypass && enable);
 	map->cache_only = enable;
 	trace_regmap_cache_only(map, enable);
 	map->unlock(map->lock_arg);
@@ -531,7 +538,7 @@ EXPORT_SYMBOL_GPL(regcache_mark_dirty);
  * @enable: flag if changes should not be written to the cache
  *
  * When a register map is marked with the cache bypass option, writes
- * to the register map API will only update the hardware and not the
+ * to the register map API will only update the hardware and not
  * the cache directly.  This is useful when syncing the cache back to
  * the hardware.
  */

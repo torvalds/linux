@@ -775,8 +775,8 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct sdhci_acpi_slot *slot;
-	struct acpi_device *device, *child;
 	const struct dmi_system_id *id;
+	struct acpi_device *device;
 	struct sdhci_acpi_host *c;
 	struct sdhci_host *host;
 	struct resource *iomem;
@@ -796,10 +796,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	slot = sdhci_acpi_get_slot(device);
 
 	/* Power on the SDHCI controller and its children */
-	acpi_device_fix_up_power(device);
-	list_for_each_entry(child, &device->children, node)
-		if (child->status.present && child->status.enabled)
-			acpi_device_fix_up_power(child);
+	acpi_device_fix_up_power_extended(device);
 
 	if (sdhci_acpi_byt_defer(dev))
 		return -EPROBE_DEFER;

@@ -4,10 +4,11 @@
  */
 
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
+#include <linux/of_irq.h>
 #include <linux/bitmap.h>
 #include <linux/msi.h>
 #include <asm/mpic.h>
-#include <asm/prom.h>
 #include <asm/hw_irq.h>
 #include <asm/ppc-pci.h>
 #include <asm/msi_bitmap.h>
@@ -37,7 +38,7 @@ static int __init mpic_msi_reserve_u3_hwirqs(struct mpic *mpic)
 	/* Reserve source numbers we know are reserved in the HW.
 	 *
 	 * This is a bit of a mix of U3 and U4 reserves but that's going
-	 * to work fine, we have plenty enugh numbers left so let's just
+	 * to work fine, we have plenty enough numbers left so let's just
 	 * mark anything we don't like reserved.
 	 */
 	for (i = 0;   i < 8;   i++)

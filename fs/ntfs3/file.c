@@ -22,20 +22,20 @@ static int ntfs_ioctl_fitrim(struct ntfs_sb_info *sbi, unsigned long arg)
 {
 	struct fstrim_range __user *user_range;
 	struct fstrim_range range;
-	struct request_queue *q = bdev_get_queue(sbi->sb->s_bdev);
 	int err;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!blk_queue_discard(q))
+	if (!bdev_max_discard_sectors(sbi->sb->s_bdev))
 		return -EOPNOTSUPP;
 
 	user_range = (struct fstrim_range __user *)arg;
 	if (copy_from_user(&range, user_range, sizeof(range)))
 		return -EFAULT;
 
-	range.minlen = max_t(u32, range.minlen, q->limits.discard_granularity);
+	range.minlen = max_t(u32, range.minlen,
+			     bdev_discard_granularity(sbi->sb->s_bdev));
 
 	err = ntfs_trim_fs(sbi, &range);
 	if (err < 0)
@@ -115,7 +115,6 @@ static int ntfs_extend_initialized_size(struct file *file,
 	for (;;) {
 		u32 zerofrom, len;
 		struct page *page;
-		void *fsdata;
 		u8 bits;
 		CLST vcn, lcn, clen;
 
@@ -157,16 +156,14 @@ static int ntfs_extend_initialized_size(struct file *file,
 		if (pos + len > new_valid)
 			len = new_valid - pos;
 
-		err = pagecache_write_begin(file, mapping, pos, len, 0, &page,
-					    &fsdata);
+		err = ntfs_write_begin(file, mapping, pos, len, &page, NULL);
 		if (err)
 			goto out;
 
 		zero_user_segment(page, zerofrom, PAGE_SIZE);
 
 		/* This function in any case puts page. */
-		err = pagecache_write_end(file, mapping, pos, len, len, page,
-					  fsdata);
+		err = ntfs_write_end(file, mapping, pos, len, len, page, NULL);
 		if (err < 0)
 			goto out;
 		pos += len;
@@ -245,7 +242,7 @@ static int ntfs_zero_range(struct inode *inode, u64 vbo, u64 vbo_to)
 				lock_buffer(bh);
 				bh->b_end_io = end_buffer_read_sync;
 				get_bh(bh);
-				submit_bh(REQ_OP_READ, 0, bh);
+				submit_bh(REQ_OP_READ, bh);
 
 				wait_on_buffer(bh);
 				if (!buffer_uptodate(bh)) {
@@ -495,7 +492,7 @@ static int ntfs_truncate(struct inode *inode, loff_t new_size)
 
 	down_write(&ni->file.run_lock);
 	err = attr_set_size(ni, ATTR_DATA, NULL, 0, &ni->file.run, new_size,
-			    &new_valid, true, NULL);
+			    &new_valid, ni->mi.sbi->options->prealloc, NULL);
 	up_write(&ni->file.run_lock);
 
 	if (new_valid < ni->i_valid)
@@ -533,21 +530,35 @@ static int ntfs_truncate(struct inode *inode, loff_t new_size)
 static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 {
 	struct inode *inode = file->f_mapping->host;
+	struct address_space *mapping = inode->i_mapping;
 	struct super_block *sb = inode->i_sb;
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	struct ntfs_inode *ni = ntfs_i(inode);
 	loff_t end = vbo + len;
 	loff_t vbo_down = round_down(vbo, PAGE_SIZE);
-	loff_t i_size;
+	bool is_supported_holes = is_sparsed(ni) || is_compressed(ni);
+	loff_t i_size, new_size;
+	bool map_locked;
 	int err;
 
 	/* No support for dir. */
 	if (!S_ISREG(inode->i_mode))
 		return -EOPNOTSUPP;
 
-	/* Return error if mode is not supported. */
-	if (mode & ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE |
-		     FALLOC_FL_COLLAPSE_RANGE)) {
+	/*
+	 * vfs_fallocate checks all possible combinations of mode.
+	 * Do additional checks here before ntfs_set_state(dirty).
+	 */
+	if (mode & FALLOC_FL_PUNCH_HOLE) {
+		if (!is_supported_holes)
+			return -EOPNOTSUPP;
+	} else if (mode & FALLOC_FL_COLLAPSE_RANGE) {
+	} else if (mode & FALLOC_FL_INSERT_RANGE) {
+		if (!is_supported_holes)
+			return -EOPNOTSUPP;
+	} else if (mode &
+		   ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE |
+		     FALLOC_FL_COLLAPSE_RANGE | FALLOC_FL_INSERT_RANGE)) {
 		ntfs_inode_warn(inode, "fallocate(0x%x) is not supported",
 				mode);
 		return -EOPNOTSUPP;
@@ -557,6 +568,8 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 
 	inode_lock(inode);
 	i_size = inode->i_size;
+	new_size = max(end, i_size);
+	map_locked = false;
 
 	if (WARN_ON(ni->ni_flags & NI_FLAG_COMPRESSED_MASK)) {
 		/* Should never be here, see ntfs_file_open. */
@@ -564,37 +577,26 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 		goto out;
 	}
 
+	if (mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_COLLAPSE_RANGE |
+		    FALLOC_FL_INSERT_RANGE)) {
+		inode_dio_wait(inode);
+		filemap_invalidate_lock(mapping);
+		map_locked = true;
+	}
+
 	if (mode & FALLOC_FL_PUNCH_HOLE) {
 		u32 frame_size;
 		loff_t mask, vbo_a, end_a, tmp;
 
-		if (!(mode & FALLOC_FL_KEEP_SIZE)) {
-			err = -EINVAL;
-			goto out;
-		}
-
-		err = filemap_write_and_wait_range(inode->i_mapping, vbo,
-						   end - 1);
+		err = filemap_write_and_wait_range(mapping, vbo, end - 1);
 		if (err)
 			goto out;
 
-		err = filemap_write_and_wait_range(inode->i_mapping, end,
-						   LLONG_MAX);
+		err = filemap_write_and_wait_range(mapping, end, LLONG_MAX);
 		if (err)
 			goto out;
-
-		inode_dio_wait(inode);
 
 		truncate_pagecache(inode, vbo_down);
-
-		if (!is_sparsed(ni) && !is_compressed(ni)) {
-			/*
-			 * Normal file, can't make hole.
-			 * TODO: Try to find way to save info about hole.
-			 */
-			err = -EOPNOTSUPP;
-			goto out;
-		}
 
 		ni_lock(ni);
 		err = attr_punch_hole(ni, vbo, len, &frame_size);
@@ -627,17 +629,11 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 			ni_unlock(ni);
 		}
 	} else if (mode & FALLOC_FL_COLLAPSE_RANGE) {
-		if (mode & ~FALLOC_FL_COLLAPSE_RANGE) {
-			err = -EINVAL;
-			goto out;
-		}
-
 		/*
 		 * Write tail of the last page before removed range since
 		 * it will get removed from the page cache below.
 		 */
-		err = filemap_write_and_wait_range(inode->i_mapping, vbo_down,
-						   vbo);
+		err = filemap_write_and_wait_range(mapping, vbo_down, vbo);
 		if (err)
 			goto out;
 
@@ -645,28 +641,58 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 		 * Write data that will be shifted to preserve them
 		 * when discarding page cache below.
 		 */
-		err = filemap_write_and_wait_range(inode->i_mapping, end,
-						   LLONG_MAX);
+		err = filemap_write_and_wait_range(mapping, end, LLONG_MAX);
 		if (err)
 			goto out;
-
-		/* Wait for existing dio to complete. */
-		inode_dio_wait(inode);
 
 		truncate_pagecache(inode, vbo_down);
 
 		ni_lock(ni);
 		err = attr_collapse_range(ni, vbo, len);
 		ni_unlock(ni);
-	} else {
-		/*
-		 * Normal file: Allocate clusters, do not change 'valid' size.
-		 */
-		err = ntfs_set_size(inode, max(end, i_size));
+	} else if (mode & FALLOC_FL_INSERT_RANGE) {
+		/* Check new size. */
+		err = inode_newsize_ok(inode, new_size);
 		if (err)
 			goto out;
 
-		if (is_sparsed(ni) || is_compressed(ni)) {
+		/* Write out all dirty pages. */
+		err = filemap_write_and_wait_range(mapping, vbo_down,
+						   LLONG_MAX);
+		if (err)
+			goto out;
+		truncate_pagecache(inode, vbo_down);
+
+		ni_lock(ni);
+		err = attr_insert_range(ni, vbo, len);
+		ni_unlock(ni);
+	} else {
+		/* Check new size. */
+
+		/* generic/213: expected -ENOSPC instead of -EFBIG. */
+		if (!is_supported_holes) {
+			loff_t to_alloc = new_size - inode_get_bytes(inode);
+
+			if (to_alloc > 0 &&
+			    (to_alloc >> sbi->cluster_bits) >
+				    wnd_zeroes(&sbi->used.bitmap)) {
+				err = -ENOSPC;
+				goto out;
+			}
+		}
+
+		err = inode_newsize_ok(inode, new_size);
+		if (err)
+			goto out;
+
+		/*
+		 * Allocate clusters, do not change 'valid' size.
+		 */
+		err = ntfs_set_size(inode, new_size);
+		if (err)
+			goto out;
+
+		if (is_supported_holes) {
 			CLST vcn_v = ni->i_valid >> sbi->cluster_bits;
 			CLST vcn = vbo >> sbi->cluster_bits;
 			CLST cend = bytes_to_cluster(sbi, end);
@@ -714,8 +740,8 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 	}
 
 out:
-	if (err == -EFBIG)
-		err = -ENOSPC;
+	if (map_locked)
+		filemap_invalidate_unlock(mapping);
 
 	if (!err) {
 		inode->i_ctime = inode->i_mtime = current_time(inode);
@@ -762,7 +788,7 @@ int ntfs3_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		}
 		inode_dio_wait(inode);
 
-		if (attr->ia_size < oldsize)
+		if (attr->ia_size <= oldsize)
 			err = ntfs_truncate(inode, attr->ia_size);
 		else if (attr->ia_size > oldsize)
 			err = ntfs_extend(inode, attr->ia_size, 0, NULL);
@@ -986,7 +1012,6 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 		if (bytes > count)
 			bytes = count;
 
-		frame = pos >> frame_bits;
 		frame_vbo = pos & ~(frame_size - 1);
 		index = frame_vbo >> PAGE_SHIFT;
 

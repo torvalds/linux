@@ -13,7 +13,7 @@
 # If you really need to reference something from prom_init.o add
 # it to the list below:
 
-grep "^CONFIG_KASAN=y$" .config >/dev/null
+grep "^CONFIG_KASAN=y$" ${KCONFIG_CONFIG} >/dev/null
 if [ $? -eq 0 ]
 then
 	MEM_FUNCS="__memcpy __memset"
@@ -26,8 +26,7 @@ _end enter_prom $MEM_FUNCS reloc_offset __secondary_hold
 __secondary_hold_acknowledge __secondary_hold_spinloop __start
 logo_linux_clut224 btext_prepare_BAT
 reloc_got2 kernstart_addr memstart_addr linux_banner _stext
-__prom_init_toc_start __prom_init_toc_end btext_setup_display TOC.
-relocate"
+btext_setup_display TOC. relocate"
 
 NM="$1"
 OBJ="$2"

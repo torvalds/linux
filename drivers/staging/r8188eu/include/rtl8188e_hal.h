@@ -23,79 +23,18 @@
 #include "HalHWImg8188E_MAC.h"
 #include "HalHWImg8188E_RF.h"
 #include "HalHWImg8188E_BB.h"
-#include "odm_RegConfig8188E.h"
 #include "odm_RTL8188E.h"
-
-/* 		RTL8188E Power Configuration CMDs for USB/SDIO interfaces */
-#define Rtl8188E_NIC_PWR_ON_FLOW		rtl8188E_power_on_flow
-#define Rtl8188E_NIC_DISABLE_FLOW		rtl8188E_card_disable_flow
-#define Rtl8188E_NIC_LPS_ENTER_FLOW		rtl8188E_enter_lps_flow
 
 #define DRVINFO_SZ	4 /*  unit is 8bytes */
 #define PageNum_128(_Len)	(u32)(((_Len)>>7) + ((_Len) & 0x7F ? 1 : 0))
 
-/*  download firmware related data structure */
-#define FW_8188E_SIZE			0x4000 /* 16384,16k */
-#define FW_8188E_START_ADDRESS		0x1000
-
-#define MAX_PAGE_SIZE			4096	/*  @ page : 4k bytes */
-
-#define IS_FW_HEADER_EXIST(_pFwHdr)				\
-	((le16_to_cpu(_pFwHdr->Signature)&0xFFF0) == 0x92C0 ||	\
-	(le16_to_cpu(_pFwHdr->Signature)&0xFFF0) == 0x88C0 ||	\
-	(le16_to_cpu(_pFwHdr->Signature)&0xFFF0) == 0x2300 ||	\
-	(le16_to_cpu(_pFwHdr->Signature)&0xFFF0) == 0x88E0)
-
-/*  This structure must be careful with byte-ordering */
-
-struct rt_firmware_hdr {
-	/*  8-byte alinment required */
-	/*  LONG WORD 0 ---- */
-	__le16		Signature;	/* 92C0: test chip; 92C,
-					 * 88C0: test chip; 88C1: MP A-cut;
-					 * 92C1: MP A-cut */
-	u8		Category;	/*  AP/NIC and USB/PCI */
-	u8		Function;	/*  Reserved for different FW function
-					 *  indcation, for further use when
-					 *  driver needs to download different
-					 *  FW for different conditions */
-	__le16		Version;	/*  FW Version */
-	u8		Subversion;	/*  FW Subversion, default 0x00 */
-	u16		Rsvd1;
-
-	/*  LONG WORD 1 ---- */
-	u8		Month;	/*  Release time Month field */
-	u8		Date;	/*  Release time Date field */
-	u8		Hour;	/*  Release time Hour field */
-	u8		Minute;	/*  Release time Minute field */
-	__le16		RamCodeSize;	/*  The size of RAM code */
-	u8		Foundry;
-	u8		Rsvd2;
-
-	/*  LONG WORD 2 ---- */
-	__le32		SvnIdx;	/*  The SVN entry index */
-	u32		Rsvd3;
-
-	/*  LONG WORD 3 ---- */
-	u32		Rsvd4;
-	u32		Rsvd5;
-};
-
 #define DRIVER_EARLY_INT_TIME		0x05
 #define BCN_DMA_ATIME_INT_TIME		0x02
-
-enum usb_rx_agg_mode {
-	USB_RX_AGG_DISABLE,
-	USB_RX_AGG_DMA,
-	USB_RX_AGG_USB,
-	USB_RX_AGG_MIX
-};
 
 #define MAX_RX_DMA_BUFFER_SIZE_88E				\
       0x2400 /* 9k for 88E nornal chip , MaxRxBuff=10k-max(TxReportSize(64*8),
 	      * WOLPattern(16*24)) */
 
-#define TX_SELE_HQ			BIT(0)		/*  High Queue */
 #define TX_SELE_LQ			BIT(1)		/*  Low Queue */
 #define TX_SELE_NQ			BIT(2)		/*  Normal Queue */
 
@@ -109,12 +48,6 @@ enum usb_rx_agg_mode {
 #define TX_TOTAL_PAGE_NUMBER_88E		0xA9/*   169 (21632=> 21k) */
 
 #define TX_PAGE_BOUNDARY_88E (TX_TOTAL_PAGE_NUMBER_88E + 1)
-
-/* Note: For Normal Chip Setting ,modify later */
-#define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER			\
-	TX_TOTAL_PAGE_NUMBER_88E  /* 0xA9 , 0xb0=>176=>22k */
-#define WMM_NORMAL_TX_PAGE_BOUNDARY_88E			\
-	(WMM_NORMAL_TX_TOTAL_PAGE_NUMBER + 1) /* 0xA9 */
 
 #include "HalVerDef.h"
 #include "hal_com.h"
@@ -160,20 +93,15 @@ struct txpowerinfo24g {
 
 #define EFUSE_PROTECT_BYTES_BANK	16
 
+#define USB_RXAGG_PAGE_COUNT	48
+#define USB_RXAGG_PAGE_TIMEOUT	0x4
+
 struct hal_data_8188e {
 	struct HAL_VERSION	VersionID;
-	u16	FirmwareVersion;
-	u16	FirmwareVersionRev;
-	u16	FirmwareSubVersion;
-	u16	FirmwareSignature;
-	u8	PGMaxGroup;
 	/* current WIFI_PHY values */
-	u32	ReceiveConfig;
 	enum ht_channel_width CurrentChannelBW;
 	u8	CurrentChannel;
 	u8	nCur40MhzPrimeSC;/*  Control channel sub-carrier */
-
-	u16	BasicRateSet;
 
 	u8	EEPROMRegulatory;
 	u8	EEPROMThermalMeter;
@@ -192,24 +120,17 @@ struct hal_data_8188e {
 	u8	PwrGroupHT20[RF_PATH_MAX][CHANNEL_MAX_NUMBER];
 	u8	PwrGroupHT40[RF_PATH_MAX][CHANNEL_MAX_NUMBER];
 
-	/*  The current Tx Power Level */
-	u8	CurrentCckTxPwrIdx;
-	u8	CurrentOfdm24GTxPwrIdx;
-	u8	CurrentBW2024GTxPwrIdx;
-	u8	CurrentBW4024GTxPwrIdx;
-
 	/*  Read/write are allow for following hardware information variables */
 	u8	pwrGroupCnt;
 	u32	MCSTxPowerLevelOriginalOffset[MAX_PG_GROUP][16];
 
 	u8	CrystalCap;
-	u8	ExternalPA;
 
 	u32	AcParam_BE; /* Original parameter for BE, use for EDCA turbo. */
 
-	struct bb_reg_def PHYRegDef[2];	/* Radio A/B */
+	struct bb_reg_def PHYRegDef;
 
-	u32	RfRegChnlVal[2];
+	u32	RfRegChnlVal;
 
 	/* for host message to fw */
 	u8	LastHMEBoxNum;
@@ -226,43 +147,18 @@ struct hal_data_8188e {
 	u8	AntDivCfg;
 	u8	TRxAntDivType;
 
-	u8	bDumpRxPkt;/* for debug */
-	u8	bDumpTxPkt;/* for debug */
-
-	u8	OutEpQueueSel;
-	u8	OutEpNumber;
-
-	u16	EfuseUsedBytes;
+	u8	out_ep_extra_queues;
 
 	struct P2P_PS_Offload_t	p2p_ps_offload;
 
 	/*  Auto FSM to Turn On, include clock, isolation, power control
 	 *  for MAC only */
 	u8	bMacPwrCtrlOn;
-
-	u32	UsbBulkOutSize;
-
-	u8	UsbTxAggMode;
-	u8	UsbTxAggDescNum;
-
-	enum usb_rx_agg_mode UsbRxAggMode;
-	u8	UsbRxAggBlockCount;	/*  USB Block count. Block size is
-					 * 512-byte in high speed and 64-byte
-					 * in full speed */
-	u8	UsbRxAggBlockTimeout;
-	u8	UsbRxAggPageCount;	/*  8192C DMA page count */
-	u8	UsbRxAggPageTimeout;
 };
-
-/*  rtl8188e_hal_init.c */
-s32 rtl8188e_FirmwareDownload(struct adapter *padapter);
-void _8051Reset88E(struct adapter *padapter);
-void rtl8188e_InitializeFirmwareVars(struct adapter *padapter);
 
 s32 InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy);
 
 /*  EFuse */
-u8 GetEEPROMSize8188E(struct adapter *padapter);
 void Hal_EfuseParseIDCode88E(struct adapter *padapter, u8 *hwinfo);
 void Hal_ReadTxPowerInfo88E(struct adapter *padapter, u8 *hwinfo,
 			    bool AutoLoadFail);

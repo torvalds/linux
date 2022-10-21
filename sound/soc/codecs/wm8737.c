@@ -583,7 +583,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8737 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id wm8737_of_match[] = {
@@ -606,8 +605,7 @@ static const struct regmap_config wm8737_regmap = {
 };
 
 #if IS_ENABLED(CONFIG_I2C)
-static int wm8737_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8737_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8737_priv *wm8737;
 	int ret, i;
@@ -651,7 +649,7 @@ static struct i2c_driver wm8737_i2c_driver = {
 		.name = "wm8737",
 		.of_match_table = wm8737_of_match,
 	},
-	.probe =    wm8737_i2c_probe,
+	.probe_new = wm8737_i2c_probe,
 	.id_table = wm8737_i2c_id,
 };
 #endif

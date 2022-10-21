@@ -896,7 +896,6 @@ static int otx2_cpt_aead_cbc_aes_sha_setkey(struct crypto_aead *cipher,
 	struct crypto_authenc_key_param *param;
 	int enckeylen = 0, authkeylen = 0;
 	struct rtattr *rta = (void *)key;
-	int status;
 
 	if (!RTA_OK(rta, keylen))
 		return -EINVAL;
@@ -938,11 +937,7 @@ static int otx2_cpt_aead_cbc_aes_sha_setkey(struct crypto_aead *cipher,
 	ctx->enc_key_len = enckeylen;
 	ctx->auth_key_len = authkeylen;
 
-	status = aead_hmac_init(cipher);
-	if (status)
-		return status;
-
-	return 0;
+	return aead_hmac_init(cipher);
 }
 
 static int otx2_cpt_aead_ecb_null_sha_setkey(struct crypto_aead *cipher,
@@ -1634,16 +1629,13 @@ static inline int cpt_register_algs(void)
 {
 	int i, err = 0;
 
-	if (!IS_ENABLED(CONFIG_DM_CRYPT)) {
-		for (i = 0; i < ARRAY_SIZE(otx2_cpt_skciphers); i++)
-			otx2_cpt_skciphers[i].base.cra_flags &=
-							~CRYPTO_ALG_DEAD;
+	for (i = 0; i < ARRAY_SIZE(otx2_cpt_skciphers); i++)
+		otx2_cpt_skciphers[i].base.cra_flags &= ~CRYPTO_ALG_DEAD;
 
-		err = crypto_register_skciphers(otx2_cpt_skciphers,
-						ARRAY_SIZE(otx2_cpt_skciphers));
-		if (err)
-			return err;
-	}
+	err = crypto_register_skciphers(otx2_cpt_skciphers,
+					ARRAY_SIZE(otx2_cpt_skciphers));
+	if (err)
+		return err;
 
 	for (i = 0; i < ARRAY_SIZE(otx2_cpt_aeads); i++)
 		otx2_cpt_aeads[i].base.cra_flags &= ~CRYPTO_ALG_DEAD;

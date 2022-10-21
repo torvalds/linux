@@ -439,7 +439,7 @@ int nfs_inode_set_delegation(struct inode *inode, const struct cred *cred,
 	struct nfs_delegation *freeme = NULL;
 	int status = 0;
 
-	delegation = kmalloc(sizeof(*delegation), GFP_NOFS);
+	delegation = kmalloc(sizeof(*delegation), GFP_KERNEL_ACCOUNT);
 	if (delegation == NULL)
 		return -ENOMEM;
 	nfs4_stateid_copy(&delegation->stateid, stateid);

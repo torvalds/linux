@@ -197,7 +197,7 @@ static int vgt_balloon_space(struct i915_ggtt *ggtt,
 	drm_info(&dev_priv->drm,
 		 "balloon space: range [ 0x%lx - 0x%lx ] %lu KiB.\n",
 		 start, end, size / 1024);
-	ret = i915_gem_gtt_reserve(&ggtt->vm, node,
+	ret = i915_gem_gtt_reserve(&ggtt->vm, NULL, node,
 				   size, start, I915_COLOR_UNEVICTABLE,
 				   0);
 	if (!ret)

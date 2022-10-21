@@ -10,7 +10,6 @@
 #include <linux/backing-dev.h>
 #include <linux/blktrace_api.h>
 #include <linux/blk-mq.h>
-#include <linux/blk-cgroup.h>
 #include <linux/debugfs.h>
 
 #include "blk.h"
@@ -18,6 +17,7 @@
 #include "blk-mq-debugfs.h"
 #include "blk-mq-sched.h"
 #include "blk-wbt.h"
+#include "blk-cgroup.h"
 #include "blk-throttle.h"
 
 struct queue_sysfs_entry {
@@ -214,8 +214,7 @@ static ssize_t queue_discard_zeroes_data_show(struct request_queue *q, char *pag
 
 static ssize_t queue_write_same_max_show(struct request_queue *q, char *page)
 {
-	return sprintf(page, "%llu\n",
-		(unsigned long long)q->limits.max_write_same_sectors << 9);
+	return queue_var_show(0, page);
 }
 
 static ssize_t queue_write_zeroes_max_show(struct request_queue *q, char *page)
@@ -275,6 +274,11 @@ static ssize_t queue_virt_boundary_mask_show(struct request_queue *q, char *page
 	return queue_var_show(q->limits.virt_boundary_mask, page);
 }
 
+static ssize_t queue_dma_alignment_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(queue_dma_alignment(q), page);
+}
+
 #define QUEUE_SYSFS_BIT_FNS(name, flag, neg)				\
 static ssize_t								\
 queue_##name##_show(struct request_queue *q, char *page)		\
@@ -321,17 +325,17 @@ static ssize_t queue_zoned_show(struct request_queue *q, char *page)
 
 static ssize_t queue_nr_zones_show(struct request_queue *q, char *page)
 {
-	return queue_var_show(blk_queue_nr_zones(q), page);
+	return queue_var_show(disk_nr_zones(q->disk), page);
 }
 
 static ssize_t queue_max_open_zones_show(struct request_queue *q, char *page)
 {
-	return queue_var_show(queue_max_open_zones(q), page);
+	return queue_var_show(bdev_max_open_zones(q->disk->part0), page);
 }
 
 static ssize_t queue_max_active_zones_show(struct request_queue *q, char *page)
 {
-	return queue_var_show(queue_max_active_zones(q), page);
+	return queue_var_show(bdev_max_active_zones(q->disk->part0), page);
 }
 
 static ssize_t queue_nomerges_show(struct request_queue *q, char *page)
@@ -607,6 +611,7 @@ QUEUE_RO_ENTRY(queue_dax, "dax");
 QUEUE_RW_ENTRY(queue_io_timeout, "io_timeout");
 QUEUE_RW_ENTRY(queue_wb_lat, "wbt_lat_usec");
 QUEUE_RO_ENTRY(queue_virt_boundary_mask, "virt_boundary_mask");
+QUEUE_RO_ENTRY(queue_dma_alignment, "dma_alignment");
 
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
 QUEUE_RW_ENTRY(blk_throtl_sample_time, "throttle_sample_time");
@@ -668,6 +673,7 @@ static struct attribute *queue_attrs[] = {
 	&blk_throtl_sample_time_entry.attr,
 #endif
 	&queue_virt_boundary_mask_entry.attr,
+	&queue_dma_alignment_entry.attr,
 	NULL,
 };
 
@@ -739,27 +745,6 @@ static void blk_free_queue_rcu(struct rcu_head *rcu_head)
 	kmem_cache_free(blk_get_queue_kmem_cache(blk_queue_has_srcu(q)), q);
 }
 
-/* Unconfigure the I/O scheduler and dissociate from the cgroup controller. */
-static void blk_exit_queue(struct request_queue *q)
-{
-	/*
-	 * Since the I/O scheduler exit code may access cgroup information,
-	 * perform I/O scheduler exit before disassociating from the block
-	 * cgroup controller.
-	 */
-	if (q->elevator) {
-		ioc_clear_queue(q);
-		elevator_exit(q);
-	}
-
-	/*
-	 * Remove all references to @q from the block cgroup controller before
-	 * restoring @q->queue_lock to avoid that restoring this pointer causes
-	 * e.g. blkcg_print_blkgs() to crash.
-	 */
-	blkcg_exit_queue(q);
-}
-
 /**
  * blk_release_queue - releases all allocated resources of the request_queue
  * @kobj: pointer to a kobject, whose container is a request_queue
@@ -769,11 +754,6 @@ static void blk_exit_queue(struct request_queue *q)
  * The struct request_queue refcount is incremented with blk_get_queue() and
  * decremented with blk_put_queue(). Once the refcount reaches 0 this function
  * is called.
- *
- * For drivers that have a request_queue on a gendisk and added with
- * __device_add_disk() the refcount to request_queue will reach 0 with
- * the last put_disk() called by the driver. For drivers which don't use
- * __device_add_disk() this happens with blk_cleanup_queue().
  *
  * Drivers exist which depend on the release of the request_queue to be
  * synchronous, it should not be deferred.
@@ -787,34 +767,22 @@ static void blk_release_queue(struct kobject *kobj)
 
 	might_sleep();
 
+	percpu_ref_exit(&q->q_usage_counter);
+
 	if (q->poll_stat)
 		blk_stat_remove_callback(q, q->poll_cb);
 	blk_stat_free_callback(q->poll_cb);
 
-	blk_exit_queue(q);
-
 	blk_free_queue_stats(q->stats);
 	kfree(q->poll_stat);
-
-	blk_queue_free_zone_bitmaps(q);
 
 	if (queue_is_mq(q))
 		blk_mq_release(q);
 
-	blk_trace_shutdown(q);
-	mutex_lock(&q->debugfs_mutex);
-	debugfs_remove_recursive(q->debugfs_dir);
-	mutex_unlock(&q->debugfs_mutex);
-
-	if (queue_is_mq(q))
-		blk_mq_debugfs_unregister(q);
-
-	bioset_exit(&q->bio_split);
-
 	if (blk_queue_has_srcu(q))
 		cleanup_srcu_struct(q->srcu);
 
-	ida_simple_remove(&blk_queue_ida, q->id);
+	ida_free(&blk_queue_ida, q->id);
 	call_rcu(&q->rcu_head, blk_free_queue_rcu);
 }
 
@@ -823,7 +791,13 @@ static const struct sysfs_ops queue_sysfs_ops = {
 	.store	= queue_attr_store,
 };
 
+static const struct attribute_group *blk_queue_attr_groups[] = {
+	&queue_attr_group,
+	NULL
+};
+
 struct kobj_type blk_queue_ktype = {
+	.default_groups = blk_queue_attr_groups,
 	.sysfs_ops	= &queue_sysfs_ops,
 	.release	= blk_release_queue,
 };
@@ -834,43 +808,27 @@ struct kobj_type blk_queue_ktype = {
  */
 int blk_register_queue(struct gendisk *disk)
 {
-	int ret;
-	struct device *dev = disk_to_dev(disk);
 	struct request_queue *q = disk->queue;
-
-	ret = blk_trace_init_sysfs(dev);
-	if (ret)
-		return ret;
+	int ret;
 
 	mutex_lock(&q->sysfs_dir_lock);
 
-	ret = kobject_add(&q->kobj, kobject_get(&dev->kobj), "%s", "queue");
-	if (ret < 0) {
-		blk_trace_remove_sysfs(dev);
+	ret = kobject_add(&q->kobj, &disk_to_dev(disk)->kobj, "queue");
+	if (ret < 0)
 		goto unlock;
-	}
 
-	ret = sysfs_create_group(&q->kobj, &queue_attr_group);
-	if (ret) {
-		blk_trace_remove_sysfs(dev);
-		kobject_del(&q->kobj);
-		kobject_put(&dev->kobj);
-		goto unlock;
-	}
+	if (queue_is_mq(q))
+		blk_mq_sysfs_register(disk);
+	mutex_lock(&q->sysfs_lock);
 
 	mutex_lock(&q->debugfs_mutex);
 	q->debugfs_dir = debugfs_create_dir(kobject_name(q->kobj.parent),
 					    blk_debugfs_root);
+	if (queue_is_mq(q))
+		blk_mq_debugfs_register(q);
 	mutex_unlock(&q->debugfs_mutex);
 
-	if (queue_is_mq(q)) {
-		__blk_mq_register_dev(dev, q);
-		blk_mq_debugfs_register(q);
-	}
-
-	mutex_lock(&q->sysfs_lock);
-
-	ret = disk_register_independent_access_ranges(disk, NULL);
+	ret = disk_register_independent_access_ranges(disk);
 	if (ret)
 		goto put_dev;
 
@@ -880,9 +838,13 @@ int blk_register_queue(struct gendisk *disk)
 			goto put_dev;
 	}
 
+	ret = blk_crypto_sysfs_register(q);
+	if (ret)
+		goto put_dev;
+
 	blk_queue_flag_set(QUEUE_FLAG_REGISTERED, q);
 	wbt_enable_default(q);
-	blk_throtl_register_queue(q);
+	blk_throtl_register(disk);
 
 	/* Now everything is ready and send out KOBJ_ADD uevent */
 	kobject_uevent(&q->kobj, KOBJ_ADD);
@@ -910,12 +872,11 @@ unlock:
 	return ret;
 
 put_dev:
+	elv_unregister_queue(q);
 	disk_unregister_independent_access_ranges(disk);
 	mutex_unlock(&q->sysfs_lock);
 	mutex_unlock(&q->sysfs_dir_lock);
 	kobject_del(&q->kobj);
-	blk_trace_remove_sysfs(dev);
-	kobject_put(&dev->kobj);
 
 	return ret;
 }
@@ -953,18 +914,24 @@ void blk_unregister_queue(struct gendisk *disk)
 	 * structures that can be modified through sysfs.
 	 */
 	if (queue_is_mq(q))
-		blk_mq_unregister_dev(disk_to_dev(disk), q);
-
-	kobject_uevent(&q->kobj, KOBJ_REMOVE);
-	kobject_del(&q->kobj);
-	blk_trace_remove_sysfs(disk_to_dev(disk));
+		blk_mq_sysfs_unregister(disk);
+	blk_crypto_sysfs_unregister(q);
 
 	mutex_lock(&q->sysfs_lock);
-	if (q->elevator)
-		elv_unregister_queue(q);
+	elv_unregister_queue(q);
 	disk_unregister_independent_access_ranges(disk);
 	mutex_unlock(&q->sysfs_lock);
+
+	/* Now that we've deleted all child objects, we can delete the queue. */
+	kobject_uevent(&q->kobj, KOBJ_REMOVE);
+	kobject_del(&q->kobj);
 	mutex_unlock(&q->sysfs_dir_lock);
 
-	kobject_put(&disk_to_dev(disk)->kobj);
+	mutex_lock(&q->debugfs_mutex);
+	blk_trace_shutdown(q);
+	debugfs_remove_recursive(q->debugfs_dir);
+	q->debugfs_dir = NULL;
+	q->sched_debugfs_dir = NULL;
+	q->rqos_debugfs_dir = NULL;
+	mutex_unlock(&q->debugfs_mutex);
 }

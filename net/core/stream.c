@@ -123,7 +123,7 @@ int sk_stream_wait_memory(struct sock *sk, long *timeo_p)
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
 	if (sk_stream_memory_free(sk))
-		current_timeo = vm_wait = (prandom_u32() % (HZ / 5)) + 2;
+		current_timeo = vm_wait = prandom_u32_max(HZ / 5) + 2;
 
 	add_wait_queue(sk_sleep(sk), &wait);
 
@@ -159,7 +159,8 @@ int sk_stream_wait_memory(struct sock *sk, long *timeo_p)
 		*timeo_p = current_timeo;
 	}
 out:
-	remove_wait_queue(sk_sleep(sk), &wait);
+	if (!sock_flag(sk, SOCK_DEAD))
+		remove_wait_queue(sk_sleep(sk), &wait);
 	return err;
 
 do_error:
@@ -196,13 +197,13 @@ void sk_stream_kill_queues(struct sock *sk)
 	__skb_queue_purge(&sk->sk_receive_queue);
 
 	/* Next, the write queue. */
-	WARN_ON(!skb_queue_empty(&sk->sk_write_queue));
+	WARN_ON_ONCE(!skb_queue_empty(&sk->sk_write_queue));
 
 	/* Account for returned memory. */
 	sk_mem_reclaim_final(sk);
 
-	WARN_ON(sk->sk_wmem_queued);
-	WARN_ON(sk->sk_forward_alloc);
+	WARN_ON_ONCE(sk->sk_wmem_queued);
+	WARN_ON_ONCE(sk->sk_forward_alloc);
 
 	/* It is _impossible_ for the backlog to contain anything
 	 * when we get here.  All user references to this socket

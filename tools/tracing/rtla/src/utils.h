@@ -6,6 +6,7 @@
  * '18446744073709551615\0'
  */
 #define BUFF_U64_STR_SIZE	24
+#define MAX_PATH		1024
 
 #define container_of(ptr, type, member)({			\
 	const typeof(((type *)0)->member) *__mptr = (ptr);	\
@@ -53,4 +54,5 @@ struct sched_attr {
 };
 
 int parse_prio(char *arg, struct sched_attr *sched_param);
-int set_comm_sched_attr(const char *comm, struct sched_attr *attr);
+int set_comm_sched_attr(const char *comm_prefix, struct sched_attr *attr);
+int set_cpu_dma_latency(int32_t latency);

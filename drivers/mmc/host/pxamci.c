@@ -31,10 +31,10 @@
 #include <linux/gfp.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include <linux/sizes.h>
 
-#include <mach/hardware.h>
 #include <linux/platform_data/mmc-pxamci.h>
 
 #include "pxamci.h"
@@ -648,7 +648,7 @@ static int pxamci_probe(struct platform_device *pdev)
 
 	ret = pxamci_of_init(pdev, mmc);
 	if (ret)
-		return ret;
+		goto out;
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
@@ -672,7 +672,7 @@ static int pxamci_probe(struct platform_device *pdev)
 
 	ret = pxamci_init_ocr(host);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	mmc->caps = 0;
 	host->cmdat = 0;

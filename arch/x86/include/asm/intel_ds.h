@@ -7,8 +7,9 @@
 #define PEBS_BUFFER_SIZE	(PAGE_SIZE << 4)
 
 /* The maximal number of PEBS events: */
-#define MAX_PEBS_EVENTS		8
-#define MAX_FIXED_PEBS_EVENTS	4
+#define MAX_PEBS_EVENTS_FMT4	8
+#define MAX_PEBS_EVENTS		32
+#define MAX_FIXED_PEBS_EVENTS	16
 
 /*
  * A debug store configuration.

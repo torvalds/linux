@@ -10,16 +10,10 @@ static bool atomic_inc_below(atomic_t *v, unsigned int below)
 {
 	unsigned int cur = atomic_read(v);
 
-	for (;;) {
-		unsigned int old;
-
+	do {
 		if (cur >= below)
 			return false;
-		old = atomic_cmpxchg(v, cur, cur + 1);
-		if (old == cur)
-			break;
-		cur = old;
-	}
+	} while (!atomic_try_cmpxchg(v, &cur, cur + 1));
 
 	return true;
 }
@@ -294,8 +288,6 @@ void rq_qos_wait(struct rq_wait *rqw, void *private_data,
 
 void rq_qos_exit(struct request_queue *q)
 {
-	blk_mq_debugfs_unregister_queue_rqos(q);
-
 	while (q->rq_qos) {
 		struct rq_qos *rqos = q->rq_qos;
 		q->rq_qos = rqos->next;

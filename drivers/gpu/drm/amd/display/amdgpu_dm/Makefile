@@ -25,7 +25,13 @@
 
 
 
-AMDGPUDM = amdgpu_dm.o amdgpu_dm_irq.o amdgpu_dm_mst_types.o amdgpu_dm_color.o
+AMDGPUDM = \
+	amdgpu_dm.o \
+	amdgpu_dm_plane.o \
+	amdgpu_dm_crtc.o \
+	amdgpu_dm_irq.o \
+	amdgpu_dm_mst_types.o \
+	amdgpu_dm_color.o
 
 ifdef CONFIG_DRM_AMD_DC_DCN
 AMDGPUDM += dc_fpu.o

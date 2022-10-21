@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/
  *	Andrew F. Davis <afd@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether expressed or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License version 2 for more details.
  */
 
 #include <linux/bitmap.h>
@@ -163,15 +155,13 @@ static int pisosr_gpio_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int pisosr_gpio_remove(struct spi_device *spi)
+static void pisosr_gpio_remove(struct spi_device *spi)
 {
 	struct pisosr_gpio *gpio = spi_get_drvdata(spi);
 
 	gpiochip_remove(&gpio->chip);
 
 	mutex_destroy(&gpio->lock);
-
-	return 0;
 }
 
 static const struct spi_device_id pisosr_gpio_id_table[] = {

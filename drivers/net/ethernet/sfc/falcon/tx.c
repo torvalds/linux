@@ -98,7 +98,8 @@ unsigned int ef4_tx_max_skb_descs(struct ef4_nic *efx)
 	/* Possibly more for PCIe page boundaries within input fragments */
 	if (PAGE_SIZE > EF4_PAGE_SIZE)
 		max_descs += max_t(unsigned int, MAX_SKB_FRAGS,
-				   DIV_ROUND_UP(GSO_MAX_SIZE, EF4_PAGE_SIZE));
+				   DIV_ROUND_UP(GSO_LEGACY_MAX_SIZE,
+						EF4_PAGE_SIZE));
 
 	return max_descs;
 }

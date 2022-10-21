@@ -7,8 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: NXP Semiconductors NCI NFC controller
 
 maintainers:
-  - Charles Gorand <charles.gorand@effinnov.com>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 properties:
   compatible:

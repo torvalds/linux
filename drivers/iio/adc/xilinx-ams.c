@@ -12,6 +12,7 @@
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/devm-helpers.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -91,8 +92,8 @@
 
 #define AMS_CONF1_SEQ_MASK		GENMASK(15, 12)
 #define AMS_CONF1_SEQ_DEFAULT		FIELD_PREP(AMS_CONF1_SEQ_MASK, 0)
-#define AMS_CONF1_SEQ_CONTINUOUS	FIELD_PREP(AMS_CONF1_SEQ_MASK, 1)
-#define AMS_CONF1_SEQ_SINGLE_CHANNEL	FIELD_PREP(AMS_CONF1_SEQ_MASK, 2)
+#define AMS_CONF1_SEQ_CONTINUOUS	FIELD_PREP(AMS_CONF1_SEQ_MASK, 2)
+#define AMS_CONF1_SEQ_SINGLE_CHANNEL	FIELD_PREP(AMS_CONF1_SEQ_MASK, 3)
 
 #define AMS_REG_SEQ0_MASK		GENMASK(15, 0)
 #define AMS_REG_SEQ2_MASK		GENMASK(21, 16)
@@ -530,13 +531,17 @@ static int ams_enable_single_channel(struct ams *ams, unsigned int offset)
 		return -EINVAL;
 	}
 
-	/* set single channel, sequencer off mode */
+	/* put sysmon in a soft reset to change the sequence */
 	ams_ps_update_reg(ams, AMS_REG_CONFIG1, AMS_CONF1_SEQ_MASK,
-			  AMS_CONF1_SEQ_SINGLE_CHANNEL);
+			  AMS_CONF1_SEQ_DEFAULT);
 
 	/* write the channel number */
 	ams_ps_update_reg(ams, AMS_REG_CONFIG0, AMS_CONF0_CHANNEL_NUM_MASK,
 			  channel_num);
+
+	/* set single channel, sequencer off mode */
+	ams_ps_update_reg(ams, AMS_REG_CONFIG1, AMS_CONF1_SEQ_MASK,
+			  AMS_CONF1_SEQ_SINGLE_CHANNEL);
 
 	return 0;
 }
@@ -551,6 +556,8 @@ static int ams_read_vcc_reg(struct ams *ams, unsigned int offset, u32 *data)
 	if (ret)
 		return ret;
 
+	/* clear end-of-conversion flag, wait for next conversion to complete */
+	writel(expect, ams->base + AMS_ISR_1);
 	ret = readl_poll_timeout(ams->base + AMS_ISR_1, reg, (reg & expect),
 				 AMS_INIT_POLL_TIME_US, AMS_INIT_TIMEOUT_US);
 	if (ret)
@@ -1224,6 +1231,7 @@ static int ams_init_module(struct iio_dev *indio_dev,
 
 		/* add PS channels to iio device channels */
 		memcpy(channels, ams_ps_channels, sizeof(ams_ps_channels));
+		num_channels = ARRAY_SIZE(ams_ps_channels);
 	} else if (fwnode_property_match_string(fwnode, "compatible",
 						"xlnx,zynqmp-ams-pl") == 0) {
 		ams->pl_base = fwnode_iomap(fwnode, 0);
@@ -1343,16 +1351,6 @@ static const struct of_device_id ams_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, ams_of_match_table);
 
-static void ams_clk_disable_unprepare(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
-static void ams_cancel_delayed_work(void *data)
-{
-	cancel_delayed_work(data);
-}
-
 static int ams_probe(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev;
@@ -1377,21 +1375,12 @@ static int ams_probe(struct platform_device *pdev)
 	if (IS_ERR(ams->base))
 		return PTR_ERR(ams->base);
 
-	ams->clk = devm_clk_get(&pdev->dev, NULL);
+	ams->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(ams->clk))
 		return PTR_ERR(ams->clk);
 
-	ret = clk_prepare_enable(ams->clk);
-	if (ret < 0)
-		return ret;
-
-	ret = devm_add_action_or_reset(&pdev->dev, ams_clk_disable_unprepare, ams->clk);
-	if (ret < 0)
-		return ret;
-
-	INIT_DELAYED_WORK(&ams->ams_unmask_work, ams_unmask_worker);
-	ret = devm_add_action_or_reset(&pdev->dev, ams_cancel_delayed_work,
-				       &ams->ams_unmask_work);
+	ret = devm_delayed_work_autocancel(&pdev->dev, &ams->ams_unmask_work,
+					   ams_unmask_worker);
 	if (ret < 0)
 		return ret;
 
@@ -1407,7 +1396,7 @@ static int ams_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return ret;
+		return irq;
 
 	ret = devm_request_irq(&pdev->dev, irq, &ams_irq, 0, "ams-irq",
 			       indio_dev);
@@ -1419,7 +1408,7 @@ static int ams_probe(struct platform_device *pdev)
 	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
 
-static int __maybe_unused ams_suspend(struct device *dev)
+static int ams_suspend(struct device *dev)
 {
 	struct ams *ams = iio_priv(dev_get_drvdata(dev));
 
@@ -1428,20 +1417,20 @@ static int __maybe_unused ams_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused ams_resume(struct device *dev)
+static int ams_resume(struct device *dev)
 {
 	struct ams *ams = iio_priv(dev_get_drvdata(dev));
 
 	return clk_prepare_enable(ams->clk);
 }
 
-static SIMPLE_DEV_PM_OPS(ams_pm_ops, ams_suspend, ams_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(ams_pm_ops, ams_suspend, ams_resume);
 
 static struct platform_driver ams_driver = {
 	.probe = ams_probe,
 	.driver = {
 		.name = "xilinx-ams",
-		.pm = &ams_pm_ops,
+		.pm = pm_sleep_ptr(&ams_pm_ops),
 		.of_match_table = ams_of_match_table,
 	},
 };

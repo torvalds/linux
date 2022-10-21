@@ -47,6 +47,36 @@ enum ath11k_dbg_htt_ext_stats_type {
 	ATH11K_DBG_HTT_NUM_EXT_STATS,
 };
 
+#define ATH11K_DEBUG_DBR_ENTRIES_MAX 512
+
+enum ath11k_dbg_dbr_event {
+	ATH11K_DBG_DBR_EVENT_INVALID,
+	ATH11K_DBG_DBR_EVENT_RX,
+	ATH11K_DBG_DBR_EVENT_REPLENISH,
+	ATH11K_DBG_DBR_EVENT_MAX,
+};
+
+struct ath11k_dbg_dbr_entry {
+	u32 hp;
+	u32 tp;
+	u64 timestamp;
+	enum ath11k_dbg_dbr_event event;
+};
+
+struct ath11k_dbg_dbr_data {
+	/* protects ath11k_db_ring_debug data */
+	spinlock_t lock;
+	struct ath11k_dbg_dbr_entry *entries;
+	u32 dbr_debug_idx;
+	u32 num_ring_debug_entries;
+};
+
+struct ath11k_debug_dbr {
+	struct ath11k_dbg_dbr_data dbr_dbg_data;
+	struct dentry *dbr_debugfs;
+	bool dbr_debug_enabled;
+};
+
 struct debug_htt_stats_req {
 	bool done;
 	u8 pdev_id;
@@ -88,6 +118,7 @@ enum ath11k_pktlog_mode {
 };
 
 enum ath11k_pktlog_enum {
+	ATH11K_PKTLOG_TYPE_INVALID      = 0,
 	ATH11K_PKTLOG_TYPE_TX_CTRL      = 1,
 	ATH11K_PKTLOG_TYPE_TX_STAT      = 2,
 	ATH11K_PKTLOG_TYPE_TX_MSDU_ID   = 3,
@@ -107,6 +138,130 @@ enum ath11k_dbg_aggr_mode {
 	ATH11K_DBG_AGGR_MODE_MAX,
 };
 
+enum fw_dbglog_wlan_module_id {
+	WLAN_MODULE_ID_MIN = 0,
+	WLAN_MODULE_INF = WLAN_MODULE_ID_MIN,
+	WLAN_MODULE_WMI,
+	WLAN_MODULE_STA_PWRSAVE,
+	WLAN_MODULE_WHAL,
+	WLAN_MODULE_COEX,
+	WLAN_MODULE_ROAM,
+	WLAN_MODULE_RESMGR_CHAN_MANAGER,
+	WLAN_MODULE_RESMGR,
+	WLAN_MODULE_VDEV_MGR,
+	WLAN_MODULE_SCAN,
+	WLAN_MODULE_RATECTRL,
+	WLAN_MODULE_AP_PWRSAVE,
+	WLAN_MODULE_BLOCKACK,
+	WLAN_MODULE_MGMT_TXRX,
+	WLAN_MODULE_DATA_TXRX,
+	WLAN_MODULE_HTT,
+	WLAN_MODULE_HOST,
+	WLAN_MODULE_BEACON,
+	WLAN_MODULE_OFFLOAD,
+	WLAN_MODULE_WAL,
+	WLAN_WAL_MODULE_DE,
+	WLAN_MODULE_PCIELP,
+	WLAN_MODULE_RTT,
+	WLAN_MODULE_RESOURCE,
+	WLAN_MODULE_DCS,
+	WLAN_MODULE_CACHEMGR,
+	WLAN_MODULE_ANI,
+	WLAN_MODULE_P2P,
+	WLAN_MODULE_CSA,
+	WLAN_MODULE_NLO,
+	WLAN_MODULE_CHATTER,
+	WLAN_MODULE_WOW,
+	WLAN_MODULE_WAL_VDEV,
+	WLAN_MODULE_WAL_PDEV,
+	WLAN_MODULE_TEST,
+	WLAN_MODULE_STA_SMPS,
+	WLAN_MODULE_SWBMISS,
+	WLAN_MODULE_WMMAC,
+	WLAN_MODULE_TDLS,
+	WLAN_MODULE_HB,
+	WLAN_MODULE_TXBF,
+	WLAN_MODULE_BATCH_SCAN,
+	WLAN_MODULE_THERMAL_MGR,
+	WLAN_MODULE_PHYERR_DFS,
+	WLAN_MODULE_RMC,
+	WLAN_MODULE_STATS,
+	WLAN_MODULE_NAN,
+	WLAN_MODULE_IBSS_PWRSAVE,
+	WLAN_MODULE_HIF_UART,
+	WLAN_MODULE_LPI,
+	WLAN_MODULE_EXTSCAN,
+	WLAN_MODULE_UNIT_TEST,
+	WLAN_MODULE_MLME,
+	WLAN_MODULE_SUPPL,
+	WLAN_MODULE_ERE,
+	WLAN_MODULE_OCB,
+	WLAN_MODULE_RSSI_MONITOR,
+	WLAN_MODULE_WPM,
+	WLAN_MODULE_CSS,
+	WLAN_MODULE_PPS,
+	WLAN_MODULE_SCAN_CH_PREDICT,
+	WLAN_MODULE_MAWC,
+	WLAN_MODULE_CMC_QMIC,
+	WLAN_MODULE_EGAP,
+	WLAN_MODULE_NAN20,
+	WLAN_MODULE_QBOOST,
+	WLAN_MODULE_P2P_LISTEN_OFFLOAD,
+	WLAN_MODULE_HALPHY,
+	WLAN_WAL_MODULE_ENQ,
+	WLAN_MODULE_GNSS,
+	WLAN_MODULE_WAL_MEM,
+	WLAN_MODULE_SCHED_ALGO,
+	WLAN_MODULE_TX,
+	WLAN_MODULE_RX,
+	WLAN_MODULE_WLM,
+	WLAN_MODULE_RU_ALLOCATOR,
+	WLAN_MODULE_11K_OFFLOAD,
+	WLAN_MODULE_STA_TWT,
+	WLAN_MODULE_AP_TWT,
+	WLAN_MODULE_UL_OFDMA,
+	WLAN_MODULE_HPCS_PULSE,
+	WLAN_MODULE_DTF,
+	WLAN_MODULE_QUIET_IE,
+	WLAN_MODULE_SHMEM_MGR,
+	WLAN_MODULE_CFIR,
+	WLAN_MODULE_CODE_COVER,
+	WLAN_MODULE_SHO,
+	WLAN_MODULE_MLO_MGR,
+	WLAN_MODULE_PEER_INIT,
+	WLAN_MODULE_STA_MLO_PS,
+
+	WLAN_MODULE_ID_MAX,
+	WLAN_MODULE_ID_INVALID = WLAN_MODULE_ID_MAX,
+};
+
+enum fw_dbglog_log_level {
+	ATH11K_FW_DBGLOG_ML = 0,
+	ATH11K_FW_DBGLOG_VERBOSE = 0,
+	ATH11K_FW_DBGLOG_INFO,
+	ATH11K_FW_DBGLOG_INFO_LVL_1,
+	ATH11K_FW_DBGLOG_INFO_LVL_2,
+	ATH11K_FW_DBGLOG_WARN,
+	ATH11K_FW_DBGLOG_ERR,
+	ATH11K_FW_DBGLOG_LVL_MAX
+};
+
+struct ath11k_fw_dbglog {
+	enum wmi_debug_log_param param;
+	union {
+		struct {
+			/* log_level values are given in enum fw_dbglog_log_level */
+			u16 log_level;
+			/* module_id values are given in  enum fw_dbglog_wlan_module_id */
+			u16 module_id;
+		};
+		/* value is either log_level&module_id/vdev_id/vdev_id_bitmap/log_level
+		 * according to param
+		 */
+		u32 value;
+	};
+};
+
 #ifdef CONFIG_ATH11K_DEBUGFS
 int ath11k_debugfs_soc_create(struct ath11k_base *ab);
 void ath11k_debugfs_soc_destroy(struct ath11k_base *ab);
@@ -114,7 +269,7 @@ int ath11k_debugfs_pdev_create(struct ath11k_base *ab);
 void ath11k_debugfs_pdev_destroy(struct ath11k_base *ab);
 int ath11k_debugfs_register(struct ath11k *ar);
 void ath11k_debugfs_unregister(struct ath11k *ar);
-void ath11k_debugfs_fw_stats_process(struct ath11k_base *ab, struct sk_buff *skb);
+void ath11k_debugfs_fw_stats_process(struct ath11k *ar, struct ath11k_fw_stats *stats);
 
 void ath11k_debugfs_fw_stats_init(struct ath11k *ar);
 int ath11k_debugfs_get_fw_stats(struct ath11k *ar, u32 pdev_id,
@@ -151,6 +306,13 @@ static inline int ath11k_debugfs_rx_filter(struct ath11k *ar)
 	return ar->debug.rx_filter;
 }
 
+void ath11k_debugfs_add_interface(struct ath11k_vif *arvif);
+void ath11k_debugfs_remove_interface(struct ath11k_vif *arvif);
+void ath11k_debugfs_add_dbring_entry(struct ath11k *ar,
+				     enum wmi_direct_buffer_module id,
+				     enum ath11k_dbg_dbr_event event,
+				     struct hal_srng *srng);
+
 #else
 static inline int ath11k_debugfs_soc_create(struct ath11k_base *ab)
 {
@@ -179,8 +341,8 @@ static inline void ath11k_debugfs_unregister(struct ath11k *ar)
 {
 }
 
-static inline void ath11k_debugfs_fw_stats_process(struct ath11k_base *ab,
-						   struct sk_buff *skb)
+static inline void ath11k_debugfs_fw_stats_process(struct ath11k *ar,
+						   struct ath11k_fw_stats *stats)
 {
 }
 
@@ -224,6 +386,21 @@ static inline int ath11k_debugfs_get_fw_stats(struct ath11k *ar,
 	return 0;
 }
 
-#endif /* CONFIG_MAC80211_DEBUGFS*/
+static inline void ath11k_debugfs_add_interface(struct ath11k_vif *arvif)
+{
+}
+
+static inline void ath11k_debugfs_remove_interface(struct ath11k_vif *arvif)
+{
+}
+
+static inline void
+ath11k_debugfs_add_dbring_entry(struct ath11k *ar,
+				enum wmi_direct_buffer_module id,
+				enum ath11k_dbg_dbr_event event,
+				struct hal_srng *srng)
+{
+}
+#endif /* CONFIG_ATH11K_DEBUGFS*/
 
 #endif /* _ATH11K_DEBUGFS_H_ */

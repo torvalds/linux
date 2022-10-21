@@ -103,6 +103,7 @@
 static int use_dma = 1;
 
 struct pch_spi_dma_ctrl {
+	struct pci_dev		*dma_dev;
 	struct dma_async_tx_descriptor	*desc_tx;
 	struct dma_async_tx_descriptor	*desc_rx;
 	struct pch_dma_slave		param_tx;
@@ -454,34 +455,9 @@ static void pch_spi_reset(struct spi_master *master)
 
 static int pch_spi_transfer(struct spi_device *pspi, struct spi_message *pmsg)
 {
-
-	struct spi_transfer *transfer;
 	struct pch_spi_data *data = spi_master_get_devdata(pspi->master);
 	int retval;
 	unsigned long flags;
-
-	spin_lock_irqsave(&data->lock, flags);
-	/* validate Tx/Rx buffers and Transfer length */
-	list_for_each_entry(transfer, &pmsg->transfers, transfer_list) {
-		if (!transfer->tx_buf && !transfer->rx_buf) {
-			dev_err(&pspi->dev,
-				"%s Tx and Rx buffer NULL\n", __func__);
-			retval = -EINVAL;
-			goto err_return_spinlock;
-		}
-
-		if (!transfer->len) {
-			dev_err(&pspi->dev, "%s Transfer length invalid\n",
-				__func__);
-			retval = -EINVAL;
-			goto err_return_spinlock;
-		}
-
-		dev_dbg(&pspi->dev,
-			"%s Tx/Rx buffer valid. Transfer length valid\n",
-			__func__);
-	}
-	spin_unlock_irqrestore(&data->lock, flags);
 
 	/* We won't process any messages if we have been asked to terminate */
 	if (data->status == STATUS_EXITING) {
@@ -516,10 +492,6 @@ static int pch_spi_transfer(struct spi_device *pspi, struct spi_message *pmsg)
 
 err_out:
 	dev_dbg(&pspi->dev, "%s RETURN=%d\n", __func__, retval);
-	return retval;
-err_return_spinlock:
-	dev_dbg(&pspi->dev, "%s RETURN=%d\n", __func__, retval);
-	spin_unlock_irqrestore(&data->lock, flags);
 	return retval;
 }
 
@@ -876,8 +848,7 @@ static void pch_spi_request_dma(struct pch_spi_data *data, int bpw)
 	if (!chan) {
 		dev_err(&data->master->dev,
 			"ERROR: dma_request_channel FAILS(Tx)\n");
-		data->use_dma = 0;
-		return;
+		goto out;
 	}
 	dma->chan_tx = chan;
 
@@ -893,10 +864,15 @@ static void pch_spi_request_dma(struct pch_spi_data *data, int bpw)
 			"ERROR: dma_request_channel FAILS(Rx)\n");
 		dma_release_channel(dma->chan_tx);
 		dma->chan_tx = NULL;
-		data->use_dma = 0;
-		return;
+		goto out;
 	}
 	dma->chan_rx = chan;
+
+	dma->dma_dev = dma_dev;
+	return;
+out:
+	pci_dev_put(dma_dev);
+	data->use_dma = 0;
 }
 
 static void pch_spi_release_dma(struct pch_spi_data *data)
@@ -912,6 +888,8 @@ static void pch_spi_release_dma(struct pch_spi_data *data)
 		dma_release_channel(dma->chan_rx);
 		dma->chan_rx = NULL;
 	}
+
+	pci_dev_put(dma->dma_dev);
 }
 
 static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
@@ -1358,6 +1336,7 @@ static int pch_spi_pd_probe(struct platform_device *plat_dev)
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
 	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 	master->max_speed_hz = PCH_MAX_BAUDRATE;
+	master->flags = SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX;
 
 	data->board_dat = board_dat;
 	data->plat_dev = plat_dev;

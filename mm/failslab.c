@@ -30,6 +30,9 @@ bool __should_failslab(struct kmem_cache *s, gfp_t gfpflags)
 	if (failslab.cache_filter && !(s->flags & SLAB_FAILSLAB))
 		return false;
 
+	if (gfpflags & __GFP_NOWARN)
+		failslab.attr.no_warn = true;
+
 	return should_fail(&failslab.attr, s->object_size);
 }
 

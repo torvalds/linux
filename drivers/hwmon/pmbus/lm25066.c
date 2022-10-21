@@ -435,6 +435,12 @@ static int lm25066_write_word_data(struct i2c_client *client, int page, int reg,
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_SENSORS_LM25066_REGULATOR)
+static const struct regulator_desc lm25066_reg_desc[] = {
+	PMBUS_REGULATOR("vout", 0),
+};
+#endif
+
 static const struct i2c_device_id lm25066_id[] = {
 	{"lm25056", lm25056},
 	{"lm25066", lm25066},
@@ -544,6 +550,14 @@ static int lm25066_probe(struct i2c_client *client)
 
 	info->m[PSC_CURRENT_IN] = info->m[PSC_CURRENT_IN] * shunt / 1000;
 	info->m[PSC_POWER] = info->m[PSC_POWER] * shunt / 1000;
+
+#if IS_ENABLED(CONFIG_SENSORS_LM25066_REGULATOR)
+	/* LM25056 doesn't support OPERATION */
+	if (data->id != lm25056) {
+		info->num_regulators = ARRAY_SIZE(lm25066_reg_desc);
+		info->reg_desc = lm25066_reg_desc;
+	}
+#endif
 
 	return pmbus_do_probe(client, info);
 }

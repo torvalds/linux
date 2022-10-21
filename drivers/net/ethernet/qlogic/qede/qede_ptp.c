@@ -496,19 +496,19 @@ void qede_ptp_tx_ts(struct qede_dev *edev, struct sk_buff *skb)
 
 	if (test_and_set_bit_lock(QEDE_FLAGS_PTP_TX_IN_PRORGESS,
 				  &edev->flags)) {
-		DP_ERR(edev, "Timestamping in progress\n");
+		DP_VERBOSE(edev, QED_MSG_DEBUG, "Timestamping in progress\n");
 		edev->ptp_skip_txts++;
 		return;
 	}
 
 	if (unlikely(!test_bit(QEDE_FLAGS_TX_TIMESTAMPING_EN, &edev->flags))) {
-		DP_ERR(edev,
-		       "Tx timestamping was not enabled, this packet will not be timestamped\n");
+		DP_VERBOSE(edev, QED_MSG_DEBUG,
+			   "Tx timestamping was not enabled, this pkt will not be timestamped\n");
 		clear_bit_unlock(QEDE_FLAGS_PTP_TX_IN_PRORGESS, &edev->flags);
 		edev->ptp_skip_txts++;
 	} else if (unlikely(ptp->tx_skb)) {
-		DP_ERR(edev,
-		       "The device supports only a single outstanding packet to timestamp, this packet will not be timestamped\n");
+		DP_VERBOSE(edev, QED_MSG_DEBUG,
+			   "Device supports a single outstanding pkt to ts, It will not be ts\n");
 		clear_bit_unlock(QEDE_FLAGS_PTP_TX_IN_PRORGESS, &edev->flags);
 		edev->ptp_skip_txts++;
 	} else {

@@ -154,10 +154,10 @@ static void console_callback(struct work_struct *ignored);
 static void con_driver_unregister_callback(struct work_struct *ignored);
 static void blank_screen_t(struct timer_list *unused);
 static void set_palette(struct vc_data *vc);
+static void unblank_screen(void);
 
 #define vt_get_kmsg_redirect() vt_kmsg_redirect(-1)
 
-static int printable;		/* Is console ready for printing? */
 int default_utf8 = true;
 module_param(default_utf8, int, S_IRUGO | S_IWUSR);
 int global_cursor_default = -1;
@@ -344,7 +344,7 @@ static struct uni_screen *vc_uniscr_alloc(unsigned int cols, unsigned int rows)
 	/* allocate everything in one go */
 	memsize = cols * rows * sizeof(char32_t);
 	memsize += rows * sizeof(char32_t *);
-	p = vmalloc(memsize);
+	p = vzalloc(memsize);
 	if (!p)
 		return NULL;
 
@@ -855,7 +855,7 @@ static void delete_char(struct vc_data *vc, unsigned int nr)
 	unsigned short *p = (unsigned short *) vc->vc_pos;
 
 	vc_uniscr_delete(vc, nr);
-	scr_memcpyw(p, p + nr, (vc->vc_cols - vc->state.x - nr) * 2);
+	scr_memmovew(p, p + nr, (vc->vc_cols - vc->state.x - nr) * 2);
 	scr_memsetw(p + vc->vc_cols - vc->state.x - nr, vc->vc_video_erase_char,
 			nr * 2);
 	vc->vc_need_wrap = 0;
@@ -1063,10 +1063,10 @@ static void visual_init(struct vc_data *vc, int num, int init)
 	__module_get(vc->vc_sw->owner);
 	vc->vc_num = num;
 	vc->vc_display_fg = &master_display_fg;
-	if (vc->vc_uni_pagedir_loc)
+	if (vc->uni_pagedict_loc)
 		con_free_unimap(vc);
-	vc->vc_uni_pagedir_loc = &vc->vc_uni_pagedir;
-	vc->vc_uni_pagedir = NULL;
+	vc->uni_pagedict_loc = &vc->uni_pagedict;
+	vc->uni_pagedict = NULL;
 	vc->vc_hi_font_mask = 0;
 	vc->vc_complement_mask = 0;
 	vc->vc_can_do_color = 0;
@@ -1136,7 +1136,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 
 	visual_init(vc, currcons, 1);
 
-	if (!*vc->vc_uni_pagedir_loc)
+	if (!*vc->uni_pagedict_loc)
 		con_set_default_unimap(vc);
 
 	err = -EINVAL;
@@ -3084,9 +3084,9 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 	ushort start_x, cnt;
 	int kmsg_console;
 
-	/* console busy or not yet initialized */
-	if (!printable)
-		return;
+	WARN_CONSOLE_UNLOCKED();
+
+	/* this protects against concurrent oops only */
 	if (!spin_trylock(&printing_lock))
 		return;
 
@@ -3537,7 +3537,6 @@ static int __init con_init(void)
 	pr_info("Console: %s %s %dx%d\n",
 		vc->vc_can_do_color ? "colour" : "mono",
 		display_desc, vc->vc_cols, vc->vc_rows);
-	printable = 1;
 
 	console_unlock();
 
@@ -3939,7 +3938,7 @@ static ssize_t show_bind(struct device *dev, struct device_attribute *attr,
 	bind = con_is_bound(con->con);
 	console_unlock();
 
-	return snprintf(buf, PAGE_SIZE, "%i\n", bind);
+	return sysfs_emit(buf, "%i\n", bind);
 }
 
 static ssize_t show_name(struct device *dev, struct device_attribute *attr,
@@ -3947,7 +3946,7 @@ static ssize_t show_name(struct device *dev, struct device_attribute *attr,
 {
 	struct con_driver *con = dev_get_drvdata(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s %s\n",
+	return sysfs_emit(buf, "%s %s\n",
 			(con->flag & CON_DRIVER_FLAG_MODULE) ? "(M)" : "(S)",
 			 con->desc);
 
@@ -4452,7 +4451,7 @@ EXPORT_SYMBOL(do_unblank_screen);
  * call it with 1 as an argument and so force a mode restore... that may kill
  * X or at least garbage the screen but would also make the Oops visible...
  */
-void unblank_screen(void)
+static void unblank_screen(void)
 {
 	do_unblank_screen(0);
 }
@@ -4662,9 +4661,11 @@ static int con_font_set(struct vc_data *vc, struct console_font_op *op)
 	console_lock();
 	if (vc->vc_mode != KD_TEXT)
 		rc = -EINVAL;
-	else if (vc->vc_sw->con_font_set)
+	else if (vc->vc_sw->con_font_set) {
+		if (vc_is_sel(vc))
+			clear_selection();
 		rc = vc->vc_sw->con_font_set(vc, &font, op->flags);
-	else
+	} else
 		rc = -ENOSYS;
 	console_unlock();
 	kfree(font.data);
@@ -4691,9 +4692,11 @@ static int con_font_default(struct vc_data *vc, struct console_font_op *op)
 		console_unlock();
 		return -EINVAL;
 	}
-	if (vc->vc_sw->con_font_default)
+	if (vc->vc_sw->con_font_default) {
+		if (vc_is_sel(vc))
+			clear_selection();
 		rc = vc->vc_sw->con_font_default(vc, &font, s);
-	else
+	} else
 		rc = -ENOSYS;
 	console_unlock();
 	if (!rc) {
@@ -4741,7 +4744,7 @@ u32 screen_glyph_unicode(const struct vc_data *vc, int n)
 
 	if (uniscr)
 		return uniscr->lines[n / vc->vc_cols][n % vc->vc_cols];
-	return inverse_translate(vc, screen_glyph(vc, n * 2), 1);
+	return inverse_translate(vc, screen_glyph(vc, n * 2), true);
 }
 EXPORT_SYMBOL_GPL(screen_glyph_unicode);
 

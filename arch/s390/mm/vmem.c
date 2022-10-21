@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  *    Copyright IBM Corp. 2006
- *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
 #include <linux/memory_hotplug.h>
@@ -175,9 +174,9 @@ static int __ref modify_pte_table(pmd_t *pmd, unsigned long addr,
 
 				if (!new_page)
 					goto out;
-				pte_val(*pte) = __pa(new_page) | prot;
+				set_pte(pte, __pte(__pa(new_page) | prot));
 			} else {
-				pte_val(*pte) = __pa(addr) | prot;
+				set_pte(pte, __pte(__pa(addr) | prot));
 			}
 		} else {
 			continue;
@@ -241,9 +240,9 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 		} else if (pmd_none(*pmd)) {
 			if (IS_ALIGNED(addr, PMD_SIZE) &&
 			    IS_ALIGNED(next, PMD_SIZE) &&
-			    MACHINE_HAS_EDAT1 && addr && direct &&
+			    MACHINE_HAS_EDAT1 && direct &&
 			    !debug_pagealloc_enabled()) {
-				pmd_val(*pmd) = __pa(addr) | prot;
+				set_pmd(pmd, __pmd(__pa(addr) | prot));
 				pages++;
 				continue;
 			} else if (!direct && MACHINE_HAS_EDAT1) {
@@ -258,7 +257,7 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 				 */
 				new_page = vmemmap_alloc_block(PMD_SIZE, NUMA_NO_NODE);
 				if (new_page) {
-					pmd_val(*pmd) = __pa(new_page) | prot;
+					set_pmd(pmd, __pmd(__pa(new_page) | prot));
 					if (!IS_ALIGNED(addr, PMD_SIZE) ||
 					    !IS_ALIGNED(next, PMD_SIZE)) {
 						vmemmap_use_new_sub_pmd(addr, next);
@@ -337,9 +336,9 @@ static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
 		} else if (pud_none(*pud)) {
 			if (IS_ALIGNED(addr, PUD_SIZE) &&
 			    IS_ALIGNED(next, PUD_SIZE) &&
-			    MACHINE_HAS_EDAT2 && addr && direct &&
+			    MACHINE_HAS_EDAT2 && direct &&
 			    !debug_pagealloc_enabled()) {
-				pud_val(*pud) = __pa(addr) | prot;
+				set_pud(pud, __pud(__pa(addr) | prot));
 				pages++;
 				continue;
 			}
@@ -562,6 +561,103 @@ int vmem_add_mapping(unsigned long start, unsigned long size)
 }
 
 /*
+ * Allocate new or return existing page-table entry, but do not map it
+ * to any physical address. If missing, allocate segment- and region-
+ * table entries along. Meeting a large segment- or region-table entry
+ * while traversing is an error, since the function is expected to be
+ * called against virtual regions reserverd for 4KB mappings only.
+ */
+pte_t *vmem_get_alloc_pte(unsigned long addr, bool alloc)
+{
+	pte_t *ptep = NULL;
+	pgd_t *pgd;
+	p4d_t *p4d;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+
+	pgd = pgd_offset_k(addr);
+	if (pgd_none(*pgd)) {
+		if (!alloc)
+			goto out;
+		p4d = vmem_crst_alloc(_REGION2_ENTRY_EMPTY);
+		if (!p4d)
+			goto out;
+		pgd_populate(&init_mm, pgd, p4d);
+	}
+	p4d = p4d_offset(pgd, addr);
+	if (p4d_none(*p4d)) {
+		if (!alloc)
+			goto out;
+		pud = vmem_crst_alloc(_REGION3_ENTRY_EMPTY);
+		if (!pud)
+			goto out;
+		p4d_populate(&init_mm, p4d, pud);
+	}
+	pud = pud_offset(p4d, addr);
+	if (pud_none(*pud)) {
+		if (!alloc)
+			goto out;
+		pmd = vmem_crst_alloc(_SEGMENT_ENTRY_EMPTY);
+		if (!pmd)
+			goto out;
+		pud_populate(&init_mm, pud, pmd);
+	} else if (WARN_ON_ONCE(pud_large(*pud))) {
+		goto out;
+	}
+	pmd = pmd_offset(pud, addr);
+	if (pmd_none(*pmd)) {
+		if (!alloc)
+			goto out;
+		pte = vmem_pte_alloc();
+		if (!pte)
+			goto out;
+		pmd_populate(&init_mm, pmd, pte);
+	} else if (WARN_ON_ONCE(pmd_large(*pmd))) {
+		goto out;
+	}
+	ptep = pte_offset_kernel(pmd, addr);
+out:
+	return ptep;
+}
+
+int __vmem_map_4k_page(unsigned long addr, unsigned long phys, pgprot_t prot, bool alloc)
+{
+	pte_t *ptep, pte;
+
+	if (!IS_ALIGNED(addr, PAGE_SIZE))
+		return -EINVAL;
+	ptep = vmem_get_alloc_pte(addr, alloc);
+	if (!ptep)
+		return -ENOMEM;
+	__ptep_ipte(addr, ptep, 0, 0, IPTE_GLOBAL);
+	pte = mk_pte_phys(phys, prot);
+	set_pte(ptep, pte);
+	return 0;
+}
+
+int vmem_map_4k_page(unsigned long addr, unsigned long phys, pgprot_t prot)
+{
+	int rc;
+
+	mutex_lock(&vmem_mutex);
+	rc = __vmem_map_4k_page(addr, phys, prot, true);
+	mutex_unlock(&vmem_mutex);
+	return rc;
+}
+
+void vmem_unmap_4k_page(unsigned long addr)
+{
+	pte_t *ptep;
+
+	mutex_lock(&vmem_mutex);
+	ptep = virt_to_kpte(addr);
+	__ptep_ipte(addr, ptep, 0, 0, IPTE_GLOBAL);
+	pte_clear(&init_mm, addr, ptep);
+	mutex_unlock(&vmem_mutex);
+}
+
+/*
  * map whole physical memory to virtual memory (identity mapping)
  * we reserve enough space in the vmalloc area for vmemmap to hotplug
  * additional memory segments.
@@ -585,13 +681,12 @@ void __init vmem_map_init(void)
 	__set_memory(__stext_amode31, (__etext_amode31 - __stext_amode31) >> PAGE_SHIFT,
 		     SET_MEMORY_RO | SET_MEMORY_X);
 
-	if (nospec_uses_trampoline() || !static_key_enabled(&cpu_has_bear)) {
-		/*
-		 * Lowcore must be executable for LPSWE
-		 * and expoline trampoline branch instructions.
-		 */
+	/* lowcore requires 4k mapping for real addresses / prefixing */
+	set_memory_4k(0, LC_PAGES);
+
+	/* lowcore must be executable for LPSWE */
+	if (!static_key_enabled(&cpu_has_bear))
 		set_memory_x(0, 1);
-	}
 
 	pr_info("Write protected kernel read-only data: %luk\n",
 		(unsigned long)(__end_rodata - _stext) >> 10);

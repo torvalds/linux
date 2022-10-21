@@ -22,7 +22,7 @@
  *
  * The total_period is needed because by default auto-freq is used, so
  * multiplying nr_events[PERF_EVENT_SAMPLE] by a frequency isn't possible to get
- * the total number of low level events, it is necessary to to sum all struct
+ * the total number of low level events, it is necessary to sum all struct
  * perf_record_sample.period and stash the result in total_period.
  */
 struct events_stats {
@@ -47,6 +47,7 @@ struct hists_stats {
 	u64 total_non_filtered_period;
 	u32 nr_samples;
 	u32 nr_non_filtered_samples;
+	u32 nr_lost_samples;
 };
 
 void events_stats__inc(struct events_stats *stats, u32 type);

@@ -373,17 +373,16 @@ static int jsa1212_power_off(struct jsa1212_data *data)
 	return ret;
 }
 
-static int jsa1212_remove(struct i2c_client *client)
+static void jsa1212_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct jsa1212_data *data = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 
-	return jsa1212_power_off(data);
+	jsa1212_power_off(data);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int jsa1212_suspend(struct device *dev)
 {
 	struct jsa1212_data *data;
@@ -421,12 +420,8 @@ unlock_and_ret:
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(jsa1212_pm_ops, jsa1212_suspend, jsa1212_resume);
-
-#define JSA1212_PM_OPS (&jsa1212_pm_ops)
-#else
-#define JSA1212_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(jsa1212_pm_ops, jsa1212_suspend,
+				jsa1212_resume);
 
 static const struct acpi_device_id jsa1212_acpi_match[] = {
 	{"JSA1212", 0},
@@ -443,7 +438,7 @@ MODULE_DEVICE_TABLE(i2c, jsa1212_id);
 static struct i2c_driver jsa1212_driver = {
 	.driver = {
 		.name	= JSA1212_DRIVER_NAME,
-		.pm	= JSA1212_PM_OPS,
+		.pm	= pm_sleep_ptr(&jsa1212_pm_ops),
 		.acpi_match_table = ACPI_PTR(jsa1212_acpi_match),
 	},
 	.probe		= jsa1212_probe,

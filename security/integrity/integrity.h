@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/integrity.h>
 #include <crypto/sha1.h>
+#include <crypto/hash.h>
 #include <linux/key.h>
 #include <linux/audit.h>
 
@@ -30,8 +31,8 @@
 #define IMA_HASH		0x00000100
 #define IMA_HASHED		0x00000200
 
-/* iint cache flags */
-#define IMA_ACTION_FLAGS	0xff000000
+/* iint policy rule cache flags */
+#define IMA_NONACTION_FLAGS	0xff000000
 #define IMA_DIGSIG_REQUIRED	0x01000000
 #define IMA_PERMIT_DIRECTIO	0x02000000
 #define IMA_NEW_FILE		0x04000000
@@ -39,6 +40,7 @@
 #define IMA_FAIL_UNVERIFIABLE_SIGS	0x10000000
 #define IMA_MODSIG_ALLOWED	0x20000000
 #define IMA_CHECK_BLACKLIST	0x40000000
+#define IMA_VERITY_REQUIRED	0x80000000
 
 #define IMA_DO_MASK		(IMA_MEASURE | IMA_APPRAISE | IMA_AUDIT | \
 				 IMA_HASH | IMA_APPRAISE_SUBMASK)
@@ -77,6 +79,7 @@ enum evm_ima_xattr_type {
 	EVM_IMA_XATTR_DIGSIG,
 	IMA_XATTR_DIGEST_NG,
 	EVM_XATTR_PORTABLE_DIGSIG,
+	IMA_VERITY_DIGSIG,
 	IMA_XATTR_LAST
 };
 
@@ -91,7 +94,7 @@ struct evm_xattr {
 	u8 digest[SHA1_DIGEST_SIZE];
 } __packed;
 
-#define IMA_MAX_DIGEST_SIZE	64
+#define IMA_MAX_DIGEST_SIZE	HASH_MAX_DIGESTSIZE
 
 struct ima_digest_data {
 	u8 algo;
@@ -111,7 +114,23 @@ struct ima_digest_data {
 } __packed;
 
 /*
- * signature format v2 - for using with asymmetric keys
+ * Instead of wrapping the ima_digest_data struct inside a local structure
+ * with the maximum hash size, define ima_max_digest_data struct.
+ */
+struct ima_max_digest_data {
+	struct ima_digest_data hdr;
+	u8 digest[HASH_MAX_DIGESTSIZE];
+} __packed;
+
+/*
+ * signature header format v2 - for using with asymmetric keys
+ *
+ * The signature_v2_hdr struct includes a signature format version
+ * to simplify defining new signature formats.
+ *
+ * signature format:
+ * version 2: regular file data hash based signature
+ * version 3: struct ima_file_id data based signature
  */
 struct signature_v2_hdr {
 	uint8_t type;		/* xattr type */
@@ -120,6 +139,20 @@ struct signature_v2_hdr {
 	__be32 keyid;		/* IMA key identifier - not X509/PGP specific */
 	__be16 sig_size;	/* signature size */
 	uint8_t sig[];		/* signature payload */
+} __packed;
+
+/*
+ * IMA signature version 3 disambiguates the data that is signed, by
+ * indirectly signing the hash of the ima_file_id structure data,
+ * containing either the fsverity_descriptor struct digest or, in the
+ * future, the regular IMA file hash.
+ *
+ * (The hash of the ima_file_id structure is only of the portion used.)
+ */
+struct ima_file_id {
+	__u8 hash_type;		/* xattr type [enum evm_ima_xattr_type] */
+	__u8 hash_algorithm;	/* Digest algorithm [enum hash_algo] */
+	__u8 hash[HASH_MAX_DIGESTSIZE];
 } __packed;
 
 /* integrity data associated with an inode */
@@ -151,7 +184,8 @@ int integrity_kernel_read(struct file *file, loff_t offset,
 #define INTEGRITY_KEYRING_EVM		0
 #define INTEGRITY_KEYRING_IMA		1
 #define INTEGRITY_KEYRING_PLATFORM	2
-#define INTEGRITY_KEYRING_MAX		3
+#define INTEGRITY_KEYRING_MACHINE	3
+#define INTEGRITY_KEYRING_MAX		4
 
 extern struct dentry *integrity_dir;
 
@@ -281,5 +315,19 @@ void __init add_to_platform_keyring(const char *source, const void *data,
 static inline void __init add_to_platform_keyring(const char *source,
 						  const void *data, size_t len)
 {
+}
+#endif
+
+#ifdef CONFIG_INTEGRITY_MACHINE_KEYRING
+void __init add_to_machine_keyring(const char *source, const void *data, size_t len);
+bool __init trust_moklist(void);
+#else
+static inline void __init add_to_machine_keyring(const char *source,
+						  const void *data, size_t len)
+{
+}
+static inline bool __init trust_moklist(void)
+{
+	return false;
 }
 #endif

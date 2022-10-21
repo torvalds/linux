@@ -333,7 +333,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	net->hard_header_len += sizeof (struct rndis_data_hdr);
 	dev->hard_mtu = net->mtu + net->hard_header_len;
 
-	dev->maxpacket = usb_maxpacket(dev->udev, dev->out, 1);
+	dev->maxpacket = usb_maxpacket(dev->udev, dev->out);
 	if (dev->maxpacket == 0) {
 		netif_dbg(dev, probe, dev->net,
 			  "dev->maxpacket can't be 0\n");
@@ -418,10 +418,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 		goto halt_fail_and_release;
 	}
 
-	if (bp[0] & 0x02)
-		eth_hw_addr_random(net);
-	else
-		eth_hw_addr_set(net, bp);
+	eth_hw_addr_set(net, bp);
 
 	/* set a nonzero filter to enable data transfers */
 	memset(u.set, 0, sizeof *u.set);
@@ -463,6 +460,16 @@ static int rndis_bind(struct usbnet *dev, struct usb_interface *intf)
 	return generic_rndis_bind(dev, intf, FLAG_RNDIS_PHYM_NOT_WIRELESS);
 }
 
+static int zte_rndis_bind(struct usbnet *dev, struct usb_interface *intf)
+{
+	int status = rndis_bind(dev, intf);
+
+	if (!status && (dev->net->dev_addr[0] & 0x02))
+		eth_hw_addr_random(dev->net);
+
+	return status;
+}
+
 void rndis_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct rndis_halt	*halt;
@@ -485,9 +492,13 @@ EXPORT_SYMBOL_GPL(rndis_unbind);
  */
 int rndis_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
+	bool dst_mac_fixup;
+
 	/* This check is no longer done by usbnet */
 	if (skb->len < dev->net->hard_header_len)
 		return 0;
+
+	dst_mac_fixup = !!(dev->driver_info->data & RNDIS_DRIVER_DATA_DST_MAC_FIXUP);
 
 	/* peripheral may have batched packets to us... */
 	while (likely(skb->len)) {
@@ -523,10 +534,17 @@ int rndis_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			break;
 		skb_pull(skb, msg_len - sizeof *hdr);
 		skb_trim(skb2, data_len);
+
+		if (unlikely(dst_mac_fixup))
+			usbnet_cdc_zte_rx_fixup(dev, skb2);
+
 		usbnet_skb_return(dev, skb2);
 	}
 
 	/* caller will usbnet_skb_return the remaining packet */
+	if (unlikely(dst_mac_fixup))
+		usbnet_cdc_zte_rx_fixup(dev, skb);
+
 	return 1;
 }
 EXPORT_SYMBOL_GPL(rndis_rx_fixup);
@@ -600,6 +618,17 @@ static const struct driver_info	rndis_poll_status_info = {
 	.tx_fixup =	rndis_tx_fixup,
 };
 
+static const struct driver_info	zte_rndis_info = {
+	.description =	"ZTE RNDIS device",
+	.flags =	FLAG_ETHER | FLAG_POINTTOPOINT | FLAG_FRAMING_RN | FLAG_NO_SETINT,
+	.data =		RNDIS_DRIVER_DATA_DST_MAC_FIXUP,
+	.bind =		zte_rndis_bind,
+	.unbind =	rndis_unbind,
+	.status =	rndis_status,
+	.rx_fixup =	rndis_rx_fixup,
+	.tx_fixup =	rndis_tx_fixup,
+};
+
 /*-------------------------------------------------------------------------*/
 
 static const struct usb_device_id	products [] = {
@@ -613,6 +642,16 @@ static const struct usb_device_id	products [] = {
 	USB_VENDOR_AND_INTERFACE_INFO(0x238b,
 				      USB_CLASS_COMM, 2 /* ACM */, 0x0ff),
 	.driver_info = (unsigned long)&rndis_info,
+}, {
+	/* ZTE WWAN modules */
+	USB_VENDOR_AND_INTERFACE_INFO(0x19d2,
+				      USB_CLASS_WIRELESS_CONTROLLER, 1, 3),
+	.driver_info = (unsigned long)&zte_rndis_info,
+}, {
+	/* ZTE WWAN modules, ACM flavour */
+	USB_VENDOR_AND_INTERFACE_INFO(0x19d2,
+				      USB_CLASS_COMM, 2 /* ACM */, 0x0ff),
+	.driver_info = (unsigned long)&zte_rndis_info,
 }, {
 	/* RNDIS is MSFT's un-official variant of CDC ACM */
 	USB_INTERFACE_INFO(USB_CLASS_COMM, 2 /* ACM */, 0x0ff),

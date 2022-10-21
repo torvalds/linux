@@ -9,10 +9,13 @@
 #include <linux/pfn_t.h>
 #include <linux/sizes.h>
 
+#include <drm/drm_cache.h>
+
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_requests.h"
 
 #include "i915_drv.h"
+#include "i915_gem_evict.h"
 #include "i915_gem_gtt.h"
 #include "i915_gem_ioctls.h"
 #include "i915_gem_object.h"
@@ -67,7 +70,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	 * mmap ioctl is disallowed for all discrete platforms,
 	 * and for all platforms with GRAPHICS_VER > 12.
 	 */
-	if (IS_DGFX(i915) || GRAPHICS_VER(i915) > 12)
+	if (IS_DGFX(i915) || GRAPHICS_VER_FULL(i915) > IP_VER(12, 0))
 		return -EOPNOTSUPP;
 
 	if (args->flags & ~(I915_MMAP_WC))
@@ -191,17 +194,17 @@ int i915_gem_mmap_gtt_version(void)
 	return 4;
 }
 
-static inline struct i915_ggtt_view
+static inline struct i915_gtt_view
 compute_partial_view(const struct drm_i915_gem_object *obj,
 		     pgoff_t page_offset,
 		     unsigned int chunk)
 {
-	struct i915_ggtt_view view;
+	struct i915_gtt_view view;
 
 	if (i915_gem_object_is_tiled(obj))
 		chunk = roundup(chunk, tile_row_pages(obj) ?: 1);
 
-	view.type = I915_GGTT_VIEW_PARTIAL;
+	view.type = I915_GTT_VIEW_PARTIAL;
 	view.partial.offset = rounddown(page_offset, chunk);
 	view.partial.size =
 		min_t(unsigned int, chunk,
@@ -209,7 +212,7 @@ compute_partial_view(const struct drm_i915_gem_object *obj,
 
 	/* If the partial covers the entire object, just create a normal VMA. */
 	if (chunk >= obj->base.size >> PAGE_SHIFT)
-		view.type = I915_GGTT_VIEW_NORMAL;
+		view.type = I915_GTT_VIEW_NORMAL;
 
 	return view;
 }
@@ -295,7 +298,7 @@ static vm_fault_t vm_fault_gtt(struct vm_fault *vmf)
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *i915 = to_i915(dev);
 	struct intel_runtime_pm *rpm = &i915->runtime_pm;
-	struct i915_ggtt *ggtt = &i915->ggtt;
+	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 	bool write = area->vm_flags & VM_WRITE;
 	struct i915_gem_ww_ctx ww;
 	intel_wakeref_t wakeref;
@@ -338,12 +341,12 @@ retry:
 					  PIN_NOEVICT);
 	if (IS_ERR(vma) && vma != ERR_PTR(-EDEADLK)) {
 		/* Use a partial view if it is bigger than available space */
-		struct i915_ggtt_view view =
+		struct i915_gtt_view view =
 			compute_partial_view(obj, page_offset, MIN_CHUNK_PAGES);
 		unsigned int flags;
 
 		flags = PIN_MAPPABLE | PIN_NOSEARCH;
-		if (view.type == I915_GGTT_VIEW_NORMAL)
+		if (view.type == I915_GTT_VIEW_NORMAL)
 			flags |= PIN_NONBLOCK; /* avoid warnings for pinned */
 
 		/*
@@ -354,12 +357,25 @@ retry:
 		vma = i915_gem_object_ggtt_pin_ww(obj, &ww, &view, 0, 0, flags);
 		if (IS_ERR(vma) && vma != ERR_PTR(-EDEADLK)) {
 			flags = PIN_MAPPABLE;
-			view.type = I915_GGTT_VIEW_PARTIAL;
+			view.type = I915_GTT_VIEW_PARTIAL;
 			vma = i915_gem_object_ggtt_pin_ww(obj, &ww, &view, 0, 0, flags);
 		}
 
-		/* The entire mappable GGTT is pinned? Unexpected! */
-		GEM_BUG_ON(vma == ERR_PTR(-ENOSPC));
+		/*
+		 * The entire mappable GGTT is pinned? Unexpected!
+		 * Try to evict the object we locked too, as normally we skip it
+		 * due to lack of short term pinning inside execbuf.
+		 */
+		if (vma == ERR_PTR(-ENOSPC)) {
+			ret = mutex_lock_interruptible(&ggtt->vm.mutex);
+			if (!ret) {
+				ret = i915_gem_evict_vm(&ggtt->vm, &ww);
+				mutex_unlock(&ggtt->vm.mutex);
+			}
+			if (ret)
+				goto err_reset;
+			vma = i915_gem_object_ggtt_pin_ww(obj, &ww, &view, 0, 0, flags);
+		}
 	}
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
@@ -378,7 +394,7 @@ retry:
 
 	/* Finally, remap it using the new GTT offset */
 	ret = remap_io_mapping(area,
-			       area->vm_start + (vma->ggtt_view.partial.offset << PAGE_SHIFT),
+			       area->vm_start + (vma->gtt_view.partial.offset << PAGE_SHIFT),
 			       (ggtt->gmadr.start + vma->node.start) >> PAGE_SHIFT,
 			       min_t(u64, vma->size, area->vm_end - area->vm_start),
 			       &ggtt->iomap);
@@ -388,16 +404,16 @@ retry:
 	assert_rpm_wakelock_held(rpm);
 
 	/* Mark as being mmapped into userspace for later revocation */
-	mutex_lock(&i915->ggtt.vm.mutex);
+	mutex_lock(&to_gt(i915)->ggtt->vm.mutex);
 	if (!i915_vma_set_userfault(vma) && !obj->userfault_count++)
-		list_add(&obj->userfault_link, &i915->ggtt.userfault_list);
-	mutex_unlock(&i915->ggtt.vm.mutex);
+		list_add(&obj->userfault_link, &to_gt(i915)->ggtt->userfault_list);
+	mutex_unlock(&to_gt(i915)->ggtt->vm.mutex);
 
 	/* Track the mmo associated with the fenced vma */
 	vma->mmo = mmo;
 
 	if (CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND)
-		intel_wakeref_auto(&i915->ggtt.userfault_wakeref,
+		intel_wakeref_auto(&to_gt(i915)->userfault_wakeref,
 				   msecs_to_jiffies_timeout(CONFIG_DRM_I915_USERFAULT_AUTOSUSPEND));
 
 	if (write) {
@@ -439,7 +455,7 @@ vm_access(struct vm_area_struct *area, unsigned long addr,
 		return -EACCES;
 
 	addr -= area->vm_start;
-	if (addr >= obj->base.size)
+	if (range_overflows_t(u64, addr, len, obj->base.size))
 		return -EINVAL;
 
 	i915_gem_ww_ctx_init(&ww, true);
@@ -512,7 +528,7 @@ void i915_gem_object_release_mmap_gtt(struct drm_i915_gem_object *obj)
 	 * wakeref.
 	 */
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-	mutex_lock(&i915->ggtt.vm.mutex);
+	mutex_lock(&to_gt(i915)->ggtt->vm.mutex);
 
 	if (!obj->userfault_count)
 		goto out;
@@ -530,8 +546,22 @@ void i915_gem_object_release_mmap_gtt(struct drm_i915_gem_object *obj)
 	wmb();
 
 out:
-	mutex_unlock(&i915->ggtt.vm.mutex);
+	mutex_unlock(&to_gt(i915)->ggtt->vm.mutex);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+}
+
+void i915_gem_object_runtime_pm_release_mmap_offset(struct drm_i915_gem_object *obj)
+{
+	struct ttm_buffer_object *bo = i915_gem_to_ttm(obj);
+	struct ttm_device *bdev = bo->bdev;
+
+	drm_vma_node_unmap(&bo->base.vma_node, bdev->dev_mapping);
+
+	if (obj->userfault_count) {
+		/* rpm wakeref provide exclusive access */
+		list_del(&obj->userfault_link);
+		obj->userfault_count = 0;
+	}
 }
 
 void i915_gem_object_release_mmap_offset(struct drm_i915_gem_object *obj)
@@ -557,6 +587,13 @@ void i915_gem_object_release_mmap_offset(struct drm_i915_gem_object *obj)
 		spin_lock(&obj->mmo.lock);
 	}
 	spin_unlock(&obj->mmo.lock);
+
+	if (obj->userfault_count) {
+		mutex_lock(&to_gt(to_i915(obj->base.dev))->lmem_userfault_lock);
+		list_del(&obj->userfault_link);
+		mutex_unlock(&to_gt(to_i915(obj->base.dev))->lmem_userfault_lock);
+		obj->userfault_count = 0;
+	}
 }
 
 static struct i915_mmap_offset *
@@ -736,13 +773,14 @@ i915_gem_dumb_mmap_offset(struct drm_file *file,
 			  u32 handle,
 			  u64 *offset)
 {
+	struct drm_i915_private *i915 = to_i915(dev);
 	enum i915_mmap_type mmap_type;
 
 	if (HAS_LMEM(to_i915(dev)))
 		mmap_type = I915_MMAP_TYPE_FIXED;
 	else if (pat_enabled())
 		mmap_type = I915_MMAP_TYPE_WC;
-	else if (!i915_ggtt_has_aperture(&to_i915(dev)->ggtt))
+	else if (!i915_ggtt_has_aperture(to_gt(i915)->ggtt))
 		return -ENODEV;
 	else
 		mmap_type = I915_MMAP_TYPE_GTT;
@@ -790,7 +828,7 @@ i915_gem_mmap_offset_ioctl(struct drm_device *dev, void *data,
 
 	switch (args->flags) {
 	case I915_MMAP_OFFSET_GTT:
-		if (!i915_ggtt_has_aperture(&i915->ggtt))
+		if (!i915_ggtt_has_aperture(to_gt(i915)->ggtt))
 			return -ENODEV;
 		type = I915_MMAP_TYPE_GTT;
 		break;

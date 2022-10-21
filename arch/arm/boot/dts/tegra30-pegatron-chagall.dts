@@ -1103,6 +1103,7 @@
 
 	uartb: serial@70006040 {
 		compatible = "nvidia,tegra30-hsuart";
+		/delete-property/ reg-shift;
 		status = "okay";
 
 		/* Broadcom GPS BCM47511 */
@@ -1110,6 +1111,7 @@
 
 	uartc: serial@70006200 {
 		compatible = "nvidia,tegra30-hsuart";
+		/delete-property/ reg-shift;
 		status = "okay";
 
 		nvidia,adjust-baud-rates = <0 9600 100>,
@@ -2653,7 +2655,7 @@
 		compatible = "gpio-keys";
 		interrupt-parent = <&gpio>;
 
-		dock-insert {
+		switch-dock-insert {
 			label = "Chagall Dock";
 			gpios = <&gpio TEGRA_GPIO(S, 4) GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
@@ -2663,7 +2665,7 @@
 			wakeup-source;
 		};
 
-		lineout-detect {
+		switch-lineout-detect {
 			label = "Audio dock line-out detect";
 			gpios = <&gpio TEGRA_GPIO(S, 3) GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
@@ -2686,7 +2688,7 @@
 		compatible = "gpio-keys";
 		interrupt-parent = <&gpio>;
 
-		power {
+		key-power {
 			label = "Power";
 			gpios = <&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
@@ -2695,7 +2697,7 @@
 			wakeup-source;
 		};
 
-		volume-up {
+		key-volume-up {
 			label = "Volume Up";
 			gpios = <&gpio TEGRA_GPIO(Q, 0) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
@@ -2704,7 +2706,7 @@
 			wakeup-source;
 		};
 
-		volume-down {
+		key-volume-down {
 			label = "Volume Down";
 			gpios = <&gpio TEGRA_GPIO(Q, 1) GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;

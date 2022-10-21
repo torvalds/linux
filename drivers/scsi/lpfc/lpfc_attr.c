@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -922,25 +922,6 @@ lpfc_programtype_show(struct device *dev, struct device_attribute *attr,
 }
 
 /**
- * lpfc_mlomgmt_show - Return the Menlo Maintenance sli flag
- * @dev: class converted to a Scsi_host structure.
- * @attr: device attribute, not used.
- * @buf: on return contains the Menlo Maintenance sli flag.
- *
- * Returns: size of formatted string.
- **/
-static ssize_t
-lpfc_mlomgmt_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-
-	return scnprintf(buf, PAGE_SIZE, "%d\n",
-		(phba->sli.sli_flag & LPFC_MENLO_MAINT));
-}
-
-/**
  * lpfc_vportnum_show - Return the port number in ascii of the hba
  * @dev: class converted to a Scsi_host structure.
  * @attr: device attribute, not used.
@@ -1109,10 +1090,7 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 					"Unknown\n");
 			break;
 		}
-		if (phba->sli.sli_flag & LPFC_MENLO_MAINT)
-			len += scnprintf(buf + len, PAGE_SIZE-len,
-					"   Menlo Maint Mode\n");
-		else if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
+		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 			if (vport->fc_flag & FC_PUBLIC_LOOP)
 				len += scnprintf(buf + len, PAGE_SIZE-len,
 						"   Public Loop\n");
@@ -1120,12 +1098,22 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 				len += scnprintf(buf + len, PAGE_SIZE-len,
 						"   Private Loop\n");
 		} else {
-			if (vport->fc_flag & FC_FABRIC)
-				len += scnprintf(buf + len, PAGE_SIZE-len,
-						"   Fabric\n");
-			else
+			if (vport->fc_flag & FC_FABRIC) {
+				if (phba->sli_rev == LPFC_SLI_REV4 &&
+				    vport->port_type == LPFC_PHYSICAL_PORT &&
+				    phba->sli4_hba.fawwpn_flag &
+					LPFC_FAWWPN_FABRIC)
+					len += scnprintf(buf + len,
+							 PAGE_SIZE - len,
+							 "   Fabric FA-PWWN\n");
+				else
+					len += scnprintf(buf + len,
+							 PAGE_SIZE - len,
+							 "   Fabric\n");
+			} else {
 				len += scnprintf(buf + len, PAGE_SIZE-len,
 						"   Point-2-Point\n");
+			}
 		}
 	}
 
@@ -1314,6 +1302,9 @@ lpfc_issue_lip(struct Scsi_Host *shost)
 	memset((void *)pmboxq, 0, sizeof (LPFC_MBOXQ_t));
 	pmboxq->u.mb.mbxCommand = MBX_DOWN_LINK;
 	pmboxq->u.mb.mbxOwner = OWN_HOST;
+
+	if ((vport->fc_flag & FC_PT2PT) && (vport->fc_flag & FC_PT2PT_NO_NVME))
+		vport->fc_flag &= ~FC_PT2PT_NO_NVME;
 
 	mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq, LPFC_MBOX_TMO * 2);
 
@@ -2814,7 +2805,6 @@ static DEVICE_ATTR(option_rom_version, S_IRUGO,
 		   lpfc_option_rom_version_show, NULL);
 static DEVICE_ATTR(num_discovered_ports, S_IRUGO,
 		   lpfc_num_discovered_ports_show, NULL);
-static DEVICE_ATTR(menlo_mgmt_mode, S_IRUGO, lpfc_mlomgmt_show, NULL);
 static DEVICE_ATTR(nport_evt_cnt, S_IRUGO, lpfc_nport_evt_cnt_show, NULL);
 static DEVICE_ATTR_RO(lpfc_drvr_version);
 static DEVICE_ATTR_RO(lpfc_enable_fip);
@@ -2835,7 +2825,6 @@ static DEVICE_ATTR(lpfc_xlane_supported, S_IRUGO, lpfc_oas_supported_show,
 		   NULL);
 static DEVICE_ATTR(cmf_info, 0444, lpfc_cmf_info_show, NULL);
 
-static char *lpfc_soft_wwn_key = "C99G71SL8032A";
 #define WWN_SZ 8
 /**
  * lpfc_wwn_set - Convert string to the 8 byte WWN value.
@@ -2879,229 +2868,7 @@ lpfc_wwn_set(const char *buf, size_t cnt, char wwn[])
 	}
 	return 0;
 }
-/**
- * lpfc_soft_wwn_enable_store - Allows setting of the wwn if the key is valid
- * @dev: class device that is converted into a Scsi_host.
- * @attr: device attribute, not used.
- * @buf: containing the string lpfc_soft_wwn_key.
- * @count: must be size of lpfc_soft_wwn_key.
- *
- * Returns:
- * -EINVAL if the buffer does not contain lpfc_soft_wwn_key
- * length of buf indicates success
- **/
-static ssize_t
-lpfc_soft_wwn_enable_store(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-	unsigned int cnt = count;
-	uint8_t vvvl = vport->fc_sparam.cmn.valid_vendor_ver_level;
-	u32 *fawwpn_key = (uint32_t *)&vport->fc_sparam.un.vendorVersion[0];
 
-	/*
-	 * We're doing a simple sanity check for soft_wwpn setting.
-	 * We require that the user write a specific key to enable
-	 * the soft_wwpn attribute to be settable. Once the attribute
-	 * is written, the enable key resets. If further updates are
-	 * desired, the key must be written again to re-enable the
-	 * attribute.
-	 *
-	 * The "key" is not secret - it is a hardcoded string shown
-	 * here. The intent is to protect against the random user or
-	 * application that is just writing attributes.
-	 */
-	if (vvvl == 1 && cpu_to_be32(*fawwpn_key) == FAPWWN_KEY_VENDOR) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0051 lpfc soft wwpn can not be enabled: "
-				"fawwpn is enabled\n");
-		return -EINVAL;
-	}
-
-	/* count may include a LF at end of string */
-	if (buf[cnt-1] == '\n')
-		cnt--;
-
-	if ((cnt != strlen(lpfc_soft_wwn_key)) ||
-	    (strncmp(buf, lpfc_soft_wwn_key, strlen(lpfc_soft_wwn_key)) != 0))
-		return -EINVAL;
-
-	phba->soft_wwn_enable = 1;
-
-	dev_printk(KERN_WARNING, &phba->pcidev->dev,
-		   "lpfc%d: soft_wwpn assignment has been enabled.\n",
-		   phba->brd_no);
-	dev_printk(KERN_WARNING, &phba->pcidev->dev,
-		   "  The soft_wwpn feature is not supported by Broadcom.");
-
-	return count;
-}
-static DEVICE_ATTR_WO(lpfc_soft_wwn_enable);
-
-/**
- * lpfc_soft_wwpn_show - Return the cfg soft ww port name of the adapter
- * @dev: class device that is converted into a Scsi_host.
- * @attr: device attribute, not used.
- * @buf: on return contains the wwpn in hexadecimal.
- *
- * Returns: size of formatted string.
- **/
-static ssize_t
-lpfc_soft_wwpn_show(struct device *dev, struct device_attribute *attr,
-		    char *buf)
-{
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-
-	return scnprintf(buf, PAGE_SIZE, "0x%llx\n",
-			(unsigned long long)phba->cfg_soft_wwpn);
-}
-
-/**
- * lpfc_soft_wwpn_store - Set the ww port name of the adapter
- * @dev: class device that is converted into a Scsi_host.
- * @attr: device attribute, not used.
- * @buf: contains the wwpn in hexadecimal.
- * @count: number of wwpn bytes in buf
- *
- * Returns:
- * -EACCES hba reset not enabled, adapter over temp
- * -EINVAL soft wwn not enabled, count is invalid, invalid wwpn byte invalid
- * -EIO error taking adapter offline or online
- * value of count on success
- **/
-static ssize_t
-lpfc_soft_wwpn_store(struct device *dev, struct device_attribute *attr,
-		     const char *buf, size_t count)
-{
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-	struct completion online_compl;
-	int stat1 = 0, stat2 = 0;
-	unsigned int cnt = count;
-	u8 wwpn[WWN_SZ];
-	int rc;
-
-	if (!phba->cfg_enable_hba_reset)
-		return -EACCES;
-	spin_lock_irq(&phba->hbalock);
-	if (phba->over_temp_state == HBA_OVER_TEMP) {
-		spin_unlock_irq(&phba->hbalock);
-		return -EACCES;
-	}
-	spin_unlock_irq(&phba->hbalock);
-	/* count may include a LF at end of string */
-	if (buf[cnt-1] == '\n')
-		cnt--;
-
-	if (!phba->soft_wwn_enable)
-		return -EINVAL;
-
-	/* lock setting wwpn, wwnn down */
-	phba->soft_wwn_enable = 0;
-
-	rc = lpfc_wwn_set(buf, cnt, wwpn);
-	if (rc) {
-		/* not able to set wwpn, unlock it */
-		phba->soft_wwn_enable = 1;
-		return rc;
-	}
-
-	phba->cfg_soft_wwpn = wwn_to_u64(wwpn);
-	fc_host_port_name(shost) = phba->cfg_soft_wwpn;
-	if (phba->cfg_soft_wwnn)
-		fc_host_node_name(shost) = phba->cfg_soft_wwnn;
-
-	dev_printk(KERN_NOTICE, &phba->pcidev->dev,
-		   "lpfc%d: Reinitializing to use soft_wwpn\n", phba->brd_no);
-
-	stat1 = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
-	if (stat1)
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0463 lpfc_soft_wwpn attribute set failed to "
-				"reinit adapter - %d\n", stat1);
-	init_completion(&online_compl);
-	rc = lpfc_workq_post_event(phba, &stat2, &online_compl,
-				   LPFC_EVT_ONLINE);
-	if (rc == 0)
-		return -ENOMEM;
-
-	wait_for_completion(&online_compl);
-	if (stat2)
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0464 lpfc_soft_wwpn attribute set failed to "
-				"reinit adapter - %d\n", stat2);
-	return (stat1 || stat2) ? -EIO : count;
-}
-static DEVICE_ATTR_RW(lpfc_soft_wwpn);
-
-/**
- * lpfc_soft_wwnn_show - Return the cfg soft ww node name for the adapter
- * @dev: class device that is converted into a Scsi_host.
- * @attr: device attribute, not used.
- * @buf: on return contains the wwnn in hexadecimal.
- *
- * Returns: size of formatted string.
- **/
-static ssize_t
-lpfc_soft_wwnn_show(struct device *dev, struct device_attribute *attr,
-		    char *buf)
-{
-	struct Scsi_Host *shost = class_to_shost(dev);
-	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
-	return scnprintf(buf, PAGE_SIZE, "0x%llx\n",
-			(unsigned long long)phba->cfg_soft_wwnn);
-}
-
-/**
- * lpfc_soft_wwnn_store - sets the ww node name of the adapter
- * @dev: class device that is converted into a Scsi_host.
- * @attr: device attribute, not used.
- * @buf: contains the ww node name in hexadecimal.
- * @count: number of wwnn bytes in buf.
- *
- * Returns:
- * -EINVAL soft wwn not enabled, count is invalid, invalid wwnn byte invalid
- * value of count on success
- **/
-static ssize_t
-lpfc_soft_wwnn_store(struct device *dev, struct device_attribute *attr,
-		     const char *buf, size_t count)
-{
-	struct Scsi_Host *shost = class_to_shost(dev);
-	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
-	unsigned int cnt = count;
-	u8 wwnn[WWN_SZ];
-	int rc;
-
-	/* count may include a LF at end of string */
-	if (buf[cnt-1] == '\n')
-		cnt--;
-
-	if (!phba->soft_wwn_enable)
-		return -EINVAL;
-
-	rc = lpfc_wwn_set(buf, cnt, wwnn);
-	if (rc) {
-		/* Allow wwnn to be set many times, as long as the enable
-		 * is set. However, once the wwpn is set, everything locks.
-		 */
-		return rc;
-	}
-
-	phba->cfg_soft_wwnn = wwn_to_u64(wwnn);
-
-	dev_printk(KERN_NOTICE, &phba->pcidev->dev,
-		   "lpfc%d: soft_wwnn set. Value will take effect upon "
-		   "setting of the soft_wwpn\n", phba->brd_no);
-
-	return count;
-}
-static DEVICE_ATTR_RW(lpfc_soft_wwnn);
 
 /**
  * lpfc_oas_tgt_show - Return wwpn of target whose luns maybe enabled for
@@ -3978,8 +3745,8 @@ LPFC_ATTR_R(nvmet_mrq_post,
  *                    3 - register both FCP and NVME
  * Supported values are [1,3]. Default value is 3
  */
-LPFC_ATTR_R(enable_fc4_type, LPFC_ENABLE_BOTH,
-	    LPFC_ENABLE_FCP, LPFC_ENABLE_BOTH,
+LPFC_ATTR_R(enable_fc4_type, LPFC_DEF_ENBL_FC4_TYPE,
+	    LPFC_ENABLE_FCP, LPFC_MAX_ENBL_FC4_TYPE,
 	    "Enable FC4 Protocol support - FCP / NVME");
 
 /*
@@ -4325,333 +4092,6 @@ lpfc_static_vport_show(struct device *dev, struct device_attribute *attr,
  * Sysfs attribute to control the statistical data collection.
  */
 static DEVICE_ATTR_RO(lpfc_static_vport);
-
-/**
- * lpfc_stat_data_ctrl_store - write call back for lpfc_stat_data_ctrl sysfs file
- * @dev: Pointer to class device.
- * @attr: Unused.
- * @buf: Data buffer.
- * @count: Size of the data buffer.
- *
- * This function get called when a user write to the lpfc_stat_data_ctrl
- * sysfs file. This function parse the command written to the sysfs file
- * and take appropriate action. These commands are used for controlling
- * driver statistical data collection.
- * Following are the command this function handles.
- *
- *    setbucket <bucket_type> <base> <step>
- *			       = Set the latency buckets.
- *    destroybucket            = destroy all the buckets.
- *    start                    = start data collection
- *    stop                     = stop data collection
- *    reset                    = reset the collected data
- **/
-static ssize_t
-lpfc_stat_data_ctrl_store(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
-{
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-#define LPFC_MAX_DATA_CTRL_LEN 1024
-	static char bucket_data[LPFC_MAX_DATA_CTRL_LEN];
-	unsigned long i;
-	char *str_ptr, *token;
-	struct lpfc_vport **vports;
-	struct Scsi_Host *v_shost;
-	char *bucket_type_str, *base_str, *step_str;
-	unsigned long base, step, bucket_type;
-
-	if (!strncmp(buf, "setbucket", strlen("setbucket"))) {
-		if (strlen(buf) > (LPFC_MAX_DATA_CTRL_LEN - 1))
-			return -EINVAL;
-
-		strncpy(bucket_data, buf, LPFC_MAX_DATA_CTRL_LEN);
-		str_ptr = &bucket_data[0];
-		/* Ignore this token - this is command token */
-		token = strsep(&str_ptr, "\t ");
-		if (!token)
-			return -EINVAL;
-
-		bucket_type_str = strsep(&str_ptr, "\t ");
-		if (!bucket_type_str)
-			return -EINVAL;
-
-		if (!strncmp(bucket_type_str, "linear", strlen("linear")))
-			bucket_type = LPFC_LINEAR_BUCKET;
-		else if (!strncmp(bucket_type_str, "power2", strlen("power2")))
-			bucket_type = LPFC_POWER2_BUCKET;
-		else
-			return -EINVAL;
-
-		base_str = strsep(&str_ptr, "\t ");
-		if (!base_str)
-			return -EINVAL;
-		base = simple_strtoul(base_str, NULL, 0);
-
-		step_str = strsep(&str_ptr, "\t ");
-		if (!step_str)
-			return -EINVAL;
-		step = simple_strtoul(step_str, NULL, 0);
-		if (!step)
-			return -EINVAL;
-
-		/* Block the data collection for every vport */
-		vports = lpfc_create_vport_work_array(phba);
-		if (vports == NULL)
-			return -ENOMEM;
-
-		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			v_shost = lpfc_shost_from_vport(vports[i]);
-			spin_lock_irq(v_shost->host_lock);
-			/* Block and reset data collection */
-			vports[i]->stat_data_blocked = 1;
-			if (vports[i]->stat_data_enabled)
-				lpfc_vport_reset_stat_data(vports[i]);
-			spin_unlock_irq(v_shost->host_lock);
-		}
-
-		/* Set the bucket attributes */
-		phba->bucket_type = bucket_type;
-		phba->bucket_base = base;
-		phba->bucket_step = step;
-
-		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			v_shost = lpfc_shost_from_vport(vports[i]);
-
-			/* Unblock data collection */
-			spin_lock_irq(v_shost->host_lock);
-			vports[i]->stat_data_blocked = 0;
-			spin_unlock_irq(v_shost->host_lock);
-		}
-		lpfc_destroy_vport_work_array(phba, vports);
-		return strlen(buf);
-	}
-
-	if (!strncmp(buf, "destroybucket", strlen("destroybucket"))) {
-		vports = lpfc_create_vport_work_array(phba);
-		if (vports == NULL)
-			return -ENOMEM;
-
-		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			v_shost = lpfc_shost_from_vport(vports[i]);
-			spin_lock_irq(shost->host_lock);
-			vports[i]->stat_data_blocked = 1;
-			lpfc_free_bucket(vport);
-			vport->stat_data_enabled = 0;
-			vports[i]->stat_data_blocked = 0;
-			spin_unlock_irq(shost->host_lock);
-		}
-		lpfc_destroy_vport_work_array(phba, vports);
-		phba->bucket_type = LPFC_NO_BUCKET;
-		phba->bucket_base = 0;
-		phba->bucket_step = 0;
-		return strlen(buf);
-	}
-
-	if (!strncmp(buf, "start", strlen("start"))) {
-		/* If no buckets configured return error */
-		if (phba->bucket_type == LPFC_NO_BUCKET)
-			return -EINVAL;
-		spin_lock_irq(shost->host_lock);
-		if (vport->stat_data_enabled) {
-			spin_unlock_irq(shost->host_lock);
-			return strlen(buf);
-		}
-		lpfc_alloc_bucket(vport);
-		vport->stat_data_enabled = 1;
-		spin_unlock_irq(shost->host_lock);
-		return strlen(buf);
-	}
-
-	if (!strncmp(buf, "stop", strlen("stop"))) {
-		spin_lock_irq(shost->host_lock);
-		if (vport->stat_data_enabled == 0) {
-			spin_unlock_irq(shost->host_lock);
-			return strlen(buf);
-		}
-		lpfc_free_bucket(vport);
-		vport->stat_data_enabled = 0;
-		spin_unlock_irq(shost->host_lock);
-		return strlen(buf);
-	}
-
-	if (!strncmp(buf, "reset", strlen("reset"))) {
-		if ((phba->bucket_type == LPFC_NO_BUCKET)
-			|| !vport->stat_data_enabled)
-			return strlen(buf);
-		spin_lock_irq(shost->host_lock);
-		vport->stat_data_blocked = 1;
-		lpfc_vport_reset_stat_data(vport);
-		vport->stat_data_blocked = 0;
-		spin_unlock_irq(shost->host_lock);
-		return strlen(buf);
-	}
-	return -EINVAL;
-}
-
-
-/**
- * lpfc_stat_data_ctrl_show - Read function for lpfc_stat_data_ctrl sysfs file
- * @dev: Pointer to class device.
- * @attr: Unused.
- * @buf: Data buffer.
- *
- * This function is the read call back function for
- * lpfc_stat_data_ctrl sysfs file. This function report the
- * current statistical data collection state.
- **/
-static ssize_t
-lpfc_stat_data_ctrl_show(struct device *dev, struct device_attribute *attr,
-			 char *buf)
-{
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-	int index = 0;
-	int i;
-	char *bucket_type;
-	unsigned long bucket_value;
-
-	switch (phba->bucket_type) {
-	case LPFC_LINEAR_BUCKET:
-		bucket_type = "linear";
-		break;
-	case LPFC_POWER2_BUCKET:
-		bucket_type = "power2";
-		break;
-	default:
-		bucket_type = "No Bucket";
-		break;
-	}
-
-	sprintf(&buf[index], "Statistical Data enabled :%d, "
-		"blocked :%d, Bucket type :%s, Bucket base :%d,"
-		" Bucket step :%d\nLatency Ranges :",
-		vport->stat_data_enabled, vport->stat_data_blocked,
-		bucket_type, phba->bucket_base, phba->bucket_step);
-	index = strlen(buf);
-	if (phba->bucket_type != LPFC_NO_BUCKET) {
-		for (i = 0; i < LPFC_MAX_BUCKET_COUNT; i++) {
-			if (phba->bucket_type == LPFC_LINEAR_BUCKET)
-				bucket_value = phba->bucket_base +
-					phba->bucket_step * i;
-			else
-				bucket_value = phba->bucket_base +
-				(1 << i) * phba->bucket_step;
-
-			if (index + 10 > PAGE_SIZE)
-				break;
-			sprintf(&buf[index], "%08ld ", bucket_value);
-			index = strlen(buf);
-		}
-	}
-	sprintf(&buf[index], "\n");
-	return strlen(buf);
-}
-
-/*
- * Sysfs attribute to control the statistical data collection.
- */
-static DEVICE_ATTR_RW(lpfc_stat_data_ctrl);
-
-/*
- * lpfc_drvr_stat_data: sysfs attr to get driver statistical data.
- */
-
-/*
- * Each Bucket takes 11 characters and 1 new line + 17 bytes WWN
- * for each target.
- */
-#define STAT_DATA_SIZE_PER_TARGET(NUM_BUCKETS) ((NUM_BUCKETS) * 11 + 18)
-#define MAX_STAT_DATA_SIZE_PER_TARGET \
-	STAT_DATA_SIZE_PER_TARGET(LPFC_MAX_BUCKET_COUNT)
-
-
-/**
- * sysfs_drvr_stat_data_read - Read function for lpfc_drvr_stat_data attribute
- * @filp: sysfs file
- * @kobj: Pointer to the kernel object
- * @bin_attr: Attribute object
- * @buf: Buffer pointer
- * @off: File offset
- * @count: Buffer size
- *
- * This function is the read call back function for lpfc_drvr_stat_data
- * sysfs file. This function export the statistical data to user
- * applications.
- **/
-static ssize_t
-sysfs_drvr_stat_data_read(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *bin_attr,
-		char *buf, loff_t off, size_t count)
-{
-	struct device *dev = container_of(kobj, struct device,
-		kobj);
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-	int i = 0, index = 0;
-	unsigned long nport_index;
-	struct lpfc_nodelist *ndlp = NULL;
-	nport_index = (unsigned long)off /
-		MAX_STAT_DATA_SIZE_PER_TARGET;
-
-	if (!vport->stat_data_enabled || vport->stat_data_blocked
-		|| (phba->bucket_type == LPFC_NO_BUCKET))
-		return 0;
-
-	spin_lock_irq(shost->host_lock);
-	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!ndlp->lat_data)
-			continue;
-
-		if (nport_index > 0) {
-			nport_index--;
-			continue;
-		}
-
-		if ((index + MAX_STAT_DATA_SIZE_PER_TARGET)
-			> count)
-			break;
-
-		if (!ndlp->lat_data)
-			continue;
-
-		/* Print the WWN */
-		sprintf(&buf[index], "%02x%02x%02x%02x%02x%02x%02x%02x:",
-			ndlp->nlp_portname.u.wwn[0],
-			ndlp->nlp_portname.u.wwn[1],
-			ndlp->nlp_portname.u.wwn[2],
-			ndlp->nlp_portname.u.wwn[3],
-			ndlp->nlp_portname.u.wwn[4],
-			ndlp->nlp_portname.u.wwn[5],
-			ndlp->nlp_portname.u.wwn[6],
-			ndlp->nlp_portname.u.wwn[7]);
-
-		index = strlen(buf);
-
-		for (i = 0; i < LPFC_MAX_BUCKET_COUNT; i++) {
-			sprintf(&buf[index], "%010u,",
-				ndlp->lat_data[i].cmd_count);
-			index = strlen(buf);
-		}
-		sprintf(&buf[index], "\n");
-		index = strlen(buf);
-	}
-	spin_unlock_irq(shost->host_lock);
-	return index;
-}
-
-static struct bin_attribute sysfs_drvr_stat_data_attr = {
-	.attr = {
-		.name = "lpfc_drvr_stat_data",
-		.mode = S_IRUSR,
-	},
-	.size = LPFC_MAX_TARGET * MAX_STAT_DATA_SIZE_PER_TARGET,
-	.read = sysfs_drvr_stat_data_read,
-	.write = NULL,
-};
 
 /*
 # lpfc_link_speed: Link speed selection for initializing the Fibre Channel
@@ -6430,7 +5870,6 @@ static struct attribute *lpfc_hba_attrs[] = {
 	&dev_attr_option_rom_version.attr,
 	&dev_attr_link_state.attr,
 	&dev_attr_num_discovered_ports.attr,
-	&dev_attr_menlo_mgmt_mode.attr,
 	&dev_attr_lpfc_drvr_version.attr,
 	&dev_attr_lpfc_enable_fip.attr,
 	&dev_attr_lpfc_temp_sensor.attr,
@@ -6495,9 +5934,6 @@ static struct attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_nvme_enable_fb.attr,
 	&dev_attr_lpfc_nvmet_fb_size.attr,
 	&dev_attr_lpfc_enable_bg.attr,
-	&dev_attr_lpfc_soft_wwnn.attr,
-	&dev_attr_lpfc_soft_wwpn.attr,
-	&dev_attr_lpfc_soft_wwn_enable.attr,
 	&dev_attr_lpfc_enable_hba_reset.attr,
 	&dev_attr_lpfc_enable_hba_heartbeat.attr,
 	&dev_attr_lpfc_EnableXLane.attr,
@@ -6510,7 +5946,6 @@ static struct attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_xlane_priority.attr,
 	&dev_attr_lpfc_sg_seg_cnt.attr,
 	&dev_attr_lpfc_max_scsicmpl_time.attr,
-	&dev_attr_lpfc_stat_data_ctrl.attr,
 	&dev_attr_lpfc_aer_support.attr,
 	&dev_attr_lpfc_aer_state_cleanup.attr,
 	&dev_attr_lpfc_sriov_nr_virtfn.attr,
@@ -6569,7 +6004,6 @@ static struct attribute *lpfc_vport_attrs[] = {
 	&dev_attr_npiv_info.attr,
 	&dev_attr_lpfc_enable_da_id.attr,
 	&dev_attr_lpfc_max_scsicmpl_time.attr,
-	&dev_attr_lpfc_stat_data_ctrl.attr,
 	&dev_attr_lpfc_static_vport.attr,
 	&dev_attr_cmf_info.attr,
 	NULL,
@@ -6782,17 +6216,14 @@ lpfc_alloc_sysfs_attr(struct lpfc_vport *vport)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	int error;
 
-	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
-				      &sysfs_drvr_stat_data_attr);
-
 	/* Virtual ports do not need ctrl_reg and mbox */
-	if (error || vport->port_type == LPFC_NPIV_PORT)
-		goto out;
+	if (vport->port_type == LPFC_NPIV_PORT)
+		return 0;
 
 	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
 				      &sysfs_ctlreg_attr);
 	if (error)
-		goto out_remove_stat_attr;
+		goto out;
 
 	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
 				      &sysfs_mbox_attr);
@@ -6802,9 +6233,6 @@ lpfc_alloc_sysfs_attr(struct lpfc_vport *vport)
 	return 0;
 out_remove_ctlreg_attr:
 	sysfs_remove_bin_file(&shost->shost_dev.kobj, &sysfs_ctlreg_attr);
-out_remove_stat_attr:
-	sysfs_remove_bin_file(&shost->shost_dev.kobj,
-			&sysfs_drvr_stat_data_attr);
 out:
 	return error;
 }
@@ -6817,8 +6245,7 @@ void
 lpfc_free_sysfs_attr(struct lpfc_vport *vport)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	sysfs_remove_bin_file(&shost->shost_dev.kobj,
-		&sysfs_drvr_stat_data_attr);
+
 	/* Virtual ports do not need ctrl_reg and mbox */
 	if (vport->port_type == LPFC_NPIV_PORT)
 		return;
@@ -7101,17 +6528,34 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	memset(hs, 0, sizeof (struct fc_host_statistics));
 
 	hs->tx_frames = pmb->un.varRdStatus.xmitFrameCnt;
-	/*
-	 * The MBX_READ_STATUS returns tx_k_bytes which has to
-	 * converted to words
-	 */
-	hs->tx_words = (uint64_t)
-			((uint64_t)pmb->un.varRdStatus.xmitByteCnt
-			* (uint64_t)256);
 	hs->rx_frames = pmb->un.varRdStatus.rcvFrameCnt;
-	hs->rx_words = (uint64_t)
-			((uint64_t)pmb->un.varRdStatus.rcvByteCnt
-			 * (uint64_t)256);
+
+	/*
+	 * The MBX_READ_STATUS returns tx_k_bytes which has to be
+	 * converted to words.
+	 *
+	 * Check if extended byte flag is set, to know when to collect upper
+	 * bits of 64 bit wide statistics counter.
+	 */
+	if (pmb->un.varRdStatus.xkb & RD_ST_XKB) {
+		hs->tx_words = (u64)
+			       ((((u64)(pmb->un.varRdStatus.xmit_xkb &
+					RD_ST_XMIT_XKB_MASK) << 32) |
+				(u64)pmb->un.varRdStatus.xmitByteCnt) *
+				(u64)256);
+		hs->rx_words = (u64)
+			       ((((u64)(pmb->un.varRdStatus.rcv_xkb &
+					RD_ST_RCV_XKB_MASK) << 32) |
+				(u64)pmb->un.varRdStatus.rcvByteCnt) *
+				(u64)256);
+	} else {
+		hs->tx_words = (uint64_t)
+				((uint64_t)pmb->un.varRdStatus.xmitByteCnt
+				* (uint64_t)256);
+		hs->rx_words = (uint64_t)
+				((uint64_t)pmb->un.varRdStatus.rcvByteCnt
+				 * (uint64_t)256);
+	}
 
 	memset(pmboxq, 0, sizeof (LPFC_MBOXQ_t));
 	pmb->mbxCommand = MBX_READ_LNK_STAT;
@@ -7592,7 +7036,6 @@ lpfc_get_hba_function_mode(struct lpfc_hba *phba)
 	case PCI_DEVICE_ID_LANCER_FCOE:
 	case PCI_DEVICE_ID_LANCER_FCOE_VF:
 	case PCI_DEVICE_ID_ZEPHYR_DCSP:
-	case PCI_DEVICE_ID_HORNET:
 	case PCI_DEVICE_ID_TIGERSHARK:
 	case PCI_DEVICE_ID_TOMCAT:
 		phba->hba_flag |= HBA_FCOE_MODE;
@@ -7727,8 +7170,6 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	    phba->sli_rev == LPFC_SLI_REV4)
 		phba->cfg_irq_chann = phba->cfg_hdw_queue;
 
-	phba->cfg_soft_wwnn = 0L;
-	phba->cfg_soft_wwpn = 0L;
 	lpfc_sg_seg_cnt_init(phba, lpfc_sg_seg_cnt);
 	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
 	lpfc_aer_support_init(phba, lpfc_aer_support);

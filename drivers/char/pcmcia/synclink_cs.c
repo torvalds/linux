@@ -922,7 +922,7 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd)
 		// BIT7:parity error
 		// BIT6:framing error
 
-		if (status & (BIT7 + BIT6)) {
+		if (status & (BIT7 | BIT6)) {
 			if (status & BIT7)
 				icount->parity++;
 			else
@@ -1418,7 +1418,11 @@ static void mgslpc_change_params(MGSLPC_INFO *info, struct tty_struct *tty)
 		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
 
 	/* byte size and parity */
-
+	if ((cflag & CSIZE) != CS8) {
+		cflag &= ~CSIZE;
+		cflag |= CS7;
+		tty->termios.c_cflag = cflag;
+	}
 	info->params.data_bits = tty_get_char_size(cflag);
 
 	if (cflag & CSTOPB)
@@ -1432,10 +1436,8 @@ static void mgslpc_change_params(MGSLPC_INFO *info, struct tty_struct *tty)
 			info->params.parity = ASYNC_PARITY_ODD;
 		else
 			info->params.parity = ASYNC_PARITY_EVEN;
-#ifdef CMSPAR
 		if (cflag & CMSPAR)
 			info->params.parity = ASYNC_PARITY_SPACE;
-#endif
 	}
 
 	/* calculate number of jiffies to transmit a full
@@ -2272,7 +2274,8 @@ static int mgslpc_ioctl(struct tty_struct *tty,
  *	tty		pointer to tty structure
  *	termios		pointer to buffer to hold returned old termios
  */
-static void mgslpc_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
+static void mgslpc_set_termios(struct tty_struct *tty,
+			       const struct ktermios *old_termios)
 {
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;

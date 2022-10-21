@@ -88,11 +88,6 @@
 
 #define RIIC_INIT_MSG	-1
 
-enum riic_type {
-	RIIC_RZ_A,
-	RIIC_RZ_G2L,
-};
-
 struct riic_dev {
 	void __iomem *base;
 	u8 *buf;
@@ -396,22 +391,24 @@ static struct riic_irq_desc riic_irqs[] = {
 	{ .res_num = 5, .isr = riic_tend_isr, .name = "riic-nack" },
 };
 
+static void riic_reset_control_assert(void *data)
+{
+	reset_control_assert(data);
+}
+
 static int riic_i2c_probe(struct platform_device *pdev)
 {
 	struct riic_dev *riic;
 	struct i2c_adapter *adap;
-	struct resource *res;
 	struct i2c_timings i2c_t;
 	struct reset_control *rstc;
 	int i, ret;
-	enum riic_type type;
 
 	riic = devm_kzalloc(&pdev->dev, sizeof(*riic), GFP_KERNEL);
 	if (!riic)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	riic->base = devm_ioremap_resource(&pdev->dev, res);
+	riic->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(riic->base))
 		return PTR_ERR(riic->base);
 
@@ -421,16 +418,18 @@ static int riic_i2c_probe(struct platform_device *pdev)
 		return PTR_ERR(riic->clk);
 	}
 
-	type = (enum riic_type)of_device_get_match_data(&pdev->dev);
-	if (type == RIIC_RZ_G2L) {
-		rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-		if (IS_ERR(rstc)) {
-			dev_err(&pdev->dev, "Error: missing reset ctrl\n");
-			return PTR_ERR(rstc);
-		}
+	rstc = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
+	if (IS_ERR(rstc))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rstc),
+				     "Error: missing reset ctrl\n");
 
-		reset_control_deassert(rstc);
-	}
+	ret = reset_control_deassert(rstc);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&pdev->dev, riic_reset_control_assert, rstc);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(riic_irqs); i++) {
 		ret = platform_get_irq(pdev, riic_irqs[i].res_num);
@@ -447,7 +446,7 @@ static int riic_i2c_probe(struct platform_device *pdev)
 
 	adap = &riic->adapter;
 	i2c_set_adapdata(adap, riic);
-	strlcpy(adap->name, "Renesas RIIC adapter", sizeof(adap->name));
+	strscpy(adap->name, "Renesas RIIC adapter", sizeof(adap->name));
 	adap->owner = THIS_MODULE;
 	adap->algo = &riic_algo;
 	adap->dev.parent = &pdev->dev;
@@ -492,8 +491,7 @@ static int riic_i2c_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id riic_i2c_dt_ids[] = {
-	{ .compatible = "renesas,riic-r9a07g044", .data = (void *)RIIC_RZ_G2L },
-	{ .compatible = "renesas,riic-rz", .data = (void *)RIIC_RZ_A },
+	{ .compatible = "renesas,riic-rz", },
 	{ /* Sentinel */ },
 };
 

@@ -187,7 +187,6 @@ static int saa7164_cmd_set(struct saa7164_dev *dev, struct tmComResInfo *msg,
 	mutex_lock(&dev->cmds[msg->id].lock);
 
 	size = msg->size;
-	idx = 0;
 	cmds = size / bus->m_wMaxReqSize;
 	if (size % bus->m_wMaxReqSize == 0)
 		cmds -= 1;

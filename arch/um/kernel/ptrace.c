@@ -6,13 +6,12 @@
 #include <linux/audit.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
-#include <linux/tracehook.h>
 #include <linux/uaccess.h>
 #include <asm/ptrace-abi.h>
 
 void user_enable_single_step(struct task_struct *child)
 {
-	child->ptrace |= PT_DTRACE;
+	set_tsk_thread_flag(child, TIF_SINGLESTEP);
 	child->thread.singlestep_syscall = 0;
 
 #ifdef SUBARCH_SET_SINGLESTEPPING
@@ -22,7 +21,7 @@ void user_enable_single_step(struct task_struct *child)
 
 void user_disable_single_step(struct task_struct *child)
 {
-	child->ptrace &= ~PT_DTRACE;
+	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
 	child->thread.singlestep_syscall = 0;
 
 #ifdef SUBARCH_SET_SINGLESTEPPING
@@ -121,7 +120,7 @@ static void send_sigtrap(struct uml_pt_regs *regs, int error_code)
 }
 
 /*
- * XXX Check PT_DTRACE vs TIF_SINGLESTEP for singlestepping check and
+ * XXX Check TIF_SINGLESTEP for singlestepping check and
  * PT_PTRACED vs TIF_SYSCALL_TRACE for syscall tracing check
  */
 int syscall_trace_enter(struct pt_regs *regs)
@@ -135,7 +134,7 @@ int syscall_trace_enter(struct pt_regs *regs)
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return 0;
 
-	return tracehook_report_syscall_entry(regs);
+	return ptrace_report_syscall_entry(regs);
 }
 
 void syscall_trace_leave(struct pt_regs *regs)
@@ -145,13 +144,13 @@ void syscall_trace_leave(struct pt_regs *regs)
 	audit_syscall_exit(regs);
 
 	/* Fake a debug trap */
-	if (ptraced & PT_DTRACE)
+	if (test_thread_flag(TIF_SINGLESTEP))
 		send_sigtrap(&regs->regs, 0);
 
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return;
 
-	tracehook_report_syscall_exit(regs, 0);
+	ptrace_report_syscall_exit(regs, 0);
 	/* force do_signal() --> is_syscall() */
 	if (ptraced & PT_PTRACED)
 		set_thread_flag(TIF_SIGPENDING);

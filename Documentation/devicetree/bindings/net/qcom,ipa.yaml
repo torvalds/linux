@@ -107,6 +107,10 @@ properties:
           - const: imem
           - const: config
 
+  qcom,qmp:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle to the AOSS side-channel message RAM
+
   qcom,smem-states:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     description: State bits used in by the AP to signal the modem.
@@ -178,6 +182,12 @@ examples:
 
         smp2p-mpss {
                 compatible = "qcom,smp2p";
+                interrupts = <GIC_SPI 576 IRQ_TYPE_EDGE_RISING>;
+                mboxes = <&apss_shared 6>;
+                qcom,smem = <94>, <432>;
+                qcom,local-pid = <0>;
+                qcom,remote-pid = <5>;
+
                 ipa_smp2p_out: ipa-ap-to-modem {
                         qcom,entry-name = "ipa";
                         #qcom,smem-state-cells = <1>;
@@ -189,6 +199,7 @@ examples:
                         #interrupt-cells = <2>;
                 };
         };
+
         ipa@1e40000 {
                 compatible = "qcom,sdm845-ipa";
 
@@ -221,6 +232,8 @@ examples:
                 interconnect-names = "memory",
                                      "imem",
                                      "config";
+
+                qcom,qmp = <&aoss_qmp>;
 
                 qcom,smem-states = <&ipa_smp2p_out 0>,
                                    <&ipa_smp2p_out 1>;

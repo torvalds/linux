@@ -34,13 +34,13 @@
 #include <asm/traps.h>
 #include <asm/machdep.h>
 #include <asm/q40_master.h>
+#include <asm/config.h>
 
 extern void q40_init_IRQ(void);
 static void q40_get_model(char *model);
 extern void q40_sched_init(void);
 
 static int q40_hwclk(int, struct rtc_time *);
-static unsigned int q40_get_ss(void);
 static int q40_get_rtc_pll(struct rtc_pll_info *pll);
 static int q40_set_rtc_pll(struct rtc_pll_info *pll);
 
@@ -168,7 +168,6 @@ void __init config_q40(void)
 
 	mach_init_IRQ = q40_init_IRQ;
 	mach_hwclk = q40_hwclk;
-	mach_get_ss = q40_get_ss;
 	mach_get_rtc_pll = q40_get_rtc_pll;
 	mach_set_rtc_pll = q40_set_rtc_pll;
 
@@ -243,11 +242,6 @@ static int q40_hwclk(int op, struct rtc_time *t)
 	}
 
 	return 0;
-}
-
-static unsigned int q40_get_ss(void)
-{
-	return bcd2bin(Q40_RTC_SECS);
 }
 
 /* get and set PLL calibration of RTC clock */

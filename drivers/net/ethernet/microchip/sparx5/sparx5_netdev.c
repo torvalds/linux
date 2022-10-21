@@ -7,6 +7,7 @@
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
 #include "sparx5_port.h"
+#include "sparx5_tc.h"
 
 /* The IFH bit position of the first VSTAX bit. This is because the
  * VSTAX bit positions in Data sheet is starting from zero.
@@ -54,7 +55,7 @@ static void __ifh_encode_bitfield(void *ifh, u64 value, u32 pos, u32 width)
 		ifh_hdr[byte - 5] |= (u8)((encode & 0xFF0000000000) >> 40);
 }
 
-static void sparx5_set_port_ifh(void *ifh_hdr, u16 portno)
+void sparx5_set_port_ifh(void *ifh_hdr, u16 portno)
 {
 	/* VSTAX.RSV = 1. MSBit must be 1 */
 	ifh_encode_bitfield(ifh_hdr, 1, VSTAX + 79,  1);
@@ -72,6 +73,26 @@ static void sparx5_set_port_ifh(void *ifh_hdr, u16 portno)
 	ifh_encode_bitfield(ifh_hdr, 124,      57, 7);
 	/* FWD.UPDATE_FCS = Enable. Enforce update of FCS. */
 	ifh_encode_bitfield(ifh_hdr, 1,        67, 1);
+}
+
+void sparx5_set_port_ifh_rew_op(void *ifh_hdr, u32 rew_op)
+{
+	ifh_encode_bitfield(ifh_hdr, rew_op, VSTAX + 32,  10);
+}
+
+void sparx5_set_port_ifh_pdu_type(void *ifh_hdr, u32 pdu_type)
+{
+	ifh_encode_bitfield(ifh_hdr, pdu_type, 191, 4);
+}
+
+void sparx5_set_port_ifh_pdu_w16_offset(void *ifh_hdr, u32 pdu_w16_offset)
+{
+	ifh_encode_bitfield(ifh_hdr, pdu_w16_offset, 195, 6);
+}
+
+void sparx5_set_port_ifh_timestamp(void *ifh_hdr, u64 timestamp)
+{
+	ifh_encode_bitfield(ifh_hdr, timestamp, 232,  40);
 }
 
 static int sparx5_port_open(struct net_device *ndev)
@@ -179,6 +200,24 @@ static int sparx5_get_port_parent_id(struct net_device *dev,
 	return 0;
 }
 
+static int sparx5_port_ioctl(struct net_device *dev, struct ifreq *ifr,
+			     int cmd)
+{
+	struct sparx5_port *sparx5_port = netdev_priv(dev);
+	struct sparx5 *sparx5 = sparx5_port->sparx5;
+
+	if (!phy_has_hwtstamp(dev->phydev) && sparx5->ptp) {
+		switch (cmd) {
+		case SIOCSHWTSTAMP:
+			return sparx5_ptp_hwtstamp_set(sparx5_port, ifr);
+		case SIOCGHWTSTAMP:
+			return sparx5_ptp_hwtstamp_get(sparx5_port, ifr);
+		}
+	}
+
+	return phy_mii_ioctl(dev->phydev, ifr, cmd);
+}
+
 static const struct net_device_ops sparx5_port_netdev_ops = {
 	.ndo_open               = sparx5_port_open,
 	.ndo_stop               = sparx5_port_stop,
@@ -189,6 +228,8 @@ static const struct net_device_ops sparx5_port_netdev_ops = {
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_get_stats64        = sparx5_get_stats64,
 	.ndo_get_port_parent_id = sparx5_get_port_parent_id,
+	.ndo_eth_ioctl          = sparx5_port_ioctl,
+	.ndo_setup_tc           = sparx5_port_setup_tc,
 };
 
 bool sparx5_netdevice_check(const struct net_device *dev)
@@ -201,16 +242,19 @@ struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno)
 	struct sparx5_port *spx5_port;
 	struct net_device *ndev;
 
-	ndev = devm_alloc_etherdev(sparx5->dev, sizeof(struct sparx5_port));
+	ndev = devm_alloc_etherdev_mqs(sparx5->dev, sizeof(struct sparx5_port),
+				       SPX5_PRIOS, 1);
 	if (!ndev)
 		return ERR_PTR(-ENOMEM);
+
+	ndev->hw_features |= NETIF_F_HW_TC;
+	ndev->features |= NETIF_F_HW_TC;
 
 	SET_NETDEV_DEV(ndev, sparx5->dev);
 	spx5_port = netdev_priv(ndev);
 	spx5_port->ndev = ndev;
 	spx5_port->sparx5 = sparx5;
 	spx5_port->portno = portno;
-	sparx5_set_port_ifh(spx5_port->ifh, portno);
 
 	ndev->netdev_ops = &sparx5_port_netdev_ops;
 	ndev->ethtool_ops = &sparx5_ethtool_ops;

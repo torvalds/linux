@@ -246,7 +246,7 @@ static inline int fc_ct_ms_fill(struct fc_lport *lport,
 				   &entry->type);
 		put_unaligned_be16(len, &entry->len);
 		put_unaligned_be64(lport->wwnn,
-				   (__be64 *)&entry->value[0]);
+				   (__be64 *)&entry->value);
 
 		/* Manufacturer */
 		entry = (struct fc_fdmi_attr_entry *)((char *)entry->value +

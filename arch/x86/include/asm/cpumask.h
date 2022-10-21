@@ -20,10 +20,20 @@ static __always_inline bool arch_cpu_online(int cpu)
 {
 	return arch_test_bit(cpu, cpumask_bits(cpu_online_mask));
 }
+
+static __always_inline void arch_cpumask_clear_cpu(int cpu, struct cpumask *dstp)
+{
+	arch_clear_bit(cpumask_check(cpu), cpumask_bits(dstp));
+}
 #else
 static __always_inline bool arch_cpu_online(int cpu)
 {
 	return cpu == 0;
+}
+
+static __always_inline void arch_cpumask_clear_cpu(int cpu, struct cpumask *dstp)
+{
+	return;
 }
 #endif
 

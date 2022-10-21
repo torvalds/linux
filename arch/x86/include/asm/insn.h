@@ -124,7 +124,7 @@ struct insn {
 #define X86_VEX_B(vex)	((vex) & 0x20)	/* VEX3 Byte1 */
 #define X86_VEX_L(vex)	((vex) & 0x04)	/* VEX3 Byte2, VEX2 Byte1 */
 /* VEX bit fields */
-#define X86_EVEX_M(vex)	((vex) & 0x03)		/* EVEX Byte1 */
+#define X86_EVEX_M(vex)	((vex) & 0x07)		/* EVEX Byte1 */
 #define X86_VEX3_M(vex)	((vex) & 0x1f)		/* VEX3 Byte1 */
 #define X86_VEX2_M	1			/* VEX2.M always 1 */
 #define X86_VEX_V(vex)	(((vex) & 0x78) >> 3)	/* VEX3 Byte2, VEX2 Byte1 */

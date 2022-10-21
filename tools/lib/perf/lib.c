@@ -38,6 +38,26 @@ ssize_t readn(int fd, void *buf, size_t n)
 	return ion(true, fd, buf, n);
 }
 
+ssize_t preadn(int fd, void *buf, size_t n, off_t offs)
+{
+	size_t left = n;
+
+	while (left) {
+		ssize_t ret = pread(fd, buf, left, offs);
+
+		if (ret < 0 && errno == EINTR)
+			continue;
+		if (ret <= 0)
+			return ret;
+
+		left -= ret;
+		buf  += ret;
+		offs += ret;
+	}
+
+	return n;
+}
+
 /*
  * Write exactly 'n' bytes or return an error.
  */

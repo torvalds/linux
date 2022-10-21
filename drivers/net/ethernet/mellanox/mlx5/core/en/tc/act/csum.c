@@ -38,11 +38,12 @@ csum_offload_supported(struct mlx5e_priv *priv,
 static bool
 tc_act_can_offload_csum(struct mlx5e_tc_act_parse_state *parse_state,
 			const struct flow_action_entry *act,
-			int act_index)
+			int act_index,
+			struct mlx5_flow_attr *attr)
 {
 	struct mlx5e_tc_flow *flow = parse_state->flow;
 
-	return csum_offload_supported(flow->priv, flow->attr->action,
+	return csum_offload_supported(flow->priv, attr->action,
 				      act->csum_flags, parse_state->extack);
 }
 

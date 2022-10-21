@@ -25,11 +25,6 @@
 # error This test is 64-bit only
 #endif
 
-#define VCPU_ID				0
-#define X86_FEATURE_XSAVE		(1 << 26)
-#define X86_FEATURE_OSXSAVE		(1 << 27)
-
-#define PAGE_SIZE			(1 << 12)
 #define NUM_TILES			8
 #define TILE_SIZE			1024
 #define XSAVE_SIZE			((NUM_TILES * TILE_SIZE) + PAGE_SIZE)
@@ -125,15 +120,8 @@ static inline void __xsavec(struct xsave_data *data, uint64_t rfbm)
 
 static inline void check_cpuid_xsave(void)
 {
-	uint32_t eax, ebx, ecx, edx;
-
-	eax = 1;
-	ecx = 0;
-	cpuid(&eax, &ebx, &ecx, &edx);
-	if (!(ecx & X86_FEATURE_XSAVE))
-		GUEST_ASSERT(!"cpuid: no CPU xsave support!");
-	if (!(ecx & X86_FEATURE_OSXSAVE))
-		GUEST_ASSERT(!"cpuid: no OS xsave support!");
+	GUEST_ASSERT(this_cpu_has(X86_FEATURE_XSAVE));
+	GUEST_ASSERT(this_cpu_has(X86_FEATURE_OSXSAVE));
 }
 
 static bool check_xsave_supports_xtile(void)
@@ -145,10 +133,7 @@ static bool enum_xtile_config(void)
 {
 	u32 eax, ebx, ecx, edx;
 
-	eax = TILE_CPUID;
-	ecx = TILE_PALETTE_CPUID_SUBLEAVE;
-
-	cpuid(&eax, &ebx, &ecx, &edx);
+	__cpuid(TILE_CPUID, TILE_PALETTE_CPUID_SUBLEAVE, &eax, &ebx, &ecx, &edx);
 	if (!eax || !ebx || !ecx)
 		return false;
 
@@ -170,10 +155,7 @@ static bool enum_xsave_tile(void)
 {
 	u32 eax, ebx, ecx, edx;
 
-	eax = XSTATE_CPUID;
-	ecx = XFEATURE_XTILEDATA;
-
-	cpuid(&eax, &ebx, &ecx, &edx);
+	__cpuid(XSTATE_CPUID, XFEATURE_XTILEDATA, &eax, &ebx, &ecx, &edx);
 	if (!eax || !ebx)
 		return false;
 
@@ -188,10 +170,7 @@ static bool check_xsave_size(void)
 	u32 eax, ebx, ecx, edx;
 	bool valid = false;
 
-	eax = XSTATE_CPUID;
-	ecx = XSTATE_USER_STATE_SUBLEAVE;
-
-	cpuid(&eax, &ebx, &ecx, &edx);
+	__cpuid(XSTATE_CPUID, XSTATE_USER_STATE_SUBLEAVE, &eax, &ebx, &ecx, &edx);
 	if (ebx && ebx <= XSAVE_SIZE)
 		valid = true;
 
@@ -317,46 +296,36 @@ void guest_nm_handler(struct ex_regs *regs)
 
 int main(int argc, char *argv[])
 {
-	struct kvm_cpuid_entry2 *entry;
 	struct kvm_regs regs1, regs2;
-	bool amx_supported = false;
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	struct kvm_run *run;
 	struct kvm_x86_state *state;
-	int xsave_restore_size = 0;
+	int xsave_restore_size;
 	vm_vaddr_t amx_cfg, tiledata, xsavedata;
 	struct ucall uc;
 	u32 amx_offset;
 	int stage, ret;
 
-	vm_xsave_req_perm(XSTATE_XTILE_DATA_BIT);
+	vm_xsave_require_permission(XSTATE_XTILE_DATA_BIT);
 
 	/* Create VM */
-	vm = vm_create_default(VCPU_ID, 0, guest_code);
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
-	entry = kvm_get_supported_cpuid_entry(1);
-	if (!(entry->ecx & X86_FEATURE_XSAVE)) {
-		print_skip("XSAVE feature not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_XSAVE));
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_AMX_TILE));
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_XTILECFG));
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_XTILEDATA));
 
-	if (kvm_get_cpuid_max_basic() >= 0xd) {
-		entry = kvm_get_supported_cpuid_index(0xd, 0);
-		amx_supported = entry && !!(entry->eax & XFEATURE_MASK_XTILE);
-		if (!amx_supported) {
-			print_skip("AMX is not supported by the vCPU (eax=0x%x)", entry->eax);
-			exit(KSFT_SKIP);
-		}
-		/* Get xsave/restore max size */
-		xsave_restore_size = entry->ecx;
-	}
+	/* Get xsave/restore max size */
+	xsave_restore_size = kvm_get_supported_cpuid_entry(0xd)->ecx;
 
-	run = vcpu_state(vm, VCPU_ID);
-	vcpu_regs_get(vm, VCPU_ID, &regs1);
+	run = vcpu->run;
+	vcpu_regs_get(vcpu, &regs1);
 
 	/* Register #NM handler */
 	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vm, VCPU_ID);
+	vcpu_init_descriptor_tables(vcpu);
 	vm_install_exception_handler(vm, NM_VECTOR, guest_nm_handler);
 
 	/* amx cfg for guest_code */
@@ -370,19 +339,18 @@ int main(int argc, char *argv[])
 	/* xsave data for guest_code */
 	xsavedata = vm_vaddr_alloc_pages(vm, 3);
 	memset(addr_gva2hva(vm, xsavedata), 0, 3 * getpagesize());
-	vcpu_args_set(vm, VCPU_ID, 3, amx_cfg, tiledata, xsavedata);
+	vcpu_args_set(vcpu, 3, amx_cfg, tiledata, xsavedata);
 
 	for (stage = 1; ; stage++) {
-		_vcpu_run(vm, VCPU_ID);
+		vcpu_run(vcpu);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 			    "Stage %d: unexpected exit reason: %u (%s),\n",
 			    stage, run->exit_reason,
 			    exit_reason_str(run->exit_reason));
 
-		switch (get_ucall(vm, VCPU_ID, &uc)) {
+		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
-			TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0],
-				  __FILE__, uc.args[1]);
+			REPORT_GUEST_ASSERT(uc);
 			/* NOT REACHED */
 		case UCALL_SYNC:
 			switch (uc.args[1]) {
@@ -404,7 +372,7 @@ int main(int argc, char *argv[])
 				 * size subtract 8K amx size.
 				 */
 				amx_offset = xsave_restore_size - NUM_TILES*TILE_SIZE;
-				state = vcpu_save_state(vm, VCPU_ID);
+				state = vcpu_save_state(vcpu);
 				void *amx_start = (void *)state->xsave + amx_offset;
 				void *tiles_data = (void *)addr_gva2hva(vm, tiledata);
 				/* Only check TMM0 register, 1 tile */
@@ -425,22 +393,20 @@ int main(int argc, char *argv[])
 			TEST_FAIL("Unknown ucall %lu", uc.cmd);
 		}
 
-		state = vcpu_save_state(vm, VCPU_ID);
+		state = vcpu_save_state(vcpu);
 		memset(&regs1, 0, sizeof(regs1));
-		vcpu_regs_get(vm, VCPU_ID, &regs1);
+		vcpu_regs_get(vcpu, &regs1);
 
 		kvm_vm_release(vm);
 
 		/* Restore state in a new VM.  */
-		kvm_vm_restart(vm, O_RDWR);
-		vm_vcpu_add(vm, VCPU_ID);
-		vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
-		vcpu_load_state(vm, VCPU_ID, state);
-		run = vcpu_state(vm, VCPU_ID);
+		vcpu = vm_recreate_with_one_vcpu(vm);
+		vcpu_load_state(vcpu, state);
+		run = vcpu->run;
 		kvm_x86_state_cleanup(state);
 
 		memset(&regs2, 0, sizeof(regs2));
-		vcpu_regs_get(vm, VCPU_ID, &regs2);
+		vcpu_regs_get(vcpu, &regs2);
 		TEST_ASSERT(!memcmp(&regs1, &regs2, sizeof(regs2)),
 			    "Unexpected register values after vcpu_load_state; rdi: %lx rsi: %lx",
 			    (ulong) regs2.rdi, (ulong) regs2.rsi);

@@ -23,7 +23,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt37x"
-#define DRV_VERSION	"0.6.23"
+#define DRV_VERSION	"0.6.30"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -278,7 +278,7 @@ static const char * const bad_ata100_5[] = {
  *	Block UDMA on devices that cause trouble with this controller.
  */
 
-static unsigned long hpt370_filter(struct ata_device *adev, unsigned long mask)
+static unsigned int hpt370_filter(struct ata_device *adev, unsigned int mask)
 {
 	if (adev->class == ATA_DEV_ATA) {
 		if (hpt_dma_blacklisted(adev, "UDMA", bad_ata33))
@@ -297,7 +297,7 @@ static unsigned long hpt370_filter(struct ata_device *adev, unsigned long mask)
  *	Block UDMA on devices that cause trouble with this controller.
  */
 
-static unsigned long hpt370a_filter(struct ata_device *adev, unsigned long mask)
+static unsigned int hpt370a_filter(struct ata_device *adev, unsigned int mask)
 {
 	if (adev->class == ATA_DEV_ATA) {
 		if (hpt_dma_blacklisted(adev, "UDMA100", bad_ata100_5))
@@ -314,7 +314,7 @@ static unsigned long hpt370a_filter(struct ata_device *adev, unsigned long mask)
  *	The Marvell bridge chips used on the HighPoint SATA cards do not seem
  *	to support the UltraDMA modes 1, 2, and 3 as well as any MWDMA modes...
  */
-static unsigned long hpt372_filter(struct ata_device *adev, unsigned long mask)
+static unsigned int hpt372_filter(struct ata_device *adev, unsigned int mask)
 {
 	if (ata_id_is_sata(adev->id))
 		mask &= ~((0xE << ATA_SHIFT_UDMA) | ATA_MASK_MWDMA);
@@ -394,6 +394,7 @@ static int hpt37x_pre_reset(struct ata_link *link, unsigned long deadline)
 		{ 0x50, 1, 0x04, 0x04 },
 		{ 0x54, 1, 0x04, 0x04 }
 	};
+	u8 mcr2;
 
 	if (!pci_test_config_bits(pdev, &hpt37x_enable_bits[ap->port_no]))
 		return -ENOENT;
@@ -402,25 +403,29 @@ static int hpt37x_pre_reset(struct ata_link *link, unsigned long deadline)
 	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
 	udelay(100);
 
+	/*
+	 * Disable the "fast interrupt" prediction.  Don't hold off
+	 * on interrupts. (== 0x01 despite what the docs say)
+	 */
+	pci_read_config_byte(pdev, 0x51 + 4 * ap->port_no, &mcr2);
+	/* Is it HPT370/A? */
+	if (pdev->device == PCI_DEVICE_ID_TTI_HPT366 && pdev->revision < 5) {
+		mcr2 &= ~0x02;
+		mcr2 |= 0x01;
+	} else {
+		mcr2 &= ~0x07;
+	}
+	pci_write_config_byte(pdev, 0x51 + 4 * ap->port_no, mcr2);
+
 	return ata_sff_prereset(link, deadline);
 }
 
-static void hpt370_set_mode(struct ata_port *ap, struct ata_device *adev,
+static void hpt37x_set_mode(struct ata_port *ap, struct ata_device *adev,
 			    u8 mode)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	u32 addr1, addr2;
+	int addr = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
 	u32 reg, timing, mask;
-	u8 fast;
-
-	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
-	addr2 = 0x51 + 4 * ap->port_no;
-
-	/* Fast interrupt prediction disable, hold off interrupt disable */
-	pci_read_config_byte(pdev, addr2, &fast);
-	fast &= ~0x02;
-	fast |= 0x01;
-	pci_write_config_byte(pdev, addr2, fast);
 
 	/* Determine timing mask and find matching mode entry */
 	if (mode < XFER_MW_DMA_0)
@@ -432,34 +437,34 @@ static void hpt370_set_mode(struct ata_port *ap, struct ata_device *adev,
 
 	timing = hpt37x_find_mode(ap, mode);
 
-	pci_read_config_dword(pdev, addr1, &reg);
+	pci_read_config_dword(pdev, addr, &reg);
 	reg = (reg & ~mask) | (timing & mask);
-	pci_write_config_dword(pdev, addr1, reg);
+	pci_write_config_dword(pdev, addr, reg);
 }
 /**
- *	hpt370_set_piomode		-	PIO setup
+ *	hpt37x_set_piomode		-	PIO setup
  *	@ap: ATA interface
  *	@adev: device on the interface
  *
  *	Perform PIO mode setup.
  */
 
-static void hpt370_set_piomode(struct ata_port *ap, struct ata_device *adev)
+static void hpt37x_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
-	hpt370_set_mode(ap, adev, adev->pio_mode);
+	hpt37x_set_mode(ap, adev, adev->pio_mode);
 }
 
 /**
- *	hpt370_set_dmamode		-	DMA timing setup
+ *	hpt37x_set_dmamode		-	DMA timing setup
  *	@ap: ATA interface
  *	@adev: Device being configured
  *
  *	Set up the channel for MWDMA or UDMA modes.
  */
 
-static void hpt370_set_dmamode(struct ata_port *ap, struct ata_device *adev)
+static void hpt37x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
-	hpt370_set_mode(ap, adev, adev->dma_mode);
+	hpt37x_set_mode(ap, adev, adev->dma_mode);
 }
 
 /**
@@ -499,63 +504,6 @@ static void hpt370_bmdma_stop(struct ata_queued_cmd *qc)
 	ata_bmdma_stop(qc);
 }
 
-static void hpt372_set_mode(struct ata_port *ap, struct ata_device *adev,
-			    u8 mode)
-{
-	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	u32 addr1, addr2;
-	u32 reg, timing, mask;
-	u8 fast;
-
-	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
-	addr2 = 0x51 + 4 * ap->port_no;
-
-	/* Fast interrupt prediction disable, hold off interrupt disable */
-	pci_read_config_byte(pdev, addr2, &fast);
-	fast &= ~0x07;
-	pci_write_config_byte(pdev, addr2, fast);
-
-	/* Determine timing mask and find matching mode entry */
-	if (mode < XFER_MW_DMA_0)
-		mask = 0xcfc3ffff;
-	else if (mode < XFER_UDMA_0)
-		mask = 0x31c001ff;
-	else
-		mask = 0x303c0000;
-
-	timing = hpt37x_find_mode(ap, mode);
-
-	pci_read_config_dword(pdev, addr1, &reg);
-	reg = (reg & ~mask) | (timing & mask);
-	pci_write_config_dword(pdev, addr1, reg);
-}
-
-/**
- *	hpt372_set_piomode		-	PIO setup
- *	@ap: ATA interface
- *	@adev: device on the interface
- *
- *	Perform PIO mode setup.
- */
-
-static void hpt372_set_piomode(struct ata_port *ap, struct ata_device *adev)
-{
-	hpt372_set_mode(ap, adev, adev->pio_mode);
-}
-
-/**
- *	hpt372_set_dmamode		-	DMA timing setup
- *	@ap: ATA interface
- *	@adev: Device being configured
- *
- *	Set up the channel for MWDMA or UDMA modes.
- */
-
-static void hpt372_set_dmamode(struct ata_port *ap, struct ata_device *adev)
-{
-	hpt372_set_mode(ap, adev, adev->dma_mode);
-}
-
 /**
  *	hpt37x_bmdma_stop		-	DMA engine stop
  *	@qc: ATA command
@@ -593,8 +541,8 @@ static struct ata_port_operations hpt370_port_ops = {
 
 	.mode_filter	= hpt370_filter,
 	.cable_detect	= hpt37x_cable_detect,
-	.set_piomode	= hpt370_set_piomode,
-	.set_dmamode	= hpt370_set_dmamode,
+	.set_piomode	= hpt37x_set_piomode,
+	.set_dmamode	= hpt37x_set_dmamode,
 	.prereset	= hpt37x_pre_reset,
 };
 
@@ -608,8 +556,7 @@ static struct ata_port_operations hpt370a_port_ops = {
 };
 
 /*
- *	Configuration for HPT371 and HPT302. Slightly different PIO and DMA
- *	mode setting functionality.
+ *	Configuration for HPT371 and HPT302.
  */
 
 static struct ata_port_operations hpt302_port_ops = {
@@ -618,8 +565,8 @@ static struct ata_port_operations hpt302_port_ops = {
 	.bmdma_stop	= hpt37x_bmdma_stop,
 
 	.cable_detect	= hpt37x_cable_detect,
-	.set_piomode	= hpt372_set_piomode,
-	.set_dmamode	= hpt372_set_dmamode,
+	.set_piomode	= hpt37x_set_piomode,
+	.set_dmamode	= hpt37x_set_dmamode,
 	.prereset	= hpt37x_pre_reset,
 };
 
@@ -645,21 +592,19 @@ static struct ata_port_operations hpt374_fn1_port_ops = {
 
 /**
  *	hpt37x_clock_slot	-	Turn timing to PC clock entry
- *	@freq: Reported frequency timing
- *	@base: Base timing
+ *	@freq: Reported frequency in MHz
  *
- *	Turn the timing data intoa clock slot (0 for 33, 1 for 40, 2 for 50
+ *	Turn the timing data into a clock slot (0 for 33, 1 for 40, 2 for 50
  *	and 3 for 66Mhz)
  */
 
-static int hpt37x_clock_slot(unsigned int freq, unsigned int base)
+static int hpt37x_clock_slot(unsigned int freq)
 {
-	unsigned int f = (base * freq) / 192;	/* Mhz */
-	if (f < 40)
+	if (freq < 40)
 		return 0;	/* 33Mhz slot */
-	if (f < 45)
+	if (freq < 45)
 		return 1;	/* 40Mhz slot */
-	if (f < 55)
+	if (freq < 55)
 		return 2;	/* 50Mhz slot */
 	return 3;		/* 60Mhz slot */
 }
@@ -699,24 +644,57 @@ static int hpt37x_calibrate_dpll(struct pci_dev *dev)
 	return 0;
 }
 
-static u32 hpt374_read_freq(struct pci_dev *pdev)
+static int hpt37x_pci_clock(struct pci_dev *pdev, unsigned int base)
 {
-	u32 freq;
-	unsigned long io_base = pci_resource_start(pdev, 4);
+	unsigned int freq;
+	u32 fcnt;
 
-	if (PCI_FUNC(pdev->devfn) & 1) {
-		struct pci_dev *pdev_0;
+	/*
+	 * Some devices do not let this value be accessed via PCI space
+	 * according to the old driver. In addition we must use the value
+	 * from FN 0 on the HPT374.
+	 */
+	if (pdev->device == PCI_DEVICE_ID_TTI_HPT374 &&
+	    (PCI_FUNC(pdev->devfn) & 1)) {
+		struct pci_dev *pdev_fn0;
 
-		pdev_0 = pci_get_slot(pdev->bus, pdev->devfn - 1);
-		/* Someone hot plugged the controller on us ? */
-		if (pdev_0 == NULL)
+		pdev_fn0 = pci_get_slot(pdev->bus, pdev->devfn - 1);
+		/* Someone hot plugged the controller on us? */
+		if (!pdev_fn0)
 			return 0;
-		io_base = pci_resource_start(pdev_0, 4);
-		freq = inl(io_base + 0x90);
-		pci_dev_put(pdev_0);
-	} else
-		freq = inl(io_base + 0x90);
-	return freq;
+		fcnt = inl(pci_resource_start(pdev_fn0, 4) + 0x90);
+		pci_dev_put(pdev_fn0);
+	} else	{
+		fcnt = inl(pci_resource_start(pdev, 4) + 0x90);
+	}
+
+	if ((fcnt >> 12) != 0xABCDE) {
+		u32 total = 0;
+		int i;
+		u16 sr;
+
+		dev_warn(&pdev->dev, "BIOS clock data not set\n");
+
+		/* This is the process the HPT371 BIOS is reported to use */
+		for (i = 0; i < 128; i++) {
+			pci_read_config_word(pdev, 0x78, &sr);
+			total += sr & 0x1FF;
+			udelay(15);
+		}
+		fcnt = total / 128;
+	}
+	fcnt &= 0x1FF;
+
+	freq = (fcnt * base) / 192;	/* in MHz */
+
+	/* Clamp to bands */
+	if (freq < 40)
+		return 33;
+	if (freq < 45)
+		return 40;
+	if (freq < 55)
+		return 50;
+	return 66;
 }
 
 /**
@@ -823,7 +801,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	u8 rev = dev->revision;
 	u8 irqmask;
 	u8 mcr1;
-	u32 freq;
+	unsigned int freq; /* MHz */
 	int prefer_dpll = 1;
 
 	unsigned long iobase = pci_resource_start(dev, 4);
@@ -920,6 +898,20 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	pci_write_config_byte(dev, 0x5a, irqmask);
 
 	/*
+	 * HPT371 chips physically have only one channel, the secondary one,
+	 * but the primary channel registers do exist!  Go figure...
+	 * So,  we manually disable the non-existing channel here
+	 * (if the BIOS hasn't done this already).
+	 */
+	if (dev->device == PCI_DEVICE_ID_TTI_HPT371) {
+		u8 mcr1;
+
+		pci_read_config_byte(dev, 0x50, &mcr1);
+		mcr1 &= ~0x04;
+		pci_write_config_byte(dev, 0x50, mcr1);
+	}
+
+	/*
 	 * default to pci clock. make sure MA15/16 are set to output
 	 * to prevent drives having problems with 40-pin cables. Needed
 	 * for some drives such as IBM-DTLA which will not enter ready
@@ -935,42 +927,16 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	if (chip_table == &hpt372a)
 		outb(0x0e, iobase + 0x9c);
 
-	/*
-	 * Some devices do not let this value be accessed via PCI space
-	 * according to the old driver. In addition we must use the value
-	 * from FN 0 on the HPT374.
-	 */
-
-	if (chip_table == &hpt374) {
-		freq = hpt374_read_freq(dev);
-		if (freq == 0)
-			return -ENODEV;
-	} else
-		freq = inl(iobase + 0x90);
-
-	if ((freq >> 12) != 0xABCDE) {
-		int i;
-		u8 sr;
-		u32 total = 0;
-
-		dev_warn(&dev->dev, "BIOS has not set timing clocks\n");
-
-		/* This is the process the HPT371 BIOS is reported to use */
-		for (i = 0; i < 128; i++) {
-			pci_read_config_byte(dev, 0x78, &sr);
-			total += sr & 0x1FF;
-			udelay(15);
-		}
-		freq = total / 128;
-	}
-	freq &= 0x1FF;
+	freq = hpt37x_pci_clock(dev, chip_table->base);
+	if (!freq)
+		return -ENODEV;
 
 	/*
 	 *	Turn the frequency check into a band and then find a timing
 	 *	table to match it.
 	 */
 
-	clock_slot = hpt37x_clock_slot(freq, chip_table->base);
+	clock_slot = hpt37x_clock_slot(freq);
 	if (chip_table->clocks[clock_slot] == NULL || prefer_dpll) {
 		/*
 		 *	We need to try PLL mode instead

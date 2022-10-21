@@ -95,6 +95,8 @@ enum sas_protocol {
 	SAS_PROTOCOL_SSP		= 0x08,
 	SAS_PROTOCOL_ALL		= 0x0E,
 	SAS_PROTOCOL_STP_ALL		= SAS_PROTOCOL_STP|SAS_PROTOCOL_SATA,
+	/* these are internal to libsas */
+	SAS_PROTOCOL_INTERNAL_ABORT	= 0x10,
 };
 
 /* From the spec; local phys only */
@@ -189,6 +191,13 @@ enum sas_gpio_reg_type {
 	SAS_GPIO_REG_RX_GP = 2,
 	SAS_GPIO_REG_TX    = 3,
 	SAS_GPIO_REG_TX_GP = 4,
+};
+
+/* Response frame DATAPRES field */
+enum {
+	SAS_DATAPRES_NO_DATA		= 0,
+	SAS_DATAPRES_RESPONSE_DATA	= 1,
+	SAS_DATAPRES_SENSE_DATA		= 2,
 };
 
 struct  dev_to_host_fis {
@@ -462,18 +471,6 @@ struct report_phy_sata_resp {
 	__be32 crc;
 } __attribute__ ((packed));
 
-struct smp_resp {
-	u8    frame_type;
-	u8    function;
-	u8    result;
-	u8    reserved;
-	union {
-		struct report_general_resp  rg;
-		struct discover_resp        disc;
-		struct report_phy_sata_resp rps;
-	};
-} __attribute__ ((packed));
-
 #elif defined(__BIG_ENDIAN_BITFIELD)
 struct sas_identify_frame {
 	/* Byte 0 */
@@ -695,20 +692,32 @@ struct report_phy_sata_resp {
 	__be32 crc;
 } __attribute__ ((packed));
 
-struct smp_resp {
+#else
+#error "Bitfield order not defined!"
+#endif
+
+struct smp_rg_resp {
 	u8    frame_type;
 	u8    function;
 	u8    result;
 	u8    reserved;
-	union {
-		struct report_general_resp  rg;
-		struct discover_resp        disc;
-		struct report_phy_sata_resp rps;
-	};
+	struct report_general_resp rg;
 } __attribute__ ((packed));
 
-#else
-#error "Bitfield order not defined!"
-#endif
+struct smp_disc_resp {
+	u8    frame_type;
+	u8    function;
+	u8    result;
+	u8    reserved;
+	struct discover_resp disc;
+} __attribute__ ((packed));
+
+struct smp_rps_resp {
+	u8    frame_type;
+	u8    function;
+	u8    result;
+	u8    reserved;
+	struct report_phy_sata_resp rps;
+} __attribute__ ((packed));
 
 #endif /* _SAS_H_ */

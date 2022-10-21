@@ -1,7 +1,7 @@
 /*
  * Linux driver for VMware's vmxnet3 ethernet NIC.
  *
- * Copyright (C) 2008-2021, VMware, Inc. All Rights Reserved.
+ * Copyright (C) 2008-2022, VMware, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -209,12 +209,12 @@ vmxnet3_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 
-	strlcpy(drvinfo->driver, vmxnet3_driver_name, sizeof(drvinfo->driver));
+	strscpy(drvinfo->driver, vmxnet3_driver_name, sizeof(drvinfo->driver));
 
-	strlcpy(drvinfo->version, VMXNET3_DRIVER_VERSION_REPORT,
+	strscpy(drvinfo->version, VMXNET3_DRIVER_VERSION_REPORT,
 		sizeof(drvinfo->version));
 
-	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+	strscpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
 }
 
@@ -298,7 +298,7 @@ netdev_features_t vmxnet3_features_check(struct sk_buff *skb,
 	return features;
 }
 
-static void vmxnet3_enable_encap_offloads(struct net_device *netdev)
+static void vmxnet3_enable_encap_offloads(struct net_device *netdev, netdev_features_t features)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 
@@ -306,8 +306,56 @@ static void vmxnet3_enable_encap_offloads(struct net_device *netdev)
 		netdev->hw_enc_features |= NETIF_F_SG | NETIF_F_RXCSUM |
 			NETIF_F_HW_CSUM | NETIF_F_HW_VLAN_CTAG_TX |
 			NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_TSO | NETIF_F_TSO6 |
-			NETIF_F_LRO | NETIF_F_GSO_UDP_TUNNEL |
-			NETIF_F_GSO_UDP_TUNNEL_CSUM;
+			NETIF_F_LRO;
+		if (features & NETIF_F_GSO_UDP_TUNNEL)
+			netdev->hw_enc_features |= NETIF_F_GSO_UDP_TUNNEL;
+		if (features & NETIF_F_GSO_UDP_TUNNEL_CSUM)
+			netdev->hw_enc_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
+	}
+	if (VMXNET3_VERSION_GE_7(adapter)) {
+		unsigned long flags;
+
+		if (vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+					       VMXNET3_CAP_GENEVE_CHECKSUM_OFFLOAD)) {
+			adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_GENEVE_CHECKSUM_OFFLOAD;
+		}
+		if (vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+					       VMXNET3_CAP_VXLAN_CHECKSUM_OFFLOAD)) {
+			adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_VXLAN_CHECKSUM_OFFLOAD;
+		}
+		if (vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+					       VMXNET3_CAP_GENEVE_TSO)) {
+			adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_GENEVE_TSO;
+		}
+		if (vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+					       VMXNET3_CAP_VXLAN_TSO)) {
+			adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_VXLAN_TSO;
+		}
+		if (vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+					       VMXNET3_CAP_GENEVE_OUTER_CHECKSUM_OFFLOAD)) {
+			adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_GENEVE_OUTER_CHECKSUM_OFFLOAD;
+		}
+		if (vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+					       VMXNET3_CAP_VXLAN_OUTER_CHECKSUM_OFFLOAD)) {
+			adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_VXLAN_OUTER_CHECKSUM_OFFLOAD;
+		}
+
+		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_DCR, adapter->dev_caps[0]);
+		spin_lock_irqsave(&adapter->cmd_lock, flags);
+		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD, VMXNET3_CMD_GET_DCR0_REG);
+		adapter->dev_caps[0] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
+		spin_unlock_irqrestore(&adapter->cmd_lock, flags);
+
+		if (!(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_GENEVE_CHECKSUM_OFFLOAD)) &&
+		    !(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_VXLAN_CHECKSUM_OFFLOAD)) &&
+		    !(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_GENEVE_TSO)) &&
+		    !(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_VXLAN_TSO))) {
+			netdev->hw_enc_features &= ~NETIF_F_GSO_UDP_TUNNEL;
+		}
+		if (!(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_GENEVE_OUTER_CHECKSUM_OFFLOAD)) &&
+		    !(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_VXLAN_OUTER_CHECKSUM_OFFLOAD))) {
+			netdev->hw_enc_features &= ~NETIF_F_GSO_UDP_TUNNEL_CSUM;
+		}
 	}
 }
 
@@ -321,6 +369,22 @@ static void vmxnet3_disable_encap_offloads(struct net_device *netdev)
 			NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_TSO | NETIF_F_TSO6 |
 			NETIF_F_LRO | NETIF_F_GSO_UDP_TUNNEL |
 			NETIF_F_GSO_UDP_TUNNEL_CSUM);
+	}
+	if (VMXNET3_VERSION_GE_7(adapter)) {
+		unsigned long flags;
+
+		adapter->dev_caps[0] &= ~(1UL << VMXNET3_CAP_GENEVE_CHECKSUM_OFFLOAD |
+					  1UL << VMXNET3_CAP_VXLAN_CHECKSUM_OFFLOAD  |
+					  1UL << VMXNET3_CAP_GENEVE_TSO |
+					  1UL << VMXNET3_CAP_VXLAN_TSO  |
+					  1UL << VMXNET3_CAP_GENEVE_OUTER_CHECKSUM_OFFLOAD |
+					  1UL << VMXNET3_CAP_VXLAN_OUTER_CHECKSUM_OFFLOAD);
+
+		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_DCR, adapter->dev_caps[0]);
+		spin_lock_irqsave(&adapter->cmd_lock, flags);
+		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD, VMXNET3_CMD_GET_DCR0_REG);
+		adapter->dev_caps[0] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
+		spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 	}
 }
 
@@ -357,8 +421,8 @@ int vmxnet3_set_features(struct net_device *netdev, netdev_features_t features)
 			adapter->shared->devRead.misc.uptFeatures &=
 			~UPT1_F_RXVLAN;
 
-		if ((features & tun_offload_mask) != 0 && !udp_tun_enabled) {
-			vmxnet3_enable_encap_offloads(netdev);
+		if ((features & tun_offload_mask) != 0) {
+			vmxnet3_enable_encap_offloads(netdev, features);
 			adapter->shared->devRead.misc.uptFeatures |=
 			UPT1_F_RXINNEROFLD;
 		} else if ((features & tun_offload_mask) == 0 &&
@@ -462,7 +526,7 @@ vmxnet3_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		struct vmxnet3_tx_queue *tq = &adapter->tx_queue[i];
 
-		buf[j++] = VMXNET3_READ_BAR0_REG(adapter, VMXNET3_REG_TXPROD +
+		buf[j++] = VMXNET3_READ_BAR0_REG(adapter, adapter->tx_prod_offset +
 						 i * VMXNET3_REG_ALIGN);
 
 		buf[j++] = VMXNET3_GET_ADDR_LO(tq->tx_ring.basePA);
@@ -490,9 +554,9 @@ vmxnet3_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		struct vmxnet3_rx_queue *rq = &adapter->rx_queue[i];
 
-		buf[j++] =  VMXNET3_READ_BAR0_REG(adapter, VMXNET3_REG_RXPROD +
+		buf[j++] =  VMXNET3_READ_BAR0_REG(adapter, adapter->rx_prod_offset +
 						  i * VMXNET3_REG_ALIGN);
-		buf[j++] =  VMXNET3_READ_BAR0_REG(adapter, VMXNET3_REG_RXPROD2 +
+		buf[j++] =  VMXNET3_READ_BAR0_REG(adapter, adapter->rx_prod2_offset +
 						  i * VMXNET3_REG_ALIGN);
 
 		buf[j++] = VMXNET3_GET_ADDR_LO(rq->rx_ring[0].basePA);
@@ -659,6 +723,13 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 				~VMXNET3_RING_SIZE_MASK;
 	new_rx_ring2_size = min_t(u32, new_rx_ring2_size,
 				  VMXNET3_RX_RING2_MAX_SIZE);
+
+	/* For v7 and later, keep ring size power of 2 for UPT */
+	if (VMXNET3_VERSION_GE_7(adapter)) {
+		new_tx_ring_size = rounddown_pow_of_two(new_tx_ring_size);
+		new_rx_ring_size = rounddown_pow_of_two(new_rx_ring_size);
+		new_rx_ring2_size = rounddown_pow_of_two(new_rx_ring2_size);
+	}
 
 	/* rx data ring buffer size has to be a multiple of
 	 * VMXNET3_RXDATA_DESC_SIZE_ALIGN
@@ -913,6 +984,39 @@ vmxnet3_set_rss_hash_opt(struct net_device *netdev,
 			union Vmxnet3_CmdInfo *cmdInfo = &shared->cu.cmdInfo;
 			unsigned long flags;
 
+			if (VMXNET3_VERSION_GE_7(adapter)) {
+				if ((rss_fields & VMXNET3_RSS_FIELDS_UDPIP4 ||
+				     rss_fields & VMXNET3_RSS_FIELDS_UDPIP6) &&
+				    vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+							       VMXNET3_CAP_UDP_RSS)) {
+					adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_UDP_RSS;
+				} else {
+					adapter->dev_caps[0] &= ~(1UL << VMXNET3_CAP_UDP_RSS);
+				}
+				if ((rss_fields & VMXNET3_RSS_FIELDS_ESPIP4) &&
+				    vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+							       VMXNET3_CAP_ESP_RSS_IPV4)) {
+					adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_ESP_RSS_IPV4;
+				} else {
+					adapter->dev_caps[0] &= ~(1UL << VMXNET3_CAP_ESP_RSS_IPV4);
+				}
+				if ((rss_fields & VMXNET3_RSS_FIELDS_ESPIP6) &&
+				    vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+							       VMXNET3_CAP_ESP_RSS_IPV6)) {
+					adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_ESP_RSS_IPV6;
+				} else {
+					adapter->dev_caps[0] &= ~(1UL << VMXNET3_CAP_ESP_RSS_IPV6);
+				}
+
+				VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_DCR,
+						       adapter->dev_caps[0]);
+				spin_lock_irqsave(&adapter->cmd_lock, flags);
+				VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
+						       VMXNET3_CMD_GET_DCR0_REG);
+				adapter->dev_caps[0] = VMXNET3_READ_BAR1_REG(adapter,
+									     VMXNET3_REG_CMD);
+				spin_unlock_irqrestore(&adapter->cmd_lock, flags);
+			}
 			spin_lock_irqsave(&adapter->cmd_lock, flags);
 			cmdInfo->setRssFields = rss_fields;
 			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
@@ -1188,6 +1292,34 @@ done:
 	return 0;
 }
 
+static void vmxnet3_get_channels(struct net_device *netdev,
+				 struct ethtool_channels *ec)
+{
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+
+	if (IS_ENABLED(CONFIG_PCI_MSI) && adapter->intr.type == VMXNET3_IT_MSIX) {
+		if (adapter->share_intr == VMXNET3_INTR_BUDDYSHARE) {
+			ec->combined_count = adapter->num_tx_queues;
+		} else {
+			ec->rx_count = adapter->num_rx_queues;
+			ec->tx_count =
+				adapter->share_intr == VMXNET3_INTR_TXSHARE ?
+					       1 : adapter->num_tx_queues;
+		}
+	} else {
+		ec->combined_count = 1;
+	}
+
+	ec->other_count = 1;
+
+	/* Number of interrupts cannot be changed on the fly */
+	/* Just set maximums to actual values */
+	ec->max_rx = ec->rx_count;
+	ec->max_tx = ec->tx_count;
+	ec->max_combined = ec->combined_count;
+	ec->max_other = ec->other_count;
+}
+
 static const struct ethtool_ops vmxnet3_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES |
@@ -1213,6 +1345,7 @@ static const struct ethtool_ops vmxnet3_ethtool_ops = {
 	.set_rxfh          = vmxnet3_set_rss,
 #endif
 	.get_link_ksettings = vmxnet3_get_link_ksettings,
+	.get_channels      = vmxnet3_get_channels,
 };
 
 void vmxnet3_set_ethtool_ops(struct net_device *netdev)

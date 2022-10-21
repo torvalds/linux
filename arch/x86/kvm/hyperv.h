@@ -23,6 +23,9 @@
 
 #include <linux/kvm_host.h>
 
+/* "Hv#1" signature */
+#define HYPERV_CPUID_SIGNATURE_EAX 0x31237648
+
 /*
  * The #defines related to the synthetic debugger are required by KDNet, but
  * they are not documented in the Hyper-V TLFS because the synthetic debugger
@@ -89,7 +92,11 @@ static inline u32 kvm_hv_get_vpindex(struct kvm_vcpu *vcpu)
 int kvm_hv_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host);
 int kvm_hv_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata, bool host);
 
-bool kvm_hv_hypercall_enabled(struct kvm_vcpu *vcpu);
+static inline bool kvm_hv_hypercall_enabled(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.hyperv_enabled && to_kvm_hv(vcpu->kvm)->hv_guest_os_id;
+}
+
 int kvm_hv_hypercall(struct kvm_vcpu *vcpu);
 
 void kvm_hv_irq_routing_update(struct kvm *kvm);
@@ -133,11 +140,12 @@ void kvm_hv_process_stimers(struct kvm_vcpu *vcpu);
 
 void kvm_hv_setup_tsc_page(struct kvm *kvm,
 			   struct pvclock_vcpu_time_info *hv_clock);
-void kvm_hv_invalidate_tsc_page(struct kvm *kvm);
+void kvm_hv_request_tsc_page_update(struct kvm *kvm);
 
 void kvm_hv_init_vm(struct kvm *kvm);
 void kvm_hv_destroy_vm(struct kvm *kvm);
-void kvm_hv_set_cpuid(struct kvm_vcpu *vcpu);
+int kvm_hv_vcpu_init(struct kvm_vcpu *vcpu);
+void kvm_hv_set_cpuid(struct kvm_vcpu *vcpu, bool hyperv_enabled);
 int kvm_hv_set_enforce_cpuid(struct kvm_vcpu *vcpu, bool enforce);
 int kvm_vm_ioctl_hv_eventfd(struct kvm *kvm, struct kvm_hyperv_eventfd *args);
 int kvm_get_hv_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid,

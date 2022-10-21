@@ -26,8 +26,8 @@ enum dma_data_direction {
 #define dma_map_single(d, p, s, dir) (virt_to_phys(p))
 #define dma_mapping_error(...) (0)
 
-#define dma_unmap_single(...) do { } while (0)
-#define dma_unmap_page(...) do { } while (0)
+#define dma_unmap_single(d, a, s, r) do { (void)(d); (void)(a); (void)(s); (void)(r); } while (0)
+#define dma_unmap_page(d, a, s, r) do { (void)(d); (void)(a); (void)(s); (void)(r); } while (0)
 
 #define dma_max_mapping_size(...) SIZE_MAX
 

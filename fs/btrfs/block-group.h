@@ -35,11 +35,33 @@ enum btrfs_discard_state {
  * the FS with empty chunks
  *
  * CHUNK_ALLOC_FORCE means it must try to allocate one
+ *
+ * CHUNK_ALLOC_FORCE_FOR_EXTENT like CHUNK_ALLOC_FORCE but called from
+ * find_free_extent() that also activaes the zone
  */
 enum btrfs_chunk_alloc_enum {
 	CHUNK_ALLOC_NO_FORCE,
 	CHUNK_ALLOC_LIMITED,
 	CHUNK_ALLOC_FORCE,
+	CHUNK_ALLOC_FORCE_FOR_EXTENT,
+};
+
+/* Block group flags set at runtime */
+enum btrfs_block_group_flags {
+	BLOCK_GROUP_FLAG_IREF,
+	BLOCK_GROUP_FLAG_REMOVED,
+	BLOCK_GROUP_FLAG_TO_COPY,
+	BLOCK_GROUP_FLAG_RELOCATING_REPAIR,
+	BLOCK_GROUP_FLAG_CHUNK_ITEM_INSERTED,
+	BLOCK_GROUP_FLAG_ZONE_IS_ACTIVE,
+	BLOCK_GROUP_FLAG_ZONED_DATA_RELOC,
+};
+
+enum btrfs_caching_type {
+	BTRFS_CACHE_NO,
+	BTRFS_CACHE_STARTED,
+	BTRFS_CACHE_FINISHED,
+	BTRFS_CACHE_ERROR,
 };
 
 struct btrfs_caching_control {
@@ -48,12 +70,19 @@ struct btrfs_caching_control {
 	wait_queue_head_t wait;
 	struct btrfs_work work;
 	struct btrfs_block_group *block_group;
-	u64 progress;
 	refcount_t count;
 };
 
 /* Once caching_thread() finds this much free space, it will wake up waiters. */
 #define CACHING_CTL_WAKE_UP SZ_2M
+
+/*
+ * Tree to record all locked full stripes of a RAID5/6 block group
+ */
+struct btrfs_full_stripe_locks_tree {
+	struct rb_root root;
+	struct mutex lock;
+};
 
 struct btrfs_block_group {
 	struct btrfs_fs_info *fs_info;
@@ -68,6 +97,7 @@ struct btrfs_block_group {
 	u64 bytes_super;
 	u64 flags;
 	u64 cache_generation;
+	u64 global_root_id;
 
 	/*
 	 * If the free space extent count exceeds this number, convert the block
@@ -90,22 +120,15 @@ struct btrfs_block_group {
 
 	/* For raid56, this is a full stripe, without parity */
 	unsigned long full_stripe_len;
+	unsigned long runtime_flags;
 
 	unsigned int ro;
-	unsigned int iref:1;
-	unsigned int has_caching_ctl:1;
-	unsigned int removed:1;
-	unsigned int to_copy:1;
-	unsigned int relocating_repair:1;
-	unsigned int chunk_item_inserted:1;
-	unsigned int zone_is_active:1;
 
 	int disk_cache_state;
 
 	/* Cache tracking stuff */
 	int cached;
 	struct btrfs_caching_control *caching_ctl;
-	u64 last_byte_to_unpin;
 
 	struct btrfs_space_info *space_info;
 
@@ -207,6 +230,8 @@ struct btrfs_block_group {
 	u64 meta_write_pointer;
 	struct map_lookup *physical_map;
 	struct list_head active_bg_list;
+	struct work_struct zone_finish_work;
+	struct extent_buffer *last_eb;
 };
 
 static inline u64 btrfs_block_group_end(struct btrfs_block_group *block_group)
@@ -249,14 +274,13 @@ void btrfs_put_block_group(struct btrfs_block_group *cache);
 void btrfs_dec_block_group_reservations(struct btrfs_fs_info *fs_info,
 					const u64 start);
 void btrfs_wait_block_group_reservations(struct btrfs_block_group *bg);
-bool btrfs_inc_nocow_writers(struct btrfs_fs_info *fs_info, u64 bytenr);
-void btrfs_dec_nocow_writers(struct btrfs_fs_info *fs_info, u64 bytenr);
+struct btrfs_block_group *btrfs_inc_nocow_writers(struct btrfs_fs_info *fs_info,
+						  u64 bytenr);
+void btrfs_dec_nocow_writers(struct btrfs_block_group *bg);
 void btrfs_wait_nocow_writers(struct btrfs_block_group *bg);
 void btrfs_wait_block_group_cache_progress(struct btrfs_block_group *cache,
 				           u64 num_bytes);
-int btrfs_wait_block_group_cache_done(struct btrfs_block_group *cache);
-int btrfs_cache_block_group(struct btrfs_block_group *cache,
-			    int load_cache_only);
+int btrfs_cache_block_group(struct btrfs_block_group *cache, bool wait);
 void btrfs_put_caching_control(struct btrfs_caching_control *ctl);
 struct btrfs_caching_control *btrfs_get_caching_control(
 		struct btrfs_block_group *cache);
@@ -298,8 +322,6 @@ void btrfs_reserve_chunk_metadata(struct btrfs_trans_handle *trans,
 u64 btrfs_get_alloc_profile(struct btrfs_fs_info *fs_info, u64 orig_flags);
 void btrfs_put_block_group_cache(struct btrfs_fs_info *info);
 int btrfs_free_block_groups(struct btrfs_fs_info *info);
-void btrfs_wait_space_cache_v1_finished(struct btrfs_block_group *cache,
-				struct btrfs_caching_control *caching_ctl);
 int btrfs_rmap_block(struct btrfs_fs_info *fs_info, u64 chunk_start,
 		       struct block_device *bdev, u64 physical, u64 **logical,
 		       int *naddrs, int *stripe_len);

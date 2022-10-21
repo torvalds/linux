@@ -2,7 +2,7 @@
 
 config VIDEO_OMAP4
 	tristate "OMAP 4 Camera support"
-	depends on VIDEO_V4L2  && I2C
+	depends on VIDEO_DEV  && I2C
 	depends on ARCH_OMAP4 || COMPILE_TEST
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API

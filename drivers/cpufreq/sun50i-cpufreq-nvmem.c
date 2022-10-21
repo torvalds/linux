@@ -86,20 +86,22 @@ static int sun50i_cpufreq_get_efuse(u32 *versions)
 
 static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 {
-	struct opp_table **opp_tables;
+	int *opp_tokens;
 	char name[MAX_NAME_LEN];
 	unsigned int cpu;
 	u32 speed = 0;
 	int ret;
 
-	opp_tables = kcalloc(num_possible_cpus(), sizeof(*opp_tables),
+	opp_tokens = kcalloc(num_possible_cpus(), sizeof(*opp_tokens),
 			     GFP_KERNEL);
-	if (!opp_tables)
+	if (!opp_tokens)
 		return -ENOMEM;
 
 	ret = sun50i_cpufreq_get_efuse(&speed);
-	if (ret)
+	if (ret) {
+		kfree(opp_tokens);
 		return ret;
+	}
 
 	snprintf(name, MAX_NAME_LEN, "speed%d", speed);
 
@@ -111,9 +113,9 @@ static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 			goto free_opp;
 		}
 
-		opp_tables[cpu] = dev_pm_opp_set_prop_name(cpu_dev, name);
-		if (IS_ERR(opp_tables[cpu])) {
-			ret = PTR_ERR(opp_tables[cpu]);
+		opp_tokens[cpu] = dev_pm_opp_set_prop_name(cpu_dev, name);
+		if (opp_tokens[cpu] < 0) {
+			ret = opp_tokens[cpu];
 			pr_err("Failed to set prop name\n");
 			goto free_opp;
 		}
@@ -122,7 +124,7 @@ static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 	cpufreq_dt_pdev = platform_device_register_simple("cpufreq-dt", -1,
 							  NULL, 0);
 	if (!IS_ERR(cpufreq_dt_pdev)) {
-		platform_set_drvdata(pdev, opp_tables);
+		platform_set_drvdata(pdev, opp_tokens);
 		return 0;
 	}
 
@@ -130,27 +132,24 @@ static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 	pr_err("Failed to register platform device\n");
 
 free_opp:
-	for_each_possible_cpu(cpu) {
-		if (IS_ERR_OR_NULL(opp_tables[cpu]))
-			break;
-		dev_pm_opp_put_prop_name(opp_tables[cpu]);
-	}
-	kfree(opp_tables);
+	for_each_possible_cpu(cpu)
+		dev_pm_opp_put_prop_name(opp_tokens[cpu]);
+	kfree(opp_tokens);
 
 	return ret;
 }
 
 static int sun50i_cpufreq_nvmem_remove(struct platform_device *pdev)
 {
-	struct opp_table **opp_tables = platform_get_drvdata(pdev);
+	int *opp_tokens = platform_get_drvdata(pdev);
 	unsigned int cpu;
 
 	platform_device_unregister(cpufreq_dt_pdev);
 
 	for_each_possible_cpu(cpu)
-		dev_pm_opp_put_prop_name(opp_tables[cpu]);
+		dev_pm_opp_put_prop_name(opp_tokens[cpu]);
 
-	kfree(opp_tables);
+	kfree(opp_tokens);
 
 	return 0;
 }

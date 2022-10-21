@@ -530,10 +530,10 @@ DECLARE_MSM_GPIO_PINS(187);
 DECLARE_MSM_GPIO_PINS(188);
 DECLARE_MSM_GPIO_PINS(189);
 
-static const unsigned int sdc2_clk_pins[] = { 190 };
-static const unsigned int sdc2_cmd_pins[] = { 191 };
-static const unsigned int sdc2_data_pins[] = { 192 };
-static const unsigned int ufs_reset_pins[] = { 193 };
+static const unsigned int ufs_reset_pins[] = { 190 };
+static const unsigned int sdc2_clk_pins[] = { 191 };
+static const unsigned int sdc2_cmd_pins[] = { 192 };
+static const unsigned int sdc2_data_pins[] = { 193 };
 
 enum sc8180x_functions {
 	msm_mux_adsp_ext,
@@ -1582,7 +1582,7 @@ static const int sc8180x_acpi_reserved_gpios[] = {
 static const struct msm_gpio_wakeirq_map sc8180x_pdc_map[] = {
 	{ 3, 31 }, { 5, 32 }, { 8, 33 }, { 9, 34 }, { 10, 100 }, { 12, 104 },
 	{ 24, 37 }, { 26, 38 }, { 27, 41 }, { 28, 42 }, { 30, 39 }, { 36, 43 },
-	{ 37, 43 }, { 38, 45 }, { 39, 118 }, { 39, 125 }, { 41, 47 },
+	{ 37, 44 }, { 38, 45 }, { 39, 118 }, { 39, 125 }, { 41, 47 },
 	{ 42, 48 }, { 46, 50 }, { 47, 49 }, { 48, 51 }, { 49, 53 }, { 50, 52 },
 	{ 51, 116 }, { 51, 123 }, { 53, 54 }, { 54, 55 }, { 55, 56 },
 	{ 56, 57 }, { 58, 58 }, { 60, 60 }, { 68, 62 }, { 70, 63 }, { 76, 86 },
@@ -1622,8 +1622,8 @@ static const struct msm_pinctrl_soc_data sc8180x_acpi_pinctrl = {
 };
 
 /*
- * ACPI DSDT has one single memory resource for TLMM, which voilates the
- * hardware layout of 3 sepearte tiles.  Let's split the memory resource into
+ * ACPI DSDT has one single memory resource for TLMM, which violates the
+ * hardware layout of 3 separate tiles.  Let's split the memory resource into
  * 3 named ones, so that msm_pinctrl_probe() can map memory for ACPI in the
  * same way as for DT probe.
  */

@@ -20,7 +20,9 @@ allOf:
 
 properties:
   compatible:
-    const: socionext,uniphier-pro5-pcie-ep
+    enum:
+      - socionext,uniphier-pro5-pcie-ep
+      - socionext,uniphier-nx1-pcie-ep
 
   reg:
     minItems: 4
@@ -41,20 +43,26 @@ properties:
           - const: atu
 
   clocks:
+    minItems: 1
     maxItems: 2
 
   clock-names:
-    items:
-      - const: gio
-      - const: link
+    oneOf:
+      - items:              # for Pro5
+          - const: gio
+          - const: link
+      - const: link         # for NX1
 
   resets:
+    minItems: 1
     maxItems: 2
 
   reset-names:
-    items:
-      - const: gio
-      - const: link
+    oneOf:
+      - items:              # for Pro5
+          - const: gio
+          - const: link
+      - const: link         # for NX1
 
   num-ib-windows:
     const: 16

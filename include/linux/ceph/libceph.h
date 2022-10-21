@@ -35,6 +35,7 @@
 #define CEPH_OPT_TCP_NODELAY      (1<<4) /* TCP_NODELAY on TCP sockets */
 #define CEPH_OPT_NOMSGSIGN        (1<<5) /* don't sign msgs (msgr1) */
 #define CEPH_OPT_ABORT_ON_FULL    (1<<6) /* abort w/ ENOSPC when full */
+#define CEPH_OPT_RXBOUNCE         (1<<7) /* double-buffer read data */
 
 #define CEPH_OPT_DEFAULT   (CEPH_OPT_TCP_NODELAY)
 
@@ -283,6 +284,7 @@ DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, nodefld)
 
 extern struct kmem_cache *ceph_inode_cachep;
 extern struct kmem_cache *ceph_cap_cachep;
+extern struct kmem_cache *ceph_cap_snap_cachep;
 extern struct kmem_cache *ceph_cap_flush_cachep;
 extern struct kmem_cache *ceph_dentry_cachep;
 extern struct kmem_cache *ceph_file_cachep;

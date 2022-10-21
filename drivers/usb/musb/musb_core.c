@@ -2595,9 +2595,7 @@ fail2:
 	musb_platform_exit(musb);
 
 fail1:
-	if (status != -EPROBE_DEFER)
-		dev_err(musb->controller,
-			"%s failed with status %d\n", __func__, status);
+	dev_err_probe(musb->controller, status, "%s failed\n", __func__);
 
 	musb_free(musb);
 
@@ -2684,13 +2682,7 @@ static void musb_save_context(struct musb *musb)
 	musb->context.devctl = musb_readb(musb_base, MUSB_DEVCTL);
 
 	for (i = 0; i < musb->config->num_eps; ++i) {
-		struct musb_hw_ep	*hw_ep;
-
-		hw_ep = &musb->endpoints[i];
-		if (!hw_ep)
-			continue;
-
-		epio = hw_ep->regs;
+		epio = musb->endpoints[i].regs;
 		if (!epio)
 			continue;
 
@@ -2765,13 +2757,7 @@ static void musb_restore_context(struct musb *musb)
 		musb_writeb(musb_base, MUSB_DEVCTL, musb->context.devctl);
 
 	for (i = 0; i < musb->config->num_eps; ++i) {
-		struct musb_hw_ep	*hw_ep;
-
-		hw_ep = &musb->endpoints[i];
-		if (!hw_ep)
-			continue;
-
-		epio = hw_ep->regs;
+		epio = musb->endpoints[i].regs;
 		if (!epio)
 			continue;
 

@@ -417,7 +417,7 @@ static int i2c_lpc2k_probe(struct platform_device *pdev)
 
 	i2c_set_adapdata(&i2c->adap, i2c);
 	i2c->adap.owner = THIS_MODULE;
-	strlcpy(i2c->adap.name, "LPC2K I2C adapter", sizeof(i2c->adap.name));
+	strscpy(i2c->adap.name, "LPC2K I2C adapter", sizeof(i2c->adap.name));
 	i2c->adap.algo = &i2c_lpc2k_algorithm;
 	i2c->adap.dev.parent = &pdev->dev;
 	i2c->adap.dev.of_node = pdev->dev.of_node;

@@ -23,7 +23,7 @@
  *          Alon Levy
  */
 
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 #include <linux/io-mapping.h>
 
 #include "qxl_drv.h"
@@ -141,7 +141,7 @@ int qxl_bo_create(struct qxl_device *qdev, unsigned long size,
 	qxl_ttm_placement_from_domain(bo, domain);
 
 	bo->tbo.priority = priority;
-	r = ttm_bo_init_reserved(&qdev->mman.bdev, &bo->tbo, size, type,
+	r = ttm_bo_init_reserved(&qdev->mman.bdev, &bo->tbo, type,
 				 &bo->placement, 0, &ctx, NULL, NULL,
 				 &qxl_ttm_bo_destroy);
 	if (unlikely(r != 0)) {
@@ -158,7 +158,7 @@ int qxl_bo_create(struct qxl_device *qdev, unsigned long size,
 	return 0;
 }
 
-int qxl_bo_vmap_locked(struct qxl_bo *bo, struct dma_buf_map *map)
+int qxl_bo_vmap_locked(struct qxl_bo *bo, struct iosys_map *map)
 {
 	int r;
 
@@ -184,7 +184,7 @@ out:
 	return 0;
 }
 
-int qxl_bo_vmap(struct qxl_bo *bo, struct dma_buf_map *map)
+int qxl_bo_vmap(struct qxl_bo *bo, struct iosys_map *map)
 {
 	int r;
 
@@ -210,7 +210,7 @@ void *qxl_bo_kmap_atomic_page(struct qxl_device *qdev,
 	void *rptr;
 	int ret;
 	struct io_mapping *map;
-	struct dma_buf_map bo_map;
+	struct iosys_map bo_map;
 
 	if (bo->tbo.resource->mem_type == TTM_PL_VRAM)
 		map = qdev->vram_mapping;

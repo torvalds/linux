@@ -10,9 +10,9 @@ This document is based on the ARM booting document by Russell King and
 is relevant to all public releases of the AArch64 Linux kernel.
 
 The AArch64 exception model is made up of a number of exception levels
-(EL0 - EL3), with EL0 and EL1 having a secure and a non-secure
-counterpart.  EL2 is the hypervisor level and exists only in non-secure
-mode. EL3 is the highest priority level and exists only in secure mode.
+(EL0 - EL3), with EL0, EL1 and EL2 having a secure and a non-secure
+counterpart.  EL2 is the hypervisor level, EL3 is the highest priority
+level and exists only in secure mode. Both are architecturally optional.
 
 For the purposes of this document, we will use the term `boot loader`
 simply to define all software that executes on the CPU(s) before control
@@ -167,8 +167,8 @@ Before jumping into the kernel, the following conditions must be met:
 
   All forms of interrupts must be masked in PSTATE.DAIF (Debug, SError,
   IRQ and FIQ).
-  The CPU must be in either EL2 (RECOMMENDED in order to have access to
-  the virtualisation extensions) or non-secure EL1.
+  The CPU must be in non-secure state, either in EL2 (RECOMMENDED in order
+  to have access to the virtualisation extensions), or in EL1.
 
 - Caches, MMUs
 
@@ -349,6 +349,16 @@ Before jumping into the kernel, the following conditions must be met:
  - If the kernel is entered at EL1 and EL2 is present:
 
     - SMCR_EL2.FA64 (bit 31) must be initialised to 0b1.
+
+  For CPUs with the Memory Tagging Extension feature (FEAT_MTE2):
+
+  - If EL3 is present:
+
+    - SCR_EL3.ATA (bit 26) must be initialised to 0b1.
+
+  - If the kernel is entered at EL1 and EL2 is present:
+
+    - HCR_EL2.ATA (bit 56) must be initialised to 0b1.
 
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must

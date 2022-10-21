@@ -925,9 +925,9 @@ static void encx24j600_get_regs(struct net_device *dev,
 static void encx24j600_get_drvinfo(struct net_device *dev,
 				   struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, dev_name(dev->dev.parent),
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, dev_name(dev->dev.parent),
 		sizeof(info->bus_info));
 }
 
@@ -1093,7 +1093,7 @@ error_out:
 	return ret;
 }
 
-static int encx24j600_spi_remove(struct spi_device *spi)
+static void encx24j600_spi_remove(struct spi_device *spi)
 {
 	struct encx24j600_priv *priv = dev_get_drvdata(&spi->dev);
 
@@ -1101,8 +1101,6 @@ static int encx24j600_spi_remove(struct spi_device *spi)
 	kthread_stop(priv->kworker_task);
 
 	free_netdev(priv->ndev);
-
-	return 0;
 }
 
 static const struct spi_device_id encx24j600_spi_id_table[] = {

@@ -6,9 +6,10 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_gem_atomic_helper.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 
 #include "omap_dmm_tiler.h"
 #include "omap_drv.h"
@@ -403,7 +404,6 @@ void omap_plane_install_properties(struct drm_plane *plane,
 
 static void omap_plane_reset(struct drm_plane *plane)
 {
-	struct omap_plane *omap_plane = to_omap_plane(plane);
 	struct omap_plane_state *omap_state;
 
 	if (plane->state)
@@ -414,15 +414,6 @@ static void omap_plane_reset(struct drm_plane *plane)
 		return;
 
 	__drm_atomic_helper_plane_reset(plane, &omap_state->base);
-
-	/*
-	 * Set the zpos default depending on whether we are a primary or overlay
-	 * plane.
-	 */
-	plane->state->zpos = plane->type == DRM_PLANE_TYPE_PRIMARY
-			   ? 0 : omap_plane->id;
-	plane->state->color_encoding = DRM_COLOR_YCBCR_BT601;
-	plane->state->color_range = DRM_COLOR_YCBCR_FULL_RANGE;
 }
 
 static struct drm_plane_state *
@@ -533,6 +524,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	unsigned int num_planes = dispc_get_num_ovls(priv->dispc);
 	struct drm_plane *plane;
 	struct omap_plane *omap_plane;
+	unsigned int zpos;
 	int ret;
 	u32 nformats;
 	const u32 *formats;
@@ -564,7 +556,16 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	drm_plane_helper_add(plane, &omap_plane_helper_funcs);
 
 	omap_plane_install_properties(plane, &plane->base);
-	drm_plane_create_zpos_property(plane, 0, 0, num_planes - 1);
+
+	/*
+	 * Set the zpos default depending on whether we are a primary or overlay
+	 * plane.
+	 */
+	if (plane->type == DRM_PLANE_TYPE_PRIMARY)
+		zpos = 0;
+	else
+		zpos = omap_plane->id;
+	drm_plane_create_zpos_property(plane, zpos, 0, num_planes - 1);
 	drm_plane_create_alpha_property(plane);
 	drm_plane_create_blend_mode_property(plane, BIT(DRM_MODE_BLEND_PREMULTI) |
 					     BIT(DRM_MODE_BLEND_COVERAGE));

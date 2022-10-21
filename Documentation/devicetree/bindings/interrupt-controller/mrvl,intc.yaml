@@ -7,10 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Marvell MMP/Orion Interrupt controller bindings
 
 maintainers:
-  - Thomas Gleixner <tglx@linutronix.de>
-  - Jason Cooper <jason@lakedaemon.net>
-  - Marc Zyngier <maz@kernel.org>
-  - Rob Herring <robh+dt@kernel.org>
+  - Andrew Lunn <andrew@lunn.ch>
+  - Gregory Clement <gregory.clement@bootlin.com>
 
 allOf:
   - if:

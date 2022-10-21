@@ -89,6 +89,7 @@ static const char * const POWER_SUPPLY_CHARGE_TYPE_TEXT[] = {
 	[POWER_SUPPLY_CHARGE_TYPE_ADAPTIVE]	= "Adaptive",
 	[POWER_SUPPLY_CHARGE_TYPE_CUSTOM]	= "Custom",
 	[POWER_SUPPLY_CHARGE_TYPE_LONGLIFE]	= "Long Life",
+	[POWER_SUPPLY_CHARGE_TYPE_BYPASS]	= "Bypass",
 };
 
 static const char * const POWER_SUPPLY_HEALTH_TEXT[] = {
@@ -441,7 +442,7 @@ static int add_prop_uevent(struct device *dev, struct kobj_uevent_env *env,
 	if (ret == -ENODEV || ret == -ENODATA) {
 		/*
 		 * When a battery is absent, we expect -ENODEV. Don't abort;
-		 * send the uevent with at least the the PRESENT=0 property
+		 * send the uevent with at least the PRESENT=0 property
 		 */
 		return 0;
 	}

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2015, 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015, 2017-2018, 2022, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/bitops.h>
@@ -35,9 +35,14 @@
 #define CFG_GDSCR_OFFSET		0x4
 
 /* Wait 2^n CXO cycles between all states. Here, n=2 (4 cycles). */
-#define EN_REST_WAIT_VAL	(0x2 << 20)
-#define EN_FEW_WAIT_VAL		(0x8 << 16)
-#define CLK_DIS_WAIT_VAL	(0x2 << 12)
+#define EN_REST_WAIT_VAL	0x2
+#define EN_FEW_WAIT_VAL		0x8
+#define CLK_DIS_WAIT_VAL	0x2
+
+/* Transition delay shifts */
+#define EN_REST_WAIT_SHIFT	20
+#define EN_FEW_WAIT_SHIFT	16
+#define CLK_DIS_WAIT_SHIFT	12
 
 #define RETAIN_MEM		BIT(14)
 #define RETAIN_PERIPH		BIT(13)
@@ -127,10 +132,29 @@ static int gdsc_poll_status(struct gdsc *sc, enum gdsc_status status)
 	return -ETIMEDOUT;
 }
 
+static int gdsc_update_collapse_bit(struct gdsc *sc, bool val)
+{
+	u32 reg, mask;
+	int ret;
+
+	if (sc->collapse_mask) {
+		reg = sc->collapse_ctrl;
+		mask = sc->collapse_mask;
+	} else {
+		reg = sc->gdscr;
+		mask = SW_COLLAPSE_MASK;
+	}
+
+	ret = regmap_update_bits(sc->regmap, reg, mask, val ? mask : 0);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int gdsc_toggle_logic(struct gdsc *sc, enum gdsc_status status)
 {
 	int ret;
-	u32 val = (status == GDSC_ON) ? 0 : SW_COLLAPSE_MASK;
 
 	if (status == GDSC_ON && sc->rsupply) {
 		ret = regulator_enable(sc->rsupply);
@@ -138,9 +162,7 @@ static int gdsc_toggle_logic(struct gdsc *sc, enum gdsc_status status)
 			return ret;
 	}
 
-	ret = regmap_update_bits(sc->regmap, sc->gdscr, SW_COLLAPSE_MASK, val);
-	if (ret)
-		return ret;
+	ret = gdsc_update_collapse_bit(sc, status == GDSC_OFF);
 
 	/* If disabling votable gdscs, don't poll on status */
 	if ((sc->flags & VOTABLE) && status == GDSC_OFF) {
@@ -346,6 +368,16 @@ static int _gdsc_disable(struct gdsc *sc)
 	if (sc->pwrsts & PWRSTS_OFF)
 		gdsc_clear_mem_on(sc);
 
+	/*
+	 * If the GDSC supports only a Retention state, apart from ON,
+	 * leave it in ON state.
+	 * There is no SW control to transition the GDSC into
+	 * Retention state. This happens in HW when the parent
+	 * domain goes down to a Low power state
+	 */
+	if (sc->pwrsts == PWRSTS_RET_ON)
+		return 0;
+
 	ret = gdsc_toggle_logic(sc, GDSC_OFF);
 	if (ret)
 		return ret;
@@ -380,7 +412,18 @@ static int gdsc_init(struct gdsc *sc)
 	 */
 	mask = HW_CONTROL_MASK | SW_OVERRIDE_MASK |
 	       EN_REST_WAIT_MASK | EN_FEW_WAIT_MASK | CLK_DIS_WAIT_MASK;
-	val = EN_REST_WAIT_VAL | EN_FEW_WAIT_VAL | CLK_DIS_WAIT_VAL;
+
+	if (!sc->en_rest_wait_val)
+		sc->en_rest_wait_val = EN_REST_WAIT_VAL;
+	if (!sc->en_few_wait_val)
+		sc->en_few_wait_val = EN_FEW_WAIT_VAL;
+	if (!sc->clk_dis_wait_val)
+		sc->clk_dis_wait_val = CLK_DIS_WAIT_VAL;
+
+	val = sc->en_rest_wait_val << EN_REST_WAIT_SHIFT |
+		sc->en_few_wait_val << EN_FEW_WAIT_SHIFT |
+		sc->clk_dis_wait_val << CLK_DIS_WAIT_SHIFT;
+
 	ret = regmap_update_bits(sc->regmap, sc->gdscr, mask, val);
 	if (ret)
 		return ret;
@@ -404,22 +447,26 @@ static int gdsc_init(struct gdsc *sc)
 				return ret;
 		}
 
+		/* ...and the power-domain */
+		ret = gdsc_pm_runtime_get(sc);
+		if (ret)
+			goto err_disable_supply;
+
 		/*
 		 * Votable GDSCs can be ON due to Vote from other masters.
 		 * If a Votable GDSC is ON, make sure we have a Vote.
 		 */
 		if (sc->flags & VOTABLE) {
-			ret = regmap_update_bits(sc->regmap, sc->gdscr,
-						 SW_COLLAPSE_MASK, val);
+			ret = gdsc_update_collapse_bit(sc, false);
 			if (ret)
-				return ret;
+				goto err_put_rpm;
 		}
 
 		/* Turn on HW trigger mode if supported */
 		if (sc->flags & HW_CTRL) {
 			ret = gdsc_hwctrl(sc, true);
 			if (ret < 0)
-				return ret;
+				goto err_put_rpm;
 		}
 
 		/*
@@ -446,9 +493,21 @@ static int gdsc_init(struct gdsc *sc)
 		sc->pd.power_off = gdsc_disable;
 	if (!sc->pd.power_on)
 		sc->pd.power_on = gdsc_enable;
-	pm_genpd_init(&sc->pd, NULL, !on);
+
+	ret = pm_genpd_init(&sc->pd, NULL, !on);
+	if (ret)
+		goto err_put_rpm;
 
 	return 0;
+
+err_put_rpm:
+	if (on)
+		gdsc_pm_runtime_put(sc);
+err_disable_supply:
+	if (on && sc->rsupply)
+		regulator_disable(sc->rsupply);
+
+	return ret;
 }
 
 int gdsc_register(struct gdsc_desc *desc,

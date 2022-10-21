@@ -300,25 +300,22 @@ static int max98925_dai_set_fmt(struct snd_soc_dai *codec_dai,
 	unsigned int invert = 0;
 
 	dev_dbg(component->dev, "%s: fmt 0x%08X\n", __func__, fmt);
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
-		/* set DAI to slave mode */
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		regmap_update_bits(max98925->regmap,
 			MAX98925_DAI_CLK_MODE2,
 			M98925_DAI_MAS_MASK, 0);
 		max98925_set_sense_data(max98925);
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		/*
-		 * set left channel DAI to master mode,
-		 * right channel always slave
+		 * set left channel DAI to provider mode,
+		 * right channel always consumer
 		 */
 		regmap_update_bits(max98925->regmap,
 			MAX98925_DAI_CLK_MODE2,
 			M98925_DAI_MAS_MASK, M98925_DAI_MAS_MASK);
 		break;
-	case SND_SOC_DAIFMT_CBS_CFM:
-	case SND_SOC_DAIFMT_CBM_CFS:
 	default:
 		dev_err(component->dev, "DAI clock mode unsupported");
 		return -EINVAL;
@@ -547,7 +544,6 @@ static const struct snd_soc_component_driver soc_component_dev_max98925 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config max98925_regmap = {
@@ -561,8 +557,7 @@ static const struct regmap_config max98925_regmap = {
 	.cache_type       = REGCACHE_RBTREE,
 };
 
-static int max98925_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int max98925_i2c_probe(struct i2c_client *i2c)
 {
 	int ret, reg;
 	u32 value;
@@ -640,7 +635,7 @@ static struct i2c_driver max98925_i2c_driver = {
 		.name = "max98925",
 		.of_match_table = of_match_ptr(max98925_of_match),
 	},
-	.probe  = max98925_i2c_probe,
+	.probe_new  = max98925_i2c_probe,
 	.id_table = max98925_i2c_id,
 };
 

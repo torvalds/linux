@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2009-2022 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -28,7 +28,6 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "vmwgfx_kms.h"
@@ -338,7 +337,7 @@ drm_plane_helper_funcs vmw_ldu_cursor_plane_helper_funcs = {
 	.atomic_check = vmw_du_cursor_plane_atomic_check,
 	.atomic_update = vmw_du_cursor_plane_atomic_update,
 	.prepare_fb = vmw_du_cursor_plane_prepare_fb,
-	.cleanup_fb = vmw_du_plane_cleanup_fb,
+	.cleanup_fb = vmw_du_cursor_plane_cleanup_fb,
 };
 
 static const struct
@@ -363,7 +362,8 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
-	struct drm_plane *primary, *cursor;
+	struct drm_plane *primary;
+	struct vmw_cursor_plane *cursor;
 	struct drm_crtc *crtc;
 	int ret;
 
@@ -392,7 +392,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	ldu->base.is_implicit = true;
 
 	/* Initialize primary plane */
-	ret = drm_universal_plane_init(dev, &ldu->base.primary,
+	ret = drm_universal_plane_init(dev, primary,
 				       0, &vmw_ldu_plane_funcs,
 				       vmw_primary_plane_formats,
 				       ARRAY_SIZE(vmw_primary_plane_formats),
@@ -409,7 +409,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	 */
 	if (vmw_cmd_supported(dev_priv)) {
 		/* Initialize cursor plane */
-		ret = drm_universal_plane_init(dev, &ldu->base.cursor,
+		ret = drm_universal_plane_init(dev, &cursor->base,
 					       0, &vmw_ldu_cursor_funcs,
 					       vmw_cursor_plane_formats,
 					       ARRAY_SIZE(vmw_cursor_plane_formats),
@@ -420,7 +420,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 			goto err_free;
 		}
 
-		drm_plane_helper_add(cursor, &vmw_ldu_cursor_plane_helper_funcs);
+		drm_plane_helper_add(&cursor->base, &vmw_ldu_cursor_plane_helper_funcs);
 	}
 
 	ret = drm_connector_init(dev, connector, &vmw_legacy_connector_funcs,
@@ -450,9 +450,8 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 		goto err_free_encoder;
 	}
 
-	ret = drm_crtc_init_with_planes(
-		      dev, crtc, &ldu->base.primary,
-		      vmw_cmd_supported(dev_priv) ? &ldu->base.cursor : NULL,
+	ret = drm_crtc_init_with_planes(dev, crtc, primary,
+		      vmw_cmd_supported(dev_priv) ? &cursor->base : NULL,
 		      &vmw_legacy_crtc_funcs, NULL);
 	if (ret) {
 		DRM_ERROR("Failed to initialize CRTC\n");
@@ -492,6 +491,8 @@ int vmw_kms_ldu_init_display(struct vmw_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
 	int i, ret;
+	int num_display_units = (dev_priv->capabilities & SVGA_CAP_MULTIMON) ?
+					VMWGFX_NUM_DISPLAY_UNITS : 1;
 
 	if (unlikely(dev_priv->ldu_priv)) {
 		return -EINVAL;
@@ -506,21 +507,17 @@ int vmw_kms_ldu_init_display(struct vmw_private *dev_priv)
 	dev_priv->ldu_priv->last_num_active = 0;
 	dev_priv->ldu_priv->fb = NULL;
 
-	/* for old hardware without multimon only enable one display */
-	if (dev_priv->capabilities & SVGA_CAP_MULTIMON)
-		ret = drm_vblank_init(dev, VMWGFX_NUM_DISPLAY_UNITS);
-	else
-		ret = drm_vblank_init(dev, 1);
+	ret = drm_vblank_init(dev, num_display_units);
 	if (ret != 0)
 		goto err_free;
 
 	vmw_kms_create_implicit_placement_property(dev_priv);
 
-	if (dev_priv->capabilities & SVGA_CAP_MULTIMON)
-		for (i = 0; i < VMWGFX_NUM_DISPLAY_UNITS; ++i)
-			vmw_ldu_init(dev_priv, i);
-	else
-		vmw_ldu_init(dev_priv, 0);
+	for (i = 0; i < num_display_units; ++i) {
+		ret = vmw_ldu_init(dev_priv, i);
+		if (ret != 0)
+			goto err_free;
+	}
 
 	dev_priv->active_display_unit = vmw_du_legacy;
 

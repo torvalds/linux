@@ -92,11 +92,6 @@ static int octeon_console_debug_enabled(u32 console)
 /* time to wait for possible in-flight requests in milliseconds */
 #define WAIT_INFLIGHT_REQUEST	msecs_to_jiffies(1000)
 
-struct lio_trusted_vf_ctx {
-	struct completion complete;
-	int status;
-};
-
 struct oct_link_status_resp {
 	u64 rh;
 	struct oct_link_info link_info;
@@ -3563,7 +3558,7 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 					      | NETIF_F_TSO | NETIF_F_TSO6
 					      | NETIF_F_LRO;
 		}
-		netif_set_gso_max_size(netdev, OCTNIC_GSO_MAX_SIZE);
+		netif_set_tso_max_size(netdev, OCTNIC_GSO_MAX_SIZE);
 
 		/*  Copy of transmit encapsulation capabilities:
 		 *  TSO, TSO6, Checksums for this device

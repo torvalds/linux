@@ -171,8 +171,6 @@ struct process_frame_ctx {
 	bool done;
 };
 
-#define barrier_var(var) asm volatile("" : "=r"(var) : "0"(var))
-
 static int process_frame_callback(__u32 i, struct process_frame_ctx *ctx)
 {
 	int zero = 0;
@@ -299,7 +297,11 @@ int __on_event(struct bpf_raw_tracepoint_args *ctx)
 #ifdef NO_UNROLL
 #pragma clang loop unroll(disable)
 #else
+#ifdef UNROLL_COUNT
+#pragma clang loop unroll_count(UNROLL_COUNT)
+#else
 #pragma clang loop unroll(full)
+#endif
 #endif /* NO_UNROLL */
 		/* Unwind python stack */
 		for (int i = 0; i < STACK_MAX_LEN; ++i) {

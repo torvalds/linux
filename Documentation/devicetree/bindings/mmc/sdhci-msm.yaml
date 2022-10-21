@@ -1,0 +1,258 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/mmc/sdhci-msm.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Qualcomm SDHCI controller (sdhci-msm)
+
+maintainers:
+  - Bhupesh Sharma <bhupesh.sharma@linaro.org>
+
+description:
+  Secure Digital Host Controller Interface (SDHCI) present on
+  Qualcomm SOCs supports SD/MMC/SDIO devices.
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - qcom,sdhci-msm-v4
+        deprecated: true
+      - items:
+          - enum:
+              - qcom,apq8084-sdhci
+              - qcom,msm8226-sdhci
+              - qcom,msm8953-sdhci
+              - qcom,msm8974-sdhci
+              - qcom,msm8916-sdhci
+              - qcom,msm8992-sdhci
+              - qcom,msm8994-sdhci
+              - qcom,msm8996-sdhci
+              - qcom,msm8998-sdhci
+          - const: qcom,sdhci-msm-v4 # for sdcc versions less than 5.0
+      - items:
+          - enum:
+              - qcom,qcs404-sdhci
+              - qcom,sc7180-sdhci
+              - qcom,sc7280-sdhci
+              - qcom,sdm630-sdhci
+              - qcom,sdm670-sdhci
+              - qcom,sdm845-sdhci
+              - qcom,sdx55-sdhci
+              - qcom,sdx65-sdhci
+              - qcom,sm6115-sdhci
+              - qcom,sm6125-sdhci
+              - qcom,sm6350-sdhci
+              - qcom,sm8150-sdhci
+              - qcom,sm8250-sdhci
+              - qcom,sm8450-sdhci
+          - const: qcom,sdhci-msm-v5 # for sdcc version 5.0
+
+  reg:
+    minItems: 1
+    maxItems: 4
+
+  reg-names:
+    minItems: 1
+    maxItems: 4
+
+  clocks:
+    minItems: 3
+    items:
+      - description: Main peripheral bus clock, PCLK/HCLK - AHB Bus clock
+      - description: SDC MMC clock, MCLK
+      - description: TCXO clock
+      - description: clock for Inline Crypto Engine
+      - description: SDCC bus voter clock
+      - description: reference clock for RCLK delay calibration
+      - description: sleep clock for RCLK delay calibration
+
+  clock-names:
+    minItems: 2
+    items:
+      - const: iface
+      - const: core
+      - const: xo
+      - const: ice
+      - const: bus
+      - const: cal
+      - const: sleep
+
+  interrupts:
+    maxItems: 2
+
+  interrupt-names:
+    items:
+      - const: hc_irq
+      - const: pwr_irq
+
+  pinctrl-names:
+    minItems: 1
+    items:
+      - const: default
+      - const: sleep
+
+  pinctrl-0:
+    description:
+      Should specify pin control groups used for this controller.
+
+  pinctrl-1:
+    description:
+      Should specify sleep pin control groups used for this controller.
+
+  resets:
+    maxItems: 1
+
+  qcom,ddr-config:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: platform specific settings for DDR_CONFIG reg.
+
+  qcom,dll-config:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: platform specific settings for DLL_CONFIG reg.
+
+  iommus:
+    minItems: 1
+    maxItems: 8
+    description: |
+      phandle to apps_smmu node with sid mask.
+
+  interconnects:
+    items:
+      - description: data path, sdhc to ddr
+      - description: config path, cpu to sdhc
+
+  interconnect-names:
+    items:
+      - const: sdhc-ddr
+      - const: cpu-sdhc
+
+  power-domains:
+    description: A phandle to sdhci power domain node
+    maxItems: 1
+
+  mmc-ddr-1_8v: true
+
+  mmc-hs200-1_8v: true
+
+  mmc-hs400-1_8v: true
+
+  bus-width: true
+
+  max-frequency: true
+
+  operating-points-v2: true
+
+patternProperties:
+  '^opp-table(-[a-z0-9]+)?$':
+    if:
+      properties:
+        compatible:
+          const: operating-points-v2
+    then:
+      patternProperties:
+        '^opp-?[0-9]+$':
+          required:
+            - required-opps
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - interrupts
+
+allOf:
+  - $ref: mmc-controller.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sdhci-msm-v4
+    then:
+      properties:
+        reg:
+          minItems: 2
+          items:
+            - description: Host controller register map
+            - description: SD Core register map
+            - description: CQE register map
+            - description: Inline Crypto Engine register map
+        reg-names:
+          minItems: 2
+          items:
+            - const: hc
+            - const: core
+            - const: cqhci
+            - const: ice
+    else:
+      properties:
+        reg:
+          minItems: 1
+          items:
+            - description: Host controller register map
+            - description: CQE register map
+            - description: Inline Crypto Engine register map
+        reg-names:
+          minItems: 1
+          items:
+            - const: hc
+            - const: cqhci
+            - const: ice
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/qcom,gcc-sm8250.h>
+    #include <dt-bindings/clock/qcom,rpmh.h>
+    #include <dt-bindings/power/qcom-rpmpd.h>
+
+    sdhc_2: mmc@8804000 {
+      compatible = "qcom,sm8250-sdhci", "qcom,sdhci-msm-v5";
+      reg = <0 0x08804000 0 0x1000>;
+
+      interrupts = <GIC_SPI 204 IRQ_TYPE_LEVEL_HIGH>,
+                   <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>;
+      interrupt-names = "hc_irq", "pwr_irq";
+
+      clocks = <&gcc GCC_SDCC2_AHB_CLK>,
+               <&gcc GCC_SDCC2_APPS_CLK>,
+               <&rpmhcc RPMH_CXO_CLK>;
+      clock-names = "iface", "core", "xo";
+      iommus = <&apps_smmu 0x4a0 0x0>;
+      qcom,dll-config = <0x0007642c>;
+      qcom,ddr-config = <0x80040868>;
+      power-domains = <&rpmhpd SM8250_CX>;
+
+      operating-points-v2 = <&sdhc2_opp_table>;
+
+      sdhc2_opp_table: opp-table {
+        compatible = "operating-points-v2";
+
+        opp-19200000 {
+          opp-hz = /bits/ 64 <19200000>;
+          required-opps = <&rpmhpd_opp_min_svs>;
+        };
+
+        opp-50000000 {
+          opp-hz = /bits/ 64 <50000000>;
+          required-opps = <&rpmhpd_opp_low_svs>;
+        };
+
+        opp-100000000 {
+          opp-hz = /bits/ 64 <100000000>;
+          required-opps = <&rpmhpd_opp_svs>;
+        };
+
+        opp-202000000 {
+          opp-hz = /bits/ 64 <202000000>;
+          required-opps = <&rpmhpd_opp_svs_l1>;
+        };
+      };
+    };

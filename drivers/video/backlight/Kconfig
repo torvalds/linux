@@ -211,8 +211,8 @@ config BACKLIGHT_LOCOMO
 
 config BACKLIGHT_OMAP1
 	tristate "OMAP1 PWL-based LCD Backlight"
-	depends on ARCH_OMAP1
-	default y
+	depends on ARCH_OMAP1 || COMPILE_TEST
+	default ARCH_OMAP1
 	help
 	  This driver controls the LCD backlight level and power for
 	  the PWL module of OMAP1 processors.  Say Y if your board
@@ -267,6 +267,19 @@ config BACKLIGHT_MAX8925
 	help
 	  If you have a LCD backlight connected to the WLED output of MAX8925
 	  WLED output, say Y here to enable this driver.
+
+config BACKLIGHT_MT6370
+	tristate "MediaTek MT6370 Backlight Driver"
+	depends on MFD_MT6370
+	help
+	  This enables support for Mediatek MT6370 Backlight driver.
+	  It's commonly used to drive the display WLED. There are 4 channels
+	  inside, and each channel supports up to 30mA of current capability
+	  with 2048 current steps (only for MT6370/MT6371) or 16384 current
+	  steps (only for MT6372) in exponential or linear mapping curves.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called "mt6370-backlight".
 
 config BACKLIGHT_APPLE
 	tristate "Apple Backlight Driver"

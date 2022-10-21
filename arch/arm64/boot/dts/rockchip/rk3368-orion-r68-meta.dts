@@ -44,7 +44,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwr_key>;
 
-		power {
+		key-power {
 			wakeup-source;
 			gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
 			label = "GPIO Power";
@@ -134,7 +134,7 @@
 
 	vccio_sd: vcc-io-sd-regulator {
 		compatible = "regulator-fixed";
-		regulator-name= "vccio_sd";
+		regulator-name = "vccio_sd";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;

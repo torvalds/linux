@@ -56,7 +56,7 @@ void r8712_init_recv_priv(struct recv_priv *precvpriv,
 		precvbuf->ref_cnt = 0;
 		precvbuf->adapter = padapter;
 		list_add_tail(&precvbuf->list,
-			      &(precvpriv->free_recv_buf_queue.queue));
+			      &precvpriv->free_recv_buf_queue.queue);
 		precvbuf++;
 	}
 	precvpriv->free_recv_buf_queue_cnt = NR_RECVBUFF;
@@ -123,8 +123,8 @@ void r8712_free_recvframe(union recv_frame *precvframe,
 		precvframe->u.hdr.pkt = NULL;
 	}
 	spin_lock_irqsave(&pfree_recv_queue->lock, irqL);
-	list_del_init(&(precvframe->u.hdr.list));
-	list_add_tail(&(precvframe->u.hdr.list), &pfree_recv_queue->queue);
+	list_del_init(&precvframe->u.hdr.list);
+	list_add_tail(&precvframe->u.hdr.list, &pfree_recv_queue->queue);
 	if (padapter) {
 		if (pfree_recv_queue == &precvpriv->free_recv_queue)
 			precvpriv->free_recvframe_cnt++;
@@ -319,7 +319,7 @@ static void amsdu_to_msdu(struct _adapter *padapter, union recv_frame *prframe)
 	struct rx_pkt_attrib *pattrib;
 	_pkt *sub_skb, *subframes[MAX_SUBFRAME_COUNT];
 	struct recv_priv *precvpriv = &padapter->recvpriv;
-	struct  __queue *pfree_recv_queue = &(precvpriv->free_recv_queue);
+	struct  __queue *pfree_recv_queue = &precvpriv->free_recv_queue;
 
 	nr_subframes = 0;
 	pattrib = &prframe->u.hdr.attrib;
@@ -485,8 +485,8 @@ static int enqueue_reorder_recvframe(struct recv_reorder_ctrl *preorder_ctrl,
 		else
 			break;
 	}
-	list_del_init(&(prframe->u.hdr.list));
-	list_add_tail(&(prframe->u.hdr.list), plist);
+	list_del_init(&prframe->u.hdr.list);
+	list_add_tail(&prframe->u.hdr.list, plist);
 	return true;
 }
 
@@ -520,7 +520,7 @@ int r8712_recv_indicatepkts_in_order(struct _adapter *padapter,
 		pattrib = &prframe->u.hdr.attrib;
 		if (!SN_LESS(preorder_ctrl->indicate_seq, pattrib->seq_num)) {
 			plist = plist->next;
-			list_del_init(&(prframe->u.hdr.list));
+			list_del_init(&prframe->u.hdr.list);
 			if (SN_EQUAL(preorder_ctrl->indicate_seq,
 				     pattrib->seq_num))
 				preorder_ctrl->indicate_seq =
@@ -980,7 +980,7 @@ static void recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 	union recv_frame *precvframe = NULL;
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 
-	pfree_recv_queue = &(precvpriv->free_recv_queue);
+	pfree_recv_queue = &precvpriv->free_recv_queue;
 	pbuf = pskb->data;
 	prxstat = (struct recv_stat *)pbuf;
 	pkt_cnt = (le32_to_cpu(prxstat->rxdw2) >> 16) & 0xff;

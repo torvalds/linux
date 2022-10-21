@@ -9,6 +9,7 @@
 #include "pmi8996.dtsi"
 #include <dt-bindings/sound/qcom,q6afe.h>
 #include <dt-bindings/sound/qcom,q6asm.h>
+#include <dt-bindings/sound/qcom,wcd9335.h>
 
 / {
 	model = "Xiaomi Mi Note 2";
@@ -111,6 +112,30 @@
 	status = "disabled";
 };
 
+&mss_pil {
+	firmware-name = "qcom/msm8996/scorpio/mba.mbn",
+			"qcom/msm8996/scorpio/modem.mbn";
+};
+
+&pm8994_lpg {
+	pinctrl-names = "default";
+	pinctrl-0 = <&keypad_default>;
+
+	led@3 {
+		reg = <3>;
+		color = <LED_COLOR_ID_WHITE>;
+		function = LED_FUNCTION_KBD_BACKLIGHT;
+		function-enumerator = <1>;
+	};
+
+	led@6 {
+		reg = <6>;
+		color = <LED_COLOR_ID_WHITE>;
+		function = LED_FUNCTION_KBD_BACKLIGHT;
+		function-enumerator = <0>;
+	};
+};
+
 &q6asmdai {
 	dai@0 {
 		reg = <0>;
@@ -125,10 +150,14 @@
 	};
 };
 
+&slpi_pil {
+	firmware-name = "qcom/msm8996/scorpio/slpi.mbn";
+};
+
 &sound {
 	compatible = "qcom,apq8096-sndcard";
 	model = "scorpio";
-	audio-routing =	"RX_BIAS", "MCLK";
+	audio-routing = "RX_BIAS", "MCLK";
 
 	mm1-dai-link {
 		link-name = "MultiMedia1";
@@ -162,7 +191,7 @@
 		};
 
 		codec {
-			sound-dai = <&wcd9335 6>;
+			sound-dai = <&wcd9335 AIF4_PB>;
 		};
 	};
 
@@ -177,7 +206,7 @@
 		};
 
 		codec {
-			sound-dai = <&wcd9335 1>;
+			sound-dai = <&wcd9335 AIF1_CAP>;
 		};
 	};
 };
@@ -249,6 +278,15 @@
 		"PMIC_SLB",		/* GPIO_20 */
 		"UIM_BATT_ALARM",	/* GPIO_21 */
 		"NC";			/* GPIO_22 */
+
+	keypad_default: keypad-default-state {
+		pins = "gpio7", "gpio10";
+		function = PMIC_GPIO_FUNC_FUNC1;
+		output-low;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
+		power-source = <PM8994_GPIO_S4>;
+		bias-disable;
+	};
 };
 
 &pm8994_mpps {

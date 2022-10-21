@@ -291,20 +291,7 @@ static int nat_t120(struct sk_buff *skb, struct nf_conn *ct,
 	exp->expectfn = nf_nat_follow_master;
 	exp->dir = !dir;
 
-	/* Try to get same port: if not, try to change it. */
-	for (; nated_port != 0; nated_port++) {
-		int ret;
-
-		exp->tuple.dst.u.tcp.port = htons(nated_port);
-		ret = nf_ct_expect_related(exp, 0);
-		if (ret == 0)
-			break;
-		else if (ret != -EBUSY) {
-			nated_port = 0;
-			break;
-		}
-	}
-
+	nated_port = nf_nat_exp_find_port(exp, nated_port);
 	if (nated_port == 0) {	/* No port available */
 		net_notice_ratelimited("nf_nat_h323: out of TCP ports\n");
 		return 0;
@@ -347,20 +334,7 @@ static int nat_h245(struct sk_buff *skb, struct nf_conn *ct,
 	if (info->sig_port[dir] == port)
 		nated_port = ntohs(info->sig_port[!dir]);
 
-	/* Try to get same port: if not, try to change it. */
-	for (; nated_port != 0; nated_port++) {
-		int ret;
-
-		exp->tuple.dst.u.tcp.port = htons(nated_port);
-		ret = nf_ct_expect_related(exp, 0);
-		if (ret == 0)
-			break;
-		else if (ret != -EBUSY) {
-			nated_port = 0;
-			break;
-		}
-	}
-
+	nated_port = nf_nat_exp_find_port(exp, nated_port);
 	if (nated_port == 0) {	/* No port available */
 		net_notice_ratelimited("nf_nat_q931: out of TCP ports\n");
 		return 0;
@@ -439,20 +413,7 @@ static int nat_q931(struct sk_buff *skb, struct nf_conn *ct,
 	if (info->sig_port[dir] == port)
 		nated_port = ntohs(info->sig_port[!dir]);
 
-	/* Try to get same port: if not, try to change it. */
-	for (; nated_port != 0; nated_port++) {
-		int ret;
-
-		exp->tuple.dst.u.tcp.port = htons(nated_port);
-		ret = nf_ct_expect_related(exp, 0);
-		if (ret == 0)
-			break;
-		else if (ret != -EBUSY) {
-			nated_port = 0;
-			break;
-		}
-	}
-
+	nated_port = nf_nat_exp_find_port(exp, nated_port);
 	if (nated_port == 0) {	/* No port available */
 		net_notice_ratelimited("nf_nat_ras: out of TCP ports\n");
 		return 0;
@@ -532,20 +493,7 @@ static int nat_callforwarding(struct sk_buff *skb, struct nf_conn *ct,
 	exp->expectfn = ip_nat_callforwarding_expect;
 	exp->dir = !dir;
 
-	/* Try to get same port: if not, try to change it. */
-	for (nated_port = ntohs(port); nated_port != 0; nated_port++) {
-		int ret;
-
-		exp->tuple.dst.u.tcp.port = htons(nated_port);
-		ret = nf_ct_expect_related(exp, 0);
-		if (ret == 0)
-			break;
-		else if (ret != -EBUSY) {
-			nated_port = 0;
-			break;
-		}
-	}
-
+	nated_port = nf_nat_exp_find_port(exp, ntohs(port));
 	if (nated_port == 0) {	/* No port available */
 		net_notice_ratelimited("nf_nat_q931: out of TCP ports\n");
 		return 0;
@@ -579,53 +527,39 @@ static struct nf_ct_helper_expectfn callforwarding_nat = {
 	.expectfn	= ip_nat_callforwarding_expect,
 };
 
-/****************************************************************************/
-static int __init init(void)
-{
-	BUG_ON(set_h245_addr_hook != NULL);
-	BUG_ON(set_h225_addr_hook != NULL);
-	BUG_ON(set_sig_addr_hook != NULL);
-	BUG_ON(set_ras_addr_hook != NULL);
-	BUG_ON(nat_rtp_rtcp_hook != NULL);
-	BUG_ON(nat_t120_hook != NULL);
-	BUG_ON(nat_h245_hook != NULL);
-	BUG_ON(nat_callforwarding_hook != NULL);
-	BUG_ON(nat_q931_hook != NULL);
+static const struct nfct_h323_nat_hooks nathooks = {
+	.set_h245_addr = set_h245_addr,
+	.set_h225_addr = set_h225_addr,
+	.set_sig_addr = set_sig_addr,
+	.set_ras_addr = set_ras_addr,
+	.nat_rtp_rtcp = nat_rtp_rtcp,
+	.nat_t120 = nat_t120,
+	.nat_h245 = nat_h245,
+	.nat_callforwarding = nat_callforwarding,
+	.nat_q931 = nat_q931,
+};
 
-	RCU_INIT_POINTER(set_h245_addr_hook, set_h245_addr);
-	RCU_INIT_POINTER(set_h225_addr_hook, set_h225_addr);
-	RCU_INIT_POINTER(set_sig_addr_hook, set_sig_addr);
-	RCU_INIT_POINTER(set_ras_addr_hook, set_ras_addr);
-	RCU_INIT_POINTER(nat_rtp_rtcp_hook, nat_rtp_rtcp);
-	RCU_INIT_POINTER(nat_t120_hook, nat_t120);
-	RCU_INIT_POINTER(nat_h245_hook, nat_h245);
-	RCU_INIT_POINTER(nat_callforwarding_hook, nat_callforwarding);
-	RCU_INIT_POINTER(nat_q931_hook, nat_q931);
+/****************************************************************************/
+static int __init nf_nat_h323_init(void)
+{
+	RCU_INIT_POINTER(nfct_h323_nat_hook, &nathooks);
 	nf_ct_helper_expectfn_register(&q931_nat);
 	nf_ct_helper_expectfn_register(&callforwarding_nat);
 	return 0;
 }
 
 /****************************************************************************/
-static void __exit fini(void)
+static void __exit nf_nat_h323_fini(void)
 {
-	RCU_INIT_POINTER(set_h245_addr_hook, NULL);
-	RCU_INIT_POINTER(set_h225_addr_hook, NULL);
-	RCU_INIT_POINTER(set_sig_addr_hook, NULL);
-	RCU_INIT_POINTER(set_ras_addr_hook, NULL);
-	RCU_INIT_POINTER(nat_rtp_rtcp_hook, NULL);
-	RCU_INIT_POINTER(nat_t120_hook, NULL);
-	RCU_INIT_POINTER(nat_h245_hook, NULL);
-	RCU_INIT_POINTER(nat_callforwarding_hook, NULL);
-	RCU_INIT_POINTER(nat_q931_hook, NULL);
+	RCU_INIT_POINTER(nfct_h323_nat_hook, NULL);
 	nf_ct_helper_expectfn_unregister(&q931_nat);
 	nf_ct_helper_expectfn_unregister(&callforwarding_nat);
 	synchronize_rcu();
 }
 
 /****************************************************************************/
-module_init(init);
-module_exit(fini);
+module_init(nf_nat_h323_init);
+module_exit(nf_nat_h323_fini);
 
 MODULE_AUTHOR("Jing Min Zhao <zhaojingmin@users.sourceforge.net>");
 MODULE_DESCRIPTION("H.323 NAT helper");

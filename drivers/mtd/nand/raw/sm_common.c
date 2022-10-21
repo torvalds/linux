@@ -52,7 +52,7 @@ static const struct mtd_ooblayout_ops oob_sm_ops = {
 	.free = oob_sm_ooblayout_free,
 };
 
-/* NOTE: This layout is is not compatabable with SmartMedia, */
+/* NOTE: This layout is not compatabable with SmartMedia, */
 /* because the 256 byte devices have page depenent oob layout */
 /* However it does preserve the bad block markers */
 /* If you use smftl, it will bypass this and work correctly */
@@ -99,7 +99,7 @@ static const struct mtd_ooblayout_ops oob_sm_small_ops = {
 static int sm_block_markbad(struct nand_chip *chip, loff_t ofs)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	struct sm_oob oob;
 	int ret;
 

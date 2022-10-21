@@ -16,7 +16,7 @@
 #include <linux/kdev_t.h>
 #include <linux/err.h>
 #include <linux/slab.h>
-#include <linux/genhd.h>
+#include <linux/blkdev.h>
 #include <linux/mutex.h>
 #include "base.h"
 
@@ -260,7 +260,7 @@ EXPORT_SYMBOL_GPL(__class_create);
  */
 void class_destroy(struct class *cls)
 {
-	if ((cls == NULL) || (IS_ERR(cls)))
+	if (IS_ERR_OR_NULL(cls))
 		return;
 
 	class_unregister(cls);

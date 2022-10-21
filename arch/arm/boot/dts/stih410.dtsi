@@ -12,31 +12,29 @@
 		bdisp0 = &bdisp0;
 	};
 
+	usb2_picophy1: phy2 {
+		compatible = "st,stih407-usb2-phy";
+		#phy-cells = <0>;
+		st,syscfg = <&syscfg_core 0xf8 0xf4>;
+		resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
+			 <&picophyreset STIH407_PICOPHY0_RESET>;
+		reset-names = "global", "port";
+
+		status = "disabled";
+	};
+
+	usb2_picophy2: phy3 {
+		compatible = "st,stih407-usb2-phy";
+		#phy-cells = <0>;
+		st,syscfg = <&syscfg_core 0xfc 0xf4>;
+		resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
+			 <&picophyreset STIH407_PICOPHY1_RESET>;
+		reset-names = "global", "port";
+
+		status = "disabled";
+	};
+
 	soc {
-		usb2_picophy1: phy2@0 {
-			compatible = "st,stih407-usb2-phy";
-			reg = <0 0>;
-			#phy-cells = <0>;
-			st,syscfg = <&syscfg_core 0xf8 0xf4>;
-			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
-				 <&picophyreset STIH407_PICOPHY0_RESET>;
-			reset-names = "global", "port";
-
-			status = "disabled";
-		};
-
-		usb2_picophy2: phy3@0 {
-			compatible = "st,stih407-usb2-phy";
-			reg = <0 0>;
-			#phy-cells = <0>;
-			st,syscfg = <&syscfg_core 0xfc 0xf4>;
-			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
-				 <&picophyreset STIH407_PICOPHY1_RESET>;
-			reset-names = "global", "port";
-
-			status = "disabled";
-		};
-
 		ohci0: usb@9a03c00 {
 			compatible = "st,st-ohci-300x";
 			reg = <0x9a03c00 0x100>;
@@ -107,7 +105,7 @@
 			#size-cells = <1>;
 
 			reg = <0 0>;
-			assigned-clocks	= <&clk_s_d2_quadfs 0>,
+			assigned-clocks = <&clk_s_d2_quadfs 0>,
 					  <&clk_s_d2_quadfs 1>,
 					  <&clk_s_c0_pll1 0>,
 					  <&clk_s_c0_flexgen CLK_COMPO_DVP>,
@@ -200,7 +198,7 @@
 				reg-names = "hdmi-reg";
 				#sound-dai-cells = <0>;
 				interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names	= "irq";
+				interrupt-names = "irq";
 				clock-names = "pix",
 					      "tmds",
 					      "phy",
@@ -272,16 +270,6 @@
 			clock-names = "thermal";
 			clocks = <&clk_sysin>;
 			interrupts = <GIC_SPI 205 IRQ_TYPE_EDGE_RISING>;
-		};
-
-		delta0@0 {
-			compatible = "st,st-delta";
-			clock-names = "delta",
-				      "delta-st231",
-				      "delta-flash-promip";
-			clocks = <&clk_s_c0_flexgen CLK_VID_DMU>,
-				 <&clk_s_c0_flexgen CLK_ST231_DMU>,
-				 <&clk_s_c0_flexgen CLK_FLASH_PROMIP>;
 		};
 
 		sti-cec@94a087c {

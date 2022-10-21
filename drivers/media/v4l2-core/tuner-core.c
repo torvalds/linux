@@ -35,7 +35,7 @@
 #include "tda8290.h"
 #include "tea5761.h"
 #include "tea5767.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include "tuner-simple.h"
 #include "tda9887.h"
 #include "xc5000.h"
@@ -779,7 +779,7 @@ register_client:
  * @client:	i2c_client descriptor
  */
 
-static int tuner_remove(struct i2c_client *client)
+static void tuner_remove(struct i2c_client *client)
 {
 	struct tuner *t = to_tuner(i2c_get_clientdata(client));
 
@@ -789,7 +789,6 @@ static int tuner_remove(struct i2c_client *client)
 
 	list_del(&t->list);
 	kfree(t);
-	return 0;
 }
 
 /*
@@ -1118,7 +1117,7 @@ static void tuner_status(struct dvb_frontend *fe)
 	if (t->mode != V4L2_TUNER_RADIO)
 		return;
 	if (fe_tuner_ops->get_status) {
-		u32 tuner_status;
+		u32 tuner_status = 0;
 
 		fe_tuner_ops->get_status(&t->fe, &tuner_status);
 		if (tuner_status & TUNER_STATUS_LOCKED)
@@ -1258,7 +1257,7 @@ static int tuner_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	if (vt->type == t->mode) {
 		vt->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
 		if (fe_tuner_ops->get_status) {
-			u32 tuner_status;
+			u32 tuner_status = 0;
 
 			fe_tuner_ops->get_status(&t->fe, &tuner_status);
 			vt->rxsubchans =

@@ -91,7 +91,7 @@ static void espintcp_rcv(struct strparser *strp, struct sk_buff *skb)
 	}
 
 	/* remove header, leave non-ESP marker/SPI */
-	if (!__pskb_pull(skb, rxm->offset + 2)) {
+	if (!pskb_pull(skb, rxm->offset + 2)) {
 		XFRM_INC_STATS(sock_net(strp->sk), LINUX_MIB_XFRMINERROR);
 		kfree_skb(skb);
 		return;
@@ -131,15 +131,13 @@ static int espintcp_parse(struct strparser *strp, struct sk_buff *skb)
 }
 
 static int espintcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-			    int nonblock, int flags, int *addr_len)
+			    int flags, int *addr_len)
 {
 	struct espintcp_ctx *ctx = espintcp_getctx(sk);
 	struct sk_buff *skb;
 	int err = 0;
 	int copied;
 	int off = 0;
-
-	flags |= nonblock ? MSG_DONTWAIT : 0;
 
 	skb = __skb_recv_datagram(sk, &ctx->ike_queue, flags, &off, &err);
 	if (!skb) {
@@ -170,7 +168,7 @@ int espintcp_queue_out(struct sock *sk, struct sk_buff *skb)
 {
 	struct espintcp_ctx *ctx = espintcp_getctx(sk);
 
-	if (skb_queue_len(&ctx->out_queue) >= netdev_max_backlog)
+	if (skb_queue_len(&ctx->out_queue) >= READ_ONCE(netdev_max_backlog))
 		return -ENOBUFS;
 
 	__skb_queue_tail(&ctx->out_queue, skb);

@@ -29,6 +29,8 @@ properties:
     description: gpio valid number range.
     maxItems: 1
 
+  gpio-line-names: true
+
   reg:
     description: |
       Physical address base for gpio base registers. There are 11 GPIO
@@ -51,62 +53,76 @@ properties:
 
 #PIN CONFIGURATION NODES
 patternProperties:
-  '^pins':
+  '-pins$':
     type: object
-    description: |
-      A pinctrl node should contain at least one subnodes representing the
-      pinctrl groups available on the machine. Each subnode will list the
-      pins it needs, and how they should be configured, with regard to muxer
-      configuration, pullups, drive strength, input enable/disable and
-      input schmitt.
-      An example of using macro:
-      pincontroller {
-        /* GPIO0 set as multifunction GPIO0 */
-        state_0_node_a {
-          pinmux = <PINMUX_GPIO0__FUNC_GPIO0>;
-        };
-        /* GPIO1 set as multifunction PWM */
-        state_0_node_b {
-          pinmux = <PINMUX_GPIO1__FUNC_PWM_1>;
-        };
-      };
-    $ref: "pinmux-node.yaml"
-
-    properties:
-      pinmux:
-        description: |
-          Integer array, represents gpio pin number and mux setting.
-          Supported pin number and mux varies for different SoCs, and are defined
-          as macros in dt-bindings/pinctrl/<soc>-pinfunc.h directly.
-
-      drive-strength:
-        description: |
-          It can support some arguments, such as MTK_DRIVE_4mA, MTK_DRIVE_6mA, etc. See
-          dt-bindings/pinctrl/mt65xx.h. It can only support 2/4/6/8/10/12/14/16mA in mt8192.
-        enum: [2, 4, 6, 8, 10, 12, 14, 16]
-
-      bias-pull-down: true
-
-      bias-pull-up: true
-
-      bias-disable: true
-
-      output-high: true
-
-      output-low: true
-
-      input-enable: true
-
-      input-disable: true
-
-      input-schmitt-enable: true
-
-      input-schmitt-disable: true
-
-    required:
-      - pinmux
-
     additionalProperties: false
+    patternProperties:
+      '^pins':
+        type: object
+        description: |
+          A pinctrl node should contain at least one subnodes representing the
+          pinctrl groups available on the machine. Each subnode will list the
+          pins it needs, and how they should be configured, with regard to muxer
+          configuration, pullups, drive strength, input enable/disable and
+          input schmitt.
+        $ref: "pinmux-node.yaml"
+
+        properties:
+          pinmux:
+            description: |
+              Integer array, represents gpio pin number and mux setting.
+              Supported pin number and mux varies for different SoCs, and are defined
+              as macros in dt-bindings/pinctrl/<soc>-pinfunc.h directly.
+
+          drive-strength:
+            description: |
+              It can support some arguments, such as MTK_DRIVE_4mA, MTK_DRIVE_6mA, etc. See
+              dt-bindings/pinctrl/mt65xx.h. It can only support 2/4/6/8/10/12/14/16mA in mt8192.
+            enum: [2, 4, 6, 8, 10, 12, 14, 16]
+
+          drive-strength-microamp:
+            enum: [125, 250, 500, 1000]
+
+          bias-pull-down:
+            oneOf:
+              - type: boolean
+                description: normal pull down.
+              - enum: [100, 101, 102, 103]
+                description: PUPD/R1/R0 pull down type. See MTK_PUPD_SET_R1R0_
+                  defines in dt-bindings/pinctrl/mt65xx.h.
+              - enum: [200, 201, 202, 203]
+                description: RSEL pull down type. See MTK_PULL_SET_RSEL_
+                  defines in dt-bindings/pinctrl/mt65xx.h.
+
+          bias-pull-up:
+            oneOf:
+              - type: boolean
+                description: normal pull up.
+              - enum: [100, 101, 102, 103]
+                description: PUPD/R1/R0 pull up type. See MTK_PUPD_SET_R1R0_
+                  defines in dt-bindings/pinctrl/mt65xx.h.
+              - enum: [200, 201, 202, 203]
+                description: RSEL pull up type. See MTK_PULL_SET_RSEL_
+                  defines in dt-bindings/pinctrl/mt65xx.h.
+
+          bias-disable: true
+
+          output-high: true
+
+          output-low: true
+
+          input-enable: true
+
+          input-disable: true
+
+          input-schmitt-enable: true
+
+          input-schmitt-disable: true
+
+        required:
+          - pinmux
+
+        additionalProperties: false
 
 allOf:
   - $ref: "pinctrl.yaml#"
@@ -151,8 +167,17 @@ examples:
                     interrupts = <GIC_SPI 212 IRQ_TYPE_LEVEL_HIGH 0>;
                     #interrupt-cells = <2>;
 
-                    pins {
-                      pinmux = <PINMUX_GPIO0__FUNC_GPIO0>;
-                      output-low;
+                    spi1-default-pins {
+                            pins-cs-mosi-clk {
+                                    pinmux = <PINMUX_GPIO157__FUNC_SPI1_A_CSB>,
+                                             <PINMUX_GPIO159__FUNC_SPI1_A_MO>,
+                                             <PINMUX_GPIO156__FUNC_SPI1_A_CLK>;
+                                    bias-disable;
+                            };
+
+                            pins-miso {
+                                    pinmux = <PINMUX_GPIO158__FUNC_SPI1_A_MI>;
+                                    bias-pull-down;
+                            };
                     };
             };

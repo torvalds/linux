@@ -286,7 +286,7 @@ static void cppi41_dma_callback(void *private_data,
 	 * receive a FIFO empty interrupt so the only thing we can do is
 	 * to poll for the bit. On HS it usually takes 2us, on FS around
 	 * 110us - 150us depending on the transfer size.
-	 * We spin on HS (no longer than than 25us and setup a timer on
+	 * We spin on HS (no longer than 25us and setup a timer on
 	 * FS to check for the bit and complete the transfer.
 	 */
 	if (is_host_active(musb)) {
@@ -718,10 +718,8 @@ static int cppi41_dma_controller_start(struct cppi41_dma_controller *controller)
 
 		dc = dma_request_chan(dev->parent, str);
 		if (IS_ERR(dc)) {
-			ret = PTR_ERR(dc);
-			if (ret != -EPROBE_DEFER)
-				dev_err(dev, "Failed to request %s: %d.\n",
-					str, ret);
+			ret = dev_err_probe(dev, PTR_ERR(dc),
+					    "Failed to request %s.\n", str);
 			goto err;
 		}
 

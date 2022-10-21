@@ -55,7 +55,6 @@ struct kthread {
 	int result;
 	int (*threadfn)(void *);
 	void *data;
-	mm_segment_t oldfs;
 	struct completion parked;
 	struct completion exited;
 #ifdef CONFIG_BLK_CGROUP
@@ -341,7 +340,7 @@ static int kthread(void *_create)
 
 	self = to_kthread(current);
 
-	/* If user was SIGKILLed, I release the structure. */
+	/* Release the structure when caller killed by a fatal signal. */
 	done = xchg(&create->done, NULL);
 	if (!done) {
 		kfree(create);
@@ -356,7 +355,7 @@ static int kthread(void *_create)
 	 * back to default in case they have been changed.
 	 */
 	sched_setscheduler_nocheck(current, SCHED_NORMAL, &param);
-	set_cpus_allowed_ptr(current, housekeeping_cpumask(HK_FLAG_KTHREAD));
+	set_cpus_allowed_ptr(current, housekeeping_cpumask(HK_TYPE_KTHREAD));
 
 	/* OK, tell user we're spawned, wait for stop or wakeup */
 	__set_current_state(TASK_UNINTERRUPTIBLE);
@@ -399,7 +398,7 @@ static void create_kthread(struct kthread_create_info *create)
 	/* We want our own signal handler (we take no signals by default). */
 	pid = kernel_thread(kthread, create, CLONE_FS | CLONE_FILES | SIGCHLD);
 	if (pid < 0) {
-		/* If user was SIGKILLed, I release the structure. */
+		/* Release the structure when caller killed by a fatal signal. */
 		struct completion *done = xchg(&create->done, NULL);
 
 		if (!done) {
@@ -441,9 +440,9 @@ struct task_struct *__kthread_create_on_node(int (*threadfn)(void *data),
 	 */
 	if (unlikely(wait_for_completion_killable(&done))) {
 		/*
-		 * If I was SIGKILLed before kthreadd (or new kernel thread)
-		 * calls complete(), leave the cleanup of this structure to
-		 * that thread.
+		 * If I was killed by a fatal signal before kthreadd (or new
+		 * kernel thread) calls complete(), leave the cleanup of this
+		 * structure to that thread.
 		 */
 		if (xchg(&create->done, NULL))
 			return ERR_PTR(-EINTR);
@@ -705,6 +704,7 @@ int kthread_stop(struct task_struct *k)
 	kthread = to_kthread(k);
 	set_bit(KTHREAD_SHOULD_STOP, &kthread->flags);
 	kthread_unpark(k);
+	set_tsk_thread_flag(k, TIF_NOTIFY_SIGNAL);
 	wake_up_process(k);
 	wait_for_completion(&kthread->exited);
 	ret = kthread->result;
@@ -722,7 +722,7 @@ int kthreadd(void *unused)
 	/* Setup a clean context for our children to inherit. */
 	set_task_comm(tsk, "kthreadd");
 	ignore_signals(tsk);
-	set_cpus_allowed_ptr(tsk, housekeeping_cpumask(HK_FLAG_KTHREAD));
+	set_cpus_allowed_ptr(tsk, housekeeping_cpumask(HK_TYPE_KTHREAD));
 	set_mems_allowed(node_states[N_MEMORY]);
 
 	current->flags |= PF_NOFREEZE;
@@ -877,7 +877,7 @@ fail_task:
  *
  * Returns a pointer to the allocated worker on success, ERR_PTR(-ENOMEM)
  * when the needed structures could not get allocated, and ERR_PTR(-EINTR)
- * when the worker was SIGKILLed.
+ * when the caller was killed by a fatal signal.
  */
 struct kthread_worker *
 kthread_create_worker(unsigned int flags, const char namefmt[], ...)
@@ -926,7 +926,7 @@ EXPORT_SYMBOL(kthread_create_worker);
  * Return:
  * The pointer to the allocated worker on success, ERR_PTR(-ENOMEM)
  * when the needed structures could not get allocated, and ERR_PTR(-EINTR)
- * when the worker was SIGKILLed.
+ * when the caller was killed by a fatal signal.
  */
 struct kthread_worker *
 kthread_create_worker_on_cpu(int cpu, unsigned int flags,
@@ -1051,8 +1051,7 @@ static void __kthread_queue_delayed_work(struct kthread_worker *worker,
 	struct timer_list *timer = &dwork->timer;
 	struct kthread_work *work = &dwork->work;
 
-	WARN_ON_FUNCTION_MISMATCH(timer->function,
-				  kthread_delayed_work_timer_fn);
+	WARN_ON_ONCE(timer->function != kthread_delayed_work_timer_fn);
 
 	/*
 	 * If @delay is 0, queue @dwork->work immediately.  This is for
@@ -1441,8 +1440,6 @@ void kthread_use_mm(struct mm_struct *mm)
 		mmdrop(active_mm);
 	else
 		smp_mb();
-
-	to_kthread(tsk)->oldfs = force_uaccess_begin();
 }
 EXPORT_SYMBOL_GPL(kthread_use_mm);
 
@@ -1456,8 +1453,6 @@ void kthread_unuse_mm(struct mm_struct *mm)
 
 	WARN_ON_ONCE(!(tsk->flags & PF_KTHREAD));
 	WARN_ON_ONCE(!tsk->mm);
-
-	force_uaccess_end(to_kthread(tsk)->oldfs);
 
 	task_lock(tsk);
 	/*
@@ -1527,5 +1522,4 @@ struct cgroup_subsys_state *kthread_blkcg(void)
 	}
 	return NULL;
 }
-EXPORT_SYMBOL(kthread_blkcg);
 #endif

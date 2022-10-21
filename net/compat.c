@@ -34,20 +34,15 @@
 #include <net/compat.h>
 
 int __get_compat_msghdr(struct msghdr *kmsg,
-			struct compat_msghdr __user *umsg,
-			struct sockaddr __user **save_addr,
-			compat_uptr_t *ptr, compat_size_t *len)
+			struct compat_msghdr *msg,
+			struct sockaddr __user **save_addr)
 {
-	struct compat_msghdr msg;
 	ssize_t err;
 
-	if (copy_from_user(&msg, umsg, sizeof(*umsg)))
-		return -EFAULT;
+	kmsg->msg_flags = msg->msg_flags;
+	kmsg->msg_namelen = msg->msg_namelen;
 
-	kmsg->msg_flags = msg.msg_flags;
-	kmsg->msg_namelen = msg.msg_namelen;
-
-	if (!msg.msg_name)
+	if (!msg->msg_name)
 		kmsg->msg_namelen = 0;
 
 	if (kmsg->msg_namelen < 0)
@@ -57,15 +52,16 @@ int __get_compat_msghdr(struct msghdr *kmsg,
 		kmsg->msg_namelen = sizeof(struct sockaddr_storage);
 
 	kmsg->msg_control_is_user = true;
-	kmsg->msg_control_user = compat_ptr(msg.msg_control);
-	kmsg->msg_controllen = msg.msg_controllen;
+	kmsg->msg_get_inq = 0;
+	kmsg->msg_control_user = compat_ptr(msg->msg_control);
+	kmsg->msg_controllen = msg->msg_controllen;
 
 	if (save_addr)
-		*save_addr = compat_ptr(msg.msg_name);
+		*save_addr = compat_ptr(msg->msg_name);
 
-	if (msg.msg_name && kmsg->msg_namelen) {
+	if (msg->msg_name && kmsg->msg_namelen) {
 		if (!save_addr) {
-			err = move_addr_to_kernel(compat_ptr(msg.msg_name),
+			err = move_addr_to_kernel(compat_ptr(msg->msg_name),
 						  kmsg->msg_namelen,
 						  kmsg->msg_name);
 			if (err < 0)
@@ -76,12 +72,11 @@ int __get_compat_msghdr(struct msghdr *kmsg,
 		kmsg->msg_namelen = 0;
 	}
 
-	if (msg.msg_iovlen > UIO_MAXIOV)
+	if (msg->msg_iovlen > UIO_MAXIOV)
 		return -EMSGSIZE;
 
 	kmsg->msg_iocb = NULL;
-	*ptr = msg.msg_iov;
-	*len = msg.msg_iovlen;
+	kmsg->msg_ubuf = NULL;
 	return 0;
 }
 
@@ -90,15 +85,17 @@ int get_compat_msghdr(struct msghdr *kmsg,
 		      struct sockaddr __user **save_addr,
 		      struct iovec **iov)
 {
-	compat_uptr_t ptr;
-	compat_size_t len;
+	struct compat_msghdr msg;
 	ssize_t err;
 
-	err = __get_compat_msghdr(kmsg, umsg, save_addr, &ptr, &len);
+	if (copy_from_user(&msg, umsg, sizeof(*umsg)))
+		return -EFAULT;
+
+	err = __get_compat_msghdr(kmsg, &msg, save_addr);
 	if (err)
 		return err;
 
-	err = import_iovec(save_addr ? READ : WRITE, compat_ptr(ptr), len,
+	err = import_iovec(save_addr ? READ : WRITE, compat_ptr(msg.msg_iov), msg.msg_iovlen,
 			   UIO_FASTIOV, iov, &kmsg->msg_iter);
 	return err < 0 ? err : 0;
 }

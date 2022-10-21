@@ -152,10 +152,8 @@ struct bp_transmitter_control {
 	enum signal_type signal;
 	enum dc_color_depth color_depth; /* not used for DCE6.0 */
 	enum hpd_source_id hpd_sel; /* ucHPDSel, used for DCe6.0 */
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	enum tx_ffe_id txffe_sel; /* used for DCN3 */
 	enum engine_id hpo_engine_id; /* used for DCN3 */
-#endif
 	struct graphics_object_id connector_obj_id;
 	/* symClock; in 10kHz, pixel clock, in HDMI deep color mode, it should
 	 * be pixel clock * deep_color_ratio (in KHz)
@@ -335,6 +333,17 @@ struct bp_soc_bb_info {
 	uint32_t dram_clock_change_latency_100ns;
 	uint32_t dram_sr_exit_latency_100ns;
 	uint32_t dram_sr_enter_exit_latency_100ns;
+};
+
+struct bp_connector_speed_cap_info {
+	uint32_t DP_HBR2_EN:1;
+	uint32_t DP_HBR3_EN:1;
+	uint32_t HDMI_6GB_EN:1;
+	uint32_t DP_UHBR10_EN:1;
+	uint32_t DP_UHBR13_5_EN:1;
+	uint32_t DP_UHBR20_EN:1;
+	uint32_t DP_IS_USB_C:1;
+	uint32_t RESERVED:28;
 };
 
 #endif /*__DAL_BIOS_PARSER_TYPES_H__ */

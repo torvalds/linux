@@ -48,12 +48,6 @@ DAMON_RECLAIM utilizes module parameters.  That is, you can put
 ``damon_reclaim.<parameter>=<value>`` on the kernel boot command line or write
 proper values to ``/sys/modules/damon_reclaim/parameters/<parameter>`` files.
 
-Note that the parameter values except ``enabled`` are applied only when
-DAMON_RECLAIM starts.  Therefore, if you want to apply new parameter values in
-runtime and DAMON_RECLAIM is already enabled, you should disable and re-enable
-it via ``enabled`` parameter file.  Writing of the new values to proper
-parameter values should be done before the re-enablement.
-
 Below are the description of each parameter.
 
 enabled
@@ -65,6 +59,17 @@ You can enable DAMON_RCLAIM by setting the value of this parameter as ``Y``.
 Setting it as ``N`` disables DAMON_RECLAIM.  Note that DAMON_RECLAIM could do
 no real monitoring and reclamation due to the watermarks-based activation
 condition.  Refer to below descriptions for the watermarks parameter for this.
+
+commit_inputs
+-------------
+
+Make DAMON_RECLAIM reads the input parameters again, except ``enabled``.
+
+Input parameters that updated while DAMON_RECLAIM is running are not applied
+by default.  Once this parameter is set as ``Y``, DAMON_RECLAIM reads values
+of parametrs except ``enabled`` again.  Once the re-reading is done, this
+parameter is set as ``N``.  If invalid parameters are found while the
+re-reading, DAMON_RECLAIM will be disabled.
 
 min_age
 -------
@@ -257,4 +262,4 @@ granularity reclamation. ::
 
 .. [1] https://research.google/pubs/pub48551/
 .. [2] https://lwn.net/Articles/787611/
-.. [3] https://www.kernel.org/doc/html/latest/vm/free_page_reporting.html
+.. [3] https://www.kernel.org/doc/html/latest/mm/free_page_reporting.html

@@ -14,10 +14,9 @@
 #include <linux/io.h>
 #include <linux/reboot.h>
 
-#include <mach/hardware.h>
-#include <mach/cputype.h>
-#include <mach/mux.h>
-
+#include "hardware.h"
+#include "cputype.h"
+#include "mux.h"
 #include "davinci.h"
 #include "irqs.h"
 

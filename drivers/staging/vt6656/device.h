@@ -268,8 +268,8 @@ struct vnt_private {
 	u32 rx_buf_sz;
 	int mc_list_count;
 
-	spinlock_t lock;
-	struct mutex usb_lock;
+	spinlock_t lock;		/* prepare tx USB URB */
+	struct mutex usb_lock;		/* USB control messages */
 
 	unsigned long flags;
 
@@ -380,13 +380,6 @@ struct vnt_private {
 
 	struct ieee80211_low_level_stats low_stats;
 };
-
-#define ADD_ONE_WITH_WRAP_AROUND(uVar, uModulo) {	\
-	if ((uVar) >= ((uModulo) - 1))			\
-		(uVar) = 0;				\
-	else						\
-		(uVar)++;				\
-}
 
 int vnt_init(struct vnt_private *priv);
 

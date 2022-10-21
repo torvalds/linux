@@ -116,6 +116,7 @@ static struct scsi_host_template cxgb4i_host_template = {
 	.dma_boundary	= PAGE_SIZE - 1,
 	.this_id	= -1,
 	.track_queue_depth = 1,
+	.cmd_size	= sizeof(struct iscsi_cmd),
 };
 
 static struct iscsi_transport cxgb4i_iscsi_transport = {
@@ -253,7 +254,7 @@ static void send_act_open_req(struct cxgbi_sock *csk, struct sk_buff *skb,
 	} else if (is_t5(lldi->adapter_type)) {
 		struct cpl_t5_act_open_req *req =
 				(struct cpl_t5_act_open_req *)skb->head;
-		u32 isn = (prandom_u32() & ~7UL) - 1;
+		u32 isn = (get_random_u32() & ~7UL) - 1;
 
 		INIT_TP_WR(req, 0);
 		OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ,
@@ -281,7 +282,7 @@ static void send_act_open_req(struct cxgbi_sock *csk, struct sk_buff *skb,
 	} else {
 		struct cpl_t6_act_open_req *req =
 				(struct cpl_t6_act_open_req *)skb->head;
-		u32 isn = (prandom_u32() & ~7UL) - 1;
+		u32 isn = (get_random_u32() & ~7UL) - 1;
 
 		INIT_TP_WR(req, 0);
 		OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ,

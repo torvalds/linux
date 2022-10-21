@@ -46,8 +46,6 @@ var SINGLE_STEP_MISSED_WORKAROUND   =	1		    //workaround for lost MODE.DEBUG_EN
 /**************************************************************************/
 /*			variables					  */
 /**************************************************************************/
-var SQ_WAVE_STATUS_INST_ATC_SHIFT  = 23
-var SQ_WAVE_STATUS_INST_ATC_MASK   = 0x00800000
 var SQ_WAVE_STATUS_SPI_PRIO_SHIFT  = 1
 var SQ_WAVE_STATUS_SPI_PRIO_MASK   = 0x00000006
 var SQ_WAVE_STATUS_HALT_MASK       = 0x2000
@@ -56,6 +54,7 @@ var SQ_WAVE_STATUS_PRE_SPI_PRIO_SIZE    = 1
 var SQ_WAVE_STATUS_POST_SPI_PRIO_SHIFT  = 3
 var SQ_WAVE_STATUS_POST_SPI_PRIO_SIZE   = 29
 var SQ_WAVE_STATUS_ALLOW_REPLAY_MASK    = 0x400000
+var SQ_WAVE_STATUS_ECC_ERR_MASK         = 0x20000
 
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT	= 12
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE	= 9
@@ -72,8 +71,10 @@ var SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SHIFT	= 8
 #endif
 
 var SQ_WAVE_TRAPSTS_SAVECTX_MASK    =	0x400
-var SQ_WAVE_TRAPSTS_EXCE_MASK	    =	0x1FF			// Exception mask
+var SQ_WAVE_TRAPSTS_EXCP_MASK	    =	0x1FF
 var SQ_WAVE_TRAPSTS_SAVECTX_SHIFT   =	10
+var SQ_WAVE_TRAPSTS_ADDR_WATCH_MASK =	0x80
+var SQ_WAVE_TRAPSTS_ADDR_WATCH_SHIFT =	7
 var SQ_WAVE_TRAPSTS_MEM_VIOL_MASK   =	0x100
 var SQ_WAVE_TRAPSTS_MEM_VIOL_SHIFT  =	8
 var SQ_WAVE_TRAPSTS_PRE_SAVECTX_MASK	=   0x3FF
@@ -83,36 +84,29 @@ var SQ_WAVE_TRAPSTS_POST_SAVECTX_MASK	=   0xFFFFF800
 var SQ_WAVE_TRAPSTS_POST_SAVECTX_SHIFT	=   11
 var SQ_WAVE_TRAPSTS_POST_SAVECTX_SIZE	=   21
 var SQ_WAVE_TRAPSTS_ILLEGAL_INST_MASK	=   0x800
+var SQ_WAVE_TRAPSTS_EXCP_HI_MASK	=   0x7000
 var SQ_WAVE_TRAPSTS_XNACK_ERROR_MASK	=   0x10000000
 
-var SQ_WAVE_IB_STS_RCNT_SHIFT		=   16			//FIXME
+var SQ_WAVE_MODE_EXCP_EN_SHIFT		=   12
+var SQ_WAVE_MODE_EXCP_EN_ADDR_WATCH_SHIFT	= 19
+
 var SQ_WAVE_IB_STS_FIRST_REPLAY_SHIFT	=   15			//FIXME
 var SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK	= 0x1F8000
-var SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK_NEG	= 0x00007FFF	//FIXME
 
 var SQ_WAVE_MODE_DEBUG_EN_MASK		=   0x800
 
-var SQ_BUF_RSRC_WORD1_ATC_SHIFT	    =	24
-var SQ_BUF_RSRC_WORD3_MTYPE_SHIFT   =	27
-
 var TTMP11_SAVE_RCNT_FIRST_REPLAY_SHIFT	=   26			// bits [31:26] unused by SPI debug data
 var TTMP11_SAVE_RCNT_FIRST_REPLAY_MASK	=   0xFC000000
+var TTMP11_DEBUG_TRAP_ENABLED_SHIFT	=   23
+var TTMP11_DEBUG_TRAP_ENABLED_MASK	=   0x800000
 
 /*	Save	    */
 var S_SAVE_BUF_RSRC_WORD1_STRIDE	=   0x00040000		//stride is 4 bytes
 var S_SAVE_BUF_RSRC_WORD3_MISC		=   0x00807FAC		//SQ_SEL_X/Y/Z/W, BUF_NUM_FORMAT_FLOAT, (0 for MUBUF stride[17:14] when ADD_TID_ENABLE and BUF_DATA_FORMAT_32 for MTBUF), ADD_TID_ENABLE
-
-var S_SAVE_SPI_INIT_ATC_MASK		=   0x08000000		//bit[27]: ATC bit
-var S_SAVE_SPI_INIT_ATC_SHIFT		=   27
-var S_SAVE_SPI_INIT_MTYPE_MASK		=   0x70000000		//bit[30:28]: Mtype
-var S_SAVE_SPI_INIT_MTYPE_SHIFT		=   28
+var S_SAVE_PC_HI_TRAP_ID_MASK		=   0x00FF0000
+var S_SAVE_PC_HI_HT_MASK		=   0x01000000
 var S_SAVE_SPI_INIT_FIRST_WAVE_MASK	=   0x04000000		//bit[26]: FirstWaveInTG
 var S_SAVE_SPI_INIT_FIRST_WAVE_SHIFT	=   26
-
-var S_SAVE_PC_HI_RCNT_SHIFT		=   27			//FIXME	 check with Brian to ensure all fields other than PC[47:0] can be used
-var S_SAVE_PC_HI_RCNT_MASK		=   0xF8000000		//FIXME
-var S_SAVE_PC_HI_FIRST_REPLAY_SHIFT	=   26			//FIXME
-var S_SAVE_PC_HI_FIRST_REPLAY_MASK	=   0x04000000		//FIXME
 
 var s_save_spi_init_lo		    =	exec_lo
 var s_save_spi_init_hi		    =	exec_hi
@@ -140,17 +134,8 @@ var s_save_ttmps_hi	    =	s_save_trapsts		//no conflict
 var S_RESTORE_BUF_RSRC_WORD1_STRIDE	    =	S_SAVE_BUF_RSRC_WORD1_STRIDE
 var S_RESTORE_BUF_RSRC_WORD3_MISC	    =	S_SAVE_BUF_RSRC_WORD3_MISC
 
-var S_RESTORE_SPI_INIT_ATC_MASK		    =	0x08000000	    //bit[27]: ATC bit
-var S_RESTORE_SPI_INIT_ATC_SHIFT	    =	27
-var S_RESTORE_SPI_INIT_MTYPE_MASK	    =	0x70000000	    //bit[30:28]: Mtype
-var S_RESTORE_SPI_INIT_MTYPE_SHIFT	    =	28
 var S_RESTORE_SPI_INIT_FIRST_WAVE_MASK	    =	0x04000000	    //bit[26]: FirstWaveInTG
 var S_RESTORE_SPI_INIT_FIRST_WAVE_SHIFT	    =	26
-
-var S_RESTORE_PC_HI_RCNT_SHIFT		    =	S_SAVE_PC_HI_RCNT_SHIFT
-var S_RESTORE_PC_HI_RCNT_MASK		    =	S_SAVE_PC_HI_RCNT_MASK
-var S_RESTORE_PC_HI_FIRST_REPLAY_SHIFT	    =	S_SAVE_PC_HI_FIRST_REPLAY_SHIFT
-var S_RESTORE_PC_HI_FIRST_REPLAY_MASK	    =	S_SAVE_PC_HI_FIRST_REPLAY_MASK
 
 var s_restore_spi_init_lo		    =	exec_lo
 var s_restore_spi_init_hi		    =	exec_hi
@@ -199,71 +184,77 @@ L_JUMP_TO_RESTORE:
 L_SKIP_RESTORE:
 
     s_getreg_b32    s_save_status, hwreg(HW_REG_STATUS)				    //save STATUS since we will change SCC
-    s_andn2_b32	    s_save_status, s_save_status, SQ_WAVE_STATUS_SPI_PRIO_MASK	    //check whether this is for save
 
-if SINGLE_STEP_MISSED_WORKAROUND
-    // No single step exceptions if MODE.DEBUG_EN=0.
-    s_getreg_b32    ttmp2, hwreg(HW_REG_MODE)
-    s_and_b32       ttmp2, ttmp2, SQ_WAVE_MODE_DEBUG_EN_MASK
-    s_cbranch_scc0  L_NO_SINGLE_STEP_WORKAROUND
-
-    // Second-level trap already handled exception if STATUS.HALT=1.
-    s_and_b32       ttmp2, s_save_status, SQ_WAVE_STATUS_HALT_MASK
-
-    // Prioritize single step exception over context save.
-    // Second-level trap will halt wave and RFE, re-entering for SAVECTX.
-    s_cbranch_scc0  L_FETCH_2ND_TRAP
-
-L_NO_SINGLE_STEP_WORKAROUND:
-end
+    // Clear SPI_PRIO: do not save with elevated priority.
+    // Clear ECC_ERR: prevents SQC store and triggers FATAL_HALT if setreg'd.
+    s_andn2_b32     s_save_status, s_save_status, SQ_WAVE_STATUS_SPI_PRIO_MASK|SQ_WAVE_STATUS_ECC_ERR_MASK
 
     s_getreg_b32    s_save_trapsts, hwreg(HW_REG_TRAPSTS)
+
+    s_and_b32       ttmp2, s_save_status, SQ_WAVE_STATUS_HALT_MASK
+    s_cbranch_scc0  L_NOT_HALTED
+
+L_HALTED:
+    // Host trap may occur while wave is halted.
+    s_and_b32       ttmp2, s_save_pc_hi, S_SAVE_PC_HI_TRAP_ID_MASK
+    s_cbranch_scc1  L_FETCH_2ND_TRAP
+
+L_CHECK_SAVE:
     s_and_b32       ttmp2, s_save_trapsts, SQ_WAVE_TRAPSTS_SAVECTX_MASK    //check whether this is for save
     s_cbranch_scc1  L_SAVE					//this is the operation for save
 
-    // *********    Handle non-CWSR traps	*******************
-
-    // Illegal instruction is a non-maskable exception which blocks context save.
-    // Halt the wavefront and return from the trap.
-    s_and_b32       ttmp2, s_save_trapsts, SQ_WAVE_TRAPSTS_ILLEGAL_INST_MASK
-    s_cbranch_scc1  L_HALT_WAVE
-
-    // If STATUS.MEM_VIOL is asserted then we cannot fetch from the TMA.
-    // Instead, halt the wavefront and return from the trap.
-    s_and_b32       ttmp2, s_save_trapsts, SQ_WAVE_TRAPSTS_MEM_VIOL_MASK
-    s_cbranch_scc0  L_FETCH_2ND_TRAP
-
-L_HALT_WAVE:
-    // If STATUS.HALT is set then this fault must come from SQC instruction fetch.
-    // We cannot prevent further faults. Spin wait until context saved.
-    s_and_b32       ttmp2, s_save_status, SQ_WAVE_STATUS_HALT_MASK
-    s_cbranch_scc0  L_NOT_ALREADY_HALTED
-
-L_WAIT_CTX_SAVE:
+    // Wave is halted but neither host trap nor SAVECTX is raised.
+    // Caused by instruction fetch memory violation.
+    // Spin wait until context saved to prevent interrupt storm.
     s_sleep         0x10
-    s_getreg_b32    ttmp2, hwreg(HW_REG_TRAPSTS)
-    s_and_b32       ttmp2, ttmp2, SQ_WAVE_TRAPSTS_SAVECTX_MASK
-    s_cbranch_scc0  L_WAIT_CTX_SAVE
+    s_getreg_b32    s_save_trapsts, hwreg(HW_REG_TRAPSTS)
+    s_branch        L_CHECK_SAVE
 
-L_NOT_ALREADY_HALTED:
-    s_or_b32        s_save_status, s_save_status, SQ_WAVE_STATUS_HALT_MASK
+L_NOT_HALTED:
+    // Let second-level handle non-SAVECTX exception or trap.
+    // Any concurrent SAVECTX will be handled upon re-entry once halted.
 
-    // If the PC points to S_ENDPGM then context save will fail if STATUS.HALT is set.
-    // Rewind the PC to prevent this from occurring. The debugger compensates for this.
-    s_sub_u32       ttmp0, ttmp0, 0x8
-    s_subb_u32      ttmp1, ttmp1, 0x0
+    // Check non-maskable exceptions. memory_violation, illegal_instruction
+    // and xnack_error exceptions always cause the wave to enter the trap
+    // handler.
+    s_and_b32       ttmp2, s_save_trapsts, SQ_WAVE_TRAPSTS_MEM_VIOL_MASK|SQ_WAVE_TRAPSTS_ILLEGAL_INST_MASK
+    s_cbranch_scc1  L_FETCH_2ND_TRAP
+
+    // Check for maskable exceptions in trapsts.excp and trapsts.excp_hi.
+    // Maskable exceptions only cause the wave to enter the trap handler if
+    // their respective bit in mode.excp_en is set.
+    s_and_b32       ttmp2, s_save_trapsts, SQ_WAVE_TRAPSTS_EXCP_MASK|SQ_WAVE_TRAPSTS_EXCP_HI_MASK
+    s_cbranch_scc0  L_CHECK_TRAP_ID
+
+    s_and_b32       ttmp3, s_save_trapsts, SQ_WAVE_TRAPSTS_ADDR_WATCH_MASK|SQ_WAVE_TRAPSTS_EXCP_HI_MASK
+    s_cbranch_scc0  L_NOT_ADDR_WATCH
+    s_bitset1_b32   ttmp2, SQ_WAVE_TRAPSTS_ADDR_WATCH_SHIFT // Check all addr_watch[123] exceptions against excp_en.addr_watch
+
+L_NOT_ADDR_WATCH:
+    s_getreg_b32    ttmp3, hwreg(HW_REG_MODE)
+    s_lshl_b32      ttmp2, ttmp2, SQ_WAVE_MODE_EXCP_EN_SHIFT
+    s_and_b32       ttmp2, ttmp2, ttmp3
+    s_cbranch_scc1  L_FETCH_2ND_TRAP
+
+L_CHECK_TRAP_ID:
+    // Check trap_id != 0
+    s_and_b32       ttmp2, s_save_pc_hi, S_SAVE_PC_HI_TRAP_ID_MASK
+    s_cbranch_scc1  L_FETCH_2ND_TRAP
+
+if SINGLE_STEP_MISSED_WORKAROUND
+    // Prioritize single step exception over context save.
+    // Second-level trap will halt wave and RFE, re-entering for SAVECTX.
+    s_getreg_b32    ttmp2, hwreg(HW_REG_MODE)
+    s_and_b32       ttmp2, ttmp2, SQ_WAVE_MODE_DEBUG_EN_MASK
+    s_cbranch_scc1  L_FETCH_2ND_TRAP
+end
+
+    s_and_b32       ttmp2, s_save_trapsts, SQ_WAVE_TRAPSTS_SAVECTX_MASK
+    s_cbranch_scc1  L_SAVE
 
 L_FETCH_2ND_TRAP:
     // Preserve and clear scalar XNACK state before issuing scalar reads.
-    // Save IB_STS.FIRST_REPLAY[15] and IB_STS.RCNT[20:16] into unused space ttmp11[31:26].
-    s_getreg_b32    ttmp2, hwreg(HW_REG_IB_STS)
-    s_and_b32       ttmp3, ttmp2, SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK
-    s_lshl_b32      ttmp3, ttmp3, (TTMP11_SAVE_RCNT_FIRST_REPLAY_SHIFT - SQ_WAVE_IB_STS_FIRST_REPLAY_SHIFT)
-    s_andn2_b32     ttmp11, ttmp11, TTMP11_SAVE_RCNT_FIRST_REPLAY_MASK
-    s_or_b32        ttmp11, ttmp11, ttmp3
-
-    s_andn2_b32     ttmp2, ttmp2, SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK
-    s_setreg_b32    hwreg(HW_REG_IB_STS), ttmp2
+    save_and_clear_ib_sts(ttmp14)
 
     // Read second-level TBA/TMA from first-level TMA and jump if available.
     // ttmp[2:5] and ttmp12 can be used (others hold SPI-initialized debug data)
@@ -271,27 +262,48 @@ L_FETCH_2ND_TRAP:
     s_getreg_b32    ttmp14, hwreg(HW_REG_SQ_SHADER_TMA_LO)
     s_getreg_b32    ttmp15, hwreg(HW_REG_SQ_SHADER_TMA_HI)
     s_lshl_b64      [ttmp14, ttmp15], [ttmp14, ttmp15], 0x8
+
+    s_load_dword    ttmp2, [ttmp14, ttmp15], 0x10 glc:1 // debug trap enabled flag
+    s_waitcnt       lgkmcnt(0)
+    s_lshl_b32      ttmp2, ttmp2, TTMP11_DEBUG_TRAP_ENABLED_SHIFT
+    s_andn2_b32     ttmp11, ttmp11, TTMP11_DEBUG_TRAP_ENABLED_MASK
+    s_or_b32        ttmp11, ttmp11, ttmp2
+
     s_load_dwordx2  [ttmp2, ttmp3], [ttmp14, ttmp15], 0x0 glc:1 // second-level TBA
     s_waitcnt       lgkmcnt(0)
     s_load_dwordx2  [ttmp14, ttmp15], [ttmp14, ttmp15], 0x8 glc:1 // second-level TMA
     s_waitcnt       lgkmcnt(0)
+
     s_and_b64       [ttmp2, ttmp3], [ttmp2, ttmp3], [ttmp2, ttmp3]
     s_cbranch_scc0  L_NO_NEXT_TRAP // second-level trap handler not been set
     s_setpc_b64     [ttmp2, ttmp3] // jump to second-level trap handler
 
 L_NO_NEXT_TRAP:
-    s_getreg_b32    s_save_trapsts, hwreg(HW_REG_TRAPSTS)
-    s_and_b32	    s_save_trapsts, s_save_trapsts, SQ_WAVE_TRAPSTS_EXCE_MASK // Check whether it is an exception
-    s_cbranch_scc1  L_EXCP_CASE	  // Exception, jump back to the shader program directly.
-    s_add_u32	    ttmp0, ttmp0, 4   // S_TRAP case, add 4 to ttmp0
-    s_addc_u32	ttmp1, ttmp1, 0
-L_EXCP_CASE:
+    // If not caused by trap then halt wave to prevent re-entry.
+    s_and_b32       ttmp2, s_save_pc_hi, (S_SAVE_PC_HI_TRAP_ID_MASK|S_SAVE_PC_HI_HT_MASK)
+    s_cbranch_scc1  L_TRAP_CASE
+    s_or_b32        s_save_status, s_save_status, SQ_WAVE_STATUS_HALT_MASK
+
+    // If the PC points to S_ENDPGM then context save will fail if STATUS.HALT is set.
+    // Rewind the PC to prevent this from occurring.
+    s_sub_u32       ttmp0, ttmp0, 0x8
+    s_subb_u32      ttmp1, ttmp1, 0x0
+
+    s_branch        L_EXIT_TRAP
+
+L_TRAP_CASE:
+    // Host trap will not cause trap re-entry.
+    s_and_b32       ttmp2, s_save_pc_hi, S_SAVE_PC_HI_HT_MASK
+    s_cbranch_scc1  L_EXIT_TRAP
+
+    // Advance past trap instruction to prevent re-entry.
+    s_add_u32       ttmp0, ttmp0, 0x4
+    s_addc_u32      ttmp1, ttmp1, 0x0
+
+L_EXIT_TRAP:
     s_and_b32	ttmp1, ttmp1, 0xFFFF
 
-    // Restore SQ_WAVE_IB_STS.
-    s_lshr_b32      ttmp2, ttmp11, (TTMP11_SAVE_RCNT_FIRST_REPLAY_SHIFT - SQ_WAVE_IB_STS_FIRST_REPLAY_SHIFT)
-    s_and_b32       ttmp2, ttmp2, SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK
-    s_setreg_b32    hwreg(HW_REG_IB_STS), ttmp2
+    restore_ib_sts(ttmp14)
 
     // Restore SQ_WAVE_STATUS.
     s_and_b64       exec, exec, exec // Restore STATUS.EXECZ, not writable by s_setreg_b32
@@ -312,16 +324,7 @@ L_SAVE:
     s_mov_b32	    s_save_tmp, 0							    //clear saveCtx bit
     s_setreg_b32    hwreg(HW_REG_TRAPSTS, SQ_WAVE_TRAPSTS_SAVECTX_SHIFT, 1), s_save_tmp	    //clear saveCtx bit
 
-    s_getreg_b32    s_save_tmp, hwreg(HW_REG_IB_STS, SQ_WAVE_IB_STS_RCNT_SHIFT, SQ_WAVE_IB_STS_RCNT_SIZE)		    //save RCNT
-    s_lshl_b32	    s_save_tmp, s_save_tmp, S_SAVE_PC_HI_RCNT_SHIFT
-    s_or_b32	    s_save_pc_hi, s_save_pc_hi, s_save_tmp
-    s_getreg_b32    s_save_tmp, hwreg(HW_REG_IB_STS, SQ_WAVE_IB_STS_FIRST_REPLAY_SHIFT, SQ_WAVE_IB_STS_FIRST_REPLAY_SIZE)   //save FIRST_REPLAY
-    s_lshl_b32	    s_save_tmp, s_save_tmp, S_SAVE_PC_HI_FIRST_REPLAY_SHIFT
-    s_or_b32	    s_save_pc_hi, s_save_pc_hi, s_save_tmp
-    s_getreg_b32    s_save_tmp, hwreg(HW_REG_IB_STS)					    //clear RCNT and FIRST_REPLAY in IB_STS
-    s_and_b32	    s_save_tmp, s_save_tmp, SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK_NEG
-
-    s_setreg_b32    hwreg(HW_REG_IB_STS), s_save_tmp
+    save_and_clear_ib_sts(s_save_tmp)
 
     /*	    inform SPI the readiness and wait for SPI's go signal */
     s_mov_b32	    s_save_exec_lo, exec_lo						    //save EXEC and use EXEC for the go signal from SPI
@@ -360,12 +363,6 @@ L_SAVE:
     s_or_b32	    s_save_buf_rsrc1,	s_save_buf_rsrc1,  S_SAVE_BUF_RSRC_WORD1_STRIDE
     s_mov_b32	    s_save_buf_rsrc2,	0									//NUM_RECORDS initial value = 0 (in bytes) although not neccessarily inited
     s_mov_b32	    s_save_buf_rsrc3,	S_SAVE_BUF_RSRC_WORD3_MISC
-    s_and_b32	    s_save_tmp,		s_save_spi_init_hi, S_SAVE_SPI_INIT_ATC_MASK
-    s_lshr_b32	    s_save_tmp,		s_save_tmp, (S_SAVE_SPI_INIT_ATC_SHIFT-SQ_BUF_RSRC_WORD1_ATC_SHIFT)	    //get ATC bit into position
-    s_or_b32	    s_save_buf_rsrc3,	s_save_buf_rsrc3,  s_save_tmp						//or ATC
-    s_and_b32	    s_save_tmp,		s_save_spi_init_hi, S_SAVE_SPI_INIT_MTYPE_MASK
-    s_lshr_b32	    s_save_tmp,		s_save_tmp, (S_SAVE_SPI_INIT_MTYPE_SHIFT-SQ_BUF_RSRC_WORD3_MTYPE_SHIFT)	    //get MTYPE bits into position
-    s_or_b32	    s_save_buf_rsrc3,	s_save_buf_rsrc3,  s_save_tmp						//or MTYPE
 
     //FIXME  right now s_save_m0/s_save_mem_offset use tma_lo/tma_hi  (might need to save them before using them?)
     s_mov_b32	    s_save_m0,		m0								    //save M0
@@ -690,12 +687,6 @@ L_RESTORE:
     s_or_b32	    s_restore_buf_rsrc1,    s_restore_buf_rsrc1,  S_RESTORE_BUF_RSRC_WORD1_STRIDE
     s_mov_b32	    s_restore_buf_rsrc2,    0										    //NUM_RECORDS initial value = 0 (in bytes)
     s_mov_b32	    s_restore_buf_rsrc3,    S_RESTORE_BUF_RSRC_WORD3_MISC
-    s_and_b32	    s_restore_tmp,	    s_restore_spi_init_hi, S_RESTORE_SPI_INIT_ATC_MASK
-    s_lshr_b32	    s_restore_tmp,	    s_restore_tmp, (S_RESTORE_SPI_INIT_ATC_SHIFT-SQ_BUF_RSRC_WORD1_ATC_SHIFT)	    //get ATC bit into position
-    s_or_b32	    s_restore_buf_rsrc3,    s_restore_buf_rsrc3,  s_restore_tmp						    //or ATC
-    s_and_b32	    s_restore_tmp,	    s_restore_spi_init_hi, S_RESTORE_SPI_INIT_MTYPE_MASK
-    s_lshr_b32	    s_restore_tmp,	    s_restore_tmp, (S_RESTORE_SPI_INIT_MTYPE_SHIFT-SQ_BUF_RSRC_WORD3_MTYPE_SHIFT)   //get MTYPE bits into position
-    s_or_b32	    s_restore_buf_rsrc3,    s_restore_buf_rsrc3,  s_restore_tmp						    //or MTYPE
 
     /*	    global mem offset		*/
 //  s_mov_b32	    s_restore_mem_offset, 0x0				    //mem offset initial value = 0
@@ -889,19 +880,7 @@ L_RESTORE:
     s_load_dword    ttmp13, [s_restore_ttmps_lo, s_restore_ttmps_hi], 0x74 glc:1
     s_waitcnt	    lgkmcnt(0)
 
-    //reuse s_restore_m0 as a temp register
-    s_and_b32	    s_restore_m0, s_restore_pc_hi, S_SAVE_PC_HI_RCNT_MASK
-    s_lshr_b32	    s_restore_m0, s_restore_m0, S_SAVE_PC_HI_RCNT_SHIFT
-    s_lshl_b32	    s_restore_m0, s_restore_m0, SQ_WAVE_IB_STS_RCNT_SHIFT
-    s_mov_b32	    s_restore_tmp, 0x0										    //IB_STS is zero
-    s_or_b32	    s_restore_tmp, s_restore_tmp, s_restore_m0
-    s_and_b32	    s_restore_m0, s_restore_pc_hi, S_SAVE_PC_HI_FIRST_REPLAY_MASK
-    s_lshr_b32	    s_restore_m0, s_restore_m0, S_SAVE_PC_HI_FIRST_REPLAY_SHIFT
-    s_lshl_b32	    s_restore_m0, s_restore_m0, SQ_WAVE_IB_STS_FIRST_REPLAY_SHIFT
-    s_or_b32	    s_restore_tmp, s_restore_tmp, s_restore_m0
-    s_and_b32	    s_restore_m0, s_restore_status, SQ_WAVE_STATUS_INST_ATC_MASK
-    s_lshr_b32	    s_restore_m0, s_restore_m0, SQ_WAVE_STATUS_INST_ATC_SHIFT
-    s_setreg_b32    hwreg(HW_REG_IB_STS),   s_restore_tmp
+    restore_ib_sts(s_restore_tmp)
 
     s_and_b32 s_restore_pc_hi, s_restore_pc_hi, 0x0000ffff	//pc[47:32]	   //Do it here in order not to affect STATUS
     s_and_b64	 exec, exec, exec  // Restore STATUS.EXECZ, not writable by s_setreg_b32
@@ -910,8 +889,7 @@ L_RESTORE:
 
     s_barrier							//barrier to ensure the readiness of LDS before access attempts from any other wave in the same TG //FIXME not performance-optimal at this time
 
-//  s_rfe_b64 s_restore_pc_lo					//Return to the main shader program and resume execution
-    s_rfe_restore_b64  s_restore_pc_lo, s_restore_m0		// s_restore_m0[0] is used to set STATUS.inst_atc
+    s_rfe_b64 s_restore_pc_lo					//Return to the main shader program and resume execution
 
 
 /**************************************************************************/
@@ -1077,4 +1055,20 @@ function set_status_without_spi_prio(status, tmp)
     s_setreg_b32    hwreg(HW_REG_STATUS, SQ_WAVE_STATUS_POST_SPI_PRIO_SHIFT, SQ_WAVE_STATUS_POST_SPI_PRIO_SIZE), tmp
     s_nop           0x2 // avoid S_SETREG => S_SETREG hazard
     s_setreg_b32    hwreg(HW_REG_STATUS, SQ_WAVE_STATUS_PRE_SPI_PRIO_SHIFT, SQ_WAVE_STATUS_PRE_SPI_PRIO_SIZE), status
+end
+
+function save_and_clear_ib_sts(tmp)
+    // Save IB_STS.FIRST_REPLAY[15] and IB_STS.RCNT[20:16] into unused space ttmp11[31:26].
+    s_getreg_b32    tmp, hwreg(HW_REG_IB_STS)
+    s_and_b32       tmp, tmp, SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK
+    s_lshl_b32      tmp, tmp, (TTMP11_SAVE_RCNT_FIRST_REPLAY_SHIFT - SQ_WAVE_IB_STS_FIRST_REPLAY_SHIFT)
+    s_andn2_b32     ttmp11, ttmp11, TTMP11_SAVE_RCNT_FIRST_REPLAY_MASK
+    s_or_b32        ttmp11, ttmp11, tmp
+    s_setreg_imm32_b32 hwreg(HW_REG_IB_STS), 0x0
+end
+
+function restore_ib_sts(tmp)
+    s_lshr_b32      tmp, ttmp11, (TTMP11_SAVE_RCNT_FIRST_REPLAY_SHIFT - SQ_WAVE_IB_STS_FIRST_REPLAY_SHIFT)
+    s_and_b32       tmp, tmp, SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK
+    s_setreg_b32    hwreg(HW_REG_IB_STS), tmp
 end

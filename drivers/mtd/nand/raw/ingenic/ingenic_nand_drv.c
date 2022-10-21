@@ -567,7 +567,7 @@ static struct platform_driver ingenic_nand_driver = {
 	.remove		= ingenic_nand_remove,
 	.driver	= {
 		.name	= DRV_NAME,
-		.of_match_table = of_match_ptr(ingenic_nand_dt_match),
+		.of_match_table = ingenic_nand_dt_match,
 	},
 };
 module_platform_driver(ingenic_nand_driver);

@@ -23,78 +23,6 @@ menuconfig WAN
 
 if WAN
 
-# There is no way to detect a comtrol sv11 - force it modular for now.
-config HOSTESS_SV11
-	tristate "Comtrol Hostess SV-11 support"
-	depends on ISA && m && ISA_DMA_API && INET && HDLC && VIRT_TO_BUS
-	help
-	  Driver for Comtrol Hostess SV-11 network card which
-	  operates on low speed synchronous serial links at up to
-	  256Kbps, supporting PPP and Cisco HDLC.
-
-	  The driver will be compiled as a module: the
-	  module will be called hostess_sv11.
-
-# The COSA/SRP driver has not been tested as non-modular yet.
-config COSA
-	tristate "COSA/SRP sync serial boards support"
-	depends on ISA && m && ISA_DMA_API && HDLC && VIRT_TO_BUS
-	help
-	  Driver for COSA and SRP synchronous serial boards.
-
-	  These boards allow to connect synchronous serial devices (for example
-	  base-band modems, or any other device with the X.21, V.24, V.35 or
-	  V.36 interface) to your Linux box. The cards can work as the
-	  character device, synchronous PPP network device, or the Cisco HDLC
-	  network device.
-
-	  You will need user-space utilities COSA or SRP boards for downloading
-	  the firmware to the cards and to set them up. Look at the
-	  <http://www.fi.muni.cz/~kas/cosa/> for more information. You can also
-	  read the comment at the top of the <file:drivers/net/wan/cosa.c> for
-	  details about the cards and the driver itself.
-
-	  The driver will be compiled as a module: the
-	  module will be called cosa.
-
-#
-# Lan Media's board. Currently 1000, 1200, 5200, 5245
-#
-config LANMEDIA
-	tristate "LanMedia Corp. SSI/V.35, T1/E1, HSSI, T3 boards"
-	depends on PCI && VIRT_TO_BUS && HDLC
-	help
-	  Driver for the following Lan Media family of serial boards:
-
-	  - LMC 1000 board allows you to connect synchronous serial devices
-	  (for example base-band modems, or any other device with the X.21,
-	  V.24, V.35 or V.36 interface) to your Linux box.
-
-	  - LMC 1200 with on board DSU board allows you to connect your Linux
-	  box directly to a T1 or E1 circuit.
-
-	  - LMC 5200 board provides a HSSI interface capable of running up to
-	  52 Mbits per second.
-
-	  - LMC 5245 board connects directly to a T3 circuit saving the
-	  additional external hardware.
-
-	  To change setting such as clock source you will need lmcctl.
-	  It is available at <ftp://ftp.lanmedia.com/> (broken link).
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called lmc.
-
-# There is no way to detect a Sealevel board. Force it modular
-config SEALEVEL_4021
-	tristate "Sealevel Systems 4021 support"
-	depends on ISA && m && ISA_DMA_API && INET && HDLC && VIRT_TO_BUS
-	help
-	  This is a driver for the Sealevel Systems ACB 56 serial I/O adapter.
-
-	  The driver will be compiled as a module: the
-	  module will be called sealevel.
-
 # Generic HDLC
 config HDLC
 	tristate "Generic HDLC layer"
@@ -293,7 +221,8 @@ config SLIC_DS26522
 config IXP4XX_HSS
 	tristate "Intel IXP4xx HSS (synchronous serial port) support"
 	depends on HDLC && IXP4XX_NPE && IXP4XX_QMGR
-	depends on ARCH_IXP4XX
+	depends on ARCH_IXP4XX && OF
+	select MFD_SYSCON
 	help
 	  Say Y here if you want to use built-in HSS ports
 	  on IXP4xx processor.

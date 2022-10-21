@@ -6,7 +6,7 @@
 
 / {
 	model = "Altera SOCFPGA Arria 10";
-	compatible = "altr,socfpga-arria10", "altr,socfpga";
+	compatible = "altr,socfpga-arria10-socdk", "altr,socfpga-arria10", "altr,socfpga";
 
 	aliases {
 		ethernet0 = &gmac0;

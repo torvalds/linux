@@ -1933,7 +1933,7 @@
 		    ...
 		255= /dev/umem/d15p15  15th partition of 16th board.
 
- 117 char	COSA/SRP synchronous serial card
+ 117 char	[REMOVED] COSA/SRP synchronous serial card
 		  0 = /dev/cosa0c0	1st board, 1st channel
 		  1 = /dev/cosa0c1	1st board, 2nd channel
 		    ...

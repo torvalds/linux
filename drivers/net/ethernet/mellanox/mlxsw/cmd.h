@@ -329,6 +329,32 @@ MLXSW_ITEM64(cmd_mbox, query_fw, free_running_clock_offset, 0x50, 0, 64);
  */
 MLXSW_ITEM32(cmd_mbox, query_fw, fr_rn_clk_bar, 0x58, 30, 2);
 
+/* cmd_mbox_query_fw_utc_sec_offset
+ * The offset of the UTC_Sec page
+ */
+MLXSW_ITEM64(cmd_mbox, query_fw, utc_sec_offset, 0x70, 0, 64);
+
+/* cmd_mbox_query_fw_utc_sec_bar
+ * PCI base address register (BAR) of the UTC_Sec page
+ * 0: BAR 0
+ * 1: 64 bit BAR
+ * Reserved on SwitchX/-2, Switch-IB/2, Spectrum-1
+ */
+MLXSW_ITEM32(cmd_mbox, query_fw, utc_sec_bar, 0x78, 30, 2);
+
+/* cmd_mbox_query_fw_utc_nsec_offset
+ * The offset of the UTC_nSec page
+ */
+MLXSW_ITEM64(cmd_mbox, query_fw, utc_nsec_offset, 0x80, 0, 64);
+
+/* cmd_mbox_query_fw_utc_nsec_bar
+ * PCI base address register (BAR) of the UTC_nSec page
+ * 0: BAR 0
+ * 1: 64 bit BAR
+ * Reserved on SwitchX/-2, Switch-IB/2, Spectrum-1
+ */
+MLXSW_ITEM32(cmd_mbox, query_fw, utc_nsec_bar, 0x88, 30, 2);
+
 /* QUERY_BOARDINFO - Query Board Information
  * -----------------------------------------
  * OpMod == 0 (N/A), INMmod == 0 (N/A)
@@ -342,23 +368,6 @@ static inline int mlxsw_cmd_boardinfo(struct mlxsw_core *mlxsw_core,
 	return mlxsw_cmd_exec_out(mlxsw_core, MLXSW_CMD_OPCODE_QUERY_BOARDINFO,
 				  0, 0, false, out_mbox, MLXSW_CMD_MBOX_SIZE);
 }
-
-/* cmd_mbox_xm_num_local_ports
- * Number of local_ports connected to the xm.
- * Each local port is a 4x
- * Spectrum-2/3: 25G
- * Spectrum-4: 50G
- */
-MLXSW_ITEM32(cmd_mbox, boardinfo, xm_num_local_ports, 0x00, 4, 3);
-
-/* cmd_mbox_xm_exists
- * An XM (eXtanded Mezanine, e.g. used for the XLT) is connected on the board.
- */
-MLXSW_ITEM32(cmd_mbox, boardinfo, xm_exists, 0x00, 0, 1);
-
-/* cmd_mbox_xm_local_port_entry
- */
-MLXSW_ITEM_BIT_ARRAY(cmd_mbox, boardinfo, xm_local_port_entry, 0x04, 4, 8);
 
 /* cmd_mbox_boardinfo_intapin
  * When PCIe interrupt messages are being used, this value is used for clearing
@@ -650,6 +659,12 @@ MLXSW_ITEM32(cmd_mbox, config_profile,
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_ar_sec, 0x0C, 15, 1);
 
+/* cmd_mbox_config_set_ubridge
+ * Capability bit. Setting a bit to 1 configures the profile
+ * according to the mailbox contents.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, set_ubridge, 0x0C, 22, 1);
+
 /* cmd_mbox_config_set_kvd_linear_size
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
@@ -674,11 +689,11 @@ MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_double_size, 0x0C, 26, 1);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_cqe_version, 0x08, 0, 1);
 
-/* cmd_mbox_config_set_kvh_xlt_cache_mode
+/* cmd_mbox_config_set_cqe_time_stamp_type
  * Capability bit. Setting a bit to 1 configures the profile
  * according to the mailbox contents.
  */
-MLXSW_ITEM32(cmd_mbox, config_profile, set_kvh_xlt_cache_mode, 0x08, 3, 1);
+MLXSW_ITEM32(cmd_mbox, config_profile, set_cqe_time_stamp_type, 0x08, 2, 1);
 
 /* cmd_mbox_config_profile_max_vepa_channels
  * Maximum number of VEPA channels per port (0 through 16)
@@ -688,6 +703,9 @@ MLXSW_ITEM32(cmd_mbox, config_profile, max_vepa_channels, 0x10, 0, 8);
 
 /* cmd_mbox_config_profile_max_lag
  * Maximum number of LAG IDs requested.
+ * Reserved when Spectrum-1/2/3, supported from Spectrum-4 and above.
+ * For Spectrum-4, firmware sets 128 for values between 1-128 and 256 for values
+ * between 129-256.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, max_lag, 0x14, 0, 16);
 
@@ -736,16 +754,25 @@ MLXSW_ITEM32(cmd_mbox, config_profile, max_flood_tables, 0x30, 16, 4);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, max_vid_flood_tables, 0x30, 8, 4);
 
+enum mlxsw_cmd_mbox_config_profile_flood_mode {
+	/* Mixed mode, where:
+	 * max_flood_tables indicates the number of single-entry tables.
+	 * max_vid_flood_tables indicates the number of per-VID tables.
+	 * max_fid_offset_flood_tables indicates the number of FID-offset
+	 * tables. max_fid_flood_tables indicates the number of per-FID tables.
+	 * Reserved when unified bridge model is used.
+	 */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_FLOOD_MODE_MIXED = 3,
+	/* Controlled flood tables. Reserved when legacy bridge model is
+	 * used.
+	 */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_FLOOD_MODE_CONTROLLED = 4,
+};
+
 /* cmd_mbox_config_profile_flood_mode
  * Flooding mode to use.
- * 0-2 - Backward compatible modes for SwitchX devices.
- * 3 - Mixed mode, where:
- * max_flood_tables indicates the number of single-entry tables.
- * max_vid_flood_tables indicates the number of per-VID tables.
- * max_fid_offset_flood_tables indicates the number of FID-offset tables.
- * max_fid_flood_tables indicates the number of per-FID tables.
  */
-MLXSW_ITEM32(cmd_mbox, config_profile, flood_mode, 0x30, 0, 2);
+MLXSW_ITEM32(cmd_mbox, config_profile, flood_mode, 0x30, 0, 3);
 
 /* cmd_mbox_config_profile_max_fid_offset_flood_tables
  * Maximum number of FID-offset flooding tables.
@@ -806,12 +833,12 @@ MLXSW_ITEM32(cmd_mbox, config_profile, adaptive_routing_group_cap, 0x4C, 0, 16);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, arn, 0x50, 31, 1);
 
-/* cmd_mbox_config_profile_kvh_xlt_cache_mode
- * KVH XLT cache mode:
- * 0 - XLT can use all KVH as best-effort
- * 1 - XLT cache uses 1/2 KVH
+/* cmd_mbox_config_profile_ubridge
+ * Unified Bridge
+ * 0 - non unified bridge
+ * 1 - unified bridge
  */
-MLXSW_ITEM32(cmd_mbox, config_profile, kvh_xlt_cache_mode, 0x50, 8, 4);
+MLXSW_ITEM32(cmd_mbox, config_profile, ubridge, 0x50, 4, 1);
 
 /* cmd_mbox_config_kvd_linear_size
  * KVD Linear Size
@@ -865,6 +892,26 @@ MLXSW_ITEM32_INDEXED(cmd_mbox, config_profile, swid_config_type,
  */
 MLXSW_ITEM32_INDEXED(cmd_mbox, config_profile, swid_config_properties,
 		     0x60, 0, 8, 0x08, 0x00, false);
+
+enum mlxsw_cmd_mbox_config_profile_cqe_time_stamp_type {
+	/* uSec - 1.024uSec (default). Only bits 15:0 are valid. */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_USEC,
+	/* FRC - Free Running Clock, units of 1nSec.
+	 * Reserved when SwitchX/-2, Switch-IB/2 and Spectrum-1.
+	 */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_FRC,
+	/* UTC. time_stamp[37:30] = Sec, time_stamp[29:0] = nSec.
+	 * Reserved when SwitchX/2, Switch-IB/2 and Spectrum-1.
+	 */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_UTC,
+};
+
+/* cmd_mbox_config_profile_cqe_time_stamp_type
+ * CQE time_stamp_type for non-mirror-packets.
+ * Configured if set_cqe_time_stamp_type is set.
+ * Reserved when SwitchX/-2, Switch-IB/2 and Spectrum-1.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, cqe_time_stamp_type, 0xB0, 8, 2);
 
 /* cmd_mbox_config_profile_cqe_version
  * CQE version:

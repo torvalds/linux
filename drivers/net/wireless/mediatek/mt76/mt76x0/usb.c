@@ -245,7 +245,7 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 	usb_set_intfdata(usb_intf, dev);
 
 	mt76x02u_init_mcu(mdev);
-	ret = mt76u_init(mdev, usb_intf, false);
+	ret = mt76u_init(mdev, usb_intf);
 	if (ret)
 		goto err;
 

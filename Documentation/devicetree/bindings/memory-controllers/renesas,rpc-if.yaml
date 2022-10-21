@@ -31,16 +31,23 @@ properties:
               - renesas,r8a774b1-rpc-if       # RZ/G2N
               - renesas,r8a774c0-rpc-if       # RZ/G2E
               - renesas,r8a774e1-rpc-if       # RZ/G2H
+              - renesas,r8a7795-rpc-if        # R-Car H3
+              - renesas,r8a7796-rpc-if        # R-Car M3-W
+              - renesas,r8a77961-rpc-if       # R-Car M3-W+
+              - renesas,r8a77965-rpc-if       # R-Car M3-N
               - renesas,r8a77970-rpc-if       # R-Car V3M
               - renesas,r8a77980-rpc-if       # R-Car V3H
+              - renesas,r8a77990-rpc-if       # R-Car E3
               - renesas,r8a77995-rpc-if       # R-Car D3
               - renesas,r8a779a0-rpc-if       # R-Car V3U
           - const: renesas,rcar-gen3-rpc-if   # a generic R-Car gen3 or RZ/G2{E,H,M,N} device
 
       - items:
           - enum:
+              - renesas,r9a07g043-rpc-if      # RZ/G2UL
               - renesas,r9a07g044-rpc-if      # RZ/G2{L,LC}
-          - const: renesas,rzg2l-rpc-if       # RZ/G2L family
+              - renesas,r9a07g054-rpc-if      # RZ/V2L
+          - const: renesas,rzg2l-rpc-if
 
   reg:
     items:

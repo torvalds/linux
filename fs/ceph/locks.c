@@ -111,10 +111,10 @@ static int ceph_lock_message(u8 lock_type, u16 operation, struct inode *inode,
 	req->r_args.filelock_change.length = cpu_to_le64(length);
 	req->r_args.filelock_change.wait = wait;
 
-	if (wait)
-		req->r_wait_for_completion = ceph_lock_wait_for_completion;
-
-	err = ceph_mdsc_do_request(mdsc, inode, req);
+	err = ceph_mdsc_submit_request(mdsc, inode, req);
+	if (!err)
+		err = ceph_mdsc_wait_request(mdsc, req, wait ?
+					ceph_lock_wait_for_completion : NULL);
 	if (!err && operation == CEPH_MDS_OP_GETFILELOCK) {
 		fl->fl_pid = -le64_to_cpu(req->r_reply_info.filelock_reply->pid);
 		if (CEPH_LOCK_SHARED == req->r_reply_info.filelock_reply->type)

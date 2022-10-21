@@ -68,7 +68,8 @@ VDSO_CFLAGS += -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
                -fno-strict-aliasing -fno-common \
                -Werror-implicit-function-declaration \
                -Wno-format-security \
-               -std=gnu89
+               -Wdeclaration-after-statement \
+               -std=gnu11
 VDSO_CFLAGS  += -O2
 # Some useful compiler-dependent flags from top-level Makefile
 VDSO_CFLAGS += $(call cc32-option,-Wdeclaration-after-statement,)
@@ -103,6 +104,7 @@ VDSO_AFLAGS += -D__ASSEMBLY__
 VDSO_LDFLAGS += -Bsymbolic --no-undefined -soname=linux-vdso.so.1
 VDSO_LDFLAGS += -z max-page-size=4096 -z common-page-size=4096
 VDSO_LDFLAGS += -shared --hash-style=sysv --build-id=sha1
+VDSO_LDFLAGS += --orphan-handling=warn
 
 
 # Borrow vdsomunge.c from the arm vDSO
@@ -129,9 +131,6 @@ obj-vdso := $(c-obj-vdso) $(c-obj-vdso-gettimeofday) $(asm-obj-vdso)
 
 targets += vdso.lds
 CPPFLAGS_vdso.lds += -P -C -U$(ARCH)
-
-# Force dependency (vdso.s includes vdso.so through incbin)
-$(obj)/vdso.o: $(obj)/vdso.so
 
 include/generated/vdso32-offsets.h: $(obj)/vdso.so.dbg FORCE
 	$(call if_changed,vdsosym)

@@ -8,6 +8,7 @@
 
 #include <linux/device.h>
 #include <linux/kernel.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/spi/spi.h>
@@ -57,12 +58,12 @@ struct ad7923_state {
 	unsigned int			settings;
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 * Ensure rx_buf can be directly used in iio_push_to_buffers_with_timetamp
 	 * Length = 8 channels + 4 extra for 8 byte timestamp
 	 */
-	__be16				rx_buf[12] ____cacheline_aligned;
+	__be16				rx_buf[12] __aligned(IIO_DMA_MINALIGN);
 	__be16				tx_buf[4];
 };
 
@@ -93,6 +94,7 @@ enum ad7923_id {
 			.sign = 'u',					\
 			.realbits = (bits),				\
 			.storagebits = 16,				\
+			.shift = 12 - (bits),				\
 			.endianness = IIO_BE,				\
 		},							\
 	}
@@ -268,7 +270,8 @@ static int ad7923_read_raw(struct iio_dev *indio_dev,
 			return ret;
 
 		if (chan->address == EXTRACT(ret, 12, 4))
-			*val = EXTRACT(ret, 0, 12);
+			*val = EXTRACT(ret, chan->scan_type.shift,
+				       chan->scan_type.realbits);
 		else
 			return -EIO;
 
@@ -298,6 +301,7 @@ static void ad7923_regulator_disable(void *data)
 
 static int ad7923_probe(struct spi_device *spi)
 {
+	u32 ad7923_range = AD7923_RANGE;
 	struct ad7923_state *st;
 	struct iio_dev *indio_dev;
 	const struct ad7923_chip_info *info;
@@ -309,8 +313,11 @@ static int ad7923_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
+	if (device_property_read_bool(&spi->dev, "adi,range-double"))
+		ad7923_range = 0;
+
 	st->spi = spi;
-	st->settings = AD7923_CODING | AD7923_RANGE |
+	st->settings = AD7923_CODING | ad7923_range |
 			AD7923_PM_MODE_WRITE(AD7923_PM_MODE_OPS);
 
 	info = &ad7923_chip_info[spi_get_device_id(spi)->driver_data];

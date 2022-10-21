@@ -112,7 +112,6 @@ static int skl_int3472_map_gpio_to_sensor(struct int3472_discrete_device *int347
 	struct acpi_device *adev;
 	acpi_handle handle;
 	acpi_status status;
-	int ret;
 
 	if (int3472->n_sensor_gpios >= INT3472_MAX_SENSOR_GPIOS) {
 		dev_warn(int3472->dev, "Too many GPIOs mapped\n");
@@ -139,8 +138,8 @@ static int skl_int3472_map_gpio_to_sensor(struct int3472_discrete_device *int347
 	if (ACPI_FAILURE(status))
 		return -EINVAL;
 
-	ret = acpi_bus_get_device(handle, &adev);
-	if (ret)
+	adev = acpi_fetch_acpi_dev(handle);
+	if (!adev)
 		return -ENODEV;
 
 	table_entry = &int3472->gpios.table[int3472->n_sensor_gpios];
@@ -332,7 +331,22 @@ static int skl_int3472_parse_crs(struct int3472_discrete_device *int3472)
 	return 0;
 }
 
-static int skl_int3472_discrete_remove(struct platform_device *pdev);
+static int skl_int3472_discrete_remove(struct platform_device *pdev)
+{
+	struct int3472_discrete_device *int3472 = platform_get_drvdata(pdev);
+
+	gpiod_remove_lookup_table(&int3472->gpios);
+
+	if (int3472->clock.cl)
+		skl_int3472_unregister_clock(int3472);
+
+	gpiod_put(int3472->clock.ena_gpio);
+	gpiod_put(int3472->clock.led_gpio);
+
+	skl_int3472_unregister_regulator(int3472);
+
+	return 0;
+}
 
 static int skl_int3472_discrete_probe(struct platform_device *pdev)
 {
@@ -381,23 +395,6 @@ static int skl_int3472_discrete_probe(struct platform_device *pdev)
 	}
 
 	acpi_dev_clear_dependencies(adev);
-	return 0;
-}
-
-static int skl_int3472_discrete_remove(struct platform_device *pdev)
-{
-	struct int3472_discrete_device *int3472 = platform_get_drvdata(pdev);
-
-	gpiod_remove_lookup_table(&int3472->gpios);
-
-	if (int3472->clock.cl)
-		skl_int3472_unregister_clock(int3472);
-
-	gpiod_put(int3472->clock.ena_gpio);
-	gpiod_put(int3472->clock.led_gpio);
-
-	skl_int3472_unregister_regulator(int3472);
-
 	return 0;
 }
 

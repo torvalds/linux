@@ -23,6 +23,7 @@ properties:
 
   regulator-microvolt-offset:
     description: Offset applied to voltages to compensate for voltage drops
+    $ref: "/schemas/types.yaml#/definitions/uint32"
 
   regulator-min-microamp:
     description: smallest current consumers may set
@@ -213,6 +214,8 @@ properties:
       is 2-way - all coupled regulators should be linked with each other.
       A regulator should not be coupled with its supplier.
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    items:
+      maxItems: 1
 
   regulator-coupled-max-spread:
     description: Array of maximum spread between voltages of coupled regulators

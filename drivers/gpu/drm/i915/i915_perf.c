@@ -196,17 +196,23 @@
 #include <linux/uuid.h>
 
 #include "gem/i915_gem_context.h"
+#include "gem/i915_gem_internal.h"
 #include "gt/intel_engine_pm.h"
+#include "gt/intel_engine_regs.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_execlists_submission.h"
 #include "gt/intel_gpu_commands.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_clock_utils.h"
+#include "gt/intel_gt_regs.h"
 #include "gt/intel_lrc.h"
+#include "gt/intel_lrc_reg.h"
 #include "gt/intel_ring.h"
 
 #include "i915_drv.h"
+#include "i915_file_private.h"
 #include "i915_perf.h"
+#include "i915_perf_oa_regs.h"
 
 /* HW requires this to be a power of two, between 128k and 16M, though driver
  * is currently generally designed assuming the largest 16M size is used such
@@ -879,8 +885,9 @@ static int gen8_oa_read(struct i915_perf_stream *stream,
 		if (ret)
 			return ret;
 
-		DRM_DEBUG("OA buffer overflow (exponent = %d): force restart\n",
-			  stream->period_exponent);
+		drm_dbg(&stream->perf->i915->drm,
+			"OA buffer overflow (exponent = %d): force restart\n",
+			stream->period_exponent);
 
 		stream->perf->ops.oa_disable(stream);
 		stream->perf->ops.oa_enable(stream);
@@ -1102,8 +1109,9 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
 		if (ret)
 			return ret;
 
-		DRM_DEBUG("OA buffer overflow (exponent = %d): force restart\n",
-			  stream->period_exponent);
+		drm_dbg(&stream->perf->i915->drm,
+			"OA buffer overflow (exponent = %d): force restart\n",
+			stream->period_exponent);
 
 		stream->perf->ops.oa_disable(stream);
 		stream->perf->ops.oa_enable(stream);
@@ -1368,7 +1376,8 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 {
 	struct i915_perf *perf = stream->perf;
 
-	BUG_ON(stream != perf->exclusive_stream);
+	if (WARN_ON(stream != perf->exclusive_stream))
+		return;
 
 	/*
 	 * Unset exclusive_stream first, it will be checked while disabling
@@ -1630,8 +1639,8 @@ static int alloc_noa_wait(struct i915_perf_stream *stream)
 	struct drm_i915_gem_object *bo;
 	struct i915_vma *vma;
 	const u64 delay_ticks = 0xffffffffffffffff -
-		intel_gt_ns_to_clock_interval(stream->perf->i915->ggtt.vm.gt,
-					      atomic64_read(&stream->perf->noa_programming_delay));
+		intel_gt_ns_to_clock_interval(to_gt(stream->perf->i915),
+		atomic64_read(&stream->perf->noa_programming_delay));
 	const u32 base = stream->engine->mmio_base;
 #define CS_GPR(x) GEN8_RING_CS_GPR(base, x)
 	u32 *batch, *ts0, *cs, *jump;
@@ -1682,7 +1691,7 @@ retry:
 			stream, cs, true /* save */, CS_GPR(i),
 			INTEL_GT_SCRATCH_FIELD_PERF_CS_GPR + 8 * i, 2);
 	cs = save_restore_register(
-		stream, cs, true /* save */, MI_PREDICATE_RESULT_1,
+		stream, cs, true /* save */, MI_PREDICATE_RESULT_1(RENDER_RING_BASE),
 		INTEL_GT_SCRATCH_FIELD_PERF_PREDICATE_RESULT_1, 1);
 
 	/* First timestamp snapshot location. */
@@ -1736,7 +1745,7 @@ retry:
 	 */
 	*cs++ = MI_LOAD_REGISTER_REG | (3 - 2);
 	*cs++ = i915_mmio_reg_offset(CS_GPR(JUMP_PREDICATE));
-	*cs++ = i915_mmio_reg_offset(MI_PREDICATE_RESULT_1);
+	*cs++ = i915_mmio_reg_offset(MI_PREDICATE_RESULT_1(RENDER_RING_BASE));
 
 	/* Restart from the beginning if we had timestamps roll over. */
 	*cs++ = (GRAPHICS_VER(i915) < 8 ?
@@ -1773,7 +1782,7 @@ retry:
 	 */
 	*cs++ = MI_LOAD_REGISTER_REG | (3 - 2);
 	*cs++ = i915_mmio_reg_offset(CS_GPR(JUMP_PREDICATE));
-	*cs++ = i915_mmio_reg_offset(MI_PREDICATE_RESULT_1);
+	*cs++ = i915_mmio_reg_offset(MI_PREDICATE_RESULT_1(RENDER_RING_BASE));
 
 	/* Predicate the jump.  */
 	*cs++ = (GRAPHICS_VER(i915) < 8 ?
@@ -1789,7 +1798,7 @@ retry:
 			stream, cs, false /* restore */, CS_GPR(i),
 			INTEL_GT_SCRATCH_FIELD_PERF_CS_GPR + 8 * i, 2);
 	cs = save_restore_register(
-		stream, cs, false /* restore */, MI_PREDICATE_RESULT_1,
+		stream, cs, false /* restore */, MI_PREDICATE_RESULT_1(RENDER_RING_BASE),
 		INTEL_GT_SCRATCH_FIELD_PERF_PREDICATE_RESULT_1, 1);
 
 	/* And return to the ring. */
@@ -2114,7 +2123,7 @@ gen8_update_reg_state_unlocked(const struct intel_context *ce,
 	u32 ctx_oactxctrl = stream->perf->ctx_oactxctrl_offset;
 	u32 ctx_flexeu0 = stream->perf->ctx_flexeu0_offset;
 	/* The MMIO offsets for Flex EU registers aren't contiguous */
-	i915_reg_t flex_regs[] = {
+	static const i915_reg_t flex_regs[] = {
 		EU_PERF_CNTL0,
 		EU_PERF_CNTL1,
 		EU_PERF_CNTL2,
@@ -2418,7 +2427,7 @@ gen12_configure_all_contexts(struct i915_perf_stream *stream,
 {
 	struct flex regs[] = {
 		{
-			GEN8_R_PWR_CLK_STATE,
+			GEN8_R_PWR_CLK_STATE(RENDER_RING_BASE),
 			CTX_R_PWR_CLK_STATE,
 		},
 	};
@@ -2438,7 +2447,7 @@ lrc_configure_all_contexts(struct i915_perf_stream *stream,
 #define ctx_flexeuN(N) (ctx_flexeu0 + 2 * (N) + 1)
 	struct flex regs[] = {
 		{
-			GEN8_R_PWR_CLK_STATE,
+			GEN8_R_PWR_CLK_STATE(RENDER_RING_BASE),
 			CTX_R_PWR_CLK_STATE,
 		},
 		{
@@ -2857,7 +2866,8 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	int ret;
 
 	if (!props->engine) {
-		DRM_DEBUG("OA engine not specified\n");
+		drm_dbg(&stream->perf->i915->drm,
+			"OA engine not specified\n");
 		return -EINVAL;
 	}
 
@@ -2867,18 +2877,21 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	 * IDs
 	 */
 	if (!perf->metrics_kobj) {
-		DRM_DEBUG("OA metrics weren't advertised via sysfs\n");
+		drm_dbg(&stream->perf->i915->drm,
+			"OA metrics weren't advertised via sysfs\n");
 		return -EINVAL;
 	}
 
 	if (!(props->sample_flags & SAMPLE_OA_REPORT) &&
 	    (GRAPHICS_VER(perf->i915) < 12 || !stream->ctx)) {
-		DRM_DEBUG("Only OA report sampling supported\n");
+		drm_dbg(&stream->perf->i915->drm,
+			"Only OA report sampling supported\n");
 		return -EINVAL;
 	}
 
 	if (!perf->ops.enable_metric_set) {
-		DRM_DEBUG("OA unit not supported\n");
+		drm_dbg(&stream->perf->i915->drm,
+			"OA unit not supported\n");
 		return -ENODEV;
 	}
 
@@ -2888,12 +2901,14 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	 * we currently only allow exclusive access
 	 */
 	if (perf->exclusive_stream) {
-		DRM_DEBUG("OA unit already in use\n");
+		drm_dbg(&stream->perf->i915->drm,
+			"OA unit already in use\n");
 		return -EBUSY;
 	}
 
 	if (!props->oa_format) {
-		DRM_DEBUG("OA report format not specified\n");
+		drm_dbg(&stream->perf->i915->drm,
+			"OA report format not specified\n");
 		return -EINVAL;
 	}
 
@@ -2923,20 +2938,23 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	if (stream->ctx) {
 		ret = oa_get_render_ctx_id(stream);
 		if (ret) {
-			DRM_DEBUG("Invalid context id to filter with\n");
+			drm_dbg(&stream->perf->i915->drm,
+				"Invalid context id to filter with\n");
 			return ret;
 		}
 	}
 
 	ret = alloc_noa_wait(stream);
 	if (ret) {
-		DRM_DEBUG("Unable to allocate NOA wait batch buffer\n");
+		drm_dbg(&stream->perf->i915->drm,
+			"Unable to allocate NOA wait batch buffer\n");
 		goto err_noa_wait_alloc;
 	}
 
 	stream->oa_config = i915_perf_get_oa_config(perf, props->metrics_set);
 	if (!stream->oa_config) {
-		DRM_DEBUG("Invalid OA config id=%i\n", props->metrics_set);
+		drm_dbg(&stream->perf->i915->drm,
+			"Invalid OA config id=%i\n", props->metrics_set);
 		ret = -EINVAL;
 		goto err_config;
 	}
@@ -2967,11 +2985,13 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 
 	ret = i915_perf_stream_enable_sync(stream);
 	if (ret) {
-		DRM_DEBUG("Unable to enable metric set\n");
+		drm_dbg(&stream->perf->i915->drm,
+			"Unable to enable metric set\n");
 		goto err_enable;
 	}
 
-	DRM_DEBUG("opening stream oa config uuid=%s\n",
+	drm_dbg(&stream->perf->i915->drm,
+		"opening stream oa config uuid=%s\n",
 		  stream->oa_config->uuid);
 
 	hrtimer_init(&stream->poll_check_timer,
@@ -3423,7 +3443,8 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 
 		specific_ctx = i915_gem_context_lookup(file_priv, ctx_handle);
 		if (IS_ERR(specific_ctx)) {
-			DRM_DEBUG("Failed to look up context with ID %u for opening perf stream\n",
+			drm_dbg(&perf->i915->drm,
+				"Failed to look up context with ID %u for opening perf stream\n",
 				  ctx_handle);
 			ret = PTR_ERR(specific_ctx);
 			goto err;
@@ -3457,7 +3478,8 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 
 	if (props->hold_preemption) {
 		if (!props->single_context) {
-			DRM_DEBUG("preemption disable with no context\n");
+			drm_dbg(&perf->i915->drm,
+				"preemption disable with no context\n");
 			ret = -EINVAL;
 			goto err;
 		}
@@ -3479,7 +3501,8 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 	 */
 	if (privileged_op &&
 	    i915_perf_stream_paranoid && !perfmon_capable()) {
-		DRM_DEBUG("Insufficient privileges to open i915 perf stream\n");
+		drm_dbg(&perf->i915->drm,
+			"Insufficient privileges to open i915 perf stream\n");
 		ret = -EACCES;
 		goto err_ctx;
 	}
@@ -3542,7 +3565,7 @@ err:
 
 static u64 oa_exponent_to_ns(struct i915_perf *perf, int exponent)
 {
-	return intel_gt_clock_interval_to_ns(perf->i915->ggtt.vm.gt,
+	return intel_gt_clock_interval_to_ns(to_gt(perf->i915),
 					     2ULL << exponent);
 }
 
@@ -3586,7 +3609,8 @@ static int read_properties_unlocked(struct i915_perf *perf,
 	props->poll_oa_period = DEFAULT_POLL_PERIOD_NS;
 
 	if (!n_props) {
-		DRM_DEBUG("No i915 perf properties given\n");
+		drm_dbg(&perf->i915->drm,
+			"No i915 perf properties given\n");
 		return -EINVAL;
 	}
 
@@ -3595,7 +3619,8 @@ static int read_properties_unlocked(struct i915_perf *perf,
 						 I915_ENGINE_CLASS_RENDER,
 						 0);
 	if (!props->engine) {
-		DRM_DEBUG("No RENDER-capable engines\n");
+		drm_dbg(&perf->i915->drm,
+			"No RENDER-capable engines\n");
 		return -EINVAL;
 	}
 
@@ -3606,7 +3631,8 @@ static int read_properties_unlocked(struct i915_perf *perf,
 	 * from userspace.
 	 */
 	if (n_props >= DRM_I915_PERF_PROP_MAX) {
-		DRM_DEBUG("More i915 perf properties specified than exist\n");
+		drm_dbg(&perf->i915->drm,
+			"More i915 perf properties specified than exist\n");
 		return -EINVAL;
 	}
 
@@ -3623,7 +3649,8 @@ static int read_properties_unlocked(struct i915_perf *perf,
 			return ret;
 
 		if (id == 0 || id >= DRM_I915_PERF_PROP_MAX) {
-			DRM_DEBUG("Unknown i915 perf property ID\n");
+			drm_dbg(&perf->i915->drm,
+				"Unknown i915 perf property ID\n");
 			return -EINVAL;
 		}
 
@@ -3638,19 +3665,22 @@ static int read_properties_unlocked(struct i915_perf *perf,
 			break;
 		case DRM_I915_PERF_PROP_OA_METRICS_SET:
 			if (value == 0) {
-				DRM_DEBUG("Unknown OA metric set ID\n");
+				drm_dbg(&perf->i915->drm,
+					"Unknown OA metric set ID\n");
 				return -EINVAL;
 			}
 			props->metrics_set = value;
 			break;
 		case DRM_I915_PERF_PROP_OA_FORMAT:
 			if (value == 0 || value >= I915_OA_FORMAT_MAX) {
-				DRM_DEBUG("Out-of-range OA report format %llu\n",
+				drm_dbg(&perf->i915->drm,
+					"Out-of-range OA report format %llu\n",
 					  value);
 				return -EINVAL;
 			}
 			if (!oa_format_valid(perf, value)) {
-				DRM_DEBUG("Unsupported OA report format %llu\n",
+				drm_dbg(&perf->i915->drm,
+					"Unsupported OA report format %llu\n",
 					  value);
 				return -EINVAL;
 			}
@@ -3658,7 +3688,8 @@ static int read_properties_unlocked(struct i915_perf *perf,
 			break;
 		case DRM_I915_PERF_PROP_OA_EXPONENT:
 			if (value > OA_EXPONENT_MAX) {
-				DRM_DEBUG("OA timer exponent too high (> %u)\n",
+				drm_dbg(&perf->i915->drm,
+					"OA timer exponent too high (> %u)\n",
 					 OA_EXPONENT_MAX);
 				return -EINVAL;
 			}
@@ -3686,7 +3717,8 @@ static int read_properties_unlocked(struct i915_perf *perf,
 				oa_freq_hz = 0;
 
 			if (oa_freq_hz > i915_oa_max_sample_rate && !perfmon_capable()) {
-				DRM_DEBUG("OA exponent would exceed the max sampling frequency (sysctl dev.i915.oa_max_sample_rate) %uHz without CAP_PERFMON or CAP_SYS_ADMIN privileges\n",
+				drm_dbg(&perf->i915->drm,
+					"OA exponent would exceed the max sampling frequency (sysctl dev.i915.oa_max_sample_rate) %uHz without CAP_PERFMON or CAP_SYS_ADMIN privileges\n",
 					  i915_oa_max_sample_rate);
 				return -EACCES;
 			}
@@ -3700,16 +3732,25 @@ static int read_properties_unlocked(struct i915_perf *perf,
 		case DRM_I915_PERF_PROP_GLOBAL_SSEU: {
 			struct drm_i915_gem_context_param_sseu user_sseu;
 
+			if (GRAPHICS_VER_FULL(perf->i915) >= IP_VER(12, 50)) {
+				drm_dbg(&perf->i915->drm,
+					"SSEU config not supported on gfx %x\n",
+					GRAPHICS_VER_FULL(perf->i915));
+				return -ENODEV;
+			}
+
 			if (copy_from_user(&user_sseu,
 					   u64_to_user_ptr(value),
 					   sizeof(user_sseu))) {
-				DRM_DEBUG("Unable to copy global sseu parameter\n");
+				drm_dbg(&perf->i915->drm,
+					"Unable to copy global sseu parameter\n");
 				return -EFAULT;
 			}
 
 			ret = get_sseu_config(&props->sseu, props->engine, &user_sseu);
 			if (ret) {
-				DRM_DEBUG("Invalid SSEU configuration\n");
+				drm_dbg(&perf->i915->drm,
+					"Invalid SSEU configuration\n");
 				return ret;
 			}
 			props->has_sseu = true;
@@ -3717,7 +3758,8 @@ static int read_properties_unlocked(struct i915_perf *perf,
 		}
 		case DRM_I915_PERF_PROP_POLL_OA_PERIOD:
 			if (value < 100000 /* 100us */) {
-				DRM_DEBUG("OA availability timer too small (%lluns < 100us)\n",
+				drm_dbg(&perf->i915->drm,
+					"OA availability timer too small (%lluns < 100us)\n",
 					  value);
 				return -EINVAL;
 			}
@@ -3768,7 +3810,8 @@ int i915_perf_open_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!perf->i915) {
-		DRM_DEBUG("i915 perf interface not available for this system\n");
+		drm_dbg(&perf->i915->drm,
+			"i915 perf interface not available for this system\n");
 		return -ENOTSUPP;
 	}
 
@@ -3776,7 +3819,8 @@ int i915_perf_open_ioctl(struct drm_device *dev, void *data,
 			   I915_PERF_FLAG_FD_NONBLOCK |
 			   I915_PERF_FLAG_DISABLED;
 	if (param->flags & ~known_open_flags) {
-		DRM_DEBUG("Unknown drm_i915_perf_open_param flag\n");
+		drm_dbg(&perf->i915->drm,
+			"Unknown drm_i915_perf_open_param flag\n");
 		return -EINVAL;
 	}
 
@@ -3862,80 +3906,116 @@ static bool gen8_is_valid_flex_addr(struct i915_perf *perf, u32 addr)
 	return false;
 }
 
-#define ADDR_IN_RANGE(addr, start, end) \
-	((addr) >= (start) && \
-	 (addr) <= (end))
+static bool reg_in_range_table(u32 addr, const struct i915_range *table)
+{
+	while (table->start || table->end) {
+		if (addr >= table->start && addr <= table->end)
+			return true;
 
-#define REG_IN_RANGE(addr, start, end) \
-	((addr) >= i915_mmio_reg_offset(start) && \
-	 (addr) <= i915_mmio_reg_offset(end))
+		table++;
+	}
+
+	return false;
+}
 
 #define REG_EQUAL(addr, mmio) \
 	((addr) == i915_mmio_reg_offset(mmio))
 
+static const struct i915_range gen7_oa_b_counters[] = {
+	{ .start = 0x2710, .end = 0x272c },	/* OASTARTTRIG[1-8] */
+	{ .start = 0x2740, .end = 0x275c },	/* OAREPORTTRIG[1-8] */
+	{ .start = 0x2770, .end = 0x27ac },	/* OACEC[0-7][0-1] */
+	{}
+};
+
+static const struct i915_range gen12_oa_b_counters[] = {
+	{ .start = 0x2b2c, .end = 0x2b2c },	/* GEN12_OAG_OA_PESS */
+	{ .start = 0xd900, .end = 0xd91c },	/* GEN12_OAG_OASTARTTRIG[1-8] */
+	{ .start = 0xd920, .end = 0xd93c },	/* GEN12_OAG_OAREPORTTRIG1[1-8] */
+	{ .start = 0xd940, .end = 0xd97c },	/* GEN12_OAG_CEC[0-7][0-1] */
+	{ .start = 0xdc00, .end = 0xdc3c },	/* GEN12_OAG_SCEC[0-7][0-1] */
+	{ .start = 0xdc40, .end = 0xdc40 },	/* GEN12_OAG_SPCTR_CNF */
+	{ .start = 0xdc44, .end = 0xdc44 },	/* GEN12_OAA_DBG_REG */
+	{}
+};
+
+static const struct i915_range gen7_oa_mux_regs[] = {
+	{ .start = 0x91b8, .end = 0x91cc },	/* OA_PERFCNT[1-2], OA_PERFMATRIX */
+	{ .start = 0x9800, .end = 0x9888 },	/* MICRO_BP0_0 - NOA_WRITE */
+	{ .start = 0xe180, .end = 0xe180 },	/* HALF_SLICE_CHICKEN2 */
+	{}
+};
+
+static const struct i915_range hsw_oa_mux_regs[] = {
+	{ .start = 0x09e80, .end = 0x09ea4 }, /* HSW_MBVID2_NOA[0-9] */
+	{ .start = 0x09ec0, .end = 0x09ec0 }, /* HSW_MBVID2_MISR0 */
+	{ .start = 0x25100, .end = 0x2ff90 },
+	{}
+};
+
+static const struct i915_range chv_oa_mux_regs[] = {
+	{ .start = 0x182300, .end = 0x1823a4 },
+	{}
+};
+
+static const struct i915_range gen8_oa_mux_regs[] = {
+	{ .start = 0x0d00, .end = 0x0d2c },	/* RPM_CONFIG[0-1], NOA_CONFIG[0-8] */
+	{ .start = 0x20cc, .end = 0x20cc },	/* WAIT_FOR_RC6_EXIT */
+	{}
+};
+
+static const struct i915_range gen11_oa_mux_regs[] = {
+	{ .start = 0x91c8, .end = 0x91dc },	/* OA_PERFCNT[3-4] */
+	{}
+};
+
+static const struct i915_range gen12_oa_mux_regs[] = {
+	{ .start = 0x0d00, .end = 0x0d04 },     /* RPM_CONFIG[0-1] */
+	{ .start = 0x0d0c, .end = 0x0d2c },     /* NOA_CONFIG[0-8] */
+	{ .start = 0x9840, .end = 0x9840 },	/* GDT_CHICKEN_BITS */
+	{ .start = 0x9884, .end = 0x9888 },	/* NOA_WRITE */
+	{ .start = 0x20cc, .end = 0x20cc },	/* WAIT_FOR_RC6_EXIT */
+	{}
+};
+
 static bool gen7_is_valid_b_counter_addr(struct i915_perf *perf, u32 addr)
 {
-	return REG_IN_RANGE(addr, OASTARTTRIG1, OASTARTTRIG8) ||
-	       REG_IN_RANGE(addr, OAREPORTTRIG1, OAREPORTTRIG8) ||
-	       REG_IN_RANGE(addr, OACEC0_0, OACEC7_1);
-}
-
-static bool gen7_is_valid_mux_addr(struct i915_perf *perf, u32 addr)
-{
-	return REG_EQUAL(addr, HALF_SLICE_CHICKEN2) ||
-	       REG_IN_RANGE(addr, MICRO_BP0_0, NOA_WRITE) ||
-	       REG_IN_RANGE(addr, OA_PERFCNT1_LO, OA_PERFCNT2_HI) ||
-	       REG_IN_RANGE(addr, OA_PERFMATRIX_LO, OA_PERFMATRIX_HI);
+	return reg_in_range_table(addr, gen7_oa_b_counters);
 }
 
 static bool gen8_is_valid_mux_addr(struct i915_perf *perf, u32 addr)
 {
-	return gen7_is_valid_mux_addr(perf, addr) ||
-	       REG_EQUAL(addr, WAIT_FOR_RC6_EXIT) ||
-	       REG_IN_RANGE(addr, RPM_CONFIG0, NOA_CONFIG(8));
+	return reg_in_range_table(addr, gen7_oa_mux_regs) ||
+		reg_in_range_table(addr, gen8_oa_mux_regs);
 }
 
 static bool gen11_is_valid_mux_addr(struct i915_perf *perf, u32 addr)
 {
-	return gen8_is_valid_mux_addr(perf, addr) ||
-	       REG_EQUAL(addr, GEN10_NOA_WRITE_HIGH) ||
-	       REG_IN_RANGE(addr, OA_PERFCNT3_LO, OA_PERFCNT4_HI);
+	return reg_in_range_table(addr, gen7_oa_mux_regs) ||
+		reg_in_range_table(addr, gen8_oa_mux_regs) ||
+		reg_in_range_table(addr, gen11_oa_mux_regs);
 }
 
 static bool hsw_is_valid_mux_addr(struct i915_perf *perf, u32 addr)
 {
-	return gen7_is_valid_mux_addr(perf, addr) ||
-	       ADDR_IN_RANGE(addr, 0x25100, 0x2FF90) ||
-	       REG_IN_RANGE(addr, HSW_MBVID2_NOA0, HSW_MBVID2_NOA9) ||
-	       REG_EQUAL(addr, HSW_MBVID2_MISR0);
+	return reg_in_range_table(addr, gen7_oa_mux_regs) ||
+		reg_in_range_table(addr, hsw_oa_mux_regs);
 }
 
 static bool chv_is_valid_mux_addr(struct i915_perf *perf, u32 addr)
 {
-	return gen7_is_valid_mux_addr(perf, addr) ||
-	       ADDR_IN_RANGE(addr, 0x182300, 0x1823A4);
+	return reg_in_range_table(addr, gen7_oa_mux_regs) ||
+		reg_in_range_table(addr, chv_oa_mux_regs);
 }
 
 static bool gen12_is_valid_b_counter_addr(struct i915_perf *perf, u32 addr)
 {
-	return REG_IN_RANGE(addr, GEN12_OAG_OASTARTTRIG1, GEN12_OAG_OASTARTTRIG8) ||
-	       REG_IN_RANGE(addr, GEN12_OAG_OAREPORTTRIG1, GEN12_OAG_OAREPORTTRIG8) ||
-	       REG_IN_RANGE(addr, GEN12_OAG_CEC0_0, GEN12_OAG_CEC7_1) ||
-	       REG_IN_RANGE(addr, GEN12_OAG_SCEC0_0, GEN12_OAG_SCEC7_1) ||
-	       REG_EQUAL(addr, GEN12_OAA_DBG_REG) ||
-	       REG_EQUAL(addr, GEN12_OAG_OA_PESS) ||
-	       REG_EQUAL(addr, GEN12_OAG_SPCTR_CNF);
+	return reg_in_range_table(addr, gen12_oa_b_counters);
 }
 
 static bool gen12_is_valid_mux_addr(struct i915_perf *perf, u32 addr)
 {
-	return REG_EQUAL(addr, NOA_WRITE) ||
-	       REG_EQUAL(addr, GEN10_NOA_WRITE_HIGH) ||
-	       REG_EQUAL(addr, GDT_CHICKEN_BITS) ||
-	       REG_EQUAL(addr, WAIT_FOR_RC6_EXIT) ||
-	       REG_EQUAL(addr, RPM_CONFIG0) ||
-	       REG_EQUAL(addr, RPM_CONFIG1) ||
-	       REG_IN_RANGE(addr, NOA_CONFIG(0), NOA_CONFIG(8));
+	return reg_in_range_table(addr, gen12_oa_mux_regs);
 }
 
 static u32 mask_reg_value(u32 reg, u32 val)
@@ -3986,7 +4066,8 @@ static struct i915_oa_reg *alloc_oa_regs(struct i915_perf *perf,
 			goto addr_err;
 
 		if (!is_valid(perf, addr)) {
-			DRM_DEBUG("Invalid oa_reg address: %X\n", addr);
+			drm_dbg(&perf->i915->drm,
+				"Invalid oa_reg address: %X\n", addr);
 			err = -EINVAL;
 			goto addr_err;
 		}
@@ -4008,8 +4089,8 @@ addr_err:
 	return ERR_PTR(err);
 }
 
-static ssize_t show_dynamic_id(struct device *dev,
-			       struct device_attribute *attr,
+static ssize_t show_dynamic_id(struct kobject *kobj,
+			       struct kobj_attribute *attr,
 			       char *buf)
 {
 	struct i915_oa_config *oa_config =
@@ -4060,30 +4141,35 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 	int err, id;
 
 	if (!perf->i915) {
-		DRM_DEBUG("i915 perf interface not available for this system\n");
+		drm_dbg(&perf->i915->drm,
+			"i915 perf interface not available for this system\n");
 		return -ENOTSUPP;
 	}
 
 	if (!perf->metrics_kobj) {
-		DRM_DEBUG("OA metrics weren't advertised via sysfs\n");
+		drm_dbg(&perf->i915->drm,
+			"OA metrics weren't advertised via sysfs\n");
 		return -EINVAL;
 	}
 
 	if (i915_perf_stream_paranoid && !perfmon_capable()) {
-		DRM_DEBUG("Insufficient privileges to add i915 OA config\n");
+		drm_dbg(&perf->i915->drm,
+			"Insufficient privileges to add i915 OA config\n");
 		return -EACCES;
 	}
 
 	if ((!args->mux_regs_ptr || !args->n_mux_regs) &&
 	    (!args->boolean_regs_ptr || !args->n_boolean_regs) &&
 	    (!args->flex_regs_ptr || !args->n_flex_regs)) {
-		DRM_DEBUG("No OA registers given\n");
+		drm_dbg(&perf->i915->drm,
+			"No OA registers given\n");
 		return -EINVAL;
 	}
 
 	oa_config = kzalloc(sizeof(*oa_config), GFP_KERNEL);
 	if (!oa_config) {
-		DRM_DEBUG("Failed to allocate memory for the OA config\n");
+		drm_dbg(&perf->i915->drm,
+			"Failed to allocate memory for the OA config\n");
 		return -ENOMEM;
 	}
 
@@ -4091,7 +4177,8 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 	kref_init(&oa_config->ref);
 
 	if (!uuid_is_valid(args->uuid)) {
-		DRM_DEBUG("Invalid uuid format for OA config\n");
+		drm_dbg(&perf->i915->drm,
+			"Invalid uuid format for OA config\n");
 		err = -EINVAL;
 		goto reg_err;
 	}
@@ -4108,7 +4195,8 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 			     args->n_mux_regs);
 
 	if (IS_ERR(regs)) {
-		DRM_DEBUG("Failed to create OA config for mux_regs\n");
+		drm_dbg(&perf->i915->drm,
+			"Failed to create OA config for mux_regs\n");
 		err = PTR_ERR(regs);
 		goto reg_err;
 	}
@@ -4121,7 +4209,8 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 			     args->n_boolean_regs);
 
 	if (IS_ERR(regs)) {
-		DRM_DEBUG("Failed to create OA config for b_counter_regs\n");
+		drm_dbg(&perf->i915->drm,
+			"Failed to create OA config for b_counter_regs\n");
 		err = PTR_ERR(regs);
 		goto reg_err;
 	}
@@ -4140,7 +4229,8 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 				     args->n_flex_regs);
 
 		if (IS_ERR(regs)) {
-			DRM_DEBUG("Failed to create OA config for flex_regs\n");
+			drm_dbg(&perf->i915->drm,
+				"Failed to create OA config for flex_regs\n");
 			err = PTR_ERR(regs);
 			goto reg_err;
 		}
@@ -4156,7 +4246,8 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 	 */
 	idr_for_each_entry(&perf->metrics_idr, tmp, id) {
 		if (!strcmp(tmp->uuid, oa_config->uuid)) {
-			DRM_DEBUG("OA config already exists with this uuid\n");
+			drm_dbg(&perf->i915->drm,
+				"OA config already exists with this uuid\n");
 			err = -EADDRINUSE;
 			goto sysfs_err;
 		}
@@ -4164,7 +4255,8 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 
 	err = create_dynamic_oa_sysfs_entry(perf, oa_config);
 	if (err) {
-		DRM_DEBUG("Failed to create sysfs entry for OA config\n");
+		drm_dbg(&perf->i915->drm,
+			"Failed to create sysfs entry for OA config\n");
 		goto sysfs_err;
 	}
 
@@ -4173,14 +4265,16 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 				  oa_config, 2,
 				  0, GFP_KERNEL);
 	if (oa_config->id < 0) {
-		DRM_DEBUG("Failed to create sysfs entry for OA config\n");
+		drm_dbg(&perf->i915->drm,
+			"Failed to create sysfs entry for OA config\n");
 		err = oa_config->id;
 		goto sysfs_err;
 	}
 
 	mutex_unlock(&perf->metrics_lock);
 
-	DRM_DEBUG("Added config %s id=%i\n", oa_config->uuid, oa_config->id);
+	drm_dbg(&perf->i915->drm,
+		"Added config %s id=%i\n", oa_config->uuid, oa_config->id);
 
 	return oa_config->id;
 
@@ -4188,7 +4282,8 @@ sysfs_err:
 	mutex_unlock(&perf->metrics_lock);
 reg_err:
 	i915_oa_config_put(oa_config);
-	DRM_DEBUG("Failed to add new OA config\n");
+	drm_dbg(&perf->i915->drm,
+		"Failed to add new OA config\n");
 	return err;
 }
 
@@ -4212,12 +4307,14 @@ int i915_perf_remove_config_ioctl(struct drm_device *dev, void *data,
 	int ret;
 
 	if (!perf->i915) {
-		DRM_DEBUG("i915 perf interface not available for this system\n");
+		drm_dbg(&perf->i915->drm,
+			"i915 perf interface not available for this system\n");
 		return -ENOTSUPP;
 	}
 
 	if (i915_perf_stream_paranoid && !perfmon_capable()) {
-		DRM_DEBUG("Insufficient privileges to remove i915 OA config\n");
+		drm_dbg(&perf->i915->drm,
+			"Insufficient privileges to remove i915 OA config\n");
 		return -EACCES;
 	}
 
@@ -4227,7 +4324,8 @@ int i915_perf_remove_config_ioctl(struct drm_device *dev, void *data,
 
 	oa_config = idr_find(&perf->metrics_idr, *arg);
 	if (!oa_config) {
-		DRM_DEBUG("Failed to remove unknown OA config\n");
+		drm_dbg(&perf->i915->drm,
+			"Failed to remove unknown OA config\n");
 		ret = -ENOENT;
 		goto err_unlock;
 	}
@@ -4240,7 +4338,8 @@ int i915_perf_remove_config_ioctl(struct drm_device *dev, void *data,
 
 	mutex_unlock(&perf->metrics_lock);
 
-	DRM_DEBUG("Removed config %s id=%i\n", oa_config->uuid, oa_config->id);
+	drm_dbg(&perf->i915->drm,
+		"Removed config %s id=%i\n", oa_config->uuid, oa_config->id);
 
 	i915_oa_config_put(oa_config);
 
@@ -4331,6 +4430,10 @@ void i915_perf_init(struct drm_i915_private *i915)
 	struct i915_perf *perf = &i915->perf;
 
 	/* XXX const struct i915_perf_ops! */
+
+	/* i915_perf is not enabled for DG2 yet */
+	if (IS_DG2(i915))
+		return;
 
 	perf->oa_formats = oa_formats;
 	if (IS_HASWELL(i915)) {

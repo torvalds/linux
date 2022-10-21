@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -48,9 +48,6 @@ struct lpfc_sli2_slim;
 					   the NameServer  before giving up. */
 #define LPFC_CMD_PER_LUN	3	/* max outstanding cmds per lun */
 #define LPFC_DEFAULT_SG_SEG_CNT 64	/* sg element count per scsi cmnd */
-#define LPFC_DEFAULT_MENLO_SG_SEG_CNT 128	/* sg element count per scsi
-		cmnd for menlo needs nearly twice as for firmware
-		downloads using bsg */
 
 #define LPFC_DEFAULT_XPSGL_SIZE	256
 #define LPFC_MAX_SG_TABLESIZE	0xffff
@@ -71,8 +68,6 @@ struct lpfc_sli2_slim;
 #define LPFC_MIN_TGT_QDEPTH	10
 #define LPFC_MAX_TGT_QDEPTH	0xFFFF
 
-#define  LPFC_MAX_BUCKET_COUNT 20	/* Maximum no. of buckets for stat data
-					   collection. */
 /*
  * Following time intervals are used of adjusting SCSI device
  * queue depths when there are driver resource error or Firmware
@@ -408,6 +403,7 @@ struct lpfc_trunk_link  {
 				     link1,
 				     link2,
 				     link3;
+	u32 phy_lnk_speed;
 };
 
 /* Format of congestion module parameters */
@@ -592,6 +588,7 @@ struct lpfc_vport {
 #define FC_VPORT_LOGO_RCVD      0x200    /* LOGO received on vport */
 #define FC_RSCN_DISCOVERY       0x400	 /* Auth all devices after RSCN */
 #define FC_LOGO_RCVD_DID_CHNG   0x800    /* FDISC on phys port detect DID chng*/
+#define FC_PT2PT_NO_NVME        0x1000   /* Don't send NVME PRLI */
 #define FC_SCSI_SCAN_TMO        0x4000	 /* scsi scan timer running */
 #define FC_ABORT_DISCOVERY      0x8000	 /* we want to abort discovery */
 #define FC_NDISC_ACTIVE         0x10000	 /* NPort discovery active */
@@ -610,6 +607,7 @@ struct lpfc_vport {
 #define FC_CT_RSNN_NN		0x4	 /* RSNN_NN accepted by switch */
 #define FC_CT_RSPN_ID		0x8	 /* RSPN_ID accepted by switch */
 #define FC_CT_RFT_ID		0x10	 /* RFT_ID accepted by switch */
+#define FC_CT_RPRT_DEFER	0x20	 /* Defer issuing FDMI RPRT */
 
 	struct list_head fc_nodes;
 
@@ -712,6 +710,7 @@ struct lpfc_vport {
 #define LPFC_VMID_QFPA_CMPL		0x4
 #define LPFC_VMID_QOS_ENABLED		0x8
 #define LPFC_VMID_TIMER_ENBLD		0x10
+#define LPFC_VMID_TYPE_PRIO		0x20
 	struct fc_qfpa_res *qfpa_res;
 
 	struct fc_vport *fc_vport;
@@ -732,14 +731,11 @@ struct lpfc_vport {
 	struct lpfc_debugfs_trc *disc_trc;
 	atomic_t disc_trc_cnt;
 #endif
-	uint8_t stat_data_enabled;
-	uint8_t stat_data_blocked;
 	struct list_head rcv_buffer_list;
 	unsigned long rcv_buffer_time_stamp;
 	uint32_t vport_flag;
-#define STATIC_VPORT	1
-#define FAWWPN_SET	2
-#define FAWWPN_PARAM_CHG	4
+#define STATIC_VPORT		0x1
+#define FAWWPN_PARAM_CHG	0x2
 
 	uint16_t fdmi_num_disc;
 	uint32_t fdmi_hba_mask;
@@ -896,6 +892,11 @@ enum lpfc_irq_chann_mode {
 	NHT_MODE,
 };
 
+enum lpfc_hba_bit_flags {
+	FABRIC_COMANDS_BLOCKED,
+	HBA_PCI_ERR,
+};
+
 struct lpfc_hba {
 	/* SCSI interface function jump table entries */
 	struct lpfc_io_buf * (*lpfc_get_scsi_buf)
@@ -916,6 +917,10 @@ struct lpfc_hba {
 		(struct lpfc_vport *vport,
 		 struct lpfc_io_buf *lpfc_cmd,
 		 uint8_t tmo);
+	int (*lpfc_scsi_prep_task_mgmt_cmd)
+		(struct lpfc_vport *vport,
+		 struct lpfc_io_buf *lpfc_cmd,
+		 u64 lun, u8 task_mgmt_cmd);
 
 	/* IOCB interface function jump table entries */
 	int (*__lpfc_sli_issue_iocb)
@@ -927,8 +932,6 @@ struct lpfc_hba {
 	void (*__lpfc_sli_release_iocbq)(struct lpfc_hba *,
 			 struct lpfc_iocbq *);
 	int (*lpfc_hba_down_post)(struct lpfc_hba *phba);
-	IOCB_t * (*lpfc_get_iocb_from_iocbq)
-		(struct lpfc_iocbq *);
 	void (*lpfc_scsi_cmd_iocb_cmpl)
 		(struct lpfc_hba *, struct lpfc_iocbq *, struct lpfc_iocbq *);
 
@@ -961,7 +964,24 @@ struct lpfc_hba {
 
 	int (*lpfc_bg_scsi_prep_dma_buf)
 		(struct lpfc_hba *, struct lpfc_io_buf *);
-	/* Add new entries here */
+
+	/* Prep SLI WQE/IOCB jump table entries */
+	void (*__lpfc_sli_prep_els_req_rsp)(struct lpfc_iocbq *cmdiocbq,
+					    struct lpfc_vport *vport,
+					    struct lpfc_dmabuf *bmp,
+					    u16 cmd_size, u32 did, u32 elscmd,
+					    u8 tmo, u8 expect_rsp);
+	void (*__lpfc_sli_prep_gen_req)(struct lpfc_iocbq *cmdiocbq,
+					struct lpfc_dmabuf *bmp, u16 rpi,
+					u32 num_entry, u8 tmo);
+	void (*__lpfc_sli_prep_xmit_seq64)(struct lpfc_iocbq *cmdiocbq,
+					   struct lpfc_dmabuf *bmp, u16 rpi,
+					   u16 ox_id, u32 num_entry, u8 rctl,
+					   u8 last_seq, u8 cr_cx_cmd);
+	void (*__lpfc_sli_prep_abort_xri)(struct lpfc_iocbq *cmdiocbq,
+					  u16 ulp_context, u16 iotag,
+					  u8 ulp_class, u16 cqid, bool ia,
+					  bool wqec);
 
 	/* expedite pool */
 	struct lpfc_epd_pool epd_pool;
@@ -1001,6 +1021,7 @@ struct lpfc_hba {
 #define LS_MDS_LINK_DOWN      0x8	/* MDS Diagnostics Link Down */
 #define LS_MDS_LOOPBACK       0x10	/* MDS Diagnostics Link Up (Loopback) */
 #define LS_CT_VEN_RPA         0x20	/* Vendor RPA sent to switch */
+#define LS_EXTERNAL_LOOPBACK  0x40	/* External loopback plug inserted */
 
 	uint32_t hba_flag;	/* hba generic flags */
 #define HBA_ERATT_HANDLED	0x1 /* This flag is set when eratt handled */
@@ -1024,7 +1045,6 @@ struct lpfc_hba {
 					 * Firmware supports Forced Link Speed
 					 * capability
 					 */
-#define HBA_PCI_ERR		0x80000 /* The PCI slot is offline */
 #define HBA_FLOGI_ISSUED	0x100000 /* FLOGI was issued */
 #define HBA_SHORT_CMF		0x200000 /* shorter CMF timer routine */
 #define HBA_CGN_DAY_WRAP	0x400000 /* HBA Congestion info day wraps */
@@ -1034,6 +1054,7 @@ struct lpfc_hba {
 #define HBA_HBEAT_INP		0x4000000 /* mbox HBEAT is in progress */
 #define HBA_HBEAT_TMO		0x8000000 /* HBEAT initiated after timeout */
 #define HBA_FLOGI_OUTSTANDING	0x10000000 /* FLOGI is outstanding */
+#define HBA_RHBA_CMPL		0x20000000 /* RHBA FDMI command is successful */
 
 	struct completion *fw_dump_cmpl; /* cmpl event tracker for fw_dump */
 	uint32_t fcp_ring_in_use; /* When polling test if intr-hndlr active*/
@@ -1135,8 +1156,6 @@ struct lpfc_hba {
 	uint32_t cfg_nvme_seg_cnt;
 	uint32_t cfg_scsi_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
-	uint64_t cfg_soft_wwnn;
-	uint64_t cfg_soft_wwpn;
 	uint32_t cfg_hba_queue_depth;
 	uint32_t cfg_enable_hba_reset;
 	uint32_t cfg_enable_hba_heartbeat;
@@ -1161,6 +1180,16 @@ struct lpfc_hba {
 	uint32_t cfg_hostmem_hgp;
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_enable_fc4_type;
+#define LPFC_ENABLE_FCP  1
+#define LPFC_ENABLE_NVME 2
+#define LPFC_ENABLE_BOTH 3
+#if (IS_ENABLED(CONFIG_NVME_FC))
+#define LPFC_MAX_ENBL_FC4_TYPE LPFC_ENABLE_BOTH
+#define LPFC_DEF_ENBL_FC4_TYPE LPFC_ENABLE_BOTH
+#else
+#define LPFC_MAX_ENBL_FC4_TYPE LPFC_ENABLE_FCP
+#define LPFC_DEF_ENBL_FC4_TYPE LPFC_ENABLE_FCP
+#endif
 	uint32_t cfg_aer_support;
 	uint32_t cfg_sriov_nr_virtfn;
 	uint32_t cfg_request_firmware_upgrade;
@@ -1182,9 +1211,6 @@ struct lpfc_hba {
 	uint32_t cfg_ras_fwlog_func;
 	uint32_t cfg_enable_bbcr;	/* Enable BB Credit Recovery */
 	uint32_t cfg_enable_dpp;	/* Enable Direct Packet Push */
-#define LPFC_ENABLE_FCP  1
-#define LPFC_ENABLE_NVME 2
-#define LPFC_ENABLE_BOTH 3
 	uint32_t cfg_enable_pbde;
 	uint32_t cfg_enable_mi;
 	struct nvmet_fc_target_port *targetport;
@@ -1261,7 +1287,6 @@ struct lpfc_hba {
 #define VPD_PORT            0x8         /* valid vpd port data */
 #define VPD_MASK            0xf         /* mask for any vpd data */
 
-	uint8_t soft_wwn_enable;
 
 	struct timer_list fcp_poll_timer;
 	struct timer_list eratt_poll;
@@ -1327,7 +1352,6 @@ struct lpfc_hba {
 	atomic_t fabric_iocb_count;
 	struct timer_list fabric_block_timer;
 	unsigned long bit_flags;
-#define	FABRIC_COMANDS_BLOCKED	0
 	atomic_t num_rsrc_err;
 	atomic_t num_cmd_success;
 	unsigned long last_rsrc_error_time;
@@ -1409,15 +1433,6 @@ struct lpfc_hba {
 	 */
 #define QUE_BUFTAG_BIT  (1<<31)
 	uint32_t buffer_tag_count;
-	int wait_4_mlo_maint_flg;
-	wait_queue_head_t wait_4_mlo_m_q;
-	/* data structure used for latency data collection */
-#define LPFC_NO_BUCKET	   0
-#define LPFC_LINEAR_BUCKET 1
-#define LPFC_POWER2_BUCKET 2
-	uint8_t  bucket_type;
-	uint32_t bucket_base;
-	uint32_t bucket_step;
 
 /* Maximum number of events that can be outstanding at any time*/
 #define LPFC_MAX_EVT_COUNT 512
@@ -1445,8 +1460,6 @@ struct lpfc_hba {
 	/* RAS Support */
 	struct lpfc_ras_fwlog ras_fwlog;
 
-	uint8_t menlo_flag;	/* menlo generic flags */
-#define HBA_MENLO_SUPPORT	0x1 /* HBA supports menlo commands */
 	uint32_t iocb_cnt;
 	uint32_t iocb_max;
 	atomic_t sdev_cnt;
@@ -1541,16 +1554,13 @@ struct lpfc_hba {
 		/* cgn_reg_signal and cgn_init_reg_signal use
 		 * enum fc_edc_cg_signal_cap_types
 		 */
-	u16 cgn_fpin_frequency;
+	u16 cgn_fpin_frequency;		/* In units of msecs */
 #define LPFC_FPIN_INIT_FREQ	0xffff
 	u32 cgn_sig_freq;
 	u32 cgn_acqe_cnt;
 
 	/* RX monitor handling for CMF */
-	struct rxtable_entry *rxtable;  /* RX_monitor information */
-	atomic_t rxtable_idx_head;
-#define LPFC_RXMONITOR_TABLE_IN_USE     (LPFC_MAX_RXMONITOR_ENTRY + 73)
-	atomic_t rxtable_idx_tail;
+	struct lpfc_rx_info_monitor *rx_monitor;
 	atomic_t rx_max_read_cnt;       /* Maximum read bytes */
 	uint64_t rx_block_cnt;
 
@@ -1587,10 +1597,11 @@ struct lpfc_hba {
 
 	char os_host_name[MAXHOSTNAMELEN];
 
-	/* SCSI host template information - for physical port */
-	struct scsi_host_template port_template;
-	/* SCSI host template information - for all vports */
-	struct scsi_host_template vport_template;
+	/* LD Signaling */
+	u32 degrade_activate_threshold;
+	u32 degrade_deactivate_threshold;
+	u32 fec_degrade_interval;
+
 	atomic_t dbg_log_idx;
 	atomic_t dbg_log_cnt;
 	atomic_t dbg_log_dmping;
@@ -1599,7 +1610,7 @@ struct lpfc_hba {
 
 #define LPFC_MAX_RXMONITOR_ENTRY	800
 #define LPFC_MAX_RXMONITOR_DUMP		32
-struct rxtable_entry {
+struct rx_info_entry {
 	uint64_t cmf_bytes;	/* Total no of read bytes for CMF_SYNC_WQE */
 	uint64_t total_bytes;   /* Total no of read bytes requested */
 	uint64_t rcv_bytes;     /* Total no of read bytes completed */
@@ -1612,6 +1623,13 @@ struct rxtable_entry {
 	uint32_t io_cnt;
 	uint32_t timer_utilization;
 	uint32_t timer_interval;
+};
+
+struct lpfc_rx_info_monitor {
+	struct rx_info_entry *ring; /* info organized in a circular buffer */
+	u32 head_idx, tail_idx; /* index to head/tail of ring */
+	spinlock_t lock; /* spinlock for ring */
+	u32 entries; /* storing number entries/size of ring */
 };
 
 static inline struct Scsi_Host *
@@ -1792,4 +1810,76 @@ static const char *routine(enum enum_name table_key)			\
 static inline int lpfc_is_vmid_enabled(struct lpfc_hba *phba)
 {
 	return phba->cfg_vmid_app_header || phba->cfg_vmid_priority_tagging;
+}
+
+static inline
+u8 get_job_ulpstatus(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return bf_get(lpfc_wcqe_c_status, &iocbq->wcqe_cmpl);
+	else
+		return iocbq->iocb.ulpStatus;
+}
+
+static inline
+u32 get_job_word4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return iocbq->wcqe_cmpl.parameter;
+	else
+		return iocbq->iocb.un.ulpWord[4];
+}
+
+static inline
+u8 get_job_cmnd(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return bf_get(wqe_cmnd, &iocbq->wqe.generic.wqe_com);
+	else
+		return iocbq->iocb.ulpCommand;
+}
+
+static inline
+u16 get_job_ulpcontext(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return bf_get(wqe_ctxt_tag, &iocbq->wqe.generic.wqe_com);
+	else
+		return iocbq->iocb.ulpContext;
+}
+
+static inline
+u16 get_job_rcvoxid(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return bf_get(wqe_rcvoxid, &iocbq->wqe.generic.wqe_com);
+	else
+		return iocbq->iocb.unsli3.rcvsli3.ox_id;
+}
+
+static inline
+u32 get_job_data_placed(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return iocbq->wcqe_cmpl.total_data_placed;
+	else
+		return iocbq->iocb.un.genreq64.bdl.bdeSize;
+}
+
+static inline
+u32 get_job_abtsiotag(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return iocbq->wqe.abort_cmd.wqe_com.abort_tag;
+	else
+		return iocbq->iocb.un.acxri.abortIoTag;
+}
+
+static inline
+u32 get_job_els_rsp64_did(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		return bf_get(wqe_els_did, &iocbq->wqe.els_req.wqe_dest);
+	else
+		return iocbq->iocb.un.elsreq64.remoteID;
 }

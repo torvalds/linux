@@ -10,7 +10,7 @@
  */
 #include "builtin.h"
 
-#include "util/parse-events.h"
+#include "util/print-events.h"
 #include "util/pmu.h"
 #include "util/pmu-hybrid.h"
 #include "util/debug.h"
@@ -60,7 +60,7 @@ int cmd_list(int argc, const char **argv)
 	setup_pager();
 
 	if (!raw_dump && pager_in_use())
-		printf("\nList of pre-defined events (to be used in -e):\n\n");
+		printf("\nList of pre-defined events (to be used in -e or -M):\n\n");
 
 	if (hybrid_type) {
 		pmu_name = perf_pmu__hybrid_type_to_pmu(hybrid_type);

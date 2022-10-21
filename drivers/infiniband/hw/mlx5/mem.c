@@ -30,8 +30,6 @@
  * SOFTWARE.
  */
 
-#include <linux/module.h>
-#include <rdma/ib_umem.h>
 #include <rdma/ib_umem_odp.h>
 #include "mlx5_ib.h"
 #include <linux/jiffies.h>
@@ -153,6 +151,7 @@ static int post_send_nop(struct mlx5_ib_dev *dev, struct ib_qp *ibqp, u64 wr_id,
 	for (i = 0; i < 8; i++)
 		mlx5_write64(&mmio_wqe[i * 2],
 			     bf->bfreg->map + bf->offset + i * 8);
+	io_stop_wc();
 
 	bf->offset ^= bf->buf_size;
 

@@ -7,6 +7,8 @@
 #include <linux/phy.h>
 #include "lan743x_main.h"
 #include "lan743x_ethtool.h"
+#include <linux/sched.h>
+#include <linux/iopoll.h>
 
 /* eeprom */
 #define LAN743X_EEPROM_MAGIC		    (0x74A5)
@@ -18,6 +20,10 @@
 #define MAX_OTP_SIZE			    (1024)
 #define OTP_INDICATOR_1			    (0xF3)
 #define OTP_INDICATOR_2			    (0xF7)
+
+#define LOCK_TIMEOUT_MAX_CNT		    (100) // 1 sec (10 msce * 100)
+
+#define LAN743X_CSR_READ_OP(offset)	     lan743x_csr_read(adapter, offset)
 
 static int lan743x_otp_power_up(struct lan743x_adapter *adapter)
 {
@@ -149,6 +155,217 @@ static int lan743x_otp_write(struct lan743x_adapter *adapter, u32 offset,
 	return 0;
 }
 
+int lan743x_hs_syslock_acquire(struct lan743x_adapter *adapter,
+			       u16 timeout)
+{
+	u16 timeout_cnt = 0;
+	u32 val;
+
+	do {
+		spin_lock(&adapter->eth_syslock_spinlock);
+		if (adapter->eth_syslock_acquire_cnt == 0) {
+			lan743x_csr_write(adapter, ETH_SYSTEM_SYS_LOCK_REG,
+					  SYS_LOCK_REG_ENET_SS_LOCK_);
+			val = lan743x_csr_read(adapter,
+					       ETH_SYSTEM_SYS_LOCK_REG);
+			if (val & SYS_LOCK_REG_ENET_SS_LOCK_) {
+				adapter->eth_syslock_acquire_cnt++;
+				WARN_ON(adapter->eth_syslock_acquire_cnt == 0);
+				spin_unlock(&adapter->eth_syslock_spinlock);
+				break;
+			}
+		} else {
+			adapter->eth_syslock_acquire_cnt++;
+			WARN_ON(adapter->eth_syslock_acquire_cnt == 0);
+			spin_unlock(&adapter->eth_syslock_spinlock);
+			break;
+		}
+
+		spin_unlock(&adapter->eth_syslock_spinlock);
+
+		if (timeout_cnt++ < timeout)
+			usleep_range(10000, 11000);
+		else
+			return -ETIMEDOUT;
+	} while (true);
+
+	return 0;
+}
+
+void lan743x_hs_syslock_release(struct lan743x_adapter *adapter)
+{
+	u32 val;
+
+	spin_lock(&adapter->eth_syslock_spinlock);
+	WARN_ON(adapter->eth_syslock_acquire_cnt == 0);
+
+	if (adapter->eth_syslock_acquire_cnt) {
+		adapter->eth_syslock_acquire_cnt--;
+		if (adapter->eth_syslock_acquire_cnt == 0) {
+			lan743x_csr_write(adapter, ETH_SYSTEM_SYS_LOCK_REG, 0);
+			val = lan743x_csr_read(adapter,
+					       ETH_SYSTEM_SYS_LOCK_REG);
+			WARN_ON((val & SYS_LOCK_REG_ENET_SS_LOCK_) != 0);
+		}
+	}
+
+	spin_unlock(&adapter->eth_syslock_spinlock);
+}
+
+static void lan743x_hs_otp_power_up(struct lan743x_adapter *adapter)
+{
+	u32 reg_value;
+
+	reg_value = lan743x_csr_read(adapter, HS_OTP_PWR_DN);
+	if (reg_value & OTP_PWR_DN_PWRDN_N_) {
+		reg_value &= ~OTP_PWR_DN_PWRDN_N_;
+		lan743x_csr_write(adapter, HS_OTP_PWR_DN, reg_value);
+		/* To flush the posted write so the subsequent delay is
+		 * guaranteed to happen after the write at the hardware
+		 */
+		lan743x_csr_read(adapter, HS_OTP_PWR_DN);
+		udelay(1);
+	}
+}
+
+static void lan743x_hs_otp_power_down(struct lan743x_adapter *adapter)
+{
+	u32 reg_value;
+
+	reg_value = lan743x_csr_read(adapter, HS_OTP_PWR_DN);
+	if (!(reg_value & OTP_PWR_DN_PWRDN_N_)) {
+		reg_value |= OTP_PWR_DN_PWRDN_N_;
+		lan743x_csr_write(adapter, HS_OTP_PWR_DN, reg_value);
+		/* To flush the posted write so the subsequent delay is
+		 * guaranteed to happen after the write at the hardware
+		 */
+		lan743x_csr_read(adapter, HS_OTP_PWR_DN);
+		udelay(1);
+	}
+}
+
+static void lan743x_hs_otp_set_address(struct lan743x_adapter *adapter,
+				       u32 address)
+{
+	lan743x_csr_write(adapter, HS_OTP_ADDR_HIGH, (address >> 8) & 0x03);
+	lan743x_csr_write(adapter, HS_OTP_ADDR_LOW, address & 0xFF);
+}
+
+static void lan743x_hs_otp_read_go(struct lan743x_adapter *adapter)
+{
+	lan743x_csr_write(adapter, HS_OTP_FUNC_CMD, OTP_FUNC_CMD_READ_);
+	lan743x_csr_write(adapter, HS_OTP_CMD_GO, OTP_CMD_GO_GO_);
+}
+
+static int lan743x_hs_otp_cmd_cmplt_chk(struct lan743x_adapter *adapter)
+{
+	u32 val;
+
+	return readx_poll_timeout(LAN743X_CSR_READ_OP, HS_OTP_STATUS, val,
+				  !(val & OTP_STATUS_BUSY_),
+				  80, 10000);
+}
+
+static int lan743x_hs_otp_read(struct lan743x_adapter *adapter, u32 offset,
+			       u32 length, u8 *data)
+{
+	int ret;
+	int i;
+
+	ret = lan743x_hs_syslock_acquire(adapter, LOCK_TIMEOUT_MAX_CNT);
+	if (ret < 0)
+		return ret;
+
+	lan743x_hs_otp_power_up(adapter);
+
+	ret = lan743x_hs_otp_cmd_cmplt_chk(adapter);
+	if (ret < 0)
+		goto power_down;
+
+	lan743x_hs_syslock_release(adapter);
+
+	for (i = 0; i < length; i++) {
+		ret = lan743x_hs_syslock_acquire(adapter,
+						 LOCK_TIMEOUT_MAX_CNT);
+		if (ret < 0)
+			return ret;
+
+		lan743x_hs_otp_set_address(adapter, offset + i);
+
+		lan743x_hs_otp_read_go(adapter);
+		ret = lan743x_hs_otp_cmd_cmplt_chk(adapter);
+		if (ret < 0)
+			goto power_down;
+
+		data[i] = lan743x_csr_read(adapter, HS_OTP_READ_DATA);
+
+		lan743x_hs_syslock_release(adapter);
+	}
+
+	ret = lan743x_hs_syslock_acquire(adapter,
+					 LOCK_TIMEOUT_MAX_CNT);
+	if (ret < 0)
+		return ret;
+
+power_down:
+	lan743x_hs_otp_power_down(adapter);
+	lan743x_hs_syslock_release(adapter);
+
+	return ret;
+}
+
+static int lan743x_hs_otp_write(struct lan743x_adapter *adapter, u32 offset,
+				u32 length, u8 *data)
+{
+	int ret;
+	int i;
+
+	ret = lan743x_hs_syslock_acquire(adapter, LOCK_TIMEOUT_MAX_CNT);
+	if (ret < 0)
+		return ret;
+
+	lan743x_hs_otp_power_up(adapter);
+
+	ret = lan743x_hs_otp_cmd_cmplt_chk(adapter);
+	if (ret < 0)
+		goto power_down;
+
+	/* set to BYTE program mode */
+	lan743x_csr_write(adapter, HS_OTP_PRGM_MODE, OTP_PRGM_MODE_BYTE_);
+
+	lan743x_hs_syslock_release(adapter);
+
+	for (i = 0; i < length; i++) {
+		ret = lan743x_hs_syslock_acquire(adapter,
+						 LOCK_TIMEOUT_MAX_CNT);
+		if (ret < 0)
+			return ret;
+
+		lan743x_hs_otp_set_address(adapter, offset + i);
+
+		lan743x_csr_write(adapter, HS_OTP_PRGM_DATA, data[i]);
+		lan743x_csr_write(adapter, HS_OTP_TST_CMD,
+				  OTP_TST_CMD_PRGVRFY_);
+		lan743x_csr_write(adapter, HS_OTP_CMD_GO, OTP_CMD_GO_GO_);
+
+		ret = lan743x_hs_otp_cmd_cmplt_chk(adapter);
+		if (ret < 0)
+			goto power_down;
+
+		lan743x_hs_syslock_release(adapter);
+	}
+
+	ret = lan743x_hs_syslock_acquire(adapter, LOCK_TIMEOUT_MAX_CNT);
+	if (ret < 0)
+		return ret;
+
+power_down:
+	lan743x_hs_otp_power_down(adapter);
+	lan743x_hs_syslock_release(adapter);
+
+	return ret;
+}
+
 static int lan743x_eeprom_wait(struct lan743x_adapter *adapter)
 {
 	unsigned long start_time = jiffies;
@@ -263,13 +480,107 @@ static int lan743x_eeprom_write(struct lan743x_adapter *adapter,
 	return 0;
 }
 
+static int lan743x_hs_eeprom_cmd_cmplt_chk(struct lan743x_adapter *adapter)
+{
+	u32 val;
+
+	return readx_poll_timeout(LAN743X_CSR_READ_OP, HS_E2P_CMD, val,
+				  (!(val & HS_E2P_CMD_EPC_BUSY_) ||
+				    (val & HS_E2P_CMD_EPC_TIMEOUT_)),
+				  50, 10000);
+}
+
+static int lan743x_hs_eeprom_read(struct lan743x_adapter *adapter,
+				  u32 offset, u32 length, u8 *data)
+{
+	int retval;
+	u32 val;
+	int i;
+
+	retval = lan743x_hs_syslock_acquire(adapter, LOCK_TIMEOUT_MAX_CNT);
+	if (retval < 0)
+		return retval;
+
+	retval = lan743x_hs_eeprom_cmd_cmplt_chk(adapter);
+	lan743x_hs_syslock_release(adapter);
+	if (retval < 0)
+		return retval;
+
+	for (i = 0; i < length; i++) {
+		retval = lan743x_hs_syslock_acquire(adapter,
+						    LOCK_TIMEOUT_MAX_CNT);
+		if (retval < 0)
+			return retval;
+
+		val = HS_E2P_CMD_EPC_BUSY_ | HS_E2P_CMD_EPC_CMD_READ_;
+		val |= (offset & HS_E2P_CMD_EPC_ADDR_MASK_);
+		lan743x_csr_write(adapter, HS_E2P_CMD, val);
+		retval = lan743x_hs_eeprom_cmd_cmplt_chk(adapter);
+		if (retval < 0) {
+			lan743x_hs_syslock_release(adapter);
+			return retval;
+		}
+
+		val = lan743x_csr_read(adapter, HS_E2P_DATA);
+
+		lan743x_hs_syslock_release(adapter);
+
+		data[i] = val & 0xFF;
+		offset++;
+	}
+
+	return 0;
+}
+
+static int lan743x_hs_eeprom_write(struct lan743x_adapter *adapter,
+				   u32 offset, u32 length, u8 *data)
+{
+	int retval;
+	u32 val;
+	int i;
+
+	retval = lan743x_hs_syslock_acquire(adapter, LOCK_TIMEOUT_MAX_CNT);
+	if (retval < 0)
+		return retval;
+
+	retval = lan743x_hs_eeprom_cmd_cmplt_chk(adapter);
+	lan743x_hs_syslock_release(adapter);
+	if (retval < 0)
+		return retval;
+
+	for (i = 0; i < length; i++) {
+		retval = lan743x_hs_syslock_acquire(adapter,
+						    LOCK_TIMEOUT_MAX_CNT);
+		if (retval < 0)
+			return retval;
+
+		/* Fill data register */
+		val = data[i];
+		lan743x_csr_write(adapter, HS_E2P_DATA, val);
+
+		/* Send "write" command */
+		val = HS_E2P_CMD_EPC_BUSY_ | HS_E2P_CMD_EPC_CMD_WRITE_;
+		val |= (offset & HS_E2P_CMD_EPC_ADDR_MASK_);
+		lan743x_csr_write(adapter, HS_E2P_CMD, val);
+
+		retval = lan743x_hs_eeprom_cmd_cmplt_chk(adapter);
+		lan743x_hs_syslock_release(adapter);
+		if (retval < 0)
+			return retval;
+
+		offset++;
+	}
+
+	return 0;
+}
+
 static void lan743x_ethtool_get_drvinfo(struct net_device *netdev,
 					struct ethtool_drvinfo *info)
 {
 	struct lan743x_adapter *adapter = netdev_priv(netdev);
 
-	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
-	strlcpy(info->bus_info,
+	strscpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+	strscpy(info->bus_info,
 		pci_name(adapter->pdev), sizeof(info->bus_info));
 }
 
@@ -304,10 +615,21 @@ static int lan743x_ethtool_get_eeprom(struct net_device *netdev,
 	struct lan743x_adapter *adapter = netdev_priv(netdev);
 	int ret = 0;
 
-	if (adapter->flags & LAN743X_ADAPTER_FLAG_OTP)
-		ret = lan743x_otp_read(adapter, ee->offset, ee->len, data);
-	else
-		ret = lan743x_eeprom_read(adapter, ee->offset, ee->len, data);
+	if (adapter->flags & LAN743X_ADAPTER_FLAG_OTP) {
+		if (adapter->is_pci11x1x)
+			ret = lan743x_hs_otp_read(adapter, ee->offset,
+						  ee->len, data);
+		else
+			ret = lan743x_otp_read(adapter, ee->offset,
+					       ee->len, data);
+	} else {
+		if (adapter->is_pci11x1x)
+			ret = lan743x_hs_eeprom_read(adapter, ee->offset,
+						     ee->len, data);
+		else
+			ret = lan743x_eeprom_read(adapter, ee->offset,
+						  ee->len, data);
+	}
 
 	return ret;
 }
@@ -321,13 +643,22 @@ static int lan743x_ethtool_set_eeprom(struct net_device *netdev,
 	if (adapter->flags & LAN743X_ADAPTER_FLAG_OTP) {
 		/* Beware!  OTP is One Time Programming ONLY! */
 		if (ee->magic == LAN743X_OTP_MAGIC) {
-			ret = lan743x_otp_write(adapter, ee->offset,
-						ee->len, data);
+			if (adapter->is_pci11x1x)
+				ret = lan743x_hs_otp_write(adapter, ee->offset,
+							   ee->len, data);
+			else
+				ret = lan743x_otp_write(adapter, ee->offset,
+							ee->len, data);
 		}
 	} else {
 		if (ee->magic == LAN743X_EEPROM_MAGIC) {
-			ret = lan743x_eeprom_write(adapter, ee->offset,
-						   ee->len, data);
+			if (adapter->is_pci11x1x)
+				ret = lan743x_hs_eeprom_write(adapter,
+							      ee->offset,
+							      ee->len, data);
+			else
+				ret = lan743x_eeprom_write(adapter, ee->offset,
+							   ee->len, data);
 		}
 	}
 
@@ -363,6 +694,14 @@ static const char lan743x_set1_sw_cnt_strings[][ETH_GSTRING_LEN] = {
 	"RX Queue 1 Frames",
 	"RX Queue 2 Frames",
 	"RX Queue 3 Frames",
+};
+
+static const char lan743x_tx_queue_cnt_strings[][ETH_GSTRING_LEN] = {
+	"TX Queue 0 Frames",
+	"TX Queue 1 Frames",
+	"TX Queue 2 Frames",
+	"TX Queue 3 Frames",
+	"TX Total Queue Frames",
 };
 
 static const char lan743x_set2_hw_cnt_strings[][ETH_GSTRING_LEN] = {
@@ -462,6 +801,8 @@ static const char lan743x_priv_flags_strings[][ETH_GSTRING_LEN] = {
 static void lan743x_ethtool_get_strings(struct net_device *netdev,
 					u32 stringset, u8 *data)
 {
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+
 	switch (stringset) {
 	case ETH_SS_STATS:
 		memcpy(data, lan743x_set0_hw_cnt_strings,
@@ -473,6 +814,13 @@ static void lan743x_ethtool_get_strings(struct net_device *netdev,
 		       sizeof(lan743x_set1_sw_cnt_strings)],
 		       lan743x_set2_hw_cnt_strings,
 		       sizeof(lan743x_set2_hw_cnt_strings));
+		if (adapter->is_pci11x1x) {
+			memcpy(&data[sizeof(lan743x_set0_hw_cnt_strings) +
+			       sizeof(lan743x_set1_sw_cnt_strings) +
+			       sizeof(lan743x_set2_hw_cnt_strings)],
+			       lan743x_tx_queue_cnt_strings,
+			       sizeof(lan743x_tx_queue_cnt_strings));
+		}
 		break;
 	case ETH_SS_PRIV_FLAGS:
 		memcpy(data, lan743x_priv_flags_strings,
@@ -486,7 +834,9 @@ static void lan743x_ethtool_get_ethtool_stats(struct net_device *netdev,
 					      u64 *data)
 {
 	struct lan743x_adapter *adapter = netdev_priv(netdev);
+	u64 total_queue_count = 0;
 	int data_index = 0;
+	u64 pkt_cnt;
 	u32 buf;
 	int i;
 
@@ -499,6 +849,14 @@ static void lan743x_ethtool_get_ethtool_stats(struct net_device *netdev,
 	for (i = 0; i < ARRAY_SIZE(lan743x_set2_hw_cnt_addr); i++) {
 		buf = lan743x_csr_read(adapter, lan743x_set2_hw_cnt_addr[i]);
 		data[data_index++] = (u64)buf;
+	}
+	if (adapter->is_pci11x1x) {
+		for (i = 0; i < ARRAY_SIZE(adapter->tx); i++) {
+			pkt_cnt = (u64)(adapter->tx[i].frame_count);
+			data[data_index++] = pkt_cnt;
+			total_queue_count += pkt_cnt;
+		}
+		data[data_index++] = total_queue_count;
 	}
 }
 
@@ -520,6 +878,8 @@ static int lan743x_ethtool_set_priv_flags(struct net_device *netdev, u32 flags)
 
 static int lan743x_ethtool_get_sset_count(struct net_device *netdev, int sset)
 {
+	struct lan743x_adapter *adapter = netdev_priv(netdev);
+
 	switch (sset) {
 	case ETH_SS_STATS:
 	{
@@ -528,6 +888,8 @@ static int lan743x_ethtool_get_sset_count(struct net_device *netdev, int sset)
 		ret = ARRAY_SIZE(lan743x_set0_hw_cnt_strings);
 		ret += ARRAY_SIZE(lan743x_set1_sw_cnt_strings);
 		ret += ARRAY_SIZE(lan743x_set2_hw_cnt_strings);
+		if (adapter->is_pci11x1x)
+			ret += ARRAY_SIZE(lan743x_tx_queue_cnt_strings);
 		return ret;
 	}
 	case ETH_SS_PRIV_FLAGS:
@@ -750,7 +1112,7 @@ static int lan743x_ethtool_set_eee(struct net_device *netdev,
 	}
 
 	if (eee->eee_enabled) {
-		ret = phy_init_eee(phydev, 0);
+		ret = phy_init_eee(phydev, false);
 		if (ret) {
 			netif_err(adapter, drv, adapter->netdev,
 				  "EEE initialization failed\n");
@@ -787,7 +1149,12 @@ static void lan743x_ethtool_get_wol(struct net_device *netdev,
 	wol->supported |= WAKE_BCAST | WAKE_UCAST | WAKE_MCAST |
 		WAKE_MAGIC | WAKE_PHY | WAKE_ARP;
 
+	if (adapter->is_pci11x1x)
+		wol->supported |= WAKE_MAGICSECURE;
+
 	wol->wolopts |= adapter->wolopts;
+	if (adapter->wolopts & WAKE_MAGICSECURE)
+		memcpy(wol->sopass, adapter->sopass, sizeof(wol->sopass));
 }
 
 static int lan743x_ethtool_set_wol(struct net_device *netdev,
@@ -808,6 +1175,13 @@ static int lan743x_ethtool_set_wol(struct net_device *netdev,
 		adapter->wolopts |= WAKE_PHY;
 	if (wol->wolopts & WAKE_ARP)
 		adapter->wolopts |= WAKE_ARP;
+	if (wol->wolopts & WAKE_MAGICSECURE &&
+	    wol->wolopts & WAKE_MAGIC) {
+		memcpy(adapter->sopass, wol->sopass, sizeof(wol->sopass));
+		adapter->wolopts |= WAKE_MAGICSECURE;
+	} else {
+		memset(adapter->sopass, 0, sizeof(u8) * SOPASS_MAX);
+	}
 
 	device_set_wakeup_enable(&adapter->pdev->dev, (bool)wol->wolopts);
 
@@ -815,6 +1189,49 @@ static int lan743x_ethtool_set_wol(struct net_device *netdev,
 			: -ENETDOWN;
 }
 #endif /* CONFIG_PM */
+
+static void lan743x_common_regs(struct net_device *dev,
+				struct ethtool_regs *regs, void *p)
+
+{
+	struct lan743x_adapter *adapter = netdev_priv(dev);
+	u32 *rb = p;
+
+	memset(p, 0, (MAX_LAN743X_ETH_REGS * sizeof(u32)));
+
+	rb[ETH_PRIV_FLAGS] = adapter->flags;
+	rb[ETH_ID_REV]     = lan743x_csr_read(adapter, ID_REV);
+	rb[ETH_FPGA_REV]   = lan743x_csr_read(adapter, FPGA_REV);
+	rb[ETH_STRAP_READ] = lan743x_csr_read(adapter, STRAP_READ);
+	rb[ETH_INT_STS]    = lan743x_csr_read(adapter, INT_STS);
+	rb[ETH_HW_CFG]     = lan743x_csr_read(adapter, HW_CFG);
+	rb[ETH_PMT_CTL]    = lan743x_csr_read(adapter, PMT_CTL);
+	rb[ETH_E2P_CMD]    = lan743x_csr_read(adapter, E2P_CMD);
+	rb[ETH_E2P_DATA]   = lan743x_csr_read(adapter, E2P_DATA);
+	rb[ETH_MAC_CR]     = lan743x_csr_read(adapter, MAC_CR);
+	rb[ETH_MAC_RX]     = lan743x_csr_read(adapter, MAC_RX);
+	rb[ETH_MAC_TX]     = lan743x_csr_read(adapter, MAC_TX);
+	rb[ETH_FLOW]       = lan743x_csr_read(adapter, MAC_FLOW);
+	rb[ETH_MII_ACC]    = lan743x_csr_read(adapter, MAC_MII_ACC);
+	rb[ETH_MII_DATA]   = lan743x_csr_read(adapter, MAC_MII_DATA);
+	rb[ETH_EEE_TX_LPI_REQ_DLY]  = lan743x_csr_read(adapter,
+						       MAC_EEE_TX_LPI_REQ_DLY_CNT);
+	rb[ETH_WUCSR]      = lan743x_csr_read(adapter, MAC_WUCSR);
+	rb[ETH_WK_SRC]     = lan743x_csr_read(adapter, MAC_WK_SRC);
+}
+
+static int lan743x_get_regs_len(struct net_device *dev)
+{
+	return MAX_LAN743X_ETH_REGS * sizeof(u32);
+}
+
+static void lan743x_get_regs(struct net_device *dev,
+			     struct ethtool_regs *regs, void *p)
+{
+	regs->version = LAN743X_ETH_REG_VERSION;
+
+	lan743x_common_regs(dev, regs, p);
+}
 
 const struct ethtool_ops lan743x_ethtool_ops = {
 	.get_drvinfo = lan743x_ethtool_get_drvinfo,
@@ -840,6 +1257,8 @@ const struct ethtool_ops lan743x_ethtool_ops = {
 	.set_eee = lan743x_ethtool_set_eee,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
+	.get_regs_len = lan743x_get_regs_len,
+	.get_regs = lan743x_get_regs,
 #ifdef CONFIG_PM
 	.get_wol = lan743x_ethtool_get_wol,
 	.set_wol = lan743x_ethtool_set_wol,

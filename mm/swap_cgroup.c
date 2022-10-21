@@ -167,14 +167,15 @@ unsigned short lookup_swap_cgroup_id(swp_entry_t ent)
 int swap_cgroup_swapon(int type, unsigned long max_pages)
 {
 	void *array;
-	unsigned long array_size;
 	unsigned long length;
 	struct swap_cgroup_ctrl *ctrl;
 
-	length = DIV_ROUND_UP(max_pages, SC_PER_PAGE);
-	array_size = length * sizeof(void *);
+	if (mem_cgroup_disabled())
+		return 0;
 
-	array = vzalloc(array_size);
+	length = DIV_ROUND_UP(max_pages, SC_PER_PAGE);
+
+	array = vcalloc(length, sizeof(void *));
 	if (!array)
 		goto nomem;
 
@@ -205,6 +206,9 @@ void swap_cgroup_swapoff(int type)
 	struct page **map;
 	unsigned long i, length;
 	struct swap_cgroup_ctrl *ctrl;
+
+	if (mem_cgroup_disabled())
+		return;
 
 	mutex_lock(&swap_cgroup_mutex);
 	ctrl = &swap_cgroup_ctrl[type];

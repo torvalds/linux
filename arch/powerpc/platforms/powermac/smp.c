@@ -22,6 +22,7 @@
 #include <linux/sched/hotplug.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <linux/kernel_stat.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -39,7 +40,6 @@
 #include <asm/page.h>
 #include <asm/sections.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
@@ -711,6 +711,7 @@ static void __init smp_core99_setup(int ncpus)
 			printk(KERN_INFO "Processor timebase sync using"
 			       " platform function\n");
 		}
+		of_node_put(cpus);
 	}
 
 #else /* CONFIG_PPC64 */
@@ -875,8 +876,6 @@ static int smp_core99_cpu_online(unsigned int cpu)
 
 static void __init smp_core99_bringup_done(void)
 {
-	extern void __init g5_phy_disable_cpu1(void);
-
 	/* Close i2c bus if it was used for tb sync */
 	if (pmac_tb_clock_chip_host)
 		pmac_i2c_close(pmac_tb_clock_chip_host);

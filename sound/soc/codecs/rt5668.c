@@ -1022,11 +1022,13 @@ static void rt5668_jack_detect_handler(struct work_struct *work)
 		container_of(work, struct rt5668_priv, jack_detect_work.work);
 	int val, btn_type;
 
-	while (!rt5668->component)
-		usleep_range(10000, 15000);
-
-	while (!rt5668->component->card->instantiated)
-		usleep_range(10000, 15000);
+	if (!rt5668->component || !rt5668->component->card ||
+	    !rt5668->component->card->instantiated) {
+		/* card not yet ready, try later */
+		mod_delayed_work(system_power_efficient_wq,
+				 &rt5668->jack_detect_work, msecs_to_jiffies(15));
+		return;
+	}
 
 	mutex_lock(&rt5668->calibrate_mutex);
 
@@ -2360,7 +2362,6 @@ static const struct snd_soc_component_driver soc_component_dev_rt5668 = {
 	.set_jack = rt5668_set_jack_detect,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5668_regmap = {
@@ -2451,8 +2452,7 @@ static void rt5668_calibrate(struct rt5668_priv *rt5668)
 
 }
 
-static int rt5668_i2c_probe(struct i2c_client *i2c,
-		    const struct i2c_device_id *id)
+static int rt5668_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5668_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5668_priv *rt5668;
@@ -2618,7 +2618,7 @@ static struct i2c_driver rt5668_i2c_driver = {
 		.of_match_table = of_match_ptr(rt5668_of_match),
 		.acpi_match_table = ACPI_PTR(rt5668_acpi_match),
 	},
-	.probe = rt5668_i2c_probe,
+	.probe_new = rt5668_i2c_probe,
 	.shutdown = rt5668_i2c_shutdown,
 	.id_table = rt5668_i2c_id,
 };

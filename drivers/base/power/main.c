@@ -485,7 +485,7 @@ static int dpm_run_callback(pm_callback_t cb, struct device *dev,
 	trace_device_pm_callback_start(dev, info, state.event);
 	error = cb(dev);
 	trace_device_pm_callback_end(dev, error);
-	suspend_report_result(cb, error);
+	suspend_report_result(dev, cb, error);
 
 	initcall_debug_report(dev, calltime, cb, error);
 
@@ -1568,7 +1568,7 @@ static int legacy_suspend(struct device *dev, pm_message_t state,
 	trace_device_pm_callback_start(dev, info, state.event);
 	error = cb(dev, state);
 	trace_device_pm_callback_end(dev, error);
-	suspend_report_result(cb, error);
+	suspend_report_result(dev, cb, error);
 
 	initcall_debug_report(dev, calltime, cb, error);
 
@@ -1855,7 +1855,7 @@ unlock:
 	device_unlock(dev);
 
 	if (ret < 0) {
-		suspend_report_result(callback, ret);
+		suspend_report_result(dev, callback, ret);
 		pm_runtime_put(dev);
 		return ret;
 	}
@@ -1960,10 +1960,10 @@ int dpm_suspend_start(pm_message_t state)
 }
 EXPORT_SYMBOL_GPL(dpm_suspend_start);
 
-void __suspend_report_result(const char *function, void *fn, int ret)
+void __suspend_report_result(const char *function, struct device *dev, void *fn, int ret)
 {
 	if (ret)
-		pr_err("%s(): %pS returns %d\n", function, fn, ret);
+		dev_err(dev, "%s(): %pS returns %d\n", function, fn, ret);
 }
 EXPORT_SYMBOL_GPL(__suspend_report_result);
 
@@ -2018,7 +2018,9 @@ static bool pm_ops_is_empty(const struct dev_pm_ops *ops)
 
 void device_pm_check_callbacks(struct device *dev)
 {
-	spin_lock_irq(&dev->power.lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->power.lock, flags);
 	dev->power.no_pm_callbacks =
 		(!dev->bus || (pm_ops_is_empty(dev->bus->pm) &&
 		 !dev->bus->suspend && !dev->bus->resume)) &&
@@ -2027,7 +2029,7 @@ void device_pm_check_callbacks(struct device *dev)
 		(!dev->pm_domain || pm_ops_is_empty(&dev->pm_domain->ops)) &&
 		(!dev->driver || (pm_ops_is_empty(dev->driver->pm) &&
 		 !dev->driver->suspend && !dev->driver->resume));
-	spin_unlock_irq(&dev->power.lock);
+	spin_unlock_irqrestore(&dev->power.lock, flags);
 }
 
 bool dev_pm_skip_suspend(struct device *dev)

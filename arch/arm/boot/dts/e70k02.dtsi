@@ -26,14 +26,14 @@
 	gpio_keys: gpio-keys {
 		compatible = "gpio-keys";
 
-		power {
+		key-power {
 			label = "Power";
 			gpios = <&gpio4 25 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			wakeup-source;
 		};
 
-		cover {
+		key-cover {
 			label = "Cover";
 			gpios = <&gpio4 23 GPIO_ACTIVE_LOW>;
 			linux,code = <SW_LID>;
@@ -41,13 +41,13 @@
 			wakeup-source;
 		};
 
-		pageup {
+		key-pageup {
 			label = "PageUp";
 			gpios = <&gpio4 0 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_PAGEUP>;
 		};
 
-		pagedown {
+		key-pagedown {
 			label = "PageDown";
 			gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_PAGEDOWN>;

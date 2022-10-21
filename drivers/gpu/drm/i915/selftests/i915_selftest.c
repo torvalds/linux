@@ -24,6 +24,7 @@
 #include <linux/random.h>
 
 #include "gt/intel_gt_pm.h"
+#include "i915_driver.h"
 #include "i915_drv.h"
 #include "i915_selftest.h"
 
@@ -134,7 +135,7 @@ static int __run_selftests(const char *name,
 	int err = 0;
 
 	while (!i915_selftest.random_seed)
-		i915_selftest.random_seed = get_random_int();
+		i915_selftest.random_seed = get_random_u32();
 
 	i915_selftest.timeout_jiffies =
 		i915_selftest.timeout_ms ?

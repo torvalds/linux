@@ -17,6 +17,8 @@
 #include <linux/platform_device.h>
 #include <linux/types.h>
 
+#include <acpi/battery.h>
+
 #define LED_DEVICE(_name, max, flag) struct led_classdev _name = { \
 	.name           = __stringify(_name),   \
 	.max_brightness = max,                  \
@@ -458,14 +460,14 @@ static ssize_t fn_lock_show(struct device *dev,
 	return sysfs_emit(buffer, "%d\n", status);
 }
 
-static ssize_t battery_care_limit_store(struct device *dev,
-					struct device_attribute *attr,
-					const char *buffer, size_t count)
+static ssize_t charge_control_end_threshold_store(struct device *dev,
+						  struct device_attribute *attr,
+						  const char *buf, size_t count)
 {
 	unsigned long value;
 	int ret;
 
-	ret = kstrtoul(buffer, 10, &value);
+	ret = kstrtoul(buf, 10, &value);
 	if (ret)
 		return ret;
 
@@ -486,9 +488,9 @@ static ssize_t battery_care_limit_store(struct device *dev,
 	return -EINVAL;
 }
 
-static ssize_t battery_care_limit_show(struct device *dev,
-				       struct device_attribute *attr,
-				       char *buffer)
+static ssize_t charge_control_end_threshold_show(struct device *device,
+						 struct device_attribute *attr,
+						 char *buf)
 {
 	unsigned int status;
 	union acpi_object *r;
@@ -520,14 +522,51 @@ static ssize_t battery_care_limit_show(struct device *dev,
 	if (status != 80 && status != 100)
 		status = 0;
 
-	return sysfs_emit(buffer, "%d\n", status);
+	return sysfs_emit(buf, "%d\n", status);
+}
+
+static ssize_t battery_care_limit_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buffer)
+{
+	return charge_control_end_threshold_show(dev, attr, buffer);
+}
+
+static ssize_t battery_care_limit_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buffer, size_t count)
+{
+	return charge_control_end_threshold_store(dev, attr, buffer, count);
 }
 
 static DEVICE_ATTR_RW(fan_mode);
 static DEVICE_ATTR_RW(usb_charge);
 static DEVICE_ATTR_RW(reader_mode);
 static DEVICE_ATTR_RW(fn_lock);
+static DEVICE_ATTR_RW(charge_control_end_threshold);
 static DEVICE_ATTR_RW(battery_care_limit);
+
+static int lg_battery_add(struct power_supply *battery)
+{
+	if (device_create_file(&battery->dev,
+			       &dev_attr_charge_control_end_threshold))
+		return -ENODEV;
+
+	return 0;
+}
+
+static int lg_battery_remove(struct power_supply *battery)
+{
+	device_remove_file(&battery->dev,
+			   &dev_attr_charge_control_end_threshold);
+	return 0;
+}
+
+static struct acpi_battery_hook battery_hook = {
+	.add_battery = lg_battery_add,
+	.remove_battery = lg_battery_remove,
+	.name = "LG Battery Extension",
+};
 
 static struct attribute *dev_attributes[] = {
 	&dev_attr_fan_mode.attr,
@@ -711,6 +750,7 @@ static int acpi_add(struct acpi_device *device)
 	led_classdev_register(&pf_device->dev, &tpad_led);
 
 	wmi_input_setup();
+	battery_hook_register(&battery_hook);
 
 	return 0;
 
@@ -728,6 +768,7 @@ static int acpi_remove(struct acpi_device *device)
 	led_classdev_unregister(&tpad_led);
 	led_classdev_unregister(&kbd_backlight);
 
+	battery_hook_unregister(&battery_hook);
 	wmi_input_destroy();
 	platform_device_unregister(pf_device);
 	pf_device = NULL;

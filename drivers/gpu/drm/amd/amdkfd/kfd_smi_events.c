@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright 2020-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -37,6 +38,9 @@ struct kfd_smi_client {
 	uint64_t events;
 	struct kfd_dev *dev;
 	spinlock_t lock;
+	struct rcu_head rcu;
+	pid_t pid;
+	bool suser;
 };
 
 #define MAX_KFIFO_SIZE	1024
@@ -81,7 +85,8 @@ static ssize_t kfd_smi_ev_read(struct file *filep, char __user *user,
 	struct kfd_smi_client *client = filep->private_data;
 	unsigned char *buf;
 
-	buf = kmalloc_array(MAX_KFIFO_SIZE, sizeof(*buf), GFP_KERNEL);
+	size = min_t(size_t, size, MAX_KFIFO_SIZE);
+	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -95,7 +100,7 @@ static ssize_t kfd_smi_ev_read(struct file *filep, char __user *user,
 		ret = -EAGAIN;
 		goto ret_err;
 	}
-	to_copy = min3(size, sizeof(buf), to_copy);
+	to_copy = min(size, to_copy);
 	ret = kfifo_out(&client->fifo, buf, to_copy);
 	spin_unlock(&client->lock);
 	if (ret <= 0) {
@@ -133,6 +138,14 @@ static ssize_t kfd_smi_ev_write(struct file *filep, const char __user *user,
 	return sizeof(events);
 }
 
+static void kfd_smi_ev_client_free(struct rcu_head *p)
+{
+	struct kfd_smi_client *ev = container_of(p, struct kfd_smi_client, rcu);
+
+	kfifo_free(&ev->fifo);
+	kfree(ev);
+}
+
 static int kfd_smi_ev_release(struct inode *inode, struct file *filep)
 {
 	struct kfd_smi_client *client = filep->private_data;
@@ -142,23 +155,31 @@ static int kfd_smi_ev_release(struct inode *inode, struct file *filep)
 	list_del_rcu(&client->list);
 	spin_unlock(&dev->smi_lock);
 
-	synchronize_rcu();
-	kfifo_free(&client->fifo);
-	kfree(client);
-
+	call_rcu(&client->rcu, kfd_smi_ev_client_free);
 	return 0;
 }
 
-static void add_event_to_kfifo(struct kfd_dev *dev, unsigned int smi_event,
-			      char *event_msg, int len)
+static bool kfd_smi_ev_enabled(pid_t pid, struct kfd_smi_client *client,
+			       unsigned int event)
+{
+	uint64_t all = KFD_SMI_EVENT_MASK_FROM_INDEX(KFD_SMI_EVENT_ALL_PROCESS);
+	uint64_t events = READ_ONCE(client->events);
+
+	if (pid && client->pid != pid && !(client->suser && (events & all)))
+		return false;
+
+	return events & KFD_SMI_EVENT_MASK_FROM_INDEX(event);
+}
+
+static void add_event_to_kfifo(pid_t pid, struct kfd_dev *dev,
+			       unsigned int smi_event, char *event_msg, int len)
 {
 	struct kfd_smi_client *client;
 
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(client, &dev->smi_clients, list) {
-		if (!(READ_ONCE(client->events) &
-				KFD_SMI_EVENT_MASK_FROM_INDEX(smi_event)))
+		if (!kfd_smi_ev_enabled(pid, client, smi_event))
 			continue;
 		spin_lock(&client->lock);
 		if (kfifo_avail(&client->fifo) >= len) {
@@ -174,22 +195,29 @@ static void add_event_to_kfifo(struct kfd_dev *dev, unsigned int smi_event,
 	rcu_read_unlock();
 }
 
-void kfd_smi_event_update_gpu_reset(struct kfd_dev *dev, bool post_reset)
+__printf(4, 5)
+static void kfd_smi_event_add(pid_t pid, struct kfd_dev *dev,
+			      unsigned int event, char *fmt, ...)
 {
-	/*
-	 * GpuReset msg = Reset seq number (incremented for
-	 * every reset message sent before GPU reset).
-	 * 1 byte event + 1 byte space + 8 bytes seq num +
-	 * 1 byte \n + 1 byte \0 = 12
-	 */
-	char fifo_in[12];
+	char fifo_in[KFD_SMI_EVENT_MSG_SIZE];
 	int len;
-	unsigned int event;
+	va_list args;
 
 	if (list_empty(&dev->smi_clients))
 		return;
 
-	memset(fifo_in, 0x0, sizeof(fifo_in));
+	len = snprintf(fifo_in, sizeof(fifo_in), "%x ", event);
+
+	va_start(args, fmt);
+	len += vsnprintf(fifo_in + len, sizeof(fifo_in) - len, fmt, args);
+	va_end(args);
+
+	add_event_to_kfifo(pid, dev, event, fifo_in, len);
+}
+
+void kfd_smi_event_update_gpu_reset(struct kfd_dev *dev, bool post_reset)
+{
+	unsigned int event;
 
 	if (post_reset) {
 		event = KFD_SMI_EVENT_GPU_POST_RESET;
@@ -197,48 +225,20 @@ void kfd_smi_event_update_gpu_reset(struct kfd_dev *dev, bool post_reset)
 		event = KFD_SMI_EVENT_GPU_PRE_RESET;
 		++(dev->reset_seq_num);
 	}
-
-	len = snprintf(fifo_in, sizeof(fifo_in), "%x %x\n", event,
-						dev->reset_seq_num);
-
-	add_event_to_kfifo(dev, event, fifo_in, len);
+	kfd_smi_event_add(0, dev, event, "%x\n", dev->reset_seq_num);
 }
 
 void kfd_smi_event_update_thermal_throttling(struct kfd_dev *dev,
 					     uint64_t throttle_bitmask)
 {
-	/*
-	 * ThermalThrottle msg = throttle_bitmask(8):
-	 * 			 thermal_interrupt_count(16):
-	 * 1 byte event + 1 byte space + 16 byte throttle_bitmask +
-	 * 1 byte : + 16 byte thermal_interupt_counter + 1 byte \n +
-	 * 1 byte \0 = 37
-	 */
-	char fifo_in[37];
-	int len;
-
-	if (list_empty(&dev->smi_clients))
-		return;
-
-	len = snprintf(fifo_in, sizeof(fifo_in), "%x %llx:%llx\n",
-		       KFD_SMI_EVENT_THERMAL_THROTTLE, throttle_bitmask,
-		       atomic64_read(&dev->adev->smu.throttle_int_counter));
-
-	add_event_to_kfifo(dev, KFD_SMI_EVENT_THERMAL_THROTTLE,	fifo_in, len);
+	kfd_smi_event_add(0, dev, KFD_SMI_EVENT_THERMAL_THROTTLE, "%llx:%llx\n",
+			  throttle_bitmask,
+			  amdgpu_dpm_get_thermal_throttling_counter(dev->adev));
 }
 
 void kfd_smi_event_update_vmfault(struct kfd_dev *dev, uint16_t pasid)
 {
 	struct amdgpu_task_info task_info;
-	/* VmFault msg = (hex)uint32_pid(8) + :(1) + task name(16) = 25 */
-	/* 1 byte event + 1 byte space + 25 bytes msg + 1 byte \n +
-	 * 1 byte \0 = 29
-	 */
-	char fifo_in[29];
-	int len;
-
-	if (list_empty(&dev->smi_clients))
-		return;
 
 	memset(&task_info, 0, sizeof(struct amdgpu_task_info));
 	amdgpu_vm_get_task_info(dev->adev, pasid, &task_info);
@@ -246,10 +246,91 @@ void kfd_smi_event_update_vmfault(struct kfd_dev *dev, uint16_t pasid)
 	if (!task_info.pid)
 		return;
 
-	len = snprintf(fifo_in, sizeof(fifo_in), "%x %x:%s\n", KFD_SMI_EVENT_VMFAULT,
-		task_info.pid, task_info.task_name);
+	kfd_smi_event_add(0, dev, KFD_SMI_EVENT_VMFAULT, "%x:%s\n",
+			  task_info.pid, task_info.task_name);
+}
 
-	add_event_to_kfifo(dev, KFD_SMI_EVENT_VMFAULT, fifo_in, len);
+void kfd_smi_event_page_fault_start(struct kfd_dev *dev, pid_t pid,
+				    unsigned long address, bool write_fault,
+				    ktime_t ts)
+{
+	kfd_smi_event_add(pid, dev, KFD_SMI_EVENT_PAGE_FAULT_START,
+			  "%lld -%d @%lx(%x) %c\n", ktime_to_ns(ts), pid,
+			  address, dev->id, write_fault ? 'W' : 'R');
+}
+
+void kfd_smi_event_page_fault_end(struct kfd_dev *dev, pid_t pid,
+				  unsigned long address, bool migration)
+{
+	kfd_smi_event_add(pid, dev, KFD_SMI_EVENT_PAGE_FAULT_END,
+			  "%lld -%d @%lx(%x) %c\n", ktime_get_boottime_ns(),
+			  pid, address, dev->id, migration ? 'M' : 'U');
+}
+
+void kfd_smi_event_migration_start(struct kfd_dev *dev, pid_t pid,
+				   unsigned long start, unsigned long end,
+				   uint32_t from, uint32_t to,
+				   uint32_t prefetch_loc, uint32_t preferred_loc,
+				   uint32_t trigger)
+{
+	kfd_smi_event_add(pid, dev, KFD_SMI_EVENT_MIGRATE_START,
+			  "%lld -%d @%lx(%lx) %x->%x %x:%x %d\n",
+			  ktime_get_boottime_ns(), pid, start, end - start,
+			  from, to, prefetch_loc, preferred_loc, trigger);
+}
+
+void kfd_smi_event_migration_end(struct kfd_dev *dev, pid_t pid,
+				 unsigned long start, unsigned long end,
+				 uint32_t from, uint32_t to, uint32_t trigger)
+{
+	kfd_smi_event_add(pid, dev, KFD_SMI_EVENT_MIGRATE_END,
+			  "%lld -%d @%lx(%lx) %x->%x %d\n",
+			  ktime_get_boottime_ns(), pid, start, end - start,
+			  from, to, trigger);
+}
+
+void kfd_smi_event_queue_eviction(struct kfd_dev *dev, pid_t pid,
+				  uint32_t trigger)
+{
+	kfd_smi_event_add(pid, dev, KFD_SMI_EVENT_QUEUE_EVICTION,
+			  "%lld -%d %x %d\n", ktime_get_boottime_ns(), pid,
+			  dev->id, trigger);
+}
+
+void kfd_smi_event_queue_restore(struct kfd_dev *dev, pid_t pid)
+{
+	kfd_smi_event_add(pid, dev, KFD_SMI_EVENT_QUEUE_RESTORE,
+			  "%lld -%d %x\n", ktime_get_boottime_ns(), pid,
+			  dev->id);
+}
+
+void kfd_smi_event_queue_restore_rescheduled(struct mm_struct *mm)
+{
+	struct kfd_process *p;
+	int i;
+
+	p = kfd_lookup_process_by_mm(mm);
+	if (!p)
+		return;
+
+	for (i = 0; i < p->n_pdds; i++) {
+		struct kfd_process_device *pdd = p->pdds[i];
+
+		kfd_smi_event_add(p->lead_thread->pid, pdd->dev,
+				  KFD_SMI_EVENT_QUEUE_RESTORE,
+				  "%lld -%d %x %c\n", ktime_get_boottime_ns(),
+				  p->lead_thread->pid, pdd->dev->id, 'R');
+	}
+	kfd_unref_process(p);
+}
+
+void kfd_smi_event_unmap_from_gpu(struct kfd_dev *dev, pid_t pid,
+				  unsigned long address, unsigned long last,
+				  uint32_t trigger)
+{
+	kfd_smi_event_add(pid, dev, KFD_SMI_EVENT_UNMAP_FROM_GPU,
+			  "%lld -%d @%lx(%lx) %x %d\n", ktime_get_boottime_ns(),
+			  pid, address, last - address + 1, dev->id, trigger);
 }
 
 int kfd_smi_event_open(struct kfd_dev *dev, uint32_t *fd)
@@ -268,23 +349,31 @@ int kfd_smi_event_open(struct kfd_dev *dev, uint32_t *fd)
 		return ret;
 	}
 
+	init_waitqueue_head(&client->wait_queue);
+	spin_lock_init(&client->lock);
+	client->events = 0;
+	client->dev = dev;
+	client->pid = current->tgid;
+	client->suser = capable(CAP_SYS_ADMIN);
+
+	spin_lock(&dev->smi_lock);
+	list_add_rcu(&client->list, &dev->smi_clients);
+	spin_unlock(&dev->smi_lock);
+
 	ret = anon_inode_getfd(kfd_smi_name, &kfd_smi_ev_fops, (void *)client,
 			       O_RDWR);
 	if (ret < 0) {
+		spin_lock(&dev->smi_lock);
+		list_del_rcu(&client->list);
+		spin_unlock(&dev->smi_lock);
+
+		synchronize_rcu();
+
 		kfifo_free(&client->fifo);
 		kfree(client);
 		return ret;
 	}
 	*fd = ret;
-
-	init_waitqueue_head(&client->wait_queue);
-	spin_lock_init(&client->lock);
-	client->events = 0;
-	client->dev = dev;
-
-	spin_lock(&dev->smi_lock);
-	list_add_rcu(&client->list, &dev->smi_clients);
-	spin_unlock(&dev->smi_lock);
 
 	return 0;
 }

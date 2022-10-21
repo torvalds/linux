@@ -297,6 +297,27 @@ static const struct sdhci_pci_fixes sdhci_ricoh_mmc = {
 			  SDHCI_QUIRK_MISSING_CAPS
 };
 
+static void ene_714_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+
+	sdhci_set_ios(mmc, ios);
+
+	/*
+	 * Some (ENE) controllers misbehave on some ios operations,
+	 * signalling timeout and CRC errors even on CMD0. Resetting
+	 * it on each ios seems to solve the problem.
+	 */
+	if (!(host->flags & SDHCI_DEVICE_DEAD))
+		sdhci_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
+}
+
+static int ene_714_probe_slot(struct sdhci_pci_slot *slot)
+{
+	slot->host->mmc_host_ops.set_ios = ene_714_set_ios;
+	return 0;
+}
+
 static const struct sdhci_pci_fixes sdhci_ene_712 = {
 	.quirks		= SDHCI_QUIRK_SINGLE_POWER_WRITE |
 			  SDHCI_QUIRK_BROKEN_DMA,
@@ -304,8 +325,8 @@ static const struct sdhci_pci_fixes sdhci_ene_712 = {
 
 static const struct sdhci_pci_fixes sdhci_ene_714 = {
 	.quirks		= SDHCI_QUIRK_SINGLE_POWER_WRITE |
-			  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS |
 			  SDHCI_QUIRK_BROKEN_DMA,
+	.probe_slot	= ene_714_probe_slot,
 };
 
 static const struct sdhci_pci_fixes sdhci_cafe = {
@@ -1240,16 +1261,11 @@ static const struct sdhci_pci_fixes sdhci_intel_byt_sd = {
 #ifdef CONFIG_ACPI
 static void intel_mrfld_mmc_fix_up_power_slot(struct sdhci_pci_slot *slot)
 {
-	struct acpi_device *device, *child;
+	struct acpi_device *device;
 
 	device = ACPI_COMPANION(&slot->chip->pdev->dev);
-	if (!device)
-		return;
-
-	acpi_device_fix_up_power(device);
-	list_for_each_entry(child, &device->children, node)
-		if (child->status.present && child->status.enabled)
-			acpi_device_fix_up_power(child);
+	if (device)
+		acpi_device_fix_up_power_extended(device);
 }
 #else
 static inline void intel_mrfld_mmc_fix_up_power_slot(struct sdhci_pci_slot *slot) {}

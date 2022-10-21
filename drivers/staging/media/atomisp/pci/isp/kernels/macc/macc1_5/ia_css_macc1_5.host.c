@@ -44,7 +44,7 @@ ia_css_macc1_5_vmem_encode(
     unsigned int size)
 {
 	unsigned int i, j, k, idx;
-	unsigned int idx_map[] = {
+	static const unsigned int idx_map[] = {
 		0, 1, 3, 2, 6, 7, 5, 4, 12, 13, 15, 14, 10, 11, 9, 8
 	};
 

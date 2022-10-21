@@ -21,11 +21,12 @@
 #include <soc/mscc/ocelot_dev.h>
 #include <soc/mscc/ocelot_ana.h>
 #include <soc/mscc/ocelot_ptp.h>
+#include <soc/mscc/ocelot_vcap.h>
 #include <soc/mscc/ocelot.h>
 #include "ocelot_rew.h"
 #include "ocelot_qs.h"
 
-#define OCELOT_VLAN_UNAWARE_PVID 0
+#define OCELOT_STANDALONE_PVID 0
 #define OCELOT_BUFFER_CELL_SZ 60
 
 #define OCELOT_STATS_CHECK_DELAY (2 * HZ)
@@ -37,7 +38,8 @@
 struct ocelot_port_tc {
 	bool block_shared;
 	unsigned long offload_cnt;
-
+	unsigned long ingress_mirred_id;
+	unsigned long egress_mirred_id;
 	unsigned long police_id;
 };
 
@@ -46,15 +48,7 @@ struct ocelot_port_private {
 	struct net_device *dev;
 	struct phylink *phylink;
 	struct phylink_config phylink_config;
-	u8 chip_port;
 	struct ocelot_port_tc tc;
-};
-
-struct ocelot_dump_ctx {
-	struct net_device *dev;
-	struct sk_buff *skb;
-	struct netlink_callback *cb;
-	int idx;
 };
 
 /* A (PGID) port mask structure, encoding the 2^ocelot->num_phys_ports
@@ -80,8 +74,9 @@ struct ocelot_multicast {
 	struct ocelot_pgid *pgid;
 };
 
-int ocelot_port_fdb_do_dump(const unsigned char *addr, u16 vid,
-			    bool is_static, void *data);
+int ocelot_bridge_num_find(struct ocelot *ocelot,
+			   const struct net_device *bridge);
+
 int ocelot_mact_learn(struct ocelot *ocelot, int port,
 		      const unsigned char mac[ETH_ALEN],
 		      unsigned int vid, enum macaccess_entry_type type);
@@ -101,6 +96,18 @@ void ocelot_devlink_teardown(struct ocelot *ocelot);
 int ocelot_port_devlink_init(struct ocelot *ocelot, int port,
 			     enum devlink_port_flavour flavour);
 void ocelot_port_devlink_teardown(struct ocelot *ocelot, int port);
+
+int ocelot_trap_add(struct ocelot *ocelot, int port,
+		    unsigned long cookie, bool take_ts,
+		    void (*populate)(struct ocelot_vcap_filter *f));
+int ocelot_trap_del(struct ocelot *ocelot, int port, unsigned long cookie);
+
+struct ocelot_mirror *ocelot_mirror_get(struct ocelot *ocelot, int to,
+					struct netlink_ext_ack *extack);
+void ocelot_mirror_put(struct ocelot *ocelot);
+
+int ocelot_stats_init(struct ocelot *ocelot);
+void ocelot_stats_deinit(struct ocelot *ocelot);
 
 extern struct notifier_block ocelot_netdevice_nb;
 extern struct notifier_block ocelot_switchdev_nb;

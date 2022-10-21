@@ -39,7 +39,7 @@
 #include <asm/irq.h>
 #include <linux/platform_data/mmc-mxcmmc.h>
 
-#include <linux/platform_data/dma-imx.h>
+#include <linux/dma/imx-dma.h>
 
 #define DRIVER_NAME "mxc-mmc"
 #define MXCMCI_TIMEOUT_MS 10000
@@ -923,7 +923,7 @@ static void mxcmci_init_card(struct mmc_host *host, struct mmc_card *card)
 	 * One way to prevent this is to only allow 1-bit transfers.
 	 */
 
-	if (is_imx31_mmc(mxcmci) && card->type == MMC_TYPE_SDIO)
+	if (is_imx31_mmc(mxcmci) && mmc_card_sdio(card))
 		host->caps &= ~MMC_CAP_4_BIT_DATA;
 	else
 		host->caps |= MMC_CAP_4_BIT_DATA;
@@ -1025,7 +1025,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;
 
-	host->devtype = (enum mxcmci_type)of_device_get_match_data(&pdev->dev);
+	host->devtype = (uintptr_t)of_device_get_match_data(&pdev->dev);
 
 	/* adjust max_segs after devtype detection */
 	if (!is_mpc512x_mmc(host))

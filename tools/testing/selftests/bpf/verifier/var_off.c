@@ -121,7 +121,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_8b = { 1 },
-	/* The unpriviledged case is not too interesting; variable
+	/* The unprivileged case is not too interesting; variable
 	 * stack access is rejected.
 	 */
 	.errstr_unpriv = "R2 variable stack access prohibited for !root",
@@ -131,7 +131,7 @@
 	 * write might have overwritten the spilled pointer (i.e. we lose track
 	 * of the spilled register when we analyze the write).
 	 */
-	.errstr = "R2 invalid mem access 'inv'",
+	.errstr = "R2 invalid mem access 'scalar'",
 	.result = REJECT,
 },
 {

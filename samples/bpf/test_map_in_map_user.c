@@ -2,7 +2,6 @@
 /*
  * Copyright (c) 2017 Facebook
  */
-#include <sys/resource.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <stdint.h>
@@ -12,6 +11,8 @@
 #include <stdio.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
+
+#include "bpf_util.h"
 
 static int map_fd[7];
 
@@ -29,7 +30,7 @@ static const char * const test_names[] = {
 	"Hash of Hash",
 };
 
-#define NR_TESTS (sizeof(test_names) / sizeof(*test_names))
+#define NR_TESTS ARRAY_SIZE(test_names)
 
 static void check_map_id(int inner_map_fd, int map_in_map_fd, uint32_t key)
 {

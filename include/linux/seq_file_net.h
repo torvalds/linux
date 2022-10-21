@@ -3,6 +3,7 @@
 #define __SEQ_FILE_NET_H__
 
 #include <linux/seq_file.h>
+#include <net/net_trackers.h>
 
 struct net;
 extern struct net init_net;

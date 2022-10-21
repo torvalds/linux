@@ -6,6 +6,7 @@
 
 MAX_RETRIES=600
 RETRY_INTERVAL=".1"	# seconds
+KLP_SYSFS_DIR="/sys/kernel/livepatch"
 
 # Kselftest framework requirement - SKIP code is 4
 ksft_skip=4
@@ -75,9 +76,25 @@ function set_dynamic_debug() {
 }
 
 function set_ftrace_enabled() {
-	result=$(sysctl -q kernel.ftrace_enabled="$1" 2>&1 && \
-		 sysctl kernel.ftrace_enabled 2>&1)
-	echo "livepatch: $result" > /dev/kmsg
+	local can_fail=0
+	if [[ "$1" == "--fail" ]] ; then
+		can_fail=1
+		shift
+	fi
+
+	local err=$(sysctl -q kernel.ftrace_enabled="$1" 2>&1)
+	local result=$(sysctl --values kernel.ftrace_enabled)
+
+	if [[ "$result" != "$1" ]] ; then
+		if [[ $can_fail -eq 1 ]] ; then
+			echo "livepatch: $err" | sed 's#/proc/sys/kernel/#kernel.#' > /dev/kmsg
+			return
+		fi
+
+		skip "failed to set kernel.ftrace_enabled = $1"
+	fi
+
+	echo "livepatch: kernel.ftrace_enabled = $result" > /dev/kmsg
 }
 
 function cleanup() {
@@ -291,4 +308,37 @@ function check_result {
 	fi
 
 	cleanup_dmesg_file
+}
+
+# check_sysfs_rights(modname, rel_path, expected_rights) - check sysfs
+# path permissions
+#	modname - livepatch module creating the sysfs interface
+#	rel_path - relative path of the sysfs interface
+#	expected_rights - expected access rights
+function check_sysfs_rights() {
+	local mod="$1"; shift
+	local rel_path="$1"; shift
+	local expected_rights="$1"; shift
+
+	local path="$KLP_SYSFS_DIR/$mod/$rel_path"
+	local rights=$(/bin/stat --format '%A' "$path")
+	if test "$rights" != "$expected_rights" ; then
+		die "Unexpected access rights of $path: $expected_rights vs. $rights"
+	fi
+}
+
+# check_sysfs_value(modname, rel_path, expected_value) - check sysfs value
+#	modname - livepatch module creating the sysfs interface
+#	rel_path - relative path of the sysfs interface
+#	expected_value - expected value read from the file
+function check_sysfs_value() {
+	local mod="$1"; shift
+	local rel_path="$1"; shift
+	local expected_value="$1"; shift
+
+	local path="$KLP_SYSFS_DIR/$mod/$rel_path"
+	local value=`cat $path`
+	if test "$value" != "$expected_value" ; then
+		die "Unexpected value in $path: $expected_value vs. $value"
+	fi
 }

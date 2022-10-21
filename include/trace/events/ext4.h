@@ -95,6 +95,17 @@ TRACE_DEFINE_ENUM(ES_REFERENCED_B);
 	{ FALLOC_FL_COLLAPSE_RANGE,	"COLLAPSE_RANGE"},	\
 	{ FALLOC_FL_ZERO_RANGE,		"ZERO_RANGE"})
 
+TRACE_DEFINE_ENUM(EXT4_FC_REASON_XATTR);
+TRACE_DEFINE_ENUM(EXT4_FC_REASON_CROSS_RENAME);
+TRACE_DEFINE_ENUM(EXT4_FC_REASON_JOURNAL_FLAG_CHANGE);
+TRACE_DEFINE_ENUM(EXT4_FC_REASON_NOMEM);
+TRACE_DEFINE_ENUM(EXT4_FC_REASON_SWAP_BOOT);
+TRACE_DEFINE_ENUM(EXT4_FC_REASON_RESIZE);
+TRACE_DEFINE_ENUM(EXT4_FC_REASON_RENAME_DIR);
+TRACE_DEFINE_ENUM(EXT4_FC_REASON_FALLOC_RANGE);
+TRACE_DEFINE_ENUM(EXT4_FC_REASON_INODE_JOURNAL_DATA);
+TRACE_DEFINE_ENUM(EXT4_FC_REASON_MAX);
+
 #define show_fc_reason(reason)						\
 	__print_symbolic(reason,					\
 		{ EXT4_FC_REASON_XATTR,		"XATTR"},		\
@@ -324,17 +335,15 @@ TRACE_EVENT(ext4_begin_ordered_truncate,
 
 DECLARE_EVENT_CLASS(ext4__write_begin,
 
-	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len,
-		 unsigned int flags),
+	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len),
 
-	TP_ARGS(inode, pos, len, flags),
+	TP_ARGS(inode, pos, len),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
 		__field(	ino_t,	ino			)
 		__field(	loff_t,	pos			)
 		__field(	unsigned int, len		)
-		__field(	unsigned int, flags		)
 	),
 
 	TP_fast_assign(
@@ -342,29 +351,26 @@ DECLARE_EVENT_CLASS(ext4__write_begin,
 		__entry->ino	= inode->i_ino;
 		__entry->pos	= pos;
 		__entry->len	= len;
-		__entry->flags	= flags;
 	),
 
-	TP_printk("dev %d,%d ino %lu pos %lld len %u flags %u",
+	TP_printk("dev %d,%d ino %lu pos %lld len %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
-		  __entry->pos, __entry->len, __entry->flags)
+		  __entry->pos, __entry->len)
 );
 
 DEFINE_EVENT(ext4__write_begin, ext4_write_begin,
 
-	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len,
-		 unsigned int flags),
+	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len),
 
-	TP_ARGS(inode, pos, len, flags)
+	TP_ARGS(inode, pos, len)
 );
 
 DEFINE_EVENT(ext4__write_begin, ext4_da_write_begin,
 
-	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len,
-		 unsigned int flags),
+	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len),
 
-	TP_ARGS(inode, pos, len, flags)
+	TP_ARGS(inode, pos, len)
 );
 
 DECLARE_EVENT_CLASS(ext4__write_end,
@@ -597,44 +603,44 @@ DEFINE_EVENT(ext4__page_op, ext4_releasepage,
 	TP_ARGS(page)
 );
 
-DECLARE_EVENT_CLASS(ext4_invalidatepage_op,
-	TP_PROTO(struct page *page, unsigned int offset, unsigned int length),
+DECLARE_EVENT_CLASS(ext4_invalidate_folio_op,
+	TP_PROTO(struct folio *folio, size_t offset, size_t length),
 
-	TP_ARGS(page, offset, length),
+	TP_ARGS(folio, offset, length),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
 		__field(	ino_t,	ino			)
 		__field(	pgoff_t, index			)
-		__field(	unsigned int, offset		)
-		__field(	unsigned int, length		)
+		__field(	size_t, offset			)
+		__field(	size_t, length			)
 	),
 
 	TP_fast_assign(
-		__entry->dev	= page->mapping->host->i_sb->s_dev;
-		__entry->ino	= page->mapping->host->i_ino;
-		__entry->index	= page->index;
+		__entry->dev	= folio->mapping->host->i_sb->s_dev;
+		__entry->ino	= folio->mapping->host->i_ino;
+		__entry->index	= folio->index;
 		__entry->offset	= offset;
 		__entry->length	= length;
 	),
 
-	TP_printk("dev %d,%d ino %lu page_index %lu offset %u length %u",
+	TP_printk("dev %d,%d ino %lu folio_index %lu offset %zu length %zu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long) __entry->ino,
 		  (unsigned long) __entry->index,
 		  __entry->offset, __entry->length)
 );
 
-DEFINE_EVENT(ext4_invalidatepage_op, ext4_invalidatepage,
-	TP_PROTO(struct page *page, unsigned int offset, unsigned int length),
+DEFINE_EVENT(ext4_invalidate_folio_op, ext4_invalidate_folio,
+	TP_PROTO(struct folio *folio, size_t offset, size_t length),
 
-	TP_ARGS(page, offset, length)
+	TP_ARGS(folio, offset, length)
 );
 
-DEFINE_EVENT(ext4_invalidatepage_op, ext4_journalled_invalidatepage,
-	TP_PROTO(struct page *page, unsigned int offset, unsigned int length),
+DEFINE_EVENT(ext4_invalidate_folio_op, ext4_journalled_invalidate_folio,
+	TP_PROTO(struct folio *folio, size_t offset, size_t length),
 
-	TP_ARGS(page, offset, length)
+	TP_ARGS(folio, offset, length)
 );
 
 TRACE_EVENT(ext4_discard_blocks,
@@ -2643,7 +2649,7 @@ TRACE_EVENT(ext4_fc_replay_scan,
 		__entry->off = off;
 	),
 
-	TP_printk("FC scan pass on dev %d,%d: error %d, off %d",
+	TP_printk("dev %d,%d error %d, off %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->error, __entry->off)
 );
@@ -2669,32 +2675,35 @@ TRACE_EVENT(ext4_fc_replay,
 		__entry->priv2 = priv2;
 	),
 
-	TP_printk("FC Replay %d,%d: tag %d, ino %d, data1 %d, data2 %d",
+	TP_printk("dev %d,%d: tag %d, ino %d, data1 %d, data2 %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->tag, __entry->ino, __entry->priv1, __entry->priv2)
 );
 
 TRACE_EVENT(ext4_fc_commit_start,
-	TP_PROTO(struct super_block *sb),
+	TP_PROTO(struct super_block *sb, tid_t commit_tid),
 
-	TP_ARGS(sb),
+	TP_ARGS(sb, commit_tid),
 
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
+		__field(tid_t, tid)
 	),
 
 	TP_fast_assign(
 		__entry->dev = sb->s_dev;
+		__entry->tid = commit_tid;
 	),
 
-	TP_printk("fast_commit started on dev %d,%d",
-		  MAJOR(__entry->dev), MINOR(__entry->dev))
+	TP_printk("dev %d,%d tid %u", MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->tid)
 );
 
 TRACE_EVENT(ext4_fc_commit_stop,
-	    TP_PROTO(struct super_block *sb, int nblks, int reason),
+	    TP_PROTO(struct super_block *sb, int nblks, int reason,
+		     tid_t commit_tid),
 
-	TP_ARGS(sb, nblks, reason),
+	TP_ARGS(sb, nblks, reason, commit_tid),
 
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -2703,6 +2712,7 @@ TRACE_EVENT(ext4_fc_commit_stop,
 		__field(int, num_fc)
 		__field(int, num_fc_ineligible)
 		__field(int, nblks_agg)
+		__field(tid_t, tid)
 	),
 
 	TP_fast_assign(
@@ -2713,128 +2723,193 @@ TRACE_EVENT(ext4_fc_commit_stop,
 		__entry->num_fc_ineligible =
 			EXT4_SB(sb)->s_fc_stats.fc_ineligible_commits;
 		__entry->nblks_agg = EXT4_SB(sb)->s_fc_stats.fc_numblks;
+		__entry->tid = commit_tid;
 	),
 
-	TP_printk("fc on [%d,%d] nblks %d, reason %d, fc = %d, ineligible = %d, agg_nblks %d",
+	TP_printk("dev %d,%d nblks %d, reason %d, fc = %d, ineligible = %d, agg_nblks %d, tid %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->nblks, __entry->reason, __entry->num_fc,
-		  __entry->num_fc_ineligible, __entry->nblks_agg)
+		  __entry->num_fc_ineligible, __entry->nblks_agg, __entry->tid)
 );
 
 #define FC_REASON_NAME_STAT(reason)					\
 	show_fc_reason(reason),						\
-	__entry->sbi->s_fc_stats.fc_ineligible_reason_count[reason]
+	__entry->fc_ineligible_rc[reason]
 
 TRACE_EVENT(ext4_fc_stats,
-	    TP_PROTO(struct super_block *sb),
+	TP_PROTO(struct super_block *sb),
 
-	    TP_ARGS(sb),
+	TP_ARGS(sb),
 
-	    TP_STRUCT__entry(
-		    __field(dev_t, dev)
-		    __field(struct ext4_sb_info *, sbi)
-		    __field(int, count)
-		    ),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__array(unsigned int, fc_ineligible_rc, EXT4_FC_REASON_MAX)
+		__field(unsigned long, fc_commits)
+		__field(unsigned long, fc_ineligible_commits)
+		__field(unsigned long, fc_numblks)
+	),
 
-	    TP_fast_assign(
-		    __entry->dev = sb->s_dev;
-		    __entry->sbi = EXT4_SB(sb);
-		    ),
+	TP_fast_assign(
+		int i;
 
-	    TP_printk("dev %d:%d fc ineligible reasons:\n"
-		      "%s:%d, %s:%d, %s:%d, %s:%d, %s:%d, %s:%d, %s:%d, %s:%d, %s:%d; "
-		      "num_commits:%ld, ineligible: %ld, numblks: %ld",
-		      MAJOR(__entry->dev), MINOR(__entry->dev),
-		      FC_REASON_NAME_STAT(EXT4_FC_REASON_XATTR),
-		      FC_REASON_NAME_STAT(EXT4_FC_REASON_CROSS_RENAME),
-		      FC_REASON_NAME_STAT(EXT4_FC_REASON_JOURNAL_FLAG_CHANGE),
-		      FC_REASON_NAME_STAT(EXT4_FC_REASON_NOMEM),
-		      FC_REASON_NAME_STAT(EXT4_FC_REASON_SWAP_BOOT),
-		      FC_REASON_NAME_STAT(EXT4_FC_REASON_RESIZE),
-		      FC_REASON_NAME_STAT(EXT4_FC_REASON_RENAME_DIR),
-		      FC_REASON_NAME_STAT(EXT4_FC_REASON_FALLOC_RANGE),
-		      FC_REASON_NAME_STAT(EXT4_FC_REASON_INODE_JOURNAL_DATA),
-		      __entry->sbi->s_fc_stats.fc_num_commits,
-		      __entry->sbi->s_fc_stats.fc_ineligible_commits,
-		      __entry->sbi->s_fc_stats.fc_numblks)
+		__entry->dev = sb->s_dev;
+		for (i = 0; i < EXT4_FC_REASON_MAX; i++) {
+			__entry->fc_ineligible_rc[i] =
+				EXT4_SB(sb)->s_fc_stats.fc_ineligible_reason_count[i];
+		}
+		__entry->fc_commits = EXT4_SB(sb)->s_fc_stats.fc_num_commits;
+		__entry->fc_ineligible_commits =
+			EXT4_SB(sb)->s_fc_stats.fc_ineligible_commits;
+		__entry->fc_numblks = EXT4_SB(sb)->s_fc_stats.fc_numblks;
+	),
 
+	TP_printk("dev %d,%d fc ineligible reasons:\n"
+		  "%s:%u, %s:%u, %s:%u, %s:%u, %s:%u, %s:%u, %s:%u, %s:%u, %s:%u "
+		  "num_commits:%lu, ineligible: %lu, numblks: %lu",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  FC_REASON_NAME_STAT(EXT4_FC_REASON_XATTR),
+		  FC_REASON_NAME_STAT(EXT4_FC_REASON_CROSS_RENAME),
+		  FC_REASON_NAME_STAT(EXT4_FC_REASON_JOURNAL_FLAG_CHANGE),
+		  FC_REASON_NAME_STAT(EXT4_FC_REASON_NOMEM),
+		  FC_REASON_NAME_STAT(EXT4_FC_REASON_SWAP_BOOT),
+		  FC_REASON_NAME_STAT(EXT4_FC_REASON_RESIZE),
+		  FC_REASON_NAME_STAT(EXT4_FC_REASON_RENAME_DIR),
+		  FC_REASON_NAME_STAT(EXT4_FC_REASON_FALLOC_RANGE),
+		  FC_REASON_NAME_STAT(EXT4_FC_REASON_INODE_JOURNAL_DATA),
+		  __entry->fc_commits, __entry->fc_ineligible_commits,
+		  __entry->fc_numblks)
 );
 
-#define DEFINE_TRACE_DENTRY_EVENT(__type)				\
-	TRACE_EVENT(ext4_fc_track_##__type,				\
-	    TP_PROTO(struct inode *inode, struct dentry *dentry, int ret), \
-									\
-	    TP_ARGS(inode, dentry, ret),				\
-									\
-	    TP_STRUCT__entry(						\
-		    __field(dev_t, dev)					\
-		    __field(int, ino)					\
-		    __field(int, error)					\
-		    ),							\
-									\
-	    TP_fast_assign(						\
-		    __entry->dev = inode->i_sb->s_dev;			\
-		    __entry->ino = inode->i_ino;			\
-		    __entry->error = ret;				\
-		    ),							\
-									\
-	    TP_printk("dev %d:%d, inode %d, error %d, fc_%s",		\
-		      MAJOR(__entry->dev), MINOR(__entry->dev),		\
-		      __entry->ino, __entry->error,			\
-		      #__type)						\
-	)
+DECLARE_EVENT_CLASS(ext4_fc_track_dentry,
 
-DEFINE_TRACE_DENTRY_EVENT(create);
-DEFINE_TRACE_DENTRY_EVENT(link);
-DEFINE_TRACE_DENTRY_EVENT(unlink);
+	TP_PROTO(handle_t *handle, struct inode *inode,
+		 struct dentry *dentry, int ret),
+
+	TP_ARGS(handle, inode, dentry, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(tid_t, t_tid)
+		__field(ino_t, i_ino)
+		__field(tid_t, i_sync_tid)
+		__field(int, error)
+	),
+
+	TP_fast_assign(
+		struct ext4_inode_info *ei = EXT4_I(inode);
+
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->t_tid = handle->h_transaction->t_tid;
+		__entry->i_ino = inode->i_ino;
+		__entry->i_sync_tid = ei->i_sync_tid;
+		__entry->error = ret;
+	),
+
+	TP_printk("dev %d,%d, t_tid %u, ino %lu, i_sync_tid %u, error %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->t_tid, __entry->i_ino, __entry->i_sync_tid,
+		  __entry->error
+	)
+);
+
+#define DEFINE_EVENT_CLASS_DENTRY(__type)				\
+DEFINE_EVENT(ext4_fc_track_dentry, ext4_fc_track_##__type,		\
+	TP_PROTO(handle_t *handle, struct inode *inode,			\
+		 struct dentry *dentry, int ret),			\
+	TP_ARGS(handle, inode, dentry, ret)				\
+)
+
+DEFINE_EVENT_CLASS_DENTRY(create);
+DEFINE_EVENT_CLASS_DENTRY(link);
+DEFINE_EVENT_CLASS_DENTRY(unlink);
 
 TRACE_EVENT(ext4_fc_track_inode,
-	    TP_PROTO(struct inode *inode, int ret),
+	TP_PROTO(handle_t *handle, struct inode *inode, int ret),
 
-	    TP_ARGS(inode, ret),
+	TP_ARGS(handle, inode, ret),
 
-	    TP_STRUCT__entry(
-		    __field(dev_t, dev)
-		    __field(int, ino)
-		    __field(int, error)
-		    ),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(tid_t, t_tid)
+		__field(ino_t, i_ino)
+		__field(tid_t, i_sync_tid)
+		__field(int, error)
+	),
 
-	    TP_fast_assign(
-		    __entry->dev = inode->i_sb->s_dev;
-		    __entry->ino = inode->i_ino;
-		    __entry->error = ret;
-		    ),
+	TP_fast_assign(
+		struct ext4_inode_info *ei = EXT4_I(inode);
 
-	    TP_printk("dev %d:%d, inode %d, error %d",
-		      MAJOR(__entry->dev), MINOR(__entry->dev),
-		      __entry->ino, __entry->error)
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->t_tid = handle->h_transaction->t_tid;
+		__entry->i_ino = inode->i_ino;
+		__entry->i_sync_tid = ei->i_sync_tid;
+		__entry->error = ret;
+	),
+
+	TP_printk("dev %d:%d, t_tid %u, inode %lu, i_sync_tid %u, error %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->t_tid, __entry->i_ino, __entry->i_sync_tid,
+		  __entry->error)
 	);
 
 TRACE_EVENT(ext4_fc_track_range,
-	    TP_PROTO(struct inode *inode, long start, long end, int ret),
+	TP_PROTO(handle_t *handle, struct inode *inode,
+		 long start, long end, int ret),
 
-	    TP_ARGS(inode, start, end, ret),
+	TP_ARGS(handle, inode, start, end, ret),
 
-	    TP_STRUCT__entry(
-		    __field(dev_t, dev)
-		    __field(int, ino)
-		    __field(long, start)
-		    __field(long, end)
-		    __field(int, error)
-		    ),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(tid_t, t_tid)
+		__field(ino_t, i_ino)
+		__field(tid_t, i_sync_tid)
+		__field(long, start)
+		__field(long, end)
+		__field(int, error)
+	),
 
-	    TP_fast_assign(
-		    __entry->dev = inode->i_sb->s_dev;
-		    __entry->ino = inode->i_ino;
-		    __entry->start = start;
-		    __entry->end = end;
-		    __entry->error = ret;
-		    ),
+	TP_fast_assign(
+		struct ext4_inode_info *ei = EXT4_I(inode);
 
-	    TP_printk("dev %d:%d, inode %d, error %d, start %ld, end %ld",
-		      MAJOR(__entry->dev), MINOR(__entry->dev),
-		      __entry->ino, __entry->error, __entry->start,
-		      __entry->end)
+		__entry->dev = inode->i_sb->s_dev;
+		__entry->t_tid = handle->h_transaction->t_tid;
+		__entry->i_ino = inode->i_ino;
+		__entry->i_sync_tid = ei->i_sync_tid;
+		__entry->start = start;
+		__entry->end = end;
+		__entry->error = ret;
+	),
+
+	TP_printk("dev %d:%d, t_tid %u, inode %lu, i_sync_tid %u, error %d, start %ld, end %ld",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->t_tid, __entry->i_ino, __entry->i_sync_tid,
+		  __entry->error, __entry->start, __entry->end)
+	);
+
+TRACE_EVENT(ext4_fc_cleanup,
+	TP_PROTO(journal_t *journal, int full, tid_t tid),
+
+	TP_ARGS(journal, full, tid),
+
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(int, j_fc_off)
+		__field(int, full)
+		__field(tid_t, tid)
+	),
+
+	TP_fast_assign(
+		struct super_block *sb = journal->j_private;
+
+		__entry->dev = sb->s_dev;
+		__entry->j_fc_off = journal->j_fc_off;
+		__entry->full = full;
+		__entry->tid = tid;
+	),
+
+	TP_printk("dev %d,%d, j_fc_off %d, full %d, tid %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->j_fc_off, __entry->full, __entry->tid)
 	);
 
 TRACE_EVENT(ext4_update_sb,

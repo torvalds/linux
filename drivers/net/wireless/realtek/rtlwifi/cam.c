@@ -208,7 +208,7 @@ void rtl_cam_empty_entry(struct ieee80211_hw *hw, u8 uc_index)
 
 	u32 ul_command;
 	u32 ul_content;
-	u32 ul_encalgo = rtlpriv->cfg->maps[SEC_CAM_AES];
+	u32 ul_encalgo;
 	u8 entry_i;
 
 	switch (rtlpriv->sec.pairwise_enc_algorithm) {

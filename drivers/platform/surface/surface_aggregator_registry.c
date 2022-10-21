@@ -6,19 +6,16 @@
  * cannot be auto-detected. Provides device-hubs and performs instantiation
  * for these devices.
  *
- * Copyright (C) 2020-2021 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2020-2022 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #include <linux/acpi.h>
 #include <linux/kernel.h>
-#include <linux/limits.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/types.h>
-#include <linux/workqueue.h>
 
-#include <linux/surface_aggregator/controller.h>
 #include <linux/surface_aggregator/device.h>
 
 
@@ -41,9 +38,15 @@ static const struct software_node ssam_node_root = {
 	.name = "ssam_platform_hub",
 };
 
+/* KIP device hub (connects keyboard cover devices on Surface Pro 8). */
+static const struct software_node ssam_node_hub_kip = {
+	.name = "ssam:00:00:01:0e:00",
+	.parent = &ssam_node_root,
+};
+
 /* Base device hub (devices attached to Surface Book 3 base). */
 static const struct software_node ssam_node_hub_base = {
-	.name = "ssam:00:00:02:00:00",
+	.name = "ssam:00:00:02:11:00",
 	.parent = &ssam_node_root,
 };
 
@@ -71,44 +74,50 @@ static const struct software_node ssam_node_tmp_pprof = {
 	.parent = &ssam_node_root,
 };
 
+/* Tablet-mode switch via KIP subsystem. */
+static const struct software_node ssam_node_kip_tablet_switch = {
+	.name = "ssam:01:0e:01:00:01",
+	.parent = &ssam_node_root,
+};
+
 /* DTX / detachment-system device (Surface Book 3). */
 static const struct software_node ssam_node_bas_dtx = {
 	.name = "ssam:01:11:01:00:00",
 	.parent = &ssam_node_root,
 };
 
-/* HID keyboard (TID1). */
-static const struct software_node ssam_node_hid_tid1_keyboard = {
+/* HID keyboard (SAM, TID=1). */
+static const struct software_node ssam_node_hid_sam_keyboard = {
 	.name = "ssam:01:15:01:01:00",
 	.parent = &ssam_node_root,
 };
 
-/* HID pen stash (TID1; pen taken / stashed away evens). */
-static const struct software_node ssam_node_hid_tid1_penstash = {
+/* HID pen stash (SAM, TID=1; pen taken / stashed away evens). */
+static const struct software_node ssam_node_hid_sam_penstash = {
 	.name = "ssam:01:15:01:02:00",
 	.parent = &ssam_node_root,
 };
 
-/* HID touchpad (TID1). */
-static const struct software_node ssam_node_hid_tid1_touchpad = {
+/* HID touchpad (SAM, TID=1). */
+static const struct software_node ssam_node_hid_sam_touchpad = {
 	.name = "ssam:01:15:01:03:00",
 	.parent = &ssam_node_root,
 };
 
-/* HID device instance 6 (TID1, unknown HID device). */
-static const struct software_node ssam_node_hid_tid1_iid6 = {
+/* HID device instance 6 (SAM, TID=1, HID sensor collection). */
+static const struct software_node ssam_node_hid_sam_sensors = {
 	.name = "ssam:01:15:01:06:00",
 	.parent = &ssam_node_root,
 };
 
-/* HID device instance 7 (TID1, unknown HID device). */
-static const struct software_node ssam_node_hid_tid1_iid7 = {
+/* HID device instance 7 (SAM, TID=1, UCM UCSI HID client). */
+static const struct software_node ssam_node_hid_sam_ucm_ucsi = {
 	.name = "ssam:01:15:01:07:00",
 	.parent = &ssam_node_root,
 };
 
-/* HID system controls (TID1). */
-static const struct software_node ssam_node_hid_tid1_sysctrl = {
+/* HID system controls (SAM, TID=1). */
+static const struct software_node ssam_node_hid_sam_sysctrl = {
 	.name = "ssam:01:15:01:08:00",
 	.parent = &ssam_node_root,
 };
@@ -153,6 +162,36 @@ static const struct software_node ssam_node_hid_base_iid5 = {
 static const struct software_node ssam_node_hid_base_iid6 = {
 	.name = "ssam:01:15:02:06:00",
 	.parent = &ssam_node_hub_base,
+};
+
+/* HID keyboard (KIP hub). */
+static const struct software_node ssam_node_hid_kip_keyboard = {
+	.name = "ssam:01:15:02:01:00",
+	.parent = &ssam_node_hub_kip,
+};
+
+/* HID pen stash (KIP hub; pen taken / stashed away evens). */
+static const struct software_node ssam_node_hid_kip_penstash = {
+	.name = "ssam:01:15:02:02:00",
+	.parent = &ssam_node_hub_kip,
+};
+
+/* HID touchpad (KIP hub). */
+static const struct software_node ssam_node_hid_kip_touchpad = {
+	.name = "ssam:01:15:02:03:00",
+	.parent = &ssam_node_hub_kip,
+};
+
+/* HID device instance 5 (KIP hub, type-cover firmware update). */
+static const struct software_node ssam_node_hid_kip_fwupd = {
+	.name = "ssam:01:15:02:05:00",
+	.parent = &ssam_node_hub_kip,
+};
+
+/* Tablet-mode switch via POS subsystem. */
+static const struct software_node ssam_node_pos_tablet_switch = {
+	.name = "ssam:01:26:01:00:01",
+	.parent = &ssam_node_root,
 };
 
 /*
@@ -201,12 +240,13 @@ static const struct software_node *ssam_node_group_sls[] = {
 	&ssam_node_bat_ac,
 	&ssam_node_bat_main,
 	&ssam_node_tmp_pprof,
-	&ssam_node_hid_tid1_keyboard,
-	&ssam_node_hid_tid1_penstash,
-	&ssam_node_hid_tid1_touchpad,
-	&ssam_node_hid_tid1_iid6,
-	&ssam_node_hid_tid1_iid7,
-	&ssam_node_hid_tid1_sysctrl,
+	&ssam_node_pos_tablet_switch,
+	&ssam_node_hid_sam_keyboard,
+	&ssam_node_hid_sam_penstash,
+	&ssam_node_hid_sam_touchpad,
+	&ssam_node_hid_sam_sensors,
+	&ssam_node_hid_sam_ucm_ucsi,
+	&ssam_node_hid_sam_sysctrl,
 	NULL,
 };
 
@@ -230,287 +270,18 @@ static const struct software_node *ssam_node_group_sp7[] = {
 
 static const struct software_node *ssam_node_group_sp8[] = {
 	&ssam_node_root,
+	&ssam_node_hub_kip,
 	&ssam_node_bat_ac,
 	&ssam_node_bat_main,
 	&ssam_node_tmp_pprof,
-	/* TODO: Add support for keyboard cover. */
+	&ssam_node_kip_tablet_switch,
+	&ssam_node_hid_kip_keyboard,
+	&ssam_node_hid_kip_penstash,
+	&ssam_node_hid_kip_touchpad,
+	&ssam_node_hid_kip_fwupd,
+	&ssam_node_hid_sam_sensors,
+	&ssam_node_hid_sam_ucm_ucsi,
 	NULL,
-};
-
-
-/* -- Device registry helper functions. ------------------------------------- */
-
-static int ssam_uid_from_string(const char *str, struct ssam_device_uid *uid)
-{
-	u8 d, tc, tid, iid, fn;
-	int n;
-
-	n = sscanf(str, "ssam:%hhx:%hhx:%hhx:%hhx:%hhx", &d, &tc, &tid, &iid, &fn);
-	if (n != 5)
-		return -EINVAL;
-
-	uid->domain = d;
-	uid->category = tc;
-	uid->target = tid;
-	uid->instance = iid;
-	uid->function = fn;
-
-	return 0;
-}
-
-static int ssam_hub_add_device(struct device *parent, struct ssam_controller *ctrl,
-			       struct fwnode_handle *node)
-{
-	struct ssam_device_uid uid;
-	struct ssam_device *sdev;
-	int status;
-
-	status = ssam_uid_from_string(fwnode_get_name(node), &uid);
-	if (status)
-		return status;
-
-	sdev = ssam_device_alloc(ctrl, uid);
-	if (!sdev)
-		return -ENOMEM;
-
-	sdev->dev.parent = parent;
-	sdev->dev.fwnode = node;
-
-	status = ssam_device_add(sdev);
-	if (status)
-		ssam_device_put(sdev);
-
-	return status;
-}
-
-static int ssam_hub_register_clients(struct device *parent, struct ssam_controller *ctrl,
-				     struct fwnode_handle *node)
-{
-	struct fwnode_handle *child;
-	int status;
-
-	fwnode_for_each_child_node(node, child) {
-		/*
-		 * Try to add the device specified in the firmware node. If
-		 * this fails with -EINVAL, the node does not specify any SSAM
-		 * device, so ignore it and continue with the next one.
-		 */
-
-		status = ssam_hub_add_device(parent, ctrl, child);
-		if (status && status != -EINVAL)
-			goto err;
-	}
-
-	return 0;
-err:
-	ssam_remove_clients(parent);
-	return status;
-}
-
-
-/* -- SSAM base-hub driver. ------------------------------------------------- */
-
-/*
- * Some devices (especially battery) may need a bit of time to be fully usable
- * after being (re-)connected. This delay has been determined via
- * experimentation.
- */
-#define SSAM_BASE_UPDATE_CONNECT_DELAY		msecs_to_jiffies(2500)
-
-enum ssam_base_hub_state {
-	SSAM_BASE_HUB_UNINITIALIZED,
-	SSAM_BASE_HUB_CONNECTED,
-	SSAM_BASE_HUB_DISCONNECTED,
-};
-
-struct ssam_base_hub {
-	struct ssam_device *sdev;
-
-	enum ssam_base_hub_state state;
-	struct delayed_work update_work;
-
-	struct ssam_event_notifier notif;
-};
-
-SSAM_DEFINE_SYNC_REQUEST_R(ssam_bas_query_opmode, u8, {
-	.target_category = SSAM_SSH_TC_BAS,
-	.target_id       = 0x01,
-	.command_id      = 0x0d,
-	.instance_id     = 0x00,
-});
-
-#define SSAM_BAS_OPMODE_TABLET		0x00
-#define SSAM_EVENT_BAS_CID_CONNECTION	0x0c
-
-static int ssam_base_hub_query_state(struct ssam_base_hub *hub, enum ssam_base_hub_state *state)
-{
-	u8 opmode;
-	int status;
-
-	status = ssam_retry(ssam_bas_query_opmode, hub->sdev->ctrl, &opmode);
-	if (status < 0) {
-		dev_err(&hub->sdev->dev, "failed to query base state: %d\n", status);
-		return status;
-	}
-
-	if (opmode != SSAM_BAS_OPMODE_TABLET)
-		*state = SSAM_BASE_HUB_CONNECTED;
-	else
-		*state = SSAM_BASE_HUB_DISCONNECTED;
-
-	return 0;
-}
-
-static ssize_t ssam_base_hub_state_show(struct device *dev, struct device_attribute *attr,
-					char *buf)
-{
-	struct ssam_base_hub *hub = dev_get_drvdata(dev);
-	bool connected = hub->state == SSAM_BASE_HUB_CONNECTED;
-
-	return sysfs_emit(buf, "%d\n", connected);
-}
-
-static struct device_attribute ssam_base_hub_attr_state =
-	__ATTR(state, 0444, ssam_base_hub_state_show, NULL);
-
-static struct attribute *ssam_base_hub_attrs[] = {
-	&ssam_base_hub_attr_state.attr,
-	NULL,
-};
-
-static const struct attribute_group ssam_base_hub_group = {
-	.attrs = ssam_base_hub_attrs,
-};
-
-static void ssam_base_hub_update_workfn(struct work_struct *work)
-{
-	struct ssam_base_hub *hub = container_of(work, struct ssam_base_hub, update_work.work);
-	struct fwnode_handle *node = dev_fwnode(&hub->sdev->dev);
-	enum ssam_base_hub_state state;
-	int status = 0;
-
-	status = ssam_base_hub_query_state(hub, &state);
-	if (status)
-		return;
-
-	if (hub->state == state)
-		return;
-	hub->state = state;
-
-	if (hub->state == SSAM_BASE_HUB_CONNECTED)
-		status = ssam_hub_register_clients(&hub->sdev->dev, hub->sdev->ctrl, node);
-	else
-		ssam_remove_clients(&hub->sdev->dev);
-
-	if (status)
-		dev_err(&hub->sdev->dev, "failed to update base-hub devices: %d\n", status);
-}
-
-static u32 ssam_base_hub_notif(struct ssam_event_notifier *nf, const struct ssam_event *event)
-{
-	struct ssam_base_hub *hub = container_of(nf, struct ssam_base_hub, notif);
-	unsigned long delay;
-
-	if (event->command_id != SSAM_EVENT_BAS_CID_CONNECTION)
-		return 0;
-
-	if (event->length < 1) {
-		dev_err(&hub->sdev->dev, "unexpected payload size: %u\n", event->length);
-		return 0;
-	}
-
-	/*
-	 * Delay update when the base is being connected to give devices/EC
-	 * some time to set up.
-	 */
-	delay = event->data[0] ? SSAM_BASE_UPDATE_CONNECT_DELAY : 0;
-
-	schedule_delayed_work(&hub->update_work, delay);
-
-	/*
-	 * Do not return SSAM_NOTIF_HANDLED: The event should be picked up and
-	 * consumed by the detachment system driver. We're just a (more or less)
-	 * silent observer.
-	 */
-	return 0;
-}
-
-static int __maybe_unused ssam_base_hub_resume(struct device *dev)
-{
-	struct ssam_base_hub *hub = dev_get_drvdata(dev);
-
-	schedule_delayed_work(&hub->update_work, 0);
-	return 0;
-}
-static SIMPLE_DEV_PM_OPS(ssam_base_hub_pm_ops, NULL, ssam_base_hub_resume);
-
-static int ssam_base_hub_probe(struct ssam_device *sdev)
-{
-	struct ssam_base_hub *hub;
-	int status;
-
-	hub = devm_kzalloc(&sdev->dev, sizeof(*hub), GFP_KERNEL);
-	if (!hub)
-		return -ENOMEM;
-
-	hub->sdev = sdev;
-	hub->state = SSAM_BASE_HUB_UNINITIALIZED;
-
-	hub->notif.base.priority = INT_MAX;  /* This notifier should run first. */
-	hub->notif.base.fn = ssam_base_hub_notif;
-	hub->notif.event.reg = SSAM_EVENT_REGISTRY_SAM;
-	hub->notif.event.id.target_category = SSAM_SSH_TC_BAS,
-	hub->notif.event.id.instance = 0,
-	hub->notif.event.mask = SSAM_EVENT_MASK_NONE;
-	hub->notif.event.flags = SSAM_EVENT_SEQUENCED;
-
-	INIT_DELAYED_WORK(&hub->update_work, ssam_base_hub_update_workfn);
-
-	ssam_device_set_drvdata(sdev, hub);
-
-	status = ssam_notifier_register(sdev->ctrl, &hub->notif);
-	if (status)
-		return status;
-
-	status = sysfs_create_group(&sdev->dev.kobj, &ssam_base_hub_group);
-	if (status)
-		goto err;
-
-	schedule_delayed_work(&hub->update_work, 0);
-	return 0;
-
-err:
-	ssam_notifier_unregister(sdev->ctrl, &hub->notif);
-	cancel_delayed_work_sync(&hub->update_work);
-	ssam_remove_clients(&sdev->dev);
-	return status;
-}
-
-static void ssam_base_hub_remove(struct ssam_device *sdev)
-{
-	struct ssam_base_hub *hub = ssam_device_get_drvdata(sdev);
-
-	sysfs_remove_group(&sdev->dev.kobj, &ssam_base_hub_group);
-
-	ssam_notifier_unregister(sdev->ctrl, &hub->notif);
-	cancel_delayed_work_sync(&hub->update_work);
-	ssam_remove_clients(&sdev->dev);
-}
-
-static const struct ssam_device_id ssam_base_hub_match[] = {
-	{ SSAM_VDEV(HUB, 0x02, SSAM_ANY_IID, 0x00) },
-	{ },
-};
-
-static struct ssam_device_driver ssam_base_hub_driver = {
-	.probe = ssam_base_hub_probe,
-	.remove = ssam_base_hub_remove,
-	.match_table = ssam_base_hub_match,
-	.driver = {
-		.name = "surface_aggregator_base_hub",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.pm = &ssam_base_hub_pm_ops,
-	},
 };
 
 
@@ -556,6 +327,9 @@ static const struct acpi_device_id ssam_platform_hub_match[] = {
 	/* Surface Laptop Go 1 */
 	{ "MSHW0118", (unsigned long)ssam_node_group_slg1 },
 
+	/* Surface Laptop Go 2 */
+	{ "MSHW0290", (unsigned long)ssam_node_group_slg1 },
+
 	/* Surface Laptop Studio */
 	{ "MSHW0123", (unsigned long)ssam_node_group_sls },
 
@@ -597,7 +371,7 @@ static int ssam_platform_hub_probe(struct platform_device *pdev)
 
 	set_secondary_fwnode(&pdev->dev, root);
 
-	status = ssam_hub_register_clients(&pdev->dev, ctrl, root);
+	status = __ssam_register_clients(&pdev->dev, ctrl, root);
 	if (status) {
 		set_secondary_fwnode(&pdev->dev, NULL);
 		software_node_unregister_node_group(nodes);
@@ -626,32 +400,7 @@ static struct platform_driver ssam_platform_hub_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
-
-
-/* -- Module initialization. ------------------------------------------------ */
-
-static int __init ssam_device_hub_init(void)
-{
-	int status;
-
-	status = platform_driver_register(&ssam_platform_hub_driver);
-	if (status)
-		return status;
-
-	status = ssam_device_driver_register(&ssam_base_hub_driver);
-	if (status)
-		platform_driver_unregister(&ssam_platform_hub_driver);
-
-	return status;
-}
-module_init(ssam_device_hub_init);
-
-static void __exit ssam_device_hub_exit(void)
-{
-	ssam_device_driver_unregister(&ssam_base_hub_driver);
-	platform_driver_unregister(&ssam_platform_hub_driver);
-}
-module_exit(ssam_device_hub_exit);
+module_platform_driver(ssam_platform_hub_driver);
 
 MODULE_AUTHOR("Maximilian Luz <luzmaximilian@gmail.com>");
 MODULE_DESCRIPTION("Device-registry for Surface System Aggregator Module");

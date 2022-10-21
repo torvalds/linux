@@ -19,7 +19,6 @@
 #include <linux/perf_event.h>
 #include <linux/err.h>
 
-#include "bpf_rlimit.h"
 #include "bpf_util.h"
 #include "cgroup_helpers.h"
 
@@ -70,7 +69,7 @@ int verify_result(const struct tcpnotify_globals *result)
 
 int main(int argc, char **argv)
 {
-	const char *file = "test_tcpnotify_kern.o";
+	const char *file = "test_tcpnotify_kern.bpf.o";
 	struct bpf_map *perf_map, *global_map;
 	struct tcpnotify_globals g = {0};
 	struct perf_buffer *pb = NULL;

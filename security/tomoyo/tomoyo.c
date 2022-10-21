@@ -264,17 +264,26 @@ static int tomoyo_path_link(struct dentry *old_dentry, const struct path *new_di
  * @old_dentry: Pointer to "struct dentry".
  * @new_parent: Pointer to "struct path".
  * @new_dentry: Pointer to "struct dentry".
+ * @flags: Rename options.
  *
  * Returns 0 on success, negative value otherwise.
  */
 static int tomoyo_path_rename(const struct path *old_parent,
 			      struct dentry *old_dentry,
 			      const struct path *new_parent,
-			      struct dentry *new_dentry)
+			      struct dentry *new_dentry,
+			      const unsigned int flags)
 {
 	struct path path1 = { .mnt = old_parent->mnt, .dentry = old_dentry };
 	struct path path2 = { .mnt = new_parent->mnt, .dentry = new_dentry };
 
+	if (flags & RENAME_EXCHANGE) {
+		const int err = tomoyo_path2_perm(TOMOYO_TYPE_RENAME, &path2,
+				&path1);
+
+		if (err)
+			return err;
+	}
 	return tomoyo_path2_perm(TOMOYO_TYPE_RENAME, &path1, &path2);
 }
 

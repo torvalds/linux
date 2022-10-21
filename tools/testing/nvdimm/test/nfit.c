@@ -23,8 +23,6 @@
 #include "nfit_test.h"
 #include "../watermark.h"
 
-#include <asm/mce.h>
-
 /*
  * Generate an NFIT table to describe the following topology:
  *
@@ -1842,7 +1840,7 @@ static int nfit_test_dimm_init(struct nfit_test *t)
 	return 0;
 }
 
-static void security_init(struct nfit_test *t)
+static void nfit_security_init(struct nfit_test *t)
 {
 	int i;
 
@@ -1938,7 +1936,7 @@ static int nfit_test0_alloc(struct nfit_test *t)
 	if (nfit_test_dimm_init(t))
 		return -ENOMEM;
 	smart_init(t);
-	security_init(t);
+	nfit_security_init(t);
 	return ars_state_init(&t->pdev.dev, &t->ars_state);
 }
 
@@ -2842,28 +2840,6 @@ static void nfit_test1_setup(struct nfit_test *t)
 	set_bit(ND_CMD_SET_CONFIG_DATA, &acpi_desc->dimm_cmd_force_en);
 }
 
-static int nfit_test_blk_do_io(struct nd_blk_region *ndbr, resource_size_t dpa,
-		void *iobuf, u64 len, int rw)
-{
-	struct nfit_blk *nfit_blk = ndbr->blk_provider_data;
-	struct nfit_blk_mmio *mmio = &nfit_blk->mmio[BDW];
-	struct nd_region *nd_region = &ndbr->nd_region;
-	unsigned int lane;
-
-	lane = nd_region_acquire_lane(nd_region);
-	if (rw)
-		memcpy(mmio->addr.base + dpa, iobuf, len);
-	else {
-		memcpy(iobuf, mmio->addr.base + dpa, len);
-
-		/* give us some some coverage of the arch_invalidate_pmem() API */
-		arch_invalidate_pmem(mmio->addr.base + dpa, len);
-	}
-	nd_region_release_lane(nd_region, lane);
-
-	return 0;
-}
-
 static unsigned long nfit_ctl_handle;
 
 union acpi_object *result;
@@ -3219,7 +3195,6 @@ static int nfit_test_probe(struct platform_device *pdev)
 	nfit_test->setup(nfit_test);
 	acpi_desc = &nfit_test->acpi_desc;
 	acpi_nfit_desc_init(acpi_desc, &pdev->dev);
-	acpi_desc->blk_do_io = nfit_test_blk_do_io;
 	nd_desc = &acpi_desc->nd_desc;
 	nd_desc->provider_name = NULL;
 	nd_desc->module = THIS_MODULE;
@@ -3398,7 +3373,6 @@ static __exit void nfit_test_exit(void)
 {
 	int i;
 
-	flush_workqueue(nfit_wq);
 	destroy_workqueue(nfit_wq);
 	for (i = 0; i < NUM_NFITS; i++)
 		platform_device_unregister(&instances[i]->pdev);

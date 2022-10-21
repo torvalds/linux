@@ -44,13 +44,28 @@ post_kprobe_handler(struct kprobe *, struct kprobe_ctlblk *, struct pt_regs *);
 static void __kprobes arch_prepare_ss_slot(struct kprobe *p)
 {
 	kprobe_opcode_t *addr = p->ainsn.api.insn;
-	void *addrs[] = {addr, addr + 1};
-	u32 insns[] = {p->opcode, BRK64_OPCODE_KPROBES_SS};
 
-	/* prepare insn slot */
-	aarch64_insn_patch_text(addrs, insns, 2);
-
-	flush_icache_range((uintptr_t)addr, (uintptr_t)(addr + MAX_INSN_SIZE));
+	/*
+	 * Prepare insn slot, Mark Rutland points out it depends on a coupe of
+	 * subtleties:
+	 *
+	 * - That the I-cache maintenance for these instructions is complete
+	 *   *before* the kprobe BRK is written (and aarch64_insn_patch_text_nosync()
+	 *   ensures this, but just omits causing a Context-Synchronization-Event
+	 *   on all CPUS).
+	 *
+	 * - That the kprobe BRK results in an exception (and consequently a
+	 *   Context-Synchronoization-Event), which ensures that the CPU will
+	 *   fetch thesingle-step slot instructions *after* this, ensuring that
+	 *   the new instructions are used
+	 *
+	 * It supposes to place ISB after patching to guarantee I-cache maintenance
+	 * is observed on all CPUS, however, single-step slot is installed in
+	 * the BRK exception handler, so it is unnecessary to generate
+	 * Contex-Synchronization-Event via ISB again.
+	 */
+	aarch64_insn_patch_text_nosync(addr, p->opcode);
+	aarch64_insn_patch_text_nosync(addr + 1, BRK64_OPCODE_KPROBES_SS);
 
 	/*
 	 * Needs restoring of return address after stepping xol.
@@ -335,7 +350,7 @@ static void __kprobes kprobe_handler(struct pt_regs *regs)
 }
 
 static int __kprobes
-kprobe_breakpoint_ss_handler(struct pt_regs *regs, unsigned int esr)
+kprobe_breakpoint_ss_handler(struct pt_regs *regs, unsigned long esr)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 	unsigned long addr = instruction_pointer(regs);
@@ -359,7 +374,7 @@ static struct break_hook kprobes_break_ss_hook = {
 };
 
 static int __kprobes
-kprobe_breakpoint_handler(struct pt_regs *regs, unsigned int esr)
+kprobe_breakpoint_handler(struct pt_regs *regs, unsigned long esr)
 {
 	kprobe_handler(regs);
 	return DBG_HOOK_HANDLED;

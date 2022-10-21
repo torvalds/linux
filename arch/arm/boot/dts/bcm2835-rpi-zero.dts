@@ -29,7 +29,6 @@
 	 * This is based on the official GPU firmware DT blob.
 	 *
 	 * Legend:
-	 * "NC" = not connected (no rail from the SoC)
 	 * "FOO" = GPIO line named "FOO" on the schematic
 	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
 	 */
@@ -64,22 +63,22 @@
 			  "GPIO27",
 			  "SDA0",
 			  "SCL0",
-			  "NC", /* GPIO30 */
-			  "NC", /* GPIO31 */
+			  "", /* GPIO30 */
+			  "", /* GPIO31 */
 			  "CAM_GPIO1", /* GPIO32 */
-			  "NC", /* GPIO33 */
-			  "NC", /* GPIO34 */
-			  "NC", /* GPIO35 */
-			  "NC", /* GPIO36 */
-			  "NC", /* GPIO37 */
-			  "NC", /* GPIO38 */
-			  "NC", /* GPIO39 */
-			  "NC", /* GPIO40 */
+			  "", /* GPIO33 */
+			  "", /* GPIO34 */
+			  "", /* GPIO35 */
+			  "", /* GPIO36 */
+			  "", /* GPIO37 */
+			  "", /* GPIO38 */
+			  "", /* GPIO39 */
+			  "", /* GPIO40 */
 			  "CAM_GPIO0", /* GPIO41 */
-			  "NC", /* GPIO42 */
-			  "NC", /* GPIO43 */
-			  "NC", /* GPIO44 */
-			  "NC", /* GPIO45 */
+			  "", /* GPIO42 */
+			  "", /* GPIO43 */
+			  "", /* GPIO44 */
+			  "", /* GPIO45 */
 			  "HDMI_HPD_N",
 			  "STATUS_LED_N",
 			  /* Used by SD Card */

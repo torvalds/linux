@@ -138,7 +138,7 @@ struct mtk_hsdma_vdesc {
 
 /**
  * struct mtk_hsdma_cb - This is the struct holding extra info required for RX
- *			 ring to know what relevant VD the the PD is being
+ *			 ring to know what relevant VD the PD is being
  *			 mapped to.
  * @vd:			 Pointer to the relevant VD.
  * @flag:		 Flag indicating what action should be taken when VD
@@ -601,7 +601,7 @@ static void mtk_hsdma_free_rooms_in_ring(struct mtk_hsdma_device *hsdma)
 			cb->flag = 0;
 		}
 
-		cb->vd = 0;
+		cb->vd = NULL;
 
 		/*
 		 * Recycle the RXD with the helper WRITE_ONCE that can ensure
@@ -761,7 +761,7 @@ static void mtk_hsdma_free_active_desc(struct dma_chan *c)
 	/*
 	 * Once issue_synchronize is being set, which means once the hardware
 	 * consumes all descriptors for the channel in the ring, the
-	 * synchronization must be be notified immediately it is completed.
+	 * synchronization must be notified immediately it is completed.
 	 */
 	spin_lock(&hvc->vc.lock);
 	if (!list_empty(&hvc->desc_hw_processing)) {
@@ -923,13 +923,10 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 		return PTR_ERR(hsdma->clk);
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "No irq resource for %s\n",
-			dev_name(&pdev->dev));
-		return -EINVAL;
-	}
-	hsdma->irq = res->start;
+	err = platform_get_irq(pdev, 0);
+	if (err < 0)
+		return err;
+	hsdma->irq = err;
 
 	refcount_set(&hsdma->pc_refcnt, 0);
 	spin_lock_init(&hsdma->lock);

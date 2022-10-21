@@ -46,9 +46,8 @@ examples:
       #dma-cells = <3>;
       dma-requests = <128>;
       dma-channels = <16>;
-      dma-masters = <&dma1 &dma2>;
+      dma-masters = <&dma1>, <&dma2>;
       clocks = <&timer_clk>;
     };
 
 ...
-

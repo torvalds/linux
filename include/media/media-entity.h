@@ -268,7 +268,6 @@ enum media_entity_type {
  * @pads:	Pads array with the size defined by @num_pads.
  * @links:	List of data links.
  * @ops:	Entity operations.
- * @stream_count: Stream count for the entity.
  * @use_count:	Use count for the entity.
  * @pipe:	Pipeline this entity belongs to.
  * @info:	Union with devnode information.  Kept just for backward
@@ -283,10 +282,9 @@ enum media_entity_type {
  *
  * .. note::
  *
- *    @stream_count and @use_count reference counts must never be
- *    negative, but are signed integers on purpose: a simple ``WARN_ON(<0)``
- *    check can be used to detect reference count bugs that would make them
- *    negative.
+ *    The @use_count reference count must never be negative, but is a signed
+ *    integer on purpose: a simple ``WARN_ON(<0)`` check can be used to detect
+ *    reference count bugs that would make it negative.
  */
 struct media_entity {
 	struct media_gobj graph_obj;	/* must be first field in struct */
@@ -305,7 +303,6 @@ struct media_entity {
 
 	const struct media_entity_operations *ops;
 
-	int stream_count;
 	int use_count;
 
 	struct media_pipeline *pipe;
@@ -657,6 +654,10 @@ int media_entity_pads_init(struct media_entity *entity, u16 num_pads,
  *
  * This function must be called during the cleanup phase after unregistering
  * the entity (currently, it does nothing).
+ *
+ * Calling media_entity_cleanup() on a media_entity whose memory has been
+ * zeroed but that has not been initialized with media_entity_pad_init() is
+ * valid and is a no-op.
  */
 #if IS_ENABLED(CONFIG_MEDIA_CONTROLLER)
 static inline void media_entity_cleanup(struct media_entity *entity) {}
@@ -847,7 +848,7 @@ struct media_link *media_entity_find_link(struct media_pad *source,
 		struct media_pad *sink);
 
 /**
- * media_entity_remote_pad - Find the pad at the remote end of a link
+ * media_pad_remote_pad_first - Find the first pad at the remote end of a link
  * @pad: Pad at the local end of the link
  *
  * Search for a remote pad connected to the given pad by iterating over all
@@ -856,7 +857,83 @@ struct media_link *media_entity_find_link(struct media_pad *source,
  * Return: returns a pointer to the pad at the remote end of the first found
  * enabled link, or %NULL if no enabled link has been found.
  */
-struct media_pad *media_entity_remote_pad(const struct media_pad *pad);
+struct media_pad *media_pad_remote_pad_first(const struct media_pad *pad);
+
+/**
+ * media_pad_remote_pad_unique - Find a remote pad connected to a pad
+ * @pad: The pad
+ *
+ * Search for and return a remote pad connected to @pad through an enabled
+ * link. If multiple (or no) remote pads are found, an error is returned.
+ *
+ * The uniqueness constraint makes this helper function suitable for entities
+ * that support a single active source at a time on a given pad.
+ *
+ * Return: A pointer to the remote pad, or one of the following error pointers
+ * if an error occurs:
+ *
+ * * -ENOTUNIQ - Multiple links are enabled
+ * * -ENOLINK - No connected pad found
+ */
+struct media_pad *media_pad_remote_pad_unique(const struct media_pad *pad);
+
+/**
+ * media_entity_remote_pad_unique - Find a remote pad connected to an entity
+ * @entity: The entity
+ * @type: The type of pad to find (MEDIA_PAD_FL_SINK or MEDIA_PAD_FL_SOURCE)
+ *
+ * Search for and return a remote pad of @type connected to @entity through an
+ * enabled link. If multiple (or no) remote pads match these criteria, an error
+ * is returned.
+ *
+ * The uniqueness constraint makes this helper function suitable for entities
+ * that support a single active source or sink at a time.
+ *
+ * Return: A pointer to the remote pad, or one of the following error pointers
+ * if an error occurs:
+ *
+ * * -ENOTUNIQ - Multiple links are enabled
+ * * -ENOLINK - No connected pad found
+ */
+struct media_pad *
+media_entity_remote_pad_unique(const struct media_entity *entity,
+			       unsigned int type);
+
+/**
+ * media_entity_remote_source_pad_unique - Find a remote source pad connected to
+ *	an entity
+ * @entity: The entity
+ *
+ * Search for and return a remote source pad connected to @entity through an
+ * enabled link. If multiple (or no) remote pads match these criteria, an error
+ * is returned.
+ *
+ * The uniqueness constraint makes this helper function suitable for entities
+ * that support a single active source at a time.
+ *
+ * Return: A pointer to the remote pad, or one of the following error pointers
+ * if an error occurs:
+ *
+ * * -ENOTUNIQ - Multiple links are enabled
+ * * -ENOLINK - No connected pad found
+ */
+static inline struct media_pad *
+media_entity_remote_source_pad_unique(const struct media_entity *entity)
+{
+	return media_entity_remote_pad_unique(entity, MEDIA_PAD_FL_SOURCE);
+}
+
+/**
+ * media_entity_is_streaming - Test if an entity is part of a streaming pipeline
+ * @entity: The entity
+ *
+ * Return: True if the entity is part of a pipeline started with the
+ * media_pipeline_start() function, false otherwise.
+ */
+static inline bool media_entity_is_streaming(const struct media_entity *entity)
+{
+	return entity->pipe;
+}
 
 /**
  * media_entity_get_fwnode_pad - Get pad number from fwnode
@@ -1017,7 +1094,6 @@ __must_check media_devnode_create(struct media_device *mdev,
  * removed.
  */
 void media_devnode_remove(struct media_intf_devnode *devnode);
-struct media_link *
 
 /**
  * media_create_intf_link() - creates a link between an entity and an interface
@@ -1048,6 +1124,7 @@ struct media_link *
  *    the interface and media_device_register_entity() should be called for the
  *    interface that will be part of the link.
  */
+struct media_link *
 __must_check media_create_intf_link(struct media_entity *entity,
 				    struct media_interface *intf,
 				    u32 flags);
@@ -1107,5 +1184,54 @@ void media_remove_intf_links(struct media_interface *intf);
 #define media_entity_call(entity, operation, args...)			\
 	(((entity)->ops && (entity)->ops->operation) ?			\
 	 (entity)->ops->operation((entity) , ##args) : -ENOIOCTLCMD)
+
+/**
+ * media_create_ancillary_link() - create an ancillary link between two
+ *				   instances of &media_entity
+ *
+ * @primary:	pointer to the primary &media_entity
+ * @ancillary:	pointer to the ancillary &media_entity
+ *
+ * Create an ancillary link between two entities, indicating that they
+ * represent two connected pieces of hardware that form a single logical unit.
+ * A typical example is a camera lens controller being linked to the sensor that
+ * it is supporting.
+ *
+ * The function sets both MEDIA_LNK_FL_ENABLED and MEDIA_LNK_FL_IMMUTABLE for
+ * the new link.
+ */
+struct media_link *
+media_create_ancillary_link(struct media_entity *primary,
+			    struct media_entity *ancillary);
+
+/**
+ * __media_entity_next_link() - Iterate through a &media_entity's links
+ *
+ * @entity:	pointer to the &media_entity
+ * @link:	pointer to a &media_link to hold the iterated values
+ * @link_type:	one of the MEDIA_LNK_FL_LINK_TYPE flags
+ *
+ * Return the next link against an entity matching a specific link type. This
+ * allows iteration through an entity's links whilst guaranteeing all of the
+ * returned links are of the given type.
+ */
+struct media_link *__media_entity_next_link(struct media_entity *entity,
+					    struct media_link *link,
+					    unsigned long link_type);
+
+/**
+ * for_each_media_entity_data_link() - Iterate through an entity's data links
+ *
+ * @entity:	pointer to the &media_entity
+ * @link:	pointer to a &media_link to hold the iterated values
+ *
+ * Iterate over a &media_entity's data links
+ */
+#define for_each_media_entity_data_link(entity, link)			\
+	for (link = __media_entity_next_link(entity, NULL,		\
+					     MEDIA_LNK_FL_DATA_LINK);	\
+	     link;							\
+	     link = __media_entity_next_link(entity, link,		\
+					     MEDIA_LNK_FL_DATA_LINK))
 
 #endif

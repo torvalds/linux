@@ -206,6 +206,9 @@ struct pt_cmd_queue {
 	unsigned int active;
 	unsigned int suspended;
 
+	/* Interrupt flag */
+	bool int_en;
+
 	/* Register addresses for queue */
 	void __iomem *reg_control;
 	u32 qcontrol; /* Cached control register */
@@ -318,7 +321,17 @@ void pt_core_destroy(struct pt_device *pt);
 int pt_core_perform_passthru(struct pt_cmd_queue *cmd_q,
 			     struct pt_passthru_engine *pt_engine);
 
+void pt_check_status_trans(struct pt_device *pt, struct pt_cmd_queue *cmd_q);
 void pt_start_queue(struct pt_cmd_queue *cmd_q);
 void pt_stop_queue(struct pt_cmd_queue *cmd_q);
 
+static inline void pt_core_disable_queue_interrupts(struct pt_device *pt)
+{
+	iowrite32(0, pt->cmd_q.reg_control + 0x000C);
+}
+
+static inline void pt_core_enable_queue_interrupts(struct pt_device *pt)
+{
+	iowrite32(SUPPORTED_INTERRUPTS, pt->cmd_q.reg_control + 0x000C);
+}
 #endif

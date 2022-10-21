@@ -14,9 +14,14 @@
 int rtrs_srv_reset_rdma_stats(struct rtrs_srv_stats *stats, bool enable)
 {
 	if (enable) {
-		struct rtrs_srv_stats_rdma_stats *r = &stats->rdma_stats;
+		int cpu;
+		struct rtrs_srv_stats_rdma_stats *r;
 
-		memset(r, 0, sizeof(*r));
+		for_each_possible_cpu(cpu) {
+			r = per_cpu_ptr(stats->rdma_stats, cpu);
+			memset(r, 0, sizeof(*r));
+		}
+
 		return 0;
 	}
 
@@ -25,11 +30,22 @@ int rtrs_srv_reset_rdma_stats(struct rtrs_srv_stats *stats, bool enable)
 
 ssize_t rtrs_srv_stats_rdma_to_str(struct rtrs_srv_stats *stats, char *page)
 {
-	struct rtrs_srv_stats_rdma_stats *r = &stats->rdma_stats;
+	int cpu;
+	struct rtrs_srv_stats_rdma_stats sum;
+	struct rtrs_srv_stats_rdma_stats *r;
 
-	return sysfs_emit(page, "%lld %lld %lld %lldn %u\n",
-			  (s64)atomic64_read(&r->dir[READ].cnt),
-			  (s64)atomic64_read(&r->dir[READ].size_total),
-			  (s64)atomic64_read(&r->dir[WRITE].cnt),
-			  (s64)atomic64_read(&r->dir[WRITE].size_total), 0);
+	memset(&sum, 0, sizeof(sum));
+
+	for_each_possible_cpu(cpu) {
+		r = per_cpu_ptr(stats->rdma_stats, cpu);
+
+		sum.dir[READ].cnt	  += r->dir[READ].cnt;
+		sum.dir[READ].size_total  += r->dir[READ].size_total;
+		sum.dir[WRITE].cnt	  += r->dir[WRITE].cnt;
+		sum.dir[WRITE].size_total += r->dir[WRITE].size_total;
+	}
+
+	return sysfs_emit(page, "%llu %llu %llu %llu\n",
+			  sum.dir[READ].cnt, sum.dir[READ].size_total,
+			  sum.dir[WRITE].cnt, sum.dir[WRITE].size_total);
 }

@@ -1,0 +1,113 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/samsung,mipi-video-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung S5P/Exynos SoC MIPI CSIS/DSIM DPHY
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+  - Marek Szyprowski <m.szyprowski@samsung.com>
+  - Sylwester Nawrocki <s.nawrocki@samsung.com>
+
+description: |
+  For samsung,s5pv210-mipi-video-phy compatible PHYs the second cell in the
+  PHY specifier identifies the PHY and its meaning is as follows::
+    0 - MIPI CSIS 0,
+    1 - MIPI DSIM 0,
+    2 - MIPI CSIS 1,
+    3 - MIPI DSIM 1.
+
+  samsung,exynos5420-mipi-video-phy and samsung,exynos5433-mipi-video-phy
+  support additional fifth PHY::
+    4 - MIPI CSIS 2.
+
+properties:
+  compatible:
+    enum:
+      - samsung,s5pv210-mipi-video-phy
+      - samsung,exynos5420-mipi-video-phy
+      - samsung,exynos5433-mipi-video-phy
+
+  "#phy-cells":
+    const: 1
+
+  syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to PMU system controller interface, valid only for
+      samsung,s5pv210-mipi-video-phy and samsung,exynos5420-mipi-video-phy.
+
+  samsung,pmu-syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to PMU system controller interface, valid for
+      samsung,exynos5433-mipi-video-phy.
+
+  samsung,disp-sysreg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to DISP system controller interface, valid for
+      samsung,exynos5433-mipi-video-phy.
+
+  samsung,cam0-sysreg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to CAM0 system controller interface, valid for
+      samsung,exynos5433-mipi-video-phy.
+
+  samsung,cam1-sysreg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to CAM1 system controller interface, valid for
+      samsung,exynos5433-mipi-video-phy.
+
+required:
+  - compatible
+  - "#phy-cells"
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,s5pv210-mipi-video-phy
+              - samsung,exynos5420-mipi-video-phy
+    then:
+      properties:
+        samsung,pmu-syscon: false
+        samsung,disp-sysreg: false
+        samsung,cam0-sysreg: false
+        samsung,cam1-sysreg: false
+      required:
+        - syscon
+    else:
+      properties:
+        syscon: false
+      required:
+        - samsung,pmu-syscon
+        - samsung,disp-sysreg
+        - samsung,cam0-sysreg
+        - samsung,cam1-sysreg
+
+additionalProperties: false
+
+examples:
+  - |
+    phy {
+        compatible = "samsung,exynos5433-mipi-video-phy";
+        #phy-cells = <1>;
+        samsung,pmu-syscon = <&pmu_system_controller>;
+        samsung,cam0-sysreg = <&syscon_cam0>;
+        samsung,cam1-sysreg = <&syscon_cam1>;
+        samsung,disp-sysreg = <&syscon_disp>;
+    };
+
+  - |
+    phy {
+        compatible = "samsung,s5pv210-mipi-video-phy";
+        syscon = <&pmu_system_controller>;
+        #phy-cells = <1>;
+    };

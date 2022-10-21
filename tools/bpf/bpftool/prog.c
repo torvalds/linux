@@ -26,6 +26,7 @@
 #include <bpf/btf.h>
 #include <bpf/hashmap.h>
 #include <bpf/libbpf.h>
+#include <bpf/libbpf_internal.h>
 #include <bpf/skel_internal.h>
 
 #include "cfg.h"
@@ -35,53 +36,28 @@
 #define BPF_METADATA_PREFIX "bpf_metadata_"
 #define BPF_METADATA_PREFIX_LEN (sizeof(BPF_METADATA_PREFIX) - 1)
 
-const char * const prog_type_name[] = {
-	[BPF_PROG_TYPE_UNSPEC]			= "unspec",
-	[BPF_PROG_TYPE_SOCKET_FILTER]		= "socket_filter",
-	[BPF_PROG_TYPE_KPROBE]			= "kprobe",
-	[BPF_PROG_TYPE_SCHED_CLS]		= "sched_cls",
-	[BPF_PROG_TYPE_SCHED_ACT]		= "sched_act",
-	[BPF_PROG_TYPE_TRACEPOINT]		= "tracepoint",
-	[BPF_PROG_TYPE_XDP]			= "xdp",
-	[BPF_PROG_TYPE_PERF_EVENT]		= "perf_event",
-	[BPF_PROG_TYPE_CGROUP_SKB]		= "cgroup_skb",
-	[BPF_PROG_TYPE_CGROUP_SOCK]		= "cgroup_sock",
-	[BPF_PROG_TYPE_LWT_IN]			= "lwt_in",
-	[BPF_PROG_TYPE_LWT_OUT]			= "lwt_out",
-	[BPF_PROG_TYPE_LWT_XMIT]		= "lwt_xmit",
-	[BPF_PROG_TYPE_SOCK_OPS]		= "sock_ops",
-	[BPF_PROG_TYPE_SK_SKB]			= "sk_skb",
-	[BPF_PROG_TYPE_CGROUP_DEVICE]		= "cgroup_device",
-	[BPF_PROG_TYPE_SK_MSG]			= "sk_msg",
-	[BPF_PROG_TYPE_RAW_TRACEPOINT]		= "raw_tracepoint",
-	[BPF_PROG_TYPE_CGROUP_SOCK_ADDR]	= "cgroup_sock_addr",
-	[BPF_PROG_TYPE_LWT_SEG6LOCAL]		= "lwt_seg6local",
-	[BPF_PROG_TYPE_LIRC_MODE2]		= "lirc_mode2",
-	[BPF_PROG_TYPE_SK_REUSEPORT]		= "sk_reuseport",
-	[BPF_PROG_TYPE_FLOW_DISSECTOR]		= "flow_dissector",
-	[BPF_PROG_TYPE_CGROUP_SYSCTL]		= "cgroup_sysctl",
-	[BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE]	= "raw_tracepoint_writable",
-	[BPF_PROG_TYPE_CGROUP_SOCKOPT]		= "cgroup_sockopt",
-	[BPF_PROG_TYPE_TRACING]			= "tracing",
-	[BPF_PROG_TYPE_STRUCT_OPS]		= "struct_ops",
-	[BPF_PROG_TYPE_EXT]			= "ext",
-	[BPF_PROG_TYPE_LSM]			= "lsm",
-	[BPF_PROG_TYPE_SK_LOOKUP]		= "sk_lookup",
-};
-
-const size_t prog_type_name_size = ARRAY_SIZE(prog_type_name);
-
 enum dump_mode {
 	DUMP_JITED,
 	DUMP_XLATED,
 };
 
+static const bool attach_types[] = {
+	[BPF_SK_SKB_STREAM_PARSER] = true,
+	[BPF_SK_SKB_STREAM_VERDICT] = true,
+	[BPF_SK_SKB_VERDICT] = true,
+	[BPF_SK_MSG_VERDICT] = true,
+	[BPF_FLOW_DISSECTOR] = true,
+	[__MAX_BPF_ATTACH_TYPE] = false,
+};
+
+/* Textual representations traditionally used by the program and kept around
+ * for the sake of backwards compatibility.
+ */
 static const char * const attach_type_strings[] = {
 	[BPF_SK_SKB_STREAM_PARSER] = "stream_parser",
 	[BPF_SK_SKB_STREAM_VERDICT] = "stream_verdict",
 	[BPF_SK_SKB_VERDICT] = "skb_verdict",
 	[BPF_SK_MSG_VERDICT] = "msg_verdict",
-	[BPF_FLOW_DISSECTOR] = "flow_dissector",
 	[__MAX_BPF_ATTACH_TYPE] = NULL,
 };
 
@@ -92,6 +68,14 @@ static enum bpf_attach_type parse_attach_type(const char *str)
 	enum bpf_attach_type type;
 
 	for (type = 0; type < __MAX_BPF_ATTACH_TYPE; type++) {
+		if (attach_types[type]) {
+			const char *attach_type_str;
+
+			attach_type_str = libbpf_bpf_attach_type_str(type);
+			if (!strcmp(str, attach_type_str))
+				return type;
+		}
+
 		if (attach_type_strings[type] &&
 		    is_prefix(str, attach_type_strings[type]))
 			return type;
@@ -424,17 +408,23 @@ out_free:
 	free(value);
 }
 
-static void print_prog_header_json(struct bpf_prog_info *info)
+static void print_prog_header_json(struct bpf_prog_info *info, int fd)
 {
+	const char *prog_type_str;
+	char prog_name[MAX_PROG_FULL_NAME];
+
 	jsonw_uint_field(json_wtr, "id", info->id);
-	if (info->type < ARRAY_SIZE(prog_type_name))
-		jsonw_string_field(json_wtr, "type",
-				   prog_type_name[info->type]);
+	prog_type_str = libbpf_bpf_prog_type_str(info->type);
+
+	if (prog_type_str)
+		jsonw_string_field(json_wtr, "type", prog_type_str);
 	else
 		jsonw_uint_field(json_wtr, "type", info->type);
 
-	if (*info->name)
-		jsonw_string_field(json_wtr, "name", info->name);
+	if (*info->name) {
+		get_prog_full_name(info, fd, prog_name, sizeof(prog_name));
+		jsonw_string_field(json_wtr, "name", prog_name);
+	}
 
 	jsonw_name(json_wtr, "tag");
 	jsonw_printf(json_wtr, "\"" BPF_TAG_FMT "\"",
@@ -455,7 +445,7 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 	char *memlock;
 
 	jsonw_start_object(json_wtr);
-	print_prog_header_json(info);
+	print_prog_header_json(info, fd);
 	print_dev_json(info->ifindex, info->netns_dev, info->netns_ino);
 
 	if (info->load_time) {
@@ -480,7 +470,7 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 
 	memlock = get_fdinfo(fd, "memlock");
 	if (memlock)
-		jsonw_int_field(json_wtr, "bytes_memlock", atoi(memlock));
+		jsonw_int_field(json_wtr, "bytes_memlock", atoll(memlock));
 	free(memlock);
 
 	if (info->nr_map_ids)
@@ -507,16 +497,22 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 	jsonw_end_object(json_wtr);
 }
 
-static void print_prog_header_plain(struct bpf_prog_info *info)
+static void print_prog_header_plain(struct bpf_prog_info *info, int fd)
 {
+	const char *prog_type_str;
+	char prog_name[MAX_PROG_FULL_NAME];
+
 	printf("%u: ", info->id);
-	if (info->type < ARRAY_SIZE(prog_type_name))
-		printf("%s  ", prog_type_name[info->type]);
+	prog_type_str = libbpf_bpf_prog_type_str(info->type);
+	if (prog_type_str)
+		printf("%s  ", prog_type_str);
 	else
 		printf("type %u  ", info->type);
 
-	if (*info->name)
-		printf("name %s  ", info->name);
+	if (*info->name) {
+		get_prog_full_name(info, fd, prog_name, sizeof(prog_name));
+		printf("name %s  ", prog_name);
+	}
 
 	printf("tag ");
 	fprint_hex(stdout, info->tag, BPF_TAG_SIZE, "");
@@ -534,7 +530,7 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 {
 	char *memlock;
 
-	print_prog_header_plain(info);
+	print_prog_header_plain(info, fd);
 
 	if (info->load_time) {
 		char buf[32];
@@ -641,7 +637,7 @@ static int do_show(int argc, char **argv)
 	if (show_pinned) {
 		prog_table = hashmap__new(hash_fn_for_key_as_id,
 					  equal_fn_for_key_as_id, NULL);
-		if (!prog_table) {
+		if (IS_ERR(prog_table)) {
 			p_err("failed to create hashmap for pinned paths");
 			return -1;
 		}
@@ -972,10 +968,10 @@ static int do_dump(int argc, char **argv)
 
 		if (json_output && nb_fds > 1) {
 			jsonw_start_object(json_wtr);	/* prog object */
-			print_prog_header_json(&info);
+			print_prog_header_json(&info, fds[i]);
 			jsonw_name(json_wtr, "insns");
 		} else if (nb_fds > 1) {
-			print_prog_header_plain(&info);
+			print_prog_header_plain(&info, fds[i]);
 		}
 
 		err = prog_dump(&info, mode, filepath, opcodes, visual, linum);
@@ -1264,12 +1260,12 @@ static int do_run(int argc, char **argv)
 {
 	char *data_fname_in = NULL, *data_fname_out = NULL;
 	char *ctx_fname_in = NULL, *ctx_fname_out = NULL;
-	struct bpf_prog_test_run_attr test_attr = {0};
 	const unsigned int default_size = SZ_32K;
 	void *data_in = NULL, *data_out = NULL;
 	void *ctx_in = NULL, *ctx_out = NULL;
 	unsigned int repeat = 1;
 	int fd, err;
+	LIBBPF_OPTS(bpf_test_run_opts, test_attr);
 
 	if (!REQ_ARGS(4))
 		return -1;
@@ -1387,14 +1383,13 @@ static int do_run(int argc, char **argv)
 			goto free_ctx_in;
 	}
 
-	test_attr.prog_fd	= fd;
 	test_attr.repeat	= repeat;
 	test_attr.data_in	= data_in;
 	test_attr.data_out	= data_out;
 	test_attr.ctx_in	= ctx_in;
 	test_attr.ctx_out	= ctx_out;
 
-	err = bpf_prog_test_run_xattr(&test_attr);
+	err = bpf_prog_test_run_opts(fd, &test_attr);
 	if (err) {
 		p_err("failed to run program: %s", strerror(errno));
 		goto free_ctx_out;
@@ -1551,9 +1546,9 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 			if (fd < 0)
 				goto err_free_reuse_maps;
 
-			new_map_replace = reallocarray(map_replace,
-						       old_map_fds + 1,
-						       sizeof(*map_replace));
+			new_map_replace = libbpf_reallocarray(map_replace,
+							      old_map_fds + 1,
+							      sizeof(*map_replace));
 			if (!new_map_replace) {
 				p_err("mem alloc failed");
 				goto err_free_reuse_maps;
@@ -1967,7 +1962,7 @@ static int profile_parse_metrics(int argc, char **argv)
 	int selected_cnt = 0;
 	unsigned int i;
 
-	metric_cnt = sizeof(metrics) / sizeof(struct profile_metric);
+	metric_cnt = ARRAY_SIZE(metrics);
 
 	while (argc > 0) {
 		for (i = 0; i < metric_cnt; i++) {
@@ -2275,10 +2270,10 @@ static int do_profile(int argc, char **argv)
 	profile_obj->rodata->num_metric = num_metric;
 
 	/* adjust map sizes */
-	bpf_map__resize(profile_obj->maps.events, num_metric * num_cpu);
-	bpf_map__resize(profile_obj->maps.fentry_readings, num_metric);
-	bpf_map__resize(profile_obj->maps.accum_readings, num_metric);
-	bpf_map__resize(profile_obj->maps.counts, 1);
+	bpf_map__set_max_entries(profile_obj->maps.events, num_metric * num_cpu);
+	bpf_map__set_max_entries(profile_obj->maps.fentry_readings, num_metric);
+	bpf_map__set_max_entries(profile_obj->maps.accum_readings, num_metric);
+	bpf_map__set_max_entries(profile_obj->maps.counts, 1);
 
 	/* change target name */
 	profile_tgt_name = profile_target_name(profile_tgt_fd);
@@ -2368,8 +2363,8 @@ static int do_help(int argc, char **argv)
 		"                 cgroup/sendmsg6 | cgroup/recvmsg4 | cgroup/recvmsg6 |\n"
 		"                 cgroup/getsockopt | cgroup/setsockopt | cgroup/sock_release |\n"
 		"                 struct_ops | fentry | fexit | freplace | sk_lookup }\n"
-		"       ATTACH_TYPE := { msg_verdict | skb_verdict | stream_verdict |\n"
-		"                        stream_parser | flow_dissector }\n"
+		"       ATTACH_TYPE := { sk_msg_verdict | sk_skb_verdict | sk_skb_stream_verdict |\n"
+		"                        sk_skb_stream_parser | flow_dissector }\n"
 		"       METRIC := { cycles | instructions | l1d_loads | llc_misses | itlb_misses | dtlb_misses }\n"
 		"       " HELP_SPEC_OPTIONS " |\n"
 		"                    {-f|--bpffs} | {-m|--mapcompat} | {-n|--nomount} |\n"

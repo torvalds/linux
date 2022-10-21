@@ -4,7 +4,7 @@ config DRM_AMDGPU_SI
 	depends on DRM_AMDGPU
 	help
 	  Choose this option if you want to enable experimental support
-	  for SI asics.
+	  for SI (Southern Islands) asics.
 
 	  SI is already supported in radeon. Experimental support for SI
 	  in amdgpu will be disabled by default and is still provided by
@@ -16,7 +16,8 @@ config DRM_AMDGPU_CIK
 	bool "Enable amdgpu support for CIK parts"
 	depends on DRM_AMDGPU
 	help
-	  Choose this option if you want to enable support for CIK asics.
+	  Choose this option if you want to enable support for CIK (Sea
+	  Islands) asics.
 
 	  CIK is already supported in radeon. Support for CIK in amdgpu
 	  will be disabled by default and is still provided by radeon.

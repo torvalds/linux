@@ -36,7 +36,7 @@ static ssize_t read_file_node_aggr(struct file *file, char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	if (!an->sta->ht_cap.ht_supported) {
+	if (!an->sta->deflink.ht_cap.ht_supported) {
 		len = scnprintf(buf, size, "%s\n",
 				"HT not supported");
 		goto exit;
@@ -186,7 +186,7 @@ static ssize_t read_file_node_recv(struct file *file, char __user *user_buf,
 	band = ah->curchan->chan->band;
 	rstats = &an->rx_rate_stats;
 
-	if (!sta->ht_cap.ht_supported)
+	if (!sta->deflink.ht_cap.ht_supported)
 		goto legacy;
 
 	len += scnprintf(buf + len, size - len,

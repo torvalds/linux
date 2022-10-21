@@ -9,12 +9,12 @@
 extern int phys_mapping(unsigned long phys, unsigned long long *offset_out);
 
 extern unsigned long uml_physmem;
-static inline unsigned long to_phys(void *virt)
+static inline unsigned long uml_to_phys(void *virt)
 {
 	return(((unsigned long) virt) - uml_physmem);
 }
 
-static inline void *to_virt(unsigned long phys)
+static inline void *uml_to_virt(unsigned long phys)
 {
 	return((void *) uml_physmem + phys);
 }

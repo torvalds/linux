@@ -96,7 +96,6 @@ Linux内核代码中包含有大量的文档。这些文档对于学习如何与
     的代码。
 
   :ref:`Documentation/translations/zh_CN/process/submitting-patches.rst <cn_submittingpatches>`
-  :ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`
 
     这两份文档明确描述如何创建和发送补丁，其中包括（但不仅限于)：
        - 邮件内容
@@ -252,7 +251,7 @@ Linux-next 集成测试树
 在将子系统树的更新合并到主线树之前，需要对它们进行集成测试。为此，存在一个
 特殊的测试存储库，其中几乎每天都会提取所有子系统树：
 
-        https://git.kernel.org/？p=linux/kernel/git/next/linux-next.git
+        https://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
 
 通过这种方式，Linux-next 对下一个合并阶段将进入主线内核的内容给出了一个概要
 展望。非常欢冒险的测试者运行测试Linux-next。
@@ -307,7 +306,7 @@ bugzilla.kernel.org是Linux内核开发者们用来跟踪内核Bug的网站。�
 网上很多地方都有这个邮件列表的存档(archive)。可以使用搜索引擎来找到这些
 存档。比如：
 
-	http://dir.gmane.org/gmane.linux.kernel
+	https://lore.kernel.org/lkml/
 
 在发信之前，我们强烈建议你先在存档中搜索你想要讨论的问题。很多已经被详细
 讨论过的问题只在邮件列表的存档中可以找到。

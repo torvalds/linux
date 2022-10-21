@@ -1223,11 +1223,8 @@ static int tegra_nand_remove(struct platform_device *pdev)
 	struct tegra_nand_controller *ctrl = platform_get_drvdata(pdev);
 	struct nand_chip *chip = ctrl->chip;
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	int ret;
 
-	ret = mtd_device_unregister(mtd);
-	if (ret)
-		return ret;
+	WARN_ON(mtd_device_unregister(mtd));
 
 	nand_cleanup(chip);
 

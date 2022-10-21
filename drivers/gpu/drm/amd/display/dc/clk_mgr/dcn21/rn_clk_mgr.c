@@ -24,12 +24,10 @@
  */
 
 #include "dccg.h"
-#include "clk_mgr_internal.h"
-
-
-#include "dcn20/dcn20_clk_mgr.h"
 #include "rn_clk_mgr.h"
 
+#include "dcn20/dcn20_clk_mgr.h"
+#include "dml/dcn20/dcn20_fpu.h"
 
 #include "dce100/dce_clk_mgr.h"
 #include "rn_clk_mgr_vbios_smu.h"
@@ -45,7 +43,6 @@
 
 /* Constants */
 
-#define LPDDR_MEM_RETRAIN_LATENCY 4.977 /* Number obtained from LPDDR4 Training Counter Requirement doc */
 #define SMU_VER_55_51_0 0x373300 /* SMU Version that is able to set DISPCLK below 100MHz */
 
 /* Macros */
@@ -88,11 +85,22 @@ static int rn_get_active_display_cnt_wa(struct dc *dc, struct dc_state *context)
 
 static void rn_set_low_power_state(struct clk_mgr *clk_mgr_base)
 {
+	int display_count;
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	struct dc *dc = clk_mgr_base->ctx->dc;
+	struct dc_state *context = dc->current_state;
 
-	rn_vbios_smu_set_dcn_low_power_state(clk_mgr, DCN_PWR_STATE_LOW_POWER);
-	/* update power state */
-	clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_LOW_POWER;
+	if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_LOW_POWER) {
+
+		display_count = rn_get_active_display_cnt_wa(dc, context);
+
+		/* if we can go lower, go lower */
+		if (display_count == 0) {
+			rn_vbios_smu_set_dcn_low_power_state(clk_mgr, DCN_PWR_STATE_LOW_POWER);
+			/* update power state */
+			clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_LOW_POWER;
+		}
+	}
 }
 
 static void rn_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
@@ -111,7 +119,7 @@ static void rn_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 		dpp_inst = clk_mgr->base.ctx->dc->res_pool->dpps[i]->inst;
 		dppclk_khz = context->res_ctx.pipe_ctx[i].plane_res.bw.dppclk_khz;
 
-		prev_dppclk_khz = clk_mgr->dccg->pipe_dppclk_khz[i];
+		prev_dppclk_khz = clk_mgr->dccg->pipe_dppclk_khz[dpp_inst];
 
 		if (safe_to_lower || prev_dppclk_khz < dppclk_khz)
 			clk_mgr->dccg->funcs->update_dpp_dto(
@@ -602,228 +610,6 @@ static struct clk_bw_params rn_bw_params = {
 
 };
 
-static struct wm_table ddr4_wm_table_gs = {
-	.entries = {
-		{
-			.wm_inst = WM_A,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 7.09,
-			.sr_enter_plus_exit_time_us = 8.14,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_B,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 10.12,
-			.sr_enter_plus_exit_time_us = 11.48,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_C,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 10.12,
-			.sr_enter_plus_exit_time_us = 11.48,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_D,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 10.12,
-			.sr_enter_plus_exit_time_us = 11.48,
-			.valid = true,
-		},
-	}
-};
-
-static struct wm_table lpddr4_wm_table_gs = {
-	.entries = {
-		{
-			.wm_inst = WM_A,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 5.32,
-			.sr_enter_plus_exit_time_us = 6.38,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_B,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 9.82,
-			.sr_enter_plus_exit_time_us = 11.196,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_C,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 9.89,
-			.sr_enter_plus_exit_time_us = 11.24,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_D,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 9.748,
-			.sr_enter_plus_exit_time_us = 11.102,
-			.valid = true,
-		},
-	}
-};
-
-static struct wm_table lpddr4_wm_table_with_disabled_ppt = {
-	.entries = {
-		{
-			.wm_inst = WM_A,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 8.32,
-			.sr_enter_plus_exit_time_us = 9.38,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_B,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 9.82,
-			.sr_enter_plus_exit_time_us = 11.196,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_C,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 9.89,
-			.sr_enter_plus_exit_time_us = 11.24,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_D,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 9.748,
-			.sr_enter_plus_exit_time_us = 11.102,
-			.valid = true,
-		},
-	}
-};
-
-static struct wm_table ddr4_wm_table_rn = {
-	.entries = {
-		{
-			.wm_inst = WM_A,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 11.90,
-			.sr_enter_plus_exit_time_us = 12.80,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_B,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 13.18,
-			.sr_enter_plus_exit_time_us = 14.30,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_C,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 13.18,
-			.sr_enter_plus_exit_time_us = 14.30,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_D,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 13.18,
-			.sr_enter_plus_exit_time_us = 14.30,
-			.valid = true,
-		},
-	}
-};
-
-static struct wm_table ddr4_1R_wm_table_rn = {
-	.entries = {
-		{
-			.wm_inst = WM_A,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 13.90,
-			.sr_enter_plus_exit_time_us = 14.80,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_B,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 13.90,
-			.sr_enter_plus_exit_time_us = 14.80,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_C,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 13.90,
-			.sr_enter_plus_exit_time_us = 14.80,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_D,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 13.90,
-			.sr_enter_plus_exit_time_us = 14.80,
-			.valid = true,
-		},
-	}
-};
-
-static struct wm_table lpddr4_wm_table_rn = {
-	.entries = {
-		{
-			.wm_inst = WM_A,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 7.32,
-			.sr_enter_plus_exit_time_us = 8.38,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_B,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 9.82,
-			.sr_enter_plus_exit_time_us = 11.196,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_C,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 9.89,
-			.sr_enter_plus_exit_time_us = 11.24,
-			.valid = true,
-		},
-		{
-			.wm_inst = WM_D,
-			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 9.748,
-			.sr_enter_plus_exit_time_us = 11.102,
-			.valid = true,
-		},
-	}
-};
-
 static unsigned int find_socclk_for_voltage(struct dpm_clocks *clock_table, unsigned int voltage)
 {
 	int i;
@@ -903,12 +689,10 @@ static void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params
 		/*
 		 * WM set D will be re-purposed for memory retraining
 		 */
-		bw_params->wm_table.entries[WM_D].pstate_latency_us = LPDDR_MEM_RETRAIN_LATENCY;
-		bw_params->wm_table.entries[WM_D].wm_inst = WM_D;
-		bw_params->wm_table.entries[WM_D].wm_type = WM_TYPE_RETRAINING;
-		bw_params->wm_table.entries[WM_D].valid = true;
+		DC_FP_START();
+		dcn21_clk_mgr_set_bw_params_wm_table(bw_params);
+		DC_FP_END();
 	}
-
 }
 
 void rn_clk_mgr_construct(

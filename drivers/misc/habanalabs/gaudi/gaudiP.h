@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2019-2020 HabanaLabs, Ltd.
+ * Copyright 2019-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -148,14 +148,14 @@
 #define MME_QMAN_LENGTH			1024
 #define MME_QMAN_SIZE_IN_BYTES		(MME_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE)
 
-#define HBM_DMA_QMAN_LENGTH		1024
+#define HBM_DMA_QMAN_LENGTH		4096
 #define HBM_DMA_QMAN_SIZE_IN_BYTES	\
 				(HBM_DMA_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE)
 
 #define TPC_QMAN_LENGTH			1024
 #define TPC_QMAN_SIZE_IN_BYTES		(TPC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE)
 
-#define NIC_QMAN_LENGTH			1024
+#define NIC_QMAN_LENGTH			4096
 #define NIC_QMAN_SIZE_IN_BYTES		(NIC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE)
 
 
@@ -177,7 +177,6 @@
 #define HW_CAP_MSI		BIT(6)
 #define HW_CAP_CPU_Q		BIT(7)
 #define HW_CAP_HBM_DMA		BIT(8)
-#define HW_CAP_CLK_GATE		BIT(9)
 #define HW_CAP_SRAM_SCRAMBLER	BIT(10)
 #define HW_CAP_HBM_SCRAMBLER	BIT(11)
 
@@ -313,8 +312,6 @@ struct gaudi_internal_qman_info {
  * struct gaudi_device - ASIC specific manage structure.
  * @cpucp_info_get: get information on device from CPU-CP
  * @hw_queues_lock: protects the H/W queues from concurrent access.
- * @clk_gate_mutex: protects code areas that require clock gating to be disabled
- *                  temporarily
  * @internal_qmans: Internal QMANs information. The array size is larger than
  *                  the actual number of internal queues because they are not in
  *                  consecutive order.
@@ -337,7 +334,6 @@ struct gaudi_device {
 
 	/* TODO: remove hw_queues_lock after moving to scheduler code */
 	spinlock_t			hw_queues_lock;
-	struct mutex			clk_gate_mutex;
 
 	struct gaudi_internal_qman_info	internal_qmans[GAUDI_QUEUE_ID_SIZE];
 
@@ -355,8 +351,6 @@ struct gaudi_device {
 
 void gaudi_init_security(struct hl_device *hdev);
 void gaudi_ack_protection_bits_errors(struct hl_device *hdev);
-void gaudi_add_device_attr(struct hl_device *hdev,
-			struct attribute_group *dev_attr_grp);
 int gaudi_debug_coresight(struct hl_device *hdev, struct hl_ctx *ctx, void *data);
 void gaudi_halt_coresight(struct hl_device *hdev, struct hl_ctx *ctx);
 void gaudi_mmu_prepare_reg(struct hl_device *hdev, u64 reg, u32 asid);

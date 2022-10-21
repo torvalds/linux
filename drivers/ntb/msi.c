@@ -33,7 +33,6 @@ int ntb_msi_init(struct ntb_dev *ntb,
 {
 	phys_addr_t mw_phys_addr;
 	resource_size_t mw_size;
-	size_t struct_size;
 	int peer_widx;
 	int peers;
 	int ret;
@@ -43,9 +42,8 @@ int ntb_msi_init(struct ntb_dev *ntb,
 	if (peers <= 0)
 		return -EINVAL;
 
-	struct_size = sizeof(*ntb->msi) + sizeof(*ntb->msi->peer_mws) * peers;
-
-	ntb->msi = devm_kzalloc(&ntb->dev, struct_size, GFP_KERNEL);
+	ntb->msi = devm_kzalloc(&ntb->dev, struct_size(ntb->msi, peer_mws, peers),
+				GFP_KERNEL);
 	if (!ntb->msi)
 		return -ENOMEM;
 

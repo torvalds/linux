@@ -36,7 +36,6 @@
 extern struct bus_type coresight_bustype;
 
 enum coresight_dev_type {
-	CORESIGHT_DEV_TYPE_NONE,
 	CORESIGHT_DEV_TYPE_SINK,
 	CORESIGHT_DEV_TYPE_LINK,
 	CORESIGHT_DEV_TYPE_LINKSINK,
@@ -46,7 +45,6 @@ enum coresight_dev_type {
 };
 
 enum coresight_dev_subtype_sink {
-	CORESIGHT_DEV_SUBTYPE_SINK_NONE,
 	CORESIGHT_DEV_SUBTYPE_SINK_PORT,
 	CORESIGHT_DEV_SUBTYPE_SINK_BUFFER,
 	CORESIGHT_DEV_SUBTYPE_SINK_SYSMEM,
@@ -54,21 +52,18 @@ enum coresight_dev_subtype_sink {
 };
 
 enum coresight_dev_subtype_link {
-	CORESIGHT_DEV_SUBTYPE_LINK_NONE,
 	CORESIGHT_DEV_SUBTYPE_LINK_MERG,
 	CORESIGHT_DEV_SUBTYPE_LINK_SPLIT,
 	CORESIGHT_DEV_SUBTYPE_LINK_FIFO,
 };
 
 enum coresight_dev_subtype_source {
-	CORESIGHT_DEV_SUBTYPE_SOURCE_NONE,
 	CORESIGHT_DEV_SUBTYPE_SOURCE_PROC,
 	CORESIGHT_DEV_SUBTYPE_SOURCE_BUS,
 	CORESIGHT_DEV_SUBTYPE_SOURCE_SOFTWARE,
 };
 
 enum coresight_dev_subtype_helper {
-	CORESIGHT_DEV_SUBTYPE_HELPER_NONE,
 	CORESIGHT_DEV_SUBTYPE_HELPER_CATU,
 };
 
@@ -375,6 +370,29 @@ static inline u32 csdev_access_relaxed_read32(struct csdev_access *csa,
 		return readl_relaxed(csa->base + offset);
 
 	return csa->read(offset, true, false);
+}
+
+static inline u64 csdev_access_relaxed_read_pair(struct csdev_access *csa,
+						 u32 lo_offset, u32 hi_offset)
+{
+	if (likely(csa->io_mem)) {
+		return readl_relaxed(csa->base + lo_offset) |
+			((u64)readl_relaxed(csa->base + hi_offset) << 32);
+	}
+
+	return csa->read(lo_offset, true, false) | (csa->read(hi_offset, true, false) << 32);
+}
+
+static inline void csdev_access_relaxed_write_pair(struct csdev_access *csa, u64 val,
+						   u32 lo_offset, u32 hi_offset)
+{
+	if (likely(csa->io_mem)) {
+		writel_relaxed((u32)val, csa->base + lo_offset);
+		writel_relaxed((u32)(val >> 32), csa->base + hi_offset);
+	} else {
+		csa->write((u32)val, lo_offset, true, false);
+		csa->write((u32)(val >> 32), hi_offset, true, false);
+	}
 }
 
 static inline u32 csdev_access_read32(struct csdev_access *csa, u32 offset)

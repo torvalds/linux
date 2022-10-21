@@ -35,7 +35,7 @@
 
 #include "regs-gpio.h"
 #include <linux/platform_data/leds-s3c24xx.h>
-#include <mach/irqs.h>
+#include "irqs.h"
 #include "gpio-samsung.h"
 #include <linux/platform_data/mtd-nand-s3c2410.h>
 #include <linux/platform_data/i2c-s3c2410.h>
@@ -93,9 +93,15 @@ static struct s3c2410_uartcfg mini2440_uartcfgs[] __initdata = {
 /* USB device UDC support */
 
 static struct s3c2410_udc_mach_info mini2440_udc_cfg __initdata = {
-	.pullup_pin = S3C2410_GPC(5),
 };
 
+static struct gpiod_lookup_table mini2440_udc_gpio_table = {
+	.dev_id = "s3c2410-usbgadget",
+	.table = {
+		GPIO_LOOKUP("GPIOC", 5, "pullup", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
 
 /* LCD timing and setup */
 
@@ -624,7 +630,7 @@ static char mini2440_features_str[12] __initdata = "0tb";
 static int __init mini2440_features_setup(char *str)
 {
 	if (str)
-		strlcpy(mini2440_features_str, str,
+		strscpy(mini2440_features_str, str,
 			sizeof(mini2440_features_str));
 	return 1;
 }
@@ -755,6 +761,7 @@ static void __init mini2440_init(void)
 		s3c24xx_fb_set_platdata(&mini2440_fb_info);
 	}
 
+	gpiod_add_lookup_table(&mini2440_udc_gpio_table);
 	s3c24xx_udc_set_platdata(&mini2440_udc_cfg);
 	gpiod_add_lookup_table(&mini2440_mmc_gpio_table);
 	s3c24xx_mci_set_platdata(&mini2440_mmc_cfg);
@@ -789,6 +796,7 @@ static void __init mini2440_init(void)
 MACHINE_START(MINI2440, "MINI2440")
 	/* Maintainer: Michel Pollet <buserror@gmail.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_S3C2440,
 	.map_io		= mini2440_map_io,
 	.init_machine	= mini2440_init,
 	.init_irq	= s3c2440_init_irq,

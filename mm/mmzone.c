@@ -81,6 +81,15 @@ void lruvec_init(struct lruvec *lruvec)
 
 	for_each_lru(lru)
 		INIT_LIST_HEAD(&lruvec->lists[lru]);
+	/*
+	 * The "Unevictable LRU" is imaginary: though its size is maintained,
+	 * it is never scanned, and unevictable pages are not threaded on it
+	 * (so that their lru fields can be reused to hold mlock_count).
+	 * Poison its list head, so that any operations on it would crash.
+	 */
+	list_del(&lruvec->lists[LRU_UNEVICTABLE]);
+
+	lru_gen_init_lruvec(lruvec);
 }
 
 #if defined(CONFIG_NUMA_BALANCING) && !defined(LAST_CPUPID_NOT_IN_PAGE_FLAGS)
@@ -89,13 +98,14 @@ int page_cpupid_xchg_last(struct page *page, int cpupid)
 	unsigned long old_flags, flags;
 	int last_cpupid;
 
+	old_flags = READ_ONCE(page->flags);
 	do {
-		old_flags = flags = page->flags;
-		last_cpupid = page_cpupid_last(page);
+		flags = old_flags;
+		last_cpupid = (flags >> LAST_CPUPID_PGSHIFT) & LAST_CPUPID_MASK;
 
 		flags &= ~(LAST_CPUPID_MASK << LAST_CPUPID_PGSHIFT);
 		flags |= (cpupid & LAST_CPUPID_MASK) << LAST_CPUPID_PGSHIFT;
-	} while (unlikely(cmpxchg(&page->flags, old_flags, flags) != old_flags));
+	} while (unlikely(!try_cmpxchg(&page->flags, &old_flags, flags)));
 
 	return last_cpupid;
 }

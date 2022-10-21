@@ -105,6 +105,7 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 static void hsr_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct hsr_priv *hsr = netdev_priv(dev);
+	int i;
 
 	del_timer_sync(&hsr->prune_timer);
 	del_timer_sync(&hsr->announce_timer);
@@ -113,7 +114,8 @@ static void hsr_dellink(struct net_device *dev, struct list_head *head)
 	hsr_del_ports(hsr);
 
 	hsr_del_self_node(hsr);
-	hsr_del_nodes(&hsr->node_db);
+	for (i = 0; i < hsr->hash_buckets; i++)
+		hsr_del_nodes(&hsr->node_db[i]);
 
 	unregister_netdevice_queue(dev, head);
 }
@@ -520,6 +522,7 @@ static struct genl_family hsr_genl_family __ro_after_init = {
 	.module = THIS_MODULE,
 	.small_ops = hsr_ops,
 	.n_small_ops = ARRAY_SIZE(hsr_ops),
+	.resv_start_op = HSR_C_SET_NODE_LIST + 1,
 	.mcgrps = hsr_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(hsr_mcgrps),
 };

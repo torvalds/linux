@@ -734,7 +734,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8940 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8940_regmap = {
@@ -750,8 +749,7 @@ static const struct regmap_config wm8940_regmap = {
 	.volatile_reg = wm8940_volatile_register,
 };
 
-static int wm8940_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8940_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8940_priv *wm8940;
 	int ret;
@@ -779,11 +777,18 @@ static const struct i2c_device_id wm8940_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wm8940_i2c_id);
 
+static const struct of_device_id wm8940_of_match[] = {
+	{ .compatible = "wlf,wm8940", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, wm8940_of_match);
+
 static struct i2c_driver wm8940_i2c_driver = {
 	.driver = {
 		.name = "wm8940",
+		.of_match_table = wm8940_of_match,
 	},
-	.probe =    wm8940_i2c_probe,
+	.probe_new = wm8940_i2c_probe,
 	.id_table = wm8940_i2c_id,
 };
 

@@ -146,7 +146,7 @@ static ssize_t serial_number_show(struct device *dev,
 	struct snd_card *card = dev_to_snd_card(dev);
 	struct usb_line6_podhd *pod = card->private_data;
 
-	return sprintf(buf, "%u\n", pod->serial_number);
+	return sysfs_emit(buf, "%u\n", pod->serial_number);
 }
 
 static ssize_t firmware_version_show(struct device *dev,
@@ -155,7 +155,7 @@ static ssize_t firmware_version_show(struct device *dev,
 	struct snd_card *card = dev_to_snd_card(dev);
 	struct usb_line6_podhd *pod = card->private_data;
 
-	return sprintf(buf, "%06x\n", pod->firmware_version);
+	return sysfs_emit(buf, "%06x\n", pod->firmware_version);
 }
 
 static DEVICE_ATTR_RO(firmware_version);

@@ -535,6 +535,10 @@ static int radeon_bo_vm_update_pte(struct radeon_cs_parser *p,
 			return r;
 
 		radeon_sync_fence(&p->ib.sync, bo_va->last_pt_update);
+
+		r = dma_resv_reserve_fences(bo->tbo.base.resv, 1);
+		if (r)
+			return r;
 	}
 
 	return radeon_vm_clear_invalids(rdev, vm);

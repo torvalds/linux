@@ -3,11 +3,7 @@
 #define __LIBPERF_INTERNAL_CPUMAP_H
 
 #include <linux/refcount.h>
-
-/** A wrapper around a CPU to avoid confusion with the perf_cpu_map's map's indices. */
-struct perf_cpu {
-	int cpu;
-};
+#include <perf/cpumap.h>
 
 /**
  * A sized, reference counted, sorted array of integers representing CPU
@@ -29,5 +25,6 @@ struct perf_cpu_map {
 #endif
 
 int perf_cpu_map__idx(const struct perf_cpu_map *cpus, struct perf_cpu cpu);
+bool perf_cpu_map__is_subset(const struct perf_cpu_map *a, const struct perf_cpu_map *b);
 
 #endif /* __LIBPERF_INTERNAL_CPUMAP_H */

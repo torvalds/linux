@@ -415,13 +415,6 @@ static inline u32 pads_readl(struct tegra_pcie *pcie, unsigned long offset)
  * address (access to which generates correct config transaction) falls in
  * this 4 KiB region.
  */
-static unsigned int tegra_pcie_conf_offset(u8 bus, unsigned int devfn,
-					   unsigned int where)
-{
-	return ((where & 0xf00) << 16) | (bus << 16) | (PCI_SLOT(devfn) << 11) |
-	       (PCI_FUNC(devfn) << 8) | (where & 0xff);
-}
-
 static void __iomem *tegra_pcie_map_bus(struct pci_bus *bus,
 					unsigned int devfn,
 					int where)
@@ -443,7 +436,9 @@ static void __iomem *tegra_pcie_map_bus(struct pci_bus *bus,
 		unsigned int offset;
 		u32 base;
 
-		offset = tegra_pcie_conf_offset(bus->number, devfn, where);
+		offset = PCI_CONF1_EXT_ADDRESS(bus->number, PCI_SLOT(devfn),
+					       PCI_FUNC(devfn), where) &
+			 ~PCI_CONF1_ENABLE;
 
 		/* move 4 KiB window to offset within the FPCI region */
 		base = 0xfe100000 + ((offset & ~(SZ_4K - 1)) >> 8);
@@ -726,7 +721,7 @@ static void tegra_pcie_port_free(struct tegra_pcie_port *port)
 /* Tegra PCIE root complex wrongly reports device class */
 static void tegra_pcie_fixup_class(struct pci_dev *dev)
 {
-	dev->class = PCI_CLASS_BRIDGE_PCI << 8;
+	dev->class = PCI_CLASS_BRIDGE_PCI_NORMAL;
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0bf0, tegra_pcie_fixup_class);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0bf1, tegra_pcie_fixup_class);
@@ -2707,7 +2702,7 @@ static int tegra_pcie_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused tegra_pcie_pm_suspend(struct device *dev)
+static int tegra_pcie_pm_suspend(struct device *dev)
 {
 	struct tegra_pcie *pcie = dev_get_drvdata(dev);
 	struct tegra_pcie_port *port;
@@ -2742,7 +2737,7 @@ static int __maybe_unused tegra_pcie_pm_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused tegra_pcie_pm_resume(struct device *dev)
+static int tegra_pcie_pm_resume(struct device *dev)
 {
 	struct tegra_pcie *pcie = dev_get_drvdata(dev);
 	int err;
@@ -2798,9 +2793,8 @@ poweroff:
 }
 
 static const struct dev_pm_ops tegra_pcie_pm_ops = {
-	SET_RUNTIME_PM_OPS(tegra_pcie_pm_suspend, tegra_pcie_pm_resume, NULL)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(tegra_pcie_pm_suspend,
-				      tegra_pcie_pm_resume)
+	RUNTIME_PM_OPS(tegra_pcie_pm_suspend, tegra_pcie_pm_resume, NULL)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(tegra_pcie_pm_suspend, tegra_pcie_pm_resume)
 };
 
 static struct platform_driver tegra_pcie_driver = {

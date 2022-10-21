@@ -28,6 +28,8 @@
 #include <linux/bitmap.h>
 #include <linux/math64.h>
 #include <linux/mod_devicetable.h>
+#include <linux/platform_data/x86/p2sb.h>
+
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include <asm/processor.h>
@@ -232,42 +234,14 @@ static u64 get_mem_ctrl_hub_base_addr(void)
 	return U64_LSHIFT(hi.base, 32) | U64_LSHIFT(lo.base, 15);
 }
 
-static u64 get_sideband_reg_base_addr(void)
-{
-	struct pci_dev *pdev;
-	u32 hi, lo;
-	u8 hidden;
-
-	pdev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x19dd, NULL);
-	if (pdev) {
-		/* Unhide the P2SB device, if it's hidden */
-		pci_read_config_byte(pdev, 0xe1, &hidden);
-		if (hidden)
-			pci_write_config_byte(pdev, 0xe1, 0);
-
-		pci_read_config_dword(pdev, 0x10, &lo);
-		pci_read_config_dword(pdev, 0x14, &hi);
-		lo &= 0xfffffff0;
-
-		/* Hide the P2SB device, if it was hidden before */
-		if (hidden)
-			pci_write_config_byte(pdev, 0xe1, hidden);
-
-		pci_dev_put(pdev);
-		return (U64_LSHIFT(hi, 32) | U64_LSHIFT(lo, 0));
-	} else {
-		return 0xfd000000;
-	}
-}
-
 #define DNV_MCHBAR_SIZE  0x8000
 #define DNV_SB_PORT_SIZE 0x10000
 static int dnv_rd_reg(int port, int off, int op, void *data, size_t sz, char *name)
 {
 	struct pci_dev *pdev;
-	char *base;
-	u64 addr;
-	unsigned long size;
+	void __iomem *base;
+	struct resource r;
+	int ret;
 
 	if (op == 4) {
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL, 0x1980, NULL);
@@ -279,26 +253,30 @@ static int dnv_rd_reg(int port, int off, int op, void *data, size_t sz, char *na
 	} else {
 		/* MMIO via memory controller hub base address */
 		if (op == 0 && port == 0x4c) {
-			addr = get_mem_ctrl_hub_base_addr();
-			if (!addr)
+			memset(&r, 0, sizeof(r));
+
+			r.start = get_mem_ctrl_hub_base_addr();
+			if (!r.start)
 				return -ENODEV;
-			size = DNV_MCHBAR_SIZE;
+			r.end = r.start + DNV_MCHBAR_SIZE - 1;
 		} else {
 			/* MMIO via sideband register base address */
-			addr = get_sideband_reg_base_addr();
-			if (!addr)
-				return -ENODEV;
-			addr += (port << 16);
-			size = DNV_SB_PORT_SIZE;
+			ret = p2sb_bar(NULL, 0, &r);
+			if (ret)
+				return ret;
+
+			r.start += (port << 16);
+			r.end = r.start + DNV_SB_PORT_SIZE - 1;
 		}
 
-		base = ioremap((resource_size_t)addr, size);
+		base = ioremap(r.start, resource_size(&r));
 		if (!base)
 			return -ENODEV;
 
 		if (sz == 8)
-			*(u32 *)(data + 4) = *(u32 *)(base + off + 4);
-		*(u32 *)data = *(u32 *)(base + off);
+			*(u64 *)data = readq(base + off);
+		else
+			*(u32 *)data = readl(base + off);
 
 		iounmap(base);
 	}

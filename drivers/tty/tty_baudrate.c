@@ -49,30 +49,25 @@ static int n_baud_table = ARRAY_SIZE(baud_table);
  *
  *	Convert termios baud rate data into a speed. This should be called
  *	with the termios lock held if this termios is a terminal termios
- *	structure. May change the termios data. Device drivers can call this
- *	function but should use ->c_[io]speed directly as they are updated.
+ *	structure. Device drivers can call this function but should use
+ *	->c_[io]speed directly as they are updated.
  *
  *	Locking: none
  */
 
-speed_t tty_termios_baud_rate(struct ktermios *termios)
+speed_t tty_termios_baud_rate(const struct ktermios *termios)
 {
 	unsigned int cbaud;
 
 	cbaud = termios->c_cflag & CBAUD;
 
-#ifdef BOTHER
 	/* Magic token for arbitrary speed via c_ispeed/c_ospeed */
 	if (cbaud == BOTHER)
 		return termios->c_ospeed;
-#endif
+
 	if (cbaud & CBAUDEX) {
 		cbaud &= ~CBAUDEX;
-
-		if (cbaud < 1 || cbaud + 15 > n_baud_table)
-			termios->c_cflag &= ~CBAUDEX;
-		else
-			cbaud += 15;
+		cbaud += 15;
 	}
 	return cbaud >= n_baud_table ? 0 : baud_table[cbaud];
 }
@@ -84,36 +79,28 @@ EXPORT_SYMBOL(tty_termios_baud_rate);
  *
  *	Convert termios baud rate data into a speed. This should be called
  *	with the termios lock held if this termios is a terminal termios
- *	structure. May change the termios data. Device drivers can call this
- *	function but should use ->c_[io]speed directly as they are updated.
+ *	structure. Device drivers can call this function but should use
+ *	->c_[io]speed directly as they are updated.
  *
  *	Locking: none
  */
 
-speed_t tty_termios_input_baud_rate(struct ktermios *termios)
+speed_t tty_termios_input_baud_rate(const struct ktermios *termios)
 {
-#ifdef IBSHIFT
 	unsigned int cbaud = (termios->c_cflag >> IBSHIFT) & CBAUD;
 
 	if (cbaud == B0)
 		return tty_termios_baud_rate(termios);
-#ifdef BOTHER
-	/* Magic token for arbitrary speed via c_ispeed*/
+
+	/* Magic token for arbitrary speed via c_ispeed */
 	if (cbaud == BOTHER)
 		return termios->c_ispeed;
-#endif
+
 	if (cbaud & CBAUDEX) {
 		cbaud &= ~CBAUDEX;
-
-		if (cbaud < 1 || cbaud + 15 > n_baud_table)
-			termios->c_cflag &= ~(CBAUDEX << IBSHIFT);
-		else
-			cbaud += 15;
+		cbaud += 15;
 	}
 	return cbaud >= n_baud_table ? 0 : baud_table[cbaud];
-#else	/* IBSHIFT */
-	return tty_termios_baud_rate(termios);
-#endif	/* IBSHIFT */
 }
 EXPORT_SYMBOL(tty_termios_input_baud_rate);
 
@@ -153,11 +140,9 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 	termios->c_ispeed = ibaud;
 	termios->c_ospeed = obaud;
 
-#ifdef IBSHIFT
 	if (((termios->c_cflag >> IBSHIFT) & CBAUD) != B0)
 		ibinput = 1;	/* An input speed was specified */
-#endif
-#ifdef BOTHER
+
 	/* If the user asked for a precise weird speed give a precise weird
 	 * answer. If they asked for a Bfoo speed they may have problems
 	 * digesting non-exact replies so fuzz a bit.
@@ -170,11 +155,9 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 	}
 	if (((termios->c_cflag >> IBSHIFT) & CBAUD) == BOTHER)
 		iclose = 0;
-#endif
+
 	termios->c_cflag &= ~CBAUD;
-#ifdef IBSHIFT
 	termios->c_cflag &= ~(CBAUD << IBSHIFT);
-#endif
 
 	/*
 	 *	Our goal is to find a close match to the standard baud rate
@@ -194,22 +177,16 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 			/* For the case input == output don't set IBAUD bits
 			 * if the user didn't do so.
 			 */
-			if (ofound == i && !ibinput)
+			if (ofound == i && !ibinput) {
 				ifound  = i;
-#ifdef IBSHIFT
-			else {
+			} else {
 				ifound = i;
 				termios->c_cflag |= (baud_bits[i] << IBSHIFT);
 			}
-#endif
 		}
 	} while (++i < n_baud_table);
 
-	/*
-	 *	If we found no match then use BOTHER if provided or warn
-	 *	the user their platform maintainer needs to wake up if not.
-	 */
-#ifdef BOTHER
+	/* If we found no match then use BOTHER. */
 	if (ofound == -1)
 		termios->c_cflag |= BOTHER;
 	/* Set exact input bits only if the input and output differ or the
@@ -217,10 +194,6 @@ void tty_termios_encode_baud_rate(struct ktermios *termios,
 	 */
 	if (ifound == -1 && (ibaud != obaud || ibinput))
 		termios->c_cflag |= (BOTHER << IBSHIFT);
-#else
-	if (ifound == -1 || ofound == -1)
-		pr_warn_once("tty: Unable to return correct speed data as your architecture needs updating.\n");
-#endif
 }
 EXPORT_SYMBOL_GPL(tty_termios_encode_baud_rate);
 

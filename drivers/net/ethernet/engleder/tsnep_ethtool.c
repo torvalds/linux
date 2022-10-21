@@ -250,6 +250,44 @@ static int tsnep_ethtool_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
+static int tsnep_ethtool_get_rxnfc(struct net_device *dev,
+				   struct ethtool_rxnfc *cmd, u32 *rule_locs)
+{
+	struct tsnep_adapter *adapter = netdev_priv(dev);
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXRINGS:
+		cmd->data = adapter->num_rx_queues;
+		return 0;
+	case ETHTOOL_GRXCLSRLCNT:
+		cmd->rule_cnt = adapter->rxnfc_count;
+		cmd->data = adapter->rxnfc_max;
+		cmd->data |= RX_CLS_LOC_SPECIAL;
+		return 0;
+	case ETHTOOL_GRXCLSRULE:
+		return tsnep_rxnfc_get_rule(adapter, cmd);
+	case ETHTOOL_GRXCLSRLALL:
+		return tsnep_rxnfc_get_all(adapter, cmd, rule_locs);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int tsnep_ethtool_set_rxnfc(struct net_device *dev,
+				   struct ethtool_rxnfc *cmd)
+{
+	struct tsnep_adapter *adapter = netdev_priv(dev);
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		return tsnep_rxnfc_add_rule(adapter, cmd);
+	case ETHTOOL_SRXCLSRLDEL:
+		return tsnep_rxnfc_del_rule(adapter, cmd);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int tsnep_ethtool_get_ts_info(struct net_device *dev,
 				     struct ethtool_ts_info *info)
 {
@@ -287,6 +325,8 @@ const struct ethtool_ops tsnep_ethtool_ops = {
 	.get_strings = tsnep_ethtool_get_strings,
 	.get_ethtool_stats = tsnep_ethtool_get_ethtool_stats,
 	.get_sset_count = tsnep_ethtool_get_sset_count,
+	.get_rxnfc = tsnep_ethtool_get_rxnfc,
+	.set_rxnfc = tsnep_ethtool_set_rxnfc,
 	.get_ts_info = tsnep_ethtool_get_ts_info,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,

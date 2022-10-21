@@ -82,7 +82,8 @@ u32 omap_gem_flags(struct drm_gem_object *obj);
 int omap_gem_rotated_dma_addr(struct drm_gem_object *obj, u32 orient,
 		int x, int y, dma_addr_t *dma_addr);
 int omap_gem_tiled_stride(struct drm_gem_object *obj, u32 orient);
-struct sg_table *omap_gem_get_sg(struct drm_gem_object *obj);
+struct sg_table *omap_gem_get_sg(struct drm_gem_object *obj,
+		enum dma_data_direction dir);
 void omap_gem_put_sg(struct drm_gem_object *obj, struct sg_table *sgt);
 
 #endif /* __OMAPDRM_GEM_H__ */

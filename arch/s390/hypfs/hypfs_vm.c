@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
+#include <asm/extable.h>
 #include <asm/diag.h>
 #include <asm/ebcdic.h>
 #include <asm/timex.h>
@@ -189,7 +190,7 @@ int hypfs_vm_create_files(struct dentry *root)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	/* Hpervisor Info */
+	/* Hypervisor Info */
 	dir = hypfs_mkdir(root, "hyp");
 	if (IS_ERR(dir)) {
 		rc = PTR_ERR(dir);

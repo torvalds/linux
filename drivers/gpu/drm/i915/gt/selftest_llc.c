@@ -31,9 +31,8 @@ static int gen6_verify_ring_freq(struct intel_llc *llc)
 		calc_ia_freq(llc, gpu_freq, &consts, &ia_freq, &ring_freq);
 
 		val = gpu_freq;
-		if (sandybridge_pcode_read(i915,
-					   GEN6_PCODE_READ_MIN_FREQ_TABLE,
-					   &val, NULL)) {
+		if (snb_pcode_read(llc_to_gt(llc)->uncore, GEN6_PCODE_READ_MIN_FREQ_TABLE,
+				   &val, NULL)) {
 			pr_err("Failed to read freq table[%d], range [%d, %d]\n",
 			       gpu_freq, consts.min_gpu_freq, consts.max_gpu_freq);
 			err = -ENXIO;

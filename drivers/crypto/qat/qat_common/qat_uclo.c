@@ -387,7 +387,9 @@ static int qat_uclo_init_ustore(struct icp_qat_fw_loader_handle *handle,
 	page = image->page;
 
 	for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
-		if (!test_bit(ae, (unsigned long *)&uof_image->ae_assigned))
+		unsigned long ae_assigned = uof_image->ae_assigned;
+
+		if (!test_bit(ae, &ae_assigned))
 			continue;
 
 		if (!test_bit(ae, &cfg_ae_mask))
@@ -517,7 +519,7 @@ qat_uclo_map_chunk(char *buf, struct icp_qat_uof_filehdr *file_hdr,
 	return NULL;
 }
 
-static unsigned int
+static int
 qat_uclo_check_image_compat(struct icp_qat_uof_encap_obj *encap_uof_obj,
 			    struct icp_qat_uof_image *image)
 {
@@ -664,8 +666,9 @@ static int qat_uclo_map_ae(struct icp_qat_fw_loader_handle *handle, int max_ae)
 			continue;
 
 		for (i = 0; i < obj_handle->uimage_num; i++) {
-			if (!test_bit(ae, (unsigned long *)
-			&obj_handle->ae_uimage[i].img_ptr->ae_assigned))
+			unsigned long ae_assigned = obj_handle->ae_uimage[i].img_ptr->ae_assigned;
+
+			if (!test_bit(ae, &ae_assigned))
 				continue;
 			mflag = 1;
 			if (qat_uclo_init_ae_data(obj_handle, ae, i))
@@ -728,6 +731,7 @@ qat_uclo_get_dev_type(struct icp_qat_fw_loader_handle *handle)
 	case PCI_DEVICE_ID_INTEL_QAT_C3XXX:
 		return ICP_QAT_AC_C3XXX_DEV_TYPE;
 	case ADF_4XXX_PCI_DEVICE_ID:
+	case ADF_401XX_PCI_DEVICE_ID:
 		return ICP_QAT_AC_4XXX_A_DEV_TYPE;
 	default:
 		pr_err("QAT: unsupported device 0x%x\n",
@@ -1363,6 +1367,48 @@ static void qat_uclo_ummap_auth_fw(struct icp_qat_fw_loader_handle *handle,
 	}
 }
 
+static int qat_uclo_check_image(struct icp_qat_fw_loader_handle *handle,
+				char *image, unsigned int size,
+				unsigned int fw_type)
+{
+	char *fw_type_name = fw_type ? "MMP" : "AE";
+	unsigned int css_dword_size = sizeof(u32);
+
+	if (handle->chip_info->fw_auth) {
+		struct icp_qat_css_hdr *css_hdr = (struct icp_qat_css_hdr *)image;
+		unsigned int header_len = ICP_QAT_AE_IMG_OFFSET(handle);
+
+		if ((css_hdr->header_len * css_dword_size) != header_len)
+			goto err;
+		if ((css_hdr->size * css_dword_size) != size)
+			goto err;
+		if (fw_type != css_hdr->fw_type)
+			goto err;
+		if (size <= header_len)
+			goto err;
+		size -= header_len;
+	}
+
+	if (fw_type == CSS_AE_FIRMWARE) {
+		if (size < sizeof(struct icp_qat_simg_ae_mode *) +
+		    ICP_QAT_SIMG_AE_INIT_SEQ_LEN)
+			goto err;
+		if (size > ICP_QAT_CSS_RSA4K_MAX_IMAGE_LEN)
+			goto err;
+	} else if (fw_type == CSS_MMP_FIRMWARE) {
+		if (size > ICP_QAT_CSS_RSA3K_MAX_IMAGE_LEN)
+			goto err;
+	} else {
+		pr_err("QAT: Unsupported firmware type\n");
+		return -EINVAL;
+	}
+	return 0;
+
+err:
+	pr_err("QAT: Invalid %s firmware image\n", fw_type_name);
+	return -EINVAL;
+}
+
 static int qat_uclo_map_auth_fw(struct icp_qat_fw_loader_handle *handle,
 				char *image, unsigned int size,
 				struct icp_qat_fw_auth_desc **desc)
@@ -1375,7 +1421,7 @@ static int qat_uclo_map_auth_fw(struct icp_qat_fw_loader_handle *handle,
 	struct icp_qat_simg_ae_mode *simg_ae_mode;
 	struct icp_firml_dram_desc img_desc;
 
-	if (size > (ICP_QAT_AE_IMG_OFFSET(handle) + ICP_QAT_CSS_MAX_IMAGE_LEN)) {
+	if (size > (ICP_QAT_AE_IMG_OFFSET(handle) + ICP_QAT_CSS_RSA4K_MAX_IMAGE_LEN)) {
 		pr_err("QAT: error, input image size overflow %d\n", size);
 		return -EINVAL;
 	}
@@ -1543,6 +1589,11 @@ int qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle,
 {
 	struct icp_qat_fw_auth_desc *desc = NULL;
 	int status = 0;
+	int ret;
+
+	ret = qat_uclo_check_image(handle, addr_ptr, mem_size, CSS_MMP_FIRMWARE);
+	if (ret)
+		return ret;
 
 	if (handle->chip_info->fw_auth) {
 		status = qat_uclo_map_auth_fw(handle, addr_ptr, mem_size, &desc);
@@ -2014,8 +2065,15 @@ static int qat_uclo_wr_suof_img(struct icp_qat_fw_loader_handle *handle)
 	struct icp_qat_fw_auth_desc *desc = NULL;
 	struct icp_qat_suof_handle *sobj_handle = handle->sobj_handle;
 	struct icp_qat_suof_img_hdr *simg_hdr = sobj_handle->img_table.simg_hdr;
+	int ret;
 
 	for (i = 0; i < sobj_handle->img_table.num_simgs; i++) {
+		ret = qat_uclo_check_image(handle, simg_hdr[i].simg_buf,
+					   simg_hdr[i].simg_len,
+					   CSS_AE_FIRMWARE);
+		if (ret)
+			return ret;
+
 		if (qat_uclo_map_auth_fw(handle,
 					 (char *)simg_hdr[i].simg_buf,
 					 (unsigned int)

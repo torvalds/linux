@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2003 David Borowski.
  *
- * specificly written as a driver for the speakup screenreview
+ * specifically written as a driver for the speakup screenreview
  * package it's not a general device driver.
  * This driver is for the Keynote Gold internal synthesizer.
  */

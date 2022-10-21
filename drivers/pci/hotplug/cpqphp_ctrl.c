@@ -881,7 +881,6 @@ irqreturn_t cpqhp_ctrl_intr(int IRQ, void *data)
 	u8 reset;
 	u16 misc;
 	u32 Diff;
-	u32 temp_dword;
 
 
 	misc = readw(ctrl->hpc_reg + MISC);
@@ -917,7 +916,7 @@ irqreturn_t cpqhp_ctrl_intr(int IRQ, void *data)
 		writel(Diff, ctrl->hpc_reg + INT_INPUT_CLEAR);
 
 		/* Read it back to clear any posted writes */
-		temp_dword = readl(ctrl->hpc_reg + INT_INPUT_CLEAR);
+		readl(ctrl->hpc_reg + INT_INPUT_CLEAR);
 
 		if (!Diff)
 			/* Clear all interrupts */
@@ -1412,7 +1411,6 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 	u32 rc = 0;
 	struct pci_func *new_slot = NULL;
 	struct pci_bus *bus = ctrl->pci_bus;
-	struct slot *p_slot;
 	struct resource_lists res_lists;
 
 	hp_slot = func->device - ctrl->slot_device_offset;
@@ -1459,7 +1457,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 	if (rc)
 		return rc;
 
-	p_slot = cpqhp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
+	cpqhp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
 	/* turn on board and blink green LED */
 
@@ -1614,7 +1612,6 @@ static u32 remove_board(struct pci_func *func, u32 replace_flag, struct controll
 	u8 device;
 	u8 hp_slot;
 	u8 temp_byte;
-	u32 rc;
 	struct resource_lists res_lists;
 	struct pci_func *temp_func;
 
@@ -1629,7 +1626,7 @@ static u32 remove_board(struct pci_func *func, u32 replace_flag, struct controll
 	/* When we get here, it is safe to change base address registers.
 	 * We will attempt to save the base address register lengths */
 	if (replace_flag || !ctrl->add_support)
-		rc = cpqhp_save_base_addr_length(ctrl, func);
+		cpqhp_save_base_addr_length(ctrl, func);
 	else if (!func->bus_head && !func->mem_head &&
 		 !func->p_mem_head && !func->io_head) {
 		/* Here we check to see if we've saved any of the board's
@@ -1647,7 +1644,7 @@ static u32 remove_board(struct pci_func *func, u32 replace_flag, struct controll
 		}
 
 		if (!skip)
-			rc = cpqhp_save_used_resources(ctrl, func);
+			cpqhp_save_used_resources(ctrl, func);
 	}
 	/* Change status to shutdown */
 	if (func->is_a_board)
@@ -1767,7 +1764,7 @@ void cpqhp_event_stop_thread(void)
 
 static void interrupt_event_handler(struct controller *ctrl)
 {
-	int loop = 0;
+	int loop;
 	int change = 1;
 	struct pci_func *func;
 	u8 hp_slot;
@@ -1885,15 +1882,12 @@ static void interrupt_event_handler(struct controller *ctrl)
 void cpqhp_pushbutton_thread(struct timer_list *t)
 {
 	u8 hp_slot;
-	u8 device;
 	struct pci_func *func;
 	struct slot *p_slot = from_timer(p_slot, t, task_event);
 	struct controller *ctrl = (struct controller *) p_slot->ctrl;
 
 	pushbutton_pending = NULL;
 	hp_slot = p_slot->hp_slot;
-
-	device = p_slot->device;
 
 	if (is_slot_enabled(ctrl, hp_slot)) {
 		p_slot->state = POWEROFF_STATE;
@@ -1951,15 +1945,12 @@ int cpqhp_process_SI(struct controller *ctrl, struct pci_func *func)
 	u32 tempdword;
 	int rc;
 	struct slot *p_slot;
-	int physical_slot = 0;
 
 	tempdword = 0;
 
 	device = func->device;
 	hp_slot = device - ctrl->slot_device_offset;
 	p_slot = cpqhp_find_slot(ctrl, device);
-	if (p_slot)
-		physical_slot = p_slot->number;
 
 	/* Check to see if the interlock is closed */
 	tempdword = readl(ctrl->hpc_reg + INT_INPUT_CLEAR);
@@ -2043,13 +2034,10 @@ int cpqhp_process_SS(struct controller *ctrl, struct pci_func *func)
 	unsigned int devfn;
 	struct slot *p_slot;
 	struct pci_bus *pci_bus = ctrl->pci_bus;
-	int physical_slot = 0;
 
 	device = func->device;
 	func = cpqhp_slot_find(ctrl->bus, device, index++);
 	p_slot = cpqhp_find_slot(ctrl, device);
-	if (p_slot)
-		physical_slot = p_slot->number;
 
 	/* Make sure there are no video controllers here */
 	while (func && !rc) {

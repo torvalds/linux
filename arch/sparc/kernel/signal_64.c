@@ -15,7 +15,7 @@
 #include <linux/errno.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <linux/unistd.h>
 #include <linux/mm.h>
 #include <linux/tty.h>
@@ -552,7 +552,7 @@ void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0, unsigned long
 	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
 		do_signal(regs, orig_i0);
 	if (thread_info_flags & _TIF_NOTIFY_RESUME)
-		tracehook_notify_resume(regs);
+		resume_user_mode_work(regs);
 	user_enter();
 }
 
@@ -590,5 +590,6 @@ static_assert(offsetof(siginfo_t, si_upper)	== 0x28);
 static_assert(offsetof(siginfo_t, si_pkey)	== 0x20);
 static_assert(offsetof(siginfo_t, si_perf_data)	== 0x18);
 static_assert(offsetof(siginfo_t, si_perf_type)	== 0x20);
+static_assert(offsetof(siginfo_t, si_perf_flags) == 0x24);
 static_assert(offsetof(siginfo_t, si_band)	== 0x10);
 static_assert(offsetof(siginfo_t, si_fd)	== 0x14);

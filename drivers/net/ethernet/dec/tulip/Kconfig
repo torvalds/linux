@@ -104,21 +104,6 @@ config TULIP_DM910X
 	def_bool y
 	depends on TULIP && SPARC
 
-config DE4X5
-	tristate "Generic DECchip & DIGITAL EtherWORKS PCI/EISA"
-	depends on (PCI || EISA)
-	depends on VIRT_TO_BUS || ALPHA || PPC || SPARC
-	select CRC32
-	help
-	  This is support for the DIGITAL series of PCI/EISA Ethernet cards.
-	  These include the DE425, DE434, DE435, DE450 and DE500 models.  If
-	  you have a network card of this type, say Y.  More specific
-	  information is contained in
-	  <file:Documentation/networking/device_drivers/ethernet/dec/de4x5.rst>.
-
-	  To compile this driver as a module, choose M here. The module will
-	  be called de4x5.
-
 config WINBOND_840
 	tristate "Winbond W89c840 Ethernet support"
 	depends on PCI

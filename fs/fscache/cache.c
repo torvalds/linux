@@ -214,7 +214,7 @@ void fscache_relinquish_cache(struct fscache_cache *cache)
 
 	cache->ops = NULL;
 	cache->cache_priv = NULL;
-	smp_store_release(&cache->state, FSCACHE_CACHE_IS_NOT_PRESENT);
+	fscache_set_cache_state(cache, FSCACHE_CACHE_IS_NOT_PRESENT);
 	fscache_put_cache(cache, where);
 }
 EXPORT_SYMBOL(fscache_relinquish_cache);

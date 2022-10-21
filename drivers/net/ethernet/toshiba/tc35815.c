@@ -804,7 +804,7 @@ static int tc35815_init_one(struct pci_dev *pdev,
 	dev->netdev_ops = &tc35815_netdev_ops;
 	dev->ethtool_ops = &tc35815_ethtool_ops;
 	dev->watchdog_timeo = TC35815_TX_TIMEOUT;
-	netif_napi_add(dev, &lp->napi, tc35815_poll, NAPI_WEIGHT);
+	netif_napi_add_weight(dev, &lp->napi, tc35815_poll, NAPI_WEIGHT);
 
 	dev->irq = pdev->irq;
 	dev->base_addr = (unsigned long)ioaddr;
@@ -1956,9 +1956,9 @@ static void tc35815_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *
 {
 	struct tc35815_local *lp = netdev_priv(dev);
 
-	strlcpy(info->driver, MODNAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, pci_name(lp->pci_dev), sizeof(info->bus_info));
+	strscpy(info->driver, MODNAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, pci_name(lp->pci_dev), sizeof(info->bus_info));
 }
 
 static u32 tc35815_get_msglevel(struct net_device *dev)

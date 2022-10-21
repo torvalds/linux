@@ -9,6 +9,7 @@
 #include <linux/uidgid.h>
 #include <net/inet_frag.h>
 #include <linux/rcupdate.h>
+#include <linux/seqlock.h>
 #include <linux/siphash.h>
 
 struct ctl_table_header;
@@ -31,18 +32,17 @@ struct ping_group_range {
 struct inet_hashinfo;
 
 struct inet_timewait_death_row {
-	atomic_t		tw_count;
-	char			tw_pad[L1_CACHE_BYTES - sizeof(atomic_t)];
+	refcount_t		tw_refcount;
 
-	struct inet_hashinfo 	*hashinfo;
+	/* Padding to avoid false sharing, tw_refcount can be often written */
+	struct inet_hashinfo 	*hashinfo ____cacheline_aligned_in_smp;
 	int			sysctl_max_tw_buckets;
 };
 
 struct tcp_fastopen_context;
 
 struct netns_ipv4 {
-	/* Please keep tcp_death_row at first field in netns_ipv4 */
-	struct inet_timewait_death_row tcp_death_row ____cacheline_aligned_in_smp;
+	struct inet_timewait_death_row tcp_death_row;
 
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*forw_hdr;
@@ -70,11 +70,9 @@ struct netns_ipv4 {
 	struct hlist_head	*fib_table_hash;
 	struct sock		*fibnl;
 
-	struct sock  * __percpu	*icmp_sk;
 	struct sock		*mc_autojoin_sk;
 
 	struct inet_peer_base	*peers;
-	struct sock  * __percpu	*tcp_sk;
 	struct fqdir		*fqdir;
 
 	u8 sysctl_icmp_echo_ignore_all;
@@ -87,6 +85,7 @@ struct netns_ipv4 {
 
 	u32 ip_rt_min_pmtu;
 	int ip_rt_mtu_expires;
+	int ip_rt_min_advmss;
 
 	struct local_ports ip_local_ports;
 
@@ -130,6 +129,7 @@ struct netns_ipv4 {
 	u8 sysctl_tcp_synack_retries;
 	u8 sysctl_tcp_syncookies;
 	u8 sysctl_tcp_migrate_req;
+	u8 sysctl_tcp_comp_sack_nr;
 	int sysctl_tcp_reordering;
 	u8 sysctl_tcp_retries1;
 	u8 sysctl_tcp_retries2;
@@ -163,14 +163,15 @@ struct netns_ipv4 {
 	int sysctl_tcp_challenge_ack_limit;
 	int sysctl_tcp_min_rtt_wlen;
 	u8 sysctl_tcp_min_tso_segs;
+	u8 sysctl_tcp_tso_rtt_log;
 	u8 sysctl_tcp_autocorking;
 	u8 sysctl_tcp_reflect_tos;
-	u8 sysctl_tcp_comp_sack_nr;
 	int sysctl_tcp_invalid_ratelimit;
 	int sysctl_tcp_pacing_ss_ratio;
 	int sysctl_tcp_pacing_ca_ratio;
 	int sysctl_tcp_wmem[3];
 	int sysctl_tcp_rmem[3];
+	unsigned int sysctl_tcp_child_ehash_entries;
 	unsigned long sysctl_tcp_comp_sack_delay_ns;
 	unsigned long sysctl_tcp_comp_sack_slack_ns;
 	int sysctl_max_syn_backlog;
@@ -180,6 +181,8 @@ struct netns_ipv4 {
 	unsigned int sysctl_tcp_fastopen_blackhole_timeout;
 	atomic_t tfo_active_disable_times;
 	unsigned long tfo_active_disable_stamp;
+	u32 tcp_challenge_timestamp;
+	u32 tcp_challenge_count;
 
 	int sysctl_udp_wmem_min;
 	int sysctl_udp_rmem_min;

@@ -342,7 +342,7 @@ static int param_set_kgdboc_var(const char *kmessage,
 	/*
 	 * Configure with the new params as long as init already ran.
 	 * Note that we can get called before init if someone loads us
-	 * with "modprobe kgdboc kgdboc=..." or if they happen to use the
+	 * with "modprobe kgdboc kgdboc=..." or if they happen to use
 	 * the odd syntax of "kgdboc.kgdboc=..." on the kernel command.
 	 */
 	if (configured >= 0)
@@ -403,16 +403,16 @@ static int kgdboc_option_setup(char *opt)
 {
 	if (!opt) {
 		pr_err("config string not provided\n");
-		return -EINVAL;
+		return 1;
 	}
 
 	if (strlen(opt) >= MAX_CONFIG_LEN) {
 		pr_err("config string too long\n");
-		return -ENOSPC;
+		return 1;
 	}
 	strcpy(config, opt);
 
-	return 0;
+	return 1;
 }
 
 __setup("kgdboc=", kgdboc_option_setup);

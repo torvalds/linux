@@ -15,6 +15,9 @@ allOf:
 properties:
   compatible:
     enum:
+      - ilitek,ili210x
+      - ilitek,ili2117
+      - ilitek,ili2120
       - ilitek,ili2130
       - ilitek,ili2131
       - ilitek,ili2132
@@ -22,11 +25,12 @@ properties:
       - ilitek,ili2322
       - ilitek,ili2323
       - ilitek,ili2326
+      - ilitek,ili251x
       - ilitek,ili2520
       - ilitek,ili2521
 
   reg:
-    const: 0x41
+    maxItems: 1
 
   interrupts:
     maxItems: 1
@@ -50,7 +54,6 @@ required:
   - compatible
   - reg
   - interrupts
-  - reset-gpios
 
 examples:
   - |

@@ -14,6 +14,7 @@ description:
 
 allOf:
   - $ref: "dsa.yaml#"
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
 
 maintainers:
   - Vladimir Oltean <vladimir.oltean@nxp.com>

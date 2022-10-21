@@ -958,7 +958,7 @@ void wil_netif_rx(struct sk_buff *skb, struct net_device *ndev, int cid,
 		if (gro)
 			napi_gro_receive(&wil->napi_rx, skb);
 		else
-			netif_rx_ni(skb);
+			netif_rx(skb);
 	}
 	ndev->stats.rx_packets++;
 	stats->rx_packets++;
@@ -1782,9 +1782,7 @@ static int __wil_tx_vring_tso(struct wil6210_priv *wil, struct wil6210_vif *vif,
 	}
 
 	/* Header Length = MAC header len + IP header len + TCP header len*/
-	hdrlen = ETH_HLEN +
-		(int)skb_network_header_len(skb) +
-		tcp_hdrlen(skb);
+	hdrlen = skb_tcp_all_headers(skb);
 
 	gso_type = skb_shinfo(skb)->gso_type & (SKB_GSO_TCPV6 | SKB_GSO_TCPV4);
 	switch (gso_type) {

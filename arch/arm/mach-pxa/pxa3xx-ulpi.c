@@ -21,8 +21,8 @@
 #include <linux/clk.h>
 #include <linux/usb.h>
 #include <linux/usb/otg.h>
+#include <linux/soc/pxa/cpu.h>
 
-#include <mach/hardware.h>
 #include "regs-u2d.h"
 #include <linux/platform_data/usb-pxa3xx-ulpi.h>
 

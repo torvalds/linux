@@ -156,7 +156,6 @@ void mls_sid_to_context(struct policydb *p,
 	}
 
 	*scontext = scontextp;
-	return;
 }
 
 int mls_level_isvalid(struct policydb *p, struct mls_level *l)

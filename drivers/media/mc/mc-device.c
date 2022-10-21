@@ -604,15 +604,8 @@ static void __media_device_unregister_entity(struct media_entity *entity)
 	media_gobj_destroy(&entity->graph_obj);
 
 	/* invoke entity_notify callbacks to handle entity removal?? */
-
-	entity->graph_obj.mdev = NULL;
 }
 
-/**
- * media_device_register_entity - Register an entity with a media device
- * @mdev:	The media device
- * @entity:	The entity
- */
 int __must_check media_device_register_entity(struct media_device *mdev,
 					      struct media_entity *entity)
 {
@@ -691,16 +684,6 @@ void media_device_unregister_entity(struct media_entity *entity)
 }
 EXPORT_SYMBOL_GPL(media_device_unregister_entity);
 
-/**
- * media_device_init() - initialize a media device
- * @mdev:	The media device
- *
- * The caller is responsible for initializing the media device before
- * registration. The following fields must be set:
- *
- * - dev must point to the parent device
- * - model must be filled with the device model name
- */
 void media_device_init(struct media_device *mdev)
 {
 	INIT_LIST_HEAD(&mdev->entities);
@@ -714,6 +697,10 @@ void media_device_init(struct media_device *mdev)
 	ida_init(&mdev->entity_internal_idx);
 
 	atomic_set(&mdev->request_id, 0);
+
+	if (!*mdev->bus_info)
+		media_set_bus_info(mdev->bus_info, sizeof(mdev->bus_info),
+				   mdev->dev);
 
 	dev_dbg(mdev->dev, "Media device initialized\n");
 }

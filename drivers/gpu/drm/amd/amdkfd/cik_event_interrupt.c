@@ -110,7 +110,7 @@ static void cik_event_interrupt_wq(struct kfd_dev *dev,
 		struct kfd_vm_fault_info info;
 
 		kfd_smi_event_update_vmfault(dev, pasid);
-		kfd_process_vm_fault(dev->dqm, pasid);
+		kfd_dqm_evict_pasid(dev->dqm, pasid);
 
 		memset(&info, 0, sizeof(info));
 		amdgpu_amdkfd_gpuvm_get_vm_fault_info(dev->adev, &info);

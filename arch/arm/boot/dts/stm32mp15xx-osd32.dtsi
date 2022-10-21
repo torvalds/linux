@@ -50,12 +50,6 @@
 			no-map;
 		};
 	};
-
-	reg_sip_eeprom: regulator_eeprom {
-		compatible = "regulator-fixed";
-		regulator-name = "sip_eeprom";
-		regulator-always-on;
-	};
 };
 
 &i2c4 {
@@ -78,6 +72,7 @@
 			compatible = "st,stpmic1-regulators";
 
 			ldo1-supply = <&v3v3>;
+			ldo3-supply = <&vdd_ddr>;
 			ldo6-supply = <&v3v3>;
 			pwr_sw1-supply = <&bst_out>;
 
@@ -203,7 +198,7 @@
 
 	sip_eeprom: eeprom@50 {
 		compatible = "atmel,24c32";
-		vcc-supply = <&reg_sip_eeprom>;
+		vcc-supply = <&vdd>;
 		reg = <0x50>;
 	};
 };

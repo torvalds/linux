@@ -14,8 +14,6 @@ struct gk104_fifo_chan {
 	struct list_head head;
 	bool killed;
 
-	struct nvkm_memory *mthd;
-
 #define GK104_FIFO_ENGN_SW 15
 	struct gk104_fifo_engn {
 		struct nvkm_gpuobj *inst;

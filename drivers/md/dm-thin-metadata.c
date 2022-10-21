@@ -1665,22 +1665,6 @@ int dm_thin_insert_block(struct dm_thin_device *td, dm_block_t block,
 	return r;
 }
 
-static int __remove(struct dm_thin_device *td, dm_block_t block)
-{
-	int r;
-	struct dm_pool_metadata *pmd = td->pmd;
-	dm_block_t keys[2] = { td->id, block };
-
-	r = dm_btree_remove(&pmd->info, pmd->root, keys, &pmd->root);
-	if (r)
-		return r;
-
-	td->mapped_blocks--;
-	td->changed = true;
-
-	return 0;
-}
-
 static int __remove_range(struct dm_thin_device *td, dm_block_t begin, dm_block_t end)
 {
 	int r;
@@ -1738,18 +1722,6 @@ static int __remove_range(struct dm_thin_device *td, dm_block_t begin, dm_block_
 	value = cpu_to_le64(mapping_root);
 	__dm_bless_for_disk(&value);
 	return dm_btree_insert(&pmd->tl_info, pmd->root, keys, &value, &pmd->root);
-}
-
-int dm_thin_remove_block(struct dm_thin_device *td, dm_block_t block)
-{
-	int r = -EINVAL;
-
-	pmd_write_lock(td->pmd);
-	if (!td->pmd->fail_io)
-		r = __remove(td, block);
-	pmd_write_unlock(td->pmd);
-
-	return r;
 }
 
 int dm_thin_remove_range(struct dm_thin_device *td,
@@ -2073,10 +2045,13 @@ int dm_pool_register_metadata_threshold(struct dm_pool_metadata *pmd,
 					dm_sm_threshold_fn fn,
 					void *context)
 {
-	int r;
+	int r = -EINVAL;
 
 	pmd_write_lock_in_core(pmd);
-	r = dm_sm_register_threshold_callback(pmd->metadata_sm, threshold, fn, context);
+	if (!pmd->fail_io) {
+		r = dm_sm_register_threshold_callback(pmd->metadata_sm,
+						      threshold, fn, context);
+	}
 	pmd_write_unlock(pmd);
 
 	return r;

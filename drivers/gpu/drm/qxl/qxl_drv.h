@@ -30,7 +30,7 @@
  * Definitions taken from spice-protocol, plus kernel driver specific bits.
  */
 
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 #include <linux/dma-fence.h>
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
@@ -50,7 +50,7 @@
 
 #include "qxl_dev.h"
 
-struct dma_buf_map;
+struct iosys_map;
 
 #define DRIVER_AUTHOR		"Dave Airlie"
 
@@ -65,7 +65,6 @@ struct dma_buf_map;
 #define QXL_DEBUGFS_MAX_COMPONENTS		32
 
 extern int qxl_num_crtc;
-extern int qxl_max_ioctls;
 
 #define QXL_INTERRUPT_MASK (\
 	QXL_INTERRUPT_DISPLAY |\
@@ -81,7 +80,7 @@ struct qxl_bo {
 	/* Protected by tbo.reserved */
 	struct ttm_place		placements[3];
 	struct ttm_placement		placement;
-	struct dma_buf_map		map;
+	struct iosys_map		map;
 	void				*kptr;
 	unsigned int                    map_count;
 	int                             type;
@@ -261,9 +260,6 @@ struct qxl_device {
 
 int qxl_debugfs_fence_init(struct qxl_device *rdev);
 
-extern const struct drm_ioctl_desc qxl_ioctls[];
-extern int qxl_max_ioctl;
-
 int qxl_device_init(struct qxl_device *qdev, struct pci_dev *pdev);
 void qxl_device_fini(struct qxl_device *qdev);
 
@@ -281,10 +277,8 @@ struct qxl_ring *qxl_ring_create(struct qxl_ring_header *header,
 				 int element_size,
 				 int n_elements,
 				 int prod_notify,
-				 bool set_prod_notify,
 				 wait_queue_head_t *push_event);
 void qxl_ring_free(struct qxl_ring *ring);
-void qxl_ring_init_hdr(struct qxl_ring *ring);
 int qxl_check_idle(struct qxl_ring *ring);
 
 static inline uint64_t
@@ -431,9 +425,9 @@ struct sg_table *qxl_gem_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *qxl_gem_prime_import_sg_table(
 	struct drm_device *dev, struct dma_buf_attachment *attach,
 	struct sg_table *sgt);
-int qxl_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
+int qxl_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map);
 void qxl_gem_prime_vunmap(struct drm_gem_object *obj,
-			  struct dma_buf_map *map);
+			  struct iosys_map *map);
 
 /* qxl_irq.c */
 int qxl_irq_init(struct qxl_device *qdev);
@@ -456,5 +450,14 @@ int qxl_bo_check_id(struct qxl_device *qdev, struct qxl_bo *bo);
 struct qxl_drv_surface *
 qxl_surface_lookup(struct drm_device *dev, int surface_id);
 void qxl_surface_evict(struct qxl_device *qdev, struct qxl_bo *surf, bool freeing);
+
+/* qxl_ioctl.c */
+int qxl_alloc_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
+int qxl_map_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
+int qxl_execbuffer_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
+int qxl_update_area_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
+int qxl_getparam_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
+int qxl_clientcap_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
+int qxl_alloc_surf_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
 
 #endif

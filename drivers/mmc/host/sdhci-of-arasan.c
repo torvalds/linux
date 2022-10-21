@@ -1577,6 +1577,9 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	const struct sdhci_arasan_of_data *data;
 
 	data = of_device_get_match_data(dev);
+	if (!data)
+		return -EINVAL;
+
 	host = sdhci_pltfm_init(pdev, data->pdata, sizeof(*sdhci_arasan));
 
 	if (IS_ERR(host))
@@ -1730,7 +1733,6 @@ err_pltfm_free:
 
 static int sdhci_arasan_remove(struct platform_device *pdev)
 {
-	int ret;
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
@@ -1744,11 +1746,11 @@ static int sdhci_arasan_remove(struct platform_device *pdev)
 
 	sdhci_arasan_unregister_sdclk(&pdev->dev);
 
-	ret = sdhci_pltfm_unregister(pdev);
+	sdhci_pltfm_unregister(pdev);
 
 	clk_disable_unprepare(clk_ahb);
 
-	return ret;
+	return 0;
 }
 
 static struct platform_driver sdhci_arasan_driver = {

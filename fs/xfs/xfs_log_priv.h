@@ -51,8 +51,8 @@ enum xlog_iclog_state {
 /*
  * In core log flags
  */
-#define XLOG_ICL_NEED_FLUSH	(1 << 0)	/* iclog needs REQ_PREFLUSH */
-#define XLOG_ICL_NEED_FUA	(1 << 1)	/* iclog needs REQ_FUA */
+#define XLOG_ICL_NEED_FLUSH	(1u << 0)	/* iclog needs REQ_PREFLUSH */
+#define XLOG_ICL_NEED_FUA	(1u << 1)	/* iclog needs REQ_FUA */
 
 #define XLOG_ICL_STRINGS \
 	{ XLOG_ICL_NEED_FLUSH,	"XLOG_ICL_NEED_FLUSH" }, \
@@ -62,7 +62,7 @@ enum xlog_iclog_state {
 /*
  * Log ticket flags
  */
-#define XLOG_TIC_PERM_RESERV	0x1	/* permanent reservation */
+#define XLOG_TIC_PERM_RESERV	(1u << 0)	/* permanent reservation */
 
 #define XLOG_TIC_FLAGS \
 	{ XLOG_TIC_PERM_RESERV,	"XLOG_TIC_PERM_RESERV" }
@@ -142,37 +142,17 @@ enum xlog_iclog_state {
 
 #define XLOG_COVER_OPS		5
 
-/* Ticket reservation region accounting */ 
-#define XLOG_TIC_LEN_MAX	15
-
-/*
- * Reservation region
- * As would be stored in xfs_log_iovec but without the i_addr which
- * we don't care about.
- */
-typedef struct xlog_res {
-	uint	r_len;	/* region length		:4 */
-	uint	r_type;	/* region's transaction type	:4 */
-} xlog_res_t;
-
 typedef struct xlog_ticket {
-	struct list_head   t_queue;	 /* reserve/write queue */
-	struct task_struct *t_task;	 /* task that owns this ticket */
-	xlog_tid_t	   t_tid;	 /* transaction identifier	 : 4  */
-	atomic_t	   t_ref;	 /* ticket reference count       : 4  */
-	int		   t_curr_res;	 /* current reservation in bytes : 4  */
-	int		   t_unit_res;	 /* unit reservation in bytes    : 4  */
-	char		   t_ocnt;	 /* original count		 : 1  */
-	char		   t_cnt;	 /* current count		 : 1  */
-	char		   t_clientid;	 /* who does this belong to;	 : 1  */
-	char		   t_flags;	 /* properties of reservation	 : 1  */
-
-        /* reservation array fields */
-	uint		   t_res_num;                    /* num in array : 4 */
-	uint		   t_res_num_ophdrs;		 /* num op hdrs  : 4 */
-	uint		   t_res_arr_sum;		 /* array sum    : 4 */
-	uint		   t_res_o_flow;		 /* sum overflow : 4 */
-	xlog_res_t	   t_res_arr[XLOG_TIC_LEN_MAX];  /* array of res : 8 * 15 */ 
+	struct list_head	t_queue;	/* reserve/write queue */
+	struct task_struct	*t_task;	/* task that owns this ticket */
+	xlog_tid_t		t_tid;		/* transaction identifier */
+	atomic_t		t_ref;		/* ticket reference count */
+	int			t_curr_res;	/* current reservation */
+	int			t_unit_res;	/* unit reservation */
+	char			t_ocnt;		/* original unit count */
+	char			t_cnt;		/* current unit count */
+	uint8_t			t_flags;	/* properties of reservation */
+	int			t_iclog_hdrs;	/* iclog hdrs in t_curr_res */
 } xlog_ticket_t;
 
 /*
@@ -211,7 +191,7 @@ typedef struct xlog_in_core {
 	u32			ic_offset;
 	enum xlog_iclog_state	ic_state;
 	unsigned int		ic_flags;
-	char			*ic_datap;	/* pointer to iclog data */
+	void			*ic_datap;	/* pointer to iclog data */
 	struct list_head	ic_callbacks;
 
 	/* reference counts need their own cacheline */
@@ -242,14 +222,25 @@ struct xfs_cil_ctx {
 	xfs_lsn_t		commit_lsn;	/* chkpt commit record lsn */
 	struct xlog_in_core	*commit_iclog;
 	struct xlog_ticket	*ticket;	/* chkpt ticket */
-	int			nvecs;		/* number of regions */
-	int			space_used;	/* aggregate size of regions */
+	atomic_t		space_used;	/* aggregate size of regions */
 	struct list_head	busy_extents;	/* busy extents in chkpt */
-	struct xfs_log_vec	*lv_chain;	/* logvecs being pushed */
+	struct list_head	log_items;	/* log items in chkpt */
+	struct list_head	lv_chain;	/* logvecs being pushed */
 	struct list_head	iclog_entry;
 	struct list_head	committing;	/* ctx committing list */
 	struct work_struct	discard_endio_work;
 	struct work_struct	push_work;
+	atomic_t		order_id;
+};
+
+/*
+ * Per-cpu CIL tracking items
+ */
+struct xlog_cil_pcp {
+	int32_t			space_used;
+	uint32_t		space_reserved;
+	struct list_head	busy_extents;
+	struct list_head	log_items;
 };
 
 /*
@@ -270,8 +261,8 @@ struct xfs_cil_ctx {
  */
 struct xfs_cil {
 	struct xlog		*xc_log;
-	struct list_head	xc_cil;
-	spinlock_t		xc_cil_lock;
+	unsigned long		xc_flags;
+	atomic_t		xc_iclog_hdrs;
 	struct workqueue_struct	*xc_push_wq;
 
 	struct rw_semaphore	xc_ctx_lock ____cacheline_aligned_in_smp;
@@ -285,7 +276,16 @@ struct xfs_cil {
 	wait_queue_head_t	xc_start_wait;
 	xfs_csn_t		xc_current_sequence;
 	wait_queue_head_t	xc_push_wait;	/* background push throttle */
+
+	void __percpu		*xc_pcp;	/* percpu CIL structures */
+#ifdef CONFIG_HOTPLUG_CPU
+	struct list_head	xc_pcp_list;
+#endif
 } ____cacheline_aligned_in_smp;
+
+/* xc_flags bit values */
+#define	XLOG_CIL_EMPTY		1
+#define XLOG_CIL_PCP_SPACE	2
 
 /*
  * The amount of log space we allow the CIL to aggregate is difficult to size.
@@ -441,10 +441,6 @@ struct xlog {
 
 	struct xfs_kobj		l_kobj;
 
-	/* The following field are used for debugging; need to hold icloglock */
-#ifdef DEBUG
-	void			*l_iclog_bak[XLOG_MAX_ICLOGS];
-#endif
 	/* log recovery lsn tracking (for buffer submission */
 	xfs_lsn_t		l_recovery_lsn;
 
@@ -453,9 +449,6 @@ struct xlog {
 	/* Users of log incompat features should take a read lock. */
 	struct rw_semaphore	l_incompat_users;
 };
-
-#define XLOG_BUF_CANCEL_BUCKET(log, blkno) \
-	((log)->l_buf_cancel_table + ((uint64_t)blkno % XLOG_BC_TABLE_SIZE))
 
 /*
  * Bits for operational state
@@ -484,6 +477,17 @@ xlog_is_shutdown(struct xlog *log)
 	return test_bit(XLOG_IO_ERROR, &log->l_opstate);
 }
 
+/*
+ * Wait until the xlog_force_shutdown() has marked the log as shut down
+ * so xlog_is_shutdown() will always return true.
+ */
+static inline void
+xlog_shutdown_wait(
+	struct xlog	*log)
+{
+	wait_var_event(&log->l_opstate, xlog_is_shutdown(log));
+}
+
 /* common routines */
 extern int
 xlog_recover(
@@ -498,34 +502,21 @@ extern __le32	 xlog_cksum(struct xlog *log, struct xlog_rec_header *rhead,
 			    char *dp, int size);
 
 extern struct kmem_cache *xfs_log_ticket_cache;
-struct xlog_ticket *
-xlog_ticket_alloc(
-	struct xlog	*log,
-	int		unit_bytes,
-	int		count,
-	char		client,
-	bool		permanent);
-
-static inline void
-xlog_write_adv_cnt(void **ptr, int *len, int *off, size_t bytes)
-{
-	*ptr += bytes;
-	*len -= bytes;
-	*off += bytes;
-}
+struct xlog_ticket *xlog_ticket_alloc(struct xlog *log, int unit_bytes,
+		int count, bool permanent);
 
 void	xlog_print_tic_res(struct xfs_mount *mp, struct xlog_ticket *ticket);
 void	xlog_print_trans(struct xfs_trans *);
 int	xlog_write(struct xlog *log, struct xfs_cil_ctx *ctx,
-		struct xfs_log_vec *log_vector, struct xlog_ticket *tic,
-		uint optype);
+		struct list_head *lv_chain, struct xlog_ticket *tic,
+		uint32_t len);
 void	xfs_log_ticket_ungrant(struct xlog *log, struct xlog_ticket *ticket);
 void	xfs_log_ticket_regrant(struct xlog *log, struct xlog_ticket *ticket);
 
 void xlog_state_switch_iclogs(struct xlog *log, struct xlog_in_core *iclog,
 		int eventual_size);
 int xlog_state_release_iclog(struct xlog *log, struct xlog_in_core *iclog,
-		xfs_lsn_t log_tail_lsn);
+		struct xlog_ticket *ticket);
 
 /*
  * When we crack an atomic LSN, we sample it first so that the value will not
@@ -679,5 +670,44 @@ xlog_valid_lsn(
 
 	return valid;
 }
+
+/*
+ * Log vector and shadow buffers can be large, so we need to use kvmalloc() here
+ * to ensure success. Unfortunately, kvmalloc() only allows GFP_KERNEL contexts
+ * to fall back to vmalloc, so we can't actually do anything useful with gfp
+ * flags to control the kmalloc() behaviour within kvmalloc(). Hence kmalloc()
+ * will do direct reclaim and compaction in the slow path, both of which are
+ * horrendously expensive. We just want kmalloc to fail fast and fall back to
+ * vmalloc if it can't get somethign straight away from the free lists or
+ * buddy allocator. Hence we have to open code kvmalloc outselves here.
+ *
+ * This assumes that the caller uses memalloc_nofs_save task context here, so
+ * despite the use of GFP_KERNEL here, we are going to be doing GFP_NOFS
+ * allocations. This is actually the only way to make vmalloc() do GFP_NOFS
+ * allocations, so lets just all pretend this is a GFP_KERNEL context
+ * operation....
+ */
+static inline void *
+xlog_kvmalloc(
+	size_t		buf_size)
+{
+	gfp_t		flags = GFP_KERNEL;
+	void		*p;
+
+	flags &= ~__GFP_DIRECT_RECLAIM;
+	flags |= __GFP_NOWARN | __GFP_NORETRY;
+	do {
+		p = kmalloc(buf_size, flags);
+		if (!p)
+			p = vmalloc(buf_size);
+	} while (!p);
+
+	return p;
+}
+
+/*
+ * CIL CPU dead notifier
+ */
+void xlog_cil_pcp_dead(struct xlog *log, unsigned int cpu);
 
 #endif	/* __XFS_LOG_PRIV_H__ */

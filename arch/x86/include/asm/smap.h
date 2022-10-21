@@ -19,24 +19,13 @@
 
 #ifdef __ASSEMBLY__
 
-#ifdef CONFIG_X86_SMAP
-
 #define ASM_CLAC \
 	ALTERNATIVE "", __ASM_CLAC, X86_FEATURE_SMAP
 
 #define ASM_STAC \
 	ALTERNATIVE "", __ASM_STAC, X86_FEATURE_SMAP
 
-#else /* CONFIG_X86_SMAP */
-
-#define ASM_CLAC
-#define ASM_STAC
-
-#endif /* CONFIG_X86_SMAP */
-
 #else /* __ASSEMBLY__ */
-
-#ifdef CONFIG_X86_SMAP
 
 static __always_inline void clac(void)
 {
@@ -75,19 +64,6 @@ static __always_inline void smap_restore(unsigned long flags)
 	ALTERNATIVE("", __ASM_CLAC, X86_FEATURE_SMAP)
 #define ASM_STAC \
 	ALTERNATIVE("", __ASM_STAC, X86_FEATURE_SMAP)
-
-#else /* CONFIG_X86_SMAP */
-
-static inline void clac(void) { }
-static inline void stac(void) { }
-
-static inline unsigned long smap_save(void) { return 0; }
-static inline void smap_restore(unsigned long flags) { }
-
-#define ASM_CLAC
-#define ASM_STAC
-
-#endif /* CONFIG_X86_SMAP */
 
 #endif /* __ASSEMBLY__ */
 

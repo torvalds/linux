@@ -51,6 +51,7 @@ struct device;
  *  bitmap_empty(src, nbits)                    Are all bits zero in *src?
  *  bitmap_full(src, nbits)                     Are all bits set in *src?
  *  bitmap_weight(src, nbits)                   Hamming Weight: number set bits
+ *  bitmap_weight_and(src1, src2, nbits)        Hamming Weight of and'ed bitmap
  *  bitmap_set(dst, pos, nbits)                 Set specified bit area
  *  bitmap_clear(dst, pos, nbits)               Clear specified bit area
  *  bitmap_find_next_zero_area(buf, len, pos, n, mask)  Find bit free area
@@ -71,7 +72,9 @@ struct device;
  *  bitmap_release_region(bitmap, pos, order)   Free specified bit region
  *  bitmap_allocate_region(bitmap, pos, order)  Allocate specified bit region
  *  bitmap_from_arr32(dst, buf, nbits)          Copy nbits from u32[] buf to dst
+ *  bitmap_from_arr64(dst, buf, nbits)          Copy nbits from u64[] buf to dst
  *  bitmap_to_arr32(buf, src, nbits)            Copy nbits from buf to u32[] dst
+ *  bitmap_to_arr64(buf, src, nbits)            Copy nbits from buf to u64[] dst
  *  bitmap_get_value8(map, start)               Get 8bit value from map at start
  *  bitmap_set_value8(map, value, start)        Set 8bit value to map at start
  *
@@ -132,8 +135,8 @@ unsigned long *devm_bitmap_zalloc(struct device *dev,
  * lib/bitmap.c provides these functions:
  */
 
-int __bitmap_equal(const unsigned long *bitmap1,
-		   const unsigned long *bitmap2, unsigned int nbits);
+bool __bitmap_equal(const unsigned long *bitmap1,
+		    const unsigned long *bitmap2, unsigned int nbits);
 bool __pure __bitmap_or_equal(const unsigned long *src1,
 			      const unsigned long *src2,
 			      const unsigned long *src3,
@@ -146,22 +149,24 @@ void __bitmap_shift_left(unsigned long *dst, const unsigned long *src,
 			 unsigned int shift, unsigned int nbits);
 void bitmap_cut(unsigned long *dst, const unsigned long *src,
 		unsigned int first, unsigned int cut, unsigned int nbits);
-int __bitmap_and(unsigned long *dst, const unsigned long *bitmap1,
+bool __bitmap_and(unsigned long *dst, const unsigned long *bitmap1,
 		 const unsigned long *bitmap2, unsigned int nbits);
 void __bitmap_or(unsigned long *dst, const unsigned long *bitmap1,
 		 const unsigned long *bitmap2, unsigned int nbits);
 void __bitmap_xor(unsigned long *dst, const unsigned long *bitmap1,
 		  const unsigned long *bitmap2, unsigned int nbits);
-int __bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
+bool __bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
 		    const unsigned long *bitmap2, unsigned int nbits);
 void __bitmap_replace(unsigned long *dst,
 		      const unsigned long *old, const unsigned long *new,
 		      const unsigned long *mask, unsigned int nbits);
-int __bitmap_intersects(const unsigned long *bitmap1,
-			const unsigned long *bitmap2, unsigned int nbits);
-int __bitmap_subset(const unsigned long *bitmap1,
-		    const unsigned long *bitmap2, unsigned int nbits);
-int __bitmap_weight(const unsigned long *bitmap, unsigned int nbits);
+bool __bitmap_intersects(const unsigned long *bitmap1,
+			 const unsigned long *bitmap2, unsigned int nbits);
+bool __bitmap_subset(const unsigned long *bitmap1,
+		     const unsigned long *bitmap2, unsigned int nbits);
+unsigned int __bitmap_weight(const unsigned long *bitmap, unsigned int nbits);
+unsigned int __bitmap_weight_and(const unsigned long *bitmap1,
+				 const unsigned long *bitmap2, unsigned int nbits);
 void __bitmap_set(unsigned long *map, unsigned int start, int len);
 void __bitmap_clear(unsigned long *map, unsigned int start, int len);
 
@@ -220,7 +225,6 @@ void bitmap_copy_le(unsigned long *dst, const unsigned long *src, unsigned int n
 #else
 #define bitmap_copy_le bitmap_copy
 #endif
-unsigned int bitmap_ord_to_pos(const unsigned long *bitmap, unsigned int ord, unsigned int nbits);
 int bitmap_print_to_pagebuf(bool list, char *buf,
 				   const unsigned long *maskp, int nmaskbits);
 
@@ -236,20 +240,32 @@ extern int bitmap_print_list_to_buf(char *buf, const unsigned long *maskp,
 static inline void bitmap_zero(unsigned long *dst, unsigned int nbits)
 {
 	unsigned int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
-	memset(dst, 0, len);
+
+	if (small_const_nbits(nbits))
+		*dst = 0;
+	else
+		memset(dst, 0, len);
 }
 
 static inline void bitmap_fill(unsigned long *dst, unsigned int nbits)
 {
 	unsigned int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
-	memset(dst, 0xff, len);
+
+	if (small_const_nbits(nbits))
+		*dst = ~0UL;
+	else
+		memset(dst, 0xff, len);
 }
 
 static inline void bitmap_copy(unsigned long *dst, const unsigned long *src,
 			unsigned int nbits)
 {
 	unsigned int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
-	memcpy(dst, src, len);
+
+	if (small_const_nbits(nbits))
+		*dst = *src;
+	else
+		memcpy(dst, src, len);
 }
 
 /*
@@ -264,8 +280,12 @@ static inline void bitmap_copy_clear_tail(unsigned long *dst,
 }
 
 /*
- * On 32-bit systems bitmaps are represented as u32 arrays internally, and
- * therefore conversion is not needed when copying data from/to arrays of u32.
+ * On 32-bit systems bitmaps are represented as u32 arrays internally. On LE64
+ * machines the order of hi and lo parts of numbers match the bitmap structure.
+ * In both cases conversion is not needed when copying data from/to arrays of
+ * u32. But in LE64 case, typecast in bitmap_copy_clear_tail() may lead
+ * to out-of-bound access. To avoid that, both LE and BE variants of 64-bit
+ * architectures are not using bitmap_copy_clear_tail().
  */
 #if BITS_PER_LONG == 64
 void bitmap_from_arr32(unsigned long *bitmap, const u32 *buf,
@@ -281,7 +301,23 @@ void bitmap_to_arr32(u32 *buf, const unsigned long *bitmap,
 			(const unsigned long *) (bitmap), (nbits))
 #endif
 
-static inline int bitmap_and(unsigned long *dst, const unsigned long *src1,
+/*
+ * On 64-bit systems bitmaps are represented as u64 arrays internally. On LE32
+ * machines the order of hi and lo parts of numbers match the bitmap structure.
+ * In both cases conversion is not needed when copying data from/to arrays of
+ * u64.
+ */
+#if (BITS_PER_LONG == 32) && defined(__BIG_ENDIAN)
+void bitmap_from_arr64(unsigned long *bitmap, const u64 *buf, unsigned int nbits);
+void bitmap_to_arr64(u64 *buf, const unsigned long *bitmap, unsigned int nbits);
+#else
+#define bitmap_from_arr64(bitmap, buf, nbits)			\
+	bitmap_copy_clear_tail((unsigned long *)(bitmap), (const unsigned long *)(buf), (nbits))
+#define bitmap_to_arr64(buf, bitmap, nbits)			\
+	bitmap_copy_clear_tail((unsigned long *)(buf), (const unsigned long *)(bitmap), (nbits))
+#endif
+
+static inline bool bitmap_and(unsigned long *dst, const unsigned long *src1,
 			const unsigned long *src2, unsigned int nbits)
 {
 	if (small_const_nbits(nbits))
@@ -307,7 +343,7 @@ static inline void bitmap_xor(unsigned long *dst, const unsigned long *src1,
 		__bitmap_xor(dst, src1, src2, nbits);
 }
 
-static inline int bitmap_andnot(unsigned long *dst, const unsigned long *src1,
+static inline bool bitmap_andnot(unsigned long *dst, const unsigned long *src1,
 			const unsigned long *src2, unsigned int nbits)
 {
 	if (small_const_nbits(nbits))
@@ -331,8 +367,8 @@ static inline void bitmap_complement(unsigned long *dst, const unsigned long *sr
 #endif
 #define BITMAP_MEM_MASK (BITMAP_MEM_ALIGNMENT - 1)
 
-static inline int bitmap_equal(const unsigned long *src1,
-			const unsigned long *src2, unsigned int nbits)
+static inline bool bitmap_equal(const unsigned long *src1,
+				const unsigned long *src2, unsigned int nbits)
 {
 	if (small_const_nbits(nbits))
 		return !((*src1 ^ *src2) & BITMAP_LAST_WORD_MASK(nbits));
@@ -362,8 +398,9 @@ static inline bool bitmap_or_equal(const unsigned long *src1,
 	return !(((*src1 | *src2) ^ *src3) & BITMAP_LAST_WORD_MASK(nbits));
 }
 
-static inline int bitmap_intersects(const unsigned long *src1,
-			const unsigned long *src2, unsigned int nbits)
+static inline bool bitmap_intersects(const unsigned long *src1,
+				     const unsigned long *src2,
+				     unsigned int nbits)
 {
 	if (small_const_nbits(nbits))
 		return ((*src1 & *src2) & BITMAP_LAST_WORD_MASK(nbits)) != 0;
@@ -371,8 +408,8 @@ static inline int bitmap_intersects(const unsigned long *src1,
 		return __bitmap_intersects(src1, src2, nbits);
 }
 
-static inline int bitmap_subset(const unsigned long *src1,
-			const unsigned long *src2, unsigned int nbits)
+static inline bool bitmap_subset(const unsigned long *src1,
+				 const unsigned long *src2, unsigned int nbits)
 {
 	if (small_const_nbits(nbits))
 		return ! ((*src1 & ~(*src2)) & BITMAP_LAST_WORD_MASK(nbits));
@@ -396,11 +433,21 @@ static inline bool bitmap_full(const unsigned long *src, unsigned int nbits)
 	return find_first_zero_bit(src, nbits) == nbits;
 }
 
-static __always_inline int bitmap_weight(const unsigned long *src, unsigned int nbits)
+static __always_inline
+unsigned int bitmap_weight(const unsigned long *src, unsigned int nbits)
 {
 	if (small_const_nbits(nbits))
 		return hweight_long(*src & BITMAP_LAST_WORD_MASK(nbits));
 	return __bitmap_weight(src, nbits);
+}
+
+static __always_inline
+unsigned long bitmap_weight_and(const unsigned long *src1,
+				const unsigned long *src2, unsigned int nbits)
+{
+	if (small_const_nbits(nbits))
+		return hweight_long(*src1 & *src2 & BITMAP_LAST_WORD_MASK(nbits));
+	return __bitmap_weight_and(src1, src2, nbits);
 }
 
 static __always_inline void bitmap_set(unsigned long *map, unsigned int start,
@@ -408,6 +455,8 @@ static __always_inline void bitmap_set(unsigned long *map, unsigned int start,
 {
 	if (__builtin_constant_p(nbits) && nbits == 1)
 		__set_bit(start, map);
+	else if (small_const_nbits(start + nbits))
+		*map |= GENMASK(start + nbits - 1, start);
 	else if (__builtin_constant_p(start & BITMAP_MEM_MASK) &&
 		 IS_ALIGNED(start, BITMAP_MEM_ALIGNMENT) &&
 		 __builtin_constant_p(nbits & BITMAP_MEM_MASK) &&
@@ -422,6 +471,8 @@ static __always_inline void bitmap_clear(unsigned long *map, unsigned int start,
 {
 	if (__builtin_constant_p(nbits) && nbits == 1)
 		__clear_bit(start, map);
+	else if (small_const_nbits(start + nbits))
+		*map &= ~GENMASK(start + nbits - 1, start);
 	else if (__builtin_constant_p(start & BITMAP_MEM_MASK) &&
 		 IS_ALIGNED(start, BITMAP_MEM_ALIGNMENT) &&
 		 __builtin_constant_p(nbits & BITMAP_MEM_MASK) &&
@@ -514,10 +565,7 @@ static inline void bitmap_next_set_region(unsigned long *bitmap,
  */
 static inline void bitmap_from_u64(unsigned long *dst, u64 mask)
 {
-	dst[0] = mask & ULONG_MAX;
-
-	if (sizeof(mask) > sizeof(unsigned long))
-		dst[1] = mask >> 32;
+	bitmap_from_arr64(dst, &mask, 64);
 }
 
 /**

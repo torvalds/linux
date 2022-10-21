@@ -39,6 +39,8 @@
 #define BMA400_INT_STAT0_REG        0x0e
 #define BMA400_INT_STAT1_REG        0x0f
 #define BMA400_INT_STAT2_REG        0x10
+#define BMA400_INT12_MAP_REG        0x23
+#define BMA400_INT_ENG_OVRUN_MSK    BIT(4)
 
 /* Temperature register */
 #define BMA400_TEMP_DATA_REG        0x11
@@ -53,6 +55,9 @@
 #define BMA400_STEP_CNT1_REG        0x16
 #define BMA400_STEP_CNT3_REG        0x17
 #define BMA400_STEP_STAT_REG        0x18
+#define BMA400_STEP_INT_MSK         BIT(0)
+#define BMA400_STEP_RAW_LEN         0x03
+#define BMA400_STEP_STAT_MASK       GENMASK(9, 8)
 
 /*
  * Read-write configuration registers
@@ -61,6 +66,13 @@
 #define BMA400_ACC_CONFIG1_REG      0x1a
 #define BMA400_ACC_CONFIG2_REG      0x1b
 #define BMA400_CMD_REG              0x7e
+
+/* Interrupt registers */
+#define BMA400_INT_CONFIG0_REG	    0x1f
+#define BMA400_INT_CONFIG1_REG	    0x20
+#define BMA400_INT1_MAP_REG	    0x21
+#define BMA400_INT_IO_CTRL_REG	    0x24
+#define BMA400_INT_DRDY_MSK	    BIT(7)
 
 /* Chip ID of BMA 400 devices found in the chip ID register. */
 #define BMA400_ID_REG_VAL           0x90
@@ -83,8 +95,51 @@
 #define BMA400_ACC_ODR_MIN_WHOLE_HZ 25
 #define BMA400_ACC_ODR_MIN_HZ       12
 
-#define BMA400_SCALE_MIN            38357
-#define BMA400_SCALE_MAX            306864
+/* Generic interrupts register */
+#define BMA400_GEN1INT_CONFIG0      0x3f
+#define BMA400_GEN2INT_CONFIG0      0x4A
+#define BMA400_GEN_CONFIG1_OFF      0x01
+#define BMA400_GEN_CONFIG2_OFF      0x02
+#define BMA400_GEN_CONFIG3_OFF      0x03
+#define BMA400_GEN_CONFIG31_OFF     0x04
+#define BMA400_INT_GEN1_MSK         BIT(2)
+#define BMA400_INT_GEN2_MSK         BIT(3)
+#define BMA400_GEN_HYST_MSK         GENMASK(1, 0)
+
+/* TAP config registers */
+#define BMA400_TAP_CONFIG           0x57
+#define BMA400_TAP_CONFIG1          0x58
+#define BMA400_S_TAP_MSK            BIT(2)
+#define BMA400_D_TAP_MSK            BIT(3)
+#define BMA400_INT_S_TAP_MSK        BIT(10)
+#define BMA400_INT_D_TAP_MSK        BIT(11)
+#define BMA400_TAP_SEN_MSK          GENMASK(2, 0)
+#define BMA400_TAP_TICSTH_MSK       GENMASK(1, 0)
+#define BMA400_TAP_QUIET_MSK        GENMASK(3, 2)
+#define BMA400_TAP_QUIETDT_MSK      GENMASK(5, 4)
+#define BMA400_TAP_TIM_LIST_LEN     4
+
+/*
+ * BMA400_SCALE_MIN macro value represents m/s^2 for 1 LSB before
+ * converting to micro values for +-2g range.
+ *
+ * For +-2g - 1 LSB = 0.976562 milli g = 0.009576 m/s^2
+ * For +-4g - 1 LSB = 1.953125 milli g = 0.019153 m/s^2
+ * For +-16g - 1 LSB = 7.8125 milli g = 0.076614 m/s^2
+ *
+ * The raw value which is used to select the different ranges is determined
+ * by the first bit set position from the scale value, so BMA400_SCALE_MIN
+ * should be odd.
+ *
+ * Scale values for +-2g, +-4g, +-8g and +-16g are populated into bma400_scales
+ * array by left shifting BMA400_SCALE_MIN.
+ * e.g.:
+ * To select +-2g = 9577 << 0 = raw value to write is 0.
+ * To select +-8g = 9577 << 2 = raw value to write is 2.
+ * To select +-16g = 9577 << 3 = raw value to write is 3.
+ */
+#define BMA400_SCALE_MIN            9577
+#define BMA400_SCALE_MAX            76617
 
 #define BMA400_NUM_REGULATORS       2
 #define BMA400_VDD_REGULATOR        0
@@ -92,8 +147,7 @@
 
 extern const struct regmap_config bma400_regmap_config;
 
-int bma400_probe(struct device *dev, struct regmap *regmap, const char *name);
-
-void bma400_remove(struct device *dev);
+int bma400_probe(struct device *dev, struct regmap *regmap, int irq,
+		 const char *name);
 
 #endif

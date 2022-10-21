@@ -40,6 +40,28 @@ DEFINE_EVENT(cpu, cpu_idle,
 	TP_ARGS(state, cpu_id)
 );
 
+TRACE_EVENT(cpu_idle_miss,
+
+	TP_PROTO(unsigned int cpu_id, unsigned int state, bool below),
+
+	TP_ARGS(cpu_id, state, below),
+
+	TP_STRUCT__entry(
+		__field(u32,		cpu_id)
+		__field(u32,		state)
+		__field(bool,		below)
+	),
+
+	TP_fast_assign(
+		__entry->cpu_id = cpu_id;
+		__entry->state = state;
+		__entry->below = below;
+	),
+
+	TP_printk("cpu_id=%lu state=%lu type=%s", (unsigned long)__entry->cpu_id,
+		(unsigned long)__entry->state, (__entry->below)?"below":"above")
+);
+
 TRACE_EVENT(powernv_throttle,
 
 	TP_PROTO(int chip_id, const char *reason, int pmax),
@@ -500,6 +522,35 @@ DEFINE_EVENT(dev_pm_qos_request, dev_pm_qos_remove_request,
 
 	TP_ARGS(name, type, new_value)
 );
+
+TRACE_EVENT(guest_halt_poll_ns,
+
+	TP_PROTO(bool grow, unsigned int new, unsigned int old),
+
+	TP_ARGS(grow, new, old),
+
+	TP_STRUCT__entry(
+		__field(bool, grow)
+		__field(unsigned int, new)
+		__field(unsigned int, old)
+	),
+
+	TP_fast_assign(
+		__entry->grow   = grow;
+		__entry->new    = new;
+		__entry->old    = old;
+	),
+
+	TP_printk("halt_poll_ns %u (%s %u)",
+		__entry->new,
+		__entry->grow ? "grow" : "shrink",
+		__entry->old)
+);
+
+#define trace_guest_halt_poll_ns_grow(new, old) \
+	trace_guest_halt_poll_ns(true, new, old)
+#define trace_guest_halt_poll_ns_shrink(new, old) \
+	trace_guest_halt_poll_ns(false, new, old)
 #endif /* _TRACE_POWER_H */
 
 /* This part must be outside protection */

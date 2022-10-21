@@ -391,11 +391,34 @@ out:
 	return ret;
 }
 
+static int sti_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			 const struct pwm_state *state)
+{
+	int err;
+
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			sti_pwm_disable(chip, pwm);
+
+		return 0;
+	}
+
+	err = sti_pwm_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!pwm->state.enabled)
+		err = sti_pwm_enable(chip, pwm);
+
+	return err;
+}
+
 static const struct pwm_ops sti_pwm_ops = {
 	.capture = sti_pwm_capture,
-	.config = sti_pwm_config,
-	.enable = sti_pwm_enable,
-	.disable = sti_pwm_disable,
+	.apply = sti_pwm_apply,
 	.free = sti_pwm_free,
 	.owner = THIS_MODULE,
 };

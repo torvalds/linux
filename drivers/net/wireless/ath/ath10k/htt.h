@@ -240,14 +240,7 @@ enum htt_rx_ring_flags {
 #define HTT_RX_RING_FILL_LEVEL (((HTT_RX_RING_SIZE) / 2) - 1)
 #define HTT_RX_RING_FILL_LEVEL_DUAL_MAC (HTT_RX_RING_SIZE - 1)
 
-struct htt_rx_ring_setup_ring32 {
-	__le32 fw_idx_shadow_reg_paddr;
-	__le32 rx_ring_base_paddr;
-	__le16 rx_ring_len; /* in 4-byte words */
-	__le16 rx_ring_bufsize; /* rx skb size - in bytes */
-	__le16 flags; /* %HTT_RX_RING_FLAGS_ */
-	__le16 fw_idx_init_val;
-
+struct htt_rx_ring_rx_desc_offsets {
 	/* the following offsets are in 4-byte units */
 	__le16 mac80211_hdr_offset;
 	__le16 msdu_payload_offset;
@@ -261,6 +254,17 @@ struct htt_rx_ring_setup_ring32 {
 	__le16 frag_info_offset;
 } __packed;
 
+struct htt_rx_ring_setup_ring32 {
+	__le32 fw_idx_shadow_reg_paddr;
+	__le32 rx_ring_base_paddr;
+	__le16 rx_ring_len; /* in 4-byte words */
+	__le16 rx_ring_bufsize; /* rx skb size - in bytes */
+	__le16 flags; /* %HTT_RX_RING_FLAGS_ */
+	__le16 fw_idx_init_val;
+
+	struct htt_rx_ring_rx_desc_offsets offsets;
+} __packed;
+
 struct htt_rx_ring_setup_ring64 {
 	__le64 fw_idx_shadow_reg_paddr;
 	__le64 rx_ring_base_paddr;
@@ -269,17 +273,7 @@ struct htt_rx_ring_setup_ring64 {
 	__le16 flags; /* %HTT_RX_RING_FLAGS_ */
 	__le16 fw_idx_init_val;
 
-	/* the following offsets are in 4-byte units */
-	__le16 mac80211_hdr_offset;
-	__le16 msdu_payload_offset;
-	__le16 ppdu_start_offset;
-	__le16 ppdu_end_offset;
-	__le16 mpdu_start_offset;
-	__le16 mpdu_end_offset;
-	__le16 msdu_start_offset;
-	__le16 msdu_end_offset;
-	__le16 rx_attention_offset;
-	__le16 frag_info_offset;
+	struct htt_rx_ring_rx_desc_offsets offsets;
 } __packed;
 
 struct htt_rx_ring_setup_hdr {
@@ -2075,12 +2069,22 @@ static inline bool ath10k_htt_rx_proc_rx_frag_ind(struct ath10k_htt *htt,
 	return htt->rx_ops->htt_rx_proc_rx_frag_ind(htt, rx, skb);
 }
 
+/* the driver strongly assumes that the rx header status be 64 bytes long,
+ * so all possible rx_desc structures must respect this assumption.
+ */
 #define RX_HTT_HDR_STATUS_LEN 64
 
-/* This structure layout is programmed via rx ring setup
+/* The rx descriptor structure layout is programmed via rx ring setup
  * so that FW knows how to transfer the rx descriptor to the host.
- * Buffers like this are placed on the rx ring.
+ * Unfortunately, though, QCA6174's firmware doesn't currently behave correctly
+ * when modifying the structure layout of the rx descriptor beyond what it expects
+ * (even if it correctly programmed during the rx ring setup).
+ * Therefore we must keep two different memory layouts, abstract the rx descriptor
+ * representation and use ath10k_rx_desc_ops
+ * for correctly accessing rx descriptor data.
  */
+
+/* base struct used for abstracting the rx descritor representation */
 struct htt_rx_desc {
 	union {
 		/* This field is filled on the host using the msdu buffer
@@ -2089,6 +2093,13 @@ struct htt_rx_desc {
 		struct fw_rx_desc_base fw_desc;
 		u32 pad;
 	} __packed;
+} __packed;
+
+/* rx descriptor for wcn3990 and possibly extensible for newer cards
+ * Buffers like this are placed on the rx ring.
+ */
+struct htt_rx_desc_v2 {
+	struct htt_rx_desc base;
 	struct {
 		struct rx_attention attention;
 		struct rx_frag_info frag_info;
@@ -2102,6 +2113,240 @@ struct htt_rx_desc {
 	u8 rx_hdr_status[RX_HTT_HDR_STATUS_LEN];
 	u8 msdu_payload[];
 };
+
+/* QCA6174, QCA988x, QCA99x0 dedicated rx descriptor to make sure their firmware
+ * works correctly. We keep a single rx descriptor for all these three
+ * families of cards because from tests it seems to be the most stable solution,
+ * e.g. having a rx descriptor only for QCA6174 seldom caused firmware crashes
+ * during some tests.
+ * Buffers like this are placed on the rx ring.
+ */
+struct htt_rx_desc_v1 {
+	struct htt_rx_desc base;
+	struct {
+		struct rx_attention attention;
+		struct rx_frag_info_v1 frag_info;
+		struct rx_mpdu_start mpdu_start;
+		struct rx_msdu_start_v1 msdu_start;
+		struct rx_msdu_end_v1 msdu_end;
+		struct rx_mpdu_end mpdu_end;
+		struct rx_ppdu_start ppdu_start;
+		struct rx_ppdu_end_v1 ppdu_end;
+	} __packed;
+	u8 rx_hdr_status[RX_HTT_HDR_STATUS_LEN];
+	u8 msdu_payload[];
+};
+
+/* rx_desc abstraction */
+struct ath10k_htt_rx_desc_ops {
+	/* These fields are mandatory, they must be specified in any instance */
+
+	/* sizeof() of the rx_desc structure used by this hw */
+	size_t rx_desc_size;
+
+	/* offset of msdu_payload inside the rx_desc structure used by this hw */
+	size_t rx_desc_msdu_payload_offset;
+
+	/* These fields are options.
+	 * When a field is not provided the default implementation gets used
+	 * (see the ath10k_rx_desc_* operations below for more info about the defaults)
+	 */
+	bool (*rx_desc_get_msdu_limit_error)(struct htt_rx_desc *rxd);
+	int (*rx_desc_get_l3_pad_bytes)(struct htt_rx_desc *rxd);
+
+	/* Safely cast from a void* buffer containing an rx descriptor
+	 * to the proper rx_desc structure
+	 */
+	struct htt_rx_desc *(*rx_desc_from_raw_buffer)(void *buff);
+
+	void (*rx_desc_get_offsets)(struct htt_rx_ring_rx_desc_offsets *offs);
+	struct rx_attention *(*rx_desc_get_attention)(struct htt_rx_desc *rxd);
+	struct rx_frag_info_common *(*rx_desc_get_frag_info)(struct htt_rx_desc *rxd);
+	struct rx_mpdu_start *(*rx_desc_get_mpdu_start)(struct htt_rx_desc *rxd);
+	struct rx_mpdu_end *(*rx_desc_get_mpdu_end)(struct htt_rx_desc *rxd);
+	struct rx_msdu_start_common *(*rx_desc_get_msdu_start)(struct htt_rx_desc *rxd);
+	struct rx_msdu_end_common *(*rx_desc_get_msdu_end)(struct htt_rx_desc *rxd);
+	struct rx_ppdu_start *(*rx_desc_get_ppdu_start)(struct htt_rx_desc *rxd);
+	struct rx_ppdu_end_common *(*rx_desc_get_ppdu_end)(struct htt_rx_desc *rxd);
+	u8 *(*rx_desc_get_rx_hdr_status)(struct htt_rx_desc *rxd);
+	u8 *(*rx_desc_get_msdu_payload)(struct htt_rx_desc *rxd);
+};
+
+extern const struct ath10k_htt_rx_desc_ops qca988x_rx_desc_ops;
+extern const struct ath10k_htt_rx_desc_ops qca99x0_rx_desc_ops;
+extern const struct ath10k_htt_rx_desc_ops wcn3990_rx_desc_ops;
+
+static inline int
+ath10k_htt_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw, struct htt_rx_desc *rxd)
+{
+	if (hw->rx_desc_ops->rx_desc_get_l3_pad_bytes)
+		return hw->rx_desc_ops->rx_desc_get_l3_pad_bytes(rxd);
+	return 0;
+}
+
+static inline bool
+ath10k_htt_rx_desc_msdu_limit_error(struct ath10k_hw_params *hw, struct htt_rx_desc *rxd)
+{
+	if (hw->rx_desc_ops->rx_desc_get_msdu_limit_error)
+		return hw->rx_desc_ops->rx_desc_get_msdu_limit_error(rxd);
+	return false;
+}
+
+/* The default implementation of all these getters is using the old rx_desc,
+ * so that it is easier to define the ath10k_htt_rx_desc_ops instances.
+ * But probably, if new wireless cards must be supported, it would be better
+ * to switch the default implementation to the new rx_desc, since this would
+ * make the extension easier .
+ */
+static inline struct htt_rx_desc *
+ath10k_htt_rx_desc_from_raw_buffer(struct ath10k_hw_params *hw,	void *buff)
+{
+	if (hw->rx_desc_ops->rx_desc_from_raw_buffer)
+		return hw->rx_desc_ops->rx_desc_from_raw_buffer(buff);
+	return &((struct htt_rx_desc_v1 *)buff)->base;
+}
+
+static inline void
+ath10k_htt_rx_desc_get_offsets(struct ath10k_hw_params *hw,
+			       struct htt_rx_ring_rx_desc_offsets *off)
+{
+	if (hw->rx_desc_ops->rx_desc_get_offsets) {
+		hw->rx_desc_ops->rx_desc_get_offsets(off);
+	} else {
+#define	desc_offset(x) (offsetof(struct	htt_rx_desc_v1, x)	/ 4)
+		off->mac80211_hdr_offset = __cpu_to_le16(desc_offset(rx_hdr_status));
+		off->msdu_payload_offset = __cpu_to_le16(desc_offset(msdu_payload));
+		off->ppdu_start_offset = __cpu_to_le16(desc_offset(ppdu_start));
+		off->ppdu_end_offset = __cpu_to_le16(desc_offset(ppdu_end));
+		off->mpdu_start_offset = __cpu_to_le16(desc_offset(mpdu_start));
+		off->mpdu_end_offset = __cpu_to_le16(desc_offset(mpdu_end));
+		off->msdu_start_offset = __cpu_to_le16(desc_offset(msdu_start));
+		off->msdu_end_offset = __cpu_to_le16(desc_offset(msdu_end));
+		off->rx_attention_offset = __cpu_to_le16(desc_offset(attention));
+		off->frag_info_offset =	__cpu_to_le16(desc_offset(frag_info));
+#undef desc_offset
+	}
+}
+
+static inline struct rx_attention *
+ath10k_htt_rx_desc_get_attention(struct	ath10k_hw_params *hw, struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_attention)
+		return hw->rx_desc_ops->rx_desc_get_attention(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return &rx_desc->attention;
+}
+
+static inline struct rx_frag_info_common *
+ath10k_htt_rx_desc_get_frag_info(struct	ath10k_hw_params *hw, struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_frag_info)
+		return hw->rx_desc_ops->rx_desc_get_frag_info(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return &rx_desc->frag_info.common;
+}
+
+static inline struct rx_mpdu_start *
+ath10k_htt_rx_desc_get_mpdu_start(struct ath10k_hw_params *hw, struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_mpdu_start)
+		return hw->rx_desc_ops->rx_desc_get_mpdu_start(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return &rx_desc->mpdu_start;
+}
+
+static inline struct rx_mpdu_end *
+ath10k_htt_rx_desc_get_mpdu_end(struct ath10k_hw_params	*hw, struct htt_rx_desc	*rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_mpdu_end)
+		return hw->rx_desc_ops->rx_desc_get_mpdu_end(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return &rx_desc->mpdu_end;
+}
+
+static inline struct rx_msdu_start_common *
+ath10k_htt_rx_desc_get_msdu_start(struct ath10k_hw_params *hw, struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_msdu_start)
+		return hw->rx_desc_ops->rx_desc_get_msdu_start(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return &rx_desc->msdu_start.common;
+}
+
+static inline struct rx_msdu_end_common	*
+ath10k_htt_rx_desc_get_msdu_end(struct ath10k_hw_params	*hw, struct htt_rx_desc	*rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_msdu_end)
+		return hw->rx_desc_ops->rx_desc_get_msdu_end(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return &rx_desc->msdu_end.common;
+}
+
+static inline struct rx_ppdu_start *
+ath10k_htt_rx_desc_get_ppdu_start(struct ath10k_hw_params *hw, struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_ppdu_start)
+		return hw->rx_desc_ops->rx_desc_get_ppdu_start(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return &rx_desc->ppdu_start;
+}
+
+static inline struct rx_ppdu_end_common	*
+ath10k_htt_rx_desc_get_ppdu_end(struct ath10k_hw_params	*hw, struct htt_rx_desc	*rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_ppdu_end)
+		return hw->rx_desc_ops->rx_desc_get_ppdu_end(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return &rx_desc->ppdu_end.common;
+}
+
+static inline u8 *
+ath10k_htt_rx_desc_get_rx_hdr_status(struct ath10k_hw_params *hw, struct htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_rx_hdr_status)
+		return hw->rx_desc_ops->rx_desc_get_rx_hdr_status(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return rx_desc->rx_hdr_status;
+}
+
+static inline u8 *
+ath10k_htt_rx_desc_get_msdu_payload(struct ath10k_hw_params *hw, struct	htt_rx_desc *rxd)
+{
+	struct htt_rx_desc_v1 *rx_desc;
+
+	if (hw->rx_desc_ops->rx_desc_get_msdu_payload)
+		return hw->rx_desc_ops->rx_desc_get_msdu_payload(rxd);
+
+	rx_desc = container_of(rxd, struct htt_rx_desc_v1, base);
+	return rx_desc->msdu_payload;
+}
 
 #define HTT_RX_DESC_HL_INFO_SEQ_NUM_MASK           0x00000fff
 #define HTT_RX_DESC_HL_INFO_SEQ_NUM_LSB            0
@@ -2136,7 +2381,14 @@ struct htt_rx_chan_info {
  * rounded up to a cache line size.
  */
 #define HTT_RX_BUF_SIZE 2048
-#define HTT_RX_MSDU_SIZE (HTT_RX_BUF_SIZE - (int)sizeof(struct htt_rx_desc))
+
+/* The HTT_RX_MSDU_SIZE can't be statically computed anymore,
+ * because it depends on the underlying device rx_desc representation
+ */
+static inline int ath10k_htt_rx_msdu_size(struct ath10k_hw_params *hw)
+{
+	return HTT_RX_BUF_SIZE - (int)hw->rx_desc_ops->rx_desc_size;
+}
 
 /* Refill a bunch of RX buffers for each refill round so that FW/HW can handle
  * aggregated traffic more nicely.

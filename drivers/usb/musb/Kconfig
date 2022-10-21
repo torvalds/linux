@@ -86,7 +86,7 @@ config USB_MUSB_TUSB6010
 	tristate "TUSB6010"
 	depends on HAS_IOMEM
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
-	depends on NOP_USB_XCEIV = USB_MUSB_HDRC # both built-in or both modules
+	depends on NOP_USB_XCEIV!=m || USB_MUSB_HDRC=m
 
 config USB_MUSB_OMAP2PLUS
 	tristate "OMAP2430 and onwards"
@@ -123,6 +123,17 @@ config USB_MUSB_MEDIATEK
 	select GENERIC_PHY
 	select USB_ROLE_SWITCH
 
+config USB_MUSB_POLARFIRE_SOC
+	tristate "Microchip PolarFire SoC platforms"
+	depends on SOC_MICROCHIP_POLARFIRE || COMPILE_TEST
+	depends on NOP_USB_XCEIV
+	select USB_MUSB_DUAL_ROLE
+	help
+	  Say Y here to enable support for USB on Microchip's PolarFire SoC.
+
+	  This support is also available as a module.  If so, the module
+	  will be called mpfs.
+
 comment "MUSB DMA mode"
 
 config MUSB_PIO_ONLY
@@ -146,7 +157,7 @@ config USB_UX500_DMA
 
 config USB_INVENTRA_DMA
 	bool 'Inventra'
-	depends on USB_MUSB_OMAP2PLUS || USB_MUSB_MEDIATEK || USB_MUSB_JZ4740
+	depends on USB_MUSB_OMAP2PLUS || USB_MUSB_MEDIATEK || USB_MUSB_JZ4740 || USB_MUSB_POLARFIRE_SOC
 	help
 	  Enable DMA transfers using Mentor's engine.
 

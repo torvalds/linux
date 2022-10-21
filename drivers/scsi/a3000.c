@@ -7,13 +7,18 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 
 #include <asm/page.h>
 #include <asm/amigaints.h>
 #include <asm/amigahw.h>
 
-#include "scsi.h"
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_eh.h>
+#include <scsi/scsi_tcq.h>
 #include "wd33c93.h"
 #include "a3000.h"
 
@@ -21,7 +26,10 @@
 struct a3000_hostdata {
 	struct WD33C93_hostdata wh;
 	struct a3000_scsiregs *regs;
+	struct device *dev;
 };
+
+#define DMA_DIR(d)   ((d == DATA_OUT_DIR) ? DMA_TO_DEVICE : DMA_FROM_DEVICE)
 
 static irqreturn_t a3000_intr(int irq, void *data)
 {
@@ -44,37 +52,65 @@ static irqreturn_t a3000_intr(int irq, void *data)
 
 static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 {
+	struct scsi_pointer *scsi_pointer = WD33C93_scsi_pointer(cmd);
+	unsigned long len = scsi_pointer->this_residual;
 	struct Scsi_Host *instance = cmd->device->host;
 	struct a3000_hostdata *hdata = shost_priv(instance);
 	struct WD33C93_hostdata *wh = &hdata->wh;
 	struct a3000_scsiregs *regs = hdata->regs;
 	unsigned short cntr = CNTR_PDMD | CNTR_INTEN;
-	unsigned long addr = virt_to_bus(cmd->SCp.ptr);
+	dma_addr_t addr;
+
+	addr = dma_map_single(hdata->dev, scsi_pointer->ptr,
+			      len, DMA_DIR(dir_in));
+	if (dma_mapping_error(hdata->dev, addr)) {
+		dev_warn(hdata->dev, "cannot map SCSI data block %p\n",
+			 scsi_pointer->ptr);
+		return 1;
+	}
+	scsi_pointer->dma_handle = addr;
 
 	/*
 	 * if the physical address has the wrong alignment, or if
 	 * physical address is bad, or if it is a write and at the
 	 * end of a physical memory chunk, then allocate a bounce
 	 * buffer
+	 * MSch 20220629 - only wrong alignment tested - bounce
+	 * buffer returned by kmalloc is guaranteed to be aligned
 	 */
 	if (addr & A3000_XFER_MASK) {
-		wh->dma_bounce_len = (cmd->SCp.this_residual + 511) & ~0x1ff;
+		WARN_ONCE(1, "Invalid alignment for DMA!");
+		/* drop useless mapping */
+		dma_unmap_single(hdata->dev, scsi_pointer->dma_handle,
+				 scsi_pointer->this_residual,
+				 DMA_DIR(dir_in));
+
+		wh->dma_bounce_len = (scsi_pointer->this_residual + 511) & ~0x1ff;
 		wh->dma_bounce_buffer = kmalloc(wh->dma_bounce_len,
 						GFP_KERNEL);
 
 		/* can't allocate memory; use PIO */
 		if (!wh->dma_bounce_buffer) {
 			wh->dma_bounce_len = 0;
+			scsi_pointer->dma_handle = (dma_addr_t) NULL;
 			return 1;
 		}
 
 		if (!dir_in) {
 			/* copy to bounce buffer for a write */
-			memcpy(wh->dma_bounce_buffer, cmd->SCp.ptr,
-			       cmd->SCp.this_residual);
+			memcpy(wh->dma_bounce_buffer, scsi_pointer->ptr,
+			       scsi_pointer->this_residual);
 		}
 
-		addr = virt_to_bus(wh->dma_bounce_buffer);
+		addr = dma_map_single(hdata->dev, scsi_pointer->ptr,
+				      len, DMA_DIR(dir_in));
+		if (dma_mapping_error(hdata->dev, addr)) {
+			dev_warn(hdata->dev,
+				 "cannot map SCSI data block %p\n",
+				 scsi_pointer->ptr);
+			return 1;
+		}
+		scsi_pointer->dma_handle = addr;
 	}
 
 	/* setup dma direction */
@@ -89,13 +125,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 	/* setup DMA *physical* address */
 	regs->ACR = addr;
 
-	if (dir_in) {
-		/* invalidate any cache */
-		cache_clear(addr, cmd->SCp.this_residual);
-	} else {
-		/* push any dirty cache */
-		cache_push(addr, cmd->SCp.this_residual);
-	}
+	/* no more cache flush here - dma_map_single() takes care */
 
 	/* start DMA */
 	mb();			/* make sure setup is completed */
@@ -109,6 +139,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 		     int status)
 {
+	struct scsi_pointer *scsi_pointer = WD33C93_scsi_pointer(SCpnt);
 	struct a3000_hostdata *hdata = shost_priv(instance);
 	struct WD33C93_hostdata *wh = &hdata->wh;
 	struct a3000_scsiregs *regs = hdata->regs;
@@ -145,12 +176,16 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 	regs->CNTR = CNTR_PDMD | CNTR_INTEN;
 	mb();			/* make sure CNTR is updated before next IO */
 
+	dma_unmap_single(hdata->dev, scsi_pointer->dma_handle,
+			 scsi_pointer->this_residual,
+			 DMA_DIR(wh->dma_dir));
+
 	/* copy from a bounce buffer, if necessary */
 	if (status && wh->dma_bounce_buffer) {
 		if (SCpnt) {
 			if (wh->dma_dir && SCpnt)
-				memcpy(SCpnt->SCp.ptr, wh->dma_bounce_buffer,
-				       SCpnt->SCp.this_residual);
+				memcpy(scsi_pointer->ptr, wh->dma_bounce_buffer,
+				       scsi_pointer->this_residual);
 			kfree(wh->dma_bounce_buffer);
 			wh->dma_bounce_buffer = NULL;
 			wh->dma_bounce_len = 0;
@@ -175,6 +210,7 @@ static struct scsi_host_template amiga_a3000_scsi_template = {
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= CMD_PER_LUN,
+	.cmd_size		= sizeof(struct scsi_pointer),
 };
 
 static int __init amiga_a3000_scsi_probe(struct platform_device *pdev)
@@ -185,6 +221,11 @@ static int __init amiga_a3000_scsi_probe(struct platform_device *pdev)
 	struct a3000_scsiregs *regs;
 	wd33c93_regs wdregs;
 	struct a3000_hostdata *hdata;
+
+	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32))) {
+		dev_warn(&pdev->dev, "cannot use 32 bit DMA\n");
+		return -ENODEV;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -209,6 +250,7 @@ static int __init amiga_a3000_scsi_probe(struct platform_device *pdev)
 	wdregs.SCMD = &regs->SCMD;
 
 	hdata = shost_priv(instance);
+	hdata->dev = &pdev->dev;
 	hdata->wh.no_sync = 0xff;
 	hdata->wh.fast = 0;
 	hdata->wh.dma_mode = CTRL_DMA;

@@ -22,7 +22,6 @@
 #include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/rtas.h>
-#include <asm/prom.h>
 #include <asm/nvram.h>
 #include <linux/atomic.h>
 #include <asm/machdep.h>

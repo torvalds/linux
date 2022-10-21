@@ -44,7 +44,25 @@ struct sockaddr_mctp_ext {
 
 #define MCTP_TAG_MASK		0x07
 #define MCTP_TAG_OWNER		0x08
+#define MCTP_TAG_PREALLOC	0x10
 
 #define MCTP_OPT_ADDR_EXT	1
+
+#define SIOCMCTPALLOCTAG	(SIOCPROTOPRIVATE + 0)
+#define SIOCMCTPDROPTAG		(SIOCPROTOPRIVATE + 1)
+
+struct mctp_ioc_tag_ctl {
+	mctp_eid_t	peer_addr;
+
+	/* For SIOCMCTPALLOCTAG: must be passed as zero, kernel will
+	 * populate with the allocated tag value. Returned tag value will
+	 * always have TO and PREALLOC set.
+	 *
+	 * For SIOCMCTPDROPTAG: userspace provides tag value to drop, from
+	 * a prior SIOCMCTPALLOCTAG call (and so must have TO and PREALLOC set).
+	 */
+	__u8		tag;
+	__u16		flags;
+};
 
 #endif /* __UAPI_MCTP_H */

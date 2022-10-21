@@ -30,32 +30,79 @@ properties:
     minItems: 1
     maxItems: 2
 
-  clock-names:
-    oneOf:
-      - items:          # for PXs2
-          - const: link
-      - items:          # for Pro4
-          - const: link
-          - const: gio
-      - items:          # for others
-          - const: link
-          - const: phy
+  clock-names: true
 
   resets:
     minItems: 2
-    maxItems: 5
+    maxItems: 6
 
-  reset-names:
-    oneOf:
-      - items:          # for Pro4
-          - const: link
-          - const: gio
-          - const: pm
-          - const: tx
-          - const: rx
-      - items:          # for others
-          - const: link
-          - const: phy
+  reset-names: true
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: socionext,uniphier-pro4-ahci-phy
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: link
+            - const: gio
+        resets:
+          minItems: 6
+          maxItems: 6
+        reset-names:
+          items:
+            - const: link
+            - const: gio
+            - const: phy
+            - const: pm
+            - const: tx
+            - const: rx
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: socionext,uniphier-pxs2-ahci-phy
+    then:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names:
+          const: link
+        resets:
+          minItems: 2
+          maxItems: 2
+        reset-names:
+          items:
+            - const: link
+            - const: phy
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: socionext,uniphier-pxs3-ahci-phy
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: link
+            - const: phy
+        resets:
+          minItems: 2
+          maxItems: 2
+        reset-names:
+          items:
+            - const: link
+            - const: phy
 
 required:
   - compatible

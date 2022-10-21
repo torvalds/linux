@@ -69,7 +69,7 @@ static const struct v4l2_dv_timings_cap tc358743_timings_cap = {
 
 struct tc358743_state {
 	struct tc358743_platform_data pdata;
-	struct v4l2_fwnode_bus_mipi_csi2 bus;
+	struct v4l2_mbus_config_mipi_csi2 bus;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler hdl;
@@ -717,7 +717,7 @@ static void tc358743_set_csi(struct v4l2_subdev *sd)
 			((lanes > 3) ? MASK_D3M_HSTXVREGEN : 0x0));
 
 	i2c_wr32(sd, TXOPTIONCNTRL, (state->bus.flags &
-		 V4L2_MBUS_CSI2_CONTINUOUS_CLOCK) ? MASK_CONTCLKMODE : 0);
+		 V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK) ? 0 : MASK_CONTCLKMODE);
 	i2c_wr32(sd, STARTCNTRL, MASK_START);
 	i2c_wr32(sd, CSI_START, MASK_STRT);
 
@@ -964,6 +964,8 @@ static void tc358743_cec_handler(struct v4l2_subdev *sd, u16 intstatus,
 
 		v = i2c_rd32(sd, CECRCTR);
 		msg.len = v & 0x1f;
+		if (msg.len > CEC_MAX_MSG_SIZE)
+			msg.len = CEC_MAX_MSG_SIZE;
 		for (i = 0; i < msg.len; i++) {
 			v = i2c_rd32(sd, CECRBUF1 + i * 4);
 			msg.msg[i] = v & 0xff;
@@ -1613,24 +1615,8 @@ static int tc358743_get_mbus_config(struct v4l2_subdev *sd,
 	cfg->type = V4L2_MBUS_CSI2_DPHY;
 
 	/* Support for non-continuous CSI-2 clock is missing in the driver */
-	cfg->flags = V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
-
-	switch (state->csi_lanes_in_use) {
-	case 1:
-		cfg->flags |= V4L2_MBUS_CSI2_1_LANE;
-		break;
-	case 2:
-		cfg->flags |= V4L2_MBUS_CSI2_2_LANE;
-		break;
-	case 3:
-		cfg->flags |= V4L2_MBUS_CSI2_3_LANE;
-		break;
-	case 4:
-		cfg->flags |= V4L2_MBUS_CSI2_4_LANE;
-		break;
-	default:
-		return -EINVAL;
-	}
+	cfg->bus.mipi_csi2.flags = 0;
+	cfg->bus.mipi_csi2.num_data_lanes = state->csi_lanes_in_use;
 
 	return 0;
 }
@@ -2055,7 +2041,7 @@ static int tc358743_probe(struct i2c_client *client)
 	/* platform data */
 	if (pdata) {
 		state->pdata = *pdata;
-		state->bus.flags = V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+		state->bus.flags = 0;
 	} else {
 		err = tc358743_probe_of(state);
 		if (err == -ENODEV)
@@ -2185,7 +2171,7 @@ err_hdl:
 	return err;
 }
 
-static int tc358743_remove(struct i2c_client *client)
+static void tc358743_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct tc358743_state *state = to_state(sd);
@@ -2201,8 +2187,6 @@ static int tc358743_remove(struct i2c_client *client)
 	mutex_destroy(&state->confctl_mutex);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(&state->hdl);
-
-	return 0;
 }
 
 static const struct i2c_device_id tc358743_id[] = {

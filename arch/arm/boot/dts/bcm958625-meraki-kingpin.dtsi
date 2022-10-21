@@ -14,7 +14,7 @@
 		autorepeat;
 		poll-interval = <20>;
 
-		reset {
+		button-reset {
 			label = "reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpioa 6 GPIO_ACTIVE_LOW>;
@@ -106,10 +106,9 @@
 
 		led-a {
 			/* amber:power */
-			function = LED_FUNCTION_POWER;
+			function = LED_FUNCTION_FAULT;
 			color = <LED_COLOR_ID_AMBER>;
 			gpios = <&gpioa 0 GPIO_ACTIVE_LOW>;
-			default-state = "on";
 		};
 
 		led-b {

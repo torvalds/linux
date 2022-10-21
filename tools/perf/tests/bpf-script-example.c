@@ -17,20 +17,31 @@ static void *(*bpf_map_lookup_elem)(void *map, void *key) =
 static void *(*bpf_map_update_elem)(void *map, void *key, void *value, int flags) =
 	(void *) BPF_FUNC_map_update_elem;
 
-struct bpf_map_def {
-	unsigned int type;
-	unsigned int key_size;
-	unsigned int value_size;
-	unsigned int max_entries;
-};
+/*
+ * Following macros are taken from tools/lib/bpf/bpf_helpers.h,
+ * and are used to create BTF defined maps. It is easier to take
+ * 2 simple macros, than being able to include above header in
+ * runtime.
+ *
+ * __uint - defines integer attribute of BTF map definition,
+ * Such attributes are represented using a pointer to an array,
+ * in which dimensionality of array encodes specified integer
+ * value.
+ *
+ * __type - defines pointer variable with typeof(val) type for
+ * attributes like key or value, which will be defined by the
+ * size of the type.
+ */
+#define __uint(name, val) int (*name)[val]
+#define __type(name, val) typeof(val) *name
 
 #define SEC(NAME) __attribute__((section(NAME), used))
-struct bpf_map_def SEC("maps") flip_table = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(int),
-	.value_size = sizeof(int),
-	.max_entries = 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, int);
+	__type(value, int);
+} flip_table SEC(".maps");
 
 SEC("func=do_epoll_wait")
 int bpf_func__SyS_epoll_pwait(void *ctx)

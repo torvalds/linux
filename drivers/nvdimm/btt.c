@@ -11,7 +11,6 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/hdreg.h>
-#include <linux/genhd.h>
 #include <linux/sizes.h>
 #include <linux/ndctl.h>
 #include <linux/fs.h>
@@ -1164,17 +1163,15 @@ static int btt_rw_integrity(struct btt *btt, struct bio_integrity_payload *bip,
 		 */
 
 		cur_len = min(len, bv.bv_len);
-		mem = kmap_atomic(bv.bv_page);
+		mem = bvec_kmap_local(&bv);
 		if (rw)
-			ret = arena_write_bytes(arena, meta_nsoff,
-					mem + bv.bv_offset, cur_len,
+			ret = arena_write_bytes(arena, meta_nsoff, mem, cur_len,
 					NVDIMM_IO_ATOMIC);
 		else
-			ret = arena_read_bytes(arena, meta_nsoff,
-					mem + bv.bv_offset, cur_len,
+			ret = arena_read_bytes(arena, meta_nsoff, mem, cur_len,
 					NVDIMM_IO_ATOMIC);
 
-		kunmap_atomic(mem);
+		kunmap_local(mem);
 		if (ret)
 			return ret;
 
@@ -1425,7 +1422,7 @@ static int btt_write_pg(struct btt *btt, struct bio_integrity_payload *bip,
 
 static int btt_do_bvec(struct btt *btt, struct bio_integrity_payload *bip,
 			struct page *page, unsigned int len, unsigned int off,
-			unsigned int op, sector_t sector)
+			enum req_op op, sector_t sector)
 {
 	int ret;
 
@@ -1486,7 +1483,7 @@ static void btt_submit_bio(struct bio *bio)
 }
 
 static int btt_rw_page(struct block_device *bdev, sector_t sector,
-		struct page *page, unsigned int op)
+		struct page *page, enum req_op op)
 {
 	struct btt *btt = bdev->bd_disk->private_data;
 	int rc;
@@ -1551,14 +1548,14 @@ static int btt_blk_init(struct btt *btt)
 	return 0;
 
 out_cleanup_disk:
-	blk_cleanup_disk(btt->btt_disk);
+	put_disk(btt->btt_disk);
 	return rc;
 }
 
 static void btt_blk_cleanup(struct btt *btt)
 {
 	del_gendisk(btt->btt_disk);
-	blk_cleanup_disk(btt->btt_disk);
+	put_disk(btt->btt_disk);
 }
 
 /**

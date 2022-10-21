@@ -272,64 +272,6 @@ static bool ast_launch_m68k(struct drm_device *dev)
 	return true;
 }
 
-u8 ast_get_dp501_max_clk(struct drm_device *dev)
-{
-	struct ast_private *ast = to_ast_private(dev);
-	u32 boot_address, offset, data;
-	u8 linkcap[4], linkrate, linklanes, maxclk = 0xff;
-	u32 *plinkcap;
-
-	if (ast->config_mode == ast_use_p2a) {
-		boot_address = get_fw_base(ast);
-
-		/* validate FW version */
-		offset = AST_DP501_GBL_VERSION;
-		data = ast_mindwm(ast, boot_address + offset);
-		if ((data & AST_DP501_FW_VERSION_MASK) != AST_DP501_FW_VERSION_1) /* version: 1x */
-			return maxclk;
-
-		/* Read Link Capability */
-		offset  = AST_DP501_LINKRATE;
-		plinkcap = (u32 *)linkcap;
-		*plinkcap  = ast_mindwm(ast, boot_address + offset);
-		if (linkcap[2] == 0) {
-			linkrate = linkcap[0];
-			linklanes = linkcap[1];
-			data = (linkrate == 0x0a) ? (90 * linklanes) : (54 * linklanes);
-			if (data > 0xff)
-				data = 0xff;
-			maxclk = (u8)data;
-		}
-	} else {
-		if (!ast->dp501_fw_buf)
-			return AST_DP501_DEFAULT_DCLK;	/* 1024x768 as default */
-
-		/* dummy read */
-		offset = 0x0000;
-		data = readl(ast->dp501_fw_buf + offset);
-
-		/* validate FW version */
-		offset = AST_DP501_GBL_VERSION;
-		data = readl(ast->dp501_fw_buf + offset);
-		if ((data & AST_DP501_FW_VERSION_MASK) != AST_DP501_FW_VERSION_1) /* version: 1x */
-			return maxclk;
-
-		/* Read Link Capability */
-		offset = AST_DP501_LINKRATE;
-		plinkcap = (u32 *)linkcap;
-		*plinkcap = readl(ast->dp501_fw_buf + offset);
-		if (linkcap[2] == 0) {
-			linkrate = linkcap[0];
-			linklanes = linkcap[1];
-			data = (linkrate == 0x0a) ? (90 * linklanes) : (54 * linklanes);
-			if (data > 0xff)
-				data = 0xff;
-			maxclk = (u8)data;
-		}
-	}
-	return maxclk;
-}
-
 bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata)
 {
 	struct ast_private *ast = to_ast_private(dev);
@@ -508,7 +450,7 @@ void ast_init_3rdtx(struct drm_device *dev)
 			ast_init_dvo(dev);
 			break;
 		default:
-			if (ast->tx_chip_type == AST_TX_SIL164)
+			if (ast->tx_chip_types & BIT(AST_TX_SIL164))
 				ast_init_dvo(dev);
 			else
 				ast_init_analog(dev);

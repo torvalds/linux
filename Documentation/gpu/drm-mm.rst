@@ -8,7 +8,7 @@ the very dynamic nature of many of that data, managing graphics memory
 efficiently is thus crucial for the graphics stack and plays a central
 role in the DRM infrastructure.
 
-The DRM core includes two memory managers, namely Translation Table Maps
+The DRM core includes two memory managers, namely Translation Table Manager
 (TTM) and Graphics Execution Manager (GEM). TTM was the first DRM memory
 manager to be developed and tried to be a one-size-fits-them all
 solution. It provides a single userspace API to accommodate the need of
@@ -300,12 +300,12 @@ Drivers that want to map the GEM object upfront instead of handling page
 faults can implement their own mmap file operation handler.
 
 For platforms without MMU the GEM core provides a helper method
-drm_gem_cma_get_unmapped_area(). The mmap() routines will call this to get a
+drm_gem_dma_get_unmapped_area(). The mmap() routines will call this to get a
 proposed address for the mapping.
 
-To use drm_gem_cma_get_unmapped_area(), drivers must fill the struct
+To use drm_gem_dma_get_unmapped_area(), drivers must fill the struct
 :c:type:`struct file_operations <file_operations>` get_unmapped_area field with
-a pointer on drm_gem_cma_get_unmapped_area().
+a pointer on drm_gem_dma_get_unmapped_area().
 
 More detailed information about get_unmapped_area can be found in
 Documentation/admin-guide/mm/nommu-mmap.rst
@@ -355,16 +355,16 @@ GEM Function Reference
 .. kernel-doc:: drivers/gpu/drm/drm_gem.c
    :export:
 
-GEM CMA Helper Functions Reference
+GEM DMA Helper Functions Reference
 ----------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
-   :doc: cma helpers
+.. kernel-doc:: drivers/gpu/drm/drm_gem_dma_helper.c
+   :doc: dma helpers
 
-.. kernel-doc:: include/drm/drm_gem_cma_helper.h
+.. kernel-doc:: include/drm/drm_gem_dma_helper.h
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
+.. kernel-doc:: drivers/gpu/drm/drm_gem_dma_helper.c
    :export:
 
 GEM SHMEM Helper Function Reference
@@ -464,6 +464,15 @@ DRM MM Range Allocator Function References
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_mm.c
+   :export:
+
+DRM Buddy Allocator
+===================
+
+DRM Buddy Function References
+-----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_buddy.c
    :export:
 
 DRM Cache Handling and Fast WC memcpy()

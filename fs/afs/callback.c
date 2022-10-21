@@ -30,7 +30,7 @@ void afs_invalidate_mmap_work(struct work_struct *work)
 {
 	struct afs_vnode *vnode = container_of(work, struct afs_vnode, cb_work);
 
-	unmap_mapping_pages(vnode->vfs_inode.i_mapping, 0, 0, false);
+	unmap_mapping_pages(vnode->netfs.inode.i_mapping, 0, 0, false);
 }
 
 void afs_server_init_callback_work(struct work_struct *work)

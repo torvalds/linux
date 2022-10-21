@@ -1531,7 +1531,7 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 #if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
 	if (cxgb4_is_ktls_skb(skb) &&
-	    (skb->len - (skb_transport_offset(skb) + tcp_hdrlen(skb))))
+	    (skb->len - skb_tcp_all_headers(skb)))
 		return adap->uld[CXGB4_ULD_KTLS].tx_handler(skb, dev);
 #endif /* CHELSIO_TLS_DEVICE */
 
@@ -4467,7 +4467,7 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	if (ret)
 		goto err;
 
-	netif_napi_add(dev, &iq->napi, napi_rx_handler, 64);
+	netif_napi_add(dev, &iq->napi, napi_rx_handler);
 	iq->cur_desc = iq->desc;
 	iq->cidx = 0;
 	iq->gen = 1;

@@ -6,12 +6,6 @@ The cache bindings explained below are Devicetree Specification compliant
 Required Properties:
 
 - compatible	: Should include one of the following:
-		  "fsl,8540-l2-cache-controller"
-		  "fsl,8541-l2-cache-controller"
-		  "fsl,8544-l2-cache-controller"
-		  "fsl,8548-l2-cache-controller"
-		  "fsl,8555-l2-cache-controller"
-		  "fsl,8568-l2-cache-controller"
 		  "fsl,b4420-l2-cache-controller"
 		  "fsl,b4860-l2-cache-controller"
 		  "fsl,bsc9131-l2-cache-controller"

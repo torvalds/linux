@@ -25,8 +25,8 @@
 struct rcar_gen4_sysc_area {
 	const char *name;
 	u8 pdr;			/* PDRn */
-	int parent;		/* -1 if none */
-	unsigned int flags;	/* See PD_* */
+	s8 parent;		/* -1 if none */
+	u8 flags;		/* See PD_* */
 };
 
 /*
@@ -39,5 +39,6 @@ struct rcar_gen4_sysc_info {
 
 extern const struct rcar_gen4_sysc_info r8a779a0_sysc_info;
 extern const struct rcar_gen4_sysc_info r8a779f0_sysc_info;
+extern const struct rcar_gen4_sysc_info r8a779g0_sysc_info;
 
 #endif /* __SOC_RENESAS_RCAR_GEN4_SYSC_H__ */

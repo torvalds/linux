@@ -112,6 +112,8 @@
 #define CONFIG3_THERM		0x02
 
 #define CONFIG4_PINFUNC		0x03
+#define CONFIG4_THERM		0x01
+#define CONFIG4_SMBALERT	0x02
 #define CONFIG4_MAXDUTY		0x08
 #define CONFIG4_ATTN_IN10	0x30
 #define CONFIG4_ATTN_IN43	0xC0
@@ -1340,7 +1342,7 @@ static int adt7475_detect(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, name, I2C_NAME_SIZE);
+	strscpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;
 }
@@ -1460,6 +1462,96 @@ static int adt7475_update_limits(struct i2c_client *client)
 	return 0;
 }
 
+static int load_config3(const struct i2c_client *client, const char *propname)
+{
+	const char *function;
+	u8 config3;
+	int ret;
+
+	ret = of_property_read_string(client->dev.of_node, propname, &function);
+	if (!ret) {
+		ret = adt7475_read(REG_CONFIG3);
+		if (ret < 0)
+			return ret;
+
+		config3 = ret & ~CONFIG3_SMBALERT;
+		if (!strcmp("pwm2", function))
+			;
+		else if (!strcmp("smbalert#", function))
+			config3 |= CONFIG3_SMBALERT;
+		else
+			return -EINVAL;
+
+		return i2c_smbus_write_byte_data(client, REG_CONFIG3, config3);
+	}
+
+	return 0;
+}
+
+static int load_config4(const struct i2c_client *client, const char *propname)
+{
+	const char *function;
+	u8 config4;
+	int ret;
+
+	ret = of_property_read_string(client->dev.of_node, propname, &function);
+	if (!ret) {
+		ret = adt7475_read(REG_CONFIG4);
+		if (ret < 0)
+			return ret;
+
+		config4 = ret & ~CONFIG4_PINFUNC;
+
+		if (!strcmp("tach4", function))
+			;
+		else if (!strcmp("therm#", function))
+			config4 |= CONFIG4_THERM;
+		else if (!strcmp("smbalert#", function))
+			config4 |= CONFIG4_SMBALERT;
+		else if (!strcmp("gpio", function))
+			config4 |= CONFIG4_PINFUNC;
+		else
+			return -EINVAL;
+
+		return i2c_smbus_write_byte_data(client, REG_CONFIG4, config4);
+	}
+
+	return 0;
+}
+
+static int load_config(const struct i2c_client *client, enum chips chip)
+{
+	int err;
+	const char *prop1, *prop2;
+
+	switch (chip) {
+	case adt7473:
+	case adt7475:
+		prop1 = "adi,pin5-function";
+		prop2 = "adi,pin9-function";
+		break;
+	case adt7476:
+	case adt7490:
+		prop1 = "adi,pin10-function";
+		prop2 = "adi,pin14-function";
+		break;
+	}
+
+	err = load_config3(client, prop1);
+	if (err) {
+		dev_err(&client->dev, "failed to configure %s\n", prop1);
+		return err;
+	}
+
+	err = load_config4(client, prop2);
+	if (err) {
+		dev_err(&client->dev, "failed to configure %s\n", prop2);
+		return err;
+	}
+
+	return 0;
+}
+
 static int set_property_bit(const struct i2c_client *client, char *property,
 			    u8 *config, u8 bit_index)
 {
@@ -1477,12 +1569,12 @@ static int set_property_bit(const struct i2c_client *client, char *property,
 	return ret;
 }
 
-static int load_attenuators(const struct i2c_client *client, int chip,
+static int load_attenuators(const struct i2c_client *client, enum chips chip,
 			    struct adt7475_data *data)
 {
-	int ret;
-
-	if (chip == adt7476 || chip == adt7490) {
+	switch (chip) {
+	case adt7476:
+	case adt7490:
 		set_property_bit(client, "adi,bypass-attenuator-in0",
 				 &data->config4, 4);
 		set_property_bit(client, "adi,bypass-attenuator-in1",
@@ -1492,18 +1584,15 @@ static int load_attenuators(const struct i2c_client *client, int chip,
 		set_property_bit(client, "adi,bypass-attenuator-in4",
 				 &data->config4, 7);
 
-		ret = i2c_smbus_write_byte_data(client, REG_CONFIG4,
-						data->config4);
-		if (ret < 0)
-			return ret;
-	} else if (chip == adt7473 || chip == adt7475) {
+		return i2c_smbus_write_byte_data(client, REG_CONFIG4,
+						 data->config4);
+	case adt7473:
+	case adt7475:
 		set_property_bit(client, "adi,bypass-attenuator-in1",
 				 &data->config2, 5);
 
-		ret = i2c_smbus_write_byte_data(client, REG_CONFIG2,
-						data->config2);
-		if (ret < 0)
-			return ret;
+		return i2c_smbus_write_byte_data(client, REG_CONFIG2,
+						 data->config2);
 	}
 
 	return 0;
@@ -1584,6 +1673,10 @@ static int adt7475_probe(struct i2c_client *client)
 		data->has_voltage = 0x06;	/* in1, in2 */
 		revision = adt7475_read(REG_DEVID2) & 0x07;
 	}
+
+	ret = load_config(client, chip);
+	if (ret)
+		return ret;
 
 	config3 = adt7475_read(REG_CONFIG3);
 	/* Pin PWM2 may alternatively be used for ALERT output */

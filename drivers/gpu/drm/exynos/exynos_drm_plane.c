@@ -7,7 +7,8 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_plane_helper.h>
+#include <drm/drm_blend.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_crtc.h"

@@ -164,7 +164,7 @@ struct nf_nat_sip_hooks {
 				  unsigned int medialen,
 				  union nf_inet_addr *rtp_addr);
 };
-extern const struct nf_nat_sip_hooks *nf_nat_sip_hooks;
+extern const struct nf_nat_sip_hooks __rcu *nf_nat_sip_hooks;
 
 int ct_sip_parse_request(const struct nf_conn *ct, const char *dptr,
 			 unsigned int datalen, unsigned int *matchoff,

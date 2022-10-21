@@ -53,6 +53,7 @@ static void crypto_finalize_request(struct crypto_engine *engine,
 				dev_err(engine->dev, "failed to unprepare request\n");
 		}
 	}
+	lockdep_assert_in_softirq();
 	req->complete(req, err);
 
 	kthread_queue_work(engine->kworker, &engine->pump_requests);
@@ -252,6 +253,7 @@ static void crypto_pump_work(struct kthread_work *work)
  * crypto_transfer_request - transfer the new request into the engine queue
  * @engine: the hardware engine
  * @req: the request need to be listed into the engine queue
+ * @need_pump: indicates whether queue the pump of request to kthread_work
  */
 static int crypto_transfer_request(struct crypto_engine *engine,
 				   struct crypto_async_request *req,

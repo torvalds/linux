@@ -77,7 +77,14 @@ static int mlxsw_sp2_acl_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv,
 	int i;
 	int err;
 
+	/* Some TCAM regions are not exposed to the host and used internally
+	 * by the device. Allocate KVDL entries for the default actions of
+	 * these regions to avoid the host from overwriting them.
+	 */
 	tcam->kvdl_count = _tcam->max_regions;
+	if (MLXSW_CORE_RES_VALID(mlxsw_sp->core, ACL_MAX_DEFAULT_ACTIONS))
+		tcam->kvdl_count = MLXSW_CORE_RES_GET(mlxsw_sp->core,
+						      ACL_MAX_DEFAULT_ACTIONS);
 	err = mlxsw_sp_kvdl_alloc(mlxsw_sp, MLXSW_SP_KVDL_ENTRY_TYPE_ACTSET,
 				  tcam->kvdl_count, &tcam->kvdl_index);
 	if (err)
@@ -97,7 +104,10 @@ static int mlxsw_sp2_acl_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv,
 		goto err_afa_block_continue;
 	enc_actions = mlxsw_afa_block_cur_set(afa_block);
 
-	for (i = 0; i < tcam->kvdl_count; i++) {
+	/* Only write to KVDL entries used by TCAM regions exposed to the
+	 * host.
+	 */
+	for (i = 0; i < _tcam->max_regions; i++) {
 		mlxsw_reg_pefa_pack(pefa_pl, tcam->kvdl_index + i,
 				    true, enc_actions);
 		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pefa), pefa_pl);

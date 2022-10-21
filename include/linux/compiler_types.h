@@ -4,6 +4,18 @@
 
 #ifndef __ASSEMBLY__
 
+/*
+ * Skipped when running bindgen due to a libclang issue;
+ * see https://github.com/rust-lang/rust-bindgen/issues/2244.
+ */
+#if defined(CONFIG_DEBUG_INFO_BTF) && defined(CONFIG_PAHOLE_HAS_BTF_TAG) && \
+	__has_attribute(btf_type_tag) && !defined(__BINDGEN__)
+# define BTF_TYPE_TAG(value) __attribute__((btf_type_tag(#value)))
+#else
+# define BTF_TYPE_TAG(value) /* nothing */
+#endif
+
+/* sparse defines __CHECKER__; see Documentation/dev-tools/sparse.rst */
 #ifdef __CHECKER__
 /* address spaces */
 # define __kernel	__attribute__((address_space(0)))
@@ -16,6 +28,7 @@ static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
 /* context/locking */
 # define __must_hold(x)	__attribute__((context(x,1,1)))
 # define __acquires(x)	__attribute__((context(x,0,1)))
+# define __cond_acquires(x) __attribute__((context(x,0,-1)))
 # define __releases(x)	__attribute__((context(x,1,0)))
 # define __acquire(x)	__context__(x,1)
 # define __release(x)	__context__(x,-1)
@@ -32,16 +45,17 @@ static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
 # ifdef STRUCTLEAK_PLUGIN
 #  define __user	__attribute__((user))
 # else
-#  define __user
+#  define __user	BTF_TYPE_TAG(user)
 # endif
 # define __iomem
-# define __percpu
+# define __percpu	BTF_TYPE_TAG(percpu)
 # define __rcu
 # define __chk_user_ptr(x)	(void)0
 # define __chk_io_ptr(x)	(void)0
 /* context/locking */
 # define __must_hold(x)
 # define __acquires(x)
+# define __cond_acquires(x)
 # define __releases(x)
 # define __acquire(x)	(void)0
 # define __release(x)	(void)0
@@ -137,8 +151,6 @@ struct ftrace_likely_data {
  */
 #define __naked			__attribute__((__naked__)) notrace
 
-#define __compiler_offsetof(a, b)	__builtin_offsetof(a, b)
-
 /*
  * Prefer gnu_inline, so that extern inline functions do not emit an
  * externally visible function. This makes extern inline behave as per gnu89
@@ -221,7 +233,8 @@ struct ftrace_likely_data {
 /* Section for code which can't be instrumented at all */
 #define noinstr								\
 	noinline notrace __attribute((__section__(".noinstr.text")))	\
-	__no_kcsan __no_sanitize_address __no_profile __no_sanitize_coverage
+	__no_kcsan __no_sanitize_address __no_profile __no_sanitize_coverage \
+	__no_sanitize_memory
 
 #endif /* __KERNEL__ */
 
@@ -236,15 +249,15 @@ struct ftrace_likely_data {
 # define __latent_entropy
 #endif
 
-#ifndef __randomize_layout
+#if defined(RANDSTRUCT) && !defined(__CHECKER__)
+# define __randomize_layout __designated_init __attribute__((randomize_layout))
+# define __no_randomize_layout __attribute__((no_randomize_layout))
+/* This anon struct can add padding, so only enable it under randstruct. */
+# define randomized_struct_fields_start	struct {
+# define randomized_struct_fields_end	} __randomize_layout;
+#else
 # define __randomize_layout __designated_init
-#endif
-
-#ifndef __no_randomize_layout
 # define __no_randomize_layout
-#endif
-
-#ifndef randomized_struct_fields_start
 # define randomized_struct_fields_start
 # define randomized_struct_fields_end
 #endif
@@ -257,20 +270,18 @@ struct ftrace_likely_data {
 # define __nocfi
 #endif
 
-#ifndef __cficanonical
-# define __cficanonical
-#endif
-
 /*
  * Any place that could be marked with the "alloc_size" attribute is also
- * a place to be marked with the "malloc" attribute. Do this as part of the
- * __alloc_size macro to avoid redundant attributes and to avoid missing a
- * __malloc marking.
+ * a place to be marked with the "malloc" attribute, except those that may
+ * be performing a _reallocation_, as that may alias the existing pointer.
+ * For these, use __realloc_size().
  */
 #ifdef __alloc_size__
 # define __alloc_size(x, ...)	__alloc_size__(x, ## __VA_ARGS__) __malloc
+# define __realloc_size(x, ...)	__alloc_size__(x, ## __VA_ARGS__)
 #else
 # define __alloc_size(x, ...)	__malloc
+# define __realloc_size(x, ...)
 #endif
 
 #ifndef asm_volatile_goto
@@ -367,5 +378,9 @@ struct ftrace_likely_data {
 	__diag_ ## compiler(version, warn, option)
 #define __diag_error(compiler, version, option, comment) \
 	__diag_ ## compiler(version, error, option)
+
+#ifndef __diag_ignore_all
+#define __diag_ignore_all(option, comment)
+#endif
 
 #endif /* __LINUX_COMPILER_TYPES_H */

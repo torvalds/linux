@@ -11,9 +11,9 @@
 #include <linux/cpu.h>
 #include <linux/crash_dump.h>
 #include <linux/delay.h>
-#include <linux/dma-iommu.h>
 #include <linux/efi.h>
 #include <linux/interrupt.h>
+#include <linux/iommu.h>
 #include <linux/iopoll.h>
 #include <linux/irqdomain.h>
 #include <linux/list.h>
@@ -1574,13 +1574,15 @@ static int its_select_cpu(struct irq_data *d,
 			  const struct cpumask *aff_mask)
 {
 	struct its_device *its_dev = irq_data_get_irq_chip_data(d);
-	cpumask_var_t tmpmask;
+	static DEFINE_RAW_SPINLOCK(tmpmask_lock);
+	static struct cpumask __tmpmask;
+	struct cpumask *tmpmask;
+	unsigned long flags;
 	int cpu, node;
-
-	if (!alloc_cpumask_var(&tmpmask, GFP_ATOMIC))
-		return -ENOMEM;
-
 	node = its_dev->its->numa_node;
+	tmpmask = &__tmpmask;
+
+	raw_spin_lock_irqsave(&tmpmask_lock, flags);
 
 	if (!irqd_affinity_is_managed(d)) {
 		/* First try the NUMA node */
@@ -1624,7 +1626,7 @@ static int its_select_cpu(struct irq_data *d,
 
 		cpu = cpumask_pick_least_loaded(d, tmpmask);
 	} else {
-		cpumask_and(tmpmask, irq_data_get_affinity_mask(d), cpu_online_mask);
+		cpumask_copy(tmpmask, aff_mask);
 
 		/* If we cannot cross sockets, limit the search to that node */
 		if ((its_dev->its->flags & ITS_FLAGS_WORKAROUND_CAVIUM_23144) &&
@@ -1634,7 +1636,7 @@ static int its_select_cpu(struct irq_data *d,
 		cpu = cpumask_pick_least_loaded(d, tmpmask);
 	}
 out:
-	free_cpumask_var(tmpmask);
+	raw_spin_unlock_irqrestore(&tmpmask_lock, flags);
 
 	pr_debug("IRQ%d -> %*pbl CPU%d\n", d->irq, cpumask_pr_args(aff_mask), cpu);
 	return cpu;
@@ -3011,17 +3013,11 @@ static int __init allocate_lpi_tables(void)
 	return 0;
 }
 
-static u64 its_clear_vpend_valid(void __iomem *vlpi_base, u64 clr, u64 set)
+static u64 read_vpend_dirty_clear(void __iomem *vlpi_base)
 {
 	u32 count = 1000000;	/* 1s! */
 	bool clean;
 	u64 val;
-
-	val = gicr_read_vpendbaser(vlpi_base + GICR_VPENDBASER);
-	val &= ~GICR_VPENDBASER_Valid;
-	val &= ~clr;
-	val |= set;
-	gicr_write_vpendbaser(val, vlpi_base + GICR_VPENDBASER);
 
 	do {
 		val = gicr_read_vpendbaser(vlpi_base + GICR_VPENDBASER);
@@ -3033,10 +3029,26 @@ static u64 its_clear_vpend_valid(void __iomem *vlpi_base, u64 clr, u64 set)
 		}
 	} while (!clean && count);
 
-	if (unlikely(val & GICR_VPENDBASER_Dirty)) {
+	if (unlikely(!clean))
 		pr_err_ratelimited("ITS virtual pending table not cleaning\n");
+
+	return val;
+}
+
+static u64 its_clear_vpend_valid(void __iomem *vlpi_base, u64 clr, u64 set)
+{
+	u64 val;
+
+	/* Make sure we wait until the RD is done with the initial scan */
+	val = read_vpend_dirty_clear(vlpi_base);
+	val &= ~GICR_VPENDBASER_Valid;
+	val &= ~clr;
+	val |= set;
+	gicr_write_vpendbaser(val, vlpi_base + GICR_VPENDBASER);
+
+	val = read_vpend_dirty_clear(vlpi_base);
+	if (unlikely(val & GICR_VPENDBASER_Dirty))
 		val |= GICR_VPENDBASER_PendingLast;
-	}
 
 	return val;
 }
@@ -5515,6 +5527,9 @@ int __init its_lpi_memreserve_init(void)
 	int state;
 
 	if (!efi_enabled(EFI_CONFIG_TABLES))
+		return 0;
+
+	if (list_empty(&its_nodes))
 		return 0;
 
 	gic_rdists->cpuhp_memreserve_state = CPUHP_INVALID;

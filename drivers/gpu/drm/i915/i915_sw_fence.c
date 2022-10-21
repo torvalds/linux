@@ -241,8 +241,6 @@ void __i915_sw_fence_init(struct i915_sw_fence *fence,
 			  const char *name,
 			  struct lock_class_key *key)
 {
-	BUG_ON(!fn);
-
 	__init_waitqueue_head(&fence->wait, name, key);
 	fence->fn = fn;
 #ifdef CONFIG_DRM_I915_SW_FENCE_CHECK_DAG
@@ -585,7 +583,7 @@ int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 	debug_fence_assert(fence);
 	might_sleep_if(gfpflags_allow_blocking(gfp));
 
-	dma_resv_iter_begin(&cursor, resv, write);
+	dma_resv_iter_begin(&cursor, resv, dma_resv_usage_rw(write));
 	dma_resv_for_each_fence_unlocked(&cursor, f) {
 		pending = i915_sw_fence_await_dma_fence(fence, f, timeout,
 							gfp);

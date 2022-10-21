@@ -18,8 +18,9 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/rseq.h>
 
-#define RSEQ_CS_PREEMPT_MIGRATE_FLAGS (RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE | \
-				       RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT)
+#define RSEQ_CS_NO_RESTART_FLAGS (RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT | \
+				  RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL | \
+				  RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE)
 
 /*
  *
@@ -128,10 +129,10 @@ static int rseq_get_rseq_cs(struct task_struct *t, struct rseq_cs *rseq_cs)
 	int ret;
 
 #ifdef CONFIG_64BIT
-	if (get_user(ptr, &t->rseq->rseq_cs.ptr64))
+	if (get_user(ptr, &t->rseq->rseq_cs))
 		return -EFAULT;
 #else
-	if (copy_from_user(&ptr, &t->rseq->rseq_cs.ptr64, sizeof(ptr)))
+	if (copy_from_user(&ptr, &t->rseq->rseq_cs, sizeof(ptr)))
 		return -EFAULT;
 #endif
 	if (!ptr) {
@@ -175,23 +176,15 @@ static int rseq_need_restart(struct task_struct *t, u32 cs_flags)
 	u32 flags, event_mask;
 	int ret;
 
+	if (WARN_ON_ONCE(cs_flags & RSEQ_CS_NO_RESTART_FLAGS) || cs_flags)
+		return -EINVAL;
+
 	/* Get thread flags. */
 	ret = get_user(flags, &t->rseq->flags);
 	if (ret)
 		return ret;
 
-	/* Take critical section flags into account. */
-	flags |= cs_flags;
-
-	/*
-	 * Restart on signal can only be inhibited when restart on
-	 * preempt and restart on migrate are inhibited too. Otherwise,
-	 * a preempted signal handler could fail to restart the prior
-	 * execution context on sigreturn.
-	 */
-	if (unlikely((flags & RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL) &&
-		     (flags & RSEQ_CS_PREEMPT_MIGRATE_FLAGS) !=
-		     RSEQ_CS_PREEMPT_MIGRATE_FLAGS))
+	if (WARN_ON_ONCE(flags & RSEQ_CS_NO_RESTART_FLAGS) || flags)
 		return -EINVAL;
 
 	/*
@@ -203,7 +196,7 @@ static int rseq_need_restart(struct task_struct *t, u32 cs_flags)
 	t->rseq_event_mask = 0;
 	preempt_enable();
 
-	return !!(event_mask & ~flags);
+	return !!event_mask;
 }
 
 static int clear_rseq_cs(struct task_struct *t)
@@ -217,9 +210,9 @@ static int clear_rseq_cs(struct task_struct *t)
 	 * Set rseq_cs to NULL.
 	 */
 #ifdef CONFIG_64BIT
-	return put_user(0UL, &t->rseq->rseq_cs.ptr64);
+	return put_user(0UL, &t->rseq->rseq_cs);
 #else
-	if (clear_user(&t->rseq->rseq_cs.ptr64, sizeof(t->rseq->rseq_cs.ptr64)))
+	if (clear_user(&t->rseq->rseq_cs, sizeof(t->rseq->rseq_cs)))
 		return -EFAULT;
 	return 0;
 #endif

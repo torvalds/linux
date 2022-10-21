@@ -95,6 +95,7 @@ struct ucma_context {
 	u64			uid;
 
 	struct list_head	list;
+	struct list_head	mc_list;
 	struct work_struct	close_work;
 };
 
@@ -105,6 +106,7 @@ struct ucma_multicast {
 
 	u64			uid;
 	u8			join_state;
+	struct list_head	list;
 	struct sockaddr_storage	addr;
 };
 
@@ -198,6 +200,7 @@ static struct ucma_context *ucma_alloc_ctx(struct ucma_file *file)
 
 	INIT_WORK(&ctx->close_work, ucma_close_id);
 	init_completion(&ctx->comp);
+	INIT_LIST_HEAD(&ctx->mc_list);
 	/* So list_del() will work if we don't do ucma_finish_ctx() */
 	INIT_LIST_HEAD(&ctx->list);
 	ctx->file = file;
@@ -484,19 +487,19 @@ err1:
 
 static void ucma_cleanup_multicast(struct ucma_context *ctx)
 {
-	struct ucma_multicast *mc;
-	unsigned long index;
+	struct ucma_multicast *mc, *tmp;
 
-	xa_for_each(&multicast_table, index, mc) {
-		if (mc->ctx != ctx)
-			continue;
+	xa_lock(&multicast_table);
+	list_for_each_entry_safe(mc, tmp, &ctx->mc_list, list) {
+		list_del(&mc->list);
 		/*
 		 * At this point mc->ctx->ref is 0 so the mc cannot leave the
 		 * lock on the reader and this is enough serialization
 		 */
-		xa_erase(&multicast_table, index);
+		__xa_erase(&multicast_table, mc->id);
 		kfree(mc);
 	}
+	xa_unlock(&multicast_table);
 }
 
 static void ucma_cleanup_mc_events(struct ucma_multicast *mc)
@@ -751,8 +754,8 @@ static void ucma_copy_ib_route(struct rdma_ucm_query_route_resp *resp,
 {
 	struct rdma_dev_addr *dev_addr;
 
-	resp->num_paths = route->num_paths;
-	switch (route->num_paths) {
+	resp->num_paths = route->num_pri_alt_paths;
+	switch (route->num_pri_alt_paths) {
 	case 0:
 		dev_addr = &route->addr.dev_addr;
 		rdma_addr_get_dgid(dev_addr,
@@ -778,8 +781,8 @@ static void ucma_copy_iboe_route(struct rdma_ucm_query_route_resp *resp,
 				 struct rdma_route *route)
 {
 
-	resp->num_paths = route->num_paths;
-	switch (route->num_paths) {
+	resp->num_paths = route->num_pri_alt_paths;
+	switch (route->num_pri_alt_paths) {
 	case 0:
 		rdma_ip2gid((struct sockaddr *)&route->addr.dst_addr,
 			    (union ib_gid *)&resp->ib_route[0].dgid);
@@ -918,7 +921,7 @@ static ssize_t ucma_query_path(struct ucma_context *ctx,
 	if (!resp)
 		return -ENOMEM;
 
-	resp->num_paths = ctx->cm_id->route.num_paths;
+	resp->num_paths = ctx->cm_id->route.num_pri_alt_paths;
 	for (i = 0, out_len -= sizeof(*resp);
 	     i < resp->num_paths && out_len > sizeof(struct ib_path_rec_data);
 	     i++, out_len -= sizeof(struct ib_path_rec_data)) {
@@ -1469,11 +1472,15 @@ static ssize_t ucma_process_join(struct ucma_file *file,
 	mc->uid = cmd->uid;
 	memcpy(&mc->addr, addr, cmd->addr_size);
 
-	if (xa_alloc(&multicast_table, &mc->id, NULL, xa_limit_32b,
+	xa_lock(&multicast_table);
+	if (__xa_alloc(&multicast_table, &mc->id, NULL, xa_limit_32b,
 		     GFP_KERNEL)) {
 		ret = -ENOMEM;
 		goto err_free_mc;
 	}
+
+	list_add_tail(&mc->list, &ctx->mc_list);
+	xa_unlock(&multicast_table);
 
 	mutex_lock(&ctx->mutex);
 	ret = rdma_join_multicast(ctx->cm_id, (struct sockaddr *)&mc->addr,
@@ -1500,8 +1507,11 @@ err_leave_multicast:
 	mutex_unlock(&ctx->mutex);
 	ucma_cleanup_mc_events(mc);
 err_xa_erase:
-	xa_erase(&multicast_table, mc->id);
+	xa_lock(&multicast_table);
+	list_del(&mc->list);
+	__xa_erase(&multicast_table, mc->id);
 err_free_mc:
+	xa_unlock(&multicast_table);
 	kfree(mc);
 err_put_ctx:
 	ucma_put_ctx(ctx);
@@ -1569,14 +1579,16 @@ static ssize_t ucma_leave_multicast(struct ucma_file *file,
 		mc = ERR_PTR(-EINVAL);
 	else if (!refcount_inc_not_zero(&mc->ctx->ref))
 		mc = ERR_PTR(-ENXIO);
-	else
-		__xa_erase(&multicast_table, mc->id);
-	xa_unlock(&multicast_table);
 
 	if (IS_ERR(mc)) {
+		xa_unlock(&multicast_table);
 		ret = PTR_ERR(mc);
 		goto out;
 	}
+
+	list_del(&mc->list);
+	__xa_erase(&multicast_table, mc->id);
+	xa_unlock(&multicast_table);
 
 	mutex_lock(&mc->ctx->mutex);
 	rdma_leave_multicast(mc->ctx->cm_id, (struct sockaddr *) &mc->addr);

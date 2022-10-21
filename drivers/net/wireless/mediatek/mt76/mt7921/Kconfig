@@ -24,3 +24,14 @@ config MT7921S
 	  This adds support for MT7921S 802.11ax 2x2:2SS wireless devices.
 
 	  To compile this driver as a module, choose M here.
+
+config MT7921U
+	tristate "MediaTek MT7921U (USB) support"
+	select MT76_USB
+	select MT7921_COMMON
+	depends on MAC80211
+	depends on USB
+	help
+	  This adds support for MT7921U 802.11ax 2x2:2SS wireless devices.
+
+	  To compile this driver as a module, choose M here.

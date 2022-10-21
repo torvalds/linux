@@ -41,14 +41,6 @@
 
 int sysctl_tipc_named_timeout __read_mostly = 2000;
 
-struct distr_queue_item {
-	struct distr_item i;
-	u32 dtype;
-	u32 node;
-	unsigned long expires;
-	struct list_head next;
-};
-
 /**
  * publ_to_item - add publication info to a publication message
  * @p: publication info
@@ -313,7 +305,7 @@ static bool tipc_update_nametbl(struct net *net, struct distr_item *i,
 		pr_warn_ratelimited("Failed to remove binding %u,%u from %u\n",
 				    ua.sr.type, ua.sr.lower, node);
 	} else {
-		pr_warn("Unrecognized name table message received\n");
+		pr_warn_ratelimited("Unknown name table message received\n");
 	}
 	return false;
 }

@@ -20,7 +20,7 @@ For example::
         [root@f32 ~]# cd /sys/kernel/tracing/
         [root@f32 tracing]# echo timerlat > current_tracer
 
-It is possible to follow the trace by reading the trace trace file::
+It is possible to follow the trace by reading the trace file::
 
   [root@f32 tracing]# cat trace
   # tracer: timerlat
@@ -74,8 +74,9 @@ directory. The timerlat configs are:
  - stop_tracing_total_us: stop the system tracing if a
    timer latency at the *thread* context is higher than the configured
    value happens. Writing 0 disables this option.
- - print_stack: save the stack of the IRQ occurrence, and print
-   it after the *thread context* event".
+ - print_stack: save the stack of the IRQ occurrence. The stack is printed
+   after the *thread context* event, or at the IRQ handler if *stop_tracing_us*
+   is hit.
 
 timerlat and osnoise
 ----------------------------

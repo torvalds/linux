@@ -14,6 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/mod_devicetable.h>
 #include <linux/reset.h>
 
 #define SUN4I_TCON_GCTL_REG			0x0

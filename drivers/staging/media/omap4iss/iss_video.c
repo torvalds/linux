@@ -190,7 +190,7 @@ iss_video_remote_subdev(struct iss_video *video, u32 *pad)
 {
 	struct media_pad *remote;
 
-	remote = media_entity_remote_pad(&video->pad);
+	remote = media_pad_remote_pad_first(&video->pad);
 
 	if (!remote || !is_media_entity_v4l2_subdev(remote->entity))
 		return NULL;
@@ -843,7 +843,7 @@ iss_video_dqbuf(struct file *file, void *fh, struct v4l2_buffer *b)
  * processing might be possible but requires more testing.
  *
  * Stream start must be delayed until buffers are available at both the input
- * and output. The pipeline must be started in the videobuf queue callback with
+ * and output. The pipeline must be started in the vb2 queue callback with
  * the buffers queue spinlock held. The modules subdev set stream operation must
  * not sleep.
  */

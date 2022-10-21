@@ -6,6 +6,9 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
+#undef pr_fmt
+#define pr_fmt(fmt)	"null_blk: " fmt
+
 static inline sector_t mb_to_sects(unsigned long mb)
 {
 	return ((sector_t)mb * SZ_1M) >> SECTOR_SHIFT;
@@ -75,8 +78,8 @@ int null_init_zoned_dev(struct nullb_device *dev, struct request_queue *q)
 		dev->zone_capacity = dev->zone_size;
 
 	if (dev->zone_capacity > dev->zone_size) {
-		pr_err("null_blk: zone capacity (%lu MB) larger than zone size (%lu MB)\n",
-					dev->zone_capacity, dev->zone_size);
+		pr_err("zone capacity (%lu MB) larger than zone size (%lu MB)\n",
+		       dev->zone_capacity, dev->zone_size);
 		return -EINVAL;
 	}
 
@@ -156,7 +159,7 @@ int null_register_zoned_dev(struct nullb *nullb)
 	struct nullb_device *dev = nullb->dev;
 	struct request_queue *q = nullb->q;
 
-	blk_queue_set_zoned(nullb->disk, BLK_ZONED_HM);
+	disk_set_zoned(nullb->disk, BLK_ZONED_HM);
 	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, q);
 	blk_queue_required_elevator_features(q, ELEVATOR_F_ZBD_SEQ_WRITE);
 
@@ -167,12 +170,12 @@ int null_register_zoned_dev(struct nullb *nullb)
 			return ret;
 	} else {
 		blk_queue_chunk_sectors(q, dev->zone_size_sects);
-		q->nr_zones = blkdev_nr_zones(nullb->disk);
+		nullb->disk->nr_zones = bdev_nr_zones(nullb->disk->part0);
 	}
 
 	blk_queue_max_zone_append_sectors(q, dev->zone_size_sects);
-	blk_queue_max_open_zones(q, dev->zone_max_open);
-	blk_queue_max_active_zones(q, dev->zone_max_active);
+	disk_set_max_open_zones(nullb->disk, dev->zone_max_open);
+	disk_set_max_active_zones(nullb->disk, dev->zone_max_active);
 
 	return 0;
 }
@@ -395,10 +398,10 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 	 */
 	if (append) {
 		sector = zone->wp;
-		if (cmd->bio)
-			cmd->bio->bi_iter.bi_sector = sector;
-		else
+		if (dev->queue_mode == NULL_Q_MQ)
 			cmd->rq->__sector = sector;
+		else
+			cmd->bio->bi_iter.bi_sector = sector;
 	} else if (sector != zone->wp) {
 		ret = BLK_STS_IOERR;
 		goto unlock;
@@ -597,7 +600,7 @@ static blk_status_t null_reset_zone(struct nullb_device *dev,
 	return BLK_STS_OK;
 }
 
-static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_opf op,
+static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_op op,
 				   sector_t sector)
 {
 	struct nullb_device *dev = cmd->nq->dev;
@@ -650,7 +653,7 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_opf op,
 	return ret;
 }
 
-blk_status_t null_process_zoned_cmd(struct nullb_cmd *cmd, enum req_opf op,
+blk_status_t null_process_zoned_cmd(struct nullb_cmd *cmd, enum req_op op,
 				    sector_t sector, sector_t nr_sectors)
 {
 	struct nullb_device *dev;

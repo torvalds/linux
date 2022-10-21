@@ -15,75 +15,75 @@
 
 /* Register Map */
 
-#define BT541_SWRESET_CMD			0x0000
-#define BT541_WAKEUP_CMD			0x0001
+#define ZINITIX_SWRESET_CMD			0x0000
+#define ZINITIX_WAKEUP_CMD			0x0001
 
-#define BT541_IDLE_CMD				0x0004
-#define BT541_SLEEP_CMD				0x0005
+#define ZINITIX_IDLE_CMD			0x0004
+#define ZINITIX_SLEEP_CMD			0x0005
 
-#define BT541_CLEAR_INT_STATUS_CMD		0x0003
-#define BT541_CALIBRATE_CMD			0x0006
-#define BT541_SAVE_STATUS_CMD			0x0007
-#define BT541_SAVE_CALIBRATION_CMD		0x0008
-#define BT541_RECALL_FACTORY_CMD		0x000f
+#define ZINITIX_CLEAR_INT_STATUS_CMD		0x0003
+#define ZINITIX_CALIBRATE_CMD			0x0006
+#define ZINITIX_SAVE_STATUS_CMD			0x0007
+#define ZINITIX_SAVE_CALIBRATION_CMD		0x0008
+#define ZINITIX_RECALL_FACTORY_CMD		0x000f
 
-#define BT541_THRESHOLD				0x0020
+#define ZINITIX_THRESHOLD			0x0020
 
-#define BT541_LARGE_PALM_REJECT_AREA_TH		0x003F
+#define ZINITIX_LARGE_PALM_REJECT_AREA_TH	0x003F
 
-#define BT541_DEBUG_REG				0x0115 /* 0~7 */
+#define ZINITIX_DEBUG_REG			0x0115 /* 0~7 */
 
-#define BT541_TOUCH_MODE			0x0010
-#define BT541_CHIP_REVISION			0x0011
-#define BT541_FIRMWARE_VERSION			0x0012
+#define ZINITIX_TOUCH_MODE			0x0010
+#define ZINITIX_CHIP_REVISION			0x0011
+#define ZINITIX_FIRMWARE_VERSION		0x0012
 
 #define ZINITIX_USB_DETECT			0x116
 
-#define BT541_MINOR_FW_VERSION			0x0121
+#define ZINITIX_MINOR_FW_VERSION		0x0121
 
-#define BT541_VENDOR_ID				0x001C
-#define BT541_HW_ID				0x0014
+#define ZINITIX_VENDOR_ID			0x001C
+#define ZINITIX_HW_ID				0x0014
 
-#define BT541_DATA_VERSION_REG			0x0013
-#define BT541_SUPPORTED_FINGER_NUM		0x0015
-#define BT541_EEPROM_INFO			0x0018
-#define BT541_INITIAL_TOUCH_MODE		0x0019
+#define ZINITIX_DATA_VERSION_REG		0x0013
+#define ZINITIX_SUPPORTED_FINGER_NUM		0x0015
+#define ZINITIX_EEPROM_INFO			0x0018
+#define ZINITIX_INITIAL_TOUCH_MODE		0x0019
 
-#define BT541_TOTAL_NUMBER_OF_X			0x0060
-#define BT541_TOTAL_NUMBER_OF_Y			0x0061
+#define ZINITIX_TOTAL_NUMBER_OF_X		0x0060
+#define ZINITIX_TOTAL_NUMBER_OF_Y		0x0061
 
-#define BT541_DELAY_RAW_FOR_HOST		0x007f
+#define ZINITIX_DELAY_RAW_FOR_HOST		0x007f
 
-#define BT541_BUTTON_SUPPORTED_NUM		0x00B0
-#define BT541_BUTTON_SENSITIVITY		0x00B2
-#define BT541_DUMMY_BUTTON_SENSITIVITY		0X00C8
+#define ZINITIX_BUTTON_SUPPORTED_NUM		0x00B0
+#define ZINITIX_BUTTON_SENSITIVITY		0x00B2
+#define ZINITIX_DUMMY_BUTTON_SENSITIVITY	0X00C8
 
-#define BT541_X_RESOLUTION			0x00C0
-#define BT541_Y_RESOLUTION			0x00C1
+#define ZINITIX_X_RESOLUTION			0x00C0
+#define ZINITIX_Y_RESOLUTION			0x00C1
 
-#define BT541_POINT_STATUS_REG			0x0080
-#define BT541_ICON_STATUS_REG			0x00AA
+#define ZINITIX_POINT_STATUS_REG		0x0080
+#define ZINITIX_ICON_STATUS_REG			0x00AA
 
-#define BT541_POINT_COORD_REG			(BT541_POINT_STATUS_REG + 2)
+#define ZINITIX_POINT_COORD_REG			(ZINITIX_POINT_STATUS_REG + 2)
 
-#define BT541_AFE_FREQUENCY			0x0100
-#define BT541_DND_N_COUNT			0x0122
-#define BT541_DND_U_COUNT			0x0135
+#define ZINITIX_AFE_FREQUENCY			0x0100
+#define ZINITIX_DND_N_COUNT			0x0122
+#define ZINITIX_DND_U_COUNT			0x0135
 
-#define BT541_RAWDATA_REG			0x0200
+#define ZINITIX_RAWDATA_REG			0x0200
 
-#define BT541_EEPROM_INFO_REG			0x0018
+#define ZINITIX_EEPROM_INFO_REG			0x0018
 
-#define BT541_INT_ENABLE_FLAG			0x00f0
-#define BT541_PERIODICAL_INTERRUPT_INTERVAL	0x00f1
+#define ZINITIX_INT_ENABLE_FLAG			0x00f0
+#define ZINITIX_PERIODICAL_INTERRUPT_INTERVAL	0x00f1
 
-#define BT541_BTN_WIDTH				0x016d
+#define ZINITIX_BTN_WIDTH			0x016d
 
-#define BT541_CHECKSUM_RESULT			0x012c
+#define ZINITIX_CHECKSUM_RESULT			0x012c
 
-#define BT541_INIT_FLASH			0x01d0
-#define BT541_WRITE_FLASH			0x01d1
-#define BT541_READ_FLASH			0x01d2
+#define ZINITIX_INIT_FLASH			0x01d0
+#define ZINITIX_WRITE_FLASH			0x01d1
+#define ZINITIX_READ_FLASH			0x01d2
 
 #define ZINITIX_INTERNAL_FLAG_02		0x011e
 #define ZINITIX_INTERNAL_FLAG_03		0x011f
@@ -135,7 +135,7 @@ struct point_coord {
 
 struct touch_event {
 	__le16	status;
-	u8	finger_cnt;
+	u8	finger_mask;
 	u8	time_stamp;
 	struct point_coord point_coord[MAX_SUPPORTED_FINGER_NUM];
 };
@@ -196,13 +196,13 @@ static int zinitix_init_touch(struct bt541_ts_data *bt541)
 	int i;
 	int error;
 
-	error = zinitix_write_cmd(client, BT541_SWRESET_CMD);
+	error = zinitix_write_cmd(client, ZINITIX_SWRESET_CMD);
 	if (error) {
 		dev_err(&client->dev, "Failed to write reset command\n");
 		return error;
 	}
 
-	error = zinitix_write_u16(client, BT541_INT_ENABLE_FLAG, 0x0);
+	error = zinitix_write_u16(client, ZINITIX_INT_ENABLE_FLAG, 0x0);
 	if (error) {
 		dev_err(&client->dev,
 			"Failed to reset interrupt enable flag\n");
@@ -210,32 +210,32 @@ static int zinitix_init_touch(struct bt541_ts_data *bt541)
 	}
 
 	/* initialize */
-	error = zinitix_write_u16(client, BT541_X_RESOLUTION,
+	error = zinitix_write_u16(client, ZINITIX_X_RESOLUTION,
 				  bt541->prop.max_x);
 	if (error)
 		return error;
 
-	error = zinitix_write_u16(client, BT541_Y_RESOLUTION,
+	error = zinitix_write_u16(client, ZINITIX_Y_RESOLUTION,
 				  bt541->prop.max_y);
 	if (error)
 		return error;
 
-	error = zinitix_write_u16(client, BT541_SUPPORTED_FINGER_NUM,
+	error = zinitix_write_u16(client, ZINITIX_SUPPORTED_FINGER_NUM,
 				  MAX_SUPPORTED_FINGER_NUM);
 	if (error)
 		return error;
 
-	error = zinitix_write_u16(client, BT541_INITIAL_TOUCH_MODE,
+	error = zinitix_write_u16(client, ZINITIX_INITIAL_TOUCH_MODE,
 				  bt541->zinitix_mode);
 	if (error)
 		return error;
 
-	error = zinitix_write_u16(client, BT541_TOUCH_MODE,
+	error = zinitix_write_u16(client, ZINITIX_TOUCH_MODE,
 				  bt541->zinitix_mode);
 	if (error)
 		return error;
 
-	error = zinitix_write_u16(client, BT541_INT_ENABLE_FLAG,
+	error = zinitix_write_u16(client, ZINITIX_INT_ENABLE_FLAG,
 				  BIT_PT_CNT_CHANGE | BIT_DOWN | BIT_MOVE |
 					BIT_UP);
 	if (error)
@@ -243,7 +243,7 @@ static int zinitix_init_touch(struct bt541_ts_data *bt541)
 
 	/* clear queue */
 	for (i = 0; i < 10; i++) {
-		zinitix_write_cmd(client, BT541_CLEAR_INT_STATUS_CMD);
+		zinitix_write_cmd(client, ZINITIX_CLEAR_INT_STATUS_CMD);
 		udelay(10);
 	}
 
@@ -322,11 +322,32 @@ static int zinitix_send_power_on_sequence(struct bt541_ts_data *bt541)
 static void zinitix_report_finger(struct bt541_ts_data *bt541, int slot,
 				  const struct point_coord *p)
 {
+	u16 x, y;
+
+	if (unlikely(!(p->sub_status &
+		       (SUB_BIT_UP | SUB_BIT_DOWN | SUB_BIT_MOVE)))) {
+		dev_dbg(&bt541->client->dev, "unknown finger event %#02x\n",
+			p->sub_status);
+		return;
+	}
+
+	x = le16_to_cpu(p->x);
+	y = le16_to_cpu(p->y);
+
 	input_mt_slot(bt541->input_dev, slot);
-	input_mt_report_slot_state(bt541->input_dev, MT_TOOL_FINGER, true);
-	touchscreen_report_pos(bt541->input_dev, &bt541->prop,
-			       le16_to_cpu(p->x), le16_to_cpu(p->y), true);
-	input_report_abs(bt541->input_dev, ABS_MT_TOUCH_MAJOR, p->width);
+	if (input_mt_report_slot_state(bt541->input_dev, MT_TOOL_FINGER,
+				       !(p->sub_status & SUB_BIT_UP))) {
+		touchscreen_report_pos(bt541->input_dev,
+				       &bt541->prop, x, y, true);
+		input_report_abs(bt541->input_dev,
+				 ABS_MT_TOUCH_MAJOR, p->width);
+		dev_dbg(&bt541->client->dev, "finger %d %s (%u, %u)\n",
+			slot, p->sub_status & SUB_BIT_DOWN ? "down" : "move",
+			x, y);
+	} else {
+		dev_dbg(&bt541->client->dev, "finger %d up (%u, %u)\n",
+			slot, x, y);
+	}
 }
 
 static irqreturn_t zinitix_ts_irq_handler(int irq, void *bt541_handler)
@@ -334,28 +355,33 @@ static irqreturn_t zinitix_ts_irq_handler(int irq, void *bt541_handler)
 	struct bt541_ts_data *bt541 = bt541_handler;
 	struct i2c_client *client = bt541->client;
 	struct touch_event touch_event;
+	unsigned long finger_mask;
 	int error;
 	int i;
 
 	memset(&touch_event, 0, sizeof(struct touch_event));
 
-	error = zinitix_read_data(bt541->client, BT541_POINT_STATUS_REG,
+	error = zinitix_read_data(bt541->client, ZINITIX_POINT_STATUS_REG,
 				  &touch_event, sizeof(struct touch_event));
 	if (error) {
 		dev_err(&client->dev, "Failed to read in touchpoint struct\n");
 		goto out;
 	}
 
-	for (i = 0; i < MAX_SUPPORTED_FINGER_NUM; i++)
-		if (touch_event.point_coord[i].sub_status & SUB_BIT_EXIST)
-			zinitix_report_finger(bt541, i,
-					      &touch_event.point_coord[i]);
+	finger_mask = touch_event.finger_mask;
+	for_each_set_bit(i, &finger_mask, MAX_SUPPORTED_FINGER_NUM) {
+		const struct point_coord *p = &touch_event.point_coord[i];
+
+		/* Only process contacts that are actually reported */
+		if (p->sub_status & SUB_BIT_EXIST)
+			zinitix_report_finger(bt541, i, p);
+	}
 
 	input_mt_sync_frame(bt541->input_dev);
 	input_sync(bt541->input_dev);
 
 out:
-	zinitix_write_cmd(bt541->client, BT541_CLEAR_INT_STATUS_CMD);
+	zinitix_write_cmd(bt541->client, ZINITIX_CLEAR_INT_STATUS_CMD);
 	return IRQ_HANDLED;
 }
 
@@ -571,8 +597,20 @@ static SIMPLE_DEV_PM_OPS(zinitix_pm_ops, zinitix_suspend, zinitix_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id zinitix_of_match[] = {
+	{ .compatible = "zinitix,bt402" },
+	{ .compatible = "zinitix,bt403" },
+	{ .compatible = "zinitix,bt404" },
+	{ .compatible = "zinitix,bt412" },
+	{ .compatible = "zinitix,bt413" },
+	{ .compatible = "zinitix,bt431" },
+	{ .compatible = "zinitix,bt432" },
+	{ .compatible = "zinitix,bt531" },
 	{ .compatible = "zinitix,bt532" },
+	{ .compatible = "zinitix,bt538" },
 	{ .compatible = "zinitix,bt541" },
+	{ .compatible = "zinitix,bt548" },
+	{ .compatible = "zinitix,bt554" },
+	{ .compatible = "zinitix,at100" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, zinitix_of_match);

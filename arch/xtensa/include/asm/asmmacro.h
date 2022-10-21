@@ -191,7 +191,39 @@
 #endif
 	.endm
 
-#define XTENSA_STACK_ALIGNMENT		16
+	.macro	do_nsau cnt, val, tmp, a
+#if XCHAL_HAVE_NSA
+	nsau	\cnt, \val
+#else
+	mov	\a, \val
+	movi	\cnt, 0
+	extui	\tmp, \a, 16, 16
+	bnez	\tmp, 0f
+	movi	\cnt, 16
+	slli	\a, \a, 16
+0:
+	extui	\tmp, \a, 24, 8
+	bnez	\tmp, 1f
+	addi	\cnt, \cnt, 8
+	slli	\a, \a, 8
+1:
+	movi	\tmp, __nsau_data
+	extui	\a, \a, 24, 8
+	add	\tmp, \tmp, \a
+	l8ui	\tmp, \tmp, 0
+	add	\cnt, \cnt, \tmp
+#endif /* !XCHAL_HAVE_NSA */
+	.endm
+
+	.macro	do_abs dst, src, tmp
+#if XCHAL_HAVE_ABS
+	abs	\dst, \src
+#else
+	neg	\tmp, \src
+	movgez	\tmp, \src, \src
+	mov	\dst, \tmp
+#endif
+	.endm
 
 #if defined(__XTENSA_WINDOWED_ABI__)
 

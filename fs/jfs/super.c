@@ -102,7 +102,7 @@ static struct inode *jfs_alloc_inode(struct super_block *sb)
 {
 	struct jfs_inode_info *jfs_inode;
 
-	jfs_inode = kmem_cache_alloc(jfs_inode_cachep, GFP_NOFS);
+	jfs_inode = alloc_inode_sb(sb, jfs_inode_cachep, GFP_NOFS);
 	if (!jfs_inode)
 		return NULL;
 #ifdef CONFIG_QUOTA
@@ -372,19 +372,16 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 		}
 
 		case Opt_discard:
-		{
-			struct request_queue *q = bdev_get_queue(sb->s_bdev);
 			/* if set to 1, even copying files will cause
 			 * trimming :O
 			 * -> user has more control over the online trimming
 			 */
 			sbi->minblks_trim = 64;
-			if (blk_queue_discard(q))
+			if (bdev_max_discard_sectors(sb->s_bdev))
 				*flag |= JFS_DISCARD;
 			else
 				pr_err("JFS: discard option not supported on device\n");
 			break;
-		}
 
 		case Opt_nodiscard:
 			*flag &= ~JFS_DISCARD;
@@ -392,10 +389,9 @@ static int parse_options(char *options, struct super_block *sb, s64 *newLVSize,
 
 		case Opt_discard_minblk:
 		{
-			struct request_queue *q = bdev_get_queue(sb->s_bdev);
 			char *minblks_trim = args[0].from;
 			int rc;
-			if (blk_queue_discard(q)) {
+			if (bdev_max_discard_sectors(sb->s_bdev)) {
 				*flag |= JFS_DISCARD;
 				rc = kstrtouint(minblks_trim, 0,
 						&sbi->minblks_trim);

@@ -11,10 +11,12 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_format_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_shmem_helper.h>
@@ -95,7 +97,7 @@ struct gm12u320_device {
 		struct drm_rect          rect;
 		int frame;
 		int draw_status_timeout;
-		struct dma_buf_map src_map;
+		struct iosys_map src_map;
 	} fb_update;
 };
 
@@ -395,7 +397,8 @@ err:
 		GM12U320_ERR("Frame update error: %d\n", ret);
 }
 
-static void gm12u320_fb_mark_dirty(struct drm_framebuffer *fb, const struct dma_buf_map *map,
+static void gm12u320_fb_mark_dirty(struct drm_framebuffer *fb,
+				   const struct iosys_map *map,
 				   struct drm_rect *dirty)
 {
 	struct gm12u320_device *gm12u320 = to_gm12u320(fb->dev);
@@ -438,7 +441,7 @@ static void gm12u320_stop_fb_update(struct gm12u320_device *gm12u320)
 	mutex_lock(&gm12u320->fb_update.lock);
 	old_fb = gm12u320->fb_update.fb;
 	gm12u320->fb_update.fb = NULL;
-	dma_buf_map_clear(&gm12u320->fb_update.src_map);
+	iosys_map_clear(&gm12u320->fb_update.src_map);
 	mutex_unlock(&gm12u320->fb_update.lock);
 
 	drm_framebuffer_put(old_fb);

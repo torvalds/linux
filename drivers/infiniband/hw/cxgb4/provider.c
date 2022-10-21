@@ -269,7 +269,10 @@ static int c4iw_query_device(struct ib_device *ibdev, struct ib_device_attr *pro
 			    dev->rdev.lldi.ports[0]->dev_addr);
 	props->hw_ver = CHELSIO_CHIP_RELEASE(dev->rdev.lldi.adapter_type);
 	props->fw_ver = dev->rdev.lldi.fw_vers;
-	props->device_cap_flags = dev->device_cap_flags;
+	props->device_cap_flags = IB_DEVICE_MEM_WINDOW;
+	props->kernel_cap_flags = IBK_LOCAL_DMA_LKEY;
+	if (fastreg_support)
+		props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
 	props->page_size_cap = T4_PAGESIZE_MASK;
 	props->vendor_id = (u32)dev->rdev.lldi.pdev->vendor;
 	props->vendor_part_id = (u32)dev->rdev.lldi.pdev->device;
@@ -529,9 +532,6 @@ void c4iw_register_device(struct work_struct *work)
 	pr_debug("c4iw_dev %p\n", dev);
 	addrconf_addr_eui48((u8 *)&dev->ibdev.node_guid,
 			    dev->rdev.lldi.ports[0]->dev_addr);
-	dev->device_cap_flags = IB_DEVICE_LOCAL_DMA_LKEY | IB_DEVICE_MEM_WINDOW;
-	if (fastreg_support)
-		dev->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
 	dev->ibdev.local_dma_lkey = 0;
 	dev->ibdev.node_type = RDMA_NODE_RNIC;
 	BUILD_BUG_ON(sizeof(C4IW_NODE_DESC) > IB_DEVICE_NODE_DESC_MAX);

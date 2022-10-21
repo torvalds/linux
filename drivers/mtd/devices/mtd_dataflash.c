@@ -112,6 +112,13 @@ static const struct of_device_id dataflash_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, dataflash_dt_ids);
 #endif
 
+static const struct spi_device_id dataflash_spi_ids[] = {
+	{ .name = "at45", },
+	{ .name = "dataflash", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(spi, dataflash_spi_ids);
+
 /* ......................................................................... */
 
 /*
@@ -916,7 +923,7 @@ static int dataflash_probe(struct spi_device *spi)
 	return status;
 }
 
-static int dataflash_remove(struct spi_device *spi)
+static void dataflash_remove(struct spi_device *spi)
 {
 	struct dataflash	*flash = spi_get_drvdata(spi);
 
@@ -925,8 +932,6 @@ static int dataflash_remove(struct spi_device *spi)
 	WARN_ON(mtd_device_unregister(&flash->mtd));
 
 	kfree(flash);
-
-	return 0;
 }
 
 static struct spi_driver dataflash_driver = {
@@ -938,6 +943,7 @@ static struct spi_driver dataflash_driver = {
 
 	.probe		= dataflash_probe,
 	.remove		= dataflash_remove,
+	.id_table	= dataflash_spi_ids,
 
 	/* FIXME:  investigate suspend and resume... */
 };

@@ -350,7 +350,7 @@ send_done(struct ib_cq *cq, struct ib_wc *wc)
 			    c->busa, c->req->tc.size,
 			    DMA_TO_DEVICE);
 	up(&rdma->sq_sem);
-	p9_req_put(c->req);
+	p9_req_put(client, c->req);
 	kfree(c);
 }
 
@@ -739,6 +739,7 @@ error:
 static struct p9_trans_module p9_rdma_trans = {
 	.name = "rdma",
 	.maxsize = P9_RDMA_MAXSIZE,
+	.pooled_rbuffers = true,
 	.def = 0,
 	.owner = THIS_MODULE,
 	.create = rdma_create_trans,

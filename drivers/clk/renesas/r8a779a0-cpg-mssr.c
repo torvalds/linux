@@ -85,11 +85,10 @@ static const struct cpg_core_clk r8a779a0_core_clks[] __initconst = {
 	DEF_FIXED(".s1",		CLK_S1,		CLK_PLL1_DIV2,	2, 1),
 	DEF_FIXED(".s3",		CLK_S3,		CLK_PLL1_DIV2,	4, 1),
 	DEF_FIXED(".sdsrc",		CLK_SDSRC,	CLK_PLL5_DIV4,	1, 1),
+
 	DEF_RATE(".oco",		CLK_OCO,	32768),
-	DEF_BASE(".rpcsrc",	 CLK_RPCSRC,	   CLK_TYPE_GEN4_RPCSRC, CLK_PLL5),
-	DEF_BASE("rpc",		 R8A779A0_CLK_RPC, CLK_TYPE_GEN4_RPC, CLK_RPCSRC),
-	DEF_BASE("rpcd2",	 R8A779A0_CLK_RPCD2, CLK_TYPE_GEN4_RPCD2,
-		 R8A779A0_CLK_RPC),
+
+	DEF_BASE(".rpcsrc",		CLK_RPCSRC,	CLK_TYPE_GEN4_RPCSRC, CLK_PLL5),
 
 	/* Core Clock Outputs */
 	DEF_GEN4_Z("z0",	R8A779A0_CLK_Z0,	CLK_TYPE_GEN4_Z,	CLK_PLL20,	2, 0),
@@ -120,6 +119,10 @@ static const struct cpg_core_clk r8a779a0_core_clks[] __initconst = {
 	DEF_GEN4_SDH("sdh0",	R8A779A0_CLK_SD0H,	CLK_SDSRC,	   0x870),
 	DEF_GEN4_SD("sd0",	R8A779A0_CLK_SD0,	R8A779A0_CLK_SD0H, 0x870),
 
+	DEF_BASE("rpc",		R8A779A0_CLK_RPC, CLK_TYPE_GEN4_RPC, CLK_RPCSRC),
+	DEF_BASE("rpcd2",	R8A779A0_CLK_RPCD2, CLK_TYPE_GEN4_RPCD2,
+		 R8A779A0_CLK_RPC),
+
 	DEF_DIV6P1("mso",	R8A779A0_CLK_MSO,	CLK_PLL5_DIV4,	0x87c),
 	DEF_DIV6P1("canfd",	R8A779A0_CLK_CANFD,	CLK_PLL5_DIV4,	0x878),
 	DEF_DIV6P1("csi0",	R8A779A0_CLK_CSI0,	CLK_PLL5_DIV4,	0x880),
@@ -136,6 +139,7 @@ static const struct mssr_mod_clk r8a779a0_mod_clks[] __initconst = {
 	DEF_MOD("avb3",		214,	R8A779A0_CLK_S3D2),
 	DEF_MOD("avb4",		215,	R8A779A0_CLK_S3D2),
 	DEF_MOD("avb5",		216,	R8A779A0_CLK_S3D2),
+	DEF_MOD("canfd0",	328,	R8A779A0_CLK_CANFD),
 	DEF_MOD("csi40",	331,	R8A779A0_CLK_CSI0),
 	DEF_MOD("csi41",	400,	R8A779A0_CLK_CSI0),
 	DEF_MOD("csi42",	401,	R8A779A0_CLK_CSI0),
@@ -240,7 +244,7 @@ static const unsigned int r8a779a0_crit_mod_clks[] __initconst = {
 /*
  *   MD	 EXTAL		PLL1	PLL20	PLL30	PLL4	PLL5	OSC
  * 14 13 (MHz)			   21	   31
- * --------------------------------------------------------
+ * ----------------------------------------------------------------
  * 0  0	 16.66 x 1	x128	x216	x128	x144	x192	/16
  * 0  1	 20    x 1	x106	x180	x106	x120	x160	/19
  * 1  0	 Prohibited setting
@@ -249,11 +253,11 @@ static const unsigned int r8a779a0_crit_mod_clks[] __initconst = {
 #define CPG_PLL_CONFIG_INDEX(md)	((((md) & BIT(14)) >> 13) | \
 					 (((md) & BIT(13)) >> 13))
 static const struct rcar_gen4_cpg_pll_config cpg_pll_configs[4] = {
-	/* EXTAL div	PLL1 mult/div	PLL2 mult/div	PLL3 mult/div	PLL5 mult/div	PLL6 mult/div	OSC prediv */
-	{ 1,		128,	1,	0,	0,	0,	0,	192,	1,	0,	0,	16,	},
-	{ 1,		106,	1,	0,	0,	0,	0,	160,	1,	0,	0,	19,	},
-	{ 0,		0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	},
-	{ 2,		128,	1,	0,	0,	0,	0,	192,	1,	0,	0,	32,	},
+	/* EXTAL div	PLL1 mult/div	PLL2 mult/div	PLL3 mult/div	PLL4 mult/div	PLL5 mult/div	PLL6 mult/div	OSC prediv */
+	{ 1,		128,	1,	0,	0,	0,	0,	144,	1,	192,	1,	0,	0,	16,	},
+	{ 1,		106,	1,	0,	0,	0,	0,	120,	1,	160,	1,	0,	0,	19,	},
+	{ 0,		0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	},
+	{ 2,		128,	1,	0,	0,	0,	0,	144,	1,	192,	1,	0,	0,	32,	},
 };
 
 

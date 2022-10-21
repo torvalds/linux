@@ -329,7 +329,7 @@ Program with unreachable instructions::
   BPF_EXIT_INSN(),
   };
 
-Error:
+Error::
 
   unreachable insn 1
 

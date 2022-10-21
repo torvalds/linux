@@ -93,8 +93,6 @@ retry:
 	vma = find_vma(mm, address);
 	if (!vma)
 		goto map_err;
-	if (vma->vm_flags & VM_IO)
-		goto acc_err;
 	if (vma->vm_start <= address)
 		goto good_area;
 	if (!(vma->vm_flags & VM_GROWSDOWN))
@@ -141,6 +139,10 @@ good_area:
 	pr_debug("handle_mm_fault returns %x\n", fault);
 
 	if (fault_signal_pending(fault, regs))
+		return 0;
+
+	/* The fault is fully completed (including releasing mmap lock) */
+	if (fault & VM_FAULT_COMPLETED)
 		return 0;
 
 	if (unlikely(fault & VM_FAULT_ERROR)) {

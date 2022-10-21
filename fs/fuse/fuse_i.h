@@ -256,6 +256,7 @@ struct fuse_args {
 	bool nocreds:1;
 	bool in_pages:1;
 	bool out_pages:1;
+	bool user_pages:1;
 	bool out_argvar:1;
 	bool page_zeroing:1;
 	bool page_replace:1;
@@ -626,7 +627,7 @@ struct fuse_conn {
 	/** Connection successful.  Only set in INIT */
 	unsigned conn_init:1;
 
-	/** Do readpages asynchronously?  Only set in INIT */
+	/** Do readahead asynchronously?  Only set in INIT */
 	unsigned async_read:1;
 
 	/** Return an unique read error after abort.  Only set in INIT */
@@ -782,6 +783,9 @@ struct fuse_conn {
 
 	/* Does the filesystem support per inode DAX? */
 	unsigned int inode_dax:1;
+
+	/* Is tmpfile not implemented by fs? */
+	unsigned int no_tmpfile:1;
 
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;

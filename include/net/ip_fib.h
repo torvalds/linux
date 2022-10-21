@@ -17,6 +17,7 @@
 #include <linux/rcupdate.h>
 #include <net/fib_notifier.h>
 #include <net/fib_rules.h>
+#include <net/inet_dscp.h>
 #include <net/inetpeer.h>
 #include <linux/percpu.h>
 #include <linux/notifier.h>
@@ -24,7 +25,7 @@
 
 struct fib_config {
 	u8			fc_dst_len;
-	u8			fc_tos;
+	dscp_t			fc_dscp;
 	u8			fc_protocol;
 	u8			fc_scope;
 	u8			fc_type;
@@ -211,7 +212,7 @@ struct fib_rt_info {
 	u32			tb_id;
 	__be32			dst;
 	int			dst_len;
-	u8			tos;
+	dscp_t			dscp;
 	u8			type;
 	u8			offload:1,
 				trap:1,
@@ -224,7 +225,7 @@ struct fib_entry_notifier_info {
 	u32 dst;
 	int dst_len;
 	struct fib_info *fi;
-	u8 tos;
+	dscp_t dscp;
 	u8 type;
 	u32 tb_id;
 };

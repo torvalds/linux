@@ -967,7 +967,7 @@ static int __tipc_nl_add_nametable_publ(struct tipc_nl_msg *msg,
 		list_for_each_entry(p, &sr->all_publ, all_publ)
 			if (p->key == *last_key)
 				break;
-		if (p->key != *last_key)
+		if (list_entry_is_head(p, &sr->all_publ, all_publ))
 			return -EPIPE;
 	} else {
 		p = list_first_entry(&sr->all_publ,
@@ -1201,15 +1201,4 @@ void tipc_dest_list_purge(struct list_head *l)
 		list_del(&dst->list);
 		kfree(dst);
 	}
-}
-
-int tipc_dest_list_len(struct list_head *l)
-{
-	struct tipc_dest *dst;
-	int i = 0;
-
-	list_for_each_entry(dst, l, list) {
-		i++;
-	}
-	return i;
 }

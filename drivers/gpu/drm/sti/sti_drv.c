@@ -14,9 +14,8 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
@@ -128,12 +127,12 @@ static void sti_mode_config_init(struct drm_device *dev)
 	dev->mode_config.normalize_zpos = true;
 }
 
-DEFINE_DRM_GEM_CMA_FOPS(sti_driver_fops);
+DEFINE_DRM_GEM_DMA_FOPS(sti_driver_fops);
 
 static const struct drm_driver sti_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.fops = &sti_driver_fops,
-	DRM_GEM_CMA_DRIVER_OPS,
+	DRM_GEM_DMA_DRIVER_OPS,
 
 	.debugfs_init = sti_drm_dbg_init,
 
@@ -143,11 +142,6 @@ static const struct drm_driver sti_driver = {
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 };
-
-static int compare_of(struct device *dev, void *data)
-{
-	return dev->of_node == data;
-}
 
 static int sti_init(struct drm_device *ddev)
 {
@@ -244,7 +238,7 @@ static int sti_platform_probe(struct platform_device *pdev)
 	child_np = of_get_next_available_child(node, NULL);
 
 	while (child_np) {
-		drm_of_component_match_add(dev, &match, compare_of,
+		drm_of_component_match_add(dev, &match, component_compare_of,
 					   child_np);
 		child_np = of_get_next_available_child(node, child_np);
 	}
@@ -287,6 +281,9 @@ static struct platform_driver * const drivers[] = {
 
 static int sti_drm_init(void)
 {
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
+
 	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 module_init(sti_drm_init);

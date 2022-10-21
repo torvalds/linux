@@ -28,6 +28,7 @@
 #include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
+#include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/signal.h>
@@ -1233,6 +1234,10 @@ static const struct net_device_ops ucan_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
+static const struct ethtool_ops ucan_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 /* Request to set bittiming
  *
  * This function generates an USB set bittiming message and transmits
@@ -1392,7 +1397,7 @@ static int ucan_probe(struct usb_interface *intf,
 	 * Stage 3 for the final driver initialisation.
 	 */
 
-	/* Prepare Memory for control transferes */
+	/* Prepare Memory for control transfers */
 	ctl_msg_buffer = devm_kzalloc(&udev->dev,
 				      sizeof(union ucan_ctl_payload),
 				      GFP_KERNEL);
@@ -1512,6 +1517,7 @@ static int ucan_probe(struct usb_interface *intf,
 	spin_lock_init(&up->context_lock);
 	spin_lock_init(&up->echo_skb_lock);
 	netdev->netdev_ops = &ucan_netdev_ops;
+	netdev->ethtool_ops = &ucan_ethtool_ops;
 
 	usb_set_intfdata(intf, up);
 	SET_NETDEV_DEV(netdev, &intf->dev);
@@ -1526,7 +1532,7 @@ static int ucan_probe(struct usb_interface *intf,
 	ret = ucan_device_request_in(up, UCAN_DEVICE_GET_FW_STRING, 0,
 				     sizeof(union ucan_ctl_payload));
 	if (ret > 0) {
-		/* copy string while ensuring zero terminiation */
+		/* copy string while ensuring zero termination */
 		strncpy(firmware_str, up->ctl_msg_buffer->raw,
 			sizeof(union ucan_ctl_payload));
 		firmware_str[sizeof(union ucan_ctl_payload)] = '\0';

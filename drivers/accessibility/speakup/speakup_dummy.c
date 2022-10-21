@@ -8,7 +8,7 @@
  * Copyright (C) 2003 David Borowski.
  * Copyright (C) 2007 Samuel Thibault.
  *
- * specificly written as a driver for the speakup screenreview
+ * specifically written as a driver for the speakup screenreview
  * s not a general device driver.
  */
 #include "spk_priv.h"
@@ -27,6 +27,7 @@ static struct var_t vars[] = {
 	{ INFLECTION, .u.n = {"INFLECTION %d\n", 8, 0, 16, 0, 0, NULL } },
 	{ VOL, .u.n = {"VOL %d\n", 8, 0, 16, 0, 0, NULL } },
 	{ TONE, .u.n = {"TONE %d\n", 8, 0, 16, 0, 0, NULL } },
+	{ PUNCT, .u.n = {"PUNCT %d\n", 0, 0, 3, 0, 0, NULL } },
 	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 };
@@ -42,6 +43,8 @@ static struct kobj_attribute pitch_attribute =
 	__ATTR(pitch, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute inflection_attribute =
 	__ATTR(inflection, 0644, spk_var_show, spk_var_store);
+static struct kobj_attribute punct_attribute =
+	__ATTR(punct, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute rate_attribute =
 	__ATTR(rate, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute tone_attribute =
@@ -69,6 +72,7 @@ static struct attribute *synth_attrs[] = {
 	&caps_stop_attribute.attr,
 	&pitch_attribute.attr,
 	&inflection_attribute.attr,
+	&punct_attribute.attr,
 	&rate_attribute.attr,
 	&tone_attribute.attr,
 	&vol_attribute.attr,

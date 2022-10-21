@@ -188,17 +188,23 @@ void dcn31_init_hw(struct dc *dc)
 
 		/* Check for enabled DIG to identify enabled display */
 		if (link->link_enc->funcs->is_dig_enabled &&
-			link->link_enc->funcs->is_dig_enabled(link->link_enc))
+			link->link_enc->funcs->is_dig_enabled(link->link_enc)) {
 			link->link_status.link_active = true;
+			if (link->link_enc->funcs->fec_is_active &&
+					link->link_enc->funcs->fec_is_active(link->link_enc))
+				link->fec_state = dc_link_fec_enabled;
+		}
 	}
 
 	/* Enables outbox notifications for usb4 dpia */
 	if (dc->res_pool->usb4_dpia_count)
-		dmub_enable_outbox_notification(dc);
+		dmub_enable_outbox_notification(dc->ctx->dmub_srv);
 
 	/* we want to turn off all dp displays before doing detection */
-	if (dc->config.power_down_display_on_boot)
-		dc_link_blank_all_dp_displays(dc);
+	dc_link_blank_all_dp_displays(dc);
+
+	if (hws->funcs.enable_power_gating_plane)
+		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	/* If taking control over from VBIOS, we may want to optimize our first
 	 * mode set, so we need to skip powering down pipes until we know which
@@ -206,7 +212,29 @@ void dcn31_init_hw(struct dc *dc)
 	 * Otherwise, if taking control is not possible, we need to power
 	 * everything down.
 	 */
-	if (dcb->funcs->is_accelerated_mode(dcb) || dc->config.power_down_display_on_boot) {
+	if (dcb->funcs->is_accelerated_mode(dcb) || !dc->config.seamless_boot_edp_requested) {
+
+		// we want to turn off edp displays if odm is enabled and no seamless boot
+		if (!dc->caps.seamless_odm) {
+			for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
+				struct timing_generator *tg = dc->res_pool->timing_generators[i];
+				uint32_t num_opps, opp_id_src0, opp_id_src1;
+
+				num_opps = 1;
+				if (tg) {
+					if (tg->funcs->is_tg_enabled(tg) && tg->funcs->get_optc_source) {
+						tg->funcs->get_optc_source(tg, &num_opps,
+								&opp_id_src0, &opp_id_src1);
+					}
+				}
+
+				if (num_opps > 1) {
+					dc_link_blank_all_edp_displays(dc);
+					break;
+				}
+			}
+		}
+
 		hws->funcs.init_pipes(dc, dc->current_state);
 		if (dc->res_pool->hubbub->funcs->allow_self_refresh_control)
 			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub,
@@ -249,8 +277,6 @@ void dcn31_init_hw(struct dc *dc)
 
 		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 	}
-	if (hws->funcs.enable_power_gating_plane)
-		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	if (!dcb->funcs->is_accelerated_mode(dcb) && dc->res_pool->hubbub->funcs->init_watermarks)
 		dc->res_pool->hubbub->funcs->init_watermarks(dc->res_pool->hubbub);
@@ -339,22 +365,32 @@ void dcn31_enable_power_gating_plane(
 	bool enable)
 {
 	bool force_on = true; /* disable power gating */
+	uint32_t org_ip_request_cntl = 0;
 
-	if (enable)
+	if (enable && !hws->ctx->dc->debug.disable_hubp_power_gate)
 		force_on = false;
 
+	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
+	if (org_ip_request_cntl == 0)
+		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
 	/* DCHUBP0/1/2/3/4/5 */
 	REG_UPDATE(DOMAIN0_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
 	REG_UPDATE(DOMAIN2_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
-
 	/* DPP0/1/2/3/4/5 */
 	REG_UPDATE(DOMAIN1_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
 	REG_UPDATE(DOMAIN3_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
+
+	force_on = true; /* disable power gating */
+	if (enable && !hws->ctx->dc->debug.disable_dsc_power_gate)
+		force_on = false;
 
 	/* DCS0/1/2/3/4/5 */
 	REG_UPDATE(DOMAIN16_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
 	REG_UPDATE(DOMAIN17_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
 	REG_UPDATE(DOMAIN18_PG_CONFIG, DOMAIN_POWER_FORCEON, force_on);
+
+	if (org_ip_request_cntl == 0)
+		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 0);
 }
 
 void dcn31_update_info_frame(struct pipe_ctx *pipe_ctx)
@@ -420,12 +456,15 @@ void dcn31_hubp_pg_control(struct dce_hwseq *hws, unsigned int hubp_inst, bool p
 {
 	uint32_t power_gate = power_on ? 0 : 1;
 	uint32_t pwr_status = power_on ? 0 : 2;
-
+	uint32_t org_ip_request_cntl;
 	if (hws->ctx->dc->debug.disable_hubp_power_gate)
 		return;
 
 	if (REG(DOMAIN0_PG_CONFIG) == 0)
 		return;
+	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
+	if (org_ip_request_cntl == 0)
+		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
 
 	switch (hubp_inst) {
 	case 0:
@@ -448,6 +487,8 @@ void dcn31_hubp_pg_control(struct dce_hwseq *hws, unsigned int hubp_inst, bool p
 		BREAK_TO_DEBUGGER();
 		break;
 	}
+	if (org_ip_request_cntl == 0)
+		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 0);
 }
 
 int dcn31_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_phy_addr_space_config *pa_config)
@@ -494,11 +535,11 @@ static void dcn31_reset_back_end_for_pipe(
 			pipe_ctx->stream_res.tg,
 			OPTC_DSC_DISABLED, 0, 0);
 	pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
-
 	pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
 	if (pipe_ctx->stream_res.tg->funcs->set_odm_bypass)
 		pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
 				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
+	pipe_ctx->stream->link->phy_state.symclk_ref_cnts.otg = 0;
 
 	if (pipe_ctx->stream_res.tg->funcs->set_drr)
 		pipe_ctx->stream_res.tg->funcs->set_drr(
@@ -572,7 +613,7 @@ void dcn31_reset_hw_ctx_wrap(
 	}
 
 	/* New dc_state in the process of being applied to hardware. */
-	dc->current_state->res_ctx.link_enc_cfg_ctx.mode = LINK_ENC_CFG_TRANSIENT;
+	link_enc_cfg_set_transient_mode(dc, dc->current_state, context);
 }
 
 void dcn31_setup_hpo_hw_control(const struct dce_hwseq *hws, bool enable)

@@ -24,7 +24,7 @@
 #define DMARD09_AXIS_Y 1
 #define DMARD09_AXIS_Z 2
 #define DMARD09_AXIS_X_OFFSET ((DMARD09_AXIS_X + 1) * 2)
-#define DMARD09_AXIS_Y_OFFSET ((DMARD09_AXIS_Y + 1 )* 2)
+#define DMARD09_AXIS_Y_OFFSET ((DMARD09_AXIS_Y + 1) * 2)
 #define DMARD09_AXIS_Z_OFFSET ((DMARD09_AXIS_Z + 1) * 2)
 
 struct dmard09_data {
@@ -126,7 +126,7 @@ static int dmard09_probe(struct i2c_client *client,
 }
 
 static const struct i2c_device_id dmard09_id[] = {
-	{ "dmard09", 0},
+	{ "dmard09", 0 },
 	{ },
 };
 

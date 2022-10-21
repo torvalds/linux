@@ -8,13 +8,10 @@
  */
 
 #include "msm8998.dtsi"
-#include "pm8998.dtsi"
 #include "pm8005.dtsi"
+#include "pm8998.dtsi"
 
 / {
-	chosen {
-	};
-
 	vph_pwr: vph-pwr-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vph_pwr";
@@ -34,6 +31,28 @@
 		vddrf-supply = <&vreg_l17a_1p3>;
 		vddch0-supply = <&vreg_l25a_3p3>;
 		max-speed = <3200000>;
+	};
+};
+
+&blsp1_uart3_on {
+	rx {
+		/delete-property/ bias-disable;
+		/*
+		 * Configure a pull-up on 45 (RX). This is needed to
+		 * avoid garbage data when the TX pin of the Bluetooth
+		 * module is in tri-state (module powered off or not
+		 * driving the signal yet).
+		 */
+		bias-pull-up;
+	};
+
+	cts {
+		/delete-property/ bias-disable;
+		/*
+		 * Configure a pull-down on 47 (CTS) to match the pull
+		 * of the Bluetooth module.
+		 */
+		bias-pull-down;
 	};
 };
 
@@ -74,6 +93,20 @@
 	cpu-idle-states = <&BIG_CPU_SLEEP_1>;
 };
 
+/*
+ * If EFIFB is used, enabling MMCC will cause important MMSS clocks to be cleaned
+ * up, because as far as Linux is concerned - they are unused. Disable it by default
+ * on clamshell devices, as it will break them, unless either simplefb is configured to
+ * hold a vote for these clocks, or panels are brought up properly, using drm/msm.
+ */
+&mmcc {
+	status = "disabled";
+};
+
+&mmss_smmu {
+	status = "disabled";
+};
+
 &pcie0 {
 	status = "okay";
 };
@@ -82,20 +115,16 @@
 	status = "okay";
 };
 
-&pm8005_lsid1 {
-	pm8005-regulators {
-		compatible = "qcom,pm8005-regulators";
+&pm8005_regulators {
+	vdd_s1-supply = <&vph_pwr>;
 
-		vdd_s1-supply = <&vph_pwr>;
+	pm8005_s1: s1 { /* VDD_GFX supply */
+		regulator-min-microvolt = <524000>;
+		regulator-max-microvolt = <1100000>;
+		regulator-enable-ramp-delay = <500>;
 
-		pm8005_s1: s1 { /* VDD_GFX supply */
-			regulator-min-microvolt = <524000>;
-			regulator-max-microvolt = <1100000>;
-			regulator-enable-ramp-delay = <500>;
-
-			/* hack until we rig up the gpu consumer */
-			regulator-always-on;
-		};
+		/* hack until we rig up the gpu consumer */
+		regulator-always-on;
 	};
 };
 
@@ -143,127 +172,156 @@
 			regulator-min-microvolt = <1352000>;
 			regulator-max-microvolt = <1352000>;
 		};
+
 		vreg_s4a_1p8: s4 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			regulator-allow-set-load;
 		};
+
 		vreg_s5a_2p04: s5 {
 			regulator-min-microvolt = <1904000>;
 			regulator-max-microvolt = <2040000>;
 		};
+
 		vreg_s7a_1p025: s7 {
 			regulator-min-microvolt = <900000>;
 			regulator-max-microvolt = <1028000>;
 		};
+
 		vreg_l1a_0p875: l1 {
 			regulator-min-microvolt = <880000>;
 			regulator-max-microvolt = <880000>;
 			regulator-allow-set-load;
 		};
+
 		vreg_l2a_1p2: l2 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
 			regulator-allow-set-load;
 		};
+
 		vreg_l3a_1p0: l3 {
 			regulator-min-microvolt = <1000000>;
 			regulator-max-microvolt = <1000000>;
 		};
+
 		vreg_l5a_0p8: l5 {
 			regulator-min-microvolt = <800000>;
 			regulator-max-microvolt = <800000>;
 		};
+
 		vreg_l6a_1p8: l6 {
 			regulator-min-microvolt = <1808000>;
 			regulator-max-microvolt = <1808000>;
 		};
+
 		vreg_l7a_1p8: l7 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			regulator-allow-set-load;
 		};
+
 		vreg_l8a_1p2: l8 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
 		};
+
 		vreg_l9a_1p8: l9 {
 			regulator-min-microvolt = <1808000>;
 			regulator-max-microvolt = <2960000>;
 		};
+
 		vreg_l10a_1p8: l10 {
 			regulator-min-microvolt = <1808000>;
 			regulator-max-microvolt = <2960000>;
 		};
+
 		vreg_l11a_1p0: l11 {
 			regulator-min-microvolt = <1000000>;
 			regulator-max-microvolt = <1000000>;
 		};
+
 		vreg_l12a_1p8: l12 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 		};
+
 		vreg_l13a_2p95: l13 {
 			regulator-min-microvolt = <1808000>;
 			regulator-max-microvolt = <2960000>;
 		};
+
 		vreg_l14a_1p88: l14 {
 			regulator-min-microvolt = <1880000>;
 			regulator-max-microvolt = <1880000>;
 		};
+
 		vreg_l15a_1p8: l15 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 		};
+
 		vreg_l16a_2p7: l16 {
 			regulator-min-microvolt = <2704000>;
 			regulator-max-microvolt = <2704000>;
 		};
+
 		vreg_l17a_1p3: l17 {
 			regulator-min-microvolt = <1304000>;
 			regulator-max-microvolt = <1304000>;
 			regulator-allow-set-load;
 		};
+
 		vreg_l18a_2p7: l18 {
 			regulator-min-microvolt = <2704000>;
 			regulator-max-microvolt = <2704000>;
 		};
+
 		vreg_l19a_3p0: l19 {
 			regulator-min-microvolt = <3008000>;
 			regulator-max-microvolt = <3008000>;
 		};
+
 		vreg_l20a_2p95: l20 {
 			regulator-min-microvolt = <2960000>;
 			regulator-max-microvolt = <2960000>;
 			regulator-allow-set-load;
 		};
+
 		vreg_l21a_2p95: l21 {
 			regulator-min-microvolt = <2960000>;
 			regulator-max-microvolt = <2960000>;
 			regulator-allow-set-load;
 			regulator-system-load = <800000>;
 		};
+
 		vreg_l22a_2p85: l22 {
 			regulator-min-microvolt = <2864000>;
 			regulator-max-microvolt = <2864000>;
 		};
+
 		vreg_l23a_3p3: l23 {
 			regulator-min-microvolt = <3312000>;
 			regulator-max-microvolt = <3312000>;
 		};
+
 		vreg_l24a_3p075: l24 {
 			regulator-min-microvolt = <3088000>;
 			regulator-max-microvolt = <3088000>;
 		};
+
 		vreg_l25a_3p3: l25 {
 			regulator-min-microvolt = <3104000>;
 			regulator-max-microvolt = <3312000>;
 			regulator-allow-set-load;
 		};
+
 		vreg_l26a_1p2: l26 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
 		};
+
 		vreg_l28_3p0: l28 {
 			regulator-min-microvolt = <3008000>;
 			regulator-max-microvolt = <3008000>;
@@ -278,23 +336,11 @@
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 		};
-
 	};
 };
 
 &remoteproc_mss {
 	status = "okay";
-};
-
-&tlmm {
-	gpio-reserved-ranges = <0 4>, <81 4>;
-
-	touchpad: touchpad {
-		config {
-			pins = "gpio123";
-			bias-pull-up;           /* pull up */
-		};
-	};
 };
 
 &sdhc2 {
@@ -304,8 +350,17 @@
 	vqmmc-supply = <&vreg_l13a_2p95>;
 
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc2_clk_on  &sdc2_cmd_on  &sdc2_data_on  &sdc2_cd_on>;
-	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+	pinctrl-0 = <&sdc2_on &sdc2_cd>;
+	pinctrl-1 = <&sdc2_off &sdc2_cd>;
+};
+
+&tlmm {
+	gpio-reserved-ranges = <0 4>, <81 4>;
+
+	touchpad: touchpad-pin {
+		pins = "gpio123";
+		bias-pull-up;
+	};
 };
 
 &ufshc {
@@ -340,27 +395,4 @@
 	vdd-1.8-xo-supply = <&vreg_l7a_1p8>;
 	vdd-1.3-rfa-supply = <&vreg_l17a_1p3>;
 	vdd-3.3-ch0-supply = <&vreg_l25a_3p3>;
-};
-
-/* PINCTRL - board-specific pinctrl */
-&blsp1_uart3_on {
-	rx {
-		/delete-property/ bias-disable;
-		/*
-		 * Configure a pull-up on 45 (RX). This is needed to
-		 * avoid garbage data when the TX pin of the Bluetooth
-		 * module is in tri-state (module powered off or not
-		 * driving the signal yet).
-		 */
-		bias-pull-up;
-	};
-
-	cts {
-		/delete-property/ bias-disable;
-		/*
-		 * Configure a pull-down on 47 (CTS) to match the pull
-		 * of the Bluetooth module.
-		 */
-		bias-pull-down;
-	};
 };

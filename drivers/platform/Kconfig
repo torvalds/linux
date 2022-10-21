@@ -1,10 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
-if X86
-source "drivers/platform/x86/Kconfig"
-endif
 if MIPS
 source "drivers/platform/mips/Kconfig"
 endif
+
+source "drivers/platform/loongarch/Kconfig"
 
 source "drivers/platform/goldfish/Kconfig"
 
@@ -15,3 +14,5 @@ source "drivers/platform/mellanox/Kconfig"
 source "drivers/platform/olpc/Kconfig"
 
 source "drivers/platform/surface/Kconfig"
+
+source "drivers/platform/x86/Kconfig"

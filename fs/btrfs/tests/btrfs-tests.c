@@ -59,6 +59,7 @@ struct inode *btrfs_new_test_inode(void)
 		return NULL;
 
 	inode->i_mode = S_IFREG;
+	inode->i_ino = BTRFS_FIRST_FREE_OBJECTID;
 	BTRFS_I(inode)->location.type = BTRFS_INODE_ITEM_KEY;
 	BTRFS_I(inode)->location.objectid = BTRFS_FIRST_FREE_OBJECTID;
 	BTRFS_I(inode)->location.offset = 0;
@@ -242,7 +243,7 @@ void btrfs_free_dummy_block_group(struct btrfs_block_group *cache)
 {
 	if (!cache)
 		return;
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 	kfree(cache->free_space_ctl);
 	kfree(cache);
 }

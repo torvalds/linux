@@ -14,7 +14,7 @@
 
 static const char *const r7s72100_boards_compat_dt[] __initconst = {
 	"renesas,r7s72100",
-	NULL,
+	NULL
 };
 
 DT_MACHINE_START(R7S72100_DT, "Generic R7S72100 (Flattened Device Tree)")

@@ -11,7 +11,7 @@
 #ifndef __UCC_SLOW_H__
 #define __UCC_SLOW_H__
 
-#include <linux/kernel.h>
+#include <linux/types.h>
 
 #include <soc/fsl/qe/immap_qe.h>
 #include <soc/fsl/qe/qe.h>

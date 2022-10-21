@@ -18,6 +18,7 @@
  * Framebuffer driver for Silicon Motion SM710, SM712, SM721 and SM722 chips
  */
 
+#include <linux/aperture.h>
 #include <linux/io.h>
 #include <linux/fb.h>
 #include <linux/pci.h>
@@ -1047,7 +1048,7 @@ static ssize_t smtcfb_read(struct fb_info *info, char __user *buf,
 	if (count + p > total_size)
 		count = total_size - p;
 
-	buffer = kmalloc((count > PAGE_SIZE) ? PAGE_SIZE : count, GFP_KERNEL);
+	buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -1059,24 +1060,13 @@ static ssize_t smtcfb_read(struct fb_info *info, char __user *buf,
 	while (count) {
 		c = (count > PAGE_SIZE) ? PAGE_SIZE : count;
 		dst = buffer;
-		for (i = c >> 2; i--;) {
-			*dst = fb_readl(src++);
-			*dst = big_swap(*dst);
-			dst++;
-		}
-		if (c & 3) {
-			u8 *dst8 = (u8 *)dst;
-			u8 __iomem *src8 = (u8 __iomem *)src;
+		for (i = (c + 3) >> 2; i--;) {
+			u32 val;
 
-			for (i = c & 3; i--;) {
-				if (i & 1) {
-					*dst8++ = fb_readb(++src8);
-				} else {
-					*dst8++ = fb_readb(--src8);
-					src8 += 2;
-				}
-			}
-			src = (u32 __iomem *)src8;
+			val = fb_readl(src);
+			*dst = big_swap(val);
+			src++;
+			dst++;
 		}
 
 		if (copy_to_user(buf, buffer, c)) {
@@ -1130,7 +1120,7 @@ static ssize_t smtcfb_write(struct fb_info *info, const char __user *buf,
 		count = total_size - p;
 	}
 
-	buffer = kmalloc((count > PAGE_SIZE) ? PAGE_SIZE : count, GFP_KERNEL);
+	buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -1148,23 +1138,10 @@ static ssize_t smtcfb_write(struct fb_info *info, const char __user *buf,
 			break;
 		}
 
-		for (i = c >> 2; i--;) {
-			fb_writel(big_swap(*src), dst++);
+		for (i = (c + 3) >> 2; i--;) {
+			fb_writel(big_swap(*src), dst);
+			dst++;
 			src++;
-		}
-		if (c & 3) {
-			u8 *src8 = (u8 *)src;
-			u8 __iomem *dst8 = (u8 __iomem *)dst;
-
-			for (i = c & 3; i--;) {
-				if (i & 1) {
-					fb_writeb(*src8++, ++dst8);
-				} else {
-					fb_writeb(*src8++, --dst8);
-					dst8 += 2;
-				}
-			}
-			dst = (u32 __iomem *)dst8;
 		}
 
 		*ppos += c;
@@ -1525,6 +1502,10 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 	unsigned long mmio_base;
 
 	dev_info(&pdev->dev, "Silicon Motion display driver.\n");
+
+	err = aperture_remove_conflicting_pci_devices(pdev, "smtcfb");
+	if (err)
+		return err;
 
 	err = pci_enable_device(pdev);	/* enable SMTC chip */
 	if (err)

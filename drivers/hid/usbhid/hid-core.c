@@ -387,7 +387,7 @@ static int hid_submit_ctrl(struct hid_device *hid)
 
 		usbhid->urbctrl->pipe = usb_rcvctrlpipe(hid_to_usb_dev(hid), 0);
 		maxpacket = usb_maxpacket(hid_to_usb_dev(hid),
-					  usbhid->urbctrl->pipe, 0);
+					  usbhid->urbctrl->pipe);
 		len += (len == 0);	/* Don't allow 0-length reports */
 		len = round_up(len, maxpacket);
 		if (len > usbhid->bufsize)
@@ -1381,7 +1381,7 @@ static int usbhid_probe(struct usb_interface *intf, const struct usb_device_id *
 		hid->type = HID_TYPE_USBNONE;
 
 	if (dev->manufacturer)
-		strlcpy(hid->name, dev->manufacturer, sizeof(hid->name));
+		strscpy(hid->name, dev->manufacturer, sizeof(hid->name));
 
 	if (dev->product) {
 		if (dev->manufacturer)

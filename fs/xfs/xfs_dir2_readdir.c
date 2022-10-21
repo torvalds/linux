@@ -248,7 +248,7 @@ xfs_dir2_leaf_readbuf(
 	struct xfs_inode	*dp = args->dp;
 	struct xfs_buf		*bp = NULL;
 	struct xfs_da_geometry	*geo = args->geo;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(dp, XFS_DATA_FORK);
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(dp, XFS_DATA_FORK);
 	struct xfs_bmbt_irec	map;
 	struct blk_plug		plug;
 	xfs_dir2_off_t		new_off;
@@ -512,7 +512,7 @@ xfs_readdir(
 {
 	struct xfs_da_args	args = { NULL };
 	unsigned int		lock_mode;
-	int			isblock;
+	bool			isblock;
 	int			error;
 
 	trace_xfs_readdir(dp);

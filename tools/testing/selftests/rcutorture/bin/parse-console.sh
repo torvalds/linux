@@ -138,6 +138,16 @@ then
 	then
 		summary="$summary  Bugs: $n_bugs"
 	fi
+	n_kcsan=`egrep -c 'BUG: KCSAN: ' $file`
+	if test "$n_kcsan" -ne 0
+	then
+		if test "$n_bugs" = "$n_kcsan"
+		then
+			summary="$summary (all bugs kcsan)"
+		else
+			summary="$summary  KCSAN: $n_kcsan"
+		fi
+	fi
 	n_calltrace=`grep -c 'Call Trace:' $file`
 	if test "$n_calltrace" -ne 0
 	then

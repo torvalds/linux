@@ -1380,7 +1380,8 @@ static void hso_serial_cleanup(struct tty_struct *tty)
 }
 
 /* setup the term */
-static void hso_serial_set_termios(struct tty_struct *tty, struct ktermios *old)
+static void hso_serial_set_termios(struct tty_struct *tty,
+				   const struct ktermios *old)
 {
 	struct hso_serial *serial = tty->driver_data;
 	unsigned long flags;
@@ -2319,7 +2320,7 @@ static struct hso_device *hso_create_device(struct usb_interface *intf,
 {
 	struct hso_device *hso_dev;
 
-	hso_dev = kzalloc(sizeof(*hso_dev), GFP_ATOMIC);
+	hso_dev = kzalloc(sizeof(*hso_dev), GFP_KERNEL);
 	if (!hso_dev)
 		return NULL;
 

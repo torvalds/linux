@@ -108,15 +108,15 @@ _save_context:
 .option pop
 
 #ifdef CONFIG_TRACE_IRQFLAGS
-	call trace_hardirqs_off
+	call __trace_hardirqs_off
 #endif
 
-#ifdef CONFIG_CONTEXT_TRACKING
-	/* If previous state is in user mode, call context_tracking_user_exit. */
+#ifdef CONFIG_CONTEXT_TRACKING_USER
+	/* If previous state is in user mode, call user_exit_callable(). */
 	li   a0, SR_PP
 	and a0, s1, a0
 	bnez a0, skip_context_tracking
-	call context_tracking_user_exit
+	call user_exit_callable
 skip_context_tracking:
 #endif
 
@@ -143,7 +143,7 @@ skip_context_tracking:
 	li t0, EXC_BREAKPOINT
 	beq s4, t0, 1f
 #ifdef CONFIG_TRACE_IRQFLAGS
-	call trace_hardirqs_on
+	call __trace_hardirqs_on
 #endif
 	csrs CSR_STATUS, SR_IE
 
@@ -176,7 +176,7 @@ handle_syscall:
 	 */
 	csrs CSR_STATUS, SR_IE
 #endif
-#if defined(CONFIG_TRACE_IRQFLAGS) || defined(CONFIG_CONTEXT_TRACKING)
+#if defined(CONFIG_TRACE_IRQFLAGS) || defined(CONFIG_CONTEXT_TRACKING_USER)
 	/* Recover a0 - a7 for system calls */
 	REG_L a0, PT_A0(sp)
 	REG_L a1, PT_A1(sp)
@@ -207,13 +207,27 @@ check_syscall_nr:
 	 * Syscall number held in a7.
 	 * If syscall number is above allowed value, redirect to ni_syscall.
 	 */
-	bgeu a7, t0, 1f
+	bgeu a7, t0, 3f
+#ifdef CONFIG_COMPAT
+	REG_L s0, PT_STATUS(sp)
+	srli s0, s0, SR_UXL_SHIFT
+	andi s0, s0, (SR_UXL >> SR_UXL_SHIFT)
+	li t0, (SR_UXL_32 >> SR_UXL_SHIFT)
+	sub t0, s0, t0
+	bnez t0, 1f
+
+	/* Call compat_syscall */
+	la s0, compat_sys_call_table
+	j 2f
+1:
+#endif
 	/* Call syscall */
 	la s0, sys_call_table
+2:
 	slli t0, a7, RISCV_LGPTR
 	add s0, s0, t0
 	REG_L s0, 0(s0)
-1:
+3:
 	jalr s0
 
 ret_from_syscall:
@@ -225,6 +239,10 @@ ret_from_syscall:
 	 * (If it was configured with SECCOMP_RET_ERRNO/TRACE)
 	 */
 ret_from_syscall_rejected:
+#ifdef CONFIG_DEBUG_RSEQ
+	move a0, sp
+	call rseq_syscall
+#endif
 	/* Trace syscalls, but only if requested by the user. */
 	REG_L t0, TASK_TI_FLAGS(tp)
 	andi t0, t0, _TIF_SYSCALL_WORK
@@ -234,7 +252,7 @@ ret_from_exception:
 	REG_L s0, PT_STATUS(sp)
 	csrc CSR_STATUS, SR_IE
 #ifdef CONFIG_TRACE_IRQFLAGS
-	call trace_hardirqs_off
+	call __trace_hardirqs_off
 #endif
 #ifdef CONFIG_RISCV_M_MODE
 	/* the MPP value is too large to be used as an immediate arg for addi */
@@ -251,8 +269,8 @@ resume_userspace:
 	andi s1, s0, _TIF_WORK_MASK
 	bnez s1, work_pending
 
-#ifdef CONFIG_CONTEXT_TRACKING
-	call context_tracking_user_enter
+#ifdef CONFIG_CONTEXT_TRACKING_USER
+	call user_enter_callable
 #endif
 
 	/* Save unwound kernel stack pointer in thread_info */
@@ -270,10 +288,10 @@ restore_all:
 	REG_L s1, PT_STATUS(sp)
 	andi t0, s1, SR_PIE
 	beqz t0, 1f
-	call trace_hardirqs_on
+	call __trace_hardirqs_on
 	j 2f
 1:
-	call trace_hardirqs_off
+	call __trace_hardirqs_off
 2:
 #endif
 	REG_L a0, PT_STATUS(sp)

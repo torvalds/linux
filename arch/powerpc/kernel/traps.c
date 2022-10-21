@@ -68,6 +68,7 @@
 #include <asm/stacktrace.h>
 #include <asm/nmi.h>
 #include <asm/disassemble.h>
+#include <asm/udbg.h>
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC_CORE)
 int (*__debugger)(struct pt_regs *regs) __read_mostly;
@@ -393,7 +394,7 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
  * Builds that do not support KVM could take this second option to increase
  * the recoverability of NMIs.
  */
-void hv_nmi_check_nonrecoverable(struct pt_regs *regs)
+noinstr void hv_nmi_check_nonrecoverable(struct pt_regs *regs)
 {
 #ifdef CONFIG_PPC_POWERNV
 	unsigned long kbase = (unsigned long)_stext;
@@ -433,7 +434,9 @@ void hv_nmi_check_nonrecoverable(struct pt_regs *regs)
 	return;
 
 nonrecoverable:
-	regs_set_unrecoverable(regs);
+	regs->msr &= ~MSR_RI;
+	local_paca->hsrr_valid = 0;
+	local_paca->srr_valid = 0;
 #endif
 }
 DEFINE_INTERRUPT_HANDLER_NMI(system_reset_exception)
@@ -598,7 +601,7 @@ static inline int check_io_access(struct pt_regs *regs)
 
 #define inst_length(reason)	(((reason) & REASON_PREFIXED) ? 8 : 4)
 
-#if defined(CONFIG_E500)
+#if defined(CONFIG_PPC_E500)
 int machine_check_e500mc(struct pt_regs *regs)
 {
 	unsigned long mcsr = mfspr(SPRN_MCSR);
@@ -848,6 +851,19 @@ bail:
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
+DEFINE_INTERRUPT_HANDLER_RAW(machine_check_early_boot)
+{
+	udbg_printf("Machine check (early boot)\n");
+	udbg_printf("SRR0=0x%016lx   SRR1=0x%016lx\n", regs->nip, regs->msr);
+	udbg_printf(" DAR=0x%016lx  DSISR=0x%08lx\n", regs->dar, regs->dsisr);
+	udbg_printf("  LR=0x%016lx     R1=0x%08lx\n", regs->link, regs->gpr[1]);
+	udbg_printf("------\n");
+	die("Machine check (early boot)", regs, SIGBUS);
+	for (;;)
+		;
+	return 0;
+}
+
 DEFINE_INTERRUPT_HANDLER_ASYNC(machine_check_exception_async)
 {
 	__machine_check_exception(regs);
@@ -1674,7 +1690,7 @@ DEFINE_INTERRUPT_HANDLER(vsx_unavailable_exception)
 	die("Unrecoverable VSX Unavailable Exception", regs, SIGABRT);
 }
 
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S_64
 static void tm_unavailable(struct pt_regs *regs)
 {
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
@@ -2083,7 +2099,7 @@ DEFINE_INTERRUPT_HANDLER(altivec_assist_exception)
 }
 #endif /* CONFIG_ALTIVEC */
 
-#ifdef CONFIG_FSL_BOOKE
+#ifdef CONFIG_PPC_85xx
 DEFINE_INTERRUPT_HANDLER(CacheLockingException)
 {
 	unsigned long error_code = regs->dsisr;
@@ -2096,12 +2112,11 @@ DEFINE_INTERRUPT_HANDLER(CacheLockingException)
 		_exception(SIGILL, regs, ILL_PRVOPC, regs->nip);
 	return;
 }
-#endif /* CONFIG_FSL_BOOKE */
+#endif /* CONFIG_PPC_85xx */
 
 #ifdef CONFIG_SPE
 DEFINE_INTERRUPT_HANDLER(SPEFloatingPointException)
 {
-	extern int do_spe_mathemu(struct pt_regs *regs);
 	unsigned long spefscr;
 	int fpexc_mode;
 	int code = FPE_FLTUNK;
@@ -2151,7 +2166,6 @@ DEFINE_INTERRUPT_HANDLER(SPEFloatingPointException)
 
 DEFINE_INTERRUPT_HANDLER(SPEFloatingPointRoundException)
 {
-	extern int speround_handler(struct pt_regs *regs);
 	int err;
 
 	interrupt_cond_local_irq_enable(regs);

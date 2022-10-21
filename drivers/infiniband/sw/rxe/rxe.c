@@ -28,8 +28,8 @@ void rxe_dealloc(struct ib_device *ib_dev)
 	rxe_pool_cleanup(&rxe->cq_pool);
 	rxe_pool_cleanup(&rxe->mr_pool);
 	rxe_pool_cleanup(&rxe->mw_pool);
-	rxe_pool_cleanup(&rxe->mc_grp_pool);
-	rxe_pool_cleanup(&rxe->mc_elem_pool);
+
+	WARN_ON(!RB_EMPTY_ROOT(&rxe->mcg_tree));
 
 	if (rxe->tfm)
 		crypto_free_shash(rxe->tfm);
@@ -46,6 +46,7 @@ static void rxe_init_device_param(struct rxe_dev *rxe)
 	rxe->attr.max_qp			= RXE_MAX_QP;
 	rxe->attr.max_qp_wr			= RXE_MAX_QP_WR;
 	rxe->attr.device_cap_flags		= RXE_DEVICE_CAP_FLAGS;
+	rxe->attr.kernel_cap_flags		= IBK_ALLOW_USER_UNREG;
 	rxe->attr.max_send_sge			= RXE_MAX_SGE;
 	rxe->attr.max_recv_sge			= RXE_MAX_SGE;
 	rxe->attr.max_sge_rd			= RXE_MAX_SGE_RD;
@@ -114,106 +115,37 @@ static void rxe_init_ports(struct rxe_dev *rxe)
 }
 
 /* init pools of managed objects */
-static int rxe_init_pools(struct rxe_dev *rxe)
+static void rxe_init_pools(struct rxe_dev *rxe)
 {
-	int err;
-
-	err = rxe_pool_init(rxe, &rxe->uc_pool, RXE_TYPE_UC,
-			    rxe->max_ucontext);
-	if (err)
-		goto err1;
-
-	err = rxe_pool_init(rxe, &rxe->pd_pool, RXE_TYPE_PD,
-			    rxe->attr.max_pd);
-	if (err)
-		goto err2;
-
-	err = rxe_pool_init(rxe, &rxe->ah_pool, RXE_TYPE_AH,
-			    rxe->attr.max_ah);
-	if (err)
-		goto err3;
-
-	err = rxe_pool_init(rxe, &rxe->srq_pool, RXE_TYPE_SRQ,
-			    rxe->attr.max_srq);
-	if (err)
-		goto err4;
-
-	err = rxe_pool_init(rxe, &rxe->qp_pool, RXE_TYPE_QP,
-			    rxe->attr.max_qp);
-	if (err)
-		goto err5;
-
-	err = rxe_pool_init(rxe, &rxe->cq_pool, RXE_TYPE_CQ,
-			    rxe->attr.max_cq);
-	if (err)
-		goto err6;
-
-	err = rxe_pool_init(rxe, &rxe->mr_pool, RXE_TYPE_MR,
-			    rxe->attr.max_mr);
-	if (err)
-		goto err7;
-
-	err = rxe_pool_init(rxe, &rxe->mw_pool, RXE_TYPE_MW,
-			    rxe->attr.max_mw);
-	if (err)
-		goto err8;
-
-	err = rxe_pool_init(rxe, &rxe->mc_grp_pool, RXE_TYPE_MC_GRP,
-			    rxe->attr.max_mcast_grp);
-	if (err)
-		goto err9;
-
-	err = rxe_pool_init(rxe, &rxe->mc_elem_pool, RXE_TYPE_MC_ELEM,
-			    rxe->attr.max_total_mcast_qp_attach);
-	if (err)
-		goto err10;
-
-	return 0;
-
-err10:
-	rxe_pool_cleanup(&rxe->mc_grp_pool);
-err9:
-	rxe_pool_cleanup(&rxe->mw_pool);
-err8:
-	rxe_pool_cleanup(&rxe->mr_pool);
-err7:
-	rxe_pool_cleanup(&rxe->cq_pool);
-err6:
-	rxe_pool_cleanup(&rxe->qp_pool);
-err5:
-	rxe_pool_cleanup(&rxe->srq_pool);
-err4:
-	rxe_pool_cleanup(&rxe->ah_pool);
-err3:
-	rxe_pool_cleanup(&rxe->pd_pool);
-err2:
-	rxe_pool_cleanup(&rxe->uc_pool);
-err1:
-	return err;
+	rxe_pool_init(rxe, &rxe->uc_pool, RXE_TYPE_UC);
+	rxe_pool_init(rxe, &rxe->pd_pool, RXE_TYPE_PD);
+	rxe_pool_init(rxe, &rxe->ah_pool, RXE_TYPE_AH);
+	rxe_pool_init(rxe, &rxe->srq_pool, RXE_TYPE_SRQ);
+	rxe_pool_init(rxe, &rxe->qp_pool, RXE_TYPE_QP);
+	rxe_pool_init(rxe, &rxe->cq_pool, RXE_TYPE_CQ);
+	rxe_pool_init(rxe, &rxe->mr_pool, RXE_TYPE_MR);
+	rxe_pool_init(rxe, &rxe->mw_pool, RXE_TYPE_MW);
 }
 
 /* initialize rxe device state */
-static int rxe_init(struct rxe_dev *rxe)
+static void rxe_init(struct rxe_dev *rxe)
 {
-	int err;
-
 	/* init default device parameters */
 	rxe_init_device_param(rxe);
 
 	rxe_init_ports(rxe);
-
-	err = rxe_init_pools(rxe);
-	if (err)
-		return err;
+	rxe_init_pools(rxe);
 
 	/* init pending mmap list */
 	spin_lock_init(&rxe->mmap_offset_lock);
 	spin_lock_init(&rxe->pending_lock);
 	INIT_LIST_HEAD(&rxe->pending_mmaps);
 
-	mutex_init(&rxe->usdev_lock);
+	/* init multicast support */
+	spin_lock_init(&rxe->mcg_lock);
+	rxe->mcg_tree = RB_ROOT;
 
-	return 0;
+	mutex_init(&rxe->usdev_lock);
 }
 
 void rxe_set_mtu(struct rxe_dev *rxe, unsigned int ndev_mtu)
@@ -235,12 +167,7 @@ void rxe_set_mtu(struct rxe_dev *rxe, unsigned int ndev_mtu)
  */
 int rxe_add(struct rxe_dev *rxe, unsigned int mtu, const char *ibdev_name)
 {
-	int err;
-
-	err = rxe_init(rxe);
-	if (err)
-		return err;
-
+	rxe_init(rxe);
 	rxe_set_mtu(rxe, mtu);
 
 	return rxe_register_device(rxe, ibdev_name);

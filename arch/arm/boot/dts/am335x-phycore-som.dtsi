@@ -331,7 +331,7 @@
 	pinctrl-0 = <&spi0_pins>;
 	status = "okay";
 
-	serial_flash: m25p80@0 {
+	serial_flash: flash@0 {
 		compatible = "jedec,spi-nor";
 		spi-max-frequency = <48000000>;
 		reg = <0x0>;

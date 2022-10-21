@@ -105,7 +105,6 @@ xfs_inobt_get_rec(
 	int				*stat)
 {
 	struct xfs_mount		*mp = cur->bc_mp;
-	xfs_agnumber_t			agno = cur->bc_ag.pag->pag_agno;
 	union xfs_btree_rec		*rec;
 	int				error;
 	uint64_t			realfree;
@@ -116,7 +115,7 @@ xfs_inobt_get_rec(
 
 	xfs_inobt_btrec_to_irec(mp, rec, irec);
 
-	if (!xfs_verify_agino(mp, agno, irec->ir_startino))
+	if (!xfs_verify_agino(cur->bc_ag.pag, irec->ir_startino))
 		goto out_bad_rec;
 	if (irec->ir_count < XFS_INODES_PER_HOLEMASK_BIT ||
 	    irec->ir_count > XFS_INODES_PER_CHUNK)
@@ -137,7 +136,8 @@ xfs_inobt_get_rec(
 out_bad_rec:
 	xfs_warn(mp,
 		"%s Inode BTree record corruption in AG %d detected!",
-		cur->bc_btnum == XFS_BTNUM_INO ? "Used" : "Free", agno);
+		cur->bc_btnum == XFS_BTNUM_INO ? "Used" : "Free",
+		cur->bc_ag.pag->pag_agno);
 	xfs_warn(mp,
 "start inode 0x%x, count 0x%x, free 0x%x freemask 0x%llx, holemask 0x%x",
 		irec->ir_startino, irec->ir_count, irec->ir_freecount,
@@ -636,7 +636,7 @@ xfs_ialloc_ag_alloc(
 	/* randomly do sparse inode allocations */
 	if (xfs_has_sparseinodes(tp->t_mountp) &&
 	    igeo->ialloc_min_blks < igeo->ialloc_blks)
-		do_sparse = prandom_u32() & 1;
+		do_sparse = prandom_u32_max(2);
 #endif
 
 	/*
@@ -805,7 +805,7 @@ sparse_alloc:
 	 * number from being easily guessable.
 	 */
 	error = xfs_ialloc_inode_init(args.mp, tp, NULL, newlen, pag->pag_agno,
-			args.agbno, args.len, prandom_u32());
+			args.agbno, args.len, get_random_u32());
 
 	if (error)
 		return error;
@@ -1610,7 +1610,7 @@ xfs_dialloc_good_ag(
 		return false;
 
 	if (!pag->pagi_init) {
-		error = xfs_ialloc_pagi_init(mp, tp, pag->pag_agno);
+		error = xfs_ialloc_read_agi(pag, tp, NULL);
 		if (error)
 			return false;
 	}
@@ -1621,7 +1621,7 @@ xfs_dialloc_good_ag(
 		return false;
 
 	if (!pag->pagf_init) {
-		error = xfs_alloc_pagf_init(mp, tp, pag->pag_agno, flags);
+		error = xfs_alloc_read_agf(pag, tp, flags, NULL);
 		if (error)
 			return false;
 	}
@@ -1679,7 +1679,7 @@ xfs_dialloc_try_ag(
 	 * Then read in the AGI buffer and recheck with the AGI buffer
 	 * lock held.
 	 */
-	error = xfs_ialloc_read_agi(pag->pag_mount, *tpp, pag->pag_agno, &agbp);
+	error = xfs_ialloc_read_agi(pag, *tpp, &agbp);
 	if (error)
 		return error;
 
@@ -2169,7 +2169,7 @@ xfs_difree(
 	/*
 	 * Get the allocation group header.
 	 */
-	error = xfs_ialloc_read_agi(mp, tp, pag->pag_agno, &agbp);
+	error = xfs_ialloc_read_agi(pag, tp, &agbp);
 	if (error) {
 		xfs_warn(mp, "%s: xfs_ialloc_read_agi() returned error %d.",
 			__func__, error);
@@ -2215,7 +2215,7 @@ xfs_imap_lookup(
 	int			error;
 	int			i;
 
-	error = xfs_ialloc_read_agi(mp, tp, pag->pag_agno, &agbp);
+	error = xfs_ialloc_read_agi(pag, tp, &agbp);
 	if (error) {
 		xfs_alert(mp,
 			"%s: xfs_ialloc_read_agi() returned error %d, agno %d",
@@ -2414,9 +2414,9 @@ out_drop:
  */
 void
 xfs_ialloc_log_agi(
-	xfs_trans_t	*tp,		/* transaction pointer */
-	struct xfs_buf	*bp,		/* allocation group header buffer */
-	int		fields)		/* bitmask of fields to log */
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp,
+	uint32_t		fields)
 {
 	int			first;		/* first byte number */
 	int			last;		/* last byte number */
@@ -2571,47 +2571,48 @@ const struct xfs_buf_ops xfs_agi_buf_ops = {
  */
 int
 xfs_read_agi(
-	struct xfs_mount	*mp,	/* file system mount structure */
-	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_agnumber_t		agno,	/* allocation group number */
-	struct xfs_buf		**bpp)	/* allocation group hdr buf */
+	struct xfs_perag	*pag,
+	struct xfs_trans	*tp,
+	struct xfs_buf		**agibpp)
 {
+	struct xfs_mount	*mp = pag->pag_mount;
 	int			error;
 
-	trace_xfs_read_agi(mp, agno);
+	trace_xfs_read_agi(pag->pag_mount, pag->pag_agno);
 
-	ASSERT(agno != NULLAGNUMBER);
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
-			XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp)),
-			XFS_FSS_TO_BB(mp, 1), 0, bpp, &xfs_agi_buf_ops);
+			XFS_AG_DADDR(mp, pag->pag_agno, XFS_AGI_DADDR(mp)),
+			XFS_FSS_TO_BB(mp, 1), 0, agibpp, &xfs_agi_buf_ops);
 	if (error)
 		return error;
 	if (tp)
-		xfs_trans_buf_set_type(tp, *bpp, XFS_BLFT_AGI_BUF);
+		xfs_trans_buf_set_type(tp, *agibpp, XFS_BLFT_AGI_BUF);
 
-	xfs_buf_set_ref(*bpp, XFS_AGI_REF);
+	xfs_buf_set_ref(*agibpp, XFS_AGI_REF);
 	return 0;
 }
 
+/*
+ * Read in the agi and initialise the per-ag data. If the caller supplies a
+ * @agibpp, return the locked AGI buffer to them, otherwise release it.
+ */
 int
 xfs_ialloc_read_agi(
-	struct xfs_mount	*mp,	/* file system mount structure */
-	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_agnumber_t		agno,	/* allocation group number */
-	struct xfs_buf		**bpp)	/* allocation group hdr buf */
+	struct xfs_perag	*pag,
+	struct xfs_trans	*tp,
+	struct xfs_buf		**agibpp)
 {
-	struct xfs_agi		*agi;	/* allocation group header */
-	struct xfs_perag	*pag;	/* per allocation group data */
+	struct xfs_buf		*agibp;
+	struct xfs_agi		*agi;
 	int			error;
 
-	trace_xfs_ialloc_read_agi(mp, agno);
+	trace_xfs_ialloc_read_agi(pag->pag_mount, pag->pag_agno);
 
-	error = xfs_read_agi(mp, tp, agno, bpp);
+	error = xfs_read_agi(pag, tp, &agibp);
 	if (error)
 		return error;
 
-	agi = (*bpp)->b_addr;
-	pag = (*bpp)->b_pag;
+	agi = agibp->b_addr;
 	if (!pag->pagi_init) {
 		pag->pagi_freecount = be32_to_cpu(agi->agi_freecount);
 		pag->pagi_count = be32_to_cpu(agi->agi_count);
@@ -2623,27 +2624,11 @@ xfs_ialloc_read_agi(
 	 * we are in the middle of a forced shutdown.
 	 */
 	ASSERT(pag->pagi_freecount == be32_to_cpu(agi->agi_freecount) ||
-		xfs_is_shutdown(mp));
-	return 0;
-}
-
-/*
- * Read in the agi to initialise the per-ag data in the mount structure
- */
-int
-xfs_ialloc_pagi_init(
-	xfs_mount_t	*mp,		/* file system mount structure */
-	xfs_trans_t	*tp,		/* transaction pointer */
-	xfs_agnumber_t	agno)		/* allocation group number */
-{
-	struct xfs_buf	*bp = NULL;
-	int		error;
-
-	error = xfs_ialloc_read_agi(mp, tp, agno, &bp);
-	if (error)
-		return error;
-	if (bp)
-		xfs_trans_brelse(tp, bp);
+		xfs_is_shutdown(pag->pag_mount));
+	if (agibpp)
+		*agibpp = agibp;
+	else
+		xfs_trans_brelse(tp, agibp);
 	return 0;
 }
 
@@ -2772,6 +2757,8 @@ xfs_ialloc_setup_geometry(
 	igeo->new_diflags2 = 0;
 	if (xfs_has_bigtime(mp))
 		igeo->new_diflags2 |= XFS_DIFLAG2_BIGTIME;
+	if (xfs_has_large_extent_counts(mp))
+		igeo->new_diflags2 |= XFS_DIFLAG2_NREXT64;
 
 	/* Compute inode btree geometry. */
 	igeo->agino_log = sbp->sb_inopblog + sbp->sb_agblklog;
@@ -2910,8 +2897,7 @@ xfs_ialloc_calc_rootino(
 	 * allocation group, or very odd geometries created by old mkfs
 	 * versions on very small filesystems.
 	 */
-	if (mp->m_sb.sb_logstart &&
-	    XFS_FSB_TO_AGNO(mp, mp->m_sb.sb_logstart) == 0)
+	if (xfs_ag_contains_log(mp, 0))
 		 first_bno += mp->m_sb.sb_logblocks;
 
 	/*

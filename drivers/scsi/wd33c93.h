@@ -180,13 +180,8 @@
 
    /* This is what the 3393 chip looks like to us */
 typedef struct {
-#ifdef CONFIG_WD33C93_PIO
-   unsigned int   SASR;
-   unsigned int   SCMD;
-#else
    volatile unsigned char  *SASR;
    volatile unsigned char  *SCMD;
-#endif
 } wd33c93_regs;
 
 
@@ -262,6 +257,10 @@ struct WD33C93_hostdata {
 #endif
     };
 
+static inline struct scsi_pointer *WD33C93_scsi_pointer(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
+}
 
 /* defines for hostdata->chip */
 

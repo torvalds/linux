@@ -32,8 +32,6 @@ properties:
 
   spi-cpol: true
 
-  spi-max-frequency: true
-
   interrupts:
     maxItems: 1
 
@@ -42,7 +40,10 @@ required:
   - reg
   - interrupts
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
@@ -55,7 +56,7 @@ examples:
         /* Example for a I2C device node */
         accelerometer@2a {
             compatible = "adi,adxl345";
-            reg = <0x53>;
+            reg = <0x2a>;
             interrupt-parent = <&gpio0>;
             interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
         };

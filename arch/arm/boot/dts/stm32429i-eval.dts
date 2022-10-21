@@ -251,10 +251,10 @@
 
 &mac {
 	status = "okay";
-	pinctrl-0	= <&ethernet_mii>;
-	pinctrl-names	= "default";
-	phy-mode	= "mii";
-	phy-handle	= <&phy1>;
+	pinctrl-0 = <&ethernet_mii>;
+	pinctrl-names = "default";
+	phy-mode = "mii";
+	phy-handle = <&phy1>;
 	mdio0 {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -306,6 +306,18 @@
 	timer@2 {
 		status = "okay";
 	};
+};
+
+&timers5 {
+	/* Override timer5 to act as clockevent */
+	compatible = "st,stm32-timer";
+	interrupts = <50>;
+	status = "okay";
+	/delete-property/#address-cells;
+	/delete-property/#size-cells;
+	/delete-property/clock-names;
+	/delete-node/pwm;
+	/delete-node/timer@4;
 };
 
 &usart1 {

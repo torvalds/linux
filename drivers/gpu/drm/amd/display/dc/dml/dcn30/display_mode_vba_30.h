@@ -39,5 +39,16 @@ double dml30_CalculateWriteBackDISPCLK(
 		long   WritebackDestinationWidth,
 		unsigned int HTotal,
 		unsigned int WritebackLineBufferSize);
+void dml30_CalculateBytePerPixelAnd256BBlockSizes(
+		enum source_format_class SourcePixelFormat,
+		enum dm_swizzle_mode SurfaceTiling,
+		unsigned int *BytePerPixelY,
+		unsigned int *BytePerPixelC,
+		double       *BytePerPixelDETY,
+		double       *BytePerPixelDETC,
+		unsigned int *BlockHeight256BytesY,
+		unsigned int *BlockHeight256BytesC,
+		unsigned int *BlockWidth256BytesY,
+		unsigned int *BlockWidth256BytesC);
 
 #endif /* __DML30_DISPLAY_MODE_VBA_H__ */

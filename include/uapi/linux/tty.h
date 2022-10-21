@@ -6,8 +6,6 @@
  * 'tty.h' defines some structures used by tty_io.c and some defines.
  */
 
-#define NR_LDISCS		30
-
 /* line disciplines */
 #define N_TTY		0
 #define N_SLIP		1
@@ -39,5 +37,10 @@
 #define N_SPEAKUP	26	/* Speakup communication with synths */
 #define N_NULL		27	/* Null ldisc used for error handling */
 #define N_MCTP		28	/* MCTP-over-serial */
+#define N_DEVELOPMENT	29	/* Manual out-of-tree testing */
+#define N_CAN327	30	/* ELM327 based OBD-II interfaces */
+
+/* Always the newest line discipline + 1 */
+#define NR_LDISCS	31
 
 #endif /* _UAPI_LINUX_TTY_H */

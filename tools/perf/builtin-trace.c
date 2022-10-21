@@ -53,6 +53,7 @@
 #include "trace-event.h"
 #include "util/parse-events.h"
 #include "util/bpf-loader.h"
+#include "util/tracepoint.h"
 #include "callchain.h"
 #include "print_binary.h"
 #include "string2.h"
@@ -614,11 +615,8 @@ bool strarray__strtoul_flags(struct strarray *sa, char *bf, size_t size, u64 *re
 		if (isalpha(*tok) || *tok == '_') {
 			if (!strarray__strtoul(sa, tok, toklen, &val))
 				return false;
-		} else {
-			bool is_hexa = tok[0] == 0 && (tok[1] = 'x' || tok[1] == 'X');
-
-			val = strtoul(tok, NULL, is_hexa ? 16 : 0);
-		}
+		} else
+			val = strtoul(tok, NULL, 0);
 
 		*ret |= (1 << (val - 1));
 
@@ -1536,13 +1534,20 @@ static size_t trace__fprintf_tstamp(struct trace *trace, u64 tstamp, FILE *fp)
 	return fprintf(fp, "         ? ");
 }
 
+static pid_t workload_pid = -1;
 static bool done = false;
 static bool interrupted = false;
 
-static void sig_handler(int sig)
+static void sighandler_interrupt(int sig __maybe_unused)
 {
-	done = true;
-	interrupted = sig == SIGINT;
+	done = interrupted = true;
+}
+
+static void sighandler_chld(int sig __maybe_unused, siginfo_t *info,
+			    void *context __maybe_unused)
+{
+	if (info->si_pid == workload_pid)
+		done = true;
 }
 
 static size_t trace__fprintf_comm_tid(struct trace *trace, struct thread *thread, FILE *fp)
@@ -2165,13 +2170,10 @@ static void thread__update_stats(struct thread *thread, struct thread_trace *ttr
 
 	stats = inode->priv;
 	if (stats == NULL) {
-		stats = malloc(sizeof(*stats));
+		stats = zalloc(sizeof(*stats));
 		if (stats == NULL)
 			return;
 
-		stats->nr_failures = 0;
-		stats->max_errno   = 0;
-		stats->errnos	   = NULL;
 		init_stats(&stats->stats);
 		inode->priv = stats;
 	}
@@ -2741,7 +2743,7 @@ static size_t trace__fprintf_tp_fields(struct trace *trace, struct evsel *evsel,
 
 		/*
 		 * Suppress this argument if its value is zero and
-		 * and we don't have a string associated in an
+		 * we don't have a string associated in an
 		 * strarray for it.
 		 */
 		if (val == 0 &&
@@ -2754,11 +2756,7 @@ static size_t trace__fprintf_tp_fields(struct trace *trace, struct evsel *evsel,
 
 		printed += scnprintf(bf + printed, size - printed, "%s", printed ? ", " : "");
 
-		/*
-		 * XXX Perhaps we should have a show_tp_arg_names,
-		 * leaving show_arg_names just for syscalls?
-		 */
-		if (1 || trace->show_arg_names)
+		if (trace->show_arg_names)
 			printed += scnprintf(bf + printed, size - printed, "%s: ", field->name);
 
 		printed += syscall_arg_fmt__scnprintf_val(arg, bf + printed, size - printed, &syscall_arg, val);
@@ -3782,7 +3780,7 @@ static int trace__deliver_event(struct trace *trace, union perf_event *event)
 	if (err && err != -1)
 		return err;
 
-	err = ordered_events__queue(&trace->oe.data, event, trace->oe.last, 0);
+	err = ordered_events__queue(&trace->oe.data, event, trace->oe.last, 0, NULL);
 	if (err)
 		return err;
 
@@ -3938,7 +3936,6 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	bool draining = false;
 
 	trace->live = true;
-	signal(SIGCHLD, sig_handler);
 
 	if (!trace->raw_augmented_syscalls) {
 		if (trace->trace_syscalls && trace__add_syscall_newtp(trace))
@@ -4018,6 +4015,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 			fprintf(trace->output, "Couldn't run the workload!\n");
 			goto out_delete_evlist;
 		}
+		workload_pid = evlist->workload.pid;
 	}
 
 	err = evlist__open(evlist);
@@ -4273,6 +4271,7 @@ static int trace__replay(struct trace *trace)
 		goto out;
 
 	evsel = evlist__find_tracepoint_by_name(session->evlist, "raw_syscalls:sys_enter");
+	trace->syscalls.events.sys_enter = evsel;
 	/* older kernels have syscalls tp versus raw_syscalls */
 	if (evsel == NULL)
 		evsel = evlist__find_tracepoint_by_name(session->evlist, "syscalls:sys_enter");
@@ -4285,6 +4284,7 @@ static int trace__replay(struct trace *trace)
 	}
 
 	evsel = evlist__find_tracepoint_by_name(session->evlist, "raw_syscalls:sys_exit");
+	trace->syscalls.events.sys_exit = evsel;
 	if (evsel == NULL)
 		evsel = evlist__find_tracepoint_by_name(session->evlist, "syscalls:sys_exit");
 	if (evsel &&
@@ -4887,10 +4887,16 @@ int cmd_trace(int argc, const char **argv)
 	const char * const trace_subcommands[] = { "record", NULL };
 	int err = -1;
 	char bf[BUFSIZ];
+	struct sigaction sigchld_act;
 
 	signal(SIGSEGV, sighandler_dump_stack);
 	signal(SIGFPE, sighandler_dump_stack);
-	signal(SIGINT, sig_handler);
+	signal(SIGINT, sighandler_interrupt);
+
+	memset(&sigchld_act, 0, sizeof(sigchld_act));
+	sigchld_act.sa_flags = SA_SIGINFO;
+	sigchld_act.sa_sigaction = sighandler_chld;
+	sigaction(SIGCHLD, &sigchld_act, NULL);
 
 	trace.evlist = evlist__new();
 	trace.sctbl = syscalltbl__new();

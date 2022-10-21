@@ -2,6 +2,8 @@
 #include <linux/init.h>
 #include <linux/suspend.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
+
 #include <asm/time.h>
 #include <asm/cacheflush.h>
 #include <asm/mpc52xx.h>

@@ -3417,6 +3417,9 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	dev->min_mtu = ETH_MIN_MTU;
 	dev->max_mtu = priv->max_mtu;
 
+	/* supports LSOv2 packets. */
+	netif_set_tso_max_size(dev, GSO_MAX_SIZE);
+
 	mdev->pndev[port] = dev;
 	mdev->upper[port] = NULL;
 

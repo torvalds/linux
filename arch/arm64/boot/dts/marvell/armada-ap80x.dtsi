@@ -250,7 +250,7 @@
 				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			ap_sdhci0: sdhci@6e0000 {
+			ap_sdhci0: mmc@6e0000 {
 				compatible = "marvell,armada-ap806-sdhci";
 				reg = <0x6e0000 0x300>;
 				interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;

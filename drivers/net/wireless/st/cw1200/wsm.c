@@ -537,7 +537,7 @@ int wsm_set_tx_queue_params(struct cw1200_common *priv,
 {
 	int ret;
 	struct wsm_buf *buf = &priv->wsm_cmd_buf;
-	u8 queue_id_to_wmm_aci[] = {3, 2, 0, 1};
+	static const u8 queue_id_to_wmm_aci[] = { 3, 2, 0, 1 };
 
 	wsm_cmd_lock(priv);
 
@@ -1594,7 +1594,7 @@ static int cw1200_get_prio_queue(struct cw1200_common *priv,
 		edca = &priv->edca.params[i];
 		score = ((edca->aifns + edca->cwmin) << 16) +
 			((edca->cwmax - edca->cwmin) *
-			 (get_random_int() & 0xFFFF));
+			 get_random_u16());
 		if (score < best && (winner < 0 || i != 3)) {
 			best = score;
 			winner = i;

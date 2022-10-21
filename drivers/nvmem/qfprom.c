@@ -22,7 +22,7 @@
 
 /* Amount of time required to hold charge to blow fuse in micro-seconds */
 #define QFPROM_FUSE_BLOW_POLL_US	100
-#define QFPROM_FUSE_BLOW_TIMEOUT_US	1000
+#define QFPROM_FUSE_BLOW_TIMEOUT_US	10000
 
 #define QFPROM_BLOW_STATUS_OFFSET	0x048
 #define QFPROM_BLOW_STATUS_BUSY		0x1
@@ -217,9 +217,8 @@ static int qfprom_enable_fuse_blowing(const struct qfprom_priv *priv,
 		goto err_clk_rate_set;
 	}
 
-	ret = pm_runtime_get_sync(priv->dev);
+	ret = pm_runtime_resume_and_get(priv->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(priv->dev);
 		dev_err(priv->dev, "Failed to enable power-domain\n");
 		goto err_reg_enable;
 	}
@@ -244,7 +243,7 @@ err_clk_prepared:
 }
 
 /**
- * qfprom_efuse_reg_write() - Write to fuses.
+ * qfprom_reg_write() - Write to fuses.
  * @context: Our driver data.
  * @reg:     The offset to write at.
  * @_val:    Pointer to data to write.

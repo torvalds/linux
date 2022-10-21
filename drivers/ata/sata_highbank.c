@@ -400,7 +400,7 @@ static int ahci_highbank_hardreset(struct ata_link *link, unsigned int *class,
 
 	/* clear D2H reception area to properly wait for D2H FIS */
 	ata_tf_init(link->device, &tf);
-	tf.command = ATA_BUSY;
+	tf.status = ATA_BUSY;
 	ata_tf_to_fis(&tf, 0, 0, d2h_fis);
 
 	do {
@@ -444,7 +444,7 @@ static struct scsi_host_template ahci_highbank_platform_sht = {
 
 static const struct of_device_id ahci_of_match[] = {
 	{ .compatible = "calxeda,hb-ahci" },
-	{},
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ahci_of_match);
 
@@ -587,7 +587,8 @@ static int ahci_highbank_suspend(struct device *dev)
 	writel(ctl, mmio + HOST_CTL);
 	readl(mmio + HOST_CTL); /* flush */
 
-	return ata_host_suspend(host, PMSG_SUSPEND);
+	ata_host_suspend(host, PMSG_SUSPEND);
+	return 0;
 }
 
 static int ahci_highbank_resume(struct device *dev)

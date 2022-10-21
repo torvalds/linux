@@ -126,7 +126,7 @@ properties:
       clock-frequency:
         const: 12288000
 
-  lochnagar-pinctrl:
+  pinctrl:
     type: object
     $ref: /schemas/pinctrl/cirrus,lochnagar.yaml#
 
@@ -144,6 +144,7 @@ properties:
       CODECs digital core if not being provided by an internal regulator.
     type: object
     $ref: /schemas/regulator/regulator.yaml#
+    unevaluatedProperties: false
     properties:
       compatible:
         enum:
@@ -161,6 +162,7 @@ properties:
       CODECs MICVDD.
     type: object
     $ref: /schemas/regulator/regulator.yaml#
+    unevaluatedProperties: false
     properties:
       compatible:
         enum:
@@ -177,6 +179,7 @@ properties:
       Initialisation data for the MIC1VDD supplies.
     type: object
     $ref: /schemas/regulator/regulator.yaml#
+    unevaluatedProperties: false
     properties:
       compatible:
         enum:
@@ -202,6 +205,7 @@ properties:
       Initialisation data for the MIC2VDD supplies.
     type: object
     $ref: /schemas/regulator/regulator.yaml#
+    unevaluatedProperties: false
     properties:
       compatible:
         enum:
@@ -228,6 +232,7 @@ properties:
       the CODECs analog and 1.8V digital supplies.
     type: object
     $ref: /schemas/regulator/regulator.yaml#
+    unevaluatedProperties: false
     properties:
       compatible:
         enum:
@@ -255,13 +260,13 @@ required:
   - reg
   - reset-gpios
   - lochnagar-clk
-  - lochnagar-pinctrl
+  - pinctrl
 
 additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clk/lochnagar.h>
+    #include <dt-bindings/clock/lochnagar.h>
     #include <dt-bindings/pinctrl/lochnagar.h>
     i2c@e0004000 {
         #address-cells = <1>;
@@ -293,7 +298,7 @@ examples:
                 clock-frequency = <32768>;
             };
 
-            lochnagar-pinctrl {
+            pinctrl {
                 compatible = "cirrus,lochnagar-pinctrl";
 
                 gpio-controller;

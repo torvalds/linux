@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2014, 2018 - 2021  Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014, 2018 - 2022  Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
  *
  * Portions of this file are derived from the ipw3945 project, as well
@@ -48,6 +48,7 @@
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi Link AGN driver for Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IWLWIFI);
 
 /* Please keep this array *SORTED* by hex value.
  * Access is done through binary search.
@@ -283,7 +284,7 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 	}
 
 	/* Pull updated AP beacon from mac80211. will fail if not in AP mode */
-	beacon = ieee80211_beacon_get(priv->hw, priv->beacon_ctx->vif);
+	beacon = ieee80211_beacon_get(priv->hw, priv->beacon_ctx->vif, 0);
 	if (!beacon) {
 		IWL_ERR(priv, "update beacon failed -- keeping old\n");
 		goto out;

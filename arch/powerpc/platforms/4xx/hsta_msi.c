@@ -10,6 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/msi.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/pci.h>
 #include <linux/semaphore.h>

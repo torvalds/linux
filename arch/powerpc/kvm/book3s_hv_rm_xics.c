@@ -479,6 +479,11 @@ static void icp_rm_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	}
 }
 
+unsigned long xics_rm_h_xirr_x(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.regs.gpr[5] = get_tb();
+	return xics_rm_h_xirr(vcpu);
+}
 
 unsigned long xics_rm_h_xirr(struct kvm_vcpu *vcpu)
 {
@@ -883,7 +888,7 @@ long kvmppc_deliver_irq_passthru(struct kvm_vcpu *vcpu,
 
 /*  --- Non-real mode XICS-related built-in routines ---  */
 
-/**
+/*
  * Host Operations poked by RM KVM
  */
 static void rm_host_ipi_action(int action, void *data)

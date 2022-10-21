@@ -102,7 +102,7 @@ decode_fpu(unsigned int Fpu_register[], unsigned int trap_counts[])
      * that happen.  Want to keep this overhead low, but still provide
      * some information to the customer.  All exits from this routine
      * need to restore Fpu_register[0]
-    */
+     */
 
     bflags=(Fpu_register[0] & 0xf8000000);
     Fpu_register[0] &= 0x07ffffff;

@@ -210,32 +210,47 @@ time it will be set using the Dirty tracking mechanism described above.
 3. Reference
 ------------
 
-:Name:		kvm_lock
+``kvm_lock``
+^^^^^^^^^^^^
+
 :Type:		mutex
 :Arch:		any
 :Protects:	- vm_list
 
-:Name:		kvm_count_lock
+``kvm_count_lock``
+^^^^^^^^^^^^^^^^^^
+
 :Type:		raw_spinlock_t
 :Arch:		any
 :Protects:	- hardware virtualization enable/disable
 :Comment:	'raw' because hardware enabling/disabling must be atomic /wrt
 		migration.
 
-:Name:		kvm_arch::tsc_write_lock
-:Type:		raw_spinlock
+``kvm->mn_invalidate_lock``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:Type:          spinlock_t
+:Arch:          any
+:Protects:      mn_active_invalidate_count, mn_memslots_update_rcuwait
+
+``kvm_arch::tsc_write_lock``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:Type:		raw_spinlock_t
 :Arch:		x86
 :Protects:	- kvm_arch::{last_tsc_write,last_tsc_nsec,last_tsc_offset}
 		- tsc offset in vmcb
 :Comment:	'raw' because updating the tsc offsets must not be preempted.
 
-:Name:		kvm->mmu_lock
-:Type:		spinlock_t
+``kvm->mmu_lock``
+^^^^^^^^^^^^^^^^^
+:Type:		spinlock_t or rwlock_t
 :Arch:		any
 :Protects:	-shadow page/shadow tlb entry
 :Comment:	it is a spinlock since it is used in mmu notifier.
 
-:Name:		kvm->srcu
+``kvm->srcu``
+^^^^^^^^^^^^^
 :Type:		srcu lock
 :Arch:		any
 :Protects:	- kvm->memslots
@@ -246,10 +261,20 @@ time it will be set using the Dirty tracking mechanism described above.
 		The srcu index can be stored in kvm_vcpu->srcu_idx per vcpu
 		if it is needed by multiple functions.
 
-:Name:		blocked_vcpu_on_cpu_lock
+``kvm->slots_arch_lock``
+^^^^^^^^^^^^^^^^^^^^^^^^
+:Type:          mutex
+:Arch:          any (only needed on x86 though)
+:Protects:      any arch-specific fields of memslots that have to be modified
+                in a ``kvm->srcu`` read-side critical section.
+:Comment:       must be held before reading the pointer to the current memslots,
+                until after all changes to the memslots are complete
+
+``wakeup_vcpus_on_cpu_lock``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 :Type:		spinlock_t
 :Arch:		x86
-:Protects:	blocked_vcpu_on_cpu
+:Protects:	wakeup_vcpus_on_cpu
 :Comment:	This is a per-CPU lock and it is used for VT-d posted-interrupts.
 		When VT-d posted-interrupts is supported and the VM has assigned
 		devices, we put the blocked vCPU on the list blocked_vcpu_on_cpu

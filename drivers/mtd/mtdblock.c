@@ -257,6 +257,10 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 		return 0;
 	}
 
+	if (mtd_type_is_nand(mbd->mtd))
+		pr_warn("%s: MTD device '%s' is NAND, please consider using UBI block devices instead.\n",
+			mbd->tr->name, mbd->mtd->name);
+
 	/* OK, it's not open. Create cache info for it */
 	mtdblk->count = 1;
 	mutex_init(&mtdblk->cache_mutex);
@@ -321,10 +325,6 @@ static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	if (!(mtd->flags & MTD_WRITEABLE))
 		dev->mbd.readonly = 1;
-
-	if (mtd_type_is_nand(mtd))
-		pr_warn("%s: MTD device '%s' is NAND, please consider using UBI block devices instead.\n",
-			tr->name, mtd->name);
 
 	if (add_mtd_blktrans_dev(&dev->mbd))
 		kfree(dev);

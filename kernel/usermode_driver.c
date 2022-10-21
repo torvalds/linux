@@ -28,7 +28,7 @@ static struct vfsmount *blob_to_mnt(const void *data, size_t len, const char *na
 
 	file = file_open_root_mnt(mnt, name, O_CREAT | O_WRONLY, 0700);
 	if (IS_ERR(file)) {
-		mntput(mnt);
+		kern_unmount(mnt);
 		return ERR_CAST(file);
 	}
 
@@ -38,7 +38,7 @@ static struct vfsmount *blob_to_mnt(const void *data, size_t len, const char *na
 		if (err >= 0)
 			err = -ENOMEM;
 		filp_close(file, NULL);
-		mntput(mnt);
+		kern_unmount(mnt);
 		return ERR_PTR(err);
 	}
 

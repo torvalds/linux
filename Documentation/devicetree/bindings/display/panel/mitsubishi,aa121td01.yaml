@@ -11,13 +11,23 @@ maintainers:
   - Thierry Reding <thierry.reding@gmail.com>
 
 allOf:
-  - $ref: lvds.yaml#
+  - $ref: panel-common.yaml#
+  - $ref: /schemas/display/lvds.yaml/#
+
+select:
+  properties:
+    compatible:
+      contains:
+        const: mitsubishi,aa121td01
+
+  required:
+    - compatible
 
 properties:
   compatible:
     items:
       - const: mitsubishi,aa121td01
-      - {} # panel-lvds, but not listed here to avoid false select
+      - const: panel-lvds
 
   vcc-supply:
     description: Reference to the regulator powering the panel VCC pins.
@@ -39,6 +49,11 @@ additionalProperties: false
 required:
   - compatible
   - vcc-supply
+  - data-mapping
+  - width-mm
+  - height-mm
+  - panel-timing
+  - port
 
 examples:
   - |+

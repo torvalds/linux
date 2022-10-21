@@ -244,9 +244,6 @@ specification the ioctl returns an ``EINVAL`` error code.
       - 0x01000000
       - The device supports the :c:func:`read()` and/or
 	:c:func:`write()` I/O methods.
-    * - ``V4L2_CAP_ASYNCIO``
-      - 0x02000000
-      - The device supports the :ref:`asynchronous <async>` I/O methods.
     * - ``V4L2_CAP_STREAMING``
       - 0x04000000
       - The device supports the :ref:`streaming <mmap>` I/O method.

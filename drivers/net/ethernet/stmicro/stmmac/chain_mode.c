@@ -46,7 +46,7 @@ static int jumbo_frm(void *p, struct sk_buff *skb, int csum)
 
 	while (len != 0) {
 		tx_q->tx_skbuff[entry] = NULL;
-		entry = STMMAC_GET_ENTRY(entry, priv->dma_tx_size);
+		entry = STMMAC_GET_ENTRY(entry, priv->dma_conf.dma_tx_size);
 		desc = tx_q->dma_tx + entry;
 
 		if (len > bmax) {
@@ -137,7 +137,7 @@ static void refill_desc3(void *priv_ptr, struct dma_desc *p)
 		 */
 		p->des3 = cpu_to_le32((unsigned int)(rx_q->dma_rx_phy +
 				      (((rx_q->dirty_rx) + 1) %
-				       priv->dma_rx_size) *
+				       priv->dma_conf.dma_rx_size) *
 				      sizeof(struct dma_desc)));
 }
 
@@ -155,7 +155,7 @@ static void clean_desc3(void *priv_ptr, struct dma_desc *p)
 		 */
 		p->des3 = cpu_to_le32((unsigned int)((tx_q->dma_tx_phy +
 				      ((tx_q->dirty_tx + 1) %
-				       priv->dma_tx_size))
+				       priv->dma_conf.dma_tx_size))
 				      * sizeof(struct dma_desc)));
 }
 

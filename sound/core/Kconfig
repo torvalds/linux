@@ -84,7 +84,7 @@ config SND_PCM_TIMER
 	help
 	  If you disable this option, pcm timer will be unavailable, so
 	  those stubs that use pcm timer (e.g. dmix, dsnoop & co) may work
-	  incorrectlly.
+	  incorrectly.
 
 	  For some embedded devices, we may disable it to reduce memory
 	  footprint, about 20KB on x86_64 platform.
@@ -154,6 +154,16 @@ config SND_VERBOSE_PRINTK
 
 	  You don't need this unless you're debugging ALSA.
 
+config SND_CTL_FAST_LOOKUP
+	bool "Fast lookup of control elements" if EXPERT
+	default y
+	select XARRAY_MULTI
+	help
+	  This option enables the faster lookup of control elements.
+	  It will consume more memory because of the additional Xarray.
+	  If you want to choose the memory footprint over the performance
+	  inevitably, turn this off.
+
 config SND_DEBUG
 	bool "Debug"
 	help
@@ -178,14 +188,29 @@ config SND_PCM_XRUN_DEBUG
 	  sound clicking when system is loaded, it may help to determine
 	  the process or driver which causes the scheduling gaps.
 
-config SND_CTL_VALIDATION
-	bool "Perform sanity-checks for each control element access"
+config SND_CTL_INPUT_VALIDATION
+	bool "Validate input data to control API"
+	help
+	  Say Y to enable the additional validation for the input data to
+	  each control element, including the value range checks.
+	  An error is returned from ALSA core for invalid inputs without
+	  passing to the driver.  This is a kind of hardening for drivers
+	  that have no proper error checks, at the cost of a slight
+	  performance overhead.
+
+config SND_CTL_DEBUG
+	bool "Enable debugging feature for control API"
 	depends on SND_DEBUG
 	help
-	  Say Y to enable the additional validation of each control element
-	  access, including sanity-checks like whether the values returned
-	  from the driver are in the proper ranges or the check of the invalid
-	  access at out-of-array areas.
+	  Say Y to enable the debugging feature for ALSA control API.
+	  It performs the additional sanity-checks for each control element
+	  read access, such as whether the values returned from the driver
+	  are in the proper ranges or the check of the invalid access at
+	  out-of-array areas.  The error is printed when the driver gives
+	  such unexpected values.
+	  When you develop a driver that deals with control elements, it's
+	  strongly recommended to try this one once and verify whether you see
+	  any relevant errors or not.
 
 config SND_JACK_INJECTION_DEBUG
 	bool "Sound jack injection interface via debugfs"

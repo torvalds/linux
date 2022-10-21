@@ -20,6 +20,7 @@
 #include "util/symbol.h"
 #include "util/pmu.h"
 #include "util/pmu-hybrid.h"
+#include "util/string2.h"
 #include <linux/err.h>
 
 #define MEM_OPERATION_LOAD	0x1
@@ -96,6 +97,9 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 	else
 		rec_argc = argc + 9 * perf_pmu__hybrid_pmu_num();
 
+	if (mem->cpu_list)
+		rec_argc += 2;
+
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 	if (!rec_argv)
 		return -1;
@@ -121,6 +125,7 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 	    (mem->operation & MEM_OPERATION_LOAD) &&
 	    (mem->operation & MEM_OPERATION_STORE)) {
 		e->record = true;
+		rec_argv[i++] = "-W";
 	} else {
 		if (mem->operation & MEM_OPERATION_LOAD) {
 			e = perf_mem_events__ptr(PERF_MEM_EVENTS__LOAD);
@@ -156,6 +161,11 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 
 	if (all_kernel)
 		rec_argv[i++] = "--all-kernel";
+
+	if (mem->cpu_list) {
+		rec_argv[i++] = "-C";
+		rec_argv[i++] = mem->cpu_list;
+	}
 
 	for (j = 0; j < argc; j++, i++)
 		rec_argv[i] = argv[j];
@@ -496,9 +506,9 @@ int cmd_mem(int argc, const char **argv)
 			mem.input_name = "perf.data";
 	}
 
-	if (!strncmp(argv[0], "rec", 3))
+	if (strlen(argv[0]) > 2 && strstarts("record", argv[0]))
 		return __cmd_record(argc, argv, &mem);
-	else if (!strncmp(argv[0], "rep", 3))
+	else if (strlen(argv[0]) > 2 && strstarts("report", argv[0]))
 		return report_events(argc, argv, &mem);
 	else
 		usage_with_options(mem_usage, mem_options);

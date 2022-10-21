@@ -2846,8 +2846,7 @@ static int velocity_probe(struct device *dev, int irq,
 
 	netdev->netdev_ops = &velocity_netdev_ops;
 	netdev->ethtool_ops = &velocity_ethtool_ops;
-	netif_napi_add(netdev, &vptr->napi, velocity_poll,
-							VELOCITY_NAPI_WEIGHT);
+	netif_napi_add(netdev, &vptr->napi, velocity_poll);
 
 	netdev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
 			   NETIF_F_HW_VLAN_CTAG_TX;
@@ -3420,13 +3419,13 @@ static void velocity_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo 
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 
-	strlcpy(info->driver, VELOCITY_NAME, sizeof(info->driver));
-	strlcpy(info->version, VELOCITY_VERSION, sizeof(info->version));
+	strscpy(info->driver, VELOCITY_NAME, sizeof(info->driver));
+	strscpy(info->version, VELOCITY_VERSION, sizeof(info->version));
 	if (vptr->pdev)
-		strlcpy(info->bus_info, pci_name(vptr->pdev),
+		strscpy(info->bus_info, pci_name(vptr->pdev),
 						sizeof(info->bus_info));
 	else
-		strlcpy(info->bus_info, "platform", sizeof(info->bus_info));
+		strscpy(info->bus_info, "platform", sizeof(info->bus_info));
 }
 
 static void velocity_ethtool_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)

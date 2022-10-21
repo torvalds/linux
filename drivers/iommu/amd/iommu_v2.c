@@ -24,7 +24,6 @@
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Joerg Roedel <jroedel@suse.de>");
 
-#define MAX_DEVICES		0x10000
 #define PRI_QUEUE_SIZE		512
 
 struct pri_queue {
@@ -52,7 +51,7 @@ struct pasid_state {
 
 struct device_state {
 	struct list_head list;
-	u16 devid;
+	u32 sbdf;
 	atomic_t count;
 	struct pci_dev *pdev;
 	struct pasid_state **states;
@@ -71,7 +70,6 @@ struct fault {
 	struct pasid_state *state;
 	struct mm_struct *mm;
 	u64 address;
-	u16 devid;
 	u32 pasid;
 	u16 tag;
 	u16 finish;
@@ -85,35 +83,25 @@ static struct workqueue_struct *iommu_wq;
 
 static void free_pasid_states(struct device_state *dev_state);
 
-static u16 device_id(struct pci_dev *pdev)
-{
-	u16 devid;
-
-	devid = pdev->bus->number;
-	devid = (devid << 8) | pdev->devfn;
-
-	return devid;
-}
-
-static struct device_state *__get_device_state(u16 devid)
+static struct device_state *__get_device_state(u32 sbdf)
 {
 	struct device_state *dev_state;
 
 	list_for_each_entry(dev_state, &state_list, list) {
-		if (dev_state->devid == devid)
+		if (dev_state->sbdf == sbdf)
 			return dev_state;
 	}
 
 	return NULL;
 }
 
-static struct device_state *get_device_state(u16 devid)
+static struct device_state *get_device_state(u32 sbdf)
 {
 	struct device_state *dev_state;
 	unsigned long flags;
 
 	spin_lock_irqsave(&state_lock, flags);
-	dev_state = __get_device_state(devid);
+	dev_state = __get_device_state(sbdf);
 	if (dev_state != NULL)
 		atomic_inc(&dev_state->count);
 	spin_unlock_irqrestore(&state_lock, flags);
@@ -124,6 +112,15 @@ static struct device_state *get_device_state(u16 devid)
 static void free_device_state(struct device_state *dev_state)
 {
 	struct iommu_group *group;
+
+	/* Get rid of any remaining pasid states */
+	free_pasid_states(dev_state);
+
+	/*
+	 * Wait until the last reference is dropped before freeing
+	 * the device state.
+	 */
+	wait_event(dev_state->wq, !atomic_read(&dev_state->count));
 
 	/*
 	 * First detach device from domain - No more PRI requests will arrive
@@ -521,15 +518,16 @@ static int ppr_notifier(struct notifier_block *nb, unsigned long e, void *data)
 	unsigned long flags;
 	struct fault *fault;
 	bool finish;
-	u16 tag, devid;
+	u16 tag, devid, seg_id;
 	int ret;
 
 	iommu_fault = data;
 	tag         = iommu_fault->tag & 0x1ff;
 	finish      = (iommu_fault->tag >> 9) & 1;
 
-	devid = iommu_fault->device_id;
-	pdev = pci_get_domain_bus_and_slot(0, PCI_BUS_NUM(devid),
+	seg_id = PCI_SBDF_TO_SEGID(iommu_fault->sbdf);
+	devid = PCI_SBDF_TO_DEVID(iommu_fault->sbdf);
+	pdev = pci_get_domain_bus_and_slot(seg_id, PCI_BUS_NUM(devid),
 					   devid & 0xff);
 	if (!pdev)
 		return -ENODEV;
@@ -537,13 +535,13 @@ static int ppr_notifier(struct notifier_block *nb, unsigned long e, void *data)
 	ret = NOTIFY_DONE;
 
 	/* In kdump kernel pci dev is not initialized yet -> send INVALID */
-	if (amd_iommu_is_attach_deferred(NULL, &pdev->dev)) {
+	if (amd_iommu_is_attach_deferred(&pdev->dev)) {
 		amd_iommu_complete_ppr(pdev, iommu_fault->pasid,
 				       PPR_INVALID, tag);
 		goto out;
 	}
 
-	dev_state = get_device_state(iommu_fault->device_id);
+	dev_state = get_device_state(iommu_fault->sbdf);
 	if (dev_state == NULL)
 		goto out;
 
@@ -602,7 +600,7 @@ int amd_iommu_bind_pasid(struct pci_dev *pdev, u32 pasid,
 	struct pasid_state *pasid_state;
 	struct device_state *dev_state;
 	struct mm_struct *mm;
-	u16 devid;
+	u32 sbdf;
 	int ret;
 
 	might_sleep();
@@ -610,8 +608,8 @@ int amd_iommu_bind_pasid(struct pci_dev *pdev, u32 pasid,
 	if (!amd_iommu_v2_supported())
 		return -ENODEV;
 
-	devid     = device_id(pdev);
-	dev_state = get_device_state(devid);
+	sbdf      = get_pci_sbdf_id(pdev);
+	dev_state = get_device_state(sbdf);
 
 	if (dev_state == NULL)
 		return -EINVAL;
@@ -685,15 +683,15 @@ void amd_iommu_unbind_pasid(struct pci_dev *pdev, u32 pasid)
 {
 	struct pasid_state *pasid_state;
 	struct device_state *dev_state;
-	u16 devid;
+	u32 sbdf;
 
 	might_sleep();
 
 	if (!amd_iommu_v2_supported())
 		return;
 
-	devid = device_id(pdev);
-	dev_state = get_device_state(devid);
+	sbdf = get_pci_sbdf_id(pdev);
+	dev_state = get_device_state(sbdf);
 	if (dev_state == NULL)
 		return;
 
@@ -735,7 +733,7 @@ int amd_iommu_init_device(struct pci_dev *pdev, int pasids)
 	struct iommu_group *group;
 	unsigned long flags;
 	int ret, tmp;
-	u16 devid;
+	u32 sbdf;
 
 	might_sleep();
 
@@ -752,7 +750,7 @@ int amd_iommu_init_device(struct pci_dev *pdev, int pasids)
 	if (pasids <= 0 || pasids > (PASID_MASK + 1))
 		return -EINVAL;
 
-	devid = device_id(pdev);
+	sbdf = get_pci_sbdf_id(pdev);
 
 	dev_state = kzalloc(sizeof(*dev_state), GFP_KERNEL);
 	if (dev_state == NULL)
@@ -761,7 +759,7 @@ int amd_iommu_init_device(struct pci_dev *pdev, int pasids)
 	spin_lock_init(&dev_state->lock);
 	init_waitqueue_head(&dev_state->wq);
 	dev_state->pdev  = pdev;
-	dev_state->devid = devid;
+	dev_state->sbdf = sbdf;
 
 	tmp = pasids;
 	for (dev_state->pasid_levels = 0; (tmp - 1) & ~0x1ff; tmp >>= 9)
@@ -779,6 +777,8 @@ int amd_iommu_init_device(struct pci_dev *pdev, int pasids)
 	if (dev_state->domain == NULL)
 		goto out_free_states;
 
+	/* See iommu_is_default_domain() */
+	dev_state->domain->type = IOMMU_DOMAIN_IDENTITY;
 	amd_iommu_domain_direct_map(dev_state->domain);
 
 	ret = amd_iommu_domain_enable_v2(dev_state->domain, pasids);
@@ -799,7 +799,7 @@ int amd_iommu_init_device(struct pci_dev *pdev, int pasids)
 
 	spin_lock_irqsave(&state_lock, flags);
 
-	if (__get_device_state(devid) != NULL) {
+	if (__get_device_state(sbdf) != NULL) {
 		spin_unlock_irqrestore(&state_lock, flags);
 		ret = -EBUSY;
 		goto out_free_domain;
@@ -831,16 +831,16 @@ void amd_iommu_free_device(struct pci_dev *pdev)
 {
 	struct device_state *dev_state;
 	unsigned long flags;
-	u16 devid;
+	u32 sbdf;
 
 	if (!amd_iommu_v2_supported())
 		return;
 
-	devid = device_id(pdev);
+	sbdf = get_pci_sbdf_id(pdev);
 
 	spin_lock_irqsave(&state_lock, flags);
 
-	dev_state = __get_device_state(devid);
+	dev_state = __get_device_state(sbdf);
 	if (dev_state == NULL) {
 		spin_unlock_irqrestore(&state_lock, flags);
 		return;
@@ -850,15 +850,7 @@ void amd_iommu_free_device(struct pci_dev *pdev)
 
 	spin_unlock_irqrestore(&state_lock, flags);
 
-	/* Get rid of any remaining pasid states */
-	free_pasid_states(dev_state);
-
 	put_device_state(dev_state);
-	/*
-	 * Wait until the last reference is dropped before freeing
-	 * the device state.
-	 */
-	wait_event(dev_state->wq, !atomic_read(&dev_state->count));
 	free_device_state(dev_state);
 }
 EXPORT_SYMBOL(amd_iommu_free_device);
@@ -868,18 +860,18 @@ int amd_iommu_set_invalid_ppr_cb(struct pci_dev *pdev,
 {
 	struct device_state *dev_state;
 	unsigned long flags;
-	u16 devid;
+	u32 sbdf;
 	int ret;
 
 	if (!amd_iommu_v2_supported())
 		return -ENODEV;
 
-	devid = device_id(pdev);
+	sbdf = get_pci_sbdf_id(pdev);
 
 	spin_lock_irqsave(&state_lock, flags);
 
 	ret = -EINVAL;
-	dev_state = __get_device_state(devid);
+	dev_state = __get_device_state(sbdf);
 	if (dev_state == NULL)
 		goto out_unlock;
 
@@ -899,18 +891,18 @@ int amd_iommu_set_invalidate_ctx_cb(struct pci_dev *pdev,
 {
 	struct device_state *dev_state;
 	unsigned long flags;
-	u16 devid;
+	u32 sbdf;
 	int ret;
 
 	if (!amd_iommu_v2_supported())
 		return -ENODEV;
 
-	devid = device_id(pdev);
+	sbdf = get_pci_sbdf_id(pdev);
 
 	spin_lock_irqsave(&state_lock, flags);
 
 	ret = -EINVAL;
-	dev_state = __get_device_state(devid);
+	dev_state = __get_device_state(sbdf);
 	if (dev_state == NULL)
 		goto out_unlock;
 
@@ -955,8 +947,9 @@ out:
 
 static void __exit amd_iommu_v2_exit(void)
 {
-	struct device_state *dev_state;
-	int i;
+	struct device_state *dev_state, *next;
+	unsigned long flags;
+	LIST_HEAD(freelist);
 
 	if (!amd_iommu_v2_supported())
 		return;
@@ -969,16 +962,25 @@ static void __exit amd_iommu_v2_exit(void)
 	 * The loop below might call flush_workqueue(), so call
 	 * destroy_workqueue() after it
 	 */
-	for (i = 0; i < MAX_DEVICES; ++i) {
-		dev_state = get_device_state(i);
+	spin_lock_irqsave(&state_lock, flags);
 
-		if (dev_state == NULL)
-			continue;
-
+	list_for_each_entry_safe(dev_state, next, &state_list, list) {
 		WARN_ON_ONCE(1);
 
 		put_device_state(dev_state);
-		amd_iommu_free_device(dev_state->pdev);
+		list_del(&dev_state->list);
+		list_add_tail(&dev_state->list, &freelist);
+	}
+
+	spin_unlock_irqrestore(&state_lock, flags);
+
+	/*
+	 * Since free_device_state waits on the count to be zero,
+	 * we need to free dev_state outside the spinlock.
+	 */
+	list_for_each_entry_safe(dev_state, next, &freelist, list) {
+		list_del(&dev_state->list);
+		free_device_state(dev_state);
 	}
 
 	destroy_workqueue(iommu_wq);

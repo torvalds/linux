@@ -7,6 +7,7 @@
 #define SEC_AIV_SIZE		12
 #define SEC_IV_SIZE		24
 #define SEC_MAX_KEY_SIZE	64
+#define SEC_MAX_AKEY_SIZE	128
 #define SEC_COMM_SCENE		0
 #define SEC_MIN_BLOCK_SZ	1
 
@@ -354,8 +355,10 @@ struct sec_sqe3 {
 	 * akey_len: 9~14 bits
 	 * a_alg: 15~20 bits
 	 * key_sel: 21~24 bits
-	 * updata_key: 25 bits
-	 * reserved: 26~31 bits
+	 * ctr_count_mode/sm4_xts: 25~26 bits
+	 * sva_prefetch: 27 bits
+	 * key_wrap_num: 28~30 bits
+	 * update_key: 31 bits
 	 */
 	__le32 auth_mac_key;
 	__le32 salt;

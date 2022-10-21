@@ -76,7 +76,7 @@ void mt7603_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 	__le32 *end = (__le32 *)&skb->data[skb->len];
 	enum rx_pkt_type type;
 
-	type = FIELD_GET(MT_RXD0_PKT_TYPE, le32_to_cpu(rxd[0]));
+	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
 
 	if (q == MT_RXQ_MCU) {
 		if (type == PKT_TYPE_RX_EVENT)
@@ -173,13 +173,13 @@ int mt7603_dma_init(struct mt7603_dev *dev)
 
 	for (i = 0; i < ARRAY_SIZE(wmm_queue_map); i++) {
 		ret = mt76_init_tx_queue(&dev->mphy, i, wmm_queue_map[i],
-					 MT7603_TX_RING_SIZE, MT_TX_RING_BASE);
+					 MT7603_TX_RING_SIZE, MT_TX_RING_BASE, 0);
 		if (ret)
 			return ret;
 	}
 
 	ret = mt76_init_tx_queue(&dev->mphy, MT_TXQ_PSD, MT_TX_HW_QUEUE_MGMT,
-				 MT7603_PSD_RING_SIZE, MT_TX_RING_BASE);
+				 MT7603_PSD_RING_SIZE, MT_TX_RING_BASE, 0);
 	if (ret)
 		return ret;
 
@@ -189,12 +189,12 @@ int mt7603_dma_init(struct mt7603_dev *dev)
 		return ret;
 
 	ret = mt76_init_tx_queue(&dev->mphy, MT_TXQ_BEACON, MT_TX_HW_QUEUE_BCN,
-				 MT_MCU_RING_SIZE, MT_TX_RING_BASE);
+				 MT_MCU_RING_SIZE, MT_TX_RING_BASE, 0);
 	if (ret)
 		return ret;
 
 	ret = mt76_init_tx_queue(&dev->mphy, MT_TXQ_CAB, MT_TX_HW_QUEUE_BMC,
-				 MT_MCU_RING_SIZE, MT_TX_RING_BASE);
+				 MT_MCU_RING_SIZE, MT_TX_RING_BASE, 0);
 	if (ret)
 		return ret;
 
@@ -223,8 +223,8 @@ int mt7603_dma_init(struct mt7603_dev *dev)
 	if (ret)
 		return ret;
 
-	netif_tx_napi_add(&dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
-			  mt7603_poll_tx, NAPI_POLL_WEIGHT);
+	netif_napi_add_tx(&dev->mt76.tx_napi_dev, &dev->mt76.tx_napi,
+			  mt7603_poll_tx);
 	napi_enable(&dev->mt76.tx_napi);
 
 	return 0;

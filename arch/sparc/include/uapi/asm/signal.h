@@ -151,6 +151,7 @@ struct sigstack {
 
 
 #include <asm-generic/signal-defs.h>
+#include <asm/posix_types.h>
 
 #ifndef __KERNEL__
 struct __new_sigaction {
@@ -171,7 +172,7 @@ struct __old_sigaction {
 typedef struct sigaltstack {
 	void			__user *ss_sp;
 	int			ss_flags;
-	size_t			ss_size;
+	__kernel_size_t		ss_size;
 } stack_t;
 
 

@@ -33,6 +33,8 @@
 #include <drm/drm_util.h>
 #include <drm/radeon_drm.h>
 
+#include <acpi/video.h>
+
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_legacy_encoders.h"
@@ -318,8 +320,6 @@ radeon_legacy_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 leve
 	radeon_legacy_lvds_update(&radeon_encoder->base, dpms_mode);
 }
 
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
-
 static uint8_t radeon_legacy_lvds_level(struct backlight_device *bd)
 {
 	struct radeon_backlight_privdata *pdata = bl_get_data(bd);
@@ -388,6 +388,11 @@ void radeon_legacy_backlight_init(struct radeon_encoder *radeon_encoder,
 	    !pmac_has_backlight_type("mnca"))
 		return;
 #endif
+
+	if (!acpi_video_backlight_use_native()) {
+		drm_info(dev, "Skipping radeon legacy LVDS backlight registration\n");
+		return;
+	}
 
 	pdata = kmalloc(sizeof(struct radeon_backlight_privdata), GFP_KERNEL);
 	if (!pdata) {
@@ -487,19 +492,6 @@ static void radeon_legacy_backlight_exit(struct radeon_encoder *radeon_encoder)
 		DRM_INFO("radeon legacy LVDS backlight unloaded\n");
 	}
 }
-
-#else /* !CONFIG_BACKLIGHT_CLASS_DEVICE */
-
-void radeon_legacy_backlight_init(struct radeon_encoder *encoder)
-{
-}
-
-static void radeon_legacy_backlight_exit(struct radeon_encoder *encoder)
-{
-}
-
-#endif
-
 
 static void radeon_lvds_enc_destroy(struct drm_encoder *encoder)
 {

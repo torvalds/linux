@@ -309,7 +309,7 @@ EXT4_ATTR_FEATURE(meta_bg_resize);
 EXT4_ATTR_FEATURE(encryption);
 EXT4_ATTR_FEATURE(test_dummy_encryption_v2);
 #endif
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 EXT4_ATTR_FEATURE(casefold);
 #endif
 #ifdef CONFIG_FS_VERITY
@@ -317,7 +317,7 @@ EXT4_ATTR_FEATURE(verity);
 #endif
 EXT4_ATTR_FEATURE(metadata_csum_seed);
 EXT4_ATTR_FEATURE(fast_commit);
-#if defined(CONFIG_UNICODE) && defined(CONFIG_FS_ENCRYPTION)
+#if IS_ENABLED(CONFIG_UNICODE) && defined(CONFIG_FS_ENCRYPTION)
 EXT4_ATTR_FEATURE(encrypted_casefold);
 #endif
 
@@ -329,7 +329,7 @@ static struct attribute *ext4_feat_attrs[] = {
 	ATTR_LIST(encryption),
 	ATTR_LIST(test_dummy_encryption_v2),
 #endif
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	ATTR_LIST(casefold),
 #endif
 #ifdef CONFIG_FS_VERITY
@@ -337,7 +337,7 @@ static struct attribute *ext4_feat_attrs[] = {
 #endif
 	ATTR_LIST(metadata_csum_seed),
 	ATTR_LIST(fast_commit),
-#if defined(CONFIG_UNICODE) && defined(CONFIG_FS_ENCRYPTION)
+#if IS_ENABLED(CONFIG_UNICODE) && defined(CONFIG_FS_ENCRYPTION)
 	ATTR_LIST(encrypted_casefold),
 #endif
 	NULL,

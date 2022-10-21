@@ -264,7 +264,7 @@ struct max98927_priv {
 	unsigned int ch_size;
 	unsigned int rate;
 	unsigned int iface;
-	unsigned int master;
+	unsigned int provider;
 	unsigned int digital_gain;
 	bool tdm_mode;
 };

@@ -182,4 +182,11 @@
 #define SLAVE_MNOC_SF_MEM_NOC_DISPLAY		3
 #define SLAVE_MNOC_HF_MEM_NOC_DISPLAY		4
 
+#define MASTER_QUP_CORE_0			0
+#define MASTER_QUP_CORE_1			1
+#define MASTER_QUP_CORE_2			2
+#define SLAVE_QUP_CORE_0			3
+#define SLAVE_QUP_CORE_1			4
+#define SLAVE_QUP_CORE_2			5
+
 #endif

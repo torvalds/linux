@@ -52,7 +52,7 @@ CONTENTS
 
      - Varieties of memory barrier.
      - What may not be assumed about memory barriers?
-     - Data dependency barriers (historical).
+     - Address-dependency barriers (historical).
      - Control dependencies.
      - SMP barrier pairing.
      - Examples of memory barrier sequences.
@@ -187,9 +187,9 @@ As a further example, consider this sequence of events:
 	B = 4;		Q = P;
 	P = &B;		D = *Q;
 
-There is an obvious data dependency here, as the value loaded into D depends on
-the address retrieved from P by CPU 2.  At the end of the sequence, any of the
-following results are possible:
+There is an obvious address dependency here, as the value loaded into D depends
+on the address retrieved from P by CPU 2.  At the end of the sequence, any of
+the following results are possible:
 
 	(Q == &A) and (D == 1)
 	(Q == &B) and (D == 2)
@@ -391,58 +391,62 @@ Memory barriers come in four basic varieties:
      memory system as time progresses.  All stores _before_ a write barrier
      will occur _before_ all the stores after the write barrier.
 
-     [!] Note that write barriers should normally be paired with read or data
-     dependency barriers; see the "SMP barrier pairing" subsection.
+     [!] Note that write barriers should normally be paired with read or
+     address-dependency barriers; see the "SMP barrier pairing" subsection.
 
 
- (2) Data dependency barriers.
+ (2) Address-dependency barriers (historical).
 
-     A data dependency barrier is a weaker form of read barrier.  In the case
-     where two loads are performed such that the second depends on the result
-     of the first (eg: the first load retrieves the address to which the second
-     load will be directed), a data dependency barrier would be required to
-     make sure that the target of the second load is updated after the address
-     obtained by the first load is accessed.
+     An address-dependency barrier is a weaker form of read barrier.  In the
+     case where two loads are performed such that the second depends on the
+     result of the first (eg: the first load retrieves the address to which
+     the second load will be directed), an address-dependency barrier would
+     be required to make sure that the target of the second load is updated
+     after the address obtained by the first load is accessed.
 
-     A data dependency barrier is a partial ordering on interdependent loads
-     only; it is not required to have any effect on stores, independent loads
-     or overlapping loads.
+     An address-dependency barrier is a partial ordering on interdependent
+     loads only; it is not required to have any effect on stores, independent
+     loads or overlapping loads.
 
      As mentioned in (1), the other CPUs in the system can be viewed as
      committing sequences of stores to the memory system that the CPU being
-     considered can then perceive.  A data dependency barrier issued by the CPU
-     under consideration guarantees that for any load preceding it, if that
-     load touches one of a sequence of stores from another CPU, then by the
-     time the barrier completes, the effects of all the stores prior to that
-     touched by the load will be perceptible to any loads issued after the data
-     dependency barrier.
+     considered can then perceive.  An address-dependency barrier issued by
+     the CPU under consideration guarantees that for any load preceding it,
+     if that load touches one of a sequence of stores from another CPU, then
+     by the time the barrier completes, the effects of all the stores prior to
+     that touched by the load will be perceptible to any loads issued after
+     the address-dependency barrier.
 
      See the "Examples of memory barrier sequences" subsection for diagrams
      showing the ordering constraints.
 
-     [!] Note that the first load really has to have a _data_ dependency and
+     [!] Note that the first load really has to have an _address_ dependency and
      not a control dependency.  If the address for the second load is dependent
      on the first load, but the dependency is through a conditional rather than
      actually loading the address itself, then it's a _control_ dependency and
      a full read barrier or better is required.  See the "Control dependencies"
      subsection for more information.
 
-     [!] Note that data dependency barriers should normally be paired with
+     [!] Note that address-dependency barriers should normally be paired with
      write barriers; see the "SMP barrier pairing" subsection.
 
+     [!] Kernel release v5.9 removed kernel APIs for explicit address-
+     dependency barriers.  Nowadays, APIs for marking loads from shared
+     variables such as READ_ONCE() and rcu_dereference() provide implicit
+     address-dependency barriers.
 
  (3) Read (or load) memory barriers.
 
-     A read barrier is a data dependency barrier plus a guarantee that all the
-     LOAD operations specified before the barrier will appear to happen before
-     all the LOAD operations specified after the barrier with respect to the
-     other components of the system.
+     A read barrier is an address-dependency barrier plus a guarantee that all
+     the LOAD operations specified before the barrier will appear to happen
+     before all the LOAD operations specified after the barrier with respect to
+     the other components of the system.
 
      A read barrier is a partial ordering on loads only; it is not required to
      have any effect on stores.
 
-     Read memory barriers imply data dependency barriers, and so can substitute
-     for them.
+     Read memory barriers imply address-dependency barriers, and so can
+     substitute for them.
 
      [!] Note that read barriers should normally be paired with write barriers;
      see the "SMP barrier pairing" subsection.
@@ -550,17 +554,21 @@ There are certain things that the Linux kernel memory barriers do not guarantee:
 	    Documentation/core-api/dma-api.rst
 
 
-DATA DEPENDENCY BARRIERS (HISTORICAL)
--------------------------------------
+ADDRESS-DEPENDENCY BARRIERS (HISTORICAL)
+----------------------------------------
 
 As of v4.15 of the Linux kernel, an smp_mb() was added to READ_ONCE() for
 DEC Alpha, which means that about the only people who need to pay attention
 to this section are those working on DEC Alpha architecture-specific code
 and those working on READ_ONCE() itself.  For those who need it, and for
 those who are interested in the history, here is the story of
-data-dependency barriers.
+address-dependency barriers.
 
-The usage requirements of data dependency barriers are a little subtle, and
+[!] While address dependencies are observed in both load-to-load and
+load-to-store relations, address-dependency barriers are not necessary
+for load-to-store situations.
+
+The requirement of address-dependency barriers is a little subtle, and
 it's not always obvious that they're needed.  To illustrate, consider the
 following sequence of events:
 
@@ -570,11 +578,14 @@ following sequence of events:
 	B = 4;
 	<write barrier>
 	WRITE_ONCE(P, &B);
-			      Q = READ_ONCE(P);
+			      Q = READ_ONCE_OLD(P);
 			      D = *Q;
 
-There's a clear data dependency here, and it would seem that by the end of the
-sequence, Q must be either &A or &B, and that:
+[!] READ_ONCE_OLD() corresponds to READ_ONCE() of pre-4.15 kernel, which
+doesn't imply an address-dependency barrier.
+
+There's a clear address dependency here, and it would seem that by the end of
+the sequence, Q must be either &A or &B, and that:
 
 	(Q == &A) implies (D == 1)
 	(Q == &B) implies (D == 4)
@@ -588,8 +599,8 @@ While this may seem like a failure of coherency or causality maintenance, it
 isn't, and this behaviour can be observed on certain real CPUs (such as the DEC
 Alpha).
 
-To deal with this, a data dependency barrier or better must be inserted
-between the address load and the data load:
+To deal with this, READ_ONCE() provides an implicit address-dependency barrier
+since kernel release v4.15:
 
 	CPU 1		      CPU 2
 	===============	      ===============
@@ -598,7 +609,7 @@ between the address load and the data load:
 	<write barrier>
 	WRITE_ONCE(P, &B);
 			      Q = READ_ONCE(P);
-			      <data dependency barrier>
+			      <implicit address-dependency barrier>
 			      D = *Q;
 
 This enforces the occurrence of one of the two implications, and prevents the
@@ -615,13 +626,13 @@ odd-numbered bank is idle, one can see the new value of the pointer P (&B),
 but the old value of the variable B (2).
 
 
-A data-dependency barrier is not required to order dependent writes
-because the CPUs that the Linux kernel supports don't do writes
-until they are certain (1) that the write will actually happen, (2)
-of the location of the write, and (3) of the value to be written.
+An address-dependency barrier is not required to order dependent writes
+because the CPUs that the Linux kernel supports don't do writes until they
+are certain (1) that the write will actually happen, (2) of the location of
+the write, and (3) of the value to be written.
 But please carefully read the "CONTROL DEPENDENCIES" section and the
-Documentation/RCU/rcu_dereference.rst file:  The compiler can and does
-break dependencies in a great many highly creative ways.
+Documentation/RCU/rcu_dereference.rst file:  The compiler can and does break
+dependencies in a great many highly creative ways.
 
 	CPU 1		      CPU 2
 	===============	      ===============
@@ -629,12 +640,12 @@ break dependencies in a great many highly creative ways.
 	B = 4;
 	<write barrier>
 	WRITE_ONCE(P, &B);
-			      Q = READ_ONCE(P);
+			      Q = READ_ONCE_OLD(P);
 			      WRITE_ONCE(*Q, 5);
 
-Therefore, no data-dependency barrier is required to order the read into
+Therefore, no address-dependency barrier is required to order the read into
 Q with the store into *Q.  In other words, this outcome is prohibited,
-even without a data-dependency barrier:
+even without an implicit address-dependency barrier of modern READ_ONCE():
 
 	(Q == &B) && (B == 4)
 
@@ -645,12 +656,12 @@ can be used to record rare error conditions and the like, and the CPUs'
 naturally occurring ordering prevents such records from being lost.
 
 
-Note well that the ordering provided by a data dependency is local to
+Note well that the ordering provided by an address dependency is local to
 the CPU containing it.  See the section on "Multicopy atomicity" for
 more information.
 
 
-The data dependency barrier is very important to the RCU system,
+The address-dependency barrier is very important to the RCU system,
 for example.  See rcu_assign_pointer() and rcu_dereference() in
 include/linux/rcupdate.h.  This permits the current target of an RCU'd
 pointer to be replaced with a new modified target, without the replacement
@@ -667,20 +678,21 @@ not understand them.  The purpose of this section is to help you prevent
 the compiler's ignorance from breaking your code.
 
 A load-load control dependency requires a full read memory barrier, not
-simply a data dependency barrier to make it work correctly.  Consider the
-following bit of code:
+simply an (implicit) address-dependency barrier to make it work correctly.
+Consider the following bit of code:
 
 	q = READ_ONCE(a);
+	<implicit address-dependency barrier>
 	if (q) {
-		<data dependency barrier>  /* BUG: No data dependency!!! */
+		/* BUG: No address dependency!!! */
 		p = READ_ONCE(b);
 	}
 
-This will not have the desired effect because there is no actual data
+This will not have the desired effect because there is no actual address
 dependency, but rather a control dependency that the CPU may short-circuit
 by attempting to predict the outcome in advance, so that other CPUs see
-the load from b as having happened before the load from a.  In such a
-case what's actually required is:
+the load from b as having happened before the load from a.  In such a case
+what's actually required is:
 
 	q = READ_ONCE(a);
 	if (q) {
@@ -927,9 +939,9 @@ General barriers pair with each other, though they also pair with most
 other types of barriers, albeit without multicopy atomicity.  An acquire
 barrier pairs with a release barrier, but both may also pair with other
 barriers, including of course general barriers.  A write barrier pairs
-with a data dependency barrier, a control dependency, an acquire barrier,
+with an address-dependency barrier, a control dependency, an acquire barrier,
 a release barrier, a read barrier, or a general barrier.  Similarly a
-read barrier, control dependency, or a data dependency barrier pairs
+read barrier, control dependency, or an address-dependency barrier pairs
 with a write barrier, an acquire barrier, a release barrier, or a
 general barrier:
 
@@ -948,7 +960,7 @@ Or:
 	a = 1;
 	<write barrier>
 	WRITE_ONCE(b, &a);    x = READ_ONCE(b);
-			      <data dependency barrier>
+			      <implicit address-dependency barrier>
 			      y = *x;
 
 Or even:
@@ -968,8 +980,8 @@ Basically, the read barrier always has to be there, even though it can be of
 the "weaker" type.
 
 [!] Note that the stores before the write barrier would normally be expected to
-match the loads after the read barrier or the data dependency barrier, and vice
-versa:
+match the loads after the read barrier or the address-dependency barrier, and
+vice versa:
 
 	CPU 1                               CPU 2
 	===================                 ===================
@@ -1021,8 +1033,8 @@ STORE B, STORE C } all occurring before the unordered set of { STORE D, STORE E
 	                   V
 
 
-Secondly, data dependency barriers act as partial orderings on data-dependent
-loads.  Consider the following sequence of events:
+Secondly, address-dependency barriers act as partial orderings on address-
+dependent loads.  Consider the following sequence of events:
 
 	CPU 1			CPU 2
 	=======================	=======================
@@ -1067,8 +1079,8 @@ effectively random order, despite the write barrier issued by CPU 1:
 In the above example, CPU 2 perceives that B is 7, despite the load of *C
 (which would be B) coming after the LOAD of C.
 
-If, however, a data dependency barrier were to be placed between the load of C
-and the load of *C (ie: B) on CPU 2:
+If, however, an address-dependency barrier were to be placed between the load
+of C and the load of *C (ie: B) on CPU 2:
 
 	CPU 1			CPU 2
 	=======================	=======================
@@ -1078,7 +1090,7 @@ and the load of *C (ie: B) on CPU 2:
 	<write barrier>
 	STORE C = &B		LOAD X
 	STORE D = 4		LOAD C (gets &B)
-				<data dependency barrier>
+				<address-dependency barrier>
 				LOAD *C (reads B)
 
 then the following will occur:
@@ -1101,7 +1113,7 @@ then the following will occur:
 	                               |        +-------+       |       |
 	                               |        | X->9  |------>|       |
 	                               |        +-------+       |       |
-	  Makes sure all effects --->   \   ddddddddddddddddd   |       |
+	  Makes sure all effects --->   \   aaaaaaaaaaaaaaaaa   |       |
 	  prior to the store of C        \      +-------+       |       |
 	  are perceptible to              ----->| B->2  |------>|       |
 	  subsequent loads                      +-------+       |       |
@@ -1292,7 +1304,7 @@ Which might appear as this:
 	LOAD with immediate effect              :       :       +-------+
 
 
-Placing a read barrier or a data dependency barrier just before the second
+Placing a read barrier or an address-dependency barrier just before the second
 load:
 
 	CPU 1			CPU 2
@@ -1816,20 +1828,20 @@ which may then reorder things however it wishes.
 CPU MEMORY BARRIERS
 -------------------
 
-The Linux kernel has eight basic CPU memory barriers:
+The Linux kernel has seven basic CPU memory barriers:
 
-	TYPE		MANDATORY		SMP CONDITIONAL
-	===============	=======================	===========================
-	GENERAL		mb()			smp_mb()
-	WRITE		wmb()			smp_wmb()
-	READ		rmb()			smp_rmb()
-	DATA DEPENDENCY				READ_ONCE()
+	TYPE			MANDATORY	SMP CONDITIONAL
+	=======================	===============	===============
+	GENERAL			mb()		smp_mb()
+	WRITE			wmb()		smp_wmb()
+	READ			rmb()		smp_rmb()
+	ADDRESS DEPENDENCY			READ_ONCE()
 
 
-All memory barriers except the data dependency barriers imply a compiler
-barrier.  Data dependencies do not impose any additional compiler ordering.
+All memory barriers except the address-dependency barriers imply a compiler
+barrier.  Address dependencies do not impose any additional compiler ordering.
 
-Aside: In the case of data dependencies, the compiler would be expected
+Aside: In the case of address dependencies, the compiler would be expected
 to issue the loads in the correct order (eg. `a[b]` would have to load
 the value of b before loading a[b]), however there is no guarantee in
 the C specification that the compiler may not speculate the value of b
@@ -1894,6 +1906,7 @@ There are some more advanced barrier functions:
 
  (*) dma_wmb();
  (*) dma_rmb();
+ (*) dma_mb();
 
      These are for use with consistent memory to guarantee the ordering
      of writes or reads of shared memory accessible to both the CPU and a
@@ -1925,11 +1938,11 @@ There are some more advanced barrier functions:
      The dma_rmb() allows us guarantee the device has released ownership
      before we read the data from the descriptor, and the dma_wmb() allows
      us to guarantee the data is written to the descriptor before the device
-     can see it now has ownership.  Note that, when using writel(), a prior
-     wmb() is not needed to guarantee that the cache coherent memory writes
-     have completed before writing to the MMIO region.  The cheaper
-     writel_relaxed() does not provide this guarantee and must not be used
-     here.
+     can see it now has ownership.  The dma_mb() implies both a dma_rmb() and
+     a dma_wmb().  Note that, when using writel(), a prior wmb() is not needed
+     to guarantee that the cache coherent memory writes have completed before
+     writing to the MMIO region.  The cheaper writel_relaxed() does not provide
+     this guarantee and must not be used here.
 
      See the subsection "Kernel I/O barrier effects" for more information on
      relaxed I/O accessors and the Documentation/core-api/dma-api.rst file for
@@ -2748,7 +2761,8 @@ is discarded from the CPU's cache and reloaded.  To deal with this, the
 appropriate part of the kernel must invalidate the overlapping bits of the
 cache on each CPU.
 
-See Documentation/core-api/cachetlb.rst for more information on cache management.
+See Documentation/core-api/cachetlb.rst for more information on cache
+management.
 
 
 CACHE COHERENCY VS MMIO
@@ -2888,8 +2902,8 @@ AND THEN THERE'S THE ALPHA
 The DEC Alpha CPU is one of the most relaxed CPUs there is.  Not only that,
 some versions of the Alpha CPU have a split data cache, permitting them to have
 two semantically-related cache lines updated at separate times.  This is where
-the data dependency barrier really becomes necessary as this synchronises both
-caches with the memory coherence system, thus making it seem like pointer
+the address-dependency barrier really becomes necessary as this synchronises
+both caches with the memory coherence system, thus making it seem like pointer
 changes vs new data occur in the right order.
 
 The Alpha defines the Linux kernel's memory model, although as of v4.15

@@ -79,11 +79,11 @@ static int str(yyscan_t scanner, int token, int runtime)
 	return token;
 }
 
-static int literal(yyscan_t scanner)
+static int literal(yyscan_t scanner, const struct expr_scanner_ctx *sctx)
 {
 	YYSTYPE *yylval = expr_get_lval(scanner);
 
-	yylval->num = expr__get_literal(expr_get_text(scanner));
+	yylval->num = expr__get_literal(expr_get_text(scanner), sctx);
 	if (isnan(yylval->num))
 		return EXPR_ERROR;
 
@@ -91,7 +91,7 @@ static int literal(yyscan_t scanner)
 }
 %}
 
-number		([0-9]+\.?[0-9]*|[0-9]*\.?[0-9]+)
+number		([0-9]+\.?[0-9]*|[0-9]*\.?[0-9]+)(e-?[0-9]+)?
 
 sch		[-,=]
 spec		\\{sch}
@@ -108,7 +108,7 @@ min		{ return MIN; }
 if		{ return IF; }
 else		{ return ELSE; }
 source_count	{ return SOURCE_COUNT; }
-{literal}	{ return literal(yyscanner); }
+{literal}	{ return literal(yyscanner, sctx); }
 {number}	{ return value(yyscanner); }
 {symbol}	{ return str(yyscanner, ID, sctx->runtime); }
 "|"		{ return '|'; }

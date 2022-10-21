@@ -18,6 +18,7 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_prime.h>
 #include <drm/drm_vblank.h>
@@ -1380,6 +1381,7 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra194-sor", },
 	{ .compatible = "nvidia,tegra194-vic", },
 	{ .compatible = "nvidia,tegra194-nvdec", },
+	{ .compatible = "nvidia,tegra234-vic", },
 	{ /* sentinel */ }
 };
 
@@ -1409,6 +1411,9 @@ static struct platform_driver * const drivers[] = {
 static int __init host1x_drm_init(void)
 {
 	int err;
+
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
 
 	err = host1x_driver_register(&host1x_drm_driver);
 	if (err < 0)

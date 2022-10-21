@@ -4,19 +4,14 @@
  *
  * Authors: Jérôme Glisse <jglisse@redhat.com>
  *
- * See Documentation/vm/hmm.rst for reasons and overview of what HMM is.
+ * See Documentation/mm/hmm.rst for reasons and overview of what HMM is.
  */
 #ifndef LINUX_HMM_H
 #define LINUX_HMM_H
 
-#include <linux/kconfig.h>
-#include <linux/pgtable.h>
+#include <linux/mm.h>
 
-#include <linux/device.h>
-#include <linux/migrate.h>
-#include <linux/memremap.h>
-#include <linux/completion.h>
-#include <linux/mmu_notifier.h>
+struct mmu_interval_notifier;
 
 /*
  * On output:
@@ -105,7 +100,7 @@ struct hmm_range {
 };
 
 /*
- * Please see Documentation/vm/hmm.rst for how to use the range API.
+ * Please see Documentation/mm/hmm.rst for how to use the range API.
  */
 int hmm_range_fault(struct hmm_range *range);
 

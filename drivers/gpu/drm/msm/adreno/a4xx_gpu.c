@@ -62,7 +62,7 @@ static void a4xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit)
 
 	/* BIT(31) of CACHE_FLUSH_TS triggers CACHE_FLUSH_TS IRQ from GPU */
 	OUT_PKT3(ring, CP_EVENT_WRITE, 3);
-	OUT_RING(ring, CACHE_FLUSH_TS | BIT(31));
+	OUT_RING(ring, CACHE_FLUSH_TS | CP_EVENT_WRITE_0_IRQ);
 	OUT_RING(ring, rbmemptr(ring, fence));
 	OUT_RING(ring, submit->seqno);
 
@@ -621,6 +621,7 @@ static u32 a4xx_get_rptr(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 static const struct adreno_gpu_funcs funcs = {
 	.base = {
 		.get_param = adreno_get_param,
+		.set_param = adreno_set_param,
 		.hw_init = a4xx_hw_init,
 		.pm_suspend = a4xx_pm_suspend,
 		.pm_resume = a4xx_pm_resume,

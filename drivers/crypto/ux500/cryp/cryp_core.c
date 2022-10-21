@@ -1264,7 +1264,7 @@ static int ux500_cryp_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 
 	dev_dbg(dev, "[%s]", __func__);
-	device_data = devm_kzalloc(dev, sizeof(*device_data), GFP_ATOMIC);
+	device_data = devm_kzalloc(dev, sizeof(*device_data), GFP_KERNEL);
 	if (!device_data) {
 		ret = -ENOMEM;
 		goto out;

@@ -589,11 +589,11 @@ static const struct iio_info atlas_info = {
 };
 
 static const struct i2c_device_id atlas_id[] = {
-	{ "atlas-ph-sm", ATLAS_PH_SM},
-	{ "atlas-ec-sm", ATLAS_EC_SM},
-	{ "atlas-orp-sm", ATLAS_ORP_SM},
-	{ "atlas-do-sm", ATLAS_DO_SM},
-	{ "atlas-rtd-sm", ATLAS_RTD_SM},
+	{ "atlas-ph-sm", ATLAS_PH_SM },
+	{ "atlas-ec-sm", ATLAS_EC_SM },
+	{ "atlas-orp-sm", ATLAS_ORP_SM },
+	{ "atlas-do-sm", ATLAS_DO_SM },
+	{ "atlas-rtd-sm", ATLAS_RTD_SM },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, atlas_id);
@@ -722,10 +722,11 @@ unregister_trigger:
 	return ret;
 }
 
-static int atlas_remove(struct i2c_client *client)
+static void atlas_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct atlas_data *data = iio_priv(indio_dev);
+	int ret;
 
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
@@ -734,10 +735,12 @@ static int atlas_remove(struct i2c_client *client)
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 
-	return atlas_set_powermode(data, 0);
+	ret = atlas_set_powermode(data, 0);
+	if (ret)
+		dev_err(&client->dev, "Failed to power down device (%pe)\n",
+			ERR_PTR(ret));
 }
 
-#ifdef CONFIG_PM
 static int atlas_runtime_suspend(struct device *dev)
 {
 	struct atlas_data *data =
@@ -753,18 +756,16 @@ static int atlas_runtime_resume(struct device *dev)
 
 	return atlas_set_powermode(data, 1);
 }
-#endif
 
 static const struct dev_pm_ops atlas_pm_ops = {
-	SET_RUNTIME_PM_OPS(atlas_runtime_suspend,
-			   atlas_runtime_resume, NULL)
+	RUNTIME_PM_OPS(atlas_runtime_suspend, atlas_runtime_resume, NULL)
 };
 
 static struct i2c_driver atlas_driver = {
 	.driver = {
 		.name	= ATLAS_DRV_NAME,
 		.of_match_table	= atlas_dt_ids,
-		.pm	= &atlas_pm_ops,
+		.pm	= pm_ptr(&atlas_pm_ops),
 	},
 	.probe		= atlas_probe,
 	.remove		= atlas_remove,

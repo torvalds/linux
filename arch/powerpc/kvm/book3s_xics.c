@@ -462,7 +462,7 @@ static void icp_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 	 * new guy. We cannot assume that the rejected interrupt is less
 	 * favored than the new one, and thus doesn't need to be delivered,
 	 * because by the time we exit icp_try_to_deliver() the target
-	 * processor may well have alrady consumed & completed it, and thus
+	 * processor may well have already consumed & completed it, and thus
 	 * the rejected interrupt might actually be already acceptable.
 	 */
 	if (icp_try_to_deliver(icp, new_irq, state->priority, &reject)) {
@@ -1016,19 +1016,10 @@ DEFINE_SHOW_ATTRIBUTE(xics_debug);
 
 static void xics_debugfs_init(struct kvmppc_xics *xics)
 {
-	char *name;
-
-	name = kasprintf(GFP_KERNEL, "kvm-xics-%p", xics);
-	if (!name) {
-		pr_err("%s: no memory for name\n", __func__);
-		return;
-	}
-
-	xics->dentry = debugfs_create_file(name, 0444, arch_debugfs_dir,
+	xics->dentry = debugfs_create_file("xics", 0444, xics->kvm->debugfs_dentry,
 					   xics, &xics_debug_fops);
 
-	pr_debug("%s: created %s\n", __func__, name);
-	kfree(name);
+	pr_debug("%s: created\n", __func__);
 }
 
 static struct kvmppc_ics *kvmppc_xics_create_ics(struct kvm *kvm,
@@ -1440,7 +1431,7 @@ static int kvmppc_xics_create(struct kvm_device *dev, u32 type)
 
 static void kvmppc_xics_init(struct kvm_device *dev)
 {
-	struct kvmppc_xics *xics = (struct kvmppc_xics *)dev->private;
+	struct kvmppc_xics *xics = dev->private;
 
 	xics_debugfs_init(xics);
 }

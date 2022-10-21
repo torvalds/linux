@@ -11,6 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
@@ -21,9 +22,11 @@
 #include <linux/regmap.h>
 #include <linux/sys_soc.h>
 
+#include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_panel.h>
 
 #include "tidss_crtc.h"
@@ -1951,16 +1954,16 @@ int dispc_plane_check(struct dispc_device *dispc, u32 hw_plane,
 }
 
 static
-dma_addr_t dispc_plane_state_paddr(const struct drm_plane_state *state)
+dma_addr_t dispc_plane_state_dma_addr(const struct drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_cma_object *gem;
+	struct drm_gem_dma_object *gem;
 	u32 x = state->src_x >> 16;
 	u32 y = state->src_y >> 16;
 
-	gem = drm_fb_cma_get_gem_obj(state->fb, 0);
+	gem = drm_fb_dma_get_gem_obj(state->fb, 0);
 
-	return gem->paddr + fb->offsets[0] + x * fb->format->cpp[0] +
+	return gem->dma_addr + fb->offsets[0] + x * fb->format->cpp[0] +
 		y * fb->pitches[0];
 }
 
@@ -1968,16 +1971,16 @@ static
 dma_addr_t dispc_plane_state_p_uv_addr(const struct drm_plane_state *state)
 {
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_cma_object *gem;
+	struct drm_gem_dma_object *gem;
 	u32 x = state->src_x >> 16;
 	u32 y = state->src_y >> 16;
 
 	if (WARN_ON(state->fb->format->num_planes != 2))
 		return 0;
 
-	gem = drm_fb_cma_get_gem_obj(fb, 1);
+	gem = drm_fb_dma_get_gem_obj(fb, 1);
 
-	return gem->paddr + fb->offsets[1] +
+	return gem->dma_addr + fb->offsets[1] +
 		(x * fb->format->cpp[1] / fb->format->hsub) +
 		(y * fb->pitches[1] / fb->format->vsub);
 }
@@ -1990,17 +1993,17 @@ int dispc_plane_setup(struct dispc_device *dispc, u32 hw_plane,
 	u32 fourcc = state->fb->format->format;
 	u16 cpp = state->fb->format->cpp[0];
 	u32 fb_width = state->fb->pitches[0] / cpp;
-	dma_addr_t paddr = dispc_plane_state_paddr(state);
+	dma_addr_t dma_addr = dispc_plane_state_dma_addr(state);
 	struct dispc_scaling_params scale;
 
 	dispc_vid_calc_scaling(dispc, state, &scale, lite);
 
 	dispc_plane_set_pixel_format(dispc, hw_plane, fourcc);
 
-	dispc_vid_write(dispc, hw_plane, DISPC_VID_BA_0, paddr & 0xffffffff);
-	dispc_vid_write(dispc, hw_plane, DISPC_VID_BA_EXT_0, (u64)paddr >> 32);
-	dispc_vid_write(dispc, hw_plane, DISPC_VID_BA_1, paddr & 0xffffffff);
-	dispc_vid_write(dispc, hw_plane, DISPC_VID_BA_EXT_1, (u64)paddr >> 32);
+	dispc_vid_write(dispc, hw_plane, DISPC_VID_BA_0, dma_addr & 0xffffffff);
+	dispc_vid_write(dispc, hw_plane, DISPC_VID_BA_EXT_0, (u64)dma_addr >> 32);
+	dispc_vid_write(dispc, hw_plane, DISPC_VID_BA_1, dma_addr & 0xffffffff);
+	dispc_vid_write(dispc, hw_plane, DISPC_VID_BA_EXT_1, (u64)dma_addr >> 32);
 
 	dispc_vid_write(dispc, hw_plane, DISPC_VID_PICTURE_SIZE,
 			(scale.in_w - 1) | ((scale.in_h - 1) << 16));
@@ -2650,6 +2653,20 @@ static void dispc_init_errata(struct dispc_device *dispc)
 	}
 }
 
+static void dispc_softreset(struct dispc_device *dispc)
+{
+	u32 val;
+	int ret = 0;
+
+	/* Soft reset */
+	REG_FLD_MOD(dispc, DSS_SYSCONFIG, 1, 1, 1);
+	/* Wait for reset to complete */
+	ret = readl_poll_timeout(dispc->base_common + DSS_SYSSTATUS,
+				 val, val & 1, 100, 5000);
+	if (ret)
+		dev_warn(dispc->dev, "failed to reset dispc\n");
+}
+
 int dispc_init(struct tidss_device *tidss)
 {
 	struct device *dev = tidss->dev;
@@ -2708,6 +2725,10 @@ int dispc_init(struct tidss_device *tidss)
 		if (r)
 			return r;
 	}
+
+	/* K2G display controller does not support soft reset */
+	if (feat->subrev != DISPC_K2G)
+		dispc_softreset(dispc);
 
 	for (i = 0; i < dispc->feat->num_vps; i++) {
 		u32 gamma_size = dispc->feat->vp_feat.color.gamma_size;

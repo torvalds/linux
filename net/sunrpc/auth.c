@@ -445,7 +445,7 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 		 * Enforce a 60 second garbage collection moratorium
 		 * Note that the cred_unused list must be time-ordered.
 		 */
-		if (!time_in_range(cred->cr_expire, expired, jiffies))
+		if (time_in_range(cred->cr_expire, expired, jiffies))
 			continue;
 		if (!rpcauth_unhash_cred(cred))
 			continue;
@@ -615,6 +615,8 @@ rpcauth_bind_root_cred(struct rpc_task *task, int lookupflags)
 	};
 	struct rpc_cred *ret;
 
+	if (RPC_IS_ASYNC(task))
+		lookupflags |= RPCAUTH_LOOKUP_ASYNC;
 	ret = auth->au_ops->lookup_cred(auth, &acred, lookupflags);
 	put_cred(acred.cred);
 	return ret;
@@ -631,6 +633,8 @@ rpcauth_bind_machine_cred(struct rpc_task *task, int lookupflags)
 
 	if (!acred.principal)
 		return NULL;
+	if (RPC_IS_ASYNC(task))
+		lookupflags |= RPCAUTH_LOOKUP_ASYNC;
 	return auth->au_ops->lookup_cred(auth, &acred, lookupflags);
 }
 
@@ -654,7 +658,7 @@ rpcauth_bindcred(struct rpc_task *task, const struct cred *cred, int flags)
 	};
 
 	if (flags & RPC_TASK_ASYNC)
-		lookupflags |= RPCAUTH_LOOKUP_NEW;
+		lookupflags |= RPCAUTH_LOOKUP_NEW | RPCAUTH_LOOKUP_ASYNC;
 	if (task->tk_op_cred)
 		/* Task must use exactly this rpc_cred */
 		new = get_rpccred(task->tk_op_cred);
@@ -666,7 +670,7 @@ rpcauth_bindcred(struct rpc_task *task, const struct cred *cred, int flags)
 	/* If machine cred couldn't be bound, try a root cred */
 	if (new)
 		;
-	else if (cred == &machine_cred || (flags & RPC_TASK_ROOTCREDS))
+	else if (cred == &machine_cred)
 		new = rpcauth_bind_root_cred(task, lookupflags);
 	else if (flags & RPC_TASK_NULLCREDS)
 		new = authnull_ops.lookup_cred(NULL, NULL, 0);
@@ -870,7 +874,7 @@ int __init rpcauth_init_module(void)
 	err = rpc_init_authunix();
 	if (err < 0)
 		goto out1;
-	err = register_shrinker(&rpc_cred_shrinker);
+	err = register_shrinker(&rpc_cred_shrinker, "sunrpc_cred");
 	if (err < 0)
 		goto out2;
 	return 0;

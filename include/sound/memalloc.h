@@ -26,9 +26,6 @@ struct snd_dma_device {
 	struct device *dev;		/* generic device */
 };
 
-#define snd_dma_continuous_data(x)	((struct device *)(__force unsigned long)(x))
-
-
 /*
  * buffer types
  */
@@ -50,6 +47,11 @@ struct snd_dma_device {
 #else
 #define SNDRV_DMA_TYPE_DEV_SG	SNDRV_DMA_TYPE_DEV /* no SG-buf support */
 #define SNDRV_DMA_TYPE_DEV_WC_SG	SNDRV_DMA_TYPE_DEV_WC
+#endif
+/* fallback types, don't use those directly */
+#ifdef CONFIG_SND_DMA_SGBUF
+#define SNDRV_DMA_TYPE_DEV_SG_FALLBACK		10
+#define SNDRV_DMA_TYPE_DEV_WC_SG_FALLBACK	11
 #endif
 
 /*

@@ -17,10 +17,9 @@
 #include <linux/iio/driver.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 
@@ -122,11 +121,6 @@ static void lpc18xx_clear_cr_reg(void *data)
 	writel(0, adc->base + LPC18XX_ADC_CR);
 }
 
-static void lpc18xx_clk_disable(void *clk)
-{
-	clk_disable_unprepare(clk);
-}
-
 static void lpc18xx_regulator_disable(void *vref)
 {
 	regulator_disable(vref);
@@ -152,7 +146,7 @@ static int lpc18xx_adc_probe(struct platform_device *pdev)
 	if (IS_ERR(adc->base))
 		return PTR_ERR(adc->base);
 
-	adc->clk = devm_clk_get(&pdev->dev, NULL);
+	adc->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(adc->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(adc->clk),
 				     "error getting clock\n");
@@ -175,17 +169,6 @@ static int lpc18xx_adc_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_add_action_or_reset(&pdev->dev, lpc18xx_regulator_disable, adc->vref);
-	if (ret)
-		return ret;
-
-	ret = clk_prepare_enable(adc->clk);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to enable clock\n");
-		return ret;
-	}
-
-	ret = devm_add_action_or_reset(&pdev->dev, lpc18xx_clk_disable,
-				       adc->clk);
 	if (ret)
 		return ret;
 

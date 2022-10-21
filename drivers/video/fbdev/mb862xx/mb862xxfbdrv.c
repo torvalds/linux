@@ -10,6 +10,7 @@
 
 #undef DEBUG
 
+#include <linux/aperture.h>
 #include <linux/fb.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
@@ -18,6 +19,8 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #if defined(CONFIG_OF)
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #endif
 #include "mb862xxfb.h"
@@ -690,7 +693,7 @@ static int of_platform_mb862xx_probe(struct platform_device *ofdev)
 	par->dev = dev;
 
 	par->irq = irq_of_parse_and_map(np, 0);
-	if (par->irq == NO_IRQ) {
+	if (!par->irq) {
 		dev_err(dev, "failed to map irq\n");
 		ret = -ENODEV;
 		goto fbrel;
@@ -996,6 +999,10 @@ static int mb862xx_pci_probe(struct pci_dev *pdev,
 	struct fb_info *info;
 	struct device *dev = &pdev->dev;
 	int ret;
+
+	ret = aperture_remove_conflicting_pci_devices(pdev, "mb862xxfb");
+	if (ret)
+		return ret;
 
 	ret = pci_enable_device(pdev);
 	if (ret < 0) {

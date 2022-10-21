@@ -116,8 +116,7 @@ static enum blk_eh_timer_return mmc_cqe_timed_out(struct request *req)
 	}
 }
 
-static enum blk_eh_timer_return mmc_mq_timed_out(struct request *req,
-						 bool reserved)
+static enum blk_eh_timer_return mmc_mq_timed_out(struct request *req)
 {
 	struct request_queue *q = req->q;
 	struct mmc_queue *mq = q->queuedata;
@@ -183,14 +182,15 @@ static void mmc_queue_setup_discard(struct request_queue *q,
 	if (!max_discard)
 		return;
 
-	blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
 	blk_queue_max_discard_sectors(q, max_discard);
 	q->limits.discard_granularity = card->pref_erase << 9;
 	/* granularity must not be greater than max. discard */
 	if (card->pref_erase > max_discard)
 		q->limits.discard_granularity = SECTOR_SIZE;
 	if (mmc_can_secure_erase_trim(card))
-		blk_queue_flag_set(QUEUE_FLAG_SECERASE, q);
+		blk_queue_max_secure_erase_sectors(q, max_discard);
+	if (mmc_can_trim(card) && card->erased_byte == 0)
+		blk_queue_max_write_zeroes_sectors(q, max_discard);
 }
 
 static unsigned short mmc_get_max_segments(struct mmc_host *host)
@@ -493,7 +493,6 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 	if (blk_queue_quiesced(q))
 		blk_mq_unquiesce_queue(q);
 
-	blk_cleanup_queue(q);
 	blk_mq_free_tag_set(&mq->tag_set);
 
 	/*

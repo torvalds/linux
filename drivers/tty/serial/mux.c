@@ -289,7 +289,7 @@ static void mux_shutdown(struct uart_port *port)
  */
 static void
 mux_set_termios(struct uart_port *port, struct ktermios *termios,
-	        struct ktermios *old)
+	        const struct ktermios *old)
 {
 }
 
@@ -481,12 +481,6 @@ static int __init mux_probe(struct parisc_device *dev)
 		port->line	= port_cnt;
 		port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_MUX_CONSOLE);
 
-		/* The port->timeout needs to match what is present in
-		 * uart_wait_until_sent in serial_core.c.  Otherwise
-		 * the time spent in msleep_interruptable will be very
-		 * long, causing the appearance of a console hang.
-		 */
-		port->timeout   = HZ / 50;
 		spin_lock_init(&port->lock);
 
 		status = uart_add_one_port(&mux_driver, port);

@@ -2,8 +2,8 @@
 # Copyright (C) 2021 Sebastian Reichel
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/power/supply/stericsson,ab8500-chargalg.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/power/supply/stericsson,ab8500-chargalg.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: AB8500 Charging Algorithm
 

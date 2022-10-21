@@ -310,7 +310,7 @@ static int tsl2563_get_adc(struct tsl2563_chip *chip)
 		goto out;
 
 	if (!chip->int_enabled) {
-		cancel_delayed_work(&chip->poweroff_work);
+		cancel_delayed_work_sync(&chip->poweroff_work);
 
 		if (!tsl2563_get_power(chip)) {
 			ret = tsl2563_set_power(chip, 1);
@@ -638,7 +638,7 @@ static int tsl2563_write_interrupt_config(struct iio_dev *indio_dev,
 		chip->intr &= ~0x30;
 		chip->intr |= 0x10;
 		/* ensure the chip is actually on */
-		cancel_delayed_work(&chip->poweroff_work);
+		cancel_delayed_work_sync(&chip->poweroff_work);
 		if (!tsl2563_get_power(chip)) {
 			ret = tsl2563_set_power(chip, 1);
 			if (ret)
@@ -796,25 +796,21 @@ fail:
 	return err;
 }
 
-static int tsl2563_remove(struct i2c_client *client)
+static void tsl2563_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	if (!chip->int_enabled)
-		cancel_delayed_work(&chip->poweroff_work);
+		cancel_delayed_work_sync(&chip->poweroff_work);
 	/* Ensure that interrupts are disabled - then flush any bottom halves */
 	chip->intr &= ~0x30;
 	i2c_smbus_write_byte_data(chip->client, TSL2563_CMD | TSL2563_REG_INT,
 				  chip->intr);
-	flush_scheduled_work();
 	tsl2563_set_power(chip, 0);
-
-	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int tsl2563_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
@@ -857,11 +853,8 @@ out:
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(tsl2563_pm_ops, tsl2563_suspend, tsl2563_resume);
-#define TSL2563_PM_OPS (&tsl2563_pm_ops)
-#else
-#define TSL2563_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(tsl2563_pm_ops, tsl2563_suspend,
+				tsl2563_resume);
 
 static const struct i2c_device_id tsl2563_id[] = {
 	{ "tsl2560", 0 },
@@ -885,7 +878,7 @@ static struct i2c_driver tsl2563_i2c_driver = {
 	.driver = {
 		.name	 = "tsl2563",
 		.of_match_table = tsl2563_of_match,
-		.pm	= TSL2563_PM_OPS,
+		.pm	= pm_sleep_ptr(&tsl2563_pm_ops),
 	},
 	.probe		= tsl2563_probe,
 	.remove		= tsl2563_remove,

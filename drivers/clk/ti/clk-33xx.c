@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AM33XX Clock init
  *
  * Copyright (C) 2013 Texas Instruments, Inc
  *     Tero Kristo (t-kristo@ti.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -279,10 +271,7 @@ int __init am33xx_dt_clk_init(void)
 {
 	struct clk *clk1, *clk2;
 
-	if (ti_clk_get_features()->flags & TI_CLK_CLKCTRL_COMPAT)
-		ti_dt_clocks_register(am33xx_compat_clks);
-	else
-		ti_dt_clocks_register(am33xx_clks);
+	ti_dt_clocks_register(am33xx_clks);
 
 	omap2_clk_disable_autoidle_all();
 

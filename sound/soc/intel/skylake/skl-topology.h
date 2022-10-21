@@ -164,7 +164,7 @@ struct skl_base_cfg_ext {
 	u8 reserved[8];
 	u32 priv_param_length;
 	/* Input pin formats followed by output ones. */
-	struct skl_pin_format pins_fmt[0];
+	struct skl_pin_format pins_fmt[];
 } __packed;
 
 struct skl_algo_cfg {
@@ -233,8 +233,8 @@ struct skl_uuid_inst_map {
 struct skl_kpb_params {
 	u32 num_modules;
 	union {
-		struct skl_mod_inst_map map[0];
-		struct skl_uuid_inst_map map_uuid[0];
+		DECLARE_FLEX_ARRAY(struct skl_mod_inst_map, map);
+		DECLARE_FLEX_ARRAY(struct skl_uuid_inst_map, map_uuid);
 	} u;
 };
 

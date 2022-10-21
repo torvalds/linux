@@ -1008,6 +1008,7 @@ xfs_rtfree_extent(
 /* Find all the free records within a given range. */
 int
 xfs_rtalloc_query_range(
+	struct xfs_mount		*mp,
 	struct xfs_trans		*tp,
 	const struct xfs_rtalloc_rec	*low_rec,
 	const struct xfs_rtalloc_rec	*high_rec,
@@ -1015,7 +1016,6 @@ xfs_rtalloc_query_range(
 	void				*priv)
 {
 	struct xfs_rtalloc_rec		rec;
-	struct xfs_mount		*mp = tp->t_mountp;
 	xfs_rtblock_t			rtstart;
 	xfs_rtblock_t			rtend;
 	xfs_rtblock_t			high_key;
@@ -1048,7 +1048,7 @@ xfs_rtalloc_query_range(
 			rec.ar_startext = rtstart;
 			rec.ar_extcount = rtend - rtstart + 1;
 
-			error = fn(tp, &rec, priv);
+			error = fn(mp, tp, &rec, priv);
 			if (error)
 				break;
 		}
@@ -1062,6 +1062,7 @@ xfs_rtalloc_query_range(
 /* Find all the free records. */
 int
 xfs_rtalloc_query_all(
+	struct xfs_mount		*mp,
 	struct xfs_trans		*tp,
 	xfs_rtalloc_query_range_fn	fn,
 	void				*priv)
@@ -1069,10 +1070,10 @@ xfs_rtalloc_query_all(
 	struct xfs_rtalloc_rec		keys[2];
 
 	keys[0].ar_startext = 0;
-	keys[1].ar_startext = tp->t_mountp->m_sb.sb_rextents - 1;
+	keys[1].ar_startext = mp->m_sb.sb_rextents - 1;
 	keys[0].ar_extcount = keys[1].ar_extcount = 0;
 
-	return xfs_rtalloc_query_range(tp, &keys[0], &keys[1], fn, priv);
+	return xfs_rtalloc_query_range(mp, tp, &keys[0], &keys[1], fn, priv);
 }
 
 /* Is the given extent all free? */

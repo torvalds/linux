@@ -21,7 +21,7 @@ void pnic_do_nway(struct net_device *dev)
 	struct tulip_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->base_addr;
 	u32 phy_reg = ioread32(ioaddr + 0xB8);
-	u32 new_csr6 = tp->csr6 & ~0x40C40200;
+	u32 new_csr6;
 
 	if (phy_reg & 0x78000000) { /* Ignore baseT4 */
 		if (phy_reg & 0x20000000)		dev->if_port = 5;

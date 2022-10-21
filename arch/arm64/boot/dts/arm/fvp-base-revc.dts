@@ -186,7 +186,7 @@
 	};
 
 	panel {
-		compatible = "arm,rtsm-display", "panel-dpi";
+		compatible = "arm,rtsm-display";
 		port {
 			panel_in: endpoint {
 				remote-endpoint = <&clcd_pads>;
@@ -241,6 +241,7 @@
 				<0 0 41 &gic 0 0 GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
 				<0 0 42 &gic 0 0 GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
 				<0 0 43 &gic 0 0 GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>,
-				<0 0 44 &gic 0 0 GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+				<0 0 44 &gic 0 0 GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>,
+				<0 0 46 &gic 0 0 GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 	};
 };

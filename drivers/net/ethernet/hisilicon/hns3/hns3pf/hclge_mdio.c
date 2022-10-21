@@ -48,7 +48,7 @@ static int hclge_mdio_write(struct mii_bus *bus, int phyid, int regnum,
 	int ret;
 
 	if (test_bit(HCLGE_COMM_STATE_CMD_DISABLE, &hdev->hw.hw.comm_state))
-		return 0;
+		return -EBUSY;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MDIO_CONFIG, false);
 
@@ -86,7 +86,7 @@ static int hclge_mdio_read(struct mii_bus *bus, int phyid, int regnum)
 	int ret;
 
 	if (test_bit(HCLGE_COMM_STATE_CMD_DISABLE, &hdev->hw.hw.comm_state))
-		return 0;
+		return -EBUSY;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_MDIO_CONFIG, true);
 
@@ -187,7 +187,7 @@ static void hclge_mac_adjust_link(struct net_device *netdev)
 	speed = netdev->phydev->speed;
 	duplex = netdev->phydev->duplex;
 
-	ret = hclge_cfg_mac_speed_dup(hdev, speed, duplex);
+	ret = hclge_cfg_mac_speed_dup(hdev, speed, duplex, 0);
 	if (ret)
 		netdev_err(netdev, "failed to adjust link.\n");
 

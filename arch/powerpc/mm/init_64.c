@@ -59,6 +59,7 @@
 #include <asm/sections.h>
 #include <asm/iommu.h>
 #include <asm/vdso.h>
+#include <asm/hugetlb.h>
 
 #include <mm/mmu_decl.h>
 
@@ -110,7 +111,7 @@ static int __meminit vmemmap_populated(unsigned long vmemmap_addr, int vmemmap_m
 }
 
 /*
- * vmemmap virtual address space management does not have a traditonal page
+ * vmemmap virtual address space management does not have a traditional page
  * table to track which virtual struct pages are backed by physical mapping.
  * The virtual to physical mappings are tracked in a simple linked list
  * format. 'vmemmap_list' maintains the entire vmemmap physical mapping at
@@ -127,7 +128,7 @@ static struct vmemmap_backing *next;
 
 /*
  * The same pointer 'next' tracks individual chunks inside the allocated
- * full page during the boot time and again tracks the freeed nodes during
+ * full page during the boot time and again tracks the freed nodes during
  * runtime. It is racy but it does not happen as they are separated by the
  * boot process. Will create problem if some how we have memory hotplug
  * operation during boot !!
@@ -371,6 +372,9 @@ void register_page_bootmem_memmap(unsigned long section_nr,
 
 #ifdef CONFIG_PPC_BOOK3S_64
 unsigned int mmu_lpid_bits;
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+EXPORT_SYMBOL_GPL(mmu_lpid_bits);
+#endif
 unsigned int mmu_pid_bits;
 
 static bool disable_radix = !IS_ENABLED(CONFIG_PPC_RADIX_MMU_DEFAULT);
@@ -512,6 +516,9 @@ void __init mmu_early_init_devtree(void)
 		memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
 	} else
 		hash__early_init_devtree();
+
+	if (IS_ENABLED(CONFIG_HUGETLB_PAGE_SIZE_VARIABLE))
+		hugetlbpage_init_defaultsize();
 
 	if (!(cur_cpu_spec->mmu_features & MMU_FTR_HPTE_TABLE) &&
 	    !(cur_cpu_spec->mmu_features & MMU_FTR_TYPE_RADIX))

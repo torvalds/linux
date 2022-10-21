@@ -21,6 +21,9 @@ properties:
   enable-gpios: true
   port: true
 
+  spi-cpha: true
+  spi-cpol: true
+
 required:
   - compatible
   - enable-gpios

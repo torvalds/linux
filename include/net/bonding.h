@@ -29,8 +29,11 @@
 #include <net/bond_3ad.h>
 #include <net/bond_alb.h>
 #include <net/bond_options.h>
+#include <net/ipv6.h>
+#include <net/addrconf.h>
 
 #define BOND_MAX_ARP_TARGETS	16
+#define BOND_MAX_NS_TARGETS	BOND_MAX_ARP_TARGETS
 
 #define BOND_DEFAULT_MIIMON	100
 
@@ -146,6 +149,9 @@ struct bond_params {
 	struct reciprocal_value reciprocal_packets_per_slave;
 	u16 ad_actor_sys_prio;
 	u16 ad_user_port_key;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct in6_addr ns_targets[BOND_MAX_NS_TARGETS];
+#endif
 
 	/* 2 bytes of padding : see ether_addr_equal_64bits() */
 	u8 ad_actor_system[ETH_ALEN + 2];
@@ -155,8 +161,9 @@ struct slave {
 	struct net_device *dev; /* first - useful for panic debug */
 	struct bonding *bond; /* our master */
 	int    delay;
-	/* all three in jiffies */
+	/* all 4 in jiffies */
 	unsigned long last_link_up;
+	unsigned long last_tx;
 	unsigned long last_rx;
 	unsigned long target_last_arp_rx[BOND_MAX_ARP_TARGETS];
 	s8     link;		/* one of BOND_LINK_XXXX */
@@ -172,6 +179,7 @@ struct slave {
 	u32    speed;
 	u16    queue_id;
 	u8     perm_hwaddr[MAX_ADDR_LEN];
+	int    prio;
 	struct ad_slave_info *ad_info;
 	struct tlb_slave_info tlb_info;
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -499,6 +507,15 @@ static inline int bond_is_ip_target_ok(__be32 addr)
 	return !ipv4_is_lbcast(addr) && !ipv4_is_zeronet(addr);
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
+static inline int bond_is_ip6_target_ok(struct in6_addr *addr)
+{
+	return !ipv6_addr_any(addr) &&
+	       !ipv6_addr_loopback(addr) &&
+	       !ipv6_addr_is_multicast(addr);
+}
+#endif
+
 /* Get the oldest arp which we've received on this slave for bond's
  * arp_targets.
  */
@@ -522,6 +539,16 @@ static inline unsigned long slave_last_rx(struct bonding *bond,
 		return slave_oldest_target_arp_rx(bond, slave);
 
 	return slave->last_rx;
+}
+
+static inline void slave_update_last_tx(struct slave *slave)
+{
+	WRITE_ONCE(slave->last_tx, jiffies);
+}
+
+static inline unsigned long slave_last_tx(struct slave *slave)
+{
+	return READ_ONCE(slave->last_tx);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -628,7 +655,7 @@ struct bond_net {
 	struct class_attribute	class_attr_bonding_masters;
 };
 
-int bond_arp_rcv(const struct sk_buff *skb, struct bonding *bond, struct slave *slave);
+int bond_rcv_validate(const struct sk_buff *skb, struct bonding *bond, struct slave *slave);
 netdev_tx_t bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb, struct net_device *slave_dev);
 int bond_create(struct net *net, const char *name);
 int bond_create_sysfs(struct bond_net *net);
@@ -699,20 +726,6 @@ static inline struct slave *bond_slave_has_mac(struct bonding *bond,
 }
 
 /* Caller must hold rcu_read_lock() for read */
-static inline struct slave *bond_slave_has_mac_rcu(struct bonding *bond,
-					       const u8 *mac)
-{
-	struct list_head *iter;
-	struct slave *tmp;
-
-	bond_for_each_slave_rcu(bond, tmp, iter)
-		if (ether_addr_equal_64bits(mac, tmp->dev->dev_addr))
-			return tmp;
-
-	return NULL;
-}
-
-/* Caller must hold rcu_read_lock() for read */
 static inline bool bond_slave_has_mac_rx(struct bonding *bond, const u8 *mac)
 {
 	struct list_head *iter;
@@ -749,6 +762,21 @@ static inline int bond_get_targets_ip(__be32 *targets, __be32 ip)
 	return -1;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
+static inline int bond_get_targets_ip6(struct in6_addr *targets, struct in6_addr *ip)
+{
+	int i;
+
+	for (i = 0; i < BOND_MAX_NS_TARGETS; i++)
+		if (ipv6_addr_equal(&targets[i], ip))
+			return i;
+		else if (ipv6_addr_any(&targets[i]))
+			break;
+
+	return -1;
+}
+#endif
+
 /* exported from bond_main.c */
 extern unsigned int bond_net_id;
 
@@ -758,9 +786,12 @@ extern struct rtnl_link_ops bond_link_ops;
 /* exported from bond_sysfs_slave.c */
 extern const struct sysfs_ops slave_sysfs_ops;
 
+/* exported from bond_3ad.c */
+extern const u8 lacpdu_mcast_addr[];
+
 static inline netdev_tx_t bond_tx_drop(struct net_device *dev, struct sk_buff *skb)
 {
-	atomic_long_inc(&dev->tx_dropped);
+	dev_core_stats_tx_dropped_inc(dev);
 	dev_kfree_skb_any(skb);
 	return NET_XMIT_DROP;
 }

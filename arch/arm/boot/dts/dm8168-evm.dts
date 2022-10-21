@@ -119,7 +119,7 @@
 
 	nand@0,0 {
 		compatible = "ti,omap2-nand";
-		linux,mtd-name= "micron,mt29f2g16aadwp";
+		linux,mtd-name = "micron,mt29f2g16aadwp";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
 		interrupt-parent = <&gpmc>;
 		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
@@ -177,7 +177,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcspi1_pins>;
 
-	m25p80@0 {
+	flash@0 {
 		compatible = "w25x32";
 		spi-max-frequency = <48000000>;
 		reg = <0>;

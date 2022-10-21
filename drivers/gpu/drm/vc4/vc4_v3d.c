@@ -127,6 +127,9 @@ static int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused)
 int
 vc4_v3d_pm_get(struct vc4_dev *vc4)
 {
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
+
 	mutex_lock(&vc4->power_lock);
 	if (vc4->power_refcount++ == 0) {
 		int ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
@@ -145,6 +148,9 @@ vc4_v3d_pm_get(struct vc4_dev *vc4)
 void
 vc4_v3d_pm_put(struct vc4_dev *vc4)
 {
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return;
+
 	mutex_lock(&vc4->power_lock);
 	if (--vc4->power_refcount == 0) {
 		pm_runtime_mark_last_busy(&vc4->v3d->pdev->dev);
@@ -171,6 +177,9 @@ int vc4_v3d_get_bin_slot(struct vc4_dev *vc4)
 	int slot;
 	uint64_t seqno = 0;
 	struct vc4_exec_info *exec;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
 try_again:
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
@@ -222,7 +231,7 @@ try_again:
  * if it doesn't fit within the buffer that we allocated up front.
  * However, it turns out that 16MB is "enough for anybody", and
  * real-world applications run into allocation failures from the
- * overall CMA pool before they make scenes complicated enough to run
+ * overall DMA pool before they make scenes complicated enough to run
  * out of bin space.
  */
 static int bin_bo_alloc(struct vc4_dev *vc4)
@@ -252,15 +261,15 @@ static int bin_bo_alloc(struct vc4_dev *vc4)
 
 			dev_err(&v3d->pdev->dev,
 				"Failed to allocate memory for tile binning: "
-				"%d. You may need to enable CMA or give it "
+				"%d. You may need to enable DMA or give it "
 				"more memory.",
 				ret);
 			break;
 		}
 
 		/* Check if this BO won't trigger the addressing bug. */
-		if ((bo->base.paddr & 0xf0000000) ==
-		    ((bo->base.paddr + bo->base.base.size - 1) & 0xf0000000)) {
+		if ((bo->base.dma_addr & 0xf0000000) ==
+		    ((bo->base.dma_addr + bo->base.base.size - 1) & 0xf0000000)) {
 			vc4->bin_bo = bo;
 
 			/* Set up for allocating 512KB chunks of
@@ -316,6 +325,9 @@ int vc4_v3d_bin_bo_get(struct vc4_dev *vc4, bool *used)
 {
 	int ret = 0;
 
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
+
 	mutex_lock(&vc4->bin_bo_lock);
 
 	if (used && *used)
@@ -348,6 +360,9 @@ static void bin_bo_release(struct kref *ref)
 
 void vc4_v3d_bin_bo_put(struct vc4_dev *vc4)
 {
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return;
+
 	mutex_lock(&vc4->bin_bo_lock);
 	kref_put(&vc4->bin_bo_kref, bin_bo_release);
 	mutex_unlock(&vc4->bin_bo_lock);
@@ -378,13 +393,33 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 
 	vc4_v3d_init_hw(&vc4->base);
 
-	/* We disabled the IRQ as part of vc4_irq_uninstall in suspend. */
-	enable_irq(vc4->irq);
 	vc4_irq_enable(&vc4->base);
 
 	return 0;
 }
 #endif
+
+int vc4_v3d_debugfs_init(struct drm_minor *minor)
+{
+	struct drm_device *drm = minor->dev;
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
+	struct vc4_v3d *v3d = vc4->v3d;
+	int ret;
+
+	if (!vc4->v3d)
+		return -ENODEV;
+
+	ret = vc4_debugfs_add_file(minor, "v3d_ident",
+				   vc4_v3d_debugfs_ident, NULL);
+	if (ret)
+		return ret;
+
+	ret = vc4_debugfs_add_regset32(minor, "v3d_regs", &v3d->regset);
+	if (ret)
+		return ret;
+
+	return 0;
+}
 
 static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 {
@@ -428,15 +463,25 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 		}
 	}
 
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		return ret;
+	vc4->irq = ret;
+
+	ret = devm_pm_runtime_enable(dev);
+	if (ret)
+		return ret;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret)
+		return ret;
+
 	if (V3D_READ(V3D_IDENT0) != V3D_EXPECTED_IDENT0) {
 		DRM_ERROR("V3D_IDENT0 read 0x%08x instead of 0x%08x\n",
 			  V3D_READ(V3D_IDENT0), V3D_EXPECTED_IDENT0);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_put_runtime_pm;
 	}
-
-	ret = clk_prepare_enable(v3d->clk);
-	if (ret != 0)
-		return ret;
 
 	/* Reset the binner overflow address/size at setup, to be sure
 	 * we don't reuse an old one.
@@ -444,28 +489,21 @@ static int vc4_v3d_bind(struct device *dev, struct device *master, void *data)
 	V3D_WRITE(V3D_BPOA, 0);
 	V3D_WRITE(V3D_BPOS, 0);
 
-	vc4_v3d_init_hw(drm);
-
-	ret = platform_get_irq(pdev, 0);
-	if (ret < 0)
-		return ret;
-	vc4->irq = ret;
-
 	ret = vc4_irq_install(drm, vc4->irq);
 	if (ret) {
 		DRM_ERROR("Failed to install IRQ handler\n");
-		return ret;
+		goto err_put_runtime_pm;
 	}
 
-	pm_runtime_set_active(dev);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, 40); /* a little over 2 frames. */
-	pm_runtime_enable(dev);
-
-	vc4_debugfs_add_file(drm, "v3d_ident", vc4_v3d_debugfs_ident, NULL);
-	vc4_debugfs_add_regset32(drm, "v3d_regs", &v3d->regset);
 
 	return 0;
+
+err_put_runtime_pm:
+	pm_runtime_put(dev);
+
+	return ret;
 }
 
 static void vc4_v3d_unbind(struct device *dev, struct device *master,
@@ -473,8 +511,6 @@ static void vc4_v3d_unbind(struct device *dev, struct device *master,
 {
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
-
-	pm_runtime_disable(dev);
 
 	vc4_irq_uninstall(drm);
 

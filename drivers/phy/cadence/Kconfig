@@ -22,6 +22,14 @@ config PHY_CADENCE_DPHY
 	  system. If M is selected, the module will be called
 	  cdns-dphy.
 
+config PHY_CADENCE_DPHY_RX
+	tristate "Cadence D-PHY Rx Support"
+	depends on HAS_IOMEM && OF
+	select GENERIC_PHY
+	select GENERIC_PHY_MIPI_DPHY
+	help
+	  Support for Cadence D-PHY in Rx configuration.
+
 config PHY_CADENCE_SIERRA
 	tristate "Cadence Sierra PHY Driver"
 	depends on OF && HAS_IOMEM && RESET_CONTROLLER

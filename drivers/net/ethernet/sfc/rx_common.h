@@ -18,6 +18,12 @@
 #define EFX_RX_MAX_FRAGS DIV_ROUND_UP(EFX_MAX_FRAME_LEN(EFX_MAX_MTU), \
 				      EFX_RX_USR_BUF_SIZE)
 
+/* Number of RX buffers to recycle pages for.  When creating the RX page recycle
+ * ring, this number is divided by the number of buffers per page to calculate
+ * the number of pages to store in the RX page recycle ring.
+ */
+#define EFX_RECYCLE_RING_SIZE_10G	256
+
 static inline u8 *efx_rx_buf_va(struct efx_rx_buffer *buf)
 {
 	return page_address(buf->page) + buf->page_offset;

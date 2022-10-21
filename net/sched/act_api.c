@@ -195,7 +195,7 @@ static int offload_action_init(struct flow_offload_action *fl_action,
 	if (act->ops->offload_act_setup) {
 		spin_lock_bh(&act->tcfa_lock);
 		err = act->ops->offload_act_setup(act, fl_action, NULL,
-						  false);
+						  false, extack);
 		spin_unlock_bh(&act->tcfa_lock);
 		return err;
 	}
@@ -271,10 +271,10 @@ static int tcf_action_offload_add_ex(struct tc_action *action,
 	if (err)
 		goto fl_err;
 
-	err = tc_setup_action(&fl_action->action, actions);
+	err = tc_setup_action(&fl_action->action, actions, extack);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Failed to setup tc actions for offload\n");
+				   "Failed to setup tc actions for offload");
 		goto fl_err;
 	}
 
@@ -588,7 +588,8 @@ static int tcf_idr_release_unsafe(struct tc_action *p)
 }
 
 static int tcf_del_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
-			  const struct tc_action_ops *ops)
+			  const struct tc_action_ops *ops,
+			  struct netlink_ext_ack *extack)
 {
 	struct nlattr *nest;
 	int n_i = 0;
@@ -604,20 +605,25 @@ static int tcf_del_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 	if (nla_put_string(skb, TCA_KIND, ops->kind))
 		goto nla_put_failure;
 
+	ret = 0;
 	mutex_lock(&idrinfo->lock);
 	idr_for_each_entry_ul(idr, p, tmp, id) {
 		if (IS_ERR(p))
 			continue;
 		ret = tcf_idr_release_unsafe(p);
-		if (ret == ACT_P_DELETED) {
+		if (ret == ACT_P_DELETED)
 			module_put(ops->owner);
-			n_i++;
-		} else if (ret < 0) {
-			mutex_unlock(&idrinfo->lock);
-			goto nla_put_failure;
-		}
+		else if (ret < 0)
+			break;
+		n_i++;
 	}
 	mutex_unlock(&idrinfo->lock);
+	if (ret < 0) {
+		if (n_i)
+			NL_SET_ERR_MSG(extack, "Unable to flush all TC actions");
+		else
+			goto nla_put_failure;
+	}
 
 	ret = nla_put_u32(skb, TCA_FCNT, n_i);
 	if (ret)
@@ -638,7 +644,7 @@ int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 	struct tcf_idrinfo *idrinfo = tn->idrinfo;
 
 	if (type == RTM_DELACTION) {
-		return tcf_del_walker(idrinfo, skb, ops);
+		return tcf_del_walker(idrinfo, skb, ops, extack);
 	} else if (type == RTM_GETACTION) {
 		return tcf_dump_walker(idrinfo, skb, cb);
 	} else {
@@ -669,6 +675,31 @@ int tcf_idr_search(struct tc_action_net *tn, struct tc_action **a, u32 index)
 	return false;
 }
 EXPORT_SYMBOL(tcf_idr_search);
+
+static int __tcf_generic_walker(struct net *net, struct sk_buff *skb,
+				struct netlink_callback *cb, int type,
+				const struct tc_action_ops *ops,
+				struct netlink_ext_ack *extack)
+{
+	struct tc_action_net *tn = net_generic(net, ops->net_id);
+
+	if (unlikely(ops->walk))
+		return ops->walk(net, skb, cb, type, ops, extack);
+
+	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
+}
+
+static int __tcf_idr_search(struct net *net,
+			    const struct tc_action_ops *ops,
+			    struct tc_action **a, u32 index)
+{
+	struct tc_action_net *tn = net_generic(net, ops->net_id);
+
+	if (unlikely(ops->lookup))
+		return ops->lookup(net, a, index);
+
+	return tcf_idr_search(tn, a, index);
+}
 
 static int tcf_idr_delete_index(struct tcf_idrinfo *idrinfo, u32 index)
 {
@@ -920,7 +951,7 @@ int tcf_register_action(struct tc_action_ops *act,
 	struct tc_action_ops *a;
 	int ret;
 
-	if (!act->act || !act->dump || !act->init || !act->walk || !act->lookup)
+	if (!act->act || !act->dump || !act->init)
 		return -EINVAL;
 
 	/* We have to register pernet ops before making the action ops visible,
@@ -1037,6 +1068,7 @@ int tcf_action_exec(struct sk_buff *skb, struct tc_action **actions,
 restart_act_graph:
 	for (i = 0; i < nr_actions; i++) {
 		const struct tc_action *a = actions[i];
+		int repeat_ttl;
 
 		if (jmp_prgcnt > 0) {
 			jmp_prgcnt -= 1;
@@ -1045,11 +1077,17 @@ restart_act_graph:
 
 		if (tc_act_skip_sw(a->tcfa_flags))
 			continue;
+
+		repeat_ttl = 32;
 repeat:
 		ret = a->ops->act(skb, a, res);
-		if (ret == TC_ACT_REPEAT)
-			goto repeat;	/* we need a ttl - JHS */
-
+		if (unlikely(ret == TC_ACT_REPEAT)) {
+			if (--repeat_ttl != 0)
+				goto repeat;
+			/* suspicious opcode, stop pipeline */
+			net_warn_ratelimited("TC_ACT_REPEAT abuse ?\n");
+			return TC_ACT_OK;
+		}
 		if (TC_ACT_EXT_CMP(ret, TC_ACT_JUMP)) {
 			jmp_prgcnt = ret & TCA_ACT_MAX_PRIO_MASK;
 			if (!jmp_prgcnt || (jmp_prgcnt > nr_actions)) {
@@ -1439,6 +1477,8 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 				continue;
 			if (skip_sw != tc_act_skip_sw(act->tcfa_flags) ||
 			    skip_hw != tc_act_skip_hw(act->tcfa_flags)) {
+				NL_SET_ERR_MSG(extack,
+					       "Mismatch between action and filter offload flags");
 				err = -EINVAL;
 				goto err;
 			}
@@ -1623,7 +1663,7 @@ static struct tc_action *tcf_action_get_1(struct net *net, struct nlattr *nla,
 		goto err_out;
 	}
 	err = -ENOENT;
-	if (ops->lookup(net, &a, index) == 0) {
+	if (__tcf_idr_search(net, ops, &a, index) == 0) {
 		NL_SET_ERR_MSG(extack, "TC action with specified index not found");
 		goto err_mod;
 	}
@@ -1688,7 +1728,7 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 		goto out_module_put;
 	}
 
-	err = ops->walk(net, skb, &dcb, RTM_DELACTION, ops, extack);
+	err = __tcf_generic_walker(net, skb, &dcb, RTM_DELACTION, ops, extack);
 	if (err <= 0) {
 		nla_nest_cancel(skb, nest);
 		goto out_module_put;
@@ -2106,7 +2146,7 @@ static int tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	if (nest == NULL)
 		goto out_module_put;
 
-	ret = a_o->walk(net, skb, cb, RTM_GETACTION, a_o, NULL);
+	ret = __tcf_generic_walker(net, skb, cb, RTM_GETACTION, a_o, NULL);
 	if (ret < 0)
 		goto out_module_put;
 

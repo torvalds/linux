@@ -105,11 +105,9 @@ static int ms5611_i2c_probe(struct i2c_client *client,
 	return ms5611_probe(indio_dev, &client->dev, id->name, id->driver_data);
 }
 
-static int ms5611_i2c_remove(struct i2c_client *client)
+static void ms5611_i2c_remove(struct i2c_client *client)
 {
 	ms5611_remove(i2c_get_clientdata(client));
-
-	return 0;
 }
 
 static const struct of_device_id ms5611_i2c_matches[] = {
@@ -140,3 +138,4 @@ module_i2c_driver(ms5611_driver);
 MODULE_AUTHOR("Tomasz Duszynski <tduszyns@gmail.com>");
 MODULE_DESCRIPTION("MS5611 i2c driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_MS5611);

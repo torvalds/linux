@@ -641,6 +641,7 @@ ice_get_orom_civd_data(struct ice_hw *hw, enum ice_bank_select bank,
 	status = ice_read_flash_module(hw, bank, ICE_SR_1ST_OROM_BANK_PTR, 0,
 				       orom_data, hw->flash.banks.orom_size);
 	if (status) {
+		vfree(orom_data);
 		ice_debug(hw, ICE_DBG_NVM, "Unable to read Option ROM data\n");
 		return status;
 	}
@@ -1113,14 +1114,18 @@ int ice_nvm_validate_checksum(struct ice_hw *hw)
  * Update the control word with the required banks' validity bits
  * and dumps the Shadow RAM to flash (0x0707)
  *
- * cmd_flags controls which banks to activate, and the preservation level to
- * use when activating the NVM bank.
+ * cmd_flags controls which banks to activate, the preservation level to use
+ * when activating the NVM bank, and whether an EMP reset is required for
+ * activation.
+ *
+ * Note that the 16bit cmd_flags value is split between two separate 1 byte
+ * flag values in the descriptor.
  *
  * On successful return of the firmware command, the response_flags variable
  * is updated with the flags reported by firmware indicating certain status,
  * such as whether EMP reset is enabled.
  */
-int ice_nvm_write_activate(struct ice_hw *hw, u8 cmd_flags, u8 *response_flags)
+int ice_nvm_write_activate(struct ice_hw *hw, u16 cmd_flags, u8 *response_flags)
 {
 	struct ice_aqc_nvm *cmd;
 	struct ice_aq_desc desc;
@@ -1129,7 +1134,8 @@ int ice_nvm_write_activate(struct ice_hw *hw, u8 cmd_flags, u8 *response_flags)
 	cmd = &desc.params.nvm;
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_nvm_write_activate);
 
-	cmd->cmd_flags = cmd_flags;
+	cmd->cmd_flags = (u8)(cmd_flags & 0xFF);
+	cmd->offset_high = (u8)((cmd_flags >> 8) & 0xFF);
 
 	err = ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
 	if (!err && response_flags)

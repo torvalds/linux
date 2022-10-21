@@ -264,8 +264,8 @@ static void amd133_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  * cached during driver attach and are consulted to select transfer
  * mode.
  */
-static unsigned long nv_mode_filter(struct ata_device *dev,
-				    unsigned long xfer_mask)
+static unsigned int nv_mode_filter(struct ata_device *dev,
+				   unsigned int xfer_mask)
 {
 	static const unsigned int udma_mask_map[] =
 		{ ATA_UDMA2, ATA_UDMA1, ATA_UDMA0, 0,
@@ -274,7 +274,7 @@ static unsigned long nv_mode_filter(struct ata_device *dev,
 	char acpi_str[32] = "";
 	u32 saved_udma, udma;
 	const struct ata_acpi_gtm *gtm;
-	unsigned long bios_limit = 0, acpi_limit = 0, limit;
+	unsigned int bios_limit = 0, acpi_limit = 0, limit;
 
 	/* find out what BIOS configured */
 	udma = saved_udma = (unsigned long)ap->host->private_data;
@@ -310,10 +310,10 @@ static unsigned long nv_mode_filter(struct ata_device *dev,
 	   cable detection result */
 	limit |= ata_pack_xfermask(ATA_PIO4, ATA_MWDMA2, ATA_UDMA2);
 
-	ata_port_dbg(ap, "nv_mode_filter: 0x%lx&0x%lx->0x%lx, "
-			"BIOS=0x%lx (0x%x) ACPI=0x%lx%s\n",
-			xfer_mask, limit, xfer_mask & limit, bios_limit,
-			saved_udma, acpi_limit, acpi_str);
+	ata_port_dbg(ap,
+		     "nv_mode_filter: 0x%x&0x%x->0x%x, BIOS=0x%x (0x%x) ACPI=0x%x%s\n",
+		     xfer_mask, limit, xfer_mask & limit, bios_limit,
+		     saved_udma, acpi_limit, acpi_str);
 
 	return xfer_mask & limit;
 }

@@ -62,3 +62,4 @@ module_i2c_driver(mpl115_i2c_driver);
 MODULE_AUTHOR("Peter Meerwald <pmeerw@pmeerw.net>");
 MODULE_DESCRIPTION("Freescale MPL115A2 pressure/temperature driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_MPL115);

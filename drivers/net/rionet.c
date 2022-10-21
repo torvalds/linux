@@ -109,7 +109,7 @@ static int rionet_rx_clean(struct net_device *ndev)
 		skb_put(rnet->rx_skb[i], RIO_MAX_MSG_SIZE);
 		rnet->rx_skb[i]->protocol =
 		    eth_type_trans(rnet->rx_skb[i], ndev);
-		error = netif_rx(rnet->rx_skb[i]);
+		error = __netif_rx(rnet->rx_skb[i]);
 
 		if (error == NET_RX_DROP) {
 			ndev->stats.rx_dropped++;
@@ -443,10 +443,10 @@ static void rionet_get_drvinfo(struct net_device *ndev,
 {
 	struct rionet_private *rnet = netdev_priv(ndev);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
-	strlcpy(info->fw_version, "n/a", sizeof(info->fw_version));
-	strlcpy(info->bus_info, rnet->mport->name, sizeof(info->bus_info));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->fw_version, "n/a", sizeof(info->fw_version));
+	strscpy(info->bus_info, rnet->mport->name, sizeof(info->bus_info));
 }
 
 static u32 rionet_get_msglevel(struct net_device *ndev)

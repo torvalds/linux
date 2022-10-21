@@ -27,6 +27,7 @@ struct nft_xfrm {
 	u8			dreg;
 	u8			dir;
 	u8			spnum;
+	u8			len;
 };
 
 static int nft_xfrm_get_init(const struct nft_ctx *ctx,
@@ -50,7 +51,7 @@ static int nft_xfrm_get_init(const struct nft_ctx *ctx,
 		return -EOPNOTSUPP;
 	}
 
-	priv->key = ntohl(nla_get_u32(tb[NFTA_XFRM_KEY]));
+	priv->key = ntohl(nla_get_be32(tb[NFTA_XFRM_KEY]));
 	switch (priv->key) {
 	case NFT_XFRM_KEY_REQID:
 	case NFT_XFRM_KEY_SPI:
@@ -86,6 +87,7 @@ static int nft_xfrm_get_init(const struct nft_ctx *ctx,
 
 	priv->spnum = spnum;
 
+	priv->len = len;
 	return nft_parse_register_store(ctx, tb[NFTA_XFRM_DREG], &priv->dreg,
 					NULL, NFT_DATA_VALUE, len);
 }
@@ -132,13 +134,13 @@ static void nft_xfrm_state_get_key(const struct nft_xfrm *priv,
 		WARN_ON_ONCE(1);
 		break;
 	case NFT_XFRM_KEY_DADDR_IP4:
-		*dest = state->id.daddr.a4;
+		*dest = (__force __u32)state->id.daddr.a4;
 		return;
 	case NFT_XFRM_KEY_DADDR_IP6:
 		memcpy(dest, &state->id.daddr.in6, sizeof(struct in6_addr));
 		return;
 	case NFT_XFRM_KEY_SADDR_IP4:
-		*dest = state->props.saddr.a4;
+		*dest = (__force __u32)state->props.saddr.a4;
 		return;
 	case NFT_XFRM_KEY_SADDR_IP6:
 		memcpy(dest, &state->props.saddr.in6, sizeof(struct in6_addr));
@@ -147,7 +149,7 @@ static void nft_xfrm_state_get_key(const struct nft_xfrm *priv,
 		*dest = state->props.reqid;
 		return;
 	case NFT_XFRM_KEY_SPI:
-		*dest = state->id.spi;
+		*dest = (__force __u32)state->id.spi;
 		return;
 	}
 
@@ -252,6 +254,31 @@ static int nft_xfrm_validate(const struct nft_ctx *ctx, const struct nft_expr *e
 	return nft_chain_validate_hooks(ctx->chain, hooks);
 }
 
+static bool nft_xfrm_reduce(struct nft_regs_track *track,
+			    const struct nft_expr *expr)
+{
+	const struct nft_xfrm *priv = nft_expr_priv(expr);
+	const struct nft_xfrm *xfrm;
+
+	if (!nft_reg_track_cmp(track, expr, priv->dreg)) {
+		nft_reg_track_update(track, expr, priv->dreg, priv->len);
+		return false;
+	}
+
+	xfrm = nft_expr_priv(track->regs[priv->dreg].selector);
+	if (priv->key != xfrm->key ||
+	    priv->dreg != xfrm->dreg ||
+	    priv->dir != xfrm->dir ||
+	    priv->spnum != xfrm->spnum) {
+		nft_reg_track_update(track, expr, priv->dreg, priv->len);
+		return false;
+	}
+
+	if (!track->regs[priv->dreg].bitwise)
+		return true;
+
+	return nft_expr_reduce_bitwise(track, expr);
+}
 
 static struct nft_expr_type nft_xfrm_type;
 static const struct nft_expr_ops nft_xfrm_get_ops = {
@@ -261,6 +288,7 @@ static const struct nft_expr_ops nft_xfrm_get_ops = {
 	.init		= nft_xfrm_get_init,
 	.dump		= nft_xfrm_get_dump,
 	.validate	= nft_xfrm_validate,
+	.reduce		= nft_xfrm_reduce,
 };
 
 static struct nft_expr_type nft_xfrm_type __read_mostly = {

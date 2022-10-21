@@ -376,7 +376,7 @@ static struct ubi_wl_entry *find_mean_wl_entry(struct ubi_device *ubi,
  * refill_wl_user_pool().
  * @ubi: UBI device description object
  *
- * This function returns a a wear leveling entry in case of success and
+ * This function returns a wear leveling entry in case of success and
  * NULL in case of failure.
  */
 static struct ubi_wl_entry *wl_get_wle(struct ubi_device *ubi)
@@ -429,7 +429,7 @@ static int prot_queue_del(struct ubi_device *ubi, int pnum)
 /**
  * sync_erase - synchronously erase a physical eraseblock.
  * @ubi: UBI device description object
- * @e: the the physical eraseblock to erase
+ * @e: the physical eraseblock to erase
  * @torture: if the physical eraseblock has to be tortured
  *
  * This function returns zero in case of success and a negative error code in
@@ -670,7 +670,11 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 	ubi_assert(!ubi->move_from && !ubi->move_to);
 	ubi_assert(!ubi->move_to_put);
 
+#ifdef CONFIG_MTD_UBI_FASTMAP
+	if (!next_peb_for_wl(ubi) ||
+#else
 	if (!ubi->free.rb_node ||
+#endif
 	    (!ubi->used.rb_node && !ubi->scrub.rb_node)) {
 		/*
 		 * No free physical eraseblocks? Well, they must be waiting in
@@ -689,16 +693,16 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 
 #ifdef CONFIG_MTD_UBI_FASTMAP
 	e1 = find_anchor_wl_entry(&ubi->used);
-	if (e1 && ubi->fm_next_anchor &&
-	    (ubi->fm_next_anchor->ec - e1->ec >= UBI_WL_THRESHOLD)) {
+	if (e1 && ubi->fm_anchor &&
+	    (ubi->fm_anchor->ec - e1->ec >= UBI_WL_THRESHOLD)) {
 		ubi->fm_do_produce_anchor = 1;
-		/* fm_next_anchor is no longer considered a good anchor
-		 * candidate.
+		/*
+		 * fm_anchor is no longer considered a good anchor.
 		 * NULL assignment also prevents multiple wear level checks
 		 * of this PEB.
 		 */
-		wl_tree_add(ubi->fm_next_anchor, &ubi->free);
-		ubi->fm_next_anchor = NULL;
+		wl_tree_add(ubi->fm_anchor, &ubi->free);
+		ubi->fm_anchor = NULL;
 		ubi->free_count++;
 	}
 
@@ -1003,8 +1007,6 @@ out_cancel:
 static int ensure_wear_leveling(struct ubi_device *ubi, int nested)
 {
 	int err = 0;
-	struct ubi_wl_entry *e1;
-	struct ubi_wl_entry *e2;
 	struct ubi_work *wrk;
 
 	spin_lock(&ubi->wl_lock);
@@ -1014,9 +1016,16 @@ static int ensure_wear_leveling(struct ubi_device *ubi, int nested)
 
 	/*
 	 * If the ubi->scrub tree is not empty, scrubbing is needed, and the
-	 * the WL worker has to be scheduled anyway.
+	 * WL worker has to be scheduled anyway.
 	 */
 	if (!ubi->scrub.rb_node) {
+#ifdef CONFIG_MTD_UBI_FASTMAP
+		if (!need_wear_leveling(ubi))
+			goto out_unlock;
+#else
+		struct ubi_wl_entry *e1;
+		struct ubi_wl_entry *e2;
+
 		if (!ubi->used.rb_node || !ubi->free.rb_node)
 			/* No physical eraseblocks - no deal */
 			goto out_unlock;
@@ -1032,6 +1041,7 @@ static int ensure_wear_leveling(struct ubi_device *ubi, int nested)
 
 		if (!(e2->ec - e1->ec >= UBI_WL_THRESHOLD))
 			goto out_unlock;
+#endif
 		dbg_wl("schedule wear-leveling");
 	} else
 		dbg_wl("schedule scrubbing");
@@ -1085,12 +1095,13 @@ static int __erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk)
 	if (!err) {
 		spin_lock(&ubi->wl_lock);
 
-		if (!ubi->fm_disabled && !ubi->fm_next_anchor &&
+		if (!ubi->fm_disabled && !ubi->fm_anchor &&
 		    e->pnum < UBI_FM_MAX_START) {
-			/* Abort anchor production, if needed it will be
+			/*
+			 * Abort anchor production, if needed it will be
 			 * enabled again in the wear leveling started below.
 			 */
-			ubi->fm_next_anchor = e;
+			ubi->fm_anchor = e;
 			ubi->fm_do_produce_anchor = 0;
 		} else {
 			wl_tree_add(e, &ubi->free);
@@ -1453,7 +1464,7 @@ static bool scrub_possible(struct ubi_device *ubi, struct ubi_wl_entry *e)
  * ubi_bitflip_check - Check an eraseblock for bitflips and scrub it if needed.
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock to schedule
- * @force: dont't read the block, assume bitflips happened and take action.
+ * @force: don't read the block, assume bitflips happened and take action.
  *
  * This function reads the given eraseblock and checks if bitflips occured.
  * In case of bitflips, the eraseblock is scheduled for scrubbing.

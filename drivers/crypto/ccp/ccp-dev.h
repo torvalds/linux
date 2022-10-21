@@ -366,7 +366,7 @@ struct ccp_device {
 
 	/* Master lists that all cmds are queued on. Because there can be
 	 * more than one CCP command queue that can process a cmd a separate
-	 * backlog list is neeeded so that the backlog completion call
+	 * backlog list is needed so that the backlog completion call
 	 * completes before the cmd is available for execution.
 	 */
 	spinlock_t cmd_lock ____cacheline_aligned;

@@ -115,13 +115,13 @@ struct ad5064_state {
 	struct mutex lock;
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 */
 	union {
 		u8 i2c[3];
 		__be32 spi;
-	} data ____cacheline_aligned;
+	} data __aligned(IIO_DMA_MINALIGN);
 };
 
 enum ad5064_type {
@@ -288,7 +288,7 @@ static ssize_t ad5064_write_dac_powerdown(struct iio_dev *indio_dev,
 	bool pwr_down;
 	int ret;
 
-	ret = strtobool(buf, &pwr_down);
+	ret = kstrtobool(buf, &pwr_down);
 	if (ret)
 		return ret;
 

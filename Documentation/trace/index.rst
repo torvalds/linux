@@ -9,6 +9,7 @@ Linux Tracing Technologies
    tracepoint-analysis
    ftrace
    ftrace-uses
+   fprobe
    kprobes
    kprobetrace
    uprobetracer
@@ -30,3 +31,6 @@ Linux Tracing Technologies
    stm
    sys-t
    coresight/index
+   user_events
+   rv/index
+   hisi-ptt

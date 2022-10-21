@@ -9,6 +9,7 @@
 
 #include <linux/types.h>
 #include <linux/if_ether.h>
+#include <linux/in6.h>
 #include <asm/byteorder.h>
 
 /**
@@ -88,6 +89,7 @@ enum efx_filter_priority {
  *	the automatic filter in its place.
  * @EFX_FILTER_FLAG_RX: Filter is for RX
  * @EFX_FILTER_FLAG_TX: Filter is for TX
+ * @EFX_FILTER_FLAG_VPORT_ID: Virtual port ID for adapter switching.
  */
 enum efx_filter_flags {
 	EFX_FILTER_FLAG_RX_RSS = 0x01,
@@ -95,6 +97,7 @@ enum efx_filter_flags {
 	EFX_FILTER_FLAG_RX_OVER_AUTO = 0x04,
 	EFX_FILTER_FLAG_RX = 0x08,
 	EFX_FILTER_FLAG_TX = 0x10,
+	EFX_FILTER_FLAG_VPORT_ID = 0x20,
 };
 
 /** enum efx_encap_type - types of encapsulation
@@ -127,6 +130,9 @@ enum efx_encap_type {
  *	MCFW context_id.
  * @dmaq_id: Source/target queue index, or %EFX_FILTER_RX_DMAQ_ID_DROP for
  *	an RX drop filter
+ * @vport_id: Virtual port ID associated with RX queue, for adapter switching,
+ *	if %EFX_FILTER_FLAG_VPORT_ID is set.  This is an MCFW vport_id, or on
+ *	EF100 an mport selector.
  * @outer_vid: Outer VLAN ID to match, if %EFX_FILTER_MATCH_OUTER_VID is set
  * @inner_vid: Inner VLAN ID to match, if %EFX_FILTER_MATCH_INNER_VID is set
  * @loc_mac: Local MAC address to match, if %EFX_FILTER_MATCH_LOC_MAC or
@@ -157,7 +163,8 @@ struct efx_filter_spec {
 	u32	flags:6;
 	u32	dmaq_id:12;
 	u32	rss_context;
-	__be16	outer_vid __aligned(4); /* allow jhash2() of match values */
+	u32	vport_id;
+	__be16	outer_vid;
 	__be16	inner_vid;
 	u8	loc_mac[ETH_ALEN];
 	u8	rem_mac[ETH_ALEN];
@@ -213,6 +220,27 @@ efx_filter_set_ipv4_local(struct efx_filter_spec *spec, u8 proto,
 	spec->ether_type = htons(ETH_P_IP);
 	spec->ip_proto = proto;
 	spec->loc_host[0] = host;
+	spec->loc_port = port;
+	return 0;
+}
+
+/**
+ * efx_filter_set_ipv6_local - specify IPv6 host, transport protocol and port
+ * @spec: Specification to initialise
+ * @proto: Transport layer protocol number
+ * @host: Local host address (network byte order)
+ * @port: Local port (network byte order)
+ */
+static inline int
+efx_filter_set_ipv6_local(struct efx_filter_spec *spec, u8 proto,
+			  const struct in6_addr *host, __be16 port)
+{
+	spec->match_flags |=
+		EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_IP_PROTO |
+		EFX_FILTER_MATCH_LOC_HOST | EFX_FILTER_MATCH_LOC_PORT;
+	spec->ether_type = htons(ETH_P_IPV6);
+	spec->ip_proto = proto;
+	memcpy(spec->loc_host, host, sizeof(spec->loc_host));
 	spec->loc_port = port;
 	return 0;
 }
@@ -290,6 +318,18 @@ static inline int efx_filter_set_mc_def(struct efx_filter_spec *spec)
 	spec->match_flags |= EFX_FILTER_MATCH_LOC_MAC_IG;
 	spec->loc_mac[0] = 1;
 	return 0;
+}
+
+/**
+ * efx_filter_set_vport_id - override virtual port id relating to filter
+ * @spec: Specification to initialise
+ * @vport_id: firmware ID of the virtual port
+ */
+static inline void efx_filter_set_vport_id(struct efx_filter_spec *spec,
+					   u32 vport_id)
+{
+	spec->flags |= EFX_FILTER_FLAG_VPORT_ID;
+	spec->vport_id = vport_id;
 }
 
 static inline void efx_filter_set_encap_type(struct efx_filter_spec *spec,

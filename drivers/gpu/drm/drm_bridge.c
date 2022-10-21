@@ -22,6 +22,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 
@@ -169,6 +170,29 @@ void drm_bridge_add(struct drm_bridge *bridge)
 	mutex_unlock(&bridge_lock);
 }
 EXPORT_SYMBOL(drm_bridge_add);
+
+static void drm_bridge_remove_void(void *bridge)
+{
+	drm_bridge_remove(bridge);
+}
+
+/**
+ * devm_drm_bridge_add - devm managed version of drm_bridge_add()
+ *
+ * @dev: device to tie the bridge lifetime to
+ * @bridge: bridge control structure
+ *
+ * This is the managed version of drm_bridge_add() which automatically
+ * calls drm_bridge_remove() when @dev is unbound.
+ *
+ * Return: 0 if no error or negative error code.
+ */
+int devm_drm_bridge_add(struct device *dev, struct drm_bridge *bridge)
+{
+	drm_bridge_add(bridge);
+	return devm_add_action_or_reset(dev, drm_bridge_remove_void, bridge);
+}
+EXPORT_SYMBOL(devm_drm_bridge_add);
 
 /**
  * drm_bridge_remove - remove the given bridge from the global bridge list
@@ -823,8 +847,8 @@ static int select_bus_fmt_recursive(struct drm_bridge *first_bridge,
 				    struct drm_connector_state *conn_state,
 				    u32 out_bus_fmt)
 {
+	unsigned int i, num_in_bus_fmts = 0;
 	struct drm_bridge_state *cur_state;
-	unsigned int num_in_bus_fmts, i;
 	struct drm_bridge *prev_bridge;
 	u32 *in_bus_fmts;
 	int ret;
@@ -945,7 +969,7 @@ drm_atomic_bridge_chain_select_bus_fmts(struct drm_bridge *bridge,
 	struct drm_connector *conn = conn_state->connector;
 	struct drm_encoder *encoder = bridge->encoder;
 	struct drm_bridge_state *last_bridge_state;
-	unsigned int i, num_out_bus_fmts;
+	unsigned int i, num_out_bus_fmts = 0;
 	struct drm_bridge *last_bridge;
 	u32 *out_bus_fmts;
 	int ret = 0;

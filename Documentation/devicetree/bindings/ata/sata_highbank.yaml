@@ -51,6 +51,8 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     minItems: 1
     maxItems: 8
+    items:
+      maxItems: 2
 
   calxeda,tx-atten:
     description: |

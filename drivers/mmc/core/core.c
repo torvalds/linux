@@ -97,8 +97,8 @@ static void mmc_should_fail_request(struct mmc_host *host,
 	    !should_fail(&host->fail_mmc_request, data->blksz * data->blocks))
 		return;
 
-	data->error = data_errors[prandom_u32() % ARRAY_SIZE(data_errors)];
-	data->bytes_xfered = (prandom_u32() % (data->bytes_xfered >> 9)) << 9;
+	data->error = data_errors[prandom_u32_max(ARRAY_SIZE(data_errors))];
+	data->bytes_xfered = prandom_u32_max(data->bytes_xfered >> 9) << 9;
 }
 
 #else /* CONFIG_FAIL_MMC_REQUEST */
@@ -943,9 +943,11 @@ int mmc_execute_tuning(struct mmc_card *card)
 	}
 
 	/* Only print error when we don't check for card removal */
-	if (!host->detect_change)
+	if (!host->detect_change) {
 		pr_err("%s: tuning execution failed: %d\n",
 			mmc_hostname(host), err);
+		mmc_debugfs_err_stats_inc(host, MMC_ERR_TUNING);
+	}
 
 	return err;
 }
@@ -1988,14 +1990,14 @@ static void mmc_hw_reset_for_init(struct mmc_host *host)
 {
 	mmc_pwrseq_reset(host);
 
-	if (!(host->caps & MMC_CAP_HW_RESET) || !host->ops->hw_reset)
+	if (!(host->caps & MMC_CAP_HW_RESET) || !host->ops->card_hw_reset)
 		return;
-	host->ops->hw_reset(host);
+	host->ops->card_hw_reset(host);
 }
 
 /**
  * mmc_hw_reset - reset the card in hardware
- * @host: MMC host to which the card is attached
+ * @card: card to be reset
  *
  * Hard reset the card. This function is only for upper layers, like the
  * block layer or card drivers. You cannot use it in host drivers (struct
@@ -2003,8 +2005,9 @@ static void mmc_hw_reset_for_init(struct mmc_host *host)
  *
  * Return: 0 on success, -errno on failure
  */
-int mmc_hw_reset(struct mmc_host *host)
+int mmc_hw_reset(struct mmc_card *card)
 {
+	struct mmc_host *host = card->host;
 	int ret;
 
 	ret = host->bus_ops->hw_reset(host);
@@ -2016,8 +2019,9 @@ int mmc_hw_reset(struct mmc_host *host)
 }
 EXPORT_SYMBOL(mmc_hw_reset);
 
-int mmc_sw_reset(struct mmc_host *host)
+int mmc_sw_reset(struct mmc_card *card)
 {
+	struct mmc_host *host = card->host;
 	int ret;
 
 	if (!host->bus_ops->sw_reset)
@@ -2242,6 +2246,12 @@ void mmc_rescan(struct work_struct *work)
 		if (freqs[i] <= host->f_min)
 			break;
 	}
+
+	/*
+	 * Ignore the command timeout errors observed during
+	 * the card init as those are excepted.
+	 */
+	host->err_stats[MMC_ERR_CMD_TIMEOUT] = 0;
 	mmc_release_host(host);
 
  out:

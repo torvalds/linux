@@ -8,7 +8,9 @@
  */
 
 #include <linux/module.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/units.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -31,7 +33,6 @@
 
 #define ADXL345_BW_RATE			GENMASK(3, 0)
 #define ADXL345_BASE_RATE_NANO_HZ	97656250LL
-#define NHZ_PER_HZ			1000000000LL
 
 #define ADXL345_POWER_CTL_MEASURE	BIT(3)
 #define ADXL345_POWER_CTL_STANDBY	0x00
@@ -138,7 +139,7 @@ static int adxl345_read_raw(struct iio_dev *indio_dev,
 
 		samp_freq_nhz = ADXL345_BASE_RATE_NANO_HZ <<
 				(regval & ADXL345_BW_RATE);
-		*val = div_s64_rem(samp_freq_nhz, NHZ_PER_HZ, val2);
+		*val = div_s64_rem(samp_freq_nhz, NANOHZ_PER_HZ, val2);
 
 		return IIO_VAL_INT_PLUS_NANO;
 	}
@@ -163,7 +164,8 @@ static int adxl345_write_raw(struct iio_dev *indio_dev,
 				    ADXL345_REG_OFS_AXIS(chan->address),
 				    val / 4);
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		n = div_s64(val * NHZ_PER_HZ + val2, ADXL345_BASE_RATE_NANO_HZ);
+		n = div_s64(val * NANOHZ_PER_HZ + val2,
+			    ADXL345_BASE_RATE_NANO_HZ);
 
 		return regmap_update_bits(data->regmap, ADXL345_REG_BW_RATE,
 					  ADXL345_BW_RATE,
@@ -194,7 +196,7 @@ static IIO_CONST_ATTR_SAMP_FREQ_AVAIL(
 
 static struct attribute *adxl345_attrs[] = {
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
-	NULL,
+	NULL
 };
 
 static const struct attribute_group adxl345_attrs_group = {
@@ -208,30 +210,44 @@ static const struct iio_info adxl345_info = {
 	.write_raw_get_fmt	= adxl345_write_raw_get_fmt,
 };
 
+static int adxl345_powerup(void *regmap)
+{
+	return regmap_write(regmap, ADXL345_REG_POWER_CTL, ADXL345_POWER_CTL_MEASURE);
+}
+
 static void adxl345_powerdown(void *regmap)
 {
 	regmap_write(regmap, ADXL345_REG_POWER_CTL, ADXL345_POWER_CTL_STANDBY);
 }
 
-int adxl345_core_probe(struct device *dev, struct regmap *regmap,
-		       enum adxl345_device_type type, const char *name)
+int adxl345_core_probe(struct device *dev, struct regmap *regmap)
 {
+	enum adxl345_device_type type;
 	struct adxl345_data *data;
 	struct iio_dev *indio_dev;
+	const char *name;
 	u32 regval;
 	int ret;
 
-	ret = regmap_read(regmap, ADXL345_REG_DEVID, &regval);
-	if (ret < 0) {
-		dev_err(dev, "Error reading device ID: %d\n", ret);
-		return ret;
+	type = (uintptr_t)device_get_match_data(dev);
+	switch (type) {
+	case ADXL345:
+		name = "adxl345";
+		break;
+	case ADXL375:
+		name = "adxl375";
+		break;
+	default:
+		return -EINVAL;
 	}
 
-	if (regval != ADXL345_DEVID) {
-		dev_err(dev, "Invalid device ID: %x, expected %x\n",
-			regval, ADXL345_DEVID);
-		return -ENODEV;
-	}
+	ret = regmap_read(regmap, ADXL345_REG_DEVID, &regval);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Error reading device ID\n");
+
+	if (regval != ADXL345_DEVID)
+		return dev_err_probe(dev, -ENODEV, "Invalid device ID: %x, expected %x\n",
+				     regval, ADXL345_DEVID);
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
@@ -245,10 +261,8 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 
 	ret = regmap_write(data->regmap, ADXL345_REG_DATA_FORMAT,
 			   data->data_range);
-	if (ret < 0) {
-		dev_err(dev, "Failed to set data range: %d\n", ret);
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to set data range\n");
 
 	indio_dev->name = name;
 	indio_dev->info = &adxl345_info;
@@ -257,12 +271,9 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 	indio_dev->num_channels = ARRAY_SIZE(adxl345_channels);
 
 	/* Enable measurement mode */
-	ret = regmap_write(data->regmap, ADXL345_REG_POWER_CTL,
-			   ADXL345_POWER_CTL_MEASURE);
-	if (ret < 0) {
-		dev_err(dev, "Failed to enable measurement mode: %d\n", ret);
-		return ret;
-	}
+	ret = adxl345_powerup(data->regmap);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to enable measurement mode\n");
 
 	ret = devm_add_action_or_reset(dev, adxl345_powerdown, data->regmap);
 	if (ret < 0)
@@ -270,7 +281,7 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_GPL(adxl345_core_probe);
+EXPORT_SYMBOL_NS_GPL(adxl345_core_probe, IIO_ADXL345);
 
 MODULE_AUTHOR("Eva Rachel Retuya <eraretuya@gmail.com>");
 MODULE_DESCRIPTION("ADXL345 3-Axis Digital Accelerometer core driver");

@@ -47,7 +47,13 @@ struct ioctl_gntdev_grant_ref {
 /*
  * Inserts the grant references into the mapping table of an instance
  * of gntdev. N.B. This does not perform the mapping, which is deferred
- * until mmap() is called with @index as the offset.
+ * until mmap() is called with @index as the offset. @index should be
+ * considered opaque to userspace, with one exception: if no grant
+ * references have ever been inserted into the mapping table of this
+ * instance, @index will be set to 0. This is necessary to use gntdev
+ * with userspace APIs that expect a file descriptor that can be
+ * mmap()'d at offset 0, such as Wayland. If @count is set to 0, this
+ * ioctl will fail.
  */
 #define IOCTL_GNTDEV_MAP_GRANT_REF \
 _IOC(_IOC_NONE, 'G', 0, sizeof(struct ioctl_gntdev_map_grant_ref))

@@ -13,6 +13,7 @@
 #include <linux/export.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
+#include <linux/of.h>
 #include <linux/pci.h>
 #include <linux/string.h>
 
@@ -301,7 +302,7 @@ struct eeh_pe *eeh_pe_get(struct pci_controller *phb, int pe_no)
  * @new_pe_parent.
  *
  * If @new_pe_parent is NULL then the new PE will be inserted under
- * directly under the the PHB.
+ * directly under the PHB.
  */
 int eeh_pe_tree_insert(struct eeh_dev *edev, struct eeh_pe *new_pe_parent)
 {

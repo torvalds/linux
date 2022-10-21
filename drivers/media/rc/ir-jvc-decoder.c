@@ -40,7 +40,7 @@ static int ir_jvc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	struct jvc_dec *data = &dev->raw->jvc;
 
 	if (!is_timing_event(ev)) {
-		if (ev.reset)
+		if (ev.overflow)
 			data->state = STATE_INACTIVE;
 		return 0;
 	}

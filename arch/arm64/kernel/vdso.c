@@ -29,9 +29,6 @@
 #include <asm/signal32.h>
 #include <asm/vdso.h>
 
-extern char vdso_start[], vdso_end[];
-extern char vdso32_start[], vdso32_end[];
-
 enum vdso_abi {
 	VDSO_ABI_AA64,
 	VDSO_ABI_AA32,
@@ -136,10 +133,11 @@ int vdso_join_timens(struct task_struct *task, struct time_namespace *ns)
 {
 	struct mm_struct *mm = task->mm;
 	struct vm_area_struct *vma;
+	VMA_ITERATOR(vmi, mm, 0);
 
 	mmap_read_lock(mm);
 
-	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+	for_each_vma(vmi, vma) {
 		unsigned long size = vma->vm_end - vma->vm_start;
 
 		if (vma_is_special_mapping(vma, vdso_info[VDSO_ABI_AA64].dm))

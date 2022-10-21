@@ -3,7 +3,7 @@
 
 void test_global_data_init(void)
 {
-	const char *file = "./test_global_data.o";
+	const char *file = "./test_global_data.bpf.o";
 	int err = -ENOMEM, map_fd, zero = 0;
 	__u8 *buff = NULL, *newval = NULL;
 	struct bpf_object *obj;
@@ -20,7 +20,7 @@ void test_global_data_init(void)
 	if (CHECK_FAIL(!map || !bpf_map__is_internal(map)))
 		goto out;
 
-	sz = bpf_map__def(map)->value_size;
+	sz = bpf_map__value_size(map);
 	newval = malloc(sz);
 	if (CHECK_FAIL(!newval))
 		goto out;

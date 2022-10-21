@@ -627,6 +627,10 @@ S: 48287 Sawleaf
 S: Fremont, California 94539
 S: USA
 
+N: Tomas Cech
+E: sleep_walker@suse.com
+D: arm/palm treo support
+
 N: Florent Chabaud
 E: florent.chabaud@polytechnique.org
 D: software suspend
@@ -894,6 +898,12 @@ D: Random console hacks and other miscellaneous stuff
 S: 3000 FORE Drive
 S: Warrendale, Pennsylvania 15086
 S: USA
+
+N: Ludovic Desroches
+E: ludovic.desroches@microchip.com
+D: Maintainer for ARM/Microchip (AT91) SoC support
+D: Author of ADC, pinctrl, XDMA and SDHCI drivers for this platform
+S: France
 
 N: Martin Devera
 E: devik@cdi.cz
@@ -3484,6 +3494,10 @@ D: Always IN2000 SCSI driver
 D: wd33c93 SCSI driver (linux-m68k)
 S: San Jose, California
 S: USA
+
+N: Joonyoung Shim
+E: y0922.shim@samsung.com
+D: Samsung Exynos DRM drivers
 
 N: Robert Siemer
 E: Robert.Siemer@gmx.de

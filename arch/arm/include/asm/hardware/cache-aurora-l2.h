@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AURORA shared L2 cache controller support
  *
@@ -5,10 +6,6 @@
  *
  * Yehuda Yitschak <yehuday@marvell.com>
  * Gregory CLEMENT <gregory.clement@free-electrons.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #ifndef __ASM_ARM_HARDWARE_AURORA_L2_H

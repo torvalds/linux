@@ -442,7 +442,7 @@ static void free_req(struct xen_blkif_ring *ring, struct pending_req *req)
  * Routines for managing virtual block devices (vbds).
  */
 static int xen_vbd_translate(struct phys_req *req, struct xen_blkif *blkif,
-			     int operation)
+			     enum req_op operation)
 {
 	struct xen_vbd *vbd = &blkif->vbd;
 	int rc = -EACCES;
@@ -931,7 +931,7 @@ static int xen_blkbk_parse_indirect(struct blkif_request *req,
 	if (rc)
 		goto unmap;
 
-	for (n = 0, i = 0; n < nseg; n++) {
+	for (n = 0; n < nseg; n++) {
 		uint8_t first_sect, last_sect;
 
 		if ((n % SEGS_PER_INDIRECT_FRAME) == 0) {
@@ -970,7 +970,6 @@ static int dispatch_discard_io(struct xen_blkif_ring *ring,
 	int status = BLKIF_RSP_OKAY;
 	struct xen_blkif *blkif = ring->blkif;
 	struct block_device *bdev = blkif->vbd.bdev;
-	unsigned long secure;
 	struct phys_req preq;
 
 	xen_blkif_get(blkif);
@@ -987,13 +986,15 @@ static int dispatch_discard_io(struct xen_blkif_ring *ring,
 	}
 	ring->st_ds_req++;
 
-	secure = (blkif->vbd.discard_secure &&
-		 (req->u.discard.flag & BLKIF_DISCARD_SECURE)) ?
-		 BLKDEV_DISCARD_SECURE : 0;
+	if (blkif->vbd.discard_secure &&
+	    (req->u.discard.flag & BLKIF_DISCARD_SECURE))
+		err = blkdev_issue_secure_erase(bdev,
+				req->u.discard.sector_number,
+				req->u.discard.nr_sectors, GFP_KERNEL);
+	else
+		err = blkdev_issue_discard(bdev, req->u.discard.sector_number,
+				req->u.discard.nr_sectors, GFP_KERNEL);
 
-	err = blkdev_issue_discard(bdev, req->u.discard.sector_number,
-				   req->u.discard.nr_sectors,
-				   GFP_KERNEL, secure);
 fail_response:
 	if (err == -EOPNOTSUPP) {
 		pr_debug("discard op failed, not supported\n");
@@ -1192,8 +1193,8 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 	struct bio *bio = NULL;
 	struct bio **biolist = pending_req->biolist;
 	int i, nbio = 0;
-	int operation;
-	int operation_flags = 0;
+	enum req_op operation;
+	blk_opf_t operation_flags = 0;
 	struct blk_plug plug;
 	bool drain = false;
 	struct grant_page **pages = pending_req->segments;
@@ -1326,16 +1327,13 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 				     pages[i]->page,
 				     seg[i].nsec << 9,
 				     seg[i].offset) == 0)) {
-			bio = bio_alloc(GFP_KERNEL, bio_max_segs(nseg - i));
-			if (unlikely(bio == NULL))
-				goto fail_put_bio;
-
+			bio = bio_alloc(preq.bdev, bio_max_segs(nseg - i),
+					operation | operation_flags,
+					GFP_KERNEL);
 			biolist[nbio++] = bio;
-			bio_set_dev(bio, preq.bdev);
 			bio->bi_private = pending_req;
 			bio->bi_end_io  = end_block_io_op;
 			bio->bi_iter.bi_sector  = preq.sector_number;
-			bio_set_op_attrs(bio, operation, operation_flags);
 		}
 
 		preq.sector_number += seg[i].nsec;
@@ -1345,15 +1343,11 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 	if (!bio) {
 		BUG_ON(operation_flags != REQ_PREFLUSH);
 
-		bio = bio_alloc(GFP_KERNEL, 0);
-		if (unlikely(bio == NULL))
-			goto fail_put_bio;
-
+		bio = bio_alloc(preq.bdev, 0, operation | operation_flags,
+				GFP_KERNEL);
 		biolist[nbio++] = bio;
-		bio_set_dev(bio, preq.bdev);
 		bio->bi_private = pending_req;
 		bio->bi_end_io  = end_block_io_op;
-		bio_set_op_attrs(bio, operation, operation_flags);
 	}
 
 	atomic_set(&pending_req->pendcnt, nbio);
@@ -1379,14 +1373,6 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 	/* Haven't submitted any bio's yet. */
 	make_response(ring, req->u.rw.id, req_operation, BLKIF_RSP_ERROR);
 	free_req(ring, pending_req);
-	msleep(1); /* back off a bit */
-	return -EIO;
-
- fail_put_bio:
-	for (i = 0; i < nbio; i++)
-		bio_put(biolist[i]);
-	atomic_set(&pending_req->pendcnt, 1);
-	__end_block_io_op(pending_req, BLK_STS_RESOURCE);
 	msleep(1); /* back off a bit */
 	return -EIO;
 }

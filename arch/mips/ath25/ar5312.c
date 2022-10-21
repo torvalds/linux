@@ -116,7 +116,7 @@ static int ar5312_misc_irq_map(struct irq_domain *d, unsigned irq,
 	return 0;
 }
 
-static struct irq_domain_ops ar5312_misc_irq_domain_ops = {
+static const struct irq_domain_ops ar5312_misc_irq_domain_ops = {
 	.map = ar5312_misc_irq_map,
 };
 

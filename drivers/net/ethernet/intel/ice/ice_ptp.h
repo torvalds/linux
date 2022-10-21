@@ -49,6 +49,37 @@ struct ice_perout_channel {
  * To allow multiple ports to access the shared register block independently,
  * the blocks are split up so that indexes are assigned to each port based on
  * hardware logical port number.
+ *
+ * The timestamp blocks are handled differently for E810- and E822-based
+ * devices. In E810 devices, each port has its own block of timestamps, while in
+ * E822 there is a need to logically break the block of registers into smaller
+ * chunks based on the port number to avoid collisions.
+ *
+ * Example for port 5 in E810:
+ *  +--------+--------+--------+--------+--------+--------+--------+--------+
+ *  |register|register|register|register|register|register|register|register|
+ *  | block  | block  | block  | block  | block  | block  | block  | block  |
+ *  |  for   |  for   |  for   |  for   |  for   |  for   |  for   |  for   |
+ *  | port 0 | port 1 | port 2 | port 3 | port 4 | port 5 | port 6 | port 7 |
+ *  +--------+--------+--------+--------+--------+--------+--------+--------+
+ *                                               ^^
+ *                                               ||
+ *                                               |---  quad offset is always 0
+ *                                               ---- quad number
+ *
+ * Example for port 5 in E822:
+ * +-----------------------------+-----------------------------+
+ * |  register block for quad 0  |  register block for quad 1  |
+ * |+------+------+------+------+|+------+------+------+------+|
+ * ||port 0|port 1|port 2|port 3|||port 0|port 1|port 2|port 3||
+ * |+------+------+------+------+|+------+------+------+------+|
+ * +-----------------------------+-------^---------------------+
+ *                                ^      |
+ *                                |      --- quad offset*
+ *                                ---- quad number
+ *
+ *   * PHY port 5 is port 1 in quad 1
+ *
  */
 
 /**
@@ -74,7 +105,6 @@ struct ice_tx_tstamp {
 
 /**
  * struct ice_ptp_tx - Tracking structure for all Tx timestamp requests on a port
- * @work: work function to handle processing of Tx timestamps
  * @lock: lock to prevent concurrent write to in_use bitmap
  * @tstamps: array of len to store outstanding requests
  * @in_use: bitmap of len to indicate which slots are in use
@@ -86,7 +116,6 @@ struct ice_tx_tstamp {
  *               window, timestamps are temporarily disabled.
  */
 struct ice_ptp_tx {
-	struct kthread_work work;
 	spinlock_t lock; /* lock protecting in_use bitmap */
 	struct ice_tx_tstamp *tstamps;
 	unsigned long *in_use;
@@ -132,6 +161,7 @@ struct ice_ptp_port {
  * @work: delayed work function for periodic tasks
  * @extts_work: work function for handling external Tx timestamps
  * @cached_phc_time: a cached copy of the PHC time for timestamp extension
+ * @cached_phc_jiffies: jiffies when cached_phc_time was last updated
  * @ext_ts_chan: the external timestamp channel in use
  * @ext_ts_irq: the external timestamp IRQ in use
  * @kworker: kwork thread for handling periodic work
@@ -140,12 +170,19 @@ struct ice_ptp_port {
  * @clock: pointer to registered PTP clock device
  * @tstamp_config: hardware timestamping configuration
  * @reset_time: kernel time after clock stop on reset
+ * @tx_hwtstamp_skipped: number of Tx time stamp requests skipped
+ * @tx_hwtstamp_timeouts: number of Tx skbs discarded with no time stamp
+ * @tx_hwtstamp_flushed: number of Tx skbs flushed due to interface closed
+ * @tx_hwtstamp_discarded: number of Tx skbs discarded due to cached PHC time
+ *                         being too old to correctly extend timestamp
+ * @late_cached_phc_updates: number of times cached PHC update is late
  */
 struct ice_ptp {
 	struct ice_ptp_port port;
 	struct kthread_delayed_work work;
 	struct kthread_work extts_work;
 	u64 cached_phc_time;
+	unsigned long cached_phc_jiffies;
 	u8 ext_ts_chan;
 	u8 ext_ts_irq;
 	struct kthread_worker *kworker;
@@ -154,6 +191,11 @@ struct ice_ptp {
 	struct ptp_clock *clock;
 	struct hwtstamp_config tstamp_config;
 	u64 reset_time;
+	u32 tx_hwtstamp_skipped;
+	u32 tx_hwtstamp_timeouts;
+	u32 tx_hwtstamp_flushed;
+	u32 tx_hwtstamp_discarded;
+	u32 late_cached_phc_updates;
 };
 
 #define __ptp_port_to_ptp(p) \
@@ -193,8 +235,8 @@ struct ice_ptp {
 #define N_EXT_TS_E810			3
 #define N_PER_OUT_E810			4
 #define N_PER_OUT_E810T			3
-#define N_PER_OUT_E810T_NO_SMA		2
-#define N_EXT_TS_E810_NO_SMA		2
+#define N_PER_OUT_NO_SMA_E810T		2
+#define N_EXT_TS_NO_SMA_E810T		2
 #define ETH_GLTSYN_ENA(_i)		(0x03000348 + ((_i) * 4))
 
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
@@ -205,7 +247,7 @@ void ice_ptp_cfg_timestamp(struct ice_pf *pf, bool ena);
 int ice_get_ptp_clock_index(struct ice_pf *pf);
 
 s8 ice_ptp_request_ts(struct ice_ptp_tx *tx, struct sk_buff *skb);
-void ice_ptp_process_ts(struct ice_pf *pf);
+bool ice_ptp_process_ts(struct ice_pf *pf);
 
 void
 ice_ptp_rx_hwtstamp(struct ice_rx_ring *rx_ring,
@@ -238,7 +280,10 @@ ice_ptp_request_ts(struct ice_ptp_tx *tx, struct sk_buff *skb)
 	return -1;
 }
 
-static inline void ice_ptp_process_ts(struct ice_pf *pf) { }
+static inline bool ice_ptp_process_ts(struct ice_pf *pf)
+{
+	return true;
+}
 static inline void
 ice_ptp_rx_hwtstamp(struct ice_rx_ring *rx_ring,
 		    union ice_32b_rx_flex_desc *rx_desc, struct sk_buff *skb) { }

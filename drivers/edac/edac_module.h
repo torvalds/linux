@@ -28,13 +28,9 @@ void edac_mc_sysfs_exit(void);
 extern int edac_create_sysfs_mci_device(struct mem_ctl_info *mci,
 					const struct attribute_group **groups);
 extern void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci);
-extern int edac_get_log_ue(void);
-extern int edac_get_log_ce(void);
-extern int edac_get_panic_on_ue(void);
 extern int edac_mc_get_log_ue(void);
 extern int edac_mc_get_log_ce(void);
 extern int edac_mc_get_panic_on_ue(void);
-extern int edac_get_poll_msec(void);
 extern unsigned int edac_mc_get_poll_msec(void);
 
 unsigned edac_dimm_info_location(struct dimm_info *dimm, char *buf,
@@ -58,8 +54,6 @@ bool edac_mod_work(struct delayed_work *work, unsigned long delay);
 extern void edac_device_reset_delay_period(struct edac_device_ctl_info
 					   *edac_dev, unsigned long value);
 extern void edac_mc_reset_delay_period(unsigned long value);
-
-extern void *edac_align_ptr(void **p, unsigned size, int n_elems);
 
 /*
  * EDAC debugfs functions

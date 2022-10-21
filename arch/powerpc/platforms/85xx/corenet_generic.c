@@ -19,7 +19,6 @@
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 #include <mm/mmu_decl.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/ehv_pic.h>
@@ -37,7 +36,7 @@ void __init corenet_gen_pic_init(void)
 	unsigned int flags = MPIC_BIG_ENDIAN | MPIC_SINGLE_DEST_CPU |
 		MPIC_NO_RESET;
 
-	if (ppc_md.get_irq == mpic_get_coreint_irq)
+	if (!IS_ENABLED(CONFIG_HOTPLUG_CPU) && !IS_ENABLED(CONFIG_KEXEC_CORE))
 		flags |= MPIC_ENABLE_COREINT;
 
 	mpic = mpic_alloc(NULL, 0, flags, 0, 512, " OpenPIC  ");
@@ -201,9 +200,5 @@ define_machine(corenet_generic) {
 #endif
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
-#ifdef CONFIG_PPC64
-	.power_save		= book3e_idle,
-#else
 	.power_save		= e500_idle,
-#endif
 };

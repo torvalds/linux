@@ -808,7 +808,7 @@ gpio_err:
 	return ret;
 }
 
-static int twl6040_remove(struct i2c_client *client)
+static void twl6040_remove(struct i2c_client *client)
 {
 	struct twl6040 *twl6040 = i2c_get_clientdata(client);
 
@@ -820,8 +820,6 @@ static int twl6040_remove(struct i2c_client *client)
 	mfd_remove_devices(&client->dev);
 
 	regulator_bulk_disable(TWL6040_NUM_SUPPLIES, twl6040->supplies);
-
-	return 0;
 }
 
 static const struct i2c_device_id twl6040_i2c_id[] = {

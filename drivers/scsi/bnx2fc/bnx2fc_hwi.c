@@ -1169,7 +1169,7 @@ static void bnx2fc_process_ofld_cmpl(struct bnx2fc_hba *hba,
 		ofld_kcqe->fcoe_conn_context_id);
 	interface = tgt->port->priv;
 	if (hba != interface->hba) {
-		printk(KERN_ERR PFX "ERROR:ofld_cmpl: HBA mis-match\n");
+		printk(KERN_ERR PFX "ERROR:ofld_cmpl: HBA mismatch\n");
 		goto ofld_cmpl_err;
 	}
 	/*
@@ -1226,12 +1226,12 @@ static void bnx2fc_process_enable_conn_cmpl(struct bnx2fc_hba *hba,
 	 * and enable
 	 */
 	if (tgt->context_id != context_id) {
-		printk(KERN_ERR PFX "context id mis-match\n");
+		printk(KERN_ERR PFX "context id mismatch\n");
 		return;
 	}
 	interface = tgt->port->priv;
 	if (hba != interface->hba) {
-		printk(KERN_ERR PFX "bnx2fc-enbl_cmpl: HBA mis-match\n");
+		printk(KERN_ERR PFX "bnx2fc-enbl_cmpl: HBA mismatch\n");
 		goto enbl_cmpl_err;
 	}
 	if (!ofld_kcqe->completion_status)

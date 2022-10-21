@@ -140,8 +140,10 @@ TRACE_EVENT(amdgpu_bo_create,
 );
 
 TRACE_EVENT(amdgpu_cs,
-	    TP_PROTO(struct amdgpu_cs_parser *p, int i),
-	    TP_ARGS(p, i),
+	    TP_PROTO(struct amdgpu_cs_parser *p,
+		     struct amdgpu_job *job,
+		     struct amdgpu_ib *ib),
+	    TP_ARGS(p, job, ib),
 	    TP_STRUCT__entry(
 			     __field(struct amdgpu_bo_list *, bo_list)
 			     __field(u32, ring)
@@ -151,10 +153,10 @@ TRACE_EVENT(amdgpu_cs,
 
 	    TP_fast_assign(
 			   __entry->bo_list = p->bo_list;
-			   __entry->ring = to_amdgpu_ring(p->entity->rq->sched)->idx;
-			   __entry->dw = p->job->ibs[i].length_dw;
+			   __entry->ring = to_amdgpu_ring(job->base.sched)->idx;
+			   __entry->dw = ib->length_dw;
 			   __entry->fences = amdgpu_fence_count_emitted(
-				to_amdgpu_ring(p->entity->rq->sched));
+				to_amdgpu_ring(job->base.sched));
 			   ),
 	    TP_printk("bo_list=%p, ring=%u, dw=%u, fences=%u",
 		      __entry->bo_list, __entry->ring, __entry->dw,
@@ -358,11 +360,10 @@ TRACE_EVENT(amdgpu_vm_update_ptes,
 			}
 	),
 	TP_printk("pid:%u vm_ctx:0x%llx start:0x%010llx end:0x%010llx,"
-		  " flags:0x%llx, incr:%llu, dst:\n%s%s", __entry->pid,
+		  " flags:0x%llx, incr:%llu, dst:\n%s", __entry->pid,
 		  __entry->vm_ctx, __entry->start, __entry->end,
 		  __entry->flags, __entry->incr,  __print_array(
-		  __get_dynamic_array(dst), min(__entry->nptes, 32u), 8),
-		  __entry->nptes > 32 ? "..." : "")
+		  __get_dynamic_array(dst), __entry->nptes, 8))
 );
 
 TRACE_EVENT(amdgpu_vm_set_ptes,
@@ -535,6 +536,22 @@ TRACE_EVENT(amdgpu_ib_pipe_sync,
 		      __get_str(ring), __entry->id,
 		      __entry->fence, __entry->ctx,
 		      __entry->seqno)
+);
+
+TRACE_EVENT(amdgpu_reset_reg_dumps,
+	    TP_PROTO(uint32_t address, uint32_t value),
+	    TP_ARGS(address, value),
+	    TP_STRUCT__entry(
+			     __field(uint32_t, address)
+			     __field(uint32_t, value)
+			     ),
+	    TP_fast_assign(
+			   __entry->address = address;
+			   __entry->value = value;
+			   ),
+	    TP_printk("amdgpu register dump 0x%x: 0x%x",
+		      __entry->address,
+		      __entry->value)
 );
 
 #undef AMDGPU_JOB_GET_TIMELINE_NAME

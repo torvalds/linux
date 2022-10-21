@@ -51,10 +51,10 @@ static void gve_get_stats(struct net_device *dev, struct rtnl_link_stats64 *s)
 		for (ring = 0; ring < priv->rx_cfg.num_queues; ring++) {
 			do {
 				start =
-				  u64_stats_fetch_begin(&priv->rx[ring].statss);
+				  u64_stats_fetch_begin_irq(&priv->rx[ring].statss);
 				packets = priv->rx[ring].rpackets;
 				bytes = priv->rx[ring].rbytes;
-			} while (u64_stats_fetch_retry(&priv->rx[ring].statss,
+			} while (u64_stats_fetch_retry_irq(&priv->rx[ring].statss,
 						       start));
 			s->rx_packets += packets;
 			s->rx_bytes += bytes;
@@ -64,10 +64,10 @@ static void gve_get_stats(struct net_device *dev, struct rtnl_link_stats64 *s)
 		for (ring = 0; ring < priv->tx_cfg.num_queues; ring++) {
 			do {
 				start =
-				  u64_stats_fetch_begin(&priv->tx[ring].statss);
+				  u64_stats_fetch_begin_irq(&priv->tx[ring].statss);
 				packets = priv->tx[ring].pkt_done;
 				bytes = priv->tx[ring].bytes_done;
-			} while (u64_stats_fetch_retry(&priv->tx[ring].statss,
+			} while (u64_stats_fetch_retry_irq(&priv->tx[ring].statss,
 						       start));
 			s->tx_packets += packets;
 			s->tx_bytes += bytes;
@@ -526,8 +526,7 @@ static void gve_add_napi(struct gve_priv *priv, int ntfy_idx,
 {
 	struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
 
-	netif_napi_add(priv->dev, &block->napi, gve_poll,
-		       NAPI_POLL_WEIGHT);
+	netif_napi_add(priv->dev, &block->napi, gve_poll);
 }
 
 static void gve_remove_napi(struct gve_priv *priv, int ntfy_idx)
@@ -857,8 +856,7 @@ static int gve_alloc_qpls(struct gve_priv *priv)
 	int i, j;
 	int err;
 
-	/* Raw addressing means no QPLs */
-	if (priv->queue_format == GVE_GQI_RDA_FORMAT)
+	if (num_qpls == 0)
 		return 0;
 
 	priv->qpls = kvcalloc(num_qpls, sizeof(*priv->qpls), GFP_KERNEL);
@@ -901,8 +899,7 @@ static void gve_free_qpls(struct gve_priv *priv)
 	int num_qpls = gve_num_tx_qpls(priv) + gve_num_rx_qpls(priv);
 	int i;
 
-	/* Raw addressing means no QPLs */
-	if (priv->queue_format == GVE_GQI_RDA_FORMAT)
+	if (num_qpls == 0)
 		return;
 
 	kvfree(priv->qpl_cfg.qpl_id_map);
@@ -1276,9 +1273,9 @@ void gve_handle_report_stats(struct gve_priv *priv)
 			}
 
 			do {
-				start = u64_stats_fetch_begin(&priv->tx[idx].statss);
+				start = u64_stats_fetch_begin_irq(&priv->tx[idx].statss);
 				tx_bytes = priv->tx[idx].bytes_done;
-			} while (u64_stats_fetch_retry(&priv->tx[idx].statss, start));
+			} while (u64_stats_fetch_retry_irq(&priv->tx[idx].statss, start));
 			stats[stats_idx++] = (struct stats) {
 				.stat_name = cpu_to_be32(TX_WAKE_CNT),
 				.value = cpu_to_be64(priv->tx[idx].wake_queue),

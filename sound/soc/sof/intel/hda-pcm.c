@@ -18,6 +18,7 @@
 #include <linux/moduleparam.h>
 #include <sound/hda_register.h>
 #include <sound/pcm_params.h>
+#include <trace/events/sof_intel.h>
 #include "../sof-audio.h"
 #include "../ops.h"
 #include "hda.h"
@@ -93,13 +94,12 @@ u32 hda_dsp_get_bits(struct snd_sof_dev *sdev, int sample_bits)
 int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 			  struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params,
-			  struct sof_ipc_stream_params *ipc_params)
+			  struct snd_sof_platform_stream_params *platform_params)
 {
 	struct hdac_stream *hstream = substream->runtime->private_data;
-	struct hdac_ext_stream *stream = stream_to_hdac_ext_stream(hstream);
+	struct hdac_ext_stream *hext_stream = stream_to_hdac_ext_stream(hstream);
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct snd_dma_buffer *dmab;
-	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
 	int ret;
 	u32 size, rate, bits;
 
@@ -118,7 +118,7 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 			(params->info & SNDRV_PCM_INFO_NO_PERIOD_WAKEUP) &&
 			(params->flags & SNDRV_PCM_HW_PARAMS_NO_PERIOD_WAKEUP);
 
-	ret = hda_dsp_stream_hw_params(sdev, stream, dmab, params);
+	ret = hda_dsp_stream_hw_params(sdev, hext_stream, dmab, params);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: hdac prepare failed: %d\n", ret);
 		return ret;
@@ -126,23 +126,14 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 
 	/* enable SPIB when rewinds are disabled */
 	if (hda_disable_rewinds)
-		hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_ENABLE, 0);
+		hda_dsp_stream_spib_config(sdev, hext_stream, HDA_DSP_SPIB_ENABLE, 0);
 	else
-		hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_DISABLE, 0);
+		hda_dsp_stream_spib_config(sdev, hext_stream, HDA_DSP_SPIB_DISABLE, 0);
 
-	/* update no_stream_position flag for ipc params */
-	if (hda && hda->no_ipc_position) {
-		/* For older ABIs set host_period_bytes to zero to inform
-		 * FW we don't want position updates. Newer versions use
-		 * no_stream_position for this purpose.
-		 */
-		if (v->abi_version < SOF_ABI_VER(3, 10, 0))
-			ipc_params->host_period_bytes = 0;
-		else
-			ipc_params->no_stream_position = 1;
-	}
+	if (hda)
+		platform_params->no_ipc_position = hda->no_ipc_position;
 
-	ipc_params->stream_tag = hstream->stream_tag;
+	platform_params->stream_tag = hstream->stream_tag;
 
 	return 0;
 }
@@ -174,9 +165,9 @@ int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
 			struct snd_pcm_substream *substream, int cmd)
 {
 	struct hdac_stream *hstream = substream->runtime->private_data;
-	struct hdac_ext_stream *stream = stream_to_hdac_ext_stream(hstream);
+	struct hdac_ext_stream *hext_stream = stream_to_hdac_ext_stream(hstream);
 
-	return hda_dsp_stream_trigger(sdev, stream, cmd);
+	return hda_dsp_stream_trigger(sdev, hext_stream, cmd);
 }
 
 snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
@@ -202,84 +193,11 @@ snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 		goto found;
 	}
 
-	switch (sof_hda_position_quirk) {
-	case SOF_HDA_POSITION_QUIRK_USE_SKYLAKE_LEGACY:
-		/*
-		 * This legacy code, inherited from the Skylake driver,
-		 * mixes DPIB registers and DPIB DDR updates and
-		 * does not seem to follow any known hardware recommendations.
-		 * It's not clear e.g. why there is a different flow
-		 * for capture and playback, the only information that matters is
-		 * what traffic class is used, and on all SOF-enabled platforms
-		 * only VC0 is supported so the work-around was likely not necessary
-		 * and quite possibly wrong.
-		 */
-
-		/* DPIB/posbuf position mode:
-		 * For Playback, Use DPIB register from HDA space which
-		 * reflects the actual data transferred.
-		 * For Capture, Use the position buffer for pointer, as DPIB
-		 * is not accurate enough, its update may be completed
-		 * earlier than the data written to DDR.
-		 */
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			pos = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
-					       AZX_REG_VS_SDXDPIB_XBASE +
-					       (AZX_REG_VS_SDXDPIB_XINTERVAL *
-						hstream->index));
-		} else {
-			/*
-			 * For capture stream, we need more workaround to fix the
-			 * position incorrect issue:
-			 *
-			 * 1. Wait at least 20us before reading position buffer after
-			 * the interrupt generated(IOC), to make sure position update
-			 * happens on frame boundary i.e. 20.833uSec for 48KHz.
-			 * 2. Perform a dummy Read to DPIB register to flush DMA
-			 * position value.
-			 * 3. Read the DMA Position from posbuf. Now the readback
-			 * value should be >= period boundary.
-			 */
-			usleep_range(20, 21);
-			snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
-					 AZX_REG_VS_SDXDPIB_XBASE +
-					 (AZX_REG_VS_SDXDPIB_XINTERVAL *
-					  hstream->index));
-			pos = snd_hdac_stream_get_pos_posbuf(hstream);
-		}
-		break;
-	case SOF_HDA_POSITION_QUIRK_USE_DPIB_REGISTERS:
-		/*
-		 * In case VC1 traffic is disabled this is the recommended option
-		 */
-		pos = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
-				       AZX_REG_VS_SDXDPIB_XBASE +
-				       (AZX_REG_VS_SDXDPIB_XINTERVAL *
-					hstream->index));
-		break;
-	case SOF_HDA_POSITION_QUIRK_USE_DPIB_DDR_UPDATE:
-		/*
-		 * This is the recommended option when VC1 is enabled.
-		 * While this isn't needed for SOF platforms it's added for
-		 * consistency and debug.
-		 */
-		pos = snd_hdac_stream_get_pos_posbuf(hstream);
-		break;
-	default:
-		dev_err_once(sdev->dev, "hda_position_quirk value %d not supported\n",
-			     sof_hda_position_quirk);
-		pos = 0;
-		break;
-	}
-
-	if (pos >= hstream->bufsize)
-		pos = 0;
-
+	pos = hda_dsp_stream_get_position(hstream, substream->stream, true);
 found:
 	pos = bytes_to_frames(substream->runtime, pos);
 
-	dev_vdbg(sdev->dev, "PCM: stream %d dir %d position %lu\n",
-		 hstream->index, substream->stream, pos);
+	trace_sof_intel_hda_dsp_pcm(sdev, hstream, substream, pos);
 	return pos;
 }
 
@@ -315,6 +233,7 @@ int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 		runtime->hw.info &= ~SNDRV_PCM_INFO_PAUSE;
 
 	if (hda_always_enable_dmi_l1 ||
+	    direction == SNDRV_PCM_STREAM_PLAYBACK ||
 	    spcm->stream[substream->stream].d0i3_compatible)
 		flags |= SOF_HDA_STREAM_DMI_L1_COMPATIBLE;
 

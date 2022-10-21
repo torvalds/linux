@@ -73,11 +73,8 @@ struct spi_sh_data {
 	void __iomem *addr;
 	int irq;
 	struct spi_master *master;
-	struct list_head queue;
-	struct work_struct ws;
 	unsigned long cr1;
 	wait_queue_head_t wait;
-	spinlock_t lock;
 	int width;
 };
 
@@ -271,46 +268,38 @@ static int spi_sh_receive(struct spi_sh_data *ss, struct spi_message *mesg,
 	return 0;
 }
 
-static void spi_sh_work(struct work_struct *work)
+static int spi_sh_transfer_one_message(struct spi_controller *ctlr,
+					struct spi_message *mesg)
 {
-	struct spi_sh_data *ss = container_of(work, struct spi_sh_data, ws);
-	struct spi_message *mesg;
+	struct spi_sh_data *ss = spi_controller_get_devdata(ctlr);
 	struct spi_transfer *t;
-	unsigned long flags;
 	int ret;
 
 	pr_debug("%s: enter\n", __func__);
 
-	spin_lock_irqsave(&ss->lock, flags);
-	while (!list_empty(&ss->queue)) {
-		mesg = list_entry(ss->queue.next, struct spi_message, queue);
-		list_del_init(&mesg->queue);
+	spi_sh_clear_bit(ss, SPI_SH_SSA, SPI_SH_CR1);
 
-		spin_unlock_irqrestore(&ss->lock, flags);
-		list_for_each_entry(t, &mesg->transfers, transfer_list) {
-			pr_debug("tx_buf = %p, rx_buf = %p\n",
-					t->tx_buf, t->rx_buf);
-			pr_debug("len = %d, delay.value = %d\n",
-					t->len, t->delay.value);
+	list_for_each_entry(t, &mesg->transfers, transfer_list) {
+		pr_debug("tx_buf = %p, rx_buf = %p\n",
+			 t->tx_buf, t->rx_buf);
+		pr_debug("len = %d, delay.value = %d\n",
+			 t->len, t->delay.value);
 
-			if (t->tx_buf) {
-				ret = spi_sh_send(ss, mesg, t);
-				if (ret < 0)
-					goto error;
-			}
-			if (t->rx_buf) {
-				ret = spi_sh_receive(ss, mesg, t);
-				if (ret < 0)
-					goto error;
-			}
-			mesg->actual_length += t->len;
+		if (t->tx_buf) {
+			ret = spi_sh_send(ss, mesg, t);
+			if (ret < 0)
+				goto error;
 		}
-		spin_lock_irqsave(&ss->lock, flags);
-
-		mesg->status = 0;
-		if (mesg->complete)
-			mesg->complete(mesg->context);
+		if (t->rx_buf) {
+			ret = spi_sh_receive(ss, mesg, t);
+			if (ret < 0)
+				goto error;
+		}
+		mesg->actual_length += t->len;
 	}
+
+	mesg->status = 0;
+	spi_finalize_current_message(ctlr);
 
 	clear_fifo(ss);
 	spi_sh_set_bit(ss, SPI_SH_SSD, SPI_SH_CR1);
@@ -321,12 +310,11 @@ static void spi_sh_work(struct work_struct *work)
 
 	clear_fifo(ss);
 
-	spin_unlock_irqrestore(&ss->lock, flags);
-
-	return;
+	return 0;
 
  error:
 	mesg->status = ret;
+	spi_finalize_current_message(ctlr);
 	if (mesg->complete)
 		mesg->complete(mesg->context);
 
@@ -334,6 +322,7 @@ static void spi_sh_work(struct work_struct *work)
 			 SPI_SH_CR1);
 	clear_fifo(ss);
 
+	return ret;
 }
 
 static int spi_sh_setup(struct spi_device *spi)
@@ -351,29 +340,6 @@ static int spi_sh_setup(struct spi_device *spi)
 	/* 1/8 clock */
 	spi_sh_write(ss, spi_sh_read(ss, SPI_SH_CR2) | 0x07, SPI_SH_CR2);
 	udelay(10);
-
-	return 0;
-}
-
-static int spi_sh_transfer(struct spi_device *spi, struct spi_message *mesg)
-{
-	struct spi_sh_data *ss = spi_master_get_devdata(spi->master);
-	unsigned long flags;
-
-	pr_debug("%s: enter\n", __func__);
-	pr_debug("\tmode = %02x\n", spi->mode);
-
-	spin_lock_irqsave(&ss->lock, flags);
-
-	mesg->actual_length = 0;
-	mesg->status = -EINPROGRESS;
-
-	spi_sh_clear_bit(ss, SPI_SH_SSA, SPI_SH_CR1);
-
-	list_add_tail(&mesg->queue, &ss->queue);
-	schedule_work(&ss->ws);
-
-	spin_unlock_irqrestore(&ss->lock, flags);
 
 	return 0;
 }
@@ -416,7 +382,6 @@ static int spi_sh_remove(struct platform_device *pdev)
 	struct spi_sh_data *ss = platform_get_drvdata(pdev);
 
 	spi_unregister_master(ss->master);
-	flush_work(&ss->ws);
 	free_irq(ss->irq, ss);
 
 	return 0;
@@ -467,9 +432,6 @@ static int spi_sh_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "ioremap error.\n");
 		return -ENOMEM;
 	}
-	INIT_LIST_HEAD(&ss->queue);
-	spin_lock_init(&ss->lock);
-	INIT_WORK(&ss->ws, spi_sh_work);
 	init_waitqueue_head(&ss->wait);
 
 	ret = request_irq(irq, spi_sh_irq, 0, "spi_sh", ss);
@@ -481,7 +443,7 @@ static int spi_sh_probe(struct platform_device *pdev)
 	master->num_chipselect = 2;
 	master->bus_num = pdev->id;
 	master->setup = spi_sh_setup;
-	master->transfer = spi_sh_transfer;
+	master->transfer_one_message = spi_sh_transfer_one_message;
 	master->cleanup = spi_sh_cleanup;
 
 	ret = spi_register_master(master);

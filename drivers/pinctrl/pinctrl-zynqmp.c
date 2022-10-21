@@ -163,6 +163,8 @@ static const char *zynqmp_pmux_get_function_name(struct pinctrl_dev *pctldev,
  * @num_groups:	Number of function groups.
  *
  * Get function's group count and group names.
+ *
+ * Return: 0
  */
 static int zynqmp_pmux_get_function_groups(struct pinctrl_dev *pctldev,
 					   unsigned int selector,
@@ -410,6 +412,10 @@ static int zynqmp_pinconf_cfg_set(struct pinctrl_dev *pctldev,
 
 			break;
 		case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
+			param = PM_PINCTRL_CONFIG_TRI_STATE;
+			arg = PM_PINCTRL_TRI_STATE_ENABLE;
+			ret = zynqmp_pm_pinctrl_set_config(pin, param, arg);
+			break;
 		case PIN_CONFIG_MODE_LOW_POWER:
 			/*
 			 * These cases are mentioned in dts but configurable
@@ -417,6 +423,11 @@ static int zynqmp_pinconf_cfg_set(struct pinctrl_dev *pctldev,
 			 * boot time warnings as of now.
 			 */
 			ret = 0;
+			break;
+		case PIN_CONFIG_OUTPUT_ENABLE:
+			param = PM_PINCTRL_CONFIG_TRI_STATE;
+			arg = PM_PINCTRL_TRI_STATE_DISABLE;
+			ret = zynqmp_pm_pinctrl_set_config(pin, param, arg);
 			break;
 		default:
 			dev_warn(pctldev->dev,
@@ -809,7 +820,6 @@ static int zynqmp_pinctrl_prepare_pin_desc(struct device *dev,
 					   unsigned int *npins)
 {
 	struct pinctrl_pin_desc *pins, *pin;
-	char **pin_names;
 	int ret;
 	int i;
 
@@ -821,14 +831,13 @@ static int zynqmp_pinctrl_prepare_pin_desc(struct device *dev,
 	if (!pins)
 		return -ENOMEM;
 
-	pin_names = devm_kasprintf_strarray(dev, ZYNQMP_PIN_PREFIX, *npins);
-	if (IS_ERR(pin_names))
-		return PTR_ERR(pin_names);
-
 	for (i = 0; i < *npins; i++) {
 		pin = &pins[i];
 		pin->number = i;
-		pin->name = pin_names[i];
+		pin->name = devm_kasprintf(dev, GFP_KERNEL, "%s%d",
+					   ZYNQMP_PIN_PREFIX, i);
+		if (!pin->name)
+			return -ENOMEM;
 	}
 
 	*zynqmp_pins = pins;

@@ -268,7 +268,9 @@ static void _setup_mdp_ops(struct dpu_hw_mdp_ops *ops,
 	ops->get_danger_status = dpu_hw_get_danger_status;
 	ops->setup_vsync_source = dpu_hw_setup_vsync_source;
 	ops->get_safe_status = dpu_hw_get_safe_status;
-	ops->intf_audio_select = dpu_hw_intf_audio_select;
+
+	if (cap & BIT(DPU_MDP_AUDIO_SELECT))
+		ops->intf_audio_select = dpu_hw_intf_audio_select;
 }
 
 static const struct dpu_mdp_cfg *_top_offset(enum dpu_mdp mdp,
@@ -283,10 +285,7 @@ static const struct dpu_mdp_cfg *_top_offset(enum dpu_mdp mdp,
 
 	for (i = 0; i < m->mdp_count; i++) {
 		if (mdp == m->mdp[i].id) {
-			b->base_off = addr;
-			b->blk_off = m->mdp[i].base;
-			b->length = m->mdp[i].len;
-			b->hwversion = m->hwversion;
+			b->blk_addr = addr + m->mdp[i].base;
 			b->log_mask = DPU_DBG_MASK_TOP;
 			return &m->mdp[i];
 		}

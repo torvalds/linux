@@ -69,7 +69,8 @@ static int es58x_fd_echo_msg(struct net_device *netdev,
 	int i, num_element;
 	u32 rcv_packet_idx;
 
-	const u32 mask = GENMASK(31, sizeof(echo_msg->packet_idx) * 8);
+	const u32 mask = GENMASK(BITS_PER_TYPE(mask) - 1,
+				 BITS_PER_TYPE(echo_msg->packet_idx));
 
 	num_element = es58x_msg_num_element(es58x_dev->dev,
 					    es58x_fd_urb_cmd->echo_msg,
@@ -172,11 +173,10 @@ static int es58x_fd_rx_event_msg(struct net_device *netdev,
 	const struct es58x_fd_rx_event_msg *rx_event_msg;
 	int ret;
 
+	rx_event_msg = &es58x_fd_urb_cmd->rx_event_msg;
 	ret = es58x_check_msg_len(es58x_dev->dev, *rx_event_msg, msg_len);
 	if (ret)
 		return ret;
-
-	rx_event_msg = &es58x_fd_urb_cmd->rx_event_msg;
 
 	return es58x_rx_err_msg(netdev, rx_event_msg->error_code,
 				rx_event_msg->event_code,

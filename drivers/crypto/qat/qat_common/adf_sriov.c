@@ -3,7 +3,6 @@
 #include <linux/workqueue.h>
 #include <linux/pci.h>
 #include <linux/device.h>
-#include <linux/iommu.h>
 #include "adf_common_drv.h"
 #include "adf_cfg.h"
 #include "adf_pfvf_pf_msg.h"
@@ -74,8 +73,7 @@ static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
 		hw_data->configure_iov_threads(accel_dev, true);
 
 	/* Enable VF to PF interrupts for all VFs */
-	if (hw_data->pfvf_ops.get_pf2vf_offset)
-		adf_enable_vf2pf_interrupts(accel_dev, BIT_ULL(totalvfs) - 1);
+	adf_enable_vf2pf_interrupts(accel_dev, BIT_ULL(totalvfs) - 1);
 
 	/*
 	 * Due to the hardware design, when SR-IOV and the ring arbiter
@@ -104,53 +102,23 @@ void adf_disable_sriov(struct adf_accel_dev *accel_dev)
 	if (!accel_dev->pf.vf_info)
 		return;
 
-	if (hw_data->pfvf_ops.get_pf2vf_offset)
-		adf_pf2vf_notify_restarting(accel_dev);
-
+	adf_pf2vf_notify_restarting(accel_dev);
 	pci_disable_sriov(accel_to_pci_dev(accel_dev));
 
 	/* Disable VF to PF interrupts */
-	if (hw_data->pfvf_ops.get_pf2vf_offset)
-		adf_disable_vf2pf_interrupts(accel_dev, GENMASK(31, 0));
+	adf_disable_all_vf2pf_interrupts(accel_dev);
 
 	/* Clear Valid bits in AE Thread to PCIe Function Mapping */
 	if (hw_data->configure_iov_threads)
 		hw_data->configure_iov_threads(accel_dev, false);
 
-	for (i = 0, vf = accel_dev->pf.vf_info; i < totalvfs; i++, vf++) {
+	for (i = 0, vf = accel_dev->pf.vf_info; i < totalvfs; i++, vf++)
 		mutex_destroy(&vf->pf2vf_lock);
-	}
 
 	kfree(accel_dev->pf.vf_info);
 	accel_dev->pf.vf_info = NULL;
 }
 EXPORT_SYMBOL_GPL(adf_disable_sriov);
-
-static int adf_sriov_prepare_restart(struct adf_accel_dev *accel_dev)
-{
-	char services[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = {0};
-	int ret;
-
-	ret = adf_cfg_get_param_value(accel_dev, ADF_GENERAL_SEC,
-				      ADF_SERVICES_ENABLED, services);
-
-	adf_dev_stop(accel_dev);
-	adf_dev_shutdown(accel_dev);
-
-	if (!ret) {
-		ret = adf_cfg_section_add(accel_dev, ADF_GENERAL_SEC);
-		if (ret)
-			return ret;
-
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_GENERAL_SEC,
-						  ADF_SERVICES_ENABLED,
-						  services, ADF_STR);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
 
 /**
  * adf_sriov_configure() - Enable SRIOV for the device
@@ -176,7 +144,7 @@ int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 		return -EFAULT;
 	}
 
-	if (!iommu_present(&pci_bus_type))
+	if (!device_iommu_mapped(&pdev->dev))
 		dev_warn(&pdev->dev, "IOMMU should be enabled for SR-IOV to work correctly\n");
 
 	if (accel_dev->pf.vf_info) {
@@ -191,7 +159,7 @@ int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 			return -EBUSY;
 		}
 
-		ret = adf_sriov_prepare_restart(accel_dev);
+		ret = adf_dev_shutdown_cache_cfg(accel_dev);
 		if (ret)
 			return ret;
 	}

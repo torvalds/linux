@@ -111,7 +111,7 @@ static void neigh_cleanup_and_release(struct neighbour *neigh)
 
 unsigned long neigh_rand_reach_time(unsigned long base)
 {
-	return base ? (prandom_u32() % base) + (base >> 1) : 0;
+	return base ? prandom_u32_max(base) + (base >> 1) : 0;
 }
 EXPORT_SYMBOL(neigh_rand_reach_time);
 
@@ -307,11 +307,35 @@ static int neigh_del_timer(struct neighbour *n)
 	return 0;
 }
 
-static void pneigh_queue_purge(struct sk_buff_head *list)
+static void pneigh_queue_purge(struct sk_buff_head *list, struct net *net)
 {
+	struct sk_buff_head tmp;
+	unsigned long flags;
 	struct sk_buff *skb;
 
-	while ((skb = skb_dequeue(list)) != NULL) {
+	skb_queue_head_init(&tmp);
+	spin_lock_irqsave(&list->lock, flags);
+	skb = skb_peek(list);
+	while (skb != NULL) {
+		struct sk_buff *skb_next = skb_peek_next(skb, list);
+		struct net_device *dev = skb->dev;
+
+		if (net == NULL || net_eq(dev_net(dev), net)) {
+			struct in_device *in_dev;
+
+			rcu_read_lock();
+			in_dev = __in_dev_get_rcu(dev);
+			if (in_dev)
+				in_dev->arp_parms->qlen--;
+			rcu_read_unlock();
+			__skb_unlink(skb, list);
+			__skb_queue_tail(&tmp, skb);
+		}
+		skb = skb_next;
+	}
+	spin_unlock_irqrestore(&list->lock, flags);
+
+	while ((skb = __skb_dequeue(&tmp))) {
 		dev_put(skb->dev);
 		kfree_skb(skb);
 	}
@@ -385,9 +409,9 @@ static int __neigh_ifdown(struct neigh_table *tbl, struct net_device *dev,
 	write_lock_bh(&tbl->lock);
 	neigh_flush_dev(tbl, dev, skip_perm);
 	pneigh_ifdown_and_unlock(tbl, dev);
-
-	del_timer_sync(&tbl->proxy_timer);
-	pneigh_queue_purge(&tbl->proxy_queue);
+	pneigh_queue_purge(&tbl->proxy_queue, dev_net(dev));
+	if (skb_queue_empty_lockless(&tbl->proxy_queue))
+		del_timer_sync(&tbl->proxy_timer);
 	return 0;
 }
 
@@ -624,7 +648,7 @@ ___neigh_create(struct neigh_table *tbl, const void *pkey,
 
 	memcpy(n->primary_key, pkey, key_len);
 	n->dev = dev;
-	dev_hold_track(dev, &n->dev_tracker, GFP_ATOMIC);
+	netdev_hold(dev, &n->dev_tracker, GFP_ATOMIC);
 
 	/* Protocol specific setup. */
 	if (tbl->constructor &&	(error = tbl->constructor(n)) < 0) {
@@ -770,10 +794,10 @@ struct pneigh_entry * pneigh_lookup(struct neigh_table *tbl,
 	write_pnet(&n->net, net);
 	memcpy(n->key, pkey, key_len);
 	n->dev = dev;
-	dev_hold_track(dev, &n->dev_tracker, GFP_KERNEL);
+	netdev_hold(dev, &n->dev_tracker, GFP_KERNEL);
 
 	if (tbl->pconstructor && tbl->pconstructor(n)) {
-		dev_put_track(dev, &n->dev_tracker);
+		netdev_put(dev, &n->dev_tracker);
 		kfree(n);
 		n = NULL;
 		goto out;
@@ -805,7 +829,7 @@ int pneigh_delete(struct neigh_table *tbl, struct net *net, const void *pkey,
 			write_unlock_bh(&tbl->lock);
 			if (tbl->pdestructor)
 				tbl->pdestructor(n);
-			dev_put_track(n->dev, &n->dev_tracker);
+			netdev_put(n->dev, &n->dev_tracker);
 			kfree(n);
 			return 0;
 		}
@@ -838,7 +862,7 @@ static int pneigh_ifdown_and_unlock(struct neigh_table *tbl,
 		n->next = NULL;
 		if (tbl->pdestructor)
 			tbl->pdestructor(n);
-		dev_put_track(n->dev, &n->dev_tracker);
+		netdev_put(n->dev, &n->dev_tracker);
 		kfree(n);
 	}
 	return -ENOENT;
@@ -879,7 +903,7 @@ void neigh_destroy(struct neighbour *neigh)
 	if (dev->netdev_ops->ndo_neigh_destroy)
 		dev->netdev_ops->ndo_neigh_destroy(dev, neigh);
 
-	dev_put_track(dev, &neigh->dev_tracker);
+	netdev_put(dev, &neigh->dev_tracker);
 	neigh_parms_put(neigh->parms);
 
 	neigh_dbg(2, "neigh %p is destroyed\n", neigh);
@@ -1133,7 +1157,8 @@ out:
 	neigh_release(neigh);
 }
 
-int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
+int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb,
+		       const bool immediate_ok)
 {
 	int rc;
 	bool immediate_probe = false;
@@ -1154,18 +1179,23 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 			atomic_set(&neigh->probes,
 				   NEIGH_VAR(neigh->parms, UCAST_PROBES));
 			neigh_del_timer(neigh);
-			neigh->nud_state     = NUD_INCOMPLETE;
+			neigh->nud_state = NUD_INCOMPLETE;
 			neigh->updated = now;
-			next = now + max(NEIGH_VAR(neigh->parms, RETRANS_TIME),
-					 HZ/100);
+			if (!immediate_ok) {
+				next = now + 1;
+			} else {
+				immediate_probe = true;
+				next = now + max(NEIGH_VAR(neigh->parms,
+							   RETRANS_TIME),
+						 HZ / 100);
+			}
 			neigh_add_timer(neigh, next);
-			immediate_probe = true;
 		} else {
 			neigh->nud_state = NUD_FAILED;
 			neigh->updated = jiffies;
 			write_unlock_bh(&neigh->lock);
 
-			kfree_skb(skb);
+			kfree_skb_reason(skb, SKB_DROP_REASON_NEIGH_FAILED);
 			return 1;
 		}
 	} else if (neigh->nud_state & NUD_STALE) {
@@ -1187,7 +1217,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 				if (!buff)
 					break;
 				neigh->arp_queue_len_bytes -= buff->truesize;
-				kfree_skb(buff);
+				kfree_skb_reason(buff, SKB_DROP_REASON_NEIGH_QUEUEFULL);
 				NEIGH_CACHE_STAT_INC(neigh->tbl, unres_discards);
 			}
 			skb_dst_force(skb);
@@ -1209,7 +1239,7 @@ out_dead:
 	if (neigh->nud_state & NUD_STALE)
 		goto out_unlock_bh;
 	write_unlock_bh(&neigh->lock);
-	kfree_skb(skb);
+	kfree_skb_reason(skb, SKB_DROP_REASON_NEIGH_DEAD);
 	trace_neigh_event_send_dead(neigh, 1);
 	return 1;
 }
@@ -1571,9 +1601,9 @@ static void neigh_managed_work(struct work_struct *work)
 
 	write_lock_bh(&tbl->lock);
 	list_for_each_entry(neigh, &tbl->managed_list, managed_list)
-		neigh_event_send(neigh, NULL);
+		neigh_event_send_probe(neigh, NULL, false);
 	queue_delayed_work(system_power_efficient_wq, &tbl->managed_work,
-			   NEIGH_VAR(&tbl->parms, DELAY_PROBE_TIME));
+			   NEIGH_VAR(&tbl->parms, INTERVAL_PROBE_TIME_MS));
 	write_unlock_bh(&tbl->lock);
 }
 
@@ -1591,8 +1621,15 @@ static void neigh_proxy_process(struct timer_list *t)
 
 		if (tdif <= 0) {
 			struct net_device *dev = skb->dev;
+			struct in_device *in_dev;
 
+			rcu_read_lock();
+			in_dev = __in_dev_get_rcu(dev);
+			if (in_dev)
+				in_dev->arp_parms->qlen--;
+			rcu_read_unlock();
 			__skb_unlink(skb, &tbl->proxy_queue);
+
 			if (tbl->proxy_redo && netif_running(dev)) {
 				rcu_read_lock();
 				tbl->proxy_redo(skb);
@@ -1617,7 +1654,7 @@ void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 	unsigned long sched_next = jiffies +
 			prandom_u32_max(NEIGH_VAR(p, PROXY_DELAY));
 
-	if (tbl->proxy_queue.qlen > NEIGH_VAR(p, PROXY_QLEN)) {
+	if (p->qlen > NEIGH_VAR(p, PROXY_QLEN)) {
 		kfree_skb(skb);
 		return;
 	}
@@ -1633,6 +1670,7 @@ void pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 	skb_dst_drop(skb);
 	dev_hold(skb->dev);
 	__skb_queue_tail(&tbl->proxy_queue, skb);
+	p->qlen++;
 	mod_timer(&tbl->proxy_timer, sched_next);
 	spin_unlock(&tbl->proxy_queue.lock);
 }
@@ -1665,13 +1703,14 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 		refcount_set(&p->refcnt, 1);
 		p->reachable_time =
 				neigh_rand_reach_time(NEIGH_VAR(p, BASE_REACHABLE_TIME));
-		dev_hold_track(dev, &p->dev_tracker, GFP_KERNEL);
+		p->qlen = 0;
+		netdev_hold(dev, &p->dev_tracker, GFP_KERNEL);
 		p->dev = dev;
 		write_pnet(&p->net, net);
 		p->sysctl_table = NULL;
 
 		if (ops->ndo_neigh_setup && ops->ndo_neigh_setup(dev, p)) {
-			dev_put_track(dev, &p->dev_tracker);
+			netdev_put(dev, &p->dev_tracker);
 			kfree(p);
 			return NULL;
 		}
@@ -1702,7 +1741,7 @@ void neigh_parms_release(struct neigh_table *tbl, struct neigh_parms *parms)
 	list_del(&parms->list);
 	parms->dead = 1;
 	write_unlock_bh(&tbl->lock);
-	dev_put_track(parms->dev, &parms->dev_tracker);
+	netdev_put(parms->dev, &parms->dev_tracker);
 	call_rcu(&parms->rcu_head, neigh_rcu_free_parms);
 }
 EXPORT_SYMBOL(neigh_parms_release);
@@ -1730,6 +1769,7 @@ void neigh_table_init(int index, struct neigh_table *tbl)
 	refcount_set(&tbl->parms.refcnt, 1);
 	tbl->parms.reachable_time =
 			  neigh_rand_reach_time(NEIGH_VAR(&tbl->parms, BASE_REACHABLE_TIME));
+	tbl->parms.qlen = 0;
 
 	tbl->stats = alloc_percpu(struct neigh_statistics);
 	if (!tbl->stats)
@@ -1781,7 +1821,7 @@ int neigh_table_clear(int index, struct neigh_table *tbl)
 	cancel_delayed_work_sync(&tbl->managed_work);
 	cancel_delayed_work_sync(&tbl->gc_work);
 	del_timer_sync(&tbl->proxy_timer);
-	pneigh_queue_purge(&tbl->proxy_queue);
+	pneigh_queue_purge(&tbl->proxy_queue, NULL);
 	neigh_ifdown(tbl, NULL);
 	if (atomic_read(&tbl->entries))
 		pr_crit("neighbour leakage\n");
@@ -1812,9 +1852,6 @@ static struct neigh_table *neigh_find_table(int family)
 		break;
 	case AF_INET6:
 		tbl = neigh_tables[NEIGH_ND_TABLE];
-		break;
-	case AF_DECnet:
-		tbl = neigh_tables[NEIGH_DN_TABLE];
 		break;
 	}
 
@@ -2094,7 +2131,9 @@ static int neightbl_fill_parms(struct sk_buff *skb, struct neigh_parms *parms)
 	    nla_put_msecs(skb, NDTPA_PROXY_DELAY,
 			  NEIGH_VAR(parms, PROXY_DELAY), NDTPA_PAD) ||
 	    nla_put_msecs(skb, NDTPA_LOCKTIME,
-			  NEIGH_VAR(parms, LOCKTIME), NDTPA_PAD))
+			  NEIGH_VAR(parms, LOCKTIME), NDTPA_PAD) ||
+	    nla_put_msecs(skb, NDTPA_INTERVAL_PROBE_TIME_MS,
+			  NEIGH_VAR(parms, INTERVAL_PROBE_TIME_MS), NDTPA_PAD))
 		goto nla_put_failure;
 	return nla_nest_end(skb, nest);
 
@@ -2249,6 +2288,7 @@ static const struct nla_policy nl_ntbl_parm_policy[NDTPA_MAX+1] = {
 	[NDTPA_ANYCAST_DELAY]		= { .type = NLA_U64 },
 	[NDTPA_PROXY_DELAY]		= { .type = NLA_U64 },
 	[NDTPA_LOCKTIME]		= { .type = NLA_U64 },
+	[NDTPA_INTERVAL_PROBE_TIME_MS]	= { .type = NLA_U64, .min = 1 },
 };
 
 static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -2366,6 +2406,10 @@ static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh,
 				NEIGH_VAR_SET(p, DELAY_PROBE_TIME,
 					      nla_get_msecs(tbp[i]));
 				call_netevent_notifiers(NETEVENT_DELAY_PROBE_TIME_UPDATE, p);
+				break;
+			case NDTPA_INTERVAL_PROBE_TIME_MS:
+				NEIGH_VAR_SET(p, INTERVAL_PROBE_TIME_MS,
+					      nla_get_msecs(tbp[i]));
 				break;
 			case NDTPA_RETRANS_TIME:
 				NEIGH_VAR_SET(p, RETRANS_TIME,
@@ -3556,6 +3600,22 @@ static int neigh_proc_dointvec_zero_intmax(struct ctl_table *ctl, int write,
 	return ret;
 }
 
+static int neigh_proc_dointvec_ms_jiffies_positive(struct ctl_table *ctl, int write,
+						   void *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct ctl_table tmp = *ctl;
+	int ret;
+
+	int min = msecs_to_jiffies(1);
+
+	tmp.extra1 = &min;
+	tmp.extra2 = NULL;
+
+	ret = proc_dointvec_ms_jiffies_minmax(&tmp, write, buffer, lenp, ppos);
+	neigh_proc_update(ctl, write);
+	return ret;
+}
+
 int neigh_proc_dointvec(struct ctl_table *ctl, int write, void *buffer,
 			size_t *lenp, loff_t *ppos)
 {
@@ -3652,6 +3712,9 @@ static int neigh_proc_base_reachable_time(struct ctl_table *ctl, int write,
 #define NEIGH_SYSCTL_USERHZ_JIFFIES_ENTRY(attr, name) \
 	NEIGH_SYSCTL_ENTRY(attr, attr, name, 0644, neigh_proc_dointvec_userhz_jiffies)
 
+#define NEIGH_SYSCTL_MS_JIFFIES_POSITIVE_ENTRY(attr, name) \
+	NEIGH_SYSCTL_ENTRY(attr, attr, name, 0644, neigh_proc_dointvec_ms_jiffies_positive)
+
 #define NEIGH_SYSCTL_MS_JIFFIES_REUSED_ENTRY(attr, data_attr, name) \
 	NEIGH_SYSCTL_ENTRY(attr, data_attr, name, 0644, neigh_proc_dointvec_ms_jiffies)
 
@@ -3670,6 +3733,8 @@ static struct neigh_sysctl_table {
 		NEIGH_SYSCTL_USERHZ_JIFFIES_ENTRY(RETRANS_TIME, "retrans_time"),
 		NEIGH_SYSCTL_JIFFIES_ENTRY(BASE_REACHABLE_TIME, "base_reachable_time"),
 		NEIGH_SYSCTL_JIFFIES_ENTRY(DELAY_PROBE_TIME, "delay_first_probe_time"),
+		NEIGH_SYSCTL_MS_JIFFIES_POSITIVE_ENTRY(INTERVAL_PROBE_TIME_MS,
+						       "interval_probe_time_ms"),
 		NEIGH_SYSCTL_JIFFIES_ENTRY(GC_STALETIME, "gc_stale_time"),
 		NEIGH_SYSCTL_ZERO_INTMAX_ENTRY(QUEUE_LEN_BYTES, "unres_qlen_bytes"),
 		NEIGH_SYSCTL_ZERO_INTMAX_ENTRY(PROXY_QLEN, "proxy_qlen"),
@@ -3722,7 +3787,7 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 	char neigh_path[ sizeof("net//neigh/") + IFNAMSIZ + IFNAMSIZ ];
 	char *p_name;
 
-	t = kmemdup(&neigh_sysctl_template, sizeof(*t), GFP_KERNEL);
+	t = kmemdup(&neigh_sysctl_template, sizeof(*t), GFP_KERNEL_ACCOUNT);
 	if (!t)
 		goto err;
 

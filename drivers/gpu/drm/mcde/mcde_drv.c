@@ -37,7 +37,7 @@
  * (effectively using channels 0..3) for concurrent use.
  *
  * In the current DRM/KMS setup, we use one external source, one overlay,
- * one FIFO and one formatter which we connect to the simple CMA framebuffer
+ * one FIFO and one formatter which we connect to the simple DMA framebuffer
  * helpers. We then provide a bridge to the DSI port, and on the DSI port
  * bridge we connect hang a panel bridge or other bridge. This may be subject
  * to change as we exploit more of the hardware capabilities.
@@ -68,10 +68,10 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_of.h>
@@ -198,7 +198,7 @@ static int mcde_modeset_init(struct drm_device *drm)
 	return 0;
 }
 
-DEFINE_DRM_GEM_CMA_FOPS(drm_fops);
+DEFINE_DRM_GEM_DMA_FOPS(drm_fops);
 
 static const struct drm_driver mcde_drm_driver = {
 	.driver_features =
@@ -212,7 +212,7 @@ static const struct drm_driver mcde_drm_driver = {
 	.major = 1,
 	.minor = 0,
 	.patchlevel = 0,
-	DRM_GEM_CMA_DRIVER_OPS,
+	DRM_GEM_DMA_DRIVER_OPS,
 };
 
 static int mcde_drm_bind(struct device *dev)
@@ -264,11 +264,6 @@ static const struct component_master_ops mcde_drm_comp_ops = {
 static struct platform_driver *const mcde_component_drivers[] = {
 	&mcde_dsi_driver,
 };
-
-static int mcde_compare_dev(struct device *dev, void *data)
-{
-	return dev == data;
-}
 
 static int mcde_probe(struct platform_device *pdev)
 {
@@ -399,7 +394,7 @@ static int mcde_probe(struct platform_device *pdev)
 
 		while ((d = platform_find_device_by_driver(p, drv))) {
 			put_device(p);
-			component_match_add(dev, &match, mcde_compare_dev, d);
+			component_match_add(dev, &match, component_compare_dev, d);
 			p = d;
 		}
 		put_device(p);
@@ -490,6 +485,9 @@ static struct platform_driver *const component_drivers[] = {
 static int __init mcde_drm_register(void)
 {
 	int ret;
+
+	if (drm_firmware_drivers_only())
+		return -ENODEV;
 
 	ret = platform_register_drivers(component_drivers,
 					ARRAY_SIZE(component_drivers));

@@ -1957,7 +1957,7 @@ bail_nolock:
 }
 
 /*
- * NOTE: this should always be called with parent dir i_mutex taken.
+ * NOTE: this should always be called with parent dir i_rwsem taken.
  */
 int ocfs2_find_files_on_disk(const char *name,
 			     int namelen,
@@ -2003,7 +2003,7 @@ int ocfs2_lookup_ino_from_name(struct inode *dir, const char *name,
  * Return 0 if the name does not exist
  * Return -EEXIST if the directory contains the name
  *
- * Callers should have i_mutex + a cluster lock on dir
+ * Callers should have i_rwsem + a cluster lock on dir
  */
 int ocfs2_check_dir_for_entry(struct inode *dir,
 			      const char *name,
@@ -2032,7 +2032,7 @@ struct ocfs2_empty_dir_priv {
 	unsigned seen_other;
 	unsigned dx_dir;
 };
-static int ocfs2_empty_dir_filldir(struct dir_context *ctx, const char *name,
+static bool ocfs2_empty_dir_filldir(struct dir_context *ctx, const char *name,
 				   int name_len, loff_t pos, u64 ino,
 				   unsigned type)
 {
@@ -2052,7 +2052,7 @@ static int ocfs2_empty_dir_filldir(struct dir_context *ctx, const char *name,
 	 */
 	if (name_len == 1 && !strncmp(".", name, 1) && pos == 0) {
 		p->seen_dot = 1;
-		return 0;
+		return true;
 	}
 
 	if (name_len == 2 && !strncmp("..", name, 2) &&
@@ -2060,13 +2060,13 @@ static int ocfs2_empty_dir_filldir(struct dir_context *ctx, const char *name,
 		p->seen_dot_dot = 1;
 
 		if (p->dx_dir && p->seen_dot)
-			return 1;
+			return false;
 
-		return 0;
+		return true;
 	}
 
 	p->seen_other = 1;
-	return 1;
+	return false;
 }
 
 static int ocfs2_empty_dir_dx(struct inode *inode,

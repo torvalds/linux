@@ -9,7 +9,8 @@ config VGA_CONSOLE
 	bool "VGA text console" if EXPERT || !X86
 	depends on !4xx && !PPC_8xx && !SPARC && !M68K && !PARISC &&  !SUPERH && \
 		(!ARM || ARCH_FOOTBRIDGE || ARCH_INTEGRATOR || ARCH_NETWINDER) && \
-		!ARM64 && !ARC && !MICROBLAZE && !OPENRISC && !NDS32 && !S390 && !UML
+		!ARM64 && !ARC && !MICROBLAZE && !OPENRISC && !S390 && !UML
+	select APERTURE_HELPERS if (DRM || FB || VFIO_PCI_CORE)
 	default y
 	help
 	  Saying Y here will allow you to use Linux in text mode through a
@@ -77,6 +78,26 @@ config FRAMEBUFFER_CONSOLE
 	select FONT_SUPPORT
 	help
 	  Low-level framebuffer-based console driver.
+
+config FRAMEBUFFER_CONSOLE_LEGACY_ACCELERATION
+	bool "Enable legacy fbcon hardware acceleration code"
+	depends on FRAMEBUFFER_CONSOLE
+	default y if PARISC
+	default n
+	help
+	  This option enables the fbcon (framebuffer text-based) hardware
+	  acceleration for graphics drivers which were written for the fbdev
+	  graphics interface.
+
+	  On modern machines, on mainstream machines (like x86-64) or when
+	  using a modern Linux distribution those fbdev drivers usually aren't used.
+	  So enabling this option wouldn't have any effect, which is why you want
+	  to disable this option on such newer machines.
+
+	  If you compile this kernel for older machines which still require the
+	  fbdev drivers, you may want to say Y.
+
+	  If unsure, select n.
 
 config FRAMEBUFFER_CONSOLE_DETECT_PRIMARY
        bool "Map the console to the primary display device"

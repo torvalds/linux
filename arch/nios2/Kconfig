@@ -24,7 +24,6 @@ config NIOS2
 	select USB_ARCH_HAS_HCD if USB_SUPPORT
 	select CPU_NO_EFFICIENT_FFS
 	select MMU_GATHER_NO_RANGE if MMU
-	select SET_FS
 
 config GENERIC_CSUM
 	def_bool y
@@ -45,7 +44,7 @@ menu "Kernel features"
 
 source "kernel/Kconfig.hz"
 
-config FORCE_MAX_ZONEORDER
+config ARCH_FORCE_MAX_ORDER
 	int "Maximum zone order"
 	range 9 20
 	default "11"

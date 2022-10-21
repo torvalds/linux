@@ -16,6 +16,7 @@
 #include <linux/wait.h>
 
 struct path;
+struct file;
 struct vfsmount;
 
 /*
@@ -233,6 +234,8 @@ extern struct dentry * d_alloc_parallel(struct dentry *, const struct qstr *,
 					wait_queue_head_t *);
 extern struct dentry * d_splice_alias(struct inode *, struct dentry *);
 extern struct dentry * d_add_ci(struct dentry *, struct inode *, struct qstr *);
+extern bool d_same_name(const struct dentry *dentry, const struct dentry *parent,
+			const struct qstr *name);
 extern struct dentry * d_exact_alias(struct dentry *, struct inode *);
 extern struct dentry *d_find_any_alias(struct inode *inode);
 extern struct dentry * d_obtain_alias(struct inode *);
@@ -248,7 +251,7 @@ extern struct dentry * d_make_root(struct inode *);
 /* <clickety>-<click> the ramfs-type tree */
 extern void d_genocide(struct dentry *);
 
-extern void d_tmpfile(struct dentry *, struct inode *);
+extern void d_tmpfile(struct file *, struct inode *);
 
 extern struct dentry *d_find_alias(struct inode *);
 extern void d_prune_aliases(struct inode *);
@@ -285,8 +288,8 @@ static inline unsigned d_count(const struct dentry *dentry)
 /*
  * helper function for dentry_operations.d_dname() members
  */
-extern __printf(4, 5)
-char *dynamic_dname(struct dentry *, char *, int, const char *, ...);
+extern __printf(3, 4)
+char *dynamic_dname(char *, int, const char *, ...);
 
 extern char *__d_path(const struct path *, const struct path *, char *, int);
 extern char *d_absolute_path(const struct path *, char *, int);
@@ -349,7 +352,7 @@ static inline void dont_mount(struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 }
 
-extern void __d_lookup_done(struct dentry *);
+extern void __d_lookup_unhash_wake(struct dentry *dentry);
 
 static inline int d_in_lookup(const struct dentry *dentry)
 {
@@ -358,11 +361,8 @@ static inline int d_in_lookup(const struct dentry *dentry)
 
 static inline void d_lookup_done(struct dentry *dentry)
 {
-	if (unlikely(d_in_lookup(dentry))) {
-		spin_lock(&dentry->d_lock);
-		__d_lookup_done(dentry);
-		spin_unlock(&dentry->d_lock);
-	}
+	if (unlikely(d_in_lookup(dentry)))
+		__d_lookup_unhash_wake(dentry);
 }
 
 extern void dput(struct dentry *);

@@ -256,6 +256,7 @@ void pkt_sys_init(struct hfi_sys_init_pkt *pkt, u32 arch_type);
 void pkt_sys_pc_prep(struct hfi_sys_pc_prep_pkt *pkt);
 void pkt_sys_idle_indicator(struct hfi_sys_set_property_pkt *pkt, u32 enable);
 void pkt_sys_power_control(struct hfi_sys_set_property_pkt *pkt, u32 enable);
+void pkt_sys_ubwc_config(struct hfi_sys_set_property_pkt *pkt, const struct hfi_ubwc_config *hfi);
 int pkt_sys_set_resource(struct hfi_sys_set_resource_pkt *pkt, u32 id, u32 size,
 			 u32 addr, void *cookie);
 int pkt_sys_unset_resource(struct hfi_sys_release_resource_pkt *pkt, u32 id,

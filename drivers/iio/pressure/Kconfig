@@ -17,14 +17,14 @@ config ABP060MG
 	  will be called abp060mg.
 
 config BMP280
-	tristate "Bosch Sensortec BMP180/BMP280 pressure sensor I2C driver"
+	tristate "Bosch Sensortec BMP180/BMP280/BMP380 pressure sensor I2C driver"
 	depends on (I2C || SPI_MASTER)
 	select REGMAP
 	select BMP280_I2C if (I2C)
 	select BMP280_SPI if (SPI_MASTER)
 	help
-	  Say yes here to build support for Bosch Sensortec BMP180 and BMP280
-	  pressure and temperature sensors. Also supports the BME280 with
+	  Say yes here to build support for Bosch Sensortec BMP180, BMP280 and
+	  BMP380 pressure and temperature sensors. Also supports the BME280 with
 	  an additional humidity sensor channel.
 
 	  To compile this driver as a module, choose M here: the core module
@@ -194,30 +194,35 @@ config IIO_ST_PRESS
 	tristate "STMicroelectronics pressure sensor Driver"
 	depends on (I2C || SPI_MASTER) && SYSFS
 	select IIO_ST_SENSORS_CORE
-	select IIO_ST_PRESS_I2C if (I2C)
-	select IIO_ST_PRESS_SPI if (SPI_MASTER)
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
 	  Say yes here to build support for STMicroelectronics pressure
 	  sensors: LPS001WP, LPS25H, LPS331AP, LPS22HB, LPS22HH.
 
-	  This driver can also be built as a module. If so, these modules
-	  will be created:
-	  - st_pressure (core functions for the driver [it is mandatory]);
-	  - st_pressure_i2c (necessary for the I2C devices [optional*]);
-	  - st_pressure_spi (necessary for the SPI devices [optional*]);
-
-	  (*) one of these is necessary to do something.
+	  Also need to enable at least one of I2C and SPI interface drivers
+	  below.
 
 config IIO_ST_PRESS_I2C
-	tristate
-	depends on IIO_ST_PRESS
-	depends on IIO_ST_SENSORS_I2C
+	tristate "STMicroelectronics pressure sensor I2C Interface"
+	depends on I2C && IIO_ST_PRESS
+	default I2C && IIO_ST_PRESS
+	select IIO_ST_SENSORS_I2C
+	help
+	  Build support for STMicroelectronics pressure sensor I2C interface.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called st_pressure_i2c.
 
 config IIO_ST_PRESS_SPI
-	tristate
-	depends on IIO_ST_PRESS
-	depends on IIO_ST_SENSORS_SPI
+	tristate "STMicroelectronics pressure sensor SPI Interface"
+	depends on SPI_MASTER && IIO_ST_PRESS
+	default SPI_MASTER && IIO_ST_PRESS
+	select IIO_ST_SENSORS_SPI
+	help
+	  Build support for STMicroelectronics pressure sensor SPI interface.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called st_pressure_spi.
 
 config T5403
 	tristate "EPCOS T5403 digital barometric pressure sensor driver"

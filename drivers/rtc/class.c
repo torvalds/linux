@@ -26,8 +26,17 @@ struct class *rtc_class;
 static void rtc_device_release(struct device *dev)
 {
 	struct rtc_device *rtc = to_rtc_device(dev);
+	struct timerqueue_head *head = &rtc->timerqueue;
+	struct timerqueue_node *node;
 
-	ida_simple_remove(&rtc_ida, rtc->id);
+	mutex_lock(&rtc->ops_lock);
+	while ((node = timerqueue_getnext(head)))
+		timerqueue_del(head, node);
+	mutex_unlock(&rtc->ops_lock);
+
+	cancel_work_sync(&rtc->irqwork);
+
+	ida_free(&rtc_ida, rtc->id);
 	mutex_destroy(&rtc->ops_lock);
 	kfree(rtc);
 }
@@ -253,7 +262,7 @@ static int rtc_device_get_id(struct device *dev)
 	}
 
 	if (id < 0)
-		id = ida_simple_get(&rtc_ida, 0, 0, GFP_KERNEL);
+		id = ida_alloc(&rtc_ida, GFP_KERNEL);
 
 	return id;
 }
@@ -359,7 +368,7 @@ struct rtc_device *devm_rtc_allocate_device(struct device *dev)
 
 	rtc = rtc_allocate_device();
 	if (!rtc) {
-		ida_simple_remove(&rtc_ida, id);
+		ida_free(&rtc_ida, id);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -389,9 +398,6 @@ int __devm_rtc_register_device(struct module *owner, struct rtc_device *rtc)
 
 	if (!rtc->ops->set_alarm)
 		clear_bit(RTC_FEATURE_ALARM, rtc->features);
-
-	if (rtc->uie_unsupported)
-		clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc->features);
 
 	if (rtc->ops->set_offset)
 		set_bit(RTC_FEATURE_CORRECTION, rtc->features);

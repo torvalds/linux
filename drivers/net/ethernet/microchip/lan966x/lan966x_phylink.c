@@ -9,6 +9,14 @@
 
 #include "lan966x_main.h"
 
+static struct phylink_pcs *lan966x_phylink_mac_select(struct phylink_config *config,
+						      phy_interface_t interface)
+{
+	struct lan966x_port *port = netdev_priv(to_net_dev(config->dev));
+
+	return &port->phylink_pcs;
+}
+
 static void lan966x_phylink_mac_config(struct phylink_config *config,
 				       unsigned int mode,
 				       const struct phylink_link_state *state)
@@ -20,11 +28,12 @@ static int lan966x_phylink_mac_prepare(struct phylink_config *config,
 				       phy_interface_t iface)
 {
 	struct lan966x_port *port = netdev_priv(to_net_dev(config->dev));
+	phy_interface_t serdes_mode = iface;
 	int err;
 
 	if (port->serdes) {
 		err = phy_set_mode_ext(port->serdes, PHY_MODE_ETHERNET,
-				       iface);
+				       serdes_mode);
 		if (err) {
 			netdev_err(to_net_dev(config->dev),
 				   "Could not set mode of SerDes\n");
@@ -50,6 +59,9 @@ static void lan966x_phylink_mac_link_up(struct phylink_config *config,
 	port_config->pause = 0;
 	port_config->pause |= tx_pause ? MLO_PAUSE_TX : 0;
 	port_config->pause |= rx_pause ? MLO_PAUSE_RX : 0;
+
+	if (phy_interface_mode_is_rgmii(interface))
+		phy_set_speed(port->serdes, speed);
 
 	lan966x_port_config_up(port);
 }
@@ -114,6 +126,7 @@ static void lan966x_pcs_aneg_restart(struct phylink_pcs *pcs)
 
 const struct phylink_mac_ops lan966x_phylink_mac_ops = {
 	.validate = phylink_generic_validate,
+	.mac_select_pcs = lan966x_phylink_mac_select,
 	.mac_config = lan966x_phylink_mac_config,
 	.mac_prepare = lan966x_phylink_mac_prepare,
 	.mac_link_down = lan966x_phylink_mac_link_down,

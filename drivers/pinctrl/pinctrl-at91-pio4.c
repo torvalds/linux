@@ -237,8 +237,6 @@ static void atmel_gpio_irq_unmask(struct irq_data *d)
 			 BIT(pin->line));
 }
 
-#ifdef CONFIG_PM_SLEEP
-
 static int atmel_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 {
 	struct atmel_pioctrl *atmel_pioctrl = irq_data_get_irq_chip_data(d);
@@ -255,9 +253,6 @@ static int atmel_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 
 	return 0;
 }
-#else
-#define atmel_gpio_irq_set_wake NULL
-#endif /* CONFIG_PM_SLEEP */
 
 static struct irq_chip atmel_gpio_irq_chip = {
 	.name		= "GPIO",
@@ -265,7 +260,7 @@ static struct irq_chip atmel_gpio_irq_chip = {
 	.irq_mask	= atmel_gpio_irq_mask,
 	.irq_unmask	= atmel_gpio_irq_unmask,
 	.irq_set_type	= atmel_gpio_irq_set_type,
-	.irq_set_wake	= atmel_gpio_irq_set_wake,
+	.irq_set_wake	= pm_sleep_ptr(atmel_gpio_irq_set_wake),
 };
 
 static int atmel_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
@@ -1045,7 +1040,6 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	const char **group_names;
 	const struct of_device_id *match;
 	int i, ret;
-	struct resource	*res;
 	struct atmel_pioctrl *atmel_pioctrl;
 	const struct atmel_pioctrl_data *atmel_pioctrl_data;
 
@@ -1164,16 +1158,15 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 
 	/* There is one controller but each bank has its own irq line. */
 	for (i = 0; i < atmel_pioctrl->nbanks; i++) {
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
-		if (!res) {
-			dev_err(dev, "missing irq resource for group %c\n",
+		ret = platform_get_irq(pdev, i);
+		if (ret < 0) {
+			dev_dbg(dev, "missing irq resource for group %c\n",
 				'A' + i);
-			return -EINVAL;
+			return ret;
 		}
-		atmel_pioctrl->irqs[i] = res->start;
-		irq_set_chained_handler_and_data(res->start,
-			atmel_gpio_irq_handler, atmel_pioctrl);
-		dev_dbg(dev, "bank %i: irq=%pr\n", i, res);
+		atmel_pioctrl->irqs[i] = ret;
+		irq_set_chained_handler_and_data(ret, atmel_gpio_irq_handler, atmel_pioctrl);
+		dev_dbg(dev, "bank %i: irq=%d\n", i, ret);
 	}
 
 	atmel_pioctrl->irq_domain = irq_domain_add_linear(dev->of_node,

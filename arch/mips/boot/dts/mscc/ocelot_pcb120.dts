@@ -22,12 +22,12 @@
 };
 
 &gpio {
-	phy_int_pins: phy_int_pins {
+	phy_int_pins: phy-int-pins {
 		pins = "GPIO_4";
 		function = "gpio";
 	};
 
-	phy_load_save_pins: phy_load_save_pins {
+	phy_load_save_pins: phy-load-save-pins {
 		pins = "GPIO_10";
 		function = "ptp2";
 	};
@@ -40,7 +40,7 @@
 &mdio1 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&miim1>, <&phy_int_pins>, <&phy_load_save_pins>;
+	pinctrl-0 = <&miim1_pins>, <&phy_int_pins>, <&phy_load_save_pins>;
 
 	phy7: ethernet-phy@0 {
 		reg = <0>;

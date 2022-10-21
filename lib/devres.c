@@ -29,7 +29,8 @@ static void __iomem *__devm_ioremap(struct device *dev, resource_size_t offset,
 {
 	void __iomem **ptr, *addr = NULL;
 
-	ptr = devres_alloc(devm_ioremap_release, sizeof(*ptr), GFP_KERNEL);
+	ptr = devres_alloc_node(devm_ioremap_release, sizeof(*ptr), GFP_KERNEL,
+				dev_to_node(dev));
 	if (!ptr)
 		return NULL;
 
@@ -101,21 +102,6 @@ void __iomem *devm_ioremap_wc(struct device *dev, resource_size_t offset,
 	return __devm_ioremap(dev, offset, size, DEVM_IOREMAP_WC);
 }
 EXPORT_SYMBOL(devm_ioremap_wc);
-
-/**
- * devm_ioremap_np - Managed ioremap_np()
- * @dev: Generic device to remap IO address for
- * @offset: Resource address to map
- * @size: Size of map
- *
- * Managed ioremap_np().  Map is automatically unmapped on driver detach.
- */
-void __iomem *devm_ioremap_np(struct device *dev, resource_size_t offset,
-			      resource_size_t size)
-{
-	return __devm_ioremap(dev, offset, size, DEVM_IOREMAP_NP);
-}
-EXPORT_SYMBOL(devm_ioremap_np);
 
 /**
  * devm_iounmap - Managed iounmap()
@@ -292,7 +278,8 @@ void __iomem *devm_ioport_map(struct device *dev, unsigned long port,
 {
 	void __iomem **ptr, *addr;
 
-	ptr = devres_alloc(devm_ioport_map_release, sizeof(*ptr), GFP_KERNEL);
+	ptr = devres_alloc_node(devm_ioport_map_release, sizeof(*ptr), GFP_KERNEL,
+				dev_to_node(dev));
 	if (!ptr)
 		return NULL;
 
@@ -366,7 +353,8 @@ void __iomem * const *pcim_iomap_table(struct pci_dev *pdev)
 	if (dr)
 		return dr->table;
 
-	new_dr = devres_alloc(pcim_iomap_release, sizeof(*new_dr), GFP_KERNEL);
+	new_dr = devres_alloc_node(pcim_iomap_release, sizeof(*new_dr), GFP_KERNEL,
+				   dev_to_node(&pdev->dev));
 	if (!new_dr)
 		return NULL;
 	dr = devres_get(&pdev->dev, new_dr, NULL, NULL);
@@ -548,7 +536,8 @@ int devm_arch_phys_wc_add(struct device *dev, unsigned long base, unsigned long 
 	int *mtrr;
 	int ret;
 
-	mtrr = devres_alloc(devm_arch_phys_ac_add_release, sizeof(*mtrr), GFP_KERNEL);
+	mtrr = devres_alloc_node(devm_arch_phys_ac_add_release, sizeof(*mtrr), GFP_KERNEL,
+				 dev_to_node(dev));
 	if (!mtrr)
 		return -ENOMEM;
 
@@ -593,7 +582,8 @@ int devm_arch_io_reserve_memtype_wc(struct device *dev, resource_size_t start,
 	struct arch_io_reserve_memtype_wc_devres *dr;
 	int ret;
 
-	dr = devres_alloc(devm_arch_io_free_memtype_wc_release, sizeof(*dr), GFP_KERNEL);
+	dr = devres_alloc_node(devm_arch_io_free_memtype_wc_release, sizeof(*dr), GFP_KERNEL,
+			       dev_to_node(dev));
 	if (!dr)
 		return -ENOMEM;
 

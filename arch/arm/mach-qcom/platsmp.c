@@ -357,8 +357,7 @@ static void __init qcom_smp_prepare_cpus(unsigned int max_cpus)
 {
 	int cpu;
 
-	if (qcom_scm_set_cold_boot_addr(secondary_startup_arm,
-					cpu_present_mask)) {
+	if (qcom_scm_set_cold_boot_addr(secondary_startup_arm)) {
 		for_each_present_cpu(cpu) {
 			if (cpu == smp_processor_id())
 				continue;
@@ -385,6 +384,7 @@ static const struct smp_operations qcom_smp_cortex_a7_ops __initconst = {
 #endif
 };
 CPU_METHOD_OF_DECLARE(qcom_smp_msm8226, "qcom,msm8226-smp", &qcom_smp_cortex_a7_ops);
+CPU_METHOD_OF_DECLARE(qcom_smp_msm8909, "qcom,msm8909-smp", &qcom_smp_cortex_a7_ops);
 CPU_METHOD_OF_DECLARE(qcom_smp_msm8916, "qcom,msm8916-smp", &qcom_smp_cortex_a7_ops);
 
 static const struct smp_operations qcom_smp_kpssv1_ops __initconst = {

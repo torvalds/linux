@@ -143,3 +143,10 @@ config F2FS_IOSTAT
 	  Support getting IO statistics through sysfs and printing out periodic
 	  IO statistics tracepoint events. You have to turn on "iostat_enable"
 	  sysfs node to enable this feature.
+
+config F2FS_UNFAIR_RWSEM
+	bool "F2FS unfair rw_semaphore"
+	depends on F2FS_FS && BLK_CGROUP
+	help
+	  Use unfair rw_semaphore, if system configured IO priority by block
+	  cgroup.

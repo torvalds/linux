@@ -41,13 +41,14 @@ static void mt7921s_unregister_device(struct mt7921_dev *dev)
 {
 	struct mt76_connac_pm *pm = &dev->pm;
 
+	cancel_work_sync(&dev->init_work);
 	mt76_unregister_device(&dev->mt76);
 	cancel_delayed_work_sync(&pm->ps_work);
 	cancel_work_sync(&pm->wake_work);
 
 	mt76s_deinit(&dev->mt76);
 	mt7921s_wfsys_reset(dev);
-	mt7921_mcu_exit(dev);
+	skb_queue_purge(&dev->mt76.mcu.res_q);
 
 	mt76_free_device(&dev->mt76);
 }
@@ -58,7 +59,10 @@ static int mt7921s_parse_intr(struct mt76_dev *dev, struct mt76s_intr *intr)
 	struct mt7921_sdio_intr *irq_data = sdio->intr_data;
 	int i, err;
 
+	sdio_claim_host(sdio->func);
 	err = sdio_readsb(sdio->func, irq_data, MCR_WHISR, sizeof(*irq_data));
+	sdio_release_host(sdio->func);
+
 	if (err < 0)
 		return err;
 
@@ -88,10 +92,11 @@ static int mt7921s_probe(struct sdio_func *func,
 		.survey_flags = SURVEY_INFO_TIME_TX |
 				SURVEY_INFO_TIME_RX |
 				SURVEY_INFO_TIME_BSS_RX,
-		.tx_prepare_skb = mt7921s_tx_prepare_skb,
-		.tx_complete_skb = mt7921s_tx_complete_skb,
-		.tx_status_data = mt7921s_tx_status_data,
+		.tx_prepare_skb = mt7921_usb_sdio_tx_prepare_skb,
+		.tx_complete_skb = mt7921_usb_sdio_tx_complete_skb,
+		.tx_status_data = mt7921_usb_sdio_tx_status_data,
 		.rx_skb = mt7921_queue_rx_skb,
+		.rx_check = mt7921_rx_check,
 		.sta_ps = mt7921_sta_ps,
 		.sta_add = mt7921_mac_sta_add,
 		.sta_assoc = mt7921_mac_sta_assoc,
@@ -118,7 +123,7 @@ static int mt7921s_probe(struct sdio_func *func,
 
 	struct mt7921_dev *dev;
 	struct mt76_dev *mdev;
-	int ret, i;
+	int ret;
 
 	mdev = mt76_alloc_device(&func->dev, sizeof(*dev), &mt7921_ops,
 				 &drv_ops);
@@ -149,16 +154,6 @@ static int mt7921s_probe(struct sdio_func *func,
 	if (!mdev->sdio.intr_data) {
 		ret = -ENOMEM;
 		goto error;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(mdev->sdio.xmit_buf); i++) {
-		mdev->sdio.xmit_buf[i] = devm_kmalloc(mdev->dev,
-						      MT76S_XMIT_BUF_SZ,
-						      GFP_KERNEL);
-		if (!mdev->sdio.xmit_buf[i]) {
-			ret = -ENOMEM;
-			goto error;
-		}
 	}
 
 	ret = mt76s_alloc_rx_queue(mdev, MT_RXQ_MAIN);
@@ -200,7 +195,6 @@ static void mt7921s_remove(struct sdio_func *func)
 	mt7921s_unregister_device(dev);
 }
 
-#ifdef CONFIG_PM
 static int mt7921s_suspend(struct device *__dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(__dev);
@@ -212,6 +206,7 @@ static int mt7921s_suspend(struct device *__dev)
 	pm->suspended = true;
 	set_bit(MT76_STATE_SUSPEND, &mdev->phy.state);
 
+	flush_work(&dev->reset_work);
 	cancel_delayed_work_sync(&pm->ps_work);
 	cancel_work_sync(&pm->wake_work);
 
@@ -267,6 +262,9 @@ restore_suspend:
 	clear_bit(MT76_STATE_SUSPEND, &mdev->phy.state);
 	pm->suspended = false;
 
+	if (err < 0)
+		mt7921_reset(&dev->mt76);
+
 	return err;
 }
 
@@ -282,7 +280,7 @@ static int mt7921s_resume(struct device *__dev)
 
 	err = mt7921_mcu_drv_pmctrl(dev);
 	if (err < 0)
-		return err;
+		goto failed;
 
 	mt76_worker_enable(&mdev->tx_worker);
 	mt76_worker_enable(&mdev->sdio.txrx_worker);
@@ -294,34 +292,27 @@ static int mt7921s_resume(struct device *__dev)
 		mt76_connac_mcu_set_deep_sleep(mdev, false);
 
 	err = mt76_connac_mcu_set_hif_suspend(mdev, false);
-	if (err)
-		return err;
-
+failed:
 	pm->suspended = false;
+
+	if (err < 0)
+		mt7921_reset(&dev->mt76);
 
 	return err;
 }
 
-static const struct dev_pm_ops mt7921s_pm_ops = {
-	.suspend = mt7921s_suspend,
-	.resume = mt7921s_resume,
-};
-#endif
-
 MODULE_DEVICE_TABLE(sdio, mt7921s_table);
 MODULE_FIRMWARE(MT7921_FIRMWARE_WM);
 MODULE_FIRMWARE(MT7921_ROM_PATCH);
+
+static DEFINE_SIMPLE_DEV_PM_OPS(mt7921s_pm_ops, mt7921s_suspend, mt7921s_resume);
 
 static struct sdio_driver mt7921s_driver = {
 	.name		= KBUILD_MODNAME,
 	.probe		= mt7921s_probe,
 	.remove		= mt7921s_remove,
 	.id_table	= mt7921s_table,
-#ifdef CONFIG_PM
-	.drv = {
-		.pm = &mt7921s_pm_ops,
-	}
-#endif
+	.drv.pm		= pm_sleep_ptr(&mt7921s_pm_ops),
 };
 module_sdio_driver(mt7921s_driver);
 MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");

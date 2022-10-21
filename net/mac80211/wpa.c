@@ -3,7 +3,7 @@
  * Copyright 2002-2004, Instant802 Networks, Inc.
  * Copyright 2008, Jouni Malinen <j@w1.fi>
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2022 Intel Corporation
  */
 
 #include <linux/netdevice.h>
@@ -311,19 +311,21 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_rx_data *rx)
 	return RX_CONTINUE;
 }
 
-
-static void ccmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *b_0, u8 *aad)
+/*
+ * Calculate AAD for CCMP/GCMP, returning qos_tid since we
+ * need that in CCMP also for b_0.
+ */
+static u8 ccmp_gcmp_aad(struct sk_buff *skb, u8 *aad)
 {
+	struct ieee80211_hdr *hdr = (void *)skb->data;
 	__le16 mask_fc;
 	int a4_included, mgmt;
 	u8 qos_tid;
-	u16 len_a;
-	unsigned int hdrlen;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	u16 len_a = 22;
 
 	/*
 	 * Mask FC: zero subtype b4 b5 b6 (if not mgmt)
-	 * Retry, PwrMgt, MoreData; set Protected
+	 * Retry, PwrMgt, MoreData, Order (if Qos Data); set Protected
 	 */
 	mgmt = ieee80211_is_mgmt(hdr->frame_control);
 	mask_fc = hdr->frame_control;
@@ -333,36 +335,23 @@ static void ccmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *b_0, u8 *aad)
 		mask_fc &= ~cpu_to_le16(0x0070);
 	mask_fc |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 
-	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-	len_a = hdrlen - 2;
 	a4_included = ieee80211_has_a4(hdr->frame_control);
+	if (a4_included)
+		len_a += 6;
 
-	if (ieee80211_is_data_qos(hdr->frame_control))
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		qos_tid = ieee80211_get_tid(hdr);
-	else
+		mask_fc &= ~cpu_to_le16(IEEE80211_FCTL_ORDER);
+		len_a += 2;
+	} else {
 		qos_tid = 0;
-
-	/* In CCM, the initial vectors (IV) used for CTR mode encryption and CBC
-	 * mode authentication are not allowed to collide, yet both are derived
-	 * from this vector b_0. We only set L := 1 here to indicate that the
-	 * data size can be represented in (L+1) bytes. The CCM layer will take
-	 * care of storing the data length in the top (L+1) bytes and setting
-	 * and clearing the other bits as is required to derive the two IVs.
-	 */
-	b_0[0] = 0x1;
-
-	/* Nonce: Nonce Flags | A2 | PN
-	 * Nonce Flags: Priority (b0..b3) | Management (b4) | Reserved (b5..b7)
-	 */
-	b_0[1] = qos_tid | (mgmt << 4);
-	memcpy(&b_0[2], hdr->addr2, ETH_ALEN);
-	memcpy(&b_0[8], pn, IEEE80211_CCMP_PN_LEN);
+	}
 
 	/* AAD (extra authenticate-only data) / masked 802.11 header
 	 * FC | A1 | A2 | A3 | SC | [A4] | [QC] */
 	put_unaligned_be16(len_a, &aad[0]);
 	put_unaligned(mask_fc, (__le16 *)&aad[2]);
-	memcpy(&aad[4], &hdr->addr1, 3 * ETH_ALEN);
+	memcpy(&aad[4], &hdr->addrs, 3 * ETH_ALEN);
 
 	/* Mask Seq#, leave Frag# */
 	aad[22] = *((u8 *) &hdr->seq_ctrl) & 0x0f;
@@ -376,8 +365,31 @@ static void ccmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *b_0, u8 *aad)
 		memset(&aad[24], 0, ETH_ALEN + IEEE80211_QOS_CTL_LEN);
 		aad[24] = qos_tid;
 	}
+
+	return qos_tid;
 }
 
+static void ccmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *b_0, u8 *aad)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	u8 qos_tid = ccmp_gcmp_aad(skb, aad);
+
+	/* In CCM, the initial vectors (IV) used for CTR mode encryption and CBC
+	 * mode authentication are not allowed to collide, yet both are derived
+	 * from this vector b_0. We only set L := 1 here to indicate that the
+	 * data size can be represented in (L+1) bytes. The CCM layer will take
+	 * care of storing the data length in the top (L+1) bytes and setting
+	 * and clearing the other bits as is required to derive the two IVs.
+	 */
+	b_0[0] = 0x1;
+
+	/* Nonce: Nonce Flags | A2 | PN
+	 * Nonce Flags: Priority (b0..b3) | Management (b4) | Reserved (b5..b7)
+	 */
+	b_0[1] = qos_tid | (ieee80211_is_mgmt(hdr->frame_control) << 4);
+	memcpy(&b_0[2], hdr->addr2, ETH_ALEN);
+	memcpy(&b_0[8], pn, IEEE80211_CCMP_PN_LEN);
+}
 
 static inline void ccmp_pn2hdr(u8 *hdr, u8 *pn, int key_id)
 {
@@ -571,9 +583,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx,
 
 static void gcmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *j_0, u8 *aad)
 {
-	__le16 mask_fc;
-	u8 qos_tid;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_hdr *hdr = (void *)skb->data;
 
 	memcpy(j_0, hdr->addr2, ETH_ALEN);
 	memcpy(&j_0[ETH_ALEN], pn, IEEE80211_GCMP_PN_LEN);
@@ -581,40 +591,7 @@ static void gcmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *j_0, u8 *aad)
 	j_0[14] = 0;
 	j_0[AES_BLOCK_SIZE - 1] = 0x01;
 
-	/* AAD (extra authenticate-only data) / masked 802.11 header
-	 * FC | A1 | A2 | A3 | SC | [A4] | [QC]
-	 */
-	put_unaligned_be16(ieee80211_hdrlen(hdr->frame_control) - 2, &aad[0]);
-	/* Mask FC: zero subtype b4 b5 b6 (if not mgmt)
-	 * Retry, PwrMgt, MoreData; set Protected
-	 */
-	mask_fc = hdr->frame_control;
-	mask_fc &= ~cpu_to_le16(IEEE80211_FCTL_RETRY |
-				IEEE80211_FCTL_PM | IEEE80211_FCTL_MOREDATA);
-	if (!ieee80211_is_mgmt(hdr->frame_control))
-		mask_fc &= ~cpu_to_le16(0x0070);
-	mask_fc |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
-
-	put_unaligned(mask_fc, (__le16 *)&aad[2]);
-	memcpy(&aad[4], &hdr->addr1, 3 * ETH_ALEN);
-
-	/* Mask Seq#, leave Frag# */
-	aad[22] = *((u8 *)&hdr->seq_ctrl) & 0x0f;
-	aad[23] = 0;
-
-	if (ieee80211_is_data_qos(hdr->frame_control))
-		qos_tid = ieee80211_get_tid(hdr);
-	else
-		qos_tid = 0;
-
-	if (ieee80211_has_a4(hdr->frame_control)) {
-		memcpy(&aad[24], hdr->addr4, ETH_ALEN);
-		aad[30] = qos_tid;
-		aad[31] = 0;
-	} else {
-		memset(&aad[24], 0, ETH_ALEN + IEEE80211_QOS_CTL_LEN);
-		aad[24] = qos_tid;
-	}
+	ccmp_gcmp_aad(skb, aad);
 }
 
 static inline void gcmp_pn2hdr(u8 *hdr, const u8 *pn, int key_id)
@@ -801,102 +778,6 @@ ieee80211_crypto_gcmp_decrypt(struct ieee80211_rx_data *rx)
 	return RX_CONTINUE;
 }
 
-static ieee80211_tx_result
-ieee80211_crypto_cs_encrypt(struct ieee80211_tx_data *tx,
-			    struct sk_buff *skb)
-{
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct ieee80211_key *key = tx->key;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	int hdrlen;
-	u8 *pos, iv_len = key->conf.iv_len;
-
-	if (info->control.hw_key &&
-	    !(info->control.hw_key->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE)) {
-		/* hwaccel has no need for preallocated head room */
-		return TX_CONTINUE;
-	}
-
-	if (unlikely(skb_headroom(skb) < iv_len &&
-		     pskb_expand_head(skb, iv_len, 0, GFP_ATOMIC)))
-		return TX_DROP;
-
-	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-
-	pos = skb_push(skb, iv_len);
-	memmove(pos, pos + iv_len, hdrlen);
-
-	return TX_CONTINUE;
-}
-
-static inline int ieee80211_crypto_cs_pn_compare(u8 *pn1, u8 *pn2, int len)
-{
-	int i;
-
-	/* pn is little endian */
-	for (i = len - 1; i >= 0; i--) {
-		if (pn1[i] < pn2[i])
-			return -1;
-		else if (pn1[i] > pn2[i])
-			return 1;
-	}
-
-	return 0;
-}
-
-static ieee80211_rx_result
-ieee80211_crypto_cs_decrypt(struct ieee80211_rx_data *rx)
-{
-	struct ieee80211_key *key = rx->key;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
-	const struct ieee80211_cipher_scheme *cs = NULL;
-	int hdrlen = ieee80211_hdrlen(hdr->frame_control);
-	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(rx->skb);
-	int data_len;
-	u8 *rx_pn;
-	u8 *skb_pn;
-	u8 qos_tid;
-
-	if (!rx->sta || !rx->sta->cipher_scheme ||
-	    !(status->flag & RX_FLAG_DECRYPTED))
-		return RX_DROP_UNUSABLE;
-
-	if (!ieee80211_is_data(hdr->frame_control))
-		return RX_CONTINUE;
-
-	cs = rx->sta->cipher_scheme;
-
-	data_len = rx->skb->len - hdrlen - cs->hdr_len;
-
-	if (data_len < 0)
-		return RX_DROP_UNUSABLE;
-
-	if (ieee80211_is_data_qos(hdr->frame_control))
-		qos_tid = ieee80211_get_tid(hdr);
-	else
-		qos_tid = 0;
-
-	if (skb_linearize(rx->skb))
-		return RX_DROP_UNUSABLE;
-
-	rx_pn = key->u.gen.rx_pn[qos_tid];
-	skb_pn = rx->skb->data + hdrlen + cs->pn_off;
-
-	if (ieee80211_crypto_cs_pn_compare(skb_pn, rx_pn, cs->pn_len) <= 0)
-		return RX_DROP_UNUSABLE;
-
-	memcpy(rx_pn, skb_pn, cs->pn_len);
-
-	/* remove security header and MIC */
-	if (pskb_trim(rx->skb, rx->skb->len - cs->mic_len))
-		return RX_DROP_UNUSABLE;
-
-	memmove(rx->skb->data + cs->hdr_len, rx->skb->data, hdrlen);
-	skb_pull(rx->skb, cs->hdr_len);
-
-	return RX_CONTINUE;
-}
-
 static void bip_aad(struct sk_buff *skb, u8 *aad)
 {
 	__le16 mask_fc;
@@ -911,7 +792,7 @@ static void bip_aad(struct sk_buff *skb, u8 *aad)
 				IEEE80211_FCTL_MOREDATA);
 	put_unaligned(mask_fc, (__le16 *) &aad[0]);
 	/* A1 || A2 || A3 */
-	memcpy(aad + 2, &hdr->addr1, 3 * ETH_ALEN);
+	memcpy(aad + 2, &hdr->addrs, 3 * ETH_ALEN);
 }
 
 
@@ -1234,39 +1115,4 @@ ieee80211_crypto_aes_gmac_decrypt(struct ieee80211_rx_data *rx)
 	skb_trim(skb, skb->len - sizeof(*mmie));
 
 	return RX_CONTINUE;
-}
-
-ieee80211_tx_result
-ieee80211_crypto_hw_encrypt(struct ieee80211_tx_data *tx)
-{
-	struct sk_buff *skb;
-	struct ieee80211_tx_info *info = NULL;
-	ieee80211_tx_result res;
-
-	skb_queue_walk(&tx->skbs, skb) {
-		info  = IEEE80211_SKB_CB(skb);
-
-		/* handle hw-only algorithm */
-		if (!info->control.hw_key)
-			return TX_DROP;
-
-		if (tx->key->flags & KEY_FLAG_CIPHER_SCHEME) {
-			res = ieee80211_crypto_cs_encrypt(tx, skb);
-			if (res != TX_CONTINUE)
-				return res;
-		}
-	}
-
-	ieee80211_tx_set_protected(tx);
-
-	return TX_CONTINUE;
-}
-
-ieee80211_rx_result
-ieee80211_crypto_hw_decrypt(struct ieee80211_rx_data *rx)
-{
-	if (rx->sta && rx->sta->cipher_scheme)
-		return ieee80211_crypto_cs_decrypt(rx);
-
-	return RX_DROP_UNUSABLE;
 }

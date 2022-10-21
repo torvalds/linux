@@ -71,7 +71,7 @@ static int xen_drm_front_gem_object_mmap(struct drm_gem_object *gem_obj,
 	 * the whole buffer.
 	 */
 	vma->vm_flags &= ~VM_PFNMAP;
-	vma->vm_flags |= VM_MIXEDMAP;
+	vma->vm_flags |= VM_MIXEDMAP | VM_DONTEXPAND;
 	vma->vm_pgoff = 0;
 
 	/*
@@ -280,7 +280,8 @@ xen_drm_front_gem_import_sg_table(struct drm_device *dev,
 	return &xen_obj->base;
 }
 
-int xen_drm_front_gem_prime_vmap(struct drm_gem_object *gem_obj, struct dma_buf_map *map)
+int xen_drm_front_gem_prime_vmap(struct drm_gem_object *gem_obj,
+				 struct iosys_map *map)
 {
 	struct xen_gem_object *xen_obj = to_xen_gem_obj(gem_obj);
 	void *vaddr;
@@ -293,13 +294,13 @@ int xen_drm_front_gem_prime_vmap(struct drm_gem_object *gem_obj, struct dma_buf_
 		     VM_MAP, PAGE_KERNEL);
 	if (!vaddr)
 		return -ENOMEM;
-	dma_buf_map_set_vaddr(map, vaddr);
+	iosys_map_set_vaddr(map, vaddr);
 
 	return 0;
 }
 
 void xen_drm_front_gem_prime_vunmap(struct drm_gem_object *gem_obj,
-				    struct dma_buf_map *map)
+				    struct iosys_map *map)
 {
 	vunmap(map->vaddr);
 }

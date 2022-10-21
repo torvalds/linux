@@ -292,11 +292,8 @@ static const struct v4l2_file_operations dt3155_fops = {
 static int dt3155_querycap(struct file *filp, void *p,
 			   struct v4l2_capability *cap)
 {
-	struct dt3155_priv *pd = video_drvdata(filp);
-
 	strscpy(cap->driver, DT3155_NAME, sizeof(cap->driver));
 	strscpy(cap->card, DT3155_NAME " frame grabber", sizeof(cap->card));
-	sprintf(cap->bus_info, "PCI:%s", pci_name(pd->pdev));
 	return 0;
 }
 

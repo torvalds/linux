@@ -15,13 +15,6 @@
 #include <sound/hdaudio_ext.h>
 
 /*
- * maximum HDAC capablities we should parse to avoid endless looping:
- * currently we have 4 extended caps, so this is future proof for now.
- * extend when this limit is seen meeting in real HW
- */
-#define HDAC_MAX_CAPS 10
-
-/*
  * processing pipe helpers - these helpers are useful for dealing with HDA
  * new capability of processing pipelines
  */
@@ -133,6 +126,26 @@ void snd_hdac_link_free_all(struct hdac_bus *bus)
 EXPORT_SYMBOL_GPL(snd_hdac_link_free_all);
 
 /**
+ * snd_hdac_ext_bus_link_at - get link at specified address
+ * @bus: link's parent bus device
+ * @addr: codec device address
+ *
+ * Returns link object or NULL if matching link is not found.
+ */
+struct hdac_ext_link *snd_hdac_ext_bus_link_at(struct hdac_bus *bus, int addr)
+{
+	struct hdac_ext_link *hlink;
+	int i;
+
+	list_for_each_entry(hlink, &bus->hlink_list, list)
+		for (i = 0; i < HDA_MAX_CODECS; i++)
+			if (hlink->lsdiid & (0x1 << addr))
+				return hlink;
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_at);
+
+/**
  * snd_hdac_ext_bus_get_link - get link based on codec name
  * @bus: the pointer to HDAC bus object
  * @codec_name: codec name
@@ -140,8 +153,6 @@ EXPORT_SYMBOL_GPL(snd_hdac_link_free_all);
 struct hdac_ext_link *snd_hdac_ext_bus_get_link(struct hdac_bus *bus,
 						 const char *codec_name)
 {
-	int i;
-	struct hdac_ext_link *hlink = NULL;
 	int bus_idx, addr;
 
 	if (sscanf(codec_name, "ehdaudio%dD%d", &bus_idx, &addr) != 2)
@@ -151,14 +162,7 @@ struct hdac_ext_link *snd_hdac_ext_bus_get_link(struct hdac_bus *bus,
 	if (addr < 0 || addr > 31)
 		return NULL;
 
-	list_for_each_entry(hlink, &bus->hlink_list, list) {
-		for (i = 0; i < HDA_MAX_CODECS; i++) {
-			if (hlink->lsdiid & (0x1 << addr))
-				return hlink;
-		}
-	}
-
-	return NULL;
+	return snd_hdac_ext_bus_link_at(bus, addr);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_get_link);
 
@@ -166,7 +170,7 @@ static int check_hdac_link_power_active(struct hdac_ext_link *link, bool enable)
 {
 	int timeout;
 	u32 val;
-	int mask = (1 << AZX_MLCTL_CPA_SHIFT);
+	int mask = (1 << AZX_ML_LCTL_CPA_SHIFT);
 
 	udelay(3);
 	timeout = 150;
@@ -174,10 +178,10 @@ static int check_hdac_link_power_active(struct hdac_ext_link *link, bool enable)
 	do {
 		val = readl(link->ml_addr + AZX_REG_ML_LCTL);
 		if (enable) {
-			if (((val & mask) >> AZX_MLCTL_CPA_SHIFT))
+			if (((val & mask) >> AZX_ML_LCTL_CPA_SHIFT))
 				return 0;
 		} else {
-			if (!((val & mask) >> AZX_MLCTL_CPA_SHIFT))
+			if (!((val & mask) >> AZX_ML_LCTL_CPA_SHIFT))
 				return 0;
 		}
 		udelay(3);
@@ -193,7 +197,7 @@ static int check_hdac_link_power_active(struct hdac_ext_link *link, bool enable)
 int snd_hdac_ext_bus_link_power_up(struct hdac_ext_link *link)
 {
 	snd_hdac_updatel(link->ml_addr, AZX_REG_ML_LCTL,
-			 AZX_MLCTL_SPA, AZX_MLCTL_SPA);
+			 AZX_ML_LCTL_SPA, AZX_ML_LCTL_SPA);
 
 	return check_hdac_link_power_active(link, true);
 }
@@ -205,7 +209,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_power_up);
  */
 int snd_hdac_ext_bus_link_power_down(struct hdac_ext_link *link)
 {
-	snd_hdac_updatel(link->ml_addr, AZX_REG_ML_LCTL, AZX_MLCTL_SPA, 0);
+	snd_hdac_updatel(link->ml_addr, AZX_REG_ML_LCTL, AZX_ML_LCTL_SPA, 0);
 
 	return check_hdac_link_power_active(link, false);
 }
@@ -222,7 +226,7 @@ int snd_hdac_ext_bus_link_power_up_all(struct hdac_bus *bus)
 
 	list_for_each_entry(hlink, &bus->hlink_list, list) {
 		snd_hdac_updatel(hlink->ml_addr, AZX_REG_ML_LCTL,
-				 AZX_MLCTL_SPA, AZX_MLCTL_SPA);
+				 AZX_ML_LCTL_SPA, AZX_ML_LCTL_SPA);
 		ret = check_hdac_link_power_active(hlink, true);
 		if (ret < 0)
 			return ret;
@@ -243,7 +247,7 @@ int snd_hdac_ext_bus_link_power_down_all(struct hdac_bus *bus)
 
 	list_for_each_entry(hlink, &bus->hlink_list, list) {
 		snd_hdac_updatel(hlink->ml_addr, AZX_REG_ML_LCTL,
-				 AZX_MLCTL_SPA, 0);
+				 AZX_ML_LCTL_SPA, 0);
 		ret = check_hdac_link_power_active(hlink, false);
 		if (ret < 0)
 			return ret;
@@ -277,7 +281,7 @@ int snd_hdac_ext_bus_link_get(struct hdac_bus *bus,
 		 * clear the register to invalidate all the output streams
 		 */
 		snd_hdac_updatew(link->ml_addr, AZX_REG_ML_LOSIDV,
-				 ML_LOSIDV_STREAM_MASK, 0);
+				 AZX_ML_LOSIDV_STREAM_MASK, 0);
 		/*
 		 *  wait for 521usec for codec to report status
 		 *  HDA spec section 4.3 - Codec Discovery

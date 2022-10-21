@@ -59,8 +59,13 @@ static void __init omap_optee_init_check(void)
 u32 omap_secure_dispatcher(u32 idx, u32 flag, u32 nargs, u32 arg1, u32 arg2,
 							 u32 arg3, u32 arg4)
 {
+	static u32 buf[NR_CPUS][5];
+	u32 *param;
+	int cpu;
 	u32 ret;
-	u32 param[5];
+
+	cpu = get_cpu();
+	param = buf[cpu];
 
 	param[0] = nargs;
 	param[1] = arg1;
@@ -75,6 +80,8 @@ u32 omap_secure_dispatcher(u32 idx, u32 flag, u32 nargs, u32 arg1, u32 arg2,
 	flush_cache_all();
 	outer_clean_range(__pa(param), __pa(param + 5));
 	ret = omap_smc2(idx, flag, __pa(param));
+
+	put_cpu();
 
 	return ret;
 }
@@ -117,10 +124,10 @@ phys_addr_t omap_secure_ram_mempool_base(void)
 }
 
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
-u32 omap3_save_secure_ram(void __iomem *addr, int size)
+u32 omap3_save_secure_ram(void *addr, int size)
 {
+	static u32 param[5];
 	u32 ret;
-	u32 param[5];
 
 	if (size != OMAP3_SAVE_SECURE_RAM_SZ)
 		return OMAP3_SAVE_SECURE_RAM_SZ;
@@ -153,8 +160,8 @@ u32 omap3_save_secure_ram(void __iomem *addr, int size)
 u32 rx51_secure_dispatcher(u32 idx, u32 process, u32 flag, u32 nargs,
 			   u32 arg1, u32 arg2, u32 arg3, u32 arg4)
 {
+	static u32 param[5];
 	u32 ret;
-	u32 param[5];
 
 	param[0] = nargs+1; /* RX-51 needs number of arguments + 1 */
 	param[1] = arg1;

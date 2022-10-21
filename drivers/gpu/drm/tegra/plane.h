@@ -90,7 +90,7 @@ int tegra_plane_state_add(struct tegra_plane *plane,
 
 int tegra_plane_format(u32 fourcc, u32 *format, u32 *swap);
 bool tegra_plane_format_is_indexed(unsigned int format);
-bool tegra_plane_format_is_yuv(unsigned int format, bool *planar, unsigned int *bpc);
+bool tegra_plane_format_is_yuv(unsigned int format, unsigned int *planes, unsigned int *bpc);
 int tegra_plane_setup_legacy_state(struct tegra_plane *tegra,
 				   struct tegra_plane_state *state);
 int tegra_plane_interconnect_init(struct tegra_plane *plane);

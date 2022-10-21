@@ -294,7 +294,7 @@ enum mod_hdcp_status mod_hdcp_remove_display(struct mod_hdcp *hdcp,
 		uint8_t index, struct mod_hdcp_output *output);
 
 /* called per display to apply new authentication adjustment */
-enum mod_hdcp_status mod_hdcp_update_authentication(struct mod_hdcp *hdcp,
+enum mod_hdcp_status mod_hdcp_update_display(struct mod_hdcp *hdcp,
 		uint8_t index,
 		struct mod_hdcp_link_adjustment *link_adjust,
 		struct mod_hdcp_display_adjustment *display_adjust,

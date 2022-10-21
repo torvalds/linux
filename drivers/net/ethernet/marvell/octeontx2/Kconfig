@@ -33,6 +33,7 @@ config OCTEONTX2_PF
 	select OCTEONTX2_MBOX
 	select NET_DEVLINK
 	depends on (64BIT && COMPILE_TEST) || ARM64
+	select DIMLIB
 	depends on PCI
 	depends on PTP_1588_CLOCK_OPTIONAL
 	help

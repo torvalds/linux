@@ -142,9 +142,10 @@ EXPORT_SYMBOL(ttm_global_swapout);
 int ttm_device_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
 		       gfp_t gfp_flags)
 {
+	struct ttm_resource_cursor cursor;
 	struct ttm_resource_manager *man;
-	struct ttm_buffer_object *bo;
-	unsigned i, j;
+	struct ttm_resource *res;
+	unsigned i;
 	int ret;
 
 	spin_lock(&bdev->lru_lock);
@@ -153,17 +154,20 @@ int ttm_device_swapout(struct ttm_device *bdev, struct ttm_operation_ctx *ctx,
 		if (!man || !man->use_tt)
 			continue;
 
-		for (j = 0; j < TTM_MAX_BO_PRIORITY; ++j) {
-			list_for_each_entry(bo, &man->lru[j], lru) {
-				uint32_t num_pages = PFN_UP(bo->base.size);
+		ttm_resource_manager_for_each_res(man, &cursor, res) {
+			struct ttm_buffer_object *bo = res->bo;
+			uint32_t num_pages;
 
-				ret = ttm_bo_swapout(bo, ctx, gfp_flags);
-				/* ttm_bo_swapout has dropped the lru_lock */
-				if (!ret)
-					return num_pages;
-				if (ret != -EBUSY)
-					return ret;
-			}
+			if (!bo)
+				continue;
+
+			num_pages = PFN_UP(bo->base.size);
+			ret = ttm_bo_swapout(bo, ctx, gfp_flags);
+			/* ttm_bo_swapout has dropped the lru_lock */
+			if (!ret)
+				return num_pages;
+			if (ret != -EBUSY)
+				return ret;
 		}
 	}
 	spin_unlock(&bdev->lru_lock);
@@ -259,49 +263,45 @@ void ttm_device_fini(struct ttm_device *bdev)
 }
 EXPORT_SYMBOL(ttm_device_fini);
 
+static void ttm_device_clear_lru_dma_mappings(struct ttm_device *bdev,
+					      struct list_head *list)
+{
+	struct ttm_resource *res;
+
+	spin_lock(&bdev->lru_lock);
+	while ((res = list_first_entry_or_null(list, typeof(*res), lru))) {
+		struct ttm_buffer_object *bo = res->bo;
+
+		/* Take ref against racing releases once lru_lock is unlocked */
+		if (!ttm_bo_get_unless_zero(bo))
+			continue;
+
+		list_del_init(&res->lru);
+		spin_unlock(&bdev->lru_lock);
+
+		if (bo->ttm)
+			ttm_tt_unpopulate(bo->bdev, bo->ttm);
+
+		ttm_bo_put(bo);
+		spin_lock(&bdev->lru_lock);
+	}
+	spin_unlock(&bdev->lru_lock);
+}
+
 void ttm_device_clear_dma_mappings(struct ttm_device *bdev)
 {
 	struct ttm_resource_manager *man;
-	struct ttm_buffer_object *bo;
 	unsigned int i, j;
 
-	spin_lock(&bdev->lru_lock);
-	while (!list_empty(&bdev->pinned)) {
-		bo = list_first_entry(&bdev->pinned, struct ttm_buffer_object, lru);
-		/* Take ref against racing releases once lru_lock is unlocked */
-		if (ttm_bo_get_unless_zero(bo)) {
-			list_del_init(&bo->lru);
-			spin_unlock(&bdev->lru_lock);
-
-			if (bo->ttm)
-				ttm_tt_unpopulate(bo->bdev, bo->ttm);
-
-			ttm_bo_put(bo);
-			spin_lock(&bdev->lru_lock);
-		}
-	}
+	ttm_device_clear_lru_dma_mappings(bdev, &bdev->pinned);
 
 	for (i = TTM_PL_SYSTEM; i < TTM_NUM_MEM_TYPES; ++i) {
 		man = ttm_manager_type(bdev, i);
 		if (!man || !man->use_tt)
 			continue;
 
-		for (j = 0; j < TTM_MAX_BO_PRIORITY; ++j) {
-			while (!list_empty(&man->lru[j])) {
-				bo = list_first_entry(&man->lru[j], struct ttm_buffer_object, lru);
-				if (ttm_bo_get_unless_zero(bo)) {
-					list_del_init(&bo->lru);
-					spin_unlock(&bdev->lru_lock);
-
-					if (bo->ttm)
-						ttm_tt_unpopulate(bo->bdev, bo->ttm);
-
-					ttm_bo_put(bo);
-					spin_lock(&bdev->lru_lock);
-				}
-			}
-		}
+		for (j = 0; j < TTM_MAX_BO_PRIORITY; ++j)
+			ttm_device_clear_lru_dma_mappings(bdev, &man->lru[j]);
 	}
-	spin_unlock(&bdev->lru_lock);
 }
 EXPORT_SYMBOL(ttm_device_clear_dma_mappings);

@@ -528,9 +528,9 @@ static void ieee80211_beacons_stop(struct ieee80211_device *ieee)
 	spin_lock_irqsave(&ieee->beacon_lock, flags);
 
 	ieee->beacon_txing = 0;
-	del_timer_sync(&ieee->beacon_timer);
 
 	spin_unlock_irqrestore(&ieee->beacon_lock, flags);
+	del_timer_sync(&ieee->beacon_timer);
 }
 
 void ieee80211_stop_send_beacons(struct ieee80211_device *ieee)
@@ -1461,13 +1461,13 @@ void ieee80211_softmac_check_all_nets(struct ieee80211_device *ieee)
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
 
-static inline u16 auth_parse(struct sk_buff *skb, u8 **challenge, int *chlen)
+static inline int auth_parse(struct sk_buff *skb, u8 **challenge, int *chlen)
 {
 	struct ieee80211_authentication *a;
 	u8 *t;
 	if (skb->len < (sizeof(struct ieee80211_authentication) - sizeof(struct ieee80211_info_element))) {
 		IEEE80211_DEBUG_MGMT("invalid len in auth resp: %d\n", skb->len);
-		return 0xcafe;
+		return -EINVAL;
 	}
 	*challenge = NULL;
 	a = (struct ieee80211_authentication *)skb->data;
@@ -1482,7 +1482,12 @@ static inline u16 auth_parse(struct sk_buff *skb, u8 **challenge, int *chlen)
 		}
 	}
 
-	return le16_to_cpu(a->status);
+	if (a->status) {
+		IEEE80211_DEBUG_MGMT("auth_parse() failed\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int auth_rq_parse(struct sk_buff *skb, u8 *dest)
@@ -1687,13 +1692,14 @@ static short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h,
 	return 1;
 }
 
-static inline void ieee80211_sta_ps(struct tasklet_struct *t)
+static inline void ieee80211_sta_ps(struct work_struct *work)
 {
-	struct ieee80211_device *ieee = from_tasklet(ieee, t, ps_task);
+	struct ieee80211_device *ieee;
 	u32 th, tl;
 	short sleep;
-
 	unsigned long flags, flags2;
+
+	ieee = container_of(work, struct ieee80211_device, ps_task);
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -1826,7 +1832,7 @@ static void ieee80211_check_auth_response(struct ieee80211_device *ieee,
 {
 	/* default support N mode, disable halfNmode */
 	bool bSupportNmode = true, bHalfSupportNmode = false;
-	u16 errcode;
+	int errcode;
 	u8 *challenge;
 	int chlen = 0;
 	u32 iotAction;
@@ -1875,7 +1881,7 @@ static void ieee80211_check_auth_response(struct ieee80211_device *ieee,
 		}
 	} else {
 		ieee->softmac_stats.rx_auth_rs_err++;
-		IEEE80211_DEBUG_MGMT("Auth response status code 0x%x", errcode);
+		IEEE80211_DEBUG_MGMT("Auth response status code %d\n", errcode);
 		ieee80211_associate_abort(ieee);
 	}
 }
@@ -1897,7 +1903,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 	if (ieee->sta_sleep || (ieee->ps != IEEE80211_PS_DISABLED &&
 				ieee->iw_mode == IW_MODE_INFRA &&
 				ieee->state == IEEE80211_LINKED))
-		tasklet_schedule(&ieee->ps_task);
+		schedule_work(&ieee->ps_task);
 
 	if (WLAN_FC_GET_STYPE(header->frame_ctl) != IEEE80211_STYPE_PROBE_RESP &&
 	    WLAN_FC_GET_STYPE(header->frame_ctl) != IEEE80211_STYPE_BEACON)
@@ -2602,7 +2608,7 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 	spin_lock_init(&ieee->mgmt_tx_lock);
 	spin_lock_init(&ieee->beacon_lock);
 
-	tasklet_setup(&ieee->ps_task, ieee80211_sta_ps);
+	INIT_WORK(&ieee->ps_task, ieee80211_sta_ps);
 }
 
 void ieee80211_softmac_free(struct ieee80211_device *ieee)
@@ -2613,7 +2619,7 @@ void ieee80211_softmac_free(struct ieee80211_device *ieee)
 	del_timer_sync(&ieee->associate_timer);
 
 	cancel_delayed_work(&ieee->associate_retry_wq);
-
+	cancel_work_sync(&ieee->ps_task);
 	mutex_unlock(&ieee->wx_mutex);
 }
 

@@ -21,28 +21,23 @@ enum LED_CTL_MODE {
 };
 
 enum LED_STATE_871x {
-	LED_UNKNOWN = 0,
-	RTW_LED_ON = 1,
 	RTW_LED_OFF = 2,
 	LED_BLINK_NORMAL = 3,
 	LED_BLINK_SLOWLY = 4,
 	LED_BLINK_SCAN = 6, /*  LED is blinking during scanning period,
 			     * the # of times to blink is depend on time
 			     * for scanning. */
-	LED_BLINK_StartToBlink = 8,/*  Customzied for Sercomm Printer
-				    * Server case */
 	LED_BLINK_TXRX = 9,
 	LED_BLINK_WPS = 10,	/*  LED is blinkg during WPS communication */
 	LED_BLINK_WPS_STOP = 11,
-	LED_BLINK_RUNTOP = 13, /*  Customized for RunTop */
 };
 
-struct LED_871x {
+struct led_priv {
 	struct adapter *padapter;
 
+	bool bRegUseLed;
+
 	enum LED_STATE_871x	CurrLedState; /*  Current LED state. */
-	enum LED_STATE_871x	BlinkingLedState; /*  Next state for blinking,
-				   * either RTW_LED_ON or RTW_LED_OFF are. */
 
 	bool bLedOn; /*  true if LED is ON, false if LED is OFF. */
 
@@ -52,15 +47,9 @@ struct LED_871x {
 
 	u32 BlinkTimes; /*  Number of times to toggle led state for blinking. */
 
-	bool bLedNoLinkBlinkInProgress;
 	bool bLedLinkBlinkInProgress;
 	bool bLedScanBlinkInProgress;
 	struct delayed_work blink_work;
-};
-
-struct led_priv{
-	struct LED_871x			SwLed0;
-	bool	bRegUseLed;
 };
 
 void rtl8188eu_InitSwLeds(struct adapter *padapter);

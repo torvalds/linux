@@ -31,6 +31,8 @@
 #include "soc15_common.h"
 #include "mxgpu_nv.h"
 
+#include "amdgpu_reset.h"
+
 static void xgpu_nv_mailbox_send_ack(struct amdgpu_device *adev)
 {
 	WREG8(NV_MAIBOX_CONTROL_RCV_OFFSET_BYTE, 2);
@@ -281,10 +283,10 @@ static void xgpu_nv_mailbox_flr_work(struct work_struct *work)
 	 * otherwise the mailbox msg will be ruined/reseted by
 	 * the VF FLR.
 	 */
-	if (atomic_cmpxchg(&adev->in_gpu_reset, 0, 1) != 0)
+	if (atomic_cmpxchg(&adev->reset_domain->in_gpu_reset, 0, 1) != 0)
 		return;
 
-	down_write(&adev->reset_sem);
+	down_write(&adev->reset_domain->sem);
 
 	amdgpu_virt_fini_data_exchange(adev);
 
@@ -299,8 +301,8 @@ static void xgpu_nv_mailbox_flr_work(struct work_struct *work)
 	} while (timeout > 1);
 
 flr_done:
-	atomic_set(&adev->in_gpu_reset, 0);
-	up_write(&adev->reset_sem);
+	atomic_set(&adev->reset_domain->in_gpu_reset, 0);
+	up_write(&adev->reset_domain->sem);
 
 	/* Trigger recovery for world switch failure if no TDR */
 	if (amdgpu_device_should_recover_gpu(adev)
@@ -308,8 +310,16 @@ flr_done:
 		adev->sdma_timeout == MAX_SCHEDULE_TIMEOUT ||
 		adev->gfx_timeout == MAX_SCHEDULE_TIMEOUT ||
 		adev->compute_timeout == MAX_SCHEDULE_TIMEOUT ||
-		adev->video_timeout == MAX_SCHEDULE_TIMEOUT))
-		amdgpu_device_gpu_recover(adev, NULL);
+		adev->video_timeout == MAX_SCHEDULE_TIMEOUT)) {
+		struct amdgpu_reset_context reset_context;
+		memset(&reset_context, 0, sizeof(reset_context));
+
+		reset_context.method = AMD_RESET_METHOD_NONE;
+		reset_context.reset_req_dev = adev;
+		clear_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
+
+		amdgpu_device_gpu_recover(adev, NULL, &reset_context);
+	}
 }
 
 static int xgpu_nv_set_mailbox_rcv_irq(struct amdgpu_device *adev,
@@ -337,8 +347,11 @@ static int xgpu_nv_mailbox_rcv_irq(struct amdgpu_device *adev,
 
 	switch (event) {
 	case IDH_FLR_NOTIFICATION:
-		if (amdgpu_sriov_runtime(adev))
-			schedule_work(&adev->virt.flr_work);
+		if (amdgpu_sriov_runtime(adev) && !amdgpu_in_reset(adev))
+			WARN_ONCE(!amdgpu_reset_domain_schedule(adev->reset_domain,
+				   &adev->virt.flr_work),
+				  "Failed to queue work! at %s",
+				  __func__);
 		break;
 		/* READY_TO_ACCESS_GPU is fetched by kernel polling, IRQ can ignore
 		 * it byfar since that polling thread will handle it,

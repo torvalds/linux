@@ -15,11 +15,22 @@
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
+#include <linux/pxa2xx_ssp.h>
 
 #include "intel-lpss.h"
 
+static const struct property_entry spt_spi_properties[] = {
+	PROPERTY_ENTRY_U32("intel,spi-pxa2xx-type", LPSS_SPT_SSP),
+	{ }
+};
+
+static const struct software_node spt_spi_node = {
+	.properties = spt_spi_properties,
+};
+
 static const struct intel_lpss_platform_info spt_info = {
 	.clk_rate = 120000000,
+	.swnode = &spt_spi_node,
 };
 
 static const struct property_entry spt_i2c_properties[] = {
@@ -53,8 +64,18 @@ static const struct intel_lpss_platform_info spt_uart_info = {
 	.swnode = &uart_node,
 };
 
+static const struct property_entry bxt_spi_properties[] = {
+	PROPERTY_ENTRY_U32("intel,spi-pxa2xx-type", LPSS_BXT_SSP),
+	{ }
+};
+
+static const struct software_node bxt_spi_node = {
+	.properties = bxt_spi_properties,
+};
+
 static const struct intel_lpss_platform_info bxt_info = {
 	.clk_rate = 100000000,
+	.swnode = &bxt_spi_node,
 };
 
 static const struct property_entry bxt_i2c_properties[] = {
@@ -89,6 +110,20 @@ static const struct intel_lpss_platform_info apl_i2c_info = {
 	.swnode = &apl_i2c_node,
 };
 
+static const struct property_entry cnl_spi_properties[] = {
+	PROPERTY_ENTRY_U32("intel,spi-pxa2xx-type", LPSS_CNL_SSP),
+	{ }
+};
+
+static const struct software_node cnl_spi_node = {
+	.properties = cnl_spi_properties,
+};
+
+static const struct intel_lpss_platform_info cnl_info = {
+	.clk_rate = 120000000,
+	.swnode = &cnl_spi_node,
+};
+
 static const struct intel_lpss_platform_info cnl_i2c_info = {
 	.clk_rate = 216000000,
 	.swnode = &spt_i2c_node,
@@ -108,8 +143,8 @@ static const struct acpi_device_id intel_lpss_acpi_ids[] = {
 	{ "INT3449", (kernel_ulong_t)&spt_uart_info },
 	{ "INT344A", (kernel_ulong_t)&spt_uart_info },
 	/* CNL */
-	{ "INT34B0", (kernel_ulong_t)&spt_info },
-	{ "INT34B1", (kernel_ulong_t)&spt_info },
+	{ "INT34B0", (kernel_ulong_t)&cnl_info },
+	{ "INT34B1", (kernel_ulong_t)&cnl_info },
 	{ "INT34B2", (kernel_ulong_t)&cnl_i2c_info },
 	{ "INT34B3", (kernel_ulong_t)&cnl_i2c_info },
 	{ "INT34B4", (kernel_ulong_t)&cnl_i2c_info },
@@ -119,7 +154,7 @@ static const struct acpi_device_id intel_lpss_acpi_ids[] = {
 	{ "INT34B8", (kernel_ulong_t)&spt_uart_info },
 	{ "INT34B9", (kernel_ulong_t)&spt_uart_info },
 	{ "INT34BA", (kernel_ulong_t)&spt_uart_info },
-	{ "INT34BC", (kernel_ulong_t)&spt_info },
+	{ "INT34BC", (kernel_ulong_t)&cnl_info },
 	/* BXT */
 	{ "80860AAC", (kernel_ulong_t)&bxt_i2c_info },
 	{ "80860ABC", (kernel_ulong_t)&bxt_info },

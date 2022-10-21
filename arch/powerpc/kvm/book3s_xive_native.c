@@ -209,7 +209,7 @@ static int kvmppc_xive_native_reset_mapped(struct kvm *kvm, unsigned long irq)
 
 	/*
 	 * Clear the ESB pages of the IRQ number being mapped (or
-	 * unmapped) into the guest and let the the VM fault handler
+	 * unmapped) into the guest and let the VM fault handler
 	 * repopulate with the appropriate ESB pages (device or IC)
 	 */
 	pr_debug("clearing esb pages for girq 0x%lx\n", irq);
@@ -1259,24 +1259,15 @@ DEFINE_SHOW_ATTRIBUTE(xive_native_debug);
 
 static void xive_native_debugfs_init(struct kvmppc_xive *xive)
 {
-	char *name;
-
-	name = kasprintf(GFP_KERNEL, "kvm-xive-%p", xive);
-	if (!name) {
-		pr_err("%s: no memory for name\n", __func__);
-		return;
-	}
-
-	xive->dentry = debugfs_create_file(name, 0444, arch_debugfs_dir,
+	xive->dentry = debugfs_create_file("xive", 0444, xive->kvm->debugfs_dentry,
 					   xive, &xive_native_debug_fops);
 
-	pr_debug("%s: created %s\n", __func__, name);
-	kfree(name);
+	pr_debug("%s: created\n", __func__);
 }
 
 static void kvmppc_xive_native_init(struct kvm_device *dev)
 {
-	struct kvmppc_xive *xive = (struct kvmppc_xive *)dev->private;
+	struct kvmppc_xive *xive = dev->private;
 
 	/* Register some debug interfaces */
 	xive_native_debugfs_init(xive);

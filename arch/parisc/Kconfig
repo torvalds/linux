@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config PARISC
 	def_bool y
+	select ALTERNATE_USER_ADDRESS_SPACE
 	select ARCH_32BIT_OFF_T if !64BIT
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select HAVE_FUNCTION_TRACER
@@ -9,11 +10,14 @@ config PARISC
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_STRICT_KERNEL_RWX
+	select ARCH_HAS_STRICT_MODULE_RWX
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
+	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_NO_SG_CHAIN
 	select ARCH_SUPPORTS_HUGETLBFS if PA20
 	select ARCH_SUPPORTS_MEMORY_FAILURE
 	select ARCH_STACKWALK
+	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select HAVE_RELIABLE_STACKTRACE
 	select DMA_OPS
 	select RTC_CLASS
@@ -34,12 +38,12 @@ config PARISC
 	select GENERIC_PCI_IOMAP
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_SMP_IDLE_THREAD
-	select GENERIC_CPU_DEVICES
+	select GENERIC_ARCH_TOPOLOGY if SMP
+	select GENERIC_CPU_DEVICES if !SMP
 	select GENERIC_LIB_DEVMEM_IS_ALLOWED
 	select SYSCTL_ARCH_UNALIGN_ALLOW
 	select SYSCTL_EXCEPTION_TRACE
 	select HAVE_MOD_ARCH_SPECIFIC
-	select VIRT_TO_BUS
 	select MODULES_USE_ELF_RELA
 	select CLONE_BACKWARDS
 	select TTY # Needed for pdc_cons.c
@@ -53,6 +57,7 @@ config PARISC
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select GENERIC_SCHED_CLOCK
+	select GENERIC_IRQ_MIGRATION if SMP
 	select HAVE_UNSTABLE_SCHED_CLOCK if SMP
 	select LEGACY_TIMER_TICK
 	select CPU_NO_EFFICIENT_FFS
@@ -69,6 +74,7 @@ config PARISC
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_SOFTIRQ_ON_OWN_STACK if IRQSTACKS
 	select TRACE_IRQFLAGS_SUPPORT
+	select HAVE_FUNCTION_DESCRIPTORS if 64BIT
 
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
@@ -140,10 +146,10 @@ menu "Processor type and features"
 
 choice
 	prompt "Processor type"
-	default PA7000
+	default PA7000 if "$(ARCH)" = "parisc"
 
 config PA7000
-	bool "PA7000/PA7100"
+	bool "PA7000/PA7100" if "$(ARCH)" = "parisc"
 	help
 	  This is the processor type of your CPU.  This information is
 	  used for optimizing purposes.  In order to compile a kernel
@@ -154,21 +160,21 @@ config PA7000
 	  which is required on some machines.
 
 config PA7100LC
-	bool "PA7100LC"
+	bool "PA7100LC" if "$(ARCH)" = "parisc"
 	help
 	  Select this option for the PCX-L processor, as used in the
 	  712, 715/64, 715/80, 715/100, 715/100XC, 725/100, 743, 748,
 	  D200, D210, D300, D310 and E-class
 
 config PA7200
-	bool "PA7200"
+	bool "PA7200" if "$(ARCH)" = "parisc"
 	help
 	  Select this option for the PCX-T' processor, as used in the
 	  C100, C110, J100, J110, J210XC, D250, D260, D350, D360,
 	  K100, K200, K210, K220, K400, K410 and K420
 
 config PA7300LC
-	bool "PA7300LC"
+	bool "PA7300LC" if "$(ARCH)" = "parisc"
 	help
 	  Select this option for the PCX-L2 processor, as used in the
 	  744, A180, B132L, B160L, B180L, C132L, C160L, C180L,
@@ -218,7 +224,8 @@ config MLONGCALLS
 	  Enabling this option will probably slow down your kernel.
 
 config 64BIT
-	bool "64-bit kernel"
+	def_bool y if "$(ARCH)" = "parisc64"
+	bool "64-bit kernel" if "$(ARCH)" = "parisc"
 	depends on PA8X00
 	help
 	  Enable this if you want to support 64bit kernel on PA-RISC platform.
@@ -259,18 +266,6 @@ config PARISC_PAGE_SIZE_64KB
 
 endchoice
 
-config PARISC_SELF_EXTRACT
-	bool "Build kernel as self-extracting executable"
-	default y
-	help
-	  Say Y if you want to build the parisc kernel as a kind of
-	  self-extracting executable.
-
-	  If you say N here, the kernel will be compressed with gzip
-	  which can be loaded by the palo bootloader directly too.
-
-	  If you don't know what to do here, say Y.
-
 config SMP
 	bool "Symmetric multi-processing support"
 	help
@@ -287,16 +282,9 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
-config PARISC_CPU_TOPOLOGY
-	bool "Support cpu topology definition"
-	depends on SMP
-	default y
-	help
-	  Support PARISC cpu topology definition.
-
 config SCHED_MC
 	bool "Multi-core scheduler support"
-	depends on PARISC_CPU_TOPOLOGY && PA8X00
+	depends on GENERIC_ARCH_TOPOLOGY && PA8X00
 	help
 	  Multi-core scheduler support improves the CPU scheduler's decision
 	  making when dealing with multi-core CPU chips at a cost of slightly
@@ -344,10 +332,6 @@ source "kernel/Kconfig.hz"
 config COMPAT
 	def_bool y
 	depends on 64BIT
-
-config SYSVIPC_COMPAT
-	def_bool y
-	depends on COMPAT && SYSVIPC
 
 config AUDIT_ARCH
 	def_bool y

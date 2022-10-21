@@ -167,7 +167,7 @@ The first event type in the class is reserved for future use, so the first
 available event type is 'class base + 1'.
 
 An example on how the V4L2 events may be used can be found in the OMAP
-3 ISP driver (``drivers/media/platform/omap3isp``).
+3 ISP driver (``drivers/media/platform/ti/omap3isp``).
 
 A subdev can directly send an event to the :c:type:`v4l2_device` notify
 function with ``V4L2_DEVICE_NOTIFY_EVENT``. This allows the bridge to map

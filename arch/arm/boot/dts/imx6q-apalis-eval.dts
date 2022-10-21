@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0+ OR MIT
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
- * Copyright 2014-2020 Toradex
+ * Copyright 2014-2022 Toradex
  * Copyright 2012 Freescale Semiconductor, Inc.
  * Copyright 2011 Linaro Ltd.
  */
@@ -30,87 +30,24 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	gpio-keys {
-		compatible = "gpio-keys";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_gpio_keys>;
-
-		wakeup {
-			label = "Wake-Up";
-			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
-			linux,code = <KEY_WAKEUP>;
-			debounce-interval = <10>;
-			wakeup-source;
-		};
-	};
-
-	lcd_display: disp0 {
-		compatible = "fsl,imx-parallel-display";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		interface-pix-fmt = "rgb24";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_ipu1_lcdif>;
-		status = "okay";
-
-		port@0 {
-			reg = <0>;
-
-			lcd_display_in: endpoint {
-				remote-endpoint = <&ipu1_di1_disp1>;
-			};
-		};
-
-		port@1 {
-			reg = <1>;
-
-			lcd_display_out: endpoint {
-				remote-endpoint = <&lcd_panel_in>;
-			};
-		};
-	};
-
-	panel: panel {
-		/*
-		 * edt,et057090dhu: EDT 5.7" LCD TFT
-		 * edt,et070080dh6: EDT 7.0" LCD TFT
-		 */
-		compatible = "edt,et057090dhu";
-		backlight = <&backlight>;
-		power-supply = <&reg_3v3_sw>;
-
-		port {
-			lcd_panel_in: endpoint {
-				remote-endpoint = <&lcd_display_out>;
-			};
-		};
-	};
-
 	reg_pcie_switch: regulator-pcie-switch {
 		compatible = "regulator-fixed";
-		regulator-name = "pcie_switch";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <100000>;
 		enable-active-high;
+		gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		regulator-max-microvolt = <1800000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-name = "pcie_switch";
+		startup-delay-us = <100000>;
 		status = "okay";
 	};
 
 	reg_3v3_sw: regulator-3v3-sw {
 		compatible = "regulator-fixed";
-		regulator-name = "3.3V_SW";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "3.3V_SW";
 	};
-};
-
-&backlight {
-	brightness-levels = <0 127 191 223 239 247 251 255>;
-	default-brightness-level = <1>;
-	power-supply = <&reg_3v3_sw>;
-	status = "okay";
 };
 
 &can1 {
@@ -123,26 +60,9 @@
 	status = "okay";
 };
 
-&hdmi {
-	status = "okay";
-};
-
 /* I2C1_SDA/SCL on MXM3 209/211 (e.g. RTC on carrier board) */
 &i2c1 {
 	status = "okay";
-
-	/*
-	 * Touchscreen is using SODIMM 28/30, also used for PWM<B>, PWM<C>,
-	 * aka pwm2, pwm3. so if you enable touchscreen, disable the pwms
-	 */
-	touchscreen@4a {
-		compatible = "atmel,maxtouch";
-		reg = <0x4a>;
-		interrupt-parent = <&gpio6>;
-		interrupts = <10 IRQ_TYPE_EDGE_FALLING>;
-		reset-gpios = <&gpio6 9 GPIO_ACTIVE_LOW>; /* SODIMM 13 */
-		status = "disabled";
-	};
 
 	pcie-switch@58 {
 		compatible = "plx,pex8605";
@@ -161,14 +81,6 @@
  * board)
  */
 &i2c3 {
-	status = "okay";
-};
-
-&ipu1_di1_disp1 {
-	remote-endpoint = <&lcd_display_in>;
-};
-
-&ldb {
 	status = "okay";
 };
 
@@ -198,11 +110,11 @@
 	status = "okay";
 };
 
-&reg_usb_otg_vbus {
+&reg_usb_host_vbus {
 	status = "okay";
 };
 
-&reg_usb_host_vbus {
+&reg_usb_otg_vbus {
 	status = "okay";
 };
 
@@ -246,28 +158,13 @@
 
 /* MMC1 */
 &usdhc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc1_4bit &pinctrl_usdhc1_8bit &pinctrl_mmc_cd>;
-	cd-gpios = <&gpio4 20 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
 /* SD1 */
 &usdhc2 {
+	cd-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2 &pinctrl_sd_cd>;
-	cd-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
 	status = "okay";
-};
-
-&iomuxc {
-	/*
-	 * Mux the Apalis GPIOs
-	 */
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_apalis_gpio1 &pinctrl_apalis_gpio2
-		     &pinctrl_apalis_gpio3 &pinctrl_apalis_gpio4
-		     &pinctrl_apalis_gpio5 &pinctrl_apalis_gpio6
-		     &pinctrl_apalis_gpio7 &pinctrl_apalis_gpio8
-		    >;
 };

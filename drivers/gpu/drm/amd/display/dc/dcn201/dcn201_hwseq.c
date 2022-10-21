@@ -82,7 +82,7 @@ static bool patch_address_for_sbs_tb_stereo(
 	return false;
 }
 
-static void gpu_addr_to_uma(struct dce_hwseq *hwseq,
+static bool gpu_addr_to_uma(struct dce_hwseq *hwseq,
 		PHYSICAL_ADDRESS_LOC *addr)
 {
 	bool is_in_uma;
@@ -95,11 +95,10 @@ static void gpu_addr_to_uma(struct dce_hwseq *hwseq,
 	} else if (hwseq->fb_offset.quad_part <= addr->quad_part &&
 			addr->quad_part <= hwseq->uma_top.quad_part) {
 		is_in_uma = true;
-	} else if (addr->quad_part == 0) {
-		is_in_uma = false;
 	} else {
 		is_in_uma = false;
 	}
+	return is_in_uma;
 }
 
 static void plane_address_in_gpu_space_to_uma(struct dce_hwseq *hwseq,

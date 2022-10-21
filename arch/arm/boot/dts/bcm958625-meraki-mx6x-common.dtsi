@@ -22,7 +22,7 @@
 		};
 
 		led-2 {
-			function = LED_FUNCTION_INDICATOR;
+			function = LED_FUNCTION_POWER;
 			color = <LED_COLOR_ID_GREEN>;
 			pwms = <&pwm 2 50000>;
 			max-brightness = <255>;
@@ -39,6 +39,8 @@
 
 &amac2 {
 	status = "okay";
+	nvmem-cells = <&mac_address>;
+	nvmem-cell-names = "mac-address";
 };
 
 &ehci0 {
@@ -53,6 +55,12 @@
 		reg = <0x50>;
 		pagesize = <32>;
 		read-only;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		mac_address: mac-address@66 {
+			reg = <0x66 0x6>;
+		};
 	};
 };
 

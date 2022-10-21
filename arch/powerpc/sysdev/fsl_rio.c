@@ -69,10 +69,10 @@
 
 static DEFINE_SPINLOCK(fsl_rio_config_lock);
 
-#define __fsl_read_rio_config(x, addr, err, op)		\
+#define ___fsl_read_rio_config(x, addr, err, op, barrier)	\
 	__asm__ __volatile__(				\
 		"1:	"op" %1,0(%2)\n"		\
-		"	eieio\n"			\
+		"	"barrier"\n"			\
 		"2:\n"					\
 		".section .fixup,\"ax\"\n"		\
 		"3:	li %1,-1\n"			\
@@ -83,6 +83,14 @@ static DEFINE_SPINLOCK(fsl_rio_config_lock);
 		: "=r" (err), "=r" (x)			\
 		: "b" (addr), "i" (-EFAULT), "0" (err))
 
+#ifdef CONFIG_BOOKE
+#define __fsl_read_rio_config(x, addr, err, op)	\
+	___fsl_read_rio_config(x, addr, err, op, "mbar")
+#else
+#define __fsl_read_rio_config(x, addr, err, op)	\
+	___fsl_read_rio_config(x, addr, err, op, "eieio")
+#endif
+
 void __iomem *rio_regs_win;
 void __iomem *rmu_regs_win;
 resource_size_t rio_law_start;
@@ -90,7 +98,7 @@ resource_size_t rio_law_start;
 struct fsl_rio_dbell *dbell;
 struct fsl_rio_pw *pw;
 
-#ifdef CONFIG_E500
+#ifdef CONFIG_PPC_E500
 int fsl_rio_mcheck_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *entry;
@@ -505,8 +513,10 @@ int fsl_rio_setup(struct platform_device *dev)
 	if (rc) {
 		dev_err(&dev->dev, "Can't get %pOF property 'reg'\n",
 				rmu_node);
+		of_node_put(rmu_node);
 		goto err_rmu;
 	}
+	of_node_put(rmu_node);
 	rmu_regs_win = ioremap(rmu_regs.start, resource_size(&rmu_regs));
 	if (!rmu_regs_win) {
 		dev_err(&dev->dev, "Unable to map rmu register window\n");

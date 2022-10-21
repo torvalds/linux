@@ -16,6 +16,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_gpio.h>
 #include <sound/tlv.h>
 #include "max98927.h"
@@ -147,12 +148,13 @@ static int max98927_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 	dev_dbg(component->dev, "%s: fmt 0x%08X\n", __func__, fmt);
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
+		max98927->provider = false;
 		mode = MAX98927_PCM_MASTER_MODE_SLAVE;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
-		max98927->master = true;
+	case SND_SOC_DAIFMT_CBP_CFP:
+		max98927->provider = true;
 		mode = MAX98927_PCM_MASTER_MODE_MASTER;
 		break;
 	default:
@@ -269,7 +271,7 @@ static int max98927_set_clock(struct max98927_priv *max98927,
 	int blr_clk_ratio = params_channels(params) * max98927->ch_size;
 	int value;
 
-	if (max98927->master) {
+	if (max98927->provider) {
 		int i;
 		/* match rate to closest value */
 		for (i = 0; i < ARRAY_SIZE(rate_table); i++) {
@@ -830,7 +832,6 @@ static const struct snd_soc_component_driver soc_component_dev_max98927 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config max98927_regmap = {
@@ -861,8 +862,7 @@ static void max98927_slot_config(struct i2c_client *i2c,
 		max98927->i_l_slot = 1;
 }
 
-static int max98927_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int max98927_i2c_probe(struct i2c_client *i2c)
 {
 
 	int ret = 0, value;
@@ -934,15 +934,13 @@ static int max98927_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int max98927_i2c_remove(struct i2c_client *i2c)
+static void max98927_i2c_remove(struct i2c_client *i2c)
 {
 	struct max98927_priv *max98927 = i2c_get_clientdata(i2c);
 
 	if (max98927->reset_gpio) {
 		gpiod_set_value_cansleep(max98927->reset_gpio, 1);
 	}
-
-	return 0;
 }
 
 static const struct i2c_device_id max98927_i2c_id[] = {
@@ -975,7 +973,7 @@ static struct i2c_driver max98927_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(max98927_acpi_match),
 		.pm = &max98927_pm,
 	},
-	.probe  = max98927_i2c_probe,
+	.probe_new = max98927_i2c_probe,
 	.remove = max98927_i2c_remove,
 	.id_table = max98927_i2c_id,
 };

@@ -17,8 +17,8 @@ void ixgbe_restore_vf_multicasts(struct ixgbe_adapter *adapter);
 #endif
 void ixgbe_msg_task(struct ixgbe_adapter *adapter);
 int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask);
-void ixgbe_disable_tx_rx(struct ixgbe_adapter *adapter);
 void ixgbe_ping_all_vfs(struct ixgbe_adapter *adapter);
+void ixgbe_set_all_vfs(struct ixgbe_adapter *adapter);
 int ixgbe_ndo_set_vf_mac(struct net_device *netdev, int queue, u8 *mac);
 int ixgbe_ndo_set_vf_vlan(struct net_device *netdev, int queue, u16 vlan,
 			   u8 qos, __be16 vlan_proto);
@@ -31,7 +31,9 @@ int ixgbe_ndo_set_vf_rss_query_en(struct net_device *netdev, int vf,
 int ixgbe_ndo_set_vf_trust(struct net_device *netdev, int vf, bool setting);
 int ixgbe_ndo_get_vf_config(struct net_device *netdev,
 			    int vf, struct ifla_vf_info *ivi);
+int ixgbe_ndo_set_vf_link_state(struct net_device *netdev, int vf, int state);
 void ixgbe_check_vf_rate_limit(struct ixgbe_adapter *adapter);
+void ixgbe_set_vf_link_state(struct ixgbe_adapter *adapter, int vf, int state);
 int ixgbe_disable_sriov(struct ixgbe_adapter *adapter);
 #ifdef CONFIG_PCI_IOV
 void ixgbe_enable_sriov(struct ixgbe_adapter *adapter, unsigned int max_vfs);

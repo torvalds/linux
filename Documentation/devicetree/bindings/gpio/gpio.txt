@@ -213,7 +213,7 @@ Example of two SOC GPIO banks defined as gpio-controller nodes:
 		gpio-controller;
 		#gpio-cells = <2>;
 
-		line_b {
+		line_b-hog {
 			gpio-hog;
 			gpios = <6 0>;
 			output-low;

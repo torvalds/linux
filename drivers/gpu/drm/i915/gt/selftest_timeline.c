@@ -4,10 +4,12 @@
  */
 
 #include <linux/prime_numbers.h>
+#include <linux/string_helpers.h>
 
 #include "intel_context.h"
 #include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
+#include "intel_engine_regs.h"
 #include "intel_gpu_commands.h"
 #include "intel_gt.h"
 #include "intel_gt_requests.h"
@@ -208,7 +210,7 @@ static int __igt_sync(struct intel_timeline *tl,
 
 	if (__intel_timeline_sync_is_later(tl, ctx, p->seqno) != p->expected) {
 		pr_err("%s: %s(ctx=%llu, seqno=%u) expected passed %s but failed\n",
-		       name, p->name, ctx, p->seqno, yesno(p->expected));
+		       name, p->name, ctx, p->seqno, str_yes_no(p->expected));
 		return -EINVAL;
 	}
 

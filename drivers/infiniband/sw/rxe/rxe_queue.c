@@ -112,23 +112,25 @@ static int resize_finish(struct rxe_queue *q, struct rxe_queue *new_q,
 			 unsigned int num_elem)
 {
 	enum queue_type type = q->type;
+	u32 new_prod;
 	u32 prod;
 	u32 cons;
 
 	if (!queue_empty(q, q->type) && (num_elem < queue_count(q, type)))
 		return -EINVAL;
 
-	prod = queue_get_producer(new_q, type);
+	new_prod = queue_get_producer(new_q, type);
+	prod = queue_get_producer(q, type);
 	cons = queue_get_consumer(q, type);
 
-	while (!queue_empty(q, type)) {
-		memcpy(queue_addr_from_index(new_q, prod),
+	while ((prod - cons) & q->index_mask) {
+		memcpy(queue_addr_from_index(new_q, new_prod),
 		       queue_addr_from_index(q, cons), new_q->elem_size);
-		prod = queue_next_index(new_q, prod);
+		new_prod = queue_next_index(new_q, new_prod);
 		cons = queue_next_index(q, cons);
 	}
 
-	new_q->buf->producer_index = prod;
+	new_q->buf->producer_index = new_prod;
 	q->buf->consumer_index = cons;
 
 	/* update private index copies */
@@ -151,6 +153,8 @@ int rxe_queue_resize(struct rxe_queue *q, unsigned int *num_elem_p,
 	struct rxe_queue *new_q;
 	unsigned int num_elem = *num_elem_p;
 	int err;
+	unsigned long producer_flags;
+	unsigned long consumer_flags;
 
 	new_q = rxe_queue_init(q->rxe, &num_elem, elem_size, q->type);
 	if (!new_q)
@@ -164,17 +168,17 @@ int rxe_queue_resize(struct rxe_queue *q, unsigned int *num_elem_p,
 		goto err1;
 	}
 
-	spin_lock_bh(consumer_lock);
+	spin_lock_irqsave(consumer_lock, consumer_flags);
 
 	if (producer_lock) {
-		spin_lock_bh(producer_lock);
+		spin_lock_irqsave(producer_lock, producer_flags);
 		err = resize_finish(q, new_q, num_elem);
-		spin_unlock_bh(producer_lock);
+		spin_unlock_irqrestore(producer_lock, producer_flags);
 	} else {
 		err = resize_finish(q, new_q, num_elem);
 	}
 
-	spin_unlock_bh(consumer_lock);
+	spin_unlock_irqrestore(consumer_lock, consumer_flags);
 
 	rxe_queue_cleanup(new_q);	/* new/old dep on err */
 	if (err)

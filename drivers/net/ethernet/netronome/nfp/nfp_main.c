@@ -19,6 +19,7 @@
 
 #include "nfpcore/nfp.h"
 #include "nfpcore/nfp_cpp.h"
+#include "nfpcore/nfp_dev.h"
 #include "nfpcore/nfp_nffw.h"
 #include "nfpcore/nfp_nsp.h"
 
@@ -32,17 +33,37 @@
 static const char nfp_driver_name[] = "nfp";
 
 static const struct pci_device_id nfp_pci_device_ids[] = {
-	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP6000,
+	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NFP3800,
 	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
-	  PCI_ANY_ID, 0,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP3800,
 	},
-	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP5000,
+	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NFP4000,
 	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
-	  PCI_ANY_ID, 0,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
 	},
-	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP4000,
+	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NFP5000,
 	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
-	  PCI_ANY_ID, 0,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
+	},
+	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NFP6000,
+	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
+	},
+	{ PCI_VENDOR_ID_CORIGINE, PCI_DEVICE_ID_NFP3800,
+	  PCI_VENDOR_ID_CORIGINE, PCI_ANY_ID,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP3800,
+	},
+	{ PCI_VENDOR_ID_CORIGINE, PCI_DEVICE_ID_NFP4000,
+	  PCI_VENDOR_ID_CORIGINE, PCI_ANY_ID,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
+	},
+	{ PCI_VENDOR_ID_CORIGINE, PCI_DEVICE_ID_NFP5000,
+	  PCI_VENDOR_ID_CORIGINE, PCI_ANY_ID,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
+	},
+	{ PCI_VENDOR_ID_CORIGINE, PCI_DEVICE_ID_NFP6000,
+	  PCI_VENDOR_ID_CORIGINE, PCI_ANY_ID,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
 	},
 	{ 0, } /* Required last entry. */
 };
@@ -222,6 +243,7 @@ static int nfp_pcie_sriov_enable(struct pci_dev *pdev, int num_vfs)
 {
 #ifdef CONFIG_PCI_IOV
 	struct nfp_pf *pf = pci_get_drvdata(pdev);
+	struct devlink *devlink;
 	int err;
 
 	if (num_vfs > pf->limit_vfs) {
@@ -236,7 +258,8 @@ static int nfp_pcie_sriov_enable(struct pci_dev *pdev, int num_vfs)
 		return err;
 	}
 
-	mutex_lock(&pf->lock);
+	devlink = priv_to_devlink(pf);
+	devl_lock(devlink);
 
 	err = nfp_app_sriov_enable(pf->app, num_vfs);
 	if (err) {
@@ -250,11 +273,11 @@ static int nfp_pcie_sriov_enable(struct pci_dev *pdev, int num_vfs)
 
 	dev_dbg(&pdev->dev, "Created %d VFs.\n", pf->num_vfs);
 
-	mutex_unlock(&pf->lock);
+	devl_unlock(devlink);
 	return num_vfs;
 
 err_sriov_disable:
-	mutex_unlock(&pf->lock);
+	devl_unlock(devlink);
 	pci_disable_sriov(pdev);
 	return err;
 #endif
@@ -265,8 +288,10 @@ static int nfp_pcie_sriov_disable(struct pci_dev *pdev)
 {
 #ifdef CONFIG_PCI_IOV
 	struct nfp_pf *pf = pci_get_drvdata(pdev);
+	struct devlink *devlink;
 
-	mutex_lock(&pf->lock);
+	devlink = priv_to_devlink(pf);
+	devl_lock(devlink);
 
 	/* If the VFs are assigned we cannot shut down SR-IOV without
 	 * causing issues, so just leave the hardware available but
@@ -274,7 +299,7 @@ static int nfp_pcie_sriov_disable(struct pci_dev *pdev)
 	 */
 	if (pci_vfs_assigned(pdev)) {
 		dev_warn(&pdev->dev, "Disabling while VFs assigned - VFs will not be deallocated\n");
-		mutex_unlock(&pf->lock);
+		devl_unlock(devlink);
 		return -EPERM;
 	}
 
@@ -282,7 +307,7 @@ static int nfp_pcie_sriov_disable(struct pci_dev *pdev)
 
 	pf->num_vfs = 0;
 
-	mutex_unlock(&pf->lock);
+	devl_unlock(devlink);
 
 	pci_disable_sriov(pdev);
 	dev_dbg(&pdev->dev, "Removed VFs.\n");
@@ -367,7 +392,7 @@ nfp_net_fw_find(struct pci_dev *pdev, struct nfp_pf *pf)
 	/* First try to find a firmware image specific for this device */
 	interface = nfp_cpp_interface(pf->cpp);
 	nfp_cpp_serial(pf->cpp, &serial);
-	sprintf(fw_name, "netronome/serial-%pMF-%02hhx-%02hhx.nffw",
+	sprintf(fw_name, "netronome/serial-%pMF-%02x-%02x.nffw",
 		serial, interface >> 8, interface & 0xff);
 	fw = nfp_net_fw_request(pdev, pf, fw_name);
 	if (fw)
@@ -385,7 +410,9 @@ nfp_net_fw_find(struct pci_dev *pdev, struct nfp_pf *pf)
 		return NULL;
 	}
 
-	fw_model = nfp_hwinfo_lookup(pf->hwinfo, "assembly.partno");
+	fw_model = nfp_hwinfo_lookup(pf->hwinfo, "nffw.partno");
+	if (!fw_model)
+		fw_model = nfp_hwinfo_lookup(pf->hwinfo, "assembly.partno");
 	if (!fw_model) {
 		dev_err(&pdev->dev, "Error: can't read part number\n");
 		return NULL;
@@ -664,16 +691,86 @@ static int nfp_pf_find_rtsyms(struct nfp_pf *pf)
 	return 0;
 }
 
+int nfp_net_pf_get_app_id(struct nfp_pf *pf)
+{
+	return nfp_pf_rtsym_read_optional(pf, "_pf%u_net_app_id",
+					  NFP_APP_CORE_NIC);
+}
+
+static u64 nfp_net_pf_get_app_cap(struct nfp_pf *pf)
+{
+	char name[32];
+	int err = 0;
+	u64 val;
+
+	snprintf(name, sizeof(name), "_pf%u_net_app_cap", nfp_cppcore_pcie_unit(pf->cpp));
+
+	val = nfp_rtsym_read_le(pf->rtbl, name, &err);
+	if (err) {
+		if (err != -ENOENT)
+			nfp_err(pf->cpp, "Unable to read symbol %s\n", name);
+
+		return 0;
+	}
+
+	return val;
+}
+
+static int nfp_pf_cfg_hwinfo(struct nfp_pf *pf, bool sp_indiff)
+{
+	struct nfp_nsp *nsp;
+	char hwinfo[32];
+	int err;
+
+	nsp = nfp_nsp_open(pf->cpp);
+	if (IS_ERR(nsp))
+		return PTR_ERR(nsp);
+
+	snprintf(hwinfo, sizeof(hwinfo), "sp_indiff=%d", sp_indiff);
+	err = nfp_nsp_hwinfo_set(nsp, hwinfo, sizeof(hwinfo));
+	/* Not a fatal error, no need to return error to stop driver from loading */
+	if (err) {
+		nfp_warn(pf->cpp, "HWinfo(sp_indiff=%d) set failed: %d\n", sp_indiff, err);
+	} else {
+		/* Need reinit eth_tbl since the eth table state may change
+		 * after sp_indiff is configured.
+		 */
+		kfree(pf->eth_tbl);
+		pf->eth_tbl = __nfp_eth_read_ports(pf->cpp, nsp);
+	}
+
+	nfp_nsp_close(nsp);
+	return 0;
+}
+
+static int nfp_pf_nsp_cfg(struct nfp_pf *pf)
+{
+	bool sp_indiff = (nfp_net_pf_get_app_id(pf) == NFP_APP_FLOWER_NIC) ||
+			 (nfp_net_pf_get_app_cap(pf) & NFP_NET_APP_CAP_SP_INDIFF);
+
+	return nfp_pf_cfg_hwinfo(pf, sp_indiff);
+}
+
+static void nfp_pf_nsp_clean(struct nfp_pf *pf)
+{
+	nfp_pf_cfg_hwinfo(pf, false);
+}
+
 static int nfp_pci_probe(struct pci_dev *pdev,
 			 const struct pci_device_id *pci_id)
 {
+	const struct nfp_dev_info *dev_info;
 	struct devlink *devlink;
 	struct nfp_pf *pf;
 	int err;
 
-	if (pdev->vendor == PCI_VENDOR_ID_NETRONOME &&
-	    pdev->device == PCI_DEVICE_ID_NETRONOME_NFP6000_VF)
+	if ((pdev->vendor == PCI_VENDOR_ID_NETRONOME ||
+	     pdev->vendor == PCI_VENDOR_ID_CORIGINE) &&
+	    (pdev->device == PCI_DEVICE_ID_NFP3800_VF ||
+	     pdev->device == PCI_DEVICE_ID_NFP6000_VF))
 		dev_warn(&pdev->dev, "Binding NFP VF device to the NFP PF driver, the VF driver is called 'nfp_netvf'\n");
+
+	dev_info = &nfp_dev_info[pci_id->driver_data];
 
 	err = pci_enable_device(pdev);
 	if (err < 0)
@@ -681,8 +778,7 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	err = dma_set_mask_and_coherent(&pdev->dev,
-					DMA_BIT_MASK(NFP_NET_MAX_DMA_BITS));
+	err = dma_set_mask_and_coherent(&pdev->dev, dev_info->dma_mask);
 	if (err)
 		goto err_pci_disable;
 
@@ -700,9 +796,9 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 	pf = devlink_priv(devlink);
 	INIT_LIST_HEAD(&pf->vnics);
 	INIT_LIST_HEAD(&pf->ports);
-	mutex_init(&pf->lock);
 	pci_set_drvdata(pdev, pf);
 	pf->pdev = pdev;
+	pf->dev_info = dev_info;
 
 	pf->wq = alloc_workqueue("nfp-%s", 0, 2, pci_name(pdev));
 	if (!pf->wq) {
@@ -710,7 +806,7 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 		goto err_pci_priv_unset;
 	}
 
-	pf->cpp = nfp_cpp_from_nfp6000_pcie(pdev);
+	pf->cpp = nfp_cpp_from_nfp6000_pcie(pdev, dev_info);
 	if (IS_ERR(pf->cpp)) {
 		err = PTR_ERR(pf->cpp);
 		goto err_disable_msix;
@@ -760,9 +856,13 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 		goto err_fw_unload;
 	}
 
-	err = nfp_net_pci_probe(pf);
+	err = nfp_pf_nsp_cfg(pf);
 	if (err)
 		goto err_fw_unload;
+
+	err = nfp_net_pci_probe(pf);
+	if (err)
+		goto err_nsp_clean;
 
 	err = nfp_hwmon_register(pf);
 	if (err) {
@@ -774,6 +874,8 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 
 err_net_remove:
 	nfp_net_pci_remove(pf);
+err_nsp_clean:
+	nfp_pf_nsp_clean(pf);
 err_fw_unload:
 	kfree(pf->rtbl);
 	nfp_mip_close(pf->mip);
@@ -790,7 +892,6 @@ err_disable_msix:
 	destroy_workqueue(pf->wq);
 err_pci_priv_unset:
 	pci_set_drvdata(pdev, NULL);
-	mutex_destroy(&pf->lock);
 	devlink_free(devlink);
 err_rel_regions:
 	pci_release_regions(pdev);
@@ -814,6 +915,7 @@ static void __nfp_pci_shutdown(struct pci_dev *pdev, bool unload_fw)
 
 	nfp_net_pci_remove(pf);
 
+	nfp_pf_nsp_clean(pf);
 	vfree(pf->dumpspec);
 	kfree(pf->rtbl);
 	nfp_mip_close(pf->mip);
@@ -827,7 +929,6 @@ static void __nfp_pci_shutdown(struct pci_dev *pdev, bool unload_fw)
 
 	kfree(pf->eth_tbl);
 	kfree(pf->nspi);
-	mutex_destroy(&pf->lock);
 	devlink_free(priv_to_devlink(pf));
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
@@ -856,7 +957,9 @@ static int __init nfp_main_init(void)
 {
 	int err;
 
-	pr_info("%s: NFP PCIe Driver, Copyright (C) 2014-2017 Netronome Systems\n",
+	pr_info("%s: NFP PCIe Driver, Copyright (C) 2014-2020 Netronome Systems\n",
+		nfp_driver_name);
+	pr_info("%s: NFP PCIe Driver, Copyright (C) 2021-2022 Corigine Inc.\n",
 		nfp_driver_name);
 
 	nfp_net_debugfs_create();
@@ -900,6 +1003,6 @@ MODULE_FIRMWARE("netronome/nic_AMDA0099-0001_2x10.nffw");
 MODULE_FIRMWARE("netronome/nic_AMDA0099-0001_2x25.nffw");
 MODULE_FIRMWARE("netronome/nic_AMDA0099-0001_1x10_1x25.nffw");
 
-MODULE_AUTHOR("Netronome Systems <oss-drivers@netronome.com>");
+MODULE_AUTHOR("Corigine, Inc. <oss-drivers@corigine.com>");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("The Netronome Flow Processor (NFP) driver.");
+MODULE_DESCRIPTION("The Network Flow Processor (NFP) driver.");

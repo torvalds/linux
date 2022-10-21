@@ -100,33 +100,33 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		restart {
+		button-restart {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
 		};
 
-		aoss {
+		button-aoss {
 			label = "AOSS";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&chipcommon 12 GPIO_ACTIVE_LOW>;
 		};
 
 		/* Commit mode set by switch? */
-		mode {
+		button-mode {
 			label = "Mode";
 			linux,code = <KEY_SETUP>;
 			gpios = <&chipcommon 13 GPIO_ACTIVE_LOW>;
 		};
 
 		/* Switch: AP mode */
-		sw_ap {
+		button-sw-ap {
 			label = "AP";
 			linux,code = <BTN_0>;
 			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
 		};
 
-		eject {
+		button-eject {
 			label = "USB eject";
 			linux,code = <KEY_EJECTCD>;
 			gpios = <&chipcommon 15 GPIO_ACTIVE_LOW>;

@@ -39,7 +39,7 @@ struct uml_net_private {
 
 	void (*add_address)(unsigned char *, unsigned char *, void *);
 	void (*delete_address)(unsigned char *, unsigned char *, void *);
-	char user[0];
+	char user[];
 };
 
 struct net_kern_info {

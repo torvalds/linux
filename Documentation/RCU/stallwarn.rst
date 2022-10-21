@@ -97,12 +97,12 @@ warnings:
 	which will include additional debugging information.
 
 -	A low-level kernel issue that either fails to invoke one of the
-	variants of rcu_user_enter(), rcu_user_exit(), rcu_idle_enter(),
-	rcu_idle_exit(), rcu_irq_enter(), or rcu_irq_exit() on the one
+	variants of rcu_eqs_enter(true), rcu_eqs_exit(true), ct_idle_enter(),
+	ct_idle_exit(), ct_irq_enter(), or ct_irq_exit() on the one
 	hand, or that invokes one of them too many times on the other.
 	Historically, the most frequent issue has been an omission
 	of either irq_enter() or irq_exit(), which in turn invoke
-	rcu_irq_enter() or rcu_irq_exit(), respectively.  Building your
+	ct_irq_enter() or ct_irq_exit(), respectively.  Building your
 	kernel with CONFIG_RCU_EQS_DEBUG=y can help track down these types
 	of issues, which sometimes arise in architecture-specific code.
 
@@ -158,6 +158,26 @@ CONFIG_RCU_CPU_STALL_TIMEOUT
 	*next* stall, or the following warning for the current stall
 	(assuming the stall lasts long enough).  It will not affect the
 	timing of the next warning for the current stall.
+
+	Stall-warning messages may be enabled and disabled completely via
+	/sys/module/rcupdate/parameters/rcu_cpu_stall_suppress.
+
+CONFIG_RCU_EXP_CPU_STALL_TIMEOUT
+--------------------------------
+
+	Same as the CONFIG_RCU_CPU_STALL_TIMEOUT parameter but only for
+	the expedited grace period. This parameter defines the period
+	of time that RCU will wait from the beginning of an expedited
+	grace period until it issues an RCU CPU stall warning. This time
+	period is normally 20 milliseconds on Android devices.	A zero
+	value causes the CONFIG_RCU_CPU_STALL_TIMEOUT value to be used,
+	after conversion to milliseconds.
+
+	This configuration parameter may be changed at runtime via the
+	/sys/module/rcupdate/parameters/rcu_exp_cpu_stall_timeout, however
+	this parameter is checked only at the beginning of a cycle. If you
+	are in a current stall cycle, setting it to a new value will change
+	the timeout for the -next- stall.
 
 	Stall-warning messages may be enabled and disabled completely via
 	/sys/module/rcupdate/parameters/rcu_cpu_stall_suppress.

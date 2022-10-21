@@ -27,7 +27,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/genhd.h>
 #include <linux/blkdev.h>
 
 #include "blocklayout.h"

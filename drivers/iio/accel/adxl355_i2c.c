@@ -60,3 +60,4 @@ module_i2c_driver(adxl355_i2c_driver);
 MODULE_AUTHOR("Puranjay Mohan <puranjay12@gmail.com>");
 MODULE_DESCRIPTION("ADXL355 3-Axis Digital Accelerometer I2C driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_ADXL355);

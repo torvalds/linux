@@ -34,14 +34,14 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&volume_down_gpio &volume_up_gpio>;
 
-		vol-down {
+		key-vol-down {
 			label = "Volume down";
 			linux,code = <KEY_VOLUMEDOWN>;
 			gpios = <&pm8998_gpio 5 GPIO_ACTIVE_LOW>;
 			debounce-interval = <15>;
 		};
 
-		vol-up {
+		key-vol-up {
 			label = "Volume up";
 			linux,code = <KEY_VOLUMEUP>;
 			gpios = <&pm8998_gpio 6 GPIO_ACTIVE_LOW>;
@@ -54,7 +54,7 @@
 		 * it is otherwise possible for an allocation adjacent to the
 		 * rmtfs_mem region to trigger an XPU violation, causing a crash.
 		 */
-		rmtfs_lower_guard: memory@f5b00000 {
+		rmtfs_lower_guard: rmtfs-lower-guard@f5b00000 {
 			no-map;
 			reg = <0 0xf5b00000 0 0x1000>;
 		};
@@ -63,7 +63,7 @@
 		 * but given the same address every time. Hard code it as this address is
 		 * where the modem firmware expects it to be.
 		 */
-		rmtfs_mem: memory@f5b01000 {
+		rmtfs_mem: rmtfs-mem@f5b01000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0 0xf5b01000 0 0x200000>;
 			no-map;
@@ -71,7 +71,7 @@
 			qcom,client-id = <1>;
 			qcom,vmid = <15>;
 		};
-		rmtfs_upper_guard: memory@f5d01000 {
+		rmtfs_upper_guard: rmtfs-upper-guard@f5d01000 {
 			no-map;
 			reg = <0 0xf5d01000 0 0x1000>;
 		};
@@ -80,7 +80,7 @@
 		 * It seems like reserving the old rmtfs_mem region is also needed to prevent
 		 * random crashes which are most likely modem related, more testing needed.
 		 */
-		removed_region: memory@88f00000 {
+		removed_region: removed-region@88f00000 {
 			no-map;
 			reg = <0 0x88f00000 0 0x1c00000>;
 		};
@@ -376,6 +376,17 @@
 	};
 };
 
+&i2c10 {
+	status = "okay";
+	clock-frequency = <100000>;
+
+	bq27441_fg: bq27441-battery@55 {
+		compatible = "ti,bq27411";
+		status = "okay";
+		reg = <0x55>;
+	};
+};
+
 &i2c12 {
 	status = "okay";
 	clock-frequency = <400000>;
@@ -429,7 +440,7 @@
 };
 
 &pm8998_gpio {
-	volume_down_gpio: pm8998_gpio5 {
+	volume_down_gpio: pm8998-gpio5-state {
 		pinconf {
 			pins = "gpio5";
 			function = "normal";
@@ -439,7 +450,7 @@
 		};
 	};
 
-	volume_up_gpio: pm8998_gpio6 {
+	volume_up_gpio: pm8998-gpio6-state {
 		pinconf {
 			pins = "gpio6";
 			function = "normal";
@@ -619,7 +630,7 @@
 			pins = "gpio6", "gpio25", "gpio26";
 			function = "gpio";
 			drive-strength = <8>;
-			bias-disable = <0>;
+			bias-disable;
 		};
 	};
 

@@ -357,7 +357,7 @@ static int cm3232_probe(struct i2c_client *client,
 	return iio_device_register(indio_dev);
 }
 
-static int cm3232_remove(struct i2c_client *client)
+static void cm3232_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
@@ -365,8 +365,6 @@ static int cm3232_remove(struct i2c_client *client)
 		CM3232_CMD_ALS_DISABLE);
 
 	iio_device_unregister(indio_dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id cm3232_id[] = {
@@ -374,7 +372,6 @@ static const struct i2c_device_id cm3232_id[] = {
 	{}
 };
 
-#ifdef CONFIG_PM_SLEEP
 static int cm3232_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
@@ -403,9 +400,7 @@ static int cm3232_resume(struct device *dev)
 	return ret;
 }
 
-static const struct dev_pm_ops cm3232_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(cm3232_suspend, cm3232_resume)};
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(cm3232_pm_ops, cm3232_suspend, cm3232_resume);
 
 MODULE_DEVICE_TABLE(i2c, cm3232_id);
 
@@ -419,9 +414,7 @@ static struct i2c_driver cm3232_driver = {
 	.driver = {
 		.name	= "cm3232",
 		.of_match_table = cm3232_of_match,
-#ifdef CONFIG_PM_SLEEP
-		.pm	= &cm3232_pm_ops,
-#endif
+		.pm	= pm_sleep_ptr(&cm3232_pm_ops),
 	},
 	.id_table	= cm3232_id,
 	.probe		= cm3232_probe,

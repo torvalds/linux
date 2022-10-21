@@ -15,32 +15,78 @@ description: |
 
   This DT node has pwrkey and resin as sub nodes.
 
-allOf:
-  - $ref: reboot-mode.yaml#
-
 properties:
   compatible:
     enum:
       - qcom,pm8916-pon
       - qcom,pms405-pon
       - qcom,pm8998-pon
+      - qcom,pmk8350-pon
 
   reg:
-    maxItems: 1
+    description: |
+      Specifies the SPMI base address for the PON (power-on) peripheral.  For
+      PMICs that have the PON peripheral (GEN3) split into PON_HLOS and PON_PBS
+      (e.g. PMK8350), this can hold addresses of both PON_HLOS and PON_PBS
+      peripherals.  In that case, the PON_PBS address needs to be specified to
+      facilitate software debouncing on some PMIC.
+    minItems: 1
+    maxItems: 2
+
+  reg-names:
+    minItems: 1
+    maxItems: 2
 
   pwrkey:
     type: object
-    $ref: "../../input/qcom,pm8941-pwrkey.yaml#"
+    $ref: /schemas/input/qcom,pm8941-pwrkey.yaml#
 
   resin:
     type: object
-    $ref: "../../input/qcom,pm8941-pwrkey.yaml#"
+    $ref: /schemas/input/qcom,pm8941-pwrkey.yaml#
+
+  watchdog:
+    type: object
+    $ref: /schemas/watchdog/qcom,pm8916-wdt.yaml
 
 required:
   - compatible
   - reg
 
 unevaluatedProperties: false
+
+allOf:
+  - $ref: reboot-mode.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm8916-pon
+              - qcom,pms405-pon
+              - qcom,pm8998-pon
+    then:
+      properties:
+        reg:
+          maxItems: 1
+        reg-names:
+          items:
+            - const: pon
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,pmk8350-pon
+    then:
+      properties:
+        reg:
+          minItems: 1
+          maxItems: 2
+        reg-names:
+          minItems: 1
+          items:
+            - const: hlos
+            - const: pbs
 
 examples:
   - |

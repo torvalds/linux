@@ -377,17 +377,14 @@ static int apr_device_probe(struct device *dev)
 static void apr_device_remove(struct device *dev)
 {
 	struct apr_device *adev = to_apr_device(dev);
-	struct apr_driver *adrv;
+	struct apr_driver *adrv = to_apr_driver(dev->driver);
 	struct packet_router *apr = dev_get_drvdata(adev->dev.parent);
 
-	if (dev->driver) {
-		adrv = to_apr_driver(dev->driver);
-		if (adrv->remove)
-			adrv->remove(adev);
-		spin_lock(&apr->svcs_lock);
-		idr_remove(&apr->svcs_idr, adev->svc.id);
-		spin_unlock(&apr->svcs_lock);
-	}
+	if (adrv->remove)
+		adrv->remove(adev);
+	spin_lock(&apr->svcs_lock);
+	idr_remove(&apr->svcs_idr, adev->svc.id);
+	spin_unlock(&apr->svcs_lock);
 }
 
 static int apr_uevent(struct device *dev, struct kobj_uevent_env *env)
@@ -653,7 +650,6 @@ static void apr_remove(struct rpmsg_device *rpdev)
 
 	pdr_handle_release(apr->pdr);
 	device_for_each_child(&rpdev->dev, NULL, apr_remove_device);
-	flush_workqueue(apr->rxwq);
 	destroy_workqueue(apr->rxwq);
 }
 

@@ -401,7 +401,7 @@ static void mtdpstore_notify_add(struct mtd_info *mtd)
 	/*
 	 * kmsg_size must be aligned to 4096 Bytes, which is limited by
 	 * psblk. The default value of kmsg_size is 64KB. If kmsg_size
-	 * is larger than erasesize, some errors will occur since mtdpsotre
+	 * is larger than erasesize, some errors will occur since mtdpstore
 	 * is designed on it.
 	 */
 	if (mtd->erasesize < info->kmsg_size) {

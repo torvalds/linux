@@ -48,6 +48,17 @@ are often referred to as greyscale formats.
       - ...
       - ...
 
+    * .. _V4L2-PIX-FMT-IPU3-Y10:
+
+      - ``V4L2_PIX_FMT_IPU3_Y10``
+      - 'ip3y'
+
+      - Y'\ :sub:`0`\ [7:0]
+      - Y'\ :sub:`1`\ [5:0] Y'\ :sub:`0`\ [9:8]
+      - Y'\ :sub:`2`\ [3:0] Y'\ :sub:`1`\ [9:6]
+      - Y'\ :sub:`3`\ [1:0] Y'\ :sub:`2`\ [9:4]
+      - Y'\ :sub:`3`\ [9:2]
+
     * .. _V4L2-PIX-FMT-Y10:
 
       - ``V4L2_PIX_FMT_Y10``
@@ -75,8 +86,8 @@ are often referred to as greyscale formats.
       - ``V4L2_PIX_FMT_Y10P``
       - 'Y10P'
 
-      - Y'\ :sub:`0`\ [7:0]
-      - Y'\ :sub:`1`\ [9:8]
+      - Y'\ :sub:`0`\ [9:2]
+      - Y'\ :sub:`1`\ [9:2]
       - Y'\ :sub:`2`\ [9:2]
       - Y'\ :sub:`3`\ [9:2]
       - Y'\ :sub:`3`\ [1:0] Y'\ :sub:`2`\ [1:0] Y'\ :sub:`1`\ [1:0] Y'\ :sub:`0`\ [1:0]
@@ -133,4 +144,5 @@ are often referred to as greyscale formats.
 
     For the Y16 and Y16_BE formats, the actual sampling precision may be lower
     than 16 bits. For example, 10 bits per pixel uses values in the range 0 to
-    1023.
+    1023. For the IPU3_Y10 format 25 pixels are packed into 32 bytes, which
+    leaves the 6 most significant bits of the last byte padded with 0.

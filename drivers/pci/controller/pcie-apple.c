@@ -219,7 +219,7 @@ static int apple_msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	if (hwirq < 0)
 		return -ENOSPC;
 
-	fwspec.param[1] += hwirq;
+	fwspec.param[fwspec.param_count - 2] += hwirq;
 
 	ret = irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, &fwspec);
 	if (ret)
@@ -516,8 +516,8 @@ static int apple_pcie_setup_port(struct apple_pcie *pcie,
 	u32 stat, idx;
 	int ret, i;
 
-	reset = gpiod_get_from_of_node(np, "reset-gpios", 0,
-				       GPIOD_OUT_LOW, "PERST#");
+	reset = devm_fwnode_gpiod_get(pcie->dev, of_fwnode_handle(np), "reset",
+				      GPIOD_OUT_LOW, "PERST#");
 	if (IS_ERR(reset))
 		return PTR_ERR(reset);
 

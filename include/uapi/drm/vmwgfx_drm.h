@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
+ * Copyright © 2009-2022 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -92,6 +92,12 @@ extern "C" {
  *
  * DRM_VMW_PARAM_SM5
  * SM5 support is enabled.
+ *
+ * DRM_VMW_PARAM_GL43
+ * SM5.1+GL4.3 support is enabled.
+ *
+ * DRM_VMW_PARAM_DEVICE_ID
+ * PCI ID of the underlying SVGA device.
  */
 
 #define DRM_VMW_PARAM_NUM_STREAMS      0
@@ -111,6 +117,7 @@ extern "C" {
 #define DRM_VMW_PARAM_SM4_1            14
 #define DRM_VMW_PARAM_SM5              15
 #define DRM_VMW_PARAM_GL43             16
+#define DRM_VMW_PARAM_DEVICE_ID        17
 
 /**
  * enum drm_vmw_handle_type - handle type for ref ioctls

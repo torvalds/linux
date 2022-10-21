@@ -124,6 +124,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 		} else {
 			symlen = unresolved_col_width + 4 + 2;
 			hists__new_col_len(hists, HISTC_SYMBOL_FROM, symlen);
+			hists__new_col_len(hists, HISTC_ADDR_FROM, symlen);
 			hists__set_unres_dso_col_len(hists, HISTC_DSO_FROM);
 		}
 
@@ -138,6 +139,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 		} else {
 			symlen = unresolved_col_width + 4 + 2;
 			hists__new_col_len(hists, HISTC_SYMBOL_TO, symlen);
+			hists__new_col_len(hists, HISTC_ADDR_TO, symlen);
 			hists__set_unres_dso_col_len(hists, HISTC_DSO_TO);
 		}
 
@@ -213,6 +215,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 	hists__new_col_len(hists, HISTC_GLOBAL_INS_LAT, 13);
 	hists__new_col_len(hists, HISTC_LOCAL_P_STAGE_CYC, 13);
 	hists__new_col_len(hists, HISTC_GLOBAL_P_STAGE_CYC, 13);
+	hists__new_col_len(hists, HISTC_ADDR, BITS_PER_LONG / 4 + 2);
 
 	if (symbol_conf.nanosecs)
 		hists__new_col_len(hists, HISTC_TIME, 16);
@@ -1620,13 +1623,13 @@ struct rb_root_cached *hists__get_rotate_entries_in(struct hists *hists)
 {
 	struct rb_root_cached *root;
 
-	pthread_mutex_lock(&hists->lock);
+	mutex_lock(&hists->lock);
 
 	root = hists->entries_in;
 	if (++hists->entries_in > &hists->entries_in_array[1])
 		hists->entries_in = &hists->entries_in_array[0];
 
-	pthread_mutex_unlock(&hists->lock);
+	mutex_unlock(&hists->lock);
 
 	return root;
 }
@@ -2333,6 +2336,11 @@ void hists__inc_nr_samples(struct hists *hists, bool filtered)
 		hists->stats.nr_non_filtered_samples++;
 }
 
+void hists__inc_nr_lost_samples(struct hists *hists, u32 lost)
+{
+	hists->stats.nr_lost_samples += lost;
+}
+
 static struct hist_entry *hists__add_dummy_entry(struct hists *hists,
 						 struct hist_entry *pair)
 {
@@ -2676,12 +2684,16 @@ size_t evlist__fprintf_nr_events(struct evlist *evlist, FILE *fp,
 	evlist__for_each_entry(evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 
-		if (skip_empty && !hists->stats.nr_samples)
+		if (skip_empty && !hists->stats.nr_samples && !hists->stats.nr_lost_samples)
 			continue;
 
 		ret += fprintf(fp, "%s stats:\n", evsel__name(pos));
-		ret += fprintf(fp, "%16s events: %10d\n",
-			       "SAMPLE", hists->stats.nr_samples);
+		if (hists->stats.nr_samples)
+			ret += fprintf(fp, "%16s events: %10d\n",
+				       "SAMPLE", hists->stats.nr_samples);
+		if (hists->stats.nr_lost_samples)
+			ret += fprintf(fp, "%16s events: %10d\n",
+				       "LOST_SAMPLES", hists->stats.nr_lost_samples);
 	}
 
 	return ret;
@@ -2803,7 +2815,7 @@ int __hists__init(struct hists *hists, struct perf_hpp_list *hpp_list)
 	hists->entries_in = &hists->entries_in_array[0];
 	hists->entries_collapsed = RB_ROOT_CACHED;
 	hists->entries = RB_ROOT_CACHED;
-	pthread_mutex_init(&hists->lock, NULL);
+	mutex_init(&hists->lock);
 	hists->socket_filter = -1;
 	hists->hpp_list = hpp_list;
 	INIT_LIST_HEAD(&hists->hpp_formats);

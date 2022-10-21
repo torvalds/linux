@@ -1019,7 +1019,7 @@ static const struct iio_info tsl2591_info_no_irq = {
 	.read_avail = tsl2591_read_available,
 };
 
-static int __maybe_unused tsl2591_suspend(struct device *dev)
+static int tsl2591_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct tsl2591_chip *chip = iio_priv(indio_dev);
@@ -1032,7 +1032,7 @@ static int __maybe_unused tsl2591_suspend(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused tsl2591_resume(struct device *dev)
+static int tsl2591_resume(struct device *dev)
 {
 	int power_state = TSL2591_PWR_ON | TSL2591_ENABLE_ALS;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
@@ -1049,10 +1049,8 @@ static int __maybe_unused tsl2591_resume(struct device *dev)
 	return ret;
 }
 
-static const struct dev_pm_ops tsl2591_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(tsl2591_suspend, tsl2591_resume, NULL)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(tsl2591_pm_ops, tsl2591_suspend,
+				 tsl2591_resume, NULL);
 
 static irqreturn_t tsl2591_event_handler(int irq, void *private)
 {
@@ -1213,7 +1211,7 @@ MODULE_DEVICE_TABLE(of, tsl2591_of_match);
 static struct i2c_driver tsl2591_driver = {
 	.driver = {
 		.name = "tsl2591",
-		.pm = &tsl2591_pm_ops,
+		.pm = pm_ptr(&tsl2591_pm_ops),
 		.of_match_table = tsl2591_of_match,
 	},
 	.probe_new = tsl2591_probe

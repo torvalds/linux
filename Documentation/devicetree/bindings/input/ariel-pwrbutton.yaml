@@ -17,6 +17,7 @@ description: |
 
 allOf:
   - $ref: input.yaml#
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
 
 properties:
   compatible:

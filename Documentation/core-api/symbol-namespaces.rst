@@ -51,8 +51,8 @@ namespace ``USB_STORAGE``, use::
 The corresponding ksymtab entry struct ``kernel_symbol`` will have the member
 ``namespace`` set accordingly. A symbol that is exported without a namespace will
 refer to ``NULL``. There is no default namespace if none is defined. ``modpost``
-and kernel/module.c make use the namespace at build time or module load time,
-respectively.
+and kernel/module/main.c make use the namespace at build time or module load
+time, respectively.
 
 2.2 Using the DEFAULT_SYMBOL_NAMESPACE define
 =============================================

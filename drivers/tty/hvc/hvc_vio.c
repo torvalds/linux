@@ -28,10 +28,10 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/console.h>
+#include <linux/of.h>
 
 #include <asm/hvconsole.h>
 #include <asm/vio.h>
-#include <asm/prom.h>
 #include <asm/hvsi.h>
 #include <asm/udbg.h>
 #include <asm/machdep.h>

@@ -9,7 +9,6 @@
 
 #include <linux/cpu.h>
 #include <linux/stacktrace.h>
-#include <linux/tracehook.h>
 #include "core.h"
 #include "patch.h"
 #include "transition.h"
@@ -611,9 +610,23 @@ void klp_reverse_transition(void)
 /* Called from copy_process() during fork */
 void klp_copy_process(struct task_struct *child)
 {
-	child->patch_state = current->patch_state;
 
-	/* TIF_PATCH_PENDING gets copied in setup_thread_stack() */
+	/*
+	 * The parent process may have gone through a KLP transition since
+	 * the thread flag was copied in setup_thread_stack earlier. Bring
+	 * the task flag up to date with the parent here.
+	 *
+	 * The operation is serialized against all klp_*_transition()
+	 * operations by the tasklist_lock. The only exception is
+	 * klp_update_patch_state(current), but we cannot race with
+	 * that because we are current.
+	 */
+	if (test_tsk_thread_flag(current, TIF_PATCH_PENDING))
+		set_tsk_thread_flag(child, TIF_PATCH_PENDING);
+	else
+		clear_tsk_thread_flag(child, TIF_PATCH_PENDING);
+
+	child->patch_state = current->patch_state;
 }
 
 /*
@@ -641,6 +654,13 @@ void klp_force_transition(void)
 	for_each_possible_cpu(cpu)
 		klp_update_patch_state(idle_task(cpu));
 
-	klp_for_each_patch(patch)
-		patch->forced = true;
+	/* Set forced flag for patches being removed. */
+	if (klp_target_state == KLP_UNPATCHED)
+		klp_transition_patch->forced = true;
+	else if (klp_transition_patch->replace) {
+		klp_for_each_patch(patch) {
+			if (patch != klp_transition_patch)
+				patch->forced = true;
+		}
+	}
 }

@@ -1739,7 +1739,7 @@ static int nldev_dellink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!device)
 		return -EINVAL;
 
-	if (!(device->attrs.device_cap_flags & IB_DEVICE_ALLOW_USER_UNREG)) {
+	if (!(device->attrs.kernel_cap_flags & IBK_ALLOW_USER_UNREG)) {
 		ib_device_put(device);
 		return -EINVAL;
 	}
@@ -1951,9 +1951,10 @@ static int nldev_stat_set_counter_dynamic_doit(struct nlattr *tb[],
 					       u32 port)
 {
 	struct rdma_hw_stats *stats;
-	int rem, i, index, ret = 0;
 	struct nlattr *entry_attr;
 	unsigned long *target;
+	int rem, i, ret = 0;
+	u32 index;
 
 	stats = ib_get_hw_stats_port(device, port);
 	if (!stats)

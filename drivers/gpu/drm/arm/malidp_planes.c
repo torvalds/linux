@@ -11,12 +11,13 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_print.h>
 
 #include "malidp_hw.h"
@@ -310,17 +311,13 @@ static int malidp_se_check_scaling(struct malidp_plane *mp,
 
 static u32 malidp_get_pgsize_bitmap(struct malidp_plane *mp)
 {
-	u32 pgsize_bitmap = 0;
+	struct iommu_domain *mmu_dom;
 
-	if (iommu_present(&platform_bus_type)) {
-		struct iommu_domain *mmu_dom =
-			iommu_get_domain_for_dev(mp->base.dev->dev);
+	mmu_dom = iommu_get_domain_for_dev(mp->base.dev->dev);
+	if (mmu_dom)
+		return mmu_dom->pgsize_bitmap;
 
-		if (mmu_dom)
-			pgsize_bitmap = mmu_dom->pgsize_bitmap;
-	}
-
-	return pgsize_bitmap;
+	return 0;
 }
 
 /*
@@ -336,33 +333,33 @@ static bool malidp_check_pages_threshold(struct malidp_plane_state *ms,
 
 	for (i = 0; i < ms->n_planes; i++) {
 		struct drm_gem_object *obj;
-		struct drm_gem_cma_object *cma_obj;
+		struct drm_gem_dma_object *dma_obj;
 		struct sg_table *sgt;
 		struct scatterlist *sgl;
 
 		obj = drm_gem_fb_get_obj(ms->base.fb, i);
-		cma_obj = to_drm_gem_cma_obj(obj);
+		dma_obj = to_drm_gem_dma_obj(obj);
 
-		if (cma_obj->sgt)
-			sgt = cma_obj->sgt;
+		if (dma_obj->sgt)
+			sgt = dma_obj->sgt;
 		else
 			sgt = obj->funcs->get_sg_table(obj);
 
-		if (!sgt)
+		if (IS_ERR(sgt))
 			return false;
 
 		sgl = sgt->sgl;
 
 		while (sgl) {
 			if (sgl->length < pgsize) {
-				if (!cma_obj->sgt)
+				if (!dma_obj->sgt)
 					kfree(sgt);
 				return false;
 			}
 
 			sgl = sg_next(sgl);
 		}
-		if (!cma_obj->sgt)
+		if (!dma_obj->sgt)
 			kfree(sgt);
 	}
 
@@ -717,7 +714,7 @@ static void malidp_set_plane_base_addr(struct drm_framebuffer *fb,
 				       struct malidp_plane *mp,
 				       int plane_index)
 {
-	dma_addr_t paddr;
+	dma_addr_t dma_addr;
 	u16 ptr;
 	struct drm_plane *plane = &mp->base;
 	bool afbc = fb->modifier ? true : false;
@@ -725,27 +722,27 @@ static void malidp_set_plane_base_addr(struct drm_framebuffer *fb,
 	ptr = mp->layer->ptr + (plane_index << 4);
 
 	/*
-	 * drm_fb_cma_get_gem_addr() alters the physical base address of the
+	 * drm_fb_dma_get_gem_addr() alters the physical base address of the
 	 * framebuffer as per the plane's src_x, src_y co-ordinates (ie to
 	 * take care of source cropping).
 	 * For AFBC, this is not needed as the cropping is handled by _AD_CROP_H
 	 * and _AD_CROP_V registers.
 	 */
 	if (!afbc) {
-		paddr = drm_fb_cma_get_gem_addr(fb, plane->state,
-						plane_index);
+		dma_addr = drm_fb_dma_get_gem_addr(fb, plane->state,
+						   plane_index);
 	} else {
-		struct drm_gem_cma_object *obj;
+		struct drm_gem_dma_object *obj;
 
-		obj = drm_fb_cma_get_gem_obj(fb, plane_index);
+		obj = drm_fb_dma_get_gem_obj(fb, plane_index);
 
 		if (WARN_ON(!obj))
 			return;
-		paddr = obj->paddr;
+		dma_addr = obj->dma_addr;
 	}
 
-	malidp_hw_write(mp->hwdev, lower_32_bits(paddr), ptr);
-	malidp_hw_write(mp->hwdev, upper_32_bits(paddr), ptr + 4);
+	malidp_hw_write(mp->hwdev, lower_32_bits(dma_addr), ptr);
+	malidp_hw_write(mp->hwdev, upper_32_bits(dma_addr), ptr + 4);
 }
 
 static void malidp_de_set_plane_afbc(struct drm_plane *plane)

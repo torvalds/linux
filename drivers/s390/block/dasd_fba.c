@@ -767,7 +767,7 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 static void dasd_fba_setup_blk_queue(struct dasd_block *block)
 {
 	unsigned int logical_block_size = block->bp_block;
-	struct request_queue *q = block->request_queue;
+	struct request_queue *q = block->gdp->queue;
 	unsigned int max_bytes, max_discard_sectors;
 	int max;
 
@@ -782,7 +782,6 @@ static void dasd_fba_setup_blk_queue(struct dasd_block *block)
 	blk_queue_segment_boundary(q, PAGE_SIZE - 1);
 
 	q->limits.discard_granularity = logical_block_size;
-	q->limits.discard_alignment = PAGE_SIZE;
 
 	/* Calculate max_discard_sectors and make it PAGE aligned */
 	max_bytes = USHRT_MAX * logical_block_size;
@@ -791,7 +790,6 @@ static void dasd_fba_setup_blk_queue(struct dasd_block *block)
 
 	blk_queue_max_discard_sectors(q, max_discard_sectors);
 	blk_queue_max_write_zeroes_sectors(q, max_discard_sectors);
-	blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
 }
 
 static int dasd_fba_pe_handler(struct dasd_device *device,

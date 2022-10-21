@@ -189,7 +189,7 @@ struct reiserfs_dentry_buf {
 	struct dentry *dentries[8];
 };
 
-static int
+static bool
 fill_with_dentries(struct dir_context *ctx, const char *name, int namelen,
 		   loff_t offset, u64 ino, unsigned int d_type)
 {
@@ -200,16 +200,16 @@ fill_with_dentries(struct dir_context *ctx, const char *name, int namelen,
 	WARN_ON_ONCE(!inode_is_locked(d_inode(dbuf->xadir)));
 
 	if (dbuf->count == ARRAY_SIZE(dbuf->dentries))
-		return -ENOSPC;
+		return false;
 
 	if (name[0] == '.' && (namelen < 2 ||
 			       (namelen == 2 && name[1] == '.')))
-		return 0;
+		return true;
 
 	dentry = lookup_one_len(name, dbuf->xadir, namelen);
 	if (IS_ERR(dentry)) {
 		dbuf->err = PTR_ERR(dentry);
-		return PTR_ERR(dentry);
+		return false;
 	} else if (d_really_is_negative(dentry)) {
 		/* A directory entry exists, but no file? */
 		reiserfs_error(dentry->d_sb, "xattr-20003",
@@ -218,11 +218,11 @@ fill_with_dentries(struct dir_context *ctx, const char *name, int namelen,
 			       dentry, dbuf->xadir);
 		dput(dentry);
 		dbuf->err = -EIO;
-		return -EIO;
+		return false;
 	}
 
 	dbuf->dentries[dbuf->count++] = dentry;
-	return 0;
+	return true;
 }
 
 static void
@@ -440,16 +440,9 @@ static struct page *reiserfs_get_page(struct inode *dir, size_t n)
 	 */
 	mapping_set_gfp_mask(mapping, GFP_NOFS);
 	page = read_mapping_page(mapping, n >> PAGE_SHIFT, NULL);
-	if (!IS_ERR(page)) {
+	if (!IS_ERR(page))
 		kmap(page);
-		if (PageError(page))
-			goto fail;
-	}
 	return page;
-
-fail:
-	reiserfs_put_page(page);
-	return ERR_PTR(-EIO);
 }
 
 static inline __u32 xattr_hash(const char *msg, int len)
@@ -804,7 +797,7 @@ struct listxattr_buf {
 	struct dentry *dentry;
 };
 
-static int listxattr_filler(struct dir_context *ctx, const char *name,
+static bool listxattr_filler(struct dir_context *ctx, const char *name,
 			    int namelen, loff_t offset, u64 ino,
 			    unsigned int d_type)
 {
@@ -820,19 +813,19 @@ static int listxattr_filler(struct dir_context *ctx, const char *name,
 						    name);
 		if (!handler /* Unsupported xattr name */ ||
 		    (handler->list && !handler->list(b->dentry)))
-			return 0;
+			return true;
 		size = namelen + 1;
 		if (b->buf) {
 			if (b->pos + size > b->size) {
 				b->pos = -ERANGE;
-				return -ERANGE;
+				return false;
 			}
 			memcpy(b->buf + b->pos, name, namelen);
 			b->buf[b->pos + namelen] = 0;
 		}
 		b->pos += size;
 	}
-	return 0;
+	return true;
 }
 
 /*

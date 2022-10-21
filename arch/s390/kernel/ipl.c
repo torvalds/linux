@@ -4,7 +4,6 @@
  *
  *    Copyright IBM Corp. 2005, 2012
  *    Author(s): Michael Holzheu <holzheu@de.ibm.com>
- *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  *		 Volker Sameske <sameske@de.ibm.com>
  */
 
@@ -20,6 +19,7 @@
 #include <linux/gfp.h>
 #include <linux/crash_dump.h>
 #include <linux/debug_locks.h>
+#include <asm/asm-extable.h>
 #include <asm/diag.h>
 #include <asm/ipl.h>
 #include <asm/smp.h>
@@ -29,6 +29,7 @@
 #include <asm/sclp.h>
 #include <asm/checksum.h>
 #include <asm/debug.h>
+#include <asm/abs_lowcore.h>
 #include <asm/os_info.h>
 #include <asm/sections.h>
 #include <asm/boot_data.h>
@@ -1642,12 +1643,16 @@ static struct shutdown_action __refdata dump_action = {
 static void dump_reipl_run(struct shutdown_trigger *trigger)
 {
 	unsigned long ipib = (unsigned long) reipl_block_actual;
+	struct lowcore *abs_lc;
+	unsigned long flags;
 	unsigned int csum;
 
 	csum = (__force unsigned int)
 	       csum_partial(reipl_block_actual, reipl_block_actual->hdr.len, 0);
-	mem_assign_absolute(S390_lowcore.ipib, ipib);
-	mem_assign_absolute(S390_lowcore.ipib_checksum, csum);
+	abs_lc = get_abs_lowcore(&flags);
+	abs_lc->ipib = ipib;
+	abs_lc->ipib_checksum = csum;
+	put_abs_lowcore(abs_lc, flags);
 	dump_run(trigger);
 }
 

@@ -639,8 +639,10 @@ static void block_group_err(const struct extent_buffer *eb, int slot,
 static int check_block_group_item(struct extent_buffer *leaf,
 				  struct btrfs_key *key, int slot)
 {
+	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_block_group_item bgi;
 	u32 item_size = btrfs_item_size(leaf, slot);
+	u64 chunk_objectid;
 	u64 flags;
 	u64 type;
 
@@ -663,8 +665,23 @@ static int check_block_group_item(struct extent_buffer *leaf,
 
 	read_extent_buffer(leaf, &bgi, btrfs_item_ptr_offset(leaf, slot),
 			   sizeof(bgi));
-	if (unlikely(btrfs_stack_block_group_chunk_objectid(&bgi) !=
-		     BTRFS_FIRST_CHUNK_TREE_OBJECTID)) {
+	chunk_objectid = btrfs_stack_block_group_chunk_objectid(&bgi);
+	if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2)) {
+		/*
+		 * We don't init the nr_global_roots until we load the global
+		 * roots, so this could be 0 at mount time.  If it's 0 we'll
+		 * just assume we're fine, and later we'll check against our
+		 * actual value.
+		 */
+		if (unlikely(fs_info->nr_global_roots &&
+			     chunk_objectid >= fs_info->nr_global_roots)) {
+			block_group_err(leaf, slot,
+	"invalid block group global root id, have %llu, needs to be <= %llu",
+					chunk_objectid,
+					fs_info->nr_global_roots);
+			return -EUCLEAN;
+		}
+	} else if (unlikely(chunk_objectid != BTRFS_FIRST_CHUNK_TREE_OBJECTID)) {
 		block_group_err(leaf, slot,
 		"invalid block group chunk objectid, have %llu expect %llu",
 				btrfs_stack_block_group_chunk_objectid(&bgi),
@@ -965,6 +982,7 @@ static int check_dev_item(struct extent_buffer *leaf,
 			  struct btrfs_key *key, int slot)
 {
 	struct btrfs_dev_item *ditem;
+	const u32 item_size = btrfs_item_size(leaf, slot);
 
 	if (unlikely(key->objectid != BTRFS_DEV_ITEMS_OBJECTID)) {
 		dev_item_err(leaf, slot,
@@ -972,6 +990,13 @@ static int check_dev_item(struct extent_buffer *leaf,
 			     key->objectid, BTRFS_DEV_ITEMS_OBJECTID);
 		return -EUCLEAN;
 	}
+
+	if (unlikely(item_size != sizeof(*ditem))) {
+		dev_item_err(leaf, slot, "invalid item size: has %u expect %zu",
+			     item_size, sizeof(*ditem));
+		return -EUCLEAN;
+	}
+
 	ditem = btrfs_item_ptr(leaf, slot, struct btrfs_dev_item);
 	if (unlikely(btrfs_device_id(leaf, ditem) != key->offset)) {
 		dev_item_err(leaf, slot,
@@ -1007,6 +1032,7 @@ static int check_inode_item(struct extent_buffer *leaf,
 	struct btrfs_inode_item *iitem;
 	u64 super_gen = btrfs_super_generation(fs_info->super_copy);
 	u32 valid_mask = (S_IFMT | S_ISUID | S_ISGID | S_ISVTX | 0777);
+	const u32 item_size = btrfs_item_size(leaf, slot);
 	u32 mode;
 	int ret;
 	u32 flags;
@@ -1015,6 +1041,12 @@ static int check_inode_item(struct extent_buffer *leaf,
 	ret = check_inode_key(leaf, key, slot);
 	if (unlikely(ret < 0))
 		return ret;
+
+	if (unlikely(item_size != sizeof(*iitem))) {
+		generic_err(leaf, slot, "invalid item size: has %u expect %zu",
+			    item_size, sizeof(*iitem));
+		return -EUCLEAN;
+	}
 
 	iitem = btrfs_item_ptr(leaf, slot, struct btrfs_inode_item);
 
@@ -1201,7 +1233,8 @@ static void extent_err(const struct extent_buffer *eb, int slot,
 }
 
 static int check_extent_item(struct extent_buffer *leaf,
-			     struct btrfs_key *key, int slot)
+			     struct btrfs_key *key, int slot,
+			     struct btrfs_key *prev_key)
 {
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_extent_item *ei;
@@ -1421,6 +1454,26 @@ static int check_extent_item(struct extent_buffer *leaf,
 			   total_refs, inline_refs);
 		return -EUCLEAN;
 	}
+
+	if ((prev_key->type == BTRFS_EXTENT_ITEM_KEY) ||
+	    (prev_key->type == BTRFS_METADATA_ITEM_KEY)) {
+		u64 prev_end = prev_key->objectid;
+
+		if (prev_key->type == BTRFS_METADATA_ITEM_KEY)
+			prev_end += fs_info->nodesize;
+		else
+			prev_end += prev_key->offset;
+
+		if (unlikely(prev_end > key->objectid)) {
+			extent_err(leaf, slot,
+	"previous extent [%llu %u %llu] overlaps current extent [%llu %u %llu]",
+				   prev_key->objectid, prev_key->type,
+				   prev_key->offset, key->objectid, key->type,
+				   key->offset);
+			return -EUCLEAN;
+		}
+	}
+
 	return 0;
 }
 
@@ -1589,7 +1642,7 @@ static int check_leaf_item(struct extent_buffer *leaf,
 		break;
 	case BTRFS_EXTENT_ITEM_KEY:
 	case BTRFS_METADATA_ITEM_KEY:
-		ret = check_extent_item(leaf, key, slot);
+		ret = check_extent_item(leaf, key, slot, prev_key);
 		break;
 	case BTRFS_TREE_BLOCK_REF_KEY:
 	case BTRFS_SHARED_DATA_REF_KEY:
@@ -1633,7 +1686,6 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 		/* These trees must never be empty */
 		if (unlikely(owner == BTRFS_ROOT_TREE_OBJECTID ||
 			     owner == BTRFS_CHUNK_TREE_OBJECTID ||
-			     owner == BTRFS_EXTENT_TREE_OBJECTID ||
 			     owner == BTRFS_DEV_TREE_OBJECTID ||
 			     owner == BTRFS_FS_TREE_OBJECTID ||
 			     owner == BTRFS_DATA_RELOC_TREE_OBJECTID)) {
@@ -1642,12 +1694,25 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 				    owner);
 			return -EUCLEAN;
 		}
+
 		/* Unknown tree */
 		if (unlikely(owner == 0)) {
 			generic_err(leaf, 0,
 				"invalid owner, root 0 is not defined");
 			return -EUCLEAN;
 		}
+
+		/* EXTENT_TREE_V2 can have empty extent trees. */
+		if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2))
+			return 0;
+
+		if (unlikely(owner == BTRFS_EXTENT_TREE_OBJECTID)) {
+			generic_err(leaf, 0,
+			"invalid root, root %llu must never be empty",
+				    owner);
+			return -EUCLEAN;
+		}
+
 		return 0;
 	}
 
@@ -1667,6 +1732,7 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 	 */
 	for (slot = 0; slot < nritems; slot++) {
 		u32 item_end_expected;
+		u64 item_data_end;
 		int ret;
 
 		btrfs_item_key_to_cpu(leaf, &key, slot);
@@ -1681,6 +1747,8 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 			return -EUCLEAN;
 		}
 
+		item_data_end = (u64)btrfs_item_offset(leaf, slot) +
+				btrfs_item_size(leaf, slot);
 		/*
 		 * Make sure the offset and ends are right, remember that the
 		 * item data starts at the end of the leaf and grows towards the
@@ -1691,11 +1759,10 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 		else
 			item_end_expected = btrfs_item_offset(leaf,
 								 slot - 1);
-		if (unlikely(btrfs_item_data_end(leaf, slot) != item_end_expected)) {
+		if (unlikely(item_data_end != item_end_expected)) {
 			generic_err(leaf, slot,
-				"unexpected item end, have %u expect %u",
-				btrfs_item_data_end(leaf, slot),
-				item_end_expected);
+				"unexpected item end, have %llu expect %u",
+				item_data_end, item_end_expected);
 			return -EUCLEAN;
 		}
 
@@ -1704,12 +1771,10 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 		 * just in case all the items are consistent to each other, but
 		 * all point outside of the leaf.
 		 */
-		if (unlikely(btrfs_item_data_end(leaf, slot) >
-			     BTRFS_LEAF_DATA_SIZE(fs_info))) {
+		if (unlikely(item_data_end > BTRFS_LEAF_DATA_SIZE(fs_info))) {
 			generic_err(leaf, slot,
-			"slot end outside of leaf, have %u expect range [0, %u]",
-				btrfs_item_data_end(leaf, slot),
-				BTRFS_LEAF_DATA_SIZE(fs_info));
+			"slot end outside of leaf, have %llu expect range [0, %u]",
+				item_data_end, BTRFS_LEAF_DATA_SIZE(fs_info));
 			return -EUCLEAN;
 		}
 
@@ -1811,3 +1876,58 @@ out:
 	return ret;
 }
 ALLOW_ERROR_INJECTION(btrfs_check_node, ERRNO);
+
+int btrfs_check_eb_owner(const struct extent_buffer *eb, u64 root_owner)
+{
+	const bool is_subvol = is_fstree(root_owner);
+	const u64 eb_owner = btrfs_header_owner(eb);
+
+	/*
+	 * Skip dummy fs, as selftests don't create unique ebs for each dummy
+	 * root.
+	 */
+	if (test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &eb->fs_info->fs_state))
+		return 0;
+	/*
+	 * There are several call sites (backref walking, qgroup, and data
+	 * reloc) passing 0 as @root_owner, as they are not holding the
+	 * tree root.  In that case, we can not do a reliable ownership check,
+	 * so just exit.
+	 */
+	if (root_owner == 0)
+		return 0;
+	/*
+	 * These trees use key.offset as their owner, our callers don't have
+	 * the extra capacity to pass key.offset here.  So we just skip them.
+	 */
+	if (root_owner == BTRFS_TREE_LOG_OBJECTID ||
+	    root_owner == BTRFS_TREE_RELOC_OBJECTID)
+		return 0;
+
+	if (!is_subvol) {
+		/* For non-subvolume trees, the eb owner should match root owner */
+		if (unlikely(root_owner != eb_owner)) {
+			btrfs_crit(eb->fs_info,
+"corrupted %s, root=%llu block=%llu owner mismatch, have %llu expect %llu",
+				btrfs_header_level(eb) == 0 ? "leaf" : "node",
+				root_owner, btrfs_header_bytenr(eb), eb_owner,
+				root_owner);
+			return -EUCLEAN;
+		}
+		return 0;
+	}
+
+	/*
+	 * For subvolume trees, owners can mismatch, but they should all belong
+	 * to subvolume trees.
+	 */
+	if (unlikely(is_subvol != is_fstree(eb_owner))) {
+		btrfs_crit(eb->fs_info,
+"corrupted %s, root=%llu block=%llu owner mismatch, have %llu expect [%llu, %llu]",
+			btrfs_header_level(eb) == 0 ? "leaf" : "node",
+			root_owner, btrfs_header_bytenr(eb), eb_owner,
+			BTRFS_FIRST_FREE_OBJECTID, BTRFS_LAST_FREE_OBJECTID);
+		return -EUCLEAN;
+	}
+	return 0;
+}

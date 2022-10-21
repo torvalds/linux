@@ -15,7 +15,7 @@
 #include <linux/pm_domain.h>
 
 #include "map.h"
-#include <mach/irqs.h>
+#include "irqs.h"
 
 #include "cpu.h"
 #include "devs.h"
@@ -323,7 +323,7 @@ void s3c_pm_arch_update_uart(void __iomem *regs, struct pm_uart_save *save)
 
 	/* S3C64XX UART blocks only support level interrupts, so ensure that
 	 * when we restore unused UART blocks we force the level interrupt
-	 * settigs. */
+	 * settings. */
 	save->ucon |= S3C2410_UCON_TXILEVEL | S3C2410_UCON_RXILEVEL;
 
 	/* We have a constraint on changing the clock type of the UART

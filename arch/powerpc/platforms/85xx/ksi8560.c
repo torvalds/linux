@@ -26,7 +26,6 @@
 #include <asm/mpic.h>
 #include <mm/mmu_decl.h>
 #include <asm/udbg.h>
-#include <asm/prom.h>
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
@@ -133,6 +132,8 @@ static void __init ksi8560_setup_arch(void)
 		cpld_base = of_iomap(cpld, 0);
 	else
 		printk(KERN_ERR "Can't find CPLD in device tree\n");
+
+	of_node_put(cpld);
 
 	if (ppc_md.progress)
 		ppc_md.progress("ksi8560_setup_arch()", 0);

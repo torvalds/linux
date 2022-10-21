@@ -271,6 +271,16 @@ notifying process it will be replaced. The supervisor can also add an FD, and
 respond atomically by using the ``SECCOMP_ADDFD_FLAG_SEND`` flag and the return
 value will be the injected file descriptor number.
 
+The notifying process can be preempted, resulting in the notification being
+aborted. This can be problematic when trying to take actions on behalf of the
+notifying process that are long-running and typically retryable (mounting a
+filesytem). Alternatively, at filter installation time, the
+``SECCOMP_FILTER_FLAG_WAIT_KILLABLE_RECV`` flag can be set. This flag makes it
+such that when a user notification is received by the supervisor, the notifying
+process will ignore non-fatal signals until the response is sent. Signals that
+are sent prior to the notification being received by userspace are handled
+normally.
+
 It is worth noting that ``struct seccomp_data`` contains the values of register
 arguments to the syscall, but does not contain pointers to memory. The task's
 memory is accessible to suitably privileged traces via ``ptrace()`` or

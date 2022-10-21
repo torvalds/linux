@@ -14,7 +14,7 @@
  */
 enum panfrost_hw_issue {
 	/* Need way to guarantee that all previously-translated memory accesses
-	 * are commited */
+	 * are committed */
 	HW_ISSUE_6367,
 
 	/* On job complete with non-done the cache is not flushed */
@@ -124,6 +124,16 @@ enum panfrost_hw_issue {
 	/* "Protected mode" is buggy on Mali-G31 some Bifrost chips, so the
 	 * kernel must fiddle with L2 caches to prevent data leakage */
 	HW_ISSUE_TGOX_R1_1234,
+
+	/* Must set SC_VAR_ALGORITHM */
+	HW_ISSUE_TTRX_2968_TTRX_3162,
+
+	/* Bus fault from occlusion query write may cause future fragment jobs
+	 * to hang */
+	HW_ISSUE_TTRX_3076,
+
+	/* Must issue a dummy job before starting real work to prevent hangs */
+	HW_ISSUE_TTRX_3485,
 
 	HW_ISSUE_END
 };
@@ -248,7 +258,14 @@ enum panfrost_hw_issue {
 
 #define hw_issues_g76 0
 
-static inline bool panfrost_has_hw_issue(struct panfrost_device *pfdev,
+#define hw_issues_g57 (\
+	BIT_ULL(HW_ISSUE_TTRX_2968_TTRX_3162) | \
+	BIT_ULL(HW_ISSUE_TTRX_3076))
+
+#define hw_issues_g57_r0p0 (\
+	BIT_ULL(HW_ISSUE_TTRX_3485))
+
+static inline bool panfrost_has_hw_issue(const struct panfrost_device *pfdev,
 					 enum panfrost_hw_issue issue)
 {
 	return test_bit(issue, pfdev->features.hw_issues);

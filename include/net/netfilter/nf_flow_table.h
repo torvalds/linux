@@ -10,6 +10,8 @@
 #include <linux/netfilter/nf_conntrack_tuple_common.h>
 #include <net/flow_offload.h>
 #include <net/dst.h>
+#include <linux/if_pppox.h>
+#include <linux/ppp_defs.h>
 
 struct nf_flowtable;
 struct nf_flow_rule;
@@ -96,6 +98,7 @@ enum flow_offload_xmit_type {
 	FLOW_OFFLOAD_XMIT_NEIGH,
 	FLOW_OFFLOAD_XMIT_XFRM,
 	FLOW_OFFLOAD_XMIT_DIRECT,
+	FLOW_OFFLOAD_XMIT_TC,
 };
 
 #define NF_FLOW_TABLE_ENCAP_MAX		2
@@ -127,7 +130,7 @@ struct flow_offload_tuple {
 	struct { }			__hash;
 
 	u8				dir:2,
-					xmit_type:2,
+					xmit_type:3,
 					encap_num:2,
 					in_vlan_ingress:2;
 	u16				mtu;
@@ -142,6 +145,9 @@ struct flow_offload_tuple {
 			u8		h_source[ETH_ALEN];
 			u8		h_dest[ETH_ALEN];
 		} out;
+		struct {
+			u32		iifidx;
+		} tc;
 	};
 };
 
@@ -264,6 +270,7 @@ void flow_offload_refresh(struct nf_flowtable *flow_table,
 
 struct flow_offload_tuple_rhash *flow_offload_lookup(struct nf_flowtable *flow_table,
 						     struct flow_offload_tuple *tuple);
+void nf_flow_table_gc_run(struct nf_flowtable *flow_table);
 void nf_flow_table_gc_cleanup(struct nf_flowtable *flowtable,
 			      struct net_device *dev);
 void nf_flow_table_cleanup(struct net_device *dev);
@@ -300,6 +307,8 @@ void nf_flow_offload_stats(struct nf_flowtable *flowtable,
 			   struct flow_offload *flow);
 
 void nf_flow_table_offload_flush(struct nf_flowtable *flowtable);
+void nf_flow_table_offload_flush_cleanup(struct nf_flowtable *flowtable);
+
 int nf_flow_table_offload_setup(struct nf_flowtable *flowtable,
 				struct net_device *dev,
 				enum flow_block_command cmd);
@@ -312,5 +321,42 @@ int nf_flow_rule_route_ipv6(struct net *net, const struct flow_offload *flow,
 
 int nf_flow_table_offload_init(void);
 void nf_flow_table_offload_exit(void);
+
+static inline __be16 nf_flow_pppoe_proto(const struct sk_buff *skb)
+{
+	__be16 proto;
+
+	proto = *((__be16 *)(skb_mac_header(skb) + ETH_HLEN +
+			     sizeof(struct pppoe_hdr)));
+	switch (proto) {
+	case htons(PPP_IP):
+		return htons(ETH_P_IP);
+	case htons(PPP_IPV6):
+		return htons(ETH_P_IPV6);
+	}
+
+	return 0;
+}
+
+#define NF_FLOW_TABLE_STAT_INC(net, count) __this_cpu_inc((net)->ft.stat->count)
+#define NF_FLOW_TABLE_STAT_DEC(net, count) __this_cpu_dec((net)->ft.stat->count)
+#define NF_FLOW_TABLE_STAT_INC_ATOMIC(net, count)	\
+	this_cpu_inc((net)->ft.stat->count)
+#define NF_FLOW_TABLE_STAT_DEC_ATOMIC(net, count)	\
+	this_cpu_dec((net)->ft.stat->count)
+
+#ifdef CONFIG_NF_FLOW_TABLE_PROCFS
+int nf_flow_table_init_proc(struct net *net);
+void nf_flow_table_fini_proc(struct net *net);
+#else
+static inline int nf_flow_table_init_proc(struct net *net)
+{
+	return 0;
+}
+
+static inline void nf_flow_table_fini_proc(struct net *net)
+{
+}
+#endif /* CONFIG_NF_FLOW_TABLE_PROCFS */
 
 #endif /* _NF_FLOW_TABLE_H */

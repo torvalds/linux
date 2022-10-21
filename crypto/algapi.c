@@ -6,6 +6,7 @@
  */
 
 #include <crypto/algapi.h>
+#include <crypto/internal/simd.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/fips.h>
@@ -20,6 +21,11 @@
 #include "internal.h"
 
 static LIST_HEAD(crypto_template_list);
+
+#ifdef CONFIG_CRYPTO_MANAGER_EXTRA_TESTS
+DEFINE_PER_CPU(bool, crypto_simd_disabled_for_test);
+EXPORT_PER_CPU_SYMBOL_GPL(crypto_simd_disabled_for_test);
+#endif
 
 static inline void crypto_check_module_sig(struct module *mod)
 {
@@ -322,8 +328,16 @@ void crypto_alg_tested(const char *name, int err)
 found:
 	q->cra_flags |= CRYPTO_ALG_DEAD;
 	alg = test->adult;
-	if (err || list_empty(&alg->cra_list))
+
+	if (list_empty(&alg->cra_list))
 		goto complete;
+
+	if (err == -ECANCELED)
+		alg->cra_flags |= CRYPTO_ALG_FIPS_INTERNAL;
+	else if (err)
+		goto complete;
+	else
+		alg->cra_flags &= ~CRYPTO_ALG_FIPS_INTERNAL;
 
 	alg->cra_flags |= CRYPTO_ALG_TESTED;
 
@@ -604,6 +618,7 @@ int crypto_register_instance(struct crypto_template *tmpl,
 {
 	struct crypto_larval *larval;
 	struct crypto_spawn *spawn;
+	u32 fips_internal = 0;
 	int err;
 
 	err = crypto_check_alg(&inst->alg);
@@ -626,10 +641,14 @@ int crypto_register_instance(struct crypto_template *tmpl,
 		spawn->inst = inst;
 		spawn->registered = true;
 
+		fips_internal |= spawn->alg->cra_flags;
+
 		crypto_mod_put(spawn->alg);
 
 		spawn = next;
 	}
+
+	inst->alg.cra_flags |= (fips_internal & CRYPTO_ALG_FIPS_INTERNAL);
 
 	larval = __crypto_register_alg(&inst->alg);
 	if (IS_ERR(larval))
@@ -683,7 +702,8 @@ int crypto_grab_spawn(struct crypto_spawn *spawn, struct crypto_instance *inst,
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
-	alg = crypto_find_alg(name, spawn->frontend, type, mask);
+	alg = crypto_find_alg(name, spawn->frontend,
+			      type | CRYPTO_ALG_FIPS_INTERNAL, mask);
 	if (IS_ERR(alg))
 		return PTR_ERR(alg);
 
@@ -976,59 +996,6 @@ void crypto_inc(u8 *a, unsigned int size)
 	crypto_inc_byte(a, size);
 }
 EXPORT_SYMBOL_GPL(crypto_inc);
-
-void __crypto_xor(u8 *dst, const u8 *src1, const u8 *src2, unsigned int len)
-{
-	int relalign = 0;
-
-	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)) {
-		int size = sizeof(unsigned long);
-		int d = (((unsigned long)dst ^ (unsigned long)src1) |
-			 ((unsigned long)dst ^ (unsigned long)src2)) &
-			(size - 1);
-
-		relalign = d ? 1 << __ffs(d) : size;
-
-		/*
-		 * If we care about alignment, process as many bytes as
-		 * needed to advance dst and src to values whose alignments
-		 * equal their relative alignment. This will allow us to
-		 * process the remainder of the input using optimal strides.
-		 */
-		while (((unsigned long)dst & (relalign - 1)) && len > 0) {
-			*dst++ = *src1++ ^ *src2++;
-			len--;
-		}
-	}
-
-	while (IS_ENABLED(CONFIG_64BIT) && len >= 8 && !(relalign & 7)) {
-		*(u64 *)dst = *(u64 *)src1 ^  *(u64 *)src2;
-		dst += 8;
-		src1 += 8;
-		src2 += 8;
-		len -= 8;
-	}
-
-	while (len >= 4 && !(relalign & 3)) {
-		*(u32 *)dst = *(u32 *)src1 ^ *(u32 *)src2;
-		dst += 4;
-		src1 += 4;
-		src2 += 4;
-		len -= 4;
-	}
-
-	while (len >= 2 && !(relalign & 1)) {
-		*(u16 *)dst = *(u16 *)src1 ^ *(u16 *)src2;
-		dst += 2;
-		src1 += 2;
-		src2 += 2;
-		len -= 2;
-	}
-
-	while (len--)
-		*dst++ = *src1++ ^ *src2++;
-}
-EXPORT_SYMBOL_GPL(__crypto_xor);
 
 unsigned int crypto_alg_extsize(struct crypto_alg *alg)
 {
@@ -1324,3 +1291,4 @@ module_exit(crypto_algapi_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Cryptographic algorithms API");
+MODULE_SOFTDEP("pre: cryptomgr");

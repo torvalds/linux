@@ -103,12 +103,13 @@ struct acct_v3
 /*
  *  accounting flags
  */
-				/* bit set when the process ... */
+				/* bit set when the process/task ... */
 #define AFORK		0x01	/* ... executed fork, but did not exec */
 #define ASU		0x02	/* ... used super-user privileges */
 #define ACOMPAT		0x04	/* ... used compatibility mode (VAX only not used) */
 #define ACORE		0x08	/* ... dumped core */
 #define AXSIG		0x10	/* ... was killed by a signal */
+#define AGROUP		0x20	/* ... was the last task of the process (task group) */
 
 #if defined(__BYTE_ORDER) ? __BYTE_ORDER == __BIG_ENDIAN : defined(__BIG_ENDIAN)
 #define ACCT_BYTEORDER	0x80	/* accounting file is big endian */

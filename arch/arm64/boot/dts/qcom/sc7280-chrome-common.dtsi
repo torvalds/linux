@@ -1,0 +1,102 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * sc7280 fragment for devices with Chrome bootloader
+ *
+ * This file mainly tries to abstract out the memory protections put into
+ * place by the Chrome bootloader which are different than what's put into
+ * place by Qualcomm's typical bootloader. It also has a smattering of other
+ * things that will hold true for any conceivable Chrome design
+ *
+ * Copyright 2022 Google LLC.
+ */
+
+/*
+ * Reserved memory changes
+ *
+ * Delete all unused memory nodes and define the peripheral memory regions
+ * required by the setup for Chrome boards.
+ */
+
+/delete-node/ &hyp_mem;
+/delete-node/ &xbl_mem;
+/delete-node/ &reserved_xbl_uefi_log;
+/delete-node/ &sec_apps_mem;
+
+/ {
+	reserved-memory {
+		adsp_mem: memory@86700000 {
+			reg = <0x0 0x86700000 0x0 0x2800000>;
+			no-map;
+		};
+
+		camera_mem: memory@8ad00000 {
+			reg = <0x0 0x8ad00000 0x0 0x500000>;
+			no-map;
+		};
+
+		venus_mem: memory@8b200000 {
+			reg = <0x0 0x8b200000 0x0 0x500000>;
+			no-map;
+		};
+
+		mpss_mem: memory@8b800000 {
+			reg = <0x0 0x8b800000 0x0 0xf600000>;
+			no-map;
+		};
+
+		wpss_mem: memory@9ae00000 {
+			reg = <0x0 0x9ae00000 0x0 0x1900000>;
+			no-map;
+		};
+
+		mba_mem: memory@9c700000 {
+			reg = <0x0 0x9c700000 0x0 0x200000>;
+			no-map;
+		};
+	};
+};
+
+/* The PMIC PON code isn't compatible w/ how Chrome EC/BIOS handle things. */
+&pmk8350_pon {
+	status = "disabled";
+};
+
+/*
+ * Chrome designs always boot from SPI flash hooked up to the qspi.
+ *
+ * It's expected that all boards will support "dual SPI" at 37.5 MHz.
+ * If some boards need a different speed or have a package that allows
+ * Quad SPI together with WP then those boards can easily override.
+ */
+&qspi {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&qspi_clk>, <&qspi_cs0>, <&qspi_data01>;
+
+	spi_flash: flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+
+		spi-max-frequency = <37500000>;
+		spi-tx-bus-width = <2>;
+		spi-rx-bus-width = <2>;
+	};
+};
+
+&remoteproc_wpss {
+	status = "okay";
+	firmware-name = "ath11k/WCN6750/hw1.0/wpss.mdt";
+};
+
+/* Increase the size from 2.5MB to 8MB */
+&rmtfs_mem {
+	reg = <0x0 0x9c900000 0x0 0x800000>;
+};
+
+&wifi {
+	status = "okay";
+
+	wifi-firmware {
+		iommus = <&apps_smmu 0x1c02 0x1>;
+	};
+};

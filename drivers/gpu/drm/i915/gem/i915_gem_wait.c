@@ -9,6 +9,7 @@
 #include <linux/jiffies.h>
 
 #include "gt/intel_engine.h"
+#include "gt/intel_rps.h"
 
 #include "i915_gem_ioctls.h"
 #include "i915_gem_object.h"
@@ -31,6 +32,37 @@ i915_gem_object_wait_fence(struct dma_fence *fence,
 				      timeout);
 }
 
+static void
+i915_gem_object_boost(struct dma_resv *resv, unsigned int flags)
+{
+	struct dma_resv_iter cursor;
+	struct dma_fence *fence;
+
+	/*
+	 * Prescan all fences for potential boosting before we begin waiting.
+	 *
+	 * When we wait, we wait on outstanding fences serially. If the
+	 * dma-resv contains a sequence such as 1:1, 1:2 instead of a reduced
+	 * form 1:2, then as we look at each wait in turn we see that each
+	 * request is currently executing and not worthy of boosting. But if
+	 * we only happen to look at the final fence in the sequence (because
+	 * of request coalescing or splitting between read/write arrays by
+	 * the iterator), then we would boost. As such our decision to boost
+	 * or not is delicately balanced on the order we wait on fences.
+	 *
+	 * So instead of looking for boosts sequentially, look for all boosts
+	 * upfront and then wait on the outstanding fences.
+	 */
+
+	dma_resv_iter_begin(&cursor, resv,
+			    dma_resv_usage_rw(flags & I915_WAIT_ALL));
+	dma_resv_for_each_fence_unlocked(&cursor, fence)
+		if (dma_fence_is_i915(fence) &&
+		    !i915_request_started(to_request(fence)))
+			intel_rps_boost(to_request(fence));
+	dma_resv_iter_end(&cursor);
+}
+
 static long
 i915_gem_object_wait_reservation(struct dma_resv *resv,
 				 unsigned int flags,
@@ -40,7 +72,10 @@ i915_gem_object_wait_reservation(struct dma_resv *resv,
 	struct dma_fence *fence;
 	long ret = timeout ?: 1;
 
-	dma_resv_iter_begin(&cursor, resv, flags & I915_WAIT_ALL);
+	i915_gem_object_boost(resv, flags);
+
+	dma_resv_iter_begin(&cursor, resv,
+			    dma_resv_usage_rw(flags & I915_WAIT_ALL));
 	dma_resv_for_each_fence_unlocked(&cursor, fence) {
 		ret = i915_gem_object_wait_fence(fence, flags, timeout);
 		if (ret <= 0)
@@ -117,7 +152,8 @@ i915_gem_object_wait_priority(struct drm_i915_gem_object *obj,
 	struct dma_resv_iter cursor;
 	struct dma_fence *fence;
 
-	dma_resv_iter_begin(&cursor, obj->base.resv, flags & I915_WAIT_ALL);
+	dma_resv_iter_begin(&cursor, obj->base.resv,
+			    dma_resv_usage_rw(flags & I915_WAIT_ALL));
 	dma_resv_for_each_fence_unlocked(&cursor, fence)
 		i915_gem_fence_wait_priority(fence, attr);
 	dma_resv_iter_end(&cursor);

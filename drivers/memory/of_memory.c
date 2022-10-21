@@ -134,6 +134,7 @@ const struct lpddr2_timings *of_get_ddr_timings(struct device_node *np_ddr,
 	for_each_child_of_node(np_ddr, np_tim) {
 		if (of_device_is_compatible(np_tim, tim_compat)) {
 			if (of_do_get_timings(np_tim, &timings[i])) {
+				of_node_put(np_tim);
 				devm_kfree(dev, timings);
 				goto default_timings;
 			}
@@ -212,8 +213,10 @@ static int of_lpddr3_do_get_timings(struct device_node *np,
 {
 	int ret;
 
-	/* The 'reg' param required since DT has changed, used as 'max-freq' */
-	ret = of_property_read_u32(np, "reg", &tim->max_freq);
+	ret = of_property_read_u32(np, "max-freq", &tim->max_freq);
+	if (ret)
+		/* Deprecated way of passing max-freq as 'reg' */
+		ret = of_property_read_u32(np, "reg", &tim->max_freq);
 	ret |= of_property_read_u32(np, "min-freq", &tim->min_freq);
 	ret |= of_property_read_u32(np, "tRFC", &tim->tRFC);
 	ret |= of_property_read_u32(np, "tRRD", &tim->tRRD);
@@ -282,6 +285,7 @@ const struct lpddr3_timings
 		if (of_device_is_compatible(np_tim, tim_compat)) {
 			if (of_lpddr3_do_get_timings(np_tim, &timings[i])) {
 				devm_kfree(dev, timings);
+				of_node_put(np_tim);
 				goto default_timings;
 			}
 			i++;
@@ -316,14 +320,21 @@ const struct lpddr2_info
 	struct property *prop;
 	const char *cp;
 	int err;
+	u32 revision_id[2];
 
-	err = of_property_read_u32(np, "revision-id1", &info.revision_id1);
-	if (err)
-		info.revision_id1 = -ENOENT;
+	err = of_property_read_u32_array(np, "revision-id", revision_id, 2);
+	if (!err) {
+		info.revision_id1 = revision_id[0];
+		info.revision_id2 = revision_id[1];
+	} else {
+		err = of_property_read_u32(np, "revision-id1", &info.revision_id1);
+		if (err)
+			info.revision_id1 = -ENOENT;
 
-	err = of_property_read_u32(np, "revision-id2", &info.revision_id2);
-	if (err)
-		info.revision_id2 = -ENOENT;
+		err = of_property_read_u32(np, "revision-id2", &info.revision_id2);
+		if (err)
+			info.revision_id2 = -ENOENT;
+	}
 
 	err = of_property_read_u32(np, "io-width", &info.io_width);
 	if (err)

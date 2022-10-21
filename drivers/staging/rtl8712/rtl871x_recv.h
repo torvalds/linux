@@ -139,14 +139,6 @@ static inline u8 *get_rxmem(union recv_frame *precvframe)
 	return precvframe->u.hdr.rx_head;
 }
 
-static inline u8 *get_recvframe_data(union recv_frame *precvframe)
-{
-	/* always return rx_data */
-	if (!precvframe)
-		return NULL;
-	return precvframe->u.hdr.rx_data;
-}
-
 static inline u8 *recvframe_pull(union recv_frame *precvframe, sint sz)
 {
 	/* used for extract sz bytes from rx_data, update rx_data and return

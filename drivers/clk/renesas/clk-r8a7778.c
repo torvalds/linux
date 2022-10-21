@@ -11,12 +11,6 @@
 #include <linux/slab.h>
 #include <linux/soc/renesas/rcar-rst.h>
 
-struct r8a7778_cpg {
-	struct clk_onecell_data data;
-	spinlock_t lock;
-	void __iomem *reg;
-};
-
 /* PLL multipliers per bits 11, 12, and 18 of MODEMR */
 static const struct {
 	unsigned long plla_mult;
@@ -47,8 +41,7 @@ static u32 cpg_mode_rates __initdata;
 static u32 cpg_mode_divs __initdata;
 
 static struct clk * __init
-r8a7778_cpg_register_clock(struct device_node *np, struct r8a7778_cpg *cpg,
-			     const char *name)
+r8a7778_cpg_register_clock(struct device_node *np, const char *name)
 {
 	if (!strcmp(name, "plla")) {
 		return clk_register_fixed_factor(NULL, "plla",
@@ -77,7 +70,7 @@ r8a7778_cpg_register_clock(struct device_node *np, struct r8a7778_cpg *cpg,
 
 static void __init r8a7778_cpg_clocks_init(struct device_node *np)
 {
-	struct r8a7778_cpg *cpg;
+	struct clk_onecell_data *data;
 	struct clk **clks;
 	unsigned int i;
 	int num_clks;
@@ -100,23 +93,17 @@ static void __init r8a7778_cpg_clocks_init(struct device_node *np)
 		return;
 	}
 
-	cpg = kzalloc(sizeof(*cpg), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	clks = kcalloc(num_clks, sizeof(*clks), GFP_KERNEL);
-	if (cpg == NULL || clks == NULL) {
+	if (data == NULL || clks == NULL) {
 		/* We're leaking memory on purpose, there's no point in cleaning
 		 * up as the system won't boot anyway.
 		 */
 		return;
 	}
 
-	spin_lock_init(&cpg->lock);
-
-	cpg->data.clks = clks;
-	cpg->data.clk_num = num_clks;
-
-	cpg->reg = of_iomap(np, 0);
-	if (WARN_ON(cpg->reg == NULL))
-		return;
+	data->clks = clks;
+	data->clk_num = num_clks;
 
 	for (i = 0; i < num_clks; ++i) {
 		const char *name;
@@ -125,15 +112,15 @@ static void __init r8a7778_cpg_clocks_init(struct device_node *np)
 		of_property_read_string_index(np, "clock-output-names", i,
 					      &name);
 
-		clk = r8a7778_cpg_register_clock(np, cpg, name);
+		clk = r8a7778_cpg_register_clock(np, name);
 		if (IS_ERR(clk))
 			pr_err("%s: failed to register %pOFn %s clock (%ld)\n",
 			       __func__, np, name, PTR_ERR(clk));
 		else
-			cpg->data.clks[i] = clk;
+			data->clks[i] = clk;
 	}
 
-	of_clk_add_provider(np, of_clk_src_onecell_get, &cpg->data);
+	of_clk_add_provider(np, of_clk_src_onecell_get, data);
 
 	cpg_mstp_add_clk_domain(np);
 }

@@ -27,6 +27,8 @@
 
 	/* HS USB Host PHY on PORT 1 */
 	hsusb2_phy: hsusb2_phy {
+		pinctrl-names = "default";
+		pinctrl-0 = <&hsusb2_reset_pin>;
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>; /* gpio_4 */
 		#phy-cells = <0>;
@@ -144,6 +146,8 @@
 };
 
 &usbhshost {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hsusb2_pins>;
 	port2-mode = "ehci-phy";
 };
 
@@ -151,10 +155,7 @@
 	phys = <0 &hsusb2_phy>;
 };
 
-
 &omap3_pmx_core {
-	pinctrl-names = "default";
-	pinctrl-0 = <&hsusb2_pins>;
 
 	mmc3_pins: pinmux_mm3_pins {
 		pinctrl-single,pins = <
@@ -250,8 +251,7 @@
 };
 
 &omap3_pmx_wkup {
-	pinctrl-names = "default";
-	pinctrl-0 = <&hsusb2_reset_pin>;
+
 	hsusb2_reset_pin: pinmux_hsusb1_reset_pin {
 		pinctrl-single,pins = <
 			OMAP3_WKUP_IOPAD(0x2a0e, PIN_OUTPUT | MUX_MODE4)	/* sys_boot2.gpio_4 */
@@ -261,21 +261,6 @@
 		pinctrl-single,pins = <
 			OMAP3_WKUP_IOPAD(0x2a0a, PIN_INPUT | MUX_MODE4)		/* sys_boot0.gpio_2 */
 			OMAP3_WKUP_IOPAD(0x2a0c, PIN_OUTPUT | MUX_MODE4)	/* sys_boot1.gpio_3 */
-		>;
-	};
-};
-
-&omap3_pmx_core2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&hsusb2_2_pins>;
-	hsusb2_2_pins: pinmux_hsusb2_2_pins {
-		pinctrl-single,pins = <
-			OMAP3630_CORE2_IOPAD(0x25f0, PIN_OUTPUT | MUX_MODE3)            /* etk_d10.hsusb2_clk */
-			OMAP3630_CORE2_IOPAD(0x25f2, PIN_OUTPUT | MUX_MODE3)            /* etk_d11.hsusb2_stp */
-			OMAP3630_CORE2_IOPAD(0x25f4, PIN_INPUT_PULLDOWN | MUX_MODE3)    /* etk_d12.hsusb2_dir */
-			OMAP3630_CORE2_IOPAD(0x25f6, PIN_INPUT_PULLDOWN | MUX_MODE3)    /* etk_d13.hsusb2_nxt */
-			OMAP3630_CORE2_IOPAD(0x25f8, PIN_INPUT_PULLDOWN | MUX_MODE3)    /* etk_d14.hsusb2_data0 */
-			OMAP3630_CORE2_IOPAD(0x25fa, PIN_INPUT_PULLDOWN | MUX_MODE3)    /* etk_d15.hsusb2_data1 */
 		>;
 	};
 };

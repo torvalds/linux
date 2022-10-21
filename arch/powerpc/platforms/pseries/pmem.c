@@ -15,7 +15,6 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
-#include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/firmware.h>
 #include <asm/machdep.h>

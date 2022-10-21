@@ -26,7 +26,8 @@
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
  *   - FIFO size: 4KB
  *
- * - LSM6DSO/LSM6DSOX/ASM330LHH/LSM6DSR/ISM330DHCX/LSM6DST/LSM6DSOP:
+ * - LSM6DSO/LSM6DSOX/ASM330LHH/ASM330LHHX/LSM6DSR/ISM330DHCX/LSM6DST/LSM6DSOP/
+ *   LSM6DSTX:
  *   - Accelerometer/Gyroscope supported ODR [Hz]: 12.5, 26, 52, 104, 208, 416,
  *     833
  *   - Accelerometer supported full-scale [g]: +-2/+-4/+-8/+-16
@@ -54,6 +55,7 @@
 #include <linux/iio/sysfs.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/minmax.h>
 #include <linux/pm.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
@@ -786,6 +788,14 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.hw_id = ST_LSM6DST_ID,
 				.name = ST_LSM6DST_DEV_NAME,
 				.wai = 0x6d,
+			}, {
+				.hw_id = ST_ASM330LHHX_ID,
+				.name = ST_ASM330LHHX_DEV_NAME,
+				.wai = 0x6b,
+			}, {
+				.hw_id = ST_LSM6DSTX_ID,
+				.name = ST_LSM6DSTX_DEV_NAME,
+				.wai = 0x6d,
 			},
 		},
 		.channels = {
@@ -1374,8 +1384,12 @@ static int st_lsm6dsx_read_oneshot(struct st_lsm6dsx_sensor *sensor,
 	if (err < 0)
 		return err;
 
+	/*
+	 * we need to wait for sensor settling time before
+	 * reading data in order to avoid corrupted samples
+	 */
 	delay = 1000000000 / sensor->odr;
-	usleep_range(delay, 2 * delay);
+	usleep_range(3 * delay, 4 * delay);
 
 	err = st_lsm6dsx_read_locked(hw, addr, &data, sizeof(data));
 	if (err < 0)
@@ -1607,8 +1621,7 @@ int st_lsm6dsx_set_watermark(struct iio_dev *iio_dev, unsigned int val)
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 	int err;
 
-	if (val < 1 || val > hw->settings->fifo_ops.max_size)
-		return -EINVAL;
+	val = clamp_val(val, 1, hw->settings->fifo_ops.max_size);
 
 	mutex_lock(&hw->conf_lock);
 
@@ -1629,7 +1642,7 @@ st_lsm6dsx_sysfs_sampling_frequency_avail(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct st_lsm6dsx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dsx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	const struct st_lsm6dsx_odr_table_entry *odr_table;
 	int i, len = 0;
 
@@ -1647,7 +1660,7 @@ static ssize_t st_lsm6dsx_sysfs_scale_avail(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
-	struct st_lsm6dsx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dsx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	const struct st_lsm6dsx_fs_table_entry *fs_table;
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 	int i, len = 0;
@@ -2281,9 +2294,9 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 
 	return 0;
 }
-EXPORT_SYMBOL(st_lsm6dsx_probe);
+EXPORT_SYMBOL_NS(st_lsm6dsx_probe, IIO_LSM6DSX);
 
-static int __maybe_unused st_lsm6dsx_suspend(struct device *dev)
+static int st_lsm6dsx_suspend(struct device *dev)
 {
 	struct st_lsm6dsx_hw *hw = dev_get_drvdata(dev);
 	struct st_lsm6dsx_sensor *sensor;
@@ -2322,7 +2335,7 @@ static int __maybe_unused st_lsm6dsx_suspend(struct device *dev)
 	return err;
 }
 
-static int __maybe_unused st_lsm6dsx_resume(struct device *dev)
+static int st_lsm6dsx_resume(struct device *dev)
 {
 	struct st_lsm6dsx_hw *hw = dev_get_drvdata(dev);
 	struct st_lsm6dsx_sensor *sensor;
@@ -2358,10 +2371,8 @@ static int __maybe_unused st_lsm6dsx_resume(struct device *dev)
 	return err;
 }
 
-const struct dev_pm_ops st_lsm6dsx_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(st_lsm6dsx_suspend, st_lsm6dsx_resume)
-};
-EXPORT_SYMBOL(st_lsm6dsx_pm_ops);
+EXPORT_NS_SIMPLE_DEV_PM_OPS(st_lsm6dsx_pm_ops, st_lsm6dsx_suspend,
+			    st_lsm6dsx_resume, IIO_LSM6DSX);
 
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");

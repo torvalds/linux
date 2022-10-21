@@ -30,7 +30,7 @@ TRACE_EVENT(neigh_create,
 
 	TP_STRUCT__entry(
 		__field(u32, family)
-		__dynamic_array(char,  dev,   IFNAMSIZ )
+		__string(dev, dev ? dev->name : "NULL")
 		__field(int, entries)
 		__field(u8, created)
 		__field(u8, gc_exempt)

@@ -517,12 +517,6 @@ static const struct platform_device_id davinci_psc_id_table[] = {
 #ifdef CONFIG_ARCH_DAVINCI_DM365
 	{ .name = "dm365-psc",  .driver_data = (kernel_ulong_t)&dm365_psc_init_data  },
 #endif
-#ifdef CONFIG_ARCH_DAVINCI_DM644x
-	{ .name = "dm644x-psc", .driver_data = (kernel_ulong_t)&dm644x_psc_init_data },
-#endif
-#ifdef CONFIG_ARCH_DAVINCI_DM646x
-	{ .name = "dm646x-psc", .driver_data = (kernel_ulong_t)&dm646x_psc_init_data },
-#endif
 	{ }
 };
 

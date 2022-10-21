@@ -630,17 +630,23 @@ static int ttusb2_probe(struct usb_interface *intf,
 	return -ENODEV;
 }
 
-static struct usb_device_id ttusb2_table [] = {
-	{ USB_DEVICE(USB_VID_PINNACLE, USB_PID_PCTV_400E) },
-	{ USB_DEVICE(USB_VID_PINNACLE, USB_PID_PCTV_450E) },
-	{ USB_DEVICE(USB_VID_TECHNOTREND,
-		USB_PID_TECHNOTREND_CONNECT_S2400) },
-	{ USB_DEVICE(USB_VID_TECHNOTREND,
-		USB_PID_TECHNOTREND_CONNECT_CT3650) },
-	{ USB_DEVICE(USB_VID_TECHNOTREND,
-		USB_PID_TECHNOTREND_CONNECT_S2400_8KEEPROM) },
-	{}		/* Terminating entry */
+enum {
+	PINNACLE_PCTV_400E,
+	PINNACLE_PCTV_450E,
+	TECHNOTREND_CONNECT_S2400,
+	TECHNOTREND_CONNECT_CT3650,
+	TECHNOTREND_CONNECT_S2400_8KEEPROM,
 };
+
+static struct usb_device_id ttusb2_table[] = {
+	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV_400E),
+	DVB_USB_DEV(PINNACLE, PINNACLE_PCTV_450E),
+	DVB_USB_DEV(TECHNOTREND, TECHNOTREND_CONNECT_S2400),
+	DVB_USB_DEV(TECHNOTREND, TECHNOTREND_CONNECT_CT3650),
+	DVB_USB_DEV(TECHNOTREND, TECHNOTREND_CONNECT_S2400_8KEEPROM),
+	{ }
+};
+
 MODULE_DEVICE_TABLE (usb, ttusb2_table);
 
 static struct dvb_usb_device_properties ttusb2_properties = {
@@ -688,11 +694,11 @@ static struct dvb_usb_device_properties ttusb2_properties = {
 	.num_device_descs = 2,
 	.devices = {
 		{   "Pinnacle 400e DVB-S USB2.0",
-			{ &ttusb2_table[0], NULL },
+			{ &ttusb2_table[PINNACLE_PCTV_400E], NULL },
 			{ NULL },
 		},
 		{   "Pinnacle 450e DVB-S USB2.0",
-			{ &ttusb2_table[1], NULL },
+			{ &ttusb2_table[PINNACLE_PCTV_450E], NULL },
 			{ NULL },
 		},
 	}
@@ -743,11 +749,11 @@ static struct dvb_usb_device_properties ttusb2_properties_s2400 = {
 	.num_device_descs = 2,
 	.devices = {
 		{   "Technotrend TT-connect S-2400",
-			{ &ttusb2_table[2], NULL },
+			{ &ttusb2_table[TECHNOTREND_CONNECT_S2400], NULL },
 			{ NULL },
 		},
 		{   "Technotrend TT-connect S-2400 (8kB EEPROM)",
-			{ &ttusb2_table[4], NULL },
+			{ &ttusb2_table[TECHNOTREND_CONNECT_S2400_8KEEPROM], NULL },
 			{ NULL },
 		},
 	}
@@ -823,7 +829,7 @@ static struct dvb_usb_device_properties ttusb2_properties_ct3650 = {
 	.num_device_descs = 1,
 	.devices = {
 		{   "Technotrend TT-connect CT-3650",
-			.warm_ids = { &ttusb2_table[3], NULL },
+			.warm_ids = { &ttusb2_table[TECHNOTREND_CONNECT_CT3650], NULL },
 		},
 	}
 };

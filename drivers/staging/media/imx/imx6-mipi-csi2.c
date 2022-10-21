@@ -303,7 +303,6 @@ static void csi2ipu_gasket_init(struct csi2_dev *csi2)
 static int csi2_get_active_lanes(struct csi2_dev *csi2, unsigned int *lanes)
 {
 	struct v4l2_mbus_config mbus_config = { 0 };
-	unsigned int num_lanes = UINT_MAX;
 	int ret;
 
 	*lanes = csi2->data_lanes;
@@ -326,32 +325,14 @@ static int csi2_get_active_lanes(struct csi2_dev *csi2, unsigned int *lanes)
 		return -EINVAL;
 	}
 
-	switch (mbus_config.flags & V4L2_MBUS_CSI2_LANES) {
-	case V4L2_MBUS_CSI2_1_LANE:
-		num_lanes = 1;
-		break;
-	case V4L2_MBUS_CSI2_2_LANE:
-		num_lanes = 2;
-		break;
-	case V4L2_MBUS_CSI2_3_LANE:
-		num_lanes = 3;
-		break;
-	case V4L2_MBUS_CSI2_4_LANE:
-		num_lanes = 4;
-		break;
-	default:
-		num_lanes = csi2->data_lanes;
-		break;
-	}
-
-	if (num_lanes > csi2->data_lanes) {
+	if (mbus_config.bus.mipi_csi2.num_data_lanes > csi2->data_lanes) {
 		dev_err(csi2->dev,
 			"Unsupported mbus config: too many data lanes %u\n",
-			num_lanes);
+			mbus_config.bus.mipi_csi2.num_data_lanes);
 		return -EINVAL;
 	}
 
-	*lanes = num_lanes;
+	*lanes = mbus_config.bus.mipi_csi2.num_data_lanes;
 
 	return 0;
 }

@@ -91,13 +91,27 @@ struct clk_limit_table_entry {
 	unsigned int dispclk_mhz;
 	unsigned int dppclk_mhz;
 	unsigned int phyclk_mhz;
+	unsigned int phyclk_d18_mhz;
 	unsigned int wck_ratio;
+};
+
+struct clk_limit_num_entries {
+	unsigned int num_dcfclk_levels;
+	unsigned int num_fclk_levels;
+	unsigned int num_memclk_levels;
+	unsigned int num_socclk_levels;
+	unsigned int num_dtbclk_levels;
+	unsigned int num_dispclk_levels;
+	unsigned int num_dppclk_levels;
+	unsigned int num_phyclk_levels;
+	unsigned int num_phyclk_d18_levels;
 };
 
 /* This table is contiguous */
 struct clk_limit_table {
 	struct clk_limit_table_entry entries[MAX_NUM_DPM_LVL];
-	unsigned int num_entries;
+	struct clk_limit_num_entries num_entries_per_clk;
+	unsigned int num_entries; /* highest populated dpm level for back compatibility */
 };
 
 struct wm_range_table_entry {
@@ -124,6 +138,7 @@ struct nv_wm_range_entry {
 		double pstate_latency_us;
 		double sr_exit_time_us;
 		double sr_enter_plus_exit_time_us;
+		double fclk_change_latency_us;
 	} dml_input;
 };
 
@@ -141,6 +156,7 @@ struct clk_state_registers_and_bypass {
 	uint32_t dprefclk;
 	uint32_t dispclk;
 	uint32_t dppclk;
+	uint32_t dtbclk;
 
 	uint32_t dppclk_bypass;
 	uint32_t dcfclk_bypass;
@@ -205,12 +221,13 @@ struct wm_table {
 
 struct dummy_pstate_entry {
 	unsigned int dram_speed_mts;
-	unsigned int dummy_pstate_latency_us;
+	double dummy_pstate_latency_us;
 };
 
 struct clk_bw_params {
 	unsigned int vram_type;
 	unsigned int num_channels;
+	unsigned int dram_channel_width_bytes;
  	unsigned int dispclk_vco_khz;
 	unsigned int dc_mode_softmax_memclk;
 	struct clk_limit_table clk_table;
@@ -236,10 +253,14 @@ struct clk_mgr_funcs {
 			bool safe_to_lower);
 
 	int (*get_dp_ref_clk_frequency)(struct clk_mgr *clk_mgr);
+	int (*get_dtb_ref_clk_frequency)(struct clk_mgr *clk_mgr);
 
 	void (*set_low_power_state)(struct clk_mgr *clk_mgr);
 
 	void (*init_clocks)(struct clk_mgr *clk_mgr);
+
+	void (*dump_clk_registers)(struct clk_state_registers_and_bypass *regs_and_bypass,
+			struct clk_mgr *clk_mgr_base, struct clk_log_info *log_info);
 
 	void (*enable_pme_wa) (struct clk_mgr *clk_mgr);
 	void (*get_clock)(struct clk_mgr *clk_mgr,

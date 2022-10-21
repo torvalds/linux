@@ -34,6 +34,7 @@
 #define ECM_INT_LINK 0x00000020
 #define ECM_INT_TX_0 0x00000100
 #define ECM_INT_RX_0 0x00000200
+#define ECM_INT_TXRX_SHIFT 2
 #define ECM_INT_ALL 0x7FFFFFFF
 #define ECM_INT_DISABLE 0x80000000
 
@@ -42,6 +43,10 @@
 #define ECM_RESET_COMMON 0x00000001
 #define ECM_RESET_CHANNEL 0x00000100
 #define ECM_RESET_TXRX 0x00010000
+
+/* counter */
+#define ECM_COUNTER_LOW 0x0028
+#define ECM_COUNTER_HIGH 0x002C
 
 /* control and status */
 #define ECM_STATUS 0x0080
@@ -88,8 +93,7 @@
 
 /* tsnep register */
 #define TSNEP_INFO 0x0100
-#define TSNEP_INFO_RX_ASSIGN 0x00010000
-#define TSNEP_INFO_TX_TIME 0x00020000
+#define TSNEP_INFO_TX_TIME 0x00010000
 #define TSNEP_CONTROL 0x0108
 #define TSNEP_CONTROL_TX_RESET 0x00000001
 #define TSNEP_CONTROL_TX_ENABLE 0x00000002
@@ -118,10 +122,6 @@
 #define TSNEP_RX_STATISTIC_BUFFER_TOO_SMALL 0x0191
 #define TSNEP_RX_STATISTIC_FIFO_OVERFLOW 0x0192
 #define TSNEP_RX_STATISTIC_INVALID_FRAME 0x0193
-#define TSNEP_RX_ASSIGN 0x01A0
-#define TSNEP_RX_ASSIGN_ETHER_TYPE_ACTIVE 0x00000001
-#define TSNEP_RX_ASSIGN_ETHER_TYPE_MASK 0xFFFF0000
-#define TSNEP_RX_ASSIGN_ETHER_TYPE_SHIFT 16
 #define TSNEP_MAC_ADDRESS_LOW 0x0800
 #define TSNEP_MAC_ADDRESS_HIGH 0x0804
 #define TSNEP_RX_FILTER 0x0806
@@ -148,6 +148,14 @@
 #define TSNEP_GCL_A 0x2000
 #define TSNEP_GCL_B 0x2800
 #define TSNEP_GCL_SIZE SZ_2K
+#define TSNEP_RX_ASSIGN 0x0840
+#define TSNEP_RX_ASSIGN_ACTIVE 0x00000001
+#define TSNEP_RX_ASSIGN_QUEUE_MASK 0x00000006
+#define TSNEP_RX_ASSIGN_QUEUE_SHIFT 1
+#define TSNEP_RX_ASSIGN_OFFSET 1
+#define TSNEP_RX_ASSIGN_ETHER_TYPE 0x0880
+#define TSNEP_RX_ASSIGN_ETHER_TYPE_OFFSET 2
+#define TSNEP_RX_ASSIGN_ETHER_TYPE_COUNT 2
 
 /* tsnep gate control list operation */
 struct tsnep_gcl_operation {
@@ -190,7 +198,8 @@ struct tsnep_tx_desc {
 /* tsnep TX descriptor writeback */
 struct tsnep_tx_desc_wb {
 	__le32 properties;
-	__le32 reserved1[3];
+	__le32 reserved1;
+	__le64 counter;
 	__le64 timestamp;
 	__le32 dma_delay;
 	__le32 reserved2;
@@ -221,7 +230,7 @@ struct tsnep_rx_desc_wb {
 
 /* tsnep RX inline meta */
 struct tsnep_rx_inline {
-	__le64 reserved;
+	__le64 counter;
 	__le64 timestamp;
 };
 

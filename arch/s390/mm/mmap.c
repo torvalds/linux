@@ -37,7 +37,7 @@ static inline int mmap_is_legacy(struct rlimit *rlim_stack)
 
 unsigned long arch_mmap_rnd(void)
 {
-	return (get_random_int() & MMAP_RND_MASK) << PAGE_SHIFT;
+	return (get_random_u32() & MMAP_RND_MASK) << PAGE_SHIFT;
 }
 
 static unsigned long mmap_base_legacy(unsigned long rnd)
@@ -58,9 +58,9 @@ static inline unsigned long mmap_base(unsigned long rnd,
 
 	/*
 	 * Top of mmap area (just below the process stack).
-	 * Leave at least a ~32 MB hole.
+	 * Leave at least a ~128 MB hole.
 	 */
-	gap_min = 32 * 1024 * 1024UL;
+	gap_min = SZ_128M;
 	gap_max = (STACK_TOP / 6) * 5;
 
 	if (gap < gap_min)
@@ -188,3 +188,23 @@ void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
 	}
 }
+
+static const pgprot_t protection_map[16] = {
+	[VM_NONE]					= PAGE_NONE,
+	[VM_READ]					= PAGE_RO,
+	[VM_WRITE]					= PAGE_RO,
+	[VM_WRITE | VM_READ]				= PAGE_RO,
+	[VM_EXEC]					= PAGE_RX,
+	[VM_EXEC | VM_READ]				= PAGE_RX,
+	[VM_EXEC | VM_WRITE]				= PAGE_RX,
+	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_RX,
+	[VM_SHARED]					= PAGE_NONE,
+	[VM_SHARED | VM_READ]				= PAGE_RO,
+	[VM_SHARED | VM_WRITE]				= PAGE_RW,
+	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_RW,
+	[VM_SHARED | VM_EXEC]				= PAGE_RX,
+	[VM_SHARED | VM_EXEC | VM_READ]			= PAGE_RX,
+	[VM_SHARED | VM_EXEC | VM_WRITE]		= PAGE_RWX,
+	[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= PAGE_RWX
+};
+DECLARE_VM_GET_PAGE_PROT

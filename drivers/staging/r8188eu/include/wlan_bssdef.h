@@ -61,7 +61,7 @@ struct ndis_802_11_fixed_ie {
 struct ndis_802_11_var_ie {
 	u8  ElementID;
 	u8  Length;
-	u8  data[1];
+	u8  data[];
 };
 
 /*
@@ -131,10 +131,6 @@ struct ndis_802_11_assoc_info {
 	struct ndis_802_11_ai_resfi    ResponseFixedIEs;
 	u32  ResponseIELength;
 	u32  OffsetResponseIEs;
-};
-
-enum ndis_802_11_reload_def {
-	Ndis802_11ReloadWEPKeys
 };
 
 /*  Key mapping keys require a BSSID */

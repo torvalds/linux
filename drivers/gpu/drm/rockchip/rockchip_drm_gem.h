@@ -31,8 +31,9 @@ struct drm_gem_object *
 rockchip_gem_prime_import_sg_table(struct drm_device *dev,
 				   struct dma_buf_attachment *attach,
 				   struct sg_table *sg);
-int rockchip_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
-void rockchip_gem_prime_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map);
+int rockchip_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map);
+void rockchip_gem_prime_vunmap(struct drm_gem_object *obj,
+			       struct iosys_map *map);
 
 struct rockchip_gem_object *
 	rockchip_gem_create_object(struct drm_device *drm, unsigned int size,

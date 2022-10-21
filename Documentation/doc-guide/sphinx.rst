@@ -1,7 +1,8 @@
 .. _sphinxdoc:
 
-Introduction
-============
+=====================================
+Using Sphinx for kernel documentation
+=====================================
 
 The Linux kernel uses `Sphinx`_ to generate pretty documentation from
 `reStructuredText`_ files under ``Documentation``. To build the documentation in
@@ -47,10 +48,6 @@ or ``virtualenv``, depending on how your distribution packaged Python 3.
       on the Sphinx version, it should be installed separately,
       with ``pip install sphinx_rtd_theme``.
 
-   #) Some ReST pages contain math expressions. Due to the way Sphinx works,
-      those expressions are written using LaTeX notation. It needs texlive
-      installed with amsfonts and amsmath in order to evaluate them.
-
 In summary, if you want to install Sphinx version 2.4.4, you should do::
 
        $ virtualenv sphinx_2.4.4
@@ -84,6 +81,27 @@ For PDF and LaTeX output, you'll also need ``XeLaTeX`` version 3.14159265.
 Depending on the distribution, you may also need to install a series of
 ``texlive`` packages that provide the minimal set of functionalities
 required for ``XeLaTeX`` to work.
+
+Math Expressions in HTML
+------------------------
+
+Some ReST pages contain math expressions. Due to the way Sphinx works,
+those expressions are written using LaTeX notation.
+There are two options for Sphinx to render math expressions in html output.
+One is an extension called `imgmath`_ which converts math expressions into
+images and embeds them in html pages.
+The other is an extension called `mathjax`_ which delegates math rendering
+to JavaScript capable web browsers.
+The former was the only option for pre-6.1 kernel documentation and it
+requires quite a few texlive packages including amsfonts and amsmath among
+others.
+
+Since kernel release 6.1, html pages with math expressions can be built
+without installing any texlive packages. See `Choice of Math Renderer`_ for
+further info.
+
+.. _imgmath: https://www.sphinx-doc.org/en/master/usage/extensions/math.html#module-sphinx.ext.imgmath
+.. _mathjax: https://www.sphinx-doc.org/en/master/usage/extensions/math.html#module-sphinx.ext.mathjax
 
 .. _sphinx-pre-install:
 
@@ -131,7 +149,8 @@ format-specific subdirectories under ``Documentation/output``.
 To generate documentation, Sphinx (``sphinx-build``) must obviously be
 installed. For prettier HTML output, the Read the Docs Sphinx theme
 (``sphinx_rtd_theme``) is used if available. For PDF output you'll also need
-``XeLaTeX`` and ``convert(1)`` from ImageMagick (https://www.imagemagick.org).
+``XeLaTeX`` and ``convert(1)`` from ImageMagick
+(https://www.imagemagick.org).\ [#ink]_
 All of these are widely available and packaged in distributions.
 
 To pass extra options to Sphinx, you can use the ``SPHINXOPTS`` make
@@ -149,7 +168,50 @@ If the theme is not available, it will fall-back to the classic one.
 
 The Sphinx theme can be overridden by using the ``DOCS_THEME`` make variable.
 
+There is another make variable ``SPHINXDIRS``, which is useful when test
+building a subset of documentation.  For example, you can build documents
+under ``Documentation/doc-guide`` by running
+``make SPHINXDIRS=doc-guide htmldocs``.
+The documentation section of ``make help`` will show you the list of
+subdirectories you can specify.
+
 To remove the generated documentation, run ``make cleandocs``.
+
+.. [#ink] Having ``inkscape(1)`` from Inkscape (https://inkscape.org)
+	  as well would improve the quality of images embedded in PDF
+	  documents, especially for kernel releases 5.18 and later.
+
+Choice of Math Renderer
+-----------------------
+
+Since kernel release 6.1, mathjax works as a fallback math renderer for
+html output.\ [#sph1_8]_
+
+Math renderer is chosen depending on available commands as shown below:
+
+.. table:: Math Renderer Choices for HTML
+
+    ============= ================= ============
+    Math renderer Required commands Image format
+    ============= ================= ============
+    imgmath       latex, dvipng     PNG (raster)
+    mathjax
+    ============= ================= ============
+
+The choice can be overridden by setting an environment variable
+``SPHINX_IMGMATH`` as shown below:
+
+.. table:: Effect of Setting ``SPHINX_IMGMATH``
+
+    ====================== ========
+    Setting                Renderer
+    ====================== ========
+    ``SPHINX_IMGMATH=yes`` imgmath
+    ``SPHINX_IMGMATH=no``  mathjax
+    ====================== ========
+
+.. [#sph1_8] Fallback of math renderer requires Sphinx >=1.8.
+
 
 Writing Documentation
 =====================

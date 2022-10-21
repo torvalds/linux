@@ -25,6 +25,8 @@ properties:
       - fsl,imx6qp-pcie
       - fsl,imx7d-pcie
       - fsl,imx8mq-pcie
+      - fsl,imx8mm-pcie
+      - fsl,imx8mp-pcie
 
   reg:
     items:
@@ -142,6 +144,7 @@ properties:
     description: If present then the reset sequence using the GPIO
       specified in the "reset-gpio" property is reversed (H=reset state,
       L=operation state) (optional required).
+    type: boolean
 
   vpcie-supply:
     description: Should specify the regulator in charge of PCIe port power.
