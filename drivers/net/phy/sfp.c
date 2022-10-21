@@ -1761,7 +1761,8 @@ static int sfp_module_parse_power(struct sfp *sfp)
 	u32 power_mW = 1000;
 	bool supports_a2;
 
-	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_POWER_DECL))
+	if (sfp->id.ext.sff8472_compliance >= SFP_SFF8472_COMPLIANCE_REV10_2 &&
+	    sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_POWER_DECL))
 		power_mW = 1500;
 	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_HIGH_POWER_LEVEL))
 		power_mW = 2000;
