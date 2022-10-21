@@ -659,7 +659,6 @@ int
 nouveau_display_create(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nouveau_display *disp;
 	int ret;
 
