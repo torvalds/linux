@@ -1047,10 +1047,10 @@ static int s5p_mfc_mmap(struct file *file, struct vm_area_struct *vma)
 	int ret;
 
 	if (offset < DST_QUEUE_OFF_BASE) {
-		mfc_debug(2, "mmaping source\n");
+		mfc_debug(2, "mmapping source\n");
 		ret = vb2_mmap(&ctx->vq_src, vma);
 	} else {		/* capture */
-		mfc_debug(2, "mmaping destination\n");
+		mfc_debug(2, "mmapping destination\n");
 		vma->vm_pgoff -= (DST_QUEUE_OFF_BASE >> PAGE_SHIFT);
 		ret = vb2_mmap(&ctx->vq_dst, vma);
 	}
