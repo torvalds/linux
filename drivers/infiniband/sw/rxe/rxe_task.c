@@ -4,10 +4,6 @@
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  */
 
-#include <linux/kernel.h>
-#include <linux/interrupt.h>
-#include <linux/hardirq.h>
-
 #include "rxe.h"
 
 int __rxe_do_task(struct rxe_task *task)
