@@ -330,6 +330,21 @@ static int mtk_pconf_set_pull_select(struct mtk_pinctrl *pctl,
 		return -EINVAL;
 	}
 
+	if (pctl->devdata->mt8365_set_clr_mode) {
+		bit = pin & pctl->devdata->mode_mask;
+		reg_pullen = mtk_get_port(pctl, pin) +
+			pctl->devdata->pullen_offset;
+		reg_pullsel = mtk_get_port(pctl, pin) +
+			pctl->devdata->pullsel_offset;
+		ret = pctl->devdata->mt8365_set_clr_mode(mtk_get_regmap(pctl, pin),
+			bit, reg_pullen, reg_pullsel,
+			enable, isup);
+		if (ret)
+			return -EINVAL;
+
+		return 0;
+	}
+
 	bit = BIT(pin & pctl->devdata->mode_mask);
 	if (enable)
 		reg_pullen = SET_ADDR(mtk_get_port(pctl, pin) +
