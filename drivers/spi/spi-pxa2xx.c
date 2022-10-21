@@ -1462,8 +1462,11 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	const struct pci_device_id *pcidev_id = NULL;
 	enum pxa_ssp_type type = SSP_UNDEFINED;
 	const void *match;
+	bool is_lpss_priv;
 	int status;
 	u64 uid;
+
+	is_lpss_priv = platform_get_resource_byname(pdev, IORESOURCE_MEM, "lpss_priv");
 
 	if (pcidev)
 		pcidev_id = pci_match_id(pxa2xx_spi_pci_compound_match, pcidev);
@@ -1473,6 +1476,15 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 		type = (enum pxa_ssp_type)match;
 	else if (pcidev_id)
 		type = (enum pxa_ssp_type)pcidev_id->driver_data;
+	else if (is_lpss_priv) {
+		u32 value;
+
+		status = device_property_read_u32(dev, "intel,spi-pxa2xx-type", &value);
+		if (status)
+			return ERR_PTR(status);
+
+		type = (enum pxa_ssp_type)value;
+	}
 
 	/* Validate the SSP type correctness */
 	if (!(type > SSP_UNDEFINED && type < SSP_MAX))
