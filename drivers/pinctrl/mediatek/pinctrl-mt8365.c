@@ -416,6 +416,23 @@ static const struct mtk_pin_ies_smt_set mt8365_smt_set[] = {
 	MTK_PIN_IES_SMT_SPEC(144, 144, 0x480, 22),
 };
 
+static int mt8365_set_clr_mode(struct regmap *regmap,
+		unsigned int bit, unsigned int reg_pullen, unsigned int reg_pullsel,
+		bool enable, bool isup)
+{
+	int ret;
+
+	ret = regmap_update_bits(regmap, reg_pullen, BIT(bit), enable << bit);
+	if (ret)
+		return -EINVAL;
+
+	ret = regmap_update_bits(regmap, reg_pullsel, BIT(bit), isup << bit);
+	if (ret)
+		return -EINVAL;
+
+	return 0;
+}
+
 static const struct mtk_pinctrl_devdata mt8365_pinctrl_data = {
 	.pins = mtk_pins_mt8365,
 	.npins = ARRAY_SIZE(mtk_pins_mt8365),
@@ -431,6 +448,7 @@ static const struct mtk_pinctrl_devdata mt8365_pinctrl_data = {
 	.n_spec_pupd = ARRAY_SIZE(mt8365_spec_pupd),
 	.spec_pull_set = mtk_pctrl_spec_pull_set_samereg,
 	.spec_ies_smt_set = mtk_pconf_spec_set_ies_smt_range,
+	.mt8365_set_clr_mode = mt8365_set_clr_mode,
 	.dir_offset = 0x0140,
 	.dout_offset = 0x00A0,
 	.din_offset = 0x0000,
