@@ -24,7 +24,7 @@ int __rxe_do_task(struct rxe_task *task)
  * a second caller finds the task already running
  * but looks just after the last call to func
  */
-void rxe_do_task(struct tasklet_struct *t)
+static void do_task(struct tasklet_struct *t)
 {
 	int cont;
 	int ret;
@@ -96,7 +96,7 @@ int rxe_init_task(struct rxe_task *task, void *arg, int (*func)(void *))
 	task->func	= func;
 	task->destroyed	= false;
 
-	tasklet_setup(&task->tasklet, rxe_do_task);
+	tasklet_setup(&task->tasklet, do_task);
 
 	task->state = TASK_STATE_START;
 	spin_lock_init(&task->state_lock);
@@ -128,7 +128,7 @@ void rxe_run_task(struct rxe_task *task)
 	if (task->destroyed)
 		return;
 
-	rxe_do_task(&task->tasklet);
+	do_task(&task->tasklet);
 }
 
 void rxe_sched_task(struct rxe_task *task)

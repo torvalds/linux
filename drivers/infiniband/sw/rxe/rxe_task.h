@@ -44,14 +44,6 @@ void rxe_cleanup_task(struct rxe_task *task);
  */
 int __rxe_do_task(struct rxe_task *task);
 
-/*
- * common function called by any of the main tasklets
- * If there is any chance that there is additional
- * work to do someone must reschedule the task before
- * leaving
- */
-void rxe_do_task(struct tasklet_struct *t);
-
 void rxe_run_task(struct rxe_task *task);
 
 void rxe_sched_task(struct rxe_task *task);
