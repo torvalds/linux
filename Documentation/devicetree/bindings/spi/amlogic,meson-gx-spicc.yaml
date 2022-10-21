@@ -10,9 +10,6 @@ title: Amlogic Meson SPI Communication Controller
 maintainers:
   - Neil Armstrong <neil.armstrong@linaro.org>
 
-allOf:
-  - $ref: "spi-controller.yaml#"
-
 description: |
   The Meson SPICC is a generic SPI controller for general purpose Full-Duplex
   communications with dedicated 16 words RX/TX PIO FIFOs.
@@ -43,31 +40,53 @@ properties:
     minItems: 1
     maxItems: 2
 
-if:
-  properties:
-    compatible:
-      contains:
-        enum:
-          - amlogic,meson-g12a-spicc
+allOf:
+  - $ref: "spi-controller.yaml#"
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - amlogic,meson-g12a-spicc
 
-then:
-  properties:
-    clocks:
-      minItems: 2
+    then:
+      properties:
+        clocks:
+          minItems: 2
 
-    clock-names:
-      items:
-        - const: core
-        - const: pclk
+        clock-names:
+          items:
+            - const: core
+            - const: pclk
 
-else:
-  properties:
-    clocks:
-      maxItems: 1
+    else:
+      properties:
+        clocks:
+          maxItems: 1
 
-    clock-names:
-      items:
-        - const: core
+        clock-names:
+          items:
+            - const: core
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - amlogic,meson-gx-spicc
+
+    then:
+      properties:
+        pinctrl-0: true
+        pinctrl-1: true
+        pinctrl-2: true
+
+        pinctrl-names:
+          minItems: 1
+          items:
+            - const: default
+            - const: idle-high
+            - const: idle-low
 
 required:
   - compatible
