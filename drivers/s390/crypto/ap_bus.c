@@ -122,7 +122,13 @@ static struct hrtimer ap_poll_timer;
  * In LPAR poll with 4kHz frequency. Poll every 250000 nanoseconds.
  * If z/VM change to 1500000 nanoseconds to adjust to z/VM polling.
  */
-static unsigned long long poll_timeout = 250000;
+static unsigned long poll_high_timeout = 250000UL;
+
+/*
+ * Some state machine states only require a low frequency polling.
+ * We use 25 Hz frequency for these.
+ */
+static unsigned long poll_low_timeout = 40000000UL;
 
 /* Maximum domain id, if not given via qci */
 static int ap_max_domain_id = 15;
@@ -413,10 +419,13 @@ void ap_wait(enum ap_sm_wait wait)
 			break;
 		}
 		fallthrough;
-	case AP_SM_WAIT_TIMEOUT:
+	case AP_SM_WAIT_LOW_TIMEOUT:
+	case AP_SM_WAIT_HIGH_TIMEOUT:
 		spin_lock_bh(&ap_poll_timer_lock);
 		if (!hrtimer_is_queued(&ap_poll_timer)) {
-			hr_time = poll_timeout;
+			hr_time =
+				wait == AP_SM_WAIT_LOW_TIMEOUT ?
+				poll_low_timeout : poll_high_timeout;
 			hrtimer_forward_now(&ap_poll_timer, hr_time);
 			hrtimer_restart(&ap_poll_timer);
 		}
@@ -1270,11 +1279,14 @@ static ssize_t poll_thread_show(struct bus_type *bus, char *buf)
 static ssize_t poll_thread_store(struct bus_type *bus,
 				 const char *buf, size_t count)
 {
-	int flag, rc;
+	bool value;
+	int rc;
 
-	if (sscanf(buf, "%d\n", &flag) != 1)
-		return -EINVAL;
-	if (flag) {
+	rc = kstrtobool(buf, &value);
+	if (rc)
+		return rc;
+
+	if (value) {
 		rc = ap_poll_thread_start();
 		if (rc)
 			count = rc;
@@ -1288,21 +1300,25 @@ static BUS_ATTR_RW(poll_thread);
 
 static ssize_t poll_timeout_show(struct bus_type *bus, char *buf)
 {
-	return sysfs_emit(buf, "%llu\n", poll_timeout);
+	return sysfs_emit(buf, "%lu\n", poll_high_timeout);
 }
 
 static ssize_t poll_timeout_store(struct bus_type *bus, const char *buf,
 				  size_t count)
 {
-	unsigned long long time;
+	unsigned long value;
 	ktime_t hr_time;
+	int rc;
+
+	rc = kstrtoul(buf, 0, &value);
+	if (rc)
+		return rc;
 
 	/* 120 seconds = maximum poll interval */
-	if (sscanf(buf, "%llu\n", &time) != 1 || time < 1 ||
-	    time > 120000000000ULL)
+	if (value > 120000000000UL)
 		return -EINVAL;
-	poll_timeout = time;
-	hr_time = poll_timeout;
+	poll_high_timeout = value;
+	hr_time = poll_high_timeout;
 
 	spin_lock_bh(&ap_poll_timer_lock);
 	hrtimer_cancel(&ap_poll_timer);
@@ -2265,7 +2281,7 @@ static int __init ap_module_init(void)
 	 * If we are running under z/VM adjust polling to z/VM polling rate.
 	 */
 	if (MACHINE_IS_VM)
-		poll_timeout = 1500000;
+		poll_high_timeout = 1500000;
 	hrtimer_init(&ap_poll_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	ap_poll_timer.function = ap_poll_timeout;
 

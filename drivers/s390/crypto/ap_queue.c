@@ -221,7 +221,7 @@ static enum ap_sm_wait ap_sm_read(struct ap_queue *aq)
 	case AP_RESPONSE_NO_PENDING_REPLY:
 		if (aq->queue_count > 0)
 			return aq->interrupt ?
-				AP_SM_WAIT_INTERRUPT : AP_SM_WAIT_TIMEOUT;
+				AP_SM_WAIT_INTERRUPT : AP_SM_WAIT_HIGH_TIMEOUT;
 		aq->sm_state = AP_SM_STATE_IDLE;
 		return AP_SM_WAIT_NONE;
 	default:
@@ -277,10 +277,10 @@ static enum ap_sm_wait ap_sm_write(struct ap_queue *aq)
 	case AP_RESPONSE_Q_FULL:
 		aq->sm_state = AP_SM_STATE_QUEUE_FULL;
 		return aq->interrupt ?
-			AP_SM_WAIT_INTERRUPT : AP_SM_WAIT_TIMEOUT;
+			AP_SM_WAIT_INTERRUPT : AP_SM_WAIT_HIGH_TIMEOUT;
 	case AP_RESPONSE_RESET_IN_PROGRESS:
 		aq->sm_state = AP_SM_STATE_RESET_WAIT;
-		return AP_SM_WAIT_TIMEOUT;
+		return AP_SM_WAIT_LOW_TIMEOUT;
 	case AP_RESPONSE_INVALID_DOMAIN:
 		AP_DBF_WARN("%s RESPONSE_INVALID_DOMAIN on NQAP\n", __func__);
 		fallthrough;
@@ -328,7 +328,7 @@ static enum ap_sm_wait ap_sm_reset(struct ap_queue *aq)
 	case AP_RESPONSE_RESET_IN_PROGRESS:
 		aq->sm_state = AP_SM_STATE_RESET_WAIT;
 		aq->interrupt = false;
-		return AP_SM_WAIT_TIMEOUT;
+		return AP_SM_WAIT_LOW_TIMEOUT;
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
 		aq->last_err_rc = status.response_code;
@@ -368,7 +368,7 @@ static enum ap_sm_wait ap_sm_reset_wait(struct ap_queue *aq)
 		return AP_SM_WAIT_AGAIN;
 	case AP_RESPONSE_BUSY:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
-		return AP_SM_WAIT_TIMEOUT;
+		return AP_SM_WAIT_LOW_TIMEOUT;
 	case AP_RESPONSE_Q_NOT_AVAIL:
 	case AP_RESPONSE_DECONFIGURED:
 	case AP_RESPONSE_CHECKSTOPPED:
@@ -412,7 +412,7 @@ static enum ap_sm_wait ap_sm_setirq_wait(struct ap_queue *aq)
 			return AP_SM_WAIT_AGAIN;
 		fallthrough;
 	case AP_RESPONSE_NO_PENDING_REPLY:
-		return AP_SM_WAIT_TIMEOUT;
+		return AP_SM_WAIT_LOW_TIMEOUT;
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
 		aq->last_err_rc = status.response_code;

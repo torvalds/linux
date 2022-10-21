@@ -108,10 +108,11 @@ enum ap_sm_event {
  * AP queue state wait behaviour
  */
 enum ap_sm_wait {
-	AP_SM_WAIT_AGAIN = 0,	/* retry immediately */
-	AP_SM_WAIT_TIMEOUT,	/* wait for timeout */
-	AP_SM_WAIT_INTERRUPT,	/* wait for thin interrupt (if available) */
-	AP_SM_WAIT_NONE,	/* no wait */
+	AP_SM_WAIT_AGAIN = 0,	 /* retry immediately */
+	AP_SM_WAIT_HIGH_TIMEOUT, /* poll high freq, wait for timeout */
+	AP_SM_WAIT_LOW_TIMEOUT,	 /* poll low freq, wait for timeout */
+	AP_SM_WAIT_INTERRUPT,	 /* wait for thin interrupt (if available) */
+	AP_SM_WAIT_NONE,	 /* no wait */
 	NR_AP_SM_WAIT
 };
 
