@@ -1137,6 +1137,10 @@ int st_lsm6dso16is_probe(struct device *dev, int irq, struct regmap *regmap)
 			return err;
 	}
 
+	err = st_lsm6dso16is_allocate_buffers(hw);
+	if (err < 0)
+		return err;
+
 	for (i = 0; i < ARRAY_SIZE(st_lsm6dso16is_main_sensor_list); i++) {
 		enum st_lsm6dso16is_sensor_id id = st_lsm6dso16is_main_sensor_list[i];
 

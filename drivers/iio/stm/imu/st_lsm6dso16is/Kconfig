@@ -4,6 +4,7 @@ config IIO_ST_LSM6DSO16IS
 	tristate "STMicroelectronics LSM6DSO16IS sensor"
 	depends on (I2C || SPI)
 	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	select IIO_ST_LSM6DSO16IS_I2C if (I2C)
 	select IIO_ST_LSM6DSO16IS_SPI if (SPI_MASTER)
 	help

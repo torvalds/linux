@@ -200,6 +200,15 @@ static const enum st_lsm6dso16is_sensor_id st_lsm6dso16is_main_sensor_list[] = {
 	[4] = ST_LSM6DSO16IS_ID_EXT1,
 };
 
+static const enum st_lsm6dso16is_sensor_id
+st_lsm6dso16is_triggered_main_sensor_list[] = {
+	[0] = ST_LSM6DSO16IS_ID_GYRO,
+	[1] = ST_LSM6DSO16IS_ID_ACC,
+	[2] = ST_LSM6DSO16IS_ID_TEMP,
+	[3] = ST_LSM6DSO16IS_ID_EXT0,
+	[4] = ST_LSM6DSO16IS_ID_EXT1,
+};
+
 struct st_lsm6dso16is_ext_dev_info {
 	const struct st_lsm6dso16is_ext_dev_settings *ext_dev_settings;
 	u8 ext_dev_i2c_addr;
@@ -328,4 +337,7 @@ int st_lsm6dso16is_sensor_set_enable(struct st_lsm6dso16is_sensor *sensor,
 int st_lsm6dso16is_shub_probe(struct st_lsm6dso16is_hw *hw);
 int st_lsm6dso16is_shub_set_enable(struct st_lsm6dso16is_sensor *sensor,
 				   bool enable);
+int st_lsm6dso16is_shub_read(struct st_lsm6dso16is_sensor *sensor,
+			     u8 addr, u8 *data, int len);
+int st_lsm6dso16is_allocate_buffers(struct st_lsm6dso16is_hw *hw);
 #endif /* ST_LSM6DSO16IS_H */
