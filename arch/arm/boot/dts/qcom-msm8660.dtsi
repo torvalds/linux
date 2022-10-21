@@ -496,7 +496,7 @@
 				clock-names = "pxo";
 			};
 
-			pm8901-regulators {
+			regulators-0 {
 				compatible = "qcom,rpm-pm8901-regulators";
 
 				pm8901_l0: l0 {};
@@ -520,7 +520,7 @@
 				pm8901_mvs: mvs {};
 			};
 
-			pm8058-regulators {
+			regulators-1 {
 				compatible = "qcom,rpm-pm8058-regulators";
 
 				pm8058_l0: l0 {};
