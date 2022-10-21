@@ -482,11 +482,9 @@ static int ccwchain_loop_tic(struct ccwchain *chain, struct channel_program *cp)
 	return 0;
 }
 
-static int ccwchain_fetch_tic(struct ccwchain *chain,
-			      int idx,
+static int ccwchain_fetch_tic(struct ccw1 *ccw,
 			      struct channel_program *cp)
 {
-	struct ccw1 *ccw = chain->ch_ccw + idx;
 	struct ccwchain *iter;
 	u32 ccw_head;
 
@@ -502,22 +500,18 @@ static int ccwchain_fetch_tic(struct ccwchain *chain,
 	return -EFAULT;
 }
 
-static int ccwchain_fetch_direct(struct ccwchain *chain,
-				 int idx,
-				 struct channel_program *cp)
+static int ccwchain_fetch_ccw(struct ccw1 *ccw,
+			      struct page_array *pa,
+			      struct channel_program *cp)
 {
 	struct vfio_device *vdev =
 		&container_of(cp, struct vfio_ccw_private, cp)->vdev;
-	struct ccw1 *ccw;
-	struct page_array *pa;
 	u64 iova;
 	unsigned long *idaws;
 	int ret;
 	int bytes = 1;
 	int idaw_nr, idal_len;
 	int i;
-
-	ccw = chain->ch_ccw + idx;
 
 	if (ccw->count)
 		bytes = ccw->count;
@@ -548,7 +542,6 @@ static int ccwchain_fetch_direct(struct ccwchain *chain,
 	 * required for the data transfer, since we only only support
 	 * 4K IDAWs today.
 	 */
-	pa = chain->ch_pa + idx;
 	ret = page_array_alloc(pa, iova, bytes);
 	if (ret < 0)
 		goto out_free_idaws;
@@ -604,16 +597,15 @@ out_init:
  * and to get rid of the cda 2G limitiaion of ccw1, we'll translate
  * direct ccws to idal ccws.
  */
-static int ccwchain_fetch_one(struct ccwchain *chain,
-			      int idx,
+static int ccwchain_fetch_one(struct ccw1 *ccw,
+			      struct page_array *pa,
 			      struct channel_program *cp)
+
 {
-	struct ccw1 *ccw = chain->ch_ccw + idx;
-
 	if (ccw_is_tic(ccw))
-		return ccwchain_fetch_tic(chain, idx, cp);
+		return ccwchain_fetch_tic(ccw, cp);
 
-	return ccwchain_fetch_direct(chain, idx, cp);
+	return ccwchain_fetch_ccw(ccw, pa, cp);
 }
 
 /**
@@ -736,6 +728,8 @@ void cp_free(struct channel_program *cp)
 int cp_prefetch(struct channel_program *cp)
 {
 	struct ccwchain *chain;
+	struct ccw1 *ccw;
+	struct page_array *pa;
 	int len, idx, ret;
 
 	/* this is an error in the caller */
@@ -745,7 +739,10 @@ int cp_prefetch(struct channel_program *cp)
 	list_for_each_entry(chain, &cp->ccwchain_list, next) {
 		len = chain->ch_len;
 		for (idx = 0; idx < len; idx++) {
-			ret = ccwchain_fetch_one(chain, idx, cp);
+			ccw = chain->ch_ccw + idx;
+			pa = chain->ch_pa + idx;
+
+			ret = ccwchain_fetch_one(ccw, pa, cp);
 			if (ret)
 				goto out_err;
 		}
