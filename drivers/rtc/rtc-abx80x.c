@@ -673,13 +673,28 @@ static int abx80x_setup_watchdog(struct abx80x_priv *priv)
 }
 #endif
 
-static int abx80x_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static const struct i2c_device_id abx80x_id[] = {
+	{ "abx80x", ABX80X },
+	{ "ab0801", AB0801 },
+	{ "ab0803", AB0803 },
+	{ "ab0804", AB0804 },
+	{ "ab0805", AB0805 },
+	{ "ab1801", AB1801 },
+	{ "ab1803", AB1803 },
+	{ "ab1804", AB1804 },
+	{ "ab1805", AB1805 },
+	{ "rv1805", RV1805 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, abx80x_id);
+
+static int abx80x_probe(struct i2c_client *client)
 {
 	struct device_node *np = client->dev.of_node;
 	struct abx80x_priv *priv;
 	int i, data, err, trickle_cfg = -EINVAL;
 	char buf[7];
+	const struct i2c_device_id *id = i2c_match_id(abx80x_id, client);
 	unsigned int part = id->driver_data;
 	unsigned int partnumber;
 	unsigned int majrev, minrev;
@@ -847,21 +862,6 @@ static int abx80x_probe(struct i2c_client *client,
 	return devm_rtc_register_device(priv->rtc);
 }
 
-static const struct i2c_device_id abx80x_id[] = {
-	{ "abx80x", ABX80X },
-	{ "ab0801", AB0801 },
-	{ "ab0803", AB0803 },
-	{ "ab0804", AB0804 },
-	{ "ab0805", AB0805 },
-	{ "ab1801", AB1801 },
-	{ "ab1803", AB1803 },
-	{ "ab1804", AB1804 },
-	{ "ab1805", AB1805 },
-	{ "rv1805", RV1805 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, abx80x_id);
-
 #ifdef CONFIG_OF
 static const struct of_device_id abx80x_of_match[] = {
 	{
@@ -914,7 +914,7 @@ static struct i2c_driver abx80x_driver = {
 		.name	= "rtc-abx80x",
 		.of_match_table = of_match_ptr(abx80x_of_match),
 	},
-	.probe		= abx80x_probe,
+	.probe_new	= abx80x_probe,
 	.id_table	= abx80x_id,
 };
 
