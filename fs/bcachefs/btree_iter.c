@@ -1167,10 +1167,12 @@ static void btree_path_copy(struct btree_trans *trans, struct btree_path *dst,
 	       (void *) src + offset,
 	       sizeof(struct btree_path) - offset);
 
-	for (i = 0; i < BTREE_MAX_DEPTH; i++)
-		if (btree_node_locked(dst, i))
-			six_lock_increment(&dst->l[i].b->c.lock,
-					   __btree_lock_want(dst, i));
+	for (i = 0; i < BTREE_MAX_DEPTH; i++) {
+		unsigned t = btree_node_locked_type(dst, i);
+
+		if (t != BTREE_NODE_UNLOCKED)
+			six_lock_increment(&dst->l[i].b->c.lock, t);
+	}
 
 	trans->paths_sorted = false;
 }
@@ -2631,7 +2633,7 @@ static inline void __bch2_trans_iter_init(struct btree_trans *trans,
 					  unsigned depth,
 					  unsigned flags)
 {
-	if (trans->restarted)
+	if (unlikely(trans->restarted))
 		panic("bch2_trans_iter_init(): in transaction restart, %s by %pS\n",
 		      bch2_err_str(trans->restarted),
 		      (void *) trans->last_restarted_ip);
