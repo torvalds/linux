@@ -224,6 +224,7 @@ static int sfctemp_read(struct device *dev, enum hwmon_sensor_types type,
 			pm_runtime_put(dev);
 			return ret;
 		}
+		pm_runtime_put(dev);
 		return -EINVAL;
 	default:
 		pm_runtime_put(dev);
