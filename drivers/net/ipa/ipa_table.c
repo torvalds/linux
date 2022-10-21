@@ -567,7 +567,7 @@ void ipa_table_config(struct ipa *ipa)
 }
 
 /* Zero modem_route_count means filter table memory check */
-static bool ipa_table_mem_valid(struct ipa *ipa, bool modem_route_count)
+bool ipa_table_mem_valid(struct ipa *ipa, bool modem_route_count)
 {
 	bool hash_support = ipa_table_hash_support(ipa);
 	bool filter = !modem_route_count;
@@ -687,11 +687,6 @@ int ipa_table_init(struct ipa *ipa)
 	size_t size;
 
 	ipa_table_validate_build();
-
-	if (!ipa_table_mem_valid(ipa, 0))
-		return -EINVAL;
-	if (!ipa_table_mem_valid(ipa, IPA_ROUTE_MODEM_COUNT))
-		return -EINVAL;
 
 	/* The IPA hardware requires route and filter table rules to be
 	 * aligned on a 128-byte boundary.  We put the "zero rule" at the

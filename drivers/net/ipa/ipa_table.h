@@ -78,4 +78,11 @@ int ipa_table_init(struct ipa *ipa);
  */
 void ipa_table_exit(struct ipa *ipa);
 
+/**
+ * ipa_table_mem_valid() - Validate sizes of table memory regions
+ * @ipa:	IPA pointer
+ * @modem_route_count:	Number of modem route table entries
+ */
+bool ipa_table_mem_valid(struct ipa *ipa, bool modem_route_count);
+
 #endif /* _IPA_TABLE_H_ */
