@@ -198,7 +198,7 @@ static inline void kset_put(struct kset *k)
 	kobject_put(&k->kobj);
 }
 
-static inline const struct kobj_type *get_ktype(struct kobject *kobj)
+static inline const struct kobj_type *get_ktype(const struct kobject *kobj)
 {
 	return kobj->ktype;
 }
