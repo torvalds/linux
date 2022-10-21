@@ -134,9 +134,25 @@ static void ipa_table_validate_build(void)
 	BUILD_BUG_ON(IPA_ROUTE_COUNT_MAX > 32);
 	/* The modem must be allotted at least one route table entry */
 	BUILD_BUG_ON(!IPA_ROUTE_MODEM_COUNT);
-	/* But it can't have more than what is available */
-	BUILD_BUG_ON(IPA_ROUTE_MODEM_COUNT > IPA_ROUTE_COUNT_MAX);
+	/* AP must too, but we can't use more than what is available */
+	BUILD_BUG_ON(IPA_ROUTE_MODEM_COUNT >= IPA_ROUTE_COUNT_MAX);
+}
 
+static const struct ipa_mem *
+ipa_table_mem(struct ipa *ipa, bool filter, bool hashed, bool ipv6)
+{
+	enum ipa_mem_id mem_id;
+
+	mem_id = filter ? hashed ? ipv6 ? IPA_MEM_V6_FILTER_HASHED
+					: IPA_MEM_V4_FILTER_HASHED
+				 : ipv6 ? IPA_MEM_V6_FILTER
+					: IPA_MEM_V4_FILTER
+			: hashed ? ipv6 ? IPA_MEM_V6_ROUTE_HASHED
+					: IPA_MEM_V4_ROUTE_HASHED
+				 : ipv6 ? IPA_MEM_V6_ROUTE
+					: IPA_MEM_V4_ROUTE;
+
+	return ipa_mem_find(ipa, mem_id);
 }
 
 static bool
@@ -604,8 +620,77 @@ void ipa_table_config(struct ipa *ipa)
 	ipa_route_config(ipa, true);
 }
 
-/*
- * Initialize a coherent DMA allocation containing initialized filter and
+/* Zero modem_route_count means filter table memory check */
+static bool ipa_table_mem_valid(struct ipa *ipa, bool modem_route_count)
+{
+	bool hash_support = ipa_table_hash_support(ipa);
+	bool filter = !modem_route_count;
+	const struct ipa_mem *mem_hashed;
+	const struct ipa_mem *mem_ipv4;
+	const struct ipa_mem *mem_ipv6;
+	u32 count;
+
+	/* IPv4 and IPv6 non-hashed tables are expected to be defined and
+	 * have the same size.  Both must have at least two entries (and
+	 * would normally have more than that).
+	 */
+	mem_ipv4 = ipa_table_mem(ipa, filter, false, false);
+	if (!mem_ipv4)
+		return false;
+
+	mem_ipv6 = ipa_table_mem(ipa, filter, false, true);
+	if (!mem_ipv6)
+		return false;
+
+	if (mem_ipv4->size != mem_ipv6->size)
+		return false;
+
+	/* Make sure the regions are big enough */
+	count = mem_ipv4->size / sizeof(__le64);
+	if (count < 2)
+		return false;
+	if (filter) {
+		/* Filter tables must able to hold the endpoint bitmap plus
+		 * an entry for each endpoint that supports filtering
+		 */
+		if (count < 1 + hweight32(ipa->filter_map))
+			return false;
+	} else {
+		/* Routing tables must be able to hold all modem entries,
+		 * plus at least one entry for the AP.
+		 */
+		if (count < modem_route_count + 1)
+			return false;
+	}
+
+	/* If hashing is supported, hashed tables are expected to be defined,
+	 * and have the same size as non-hashed tables.  If hashing is not
+	 * supported, hashed tables are expected to have zero size (or not
+	 * be defined).
+	 */
+	mem_hashed = ipa_table_mem(ipa, filter, true, false);
+	if (hash_support) {
+		if (!mem_hashed || mem_hashed->size != mem_ipv4->size)
+			return false;
+	} else {
+		if (mem_hashed && mem_hashed->size)
+			return false;
+	}
+
+	/* Same check for IPv6 tables */
+	mem_hashed = ipa_table_mem(ipa, filter, true, true);
+	if (hash_support) {
+		if (!mem_hashed || mem_hashed->size != mem_ipv6->size)
+			return false;
+	} else {
+		if (mem_hashed && mem_hashed->size)
+			return false;
+	}
+
+	return true;
+}
+
+/* Initialize a coherent DMA allocation containing initialized filter and
  * route table data.  This is used when initializing or resetting the IPA
  * filter or route table.
  *
@@ -652,6 +737,11 @@ int ipa_table_init(struct ipa *ipa)
 	size_t size;
 
 	ipa_table_validate_build();
+
+	if (!ipa_table_mem_valid(ipa, 0))
+		return -EINVAL;
+	if (!ipa_table_mem_valid(ipa, IPA_ROUTE_MODEM_COUNT))
+		return -EINVAL;
 
 	/* The IPA hardware requires route and filter table rules to be
 	 * aligned on a 128-byte boundary.  We put the "zero rule" at the
