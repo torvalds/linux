@@ -1837,31 +1837,14 @@ static int sfp_module_parse_power(struct sfp *sfp)
 
 static int sfp_sm_mod_hpower(struct sfp *sfp, bool enable)
 {
-	u8 val;
 	int err;
 
-	err = sfp_read(sfp, true, SFP_EXT_STATUS, &val, sizeof(val));
-	if (err != sizeof(val)) {
-		dev_err(sfp->dev, "Failed to read EEPROM: %pe\n", ERR_PTR(err));
-		return -EAGAIN;
-	}
-
-	/* DM7052 reports as a high power module, responds to reads (with
-	 * all bytes 0xff) at 0x51 but does not accept writes.  In any case,
-	 * if the bit is already set, we're already in high power mode.
-	 */
-	if (!!(val & SFP_EXT_STATUS_PWRLVL_SELECT) == enable)
-		return 0;
-
-	if (enable)
-		val |= SFP_EXT_STATUS_PWRLVL_SELECT;
-	else
-		val &= ~SFP_EXT_STATUS_PWRLVL_SELECT;
-
-	err = sfp_write(sfp, true, SFP_EXT_STATUS, &val, sizeof(val));
-	if (err != sizeof(val)) {
-		dev_err(sfp->dev, "Failed to write EEPROM: %pe\n",
-			ERR_PTR(err));
+	err = sfp_modify_u8(sfp, true, SFP_EXT_STATUS,
+			    SFP_EXT_STATUS_PWRLVL_SELECT,
+			    enable ? SFP_EXT_STATUS_PWRLVL_SELECT : 0);
+	if (err != sizeof(u8)) {
+		dev_err(sfp->dev, "failed to %sable high power: %pe\n",
+			enable ? "en" : "dis", ERR_PTR(err));
 		return -EAGAIN;
 	}
 
