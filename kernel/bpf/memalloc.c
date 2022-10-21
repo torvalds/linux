@@ -418,14 +418,17 @@ static void drain_mem_cache(struct bpf_mem_cache *c)
 	/* No progs are using this bpf_mem_cache, but htab_map_free() called
 	 * bpf_mem_cache_free() for all remaining elements and they can be in
 	 * free_by_rcu or in waiting_for_gp lists, so drain those lists now.
+	 *
+	 * Except for waiting_for_gp list, there are no concurrent operations
+	 * on these lists, so it is safe to use __llist_del_all().
 	 */
 	llist_for_each_safe(llnode, t, __llist_del_all(&c->free_by_rcu))
 		free_one(c, llnode);
 	llist_for_each_safe(llnode, t, llist_del_all(&c->waiting_for_gp))
 		free_one(c, llnode);
-	llist_for_each_safe(llnode, t, llist_del_all(&c->free_llist))
+	llist_for_each_safe(llnode, t, __llist_del_all(&c->free_llist))
 		free_one(c, llnode);
-	llist_for_each_safe(llnode, t, llist_del_all(&c->free_llist_extra))
+	llist_for_each_safe(llnode, t, __llist_del_all(&c->free_llist_extra))
 		free_one(c, llnode);
 }
 
