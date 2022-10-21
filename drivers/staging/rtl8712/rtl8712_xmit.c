@@ -601,7 +601,7 @@ int r8712_xmitframe_complete(struct _adapter *padapter,
 #ifdef CONFIG_R8712_TX_AGGR
 	struct xmit_frame *p2ndxmitframe = NULL;
 #else
-	int res = _SUCCESS, xcnt = 0;
+	int res = _SUCCESS;
 #endif
 
 	phwxmits = pxmitpriv->hwxmits;
@@ -673,7 +673,6 @@ int r8712_xmitframe_complete(struct _adapter *padapter,
 			dump_xframe(padapter, pxmitframe);
 		else
 			r8712_free_xmitframe_ex(pxmitpriv, pxmitframe);
-		xcnt++;
 #endif
 
 	} else { /* pxmitframe == NULL && p2ndxmitframe == NULL */
