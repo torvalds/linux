@@ -42,7 +42,6 @@ struct ccwchain {
 /*
  * page_array_alloc() - alloc memory for page array
  * @pa: page_array on which to perform the operation
- * @iova: target guest physical address
  * @len: number of pages that should be pinned from @iova
  *
  * Attempt to allocate memory for page array.
@@ -56,10 +55,8 @@ struct ccwchain {
  *   -EINVAL if pa->pa_nr is not initially zero, or pa->pa_iova is not NULL
  *   -ENOMEM if alloc failed
  */
-static int page_array_alloc(struct page_array *pa, u64 iova, unsigned int len)
+static int page_array_alloc(struct page_array *pa, unsigned int len)
 {
-	int i;
-
 	if (pa->pa_nr || pa->pa_iova)
 		return -EINVAL;
 
@@ -76,13 +73,6 @@ static int page_array_alloc(struct page_array *pa, u64 iova, unsigned int len)
 	if (!pa->pa_page) {
 		kfree(pa->pa_iova);
 		return -ENOMEM;
-	}
-
-	pa->pa_iova[0] = iova;
-	pa->pa_page[0] = NULL;
-	for (i = 1; i < pa->pa_nr; i++) {
-		pa->pa_iova[i] = pa->pa_iova[i - 1] + PAGE_SIZE;
-		pa->pa_page[i] = NULL;
 	}
 
 	return 0;
@@ -548,7 +538,7 @@ static int ccwchain_fetch_ccw(struct ccw1 *ccw,
 	 * required for the data transfer, since we only only support
 	 * 4K IDAWs today.
 	 */
-	ret = page_array_alloc(pa, iova, idaw_nr);
+	ret = page_array_alloc(pa, idaw_nr);
 	if (ret < 0)
 		goto out_free_idaws;
 
@@ -565,11 +555,9 @@ static int ccwchain_fetch_ccw(struct ccw1 *ccw,
 		for (i = 0; i < idaw_nr; i++)
 			pa->pa_iova[i] = idaws[i];
 	} else {
-		/*
-		 * No action is required here; the iova addresses in page_array
-		 * were initialized sequentially in page_array_alloc() beginning
-		 * with the contents of ccw->cda.
-		 */
+		pa->pa_iova[0] = iova;
+		for (i = 1; i < pa->pa_nr; i++)
+			pa->pa_iova[i] = pa->pa_iova[i - 1] + PAGE_SIZE;
 	}
 
 	if (ccw_does_data_transfer(ccw)) {
