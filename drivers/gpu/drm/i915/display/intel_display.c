@@ -5939,6 +5939,7 @@ int intel_modeset_all_pipes(struct intel_atomic_state *state,
 			    crtc->base.base.id, crtc->base.name, reason);
 
 		crtc_state->uapi.mode_changed = true;
+		crtc_state->update_pipe = false;
 
 		ret = drm_atomic_add_affected_connectors(&state->base,
 							 &crtc->base);
@@ -6114,7 +6115,8 @@ static void intel_crtc_check_fastset(const struct intel_crtc_state *old_crtc_sta
 		return;
 
 	new_crtc_state->uapi.mode_changed = false;
-	new_crtc_state->update_pipe = true;
+	if (!intel_crtc_needs_modeset(new_crtc_state))
+		new_crtc_state->update_pipe = true;
 }
 
 static int intel_crtc_add_planes_to_state(struct intel_atomic_state *state,
@@ -6889,6 +6891,11 @@ static int intel_atomic_check(struct drm_device *dev,
 		ret = intel_async_flip_check_hw(state, crtc);
 		if (ret)
 			goto fail;
+
+		/* Either full modeset or fastset (or neither), never both */
+		drm_WARN_ON(&dev_priv->drm,
+			    intel_crtc_needs_modeset(new_crtc_state) &&
+			    intel_crtc_needs_fastset(new_crtc_state));
 
 		if (!intel_crtc_needs_modeset(new_crtc_state) &&
 		    !intel_crtc_needs_fastset(new_crtc_state))
