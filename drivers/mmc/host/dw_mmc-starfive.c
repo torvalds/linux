@@ -193,27 +193,89 @@ static const struct dw_mci_drv_data starfive_data = {
 	.switch_voltage  = dw_mci_starfive_switch_voltage,
 };
 
+static const struct of_device_id dw_mci_starfive_match[] = {
+	{ .compatible = "starfive,jh7110-sdio",
+		.data = &starfive_data },
+	{},
+};
+MODULE_DEVICE_TABLE(of, dw_mci_starfive_match);
+
 static int dw_mci_starfive_probe(struct platform_device *pdev)
 {
-	return dw_mci_pltfm_register(pdev, &starfive_data);
+	const struct dw_mci_drv_data *drv_data;
+	const struct of_device_id *match;
+	int ret;
+
+	match = of_match_node(dw_mci_starfive_match, pdev->dev.of_node);
+	drv_data = match->data;
+
+	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
+	ret = dw_mci_pltfm_register(pdev, drv_data);
+	if (ret) {
+		pm_runtime_disable(&pdev->dev);
+		pm_runtime_set_suspended(&pdev->dev);
+		pm_runtime_put_noidle(&pdev->dev);
+
+		return ret;
+	}
+
+	return 0;
 }
 
 static int dw_mci_starfive_remove(struct platform_device *pdev)
 {
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_put_noidle(&pdev->dev);
+
 	return dw_mci_pltfm_remove(pdev);
 }
 
-static const struct of_device_id dw_mci_starfive_match[] = {
-	{ .compatible = "starfive,jh7110-sdio", },
-	{},
-};
+#ifdef CONFIG_PM
+static int dw_mci_starfive_runtime_suspend(struct device *dev)
+{
+	struct dw_mci *host = dev_get_drvdata(dev);
 
-MODULE_DEVICE_TABLE(of, dw_mci_starfive_match);
+	clk_disable_unprepare(host->biu_clk);
+	clk_disable_unprepare(host->ciu_clk);
+
+	return 0;
+}
+
+static int dw_mci_starfive_runtime_resume(struct device *dev)
+{
+	struct dw_mci *host = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(host->biu_clk);
+	if (ret) {
+		dev_err(host->dev, "Failed to prepare_enable biu_clk clock\n");
+		return ret;
+	}
+
+	ret = clk_prepare_enable(host->ciu_clk);
+	if (ret) {
+		dev_err(host->dev, "Failed to prepare_enable ciu_clk clock\n");
+		return ret;
+	}
+
+	return 0;
+}
+#endif
+
+static UNIVERSAL_DEV_PM_OPS(dw_mci_starfive_pm_ops,
+				dw_mci_starfive_runtime_suspend,
+				dw_mci_starfive_runtime_resume, NULL);
+
 static struct platform_driver dw_mci_starfive_driver = {
 	.probe = dw_mci_starfive_probe,
 	.remove = dw_mci_starfive_remove,
 	.driver = {
 		.name = "dwmmc_starfive",
+		.pm   = &dw_mci_starfive_pm_ops,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = dw_mci_starfive_match,
 	},
