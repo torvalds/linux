@@ -106,12 +106,6 @@
  *                 ----------------------
  */
 
-/* Assignment of route table entries to the modem and AP */
-#define IPA_ROUTE_MODEM_MIN		0
-#define IPA_ROUTE_AP_MIN		IPA_ROUTE_MODEM_COUNT
-#define IPA_ROUTE_AP_COUNT \
-		(IPA_ROUTE_COUNT_MAX - IPA_ROUTE_MODEM_COUNT)
-
 /* Filter or route rules consist of a set of 32-bit values followed by a
  * 32-bit all-zero rule list terminator.  The "zero rule" is simply an
  * all-zero rule followed by the list terminator.
@@ -342,11 +336,11 @@ static int ipa_route_reset(struct ipa *ipa, bool modem)
 	}
 
 	if (modem) {
-		first = IPA_ROUTE_MODEM_MIN;
+		first = 0;
 		count = IPA_ROUTE_MODEM_COUNT;
 	} else {
-		first = IPA_ROUTE_AP_MIN;
-		count = IPA_ROUTE_AP_COUNT;
+		first = IPA_ROUTE_MODEM_COUNT;
+		count = IPA_ROUTE_COUNT_MAX - IPA_ROUTE_MODEM_COUNT;
 	}
 
 	ipa_table_reset_add(trans, false, first, count, IPA_MEM_V4_ROUTE);
@@ -561,8 +555,7 @@ static void ipa_filter_config(struct ipa *ipa, bool modem)
 
 static bool ipa_route_id_modem(u32 route_id)
 {
-	return route_id >= IPA_ROUTE_MODEM_MIN &&
-		route_id <= IPA_ROUTE_MODEM_MIN + IPA_ROUTE_MODEM_COUNT - 1;
+	return route_id < IPA_ROUTE_MODEM_COUNT;
 }
 
 /**
