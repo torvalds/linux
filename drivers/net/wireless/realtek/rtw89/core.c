@@ -2413,6 +2413,8 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 	} else if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
 		rtwsta->mac_id = rtw89_core_acquire_bit_map(rtwdev->mac_id_map,
 							    RTW89_MAX_MAC_ID_NUM);
+		if (rtwsta->mac_id == RTW89_MAX_MAC_ID_NUM)
+			return -ENOSPC;
 	}
 
 	return 0;
