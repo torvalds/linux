@@ -955,7 +955,7 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 
 	ret = spi_register_controller(master);
 	if (ret) {
-		dev_err(&master->dev, "problem registering spi master\n");
+		dev_err_probe(dev, ret, "problem registering spi master\n");
 		goto err_dma_exit;
 	}
 

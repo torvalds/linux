@@ -69,6 +69,7 @@ const struct io_op_def io_op_defs[] = {
 		.issue			= io_read,
 		.prep_async		= io_readv_prep_async,
 		.cleanup		= io_readv_writev_cleanup,
+		.fail			= io_rw_fail,
 	},
 	[IORING_OP_WRITEV] = {
 		.needs_file		= 1,
@@ -85,6 +86,7 @@ const struct io_op_def io_op_defs[] = {
 		.issue			= io_write,
 		.prep_async		= io_writev_prep_async,
 		.cleanup		= io_readv_writev_cleanup,
+		.fail			= io_rw_fail,
 	},
 	[IORING_OP_FSYNC] = {
 		.needs_file		= 1,
@@ -105,6 +107,7 @@ const struct io_op_def io_op_defs[] = {
 		.name			= "READ_FIXED",
 		.prep			= io_prep_rw,
 		.issue			= io_read,
+		.fail			= io_rw_fail,
 	},
 	[IORING_OP_WRITE_FIXED] = {
 		.needs_file		= 1,
@@ -119,6 +122,7 @@ const struct io_op_def io_op_defs[] = {
 		.name			= "WRITE_FIXED",
 		.prep			= io_prep_rw,
 		.issue			= io_write,
+		.fail			= io_rw_fail,
 	},
 	[IORING_OP_POLL_ADD] = {
 		.needs_file		= 1,
@@ -146,6 +150,7 @@ const struct io_op_def io_op_defs[] = {
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.ioprio			= 1,
+		.manual_alloc		= 1,
 		.name			= "SENDMSG",
 #if defined(CONFIG_NET)
 		.async_size		= sizeof(struct io_async_msghdr),
@@ -153,6 +158,7 @@ const struct io_op_def io_op_defs[] = {
 		.issue			= io_sendmsg,
 		.prep_async		= io_sendmsg_prep_async,
 		.cleanup		= io_sendmsg_recvmsg_cleanup,
+		.fail			= io_sendrecv_fail,
 #else
 		.prep			= io_eopnotsupp_prep,
 #endif
@@ -163,6 +169,7 @@ const struct io_op_def io_op_defs[] = {
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.ioprio			= 1,
+		.manual_alloc		= 1,
 		.name			= "RECVMSG",
 #if defined(CONFIG_NET)
 		.async_size		= sizeof(struct io_async_msghdr),
@@ -170,6 +177,7 @@ const struct io_op_def io_op_defs[] = {
 		.issue			= io_recvmsg,
 		.prep_async		= io_recvmsg_prep_async,
 		.cleanup		= io_sendmsg_recvmsg_cleanup,
+		.fail			= io_sendrecv_fail,
 #else
 		.prep			= io_eopnotsupp_prep,
 #endif
@@ -246,13 +254,12 @@ const struct io_op_def io_op_defs[] = {
 		.prep			= io_close_prep,
 		.issue			= io_close,
 	},
-	[IORING_OP_RSRC_UPDATE] = {
+	[IORING_OP_FILES_UPDATE] = {
 		.audit_skip		= 1,
 		.iopoll			= 1,
-		.name			= "RSRC_UPDATE",
-		.prep			= io_rsrc_update_prep,
-		.issue			= io_rsrc_update,
-		.ioprio			= 1,
+		.name			= "FILES_UPDATE",
+		.prep			= io_files_update_prep,
+		.issue			= io_files_update,
 	},
 	[IORING_OP_STATX] = {
 		.audit_skip		= 1,
@@ -274,6 +281,7 @@ const struct io_op_def io_op_defs[] = {
 		.name			= "READ",
 		.prep			= io_prep_rw,
 		.issue			= io_read,
+		.fail			= io_rw_fail,
 	},
 	[IORING_OP_WRITE] = {
 		.needs_file		= 1,
@@ -288,6 +296,7 @@ const struct io_op_def io_op_defs[] = {
 		.name			= "WRITE",
 		.prep			= io_prep_rw,
 		.issue			= io_write,
+		.fail			= io_rw_fail,
 	},
 	[IORING_OP_FADVISE] = {
 		.needs_file		= 1,
@@ -307,10 +316,14 @@ const struct io_op_def io_op_defs[] = {
 		.pollout		= 1,
 		.audit_skip		= 1,
 		.ioprio			= 1,
+		.manual_alloc		= 1,
 		.name			= "SEND",
 #if defined(CONFIG_NET)
+		.async_size		= sizeof(struct io_async_msghdr),
 		.prep			= io_sendmsg_prep,
 		.issue			= io_send,
+		.fail			= io_sendrecv_fail,
+		.prep_async		= io_send_prep_async,
 #else
 		.prep			= io_eopnotsupp_prep,
 #endif
@@ -326,6 +339,7 @@ const struct io_op_def io_op_defs[] = {
 #if defined(CONFIG_NET)
 		.prep			= io_recvmsg_prep,
 		.issue			= io_recv,
+		.fail			= io_sendrecv_fail,
 #else
 		.prep			= io_eopnotsupp_prep,
 #endif
@@ -466,13 +480,14 @@ const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 		.plug			= 1,
 		.name			= "URING_CMD",
+		.iopoll			= 1,
 		.async_size		= uring_cmd_pdu_size(1),
 		.prep			= io_uring_cmd_prep,
 		.issue			= io_uring_cmd,
 		.prep_async		= io_uring_cmd_prep_async,
 	},
-	[IORING_OP_SENDZC_NOTIF] = {
-		.name			= "SENDZC_NOTIF",
+	[IORING_OP_SEND_ZC] = {
+		.name			= "SEND_ZC",
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
@@ -481,9 +496,29 @@ const struct io_op_def io_op_defs[] = {
 		.manual_alloc		= 1,
 #if defined(CONFIG_NET)
 		.async_size		= sizeof(struct io_async_msghdr),
-		.prep			= io_sendzc_prep,
-		.issue			= io_sendzc,
-		.prep_async		= io_sendzc_prep_async,
+		.prep			= io_send_zc_prep,
+		.issue			= io_send_zc,
+		.prep_async		= io_send_prep_async,
+		.cleanup		= io_send_zc_cleanup,
+		.fail			= io_sendrecv_fail,
+#else
+		.prep			= io_eopnotsupp_prep,
+#endif
+	},
+	[IORING_OP_SENDMSG_ZC] = {
+		.name			= "SENDMSG_ZC",
+		.needs_file		= 1,
+		.unbound_nonreg_file	= 1,
+		.pollout		= 1,
+		.ioprio			= 1,
+		.manual_alloc		= 1,
+#if defined(CONFIG_NET)
+		.async_size		= sizeof(struct io_async_msghdr),
+		.prep			= io_send_zc_prep,
+		.issue			= io_sendmsg_zc,
+		.prep_async		= io_sendmsg_prep_async,
+		.cleanup		= io_send_zc_cleanup,
+		.fail			= io_sendrecv_fail,
 #else
 		.prep			= io_eopnotsupp_prep,
 #endif

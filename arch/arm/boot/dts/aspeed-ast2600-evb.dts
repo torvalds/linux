@@ -8,7 +8,7 @@
 
 / {
 	model = "AST2600 EVB";
-	compatible = "aspeed,ast2600-evb-a1", "aspeed,ast2600";
+	compatible = "aspeed,ast2600-evb", "aspeed,ast2600";
 
 	aliases {
 		serial4 = &uart5;
@@ -182,6 +182,7 @@
 		status = "okay";
 		m25p,fast-read;
 		label = "bmc";
+		spi-rx-bus-width = <4>;
 		spi-max-frequency = <50000000>;
 #include "openbmc-flash-layout-64.dtsi"
 	};
@@ -196,6 +197,7 @@
 		status = "okay";
 		m25p,fast-read;
 		label = "pnor";
+		spi-rx-bus-width = <4>;
 		spi-max-frequency = <100000000>;
 	};
 };
@@ -207,11 +209,6 @@
 
 &i2c0 {
 	status = "okay";
-
-	temp@2e {
-		compatible = "adi,adt7490";
-		reg = <0x2e>;
-	};
 };
 
 &i2c1 {
@@ -240,10 +237,26 @@
 
 &i2c7 {
 	status = "okay";
+
+	temp@2e {
+		compatible = "adi,adt7490";
+		reg = <0x2e>;
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c08";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
 };
 
 &i2c8 {
 	status = "okay";
+
+	lm75@4d {
+		compatible = "national,lm75";
+		reg = <0x4d>;
+	};
 };
 
 &i2c9 {

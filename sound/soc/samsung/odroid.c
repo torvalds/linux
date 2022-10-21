@@ -97,7 +97,7 @@ static int odroid_card_be_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	if (rtd->num_codecs > 1) {
+	if (rtd->dai_link->num_codecs > 1) {
 		struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 1);
 
 		ret = snd_soc_dai_set_sysclk(codec_dai, 0, rclk_freq,

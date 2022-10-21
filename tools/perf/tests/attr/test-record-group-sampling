@@ -7,7 +7,7 @@ ret     = 1
 fd=1
 group_fd=-1
 sample_type=343
-read_format=12
+read_format=12|28
 inherit=0
 
 [event-2:base-record]
@@ -21,8 +21,8 @@ config=3
 # default | PERF_SAMPLE_READ
 sample_type=343
 
-# PERF_FORMAT_ID | PERF_FORMAT_GROUP
-read_format=12
+# PERF_FORMAT_ID | PERF_FORMAT_GROUP  | PERF_FORMAT_LOST
+read_format=12|28
 task=0
 mmap=0
 comm=0

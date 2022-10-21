@@ -67,6 +67,9 @@ static inline int udp_sock_create(struct net *net,
 typedef int (*udp_tunnel_encap_rcv_t)(struct sock *sk, struct sk_buff *skb);
 typedef int (*udp_tunnel_encap_err_lookup_t)(struct sock *sk,
 					     struct sk_buff *skb);
+typedef void (*udp_tunnel_encap_err_rcv_t)(struct sock *sk,
+					   struct sk_buff *skb,
+					   unsigned int udp_offset);
 typedef void (*udp_tunnel_encap_destroy_t)(struct sock *sk);
 typedef struct sk_buff *(*udp_tunnel_gro_receive_t)(struct sock *sk,
 						    struct list_head *head,
@@ -80,6 +83,7 @@ struct udp_tunnel_sock_cfg {
 	__u8  encap_type;
 	udp_tunnel_encap_rcv_t encap_rcv;
 	udp_tunnel_encap_err_lookup_t encap_err_lookup;
+	udp_tunnel_encap_err_rcv_t encap_err_rcv;
 	udp_tunnel_encap_destroy_t encap_destroy;
 	udp_tunnel_gro_receive_t gro_receive;
 	udp_tunnel_gro_complete_t gro_complete;

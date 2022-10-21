@@ -84,7 +84,7 @@ vmci_transport_handle_wrote(struct sock *sk,
 			    bool bottom_half,
 			    struct sockaddr_vm *dst, struct sockaddr_vm *src)
 {
-	sk->sk_data_ready(sk);
+	vsock_data_ready(sk);
 }
 
 static void vsock_block_update_write_window(struct sock *sk)
@@ -161,12 +161,12 @@ vmci_transport_notify_pkt_poll_in(struct sock *sk,
 {
 	struct vsock_sock *vsk = vsock_sk(sk);
 
-	if (vsock_stream_has_data(vsk)) {
+	if (vsock_stream_has_data(vsk) >= target) {
 		*data_ready_now = true;
 	} else {
-		/* We can't read right now because there is nothing in the
-		 * queue. Ask for notifications when there is something to
-		 * read.
+		/* We can't read right now because there is not enough data
+		 * in the queue. Ask for notifications when there is something
+		 * to read.
 		 */
 		if (sk->sk_state == TCP_ESTABLISHED)
 			vsock_block_update_write_window(sk);
@@ -282,7 +282,7 @@ vmci_transport_notify_pkt_recv_post_dequeue(
 		/* See the comment in
 		 * vmci_transport_notify_pkt_send_post_enqueue().
 		 */
-		sk->sk_data_ready(sk);
+		vsock_data_ready(sk);
 	}
 
 	return err;

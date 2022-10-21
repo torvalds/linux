@@ -1811,7 +1811,8 @@ static void amdgpu_ras_log_on_err_counter(struct amdgpu_device *adev)
 		amdgpu_ras_query_error_status(adev, &info);
 
 		if (adev->ip_versions[MP0_HWIP][0] != IP_VERSION(11, 0, 2) &&
-		    adev->ip_versions[MP0_HWIP][0] != IP_VERSION(11, 0, 4)) {
+		    adev->ip_versions[MP0_HWIP][0] != IP_VERSION(11, 0, 4) &&
+		    adev->ip_versions[MP0_HWIP][0] != IP_VERSION(13, 0, 0)) {
 			if (amdgpu_ras_reset_error_status(adev, info.head.block))
 				dev_warn(adev->dev, "Failed to reset error counter and error status");
 		}
@@ -2266,6 +2267,25 @@ static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
 
 static bool amdgpu_ras_asic_supported(struct amdgpu_device *adev)
 {
+	if (amdgpu_sriov_vf(adev)) {
+		switch (adev->ip_versions[MP0_HWIP][0]) {
+		case IP_VERSION(13, 0, 2):
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	if (adev->asic_type == CHIP_IP_DISCOVERY) {
+		switch (adev->ip_versions[MP0_HWIP][0]) {
+		case IP_VERSION(13, 0, 0):
+		case IP_VERSION(13, 0, 10):
+			return true;
+		default:
+			return false;
+		}
+	}
+
 	return adev->asic_type == CHIP_VEGA10 ||
 		adev->asic_type == CHIP_VEGA20 ||
 		adev->asic_type == CHIP_ARCTURUS ||
@@ -2307,11 +2327,6 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 
 	if (!adev->is_atom_fw ||
 	    !amdgpu_ras_asic_supported(adev))
-		return;
-
-	/* If driver run on sriov guest side, only enable ras for aldebaran */
-	if (amdgpu_sriov_vf(adev) &&
-		adev->ip_versions[MP1_HWIP][0] != IP_VERSION(13, 0, 2))
 		return;
 
 	if (!adev->gmc.xgmi.connected_to_cpu) {
@@ -2718,7 +2733,8 @@ int amdgpu_ras_pre_fini(struct amdgpu_device *adev)
 
 
 	/* Need disable ras on all IPs here before ip [hw/sw]fini */
-	amdgpu_ras_disable_all_features(adev, 0);
+	if (con->features)
+		amdgpu_ras_disable_all_features(adev, 0);
 	amdgpu_ras_recovery_fini(adev);
 	return 0;
 }
@@ -2831,11 +2847,8 @@ static int amdgpu_bad_page_notifier(struct notifier_block *nb,
 	struct mce *m = (struct mce *)data;
 	struct amdgpu_device *adev = NULL;
 	uint32_t gpu_id = 0;
-	uint32_t umc_inst = 0;
-	uint32_t ch_inst, channel_index = 0;
+	uint32_t umc_inst = 0, ch_inst = 0;
 	struct ras_err_data err_data = {0, 0, 0, NULL};
-	struct eeprom_table_record err_rec;
-	uint64_t retired_page;
 
 	/*
 	 * If the error was generated in UMC_V2, which belongs to GPU UMCs,
@@ -2874,21 +2887,22 @@ static int amdgpu_bad_page_notifier(struct notifier_block *nb,
 	dev_info(adev->dev, "Uncorrectable error detected in UMC inst: %d, chan_idx: %d",
 			     umc_inst, ch_inst);
 
+	err_data.err_addr =
+		kcalloc(adev->umc.max_ras_err_cnt_per_query,
+			sizeof(struct eeprom_table_record), GFP_KERNEL);
+	if (!err_data.err_addr) {
+		dev_warn(adev->dev,
+			"Failed to alloc memory for umc error record in mca notifier!\n");
+		return NOTIFY_DONE;
+	}
+
 	/*
 	 * Translate UMC channel address to Physical address
 	 */
-	channel_index =
-		adev->umc.channel_idx_tbl[umc_inst * adev->umc.channel_inst_num
-					  + ch_inst];
-
-	retired_page = ADDR_OF_8KB_BLOCK(m->addr) |
-			ADDR_OF_256B_BLOCK(channel_index) |
-			OFFSET_IN_256B_BLOCK(m->addr);
-
-	memset(&err_rec, 0x0, sizeof(struct eeprom_table_record));
-	err_data.err_addr = &err_rec;
-	amdgpu_umc_fill_error_record(&err_data, m->addr,
-			retired_page, channel_index, umc_inst);
+	if (adev->umc.ras &&
+	    adev->umc.ras->convert_ras_error_address)
+		adev->umc.ras->convert_ras_error_address(adev,
+			&err_data, m->addr, ch_inst, umc_inst);
 
 	if (amdgpu_bad_page_threshold != 0) {
 		amdgpu_ras_add_bad_pages(adev, err_data.err_addr,
@@ -2896,6 +2910,7 @@ static int amdgpu_bad_page_notifier(struct notifier_block *nb,
 		amdgpu_ras_save_bad_pages(adev);
 	}
 
+	kfree(err_data.err_addr);
 	return NOTIFY_OK;
 }
 

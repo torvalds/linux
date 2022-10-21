@@ -2,7 +2,7 @@
 /*
  * NVIDIA Tegra XUSB device mode controller
  *
- * Copyright (c) 2013-2019, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2013-2022, NVIDIA CORPORATION.  All rights reserved.
  * Copyright (c) 2015, Google Inc.
  */
 
@@ -702,6 +702,8 @@ static void tegra_xudc_device_mode_on(struct tegra_xudc *xudc)
 
 	pm_runtime_get_sync(xudc->dev);
 
+	tegra_phy_xusb_utmi_pad_power_on(xudc->curr_utmi_phy);
+
 	err = phy_power_on(xudc->curr_utmi_phy);
 	if (err < 0)
 		dev_err(xudc->dev, "UTMI power on failed: %d\n", err);
@@ -755,6 +757,8 @@ static void tegra_xudc_device_mode_off(struct tegra_xudc *xudc)
 
 	/* Make sure interrupt handler has completed before powergating. */
 	synchronize_irq(xudc->irq);
+
+	tegra_phy_xusb_utmi_pad_power_down(xudc->curr_utmi_phy);
 
 	err = phy_power_off(xudc->curr_utmi_phy);
 	if (err < 0)

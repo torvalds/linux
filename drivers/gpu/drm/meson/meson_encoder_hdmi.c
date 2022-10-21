@@ -452,6 +452,8 @@ int meson_encoder_hdmi_init(struct meson_drm *priv)
 		meson_encoder_hdmi->cec_notifier = notifier;
 	}
 
+	priv->encoders[MESON_ENC_HDMI] = meson_encoder_hdmi;
+
 	dev_dbg(priv->dev, "HDMI encoder initialized\n");
 
 	return 0;
@@ -459,4 +461,15 @@ int meson_encoder_hdmi_init(struct meson_drm *priv)
 err_put_node:
 	of_node_put(remote);
 	return ret;
+}
+
+void meson_encoder_hdmi_remove(struct meson_drm *priv)
+{
+	struct meson_encoder_hdmi *meson_encoder_hdmi;
+
+	if (priv->encoders[MESON_ENC_HDMI]) {
+		meson_encoder_hdmi = priv->encoders[MESON_ENC_HDMI];
+		drm_bridge_remove(&meson_encoder_hdmi->bridge);
+		drm_bridge_remove(meson_encoder_hdmi->next_bridge);
+	}
 }

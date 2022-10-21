@@ -850,7 +850,7 @@ fail_shutdown:
 	return ret;
 }
 
-static int cs4234_i2c_remove(struct i2c_client *i2c_client)
+static void cs4234_i2c_remove(struct i2c_client *i2c_client)
 {
 	struct cs4234 *cs4234 = i2c_get_clientdata(i2c_client);
 	struct device *dev = &i2c_client->dev;
@@ -858,8 +858,6 @@ static int cs4234_i2c_remove(struct i2c_client *i2c_client)
 	snd_soc_unregister_component(dev);
 	pm_runtime_disable(dev);
 	cs4234_shutdown(cs4234);
-
-	return 0;
 }
 
 static int __maybe_unused cs4234_runtime_resume(struct device *dev)

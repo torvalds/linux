@@ -596,7 +596,7 @@ xfs_iget_cache_miss(
 	 */
 	if (xfs_has_v3inodes(mp) &&
 	    (flags & XFS_IGET_CREATE) && !xfs_has_ikeep(mp)) {
-		VFS_I(ip)->i_generation = prandom_u32();
+		VFS_I(ip)->i_generation = get_random_u32();
 	} else {
 		struct xfs_buf		*bp;
 

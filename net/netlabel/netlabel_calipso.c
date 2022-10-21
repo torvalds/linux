@@ -344,6 +344,7 @@ static struct genl_family netlbl_calipso_gnl_family __ro_after_init = {
 	.module = THIS_MODULE,
 	.small_ops = netlbl_calipso_ops,
 	.n_small_ops = ARRAY_SIZE(netlbl_calipso_ops),
+	.resv_start_op = NLBL_CALIPSO_C_LISTALL + 1,
 };
 
 /* NetLabel Generic NETLINK Protocol Functions

@@ -15,7 +15,7 @@
 #include <asm/pci_clp.h>
 #include <asm/pci_io.h>
 
-#include <linux/vfio_pci_core.h>
+#include "vfio_pci_priv.h"
 
 /*
  * Add the Base PCI Function information to the device info region.
@@ -151,7 +151,10 @@ int vfio_pci_zdev_open_device(struct vfio_pci_core_device *vdev)
 	if (!vdev->vdev.kvm)
 		return 0;
 
-	return kvm_s390_pci_register_kvm(zdev, vdev->vdev.kvm);
+	if (zpci_kvm_hook.kvm_register)
+		return zpci_kvm_hook.kvm_register(zdev, vdev->vdev.kvm);
+
+	return -ENOENT;
 }
 
 void vfio_pci_zdev_close_device(struct vfio_pci_core_device *vdev)
@@ -161,5 +164,6 @@ void vfio_pci_zdev_close_device(struct vfio_pci_core_device *vdev)
 	if (!zdev || !vdev->vdev.kvm)
 		return;
 
-	kvm_s390_pci_unregister_kvm(zdev);
+	if (zpci_kvm_hook.kvm_unregister)
+		zpci_kvm_hook.kvm_unregister(zdev);
 }

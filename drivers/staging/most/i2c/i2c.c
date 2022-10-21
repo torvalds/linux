@@ -340,14 +340,12 @@ static int i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
  *
  * Unregister the i2c client device as a MOST interface
  */
-static int i2c_remove(struct i2c_client *client)
+static void i2c_remove(struct i2c_client *client)
 {
 	struct hdm_i2c *dev = i2c_get_clientdata(client);
 
 	most_deregister_interface(&dev->most_iface);
 	kfree(dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id i2c_id[] = {

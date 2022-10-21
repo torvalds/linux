@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/mediatek,mt7621-i2c.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+maintainers:
+  - Stefan Roese <sr@denx.de>
+
+title: Mediatek MT7621/MT7628 I2C master controller
+
+allOf:
+  - $ref: /schemas/i2c/i2c-controller.yaml#
+
+properties:
+  compatible:
+    const: mediatek,mt7621-i2c
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: i2c
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    const: i2c
+
+required:
+  - compatible
+  - reg
+  - resets
+  - "#address-cells"
+  - "#size-cells"
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/mt7621-clk.h>
+    #include <dt-bindings/reset/mt7621-reset.h>
+
+    i2c: i2c@900 {
+      compatible = "mediatek,mt7621-i2c";
+      reg = <0x900 0x100>;
+      clocks = <&sysc MT7621_CLK_I2C>;
+      clock-names = "i2c";
+      resets = <&sysc MT7621_RST_I2C>;
+      reset-names = "i2c";
+
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      pinctrl-names = "default";
+      pinctrl-0 = <&i2c_pins>;
+    };

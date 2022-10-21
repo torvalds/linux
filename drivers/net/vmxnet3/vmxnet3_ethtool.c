@@ -209,12 +209,12 @@ vmxnet3_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 
-	strlcpy(drvinfo->driver, vmxnet3_driver_name, sizeof(drvinfo->driver));
+	strscpy(drvinfo->driver, vmxnet3_driver_name, sizeof(drvinfo->driver));
 
-	strlcpy(drvinfo->version, VMXNET3_DRIVER_VERSION_REPORT,
+	strscpy(drvinfo->version, VMXNET3_DRIVER_VERSION_REPORT,
 		sizeof(drvinfo->version));
 
-	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+	strscpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));
 }
 

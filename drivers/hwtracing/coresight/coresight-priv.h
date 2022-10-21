@@ -39,32 +39,37 @@
 
 #define ETM_MODE_EXCL_KERN	BIT(30)
 #define ETM_MODE_EXCL_USER	BIT(31)
+struct cs_pair_attribute {
+	struct device_attribute attr;
+	u32 lo_off;
+	u32 hi_off;
+};
 
-typedef u32 (*coresight_read_fn)(const struct device *, u32 offset);
-#define __coresight_simple_func(type, func, name, lo_off, hi_off)	\
-static ssize_t name##_show(struct device *_dev,				\
-			   struct device_attribute *attr, char *buf)	\
-{									\
-	type *drvdata = dev_get_drvdata(_dev->parent);			\
-	coresight_read_fn fn = func;					\
-	u64 val;							\
-	pm_runtime_get_sync(_dev->parent);				\
-	if (fn)								\
-		val = (u64)fn(_dev->parent, lo_off);			\
-	else								\
-		val = coresight_read_reg_pair(drvdata->base,		\
-						 lo_off, hi_off);	\
-	pm_runtime_put_sync(_dev->parent);				\
-	return scnprintf(buf, PAGE_SIZE, "0x%llx\n", val);		\
-}									\
-static DEVICE_ATTR_RO(name)
+struct cs_off_attribute {
+	struct device_attribute attr;
+	u32 off;
+};
 
-#define coresight_simple_func(type, func, name, offset)			\
-	__coresight_simple_func(type, func, name, offset, -1)
-#define coresight_simple_reg32(type, name, offset)			\
-	__coresight_simple_func(type, NULL, name, offset, -1)
-#define coresight_simple_reg64(type, name, lo_off, hi_off)		\
-	__coresight_simple_func(type, NULL, name, lo_off, hi_off)
+extern ssize_t coresight_simple_show32(struct device *_dev,
+				     struct device_attribute *attr, char *buf);
+extern ssize_t coresight_simple_show_pair(struct device *_dev,
+				     struct device_attribute *attr, char *buf);
+
+#define coresight_simple_reg32(name, offset)				\
+	(&((struct cs_off_attribute[]) {				\
+	   {								\
+		__ATTR(name, 0444, coresight_simple_show32, NULL),	\
+		offset							\
+	   }								\
+	})[0].attr.attr)
+
+#define coresight_simple_reg64(name, lo_off, hi_off)			\
+	(&((struct cs_pair_attribute[]) {				\
+	   {								\
+		__ATTR(name, 0444, coresight_simple_show_pair, NULL),	\
+		lo_off, hi_off						\
+	   }								\
+	})[0].attr.attr)
 
 extern const u32 coresight_barrier_pkt[4];
 #define CORESIGHT_BARRIER_PKT_SIZE (sizeof(coresight_barrier_pkt))
@@ -125,25 +130,6 @@ static inline void CS_UNLOCK(void __iomem *addr)
 		/* Make sure everyone has seen this */
 		mb();
 	} while (0);
-}
-
-static inline u64
-coresight_read_reg_pair(void __iomem *addr, s32 lo_offset, s32 hi_offset)
-{
-	u64 val;
-
-	val = readl_relaxed(addr + lo_offset);
-	val |= (hi_offset < 0) ? 0 :
-	       (u64)readl_relaxed(addr + hi_offset) << 32;
-	return val;
-}
-
-static inline void coresight_write_reg_pair(void __iomem *addr, u64 val,
-						 s32 lo_offset, s32 hi_offset)
-{
-	writel_relaxed((u32)val, addr + lo_offset);
-	if (hi_offset >= 0)
-		writel_relaxed((u32)(val >> 32), addr + hi_offset);
 }
 
 void coresight_disable_path(struct list_head *path);

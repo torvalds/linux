@@ -1284,17 +1284,12 @@ static inline int lpuart_start_rx_dma(struct lpuart_port *sport)
 	struct dma_slave_config dma_rx_sconfig = {};
 	struct circ_buf *ring = &sport->rx_ring;
 	int ret, nent;
-	int bits, baud;
 	struct tty_port *port = &sport->port.state->port;
 	struct tty_struct *tty = port->tty;
 	struct ktermios *termios = &tty->termios;
 	struct dma_chan *chan = sport->dma_rx_chan;
-
-	baud = tty_get_baud_rate(tty);
-
-	bits = (termios->c_cflag & CSIZE) == CS7 ? 9 : 10;
-	if (termios->c_cflag & PARENB)
-		bits++;
+	unsigned int bits = tty_get_frame_size(termios->c_cflag);
+	unsigned int baud = tty_get_baud_rate(tty);
 
 	/*
 	 * Calculate length of one DMA buffer size to keep latency below
@@ -1394,9 +1389,9 @@ static int lpuart_config_rs485(struct uart_port *port, struct ktermios *termios,
 		 * Note: UART is assumed to be active high.
 		 */
 		if (rs485->flags & SER_RS485_RTS_ON_SEND)
-			modem &= ~UARTMODEM_TXRTSPOL;
-		else if (rs485->flags & SER_RS485_RTS_AFTER_SEND)
 			modem |= UARTMODEM_TXRTSPOL;
+		else if (rs485->flags & SER_RS485_RTS_AFTER_SEND)
+			modem &= ~UARTMODEM_TXRTSPOL;
 	}
 
 	writeb(modem, sport->port.membase + UARTMODEM);
@@ -1776,6 +1771,7 @@ static void lpuart_dma_shutdown(struct lpuart_port *sport)
 	if (sport->lpuart_dma_rx_use) {
 		del_timer_sync(&sport->lpuart_timer);
 		lpuart_dma_rx_free(&sport->port);
+		sport->lpuart_dma_rx_use = false;
 	}
 
 	if (sport->lpuart_dma_tx_use) {
@@ -1784,6 +1780,7 @@ static void lpuart_dma_shutdown(struct lpuart_port *sport)
 			sport->dma_tx_in_progress = false;
 			dmaengine_terminate_all(sport->dma_tx_chan);
 		}
+		sport->lpuart_dma_tx_use = false;
 	}
 
 	if (sport->dma_tx_chan)
@@ -1833,7 +1830,7 @@ static void lpuart32_shutdown(struct uart_port *port)
 
 static void
 lpuart_set_termios(struct uart_port *port, struct ktermios *termios,
-		   struct ktermios *old)
+		   const struct ktermios *old)
 {
 	struct lpuart_port *sport = container_of(port, struct lpuart_port, port);
 	unsigned long flags;
@@ -2073,7 +2070,7 @@ static void lpuart32_serial_setbrg(struct lpuart_port *sport,
 
 static void
 lpuart32_set_termios(struct uart_port *port, struct ktermios *termios,
-		   struct ktermios *old)
+		     const struct ktermios *old)
 {
 	struct lpuart_port *sport = container_of(port, struct lpuart_port, port);
 	unsigned long flags;
@@ -2191,6 +2188,7 @@ lpuart32_set_termios(struct uart_port *port, struct ktermios *termios,
 	uart_update_timeout(port, termios->c_cflag, baud);
 
 	/* wait transmit engin complete */
+	lpuart32_write(&sport->port, 0, UARTMODIR);
 	lpuart32_wait_bit_set(&sport->port, UARTSTAT, UARTSTAT_TC);
 
 	/* disable transmit and receive */
@@ -2723,9 +2721,6 @@ static int lpuart_probe(struct platform_device *pdev)
 		lpuart_reg.cons = LPUART_CONSOLE;
 		handler = lpuart_int;
 	}
-	ret = uart_add_one_port(&lpuart_reg, &sport->port);
-	if (ret)
-		goto failed_attach_port;
 
 	ret = lpuart_global_reset(sport);
 	if (ret)
@@ -2735,7 +2730,9 @@ static int lpuart_probe(struct platform_device *pdev)
 	if (ret)
 		goto failed_get_rs485;
 
-	uart_rs485_config(&sport->port);
+	ret = uart_add_one_port(&lpuart_reg, &sport->port);
+	if (ret)
+		goto failed_attach_port;
 
 	ret = devm_request_irq(&pdev->dev, sport->port.irq, handler, 0,
 				DRIVER_NAME, sport);
@@ -2745,10 +2742,10 @@ static int lpuart_probe(struct platform_device *pdev)
 	return 0;
 
 failed_irq_request:
-failed_get_rs485:
-failed_reset:
 	uart_remove_one_port(&lpuart_reg, &sport->port);
 failed_attach_port:
+failed_get_rs485:
+failed_reset:
 	lpuart_disable_clks(sport);
 	return ret;
 }
@@ -2798,7 +2795,7 @@ static int __maybe_unused lpuart_suspend(struct device *dev)
 		 * EDMA driver during suspend will forcefully release any
 		 * non-idle DMA channels. If port wakeup is enabled or if port
 		 * is console port or 'no_console_suspend' is set the Rx DMA
-		 * cannot resume as as expected, hence gracefully release the
+		 * cannot resume as expected, hence gracefully release the
 		 * Rx DMA path before suspend and start Rx DMA path on resume.
 		 */
 		if (irq_wake) {

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: ISC
 /* Copyright (C) 2020 Felix Fietkau <nbd@nbd.name> */
+
+#include <linux/random.h>
 #include "mt76.h"
 
 const struct nla_policy mt76_tm_policy[NUM_MT76_TM_ATTRS] = {
@@ -123,12 +125,14 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
 	if (!head)
 		return -ENOMEM;
 
-	hdr = __skb_put_zero(head, head_len);
+	hdr = __skb_put_zero(head, sizeof(*hdr));
 	hdr->frame_control = cpu_to_le16(fc);
 	memcpy(hdr->addr1, td->addr[0], ETH_ALEN);
 	memcpy(hdr->addr2, td->addr[1], ETH_ALEN);
 	memcpy(hdr->addr3, td->addr[2], ETH_ALEN);
 	skb_set_queue_mapping(head, IEEE80211_AC_BE);
+	get_random_bytes(__skb_put(head, head_len - sizeof(*hdr)),
+			 head_len - sizeof(*hdr));
 
 	info = IEEE80211_SKB_CB(head);
 	info->flags = IEEE80211_TX_CTL_INJECTED |
@@ -154,7 +158,7 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
 			return -ENOMEM;
 		}
 
-		__skb_put_zero(frag, frag_len);
+		get_random_bytes(__skb_put(frag, frag_len), frag_len);
 		head->len += frag->len;
 		head->data_len += frag->len;
 

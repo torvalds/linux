@@ -8753,7 +8753,7 @@ static int do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
 
 	/*
 	 * When writing a LCB CSR, out_data contains the full value to
-	 * to be written, while in_data contains the relative LCB
+	 * be written, while in_data contains the relative LCB
 	 * address in 7:0.  Do the work here, rather than the caller,
 	 * of distrubting the write data to where it needs to go:
 	 *

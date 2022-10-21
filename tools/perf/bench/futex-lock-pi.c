@@ -8,6 +8,7 @@
 #include <pthread.h>
 
 #include <signal.h>
+#include "../util/mutex.h"
 #include "../util/stat.h"
 #include <subcmd/parse-options.h>
 #include <linux/compiler.h>
@@ -34,10 +35,10 @@ static u_int32_t global_futex = 0;
 static struct worker *worker;
 static bool done = false;
 static int futex_flag = 0;
-static pthread_mutex_t thread_lock;
+static struct mutex thread_lock;
 static unsigned int threads_starting;
 static struct stats throughput_stats;
-static pthread_cond_t thread_parent, thread_worker;
+static struct cond thread_parent, thread_worker;
 
 static struct bench_futex_parameters params = {
 	.runtime  = 10,
@@ -83,12 +84,12 @@ static void *workerfn(void *arg)
 	struct worker *w = (struct worker *) arg;
 	unsigned long ops = w->ops;
 
-	pthread_mutex_lock(&thread_lock);
+	mutex_lock(&thread_lock);
 	threads_starting--;
 	if (!threads_starting)
-		pthread_cond_signal(&thread_parent);
-	pthread_cond_wait(&thread_worker, &thread_lock);
-	pthread_mutex_unlock(&thread_lock);
+		cond_signal(&thread_parent);
+	cond_wait(&thread_worker, &thread_lock);
+	mutex_unlock(&thread_lock);
 
 	do {
 		int ret;
@@ -197,9 +198,9 @@ int bench_futex_lock_pi(int argc, const char **argv)
 	       getpid(), params.nthreads, params.runtime);
 
 	init_stats(&throughput_stats);
-	pthread_mutex_init(&thread_lock, NULL);
-	pthread_cond_init(&thread_parent, NULL);
-	pthread_cond_init(&thread_worker, NULL);
+	mutex_init(&thread_lock);
+	cond_init(&thread_parent);
+	cond_init(&thread_worker);
 
 	threads_starting = params.nthreads;
 	pthread_attr_init(&thread_attr);
@@ -208,11 +209,11 @@ int bench_futex_lock_pi(int argc, const char **argv)
 	create_threads(worker, thread_attr, cpu);
 	pthread_attr_destroy(&thread_attr);
 
-	pthread_mutex_lock(&thread_lock);
+	mutex_lock(&thread_lock);
 	while (threads_starting)
-		pthread_cond_wait(&thread_parent, &thread_lock);
-	pthread_cond_broadcast(&thread_worker);
-	pthread_mutex_unlock(&thread_lock);
+		cond_wait(&thread_parent, &thread_lock);
+	cond_broadcast(&thread_worker);
+	mutex_unlock(&thread_lock);
 
 	sleep(params.runtime);
 	toggle_done(0, NULL, NULL);
@@ -224,9 +225,9 @@ int bench_futex_lock_pi(int argc, const char **argv)
 	}
 
 	/* cleanup & report results */
-	pthread_cond_destroy(&thread_parent);
-	pthread_cond_destroy(&thread_worker);
-	pthread_mutex_destroy(&thread_lock);
+	cond_destroy(&thread_parent);
+	cond_destroy(&thread_worker);
+	mutex_destroy(&thread_lock);
 
 	for (i = 0; i < params.nthreads; i++) {
 		unsigned long t = bench__runtime.tv_sec > 0 ?

@@ -222,7 +222,7 @@ union es58x_urb_cmd {
 		u8 cmd_type;
 		u8 cmd_id;
 	} __packed;
-	u8 raw_cmd[0];
+	DECLARE_FLEX_ARRAY(u8, raw_cmd);
 };
 
 /**

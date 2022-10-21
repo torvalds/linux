@@ -578,7 +578,7 @@ void fec_ptp_init(struct platform_device *pdev, int irq_idx)
 	int ret;
 
 	fep->ptp_caps.owner = THIS_MODULE;
-	strlcpy(fep->ptp_caps.name, "fec ptp", sizeof(fep->ptp_caps.name));
+	strscpy(fep->ptp_caps.name, "fec ptp", sizeof(fep->ptp_caps.name));
 
 	fep->ptp_caps.max_adj = 250000000;
 	fep->ptp_caps.n_alarm = 0;
@@ -633,36 +633,7 @@ void fec_ptp_stop(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
-	if (fep->pps_enable)
-		fec_ptp_enable_pps(fep, 0);
-
 	cancel_delayed_work_sync(&fep->time_keep);
 	if (fep->ptp_clock)
 		ptp_clock_unregister(fep->ptp_clock);
-}
-
-void fec_ptp_save_state(struct fec_enet_private *fep)
-{
-	u32 atime_inc_corr;
-
-	fec_ptp_gettime(&fep->ptp_caps, &fep->ptp_saved_state.ts_phc);
-	fep->ptp_saved_state.ns_sys = ktime_get_ns();
-
-	fep->ptp_saved_state.at_corr = readl(fep->hwp + FEC_ATIME_CORR);
-	atime_inc_corr = readl(fep->hwp + FEC_ATIME_INC) & FEC_T_INC_CORR_MASK;
-	fep->ptp_saved_state.at_inc_corr = (u8)(atime_inc_corr >> FEC_T_INC_CORR_OFFSET);
-}
-
-int fec_ptp_restore_state(struct fec_enet_private *fep)
-{
-	u32 atime_inc = readl(fep->hwp + FEC_ATIME_INC) & FEC_T_INC_MASK;
-	u64 ns_sys;
-
-	writel(fep->ptp_saved_state.at_corr, fep->hwp + FEC_ATIME_CORR);
-	atime_inc |= ((u32)fep->ptp_saved_state.at_inc_corr) << FEC_T_INC_CORR_OFFSET;
-	writel(atime_inc, fep->hwp + FEC_ATIME_INC);
-
-	ns_sys = ktime_get_ns() - fep->ptp_saved_state.ns_sys;
-	timespec64_add_ns(&fep->ptp_saved_state.ts_phc, ns_sys);
-	return fec_ptp_settime(&fep->ptp_caps, &fep->ptp_saved_state.ts_phc);
 }

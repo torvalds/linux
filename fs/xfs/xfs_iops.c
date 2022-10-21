@@ -167,7 +167,7 @@ xfs_generic_create(
 	struct dentry	*dentry,
 	umode_t		mode,
 	dev_t		rdev,
-	bool		tmpfile)	/* unnamed file */
+	struct file	*tmpfile)	/* unnamed file */
 {
 	struct inode	*inode;
 	struct xfs_inode *ip = NULL;
@@ -234,7 +234,7 @@ xfs_generic_create(
 		 * d_tmpfile can immediately set it back to zero.
 		 */
 		set_nlink(inode, 1);
-		d_tmpfile(dentry, inode);
+		d_tmpfile(tmpfile, inode);
 	} else
 		d_instantiate(dentry, inode);
 
@@ -261,7 +261,7 @@ xfs_vn_mknod(
 	umode_t			mode,
 	dev_t			rdev)
 {
-	return xfs_generic_create(mnt_userns, dir, dentry, mode, rdev, false);
+	return xfs_generic_create(mnt_userns, dir, dentry, mode, rdev, NULL);
 }
 
 STATIC int
@@ -272,7 +272,7 @@ xfs_vn_create(
 	umode_t			mode,
 	bool			flags)
 {
-	return xfs_generic_create(mnt_userns, dir, dentry, mode, 0, false);
+	return xfs_generic_create(mnt_userns, dir, dentry, mode, 0, NULL);
 }
 
 STATIC int
@@ -283,7 +283,7 @@ xfs_vn_mkdir(
 	umode_t			mode)
 {
 	return xfs_generic_create(mnt_userns, dir, dentry, mode | S_IFDIR, 0,
-				  false);
+				  NULL);
 }
 
 STATIC struct dentry *
@@ -558,6 +558,8 @@ xfs_vn_getattr(
 	struct inode		*inode = d_inode(path->dentry);
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
+	vfsuid_t		vfsuid = i_uid_into_vfsuid(mnt_userns, inode);
+	vfsgid_t		vfsgid = i_gid_into_vfsgid(mnt_userns, inode);
 
 	trace_xfs_getattr(ip);
 
@@ -568,8 +570,8 @@ xfs_vn_getattr(
 	stat->dev = inode->i_sb->s_dev;
 	stat->mode = inode->i_mode;
 	stat->nlink = inode->i_nlink;
-	stat->uid = i_uid_into_mnt(mnt_userns, inode);
-	stat->gid = i_gid_into_mnt(mnt_userns, inode);
+	stat->uid = vfsuid_into_kuid(vfsuid);
+	stat->gid = vfsgid_into_kgid(vfsgid);
 	stat->ino = ip->i_ino;
 	stat->atime = inode->i_atime;
 	stat->mtime = inode->i_mtime;
@@ -604,6 +606,16 @@ xfs_vn_getattr(
 		stat->blksize = BLKDEV_IOSIZE;
 		stat->rdev = inode->i_rdev;
 		break;
+	case S_IFREG:
+		if (request_mask & STATX_DIOALIGN) {
+			struct xfs_buftarg	*target = xfs_inode_buftarg(ip);
+			struct block_device	*bdev = target->bt_bdev;
+
+			stat->result_mask |= STATX_DIOALIGN;
+			stat->dio_mem_align = bdev_dma_alignment(bdev) + 1;
+			stat->dio_offset_align = bdev_logical_block_size(bdev);
+		}
+		fallthrough;
 	default:
 		stat->blksize = xfs_stat_blksize(ip);
 		stat->rdev = 0;
@@ -1080,10 +1092,12 @@ STATIC int
 xfs_vn_tmpfile(
 	struct user_namespace	*mnt_userns,
 	struct inode		*dir,
-	struct dentry		*dentry,
+	struct file		*file,
 	umode_t			mode)
 {
-	return xfs_generic_create(mnt_userns, dir, dentry, mode, 0, true);
+	int err = xfs_generic_create(mnt_userns, dir, file->f_path.dentry, mode, 0, file);
+
+	return finish_open_simple(file, err);
 }
 
 static const struct inode_operations xfs_inode_operations = {

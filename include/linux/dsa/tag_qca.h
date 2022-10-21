@@ -61,9 +61,9 @@ struct sk_buff;
 
 /* Special struct emulating a Ethernet header */
 struct qca_mgmt_ethhdr {
-	u32 command;		/* command bit 31:0 */
-	u32 seq;		/* seq 63:32 */
-	u32 mdio_data;		/* first 4byte mdio */
+	__le32 command;		/* command bit 31:0 */
+	__le32 seq;		/* seq 63:32 */
+	__le32 mdio_data;		/* first 4byte mdio */
 	__be16 hdr;		/* qca hdr */
 } __packed;
 
@@ -73,7 +73,7 @@ enum mdio_cmd {
 };
 
 struct mib_ethhdr {
-	u32 data[3];		/* first 3 mib counter */
+	__le32 data[3];		/* first 3 mib counter */
 	__be16 hdr;		/* qca hdr */
 } __packed;
 

@@ -492,14 +492,12 @@ unreg_port:
 	return ret;
 }
 
-static int max_tcpci_remove(struct i2c_client *client)
+static void max_tcpci_remove(struct i2c_client *client)
 {
 	struct max_tcpci_chip *chip = i2c_get_clientdata(client);
 
 	if (!IS_ERR_OR_NULL(chip->tcpci))
 		tcpci_unregister_port(chip->tcpci);
-
-	return 0;
 }
 
 static const struct i2c_device_id max_tcpci_id[] = {

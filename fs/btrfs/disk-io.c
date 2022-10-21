@@ -131,8 +131,7 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 	if (atomic)
 		return -EAGAIN;
 
-	lock_extent_bits(io_tree, eb->start, eb->start + eb->len - 1,
-			 &cached_state);
+	lock_extent(io_tree, eb->start, eb->start + eb->len - 1, &cached_state);
 	if (extent_buffer_uptodate(eb) &&
 	    btrfs_header_generation(eb) == parent_transid) {
 		ret = 0;
@@ -145,8 +144,8 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 	ret = 1;
 	clear_extent_buffer_uptodate(eb);
 out:
-	unlock_extent_cached(io_tree, eb->start, eb->start + eb->len - 1,
-			     &cached_state);
+	unlock_extent(io_tree, eb->start, eb->start + eb->len - 1,
+		      &cached_state);
 	return ret;
 }
 
@@ -647,16 +646,14 @@ static void run_one_async_start(struct btrfs_work *work)
  */
 static void run_one_async_done(struct btrfs_work *work)
 {
-	struct async_submit_bio *async;
-	struct inode *inode;
-
-	async = container_of(work, struct  async_submit_bio, work);
-	inode = async->inode;
+	struct async_submit_bio *async =
+		container_of(work, struct  async_submit_bio, work);
+	struct inode *inode = async->inode;
+	struct btrfs_bio *bbio = btrfs_bio(async->bio);
 
 	/* If an error occurred we just want to clean up the bio and move on */
 	if (async->status) {
-		async->bio->bi_status = async->status;
-		bio_endio(async->bio);
+		btrfs_bio_end_io(bbio, async->status);
 		return;
 	}
 
@@ -757,6 +754,7 @@ static bool should_async_write(struct btrfs_fs_info *fs_info,
 void btrfs_submit_metadata_bio(struct inode *inode, struct bio *bio, int mirror_num)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_bio *bbio = btrfs_bio(bio);
 	blk_status_t ret;
 
 	bio->bi_opf |= REQ_META;
@@ -776,8 +774,7 @@ void btrfs_submit_metadata_bio(struct inode *inode, struct bio *bio, int mirror_
 
 	ret = btree_csum_one_bio(bio);
 	if (ret) {
-		bio->bi_status = ret;
-		bio_endio(bio);
+		btrfs_bio_end_io(bbio, ret);
 		return;
 	}
 
@@ -1524,6 +1521,9 @@ static struct btrfs_root *btrfs_get_global_root(struct btrfs_fs_info *fs_info,
 	if (objectid == BTRFS_UUID_TREE_OBJECTID)
 		return btrfs_grab_root(fs_info->uuid_root) ?
 			fs_info->uuid_root : ERR_PTR(-ENOENT);
+	if (objectid == BTRFS_BLOCK_GROUP_TREE_OBJECTID)
+		return btrfs_grab_root(fs_info->block_group_root) ?
+			fs_info->block_group_root : ERR_PTR(-ENOENT);
 	if (objectid == BTRFS_FREE_SPACE_TREE_OBJECTID) {
 		struct btrfs_root *root = btrfs_global_root(fs_info, &key);
 
@@ -1980,14 +1980,7 @@ static void backup_super_roots(struct btrfs_fs_info *info)
 	btrfs_set_backup_chunk_root_level(root_backup,
 			       btrfs_header_level(info->chunk_root->node));
 
-	if (btrfs_fs_incompat(info, EXTENT_TREE_V2)) {
-		btrfs_set_backup_block_group_root(root_backup,
-					info->block_group_root->node->start);
-		btrfs_set_backup_block_group_root_gen(root_backup,
-			btrfs_header_generation(info->block_group_root->node));
-		btrfs_set_backup_block_group_root_level(root_backup,
-			btrfs_header_level(info->block_group_root->node));
-	} else {
+	if (!btrfs_fs_compat_ro(info, BLOCK_GROUP_TREE)) {
 		struct btrfs_root *extent_root = btrfs_extent_root(info, 0);
 		struct btrfs_root *csum_root = btrfs_csum_root(info, 0);
 
@@ -2225,6 +2218,8 @@ static void btrfs_init_balance(struct btrfs_fs_info *fs_info)
 static void btrfs_init_btree_inode(struct btrfs_fs_info *fs_info)
 {
 	struct inode *inode = fs_info->btree_inode;
+	unsigned long hash = btrfs_inode_hash(BTRFS_BTREE_INODE_OBJECTID,
+					      fs_info->tree_root);
 
 	inode->i_ino = BTRFS_BTREE_INODE_OBJECTID;
 	set_nlink(inode, 1);
@@ -2238,8 +2233,7 @@ static void btrfs_init_btree_inode(struct btrfs_fs_info *fs_info)
 
 	RB_CLEAR_NODE(&BTRFS_I(inode)->rb_node);
 	extent_io_tree_init(fs_info, &BTRFS_I(inode)->io_tree,
-			    IO_TREE_BTREE_INODE_IO, inode);
-	BTRFS_I(inode)->io_tree.track_uptodate = false;
+			    IO_TREE_BTREE_INODE_IO, NULL);
 	extent_map_tree_init(&BTRFS_I(inode)->extent_tree);
 
 	BTRFS_I(inode)->root = btrfs_grab_root(fs_info->tree_root);
@@ -2247,7 +2241,7 @@ static void btrfs_init_btree_inode(struct btrfs_fs_info *fs_info)
 	BTRFS_I(inode)->location.type = 0;
 	BTRFS_I(inode)->location.offset = 0;
 	set_bit(BTRFS_INODE_DUMMY, &BTRFS_I(inode)->runtime_flags);
-	btrfs_insert_inode_hash(inode);
+	__insert_inode_hash(inode, hash);
 }
 
 static void btrfs_init_dev_replace_locks(struct btrfs_fs_info *fs_info)
@@ -2266,6 +2260,7 @@ static void btrfs_init_qgroup(struct btrfs_fs_info *fs_info)
 	fs_info->qgroup_seq = 1;
 	fs_info->qgroup_ulist = NULL;
 	fs_info->qgroup_rescan_running = false;
+	fs_info->qgroup_drop_subtree_thres = BTRFS_MAX_LEVEL;
 	mutex_init(&fs_info->qgroup_rescan_lock);
 }
 
@@ -2529,10 +2524,24 @@ static int btrfs_read_roots(struct btrfs_fs_info *fs_info)
 	if (ret)
 		return ret;
 
-	location.objectid = BTRFS_DEV_TREE_OBJECTID;
 	location.type = BTRFS_ROOT_ITEM_KEY;
 	location.offset = 0;
 
+	if (btrfs_fs_compat_ro(fs_info, BLOCK_GROUP_TREE)) {
+		location.objectid = BTRFS_BLOCK_GROUP_TREE_OBJECTID;
+		root = btrfs_read_tree_root(tree_root, &location);
+		if (IS_ERR(root)) {
+			if (!btrfs_test_opt(fs_info, IGNOREBADROOTS)) {
+				ret = PTR_ERR(root);
+				goto out;
+			}
+		} else {
+			set_bit(BTRFS_ROOT_TRACK_DIRTY, &root->state);
+			fs_info->block_group_root = root;
+		}
+	}
+
+	location.objectid = BTRFS_DEV_TREE_OBJECTID;
 	root = btrfs_read_tree_root(tree_root, &location);
 	if (IS_ERR(root)) {
 		if (!btrfs_test_opt(fs_info, IGNOREBADROOTS)) {
@@ -2600,8 +2609,8 @@ out:
  * 		1, 2	2nd and 3rd backup copy
  * 	       -1	skip bytenr check
  */
-static int validate_super(struct btrfs_fs_info *fs_info,
-			    struct btrfs_super_block *sb, int mirror_num)
+int btrfs_validate_super(struct btrfs_fs_info *fs_info,
+			 struct btrfs_super_block *sb, int mirror_num)
 {
 	u64 nodesize = btrfs_super_nodesize(sb);
 	u64 sectorsize = btrfs_super_sectorsize(sb);
@@ -2703,6 +2712,18 @@ static int validate_super(struct btrfs_fs_info *fs_info,
 		ret = -EINVAL;
 	}
 
+	/*
+	 * Artificial requirement for block-group-tree to force newer features
+	 * (free-space-tree, no-holes) so the test matrix is smaller.
+	 */
+	if (btrfs_fs_compat_ro(fs_info, BLOCK_GROUP_TREE) &&
+	    (!btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE_VALID) ||
+	     !btrfs_fs_incompat(fs_info, NO_HOLES))) {
+		btrfs_err(fs_info,
+		"block-group-tree feature requires fres-space-tree and no-holes");
+		ret = -EINVAL;
+	}
+
 	if (memcmp(fs_info->fs_devices->metadata_uuid, sb->dev_item.fsid,
 		   BTRFS_FSID_SIZE) != 0) {
 		btrfs_err(fs_info,
@@ -2785,7 +2806,7 @@ static int validate_super(struct btrfs_fs_info *fs_info,
  */
 static int btrfs_validate_mount_super(struct btrfs_fs_info *fs_info)
 {
-	return validate_super(fs_info, fs_info->super_copy, 0);
+	return btrfs_validate_super(fs_info, fs_info->super_copy, 0);
 }
 
 /*
@@ -2799,7 +2820,7 @@ static int btrfs_validate_write_super(struct btrfs_fs_info *fs_info,
 {
 	int ret;
 
-	ret = validate_super(fs_info, sb, -1);
+	ret = btrfs_validate_super(fs_info, sb, -1);
 	if (ret < 0)
 		goto out;
 	if (!btrfs_supported_super_csum(btrfs_super_csum_type(sb))) {
@@ -2860,17 +2881,7 @@ static int load_important_roots(struct btrfs_fs_info *fs_info)
 		btrfs_warn(fs_info, "couldn't read tree root");
 		return ret;
 	}
-
-	if (!btrfs_fs_incompat(fs_info, EXTENT_TREE_V2))
-		return 0;
-
-	bytenr = btrfs_super_block_group_root(sb);
-	gen = btrfs_super_block_group_root_generation(sb);
-	level = btrfs_super_block_group_root_level(sb);
-	ret = load_super_root(fs_info->block_group_root, bytenr, gen, level);
-	if (ret)
-		btrfs_warn(fs_info, "couldn't read block group root");
-	return ret;
+	return 0;
 }
 
 static int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
@@ -2881,16 +2892,6 @@ static int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
 	bool handle_error = false;
 	int ret = 0;
 	int i;
-
-	if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2)) {
-		struct btrfs_root *root;
-
-		root = btrfs_alloc_root(fs_info, BTRFS_BLOCK_GROUP_TREE_OBJECTID,
-					GFP_KERNEL);
-		if (!root)
-			return -ENOMEM;
-		fs_info->block_group_root = root;
-	}
 
 	for (i = 0; i < BTRFS_NUM_BACKUP_ROOTS; i++) {
 		if (handle_error) {
@@ -2990,6 +2991,19 @@ void btrfs_init_fs_info(struct btrfs_fs_info *fs_info)
 	mutex_init(&fs_info->zoned_data_reloc_io_lock);
 	seqlock_init(&fs_info->profiles_lock);
 
+	btrfs_lockdep_init_map(fs_info, btrfs_trans_num_writers);
+	btrfs_lockdep_init_map(fs_info, btrfs_trans_num_extwriters);
+	btrfs_lockdep_init_map(fs_info, btrfs_trans_pending_ordered);
+	btrfs_lockdep_init_map(fs_info, btrfs_ordered_extent);
+	btrfs_state_lockdep_init_map(fs_info, btrfs_trans_commit_start,
+				     BTRFS_LOCKDEP_TRANS_COMMIT_START);
+	btrfs_state_lockdep_init_map(fs_info, btrfs_trans_unblocked,
+				     BTRFS_LOCKDEP_TRANS_UNBLOCKED);
+	btrfs_state_lockdep_init_map(fs_info, btrfs_trans_super_committed,
+				     BTRFS_LOCKDEP_TRANS_SUPER_COMMITTED);
+	btrfs_state_lockdep_init_map(fs_info, btrfs_trans_completed,
+				     BTRFS_LOCKDEP_TRANS_COMPLETED);
+
 	INIT_LIST_HEAD(&fs_info->dirty_cowonly_roots);
 	INIT_LIST_HEAD(&fs_info->space_info);
 	INIT_LIST_HEAD(&fs_info->tree_mod_seq_list);
@@ -3068,7 +3082,6 @@ void btrfs_init_fs_info(struct btrfs_fs_info *fs_info)
 	init_waitqueue_head(&fs_info->transaction_blocked_wait);
 	init_waitqueue_head(&fs_info->async_submit_wait);
 	init_waitqueue_head(&fs_info->delayed_iputs_wait);
-	init_waitqueue_head(&fs_info->zone_finish_wait);
 
 	/* Usable values until the real ones are cached from the superblock */
 	fs_info->nodesize = 4096;
@@ -3280,6 +3293,112 @@ out:
 	return ret;
 }
 
+/*
+ * Do various sanity and dependency checks of different features.
+ *
+ * This is the place for less strict checks (like for subpage or artificial
+ * feature dependencies).
+ *
+ * For strict checks or possible corruption detection, see
+ * btrfs_validate_super().
+ *
+ * This should be called after btrfs_parse_options(), as some mount options
+ * (space cache related) can modify on-disk format like free space tree and
+ * screw up certain feature dependencies.
+ */
+int btrfs_check_features(struct btrfs_fs_info *fs_info, struct super_block *sb)
+{
+	struct btrfs_super_block *disk_super = fs_info->super_copy;
+	u64 incompat = btrfs_super_incompat_flags(disk_super);
+	const u64 compat_ro = btrfs_super_compat_ro_flags(disk_super);
+	const u64 compat_ro_unsupp = (compat_ro & ~BTRFS_FEATURE_COMPAT_RO_SUPP);
+
+	if (incompat & ~BTRFS_FEATURE_INCOMPAT_SUPP) {
+		btrfs_err(fs_info,
+		"cannot mount because of unknown incompat features (0x%llx)",
+		    incompat);
+		return -EINVAL;
+	}
+
+	/* Runtime limitation for mixed block groups. */
+	if ((incompat & BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS) &&
+	    (fs_info->sectorsize != fs_info->nodesize)) {
+		btrfs_err(fs_info,
+"unequal nodesize/sectorsize (%u != %u) are not allowed for mixed block groups",
+			fs_info->nodesize, fs_info->sectorsize);
+		return -EINVAL;
+	}
+
+	/* Mixed backref is an always-enabled feature. */
+	incompat |= BTRFS_FEATURE_INCOMPAT_MIXED_BACKREF;
+
+	/* Set compression related flags just in case. */
+	if (fs_info->compress_type == BTRFS_COMPRESS_LZO)
+		incompat |= BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO;
+	else if (fs_info->compress_type == BTRFS_COMPRESS_ZSTD)
+		incompat |= BTRFS_FEATURE_INCOMPAT_COMPRESS_ZSTD;
+
+	/*
+	 * An ancient flag, which should really be marked deprecated.
+	 * Such runtime limitation doesn't really need a incompat flag.
+	 */
+	if (btrfs_super_nodesize(disk_super) > PAGE_SIZE)
+		incompat |= BTRFS_FEATURE_INCOMPAT_BIG_METADATA;
+
+	if (compat_ro_unsupp && !sb_rdonly(sb)) {
+		btrfs_err(fs_info,
+	"cannot mount read-write because of unknown compat_ro features (0x%llx)",
+		       compat_ro);
+		return -EINVAL;
+	}
+
+	/*
+	 * We have unsupported RO compat features, although RO mounted, we
+	 * should not cause any metadata writes, including log replay.
+	 * Or we could screw up whatever the new feature requires.
+	 */
+	if (compat_ro_unsupp && btrfs_super_log_root(disk_super) &&
+	    !btrfs_test_opt(fs_info, NOLOGREPLAY)) {
+		btrfs_err(fs_info,
+"cannot replay dirty log with unsupported compat_ro features (0x%llx), try rescue=nologreplay",
+			  compat_ro);
+		return -EINVAL;
+	}
+
+	/*
+	 * Artificial limitations for block group tree, to force
+	 * block-group-tree to rely on no-holes and free-space-tree.
+	 */
+	if (btrfs_fs_compat_ro(fs_info, BLOCK_GROUP_TREE) &&
+	    (!btrfs_fs_incompat(fs_info, NO_HOLES) ||
+	     !btrfs_test_opt(fs_info, FREE_SPACE_TREE))) {
+		btrfs_err(fs_info,
+"block-group-tree feature requires no-holes and free-space-tree features");
+		return -EINVAL;
+	}
+
+	/*
+	 * Subpage runtime limitation on v1 cache.
+	 *
+	 * V1 space cache still has some hard codeed PAGE_SIZE usage, while
+	 * we're already defaulting to v2 cache, no need to bother v1 as it's
+	 * going to be deprecated anyway.
+	 */
+	if (fs_info->sectorsize < PAGE_SIZE && btrfs_test_opt(fs_info, SPACE_CACHE)) {
+		btrfs_warn(fs_info,
+	"v1 space cache is not supported for page size %lu with sectorsize %u",
+			   PAGE_SIZE, fs_info->sectorsize);
+		return -EINVAL;
+	}
+
+	/* This can be called by remount, we need to protect the super block. */
+	spin_lock(&fs_info->super_lock);
+	btrfs_set_super_incompat_flags(disk_super, incompat);
+	spin_unlock(&fs_info->super_lock);
+
+	return 0;
+}
+
 int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_devices,
 		      char *options)
 {
@@ -3429,71 +3548,11 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 		goto fail_alloc;
 	}
 
-	features = btrfs_super_incompat_flags(disk_super) &
-		~BTRFS_FEATURE_INCOMPAT_SUPP;
-	if (features) {
-		btrfs_err(fs_info,
-		    "cannot mount because of unsupported optional features (0x%llx)",
-		    features);
-		err = -EINVAL;
+	ret = btrfs_check_features(fs_info, sb);
+	if (ret < 0) {
+		err = ret;
 		goto fail_alloc;
 	}
-
-	features = btrfs_super_incompat_flags(disk_super);
-	features |= BTRFS_FEATURE_INCOMPAT_MIXED_BACKREF;
-	if (fs_info->compress_type == BTRFS_COMPRESS_LZO)
-		features |= BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO;
-	else if (fs_info->compress_type == BTRFS_COMPRESS_ZSTD)
-		features |= BTRFS_FEATURE_INCOMPAT_COMPRESS_ZSTD;
-
-	/*
-	 * Flag our filesystem as having big metadata blocks if they are bigger
-	 * than the page size.
-	 */
-	if (btrfs_super_nodesize(disk_super) > PAGE_SIZE)
-		features |= BTRFS_FEATURE_INCOMPAT_BIG_METADATA;
-
-	/*
-	 * mixed block groups end up with duplicate but slightly offset
-	 * extent buffers for the same range.  It leads to corruptions
-	 */
-	if ((features & BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS) &&
-	    (sectorsize != nodesize)) {
-		btrfs_err(fs_info,
-"unequal nodesize/sectorsize (%u != %u) are not allowed for mixed block groups",
-			nodesize, sectorsize);
-		goto fail_alloc;
-	}
-
-	/*
-	 * Needn't use the lock because there is no other task which will
-	 * update the flag.
-	 */
-	btrfs_set_super_incompat_flags(disk_super, features);
-
-	features = btrfs_super_compat_ro_flags(disk_super) &
-		~BTRFS_FEATURE_COMPAT_RO_SUPP;
-	if (!sb_rdonly(sb) && features) {
-		btrfs_err(fs_info,
-	"cannot mount read-write because of unsupported optional features (0x%llx)",
-		       features);
-		err = -EINVAL;
-		goto fail_alloc;
-	}
-	/*
-	 * We have unsupported RO compat features, although RO mounted, we
-	 * should not cause any metadata write, including log replay.
-	 * Or we could screw up whatever the new feature requires.
-	 */
-	if (unlikely(features && btrfs_super_log_root(disk_super) &&
-		     !btrfs_test_opt(fs_info, NOLOGREPLAY))) {
-		btrfs_err(fs_info,
-"cannot replay dirty log with unsupported compat_ro features (0x%llx), try rescue=nologreplay",
-			  features);
-		err = -EINVAL;
-		goto fail_alloc;
-	}
-
 
 	if (sectorsize < PAGE_SIZE) {
 		struct btrfs_subpage_info *subpage_info;
@@ -3834,7 +3893,7 @@ static void btrfs_end_super_write(struct bio *bio)
 }
 
 struct btrfs_super_block *btrfs_read_dev_one_super(struct block_device *bdev,
-						   int copy_num)
+						   int copy_num, bool drop_cache)
 {
 	struct btrfs_super_block *super;
 	struct page *page;
@@ -3851,6 +3910,19 @@ struct btrfs_super_block *btrfs_read_dev_one_super(struct block_device *bdev,
 
 	if (bytenr + BTRFS_SUPER_INFO_SIZE >= bdev_nr_bytes(bdev))
 		return ERR_PTR(-EINVAL);
+
+	if (drop_cache) {
+		/* This should only be called with the primary sb. */
+		ASSERT(copy_num == 0);
+
+		/*
+		 * Drop the page of the primary superblock, so later read will
+		 * always read from the device.
+		 */
+		invalidate_inode_pages2_range(mapping,
+				bytenr >> PAGE_SHIFT,
+				(bytenr + BTRFS_SUPER_INFO_SIZE) >> PAGE_SHIFT);
+	}
 
 	page = read_cache_page_gfp(mapping, bytenr >> PAGE_SHIFT, GFP_NOFS);
 	if (IS_ERR(page))
@@ -3883,7 +3955,7 @@ struct btrfs_super_block *btrfs_read_dev_super(struct block_device *bdev)
 	 * later supers, using BTRFS_SUPER_MIRROR_MAX instead
 	 */
 	for (i = 0; i < 1; i++) {
-		super = btrfs_read_dev_one_super(bdev, i);
+		super = btrfs_read_dev_one_super(bdev, i, false);
 		if (IS_ERR(super))
 			continue;
 
@@ -4476,6 +4548,17 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 	set_bit(BTRFS_FS_CLOSING_START, &fs_info->flags);
 
 	/*
+	 * If we had UNFINISHED_DROPS we could still be processing them, so
+	 * clear that bit and wake up relocation so it can stop.
+	 * We must do this before stopping the block group reclaim task, because
+	 * at btrfs_relocate_block_group() we wait for this bit, and after the
+	 * wait we stop with -EINTR if btrfs_fs_closing() returns non-zero - we
+	 * have just set BTRFS_FS_CLOSING_START, so btrfs_fs_closing() will
+	 * return 1.
+	 */
+	btrfs_wake_unfinished_drop(fs_info);
+
+	/*
 	 * We may have the reclaim task running and relocating a data block group,
 	 * in which case it may create delayed iputs. So stop it before we park
 	 * the cleaner kthread otherwise we can get new delayed iputs after
@@ -4492,12 +4575,6 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 	 * still try to wake up the cleaner.
 	 */
 	kthread_park(fs_info->cleaner_kthread);
-
-	/*
-	 * If we had UNFINISHED_DROPS we could still be processing them, so
-	 * clear that bit and wake up relocation so it can stop.
-	 */
-	btrfs_wake_unfinished_drop(fs_info);
 
 	/* wait for the qgroup rescan worker to stop */
 	btrfs_qgroup_wait_for_completion(fs_info, false);
@@ -4520,6 +4597,31 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 
 	/* clear out the rbtree of defraggable inodes */
 	btrfs_cleanup_defrag_inodes(fs_info);
+
+	/*
+	 * After we parked the cleaner kthread, ordered extents may have
+	 * completed and created new delayed iputs. If one of the async reclaim
+	 * tasks is running and in the RUN_DELAYED_IPUTS flush state, then we
+	 * can hang forever trying to stop it, because if a delayed iput is
+	 * added after it ran btrfs_run_delayed_iputs() and before it called
+	 * btrfs_wait_on_delayed_iputs(), it will hang forever since there is
+	 * no one else to run iputs.
+	 *
+	 * So wait for all ongoing ordered extents to complete and then run
+	 * delayed iputs. This works because once we reach this point no one
+	 * can either create new ordered extents nor create delayed iputs
+	 * through some other means.
+	 *
+	 * Also note that btrfs_wait_ordered_roots() is not safe here, because
+	 * it waits for BTRFS_ORDERED_COMPLETE to be set on an ordered extent,
+	 * but the delayed iput for the respective inode is made only when doing
+	 * the final btrfs_put_ordered_extent() (which must happen at
+	 * btrfs_finish_ordered_io() when we are unmounting).
+	 */
+	btrfs_flush_workqueue(fs_info->endio_write_workers);
+	/* Ordered extents for free space inodes. */
+	btrfs_flush_workqueue(fs_info->endio_freespace_worker);
+	btrfs_run_delayed_iputs(fs_info);
 
 	cancel_work_sync(&fs_info->async_reclaim_work);
 	cancel_work_sync(&fs_info->async_data_reclaim_work);

@@ -111,6 +111,7 @@ struct tc_action_ops {
 	struct list_head head;
 	char    kind[IFNAMSIZ];
 	enum tca_id  id; /* identifier should match kind */
+	unsigned int	net_id;
 	size_t	size;
 	struct module		*owner;
 	int     (*act)(struct sk_buff *, const struct tc_action *,

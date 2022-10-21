@@ -67,7 +67,6 @@
 			port@0 {
 				reg = <0>;
 				csys2_funnel_in_port0: endpoint {
-					slave-mode;
 					remote-endpoint = <&etf0_out_port>;
 				};
 			};
@@ -75,7 +74,6 @@
 			port@1 {
 				reg = <1>;
 				csys2_funnel_in_port1: endpoint {
-					slave-mode;
 					remote-endpoint = <&etf1_out_port>;
 				};
 			};

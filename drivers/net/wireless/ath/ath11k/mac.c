@@ -2081,7 +2081,7 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
 	struct cfg80211_chan_def def;
 	const struct ieee80211_sta_he_cap *he_cap = &sta->deflink.he_cap;
 	enum nl80211_band band;
-	u16 *he_mcs_mask;
+	u16 he_mcs_mask[NL80211_HE_NSS_MAX];
 	u8 max_nss, he_mcs;
 	u16 he_tx_mcs = 0, v = 0;
 	int i, he_nss, nss_idx;
@@ -2098,7 +2098,8 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
 		return;
 
 	band = def.chan->band;
-	he_mcs_mask = arvif->bitrate_mask.control[band].he_mcs;
+	memcpy(he_mcs_mask, arvif->bitrate_mask.control[band].he_mcs,
+	       sizeof(he_mcs_mask));
 
 	if (ath11k_peer_assoc_h_he_masked(he_mcs_mask))
 		return;
@@ -3059,7 +3060,7 @@ static int ath11k_mac_config_obss_pd(struct ath11k *ar,
 		return ret;
 	}
 
-	/* Enable all patial BSSID mask for SRG */
+	/* Enable all partial BSSID mask for SRG */
 	ret = ath11k_wmi_pdev_srg_obss_bssid_enable_bitmap(ar, bitmap);
 	if (ret) {
 		ath11k_warn(ar->ab,
@@ -3077,7 +3078,7 @@ static int ath11k_mac_config_obss_pd(struct ath11k *ar,
 		return ret;
 	}
 
-	/* Enable all patial BSSID mask for non-SRG */
+	/* Enable all partial BSSID mask for non-SRG */
 	ret = ath11k_wmi_pdev_non_srg_obss_bssid_enable_bitmap(ar, bitmap);
 	if (ret) {
 		ath11k_warn(ar->ab,
@@ -3350,10 +3351,15 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 		ath11k_recalculate_mgmt_rate(ar, vif, &def);
 
 	if (changed & BSS_CHANGED_TWT) {
-		if (info->twt_requester || info->twt_responder)
-			ath11k_wmi_send_twt_enable_cmd(ar, ar->pdev->pdev_id);
-		else
+		struct wmi_twt_enable_params twt_params = {0};
+
+		if (info->twt_requester || info->twt_responder) {
+			ath11k_wmi_fill_default_twt_params(&twt_params);
+			ath11k_wmi_send_twt_enable_cmd(ar, ar->pdev->pdev_id,
+						       &twt_params);
+		} else {
 			ath11k_wmi_send_twt_disable_cmd(ar, ar->pdev->pdev_id);
+		}
 	}
 
 	if (changed & BSS_CHANGED_HE_OBSS_PD)
@@ -3451,7 +3457,7 @@ void __ath11k_mac_scan_finish(struct ath11k *ar)
 		ar->scan_channel = NULL;
 		ar->scan.roc_freq = 0;
 		cancel_delayed_work(&ar->scan.timeout);
-		complete(&ar->scan.completed);
+		complete_all(&ar->scan.completed);
 		break;
 	}
 }
@@ -4524,6 +4530,7 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
 	    new_state == IEEE80211_STA_NONE) {
 		memset(arsta, 0, sizeof(*arsta));
 		arsta->arvif = arvif;
+		arsta->peer_ps_state = WMI_PEER_PS_STATE_DISABLED;
 		INIT_WORK(&arsta->update_wk, ath11k_sta_rc_update_wk);
 		INIT_WORK(&arsta->set_4addr_wk, ath11k_sta_set_4addr_wk);
 
@@ -4701,7 +4708,7 @@ static void ath11k_mac_op_sta_rc_update(struct ieee80211_hw *hw,
 		   "mac sta rc update for %pM changed %08x bw %d nss %d smps %d\n",
 		   sta->addr, changed, sta->deflink.bandwidth,
 		   sta->deflink.rx_nss,
-		   sta->smps_mode);
+		   sta->deflink.smps_mode);
 
 	spin_lock_bh(&ar->data_lock);
 
@@ -4737,7 +4744,7 @@ static void ath11k_mac_op_sta_rc_update(struct ieee80211_hw *hw,
 	if (changed & IEEE80211_RC_SMPS_CHANGED) {
 		smps = WMI_PEER_SMPS_PS_NONE;
 
-		switch (sta->smps_mode) {
+		switch (sta->deflink.smps_mode) {
 		case IEEE80211_SMPS_AUTOMATIC:
 		case IEEE80211_SMPS_OFF:
 			smps = WMI_PEER_SMPS_PS_NONE;
@@ -4750,7 +4757,7 @@ static void ath11k_mac_op_sta_rc_update(struct ieee80211_hw *hw,
 			break;
 		default:
 			ath11k_warn(ar->ab, "Invalid smps %d in sta rc update for %pM\n",
-				    sta->smps_mode, sta->addr);
+				    sta->deflink.smps_mode, sta->addr);
 			smps = WMI_PEER_SMPS_PS_NONE;
 			break;
 		}
@@ -4954,6 +4961,8 @@ static int ath11k_mac_set_txbf_conf(struct ath11k_vif *arvif)
 	if (vht_cap & (IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE)) {
 		nsts = vht_cap & IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
 		nsts >>= IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT;
+		if (nsts > (ar->num_rx_chains - 1))
+			nsts = ar->num_rx_chains - 1;
 		value |= SM(nsts, WMI_TXBF_STS_CAP_OFFSET);
 	}
 
@@ -4994,7 +5003,7 @@ static int ath11k_mac_set_txbf_conf(struct ath11k_vif *arvif)
 static void ath11k_set_vht_txbf_cap(struct ath11k *ar, u32 *vht_cap)
 {
 	bool subfer, subfee;
-	int sound_dim = 0;
+	int sound_dim = 0, nsts = 0;
 
 	subfer = !!(*vht_cap & (IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE));
 	subfee = !!(*vht_cap & (IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE));
@@ -5002,6 +5011,11 @@ static void ath11k_set_vht_txbf_cap(struct ath11k *ar, u32 *vht_cap)
 	if (ar->num_tx_chains < 2) {
 		*vht_cap &= ~(IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE);
 		subfer = false;
+	}
+
+	if (ar->num_rx_chains < 2) {
+		*vht_cap &= ~(IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE);
+		subfee = false;
 	}
 
 	/* If SU Beaformer is not set, then disable MU Beamformer Capability */
@@ -5016,7 +5030,9 @@ static void ath11k_set_vht_txbf_cap(struct ath11k *ar, u32 *vht_cap)
 	sound_dim >>= IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_SHIFT;
 	*vht_cap &= ~IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK;
 
-	/* TODO: Need to check invalid STS and Sound_dim values set by FW? */
+	nsts = (*vht_cap & IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK);
+	nsts >>= IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT;
+	*vht_cap &= ~IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
 
 	/* Enable Sounding Dimension Field only if SU BF is enabled */
 	if (subfer) {
@@ -5028,9 +5044,15 @@ static void ath11k_set_vht_txbf_cap(struct ath11k *ar, u32 *vht_cap)
 		*vht_cap |= sound_dim;
 	}
 
-	/* Use the STS advertised by FW unless SU Beamformee is not supported*/
-	if (!subfee)
-		*vht_cap &= ~(IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK);
+	/* Enable Beamformee STS Field only if SU BF is enabled */
+	if (subfee) {
+		if (nsts > (ar->num_rx_chains - 1))
+			nsts = ar->num_rx_chains - 1;
+
+		nsts <<= IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT;
+		nsts &=  IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
+		*vht_cap |= nsts;
+	}
 }
 
 static struct ieee80211_sta_vht_cap
@@ -6173,6 +6195,13 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 		goto err;
 	}
 
+	/* In the case of hardware recovery, debugfs files are
+	 * not deleted since ieee80211_ops.remove_interface() is
+	 * not invoked. In such cases, try to delete the files.
+	 * These will be re-created later.
+	 */
+	ath11k_debugfs_remove_interface(arvif);
+
 	memset(arvif, 0, sizeof(*arvif));
 
 	arvif->ar = ar;
@@ -6354,9 +6383,7 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 		}
 	}
 
-	ret = ath11k_debugfs_add_interface(arvif);
-	if (ret)
-		goto err_peer_del;
+	ath11k_debugfs_add_interface(arvif);
 
 	mutex_unlock(&ar->conf_mutex);
 
@@ -8421,6 +8448,95 @@ exit:
 	return ret;
 }
 
+static int ath11k_fw_stats_request(struct ath11k *ar,
+				   struct stats_request_params *req_param)
+{
+	struct ath11k_base *ab = ar->ab;
+	unsigned long time_left;
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	spin_lock_bh(&ar->data_lock);
+	ar->fw_stats_done = false;
+	ath11k_fw_stats_pdevs_free(&ar->fw_stats.pdevs);
+	spin_unlock_bh(&ar->data_lock);
+
+	reinit_completion(&ar->fw_stats_complete);
+
+	ret = ath11k_wmi_send_stats_request_cmd(ar, req_param);
+	if (ret) {
+		ath11k_warn(ab, "could not request fw stats (%d)\n",
+			    ret);
+		return ret;
+	}
+
+	time_left = wait_for_completion_timeout(&ar->fw_stats_complete,
+						1 * HZ);
+
+	if (!time_left)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+static int ath11k_mac_op_get_txpower(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
+				     int *dbm)
+{
+	struct ath11k *ar = hw->priv;
+	struct ath11k_base *ab = ar->ab;
+	struct stats_request_params req_param = {0};
+	struct ath11k_fw_stats_pdev *pdev;
+	int ret;
+
+	/* Final Tx power is minimum of Target Power, CTL power, Regulatory
+	 * Power, PSD EIRP Power. We just know the Regulatory power from the
+	 * regulatory rules obtained. FW knows all these power and sets the min
+	 * of these. Hence, we request the FW pdev stats in which FW reports
+	 * the minimum of all vdev's channel Tx power.
+	 */
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH11K_STATE_ON)
+		goto err_fallback;
+
+	req_param.pdev_id = ar->pdev->pdev_id;
+	req_param.stats_id = WMI_REQUEST_PDEV_STAT;
+
+	ret = ath11k_fw_stats_request(ar, &req_param);
+	if (ret) {
+		ath11k_warn(ab, "failed to request fw pdev stats: %d\n", ret);
+		goto err_fallback;
+	}
+
+	spin_lock_bh(&ar->data_lock);
+	pdev = list_first_entry_or_null(&ar->fw_stats.pdevs,
+					struct ath11k_fw_stats_pdev, list);
+	if (!pdev) {
+		spin_unlock_bh(&ar->data_lock);
+		goto err_fallback;
+	}
+
+	/* tx power is set as 2 units per dBm in FW. */
+	*dbm = pdev->chan_tx_power / 2;
+
+	spin_unlock_bh(&ar->data_lock);
+	mutex_unlock(&ar->conf_mutex);
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "txpower from firmware %d, reported %d dBm\n",
+		   pdev->chan_tx_power, *dbm);
+	return 0;
+
+err_fallback:
+	mutex_unlock(&ar->conf_mutex);
+	/* We didn't get txpower from FW. Hence, relying on vif->bss_conf.txpower */
+	*dbm = vif->bss_conf.txpower;
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "txpower from firmware NaN, reported %d dBm\n",
+		   *dbm);
+	return 0;
+}
+
 static const struct ieee80211_ops ath11k_ops = {
 	.tx				= ath11k_mac_op_tx,
 	.start                          = ath11k_mac_op_start,
@@ -8471,6 +8587,7 @@ static const struct ieee80211_ops ath11k_ops = {
 #if IS_ENABLED(CONFIG_IPV6)
 	.ipv6_addr_change = ath11k_mac_op_ipv6_changed,
 #endif
+	.get_txpower                    = ath11k_mac_op_get_txpower,
 
 	.set_sar_specs			= ath11k_mac_op_set_bios_sar_specs,
 	.remain_on_channel		= ath11k_mac_op_remain_on_channel,
@@ -8777,6 +8894,11 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	if (ab->hw_params.single_pdev_only && ar->supports_6ghz)
 		ieee80211_hw_set(ar->hw, SINGLE_SCAN_ON_ALL_BANDS);
 
+	if (ab->hw_params.supports_multi_bssid) {
+		ieee80211_hw_set(ar->hw, SUPPORTS_MULTI_BSSID);
+		ieee80211_hw_set(ar->hw, SUPPORTS_ONLY_HE_MULTI_BSSID);
+	}
+
 	ieee80211_hw_set(ar->hw, SIGNAL_DBM);
 	ieee80211_hw_set(ar->hw, SUPPORTS_PS);
 	ieee80211_hw_set(ar->hw, SUPPORTS_DYNAMIC_PS);
@@ -8967,6 +9089,7 @@ int ath11k_mac_register(struct ath11k_base *ab)
 	struct ath11k_pdev *pdev;
 	int i;
 	int ret;
+	u8 mac_addr[ETH_ALEN] = {0};
 
 	if (test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags))
 		return 0;
@@ -8979,13 +9102,18 @@ int ath11k_mac_register(struct ath11k_base *ab)
 	if (ret)
 		return ret;
 
+	device_get_mac_address(ab->dev, mac_addr);
+
 	for (i = 0; i < ab->num_radios; i++) {
 		pdev = &ab->pdevs[i];
 		ar = pdev->ar;
 		if (ab->pdevs_macaddr_valid) {
 			ether_addr_copy(ar->mac_addr, pdev->mac_addr);
 		} else {
-			ether_addr_copy(ar->mac_addr, ab->mac_addr);
+			if (is_zero_ether_addr(mac_addr))
+				ether_addr_copy(ar->mac_addr, ab->mac_addr);
+			else
+				ether_addr_copy(ar->mac_addr, mac_addr);
 			ar->mac_addr[4] += i;
 		}
 
@@ -9079,6 +9207,8 @@ int ath11k_mac_allocate(struct ath11k_base *ab)
 		clear_bit(ATH11K_FLAG_MONITOR_VDEV_CREATED, &ar->monitor_flags);
 		ar->vdev_id_11d_scan = ATH11K_11D_INVALID_VDEV_ID;
 		init_completion(&ar->completed_11d_scan);
+
+		ath11k_fw_stats_init(ar);
 	}
 
 	return 0;

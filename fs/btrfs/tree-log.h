@@ -20,6 +20,7 @@ struct btrfs_log_ctx {
 	int log_transid;
 	bool log_new_dentries;
 	bool logging_new_name;
+	bool logging_new_delayed_dentries;
 	/* Indicate if the inode being logged was logged before. */
 	bool logged_before;
 	/* Tracks the last logged dir item/index key offset. */
@@ -28,6 +29,9 @@ struct btrfs_log_ctx {
 	struct list_head list;
 	/* Only used for fast fsyncs. */
 	struct list_head ordered_extents;
+	struct list_head conflict_inodes;
+	int num_conflict_inodes;
+	bool logging_conflict_inodes;
 };
 
 static inline void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx,
@@ -37,10 +41,14 @@ static inline void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx,
 	ctx->log_transid = 0;
 	ctx->log_new_dentries = false;
 	ctx->logging_new_name = false;
+	ctx->logging_new_delayed_dentries = false;
 	ctx->logged_before = false;
 	ctx->inode = inode;
 	INIT_LIST_HEAD(&ctx->list);
 	INIT_LIST_HEAD(&ctx->ordered_extents);
+	INIT_LIST_HEAD(&ctx->conflict_inodes);
+	ctx->num_conflict_inodes = 0;
+	ctx->logging_conflict_inodes = false;
 }
 
 static inline void btrfs_release_log_ctx_extents(struct btrfs_log_ctx *ctx)

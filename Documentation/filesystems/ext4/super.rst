@@ -456,15 +456,15 @@ The ext4 superblock is laid out as follows in
    * - 0x277
      - __u8
      - s_lastcheck_hi
-     - Upper 8 bits of the s_lastcheck_hi field.
+     - Upper 8 bits of the s_lastcheck field.
    * - 0x278
      - __u8
      - s_first_error_time_hi
-     - Upper 8 bits of the s_first_error_time_hi field.
+     - Upper 8 bits of the s_first_error_time field.
    * - 0x279
      - __u8
      - s_last_error_time_hi
-     - Upper 8 bits of the s_last_error_time_hi field.
+     - Upper 8 bits of the s_last_error_time field.
    * - 0x27A
      - __u8
      - s_pad[2]

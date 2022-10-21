@@ -114,8 +114,6 @@
 
 #define PXA_UHC_MAX_PORTNUM    3
 
-static const char hcd_name[] = "ohci-pxa27x";
-
 static struct hc_driver __read_mostly ohci_pxa27x_hc_driver;
 
 struct pxa27x_ohci {
@@ -607,8 +605,6 @@ static int __init ohci_pxa27x_init(void)
 {
 	if (usb_disabled())
 		return -ENODEV;
-
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 
 	ohci_init_driver(&ohci_pxa27x_hc_driver, &pxa27x_overrides);
 	ohci_pxa27x_hc_driver.hub_control = pxa27x_ohci_hub_control;

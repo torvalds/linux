@@ -398,7 +398,7 @@ fail_put_node:
 	return ret;
 }
 
-static int ti_cpufreq_init(void)
+static int __init ti_cpufreq_init(void)
 {
 	const struct of_device_id *match;
 

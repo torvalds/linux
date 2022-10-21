@@ -96,11 +96,8 @@ static int sti_sas_write_reg(void *context, unsigned int reg,
 			     unsigned int value)
 {
 	struct sti_sas_data *drvdata = context;
-	int status;
 
-	status = regmap_write(drvdata->dac.regmap, reg, value);
-
-	return status;
+	return regmap_write(drvdata->dac.regmap, reg, value);
 }
 
 static int  sti_sas_init_sas_registers(struct snd_soc_component *component,
@@ -385,11 +382,8 @@ static int sti_sas_resume(struct snd_soc_component *component)
 static int sti_sas_component_probe(struct snd_soc_component *component)
 {
 	struct sti_sas_data *drvdata = dev_get_drvdata(component->dev);
-	int ret;
 
-	ret = sti_sas_init_sas_registers(component, drvdata);
-
-	return ret;
+	return sti_sas_init_sas_registers(component, drvdata);
 }
 
 static struct snd_soc_component_driver sti_sas_driver = {

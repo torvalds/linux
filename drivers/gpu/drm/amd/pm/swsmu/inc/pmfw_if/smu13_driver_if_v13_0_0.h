@@ -25,7 +25,7 @@
 #define SMU13_DRIVER_IF_V13_0_0_H
 
 //Increment this version if SkuTable_t or BoardTable_t change
-#define PPTABLE_VERSION 0x22
+#define PPTABLE_VERSION 0x24
 
 #define NUM_GFXCLK_DPM_LEVELS    16
 #define NUM_SOCCLK_DPM_LEVELS    8

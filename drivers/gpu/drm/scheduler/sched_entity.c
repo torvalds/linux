@@ -385,7 +385,8 @@ static bool drm_sched_entity_add_dependency_cb(struct drm_sched_entity *entity)
 	}
 
 	s_fence = to_drm_sched_fence(fence);
-	if (s_fence && s_fence->sched == sched) {
+	if (s_fence && s_fence->sched == sched &&
+	    !test_bit(DRM_SCHED_FENCE_DONT_PIPELINE, &fence->flags)) {
 
 		/*
 		 * Fence is from the same scheduler, only need to wait for

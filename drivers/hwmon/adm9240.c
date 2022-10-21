@@ -501,17 +501,23 @@ static int adm9240_fan_read(struct device *dev, u32 attr, int channel, long *val
 
 	switch (attr) {
 	case hwmon_fan_input:
+		mutex_lock(&data->update_lock);
 		err = regmap_read(data->regmap, ADM9240_REG_FAN(channel), &regval);
-		if (err < 0)
+		if (err < 0) {
+			mutex_unlock(&data->update_lock);
 			return err;
+		}
 		if (regval == 255 && data->fan_div[channel] < 3) {
 			/* adjust fan clock divider on overflow */
 			err = adm9240_write_fan_div(data, channel,
 						    ++data->fan_div[channel]);
-			if (err)
+			if (err) {
+				mutex_unlock(&data->update_lock);
 				return err;
+			}
 		}
 		*val = FAN_FROM_REG(regval, BIT(data->fan_div[channel]));
+		mutex_unlock(&data->update_lock);
 		break;
 	case hwmon_fan_div:
 		*val = BIT(data->fan_div[channel]);

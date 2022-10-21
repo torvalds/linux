@@ -153,7 +153,7 @@ Date:		Jan 2020
 KernelVersion:	5.5
 Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This attribute reports number of RX lanes the device is
-		using simultaneusly through its upstream port.
+		using simultaneously through its upstream port.
 
 What:		/sys/bus/thunderbolt/devices/.../tx_speed
 Date:		Jan 2020
@@ -167,7 +167,7 @@ Date:		Jan 2020
 KernelVersion:	5.5
 Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This attribute reports number of TX lanes the device is
-		using simultaneusly through its upstream port.
+		using simultaneously through its upstream port.
 
 What:		/sys/bus/thunderbolt/devices/.../vendor
 Date:		Sep 2017
