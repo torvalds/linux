@@ -136,14 +136,6 @@ config MTD_PHRAM
 	  doesn't have access to, memory beyond the mem=xxx limit, nvram,
 	  memory on the video card, etc...
 
-config MTD_LART
-	tristate "28F160xx flash driver for LART"
-	depends on SA1100_LART
-	help
-	  This enables the flash driver for LART. Please note that you do
-	  not need any mapping/chip driver for LART. This one does it all
-	  for you, so go disable all of those if you enabled some of them (:
-
 config MTD_MTDRAM
 	tristate "Test driver using RAM"
 	help
