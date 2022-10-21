@@ -2551,10 +2551,10 @@ int soft_offline_page(unsigned long pfn, int flags)
 	bool try_again = true;
 	struct page *page;
 
-	WARN_ON_ONCE(!pfn_valid(pfn) && (flags & MF_COUNT_INCREASED));
-
-	if (!pfn_valid(pfn))
+	if (!pfn_valid(pfn)) {
+		WARN_ON_ONCE(flags & MF_COUNT_INCREASED);
 		return -ENXIO;
+	}
 
 	/* Only online pages can be soft-offlined (esp., not ZONE_DEVICE). */
 	page = pfn_to_online_page(pfn);
