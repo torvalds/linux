@@ -451,6 +451,7 @@ int rxrpc_io_thread(void *data)
 
 		/* Process received packets and errors. */
 		if ((skb = __skb_dequeue(&rx_queue))) {
+			struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 			switch (skb->mark) {
 			case RXRPC_SKB_MARK_PACKET:
 				skb->priority = 0;
@@ -463,6 +464,10 @@ int rxrpc_io_thread(void *data)
 				rxrpc_input_error(local, skb);
 				rxrpc_free_skb(skb, rxrpc_skb_put_error_report);
 				break;
+			case RXRPC_SKB_MARK_SERVICE_CONN_SECURED:
+				rxrpc_input_conn_event(sp->conn, skb);
+				rxrpc_put_connection(sp->conn, rxrpc_conn_put_poke);
+				rxrpc_free_skb(skb, rxrpc_skb_put_conn_secured);
 				break;
 			default:
 				WARN_ON_ONCE(1);

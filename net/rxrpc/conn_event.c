@@ -248,7 +248,7 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 			       struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	int loop, ret;
+	int ret;
 
 	if (conn->state == RXRPC_CONN_ABORTED)
 		return -ECONNABORTED;
@@ -269,22 +269,21 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		if (ret < 0)
 			return ret;
 
-		spin_lock(&conn->bundle->channel_lock);
 		spin_lock(&conn->state_lock);
-
-		if (conn->state == RXRPC_CONN_SERVICE_CHALLENGING) {
+		if (conn->state == RXRPC_CONN_SERVICE_CHALLENGING)
 			conn->state = RXRPC_CONN_SERVICE;
-			spin_unlock(&conn->state_lock);
-			for (loop = 0; loop < RXRPC_MAXCALLS; loop++)
-				rxrpc_call_is_secure(
-					rcu_dereference_protected(
-						conn->channels[loop].call,
-						lockdep_is_held(&conn->bundle->channel_lock)));
-		} else {
-			spin_unlock(&conn->state_lock);
-		}
+		spin_unlock(&conn->state_lock);
 
-		spin_unlock(&conn->bundle->channel_lock);
+		if (conn->state == RXRPC_CONN_SERVICE) {
+			/* Offload call state flipping to the I/O thread.  As
+			 * we've already received the packet, put it on the
+			 * front of the queue.
+			 */
+			skb->mark = RXRPC_SKB_MARK_SERVICE_CONN_SECURED;
+			rxrpc_get_skb(skb, rxrpc_skb_get_conn_secured);
+			skb_queue_head(&conn->local->rx_queue, skb);
+			rxrpc_wake_up_io_thread(conn->local);
+		}
 		return 0;
 
 	default:
@@ -442,8 +441,27 @@ bool rxrpc_input_conn_packet(struct rxrpc_connection *conn, struct sk_buff *skb)
  */
 void rxrpc_input_conn_event(struct rxrpc_connection *conn, struct sk_buff *skb)
 {
+	unsigned int loop;
+
 	if (test_and_clear_bit(RXRPC_CONN_EV_ABORT_CALLS, &conn->events))
 		rxrpc_abort_calls(conn);
+
+	switch (skb->mark) {
+	case RXRPC_SKB_MARK_SERVICE_CONN_SECURED:
+		if (conn->state != RXRPC_CONN_SERVICE)
+			break;
+
+		spin_lock(&conn->bundle->channel_lock);
+
+		for (loop = 0; loop < RXRPC_MAXCALLS; loop++)
+			rxrpc_call_is_secure(
+				rcu_dereference_protected(
+					conn->channels[loop].call,
+					lockdep_is_held(&conn->bundle->channel_lock)));
+
+		spin_unlock(&conn->bundle->channel_lock);
+		break;
+	}
 
 	/* Process delayed ACKs whose time has come. */
 	if (conn->flags & RXRPC_CONN_FINAL_ACK_MASK)
