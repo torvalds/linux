@@ -1314,8 +1314,8 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 
 	ret = smu_enable_thermal_alert(smu);
 	if (ret) {
-		dev_err(adev->dev, "Failed to enable thermal alert!\n");
-		return ret;
+	  dev_err(adev->dev, "Failed to enable thermal alert!\n");
+	  return ret;
 	}
 
 	ret = smu_notify_display_change(smu);
