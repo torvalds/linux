@@ -329,7 +329,7 @@ static int parent(struct shared_info *info, pid_t pid)
 
 	core = mmap(NULL, core_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (core == (void *) -1) {
-		perror("Error mmaping core file");
+		perror("Error mmapping core file");
 		ret = TEST_FAIL;
 		goto out;
 	}
