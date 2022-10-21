@@ -1910,17 +1910,25 @@ static inline unsigned long free_raw_hwp_pages(struct page *hpage, bool flag)
 }
 #endif	/* CONFIG_HUGETLB_PAGE */
 
+/* Drop the extra refcount in case we come from madvise() */
+static void put_ref_page(unsigned long pfn, int flags)
+{
+	struct page *page;
+
+	if (!(flags & MF_COUNT_INCREASED))
+		return;
+
+	page = pfn_to_page(pfn);
+	if (page)
+		put_page(page);
+}
+
 static int memory_failure_dev_pagemap(unsigned long pfn, int flags,
 		struct dev_pagemap *pgmap)
 {
-	struct page *page = pfn_to_page(pfn);
 	int rc = -ENXIO;
 
-	if (flags & MF_COUNT_INCREASED)
-		/*
-		 * Drop the extra refcount in case we come from madvise().
-		 */
-		put_page(page);
+	put_ref_page(pfn, flags);
 
 	/* device metadata space is not recoverable */
 	if (!pgmap_pfn_valid(pgmap, pfn))
@@ -2513,12 +2521,6 @@ static int soft_offline_in_use_page(struct page *page)
 	return ret;
 }
 
-static void put_ref_page(struct page *page)
-{
-	if (page)
-		put_page(page);
-}
-
 /**
  * soft_offline_page - Soft offline a page.
  * @pfn: pfn to soft-offline
@@ -2547,19 +2549,17 @@ int soft_offline_page(unsigned long pfn, int flags)
 {
 	int ret;
 	bool try_again = true;
-	struct page *page, *ref_page = NULL;
+	struct page *page;
 
 	WARN_ON_ONCE(!pfn_valid(pfn) && (flags & MF_COUNT_INCREASED));
 
 	if (!pfn_valid(pfn))
 		return -ENXIO;
-	if (flags & MF_COUNT_INCREASED)
-		ref_page = pfn_to_page(pfn);
 
 	/* Only online pages can be soft-offlined (esp., not ZONE_DEVICE). */
 	page = pfn_to_online_page(pfn);
 	if (!page) {
-		put_ref_page(ref_page);
+		put_ref_page(pfn, flags);
 		return -EIO;
 	}
 
@@ -2567,7 +2567,7 @@ int soft_offline_page(unsigned long pfn, int flags)
 
 	if (PageHWPoison(page)) {
 		pr_info("%s: %#lx page already poisoned\n", __func__, pfn);
-		put_ref_page(ref_page);
+		put_ref_page(pfn, flags);
 		mutex_unlock(&mf_mutex);
 		return 0;
 	}
