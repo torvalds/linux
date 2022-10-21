@@ -14,6 +14,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
+#include <linux/pm_runtime.h>
 
 /*
  * TempSensor reset. The RSTN can be de-asserted once the analog core has
@@ -207,18 +208,25 @@ static int sfctemp_read(struct device *dev, enum hwmon_sensor_types type,
 			u32 attr, int channel, long *val)
 {
 	struct sfctemp *sfctemp = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_get_sync(dev);
 
 	switch (type) {
 	case hwmon_temp:
 		switch (attr) {
 		case hwmon_temp_enable:
 			*val = sfctemp->enabled;
+			pm_runtime_put(dev);
 			return 0;
 		case hwmon_temp_input:
-			return sfctemp_convert(sfctemp, val);
+			ret = sfctemp_convert(sfctemp, val);
+			pm_runtime_put(dev);
+			return ret;
 		}
 		return -EINVAL;
 	default:
+		pm_runtime_put(dev);
 		return -EINVAL;
 	}
 }
@@ -326,8 +334,40 @@ static int sfctemp_probe(struct platform_device *pdev)
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, pdev->name, sfctemp,
 							 &sfctemp_chip_info, NULL);
+
+	pm_runtime_enable(hwmon_dev);
+	pm_runtime_enable(dev);
+
+	sfctemp_disable(sfctemp);
+
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
+
+#ifdef CONFIG_PM
+
+static int starfive_temp_suspend(struct device *dev)
+{
+	struct sfctemp *sfctemp = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "starfive temp runtime suspend");
+
+	return sfctemp_disable(sfctemp);
+}
+
+static int starfive_temp_resume(struct device *dev)
+{
+	struct sfctemp *sfctemp = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "starfive temp runtime resume");
+
+	return sfctemp_enable(sfctemp);
+}
+#endif /* CONFIG_PM */
+
+static const struct dev_pm_ops sfctemp_dev_pm_ops = {
+	SET_RUNTIME_PM_OPS(starfive_temp_suspend, starfive_temp_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+};
 
 static const struct of_device_id sfctemp_of_match[] = {
 	{ .compatible = "starfive,jh7100-temp" },
@@ -341,6 +381,7 @@ static struct platform_driver sfctemp_driver = {
 	.driver = {
 		.name = "sfctemp",
 		.of_match_table = sfctemp_of_match,
+		.pm   = &sfctemp_dev_pm_ops,
 	},
 };
 module_platform_driver(sfctemp_driver);
