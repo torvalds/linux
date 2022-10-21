@@ -43,7 +43,7 @@ struct ccwchain {
  * page_array_alloc() - alloc memory for page array
  * @pa: page_array on which to perform the operation
  * @iova: target guest physical address
- * @len: number of bytes that should be pinned from @iova
+ * @len: number of pages that should be pinned from @iova
  *
  * Attempt to allocate memory for page array.
  *
@@ -63,18 +63,20 @@ static int page_array_alloc(struct page_array *pa, u64 iova, unsigned int len)
 	if (pa->pa_nr || pa->pa_iova)
 		return -EINVAL;
 
-	pa->pa_nr = ((iova & ~PAGE_MASK) + len + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
-	if (!pa->pa_nr)
+	if (len == 0)
 		return -EINVAL;
 
-	pa->pa_iova = kcalloc(pa->pa_nr,
-			      sizeof(*pa->pa_iova) + sizeof(*pa->pa_page),
-			      GFP_KERNEL);
-	if (unlikely(!pa->pa_iova)) {
-		pa->pa_nr = 0;
+	pa->pa_nr = len;
+
+	pa->pa_iova = kcalloc(len, sizeof(*pa->pa_iova), GFP_KERNEL);
+	if (!pa->pa_iova)
+		return -ENOMEM;
+
+	pa->pa_page = kcalloc(len, sizeof(*pa->pa_page), GFP_KERNEL);
+	if (!pa->pa_page) {
+		kfree(pa->pa_iova);
 		return -ENOMEM;
 	}
-	pa->pa_page = (struct page **)&pa->pa_iova[pa->pa_nr];
 
 	pa->pa_iova[0] = iova;
 	pa->pa_page[0] = NULL;
@@ -167,6 +169,7 @@ err_out:
 static void page_array_unpin_free(struct page_array *pa, struct vfio_device *vdev)
 {
 	page_array_unpin(pa, vdev, pa->pa_nr);
+	kfree(pa->pa_page);
 	kfree(pa->pa_iova);
 }
 
@@ -545,7 +548,7 @@ static int ccwchain_fetch_ccw(struct ccw1 *ccw,
 	 * required for the data transfer, since we only only support
 	 * 4K IDAWs today.
 	 */
-	ret = page_array_alloc(pa, iova, bytes);
+	ret = page_array_alloc(pa, iova, idaw_nr);
 	if (ret < 0)
 		goto out_free_idaws;
 
