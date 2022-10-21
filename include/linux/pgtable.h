@@ -305,7 +305,7 @@ static inline pmd_t pmdp_get(pmd_t *pmdp)
 }
 #endif
 
-#ifdef CONFIG_GUP_GET_PTE_LOW_HIGH
+#ifdef CONFIG_GUP_GET_PXX_LOW_HIGH
 /*
  * For walking the pagetables without holding any locks.  Some architectures
  * (eg x86-32 PAE) cannot load the entries atomically without using expensive
@@ -365,7 +365,7 @@ static inline pmd_t pmdp_get_lockless(pmd_t *pmdp)
 }
 #define pmdp_get_lockless pmdp_get_lockless
 #endif /* CONFIG_PGTABLE_LEVELS > 2 */
-#endif /* CONFIG_GUP_GET_PTE_LOW_HIGH */
+#endif /* CONFIG_GUP_GET_PXX_LOW_HIGH */
 
 /*
  * We require that the PTE can be read atomically.

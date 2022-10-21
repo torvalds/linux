@@ -1044,7 +1044,7 @@ config GUP_TEST
 comment "GUP_TEST needs to have DEBUG_FS enabled"
 	depends on !GUP_TEST && !DEBUG_FS
 
-config GUP_GET_PTE_LOW_HIGH
+config GUP_GET_PXX_LOW_HIGH
 	bool
 
 config ARCH_HAS_PTE_SPECIAL
