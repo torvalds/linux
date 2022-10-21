@@ -88,20 +88,17 @@ static inline struct bch_dev_usage *dev_usage_ptr(struct bch_dev *ca,
 			    : ca->usage[journal_seq & JOURNAL_BUF_MASK]);
 }
 
-struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *ca)
+void bch2_dev_usage_read_fast(struct bch_dev *ca, struct bch_dev_usage *usage)
 {
 	struct bch_fs *c = ca->fs;
-	struct bch_dev_usage ret;
 	unsigned seq, i, u64s = dev_usage_u64s();
 
 	do {
 		seq = read_seqcount_begin(&c->usage_lock);
-		memcpy(&ret, ca->usage_base, u64s * sizeof(u64));
+		memcpy(usage, ca->usage_base, u64s * sizeof(u64));
 		for (i = 0; i < ARRAY_SIZE(ca->usage); i++)
-			acc_u64s_percpu((u64 *) &ret, (u64 __percpu *) ca->usage[i], u64s);
+			acc_u64s_percpu((u64 *) usage, (u64 __percpu *) ca->usage[i], u64s);
 	} while (read_seqcount_retry(&c->usage_lock, seq));
-
-	return ret;
 }
 
 static inline struct bch_fs_usage *fs_usage_ptr(struct bch_fs *c,

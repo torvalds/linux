@@ -120,7 +120,15 @@ static inline u8 ptr_stale(struct bch_dev *ca,
 
 /* Device usage: */
 
-struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *);
+void bch2_dev_usage_read_fast(struct bch_dev *, struct bch_dev_usage *);
+static inline struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *ca)
+{
+	struct bch_dev_usage ret;
+
+	bch2_dev_usage_read_fast(ca, &ret);
+	return ret;
+}
+
 void bch2_dev_usage_init(struct bch_dev *);
 
 static inline u64 bch2_dev_buckets_reserved(struct bch_dev *ca, enum alloc_reserve reserve)
