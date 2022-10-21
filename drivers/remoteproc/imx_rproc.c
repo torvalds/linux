@@ -948,7 +948,8 @@ static int imx_rproc_detect_mode(struct imx_rproc *priv)
 		}
 
 		priv->rproc->state = RPROC_DETACHED;
-		priv->rproc->recovery_disabled = true;
+		priv->rproc->recovery_disabled = false;
+		rproc_set_feature(priv->rproc, RPROC_FEAT_ATTACH_ON_RECOVERY);
 
 		/* Get partition id and enable irq in SCFW */
 		ret = imx_sc_rm_get_resource_owner(priv->ipc_handle, priv->rsrc_id, &pt);
