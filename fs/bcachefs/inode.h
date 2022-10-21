@@ -2,6 +2,7 @@
 #ifndef _BCACHEFS_INODE_H
 #define _BCACHEFS_INODE_H
 
+#include "bkey.h"
 #include "opts.h"
 
 extern const char * const bch2_inode_opts[];

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "bkey.h"
 #include "keylist.h"
 
 int bch2_keylist_realloc(struct keylist *l, u64 *inline_u64s,

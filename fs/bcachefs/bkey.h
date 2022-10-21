@@ -5,6 +5,7 @@
 #include <linux/bug.h>
 #include "bcachefs_format.h"
 
+#include "btree_types.h"
 #include "util.h"
 #include "vstructs.h"
 
@@ -364,6 +365,99 @@ void bch2_bkey_unpack(const struct btree *, struct bkey_i *,
 		 const struct bkey_packed *);
 bool bch2_bkey_pack(struct bkey_packed *, const struct bkey_i *,
 	       const struct bkey_format *);
+
+typedef void (*compiled_unpack_fn)(struct bkey *, const struct bkey_packed *);
+
+static inline void
+__bkey_unpack_key_format_checked(const struct btree *b,
+			       struct bkey *dst,
+			       const struct bkey_packed *src)
+{
+	if (IS_ENABLED(HAVE_BCACHEFS_COMPILED_UNPACK)) {
+		compiled_unpack_fn unpack_fn = b->aux_data;
+		unpack_fn(dst, src);
+
+		if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) &&
+		    bch2_expensive_debug_checks) {
+			struct bkey dst2 = __bch2_bkey_unpack_key(&b->format, src);
+
+			BUG_ON(memcmp(dst, &dst2, sizeof(*dst)));
+		}
+	} else {
+		*dst = __bch2_bkey_unpack_key(&b->format, src);
+	}
+}
+
+static inline struct bkey
+bkey_unpack_key_format_checked(const struct btree *b,
+			       const struct bkey_packed *src)
+{
+	struct bkey dst;
+
+	__bkey_unpack_key_format_checked(b, &dst, src);
+	return dst;
+}
+
+static inline void __bkey_unpack_key(const struct btree *b,
+				     struct bkey *dst,
+				     const struct bkey_packed *src)
+{
+	if (likely(bkey_packed(src)))
+		__bkey_unpack_key_format_checked(b, dst, src);
+	else
+		*dst = *packed_to_bkey_c(src);
+}
+
+/**
+ * bkey_unpack_key -- unpack just the key, not the value
+ */
+static inline struct bkey bkey_unpack_key(const struct btree *b,
+					  const struct bkey_packed *src)
+{
+	return likely(bkey_packed(src))
+		? bkey_unpack_key_format_checked(b, src)
+		: *packed_to_bkey_c(src);
+}
+
+static inline struct bpos
+bkey_unpack_pos_format_checked(const struct btree *b,
+			       const struct bkey_packed *src)
+{
+#ifdef HAVE_BCACHEFS_COMPILED_UNPACK
+	return bkey_unpack_key_format_checked(b, src).p;
+#else
+	return __bkey_unpack_pos(&b->format, src);
+#endif
+}
+
+static inline struct bpos bkey_unpack_pos(const struct btree *b,
+					  const struct bkey_packed *src)
+{
+	return likely(bkey_packed(src))
+		? bkey_unpack_pos_format_checked(b, src)
+		: packed_to_bkey_c(src)->p;
+}
+
+/* Disassembled bkeys */
+
+static inline struct bkey_s_c bkey_disassemble(struct btree *b,
+					       const struct bkey_packed *k,
+					       struct bkey *u)
+{
+	__bkey_unpack_key(b, u, k);
+
+	return (struct bkey_s_c) { u, bkeyp_val(&b->format, k), };
+}
+
+/* non const version: */
+static inline struct bkey_s __bkey_disassemble(struct btree *b,
+					       struct bkey_packed *k,
+					       struct bkey *u)
+{
+	__bkey_unpack_key(b, u, k);
+
+	return (struct bkey_s) { .k = u, .v = bkeyp_val(&b->format, k), };
+}
 
 static inline u64 bkey_field_max(const struct bkey_format *f,
 				 enum bch_bkey_fields nr)

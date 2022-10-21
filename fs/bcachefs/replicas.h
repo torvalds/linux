@@ -2,6 +2,7 @@
 #ifndef _BCACHEFS_REPLICAS_H
 #define _BCACHEFS_REPLICAS_H
 
+#include "bkey.h"
 #include "eytzinger.h"
 #include "replicas_types.h"
 

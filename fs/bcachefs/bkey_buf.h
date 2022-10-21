@@ -3,6 +3,7 @@
 #define _BCACHEFS_BKEY_BUF_H
 
 #include "bcachefs.h"
+#include "bkey.h"
 
 struct bkey_buf {
 	struct bkey_i	*k;
