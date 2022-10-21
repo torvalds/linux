@@ -43,6 +43,16 @@ bool pagemap_is_populated(int fd, char *start)
 	return entry & 0xc000000000000000ull;
 }
 
+unsigned long pagemap_get_pfn(int fd, char *start)
+{
+	uint64_t entry = pagemap_get_entry(fd, start);
+
+	/* If present (63th bit), PFN is at bit 0 -- 54. */
+	if (entry & 0x8000000000000000ull)
+		return entry & 0x007fffffffffffffull;
+	return -1ull;
+}
+
 void clear_softdirty(void)
 {
 	int ret;
