@@ -635,7 +635,7 @@ static void rxrpc_destroy_call(struct work_struct *work)
 
 	rxrpc_delete_call_timer(call);
 
-	rxrpc_put_connection(call->conn);
+	rxrpc_put_connection(call->conn, rxrpc_conn_put_call);
 	rxrpc_put_peer(call->peer, rxrpc_peer_put_call);
 	kmem_cache_free(rxrpc_call_jar, call);
 	if (atomic_dec_and_test(&rxnet->nr_calls))

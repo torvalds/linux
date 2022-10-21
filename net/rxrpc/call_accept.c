@@ -91,9 +91,6 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 		b->conn_backlog[head] = conn;
 		smp_store_release(&b->conn_backlog_head,
 				  (head + 1) & (size - 1));
-
-		trace_rxrpc_conn(conn->debug_id, rxrpc_conn_new_service,
-				 refcount_read(&conn->ref), here);
 	}
 
 	/* Now it gets complicated, because calls get registered with the
@@ -309,10 +306,10 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 				  (conn_tail + 1) & (RXRPC_BACKLOG_MAX - 1));
 		conn->local = rxrpc_get_local(local, rxrpc_local_get_prealloc_conn);
 		conn->peer = peer;
-		rxrpc_see_connection(conn);
+		rxrpc_see_connection(conn, rxrpc_conn_see_new_service_conn);
 		rxrpc_new_incoming_connection(rx, conn, sec, skb);
 	} else {
-		rxrpc_get_connection(conn);
+		rxrpc_get_connection(conn, rxrpc_conn_get_service_conn);
 	}
 
 	/* And now we can allocate and set up a new call */
@@ -402,7 +399,7 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 	case RXRPC_CONN_SERVICE_UNSECURED:
 		conn->state = RXRPC_CONN_SERVICE_CHALLENGING;
 		set_bit(RXRPC_CONN_EV_CHALLENGE, &call->conn->events);
-		rxrpc_queue_conn(call->conn);
+		rxrpc_queue_conn(call->conn, rxrpc_conn_queue_challenge);
 		break;
 
 	case RXRPC_CONN_SERVICE:

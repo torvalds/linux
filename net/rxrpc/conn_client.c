@@ -211,9 +211,8 @@ rxrpc_alloc_client_connection(struct rxrpc_bundle *bundle, gfp_t gfp)
 	rxrpc_get_local(conn->local, rxrpc_local_get_client_conn);
 	key_get(conn->key);
 
-	trace_rxrpc_conn(conn->debug_id, rxrpc_conn_new_client,
-			 refcount_read(&conn->ref),
-			 __builtin_return_address(0));
+	trace_rxrpc_conn(conn->debug_id, refcount_read(&conn->ref),
+			 rxrpc_conn_new_client);
 
 	atomic_inc(&rxnet->nr_client_conns);
 	trace_rxrpc_client(conn, -1, rxrpc_client_alloc);
@@ -467,10 +466,10 @@ static void rxrpc_add_conn_to_bundle(struct rxrpc_bundle *bundle, gfp_t gfp)
 	if (candidate) {
 		_debug("discard C=%x", candidate->debug_id);
 		trace_rxrpc_client(candidate, -1, rxrpc_client_duplicate);
-		rxrpc_put_connection(candidate);
+		rxrpc_put_connection(candidate, rxrpc_conn_put_discard);
 	}
 
-	rxrpc_put_connection(old);
+	rxrpc_put_connection(old, rxrpc_conn_put_noreuse);
 	_leave("");
 }
 
@@ -544,7 +543,7 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 	rxrpc_see_call(call);
 	list_del_init(&call->chan_wait_link);
 	call->peer	= rxrpc_get_peer(conn->peer, rxrpc_peer_get_activate_call);
-	call->conn	= rxrpc_get_connection(conn);
+	call->conn	= rxrpc_get_connection(conn, rxrpc_conn_get_activate_call);
 	call->cid	= conn->proto.cid | channel;
 	call->call_id	= call_id;
 	call->security	= conn->security;
@@ -592,7 +591,7 @@ static void rxrpc_unidle_conn(struct rxrpc_bundle *bundle, struct rxrpc_connecti
 		}
 		spin_unlock(&rxnet->client_conn_cache_lock);
 		if (drop_ref)
-			rxrpc_put_connection(conn);
+			rxrpc_put_connection(conn, rxrpc_conn_put_unidle);
 	}
 }
 
@@ -896,7 +895,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_bundle *bundle, struct rxrpc_call
 		trace_rxrpc_client(conn, channel, rxrpc_client_to_idle);
 		conn->idle_timestamp = jiffies;
 
-		rxrpc_get_connection(conn);
+		rxrpc_get_connection(conn, rxrpc_conn_get_idle);
 		spin_lock(&rxnet->client_conn_cache_lock);
 		list_move_tail(&conn->cache_link, &rxnet->idle_client_conns);
 		spin_unlock(&rxnet->client_conn_cache_lock);
@@ -938,7 +937,7 @@ static void rxrpc_unbundle_conn(struct rxrpc_connection *conn)
 
 	if (need_drop) {
 		rxrpc_deactivate_bundle(bundle);
-		rxrpc_put_connection(conn);
+		rxrpc_put_connection(conn, rxrpc_conn_put_unbundle);
 	}
 }
 
@@ -983,15 +982,15 @@ static void rxrpc_kill_client_conn(struct rxrpc_connection *conn)
 /*
  * Clean up a dead client connections.
  */
-void rxrpc_put_client_conn(struct rxrpc_connection *conn)
+void rxrpc_put_client_conn(struct rxrpc_connection *conn,
+			   enum rxrpc_conn_trace why)
 {
-	const void *here = __builtin_return_address(0);
 	unsigned int debug_id = conn->debug_id;
 	bool dead;
 	int r;
 
 	dead = __refcount_dec_and_test(&conn->ref, &r);
-	trace_rxrpc_conn(debug_id, rxrpc_conn_put_client, r - 1, here);
+	trace_rxrpc_conn(debug_id, r - 1, why);
 	if (dead)
 		rxrpc_kill_client_conn(conn);
 }
@@ -1063,7 +1062,8 @@ next:
 	spin_unlock(&rxnet->client_conn_cache_lock);
 
 	rxrpc_unbundle_conn(conn);
-	rxrpc_put_connection(conn); /* Drop the ->cache_link ref */
+	/* Drop the ->cache_link ref */
+	rxrpc_put_connection(conn, rxrpc_conn_put_discard_idle);
 
 	nr_conns--;
 	goto next;
@@ -1134,7 +1134,7 @@ void rxrpc_clean_up_local_conns(struct rxrpc_local *local)
 				  struct rxrpc_connection, cache_link);
 		list_del_init(&conn->cache_link);
 		rxrpc_unbundle_conn(conn);
-		rxrpc_put_connection(conn);
+		rxrpc_put_connection(conn, rxrpc_conn_put_local_dead);
 	}
 
 	_leave(" [culled]");

@@ -26,7 +26,7 @@ static void rxrpc_connection_timer(struct timer_list *timer)
 	struct rxrpc_connection *conn =
 		container_of(timer, struct rxrpc_connection, timer);
 
-	rxrpc_queue_conn(conn);
+	rxrpc_queue_conn(conn, rxrpc_conn_queue_timer);
 }
 
 /*
@@ -260,43 +260,42 @@ void rxrpc_kill_connection(struct rxrpc_connection *conn)
  * Queue a connection's work processor, getting a ref to pass to the work
  * queue.
  */
-bool rxrpc_queue_conn(struct rxrpc_connection *conn)
+bool rxrpc_queue_conn(struct rxrpc_connection *conn, enum rxrpc_conn_trace why)
 {
-	const void *here = __builtin_return_address(0);
 	int r;
 
 	if (!__refcount_inc_not_zero(&conn->ref, &r))
 		return false;
 	if (rxrpc_queue_work(&conn->processor))
-		trace_rxrpc_conn(conn->debug_id, rxrpc_conn_queued, r + 1, here);
+		trace_rxrpc_conn(conn->debug_id, why, r + 1);
 	else
-		rxrpc_put_connection(conn);
+		rxrpc_put_connection(conn, rxrpc_conn_put_already_queued);
 	return true;
 }
 
 /*
  * Note the re-emergence of a connection.
  */
-void rxrpc_see_connection(struct rxrpc_connection *conn)
+void rxrpc_see_connection(struct rxrpc_connection *conn,
+			  enum rxrpc_conn_trace why)
 {
-	const void *here = __builtin_return_address(0);
 	if (conn) {
-		int n = refcount_read(&conn->ref);
+		int r = refcount_read(&conn->ref);
 
-		trace_rxrpc_conn(conn->debug_id, rxrpc_conn_seen, n, here);
+		trace_rxrpc_conn(conn->debug_id, r, why);
 	}
 }
 
 /*
  * Get a ref on a connection.
  */
-struct rxrpc_connection *rxrpc_get_connection(struct rxrpc_connection *conn)
+struct rxrpc_connection *rxrpc_get_connection(struct rxrpc_connection *conn,
+					      enum rxrpc_conn_trace why)
 {
-	const void *here = __builtin_return_address(0);
 	int r;
 
 	__refcount_inc(&conn->ref, &r);
-	trace_rxrpc_conn(conn->debug_id, rxrpc_conn_got, r, here);
+	trace_rxrpc_conn(conn->debug_id, r + 1, why);
 	return conn;
 }
 
@@ -304,14 +303,14 @@ struct rxrpc_connection *rxrpc_get_connection(struct rxrpc_connection *conn)
  * Try to get a ref on a connection.
  */
 struct rxrpc_connection *
-rxrpc_get_connection_maybe(struct rxrpc_connection *conn)
+rxrpc_get_connection_maybe(struct rxrpc_connection *conn,
+			   enum rxrpc_conn_trace why)
 {
-	const void *here = __builtin_return_address(0);
 	int r;
 
 	if (conn) {
 		if (__refcount_inc_not_zero(&conn->ref, &r))
-			trace_rxrpc_conn(conn->debug_id, rxrpc_conn_got, r + 1, here);
+			trace_rxrpc_conn(conn->debug_id, r + 1, why);
 		else
 			conn = NULL;
 	}
@@ -331,14 +330,14 @@ static void rxrpc_set_service_reap_timer(struct rxrpc_net *rxnet,
 /*
  * Release a service connection
  */
-void rxrpc_put_service_conn(struct rxrpc_connection *conn)
+void rxrpc_put_service_conn(struct rxrpc_connection *conn,
+			    enum rxrpc_conn_trace why)
 {
-	const void *here = __builtin_return_address(0);
 	unsigned int debug_id = conn->debug_id;
 	int r;
 
 	__refcount_dec(&conn->ref, &r);
-	trace_rxrpc_conn(debug_id, rxrpc_conn_put_service, r - 1, here);
+	trace_rxrpc_conn(debug_id, r - 1, why);
 	if (r - 1 == 1)
 		rxrpc_set_service_reap_timer(conn->local->rxnet,
 					     jiffies + rxrpc_connection_expiry);
@@ -353,6 +352,9 @@ static void rxrpc_destroy_connection(struct rcu_head *rcu)
 		container_of(rcu, struct rxrpc_connection, rcu);
 
 	_enter("{%d,u=%d}", conn->debug_id, refcount_read(&conn->ref));
+
+	trace_rxrpc_conn(conn->debug_id, refcount_read(&conn->ref),
+			 rxrpc_conn_free);
 
 	ASSERTCMP(refcount_read(&conn->ref), ==, 0);
 
@@ -419,7 +421,7 @@ void rxrpc_service_connection_reaper(struct work_struct *work)
 		 */
 		if (!refcount_dec_if_one(&conn->ref))
 			continue;
-		trace_rxrpc_conn(conn->debug_id, rxrpc_conn_reap_service, 0, NULL);
+		rxrpc_see_connection(conn, rxrpc_conn_see_reap_service);
 
 		if (rxrpc_conn_is_client(conn))
 			BUG();

@@ -82,14 +82,34 @@
 	E_(rxrpc_peer_put_keepalive,		"PUT keepaliv")
 
 #define rxrpc_conn_traces \
-	EM(rxrpc_conn_got,			"GOT") \
-	EM(rxrpc_conn_new_client,		"NWc") \
-	EM(rxrpc_conn_new_service,		"NWs") \
-	EM(rxrpc_conn_put_client,		"PTc") \
-	EM(rxrpc_conn_put_service,		"PTs") \
-	EM(rxrpc_conn_queued,			"QUE") \
-	EM(rxrpc_conn_reap_service,		"RPs") \
-	E_(rxrpc_conn_seen,			"SEE")
+	EM(rxrpc_conn_free,			"FREE        ") \
+	EM(rxrpc_conn_get_activate_call,	"GET act-call") \
+	EM(rxrpc_conn_get_call_input,		"GET inp-call") \
+	EM(rxrpc_conn_get_conn_input,		"GET inp-conn") \
+	EM(rxrpc_conn_get_idle,			"GET idle    ") \
+	EM(rxrpc_conn_get_poke,			"GET poke    ") \
+	EM(rxrpc_conn_get_service_conn,		"GET svc-conn") \
+	EM(rxrpc_conn_new_client,		"NEW client  ") \
+	EM(rxrpc_conn_new_service,		"NEW service ") \
+	EM(rxrpc_conn_put_already_queued,	"PUT alreadyq") \
+	EM(rxrpc_conn_put_call,			"PUT call    ") \
+	EM(rxrpc_conn_put_call_input,		"PUT inp-call") \
+	EM(rxrpc_conn_put_conn_input,		"PUT inp-conn") \
+	EM(rxrpc_conn_put_discard,		"PUT discard ") \
+	EM(rxrpc_conn_put_discard_idle,		"PUT disc-idl") \
+	EM(rxrpc_conn_put_local_dead,		"PUT loc-dead") \
+	EM(rxrpc_conn_put_noreuse,		"PUT noreuse ") \
+	EM(rxrpc_conn_put_poke,			"PUT poke    ") \
+	EM(rxrpc_conn_put_unbundle,		"PUT unbundle") \
+	EM(rxrpc_conn_put_unidle,		"PUT unidle  ") \
+	EM(rxrpc_conn_put_work,			"PUT work    ") \
+	EM(rxrpc_conn_queue_challenge,		"GQ  chall   ") \
+	EM(rxrpc_conn_queue_retry_work,		"GQ  retry-wk") \
+	EM(rxrpc_conn_queue_rx_work,		"GQ  rx-work ") \
+	EM(rxrpc_conn_queue_timer,		"GQ  timer   ") \
+	EM(rxrpc_conn_see_new_service_conn,	"SEE new-svc ") \
+	EM(rxrpc_conn_see_reap_service,		"SEE reap-svc") \
+	E_(rxrpc_conn_see_work,			"SEE work    ")
 
 #define rxrpc_client_traces \
 	EM(rxrpc_client_activate_chans,		"Activa") \
@@ -430,30 +450,26 @@ TRACE_EVENT(rxrpc_peer,
 	    );
 
 TRACE_EVENT(rxrpc_conn,
-	    TP_PROTO(unsigned int conn_debug_id, enum rxrpc_conn_trace op,
-		     int usage, const void *where),
+	    TP_PROTO(unsigned int conn_debug_id, int ref, enum rxrpc_conn_trace why),
 
-	    TP_ARGS(conn_debug_id, op, usage, where),
+	    TP_ARGS(conn_debug_id, ref, why),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	conn		)
-		    __field(int,		op		)
-		    __field(int,		usage		)
-		    __field(const void *,	where		)
+		    __field(int,		ref		)
+		    __field(int,		why		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->conn = conn_debug_id;
-		    __entry->op = op;
-		    __entry->usage = usage;
-		    __entry->where = where;
+		    __entry->ref = ref;
+		    __entry->why = why;
 			   ),
 
-	    TP_printk("C=%08x %s u=%d sp=%pSR",
+	    TP_printk("C=%08x %s r=%d",
 		      __entry->conn,
-		      __print_symbolic(__entry->op, rxrpc_conn_traces),
-		      __entry->usage,
-		      __entry->where)
+		      __print_symbolic(__entry->why, rxrpc_conn_traces),
+		      __entry->ref)
 	    );
 
 TRACE_EVENT(rxrpc_client,

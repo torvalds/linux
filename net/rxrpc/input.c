@@ -1121,7 +1121,7 @@ static void rxrpc_post_packet_to_conn(struct rxrpc_connection *conn,
 	_enter("%p,%p", conn, skb);
 
 	skb_queue_tail(&conn->rx_queue, skb);
-	rxrpc_queue_conn(conn);
+	rxrpc_queue_conn(conn, rxrpc_conn_queue_rx_work);
 }
 
 /*

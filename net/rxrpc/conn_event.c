@@ -472,14 +472,14 @@ void rxrpc_process_connection(struct work_struct *work)
 	struct rxrpc_connection *conn =
 		container_of(work, struct rxrpc_connection, processor);
 
-	rxrpc_see_connection(conn);
+	rxrpc_see_connection(conn, rxrpc_conn_see_work);
 
 	if (__rxrpc_use_local(conn->local, rxrpc_local_use_conn_work)) {
 		rxrpc_do_process_connection(conn);
 		rxrpc_unuse_local(conn->local, rxrpc_local_unuse_conn_work);
 	}
 
-	rxrpc_put_connection(conn);
+	rxrpc_put_connection(conn, rxrpc_conn_put_work);
 	_leave("");
 	return;
 }
