@@ -493,6 +493,16 @@ void bpf_mem_alloc_destroy(struct bpf_mem_alloc *ma)
 		rcu_in_progress = 0;
 		for_each_possible_cpu(cpu) {
 			c = per_cpu_ptr(ma->cache, cpu);
+			/*
+			 * refill_work may be unfinished for PREEMPT_RT kernel
+			 * in which irq work is invoked in a per-CPU RT thread.
+			 * It is also possible for kernel with
+			 * arch_irq_work_has_interrupt() being false and irq
+			 * work is invoked in timer interrupt. So waiting for
+			 * the completion of irq work to ease the handling of
+			 * concurrency.
+			 */
+			irq_work_sync(&c->refill_work);
 			drain_mem_cache(c);
 			rcu_in_progress += atomic_read(&c->call_rcu_in_progress);
 		}
@@ -507,6 +517,7 @@ void bpf_mem_alloc_destroy(struct bpf_mem_alloc *ma)
 			cc = per_cpu_ptr(ma->caches, cpu);
 			for (i = 0; i < NUM_CACHES; i++) {
 				c = &cc->cache[i];
+				irq_work_sync(&c->refill_work);
 				drain_mem_cache(c);
 				rcu_in_progress += atomic_read(&c->call_rcu_in_progress);
 			}
