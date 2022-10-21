@@ -162,4 +162,14 @@ void ipa_cmd_pipeline_clear_wait(struct ipa *ipa);
  */
 struct gsi_trans *ipa_cmd_trans_alloc(struct ipa *ipa, u32 tre_count);
 
+/**
+ * ipa_cmd_init() - Initialize IPA immediate commands
+ * @ipa:	- IPA pointer
+ *
+ * Return:	0 if successful, or a negative error code
+ *
+ * There is no need for a matching ipa_cmd_exit() function.
+ */
+int ipa_cmd_init(struct ipa *ipa);
+
 #endif /* _IPA_CMD_H_ */

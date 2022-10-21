@@ -370,10 +370,6 @@ int ipa_mem_config(struct ipa *ipa)
 	if (!ipa_table_valid(ipa))
 		goto err_dma_free;
 
-	/* Validate memory-related properties relevant to immediate commands */
-	if (!ipa_cmd_data_valid(ipa))
-		goto err_dma_free;
-
 	/* Verify the microcontroller ring alignment (if defined) */
 	mem = ipa_mem_find(ipa, IPA_MEM_UC_EVENT_RING);
 	if (mem && mem->offset % 1024) {
