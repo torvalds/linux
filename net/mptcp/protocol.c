@@ -2952,7 +2952,7 @@ static void mptcp_close(struct sock *sk, long timeout)
 	sock_put(sk);
 }
 
-static void mptcp_copy_inaddrs(struct sock *msk, const struct sock *ssk)
+void mptcp_copy_inaddrs(struct sock *msk, const struct sock *ssk)
 {
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	const struct ipv6_pinfo *ssk6 = inet6_sk(ssk);
@@ -3699,7 +3699,6 @@ static int mptcp_stream_accept(struct socket *sock, struct socket *newsock,
 		if (mptcp_is_fully_established(newsk))
 			mptcp_pm_fully_established(msk, msk->first, GFP_KERNEL);
 
-		mptcp_copy_inaddrs(newsk, msk->first);
 		mptcp_rcv_space_init(msk, msk->first);
 		mptcp_propagate_sndbuf(newsk, msk->first);
 
