@@ -1098,6 +1098,9 @@ int bch2_fs_recovery(struct bch_fs *c)
 			c->opts.version_upgrade	= true;
 			c->opts.fsck		= true;
 			c->opts.fix_errors	= FSCK_OPT_YES;
+		} else if (c->sb.version < bcachefs_metadata_version_inode_v3) {
+			bch_info(c, "version prior to inode_v3, upgrade required");
+			c->opts.version_upgrade	= true;
 		}
 	}
 
@@ -1482,7 +1485,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_extents_above_btree_updates_done);
 	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_bformat_overflow_done);
 
-	if (c->sb.version < bcachefs_metadata_version_backpointers)
+	if (c->sb.version < bcachefs_metadata_version_inode_v3)
 		c->opts.version_upgrade	= true;
 
 	if (c->opts.version_upgrade) {
@@ -1563,7 +1566,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch2_inode_init(c, &root_inode, 0, 0, S_IFDIR|0755, 0, NULL);
 	root_inode.bi_inum	= BCACHEFS_ROOT_INO;
 	root_inode.bi_subvol	= BCACHEFS_ROOT_SUBVOL;
-	bch2_inode_pack(c, &packed_inode, &root_inode);
+	bch2_inode_pack(&packed_inode, &root_inode);
 	packed_inode.inode.k.p.snapshot = U32_MAX;
 
 	err = "error creating root directory";

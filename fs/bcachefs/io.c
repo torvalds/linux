@@ -356,7 +356,7 @@ int bch2_extent_update(struct btree_trans *trans,
 	}
 
 	if (i_sectors_delta || new_i_size) {
-		bch2_inode_pack(trans->c, &inode_p, &inode_u);
+		bch2_inode_pack(&inode_p, &inode_u);
 
 		inode_p.inode.k.p.snapshot = iter->snapshot;
 

@@ -149,6 +149,7 @@ static unsigned bch2_key_types_allowed[] = {
 		(1U << KEY_TYPE_whiteout)|
 		(1U << KEY_TYPE_inode)|
 		(1U << KEY_TYPE_inode_v2)|
+		(1U << KEY_TYPE_inode_v3)|
 		(1U << KEY_TYPE_inode_generation),
 	[BKEY_TYPE_dirents] =
 		(1U << KEY_TYPE_deleted)|

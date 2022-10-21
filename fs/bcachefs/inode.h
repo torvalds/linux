@@ -9,6 +9,7 @@ extern const char * const bch2_inode_opts[];
 
 int bch2_inode_invalid(const struct bch_fs *, struct bkey_s_c, int, struct printbuf *);
 int bch2_inode_v2_invalid(const struct bch_fs *, struct bkey_s_c, int, struct printbuf *);
+int bch2_inode_v3_invalid(const struct bch_fs *, struct bkey_s_c, int, struct printbuf *);
 void bch2_inode_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_inode ((struct bkey_ops) {	\
@@ -25,10 +26,18 @@ void bch2_inode_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 	.atomic_trigger	= bch2_mark_inode,		\
 })
 
+#define bch2_bkey_ops_inode_v3 ((struct bkey_ops) {	\
+	.key_invalid	= bch2_inode_v3_invalid,	\
+	.val_to_text	= bch2_inode_to_text,		\
+	.trans_trigger	= bch2_trans_mark_inode,	\
+	.atomic_trigger	= bch2_mark_inode,		\
+})
+
 static inline bool bkey_is_inode(const struct bkey *k)
 {
 	return  k->type == KEY_TYPE_inode ||
-		k->type == KEY_TYPE_inode_v2;
+		k->type == KEY_TYPE_inode_v2 ||
+		k->type == KEY_TYPE_inode_v3;
 }
 
 int bch2_inode_generation_invalid(const struct bch_fs *, struct bkey_s_c,
@@ -52,25 +61,28 @@ struct bch_inode_unpacked {
 	u64			bi_inum;
 	u64			bi_journal_seq;
 	__le64			bi_hash_seed;
+	u64			bi_size;
+	u64			bi_sectors;
+	u64			bi_version;
 	u32			bi_flags;
 	u16			bi_mode;
 
 #define x(_name, _bits)	u##_bits _name;
-	BCH_INODE_FIELDS()
+	BCH_INODE_FIELDS_v3()
 #undef  x
 };
 
 struct bkey_inode_buf {
-	struct bkey_i_inode_v2	inode;
+	struct bkey_i_inode_v3	inode;
 
 #define x(_name, _bits)		+ 8 + _bits / 8
-	u8		_pad[0 + BCH_INODE_FIELDS()];
+	u8		_pad[0 + BCH_INODE_FIELDS_v3()];
 #undef  x
 } __packed __aligned(8);
 
-void bch2_inode_pack(struct bch_fs *, struct bkey_inode_buf *,
-		     const struct bch_inode_unpacked *);
+void bch2_inode_pack(struct bkey_inode_buf *, const struct bch_inode_unpacked *);
 int bch2_inode_unpack(struct bkey_s_c, struct bch_inode_unpacked *);
+struct bkey_i *bch2_inode_to_v3(struct btree_trans *, struct bkey_i *);
 
 void bch2_inode_unpacked_to_text(struct printbuf *, struct bch_inode_unpacked *);
 
