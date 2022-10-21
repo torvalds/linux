@@ -104,8 +104,7 @@ static bool hsw_ips_need_disable(struct intel_atomic_state *state,
 	 * Disable IPS before we program the LUT.
 	 */
 	if (IS_HASWELL(i915) &&
-	    (new_crtc_state->uapi.color_mgmt_changed ||
-	     intel_crtc_needs_fastset(new_crtc_state)) &&
+	    intel_crtc_needs_color_update(new_crtc_state) &&
 	    new_crtc_state->gamma_mode == GAMMA_MODE_MODE_SPLIT)
 		return true;
 
@@ -146,8 +145,7 @@ static bool hsw_ips_need_enable(struct intel_atomic_state *state,
 	 * Re-enable IPS after the LUT has been programmed.
 	 */
 	if (IS_HASWELL(i915) &&
-	    (new_crtc_state->uapi.color_mgmt_changed ||
-	     intel_crtc_needs_fastset(new_crtc_state)) &&
+	    intel_crtc_needs_color_update(new_crtc_state) &&
 	    new_crtc_state->gamma_mode == GAMMA_MODE_MODE_SPLIT)
 		return true;
 

@@ -4851,9 +4851,7 @@ static int intel_crtc_atomic_check(struct intel_atomic_state *state,
 	if (c8_planes_changed(crtc_state))
 		crtc_state->uapi.color_mgmt_changed = true;
 
-	if (intel_crtc_needs_modeset(crtc_state) ||
-	    intel_crtc_needs_fastset(crtc_state) ||
-	    crtc_state->uapi.color_mgmt_changed) {
+	if (intel_crtc_needs_color_update(crtc_state)) {
 		ret = intel_color_check(crtc_state);
 		if (ret)
 			return ret;
@@ -6934,11 +6932,8 @@ static int intel_atomic_prepare_commit(struct intel_atomic_state *state)
 		return ret;
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
-		if (intel_crtc_needs_modeset(crtc_state) ||
-		    intel_crtc_needs_fastset(crtc_state) ||
-		    crtc_state->uapi.color_mgmt_changed) {
+		if (intel_crtc_needs_color_update(crtc_state))
 			intel_dsb_prepare(crtc_state);
-		}
 	}
 
 	return 0;
@@ -7019,8 +7014,7 @@ static void commit_pipe_pre_planes(struct intel_atomic_state *state,
 	 * CRTC was enabled.
 	 */
 	if (!modeset) {
-		if (new_crtc_state->uapi.color_mgmt_changed ||
-		    intel_crtc_needs_fastset(new_crtc_state))
+		if (intel_crtc_needs_color_update(new_crtc_state))
 			intel_color_commit_arm(new_crtc_state);
 
 		if (DISPLAY_VER(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
@@ -7085,8 +7079,7 @@ static void intel_update_crtc(struct intel_atomic_state *state,
 
 	if (!modeset) {
 		if (new_crtc_state->preload_luts &&
-		    (new_crtc_state->uapi.color_mgmt_changed ||
-		     intel_crtc_needs_fastset(new_crtc_state)))
+		    intel_crtc_needs_color_update(new_crtc_state))
 			intel_color_load_luts(new_crtc_state);
 
 		intel_pre_plane_update(state, crtc);
@@ -7102,8 +7095,7 @@ static void intel_update_crtc(struct intel_atomic_state *state,
 	intel_fbc_update(state, crtc);
 
 	if (!modeset &&
-	    (new_crtc_state->uapi.color_mgmt_changed ||
-	     intel_crtc_needs_fastset(new_crtc_state)))
+	    intel_crtc_needs_color_update(new_crtc_state))
 		intel_color_commit_noarm(new_crtc_state);
 
 	intel_crtc_planes_update_noarm(state, crtc);

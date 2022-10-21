@@ -386,8 +386,7 @@ static bool intel_crtc_needs_vblank_work(const struct intel_crtc_state *crtc_sta
 	return crtc_state->hw.active &&
 		!intel_crtc_needs_modeset(crtc_state) &&
 		!crtc_state->preload_luts &&
-		(crtc_state->uapi.color_mgmt_changed ||
-		 intel_crtc_needs_fastset(crtc_state));
+		intel_crtc_needs_color_update(crtc_state);
 }
 
 static void intel_crtc_vblank_work(struct kthread_work *base)

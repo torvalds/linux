@@ -2064,6 +2064,14 @@ intel_crtc_needs_fastset(const struct intel_crtc_state *crtc_state)
 	return crtc_state->update_pipe;
 }
 
+static inline bool
+intel_crtc_needs_color_update(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->uapi.color_mgmt_changed ||
+		intel_crtc_needs_fastset(crtc_state) ||
+		intel_crtc_needs_modeset(crtc_state);
+}
+
 static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *plane_state)
 {
 	return i915_ggtt_offset(plane_state->ggtt_vma);
