@@ -1517,8 +1517,7 @@ static void rtrs_clt_err_recovery_work(struct work_struct *work)
 	rtrs_clt_stop_and_destroy_conns(clt_path);
 	queue_delayed_work(rtrs_wq, &clt_path->reconnect_dwork,
 			   msecs_to_jiffies(delay_ms +
-					    prandom_u32() %
-					    RTRS_RECONNECT_SEED));
+					    prandom_u32_max(RTRS_RECONNECT_SEED)));
 }
 
 static struct rtrs_clt_path *alloc_path(struct rtrs_clt_sess *clt,

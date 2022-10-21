@@ -866,7 +866,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		 * User space tasks can migrate between CPUs, so when tracing
 		 * selected CPUs, sideband for all CPUs is still needed.
 		 */
-		need_system_wide_tracking = evlist->core.has_user_cpus &&
+		need_system_wide_tracking = opts->target.cpu_list &&
 					    !intel_pt_evsel->core.attr.exclude_user;
 
 		tracking_evsel = evlist__add_aux_dummy(evlist, need_system_wide_tracking);

@@ -48,7 +48,12 @@ static void mte_sync_page_tags(struct page *page, pte_t old_pte,
 	if (!pte_is_tagged)
 		return;
 
-	mte_clear_page_tags(page_address(page));
+	/*
+	 * Test PG_mte_tagged again in case it was racing with another
+	 * set_pte_at().
+	 */
+	if (!test_and_set_bit(PG_mte_tagged, &page->flags))
+		mte_clear_page_tags(page_address(page));
 }
 
 void mte_sync_tags(pte_t old_pte, pte_t pte)
@@ -64,7 +69,7 @@ void mte_sync_tags(pte_t old_pte, pte_t pte)
 
 	/* if PG_mte_tagged is set, tags have already been initialised */
 	for (i = 0; i < nr_pages; i++, page++) {
-		if (!test_and_set_bit(PG_mte_tagged, &page->flags))
+		if (!test_bit(PG_mte_tagged, &page->flags))
 			mte_sync_page_tags(page, old_pte, check_swap,
 					   pte_is_tagged);
 	}

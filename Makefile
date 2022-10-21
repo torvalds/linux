@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 6
-PATCHLEVEL = 0
+PATCHLEVEL = 1
 SUBLEVEL = 0
-EXTRAVERSION =
+EXTRAVERSION = -rc1
 NAME = Hurr durr I'ma ninja sloth
 
 # *DOCUMENTATION*
@@ -1978,6 +1978,8 @@ endif
 	$(Q)rm -f $(MODORDER)
 
 single-goals := $(addprefix $(build-dir)/, $(single-no-ko))
+
+KBUILD_MODULES := 1
 
 endif
 

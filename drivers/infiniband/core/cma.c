@@ -3807,7 +3807,7 @@ static int cma_alloc_any_port(enum rdma_ucm_port_space ps,
 
 	inet_get_local_port_range(net, &low, &high);
 	remaining = (high - low) + 1;
-	rover = prandom_u32() % remaining + low;
+	rover = prandom_u32_max(remaining) + low;
 retry:
 	if (last_used_port != rover) {
 		struct rdma_bind_list *bind_list;

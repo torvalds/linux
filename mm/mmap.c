@@ -2673,7 +2673,7 @@ cannot_expand:
 	if (!arch_validate_flags(vma->vm_flags)) {
 		error = -EINVAL;
 		if (file)
-			goto unmap_and_free_vma;
+			goto close_and_free_vma;
 		else
 			goto free_vma;
 	}
@@ -2742,6 +2742,9 @@ expanded:
 	validate_mm(mm);
 	return addr;
 
+close_and_free_vma:
+	if (vma->vm_ops && vma->vm_ops->close)
+		vma->vm_ops->close(vma);
 unmap_and_free_vma:
 	fput(vma->vm_file);
 	vma->vm_file = NULL;
@@ -2942,17 +2945,18 @@ static int do_brk_flags(struct ma_state *mas, struct vm_area_struct *vma,
 	if (vma &&
 	    (!vma->anon_vma || list_is_singular(&vma->anon_vma_chain)) &&
 	    ((vma->vm_flags & ~VM_SOFTDIRTY) == flags)) {
-		mas->index = vma->vm_start;
-		mas->last = addr + len - 1;
-		vma_adjust_trans_huge(vma, addr, addr + len, 0);
+		mas_set_range(mas, vma->vm_start, addr + len - 1);
+		if (mas_preallocate(mas, vma, GFP_KERNEL))
+			return -ENOMEM;
+
+		vma_adjust_trans_huge(vma, vma->vm_start, addr + len, 0);
 		if (vma->anon_vma) {
 			anon_vma_lock_write(vma->anon_vma);
 			anon_vma_interval_tree_pre_update_vma(vma);
 		}
 		vma->vm_end = addr + len;
 		vma->vm_flags |= VM_SOFTDIRTY;
-		if (mas_store_gfp(mas, vma, GFP_KERNEL))
-			goto mas_expand_failed;
+		mas_store_prealloc(mas, vma);
 
 		if (vma->anon_vma) {
 			anon_vma_interval_tree_post_update_vma(vma);
@@ -2992,13 +2996,6 @@ mas_store_fail:
 	vm_area_free(vma);
 vma_alloc_fail:
 	vm_unacct_memory(len >> PAGE_SHIFT);
-	return -ENOMEM;
-
-mas_expand_failed:
-	if (vma->anon_vma) {
-		anon_vma_interval_tree_post_update_vma(vma);
-		anon_vma_unlock_write(vma->anon_vma);
-	}
 	return -ENOMEM;
 }
 
@@ -3240,6 +3237,11 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 out_vma_link:
 	if (new_vma->vm_ops && new_vma->vm_ops->close)
 		new_vma->vm_ops->close(new_vma);
+
+	if (new_vma->vm_file)
+		fput(new_vma->vm_file);
+
+	unlink_anon_vmas(new_vma);
 out_free_mempol:
 	mpol_put(vma_policy(new_vma));
 out_free_vma:

@@ -295,6 +295,9 @@ static void krealloc_more_oob_helper(struct kunit *test,
 	ptr2 = krealloc(ptr1, size2, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr2);
 
+	/* Suppress -Warray-bounds warnings. */
+	OPTIMIZER_HIDE_VAR(ptr2);
+
 	/* All offsets up to size2 must be accessible. */
 	ptr2[size1 - 1] = 'x';
 	ptr2[size1] = 'x';
@@ -326,6 +329,9 @@ static void krealloc_less_oob_helper(struct kunit *test,
 
 	ptr2 = krealloc(ptr1, size2, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr2);
+
+	/* Suppress -Warray-bounds warnings. */
+	OPTIMIZER_HIDE_VAR(ptr2);
 
 	/* Must be accessible for all modes. */
 	ptr2[size2 - 1] = 'x';
@@ -540,13 +546,14 @@ static void kmalloc_memmove_invalid_size(struct kunit *test)
 {
 	char *ptr;
 	size_t size = 64;
-	volatile size_t invalid_size = size;
+	size_t invalid_size = size;
 
 	ptr = kmalloc(size, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr);
 
 	memset((char *)ptr, 0, 64);
 	OPTIMIZER_HIDE_VAR(ptr);
+	OPTIMIZER_HIDE_VAR(invalid_size);
 	KUNIT_EXPECT_KASAN_FAIL(test,
 		memmove((char *)ptr, (char *)ptr + 4, invalid_size));
 	kfree(ptr);
@@ -1292,7 +1299,7 @@ static void match_all_not_assigned(struct kunit *test)
 	KASAN_TEST_NEEDS_CONFIG_OFF(test, CONFIG_KASAN_GENERIC);
 
 	for (i = 0; i < 256; i++) {
-		size = (get_random_int() % 1024) + 1;
+		size = prandom_u32_max(1024) + 1;
 		ptr = kmalloc(size, GFP_KERNEL);
 		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr);
 		KUNIT_EXPECT_GE(test, (u8)get_tag(ptr), (u8)KASAN_TAG_MIN);
@@ -1301,7 +1308,7 @@ static void match_all_not_assigned(struct kunit *test)
 	}
 
 	for (i = 0; i < 256; i++) {
-		order = (get_random_int() % 4) + 1;
+		order = prandom_u32_max(4) + 1;
 		pages = alloc_pages(GFP_KERNEL, order);
 		ptr = page_address(pages);
 		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr);
@@ -1314,7 +1321,7 @@ static void match_all_not_assigned(struct kunit *test)
 		return;
 
 	for (i = 0; i < 256; i++) {
-		size = (get_random_int() % 1024) + 1;
+		size = prandom_u32_max(1024) + 1;
 		ptr = vmalloc(size);
 		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr);
 		KUNIT_EXPECT_GE(test, (u8)get_tag(ptr), (u8)KASAN_TAG_MIN);

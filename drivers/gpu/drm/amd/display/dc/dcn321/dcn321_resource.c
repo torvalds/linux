@@ -94,8 +94,6 @@
 #include "dcn20/dcn20_vmid.h"
 
 #define DC_LOGGER_INIT(logger)
-#define fixed16_to_double(x) (((double)x) / ((double) (1 << 16)))
-#define fixed16_to_double_to_cpu(x) fixed16_to_double(le32_to_cpu(x))
 
 enum dcn321_clk_src_array_id {
 	DCN321_CLK_SRC_PLL0,
@@ -1606,7 +1604,7 @@ static struct resource_funcs dcn321_res_pool_funcs = {
 	.validate_bandwidth = dcn32_validate_bandwidth,
 	.calculate_wm_and_dlg = dcn32_calculate_wm_and_dlg,
 	.populate_dml_pipes = dcn32_populate_dml_pipes_from_context,
-	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
+	.acquire_idle_pipe_for_head_pipe_in_layer = dcn32_acquire_idle_pipe_for_head_pipe_in_layer,
 	.add_stream_to_ctx = dcn30_add_stream_to_ctx,
 	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
@@ -1656,7 +1654,7 @@ static bool dcn321_resource_construct(
 
 #undef REG_STRUCT
 #define REG_STRUCT dccg_regs
-		dccg_regs_init();
+	dccg_regs_init();
 
 
 	ctx->dc_bios->regs = &bios_regs;

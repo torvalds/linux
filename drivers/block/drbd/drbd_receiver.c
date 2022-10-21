@@ -781,7 +781,7 @@ static struct socket *drbd_wait_for_connect(struct drbd_connection *connection, 
 
 	timeo = connect_int * HZ;
 	/* 28.5% random jitter */
-	timeo += (prandom_u32() & 1) ? timeo / 7 : -timeo / 7;
+	timeo += prandom_u32_max(2) ? timeo / 7 : -timeo / 7;
 
 	err = wait_for_completion_interruptible_timeout(&ad->door_bell, timeo);
 	if (err <= 0)
@@ -1004,7 +1004,7 @@ retry:
 				drbd_warn(connection, "Error receiving initial packet\n");
 				sock_release(s);
 randomize:
-				if (prandom_u32() & 1)
+				if (prandom_u32_max(2))
 					goto retry;
 			}
 		}

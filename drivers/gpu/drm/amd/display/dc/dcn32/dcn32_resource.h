@@ -45,6 +45,17 @@
 extern struct _vcs_dpi_ip_params_st dcn3_2_ip;
 extern struct _vcs_dpi_soc_bounding_box_st dcn3_2_soc;
 
+/* Temp struct used to save and restore MALL config
+ * during validation.
+ *
+ * TODO: Move MALL config into dc_state instead of stream struct
+ * to avoid needing to save/restore.
+ */
+struct mall_temp_config {
+	struct mall_stream_config mall_stream_config[MAX_PIPES];
+	bool is_phantom_plane[MAX_PIPES];
+};
+
 struct dcn32_resource_pool {
 	struct resource_pool base;
 };
@@ -108,6 +119,8 @@ bool dcn32_subvp_in_use(struct dc *dc,
 
 bool dcn32_mpo_in_use(struct dc_state *context);
 
+bool dcn32_any_surfaces_rotated(struct dc *dc, struct dc_state *context);
+
 struct pipe_ctx *dcn32_acquire_idle_pipe_for_head_pipe_in_layer(
 		struct dc_state *state,
 		const struct resource_pool *pool,
@@ -120,6 +133,15 @@ void dcn32_determine_det_override(struct dc *dc,
 
 void dcn32_set_det_allocations(struct dc *dc, struct dc_state *context,
 	display_e2e_pipe_params_st *pipes);
+
+void dcn32_save_mall_state(struct dc *dc,
+		struct dc_state *context,
+		struct mall_temp_config *temp_config);
+
+void dcn32_restore_mall_state(struct dc *dc,
+		struct dc_state *context,
+		struct mall_temp_config *temp_config);
+
 /* definitions for run time init of reg offsets */
 
 /* CLK SRC */

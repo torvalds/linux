@@ -243,7 +243,7 @@ static bool tcp_cdg_backoff(struct sock *sk, u32 grad)
 	struct cdg *ca = inet_csk_ca(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (prandom_u32() <= nexp_u32(grad * backoff_factor))
+	if (get_random_u32() <= nexp_u32(grad * backoff_factor))
 		return false;
 
 	if (use_ineff) {

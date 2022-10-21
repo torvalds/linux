@@ -870,8 +870,6 @@ struct task_struct {
 	struct mm_struct		*mm;
 	struct mm_struct		*active_mm;
 
-	/* Per-thread vma caching: */
-
 #ifdef SPLIT_RSS_COUNTING
 	struct task_rss_stat		rss_stat;
 #endif

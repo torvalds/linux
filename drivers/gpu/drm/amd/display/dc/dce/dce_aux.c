@@ -942,10 +942,6 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 		case AUX_RET_ERROR_ENGINE_ACQUIRE:
 		case AUX_RET_ERROR_UNKNOWN:
 		default:
-			DC_TRACE_LEVEL_MESSAGE(DAL_TRACE_LEVEL_INFORMATION,
-						LOG_FLAG_I2cAux_DceAux,
-						"dce_aux_transfer_with_retries: Failure: operation_result=%d",
-						(int)operation_result);
 			goto fail;
 		}
 	}
@@ -953,14 +949,11 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 fail:
 	DC_TRACE_LEVEL_MESSAGE(DAL_TRACE_LEVEL_ERROR,
 				LOG_FLAG_Error_I2cAux,
-				"dce_aux_transfer_with_retries: FAILURE");
+				"%s: Failure: operation_result=%d",
+				__func__,
+				(int)operation_result);
 	if (!payload_reply)
 		payload->reply = NULL;
-
-	DC_TRACE_LEVEL_MESSAGE(DAL_TRACE_LEVEL_ERROR,
-				WPP_BIT_FLAG_DC_ERROR,
-				"AUX transaction failed. Result: %d",
-				operation_result);
 
 	return false;
 }
