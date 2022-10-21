@@ -799,12 +799,9 @@ static void qib_handle_6120_hwerrors(struct qib_devdata *dd, char *msg,
 			hwerrs &= ~TXE_PIO_PARITY;
 		}
 
-		if (!hwerrs) {
-			static u32 freeze_cnt;
-
-			freeze_cnt++;
+		if (!hwerrs)
 			qib_6120_clear_freeze(dd);
-		} else
+		else
 			isfatal = 1;
 	}
 
