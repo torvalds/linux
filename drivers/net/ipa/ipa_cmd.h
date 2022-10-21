@@ -47,15 +47,15 @@ enum ipa_cmd_opcode {
 };
 
 /**
- * ipa_cmd_table_valid() - Validate a memory region holding a table
+ * ipa_cmd_table_init_valid() - Validate a memory region holding a table
  * @ipa:	- IPA pointer
  * @mem:	- IPA memory region descriptor
  * @route:	- Whether the region holds a route or filter table
  *
  * Return:	true if region is valid, false otherwise
  */
-bool ipa_cmd_table_valid(struct ipa *ipa, const struct ipa_mem *mem,
-			    bool route);
+bool ipa_cmd_table_init_valid(struct ipa *ipa, const struct ipa_mem *mem,
+			      bool route);
 
 /**
  * ipa_cmd_data_valid() - Validate command-realted configuration is valid

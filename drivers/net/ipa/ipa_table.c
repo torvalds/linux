@@ -166,10 +166,6 @@ ipa_table_valid_one(struct ipa *ipa, enum ipa_mem_id mem_id, bool route)
 		size = IPA_ROUTE_COUNT_MAX * sizeof(__le64);
 	else
 		size = (1 + IPA_FILTER_COUNT_MAX) * sizeof(__le64);
-
-	if (!ipa_cmd_table_valid(ipa, mem, route))
-		return false;
-
 	/* mem->size >= size is sufficient, but we'll demand more */
 	if (mem->size == size)
 		return true;
@@ -643,6 +639,10 @@ static bool ipa_table_mem_valid(struct ipa *ipa, bool modem_route_count)
 		return false;
 
 	if (mem_ipv4->size != mem_ipv6->size)
+		return false;
+
+	/* Table offset and size must fit in TABLE_INIT command fields */
+	if (!ipa_cmd_table_init_valid(ipa, mem_ipv4, !filter))
 		return false;
 
 	/* Make sure the regions are big enough */
