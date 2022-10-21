@@ -614,7 +614,7 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 	rkisp_stream_frame_start(dev, 0);
 	if (!hw->is_single && !is_try) {
 		rkisp_update_regs(dev, CTRL_VI_ISP_PATH, SUPER_IMP_COLOR_CR);
-		rkisp_update_regs(dev, DUAL_CROP_M_H_OFFS, DUAL_CROP_S_V_SIZE);
+		rkisp_update_regs(dev, DUAL_CROP_M_H_OFFS, ISP3X_DUAL_CROP_FBC_V_SIZE);
 		rkisp_update_regs(dev, ISP_ACQ_PROP, DUAL_CROP_CTRL);
 		rkisp_update_regs(dev, SELF_RESIZE_SCALE_HY, MI_WR_CTRL);
 		rkisp_update_regs(dev, ISP32_BP_RESIZE_SCALE_HY, SELF_RESIZE_CTRL);
