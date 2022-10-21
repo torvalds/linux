@@ -26,7 +26,7 @@ int mr_check_range(struct rxe_mr *mr, u64 iova, size_t length)
 {
 
 
-	switch (mr->type) {
+	switch (mr->ibmr.type) {
 	case IB_MR_TYPE_DMA:
 		return 0;
 
@@ -39,7 +39,7 @@ int mr_check_range(struct rxe_mr *mr, u64 iova, size_t length)
 
 	default:
 		pr_warn("%s: mr type (%d) not supported\n",
-			__func__, mr->type);
+			__func__, mr->ibmr.type);
 		return -EFAULT;
 	}
 }
@@ -109,7 +109,7 @@ void rxe_mr_init_dma(int access, struct rxe_mr *mr)
 
 	mr->access = access;
 	mr->state = RXE_MR_STATE_VALID;
-	mr->type = IB_MR_TYPE_DMA;
+	mr->ibmr.type = IB_MR_TYPE_DMA;
 }
 
 int rxe_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length, u64 iova,
@@ -178,7 +178,7 @@ int rxe_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length, u64 iova,
 	mr->access = access;
 	mr->offset = ib_umem_offset(umem);
 	mr->state = RXE_MR_STATE_VALID;
-	mr->type = IB_MR_TYPE_USER;
+	mr->ibmr.type = IB_MR_TYPE_USER;
 
 	return 0;
 
@@ -205,7 +205,7 @@ int rxe_mr_init_fast(int max_pages, struct rxe_mr *mr)
 
 	mr->max_buf = max_pages;
 	mr->state = RXE_MR_STATE_FREE;
-	mr->type = IB_MR_TYPE_MEM_REG;
+	mr->ibmr.type = IB_MR_TYPE_MEM_REG;
 
 	return 0;
 
@@ -304,7 +304,7 @@ int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 	if (length == 0)
 		return 0;
 
-	if (mr->type == IB_MR_TYPE_DMA) {
+	if (mr->ibmr.type == IB_MR_TYPE_DMA) {
 		u8 *src, *dest;
 
 		src = (dir == RXE_TO_MR_OBJ) ? addr : ((void *)(uintptr_t)iova);
@@ -547,8 +547,8 @@ int rxe_invalidate_mr(struct rxe_qp *qp, u32 key)
 		goto err_drop_ref;
 	}
 
-	if (unlikely(mr->type != IB_MR_TYPE_MEM_REG)) {
-		pr_warn("%s: mr->type (%d) is wrong type\n", __func__, mr->type);
+	if (unlikely(mr->ibmr.type != IB_MR_TYPE_MEM_REG)) {
+		pr_warn("%s: mr type (%d) is wrong\n", __func__, mr->ibmr.type);
 		ret = -EINVAL;
 		goto err_drop_ref;
 	}

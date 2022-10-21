@@ -304,7 +304,6 @@ struct rxe_mr {
 	u32			lkey;
 	u32			rkey;
 	enum rxe_mr_state	state;
-	enum ib_mr_type		type;
 	u32			offset;
 	int			access;
 
