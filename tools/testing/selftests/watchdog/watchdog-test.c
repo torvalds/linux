@@ -6,8 +6,6 @@
 * - Could be tested against softdog driver on systems that
 *   don't have watchdog hardware.
 * - TODO:
-* - WDIOC_GETSTATUS is called when WDIOC_GETBOOTSTATUS is called.
-* - Enhance the logic to call WDIOC_GETSTATUS and test return values.
 * - Enhance coverage of ioctl return values - flags and status.
 * - Enhance test to add coverage for WDIOC_GETTEMP.
 *
@@ -30,13 +28,14 @@
 
 int fd;
 const char v = 'V';
-static const char sopts[] = "bdehp:t:Tn:NLf:i";
+static const char sopts[] = "bdehp:st:Tn:NLf:i";
 static const struct option lopts[] = {
 	{"bootstatus",          no_argument, NULL, 'b'},
 	{"disable",             no_argument, NULL, 'd'},
 	{"enable",              no_argument, NULL, 'e'},
 	{"help",                no_argument, NULL, 'h'},
 	{"pingrate",      required_argument, NULL, 'p'},
+	{"status",              no_argument, NULL, 's'},
 	{"timeout",       required_argument, NULL, 't'},
 	{"gettimeout",          no_argument, NULL, 'T'},
 	{"pretimeout",    required_argument, NULL, 'n'},
@@ -85,6 +84,7 @@ static void usage(char *progname)
 	printf(" -f, --file\t\tOpen watchdog device file\n");
 	printf("\t\t\tDefault is /dev/watchdog\n");
 	printf(" -i, --info\t\tShow watchdog_info\n");
+	printf(" -s, --status\t\tGet status & supported features\n");
 	printf(" -b, --bootstatus\tGet last boot status (Watchdog/POR)\n");
 	printf(" -d, --disable\t\tTurn off the watchdog timer\n");
 	printf(" -e, --enable\t\tTurn on the watchdog timer\n");
@@ -106,6 +106,35 @@ struct wdiof_status {
 	int flag;
 	const char *status_str;
 };
+
+#define WDIOF_NUM_STATUS 8
+
+static const struct wdiof_status wdiof_status[WDIOF_NUM_STATUS] = {
+	{WDIOF_SETTIMEOUT,  "Set timeout (in seconds)"},
+	{WDIOF_MAGICCLOSE,  "Supports magic close char"},
+	{WDIOF_PRETIMEOUT,  "Pretimeout (in seconds), get/set"},
+	{WDIOF_ALARMONLY,  "Watchdog triggers a management or other external alarm not a reboot"},
+	{WDIOF_KEEPALIVEPING,  "Keep alive ping reply"},
+	{WDIOS_DISABLECARD,  "Turn off the watchdog timer"},
+	{WDIOS_ENABLECARD,  "Turn on the watchdog timer"},
+	{WDIOS_TEMPPANIC,  "Kernel panic on temperature trip"},
+};
+
+static void print_status(int flags)
+{
+	int wdiof = 0;
+
+	if (flags == WDIOS_UNKNOWN) {
+		printf("Unknown status error from WDIOC_GETSTATUS\n");
+		return;
+	}
+
+	for (wdiof = 0; wdiof < WDIOF_NUM_STATUS; wdiof++) {
+		if (flags & wdiof_status[wdiof].flag)
+			printf("Support/Status: %s\n",
+				wdiof_status[wdiof].status_str);
+	}
+}
 
 #define WDIOF_NUM_BOOTSTATUS 7
 
@@ -218,6 +247,15 @@ int main(int argc, char *argv[])
 			if (!ping_rate)
 				ping_rate = DEFAULT_PING_RATE;
 			printf("Watchdog ping rate set to %u seconds.\n", ping_rate);
+			break;
+		case 's':
+			flags = 0;
+			oneshot = 1;
+			ret = ioctl(fd, WDIOC_GETSTATUS, &flags);
+			if (!ret)
+				print_status(flags);
+			else
+				printf("WDIOC_GETSTATUS error '%s'\n", strerror(errno));
 			break;
 		case 't':
 			flags = strtoul(optarg, NULL, 0);
