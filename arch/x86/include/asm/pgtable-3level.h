@@ -19,7 +19,15 @@
 	pr_err("%s:%d: bad pgd %p(%016Lx)\n",				\
 	       __FILE__, __LINE__, &(e), pgd_val(e))
 
-/* Rules for using set_pte: the pte being assigned *must* be
+#define pxx_xchg64(_pxx, _ptr, _val) ({					\
+	_pxx##val_t *_p = (_pxx##val_t *)_ptr;				\
+	_pxx##val_t _o = *_p;						\
+	do { } while (!try_cmpxchg64(_p, &_o, (_val)));			\
+	native_make_##_pxx(_o);						\
+})
+
+/*
+ * Rules for using set_pte: the pte being assigned *must* be
  * either not present or in a state where the hardware will
  * not attempt to update the pte.  In places where this is
  * not possible, use pte_get_and_clear to obtain the old pte
@@ -34,12 +42,12 @@ static inline void native_set_pte(pte_t *ptep, pte_t pte)
 
 static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
 {
-	set_64bit((unsigned long long *)(ptep), native_pte_val(pte));
+	pxx_xchg64(pte, ptep, native_pte_val(pte));
 }
 
 static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
-	set_64bit((unsigned long long *)(pmdp), native_pmd_val(pmd));
+	pxx_xchg64(pmd, pmdp, native_pmd_val(pmd));
 }
 
 static inline void native_set_pud(pud_t *pudp, pud_t pud)
@@ -47,7 +55,7 @@ static inline void native_set_pud(pud_t *pudp, pud_t pud)
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
 	pud.p4d.pgd = pti_set_user_pgtbl(&pudp->p4d.pgd, pud.p4d.pgd);
 #endif
-	set_64bit((unsigned long long *)(pudp), native_pud_val(pud));
+	pxx_xchg64(pud, pudp, native_pud_val(pud));
 }
 
 /*
@@ -90,13 +98,6 @@ static inline void pud_clear(pud_t *pudp)
 	 */
 }
 
-
-#define pxx_xchg64(_pxx, _ptr, _val) ({					\
-	_pxx##val_t *_p = (_pxx##val_t *)_ptr;				\
-	_pxx##val_t _o = *_p;						\
-	do { } while (!try_cmpxchg64(_p, &_o, (_val)));			\
-	native_make_##_pxx(_o);						\
-})
 
 #ifdef CONFIG_SMP
 static inline pte_t native_ptep_get_and_clear(pte_t *ptep)
