@@ -168,7 +168,7 @@ void rxrpc_error_report(struct sock *sk)
 	}
 
 	peer = rxrpc_lookup_peer_local_rcu(local, skb, &srx);
-	if (peer && !rxrpc_get_peer_maybe(peer))
+	if (peer && !rxrpc_get_peer_maybe(peer, rxrpc_peer_get_input_error))
 		peer = NULL;
 	if (!peer) {
 		rcu_read_unlock();
@@ -190,7 +190,7 @@ void rxrpc_error_report(struct sock *sk)
 out:
 	rcu_read_unlock();
 	rxrpc_free_skb(skb, rxrpc_skb_freed);
-	rxrpc_put_peer(peer);
+	rxrpc_put_peer(peer, rxrpc_peer_put_input_error);
 
 	_leave("");
 }
@@ -263,7 +263,7 @@ static void rxrpc_peer_keepalive_dispatch(struct rxrpc_net *rxnet,
 				  struct rxrpc_peer, keepalive_link);
 
 		list_del_init(&peer->keepalive_link);
-		if (!rxrpc_get_peer_maybe(peer))
+		if (!rxrpc_get_peer_maybe(peer, rxrpc_peer_get_keepalive))
 			continue;
 
 		if (__rxrpc_use_local(peer->local, rxrpc_local_use_peer_keepalive)) {
@@ -291,7 +291,7 @@ static void rxrpc_peer_keepalive_dispatch(struct rxrpc_net *rxnet,
 				      &rxnet->peer_keepalive[slot & mask]);
 			rxrpc_unuse_local(peer->local, rxrpc_local_unuse_peer_keepalive);
 		}
-		rxrpc_put_peer_locked(peer);
+		rxrpc_put_peer_locked(peer, rxrpc_peer_put_keepalive);
 	}
 
 	spin_unlock_bh(&rxnet->peer_hash_lock);

@@ -70,7 +70,9 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 	head = b->peer_backlog_head;
 	tail = READ_ONCE(b->peer_backlog_tail);
 	if (CIRC_CNT(head, tail, size) < max) {
-		struct rxrpc_peer *peer = rxrpc_alloc_peer(rx->local, gfp);
+		struct rxrpc_peer *peer;
+
+		peer = rxrpc_alloc_peer(rx->local, gfp, rxrpc_peer_new_prealloc);
 		if (!peer)
 			return -ENOMEM;
 		b->peer_backlog[head] = peer;
@@ -286,7 +288,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 		return NULL;
 
 	if (!conn) {
-		if (peer && !rxrpc_get_peer_maybe(peer))
+		if (peer && !rxrpc_get_peer_maybe(peer, rxrpc_peer_get_service_conn))
 			peer = NULL;
 		if (!peer) {
 			peer = b->peer_backlog[peer_tail];
@@ -323,7 +325,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 	call->conn = conn;
 	call->security = conn->security;
 	call->security_ix = conn->security_ix;
-	call->peer = rxrpc_get_peer(conn->peer);
+	call->peer = rxrpc_get_peer(conn->peer, rxrpc_peer_get_accept);
 	call->cong_ssthresh = call->peer->cong_ssthresh;
 	call->tx_last_sent = ktime_get_real();
 	return call;

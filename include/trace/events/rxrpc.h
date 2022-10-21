@@ -63,10 +63,23 @@
 	E_(rxrpc_local_use_work,		"USE work    ")
 
 #define rxrpc_peer_traces \
-	EM(rxrpc_peer_got,			"GOT") \
-	EM(rxrpc_peer_new,			"NEW") \
-	EM(rxrpc_peer_processing,		"PRO") \
-	E_(rxrpc_peer_put,			"PUT")
+	EM(rxrpc_peer_free,			"FREE        ") \
+	EM(rxrpc_peer_get_accept,		"GET accept  ") \
+	EM(rxrpc_peer_get_activate_call,	"GET act-call") \
+	EM(rxrpc_peer_get_bundle,		"GET bundle  ") \
+	EM(rxrpc_peer_get_client_conn,		"GET cln-conn") \
+	EM(rxrpc_peer_get_input_error,		"GET inpt-err") \
+	EM(rxrpc_peer_get_keepalive,		"GET keepaliv") \
+	EM(rxrpc_peer_get_lookup_client,	"GET look-cln") \
+	EM(rxrpc_peer_get_service_conn,		"GET srv-conn") \
+	EM(rxrpc_peer_new_client,		"NEW client  ") \
+	EM(rxrpc_peer_new_prealloc,		"NEW prealloc") \
+	EM(rxrpc_peer_put_bundle,		"PUT bundle  ") \
+	EM(rxrpc_peer_put_call,			"PUT call    ") \
+	EM(rxrpc_peer_put_conn,			"PUT conn    ") \
+	EM(rxrpc_peer_put_discard_tmp,		"PUT disc-tmp") \
+	EM(rxrpc_peer_put_input_error,		"PUT inpt-err") \
+	E_(rxrpc_peer_put_keepalive,		"PUT keepaliv")
 
 #define rxrpc_conn_traces \
 	EM(rxrpc_conn_got,			"GOT") \
@@ -394,30 +407,26 @@ TRACE_EVENT(rxrpc_local,
 	    );
 
 TRACE_EVENT(rxrpc_peer,
-	    TP_PROTO(unsigned int peer_debug_id, enum rxrpc_peer_trace op,
-		     int usage, const void *where),
+	    TP_PROTO(unsigned int peer_debug_id, int ref, enum rxrpc_peer_trace why),
 
-	    TP_ARGS(peer_debug_id, op, usage, where),
+	    TP_ARGS(peer_debug_id, ref, why),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	peer		)
-		    __field(int,		op		)
-		    __field(int,		usage		)
-		    __field(const void *,	where		)
+		    __field(int,		ref		)
+		    __field(int,		why		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->peer = peer_debug_id;
-		    __entry->op = op;
-		    __entry->usage = usage;
-		    __entry->where = where;
+		    __entry->ref = ref;
+		    __entry->why = why;
 			   ),
 
-	    TP_printk("P=%08x %s u=%d sp=%pSR",
+	    TP_printk("P=%08x %s r=%d",
 		      __entry->peer,
-		      __print_symbolic(__entry->op, rxrpc_peer_traces),
-		      __entry->usage,
-		      __entry->where)
+		      __print_symbolic(__entry->why, rxrpc_peer_traces),
+		      __entry->ref)
 	    );
 
 TRACE_EVENT(rxrpc_conn,

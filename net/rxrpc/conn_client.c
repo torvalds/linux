@@ -123,7 +123,7 @@ static struct rxrpc_bundle *rxrpc_alloc_bundle(struct rxrpc_conn_parameters *cp,
 	bundle = kzalloc(sizeof(*bundle), gfp);
 	if (bundle) {
 		bundle->local		= cp->local;
-		bundle->peer		= rxrpc_get_peer(cp->peer);
+		bundle->peer		= rxrpc_get_peer(cp->peer, rxrpc_peer_get_bundle);
 		bundle->key		= cp->key;
 		bundle->exclusive	= cp->exclusive;
 		bundle->upgrade		= cp->upgrade;
@@ -145,7 +145,7 @@ struct rxrpc_bundle *rxrpc_get_bundle(struct rxrpc_bundle *bundle)
 
 static void rxrpc_free_bundle(struct rxrpc_bundle *bundle)
 {
-	rxrpc_put_peer(bundle->peer);
+	rxrpc_put_peer(bundle->peer, rxrpc_peer_put_bundle);
 	kfree(bundle);
 }
 
@@ -207,7 +207,7 @@ rxrpc_alloc_client_connection(struct rxrpc_bundle *bundle, gfp_t gfp)
 	write_unlock(&rxnet->conn_lock);
 
 	rxrpc_get_bundle(bundle);
-	rxrpc_get_peer(conn->peer);
+	rxrpc_get_peer(conn->peer, rxrpc_peer_get_client_conn);
 	rxrpc_get_local(conn->local, rxrpc_local_get_client_conn);
 	key_get(conn->key);
 
@@ -543,7 +543,7 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 
 	rxrpc_see_call(call);
 	list_del_init(&call->chan_wait_link);
-	call->peer	= rxrpc_get_peer(conn->peer);
+	call->peer	= rxrpc_get_peer(conn->peer, rxrpc_peer_get_activate_call);
 	call->conn	= rxrpc_get_connection(conn);
 	call->cid	= conn->proto.cid | channel;
 	call->call_id	= call_id;
