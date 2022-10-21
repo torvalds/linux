@@ -43,6 +43,8 @@
  *  VERSION     : 01-00-29
  *  27 Dec 2021 : 1. Initialisation of mii private variable.
  *  VERSION     : 01-00-32
+ *  21 Oct 2022 : 1. MDIO registration failures treated as error -ENODEV
+ *  VERSION     : 01-00-56
  */
 
 #include <linux/gpio/consumer.h>
@@ -506,6 +508,7 @@ int tc956xmac_mdio_register(struct net_device *ndev)
 	err = of_mdiobus_register(new_bus, mdio_node);
 #endif
 	if (err != 0) {
+		err = -ENODEV;
 		dev_err(dev, "Cannot register the MDIO bus\n");
 		goto bus_register_fail;
 	}

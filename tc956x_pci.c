@@ -172,6 +172,8 @@
  *  02 Sep 2022 : 1. 2500Base-X support for line speeds 2.5Gbps, 1Gbps, 100Mbps.
  *		  2. Version update
  *  VERSION     : 01-00-55
+ *  21 Oct 2022 : 1. Version update 
+ *  VERSION     : 01-00-56
  */
 
 #include <linux/clk-provider.h>
@@ -238,7 +240,7 @@ unsigned int mac1_en_lp_pause_frame_cnt = DISABLE;
 
 unsigned int mac_power_save_at_link_down = DISABLE;
 
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 5, 5};
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 5, 6};
 
 static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */

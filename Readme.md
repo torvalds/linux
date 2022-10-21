@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 02 Sep 2022
+Release Date: 21 Oct 2022
 
-Release Version: V_01-00-55 : Limited-tested version
+Release Version: V_01-00-56 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -538,5 +538,8 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 ## TC956X_Host_Driver_20220831_V_01-00-54:
 1. Fix for configuring Rx Parser when EEE is enabled and RGMII Interface is used
 
-## TC956X_Host_Driver_202200902_V_01-00-55:
+## TC956X_Host_Driver_20220902_V_01-00-55:
 1. 2500Base-X support for line speeds 2.5Gbps, 1Gbps, 100Mbps.
+
+## TC956X_Host_Driver_20221021_V_01-00-56:
+1. MDIO registration failures treated as error of type "ENODEV"
