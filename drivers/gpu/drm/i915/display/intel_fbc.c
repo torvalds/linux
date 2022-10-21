@@ -1520,7 +1520,8 @@ void intel_fbc_update(struct intel_atomic_state *state,
 
 		mutex_lock(&fbc->lock);
 
-		if (crtc_state->update_pipe && plane_state->no_fbc_reason) {
+		if (intel_crtc_needs_fastset(crtc_state) &&
+		    plane_state->no_fbc_reason) {
 			if (fbc->state.plane == plane)
 				__intel_fbc_disable(fbc);
 		} else {

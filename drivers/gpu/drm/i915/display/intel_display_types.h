@@ -2058,6 +2058,12 @@ intel_crtc_needs_modeset(const struct intel_crtc_state *crtc_state)
 	return drm_atomic_crtc_needs_modeset(&crtc_state->uapi);
 }
 
+static inline bool
+intel_crtc_needs_fastset(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->update_pipe;
+}
+
 static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *plane_state)
 {
 	return i915_ggtt_offset(plane_state->ggtt_vma);
