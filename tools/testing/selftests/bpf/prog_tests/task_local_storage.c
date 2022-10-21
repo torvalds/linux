@@ -39,7 +39,8 @@ out:
 static void test_exit_creds(void)
 {
 	struct task_local_storage_exit_creds *skel;
-	int err;
+	int err, run_count, sync_rcu_calls = 0;
+	const int MAX_SYNC_RCU_CALLS = 1000;
 
 	skel = task_local_storage_exit_creds__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "skel_open_and_load"))
@@ -53,8 +54,19 @@ static void test_exit_creds(void)
 	if (CHECK_FAIL(system("ls > /dev/null")))
 		goto out;
 
-	/* sync rcu to make sure exit_creds() is called for "ls" */
-	kern_sync_rcu();
+	/* kern_sync_rcu is not enough on its own as the read section we want
+	 * to wait for may start after we enter synchronize_rcu, so our call
+	 * won't wait for the section to finish. Loop on the run counter
+	 * as well to ensure the program has run.
+	 */
+	do {
+		kern_sync_rcu();
+		run_count = __atomic_load_n(&skel->bss->run_count, __ATOMIC_SEQ_CST);
+	} while (run_count == 0 && ++sync_rcu_calls < MAX_SYNC_RCU_CALLS);
+
+	ASSERT_NEQ(sync_rcu_calls, MAX_SYNC_RCU_CALLS,
+		   "sync_rcu count too high");
+	ASSERT_NEQ(run_count, 0, "run_count");
 	ASSERT_EQ(skel->bss->valid_ptr_count, 0, "valid_ptr_count");
 	ASSERT_NEQ(skel->bss->null_ptr_count, 0, "null_ptr_count");
 out:
