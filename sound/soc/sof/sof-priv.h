@@ -136,6 +136,17 @@ struct snd_sof_platform_stream_params {
 	bool cont_update_posn;
 };
 
+/**
+ * struct sof_firmware - Container struct for SOF firmware
+ * @fw:			Pointer to the firmware
+ * @payload_offset:	Offset of the data within the loaded firmware image to be
+ *			loaded to the DSP (skipping for example ext_manifest section)
+ */
+struct sof_firmware {
+	const struct firmware *fw;
+	u32 payload_offset;
+};
+
 /*
  * SOF DSP HW abstraction operations.
  * Used to abstract DSP HW architecture and any IO busses between host CPU
@@ -410,15 +421,11 @@ struct sof_ipc_pm_ops {
  *			DSP.
  *			The function implements generic, hardware independent way
  *			of loading the initial firmware and its modules (if any).
- * @query_fw_configuration: Optional function pointer to query information and
- *			configuration from the booted firmware.
- *			Executed after the first successful firmware boot.
  */
 struct sof_ipc_fw_loader_ops {
 	int (*validate)(struct snd_sof_dev *sdev);
 	size_t (*parse_ext_manifest)(struct snd_sof_dev *sdev);
 	int (*load_fw_to_dsp)(struct snd_sof_dev *sdev);
-	int (*query_fw_configuration)(struct snd_sof_dev *sdev);
 };
 
 struct sof_ipc_tplg_ops;
@@ -431,6 +438,11 @@ struct sof_ipc_pcm_ops;
  * @pcm:	Pointer to PCM ops
  * @fw_loader:	Pointer to Firmware Loader ops
  * @fw_tracing:	Pointer to Firmware tracing ops
+ *
+ * @init:	Optional pointer for IPC related initialization
+ * @exit:	Optional pointer for IPC related cleanup
+ * @post_fw_boot: Optional pointer to execute IPC related tasks after firmware
+ *		boot.
  *
  * @tx_msg:	Function pointer for sending a 'short' IPC message
  * @set_get_data: Function pointer for set/get data ('large' IPC message). This
@@ -452,6 +464,10 @@ struct sof_ipc_ops {
 	const struct sof_ipc_pcm_ops *pcm;
 	const struct sof_ipc_fw_loader_ops *fw_loader;
 	const struct sof_ipc_fw_tracing_ops *fw_tracing;
+
+	int (*init)(struct snd_sof_dev *sdev);
+	void (*exit)(struct snd_sof_dev *sdev);
+	int (*post_fw_boot)(struct snd_sof_dev *sdev);
 
 	int (*tx_msg)(struct snd_sof_dev *sdev, void *msg_data, size_t msg_bytes,
 		      void *reply_data, size_t reply_bytes, bool no_pm);
@@ -486,6 +502,9 @@ struct snd_sof_dev {
 	struct device *dev;
 	spinlock_t ipc_lock;	/* lock for IPC users */
 	spinlock_t hw_lock;	/* lock for HW IO access */
+
+	/* Main, Base firmware image */
+	struct sof_firmware basefw;
 
 	/*
 	 * ASoC components. plat_drv fields are set dynamically so

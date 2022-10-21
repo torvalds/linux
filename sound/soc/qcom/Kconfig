@@ -187,6 +187,7 @@ config SND_SOC_SC8280XP
 config SND_SOC_SC7180
 	tristate "SoC Machine driver for SC7180 boards"
 	depends on I2C && GPIOLIB
+	depends on SOUNDWIRE || SOUNDWIRE=n
 	select SND_SOC_QCOM_COMMON
 	select SND_SOC_LPASS_SC7180
 	select SND_SOC_MAX98357A

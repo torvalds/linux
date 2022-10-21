@@ -289,22 +289,11 @@ static int sof_ipc4_widget_set_module_info(struct snd_sof_widget *swidget)
 {
 	struct snd_soc_component *scomp = swidget->scomp;
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
-	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
-	struct sof_ipc4_fw_module *fw_modules = ipc4_data->fw_modules;
-	int i;
 
-	if (!fw_modules) {
-		dev_err(sdev->dev, "no fw_module information\n");
-		return -EINVAL;
-	}
+	swidget->module_info = sof_ipc4_find_module_by_uuid(sdev, &swidget->uuid);
 
-	/* set module info */
-	for (i = 0; i < ipc4_data->num_fw_modules; i++) {
-		if (guid_equal(&swidget->uuid, &fw_modules[i].man4_module_entry.uuid)) {
-			swidget->module_info = &fw_modules[i];
-			return 0;
-		}
-	}
+	if (swidget->module_info)
+		return 0;
 
 	dev_err(sdev->dev, "failed to find module info for widget %s with UUID %pUL\n",
 		swidget->widget->name, &swidget->uuid);

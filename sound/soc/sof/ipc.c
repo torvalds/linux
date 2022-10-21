@@ -200,6 +200,9 @@ struct snd_sof_ipc *snd_sof_ipc_init(struct snd_sof_dev *sdev)
 		return NULL;
 	}
 
+	if (ops->init && ops->init(sdev))
+		return NULL;
+
 	ipc->ops = ops;
 
 	return ipc;
@@ -217,5 +220,8 @@ void snd_sof_ipc_free(struct snd_sof_dev *sdev)
 	mutex_lock(&ipc->tx_mutex);
 	ipc->disable_ipc_tx = true;
 	mutex_unlock(&ipc->tx_mutex);
+
+	if (ipc->ops->exit)
+		ipc->ops->exit(sdev);
 }
 EXPORT_SYMBOL(snd_sof_ipc_free);
