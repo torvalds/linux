@@ -489,6 +489,8 @@ enum {
 	SFP_WARN1_RXPWR_LOW		= BIT(6),
 
 	SFP_EXT_STATUS			= 0x76,
+	SFP_EXT_STATUS_PWRLVL_SELECT	= BIT(0),
+
 	SFP_VSL				= 0x78,
 	SFP_PAGE			= 0x7f,
 };

@@ -1837,13 +1837,13 @@ static int sfp_sm_mod_hpower(struct sfp *sfp, bool enable)
 	 * all bytes 0xff) at 0x51 but does not accept writes.  In any case,
 	 * if the bit is already set, we're already in high power mode.
 	 */
-	if (!!(val & BIT(0)) == enable)
+	if (!!(val & SFP_EXT_STATUS_PWRLVL_SELECT) == enable)
 		return 0;
 
 	if (enable)
-		val |= BIT(0);
+		val |= SFP_EXT_STATUS_PWRLVL_SELECT;
 	else
-		val &= ~BIT(0);
+		val &= ~SFP_EXT_STATUS_PWRLVL_SELECT;
 
 	err = sfp_write(sfp, true, SFP_EXT_STATUS, &val, sizeof(val));
 	if (err != sizeof(val)) {
