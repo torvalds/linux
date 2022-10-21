@@ -1766,6 +1766,12 @@ static int sfp_module_parse_power(struct sfp *sfp)
 	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_HIGH_POWER_LEVEL))
 		power_mW = 2000;
 
+	/* Power level 1 modules (max. 1W) are always supported. */
+	if (power_mW <= 1000) {
+		sfp->module_power_mW = power_mW;
+		return 0;
+	}
+
 	supports_a2 = sfp->id.ext.sff8472_compliance !=
 				SFP_SFF8472_COMPLIANCE_NONE ||
 		      sfp->id.ext.diagmon & SFP_DIAGMON_DDM;
@@ -1787,12 +1793,6 @@ static int sfp_module_parse_power(struct sfp *sfp)
 				 power_mW / 1000, (power_mW / 100) % 10);
 			return 0;
 		}
-	}
-
-	if (power_mW <= 1000) {
-		/* Modules below 1W do not require a power change sequence */
-		sfp->module_power_mW = power_mW;
-		return 0;
 	}
 
 	if (!supports_a2) {
@@ -2729,8 +2729,12 @@ static int sfp_probe(struct platform_device *pdev)
 
 	device_property_read_u32(&pdev->dev, "maximum-power-milliwatt",
 				 &sfp->max_power_mW);
-	if (!sfp->max_power_mW)
+	if (sfp->max_power_mW < 1000) {
+		if (sfp->max_power_mW)
+			dev_warn(sfp->dev,
+				 "Firmware bug: host maximum power should be at least 1W\n");
 		sfp->max_power_mW = 1000;
+	}
 
 	dev_info(sfp->dev, "Host maximum power %u.%uW\n",
 		 sfp->max_power_mW / 1000, (sfp->max_power_mW / 100) % 10);
