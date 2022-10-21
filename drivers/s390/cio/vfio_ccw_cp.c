@@ -192,11 +192,12 @@ static inline void page_array_idal_create_words(struct page_array *pa,
 	 * idaw.
 	 */
 
-	for (i = 0; i < pa->pa_nr; i++)
+	for (i = 0; i < pa->pa_nr; i++) {
 		idaws[i] = page_to_phys(pa->pa_page[i]);
 
-	/* Adjust the first IDAW, since it may not start on a page boundary */
-	idaws[0] += pa->pa_iova[0] & (PAGE_SIZE - 1);
+		/* Incorporate any offset from each starting address */
+		idaws[i] += pa->pa_iova[i] & (PAGE_SIZE - 1);
+	}
 }
 
 static void convert_ccw0_to_ccw1(struct ccw1 *source, unsigned long len)
@@ -496,6 +497,44 @@ static int ccwchain_fetch_tic(struct ccw1 *ccw,
 	return -EFAULT;
 }
 
+static unsigned long *get_guest_idal(struct ccw1 *ccw,
+				     struct channel_program *cp,
+				     int idaw_nr)
+{
+	struct vfio_device *vdev =
+		&container_of(cp, struct vfio_ccw_private, cp)->vdev;
+	unsigned long *idaws;
+	int idal_len = idaw_nr * sizeof(*idaws);
+	int idaw_size = PAGE_SIZE;
+	int idaw_mask = ~(idaw_size - 1);
+	int i, ret;
+
+	idaws = kcalloc(idaw_nr, sizeof(*idaws), GFP_DMA | GFP_KERNEL);
+	if (!idaws)
+		return ERR_PTR(-ENOMEM);
+
+	if (ccw_is_idal(ccw)) {
+		/* Copy IDAL from guest */
+		ret = vfio_dma_rw(vdev, ccw->cda, idaws, idal_len, false);
+		if (ret) {
+			kfree(idaws);
+			return ERR_PTR(ret);
+		}
+	} else {
+		/* Fabricate an IDAL based off CCW data address */
+		if (cp->orb.cmd.c64) {
+			idaws[0] = ccw->cda;
+			for (i = 1; i < idaw_nr; i++)
+				idaws[i] = (idaws[i - 1] + idaw_size) & idaw_mask;
+		} else {
+			kfree(idaws);
+			return ERR_PTR(-EOPNOTSUPP);
+		}
+	}
+
+	return idaws;
+}
+
 /*
  * ccw_count_idaws() - Calculate the number of IDAWs needed to transfer
  * a specified amount of data
@@ -560,7 +599,7 @@ static int ccwchain_fetch_ccw(struct ccw1 *ccw,
 		&container_of(cp, struct vfio_ccw_private, cp)->vdev;
 	unsigned long *idaws;
 	int ret;
-	int idaw_nr, idal_len;
+	int idaw_nr;
 	int i;
 
 	/* Calculate size of IDAL */
@@ -568,12 +607,10 @@ static int ccwchain_fetch_ccw(struct ccw1 *ccw,
 	if (idaw_nr < 0)
 		return idaw_nr;
 
-	idal_len = idaw_nr * sizeof(*idaws);
-
 	/* Allocate an IDAL from host storage */
-	idaws = kcalloc(idaw_nr, sizeof(*idaws), GFP_DMA | GFP_KERNEL);
-	if (!idaws) {
-		ret = -ENOMEM;
+	idaws = get_guest_idal(ccw, cp, idaw_nr);
+	if (IS_ERR(idaws)) {
+		ret = PTR_ERR(idaws);
 		goto out_init;
 	}
 
@@ -587,22 +624,13 @@ static int ccwchain_fetch_ccw(struct ccw1 *ccw,
 	if (ret < 0)
 		goto out_free_idaws;
 
-	if (ccw_is_idal(ccw)) {
-		/* Copy guest IDAL into host IDAL */
-		ret = vfio_dma_rw(vdev, ccw->cda, idaws, idal_len, false);
-		if (ret)
-			goto out_unpin;
-
-		/*
-		 * Copy guest IDAWs into page_array, in case the memory they
-		 * occupy is not contiguous.
-		 */
-		for (i = 0; i < idaw_nr; i++)
+	/*
+	 * Copy guest IDAWs into page_array, in case the memory they
+	 * occupy is not contiguous.
+	 */
+	for (i = 0; i < idaw_nr; i++) {
+		if (cp->orb.cmd.c64)
 			pa->pa_iova[i] = idaws[i];
-	} else {
-		pa->pa_iova[0] = ccw->cda;
-		for (i = 1; i < pa->pa_nr; i++)
-			pa->pa_iova[i] = pa->pa_iova[i - 1] + PAGE_SIZE;
 	}
 
 	if (ccw_does_data_transfer(ccw)) {
