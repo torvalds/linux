@@ -1429,7 +1429,10 @@ static inline void __bch2_btree_node_iter_advance(struct btree_node_iter *iter,
 	EBUG_ON(iter->data->k > iter->data->end);
 
 	if (unlikely(__btree_node_iter_set_end(iter, 0))) {
-		bch2_btree_node_iter_set_drop(iter, iter->data);
+		/* avoid an expensive memmove call: */
+		iter->data[0] = iter->data[1];
+		iter->data[1] = iter->data[2];
+		iter->data[2] = (struct btree_node_iter_set) { 0, 0 };
 		return;
 	}
 
