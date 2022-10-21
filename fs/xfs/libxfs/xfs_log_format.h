@@ -616,6 +616,14 @@ typedef struct xfs_efi_log_format {
 	xfs_extent_t		efi_extents[];	/* array of extents to free */
 } xfs_efi_log_format_t;
 
+static inline size_t
+xfs_efi_log_format_sizeof(
+	unsigned int		nr)
+{
+	return sizeof(struct xfs_efi_log_format) +
+			nr * sizeof(struct xfs_extent);
+}
+
 typedef struct xfs_efi_log_format_32 {
 	uint16_t		efi_type;	/* efi log item type */
 	uint16_t		efi_size;	/* size of this item */
@@ -624,6 +632,14 @@ typedef struct xfs_efi_log_format_32 {
 	xfs_extent_32_t		efi_extents[];	/* array of extents to free */
 } __attribute__((packed)) xfs_efi_log_format_32_t;
 
+static inline size_t
+xfs_efi_log_format32_sizeof(
+	unsigned int		nr)
+{
+	return sizeof(struct xfs_efi_log_format_32) +
+			nr * sizeof(struct xfs_extent_32);
+}
+
 typedef struct xfs_efi_log_format_64 {
 	uint16_t		efi_type;	/* efi log item type */
 	uint16_t		efi_size;	/* size of this item */
@@ -631,6 +647,14 @@ typedef struct xfs_efi_log_format_64 {
 	uint64_t		efi_id;		/* efi identifier */
 	xfs_extent_64_t		efi_extents[];	/* array of extents to free */
 } xfs_efi_log_format_64_t;
+
+static inline size_t
+xfs_efi_log_format64_sizeof(
+	unsigned int		nr)
+{
+	return sizeof(struct xfs_efi_log_format_64) +
+			nr * sizeof(struct xfs_extent_64);
+}
 
 /*
  * This is the structure used to lay out an efd log item in the
@@ -645,6 +669,14 @@ typedef struct xfs_efd_log_format {
 	xfs_extent_t		efd_extents[];	/* array of extents freed */
 } xfs_efd_log_format_t;
 
+static inline size_t
+xfs_efd_log_format_sizeof(
+	unsigned int		nr)
+{
+	return sizeof(struct xfs_efd_log_format) +
+			nr * sizeof(struct xfs_extent);
+}
+
 typedef struct xfs_efd_log_format_32 {
 	uint16_t		efd_type;	/* efd log item type */
 	uint16_t		efd_size;	/* size of this item */
@@ -653,6 +685,14 @@ typedef struct xfs_efd_log_format_32 {
 	xfs_extent_32_t		efd_extents[];	/* array of extents freed */
 } __attribute__((packed)) xfs_efd_log_format_32_t;
 
+static inline size_t
+xfs_efd_log_format32_sizeof(
+	unsigned int		nr)
+{
+	return sizeof(struct xfs_efd_log_format_32) +
+			nr * sizeof(struct xfs_extent_32);
+}
+
 typedef struct xfs_efd_log_format_64 {
 	uint16_t		efd_type;	/* efd log item type */
 	uint16_t		efd_size;	/* size of this item */
@@ -660,6 +700,14 @@ typedef struct xfs_efd_log_format_64 {
 	uint64_t		efd_efi_id;	/* id of corresponding efi */
 	xfs_extent_64_t		efd_extents[];	/* array of extents freed */
 } xfs_efd_log_format_64_t;
+
+static inline size_t
+xfs_efd_log_format64_sizeof(
+	unsigned int		nr)
+{
+	return sizeof(struct xfs_efd_log_format_64) +
+			nr * sizeof(struct xfs_extent_64);
+}
 
 /*
  * RUI/RUD (reverse mapping) log format definitions
