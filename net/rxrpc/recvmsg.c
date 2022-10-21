@@ -229,7 +229,7 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 	_enter("%d", call->debug_id);
 
 	skb = skb_dequeue(&call->recvmsg_queue);
-	rxrpc_see_skb(skb, rxrpc_skb_rotated);
+	rxrpc_see_skb(skb, rxrpc_skb_see_rotate);
 
 	sp = rxrpc_skb(skb);
 	tseq   = sp->hdr.seq;
@@ -240,7 +240,7 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 	if (after(tseq, call->rx_consumed))
 		smp_store_release(&call->rx_consumed, tseq);
 
-	rxrpc_free_skb(skb, rxrpc_skb_freed);
+	rxrpc_free_skb(skb, rxrpc_skb_put_rotate);
 
 	trace_rxrpc_receive(call, last ? rxrpc_receive_rotate_last : rxrpc_receive_rotate,
 			    serial, call->rx_consumed);
@@ -302,7 +302,7 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 	 */
 	skb = skb_peek(&call->recvmsg_queue);
 	while (skb) {
-		rxrpc_see_skb(skb, rxrpc_skb_seen);
+		rxrpc_see_skb(skb, rxrpc_skb_see_recvmsg);
 		sp = rxrpc_skb(skb);
 		seq = sp->hdr.seq;
 

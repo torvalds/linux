@@ -153,7 +153,7 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 		spin_lock_bh(&call->acks_ack_lock);
 		ack_skb = call->acks_soft_tbl;
 		if (ack_skb) {
-			rxrpc_get_skb(ack_skb, rxrpc_skb_ack);
+			rxrpc_get_skb(ack_skb, rxrpc_skb_get_ack);
 			ack = (void *)ack_skb->data + sizeof(struct rxrpc_wire_header);
 		}
 		spin_unlock_bh(&call->acks_ack_lock);
@@ -251,7 +251,7 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 no_further_resend:
 	spin_unlock(&call->tx_lock);
 no_resend:
-	rxrpc_free_skb(ack_skb, rxrpc_skb_freed);
+	rxrpc_free_skb(ack_skb, rxrpc_skb_put_ack);
 
 	resend_at = nsecs_to_jiffies(ktime_to_ns(ktime_sub(now, oldest)));
 	resend_at += jiffies + rxrpc_get_rto_backoff(call->peer,

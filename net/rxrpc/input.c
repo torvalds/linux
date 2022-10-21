@@ -485,7 +485,7 @@ send_ack:
 					rxrpc_propose_ack_input_data);
 
 err_free:
-	rxrpc_free_skb(skb, rxrpc_skb_freed);
+	rxrpc_free_skb(skb, rxrpc_skb_put_input);
 }
 
 /*
@@ -513,7 +513,7 @@ static bool rxrpc_input_split_jumbo(struct rxrpc_call *call, struct sk_buff *skb
 			kdebug("couldn't clone");
 			return false;
 		}
-		rxrpc_new_skb(jskb, rxrpc_skb_cloned_jumbo);
+		rxrpc_new_skb(jskb, rxrpc_skb_new_jumbo_subpacket);
 		jsp = rxrpc_skb(jskb);
 		jsp->offset = offset;
 		jsp->len = RXRPC_JUMBO_DATALEN;
@@ -553,7 +553,7 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 
 	state = READ_ONCE(call->state);
 	if (state >= RXRPC_CALL_COMPLETE) {
-		rxrpc_free_skb(skb, rxrpc_skb_freed);
+		rxrpc_free_skb(skb, rxrpc_skb_put_input);
 		return;
 	}
 
@@ -563,14 +563,14 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 	if (sp->hdr.securityIndex != 0) {
 		struct sk_buff *nskb = skb_unshare(skb, GFP_ATOMIC);
 		if (!nskb) {
-			rxrpc_eaten_skb(skb, rxrpc_skb_unshared_nomem);
+			rxrpc_eaten_skb(skb, rxrpc_skb_eaten_by_unshare_nomem);
 			return;
 		}
 
 		if (nskb != skb) {
-			rxrpc_eaten_skb(skb, rxrpc_skb_received);
+			rxrpc_eaten_skb(skb, rxrpc_skb_eaten_by_unshare);
 			skb = nskb;
-			rxrpc_new_skb(skb, rxrpc_skb_unshared);
+			rxrpc_new_skb(skb, rxrpc_skb_new_unshared);
 			sp = rxrpc_skb(skb);
 		}
 	}
@@ -609,7 +609,7 @@ out:
 	rxrpc_notify_socket(call);
 
 	spin_unlock(&call->input_lock);
-	rxrpc_free_skb(skb, rxrpc_skb_freed);
+	rxrpc_free_skb(skb, rxrpc_skb_put_input);
 	_leave(" [queued]");
 }
 
@@ -994,8 +994,8 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 out:
 	spin_unlock(&call->input_lock);
 out_not_locked:
-	rxrpc_free_skb(skb_put, rxrpc_skb_freed);
-	rxrpc_free_skb(skb_old, rxrpc_skb_freed);
+	rxrpc_free_skb(skb_put, rxrpc_skb_put_input);
+	rxrpc_free_skb(skb_old, rxrpc_skb_put_ack);
 }
 
 /*
@@ -1075,7 +1075,7 @@ static void rxrpc_input_call_packet(struct rxrpc_call *call,
 		break;
 	}
 
-	rxrpc_free_skb(skb, rxrpc_skb_freed);
+	rxrpc_free_skb(skb, rxrpc_skb_put_input);
 no_free:
 	_leave("");
 }
@@ -1137,7 +1137,7 @@ static void rxrpc_post_packet_to_local(struct rxrpc_local *local,
 		skb_queue_tail(&local->event_queue, skb);
 		rxrpc_queue_local(local);
 	} else {
-		rxrpc_free_skb(skb, rxrpc_skb_freed);
+		rxrpc_free_skb(skb, rxrpc_skb_put_input);
 	}
 }
 
@@ -1150,7 +1150,7 @@ static void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
 		skb_queue_tail(&local->reject_queue, skb);
 		rxrpc_queue_local(local);
 	} else {
-		rxrpc_free_skb(skb, rxrpc_skb_freed);
+		rxrpc_free_skb(skb, rxrpc_skb_put_input);
 	}
 }
 
@@ -1228,7 +1228,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 	if (skb->tstamp == 0)
 		skb->tstamp = ktime_get_real();
 
-	rxrpc_new_skb(skb, rxrpc_skb_received);
+	rxrpc_new_skb(skb, rxrpc_skb_new_encap_rcv);
 
 	skb_pull(skb, sizeof(struct udphdr));
 
@@ -1245,7 +1245,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 		static int lose;
 		if ((lose++ & 7) == 7) {
 			trace_rxrpc_rx_lose(sp);
-			rxrpc_free_skb(skb, rxrpc_skb_lost);
+			rxrpc_free_skb(skb, rxrpc_skb_put_lose);
 			return 0;
 		}
 	}
@@ -1286,14 +1286,14 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 		if (sp->hdr.securityIndex != 0) {
 			struct sk_buff *nskb = skb_unshare(skb, GFP_ATOMIC);
 			if (!nskb) {
-				rxrpc_eaten_skb(skb, rxrpc_skb_unshared_nomem);
+				rxrpc_eaten_skb(skb, rxrpc_skb_eaten_by_unshare_nomem);
 				goto out;
 			}
 
 			if (nskb != skb) {
-				rxrpc_eaten_skb(skb, rxrpc_skb_received);
+				rxrpc_eaten_skb(skb, rxrpc_skb_eaten_by_unshare);
 				skb = nskb;
-				rxrpc_new_skb(skb, rxrpc_skb_unshared);
+				rxrpc_new_skb(skb, rxrpc_skb_new_unshared);
 				sp = rxrpc_skb(skb);
 			}
 		}
@@ -1434,7 +1434,7 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 	goto out;
 
 discard:
-	rxrpc_free_skb(skb, rxrpc_skb_freed);
+	rxrpc_free_skb(skb, rxrpc_skb_put_input);
 out:
 	trace_rxrpc_rx_done(0, 0);
 	return 0;

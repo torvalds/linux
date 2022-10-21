@@ -17,19 +17,31 @@
  * Declare tracing information enums and their string mappings for display.
  */
 #define rxrpc_skb_traces \
-	EM(rxrpc_skb_ack,			"ACK") \
-	EM(rxrpc_skb_cleaned,			"CLN") \
-	EM(rxrpc_skb_cloned_jumbo,		"CLJ") \
-	EM(rxrpc_skb_freed,			"FRE") \
-	EM(rxrpc_skb_got,			"GOT") \
-	EM(rxrpc_skb_lost,			"*L*") \
-	EM(rxrpc_skb_new,			"NEW") \
-	EM(rxrpc_skb_purged,			"PUR") \
-	EM(rxrpc_skb_received,			"RCV") \
-	EM(rxrpc_skb_rotated,			"ROT") \
-	EM(rxrpc_skb_seen,			"SEE") \
-	EM(rxrpc_skb_unshared,			"UNS") \
-	E_(rxrpc_skb_unshared_nomem,		"US0")
+	EM(rxrpc_skb_eaten_by_unshare,		"ETN unshare  ") \
+	EM(rxrpc_skb_eaten_by_unshare_nomem,	"ETN unshar-nm") \
+	EM(rxrpc_skb_get_ack,			"GET ack      ") \
+	EM(rxrpc_skb_get_conn_work,		"GET conn-work") \
+	EM(rxrpc_skb_get_to_recvmsg,		"GET to-recv  ") \
+	EM(rxrpc_skb_get_to_recvmsg_oos,	"GET to-recv-o") \
+	EM(rxrpc_skb_new_encap_rcv,		"NEW encap-rcv") \
+	EM(rxrpc_skb_new_error_report,		"NEW error-rpt") \
+	EM(rxrpc_skb_new_jumbo_subpacket,	"NEW jumbo-sub") \
+	EM(rxrpc_skb_new_unshared,		"NEW unshared ") \
+	EM(rxrpc_skb_put_ack,			"PUT ack      ") \
+	EM(rxrpc_skb_put_conn_work,		"PUT conn-work") \
+	EM(rxrpc_skb_put_error_report,		"PUT error-rep") \
+	EM(rxrpc_skb_put_input,			"PUT input    ") \
+	EM(rxrpc_skb_put_jumbo_subpacket,	"PUT jumbo-sub") \
+	EM(rxrpc_skb_put_lose,			"PUT lose     ") \
+	EM(rxrpc_skb_put_purge,			"PUT purge    ") \
+	EM(rxrpc_skb_put_rotate,		"PUT rotate   ") \
+	EM(rxrpc_skb_put_unknown,		"PUT unknown  ") \
+	EM(rxrpc_skb_see_conn_work,		"SEE conn-work") \
+	EM(rxrpc_skb_see_local_work,		"SEE locl-work") \
+	EM(rxrpc_skb_see_recvmsg,		"SEE recvmsg  ") \
+	EM(rxrpc_skb_see_reject,		"SEE reject   ") \
+	EM(rxrpc_skb_see_rotate,		"SEE rotate   ") \
+	E_(rxrpc_skb_see_version,		"SEE version  ")
 
 #define rxrpc_local_traces \
 	EM(rxrpc_local_free,			"FREE        ") \
@@ -582,33 +594,30 @@ TRACE_EVENT(rxrpc_call,
 	    );
 
 TRACE_EVENT(rxrpc_skb,
-	    TP_PROTO(struct sk_buff *skb, enum rxrpc_skb_trace op,
-		     int usage, int mod_count, const void *where),
+	    TP_PROTO(struct sk_buff *skb, int usage, int mod_count,
+		     enum rxrpc_skb_trace why),
 
-	    TP_ARGS(skb, op, usage, mod_count, where),
+	    TP_ARGS(skb, usage, mod_count, why),
 
 	    TP_STRUCT__entry(
 		    __field(struct sk_buff *,		skb		)
-		    __field(enum rxrpc_skb_trace,	op		)
 		    __field(int,			usage		)
 		    __field(int,			mod_count	)
-		    __field(const void *,		where		)
+		    __field(enum rxrpc_skb_trace,	why		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->skb = skb;
-		    __entry->op = op;
 		    __entry->usage = usage;
 		    __entry->mod_count = mod_count;
-		    __entry->where = where;
+		    __entry->why = why;
 			   ),
 
-	    TP_printk("s=%p Rx %s u=%d m=%d p=%pSR",
+	    TP_printk("s=%p Rx %s u=%d m=%d",
 		      __entry->skb,
-		      __print_symbolic(__entry->op, rxrpc_skb_traces),
+		      __print_symbolic(__entry->why, rxrpc_skb_traces),
 		      __entry->usage,
-		      __entry->mod_count,
-		      __entry->where)
+		      __entry->mod_count)
 	    );
 
 TRACE_EVENT(rxrpc_rx_packet,

@@ -615,7 +615,7 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 	memset(&whdr, 0, sizeof(whdr));
 
 	while ((skb = skb_dequeue(&local->reject_queue))) {
-		rxrpc_see_skb(skb, rxrpc_skb_seen);
+		rxrpc_see_skb(skb, rxrpc_skb_see_reject);
 		sp = rxrpc_skb(skb);
 
 		switch (skb->mark) {
@@ -631,7 +631,7 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 			ioc = 2;
 			break;
 		default:
-			rxrpc_free_skb(skb, rxrpc_skb_freed);
+			rxrpc_free_skb(skb, rxrpc_skb_put_input);
 			continue;
 		}
 
@@ -656,7 +656,7 @@ void rxrpc_reject_packets(struct rxrpc_local *local)
 						      rxrpc_tx_point_reject);
 		}
 
-		rxrpc_free_skb(skb, rxrpc_skb_freed);
+		rxrpc_free_skb(skb, rxrpc_skb_put_input);
 	}
 
 	_leave("");

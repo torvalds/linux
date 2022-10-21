@@ -663,7 +663,7 @@ void rxrpc_cleanup_call(struct rxrpc_call *call)
 		rxrpc_put_txbuf(txb, rxrpc_txbuf_put_cleaned);
 	}
 	rxrpc_put_txbuf(call->tx_pending, rxrpc_txbuf_put_cleaned);
-	rxrpc_free_skb(call->acks_soft_tbl, rxrpc_skb_cleaned);
+	rxrpc_free_skb(call->acks_soft_tbl, rxrpc_skb_put_ack);
 
 	call_rcu(&call->rcu, rxrpc_rcu_destroy_call);
 }
