@@ -178,7 +178,6 @@
 #define rxrpc_peer_traces \
 	EM(rxrpc_peer_free,			"FREE        ") \
 	EM(rxrpc_peer_get_accept,		"GET accept  ") \
-	EM(rxrpc_peer_get_activate_call,	"GET act-call") \
 	EM(rxrpc_peer_get_bundle,		"GET bundle  ") \
 	EM(rxrpc_peer_get_client_conn,		"GET cln-conn") \
 	EM(rxrpc_peer_get_input,		"GET input   ") \
@@ -191,7 +190,6 @@
 	EM(rxrpc_peer_put_bundle,		"PUT bundle  ") \
 	EM(rxrpc_peer_put_call,			"PUT call    ") \
 	EM(rxrpc_peer_put_conn,			"PUT conn    ") \
-	EM(rxrpc_peer_put_discard_tmp,		"PUT disc-tmp") \
 	EM(rxrpc_peer_put_input,		"PUT input   ") \
 	EM(rxrpc_peer_put_input_error,		"PUT inpt-err") \
 	E_(rxrpc_peer_put_keepalive,		"PUT keepaliv")
@@ -201,6 +199,7 @@
 	EM(rxrpc_bundle_get_client_call,	"GET clt-call") \
 	EM(rxrpc_bundle_get_client_conn,	"GET clt-conn") \
 	EM(rxrpc_bundle_get_service_conn,	"GET svc-conn") \
+	EM(rxrpc_bundle_put_call,		"PUT call    ") \
 	EM(rxrpc_bundle_put_conn,		"PUT conn    ") \
 	EM(rxrpc_bundle_put_discard,		"PUT discard ") \
 	E_(rxrpc_bundle_new,			"NEW         ")

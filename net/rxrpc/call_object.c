@@ -365,7 +365,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 	/* Set up or get a connection record and set the protocol parameters,
 	 * including channel number and call ID.
 	 */
-	ret = rxrpc_connect_call(rx, call, cp, srx, gfp);
+	ret = rxrpc_connect_call(call, gfp);
 	if (ret < 0)
 		goto error_attached_to_socket;
 
@@ -663,6 +663,8 @@ static void rxrpc_destroy_call(struct work_struct *work)
 
 	rxrpc_put_txbuf(call->tx_pending, rxrpc_txbuf_put_cleaned);
 	rxrpc_put_connection(call->conn, rxrpc_conn_put_call);
+	rxrpc_deactivate_bundle(call->bundle);
+	rxrpc_put_bundle(call->bundle, rxrpc_bundle_put_call);
 	rxrpc_put_peer(call->peer, rxrpc_peer_put_call);
 	rxrpc_put_local(call->local, rxrpc_local_put_call);
 	call_rcu(&call->rcu, rxrpc_rcu_free_call);

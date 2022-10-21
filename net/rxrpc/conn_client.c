@@ -34,7 +34,10 @@ __read_mostly unsigned int rxrpc_reap_client_connections = 900;
 __read_mostly unsigned long rxrpc_conn_idle_client_expiry = 2 * 60 * HZ;
 __read_mostly unsigned long rxrpc_conn_idle_client_fast_expiry = 2 * HZ;
 
-static void rxrpc_deactivate_bundle(struct rxrpc_bundle *bundle);
+static void rxrpc_activate_bundle(struct rxrpc_bundle *bundle)
+{
+	atomic_inc(&bundle->active);
+}
 
 /*
  * Get a connection ID and epoch for a client connection from the global pool.
@@ -109,20 +112,21 @@ void rxrpc_destroy_client_conn_ids(struct rxrpc_local *local)
 /*
  * Allocate a connection bundle.
  */
-static struct rxrpc_bundle *rxrpc_alloc_bundle(struct rxrpc_conn_parameters *cp,
+static struct rxrpc_bundle *rxrpc_alloc_bundle(struct rxrpc_call *call,
 					       gfp_t gfp)
 {
 	struct rxrpc_bundle *bundle;
 
 	bundle = kzalloc(sizeof(*bundle), gfp);
 	if (bundle) {
-		bundle->local		= cp->local;
-		bundle->peer		= rxrpc_get_peer(cp->peer, rxrpc_peer_get_bundle);
-		bundle->key		= cp->key;
-		bundle->exclusive	= cp->exclusive;
-		bundle->upgrade		= cp->upgrade;
-		bundle->service_id	= cp->service_id;
-		bundle->security_level	= cp->security_level;
+		bundle->local		= call->local;
+		bundle->peer		= rxrpc_get_peer(call->peer, rxrpc_peer_get_bundle);
+		bundle->key		= key_get(call->key);
+		bundle->security	= call->security;
+		bundle->exclusive	= test_bit(RXRPC_CALL_EXCLUSIVE, &call->flags);
+		bundle->upgrade		= test_bit(RXRPC_CALL_UPGRADE, &call->flags);
+		bundle->service_id	= call->dest_srx.srx_service;
+		bundle->security_level	= call->security_level;
 		refcount_set(&bundle->ref, 1);
 		atomic_set(&bundle->active, 1);
 		spin_lock_init(&bundle->channel_lock);
@@ -146,19 +150,23 @@ static void rxrpc_free_bundle(struct rxrpc_bundle *bundle)
 {
 	trace_rxrpc_bundle(bundle->debug_id, 1, rxrpc_bundle_free);
 	rxrpc_put_peer(bundle->peer, rxrpc_peer_put_bundle);
+	key_put(bundle->key);
 	kfree(bundle);
 }
 
 void rxrpc_put_bundle(struct rxrpc_bundle *bundle, enum rxrpc_bundle_trace why)
 {
-	unsigned int id = bundle->debug_id;
+	unsigned int id;
 	bool dead;
 	int r;
 
-	dead = __refcount_dec_and_test(&bundle->ref, &r);
-	trace_rxrpc_bundle(id, r - 1, why);
-	if (dead)
-		rxrpc_free_bundle(bundle);
+	if (bundle) {
+		id = bundle->debug_id;
+		dead = __refcount_dec_and_test(&bundle->ref, &r);
+		trace_rxrpc_bundle(id, r - 1, why);
+		if (dead)
+			rxrpc_free_bundle(bundle);
+	}
 }
 
 /*
@@ -272,20 +280,23 @@ dont_reuse:
  * Look up the conn bundle that matches the connection parameters, adding it if
  * it doesn't yet exist.
  */
-static struct rxrpc_bundle *rxrpc_look_up_bundle(struct rxrpc_conn_parameters *cp,
-						 gfp_t gfp)
+static struct rxrpc_bundle *rxrpc_look_up_bundle(struct rxrpc_call *call, gfp_t gfp)
 {
 	static atomic_t rxrpc_bundle_id;
 	struct rxrpc_bundle *bundle, *candidate;
-	struct rxrpc_local *local = cp->local;
+	struct rxrpc_local *local = call->local;
 	struct rb_node *p, **pp, *parent;
 	long diff;
+	bool upgrade = test_bit(RXRPC_CALL_UPGRADE, &call->flags);
 
 	_enter("{%px,%x,%u,%u}",
-	       cp->peer, key_serial(cp->key), cp->security_level, cp->upgrade);
+	       call->peer, key_serial(call->key), call->security_level,
+	       upgrade);
 
-	if (cp->exclusive)
-		return rxrpc_alloc_bundle(cp, gfp);
+	if (test_bit(RXRPC_CALL_EXCLUSIVE, &call->flags)) {
+		call->bundle = rxrpc_alloc_bundle(call, gfp);
+		return call->bundle;
+	}
 
 	/* First, see if the bundle is already there. */
 	_debug("search 1");
@@ -294,11 +305,11 @@ static struct rxrpc_bundle *rxrpc_look_up_bundle(struct rxrpc_conn_parameters *c
 	while (p) {
 		bundle = rb_entry(p, struct rxrpc_bundle, local_node);
 
-#define cmp(X) ((long)bundle->X - (long)cp->X)
-		diff = (cmp(peer) ?:
-			cmp(key) ?:
-			cmp(security_level) ?:
-			cmp(upgrade));
+#define cmp(X, Y) ((long)(X) - (long)(Y))
+		diff = (cmp(bundle->peer, call->peer) ?:
+			cmp(bundle->key, call->key) ?:
+			cmp(bundle->security_level, call->security_level) ?:
+			cmp(bundle->upgrade, upgrade));
 #undef cmp
 		if (diff < 0)
 			p = p->rb_left;
@@ -311,9 +322,9 @@ static struct rxrpc_bundle *rxrpc_look_up_bundle(struct rxrpc_conn_parameters *c
 	_debug("not found");
 
 	/* It wasn't.  We need to add one. */
-	candidate = rxrpc_alloc_bundle(cp, gfp);
+	candidate = rxrpc_alloc_bundle(call, gfp);
 	if (!candidate)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	_debug("search 2");
 	spin_lock(&local->client_bundles_lock);
@@ -323,11 +334,11 @@ static struct rxrpc_bundle *rxrpc_look_up_bundle(struct rxrpc_conn_parameters *c
 		parent = *pp;
 		bundle = rb_entry(parent, struct rxrpc_bundle, local_node);
 
-#define cmp(X) ((long)bundle->X - (long)cp->X)
-		diff = (cmp(peer) ?:
-			cmp(key) ?:
-			cmp(security_level) ?:
-			cmp(upgrade));
+#define cmp(X, Y) ((long)(X) - (long)(Y))
+		diff = (cmp(bundle->peer, call->peer) ?:
+			cmp(bundle->key, call->key) ?:
+			cmp(bundle->security_level, call->security_level) ?:
+			cmp(bundle->upgrade, upgrade));
 #undef cmp
 		if (diff < 0)
 			pp = &(*pp)->rb_left;
@@ -341,19 +352,19 @@ static struct rxrpc_bundle *rxrpc_look_up_bundle(struct rxrpc_conn_parameters *c
 	candidate->debug_id = atomic_inc_return(&rxrpc_bundle_id);
 	rb_link_node(&candidate->local_node, parent, pp);
 	rb_insert_color(&candidate->local_node, &local->client_bundles);
-	rxrpc_get_bundle(candidate, rxrpc_bundle_get_client_call);
+	call->bundle = rxrpc_get_bundle(candidate, rxrpc_bundle_get_client_call);
 	spin_unlock(&local->client_bundles_lock);
-	_leave(" = %u [new]", candidate->debug_id);
-	return candidate;
+	_leave(" = B=%u [new]", call->bundle->debug_id);
+	return call->bundle;
 
 found_bundle_free:
 	rxrpc_free_bundle(candidate);
 found_bundle:
-	rxrpc_get_bundle(bundle, rxrpc_bundle_get_client_call);
-	atomic_inc(&bundle->active);
+	call->bundle = rxrpc_get_bundle(bundle, rxrpc_bundle_get_client_call);
+	rxrpc_activate_bundle(bundle);
 	spin_unlock(&local->client_bundles_lock);
-	_leave(" = %u [found]", bundle->debug_id);
-	return bundle;
+	_leave(" = B=%u [found]", call->bundle->debug_id);
+	return call->bundle;
 }
 
 /*
@@ -362,31 +373,25 @@ found_bundle:
  * If we return with a connection, the call will be on its waiting list.  It's
  * left to the caller to assign a channel and wake up the call.
  */
-static struct rxrpc_bundle *rxrpc_prep_call(struct rxrpc_sock *rx,
-					    struct rxrpc_call *call,
-					    struct rxrpc_conn_parameters *cp,
-					    struct sockaddr_rxrpc *srx,
-					    gfp_t gfp)
+static struct rxrpc_bundle *rxrpc_prep_call(struct rxrpc_call *call, gfp_t gfp)
 {
 	struct rxrpc_bundle *bundle;
 
 	_enter("{%d,%lx},", call->debug_id, call->user_call_ID);
 
-	cp->peer = rxrpc_lookup_peer(cp->local, srx, gfp);
-	if (!cp->peer)
+	call->peer = rxrpc_lookup_peer(call->local, &call->dest_srx, gfp);
+	if (!call->peer)
 		goto error;
 
 	call->tx_last_sent = ktime_get_real();
-	call->cong_ssthresh = cp->peer->cong_ssthresh;
+	call->cong_ssthresh = call->peer->cong_ssthresh;
 	if (call->cong_cwnd >= call->cong_ssthresh)
 		call->cong_mode = RXRPC_CALL_CONGEST_AVOIDANCE;
 	else
 		call->cong_mode = RXRPC_CALL_SLOW_START;
-	if (cp->upgrade)
-		__set_bit(RXRPC_CALL_UPGRADE, &call->flags);
 
 	/* Find the client connection bundle. */
-	bundle = rxrpc_look_up_bundle(cp, gfp);
+	bundle = rxrpc_look_up_bundle(call, gfp);
 	if (!bundle)
 		goto error;
 
@@ -449,7 +454,7 @@ static void rxrpc_add_conn_to_bundle(struct rxrpc_bundle *bundle, gfp_t gfp)
 			if (old)
 				trace_rxrpc_client(old, -1, rxrpc_client_replace);
 			candidate->bundle_shift = shift;
-			atomic_inc(&bundle->active);
+			rxrpc_activate_bundle(bundle);
 			bundle->conns[i] = candidate;
 			for (j = 0; j < RXRPC_MAXCALLS; j++)
 				set_bit(shift + j, &bundle->avail_chans);
@@ -541,7 +546,6 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 
 	rxrpc_see_call(call, rxrpc_call_see_activate_client);
 	list_del_init(&call->chan_wait_link);
-	call->peer	= rxrpc_get_peer(conn->peer, rxrpc_peer_get_activate_call);
 	call->conn	= rxrpc_get_connection(conn, rxrpc_conn_get_activate_call);
 	call->cid	= conn->proto.cid | channel;
 	call->call_id	= call_id;
@@ -705,14 +709,11 @@ out:
  * find a connection for a call
  * - called in process context with IRQs enabled
  */
-int rxrpc_connect_call(struct rxrpc_sock *rx,
-		       struct rxrpc_call *call,
-		       struct rxrpc_conn_parameters *cp,
-		       struct sockaddr_rxrpc *srx,
-		       gfp_t gfp)
+int rxrpc_connect_call(struct rxrpc_call *call, gfp_t gfp)
 {
 	struct rxrpc_bundle *bundle;
-	struct rxrpc_net *rxnet = cp->local->rxnet;
+	struct rxrpc_local *local = call->local;
+	struct rxrpc_net *rxnet = local->rxnet;
 	int ret = 0;
 
 	_enter("{%d,%lx},", call->debug_id, call->user_call_ID);
@@ -721,7 +722,7 @@ int rxrpc_connect_call(struct rxrpc_sock *rx,
 
 	rxrpc_get_call(call, rxrpc_call_get_io_thread);
 
-	bundle = rxrpc_prep_call(rx, call, cp, srx, gfp);
+	bundle = rxrpc_prep_call(call, gfp);
 	if (IS_ERR(bundle)) {
 		rxrpc_put_call(call, rxrpc_call_get_io_thread);
 		ret = PTR_ERR(bundle);
@@ -738,9 +739,6 @@ granted_channel:
 	/* Paired with the write barrier in rxrpc_activate_one_channel(). */
 	smp_rmb();
 
-out_put_bundle:
-	rxrpc_deactivate_bundle(bundle);
-	rxrpc_put_bundle(bundle, rxrpc_bundle_get_client_call);
 out:
 	_leave(" = %d", ret);
 	return ret;
@@ -758,7 +756,7 @@ wait_failed:
 	trace_rxrpc_client(call->conn, ret, rxrpc_client_chan_wait_failed);
 	rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR, 0, ret);
 	rxrpc_disconnect_client_call(bundle, call);
-	goto out_put_bundle;
+	goto out;
 }
 
 /*
@@ -945,11 +943,15 @@ static void rxrpc_unbundle_conn(struct rxrpc_connection *conn)
 /*
  * Drop the active count on a bundle.
  */
-static void rxrpc_deactivate_bundle(struct rxrpc_bundle *bundle)
+void rxrpc_deactivate_bundle(struct rxrpc_bundle *bundle)
 {
-	struct rxrpc_local *local = bundle->local;
+	struct rxrpc_local *local;
 	bool need_put = false;
 
+	if (!bundle)
+		return;
+
+	local = bundle->local;
 	if (atomic_dec_and_lock(&bundle->active, &local->client_bundles_lock)) {
 		if (!bundle->exclusive) {
 			_debug("erase bundle");

@@ -208,7 +208,7 @@ void rxrpc_disconnect_call(struct rxrpc_call *call)
 	}
 
 	if (rxrpc_is_client_call(call)) {
-		rxrpc_disconnect_client_call(conn->bundle, call);
+		rxrpc_disconnect_client_call(call->bundle, call);
 	} else {
 		spin_lock(&conn->bundle->channel_lock);
 		__rxrpc_disconnect_call(conn, call);
