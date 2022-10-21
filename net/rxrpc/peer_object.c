@@ -215,7 +215,7 @@ struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *local, gfp_t gfp)
 	peer = kzalloc(sizeof(struct rxrpc_peer), gfp);
 	if (peer) {
 		refcount_set(&peer->ref, 1);
-		peer->local = rxrpc_get_local(local);
+		peer->local = rxrpc_get_local(local, rxrpc_local_get_peer);
 		INIT_HLIST_HEAD(&peer->error_targets);
 		peer->service_conns = RB_ROOT;
 		seqlock_init(&peer->service_conn_lock);
@@ -294,7 +294,7 @@ static struct rxrpc_peer *rxrpc_create_peer(struct rxrpc_sock *rx,
 
 static void rxrpc_free_peer(struct rxrpc_peer *peer)
 {
-	rxrpc_put_local(peer->local);
+	rxrpc_put_local(peer->local, rxrpc_local_put_peer);
 	kfree_rcu(peer, rcu);
 }
 

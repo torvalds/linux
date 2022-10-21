@@ -197,7 +197,7 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 	tail = b->peer_backlog_tail;
 	while (CIRC_CNT(head, tail, size) > 0) {
 		struct rxrpc_peer *peer = b->peer_backlog[tail];
-		rxrpc_put_local(peer->local);
+		rxrpc_put_local(peer->local, rxrpc_local_put_prealloc_conn);
 		kfree(peer);
 		tail = (tail + 1) & (size - 1);
 	}
@@ -305,7 +305,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 		b->conn_backlog[conn_tail] = NULL;
 		smp_store_release(&b->conn_backlog_tail,
 				  (conn_tail + 1) & (RXRPC_BACKLOG_MAX - 1));
-		conn->local = rxrpc_get_local(local);
+		conn->local = rxrpc_get_local(local, rxrpc_local_get_prealloc_conn);
 		conn->peer = peer;
 		rxrpc_see_connection(conn);
 		rxrpc_new_incoming_connection(rx, conn, sec, skb);

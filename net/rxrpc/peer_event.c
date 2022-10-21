@@ -266,7 +266,7 @@ static void rxrpc_peer_keepalive_dispatch(struct rxrpc_net *rxnet,
 		if (!rxrpc_get_peer_maybe(peer))
 			continue;
 
-		if (__rxrpc_use_local(peer->local)) {
+		if (__rxrpc_use_local(peer->local, rxrpc_local_use_peer_keepalive)) {
 			spin_unlock_bh(&rxnet->peer_hash_lock);
 
 			keepalive_at = peer->last_tx_at + RXRPC_KEEPALIVE_TIME;
@@ -289,7 +289,7 @@ static void rxrpc_peer_keepalive_dispatch(struct rxrpc_net *rxnet,
 			spin_lock_bh(&rxnet->peer_hash_lock);
 			list_add_tail(&peer->keepalive_link,
 				      &rxnet->peer_keepalive[slot & mask]);
-			rxrpc_unuse_local(peer->local);
+			rxrpc_unuse_local(peer->local, rxrpc_local_unuse_peer_keepalive);
 		}
 		rxrpc_put_peer_locked(peer);
 	}

@@ -288,8 +288,7 @@ void rxrpc_transmit_ack_packets(struct rxrpc_local *local)
 	LIST_HEAD(queue);
 	int ret;
 
-	trace_rxrpc_local(local->debug_id, rxrpc_local_tx_ack,
-			  refcount_read(&local->ref), NULL);
+	rxrpc_see_local(local, rxrpc_local_see_tx_ack);
 
 	if (list_empty(&local->ack_tx_queue))
 		return;

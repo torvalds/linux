@@ -110,7 +110,7 @@ static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
 		local->debug_id = atomic_inc_return(&rxrpc_debug_id);
 		memcpy(&local->srx, srx, sizeof(*srx));
 		local->srx.srx_service = 0;
-		trace_rxrpc_local(local->debug_id, rxrpc_local_new, 1, NULL);
+		trace_rxrpc_local(local->debug_id, rxrpc_local_new, 1, 1);
 	}
 
 	_leave(" = %p", local);
@@ -228,7 +228,7 @@ struct rxrpc_local *rxrpc_lookup_local(struct net *net,
 		 * we're attempting to use a local address that the dying
 		 * object is still using.
 		 */
-		if (!rxrpc_use_local(local))
+		if (!rxrpc_use_local(local, rxrpc_local_use_lookup))
 			break;
 
 		goto found;
@@ -272,32 +272,32 @@ addr_in_use:
 /*
  * Get a ref on a local endpoint.
  */
-struct rxrpc_local *rxrpc_get_local(struct rxrpc_local *local)
+struct rxrpc_local *rxrpc_get_local(struct rxrpc_local *local,
+				    enum rxrpc_local_trace why)
 {
-	const void *here = __builtin_return_address(0);
-	int r;
+	int r, u;
 
+	u = atomic_read(&local->active_users);
 	__refcount_inc(&local->ref, &r);
-	trace_rxrpc_local(local->debug_id, rxrpc_local_got, r + 1, here);
+	trace_rxrpc_local(local->debug_id, why, r + 1, u);
 	return local;
 }
 
 /*
  * Get a ref on a local endpoint unless its usage has already reached 0.
  */
-struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *local)
+struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *local,
+					  enum rxrpc_local_trace why)
 {
-	const void *here = __builtin_return_address(0);
-	int r;
+	int r, u;
 
-	if (local) {
-		if (__refcount_inc_not_zero(&local->ref, &r))
-			trace_rxrpc_local(local->debug_id, rxrpc_local_got,
-					  r + 1, here);
-		else
-			local = NULL;
+	if (local && __refcount_inc_not_zero(&local->ref, &r)) {
+		u = atomic_read(&local->active_users);
+		trace_rxrpc_local(local->debug_id, why, r + 1, u);
+		return local;
 	}
-	return local;
+
+	return NULL;
 }
 
 /*
@@ -305,31 +305,31 @@ struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *local)
  */
 void rxrpc_queue_local(struct rxrpc_local *local)
 {
-	const void *here = __builtin_return_address(0);
 	unsigned int debug_id = local->debug_id;
 	int r = refcount_read(&local->ref);
+	int u = atomic_read(&local->active_users);
 
 	if (rxrpc_queue_work(&local->processor))
-		trace_rxrpc_local(debug_id, rxrpc_local_queued, r + 1, here);
+		trace_rxrpc_local(debug_id, rxrpc_local_queued, r, u);
 	else
-		rxrpc_put_local(local);
+		rxrpc_put_local(local, rxrpc_local_put_already_queued);
 }
 
 /*
  * Drop a ref on a local endpoint.
  */
-void rxrpc_put_local(struct rxrpc_local *local)
+void rxrpc_put_local(struct rxrpc_local *local, enum rxrpc_local_trace why)
 {
-	const void *here = __builtin_return_address(0);
 	unsigned int debug_id;
 	bool dead;
-	int r;
+	int r, u;
 
 	if (local) {
 		debug_id = local->debug_id;
 
+		u = atomic_read(&local->active_users);
 		dead = __refcount_dec_and_test(&local->ref, &r);
-		trace_rxrpc_local(debug_id, rxrpc_local_put, r, here);
+		trace_rxrpc_local(debug_id, why, r, u);
 
 		if (dead)
 			call_rcu(&local->rcu, rxrpc_local_rcu);
@@ -339,14 +339,15 @@ void rxrpc_put_local(struct rxrpc_local *local)
 /*
  * Start using a local endpoint.
  */
-struct rxrpc_local *rxrpc_use_local(struct rxrpc_local *local)
+struct rxrpc_local *rxrpc_use_local(struct rxrpc_local *local,
+				    enum rxrpc_local_trace why)
 {
-	local = rxrpc_get_local_maybe(local);
+	local = rxrpc_get_local_maybe(local, rxrpc_local_get_for_use);
 	if (!local)
 		return NULL;
 
-	if (!__rxrpc_use_local(local)) {
-		rxrpc_put_local(local);
+	if (!__rxrpc_use_local(local, why)) {
+		rxrpc_put_local(local, rxrpc_local_put_for_use);
 		return NULL;
 	}
 
@@ -357,11 +358,18 @@ struct rxrpc_local *rxrpc_use_local(struct rxrpc_local *local)
  * Cease using a local endpoint.  Once the number of active users reaches 0, we
  * start the closure of the transport in the work processor.
  */
-void rxrpc_unuse_local(struct rxrpc_local *local)
+void rxrpc_unuse_local(struct rxrpc_local *local, enum rxrpc_local_trace why)
 {
+	unsigned int debug_id;
+	int r, u;
+
 	if (local) {
-		if (__rxrpc_unuse_local(local)) {
-			rxrpc_get_local(local);
+		debug_id = local->debug_id;
+		r = refcount_read(&local->ref);
+		u = atomic_dec_return(&local->active_users);
+		trace_rxrpc_local(debug_id, why, r, u);
+		if (u == 0) {
+			rxrpc_get_local(local, rxrpc_local_get_queue);
 			rxrpc_queue_local(local);
 		}
 	}
@@ -418,12 +426,11 @@ static void rxrpc_local_processor(struct work_struct *work)
 	if (local->dead)
 		return;
 
-	trace_rxrpc_local(local->debug_id, rxrpc_local_processing,
-			  refcount_read(&local->ref), NULL);
+	rxrpc_see_local(local, rxrpc_local_processing);
 
 	do {
 		again = false;
-		if (!__rxrpc_use_local(local)) {
+		if (!__rxrpc_use_local(local, rxrpc_local_use_work)) {
 			rxrpc_local_destroyer(local);
 			break;
 		}
@@ -443,10 +450,10 @@ static void rxrpc_local_processor(struct work_struct *work)
 			again = true;
 		}
 
-		__rxrpc_unuse_local(local);
+		__rxrpc_unuse_local(local, rxrpc_local_unuse_work);
 	} while (again);
 
-	rxrpc_put_local(local);
+	rxrpc_put_local(local, rxrpc_local_put_queue);
 }
 
 /*
@@ -460,6 +467,7 @@ static void rxrpc_local_rcu(struct rcu_head *rcu)
 
 	ASSERT(!work_pending(&local->processor));
 
+	rxrpc_see_local(local, rxrpc_local_free);
 	kfree(local);
 	_leave("");
 }

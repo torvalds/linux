@@ -979,22 +979,45 @@ extern void rxrpc_process_local_events(struct rxrpc_local *);
  * local_object.c
  */
 struct rxrpc_local *rxrpc_lookup_local(struct net *, const struct sockaddr_rxrpc *);
-struct rxrpc_local *rxrpc_get_local(struct rxrpc_local *);
-struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *);
-void rxrpc_put_local(struct rxrpc_local *);
-struct rxrpc_local *rxrpc_use_local(struct rxrpc_local *);
-void rxrpc_unuse_local(struct rxrpc_local *);
+struct rxrpc_local *rxrpc_get_local(struct rxrpc_local *, enum rxrpc_local_trace);
+struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *, enum rxrpc_local_trace);
+void rxrpc_put_local(struct rxrpc_local *, enum rxrpc_local_trace);
+struct rxrpc_local *rxrpc_use_local(struct rxrpc_local *, enum rxrpc_local_trace);
+void rxrpc_unuse_local(struct rxrpc_local *, enum rxrpc_local_trace);
 void rxrpc_queue_local(struct rxrpc_local *);
 void rxrpc_destroy_all_locals(struct rxrpc_net *);
 
-static inline bool __rxrpc_unuse_local(struct rxrpc_local *local)
+static inline bool __rxrpc_unuse_local(struct rxrpc_local *local,
+				       enum rxrpc_local_trace why)
 {
-	return atomic_dec_return(&local->active_users) == 0;
+	unsigned int debug_id = local->debug_id;
+	int r, u;
+
+	r = refcount_read(&local->ref);
+	u = atomic_dec_return(&local->active_users);
+	trace_rxrpc_local(debug_id, why, r, u);
+	return u == 0;
 }
 
-static inline bool __rxrpc_use_local(struct rxrpc_local *local)
+static inline bool __rxrpc_use_local(struct rxrpc_local *local,
+				     enum rxrpc_local_trace why)
 {
-	return atomic_fetch_add_unless(&local->active_users, 1, 0) != 0;
+	int r, u;
+
+	r = refcount_read(&local->ref);
+	u = atomic_fetch_add_unless(&local->active_users, 1, 0);
+	trace_rxrpc_local(local->debug_id, why, r, u);
+	return u != 0;
+}
+
+static inline void rxrpc_see_local(struct rxrpc_local *local,
+				   enum rxrpc_local_trace why)
+{
+	int r, u;
+
+	r = refcount_read(&local->ref);
+	u = atomic_read(&local->active_users);
+	trace_rxrpc_local(local->debug_id, why, r, u);
 }
 
 /*

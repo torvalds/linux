@@ -194,8 +194,8 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 
 service_in_use:
 	write_unlock(&local->services_lock);
-	rxrpc_unuse_local(local);
-	rxrpc_put_local(local);
+	rxrpc_unuse_local(local, rxrpc_local_unuse_bind);
+	rxrpc_put_local(local, rxrpc_local_put_bind);
 	ret = -EADDRINUSE;
 error_unlock:
 	release_sock(&rx->sk);
@@ -888,8 +888,8 @@ static int rxrpc_release_sock(struct sock *sk)
 	flush_workqueue(rxrpc_workqueue);
 	rxrpc_purge_queue(&sk->sk_receive_queue);
 
-	rxrpc_unuse_local(rx->local);
-	rxrpc_put_local(rx->local);
+	rxrpc_unuse_local(rx->local, rxrpc_local_unuse_release_sock);
+	rxrpc_put_local(rx->local, rxrpc_local_put_release_sock);
 	rx->local = NULL;
 	key_put(rx->key);
 	rx->key = NULL;

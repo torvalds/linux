@@ -1133,7 +1133,7 @@ static void rxrpc_post_packet_to_local(struct rxrpc_local *local,
 {
 	_enter("%p,%p", local, skb);
 
-	if (rxrpc_get_local_maybe(local)) {
+	if (rxrpc_get_local_maybe(local, rxrpc_local_get_queue)) {
 		skb_queue_tail(&local->event_queue, skb);
 		rxrpc_queue_local(local);
 	} else {
@@ -1146,7 +1146,7 @@ static void rxrpc_post_packet_to_local(struct rxrpc_local *local,
  */
 static void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
 {
-	if (rxrpc_get_local_maybe(local)) {
+	if (rxrpc_get_local_maybe(local, rxrpc_local_get_queue)) {
 		skb_queue_tail(&local->reject_queue, skb);
 		rxrpc_queue_local(local);
 	} else {

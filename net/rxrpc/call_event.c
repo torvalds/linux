@@ -114,7 +114,7 @@ void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
 	if (in_task()) {
 		rxrpc_transmit_ack_packets(call->peer->local);
 	} else {
-		rxrpc_get_local(local);
+		rxrpc_get_local(local, rxrpc_local_get_queue);
 		rxrpc_queue_local(local);
 	}
 }

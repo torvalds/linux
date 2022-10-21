@@ -32,12 +32,35 @@
 	E_(rxrpc_skb_unshared_nomem,		"US0")
 
 #define rxrpc_local_traces \
-	EM(rxrpc_local_got,			"GOT") \
-	EM(rxrpc_local_new,			"NEW") \
-	EM(rxrpc_local_processing,		"PRO") \
-	EM(rxrpc_local_put,			"PUT") \
-	EM(rxrpc_local_queued,			"QUE") \
-	E_(rxrpc_local_tx_ack,			"TAK")
+	EM(rxrpc_local_free,			"FREE        ") \
+	EM(rxrpc_local_get_client_conn,		"GET conn-cln") \
+	EM(rxrpc_local_get_for_use,		"GET for-use ") \
+	EM(rxrpc_local_get_peer,		"GET peer    ") \
+	EM(rxrpc_local_get_prealloc_conn,	"GET conn-pre") \
+	EM(rxrpc_local_get_queue,		"GET queue   ") \
+	EM(rxrpc_local_new,			"NEW         ") \
+	EM(rxrpc_local_processing,		"PROCESSING  ") \
+	EM(rxrpc_local_put_already_queued,	"PUT alreadyq") \
+	EM(rxrpc_local_put_bind,		"PUT bind    ") \
+	EM(rxrpc_local_put_for_use,		"PUT for-use ") \
+	EM(rxrpc_local_put_kill_conn,		"PUT conn-kil") \
+	EM(rxrpc_local_put_peer,		"PUT peer    ") \
+	EM(rxrpc_local_put_prealloc_conn,	"PUT conn-pre") \
+	EM(rxrpc_local_put_release_sock,	"PUT rel-sock") \
+	EM(rxrpc_local_put_queue,		"PUT queue   ") \
+	EM(rxrpc_local_queued,			"QUEUED      ") \
+	EM(rxrpc_local_see_tx_ack,		"SEE tx-ack  ") \
+	EM(rxrpc_local_stop,			"STOP        ") \
+	EM(rxrpc_local_stopped,			"STOPPED     ") \
+	EM(rxrpc_local_unuse_bind,		"UNU bind    ") \
+	EM(rxrpc_local_unuse_conn_work,		"UNU conn-wrk") \
+	EM(rxrpc_local_unuse_peer_keepalive,	"UNU peer-kpa") \
+	EM(rxrpc_local_unuse_release_sock,	"UNU rel-sock") \
+	EM(rxrpc_local_unuse_work,		"UNU work    ") \
+	EM(rxrpc_local_use_conn_work,		"USE conn-wrk") \
+	EM(rxrpc_local_use_lookup,		"USE lookup  ") \
+	EM(rxrpc_local_use_peer_keepalive,	"USE peer-kpa") \
+	E_(rxrpc_local_use_work,		"USE work    ")
 
 #define rxrpc_peer_traces \
 	EM(rxrpc_peer_got,			"GOT") \
@@ -345,29 +368,29 @@ rxrpc_txqueue_traces;
 
 TRACE_EVENT(rxrpc_local,
 	    TP_PROTO(unsigned int local_debug_id, enum rxrpc_local_trace op,
-		     int usage, const void *where),
+		     int ref, int usage),
 
-	    TP_ARGS(local_debug_id, op, usage, where),
+	    TP_ARGS(local_debug_id, op, ref, usage),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	local		)
 		    __field(int,		op		)
+		    __field(int,		ref		)
 		    __field(int,		usage		)
-		    __field(const void *,	where		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->local = local_debug_id;
 		    __entry->op = op;
+		    __entry->ref = ref;
 		    __entry->usage = usage;
-		    __entry->where = where;
 			   ),
 
-	    TP_printk("L=%08x %s u=%d sp=%pSR",
+	    TP_printk("L=%08x %s r=%d u=%d",
 		      __entry->local,
 		      __print_symbolic(__entry->op, rxrpc_local_traces),
-		      __entry->usage,
-		      __entry->where)
+		      __entry->ref,
+		      __entry->usage)
 	    );
 
 TRACE_EVENT(rxrpc_peer,

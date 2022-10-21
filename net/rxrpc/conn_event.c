@@ -474,9 +474,9 @@ void rxrpc_process_connection(struct work_struct *work)
 
 	rxrpc_see_connection(conn);
 
-	if (__rxrpc_use_local(conn->local)) {
+	if (__rxrpc_use_local(conn->local, rxrpc_local_use_conn_work)) {
 		rxrpc_do_process_connection(conn);
-		rxrpc_unuse_local(conn->local);
+		rxrpc_unuse_local(conn->local, rxrpc_local_unuse_conn_work);
 	}
 
 	rxrpc_put_connection(conn);

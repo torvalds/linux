@@ -366,7 +366,7 @@ static void rxrpc_destroy_connection(struct rcu_head *rcu)
 
 	if (atomic_dec_and_test(&conn->local->rxnet->nr_conns))
 		wake_up_var(&conn->local->rxnet->nr_conns);
-	rxrpc_put_local(conn->local);
+	rxrpc_put_local(conn->local, rxrpc_local_put_kill_conn);
 
 	kfree(conn);
 	_leave("");

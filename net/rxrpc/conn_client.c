@@ -208,7 +208,7 @@ rxrpc_alloc_client_connection(struct rxrpc_bundle *bundle, gfp_t gfp)
 
 	rxrpc_get_bundle(bundle);
 	rxrpc_get_peer(conn->peer);
-	rxrpc_get_local(conn->local);
+	rxrpc_get_local(conn->local, rxrpc_local_get_client_conn);
 	key_get(conn->key);
 
 	trace_rxrpc_conn(conn->debug_id, rxrpc_conn_new_client,
