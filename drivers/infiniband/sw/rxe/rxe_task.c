@@ -31,22 +31,22 @@ static void do_task(struct tasklet_struct *t)
 	struct rxe_task *task = from_tasklet(task, t, tasklet);
 	unsigned int iterations = RXE_MAX_ITERATIONS;
 
-	spin_lock_bh(&task->state_lock);
+	spin_lock_bh(&task->lock);
 	switch (task->state) {
 	case TASK_STATE_START:
 		task->state = TASK_STATE_BUSY;
-		spin_unlock_bh(&task->state_lock);
+		spin_unlock_bh(&task->lock);
 		break;
 
 	case TASK_STATE_BUSY:
 		task->state = TASK_STATE_ARMED;
 		fallthrough;
 	case TASK_STATE_ARMED:
-		spin_unlock_bh(&task->state_lock);
+		spin_unlock_bh(&task->lock);
 		return;
 
 	default:
-		spin_unlock_bh(&task->state_lock);
+		spin_unlock_bh(&task->lock);
 		pr_warn("%s failed with bad state %d\n", __func__, task->state);
 		return;
 	}
@@ -55,7 +55,7 @@ static void do_task(struct tasklet_struct *t)
 		cont = 0;
 		ret = task->func(task->arg);
 
-		spin_lock_bh(&task->state_lock);
+		spin_lock_bh(&task->lock);
 		switch (task->state) {
 		case TASK_STATE_BUSY:
 			if (ret) {
@@ -84,7 +84,7 @@ static void do_task(struct tasklet_struct *t)
 			pr_warn("%s failed with bad state %d\n", __func__,
 				task->state);
 		}
-		spin_unlock_bh(&task->state_lock);
+		spin_unlock_bh(&task->lock);
 	} while (cont);
 
 	task->ret = ret;
@@ -99,7 +99,7 @@ int rxe_init_task(struct rxe_task *task, void *arg, int (*func)(void *))
 	tasklet_setup(&task->tasklet, do_task);
 
 	task->state = TASK_STATE_START;
-	spin_lock_init(&task->state_lock);
+	spin_lock_init(&task->lock);
 
 	return 0;
 }
@@ -115,9 +115,9 @@ void rxe_cleanup_task(struct rxe_task *task)
 	task->destroyed = true;
 
 	do {
-		spin_lock_bh(&task->state_lock);
+		spin_lock_bh(&task->lock);
 		idle = (task->state == TASK_STATE_START);
-		spin_unlock_bh(&task->state_lock);
+		spin_unlock_bh(&task->lock);
 	} while (!idle);
 
 	tasklet_kill(&task->tasklet);
