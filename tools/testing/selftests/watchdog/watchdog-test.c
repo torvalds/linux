@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
 * Watchdog Driver Test Program
-* - Tests all ioctls except WDIOC_GETTEMP
+* - Tests all ioctls
 * - Tests Magic Close - CONFIG_WATCHDOG_NOWAYOUT
 * - Could be tested against softdog driver on systems that
 *   don't have watchdog hardware.
@@ -177,6 +177,7 @@ int main(int argc, char *argv[])
 	int oneshot = 0;
 	char *file = "/dev/watchdog";
 	struct watchdog_info info;
+	int temperature;
 
 	setbuf(stdout, NULL);
 
@@ -255,6 +256,12 @@ int main(int argc, char *argv[])
 				print_status(flags);
 			else
 				printf("WDIOC_GETSTATUS error '%s'\n", strerror(errno));
+			ret = ioctl(fd, WDIOC_GETTEMP, &temperature);
+			if (ret)
+				printf("WDIOC_GETTEMP: '%s'\n", strerror(errno));
+			else
+				printf("Temeprature: %d\n", temperature);
+
 			break;
 		case 't':
 			flags = strtoul(optarg, NULL, 0);
