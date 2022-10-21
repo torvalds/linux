@@ -6361,8 +6361,10 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			 * tables. If the huge page is present, then the tail
 			 * pages must also be present. The ptl prevents the
 			 * head page and tail pages from being rearranged in
-			 * any way. So this page must be available at this
-			 * point, unless the page refcount overflowed:
+			 * any way. As this is hugetlb, the pages will never
+			 * be p2pdma or not longterm pinable. So this page
+			 * must be available at this point, unless the page
+			 * refcount overflowed:
 			 */
 			if (WARN_ON_ONCE(!try_grab_folio(pages[i], refs,
 							 flags))) {
