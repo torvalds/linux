@@ -334,14 +334,16 @@ static blk_status_t virtblk_prep_rq(struct blk_mq_hw_ctx *hctx,
 					struct virtblk_req *vbr)
 {
 	blk_status_t status;
+	int num;
 
 	status = virtblk_setup_cmd(vblk->vdev, req, vbr);
 	if (unlikely(status))
 		return status;
 
-	vbr->sg_table.nents = virtblk_map_data(hctx, req, vbr);
-	if (unlikely(vbr->sg_table.nents < 0))
+	num = virtblk_map_data(hctx, req, vbr);
+	if (unlikely(num < 0))
 		return virtblk_fail_to_queue(req, -ENOMEM);
+	vbr->sg_table.nents = num;
 
 	blk_mq_start_request(req);
 
