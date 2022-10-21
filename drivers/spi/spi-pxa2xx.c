@@ -1468,7 +1468,7 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	if (pcidev)
 		pcidev_id = pci_match_id(pxa2xx_spi_pci_compound_match, pcidev);
 
-	match = device_get_match_data(&pdev->dev);
+	match = device_get_match_data(dev);
 	if (match)
 		type = (enum pxa_ssp_type)match;
 	else if (pcidev_id)
@@ -1476,7 +1476,7 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	else
 		return ERR_PTR(-EINVAL);
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -1496,7 +1496,7 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	}
 #endif
 
-	ssp->clk = devm_clk_get(&pdev->dev, NULL);
+	ssp->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(ssp->clk))
 		return ERR_CAST(ssp->clk);
 
@@ -1505,7 +1505,7 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 		return ERR_PTR(ssp->irq);
 
 	ssp->type = type;
-	ssp->dev = &pdev->dev;
+	ssp->dev = dev;
 
 	status = acpi_dev_uid_to_integer(ACPI_COMPANION(dev), &uid);
 	if (status)
@@ -1513,7 +1513,7 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	else
 		ssp->port_id = uid;
 
-	pdata->is_slave = device_property_read_bool(&pdev->dev, "spi-slave");
+	pdata->is_slave = device_property_read_bool(dev, "spi-slave");
 	pdata->num_chipselect = 1;
 	pdata->enable_dma = true;
 	pdata->dma_burst_size = 1;
@@ -1806,7 +1806,6 @@ static int pxa2xx_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int pxa2xx_spi_suspend(struct device *dev)
 {
 	struct driver_data *drv_data = dev_get_drvdata(dev);
@@ -1841,9 +1840,7 @@ static int pxa2xx_spi_resume(struct device *dev)
 	/* Start the queue running */
 	return spi_controller_resume(drv_data->controller);
 }
-#endif
 
-#ifdef CONFIG_PM
 static int pxa2xx_spi_runtime_suspend(struct device *dev)
 {
 	struct driver_data *drv_data = dev_get_drvdata(dev);
@@ -1858,18 +1855,16 @@ static int pxa2xx_spi_runtime_resume(struct device *dev)
 
 	return clk_prepare_enable(drv_data->ssp->clk);
 }
-#endif
 
 static const struct dev_pm_ops pxa2xx_spi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pxa2xx_spi_suspend, pxa2xx_spi_resume)
-	SET_RUNTIME_PM_OPS(pxa2xx_spi_runtime_suspend,
-			   pxa2xx_spi_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pxa2xx_spi_suspend, pxa2xx_spi_resume)
+	RUNTIME_PM_OPS(pxa2xx_spi_runtime_suspend, pxa2xx_spi_runtime_resume, NULL)
 };
 
 static struct platform_driver driver = {
 	.driver = {
 		.name	= "pxa2xx-spi",
-		.pm	= &pxa2xx_spi_pm_ops,
+		.pm	= pm_ptr(&pxa2xx_spi_pm_ops),
 		.acpi_match_table = ACPI_PTR(pxa2xx_spi_acpi_match),
 		.of_match_table = of_match_ptr(pxa2xx_spi_of_match),
 	},
