@@ -1290,11 +1290,7 @@ static ssize_t nvmet_subsys_attr_qid_max_show(struct config_item *item,
 static ssize_t nvmet_subsys_attr_qid_max_store(struct config_item *item,
 					       const char *page, size_t cnt)
 {
-	struct nvmet_port *port = to_nvmet_port(item);
 	u16 qid_max;
-
-	if (nvmet_is_port_enabled(port, __func__))
-		return -EACCES;
 
 	if (sscanf(page, "%hu\n", &qid_max) != 1)
 		return -EINVAL;
