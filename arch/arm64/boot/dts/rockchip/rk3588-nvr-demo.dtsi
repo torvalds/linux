@@ -181,6 +181,10 @@
 	status = "okay";
 };
 
+&dp1_sound {
+	status = "okay";
+};
+
 &gmac0 {
 	/* Use rgmii-rxid mode to disable rx delay inside Soc */
 	phy-mode = "rgmii-rxid";
@@ -675,6 +679,10 @@
 	max-frequency = <200000000>;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
+	status = "okay";
+};
+
+&spdif_tx5 {
 	status = "okay";
 };
 

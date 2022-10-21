@@ -26,6 +26,10 @@
 	status = "okay";
 };
 
+&dp0_sound {
+	status = "okay";
+};
+
 &dp1 {
 	pinctrl-0 = <&dp1m2_pins &dp1_hdmi_reset>;
 	pinctrl-names = "default";
@@ -191,6 +195,10 @@
 			remote-endpoint = <&usbc0_role_sw>;
 		};
 	};
+};
+
+&spdif_tx2 {
+	status = "okay";
 };
 
 &pinctrl {
