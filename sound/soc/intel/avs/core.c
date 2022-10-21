@@ -504,7 +504,7 @@ static void avs_pci_remove(struct pci_dev *pci)
 	snd_hdac_bus_free_stream_pages(bus);
 	snd_hdac_ext_stream_free_all(bus);
 	/* reverse ml_capabilities */
-	snd_hdac_link_free_all(bus);
+	snd_hdac_ext_link_free_all(bus);
 	snd_hdac_ext_bus_exit(bus);
 
 	avs_dsp_core_disable(adev, GENMASK(adev->hw_cfg.dsp_cores - 1, 0));
