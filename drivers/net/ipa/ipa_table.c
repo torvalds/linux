@@ -155,56 +155,6 @@ ipa_table_mem(struct ipa *ipa, bool filter, bool hashed, bool ipv6)
 	return ipa_mem_find(ipa, mem_id);
 }
 
-static bool
-ipa_table_valid_one(struct ipa *ipa, enum ipa_mem_id mem_id, bool route)
-{
-	const struct ipa_mem *mem = ipa_mem_find(ipa, mem_id);
-	struct device *dev = &ipa->pdev->dev;
-	u32 size;
-
-	if (route)
-		size = IPA_ROUTE_COUNT_MAX * sizeof(__le64);
-	else
-		size = (1 + IPA_FILTER_COUNT_MAX) * sizeof(__le64);
-	/* mem->size >= size is sufficient, but we'll demand more */
-	if (mem->size == size)
-		return true;
-
-	/* Hashed table regions can be zero size if hashing is not supported */
-	if (ipa_table_hash_support(ipa) && !mem->size)
-		return true;
-
-	dev_err(dev, "%s table region %u size 0x%02x, expected 0x%02x\n",
-		route ? "route" : "filter", mem_id, mem->size, size);
-
-	return false;
-}
-
-/* Verify the filter and route table memory regions are the expected size */
-bool ipa_table_valid(struct ipa *ipa)
-{
-	bool valid;
-
-	valid = ipa_table_valid_one(ipa, IPA_MEM_V4_FILTER, false);
-	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V6_FILTER, false);
-	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V4_ROUTE, true);
-	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V6_ROUTE, true);
-
-	if (!ipa_table_hash_support(ipa))
-		return valid;
-
-	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V4_FILTER_HASHED,
-					     false);
-	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V6_FILTER_HASHED,
-					     false);
-	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V4_ROUTE_HASHED,
-					     true);
-	valid = valid && ipa_table_valid_one(ipa, IPA_MEM_V6_ROUTE_HASHED,
-					     true);
-
-	return valid;
-}
-
 bool ipa_filter_map_valid(struct ipa *ipa, u32 filter_map)
 {
 	struct device *dev = &ipa->pdev->dev;

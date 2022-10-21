@@ -366,10 +366,6 @@ int ipa_mem_config(struct ipa *ipa)
 		while (--canary_count);
 	}
 
-	/* Make sure filter and route table memory regions are valid */
-	if (!ipa_table_valid(ipa))
-		goto err_dma_free;
-
 	/* Verify the microcontroller ring alignment (if defined) */
 	mem = ipa_mem_find(ipa, IPA_MEM_UC_EVENT_RING);
 	if (mem && mem->offset % 1024) {
