@@ -252,13 +252,13 @@ int bch2_extent_update(struct btree_trans *trans,
 		       s64 *i_sectors_delta_total,
 		       bool check_enospc)
 {
-	/* this must live until after bch2_trans_commit(): */
-	struct bkey_inode_buf inode_p;
 	struct btree_iter inode_iter = { NULL };
-	struct bch_inode_unpacked inode_u;
+	struct bkey_s_c inode_k;
+	struct bkey_s_c_inode_v3 inode;
+	struct bkey_i_inode_v3 *new_inode;
 	struct bpos next_pos;
-	struct bkey_s_c inode;
 	bool usage_increasing;
+	unsigned inode_update_flags = BTREE_UPDATE_NOJOURNAL;
 	s64 i_sectors_delta = 0, disk_sectors_delta = 0;
 	int ret;
 
@@ -298,64 +298,66 @@ int bch2_extent_update(struct btree_trans *trans,
 
 	bch2_trans_iter_init(trans, &inode_iter, BTREE_ID_inodes,
 			     SPOS(0, inum.inum, iter->snapshot),
-			     BTREE_ITER_INTENT|
-			     (trans->c->opts.inodes_use_key_cache
-			      ? BTREE_ITER_CACHED
-			      : 0));
-	inode = bch2_btree_iter_peek_slot(&inode_iter);
-	ret = bkey_err(inode);
-	if (ret)
+			     BTREE_ITER_INTENT|BTREE_ITER_CACHED);
+	inode_k = bch2_btree_iter_peek_slot(&inode_iter);
+	ret = bkey_err(inode_k);
+	if (unlikely(ret))
 		goto err;
 
-	ret = bkey_is_inode(inode.k) ? 0 : -ENOENT;
-	if (ret)
+	ret = bkey_is_inode(inode_k.k) ? 0 : -ENOENT;
+	if (unlikely(ret))
 		goto err;
 
-	if (i_sectors_delta || new_i_size) {
-		ret = bch2_inode_unpack(inode, &inode_u);
-		if (ret)
-			goto err;
-
-		if (!(inode_u.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
-		    new_i_size > inode_u.bi_size)
-			inode_u.bi_size = new_i_size;
-		else
-			new_i_size = 0;
-
-		inode_u.bi_sectors += i_sectors_delta;
-	}
-
-	if (i_sectors_delta || new_i_size) {
-		bch2_inode_pack(&inode_p, &inode_u);
-
-		inode_p.inode.k.p.snapshot = iter->snapshot;
-
-		ret = bch2_trans_update(trans, &inode_iter,
-				  &inode_p.inode.k_i, 0);
-	} else {
-		bkey_reassemble(&inode_p.inode.k_i, inode);
-
-		ret = bch2_trans_update(trans, &inode_iter,
-					&inode_p.inode.k_i,
-					BTREE_UPDATE_NOJOURNAL);
-		if (ret)
+	if (unlikely(inode_k.k->type != KEY_TYPE_inode_v3)) {
+		inode_k = bch2_inode_to_v3(trans, inode_k);
+		ret = bkey_err(inode_k);
+		if (unlikely(ret))
 			goto err;
 	}
 
-	ret =   bch2_trans_update(trans, iter, k, 0) ?:
+	inode = bkey_s_c_to_inode_v3(inode_k);
+
+	new_inode = bch2_trans_kmalloc(trans, bkey_bytes(inode_k.k));
+	ret = PTR_ERR_OR_ZERO(new_inode);
+	if (unlikely(ret))
+		goto err;
+
+	bkey_reassemble(&new_inode->k_i, inode.s_c);
+
+	if (!(le64_to_cpu(inode.v->bi_flags) & BCH_INODE_I_SIZE_DIRTY) &&
+	    new_i_size > le64_to_cpu(inode.v->bi_size)) {
+		new_inode->v.bi_size = cpu_to_le64(new_i_size);
+		inode_update_flags = 0;
+	}
+
+	if (i_sectors_delta) {
+		le64_add_cpu(&new_inode->v.bi_sectors, i_sectors_delta);
+		inode_update_flags = 0;
+	}
+
+	new_inode->k.p.snapshot = iter->snapshot;
+
+	/*
+	 * Note:
+	 * We always have to do an inode updated - even when i_size/i_sectors
+	 * aren't changing - for fsync to work properly; fsync relies on
+	 * inode->bi_journal_seq which is updated by the trigger code:
+	 */
+	ret =   bch2_trans_update(trans, &inode_iter, &new_inode->k_i,
+				  inode_update_flags) ?:
+		bch2_trans_update(trans, iter, k, 0) ?:
 		bch2_trans_commit(trans, disk_res, NULL,
 				BTREE_INSERT_NOCHECK_RW|
 				BTREE_INSERT_NOFAIL);
-err:
-	bch2_trans_iter_exit(trans, &inode_iter);
-	if (ret)
-		return ret;
+	if (unlikely(ret))
+		goto err;
 
 	if (i_sectors_delta_total)
 		*i_sectors_delta_total += i_sectors_delta;
 	bch2_btree_iter_set_pos(iter, next_pos);
-
-	return 0;
+err:
+	bch2_trans_iter_exit(trans, &inode_iter);
+	return ret;
 }
 
 /*
