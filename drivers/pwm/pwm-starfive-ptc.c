@@ -259,7 +259,7 @@ static int starfive_pwm_ptc_remove(struct platform_device *dev)
 }
 
 #if defined(CONFIG_PM) || defined(CONFIG_PM_SLEEP)
-static int __maybe_unused starfive_pwm_suspend(struct device *dev)
+static int __maybe_unused starfive_pwm_runtime_suspend(struct device *dev)
 {
 	struct starfive_pwm_ptc_device *pwm = dev_get_drvdata(dev);
 
@@ -270,7 +270,7 @@ static int __maybe_unused starfive_pwm_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused starfive_pwm_resume(struct device *dev)
+static int __maybe_unused starfive_pwm_runtime_resume(struct device *dev)
 {
 	struct starfive_pwm_ptc_device *pwm = dev_get_drvdata(dev);
 	int ret;
@@ -285,8 +285,12 @@ static int __maybe_unused starfive_pwm_resume(struct device *dev)
 }
 #endif
 
-static UNIVERSAL_DEV_PM_OPS(starfive_pwm_pm_ops, starfive_pwm_suspend,
-			    starfive_pwm_resume, NULL);
+static const struct dev_pm_ops starfive_pwm_pm_ops = {
+	SET_RUNTIME_PM_OPS(starfive_pwm_runtime_suspend,
+			   starfive_pwm_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+};
 
 static const struct of_device_id starfive_pwm_ptc_of_match[] = {
 	{ .compatible = "starfive,jh7110-pwm" },
