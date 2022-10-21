@@ -362,7 +362,6 @@ again:
 		 * values.
 		 */
 		pmd = pmdp_get_lockless(pmdp);
-		barrier();
 		if (!pmd_devmap(pmd) && !pmd_trans_huge(pmd))
 			goto again;
 
