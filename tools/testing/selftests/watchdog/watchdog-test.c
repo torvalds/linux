@@ -6,7 +6,6 @@
 * - Could be tested against softdog driver on systems that
 *   don't have watchdog hardware.
 * - TODO:
-* - Enhance coverage of ioctl return values - flags and status.
 * - Enhance test to add coverage for WDIOC_GETTEMP.
 *
 * Reference: Documentation/watchdog/watchdog-api.rst
@@ -314,7 +313,7 @@ int main(int argc, char *argv[])
 			printf(" identity:\t\t%s\n", info.identity);
 			printf(" firmware_version:\t%u\n",
 			       info.firmware_version);
-			printf(" options:\t\t%08x\n", info.options);
+			print_status(info.options);
 			break;
 
 		default:
