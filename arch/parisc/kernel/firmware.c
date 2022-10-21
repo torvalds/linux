@@ -527,14 +527,14 @@ int pdc_model_info(struct pdc_model *model)
  * Using OS_ID_HPUX will return the equivalent of the 'modelname' command
  * on HP/UX.
  */
-int pdc_model_sysmodel(char *name)
+int pdc_model_sysmodel(unsigned int os_id, char *name)
 {
         int retval;
 	unsigned long flags;
 
         spin_lock_irqsave(&pdc_lock, flags);
         retval = mem_pdc_call(PDC_MODEL, PDC_MODEL_SYSMODEL, __pa(pdc_result),
-                              OS_ID_HPUX, __pa(name));
+                              os_id, __pa(name));
         convert_to_wide(pdc_result);
 
         if (retval == PDC_OK) {
