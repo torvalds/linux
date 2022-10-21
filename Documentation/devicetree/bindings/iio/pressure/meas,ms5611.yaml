@@ -55,6 +55,7 @@ examples:
             compatible = "meas,ms5611";
             reg = <0>;
             vdd-supply = <&ldo_3v3_gnss>;
+            spi-max-frequency = <20000000>;
         };
     };
 ...
