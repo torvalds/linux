@@ -608,6 +608,22 @@ static int sfp_write(struct sfp *sfp, bool a2, u8 addr, void *buf, size_t len)
 	return sfp->write(sfp, a2, addr, buf, len);
 }
 
+static int sfp_modify_u8(struct sfp *sfp, bool a2, u8 addr, u8 mask, u8 val)
+{
+	int ret;
+	u8 old, v;
+
+	ret = sfp_read(sfp, a2, addr, &old, sizeof(old));
+	if (ret != sizeof(old))
+		return ret;
+
+	v = (old & ~mask) | (val & mask);
+	if (v == old)
+		return sizeof(v);
+
+	return sfp_write(sfp, a2, addr, &v, sizeof(v));
+}
+
 static unsigned int sfp_soft_get_state(struct sfp *sfp)
 {
 	unsigned int state = 0;
@@ -633,17 +649,14 @@ static unsigned int sfp_soft_get_state(struct sfp *sfp)
 
 static void sfp_soft_set_state(struct sfp *sfp, unsigned int state)
 {
-	u8 status;
+	u8 mask = SFP_STATUS_TX_DISABLE_FORCE;
+	u8 val = 0;
 
-	if (sfp_read(sfp, true, SFP_STATUS, &status, sizeof(status)) ==
-		     sizeof(status)) {
-		if (state & SFP_F_TX_DISABLE)
-			status |= SFP_STATUS_TX_DISABLE_FORCE;
-		else
-			status &= ~SFP_STATUS_TX_DISABLE_FORCE;
+	if (state & SFP_F_TX_DISABLE)
+		val |= SFP_STATUS_TX_DISABLE_FORCE;
 
-		sfp_write(sfp, true, SFP_STATUS, &status, sizeof(status));
-	}
+
+	sfp_modify_u8(sfp, true, SFP_STATUS, mask, val);
 }
 
 static void sfp_soft_start_poll(struct sfp *sfp)
