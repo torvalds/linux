@@ -238,7 +238,7 @@ static void rxrpc_distribute_error(struct rxrpc_peer *peer, int error,
 	struct rxrpc_call *call;
 
 	hlist_for_each_entry_rcu(call, &peer->error_targets, error_link) {
-		rxrpc_see_call(call);
+		rxrpc_see_call(call, rxrpc_call_see_distribute_error);
 		rxrpc_set_call_completion(call, compl, 0, -error);
 	}
 }

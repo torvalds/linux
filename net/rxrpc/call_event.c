@@ -101,7 +101,7 @@ void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
 	txb->ack.reason		= ack_reason;
 	txb->ack.nAcks		= 0;
 
-	if (!rxrpc_try_get_call(call, rxrpc_call_got)) {
+	if (!rxrpc_try_get_call(call, rxrpc_call_get_send_ack)) {
 		rxrpc_put_txbuf(txb, rxrpc_txbuf_put_nomem);
 		return;
 	}
@@ -302,7 +302,7 @@ void rxrpc_process_call(struct work_struct *work)
 	unsigned int iterations = 0;
 	rxrpc_serial_t ackr_serial;
 
-	rxrpc_see_call(call);
+	rxrpc_see_call(call, rxrpc_call_see_input);
 
 	//printk("\n--------------------\n");
 	_enter("{%d,%s,%lx}",
@@ -436,12 +436,12 @@ recheck_state:
 		goto requeue;
 
 out_put:
-	rxrpc_put_call(call, rxrpc_call_put);
+	rxrpc_put_call(call, rxrpc_call_put_work);
 out:
 	_leave("");
 	return;
 
 requeue:
-	__rxrpc_queue_call(call);
+	__rxrpc_queue_call(call, rxrpc_call_queue_requeue);
 	goto out;
 }

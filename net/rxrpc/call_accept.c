@@ -38,7 +38,6 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 				      unsigned long user_call_ID, gfp_t gfp,
 				      unsigned int debug_id)
 {
-	const void *here = __builtin_return_address(0);
 	struct rxrpc_call *call, *xcall;
 	struct rxrpc_net *rxnet = rxrpc_net(sock_net(&rx->sk));
 	struct rb_node *parent, **pp;
@@ -102,9 +101,8 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 	call->flags |= (1 << RXRPC_CALL_IS_SERVICE);
 	call->state = RXRPC_CALL_SERVER_PREALLOC;
 
-	trace_rxrpc_call(call->debug_id, rxrpc_call_new_service,
-			 refcount_read(&call->ref),
-			 here, (const void *)user_call_ID);
+	trace_rxrpc_call(call->debug_id, refcount_read(&call->ref),
+			 user_call_ID, rxrpc_call_new_prealloc_service);
 
 	write_lock(&rx->call_lock);
 
@@ -125,11 +123,11 @@ static int rxrpc_service_prealloc_one(struct rxrpc_sock *rx,
 	call->user_call_ID = user_call_ID;
 	call->notify_rx = notify_rx;
 	if (user_attach_call) {
-		rxrpc_get_call(call, rxrpc_call_got_kernel);
+		rxrpc_get_call(call, rxrpc_call_get_kernel_service);
 		user_attach_call(call, user_call_ID);
 	}
 
-	rxrpc_get_call(call, rxrpc_call_got_userid);
+	rxrpc_get_call(call, rxrpc_call_get_userid);
 	rb_link_node(&call->sock_node, parent, pp);
 	rb_insert_color(&call->sock_node, &rx->calls);
 	set_bit(RXRPC_CALL_HAS_USERID, &call->flags);
@@ -229,7 +227,7 @@ void rxrpc_discard_prealloc(struct rxrpc_sock *rx)
 		}
 		rxrpc_call_completed(call);
 		rxrpc_release_call(rx, call);
-		rxrpc_put_call(call, rxrpc_call_put);
+		rxrpc_put_call(call, rxrpc_call_put_discard_prealloc);
 		tail = (tail + 1) & (size - 1);
 	}
 
@@ -318,7 +316,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 	smp_store_release(&b->call_backlog_tail,
 			  (call_tail + 1) & (RXRPC_BACKLOG_MAX - 1));
 
-	rxrpc_see_call(call);
+	rxrpc_see_call(call, rxrpc_call_see_accept);
 	call->conn = conn;
 	call->security = conn->security;
 	call->security_ix = conn->security_ix;
@@ -430,7 +428,7 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 	 * (recvmsg queue, to-be-accepted queue or user ID tree) or the kernel
 	 * service to prevent the call from being deallocated too early.
 	 */
-	rxrpc_put_call(call, rxrpc_call_put);
+	rxrpc_put_call(call, rxrpc_call_put_discard_prealloc);
 
 	_leave(" = %p{%d}", call, call->debug_id);
 	return call;

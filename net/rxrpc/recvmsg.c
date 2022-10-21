@@ -42,7 +42,7 @@ void rxrpc_notify_socket(struct rxrpc_call *call)
 		} else {
 			write_lock_bh(&rx->recvmsg_lock);
 			if (list_empty(&call->recvmsg_link)) {
-				rxrpc_get_call(call, rxrpc_call_got);
+				rxrpc_get_call(call, rxrpc_call_get_notify_socket);
 				list_add_tail(&call->recvmsg_link, &rx->recvmsg_q);
 			}
 			write_unlock_bh(&rx->recvmsg_lock);
@@ -451,7 +451,7 @@ try_again:
 	if (!(flags & MSG_PEEK))
 		list_del_init(&call->recvmsg_link);
 	else
-		rxrpc_get_call(call, rxrpc_call_got);
+		rxrpc_get_call(call, rxrpc_call_get_recvmsg);
 	write_unlock_bh(&rx->recvmsg_lock);
 
 	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_dequeue, 0);
@@ -537,7 +537,7 @@ try_again:
 
 error_unlock_call:
 	mutex_unlock(&call->user_mutex);
-	rxrpc_put_call(call, rxrpc_call_put);
+	rxrpc_put_call(call, rxrpc_call_put_recvmsg);
 	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_return, ret);
 	return ret;
 
@@ -548,7 +548,7 @@ error_requeue_call:
 		write_unlock_bh(&rx->recvmsg_lock);
 		trace_rxrpc_recvmsg(call, rxrpc_recvmsg_requeue, 0);
 	} else {
-		rxrpc_put_call(call, rxrpc_call_put);
+		rxrpc_put_call(call, rxrpc_call_put_recvmsg);
 	}
 error_no_call:
 	release_sock(&rx->sk);

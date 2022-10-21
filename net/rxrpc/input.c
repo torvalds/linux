@@ -14,7 +14,7 @@ static void rxrpc_proto_abort(const char *why,
 {
 	if (rxrpc_abort_call(why, call, seq, RX_PROTOCOL_ERROR, -EBADMSG)) {
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
-		rxrpc_queue_call(call);
+		rxrpc_queue_call(call, rxrpc_call_queue_abort);
 	}
 }
 
@@ -175,7 +175,7 @@ out_no_clear_ca:
 	call->cong_cumul_acks = cumulative_acks;
 	trace_rxrpc_congest(call, summary, acked_serial, change);
 	if (resend && !test_and_set_bit(RXRPC_CALL_EV_RESEND, &call->events))
-		rxrpc_queue_call(call);
+		rxrpc_queue_call(call, rxrpc_call_queue_resend);
 	return;
 
 packet_loss_detected:
@@ -678,7 +678,7 @@ static void rxrpc_input_check_for_lost_ack(struct rxrpc_call *call)
 {
 	if (after(call->acks_lost_top, call->acks_prev_seq) &&
 	    !test_and_set_bit(RXRPC_CALL_EV_RESEND, &call->events))
-		rxrpc_queue_call(call);
+		rxrpc_queue_call(call, rxrpc_call_queue_resend);
 }
 
 /*
@@ -1099,7 +1099,7 @@ static void rxrpc_input_implicit_end_call(struct rxrpc_sock *rx,
 	default:
 		if (rxrpc_abort_call("IMP", call, 0, RX_CALL_DEAD, -ESHUTDOWN)) {
 			set_bit(RXRPC_CALL_EV_ABORT, &call->events);
-			rxrpc_queue_call(call);
+			rxrpc_queue_call(call, rxrpc_call_queue_abort);
 		}
 		trace_rxrpc_improper_term(call);
 		break;

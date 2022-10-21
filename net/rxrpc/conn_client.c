@@ -540,7 +540,7 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 	clear_bit(RXRPC_CONN_FINAL_ACK_0 + channel, &conn->flags);
 	clear_bit(conn->bundle_shift + channel, &bundle->avail_chans);
 
-	rxrpc_see_call(call);
+	rxrpc_see_call(call, rxrpc_call_see_activate_client);
 	list_del_init(&call->chan_wait_link);
 	call->peer	= rxrpc_get_peer(conn->peer, rxrpc_peer_get_activate_call);
 	call->conn	= rxrpc_get_connection(conn, rxrpc_conn_get_activate_call);

@@ -667,7 +667,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		case RXRPC_CALL_CLIENT_AWAIT_CONN:
 		case RXRPC_CALL_SERVER_PREALLOC:
 		case RXRPC_CALL_SERVER_SECURING:
-			rxrpc_put_call(call, rxrpc_call_put);
+			rxrpc_put_call(call, rxrpc_call_put_sendmsg);
 			ret = -EBUSY;
 			goto error_release_sock;
 		default:
@@ -737,7 +737,7 @@ out_put_unlock:
 	if (!dropped_lock)
 		mutex_unlock(&call->user_mutex);
 error_put:
-	rxrpc_put_call(call, rxrpc_call_put);
+	rxrpc_put_call(call, rxrpc_call_put_sendmsg);
 	_leave(" = %d", ret);
 	return ret;
 

@@ -127,26 +127,44 @@
 	E_(rxrpc_client_to_idle,		"->Idle")
 
 #define rxrpc_call_traces \
-	EM(rxrpc_call_connected,		"CON") \
-	EM(rxrpc_call_error,			"*E*") \
-	EM(rxrpc_call_got,			"GOT") \
-	EM(rxrpc_call_got_kernel,		"Gke") \
-	EM(rxrpc_call_got_timer,		"GTM") \
-	EM(rxrpc_call_got_tx,			"Gtx") \
-	EM(rxrpc_call_got_userid,		"Gus") \
-	EM(rxrpc_call_new_client,		"NWc") \
-	EM(rxrpc_call_new_service,		"NWs") \
-	EM(rxrpc_call_put,			"PUT") \
-	EM(rxrpc_call_put_kernel,		"Pke") \
-	EM(rxrpc_call_put_noqueue,		"PnQ") \
-	EM(rxrpc_call_put_notimer,		"PnT") \
-	EM(rxrpc_call_put_timer,		"PTM") \
-	EM(rxrpc_call_put_tx,			"Ptx") \
-	EM(rxrpc_call_put_userid,		"Pus") \
-	EM(rxrpc_call_queued,			"QUE") \
-	EM(rxrpc_call_queued_ref,		"QUR") \
-	EM(rxrpc_call_release,			"RLS") \
-	E_(rxrpc_call_seen,			"SEE")
+	EM(rxrpc_call_get_input,		"GET input   ") \
+	EM(rxrpc_call_get_kernel_service,	"GET krnl-srv") \
+	EM(rxrpc_call_get_notify_socket,	"GET notify  ") \
+	EM(rxrpc_call_get_recvmsg,		"GET recvmsg ") \
+	EM(rxrpc_call_get_release_sock,		"GET rel-sock") \
+	EM(rxrpc_call_get_sendmsg,		"GET sendmsg ") \
+	EM(rxrpc_call_get_send_ack,		"GET send-ack") \
+	EM(rxrpc_call_get_timer,		"GET timer   ") \
+	EM(rxrpc_call_get_userid,		"GET user-id ") \
+	EM(rxrpc_call_new_client,		"NEW client  ") \
+	EM(rxrpc_call_new_prealloc_service,	"NEW prealloc") \
+	EM(rxrpc_call_put_already_queued,	"PUT alreadyq") \
+	EM(rxrpc_call_put_discard_prealloc,	"PUT disc-pre") \
+	EM(rxrpc_call_put_input,		"PUT input   ") \
+	EM(rxrpc_call_put_kernel,		"PUT kernel  ") \
+	EM(rxrpc_call_put_recvmsg,		"PUT recvmsg ") \
+	EM(rxrpc_call_put_release_sock,		"PUT rls-sock") \
+	EM(rxrpc_call_put_release_sock_tba,	"PUT rls-sk-a") \
+	EM(rxrpc_call_put_send_ack,		"PUT send-ack") \
+	EM(rxrpc_call_put_sendmsg,		"PUT sendmsg ") \
+	EM(rxrpc_call_put_timer,		"PUT timer   ") \
+	EM(rxrpc_call_put_timer_already,	"PUT timer-al") \
+	EM(rxrpc_call_put_unnotify,		"PUT unnotify") \
+	EM(rxrpc_call_put_userid_exists,	"PUT u-exists") \
+	EM(rxrpc_call_put_work,			"PUT work    ") \
+	EM(rxrpc_call_queue_abort,		"QUE abort   ") \
+	EM(rxrpc_call_queue_requeue,		"QUE requeue ") \
+	EM(rxrpc_call_queue_resend,		"QUE resend  ") \
+	EM(rxrpc_call_queue_timer,		"QUE timer   ") \
+	EM(rxrpc_call_see_accept,		"SEE accept  ") \
+	EM(rxrpc_call_see_activate_client,	"SEE act-clnt") \
+	EM(rxrpc_call_see_connect_failed,	"SEE con-fail") \
+	EM(rxrpc_call_see_connected,		"SEE connect ") \
+	EM(rxrpc_call_see_distribute_error,	"SEE dist-err") \
+	EM(rxrpc_call_see_input,		"SEE input   ") \
+	EM(rxrpc_call_see_release,		"SEE release ") \
+	EM(rxrpc_call_see_userid_exists,	"SEE u-exists") \
+	E_(rxrpc_call_see_zap,			"SEE zap     ")
 
 #define rxrpc_txqueue_traces \
 	EM(rxrpc_txqueue_await_reply,		"AWR") \
@@ -503,32 +521,29 @@ TRACE_EVENT(rxrpc_client,
 	    );
 
 TRACE_EVENT(rxrpc_call,
-	    TP_PROTO(unsigned int call_debug_id, enum rxrpc_call_trace op,
-		     int usage, const void *where, const void *aux),
+	    TP_PROTO(unsigned int call_debug_id, int ref, unsigned long aux,
+		     enum rxrpc_call_trace why),
 
-	    TP_ARGS(call_debug_id, op, usage, where, aux),
+	    TP_ARGS(call_debug_id, ref, aux, why),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call		)
-		    __field(int,			op		)
-		    __field(int,			usage		)
-		    __field(const void *,		where		)
-		    __field(const void *,		aux		)
+		    __field(int,			ref		)
+		    __field(int,			why		)
+		    __field(unsigned long,		aux		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call = call_debug_id;
-		    __entry->op = op;
-		    __entry->usage = usage;
-		    __entry->where = where;
+		    __entry->ref = ref;
+		    __entry->why = why;
 		    __entry->aux = aux;
 			   ),
 
-	    TP_printk("c=%08x %s u=%d sp=%pSR a=%p",
+	    TP_printk("c=%08x %s r=%d a=%lx",
 		      __entry->call,
-		      __print_symbolic(__entry->op, rxrpc_call_traces),
-		      __entry->usage,
-		      __entry->where,
+		      __print_symbolic(__entry->why, rxrpc_call_traces),
+		      __entry->ref,
 		      __entry->aux)
 	    );
 

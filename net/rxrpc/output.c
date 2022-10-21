@@ -310,7 +310,7 @@ void rxrpc_transmit_ack_packets(struct rxrpc_local *local)
 		}
 
 		list_del_init(&txb->tx_link);
-		rxrpc_put_call(txb->call, rxrpc_call_put);
+		rxrpc_put_call(txb->call, rxrpc_call_put_send_ack);
 		rxrpc_put_txbuf(txb, rxrpc_txbuf_put_ack_tx);
 	}
 }
