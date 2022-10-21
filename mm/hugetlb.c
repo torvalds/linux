@@ -7243,14 +7243,15 @@ retry:
 		page = pte_page(pte) +
 			((address & ~huge_page_mask(h)) >> PAGE_SHIFT);
 		/*
-		 * try_grab_page() should always succeed here, because: a) we
-		 * hold the pmd (ptl) lock, and b) we've just checked that the
-		 * huge pmd (head) page is present in the page tables. The ptl
-		 * prevents the head page and tail pages from being rearranged
-		 * in any way. So this page must be available at this point,
-		 * unless the page refcount overflowed:
+		 * try_grab_page() should always be able to get the page here,
+		 * because: a) we hold the pmd (ptl) lock, and b) we've just
+		 * checked that the huge pmd (head) page is present in the
+		 * page tables. The ptl prevents the head page and tail pages
+		 * from being rearranged in any way. So this page must be
+		 * available at this point, unless the page refcount
+		 * overflowed:
 		 */
-		if (WARN_ON_ONCE(!try_grab_page(page, flags))) {
+		if (try_grab_page(page, flags)) {
 			page = NULL;
 			goto out;
 		}
@@ -7288,7 +7289,7 @@ retry:
 	pte = huge_ptep_get((pte_t *)pud);
 	if (pte_present(pte)) {
 		page = pud_page(*pud) + ((address & ~PUD_MASK) >> PAGE_SHIFT);
-		if (WARN_ON_ONCE(!try_grab_page(page, flags))) {
+		if (try_grab_page(page, flags)) {
 			page = NULL;
 			goto out;
 		}

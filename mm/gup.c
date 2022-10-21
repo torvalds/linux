@@ -202,17 +202,19 @@ static void gup_put_folio(struct folio *folio, int refs, unsigned int flags)
  * time. Cases: please see the try_grab_folio() documentation, with
  * "refs=1".
  *
- * Return: true for success, or if no action was required (if neither FOLL_PIN
- * nor FOLL_GET was set, nothing is done). False for failure: FOLL_GET or
- * FOLL_PIN was set, but the page could not be grabbed.
+ * Return: 0 for success, or if no action was required (if neither FOLL_PIN
+ * nor FOLL_GET was set, nothing is done). A negative error code for failure:
+ *
+ *   -ENOMEM		FOLL_GET or FOLL_PIN was set, but the page could not
+ *			be grabbed.
  */
-bool __must_check try_grab_page(struct page *page, unsigned int flags)
+int __must_check try_grab_page(struct page *page, unsigned int flags)
 {
 	struct folio *folio = page_folio(page);
 
 	WARN_ON_ONCE((flags & (FOLL_GET | FOLL_PIN)) == (FOLL_GET | FOLL_PIN));
 	if (WARN_ON_ONCE(folio_ref_count(folio) <= 0))
-		return false;
+		return -ENOMEM;
 
 	if (flags & FOLL_GET)
 		folio_ref_inc(folio);
@@ -232,7 +234,7 @@ bool __must_check try_grab_page(struct page *page, unsigned int flags)
 		node_stat_mod_folio(folio, NR_FOLL_PIN_ACQUIRED, 1);
 	}
 
-	return true;
+	return 0;
 }
 
 /**
@@ -624,8 +626,9 @@ retry:
 		       !PageAnonExclusive(page), page);
 
 	/* try_grab_page() does nothing unless FOLL_GET or FOLL_PIN is set. */
-	if (unlikely(!try_grab_page(page, flags))) {
-		page = ERR_PTR(-ENOMEM);
+	ret = try_grab_page(page, flags);
+	if (unlikely(ret)) {
+		page = ERR_PTR(ret);
 		goto out;
 	}
 	/*
@@ -960,10 +963,9 @@ static int get_gate_page(struct mm_struct *mm, unsigned long address,
 			goto unmap;
 		*page = pte_page(*pte);
 	}
-	if (unlikely(!try_grab_page(*page, gup_flags))) {
-		ret = -ENOMEM;
+	ret = try_grab_page(*page, gup_flags);
+	if (unlikely(ret))
 		goto unmap;
-	}
 out:
 	ret = 0;
 unmap:
@@ -2536,7 +2538,7 @@ static int __gup_device_huge(unsigned long pfn, unsigned long addr,
 		}
 		SetPageReferenced(page);
 		pages[*nr] = page;
-		if (unlikely(!try_grab_page(page, flags))) {
+		if (unlikely(try_grab_page(page, flags))) {
 			undo_dev_pagemap(nr, nr_start, flags, pages);
 			break;
 		}
