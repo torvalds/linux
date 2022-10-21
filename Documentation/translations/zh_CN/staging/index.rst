@@ -10,6 +10,11 @@
 未分类文档
 ==========
 
+.. toctree::
+   :maxdepth: 2
+
+   xz
+
 TODOList:
 
 * crc32
@@ -19,4 +24,3 @@ TODOList:
 * speculation
 * static-keys
 * tee
-* xz
