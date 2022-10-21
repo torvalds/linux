@@ -858,8 +858,11 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	}
 
 	profile = aa_alloc_profile(name, NULL, GFP_KERNEL);
-	if (!profile)
-		return ERR_PTR(-ENOMEM);
+	if (!profile) {
+		info = "out of memory";
+		error = -ENOMEM;
+		goto fail;
+	}
 	rules = list_first_entry(&profile->rules, typeof(*rules), list);
 
 	/* profile renaming is optional */
@@ -1090,6 +1093,10 @@ fail:
 	if (error == 0)
 		/* default error covers most cases */
 		error = -EPROTO;
+	if (*ns_name) {
+		kfree(*ns_name);
+		*ns_name = NULL;
+	}
 	if (profile)
 		name = NULL;
 	else if (!name)
@@ -1392,6 +1399,7 @@ int aa_unpack(struct aa_loaddata *udata, struct list_head *lh,
 {
 	struct aa_load_ent *tmp, *ent;
 	struct aa_profile *profile = NULL;
+	char *ns_name = NULL;
 	int error;
 	struct aa_ext e = {
 		.start = udata->data,
@@ -1401,7 +1409,6 @@ int aa_unpack(struct aa_loaddata *udata, struct list_head *lh,
 
 	*ns = NULL;
 	while (e.pos < e.end) {
-		char *ns_name = NULL;
 		void *start;
 		error = verify_header(&e, e.pos == e.start, ns);
 		if (error)
@@ -1432,6 +1439,7 @@ int aa_unpack(struct aa_loaddata *udata, struct list_head *lh,
 
 		ent->new = profile;
 		ent->ns_name = ns_name;
+		ns_name = NULL;
 		list_add_tail(&ent->list, lh);
 	}
 	udata->abi = e.version & K_ABI_MASK;
@@ -1452,6 +1460,7 @@ int aa_unpack(struct aa_loaddata *udata, struct list_head *lh,
 	return 0;
 
 fail_profile:
+	kfree(ns_name);
 	aa_put_profile(profile);
 
 fail:
