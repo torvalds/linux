@@ -262,10 +262,15 @@ ddk_headers(
 # directories that are safe to use in DDK modules.
 ddk_headers(
     name = "all_headers_allowlist",
-    hdrs = [],
+    hdrs = [":all_headers_allowlist_globs"],
     # The list of include directories where source files can #include headers
     # from. In other words, these are the `-I` option to the C compiler.
-    includes = [],
+    includes = [
+        "arch/arm64/include",
+        "arch/arm64/include/uapi",
+        "include",
+        "include/uapi",
+    ],
     visibility = ["//visibility:private"],
 )
 
@@ -274,7 +279,10 @@ ddk_headers(
 # are safe to use.
 filegroup(
     name = "all_headers_allowlist_globs",
-    srcs = [],
+    srcs = glob([
+        "arch/arm64/include/**/*.h",
+        "include/**/*.h",
+    ]),
     visibility = ["//visibility:private"],
 )
 
