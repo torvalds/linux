@@ -665,7 +665,7 @@ static void btree_update_nodes_written(struct btree_update *as)
 	bch2_trans_unlock(&trans);
 
 	bch2_fs_fatal_err_on(ret && !bch2_journal_error(&c->journal), c,
-			     "error %i in btree_update_nodes_written()", ret);
+			     "%s(): error %s", __func__, bch2_err_str(ret));
 err:
 	if (as->b) {
 		struct btree_path *path;
@@ -1839,10 +1839,10 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 		bch2_bpos_to_text(&buf1, prev->data->max_key);
 		bch2_bpos_to_text(&buf2, next->data->min_key);
 		bch_err(c,
-			"btree topology error in btree merge:\n"
+			"%s(): btree topology error:\n"
 			"  prev ends at   %s\n"
 			"  next starts at %s",
-			buf1.buf, buf2.buf);
+			__func__, buf1.buf, buf2.buf);
 		printbuf_exit(&buf1);
 		printbuf_exit(&buf2);
 		bch2_topology_error(c);

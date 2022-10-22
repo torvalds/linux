@@ -321,7 +321,7 @@ static int __remove_dirent(struct btree_trans *trans, struct bpos pos)
 	bch2_trans_iter_exit(trans, &iter);
 err:
 	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err(c, "error from __remove_dirent(): %s", bch2_err_str(ret));
+		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
 	return ret;
 }
 
@@ -506,7 +506,7 @@ static int snapshots_seen_add(struct bch_fs *c, struct snapshots_seen *s, u32 id
 			break;
 
 		if (i->equiv == n.equiv) {
-			bch_err(c, "adding duplicate snapshot in snapshots_seen_add()");
+			bch_err(c, "%s(): adding duplicate snapshot", __func__);
 			return -EINVAL;
 		}
 	}
@@ -1000,7 +1000,7 @@ static int check_inode(struct btree_trans *trans,
 err:
 fsck_err:
 	if (ret)
-		bch_err(c, "error from check_inode(): %s", bch2_err_str(ret));
+		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
 	return ret;
 }
 
@@ -1026,7 +1026,7 @@ static int check_inodes(struct bch_fs *c, bool full)
 	bch2_trans_exit(&trans);
 	snapshots_seen_exit(&s);
 	if (ret)
-		bch_err(c, "error from check_inodes(): %s", bch2_err_str(ret));
+		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
 	return ret;
 }
 
@@ -1159,7 +1159,7 @@ static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 	}
 fsck_err:
 	if (ret)
-		bch_err(c, "error from check_i_sectors(): %s", bch2_err_str(ret));
+		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
 	if (!ret && trans_was_restarted(trans, restart_count))
 		ret = -BCH_ERR_transaction_restart_nested;
 	return ret;
@@ -1295,7 +1295,7 @@ fsck_err:
 	printbuf_exit(&buf);
 
 	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err(c, "error from check_extent(): %s", bch2_err_str(ret));
+		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
 	return ret;
 }
 
@@ -1337,7 +1337,7 @@ static int check_extents(struct bch_fs *c)
 	snapshots_seen_exit(&s);
 
 	if (ret)
-		bch_err(c, "error from check_extents(): %s", bch2_err_str(ret));
+		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
 	return ret;
 }
 
@@ -1376,7 +1376,7 @@ static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
 	}
 fsck_err:
 	if (ret)
-		bch_err(c, "error from check_subdir_count(): %s", bch2_err_str(ret));
+		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
 	if (!ret && trans_was_restarted(trans, restart_count))
 		ret = -BCH_ERR_transaction_restart_nested;
 	return ret;
@@ -1497,7 +1497,7 @@ fsck_err:
 	printbuf_exit(&buf);
 
 	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err(c, "error from check_target(): %s", bch2_err_str(ret));
+		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
 	return ret;
 }
 
@@ -1667,7 +1667,7 @@ fsck_err:
 	printbuf_exit(&buf);
 
 	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err(c, "error from check_dirent(): %s", bch2_err_str(ret));
+		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
 	return ret;
 }
 
@@ -1706,7 +1706,7 @@ static int check_dirents(struct bch_fs *c)
 	inode_walker_exit(&target);
 
 	if (ret)
-		bch_err(c, "error from check_dirents(): %s", bch2_err_str(ret));
+		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
 	return ret;
 }
 
@@ -1742,7 +1742,7 @@ static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
 	ret = hash_check_key(trans, bch2_xattr_hash_desc, hash_info, iter, k);
 fsck_err:
 	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		bch_err(c, "error from check_xattr(): %s", bch2_err_str(ret));
+		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
 	return ret;
 }
 
@@ -1774,7 +1774,7 @@ static int check_xattrs(struct bch_fs *c)
 	bch2_trans_exit(&trans);
 
 	if (ret)
-		bch_err(c, "error from check_xattrs(): %s", bch2_err_str(ret));
+		bch_err(c, "%s(): error %s", __func__, bch2_err_str(ret));
 	return ret;
 }
 

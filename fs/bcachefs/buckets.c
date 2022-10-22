@@ -578,7 +578,8 @@ int bch2_mark_alloc(struct btree_trans *trans,
 					    -((s64) old_a.cached_sectors),
 					    journal_seq, gc);
 		if (ret) {
-			bch2_fs_fatal_error(c, "bch2_mark_alloc(): no replicas entry while updating cached sectors");
+			bch2_fs_fatal_error(c, "%s(): no replicas entry while updating cached sectors",
+					    __func__);
 			return ret;
 		}
 	}
@@ -972,7 +973,8 @@ int bch2_mark_extent(struct btree_trans *trans,
 				ret = update_cached_sectors(c, k, p.ptr.dev,
 						disk_sectors, journal_seq, true);
 				if (ret) {
-					bch2_fs_fatal_error(c, "bch2_mark_extent(): no replicas entry while updating cached sectors");
+					bch2_fs_fatal_error(c, "%s(): no replicas entry while updating cached sectors",
+							    __func__);
 					return ret;
 				}
 			}
@@ -1000,7 +1002,7 @@ int bch2_mark_extent(struct btree_trans *trans,
 			struct printbuf buf = PRINTBUF;
 
 			bch2_bkey_val_to_text(&buf, c, k);
-			bch2_fs_fatal_error(c, "no replicas entry for %s", buf.buf);
+			bch2_fs_fatal_error(c, "%s(): no replicas entry for %s", __func__, buf.buf);
 			printbuf_exit(&buf);
 			return ret;
 		}
