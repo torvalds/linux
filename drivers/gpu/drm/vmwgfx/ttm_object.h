@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright (c) 2006-2009 VMware, Inc., Palo Alto, CA., USA
+ * Copyright (c) 2006-2022 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -262,7 +262,6 @@ extern void ttm_object_file_release(struct ttm_object_file **p_tfile);
 /**
  * ttm_object device init - initialize a struct ttm_object_device
  *
- * @hash_order: Order of hash table used to hash the base objects.
  * @ops: DMA buf ops for prime objects of this device.
  *
  * This function is typically called on device initialization to prepare
@@ -270,8 +269,7 @@ extern void ttm_object_file_release(struct ttm_object_file **p_tfile);
  */
 
 extern struct ttm_object_device *
-ttm_object_device_init(unsigned int hash_order,
-		       const struct dma_buf_ops *ops);
+ttm_object_device_init(const struct dma_buf_ops *ops);
 
 /**
  * ttm_object_device_release - release data held by a ttm_object_device
