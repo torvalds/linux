@@ -73,12 +73,24 @@ struct vmw_cotable_info {
 			    bool);
 };
 
+
+/*
+ * Getting the initial size right is difficult because it all depends
+ * on what the userspace is doing. The sizes will be aligned up to
+ * a PAGE_SIZE so we just want to make sure that for majority of apps
+ * the initial number of entries doesn't require an immediate resize.
+ * For all cotables except SVGACOTableDXElementLayoutEntry and
+ * SVGACOTableDXBlendStateEntry the initial number of entries fits
+ * within the PAGE_SIZE. For SVGACOTableDXElementLayoutEntry and
+ * SVGACOTableDXBlendStateEntry we want to reserve two pages,
+ * because that's what all apps will require initially.
+ */
 static const struct vmw_cotable_info co_info[] = {
 	{1, sizeof(SVGACOTableDXRTViewEntry), &vmw_view_cotable_list_destroy},
 	{1, sizeof(SVGACOTableDXDSViewEntry), &vmw_view_cotable_list_destroy},
 	{1, sizeof(SVGACOTableDXSRViewEntry), &vmw_view_cotable_list_destroy},
-	{1, sizeof(SVGACOTableDXElementLayoutEntry), NULL},
-	{1, sizeof(SVGACOTableDXBlendStateEntry), NULL},
+	{PAGE_SIZE/sizeof(SVGACOTableDXElementLayoutEntry) + 1, sizeof(SVGACOTableDXElementLayoutEntry), NULL},
+	{PAGE_SIZE/sizeof(SVGACOTableDXBlendStateEntry) + 1, sizeof(SVGACOTableDXBlendStateEntry), NULL},
 	{1, sizeof(SVGACOTableDXDepthStencilEntry), NULL},
 	{1, sizeof(SVGACOTableDXRasterizerStateEntry), NULL},
 	{1, sizeof(SVGACOTableDXSamplerEntry), NULL},
