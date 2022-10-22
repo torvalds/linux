@@ -52,11 +52,9 @@ void vmw_du_cleanup(struct vmw_display_unit *du)
  * Display Unit Cursor functions
  */
 
-static void vmw_cursor_update_mob(struct vmw_private *dev_priv,
-				  struct vmw_plane_state *vps,
-				  u32 *image, u32 width, u32 height,
-				  u32 hotspotX, u32 hotspotY);
 static int vmw_du_cursor_plane_unmap_cm(struct vmw_plane_state *vps);
+static void vmw_cursor_write_mobid(struct vmw_private *dev_priv,
+				   struct vmw_plane_state *vps);
 
 struct vmw_svga_fifo_cmd_define_cursor {
 	u32 cmd;
@@ -120,9 +118,7 @@ static void vmw_cursor_update_image(struct vmw_private *dev_priv,
 				    u32 hotspotX, u32 hotspotY)
 {
 	if (vps->cursor.bo != NULL)
-		vmw_cursor_update_mob(dev_priv, vps, image,
-				      width, height,
-				      hotspotX, hotspotY);
+		vmw_cursor_write_mobid(dev_priv, vps);
 	else
 		vmw_send_define_cursor_cmd(dev_priv, image, width, height,
 					   hotspotX, hotspotY);
@@ -167,6 +163,21 @@ static void vmw_cursor_update_mob(struct vmw_private *dev_priv,
 	alpha_header->height = height;
 
 	memcpy(header + 1, image, image_size);
+}
+
+
+/**
+ * vmw_cursor_write_mobid - Update cursor via CursorMob mechanism
+ *
+ * Called from inside vmw_du_cursor_plane_atomic_update to actually
+ * make the cursor-image live.
+ *
+ * @dev_priv: device to work with
+ * @vps: DRM plane_state
+ */
+static void vmw_cursor_write_mobid(struct vmw_private *dev_priv,
+				   struct vmw_plane_state *vps)
+{
 	vmw_write(dev_priv, SVGA_REG_CURSOR_MOBID,
 		  vps->cursor.bo->resource->start);
 }
@@ -174,6 +185,39 @@ static void vmw_cursor_update_mob(struct vmw_private *dev_priv,
 static u32 vmw_du_cursor_mob_size(u32 w, u32 h)
 {
 	return w * h * sizeof(u32) + sizeof(SVGAGBCursorHeader);
+}
+
+
+static bool vmw_du_cursor_plane_mob_has_changed(struct vmw_plane_state *old_vps,
+						struct vmw_plane_state *new_vps)
+{
+	void *old_mob;
+	void *new_mob;
+	bool dummy;
+	u32 size;
+
+	// If either of them aren't using CursorMobs, assume changed.
+	if (old_vps->cursor.bo == NULL || new_vps->cursor.bo == NULL)
+		return true;
+
+	// If either of them failed to map, assume changed.
+	if (!old_vps->cursor.mapped || !new_vps->cursor.mapped)
+		return true;
+
+	if (old_vps->base.crtc_w != new_vps->base.crtc_w ||
+	    old_vps->base.crtc_h != new_vps->base.crtc_h)
+	    return true;
+
+	size = vmw_du_cursor_mob_size(new_vps->base.crtc_w,
+				      new_vps->base.crtc_h);
+
+	old_mob = ttm_kmap_obj_virtual(&old_vps->cursor.map, &dummy);
+	new_mob = ttm_kmap_obj_virtual(&new_vps->cursor.map, &dummy);
+
+	if (memcmp(old_mob, new_mob, size) != 0)
+		return true;
+
+	return false;
 }
 
 static void vmw_du_destroy_cursor_mob(struct ttm_buffer_object **bo)
@@ -716,9 +760,10 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
 	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(new_state);
+	struct vmw_plane_state *old_vps = vmw_plane_state_to_vps(old_state);
 	s32 hotspot_x, hotspot_y;
-	void *virtual;
 	bool dummy;
+	void *image;
 
 	hotspot_x = du->hotspot_x;
 	hotspot_y = du->hotspot_y;
@@ -738,23 +783,32 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 
 	if (vps->surf != NULL) {
 		du->cursor_age = du->cursor_surface->snooper.age;
+		image = vps->surf->snooper.image;
+	} else
+		image = ttm_kmap_obj_virtual(&vps->bo->map, &dummy);
 
-		vmw_cursor_update_image(dev_priv, vps,
-					vps->surf->snooper.image,
+	if (vps->cursor.bo != NULL)
+		vmw_cursor_update_mob(dev_priv, vps, image,
+				      new_state->crtc_w,
+				      new_state->crtc_h,
+				      hotspot_x, hotspot_y);
+
+	if (!vmw_du_cursor_plane_mob_has_changed(old_vps, vps)) {
+		/*
+		 * If it hasn't changed, avoid making the device do extra
+		 * work by keeping the old mob active.
+		 */
+		struct vmw_cursor_plane_state tmp = old_vps->cursor;
+		old_vps->cursor = vps->cursor;
+		vps->cursor = tmp;
+	} else if (image != NULL)
+		vmw_cursor_update_image(dev_priv, vps, image,
 					new_state->crtc_w,
 					new_state->crtc_h,
 					hotspot_x, hotspot_y);
-	} else {
 
-		virtual = ttm_kmap_obj_virtual(&vps->bo->map, &dummy);
-		if (virtual) {
-			vmw_cursor_update_image(dev_priv, vps, virtual,
-						new_state->crtc_w,
-						new_state->crtc_h,
-						hotspot_x, hotspot_y);
-			atomic_dec(&vps->bo->base_mapped_count);
-		}
-	}
+	if (image != NULL && vps->bo != NULL)
+		atomic_dec(&vps->bo->base_mapped_count);
 
 	du->cursor_x = new_state->crtc_x + du->set_gui_x;
 	du->cursor_y = new_state->crtc_y + du->set_gui_y;
@@ -1073,7 +1127,6 @@ vmw_du_plane_destroy_state(struct drm_plane *plane,
 			   struct drm_plane_state *state)
 {
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(state);
-
 
 	/* Should have been freed by cleanup_fb */
 	if (vps->surf)

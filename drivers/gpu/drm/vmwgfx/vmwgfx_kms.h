@@ -272,6 +272,12 @@ struct vmw_crtc_state {
 	struct drm_crtc_state base;
 };
 
+struct vmw_cursor_plane_state {
+	struct ttm_buffer_object *bo;
+	struct ttm_bo_kmap_obj map;
+	bool mapped;
+};
+
 /**
  * Derived class for plane state object
  *
@@ -295,11 +301,7 @@ struct vmw_plane_state {
 	/* For CPU Blit */
 	unsigned int cpp;
 
-	struct {
-		struct ttm_buffer_object *bo;
-		struct ttm_bo_kmap_obj map;
-		bool mapped;
-	} cursor;
+	struct vmw_cursor_plane_state cursor;
 };
 
 
