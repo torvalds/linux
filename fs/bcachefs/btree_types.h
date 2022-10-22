@@ -313,7 +313,7 @@ struct btree_key_cache {
 struct bkey_cached_key {
 	u32			btree_id;
 	struct bpos		pos;
-} __attribute__((packed, aligned(4)));
+} __packed __aligned(4);
 
 #define BKEY_CACHED_ACCESSED		0
 #define BKEY_CACHED_DIRTY		1

@@ -208,7 +208,7 @@ struct bch_ioctl_data {
 		__u64		pad[8];
 	};
 	};
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 enum bch_data_event {
 	BCH_DATA_EVENT_PROGRESS	= 0,
@@ -224,7 +224,7 @@ struct bch_ioctl_data_progress {
 
 	__u64			sectors_done;
 	__u64			sectors_total;
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 struct bch_ioctl_data_event {
 	__u8			type;
@@ -233,12 +233,12 @@ struct bch_ioctl_data_event {
 	struct bch_ioctl_data_progress p;
 	__u64			pad2[15];
 	};
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 struct bch_replicas_usage {
 	__u64			sectors;
 	struct bch_replicas_entry r;
-} __attribute__((packed));
+} __packed;
 
 static inline struct bch_replicas_usage *
 replicas_usage_next(struct bch_replicas_usage *u)

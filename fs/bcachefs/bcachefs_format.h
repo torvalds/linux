@@ -151,7 +151,7 @@ struct bpos {
 #else
 #error edit for your odd byteorder.
 #endif
-} __attribute__((packed, aligned(4)));
+} __packed __aligned(4);
 
 #define KEY_INODE_MAX			((__u64)~0ULL)
 #define KEY_OFFSET_MAX			((__u64)~0ULL)
@@ -185,7 +185,7 @@ struct bversion {
 	__u32		hi;
 	__u64		lo;
 #endif
-} __attribute__((packed, aligned(4)));
+} __packed __aligned(4);
 
 struct bkey {
 	/* Size of combined key and value, in u64s */
@@ -218,7 +218,7 @@ struct bkey {
 
 	__u8		pad[1];
 #endif
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 struct bkey_packed {
 	__u64		_data[0];
@@ -252,7 +252,7 @@ struct bkey_packed {
 	 * to the same size as struct bkey should hopefully be safest.
 	 */
 	__u8		pad[sizeof(struct bkey) - 3];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 #define BKEY_U64s			(sizeof(struct bkey) / sizeof(__u64))
 #define BKEY_U64s_MAX			U8_MAX
@@ -480,7 +480,7 @@ struct bch_set {
 struct bch_csum {
 	__le64			lo;
 	__le64			hi;
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 #define BCH_EXTENT_ENTRY_TYPES()		\
 	x(ptr,			0)		\
@@ -517,7 +517,7 @@ struct bch_extent_crc32 {
 				_compressed_size:7,
 				type:2;
 #endif
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 #define CRC32_SIZE_MAX		(1U << 7)
 #define CRC32_NONCE_MAX		0
@@ -543,7 +543,7 @@ struct bch_extent_crc64 {
 				type:3;
 #endif
 	__u64			csum_lo;
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 #define CRC64_SIZE_MAX		(1U << 9)
 #define CRC64_NONCE_MAX		((1U << 10) - 1)
@@ -567,7 +567,7 @@ struct bch_extent_crc128 {
 				type:4;
 #endif
 	struct bch_csum		csum;
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 #define CRC128_SIZE_MAX		(1U << 13)
 #define CRC128_NONCE_MAX	((1U << 13) - 1)
@@ -593,7 +593,7 @@ struct bch_extent_ptr {
 				cached:1,
 				type:1;
 #endif
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 struct bch_extent_stripe_ptr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
@@ -645,7 +645,7 @@ struct bch_btree_ptr {
 
 	__u64			_data[0];
 	struct bch_extent_ptr	start[];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 struct bch_btree_ptr_v2 {
 	struct bch_val		v;
@@ -657,7 +657,7 @@ struct bch_btree_ptr_v2 {
 	struct bpos		min_key;
 	__u64			_data[0];
 	struct bch_extent_ptr	start[];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 LE16_BITMASK(BTREE_PTR_RANGE_UPDATED,	struct bch_btree_ptr_v2, flags, 0, 1);
 
@@ -666,7 +666,7 @@ struct bch_extent {
 
 	__u64			_data[0];
 	union bch_extent_entry	start[];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 struct bch_reservation {
 	struct bch_val		v;
@@ -674,7 +674,7 @@ struct bch_reservation {
 	__le32			generation;
 	__u8			nr_replicas;
 	__u8			pad[3];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 /* Maximum size (in u64s) a single pointer could be: */
 #define BKEY_EXTENT_PTR_U64s_MAX\
@@ -708,7 +708,7 @@ struct bch_inode {
 	__le32			bi_flags;
 	__le16			bi_mode;
 	__u8			fields[0];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 struct bch_inode_v2 {
 	struct bch_val		v;
@@ -718,14 +718,14 @@ struct bch_inode_v2 {
 	__le64			bi_flags;
 	__le16			bi_mode;
 	__u8			fields[0];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 struct bch_inode_generation {
 	struct bch_val		v;
 
 	__le32			bi_generation;
 	__le32			pad;
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 /*
  * bi_subvol and bi_parent_subvol are only set for subvolume roots:
@@ -846,7 +846,7 @@ struct bch_dirent {
 	__u8			d_type;
 
 	__u8			d_name[];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 #define DT_SUBVOL	16
 #define BCH_DT_MAX	17
@@ -869,7 +869,7 @@ struct bch_xattr {
 	__u8			x_name_len;
 	__le16			x_val_len;
 	__u8			x_name[];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 /* Bucket/allocation information: */
 
@@ -878,7 +878,7 @@ struct bch_alloc {
 	__u8			fields;
 	__u8			gen;
 	__u8			data[];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 #define BCH_ALLOC_FIELDS_V1()			\
 	x(read_time,		16)		\
@@ -897,7 +897,7 @@ struct bch_alloc_v2 {
 	__u8			oldest_gen;
 	__u8			data_type;
 	__u8			data[];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 #define BCH_ALLOC_FIELDS_V2()			\
 	x(read_time,		64)		\
@@ -916,7 +916,7 @@ struct bch_alloc_v3 {
 	__u8			oldest_gen;
 	__u8			data_type;
 	__u8			data[];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 struct bch_alloc_v4 {
 	struct bch_val		v;
@@ -932,7 +932,7 @@ struct bch_alloc_v4 {
 	__u32			stripe;
 	__u32			nr_external_backpointers;
 	struct bpos		backpointers[0];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 LE32_BITMASK(BCH_ALLOC_V3_NEED_DISCARD,struct bch_alloc_v3, flags,  0,  1)
 LE32_BITMASK(BCH_ALLOC_V3_NEED_INC_GEN,struct bch_alloc_v3, flags,  1,  2)
@@ -971,7 +971,7 @@ struct bch_quota_counter {
 struct bch_quota {
 	struct bch_val		v;
 	struct bch_quota_counter c[Q_COUNTERS];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 /* Erasure coding */
 
@@ -987,7 +987,7 @@ struct bch_stripe {
 	__u8			pad;
 
 	struct bch_extent_ptr	ptrs[];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 /* Reflink: */
 
@@ -1004,14 +1004,14 @@ struct bch_reflink_p {
 	 */
 	__le32			front_pad;
 	__le32			back_pad;
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 struct bch_reflink_v {
 	struct bch_val		v;
 	__le64			refcount;
 	union bch_extent_entry	start[0];
 	__u64			_data[0];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 struct bch_indirect_inline_data {
 	struct bch_val		v;
@@ -1068,7 +1068,7 @@ LE32_BITMASK(BCH_SNAPSHOT_SUBVOL,	struct bch_snapshot, flags,  1,  2)
 struct bch_lru {
 	struct bch_val		v;
 	__le64			idx;
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 #define LRU_ID_STRIPES		(1U << 16)
 
@@ -1267,19 +1267,19 @@ struct bch_replicas_entry_v0 {
 	__u8			data_type;
 	__u8			nr_devs;
 	__u8			devs[];
-} __attribute__((packed));
+} __packed;
 
 struct bch_sb_field_replicas_v0 {
 	struct bch_sb_field	field;
 	struct bch_replicas_entry_v0 entries[];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 struct bch_replicas_entry {
 	__u8			data_type;
 	__u8			nr_devs;
 	__u8			nr_required;
 	__u8			devs[];
-} __attribute__((packed));
+} __packed;
 
 #define replicas_entry_bytes(_i)					\
 	(offsetof(typeof(*(_i)), devs) + (_i)->nr_devs)
@@ -1287,7 +1287,7 @@ struct bch_replicas_entry {
 struct bch_sb_field_replicas {
 	struct bch_sb_field	field;
 	struct bch_replicas_entry entries[];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 /* BCH_SB_FIELD_quota: */
 
@@ -1304,7 +1304,7 @@ struct bch_sb_quota_type {
 struct bch_sb_field_quota {
 	struct bch_sb_field		field;
 	struct bch_sb_quota_type	q[QTYP_NR];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 /* BCH_SB_FIELD_disk_groups: */
 
@@ -1313,7 +1313,7 @@ struct bch_sb_field_quota {
 struct bch_disk_group {
 	__u8			label[BCH_SB_LABEL_SIZE];
 	__le64			flags[2];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 LE64_BITMASK(BCH_GROUP_DELETED,		struct bch_disk_group, flags[0], 0,  1)
 LE64_BITMASK(BCH_GROUP_DATA_ALLOWED,	struct bch_disk_group, flags[0], 1,  6)
@@ -1322,7 +1322,7 @@ LE64_BITMASK(BCH_GROUP_PARENT,		struct bch_disk_group, flags[0], 6, 24)
 struct bch_sb_field_disk_groups {
 	struct bch_sb_field	field;
 	struct bch_disk_group	entries[0];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 /* BCH_SB_FIELD_counters */
 
@@ -1504,7 +1504,7 @@ struct bch_sb_layout {
 	__u8			nr_superblocks;
 	__u8			pad[5];
 	__le64			sb_offset[61];
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 #define BCH_SB_LAYOUT_SECTOR	7
 
@@ -1555,7 +1555,7 @@ struct bch_sb {
 		struct bch_sb_field start[0];
 		__le64		_data[0];
 	};
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 /*
  * Flags:
@@ -1914,26 +1914,26 @@ enum {
 struct jset_entry_usage {
 	struct jset_entry	entry;
 	__le64			v;
-} __attribute__((packed));
+} __packed;
 
 struct jset_entry_data_usage {
 	struct jset_entry	entry;
 	__le64			v;
 	struct bch_replicas_entry r;
-} __attribute__((packed));
+} __packed;
 
 struct jset_entry_clock {
 	struct jset_entry	entry;
 	__u8			rw;
 	__u8			pad[7];
 	__le64			time;
-} __attribute__((packed));
+} __packed;
 
 struct jset_entry_dev_usage_type {
 	__le64			buckets;
 	__le64			sectors;
 	__le64			fragmented;
-} __attribute__((packed));
+} __packed;
 
 struct jset_entry_dev_usage {
 	struct jset_entry	entry;
@@ -1944,7 +1944,7 @@ struct jset_entry_dev_usage {
 	__le64			_buckets_unavailable; /* No longer used */
 
 	struct jset_entry_dev_usage_type d[];
-} __attribute__((packed));
+} __packed;
 
 static inline unsigned jset_entry_dev_usage_nr_types(struct jset_entry_dev_usage *u)
 {
@@ -1955,7 +1955,7 @@ static inline unsigned jset_entry_dev_usage_nr_types(struct jset_entry_dev_usage
 struct jset_entry_log {
 	struct jset_entry	entry;
 	u8			d[];
-} __attribute__((packed));
+} __packed;
 
 /*
  * On disk format for a journal entry:
@@ -1990,7 +1990,7 @@ struct jset {
 		struct jset_entry start[0];
 		__u64		_data[0];
 	};
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 LE32_BITMASK(JSET_CSUM_TYPE,	struct jset, flags, 0, 4);
 LE32_BITMASK(JSET_BIG_ENDIAN,	struct jset, flags, 4, 5);
@@ -2052,7 +2052,7 @@ struct bset {
 		struct bkey_packed start[0];
 		__u64		_data[0];
 	};
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 LE32_BITMASK(BSET_CSUM_TYPE,	struct bset, flags, 0, 4);
 
@@ -2085,7 +2085,7 @@ struct btree_node {
 
 	};
 	};
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 LE64_BITMASK(BTREE_NODE_ID,	struct btree_node, flags,  0,  4);
 LE64_BITMASK(BTREE_NODE_LEVEL,	struct btree_node, flags,  4,  8);
@@ -2106,6 +2106,6 @@ struct btree_node_entry {
 
 	};
 	};
-} __attribute__((packed, aligned(8)));
+} __packed __aligned(8);
 
 #endif /* _BCACHEFS_FORMAT_H */
