@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
- * Copyright (c) 2009-2013 VMware, Inc., Palo Alto, CA., USA
+ * Copyright (c) 2009-2022 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -44,13 +44,14 @@
 
 #define pr_fmt(fmt) "[TTM] " fmt
 
+#include "ttm_object.h"
+#include "vmwgfx_drv.h"
+
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/atomic.h>
 #include <linux/module.h>
-#include "ttm_object.h"
-#include "vmwgfx_drv.h"
 
 MODULE_IMPORT_NS(DMA_BUF);
 
@@ -81,9 +82,7 @@ struct ttm_object_file {
 /*
  * struct ttm_object_device
  *
- * @object_lock: lock that protects the object_hash hash table.
- *
- * @object_hash: hash table for fast lookup of object global names.
+ * @object_lock: lock that protects idr.
  *
  * @object_count: Per device object count.
  *
@@ -92,7 +91,6 @@ struct ttm_object_file {
 
 struct ttm_object_device {
 	spinlock_t object_lock;
-	struct vmwgfx_open_hash object_hash;
 	atomic_t object_count;
 	struct dma_buf_ops ops;
 	void (*dmabuf_release)(struct dma_buf *dma_buf);
@@ -449,20 +447,15 @@ out_err:
 }
 
 struct ttm_object_device *
-ttm_object_device_init(unsigned int hash_order,
-		       const struct dma_buf_ops *ops)
+ttm_object_device_init(const struct dma_buf_ops *ops)
 {
 	struct ttm_object_device *tdev = kmalloc(sizeof(*tdev), GFP_KERNEL);
-	int ret;
 
 	if (unlikely(tdev == NULL))
 		return NULL;
 
 	spin_lock_init(&tdev->object_lock);
 	atomic_set(&tdev->object_count, 0);
-	ret = vmwgfx_ht_create(&tdev->object_hash, hash_order);
-	if (ret != 0)
-		goto out_no_object_hash;
 
 	/*
 	 * Our base is at VMWGFX_NUM_MOB + 1 because we want to create
@@ -477,10 +470,6 @@ ttm_object_device_init(unsigned int hash_order,
 	tdev->dmabuf_release = tdev->ops.release;
 	tdev->ops.release = ttm_prime_dmabuf_release;
 	return tdev;
-
-out_no_object_hash:
-	kfree(tdev);
-	return NULL;
 }
 
 void ttm_object_device_release(struct ttm_object_device **p_tdev)
@@ -491,7 +480,6 @@ void ttm_object_device_release(struct ttm_object_device **p_tdev)
 
 	WARN_ON_ONCE(!idr_is_empty(&tdev->idr));
 	idr_destroy(&tdev->idr);
-	vmwgfx_ht_remove(&tdev->object_hash);
 
 	kfree(tdev);
 }
