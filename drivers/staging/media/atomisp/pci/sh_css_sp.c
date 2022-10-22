@@ -1266,7 +1266,7 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	sh_css_sp_group.pipe[thread_id].thread_id = thread_id;
 	sh_css_sp_group.pipe[thread_id].pipe_num = pipe_num;
 	sh_css_sp_group.pipe[thread_id].num_execs = me->num_execs;
-	sh_css_sp_group.pipe[thread_id].pipe_qos_config = me->pipe_qos_config;
+	sh_css_sp_group.pipe[thread_id].pipe_qos_config = QOS_INVALID;
 	sh_css_sp_group.pipe[thread_id].required_bds_factor = required_bds_factor;
 	sh_css_sp_group.pipe[thread_id].input_system_mode
 	= (uint32_t)input_mode;
