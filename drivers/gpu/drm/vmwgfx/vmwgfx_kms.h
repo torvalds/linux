@@ -276,6 +276,8 @@ struct vmw_cursor_plane_state {
 	struct ttm_buffer_object *bo;
 	struct ttm_bo_kmap_obj map;
 	bool mapped;
+	s32 hotspot_x;
+	s32 hotspot_y;
 };
 
 /**
