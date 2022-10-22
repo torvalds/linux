@@ -268,6 +268,8 @@ ddk_headers(
     includes = [
         "arch/arm64/include",
         "arch/arm64/include/uapi",
+        "arch/x86/include",
+        "arch/x86/include/uapi",
         "include",
         "include/uapi",
     ],
@@ -281,6 +283,7 @@ filegroup(
     name = "all_headers_allowlist_globs",
     srcs = glob([
         "arch/arm64/include/**/*.h",
+        "arch/x86/include/**/*.h",
         "include/**/*.h",
     ]),
     visibility = ["//visibility:private"],
@@ -294,7 +297,9 @@ filegroup(
 # - be moved into all_headers
 ddk_headers(
     name = "all_headers_unsafe",
-    hdrs = [],
+    hdrs = [
+        "drivers/gpu/drm/virtio/virtgpu_trace.h",
+    ],
     # The list of include directories where source files can #include headers
     # from. In other words, these are the `-I` option to the C compiler.
     includes = [],
