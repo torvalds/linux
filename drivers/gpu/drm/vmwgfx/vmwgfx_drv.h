@@ -43,7 +43,6 @@
 #include "ttm_object.h"
 
 #include "vmwgfx_fence.h"
-#include "vmwgfx_hashtab.h"
 #include "vmwgfx_reg.h"
 #include "vmwgfx_validation.h"
 
@@ -102,6 +101,11 @@
 struct vmw_fpriv {
 	struct ttm_object_file *tfile;
 	bool gb_aware; /* user-space is guest-backed aware */
+};
+
+struct vmwgfx_hash_item {
+	struct hlist_node head;
+	unsigned long key;
 };
 
 /**

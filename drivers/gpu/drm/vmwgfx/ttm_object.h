@@ -42,8 +42,6 @@
 #include <linux/list.h>
 #include <linux/rcupdate.h>
 
-#include "vmwgfx_hashtab.h"
-
 /**
  * enum ttm_object_type
  *
