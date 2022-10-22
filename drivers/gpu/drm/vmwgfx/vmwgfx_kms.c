@@ -1988,6 +1988,8 @@ int vmw_kms_init(struct vmw_private *dev_priv)
 	dev->mode_config.min_height = 1;
 	dev->mode_config.max_width = dev_priv->texture_max_width;
 	dev->mode_config.max_height = dev_priv->texture_max_height;
+	dev->mode_config.preferred_depth = dev_priv->assume_16bpp ? 16 : 32;
+	dev->mode_config.prefer_shadow_fbdev = !dev_priv->has_mob;
 
 	drm_mode_create_suggested_offset_properties(dev);
 	vmw_kms_create_hotplug_mode_update_property(dev_priv);
@@ -2134,8 +2136,8 @@ retry:
 			du->gui_x = rects[du->unit].x1;
 			du->gui_y = rects[du->unit].y1;
 		} else {
-			du->pref_width = 800;
-			du->pref_height = 600;
+			du->pref_width  = VMWGFX_MIN_INITIAL_WIDTH;
+			du->pref_height = VMWGFX_MIN_INITIAL_HEIGHT;
 			du->pref_active = false;
 			du->gui_x = 0;
 			du->gui_y = 0;
@@ -2162,12 +2164,12 @@ retry:
 		}
 		con->status = vmw_du_connector_detect(con, true);
 	}
-
-	drm_sysfs_hotplug_event(dev);
 out_fini:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 	mutex_unlock(&dev->mode_config.mutex);
+
+	drm_sysfs_hotplug_event(dev);
 
 	return 0;
 }
@@ -2448,10 +2450,9 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 	int ret, i;
 
 	if (!arg->num_outputs) {
-		struct drm_rect def_rect = {0, 0, 800, 600};
-		VMW_DEBUG_KMS("Default layout x1 = %d y1 = %d x2 = %d y2 = %d\n",
-			      def_rect.x1, def_rect.y1,
-			      def_rect.x2, def_rect.y2);
+		struct drm_rect def_rect = {0, 0,
+					    VMWGFX_MIN_INITIAL_WIDTH,
+					    VMWGFX_MIN_INITIAL_HEIGHT};
 		vmw_du_update_layout(dev_priv, 1, &def_rect);
 		return 0;
 	}
@@ -2744,68 +2745,6 @@ int vmw_kms_update_proxy(struct vmw_resource *res,
 	vmw_cmd_commit(dev_priv, copy_size);
 
 	return 0;
-}
-
-int vmw_kms_fbdev_init_data(struct vmw_private *dev_priv,
-			    unsigned unit,
-			    u32 max_width,
-			    u32 max_height,
-			    struct drm_connector **p_con,
-			    struct drm_crtc **p_crtc,
-			    struct drm_display_mode **p_mode)
-{
-	struct drm_connector *con;
-	struct vmw_display_unit *du;
-	struct drm_display_mode *mode;
-	int i = 0;
-	int ret = 0;
-
-	mutex_lock(&dev_priv->drm.mode_config.mutex);
-	list_for_each_entry(con, &dev_priv->drm.mode_config.connector_list,
-			    head) {
-		if (i == unit)
-			break;
-
-		++i;
-	}
-
-	if (&con->head == &dev_priv->drm.mode_config.connector_list) {
-		DRM_ERROR("Could not find initial display unit.\n");
-		ret = -EINVAL;
-		goto out_unlock;
-	}
-
-	if (list_empty(&con->modes))
-		(void) vmw_du_connector_fill_modes(con, max_width, max_height);
-
-	if (list_empty(&con->modes)) {
-		DRM_ERROR("Could not find initial display mode.\n");
-		ret = -EINVAL;
-		goto out_unlock;
-	}
-
-	du = vmw_connector_to_du(con);
-	*p_con = con;
-	*p_crtc = &du->crtc;
-
-	list_for_each_entry(mode, &con->modes, head) {
-		if (mode->type & DRM_MODE_TYPE_PREFERRED)
-			break;
-	}
-
-	if (&mode->head == &con->modes) {
-		WARN_ONCE(true, "Could not find initial preferred mode.\n");
-		*p_mode = list_first_entry(&con->modes,
-					   struct drm_display_mode,
-					   head);
-	} else {
-		*p_mode = mode;
-	}
-
- out_unlock:
-	mutex_unlock(&dev_priv->drm.mode_config.mutex);
-
-	return ret;
 }
 
 /**
