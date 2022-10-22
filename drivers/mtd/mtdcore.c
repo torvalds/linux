@@ -28,6 +28,7 @@
 #include <linux/leds.h>
 #include <linux/debugfs.h>
 #include <linux/nvmem-provider.h>
+#include <linux/root_dev.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -737,6 +738,17 @@ int add_mtd_device(struct mtd_info *mtd)
 		not->add(mtd);
 
 	mutex_unlock(&mtd_table_mutex);
+
+	if (of_find_property(mtd_get_of_node(mtd), "linux,rootfs", NULL)) {
+		if (IS_BUILTIN(CONFIG_MTD)) {
+			pr_info("mtd: setting mtd%d (%s) as root device\n", mtd->index, mtd->name);
+			ROOT_DEV = MKDEV(MTD_BLOCK_MAJOR, mtd->index);
+		} else {
+			pr_warn("mtd: can't set mtd%d (%s) as root device - mtd must be builtin\n",
+				mtd->index, mtd->name);
+		}
+	}
+
 	/* We _know_ we aren't being removed, because
 	   our caller is still holding us here. So none
 	   of this try_ nonsense, and no bitching about it
