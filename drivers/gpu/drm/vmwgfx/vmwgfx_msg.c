@@ -85,7 +85,14 @@ struct rpc_channel {
 	u32 cookie_low;
 };
 
-
+#if IS_ENABLED(CONFIG_DRM_VMWGFX_MKSSTATS)
+/* Kernel mksGuestStats counter names and desciptions; same order as enum mksstat_kern_stats_t */
+static const char* const mksstat_kern_name_desc[MKSSTAT_KERN_COUNT][2] =
+{
+	{ "vmw_execbuf_ioctl", "vmw_execbuf_ioctl" },
+	{ "vmw_cotable_resize", "vmw_cotable_resize" },
+};
+#endif
 
 /**
  * vmw_open_channel
@@ -695,12 +702,6 @@ static inline void hypervisor_ppn_remove(PPN64 pfn)
 /* Header to the text description of mksGuestStat instance descriptor */
 #define MKSSTAT_KERNEL_DESCRIPTION "vmwgfx"
 
-/* Kernel mksGuestStats counter names and desciptions; same order as enum mksstat_kern_stats_t */
-static const char* const mksstat_kern_name_desc[MKSSTAT_KERN_COUNT][2] =
-{
-	{ "vmw_execbuf_ioctl", "vmw_execbuf_ioctl" },
-};
-
 /**
  * mksstat_init_record: Initializes an MKSGuestStatCounter-based record
  * for the respective mksGuestStat index.
@@ -786,6 +787,7 @@ static int mksstat_init_kern_id(struct page **ppage)
 	/* Set up all kernel-internal counters and corresponding structures */
 	pstrs_acc = pstrs;
 	pstrs_acc = mksstat_init_record_time(MKSSTAT_KERN_EXECBUF, pstat, pinfo, pstrs_acc);
+	pstrs_acc = mksstat_init_record_time(MKSSTAT_KERN_COTABLE_RESIZE, pstat, pinfo, pstrs_acc);
 
 	/* Add new counters above, in their order of appearance in mksstat_kern_stats_t */
 

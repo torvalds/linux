@@ -33,6 +33,7 @@
 #include <drm/ttm/ttm_placement.h>
 
 #include "vmwgfx_drv.h"
+#include "vmwgfx_mksstat.h"
 #include "vmwgfx_resource_priv.h"
 #include "vmwgfx_so.h"
 
@@ -395,9 +396,12 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	int ret;
 	size_t i;
 
+	MKS_STAT_TIME_DECL(MKSSTAT_KERN_COTABLE_RESIZE);
+	MKS_STAT_TIME_PUSH(MKSSTAT_KERN_COTABLE_RESIZE);
+
 	ret = vmw_cotable_readback(res);
 	if (ret)
-		return ret;
+		goto out_done;
 
 	cur_size_read_back = vcotbl->size_read_back;
 	vcotbl->size_read_back = old_size_read_back;
@@ -411,7 +415,7 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 			    true, true, vmw_bo_bo_free, &buf);
 	if (ret) {
 		DRM_ERROR("Failed initializing new cotable MOB.\n");
-		return ret;
+		goto out_done;
 	}
 
 	bo = &buf->base;
@@ -485,6 +489,8 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	/* Release the pin acquired in vmw_bo_init */
 	ttm_bo_unpin(bo);
 
+	MKS_STAT_TIME_POP(MKSSTAT_KERN_COTABLE_RESIZE);
+
 	return 0;
 
 out_map_new:
@@ -493,6 +499,9 @@ out_wait:
 	ttm_bo_unpin(bo);
 	ttm_bo_unreserve(bo);
 	vmw_bo_unreference(&buf);
+
+out_done:
+	MKS_STAT_TIME_POP(MKSSTAT_KERN_COTABLE_RESIZE);
 
 	return ret;
 }
