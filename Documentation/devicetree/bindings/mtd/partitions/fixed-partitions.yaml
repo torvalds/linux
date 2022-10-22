@@ -84,6 +84,7 @@ examples:
         partition@0 {
             label = "filesystem";
             reg = <0x00000000 0x1 0x00000000>;
+            linux,rootfs;
         };
     };
 
