@@ -25,10 +25,10 @@ Linux 内核用户空间API指南
    :maxdepth: 2
 
    ebpf/index
+   no_new_privs
 
 TODOList:
 
-* no_new_privs
 * seccomp_filter
 * landlock
 * unshare
