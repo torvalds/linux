@@ -104,7 +104,7 @@ struct ttm_base_object {
 	struct ttm_object_file *tfile;
 	struct kref refcount;
 	void (*refcount_release) (struct ttm_base_object **base);
-	u32 handle;
+	u64 handle;
 	enum ttm_object_type object_type;
 	u32 shareable;
 };
@@ -164,7 +164,7 @@ extern int ttm_base_object_init(struct ttm_object_file *tfile,
  */
 
 extern struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file
-						      *tfile, uint32_t key);
+						      *tfile, uint64_t key);
 
 /**
  * ttm_base_object_lookup_for_ref
@@ -178,7 +178,7 @@ extern struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file
  */
 
 extern struct ttm_base_object *
-ttm_base_object_lookup_for_ref(struct ttm_object_device *tdev, uint32_t key);
+ttm_base_object_lookup_for_ref(struct ttm_object_device *tdev, uint64_t key);
 
 /**
  * ttm_base_object_unref
@@ -237,14 +237,12 @@ extern int ttm_ref_object_base_unref(struct ttm_object_file *tfile,
  * ttm_object_file_init - initialize a struct ttm_object file
  *
  * @tdev: A struct ttm_object device this file is initialized on.
- * @hash_order: Order of the hash table used to hold the reference objects.
  *
  * This is typically called by the file_ops::open function.
  */
 
 extern struct ttm_object_file *ttm_object_file_init(struct ttm_object_device
-						    *tdev,
-						    unsigned int hash_order);
+						    *tdev);
 
 /**
  * ttm_object_file_release - release data held by a ttm_object_file
@@ -312,7 +310,7 @@ extern int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
 	kfree_rcu(__obj, __prime.base.rhead)
 
 struct ttm_base_object *
-ttm_base_object_noref_lookup(struct ttm_object_file *tfile, uint32_t key);
+ttm_base_object_noref_lookup(struct ttm_object_file *tfile, uint64_t key);
 
 /**
  * ttm_base_object_noref_release - release a base object pointer looked up
