@@ -195,11 +195,13 @@
 
 #define BOUNDED_SECTION_PRE_LABEL(_sec_, _label_, _s_, _e_)		\
 	_s_##_label_ = .;						\
+	KEEP(*(.gnu.linkonce.##_sec_))					\
 	KEEP(*(_sec_))							\
 	_e_##_label_ = .;
 
 #define BOUNDED_SECTION_POST_LABEL(_sec_, _label_, _s_, _e_)		\
 	_label_##_s_ = .;						\
+	KEEP(*(.gnu.linkonce.##_sec_))					\
 	KEEP(*(_sec_))							\
 	_label_##_e_ = .;
 
