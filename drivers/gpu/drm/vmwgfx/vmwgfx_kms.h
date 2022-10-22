@@ -295,13 +295,11 @@ struct vmw_plane_state {
 	/* For CPU Blit */
 	unsigned int cpp;
 
-	/* CursorMob flipping index; -1 if cursor mobs not used */
-	unsigned int cursor_mob_idx;
-	/* Currently-active CursorMob */
-	struct ttm_buffer_object *cm_bo;
-	/* CursorMob kmap_obj; expected valid at cursor_plane_atomic_update
-	   IFF currently-active CursorMob above is valid */
-	struct ttm_bo_kmap_obj cm_map;
+	struct {
+		struct ttm_buffer_object *bo;
+		struct ttm_bo_kmap_obj map;
+		bool mapped;
+	} cursor;
 };
 
 
@@ -338,11 +336,12 @@ struct vmw_connector_state {
  * Derived class for cursor plane object
  *
  * @base DRM plane object
- * @cursor_mob array of two MOBs for CursorMob flipping
+ * @cursor.cursor_mobs Cursor mobs available for re-use
  */
 struct vmw_cursor_plane {
 	struct drm_plane base;
-	struct ttm_buffer_object *cursor_mob[2];
+
+	struct ttm_buffer_object *cursor_mobs[3];
 };
 
 /**
@@ -472,8 +471,6 @@ void vmw_kms_create_implicit_placement_property(struct vmw_private *dev_priv);
 /* Universal Plane Helpers */
 void vmw_du_primary_plane_destroy(struct drm_plane *plane);
 void vmw_du_cursor_plane_destroy(struct drm_plane *plane);
-int vmw_du_create_cursor_mob_array(struct vmw_cursor_plane *vcp);
-void vmw_du_destroy_cursor_mob_array(struct vmw_cursor_plane *vcp);
 
 /* Atomic Helpers */
 int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
