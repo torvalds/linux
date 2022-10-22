@@ -284,7 +284,7 @@ ttm_base_object_noref_lookup(struct ttm_object_file *tfile, uint64_t key)
 	}
 
 	__release(RCU);
-	return drm_hash_entry(hash, struct ttm_ref_object, hash)->obj;
+	return hlist_entry(hash, struct ttm_ref_object, hash)->obj;
 }
 EXPORT_SYMBOL(ttm_base_object_noref_lookup);
 
@@ -299,7 +299,7 @@ struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file *tfile,
 	ret = ttm_tfile_find_ref_rcu(tfile, key, &hash);
 
 	if (likely(ret == 0)) {
-		base = drm_hash_entry(hash, struct ttm_ref_object, hash)->obj;
+		base = hlist_entry(hash, struct ttm_ref_object, hash)->obj;
 		if (!kref_get_unless_zero(&base->refcount))
 			base = NULL;
 	}
@@ -343,7 +343,7 @@ int ttm_ref_object_add(struct ttm_object_file *tfile,
 		ret = ttm_tfile_find_ref_rcu(tfile, base->handle, &hash);
 
 		if (ret == 0) {
-			ref = drm_hash_entry(hash, struct ttm_ref_object, hash);
+			ref = hlist_entry(hash, struct ttm_ref_object, hash);
 			if (kref_get_unless_zero(&ref->kref)) {
 				rcu_read_unlock();
 				break;
@@ -407,7 +407,7 @@ int ttm_ref_object_base_unref(struct ttm_object_file *tfile,
 		spin_unlock(&tfile->lock);
 		return -EINVAL;
 	}
-	ref = drm_hash_entry(hash, struct ttm_ref_object, hash);
+	ref = hlist_entry(hash, struct ttm_ref_object, hash);
 	kref_put(&ref->kref, ttm_ref_object_release);
 	spin_unlock(&tfile->lock);
 	return 0;

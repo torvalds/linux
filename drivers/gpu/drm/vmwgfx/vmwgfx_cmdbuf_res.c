@@ -88,7 +88,7 @@ vmw_cmdbuf_res_lookup(struct vmw_cmdbuf_res_manager *man,
 
 	hash_for_each_possible_rcu(man->resources, hash, head, key) {
 		if (hash->key == key)
-			return drm_hash_entry(hash, struct vmw_cmdbuf_res, hash)->res;
+			return hlist_entry(hash, struct vmw_cmdbuf_res, hash)->res;
 	}
 	return ERR_PTR(-EINVAL);
 }
@@ -243,7 +243,7 @@ int vmw_cmdbuf_res_remove(struct vmw_cmdbuf_res_manager *man,
 
 	hash_for_each_possible_rcu(man->resources, hash, head, key) {
 		if (hash->key == key) {
-			entry = drm_hash_entry(hash, struct vmw_cmdbuf_res, hash);
+			entry = hlist_entry(hash, struct vmw_cmdbuf_res, hash);
 			break;
 		}
 	}
