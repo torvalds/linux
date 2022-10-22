@@ -3481,6 +3481,24 @@ static void commit_planes_for_stream(struct dc *dc,
 		return;
 	}
 
+	if (update_type != UPDATE_TYPE_FAST) {
+		for (j = 0; j < dc->res_pool->pipe_count; j++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+
+			if (dc->debug.visual_confirm == VISUAL_CONFIRM_SUBVP &&
+				pipe_ctx->stream && pipe_ctx->plane_state) {
+				/* Only update visual confirm for SUBVP here.
+				 * The bar appears on all pipes, so we need to update the bar on all displays,
+				 * so the information doesn't get stale.
+				 */
+				struct mpcc_blnd_cfg blnd_cfg = { 0 };
+
+				dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color,
+						pipe_ctx->plane_res.hubp->inst);
+			}
+		}
+	}
+
 	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
 		for (i = 0; i < surface_count; i++) {
 			struct dc_plane_state *plane_state = srf_updates[i].surface;
@@ -3598,7 +3616,6 @@ static void commit_planes_for_stream(struct dc *dc,
 					dc->hwss.update_plane_addr(dc, pipe_ctx);
 			}
 		}
-
 	}
 
 	if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
