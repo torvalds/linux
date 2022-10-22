@@ -528,6 +528,22 @@ static bool idxd_group_attr_progress_limit_invisible(struct attribute *attr,
 		!idxd->hw.group_cap.progress_limit;
 }
 
+static bool idxd_group_attr_read_buffers_invisible(struct attribute *attr,
+						   struct idxd_device *idxd)
+{
+	/*
+	 * Intel IAA does not support Read Buffer allocation control,
+	 * make these attributes invisible.
+	 */
+	return (attr == &dev_attr_group_use_token_limit.attr ||
+		attr == &dev_attr_group_use_read_buffer_limit.attr ||
+		attr == &dev_attr_group_tokens_allowed.attr ||
+		attr == &dev_attr_group_read_buffers_allowed.attr ||
+		attr == &dev_attr_group_tokens_reserved.attr ||
+		attr == &dev_attr_group_read_buffers_reserved.attr) &&
+		idxd->data->type == IDXD_TYPE_IAX;
+}
+
 static umode_t idxd_group_attr_visible(struct kobject *kobj,
 				       struct attribute *attr, int n)
 {
@@ -536,6 +552,9 @@ static umode_t idxd_group_attr_visible(struct kobject *kobj,
 	struct idxd_device *idxd = group->idxd;
 
 	if (idxd_group_attr_progress_limit_invisible(attr, idxd))
+		return 0;
+
+	if (idxd_group_attr_read_buffers_invisible(attr, idxd))
 		return 0;
 
 	return attr->mode;
@@ -1552,6 +1571,20 @@ static bool idxd_device_attr_max_batch_size_invisible(struct attribute *attr,
 	       idxd->data->type == IDXD_TYPE_IAX;
 }
 
+static bool idxd_device_attr_read_buffers_invisible(struct attribute *attr,
+						    struct idxd_device *idxd)
+{
+	/*
+	 * Intel IAA does not support Read Buffer allocation control,
+	 * make these attributes invisible.
+	 */
+	return (attr == &dev_attr_max_tokens.attr ||
+		attr == &dev_attr_max_read_buffers.attr ||
+		attr == &dev_attr_token_limit.attr ||
+		attr == &dev_attr_read_buffer_limit.attr) &&
+		idxd->data->type == IDXD_TYPE_IAX;
+}
+
 static umode_t idxd_device_attr_visible(struct kobject *kobj,
 					struct attribute *attr, int n)
 {
@@ -1559,6 +1592,9 @@ static umode_t idxd_device_attr_visible(struct kobject *kobj,
 	struct idxd_device *idxd = confdev_to_idxd(dev);
 
 	if (idxd_device_attr_max_batch_size_invisible(attr, idxd))
+		return 0;
+
+	if (idxd_device_attr_read_buffers_invisible(attr, idxd))
 		return 0;
 
 	return attr->mode;
