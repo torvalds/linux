@@ -2785,7 +2785,7 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
  * intel_gvt_clean_gtt - clean up mm components of a GVT device
  * @gvt: GVT device
  *
- * This function is called at the driver unloading stage, to clean up the
+ * This function is called at the driver unloading stage, to clean up
  * the mm components of a GVT device.
  *
  */
