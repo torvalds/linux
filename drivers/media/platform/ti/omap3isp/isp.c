@@ -937,10 +937,8 @@ static int isp_pipeline_is_last(struct media_entity *me)
 	struct isp_pipeline *pipe;
 	struct media_pad *pad;
 
-	if (!me->pipe)
-		return 0;
 	pipe = to_isp_pipeline(me);
-	if (pipe->stream_state == ISP_PIPELINE_STREAM_STOPPED)
+	if (!pipe || pipe->stream_state == ISP_PIPELINE_STREAM_STOPPED)
 		return 0;
 	pad = media_pad_remote_pad_first(&pipe->output->pad);
 	return pad->entity == me;
