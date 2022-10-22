@@ -282,7 +282,7 @@ do {									\
 		"When reading btree nodes, read all replicas and "	\
 		"compare them")
 
-/* Parameters that should only be compiled in in debug mode: */
+/* Parameters that should only be compiled in debug mode: */
 #define BCH_DEBUG_PARAMS_DEBUG()					\
 	BCH_DEBUG_PARAM(expensive_debug_checks,				\
 		"Enables various runtime debugging checks that "	\

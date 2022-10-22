@@ -199,7 +199,7 @@ static int set_node_min(struct bch_fs *c, struct btree *b, struct bpos new_min)
 	struct bkey_i_btree_ptr_v2 *new;
 	int ret;
 
-	new = kmalloc(BKEY_BTREE_PTR_U64s_MAX * sizeof(u64), GFP_KERNEL);
+	new = kmalloc_array(BKEY_BTREE_PTR_U64s_MAX, sizeof(u64), GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 
@@ -228,7 +228,7 @@ static int set_node_max(struct bch_fs *c, struct btree *b, struct bpos new_max)
 	if (ret)
 		return ret;
 
-	new = kmalloc(BKEY_BTREE_PTR_U64s_MAX * sizeof(u64), GFP_KERNEL);
+	new = kmalloc_array(BKEY_BTREE_PTR_U64s_MAX, sizeof(u64), GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 

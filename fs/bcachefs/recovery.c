@@ -1509,8 +1509,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 		goto err;
 	bch_verbose(c, "reading snapshots done");
 
-	bch2_inode_init(c, &root_inode, 0, 0,
-			S_IFDIR|S_IRWXU|S_IRUGO|S_IXUGO, 0, NULL);
+	bch2_inode_init(c, &root_inode, 0, 0, S_IFDIR|0755, 0, NULL);
 	root_inode.bi_inum	= BCACHEFS_ROOT_INO;
 	root_inode.bi_subvol	= BCACHEFS_ROOT_SUBVOL;
 	bch2_inode_pack(c, &packed_inode, &root_inode);

@@ -198,6 +198,7 @@ static inline struct bkey_ptrs_c bch2_bkey_ptrs_c(struct bkey_s_c k)
 	switch (k.k->type) {
 	case KEY_TYPE_btree_ptr: {
 		struct bkey_s_c_btree_ptr e = bkey_s_c_to_btree_ptr(k);
+
 		return (struct bkey_ptrs_c) {
 			to_entry(&e.v->start[0]),
 			to_entry(extent_entry_last(e))
@@ -205,6 +206,7 @@ static inline struct bkey_ptrs_c bch2_bkey_ptrs_c(struct bkey_s_c k)
 	}
 	case KEY_TYPE_extent: {
 		struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
+
 		return (struct bkey_ptrs_c) {
 			e.v->start,
 			extent_entry_last(e)
@@ -212,6 +214,7 @@ static inline struct bkey_ptrs_c bch2_bkey_ptrs_c(struct bkey_s_c k)
 	}
 	case KEY_TYPE_stripe: {
 		struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
+
 		return (struct bkey_ptrs_c) {
 			to_entry(&s.v->ptrs[0]),
 			to_entry(&s.v->ptrs[s.v->nr_blocks]),
@@ -227,6 +230,7 @@ static inline struct bkey_ptrs_c bch2_bkey_ptrs_c(struct bkey_s_c k)
 	}
 	case KEY_TYPE_btree_ptr_v2: {
 		struct bkey_s_c_btree_ptr_v2 e = bkey_s_c_to_btree_ptr_v2(k);
+
 		return (struct bkey_ptrs_c) {
 			to_entry(&e.v->start[0]),
 			to_entry(extent_entry_last(e))
@@ -342,7 +346,7 @@ out:									\
 
 #define extent_for_each_entry_from(_e, _entry, _start)			\
 	__bkey_extent_entry_for_each_from(_start,			\
-				extent_entry_last(_e),_entry)
+				extent_entry_last(_e), _entry)
 
 #define extent_for_each_entry(_e, _entry)				\
 	extent_for_each_entry_from(_e, _entry, (_e).v->start)
@@ -376,28 +380,28 @@ void bch2_btree_ptr_v2_to_text(struct printbuf *, struct bch_fs *, struct bkey_s
 void bch2_btree_ptr_v2_compat(enum btree_id, unsigned, unsigned,
 			      int, struct bkey_s);
 
-#define bch2_bkey_ops_btree_ptr (struct bkey_ops) {		\
+#define bch2_bkey_ops_btree_ptr ((struct bkey_ops) {		\
 	.key_invalid	= bch2_btree_ptr_invalid,		\
 	.val_to_text	= bch2_btree_ptr_to_text,		\
 	.swab		= bch2_ptr_swab,			\
 	.trans_trigger	= bch2_trans_mark_extent,		\
 	.atomic_trigger	= bch2_mark_extent,			\
-}
+})
 
-#define bch2_bkey_ops_btree_ptr_v2 (struct bkey_ops) {		\
+#define bch2_bkey_ops_btree_ptr_v2 ((struct bkey_ops) {		\
 	.key_invalid	= bch2_btree_ptr_v2_invalid,		\
 	.val_to_text	= bch2_btree_ptr_v2_to_text,		\
 	.swab		= bch2_ptr_swab,			\
 	.compat		= bch2_btree_ptr_v2_compat,		\
 	.trans_trigger	= bch2_trans_mark_extent,		\
 	.atomic_trigger	= bch2_mark_extent,			\
-}
+})
 
 /* KEY_TYPE_extent: */
 
 bool bch2_extent_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 
-#define bch2_bkey_ops_extent (struct bkey_ops) {		\
+#define bch2_bkey_ops_extent ((struct bkey_ops) {		\
 	.key_invalid	= bch2_bkey_ptrs_invalid,		\
 	.val_to_text	= bch2_bkey_ptrs_to_text,		\
 	.swab		= bch2_ptr_swab,			\
@@ -405,7 +409,7 @@ bool bch2_extent_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 	.key_merge	= bch2_extent_merge,			\
 	.trans_trigger	= bch2_trans_mark_extent,		\
 	.atomic_trigger	= bch2_mark_extent,			\
-}
+})
 
 /* KEY_TYPE_reservation: */
 
@@ -414,13 +418,13 @@ int bch2_reservation_invalid(const struct bch_fs *, struct bkey_s_c,
 void bch2_reservation_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 bool bch2_reservation_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 
-#define bch2_bkey_ops_reservation (struct bkey_ops) {		\
+#define bch2_bkey_ops_reservation ((struct bkey_ops) {		\
 	.key_invalid	= bch2_reservation_invalid,		\
 	.val_to_text	= bch2_reservation_to_text,		\
 	.key_merge	= bch2_reservation_merge,		\
 	.trans_trigger	= bch2_trans_mark_reservation,		\
 	.atomic_trigger	= bch2_mark_reservation,		\
-}
+})
 
 /* Extent checksum entries: */
 

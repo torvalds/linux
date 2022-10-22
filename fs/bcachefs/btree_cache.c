@@ -112,7 +112,9 @@ static int btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
 
 static struct btree *__btree_node_mem_alloc(struct bch_fs *c, gfp_t gfp)
 {
-	struct btree *b = kzalloc(sizeof(struct btree), gfp);
+	struct btree *b;
+
+	b = kzalloc(sizeof(struct btree), gfp);
 	if (!b)
 		return NULL;
 
@@ -128,7 +130,9 @@ static struct btree *__btree_node_mem_alloc(struct bch_fs *c, gfp_t gfp)
 struct btree *__bch2_btree_node_mem_alloc(struct bch_fs *c)
 {
 	struct btree_cache *bc = &c->btree_cache;
-	struct btree *b = __btree_node_mem_alloc(c, GFP_KERNEL);
+	struct btree *b;
+
+	b = __btree_node_mem_alloc(c, GFP_KERNEL);
 	if (!b)
 		return NULL;
 
@@ -147,6 +151,7 @@ struct btree *__bch2_btree_node_mem_alloc(struct bch_fs *c)
 void bch2_btree_node_hash_remove(struct btree_cache *bc, struct btree *b)
 {
 	int ret = rhashtable_remove_fast(&bc->table, &b->hash, bch_btree_cache_params);
+
 	BUG_ON(ret);
 
 	/* Cause future lookups for this node to fail: */

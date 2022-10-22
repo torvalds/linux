@@ -18,7 +18,7 @@ extern const char * const bch2_bkey_types[];
  *
  * When invalid, error string is returned via @err. @rw indicates whether key is
  * being read or written; more aggressive checks can be enabled when rw == WRITE.
-*/
+ */
 struct bkey_ops {
 	int		(*key_invalid)(const struct bch_fs *c, struct bkey_s_c k,
 				       int rw, struct printbuf *err);

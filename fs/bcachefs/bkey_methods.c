@@ -28,13 +28,13 @@ static int deleted_key_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	return 0;
 }
 
-#define bch2_bkey_ops_deleted (struct bkey_ops) {	\
+#define bch2_bkey_ops_deleted ((struct bkey_ops) {	\
 	.key_invalid = deleted_key_invalid,		\
-}
+})
 
-#define bch2_bkey_ops_whiteout (struct bkey_ops) {	\
+#define bch2_bkey_ops_whiteout ((struct bkey_ops) {	\
 	.key_invalid = deleted_key_invalid,		\
-}
+})
 
 static int empty_val_key_invalid(const struct bch_fs *c, struct bkey_s_c k,
 				 int rw, struct printbuf *err)
@@ -48,9 +48,9 @@ static int empty_val_key_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	return 0;
 }
 
-#define bch2_bkey_ops_error (struct bkey_ops) {		\
+#define bch2_bkey_ops_error ((struct bkey_ops) {	\
 	.key_invalid = empty_val_key_invalid,		\
-}
+})
 
 static int key_type_cookie_invalid(const struct bch_fs *c, struct bkey_s_c k,
 				   int rw, struct printbuf *err)
@@ -64,13 +64,13 @@ static int key_type_cookie_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	return 0;
 }
 
-#define bch2_bkey_ops_cookie (struct bkey_ops) {	\
+#define bch2_bkey_ops_cookie ((struct bkey_ops) {	\
 	.key_invalid = key_type_cookie_invalid,		\
-}
+})
 
-#define bch2_bkey_ops_hash_whiteout (struct bkey_ops) {	\
+#define bch2_bkey_ops_hash_whiteout ((struct bkey_ops) {\
 	.key_invalid = empty_val_key_invalid,		\
-}
+})
 
 static int key_type_inline_data_invalid(const struct bch_fs *c, struct bkey_s_c k,
 					int rw, struct printbuf *err)
@@ -88,10 +88,10 @@ static void key_type_inline_data_to_text(struct printbuf *out, struct bch_fs *c,
 	       datalen, min(datalen, 32U), d.v->data);
 }
 
-#define bch2_bkey_ops_inline_data (struct bkey_ops) {	\
+#define bch2_bkey_ops_inline_data ((struct bkey_ops) {	\
 	.key_invalid	= key_type_inline_data_invalid,	\
 	.val_to_text	= key_type_inline_data_to_text,	\
-}
+})
 
 static int key_type_set_invalid(const struct bch_fs *c, struct bkey_s_c k,
 				int rw, struct printbuf *err)
@@ -111,10 +111,10 @@ static bool key_type_set_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_
 	return true;
 }
 
-#define bch2_bkey_ops_set (struct bkey_ops) {		\
+#define bch2_bkey_ops_set ((struct bkey_ops) {		\
 	.key_invalid	= key_type_set_invalid,		\
 	.key_merge	= key_type_set_merge,		\
-}
+})
 
 const struct bkey_ops bch2_bkey_ops[] = {
 #define x(name, nr) [KEY_TYPE_##name]	= bch2_bkey_ops_##name,
@@ -439,6 +439,7 @@ void __bch2_bkey_compat(unsigned level, enum btree_id btree_id,
 		    btree_id == BTREE_ID_inodes) {
 			if (!bkey_packed(k)) {
 				struct bkey_i *u = packed_to_bkey(k);
+
 				swap(u->k.p.inode, u->k.p.offset);
 			} else if (f->bits_per_field[BKEY_FIELD_INODE] &&
 				   f->bits_per_field[BKEY_FIELD_OFFSET]) {

@@ -9,10 +9,10 @@ void bch2_snapshot_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 int bch2_snapshot_invalid(const struct bch_fs *, struct bkey_s_c,
 			  int rw, struct printbuf *);
 
-#define bch2_bkey_ops_snapshot (struct bkey_ops) {		\
+#define bch2_bkey_ops_snapshot ((struct bkey_ops) {		\
 	.key_invalid	= bch2_snapshot_invalid,		\
 	.val_to_text	= bch2_snapshot_to_text,		\
-}
+})
 
 int bch2_mark_snapshot(struct btree_trans *, struct bkey_s_c,
 		       struct bkey_s_c, unsigned);
@@ -109,10 +109,10 @@ int bch2_subvolume_invalid(const struct bch_fs *, struct bkey_s_c,
 			   int rw, struct printbuf *);
 void bch2_subvolume_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
-#define bch2_bkey_ops_subvolume (struct bkey_ops) {		\
+#define bch2_bkey_ops_subvolume ((struct bkey_ops) {		\
 	.key_invalid	= bch2_subvolume_invalid,		\
 	.val_to_text	= bch2_subvolume_to_text,		\
-}
+})
 
 int bch2_subvolume_get(struct btree_trans *, unsigned,
 		       bool, int, struct bch_subvolume *);

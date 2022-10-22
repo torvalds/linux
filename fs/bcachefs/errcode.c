@@ -23,6 +23,7 @@ static unsigned bch2_errcode_parents[] = {
 const char *bch2_err_str(int err)
 {
 	const char *errstr;
+
 	err = abs(err);
 
 	BUG_ON(err >= BCH_ERR_MAX);

@@ -17,9 +17,6 @@
 
 const struct bkey_format bch2_bkey_format_current = BKEY_FORMAT_CURRENT;
 
-struct bkey __bch2_bkey_unpack_key(const struct bkey_format *,
-			      const struct bkey_packed *);
-
 void bch2_bkey_packed_to_binary_text(struct printbuf *out,
 				     const struct bkey_format *f,
 				     const struct bkey_packed *k)

@@ -11,19 +11,19 @@ int bch2_inode_invalid(const struct bch_fs *, struct bkey_s_c, int, struct print
 int bch2_inode_v2_invalid(const struct bch_fs *, struct bkey_s_c, int, struct printbuf *);
 void bch2_inode_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
-#define bch2_bkey_ops_inode (struct bkey_ops) {		\
+#define bch2_bkey_ops_inode ((struct bkey_ops) {	\
 	.key_invalid	= bch2_inode_invalid,		\
 	.val_to_text	= bch2_inode_to_text,		\
 	.trans_trigger	= bch2_trans_mark_inode,	\
 	.atomic_trigger	= bch2_mark_inode,		\
-}
+})
 
-#define bch2_bkey_ops_inode_v2 (struct bkey_ops) {	\
+#define bch2_bkey_ops_inode_v2 ((struct bkey_ops) {	\
 	.key_invalid	= bch2_inode_v2_invalid,	\
 	.val_to_text	= bch2_inode_to_text,		\
 	.trans_trigger	= bch2_trans_mark_inode,	\
 	.atomic_trigger	= bch2_mark_inode,		\
-}
+})
 
 static inline bool bkey_is_inode(const struct bkey *k)
 {
@@ -35,10 +35,10 @@ int bch2_inode_generation_invalid(const struct bch_fs *, struct bkey_s_c,
 				  int, struct printbuf *);
 void bch2_inode_generation_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
-#define bch2_bkey_ops_inode_generation (struct bkey_ops) {	\
+#define bch2_bkey_ops_inode_generation ((struct bkey_ops) {	\
 	.key_invalid	= bch2_inode_generation_invalid,	\
 	.val_to_text	= bch2_inode_generation_to_text,	\
-}
+})
 
 #if 0
 typedef struct {

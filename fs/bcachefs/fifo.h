@@ -65,7 +65,7 @@ do {									\
 	   (((p) - (fifo)->data)))
 
 #define fifo_entry_idx(fifo, p)	(((p) - &fifo_peek_front(fifo)) & (fifo)->mask)
-#define fifo_idx_entry(fifo, i)	(fifo)->data[((fifo)->front + (i)) & (fifo)->mask]
+#define fifo_idx_entry(fifo, i)	((fifo)->data[((fifo)->front + (i)) & (fifo)->mask])
 
 #define fifo_push_back_ref(f)						\
 	(fifo_full((f)) ? NULL : &(f)->data[(f)->back++ & (f)->mask])

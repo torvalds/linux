@@ -158,6 +158,7 @@ static int bch2_snapshot_set_equiv(struct btree_trans *trans, struct bkey_s_c k)
 
 	for (i = 0; i < 2; i++) {
 		int ret = snapshot_live(trans, child[i]);
+
 		if (ret < 0)
 			return ret;
 

@@ -78,15 +78,15 @@ static inline enum bch_csum_type bch2_csum_opt_to_type(enum bch_csum_opts type,
 {
 	switch (type) {
 	case BCH_CSUM_OPT_none:
-	     return BCH_CSUM_none;
+		return BCH_CSUM_none;
 	case BCH_CSUM_OPT_crc32c:
-	     return data ? BCH_CSUM_crc32c : BCH_CSUM_crc32c_nonzero;
+		return data ? BCH_CSUM_crc32c : BCH_CSUM_crc32c_nonzero;
 	case BCH_CSUM_OPT_crc64:
-	     return data ? BCH_CSUM_crc64 : BCH_CSUM_crc64_nonzero;
+		return data ? BCH_CSUM_crc64 : BCH_CSUM_crc64_nonzero;
 	case BCH_CSUM_OPT_xxhash:
-	     return BCH_CSUM_xxhash;
+		return BCH_CSUM_xxhash;
 	default:
-	     BUG();
+		BUG();
 	}
 }
 

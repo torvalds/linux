@@ -89,9 +89,9 @@ static ssize_t fn ## _store_inner(struct kobject *kobj, struct attribute *attr,\
 	static struct attribute sysfs_##_name =				\
 		{ .name = #_name, .mode = _mode }
 
-#define write_attribute(n)	__sysfs_attribute(n, S_IWUSR)
-#define read_attribute(n)	__sysfs_attribute(n, S_IRUGO)
-#define rw_attribute(n)		__sysfs_attribute(n, S_IRUGO|S_IWUSR)
+#define write_attribute(n)	__sysfs_attribute(n, 0200)
+#define read_attribute(n)	__sysfs_attribute(n, 0444)
+#define rw_attribute(n)		__sysfs_attribute(n, 0644)
 
 #define sysfs_printf(file, fmt, ...)					\
 do {									\
@@ -228,13 +228,13 @@ write_attribute(perf_test);
 
 #define x(_name)						\
 	static struct attribute sysfs_time_stat_##_name =		\
-		{ .name = #_name, .mode = S_IRUGO };
+		{ .name = #_name, .mode = 0444 };
 	BCH_TIME_STATS()
 #undef x
 
 static struct attribute sysfs_state_rw = {
 	.name = "state",
-	.mode = S_IRUGO
+	.mode =  0444,
 };
 
 static size_t bch2_btree_cache_size(struct bch_fs *c)
@@ -610,12 +610,14 @@ struct attribute *bch2_fs_counters_files[] = {
 SHOW(bch2_fs_internal)
 {
 	struct bch_fs *c = container_of(kobj, struct bch_fs, internal);
+
 	return bch2_fs_to_text(out, &c->kobj, attr);
 }
 
 STORE(bch2_fs_internal)
 {
 	struct bch_fs *c = container_of(kobj, struct bch_fs, internal);
+
 	return bch2_fs_store(&c->kobj, attr, buf, size);
 }
 SYSFS_OPS(bch2_fs_internal);

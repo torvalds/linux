@@ -10,10 +10,10 @@ extern const struct bch_sb_field_ops bch_sb_field_ops_quota;
 int bch2_quota_invalid(const struct bch_fs *, struct bkey_s_c, int, struct printbuf *);
 void bch2_quota_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
-#define bch2_bkey_ops_quota (struct bkey_ops) {		\
+#define bch2_bkey_ops_quota ((struct bkey_ops) {	\
 	.key_invalid	= bch2_quota_invalid,		\
 	.val_to_text	= bch2_quota_to_text,		\
-}
+})
 
 static inline struct bch_qid bch_qid(struct bch_inode_unpacked *u)
 {
