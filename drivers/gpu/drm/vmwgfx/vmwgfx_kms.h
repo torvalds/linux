@@ -301,6 +301,7 @@ struct vmw_plane_state {
 	/* For CPU Blit */
 	unsigned int cpp;
 
+	bool surf_mapped;
 	struct vmw_cursor_plane_state cursor;
 };
 
