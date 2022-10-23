@@ -1834,7 +1834,7 @@ struct bkey_s_c btree_trans_peek_journal(struct btree_trans *trans,
 {
 	struct bkey_i *next_journal =
 		bch2_btree_journal_peek(trans, iter,
-				k.k ? k.k->p : iter->path->l[0].b->key.k.p);
+				k.k ? k.k->p : path_l(iter->path)->b->key.k.p);
 
 	if (next_journal) {
 		iter->k = next_journal->k;

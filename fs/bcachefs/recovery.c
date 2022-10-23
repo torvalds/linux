@@ -1398,7 +1398,8 @@ out:
 	set_bit(BCH_FS_FSCK_DONE, &c->flags);
 	bch2_flush_fsck_errs(c);
 
-	if (!c->opts.keep_journal) {
+	if (!c->opts.keep_journal &&
+	    test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags)) {
 		bch2_journal_keys_free(&c->journal_keys);
 		bch2_journal_entries_free(c);
 	}
