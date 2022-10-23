@@ -69,17 +69,17 @@ int hl_access_sram_dram_region(struct hl_device *hdev, u64 addr, u64 *val,
 	enum debugfs_access_type acc_type, enum pci_region region_type, bool set_dram_bar)
 {
 	struct pci_mem_region *region = &hdev->pci_mem_region[region_type];
-	u64 old_base = 0, rc, new_bar_region_base = 0;
+	u64 old_base = 0, rc, bar_region_base = region->region_base;
 	void __iomem *acc_addr;
 
 	if (set_dram_bar) {
-		old_base = hl_set_dram_bar(hdev, addr, region, &new_bar_region_base);
+		old_base = hl_set_dram_bar(hdev, addr, region, &bar_region_base);
 		if (old_base == U64_MAX)
 			return -EIO;
 	}
 
 	acc_addr = hdev->pcie_bar[region->bar_id] + region->offset_in_bar +
-			(addr - new_bar_region_base);
+			(addr - bar_region_base);
 
 	switch (acc_type) {
 	case DEBUGFS_READ8:
