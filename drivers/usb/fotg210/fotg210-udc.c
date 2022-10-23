@@ -16,6 +16,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
+#include "fotg210.h"
 #include "fotg210-udc.h"
 
 #define	DRIVER_DESC	"FOTG210 USB Device Controller Driver"
@@ -1068,7 +1069,7 @@ static const struct usb_gadget_ops fotg210_gadget_ops = {
 	.udc_stop		= fotg210_udc_stop,
 };
 
-static int fotg210_udc_remove(struct platform_device *pdev)
+int fotg210_udc_remove(struct platform_device *pdev)
 {
 	struct fotg210_udc *fotg210 = platform_get_drvdata(pdev);
 	int i;
@@ -1085,7 +1086,7 @@ static int fotg210_udc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int fotg210_udc_probe(struct platform_device *pdev)
+int fotg210_udc_probe(struct platform_device *pdev)
 {
 	struct resource *res, *ires;
 	struct fotg210_udc *fotg210 = NULL;
@@ -1208,17 +1209,3 @@ err_alloc:
 err:
 	return ret;
 }
-
-static struct platform_driver fotg210_driver = {
-	.driver		= {
-		.name =	udc_name,
-	},
-	.probe		= fotg210_udc_probe,
-	.remove		= fotg210_udc_remove,
-};
-
-module_platform_driver(fotg210_driver);
-
-MODULE_AUTHOR("Yuan-Hsin Chen, Feng-Hsin Chiang <john453@faraday-tech.com>");
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION(DRIVER_DESC);

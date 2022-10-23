@@ -12,7 +12,7 @@ config USB_FOTG210
 if USB_FOTG210
 
 config USB_FOTG210_HCD
-	tristate "Faraday FOTG210 USB Host Controller support"
+	bool "Faraday FOTG210 USB Host Controller support"
 	depends on USB
 	help
 	  Faraday FOTG210 is an OTG controller which can be configured as
@@ -24,7 +24,7 @@ config USB_FOTG210_HCD
 
 config USB_FOTG210_UDC
 	depends on USB_GADGET
-	tristate "Faraday FOTG210 USB Peripheral Controller support"
+	bool "Faraday FOTG210 USB Peripheral Controller support"
 	help
 	   Faraday USB2.0 OTG controller which can be configured as
 	   high speed or full speed USB device. This driver suppports
