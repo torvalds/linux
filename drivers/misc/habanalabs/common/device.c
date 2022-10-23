@@ -987,11 +987,16 @@ static void device_late_fini(struct hl_device *hdev)
 
 int hl_device_utilization(struct hl_device *hdev, u32 *utilization)
 {
-	u64 max_power, curr_power, dc_power, dividend;
+	u64 max_power, curr_power, dc_power, dividend, divisor;
 	int rc;
 
 	max_power = hdev->max_power;
 	dc_power = hdev->asic_prop.dc_power_default;
+	divisor = max_power - dc_power;
+	if (!divisor) {
+		dev_warn(hdev->dev, "device utilization is not supported\n");
+		return -EOPNOTSUPP;
+	}
 	rc = hl_fw_cpucp_power_get(hdev, &curr_power);
 
 	if (rc)
@@ -1000,7 +1005,7 @@ int hl_device_utilization(struct hl_device *hdev, u32 *utilization)
 	curr_power = clamp(curr_power, dc_power, max_power);
 
 	dividend = (curr_power - dc_power) * 100;
-	*utilization = (u32) div_u64(dividend, (max_power - dc_power));
+	*utilization = (u32) div_u64(dividend, divisor);
 
 	return 0;
 }
