@@ -2024,7 +2024,7 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 
 	error = fwnode_property_read_u32(sldr_node, "azoteq,slider-size", &val);
 	if (!error) {
-		if (!val || val > dev_desc->sldr_res) {
+		if (val > dev_desc->sldr_res) {
 			dev_err(&client->dev, "Invalid %s size: %u\n",
 				fwnode_get_name(sldr_node), val);
 			return -EINVAL;
@@ -2041,6 +2041,13 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 		dev_err(&client->dev, "Failed to read %s size: %d\n",
 			fwnode_get_name(sldr_node), error);
 		return error;
+	}
+
+	if (!(reg_offset ? sldr_setup[3]
+			 : sldr_setup[2] & IQS7222_SLDR_SETUP_2_RES_MASK)) {
+		dev_err(&client->dev, "Undefined %s size\n",
+			fwnode_get_name(sldr_node));
+		return -EINVAL;
 	}
 
 	error = fwnode_property_read_u32(sldr_node, "azoteq,top-speed", &val);
