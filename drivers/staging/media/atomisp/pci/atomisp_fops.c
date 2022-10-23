@@ -860,23 +860,14 @@ static int atomisp_release(struct file *file)
 
 	v4l2_fh_init(&fh.vfh, vdev);
 
-	mutex_lock(&pipe->vb_queue_mutex);
-	mutex_lock(&isp->mutex);
-
 	dev_dbg(isp->dev, "release device %s\n", vdev->name);
 
 	asd->subdev.devnode = vdev;
 
-	/*
-	 * FIXME This if is copied from _vb2_fop_release, this cannot use that
-	 * because that calls v4l2_fh_release() earlier then this function.
-	 * Maybe we can release the fh earlier though, it does not look like
-	 * anything needs it after this.
-	 */
-	if (file->private_data == vdev->queue->owner) {
-		vb2_queue_release(vdev->queue);
-		vdev->queue->owner = NULL;
-	}
+	/* Note file must not be used after this! */
+	vb2_fop_release(file);
+
+	mutex_lock(&isp->mutex);
 
 	pipe->users--;
 	if (pipe->users)
@@ -939,9 +930,7 @@ done:
 				     V4L2_SEL_TGT_COMPOSE, 0,
 				     &clear_compose);
 	mutex_unlock(&isp->mutex);
-	mutex_unlock(&pipe->vb_queue_mutex);
-
-	return v4l2_fh_release(file);
+	return 0;
 }
 
 const struct v4l2_file_operations atomisp_fops = {
