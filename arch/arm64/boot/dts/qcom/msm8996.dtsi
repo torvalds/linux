@@ -1304,14 +1304,14 @@
 				bias-pull-down;
 			};
 
-			blsp2_uart2_2pins_default: blsp2-uart1-2pins-state {
+			blsp2_uart2_2pins_default: blsp2-uart2-2pins-state {
 				pins = "gpio4", "gpio5";
 				function = "blsp_uart8";
 				drive-strength = <16>;
 				bias-disable;
 			};
 
-			blsp2_uart2_2pins_sleep: blsp2-uart1-2pins-sleep-state {
+			blsp2_uart2_2pins_sleep: blsp2-uart2-2pins-sleep-state {
 				pins = "gpio4", "gpio5";
 				function = "gpio";
 				drive-strength = <2>;
@@ -1478,28 +1478,28 @@
 				bias-disable;
 			};
 
-			blsp1_i2c3_default: blsp1-i2c2-default-state {
+			blsp1_i2c3_default: blsp1-i2c3-default-state {
 				pins = "gpio47", "gpio48";
 				function = "blsp_i2c3";
 				drive-strength = <16>;
 				bias-disable;
 			};
 
-			blsp1_i2c3_sleep: blsp1-i2c2-sleep-state {
+			blsp1_i2c3_sleep: blsp1-i2c3-sleep-state {
 				pins = "gpio47", "gpio48";
 				function = "gpio";
 				drive-strength = <2>;
 				bias-disable;
 			};
 
-			blsp2_uart3_4pins_default: blsp2-uart2-4pins-state {
+			blsp2_uart3_4pins_default: blsp2-uart3-4pins-state {
 				pins = "gpio49", "gpio50", "gpio51", "gpio52";
 				function = "blsp_uart9";
 				drive-strength = <16>;
 				bias-disable;
 			};
 
-			blsp2_uart3_4pins_sleep: blsp2-uart2-4pins-sleep-state {
+			blsp2_uart3_4pins_sleep: blsp2-uart3-4pins-sleep-state {
 				pins = "gpio49", "gpio50", "gpio51", "gpio52";
 				function = "blsp_uart9";
 				drive-strength = <2>;
@@ -1535,7 +1535,7 @@
 				bias-disable;
 			};
 
-			blsp2_i2c1_sleep: blsp2-i2c0-sleep-state {
+			blsp2_i2c1_sleep: blsp2-i2c1-sleep-state {
 				pins = "gpio55", "gpio56";
 				function = "gpio";
 				drive-strength = <2>;
@@ -1567,7 +1567,7 @@
 				output-low;
 			};
 
-			blsp2_spi6_default: blsp2-spi5-default-state {
+			blsp2_spi6_default: blsp2-spi6-default-state {
 				spi-pins {
 					pins = "gpio85", "gpio86", "gpio88";
 					function = "blsp_spi12";
@@ -1584,7 +1584,7 @@
 				};
 			};
 
-			blsp2_spi6_sleep: blsp2-spi5-sleep-state {
+			blsp2_spi6_sleep: blsp2-spi6-sleep-state {
 				pins = "gpio85", "gpio86", "gpio87", "gpio88";
 				function = "gpio";
 				drive-strength = <2>;
