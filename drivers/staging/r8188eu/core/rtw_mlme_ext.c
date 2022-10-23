@@ -3207,7 +3207,7 @@ void issue_probersp_p2p(struct adapter *padapter, unsigned char *da)
 	dump_mgntframe(padapter, pmgntframe);
 }
 
-static int _issue_probereq_p2p(struct adapter *padapter, u8 *da, int wait_ack)
+static int _issue_probereq_p2p(struct adapter *padapter, u8 *da)
 {
 	int ret = _FAIL;
 	struct xmit_frame		*pmgntframe;
@@ -3480,12 +3480,8 @@ static int _issue_probereq_p2p(struct adapter *padapter, u8 *da, int wait_ack)
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
 
-	if (wait_ack) {
-		ret = dump_mgntframe_and_wait_ack(padapter, pmgntframe);
-	} else {
-		dump_mgntframe(padapter, pmgntframe);
-		ret = _SUCCESS;
-	}
+	dump_mgntframe(padapter, pmgntframe);
+	ret = _SUCCESS;
 
 exit:
 	return ret;
@@ -3493,7 +3489,7 @@ exit:
 
 inline void issue_probereq_p2p(struct adapter *adapter, u8 *da)
 {
-	_issue_probereq_p2p(adapter, da, false);
+	_issue_probereq_p2p(adapter, da);
 }
 
 static s32 rtw_action_public_decache(struct recv_frame *recv_frame, s32 token)
