@@ -1807,8 +1807,9 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 		chan_setup[0] |= IQS7222_CHAN_SETUP_0_REF_MODE_FOLLOW;
 		chan_setup[4] = val * 42 + 1048;
 
-		if (!fwnode_property_read_u32(chan_node, "azoteq,ref-weight",
-					      &val)) {
+		error = fwnode_property_read_u32(chan_node, "azoteq,ref-weight",
+						 &val);
+		if (!error) {
 			if (val > U16_MAX) {
 				dev_err(&client->dev,
 					"Invalid %s reference weight: %u\n",
@@ -1817,6 +1818,11 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 			}
 
 			chan_setup[5] = val;
+		} else if (error != -EINVAL) {
+			dev_err(&client->dev,
+				"Failed to read %s reference weight: %d\n",
+				fwnode_get_name(chan_node), error);
+			return error;
 		}
 
 		/*
@@ -1889,9 +1895,10 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 		if (!event_node)
 			continue;
 
-		if (!fwnode_property_read_u32(event_node,
-					      "azoteq,timeout-press-ms",
-					      &val)) {
+		error = fwnode_property_read_u32(event_node,
+						 "azoteq,timeout-press-ms",
+						 &val);
+		if (!error) {
 			/*
 			 * The IQS7222B employs a global pair of press timeout
 			 * registers as opposed to channel-specific registers.
@@ -1911,6 +1918,12 @@ static int iqs7222_parse_chan(struct iqs7222_private *iqs7222,
 
 			*setup &= ~(U8_MAX << i * 8);
 			*setup |= (val / 500 << i * 8);
+		} else if (error != -EINVAL) {
+			dev_err(&client->dev,
+				"Failed to read %s press timeout: %d\n",
+				fwnode_get_name(event_node), error);
+			fwnode_handle_put(event_node);
+			return error;
 		}
 
 		error = iqs7222_parse_event(iqs7222, event_node, chan_index,
@@ -2009,7 +2022,8 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 	if (fwnode_property_present(sldr_node, "azoteq,use-prox"))
 		sldr_setup[4 + reg_offset] -= 2;
 
-	if (!fwnode_property_read_u32(sldr_node, "azoteq,slider-size", &val)) {
+	error = fwnode_property_read_u32(sldr_node, "azoteq,slider-size", &val);
+	if (!error) {
 		if (!val || val > dev_desc->sldr_res) {
 			dev_err(&client->dev, "Invalid %s size: %u\n",
 				fwnode_get_name(sldr_node), val);
@@ -2023,9 +2037,14 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 			sldr_setup[2] |= (val / 16 <<
 					  IQS7222_SLDR_SETUP_2_RES_SHIFT);
 		}
+	} else if (error != -EINVAL) {
+		dev_err(&client->dev, "Failed to read %s size: %d\n",
+			fwnode_get_name(sldr_node), error);
+		return error;
 	}
 
-	if (!fwnode_property_read_u32(sldr_node, "azoteq,top-speed", &val)) {
+	error = fwnode_property_read_u32(sldr_node, "azoteq,top-speed", &val);
+	if (!error) {
 		if (val > (reg_offset ? U16_MAX : U8_MAX * 4)) {
 			dev_err(&client->dev, "Invalid %s top speed: %u\n",
 				fwnode_get_name(sldr_node), val);
@@ -2038,9 +2057,14 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 			sldr_setup[2] &= ~IQS7222_SLDR_SETUP_2_TOP_SPEED_MASK;
 			sldr_setup[2] |= (val / 4);
 		}
+	} else if (error != -EINVAL) {
+		dev_err(&client->dev, "Failed to read %s top speed: %d\n",
+			fwnode_get_name(sldr_node), error);
+		return error;
 	}
 
-	if (!fwnode_property_read_u32(sldr_node, "linux,axis", &val)) {
+	error = fwnode_property_read_u32(sldr_node, "linux,axis", &val);
+	if (!error) {
 		u16 sldr_max = sldr_setup[3] - 1;
 
 		if (!reg_offset) {
@@ -2054,6 +2078,10 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222,
 
 		input_set_abs_params(iqs7222->keypad, val, 0, sldr_max, 0, 0);
 		iqs7222->sl_axis[sldr_index] = val;
+	} else if (error != -EINVAL) {
+		dev_err(&client->dev, "Failed to read %s axis: %d\n",
+			fwnode_get_name(sldr_node), error);
+		return error;
 	}
 
 	if (dev_desc->wheel_enable) {
