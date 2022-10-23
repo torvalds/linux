@@ -1353,8 +1353,10 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	asd->params.dvs_6axis = NULL;
 
 	ret = atomisp_css_start(asd, css_pipe_id, false);
-	if (ret)
+	if (ret) {
+		atomisp_flush_video_pipe(pipe, true);
 		goto out_unlock;
+	}
 
 	spin_lock_irqsave(&isp->lock, irqflags);
 	asd->streaming = ATOMISP_DEVICE_STREAMING_ENABLED;
