@@ -225,6 +225,12 @@ union dmub_psr_debug_flags {
 		 * Use TPS3 signal when restore main link.
 		 */
 		uint32_t force_wakeup_by_tps3 : 1;
+
+		/**
+		 * Back to back flip, therefore cannot power down PHY
+		 */
+		uint32_t back_to_back_flip : 1;
+
 	} bitfields;
 
 	/**
