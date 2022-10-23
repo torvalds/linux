@@ -152,8 +152,8 @@ bool IsHTHalfNmodeAPs(struct rtllib_device *ieee)
 	    (net->ralink_cap_exist))
 		retValue = true;
 	else if (!memcmp(net->bssid, UNKNOWN_BORADCOM, 3) ||
-		!memcmp(net->bssid, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3) ||
-		!memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3) ||
+		 !memcmp(net->bssid, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3) ||
+		 !memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3) ||
 		(net->broadcom_cap_exist))
 		retValue = true;
 	else if (net->bssht.bd_rt2rt_aggregation)
@@ -540,7 +540,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 			     pPeerHTCap, sizeof(struct ht_capab_ele));
 #endif
 	HTSetConnectBwMode(ieee, (enum ht_channel_width)(pPeerHTCap->ChlWidth),
-			  (enum ht_extchnl_offset)(pPeerHTInfo->ExtChlOffset));
+			   (enum ht_extchnl_offset)(pPeerHTInfo->ExtChlOffset));
 	pHTInfo->cur_tx_bw40mhz = ((pPeerHTInfo->RecommemdedTxWidth == 1) ?
 				 true : false);
 
@@ -566,9 +566,9 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 
 	pHTInfo->bCurrentAMPDUEnable = pHTInfo->bAMPDUEnable;
 	if (ieee->rtllib_ap_sec_type &&
-	   (ieee->rtllib_ap_sec_type(ieee) & (SEC_ALG_WEP | SEC_ALG_TKIP))) {
+	    (ieee->rtllib_ap_sec_type(ieee) & (SEC_ALG_WEP | SEC_ALG_TKIP))) {
 		if ((pHTInfo->IOTPeer == HT_IOT_PEER_ATHEROS) ||
-				(pHTInfo->IOTPeer == HT_IOT_PEER_UNKNOWN))
+		    (pHTInfo->IOTPeer == HT_IOT_PEER_UNKNOWN))
 			pHTInfo->bCurrentAMPDUEnable = false;
 	}
 
@@ -617,7 +617,8 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	else
 		pMcsFilter = MCS_FILTER_ALL;
 	ieee->HTHighestOperaRate = HTGetHighestMCSRate(ieee,
-				   ieee->dot11HTOperationalRateSet, pMcsFilter);
+						       ieee->dot11HTOperationalRateSet,
+						       pMcsFilter);
 	ieee->HTCurrentOperaRate = ieee->HTHighestOperaRate;
 
 	pHTInfo->current_op_mode = pPeerHTInfo->OptMode;
@@ -644,13 +645,13 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 	pHTInfo->CurrentAMPDUFactor = pHTInfo->AMPDU_Factor;
 
 	memset((void *)(&(pHTInfo->SelfHTCap)), 0,
-		sizeof(pHTInfo->SelfHTCap));
+	       sizeof(pHTInfo->SelfHTCap));
 	memset((void *)(&(pHTInfo->SelfHTInfo)), 0,
-		sizeof(pHTInfo->SelfHTInfo));
+	       sizeof(pHTInfo->SelfHTInfo));
 	memset((void *)(&(pHTInfo->PeerHTCapBuf)), 0,
-		sizeof(pHTInfo->PeerHTCapBuf));
+	       sizeof(pHTInfo->PeerHTCapBuf));
 	memset((void *)(&(pHTInfo->PeerHTInfoBuf)), 0,
-		sizeof(pHTInfo->PeerHTInfoBuf));
+	       sizeof(pHTInfo->PeerHTInfoBuf));
 
 	pHTInfo->sw_bw_in_progress = false;
 
@@ -803,8 +804,8 @@ void HTUseDefaultSetting(struct rtllib_device *ieee)
 		HTFilterMCSRate(ieee, ieee->Regdot11TxHTOperationalRateSet,
 				ieee->dot11HTOperationalRateSet);
 		ieee->HTHighestOperaRate = HTGetHighestMCSRate(ieee,
-					   ieee->dot11HTOperationalRateSet,
-					   MCS_FILTER_ALL);
+							       ieee->dot11HTOperationalRateSet,
+							       MCS_FILTER_ALL);
 		ieee->HTCurrentOperaRate = ieee->HTHighestOperaRate;
 
 	} else {
