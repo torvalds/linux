@@ -473,9 +473,6 @@ patternProperties:
               Specifies whether the event is to be interpreted as a key (1)
               or a switch (5).
 
-        required:
-          - linux,code
-
         additionalProperties: false
 
     dependencies:
@@ -619,9 +616,6 @@ patternProperties:
               Note that although multiple events can be mapped to a single
               GPIO, they must all be of the same type (proximity, touch or
               slider gesture).
-
-        required:
-          - linux,code
 
         additionalProperties: false
 
