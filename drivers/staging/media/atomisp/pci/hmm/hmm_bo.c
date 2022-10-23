@@ -638,6 +638,7 @@ static int alloc_private_pages(struct hmm_buffer_object *bo)
 	ret = alloc_pages_bulk_array(gfp, bo->pgnr, bo->pages);
 	if (ret != bo->pgnr) {
 		free_pages_bulk_array(ret, bo->pages);
+		dev_err(atomisp_dev, "alloc_pages_bulk_array() failed\n");
 		return -ENOMEM;
 	}
 
