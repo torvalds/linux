@@ -55,8 +55,9 @@
 /* Internal voltage reference in mV */
 #define MCP3911_INT_VREF_MV		1200
 
-#define MCP3911_REG_READ(reg, id)	((((reg) << 1) | ((id) << 5) | (1 << 0)) & 0xff)
-#define MCP3911_REG_WRITE(reg, id)	((((reg) << 1) | ((id) << 5) | (0 << 0)) & 0xff)
+#define MCP3911_REG_READ(reg, id)	((((reg) << 1) | ((id) << 6) | (1 << 0)) & 0xff)
+#define MCP3911_REG_WRITE(reg, id)	((((reg) << 1) | ((id) << 6) | (0 << 0)) & 0xff)
+#define MCP3911_REG_MASK		GENMASK(4, 1)
 
 #define MCP3911_NUM_CHANNELS		2
 
@@ -89,8 +90,8 @@ static int mcp3911_read(struct mcp3911 *adc, u8 reg, u32 *val, u8 len)
 
 	be32_to_cpus(val);
 	*val >>= ((4 - len) * 8);
-	dev_dbg(&adc->spi->dev, "reading 0x%x from register 0x%x\n", *val,
-		reg >> 1);
+	dev_dbg(&adc->spi->dev, "reading 0x%x from register 0x%lx\n", *val,
+		FIELD_GET(MCP3911_REG_MASK, reg));
 	return ret;
 }
 
@@ -248,7 +249,7 @@ static int mcp3911_write_raw(struct iio_dev *indio_dev,
 		break;
 
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
-		for (int i = 0; i < sizeof(mcp3911_osr_table); i++) {
+		for (int i = 0; i < ARRAY_SIZE(mcp3911_osr_table); i++) {
 			if (val == mcp3911_osr_table[i]) {
 				val = FIELD_PREP(MCP3911_CONFIG_OSR, i);
 				ret = mcp3911_update(adc, MCP3911_REG_CONFIG, MCP3911_CONFIG_OSR,
@@ -496,7 +497,7 @@ static int mcp3911_probe(struct spi_device *spi)
 				indio_dev->name,
 				iio_device_id(indio_dev));
 		if (!adc->trig)
-			return PTR_ERR(adc->trig);
+			return -ENOMEM;
 
 		adc->trig->ops = &mcp3911_trigger_ops;
 		iio_trigger_set_drvdata(adc->trig, adc);
