@@ -1127,6 +1127,7 @@ static int soc15_common_early_init(void *handle)
 			AMD_PG_SUPPORT_VCN |
 			AMD_PG_SUPPORT_VCN_DPG |
 			AMD_PG_SUPPORT_JPEG;
+		adev->external_rev_id = adev->rev_id + 0x46;
 		break;
 	default:
 		/* FIXME: not supported yet */
