@@ -416,8 +416,9 @@ static void hpriv_release(struct kref *ref)
 		device_is_idle = hdev->asic_funcs->is_device_idle(hdev, idle_mask,
 							HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL);
 	if (!device_is_idle) {
-		dev_err(hdev->dev, "device not idle after user context is closed (0x%llx_%llx)\n",
-			idle_mask[1], idle_mask[0]);
+		dev_err(hdev->dev,
+			"device not idle after user context is closed (0x%llx_%llx_%llx_%llx)\n",
+			idle_mask[3], idle_mask[2], idle_mask[1], idle_mask[0]);
 		reset_device = true;
 	}
 
@@ -1661,8 +1662,8 @@ kill_processes:
 	/* If device is not idle fail the reset process */
 	if (!hdev->asic_funcs->is_device_idle(hdev, idle_mask,
 			HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL)) {
-		dev_err(hdev->dev, "device is not idle (mask 0x%llx_%llx) after reset\n",
-			idle_mask[1], idle_mask[0]);
+		dev_err(hdev->dev, "device is not idle (mask 0x%llx_%llx_%llx_%llx) after reset\n",
+			idle_mask[3], idle_mask[2], idle_mask[1], idle_mask[0]);
 		rc = -EIO;
 		goto out_err;
 	}

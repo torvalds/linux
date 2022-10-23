@@ -916,7 +916,7 @@ struct hl_info_dram_usage {
 	__u64 ctx_dram_mem;
 };
 
-#define HL_BUSY_ENGINES_MASK_EXT_SIZE	2
+#define HL_BUSY_ENGINES_MASK_EXT_SIZE	4
 
 struct hl_info_hw_idle {
 	__u32 is_idle;
