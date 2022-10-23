@@ -117,7 +117,7 @@ static const struct of_device_id arizona_i2c_of_match[] = {
 static struct i2c_driver arizona_i2c_driver = {
 	.driver = {
 		.name	= "arizona",
-		.pm	= &arizona_pm_ops,
+		.pm	= pm_ptr(&arizona_pm_ops),
 		.of_match_table	= of_match_ptr(arizona_i2c_of_match),
 	},
 	.probe_new	= arizona_i2c_probe,
