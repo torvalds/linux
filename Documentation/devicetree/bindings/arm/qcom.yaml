@@ -223,6 +223,8 @@ properties:
 
       - items:
           - enum:
+              - oneplus,oneplus3
+              - oneplus,oneplus3t
               - qcom,msm8996-mtp
               - sony,dora-row
               - sony,kagura-row
