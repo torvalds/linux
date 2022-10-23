@@ -6725,9 +6725,6 @@ void report_join_res(struct adapter *padapter, int res)
 	pcmd_obj->cmdsz = cmdsz;
 	pcmd_obj->parmbuf = pevtcmd;
 
-	pcmd_obj->rsp = NULL;
-	pcmd_obj->rspsz  = 0;
-
 	pc2h_evt_hdr = (struct C2HEvent_Header *)(pevtcmd);
 	pc2h_evt_hdr->len = sizeof(struct joinbss_event);
 	pc2h_evt_hdr->ID = GEN_EVT_CODE(_JoinBss);
