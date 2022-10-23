@@ -644,8 +644,8 @@ static inline bool need_pull_dl_task(struct rq *rq, struct task_struct *prev)
 	return rq->online && dl_task(prev);
 }
 
-static DEFINE_PER_CPU(struct callback_head, dl_push_head);
-static DEFINE_PER_CPU(struct callback_head, dl_pull_head);
+static DEFINE_PER_CPU(struct balance_callback, dl_push_head);
+static DEFINE_PER_CPU(struct balance_callback, dl_pull_head);
 
 static void push_dl_tasks(struct rq *);
 static void pull_dl_task(struct rq *);
