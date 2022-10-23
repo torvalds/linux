@@ -10,30 +10,37 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/usb.h>
+#include <linux/usb/otg.h>
 
 #include "fotg210.h"
 
 static int fotg210_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
+	enum usb_dr_mode mode;
 	int ret;
 
-	if (IS_ENABLED(CONFIG_USB_FOTG210_HCD)) {
-		ret = fotg210_hcd_probe(pdev);
-		if (ret)
-			return ret;
-	}
-	if (IS_ENABLED(CONFIG_USB_FOTG210_UDC))
+	mode = usb_get_dr_mode(dev);
+
+	if (mode == USB_DR_MODE_PERIPHERAL)
 		ret = fotg210_udc_probe(pdev);
+	else
+		ret = fotg210_hcd_probe(pdev);
 
 	return ret;
 }
 
 static int fotg210_remove(struct platform_device *pdev)
 {
-	if (IS_ENABLED(CONFIG_USB_FOTG210_HCD))
-		fotg210_hcd_remove(pdev);
-	if (IS_ENABLED(CONFIG_USB_FOTG210_UDC))
+	struct device *dev = &pdev->dev;
+	enum usb_dr_mode mode;
+
+	mode = usb_get_dr_mode(dev);
+
+	if (mode == USB_DR_MODE_PERIPHERAL)
 		fotg210_udc_remove(pdev);
+	else
+		fotg210_hcd_remove(pdev);
 
 	return 0;
 }
