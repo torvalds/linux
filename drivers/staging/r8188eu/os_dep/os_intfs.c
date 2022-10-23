@@ -620,7 +620,6 @@ static int _netdev_open(struct net_device *pnetdev)
 	if (!padapter->bup) {
 		padapter->bDriverStopped = false;
 		padapter->bSurpriseRemoved = false;
-		padapter->bCardDisableWOHSM = false;
 
 		status = rtw_hal_init(padapter);
 		if (status == _FAIL)
@@ -686,7 +685,6 @@ static int  ips_netdrv_open(struct adapter *padapter)
 
 	padapter->bDriverStopped = false;
 	padapter->bSurpriseRemoved = false;
-	padapter->bCardDisableWOHSM = false;
 
 	status = rtw_hal_init(padapter);
 	if (status == _FAIL)
@@ -718,13 +716,11 @@ int rtw_ips_pwr_up(struct adapter *padapter)
 
 void rtw_ips_pwr_down(struct adapter *padapter)
 {
-	padapter->bCardDisableWOHSM = true;
 	padapter->net_closed = true;
 
 	rtw_led_control(padapter, LED_CTL_POWER_OFF);
 
 	rtw_ips_dev_unload(padapter);
-	padapter->bCardDisableWOHSM = false;
 }
 
 static void rtw_fifo_cleanup(struct adapter *adapter)

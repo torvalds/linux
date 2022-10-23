@@ -167,7 +167,6 @@ struct adapter {
 
 	s32	bDriverStopped;
 	s32	bSurpriseRemoved;
-	s32	bCardDisableWOHSM;
 
 	u8	hw_init_completed;
 	s8	signal_strength;
