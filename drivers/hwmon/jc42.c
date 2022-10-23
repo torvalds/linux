@@ -19,6 +19,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
+#include <linux/regmap.h>
 
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = {
@@ -189,31 +190,14 @@ static struct jc42_chips jc42_chips[] = {
 	{ STM_MANID, STTS3000_DEVID, STTS3000_DEVID_MASK },
 };
 
-enum temp_index {
-	t_input = 0,
-	t_crit,
-	t_min,
-	t_max,
-	t_num_temp
-};
-
-static const u8 temp_regs[t_num_temp] = {
-	[t_input] = JC42_REG_TEMP,
-	[t_crit] = JC42_REG_TEMP_CRITICAL,
-	[t_min] = JC42_REG_TEMP_LOWER,
-	[t_max] = JC42_REG_TEMP_UPPER,
-};
-
 /* Each client has this additional data */
 struct jc42_data {
-	struct i2c_client *client;
 	struct mutex	update_lock;	/* protect register access */
+	struct regmap	*regmap;
 	bool		extended;	/* true if extended range supported */
 	bool		valid;
-	unsigned long	last_updated;	/* In jiffies */
 	u16		orig_config;	/* original configuration */
 	u16		config;		/* current configuration */
-	u16		temp[t_num_temp];/* Temperatures */
 };
 
 #define JC42_TEMP_MIN_EXTENDED	(-40000)
@@ -238,85 +222,102 @@ static int jc42_temp_from_reg(s16 reg)
 	return reg * 125 / 2;
 }
 
-static struct jc42_data *jc42_update_device(struct device *dev)
-{
-	struct jc42_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
-	struct jc42_data *ret = data;
-	int i, val;
-
-	mutex_lock(&data->update_lock);
-
-	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
-		for (i = 0; i < t_num_temp; i++) {
-			val = i2c_smbus_read_word_swapped(client, temp_regs[i]);
-			if (val < 0) {
-				ret = ERR_PTR(val);
-				goto abort;
-			}
-			data->temp[i] = val;
-		}
-		data->last_updated = jiffies;
-		data->valid = true;
-	}
-abort:
-	mutex_unlock(&data->update_lock);
-	return ret;
-}
-
 static int jc42_read(struct device *dev, enum hwmon_sensor_types type,
 		     u32 attr, int channel, long *val)
 {
-	struct jc42_data *data = jc42_update_device(dev);
-	int temp, hyst;
+	struct jc42_data *data = dev_get_drvdata(dev);
+	unsigned int regval;
+	int ret, temp, hyst;
 
-	if (IS_ERR(data))
-		return PTR_ERR(data);
+	mutex_lock(&data->update_lock);
 
 	switch (attr) {
 	case hwmon_temp_input:
-		*val = jc42_temp_from_reg(data->temp[t_input]);
-		return 0;
+		ret = regmap_read(data->regmap, JC42_REG_TEMP, &regval);
+		if (ret)
+			break;
+
+		*val = jc42_temp_from_reg(regval);
+		break;
 	case hwmon_temp_min:
-		*val = jc42_temp_from_reg(data->temp[t_min]);
-		return 0;
+		ret = regmap_read(data->regmap, JC42_REG_TEMP_LOWER, &regval);
+		if (ret)
+			break;
+
+		*val = jc42_temp_from_reg(regval);
+		break;
 	case hwmon_temp_max:
-		*val = jc42_temp_from_reg(data->temp[t_max]);
-		return 0;
+		ret = regmap_read(data->regmap, JC42_REG_TEMP_UPPER, &regval);
+		if (ret)
+			break;
+
+		*val = jc42_temp_from_reg(regval);
+		break;
 	case hwmon_temp_crit:
-		*val = jc42_temp_from_reg(data->temp[t_crit]);
-		return 0;
+		ret = regmap_read(data->regmap, JC42_REG_TEMP_CRITICAL,
+				  &regval);
+		if (ret)
+			break;
+
+		*val = jc42_temp_from_reg(regval);
+		break;
 	case hwmon_temp_max_hyst:
-		temp = jc42_temp_from_reg(data->temp[t_max]);
+		ret = regmap_read(data->regmap, JC42_REG_TEMP_UPPER, &regval);
+		if (ret)
+			break;
+
+		temp = jc42_temp_from_reg(regval);
 		hyst = jc42_hysteresis[(data->config & JC42_CFG_HYST_MASK)
 						>> JC42_CFG_HYST_SHIFT];
 		*val = temp - hyst;
-		return 0;
+		break;
 	case hwmon_temp_crit_hyst:
-		temp = jc42_temp_from_reg(data->temp[t_crit]);
+		ret = regmap_read(data->regmap, JC42_REG_TEMP_CRITICAL,
+				  &regval);
+		if (ret)
+			break;
+
+		temp = jc42_temp_from_reg(regval);
 		hyst = jc42_hysteresis[(data->config & JC42_CFG_HYST_MASK)
 						>> JC42_CFG_HYST_SHIFT];
 		*val = temp - hyst;
-		return 0;
+		break;
 	case hwmon_temp_min_alarm:
-		*val = (data->temp[t_input] >> JC42_ALARM_MIN_BIT) & 1;
-		return 0;
+		ret = regmap_read(data->regmap, JC42_REG_TEMP, &regval);
+		if (ret)
+			break;
+
+		*val = (regval >> JC42_ALARM_MIN_BIT) & 1;
+		break;
 	case hwmon_temp_max_alarm:
-		*val = (data->temp[t_input] >> JC42_ALARM_MAX_BIT) & 1;
-		return 0;
+		ret = regmap_read(data->regmap, JC42_REG_TEMP, &regval);
+		if (ret)
+			break;
+
+		*val = (regval >> JC42_ALARM_MAX_BIT) & 1;
+		break;
 	case hwmon_temp_crit_alarm:
-		*val = (data->temp[t_input] >> JC42_ALARM_CRIT_BIT) & 1;
-		return 0;
+		ret = regmap_read(data->regmap, JC42_REG_TEMP, &regval);
+		if (ret)
+			break;
+
+		*val = (regval >> JC42_ALARM_CRIT_BIT) & 1;
+		break;
 	default:
-		return -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
+		break;
 	}
+
+	mutex_unlock(&data->update_lock);
+
+	return ret;
 }
 
 static int jc42_write(struct device *dev, enum hwmon_sensor_types type,
 		      u32 attr, int channel, long val)
 {
 	struct jc42_data *data = dev_get_drvdata(dev);
-	struct i2c_client *client = data->client;
+	unsigned int regval;
 	int diff, hyst;
 	int ret;
 
@@ -324,21 +325,23 @@ static int jc42_write(struct device *dev, enum hwmon_sensor_types type,
 
 	switch (attr) {
 	case hwmon_temp_min:
-		data->temp[t_min] = jc42_temp_to_reg(val, data->extended);
-		ret = i2c_smbus_write_word_swapped(client, temp_regs[t_min],
-						   data->temp[t_min]);
+		ret = regmap_write(data->regmap, JC42_REG_TEMP_LOWER,
+				   jc42_temp_to_reg(val, data->extended));
 		break;
 	case hwmon_temp_max:
-		data->temp[t_max] = jc42_temp_to_reg(val, data->extended);
-		ret = i2c_smbus_write_word_swapped(client, temp_regs[t_max],
-						   data->temp[t_max]);
+		ret = regmap_write(data->regmap, JC42_REG_TEMP_UPPER,
+				   jc42_temp_to_reg(val, data->extended));
 		break;
 	case hwmon_temp_crit:
-		data->temp[t_crit] = jc42_temp_to_reg(val, data->extended);
-		ret = i2c_smbus_write_word_swapped(client, temp_regs[t_crit],
-						   data->temp[t_crit]);
+		ret = regmap_write(data->regmap, JC42_REG_TEMP_CRITICAL,
+				   jc42_temp_to_reg(val, data->extended));
 		break;
 	case hwmon_temp_crit_hyst:
+		ret = regmap_read(data->regmap, JC42_REG_TEMP_CRITICAL,
+				  &regval);
+		if (ret)
+			return ret;
+
 		/*
 		 * JC42.4 compliant chips only support four hysteresis values.
 		 * Pick best choice and go from there.
@@ -346,7 +349,7 @@ static int jc42_write(struct device *dev, enum hwmon_sensor_types type,
 		val = clamp_val(val, (data->extended ? JC42_TEMP_MIN_EXTENDED
 						     : JC42_TEMP_MIN) - 6000,
 				JC42_TEMP_MAX);
-		diff = jc42_temp_from_reg(data->temp[t_crit]) - val;
+		diff = jc42_temp_from_reg(regval) - val;
 		hyst = 0;
 		if (diff > 0) {
 			if (diff < 2250)
@@ -358,9 +361,8 @@ static int jc42_write(struct device *dev, enum hwmon_sensor_types type,
 		}
 		data->config = (data->config & ~JC42_CFG_HYST_MASK) |
 				(hyst << JC42_CFG_HYST_SHIFT);
-		ret = i2c_smbus_write_word_swapped(data->client,
-						   JC42_REG_CONFIG,
-						   data->config);
+		ret = regmap_write(data->regmap, JC42_REG_CONFIG,
+				   data->config);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -458,51 +460,80 @@ static const struct hwmon_chip_info jc42_chip_info = {
 	.info = jc42_info,
 };
 
+static bool jc42_readable_reg(struct device *dev, unsigned int reg)
+{
+	return (reg >= JC42_REG_CAP && reg <= JC42_REG_DEVICEID) ||
+		reg == JC42_REG_SMBUS;
+}
+
+static bool jc42_writable_reg(struct device *dev, unsigned int reg)
+{
+	return (reg >= JC42_REG_CONFIG && reg <= JC42_REG_TEMP_CRITICAL) ||
+		reg == JC42_REG_SMBUS;
+}
+
+static bool jc42_volatile_reg(struct device *dev, unsigned int reg)
+{
+	return reg == JC42_REG_CONFIG || reg == JC42_REG_TEMP;
+}
+
+static const struct regmap_config jc42_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 16,
+	.val_format_endian = REGMAP_ENDIAN_BIG,
+	.max_register = JC42_REG_SMBUS,
+	.writeable_reg = jc42_writable_reg,
+	.readable_reg = jc42_readable_reg,
+	.volatile_reg = jc42_volatile_reg,
+	.cache_type = REGCACHE_RBTREE,
+};
+
 static int jc42_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
+	unsigned int config, cap;
 	struct jc42_data *data;
-	int config, cap;
+	int ret;
 
 	data = devm_kzalloc(dev, sizeof(struct jc42_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->client = client;
+	data->regmap = devm_regmap_init_i2c(client, &jc42_regmap_config);
+	if (IS_ERR(data->regmap))
+		return PTR_ERR(data->regmap);
+
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
 
-	cap = i2c_smbus_read_word_swapped(client, JC42_REG_CAP);
-	if (cap < 0)
-		return cap;
+	ret = regmap_read(data->regmap, JC42_REG_CAP, &cap);
+	if (ret)
+		return ret;
 
 	data->extended = !!(cap & JC42_CAP_RANGE);
 
 	if (device_property_read_bool(dev, "smbus-timeout-disable")) {
-		int smbus;
-
 		/*
 		 * Not all chips support this register, but from a
 		 * quick read of various datasheets no chip appears
 		 * incompatible with the below attempt to disable
 		 * the timeout. And the whole thing is opt-in...
 		 */
-		smbus = i2c_smbus_read_word_swapped(client, JC42_REG_SMBUS);
-		if (smbus < 0)
-			return smbus;
-		i2c_smbus_write_word_swapped(client, JC42_REG_SMBUS,
-					     smbus | SMBUS_STMOUT);
+		ret = regmap_set_bits(data->regmap, JC42_REG_SMBUS,
+				      SMBUS_STMOUT);
+		if (ret)
+			return ret;
 	}
 
-	config = i2c_smbus_read_word_swapped(client, JC42_REG_CONFIG);
-	if (config < 0)
-		return config;
+	ret = regmap_read(data->regmap, JC42_REG_CONFIG, &config);
+	if (ret)
+		return ret;
 
 	data->orig_config = config;
 	if (config & JC42_CFG_SHUTDOWN) {
 		config &= ~JC42_CFG_SHUTDOWN;
-		i2c_smbus_write_word_swapped(client, JC42_REG_CONFIG, config);
+		regmap_write(data->regmap, JC42_REG_CONFIG, config);
 	}
 	data->config = config;
 
@@ -523,7 +554,7 @@ static int jc42_remove(struct i2c_client *client)
 
 		config = (data->orig_config & ~JC42_CFG_HYST_MASK)
 		  | (data->config & JC42_CFG_HYST_MASK);
-		i2c_smbus_write_word_swapped(client, JC42_REG_CONFIG, config);
+		regmap_write(data->regmap, JC42_REG_CONFIG, config);
 	}
 	return 0;
 }
@@ -535,8 +566,7 @@ static int jc42_suspend(struct device *dev)
 	struct jc42_data *data = dev_get_drvdata(dev);
 
 	data->config |= JC42_CFG_SHUTDOWN;
-	i2c_smbus_write_word_swapped(data->client, JC42_REG_CONFIG,
-				     data->config);
+	regmap_write(data->regmap, JC42_REG_CONFIG, data->config);
 	return 0;
 }
 
@@ -545,8 +575,7 @@ static int jc42_resume(struct device *dev)
 	struct jc42_data *data = dev_get_drvdata(dev);
 
 	data->config &= ~JC42_CFG_SHUTDOWN;
-	i2c_smbus_write_word_swapped(data->client, JC42_REG_CONFIG,
-				     data->config);
+	regmap_write(data->regmap, JC42_REG_CONFIG, data->config);
 	return 0;
 }
 
