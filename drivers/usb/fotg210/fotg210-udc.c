@@ -16,7 +16,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
-#include "fotg210.h"
+#include "fotg210-udc.h"
 
 #define	DRIVER_DESC	"FOTG210 USB Device Controller Driver"
 #define	DRIVER_VERSION	"30-April-2013"

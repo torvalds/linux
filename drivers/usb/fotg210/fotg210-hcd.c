@@ -77,7 +77,7 @@ MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us");
 
 #define INTR_MASK (STS_IAA | STS_FATAL | STS_PCD | STS_ERR | STS_INT)
 
-#include "fotg210.h"
+#include "fotg210-hcd.h"
 
 #define fotg210_dbg(fotg210, fmt, args...) \
 	dev_dbg(fotg210_to_hcd(fotg210)->self.controller, fmt, ## args)
