@@ -6160,9 +6160,6 @@ u8 collect_bss_info(struct adapter *padapter, struct recv_frame *precv_frame, st
 		memcpy(bssid->SupportedRates + i, (p + 2), len);
 	}
 
-	/* todo: */
-	bssid->NetworkTypeInUse = Ndis802_11OFDM24;
-
 	if (bssid->IELength < 12)
 		return _FAIL;
 

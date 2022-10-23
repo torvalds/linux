@@ -17,14 +17,6 @@ struct ndis_802_11_ssid {
 	u8  Ssid[32];
 };
 
-enum NDIS_802_11_NETWORK_TYPE {
-	Ndis802_11FH,
-	Ndis802_11DS,
-	Ndis802_11OFDM5,
-	Ndis802_11OFDM24,
-	Ndis802_11NetworkTypeMax    /*  dummy upper bound */
-};
-
 struct ndis_802_11_config_fh {
 	u32           Length;		/*  Length of structure */
 	u32           HopPattern;	/*  As defined by 802.11, MSB set */
@@ -233,7 +225,6 @@ struct wlan_bssid_ex {
 	struct ndis_802_11_ssid  Ssid;
 	u32  Privacy;
 	NDIS_802_11_RSSI  Rssi;/* in dBM,raw data ,get from PHY) */
-	enum  NDIS_802_11_NETWORK_TYPE  NetworkTypeInUse;
 	struct ndis_802_11_config  Configuration;
 	enum ndis_802_11_network_infra  InfrastructureMode;
 	unsigned char SupportedRates[NDIS_802_11_LENGTH_RATES_EX];
