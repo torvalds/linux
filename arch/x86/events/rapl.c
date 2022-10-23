@@ -808,6 +808,9 @@ static const struct x86_cpu_id rapl_model_match[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L,		&model_skl),
 	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_N,		&model_skl),
 	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X,	&model_spr),
+	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE,		&model_skl),
+	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_P,	&model_skl),
+	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_S,	&model_skl),
 	{},
 };
 MODULE_DEVICE_TABLE(x86cpu, rapl_model_match);
