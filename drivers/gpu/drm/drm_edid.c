@@ -1613,7 +1613,8 @@ static const void *edid_extension_block_data(const struct edid *edid, int index)
 	return edid_block_data(edid, index + 1);
 }
 
-static int drm_edid_block_count(const struct drm_edid *drm_edid)
+/* EDID block count indicated in EDID, may exceed allocated size */
+static int __drm_edid_block_count(const struct drm_edid *drm_edid)
 {
 	int num_blocks;
 
@@ -1633,12 +1634,18 @@ static int drm_edid_block_count(const struct drm_edid *drm_edid)
 			num_blocks = eeodb;
 	}
 
-	/* Limit by allocated size */
-	num_blocks = min(num_blocks, (int)drm_edid->size / EDID_LENGTH);
-
 	return num_blocks;
 }
 
+/* EDID block count, limited by allocated size */
+static int drm_edid_block_count(const struct drm_edid *drm_edid)
+{
+	/* Limit by allocated size */
+	return min(__drm_edid_block_count(drm_edid),
+		   (int)drm_edid->size / EDID_LENGTH);
+}
+
+/* EDID extension block count, limited by allocated size */
 static int drm_edid_extension_block_count(const struct drm_edid *drm_edid)
 {
 	return drm_edid_block_count(drm_edid) - 1;
