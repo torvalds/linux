@@ -288,6 +288,8 @@ struct sparx5 {
 	struct mutex ptp_lock; /* lock for ptp interface state */
 	u16 ptp_skbs;
 	int ptp_irq;
+	/* VCAP */
+	struct vcap_control *vcap_ctrl;
 	/* PGID allocation map */
 	u8 pgid_map[PGID_TABLE_SIZE];
 };
@@ -381,6 +383,10 @@ int sparx5_ptp_txtstamp_request(struct sparx5_port *port,
 void sparx5_ptp_txtstamp_release(struct sparx5_port *port,
 				 struct sk_buff *skb);
 irqreturn_t sparx5_ptp_irq_handler(int irq, void *args);
+
+/* sparx5_vcap_impl.c */
+int sparx5_vcap_init(struct sparx5 *sparx5);
+void sparx5_vcap_destroy(struct sparx5 *sparx5);
 
 /* sparx5_pgid.c */
 enum sparx5_pgid_type {
