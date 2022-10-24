@@ -2801,7 +2801,11 @@ static int free_mr_modify_qp(struct hns_roce_dev *hr_dev)
 
 static int free_mr_init(struct hns_roce_dev *hr_dev)
 {
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
+	struct hns_roce_v2_free_mr *free_mr = &priv->free_mr;
 	int ret;
+
+	mutex_init(&free_mr->mutex);
 
 	ret = free_mr_alloc_res(hr_dev);
 	if (ret)
