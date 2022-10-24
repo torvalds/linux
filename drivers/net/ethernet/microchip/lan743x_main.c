@@ -1326,8 +1326,8 @@ static void lan743x_mac_close(struct lan743x_adapter *adapter)
 				 1, 1000, 20000, 100);
 }
 
-static void lan743x_mac_flow_ctrl_set_enables(struct lan743x_adapter *adapter,
-					      bool tx_enable, bool rx_enable)
+void lan743x_mac_flow_ctrl_set_enables(struct lan743x_adapter *adapter,
+				       bool tx_enable, bool rx_enable)
 {
 	u32 flow_setting = 0;
 

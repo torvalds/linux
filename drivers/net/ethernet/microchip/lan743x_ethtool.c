@@ -1233,6 +1233,50 @@ static void lan743x_get_regs(struct net_device *dev,
 	lan743x_common_regs(dev, regs, p);
 }
 
+static void lan743x_get_pauseparam(struct net_device *dev,
+				   struct ethtool_pauseparam *pause)
+{
+	struct lan743x_adapter *adapter = netdev_priv(dev);
+	struct lan743x_phy *phy = &adapter->phy;
+
+	if (phy->fc_request_control & FLOW_CTRL_TX)
+		pause->tx_pause = 1;
+	if (phy->fc_request_control & FLOW_CTRL_RX)
+		pause->rx_pause = 1;
+	pause->autoneg = phy->fc_autoneg;
+}
+
+static int lan743x_set_pauseparam(struct net_device *dev,
+				  struct ethtool_pauseparam *pause)
+{
+	struct lan743x_adapter *adapter = netdev_priv(dev);
+	struct phy_device *phydev = dev->phydev;
+	struct lan743x_phy *phy = &adapter->phy;
+
+	if (!phydev)
+		return -ENODEV;
+
+	if (!phy_validate_pause(phydev, pause))
+		return -EINVAL;
+
+	phy->fc_request_control = 0;
+	if (pause->rx_pause)
+		phy->fc_request_control |= FLOW_CTRL_RX;
+
+	if (pause->tx_pause)
+		phy->fc_request_control |= FLOW_CTRL_TX;
+
+	phy->fc_autoneg = pause->autoneg;
+
+	if (pause->autoneg == AUTONEG_DISABLE)
+		lan743x_mac_flow_ctrl_set_enables(adapter, pause->tx_pause,
+						  pause->rx_pause);
+	else
+		phy_set_asym_pause(phydev, pause->rx_pause,  pause->tx_pause);
+
+	return 0;
+}
+
 const struct ethtool_ops lan743x_ethtool_ops = {
 	.get_drvinfo = lan743x_ethtool_get_drvinfo,
 	.get_msglevel = lan743x_ethtool_get_msglevel,
@@ -1259,6 +1303,8 @@ const struct ethtool_ops lan743x_ethtool_ops = {
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 	.get_regs_len = lan743x_get_regs_len,
 	.get_regs = lan743x_get_regs,
+	.get_pauseparam = lan743x_get_pauseparam,
+	.set_pauseparam = lan743x_set_pauseparam,
 #ifdef CONFIG_PM
 	.get_wol = lan743x_ethtool_get_wol,
 	.set_wol = lan743x_ethtool_set_wol,
