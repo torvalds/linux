@@ -651,7 +651,7 @@ _END_ONBEACON_:
 	return _SUCCESS;
 }
 
-unsigned int OnAuth(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	unsigned int	auth_mode, ie_len;
 	u16 seq;
