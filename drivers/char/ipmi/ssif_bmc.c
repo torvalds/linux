@@ -251,7 +251,7 @@ static __poll_t ssif_bmc_poll(struct file *file, poll_table *wait)
 	spin_lock_irq(&ssif_bmc->lock);
 	/* The request is available, userspace application can get the request */
 	if (ssif_bmc->request_available)
-		mask |= POLLIN;
+		mask |= EPOLLIN;
 
 	spin_unlock_irq(&ssif_bmc->lock);
 
