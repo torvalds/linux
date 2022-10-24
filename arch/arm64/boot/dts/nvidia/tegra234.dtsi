@@ -1111,6 +1111,198 @@
 			#mbox-cells = <2>;
 		};
 
+		p2u_hsio_0: phy@3e00000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03e00000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_hsio_1: phy@3e10000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03e10000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_hsio_2: phy@3e20000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03e20000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_hsio_3: phy@3e30000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03e30000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_hsio_4: phy@3e40000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03e40000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_hsio_5: phy@3e50000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03e50000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_hsio_6: phy@3e60000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03e60000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_hsio_7: phy@3e70000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03e70000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_nvhs_0: phy@3e90000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03e90000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_nvhs_1: phy@3ea0000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03ea0000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_nvhs_2: phy@3eb0000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03eb0000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_nvhs_3: phy@3ec0000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03ec0000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_nvhs_4: phy@3ed0000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03ed0000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_nvhs_5: phy@3ee0000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03ee0000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_nvhs_6: phy@3ef0000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03ef0000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_nvhs_7: phy@3f00000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03f00000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_gbe_0: phy@3f20000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03f20000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_gbe_1: phy@3f30000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03f30000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_gbe_2: phy@3f40000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03f40000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_gbe_3: phy@3f50000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03f50000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_gbe_4: phy@3f60000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03f60000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_gbe_5: phy@3f70000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03f70000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_gbe_6: phy@3f80000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03f80000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
+		p2u_gbe_7: phy@3f90000 {
+			compatible = "nvidia,tegra234-p2u";
+			reg = <0x03f90000 0x10000>;
+			reg-names = "ctl";
+
+			#phy-cells = <0>;
+		};
+
 		ethernet@6800000 {
 			compatible = "nvidia,tegra234-mgbe";
 			reg = <0x06800000 0x10000>,
@@ -1401,198 +1593,6 @@
 			reg = <0xbe00000 0x40000>;
 			interrupts = <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>;
 			status = "okay";
-		};
-
-		p2u_hsio_0: phy@3e00000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03e00000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_hsio_1: phy@3e10000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03e10000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_hsio_2: phy@3e20000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03e20000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_hsio_3: phy@3e30000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03e30000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_hsio_4: phy@3e40000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03e40000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_hsio_5: phy@3e50000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03e50000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_hsio_6: phy@3e60000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03e60000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_hsio_7: phy@3e70000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03e70000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_nvhs_0: phy@3e90000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03e90000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_nvhs_1: phy@3ea0000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03ea0000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_nvhs_2: phy@3eb0000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03eb0000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_nvhs_3: phy@3ec0000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03ec0000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_nvhs_4: phy@3ed0000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03ed0000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_nvhs_5: phy@3ee0000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03ee0000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_nvhs_6: phy@3ef0000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03ef0000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_nvhs_7: phy@3f00000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03f00000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_gbe_0: phy@3f20000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03f20000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_gbe_1: phy@3f30000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03f30000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_gbe_2: phy@3f40000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03f40000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_gbe_3: phy@3f50000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03f50000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_gbe_4: phy@3f60000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03f60000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_gbe_5: phy@3f70000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03f70000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_gbe_6: phy@3f80000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03f80000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
-		};
-
-		p2u_gbe_7: phy@3f90000 {
-			compatible = "nvidia,tegra234-p2u";
-			reg = <0x03f90000 0x10000>;
-			reg-names = "ctl";
-
-			#phy-cells = <0>;
 		};
 
 		hsp_aon: hsp@c150000 {
