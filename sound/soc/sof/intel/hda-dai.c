@@ -138,12 +138,12 @@ hda_link_stream_assign(struct hdac_bus *bus,
 }
 
 static int hda_link_dma_cleanup(struct snd_pcm_substream *substream,
-				struct hdac_stream *hstream,
+				struct hdac_ext_stream *hext_stream,
 				struct snd_soc_dai *cpu_dai,
 				struct snd_soc_dai *codec_dai,
 				bool trigger_suspend_stop)
 {
-	struct hdac_ext_stream *hext_stream = snd_soc_dai_get_dma_data(cpu_dai, substream);
+	struct hdac_stream *hstream = &hext_stream->hstream;
 	struct hdac_bus *bus = hstream->bus;
 	struct sof_intel_hda_stream *hda_stream;
 	struct hdac_ext_link *hlink;
@@ -257,7 +257,6 @@ static int hda_link_dma_prepare(struct snd_pcm_substream *substream)
 
 static int hda_link_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 {
-	struct hdac_stream *hstream = substream->runtime->private_data;
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
@@ -274,7 +273,7 @@ static int hda_link_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
-		ret = hda_link_dma_cleanup(substream, hstream, cpu_dai, codec_dai, true);
+		ret = hda_link_dma_cleanup(substream, hext_stream, cpu_dai, codec_dai, true);
 		if (ret < 0)
 			return ret;
 
@@ -291,7 +290,6 @@ static int hda_link_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 
 static int hda_link_dma_hw_free(struct snd_pcm_substream *substream)
 {
-	struct hdac_stream *hstream = substream->runtime->private_data;
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
@@ -301,7 +299,7 @@ static int hda_link_dma_hw_free(struct snd_pcm_substream *substream)
 	if (!hext_stream)
 		return 0;
 
-	return hda_link_dma_cleanup(substream, hstream, cpu_dai, codec_dai, false);
+	return hda_link_dma_cleanup(substream, hext_stream, cpu_dai, codec_dai, false);
 }
 
 static int hda_dai_widget_update(struct snd_soc_dapm_widget *w,
@@ -458,14 +456,12 @@ static int ipc4_hda_dai_trigger(struct snd_pcm_substream *substream,
 	struct snd_sof_widget *swidget;
 	struct snd_soc_dapm_widget *w;
 	struct snd_soc_dai *codec_dai;
-	struct hdac_stream *hstream;
 	struct snd_soc_dai *cpu_dai;
 	int ret;
 
 	dev_dbg(dai->dev, "cmd=%d dai %s direction %d\n", cmd,
 		dai->name, substream->stream);
 
-	hstream = substream->runtime->private_data;
 	rtd = asoc_substream_to_rtd(substream);
 	cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	codec_dai = asoc_rtd_to_codec(rtd, 0);
@@ -500,7 +496,7 @@ static int ipc4_hda_dai_trigger(struct snd_pcm_substream *substream,
 
 		pipeline->state = SOF_IPC4_PIPE_RESET;
 
-		ret = hda_link_dma_cleanup(substream, hstream, cpu_dai, codec_dai, false);
+		ret = hda_link_dma_cleanup(substream, hext_stream, cpu_dai, codec_dai, false);
 		if (ret < 0) {
 			dev_err(sdev->dev, "%s: failed to clean up link DMA\n", __func__);
 			return ret;
@@ -575,7 +571,8 @@ static int hda_dai_suspend(struct hdac_bus *bus)
 			cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 			codec_dai = asoc_rtd_to_codec(rtd, 0);
 
-			ret = hda_link_dma_cleanup(hext_stream->link_substream, s,
+			ret = hda_link_dma_cleanup(hext_stream->link_substream,
+						   hext_stream,
 						   cpu_dai, codec_dai, false);
 			if (ret < 0)
 				return ret;
