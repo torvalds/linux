@@ -234,7 +234,7 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 	list_for_each_entry(stream, &bus->stream_list, list) {
 		sd_offset = SOF_STREAM_SD_OFFSET(stream);
 		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-				  sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
+				  sd_offset + SOF_HDA_ADSP_REG_SD_STS,
 				  SOF_HDA_CL_DMA_SD_INT_MASK);
 	}
 
@@ -300,7 +300,7 @@ void hda_dsp_ctrl_stop_chip(struct snd_sof_dev *sdev)
 		sd_offset = SOF_STREAM_SD_OFFSET(stream);
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
 					sd_offset +
-					SOF_HDA_ADSP_REG_CL_SD_CTL,
+					SOF_HDA_ADSP_REG_SD_CTL,
 					SOF_HDA_CL_DMA_SD_INT_MASK,
 					0);
 	}
@@ -318,7 +318,7 @@ void hda_dsp_ctrl_stop_chip(struct snd_sof_dev *sdev)
 	list_for_each_entry(stream, &bus->stream_list, list) {
 		sd_offset = SOF_STREAM_SD_OFFSET(stream);
 		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-				  sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
+				  sd_offset + SOF_HDA_ADSP_REG_SD_STS,
 				  SOF_HDA_CL_DMA_SD_INT_MASK);
 	}
 

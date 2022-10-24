@@ -367,7 +367,7 @@ int hda_dsp_stream_trigger(struct snd_sof_dev *sdev,
 
 		if (ret >= 0) {
 			snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-					  sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
+					  sd_offset + SOF_HDA_ADSP_REG_SD_STS,
 					  SOF_HDA_CL_DMA_SD_INT_MASK);
 
 			hstream->running = false;
@@ -419,10 +419,10 @@ int hda_dsp_iccmax_stream_hw_params(struct snd_sof_dev *sdev, struct hdac_ext_st
 
 	/* reset BDL address */
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPL,
+			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPL,
 			  0x0);
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPU,
+			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPU,
 			  0x0);
 
 	hstream->frags = 0;
@@ -435,20 +435,20 @@ int hda_dsp_iccmax_stream_hw_params(struct snd_sof_dev *sdev, struct hdac_ext_st
 
 	/* program BDL address */
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPL,
+			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPL,
 			  (u32)hstream->bdl.addr);
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPU,
+			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPU,
 			  upper_32_bits(hstream->bdl.addr));
 
 	/* program cyclic buffer length */
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_CBL,
+			  sd_offset + SOF_HDA_ADSP_REG_SD_CBL,
 			  hstream->bufsize);
 
 	/* program last valid index */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
-				sd_offset + SOF_HDA_ADSP_REG_CL_SD_LVI,
+				sd_offset + SOF_HDA_ADSP_REG_SD_LVI,
 				0xffff, (hstream->frags - 1));
 
 	/* decouple host and link DMA, enable DSP features */
@@ -520,7 +520,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	}
 
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
-				sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
+				sd_offset + SOF_HDA_ADSP_REG_SD_STS,
 				SOF_HDA_CL_DMA_SD_INT_MASK,
 				SOF_HDA_CL_DMA_SD_INT_MASK);
 
@@ -534,10 +534,10 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 
 	/* reset BDL address */
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPL,
+			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPL,
 			  0x0);
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPU,
+			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPU,
 			  0x0);
 
 	/* clear stream status */
@@ -562,7 +562,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	}
 
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
-				sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
+				sd_offset + SOF_HDA_ADSP_REG_SD_STS,
 				SOF_HDA_CL_DMA_SD_INT_MASK,
 				SOF_HDA_CL_DMA_SD_INT_MASK);
 
@@ -582,7 +582,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 
 	/* program cyclic buffer length */
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_CBL,
+			  sd_offset + SOF_HDA_ADSP_REG_SD_CBL,
 			  hstream->bufsize);
 
 	/*
@@ -606,7 +606,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 	/* program stream format */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
 				sd_offset +
-				SOF_HDA_ADSP_REG_CL_SD_FORMAT,
+				SOF_HDA_ADSP_REG_SD_FORMAT,
 				0xffff, hstream->format_val);
 
 	if (chip->quirks & SOF_INTEL_PROCEN_FMT_QUIRK) {
@@ -617,15 +617,15 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 
 	/* program last valid index */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
-				sd_offset + SOF_HDA_ADSP_REG_CL_SD_LVI,
+				sd_offset + SOF_HDA_ADSP_REG_SD_LVI,
 				0xffff, (hstream->frags - 1));
 
 	/* program BDL address */
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPL,
+			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPL,
 			  (u32)hstream->bdl.addr);
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPU,
+			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPU,
 			  upper_32_bits(hstream->bdl.addr));
 
 	/* enable position buffer, if needed */
@@ -649,7 +649,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 		hstream->fifo_size =
 			snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
 					 sd_offset +
-					 SOF_HDA_ADSP_REG_CL_SD_FIFOSIZE);
+					 SOF_HDA_ADSP_REG_SD_FIFOSIZE);
 		hstream->fifo_size &= 0xffff;
 		hstream->fifo_size += 1;
 	} else {

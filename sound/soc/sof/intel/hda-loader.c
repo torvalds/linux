@@ -265,9 +265,9 @@ int hda_cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 
 	/* reset BDL address */
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPL, 0);
+			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPL, 0);
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPU, 0);
+			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPU, 0);
 
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, sd_offset, 0);
 	snd_dma_free_pages(dmab);
