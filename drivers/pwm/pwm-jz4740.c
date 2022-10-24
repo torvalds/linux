@@ -248,19 +248,18 @@ static int jz4740_pwm_probe(struct platform_device *pdev)
 	return devm_pwmchip_add(dev, &jz4740->chip);
 }
 
-static const struct soc_info __maybe_unused jz4740_soc_info = {
+static const struct soc_info jz4740_soc_info = {
 	.num_pwms = 8,
 };
 
-static const struct soc_info __maybe_unused jz4725b_soc_info = {
+static const struct soc_info jz4725b_soc_info = {
 	.num_pwms = 6,
 };
 
-static const struct soc_info __maybe_unused x1000_soc_info = {
+static const struct soc_info x1000_soc_info = {
 	.num_pwms = 5,
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id jz4740_pwm_dt_ids[] = {
 	{ .compatible = "ingenic,jz4740-pwm", .data = &jz4740_soc_info },
 	{ .compatible = "ingenic,jz4725b-pwm", .data = &jz4725b_soc_info },
@@ -268,12 +267,11 @@ static const struct of_device_id jz4740_pwm_dt_ids[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, jz4740_pwm_dt_ids);
-#endif
 
 static struct platform_driver jz4740_pwm_driver = {
 	.driver = {
 		.name = "jz4740-pwm",
-		.of_match_table = of_match_ptr(jz4740_pwm_dt_ids),
+		.of_match_table = jz4740_pwm_dt_ids,
 	},
 	.probe = jz4740_pwm_probe,
 };
