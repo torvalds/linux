@@ -823,7 +823,7 @@ static void OnAuthClient(struct adapter *padapter, struct recv_frame *precv_fram
 		}
 
 		set_link_timer(pmlmeext, 1);
-		goto authclnt_fail;
+		return;
 	}
 
 	if (seq == 2) {
@@ -833,7 +833,7 @@ static void OnAuthClient(struct adapter *padapter, struct recv_frame *precv_fram
 				pkt_len - WLAN_HDR_A3_LEN - _AUTH_IE_OFFSET_);
 
 			if (!p)
-				goto authclnt_fail;
+				return;
 
 			memcpy((void *)(pmlmeinfo->chg_txt), (void *)(p + 2), len);
 			pmlmeinfo->auth_seq = 3;
@@ -849,18 +849,16 @@ static void OnAuthClient(struct adapter *padapter, struct recv_frame *precv_fram
 		if (pmlmeinfo->auth_algo == dot11AuthAlgrthm_Shared)
 			go2asoc = 1;
 		else
-			goto authclnt_fail;
+			return;
 	} else {
 		/*  this is also illegal */
-		goto authclnt_fail;
+		return;
 	}
 
 	if (go2asoc) {
 		start_clnt_assoc(padapter);
 		return;
 	}
-authclnt_fail:
-	return;
 }
 
 static void UpdateBrateTbl(u8 *mbrate)
