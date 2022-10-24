@@ -32,11 +32,8 @@ MODULE_PARM_DESC(sof_use_tplg_nhlt, "SOF topology nhlt override");
 struct hda_pipe_params {
 	u32 ch;
 	u32 s_freq;
-	u32 s_fmt;
-	u8 linktype;
 	snd_pcm_format_t format;
 	int link_index;
-	int stream;
 	unsigned int link_bps;
 };
 
@@ -235,10 +232,8 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 	/* set the hdac_stream in the codec dai */
 	snd_soc_dai_set_stream(codec_dai, hdac_stream(hext_stream), substream->stream);
 
-	p_params.s_fmt = snd_pcm_format_width(params_format(params));
 	p_params.ch = params_channels(params);
 	p_params.s_freq = params_rate(params);
-	p_params.stream = substream->stream;
 	p_params.link_index = hlink->index;
 	p_params.format = params_format(params);
 
