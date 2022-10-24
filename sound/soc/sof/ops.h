@@ -302,6 +302,15 @@ static inline int snd_sof_debugfs_add_region_item(struct snd_sof_dev *sdev,
 }
 
 /* register IO */
+static inline void snd_sof_dsp_writeb(struct snd_sof_dev *sdev, u32 bar,
+				      u32 offset, u8 value)
+{
+	if (sof_ops(sdev)->writeb)
+		sof_ops(sdev)->writeb(sdev, sdev->bar[bar] + offset, value);
+	else
+		writeb(value,  sdev->bar[bar] + offset);
+}
+
 static inline void snd_sof_dsp_write(struct snd_sof_dev *sdev, u32 bar,
 				     u32 offset, u32 value)
 {
@@ -318,6 +327,15 @@ static inline void snd_sof_dsp_write64(struct snd_sof_dev *sdev, u32 bar,
 		sof_ops(sdev)->write64(sdev, sdev->bar[bar] + offset, value);
 	else
 		writeq(value, sdev->bar[bar] + offset);
+}
+
+static inline u8 snd_sof_dsp_readb(struct snd_sof_dev *sdev, u32 bar,
+				   u32 offset)
+{
+	if (sof_ops(sdev)->readb)
+		return sof_ops(sdev)->readb(sdev, sdev->bar[bar] + offset);
+	else
+		return readb(sdev->bar[bar] + offset);
 }
 
 static inline u32 snd_sof_dsp_read(struct snd_sof_dev *sdev, u32 bar,
