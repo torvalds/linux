@@ -447,7 +447,7 @@ Following are the callback functions for each subtype of the management frames
 
 *****************************************************************************/
 
-unsigned int OnProbeReq(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnProbeReq(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	unsigned int	ielen;
 	unsigned char	*p;
