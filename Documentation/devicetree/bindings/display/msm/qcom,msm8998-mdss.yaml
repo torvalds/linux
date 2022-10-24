@@ -43,11 +43,24 @@ patternProperties:
       compatible:
         const: qcom,msm8998-dpu
 
+  "^dsi@[0-9a-f]+$":
+    type: object
+    properties:
+      compatible:
+        const: qcom,mdss-dsi-ctrl
+
+  "^phy@[0-9a-f]+$":
+    type: object
+    properties:
+      compatible:
+        const: qcom,dsi-phy-10nm-8998
+
 unevaluatedProperties: false
 
 examples:
   - |
     #include <dt-bindings/clock/qcom,mmcc-msm8998.h>
+    #include <dt-bindings/clock/qcom,rpmcc.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/power/qcom-rpmpd.h>
 
@@ -110,6 +123,146 @@ examples:
                     };
                 };
             };
+        };
+
+        dsi@c994000 {
+            compatible = "qcom,mdss-dsi-ctrl";
+            reg = <0x0c994000 0x400>;
+            reg-names = "dsi_ctrl";
+
+            interrupt-parent = <&mdss>;
+            interrupts = <4>;
+
+            clocks = <&mmcc MDSS_BYTE0_CLK>,
+                     <&mmcc MDSS_BYTE0_INTF_CLK>,
+                     <&mmcc MDSS_PCLK0_CLK>,
+                     <&mmcc MDSS_ESC0_CLK>,
+                     <&mmcc MDSS_AHB_CLK>,
+                     <&mmcc MDSS_AXI_CLK>;
+            clock-names = "byte",
+                          "byte_intf",
+                          "pixel",
+                          "core",
+                          "iface",
+                          "bus";
+            assigned-clocks = <&mmcc BYTE0_CLK_SRC>, <&mmcc PCLK0_CLK_SRC>;
+            assigned-clock-parents = <&dsi0_phy 0>, <&dsi0_phy 1>;
+
+            operating-points-v2 = <&dsi_opp_table>;
+            power-domains = <&rpmpd MSM8998_VDDCX>;
+
+            phys = <&dsi0_phy>;
+            phy-names = "dsi";
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+                    dsi0_in: endpoint {
+                        remote-endpoint = <&dpu_intf1_out>;
+                    };
+                };
+
+                port@1 {
+                    reg = <1>;
+                    dsi0_out: endpoint {
+                    };
+                };
+            };
+        };
+
+        dsi0_phy: phy@c994400 {
+            compatible = "qcom,dsi-phy-10nm-8998";
+            reg = <0x0c994400 0x200>,
+                  <0x0c994600 0x280>,
+                  <0x0c994a00 0x1e0>;
+            reg-names = "dsi_phy",
+                        "dsi_phy_lane",
+                        "dsi_pll";
+
+            #clock-cells = <1>;
+            #phy-cells = <0>;
+
+            clocks = <&mmcc MDSS_AHB_CLK>,
+                     <&rpmcc RPM_SMD_XO_CLK_SRC>;
+            clock-names = "iface", "ref";
+
+            vdds-supply = <&pm8998_l1>;
+        };
+
+        dsi@c996000 {
+            compatible = "qcom,mdss-dsi-ctrl";
+            reg = <0x0c996000 0x400>;
+            reg-names = "dsi_ctrl";
+
+            interrupt-parent = <&mdss>;
+            interrupts = <5>;
+
+            clocks = <&mmcc MDSS_BYTE1_CLK>,
+                     <&mmcc MDSS_BYTE1_INTF_CLK>,
+                     <&mmcc MDSS_PCLK1_CLK>,
+                     <&mmcc MDSS_ESC1_CLK>,
+                     <&mmcc MDSS_AHB_CLK>,
+                     <&mmcc MDSS_AXI_CLK>;
+            clock-names = "byte",
+                          "byte_intf",
+                          "pixel",
+                          "core",
+                          "iface",
+                          "bus";
+            assigned-clocks = <&mmcc BYTE1_CLK_SRC>, <&mmcc PCLK1_CLK_SRC>;
+            assigned-clock-parents = <&dsi1_phy 0>, <&dsi1_phy 1>;
+
+            operating-points-v2 = <&dsi_opp_table>;
+            power-domains = <&rpmpd MSM8998_VDDCX>;
+
+            phys = <&dsi1_phy>;
+            phy-names = "dsi";
+
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+                    dsi1_in: endpoint {
+                        remote-endpoint = <&dpu_intf2_out>;
+                    };
+                };
+
+                port@1 {
+                    reg = <1>;
+                    dsi1_out: endpoint {
+                    };
+                };
+            };
+        };
+
+        dsi1_phy: phy@c996400 {
+            compatible = "qcom,dsi-phy-10nm-8998";
+            reg = <0x0c996400 0x200>,
+                  <0x0c996600 0x280>,
+                  <0x0c996a00 0x10e>;
+            reg-names = "dsi_phy",
+                        "dsi_phy_lane",
+                        "dsi_pll";
+
+            #clock-cells = <1>;
+            #phy-cells = <0>;
+
+            clocks = <&mmcc MDSS_AHB_CLK>,
+                     <&rpmcc RPM_SMD_XO_CLK_SRC>;
+            clock-names = "iface", "ref";
+
+            vdds-supply = <&pm8998_l1>;
         };
     };
 ...
