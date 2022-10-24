@@ -13,7 +13,6 @@
 #include <linux/threads.h>
 #include <linux/percpu.h>
 #include <linux/types.h>
-#include <linux/gfp.h>
 
 /* percpu_counter batch for local add or sub */
 #define PERCPU_COUNTER_LOCAL_BATCH	INT_MAX

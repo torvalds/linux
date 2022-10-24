@@ -18,6 +18,7 @@
 #include <linux/page-flags-layout.h>
 #include <linux/workqueue.h>
 #include <linux/seqlock.h>
+#include <linux/percpu_counter.h>
 
 #include <asm/mmu.h>
 
@@ -626,11 +627,7 @@ struct mm_struct {
 
 		unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
 
-		/*
-		 * Special counters, in some configurations protected by the
-		 * page_table_lock, in other configurations by being atomic.
-		 */
-		struct mm_rss_stat rss_stat;
+		struct percpu_counter rss_stat[NR_MM_COUNTERS];
 
 		struct linux_binfmt *binfmt;
 

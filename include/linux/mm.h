@@ -2052,40 +2052,30 @@ static inline bool get_user_page_fast_only(unsigned long addr,
  */
 static inline unsigned long get_mm_counter(struct mm_struct *mm, int member)
 {
-	long val = atomic_long_read(&mm->rss_stat.count[member]);
-
-#ifdef SPLIT_RSS_COUNTING
-	/*
-	 * counter is updated in asynchronous manner and may go to minus.
-	 * But it's never be expected number for users.
-	 */
-	if (val < 0)
-		val = 0;
-#endif
-	return (unsigned long)val;
+	return percpu_counter_read_positive(&mm->rss_stat[member]);
 }
 
-void mm_trace_rss_stat(struct mm_struct *mm, int member, long count);
+void mm_trace_rss_stat(struct mm_struct *mm, int member);
 
 static inline void add_mm_counter(struct mm_struct *mm, int member, long value)
 {
-	long count = atomic_long_add_return(value, &mm->rss_stat.count[member]);
+	percpu_counter_add(&mm->rss_stat[member], value);
 
-	mm_trace_rss_stat(mm, member, count);
+	mm_trace_rss_stat(mm, member);
 }
 
 static inline void inc_mm_counter(struct mm_struct *mm, int member)
 {
-	long count = atomic_long_inc_return(&mm->rss_stat.count[member]);
+	percpu_counter_inc(&mm->rss_stat[member]);
 
-	mm_trace_rss_stat(mm, member, count);
+	mm_trace_rss_stat(mm, member);
 }
 
 static inline void dec_mm_counter(struct mm_struct *mm, int member)
 {
-	long count = atomic_long_dec_return(&mm->rss_stat.count[member]);
+	percpu_counter_dec(&mm->rss_stat[member]);
 
-	mm_trace_rss_stat(mm, member, count);
+	mm_trace_rss_stat(mm, member);
 }
 
 /* Optimized variant when page is already known not to be PageAnon */
