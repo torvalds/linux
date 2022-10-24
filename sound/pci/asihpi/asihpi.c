@@ -725,7 +725,6 @@ static void snd_card_asihpi_timer_function(struct timer_list *t)
 	unsigned int pcm_buf_dma_ofs, min_buf_pos = 0;
 	unsigned int remdata, xfercount, next_jiffies;
 	int first = 1;
-	int loops = 0;
 	u16 state;
 	u32 buffer_size, bytes_avail, samples_played, on_card_bytes;
 	char name[16];
@@ -806,7 +805,6 @@ static void snd_card_asihpi_timer_function(struct timer_list *t)
 			(unsigned long)frames_to_bytes(runtime,
 						runtime->control->appl_ptr)
 		);
-		loops++;
 	}
 	pcm_buf_dma_ofs = min_buf_pos;
 
