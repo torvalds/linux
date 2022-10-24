@@ -116,8 +116,6 @@ int btrfs_read_extent_buffer(struct extent_buffer *buf, u64 parent_transid,
 bool btrfs_wq_submit_bio(struct inode *inode, struct bio *bio, int mirror_num,
 			 u64 dio_file_offset,
 			 extent_submit_bio_start_t *submit_bio_start);
-blk_status_t btrfs_submit_bio_done(void *private_data, struct bio *bio,
-			  int mirror_num);
 int btrfs_alloc_log_tree_node(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root);
 int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
@@ -130,8 +128,6 @@ void btrfs_cleanup_one_transaction(struct btrfs_transaction *trans,
 				  struct btrfs_fs_info *fs_info);
 struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 				     u64 objectid);
-int btree_lock_page_hook(struct page *page, void *data,
-				void (*flush_fn)(void *));
 int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags);
 int btrfs_get_free_objectid(struct btrfs_root *root, u64 *objectid);
 int btrfs_init_root_free_objectid(struct btrfs_root *root);
