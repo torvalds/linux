@@ -848,8 +848,6 @@ static void OnAuthClient(struct adapter *padapter, struct recv_frame *precv_fram
 	} else if (seq == 4) {
 		if (pmlmeinfo->auth_algo == dot11AuthAlgrthm_Shared)
 			go2asoc = 1;
-		else
-			return;
 	}
 
 	if (go2asoc)
