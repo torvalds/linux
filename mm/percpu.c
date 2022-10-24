@@ -2167,7 +2167,7 @@ static void pcpu_reclaim_populated(void)
 			/* reintegrate chunk to prevent atomic alloc failures */
 			if (pcpu_nr_empty_pop_pages < PCPU_EMPTY_POP_PAGES_HIGH) {
 				reintegrate = true;
-				goto end_chunk;
+				break;
 			}
 
 			/*
@@ -2203,7 +2203,6 @@ static void pcpu_reclaim_populated(void)
 			end = -1;
 		}
 
-end_chunk:
 		/* batch tlb flush per chunk to amortize cost */
 		if (freed_page_start < freed_page_end) {
 			spin_unlock_irq(&pcpu_lock);
