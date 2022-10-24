@@ -3346,33 +3346,8 @@ struct drm_i915_memory_region_info {
 	/** @region: The class:instance pair encoding */
 	struct drm_i915_gem_memory_class_instance region;
 
-	union {
-		/** @rsvd0: MBZ */
-		__u32 rsvd0;
-		/**
-		 * @gtt_alignment:
-		 *
-		 * The minimum required GTT alignment for this type of memory.
-		 * When allocating a GTT address it must be aligned to this
-		 * value or larger. On some platforms the kernel might opt to
-		 * using 64K pages for I915_MEMORY_CLASS_DEVICE, where 64K GTT
-		 * pages can then be used if we also use 64K GTT alignment.
-		 *
-		 * NOTE: If this is zero then this must be an older
-		 * kernel which lacks support for this field.
-		 *
-		 * Side note: For larger objects (especially for
-		 * I915_MEMORY_CLASS_DEVICE), like 2M+ in size, userspace should
-		 * consider potentially bumping the GTT alignment to say 2M,
-		 * which could potentially increase the likelihood of the kernel
-		 * being able to utilise 2M GTT pages underneath, if the layout
-		 * of the physical pages allows it.  On some configurations we
-		 * can then also use a more efficient page-table layout, if we
-		 * can't use the more desirable 2M GTT page, so long as we know
-		 * that the entire page-table will be used by this object.
-		 */
-		__u32 gtt_alignment;
-	};
+	/** @rsvd0: MBZ */
+	__u32 rsvd0;
 
 	/**
 	 * @probed_size: Memory probed by the driver
