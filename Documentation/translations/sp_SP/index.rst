@@ -70,3 +70,11 @@ En términos más generales, la documentación, como el kernel mismo, están en
 constante desarrollo. Las mejoras en la documentación siempre son
 bienvenidas; de modo que, si desea ayudar, únase a la lista de correo
 linux-doc en vger.kernel.org.
+
+Traducciones al español
+=======================
+
+.. toctree::
+   :maxdepth: 1
+
+   howto
