@@ -418,10 +418,6 @@ int __init clk_starfive_jh7110_pll_init(struct platform_device *pdev,
 			.flags = 0,
 		};
 
-		/* pll1 use default freq and does not be changed */
-		if (idx == PLL1_INDEX)
-			continue;
-
 		data = &pll_priv[idx];
 		data->dev = &pdev->dev;
 		data->sys_syscon_regmap = pll_syscon_regmap;
@@ -439,7 +435,7 @@ int __init clk_starfive_jh7110_pll_init(struct platform_device *pdev,
 			return ret;
 	}
 
-	dev_info(&pdev->dev, "PLL0 and PLL2 clock be set done\n");
+	dev_dbg(&pdev->dev, "PLL0, PLL1 and PLL2 clock registered done\n");
 
 /* Change PLL2 rate before other driver up */
 	if (PLL2_DEFAULT_FREQ) {
