@@ -94,6 +94,7 @@ static int cti_enable_hw(struct cti_drvdata *drvdata)
 	unsigned long flags;
 	int rc = 0;
 
+	pm_runtime_get_sync(dev->parent);
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
 	/* no need to do anything if enabled or unpowered*/
@@ -118,6 +119,7 @@ cti_state_unchanged:
 	/* cannot enable due to error */
 cti_err_not_enabled:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
+	pm_runtime_put(dev->parent);
 	return rc;
 }
 
@@ -173,6 +175,7 @@ static int cti_disable_hw(struct cti_drvdata *drvdata)
 	coresight_disclaim_device_unlocked(csdev);
 	CS_LOCK(drvdata->base);
 	spin_unlock(&drvdata->spinlock);
+	pm_runtime_put(dev->parent);
 	return 0;
 
 	/* not disabled this call */
