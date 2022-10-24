@@ -77,11 +77,14 @@ static bool hw_memory_failure __read_mostly = false;
 inline void num_poisoned_pages_inc(unsigned long pfn)
 {
 	atomic_long_inc(&num_poisoned_pages);
+	memblk_nr_poison_inc(pfn);
 }
 
-static inline void num_poisoned_pages_sub(unsigned long pfn, long i)
+inline void num_poisoned_pages_sub(unsigned long pfn, long i)
 {
 	atomic_long_sub(i, &num_poisoned_pages);
+	if (pfn != -1UL)
+		memblk_nr_poison_sub(pfn, i);
 }
 
 /*
@@ -1706,6 +1709,8 @@ static unsigned long __free_raw_hwp_pages(struct page *hpage, bool move_flag)
 
 		if (move_flag)
 			SetPageHWPoison(p->page);
+		else
+			num_poisoned_pages_sub(page_to_pfn(p->page), 1);
 		kfree(p);
 		count++;
 	}
@@ -2332,6 +2337,7 @@ int unpoison_memory(unsigned long pfn)
 	int ret = -EBUSY;
 	int freeit = 0;
 	unsigned long count = 1;
+	bool huge = false;
 	static DEFINE_RATELIMIT_STATE(unpoison_rs, DEFAULT_RATELIMIT_INTERVAL,
 					DEFAULT_RATELIMIT_BURST);
 
@@ -2380,6 +2386,7 @@ int unpoison_memory(unsigned long pfn)
 	ret = get_hwpoison_page(p, MF_UNPOISON);
 	if (!ret) {
 		if (PageHuge(p)) {
+			huge = true;
 			count = free_raw_hwp_pages(page, false);
 			if (count == 0) {
 				ret = -EBUSY;
@@ -2395,6 +2402,7 @@ int unpoison_memory(unsigned long pfn)
 					 pfn, &unpoison_rs);
 	} else {
 		if (PageHuge(p)) {
+			huge = true;
 			count = free_raw_hwp_pages(page, false);
 			if (count == 0) {
 				ret = -EBUSY;
@@ -2414,7 +2422,8 @@ int unpoison_memory(unsigned long pfn)
 unlock_mutex:
 	mutex_unlock(&mf_mutex);
 	if (!ret || freeit) {
-		num_poisoned_pages_sub(pfn, count);
+		if (!huge)
+			num_poisoned_pages_sub(pfn, 1);
 		unpoison_pr_info("Unpoison: Software-unpoisoned page %#lx\n",
 				 page_to_pfn(p), &unpoison_rs);
 	}
@@ -2608,27 +2617,4 @@ retry:
 	mutex_unlock(&mf_mutex);
 
 	return ret;
-}
-
-void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
-{
-	int i, total = 0;
-
-	/*
-	 * A further optimization is to have per section refcounted
-	 * num_poisoned_pages.  But that would need more space per memmap, so
-	 * for now just do a quick global check to speed up this routine in the
-	 * absence of bad pages.
-	 */
-	if (atomic_long_read(&num_poisoned_pages) == 0)
-		return;
-
-	for (i = 0; i < nr_pages; i++) {
-		if (PageHWPoison(&memmap[i])) {
-			total++;
-			ClearPageHWPoison(&memmap[i]);
-		}
-	}
-	if (total)
-		num_poisoned_pages_sub(0, total);
 }
