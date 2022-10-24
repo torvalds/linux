@@ -668,6 +668,11 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	{ },
 };
 
+static bool google_cros_ec_present(void)
+{
+	return acpi_dev_found("GOOG0004");
+}
+
 /*
  * Determine which type of backlight interface to use on this system,
  * First check cmdline, then dmi quirks, then do autodetect.
@@ -729,6 +734,13 @@ static enum acpi_backlight_type __acpi_video_get_backlight_type(bool native)
 		else
 			return acpi_backlight_video;
 	}
+
+	/*
+	 * Chromebooks that don't have backlight handle in ACPI table
+	 * are supposed to use native backlight if it's available.
+	 */
+	if (google_cros_ec_present() && native_available)
+		return acpi_backlight_native;
 
 	/* No ACPI video (old hw), use vendor specific fw methods. */
 	return acpi_backlight_vendor;
