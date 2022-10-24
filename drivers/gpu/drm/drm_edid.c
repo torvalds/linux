@@ -2184,6 +2184,17 @@ static struct edid *drm_get_override_edid(struct drm_connector *connector,
 }
 
 /* For debugfs edid_override implementation */
+int drm_edid_override_show(struct drm_connector *connector, struct seq_file *m)
+{
+	struct drm_property_blob *edid = connector->edid_blob_ptr;
+
+	if (connector->override_edid && edid)
+		seq_write(m, edid->data, edid->length);
+
+	return 0;
+}
+
+/* For debugfs edid_override implementation */
 int drm_edid_override_set(struct drm_connector *connector, const void *edid,
 			  size_t size)
 {
