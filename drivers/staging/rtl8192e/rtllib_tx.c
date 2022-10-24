@@ -306,7 +306,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 			goto FORCED_AGG_SETTING;
 		} else if (!pTxTs->bUsingBa) {
 			if (SN_LESS(pTxTs->TxAdmittedBARecord.ba_start_seq_ctrl.field.seq_num,
-				    (pTxTs->TxCurSeq+1)%4096))
+				    (pTxTs->TxCurSeq + 1) % 4096))
 				pTxTs->bUsingBa = true;
 			else
 				goto FORCED_AGG_SETTING;
@@ -403,7 +403,7 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 	if (tcb_desc->bBroadcast || tcb_desc->bMulticast)
 		return;
 
-	if (is_broadcast_ether_addr(skb->data+16))
+	if (is_broadcast_ether_addr(skb->data + 16))
 		return;
 
 	if (ieee->mode < IEEE_N_24G) {
@@ -504,7 +504,7 @@ static u16 rtllib_query_seqnum(struct rtllib_device *ieee, struct sk_buff *skb,
 			   skb->priority, TX_DIR, true))
 			return 0;
 		seqnum = pTS->TxCurSeq;
-		pTS->TxCurSeq = (pTS->TxCurSeq+1)%4096;
+		pTS->TxCurSeq = (pTS->TxCurSeq + 1) % 4096;
 		return seqnum;
 	}
 	return 0;
@@ -611,7 +611,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		if (skb->len > 282) {
 			if (ether_type == ETH_P_IP) {
 				const struct iphdr *ip = (struct iphdr *)
-					((u8 *)skb->data+14);
+					((u8 *)skb->data + 14);
 				if (ip->protocol == IPPROTO_UDP) {
 					struct udphdr *udp;
 
@@ -815,10 +815,10 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 					 cpu_to_le16(rtllib_query_seqnum(ieee, skb_frag,
 									 header.addr1));
 				frag_hdr->seq_ctl =
-					 cpu_to_le16(le16_to_cpu(frag_hdr->seq_ctl)<<4 | i);
+					 cpu_to_le16(le16_to_cpu(frag_hdr->seq_ctl) << 4 | i);
 			} else {
 				frag_hdr->seq_ctl =
-					 cpu_to_le16(ieee->seq_ctrl[0]<<4 | i);
+					 cpu_to_le16(ieee->seq_ctrl[0] << 4 | i);
 			}
 			/* Put a SNAP header on the first fragment */
 			if (i == 0) {
