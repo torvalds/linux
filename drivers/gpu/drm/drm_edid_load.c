@@ -167,8 +167,7 @@ static int edid_size(const u8 *edid, int data_size)
 	return (edid[0x7e] + 1) * EDID_LENGTH;
 }
 
-static void *edid_load(struct drm_connector *connector, const char *name,
-			const char *connector_name)
+static void *edid_load(struct drm_connector *connector, const char *name)
 {
 	const struct firmware *fw = NULL;
 	const u8 *fwdata;
@@ -185,10 +184,10 @@ static void *edid_load(struct drm_connector *connector, const char *name,
 		struct platform_device *pdev;
 		int err;
 
-		pdev = platform_device_register_simple(connector_name, -1, NULL, 0);
+		pdev = platform_device_register_simple(connector->name, -1, NULL, 0);
 		if (IS_ERR(pdev)) {
 			DRM_ERROR("Failed to register EDID firmware platform device "
-				  "for connector \"%s\"\n", connector_name);
+				  "for connector \"%s\"\n", connector->name);
 			return ERR_CAST(pdev);
 		}
 
@@ -244,7 +243,7 @@ static void *edid_load(struct drm_connector *connector, const char *name,
 		edid[EDID_LENGTH-1] += edid[0x7e] - valid_extensions;
 		DRM_INFO("Found %d valid extensions instead of %d in EDID data "
 		    "\"%s\" for connector \"%s\"\n", valid_extensions,
-		    edid[0x7e], name, connector_name);
+		    edid[0x7e], name, connector->name);
 		edid[0x7e] = valid_extensions;
 
 		new_edid = krealloc(edid, (valid_extensions + 1) * EDID_LENGTH,
@@ -256,7 +255,7 @@ static void *edid_load(struct drm_connector *connector, const char *name,
 	DRM_INFO("Got %s EDID base block and %d extension%s from "
 	    "\"%s\" for connector \"%s\"\n", (builtin >= 0) ? "built-in" :
 	    "external", valid_extensions, valid_extensions == 1 ? "" : "s",
-	    name, connector_name);
+	    name, connector->name);
 
 out:
 	release_firmware(fw);
@@ -265,7 +264,6 @@ out:
 
 struct edid *drm_load_edid_firmware(struct drm_connector *connector)
 {
-	const char *connector_name = connector->name;
 	char *edidname, *last, *colon, *fwstr, *edidstr, *fallback = NULL;
 	struct edid *edid;
 
@@ -288,7 +286,7 @@ struct edid *drm_load_edid_firmware(struct drm_connector *connector)
 	while ((edidname = strsep(&edidstr, ","))) {
 		colon = strchr(edidname, ':');
 		if (colon != NULL) {
-			if (strncmp(connector_name, edidname, colon - edidname))
+			if (strncmp(connector->name, edidname, colon - edidname))
 				continue;
 			edidname = colon + 1;
 			break;
@@ -310,7 +308,7 @@ struct edid *drm_load_edid_firmware(struct drm_connector *connector)
 	if (*last == '\n')
 		*last = '\0';
 
-	edid = edid_load(connector, edidname, connector_name);
+	edid = edid_load(connector, edidname);
 	kfree(fwstr);
 
 	return edid;
