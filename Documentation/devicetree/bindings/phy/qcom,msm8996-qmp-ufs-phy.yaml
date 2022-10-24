@@ -22,7 +22,6 @@ properties:
       - qcom,msm8996-qmp-ufs-phy
       - qcom,msm8998-qmp-ufs-phy
       - qcom,sc8180x-qmp-ufs-phy
-      - qcom,sc8280xp-qmp-ufs-phy
       - qcom,sdm845-qmp-ufs-phy
       - qcom,sm6115-qmp-ufs-phy
       - qcom,sm6350-qmp-ufs-phy
@@ -122,7 +121,6 @@ allOf:
             enum:
               - qcom,msm8998-qmp-ufs-phy
               - qcom,sc8180x-qmp-ufs-phy
-              - qcom,sc8280xp-qmp-ufs-phy
               - qcom,sdm845-qmp-ufs-phy
               - qcom,sm6115-qmp-ufs-phy
               - qcom,sm6350-qmp-ufs-phy
@@ -159,7 +157,6 @@ allOf:
           contains:
             enum:
               - qcom,msm8998-qmp-ufs-phy
-              - qcom,sc8280xp-qmp-ufs-phy
               - qcom,sdm845-qmp-ufs-phy
               - qcom,sm6350-qmp-ufs-phy
               - qcom,sm8150-qmp-ufs-phy
@@ -214,11 +211,12 @@ allOf:
 
 examples:
   - |
-    #include <dt-bindings/clock/qcom,gcc-sc8280xp.h>
+    #include <dt-bindings/clock/qcom,gcc-sm8250.h>
     #include <dt-bindings/clock/qcom,rpmh.h>
+
     phy-wrapper@1d87000 {
-        compatible = "qcom,sc8280xp-qmp-ufs-phy";
-        reg = <0x01d87000 0xe10>;
+        compatible = "qcom,sm8250-qmp-ufs-phy";
+        reg = <0x01d87000 0x1c0>;
         #address-cells = <1>;
         #size-cells = <1>;
         ranges = <0x0 0x01d87000 0x1000>;
