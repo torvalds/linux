@@ -3910,7 +3910,7 @@ unsigned int OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_fra
 	return _SUCCESS;
 }
 
-unsigned int OnAction(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAction(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
 
