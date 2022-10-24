@@ -82,7 +82,6 @@ static const u32 hns_roce_op_code[] = {
 	HR_OPC_MAP(ATOMIC_CMP_AND_SWP,		ATOM_CMP_AND_SWAP),
 	HR_OPC_MAP(ATOMIC_FETCH_AND_ADD,	ATOM_FETCH_AND_ADD),
 	HR_OPC_MAP(SEND_WITH_INV,		SEND_WITH_INV),
-	HR_OPC_MAP(LOCAL_INV,			LOCAL_INV),
 	HR_OPC_MAP(MASKED_ATOMIC_CMP_AND_SWP,	ATOM_MSK_CMP_AND_SWAP),
 	HR_OPC_MAP(MASKED_ATOMIC_FETCH_AND_ADD,	ATOM_MSK_FETCH_AND_ADD),
 	HR_OPC_MAP(REG_MR,			FAST_REG_PMR),
@@ -524,9 +523,6 @@ static int set_rc_opcode(struct hns_roce_dev *hr_dev,
 		else
 			ret = -EOPNOTSUPP;
 		break;
-	case IB_WR_LOCAL_INV:
-		hr_reg_enable(rc_sq_wqe, RC_SEND_WQE_SO);
-		fallthrough;
 	case IB_WR_SEND_WITH_INV:
 		rc_sq_wqe->inv_key = cpu_to_le32(wr->ex.invalidate_rkey);
 		break;
@@ -3058,7 +3054,6 @@ static int hns_roce_v2_write_mtpt(struct hns_roce_dev *hr_dev,
 
 	hr_reg_write(mpt_entry, MPT_ST, V2_MPT_ST_VALID);
 	hr_reg_write(mpt_entry, MPT_PD, mr->pd);
-	hr_reg_enable(mpt_entry, MPT_L_INV_EN);
 
 	hr_reg_write_bool(mpt_entry, MPT_BIND_EN,
 			  mr->access & IB_ACCESS_MW_BIND);
@@ -3151,7 +3146,6 @@ static int hns_roce_v2_frmr_write_mtpt(struct hns_roce_dev *hr_dev,
 
 	hr_reg_enable(mpt_entry, MPT_RA_EN);
 	hr_reg_enable(mpt_entry, MPT_R_INV_EN);
-	hr_reg_enable(mpt_entry, MPT_L_INV_EN);
 
 	hr_reg_enable(mpt_entry, MPT_FRE);
 	hr_reg_clear(mpt_entry, MPT_MR_MW);
@@ -3183,7 +3177,6 @@ static int hns_roce_v2_mw_write_mtpt(void *mb_buf, struct hns_roce_mw *mw)
 	hr_reg_write(mpt_entry, MPT_PD, mw->pdn);
 
 	hr_reg_enable(mpt_entry, MPT_R_INV_EN);
-	hr_reg_enable(mpt_entry, MPT_L_INV_EN);
 	hr_reg_enable(mpt_entry, MPT_LW_EN);
 
 	hr_reg_enable(mpt_entry, MPT_MR_MW);
@@ -3540,7 +3533,6 @@ static const u32 wc_send_op_map[] = {
 	HR_WC_OP_MAP(RDMA_READ,			RDMA_READ),
 	HR_WC_OP_MAP(RDMA_WRITE,		RDMA_WRITE),
 	HR_WC_OP_MAP(RDMA_WRITE_WITH_IMM,	RDMA_WRITE),
-	HR_WC_OP_MAP(LOCAL_INV,			LOCAL_INV),
 	HR_WC_OP_MAP(ATOM_CMP_AND_SWAP,		COMP_SWAP),
 	HR_WC_OP_MAP(ATOM_FETCH_AND_ADD,	FETCH_ADD),
 	HR_WC_OP_MAP(ATOM_MSK_CMP_AND_SWAP,	MASKED_COMP_SWAP),
@@ -3589,9 +3581,6 @@ static void fill_send_wc(struct ib_wc *wc, struct hns_roce_v2_cqe *cqe)
 	case HNS_ROCE_V2_WQE_OP_SEND_WITH_IMM:
 	case HNS_ROCE_V2_WQE_OP_RDMA_WRITE_WITH_IMM:
 		wc->wc_flags |= IB_WC_WITH_IMM;
-		break;
-	case HNS_ROCE_V2_WQE_OP_LOCAL_INV:
-		wc->wc_flags |= IB_WC_WITH_INVALIDATE;
 		break;
 	case HNS_ROCE_V2_WQE_OP_ATOM_CMP_AND_SWAP:
 	case HNS_ROCE_V2_WQE_OP_ATOM_FETCH_AND_ADD:
