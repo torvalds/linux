@@ -588,7 +588,7 @@ static void rockchip_u3phy_um_sm_work(struct work_struct *work)
 			dev_dbg(&u3phy_port->phy->dev, "FS/LS online\n");
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case PHY_UTMI_CONNECT:
 		if (u3phy_port->suspended) {
 			dev_dbg(&u3phy_port->phy->dev, "Connected\n");
