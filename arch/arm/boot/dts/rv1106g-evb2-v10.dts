@@ -34,6 +34,17 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
+
+	vcc3v3_sd: vcc3v3-sd {
+		compatible = "regulator-fixed";
+		gpio = <&gpio2 RK_PA7 GPIO_ACTIVE_LOW>;
+		regulator-name = "vcc3v3_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdmmc_pwren>;
+	};
+
 };
 
 &csi2_dphy_hw {
@@ -206,6 +217,15 @@
 	reg = <0x2b90000 (10 * 0x00100000)>;
 };
 
+&pinctrl {
+	sdmmc {
+		/omit-if-no-ref/
+		sdmmc_pwren: sdmmc-pwren {
+			rockchip,pins = <2 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
 &pwm10 {
 	status = "okay";
 };
@@ -227,6 +247,20 @@
 	supports-sdio;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc1m0_cmd &sdmmc1m0_clk &sdmmc1m0_bus4>;
+	status = "okay";
+};
+
+&sdmmc {
+	max-frequency = <200000000>;
+	no-sdio;
+	no-mmc;
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	disable-wp;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc0_clk &sdmmc0_cmd &sdmmc0_det &sdmmc0_bus4>;
+	vmmc-supply = <&vcc3v3_sd>;
 	status = "okay";
 };
 
