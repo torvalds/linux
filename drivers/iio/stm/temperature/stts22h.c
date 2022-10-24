@@ -29,9 +29,9 @@ static const struct iio_chan_spec st_stts22h_channel[] = {
 		.address = ST_STTS22H_TEMP_L_OUT_ADDR,
 		.modified = 1,
 		.channel2 = IIO_MOD_TEMP_AMBIENT,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ) |
-					   BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				      BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		.scan_index = 0,
 		.scan_type = {
 			.sign = 's',
