@@ -272,7 +272,7 @@
 };
 
 &msmgpio {
-	gpio_keys_default: gpio-keys-default {
+	gpio_keys_default: gpio-keys-default-state {
 		pins = "gpio107";
 		function = "gpio";
 
@@ -280,7 +280,7 @@
 		bias-pull-up;
 	};
 
-	imu_default: imu-default {
+	imu_default: imu-default-state {
 		pins = "gpio115";
 		function = "gpio";
 
@@ -288,14 +288,15 @@
 		bias-disable;
 	};
 
-	touchscreen_default: touchscreen-default {
-		pins = "gpio13";
-		function = "gpio";
+	touchscreen_default: touchscreen-default-state {
+		touchscreen-pins {
+			pins = "gpio13";
+			function = "gpio";
 
-		drive-strength = <2>;
-		bias-pull-up;
-
-		reset {
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+		reset-pins {
 			pins = "gpio12";
 			function = "gpio";
 
@@ -304,7 +305,7 @@
 		};
 	};
 
-	usb_id_default: usb-id-default {
+	usb_id_default: usb-id-default-state {
 		pins = "gpio110";
 		function = "gpio";
 
