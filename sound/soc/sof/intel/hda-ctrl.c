@@ -207,16 +207,12 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 			goto err;
 		}
 
-		usleep_range(500, 1000);
-
 		/* exit HDA controller reset */
 		ret = hda_dsp_ctrl_link_reset(sdev, false);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: failed to exit HDA controller reset\n");
 			goto err;
 		}
-
-		usleep_range(1000, 1200);
 	}
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
