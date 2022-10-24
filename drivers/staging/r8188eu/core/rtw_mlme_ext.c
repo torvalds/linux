@@ -12,24 +12,6 @@
 #include "../include/rtl8188e_xmit.h"
 #include "../include/rtl8188e_dm.h"
 
-/* response function for each management frame subtype, do not reorder */
-static mlme_handler mlme_sta_tbl[] = {
-	OnAssocReq,
-	OnAssocRsp,
-	OnAssocReq,
-	OnAssocRsp,
-	OnProbeReq,
-	OnProbeRsp,
-	NULL,
-	NULL,
-	OnBeacon,
-	NULL,
-	OnDisassoc,
-	OnAuthClient,
-	OnDeAuth,
-	OnAction,
-};
-
 static u8 null_addr[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
 
 /**************************************************
@@ -391,47 +373,6 @@ void free_mlme_ext_priv(struct mlme_ext_priv *pmlmeext)
 		_cancel_timer_ex(&pmlmeext->link_timer);
 		/* _cancel_timer_ex(&pmlmeext->ADDBA_timer); */
 	}
-}
-
-void mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame)
-{
-	int index;
-	mlme_handler fct;
-	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
-	struct sta_info *psta = rtw_get_stainfo(&padapter->stapriv, hdr->addr2);
-
-	if (!ieee80211_is_mgmt(hdr->frame_control))
-		return;
-
-	/* receive the frames that ra(a1) is my address or ra(a1) is bc address. */
-	if (memcmp(hdr->addr1, myid(&padapter->eeprompriv), ETH_ALEN) &&
-	    !is_broadcast_ether_addr(hdr->addr1))
-		return;
-
-	index = (le16_to_cpu(hdr->frame_control) & IEEE80211_FCTL_STYPE) >> 4;
-	if (index >= ARRAY_SIZE(mlme_sta_tbl))
-		return;
-	fct = mlme_sta_tbl[index];
-
-	if (psta) {
-		if (ieee80211_has_retry(hdr->frame_control)) {
-			if (precv_frame->attrib.seq_num == psta->RxMgmtFrameSeqNum)
-				/* drop the duplicate management frame */
-				return;
-		}
-		psta->RxMgmtFrameSeqNum = precv_frame->attrib.seq_num;
-	}
-
-	if (ieee80211_is_auth(hdr->frame_control)) {
-		if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
-			fct = OnAuth;
-		else
-			fct = OnAuthClient;
-	}
-
-	if (fct)
-		fct(padapter, precv_frame);
 }
 
 static u32 p2p_listen_state_process(struct adapter *padapter, unsigned char *da)
@@ -4006,6 +3947,63 @@ struct xmit_frame *alloc_mgtxmitframe(struct xmit_priv *pxmitpriv)
 	pmgntframe->buf_addr = pxmitbuf->pbuf;
 	pxmitbuf->priv_data = pmgntframe;
 	return pmgntframe;
+}
+
+void mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame)
+{
+	mlme_handler mlme_sta_tbl[] = {
+		OnAssocReq,
+		OnAssocRsp,
+		OnAssocReq,
+		OnAssocRsp,
+		OnProbeReq,
+		OnProbeRsp,
+		NULL,
+		NULL,
+		OnBeacon,
+		NULL,
+		OnDisassoc,
+		OnAuthClient,
+		OnDeAuth,
+		OnAction,
+	};
+	int index;
+	mlme_handler fct;
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
+	struct sta_info *psta = rtw_get_stainfo(&padapter->stapriv, hdr->addr2);
+
+	if (!ieee80211_is_mgmt(hdr->frame_control))
+		return;
+
+	/* receive the frames that ra(a1) is my address or ra(a1) is bc address. */
+	if (memcmp(hdr->addr1, myid(&padapter->eeprompriv), ETH_ALEN) &&
+	    !is_broadcast_ether_addr(hdr->addr1))
+		return;
+
+	index = (le16_to_cpu(hdr->frame_control) & IEEE80211_FCTL_STYPE) >> 4;
+	if (index >= ARRAY_SIZE(mlme_sta_tbl))
+		return;
+	fct = mlme_sta_tbl[index];
+
+	if (psta) {
+		if (ieee80211_has_retry(hdr->frame_control)) {
+			if (precv_frame->attrib.seq_num == psta->RxMgmtFrameSeqNum)
+				/* drop the duplicate management frame */
+				return;
+		}
+		psta->RxMgmtFrameSeqNum = precv_frame->attrib.seq_num;
+	}
+
+	if (ieee80211_is_auth(hdr->frame_control)) {
+		if (check_fwstate(pmlmepriv, WIFI_AP_STATE))
+			fct = OnAuth;
+		else
+			fct = OnAuthClient;
+	}
+
+	if (fct)
+		fct(padapter, precv_frame);
 }
 
 /****************************************************************************
