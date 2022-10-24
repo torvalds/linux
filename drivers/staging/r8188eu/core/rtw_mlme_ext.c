@@ -796,7 +796,6 @@ static void OnAuthClient(struct adapter *padapter, struct recv_frame *precv_fram
 {
 	unsigned int	seq, len, status, offset;
 	unsigned char	*p;
-	unsigned int	go2asoc = 0;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 	u8 *pframe = precv_frame->rx_data;
@@ -843,15 +842,12 @@ static void OnAuthClient(struct adapter *padapter, struct recv_frame *precv_fram
 			return;
 		} else {
 			/*  open system */
-			go2asoc = 1;
+			start_clnt_assoc(padapter);
 		}
 	} else if (seq == 4) {
 		if (pmlmeinfo->auth_algo == dot11AuthAlgrthm_Shared)
-			go2asoc = 1;
+			start_clnt_assoc(padapter);
 	}
-
-	if (go2asoc)
-		start_clnt_assoc(padapter);
 }
 
 static void UpdateBrateTbl(u8 *mbrate)
