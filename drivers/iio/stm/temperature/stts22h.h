@@ -14,7 +14,6 @@
 #include <linux/device.h>
 #include <linux/err.h>
 
-#define ST_STTS22H_VERSION				"V1.0"
 #define ST_STTS22H_DEV_NAME				"stts22h"
 
 #define ST_STTS22H_WHOAMI_ADDR				0x01

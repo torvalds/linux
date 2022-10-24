@@ -545,13 +545,7 @@ static int st_stts22h_probe(struct i2c_client *client,
 	data->iio_devs->setup_ops = &st_stts22h_buffer_ops;
 #endif /* LINUX_VERSION_CODE */
 
-	err = devm_iio_device_register(data->dev, data->iio_devs);
-	if (err)
-		return err;
-
-	dev_info(data->dev, "%s: probe ok\n", ST_STTS22H_VERSION);
-
-	return 0;
+	return devm_iio_device_register(data->dev, data->iio_devs);
 }
 
 static int st_stts22h_remove(struct i2c_client *client)
