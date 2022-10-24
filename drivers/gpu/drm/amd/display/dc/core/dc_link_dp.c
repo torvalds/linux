@@ -3020,7 +3020,7 @@ static enum dc_link_rate get_lttpr_max_link_rate(struct dc_link *link)
 
 static enum dc_link_rate get_cable_max_link_rate(struct dc_link *link)
 {
-	enum dc_link_rate cable_max_link_rate = LINK_RATE_HIGH3;
+	enum dc_link_rate cable_max_link_rate = LINK_RATE_UNKNOWN;
 
 	if (link->dpcd_caps.cable_id.bits.UHBR10_20_CAPABILITY & DP_UHBR20)
 		cable_max_link_rate = LINK_RATE_UHBR20;
@@ -3083,15 +3083,29 @@ struct dc_link_settings dp_get_max_link_cap(struct dc_link *link)
 		max_link_cap.link_spread =
 				link->reported_link_cap.link_spread;
 
-	/* Lower link settings based on cable attributes */
+	/* Lower link settings based on cable attributes
+	 * Cable ID is a DP2 feature to identify max certified link rate that
+	 * a cable can carry. The cable identification method requires both
+	 * cable and display hardware support. Since the specs comes late, it is
+	 * anticipated that the first round of DP2 cables and displays may not
+	 * be fully compatible to reliably return cable ID data. Therefore the
+	 * decision of our cable id policy is that if the cable can return non
+	 * zero cable id data, we will take cable's link rate capability into
+	 * account. However if we get zero data, the cable link rate capability
+	 * is considered inconclusive. In this case, we will not take cable's
+	 * capability into account to avoid of over limiting hardware capability
+	 * from users. The max overall link rate capability is still determined
+	 * after actual dp pre-training. Cable id is considered as an auxiliary
+	 * method of determining max link bandwidth capability.
+	 */
 	cable_max_link_rate = get_cable_max_link_rate(link);
 
 	if (!link->dc->debug.ignore_cable_id &&
+			cable_max_link_rate != LINK_RATE_UNKNOWN &&
 			cable_max_link_rate < max_link_cap.link_rate)
 		max_link_cap.link_rate = cable_max_link_rate;
 
-	/*
-	 * account for lttpr repeaters cap
+	/* account for lttpr repeaters cap
 	 * notes: repeaters do not snoop in the DPRX Capabilities addresses (3.6.3).
 	 */
 	if (dp_is_lttpr_present(link)) {
