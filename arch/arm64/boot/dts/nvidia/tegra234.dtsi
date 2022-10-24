@@ -1750,7 +1750,7 @@
 			interrupt-controller;
 		};
 
-		smmu_iso: iommu@10000000{
+		smmu_iso: iommu@10000000 {
 			compatible = "nvidia,tegra234-smmu", "nvidia,smmu-500";
 			reg = <0x10000000 0x1000000>;
 			interrupts = <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
