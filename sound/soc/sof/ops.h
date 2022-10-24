@@ -305,23 +305,19 @@ static inline int snd_sof_debugfs_add_region_item(struct snd_sof_dev *sdev,
 static inline void snd_sof_dsp_write(struct snd_sof_dev *sdev, u32 bar,
 				     u32 offset, u32 value)
 {
-	if (sof_ops(sdev)->write) {
+	if (sof_ops(sdev)->write)
 		sof_ops(sdev)->write(sdev, sdev->bar[bar] + offset, value);
-		return;
-	}
-
-	dev_err_ratelimited(sdev->dev, "error: %s not defined\n", __func__);
+	else
+		writel(value,  sdev->bar[bar] + offset);
 }
 
 static inline void snd_sof_dsp_write64(struct snd_sof_dev *sdev, u32 bar,
 				       u32 offset, u64 value)
 {
-	if (sof_ops(sdev)->write64) {
+	if (sof_ops(sdev)->write64)
 		sof_ops(sdev)->write64(sdev, sdev->bar[bar] + offset, value);
-		return;
-	}
-
-	dev_err_ratelimited(sdev->dev, "error: %s not defined\n", __func__);
+	else
+		writeq(value, sdev->bar[bar] + offset);
 }
 
 static inline u32 snd_sof_dsp_read(struct snd_sof_dev *sdev, u32 bar,
@@ -329,9 +325,8 @@ static inline u32 snd_sof_dsp_read(struct snd_sof_dev *sdev, u32 bar,
 {
 	if (sof_ops(sdev)->read)
 		return sof_ops(sdev)->read(sdev, sdev->bar[bar] + offset);
-
-	dev_err(sdev->dev, "error: %s not defined\n", __func__);
-	return -ENOTSUPP;
+	else
+		return readl(sdev->bar[bar] + offset);
 }
 
 static inline u64 snd_sof_dsp_read64(struct snd_sof_dev *sdev, u32 bar,
@@ -339,9 +334,8 @@ static inline u64 snd_sof_dsp_read64(struct snd_sof_dev *sdev, u32 bar,
 {
 	if (sof_ops(sdev)->read64)
 		return sof_ops(sdev)->read64(sdev, sdev->bar[bar] + offset);
-
-	dev_err(sdev->dev, "error: %s not defined\n", __func__);
-	return -ENOTSUPP;
+	else
+		return readq(sdev->bar[bar] + offset);
 }
 
 /* block IO */
