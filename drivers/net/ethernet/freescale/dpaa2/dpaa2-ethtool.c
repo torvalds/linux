@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /* Copyright 2014-2016 Freescale Semiconductor Inc.
- * Copyright 2016 NXP
- * Copyright 2020 NXP
+ * Copyright 2016-2022 NXP
  */
 
 #include <linux/net_tstamp.h>
@@ -227,17 +226,8 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 					struct ethtool_stats *stats,
 					u64 *data)
 {
-	int i = 0;
-	int j, k, err;
-	int num_cnt;
-	union dpni_statistics dpni_stats;
-	u32 fcnt, bcnt;
-	u32 fcnt_rx_total = 0, fcnt_tx_total = 0;
-	u32 bcnt_rx_total = 0, bcnt_tx_total = 0;
-	u32 buf_cnt;
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
-	struct dpaa2_eth_drv_stats *extras;
-	struct dpaa2_eth_ch_stats *ch_stats;
+	union dpni_statistics dpni_stats;
 	int dpni_stats_page_size[DPNI_STATISTICS_CNT] = {
 		sizeof(dpni_stats.page_0),
 		sizeof(dpni_stats.page_1),
@@ -247,6 +237,13 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 		sizeof(dpni_stats.page_5),
 		sizeof(dpni_stats.page_6),
 	};
+	u32 fcnt_rx_total = 0, fcnt_tx_total = 0;
+	u32 bcnt_rx_total = 0, bcnt_tx_total = 0;
+	struct dpaa2_eth_ch_stats *ch_stats;
+	struct dpaa2_eth_drv_stats *extras;
+	u32 buf_cnt, buf_cnt_total = 0;
+	int j, k, err, num_cnt, i = 0;
+	u32 fcnt, bcnt;
 
 	memset(data, 0,
 	       sizeof(u64) * (DPAA2_ETH_NUM_STATS + DPAA2_ETH_NUM_EXTRA_STATS));
@@ -308,12 +305,15 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 	*(data + i++) = fcnt_tx_total;
 	*(data + i++) = bcnt_tx_total;
 
-	err = dpaa2_io_query_bp_count(NULL, priv->bpid, &buf_cnt);
-	if (err) {
-		netdev_warn(net_dev, "Buffer count query error %d\n", err);
-		return;
+	for (j = 0; j < priv->num_bps; j++) {
+		err = dpaa2_io_query_bp_count(NULL, priv->bp[j]->bpid, &buf_cnt);
+		if (err) {
+			netdev_warn(net_dev, "Buffer count query error %d\n", err);
+			return;
+		}
+		buf_cnt_total += buf_cnt;
 	}
-	*(data + i++) = buf_cnt;
+	*(data + i++) = buf_cnt_total;
 
 	if (dpaa2_eth_has_mac(priv))
 		dpaa2_mac_get_ethtool_stats(priv->mac, data + i);
@@ -876,6 +876,29 @@ restore_rx_usecs:
 	return err;
 }
 
+static void dpaa2_eth_get_channels(struct net_device *net_dev,
+				   struct ethtool_channels *channels)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
+	int queue_count = dpaa2_eth_queue_count(priv);
+
+	channels->max_rx = queue_count;
+	channels->max_tx = queue_count;
+	channels->rx_count = queue_count;
+	channels->tx_count = queue_count;
+
+	/* Tx confirmation and Rx error */
+	channels->max_other = queue_count + 1;
+	channels->max_combined = channels->max_rx +
+				 channels->max_tx +
+				 channels->max_other;
+	/* Tx conf and Rx err */
+	channels->other_count = queue_count + 1;
+	channels->combined_count = channels->rx_count +
+				   channels->tx_count +
+				   channels->other_count;
+}
+
 const struct ethtool_ops dpaa2_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
 				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
@@ -896,4 +919,5 @@ const struct ethtool_ops dpaa2_ethtool_ops = {
 	.set_tunable = dpaa2_eth_set_tunable,
 	.get_coalesce = dpaa2_eth_get_coalesce,
 	.set_coalesce = dpaa2_eth_set_coalesce,
+	.get_channels = dpaa2_eth_get_channels,
 };
