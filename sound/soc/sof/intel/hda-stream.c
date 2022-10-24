@@ -736,11 +736,11 @@ static bool hda_dsp_stream_check(struct hdac_bus *bus, u32 status)
 
 	list_for_each_entry(s, &bus->stream_list, list) {
 		if (status & BIT(s->index) && s->opened) {
-			sd_status = snd_hdac_stream_readb(s, SD_STS);
+			sd_status = readb(s->sd_addr + SOF_HDA_ADSP_REG_SD_STS);
 
 			trace_sof_intel_hda_dsp_stream_status(bus->dev, s, sd_status);
 
-			snd_hdac_stream_writeb(s, SD_STS, sd_status);
+			writeb(sd_status, s->sd_addr + SOF_HDA_ADSP_REG_SD_STS);
 
 			active = true;
 			if ((!s->substream && !s->cstream) ||
