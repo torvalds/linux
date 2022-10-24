@@ -182,7 +182,7 @@ int hda_dsp_ctrl_clock_power_gating(struct snd_sof_dev *sdev, bool enable)
 	return 0;
 }
 
-int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
+int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
@@ -199,20 +199,18 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 #endif
 	hda_dsp_ctrl_misc_clock_gating(sdev, false);
 
-	if (full_reset) {
-		/* reset HDA controller */
-		ret = hda_dsp_ctrl_link_reset(sdev, true);
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: failed to reset HDA controller\n");
-			goto err;
-		}
+	/* reset HDA controller */
+	ret = hda_dsp_ctrl_link_reset(sdev, true);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: failed to reset HDA controller\n");
+		goto err;
+	}
 
-		/* exit HDA controller reset */
-		ret = hda_dsp_ctrl_link_reset(sdev, false);
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: failed to exit HDA controller reset\n");
-			goto err;
-		}
+	/* exit HDA controller reset */
+	ret = hda_dsp_ctrl_link_reset(sdev, false);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: failed to exit HDA controller reset\n");
+		goto err;
 	}
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
