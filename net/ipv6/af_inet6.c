@@ -114,6 +114,7 @@ void inet6_sock_destruct(struct sock *sk)
 	inet6_cleanup_sock(sk);
 	inet_sock_destruct(sk);
 }
+EXPORT_SYMBOL_GPL(inet6_sock_destruct);
 
 static int inet6_create(struct net *net, struct socket *sock, int protocol,
 			int kern)
@@ -489,7 +490,7 @@ int inet6_release(struct socket *sock)
 }
 EXPORT_SYMBOL(inet6_release);
 
-void inet6_destroy_sock(struct sock *sk)
+void inet6_cleanup_sock(struct sock *sk)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sk_buff *skb;
@@ -513,12 +514,6 @@ void inet6_destroy_sock(struct sock *sk)
 		atomic_sub(opt->tot_len, &sk->sk_omem_alloc);
 		txopt_put(opt);
 	}
-}
-EXPORT_SYMBOL_GPL(inet6_destroy_sock);
-
-void inet6_cleanup_sock(struct sock *sk)
-{
-	inet6_destroy_sock(sk);
 }
 EXPORT_SYMBOL_GPL(inet6_cleanup_sock);
 
