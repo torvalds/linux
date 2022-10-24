@@ -21,8 +21,16 @@
 #include <linux/sched/task_stack.h>
 #include <linux/spi/flash.h>
 #include <linux/mtd/spi-nor.h>
+#include <linux/miscdevice.h>
+
+#include <uapi/linux/spi_nor_misc.h>
 
 #include "core.h"
+
+struct spi_nor_misc_dev {
+	struct miscdevice dev;
+	struct spi_nor *nor;
+};
 
 /* Define max times to check status register before we give up. */
 
@@ -3462,6 +3470,78 @@ static int spi_nor_create_write_dirmap(struct spi_nor *nor)
 	return PTR_ERR_OR_ZERO(nor->dirmap.wdesc);
 }
 
+static int spi_nor_misc_open(struct inode *inode, struct file *file)
+{
+	struct miscdevice *miscdev = file->private_data;
+	struct spi_nor_misc_dev *nor_dev;
+
+	nor_dev = container_of(miscdev, struct spi_nor_misc_dev, dev);
+	file->private_data = nor_dev->nor;
+
+	return 0;
+}
+
+static long spi_nor_misc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct spi_nor *nor = (struct spi_nor *)file->private_data;
+	struct nor_flash_user_info info;
+	void __user *uarg = (void __user *)arg;
+	int i, ret;
+
+	switch (cmd) {
+	case NOR_GET_FLASH_INFO:
+		for (i = 0; i < SPI_NOR_MAX_ID_LEN; i++)
+			info.id[i] = nor->info->id[i];
+
+		ret = copy_to_user(uarg, &info, sizeof(info));
+		if (ret) {
+			dev_err(nor->dev, "failed to get elbi data\n");
+			return -EFAULT;
+		}
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static const struct file_operations spi_nor_misc_ops = {
+	.owner = THIS_MODULE,
+	.open = spi_nor_misc_open,
+	.unlocked_ioctl = spi_nor_misc_ioctl,
+};
+
+static int spi_nor_add_misc(struct spi_nor *nor)
+{
+	int ret;
+	struct spi_nor_misc_dev *nor_dev;
+	char name[24];
+
+	nor_dev = devm_kzalloc(nor->dev, sizeof(struct spi_nor_misc_dev),
+				GFP_KERNEL);
+	if (!nor_dev)
+		return -ENOMEM;
+
+	nor_dev->dev.minor = MISC_DYNAMIC_MINOR;
+	snprintf(name, sizeof(name), "%s%s", "nor_misc_", dev_name(nor->dev));
+	nor_dev->dev.name = devm_kstrdup(nor->dev, name, GFP_KERNEL);
+	nor_dev->dev.fops = &spi_nor_misc_ops;
+	nor_dev->dev.parent = nor->dev;
+
+	ret = misc_register(&nor_dev->dev);
+	if (ret) {
+		dev_err(nor->dev, "failed to register misc device.\n");
+		return ret;
+	}
+
+	nor_dev->nor = nor;
+	nor->misc_dev = &nor_dev->dev;
+
+	dev_info(nor->dev, "register misc device\n");
+
+	return 0;
+}
+
 static int spi_nor_probe(struct spi_mem *spimem)
 {
 	struct spi_device *spi = spimem->spi;
@@ -3531,6 +3611,9 @@ static int spi_nor_probe(struct spi_mem *spimem)
 	if (ret)
 		return ret;
 
+	if (IS_ENABLED(CONFIG_MTD_SPI_NOR_MISC))
+		spi_nor_add_misc(nor);
+
 	return mtd_device_register(&nor->mtd, data ? data->parts : NULL,
 				   data ? data->nr_parts : 0);
 }
@@ -3540,6 +3623,9 @@ static int spi_nor_remove(struct spi_mem *spimem)
 	struct spi_nor *nor = spi_mem_get_drvdata(spimem);
 
 	spi_nor_restore(nor);
+
+	if (IS_ENABLED(CONFIG_MTD_SPI_NOR_MISC) && nor->misc_dev)
+		misc_deregister(nor->misc_dev);
 
 	/* Clean up MTD stuff. */
 	return mtd_device_unregister(&nor->mtd);

@@ -24,6 +24,13 @@ config MTD_SPI_NOR_USE_4K_SECTORS
 	  Please note that some tools/drivers/filesystems may not work with
 	  4096 B erase size (e.g. UBIFS requires 15 KiB as a minimum).
 
+config MTD_SPI_NOR_MISC
+	bool "Support SPI NOR misc device"
+	default n
+	help
+	  Support obtaining flash information through the ioctl interface
+	  of the misc device.
+
 source "drivers/mtd/spi-nor/controllers/Kconfig"
 
 endif # MTD_SPI_NOR

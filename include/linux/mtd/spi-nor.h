@@ -388,6 +388,7 @@ struct spi_nor {
 		struct spi_mem_dirmap_desc *wdesc;
 	} dirmap;
 
+	struct miscdevice *misc_dev;
 	void *priv;
 };
 
