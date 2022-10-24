@@ -1864,19 +1864,28 @@ static void ocelot_irq_unmask_level(struct irq_data *data)
 	if (val & bit)
 		ack = true;
 
+	/* Try to clear any rising edges */
+	if (!active && ack)
+		regmap_write_bits(info->map, REG(OCELOT_GPIO_INTR, info, gpio),
+				  bit, bit);
+
 	/* Enable the interrupt now */
 	gpiochip_enable_irq(chip, gpio);
 	regmap_update_bits(info->map, REG(OCELOT_GPIO_INTR_ENA, info, gpio),
 			   bit, bit);
 
 	/*
-	 * In case the interrupt line is still active and the interrupt
-	 * controller has not seen any changes in the interrupt line, then it
-	 * means that there happen another interrupt while the line was active.
+	 * In case the interrupt line is still active then it means that
+	 * there happen another interrupt while the line was active.
 	 * So we missed that one, so we need to kick the interrupt again
 	 * handler.
 	 */
-	if (active && !ack) {
+	regmap_read(info->map, REG(OCELOT_GPIO_IN, info, gpio), &val);
+	if ((!(val & bit) && trigger_level == IRQ_TYPE_LEVEL_LOW) ||
+	      (val & bit && trigger_level == IRQ_TYPE_LEVEL_HIGH))
+		active = true;
+
+	if (active) {
 		struct ocelot_irq_work *work;
 
 		work = kmalloc(sizeof(*work), GFP_ATOMIC);

@@ -917,7 +917,8 @@ static void mtk_iommu_get_resv_regions(struct device *dev,
 			continue;
 
 		region = iommu_alloc_resv_region(resv->iova_base, resv->size,
-						 prot, IOMMU_RESV_RESERVED);
+						 prot, IOMMU_RESV_RESERVED,
+						 GFP_KERNEL);
 		if (!region)
 			return;
 

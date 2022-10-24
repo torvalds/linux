@@ -21,8 +21,8 @@ struct mac_priv_s;
 
 struct mac_device {
 	void __iomem		*vaddr;
-	void __iomem		*vaddr_end;
 	struct device		*dev;
+	struct resource		*res;
 	u8			 addr[ETH_ALEN];
 	struct fman_port	*port[2];
 	struct phylink		*phylink;

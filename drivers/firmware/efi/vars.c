@@ -7,6 +7,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/sizes.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -20,19 +21,19 @@ static struct efivars *__efivars;
 
 static DEFINE_SEMAPHORE(efivars_lock);
 
-efi_status_t check_var_size(u32 attributes, unsigned long size)
+static efi_status_t check_var_size(u32 attributes, unsigned long size)
 {
 	const struct efivar_operations *fops;
 
 	fops = __efivars->ops;
 
 	if (!fops->query_variable_store)
-		return EFI_UNSUPPORTED;
+		return (size <= SZ_64K) ? EFI_SUCCESS : EFI_OUT_OF_RESOURCES;
 
 	return fops->query_variable_store(attributes, size, false);
 }
-EXPORT_SYMBOL_NS_GPL(check_var_size, EFIVAR);
 
+static
 efi_status_t check_var_size_nonblocking(u32 attributes, unsigned long size)
 {
 	const struct efivar_operations *fops;
@@ -40,11 +41,10 @@ efi_status_t check_var_size_nonblocking(u32 attributes, unsigned long size)
 	fops = __efivars->ops;
 
 	if (!fops->query_variable_store)
-		return EFI_UNSUPPORTED;
+		return (size <= SZ_64K) ? EFI_SUCCESS : EFI_OUT_OF_RESOURCES;
 
 	return fops->query_variable_store(attributes, size, true);
 }
-EXPORT_SYMBOL_NS_GPL(check_var_size_nonblocking, EFIVAR);
 
 /**
  * efivars_kobject - get the kobject for the registered efivars

@@ -66,7 +66,7 @@ config RUST_IS_AVAILABLE
 	  This shows whether a suitable Rust toolchain is available (found).
 
 	  Please see Documentation/rust/quick-start.rst for instructions on how
-	  to satify the build requirements of Rust support.
+	  to satisfy the build requirements of Rust support.
 
 	  In particular, the Makefile target 'rustavailable' is useful to check
 	  why the Rust toolchain is not being detected.

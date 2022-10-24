@@ -1497,7 +1497,7 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 		/*
 		 * AF9035 gpiot2 = FC0012 enable
 		 * XXX: there seems to be something on gpioh8 too, but on my
-		 * my test I didn't find any difference.
+		 * test I didn't find any difference.
 		 */
 
 		if (adap->id == 0) {

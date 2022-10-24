@@ -271,6 +271,8 @@ static __init int efivar_ssdt_load(void)
 			acpi_status ret = acpi_load_table(data, NULL);
 			if (ret)
 				pr_err("failed to load table: %u\n", ret);
+			else
+				continue;
 		} else {
 			pr_err("failed to get var data: 0x%lx\n", status);
 		}
