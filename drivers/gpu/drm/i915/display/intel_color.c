@@ -1359,6 +1359,26 @@ static u32 i9xx_gamma_mode(struct intel_crtc_state *crtc_state)
 		return GAMMA_MODE_MODE_10BIT; /* i965+ only */
 }
 
+void intel_color_assert_luts(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	/* make sure {pre,post}_csc_lut were correctly assigned */
+	if (DISPLAY_VER(i915) >= 10 || HAS_GMCH(i915)) {
+		drm_WARN_ON(&i915->drm,
+			    crtc_state->pre_csc_lut != crtc_state->hw.degamma_lut);
+		drm_WARN_ON(&i915->drm,
+			    crtc_state->post_csc_lut != crtc_state->hw.gamma_lut);
+	} else {
+		drm_WARN_ON(&i915->drm,
+			    crtc_state->pre_csc_lut != crtc_state->hw.degamma_lut &&
+			    crtc_state->pre_csc_lut != crtc_state->hw.gamma_lut);
+		drm_WARN_ON(&i915->drm,
+			    crtc_state->post_csc_lut != crtc_state->hw.degamma_lut &&
+			    crtc_state->post_csc_lut != crtc_state->hw.gamma_lut);
+	}
+}
+
 static void intel_assign_luts(struct intel_crtc_state *crtc_state)
 {
 	drm_property_replace_blob(&crtc_state->pre_csc_lut,

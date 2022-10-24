@@ -6886,6 +6886,8 @@ static int intel_atomic_check(struct drm_device *dev,
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
+		intel_color_assert_luts(new_crtc_state);
+
 		ret = intel_async_flip_check_hw(state, crtc);
 		if (ret)
 			goto fail;
