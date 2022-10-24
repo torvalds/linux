@@ -262,7 +262,7 @@ out:
 	return edid;
 }
 
-struct edid *drm_load_edid_firmware(struct drm_connector *connector)
+struct edid *drm_edid_load_firmware(struct drm_connector *connector)
 {
 	char *edidname, *last, *colon, *fwstr, *edidstr, *fallback = NULL;
 	struct edid *edid;
