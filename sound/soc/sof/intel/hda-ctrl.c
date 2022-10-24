@@ -214,13 +214,6 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 	}
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* check to see if controller is ready */
-	if (!snd_hdac_chip_readb(bus, GCTL)) {
-		dev_dbg(bus->dev, "controller not ready!\n");
-		ret = -EBUSY;
-		goto err;
-	}
-
 	/* Accept unsolicited responses */
 	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, AZX_GCTL_UNSOL);
 
