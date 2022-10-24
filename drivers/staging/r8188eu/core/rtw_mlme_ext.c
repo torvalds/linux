@@ -515,7 +515,7 @@ _issue_probersp:
 	return _SUCCESS;
 }
 
-unsigned int OnProbeRsp(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnProbeRsp(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct wifidirect_info	*pwdinfo = &padapter->wdinfo;
