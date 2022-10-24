@@ -852,10 +852,8 @@ static void OnAuthClient(struct adapter *padapter, struct recv_frame *precv_fram
 			return;
 	}
 
-	if (go2asoc) {
+	if (go2asoc)
 		start_clnt_assoc(padapter);
-		return;
-	}
 }
 
 static void UpdateBrateTbl(u8 *mbrate)
