@@ -49,35 +49,6 @@ static int rga_job_cleanup(struct rga_job *job)
 	return 0;
 }
 
-void rga_job_session_destroy(struct rga_session *session)
-{
-	struct rga_scheduler_t *scheduler = NULL;
-	struct rga_job *job_pos, *job_q;
-	int i;
-
-	unsigned long flags;
-
-	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		scheduler = rga_drvdata->scheduler[i];
-
-		spin_lock_irqsave(&scheduler->irq_lock, flags);
-
-		list_for_each_entry_safe(job_pos, job_q, &scheduler->todo_list, head) {
-			if (session == job_pos->session) {
-				list_del(&job_pos->head);
-
-				spin_unlock_irqrestore(&scheduler->irq_lock, flags);
-
-				rga_job_cleanup(job_pos);
-
-				spin_lock_irqsave(&scheduler->irq_lock, flags);
-			}
-		}
-
-		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
-	}
-}
-
 static int rga_job_judgment_support_core(struct rga_job *job)
 {
 	int ret = 0;
@@ -731,6 +702,31 @@ static void rga_request_release_abort(struct rga_request *request, int err_code)
 	mutex_unlock(&request_manager->lock);
 }
 
+void rga_request_session_destroy_abort(struct rga_session *session)
+{
+	int request_id;
+	struct rga_request *request;
+	struct rga_pending_request_manager *request_manager;
+
+	request_manager = rga_drvdata->pend_request_manager;
+	if (request_manager == NULL) {
+		pr_err("rga_pending_request_manager is null!\n");
+		return;
+	}
+
+	mutex_lock(&request_manager->lock);
+
+	idr_for_each_entry(&request_manager->request_idr, request, request_id) {
+		if (session == request->session) {
+			pr_err("[tgid:%d pid:%d] destroy request[%d] when the user exits",
+			       session->tgid, current->pid, request->id);
+			rga_request_put(request);
+		}
+	}
+
+	mutex_unlock(&request_manager->lock);
+}
+
 static int rga_request_wait(struct rga_request *request)
 {
 	int left_time;
@@ -1148,10 +1144,11 @@ static void rga_request_kref_release(struct kref *ref)
 	request = container_of(ref, struct rga_request, refcount);
 
 	if (rga_dma_fence_get_status(request->release_fence) == 0)
-		rga_dma_fence_signal(request->release_fence, -EEXIST);
+		rga_dma_fence_signal(request->release_fence, -EFAULT);
 
 	spin_lock_irqsave(&request->lock, flags);
 
+	rga_request_put_current_mm(request);
 	rga_dma_fence_put(request->release_fence);
 
 	if (!request->is_running || request->is_done) {

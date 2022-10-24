@@ -604,29 +604,7 @@ static struct rga_session *rga_session_init(void)
 
 static int rga_session_deinit(struct rga_session *session)
 {
-	pid_t pid;
-	int request_id;
-	struct rga_pending_request_manager *request_manager;
-	struct rga_request *request;
-
-	pid = current->pid;
-
-	request_manager = rga_drvdata->pend_request_manager;
-
-	mutex_lock(&request_manager->lock);
-
-	idr_for_each_entry(&request_manager->request_idr, request, request_id) {
-
-		if (session == request->session) {
-			pr_err("[pid:%d] destroy request[%d] when the user exits",
-			       pid, request->id);
-			rga_request_put(request);
-		}
-	}
-
-	mutex_unlock(&request_manager->lock);
-
-	rga_job_session_destroy(session);
+	rga_request_session_destroy_abort(session);
 	rga_mm_session_release_buffer(session);
 
 	rga_session_free_remove_idr(session);
