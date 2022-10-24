@@ -105,7 +105,7 @@ static const char * const daemon_usage[] = {
 	NULL
 };
 
-static bool done;
+static volatile sig_atomic_t done;
 
 static void sig_handler(int sig __maybe_unused)
 {
