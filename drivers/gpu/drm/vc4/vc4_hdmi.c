@@ -349,27 +349,40 @@ static int vc4_hdmi_reset_link(struct drm_connector *connector,
 	if (!crtc_state->active)
 		return 0;
 
-	if (!vc4_hdmi_supports_scrambling(encoder))
+	mutex_lock(&vc4_hdmi->mutex);
+
+	if (!vc4_hdmi_supports_scrambling(encoder)) {
+		mutex_unlock(&vc4_hdmi->mutex);
 		return 0;
+	}
 
 	scrambling_needed = vc4_hdmi_mode_needs_scrambling(&vc4_hdmi->saved_adjusted_mode,
 							   vc4_hdmi->output_bpc,
 							   vc4_hdmi->output_format);
-	if (!scrambling_needed)
+	if (!scrambling_needed) {
+		mutex_unlock(&vc4_hdmi->mutex);
 		return 0;
+	}
 
 	if (conn_state->commit &&
-	    !try_wait_for_completion(&conn_state->commit->hw_done))
+	    !try_wait_for_completion(&conn_state->commit->hw_done)) {
+		mutex_unlock(&vc4_hdmi->mutex);
 		return 0;
+	}
 
 	ret = drm_scdc_readb(connector->ddc, SCDC_TMDS_CONFIG, &config);
 	if (ret < 0) {
 		drm_err(drm, "Failed to read TMDS config: %d\n", ret);
+		mutex_unlock(&vc4_hdmi->mutex);
 		return 0;
 	}
 
-	if (!!(config & SCDC_SCRAMBLING_ENABLE) == scrambling_needed)
+	if (!!(config & SCDC_SCRAMBLING_ENABLE) == scrambling_needed) {
+		mutex_unlock(&vc4_hdmi->mutex);
 		return 0;
+	}
+
+	mutex_unlock(&vc4_hdmi->mutex);
 
 	/*
 	 * HDMI 2.0 says that one should not send scrambled data
