@@ -207,14 +207,17 @@ static int hda_link_dma_params(struct hdac_ext_stream *hext_stream,
 static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params)
 {
-	struct hdac_stream *hstream = substream->runtime->private_data;
-	struct hdac_ext_stream *hext_stream;
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	struct hda_pipe_params p_params = {0};
-	struct hdac_bus *bus = hstream->bus;
+	struct hdac_ext_stream *hext_stream;
 	struct hdac_ext_link *hlink;
+	struct snd_sof_dev *sdev;
+	struct hdac_bus *bus;
+
+	sdev = snd_soc_component_get_drvdata(cpu_dai->component);
+	bus = sof_to_bus(sdev);
 
 	hext_stream = snd_soc_dai_get_dma_data(cpu_dai, substream);
 	if (!hext_stream) {
