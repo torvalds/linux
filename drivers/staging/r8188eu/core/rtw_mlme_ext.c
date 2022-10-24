@@ -911,7 +911,7 @@ static void UpdateBrateTblForSoftAP(u8 *bssrateset, u32 bssratelen)
 	}
 }
 
-unsigned int OnAssocReq(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAssocReq(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	u16 capab_info;
 	struct rtw_ieee802_11_elems elems;
