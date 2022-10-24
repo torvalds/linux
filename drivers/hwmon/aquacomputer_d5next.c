@@ -80,6 +80,7 @@ static u8 secondary_ctrl_report[] = {
 #define D5NEXT_5V_VOLTAGE		0x39
 #define D5NEXT_12V_VOLTAGE		0x37
 #define D5NEXT_CTRL_REPORT_SIZE		0x329
+#define D5NEXT_TEMP_CTRL_OFFSET		0x2D
 static u8 d5next_sensor_fan_offsets[] = { D5NEXT_PUMP_OFFSET, D5NEXT_FAN_OFFSET };
 
 /* Pump and fan speed registers in D5 Next control report (from 0-100%) */
@@ -94,6 +95,8 @@ static u16 d5next_ctrl_fan_offsets[] = { 0x97, 0x42 };
 #define FARBWERK360_SENSOR_START		0x32
 #define FARBWERK360_NUM_VIRTUAL_SENSORS		16
 #define FARBWERK360_VIRTUAL_SENSORS_START	0x3a
+#define FARBWERK360_CTRL_REPORT_SIZE		0x682
+#define FARBWERK360_TEMP_CTRL_OFFSET		0x8
 
 /* Register offsets for the Octo fan controller */
 #define OCTO_POWER_CYCLES		0x18
@@ -103,6 +106,7 @@ static u16 d5next_ctrl_fan_offsets[] = { 0x97, 0x42 };
 #define OCTO_NUM_VIRTUAL_SENSORS	16
 #define OCTO_VIRTUAL_SENSORS_START	0x45
 #define OCTO_CTRL_REPORT_SIZE		0x65F
+#define OCTO_TEMP_CTRL_OFFSET		0xA
 static u8 octo_sensor_fan_offsets[] = { 0x7D, 0x8A, 0x97, 0xA4, 0xB1, 0xBE, 0xCB, 0xD8 };
 
 /* Fan speed registers in Octo control report (from 0-100%) */
@@ -117,6 +121,7 @@ static u16 octo_ctrl_fan_offsets[] = { 0x5B, 0xB0, 0x105, 0x15A, 0x1AF, 0x204, 0
 #define QUADRO_VIRTUAL_SENSORS_START	0x3c
 #define QUADRO_CTRL_REPORT_SIZE		0x3c1
 #define QUADRO_FLOW_SENSOR_OFFSET	0x6e
+#define QUADRO_TEMP_CTRL_OFFSET		0xA
 static u8 quadro_sensor_fan_offsets[] = { 0x70, 0x7D, 0x8A, 0x97 };
 
 /* Fan speed registers in Quadro control report (from 0-100%) */
@@ -282,6 +287,7 @@ struct aqc_data {
 	int temp_sensor_start_offset;
 	int num_virtual_temp_sensors;
 	int virtual_temp_sensor_start_offset;
+	u16 temp_ctrl_offset;
 	u16 power_cycle_count_offset;
 	u8 flow_sensor_offset;
 
@@ -365,8 +371,8 @@ static int aqc_send_ctrl_data(struct aqc_data *priv)
 	return ret;
 }
 
-/* Refreshes the control buffer and returns value at offset */
-static int aqc_get_ctrl_val(struct aqc_data *priv, int offset)
+/* Refreshes the control buffer and stores value at offset in val */
+static int aqc_get_ctrl_val(struct aqc_data *priv, int offset, long *val)
 {
 	int ret;
 
@@ -376,7 +382,7 @@ static int aqc_get_ctrl_val(struct aqc_data *priv, int offset)
 	if (ret < 0)
 		goto unlock_and_return;
 
-	ret = get_unaligned_be16(priv->buffer + offset);
+	*val = (s16)get_unaligned_be16(priv->buffer + offset);
 
 unlock_and_return:
 	mutex_unlock(&priv->mutex);
@@ -393,7 +399,7 @@ static int aqc_set_ctrl_val(struct aqc_data *priv, int offset, long val)
 	if (ret < 0)
 		goto unlock_and_return;
 
-	put_unaligned_be16((u16)val, priv->buffer + offset);
+	put_unaligned_be16((s16)val, priv->buffer + offset);
 
 	ret = aqc_send_ctrl_data(priv);
 
@@ -408,8 +414,28 @@ static umode_t aqc_is_visible(const void *data, enum hwmon_sensor_types type, u3
 
 	switch (type) {
 	case hwmon_temp:
+		if (channel < priv->num_temp_sensors) {
+			switch (attr) {
+			case hwmon_temp_label:
+			case hwmon_temp_input:
+				return 0444;
+			case hwmon_temp_offset:
+				if (priv->temp_ctrl_offset != 0)
+					return 0644;
+				break;
+			default:
+				break;
+			}
+		}
+
 		if (channel < priv->num_temp_sensors + priv->num_virtual_temp_sensors)
-			return 0444;
+			switch (attr) {
+			case hwmon_temp_label:
+			case hwmon_temp_input:
+				return 0444;
+			default:
+				break;
+			}
 		break;
 	case hwmon_pwm:
 		if (priv->fan_ctrl_offsets && channel < priv->num_fans) {
@@ -492,10 +518,25 @@ static int aqc_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 
 	switch (type) {
 	case hwmon_temp:
-		if (priv->temp_input[channel] == -ENODATA)
-			return -ENODATA;
+		switch (attr) {
+		case hwmon_temp_input:
+			if (priv->temp_input[channel] == -ENODATA)
+				return -ENODATA;
 
-		*val = priv->temp_input[channel];
+			*val = priv->temp_input[channel];
+			break;
+		case hwmon_temp_offset:
+			ret =
+			    aqc_get_ctrl_val(priv, priv->temp_ctrl_offset +
+					     channel * AQC_TEMP_SENSOR_SIZE, val);
+			if (ret < 0)
+				return ret;
+
+			*val *= 10;
+			break;
+		default:
+			break;
+		}
 		break;
 	case hwmon_fan:
 		*val = priv->speed_input[channel];
@@ -505,7 +546,7 @@ static int aqc_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 		break;
 	case hwmon_pwm:
 		if (priv->fan_ctrl_offsets) {
-			ret = aqc_get_ctrl_val(priv, priv->fan_ctrl_offsets[channel]);
+			ret = aqc_get_ctrl_val(priv, priv->fan_ctrl_offsets[channel], val);
 			if (ret < 0)
 				return ret;
 
@@ -563,6 +604,21 @@ static int aqc_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 	struct aqc_data *priv = dev_get_drvdata(dev);
 
 	switch (type) {
+	case hwmon_temp:
+		switch (attr) {
+		case hwmon_temp_offset:
+			/* Limit temp offset to +/- 15K as in the official software */
+			val = clamp_val(val, -15000, 15000) / 10;
+			ret =
+			    aqc_set_ctrl_val(priv, priv->temp_ctrl_offset +
+					     channel * AQC_TEMP_SENSOR_SIZE, val);
+			if (ret < 0)
+				return ret;
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+		break;
 	case hwmon_pwm:
 		switch (attr) {
 		case hwmon_pwm_input:
@@ -597,10 +653,10 @@ static const struct hwmon_ops aqc_hwmon_ops = {
 
 static const struct hwmon_channel_info *aqc_info[] = {
 	HWMON_CHANNEL_INFO(temp,
-			   HWMON_T_INPUT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_OFFSET,
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_OFFSET,
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_OFFSET,
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_OFFSET,
 			   HWMON_T_INPUT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_LABEL,
@@ -853,6 +909,7 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->virtual_temp_sensor_start_offset = D5NEXT_VIRTUAL_SENSORS_START;
 		priv->power_cycle_count_offset = D5NEXT_POWER_CYCLES;
 		priv->buffer_size = D5NEXT_CTRL_REPORT_SIZE;
+		priv->temp_ctrl_offset = D5NEXT_TEMP_CTRL_OFFSET;
 
 		priv->temp_label = label_d5next_temp;
 		priv->virtual_temp_label = label_virtual_temp_sensors;
@@ -877,7 +934,8 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->temp_sensor_start_offset = FARBWERK360_SENSOR_START;
 		priv->num_virtual_temp_sensors = FARBWERK360_NUM_VIRTUAL_SENSORS;
 		priv->virtual_temp_sensor_start_offset = FARBWERK360_VIRTUAL_SENSORS_START;
-
+		priv->buffer_size = FARBWERK360_CTRL_REPORT_SIZE;
+		priv->temp_ctrl_offset = FARBWERK360_TEMP_CTRL_OFFSET;
 		priv->temp_label = label_temp_sensors;
 		priv->virtual_temp_label = label_virtual_temp_sensors;
 		break;
@@ -893,6 +951,7 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->virtual_temp_sensor_start_offset = OCTO_VIRTUAL_SENSORS_START;
 		priv->power_cycle_count_offset = OCTO_POWER_CYCLES;
 		priv->buffer_size = OCTO_CTRL_REPORT_SIZE;
+		priv->temp_ctrl_offset = OCTO_TEMP_CTRL_OFFSET;
 
 		priv->temp_label = label_temp_sensors;
 		priv->virtual_temp_label = label_virtual_temp_sensors;
@@ -914,6 +973,7 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->power_cycle_count_offset = QUADRO_POWER_CYCLES;
 		priv->buffer_size = QUADRO_CTRL_REPORT_SIZE;
 		priv->flow_sensor_offset = QUADRO_FLOW_SENSOR_OFFSET;
+		priv->temp_ctrl_offset = QUADRO_TEMP_CTRL_OFFSET;
 
 		priv->temp_label = label_temp_sensors;
 		priv->virtual_temp_label = label_virtual_temp_sensors;
