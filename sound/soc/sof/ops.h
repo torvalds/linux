@@ -356,6 +356,17 @@ static inline u64 snd_sof_dsp_read64(struct snd_sof_dev *sdev, u32 bar,
 		return readq(sdev->bar[bar] + offset);
 }
 
+static inline void snd_sof_dsp_updateb(struct snd_sof_dev *sdev, u32 bar,
+				       u32 offset, u8 value, u8 mask)
+{
+	u8 reg;
+
+	reg = snd_sof_dsp_readb(sdev, bar, offset);
+	reg &= ~mask;
+	reg |= value;
+	snd_sof_dsp_writeb(sdev, bar, offset, reg);
+}
+
 /* block IO */
 static inline int snd_sof_dsp_block_read(struct snd_sof_dev *sdev,
 					 enum snd_sof_fw_blk_type blk_type,
