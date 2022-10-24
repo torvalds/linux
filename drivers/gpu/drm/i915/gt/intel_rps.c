@@ -1014,9 +1014,15 @@ void intel_rps_boost(struct i915_request *rq)
 		if (rps_uses_slpc(rps)) {
 			slpc = rps_to_slpc(rps);
 
+			if (slpc->min_freq_softlimit >= slpc->boost_freq)
+				return;
+
 			/* Return if old value is non zero */
-			if (!atomic_fetch_inc(&slpc->num_waiters))
+			if (!atomic_fetch_inc(&slpc->num_waiters)) {
+				GT_TRACE(rps_to_gt(rps), "boost fence:%llx:%llx\n",
+					 rq->fence.context, rq->fence.seqno);
 				schedule_work(&slpc->boost_work);
+			}
 
 			return;
 		}
