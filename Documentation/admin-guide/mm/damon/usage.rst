@@ -235,6 +235,9 @@ In each region directory, you will find two files (``start`` and ``end``).  You
 can set and get the start and end addresses of the initial monitoring target
 region by writing to and reading from the files, respectively.
 
+Each region should not overlap with others.  ``end`` of directory ``N`` should
+be equal or smaller than ``start`` of directory ``N+1``.
+
 contexts/<N>/schemes/
 ---------------------
 
