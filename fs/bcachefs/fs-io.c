@@ -1428,7 +1428,8 @@ do_io:
 
 		/* Check for writing past i_size: */
 		WARN_ON_ONCE((bio_end_sector(&w->io->op.wbio.bio) << 9) >
-			     round_up(i_size, block_bytes(c)));
+			     round_up(i_size, block_bytes(c)) &&
+			     !test_bit(BCH_FS_EMERGENCY_RO, &c->flags));
 
 		w->io->op.res.sectors += reserved_sectors;
 		w->io->op.i_sectors_delta -= dirty_sectors;
