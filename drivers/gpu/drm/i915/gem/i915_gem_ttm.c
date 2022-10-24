@@ -1030,9 +1030,6 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 	vm_fault_t ret;
 	int idx;
 
-	if (i915_ttm_is_ghost_object(bo))
-		return VM_FAULT_SIGBUS;
-
 	/* Sanity check that we allow writing into this object */
 	if (unlikely(i915_gem_object_is_readonly(obj) &&
 		     area->vm_flags & VM_WRITE))
