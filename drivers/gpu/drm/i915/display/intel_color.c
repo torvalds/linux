@@ -1198,24 +1198,6 @@ static bool chv_can_preload_luts(const struct intel_crtc_state *new_crtc_state)
 	return !old_crtc_state->post_csc_lut;
 }
 
-static bool glk_can_preload_luts(const struct intel_crtc_state *new_crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
-	struct intel_atomic_state *state =
-		to_intel_atomic_state(new_crtc_state->uapi.state);
-	const struct intel_crtc_state *old_crtc_state =
-		intel_atomic_get_old_crtc_state(state, crtc);
-
-	/*
-	 * The hardware degamma is active whenever the pipe
-	 * CSC is active. Thus even if the old state has no
-	 * software degamma we need to avoid clobbering the
-	 * linear hardware degamma mid scanout.
-	 */
-	return !old_crtc_state->csc_enable &&
-		!old_crtc_state->post_csc_lut;
-}
-
 int intel_color_check(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
@@ -1626,11 +1608,9 @@ static void glk_assign_luts(struct intel_crtc_state *crtc_state)
 	 * On GLK+ both pipe CSC and degamma LUT are controlled
 	 * by csc_enable. Hence for the cases where the CSC is
 	 * needed but degamma LUT is not we need to load a
-	 * linear degamma LUT. In fact we'll just always load
-	 * the degama LUT so that we don't have to reload
-	 * it every time the pipe CSC is being enabled.
+	 * linear degamma LUT.
 	 */
-	if (!crtc_state->pre_csc_lut)
+	if (crtc_state->csc_enable && !crtc_state->pre_csc_lut)
 		drm_property_replace_blob(&crtc_state->pre_csc_lut,
 					  i915->display.color.glk_linear_degamma_lut);
 }
@@ -1671,7 +1651,7 @@ static int glk_color_check(struct intel_crtc_state *crtc_state)
 
 	glk_assign_luts(crtc_state);
 
-	crtc_state->preload_luts = glk_can_preload_luts(crtc_state);
+	crtc_state->preload_luts = intel_can_preload_luts(crtc_state);
 
 	return 0;
 }
