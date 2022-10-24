@@ -26,6 +26,7 @@
 #include "zoned.h"
 #include "fs.h"
 #include "accessors.h"
+#include "extent-tree.h"
 
 static struct kmem_cache *btrfs_trans_handle_cachep;
 

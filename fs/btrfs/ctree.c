@@ -20,6 +20,7 @@
 #include "tree-checker.h"
 #include "fs.h"
 #include "accessors.h"
+#include "extent-tree.h"
 
 static struct kmem_cache *btrfs_path_cachep;
 

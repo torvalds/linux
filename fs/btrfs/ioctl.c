@@ -52,6 +52,7 @@
 #include "subpage.h"
 #include "fs.h"
 #include "accessors.h"
+#include "extent-tree.h"
 
 #ifdef CONFIG_64BIT
 /* If we have a 32-bit userspace and 64-bit kernel, then the UAPI

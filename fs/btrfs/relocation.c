@@ -30,6 +30,7 @@
 #include "space-info.h"
 #include "fs.h"
 #include "accessors.h"
+#include "extent-tree.h"
 
 /*
  * Relocation overview

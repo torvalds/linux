@@ -26,6 +26,7 @@
 #include "tree-mod-log.h"
 #include "fs.h"
 #include "accessors.h"
+#include "extent-tree.h"
 
 /*
  * Helpers to access qgroup reservation

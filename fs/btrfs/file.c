@@ -32,6 +32,7 @@
 #include "subpage.h"
 #include "fs.h"
 #include "accessors.h"
+#include "extent-tree.h"
 
 static struct kmem_cache *btrfs_inode_defrag_cachep;
 /*

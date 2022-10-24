@@ -12,6 +12,7 @@
 #include "zoned.h"
 #include "fs.h"
 #include "accessors.h"
+#include "extent-tree.h"
 
 /*
  * HOW DOES SPACE RESERVATION WORK

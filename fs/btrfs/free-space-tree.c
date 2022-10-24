@@ -14,6 +14,7 @@
 #include "block-group.h"
 #include "fs.h"
 #include "accessors.h"
+#include "extent-tree.h"
 
 static int __add_block_group_free_space(struct btrfs_trans_handle *trans,
 					struct btrfs_block_group *block_group,

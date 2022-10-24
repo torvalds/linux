@@ -57,6 +57,7 @@
 #include "inode-item.h"
 #include "fs.h"
 #include "accessors.h"
+#include "extent-tree.h"
 
 struct btrfs_iget_args {
 	u64 ino;

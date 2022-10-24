@@ -23,6 +23,7 @@
 #include "inode-item.h"
 #include "fs.h"
 #include "accessors.h"
+#include "extent-tree.h"
 
 #define MAX_CONFLICT_INODES 10
 

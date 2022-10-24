@@ -19,6 +19,7 @@
 #include "zoned.h"
 #include "fs.h"
 #include "accessors.h"
+#include "extent-tree.h"
 
 #ifdef CONFIG_BTRFS_DEBUG
 int btrfs_should_fragment_free_space(struct btrfs_block_group *block_group)
