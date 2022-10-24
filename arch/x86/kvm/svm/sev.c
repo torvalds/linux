@@ -2648,7 +2648,7 @@ static int setup_vmgexit_scratch(struct vcpu_svm *svm, bool sync, u64 len)
 		ghcb_scratch_beg = control->ghcb_gpa +
 				   offsetof(struct ghcb, shared_buffer);
 		ghcb_scratch_end = control->ghcb_gpa +
-				   offsetof(struct ghcb, reserved_1);
+				   offsetof(struct ghcb, reserved_0xff0);
 
 		/*
 		 * If the scratch area begins within the GHCB, it must be
