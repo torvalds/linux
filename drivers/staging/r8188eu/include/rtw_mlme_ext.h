@@ -538,8 +538,6 @@ void start_create_ibss(struct adapter *padapter);
 
 unsigned int OnAuth(struct adapter *padapter,
 		    struct recv_frame *precv_frame);
-unsigned int OnDeAuth(struct adapter *padapter,
-		      struct recv_frame *precv_frame);
 unsigned int OnAction(struct adapter *padapter,
 		      struct recv_frame *precv_frame);
 

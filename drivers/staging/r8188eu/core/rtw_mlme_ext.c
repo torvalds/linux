@@ -1396,7 +1396,7 @@ report_assoc_result:
 	return _SUCCESS;
 }
 
-unsigned int OnDeAuth(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnDeAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
 	unsigned short	reason;
