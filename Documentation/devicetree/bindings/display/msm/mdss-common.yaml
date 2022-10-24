@@ -27,11 +27,11 @@ properties:
 
   clocks:
     minItems: 2
-    maxItems: 3
+    maxItems: 4
 
   clock-names:
     minItems: 2
-    maxItems: 3
+    maxItems: 4
 
   interrupts:
     maxItems: 1
