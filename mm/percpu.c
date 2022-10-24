@@ -1817,16 +1817,12 @@ restart:
 
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 
-	/*
-	 * No space left.  Create a new chunk.  We don't want multiple
-	 * tasks to create chunks simultaneously.  Serialize and create iff
-	 * there's still no empty chunk after grabbing the mutex.
-	 */
 	if (is_atomic) {
 		err = "atomic alloc failed, no space left";
 		goto fail;
 	}
 
+	/* No space left.  Create a new chunk. */
 	if (list_empty(&pcpu_chunk_lists[pcpu_free_slot])) {
 		chunk = pcpu_create_chunk(pcpu_gfp);
 		if (!chunk) {
