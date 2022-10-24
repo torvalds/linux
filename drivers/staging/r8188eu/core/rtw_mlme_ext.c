@@ -561,7 +561,7 @@ static unsigned int OnProbeRsp(struct adapter *padapter, struct recv_frame *prec
 	return _SUCCESS;
 }
 
-unsigned int OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	int cam_idx;
 	struct sta_info	*psta;
