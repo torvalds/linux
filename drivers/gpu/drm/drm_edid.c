@@ -2207,8 +2207,12 @@ static struct edid *drm_get_override_edid(struct drm_connector *connector,
 {
 	struct edid *override = NULL;
 
-	if (connector->override_edid)
-		override = drm_edid_duplicate(connector->edid_blob_ptr->data);
+	mutex_lock(&connector->edid_override_mutex);
+
+	if (connector->edid_override)
+		override = drm_edid_duplicate(connector->edid_override->edid);
+
+	mutex_unlock(&connector->edid_override_mutex);
 
 	if (!override)
 		override = drm_load_edid_firmware(connector);
@@ -2223,10 +2227,15 @@ static struct edid *drm_get_override_edid(struct drm_connector *connector,
 /* For debugfs edid_override implementation */
 int drm_edid_override_show(struct drm_connector *connector, struct seq_file *m)
 {
-	struct drm_property_blob *edid = connector->edid_blob_ptr;
+	const struct drm_edid *drm_edid;
 
-	if (connector->override_edid && edid)
-		seq_write(m, edid->data, edid->length);
+	mutex_lock(&connector->edid_override_mutex);
+
+	drm_edid = connector->edid_override;
+	if (drm_edid)
+		seq_write(m, drm_edid->edid, drm_edid->size);
+
+	mutex_unlock(&connector->edid_override_mutex);
 
 	return 0;
 }
@@ -2235,32 +2244,43 @@ int drm_edid_override_show(struct drm_connector *connector, struct seq_file *m)
 int drm_edid_override_set(struct drm_connector *connector, const void *edid,
 			  size_t size)
 {
-	int ret;
+	const struct drm_edid *drm_edid;
 
-	if (size < EDID_LENGTH || edid_size(edid) > size)
+	drm_edid = drm_edid_alloc(edid, size);
+	if (!drm_edid_valid(drm_edid)) {
+		drm_dbg_kms(connector->dev, "[CONNECTOR:%d:%s] EDID override invalid\n",
+			    connector->base.id, connector->name);
+		drm_edid_free(drm_edid);
 		return -EINVAL;
-
-	connector->override_edid = false;
+	}
 
 	drm_dbg_kms(connector->dev, "[CONNECTOR:%d:%s] EDID override set\n",
 		    connector->base.id, connector->name);
 
-	ret = drm_connector_update_edid_property(connector, edid);
-	if (!ret)
-		connector->override_edid = true;
+	mutex_lock(&connector->edid_override_mutex);
 
-	return ret;
+	drm_edid_free(connector->edid_override);
+	connector->edid_override = drm_edid;
+
+	mutex_unlock(&connector->edid_override_mutex);
+
+	return 0;
 }
 
 /* For debugfs edid_override implementation */
 int drm_edid_override_reset(struct drm_connector *connector)
 {
-	connector->override_edid = false;
-
 	drm_dbg_kms(connector->dev, "[CONNECTOR:%d:%s] EDID override reset\n",
 		    connector->base.id, connector->name);
 
-	return drm_connector_update_edid_property(connector, NULL);
+	mutex_lock(&connector->edid_override_mutex);
+
+	drm_edid_free(connector->edid_override);
+	connector->edid_override = NULL;
+
+	mutex_unlock(&connector->edid_override_mutex);
+
+	return 0;
 }
 
 /**
@@ -6634,23 +6654,6 @@ int drm_edid_connector_update(struct drm_connector *connector,
 {
 	int count;
 
-	/*
-	 * FIXME: Reconcile the differences in override_edid handling between
-	 * this and drm_connector_update_edid_property().
-	 *
-	 * If override_edid is set, and the EDID passed in here originates from
-	 * drm_edid_read() and friends, it will be the override EDID, and there
-	 * are no issues. drm_connector_update_edid_property() ignoring requests
-	 * to set the EDID dates back to a time when override EDID was not
-	 * handled at the low level EDID read.
-	 *
-	 * The only way the EDID passed in here can be different from the
-	 * override EDID is when a driver passes in an EDID that does *not*
-	 * originate from drm_edid_read() and friends, or passes in a stale
-	 * cached version. This, in turn, is a question of when an override EDID
-	 * set via debugfs should take effect.
-	 */
-
 	count = _drm_edid_connector_update(connector, drm_edid);
 
 	_drm_update_tile_info(connector, drm_edid);
@@ -6665,10 +6668,6 @@ EXPORT_SYMBOL(drm_edid_connector_update);
 static int _drm_connector_update_edid_property(struct drm_connector *connector,
 					       const struct drm_edid *drm_edid)
 {
-	/* ignore requests to set edid when overridden */
-	if (connector->override_edid)
-		return 0;
-
 	/*
 	 * Set the display info, using edid if available, otherwise resetting
 	 * the values to defaults. This duplicates the work done in
