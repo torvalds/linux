@@ -129,6 +129,20 @@
 	/delete-property/dmas;
 	/delete-property/dma-names;
 
+	mcp23017: pinctrl@21 {
+		compatible = "microchip,mcp23017";
+		reg = <0x21>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-parent = <&gpiog>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mcp23017_pins_a>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		microchip,irq-mirror;
+	};
+
 	typec@53 {
 		compatible = "st,stm32g0-typec";
 		reg = <0x53>;
