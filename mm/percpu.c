@@ -72,7 +72,6 @@
 #include <linux/cpumask.h>
 #include <linux/memblock.h>
 #include <linux/err.h>
-#include <linux/lcm.h>
 #include <linux/list.h>
 #include <linux/log2.h>
 #include <linux/mm.h>
@@ -1347,7 +1346,7 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 							 int map_size)
 {
 	struct pcpu_chunk *chunk;
-	unsigned long aligned_addr, lcm_align;
+	unsigned long aligned_addr;
 	int start_offset, offset_bits, region_size, region_bits;
 	size_t alloc_size;
 
@@ -1355,14 +1354,7 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 	aligned_addr = tmp_addr & PAGE_MASK;
 
 	start_offset = tmp_addr - aligned_addr;
-
-	/*
-	 * Align the end of the region with the LCM of PAGE_SIZE and
-	 * PCPU_BITMAP_BLOCK_SIZE.  One of these constants is a multiple of
-	 * the other.
-	 */
-	lcm_align = lcm(PAGE_SIZE, PCPU_BITMAP_BLOCK_SIZE);
-	region_size = ALIGN(start_offset + map_size, lcm_align);
+	region_size = ALIGN(start_offset + map_size, PAGE_SIZE);
 
 	/* allocate chunk */
 	alloc_size = struct_size(chunk, populated,
