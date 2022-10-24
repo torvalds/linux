@@ -954,7 +954,6 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue(dev);
 	stats->tx_errors++;
 	return 1;
-
 }
 
 netdev_tx_t rtllib_xmit(struct sk_buff *skb, struct net_device *dev)
