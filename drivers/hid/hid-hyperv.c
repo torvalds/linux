@@ -22,9 +22,6 @@ struct hv_input_dev_info {
 	unsigned short reserved[11];
 };
 
-/* The maximum size of a synthetic input message. */
-#define SYNTHHID_MAX_INPUT_REPORT_SIZE 16
-
 /*
  * Current version
  *
@@ -57,11 +54,6 @@ enum synthhid_msg_type {
 struct synthhid_msg_hdr {
 	enum synthhid_msg_type type;
 	u32 size;
-};
-
-struct synthhid_msg {
-	struct synthhid_msg_hdr header;
-	char data[]; /* Enclosed message */
 };
 
 union synthhid_version {
@@ -251,7 +243,7 @@ static void mousevsc_on_receive(struct hv_device *device,
 				struct vmpacket_descriptor *packet)
 {
 	struct pipe_prt_msg *pipe_msg;
-	struct synthhid_msg *hid_msg;
+	struct synthhid_msg_hdr *hid_msg_hdr;
 	struct mousevsc_dev *input_dev = hv_get_drvdata(device);
 	struct synthhid_input_report *input_report;
 	size_t len;
@@ -262,9 +254,9 @@ static void mousevsc_on_receive(struct hv_device *device,
 	if (pipe_msg->type != PIPE_MESSAGE_DATA)
 		return;
 
-	hid_msg = (struct synthhid_msg *)pipe_msg->data;
+	hid_msg_hdr = (struct synthhid_msg_hdr *)pipe_msg->data;
 
-	switch (hid_msg->header.type) {
+	switch (hid_msg_hdr->type) {
 	case SYNTH_HID_PROTOCOL_RESPONSE:
 		/*
 		 * While it will be impossible for us to protect against
@@ -309,7 +301,7 @@ static void mousevsc_on_receive(struct hv_device *device,
 		break;
 	default:
 		pr_err("unsupported hid msg type - type %d len %d\n",
-		       hid_msg->header.type, hid_msg->header.size);
+		       hid_msg_hdr->type, hid_msg_hdr->size);
 		break;
 	}
 
