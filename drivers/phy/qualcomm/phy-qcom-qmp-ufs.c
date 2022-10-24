@@ -1081,45 +1081,6 @@ static int qmp_ufs_create(struct device *dev, struct device_node *np, int id,
 	return 0;
 }
 
-static const struct of_device_id qmp_ufs_of_match_table[] = {
-	{
-		.compatible = "qcom,msm8996-qmp-ufs-phy",
-		.data = &msm8996_ufs_cfg,
-	}, {
-		.compatible = "qcom,msm8998-qmp-ufs-phy",
-		.data = &sdm845_ufsphy_cfg,
-	}, {
-		.compatible = "qcom,sc8180x-qmp-ufs-phy",
-		.data = &sm8150_ufsphy_cfg,
-	}, {
-		.compatible = "qcom,sc8280xp-qmp-ufs-phy",
-		.data = &sm8350_ufsphy_cfg,
-	}, {
-		.compatible = "qcom,sdm845-qmp-ufs-phy",
-		.data = &sdm845_ufsphy_cfg,
-	}, {
-		.compatible = "qcom,sm6115-qmp-ufs-phy",
-		.data = &sm6115_ufsphy_cfg,
-	}, {
-		.compatible = "qcom,sm6350-qmp-ufs-phy",
-		.data = &sdm845_ufsphy_cfg,
-	}, {
-		.compatible = "qcom,sm8150-qmp-ufs-phy",
-		.data = &sm8150_ufsphy_cfg,
-	}, {
-		.compatible = "qcom,sm8250-qmp-ufs-phy",
-		.data = &sm8150_ufsphy_cfg,
-	}, {
-		.compatible = "qcom,sm8350-qmp-ufs-phy",
-		.data = &sm8350_ufsphy_cfg,
-	}, {
-		.compatible = "qcom,sm8450-qmp-ufs-phy",
-		.data = &sm8450_ufsphy_cfg,
-	},
-	{ },
-};
-MODULE_DEVICE_TABLE(of, qmp_ufs_of_match_table);
-
 static int qmp_ufs_probe(struct platform_device *pdev)
 {
 	struct qcom_qmp *qmp;
@@ -1184,6 +1145,45 @@ err_node_put:
 	of_node_put(child);
 	return ret;
 }
+
+static const struct of_device_id qmp_ufs_of_match_table[] = {
+	{
+		.compatible = "qcom,msm8996-qmp-ufs-phy",
+		.data = &msm8996_ufs_cfg,
+	}, {
+		.compatible = "qcom,msm8998-qmp-ufs-phy",
+		.data = &sdm845_ufsphy_cfg,
+	}, {
+		.compatible = "qcom,sc8180x-qmp-ufs-phy",
+		.data = &sm8150_ufsphy_cfg,
+	}, {
+		.compatible = "qcom,sc8280xp-qmp-ufs-phy",
+		.data = &sm8350_ufsphy_cfg,
+	}, {
+		.compatible = "qcom,sdm845-qmp-ufs-phy",
+		.data = &sdm845_ufsphy_cfg,
+	}, {
+		.compatible = "qcom,sm6115-qmp-ufs-phy",
+		.data = &sm6115_ufsphy_cfg,
+	}, {
+		.compatible = "qcom,sm6350-qmp-ufs-phy",
+		.data = &sdm845_ufsphy_cfg,
+	}, {
+		.compatible = "qcom,sm8150-qmp-ufs-phy",
+		.data = &sm8150_ufsphy_cfg,
+	}, {
+		.compatible = "qcom,sm8250-qmp-ufs-phy",
+		.data = &sm8150_ufsphy_cfg,
+	}, {
+		.compatible = "qcom,sm8350-qmp-ufs-phy",
+		.data = &sm8350_ufsphy_cfg,
+	}, {
+		.compatible = "qcom,sm8450-qmp-ufs-phy",
+		.data = &sm8450_ufsphy_cfg,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, qmp_ufs_of_match_table);
 
 static struct platform_driver qmp_ufs_driver = {
 	.probe		= qmp_ufs_probe,
