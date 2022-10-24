@@ -1938,10 +1938,15 @@ static int psp_securedisplay_initialize(struct psp_context *psp)
 	} else
 		return ret;
 
+	mutex_lock(&psp->securedisplay_context.mutex);
+
 	psp_prep_securedisplay_cmd_buf(psp, &securedisplay_cmd,
 			TA_SECUREDISPLAY_COMMAND__QUERY_TA);
 
 	ret = psp_securedisplay_invoke(psp, TA_SECUREDISPLAY_COMMAND__QUERY_TA);
+
+	mutex_unlock(&psp->securedisplay_context.mutex);
+
 	if (ret) {
 		psp_securedisplay_terminate(psp);
 		/* free securedisplay shared memory */
@@ -1990,11 +1995,7 @@ int psp_securedisplay_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	    ta_cmd_id != TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC)
 		return -EINVAL;
 
-	mutex_lock(&psp->securedisplay_context.mutex);
-
 	ret = psp_ta_invoke(psp, ta_cmd_id, &psp->securedisplay_context.context);
-
-	mutex_unlock(&psp->securedisplay_context.mutex);
 
 	return ret;
 }

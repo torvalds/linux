@@ -123,6 +123,8 @@ static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 	phy_id = crc_rd_wrk->phy_inst;
 	spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);
 
+	mutex_lock(&psp->securedisplay_context.mutex);
+
 	psp_prep_securedisplay_cmd_buf(psp, &securedisplay_cmd,
 						TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC);
 	securedisplay_cmd->securedisplay_in_message.send_roi_crc.phy_id =
@@ -133,6 +135,8 @@ static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 			psp_securedisplay_parse_resp_status(psp, securedisplay_cmd->status);
 		}
 	}
+
+	mutex_unlock(&psp->securedisplay_context.mutex);
 }
 
 static void
