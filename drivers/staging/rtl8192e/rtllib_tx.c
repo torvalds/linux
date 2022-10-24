@@ -802,8 +802,8 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			 * MOREFRAGS bit to the frame control
 			 */
 			if (i != nr_frags - 1) {
-				frag_hdr->frame_ctl = cpu_to_le16(
-					fc | RTLLIB_FCTL_MOREFRAGS);
+				frag_hdr->frame_ctl = cpu_to_le16(fc |
+								  RTLLIB_FCTL_MOREFRAGS);
 				bytes = bytes_per_frag;
 
 			} else {
@@ -822,9 +822,9 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			}
 			/* Put a SNAP header on the first fragment */
 			if (i == 0) {
-				rtllib_put_snap(
-					skb_put(skb_frag, SNAP_SIZE +
-					sizeof(u16)), ether_type);
+				rtllib_put_snap(skb_put(skb_frag,
+							SNAP_SIZE +
+							sizeof(u16)), ether_type);
 				bytes -= SNAP_SIZE + sizeof(u16);
 			}
 
