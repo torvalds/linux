@@ -173,7 +173,7 @@ static struct target target = {
 
 #define METRIC_ONLY_LEN 20
 
-static volatile pid_t		child_pid			= -1;
+static volatile sig_atomic_t	child_pid			= -1;
 static int			detailed_run			=  0;
 static bool			transaction_run;
 static bool			topdown_run			= false;
@@ -208,7 +208,7 @@ struct perf_stat {
 static struct perf_stat		perf_stat;
 #define STAT_RECORD		perf_stat.record
 
-static volatile int done = 0;
+static volatile sig_atomic_t done = 0;
 
 static struct perf_stat_config stat_config = {
 	.aggr_mode		= AGGR_GLOBAL,
@@ -580,7 +580,7 @@ static void disable_counters(void)
 	}
 }
 
-static volatile int workload_exec_errno;
+static volatile sig_atomic_t workload_exec_errno;
 
 /*
  * evlist__prepare_workload will send a SIGUSR1
@@ -1039,7 +1039,7 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 	evlist__print_counters(evsel_list, &stat_config, &target, ts, argc, argv);
 }
 
-static volatile int signr = -1;
+static volatile sig_atomic_t signr = -1;
 
 static void skip_signal(int signo)
 {
