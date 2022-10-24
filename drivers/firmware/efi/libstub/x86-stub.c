@@ -765,9 +765,9 @@ static efi_status_t exit_boot(struct boot_params *boot_params, void *handle)
  * relocated by efi_relocate_kernel.
  * On failure, we exit to the firmware via efi_exit instead of returning.
  */
-unsigned long efi_main(efi_handle_t handle,
-			     efi_system_table_t *sys_table_arg,
-			     struct boot_params *boot_params)
+asmlinkage unsigned long efi_main(efi_handle_t handle,
+				  efi_system_table_t *sys_table_arg,
+				  struct boot_params *boot_params)
 {
 	unsigned long bzimage_addr = (unsigned long)startup_32;
 	unsigned long buffer_start, buffer_end;

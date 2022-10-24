@@ -787,17 +787,22 @@ static int vma_replace_policy(struct vm_area_struct *vma,
 static int mbind_range(struct mm_struct *mm, unsigned long start,
 		       unsigned long end, struct mempolicy *new_pol)
 {
-	MA_STATE(mas, &mm->mm_mt, start - 1, start - 1);
+	MA_STATE(mas, &mm->mm_mt, start, start);
 	struct vm_area_struct *prev;
 	struct vm_area_struct *vma;
 	int err = 0;
 	pgoff_t pgoff;
 
-	prev = mas_find_rev(&mas, 0);
-	if (prev && (start < prev->vm_end))
-		vma = prev;
-	else
-		vma = mas_next(&mas, end - 1);
+	prev = mas_prev(&mas, 0);
+	if (unlikely(!prev))
+		mas_set(&mas, start);
+
+	vma = mas_find(&mas, end - 1);
+	if (WARN_ON(!vma))
+		return 0;
+
+	if (start > vma->vm_start)
+		prev = vma;
 
 	for (; vma; vma = mas_next(&mas, end - 1)) {
 		unsigned long vmstart = max(start, vma->vm_start);

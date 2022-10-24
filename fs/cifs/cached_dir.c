@@ -253,8 +253,10 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 		dentry = dget(cifs_sb->root);
 	else {
 		dentry = path_to_dentry(cifs_sb, path);
-		if (IS_ERR(dentry))
+		if (IS_ERR(dentry)) {
+			rc = -ENOENT;
 			goto oshr_free;
+		}
 	}
 	cfid->dentry = dentry;
 	cfid->tcon = tcon;
@@ -338,6 +340,27 @@ smb2_close_cached_fid(struct kref *ref)
 	free_cached_dir(cfid);
 }
 
+void drop_cached_dir_by_name(const unsigned int xid, struct cifs_tcon *tcon,
+			     const char *name, struct cifs_sb_info *cifs_sb)
+{
+	struct cached_fid *cfid = NULL;
+	int rc;
+
+	rc = open_cached_dir(xid, tcon, name, cifs_sb, true, &cfid);
+	if (rc) {
+		cifs_dbg(FYI, "no cached dir found for rmdir(%s)\n", name);
+		return;
+	}
+	spin_lock(&cfid->cfids->cfid_list_lock);
+	if (cfid->has_lease) {
+		cfid->has_lease = false;
+		kref_put(&cfid->refcount, smb2_close_cached_fid);
+	}
+	spin_unlock(&cfid->cfids->cfid_list_lock);
+	close_cached_dir(cfid);
+}
+
+
 void close_cached_dir(struct cached_fid *cfid)
 {
 	kref_put(&cfid->refcount, smb2_close_cached_fid);
@@ -378,22 +401,20 @@ void invalidate_all_cached_dirs(struct cifs_tcon *tcon)
 {
 	struct cached_fids *cfids = tcon->cfids;
 	struct cached_fid *cfid, *q;
-	struct list_head entry;
+	LIST_HEAD(entry);
 
-	INIT_LIST_HEAD(&entry);
 	spin_lock(&cfids->cfid_list_lock);
 	list_for_each_entry_safe(cfid, q, &cfids->entries, entry) {
-		list_del(&cfid->entry);
-		list_add(&cfid->entry, &entry);
+		list_move(&cfid->entry, &entry);
 		cfids->num_entries--;
 		cfid->is_open = false;
+		cfid->on_list = false;
 		/* To prevent race with smb2_cached_lease_break() */
 		kref_get(&cfid->refcount);
 	}
 	spin_unlock(&cfids->cfid_list_lock);
 
 	list_for_each_entry_safe(cfid, q, &entry, entry) {
-		cfid->on_list = false;
 		list_del(&cfid->entry);
 		cancel_work_sync(&cfid->lease_break);
 		if (cfid->has_lease) {
@@ -518,15 +539,13 @@ struct cached_fids *init_cached_dirs(void)
 void free_cached_dirs(struct cached_fids *cfids)
 {
 	struct cached_fid *cfid, *q;
-	struct list_head entry;
+	LIST_HEAD(entry);
 
-	INIT_LIST_HEAD(&entry);
 	spin_lock(&cfids->cfid_list_lock);
 	list_for_each_entry_safe(cfid, q, &cfids->entries, entry) {
 		cfid->on_list = false;
 		cfid->is_open = false;
-		list_del(&cfid->entry);
-		list_add(&cfid->entry, &entry);
+		list_move(&cfid->entry, &entry);
 	}
 	spin_unlock(&cfids->cfid_list_lock);
 
