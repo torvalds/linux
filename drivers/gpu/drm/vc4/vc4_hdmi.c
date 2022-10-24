@@ -410,9 +410,8 @@ static void vc4_hdmi_handle_hotplug(struct vc4_hdmi *vc4_hdmi,
 	 * .adap_enable, which leads to that funtion being called with
 	 * our mutex held.
 	 *
-	 * A similar situation occurs with
-	 * drm_atomic_helper_connector_hdmi_reset_link() that will call
-	 * into our KMS hooks if the scrambling was enabled.
+	 * A similar situation occurs with vc4_hdmi_reset_link() that
+	 * will call into our KMS hooks if the scrambling was enabled.
 	 *
 	 * Concurrency isn't an issue at the moment since we don't share
 	 * any state with any of the other frameworks so we can ignore
