@@ -1458,7 +1458,7 @@ unsigned int OnDeAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 	return _SUCCESS;
 }
 
-unsigned int OnDisassoc(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnDisassoc(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	u16 reason;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
