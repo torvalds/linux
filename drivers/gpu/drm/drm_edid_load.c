@@ -177,16 +177,20 @@ static const struct drm_edid *edid_load(struct drm_connector *connector, const c
 
 		pdev = platform_device_register_simple(connector->name, -1, NULL, 0);
 		if (IS_ERR(pdev)) {
-			DRM_ERROR("Failed to register EDID firmware platform device "
-				  "for connector \"%s\"\n", connector->name);
+			drm_err(connector->dev,
+				"[CONNECTOR:%d:%s] Failed to register EDID firmware platform device for connector \"%s\"\n",
+				connector->base.id, connector->name,
+				connector->name);
 			return ERR_CAST(pdev);
 		}
 
 		err = request_firmware(&fw, name, &pdev->dev);
 		platform_device_unregister(pdev);
 		if (err) {
-			DRM_ERROR("Requesting EDID firmware \"%s\" failed (err=%d)\n",
-				  name, err);
+			drm_err(connector->dev,
+				"[CONNECTOR:%d:%s] Requesting EDID firmware \"%s\" failed (err=%d)\n",
+				connector->base.id, connector->name,
+				name, err);
 			return ERR_PTR(err);
 		}
 
