@@ -58,6 +58,7 @@
 #include "fs.h"
 #include "accessors.h"
 #include "extent-tree.h"
+#include "root-tree.h"
 
 struct btrfs_iget_args {
 	u64 ino;

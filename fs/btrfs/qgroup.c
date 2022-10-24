@@ -27,6 +27,7 @@
 #include "fs.h"
 #include "accessors.h"
 #include "extent-tree.h"
+#include "root-tree.h"
 
 /*
  * Helpers to access qgroup reservation
