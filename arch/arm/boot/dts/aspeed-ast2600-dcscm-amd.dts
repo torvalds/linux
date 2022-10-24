@@ -176,6 +176,7 @@
 
 &i2c4 {
 	status = "okay";
+	/delete-node/ ssif-bmc@10;
 };
 
 &i2c5 {
