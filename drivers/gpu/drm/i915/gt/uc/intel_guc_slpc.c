@@ -263,6 +263,7 @@ int intel_guc_slpc_init(struct intel_guc_slpc *slpc)
 
 	slpc->max_freq_softlimit = 0;
 	slpc->min_freq_softlimit = 0;
+	slpc->min_is_rpmax = false;
 
 	slpc->boost_freq = 0;
 	atomic_set(&slpc->num_waiters, 0);
@@ -588,6 +589,39 @@ static int slpc_set_softlimits(struct intel_guc_slpc *slpc)
 	return 0;
 }
 
+static bool is_slpc_min_freq_rpmax(struct intel_guc_slpc *slpc)
+{
+	struct drm_i915_private *i915 = slpc_to_i915(slpc);
+	int slpc_min_freq;
+	int ret;
+
+	ret = intel_guc_slpc_get_min_freq(slpc, &slpc_min_freq);
+	if (ret) {
+		drm_err(&i915->drm,
+			"Failed to get min freq: (%d)\n",
+			ret);
+		return false;
+	}
+
+	if (slpc_min_freq == SLPC_MAX_FREQ_MHZ)
+		return true;
+	else
+		return false;
+}
+
+static void update_server_min_softlimit(struct intel_guc_slpc *slpc)
+{
+	/* For server parts, SLPC min will be at RPMax.
+	 * Use min softlimit to clamp it to RP0 instead.
+	 */
+	if (!slpc->min_freq_softlimit &&
+	    is_slpc_min_freq_rpmax(slpc)) {
+		slpc->min_is_rpmax = true;
+		slpc->min_freq_softlimit = slpc->rp0_freq;
+		(slpc_to_gt(slpc))->defaults.min_freq = slpc->min_freq_softlimit;
+	}
+}
+
 static int slpc_use_fused_rp0(struct intel_guc_slpc *slpc)
 {
 	/* Force SLPC to used platform rp0 */
@@ -646,6 +680,9 @@ int intel_guc_slpc_enable(struct intel_guc_slpc *slpc)
 	intel_guc_pm_intrmsk_enable(to_gt(i915));
 
 	slpc_get_rp_values(slpc);
+
+	/* Handle the case where min=max=RPmax */
+	update_server_min_softlimit(slpc);
 
 	/* Set SLPC max limit to RP0 */
 	ret = slpc_use_fused_rp0(slpc);

@@ -239,6 +239,11 @@ static int run_test(struct intel_gt *gt, int test_type)
 	if (!intel_uc_uses_guc_slpc(&gt->uc))
 		return 0;
 
+	if (slpc->min_freq == slpc->rp0_freq) {
+		pr_err("Min/Max are fused to the same value\n");
+		return -EINVAL;
+	}
+
 	if (igt_spinner_init(&spin, gt))
 		return -ENOMEM;
 
@@ -253,17 +258,14 @@ static int run_test(struct intel_gt *gt, int test_type)
 	}
 
 	/*
-	 * FIXME: With efficient frequency enabled, GuC can request
-	 * frequencies higher than the SLPC max. While this is fixed
-	 * in GuC, we level set these tests with RPn as min.
+	 * Set min frequency to RPn so that we can test the whole
+	 * range of RPn-RP0. This also turns off efficient freq
+	 * usage and makes results more predictable.
 	 */
 	err = slpc_set_min_freq(slpc, slpc->min_freq);
-	if (err)
+	if (err) {
+		pr_err("Unable to update min freq!");
 		return err;
-
-	if (slpc->min_freq == slpc->rp0_freq) {
-		pr_err("Min/Max are fused to the same value\n");
-		return -EINVAL;
 	}
 
 	intel_gt_pm_wait_for_idle(gt);
@@ -330,7 +332,7 @@ static int run_test(struct intel_gt *gt, int test_type)
 				engine->name, max_act_freq);
 
 			/* Actual frequency should rise above min */
-			if (max_act_freq <= slpc_min_freq) {
+			if (max_act_freq <= slpc->min_freq) {
 				pr_err("Actual freq did not rise above min\n");
 				pr_err("Perf Limit Reasons: 0x%x\n",
 				       intel_uncore_read(gt->uncore, GT0_PERF_LIMIT_REASONS));

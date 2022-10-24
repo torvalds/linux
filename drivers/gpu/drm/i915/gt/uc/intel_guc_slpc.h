@@ -9,6 +9,8 @@
 #include "intel_guc_submission.h"
 #include "intel_guc_slpc_types.h"
 
+#define SLPC_MAX_FREQ_MHZ 4250
+
 struct intel_gt;
 struct drm_printer;
 
