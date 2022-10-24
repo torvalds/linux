@@ -1319,7 +1319,7 @@ OnAssocReqFail:
 	return _FAIL;
 }
 
-unsigned int OnAssocRsp(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAssocRsp(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
 	uint i;

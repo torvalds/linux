@@ -536,8 +536,6 @@ void start_clnt_auth(struct adapter *padapter);
 void start_clnt_join(struct adapter *padapter);
 void start_create_ibss(struct adapter *padapter);
 
-unsigned int OnAssocRsp(struct adapter *padapter,
-			struct recv_frame *precv_frame);
 unsigned int OnProbeReq(struct adapter *padapter,
 			struct recv_frame *precv_frame);
 unsigned int OnProbeRsp(struct adapter *padapter,
