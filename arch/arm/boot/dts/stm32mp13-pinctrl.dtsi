@@ -47,6 +47,13 @@
 		};
 	};
 
+	mcp23017_pins_a: mcp23017-0 {
+		pins {
+			pinmux = <STM32_PINMUX('G', 12, GPIO)>;
+			bias-pull-up;
+		};
+	};
+
 	sdmmc1_b4_pins_a: sdmmc1-b4-0 {
 		pins {
 			pinmux = <STM32_PINMUX('C', 8, AF12)>, /* SDMMC1_D0 */
