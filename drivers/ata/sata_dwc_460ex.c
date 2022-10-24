@@ -472,7 +472,7 @@ static irqreturn_t sata_dwc_isr(int irq, void *dev_instance)
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
 	u8 status, tag;
-	int handled, num_processed, port = 0;
+	int handled, port = 0;
 	uint intpr, sactive, sactive2, tag_mask;
 	struct sata_dwc_device_port *hsdevp;
 	hsdev->sactive_issued = 0;
@@ -618,9 +618,7 @@ DRVSTILLBUSY:
 	dev_dbg(ap->dev, "%s ATA status register=0x%x\n", __func__, status);
 
 	tag = 0;
-	num_processed = 0;
 	while (tag_mask) {
-		num_processed++;
 		while (!(tag_mask & 0x00000001)) {
 			tag++;
 			tag_mask <<= 1;
