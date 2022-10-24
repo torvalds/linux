@@ -6,6 +6,8 @@
 #include <linux/init.h>
 #include <asm/assembler.h>
 
+.arch armv7-a
+
 /*
  * The boot ROM does not start secondary CPUs in SVC mode, so we need to do that
  * here.

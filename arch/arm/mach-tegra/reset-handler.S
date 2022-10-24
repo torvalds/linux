@@ -19,6 +19,8 @@
 
 #define PMC_SCRATCH41	0x140
 
+.arch armv7-a
+
 #ifdef CONFIG_PM_SLEEP
 /*
  *	tegra_resume
