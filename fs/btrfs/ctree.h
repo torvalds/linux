@@ -507,12 +507,6 @@ int btrfs_discard_extent(struct btrfs_fs_info *fs_info, u64 bytenr,
 			 u64 num_bytes, u64 *actual_bytes);
 int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range);
 
-int btrfs_delayed_refs_qgroup_accounting(struct btrfs_trans_handle *trans,
-					 struct btrfs_fs_info *fs_info);
-int btrfs_start_write_no_snapshotting(struct btrfs_root *root);
-void btrfs_end_write_no_snapshotting(struct btrfs_root *root);
-void btrfs_wait_for_snapshot_creation(struct btrfs_root *root);
-
 /* ctree.c */
 int __init btrfs_ctree_init(void);
 void __cold btrfs_ctree_exit(void);
