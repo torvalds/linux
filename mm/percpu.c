@@ -174,9 +174,6 @@ static DEFINE_MUTEX(pcpu_alloc_mutex);	/* chunk create/destroy, [de]pop, map ext
 
 struct list_head *pcpu_chunk_lists __ro_after_init; /* chunk list slots */
 
-/* chunks which need their map areas extended, protected by pcpu_lock */
-static LIST_HEAD(pcpu_map_extend_chunks);
-
 /*
  * The number of empty populated pages, protected by pcpu_lock.
  * The reserved chunk doesn't contribute to the count.
