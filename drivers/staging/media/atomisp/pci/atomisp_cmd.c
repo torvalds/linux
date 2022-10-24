@@ -3692,13 +3692,13 @@ void atomisp_handle_parameter_and_buffer(struct atomisp_video_pipe *pipe)
 	unsigned long irqflags;
 	bool need_to_enqueue_buffer = false;
 
-	lockdep_assert_held(&asd->isp->mutex);
-
 	if (!asd) {
 		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
 			__func__, pipe->vdev.name);
 		return;
 	}
+
+	lockdep_assert_held(&asd->isp->mutex);
 
 	if (atomisp_is_vf_pipe(pipe))
 		return;
@@ -3774,13 +3774,13 @@ int atomisp_set_parameters(struct video_device *vdev,
 	struct atomisp_css_params *css_param = &asd->params.css_param;
 	int ret;
 
-	lockdep_assert_held(&asd->isp->mutex);
-
 	if (!asd) {
 		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
 			__func__, vdev->name);
 		return -EINVAL;
 	}
+
+	lockdep_assert_held(&asd->isp->mutex);
 
 	if (!asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream) {
 		dev_err(asd->isp->dev, "%s: internal error!\n", __func__);
