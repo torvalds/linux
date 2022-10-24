@@ -184,7 +184,7 @@ enum SCAN_STATE {
 	SCAN_STATE_MAX,
 };
 
-typedef unsigned int (*mlme_handler)(struct adapter *adapt, struct recv_frame *frame);
+typedef void (*mlme_handler)(struct adapter *adapt, struct recv_frame *frame);
 
 struct	ss_res {
 	int	state;
