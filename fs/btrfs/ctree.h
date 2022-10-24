@@ -435,10 +435,8 @@ struct btrfs_file_private {
 	void *filldir_buf;
 };
 
-
 static inline u32 BTRFS_LEAF_DATA_SIZE(const struct btrfs_fs_info *info)
 {
-
 	return info->nodesize - sizeof(struct btrfs_header);
 }
 
