@@ -17,9 +17,6 @@
 #include "hinic_port.h"
 #include "hinic_dev.h"
 
-#define HINIC_MIN_MTU_SIZE              256
-#define HINIC_MAX_JUMBO_FRAME_SIZE      15872
-
 enum mac_op {
 	MAC_DEL,
 	MAC_SET,
@@ -147,24 +144,12 @@ int hinic_port_get_mac(struct hinic_dev *nic_dev, u8 *addr)
  **/
 int hinic_port_set_mtu(struct hinic_dev *nic_dev, int new_mtu)
 {
-	struct net_device *netdev = nic_dev->netdev;
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_port_mtu_cmd port_mtu_cmd;
 	struct hinic_hwif *hwif = hwdev->hwif;
 	u16 out_size = sizeof(port_mtu_cmd);
 	struct pci_dev *pdev = hwif->pdev;
-	int err, max_frame;
-
-	if (new_mtu < HINIC_MIN_MTU_SIZE) {
-		netif_err(nic_dev, drv, netdev, "mtu < MIN MTU size");
-		return -EINVAL;
-	}
-
-	max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
-	if (max_frame > HINIC_MAX_JUMBO_FRAME_SIZE) {
-		netif_err(nic_dev, drv, netdev, "mtu > MAX MTU size");
-		return -EINVAL;
-	}
+	int err;
 
 	port_mtu_cmd.func_idx = HINIC_HWIF_FUNC_IDX(hwif);
 	port_mtu_cmd.mtu = new_mtu;

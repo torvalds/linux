@@ -1187,7 +1187,8 @@ static int nic_dev_init(struct pci_dev *pdev)
 	else
 		netdev->netdev_ops = &hinicvf_netdev_ops;
 
-	netdev->max_mtu = ETH_MAX_MTU;
+	netdev->max_mtu = HINIC_MAX_MTU_SIZE;
+	netdev->min_mtu = HINIC_MIN_MTU_SIZE;
 
 	nic_dev = netdev_priv(netdev);
 	nic_dev->netdev = netdev;
