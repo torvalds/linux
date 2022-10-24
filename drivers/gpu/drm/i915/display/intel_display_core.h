@@ -28,6 +28,7 @@
 
 struct drm_i915_private;
 struct drm_property;
+struct drm_property_blob;
 struct i915_audio_component;
 struct i915_hdcp_comp_master;
 struct intel_atomic_state;
@@ -307,6 +308,10 @@ struct intel_display {
 
 		unsigned int max_cdclk_freq;
 	} cdclk;
+
+	struct {
+		struct drm_property_blob *glk_linear_degamma_lut;
+	} color;
 
 	struct {
 		/* The current hardware dbuf configuration */

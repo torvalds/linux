@@ -8658,6 +8658,10 @@ int intel_modeset_init_noirq(struct drm_i915_private *i915)
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
+	ret = intel_color_init(i915);
+	if (ret)
+		goto cleanup_vga_client_pw_domain_dmc;
+
 	ret = intel_dbuf_init(i915);
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;

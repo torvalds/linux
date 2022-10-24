@@ -557,6 +557,32 @@ static void skl_color_commit_arm(const struct intel_crtc_state *crtc_state)
 			  crtc_state->csc_mode);
 }
 
+static struct drm_property_blob *
+create_linear_lut(struct drm_i915_private *i915, int lut_size)
+{
+	struct drm_property_blob *blob;
+	struct drm_color_lut *lut;
+	int i;
+
+	blob = drm_property_create_blob(&i915->drm,
+					sizeof(struct drm_color_lut) * lut_size,
+					NULL);
+	if (IS_ERR(blob))
+		return blob;
+
+	lut = blob->data;
+
+	for (i = 0; i < lut_size; i++) {
+		u16 val = 0xffff * i / (lut_size - 1);
+
+		lut[i].red = val;
+		lut[i].green = val;
+		lut[i].blue = val;
+	}
+
+	return blob;
+}
+
 static void i9xx_load_lut_8(struct intel_crtc *crtc,
 			    const struct drm_property_blob *blob)
 {
@@ -871,53 +897,14 @@ static void glk_load_degamma_lut(const struct intel_crtc_state *crtc_state,
 	intel_de_write_fw(dev_priv, PRE_CSC_GAMC_INDEX(pipe), 0);
 }
 
-static void glk_load_degamma_lut_linear(const struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum pipe pipe = crtc->pipe;
-	int i, lut_size = INTEL_INFO(dev_priv)->display.color.degamma_lut_size;
-
-	/*
-	 * When setting the auto-increment bit, the hardware seems to
-	 * ignore the index bits, so we need to reset it to index 0
-	 * separately.
-	 */
-	intel_de_write_fw(dev_priv, PRE_CSC_GAMC_INDEX(pipe), 0);
-	intel_de_write_fw(dev_priv, PRE_CSC_GAMC_INDEX(pipe),
-			  PRE_CSC_GAMC_AUTO_INCREMENT);
-
-	for (i = 0; i < lut_size; i++) {
-		u32 v = (i << 16) / (lut_size - 1);
-
-		intel_de_write_fw(dev_priv, PRE_CSC_GAMC_DATA(pipe), v);
-	}
-
-	/* Clamp values > 1.0. */
-	while (i++ < 35)
-		intel_de_write_fw(dev_priv, PRE_CSC_GAMC_DATA(pipe), 1 << 16);
-
-	intel_de_write_fw(dev_priv, PRE_CSC_GAMC_INDEX(pipe), 0);
-}
-
 static void glk_load_luts(const struct intel_crtc_state *crtc_state)
 {
 	const struct drm_property_blob *pre_csc_lut = crtc_state->pre_csc_lut;
 	const struct drm_property_blob *post_csc_lut = crtc_state->post_csc_lut;
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	/*
-	 * On GLK+ both pipe CSC and degamma LUT are controlled
-	 * by csc_enable. Hence for the cases where the CSC is
-	 * needed but degamma LUT is not we need to load a
-	 * linear degamma LUT. In fact we'll just always load
-	 * the degama LUT so that we don't have to reload
-	 * it every time the pipe CSC is being enabled.
-	 */
 	if (pre_csc_lut)
 		glk_load_degamma_lut(crtc_state, pre_csc_lut);
-	else
-		glk_load_degamma_lut_linear(crtc_state);
 
 	switch (crtc_state->gamma_mode) {
 	case GAMMA_MODE_MODE_8BIT:
@@ -1364,9 +1351,15 @@ void intel_color_assert_luts(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
 	/* make sure {pre,post}_csc_lut were correctly assigned */
-	if (DISPLAY_VER(i915) >= 10 || HAS_GMCH(i915)) {
+	if (DISPLAY_VER(i915) >= 11 || HAS_GMCH(i915)) {
 		drm_WARN_ON(&i915->drm,
 			    crtc_state->pre_csc_lut != crtc_state->hw.degamma_lut);
+		drm_WARN_ON(&i915->drm,
+			    crtc_state->post_csc_lut != crtc_state->hw.gamma_lut);
+	} else if (DISPLAY_VER(i915) == 10) {
+		drm_WARN_ON(&i915->drm,
+			    crtc_state->pre_csc_lut != crtc_state->hw.degamma_lut &&
+			    crtc_state->pre_csc_lut != i915->display.color.glk_linear_degamma_lut);
 		drm_WARN_ON(&i915->drm,
 			    crtc_state->post_csc_lut != crtc_state->hw.gamma_lut);
 	} else {
@@ -1623,6 +1616,25 @@ static u32 glk_gamma_mode(const struct intel_crtc_state *crtc_state)
 		return GAMMA_MODE_MODE_10BIT;
 }
 
+static void glk_assign_luts(struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	intel_assign_luts(crtc_state);
+
+	/*
+	 * On GLK+ both pipe CSC and degamma LUT are controlled
+	 * by csc_enable. Hence for the cases where the CSC is
+	 * needed but degamma LUT is not we need to load a
+	 * linear degamma LUT. In fact we'll just always load
+	 * the degama LUT so that we don't have to reload
+	 * it every time the pipe CSC is being enabled.
+	 */
+	if (!crtc_state->pre_csc_lut)
+		drm_property_replace_blob(&crtc_state->pre_csc_lut,
+					  i915->display.color.glk_linear_degamma_lut);
+}
+
 static int glk_color_check(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
@@ -1657,7 +1669,7 @@ static int glk_color_check(struct intel_crtc_state *crtc_state)
 	if (ret)
 		return ret;
 
-	intel_assign_luts(crtc_state);
+	glk_assign_luts(crtc_state);
 
 	crtc_state->preload_luts = glk_can_preload_luts(crtc_state);
 
@@ -2285,6 +2297,22 @@ void intel_color_crtc_init(struct intel_crtc *crtc)
 				   INTEL_INFO(dev_priv)->display.color.degamma_lut_size,
 				   has_ctm,
 				   INTEL_INFO(dev_priv)->display.color.gamma_lut_size);
+}
+
+int intel_color_init(struct drm_i915_private *i915)
+{
+	struct drm_property_blob *blob;
+
+	if (DISPLAY_VER(i915) != 10)
+		return 0;
+
+	blob = create_linear_lut(i915, INTEL_INFO(i915)->display.color.degamma_lut_size);
+	if (IS_ERR(blob))
+		return PTR_ERR(blob);
+
+	i915->display.color.glk_linear_degamma_lut = blob;
+
+	return 0;
 }
 
 void intel_color_init_hooks(struct drm_i915_private *i915)
