@@ -361,6 +361,13 @@ int security_inode_getattr(const struct path *path);
 int security_inode_setxattr(struct user_namespace *mnt_userns,
 			    struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags);
+int security_inode_set_acl(struct user_namespace *mnt_userns,
+			   struct dentry *dentry, const char *acl_name,
+			   struct posix_acl *kacl);
+int security_inode_get_acl(struct user_namespace *mnt_userns,
+			   struct dentry *dentry, const char *acl_name);
+int security_inode_remove_acl(struct user_namespace *mnt_userns,
+			      struct dentry *dentry, const char *acl_name);
 void security_inode_post_setxattr(struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags);
 int security_inode_getxattr(struct dentry *dentry, const char *name);
@@ -870,6 +877,28 @@ static inline int security_inode_setxattr(struct user_namespace *mnt_userns,
 		size_t size, int flags)
 {
 	return cap_inode_setxattr(dentry, name, value, size, flags);
+}
+
+static inline int security_inode_set_acl(struct user_namespace *mnt_userns,
+					 struct dentry *dentry,
+					 const char *acl_name,
+					 struct posix_acl *kacl)
+{
+	return 0;
+}
+
+static inline int security_inode_get_acl(struct user_namespace *mnt_userns,
+					 struct dentry *dentry,
+					 const char *acl_name)
+{
+	return 0;
+}
+
+static inline int security_inode_remove_acl(struct user_namespace *mnt_userns,
+					    struct dentry *dentry,
+					    const char *acl_name)
+{
+	return 0;
 }
 
 static inline void security_inode_post_setxattr(struct dentry *dentry,

@@ -1997,7 +1997,7 @@ static int gfs2_setattr(struct user_namespace *mnt_userns,
 	else {
 		error = gfs2_setattr_simple(inode, attr);
 		if (!error && attr->ia_valid & ATTR_MODE)
-			error = posix_acl_chmod(&init_user_ns, inode,
+			error = posix_acl_chmod(&init_user_ns, dentry,
 						inode->i_mode);
 	}
 
@@ -2149,7 +2149,7 @@ static const struct inode_operations gfs2_file_iops = {
 	.getattr = gfs2_getattr,
 	.listxattr = gfs2_listxattr,
 	.fiemap = gfs2_fiemap,
-	.get_acl = gfs2_get_acl,
+	.get_inode_acl = gfs2_get_acl,
 	.set_acl = gfs2_set_acl,
 	.update_time = gfs2_update_time,
 	.fileattr_get = gfs2_fileattr_get,
@@ -2171,7 +2171,7 @@ static const struct inode_operations gfs2_dir_iops = {
 	.getattr = gfs2_getattr,
 	.listxattr = gfs2_listxattr,
 	.fiemap = gfs2_fiemap,
-	.get_acl = gfs2_get_acl,
+	.get_inode_acl = gfs2_get_acl,
 	.set_acl = gfs2_set_acl,
 	.update_time = gfs2_update_time,
 	.atomic_open = gfs2_atomic_open,
