@@ -945,6 +945,12 @@ static int qmp_ufs_disable(struct phy *phy)
 	return qmp_ufs_exit(phy);
 }
 
+static const struct phy_ops qcom_qmp_ufs_phy_ops = {
+	.power_on	= qmp_ufs_enable,
+	.power_off	= qmp_ufs_disable,
+	.owner		= THIS_MODULE,
+};
+
 static int qmp_ufs_vreg_init(struct qmp_ufs *qmp)
 {
 	const struct qmp_phy_cfg *cfg = qmp->cfg;
@@ -978,12 +984,6 @@ static int qmp_ufs_clk_init(struct qmp_ufs *qmp)
 
 	return devm_clk_bulk_get(dev, num, qmp->clks);
 }
-
-static const struct phy_ops qcom_qmp_ufs_ops = {
-	.power_on	= qmp_ufs_enable,
-	.power_off	= qmp_ufs_disable,
-	.owner		= THIS_MODULE,
-};
 
 static int qmp_ufs_create(struct qmp_ufs *qmp, struct device_node *np)
 {
@@ -1027,7 +1027,7 @@ static int qmp_ufs_create(struct qmp_ufs *qmp, struct device_node *np)
 	if (IS_ERR(qmp->pcs_misc))
 		dev_vdbg(dev, "PHY pcs_misc-reg not used\n");
 
-	generic_phy = devm_phy_create(dev, np, &qcom_qmp_ufs_ops);
+	generic_phy = devm_phy_create(dev, np, &qcom_qmp_ufs_phy_ops);
 	if (IS_ERR(generic_phy)) {
 		ret = PTR_ERR(generic_phy);
 		dev_err(dev, "failed to create PHY: %d\n", ret);
