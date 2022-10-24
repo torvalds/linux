@@ -850,9 +850,6 @@ static void OnAuthClient(struct adapter *padapter, struct recv_frame *precv_fram
 			go2asoc = 1;
 		else
 			return;
-	} else {
-		/*  this is also illegal */
-		return;
 	}
 
 	if (go2asoc) {
