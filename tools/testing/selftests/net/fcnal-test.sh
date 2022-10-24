@@ -1852,19 +1852,6 @@ ipv4_addr_bind_novrf()
 	log_test_addr ${a} $? 1 "ICMP socket bind to multicast address"
 
 	#
-	# check that ICMP sockets cannot bind to broadcast and multicast addresses
-	#
-	a=${BCAST_IP}
-	log_start
-	run_cmd nettest -s -R -P icmp -l ${a} -b
-	log_test_addr ${a} $? 1 "ICMP socket bind to broadcast address"
-
-	a=${MCAST_IP}
-	log_start
-	run_cmd nettest -s -R -P icmp -f -l ${a} -b
-	log_test_addr ${a} $? 1 "ICMP socket bind to multicast address"
-
-	#
 	# tcp sockets
 	#
 	a=${NSA_IP}
@@ -1940,19 +1927,6 @@ ipv4_addr_bind_vrf()
 	a=${MCAST_IP}
 	log_start
 	run_cmd nettest -s -D -P icmp -l ${a} -I ${VRF} -b
-	log_test_addr ${a} $? 1 "ICMP socket bind to multicast address after VRF bind"
-
-	#
-	# check that ICMP sockets cannot bind to broadcast and multicast addresses
-	#
-	a=${BCAST_IP}
-	log_start
-	run_cmd nettest -s -R -P icmp -l ${a} -I ${VRF} -b
-	log_test_addr ${a} $? 1 "ICMP socket bind to broadcast address after VRF bind"
-
-	a=${MCAST_IP}
-	log_start
-	run_cmd nettest -s -R -P icmp -f -l ${a} -I ${VRF} -b
 	log_test_addr ${a} $? 1 "ICMP socket bind to multicast address after VRF bind"
 
 	#
