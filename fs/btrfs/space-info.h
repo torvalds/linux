@@ -236,5 +236,6 @@ int btrfs_reserve_data_bytes(struct btrfs_fs_info *fs_info, u64 bytes,
 			     enum btrfs_reserve_flush_enum flush);
 void btrfs_dump_space_info_for_trans_abort(struct btrfs_fs_info *fs_info);
 void btrfs_init_async_reclaim_work(struct btrfs_fs_info *fs_info);
+u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo);
 
 #endif /* BTRFS_SPACE_INFO_H */
