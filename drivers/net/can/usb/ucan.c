@@ -1582,7 +1582,7 @@ static void ucan_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 	if (up) {
-		unregister_netdev(up->netdev);
+		unregister_candev(up->netdev);
 		free_candev(up->netdev);
 	}
 }
