@@ -2040,6 +2040,36 @@ bool drm_edid_is_valid(struct edid *edid)
 }
 EXPORT_SYMBOL(drm_edid_is_valid);
 
+/**
+ * drm_edid_valid - sanity check EDID data
+ * @drm_edid: EDID data
+ *
+ * Sanity check an EDID. Cross check block count against allocated size and
+ * checksum the blocks.
+ *
+ * Return: True if the EDID data is valid, false otherwise.
+ */
+bool drm_edid_valid(const struct drm_edid *drm_edid)
+{
+	int i;
+
+	if (!drm_edid)
+		return false;
+
+	if (edid_size_by_blocks(__drm_edid_block_count(drm_edid)) != drm_edid->size)
+		return false;
+
+	for (i = 0; i < drm_edid_block_count(drm_edid); i++) {
+		const void *block = drm_edid_block_data(drm_edid, i);
+
+		if (!edid_block_valid(block, i == 0))
+			return false;
+	}
+
+	return true;
+}
+EXPORT_SYMBOL(drm_edid_valid);
+
 static struct edid *edid_filter_invalid_blocks(struct edid *edid,
 					       size_t *alloc_size)
 {
