@@ -1760,12 +1760,6 @@ static int ave_resume(struct device *dev)
 	wol.wolopts = priv->wolopts;
 	__ave_ethtool_set_wol(ndev, &wol);
 
-	if (ndev->phydev) {
-		ret = phy_resume(ndev->phydev);
-		if (ret)
-			return ret;
-	}
-
 	if (netif_running(ndev)) {
 		ret = ave_open(ndev);
 		netif_device_attach(ndev);
