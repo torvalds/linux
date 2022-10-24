@@ -629,7 +629,7 @@
 		assigned-clocks = <&k3_clks 0 0>;
 		assigned-clock-parents = <&k3_clks 0 3>;
 		assigned-clock-rates = <60000000>;
-		clock-names = "adc_tsc_fck";
+		clock-names = "fck";
 
 		adc {
 			#io-channel-cells = <1>;

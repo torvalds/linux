@@ -85,7 +85,7 @@
 		clocks = <&k3_clks 0 2>;
 		assigned-clocks = <&k3_clks 0 2>;
 		assigned-clock-rates = <60000000>;
-		clock-names = "adc_tsc_fck";
+		clock-names = "fck";
 		dmas = <&mcu_udmap 0x7100>,
 			<&mcu_udmap 0x7101 >;
 		dma-names = "fifo0", "fifo1";
@@ -103,7 +103,7 @@
 		clocks = <&k3_clks 1 2>;
 		assigned-clocks = <&k3_clks 1 2>;
 		assigned-clock-rates = <60000000>;
-		clock-names = "adc_tsc_fck";
+		clock-names = "fck";
 		dmas = <&mcu_udmap 0x7102>,
 			<&mcu_udmap 0x7103>;
 		dma-names = "fifo0", "fifo1";
