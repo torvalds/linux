@@ -649,13 +649,15 @@ static void ilk_load_luts(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	const struct drm_property_blob *gamma_lut = crtc_state->hw.gamma_lut;
+	const struct drm_property_blob *degamma_lut = crtc_state->hw.degamma_lut;
+	const struct drm_property_blob *blob = gamma_lut ?: degamma_lut;
 
 	switch (crtc_state->gamma_mode) {
 	case GAMMA_MODE_MODE_8BIT:
-		ilk_load_lut_8(crtc, gamma_lut);
+		ilk_load_lut_8(crtc, blob);
 		break;
 	case GAMMA_MODE_MODE_10BIT:
-		ilk_load_lut_10(crtc, gamma_lut);
+		ilk_load_lut_10(crtc, blob);
 		break;
 	default:
 		MISSING_CASE(crtc_state->gamma_mode);
