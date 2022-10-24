@@ -800,7 +800,7 @@ auth_fail:
 	return _FAIL;
 }
 
-unsigned int OnAuthClient(struct adapter *padapter, struct recv_frame *precv_frame)
+static unsigned int OnAuthClient(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	unsigned int	seq, len, status, offset;
 	unsigned char	*p;
