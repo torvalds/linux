@@ -2194,6 +2194,9 @@ int drm_edid_override_set(struct drm_connector *connector, const void *edid,
 
 	connector->override_edid = false;
 
+	drm_dbg_kms(connector->dev, "[CONNECTOR:%d:%s] EDID override set\n",
+		    connector->base.id, connector->name);
+
 	ret = drm_connector_update_edid_property(connector, edid);
 	if (!ret)
 		connector->override_edid = true;
@@ -2205,6 +2208,9 @@ int drm_edid_override_set(struct drm_connector *connector, const void *edid,
 int drm_edid_override_reset(struct drm_connector *connector)
 {
 	connector->override_edid = false;
+
+	drm_dbg_kms(connector->dev, "[CONNECTOR:%d:%s] EDID override reset\n",
+		    connector->base.id, connector->name);
 
 	return drm_connector_update_edid_property(connector, NULL);
 }
