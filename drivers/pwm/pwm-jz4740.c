@@ -88,8 +88,7 @@ static int jz4740_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	struct jz4740_pwm_chip *jz = to_jz4740(chip);
 
 	/* Enable PWM output */
-	regmap_update_bits(jz->map, TCU_REG_TCSRc(pwm->hwpwm),
-			   TCU_TCSR_PWM_EN, TCU_TCSR_PWM_EN);
+	regmap_set_bits(jz->map, TCU_REG_TCSRc(pwm->hwpwm), TCU_TCSR_PWM_EN);
 
 	/* Start counter */
 	regmap_write(jz->map, TCU_REG_TESR, BIT(pwm->hwpwm));
@@ -113,8 +112,7 @@ static void jz4740_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	 * In TCU2 mode (channel 1/2 on JZ4750+), this must be done before the
 	 * counter is stopped, while in TCU1 mode the order does not matter.
 	 */
-	regmap_update_bits(jz->map, TCU_REG_TCSRc(pwm->hwpwm),
-			   TCU_TCSR_PWM_EN, 0);
+	regmap_clear_bits(jz->map, TCU_REG_TCSRc(pwm->hwpwm), TCU_TCSR_PWM_EN);
 
 	/* Stop counter */
 	regmap_write(jz->map, TCU_REG_TECR, BIT(pwm->hwpwm));
@@ -184,8 +182,8 @@ static int jz4740_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	regmap_write(jz4740->map, TCU_REG_TDFRc(pwm->hwpwm), period);
 
 	/* Set abrupt shutdown */
-	regmap_update_bits(jz4740->map, TCU_REG_TCSRc(pwm->hwpwm),
-			   TCU_TCSR_PWM_SD, TCU_TCSR_PWM_SD);
+	regmap_set_bits(jz4740->map, TCU_REG_TCSRc(pwm->hwpwm),
+			TCU_TCSR_PWM_SD);
 
 	/*
 	 * Set polarity.
