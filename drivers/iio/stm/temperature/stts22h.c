@@ -305,9 +305,9 @@ static int st_stts22h_read_raw(struct iio_dev *iio_dev,
 		err = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SCALE:
-		*val = 0;
+		*val = 1000;
 		*val2 = ST_STTS22H_GAIN;
-		err = IIO_VAL_INT_PLUS_MICRO;
+		err = IIO_VAL_FRACTIONAL;
 		break;
 	default:
 		err = -EINVAL;

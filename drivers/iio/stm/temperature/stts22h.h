@@ -44,7 +44,7 @@
 #define ST_STTS22H_SW_RESET_MASK			BIT(1)
 
 #define ST_STTS22H_ODR_LIST_SIZE			4
-#define ST_STTS22H_GAIN					10000
+#define ST_STTS22H_GAIN					100
 #define ST_STTS22H_SAMPLE_SIZE				sizeof(s16)
 
 #define HZ_TO_PERIOD_NSEC(hz)				(1000000000 / \
