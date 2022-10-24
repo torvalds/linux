@@ -393,7 +393,7 @@ static int mtl_dsp_core_power_down(struct snd_sof_dev *sdev, int core)
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_DSP2CXCTL_PRIMARY_CORE,
 				MTL_DSP2CXCTL_PRIMARY_CORE_SPA_MASK, 0);
 
-	/* Wait for unstable CPA read (1 then 0 then 1) just after setting SPA bit */
+	/* Wait for unstable CPA read (0 then 1 then 0) just after setting SPA bit */
 	usleep_range(1000, 1010);
 
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP2CXCTL_PRIMARY_CORE, dspcxctl,
@@ -422,7 +422,7 @@ static int mtl_power_down_dsp(struct snd_sof_dev *sdev)
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_HFDSSCS,
 				MTL_HFDSSCS_SPA_MASK, 0);
 
-	/* Wait for unstable CPA read (1 then 0 then 1) just after setting SPA bit */
+	/* Wait for unstable CPA read (0 then 1 then 0) just after setting SPA bit */
 	usleep_range(1000, 1010);
 
 	/* poll with timeout to check if operation successful */
