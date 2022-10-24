@@ -468,8 +468,9 @@ regions in case of physical memory monitoring.  Therefore, users should set the
 monitoring target regions by themselves.
 
 In such cases, users can explicitly set the initial monitoring target regions
-as they want, by writing proper values to the ``init_regions`` file.  Each line
-of the input should represent one region in below form.::
+as they want, by writing proper values to the ``init_regions`` file.  The input
+should be a sequence of three integers separated by white spaces that represent
+one region in below form.::
 
     <target idx> <start address> <end address>
 
@@ -484,9 +485,9 @@ ranges, ``20-40`` and ``50-100`` as that of pid 4242, which is the second one
     # cd <debugfs>/damon
     # cat target_ids
     42 4242
-    # echo "0   1       100
-            0   100     200
-            1   20      40
+    # echo "0   1       100 \
+            0   100     200 \
+            1   20      40  \
             1   50      100" > init_regions
 
 Note that this sets the initial monitoring target regions only.  In case of
