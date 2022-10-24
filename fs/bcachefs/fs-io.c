@@ -1656,10 +1656,21 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 				goto out;
 		}
 
+		/*
+		 * XXX: per POSIX and fstests generic/275, on -ENOSPC we're
+		 * supposed to write as much as we have disk space for.
+		 *
+		 * On failure here we should still write out a partial page if
+		 * we aren't completely out of disk space - we don't do that
+		 * yet:
+		 */
 		ret = bch2_page_reservation_get(c, inode, page, &res,
 						pg_offset, pg_len);
-		if (ret)
-			goto out;
+		if (unlikely(ret)) {
+			if (!reserved)
+				goto out;
+			break;
+		}
 
 		reserved += pg_len;
 	}
@@ -1668,10 +1679,10 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 		for (i = 0; i < nr_pages; i++)
 			flush_dcache_page(pages[i]);
 
-	while (copied < len) {
+	while (copied < reserved) {
 		struct page *page = pages[(offset + copied) >> PAGE_SHIFT];
 		unsigned pg_offset = (offset + copied) & (PAGE_SIZE - 1);
-		unsigned pg_len = min_t(unsigned, len - copied,
+		unsigned pg_len = min_t(unsigned, reserved - copied,
 					PAGE_SIZE - pg_offset);
 		unsigned pg_copied = copy_page_from_iter_atomic(page,
 						pg_offset, pg_len, iter);
