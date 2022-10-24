@@ -352,6 +352,7 @@
   __devm_regmap_init
   __devm_regmap_init_i2c
   __devm_regmap_init_mmio_clk
+  __devm_regmap_init_spmi_ext
   devm_regulator_bulk_get
   devm_regulator_get
   devm_regulator_get_exclusive
@@ -1310,6 +1311,7 @@
   pwm_apply_state
   pwmchip_add
   pwmchip_remove
+  qcom_icc_xlate_extended
   qcom_smem_state_get
   qcom_smem_state_register
   qcom_smem_state_unregister

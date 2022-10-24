@@ -228,7 +228,7 @@ KERNEL_BINARY=Image
 LIBUFDT_PREBUILTS_BIN=tools/libufdt/utils/src
 function make_dtbo_img() {
   mkdir -p ${DIST_DIR}/
-  mkdtboimg.py create ${DIST_DIR}/dtbo.img --page_size=${PAGE_SIZE} ${DIST_DIR}/*.dtbo
+  mkdtboimg create ${DIST_DIR}/dtbo.img --page_size=${PAGE_SIZE} ${DIST_DIR}/*.dtbo
 }
 if [ ! -z $DT_OVERLAY_SUPPORT ] && [ ! $DT_OVERLAY_SUPPORT -eq "0" ]; then
   append_cmd DIST_CMDS 'make_dtbo_img'
@@ -238,7 +238,7 @@ fi
 ## Cating all the DTBs and create a dtb.img
 function make_dtb_img() {
   mkdir -p ${DIST_DIR}/
-  mkdtboimg.py create ${DIST_DIR}/${MSM_ARCH}-dtb.img --page_size=${PAGE_SIZE} ${DIST_DIR}/*.dtb
+  mkdtboimg create ${DIST_DIR}/${MSM_ARCH}-dtb.img --page_size=${PAGE_SIZE} ${DIST_DIR}/*.dtb
 }
 if [ ! -z $DTB_IMG_CREATE ] && [ ! $DTB_IMG_CREATE -eq "0" ]; then
   append_cmd DIST_CMDS 'make_dtb_img'
@@ -249,7 +249,7 @@ fi
 function make_vm_dtb_img() {
   mkdir -p ${DIST_DIR}/
   for i in "${!MKDTIMGDTBS[@]}"; do
-    mkdtboimg.py create ${DIST_DIR}/${i}-dtb.img --page_size=${PAGE_SIZE} ${DIST_DIR}/${MKDTIMGDTBS[$i]}*.dtb
+    mkdtboimg create ${DIST_DIR}/${i}-dtb.img --page_size=${PAGE_SIZE} ${DIST_DIR}/${MKDTIMGDTBS[$i]}*.dtb
   done
 }
 if [ -n "$VM_DTB_IMG_CREATE" ] && [ ! "$VM_DTB_IMG_CREATE" -eq "0" ]; then

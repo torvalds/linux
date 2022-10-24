@@ -3076,6 +3076,24 @@ out:
 	return ret;
 }
 
+static bool iommu_is_default_domain(struct iommu_group *group)
+{
+	if (group->domain == group->default_domain)
+		return true;
+
+	/*
+	 * If the default domain was set to identity and it is still an identity
+	 * domain then we consider this a pass. This happens because of
+	 * amd_iommu_init_device() replacing the default idenytity domain with an
+	 * identity domain that has a different configuration for AMDGPU.
+	 */
+	if (group->default_domain &&
+	    group->default_domain->type == IOMMU_DOMAIN_IDENTITY &&
+	    group->domain && group->domain->type == IOMMU_DOMAIN_IDENTITY)
+		return true;
+	return false;
+}
+
 /**
  * iommu_device_use_default_domain() - Device driver wants to handle device
  *                                     DMA through the kernel DMA API.
@@ -3094,8 +3112,7 @@ int iommu_device_use_default_domain(struct device *dev)
 
 	mutex_lock(&group->mutex);
 	if (group->owner_cnt) {
-		if (group->domain != group->default_domain ||
-		    group->owner) {
+		if (group->owner || !iommu_is_default_domain(group)) {
 			ret = -EBUSY;
 			goto unlock_out;
 		}

@@ -7,6 +7,8 @@ arch/arm64/crypto/aes-modes.S
 arch/arm64/crypto/chacha-neon-core.S
 arch/arm64/crypto/chacha-neon-glue.c
 arch/arm64/crypto/poly1305-glue.c
+arch/arm64/crypto/polyval-ce-core.S
+arch/arm64/crypto/polyval-ce-glue.c
 arch/arm64/crypto/sha256-glue.c
 arch/arm64/crypto/sha2-ce-core.S
 arch/arm64/crypto/sha2-ce-glue.c
@@ -107,7 +109,6 @@ arch/arm64/include/asm/mte-def.h
 arch/arm64/include/asm/mte.h
 arch/arm64/include/asm/mte-kasan.h
 arch/arm64/include/asm/neon.h
-arch/arm64/include/asm/neon-intrinsics.h
 arch/arm64/include/asm/numa.h
 arch/arm64/include/asm/page-def.h
 arch/arm64/include/asm/page.h
@@ -187,7 +188,6 @@ arch/arm64/include/asm/xen/hypervisor.h
 arch/arm64/include/asm/xen/interface.h
 arch/arm64/include/asm/xen/swiotlb-xen.h
 arch/arm64/include/asm/xen/xen-ops.h
-arch/arm64/include/asm/xor.h
 arch/arm64/include/uapi/asm/auxvec.h
 arch/arm64/include/uapi/asm/bitsperlong.h
 arch/arm64/include/uapi/asm/bpf_perf_event.h
@@ -404,7 +404,6 @@ arch/arm64/lib/strncmp.S
 arch/arm64/lib/strnlen.S
 arch/arm64/lib/strrchr.S
 arch/arm64/lib/tishift.S
-arch/arm64/lib/xor-neon.c
 arch/arm64/mm/cache.S
 arch/arm64/mm/context.c
 arch/arm64/mm/copypage.c
@@ -548,6 +547,7 @@ crypto/geniv.c
 crypto/gf128mul.c
 crypto/ghash-generic.c
 crypto/hash_info.c
+crypto/hctr2.c
 crypto/hmac.c
 crypto/internal.h
 crypto/jitterentropy.c
@@ -560,6 +560,7 @@ crypto/lzo-rle.c
 crypto/md5.c
 crypto/nhpoly1305.c
 crypto/poly1305_generic.c
+crypto/polyval-generic.c
 crypto/proc.c
 crypto/rng.c
 crypto/rsa.c
@@ -575,7 +576,7 @@ crypto/shash.c
 crypto/skcipher.c
 crypto/testmgr.c
 crypto/xcbc.c
-crypto/xor.c
+crypto/xctr.c
 crypto/xts.c
 crypto/zstd.c
 drivers/amba/bus.c
@@ -644,6 +645,7 @@ drivers/base/regmap/regmap-i2c.c
 drivers/base/regmap/regmap-irq.c
 drivers/base/regmap/regmap-mmio.c
 drivers/base/regmap/regmap-spi.c
+drivers/base/regmap/regmap-spmi.c
 drivers/base/regmap/trace.h
 drivers/base/soc.c
 drivers/base/swnode.c
@@ -1049,6 +1051,8 @@ drivers/input/vivaldi-fmap.c
 drivers/interconnect/bulk.c
 drivers/interconnect/core.c
 drivers/interconnect/internal.h
+drivers/interconnect/qcom/icc-common.c
+drivers/interconnect/qcom/icc-common.h
 drivers/interconnect/trace.h
 drivers/iommu/dma-iommu.c
 drivers/iommu/iommu.c
@@ -1234,6 +1238,7 @@ drivers/net/can/dev/calc_bittiming.c
 drivers/net/can/dev/dev.c
 drivers/net/can/dev/length.c
 drivers/net/can/dev/netlink.c
+drivers/net/can/dev/rx-offload.c
 drivers/net/can/dev/skb.c
 drivers/net/dummy.c
 drivers/net/ifb.c
@@ -2296,7 +2301,6 @@ include/asm-generic/user.h
 include/asm-generic/vdso/vsyscall.h
 include/asm-generic/vga.h
 include/asm-generic/vmlinux.lds.h
-include/asm-generic/xor.h
 include/clocksource/arm_arch_timer.h
 include/crypto/acompress.h
 include/crypto/aead.h
@@ -2347,6 +2351,7 @@ include/crypto/nhpoly1305.h
 include/crypto/null.h
 include/crypto/pkcs7.h
 include/crypto/poly1305.h
+include/crypto/polyval.h
 include/crypto/public_key.h
 include/crypto/rng.h
 include/crypto/scatterwalk.h
@@ -2572,6 +2577,7 @@ include/linux/can/can-ml.h
 include/linux/can/core.h
 include/linux/can/dev.h
 include/linux/can/length.h
+include/linux/can/rx-offload.h
 include/linux/can/skb.h
 include/linux/capability.h
 include/linux/cc_platform.h
@@ -3278,7 +3284,6 @@ include/linux/quota.h
 include/linux/quotaops.h
 include/linux/radix-tree.h
 include/linux/raid/detect.h
-include/linux/raid/xor.h
 include/linux/ramfs.h
 include/linux/random.h
 include/linux/randomize_kstack.h
@@ -4107,6 +4112,7 @@ include/trace/hooks/selinux.h
 include/trace/hooks/syscall_check.h
 include/trace/hooks/sys.h
 include/trace/hooks/sysrqcrash.h
+include/trace/hooks/timer.h
 include/trace/hooks/ufshcd.h
 include/trace/hooks/vendor_hooks.h
 include/trace/hooks/vmscan.h
@@ -4920,6 +4926,7 @@ kernel/sched/stats.h
 kernel/sched/stop_task.c
 kernel/sched/swait.c
 kernel/sched/topology.c
+kernel/sched/vendor_hooks.c
 kernel/sched/wait_bit.c
 kernel/sched/wait.c
 kernel/scs.c

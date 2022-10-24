@@ -1596,6 +1596,8 @@ static void __rmap_add(struct kvm *kvm,
 	rmap_head = gfn_to_rmap(gfn, sp->role.level, slot);
 	rmap_count = pte_list_add(cache, spte, rmap_head);
 
+	if (rmap_count > kvm->stat.max_mmu_rmap_size)
+		kvm->stat.max_mmu_rmap_size = rmap_count;
 	if (rmap_count > RMAP_RECYCLE_THRESHOLD) {
 		kvm_zap_all_rmap_sptes(kvm, rmap_head);
 		kvm_flush_remote_tlbs_with_address(
@@ -5361,19 +5363,6 @@ void kvm_mmu_free_obsolete_roots(struct kvm_vcpu *vcpu)
 	__kvm_mmu_free_obsolete_roots(vcpu->kvm, &vcpu->arch.guest_mmu);
 }
 
-static bool need_remote_flush(u64 old, u64 new)
-{
-	if (!is_shadow_present_pte(old))
-		return false;
-	if (!is_shadow_present_pte(new))
-		return true;
-	if ((old ^ new) & SPTE_BASE_ADDR_MASK)
-		return true;
-	old ^= shadow_nx_mask;
-	new ^= shadow_nx_mask;
-	return (old & ~new & SPTE_PERM_MASK) != 0;
-}
-
 static u64 mmu_pte_write_fetch_gpte(struct kvm_vcpu *vcpu, gpa_t *gpa,
 				    int *bytes)
 {
@@ -5519,7 +5508,7 @@ static void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 			mmu_page_zap_pte(vcpu->kvm, sp, spte, NULL);
 			if (gentry && sp->role.level != PG_LEVEL_4K)
 				++vcpu->kvm->stat.mmu_pde_zapped;
-			if (need_remote_flush(entry, *spte))
+			if (is_shadow_present_pte(entry))
 				flush = true;
 			++spte;
 		}
@@ -6085,47 +6074,18 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
 				      const struct kvm_memory_slot *memslot,
 				      int start_level)
 {
-	bool flush = false;
-
 	if (kvm_memslots_have_rmaps(kvm)) {
 		write_lock(&kvm->mmu_lock);
-		flush = slot_handle_level(kvm, memslot, slot_rmap_write_protect,
-					  start_level, KVM_MAX_HUGEPAGE_LEVEL,
-					  false);
+		slot_handle_level(kvm, memslot, slot_rmap_write_protect,
+				  start_level, KVM_MAX_HUGEPAGE_LEVEL, false);
 		write_unlock(&kvm->mmu_lock);
 	}
 
 	if (is_tdp_mmu_enabled(kvm)) {
 		read_lock(&kvm->mmu_lock);
-		flush |= kvm_tdp_mmu_wrprot_slot(kvm, memslot, start_level);
+		kvm_tdp_mmu_wrprot_slot(kvm, memslot, start_level);
 		read_unlock(&kvm->mmu_lock);
 	}
-
-	/*
-	 * Flush TLBs if any SPTEs had to be write-protected to ensure that
-	 * guest writes are reflected in the dirty bitmap before the memslot
-	 * update completes, i.e. before enabling dirty logging is visible to
-	 * userspace.
-	 *
-	 * Perform the TLB flush outside the mmu_lock to reduce the amount of
-	 * time the lock is held. However, this does mean that another CPU can
-	 * now grab mmu_lock and encounter a write-protected SPTE while CPUs
-	 * still have a writable mapping for the associated GFN in their TLB.
-	 *
-	 * This is safe but requires KVM to be careful when making decisions
-	 * based on the write-protection status of an SPTE. Specifically, KVM
-	 * also write-protects SPTEs to monitor changes to guest page tables
-	 * during shadow paging, and must guarantee no CPUs can write to those
-	 * page before the lock is dropped. As mentioned in the previous
-	 * paragraph, a write-protected SPTE is no guarantee that CPU cannot
-	 * perform writes. So to determine if a TLB flush is truly required, KVM
-	 * will clear a separate software-only bit (MMU-writable) and skip the
-	 * flush if-and-only-if this bit was already clear.
-	 *
-	 * See is_writable_pte() for more details.
-	 */
-	if (flush)
-		kvm_arch_flush_remote_tlbs_memslot(kvm, memslot);
 }
 
 static inline bool need_topup(struct kvm_mmu_memory_cache *cache, int min)
@@ -6493,32 +6453,30 @@ void kvm_arch_flush_remote_tlbs_memslot(struct kvm *kvm,
 void kvm_mmu_slot_leaf_clear_dirty(struct kvm *kvm,
 				   const struct kvm_memory_slot *memslot)
 {
-	bool flush = false;
-
 	if (kvm_memslots_have_rmaps(kvm)) {
 		write_lock(&kvm->mmu_lock);
 		/*
 		 * Clear dirty bits only on 4k SPTEs since the legacy MMU only
 		 * support dirty logging at a 4k granularity.
 		 */
-		flush = slot_handle_level_4k(kvm, memslot, __rmap_clear_dirty, false);
+		slot_handle_level_4k(kvm, memslot, __rmap_clear_dirty, false);
 		write_unlock(&kvm->mmu_lock);
 	}
 
 	if (is_tdp_mmu_enabled(kvm)) {
 		read_lock(&kvm->mmu_lock);
-		flush |= kvm_tdp_mmu_clear_dirty_slot(kvm, memslot);
+		kvm_tdp_mmu_clear_dirty_slot(kvm, memslot);
 		read_unlock(&kvm->mmu_lock);
 	}
 
 	/*
+	 * The caller will flush the TLBs after this function returns.
+	 *
 	 * It's also safe to flush TLBs out of mmu lock here as currently this
 	 * function is only used for dirty logging, in which case flushing TLB
 	 * out of mmu lock also guarantees no dirty pages will be lost in
 	 * dirty_bitmap.
 	 */
-	if (flush)
-		kvm_arch_flush_remote_tlbs_memslot(kvm, memslot);
 }
 
 void kvm_mmu_zap_all(struct kvm *kvm)

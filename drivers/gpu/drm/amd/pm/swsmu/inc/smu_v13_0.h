@@ -30,7 +30,7 @@
 #define SMU13_DRIVER_IF_VERSION_ALDE 0x08
 #define SMU13_DRIVER_IF_VERSION_SMU_V13_0_4 0x05
 #define SMU13_DRIVER_IF_VERSION_SMU_V13_0_5 0x04
-#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_0 0x2E
+#define SMU13_DRIVER_IF_VERSION_SMU_V13_0_0 0x30
 #define SMU13_DRIVER_IF_VERSION_SMU_V13_0_7 0x2C
 
 #define SMU13_MODE1_RESET_WAIT_TIME_IN_MS 500  //500ms
@@ -291,5 +291,11 @@ int smu_v13_0_set_default_dpm_tables(struct smu_context *smu);
 void smu_v13_0_set_smu_mailbox_registers(struct smu_context *smu);
 
 int smu_v13_0_mode1_reset(struct smu_context *smu);
+
+int smu_v13_0_get_pptable_from_firmware(struct smu_context *smu,
+					void **table,
+					uint32_t *size,
+					uint32_t pptable_id);
+
 #endif
 #endif

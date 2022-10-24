@@ -2128,7 +2128,7 @@ static int battery_chg_register_panel_notifier(struct battery_chg_dev *bcdev)
 	if (!active_panel) {
 		rc = PTR_ERR(panel);
 		if (rc != -EPROBE_DEFER)
-			dev_err(bcdev->dev, "Failed to find active panel, rc=%d\n");
+			dev_err(bcdev->dev, "Failed to find active panel, rc=%d\n", rc);
 		return rc;
 	}
 

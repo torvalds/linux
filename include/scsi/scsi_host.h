@@ -557,6 +557,8 @@ struct Scsi_Host {
 	struct scsi_host_template *hostt;
 	struct scsi_transport_template *transportt;
 
+	struct kref		tagset_refcnt;
+	struct completion	tagset_freed;
 	/* Area to keep a shared tag map */
 	struct blk_mq_tag_set	tag_set;
 
@@ -689,9 +691,6 @@ struct Scsi_Host {
 
 	/* ldm bits */
 	struct device		shost_gendev, shost_dev;
-
-	atomic_t		target_count;
-	wait_queue_head_t	targets_wq;
 
 	/*
 	 * Points to the transport data (if any) which is allocated

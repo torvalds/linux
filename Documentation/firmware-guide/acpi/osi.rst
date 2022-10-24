@@ -41,26 +41,23 @@ But it is likely that they will all eventually be added.
 What should an OEM do if they want to support Linux and Windows
 using the same BIOS image?  Often they need to do something different
 for Linux to deal with how Linux is different from Windows.
-Here the BIOS should ask exactly what it wants to know:
 
+In this case, the OEM should create custom ASL to be executed by the
+Linux kernel and changes to Linux kernel drivers to execute this custom
+ASL.  The easiest way to accomplish this is to introduce a device specific
+method (_DSM) that is called from the Linux kernel.
+
+In the past the kernel used to support something like:
 _OSI("Linux-OEM-my_interface_name")
 where 'OEM' is needed if this is an OEM-specific hook,
 and 'my_interface_name' describes the hook, which could be a
 quirk, a bug, or a bug-fix.
 
-In addition, the OEM should send a patch to upstream Linux
-via the linux-acpi@vger.kernel.org mailing list.  When that patch
-is checked into Linux, the OS will answer "YES" when the BIOS
-on the OEM's system uses _OSI to ask if the interface is supported
-by the OS.  Linux distributors can back-port that patch for Linux
-pre-installs, and it will be included by all distributions that
-re-base to upstream.  If the distribution can not update the kernel binary,
-they can also add an acpi_osi=Linux-OEM-my_interface_name
-cmdline parameter to the boot loader, as needed.
-
-If the string refers to a feature where the upstream kernel
-eventually grows support, a patch should be sent to remove
-the string when that support is added to the kernel.
+However this was discovered to be abused by other BIOS vendors to change
+completely unrelated code on completely unrelated systems.  This prompted
+an evaluation of all of it's uses. This uncovered that they aren't needed
+for any of the original reasons. As such, the kernel will not respond to
+any custom Linux-* strings by default.
 
 That was easy.  Read on, to find out how to do it wrong.
 

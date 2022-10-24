@@ -447,7 +447,7 @@ void geni_se_dump_dbg_regs(struct uart_port *uport)
 
 	if (device_pending_suspend(uport)) {
 		UART_LOG_DBG(port->ipc_log_misc, uport->dev,
-			     "%s: Device is suspended, Return\n");
+			     "%s: Device is suspended, Return\n", __func__);
 		return;
 	}
 

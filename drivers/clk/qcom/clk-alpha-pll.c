@@ -306,7 +306,7 @@ static int wait_for_pll(struct clk_alpha_pll *pll, u32 mask, bool inverse,
 		udelay(1);
 	}
 
-	WARN_CLK(&pll->clkr.hw, 1, "%s failed to %s!\n", action);
+	WARN_CLK(&pll->clkr.hw, 1, "pll failed to %s!\n", action);
 	return -ETIMEDOUT;
 }
 

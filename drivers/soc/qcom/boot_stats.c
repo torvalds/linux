@@ -461,7 +461,7 @@ static int __init boot_stats_init(void)
 	if (boot_marker_enabled()) {
 		ret = init_bootkpi();
 		if (ret) {
-			pr_err("boot_stats: BootKPI init failed %d\n");
+			pr_err("boot_stats: BootKPI init failed %d\n", ret);
 			return ret;
 		}
 #ifdef CONFIG_MSM_BOOT_TIME_MARKER

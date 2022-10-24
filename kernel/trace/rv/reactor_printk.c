@@ -23,13 +23,13 @@ static struct rv_reactor rv_printk = {
 	.react = rv_printk_reaction
 };
 
-static int register_react_printk(void)
+static int __init register_react_printk(void)
 {
 	rv_register_reactor(&rv_printk);
 	return 0;
 }
 
-static void unregister_react_printk(void)
+static void __exit unregister_react_printk(void)
 {
 	rv_unregister_reactor(&rv_printk);
 }

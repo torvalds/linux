@@ -1712,8 +1712,6 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
 	res->flags = IORESOURCE_MEM;
 
 	for (i = 0; i < nd_region->ndr_mappings; i++) {
-		uuid_t uuid;
-
 		nsl_get_uuid(ndd, nd_label, &uuid);
 		if (has_uuid_at_pos(nd_region, &uuid, cookie, i))
 			continue;

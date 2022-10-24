@@ -405,7 +405,7 @@ static int chg_ulog_probe(struct platform_device *pdev)
 	cd->client = pmic_glink_register_client(cd->dev, &client_data);
 	if (IS_ERR(cd->client))
 		return dev_err_probe(cd->dev, PTR_ERR(cd->client),
-				"Error in registering with pmic_glink %d\n");
+				"Error in registering with pmic_glink %d\n", client_data.id);
 
 	rc = chg_ulog_add_debugfs(cd);
 	if (rc) {

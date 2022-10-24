@@ -595,7 +595,7 @@ static void qcom_geni_i3c_conf(struct geni_i3c_dev *gi3c,
 
 	if (gi3c->dfs_idx != gi3c->prev_dfs_idx)
 		I3C_LOG_DBG(gi3c->ipcl, false, gi3c->se.dev,
-		"dfs index:%d, prev_dfs_idx:%d\n",
+		"%s:dfs index:%d, prev_dfs_idx:%d\n",
 		__func__, gi3c->dfs_idx, gi3c->prev_dfs_idx);
 
 	gi3c->prev_dfs_idx = gi3c->dfs_idx;

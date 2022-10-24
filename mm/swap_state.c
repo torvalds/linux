@@ -151,7 +151,7 @@ void __delete_from_swap_cache(struct folio *folio,
 
 	for (i = 0; i < nr; i++) {
 		void *entry = xas_store(&xas, shadow);
-		VM_BUG_ON_FOLIO(entry != folio, folio);
+		VM_BUG_ON_PAGE(entry != folio, entry);
 		set_page_private(folio_page(folio, i), 0);
 		xas_next(&xas);
 	}

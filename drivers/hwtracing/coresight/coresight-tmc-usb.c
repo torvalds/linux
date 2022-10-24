@@ -458,6 +458,6 @@ int tmc_etr_usb_init(struct amba_device *adev,
 
 	usb_data->usb_mode = TMC_ETR_USB_NONE;
 	pr_err("%s: ETR usb property is not configured!\n",
-					__func__, dev_name(dev));
+					dev_name(dev));
 	return 0;
 }

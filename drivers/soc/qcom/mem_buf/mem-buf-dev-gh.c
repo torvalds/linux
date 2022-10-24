@@ -417,7 +417,7 @@ int mem_buf_assign_mem_gunyah(u32 op, struct sg_table *sgt,
 				     NULL /* Default memory attributes */,
 				     &arg->memparcel_hdl);
 	} else {
-		pr_err("%s: Unrecognized op %d\n", op);
+		pr_err("%s: Unrecognized op %d\n", __func__, op);
 		ret = -EINVAL;
 	}
 

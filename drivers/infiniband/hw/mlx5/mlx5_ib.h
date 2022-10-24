@@ -708,6 +708,7 @@ struct mlx5_ib_umr_context {
 };
 
 enum {
+	MLX5_UMR_STATE_UNINIT,
 	MLX5_UMR_STATE_ACTIVE,
 	MLX5_UMR_STATE_RECOVER,
 	MLX5_UMR_STATE_ERR,

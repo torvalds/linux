@@ -3420,11 +3420,11 @@ static void ieee80211_destroy_auth_data(struct ieee80211_sub_if_data *sdata,
 		ieee80211_link_info_change_notify(sdata, &sdata->deflink,
 						  BSS_CHANGED_BSSID);
 		sdata->u.mgd.flags = 0;
+
 		mutex_lock(&sdata->local->mtx);
 		ieee80211_link_release_channel(&sdata->deflink);
-		mutex_unlock(&sdata->local->mtx);
-
 		ieee80211_vif_set_links(sdata, 0);
+		mutex_unlock(&sdata->local->mtx);
 	}
 
 	cfg80211_put_bss(sdata->local->hw.wiphy, auth_data->bss);
@@ -3462,10 +3462,6 @@ static void ieee80211_destroy_assoc_data(struct ieee80211_sub_if_data *sdata,
 		sdata->u.mgd.flags = 0;
 		sdata->vif.bss_conf.mu_mimo_owner = false;
 
-		mutex_lock(&sdata->local->mtx);
-		ieee80211_link_release_channel(&sdata->deflink);
-		mutex_unlock(&sdata->local->mtx);
-
 		if (status != ASSOC_REJECTED) {
 			struct cfg80211_assoc_failure data = {
 				.timeout = status == ASSOC_TIMEOUT,
@@ -3484,7 +3480,10 @@ static void ieee80211_destroy_assoc_data(struct ieee80211_sub_if_data *sdata,
 			cfg80211_assoc_failure(sdata->dev, &data);
 		}
 
+		mutex_lock(&sdata->local->mtx);
+		ieee80211_link_release_channel(&sdata->deflink);
 		ieee80211_vif_set_links(sdata, 0);
+		mutex_unlock(&sdata->local->mtx);
 	}
 
 	kfree(assoc_data);
@@ -4041,7 +4040,6 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 
 	if (!(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE) &&
 	    (!elems->he_cap || !elems->he_operation)) {
-		mutex_unlock(&sdata->local->sta_mtx);
 		sdata_info(sdata,
 			   "HE AP is missing HE capability/operation\n");
 		ret = false;
@@ -5590,12 +5588,16 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 
 	mutex_lock(&local->sta_mtx);
 	sta = sta_info_get(sdata, sdata->vif.cfg.ap_addr);
-	if (WARN_ON(!sta))
+	if (WARN_ON(!sta)) {
+		mutex_unlock(&local->sta_mtx);
 		goto free;
+	}
 	link_sta = rcu_dereference_protected(sta->link[link->link_id],
 					     lockdep_is_held(&local->sta_mtx));
-	if (WARN_ON(!link_sta))
+	if (WARN_ON(!link_sta)) {
+		mutex_unlock(&local->sta_mtx);
 		goto free;
+	}
 
 	changed |= ieee80211_recalc_twt_req(link, link_sta, elems);
 
@@ -6509,6 +6511,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	return 0;
 
 out_err:
+	ieee80211_link_release_channel(&sdata->deflink);
 	ieee80211_vif_set_links(sdata, 0);
 	return err;
 }

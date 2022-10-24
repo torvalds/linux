@@ -1489,7 +1489,7 @@ static int __ufs_qcom_set_bus_vote(struct ufs_qcom_host *host, int vote)
 		path0.ab, path0.ib);
 	err = icc_set_bw(d->ufs_ddr, path0.ab, path0.ib);
 	if (err) {
-		dev_err(dev, "Error: failed setting (%s) bus vote\n", err,
+		dev_err(dev, "Error: failed (%d) setting (%s) bus vote\n", err,
 			UFS_DDR);
 		return err;
 	}
@@ -1498,7 +1498,7 @@ static int __ufs_qcom_set_bus_vote(struct ufs_qcom_host *host, int vote)
 		path1.ib);
 	err = icc_set_bw(d->cpu_ufs, path1.ab, path1.ib);
 	if (err) {
-		dev_err(dev, "Error: failed setting (%s) bus vote\n", err,
+		dev_err(dev, "Error: failed (%d) setting (%s) bus vote\n", err,
 			CPU_UFS);
 		return err;
 	}
@@ -2719,7 +2719,7 @@ static int ufs_qcom_setup_qos(struct ufs_hba *hba)
 		cpu = cpumask_first((const struct cpumask *)&qcg->mask);
 		policy = cpufreq_cpu_get(cpu);
 		if (!policy) {
-			dev_err(dev, "Failed cpufreq policy,cpu=%d,mask=0x%08x\n",
+			dev_err(dev, "%s: Failed cpufreq policy,cpu=%d,mask=0x%08x\n",
 				__func__, cpu, qcg->mask);
 			host->cpufreq_dis = true;
 			host->config_cpu = -1;

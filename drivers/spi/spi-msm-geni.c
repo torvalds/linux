@@ -411,7 +411,7 @@ static void spi_setup_word_len(struct spi_geni_master *mas, u32 mode,
 	geni_se_config_packing(&mas->spi_rsc, bits_per_word, pack_words, msb_first, true, true);
 	geni_write_reg(word_len, mas->base, SE_SPI_WORD_LEN);
 	SPI_LOG_DBG(mas->ipc, false, mas->dev,
-		"%s: %lu bpw %d pack_words %d\n", __func__,
+		"%s: %lu bpw %d pack_words %d\n", __func__, word_len,
 		bits_per_word, pack_words);
 }
 

@@ -214,6 +214,7 @@ struct dummy_pstate_entry {
 struct clk_bw_params {
 	unsigned int vram_type;
 	unsigned int num_channels;
+	unsigned int dram_channel_width_bytes;
  	unsigned int dispclk_vco_khz;
 	unsigned int dc_mode_softmax_memclk;
 	struct clk_limit_table clk_table;

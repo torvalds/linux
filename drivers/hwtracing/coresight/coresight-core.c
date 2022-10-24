@@ -699,7 +699,7 @@ int coresight_enable_path(struct list_head *path, u32 mode, void *sink_data)
 			if (csdev->type == CORESIGHT_DEV_TYPE_SINK) {
 				ret = coresight_set_csr_atid(path, csdev, true);
 				if (ret)
-					dev_dbg(&csdev->dev, "Set csr atid register fail%s\n");
+					dev_dbg(&csdev->dev, "Set csr atid register fail\n");
 			}
 
 			break;

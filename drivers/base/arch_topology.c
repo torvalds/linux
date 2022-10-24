@@ -23,6 +23,9 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/thermal_pressure.h>
 
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/sched.h>
+
 static DEFINE_PER_CPU(struct scale_freq_data __rcu *, sft_data);
 static struct cpumask scale_freq_counters_mask;
 static bool scale_freq_invariant;
@@ -159,6 +162,7 @@ void topology_set_cpu_scale(unsigned int cpu, unsigned long capacity)
 }
 
 DEFINE_PER_CPU(unsigned long, thermal_pressure);
+EXPORT_PER_CPU_SYMBOL_GPL(thermal_pressure);
 
 /**
  * topology_update_thermal_pressure() - Update thermal pressure for CPUs
@@ -240,6 +244,8 @@ static int register_cpu_capacity_sysctl(void)
 subsys_initcall(register_cpu_capacity_sysctl);
 
 static int update_topology;
+bool topology_update_done;
+EXPORT_SYMBOL_GPL(topology_update_done);
 
 int topology_update_cpu_topology(void)
 {
@@ -254,6 +260,8 @@ static void update_topology_flags_workfn(struct work_struct *work)
 {
 	update_topology = 1;
 	rebuild_sched_domains();
+	topology_update_done = true;
+	trace_android_vh_update_topology_flags_workfn(NULL);
 	pr_debug("sched_domain hierarchy rebuilt, flags updated\n");
 	update_topology = 0;
 }
@@ -353,7 +361,7 @@ void topology_init_cpu_capacity_cppc(void)
 	struct cppc_perf_caps perf_caps;
 	int cpu;
 
-	if (likely(acpi_disabled || !acpi_cpc_valid()))
+	if (likely(!acpi_cpc_valid()))
 		return;
 
 	raw_capacity = kcalloc(num_possible_cpus(), sizeof(*raw_capacity),
@@ -724,7 +732,7 @@ const struct cpumask *cpu_clustergroup_mask(int cpu)
 	 */
 	if (cpumask_subset(cpu_coregroup_mask(cpu),
 			   &cpu_topology[cpu].cluster_sibling))
-		return get_cpu_mask(cpu);
+		return topology_sibling_cpumask(cpu);
 
 	return &cpu_topology[cpu].cluster_sibling;
 }
@@ -735,7 +743,7 @@ void update_siblings_masks(unsigned int cpuid)
 	int cpu, ret;
 
 	ret = detect_cache_attributes(cpuid);
-	if (ret)
+	if (ret && ret != -ENOENT)
 		pr_info("Early cacheinfo failed, ret = %d\n", ret);
 
 	/* update core and thread sibling masks */

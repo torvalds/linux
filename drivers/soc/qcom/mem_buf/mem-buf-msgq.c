@@ -262,7 +262,7 @@ int mem_buf_msgq_send(void *mem_buf_msgq_hdl, void *msg)
 	int ret;
 
 	if (!(hdr->msg_type >= MEM_BUF_ALLOC_REQ && hdr->msg_type < MEM_BUF_ALLOC_REQ_MAX)) {
-		pr_err("%s: message type invalid\n");
+		pr_err("%s: message type invalid\n", __func__);
 		return -EINVAL;
 	}
 

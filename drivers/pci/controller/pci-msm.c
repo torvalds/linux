@@ -5047,7 +5047,7 @@ static void msm_print_tlp_header(struct pci_dev *dev,
 				 struct msm_aer_err_info *info)
 {
 	PCIE_DBG(info->rdev, "PCIe: RC%d: TLP Header: %08x %08x %08x %08x\n",
-		info->tlp.dw0, info->tlp.dw1, info->tlp.dw2, info->tlp.dw3);
+		info->rdev->rc_idx, info->tlp.dw0, info->tlp.dw1, info->tlp.dw2, info->tlp.dw3);
 }
 
 static void msm_aer_print_error_stats(struct pci_dev *dev,
@@ -5105,7 +5105,8 @@ void msm_aer_print_error(struct pci_dev *dev, struct msm_aer_err_info *info)
 
 out:
 	if (info->id && info->error_dev_num > 1 && info->id == id)
-		PCIE_DBG(info->rdev, "PCIe: RC%d: Error of this Agent is reported first\n");
+		PCIE_DBG(info->rdev, "PCIe: RC%d: Error of this Agent is reported first\n",
+			info->rdev->rc_idx);
 }
 
 static void msm_aer_print_port_info(struct pci_dev *dev,

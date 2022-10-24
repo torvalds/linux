@@ -1700,7 +1700,8 @@ static int qpnp_lpg_parse_pattern_dt(struct qpnp_lpg_chip *chip,
 		}
 
 		if (chip->lpgs[lpg_chan_id - 1].enable_pfm) {
-			dev_err(chip->dev, "Cannot configure ramp for PFM-enabled channel %d\n");
+			dev_err(chip->dev, "Cannot configure ramp for PFM-enabled channel %d\n",
+					lpg_chan_id);
 			return -EINVAL;
 		}
 

@@ -421,8 +421,6 @@ retry:
 	if (unlikely(!(vma->vm_flags & access)))
 		goto out_up;
 
-	if (is_vm_hugetlb_page(vma))
-		address &= HPAGE_MASK;
 	/*
 	 * If for any reason at all we couldn't handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo

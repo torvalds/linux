@@ -83,7 +83,7 @@ static int qcom_smd_qrtr_probe(struct rpmsg_device *rpdev)
 
 	rc = qrtr_endpoint_register(&qdev->ep, net_id, rt);
 	if (rc) {
-		dev_err(qdev->dev, "endpoint register failed: %d\n", rc, rt);
+		dev_err(qdev->dev, "endpoint register failed: %d, low-latency: %d\n", rc, rt);
 		return rc;
 	}
 

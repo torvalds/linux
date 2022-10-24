@@ -52,7 +52,7 @@ static int ufs_qcom_phy_qmp_v4_phy_calibrate(struct phy *generic_phy)
 				      phy_cal_table_2nd_lane,
 				      ARRAY_SIZE(phy_cal_table_2nd_lane));
 	} else {
-		dev_err(dev, "%s: unsupported submode.\n");
+		dev_err(dev, "%s: unsupported submode.\n", __func__);
 		return -EOPNOTSUPP;
 	}
 
