@@ -697,7 +697,8 @@ bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev)
 	/* The function can be called at irq thread, so use spin_lock_irq */
 	spin_lock_irq(&bus->reg_lock);
 
-	status = snd_hdac_chip_readl(bus, INTSTS);
+	status = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTSTS);
+
 	trace_sof_intel_hda_dsp_check_stream_irq(sdev, status);
 
 	/* if Register inaccessible, ignore it.*/
@@ -778,7 +779,7 @@ irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
 	for (i = 0, active = true; i < 10 && active; i++) {
 		spin_lock_irq(&bus->reg_lock);
 
-		status = snd_hdac_chip_readl(bus, INTSTS);
+		status = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTSTS);
 
 		/* check streams */
 		active = hda_dsp_stream_check(bus, status);
