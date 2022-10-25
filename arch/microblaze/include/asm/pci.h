@@ -48,16 +48,6 @@ struct vm_area_struct;
 #define ARCH_GENERIC_PCI_MMAP_RESOURCE	1
 #define arch_can_pci_mmap_io()		1
 
-extern int pci_legacy_read(struct pci_bus *bus, loff_t port, u32 *val,
-			   size_t count);
-extern int pci_legacy_write(struct pci_bus *bus, loff_t port, u32 val,
-			   size_t count);
-extern int pci_mmap_legacy_page_range(struct pci_bus *bus,
-				      struct vm_area_struct *vma,
-				      enum pci_mmap_state mmap_state);
-
-#define HAVE_PCI_LEGACY	1
-
 extern void pcibios_resource_survey(void);
 
 struct file;
