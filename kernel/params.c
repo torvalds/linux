@@ -953,7 +953,11 @@ struct kobj_type module_ktype = {
 };
 
 /*
- * param_sysfs_init - wrapper for built-in params support
+ * param_sysfs_init - create "module" kset
+ *
+ * This must be done before the initramfs is unpacked and
+ * request_module() thus becomes possible, because otherwise the
+ * module load would fail in mod_sysfs_init.
  */
 static int __init param_sysfs_init(void)
 {
@@ -964,11 +968,24 @@ static int __init param_sysfs_init(void)
 		return -ENOMEM;
 	}
 
+	return 0;
+}
+subsys_initcall(param_sysfs_init);
+
+/*
+ * param_sysfs_builtin_init - add sysfs version and parameter
+ * attributes for built-in modules
+ */
+static int __init param_sysfs_builtin_init(void)
+{
+	if (!module_kset)
+		return -ENOMEM;
+
 	version_sysfs_builtin();
 	param_sysfs_builtin();
 
 	return 0;
 }
-subsys_initcall(param_sysfs_init);
+late_initcall(param_sysfs_builtin_init);
 
 #endif /* CONFIG_SYSFS */
