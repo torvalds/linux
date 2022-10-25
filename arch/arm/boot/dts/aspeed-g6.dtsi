@@ -36,6 +36,10 @@
 		serial4 = &uart5;
 		serial5 = &vuart1;
 		serial6 = &vuart2;
+		mdio0 = &mdio0;
+		mdio1 = &mdio1;
+		mdio2 = &mdio2;
+		mdio3 = &mdio3;
 	};
 
 
