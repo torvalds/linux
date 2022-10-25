@@ -253,7 +253,6 @@ enum atc_status {
 /**
  * struct at_dma_chan - internal representation of an Atmel HDMAC channel
  * @dma_chan: common dmaengine channel object members
- * @device: parent device
  * @ch_regs: memory mapped register base
  * @mask: channel index in a mask
  * @per_if: peripheral interface
@@ -273,7 +272,6 @@ enum atc_status {
  */
 struct at_dma_chan {
 	struct dma_chan		dma_chan;
-	struct at_dma		*device;
 	void __iomem		*ch_regs;
 	u8			mask;
 	u8			per_if;
