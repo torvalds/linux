@@ -29,11 +29,10 @@
 #pragma pack(1)
 
 /*
- * 4CC signature values for the CRAT and CDIT ACPI tables
+ * 4CC signature value for the CRAT ACPI table
  */
 
 #define CRAT_SIGNATURE	"CRAT"
-#define CDIT_SIGNATURE	"CDIT"
 
 /*
  * Component Resource Association Table (CRAT)
@@ -290,27 +289,6 @@ struct crat_subtype_generic {
 	uint8_t		length;
 	uint16_t	reserved;
 	uint32_t	flags;
-};
-
-/*
- * Component Locality Distance Information Table (CDIT)
- */
-#define CDIT_OEMID_LENGTH	6
-#define CDIT_OEMTABLEID_LENGTH	8
-
-struct cdit_header {
-	uint32_t	signature;
-	uint32_t	length;
-	uint8_t		revision;
-	uint8_t		checksum;
-	uint8_t		oem_id[CDIT_OEMID_LENGTH];
-	uint8_t		oem_table_id[CDIT_OEMTABLEID_LENGTH];
-	uint32_t	oem_revision;
-	uint32_t	creator_id;
-	uint32_t	creator_revision;
-	uint32_t	total_entries;
-	uint16_t	num_domains;
-	uint8_t		entry[1];
 };
 
 #pragma pack()
