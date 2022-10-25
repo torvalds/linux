@@ -303,6 +303,7 @@
   devm_add_action
   devm_alloc_etherdev_mqs
   devm_bitmap_zalloc
+  devm_blk_crypto_profile_init
   devm_clk_bulk_get_all
   devm_clk_get
   devm_clk_get_optional
@@ -380,6 +381,7 @@
   dev_pm_genpd_set_performance_state
   dev_pm_opp_add
   dev_pm_opp_adjust_voltage
+  dev_pm_opp_clear_config
   dev_pm_opp_disable
   dev_pm_opp_enable
   dev_pm_opp_find_freq_ceil
@@ -394,6 +396,7 @@
   dev_pm_opp_of_remove_table
   dev_pm_opp_put
   dev_pm_opp_remove_all_dynamic
+  dev_pm_opp_set_config
   dev_pm_opp_set_opp
   dev_pm_opp_set_rate
   dev_pm_opp_set_sharing_cpus
@@ -486,8 +489,8 @@
   drain_workqueue
   driver_find_device
   driver_register
-  driver_unregister
   driver_set_override
+  driver_unregister
   dump_stack
   __dynamic_dev_dbg
   __dynamic_pr_debug
@@ -858,7 +861,6 @@
   __kfifo_out
   kfree
   kfree_const
-  kfree_skb_reason
   kfree_skb_reason
   kick_all_cpus_sync
   kill_anon_super
@@ -1538,6 +1540,7 @@
   sdhci_reset
   sdhci_set_bus_width
   sdhci_set_power_noreg
+  __sdhci_set_timeout
   sdhci_setup_host
   seq_buf_printf
   seq_lseek
