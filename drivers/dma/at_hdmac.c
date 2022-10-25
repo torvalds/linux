@@ -308,6 +308,109 @@ static inline u32 atc_calc_bytes_left(u32 current_len, u32 ctrla)
 }
 
 /**
+ * atc_get_llis_residue - Get residue for a hardware linked list transfer
+ *
+ * Calculate the residue by removing the length of the child descriptors already
+ * transferred from the total length. To get the current child descriptor we can
+ * use the value of the channel's DSCR register and compare it against the value
+ * of the hardware linked list structure of each child descriptor.
+ *
+ * The CTRLA register provides us with the amount of data already read from the
+ * source for the current child descriptor. So we can compute a more accurate
+ * residue by also removing the number of bytes corresponding to this amount of
+ * data.
+ *
+ * However, the DSCR and CTRLA registers cannot be read both atomically. Hence a
+ * race condition may occur: the first read register may refer to one child
+ * descriptor whereas the second read may refer to a later child descriptor in
+ * the list because of the DMA transfer progression inbetween the two reads.
+ *
+ * One solution could have been to pause the DMA transfer, read the DSCR and
+ * CTRLA then resume the DMA transfer. Nonetheless, this approach presents some
+ * drawbacks:
+ * - If the DMA transfer is paused, RX overruns or TX underruns are more likey
+ *   to occur depending on the system latency. Taking the USART driver as an
+ *   example, it uses a cyclic DMA transfer to read data from the Receive
+ *   Holding Register (RHR) to avoid RX overruns since the RHR is not protected
+ *   by any FIFO on most Atmel SoCs. So pausing the DMA transfer to compute the
+ *   residue would break the USART driver design.
+ * - The atc_pause() function masks interrupts but we'd rather avoid to do so
+ * for system latency purpose.
+ *
+ * Then we'd rather use another solution: the DSCR is read a first time, the
+ * CTRLA is read in turn, next the DSCR is read a second time. If the two
+ * consecutive read values of the DSCR are the same then we assume both refers
+ * to the very same child descriptor as well as the CTRLA value read inbetween
+ * does. For cyclic tranfers, the assumption is that a full loop is "not so
+ * fast". If the two DSCR values are different, we read again the CTRLA then the
+ * DSCR till two consecutive read values from DSCR are equal or till the
+ * maximum trials is reach. This algorithm is very unlikely not to find a stable
+ * value for DSCR.
+ * @atchan: pointer to an atmel hdmac channel.
+ * @desc: pointer to the descriptor for which the residue is calculated.
+ * @residue: residue to be set to dma_tx_state.
+ * Returns 0 on success, -errno otherwise.
+ */
+static int atc_get_llis_residue(struct at_dma_chan *atchan,
+				struct at_desc *desc, u32 *residue)
+{
+	struct at_desc *child;
+	u32 len, ctrla, dscr;
+	unsigned int i;
+
+	len = desc->total_len;
+	dscr = channel_readl(atchan, DSCR);
+	rmb(); /* ensure DSCR is read before CTRLA */
+	ctrla = channel_readl(atchan, CTRLA);
+	for (i = 0; i < ATC_MAX_DSCR_TRIALS; ++i) {
+		u32 new_dscr;
+
+		rmb(); /* ensure DSCR is read after CTRLA */
+		new_dscr = channel_readl(atchan, DSCR);
+
+		/*
+		 * If the DSCR register value has not changed inside the DMA
+		 * controller since the previous read, we assume that both the
+		 * dscr and ctrla values refers to the very same descriptor.
+		 */
+		if (likely(new_dscr == dscr))
+			break;
+
+		/*
+		 * DSCR has changed inside the DMA controller, so the previouly
+		 * read value of CTRLA may refer to an already processed
+		 * descriptor hence could be outdated. We need to update ctrla
+		 * to match the current descriptor.
+		 */
+		dscr = new_dscr;
+		rmb(); /* ensure DSCR is read before CTRLA */
+		ctrla = channel_readl(atchan, CTRLA);
+	}
+	if (unlikely(i == ATC_MAX_DSCR_TRIALS))
+		return -ETIMEDOUT;
+
+	/* For the first descriptor we can be more accurate. */
+	if (desc->lli.dscr == dscr) {
+		*residue = atc_calc_bytes_left(len, ctrla);
+		return 0;
+	}
+
+	len -= desc->len;
+	list_for_each_entry(child, &desc->tx_list, desc_node) {
+		if (child->lli.dscr == dscr)
+			break;
+		len -= child->len;
+	}
+
+	/*
+	 * For the current descriptor in the chain we can calculate the
+	 * remaining bytes using the channel's register.
+	 */
+	*residue = atc_calc_bytes_left(len, ctrla);
+	return 0;
+}
+
+/**
  * atc_get_residue - get the number of bytes residue for a cookie.
  * The residue is passed by address and updated on success.
  * @chan: DMA channel
@@ -321,8 +424,7 @@ static int atc_get_residue(struct dma_chan *chan, dma_cookie_t cookie,
 	struct at_dma_chan      *atchan = to_at_dma_chan(chan);
 	struct at_desc *desc_first = atc_first_active(atchan);
 	struct at_desc *desc;
-	u32 len, ctrla, dscr;
-	unsigned int i;
+	u32 len, ctrla;
 
 	/*
 	 * If the cookie doesn't match to the currently running transfer then
@@ -335,117 +437,14 @@ static int atc_get_residue(struct dma_chan *chan, dma_cookie_t cookie,
 	else if (desc != desc_first)
 		return desc->total_len;
 
-	/* cookie matches to the currently running transfer */
-	len = desc_first->total_len;
-
-	if (desc_first->lli.dscr) {
+	if (desc_first->lli.dscr)
 		/* hardware linked list transfer */
+		return atc_get_llis_residue(atchan, desc_first, residue);
 
-		/*
-		 * Calculate the residue by removing the length of the child
-		 * descriptors already transferred from the total length.
-		 * To get the current child descriptor we can use the value of
-		 * the channel's DSCR register and compare it against the value
-		 * of the hardware linked list structure of each child
-		 * descriptor.
-		 *
-		 * The CTRLA register provides us with the amount of data
-		 * already read from the source for the current child
-		 * descriptor. So we can compute a more accurate residue by also
-		 * removing the number of bytes corresponding to this amount of
-		 * data.
-		 *
-		 * However, the DSCR and CTRLA registers cannot be read both
-		 * atomically. Hence a race condition may occur: the first read
-		 * register may refer to one child descriptor whereas the second
-		 * read may refer to a later child descriptor in the list
-		 * because of the DMA transfer progression inbetween the two
-		 * reads.
-		 *
-		 * One solution could have been to pause the DMA transfer, read
-		 * the DSCR and CTRLA then resume the DMA transfer. Nonetheless,
-		 * this approach presents some drawbacks:
-		 * - If the DMA transfer is paused, RX overruns or TX underruns
-		 *   are more likey to occur depending on the system latency.
-		 *   Taking the USART driver as an example, it uses a cyclic DMA
-		 *   transfer to read data from the Receive Holding Register
-		 *   (RHR) to avoid RX overruns since the RHR is not protected
-		 *   by any FIFO on most Atmel SoCs. So pausing the DMA transfer
-		 *   to compute the residue would break the USART driver design.
-		 * - The atc_pause() function masks interrupts but we'd rather
-		 *   avoid to do so for system latency purpose.
-		 *
-		 * Then we'd rather use another solution: the DSCR is read a
-		 * first time, the CTRLA is read in turn, next the DSCR is read
-		 * a second time. If the two consecutive read values of the DSCR
-		 * are the same then we assume both refers to the very same
-		 * child descriptor as well as the CTRLA value read inbetween
-		 * does. For cyclic tranfers, the assumption is that a full loop
-		 * is "not so fast".
-		 * If the two DSCR values are different, we read again the CTRLA
-		 * then the DSCR till two consecutive read values from DSCR are
-		 * equal or till the maxium trials is reach.
-		 * This algorithm is very unlikely not to find a stable value for
-		 * DSCR.
-		 */
-
-		dscr = channel_readl(atchan, DSCR);
-		rmb(); /* ensure DSCR is read before CTRLA */
-		ctrla = channel_readl(atchan, CTRLA);
-		for (i = 0; i < ATC_MAX_DSCR_TRIALS; ++i) {
-			u32 new_dscr;
-
-			rmb(); /* ensure DSCR is read after CTRLA */
-			new_dscr = channel_readl(atchan, DSCR);
-
-			/*
-			 * If the DSCR register value has not changed inside the
-			 * DMA controller since the previous read, we assume
-			 * that both the dscr and ctrla values refers to the
-			 * very same descriptor.
-			 */
-			if (likely(new_dscr == dscr))
-				break;
-
-			/*
-			 * DSCR has changed inside the DMA controller, so the
-			 * previouly read value of CTRLA may refer to an already
-			 * processed descriptor hence could be outdated.
-			 * We need to update ctrla to match the current
-			 * descriptor.
-			 */
-			dscr = new_dscr;
-			rmb(); /* ensure DSCR is read before CTRLA */
-			ctrla = channel_readl(atchan, CTRLA);
-		}
-		if (unlikely(i == ATC_MAX_DSCR_TRIALS))
-			return -ETIMEDOUT;
-
-		/* for the first descriptor we can be more accurate */
-		if (desc_first->lli.dscr == dscr) {
-			*residue = atc_calc_bytes_left(len, ctrla);
-			return 0;
-		}
-
-		len -= desc_first->len;
-		list_for_each_entry(desc, &desc_first->tx_list, desc_node) {
-			if (desc->lli.dscr == dscr)
-				break;
-
-			len -= desc->len;
-		}
-
-		/*
-		 * For the current descriptor in the chain we can calculate
-		 * the remaining bytes using the channel's register.
-		 */
-		*residue = atc_calc_bytes_left(len, ctrla);
-	} else {
-		/* single transfer */
-		ctrla = channel_readl(atchan, CTRLA);
-		*residue = atc_calc_bytes_left(len, ctrla);
-	}
-
+	/* single transfer */
+	len = desc_first->total_len;
+	ctrla = channel_readl(atchan, CTRLA);
+	*residue = atc_calc_bytes_left(len, ctrla);
 	return 0;
 }
 
