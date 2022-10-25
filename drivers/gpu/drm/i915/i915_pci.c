@@ -1063,6 +1063,7 @@ static const struct intel_device_info xehpsdv_info = {
 	.has_heci_pxp = 1, \
 	.needs_compact_pt = 1, \
 	.has_media_ratio_mode = 1, \
+	.display.has_cdclk_squash = 1, \
 	.__runtime.platform_engine_mask = \
 		BIT(RCS0) | BIT(BCS0) | \
 		BIT(VECS0) | BIT(VECS1) | \
