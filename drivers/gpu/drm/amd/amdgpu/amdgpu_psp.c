@@ -1071,42 +1071,6 @@ int psp_ta_init_shared_buf(struct psp_context *psp,
 				      &mem_ctx->shared_buf);
 }
 
-static void psp_prep_ta_invoke_indirect_cmd_buf(struct psp_gfx_cmd_resp *cmd,
-				       uint32_t ta_cmd_id,
-				       struct ta_context *context)
-{
-	cmd->cmd_id                         = GFX_CMD_ID_INVOKE_CMD;
-	cmd->cmd.cmd_invoke_cmd.session_id  = context->session_id;
-	cmd->cmd.cmd_invoke_cmd.ta_cmd_id   = ta_cmd_id;
-
-	cmd->cmd.cmd_invoke_cmd.buf.num_desc   = 1;
-	cmd->cmd.cmd_invoke_cmd.buf.total_size = context->mem_context.shared_mem_size;
-	cmd->cmd.cmd_invoke_cmd.buf.buf_desc[0].buf_size = context->mem_context.shared_mem_size;
-	cmd->cmd.cmd_invoke_cmd.buf.buf_desc[0].buf_phy_addr_lo =
-				     lower_32_bits(context->mem_context.shared_mc_addr);
-	cmd->cmd.cmd_invoke_cmd.buf.buf_desc[0].buf_phy_addr_hi =
-				     upper_32_bits(context->mem_context.shared_mc_addr);
-}
-
-int psp_ta_invoke_indirect(struct psp_context *psp,
-		  uint32_t ta_cmd_id,
-		  struct ta_context *context)
-{
-	int ret;
-	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
-
-	psp_prep_ta_invoke_indirect_cmd_buf(cmd, ta_cmd_id, context);
-
-	ret = psp_cmd_submit_buf(psp, NULL, cmd,
-				 psp->fence_buf_mc_addr);
-
-	context->resp_status = cmd->resp.status;
-
-	release_psp_cmd_buf(psp);
-
-	return ret;
-}
-
 static void psp_prep_ta_invoke_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 				       uint32_t ta_cmd_id,
 				       uint32_t session_id)
@@ -1549,7 +1513,7 @@ int psp_ras_terminate(struct psp_context *psp)
 	return ret;
 }
 
-static int psp_ras_initialize(struct psp_context *psp)
+int psp_ras_initialize(struct psp_context *psp)
 {
 	int ret;
 	uint32_t boot_cfg = 0xFF;
