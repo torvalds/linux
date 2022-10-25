@@ -22,6 +22,7 @@ const struct pkvm_module_ops module_ops = {
 	.fixmap_map = hyp_fixmap_map,
 	.fixmap_unmap = hyp_fixmap_unmap,
 	.flush_dcache_to_poc = __kvm_flush_dcache_to_poc,
+	.register_host_perm_fault_handler = hyp_register_host_perm_fault_handler,
 };
 
 int __pkvm_init_module(void *module_init)

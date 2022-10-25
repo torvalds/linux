@@ -717,6 +717,21 @@ static bool is_dabt(u64 esr)
 	return ESR_ELx_EC(esr) == ESR_ELx_EC_DABT_LOW;
 }
 
+static int (*perm_fault_handler)(struct kvm_cpu_context *host_ctxt, u64 esr, u64 addr);
+
+int hyp_register_host_perm_fault_handler(int (*cb)(struct kvm_cpu_context *ctxt, u64 esr, u64 addr))
+{
+	return cmpxchg(&perm_fault_handler, NULL, cb) ? -EBUSY : 0;
+}
+
+static int handle_host_perm_fault(struct kvm_cpu_context *host_ctxt, u64 esr, u64 addr)
+{
+	int (*cb)(struct kvm_cpu_context *host_ctxt, u64 esr, u64 addr);
+
+	cb = READ_ONCE(perm_fault_handler);
+	return cb ? cb(host_ctxt, esr, addr) : -EPERM;
+}
+
 void handle_host_mem_abort(struct kvm_cpu_context *host_ctxt)
 {
 	struct kvm_vcpu_fault_info fault;
@@ -741,6 +756,9 @@ void handle_host_mem_abort(struct kvm_cpu_context *host_ctxt)
 		ret = host_stage2_idmap(addr);
 
 	host_unlock_component();
+
+	if ((esr & ESR_ELx_FSC_TYPE) == FSC_PERM)
+		ret = handle_host_perm_fault(host_ctxt, esr, addr);
 
 	if (ret == -EPERM)
 		host_inject_abort(host_ctxt);
