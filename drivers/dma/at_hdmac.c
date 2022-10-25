@@ -308,15 +308,15 @@ static inline u32 atc_calc_bytes_left(u32 current_len, u32 ctrla)
 }
 
 /**
- * atc_get_bytes_left - get the number of bytes residue for a cookie.
+ * atc_get_residue - get the number of bytes residue for a cookie.
  * The residue is passed by address and updated on success.
  * @chan: DMA channel
  * @cookie: transaction identifier to check status of
  * @residue: residue to be updated.
  * Return 0 on success, -errono otherwise.
  */
-static int atc_get_bytes_left(struct dma_chan *chan, dma_cookie_t cookie,
-			      u32 *residue)
+static int atc_get_residue(struct dma_chan *chan, dma_cookie_t cookie,
+			   u32 *residue)
 {
 	struct at_dma_chan      *atchan = to_at_dma_chan(chan);
 	struct at_desc *desc_first = atc_first_active(atchan);
@@ -1471,10 +1471,7 @@ atc_tx_status(struct dma_chan *chan,
 		return dma_status;
 
 	spin_lock_irqsave(&atchan->lock, flags);
-
-	/*  Get number of bytes left in the active transactions */
-	ret = atc_get_bytes_left(chan, cookie, &residue);
-
+	ret = atc_get_residue(chan, cookie, &residue);
 	spin_unlock_irqrestore(&atchan->lock, flags);
 
 	if (unlikely(ret < 0)) {
