@@ -32,6 +32,7 @@
 static bool disable_scofix;
 static bool force_scofix;
 static bool enable_autosuspend = IS_ENABLED(CONFIG_BT_HCIBTUSB_AUTOSUSPEND);
+static bool enable_poll_sync = IS_ENABLED(CONFIG_BT_HCIBTUSB_POLL_SYNC);
 static bool reset = true;
 
 static struct usb_driver btusb_driver;
@@ -4074,6 +4075,8 @@ static int btusb_probe(struct usb_interface *intf,
 
 	if (enable_autosuspend)
 		usb_enable_autosuspend(data->udev);
+
+	data->poll_sync = enable_poll_sync;
 
 	err = hci_register_dev(hdev);
 	if (err < 0)
