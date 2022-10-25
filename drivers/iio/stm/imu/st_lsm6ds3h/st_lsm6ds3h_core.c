@@ -129,10 +129,10 @@
 #define ST_LSM6DS3H_ACCEL_FS_4G_VAL			0x02
 #define ST_LSM6DS3H_ACCEL_FS_8G_VAL			0x03
 #define ST_LSM6DS3H_ACCEL_FS_16G_VAL			0x01
-#define ST_LSM6DS3H_ACCEL_FS_2G_GAIN			IIO_G_TO_M_S_2(61)
-#define ST_LSM6DS3H_ACCEL_FS_4G_GAIN			IIO_G_TO_M_S_2(122)
-#define ST_LSM6DS3H_ACCEL_FS_8G_GAIN			IIO_G_TO_M_S_2(244)
-#define ST_LSM6DS3H_ACCEL_FS_16G_GAIN			IIO_G_TO_M_S_2(488)
+#define ST_LSM6DS3H_ACCEL_FS_2G_GAIN			IIO_G_TO_M_S_2(61000)
+#define ST_LSM6DS3H_ACCEL_FS_4G_GAIN			IIO_G_TO_M_S_2(122000)
+#define ST_LSM6DS3H_ACCEL_FS_8G_GAIN			IIO_G_TO_M_S_2(244000)
+#define ST_LSM6DS3H_ACCEL_FS_16G_GAIN			IIO_G_TO_M_S_2(488000)
 #define ST_LSM6DS3H_ACCEL_OUT_X_L_ADDR			0x28
 #define ST_LSM6DS3H_ACCEL_OUT_Y_L_ADDR			0x2a
 #define ST_LSM6DS3H_ACCEL_OUT_Z_L_ADDR			0x2c
@@ -153,10 +153,10 @@
 #define ST_LSM6DS3H_GYRO_FS_500_VAL			0x01
 #define ST_LSM6DS3H_GYRO_FS_1000_VAL			0x02
 #define ST_LSM6DS3H_GYRO_FS_2000_VAL			0x03
-#define ST_LSM6DS3H_GYRO_FS_250_GAIN			IIO_DEGREE_TO_RAD(8750)
-#define ST_LSM6DS3H_GYRO_FS_500_GAIN			IIO_DEGREE_TO_RAD(17500)
-#define ST_LSM6DS3H_GYRO_FS_1000_GAIN			IIO_DEGREE_TO_RAD(35000)
-#define ST_LSM6DS3H_GYRO_FS_2000_GAIN			IIO_DEGREE_TO_RAD(70000)
+#define ST_LSM6DS3H_GYRO_FS_250_GAIN			IIO_DEGREE_TO_RAD(8750000)
+#define ST_LSM6DS3H_GYRO_FS_500_GAIN			IIO_DEGREE_TO_RAD(17500000)
+#define ST_LSM6DS3H_GYRO_FS_1000_GAIN			IIO_DEGREE_TO_RAD(35000000)
+#define ST_LSM6DS3H_GYRO_FS_2000_GAIN			IIO_DEGREE_TO_RAD(70000000)
 #define ST_LSM6DS3H_GYRO_OUT_X_L_ADDR			0x22
 #define ST_LSM6DS3H_GYRO_OUT_Y_L_ADDR			0x24
 #define ST_LSM6DS3H_GYRO_OUT_Z_L_ADDR			0x26
@@ -2039,7 +2039,7 @@ static ssize_t st_lsm6ds3h_sysfs_scale_avail(struct device *dev,
 	struct lsm6ds3h_sensor_data *sdata = iio_priv(dev_get_drvdata(dev));
 
 	for (i = 0; i < ST_LSM6DS3H_FS_LIST_NUM; i++) {
-		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%06u ",
+		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%09u ",
 			st_lsm6ds3h_fs_table[sdata->sindex].fs_avl[i].gain);
 	}
 	buf[len - 1] = '\n';
@@ -2664,6 +2664,19 @@ static IIO_DEVICE_ATTR(injection_sensors, S_IRUGO,
 				NULL, 0);
 #endif /* CONFIG_ST_LSM6DS3H_XL_DATA_INJECTION */
 
+static int st_lsm6ds3h_write_raw_get_fmt(struct iio_dev *indio_dev,
+					 struct iio_chan_spec const *chan,
+					 long mask)
+{
+	if (mask == IIO_CHAN_INFO_SCALE) {
+		if ((chan->type == IIO_ANGL_VEL) ||
+		    (chan->type == IIO_ACCEL))
+			return IIO_VAL_INT_PLUS_NANO;
+	}
+
+	return -EINVAL;
+}
+
 static struct attribute *st_lsm6ds3h_accel_attributes[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_in_accel_scale_available.dev_attr.attr,
@@ -2690,6 +2703,7 @@ static const struct iio_info st_lsm6ds3h_accel_info = {
 	.attrs = &st_lsm6ds3h_accel_attribute_group,
 	.read_raw = &st_lsm6ds3h_read_raw,
 	.write_raw = &st_lsm6ds3h_write_raw,
+	.write_raw_get_fmt = st_lsm6ds3h_write_raw_get_fmt,
 };
 
 static struct attribute *st_lsm6ds3h_gyro_attributes[] = {
@@ -2714,6 +2728,7 @@ static const struct iio_info st_lsm6ds3h_gyro_info = {
 	.attrs = &st_lsm6ds3h_gyro_attribute_group,
 	.read_raw = &st_lsm6ds3h_read_raw,
 	.write_raw = &st_lsm6ds3h_write_raw,
+	.write_raw_get_fmt = st_lsm6ds3h_write_raw_get_fmt,
 };
 
 static struct attribute *st_lsm6ds3h_sign_motion_attributes[] = {
