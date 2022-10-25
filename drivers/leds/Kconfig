@@ -270,6 +270,17 @@ config LEDS_NET48XX
 	  This option enables support for the Soekris net4801 and net4826 error
 	  LED.
 
+config LEDS_QPNP_FLASH_V2
+	tristate "Support for QPNP V2 Flash LEDs"
+	depends on LEDS_CLASS && MFD_SPMI_PMIC
+	select LEDS_TRIGGERS
+	help
+	  This driver supports the flash V2 LED functionality of Qualcomm
+	  Technologies, Inc. QPNP PMICs.  This driver supports PMICs starting
+	  from PMI8998, PM8150L and their derivatives.  It can configure the
+	  flash LED target current for several independent channels.  It also
+	  supports various over current and over temperature mitigation features.
+
 config LEDS_WRAP
 	tristate "LED Support for the WRAP series LEDs"
 	depends on LEDS_CLASS
