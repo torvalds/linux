@@ -32,7 +32,7 @@
 #define ST_LPS33HW_LIR_MASK			0x04
 
 #define ST_LPS33HW_PRESS_FS_AVL_GAIN		(1000000000UL / 4096UL)
-#define ST_LPS33HW_TEMP_FS_AVL_GAIN		(1000000000UL / 100UL)
+#define ST_LPS33HW_TEMP_FS_AVL_GAIN		100
 
 #define ST_LPS33HW_ODR_LIST_NUM			6
 struct st_lps33hw_odr_table_t {
@@ -314,9 +314,21 @@ static int st_lps33hw_read_raw(struct iio_dev *indio_dev,
 		break;
 	}
 	case IIO_CHAN_INFO_SCALE:
-		*val = 0;
-		*val2 = sensor->gain;
-		ret = IIO_VAL_INT_PLUS_NANO;
+		switch (ch->type) {
+		case IIO_TEMP:
+			*val = 1000;
+			*val2 = sensor->gain;
+			ret = IIO_VAL_FRACTIONAL;
+			break;
+		case IIO_PRESSURE:
+			*val = 0;
+			*val2 = sensor->gain;
+			ret = IIO_VAL_INT_PLUS_NANO;
+			break;
+		default:
+			ret = -ENODEV;
+			break;
+		}
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*val = sensor->odr;
