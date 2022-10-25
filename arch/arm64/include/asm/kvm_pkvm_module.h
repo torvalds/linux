@@ -17,6 +17,7 @@ struct pkvm_module_ops {
 	void (*fixmap_unmap)(void);
 	void (*flush_dcache_to_poc)(void *addr, size_t size);
 	int (*register_host_perm_fault_handler)(int (*cb)(struct kvm_cpu_context *ctxt, u64 esr, u64 addr));
+	int (*protect_host_page)(u64 pfn, enum kvm_pgtable_prot prot);
 };
 
 struct pkvm_module_section {

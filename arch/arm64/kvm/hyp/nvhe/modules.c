@@ -5,6 +5,7 @@
 #include <asm/kvm_host.h>
 #include <asm/kvm_pkvm_module.h>
 
+#include <nvhe/mem_protect.h>
 #include <nvhe/modules.h>
 #include <nvhe/mm.h>
 #include <nvhe/serial.h>
@@ -23,6 +24,7 @@ const struct pkvm_module_ops module_ops = {
 	.fixmap_unmap = hyp_fixmap_unmap,
 	.flush_dcache_to_poc = __kvm_flush_dcache_to_poc,
 	.register_host_perm_fault_handler = hyp_register_host_perm_fault_handler,
+	.protect_host_page = hyp_protect_host_page,
 };
 
 int __pkvm_init_module(void *module_init)

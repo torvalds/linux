@@ -1819,6 +1819,38 @@ int __pkvm_hyp_donate_host(u64 pfn, u64 nr_pages)
 	return ret;
 }
 
+int hyp_protect_host_page(u64 pfn, enum kvm_pgtable_prot prot)
+{
+	u64 addr = hyp_pfn_to_phys(pfn);
+	kvm_pte_t pte;
+	u32 level;
+	int ret;
+
+	if ((prot & KVM_PGTABLE_PROT_RWX) != prot || prot == KVM_PGTABLE_PROT_RWX)
+		return -EINVAL;
+
+	host_lock_component();
+	ret = kvm_pgtable_get_leaf(&host_mmu.pgt, addr, &pte, &level);
+	if (ret)
+		goto unlock;
+
+	if (host_get_page_state(pte) != PKVM_PAGE_OWNED) {
+		ret = -EPERM;
+		goto unlock;
+	}
+
+	/* XXX: optimize ... */
+	if (kvm_pte_valid(pte) && (level == KVM_PGTABLE_MAX_LEVELS - 1))
+		ret = kvm_pgtable_stage2_unmap(&host_mmu.pgt, addr, PAGE_SIZE);
+	if (!ret)
+		ret = host_stage2_idmap_locked(addr, PAGE_SIZE, prot, false);
+
+unlock:
+	host_unlock_component();
+
+	return ret;
+}
+
 int hyp_pin_shared_mem(void *from, void *to)
 {
 	u64 cur, start = ALIGN_DOWN((u64)from, PAGE_SIZE);

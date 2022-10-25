@@ -96,6 +96,7 @@ int hyp_register_host_perm_fault_handler(int (*cb)(struct kvm_cpu_context *ctxt,
 int hyp_pin_shared_mem(void *from, void *to);
 void hyp_unpin_shared_mem(void *from, void *to);
 void reclaim_guest_pages(struct pkvm_hyp_vm *vm, struct kvm_hyp_memcache *mc);
+int hyp_protect_host_page(u64 pfn, enum kvm_pgtable_prot prot);
 int refill_memcache(struct kvm_hyp_memcache *mc, unsigned long min_pages,
 		    struct kvm_hyp_memcache *host_mc);
 
