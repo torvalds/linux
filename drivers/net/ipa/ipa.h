@@ -39,6 +39,7 @@ struct ipa_interrupt;
  * @power:		IPA power information
  * @table_addr:		DMA address of filter/route table content
  * @table_virt:		Virtual address of filter/route table content
+ * @route_count:	Total number of entries in a routing table
  * @interrupt:		IPA Interrupt information
  * @uc_powered:		true if power is active by proxy for microcontroller
  * @uc_loaded:		true after microcontroller has reported it's ready
@@ -84,6 +85,7 @@ struct ipa {
 
 	dma_addr_t table_addr;
 	__le64 *table_virt;
+	u32 route_count;
 
 	struct ipa_interrupt *interrupt;
 	bool uc_powered;
