@@ -2536,7 +2536,7 @@ int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 		if (funcs->prepare_fb) {
 			ret = funcs->prepare_fb(plane, new_plane_state);
 			if (ret)
-				goto fail;
+				goto fail_prepare_fb;
 		} else {
 			WARN_ON_ONCE(funcs->cleanup_fb);
 
@@ -2545,13 +2545,34 @@ int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 
 			ret = drm_gem_plane_helper_prepare_fb(plane, new_plane_state);
 			if (ret)
-				goto fail;
+				goto fail_prepare_fb;
+		}
+	}
+
+	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
+		const struct drm_plane_helper_funcs *funcs = plane->helper_private;
+
+		if (funcs->begin_fb_access) {
+			ret = funcs->begin_fb_access(plane, new_plane_state);
+			if (ret)
+				goto fail_begin_fb_access;
 		}
 	}
 
 	return 0;
 
-fail:
+fail_begin_fb_access:
+	for_each_new_plane_in_state(state, plane, new_plane_state, j) {
+		const struct drm_plane_helper_funcs *funcs = plane->helper_private;
+
+		if (j >= i)
+			continue;
+
+		if (funcs->end_fb_access)
+			funcs->end_fb_access(plane, new_plane_state);
+	}
+	i = j; /* set i to upper limit to cleanup all planes */
+fail_prepare_fb:
 	for_each_new_plane_in_state(state, plane, new_plane_state, j) {
 		const struct drm_plane_helper_funcs *funcs;
 
@@ -2826,6 +2847,13 @@ void drm_atomic_helper_cleanup_planes(struct drm_device *dev,
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state, *new_plane_state;
 	int i;
+
+	for_each_oldnew_plane_in_state(old_state, plane, old_plane_state, new_plane_state, i) {
+		const struct drm_plane_helper_funcs *funcs = plane->helper_private;
+
+		if (funcs->end_fb_access)
+			funcs->end_fb_access(plane, new_plane_state);
+	}
 
 	for_each_oldnew_plane_in_state(old_state, plane, old_plane_state, new_plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;

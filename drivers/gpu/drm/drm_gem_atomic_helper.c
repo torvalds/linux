@@ -414,16 +414,14 @@ void drm_gem_cleanup_shadow_fb(struct drm_plane *plane, struct drm_plane_state *
 EXPORT_SYMBOL(drm_gem_cleanup_shadow_fb);
 
 /**
- * drm_gem_simple_kms_prepare_shadow_fb - prepares shadow framebuffers
+ * drm_gem_simple_kms_begin_shadow_fb_access - prepares shadow framebuffers for CPU access
  * @pipe: the simple display pipe
  * @plane_state: the plane state of type struct drm_shadow_plane_state
  *
- * This function implements struct drm_simple_display_funcs.prepare_fb. It
- * maps all buffer objects of the plane's framebuffer into kernel address
- * space and stores them in struct drm_shadow_plane_state.map. The
- * framebuffer will be synchronized as part of the atomic commit.
+ * This function implements struct drm_simple_display_funcs.begin_fb_access.
  *
- * See drm_gem_simple_kms_cleanup_shadow_fb() for cleanup.
+ * See drm_gem_begin_shadow_fb_access() for details and
+ * drm_gem_simple_kms_cleanup_shadow_fb() for cleanup.
  *
  * Returns:
  * 0 on success, or a negative errno code otherwise.
@@ -436,14 +434,15 @@ int drm_gem_simple_kms_prepare_shadow_fb(struct drm_simple_display_pipe *pipe,
 EXPORT_SYMBOL(drm_gem_simple_kms_prepare_shadow_fb);
 
 /**
- * drm_gem_simple_kms_cleanup_shadow_fb - releases shadow framebuffers
+ * drm_gem_simple_kms_end_shadow_fb_access - releases shadow framebuffers from CPU access
  * @pipe: the simple display pipe
  * @plane_state: the plane state of type struct drm_shadow_plane_state
  *
- * This function implements struct drm_simple_display_funcs.cleanup_fb.
- * This function unmaps all buffer objects of the plane's framebuffer.
+ * This function implements struct drm_simple_display_funcs.end_fb_access.
+ * It undoes all effects of drm_gem_simple_kms_begin_shadow_fb_access() in
+ * reverse order.
  *
- * See drm_gem_simple_kms_prepare_shadow_fb().
+ * See drm_gem_simple_kms_begin_shadow_fb_access().
  */
 void drm_gem_simple_kms_cleanup_shadow_fb(struct drm_simple_display_pipe *pipe,
 					  struct drm_plane_state *plane_state)
