@@ -140,7 +140,6 @@ struct request {
 	struct blk_crypto_keyslot *crypt_keyslot;
 #endif
 
-	unsigned short write_hint;
 	unsigned short ioprio;
 
 	enum mq_rq_state state;
