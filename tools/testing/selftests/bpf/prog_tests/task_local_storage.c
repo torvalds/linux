@@ -3,12 +3,15 @@
 
 #define _GNU_SOURCE         /* See feature_test_macros(7) */
 #include <unistd.h>
+#include <sched.h>
+#include <pthread.h>
 #include <sys/syscall.h>   /* For SYS_xxx definitions */
 #include <sys/types.h>
 #include <test_progs.h>
 #include "task_local_storage.skel.h"
 #include "task_local_storage_exit_creds.skel.h"
 #include "task_ls_recursion.skel.h"
+#include "task_storage_nodeadlock.skel.h"
 
 static void test_sys_enter_exit(void)
 {
@@ -93,6 +96,99 @@ out:
 	task_ls_recursion__destroy(skel);
 }
 
+static bool stop;
+
+static void waitall(const pthread_t *tids, int nr)
+{
+	int i;
+
+	stop = true;
+	for (i = 0; i < nr; i++)
+		pthread_join(tids[i], NULL);
+}
+
+static void *sock_create_loop(void *arg)
+{
+	struct task_storage_nodeadlock *skel = arg;
+	int fd;
+
+	while (!stop) {
+		fd = socket(AF_INET, SOCK_STREAM, 0);
+		close(fd);
+		if (skel->bss->nr_get_errs || skel->bss->nr_del_errs)
+			stop = true;
+	}
+
+	return NULL;
+}
+
+static void test_nodeadlock(void)
+{
+	struct task_storage_nodeadlock *skel;
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
+	const int nr_threads = 32;
+	pthread_t tids[nr_threads];
+	int i, prog_fd, err;
+	cpu_set_t old, new;
+
+	/* Pin all threads to one cpu to increase the chance of preemption
+	 * in a sleepable bpf prog.
+	 */
+	CPU_ZERO(&new);
+	CPU_SET(0, &new);
+	err = sched_getaffinity(getpid(), sizeof(old), &old);
+	if (!ASSERT_OK(err, "getaffinity"))
+		return;
+	err = sched_setaffinity(getpid(), sizeof(new), &new);
+	if (!ASSERT_OK(err, "setaffinity"))
+		return;
+
+	skel = task_storage_nodeadlock__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "open_and_load"))
+		goto done;
+
+	/* Unnecessary recursion and deadlock detection are reproducible
+	 * in the preemptible kernel.
+	 */
+	if (!skel->kconfig->CONFIG_PREEMPT) {
+		test__skip();
+		goto done;
+	}
+
+	err = task_storage_nodeadlock__attach(skel);
+	ASSERT_OK(err, "attach prog");
+
+	for (i = 0; i < nr_threads; i++) {
+		err = pthread_create(&tids[i], NULL, sock_create_loop, skel);
+		if (err) {
+			/* Only assert once here to avoid excessive
+			 * PASS printing during test failure.
+			 */
+			ASSERT_OK(err, "pthread_create");
+			waitall(tids, i);
+			goto done;
+		}
+	}
+
+	/* With 32 threads, 1s is enough to reproduce the issue */
+	sleep(1);
+	waitall(tids, nr_threads);
+
+	info_len = sizeof(info);
+	prog_fd = bpf_program__fd(skel->progs.socket_post_create);
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	ASSERT_OK(err, "get prog info");
+	ASSERT_EQ(info.recursion_misses, 0, "prog recursion");
+
+	ASSERT_EQ(skel->bss->nr_get_errs, 0, "bpf_task_storage_get busy");
+	ASSERT_EQ(skel->bss->nr_del_errs, 0, "bpf_task_storage_delete busy");
+
+done:
+	task_storage_nodeadlock__destroy(skel);
+	sched_setaffinity(getpid(), sizeof(old), &old);
+}
+
 void test_task_local_storage(void)
 {
 	if (test__start_subtest("sys_enter_exit"))
@@ -101,4 +197,6 @@ void test_task_local_storage(void)
 		test_exit_creds();
 	if (test__start_subtest("recursion"))
 		test_recursion();
+	if (test__start_subtest("nodeadlock"))
+		test_nodeadlock();
 }
