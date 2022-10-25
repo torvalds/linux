@@ -8,6 +8,7 @@
 #include <sys/syscall.h>   /* For SYS_xxx definitions */
 #include <sys/types.h>
 #include <test_progs.h>
+#include "task_local_storage_helpers.h"
 #include "task_local_storage.skel.h"
 #include "task_local_storage_exit_creds.skel.h"
 #include "task_ls_recursion.skel.h"
@@ -78,21 +79,64 @@ out:
 
 static void test_recursion(void)
 {
+	int err, map_fd, prog_fd, task_fd;
 	struct task_ls_recursion *skel;
-	int err;
+	struct bpf_prog_info info;
+	__u32 info_len = sizeof(info);
+	long value;
+
+	task_fd = sys_pidfd_open(getpid(), 0);
+	if (!ASSERT_NEQ(task_fd, -1, "sys_pidfd_open"))
+		return;
 
 	skel = task_ls_recursion__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "skel_open_and_load"))
-		return;
+		goto out;
 
 	err = task_ls_recursion__attach(skel);
 	if (!ASSERT_OK(err, "skel_attach"))
 		goto out;
 
 	/* trigger sys_enter, make sure it does not cause deadlock */
+	skel->bss->test_pid = getpid();
 	syscall(SYS_gettid);
+	skel->bss->test_pid = 0;
+	task_ls_recursion__detach(skel);
+
+	/* Refer to the comment in BPF_PROG(on_update) for
+	 * the explanation on the value 201 and 100.
+	 */
+	map_fd = bpf_map__fd(skel->maps.map_a);
+	err = bpf_map_lookup_elem(map_fd, &task_fd, &value);
+	ASSERT_OK(err, "lookup map_a");
+	ASSERT_EQ(value, 201, "map_a value");
+	ASSERT_EQ(skel->bss->nr_del_errs, 1, "bpf_task_storage_delete busy");
+
+	map_fd = bpf_map__fd(skel->maps.map_b);
+	err = bpf_map_lookup_elem(map_fd, &task_fd, &value);
+	ASSERT_OK(err, "lookup map_b");
+	ASSERT_EQ(value, 100, "map_b value");
+
+	prog_fd = bpf_program__fd(skel->progs.on_lookup);
+	memset(&info, 0, sizeof(info));
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	ASSERT_OK(err, "get prog info");
+	ASSERT_GT(info.recursion_misses, 0, "on_lookup prog recursion");
+
+	prog_fd = bpf_program__fd(skel->progs.on_update);
+	memset(&info, 0, sizeof(info));
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	ASSERT_OK(err, "get prog info");
+	ASSERT_EQ(info.recursion_misses, 0, "on_update prog recursion");
+
+	prog_fd = bpf_program__fd(skel->progs.on_enter);
+	memset(&info, 0, sizeof(info));
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	ASSERT_OK(err, "get prog info");
+	ASSERT_EQ(info.recursion_misses, 0, "on_enter prog recursion");
 
 out:
+	close(task_fd);
 	task_ls_recursion__destroy(skel);
 }
 
