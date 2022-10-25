@@ -1765,9 +1765,7 @@ static void at_dma_off(struct at_dma *atdma)
 
 static int __init at_dma_probe(struct platform_device *pdev)
 {
-	struct resource		*io;
 	struct at_dma		*atdma;
-	size_t			size;
 	int			irq;
 	int			err;
 	int			i;
@@ -1793,9 +1791,9 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	if (!atdma)
 		return -ENOMEM;
 
-	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!io)
-		return -EINVAL;
+	atdma->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(atdma->regs))
+		return PTR_ERR(atdma->regs);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -1805,21 +1803,10 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	atdma->dma_common.cap_mask = plat_dat->cap_mask;
 	atdma->all_chan_mask = (1 << plat_dat->nr_channels) - 1;
 
-	size = resource_size(io);
-	if (!request_mem_region(io->start, size, pdev->dev.driver->name))
-		return -EBUSY;
-
-	atdma->regs = ioremap(io->start, size);
-	if (!atdma->regs) {
-		err = -ENOMEM;
-		goto err_release_r;
-	}
-
 	atdma->clk = clk_get(&pdev->dev, "dma_clk");
-	if (IS_ERR(atdma->clk)) {
-		err = PTR_ERR(atdma->clk);
-		goto err_clk;
-	}
+	if (IS_ERR(atdma->clk))
+		return PTR_ERR(atdma->clk);
+
 	err = clk_prepare_enable(atdma->clk);
 	if (err)
 		goto err_clk_prepare;
@@ -1957,11 +1944,6 @@ err_irq:
 	clk_disable_unprepare(atdma->clk);
 err_clk_prepare:
 	clk_put(atdma->clk);
-err_clk:
-	iounmap(atdma->regs);
-	atdma->regs = NULL;
-err_release_r:
-	release_mem_region(io->start, size);
 	return err;
 }
 
@@ -1969,7 +1951,6 @@ static int at_dma_remove(struct platform_device *pdev)
 {
 	struct at_dma		*atdma = platform_get_drvdata(pdev);
 	struct dma_chan		*chan, *_chan;
-	struct resource		*io;
 
 	at_dma_off(atdma);
 	if (pdev->dev.of_node)
@@ -1993,12 +1974,6 @@ static int at_dma_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(atdma->clk);
 	clk_put(atdma->clk);
-
-	iounmap(atdma->regs);
-	atdma->regs = NULL;
-
-	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(io->start, resource_size(io));
 
 	return 0;
 }
