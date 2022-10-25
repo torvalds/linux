@@ -1891,7 +1891,7 @@ static const struct iio_info st_asm330lhhx_acc_info = {
 	.attrs = &st_asm330lhhx_acc_attribute_group,
 	.read_raw = st_asm330lhhx_read_raw,
 	.write_raw = st_asm330lhhx_write_raw,
-	.write_raw_get_fmt = &st_asm330lhhx_write_raw_get_fmt,
+	.write_raw_get_fmt = st_asm330lhhx_write_raw_get_fmt,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_reg_access = &st_asm330lhhx_reg_access,
 #endif /* CONFIG_DEBUG_FS */
@@ -1921,7 +1921,7 @@ static const struct iio_info st_asm330lhhx_gyro_info = {
 	.attrs = &st_asm330lhhx_gyro_attribute_group,
 	.read_raw = st_asm330lhhx_read_raw,
 	.write_raw = st_asm330lhhx_write_raw,
-	.write_raw_get_fmt = &st_asm330lhhx_write_raw_get_fmt,
+	.write_raw_get_fmt = st_asm330lhhx_write_raw_get_fmt,
 };
 
 static struct attribute *st_asm330lhhx_temp_attributes[] = {
