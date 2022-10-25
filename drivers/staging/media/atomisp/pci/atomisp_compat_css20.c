@@ -2742,29 +2742,6 @@ int atomisp_css_yuvpp_configure_output(struct atomisp_sub_device *asd,
 	return 0;
 }
 
-int atomisp_css_yuvpp_configure_viewfinder(
-    struct atomisp_sub_device *asd,
-    unsigned int stream_index,
-    unsigned int width, unsigned int height,
-    unsigned int min_width,
-    enum ia_css_frame_format format)
-{
-	struct atomisp_stream_env *stream_env =
-		    &asd->stream_env[stream_index];
-	enum ia_css_pipe_id pipe_id = IA_CSS_PIPE_ID_YUVPP;
-
-	stream_env->pipe_configs[pipe_id].mode =
-	    __pipe_id_to_pipe_mode(asd, pipe_id);
-	stream_env->update_pipe[pipe_id] = true;
-
-	stream_env->pipe_configs[pipe_id].vf_output_info[0].res.width = width;
-	stream_env->pipe_configs[pipe_id].vf_output_info[0].res.height = height;
-	stream_env->pipe_configs[pipe_id].vf_output_info[0].format = format;
-	stream_env->pipe_configs[pipe_id].vf_output_info[0].padded_width =
-	    min_width;
-	return 0;
-}
-
 int atomisp_css_yuvpp_get_output_frame_info(
     struct atomisp_sub_device *asd,
     unsigned int stream_index,
