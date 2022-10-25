@@ -7,6 +7,7 @@
 #include <linux/swapops.h>
 #include <linux/kmemleak.h>
 #include <linux/sched/task.h>
+#include <linux/sched/mm.h>
 
 #include <asm/set_memory.h>
 #include <asm/cpu_device_id.h>
@@ -805,7 +806,7 @@ void __init poking_init(void)
 	spinlock_t *ptl;
 	pte_t *ptep;
 
-	poking_mm = copy_init_mm();
+	poking_mm = mm_alloc();
 	BUG_ON(!poking_mm);
 
 	/* Xen PV guests need the PGD to be pinned. */
