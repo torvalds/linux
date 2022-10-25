@@ -5,6 +5,7 @@
 
 #define pr_fmt(fmt) "%s " fmt, KBUILD_MODNAME
 
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -78,7 +79,7 @@
 #define CHN_BEHAVE_BIT			BIT(0)
 
 /* SW DRV has ACTIVE, SLEEP and WAKE PWR STATES */
-#define MAX_SW_DRV_PWR_STATES		2
+#define MAX_SW_DRV_PWR_STATES		3
 
 /* Time out for ACTIVE Only PWR STATE completion IRQ */
 #define CRM_TIMEOUT_MS			5000
@@ -391,6 +392,12 @@ int crm_channel_switch_complete(const struct crm_drv *drv, u32 ch)
 			sts &= CH1_CHN_BUSY;
 
 		retry--;
+		/*
+		 * Wait till all the votes are applied to new
+		 * channel during channel switch.
+		 * Maximum delay of 5 msec.
+		 */
+		udelay(100);
 	} while ((sts != BIT(ch)) && retry);
 
 	if (!retry)
@@ -695,7 +702,7 @@ static bool crm_is_invalid_cmd(struct crm_drv *drv, u32 vcd_type, const struct c
 		ret = true;
 	else if (vcd_type == BW_VOTE_VCD && !(data & BW_VOTE_VALID))
 		ret = true;
-	else if (vcd_type == PERF_OL_VCD && !(data & ~PERF_OL_VALUE_BITS))
+	else if (vcd_type == PERF_OL_VCD && (data & ~PERF_OL_VALUE_BITS))
 		ret = true;
 	else
 		ret = false;
