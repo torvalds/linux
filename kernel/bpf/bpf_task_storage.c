@@ -228,7 +228,7 @@ out:
 }
 
 /* *gfp_flags* is a hidden argument provided by the verifier */
-BPF_CALL_5(bpf_task_storage_get, struct bpf_map *, map, struct task_struct *,
+BPF_CALL_5(bpf_task_storage_get_recur, struct bpf_map *, map, struct task_struct *,
 	   task, void *, value, u64, flags, gfp_t, gfp_flags)
 {
 	struct bpf_local_storage_data *sdata;
@@ -260,7 +260,7 @@ unlock:
 		(unsigned long)sdata->data;
 }
 
-BPF_CALL_2(bpf_task_storage_delete, struct bpf_map *, map, struct task_struct *,
+BPF_CALL_2(bpf_task_storage_delete_recur, struct bpf_map *, map, struct task_struct *,
 	   task)
 {
 	int ret;
@@ -322,8 +322,8 @@ const struct bpf_map_ops task_storage_map_ops = {
 	.map_owner_storage_ptr = task_storage_ptr,
 };
 
-const struct bpf_func_proto bpf_task_storage_get_proto = {
-	.func = bpf_task_storage_get,
+const struct bpf_func_proto bpf_task_storage_get_recur_proto = {
+	.func = bpf_task_storage_get_recur,
 	.gpl_only = false,
 	.ret_type = RET_PTR_TO_MAP_VALUE_OR_NULL,
 	.arg1_type = ARG_CONST_MAP_PTR,
@@ -333,8 +333,8 @@ const struct bpf_func_proto bpf_task_storage_get_proto = {
 	.arg4_type = ARG_ANYTHING,
 };
 
-const struct bpf_func_proto bpf_task_storage_delete_proto = {
-	.func = bpf_task_storage_delete,
+const struct bpf_func_proto bpf_task_storage_delete_recur_proto = {
+	.func = bpf_task_storage_delete_recur,
 	.gpl_only = false,
 	.ret_type = RET_INTEGER,
 	.arg1_type = ARG_CONST_MAP_PTR,
