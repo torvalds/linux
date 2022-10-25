@@ -465,7 +465,7 @@ CIFSSMBNegotiate(const unsigned int xid,
 	for (i = 0; i < CIFS_NUM_PROT; i++) {
 		size_t len = strlen(protocols[i].name) + 1;
 
-		memcpy(pSMB->DialectsArray+count, protocols[i].name, len);
+		memcpy(&pSMB->DialectsArray[count], protocols[i].name, len);
 		count += len;
 	}
 	inc_rfc1001_len(pSMB, count);
@@ -2305,7 +2305,7 @@ int CIFSSMBRenameOpenFile(const unsigned int xid, struct cifs_tcon *pTcon,
 					remap);
 	}
 	rename_info->target_name_len = cpu_to_le32(2 * len_of_str);
-	count = 12 /* sizeof(struct set_file_rename) */ + (2 * len_of_str);
+	count = sizeof(struct set_file_rename) + (2 * len_of_str);
 	byte_count += count;
 	pSMB->DataCount = cpu_to_le16(count);
 	pSMB->TotalDataCount = pSMB->DataCount;

@@ -106,7 +106,7 @@ int ocfs2_claim_clusters(handle_t *handle,
 			 u32 *cluster_start,
 			 u32 *num_clusters);
 /*
- * Use this variant of ocfs2_claim_clusters to specify a maxiumum
+ * Use this variant of ocfs2_claim_clusters to specify a maximum
  * number of clusters smaller than the allocation reserved.
  */
 int __ocfs2_claim_clusters(handle_t *handle,

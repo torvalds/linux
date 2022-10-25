@@ -494,8 +494,7 @@ xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 		xprt_reconnect_backoff(xprt, RPCRDMA_INIT_REEST_TO);
 	}
 	trace_xprtrdma_op_connect(r_xprt, delay);
-	queue_delayed_work(xprtiod_workqueue, &r_xprt->rx_connect_worker,
-			   delay);
+	queue_delayed_work(system_long_wq, &r_xprt->rx_connect_worker, delay);
 }
 
 /**

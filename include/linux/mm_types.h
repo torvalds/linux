@@ -224,6 +224,18 @@ struct page {
 					   not kmapped, ie. highmem) */
 #endif /* WANT_PAGE_VIRTUAL */
 
+#ifdef CONFIG_KMSAN
+	/*
+	 * KMSAN metadata for this page:
+	 *  - shadow page: every bit indicates whether the corresponding
+	 *    bit of the original page is initialized (0) or not (1);
+	 *  - origin page: every 4 bytes contain an id of the stack trace
+	 *    where the uninitialized value was created.
+	 */
+	struct page *kmsan_shadow;
+	struct page *kmsan_origin;
+#endif
+
 #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
 	int _last_cpupid;
 #endif
@@ -245,6 +257,13 @@ struct page {
  * @_refcount: Do not access this member directly.  Use folio_ref_count()
  *    to find how many references there are to this folio.
  * @memcg_data: Memory Control Group data.
+ * @_flags_1: For large folios, additional page flags.
+ * @__head: Points to the folio.  Do not use.
+ * @_folio_dtor: Which destructor to use for this folio.
+ * @_folio_order: Do not use directly, call folio_order().
+ * @_total_mapcount: Do not use directly, call folio_entire_mapcount().
+ * @_pincount: Do not use directly, call folio_maybe_dma_pinned().
+ * @_folio_nr_pages: Do not use directly, call folio_nr_pages().
  *
  * A folio is a physically, virtually and logically contiguous set
  * of bytes.  It is a power-of-two in size, and it is aligned to that
@@ -283,9 +302,17 @@ struct folio {
 		};
 		struct page page;
 	};
+	unsigned long _flags_1;
+	unsigned long __head;
+	unsigned char _folio_dtor;
+	unsigned char _folio_order;
+	atomic_t _total_mapcount;
+	atomic_t _pincount;
+#ifdef CONFIG_64BIT
+	unsigned int _folio_nr_pages;
+#endif
 };
 
-static_assert(sizeof(struct page) == sizeof(struct folio));
 #define FOLIO_MATCH(pg, fl)						\
 	static_assert(offsetof(struct page, pg) == offsetof(struct folio, fl))
 FOLIO_MATCH(flags, flags);
@@ -298,6 +325,19 @@ FOLIO_MATCH(_mapcount, _mapcount);
 FOLIO_MATCH(_refcount, _refcount);
 #ifdef CONFIG_MEMCG
 FOLIO_MATCH(memcg_data, memcg_data);
+#endif
+#undef FOLIO_MATCH
+#define FOLIO_MATCH(pg, fl)						\
+	static_assert(offsetof(struct folio, fl) ==			\
+			offsetof(struct page, pg) + sizeof(struct page))
+FOLIO_MATCH(flags, _flags_1);
+FOLIO_MATCH(compound_head, __head);
+FOLIO_MATCH(compound_dtor, _folio_dtor);
+FOLIO_MATCH(compound_order, _folio_order);
+FOLIO_MATCH(compound_mapcount, _total_mapcount);
+FOLIO_MATCH(compound_pincount, _pincount);
+#ifdef CONFIG_64BIT
+FOLIO_MATCH(compound_nr, _folio_nr_pages);
 #endif
 #undef FOLIO_MATCH
 
@@ -408,8 +448,6 @@ struct vm_area_struct {
 	unsigned long vm_end;		/* The first byte after our end address
 					   within vm_mm. */
 
-	/* linked list of VM areas per task, sorted by address */
-	struct vm_area_struct *vm_next, *vm_prev;
 	struct mm_struct *vm_mm;	/* The address space we belong to. */
 
 	/*
@@ -473,9 +511,7 @@ struct vm_area_struct {
 struct kioctx_table;
 struct mm_struct {
 	struct {
-		struct vm_area_struct *mmap;		/* list of VMAs */
 		struct maple_tree mm_mt;
-		u64 vmacache_seqnum;                   /* per-thread vmacache */
 #ifdef CONFIG_MMU
 		unsigned long (*get_unmapped_area) (struct file *filp,
 				unsigned long addr, unsigned long len,
@@ -489,7 +525,6 @@ struct mm_struct {
 		unsigned long mmap_compat_legacy_base;
 #endif
 		unsigned long task_size;	/* size of task vm space */
-		unsigned long highest_vm_end;	/* highest vma end address */
 		pgd_t * pgd;
 
 #ifdef CONFIG_MEMBARRIER
@@ -619,22 +654,22 @@ struct mm_struct {
 #endif
 #ifdef CONFIG_NUMA_BALANCING
 		/*
-		 * numa_next_scan is the next time that the PTEs will be marked
-		 * pte_numa. NUMA hinting faults will gather statistics and
-		 * migrate pages to new nodes if necessary.
+		 * numa_next_scan is the next time that PTEs will be remapped
+		 * PROT_NONE to trigger NUMA hinting faults; such faults gather
+		 * statistics and migrate pages to new nodes if necessary.
 		 */
 		unsigned long numa_next_scan;
 
-		/* Restart point for scanning and setting pte_numa */
+		/* Restart point for scanning and remapping PTEs. */
 		unsigned long numa_scan_offset;
 
-		/* numa_scan_seq prevents two threads setting pte_numa */
+		/* numa_scan_seq prevents two threads remapping PTEs. */
 		int numa_scan_seq;
 #endif
 		/*
 		 * An operation with batched TLB flushing is going on. Anything
 		 * that can move process memory needs to flush the TLB when
-		 * moving a PROT_NONE or PROT_NUMA mapped page.
+		 * moving a PROT_NONE mapped page.
 		 */
 		atomic_t tlb_flush_pending;
 #ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
@@ -659,6 +694,11 @@ struct mm_struct {
 		 * merging.
 		 */
 		unsigned long ksm_merging_pages;
+		/*
+		 * Represent how many pages are checked for ksm merging
+		 * including merged and not merged.
+		 */
+		unsigned long ksm_rmap_items;
 #endif
 #ifdef CONFIG_LRU_GEN
 		struct {

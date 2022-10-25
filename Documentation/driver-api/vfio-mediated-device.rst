@@ -58,19 +58,19 @@ devices as examples, as these devices are the first devices to use this module::
      |  MDEV CORE    |
      |   MODULE      |
      |   mdev.ko     |
-     | +-----------+ |  mdev_register_device() +--------------+
+     | +-----------+ |  mdev_register_parent() +--------------+
      | |           | +<------------------------+              |
      | |           | |                         |  nvidia.ko   |<-> physical
      | |           | +------------------------>+              |    device
      | |           | |        callbacks        +--------------+
      | | Physical  | |
-     | |  device   | |  mdev_register_device() +--------------+
+     | |  device   | |  mdev_register_parent() +--------------+
      | | interface | |<------------------------+              |
      | |           | |                         |  i915.ko     |<-> physical
      | |           | +------------------------>+              |    device
      | |           | |        callbacks        +--------------+
      | |           | |
-     | |           | |  mdev_register_device() +--------------+
+     | |           | |  mdev_register_parent() +--------------+
      | |           | +<------------------------+              |
      | |           | |                         | ccw_device.ko|<-> physical
      | |           | +------------------------>+              |    device
@@ -103,7 +103,8 @@ structure to represent a mediated device's driver::
      struct mdev_driver {
 	     int  (*probe)  (struct mdev_device *dev);
 	     void (*remove) (struct mdev_device *dev);
-	     struct attribute_group **supported_type_groups;
+	     unsigned int (*get_available)(struct mdev_type *mtype);
+	     ssize_t (*show_description)(struct mdev_type *mtype, char *buf);
 	     struct device_driver    driver;
      };
 
@@ -125,8 +126,8 @@ vfio_device_ops.
 When a driver wants to add the GUID creation sysfs to an existing device it has
 probe'd to then it should call::
 
-    int mdev_register_device(struct device *dev,
-                             struct mdev_driver *mdev_driver);
+    int mdev_register_parent(struct mdev_parent *parent, struct device *dev,
+			struct mdev_driver *mdev_driver);
 
 This will provide the 'mdev_supported_types/XX/create' files which can then be
 used to trigger the creation of a mdev_device. The created mdev_device will be
@@ -134,7 +135,7 @@ attached to the specified driver.
 
 When the driver needs to remove itself it calls::
 
-    void mdev_unregister_device(struct device *dev);
+    void mdev_unregister_parent(struct mdev_parent *parent);
 
 Which will unbind and destroy all the created mdevs and remove the sysfs files.
 
@@ -200,17 +201,14 @@ Directories and files under the sysfs for Each Physical Device
 
 	sprintf(buf, "%s-%s", dev_driver_string(parent->dev), group->name);
 
-  (or using mdev_parent_dev(mdev) to arrive at the parent device outside
-  of the core mdev code)
-
 * device_api
 
-  This attribute should show which device API is being created, for example,
+  This attribute shows which device API is being created, for example,
   "vfio-pci" for a PCI device.
 
 * available_instances
 
-  This attribute should show the number of devices of type <type-id> that can be
+  This attribute shows the number of devices of type <type-id> that can be
   created.
 
 * [device]
@@ -220,11 +218,11 @@ Directories and files under the sysfs for Each Physical Device
 
 * name
 
-  This attribute should show human readable name. This is optional attribute.
+  This attribute shows a human readable name.
 
 * description
 
-  This attribute should show brief features/description of the type. This is
+  This attribute can show brief features/description of the type. This is an
   optional attribute.
 
 Directories and Files Under the sysfs for Each mdev Device

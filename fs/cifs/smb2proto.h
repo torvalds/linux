@@ -53,16 +53,12 @@ extern bool smb2_is_valid_oplock_break(char *buffer,
 				       struct TCP_Server_Info *srv);
 extern int smb3_handle_read_data(struct TCP_Server_Info *server,
 				 struct mid_q_entry *mid);
-
-extern void move_smb2_info_to_cifs(FILE_ALL_INFO *dst,
-				   struct smb2_file_all_info *src);
 extern int smb2_query_reparse_tag(const unsigned int xid, struct cifs_tcon *tcon,
 				struct cifs_sb_info *cifs_sb, const char *path,
 				__u32 *reparse_tag);
-extern int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
-				struct cifs_sb_info *cifs_sb,
-				const char *full_path, FILE_ALL_INFO *data,
-				bool *adjust_tz, bool *symlink);
+int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
+			 struct cifs_sb_info *cifs_sb, const char *full_path,
+			 struct cifs_open_info_data *data, bool *adjust_tz, bool *reparse);
 extern int smb2_set_path_size(const unsigned int xid, struct cifs_tcon *tcon,
 			      const char *full_path, __u64 size,
 			      struct cifs_sb_info *cifs_sb, bool set_alloc);
@@ -95,9 +91,9 @@ extern int smb3_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 			  struct cifs_sb_info *cifs_sb,
 			  const unsigned char *path, char *pbuf,
 			  unsigned int *pbytes_read);
-extern int smb2_open_file(const unsigned int xid,
-			  struct cifs_open_parms *oparms,
-			  __u32 *oplock, FILE_ALL_INFO *buf);
+int smb2_parse_symlink_response(struct cifs_sb_info *cifs_sb, const struct kvec *iov, char **path);
+int smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms, __u32 *oplock,
+		   void *buf);
 extern int smb2_unlock_range(struct cifsFileInfo *cfile,
 			     struct file_lock *flock, const unsigned int xid);
 extern int smb2_push_mandatory_locks(struct cifsFileInfo *cfile);
@@ -148,7 +144,8 @@ extern int SMB2_ioctl_init(struct cifs_tcon *tcon,
 extern void SMB2_ioctl_free(struct smb_rqst *rqst);
 extern int SMB2_change_notify(const unsigned int xid, struct cifs_tcon *tcon,
 			u64 persistent_fid, u64 volatile_fid, bool watch_tree,
-			u32 completion_filter);
+			u32 completion_filter, u32 max_out_data_len,
+			char **out_data, u32 *plen /* returned data len */);
 
 extern int __SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 			u64 persistent_fid, u64 volatile_fid,
@@ -278,9 +275,9 @@ extern int smb2_query_info_compound(const unsigned int xid,
 				    struct kvec *rsp, int *buftype,
 				    struct cifs_sb_info *cifs_sb);
 /* query path info from the server using SMB311 POSIX extensions*/
-extern int smb311_posix_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
-			struct cifs_sb_info *sb, const char *path, struct smb311_posix_qinfo *qinf,
-			bool *adjust_tx, bool *symlink);
+int smb311_posix_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
+				 struct cifs_sb_info *cifs_sb, const char *full_path,
+				 struct cifs_open_info_data *data, bool *adjust_tz, bool *reparse);
 int posix_info_parse(const void *beg, const void *end,
 		     struct smb2_posix_info_parsed *out);
 int posix_info_sid_size(const void *beg, const void *end);

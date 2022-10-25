@@ -43,15 +43,37 @@ endif
 
 cflags-y			+= -G0 -pipe -msoft-float
 LDFLAGS_vmlinux			+= -G0 -static -n -nostdlib
+
+# When the assembler supports explicit relocation hint, we must use it.
+# GCC may have -mexplicit-relocs off by default if it was built with an old
+# assembler, so we force it via an option.
+#
+# When the assembler does not supports explicit relocation hint, we can't use
+# it.  Disable it if the compiler supports it.
+#
+# If you've seen "unknown reloc hint" message building the kernel and you are
+# now wondering why "-mexplicit-relocs" is not wrapped with cc-option: the
+# combination of a "new" assembler and "old" compiler is not supported.  Either
+# upgrade the compiler or downgrade the assembler.
+ifdef CONFIG_AS_HAS_EXPLICIT_RELOCS
+cflags-y			+= -mexplicit-relocs
+KBUILD_CFLAGS_KERNEL		+= -mdirect-extern-access
+else
+cflags-y			+= $(call cc-option,-mno-explicit-relocs)
 KBUILD_AFLAGS_KERNEL		+= -Wa,-mla-global-with-pcrel
 KBUILD_CFLAGS_KERNEL		+= -Wa,-mla-global-with-pcrel
 KBUILD_AFLAGS_MODULE		+= -Wa,-mla-global-with-abs
 KBUILD_CFLAGS_MODULE		+= -fplt -Wa,-mla-global-with-abs,-mla-local-with-abs
+endif
 
 cflags-y += -ffreestanding
 cflags-y += $(call cc-option, -mno-check-zero-division)
 
+ifndef CONFIG_PHYSICAL_START
 load-y		= 0x9000000000200000
+else
+load-y		= $(CONFIG_PHYSICAL_START)
+endif
 bootvars-y	= VMLINUX_LOAD_ADDRESS=$(load-y)
 
 drivers-$(CONFIG_PCI)		+= arch/loongarch/pci/

@@ -127,9 +127,6 @@ struct task_struct;
 
 extern void start_thread(struct pt_regs *regs, unsigned long new_pc, unsigned long new_sp);
 
-/* Free all resources held by a thread. */
-extern void release_thread(struct task_struct *);
-
 /*
  * FPU lazy state save handling.
  */

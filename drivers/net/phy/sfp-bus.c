@@ -257,6 +257,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	case SFF8024_ECC_100GBASE_SR4_25GBASE_SR:
 		phylink_set(modes, 100000baseSR4_Full);
 		phylink_set(modes, 25000baseSR_Full);
+		__set_bit(PHY_INTERFACE_MODE_25GBASER, interfaces);
 		break;
 	case SFF8024_ECC_100GBASE_LR4_25GBASE_LR:
 	case SFF8024_ECC_100GBASE_ER4_25GBASE_ER:
@@ -268,6 +269,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	case SFF8024_ECC_25GBASE_CR_S:
 	case SFF8024_ECC_25GBASE_CR_N:
 		phylink_set(modes, 25000baseCR_Full);
+		__set_bit(PHY_INTERFACE_MODE_25GBASER, interfaces);
 		break;
 	case SFF8024_ECC_10GBASE_T_SFI:
 	case SFF8024_ECC_10GBASE_T_SR:
@@ -276,6 +278,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		break;
 	case SFF8024_ECC_5GBASE_T:
 		phylink_set(modes, 5000baseT_Full);
+		__set_bit(PHY_INTERFACE_MODE_5GBASER, interfaces);
 		break;
 	case SFF8024_ECC_2_5GBASE_T:
 		phylink_set(modes, 2500baseT_Full);

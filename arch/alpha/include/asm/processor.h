@@ -36,8 +36,6 @@ extern void start_thread(struct pt_regs *, unsigned long, unsigned long);
 
 /* Free all resources held by a thread. */
 struct task_struct;
-extern void release_thread(struct task_struct *);
-
 unsigned long __get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk) (task_pt_regs(tsk)->pc)

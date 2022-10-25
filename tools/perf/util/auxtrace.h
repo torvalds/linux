@@ -48,6 +48,7 @@ enum auxtrace_type {
 	PERF_AUXTRACE_CS_ETM,
 	PERF_AUXTRACE_ARM_SPE,
 	PERF_AUXTRACE_S390_CPUMSF,
+	PERF_AUXTRACE_HISI_PTT,
 };
 
 enum itrace_period_type {
@@ -60,6 +61,7 @@ enum itrace_period_type {
 #define AUXTRACE_ERR_FLG_DATA_LOST	(1 << ('l' - 'a'))
 
 #define AUXTRACE_LOG_FLG_ALL_PERF_EVTS	(1 << ('a' - 'a'))
+#define AUXTRACE_LOG_FLG_ON_ERROR	(1 << ('e' - 'a'))
 #define AUXTRACE_LOG_FLG_USE_STDOUT	(1 << ('o' - 'a'))
 
 /**
@@ -110,6 +112,7 @@ enum itrace_period_type {
  * @log_plus_flags: flags to affect what is logged
  * @log_minus_flags: flags to affect what is logged
  * @quick: quicker (less detailed) decoding
+ * @log_on_error_size: size of log to keep for outputting log only on errors
  */
 struct itrace_synth_opts {
 	bool			set;
@@ -155,6 +158,7 @@ struct itrace_synth_opts {
 	unsigned int		log_plus_flags;
 	unsigned int		log_minus_flags;
 	unsigned int		quick;
+	unsigned int		log_on_error_size;
 };
 
 /**

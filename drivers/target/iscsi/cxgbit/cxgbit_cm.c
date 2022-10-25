@@ -1202,7 +1202,7 @@ cxgbit_pass_accept_rpl(struct cxgbit_sock *csk, struct cpl_pass_accept_req *req)
 	opt2 |= CONG_CNTRL_V(CONG_ALG_NEWRENO);
 
 	opt2 |= T5_ISS_F;
-	rpl5->iss = cpu_to_be32((prandom_u32() & ~7UL) - 1);
+	rpl5->iss = cpu_to_be32((get_random_u32() & ~7UL) - 1);
 
 	opt2 |= T5_OPT_2_VALID_F;
 

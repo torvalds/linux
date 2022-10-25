@@ -986,8 +986,7 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 
 out_unlock:
 	inode_unlock(d_inode(mnt->mnt_root));
-	if (inode)
-		iput(inode);
+	iput(inode);
 	mnt_drop_write(mnt);
 out_name:
 	putname(name);

@@ -13,9 +13,6 @@ description: |
   This module is part of the MT6370 MFD device.
   Add MT6370 LED driver include 4-channel RGB LED support Register/PWM/Breath Mode
 
-allOf:
-  - $ref: leds-class-multicolor.yaml#
-
 properties:
   compatible:
     const: mediatek,mt6370-indicator
@@ -29,6 +26,8 @@ properties:
 patternProperties:
   "^multi-led@[0-3]$":
     type: object
+    $ref: leds-class-multicolor.yaml#
+    unevaluatedProperties: false
 
     properties:
       reg:

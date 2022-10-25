@@ -529,7 +529,7 @@ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
 		}
 	}
 	read_unlock(&tasklist_lock);
-	page_unlock_anon_vma_read(av);
+	anon_vma_unlock_read(av);
 }
 
 /*

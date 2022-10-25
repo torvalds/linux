@@ -165,7 +165,7 @@ examples:
   - |
     #include <dt-bindings/clock/starfive-jh7100.h>
     #include <dt-bindings/reset/starfive-jh7100.h>
-    #include <dt-bindings/pinctrl/pinctrl-starfive.h>
+    #include <dt-bindings/pinctrl/pinctrl-starfive-jh7100.h>
 
     soc {
         #address-cells = <2>;

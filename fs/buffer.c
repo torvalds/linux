@@ -1453,19 +1453,15 @@ EXPORT_SYMBOL(set_bh_page);
 
 static void discard_buffer(struct buffer_head * bh)
 {
-	unsigned long b_state, b_state_old;
+	unsigned long b_state;
 
 	lock_buffer(bh);
 	clear_buffer_dirty(bh);
 	bh->b_bdev = NULL;
-	b_state = bh->b_state;
-	for (;;) {
-		b_state_old = cmpxchg(&bh->b_state, b_state,
-				      (b_state & ~BUFFER_FLAGS_DISCARD));
-		if (b_state_old == b_state)
-			break;
-		b_state = b_state_old;
-	}
+	b_state = READ_ONCE(bh->b_state);
+	do {
+	} while (!try_cmpxchg(&bh->b_state, &b_state,
+			      b_state & ~BUFFER_FLAGS_DISCARD));
 	unlock_buffer(bh);
 }
 
@@ -2341,7 +2337,7 @@ int generic_cont_expand_simple(struct inode *inode, loff_t size)
 	struct address_space *mapping = inode->i_mapping;
 	const struct address_space_operations *aops = mapping->a_ops;
 	struct page *page;
-	void *fsdata;
+	void *fsdata = NULL;
 	int err;
 
 	err = inode_newsize_ok(inode, size);
@@ -2367,7 +2363,7 @@ static int cont_expand_zero(struct file *file, struct address_space *mapping,
 	const struct address_space_operations *aops = mapping->a_ops;
 	unsigned int blocksize = i_blocksize(inode);
 	struct page *page;
-	void *fsdata;
+	void *fsdata = NULL;
 	pgoff_t index, curidx;
 	loff_t curpos;
 	unsigned zerofrom, offset, len;

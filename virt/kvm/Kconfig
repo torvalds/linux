@@ -19,6 +19,20 @@ config HAVE_KVM_IRQ_ROUTING
 config HAVE_KVM_DIRTY_RING
        bool
 
+# Only strongly ordered architectures can select this, as it doesn't
+# put any explicit constraint on userspace ordering. They can also
+# select the _ACQ_REL version.
+config HAVE_KVM_DIRTY_RING_TSO
+       bool
+       select HAVE_KVM_DIRTY_RING
+       depends on X86
+
+# Weakly ordered architectures can only select this, advertising
+# to userspace the additional ordering requirements.
+config HAVE_KVM_DIRTY_RING_ACQ_REL
+       bool
+       select HAVE_KVM_DIRTY_RING
+
 config HAVE_KVM_EVENTFD
        bool
        select EVENTFD

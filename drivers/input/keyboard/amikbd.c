@@ -10,9 +10,6 @@
  * Amiga keyboard driver for Linux/m68k
  */
 
-/*
- */
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/input.h>

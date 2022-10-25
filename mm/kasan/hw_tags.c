@@ -38,16 +38,9 @@ enum kasan_arg_vmalloc {
 	KASAN_ARG_VMALLOC_ON,
 };
 
-enum kasan_arg_stacktrace {
-	KASAN_ARG_STACKTRACE_DEFAULT,
-	KASAN_ARG_STACKTRACE_OFF,
-	KASAN_ARG_STACKTRACE_ON,
-};
-
 static enum kasan_arg kasan_arg __ro_after_init;
 static enum kasan_arg_mode kasan_arg_mode __ro_after_init;
 static enum kasan_arg_vmalloc kasan_arg_vmalloc __initdata;
-static enum kasan_arg_stacktrace kasan_arg_stacktrace __initdata;
 
 /*
  * Whether KASAN is enabled at all.
@@ -65,9 +58,6 @@ EXPORT_SYMBOL_GPL(kasan_mode);
 
 /* Whether to enable vmalloc tagging. */
 DEFINE_STATIC_KEY_TRUE(kasan_flag_vmalloc);
-
-/* Whether to collect alloc/free stack traces. */
-DEFINE_STATIC_KEY_TRUE(kasan_flag_stacktrace);
 
 /* kasan=off/on */
 static int __init early_kasan_flag(char *arg)
@@ -121,23 +111,6 @@ static int __init early_kasan_flag_vmalloc(char *arg)
 	return 0;
 }
 early_param("kasan.vmalloc", early_kasan_flag_vmalloc);
-
-/* kasan.stacktrace=off/on */
-static int __init early_kasan_flag_stacktrace(char *arg)
-{
-	if (!arg)
-		return -EINVAL;
-
-	if (!strcmp(arg, "off"))
-		kasan_arg_stacktrace = KASAN_ARG_STACKTRACE_OFF;
-	else if (!strcmp(arg, "on"))
-		kasan_arg_stacktrace = KASAN_ARG_STACKTRACE_ON;
-	else
-		return -EINVAL;
-
-	return 0;
-}
-early_param("kasan.stacktrace", early_kasan_flag_stacktrace);
 
 static inline const char *kasan_mode_info(void)
 {
@@ -213,17 +186,7 @@ void __init kasan_init_hw_tags(void)
 		break;
 	}
 
-	switch (kasan_arg_stacktrace) {
-	case KASAN_ARG_STACKTRACE_DEFAULT:
-		/* Default is specified by kasan_flag_stacktrace definition. */
-		break;
-	case KASAN_ARG_STACKTRACE_OFF:
-		static_branch_disable(&kasan_flag_stacktrace);
-		break;
-	case KASAN_ARG_STACKTRACE_ON:
-		static_branch_enable(&kasan_flag_stacktrace);
-		break;
-	}
+	kasan_init_tags();
 
 	/* KASAN is now initialized, enable it. */
 	static_branch_enable(&kasan_flag_enabled);

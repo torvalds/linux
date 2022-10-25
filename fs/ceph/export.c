@@ -181,6 +181,7 @@ struct inode *ceph_lookup_inode(struct super_block *sb, u64 ino)
 static struct dentry *__fh_to_dentry(struct super_block *sb, u64 ino)
 {
 	struct inode *inode = __lookup_inode(sb, ino);
+	struct ceph_inode_info *ci = ceph_inode(inode);
 	int err;
 
 	if (IS_ERR(inode))
@@ -192,7 +193,7 @@ static struct dentry *__fh_to_dentry(struct super_block *sb, u64 ino)
 		return ERR_PTR(err);
 	}
 	/* -ESTALE if inode as been unlinked and no file is open */
-	if ((inode->i_nlink == 0) && (atomic_read(&inode->i_count) == 1)) {
+	if ((inode->i_nlink == 0) && !__ceph_is_file_opened(ci)) {
 		iput(inode);
 		return ERR_PTR(-ESTALE);
 	}

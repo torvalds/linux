@@ -1681,7 +1681,7 @@ int dsa_port_phylink_create(struct dsa_port *dp)
 	pl = phylink_create(&dp->pl_config, of_fwnode_handle(dp->dn),
 			    mode, &dsa_port_phylink_mac_ops);
 	if (IS_ERR(pl)) {
-		pr_err("error creating PHYLINK: %ld\n", PTR_ERR(dp->pl));
+		pr_err("error creating PHYLINK: %ld\n", PTR_ERR(pl));
 		return PTR_ERR(pl);
 	}
 

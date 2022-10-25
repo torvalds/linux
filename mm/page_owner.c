@@ -297,7 +297,7 @@ void pagetypeinfo_showmixedcount_print(struct seq_file *m,
 			continue;
 		}
 
-		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+		block_end_pfn = pageblock_end_pfn(pfn);
 		block_end_pfn = min(block_end_pfn, end_pfn);
 
 		pageblock_mt = get_pageblock_migratetype(page);
@@ -524,8 +524,6 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	while (!pfn_valid(pfn) && (pfn & (MAX_ORDER_NR_PAGES - 1)) != 0)
 		pfn++;
 
-	drain_all_pages(NULL);
-
 	/* Find an allocated page */
 	for (; pfn < max_pfn; pfn++) {
 		/*
@@ -637,7 +635,7 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
 			continue;
 		}
 
-		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+		block_end_pfn = pageblock_end_pfn(pfn);
 		block_end_pfn = min(block_end_pfn, end_pfn);
 
 		for (; pfn < block_end_pfn; pfn++) {

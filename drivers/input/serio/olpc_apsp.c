@@ -199,8 +199,8 @@ static int olpc_apsp_probe(struct platform_device *pdev)
 	kb_serio->close		= olpc_apsp_close;
 	kb_serio->port_data	= priv;
 	kb_serio->dev.parent	= &pdev->dev;
-	strlcpy(kb_serio->name, "sp keyboard", sizeof(kb_serio->name));
-	strlcpy(kb_serio->phys, "sp/serio0", sizeof(kb_serio->phys));
+	strscpy(kb_serio->name, "sp keyboard", sizeof(kb_serio->name));
+	strscpy(kb_serio->phys, "sp/serio0", sizeof(kb_serio->phys));
 	priv->kbio		= kb_serio;
 	serio_register_port(kb_serio);
 
@@ -216,8 +216,8 @@ static int olpc_apsp_probe(struct platform_device *pdev)
 	pad_serio->close	= olpc_apsp_close;
 	pad_serio->port_data	= priv;
 	pad_serio->dev.parent	= &pdev->dev;
-	strlcpy(pad_serio->name, "sp touchpad", sizeof(pad_serio->name));
-	strlcpy(pad_serio->phys, "sp/serio1", sizeof(pad_serio->phys));
+	strscpy(pad_serio->name, "sp touchpad", sizeof(pad_serio->name));
+	strscpy(pad_serio->phys, "sp/serio1", sizeof(pad_serio->phys));
 	priv->padio		= pad_serio;
 	serio_register_port(pad_serio);
 

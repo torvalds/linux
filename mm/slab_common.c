@@ -925,6 +925,7 @@ void free_large_kmalloc(struct folio *folio, void *object)
 
 	kmemleak_free(object);
 	kasan_kfree_large(object);
+	kmsan_kfree_large(object);
 
 	mod_lruvec_page_state(folio_page(folio, 0), NR_SLAB_UNRECLAIMABLE_B,
 			      -(PAGE_SIZE << order));
@@ -1104,6 +1105,7 @@ static void *__kmalloc_large_node(size_t size, gfp_t flags, int node)
 	ptr = kasan_kmalloc_large(ptr, size, flags);
 	/* As ptr might get tagged, call kmemleak hook after KASAN. */
 	kmemleak_alloc(ptr, size, 1, flags);
+	kmsan_kmalloc_large(ptr, size, flags);
 
 	return ptr;
 }

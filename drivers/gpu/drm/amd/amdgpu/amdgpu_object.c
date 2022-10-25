@@ -688,13 +688,16 @@ int amdgpu_bo_create_vm(struct amdgpu_device *adev,
 	 * num of amdgpu_vm_pt entries.
 	 */
 	BUG_ON(bp->bo_ptr_size < sizeof(struct amdgpu_bo_vm));
-	bp->destroy = &amdgpu_bo_vm_destroy;
 	r = amdgpu_bo_create(adev, bp, &bo_ptr);
 	if (r)
 		return r;
 
 	*vmbo_ptr = to_amdgpu_bo_vm(bo_ptr);
 	INIT_LIST_HEAD(&(*vmbo_ptr)->shadow_list);
+	/* Set destroy callback to amdgpu_bo_vm_destroy after vmbo->shadow_list
+	 * is initialized.
+	 */
+	bo_ptr->tbo.destroy = &amdgpu_bo_vm_destroy;
 	return r;
 }
 

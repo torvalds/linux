@@ -7,6 +7,7 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
 #include <asm/asm-offsets.h>
 #include <asm/assembler.h>
 #include <asm/ftrace.h>
@@ -294,9 +295,13 @@ SYM_FUNC_END(ftrace_graph_caller)
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
 
-SYM_FUNC_START(ftrace_stub)
+SYM_TYPED_FUNC_START(ftrace_stub)
 	ret
 SYM_FUNC_END(ftrace_stub)
+
+SYM_TYPED_FUNC_START(ftrace_stub_graph)
+	ret
+SYM_FUNC_END(ftrace_stub_graph)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 /*

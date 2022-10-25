@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: Documentation/Devicetree/dynamic-resolution-notes.rst
+:Original: Documentation/devicetree/dynamic-resolution-notes.rst
 
 :翻译:
 

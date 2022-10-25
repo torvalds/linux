@@ -344,9 +344,6 @@ struct thread_struct {
 
 struct task_struct;
 
-/* Free all resources held by a thread. */
-#define release_thread(thread) do { } while(0)
-
 /*
  * Do necessary setup to start up a newly executed thread.
  */

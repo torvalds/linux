@@ -1182,8 +1182,10 @@ static int mcs_register_interrupts(struct mcs *mcs)
 	mcs_reg_write(mcs, MCSX_PAB_TX_SLAVE_PAB_INT_ENB, 0xff);
 
 	mcs->tx_sa_active = alloc_mem(mcs, mcs->hw->sc_entries);
-	if (!mcs->tx_sa_active)
+	if (!mcs->tx_sa_active) {
+		ret = -ENOMEM;
 		goto exit;
+	}
 
 	return ret;
 exit:

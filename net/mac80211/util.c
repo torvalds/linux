@@ -1445,6 +1445,8 @@ static size_t ieee802_11_find_bssid_profile(const u8 *start, size_t len,
 	for_each_element_id(elem, WLAN_EID_MULTIPLE_BSSID, start, len) {
 		if (elem->datalen < 2)
 			continue;
+		if (elem->data[0] < 1 || elem->data[0] > 8)
+			continue;
 
 		for_each_element(sub, elem->data + 1, elem->datalen - 1) {
 			u8 new_bssid[ETH_ALEN];
@@ -1504,24 +1506,26 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 	const struct element *non_inherit = NULL;
 	u8 *nontransmitted_profile;
 	int nontransmitted_profile_len = 0;
+	size_t scratch_len = params->len;
 
-	elems = kzalloc(sizeof(*elems), GFP_ATOMIC);
+	elems = kzalloc(sizeof(*elems) + scratch_len, GFP_ATOMIC);
 	if (!elems)
 		return NULL;
 	elems->ie_start = params->start;
 	elems->total_len = params->len;
+	elems->scratch_len = scratch_len;
+	elems->scratch_pos = elems->scratch;
 
-	nontransmitted_profile = kmalloc(params->len, GFP_ATOMIC);
-	if (nontransmitted_profile) {
-		nontransmitted_profile_len =
-			ieee802_11_find_bssid_profile(params->start, params->len,
-						      elems, params->bss,
-						      nontransmitted_profile);
-		non_inherit =
-			cfg80211_find_ext_elem(WLAN_EID_EXT_NON_INHERITANCE,
-					       nontransmitted_profile,
-					       nontransmitted_profile_len);
-	}
+	nontransmitted_profile = elems->scratch_pos;
+	nontransmitted_profile_len =
+		ieee802_11_find_bssid_profile(params->start, params->len,
+					      elems, params->bss,
+					      nontransmitted_profile);
+	elems->scratch_pos += nontransmitted_profile_len;
+	elems->scratch_len -= nontransmitted_profile_len;
+	non_inherit = cfg80211_find_ext_elem(WLAN_EID_EXT_NON_INHERITANCE,
+					     nontransmitted_profile,
+					     nontransmitted_profile_len);
 
 	elems->crc = _ieee802_11_parse_elems_full(params, elems, non_inherit);
 
@@ -1554,8 +1558,6 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 	    elems->bssid_index_len >=
 	    offsetofend(struct ieee80211_bssid_index, dtim_count))
 		elems->dtim_count = elems->bssid_index->dtim_count;
-
-	kfree(nontransmitted_profile);
 
 	return elems;
 }
@@ -2046,7 +2048,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 		if (he_cap) {
 			enum nl80211_iftype iftype =
 				ieee80211_vif_type_p2p(&sdata->vif);
-			__le16 cap = ieee80211_get_he_6ghz_capa(sband, iftype);
+			__le16 cap = ieee80211_get_he_6ghz_capa(sband6, iftype);
 
 			pos = ieee80211_write_he_6ghz_cap(pos, cap, end);
 		}

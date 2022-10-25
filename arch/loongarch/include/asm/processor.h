@@ -176,9 +176,6 @@ struct thread_struct {
 
 struct task_struct;
 
-/* Free all resources held by a thread. */
-#define release_thread(thread) do { } while (0)
-
 enum idle_boot_override {IDLE_NO_OVERRIDE = 0, IDLE_HALT, IDLE_NOMWAIT, IDLE_POLL};
 
 extern unsigned long		boot_option_idle_override;

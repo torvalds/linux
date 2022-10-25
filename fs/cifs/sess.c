@@ -496,6 +496,7 @@ out:
 		cifs_put_tcp_session(chan->server, 0);
 	}
 
+	free_xid(xid);
 	return rc;
 }
 
@@ -601,11 +602,6 @@ static void unicode_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 	/* BB FIXME add check that strings total less
 	than 335 or will need to send them as arrays */
 
-	/* unicode strings, must be word aligned before the call */
-/*	if ((long) bcc_ptr % 2)	{
-		*bcc_ptr = 0;
-		bcc_ptr++;
-	} */
 	/* copy user */
 	if (ses->user_name == NULL) {
 		/* null user mount */
@@ -1213,10 +1209,18 @@ out_free_smb_buf:
 static void
 sess_free_buffer(struct sess_data *sess_data)
 {
+	struct kvec *iov = sess_data->iov;
 
-	free_rsp_buf(sess_data->buf0_type, sess_data->iov[0].iov_base);
+	/*
+	 * Zero the session data before freeing, as it might contain sensitive info (keys, etc).
+	 * Note that iov[1] is already freed by caller.
+	 */
+	if (sess_data->buf0_type != CIFS_NO_BUFFER && iov[0].iov_base)
+		memzero_explicit(iov[0].iov_base, iov[0].iov_len);
+
+	free_rsp_buf(sess_data->buf0_type, iov[0].iov_base);
 	sess_data->buf0_type = CIFS_NO_BUFFER;
-	kfree(sess_data->iov[2].iov_base);
+	kfree_sensitive(iov[2].iov_base);
 }
 
 static int
@@ -1318,7 +1322,7 @@ sess_auth_ntlmv2(struct sess_data *sess_data)
 	}
 
 	if (ses->capabilities & CAP_UNICODE) {
-		if (sess_data->iov[0].iov_len % 2) {
+		if (!IS_ALIGNED(sess_data->iov[0].iov_len, 2)) {
 			*bcc_ptr = 0;
 			bcc_ptr++;
 		}
@@ -1358,7 +1362,7 @@ sess_auth_ntlmv2(struct sess_data *sess_data)
 		/* no string area to decode, do nothing */
 	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
 		/* unicode string area must be word-aligned */
-		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
+		if (!IS_ALIGNED((unsigned long)bcc_ptr - (unsigned long)smb_buf, 2)) {
 			++bcc_ptr;
 			--bytes_remaining;
 		}
@@ -1374,7 +1378,7 @@ out:
 	sess_data->result = rc;
 	sess_data->func = NULL;
 	sess_free_buffer(sess_data);
-	kfree(ses->auth_key.response);
+	kfree_sensitive(ses->auth_key.response);
 	ses->auth_key.response = NULL;
 }
 
@@ -1442,8 +1446,7 @@ sess_auth_kerberos(struct sess_data *sess_data)
 
 	if (ses->capabilities & CAP_UNICODE) {
 		/* unicode strings must be word aligned */
-		if ((sess_data->iov[0].iov_len
-			+ sess_data->iov[1].iov_len) % 2) {
+		if (!IS_ALIGNED(sess_data->iov[0].iov_len + sess_data->iov[1].iov_len, 2)) {
 			*bcc_ptr = 0;
 			bcc_ptr++;
 		}
@@ -1494,7 +1497,7 @@ sess_auth_kerberos(struct sess_data *sess_data)
 		/* no string area to decode, do nothing */
 	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
 		/* unicode string area must be word-aligned */
-		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
+		if (!IS_ALIGNED((unsigned long)bcc_ptr - (unsigned long)smb_buf, 2)) {
 			++bcc_ptr;
 			--bytes_remaining;
 		}
@@ -1513,7 +1516,7 @@ out:
 	sess_data->result = rc;
 	sess_data->func = NULL;
 	sess_free_buffer(sess_data);
-	kfree(ses->auth_key.response);
+	kfree_sensitive(ses->auth_key.response);
 	ses->auth_key.response = NULL;
 }
 
@@ -1546,7 +1549,7 @@ _sess_auth_rawntlmssp_assemble_req(struct sess_data *sess_data)
 
 	bcc_ptr = sess_data->iov[2].iov_base;
 	/* unicode strings must be word aligned */
-	if ((sess_data->iov[0].iov_len + sess_data->iov[1].iov_len) % 2) {
+	if (!IS_ALIGNED(sess_data->iov[0].iov_len + sess_data->iov[1].iov_len, 2)) {
 		*bcc_ptr = 0;
 		bcc_ptr++;
 	}
@@ -1648,7 +1651,7 @@ sess_auth_rawntlmssp_negotiate(struct sess_data *sess_data)
 	rc = decode_ntlmssp_challenge(bcc_ptr, blob_len, ses);
 
 out_free_ntlmsspblob:
-	kfree(ntlmsspblob);
+	kfree_sensitive(ntlmsspblob);
 out:
 	sess_free_buffer(sess_data);
 
@@ -1658,9 +1661,9 @@ out:
 	}
 
 	/* Else error. Cleanup */
-	kfree(ses->auth_key.response);
+	kfree_sensitive(ses->auth_key.response);
 	ses->auth_key.response = NULL;
-	kfree(ses->ntlmssp);
+	kfree_sensitive(ses->ntlmssp);
 	ses->ntlmssp = NULL;
 
 	sess_data->func = NULL;
@@ -1747,7 +1750,7 @@ sess_auth_rawntlmssp_authenticate(struct sess_data *sess_data)
 		/* no string area to decode, do nothing */
 	} else if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
 		/* unicode string area must be word-aligned */
-		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
+		if (!IS_ALIGNED((unsigned long)bcc_ptr - (unsigned long)smb_buf, 2)) {
 			++bcc_ptr;
 			--bytes_remaining;
 		}
@@ -1759,7 +1762,7 @@ sess_auth_rawntlmssp_authenticate(struct sess_data *sess_data)
 	}
 
 out_free_ntlmsspblob:
-	kfree(ntlmsspblob);
+	kfree_sensitive(ntlmsspblob);
 out:
 	sess_free_buffer(sess_data);
 
@@ -1767,9 +1770,9 @@ out:
 		rc = sess_establish_session(sess_data);
 
 	/* Cleanup */
-	kfree(ses->auth_key.response);
+	kfree_sensitive(ses->auth_key.response);
 	ses->auth_key.response = NULL;
-	kfree(ses->ntlmssp);
+	kfree_sensitive(ses->ntlmssp);
 	ses->ntlmssp = NULL;
 
 	sess_data->func = NULL;
@@ -1845,7 +1848,7 @@ int CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 	rc = sess_data->result;
 
 out:
-	kfree(sess_data);
+	kfree_sensitive(sess_data);
 	return rc;
 }
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */

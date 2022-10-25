@@ -50,6 +50,7 @@ config LOONGARCH
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_USE_QUEUED_RWLOCKS
+	select ARCH_USE_QUEUED_SPINLOCKS
 	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
 	select ARCH_WANT_LD_ORPHAN_WARN
 	select ARCH_WANTS_NO_INSTR
@@ -61,6 +62,7 @@ config LOONGARCH
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_ENTRY
 	select GENERIC_GETTIMEOFDAY
+	select GENERIC_IOREMAP if !ARCH_IOREMAP
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
@@ -69,6 +71,7 @@ config LOONGARCH
 	select GENERIC_LIB_CMPDI2
 	select GENERIC_LIB_LSHRDI3
 	select GENERIC_LIB_UCMPDI2
+	select GENERIC_LIB_DEVMEM_IS_ALLOWED
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
@@ -83,6 +86,7 @@ config LOONGARCH
 	select HAVE_CONTEXT_TRACKING_USER
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_DMA_CONTIGUOUS
+	select HAVE_EBPF_JIT
 	select HAVE_EXIT_THREAD
 	select HAVE_FAST_GUP
 	select HAVE_GENERIC_VDSO
@@ -93,6 +97,8 @@ config LOONGARCH
 	select HAVE_NMI
 	select HAVE_PCI
 	select HAVE_PERF_EVENTS
+	select HAVE_PERF_REGS
+	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RSEQ
 	select HAVE_SETUP_PER_CPU_AREA if NUMA
@@ -136,6 +142,14 @@ config CPU_HAS_PREFETCH
 	bool
 	default y
 
+config GENERIC_BUG
+	def_bool y
+	depends on BUG
+
+config GENERIC_BUG_RELATIVE_POINTERS
+	def_bool y
+	depends on GENERIC_BUG
+
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
@@ -157,7 +171,7 @@ config STACKTRACE_SUPPORT
 	bool
 	default y
 
-# MACH_LOONGSON32 and MACH_LOONGSON64 are delibrately carried over from the
+# MACH_LOONGSON32 and MACH_LOONGSON64 are deliberately carried over from the
 # MIPS Loongson code, to preserve Loongson-specific code paths in drivers that
 # are shared between architectures, and specifically expecting the symbols.
 config MACH_LOONGSON32
@@ -165,6 +179,9 @@ config MACH_LOONGSON32
 
 config MACH_LOONGSON64
 	def_bool 64BIT
+
+config FIX_EARLYCON_MEM
+	def_bool y
 
 config PAGE_SIZE_4KB
 	bool
@@ -193,6 +210,9 @@ config PGTABLE_LEVELS
 config SCHED_OMIT_FRAME_POINTER
 	bool
 	default y
+
+config AS_HAS_EXPLICIT_RELOCS
+	def_bool $(as-instr,x:pcalau12i \$t0$(comma)%pc_hi20(x))
 
 menu "Kernel type and options"
 
@@ -398,6 +418,46 @@ config ARCH_FORCE_MAX_ORDER
 
 	  The page size is not necessarily 4KB.  Keep this in mind
 	  when choosing a value for this option.
+
+config ARCH_IOREMAP
+	bool "Enable LoongArch DMW-based ioremap()"
+	help
+	  We use generic TLB-based ioremap() by default since it has page
+	  protection support. However, you can enable LoongArch DMW-based
+	  ioremap() for better performance.
+
+config KEXEC
+	bool "Kexec system call"
+	select KEXEC_CORE
+	help
+	  kexec is a system call that implements the ability to shutdown your
+	  current kernel, and to start another kernel.  It is like a reboot
+	  but it is independent of the system firmware.   And like a reboot
+	  you can start any kernel with it, not just Linux.
+
+	  The name comes from the similarity to the exec system call.
+
+config CRASH_DUMP
+	bool "Build kdump crash kernel"
+	help
+	  Generate crash dump after being started by kexec. This should
+	  be normally only set in special crash dump kernels which are
+	  loaded in the main kernel with kexec-tools into a specially
+	  reserved region and then later executed after a crash by
+	  kdump/kexec.
+
+	  For more details see Documentation/admin-guide/kdump/kdump.rst
+
+config PHYSICAL_START
+	hex "Physical address where the kernel is loaded"
+	default "0x90000000a0000000"
+	depends on CRASH_DUMP
+	help
+	  This gives the XKPRANGE address where the kernel is loaded.
+	  If you plan to use kernel for capturing the crash dump change
+	  this value to start of the reserved region (the "X" value as
+	  specified in the "crashkernel=YM@XM" command line boot parameter
+	  passed to the panic-ed kernel).
 
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"

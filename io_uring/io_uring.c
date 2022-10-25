@@ -1106,6 +1106,8 @@ static void io_req_local_work_add(struct io_kiocb *req)
 
 	if (!llist_add(&req->io_task_work.node, &ctx->work_llist))
 		return;
+	/* need it for the following io_cqring_wake() */
+	smp_mb__after_atomic();
 
 	if (unlikely(atomic_read(&req->task->io_uring->in_idle))) {
 		io_move_task_work_from_local(ctx);
@@ -1117,8 +1119,7 @@ static void io_req_local_work_add(struct io_kiocb *req)
 
 	if (ctx->has_evfd)
 		io_eventfd_signal(ctx);
-	io_cqring_wake(ctx);
-
+	__io_cqring_wake(ctx);
 }
 
 static inline void __io_req_task_work_add(struct io_kiocb *req, bool allow_local)
@@ -1586,8 +1587,6 @@ unsigned int io_file_get_flags(struct file *file)
 		res |= FFS_ISREG;
 	if (__io_file_supports_nowait(file, mode))
 		res |= FFS_NOWAIT;
-	if (io_file_need_scm(file))
-		res |= FFS_SCM;
 	return res;
 }
 
@@ -1859,7 +1858,6 @@ inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 	/* mask in overlapping REQ_F and FFS bits */
 	req->flags |= (file_ptr << REQ_F_SUPPORT_NOWAIT_BIT);
 	io_req_set_rsrc_node(req, ctx, 0);
-	WARN_ON_ONCE(file && !test_bit(fd, ctx->file_table.bitmap));
 out:
 	io_ring_submit_unlock(ctx, issue_flags);
 	return file;
@@ -2562,18 +2560,14 @@ static int io_eventfd_unregister(struct io_ring_ctx *ctx)
 
 static void io_req_caches_free(struct io_ring_ctx *ctx)
 {
-	struct io_submit_state *state = &ctx->submit_state;
 	int nr = 0;
 
 	mutex_lock(&ctx->uring_lock);
-	io_flush_cached_locked_reqs(ctx, state);
+	io_flush_cached_locked_reqs(ctx, &ctx->submit_state);
 
 	while (!io_req_cache_empty(ctx)) {
-		struct io_wq_work_node *node;
-		struct io_kiocb *req;
+		struct io_kiocb *req = io_alloc_req(ctx);
 
-		node = wq_stack_extract(&state->free_list);
-		req = container_of(node, struct io_kiocb, comp_list);
 		kmem_cache_free(req_cachep, req);
 		nr++;
 	}
@@ -2585,12 +2579,6 @@ static void io_req_caches_free(struct io_ring_ctx *ctx)
 static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 {
 	io_sq_thread_finish(ctx);
-
-	if (ctx->mm_account) {
-		mmdrop(ctx->mm_account);
-		ctx->mm_account = NULL;
-	}
-
 	io_rsrc_refs_drop(ctx);
 	/* __io_rsrc_put_work() may need uring_lock to progress, wait w/o it */
 	io_wait_rsrc_data(ctx->buf_data);
@@ -2631,8 +2619,11 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	}
 #endif
 	WARN_ON_ONCE(!list_empty(&ctx->ltimeout_list));
-	WARN_ON_ONCE(ctx->notif_slots || ctx->nr_notif_slots);
 
+	if (ctx->mm_account) {
+		mmdrop(ctx->mm_account);
+		ctx->mm_account = NULL;
+	}
 	io_mem_free(ctx->rings);
 	io_mem_free(ctx->sq_sqes);
 
@@ -2813,15 +2804,12 @@ static __cold void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 		io_poll_remove_all(ctx, NULL, true);
 	mutex_unlock(&ctx->uring_lock);
 
-	/* failed during ring init, it couldn't have issued any requests */
-	if (ctx->rings) {
+	/*
+	 * If we failed setting up the ctx, we might not have any rings
+	 * and therefore did not submit any requests
+	 */
+	if (ctx->rings)
 		io_kill_timeouts(ctx, NULL, true);
-		/* if we failed setting up the ctx, we might not have any rings */
-		io_iopoll_try_reap_events(ctx);
-		/* drop cached put refs after potentially doing completions */
-		if (current->io_uring)
-			io_uring_drop_tctx_refs(current);
-	}
 
 	INIT_WORK(&ctx->exit_work, io_ring_exit_work);
 	/*
@@ -3229,8 +3217,16 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 			mutex_unlock(&ctx->uring_lock);
 			goto out;
 		}
-		if ((flags & IORING_ENTER_GETEVENTS) && ctx->syscall_iopoll)
-			goto iopoll_locked;
+		if (flags & IORING_ENTER_GETEVENTS) {
+			if (ctx->syscall_iopoll)
+				goto iopoll_locked;
+			/*
+			 * Ignore errors, we'll soon call io_cqring_wait() and
+			 * it should handle ownership problems if any.
+			 */
+			if (ctx->flags & IORING_SETUP_DEFER_TASKRUN)
+				(void)io_run_local_work_locked(ctx);
+		}
 		mutex_unlock(&ctx->uring_lock);
 	}
 
@@ -3355,7 +3351,7 @@ static int io_uring_install_fd(struct io_ring_ctx *ctx, struct file *file)
 	if (fd < 0)
 		return fd;
 
-	ret = __io_uring_add_tctx_node(ctx, false);
+	ret = __io_uring_add_tctx_node(ctx);
 	if (ret) {
 		put_unused_fd(fd);
 		return ret;
@@ -3889,6 +3885,9 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 	 */
 	if (WARN_ON_ONCE(percpu_ref_is_dying(&ctx->refs)))
 		return -ENXIO;
+
+	if (ctx->submitter_task && ctx->submitter_task != current)
+		return -EEXIST;
 
 	if (ctx->restricted) {
 		if (opcode >= IORING_REGISTER_LAST)

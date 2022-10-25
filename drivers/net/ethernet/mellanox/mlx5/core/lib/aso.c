@@ -381,20 +381,12 @@ void mlx5_aso_post_wqe(struct mlx5_aso *aso, bool with_data,
 	WRITE_ONCE(doorbell_cseg, NULL);
 }
 
-int mlx5_aso_poll_cq(struct mlx5_aso *aso, bool with_data, u32 interval_ms)
+int mlx5_aso_poll_cq(struct mlx5_aso *aso, bool with_data)
 {
 	struct mlx5_aso_cq *cq = &aso->cq;
 	struct mlx5_cqe64 *cqe;
-	unsigned long expires;
 
 	cqe = mlx5_cqwq_get_cqe(&cq->wq);
-
-	expires = jiffies + msecs_to_jiffies(interval_ms);
-	while (!cqe && time_is_after_jiffies(expires)) {
-		usleep_range(2, 10);
-		cqe = mlx5_cqwq_get_cqe(&cq->wq);
-	}
-
 	if (!cqe)
 		return -ETIMEDOUT;
 

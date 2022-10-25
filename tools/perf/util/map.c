@@ -181,7 +181,10 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 			if (!(prot & PROT_EXEC))
 				dso__set_loaded(dso);
 		}
+		mutex_lock(&dso->lock);
+		nsinfo__put(dso->nsinfo);
 		dso->nsinfo = nsi;
+		mutex_unlock(&dso->lock);
 
 		if (build_id__is_defined(bid)) {
 			dso__set_build_id(dso, bid);

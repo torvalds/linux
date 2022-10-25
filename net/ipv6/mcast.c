@@ -1050,7 +1050,7 @@ bool ipv6_chk_mcast_addr(struct net_device *dev, const struct in6_addr *group,
 /* called with mc_lock */
 static void mld_gq_start_work(struct inet6_dev *idev)
 {
-	unsigned long tv = prandom_u32() % idev->mc_maxdelay;
+	unsigned long tv = prandom_u32_max(idev->mc_maxdelay);
 
 	idev->mc_gq_running = 1;
 	if (!mod_delayed_work(mld_wq, &idev->mc_gq_work, tv + 2))
@@ -1068,7 +1068,7 @@ static void mld_gq_stop_work(struct inet6_dev *idev)
 /* called with mc_lock */
 static void mld_ifc_start_work(struct inet6_dev *idev, unsigned long delay)
 {
-	unsigned long tv = prandom_u32() % delay;
+	unsigned long tv = prandom_u32_max(delay);
 
 	if (!mod_delayed_work(mld_wq, &idev->mc_ifc_work, tv + 2))
 		in6_dev_hold(idev);
@@ -1085,7 +1085,7 @@ static void mld_ifc_stop_work(struct inet6_dev *idev)
 /* called with mc_lock */
 static void mld_dad_start_work(struct inet6_dev *idev, unsigned long delay)
 {
-	unsigned long tv = prandom_u32() % delay;
+	unsigned long tv = prandom_u32_max(delay);
 
 	if (!mod_delayed_work(mld_wq, &idev->mc_dad_work, tv + 2))
 		in6_dev_hold(idev);
@@ -1130,7 +1130,7 @@ static void igmp6_group_queried(struct ifmcaddr6 *ma, unsigned long resptime)
 	}
 
 	if (delay >= resptime)
-		delay = prandom_u32() % resptime;
+		delay = prandom_u32_max(resptime);
 
 	if (!mod_delayed_work(mld_wq, &ma->mca_work, delay))
 		refcount_inc(&ma->mca_refcnt);
@@ -2574,7 +2574,7 @@ static void igmp6_join_group(struct ifmcaddr6 *ma)
 
 	igmp6_send(&ma->mca_addr, ma->idev->dev, ICMPV6_MGM_REPORT);
 
-	delay = prandom_u32() % unsolicited_report_interval(ma->idev);
+	delay = prandom_u32_max(unsolicited_report_interval(ma->idev));
 
 	if (cancel_delayed_work(&ma->mca_work)) {
 		refcount_dec(&ma->mca_refcnt);

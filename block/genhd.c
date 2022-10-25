@@ -507,6 +507,13 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 		 */
 		dev_set_uevent_suppress(ddev, 0);
 		disk_uevent(disk, KOBJ_ADD);
+	} else {
+		/*
+		 * Even if the block_device for a hidden gendisk is not
+		 * registered, it needs to have a valid bd_dev so that the
+		 * freeing of the dynamic major works.
+		 */
+		disk->part0->bd_dev = MKDEV(disk->major, disk->first_minor);
 	}
 
 	disk_update_readahead(disk);

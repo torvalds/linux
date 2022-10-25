@@ -111,7 +111,7 @@ static void setup_hpo_dp_stream_encoder(struct pipe_ctx *pipe_ctx)
 	enum phyd32clk_clock_source phyd32clk = get_phyd32clk_src(pipe_ctx->stream->link);
 
 	dto_params.otg_inst = tg->inst;
-	dto_params.pixclk_khz = pipe_ctx->stream->phy_pix_clk;
+	dto_params.pixclk_khz = pipe_ctx->stream->timing.pix_clk_100hz / 10;
 	dto_params.num_odm_segments = get_odm_segment_count(pipe_ctx);
 	dto_params.timing = &pipe_ctx->stream->timing;
 	dto_params.ref_dtbclk_khz = dc->clk_mgr->funcs->get_dtb_ref_clk_frequency(dc->clk_mgr);

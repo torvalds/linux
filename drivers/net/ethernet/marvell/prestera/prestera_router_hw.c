@@ -498,8 +498,8 @@ prestera_nexthop_group_get(struct prestera_switch *sw,
 		refcount_inc(&nh_grp->refcount);
 	} else {
 		nh_grp = __prestera_nexthop_group_create(sw, key);
-		if (IS_ERR(nh_grp))
-			return ERR_CAST(nh_grp);
+		if (!nh_grp)
+			return ERR_PTR(-ENOMEM);
 
 		refcount_set(&nh_grp->refcount, 1);
 	}
@@ -651,7 +651,7 @@ prestera_fib_node_create(struct prestera_switch *sw,
 	case PRESTERA_FIB_TYPE_UC_NH:
 		fib_node->info.nh_grp = prestera_nexthop_group_get(sw,
 								   nh_grp_key);
-		if (!fib_node->info.nh_grp)
+		if (IS_ERR(fib_node->info.nh_grp))
 			goto err_nh_grp_get;
 
 		grp_id = fib_node->info.nh_grp->grp_id;

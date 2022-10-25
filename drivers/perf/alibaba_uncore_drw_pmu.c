@@ -658,8 +658,8 @@ static int ali_drw_pmu_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	drw_pmu->cfg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (!drw_pmu->cfg_base)
-		return -ENOMEM;
+	if (IS_ERR(drw_pmu->cfg_base))
+		return PTR_ERR(drw_pmu->cfg_base);
 
 	name = devm_kasprintf(drw_pmu->dev, GFP_KERNEL, "ali_drw_%llx",
 			      (u64) (res->start >> ALI_DRW_PMU_PA_SHIFT));

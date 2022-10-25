@@ -72,7 +72,7 @@ static int damon_va_evenly_split_region(struct damon_target *t,
 		return -EINVAL;
 
 	orig_end = r->ar.end;
-	sz_orig = r->ar.end - r->ar.start;
+	sz_orig = damon_sz_region(r);
 	sz_piece = ALIGN_DOWN(sz_orig / nr_pieces, DAMON_MIN_REGION);
 
 	if (!sz_piece)
@@ -251,8 +251,8 @@ static void __damon_va_init_regions(struct damon_ctx *ctx,
 
 	for (i = 0; i < 3; i++)
 		sz += regions[i].end - regions[i].start;
-	if (ctx->min_nr_regions)
-		sz /= ctx->min_nr_regions;
+	if (ctx->attrs.min_nr_regions)
+		sz /= ctx->attrs.min_nr_regions;
 	if (sz < DAMON_MIN_REGION)
 		sz = DAMON_MIN_REGION;
 
@@ -397,8 +397,8 @@ static void damon_va_mkold(struct mm_struct *mm, unsigned long addr)
  * Functions for the access checking of the regions
  */
 
-static void __damon_va_prepare_access_check(struct damon_ctx *ctx,
-			struct mm_struct *mm, struct damon_region *r)
+static void __damon_va_prepare_access_check(struct mm_struct *mm,
+					struct damon_region *r)
 {
 	r->sampling_addr = damon_rand(r->ar.start, r->ar.end);
 
@@ -416,7 +416,7 @@ static void damon_va_prepare_access_checks(struct damon_ctx *ctx)
 		if (!mm)
 			continue;
 		damon_for_each_region(r, t)
-			__damon_va_prepare_access_check(ctx, mm, r);
+			__damon_va_prepare_access_check(mm, r);
 		mmput(mm);
 	}
 }
@@ -593,9 +593,8 @@ static unsigned int damon_va_check_accesses(struct damon_ctx *ctx)
  * Functions for the target validity check and cleanup
  */
 
-static bool damon_va_target_valid(void *target)
+static bool damon_va_target_valid(struct damon_target *t)
 {
-	struct damon_target *t = target;
 	struct task_struct *task;
 
 	task = damon_get_task_struct(t);
@@ -619,7 +618,7 @@ static unsigned long damos_madvise(struct damon_target *target,
 {
 	struct mm_struct *mm;
 	unsigned long start = PAGE_ALIGN(r->ar.start);
-	unsigned long len = PAGE_ALIGN(r->ar.end - r->ar.start);
+	unsigned long len = PAGE_ALIGN(damon_sz_region(r));
 	unsigned long applied;
 
 	mm = damon_get_mm(target);
@@ -658,6 +657,9 @@ static unsigned long damon_va_apply_scheme(struct damon_ctx *ctx,
 	case DAMOS_STAT:
 		return 0;
 	default:
+		/*
+		 * DAMOS actions that are not yet supported by 'vaddr'.
+		 */
 		return 0;
 	}
 
@@ -671,7 +673,7 @@ static int damon_va_scheme_score(struct damon_ctx *context,
 
 	switch (scheme->action) {
 	case DAMOS_PAGEOUT:
-		return damon_pageout_score(context, r, scheme);
+		return damon_cold_score(context, r, scheme);
 	default:
 		break;
 	}

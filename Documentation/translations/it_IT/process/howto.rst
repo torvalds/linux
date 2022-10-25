@@ -394,7 +394,7 @@ trovati al sito:
 Ci sono diversi archivi della lista di discussione. Usate un qualsiasi motore
 di ricerca per trovarli. Per esempio:
 
-	http://dir.gmane.org/gmane.linux.kernel
+	https://lore.kernel.org/lkml/
 
 É caldamente consigliata una ricerca in questi archivi sul tema che volete
 sollevare, prima di pubblicarlo sulla lista. Molte cose sono già state

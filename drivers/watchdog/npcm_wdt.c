@@ -3,6 +3,7 @@
 // Copyright (c) 2018 IBM Corp.
 
 #include <linux/bitops.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -43,6 +44,7 @@
 struct npcm_wdt {
 	struct watchdog_device  wdd;
 	void __iomem		*reg;
+	struct clk		*clk;
 };
 
 static inline struct npcm_wdt *to_npcm_wdt(struct watchdog_device *wdd)
@@ -65,6 +67,9 @@ static int npcm_wdt_start(struct watchdog_device *wdd)
 {
 	struct npcm_wdt *wdt = to_npcm_wdt(wdd);
 	u32 val;
+
+	if (wdt->clk)
+		clk_prepare_enable(wdt->clk);
 
 	if (wdd->timeout < 2)
 		val = 0x800;
@@ -99,6 +104,9 @@ static int npcm_wdt_stop(struct watchdog_device *wdd)
 	struct npcm_wdt *wdt = to_npcm_wdt(wdd);
 
 	writel(0, wdt->reg);
+
+	if (wdt->clk)
+		clk_disable_unprepare(wdt->clk);
 
 	return 0;
 }
@@ -147,6 +155,10 @@ static int npcm_wdt_restart(struct watchdog_device *wdd,
 {
 	struct npcm_wdt *wdt = to_npcm_wdt(wdd);
 
+	/* For reset, we start the WDT clock and leave it running. */
+	if (wdt->clk)
+		clk_prepare_enable(wdt->clk);
+
 	writel(NPCM_WTR | NPCM_WTRE | NPCM_WTE, wdt->reg);
 	udelay(1000);
 
@@ -190,6 +202,10 @@ static int npcm_wdt_probe(struct platform_device *pdev)
 	wdt->reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->reg))
 		return PTR_ERR(wdt->reg);
+
+	wdt->clk = devm_clk_get_optional(&pdev->dev, NULL);
+	if (IS_ERR(wdt->clk))
+		return PTR_ERR(wdt->clk);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)

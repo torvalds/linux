@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 6
-PATCHLEVEL = 0
+PATCHLEVEL = 1
 SUBLEVEL = 0
-EXTRAVERSION =
+EXTRAVERSION = -rc2
 NAME = Hurr durr I'ma ninja sloth
 
 # *DOCUMENTATION*
@@ -1107,6 +1107,7 @@ include-y			:= scripts/Makefile.extrawarn
 include-$(CONFIG_DEBUG_INFO)	+= scripts/Makefile.debug
 include-$(CONFIG_KASAN)		+= scripts/Makefile.kasan
 include-$(CONFIG_KCSAN)		+= scripts/Makefile.kcsan
+include-$(CONFIG_KMSAN)		+= scripts/Makefile.kmsan
 include-$(CONFIG_UBSAN)		+= scripts/Makefile.ubsan
 include-$(CONFIG_KCOV)		+= scripts/Makefile.kcov
 include-$(CONFIG_RANDSTRUCT)	+= scripts/Makefile.randstruct
@@ -2018,6 +2019,8 @@ endif
 	$(Q)rm -f $(MODORDER)
 
 single-goals := $(addprefix $(build-dir)/, $(single-no-ko))
+
+KBUILD_MODULES := 1
 
 endif
 

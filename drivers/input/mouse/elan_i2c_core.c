@@ -1311,12 +1311,6 @@ static int elan_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = devm_device_add_groups(dev, elan_sysfs_groups);
-	if (error) {
-		dev_err(dev, "failed to create sysfs attributes: %d\n", error);
-		return error;
-	}
-
 	error = input_register_device(data->input);
 	if (error) {
 		dev_err(dev, "failed to register input device: %d\n", error);
@@ -1442,6 +1436,7 @@ static struct i2c_driver elan_driver = {
 		.acpi_match_table = ACPI_PTR(elan_acpi_id),
 		.of_match_table = of_match_ptr(elan_of_match),
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.dev_groups = elan_sysfs_groups,
 	},
 	.probe		= elan_probe,
 	.id_table	= elan_id,

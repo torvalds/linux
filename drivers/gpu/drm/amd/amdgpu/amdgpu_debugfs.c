@@ -1954,8 +1954,6 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 		return PTR_ERR(ent);
 	}
 
-	debugfs_create_u32("amdgpu_reset_level", 0600, root, &adev->amdgpu_reset_level_mask);
-
 	/* Register debugfs entries for amdgpu_ttm */
 	amdgpu_ttm_debugfs_init(adev);
 	amdgpu_debugfs_pm_init(adev);

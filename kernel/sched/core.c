@@ -712,6 +712,7 @@ static void update_rq_clock_task(struct rq *rq, s64 delta)
 
 	rq->prev_irq_time += irq_delta;
 	delta -= irq_delta;
+	psi_account_irqtime(rq->curr, irq_delta);
 #endif
 #ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
 	if (static_key_false((&paravirt_steal_rq_enabled))) {
@@ -4904,10 +4905,10 @@ static inline void finish_task(struct task_struct *prev)
 
 #ifdef CONFIG_SMP
 
-static void do_balance_callbacks(struct rq *rq, struct callback_head *head)
+static void do_balance_callbacks(struct rq *rq, struct balance_callback *head)
 {
 	void (*func)(struct rq *rq);
-	struct callback_head *next;
+	struct balance_callback *next;
 
 	lockdep_assert_rq_held(rq);
 
@@ -4934,16 +4935,16 @@ static void balance_push(struct rq *rq);
  * This abuse is tolerated because it places all the unlikely/odd cases behind
  * a single test, namely: rq->balance_callback == NULL.
  */
-struct callback_head balance_push_callback = {
+struct balance_callback balance_push_callback = {
 	.next = NULL,
-	.func = (void (*)(struct callback_head *))balance_push,
+	.func = balance_push,
 };
 EXPORT_SYMBOL_GPL(balance_push_callback);
 
-static inline struct callback_head *
+static inline struct balance_callback *
 __splice_balance_callbacks(struct rq *rq, bool split)
 {
-	struct callback_head *head = rq->balance_callback;
+	struct balance_callback *head = rq->balance_callback;
 
 	if (likely(!head))
 		return NULL;
@@ -4965,7 +4966,7 @@ __splice_balance_callbacks(struct rq *rq, bool split)
 	return head;
 }
 
-static inline struct callback_head *splice_balance_callbacks(struct rq *rq)
+static inline struct balance_callback *splice_balance_callbacks(struct rq *rq)
 {
 	return __splice_balance_callbacks(rq, true);
 }
@@ -4976,7 +4977,7 @@ void __balance_callbacks(struct rq *rq)
 }
 EXPORT_SYMBOL_GPL(__balance_callbacks);
 
-static inline void balance_callbacks(struct rq *rq, struct callback_head *head)
+static inline void balance_callbacks(struct rq *rq, struct balance_callback *head)
 {
 	unsigned long flags;
 
@@ -4993,12 +4994,12 @@ static inline void __balance_callbacks(struct rq *rq)
 {
 }
 
-static inline struct callback_head *splice_balance_callbacks(struct rq *rq)
+static inline struct balance_callback *splice_balance_callbacks(struct rq *rq)
 {
 	return NULL;
 }
 
-static inline void balance_callbacks(struct rq *rq, struct callback_head *head)
+static inline void balance_callbacks(struct rq *rq, struct balance_callback *head)
 {
 }
 
@@ -6281,7 +6282,7 @@ static void sched_core_balance(struct rq *rq)
 	preempt_enable();
 }
 
-static DEFINE_PER_CPU(struct callback_head, core_balance_head);
+static DEFINE_PER_CPU(struct balance_callback, core_balance_head);
 
 static void queue_core_balance(struct rq *rq)
 {
@@ -7515,7 +7516,7 @@ static int __sched_setscheduler(struct task_struct *p,
 	int oldpolicy = -1, policy = attr->sched_policy;
 	int retval, oldprio, newprio, queued, running;
 	const struct sched_class *prev_class;
-	struct callback_head *head;
+	struct balance_callback *head;
 	struct rq_flags rf;
 	int reset_on_fork;
 	int queue_flags = DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK;

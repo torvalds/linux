@@ -155,7 +155,7 @@ static void smb2_query_server_interfaces(struct work_struct *work)
 	/*
 	 * query server network interfaces, in case they change
 	 */
-	rc = SMB3_request_interfaces(0, tcon);
+	rc = SMB3_request_interfaces(0, tcon, false);
 	if (rc) {
 		cifs_dbg(FYI, "%s: failed to query server interfaces: %d\n",
 				__func__, rc);
@@ -311,7 +311,7 @@ cifs_abort_connection(struct TCP_Server_Info *server)
 	}
 	server->sequence_number = 0;
 	server->session_estab = false;
-	kfree(server->session_key.response);
+	kfree_sensitive(server->session_key.response);
 	server->session_key.response = NULL;
 	server->session_key.len = 0;
 	server->lstrp = jiffies;
@@ -1580,7 +1580,7 @@ cifs_put_tcp_session(struct TCP_Server_Info *server, int from_reconnect)
 
 	cifs_crypto_secmech_release(server);
 
-	kfree(server->session_key.response);
+	kfree_sensitive(server->session_key.response);
 	server->session_key.response = NULL;
 	server->session_key.len = 0;
 	kfree(server->hostname);
@@ -1940,7 +1940,8 @@ void cifs_put_smb_ses(struct cifs_ses *ses)
 	spin_unlock(&ses->ses_lock);
 
 	cifs_dbg(FYI, "%s: ses_count=%d\n", __func__, ses->ses_count);
-	cifs_dbg(FYI, "%s: ses ipc: %s\n", __func__, ses->tcon_ipc ? ses->tcon_ipc->treeName : "NONE");
+	cifs_dbg(FYI,
+		 "%s: ses ipc: %s\n", __func__, ses->tcon_ipc ? ses->tcon_ipc->tree_name : "NONE");
 
 	spin_lock(&cifs_tcp_ses_lock);
 	if (--ses->ses_count > 0) {
@@ -2293,7 +2294,7 @@ static int match_tcon(struct cifs_tcon *tcon, struct smb3_fs_context *ctx)
 {
 	if (tcon->status == TID_EXITING)
 		return 0;
-	if (strncmp(tcon->treeName, ctx->UNC, MAX_TREE_SIZE))
+	if (strncmp(tcon->tree_name, ctx->UNC, MAX_TREE_SIZE))
 		return 0;
 	if (tcon->seal != ctx->seal)
 		return 0;
@@ -2831,9 +2832,12 @@ ip_rfc1001_connect(struct TCP_Server_Info *server)
 	 * sessinit is sent but no second negprot
 	 */
 	struct rfc1002_session_packet *ses_init_buf;
+	unsigned int req_noscope_len;
 	struct smb_hdr *smb_buf;
+
 	ses_init_buf = kzalloc(sizeof(struct rfc1002_session_packet),
 			       GFP_KERNEL);
+
 	if (ses_init_buf) {
 		ses_init_buf->trailer.session_req.called_len = 32;
 
@@ -2869,8 +2873,12 @@ ip_rfc1001_connect(struct TCP_Server_Info *server)
 		ses_init_buf->trailer.session_req.scope2 = 0;
 		smb_buf = (struct smb_hdr *)ses_init_buf;
 
-		/* sizeof RFC1002_SESSION_REQUEST with no scope */
-		smb_buf->smb_buf_length = cpu_to_be32(0x81000044);
+		/* sizeof RFC1002_SESSION_REQUEST with no scopes */
+		req_noscope_len = sizeof(struct rfc1002_session_packet) - 2;
+
+		/* == cpu_to_be32(0x81000044) */
+		smb_buf->smb_buf_length =
+			cpu_to_be32((RFC1002_SESSION_REQUEST << 24) | req_noscope_len);
 		rc = smb_send(server, smb_buf, 0x44);
 		kfree(ses_init_buf);
 		/*
@@ -3921,12 +3929,11 @@ CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
 	pSMB->AndXCommand = 0xFF;
 	pSMB->Flags = cpu_to_le16(TCON_EXTENDED_SECINFO);
 	bcc_ptr = &pSMB->Password[0];
-	if (tcon->pipe || (ses->server->sec_mode & SECMODE_USER)) {
-		pSMB->PasswordLength = cpu_to_le16(1);	/* minimum */
-		*bcc_ptr = 0; /* password is null byte */
-		bcc_ptr++;              /* skip password */
-		/* already aligned so no need to do it below */
-	}
+
+	pSMB->PasswordLength = cpu_to_le16(1);	/* minimum */
+	*bcc_ptr = 0; /* password is null byte */
+	bcc_ptr++;              /* skip password */
+	/* already aligned so no need to do it below */
 
 	if (ses->server->sign)
 		smb_buffer->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
@@ -3989,7 +3996,7 @@ CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
 		}
 		bcc_ptr += length + 1;
 		bytes_left -= (length + 1);
-		strscpy(tcon->treeName, tree, sizeof(tcon->treeName));
+		strscpy(tcon->tree_name, tree, sizeof(tcon->tree_name));
 
 		/* mostly informational -- no need to fail on error here */
 		kfree(tcon->nativeFileSystem);
@@ -4134,7 +4141,7 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 		if (ses->auth_key.response) {
 			cifs_dbg(FYI, "Free previous auth_key.response = %p\n",
 				 ses->auth_key.response);
-			kfree(ses->auth_key.response);
+			kfree_sensitive(ses->auth_key.response);
 			ses->auth_key.response = NULL;
 			ses->auth_key.len = 0;
 		}
@@ -4197,7 +4204,7 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 	ctx->local_nls = cifs_sb->local_nls;
 	ctx->linux_uid = fsuid;
 	ctx->cred_uid = fsuid;
-	ctx->UNC = master_tcon->treeName;
+	ctx->UNC = master_tcon->tree_name;
 	ctx->retry = master_tcon->retry;
 	ctx->nocase = master_tcon->nocase;
 	ctx->nohandlecache = master_tcon->nohandlecache;
@@ -4663,7 +4670,7 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	/* If it is not dfs or there was no cached dfs referral, then reconnect to same share */
 	if (!server->current_fullpath ||
 	    dfs_cache_noreq_find(server->current_fullpath + 1, &ref, &tl)) {
-		rc = ops->tree_connect(xid, tcon->ses, tcon->treeName, tcon, cifs_sb->local_nls);
+		rc = ops->tree_connect(xid, tcon->ses, tcon->tree_name, tcon, cifs_sb->local_nls);
 		goto out;
 	}
 
@@ -4707,7 +4714,7 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	tcon->status = TID_IN_TCON;
 	spin_unlock(&tcon->tc_lock);
 
-	rc = ops->tree_connect(xid, tcon->ses, tcon->treeName, tcon, nlsc);
+	rc = ops->tree_connect(xid, tcon->ses, tcon->tree_name, tcon, nlsc);
 	if (rc) {
 		spin_lock(&tcon->tc_lock);
 		if (tcon->status == TID_IN_TCON)

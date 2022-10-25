@@ -188,6 +188,7 @@ struct perf_missing_features {
 	bool data_page_size;
 	bool code_page_size;
 	bool weight_struct;
+	bool read_lost;
 };
 
 extern struct perf_missing_features perf_missing_features;

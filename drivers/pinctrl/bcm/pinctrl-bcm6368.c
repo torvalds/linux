@@ -26,12 +26,6 @@
 #define  BCM6368_BASEMODE_GPIO	0x0
 #define  BCM6368_BASEMODE_UART1	0x1
 
-struct bcm6368_pingroup {
-	const char *name;
-	const unsigned * const pins;
-	const unsigned num_pins;
-};
-
 struct bcm6368_function {
 	const char *name;
 	const char * const *groups;
@@ -127,47 +121,40 @@ static unsigned gpio30_pins[] = { 30 };
 static unsigned gpio31_pins[] = { 31 };
 static unsigned uart1_grp_pins[] = { 30, 31, 32, 33 };
 
-#define BCM6368_GROUP(n)				\
-	{						\
-		.name = #n,				\
-		.pins = n##_pins,			\
-		.num_pins = ARRAY_SIZE(n##_pins),	\
-	}
-
-static struct bcm6368_pingroup bcm6368_groups[] = {
-	BCM6368_GROUP(gpio0),
-	BCM6368_GROUP(gpio1),
-	BCM6368_GROUP(gpio2),
-	BCM6368_GROUP(gpio3),
-	BCM6368_GROUP(gpio4),
-	BCM6368_GROUP(gpio5),
-	BCM6368_GROUP(gpio6),
-	BCM6368_GROUP(gpio7),
-	BCM6368_GROUP(gpio8),
-	BCM6368_GROUP(gpio9),
-	BCM6368_GROUP(gpio10),
-	BCM6368_GROUP(gpio11),
-	BCM6368_GROUP(gpio12),
-	BCM6368_GROUP(gpio13),
-	BCM6368_GROUP(gpio14),
-	BCM6368_GROUP(gpio15),
-	BCM6368_GROUP(gpio16),
-	BCM6368_GROUP(gpio17),
-	BCM6368_GROUP(gpio18),
-	BCM6368_GROUP(gpio19),
-	BCM6368_GROUP(gpio20),
-	BCM6368_GROUP(gpio21),
-	BCM6368_GROUP(gpio22),
-	BCM6368_GROUP(gpio23),
-	BCM6368_GROUP(gpio24),
-	BCM6368_GROUP(gpio25),
-	BCM6368_GROUP(gpio26),
-	BCM6368_GROUP(gpio27),
-	BCM6368_GROUP(gpio28),
-	BCM6368_GROUP(gpio29),
-	BCM6368_GROUP(gpio30),
-	BCM6368_GROUP(gpio31),
-	BCM6368_GROUP(uart1_grp),
+static struct pingroup bcm6368_groups[] = {
+	BCM_PIN_GROUP(gpio0),
+	BCM_PIN_GROUP(gpio1),
+	BCM_PIN_GROUP(gpio2),
+	BCM_PIN_GROUP(gpio3),
+	BCM_PIN_GROUP(gpio4),
+	BCM_PIN_GROUP(gpio5),
+	BCM_PIN_GROUP(gpio6),
+	BCM_PIN_GROUP(gpio7),
+	BCM_PIN_GROUP(gpio8),
+	BCM_PIN_GROUP(gpio9),
+	BCM_PIN_GROUP(gpio10),
+	BCM_PIN_GROUP(gpio11),
+	BCM_PIN_GROUP(gpio12),
+	BCM_PIN_GROUP(gpio13),
+	BCM_PIN_GROUP(gpio14),
+	BCM_PIN_GROUP(gpio15),
+	BCM_PIN_GROUP(gpio16),
+	BCM_PIN_GROUP(gpio17),
+	BCM_PIN_GROUP(gpio18),
+	BCM_PIN_GROUP(gpio19),
+	BCM_PIN_GROUP(gpio20),
+	BCM_PIN_GROUP(gpio21),
+	BCM_PIN_GROUP(gpio22),
+	BCM_PIN_GROUP(gpio23),
+	BCM_PIN_GROUP(gpio24),
+	BCM_PIN_GROUP(gpio25),
+	BCM_PIN_GROUP(gpio26),
+	BCM_PIN_GROUP(gpio27),
+	BCM_PIN_GROUP(gpio28),
+	BCM_PIN_GROUP(gpio29),
+	BCM_PIN_GROUP(gpio30),
+	BCM_PIN_GROUP(gpio31),
+	BCM_PIN_GROUP(uart1_grp),
 };
 
 static const char * const analog_afe_0_groups[] = {
@@ -358,10 +345,10 @@ static const char *bcm6368_pinctrl_get_group_name(struct pinctrl_dev *pctldev,
 
 static int bcm6368_pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
 					  unsigned group, const unsigned **pins,
-					  unsigned *num_pins)
+					  unsigned *npins)
 {
 	*pins = bcm6368_groups[group].pins;
-	*num_pins = bcm6368_groups[group].num_pins;
+	*npins = bcm6368_groups[group].npins;
 
 	return 0;
 }
@@ -393,14 +380,14 @@ static int bcm6368_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 {
 	struct bcm63xx_pinctrl *pc = pinctrl_dev_get_drvdata(pctldev);
 	struct bcm6368_priv *priv = pc->driver_data;
-	const struct bcm6368_pingroup *pg = &bcm6368_groups[group];
+	const struct pingroup *pg = &bcm6368_groups[group];
 	const struct bcm6368_function *fun = &bcm6368_funcs[selector];
 	int i, pin;
 
 	if (fun->basemode) {
 		unsigned int mask = 0;
 
-		for (i = 0; i < pg->num_pins; i++) {
+		for (i = 0; i < pg->npins; i++) {
 			pin = pg->pins[i];
 			if (pin < BCM63XX_BANK_GPIOS)
 				mask |= BIT(pin);
@@ -419,7 +406,7 @@ static int bcm6368_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 				   BIT(pin));
 	}
 
-	for (pin = 0; pin < pg->num_pins; pin++) {
+	for (pin = 0; pin < pg->npins; pin++) {
 		struct pinctrl_gpio_range *range;
 		int hw_gpio = bcm6368_pins[pin].number;
 

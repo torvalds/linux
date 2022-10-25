@@ -510,7 +510,6 @@ const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
-		.audit_skip		= 1,
 		.ioprio			= 1,
 		.manual_alloc		= 1,
 #if defined(CONFIG_NET)
