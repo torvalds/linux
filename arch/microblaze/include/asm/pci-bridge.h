@@ -29,16 +29,8 @@ struct pci_controller {
 	struct list_head list_node;
 	struct device *parent;
 
-	int first_busno;
-	int last_busno;
-
 	void __iomem *io_base_virt;
 	resource_size_t io_base_phys;
-
-	/* Some machines (PReP) have a non 1:1 mapping of
-	 * the PCI memory space in the CPU bus space
-	 */
-	resource_size_t pci_mem_offset;
 
 	/* Currently, we limit ourselves to 1 IO range and 3 mem
 	 * ranges since the common pci_bus structure can't handle more

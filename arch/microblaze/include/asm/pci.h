@@ -21,13 +21,6 @@
 #define PCIBIOS_MIN_IO		0x1000
 #define PCIBIOS_MIN_MEM		0x10000000
 
-/* Values for the `which' argument to sys_pciconfig_iobase syscall.  */
-#define IOBASE_BRIDGE_NUMBER	0
-#define IOBASE_MEMORY		1
-#define IOBASE_IO		2
-#define IOBASE_ISA_IO		3
-#define IOBASE_ISA_MEM		4
-
 /*
  * Set this to 1 if you want the kernel to re-assign all PCI
  * bus numbers (don't do that on ppc64 yet !)

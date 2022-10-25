@@ -38,9 +38,6 @@
 static DEFINE_SPINLOCK(hose_spinlock);
 LIST_HEAD(hose_list);
 
-/* ISA Memory physical address */
-resource_size_t isa_mem_base;
-
 unsigned long isa_io_base;
 EXPORT_SYMBOL(isa_io_base);
 
@@ -91,45 +88,4 @@ int pci_iobar_pfn(struct pci_dev *pdev, int bar, struct vm_area_struct *vma)
 int pci_proc_domain(struct pci_bus *bus)
 {
 	return pci_domain_nr(bus);
-}
-
-static struct pci_controller *pci_bus_to_hose(int bus)
-{
-	struct pci_controller *hose, *tmp;
-
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
-		if (bus >= hose->first_busno && bus <= hose->last_busno)
-			return hose;
-	return NULL;
-}
-
-/* Provide information on locations of various I/O regions in physical
- * memory.  Do this on a per-card basis so that we choose the right
- * root bridge.
- * Note that the returned IO or memory base is a physical address
- */
-
-long sys_pciconfig_iobase(long which, unsigned long bus, unsigned long devfn)
-{
-	struct pci_controller *hose;
-	long result = -EOPNOTSUPP;
-
-	hose = pci_bus_to_hose(bus);
-	if (!hose)
-		return -ENODEV;
-
-	switch (which) {
-	case IOBASE_BRIDGE_NUMBER:
-		return (long)hose->first_busno;
-	case IOBASE_MEMORY:
-		return (long)hose->pci_mem_offset;
-	case IOBASE_IO:
-		return (long)hose->io_base_phys;
-	case IOBASE_ISA_IO:
-		return (long)isa_io_base;
-	case IOBASE_ISA_MEM:
-		return (long)isa_mem_base;
-	}
-
-	return result;
 }
