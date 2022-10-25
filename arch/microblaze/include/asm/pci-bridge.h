@@ -107,10 +107,6 @@ extern void setup_indirect_pci(struct pci_controller *hose,
 			       resource_size_t cfg_addr,
 			       resource_size_t cfg_data, u32 flags);
 
-/* Get the PCI host controller for an OF device */
-extern struct pci_controller *pci_find_hose_for_OF_device(
-			struct device_node *node);
-
 /* Fill up host controller resources from the OF node */
 extern void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			struct device_node *dev, int primary);
