@@ -227,37 +227,45 @@ out:
 	return err;
 }
 
+/* Called by bpf_task_storage_get*() helpers */
+static void *__bpf_task_storage_get(struct bpf_map *map,
+				    struct task_struct *task, void *value,
+				    u64 flags, gfp_t gfp_flags)
+{
+	struct bpf_local_storage_data *sdata;
+
+	sdata = task_storage_lookup(task, map, true);
+	if (sdata)
+		return sdata->data;
+
+	/* only allocate new storage, when the task is refcounted */
+	if (refcount_read(&task->usage) &&
+	    (flags & BPF_LOCAL_STORAGE_GET_F_CREATE)) {
+		sdata = bpf_local_storage_update(
+			task, (struct bpf_local_storage_map *)map, value,
+			BPF_NOEXIST, gfp_flags);
+		return IS_ERR(sdata) ? NULL : sdata->data;
+	}
+
+	return NULL;
+}
+
 /* *gfp_flags* is a hidden argument provided by the verifier */
 BPF_CALL_5(bpf_task_storage_get_recur, struct bpf_map *, map, struct task_struct *,
 	   task, void *, value, u64, flags, gfp_t, gfp_flags)
 {
-	struct bpf_local_storage_data *sdata;
+	void *data;
 
 	WARN_ON_ONCE(!bpf_rcu_lock_held());
-	if (flags & ~(BPF_LOCAL_STORAGE_GET_F_CREATE))
-		return (unsigned long)NULL;
-
-	if (!task)
+	if (flags & ~BPF_LOCAL_STORAGE_GET_F_CREATE || !task)
 		return (unsigned long)NULL;
 
 	if (!bpf_task_storage_trylock())
 		return (unsigned long)NULL;
-
-	sdata = task_storage_lookup(task, map, true);
-	if (sdata)
-		goto unlock;
-
-	/* only allocate new storage, when the task is refcounted */
-	if (refcount_read(&task->usage) &&
-	    (flags & BPF_LOCAL_STORAGE_GET_F_CREATE))
-		sdata = bpf_local_storage_update(
-			task, (struct bpf_local_storage_map *)map, value,
-			BPF_NOEXIST, gfp_flags);
-
-unlock:
+	data = __bpf_task_storage_get(map, task, value, flags,
+				      gfp_flags);
 	bpf_task_storage_unlock();
-	return IS_ERR_OR_NULL(sdata) ? (unsigned long)NULL :
-		(unsigned long)sdata->data;
+	return (unsigned long)data;
 }
 
 BPF_CALL_2(bpf_task_storage_delete_recur, struct bpf_map *, map, struct task_struct *,
