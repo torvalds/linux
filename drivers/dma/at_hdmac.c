@@ -252,7 +252,7 @@ enum atc_status {
 
 /**
  * struct at_dma_chan - internal representation of an Atmel HDMAC channel
- * @chan_common: common dmaengine channel object members
+ * @dma_chan: common dmaengine channel object members
  * @device: parent device
  * @ch_regs: memory mapped register base
  * @mask: channel index in a mask
@@ -272,7 +272,7 @@ enum atc_status {
  * @free_list: list of descriptors usable by the channel
  */
 struct at_dma_chan {
-	struct dma_chan		chan_common;
+	struct dma_chan		dma_chan;
 	struct at_dma		*device;
 	void __iomem		*ch_regs;
 	u8			mask;
@@ -300,7 +300,7 @@ struct at_dma_chan {
 
 static inline struct at_dma_chan *to_at_dma_chan(struct dma_chan *dchan)
 {
-	return container_of(dchan, struct at_dma_chan, chan_common);
+	return container_of(dchan, struct at_dma_chan, dma_chan);
 }
 
 /*
@@ -382,15 +382,15 @@ static struct device *chan2dev(struct dma_chan *chan)
 #if defined(VERBOSE_DEBUG)
 static void vdbg_dump_regs(struct at_dma_chan *atchan)
 {
-	struct at_dma	*atdma = to_at_dma(atchan->chan_common.device);
+	struct at_dma	*atdma = to_at_dma(atchan->dma_chan.device);
 
-	dev_err(chan2dev(&atchan->chan_common),
+	dev_err(chan2dev(&atchan->dma_chan),
 		"  channel %d : imr = 0x%x, chsr = 0x%x\n",
-		atchan->chan_common.chan_id,
+		atchan->dma_chan.chan_id,
 		dma_readl(atdma, EBCIMR),
 		dma_readl(atdma, CHSR));
 
-	dev_err(chan2dev(&atchan->chan_common),
+	dev_err(chan2dev(&atchan->dma_chan),
 		"  channel: s0x%x d0x%x ctrl0x%x:0x%x cfg0x%x l0x%x\n",
 		channel_readl(atchan, SADDR),
 		channel_readl(atchan, DADDR),
@@ -405,7 +405,7 @@ static void vdbg_dump_regs(struct at_dma_chan *atchan) {}
 
 static void atc_dump_lli(struct at_dma_chan *atchan, struct at_lli *lli)
 {
-	dev_crit(chan2dev(&atchan->chan_common),
+	dev_crit(chan2dev(&atchan->dma_chan),
 		 "desc: s%pad d%pad ctrl0x%x:0x%x l%pad\n",
 		 &lli->saddr, &lli->daddr,
 		 lli->ctrla, lli->ctrlb, &lli->dscr);
@@ -442,7 +442,7 @@ static void atc_disable_chan_irq(struct at_dma *atdma, int chan_id)
  */
 static inline int atc_chan_is_enabled(struct at_dma_chan *atchan)
 {
-	struct at_dma	*atdma = to_at_dma(atchan->chan_common.device);
+	struct at_dma	*atdma = to_at_dma(atchan->dma_chan.device);
 
 	return !!(dma_readl(atdma, CHSR) & atchan->mask);
 }
@@ -603,16 +603,16 @@ static struct at_desc *atc_desc_get(struct at_dma_chan *atchan)
 			ret = desc;
 			break;
 		}
-		dev_dbg(chan2dev(&atchan->chan_common),
+		dev_dbg(chan2dev(&atchan->dma_chan),
 				"desc %p not ACKed\n", desc);
 	}
 	spin_unlock_irqrestore(&atchan->lock, flags);
-	dev_vdbg(chan2dev(&atchan->chan_common),
+	dev_vdbg(chan2dev(&atchan->dma_chan),
 		"scanned %u descriptors on freelist\n", i);
 
 	/* no more descriptor available in initial pool: create one more */
 	if (!ret)
-		ret = atc_alloc_descriptor(&atchan->chan_common, GFP_NOWAIT);
+		ret = atc_alloc_descriptor(&atchan->dma_chan, GFP_NOWAIT);
 
 	return ret;
 }
@@ -630,11 +630,11 @@ static void atc_desc_put(struct at_dma_chan *atchan, struct at_desc *desc)
 
 		spin_lock_irqsave(&atchan->lock, flags);
 		list_for_each_entry(child, &desc->tx_list, desc_node)
-			dev_vdbg(chan2dev(&atchan->chan_common),
+			dev_vdbg(chan2dev(&atchan->dma_chan),
 					"moving child desc %p to freelist\n",
 					child);
 		list_splice_init(&desc->tx_list, &atchan->free_list);
-		dev_vdbg(chan2dev(&atchan->chan_common),
+		dev_vdbg(chan2dev(&atchan->dma_chan),
 			 "moving desc %p to freelist\n", desc);
 		list_add(&desc->desc_node, &atchan->free_list);
 		spin_unlock_irqrestore(&atchan->lock, flags);
@@ -673,13 +673,13 @@ static void atc_desc_chain(struct at_desc **first, struct at_desc **prev,
  */
 static void atc_dostart(struct at_dma_chan *atchan, struct at_desc *first)
 {
-	struct at_dma	*atdma = to_at_dma(atchan->chan_common.device);
+	struct at_dma	*atdma = to_at_dma(atchan->dma_chan.device);
 
 	/* ASSERT:  channel is idle */
 	if (atc_chan_is_enabled(atchan)) {
-		dev_err(chan2dev(&atchan->chan_common),
+		dev_err(chan2dev(&atchan->dma_chan),
 			"BUG: Attempted to start non-idle channel\n");
-		dev_err(chan2dev(&atchan->chan_common),
+		dev_err(chan2dev(&atchan->dma_chan),
 			"  channel: s0x%x d0x%x ctrl0x%x:0x%x l0x%x\n",
 			channel_readl(atchan, SADDR),
 			channel_readl(atchan, DADDR),
@@ -905,10 +905,10 @@ static void
 atc_chain_complete(struct at_dma_chan *atchan, struct at_desc *desc)
 {
 	struct dma_async_tx_descriptor	*txd = &desc->txd;
-	struct at_dma			*atdma = to_at_dma(atchan->chan_common.device);
+	struct at_dma			*atdma = to_at_dma(atchan->dma_chan.device);
 	unsigned long flags;
 
-	dev_vdbg(chan2dev(&atchan->chan_common),
+	dev_vdbg(chan2dev(&atchan->dma_chan),
 		"descriptor %u complete\n", txd->cookie);
 
 	spin_lock_irqsave(&atchan->lock, flags);
@@ -951,7 +951,7 @@ static void atc_advance_work(struct at_dma_chan *atchan)
 	struct at_desc *desc;
 	unsigned long flags;
 
-	dev_vdbg(chan2dev(&atchan->chan_common), "advance_work\n");
+	dev_vdbg(chan2dev(&atchan->dma_chan), "advance_work\n");
 
 	spin_lock_irqsave(&atchan->lock, flags);
 	if (atc_chan_is_enabled(atchan) || list_empty(&atchan->active_list))
@@ -1010,9 +1010,9 @@ static void atc_handle_error(struct at_dma_chan *atchan)
 	 * controller flagged an error instead of scribbling over
 	 * random memory locations.
 	 */
-	dev_crit(chan2dev(&atchan->chan_common),
+	dev_crit(chan2dev(&atchan->dma_chan),
 			"Bad descriptor submitted for DMA!\n");
-	dev_crit(chan2dev(&atchan->chan_common),
+	dev_crit(chan2dev(&atchan->dma_chan),
 			"  cookie: %d\n", bad_desc->txd.cookie);
 	atc_dump_lli(atchan, &bad_desc->lli);
 	list_for_each_entry(child, &bad_desc->tx_list, desc_node)
@@ -1031,7 +1031,7 @@ static void atc_handle_cyclic(struct at_dma_chan *atchan)
 	struct at_desc			*first = atc_first_active(atchan);
 	struct dma_async_tx_descriptor	*txd = &first->txd;
 
-	dev_vdbg(chan2dev(&atchan->chan_common),
+	dev_vdbg(chan2dev(&atchan->dma_chan),
 			"new cyclic period llp 0x%08x\n",
 			channel_readl(atchan, DSCR));
 
@@ -1825,7 +1825,7 @@ static int atc_pause(struct dma_chan *chan)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	struct at_dma		*atdma = to_at_dma(chan->device);
-	int			chan_id = atchan->chan_common.chan_id;
+	int			chan_id = atchan->dma_chan.chan_id;
 	unsigned long		flags;
 
 	dev_vdbg(chan2dev(chan), "%s\n", __func__);
@@ -1844,7 +1844,7 @@ static int atc_resume(struct dma_chan *chan)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	struct at_dma		*atdma = to_at_dma(chan->device);
-	int			chan_id = atchan->chan_common.chan_id;
+	int			chan_id = atchan->dma_chan.chan_id;
 	unsigned long		flags;
 
 	dev_vdbg(chan2dev(chan), "%s\n", __func__);
@@ -1866,7 +1866,7 @@ static int atc_terminate_all(struct dma_chan *chan)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	struct at_dma		*atdma = to_at_dma(chan->device);
-	int			chan_id = atchan->chan_common.chan_id;
+	int			chan_id = atchan->dma_chan.chan_id;
 	unsigned long		flags;
 
 	dev_vdbg(chan2dev(chan), "%s\n", __func__);
@@ -2305,9 +2305,9 @@ static int __init at_dma_probe(struct platform_device *pdev)
 
 		atchan->mem_if = AT_DMA_MEM_IF;
 		atchan->per_if = AT_DMA_PER_IF;
-		atchan->chan_common.device = &atdma->dma_device;
-		dma_cookie_init(&atchan->chan_common);
-		list_add_tail(&atchan->chan_common.device_node,
+		atchan->dma_chan.device = &atdma->dma_device;
+		dma_cookie_init(&atchan->dma_chan);
+		list_add_tail(&atchan->dma_chan.device_node,
 				&atdma->dma_device.channels);
 
 		atchan->ch_regs = atdma->regs + ch_regs(i);
@@ -2455,7 +2455,7 @@ static int at_dma_prepare(struct device *dev)
 
 static void atc_suspend_cyclic(struct at_dma_chan *atchan)
 {
-	struct dma_chan	*chan = &atchan->chan_common;
+	struct dma_chan	*chan = &atchan->dma_chan;
 
 	/* Channel should be paused by user
 	 * do it anyway even if it is not done already */
@@ -2496,7 +2496,7 @@ static int at_dma_suspend_noirq(struct device *dev)
 
 static void atc_resume_cyclic(struct at_dma_chan *atchan)
 {
-	struct at_dma	*atdma = to_at_dma(atchan->chan_common.device);
+	struct at_dma	*atdma = to_at_dma(atchan->dma_chan.device);
 
 	/* restore channel status for cyclic descriptors list:
 	 * next descriptor in the cyclic list at the time of suspend */
