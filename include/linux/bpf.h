@@ -862,22 +862,18 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *tr, void *image, void *i
 				const struct btf_func_model *m, u32 flags,
 				struct bpf_tramp_links *tlinks,
 				void *orig_call);
-/* these two functions are called from generated trampoline */
-u64 notrace __bpf_prog_enter(struct bpf_prog *prog, struct bpf_tramp_run_ctx *run_ctx);
-void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start, struct bpf_tramp_run_ctx *run_ctx);
-u64 notrace __bpf_prog_enter_sleepable(struct bpf_prog *prog, struct bpf_tramp_run_ctx *run_ctx);
-void notrace __bpf_prog_exit_sleepable(struct bpf_prog *prog, u64 start,
-				       struct bpf_tramp_run_ctx *run_ctx);
-u64 notrace __bpf_prog_enter_lsm_cgroup(struct bpf_prog *prog,
-					struct bpf_tramp_run_ctx *run_ctx);
-void notrace __bpf_prog_exit_lsm_cgroup(struct bpf_prog *prog, u64 start,
-					struct bpf_tramp_run_ctx *run_ctx);
-u64 notrace __bpf_prog_enter_struct_ops(struct bpf_prog *prog,
-					struct bpf_tramp_run_ctx *run_ctx);
-void notrace __bpf_prog_exit_struct_ops(struct bpf_prog *prog, u64 start,
-					struct bpf_tramp_run_ctx *run_ctx);
+u64 notrace __bpf_prog_enter_sleepable_recur(struct bpf_prog *prog,
+					     struct bpf_tramp_run_ctx *run_ctx);
+void notrace __bpf_prog_exit_sleepable_recur(struct bpf_prog *prog, u64 start,
+					     struct bpf_tramp_run_ctx *run_ctx);
 void notrace __bpf_tramp_enter(struct bpf_tramp_image *tr);
 void notrace __bpf_tramp_exit(struct bpf_tramp_image *tr);
+typedef u64 (*bpf_trampoline_enter_t)(struct bpf_prog *prog,
+				      struct bpf_tramp_run_ctx *run_ctx);
+typedef void (*bpf_trampoline_exit_t)(struct bpf_prog *prog, u64 start,
+				      struct bpf_tramp_run_ctx *run_ctx);
+bpf_trampoline_enter_t bpf_trampoline_enter(const struct bpf_prog *prog);
+bpf_trampoline_exit_t bpf_trampoline_exit(const struct bpf_prog *prog);
 
 struct bpf_ksym {
 	unsigned long		 start;
