@@ -266,9 +266,12 @@ static int dw_mci_starfive_runtime_resume(struct device *dev)
 }
 #endif
 
-static UNIVERSAL_DEV_PM_OPS(dw_mci_starfive_pm_ops,
-				dw_mci_starfive_runtime_suspend,
-				dw_mci_starfive_runtime_resume, NULL);
+static const struct dev_pm_ops dw_mci_starfive_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(dw_mci_starfive_runtime_suspend,
+			   dw_mci_starfive_runtime_resume, NULL)
+};
 
 static struct platform_driver dw_mci_starfive_driver = {
 	.probe = dw_mci_starfive_probe,
