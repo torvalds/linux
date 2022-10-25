@@ -603,7 +603,7 @@ static void atc_tasklet(struct tasklet_struct *t)
 
 static irqreturn_t at_dma_interrupt(int irq, void *dev_id)
 {
-	struct at_dma		*atdma = (struct at_dma *)dev_id;
+	struct at_dma		*atdma = dev_id;
 	struct at_dma_chan	*atchan;
 	int			i;
 	u32			status, pending, imr;
