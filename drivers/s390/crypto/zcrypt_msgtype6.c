@@ -342,7 +342,10 @@ static int xcrb_msg_to_type6cprb_msgx(bool userspace, struct ap_message *ap_msg,
 	};
 	struct {
 		struct type6_hdr hdr;
-		struct CPRBX cprbx;
+		union {
+			struct CPRBX cprbx;
+			DECLARE_FLEX_ARRAY(u8, userdata);
+		};
 	} __packed * msg = ap_msg->msg;
 
 	int rcblen = CEIL4(xcrb->request_control_blk_length);
@@ -403,7 +406,8 @@ static int xcrb_msg_to_type6cprb_msgx(bool userspace, struct ap_message *ap_msg,
 	msg->hdr.fromcardlen2 = xcrb->reply_data_length;
 
 	/* prepare CPRB */
-	if (z_copy_from_user(userspace, &msg->cprbx, xcrb->request_control_blk_addr,
+	if (z_copy_from_user(userspace, msg->userdata,
+			     xcrb->request_control_blk_addr,
 			     xcrb->request_control_blk_length))
 		return -EFAULT;
 	if (msg->cprbx.cprb_len + sizeof(msg->hdr.function_code) >
@@ -469,9 +473,14 @@ static int xcrb_msg_to_type6_ep11cprb_msgx(bool userspace, struct ap_message *ap
 
 	struct {
 		struct type6_hdr hdr;
-		struct ep11_cprb cprbx;
-		unsigned char	pld_tag;	/* fixed value 0x30 */
-		unsigned char	pld_lenfmt;	/* payload length format */
+		union {
+			struct {
+				struct ep11_cprb cprbx;
+				unsigned char pld_tag;    /* fixed value 0x30 */
+				unsigned char pld_lenfmt; /* length format */
+			} __packed;
+			DECLARE_FLEX_ARRAY(u8, userdata);
+		};
 	} __packed * msg = ap_msg->msg;
 
 	struct pld_hdr {
@@ -500,7 +509,7 @@ static int xcrb_msg_to_type6_ep11cprb_msgx(bool userspace, struct ap_message *ap
 	msg->hdr.fromcardlen1 = xcrb->resp_len;
 
 	/* Import CPRB data from the ioctl input parameter */
-	if (z_copy_from_user(userspace, &msg->cprbx.cprb_len,
+	if (z_copy_from_user(userspace, msg->userdata,
 			     (char __force __user *)xcrb->req, xcrb->req_len)) {
 		return -EFAULT;
 	}
