@@ -184,13 +184,17 @@ out:
 	return err;
 }
 
-static int task_storage_delete(struct task_struct *task, struct bpf_map *map)
+static int task_storage_delete(struct task_struct *task, struct bpf_map *map,
+			       bool nobusy)
 {
 	struct bpf_local_storage_data *sdata;
 
 	sdata = task_storage_lookup(task, map, false);
 	if (!sdata)
 		return -ENOENT;
+
+	if (!nobusy)
+		return -EBUSY;
 
 	bpf_selem_unlink(SELEM(sdata), true);
 
@@ -220,7 +224,7 @@ static int bpf_pid_task_storage_delete_elem(struct bpf_map *map, void *key)
 	}
 
 	bpf_task_storage_lock();
-	err = task_storage_delete(task, map);
+	err = task_storage_delete(task, map, true);
 	bpf_task_storage_unlock();
 out:
 	put_pid(pid);
@@ -289,21 +293,21 @@ BPF_CALL_5(bpf_task_storage_get, struct bpf_map *, map, struct task_struct *,
 BPF_CALL_2(bpf_task_storage_delete_recur, struct bpf_map *, map, struct task_struct *,
 	   task)
 {
+	bool nobusy;
 	int ret;
 
 	WARN_ON_ONCE(!bpf_rcu_lock_held());
 	if (!task)
 		return -EINVAL;
 
-	if (!bpf_task_storage_trylock())
-		return -EBUSY;
-
+	nobusy = bpf_task_storage_trylock();
 	/* This helper must only be called from places where the lifetime of the task
 	 * is guaranteed. Either by being refcounted or by being protected
 	 * by an RCU read-side critical section.
 	 */
-	ret = task_storage_delete(task, map);
-	bpf_task_storage_unlock();
+	ret = task_storage_delete(task, map, nobusy);
+	if (nobusy)
+		bpf_task_storage_unlock();
 	return ret;
 }
 
