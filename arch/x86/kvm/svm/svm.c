@@ -4401,11 +4401,13 @@ static int svm_smi_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 	return 1;
 }
 
-static int svm_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
+static int svm_enter_smm(struct kvm_vcpu *vcpu, union kvm_smram *smram)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct kvm_host_map map_save;
 	int ret;
+
+	char *smstate = (char *)smram;
 
 	if (!is_guest_mode(vcpu))
 		return 0;
@@ -4448,13 +4450,15 @@ static int svm_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
 	return 0;
 }
 
-static int svm_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
+static int svm_leave_smm(struct kvm_vcpu *vcpu, const union kvm_smram *smram)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct kvm_host_map map, map_save;
 	u64 saved_efer, vmcb12_gpa;
 	struct vmcb *vmcb12;
 	int ret;
+
+	const char *smstate = (const char *)smram;
 
 	if (!guest_cpuid_has(vcpu, X86_FEATURE_LM))
 		return 0;

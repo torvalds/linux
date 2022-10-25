@@ -206,6 +206,7 @@ typedef enum exit_fastpath_completion fastpath_t;
 
 struct x86_emulate_ctxt;
 struct x86_exception;
+union kvm_smram;
 enum x86_intercept;
 enum x86_intercept_stage;
 
@@ -1616,8 +1617,8 @@ struct kvm_x86_ops {
 
 #ifdef CONFIG_KVM_SMM
 	int (*smi_allowed)(struct kvm_vcpu *vcpu, bool for_injection);
-	int (*enter_smm)(struct kvm_vcpu *vcpu, char *smstate);
-	int (*leave_smm)(struct kvm_vcpu *vcpu, const char *smstate);
+	int (*enter_smm)(struct kvm_vcpu *vcpu, union kvm_smram *smram);
+	int (*leave_smm)(struct kvm_vcpu *vcpu, const union kvm_smram *smram);
 	void (*enable_smi_window)(struct kvm_vcpu *vcpu);
 #endif
 
