@@ -8,6 +8,7 @@
 #include "intel_display.h"
 #include "intel_display_power_map.h"
 #include "intel_display_types.h"
+#include "intel_dkl_phy_regs.h"
 #include "intel_dp_mst.h"
 #include "intel_mg_phy_regs.h"
 #include "intel_tc.h"

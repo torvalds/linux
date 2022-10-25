@@ -9,6 +9,7 @@
 #include "intel_de.h"
 #include "intel_display.h"
 #include "intel_dkl_phy.h"
+#include "intel_dkl_phy_regs.h"
 
 static void
 dkl_phy_set_hip_idx(struct drm_i915_private *i915, i915_reg_t reg, int idx)
