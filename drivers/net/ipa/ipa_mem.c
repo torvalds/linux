@@ -618,9 +618,9 @@ int ipa_mem_init(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 	ipa->mem = mem_data->local;
 
 	/* Check the route and filter table memory regions */
-	if (!ipa_table_mem_valid(ipa, 0))
+	if (!ipa_table_mem_valid(ipa, false))
 		return -EINVAL;
-	if (!ipa_table_mem_valid(ipa, IPA_ROUTE_MODEM_COUNT))
+	if (!ipa_table_mem_valid(ipa, true))
 		return -EINVAL;
 
 	ret = dma_set_mask_and_coherent(&ipa->pdev->dev, DMA_BIT_MASK(64));

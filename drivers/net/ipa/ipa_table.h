@@ -13,9 +13,6 @@ struct ipa;
 /* The maximum number of filter table entries (IPv4, IPv6; hashed or not) */
 #define IPA_FILTER_COUNT_MAX	14
 
-/* The number of route table entries allotted to the modem */
-#define IPA_ROUTE_MODEM_COUNT	8
-
 /**
  * ipa_filter_map_valid() - Validate a filter table endpoint bitmap
  * @ipa:	IPA pointer
@@ -78,8 +75,8 @@ void ipa_table_exit(struct ipa *ipa);
 /**
  * ipa_table_mem_valid() - Validate sizes of table memory regions
  * @ipa:	IPA pointer
- * @modem_route_count:	Number of modem route table entries
+ * @filter:	Whether to check filter or routing tables
  */
-bool ipa_table_mem_valid(struct ipa *ipa, bool modem_route_count);
+bool ipa_table_mem_valid(struct ipa *ipa, bool filter);
 
 #endif /* _IPA_TABLE_H_ */

@@ -129,9 +129,6 @@ static void ipa_table_validate_build(void)
 	 * assumes that it can be written using a pointer to __le64.
 	 */
 	BUILD_BUG_ON(IPA_ZERO_RULE_SIZE != sizeof(__le64));
-
-	/* The modem must be allotted at least one route table entry */
-	BUILD_BUG_ON(!IPA_ROUTE_MODEM_COUNT);
 }
 
 static const struct ipa_mem *
@@ -281,6 +278,7 @@ static int ipa_filter_reset(struct ipa *ipa, bool modem)
  * */
 static int ipa_route_reset(struct ipa *ipa, bool modem)
 {
+	u32 modem_route_count = ipa->modem_route_count;
 	struct gsi_trans *trans;
 	u16 first;
 	u16 count;
@@ -295,10 +293,10 @@ static int ipa_route_reset(struct ipa *ipa, bool modem)
 
 	if (modem) {
 		first = 0;
-		count = IPA_ROUTE_MODEM_COUNT;
+		count = modem_route_count;
 	} else {
-		first = IPA_ROUTE_MODEM_COUNT;
-		count = ipa->route_count - IPA_ROUTE_MODEM_COUNT;
+		first = modem_route_count;
+		count = ipa->route_count - modem_route_count;
 	}
 
 	ipa_table_reset_add(trans, false, first, count, IPA_MEM_V4_ROUTE);
@@ -511,9 +509,9 @@ static void ipa_filter_config(struct ipa *ipa, bool modem)
 	}
 }
 
-static bool ipa_route_id_modem(u32 route_id)
+static bool ipa_route_id_modem(struct ipa *ipa, u32 route_id)
 {
-	return route_id < IPA_ROUTE_MODEM_COUNT;
+	return route_id < ipa->modem_route_count;
 }
 
 /**
@@ -549,7 +547,7 @@ static void ipa_route_config(struct ipa *ipa, bool modem)
 		return;
 
 	for (route_id = 0; route_id < ipa->route_count; route_id++)
-		if (ipa_route_id_modem(route_id) == modem)
+		if (ipa_route_id_modem(ipa, route_id) == modem)
 			ipa_route_tuple_zero(ipa, route_id);
 }
 
@@ -565,10 +563,9 @@ void ipa_table_config(struct ipa *ipa)
 /* Verify the sizes of all IPA table filter or routing table memory regions
  * are valid.  If valid, this records the size of the routing table.
  */
-bool ipa_table_mem_valid(struct ipa *ipa, bool modem_route_count)
+bool ipa_table_mem_valid(struct ipa *ipa, bool filter)
 {
 	bool hash_support = ipa_table_hash_support(ipa);
-	bool filter = !modem_route_count;
 	const struct ipa_mem *mem_hashed;
 	const struct ipa_mem *mem_ipv4;
 	const struct ipa_mem *mem_ipv6;
@@ -611,7 +608,7 @@ bool ipa_table_mem_valid(struct ipa *ipa, bool modem_route_count)
 		/* Routing tables must be able to hold all modem entries,
 		 * plus at least one entry for the AP.
 		 */
-		if (count < modem_route_count + 1)
+		if (count < ipa->modem_route_count + 1)
 			return false;
 	}
 
