@@ -48,6 +48,7 @@ config BT_HCIBTUSB_AUTOSUSPEND
 config BT_HCIBTUSB_POLL_SYNC
 	bool "Enable USB poll_sync for Bluetooth USB devices by default"
 	depends on BT_HCIBTUSB
+	default y
 	help
 	  poll_sync synchronizes the USB data and event endpoints by
 	  prioritizing the later.
