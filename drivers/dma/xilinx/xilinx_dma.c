@@ -1659,6 +1659,8 @@ static void xilinx_dma_issue_pending(struct dma_chan *dchan)
  * xilinx_dma_device_config - Configure the DMA channel
  * @dchan: DMA channel
  * @config: channel configuration
+ *
+ * Return: 0 always.
  */
 static int xilinx_dma_device_config(struct dma_chan *dchan,
 				    struct dma_slave_config *config)
