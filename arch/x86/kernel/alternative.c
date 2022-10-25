@@ -418,7 +418,7 @@ clang_jcc:
 		break;
 
 	default:
-		WARN("%pS %px %*ph\n", addr, addr, 6, addr);
+		WARN(1, "%pS %px %*ph\n", addr, addr, 6, addr);
 		return -1;
 	}
 
