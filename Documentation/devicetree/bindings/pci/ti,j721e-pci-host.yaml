@@ -76,6 +76,13 @@ properties:
 
   msi-map: true
 
+  interrupts:
+    maxItems: 1
+
+  interrupt-names:
+    items:
+      - const: link_state
+
   interrupt-controller:
     type: object
     additionalProperties: false
