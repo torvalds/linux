@@ -84,12 +84,10 @@ init_context(disasm_ctx_t *ctx, const char *arch,
 {
 	char *triple;
 
-	if (arch) {
-		p_err("Architecture %s not supported", arch);
-		return -1;
-	}
-
-	triple = LLVMGetDefaultTargetTriple();
+	if (arch)
+		triple = LLVMNormalizeTargetTriple(arch);
+	else
+		triple = LLVMGetDefaultTargetTriple();
 	if (!triple) {
 		p_err("Failed to retrieve triple");
 		return -1;
@@ -128,8 +126,9 @@ disassemble_insn(disasm_ctx_t *ctx, unsigned char *image, ssize_t len, int pc)
 
 int disasm_init(void)
 {
-	LLVMInitializeNativeTarget();
-	LLVMInitializeNativeDisassembler();
+	LLVMInitializeAllTargetInfos();
+	LLVMInitializeAllTargetMCs();
+	LLVMInitializeAllDisassemblers();
 	return 0;
 }
 #endif /* HAVE_LLVM_SUPPORT */
