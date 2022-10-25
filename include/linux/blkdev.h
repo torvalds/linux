@@ -1458,7 +1458,6 @@ unsigned long bdev_start_io_acct(struct block_device *bdev,
 void bdev_end_io_acct(struct block_device *bdev, enum req_op op,
 		unsigned long start_time);
 
-void bio_start_io_acct_time(struct bio *bio, unsigned long start_time);
 unsigned long bio_start_io_acct(struct bio *bio);
 void bio_end_io_acct_remapped(struct bio *bio, unsigned long start_time,
 		struct block_device *orig_bdev);
