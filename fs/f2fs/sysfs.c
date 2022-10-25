@@ -1252,6 +1252,44 @@ static int __maybe_unused victim_bits_seq_show(struct seq_file *seq,
 	return 0;
 }
 
+static int __maybe_unused discard_plist_seq_show(struct seq_file *seq,
+						void *offset)
+{
+	struct super_block *sb = seq->private;
+	struct f2fs_sb_info *sbi = F2FS_SB(sb);
+	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
+	int i, count;
+
+	seq_puts(seq, "Discard pend list(Show diacrd_cmd count on each entry, .:not exist):\n");
+	if (!f2fs_realtime_discard_enable(sbi))
+		return 0;
+
+	if (dcc) {
+		mutex_lock(&dcc->cmd_lock);
+		for (i = 0; i < MAX_PLIST_NUM; i++) {
+			struct list_head *pend_list;
+			struct discard_cmd *dc, *tmp;
+
+			if (i % 8 == 0)
+				seq_printf(seq, "  %-3d", i);
+			count = 0;
+			pend_list = &dcc->pend_list[i];
+			list_for_each_entry_safe(dc, tmp, pend_list, list)
+				count++;
+			if (count)
+				seq_printf(seq, " %7d", count);
+			else
+				seq_puts(seq, "       .");
+			if (i % 8 == 7)
+				seq_putc(seq, '\n');
+		}
+		seq_putc(seq, '\n');
+		mutex_unlock(&dcc->cmd_lock);
+	}
+
+	return 0;
+}
+
 int __init f2fs_init_sysfs(void)
 {
 	int ret;
@@ -1322,6 +1360,8 @@ int f2fs_register_sysfs(struct f2fs_sb_info *sbi)
 #endif
 		proc_create_single_data("victim_bits", 0444, sbi->s_proc,
 				victim_bits_seq_show, sb);
+		proc_create_single_data("discard_plist_info", 0444, sbi->s_proc,
+				discard_plist_seq_show, sb);
 	}
 	return 0;
 put_feature_list_kobj:
@@ -1345,6 +1385,7 @@ void f2fs_unregister_sysfs(struct f2fs_sb_info *sbi)
 		remove_proc_entry("segment_info", sbi->s_proc);
 		remove_proc_entry("segment_bits", sbi->s_proc);
 		remove_proc_entry("victim_bits", sbi->s_proc);
+		remove_proc_entry("discard_plist_info", sbi->s_proc);
 		remove_proc_entry(sbi->sb->s_id, f2fs_proc_root);
 	}
 
