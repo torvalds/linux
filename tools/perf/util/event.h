@@ -12,8 +12,6 @@
 #include <perf/event.h>
 #include <linux/types.h>
 
-#include "perf_regs.h"
-
 struct dso;
 struct machine;
 struct perf_event_attr;
