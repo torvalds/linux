@@ -45,14 +45,14 @@
 #define ST_IMU68_REG_ACC_OUT_Y_L_ADDR		0x2a
 #define ST_IMU68_REG_ACC_OUT_Z_L_ADDR		0x2c
 
-#define ST_IMU68_ACC_FS_2G_GAIN			IIO_G_TO_M_S_2(61)
-#define ST_IMU68_ACC_FS_4G_GAIN			IIO_G_TO_M_S_2(122)
-#define ST_IMU68_ACC_FS_8G_GAIN			IIO_G_TO_M_S_2(244)
-#define ST_IMU68_ACC_FS_16G_GAIN		IIO_G_TO_M_S_2(732)
+#define ST_IMU68_ACC_FS_2G_GAIN			IIO_G_TO_M_S_2(61000)
+#define ST_IMU68_ACC_FS_4G_GAIN			IIO_G_TO_M_S_2(122000)
+#define ST_IMU68_ACC_FS_8G_GAIN			IIO_G_TO_M_S_2(244000)
+#define ST_IMU68_ACC_FS_16G_GAIN		IIO_G_TO_M_S_2(732000)
 
-#define ST_IMU68_GYRO_FS_250_GAIN		IIO_DEGREE_TO_RAD(8750)
-#define ST_IMU68_GYRO_FS_500_GAIN		IIO_DEGREE_TO_RAD(17500)
-#define ST_IMU68_GYRO_FS_2000_GAIN		IIO_DEGREE_TO_RAD(70000)
+#define ST_IMU68_GYRO_FS_250_GAIN		IIO_DEGREE_TO_RAD(8750000)
+#define ST_IMU68_GYRO_FS_500_GAIN		IIO_DEGREE_TO_RAD(17500000)
+#define ST_IMU68_GYRO_FS_2000_GAIN		IIO_DEGREE_TO_RAD(70000000)
 
 struct st_imu68_odr {
 	u16 hz;
@@ -299,7 +299,7 @@ static ssize_t st_imu68_sysfs_scale_avail(struct device *dev,
 	int i, len = 0;
 
 	for (i = 0; i < ST_IMU68_FS_LIST_SIZE; i++)
-		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%06u ",
+		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%09u ",
 				 st_imu68_fs_table[id].fs_avl[i].gain);
 	buf[len - 1] = '\n';
 
@@ -358,6 +358,19 @@ static int st_imu68_read_raw(struct iio_dev *iio_dev,
 	}
 
 	return ret;
+}
+
+static int st_imu68_write_raw_get_fmt(struct iio_dev *indio_dev,
+				      struct iio_chan_spec const *chan,
+				      long mask)
+{
+	if (mask == IIO_CHAN_INFO_SCALE) {
+		if ((chan->type == IIO_ANGL_VEL) ||
+		    (chan->type == IIO_ACCEL))
+			return IIO_VAL_INT_PLUS_NANO;
+	}
+
+	return -EINVAL;
 }
 
 static int st_imu68_write_raw(struct iio_dev *iio_dev,
@@ -471,6 +484,7 @@ static const struct iio_info st_imu68_acc_info = {
 	.attrs = &st_imu68_acc_attribute_group,
 	.read_raw = st_imu68_read_raw,
 	.write_raw = st_imu68_write_raw,
+	.write_raw_get_fmt = st_imu68_write_raw_get_fmt,
 };
 
 static struct attribute *st_imu68_gyro_attributes[] = {
@@ -488,6 +502,7 @@ static const struct iio_info st_imu68_gyro_info = {
 	.attrs = &st_imu68_gyro_attribute_group,
 	.read_raw = st_imu68_read_raw,
 	.write_raw = st_imu68_write_raw,
+	.write_raw_get_fmt = st_imu68_write_raw_get_fmt,
 };
 
 static const unsigned long st_imu68_available_scan_masks[] = {0x7, 0x0};
