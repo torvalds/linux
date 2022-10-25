@@ -707,7 +707,11 @@ xlog_recover_rud_commit_pass2(
 	struct xfs_rud_log_format	*rud_formatp;
 
 	rud_formatp = item->ri_buf[0].i_addr;
-	ASSERT(item->ri_buf[0].i_len == sizeof(struct xfs_rud_log_format));
+	if (item->ri_buf[0].i_len != sizeof(struct xfs_rud_log_format)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, log->l_mp,
+				rud_formatp, item->ri_buf[0].i_len);
+		return -EFSCORRUPTED;
+	}
 
 	xlog_recover_release_intent(log, XFS_LI_RUI, rud_formatp->rud_rui_id);
 	return 0;
