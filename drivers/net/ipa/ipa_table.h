@@ -16,9 +16,6 @@ struct ipa;
 /* The number of route table entries allotted to the modem */
 #define IPA_ROUTE_MODEM_COUNT	8
 
-/* The maximum number of route table entries (IPv4, IPv6; hashed or not) */
-#define IPA_ROUTE_COUNT_MAX	15
-
 /**
  * ipa_filter_map_valid() - Validate a filter table endpoint bitmap
  * @ipa:	IPA pointer

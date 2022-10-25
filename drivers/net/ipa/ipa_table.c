@@ -130,12 +130,8 @@ static void ipa_table_validate_build(void)
 	 */
 	BUILD_BUG_ON(IPA_ZERO_RULE_SIZE != sizeof(__le64));
 
-	/* Impose a practical limit on the number of routes */
-	BUILD_BUG_ON(IPA_ROUTE_COUNT_MAX > 32);
 	/* The modem must be allotted at least one route table entry */
 	BUILD_BUG_ON(!IPA_ROUTE_MODEM_COUNT);
-	/* AP must too, but we can't use more than what is available */
-	BUILD_BUG_ON(IPA_ROUTE_MODEM_COUNT >= IPA_ROUTE_COUNT_MAX);
 }
 
 static const struct ipa_mem *
@@ -593,18 +589,18 @@ bool ipa_table_mem_valid(struct ipa *ipa, bool modem_route_count)
 	if (mem_ipv4->size != mem_ipv6->size)
 		return false;
 
-	/* Record the number of routing table entries */
+	/* Compute the number of entries, and for routing tables, record it */
+	count = mem_ipv4->size / sizeof(__le64);
+	if (count < 2)
+		return false;
 	if (!filter)
-		ipa->route_count = IPA_ROUTE_COUNT_MAX;
+		ipa->route_count = count;
 
 	/* Table offset and size must fit in TABLE_INIT command fields */
 	if (!ipa_cmd_table_init_valid(ipa, mem_ipv4, !filter))
 		return false;
 
 	/* Make sure the regions are big enough */
-	count = mem_ipv4->size / sizeof(__le64);
-	if (count < 2)
-		return false;
 	if (filter) {
 		/* Filter tables must able to hold the endpoint bitmap plus
 		 * an entry for each endpoint that supports filtering

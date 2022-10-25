@@ -145,18 +145,15 @@ union ipa_cmd_payload {
 
 static void ipa_cmd_validate_build(void)
 {
-	/* The sizes of a filter and route tables need to fit into fields
-	 * in the ipa_cmd_hw_ip_fltrt_init structure.  Although hashed tables
+	/* The size of a filter table needs to fit into fields in the
+	 * ipa_cmd_hw_ip_fltrt_init structure.  Although hashed tables
 	 * might not be used, non-hashed and hashed tables have the same
 	 * maximum size.  IPv4 and IPv6 filter tables have the same number
-	 * of entries, as and IPv4 and IPv6 route tables have the same number
 	 * of entries.
 	 */
-#define TABLE_SIZE	(TABLE_COUNT_MAX * sizeof(__le64))
-#define TABLE_COUNT_MAX	max_t(u32, IPA_ROUTE_COUNT_MAX, IPA_FILTER_COUNT_MAX)
+#define TABLE_SIZE	(IPA_FILTER_COUNT_MAX * sizeof(__le64))
 	BUILD_BUG_ON(TABLE_SIZE > field_max(IP_FLTRT_FLAGS_HASH_SIZE_FMASK));
 	BUILD_BUG_ON(TABLE_SIZE > field_max(IP_FLTRT_FLAGS_NHASH_SIZE_FMASK));
-#undef TABLE_COUNT_MAX
 #undef TABLE_SIZE
 
 	/* Hashed and non-hashed fields are assumed to be the same size */
@@ -178,12 +175,14 @@ bool ipa_cmd_table_init_valid(struct ipa *ipa, const struct ipa_mem *mem,
 	u32 size_max = field_max(IP_FLTRT_FLAGS_NHASH_SIZE_FMASK);
 	const char *table = route ? "route" : "filter";
 	struct device *dev = &ipa->pdev->dev;
+	u32 size;
+
+	size = route ? ipa->route_count * sizeof(__le64) : mem->size;
 
 	/* Size must fit in the immediate command field that holds it */
-	if (mem->size > size_max) {
+	if (size > size_max) {
 		dev_err(dev, "%s table region size too large\n", table);
-		dev_err(dev, "    (0x%04x > 0x%04x)\n",
-			mem->size, size_max);
+		dev_err(dev, "    (0x%04x > 0x%04x)\n", size, size_max);
 
 		return false;
 	}
