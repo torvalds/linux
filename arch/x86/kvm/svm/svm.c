@@ -4410,6 +4410,14 @@ static int svm_enter_smm(struct kvm_vcpu *vcpu, union kvm_smram *smram)
 	if (!is_guest_mode(vcpu))
 		return 0;
 
+	/*
+	 * 32-bit SMRAM format doesn't preserve EFER and SVM state.  Userspace is
+	 * responsible for ensuring nested SVM and SMIs are mutually exclusive.
+	 */
+
+	if (!guest_cpuid_has(vcpu, X86_FEATURE_LM))
+		return 1;
+
 	smram->smram64.svm_guest_flag = 1;
 	smram->smram64.svm_guest_vmcb_gpa = svm->nested.vmcb12_gpa;
 
