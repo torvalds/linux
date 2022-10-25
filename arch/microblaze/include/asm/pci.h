@@ -28,8 +28,6 @@
 #define IOBASE_ISA_IO		3
 #define IOBASE_ISA_MEM		4
 
-#define pcibios_scan_all_fns(a, b)	0
-
 /*
  * Set this to 1 if you want the kernel to re-assign all PCI
  * bus numbers (don't do that on ppc64 yet !)
@@ -47,8 +45,6 @@ struct vm_area_struct;
 #define HAVE_PCI_MMAP			1
 #define ARCH_GENERIC_PCI_MMAP_RESOURCE	1
 #define arch_can_pci_mmap_io()		1
-
-extern void pcibios_resource_survey(void);
 
 struct file;
 

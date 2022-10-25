@@ -74,8 +74,6 @@ struct pci_controller {
 	 * ranges since the common pci_bus structure can't handle more
 	 */
 	struct resource io_resource;
-	struct resource mem_resources[3];
-	int global_number;	/* PCI domain number */
 };
 
 #ifdef CONFIG_PCI
