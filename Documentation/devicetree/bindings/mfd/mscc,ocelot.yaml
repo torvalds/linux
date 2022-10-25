@@ -61,7 +61,6 @@ required:
   - reg
   - '#address-cells'
   - '#size-cells'
-  - spi-max-frequency
 
 additionalProperties: false
 
