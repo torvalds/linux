@@ -186,6 +186,14 @@ static inline unsigned get_max_io_size(struct bio *bio,
 	return max_sectors & ~(lbs - 1);
 }
 
+/**
+ * get_max_segment_size() - maximum number of bytes to add as a single segment
+ * @lim: Request queue limits.
+ * @start_page: See below.
+ * @offset: Offset from @start_page where to add a segment.
+ *
+ * Returns the maximum number of bytes that can be added as a single segment.
+ */
 static inline unsigned get_max_segment_size(const struct queue_limits *lim,
 		struct page *start_page, unsigned long offset)
 {
@@ -194,11 +202,10 @@ static inline unsigned get_max_segment_size(const struct queue_limits *lim,
 	offset = mask & (page_to_phys(start_page) + offset);
 
 	/*
-	 * overflow may be triggered in case of zero page physical address
-	 * on 32bit arch, use queue's max segment size when that happens.
+	 * Prevent an overflow if mask = ULONG_MAX and offset = 0 by adding 1
+	 * after having calculated the minimum.
 	 */
-	return min_not_zero(mask - offset + 1,
-			(unsigned long)lim->max_segment_size);
+	return min(mask - offset, (unsigned long)lim->max_segment_size - 1) + 1;
 }
 
 /**
