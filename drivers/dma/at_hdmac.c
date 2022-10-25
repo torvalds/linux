@@ -549,6 +549,8 @@ static void atc_handle_error(struct at_dma_chan *atchan)
 		atc_dostart(atchan, desc);
 	}
 
+	spin_unlock_irqrestore(&atchan->lock, flags);
+
 	/*
 	 * KERN_CRITICAL may seem harsh, but since this only happens
 	 * when someone submits a bad physical address in a
@@ -563,8 +565,6 @@ static void atc_handle_error(struct at_dma_chan *atchan)
 	atc_dump_lli(atchan, &bad_desc->lli);
 	list_for_each_entry(child, &bad_desc->tx_list, desc_node)
 		atc_dump_lli(atchan, &child->lli);
-
-	spin_unlock_irqrestore(&atchan->lock, flags);
 
 	/* Pretend the descriptor completed successfully */
 	atc_chain_complete(atchan, bad_desc);
