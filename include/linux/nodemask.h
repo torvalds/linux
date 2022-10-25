@@ -516,7 +516,7 @@ static inline int node_random(const nodemask_t *maskp)
 		bit = first_node(*maskp);
 		break;
 	default:
-		bit = find_nth_bit(maskp->bits, MAX_NUMNODES, get_random_int() % w);
+		bit = find_nth_bit(maskp->bits, MAX_NUMNODES, prandom_u32_max(w));
 		break;
 	}
 	return bit;

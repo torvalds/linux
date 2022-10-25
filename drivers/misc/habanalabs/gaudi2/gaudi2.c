@@ -2948,7 +2948,7 @@ static void gaudi2_user_interrupt_setup(struct hl_device *hdev)
 
 static inline int gaudi2_get_non_zero_random_int(void)
 {
-	int rand = get_random_int();
+	int rand = get_random_u32();
 
 	return rand ? rand : 1;
 }
