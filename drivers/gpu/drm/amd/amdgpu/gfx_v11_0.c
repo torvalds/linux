@@ -1626,7 +1626,8 @@ static void gfx_v11_0_constants_init(struct amdgpu_device *adev)
 	u32 tmp;
 	int i;
 
-	WREG32_FIELD15_PREREG(GC, 0, GRBM_CNTL, READ_TIMEOUT, 0xff);
+	if (!amdgpu_sriov_vf(adev))
+		WREG32_FIELD15_PREREG(GC, 0, GRBM_CNTL, READ_TIMEOUT, 0xff);
 
 	gfx_v11_0_setup_rb(adev);
 	gfx_v11_0_get_cu_info(adev, &adev->gfx.cu_info);
