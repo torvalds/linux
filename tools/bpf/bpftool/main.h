@@ -172,7 +172,7 @@ int map_parse_fds(int *argc, char ***argv, int **fds);
 int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len);
 
 struct bpf_prog_linfo;
-#ifdef HAVE_LIBBFD_SUPPORT
+#if defined(HAVE_LLVM_SUPPORT) || defined(HAVE_LIBBFD_SUPPORT)
 int disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 		      const char *arch, const char *disassembler_options,
 		      const struct btf *btf,
@@ -193,7 +193,7 @@ int disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 }
 static inline int disasm_init(void)
 {
-	p_err("No libbfd support");
+	p_err("No JIT disassembly support");
 	return -1;
 }
 #endif
