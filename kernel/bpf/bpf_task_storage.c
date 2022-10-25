@@ -269,6 +269,23 @@ BPF_CALL_5(bpf_task_storage_get_recur, struct bpf_map *, map, struct task_struct
 	return (unsigned long)data;
 }
 
+/* *gfp_flags* is a hidden argument provided by the verifier */
+BPF_CALL_5(bpf_task_storage_get, struct bpf_map *, map, struct task_struct *,
+	   task, void *, value, u64, flags, gfp_t, gfp_flags)
+{
+	void *data;
+
+	WARN_ON_ONCE(!bpf_rcu_lock_held());
+	if (flags & ~BPF_LOCAL_STORAGE_GET_F_CREATE || !task)
+		return (unsigned long)NULL;
+
+	bpf_task_storage_lock();
+	data = __bpf_task_storage_get(map, task, value, flags,
+				      gfp_flags, true);
+	bpf_task_storage_unlock();
+	return (unsigned long)data;
+}
+
 BPF_CALL_2(bpf_task_storage_delete_recur, struct bpf_map *, map, struct task_struct *,
 	   task)
 {
@@ -333,6 +350,17 @@ const struct bpf_map_ops task_storage_map_ops = {
 
 const struct bpf_func_proto bpf_task_storage_get_recur_proto = {
 	.func = bpf_task_storage_get_recur,
+	.gpl_only = false,
+	.ret_type = RET_PTR_TO_MAP_VALUE_OR_NULL,
+	.arg1_type = ARG_CONST_MAP_PTR,
+	.arg2_type = ARG_PTR_TO_BTF_ID,
+	.arg2_btf_id = &btf_tracing_ids[BTF_TRACING_TYPE_TASK],
+	.arg3_type = ARG_PTR_TO_MAP_VALUE_OR_NULL,
+	.arg4_type = ARG_ANYTHING,
+};
+
+const struct bpf_func_proto bpf_task_storage_get_proto = {
+	.func = bpf_task_storage_get,
 	.gpl_only = false,
 	.ret_type = RET_PTR_TO_MAP_VALUE_OR_NULL,
 	.arg1_type = ARG_CONST_MAP_PTR,
