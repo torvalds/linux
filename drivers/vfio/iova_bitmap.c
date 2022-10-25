@@ -296,11 +296,15 @@ void iova_bitmap_free(struct iova_bitmap *bitmap)
  */
 static unsigned long iova_bitmap_mapped_remaining(struct iova_bitmap *bitmap)
 {
-	unsigned long remaining;
+	unsigned long remaining, bytes;
+
+	/* Cap to one page in the first iteration, if PAGE_SIZE unaligned. */
+	bytes = !bitmap->mapped.pgoff ? bitmap->mapped.npages << PAGE_SHIFT :
+					PAGE_SIZE - bitmap->mapped.pgoff;
 
 	remaining = bitmap->mapped_total_index - bitmap->mapped_base_index;
 	remaining = min_t(unsigned long, remaining,
-	      (bitmap->mapped.npages << PAGE_SHIFT) / sizeof(*bitmap->bitmap));
+			  bytes / sizeof(*bitmap->bitmap));
 
 	return remaining;
 }
