@@ -52,6 +52,7 @@
 #include "print_binary.h"
 #include "stat.h"
 #include "mem-events.h"
+#include "util/perf_regs.h"
 
 #if PY_MAJOR_VERSION < 3
 #define _PyUnicode_FromString(arg) \
