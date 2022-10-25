@@ -455,6 +455,9 @@ static void sdma_v6_0_enable(struct amdgpu_device *adev, bool enable)
 		sdma_v6_0_rlc_stop(adev);
 	}
 
+	if (amdgpu_sriov_vf(adev))
+		return;
+
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		f32_cntl = RREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev, i, regSDMA0_F32_CNTL));
 		f32_cntl = REG_SET_FIELD(f32_cntl, SDMA0_F32_CNTL, HALT, enable ? 0 : 1);
