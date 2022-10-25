@@ -366,14 +366,6 @@ int ipa_mem_config(struct ipa *ipa)
 		while (--canary_count);
 	}
 
-	/* Make sure filter and route table memory regions are valid */
-	if (!ipa_table_valid(ipa))
-		goto err_dma_free;
-
-	/* Validate memory-related properties relevant to immediate commands */
-	if (!ipa_cmd_data_valid(ipa))
-		goto err_dma_free;
-
 	/* Verify the microcontroller ring alignment (if defined) */
 	mem = ipa_mem_find(ipa, IPA_MEM_UC_EVENT_RING);
 	if (mem && mem->offset % 1024) {
@@ -624,6 +616,12 @@ int ipa_mem_init(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 
 	ipa->mem_count = mem_data->local_count;
 	ipa->mem = mem_data->local;
+
+	/* Check the route and filter table memory regions */
+	if (!ipa_table_mem_valid(ipa, 0))
+		return -EINVAL;
+	if (!ipa_table_mem_valid(ipa, IPA_ROUTE_MODEM_COUNT))
+		return -EINVAL;
 
 	ret = dma_set_mask_and_coherent(&ipa->pdev->dev, DMA_BIT_MASK(64));
 	if (ret) {

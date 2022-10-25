@@ -171,7 +171,8 @@ static void ipa_cmd_validate_build(void)
 }
 
 /* Validate a memory region holding a table */
-bool ipa_cmd_table_valid(struct ipa *ipa, const struct ipa_mem *mem, bool route)
+bool ipa_cmd_table_init_valid(struct ipa *ipa, const struct ipa_mem *mem,
+			      bool route)
 {
 	u32 offset_max = field_max(IP_FLTRT_FLAGS_NHASH_ADDR_FMASK);
 	u32 size_max = field_max(IP_FLTRT_FLAGS_NHASH_SIZE_FMASK);
@@ -197,21 +198,11 @@ bool ipa_cmd_table_valid(struct ipa *ipa, const struct ipa_mem *mem, bool route)
 		return false;
 	}
 
-	/* Entire memory range must fit within IPA-local memory */
-	if (mem->offset > ipa->mem_size ||
-	    mem->size > ipa->mem_size - mem->offset) {
-		dev_err(dev, "%s table region out of range\n", table);
-		dev_err(dev, "    (0x%04x + 0x%04x > 0x%04x)\n",
-			mem->offset, mem->size, ipa->mem_size);
-
-		return false;
-	}
-
 	return true;
 }
 
 /* Validate the memory region that holds headers */
-static bool ipa_cmd_header_valid(struct ipa *ipa)
+static bool ipa_cmd_header_init_local_valid(struct ipa *ipa)
 {
 	struct device *dev = &ipa->pdev->dev;
 	const struct ipa_mem *mem;
@@ -253,15 +244,6 @@ static bool ipa_cmd_header_valid(struct ipa *ipa)
 	if (size > size_max) {
 		dev_err(dev, "header table region size too large\n");
 		dev_err(dev, "    (0x%04x > 0x%08x)\n", size, size_max);
-
-		return false;
-	}
-
-	/* Make sure the entire combined area fits in IPA memory */
-	if (size > ipa->mem_size || offset > ipa->mem_size - size) {
-		dev_err(dev, "header table region out of range\n");
-		dev_err(dev, "    (0x%04x + 0x%04x > 0x%04x)\n",
-			offset, size, ipa->mem_size);
 
 		return false;
 	}
@@ -336,25 +318,10 @@ static bool ipa_cmd_register_write_valid(struct ipa *ipa)
 	return true;
 }
 
-bool ipa_cmd_data_valid(struct ipa *ipa)
-{
-	if (!ipa_cmd_header_valid(ipa))
-		return false;
-
-	if (!ipa_cmd_register_write_valid(ipa))
-		return false;
-
-	return true;
-}
-
-
 int ipa_cmd_pool_init(struct gsi_channel *channel, u32 tre_max)
 {
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 	struct device *dev = channel->gsi->dev;
-
-	/* This is as good a place as any to validate build constants */
-	ipa_cmd_validate_build();
 
 	/* Command payloads are allocated one at a time, but a single
 	 * transaction can require up to the maximum supported by the
@@ -654,4 +621,18 @@ struct gsi_trans *ipa_cmd_trans_alloc(struct ipa *ipa, u32 tre_count)
 
 	return gsi_channel_trans_alloc(&ipa->gsi, endpoint->channel_id,
 				       tre_count, DMA_NONE);
+}
+
+/* Init function for immediate commands; there is no ipa_cmd_exit() */
+int ipa_cmd_init(struct ipa *ipa)
+{
+	ipa_cmd_validate_build();
+
+	if (!ipa_cmd_header_init_local_valid(ipa))
+		return -EINVAL;
+
+	if (!ipa_cmd_register_write_valid(ipa))
+		return -EINVAL;
+
+	return 0;
 }
