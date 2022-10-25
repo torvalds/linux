@@ -104,7 +104,7 @@ static inline bool biovec_phys_mergeable(struct request_queue *q,
 	return true;
 }
 
-static inline bool __bvec_gap_to_prev(struct queue_limits *lim,
+static inline bool __bvec_gap_to_prev(const struct queue_limits *lim,
 		struct bio_vec *bprv, unsigned int offset)
 {
 	return (offset & lim->virt_boundary_mask) ||
@@ -115,7 +115,7 @@ static inline bool __bvec_gap_to_prev(struct queue_limits *lim,
  * Check if adding a bio_vec after bprv with offset would create a gap in
  * the SG list. Most drivers don't care about this, but some do.
  */
-static inline bool bvec_gap_to_prev(struct queue_limits *lim,
+static inline bool bvec_gap_to_prev(const struct queue_limits *lim,
 		struct bio_vec *bprv, unsigned int offset)
 {
 	if (!lim->virt_boundary_mask)
@@ -297,7 +297,7 @@ ssize_t part_timeout_store(struct device *, struct device_attribute *,
 				const char *, size_t);
 
 static inline bool bio_may_exceed_limits(struct bio *bio,
-		struct queue_limits *lim)
+					 const struct queue_limits *lim)
 {
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:
@@ -320,8 +320,9 @@ static inline bool bio_may_exceed_limits(struct bio *bio,
 		bio->bi_io_vec->bv_len + bio->bi_io_vec->bv_offset > PAGE_SIZE;
 }
 
-struct bio *__bio_split_to_limits(struct bio *bio, struct queue_limits *lim,
-		       unsigned int *nr_segs);
+struct bio *__bio_split_to_limits(struct bio *bio,
+				  const struct queue_limits *lim,
+				  unsigned int *nr_segs);
 int ll_back_merge_fn(struct request *req, struct bio *bio,
 		unsigned int nr_segs);
 bool blk_attempt_req_merge(struct request_queue *q, struct request *rq,
