@@ -3103,8 +3103,8 @@ static void kfree_rcu_work(struct work_struct *work)
 	 * This list is named "Channel 3".
 	 */
 	for (; head; head = next) {
-		unsigned long offset = (unsigned long)head->func;
-		void *ptr = (void *)head - offset;
+		void *ptr = (void *) head->func;
+		unsigned long offset = (void *) head - ptr;
 
 		next = head->next;
 		debug_rcu_head_unqueue((struct rcu_head *)ptr);
@@ -3342,26 +3342,21 @@ add_ptr_to_bulk_krc_lock(struct kfree_rcu_cpu **krcp,
  * be free'd in workqueue context. This allows us to: batch requests together to
  * reduce the number of grace periods during heavy kfree_rcu()/kvfree_rcu() load.
  */
-void kvfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
+void kvfree_call_rcu(struct rcu_head *head, void *ptr)
 {
 	unsigned long flags;
 	struct kfree_rcu_cpu *krcp;
 	bool success;
-	void *ptr;
 
-	if (head) {
-		ptr = (void *) head - (unsigned long) func;
-	} else {
-		/*
-		 * Please note there is a limitation for the head-less
-		 * variant, that is why there is a clear rule for such
-		 * objects: it can be used from might_sleep() context
-		 * only. For other places please embed an rcu_head to
-		 * your data.
-		 */
+	/*
+	 * Please note there is a limitation for the head-less
+	 * variant, that is why there is a clear rule for such
+	 * objects: it can be used from might_sleep() context
+	 * only. For other places please embed an rcu_head to
+	 * your data.
+	 */
+	if (!head)
 		might_sleep();
-		ptr = (unsigned long *) func;
-	}
 
 	// Queue the object but don't yet schedule the batch.
 	if (debug_rcu_head_queue(ptr)) {
@@ -3382,7 +3377,7 @@ void kvfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
 			// Inline if kvfree_rcu(one_arg) call.
 			goto unlock_return;
 
-		head->func = func;
+		head->func = ptr;
 		head->next = krcp->head;
 		krcp->head = head;
 		success = true;
