@@ -215,6 +215,7 @@ static void free_ruleset(struct aa_ruleset *rules)
 	for (i = 0; i < rules->secmark_count; i++)
 		kfree_sensitive(rules->secmark[i].label);
 	kfree_sensitive(rules->secmark);
+	kfree_sensitive(rules);
 }
 
 struct aa_ruleset *aa_alloc_ruleset(gfp_t gfp)
