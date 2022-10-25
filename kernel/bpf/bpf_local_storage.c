@@ -242,6 +242,7 @@ void bpf_selem_unlink(struct bpf_local_storage_elem *selem, bool use_trace_rcu)
 	__bpf_selem_unlink_storage(selem, use_trace_rcu);
 }
 
+/* If cacheit_lockit is false, this lookup function is lockless */
 struct bpf_local_storage_data *
 bpf_local_storage_lookup(struct bpf_local_storage *local_storage,
 			 struct bpf_local_storage_map *smap,
