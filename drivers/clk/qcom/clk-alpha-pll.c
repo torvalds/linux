@@ -542,7 +542,17 @@ static void clk_alpha_pll_disable(struct clk_hw *hw)
 static unsigned long
 alpha_pll_calc_rate(u64 prate, u32 l, u32 a, u32 alpha_width)
 {
-	return (prate * l) + ((prate * a) >> ALPHA_SHIFT(alpha_width));
+	unsigned long rate;
+
+	rate = (prate * l) + ((prate * a) >> ALPHA_SHIFT(alpha_width));
+
+	/*
+	 * PLLs with narrow ALPHA (e.g. 16 bits) aren't able to hit all
+	 * frequencies precisely and may be under by a few hundred Hz. Round to
+	 * the nearest KHz to avoid reporting strange, slightly lower than
+	 * requested frequencies. The small delta has no functional impact.
+	 */
+	return roundup(rate, 1000);
 }
 
 static unsigned long
@@ -564,10 +574,7 @@ alpha_pll_round_rate(unsigned long rate, unsigned long prate, u32 *l, u64 *a,
 	/* Upper ALPHA_BITWIDTH bits of Alpha */
 	quotient = remainder << ALPHA_SHIFT(alpha_width);
 
-	remainder = do_div(quotient, prate);
-
-	if (remainder)
-		quotient++;
+	do_div(quotient, prate);
 
 	*a = quotient;
 	return alpha_pll_calc_rate(prate, *l, *a, alpha_width);
@@ -749,7 +756,7 @@ alpha_huayra_pll_calc_rate(u64 prate, u32 l, u32 a)
 	if (a >= BIT(PLL_HUAYRA_ALPHA_WIDTH - 1))
 		l -= 1;
 
-	return (prate * l) + (prate * a >> PLL_HUAYRA_ALPHA_WIDTH);
+	return alpha_pll_calc_rate(prate, l, a, PLL_HUAYRA_ALPHA_WIDTH);
 }
 
 static unsigned long
@@ -769,10 +776,7 @@ alpha_huayra_pll_round_rate(unsigned long rate, unsigned long prate,
 	}
 
 	quotient = remainder << PLL_HUAYRA_ALPHA_WIDTH;
-	remainder = do_div(quotient, prate);
-
-	if (remainder)
-		quotient++;
+	do_div(quotient, prate);
 
 	/*
 	 * alpha_val should be in two’s complement number in the range

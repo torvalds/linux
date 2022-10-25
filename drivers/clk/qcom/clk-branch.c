@@ -184,6 +184,12 @@ static void clk_branch2_list_registers(struct seq_file *f, struct clk_hw *hw)
 		{"APSS_SLEEP_VOTE", 0x4},
 	};
 
+	static struct clk_register_data data2[] = {
+		{"MEM_ENABLE", 0x0},
+		{"MEM_ENABLE_ACK", 0x0},
+		{"MEM_ENABLE_ACK_MASK", 0x0},
+	};
+
 	size = ARRAY_SIZE(data);
 
 	for (i = 0; i < size; i++) {
@@ -203,6 +209,18 @@ static void clk_branch2_list_registers(struct seq_file *f, struct clk_hw *hw)
 						data1[i].name, val);
 			}
 		}
+	}
+
+	if (br->mem_enable_reg && br->mem_ack_reg) {
+		regmap_read(br->clkr.regmap, br->mem_enable_reg +
+						data2[0].offset, &val);
+		clock_debug_output(f, "%20s: 0x%.8x\n", data2[0].name, val);
+
+		regmap_read(br->clkr.regmap, br->mem_ack_reg +
+						data2[1].offset, &val);
+		clock_debug_output(f, "%20s: 0x%.8x\n", data2[1].name, val);
+		clock_debug_output(f, "%20s: 0x%.8x\n", data2[2].name,
+						br->mem_enable_ack_bit);
 	}
 }
 
@@ -260,6 +278,39 @@ static int clk_branch2_init(struct clk_hw *hw)
 	return 0;
 }
 
+static int clk_branch2_mem_enable(struct clk_hw *hw)
+{
+	struct clk_branch *br = to_clk_branch(hw);
+	u32 val;
+	int count = 200;
+
+	regmap_update_bits(br->clkr.regmap, br->mem_enable_reg,
+			br->mem_enable_ack_bit, br->mem_enable_ack_bit);
+
+	regmap_read(br->clkr.regmap, br->mem_ack_reg, &val);
+
+	pr_debug("%s Val 0x%x\n", __func__, val);
+	while (count-- > 0) {
+		if (val & br->mem_enable_ack_bit) {
+			pr_debug("%s Val 0x%x\n", __func__, val);
+			return clk_branch2_enable(hw);
+		}
+		udelay(1);
+		regmap_read(br->clkr.regmap, br->mem_ack_reg, &val);
+	}
+
+	return -EBUSY;
+}
+
+static void clk_branch2_mem_disable(struct clk_hw *hw)
+{
+	struct clk_branch *br = to_clk_branch(hw);
+
+	regmap_update_bits(br->clkr.regmap, br->mem_enable_reg,
+						br->mem_enable_ack_bit, 0);
+	return clk_branch2_disable(hw);
+}
+
 const struct clk_ops clk_branch2_ops = {
 	.prepare = clk_prepare_regmap,
 	.unprepare = clk_unprepare_regmap,
@@ -289,6 +340,15 @@ const struct clk_ops clk_branch2_force_off_ops = {
 	.debug_init = clk_branch_debug_init,
 };
 EXPORT_SYMBOL(clk_branch2_force_off_ops);
+
+const struct clk_ops clk_branch2_mem_ops = {
+	.enable = clk_branch2_mem_enable,
+	.disable = clk_branch2_mem_disable,
+	.is_enabled = clk_is_enabled_regmap,
+	.init = clk_branch2_init,
+	.debug_init = clk_branch_debug_init,
+};
+EXPORT_SYMBOL(clk_branch2_mem_ops);
 
 static unsigned long clk_branch2_hw_ctl_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)

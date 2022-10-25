@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -23,9 +24,13 @@
 #include <linux/mailbox_client.h>
 #include <linux/mailbox_controller.h>
 #include <linux/mailbox/qmp.h>
+#include <linux/interconnect.h>
 
 #include "../../regulator/internal.h"
 #include "gdsc-debug.h"
+
+#define CREATE_TRACE_POINTS
+#include "trace-gdsc.h"
 
 /* GDSCR */
 #define PWR_ON_MASK		BIT(31)
@@ -74,6 +79,7 @@ struct gdsc {
 	struct mbox_client	mbox_client;
 	struct mbox_chan	*mbox;
 	struct reset_control	**reset_clocks;
+	struct icc_path		**paths;
 	bool			toggle_logic;
 	bool			retain_ff_enable;
 	bool			resets_asserted;
@@ -88,6 +94,7 @@ struct gdsc {
 	int			reset_count;
 	int			root_clk_idx;
 	int			sw_reset_count;
+	int			path_count;
 	u32			gds_timeout;
 	bool			skip_disable_before_enable;
 	bool			skip_disable;
@@ -96,8 +103,8 @@ struct gdsc {
 };
 
 enum gdscr_status {
-	ENABLED,
 	DISABLED,
+	ENABLED,
 };
 
 static inline u32 gdsc_mb(struct gdsc *gds)
@@ -144,8 +151,11 @@ static int poll_gdsc_status(struct gdsc *sc, enum gdscr_status status)
 			break;
 		}
 
-		if (val)
+		if (val) {
+			trace_gdsc_time(sc->rdesc.name, status,
+					sc->gds_timeout - count, 0);
 			return 0;
+		}
 		/*
 		 * There is no guarantee about the delay needed for the enable
 		 * bit in the GDSCR to be set or reset after the GDSC state
@@ -156,6 +166,8 @@ static int poll_gdsc_status(struct gdsc *sc, enum gdscr_status status)
 		udelay(1);
 	}
 
+	trace_gdsc_time(sc->rdesc.name, status,
+			sc->gds_timeout - count, 1);
 	return -ETIMEDOUT;
 }
 
@@ -258,6 +270,14 @@ static int gdsc_enable(struct regulator_dev *rdev)
 	}
 
 	if (sc->toggle_logic) {
+		for (i = 0; i < sc->path_count; i++) {
+			ret = icc_set_bw(sc->paths[i], 1, 1);
+			if (ret) {
+				dev_err(&rdev->dev, "Failed to vote BW for %d, ret=%d\n", i, ret);
+				return ret;
+			}
+		}
+
 		if (sc->sw_reset_count) {
 			for (i = 0; i < sc->sw_reset_count; i++)
 				regmap_set_bits(sc->sw_resets[i], REG_OFFSET,
@@ -471,6 +491,13 @@ static int gdsc_disable(struct regulator_dev *rdev)
 			regmap_write(sc->domain_addr, REG_OFFSET, regval);
 		}
 
+		for (i = 0; i < sc->path_count; i++) {
+			ret = icc_set_bw(sc->paths[i], 0, 0);
+			if (ret) {
+				dev_err(&rdev->dev, "Failed to unvote BW for %d: %d\n", i, ret);
+				return ret;
+			}
+		}
 	} else {
 		for (i = sc->reset_count - 1; i >= 0; i--)
 			reset_control_assert(sc->reset_clocks[i]);
@@ -747,6 +774,16 @@ static int gdsc_parse_dt_data(struct gdsc *sc, struct device *dev,
 		return sc->clock_count;
 	}
 
+	sc->path_count = of_property_count_strings(dev->of_node,
+						   "interconnect-names");
+	if (sc->path_count == -EINVAL) {
+		sc->path_count = 0;
+	} else if (sc->path_count < 0) {
+		dev_err(dev, "Failed to get interconnect names, ret=%d\n",
+			sc->path_count);
+		return sc->path_count;
+	}
+
 	sc->root_en = of_property_read_bool(dev->of_node,
 						"qcom,enable-root-clk");
 	sc->force_root_en = of_property_read_bool(dev->of_node,
@@ -870,6 +907,26 @@ static int gdsc_get_resources(struct gdsc *sc, struct platform_device *pdev)
 
 		if (!strcmp(clock_name, "core_root_clk"))
 			sc->root_clk_idx = i;
+	}
+
+	sc->paths = devm_kcalloc(dev, sc->path_count, sizeof(*sc->paths), GFP_KERNEL);
+	if (sc->path_count && !sc->paths)
+		return -ENOMEM;
+
+	for (i = 0; i < sc->path_count; i++) {
+		const char *name;
+
+		of_property_read_string_index(dev->of_node, "interconnect-names", i,
+					      &name);
+
+		sc->paths[i] = of_icc_get(dev, name);
+		if (IS_ERR(sc->paths[i])) {
+			ret = PTR_ERR(sc->paths[i]);
+			if (ret != -EPROBE_DEFER)
+				dev_err(dev, "Failed to get path %s, ret=%d\n",
+					name, ret);
+			return ret;
+		}
 	}
 
 	if ((sc->root_en || sc->force_root_en) && (sc->root_clk_idx == -1)) {
