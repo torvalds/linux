@@ -17,8 +17,8 @@
 /* The module ID includes the id of the library it is part of at offset 12 */
 #define SOF_IPC4_MOD_LIB_ID_SHIFT	12
 
-static size_t sof_ipc4_fw_parse_ext_man(struct snd_sof_dev *sdev,
-					struct sof_ipc4_fw_library *fw_lib)
+static ssize_t sof_ipc4_fw_parse_ext_man(struct snd_sof_dev *sdev,
+					 struct sof_ipc4_fw_library *fw_lib)
 {
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	const struct firmware *fw = fw_lib->sof_fw.fw;
@@ -141,7 +141,7 @@ static size_t sof_ipc4_fw_parse_basefw_ext_man(struct snd_sof_dev *sdev)
 {
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	struct sof_ipc4_fw_library *fw_lib;
-	size_t payload_offset;
+	ssize_t payload_offset;
 	int ret;
 
 	fw_lib = devm_kzalloc(sdev->dev, sizeof(*fw_lib), GFP_KERNEL);
@@ -170,7 +170,7 @@ static int sof_ipc4_load_library_by_uuid(struct snd_sof_dev *sdev,
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	struct sof_ipc4_fw_library *fw_lib;
 	const char *fw_filename;
-	size_t payload_offset;
+	ssize_t payload_offset;
 	int ret, i, err;
 
 	if (!sdev->pdata->fw_lib_prefix) {
