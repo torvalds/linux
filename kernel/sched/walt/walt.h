@@ -764,6 +764,11 @@ static inline bool task_in_related_thread_group(struct task_struct *p)
 	return (rcu_access_pointer(wts->grp) != NULL);
 }
 
+static bool check_for_higher_capacity(int cpu1, int cpu2)
+{
+	return capacity_orig_of(cpu1) > capacity_orig_of(cpu2);
+}
+
 extern unsigned int sysctl_sched_early_up[MAX_MARGIN_LEVELS];
 extern unsigned int sysctl_sched_early_down[MAX_MARGIN_LEVELS];
 static inline bool task_fits_capacity(struct task_struct *p,
@@ -771,13 +776,11 @@ static inline bool task_fits_capacity(struct task_struct *p,
 					int cpu)
 {
 	unsigned int margin;
-	struct walt_rq *src_wrq = &per_cpu(walt_rq, task_cpu(p));
-	struct walt_rq *dst_wrq = &per_cpu(walt_rq, cpu);
 
 	/*
 	 * Derive upmigration/downmigrate margin wrt the src/dest CPU.
 	 */
-	if (src_wrq->cluster->id > dst_wrq->cluster->id) {
+	if (check_for_higher_capacity(task_cpu(p), cpu)) {
 		margin = sched_capacity_margin_down[cpu];
 		if (task_in_related_thread_group(p)) {
 			if (is_min_cluster_cpu(cpu))
