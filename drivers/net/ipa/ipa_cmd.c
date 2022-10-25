@@ -151,11 +151,6 @@ static void ipa_cmd_validate_build(void)
 	 * maximum size.  IPv4 and IPv6 filter tables have the same number
 	 * of entries.
 	 */
-#define TABLE_SIZE	(IPA_FILTER_COUNT_MAX * sizeof(__le64))
-	BUILD_BUG_ON(TABLE_SIZE > field_max(IP_FLTRT_FLAGS_HASH_SIZE_FMASK));
-	BUILD_BUG_ON(TABLE_SIZE > field_max(IP_FLTRT_FLAGS_NHASH_SIZE_FMASK));
-#undef TABLE_SIZE
-
 	/* Hashed and non-hashed fields are assumed to be the same size */
 	BUILD_BUG_ON(field_max(IP_FLTRT_FLAGS_HASH_SIZE_FMASK) !=
 		     field_max(IP_FLTRT_FLAGS_NHASH_SIZE_FMASK));
@@ -177,7 +172,8 @@ bool ipa_cmd_table_init_valid(struct ipa *ipa, const struct ipa_mem *mem,
 	struct device *dev = &ipa->pdev->dev;
 	u32 size;
 
-	size = route ? ipa->route_count * sizeof(__le64) : mem->size;
+	size = route ? ipa->route_count : ipa->filter_count + 1;
+	size *= sizeof(__le64);
 
 	/* Size must fit in the immediate command field that holds it */
 	if (size > size_max) {

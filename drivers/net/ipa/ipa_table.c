@@ -160,9 +160,9 @@ bool ipa_filter_map_valid(struct ipa *ipa, u32 filter_map)
 	}
 
 	count = hweight32(filter_map);
-	if (count > IPA_FILTER_COUNT_MAX) {
+	if (count > ipa->filter_count) {
 		dev_err(dev, "too many filtering endpoints (%u, max %u)\n",
-			count, IPA_FILTER_COUNT_MAX);
+			count, ipa->filter_count);
 
 		return false;
 	}
@@ -178,7 +178,7 @@ static dma_addr_t ipa_table_addr(struct ipa *ipa, bool filter_mask, u16 count)
 	if (!count)
 		return 0;
 
-	WARN_ON(count > max_t(u32, IPA_FILTER_COUNT_MAX, ipa->route_count));
+	WARN_ON(count > max_t(u32, ipa->filter_count, ipa->route_count));
 
 	/* Skip over the zero rule and possibly the filter mask */
 	skip = filter_mask ? 1 : 2;
@@ -586,11 +586,13 @@ bool ipa_table_mem_valid(struct ipa *ipa, bool filter)
 	if (mem_ipv4->size != mem_ipv6->size)
 		return false;
 
-	/* Compute the number of entries, and for routing tables, record it */
+	/* Compute and record the number of entries for each table type */
 	count = mem_ipv4->size / sizeof(__le64);
 	if (count < 2)
 		return false;
-	if (!filter)
+	if (filter)
+		ipa->filter_count = count - 1;	/* Filter map in first entry */
+	else
 		ipa->route_count = count;
 
 	/* Table offset and size must fit in TABLE_INIT command fields */
@@ -645,7 +647,7 @@ bool ipa_table_mem_valid(struct ipa *ipa, bool filter)
  *
  * The first entry in a filter table contains a bitmap indicating which
  * endpoints contain entries in the table.  In addition to that first entry,
- * there are at most IPA_FILTER_COUNT_MAX entries that follow.  Filter table
+ * there is a fixed maximum number of entries that follow.  Filter table
  * entries are 64 bits wide, and (other than the bitmap) contain the DMA
  * address of a filter rule.  A "zero rule" indicates no filtering, and
  * consists of 64 bits of zeroes.  When a filter table is initialized (or
@@ -669,7 +671,7 @@ bool ipa_table_mem_valid(struct ipa *ipa, bool filter)
  *	|\   |-------------------|
  *	| ---- zero rule address | \
  *	|\   |-------------------|  |
- *	| ---- zero rule address |  |	IPA_FILTER_COUNT_MAX
+ *	| ---- zero rule address |  |	Max IPA filter count
  *	|    |-------------------|   >	or IPA route count,
  *	|	      ...	    |	whichever is greater
  *	 \   |-------------------|  |
@@ -687,7 +689,7 @@ int ipa_table_init(struct ipa *ipa)
 
 	ipa_table_validate_build();
 
-	count = max_t(u32, IPA_FILTER_COUNT_MAX, ipa->route_count);
+	count = max_t(u32, ipa->filter_count, ipa->route_count);
 
 	/* The IPA hardware requires route and filter table rules to be
 	 * aligned on a 128-byte boundary.  We put the "zero rule" at the
@@ -723,7 +725,7 @@ int ipa_table_init(struct ipa *ipa)
 
 void ipa_table_exit(struct ipa *ipa)
 {
-	u32 count = max_t(u32, 1 + IPA_FILTER_COUNT_MAX, ipa->route_count);
+	u32 count = max_t(u32, 1 + ipa->filter_count, ipa->route_count);
 	struct device *dev = &ipa->pdev->dev;
 	size_t size;
 

@@ -10,9 +10,6 @@
 
 struct ipa;
 
-/* The maximum number of filter table entries (IPv4, IPv6; hashed or not) */
-#define IPA_FILTER_COUNT_MAX	14
-
 /**
  * ipa_filter_map_valid() - Validate a filter table endpoint bitmap
  * @ipa:	IPA pointer
