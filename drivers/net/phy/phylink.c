@@ -564,7 +564,7 @@ EXPORT_SYMBOL_GPL(phylink_get_capabilities);
 /**
  * phylink_validate_mask_caps() - Restrict link modes based on caps
  * @supported: ethtool bitmask for supported link modes.
- * @state: an (optional) pointer to a &struct phylink_link_state.
+ * @state: pointer to a &struct phylink_link_state.
  * @mac_capabilities: bitmask of MAC capabilities
  *
  * Calculate the supported link modes based on @mac_capabilities, and restrict
@@ -585,8 +585,7 @@ void phylink_validate_mask_caps(unsigned long *supported,
 	phylink_caps_to_linkmodes(mask, caps);
 
 	linkmode_and(supported, supported, mask);
-	if (state)
-		linkmode_and(state->advertising, state->advertising, mask);
+	linkmode_and(state->advertising, state->advertising, mask);
 }
 EXPORT_SYMBOL_GPL(phylink_validate_mask_caps);
 
