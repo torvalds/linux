@@ -97,6 +97,7 @@ config AT_HDMAC
 	tristate "Atmel AHB DMA support"
 	depends on ARCH_AT91
 	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
 	help
 	  Support the Atmel AHB DMA controller.
 
