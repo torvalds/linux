@@ -897,9 +897,6 @@ sh_css_params_init(void);
 void
 sh_css_params_uninit(void);
 
-/* For Acceleration API: Flush FW (shared buffer pointer) arguments */
-void sh_css_flush(struct ia_css_acc_fw *fw);
-
 void
 sh_css_binary_args_reset(struct sh_css_binary_args *args);
 

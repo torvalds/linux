@@ -1629,15 +1629,6 @@ ia_css_enable_isys_event_queue(bool enable)
 	return 0;
 }
 
-/* For Acceleration API: Flush FW (shared buffer pointer) arguments */
-void
-sh_css_flush(struct ia_css_acc_fw *fw)
-{
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "sh_css_flush() enter:\n");
-	if ((fw) && (my_css.flush))
-		my_css.flush(fw);
-}
-
 /*
  * Mapping sp threads. Currently, this is done when a stream is created and
  * pipelines are ready to be converted to sp pipelines. Be careful if you are
