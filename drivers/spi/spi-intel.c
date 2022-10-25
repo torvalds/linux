@@ -363,10 +363,6 @@ static int intel_spi_hw_cycle(struct intel_spi *ispi,
 
 	val = readl(ispi->base + HSFSTS_CTL);
 	val &= ~(HSFSTS_CTL_FCYCLE_MASK | HSFSTS_CTL_FDBC_MASK);
-
-	if (len > INTEL_SPI_FIFO_SZ)
-		return -EINVAL;
-
 	val |= (len - 1) << HSFSTS_CTL_FDBC_SHIFT;
 	val |= HSFSTS_CTL_FCERR | HSFSTS_CTL_FDONE;
 	val |= HSFSTS_CTL_FGO;
@@ -396,9 +392,6 @@ static int intel_spi_sw_cycle(struct intel_spi *ispi, u8 opcode, size_t len,
 	ret = intel_spi_opcode_index(ispi, opcode, optype);
 	if (ret < 0)
 		return ret;
-
-	if (len > INTEL_SPI_FIFO_SZ)
-		return -EINVAL;
 
 	/*
 	 * Always clear it after each SW sequencer operation regardless
@@ -704,6 +697,12 @@ static int intel_spi_erase(struct intel_spi *ispi, const struct spi_mem *mem,
 	return 0;
 }
 
+static int intel_spi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
+{
+	op->data.nbytes = clamp_val(op->data.nbytes, 0, INTEL_SPI_FIFO_SZ);
+	return 0;
+}
+
 static bool intel_spi_cmp_mem_op(const struct intel_spi_mem_op *iop,
 				 const struct spi_mem_op *op)
 {
@@ -844,6 +843,7 @@ static ssize_t intel_spi_dirmap_write(struct spi_mem_dirmap_desc *desc, u64 offs
 }
 
 static const struct spi_controller_mem_ops intel_spi_mem_ops = {
+	.adjust_op_size = intel_spi_adjust_op_size,
 	.supports_op = intel_spi_supports_mem_op,
 	.exec_op = intel_spi_exec_mem_op,
 	.get_name = intel_spi_get_name,
