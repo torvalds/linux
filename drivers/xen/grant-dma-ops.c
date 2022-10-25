@@ -31,12 +31,12 @@ static DEFINE_XARRAY_FLAGS(xen_grant_dma_devices, XA_FLAGS_LOCK_IRQ);
 
 static inline dma_addr_t grant_to_dma(grant_ref_t grant)
 {
-	return XEN_GRANT_DMA_ADDR_OFF | ((dma_addr_t)grant << PAGE_SHIFT);
+	return XEN_GRANT_DMA_ADDR_OFF | ((dma_addr_t)grant << XEN_PAGE_SHIFT);
 }
 
 static inline grant_ref_t dma_to_grant(dma_addr_t dma)
 {
-	return (grant_ref_t)((dma & ~XEN_GRANT_DMA_ADDR_OFF) >> PAGE_SHIFT);
+	return (grant_ref_t)((dma & ~XEN_GRANT_DMA_ADDR_OFF) >> XEN_PAGE_SHIFT);
 }
 
 static struct xen_grant_dma_data *find_xen_grant_dma_data(struct device *dev)
@@ -79,7 +79,7 @@ static void *xen_grant_dma_alloc(struct device *dev, size_t size,
 				 unsigned long attrs)
 {
 	struct xen_grant_dma_data *data;
-	unsigned int i, n_pages = PFN_UP(size);
+	unsigned int i, n_pages = XEN_PFN_UP(size);
 	unsigned long pfn;
 	grant_ref_t grant;
 	void *ret;
@@ -91,14 +91,14 @@ static void *xen_grant_dma_alloc(struct device *dev, size_t size,
 	if (unlikely(data->broken))
 		return NULL;
 
-	ret = alloc_pages_exact(n_pages * PAGE_SIZE, gfp);
+	ret = alloc_pages_exact(n_pages * XEN_PAGE_SIZE, gfp);
 	if (!ret)
 		return NULL;
 
 	pfn = virt_to_pfn(ret);
 
 	if (gnttab_alloc_grant_reference_seq(n_pages, &grant)) {
-		free_pages_exact(ret, n_pages * PAGE_SIZE);
+		free_pages_exact(ret, n_pages * XEN_PAGE_SIZE);
 		return NULL;
 	}
 
@@ -116,7 +116,7 @@ static void xen_grant_dma_free(struct device *dev, size_t size, void *vaddr,
 			       dma_addr_t dma_handle, unsigned long attrs)
 {
 	struct xen_grant_dma_data *data;
-	unsigned int i, n_pages = PFN_UP(size);
+	unsigned int i, n_pages = XEN_PFN_UP(size);
 	grant_ref_t grant;
 
 	data = find_xen_grant_dma_data(dev);
@@ -138,7 +138,7 @@ static void xen_grant_dma_free(struct device *dev, size_t size, void *vaddr,
 
 	gnttab_free_grant_reference_seq(grant, n_pages);
 
-	free_pages_exact(vaddr, n_pages * PAGE_SIZE);
+	free_pages_exact(vaddr, n_pages * XEN_PAGE_SIZE);
 }
 
 static struct page *xen_grant_dma_alloc_pages(struct device *dev, size_t size,
@@ -168,7 +168,9 @@ static dma_addr_t xen_grant_dma_map_page(struct device *dev, struct page *page,
 					 unsigned long attrs)
 {
 	struct xen_grant_dma_data *data;
-	unsigned int i, n_pages = PFN_UP(offset + size);
+	unsigned long dma_offset = xen_offset_in_page(offset),
+			pfn_offset = XEN_PFN_DOWN(offset);
+	unsigned int i, n_pages = XEN_PFN_UP(dma_offset + size);
 	grant_ref_t grant;
 	dma_addr_t dma_handle;
 
@@ -187,10 +189,11 @@ static dma_addr_t xen_grant_dma_map_page(struct device *dev, struct page *page,
 
 	for (i = 0; i < n_pages; i++) {
 		gnttab_grant_foreign_access_ref(grant + i, data->backend_domid,
-				xen_page_to_gfn(page) + i, dir == DMA_TO_DEVICE);
+				pfn_to_gfn(page_to_xen_pfn(page) + i + pfn_offset),
+				dir == DMA_TO_DEVICE);
 	}
 
-	dma_handle = grant_to_dma(grant) + offset;
+	dma_handle = grant_to_dma(grant) + dma_offset;
 
 	return dma_handle;
 }
@@ -200,8 +203,8 @@ static void xen_grant_dma_unmap_page(struct device *dev, dma_addr_t dma_handle,
 				     unsigned long attrs)
 {
 	struct xen_grant_dma_data *data;
-	unsigned long offset = dma_handle & (PAGE_SIZE - 1);
-	unsigned int i, n_pages = PFN_UP(offset + size);
+	unsigned long dma_offset = xen_offset_in_page(dma_handle);
+	unsigned int i, n_pages = XEN_PFN_UP(dma_offset + size);
 	grant_ref_t grant;
 
 	if (WARN_ON(dir == DMA_NONE))
