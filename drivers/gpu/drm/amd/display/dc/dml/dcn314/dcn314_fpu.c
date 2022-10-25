@@ -264,11 +264,8 @@ void dcn314_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 		dc->dml.soc.dispclk_dppclk_vco_speed_mhz = max_dispclk_mhz * 2;
 	}
 
-	if ((int)(dcn3_14_soc.dram_clock_change_latency_us * 1000)
-				!= dc->debug.dram_clock_change_latency_ns
-			&& dc->debug.dram_clock_change_latency_ns) {
-		dcn3_14_soc.dram_clock_change_latency_us = dc->debug.dram_clock_change_latency_ns / 1000;
-	}
+	dcn20_patch_bounding_box(dc, &dcn3_14_soc);
+
 	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
 		dml_init_instance(&dc->dml, &dcn3_14_soc, &dcn3_14_ip, DML_PROJECT_DCN314);
 	else
