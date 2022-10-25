@@ -55,6 +55,7 @@
 #define RK_SIP_FIQ_CTRL			0x82000024
 #define SIP_HDCP_CONFIG			0x82000025
 #define SIP_WDT_CFG			0x82000026
+#define SIP_HDMIRX_CFG			0x82000027
 
 #define TRUSTED_OS_HDCPKEY_INIT		0xB7000003
 
@@ -193,6 +194,13 @@ enum {
 	WDT_PING = 2,
 };
 
+/* SIP_HDMIRX_CONFIG child configs */
+enum {
+	HDMIRX_AUTO_TOUCH_EN = 0,
+	HDMIRX_REG_PRE_FETCH = 1,
+	HDMIRX_INFO_NOTIFY = 2,
+};
+
 /*
  * Rules: struct arm_smccc_res contains result and data, details:
  *
@@ -237,6 +245,7 @@ int sip_fiq_debugger_is_enabled(void);
 int sip_fiq_debugger_sdei_get_event_id(u32 *fiq, u32 *sw_cpu, u32 *flag);
 int sip_fiq_control(u32 sub_func, u32 irq, unsigned long data);
 int sip_wdt_config(u32 sub_func, u32 arg1, u32 arg2, u32 arg3);
+int sip_hdmirx_config(u32 sub_func, u32 arg1, u32 arg2, u32 arg3);
 int sip_hdcpkey_init(u32 hdcp_id);
 #else
 static inline struct arm_smccc_res sip_smc_get_atf_version(void)
@@ -380,6 +389,14 @@ static inline int sip_wdt_config(u32 sub_func,
 				 u32 arg3)
 {
 	return 0;
+}
+
+static inline int sip_hdmirx_config(u32 sub_func,
+				    u32 arg1,
+				    u32 arg2,
+				    u32 arg3)
+{
+	return SIP_RET_NOT_SUPPORTED;
 }
 
 static inline int sip_hdcpkey_init(u32 hdcp_id)

@@ -602,6 +602,17 @@ int sip_wdt_config(u32 sub_func, u32 arg1, u32 arg2, u32 arg3)
 }
 EXPORT_SYMBOL_GPL(sip_wdt_config);
 
+int sip_hdmirx_config(u32 sub_func, u32 arg1, u32 arg2, u32 arg3)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(SIP_HDMIRX_CFG, sub_func, arg1, arg2, arg3,
+		      0, 0, 0, &res);
+
+	return res.a0;
+}
+EXPORT_SYMBOL_GPL(sip_hdmirx_config);
+
 int sip_hdcpkey_init(u32 hdcp_id)
 {
 	struct arm_smccc_res res;
