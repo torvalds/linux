@@ -114,9 +114,4 @@ void __init xilinx_pci_init(void)
 	out_be32(pci_reg + XPLB_PCI_BUS, 0x000000ff);
 	iounmap(pci_reg);
 
-	/* Register the host bridge with the linux kernel! */
-	pci_process_bridge_OF_ranges(hose, pci_node,
-					INDIRECT_TYPE_SET_CFG_TYPE);
-
-	pr_info("xilinx-pci: Registered PCI host bridge\n");
 }

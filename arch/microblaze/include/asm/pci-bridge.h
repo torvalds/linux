@@ -38,19 +38,10 @@ struct pci_controller {
 	void __iomem *io_base_virt;
 	resource_size_t io_base_phys;
 
-	resource_size_t pci_io_size;
-
 	/* Some machines (PReP) have a non 1:1 mapping of
 	 * the PCI memory space in the CPU bus space
 	 */
 	resource_size_t pci_mem_offset;
-
-	/* Some machines have a special region to forward the ISA
-	 * "memory" cycles such as VGA memory regions. Left to 0
-	 * if unsupported
-	 */
-	resource_size_t isa_mem_phys;
-	resource_size_t isa_mem_size;
 
 	struct pci_ops *ops;
 	unsigned int __iomem *cfg_addr;
@@ -106,10 +97,6 @@ static inline int isa_vaddr_is_ioport(void __iomem *address)
 extern void setup_indirect_pci(struct pci_controller *hose,
 			       resource_size_t cfg_addr,
 			       resource_size_t cfg_data, u32 flags);
-
-/* Fill up host controller resources from the OF node */
-extern void pci_process_bridge_OF_ranges(struct pci_controller *hose,
-			struct device_node *dev, int primary);
 
 /* Allocate & free a PCI host bridge structure */
 extern struct pci_controller *pcibios_alloc_controller(struct device_node *dev);
