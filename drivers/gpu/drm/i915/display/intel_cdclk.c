@@ -1704,6 +1704,18 @@ static void bxt_cdclk_pll_update(struct drm_i915_private *i915, int vco)
 		bxt_de_pll_enable(i915, vco);
 }
 
+static void dg2_cdclk_squash_program(struct drm_i915_private *i915,
+				     u16 waveform)
+{
+	u32 squash_ctl = 0;
+
+	if (waveform)
+		squash_ctl = CDCLK_SQUASH_ENABLE |
+			     CDCLK_SQUASH_WINDOW_SIZE(0xf) | waveform;
+
+	intel_de_write(i915, CDCLK_SQUASH_CTL, squash_ctl);
+}
+
 static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 			  const struct intel_cdclk_config *cdclk_config,
 			  enum pipe pipe)
@@ -1751,15 +1763,8 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 	else
 		clock = cdclk;
 
-	if (HAS_CDCLK_SQUASH(dev_priv)) {
-		u32 squash_ctl = 0;
-
-		if (waveform)
-			squash_ctl = CDCLK_SQUASH_ENABLE |
-				CDCLK_SQUASH_WINDOW_SIZE(0xf) | waveform;
-
-		intel_de_write(dev_priv, CDCLK_SQUASH_CTL, squash_ctl);
-	}
+	if (HAS_CDCLK_SQUASH(dev_priv))
+		dg2_cdclk_squash_program(dev_priv, waveform);
 
 	val = bxt_cdclk_cd2x_div_sel(dev_priv, clock, vco) |
 		bxt_cdclk_cd2x_pipe(dev_priv, pipe) |
