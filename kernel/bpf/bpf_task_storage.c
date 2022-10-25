@@ -311,6 +311,25 @@ BPF_CALL_2(bpf_task_storage_delete_recur, struct bpf_map *, map, struct task_str
 	return ret;
 }
 
+BPF_CALL_2(bpf_task_storage_delete, struct bpf_map *, map, struct task_struct *,
+	   task)
+{
+	int ret;
+
+	WARN_ON_ONCE(!bpf_rcu_lock_held());
+	if (!task)
+		return -EINVAL;
+
+	bpf_task_storage_lock();
+	/* This helper must only be called from places where the lifetime of the task
+	 * is guaranteed. Either by being refcounted or by being protected
+	 * by an RCU read-side critical section.
+	 */
+	ret = task_storage_delete(task, map, true);
+	bpf_task_storage_unlock();
+	return ret;
+}
+
 static int notsupp_get_next_key(struct bpf_map *map, void *key, void *next_key)
 {
 	return -ENOTSUPP;
@@ -376,6 +395,15 @@ const struct bpf_func_proto bpf_task_storage_get_proto = {
 
 const struct bpf_func_proto bpf_task_storage_delete_recur_proto = {
 	.func = bpf_task_storage_delete_recur,
+	.gpl_only = false,
+	.ret_type = RET_INTEGER,
+	.arg1_type = ARG_CONST_MAP_PTR,
+	.arg2_type = ARG_PTR_TO_BTF_ID,
+	.arg2_btf_id = &btf_tracing_ids[BTF_TRACING_TYPE_TASK],
+};
+
+const struct bpf_func_proto bpf_task_storage_delete_proto = {
+	.func = bpf_task_storage_delete,
 	.gpl_only = false,
 	.ret_type = RET_INTEGER,
 	.arg1_type = ARG_CONST_MAP_PTR,
