@@ -27,7 +27,7 @@ ldflags-y := -shared -soname=linux-vdso.so.1 --hash-style=sysv	\
 	     -Bsymbolic --build-id=sha1 -n $(btildflags-y)
 
 ifdef CONFIG_LD_ORPHAN_WARN
-  ldflags-y += --orphan-handling=warn
+  ldflags-y += --orphan-handling=$(CONFIG_LD_ORPHAN_WARN_LEVEL)
 endif
 
 ldflags-y += -T
