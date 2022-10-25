@@ -352,27 +352,17 @@ static int intel_spi_opcode_index(struct intel_spi *ispi, u8 opcode, int optype)
 	return 0;
 }
 
-static int intel_spi_hw_cycle(struct intel_spi *ispi, u8 opcode, size_t len)
+static int intel_spi_hw_cycle(struct intel_spi *ispi,
+			      const struct intel_spi_mem_op *iop, size_t len)
 {
 	u32 val, status;
 	int ret;
 
+	if (!iop->replacement_op)
+		return -EINVAL;
+
 	val = readl(ispi->base + HSFSTS_CTL);
 	val &= ~(HSFSTS_CTL_FCYCLE_MASK | HSFSTS_CTL_FDBC_MASK);
-
-	switch (opcode) {
-	case SPINOR_OP_RDID:
-		val |= HSFSTS_CTL_FCYCLE_RDID;
-		break;
-	case SPINOR_OP_WRSR:
-		val |= HSFSTS_CTL_FCYCLE_WRSR;
-		break;
-	case SPINOR_OP_RDSR:
-		val |= HSFSTS_CTL_FCYCLE_RDSR;
-		break;
-	default:
-		return -EINVAL;
-	}
 
 	if (len > INTEL_SPI_FIFO_SZ)
 		return -EINVAL;
@@ -380,6 +370,7 @@ static int intel_spi_hw_cycle(struct intel_spi *ispi, u8 opcode, size_t len)
 	val |= (len - 1) << HSFSTS_CTL_FDBC_SHIFT;
 	val |= HSFSTS_CTL_FCERR | HSFSTS_CTL_FDONE;
 	val |= HSFSTS_CTL_FGO;
+	val |= iop->replacement_op;
 	writel(val, ispi->base + HSFSTS_CTL);
 
 	ret = intel_spi_wait_hw_busy(ispi);
@@ -483,7 +474,7 @@ static int intel_spi_read_reg(struct intel_spi *ispi, const struct spi_mem *mem,
 		ret = intel_spi_sw_cycle(ispi, opcode, nbytes,
 					 OPTYPE_READ_NO_ADDR);
 	else
-		ret = intel_spi_hw_cycle(ispi, opcode, nbytes);
+		ret = intel_spi_hw_cycle(ispi, iop, nbytes);
 
 	if (ret)
 		return ret;
@@ -548,7 +539,7 @@ static int intel_spi_write_reg(struct intel_spi *ispi, const struct spi_mem *mem
 	if (ispi->swseq_reg)
 		return intel_spi_sw_cycle(ispi, opcode, nbytes,
 					  OPTYPE_WRITE_NO_ADDR);
-	return intel_spi_hw_cycle(ispi, opcode, nbytes);
+	return intel_spi_hw_cycle(ispi, iop, nbytes);
 }
 
 static int intel_spi_read(struct intel_spi *ispi, const struct spi_mem *mem,
@@ -912,18 +903,21 @@ static const struct spi_controller_mem_ops intel_spi_mem_ops = {
  */
 #define INTEL_SPI_GENERIC_OPS						\
 	/* Status register operations */				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_RDID, 1),		\
-			 SPI_MEM_OP_NO_ADDR,				\
-			 INTEL_SPI_OP_DATA_IN(1),			\
-			 intel_spi_read_reg),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_RDSR, 1),		\
-			 SPI_MEM_OP_NO_ADDR,				\
-			 INTEL_SPI_OP_DATA_IN(1),			\
-			 intel_spi_read_reg),				\
-	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WRSR, 1),		\
-			 SPI_MEM_OP_NO_ADDR,				\
-			 INTEL_SPI_OP_DATA_OUT(1),			\
-			 intel_spi_write_reg),				\
+	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPINOR_OP_RDID, 1),	\
+			      SPI_MEM_OP_NO_ADDR,			\
+			      INTEL_SPI_OP_DATA_IN(1),			\
+			      intel_spi_read_reg,			\
+			      HSFSTS_CTL_FCYCLE_RDID),			\
+	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPINOR_OP_RDSR, 1),	\
+			      SPI_MEM_OP_NO_ADDR,			\
+			      INTEL_SPI_OP_DATA_IN(1),			\
+			      intel_spi_read_reg,			\
+			      HSFSTS_CTL_FCYCLE_RDSR),			\
+	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPINOR_OP_WRSR, 1),	\
+			      SPI_MEM_OP_NO_ADDR,			\
+			      INTEL_SPI_OP_DATA_OUT(1),			\
+			      intel_spi_write_reg,			\
+			      HSFSTS_CTL_FCYCLE_WRSR),			\
 	/* Normal read */						\
 	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ, 1),		\
 			 INTEL_SPI_OP_ADDR(3),				\
