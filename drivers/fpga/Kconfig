@@ -263,4 +263,15 @@ config FPGA_MGR_MICROCHIP_SPI
 	  programming over slave SPI interface with .dat formatted
 	  bitstream image.
 
+config FPGA_MGR_LATTICE_SYSCONFIG
+	tristate
+
+config FPGA_MGR_LATTICE_SYSCONFIG_SPI
+	tristate "Lattice sysCONFIG SPI FPGA manager"
+	depends on SPI
+	select FPGA_MGR_LATTICE_SYSCONFIG
+	help
+	  FPGA manager driver support for Lattice FPGAs programming over slave
+	  SPI sysCONFIG interface.
+
 endif # FPGA
