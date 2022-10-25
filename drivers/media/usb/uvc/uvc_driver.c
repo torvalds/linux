@@ -794,6 +794,27 @@ static struct uvc_entity *uvc_alloc_entity(u16 type, u16 id,
 	return entity;
 }
 
+static void uvc_entity_set_name(struct uvc_device *dev, struct uvc_entity *entity,
+				const char *type_name, u8 string_id)
+{
+	int ret;
+
+	/*
+	 * First attempt to read the entity name from the device. If the entity
+	 * has no associated string, or if reading the string fails (most
+	 * likely due to a buggy firmware), fall back to default names based on
+	 * the entity type.
+	 */
+	if (string_id) {
+		ret = usb_string(dev->udev, string_id, entity->name,
+				 sizeof(entity->name));
+		if (!ret)
+			return;
+	}
+
+	sprintf(entity->name, "%s %u", type_name, entity->id);
+}
+
 /* Parse vendor-specific extensions. */
 static int uvc_parse_vendor_control(struct uvc_device *dev,
 	const unsigned char *buffer, int buflen)
@@ -860,9 +881,7 @@ static int uvc_parse_vendor_control(struct uvc_device *dev,
 					       + n;
 		memcpy(unit->extension.bmControls, &buffer[23+p], 2*n);
 
-		if (buffer[24+p+2*n] == 0 ||
-		    usb_string(udev, buffer[24+p+2*n], unit->name, sizeof(unit->name)) < 0)
-			sprintf(unit->name, "Extension %u", buffer[3]);
+		uvc_entity_set_name(dev, unit, "Extension", buffer[24+p+2*n]);
 
 		list_add_tail(&unit->list, &dev->entities);
 		handled = 1;
@@ -880,6 +899,7 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 	struct usb_interface *intf;
 	struct usb_host_interface *alts = dev->intf->cur_altsetting;
 	unsigned int i, n, p, len;
+	const char *type_name;
 	u16 type;
 
 	switch (buffer[2]) {
@@ -985,15 +1005,14 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 			memcpy(term->media.bmTransportModes, &buffer[10+n], p);
 		}
 
-		if (buffer[7] == 0 ||
-		    usb_string(udev, buffer[7], term->name, sizeof(term->name)) < 0) {
-			if (UVC_ENTITY_TYPE(term) == UVC_ITT_CAMERA)
-				sprintf(term->name, "Camera %u", buffer[3]);
-			if (UVC_ENTITY_TYPE(term) == UVC_ITT_MEDIA_TRANSPORT_INPUT)
-				sprintf(term->name, "Media %u", buffer[3]);
-			else
-				sprintf(term->name, "Input %u", buffer[3]);
-		}
+		if (UVC_ENTITY_TYPE(term) == UVC_ITT_CAMERA)
+			type_name = "Camera";
+		else if (UVC_ENTITY_TYPE(term) == UVC_ITT_MEDIA_TRANSPORT_INPUT)
+			type_name = "Media";
+		else
+			type_name = "Input";
+
+		uvc_entity_set_name(dev, term, type_name, buffer[7]);
 
 		list_add_tail(&term->list, &dev->entities);
 		break;
@@ -1026,9 +1045,7 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 
 		memcpy(term->baSourceID, &buffer[7], 1);
 
-		if (buffer[8] == 0 ||
-		    usb_string(udev, buffer[8], term->name, sizeof(term->name)) < 0)
-			sprintf(term->name, "Output %u", buffer[3]);
+		uvc_entity_set_name(dev, term, "Output", buffer[8]);
 
 		list_add_tail(&term->list, &dev->entities);
 		break;
@@ -1049,9 +1066,7 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 
 		memcpy(unit->baSourceID, &buffer[5], p);
 
-		if (buffer[5+p] == 0 ||
-		    usb_string(udev, buffer[5+p], unit->name, sizeof(unit->name)) < 0)
-			sprintf(unit->name, "Selector %u", buffer[3]);
+		uvc_entity_set_name(dev, unit, "Selector", buffer[5+p]);
 
 		list_add_tail(&unit->list, &dev->entities);
 		break;
@@ -1080,9 +1095,7 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 		if (dev->uvc_version >= 0x0110)
 			unit->processing.bmVideoStandards = buffer[9+n];
 
-		if (buffer[8+n] == 0 ||
-		    usb_string(udev, buffer[8+n], unit->name, sizeof(unit->name)) < 0)
-			sprintf(unit->name, "Processing %u", buffer[3]);
+		uvc_entity_set_name(dev, unit, "Processing", buffer[8+n]);
 
 		list_add_tail(&unit->list, &dev->entities);
 		break;
@@ -1109,9 +1122,7 @@ static int uvc_parse_standard_control(struct uvc_device *dev,
 		unit->extension.bmControls = (u8 *)unit + sizeof(*unit);
 		memcpy(unit->extension.bmControls, &buffer[23+p], n);
 
-		if (buffer[23+p+n] == 0 ||
-		    usb_string(udev, buffer[23+p+n], unit->name, sizeof(unit->name)) < 0)
-			sprintf(unit->name, "Extension %u", buffer[3]);
+		uvc_entity_set_name(dev, unit, "Extension", buffer[23+p+n]);
 
 		list_add_tail(&unit->list, &dev->entities);
 		break;
