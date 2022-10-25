@@ -15436,6 +15436,7 @@ S:	Maintained
 W:	http://openvswitch.org
 F:	include/uapi/linux/openvswitch.h
 F:	net/openvswitch/
+F:	tools/testing/selftests/net/openvswitch/
 
 OPERATING PERFORMANCE POINTS (OPP)
 M:	Viresh Kumar <vireshk@kernel.org>
