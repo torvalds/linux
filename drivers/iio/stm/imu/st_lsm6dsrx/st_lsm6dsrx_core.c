@@ -263,7 +263,7 @@ static const struct st_lsm6dsrx_fs_table_entry st_lsm6dsrx_fs_table[] = {
 				.addr = ST_LSM6DSRX_CTRL1_XL_ADDR,
 				.mask = GENMASK(3, 2),
 			},
-			.gain = IIO_G_TO_M_S_2(61),
+			.gain = IIO_G_TO_M_S_2(61000),
 			.val = 0x0,
 		},
 		.fs_avl[1] = {
@@ -271,7 +271,7 @@ static const struct st_lsm6dsrx_fs_table_entry st_lsm6dsrx_fs_table[] = {
 				.addr = ST_LSM6DSRX_CTRL1_XL_ADDR,
 				.mask = GENMASK(3, 2),
 			},
-			.gain = IIO_G_TO_M_S_2(122),
+			.gain = IIO_G_TO_M_S_2(122000),
 			.val = 0x2,
 		},
 		.fs_avl[2] = {
@@ -279,7 +279,7 @@ static const struct st_lsm6dsrx_fs_table_entry st_lsm6dsrx_fs_table[] = {
 				.addr = ST_LSM6DSRX_CTRL1_XL_ADDR,
 				.mask = GENMASK(3, 2),
 			},
-			.gain = IIO_G_TO_M_S_2(244),
+			.gain = IIO_G_TO_M_S_2(244000),
 			.val = 0x3,
 		},
 		.fs_avl[3] = {
@@ -287,7 +287,7 @@ static const struct st_lsm6dsrx_fs_table_entry st_lsm6dsrx_fs_table[] = {
 				.addr = ST_LSM6DSRX_CTRL1_XL_ADDR,
 				.mask = GENMASK(3, 2),
 			},
-			.gain = IIO_G_TO_M_S_2(488),
+			.gain = IIO_G_TO_M_S_2(488000),
 			.val = 0x1,
 		},
 	},
@@ -298,7 +298,7 @@ static const struct st_lsm6dsrx_fs_table_entry st_lsm6dsrx_fs_table[] = {
 				.addr = ST_LSM6DSRX_CTRL2_G_ADDR,
 				.mask = GENMASK(3, 0),
 			},
-			.gain = IIO_DEGREE_TO_RAD(8750),
+			.gain = IIO_DEGREE_TO_RAD(8750000),
 			.val = 0x0,
 		},
 		.fs_avl[1] = {
@@ -306,7 +306,7 @@ static const struct st_lsm6dsrx_fs_table_entry st_lsm6dsrx_fs_table[] = {
 				.addr = ST_LSM6DSRX_CTRL2_G_ADDR,
 				.mask = GENMASK(3, 0),
 			},
-			.gain = IIO_DEGREE_TO_RAD(17500),
+			.gain = IIO_DEGREE_TO_RAD(17500000),
 			.val = 0x4,
 		},
 		.fs_avl[2] = {
@@ -314,7 +314,7 @@ static const struct st_lsm6dsrx_fs_table_entry st_lsm6dsrx_fs_table[] = {
 				.addr = ST_LSM6DSRX_CTRL2_G_ADDR,
 				.mask = GENMASK(3, 0),
 			},
-			.gain = IIO_DEGREE_TO_RAD(35000),
+			.gain = IIO_DEGREE_TO_RAD(35000000),
 			.val = 0x8,
 		},
 		.fs_avl[3] = {
@@ -322,7 +322,7 @@ static const struct st_lsm6dsrx_fs_table_entry st_lsm6dsrx_fs_table[] = {
 				.addr = ST_LSM6DSRX_CTRL2_G_ADDR,
 				.mask = GENMASK(3, 0),
 			},
-			.gain = IIO_DEGREE_TO_RAD(70000),
+			.gain = IIO_DEGREE_TO_RAD(70000000),
 			.val = 0x0C,
 		},
 		.fs_avl[4] = {
@@ -330,7 +330,7 @@ static const struct st_lsm6dsrx_fs_table_entry st_lsm6dsrx_fs_table[] = {
 				.addr = ST_LSM6DSRX_CTRL2_G_ADDR,
 				.mask = GENMASK(3, 0),
 			},
-			.gain = IIO_DEGREE_TO_RAD(140000),
+			.gain = IIO_DEGREE_TO_RAD(140000000),
 			.val = 0x01,
 		},
 	},
@@ -892,7 +892,7 @@ static ssize_t st_lsm6dsrx_sysfs_scale_avail(struct device *dev,
 	int i, len = 0;
 
 	for (i = 0; i < st_lsm6dsrx_fs_table[id].size; i++)
-		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%06u ",
+		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%09u ",
 				 st_lsm6dsrx_fs_table[id].fs_avl[i].gain);
 	buf[len - 1] = '\n';
 
@@ -1394,6 +1394,25 @@ out_claim:
 	return size;
 }
 
+static int st_lsm6dsrx_write_raw_get_fmt(struct iio_dev *indio_dev,
+					 struct iio_chan_spec const *chan,
+					 long mask)
+{
+	if (mask == IIO_CHAN_INFO_SCALE) {
+		switch (chan->type) {
+		case IIO_ANGL_VEL:
+		case IIO_ACCEL:
+			return IIO_VAL_INT_PLUS_NANO;
+		case IIO_TEMP:
+			return IIO_VAL_FRACTIONAL;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	return -EINVAL;
+}
+
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(st_lsm6dsrx_sysfs_sampling_frequency_avail);
 static IIO_DEVICE_ATTR(in_accel_scale_available, 0444,
 		       st_lsm6dsrx_sysfs_scale_avail, NULL, 0);
@@ -1442,6 +1461,7 @@ static const struct iio_info st_lsm6dsrx_acc_info = {
 	.attrs = &st_lsm6dsrx_acc_attribute_group,
 	.read_raw = st_lsm6dsrx_read_raw,
 	.write_raw = st_lsm6dsrx_write_raw,
+	.write_raw_get_fmt = st_lsm6dsrx_write_raw_get_fmt,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_reg_access = &st_lsm6dsrx_reg_access,
 #endif /* CONFIG_DEBUG_FS */
@@ -1468,6 +1488,7 @@ static const struct iio_info st_lsm6dsrx_gyro_info = {
 	.attrs = &st_lsm6dsrx_gyro_attribute_group,
 	.read_raw = st_lsm6dsrx_read_raw,
 	.write_raw = st_lsm6dsrx_write_raw,
+	.write_raw_get_fmt = st_lsm6dsrx_write_raw_get_fmt,
 };
 
 static struct attribute *st_lsm6dsrx_temp_attributes[] = {
@@ -1487,6 +1508,7 @@ static const struct iio_info st_lsm6dsrx_temp_info = {
 	.attrs = &st_lsm6dsrx_temp_attribute_group,
 	.read_raw = st_lsm6dsrx_read_raw,
 	.write_raw = st_lsm6dsrx_write_raw,
+	.write_raw_get_fmt = st_lsm6dsrx_write_raw_get_fmt,
 };
 
 static const unsigned long st_lsm6dsrx_available_scan_masks[] = { 0x7, 0x0 };
