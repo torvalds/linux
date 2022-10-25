@@ -1,4 +1,5 @@
 load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
+load("//build/bazel_common_rules/test_mappings:test_mappings.bzl", "test_mappings_dist")
 load(
     "//build/kernel/kleaf:kernel.bzl",
     "kernel_build_abi",
@@ -18,17 +19,18 @@ load(
     "get_dtstree",
     "get_vendor_ramdisk_binaries",
 )
+load(":msm_common.bzl", "define_top_level_config", "gen_config_without_source_lines")
+load(":msm_dtc.bzl", "define_dtc_dist")
+load(":msm_abl.bzl", "define_abl_dist")
 load(":super_image.bzl", "super_image")
+load(":image_opts.bzl", "boot_image_opts")
+load(":target_variants.bzl", "la_variants")
 
-def define_build_config(
+def _define_build_config(
         msm_target,
         target,
         variant,
-        boot_image_header_version,
-        base_address,
-        page_size,
-        super_image_size,
-        lz4_ramdisk,
+        boot_image_opts = boot_image_opts(),
         build_config_fragments = []):
     """Creates a kernel_build_config for an MSM target
 
@@ -39,35 +41,10 @@ def define_build_config(
       variant: variant of kernel to build (e.g. "gki")
     """
 
-    # Top-level variables set in build.config
-    native.genrule(
-        name = "{}_top_level_config".format(target),
-        srcs = [],
-        outs = ["build.config.bazel.top.level.{}".format(target)],
-        cmd_bash = """
-          {
-            echo BUILDING_WITH_BAZEL=true
-          } > "$@"
-        """
-    )
-
-    # Remove sourcing lines from build config since we're just concatenating fragments below
-    native.genrule(
-        name = "{}_build_config_common_without_source".format(target),
-        srcs = ["build.config.common"],
-        outs = ["{}_build.config.common.generated".format(target)],
-        cmd_bash = "sed -e '/^\\. /d' $(location build.config.common) > $@",
-    )
-
-    # Generate the build config
-    native.genrule(
-        name = "{}_build_config_bazel".format(target),
-        srcs = [],
-        outs = ["build.config.msm.{}.generated".format(target)],
-        cmd_bash = """
-            cat << 'EOF' > $@
+    gen_config_command = """
+      cat << 'EOF' > "$@"
 KERNEL_DIR="msm-kernel"
-VARIANTS=(consolidate gki)
+VARIANTS=(%s)
 MSM_ARCH=%s
 VARIANT=%s
 ABL_SRC=bootable/bootloader/edk2
@@ -89,25 +66,36 @@ fi
 KERNEL_VENDOR_CMDLINE+=' bootconfig '
 VENDOR_BOOTCONFIG+='androidboot.first_stage_console=1 androidboot.hardware=qcom_kp'
 EOF
-        """ % (
-            msm_target,
-            variant,
-            boot_image_header_version,
-            base_address,
-            page_size,
-            super_image_size,
-            int(lz4_ramdisk)
-        ),
+    """ % (
+        " ".join(la_variants),
+        msm_target.replace("-", "_"),
+        variant.replace("-", "_"),
+        boot_image_opts.boot_image_header_version,
+        boot_image_opts.base_address,
+        boot_image_opts.page_size,
+        boot_image_opts.super_image_size,
+        int(boot_image_opts.lz4_ramdisk),
     )
+
+    # Generate the build config
+    native.genrule(
+        name = "{}_build_config_bazel".format(target),
+        srcs = [],
+        outs = ["build.config.msm.{}.generated".format(target)],
+        cmd_bash = gen_config_command,
+    )
+
+    top_level_config = define_top_level_config(target)
+    common_config = gen_config_without_source_lines("build.config.common", target)
 
     # Concatenate build config fragments to form the final config
     kernel_build_config(
         name = "{}_build_config".format(target),
         srcs = [
             # do not sort
-            ":{}_top_level_config".format(target),
+            top_level_config,
             "build.config.constants",
-            ":{}_build_config_common_without_source".format(target),
+            common_config,
             "build.config.aarch64",
             ":{}_build_config_bazel".format(target),
         ] + [fragment for fragment in build_config_fragments] + [
@@ -116,7 +104,7 @@ EOF
         ],
     )
 
-def define_kernel_build(
+def _define_kernel_build(
         target,
         base_kernel,
         in_tree_module_list,
@@ -181,7 +169,7 @@ def define_kernel_build(
             kernel_build = ":{}".format(target),
         )
 
-def define_image_build(
+def _define_image_build(
         target,
         msm_target,
         base_kernel,
@@ -245,7 +233,7 @@ def define_image_build(
         ],
     )
 
-def define_kernel_dist(target, base_kernel):
+def _define_kernel_dist(target, base_kernel):
     """Creates distribution targets for kernel builds
 
     When Bazel builds everything, the outputs end up buried in `bazel-bin`.
@@ -256,6 +244,9 @@ def define_kernel_dist(target, base_kernel):
       target: name of main Bazel target (e.g. `kalama_gki`)
       base_kernel: base kernel to fetch artifacts from (e.g. `//common:kernel_aarch64`)
     """
+
+    dist_dir = "out/msm-kernel-{}/dist".format(target.replace("_", "-"))
+
     msm_dist_targets = [
         # do not sort
         base_kernel,
@@ -271,7 +262,7 @@ def define_kernel_dist(target, base_kernel):
         name = "{}_abi_dist".format(target),
         kernel_build_abi = ":{}".format(target),
         data = msm_dist_targets,
-        dist_dir = "out/{}/dist".format(target),
+        dist_dir = dist_dir,
         flat = True,
         log = "info",
     )
@@ -279,7 +270,7 @@ def define_kernel_dist(target, base_kernel):
     copy_to_dist_dir(
         name = "{}_dist".format(target),
         data = msm_dist_targets,
-        dist_dir = "out/msm-kernel-{}/dist".format(target.replace("_", "-")),
+        dist_dir = dist_dir,
         flat = True,
         wipe_dist_dir = True,
         allow_duplicate_filenames = True,
@@ -295,96 +286,24 @@ def define_kernel_dist(target, base_kernel):
         log = "info",
     )
 
-def define_dtc_dist(target):
-    """Create rules distribution target for device tree compiler and associated tools
-
-    Args:
-      target: name of main Bazel target (e.g. `kalama_gki`)
-    """
-    dtc_bin_targets = [
-        "@dtc//:dtc",
-        "@dtc//:fdtget",
-        "@dtc//:fdtput",
-        "@dtc//:fdtdump",
-        "@dtc//:fdtoverlay",
-        "@dtc//:fdtoverlaymerge",
-    ]
-    dtc_lib_targets = [
-        "@dtc//:dtc_gen",
-        "@dtc//:libfdt",
-    ]
-    dtc_inc_targets = [
-        "@dtc//:libfdt/fdt.h",
-        "@dtc//:libfdt/libfdt.h",
-        "@dtc//:libfdt/libfdt_env.h",
-    ]
-
-    dtc_tar_cmd = "mkdir -p bin lib include\n"
-    for label in dtc_bin_targets:
-        dtc_tar_cmd += "cp $(locations {}) bin/\n".format(label)
-    for label in dtc_lib_targets:
-        dtc_tar_cmd += "cp $(locations {}) lib/\n".format(label)
-    for label in dtc_inc_targets:
-        dtc_tar_cmd += "cp $(locations {}) include/\n".format(label)
-    dtc_tar_cmd += """
-      chmod 755 bin/* lib/*
-      chmod 644 include/*
-      tar -czf "$@" bin lib include
-    """
-
-    native.genrule(
-        name = "{}_dtc_tarball".format(target),
-        srcs = dtc_bin_targets + dtc_lib_targets + dtc_inc_targets,
-        outs = ["{}_dtc.tar.gz".format(target)],
-        cmd = dtc_tar_cmd,
-    )
-
     native.alias(
-        name = "{}_dtc".format(target),
-        actual = ":{}_dtc_tarball".format(target),
+        name = "{}_test_mapping".format(target),
+        actual = ":{}_dist".format(target),
     )
 
-    copy_to_dist_dir(
-        name = "{}_dtc_dist".format(target),
-        archives = [":{}_dtc_tarball".format(target)],
-        dist_dir = "out/msm-kernel-{}/host".format(target.replace("_", "-")),
-        flat = True,
-        wipe_dist_dir = True,
-        log = "info",
+    test_mappings_dist(
+        name = "{}_test_mapping_dist".format(target),
+        dist_dir = dist_dir,
     )
 
-def define_abl_dist(target):
-    """Creates ABL distribution target
-
-    Args:
-      target: name of main Bazel target (e.g. `kalama_gki`)
-    """
-    native.alias(
-        name = "{}_abl".format(target),
-        actual = "//bootable/bootloader/edk2:{}_abl".format(target),
-    )
-
-    copy_to_dist_dir(
-        name = "{}_abl_dist".format(target),
-        archives = ["{}_abl".format(target)],
-        dist_dir = "out/msm-kernel-{}/dist".format(target.replace("_", "-")),
-        flat = True,
-        wipe_dist_dir = False,
-        log = "info",
-    )
-
-def define_msm(
+def define_msm_la(
         msm_target,
         variant,
         in_tree_module_list,
         implicit_out_list = [],
         define_compile_commands = False,
         kmi_enforced = True,
-        boot_image_header_version = 4,
-        base_address = 0x80000000,
-        page_size = 4096,
-        super_image_size = 0x10000000,
-        lz4_ramdisk = True):
+        boot_image_opts = boot_image_opts()):
     """Top-level kernel build definition macro for an MSM platform
 
     Args:
@@ -400,7 +319,13 @@ def define_msm(
       super_image_size: size of super image partition
       lz4_ramdisk: whether to use an lz4-compressed ramdisk
     """
-    target = msm_target + "_" + variant
+
+    if not variant in la_variants:
+        fail("{} not defined in target_variants.bzl la_variants!".format(variant))
+
+    # Enforce format of "//msm-kernel:target-foo_variant-bar" (underscore is the delimeter
+    # between target and variant)
+    target = msm_target.replace("_", "-") + "_" + variant.replace("_", "-")
 
     if variant == "consolidate":
         base_kernel = "//common:kernel_aarch64_consolidate"
@@ -415,19 +340,15 @@ def define_msm(
     vendor_ramdisk_binaries = get_vendor_ramdisk_binaries(msm_target)
     build_config_fragments = get_build_config_fragments(msm_target)
 
-    define_build_config(
+    _define_build_config(
         msm_target,
         target,
         variant,
-        boot_image_header_version,
-        base_address,
-        page_size,
-        super_image_size,
-        lz4_ramdisk,
-        build_config_fragments,
+        boot_image_opts = boot_image_opts,
+        build_config_fragments = build_config_fragments,
     )
 
-    define_kernel_build(
+    _define_kernel_build(
         target,
         base_kernel,
         in_tree_module_list,
@@ -440,7 +361,7 @@ def define_msm(
         kmi_enforced,
     )
 
-    define_image_build(
+    _define_image_build(
         target,
         msm_target,
         base_kernel,
@@ -453,7 +374,7 @@ def define_msm(
         boot_image_outs = None if dtb_list else ["boot.img"],
     )
 
-    define_kernel_dist(target, base_kernel)
+    _define_kernel_dist(target, base_kernel)
 
     define_abl_dist(target)
 

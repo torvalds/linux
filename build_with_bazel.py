@@ -81,6 +81,8 @@ def build(
             "skipping host tools build"
         ) if skip_host_tools else host_targets_to_build.append(t + "_dtc")
 
+    targets_to_build.append(t + "_test_mapping")
+
     targets_to_build += extra_msm_targets
 
     if not targets_to_build:

@@ -1,5 +1,5 @@
-load(":target_variants.bzl", "targets", "variants")
-load(":msm_kernel.bzl", "define_msm")
+load(":target_variants.bzl", "la_variants")
+load(":msm_kernel_la.bzl", "define_msm_la")
 
 target_name = "pineapple"
 
@@ -191,16 +191,13 @@ def define_pineapple():
         "mm/zsmalloc.ko",
     ]
 
-    if not target_name in targets:
-        fail("{} not defined in target_variants.bzl".format(target_name))
-
-    for variant in variants:
+    for variant in la_variants:
         if variant == "consolidate":
             mod_list = _pineapple_consolidate_in_tree_modules
         else:
             mod_list = _pineapple_in_tree_modules
 
-        define_msm(
+        define_msm_la(
             msm_target = target_name,
             variant = variant,
             in_tree_module_list = mod_list,
