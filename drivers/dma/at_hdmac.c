@@ -293,7 +293,7 @@ static struct at_desc *atc_get_desc_by_cookie(struct at_dma_chan *atchan,
  * @current_len: the number of bytes left before reading CTRLA
  * @ctrla: the value of CTRLA
  */
-static inline int atc_calc_bytes_left(int current_len, u32 ctrla)
+static inline u32 atc_calc_bytes_left(u32 current_len, u32 ctrla)
 {
 	u32 btsize = (ctrla & ATC_BTSIZE_MAX);
 	u32 src_width = ATC_REG_TO_SRC_WIDTH(ctrla);
@@ -308,17 +308,20 @@ static inline int atc_calc_bytes_left(int current_len, u32 ctrla)
 }
 
 /**
- * atc_get_bytes_left - get the number of bytes residue for a cookie
+ * atc_get_bytes_left - get the number of bytes residue for a cookie.
+ * The residue is passed by address and updated on success.
  * @chan: DMA channel
  * @cookie: transaction identifier to check status of
+ * @residue: residue to be updated.
+ * Return 0 on success, -errono otherwise.
  */
-static int atc_get_bytes_left(struct dma_chan *chan, dma_cookie_t cookie)
+static int atc_get_bytes_left(struct dma_chan *chan, dma_cookie_t cookie,
+			      u32 *residue)
 {
 	struct at_dma_chan      *atchan = to_at_dma_chan(chan);
 	struct at_desc *desc_first = atc_first_active(atchan);
 	struct at_desc *desc;
-	int ret;
-	u32 ctrla, dscr;
+	u32 len, ctrla, dscr;
 	unsigned int i;
 
 	/*
@@ -333,7 +336,7 @@ static int atc_get_bytes_left(struct dma_chan *chan, dma_cookie_t cookie)
 		return desc->total_len;
 
 	/* cookie matches to the currently running transfer */
-	ret = desc_first->total_len;
+	len = desc_first->total_len;
 
 	if (desc_first->lli.dscr) {
 		/* hardware linked list transfer */
@@ -419,29 +422,31 @@ static int atc_get_bytes_left(struct dma_chan *chan, dma_cookie_t cookie)
 			return -ETIMEDOUT;
 
 		/* for the first descriptor we can be more accurate */
-		if (desc_first->lli.dscr == dscr)
-			return atc_calc_bytes_left(ret, ctrla);
+		if (desc_first->lli.dscr == dscr) {
+			*residue = atc_calc_bytes_left(len, ctrla);
+			return 0;
+		}
 
-		ret -= desc_first->len;
+		len -= desc_first->len;
 		list_for_each_entry(desc, &desc_first->tx_list, desc_node) {
 			if (desc->lli.dscr == dscr)
 				break;
 
-			ret -= desc->len;
+			len -= desc->len;
 		}
 
 		/*
 		 * For the current descriptor in the chain we can calculate
 		 * the remaining bytes using the channel's register.
 		 */
-		ret = atc_calc_bytes_left(ret, ctrla);
+		*residue = atc_calc_bytes_left(len, ctrla);
 	} else {
 		/* single transfer */
 		ctrla = channel_readl(atchan, CTRLA);
-		ret = atc_calc_bytes_left(ret, ctrla);
+		*residue = atc_calc_bytes_left(len, ctrla);
 	}
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -1457,31 +1462,32 @@ atc_tx_status(struct dma_chan *chan,
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	unsigned long		flags;
-	enum dma_status		ret;
-	int bytes = 0;
+	enum dma_status		dma_status;
+	u32 residue;
+	int ret;
 
-	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_COMPLETE || !txstate)
-		return ret;
+	dma_status = dma_cookie_status(chan, cookie, txstate);
+	if (dma_status == DMA_COMPLETE || !txstate)
+		return dma_status;
 
 	spin_lock_irqsave(&atchan->lock, flags);
 
 	/*  Get number of bytes left in the active transactions */
-	bytes = atc_get_bytes_left(chan, cookie);
+	ret = atc_get_bytes_left(chan, cookie, &residue);
 
 	spin_unlock_irqrestore(&atchan->lock, flags);
 
-	if (unlikely(bytes < 0)) {
+	if (unlikely(ret < 0)) {
 		dev_vdbg(chan2dev(chan), "get residual bytes error\n");
 		return DMA_ERROR;
 	} else {
-		dma_set_residue(txstate, bytes);
+		dma_set_residue(txstate, residue);
 	}
 
-	dev_vdbg(chan2dev(chan), "tx_status %d: cookie = %d residue = %d\n",
-		 ret, cookie, bytes);
+	dev_vdbg(chan2dev(chan), "tx_status %d: cookie = %d residue = %u\n",
+		 dma_status, cookie, residue);
 
-	return ret;
+	return dma_status;
 }
 
 /**
