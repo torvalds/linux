@@ -68,29 +68,6 @@ int pcibios_vaddr_is_ioport(void __iomem *address)
 	return ret;
 }
 
-unsigned long pci_address_to_pio(phys_addr_t address)
-{
-	struct pci_controller *hose;
-	resource_size_t size;
-	unsigned long ret = ~0;
-
-	spin_lock(&hose_spinlock);
-	list_for_each_entry(hose, &hose_list, list_node) {
-		size = pcibios_io_size(hose);
-		if (address >= hose->io_base_phys &&
-		    address < (hose->io_base_phys + size)) {
-			unsigned long base =
-				(unsigned long)hose->io_base_virt - _IO_BASE;
-			ret = base + (address - hose->io_base_phys);
-			break;
-		}
-	}
-	spin_unlock(&hose_spinlock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(pci_address_to_pio);
-
 /*
  * Platform support for /proc/bus/pci/X/Y mmap()s.
  */
