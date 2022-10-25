@@ -135,7 +135,6 @@ required:
   - clock-names
   - resets
   - reset-names
-  - rockchip,grf
   - "#sound-dai-cells"
 
 additionalProperties: false
