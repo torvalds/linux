@@ -2084,7 +2084,7 @@ static int at_dma_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops at_dma_dev_pm_ops = {
+static const struct dev_pm_ops __maybe_unused at_dma_dev_pm_ops = {
 	.prepare = at_dma_prepare,
 	.suspend_noirq = at_dma_suspend_noirq,
 	.resume_noirq = at_dma_resume_noirq,
@@ -2096,7 +2096,7 @@ static struct platform_driver at_dma_driver = {
 	.id_table	= atdma_devtypes,
 	.driver = {
 		.name	= "at_hdmac",
-		.pm	= &at_dma_dev_pm_ops,
+		.pm	= pm_ptr(&at_dma_dev_pm_ops),
 		.of_match_table	= of_match_ptr(atmel_dma_dt_ids),
 	},
 };
