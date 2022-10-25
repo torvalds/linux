@@ -8,6 +8,102 @@
 #include "cpuid.h"
 #include "trace.h"
 
+#define CHECK_SMRAM32_OFFSET(field, offset) \
+	ASSERT_STRUCT_OFFSET(struct kvm_smram_state_32, field, offset - 0xFE00)
+
+#define CHECK_SMRAM64_OFFSET(field, offset) \
+	ASSERT_STRUCT_OFFSET(struct kvm_smram_state_64, field, offset - 0xFE00)
+
+static void check_smram_offsets(void)
+{
+	/* 32 bit SMRAM image */
+	CHECK_SMRAM32_OFFSET(reserved1,			0xFE00);
+	CHECK_SMRAM32_OFFSET(smbase,			0xFEF8);
+	CHECK_SMRAM32_OFFSET(smm_revision,		0xFEFC);
+	CHECK_SMRAM32_OFFSET(io_inst_restart,		0xFF00);
+	CHECK_SMRAM32_OFFSET(auto_hlt_restart,		0xFF02);
+	CHECK_SMRAM32_OFFSET(io_restart_rdi,		0xFF04);
+	CHECK_SMRAM32_OFFSET(io_restart_rcx,		0xFF08);
+	CHECK_SMRAM32_OFFSET(io_restart_rsi,		0xFF0C);
+	CHECK_SMRAM32_OFFSET(io_restart_rip,		0xFF10);
+	CHECK_SMRAM32_OFFSET(cr4,			0xFF14);
+	CHECK_SMRAM32_OFFSET(reserved3,			0xFF18);
+	CHECK_SMRAM32_OFFSET(ds,			0xFF2C);
+	CHECK_SMRAM32_OFFSET(fs,			0xFF38);
+	CHECK_SMRAM32_OFFSET(gs,			0xFF44);
+	CHECK_SMRAM32_OFFSET(idtr,			0xFF50);
+	CHECK_SMRAM32_OFFSET(tr,			0xFF5C);
+	CHECK_SMRAM32_OFFSET(gdtr,			0xFF6C);
+	CHECK_SMRAM32_OFFSET(ldtr,			0xFF78);
+	CHECK_SMRAM32_OFFSET(es,			0xFF84);
+	CHECK_SMRAM32_OFFSET(cs,			0xFF90);
+	CHECK_SMRAM32_OFFSET(ss,			0xFF9C);
+	CHECK_SMRAM32_OFFSET(es_sel,			0xFFA8);
+	CHECK_SMRAM32_OFFSET(cs_sel,			0xFFAC);
+	CHECK_SMRAM32_OFFSET(ss_sel,			0xFFB0);
+	CHECK_SMRAM32_OFFSET(ds_sel,			0xFFB4);
+	CHECK_SMRAM32_OFFSET(fs_sel,			0xFFB8);
+	CHECK_SMRAM32_OFFSET(gs_sel,			0xFFBC);
+	CHECK_SMRAM32_OFFSET(ldtr_sel,			0xFFC0);
+	CHECK_SMRAM32_OFFSET(tr_sel,			0xFFC4);
+	CHECK_SMRAM32_OFFSET(dr7,			0xFFC8);
+	CHECK_SMRAM32_OFFSET(dr6,			0xFFCC);
+	CHECK_SMRAM32_OFFSET(gprs,			0xFFD0);
+	CHECK_SMRAM32_OFFSET(eip,			0xFFF0);
+	CHECK_SMRAM32_OFFSET(eflags,			0xFFF4);
+	CHECK_SMRAM32_OFFSET(cr3,			0xFFF8);
+	CHECK_SMRAM32_OFFSET(cr0,			0xFFFC);
+
+	/* 64 bit SMRAM image */
+	CHECK_SMRAM64_OFFSET(es,			0xFE00);
+	CHECK_SMRAM64_OFFSET(cs,			0xFE10);
+	CHECK_SMRAM64_OFFSET(ss,			0xFE20);
+	CHECK_SMRAM64_OFFSET(ds,			0xFE30);
+	CHECK_SMRAM64_OFFSET(fs,			0xFE40);
+	CHECK_SMRAM64_OFFSET(gs,			0xFE50);
+	CHECK_SMRAM64_OFFSET(gdtr,			0xFE60);
+	CHECK_SMRAM64_OFFSET(ldtr,			0xFE70);
+	CHECK_SMRAM64_OFFSET(idtr,			0xFE80);
+	CHECK_SMRAM64_OFFSET(tr,			0xFE90);
+	CHECK_SMRAM64_OFFSET(io_restart_rip,		0xFEA0);
+	CHECK_SMRAM64_OFFSET(io_restart_rcx,		0xFEA8);
+	CHECK_SMRAM64_OFFSET(io_restart_rsi,		0xFEB0);
+	CHECK_SMRAM64_OFFSET(io_restart_rdi,		0xFEB8);
+	CHECK_SMRAM64_OFFSET(io_restart_dword,		0xFEC0);
+	CHECK_SMRAM64_OFFSET(reserved1,			0xFEC4);
+	CHECK_SMRAM64_OFFSET(io_inst_restart,		0xFEC8);
+	CHECK_SMRAM64_OFFSET(auto_hlt_restart,		0xFEC9);
+	CHECK_SMRAM64_OFFSET(reserved2,			0xFECA);
+	CHECK_SMRAM64_OFFSET(efer,			0xFED0);
+	CHECK_SMRAM64_OFFSET(svm_guest_flag,		0xFED8);
+	CHECK_SMRAM64_OFFSET(svm_guest_vmcb_gpa,	0xFEE0);
+	CHECK_SMRAM64_OFFSET(svm_guest_virtual_int,	0xFEE8);
+	CHECK_SMRAM64_OFFSET(reserved3,			0xFEF0);
+	CHECK_SMRAM64_OFFSET(smm_revison,		0xFEFC);
+	CHECK_SMRAM64_OFFSET(smbase,			0xFF00);
+	CHECK_SMRAM64_OFFSET(reserved4,			0xFF04);
+	CHECK_SMRAM64_OFFSET(ssp,			0xFF18);
+	CHECK_SMRAM64_OFFSET(svm_guest_pat,		0xFF20);
+	CHECK_SMRAM64_OFFSET(svm_host_efer,		0xFF28);
+	CHECK_SMRAM64_OFFSET(svm_host_cr4,		0xFF30);
+	CHECK_SMRAM64_OFFSET(svm_host_cr3,		0xFF38);
+	CHECK_SMRAM64_OFFSET(svm_host_cr0,		0xFF40);
+	CHECK_SMRAM64_OFFSET(cr4,			0xFF48);
+	CHECK_SMRAM64_OFFSET(cr3,			0xFF50);
+	CHECK_SMRAM64_OFFSET(cr0,			0xFF58);
+	CHECK_SMRAM64_OFFSET(dr7,			0xFF60);
+	CHECK_SMRAM64_OFFSET(dr6,			0xFF68);
+	CHECK_SMRAM64_OFFSET(rflags,			0xFF70);
+	CHECK_SMRAM64_OFFSET(rip,			0xFF78);
+	CHECK_SMRAM64_OFFSET(gprs,			0xFF80);
+
+	BUILD_BUG_ON(sizeof(union kvm_smram) != 512);
+}
+
+#undef CHECK_SMRAM64_OFFSET
+#undef CHECK_SMRAM32_OFFSET
+
+
 void kvm_smm_changed(struct kvm_vcpu *vcpu, bool entering_smm)
 {
 	BUILD_BUG_ON(HF_SMM_MASK != X86EMUL_SMM_MASK);
@@ -200,6 +296,8 @@ void enter_smm(struct kvm_vcpu *vcpu)
 	struct desc_ptr dt;
 	unsigned long cr0;
 	char buf[512];
+
+	check_smram_offsets();
 
 	memset(buf, 0, 512);
 #ifdef CONFIG_X86_64
