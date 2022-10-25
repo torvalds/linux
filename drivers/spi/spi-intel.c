@@ -33,6 +33,7 @@
 #define HSFSTS_CTL_FCYCLE_WRITE		(0x02 << HSFSTS_CTL_FCYCLE_SHIFT)
 #define HSFSTS_CTL_FCYCLE_ERASE		(0x03 << HSFSTS_CTL_FCYCLE_SHIFT)
 #define HSFSTS_CTL_FCYCLE_ERASE_64K	(0x04 << HSFSTS_CTL_FCYCLE_SHIFT)
+#define HSFSTS_CTL_FCYCLE_RDSFDP	(0x05 << HSFSTS_CTL_FCYCLE_SHIFT)
 #define HSFSTS_CTL_FCYCLE_RDID		(0x06 << HSFSTS_CTL_FCYCLE_SHIFT)
 #define HSFSTS_CTL_FCYCLE_WRSR		(0x07 << HSFSTS_CTL_FCYCLE_SHIFT)
 #define HSFSTS_CTL_FCYCLE_RDSR		(0x08 << HSFSTS_CTL_FCYCLE_SHIFT)
@@ -920,6 +921,11 @@ static const struct spi_controller_mem_ops intel_spi_mem_ops = {
 			      INTEL_SPI_OP_DATA_OUT(1),			\
 			      intel_spi_write_reg,			\
 			      HSFSTS_CTL_FCYCLE_WRSR),			\
+	INTEL_SPI_MEM_OP_REPL(SPI_MEM_OP_CMD(SPINOR_OP_RDSFDP, 1),	\
+			      INTEL_SPI_OP_ADDR(3),			\
+			      INTEL_SPI_OP_DATA_IN(1),			\
+			      intel_spi_read_reg,			\
+			      HSFSTS_CTL_FCYCLE_RDSFDP),		\
 	/* Normal read */						\
 	INTEL_SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_READ, 1),		\
 			 INTEL_SPI_OP_ADDR(3),				\
