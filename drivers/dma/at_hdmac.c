@@ -338,7 +338,7 @@ static inline u8 convert_buswidth(enum dma_slave_buswidth addr_width)
 
 /**
  * struct at_dma - internal representation of an Atmel HDMA Controller
- * @chan_common: common dmaengine dma_device object members
+ * @dma_device: dmaengine dma_device object members
  * @atdma_devtype: identifier of DMA controller compatibility
  * @ch_regs: memory mapped register base
  * @clk: dma controller clock
@@ -348,7 +348,7 @@ static inline u8 convert_buswidth(enum dma_slave_buswidth addr_width)
  * @chan: channels table to store at_dma_chan structures
  */
 struct at_dma {
-	struct dma_device	dma_common;
+	struct dma_device	dma_device;
 	void __iomem		*regs;
 	struct clk		*clk;
 	u32			save_imr;
@@ -368,7 +368,7 @@ struct at_dma {
 
 static inline struct at_dma *to_at_dma(struct dma_device *ddev)
 {
-	return container_of(ddev, struct at_dma, dma_common);
+	return container_of(ddev, struct at_dma, dma_device);
 }
 
 
@@ -1069,11 +1069,11 @@ static irqreturn_t at_dma_interrupt(int irq, void *dev_id)
 		if (!pending)
 			break;
 
-		dev_vdbg(atdma->dma_common.dev,
+		dev_vdbg(atdma->dma_device.dev,
 			"interrupt: status = 0x%08x, 0x%08x, 0x%08x\n",
 			 status, imr, pending);
 
-		for (i = 0; i < atdma->dma_common.chancnt; i++) {
+		for (i = 0; i < atdma->dma_device.chancnt; i++) {
 			atchan = &atdma->chan[i];
 			if (pending & (AT_DMA_BTC(i) | AT_DMA_ERR(i))) {
 				if (pending & AT_DMA_ERR(i)) {
@@ -2000,7 +2000,7 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 		 * We need controller-specific data to set up slave
 		 * transfers.
 		 */
-		BUG_ON(!atslave->dma_dev || atslave->dma_dev != atdma->dma_common.dev);
+		BUG_ON(!atslave->dma_dev || atslave->dma_dev != atdma->dma_device.dev);
 
 		/* if cfg configuration specified take it instead of default */
 		if (atslave->cfg)
@@ -2011,7 +2011,7 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 	for (i = 0; i < init_nr_desc_per_channel; i++) {
 		desc = atc_alloc_descriptor(chan, GFP_KERNEL);
 		if (!desc) {
-			dev_err(atdma->dma_common.dev,
+			dev_err(atdma->dma_device.dev,
 				"Only %d initial descriptors\n", i);
 			break;
 		}
@@ -2255,7 +2255,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 		return irq;
 
 	/* discover transaction capabilities */
-	atdma->dma_common.cap_mask = plat_dat->cap_mask;
+	atdma->dma_device.cap_mask = plat_dat->cap_mask;
 	atdma->all_chan_mask = (1 << plat_dat->nr_channels) - 1;
 
 	atdma->clk = devm_clk_get(&pdev->dev, "dma_clk");
@@ -2299,16 +2299,16 @@ static int __init at_dma_probe(struct platform_device *pdev)
 		cpu_relax();
 
 	/* initialize channels related values */
-	INIT_LIST_HEAD(&atdma->dma_common.channels);
+	INIT_LIST_HEAD(&atdma->dma_device.channels);
 	for (i = 0; i < plat_dat->nr_channels; i++) {
 		struct at_dma_chan	*atchan = &atdma->chan[i];
 
 		atchan->mem_if = AT_DMA_MEM_IF;
 		atchan->per_if = AT_DMA_PER_IF;
-		atchan->chan_common.device = &atdma->dma_common;
+		atchan->chan_common.device = &atdma->dma_device;
 		dma_cookie_init(&atchan->chan_common);
 		list_add_tail(&atchan->chan_common.device_node,
-				&atdma->dma_common.channels);
+				&atdma->dma_device.channels);
 
 		atchan->ch_regs = atdma->regs + ch_regs(i);
 		spin_lock_init(&atchan->lock);
@@ -2323,49 +2323,49 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	}
 
 	/* set base routines */
-	atdma->dma_common.device_alloc_chan_resources = atc_alloc_chan_resources;
-	atdma->dma_common.device_free_chan_resources = atc_free_chan_resources;
-	atdma->dma_common.device_tx_status = atc_tx_status;
-	atdma->dma_common.device_issue_pending = atc_issue_pending;
-	atdma->dma_common.dev = &pdev->dev;
+	atdma->dma_device.device_alloc_chan_resources = atc_alloc_chan_resources;
+	atdma->dma_device.device_free_chan_resources = atc_free_chan_resources;
+	atdma->dma_device.device_tx_status = atc_tx_status;
+	atdma->dma_device.device_issue_pending = atc_issue_pending;
+	atdma->dma_device.dev = &pdev->dev;
 
 	/* set prep routines based on capability */
-	if (dma_has_cap(DMA_INTERLEAVE, atdma->dma_common.cap_mask))
-		atdma->dma_common.device_prep_interleaved_dma = atc_prep_dma_interleaved;
+	if (dma_has_cap(DMA_INTERLEAVE, atdma->dma_device.cap_mask))
+		atdma->dma_device.device_prep_interleaved_dma = atc_prep_dma_interleaved;
 
-	if (dma_has_cap(DMA_MEMCPY, atdma->dma_common.cap_mask))
-		atdma->dma_common.device_prep_dma_memcpy = atc_prep_dma_memcpy;
+	if (dma_has_cap(DMA_MEMCPY, atdma->dma_device.cap_mask))
+		atdma->dma_device.device_prep_dma_memcpy = atc_prep_dma_memcpy;
 
-	if (dma_has_cap(DMA_MEMSET, atdma->dma_common.cap_mask)) {
-		atdma->dma_common.device_prep_dma_memset = atc_prep_dma_memset;
-		atdma->dma_common.device_prep_dma_memset_sg = atc_prep_dma_memset_sg;
-		atdma->dma_common.fill_align = DMAENGINE_ALIGN_4_BYTES;
+	if (dma_has_cap(DMA_MEMSET, atdma->dma_device.cap_mask)) {
+		atdma->dma_device.device_prep_dma_memset = atc_prep_dma_memset;
+		atdma->dma_device.device_prep_dma_memset_sg = atc_prep_dma_memset_sg;
+		atdma->dma_device.fill_align = DMAENGINE_ALIGN_4_BYTES;
 	}
 
-	if (dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask)) {
-		atdma->dma_common.device_prep_slave_sg = atc_prep_slave_sg;
+	if (dma_has_cap(DMA_SLAVE, atdma->dma_device.cap_mask)) {
+		atdma->dma_device.device_prep_slave_sg = atc_prep_slave_sg;
 		/* controller can do slave DMA: can trigger cyclic transfers */
-		dma_cap_set(DMA_CYCLIC, atdma->dma_common.cap_mask);
-		atdma->dma_common.device_prep_dma_cyclic = atc_prep_dma_cyclic;
-		atdma->dma_common.device_config = atc_config;
-		atdma->dma_common.device_pause = atc_pause;
-		atdma->dma_common.device_resume = atc_resume;
-		atdma->dma_common.device_terminate_all = atc_terminate_all;
-		atdma->dma_common.src_addr_widths = ATC_DMA_BUSWIDTHS;
-		atdma->dma_common.dst_addr_widths = ATC_DMA_BUSWIDTHS;
-		atdma->dma_common.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
-		atdma->dma_common.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
+		dma_cap_set(DMA_CYCLIC, atdma->dma_device.cap_mask);
+		atdma->dma_device.device_prep_dma_cyclic = atc_prep_dma_cyclic;
+		atdma->dma_device.device_config = atc_config;
+		atdma->dma_device.device_pause = atc_pause;
+		atdma->dma_device.device_resume = atc_resume;
+		atdma->dma_device.device_terminate_all = atc_terminate_all;
+		atdma->dma_device.src_addr_widths = ATC_DMA_BUSWIDTHS;
+		atdma->dma_device.dst_addr_widths = ATC_DMA_BUSWIDTHS;
+		atdma->dma_device.directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
+		atdma->dma_device.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 	}
 
 	dma_writel(atdma, EN, AT_DMA_ENABLE);
 
 	dev_info(&pdev->dev, "Atmel AHB DMA Controller ( %s%s%s), %d channels\n",
-	  dma_has_cap(DMA_MEMCPY, atdma->dma_common.cap_mask) ? "cpy " : "",
-	  dma_has_cap(DMA_MEMSET, atdma->dma_common.cap_mask) ? "set " : "",
-	  dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask)  ? "slave " : "",
+	  dma_has_cap(DMA_MEMCPY, atdma->dma_device.cap_mask) ? "cpy " : "",
+	  dma_has_cap(DMA_MEMSET, atdma->dma_device.cap_mask) ? "set " : "",
+	  dma_has_cap(DMA_SLAVE, atdma->dma_device.cap_mask)  ? "slave " : "",
 	  plat_dat->nr_channels);
 
-	err = dma_async_device_register(&atdma->dma_common);
+	err = dma_async_device_register(&atdma->dma_device);
 	if (err) {
 		dev_err(&pdev->dev, "Unable to register: %d.\n", err);
 		goto err_dma_async_device_register;
@@ -2388,7 +2388,7 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	return 0;
 
 err_of_dma_controller_register:
-	dma_async_device_unregister(&atdma->dma_common);
+	dma_async_device_unregister(&atdma->dma_device);
 err_dma_async_device_register:
 	dma_pool_destroy(atdma->memset_pool);
 err_memset_pool_create:
@@ -2408,13 +2408,13 @@ static int at_dma_remove(struct platform_device *pdev)
 	at_dma_off(atdma);
 	if (pdev->dev.of_node)
 		of_dma_controller_free(pdev->dev.of_node);
-	dma_async_device_unregister(&atdma->dma_common);
+	dma_async_device_unregister(&atdma->dma_device);
 
 	dma_pool_destroy(atdma->memset_pool);
 	dma_pool_destroy(atdma->dma_desc_pool);
 	free_irq(platform_get_irq(pdev, 0), atdma);
 
-	list_for_each_entry_safe(chan, _chan, &atdma->dma_common.channels,
+	list_for_each_entry_safe(chan, _chan, &atdma->dma_device.channels,
 			device_node) {
 		struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 
@@ -2443,7 +2443,7 @@ static int at_dma_prepare(struct device *dev)
 	struct at_dma *atdma = dev_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
 
-	list_for_each_entry_safe(chan, _chan, &atdma->dma_common.channels,
+	list_for_each_entry_safe(chan, _chan, &atdma->dma_device.channels,
 			device_node) {
 		struct at_dma_chan *atchan = to_at_dma_chan(chan);
 		/* wait for transaction completion (except in cyclic case) */
@@ -2478,7 +2478,7 @@ static int at_dma_suspend_noirq(struct device *dev)
 	struct dma_chan *chan, *_chan;
 
 	/* preserve data */
-	list_for_each_entry_safe(chan, _chan, &atdma->dma_common.channels,
+	list_for_each_entry_safe(chan, _chan, &atdma->dma_device.channels,
 			device_node) {
 		struct at_dma_chan *atchan = to_at_dma_chan(chan);
 
@@ -2528,7 +2528,7 @@ static int at_dma_resume_noirq(struct device *dev)
 
 	/* restore saved data */
 	dma_writel(atdma, EBCIER, atdma->save_imr);
-	list_for_each_entry_safe(chan, _chan, &atdma->dma_common.channels,
+	list_for_each_entry_safe(chan, _chan, &atdma->dma_device.channels,
 			device_node) {
 		struct at_dma_chan *atchan = to_at_dma_chan(chan);
 
