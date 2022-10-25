@@ -83,7 +83,6 @@ xilinx_pci_exclude_device(struct pci_controller *hose, u_char bus, u8 devfn)
  */
 void __init xilinx_pci_init(void)
 {
-	struct pci_controller *hose;
 	struct resource r;
 	void __iomem *pci_reg;
 	struct device_node *pci_node;
@@ -96,11 +95,6 @@ void __init xilinx_pci_init(void)
 		pr_err("xilinx-pci: cannot resolve base address\n");
 		return;
 	}
-
-	/* Setup config space */
-	setup_indirect_pci(hose, r.start + XPLB_PCI_ADDR,
-			   r.start + XPLB_PCI_DATA,
-			   INDIRECT_TYPE_SET_CFG_TYPE);
 
 	/* Set the max bus number to 255, and bus/subbus no's to 0 */
 	pci_reg = of_iomap(pci_node, 0);
