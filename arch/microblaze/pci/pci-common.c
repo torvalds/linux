@@ -38,9 +38,6 @@
 static DEFINE_SPINLOCK(hose_spinlock);
 LIST_HEAD(hose_list);
 
-/* XXX kill that some day ... */
-static int global_phb_number;		/* Global phb counter */
-
 /* ISA Memory physical address */
 resource_size_t isa_mem_base;
 
@@ -48,32 +45,6 @@ unsigned long isa_io_base;
 EXPORT_SYMBOL(isa_io_base);
 
 static int pci_bus_count;
-
-struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
-{
-	struct pci_controller *phb;
-
-	phb = zalloc_maybe_bootmem(sizeof(struct pci_controller), GFP_KERNEL);
-	if (!phb)
-		return NULL;
-	spin_lock(&hose_spinlock);
-	phb->global_number = global_phb_number++;
-	list_add_tail(&phb->list_node, &hose_list);
-	spin_unlock(&hose_spinlock);
-	phb->dn = dev;
-	phb->is_dynamic = mem_init_done;
-	return phb;
-}
-
-void pcibios_free_controller(struct pci_controller *phb)
-{
-	spin_lock(&hose_spinlock);
-	list_del(&phb->list_node);
-	spin_unlock(&hose_spinlock);
-
-	if (phb->is_dynamic)
-		kfree(phb);
-}
 
 static resource_size_t pcibios_io_size(const struct pci_controller *hose)
 {

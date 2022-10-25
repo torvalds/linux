@@ -25,7 +25,6 @@ static inline int pcibios_vaddr_is_ioport(void __iomem *address)
  */
 struct pci_controller {
 	struct pci_bus *bus;
-	char is_dynamic;
 	struct device_node *dn;
 	struct list_head list_node;
 	struct device *parent;
@@ -97,10 +96,6 @@ static inline int isa_vaddr_is_ioport(void __iomem *address)
 extern void setup_indirect_pci(struct pci_controller *hose,
 			       resource_size_t cfg_addr,
 			       resource_size_t cfg_data, u32 flags);
-
-/* Allocate & free a PCI host bridge structure */
-extern struct pci_controller *pcibios_alloc_controller(struct device_node *dev);
-extern void pcibios_free_controller(struct pci_controller *phb);
 
 #endif	/* __KERNEL__ */
 #endif	/* _ASM_MICROBLAZE_PCI_BRIDGE_H */

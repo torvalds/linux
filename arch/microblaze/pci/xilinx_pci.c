@@ -97,12 +97,6 @@ void __init xilinx_pci_init(void)
 		return;
 	}
 
-	hose = pcibios_alloc_controller(pci_node);
-	if (!hose) {
-		pr_err("xilinx-pci: pcibios_alloc_controller() failed\n");
-		return;
-	}
-
 	/* Setup config space */
 	setup_indirect_pci(hose, r.start + XPLB_PCI_ADDR,
 			   r.start + XPLB_PCI_DATA,
