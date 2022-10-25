@@ -1204,8 +1204,12 @@ static int canfd_runtime_resume(struct device *dev)
 }
 #endif
 
-static UNIVERSAL_DEV_PM_OPS(canfd_pm_ops, canfd_runtime_suspend,
-			    canfd_runtime_resume, NULL);
+static const struct dev_pm_ops canfd_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(canfd_runtime_suspend,
+			   canfd_runtime_resume, NULL)
+};
 
 static const struct of_device_id canfd_of_match[] = {
 	{ .compatible = "ipms,can" },
