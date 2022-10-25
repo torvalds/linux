@@ -611,6 +611,7 @@
   get_option
   get_pid_task
   get_random_bytes
+  get_random_u32
   get_state_synchronize_rcu
   get_state_synchronize_srcu
   __get_task_comm

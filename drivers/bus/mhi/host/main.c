@@ -241,7 +241,7 @@ static int get_nr_avail_ring_elements(struct mhi_controller *mhi_cntrl,
 	return nr_el;
 }
 
-static void *mhi_to_virtual(struct mhi_ring *ring, dma_addr_t addr)
+void *mhi_to_virtual(struct mhi_ring *ring, dma_addr_t addr)
 {
 	return (addr - ring->iommu_base) + ring->base;
 }
