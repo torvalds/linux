@@ -149,22 +149,17 @@ static u32 enter_smm_get_segment_flags(struct kvm_segment *seg)
 	return flags;
 }
 
-static void enter_smm_save_seg_32(struct kvm_vcpu *vcpu, char *buf, int n)
+static void enter_smm_save_seg_32(struct kvm_vcpu *vcpu,
+				  struct kvm_smm_seg_state_32 *state,
+				  u32 *selector, int n)
 {
 	struct kvm_segment seg;
-	int offset;
 
 	kvm_get_segment(vcpu, &seg, n);
-	PUT_SMSTATE(u32, buf, 0x7fa8 + n * 4, seg.selector);
-
-	if (n < 3)
-		offset = 0x7f84 + n * 12;
-	else
-		offset = 0x7f2c + (n - 3) * 12;
-
-	PUT_SMSTATE(u32, buf, offset + 8, seg.base);
-	PUT_SMSTATE(u32, buf, offset + 4, seg.limit);
-	PUT_SMSTATE(u32, buf, offset, enter_smm_get_segment_flags(&seg));
+	*selector = seg.selector;
+	state->base = seg.base;
+	state->limit = seg.limit;
+	state->flags = enter_smm_get_segment_flags(&seg);
 }
 
 #ifdef CONFIG_X86_64
@@ -185,54 +180,48 @@ static void enter_smm_save_seg_64(struct kvm_vcpu *vcpu, char *buf, int n)
 }
 #endif
 
-static void enter_smm_save_state_32(struct kvm_vcpu *vcpu, char *buf)
+static void enter_smm_save_state_32(struct kvm_vcpu *vcpu,
+				    struct kvm_smram_state_32 *smram)
 {
 	struct desc_ptr dt;
-	struct kvm_segment seg;
 	unsigned long val;
 	int i;
 
-	PUT_SMSTATE(u32, buf, 0x7ffc, kvm_read_cr0(vcpu));
-	PUT_SMSTATE(u32, buf, 0x7ff8, kvm_read_cr3(vcpu));
-	PUT_SMSTATE(u32, buf, 0x7ff4, kvm_get_rflags(vcpu));
-	PUT_SMSTATE(u32, buf, 0x7ff0, kvm_rip_read(vcpu));
+	smram->cr0     = kvm_read_cr0(vcpu);
+	smram->cr3     = kvm_read_cr3(vcpu);
+	smram->eflags  = kvm_get_rflags(vcpu);
+	smram->eip     = kvm_rip_read(vcpu);
 
 	for (i = 0; i < 8; i++)
-		PUT_SMSTATE(u32, buf, 0x7fd0 + i * 4, kvm_register_read_raw(vcpu, i));
+		smram->gprs[i] = kvm_register_read_raw(vcpu, i);
 
 	kvm_get_dr(vcpu, 6, &val);
-	PUT_SMSTATE(u32, buf, 0x7fcc, (u32)val);
+	smram->dr6     = (u32)val;
 	kvm_get_dr(vcpu, 7, &val);
-	PUT_SMSTATE(u32, buf, 0x7fc8, (u32)val);
+	smram->dr7     = (u32)val;
 
-	kvm_get_segment(vcpu, &seg, VCPU_SREG_TR);
-	PUT_SMSTATE(u32, buf, 0x7fc4, seg.selector);
-	PUT_SMSTATE(u32, buf, 0x7f64, seg.base);
-	PUT_SMSTATE(u32, buf, 0x7f60, seg.limit);
-	PUT_SMSTATE(u32, buf, 0x7f5c, enter_smm_get_segment_flags(&seg));
-
-	kvm_get_segment(vcpu, &seg, VCPU_SREG_LDTR);
-	PUT_SMSTATE(u32, buf, 0x7fc0, seg.selector);
-	PUT_SMSTATE(u32, buf, 0x7f80, seg.base);
-	PUT_SMSTATE(u32, buf, 0x7f7c, seg.limit);
-	PUT_SMSTATE(u32, buf, 0x7f78, enter_smm_get_segment_flags(&seg));
+	enter_smm_save_seg_32(vcpu, &smram->tr, &smram->tr_sel, VCPU_SREG_TR);
+	enter_smm_save_seg_32(vcpu, &smram->ldtr, &smram->ldtr_sel, VCPU_SREG_LDTR);
 
 	static_call(kvm_x86_get_gdt)(vcpu, &dt);
-	PUT_SMSTATE(u32, buf, 0x7f74, dt.address);
-	PUT_SMSTATE(u32, buf, 0x7f70, dt.size);
+	smram->gdtr.base = dt.address;
+	smram->gdtr.limit = dt.size;
 
 	static_call(kvm_x86_get_idt)(vcpu, &dt);
-	PUT_SMSTATE(u32, buf, 0x7f58, dt.address);
-	PUT_SMSTATE(u32, buf, 0x7f54, dt.size);
+	smram->idtr.base = dt.address;
+	smram->idtr.limit = dt.size;
 
-	for (i = 0; i < 6; i++)
-		enter_smm_save_seg_32(vcpu, buf, i);
+	enter_smm_save_seg_32(vcpu, &smram->es, &smram->es_sel, VCPU_SREG_ES);
+	enter_smm_save_seg_32(vcpu, &smram->cs, &smram->cs_sel, VCPU_SREG_CS);
+	enter_smm_save_seg_32(vcpu, &smram->ss, &smram->ss_sel, VCPU_SREG_SS);
 
-	PUT_SMSTATE(u32, buf, 0x7f14, kvm_read_cr4(vcpu));
+	enter_smm_save_seg_32(vcpu, &smram->ds, &smram->ds_sel, VCPU_SREG_DS);
+	enter_smm_save_seg_32(vcpu, &smram->fs, &smram->fs_sel, VCPU_SREG_FS);
+	enter_smm_save_seg_32(vcpu, &smram->gs, &smram->gs_sel, VCPU_SREG_GS);
 
-	/* revision id */
-	PUT_SMSTATE(u32, buf, 0x7efc, 0x00020000);
-	PUT_SMSTATE(u32, buf, 0x7ef8, vcpu->arch.smbase);
+	smram->cr4 = kvm_read_cr4(vcpu);
+	smram->smm_revision = 0x00020000;
+	smram->smbase = vcpu->arch.smbase;
 }
 
 #ifdef CONFIG_X86_64
@@ -306,7 +295,7 @@ void enter_smm(struct kvm_vcpu *vcpu)
 		enter_smm_save_state_64(vcpu, smram.bytes);
 	else
 #endif
-		enter_smm_save_state_32(vcpu, smram.bytes);
+		enter_smm_save_state_32(vcpu, &smram.smram32);
 
 	/*
 	 * Give enter_smm() a chance to make ISA-specific changes to the vCPU
@@ -398,21 +387,16 @@ static void rsm_set_desc_flags(struct kvm_segment *desc, u32 flags)
 	desc->padding = 0;
 }
 
-static int rsm_load_seg_32(struct kvm_vcpu *vcpu, const char *smstate,
-			   int n)
+static int rsm_load_seg_32(struct kvm_vcpu *vcpu,
+			   const struct kvm_smm_seg_state_32 *state,
+			   u16 selector, int n)
 {
 	struct kvm_segment desc;
-	int offset;
 
-	if (n < 3)
-		offset = 0x7f84 + n * 12;
-	else
-		offset = 0x7f2c + (n - 3) * 12;
-
-	desc.selector =           GET_SMSTATE(u32, smstate, 0x7fa8 + n * 4);
-	desc.base =               GET_SMSTATE(u32, smstate, offset + 8);
-	desc.limit =              GET_SMSTATE(u32, smstate, offset + 4);
-	rsm_set_desc_flags(&desc, GET_SMSTATE(u32, smstate, offset));
+	desc.selector =           selector;
+	desc.base =               state->base;
+	desc.limit =              state->limit;
+	rsm_set_desc_flags(&desc, state->flags);
 	kvm_set_segment(vcpu, &desc, n);
 	return X86EMUL_CONTINUE;
 }
@@ -481,63 +465,46 @@ static int rsm_enter_protected_mode(struct kvm_vcpu *vcpu,
 }
 
 static int rsm_load_state_32(struct x86_emulate_ctxt *ctxt,
-			     u8 *smstate)
+			     const struct kvm_smram_state_32 *smstate)
 {
 	struct kvm_vcpu *vcpu = ctxt->vcpu;
-	struct kvm_segment desc;
 	struct desc_ptr dt;
-	u32 val, cr0, cr3, cr4;
 	int i;
 
-	cr0 =                      GET_SMSTATE(u32, smstate, 0x7ffc);
-	cr3 =                      GET_SMSTATE(u32, smstate, 0x7ff8);
-	ctxt->eflags =             GET_SMSTATE(u32, smstate, 0x7ff4) | X86_EFLAGS_FIXED;
-	ctxt->_eip =               GET_SMSTATE(u32, smstate, 0x7ff0);
+	ctxt->eflags =  smstate->eflags | X86_EFLAGS_FIXED;
+	ctxt->_eip =  smstate->eip;
 
 	for (i = 0; i < 8; i++)
-		*reg_write(ctxt, i) = GET_SMSTATE(u32, smstate, 0x7fd0 + i * 4);
+		*reg_write(ctxt, i) = smstate->gprs[i];
 
-	val = GET_SMSTATE(u32, smstate, 0x7fcc);
-
-	if (kvm_set_dr(vcpu, 6, val))
+	if (kvm_set_dr(vcpu, 6, smstate->dr6))
+		return X86EMUL_UNHANDLEABLE;
+	if (kvm_set_dr(vcpu, 7, smstate->dr7))
 		return X86EMUL_UNHANDLEABLE;
 
-	val = GET_SMSTATE(u32, smstate, 0x7fc8);
+	rsm_load_seg_32(vcpu, &smstate->tr, smstate->tr_sel, VCPU_SREG_TR);
+	rsm_load_seg_32(vcpu, &smstate->ldtr, smstate->ldtr_sel, VCPU_SREG_LDTR);
 
-	if (kvm_set_dr(vcpu, 7, val))
-		return X86EMUL_UNHANDLEABLE;
-
-	desc.selector =            GET_SMSTATE(u32, smstate, 0x7fc4);
-	desc.base =                GET_SMSTATE(u32, smstate, 0x7f64);
-	desc.limit =               GET_SMSTATE(u32, smstate, 0x7f60);
-	rsm_set_desc_flags(&desc,  GET_SMSTATE(u32, smstate, 0x7f5c));
-	kvm_set_segment(vcpu, &desc, VCPU_SREG_TR);
-
-	desc.selector =            GET_SMSTATE(u32, smstate, 0x7fc0);
-	desc.base =                GET_SMSTATE(u32, smstate, 0x7f80);
-	desc.limit =               GET_SMSTATE(u32, smstate, 0x7f7c);
-	rsm_set_desc_flags(&desc,  GET_SMSTATE(u32, smstate, 0x7f78));
-	kvm_set_segment(vcpu, &desc, VCPU_SREG_LDTR);
-
-	dt.address =               GET_SMSTATE(u32, smstate, 0x7f74);
-	dt.size =                  GET_SMSTATE(u32, smstate, 0x7f70);
+	dt.address =               smstate->gdtr.base;
+	dt.size =                  smstate->gdtr.limit;
 	static_call(kvm_x86_set_gdt)(vcpu, &dt);
 
-	dt.address =               GET_SMSTATE(u32, smstate, 0x7f58);
-	dt.size =                  GET_SMSTATE(u32, smstate, 0x7f54);
+	dt.address =               smstate->idtr.base;
+	dt.size =                  smstate->idtr.limit;
 	static_call(kvm_x86_set_idt)(vcpu, &dt);
 
-	for (i = 0; i < 6; i++) {
-		int r = rsm_load_seg_32(vcpu, smstate, i);
-		if (r != X86EMUL_CONTINUE)
-			return r;
-	}
+	rsm_load_seg_32(vcpu, &smstate->es, smstate->es_sel, VCPU_SREG_ES);
+	rsm_load_seg_32(vcpu, &smstate->cs, smstate->cs_sel, VCPU_SREG_CS);
+	rsm_load_seg_32(vcpu, &smstate->ss, smstate->ss_sel, VCPU_SREG_SS);
 
-	cr4 = GET_SMSTATE(u32, smstate, 0x7f14);
+	rsm_load_seg_32(vcpu, &smstate->ds, smstate->ds_sel, VCPU_SREG_DS);
+	rsm_load_seg_32(vcpu, &smstate->fs, smstate->fs_sel, VCPU_SREG_FS);
+	rsm_load_seg_32(vcpu, &smstate->gs, smstate->gs_sel, VCPU_SREG_GS);
 
-	vcpu->arch.smbase = GET_SMSTATE(u32, smstate, 0x7ef8);
+	vcpu->arch.smbase = smstate->smbase;
 
-	return rsm_enter_protected_mode(vcpu, cr0, cr3, cr4);
+	return rsm_enter_protected_mode(vcpu, smstate->cr0,
+					smstate->cr3, smstate->cr4);
 }
 
 #ifdef CONFIG_X86_64
@@ -684,5 +651,5 @@ int emulator_leave_smm(struct x86_emulate_ctxt *ctxt)
 		return rsm_load_state_64(ctxt, smram.bytes);
 	else
 #endif
-		return rsm_load_state_32(ctxt, smram.bytes);
+		return rsm_load_state_32(ctxt, &smram.smram32);
 }
