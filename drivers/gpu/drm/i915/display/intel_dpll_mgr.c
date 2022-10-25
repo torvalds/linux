@@ -29,9 +29,9 @@
 #include "intel_dpio_phy.h"
 #include "intel_dpll.h"
 #include "intel_dpll_mgr.h"
+#include "intel_mg_phy_regs.h"
 #include "intel_pch_refclk.h"
 #include "intel_tc.h"
-#include "intel_tc_phy_regs.h"
 
 /**
  * DOC: Display PLLs
