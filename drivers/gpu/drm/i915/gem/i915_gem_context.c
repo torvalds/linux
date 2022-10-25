@@ -2298,7 +2298,6 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	}
 
 	args->ctx_id = id;
-	drm_dbg(&i915->drm, "HW context %d created\n", args->ctx_id);
 
 	return 0;
 
