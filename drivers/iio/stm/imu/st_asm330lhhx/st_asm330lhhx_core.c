@@ -1382,7 +1382,7 @@ static int st_asm330lhhx_read_raw(struct iio_dev *iio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (ch->type) {
 		case IIO_TEMP:
-			*val = 1;
+			*val = 1000;
 			*val2 = ST_ASM330LHHX_TEMP_GAIN;
 			ret = IIO_VAL_FRACTIONAL;
 			break;
