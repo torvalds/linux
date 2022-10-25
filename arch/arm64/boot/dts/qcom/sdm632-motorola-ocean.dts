@@ -116,6 +116,10 @@
 		pinctrl-0 = <&pmx_mdss_default>;
 		pinctrl-1 = <&pmx_mdss_sleep>;
 
+		reset-gpios = <&tlmm 61 GPIO_ACTIVE_LOW>;
+
+		//TODO: missing regs
+
 		port {
 			panel_in: endpoint {
 				remote-endpoint = <&mdss_dsi0_out>;
