@@ -992,7 +992,7 @@ static ssize_t st_ism330dhcx_sysfs_scale_avail(struct device *dev,
 	int i, len = 0;
 
 	for (i = 0; i < st_ism330dhcx_fs_table[id].size; i++)
-		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%06u ",
+		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%09u ",
 				 st_ism330dhcx_fs_table[id].fs_avl[i].gain);
 	buf[len - 1] = '\n';
 
@@ -1019,6 +1019,25 @@ st_ism330dhcx_sysfs_reset_step_counter(struct device *dev,
 	err = st_ism330dhcx_reset_step_counter(iio_dev);
 
 	return err < 0 ? err : size;
+}
+
+static int st_ism330dhcx_write_raw_get_fmt(struct iio_dev *indio_dev,
+					   struct iio_chan_spec const *chan,
+					   long mask)
+{
+	if (mask == IIO_CHAN_INFO_SCALE) {
+		switch (chan->type) {
+		case IIO_ANGL_VEL:
+		case IIO_ACCEL:
+			return IIO_VAL_INT_PLUS_NANO;
+		case IIO_TEMP:
+			return IIO_VAL_FRACTIONAL;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	return -EINVAL;
 }
 
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(st_ism330dhcx_sysfs_sampling_frequency_avail);
@@ -1053,6 +1072,7 @@ static const struct iio_info st_ism330dhcx_acc_info = {
 	.attrs = &st_ism330dhcx_acc_attribute_group,
 	.read_raw = st_ism330dhcx_read_raw,
 	.write_raw = st_ism330dhcx_write_raw,
+	.write_raw_get_fmt = st_ism330dhcx_write_raw_get_fmt,
 #ifdef CONFIG_DEBUG_FS
 	/* connect debug info to first device */
 	.debugfs_reg_access = st_ism330dhcx_reg_access,
@@ -1076,6 +1096,7 @@ static const struct iio_info st_ism330dhcx_gyro_info = {
 	.attrs = &st_ism330dhcx_gyro_attribute_group,
 	.read_raw = st_ism330dhcx_read_raw,
 	.write_raw = st_ism330dhcx_write_raw,
+	.write_raw_get_fmt = st_ism330dhcx_write_raw_get_fmt,
 };
 
 static struct attribute *st_ism330dhcx_temp_attributes[] = {
@@ -1095,6 +1116,7 @@ static const struct iio_info st_ism330dhcx_temp_info = {
 	.attrs = &st_ism330dhcx_temp_attribute_group,
 	.read_raw = st_ism330dhcx_read_raw,
 	.write_raw = st_ism330dhcx_write_raw,
+	.write_raw_get_fmt = st_ism330dhcx_write_raw_get_fmt,
 };
 
 static struct attribute *st_ism330dhcx_step_counter_attributes[] = {
