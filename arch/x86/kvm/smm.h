@@ -31,7 +31,9 @@ struct kvm_smram_state_32 {
 	u32 cr4;
 
 	/* A20M#, CPL, shutdown and other reserved/undocumented fields */
-	u32 reserved3[5];
+	u16 reserved2;
+	u8 int_shadow; /* KVM extension */
+	u8 reserved3[17];
 
 	struct kvm_smm_seg_state_32 ds;
 	struct kvm_smm_seg_state_32 fs;
@@ -95,7 +97,9 @@ struct kvm_smram_state_64 {
 	u32 reserved1;
 	u8 io_inst_restart;
 	u8 auto_hlt_restart;
-	u8 reserved2[6];
+	u8 amd_nmi_mask; /* Documented in AMD BKDG as NMI mask, not used by KVM */
+	u8 int_shadow;
+	u32 reserved2;
 
 	u64 efer;
 

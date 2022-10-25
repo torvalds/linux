@@ -27,7 +27,9 @@ static void check_smram_offsets(void)
 	CHECK_SMRAM32_OFFSET(io_restart_rsi,		0xFF0C);
 	CHECK_SMRAM32_OFFSET(io_restart_rip,		0xFF10);
 	CHECK_SMRAM32_OFFSET(cr4,			0xFF14);
-	CHECK_SMRAM32_OFFSET(reserved3,			0xFF18);
+	CHECK_SMRAM32_OFFSET(reserved2,			0xFF18);
+	CHECK_SMRAM32_OFFSET(int_shadow,		0xFF1A);
+	CHECK_SMRAM32_OFFSET(reserved3,			0xFF1B);
 	CHECK_SMRAM32_OFFSET(ds,			0xFF2C);
 	CHECK_SMRAM32_OFFSET(fs,			0xFF38);
 	CHECK_SMRAM32_OFFSET(gs,			0xFF44);
@@ -73,7 +75,9 @@ static void check_smram_offsets(void)
 	CHECK_SMRAM64_OFFSET(reserved1,			0xFEC4);
 	CHECK_SMRAM64_OFFSET(io_inst_restart,		0xFEC8);
 	CHECK_SMRAM64_OFFSET(auto_hlt_restart,		0xFEC9);
-	CHECK_SMRAM64_OFFSET(reserved2,			0xFECA);
+	CHECK_SMRAM64_OFFSET(amd_nmi_mask,		0xFECA);
+	CHECK_SMRAM64_OFFSET(int_shadow,		0xFECB);
+	CHECK_SMRAM64_OFFSET(reserved2,			0xFECC);
 	CHECK_SMRAM64_OFFSET(efer,			0xFED0);
 	CHECK_SMRAM64_OFFSET(svm_guest_flag,		0xFED8);
 	CHECK_SMRAM64_OFFSET(svm_guest_vmcb_gpa,	0xFEE0);
@@ -219,6 +223,8 @@ static void enter_smm_save_state_32(struct kvm_vcpu *vcpu,
 	smram->cr4 = kvm_read_cr4(vcpu);
 	smram->smm_revision = 0x00020000;
 	smram->smbase = vcpu->arch.smbase;
+
+	smram->int_shadow = static_call(kvm_x86_get_interrupt_shadow)(vcpu);
 }
 
 #ifdef CONFIG_X86_64
@@ -268,6 +274,8 @@ static void enter_smm_save_state_64(struct kvm_vcpu *vcpu,
 	enter_smm_save_seg_64(vcpu, &smram->ds, VCPU_SREG_DS);
 	enter_smm_save_seg_64(vcpu, &smram->fs, VCPU_SREG_FS);
 	enter_smm_save_seg_64(vcpu, &smram->gs, VCPU_SREG_GS);
+
+	smram->int_shadow = static_call(kvm_x86_get_interrupt_shadow)(vcpu);
 }
 #endif
 
@@ -312,6 +320,8 @@ void enter_smm(struct kvm_vcpu *vcpu)
 
 	kvm_set_rflags(vcpu, X86_EFLAGS_FIXED);
 	kvm_rip_write(vcpu, 0x8000);
+
+	static_call(kvm_x86_set_interrupt_shadow)(vcpu, 0);
 
 	cr0 = vcpu->arch.cr0 & ~(X86_CR0_PE | X86_CR0_EM | X86_CR0_TS | X86_CR0_PG);
 	static_call(kvm_x86_set_cr0)(vcpu, cr0);
@@ -460,7 +470,7 @@ static int rsm_load_state_32(struct x86_emulate_ctxt *ctxt,
 {
 	struct kvm_vcpu *vcpu = ctxt->vcpu;
 	struct desc_ptr dt;
-	int i;
+	int i, r;
 
 	ctxt->eflags =  smstate->eflags | X86_EFLAGS_FIXED;
 	ctxt->_eip =  smstate->eip;
@@ -494,8 +504,16 @@ static int rsm_load_state_32(struct x86_emulate_ctxt *ctxt,
 
 	vcpu->arch.smbase = smstate->smbase;
 
-	return rsm_enter_protected_mode(vcpu, smstate->cr0,
+	r = rsm_enter_protected_mode(vcpu, smstate->cr0,
 					smstate->cr3, smstate->cr4);
+
+	if (r != X86EMUL_CONTINUE)
+		return r;
+
+	static_call(kvm_x86_set_interrupt_shadow)(vcpu, 0);
+	ctxt->interruptibility = (u8)smstate->int_shadow;
+
+	return r;
 }
 
 #ifdef CONFIG_X86_64
@@ -544,6 +562,9 @@ static int rsm_load_state_64(struct x86_emulate_ctxt *ctxt,
 	rsm_load_seg_64(vcpu, &smstate->ds, VCPU_SREG_DS);
 	rsm_load_seg_64(vcpu, &smstate->fs, VCPU_SREG_FS);
 	rsm_load_seg_64(vcpu, &smstate->gs, VCPU_SREG_GS);
+
+	static_call(kvm_x86_set_interrupt_shadow)(vcpu, 0);
+	ctxt->interruptibility = (u8)smstate->int_shadow;
 
 	return X86EMUL_CONTINUE;
 }
