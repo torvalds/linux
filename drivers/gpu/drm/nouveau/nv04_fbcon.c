@@ -137,6 +137,8 @@ nv04_fbcon_accel_init(struct fb_info *info)
 	struct nouveau_channel *chan = drm->channel;
 	struct nvif_device *device = &drm->client.device;
 	struct nvif_push *push = chan->chan.push;
+	struct nvkm_device *nvkm_device = nvxx_device(&drm->client.device);
+	resource_size_t fb_base = nvkm_device->func->resource_addr(nvkm_device, 1);
 	int surface_fmt, pattern_fmt, rect_fmt;
 	int ret;
 
@@ -210,8 +212,8 @@ nv04_fbcon_accel_init(struct fb_info *info)
 			       0x0188, chan->vram.handle);
 	PUSH_NVSQ(push, NV042, 0x0300, surface_fmt,
 			       0x0304, info->fix.line_length | (info->fix.line_length << 16),
-			       0x0308, info->fix.smem_start - dev->mode_config.fb_base,
-			       0x030c, info->fix.smem_start - dev->mode_config.fb_base);
+			       0x0308, info->fix.smem_start - fb_base,
+			       0x030c, info->fix.smem_start - fb_base);
 
 	PUSH_NVSQ(push, NV043, 0x0000, nfbdev->rop.handle);
 	PUSH_NVSQ(push, NV043, 0x0300, 0x55);

@@ -229,7 +229,6 @@ int ttm_range_man_fini_nocheck(struct ttm_device *bdev,
 		return ret;
 
 	spin_lock(&rman->lock);
-	drm_mm_clean(mm);
 	drm_mm_takedown(mm);
 	spin_unlock(&rman->lock);
 

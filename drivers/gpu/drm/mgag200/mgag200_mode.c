@@ -579,12 +579,12 @@ int mgag200_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_st
 	struct drm_property_blob *new_gamma_lut = new_crtc_state->gamma_lut;
 	int ret;
 
-	ret = drm_atomic_helper_check_crtc_state(new_crtc_state, false);
-	if (ret)
-		return ret;
-
 	if (!new_crtc_state->enable)
 		return 0;
+
+	ret = drm_atomic_helper_check_crtc_primary_plane(new_crtc_state);
+	if (ret)
+		return ret;
 
 	if (new_crtc_state->mode_changed) {
 		if (funcs->pixpllc_atomic_check) {
@@ -601,7 +601,7 @@ int mgag200_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_st
 		}
 	}
 
-	return drm_atomic_add_affected_planes(new_state, crtc);
+	return 0;
 }
 
 void mgag200_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_state *old_state)
@@ -824,7 +824,6 @@ int mgag200_mode_config_init(struct mga_device *mdev, resource_size_t vram_avail
 	dev->mode_config.max_width = MGAG200_MAX_FB_WIDTH;
 	dev->mode_config.max_height = MGAG200_MAX_FB_HEIGHT;
 	dev->mode_config.preferred_depth = 24;
-	dev->mode_config.fb_base = mdev->vram_res->start;
 	dev->mode_config.funcs = &mgag200_mode_config_funcs;
 	dev->mode_config.helper_private = &mgag200_mode_config_helper_funcs;
 

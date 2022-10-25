@@ -105,7 +105,6 @@ static int hibmc_kms_init(struct hibmc_drm_private *priv)
 	dev->mode_config.max_width = 1920;
 	dev->mode_config.max_height = 1200;
 
-	dev->mode_config.fb_base = priv->fb_base;
 	dev->mode_config.preferred_depth = 32;
 	dev->mode_config.prefer_shadow = 1;
 
@@ -212,7 +211,7 @@ static int hibmc_hw_map(struct hibmc_drm_private *priv)
 {
 	struct drm_device *dev = &priv->dev;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	resource_size_t addr, size, ioaddr, iosize;
+	resource_size_t ioaddr, iosize;
 
 	ioaddr = pci_resource_start(pdev, 1);
 	iosize = pci_resource_len(pdev, 1);
@@ -221,16 +220,6 @@ static int hibmc_hw_map(struct hibmc_drm_private *priv)
 		drm_err(dev, "Cannot map mmio region\n");
 		return -ENOMEM;
 	}
-
-	addr = pci_resource_start(pdev, 0);
-	size = pci_resource_len(pdev, 0);
-	priv->fb_map = devm_ioremap(dev->dev, addr, size);
-	if (!priv->fb_map) {
-		drm_err(dev, "Cannot map framebuffer\n");
-		return -ENOMEM;
-	}
-	priv->fb_base = addr;
-	priv->fb_size = size;
 
 	return 0;
 }
@@ -271,7 +260,8 @@ static int hibmc_load(struct drm_device *dev)
 	if (ret)
 		goto err;
 
-	ret = drmm_vram_helper_init(dev, pci_resource_start(pdev, 0), priv->fb_size);
+	ret = drmm_vram_helper_init(dev, pci_resource_start(pdev, 0),
+				    pci_resource_len(pdev, 0));
 	if (ret) {
 		drm_err(dev, "Error initializing VRAM MM; %d\n", ret);
 		goto err;

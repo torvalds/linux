@@ -290,7 +290,21 @@ void __i915_gem_object_pages_fini(struct drm_i915_gem_object *obj)
 	__i915_gem_object_free_mmaps(obj);
 
 	atomic_set(&obj->mm.pages_pin_count, 0);
+
+	/*
+	 * dma_buf_unmap_attachment() requires reservation to be
+	 * locked. The imported GEM shouldn't share reservation lock
+	 * and ttm_bo_cleanup_memtype_use() shouldn't be invoked for
+	 * dma-buf, so it's safe to take the lock.
+	 */
+	if (obj->base.import_attach)
+		i915_gem_object_lock(obj, NULL);
+
 	__i915_gem_object_put_pages(obj);
+
+	if (obj->base.import_attach)
+		i915_gem_object_unlock(obj);
+
 	GEM_BUG_ON(i915_gem_object_has_pages(obj));
 }
 

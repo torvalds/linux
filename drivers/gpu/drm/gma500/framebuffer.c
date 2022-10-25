@@ -286,7 +286,7 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 
 	info->fbops = &psbfb_unaccel_ops;
 
-	info->fix.smem_start = dev->mode_config.fb_base;
+	info->fix.smem_start = dev_priv->fb_base;
 	info->fix.smem_len = size;
 	info->fix.ywrapstep = 0;
 	info->fix.ypanstep = 0;
@@ -296,7 +296,7 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 	info->screen_size = size;
 
 	if (dev_priv->gtt.stolen_size) {
-		info->apertures->ranges[0].base = dev->mode_config.fb_base;
+		info->apertures->ranges[0].base = dev_priv->fb_base;
 		info->apertures->ranges[0].size = dev_priv->gtt.stolen_size;
 	}
 
@@ -527,7 +527,7 @@ void psb_modeset_init(struct drm_device *dev)
 
 	/* set memory base */
 	/* Oaktrail and Poulsbo should use BAR 2*/
-	pci_read_config_dword(pdev, PSB_BSM, (u32 *)&(dev->mode_config.fb_base));
+	pci_read_config_dword(pdev, PSB_BSM, (u32 *)&(dev_priv->fb_base));
 
 	/* num pipes is 2 for PSB but 1 for Mrst */
 	for (i = 0; i < dev_priv->num_pipe; i++)

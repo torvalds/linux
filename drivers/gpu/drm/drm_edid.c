@@ -1572,15 +1572,6 @@ struct drm_edid {
 	const struct edid *edid;
 };
 
-static bool version_greater(const struct drm_edid *drm_edid,
-			    u8 version, u8 revision)
-{
-	const struct edid *edid = drm_edid->edid;
-
-	return edid->version > version ||
-		(edid->version == version && edid->revision > revision);
-}
-
 static int edid_hfeeodb_extension_block_count(const struct edid *edid);
 
 static int edid_hfeeodb_block_count(const struct edid *edid)
@@ -2984,7 +2975,7 @@ is_rb(const struct detailed_timing *descriptor, void *data)
 	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.cvt.flags) != 15);
 
 	if (descriptor->data.other_data.data.range.flags == DRM_EDID_CVT_SUPPORT_FLAG &&
-	    descriptor->data.other_data.data.range.formula.cvt.flags & 0x10)
+	    descriptor->data.other_data.data.range.formula.cvt.flags & DRM_EDID_CVT_FLAGS_REDUCED_BLANKING)
 		*res = true;
 }
 
@@ -3012,7 +3003,7 @@ find_gtf2(const struct detailed_timing *descriptor, void *data)
 
 	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.flags) != 10);
 
-	if (descriptor->data.other_data.data.range.flags == 0x02)
+	if (descriptor->data.other_data.data.range.flags == DRM_EDID_SECONDARY_GTF_SUPPORT_FLAG)
 		*res = descriptor;
 }
 
@@ -3077,20 +3068,53 @@ drm_gtf2_2j(const struct drm_edid *drm_edid)
 	return descriptor ? descriptor->data.other_data.data.range.formula.gtf2.j : 0;
 }
 
+static void
+get_timing_level(const struct detailed_timing *descriptor, void *data)
+{
+	int *res = data;
+
+	if (!is_display_descriptor(descriptor, EDID_DETAIL_MONITOR_RANGE))
+		return;
+
+	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.flags) != 10);
+
+	switch (descriptor->data.other_data.data.range.flags) {
+	case DRM_EDID_DEFAULT_GTF_SUPPORT_FLAG:
+		*res = LEVEL_GTF;
+		break;
+	case DRM_EDID_SECONDARY_GTF_SUPPORT_FLAG:
+		*res = LEVEL_GTF2;
+		break;
+	case DRM_EDID_CVT_SUPPORT_FLAG:
+		*res = LEVEL_CVT;
+		break;
+	default:
+		break;
+	}
+}
+
 /* Get standard timing level (CVT/GTF/DMT). */
 static int standard_timing_level(const struct drm_edid *drm_edid)
 {
 	const struct edid *edid = drm_edid->edid;
 
-	if (edid->revision >= 2) {
-		if (edid->revision >= 4 && (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF))
-			return LEVEL_CVT;
-		if (drm_gtf2_hbreak(drm_edid))
-			return LEVEL_GTF2;
-		if (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF)
-			return LEVEL_GTF;
+	if (edid->revision >= 4) {
+		/*
+		 * If the range descriptor doesn't
+		 * indicate otherwise default to CVT
+		 */
+		int ret = LEVEL_CVT;
+
+		drm_for_each_detailed_block(drm_edid, get_timing_level, &ret);
+
+		return ret;
+	} else if (edid->revision >= 3 && drm_gtf2_hbreak(drm_edid)) {
+		return LEVEL_GTF2;
+	} else if (edid->revision >= 2) {
+		return LEVEL_GTF;
+	} else {
+		return LEVEL_DMT;
 	}
-	return LEVEL_DMT;
 }
 
 /*
@@ -3111,6 +3135,35 @@ static int drm_mode_hsync(const struct drm_display_mode *mode)
 		return 0;
 
 	return DIV_ROUND_CLOSEST(mode->clock, mode->htotal);
+}
+
+static struct drm_display_mode *
+drm_gtf2_mode(struct drm_device *dev,
+	      const struct drm_edid *drm_edid,
+	      int hsize, int vsize, int vrefresh_rate)
+{
+	struct drm_display_mode *mode;
+
+	/*
+	 * This is potentially wrong if there's ever a monitor with
+	 * more than one ranges section, each claiming a different
+	 * secondary GTF curve.  Please don't do that.
+	 */
+	mode = drm_gtf_mode(dev, hsize, vsize, vrefresh_rate, 0, 0);
+	if (!mode)
+		return NULL;
+
+	if (drm_mode_hsync(mode) > drm_gtf2_hbreak(drm_edid)) {
+		drm_mode_destroy(dev, mode);
+		mode = drm_gtf_mode_complex(dev, hsize, vsize,
+					    vrefresh_rate, 0, 0,
+					    drm_gtf2_m(drm_edid),
+					    drm_gtf2_2c(drm_edid),
+					    drm_gtf2_k(drm_edid),
+					    drm_gtf2_2j(drm_edid));
+	}
+
+	return mode;
 }
 
 /*
@@ -3201,23 +3254,7 @@ static struct drm_display_mode *drm_mode_std(struct drm_connector *connector,
 		mode = drm_gtf_mode(dev, hsize, vsize, vrefresh_rate, 0, 0);
 		break;
 	case LEVEL_GTF2:
-		/*
-		 * This is potentially wrong if there's ever a monitor with
-		 * more than one ranges section, each claiming a different
-		 * secondary GTF curve.  Please don't do that.
-		 */
-		mode = drm_gtf_mode(dev, hsize, vsize, vrefresh_rate, 0, 0);
-		if (!mode)
-			return NULL;
-		if (drm_mode_hsync(mode) > drm_gtf2_hbreak(drm_edid)) {
-			drm_mode_destroy(dev, mode);
-			mode = drm_gtf_mode_complex(dev, hsize, vsize,
-						    vrefresh_rate, 0, 0,
-						    drm_gtf2_m(drm_edid),
-						    drm_gtf2_2c(drm_edid),
-						    drm_gtf2_k(drm_edid),
-						    drm_gtf2_2j(drm_edid));
-		}
+		mode = drm_gtf2_mode(dev, drm_edid, hsize, vsize, vrefresh_rate);
 		break;
 	case LEVEL_CVT:
 		mode = drm_cvt_mode(dev, hsize, vsize, vrefresh_rate, 0, 0,
@@ -3415,7 +3452,7 @@ range_pixel_clock(const struct edid *edid, const u8 *t)
 		return 0;
 
 	/* 1.4 with CVT support gives us real precision, yay */
-	if (edid->revision >= 4 && t[10] == 0x04)
+	if (edid->revision >= 4 && t[10] == DRM_EDID_CVT_SUPPORT_FLAG)
 		return (t[9] * 10000) - ((t[12] >> 2) * 250);
 
 	/* 1.3 is pathetic, so fuzz up a bit */
@@ -3441,7 +3478,7 @@ static bool mode_in_range(const struct drm_display_mode *mode,
 			return false;
 
 	/* 1.4 max horizontal check */
-	if (edid->revision >= 4 && t[10] == 0x04)
+	if (edid->revision >= 4 && t[10] == DRM_EDID_CVT_SUPPORT_FLAG)
 		if (t[13] && mode->hdisplay > 8 * (t[13] + (256 * (t[12]&0x3))))
 			return false;
 
@@ -3533,6 +3570,35 @@ static int drm_gtf_modes_for_range(struct drm_connector *connector,
 	return modes;
 }
 
+static int drm_gtf2_modes_for_range(struct drm_connector *connector,
+				    const struct drm_edid *drm_edid,
+				    const struct detailed_timing *timing)
+{
+	int i, modes = 0;
+	struct drm_display_mode *newmode;
+	struct drm_device *dev = connector->dev;
+
+	for (i = 0; i < ARRAY_SIZE(extra_modes); i++) {
+		const struct minimode *m = &extra_modes[i];
+
+		newmode = drm_gtf2_mode(dev, drm_edid, m->w, m->h, m->r);
+		if (!newmode)
+			return modes;
+
+		drm_mode_fixup_1366x768(newmode);
+		if (!mode_in_range(newmode, drm_edid, timing) ||
+		    !valid_inferred_mode(connector, newmode)) {
+			drm_mode_destroy(dev, newmode);
+			continue;
+		}
+
+		drm_mode_probed_add(connector, newmode);
+		modes++;
+	}
+
+	return modes;
+}
+
 static int drm_cvt_modes_for_range(struct drm_connector *connector,
 				   const struct drm_edid *drm_edid,
 				   const struct detailed_timing *timing)
@@ -3577,25 +3643,29 @@ do_inferred_modes(const struct detailed_timing *timing, void *c)
 						  closure->drm_edid,
 						  timing);
 
-	if (!version_greater(closure->drm_edid, 1, 1))
+	if (closure->drm_edid->edid->revision < 2)
 		return; /* GTF not defined yet */
 
 	switch (range->flags) {
-	case 0x02: /* secondary gtf, XXX could do more */
-	case 0x00: /* default gtf */
+	case DRM_EDID_SECONDARY_GTF_SUPPORT_FLAG:
+		closure->modes += drm_gtf2_modes_for_range(closure->connector,
+							   closure->drm_edid,
+							   timing);
+		break;
+	case DRM_EDID_DEFAULT_GTF_SUPPORT_FLAG:
 		closure->modes += drm_gtf_modes_for_range(closure->connector,
 							  closure->drm_edid,
 							  timing);
 		break;
-	case 0x04: /* cvt, only in 1.4+ */
-		if (!version_greater(closure->drm_edid, 1, 3))
+	case DRM_EDID_CVT_SUPPORT_FLAG:
+		if (closure->drm_edid->edid->revision < 4)
 			break;
 
 		closure->modes += drm_cvt_modes_for_range(closure->connector,
 							  closure->drm_edid,
 							  timing);
 		break;
-	case 0x01: /* just the ranges, no formula */
+	case DRM_EDID_RANGE_LIMITS_ONLY_FLAG:
 	default:
 		break;
 	}
@@ -3609,7 +3679,7 @@ static int add_inferred_modes(struct drm_connector *connector,
 		.drm_edid = drm_edid,
 	};
 
-	if (version_greater(drm_edid, 1, 0))
+	if (drm_edid->edid->revision >= 1)
 		drm_for_each_detailed_block(drm_edid, do_inferred_modes, &closure);
 
 	return closure.modes;
@@ -3686,7 +3756,7 @@ static int add_established_modes(struct drm_connector *connector,
 		}
 	}
 
-	if (version_greater(drm_edid, 1, 0))
+	if (edid->revision >= 1)
 		drm_for_each_detailed_block(drm_edid, do_established_modes,
 					    &closure);
 
@@ -3741,7 +3811,7 @@ static int add_standard_modes(struct drm_connector *connector,
 		}
 	}
 
-	if (version_greater(drm_edid, 1, 0))
+	if (drm_edid->edid->revision >= 1)
 		drm_for_each_detailed_block(drm_edid, do_standard_modes,
 					    &closure);
 
@@ -3821,7 +3891,7 @@ add_cvt_modes(struct drm_connector *connector, const struct drm_edid *drm_edid)
 		.drm_edid = drm_edid,
 	};
 
-	if (version_greater(drm_edid, 1, 2))
+	if (drm_edid->edid->revision >= 3)
 		drm_for_each_detailed_block(drm_edid, do_cvt_mode, &closure);
 
 	/* XXX should also look for CVT codes in VTB blocks */
@@ -3873,13 +3943,14 @@ static int add_detailed_modes(struct drm_connector *connector,
 	struct detailed_mode_closure closure = {
 		.connector = connector,
 		.drm_edid = drm_edid,
-		.preferred = true,
 		.quirks = quirks,
 	};
 
-	if (closure.preferred && !version_greater(drm_edid, 1, 3))
+	if (drm_edid->edid->revision >= 4)
+		closure.preferred = true; /* first detailed timing is always preferred */
+	else
 		closure.preferred =
-		    (drm_edid->edid->features & DRM_EDID_FEATURE_PREFERRED_TIMING);
+			drm_edid->edid->features & DRM_EDID_FEATURE_PREFERRED_TIMING;
 
 	drm_for_each_detailed_block(drm_edid, do_detailed_mode, &closure);
 
@@ -5752,12 +5823,87 @@ static void drm_parse_ycbcr420_deep_color_info(struct drm_connector *connector,
 	hdmi->y420_dc_modes = dc_mask;
 }
 
+static void drm_parse_dsc_info(struct drm_hdmi_dsc_cap *hdmi_dsc,
+			       const u8 *hf_scds)
+{
+	hdmi_dsc->v_1p2 = hf_scds[11] & DRM_EDID_DSC_1P2;
+
+	if (!hdmi_dsc->v_1p2)
+		return;
+
+	hdmi_dsc->native_420 = hf_scds[11] & DRM_EDID_DSC_NATIVE_420;
+	hdmi_dsc->all_bpp = hf_scds[11] & DRM_EDID_DSC_ALL_BPP;
+
+	if (hf_scds[11] & DRM_EDID_DSC_16BPC)
+		hdmi_dsc->bpc_supported = 16;
+	else if (hf_scds[11] & DRM_EDID_DSC_12BPC)
+		hdmi_dsc->bpc_supported = 12;
+	else if (hf_scds[11] & DRM_EDID_DSC_10BPC)
+		hdmi_dsc->bpc_supported = 10;
+	else
+		/* Supports min 8 BPC if DSC 1.2 is supported*/
+		hdmi_dsc->bpc_supported = 8;
+
+	if (cea_db_payload_len(hf_scds) >= 12 && hf_scds[12]) {
+		u8 dsc_max_slices;
+		u8 dsc_max_frl_rate;
+
+		dsc_max_frl_rate = (hf_scds[12] & DRM_EDID_DSC_MAX_FRL_RATE_MASK) >> 4;
+		drm_get_max_frl_rate(dsc_max_frl_rate, &hdmi_dsc->max_lanes,
+				     &hdmi_dsc->max_frl_rate_per_lane);
+
+		dsc_max_slices = hf_scds[12] & DRM_EDID_DSC_MAX_SLICES;
+
+		switch (dsc_max_slices) {
+		case 1:
+			hdmi_dsc->max_slices = 1;
+			hdmi_dsc->clk_per_slice = 340;
+			break;
+		case 2:
+			hdmi_dsc->max_slices = 2;
+			hdmi_dsc->clk_per_slice = 340;
+			break;
+		case 3:
+			hdmi_dsc->max_slices = 4;
+			hdmi_dsc->clk_per_slice = 340;
+			break;
+		case 4:
+			hdmi_dsc->max_slices = 8;
+			hdmi_dsc->clk_per_slice = 340;
+			break;
+		case 5:
+			hdmi_dsc->max_slices = 8;
+			hdmi_dsc->clk_per_slice = 400;
+			break;
+		case 6:
+			hdmi_dsc->max_slices = 12;
+			hdmi_dsc->clk_per_slice = 400;
+			break;
+		case 7:
+			hdmi_dsc->max_slices = 16;
+			hdmi_dsc->clk_per_slice = 400;
+			break;
+		case 0:
+		default:
+			hdmi_dsc->max_slices = 0;
+			hdmi_dsc->clk_per_slice = 0;
+		}
+	}
+
+	if (cea_db_payload_len(hf_scds) >= 13 && hf_scds[13])
+		hdmi_dsc->total_chunk_kbytes = hf_scds[13] & DRM_EDID_DSC_TOTAL_CHUNK_KBYTES;
+}
+
 /* Sink Capability Data Structure */
 static void drm_parse_hdmi_forum_scds(struct drm_connector *connector,
 				      const u8 *hf_scds)
 {
 	struct drm_display_info *display = &connector->display_info;
 	struct drm_hdmi_info *hdmi = &display->hdmi;
+	struct drm_hdmi_dsc_cap *hdmi_dsc = &hdmi->dsc_cap;
+	int max_tmds_clock = 0;
+	u8 max_frl_rate = 0;
+	bool dsc_support = false;
 
 	display->has_hdmi_infoframe = true;
 
@@ -5777,14 +5923,13 @@ static void drm_parse_hdmi_forum_scds(struct drm_connector *connector,
 	 */
 
 	if (hf_scds[5]) {
-		/* max clock is 5000 KHz times block value */
-		u32 max_tmds_clock = hf_scds[5] * 5000;
 		struct drm_scdc *scdc = &hdmi->scdc;
+
+		/* max clock is 5000 KHz times block value */
+		max_tmds_clock = hf_scds[5] * 5000;
 
 		if (max_tmds_clock > 340000) {
 			display->max_tmds_clock = max_tmds_clock;
-			DRM_DEBUG_KMS("HF-VSDB: max TMDS clock %d kHz\n",
-				display->max_tmds_clock);
 		}
 
 		if (scdc->supported) {
@@ -5797,74 +5942,21 @@ static void drm_parse_hdmi_forum_scds(struct drm_connector *connector,
 	}
 
 	if (hf_scds[7]) {
-		u8 max_frl_rate;
-		u8 dsc_max_frl_rate;
-		u8 dsc_max_slices;
-		struct drm_hdmi_dsc_cap *hdmi_dsc = &hdmi->dsc_cap;
-
-		DRM_DEBUG_KMS("hdmi_21 sink detected. parsing edid\n");
 		max_frl_rate = (hf_scds[7] & DRM_EDID_MAX_FRL_RATE_MASK) >> 4;
 		drm_get_max_frl_rate(max_frl_rate, &hdmi->max_lanes,
 				     &hdmi->max_frl_rate_per_lane);
-		hdmi_dsc->v_1p2 = hf_scds[11] & DRM_EDID_DSC_1P2;
-
-		if (hdmi_dsc->v_1p2) {
-			hdmi_dsc->native_420 = hf_scds[11] & DRM_EDID_DSC_NATIVE_420;
-			hdmi_dsc->all_bpp = hf_scds[11] & DRM_EDID_DSC_ALL_BPP;
-
-			if (hf_scds[11] & DRM_EDID_DSC_16BPC)
-				hdmi_dsc->bpc_supported = 16;
-			else if (hf_scds[11] & DRM_EDID_DSC_12BPC)
-				hdmi_dsc->bpc_supported = 12;
-			else if (hf_scds[11] & DRM_EDID_DSC_10BPC)
-				hdmi_dsc->bpc_supported = 10;
-			else
-				hdmi_dsc->bpc_supported = 0;
-
-			dsc_max_frl_rate = (hf_scds[12] & DRM_EDID_DSC_MAX_FRL_RATE_MASK) >> 4;
-			drm_get_max_frl_rate(dsc_max_frl_rate, &hdmi_dsc->max_lanes,
-					     &hdmi_dsc->max_frl_rate_per_lane);
-			hdmi_dsc->total_chunk_kbytes = hf_scds[13] & DRM_EDID_DSC_TOTAL_CHUNK_KBYTES;
-
-			dsc_max_slices = hf_scds[12] & DRM_EDID_DSC_MAX_SLICES;
-			switch (dsc_max_slices) {
-			case 1:
-				hdmi_dsc->max_slices = 1;
-				hdmi_dsc->clk_per_slice = 340;
-				break;
-			case 2:
-				hdmi_dsc->max_slices = 2;
-				hdmi_dsc->clk_per_slice = 340;
-				break;
-			case 3:
-				hdmi_dsc->max_slices = 4;
-				hdmi_dsc->clk_per_slice = 340;
-				break;
-			case 4:
-				hdmi_dsc->max_slices = 8;
-				hdmi_dsc->clk_per_slice = 340;
-				break;
-			case 5:
-				hdmi_dsc->max_slices = 8;
-				hdmi_dsc->clk_per_slice = 400;
-				break;
-			case 6:
-				hdmi_dsc->max_slices = 12;
-				hdmi_dsc->clk_per_slice = 400;
-				break;
-			case 7:
-				hdmi_dsc->max_slices = 16;
-				hdmi_dsc->clk_per_slice = 400;
-				break;
-			case 0:
-			default:
-				hdmi_dsc->max_slices = 0;
-				hdmi_dsc->clk_per_slice = 0;
-			}
-		}
 	}
 
 	drm_parse_ycbcr420_deep_color_info(connector, hf_scds);
+
+	if (cea_db_payload_len(hf_scds) >= 11 && hf_scds[11]) {
+		drm_parse_dsc_info(hdmi_dsc, hf_scds);
+		dsc_support = true;
+	}
+
+	drm_dbg_kms(connector->dev,
+		    "HF-VSDB: max TMDS clock: %d KHz, HDMI 2.1 support: %s, DSC 1.2 support: %s\n",
+		    max_tmds_clock, str_yes_no(max_frl_rate), str_yes_no(dsc_support));
 }
 
 static void drm_parse_hdmi_deep_color_info(struct drm_connector *connector,
@@ -6033,10 +6125,13 @@ void get_monitor_range(const struct detailed_timing *timing, void *c)
 		return;
 
 	/*
-	 * Check for flag range limits only. If flag == 1 then
-	 * no additional timing information provided.
-	 * Default GTF, GTF Secondary curve and CVT are not
-	 * supported
+	 * These limits are used to determine the VRR refresh
+	 * rate range. Only the "range limits only" variant
+	 * of the range descriptor seems to guarantee that
+	 * any and all timings are accepted by the sink, as
+	 * opposed to just timings conforming to the indicated
+	 * formula (GTF/GTF2/CVT). Thus other variants of the
+	 * range descriptor are not accepted here.
 	 */
 	if (range->flags != DRM_EDID_RANGE_LIMITS_ONLY_FLAG)
 		return;
@@ -6061,7 +6156,10 @@ static void drm_get_monitor_range(struct drm_connector *connector,
 		.drm_edid = drm_edid,
 	};
 
-	if (!version_greater(drm_edid, 1, 1))
+	if (drm_edid->edid->revision < 4)
+		return;
+
+	if (!(drm_edid->edid->features & DRM_EDID_FEATURE_CONTINUOUS_FREQ))
 		return;
 
 	drm_for_each_detailed_block(drm_edid, get_monitor_range, &closure);
@@ -6390,7 +6488,7 @@ static int _drm_edid_connector_update(struct drm_connector *connector,
 	num_modes += add_cea_modes(connector, drm_edid);
 	num_modes += add_alternate_cea_modes(connector, drm_edid);
 	num_modes += add_displayid_detailed_modes(connector, drm_edid);
-	if (drm_edid->edid->features & DRM_EDID_FEATURE_DEFAULT_GTF)
+	if (drm_edid->edid->features & DRM_EDID_FEATURE_CONTINUOUS_FREQ)
 		num_modes += add_inferred_modes(connector, drm_edid);
 
 	if (quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))
@@ -6837,7 +6935,7 @@ drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 	 * by non-zero YQ when receiving RGB. There doesn't seem to be any
 	 * good way to tell which version of CEA-861 the sink supports, so
 	 * we limit non-zero YQ to HDMI 2.0 sinks only as HDMI 2.0 is based
-	 * on on CEA-861-F.
+	 * on CEA-861-F.
 	 */
 	if (!is_hdmi2_sink(connector) ||
 	    rgb_quant_range == HDMI_QUANTIZATION_RANGE_LIMITED)
