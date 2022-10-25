@@ -196,20 +196,15 @@ static void s390_iommu_release_device(struct device *dev)
 
 static int s390_iommu_update_trans(struct s390_domain *s390_domain,
 				   phys_addr_t pa, dma_addr_t dma_addr,
-				   size_t size, int flags)
+				   unsigned long nr_pages, int flags)
 {
 	phys_addr_t page_addr = pa & PAGE_MASK;
 	dma_addr_t start_dma_addr = dma_addr;
-	unsigned long irq_flags, nr_pages, i;
+	unsigned long irq_flags, i;
 	struct zpci_dev *zdev;
 	unsigned long *entry;
 	int rc = 0;
 
-	if (dma_addr < s390_domain->domain.geometry.aperture_start ||
-	    (dma_addr + size - 1) > s390_domain->domain.geometry.aperture_end)
-		return -EINVAL;
-
-	nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	if (!nr_pages)
 		return 0;
 
@@ -252,11 +247,24 @@ undo_cpu_trans:
 	return rc;
 }
 
-static int s390_iommu_map(struct iommu_domain *domain, unsigned long iova,
-			  phys_addr_t paddr, size_t size, int prot, gfp_t gfp)
+static int s390_iommu_map_pages(struct iommu_domain *domain,
+				unsigned long iova, phys_addr_t paddr,
+				size_t pgsize, size_t pgcount,
+				int prot, gfp_t gfp, size_t *mapped)
 {
 	struct s390_domain *s390_domain = to_s390_domain(domain);
 	int flags = ZPCI_PTE_VALID, rc = 0;
+	size_t size = pgcount << __ffs(pgsize);
+
+	if (pgsize != SZ_4K)
+		return -EINVAL;
+
+	if (iova < s390_domain->domain.geometry.aperture_start ||
+	    (iova + size - 1) > s390_domain->domain.geometry.aperture_end)
+		return -EINVAL;
+
+	if (!IS_ALIGNED(iova | paddr, pgsize))
+		return -EINVAL;
 
 	if (!(prot & IOMMU_READ))
 		return -EINVAL;
@@ -265,7 +273,9 @@ static int s390_iommu_map(struct iommu_domain *domain, unsigned long iova,
 		flags |= ZPCI_TABLE_PROTECTED;
 
 	rc = s390_iommu_update_trans(s390_domain, paddr, iova,
-				     size, flags);
+				     pgcount, flags);
+	if (!rc)
+		*mapped = size;
 
 	return rc;
 }
@@ -301,21 +311,27 @@ static phys_addr_t s390_iommu_iova_to_phys(struct iommu_domain *domain,
 	return phys;
 }
 
-static size_t s390_iommu_unmap(struct iommu_domain *domain,
-			       unsigned long iova, size_t size,
-			       struct iommu_iotlb_gather *gather)
+static size_t s390_iommu_unmap_pages(struct iommu_domain *domain,
+				     unsigned long iova,
+				     size_t pgsize, size_t pgcount,
+				     struct iommu_iotlb_gather *gather)
 {
 	struct s390_domain *s390_domain = to_s390_domain(domain);
+	size_t size = pgcount << __ffs(pgsize);
 	int flags = ZPCI_PTE_INVALID;
 	phys_addr_t paddr;
 	int rc;
+
+	if (WARN_ON(iova < s390_domain->domain.geometry.aperture_start ||
+	    (iova + size - 1) > s390_domain->domain.geometry.aperture_end))
+		return 0;
 
 	paddr = s390_iommu_iova_to_phys(domain, iova);
 	if (!paddr)
 		return 0;
 
 	rc = s390_iommu_update_trans(s390_domain, paddr, iova,
-				     size, flags);
+				     pgcount, flags);
 	if (rc)
 		return 0;
 
@@ -361,8 +377,8 @@ static const struct iommu_ops s390_iommu_ops = {
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= s390_iommu_attach_device,
 		.detach_dev	= s390_iommu_detach_device,
-		.map		= s390_iommu_map,
-		.unmap		= s390_iommu_unmap,
+		.map_pages	= s390_iommu_map_pages,
+		.unmap_pages	= s390_iommu_unmap_pages,
 		.iova_to_phys	= s390_iommu_iova_to_phys,
 		.free		= s390_domain_free,
 	}
