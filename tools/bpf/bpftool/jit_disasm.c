@@ -30,6 +30,14 @@
 #include "json_writer.h"
 #include "main.h"
 
+static int oper_count;
+
+typedef struct {
+	struct disassemble_info *info;
+	disassembler_ftype disassemble;
+	bfd *bfdf;
+} disasm_ctx_t;
+
 static int get_exec_path(char *tpath, size_t size)
 {
 	const char *path = "/proc/self/exe";
@@ -44,7 +52,6 @@ static int get_exec_path(char *tpath, size_t size)
 	return 0;
 }
 
-static int oper_count;
 static int printf_json(void *out, const char *fmt, va_list ap)
 {
 	char *s;
@@ -102,23 +109,13 @@ static int fprintf_json_styled(void *out,
 	return r;
 }
 
-int disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
-		      const char *arch, const char *disassembler_options,
-		      const struct btf *btf,
-		      const struct bpf_prog_linfo *prog_linfo,
-		      __u64 func_ksym, unsigned int func_idx,
-		      bool linum)
+static int init_context(disasm_ctx_t *ctx, const char *arch,
+			const char *disassembler_options,
+			unsigned char *image, ssize_t len)
 {
-	const struct bpf_line_info *linfo = NULL;
-	disassembler_ftype disassemble;
-	int count, i, pc = 0, err = -1;
-	struct disassemble_info info;
-	unsigned int nr_skip = 0;
+	struct disassemble_info *info;
 	char tpath[PATH_MAX];
 	bfd *bfdf;
-
-	if (!len)
-		return -1;
 
 	memset(tpath, 0, sizeof(tpath));
 	if (get_exec_path(tpath, sizeof(tpath))) {
@@ -126,22 +123,30 @@ int disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 		return -1;
 	}
 
-	bfdf = bfd_openr(tpath, NULL);
-	if (!bfdf) {
+	ctx->bfdf = bfd_openr(tpath, NULL);
+	if (!ctx->bfdf) {
 		p_err("failed to create disassembler (bfd_openr)");
 		return -1;
 	}
-	if (!bfd_check_format(bfdf, bfd_object)) {
+	if (!bfd_check_format(ctx->bfdf, bfd_object)) {
 		p_err("failed to create disassembler (bfd_check_format)");
-		goto exit_close;
+		goto err_close;
 	}
+	bfdf = ctx->bfdf;
+
+	ctx->info = malloc(sizeof(struct disassemble_info));
+	if (!ctx->info) {
+		p_err("mem alloc failed");
+		goto err_close;
+	}
+	info = ctx->info;
 
 	if (json_output)
-		init_disassemble_info_compat(&info, stdout,
+		init_disassemble_info_compat(info, stdout,
 					     (fprintf_ftype) fprintf_json,
 					     fprintf_json_styled);
 	else
-		init_disassemble_info_compat(&info, stdout,
+		init_disassemble_info_compat(info, stdout,
 					     (fprintf_ftype) fprintf,
 					     fprintf_styled);
 
@@ -153,31 +158,76 @@ int disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 			bfdf->arch_info = inf;
 		} else {
 			p_err("No libbfd support for %s", arch);
-			goto exit_close;
+			goto err_free;
 		}
 	}
 
-	info.arch = bfd_get_arch(bfdf);
-	info.mach = bfd_get_mach(bfdf);
+	info->arch = bfd_get_arch(bfdf);
+	info->mach = bfd_get_mach(bfdf);
 	if (disassembler_options)
-		info.disassembler_options = disassembler_options;
-	info.buffer = image;
-	info.buffer_length = len;
+		info->disassembler_options = disassembler_options;
+	info->buffer = image;
+	info->buffer_length = len;
 
-	disassemble_init_for_target(&info);
+	disassemble_init_for_target(info);
 
 #ifdef DISASM_FOUR_ARGS_SIGNATURE
-	disassemble = disassembler(info.arch,
-				   bfd_big_endian(bfdf),
-				   info.mach,
-				   bfdf);
+	ctx->disassemble = disassembler(info->arch,
+					bfd_big_endian(bfdf),
+					info->mach,
+					bfdf);
 #else
-	disassemble = disassembler(bfdf);
+	ctx->disassemble = disassembler(bfdf);
 #endif
-	if (!disassemble) {
+	if (!ctx->disassemble) {
 		p_err("failed to create disassembler");
-		goto exit_close;
+		goto err_free;
 	}
+	return 0;
+
+err_free:
+	free(info);
+err_close:
+	bfd_close(ctx->bfdf);
+	return -1;
+}
+
+static void destroy_context(disasm_ctx_t *ctx)
+{
+	free(ctx->info);
+	bfd_close(ctx->bfdf);
+}
+
+static int
+disassemble_insn(disasm_ctx_t *ctx, __maybe_unused unsigned char *image,
+		 __maybe_unused ssize_t len, int pc)
+{
+	return ctx->disassemble(pc, ctx->info);
+}
+
+int disasm_init(void)
+{
+	bfd_init();
+	return 0;
+}
+
+int disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
+		      const char *arch, const char *disassembler_options,
+		      const struct btf *btf,
+		      const struct bpf_prog_linfo *prog_linfo,
+		      __u64 func_ksym, unsigned int func_idx,
+		      bool linum)
+{
+	const struct bpf_line_info *linfo = NULL;
+	unsigned int nr_skip = 0;
+	int count, i, pc = 0;
+	disasm_ctx_t ctx;
+
+	if (!len)
+		return -1;
+
+	if (init_context(&ctx, arch, disassembler_options, image, len))
+		return -1;
 
 	if (json_output)
 		jsonw_start_array(json_wtr);
@@ -205,7 +255,8 @@ int disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 			printf("%4x:\t", pc);
 		}
 
-		count = disassemble(pc, &info);
+		count = disassemble_insn(&ctx, image, len, pc);
+
 		if (json_output) {
 			/* Operand array, was started in fprintf_json. Before
 			 * that, make sure we have a _null_ value if no operand
@@ -241,15 +292,7 @@ int disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 	if (json_output)
 		jsonw_end_array(json_wtr);
 
-	err = 0;
+	destroy_context(&ctx);
 
-exit_close:
-	bfd_close(bfdf);
-	return err;
-}
-
-int disasm_init(void)
-{
-	bfd_init();
 	return 0;
 }
