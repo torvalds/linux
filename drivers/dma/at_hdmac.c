@@ -1803,13 +1803,13 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	atdma->dma_common.cap_mask = plat_dat->cap_mask;
 	atdma->all_chan_mask = (1 << plat_dat->nr_channels) - 1;
 
-	atdma->clk = clk_get(&pdev->dev, "dma_clk");
+	atdma->clk = devm_clk_get(&pdev->dev, "dma_clk");
 	if (IS_ERR(atdma->clk))
 		return PTR_ERR(atdma->clk);
 
 	err = clk_prepare_enable(atdma->clk);
 	if (err)
-		goto err_clk_prepare;
+		return err;
 
 	/* force dma off, just in case */
 	at_dma_off(atdma);
@@ -1942,8 +1942,6 @@ err_desc_pool_create:
 	free_irq(platform_get_irq(pdev, 0), atdma);
 err_irq:
 	clk_disable_unprepare(atdma->clk);
-err_clk_prepare:
-	clk_put(atdma->clk);
 	return err;
 }
 
@@ -1973,7 +1971,6 @@ static int at_dma_remove(struct platform_device *pdev)
 	}
 
 	clk_disable_unprepare(atdma->clk);
-	clk_put(atdma->clk);
 
 	return 0;
 }
