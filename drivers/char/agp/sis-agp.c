@@ -217,10 +217,7 @@ static void agp_sis_remove(struct pci_dev *pdev)
 	agp_put_bridge(bridge);
 }
 
-#define agp_sis_suspend NULL
-
-static int __maybe_unused agp_sis_resume(
-	__attribute__((unused)) struct device *dev)
+static int agp_sis_resume(__attribute__((unused)) struct device *dev)
 {
 	return sis_driver.configure();
 }
@@ -407,7 +404,7 @@ static const struct pci_device_id agp_sis_pci_table[] = {
 
 MODULE_DEVICE_TABLE(pci, agp_sis_pci_table);
 
-static SIMPLE_DEV_PM_OPS(agp_sis_pm_ops, agp_sis_suspend, agp_sis_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(agp_sis_pm_ops, NULL, agp_sis_resume);
 
 static struct pci_driver agp_sis_pci_driver = {
 	.name		= "agpgart-sis",
