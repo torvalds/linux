@@ -148,6 +148,11 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 	}
 
 	if (tb[TCA_SKBEDIT_QUEUE_MAPPING] != NULL) {
+		if (is_tcf_skbedit_ingress(act_flags) &&
+		    !(act_flags & TCA_ACT_FLAGS_SKIP_SW)) {
+			NL_SET_ERR_MSG_MOD(extack, "\"queue_mapping\" option on receive side is hardware only, use skip_sw");
+			return -EOPNOTSUPP;
+		}
 		flags |= SKBEDIT_F_QUEUE_MAPPING;
 		queue_mapping = nla_data(tb[TCA_SKBEDIT_QUEUE_MAPPING]);
 	}
@@ -374,9 +379,12 @@ static int tcf_skbedit_offload_act_setup(struct tc_action *act, void *entry_data
 		} else if (is_tcf_skbedit_priority(act)) {
 			entry->id = FLOW_ACTION_PRIORITY;
 			entry->priority = tcf_skbedit_priority(act);
-		} else if (is_tcf_skbedit_queue_mapping(act)) {
-			NL_SET_ERR_MSG_MOD(extack, "Offload not supported when \"queue_mapping\" option is used");
+		} else if (is_tcf_skbedit_tx_queue_mapping(act)) {
+			NL_SET_ERR_MSG_MOD(extack, "Offload not supported when \"queue_mapping\" option is used on transmit side");
 			return -EOPNOTSUPP;
+		} else if (is_tcf_skbedit_rx_queue_mapping(act)) {
+			entry->id = FLOW_ACTION_RX_QUEUE_MAPPING;
+			entry->rx_queue = tcf_skbedit_rx_queue_mapping(act);
 		} else if (is_tcf_skbedit_inheritdsfield(act)) {
 			NL_SET_ERR_MSG_MOD(extack, "Offload not supported when \"inheritdsfield\" option is used");
 			return -EOPNOTSUPP;
@@ -394,6 +402,8 @@ static int tcf_skbedit_offload_act_setup(struct tc_action *act, void *entry_data
 			fl_action->id = FLOW_ACTION_PTYPE;
 		else if (is_tcf_skbedit_priority(act))
 			fl_action->id = FLOW_ACTION_PRIORITY;
+		else if (is_tcf_skbedit_rx_queue_mapping(act))
+			fl_action->id = FLOW_ACTION_RX_QUEUE_MAPPING;
 		else
 			return -EOPNOTSUPP;
 	}

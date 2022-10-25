@@ -137,6 +137,21 @@
  */
 #define ICE_BW_KBPS_DIVISOR		125
 
+/* Default recipes have priority 4 and below, hence priority values between 5..7
+ * can be used as filter priority for advanced switch filter (advanced switch
+ * filters need new recipe to be created for specified extraction sequence
+ * because default recipe extraction sequence does not represent custom
+ * extraction)
+ */
+#define ICE_SWITCH_FLTR_PRIO_QUEUE	7
+/* prio 6 is reserved for future use (e.g. switch filter with L3 fields +
+ * (Optional: IP TOS/TTL) + L4 fields + (optionally: TCP fields such as
+ * SYN/FIN/RST))
+ */
+#define ICE_SWITCH_FLTR_PRIO_RSVD	6
+#define ICE_SWITCH_FLTR_PRIO_VSI	5
+#define ICE_SWITCH_FLTR_PRIO_QGRP	ICE_SWITCH_FLTR_PRIO_VSI
+
 /* Macro for each VSI in a PF */
 #define ice_for_each_vsi(pf, i) \
 	for ((i) = 0; (i) < (pf)->num_alloc_vsi; (i)++)
