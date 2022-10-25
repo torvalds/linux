@@ -988,6 +988,8 @@ int psp_ta_unload(struct psp_context *psp, struct ta_context *context)
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
+	context->resp_status = cmd->resp.status;
+
 	release_psp_cmd_buf(psp);
 
 	return ret;
@@ -1560,6 +1562,11 @@ static int psp_ras_initialize(struct psp_context *psp)
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
+	if (psp->ras_context.context.initialized) {
+		dev_warn(adev->dev, "RAS WARN: TA has already been loaded\n");
+		return 0;
+	}
+
 	if (!adev->psp.ras_context.context.bin_desc.size_bytes ||
 	    !adev->psp.ras_context.context.bin_desc.start_addr) {
 		dev_info(adev->dev, "RAS: optional ras ta ucode is not available\n");
@@ -1610,7 +1617,7 @@ static int psp_ras_initialize(struct psp_context *psp)
 	psp->ras_context.context.mem_context.shared_mem_size = PSP_RAS_SHARED_MEM_SIZE;
 	psp->ras_context.context.ta_load_type = GFX_CMD_ID_LOAD_TA;
 
-	if (!psp->ras_context.context.initialized) {
+	if (!psp->ras_context.context.mem_context.shared_buf) {
 		ret = psp_ta_init_shared_buf(psp, &psp->ras_context.context.mem_context);
 		if (ret)
 			return ret;
@@ -1631,7 +1638,6 @@ static int psp_ras_initialize(struct psp_context *psp)
 	else {
 		if (ras_cmd->ras_status)
 			dev_warn(psp->adev->dev, "RAS Init Status: 0x%X\n", ras_cmd->ras_status);
-		amdgpu_ras_fini(psp->adev);
 	}
 
 	return ret;
