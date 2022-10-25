@@ -457,11 +457,12 @@ static int intel_spi_read_reg(struct intel_spi *ispi, const struct spi_mem *mem,
 			      const struct intel_spi_mem_op *iop,
 			      const struct spi_mem_op *op)
 {
+	u32 addr = intel_spi_chip_addr(ispi, mem) + op->addr.val;
 	size_t nbytes = op->data.nbytes;
 	u8 opcode = op->cmd.opcode;
 	int ret;
 
-	writel(intel_spi_chip_addr(ispi, mem), ispi->base + FADDR);
+	writel(addr, ispi->base + FADDR);
 
 	if (ispi->swseq_reg)
 		ret = intel_spi_sw_cycle(ispi, opcode, nbytes,
@@ -479,6 +480,7 @@ static int intel_spi_write_reg(struct intel_spi *ispi, const struct spi_mem *mem
 			       const struct intel_spi_mem_op *iop,
 			       const struct spi_mem_op *op)
 {
+	u32 addr = intel_spi_chip_addr(ispi, mem) + op->addr.val;
 	size_t nbytes = op->data.nbytes;
 	u8 opcode = op->cmd.opcode;
 	int ret;
@@ -522,7 +524,7 @@ static int intel_spi_write_reg(struct intel_spi *ispi, const struct spi_mem *mem
 	if (opcode == SPINOR_OP_WRDI)
 		return 0;
 
-	writel(intel_spi_chip_addr(ispi, mem), ispi->base + FADDR);
+	writel(addr, ispi->base + FADDR);
 
 	/* Write the value beforehand */
 	ret = intel_spi_write_block(ispi, op->data.buf.out, nbytes);
