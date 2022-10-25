@@ -223,6 +223,13 @@ static int jh7110_cryp_probe(struct platform_device *pdev)
 		return PTR_ERR(sdev->sec_ahb);
 	}
 
+	pm_runtime_set_autosuspend_delay(dev, 50);
+	pm_runtime_use_autosuspend(dev);
+
+	pm_runtime_get_noresume(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
 	sdev->rst_hresetn = devm_reset_control_get_shared(sdev->dev, "sec_hre");
 	if (IS_ERR(sdev->rst_hresetn)) {
 		dev_err(sdev->dev, "failed to get sec reset\n");
@@ -295,6 +302,8 @@ static int jh7110_cryp_probe(struct platform_device *pdev)
 
 	dev_info(dev, "Initialized\n");
 
+	pm_runtime_put_sync(dev);
+
 	return 0;
  err_algs_pka:
 	jh7110_aes_unregister_algs();
@@ -323,9 +332,14 @@ static int jh7110_cryp_probe(struct platform_device *pdev)
 static int jh7110_cryp_remove(struct platform_device *pdev)
 {
 	struct jh7110_sec_dev *sdev = platform_get_drvdata(pdev);
+	int ret;
 
 	if (!sdev)
 		return -ENODEV;
+
+	ret = pm_runtime_resume_and_get(sdev->dev);
+	if (ret < 0)
+		return ret;
 
 	jh7110_pka_unregister_algs();
 	jh7110_aes_unregister_algs();
@@ -347,8 +361,12 @@ static int jh7110_cryp_remove(struct platform_device *pdev)
 	list_del(&sdev->list);
 	spin_unlock(&dev_list.lock);
 
+	pm_runtime_disable(sdev->dev);
+	pm_runtime_put_noidle(sdev->dev);
+
 	clk_disable_unprepare(sdev->sec_hclk);
 	clk_disable_unprepare(sdev->sec_ahb);
+	reset_control_assert(sdev->rst_hresetn);
 
 	return 0;
 }
@@ -391,6 +409,8 @@ static const struct dev_pm_ops jh7110_cryp_pm_ops = {
 	SET_RUNTIME_PM_OPS(jh7110_cryp_runtime_suspend,
 			   jh7110_cryp_runtime_resume, NULL)
 };
+
+
 
 static struct platform_driver jh7110_cryp_driver = {
 	.probe  = jh7110_cryp_probe,
