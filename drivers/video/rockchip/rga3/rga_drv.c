@@ -1156,10 +1156,10 @@ static irqreturn_t rga3_irq_handler(int irq, void *data)
 	struct rga_scheduler_t *scheduler = data;
 
 	if (DEBUGGER_EN(INT_FLAG))
-		pr_info("irqthread INT[%x],STATS0[%x], STATS1[%x]\n",
+		pr_info("irq handler, INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
 			rga_read(RGA3_INT_RAW, scheduler),
 			rga_read(RGA3_STATUS0, scheduler),
-			rga_read(RGA3_STATUS1, scheduler));
+			rga_read(RGA3_CMD_STATE, scheduler));
 
 	/* TODO: if error interrupt then soft reset hardware */
 	//scheduler->ops->soft_reset(job->core);
@@ -1183,10 +1183,10 @@ static irqreturn_t rga3_irq_thread(int irq, void *data)
 	}
 
 	if (DEBUGGER_EN(INT_FLAG))
-		pr_info("irq INT[%x], STATS0[%x], STATS1[%x]\n",
+		pr_info("irq thread, INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
 			rga_read(RGA3_INT_RAW, scheduler),
 			rga_read(RGA3_STATUS0, scheduler),
-			rga_read(RGA3_STATUS1, scheduler));
+			rga_read(RGA3_CMD_STATE, scheduler));
 
 	rga_job_done(scheduler, 0);
 
@@ -1198,16 +1198,18 @@ static irqreturn_t rga2_irq_handler(int irq, void *data)
 	struct rga_scheduler_t *scheduler = data;
 
 	if (DEBUGGER_EN(INT_FLAG))
-		pr_info("irqthread INT[%x],STATS0[%x]\n",
-			rga_read(RGA2_INT, scheduler), rga_read(RGA2_STATUS,
-								 scheduler));
+		pr_info("irq handler, INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
+			rga_read(RGA2_INT, scheduler),
+			rga_read(RGA2_STATUS2, scheduler),
+			rga_read(RGA2_STATUS1, scheduler));
 
 	/*if error interrupt then soft reset hardware */
 	//warning
 	if (rga_read(RGA2_INT, scheduler) & 0x01) {
-		pr_err("err irq! INT[%x],STATS0[%x]\n",
-			 rga_read(RGA2_INT, scheduler),
-			 rga_read(RGA2_STATUS, scheduler));
+		pr_err("irq handler err! INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
+			rga_read(RGA2_INT, scheduler),
+			rga_read(RGA2_STATUS2, scheduler),
+			rga_read(RGA2_STATUS1, scheduler));
 		scheduler->ops->soft_reset(scheduler);
 	}
 
@@ -1230,14 +1232,13 @@ static irqreturn_t rga2_irq_thread(int irq, void *data)
 		return IRQ_HANDLED;
 
 	if (DEBUGGER_EN(INT_FLAG))
-		pr_info("irq INT[%x], STATS0[%x]\n",
-			rga_read(RGA2_INT, scheduler), rga_read(RGA2_STATUS,
-								 scheduler));
+		pr_info("irq thread, INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
+			rga_read(RGA2_INT, scheduler),
+			rga_read(RGA2_STATUS2, scheduler),
+			rga_read(RGA2_STATUS1, scheduler));
 
-	job->rga_command_base.osd_info.cur_flags0 = rga_read(RGA2_OSD_CUR_FLAGS0_OFFSET,
-							     scheduler);
-	job->rga_command_base.osd_info.cur_flags1 = rga_read(RGA2_OSD_CUR_FLAGS1_OFFSET,
-							     scheduler);
+	job->rga_command_base.osd_info.cur_flags0 = rga_read(RGA2_OSD_CUR_FLAGS0, scheduler);
+	job->rga_command_base.osd_info.cur_flags1 = rga_read(RGA2_OSD_CUR_FLAGS1, scheduler);
 
 	rga_job_done(scheduler, 0);
 

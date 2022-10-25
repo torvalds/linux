@@ -1621,10 +1621,10 @@ void rga3_soft_reset(struct rga_scheduler_t *scheduler)
 	rga_write(0, 0xf08, scheduler);
 
 	if (DEBUGGER_EN(INT_FLAG))
-		pr_info("irq INT[%x], STATS0[%x], STATS1[%x]\n",
+		pr_info("soft reset, INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
 			rga_read(RGA3_INT_RAW, scheduler),
 			rga_read(RGA3_STATUS0, scheduler),
-			rga_read(RGA3_STATUS1, scheduler));
+			rga_read(RGA3_CMD_STATE, scheduler));
 
 	for (i = 0; i < RGA_RESET_TIMEOUT; i++) {
 		reg = rga_read(RGA3_SYS_CTRL, scheduler) & 1;
@@ -1938,14 +1938,14 @@ int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	rga_write(1, RGA3_INT_EN, scheduler);
 
 	if (DEBUGGER_EN(MSG)) {
-		pr_info("sys_ctrl = %x, int_en = %x, int_raw = %x\n",
+		pr_info("sys_ctrl = 0x%x, int_en = 0x%x, int_raw = 0x%x\n",
 			rga_read(RGA3_SYS_CTRL, scheduler),
 			rga_read(RGA3_INT_EN, scheduler),
 			rga_read(RGA3_INT_RAW, scheduler));
 
-		pr_info("status0 = %x, status1 = %x\n",
+		pr_info("hw_status = 0x%x, cmd_status = 0x%x\n",
 			rga_read(RGA3_STATUS0, scheduler),
-			rga_read(RGA3_STATUS1, scheduler));
+			rga_read(RGA3_CMD_STATE, scheduler));
 	}
 
 	if (DEBUGGER_EN(TIME))
