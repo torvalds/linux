@@ -213,11 +213,17 @@ void enter_smm(struct kvm_vcpu *vcpu)
 	 * Give enter_smm() a chance to make ISA-specific changes to the vCPU
 	 * state (e.g. leave guest mode) after we've saved the state into the
 	 * SMM state-save area.
+	 *
+	 * Kill the VM in the unlikely case of failure, because the VM
+	 * can be in undefined state in this case.
 	 */
-	static_call(kvm_x86_enter_smm)(vcpu, buf);
+	if (static_call(kvm_x86_enter_smm)(vcpu, buf))
+		goto error;
 
 	kvm_smm_changed(vcpu, true);
-	kvm_vcpu_write_guest(vcpu, vcpu->arch.smbase + 0xfe00, buf, sizeof(buf));
+
+	if (kvm_vcpu_write_guest(vcpu, vcpu->arch.smbase + 0xfe00, buf, sizeof(buf)))
+		goto error;
 
 	if (static_call(kvm_x86_get_nmi_mask)(vcpu))
 		vcpu->arch.hflags |= HF_SMM_INSIDE_NMI_MASK;
@@ -237,7 +243,8 @@ void enter_smm(struct kvm_vcpu *vcpu)
 	dt.address = dt.size = 0;
 	static_call(kvm_x86_set_idt)(vcpu, &dt);
 
-	kvm_set_dr(vcpu, 7, DR7_FIXED_1);
+	if (WARN_ON_ONCE(kvm_set_dr(vcpu, 7, DR7_FIXED_1)))
+		goto error;
 
 	cs.selector = (vcpu->arch.smbase >> 4) & 0xffff;
 	cs.base = vcpu->arch.smbase;
@@ -266,11 +273,15 @@ void enter_smm(struct kvm_vcpu *vcpu)
 
 #ifdef CONFIG_X86_64
 	if (guest_cpuid_has(vcpu, X86_FEATURE_LM))
-		static_call(kvm_x86_set_efer)(vcpu, 0);
+		if (static_call(kvm_x86_set_efer)(vcpu, 0))
+			goto error;
 #endif
 
 	kvm_update_cpuid_runtime(vcpu);
 	kvm_mmu_reset_context(vcpu);
+	return;
+error:
+	kvm_vm_dead(vcpu->kvm);
 }
 
 static void rsm_set_desc_flags(struct kvm_segment *desc, u32 flags)
