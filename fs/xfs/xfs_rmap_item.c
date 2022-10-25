@@ -557,7 +557,9 @@ xfs_rui_item_recover(
 			type = XFS_RMAP_FREE;
 			break;
 		default:
-			XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, NULL);
+			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+					&ruip->rui_format,
+					sizeof(ruip->rui_format));
 			error = -EFSCORRUPTED;
 			goto abort_error;
 		}
@@ -663,13 +665,15 @@ xlog_recover_rui_commit_pass2(
 	rui_formatp = item->ri_buf[0].i_addr;
 
 	if (item->ri_buf[0].i_len < xfs_rui_log_format_sizeof(0)) {
-		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, log->l_mp);
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				item->ri_buf[0].i_addr, item->ri_buf[0].i_len);
 		return -EFSCORRUPTED;
 	}
 
 	len = xfs_rui_log_format_sizeof(rui_formatp->rui_nextents);
 	if (item->ri_buf[0].i_len != len) {
-		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, log->l_mp);
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				item->ri_buf[0].i_addr, item->ri_buf[0].i_len);
 		return -EFSCORRUPTED;
 	}
 

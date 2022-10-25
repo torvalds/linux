@@ -216,7 +216,8 @@ xfs_efi_copy_format(xfs_log_iovec_t *buf, xfs_efi_log_format_t *dst_efi_fmt)
 		}
 		return 0;
 	}
-	XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, NULL);
+	XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, NULL, buf->i_addr,
+			buf->i_len);
 	return -EFSCORRUPTED;
 }
 
@@ -711,7 +712,8 @@ xlog_recover_efi_commit_pass2(
 	efi_formatp = item->ri_buf[0].i_addr;
 
 	if (item->ri_buf[0].i_len < xfs_efi_log_format_sizeof(0)) {
-		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, log->l_mp);
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				item->ri_buf[0].i_addr, item->ri_buf[0].i_len);
 		return -EFSCORRUPTED;
 	}
 

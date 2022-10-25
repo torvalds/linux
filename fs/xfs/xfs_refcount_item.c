@@ -523,7 +523,9 @@ xfs_cui_item_recover(
 			type = refc_type;
 			break;
 		default:
-			XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
+			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+					&cuip->cui_format,
+					sizeof(cuip->cui_format));
 			error = -EFSCORRUPTED;
 			goto abort_error;
 		}
@@ -536,7 +538,8 @@ xfs_cui_item_recover(
 				&new_fsb, &new_len, &rcur);
 		if (error == -EFSCORRUPTED)
 			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
-					refc, sizeof(*refc));
+					&cuip->cui_format,
+					sizeof(cuip->cui_format));
 		if (error)
 			goto abort_error;
 
@@ -658,13 +661,15 @@ xlog_recover_cui_commit_pass2(
 	cui_formatp = item->ri_buf[0].i_addr;
 
 	if (item->ri_buf[0].i_len < xfs_cui_log_format_sizeof(0)) {
-		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, log->l_mp);
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				item->ri_buf[0].i_addr, item->ri_buf[0].i_len);
 		return -EFSCORRUPTED;
 	}
 
 	len = xfs_cui_log_format_sizeof(cui_formatp->cui_nextents);
 	if (item->ri_buf[0].i_len != len) {
-		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, log->l_mp);
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				item->ri_buf[0].i_addr, item->ri_buf[0].i_len);
 		return -EFSCORRUPTED;
 	}
 
@@ -703,7 +708,8 @@ xlog_recover_cud_commit_pass2(
 
 	cud_formatp = item->ri_buf[0].i_addr;
 	if (item->ri_buf[0].i_len != sizeof(struct xfs_cud_log_format)) {
-		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, log->l_mp);
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, log->l_mp,
+				item->ri_buf[0].i_addr, item->ri_buf[0].i_len);
 		return -EFSCORRUPTED;
 	}
 
