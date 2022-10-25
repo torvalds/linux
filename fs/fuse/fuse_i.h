@@ -1179,7 +1179,7 @@ bool fuse_invalid_attr(struct fuse_attr *attr);
 /**
  * Is current process allowed to perform filesystem operation?
  */
-int fuse_allow_current_process(struct fuse_conn *fc);
+bool fuse_allow_current_process(struct fuse_conn *fc);
 
 u64 fuse_lock_owner_id(struct fuse_conn *fc, fl_owner_t id);
 

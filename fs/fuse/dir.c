@@ -1237,6 +1237,18 @@ int fuse_reverse_inval_entry(struct fuse_conn *fc, u64 parent_nodeid,
 	return err;
 }
 
+static inline bool fuse_permissible_uidgid(struct fuse_conn *fc)
+{
+	const struct cred *cred = current_cred();
+
+	return (uid_eq(cred->euid, fc->user_id) &&
+		uid_eq(cred->suid, fc->user_id) &&
+		uid_eq(cred->uid,  fc->user_id) &&
+		gid_eq(cred->egid, fc->group_id) &&
+		gid_eq(cred->sgid, fc->group_id) &&
+		gid_eq(cred->gid,  fc->group_id));
+}
+
 /*
  * Calling into a user-controlled filesystem gives the filesystem
  * daemon ptrace-like capabilities over the current process.  This
@@ -1250,26 +1262,19 @@ int fuse_reverse_inval_entry(struct fuse_conn *fc, u64 parent_nodeid,
  * for which the owner of the mount has ptrace privilege.  This
  * excludes processes started by other users, suid or sgid processes.
  */
-int fuse_allow_current_process(struct fuse_conn *fc)
+bool fuse_allow_current_process(struct fuse_conn *fc)
 {
-	const struct cred *cred;
-
-	if (allow_sys_admin_access && capable(CAP_SYS_ADMIN))
-		return 1;
+	bool allow;
 
 	if (fc->allow_other)
-		return current_in_userns(fc->user_ns);
+		allow = current_in_userns(fc->user_ns);
+	else
+		allow = fuse_permissible_uidgid(fc);
 
-	cred = current_cred();
-	if (uid_eq(cred->euid, fc->user_id) &&
-	    uid_eq(cred->suid, fc->user_id) &&
-	    uid_eq(cred->uid,  fc->user_id) &&
-	    gid_eq(cred->egid, fc->group_id) &&
-	    gid_eq(cred->sgid, fc->group_id) &&
-	    gid_eq(cred->gid,  fc->group_id))
-		return 1;
+	if (!allow && allow_sys_admin_access && capable(CAP_SYS_ADMIN))
+		allow = true;
 
-	return 0;
+	return allow;
 }
 
 static int fuse_access(struct inode *inode, int mask)
