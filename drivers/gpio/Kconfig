@@ -858,6 +858,7 @@ config GPIO_104_IDIO_16
 	depends on PC104
 	select ISA_BUS_API
 	select GPIOLIB_IRQCHIP
+	select GPIO_IDIO_16
 	help
 	  Enables GPIO support for the ACCES 104-IDIO-16 family (104-IDIO-16,
 	  104-IDIO-16E, 104-IDO-16, 104-IDIO-8, 104-IDIO-8E, 104-IDO-8). The
