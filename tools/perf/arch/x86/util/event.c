@@ -2,6 +2,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
+#include <stdlib.h>
 
 #include "../../../util/event.h"
 #include "../../../util/synthetic-events.h"
