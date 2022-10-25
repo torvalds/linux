@@ -38,12 +38,7 @@ extern int pci_proc_domain(struct pci_bus *bus);
 
 struct file;
 
-/* This part of code was originally in xilinx-pci.h */
-#ifdef CONFIG_PCI_XILINX
-extern void __init xilinx_pci_init(void);
-#else
 static inline void __init xilinx_pci_init(void) { return; }
-#endif
 
 #endif	/* __KERNEL__ */
 #endif /* __ASM_MICROBLAZE_PCI_H */

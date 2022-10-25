@@ -25,7 +25,6 @@ static inline int pcibios_vaddr_is_ioport(void __iomem *address)
  */
 struct pci_controller {
 	struct pci_bus *bus;
-	struct device_node *dn;
 	struct list_head list_node;
 
 	void __iomem *io_base_virt;
@@ -37,11 +36,6 @@ struct pci_controller {
 };
 
 #ifdef CONFIG_PCI
-static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
-{
-	return bus->sysdata;
-}
-
 static inline int isa_vaddr_is_ioport(void __iomem *address)
 {
 	/* No specific ISA handling on ppc32 at this stage, it
