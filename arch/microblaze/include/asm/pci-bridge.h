@@ -103,24 +103,6 @@ static inline int isa_vaddr_is_ioport(void __iomem *address)
 }
 #endif /* CONFIG_PCI */
 
-/* These are used for config access before all the PCI probing
-   has been done. */
-extern int early_read_config_byte(struct pci_controller *hose, int bus,
-			int dev_fn, int where, u8 *val);
-extern int early_read_config_word(struct pci_controller *hose, int bus,
-			int dev_fn, int where, u16 *val);
-extern int early_read_config_dword(struct pci_controller *hose, int bus,
-			int dev_fn, int where, u32 *val);
-extern int early_write_config_byte(struct pci_controller *hose, int bus,
-			int dev_fn, int where, u8 val);
-extern int early_write_config_word(struct pci_controller *hose, int bus,
-			int dev_fn, int where, u16 val);
-extern int early_write_config_dword(struct pci_controller *hose, int bus,
-			int dev_fn, int where, u32 val);
-
-extern int early_find_capability(struct pci_controller *hose, int bus,
-				 int dev_fn, int cap);
-
 extern void setup_indirect_pci(struct pci_controller *hose,
 			       resource_size_t cfg_addr,
 			       resource_size_t cfg_data, u32 flags);

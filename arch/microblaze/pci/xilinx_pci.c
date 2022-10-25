@@ -76,44 +76,6 @@ xilinx_pci_exclude_device(struct pci_controller *hose, u_char bus, u8 devfn)
 {
 	return (bus != 0);
 }
-
-/**
- * xilinx_early_pci_scan - List pci config space for available devices
- *
- * List pci devices in very early phase.
- */
-static void __init xilinx_early_pci_scan(struct pci_controller *hose)
-{
-	u32 bus = 0;
-	u32 val, dev, func, offset;
-
-	/* Currently we have only 2 device connected - up-to 32 devices */
-	for (dev = 0; dev < 2; dev++) {
-		/* List only first function number - up-to 8 functions */
-		for (func = 0; func < 1; func++) {
-			pr_info("%02x:%02x:%02x", bus, dev, func);
-			/* read the first 64 standardized bytes */
-			/* Up-to 192 bytes can be list of capabilities */
-			for (offset = 0; offset < 64; offset += 4) {
-				early_read_config_dword(hose, bus,
-					PCI_DEVFN(dev, func), offset, &val);
-				if (offset == 0 && val == 0xFFFFFFFF) {
-					pr_cont("\nABSENT");
-					break;
-				}
-				if (!(offset % 0x10))
-					pr_cont("\n%04x:    ", offset);
-
-				pr_cont("%08x  ", val);
-			}
-			pr_info("\n");
-		}
-	}
-}
-#else
-static void __init xilinx_early_pci_scan(struct pci_controller *hose)
-{
-}
 #endif
 
 /**
@@ -146,15 +108,6 @@ void __init xilinx_pci_init(void)
 			   r.start + XPLB_PCI_DATA,
 			   INDIRECT_TYPE_SET_CFG_TYPE);
 
-	/* According to the xilinx plbv46_pci documentation the soft-core starts
-	 * a self-init when the bus master enable bit is set. Without this bit
-	 * set the pci bus can't be scanned.
-	 */
-	early_write_config_word(hose, 0, 0, PCI_COMMAND, PCI_HOST_ENABLE_CMD);
-
-	/* Set the max latency timer to 255 */
-	early_write_config_byte(hose, 0, 0, PCI_LATENCY_TIMER, 0xff);
-
 	/* Set the max bus number to 255, and bus/subbus no's to 0 */
 	pci_reg = of_iomap(pci_node, 0);
 	WARN_ON(!pci_reg);
@@ -166,5 +119,4 @@ void __init xilinx_pci_init(void)
 					INDIRECT_TYPE_SET_CFG_TYPE);
 
 	pr_info("xilinx-pci: Registered PCI host bridge\n");
-	xilinx_early_pci_scan(hose);
 }
