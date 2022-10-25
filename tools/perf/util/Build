@@ -118,6 +118,8 @@ perf-$(CONFIG_AUXTRACE) += intel-pt.o
 perf-$(CONFIG_AUXTRACE) += intel-bts.o
 perf-$(CONFIG_AUXTRACE) += arm-spe.o
 perf-$(CONFIG_AUXTRACE) += arm-spe-decoder/
+perf-$(CONFIG_AUXTRACE) += hisi-ptt.o
+perf-$(CONFIG_AUXTRACE) += hisi-ptt-decoder/
 perf-$(CONFIG_AUXTRACE) += s390-cpumsf.o
 
 ifdef CONFIG_LIBOPENCSD
