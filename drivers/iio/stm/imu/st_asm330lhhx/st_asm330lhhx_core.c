@@ -1941,6 +1941,7 @@ static const struct iio_info st_asm330lhhx_temp_info = {
 	.attrs = &st_asm330lhhx_temp_attribute_group,
 	.read_raw = st_asm330lhhx_read_raw,
 	.write_raw = st_asm330lhhx_write_raw,
+	.write_raw_get_fmt = st_asm330lhhx_write_raw_get_fmt,
 };
 
 static const unsigned long st_asm330lhhx_available_scan_masks[] = {
