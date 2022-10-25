@@ -1452,11 +1452,11 @@ static int atc_terminate_all(struct dma_chan *chan)
 	list_splice_tail_init(&atchan->queue, &atchan->free_list);
 	list_splice_tail_init(&atchan->active_list, &atchan->free_list);
 
-	spin_unlock_irqrestore(&atchan->lock, flags);
-
 	clear_bit(ATC_IS_PAUSED, &atchan->status);
 	/* if channel dedicated to cyclic operations, free it */
 	clear_bit(ATC_IS_CYCLIC, &atchan->status);
+
+	spin_unlock_irqrestore(&atchan->lock, flags);
 
 	return 0;
 }
