@@ -25,6 +25,7 @@ rxtimestamp
 sk_bind_sendto_listen
 sk_connect_zero_addr
 socket
+so_incoming_cpu
 so_netns_cookie
 so_txtime
 stress_reuseport_listen
