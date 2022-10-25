@@ -23,8 +23,8 @@ static void *mtd_parser_tplink_safeloader_read_table(struct mtd_info *mtd)
 	struct safeloader_cmn_header hdr;
 	struct device_node *np;
 	size_t bytes_read;
-	size_t offset;
 	size_t size;
+	u32 offset;
 	char *buf;
 	int err;
 
@@ -34,14 +34,14 @@ static void *mtd_parser_tplink_safeloader_read_table(struct mtd_info *mtd)
 	else
 		np = of_get_child_by_name(np, "partitions");
 
-	if (of_property_read_u32(np, "partitions-table-offset", (u32 *)&offset)) {
+	if (of_property_read_u32(np, "partitions-table-offset", &offset)) {
 		pr_err("Failed to get partitions table offset\n");
 		goto err_put;
 	}
 
 	err = mtd_read(mtd, offset, sizeof(hdr), &bytes_read, (uint8_t *)&hdr);
 	if (err && !mtd_is_bitflip(err)) {
-		pr_err("Failed to read from %s at 0x%zx\n", mtd->name, offset);
+		pr_err("Failed to read from %s at 0x%x\n", mtd->name, offset);
 		goto err_put;
 	}
 
