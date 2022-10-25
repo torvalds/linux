@@ -7,3 +7,5 @@
 
 source "drivers/bus/mhi/host/Kconfig"
 source "drivers/bus/mhi/ep/Kconfig"
+source "drivers/bus/mhi/devices/Kconfig"
+source "drivers/bus/mhi/controllers/Kconfig"

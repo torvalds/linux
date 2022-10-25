@@ -1167,7 +1167,7 @@ int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl)
 					       mhi_cntrl->rddm_image);
 			if (ret) {
 				mhi_free_bhie_table(mhi_cntrl,
-						    mhi_cntrl->rddm_image);
+						   &mhi_cntrl->rddm_image);
 				goto error_reg_offset;
 			}
 		}
