@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/overflow.h>
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
 
@@ -1786,6 +1787,12 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	if (!plat_dat)
 		return -ENODEV;
 
+	atdma = devm_kzalloc(&pdev->dev,
+			     struct_size(atdma, chan, plat_dat->nr_channels),
+			     GFP_KERNEL);
+	if (!atdma)
+		return -ENOMEM;
+
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!io)
 		return -EINVAL;
@@ -1794,21 +1801,13 @@ static int __init at_dma_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	size = sizeof(struct at_dma);
-	size += plat_dat->nr_channels * sizeof(struct at_dma_chan);
-	atdma = kzalloc(size, GFP_KERNEL);
-	if (!atdma)
-		return -ENOMEM;
-
 	/* discover transaction capabilities */
 	atdma->dma_common.cap_mask = plat_dat->cap_mask;
 	atdma->all_chan_mask = (1 << plat_dat->nr_channels) - 1;
 
 	size = resource_size(io);
-	if (!request_mem_region(io->start, size, pdev->dev.driver->name)) {
-		err = -EBUSY;
-		goto err_kfree;
-	}
+	if (!request_mem_region(io->start, size, pdev->dev.driver->name))
+		return -EBUSY;
 
 	atdma->regs = ioremap(io->start, size);
 	if (!atdma->regs) {
@@ -1963,8 +1962,6 @@ err_clk:
 	atdma->regs = NULL;
 err_release_r:
 	release_mem_region(io->start, size);
-err_kfree:
-	kfree(atdma);
 	return err;
 }
 
@@ -2002,8 +1999,6 @@ static int at_dma_remove(struct platform_device *pdev)
 
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(io->start, resource_size(io));
-
-	kfree(atdma);
 
 	return 0;
 }
