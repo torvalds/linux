@@ -304,33 +304,6 @@ static int audio_config_hdmi_get_n(const struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
-static bool intel_eld_uptodate(struct drm_connector *connector,
-			       i915_reg_t reg_eldv, u32 bits_eldv,
-			       i915_reg_t reg_elda, u32 bits_elda,
-			       i915_reg_t reg_edid)
-{
-	struct drm_i915_private *i915 = to_i915(connector->dev);
-	const u8 *eld = connector->eld;
-	u32 tmp;
-	int i;
-
-	tmp = intel_de_read(i915, reg_eldv);
-	tmp &= bits_eldv;
-
-	if (!tmp)
-		return false;
-
-	tmp = intel_de_read(i915, reg_elda);
-	tmp &= ~bits_elda;
-	intel_de_write(i915, reg_elda, tmp);
-
-	for (i = 0; i < drm_eld_size(eld) / 4; i++)
-		if (intel_de_read(i915, reg_edid) != *((const u32 *)eld + i))
-			return false;
-
-	return true;
-}
-
 static void g4x_audio_codec_disable(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *old_crtc_state,
 				    const struct drm_connector_state *old_conn_state)
@@ -353,12 +326,6 @@ static void g4x_audio_codec_enable(struct intel_encoder *encoder,
 	const u8 *eld = connector->eld;
 	u32 tmp;
 	int len, i;
-
-	if (intel_eld_uptodate(connector,
-			       G4X_AUD_CNTL_ST, G4X_ELD_VALID,
-			       G4X_AUD_CNTL_ST, G4X_ELD_ADDRESS_MASK,
-			       G4X_HDMIW_HDMIEDID))
-		return;
 
 	tmp = intel_de_read(i915, G4X_AUD_CNTL_ST);
 	tmp &= ~(G4X_ELD_VALID | G4X_ELD_ADDRESS_MASK);
