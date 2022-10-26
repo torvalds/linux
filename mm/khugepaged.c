@@ -2153,8 +2153,7 @@ static int hpage_collapse_scan_file(struct mm_struct *mm, unsigned long addr,
 		}
 	}
 
-	trace_mm_khugepaged_scan_file(mm, page, file->f_path.dentry->d_iname,
-				      present, swap, result);
+	trace_mm_khugepaged_scan_file(mm, page, file, present, swap, result);
 	return result;
 }
 #else
