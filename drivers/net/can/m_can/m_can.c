@@ -156,6 +156,7 @@ enum m_can_reg {
 #define PSR_EW		BIT(6)
 #define PSR_EP		BIT(5)
 #define PSR_LEC_MASK	GENMASK(2, 0)
+#define PSR_DLEC_MASK	GENMASK(10, 8)
 
 /* Interrupt Register (IR) */
 #define IR_ALL_INT	0xffffffff
@@ -209,7 +210,7 @@ enum m_can_reg {
 
 /* Interrupts for version >= 3.1.x */
 #define IR_ERR_LEC_31X	(IR_PED | IR_PEA)
-#define IR_ERR_BUS_31X      (IR_ERR_LEC_31X | IR_WDI | IR_BEU | IR_BEC | \
+#define IR_ERR_BUS_31X	(IR_ERR_LEC_31X | IR_WDI | IR_BEU | IR_BEC | \
 			 IR_TOO | IR_MRAF | IR_TSW | IR_TEFL | IR_RF1L | \
 			 IR_RF0L)
 #define IR_ERR_ALL_31X	(IR_ERR_STATE | IR_ERR_BUS_31X)
@@ -816,11 +817,9 @@ static void m_can_handle_other_err(struct net_device *dev, u32 irqstatus)
 		netdev_err(dev, "Message RAM access failure occurred\n");
 }
 
-static inline bool is_lec_err(u32 psr)
+static inline bool is_lec_err(u8 lec)
 {
-	psr &= LEC_UNUSED;
-
-	return psr && (psr != LEC_UNUSED);
+	return lec != LEC_NO_ERROR && lec != LEC_NO_CHANGE;
 }
 
 static inline bool m_can_is_protocol_err(u32 irqstatus)
@@ -875,9 +874,20 @@ static int m_can_handle_bus_errors(struct net_device *dev, u32 irqstatus,
 		work_done += m_can_handle_lost_msg(dev);
 
 	/* handle lec errors on the bus */
-	if ((cdev->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING) &&
-	    is_lec_err(psr))
-		work_done += m_can_handle_lec_err(dev, psr & LEC_UNUSED);
+	if (cdev->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING) {
+		u8 lec = FIELD_GET(PSR_LEC_MASK, psr);
+		u8 dlec = FIELD_GET(PSR_DLEC_MASK, psr);
+
+		if (is_lec_err(lec)) {
+			netdev_dbg(dev, "Arbitration phase error detected\n");
+			work_done += m_can_handle_lec_err(dev, lec);
+		}
+		
+		if (is_lec_err(dlec)) {
+			netdev_dbg(dev, "Data phase error detected\n");
+			work_done += m_can_handle_lec_err(dev, dlec);
+		}
+	}
 
 	/* handle protocol errors in arbitration phase */
 	if ((cdev->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING) &&
