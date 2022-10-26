@@ -35,6 +35,7 @@
 #include "zoned.h"
 #include "fs.h"
 #include "accessors.h"
+#include "uuid-tree.h"
 
 static struct bio_set btrfs_bioset;
 

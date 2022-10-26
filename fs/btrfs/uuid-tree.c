@@ -12,6 +12,7 @@
 #include "print-tree.h"
 #include "fs.h"
 #include "accessors.h"
+#include "uuid-tree.h"
 
 static void btrfs_uuid_to_key(u8 *uuid, u8 type, struct btrfs_key *key)
 {

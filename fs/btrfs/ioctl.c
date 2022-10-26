@@ -56,6 +56,7 @@
 #include "root-tree.h"
 #include "defrag.h"
 #include "dir-item.h"
+#include "uuid-tree.h"
 
 #ifdef CONFIG_64BIT
 /* If we have a 32-bit userspace and 64-bit kernel, then the UAPI
