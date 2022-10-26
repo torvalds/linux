@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Description: CoreSight TMC USB driver
  */
@@ -82,6 +82,7 @@ static int usb_bypass_start(struct byte_cntr *byte_cntr_data)
 			USB_BLK_SIZE / 8);
 
 	atomic_set(&byte_cntr_data->irq_cnt, 0);
+	byte_cntr_data->total_size = 0;
 	mutex_unlock(&byte_cntr_data->usb_bypass_lock);
 
 	return 0;
@@ -102,6 +103,10 @@ static void usb_bypass_stop(struct byte_cntr *byte_cntr_data)
 	wake_up(&byte_cntr_data->usb_wait_wq);
 	pr_info("coresight: stop usb bypass\n");
 	coresight_csr_set_byte_cntr(byte_cntr_data->csr, byte_cntr_data->irqctrl_offset, 0);
+	dev_dbg(&byte_cntr_data->tmcdrvdata->csdev->dev,
+		"write to usb data total size: %lld bytes, irq_cnt: %lld, offset: %ld\n",
+		byte_cntr_data->total_size, byte_cntr_data->total_irq, byte_cntr_data->offset);
+	byte_cntr_data->total_irq = 0;
 	mutex_unlock(&byte_cntr_data->usb_bypass_lock);
 
 }
@@ -172,7 +177,7 @@ static int usb_transfer_small_packet(struct byte_cntr *drvdata, size_t *small_si
 					"Write data failed:%d\n", ret);
 				goto out;
 			}
-
+			drvdata->total_size += actual;
 			atomic_dec(&drvdata->usb_free_buf);
 		} else {
 			dev_dbg(&tmcdrvdata->csdev->dev,
@@ -289,6 +294,7 @@ static void usb_read_work_fn(struct work_struct *work)
 						continue;
 					return;
 				}
+				drvdata->total_size += actual_total;
 				atomic_dec(&drvdata->usb_free_buf);
 
 			} else {
