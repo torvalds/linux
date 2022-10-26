@@ -3581,6 +3581,8 @@ static int gfx_v9_0_kiq_init_queue(struct amdgpu_ring *ring)
 		memset((void *)mqd, 0, sizeof(struct v9_mqd_allocation));
 		((struct v9_mqd_allocation *)mqd)->dynamic_cu_mask = 0xFFFFFFFF;
 		((struct v9_mqd_allocation *)mqd)->dynamic_rb_mask = 0xFFFFFFFF;
+		if (amdgpu_sriov_vf(adev) && adev->in_suspend)
+			amdgpu_ring_clear_ring(ring);
 		mutex_lock(&adev->srbm_mutex);
 		soc15_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
 		gfx_v9_0_mqd_init(ring);

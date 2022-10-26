@@ -4197,6 +4197,8 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 	}
 
 	/* Make sure IB tests flushed */
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_irq_gpu_reset_resume_helper(adev);
 	flush_delayed_work(&adev->delayed_init_work);
 
 	if (adev->in_s0ix) {
