@@ -394,6 +394,7 @@ static ssize_t show_not_preferred(const struct cluster_data *state, char *buf)
 		count += scnprintf(buf + count, PAGE_SIZE - count,
 				"%u ", c->not_preferred);
 	}
+	count += scnprintf(buf + count, PAGE_SIZE - count, "\n");
 	spin_unlock_irqrestore(&state_lock, flags);
 
 	return count;
