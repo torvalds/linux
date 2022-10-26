@@ -34,6 +34,7 @@
 #include "accessors.h"
 #include "file-item.h"
 #include "file.h"
+#include "dev-replace.h"
 
 static struct kmem_cache *extent_buffer_cache;
 

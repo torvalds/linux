@@ -732,15 +732,6 @@ static inline unsigned long get_eb_page_index(unsigned long offset)
 #define EXPORT_FOR_TESTS
 #endif
 
-/* dev-replace.c */
-void btrfs_bio_counter_inc_blocked(struct btrfs_fs_info *fs_info);
-void btrfs_bio_counter_sub(struct btrfs_fs_info *fs_info, s64 amount);
-
-static inline void btrfs_bio_counter_dec(struct btrfs_fs_info *fs_info)
-{
-	btrfs_bio_counter_sub(fs_info, 1);
-}
-
 static inline int is_fstree(u64 rootid)
 {
 	if (rootid == BTRFS_FS_TREE_OBJECTID ||
