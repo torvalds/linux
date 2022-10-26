@@ -232,6 +232,9 @@ ingenic_pll_set_rate(struct clk_hw *hw, unsigned long req_rate,
 
 	writel(ctl, cgu->base + pll_info->reg);
 
+	if (pll_info->set_rate_hook)
+		pll_info->set_rate_hook(pll_info, rate, parent_rate);
+
 	/* If the PLL is enabled, verify that it's stable */
 	if (pll_info->enable_bit >= 0 && (ctl & BIT(pll_info->enable_bit)))
 		ret = ingenic_pll_check_stable(cgu, pll_info);

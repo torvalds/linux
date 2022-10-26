@@ -46,6 +46,8 @@
  *		-1 if there is no enable bit (ie, the PLL is always on)
  * @stable_bit: the index of the stable bit in the PLL control register, or
  *		-1 if there is no stable bit
+ * @set_rate_hook: hook called immediately after updating the CGU register,
+ *		   before releasing the spinlock
  */
 struct ingenic_cgu_pll_info {
 	unsigned reg;
@@ -61,6 +63,8 @@ struct ingenic_cgu_pll_info {
 	void (*calc_m_n_od)(const struct ingenic_cgu_pll_info *pll_info,
 			    unsigned long rate, unsigned long parent_rate,
 			    unsigned int *m, unsigned int *n, unsigned int *od);
+	void (*set_rate_hook)(const struct ingenic_cgu_pll_info *pll_info,
+			      unsigned long rate, unsigned long parent_rate);
 };
 
 /**
