@@ -1761,6 +1761,11 @@ static int dsi_populate_dsc_params(struct msm_dsi_host *msm_host, struct drm_dsc
 		return -EINVAL;
 	}
 
+	if (dsc->bits_per_component != 8) {
+		DRM_DEV_ERROR(&msm_host->pdev->dev, "DSI does not support bits_per_component != 8 yet\n");
+		return -EOPNOTSUPP;
+	}
+
 	dsc->rc_model_size = 8192;
 	dsc->first_line_bpg_offset = 12;
 	dsc->rc_edge_factor = 6;
