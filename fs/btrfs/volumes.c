@@ -37,6 +37,7 @@
 #include "accessors.h"
 #include "uuid-tree.h"
 #include "ioctl.h"
+#include "relocation.h"
 
 static struct bio_set btrfs_bioset;
 

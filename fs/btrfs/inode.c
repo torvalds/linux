@@ -66,6 +66,7 @@
 #include "ioctl.h"
 #include "file.h"
 #include "acl.h"
+#include "relocation.h"
 
 struct btrfs_iget_args {
 	u64 ino;

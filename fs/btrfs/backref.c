@@ -18,6 +18,7 @@
 #include "fs.h"
 #include "accessors.h"
 #include "extent-tree.h"
+#include "relocation.h"
 
 /* Just arbitrary numbers so we can be sure one of these happened. */
 #define BACKREF_FOUND_SHARED     6

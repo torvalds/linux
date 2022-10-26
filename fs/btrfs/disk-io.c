@@ -49,6 +49,7 @@
 #include "root-tree.h"
 #include "defrag.h"
 #include "uuid-tree.h"
+#include "relocation.h"
 
 #define BTRFS_SUPER_FLAG_SUPP	(BTRFS_HEADER_FLAG_WRITTEN |\
 				 BTRFS_HEADER_FLAG_RELOC |\

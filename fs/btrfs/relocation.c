@@ -33,6 +33,7 @@
 #include "extent-tree.h"
 #include "root-tree.h"
 #include "file-item.h"
+#include "relocation.h"
 
 /*
  * Relocation overview
