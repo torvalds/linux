@@ -319,6 +319,41 @@ static bool rxrpc_receiving_reply(struct rxrpc_call *call)
 	return true;
 }
 
+/*
+ * End the packet reception phase.
+ */
+static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
+{
+	rxrpc_seq_t whigh = READ_ONCE(call->rx_highest_seq);
+
+	_enter("%d,%s", call->debug_id, rxrpc_call_states[call->state]);
+
+	trace_rxrpc_receive(call, rxrpc_receive_end, 0, whigh);
+
+	if (rxrpc_call_state(call) == RXRPC_CALL_CLIENT_RECV_REPLY)
+		rxrpc_propose_delay_ACK(call, serial, rxrpc_propose_ack_terminal_ack);
+
+	write_lock(&call->state_lock);
+
+	switch (call->state) {
+	case RXRPC_CALL_CLIENT_RECV_REPLY:
+		__rxrpc_call_completed(call);
+		write_unlock(&call->state_lock);
+		break;
+
+	case RXRPC_CALL_SERVER_RECV_REQUEST:
+		call->state = RXRPC_CALL_SERVER_ACK_REQUEST;
+		call->expect_req_by = jiffies + MAX_JIFFY_OFFSET;
+		write_unlock(&call->state_lock);
+		rxrpc_propose_delay_ACK(call, serial,
+					rxrpc_propose_ack_processing_op);
+		break;
+	default:
+		write_unlock(&call->state_lock);
+		break;
+	}
+}
+
 static void rxrpc_input_update_ack_window(struct rxrpc_call *call,
 					  rxrpc_seq_t window, rxrpc_seq_t wtop)
 {
@@ -337,8 +372,9 @@ static void rxrpc_input_queue_data(struct rxrpc_call *call, struct sk_buff *skb,
 
 	__skb_queue_tail(&call->recvmsg_queue, skb);
 	rxrpc_input_update_ack_window(call, window, wtop);
-
 	trace_rxrpc_receive(call, last ? why + 1 : why, sp->hdr.serial, sp->hdr.seq);
+	if (last)
+		rxrpc_end_rx_phase(call, sp->hdr.serial);
 }
 
 /*

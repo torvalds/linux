@@ -545,7 +545,8 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_KERNEL,		/* The call was made by the kernel */
 	RXRPC_CALL_UPGRADE,		/* Service upgrade was requested for the call */
 	RXRPC_CALL_EXCLUSIVE,		/* The call uses a once-only connection */
-	RXRPC_CALL_RX_IS_IDLE,		/* Reception is idle - send an ACK */
+	RXRPC_CALL_RX_IS_IDLE,		/* recvmsg() is idle - send an ACK */
+	RXRPC_CALL_RECVMSG_READ_ALL,	/* recvmsg() read all of the received data */
 };
 
 /*

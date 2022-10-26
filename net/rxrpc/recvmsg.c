@@ -101,42 +101,6 @@ static int rxrpc_recvmsg_term(struct rxrpc_call *call, struct msghdr *msg)
 }
 
 /*
- * End the packet reception phase.
- */
-static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
-{
-	rxrpc_seq_t whigh = READ_ONCE(call->rx_highest_seq);
-
-	_enter("%d,%s", call->debug_id, rxrpc_call_states[call->state]);
-
-	trace_rxrpc_receive(call, rxrpc_receive_end, 0, whigh);
-
-	if (rxrpc_call_state(call) == RXRPC_CALL_CLIENT_RECV_REPLY)
-		rxrpc_propose_delay_ACK(call, serial, rxrpc_propose_ack_terminal_ack);
-
-	write_lock(&call->state_lock);
-
-	switch (call->state) {
-	case RXRPC_CALL_CLIENT_RECV_REPLY:
-		__rxrpc_call_completed(call);
-		write_unlock(&call->state_lock);
-		rxrpc_poke_call(call, rxrpc_call_poke_complete);
-		break;
-
-	case RXRPC_CALL_SERVER_RECV_REQUEST:
-		call->state = RXRPC_CALL_SERVER_ACK_REQUEST;
-		call->expect_req_by = jiffies + MAX_JIFFY_OFFSET;
-		write_unlock(&call->state_lock);
-		rxrpc_propose_delay_ACK(call, serial,
-					rxrpc_propose_ack_processing_op);
-		break;
-	default:
-		write_unlock(&call->state_lock);
-		break;
-	}
-}
-
-/*
  * Discard a packet we've used up and advance the Rx window by one.
  */
 static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
@@ -166,10 +130,9 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 
 	trace_rxrpc_receive(call, last ? rxrpc_receive_rotate_last : rxrpc_receive_rotate,
 			    serial, call->rx_consumed);
-	if (last) {
-		rxrpc_end_rx_phase(call, serial);
-		return;
-	}
+
+	if (last)
+		set_bit(RXRPC_CALL_RECVMSG_READ_ALL, &call->flags);
 
 	/* Check to see if there's an ACK that needs sending. */
 	acked = atomic_add_return(call->rx_consumed - old_consumed,
@@ -194,7 +157,8 @@ static int rxrpc_verify_data(struct rxrpc_call *call, struct sk_buff *skb)
 /*
  * Deliver messages to a call.  This keeps processing packets until the buffer
  * is filled and we find either more DATA (returns 0) or the end of the DATA
- * (returns 1).  If more packets are required, it returns -EAGAIN.
+ * (returns 1).  If more packets are required, it returns -EAGAIN and if the
+ * call has failed it returns -EIO.
  */
 static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 			      struct msghdr *msg, struct iov_iter *iter,
@@ -210,7 +174,13 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 	rx_pkt_offset = call->rx_pkt_offset;
 	rx_pkt_len = call->rx_pkt_len;
 
-	if (rxrpc_call_state(call) >= RXRPC_CALL_SERVER_ACK_REQUEST) {
+	if (rxrpc_call_has_failed(call)) {
+		seq = lower_32_bits(atomic64_read(&call->ackr_window)) - 1;
+		ret = -EIO;
+		goto done;
+	}
+
+	if (test_bit(RXRPC_CALL_RECVMSG_READ_ALL, &call->flags)) {
 		seq = lower_32_bits(atomic64_read(&call->ackr_window)) - 1;
 		ret = 1;
 		goto done;
@@ -234,14 +204,15 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 
 		if (rx_pkt_offset == 0) {
 			ret2 = rxrpc_verify_data(call, skb);
-			rx_pkt_offset = sp->offset;
-			rx_pkt_len = sp->len;
 			trace_rxrpc_recvdata(call, rxrpc_recvmsg_next, seq,
-					     rx_pkt_offset, rx_pkt_len, ret2);
+					     sp->offset, sp->len, ret2);
 			if (ret2 < 0) {
+				kdebug("verify = %d", ret2);
 				ret = ret2;
 				goto out;
 			}
+			rx_pkt_offset = sp->offset;
+			rx_pkt_len = sp->len;
 		} else {
 			trace_rxrpc_recvdata(call, rxrpc_recvmsg_cont, seq,
 					     rx_pkt_offset, rx_pkt_len, 0);
@@ -416,36 +387,36 @@ try_again:
 		msg->msg_namelen = len;
 	}
 
-	switch (rxrpc_call_state(call)) {
-	case RXRPC_CALL_CLIENT_RECV_REPLY:
-	case RXRPC_CALL_SERVER_RECV_REQUEST:
-	case RXRPC_CALL_SERVER_ACK_REQUEST:
-		ret = rxrpc_recvmsg_data(sock, call, msg, &msg->msg_iter, len,
-					 flags, &copied);
-		if (ret == -EAGAIN)
-			ret = 0;
-
-		if (!skb_queue_empty(&call->recvmsg_queue))
-			rxrpc_notify_socket(call);
-		break;
-	default:
+	ret = rxrpc_recvmsg_data(sock, call, msg, &msg->msg_iter, len,
+				 flags, &copied);
+	if (ret == -EAGAIN)
 		ret = 0;
-		break;
-	}
-
+	if (ret == -EIO)
+		goto call_failed;
 	if (ret < 0)
 		goto error_unlock_call;
 
-	if (rxrpc_call_is_complete(call)) {
-		ret = rxrpc_recvmsg_term(call, msg);
-		if (ret < 0)
-			goto error_unlock_call;
-		if (!(flags & MSG_PEEK))
-			rxrpc_release_call(rx, call);
-		msg->msg_flags |= MSG_EOR;
-		ret = 1;
-	}
+	if (rxrpc_call_is_complete(call) &&
+	    skb_queue_empty(&call->recvmsg_queue))
+		goto call_complete;
+	if (rxrpc_call_has_failed(call))
+		goto call_failed;
 
+	rxrpc_notify_socket(call);
+	goto not_yet_complete;
+
+call_failed:
+	rxrpc_purge_queue(&call->recvmsg_queue);
+call_complete:
+	ret = rxrpc_recvmsg_term(call, msg);
+	if (ret < 0)
+		goto error_unlock_call;
+	if (!(flags & MSG_PEEK))
+		rxrpc_release_call(rx, call);
+	msg->msg_flags |= MSG_EOR;
+	ret = 1;
+
+not_yet_complete:
 	if (ret == 0)
 		msg->msg_flags |= MSG_MORE;
 	else
@@ -508,48 +479,33 @@ int rxrpc_kernel_recv_data(struct socket *sock, struct rxrpc_call *call,
 	size_t offset = 0;
 	int ret;
 
-	_enter("{%d,%s},%zu,%d",
-	       call->debug_id, rxrpc_call_states[call->state],
-	       *_len, want_more);
-
-	ASSERTCMP(call->state, !=, RXRPC_CALL_SERVER_SECURING);
+	_enter("{%d},%zu,%d", call->debug_id, *_len, want_more);
 
 	mutex_lock(&call->user_mutex);
 
-	switch (rxrpc_call_state(call)) {
-	case RXRPC_CALL_CLIENT_RECV_REPLY:
-	case RXRPC_CALL_SERVER_RECV_REQUEST:
-	case RXRPC_CALL_SERVER_ACK_REQUEST:
-		ret = rxrpc_recvmsg_data(sock, call, NULL, iter,
-					 *_len, 0, &offset);
-		*_len -= offset;
-		if (ret < 0)
-			goto out;
-
-		/* We can only reach here with a partially full buffer if we
-		 * have reached the end of the data.  We must otherwise have a
-		 * full buffer or have been given -EAGAIN.
-		 */
-		if (ret == 1) {
-			if (iov_iter_count(iter) > 0)
-				goto short_data;
-			if (!want_more)
-				goto read_phase_complete;
-			ret = 0;
-			goto out;
-		}
-
-		if (!want_more)
-			goto excess_data;
+	ret = rxrpc_recvmsg_data(sock, call, NULL, iter, *_len, 0, &offset);
+	*_len -= offset;
+	if (ret == -EIO)
+		goto call_failed;
+	if (ret < 0)
 		goto out;
 
-	case RXRPC_CALL_COMPLETE:
-		goto call_complete;
-
-	default:
-		ret = -EINPROGRESS;
+	/* We can only reach here with a partially full buffer if we have
+	 * reached the end of the data.  We must otherwise have a full buffer
+	 * or have been given -EAGAIN.
+	 */
+	if (ret == 1) {
+		if (iov_iter_count(iter) > 0)
+			goto short_data;
+		if (!want_more)
+			goto read_phase_complete;
+		ret = 0;
 		goto out;
 	}
+
+	if (!want_more)
+		goto excess_data;
+	goto out;
 
 read_phase_complete:
 	ret = 1;
@@ -572,7 +528,7 @@ excess_data:
 			  0, -EMSGSIZE);
 	ret = -EMSGSIZE;
 	goto out;
-call_complete:
+call_failed:
 	*_abort = call->abort_code;
 	ret = call->error;
 	if (call->completion == RXRPC_CALL_SUCCEEDED) {

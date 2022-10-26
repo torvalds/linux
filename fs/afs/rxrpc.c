@@ -909,6 +909,7 @@ int afs_extract_data(struct afs_call *call, bool want_more)
 	ret = rxrpc_kernel_recv_data(net->socket, call->rxcall, iter,
 				     &call->iov_len, want_more, &remote_abort,
 				     &call->service_id);
+	trace_afs_receive_data(call, call->iter, want_more, ret);
 	if (ret == 0 || ret == -EAGAIN)
 		return ret;
 
