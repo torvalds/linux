@@ -61,6 +61,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/mutex.h>
+#include <linux/pm_runtime.h>
 
 #include "module_common.h"
 #include "pvr_drm.h"
@@ -102,9 +103,29 @@ static int pvr_pm_resume(struct device *dev)
 	return PVRSRVDeviceResume(priv->dev_node);
 }
 
+static int pvr_pm_runtime_suspend(struct device *dev)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct pvr_drm_private *priv = ddev->dev_private;
+
+	sPVRSRVDeviceSuspend(priv->dev_node);
+	return 0;
+}
+
+static int pvr_pm_runtime_resume(struct device *dev)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct pvr_drm_private *priv = ddev->dev_private;
+
+	sPVRSRVDeviceResume(priv->dev_node);
+	return 0;
+}
+
 const struct dev_pm_ops pvr_pm_ops = {
 	.suspend = pvr_pm_suspend,
 	.resume = pvr_pm_resume,
+	.runtime_suspend = pvr_pm_runtime_suspend,
+	.runtime_resume = pvr_pm_runtime_resume,
 };
 
 
@@ -214,6 +235,7 @@ void pvr_drm_unload(struct drm_device *ddev)
 
 	PVRSRVDeviceDeinit(priv->dev_node);
 
+	pm_runtime_disable(ddev->dev);
 	mutex_lock(&g_device_mutex);
 	PVRSRVCommonDeviceDestroy(priv->dev_node);
 	mutex_unlock(&g_device_mutex);

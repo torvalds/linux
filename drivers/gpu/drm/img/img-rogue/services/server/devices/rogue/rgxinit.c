@@ -4863,7 +4863,6 @@ PVRSRV_ERROR RGXRegisterDevice(PVRSRV_DEVICE_NODE *psDeviceNode)
 		psDeviceNode->pfnFwMMUInit = RGXMipsMMUInit_Register;
 	}
 
-	PVRSRVSetSystemPowerState(psDeviceNode->psDevConfig, PVRSRV_SYS_POWER_STATE_ON);
 	/* The device shared-virtual-memory heap address-space size is stored here for faster
 	   look-up without having to walk the device heap configuration structures during
 	   client device connection  (i.e. this size is relative to a zero-based offset) */

@@ -98,4 +98,7 @@ void PVRSRVDeviceRelease(struct _PVRSRV_DEVICE_NODE_ *psDeviceNode,
 int drm_pvr_srvkm_init(struct drm_device *dev,
                        void *arg, struct drm_file *psDRMFile);
 
+int sPVRSRVDeviceSuspend(struct _PVRSRV_DEVICE_NODE_ *psDeviceNode);
+
+int sPVRSRVDeviceResume(struct _PVRSRV_DEVICE_NODE_ *psDeviceNode);
 #endif /* MODULE_COMMON_H */

@@ -79,6 +79,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "srvinit.h"
 
 #include "pvr_ion_stats.h"
+#include "sysconfig.h"
 
 #if defined(SUPPORT_DISPLAY_CLASS)
 /* Display class interface */
@@ -445,6 +446,26 @@ int PVRSRVDeviceResume(PVRSRV_DEVICE_NODE *psDeviceNode)
 	return 0;
 }
 
+int sPVRSRVDeviceSuspend(PVRSRV_DEVICE_NODE *psDeviceNode)
+{
+	struct sf7110_cfg *sft = sys_get_privdata();
+
+	if (sft->runtime_suspend != NULL)
+		sft->runtime_suspend(NULL);
+
+	return 0;
+}
+
+int sPVRSRVDeviceResume(PVRSRV_DEVICE_NODE *psDeviceNode)
+{
+	struct sf7110_cfg *sft = sys_get_privdata();
+
+	if (sft->runtime_resume != NULL)
+		sft->runtime_resume(NULL);
+
+	return 0;
+}
+
 /**************************************************************************/ /*!
 @Function     PVRSRVDeviceServicesOpen
 @Description  Services device open.
@@ -504,6 +525,7 @@ int PVRSRVDeviceServicesOpen(PVRSRV_DEVICE_NODE *psDeviceNode,
 
 	if (psDeviceNode->eDevState == PVRSRV_DEVICE_STATE_INIT)
 	{
+		PVRSRVSetSystemPowerState(psDeviceNode->psDevConfig, PVRSRV_SYS_POWER_STATE_ON);
 		eError = PVRSRVCommonDeviceInitialise(psDeviceNode);
 		if (eError != PVRSRV_OK)
 		{
