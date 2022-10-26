@@ -6,6 +6,7 @@
 /dts-v1/;
 #include "bcm2835.dtsi"
 #include "bcm2835-rpi.dtsi"
+#include "bcm2835-rpi-common.dtsi"
 #include "bcm283x-rpi-usb-otg.dtsi"
 #include "bcm283x-rpi-wifi-bt.dtsi"
 
