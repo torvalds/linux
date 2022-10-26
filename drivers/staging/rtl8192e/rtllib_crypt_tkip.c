@@ -276,8 +276,9 @@ static int rtllib_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		}
 		tkip_mixing_phase2(rc4key, tkey->key, tkey->tx_ttak,
 				   tkey->tx_iv16);
-	} else
+	} else {
 		tkey->tx_phase1_done = 1;
+	}
 
 	len = skb->len - hdr_len;
 	pos = skb_push(skb, 8);
@@ -610,10 +611,11 @@ static int rtllib_tkip_set_key(void *key, int len, u8 *seq, void *priv)
 				(seq[3] << 8) | seq[2];
 			tkey->rx_iv16 = (seq[1] << 8) | seq[0];
 		}
-	} else if (len == 0)
+	} else if (len == 0) {
 		tkey->key_set = 0;
-	else
+	} else {
 		return -1;
+	}
 
 	return 0;
 }
