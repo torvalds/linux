@@ -626,8 +626,6 @@ static void enable_audio_dsc_wa(struct intel_encoder *encoder,
 	intel_de_write(i915, AUD_CONFIG_BE, val);
 }
 
-#undef ROUNDING_FACTOR
-
 static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 				   const struct intel_crtc_state *crtc_state,
 				   const struct drm_connector_state *conn_state)
