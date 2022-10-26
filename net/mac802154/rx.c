@@ -34,6 +34,7 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 		       struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 {
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct wpan_phy *wpan_phy = sdata->local->hw.phy;
 	__le16 span, sshort;
 	int rc;
 
@@ -41,6 +42,17 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 
 	span = wpan_dev->pan_id;
 	sshort = wpan_dev->short_addr;
+
+	/* Level 3 filtering: Only beacons are accepted during scans */
+	if (sdata->required_filtering == IEEE802154_FILTERING_3_SCAN &&
+	    sdata->required_filtering > wpan_phy->filtering) {
+		if (mac_cb(skb)->type != IEEE802154_FC_TYPE_BEACON) {
+			dev_dbg(&sdata->dev->dev,
+				"drop non-beacon frame (0x%x) during scan\n",
+				mac_cb(skb)->type);
+			goto fail;
+		}
+	}
 
 	switch (mac_cb(skb)->dest.mode) {
 	case IEEE802154_ADDR_NONE:
@@ -114,8 +126,10 @@ fail:
 static void
 ieee802154_print_addr(const char *name, const struct ieee802154_addr *addr)
 {
-	if (addr->mode == IEEE802154_ADDR_NONE)
+	if (addr->mode == IEEE802154_ADDR_NONE) {
 		pr_debug("%s not present\n", name);
+		return;
+	}
 
 	pr_debug("%s PAN ID: %04x\n", name, le16_to_cpu(addr->pan_id));
 	if (addr->mode == IEEE802154_ADDR_SHORT) {
@@ -209,6 +223,13 @@ __ieee802154_rx_handle_packet(struct ieee802154_local *local,
 		if (!ieee802154_sdata_running(sdata))
 			continue;
 
+		/* Do not deliver packets received on interfaces expecting
+		 * AACK=1 if the address filters where disabled.
+		 */
+		if (local->hw.phy->filtering < IEEE802154_FILTERING_4_FRAME_FIELDS &&
+		    sdata->required_filtering == IEEE802154_FILTERING_4_FRAME_FIELDS)
+			continue;
+
 		ieee802154_subif_frame(sdata, skb, &hdr);
 		skb = NULL;
 		break;
@@ -268,10 +289,8 @@ void ieee802154_rx(struct ieee802154_local *local, struct sk_buff *skb)
 
 	ieee802154_monitors_rx(local, skb);
 
-	/* Check if transceiver doesn't validate the checksum.
-	 * If not we validate the checksum here.
-	 */
-	if (local->hw.flags & IEEE802154_HW_RX_DROP_BAD_CKSUM) {
+	/* Level 1 filtering: Check the FCS by software when relevant */
+	if (local->hw.phy->filtering == IEEE802154_FILTERING_NONE) {
 		crc = crc_ccitt(0, skb->data, skb->len);
 		if (crc) {
 			rcu_read_unlock();

@@ -1233,12 +1233,9 @@ mcr20a_probe(struct spi_device *spi)
 	}
 
 	rst_b = devm_gpiod_get(&spi->dev, "rst_b", GPIOD_OUT_HIGH);
-	if (IS_ERR(rst_b)) {
-		ret = PTR_ERR(rst_b);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&spi->dev, "Failed to get 'rst_b' gpio: %d", ret);
-		return ret;
-	}
+	if (IS_ERR(rst_b))
+		return dev_err_probe(&spi->dev, PTR_ERR(rst_b),
+				     "Failed to get 'rst_b' gpio");
 
 	/* reset mcr20a */
 	usleep_range(10, 20);

@@ -129,6 +129,9 @@ wpan_phy_new(const struct cfg802154_ops *ops, size_t priv_size)
 	wpan_phy_net_set(&rdev->wpan_phy, &init_net);
 
 	init_waitqueue_head(&rdev->dev_wait);
+	init_waitqueue_head(&rdev->wpan_phy.sync_txq);
+
+	spin_lock_init(&rdev->wpan_phy.queue_lock);
 
 	return &rdev->wpan_phy;
 }

@@ -11,7 +11,7 @@
 
 #include <linux/ieee802154.h>
 #include <linux/netdevice.h>
-#include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <linux/bug.h>
 
 #include <net/nl802154.h>
@@ -166,11 +166,14 @@ wpan_phy_cca_cmp(const struct wpan_phy_cca *a, const struct wpan_phy_cca *b)
  *	level setting.
  * @WPAN_PHY_FLAG_CCA_MODE: Indicates that transceiver will support cca mode
  *	setting.
+ * @WPAN_PHY_FLAG_STATE_QUEUE_STOPPED: Indicates that the transmit queue was
+ *	temporarily stopped.
  */
 enum wpan_phy_flags {
 	WPAN_PHY_FLAG_TXPOWER		= BIT(1),
 	WPAN_PHY_FLAG_CCA_ED_LEVEL	= BIT(2),
 	WPAN_PHY_FLAG_CCA_MODE		= BIT(3),
+	WPAN_PHY_FLAG_STATE_QUEUE_STOPPED = BIT(4),
 };
 
 struct wpan_phy {
@@ -182,7 +185,7 @@ struct wpan_phy {
 	 */
 	const void *privid;
 
-	u32 flags;
+	unsigned long flags;
 
 	/*
 	 * This is a PIB according to 802.15.4-2011.
@@ -213,6 +216,17 @@ struct wpan_phy {
 
 	/* the network namespace this phy lives in currently */
 	possible_net_t _net;
+
+	/* Transmission monitoring and control */
+	spinlock_t queue_lock;
+	atomic_t ongoing_txs;
+	atomic_t hold_txs;
+	wait_queue_head_t sync_txq;
+
+	/* Current filtering level on reception.
+	 * Only allowed to be changed if phy is not operational.
+	 */
+	enum ieee802154_filtering_level filtering;
 
 	char priv[] __aligned(NETDEV_ALIGN);
 };
@@ -364,8 +378,6 @@ struct wpan_dev {
 	s8 frame_retries;
 
 	bool lbt;
-
-	bool promiscuous_mode;
 
 	/* fallback for acknowledgment bit setting */
 	bool ackreq;
