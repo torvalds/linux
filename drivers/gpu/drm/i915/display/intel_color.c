@@ -565,7 +565,7 @@ create_linear_lut(struct drm_i915_private *i915, int lut_size)
 	int i;
 
 	blob = drm_property_create_blob(&i915->drm,
-					sizeof(struct drm_color_lut) * lut_size,
+					sizeof(lut[0]) * lut_size,
 					NULL);
 	if (IS_ERR(blob))
 		return blob;
@@ -1895,7 +1895,7 @@ static struct drm_property_blob *i9xx_read_lut_8(struct intel_crtc *crtc)
 	int i;
 
 	blob = drm_property_create_blob(&dev_priv->drm,
-					sizeof(struct drm_color_lut) * LEGACY_LUT_LENGTH,
+					sizeof(lut[0]) * LEGACY_LUT_LENGTH,
 					NULL);
 	if (IS_ERR(blob))
 		return NULL;
@@ -1930,7 +1930,7 @@ static struct drm_property_blob *i965_read_lut_10p6(struct intel_crtc *crtc)
 	struct drm_color_lut *lut;
 
 	blob = drm_property_create_blob(&dev_priv->drm,
-					sizeof(struct drm_color_lut) * lut_size,
+					sizeof(lut[0]) * lut_size,
 					NULL);
 	if (IS_ERR(blob))
 		return NULL;
@@ -1973,7 +1973,7 @@ static struct drm_property_blob *chv_read_cgm_gamma(struct intel_crtc *crtc)
 	struct drm_color_lut *lut;
 
 	blob = drm_property_create_blob(&dev_priv->drm,
-					sizeof(struct drm_color_lut) * lut_size,
+					sizeof(lut[0]) * lut_size,
 					NULL);
 	if (IS_ERR(blob))
 		return NULL;
@@ -2009,7 +2009,7 @@ static struct drm_property_blob *ilk_read_lut_8(struct intel_crtc *crtc)
 	int i;
 
 	blob = drm_property_create_blob(&dev_priv->drm,
-					sizeof(struct drm_color_lut) * LEGACY_LUT_LENGTH,
+					sizeof(lut[0]) * LEGACY_LUT_LENGTH,
 					NULL);
 	if (IS_ERR(blob))
 		return NULL;
@@ -2034,7 +2034,7 @@ static struct drm_property_blob *ilk_read_lut_10(struct intel_crtc *crtc)
 	struct drm_color_lut *lut;
 
 	blob = drm_property_create_blob(&dev_priv->drm,
-					sizeof(struct drm_color_lut) * lut_size,
+					sizeof(lut[0]) * lut_size,
 					NULL);
 	if (IS_ERR(blob))
 		return NULL;
@@ -2087,7 +2087,7 @@ static struct drm_property_blob *bdw_read_lut_10(struct intel_crtc *crtc,
 	drm_WARN_ON(&dev_priv->drm, lut_size != hw_lut_size);
 
 	blob = drm_property_create_blob(&dev_priv->drm,
-					sizeof(struct drm_color_lut) * lut_size,
+					sizeof(lut[0]) * lut_size,
 					NULL);
 	if (IS_ERR(blob))
 		return NULL;
@@ -2138,7 +2138,7 @@ icl_read_lut_multi_segment(struct intel_crtc *crtc)
 	struct drm_color_lut *lut;
 
 	blob = drm_property_create_blob(&dev_priv->drm,
-					sizeof(struct drm_color_lut) * lut_size,
+					sizeof(lut[0]) * lut_size,
 					NULL);
 	if (IS_ERR(blob))
 		return NULL;
