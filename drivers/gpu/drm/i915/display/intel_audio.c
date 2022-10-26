@@ -481,9 +481,12 @@ static void hsw_audio_codec_disable(struct intel_encoder *encoder,
 		     (intel_crtc_has_dp_encoder(old_crtc_state) ?
 		      AUD_CONFIG_N_VALUE_INDEX : 0));
 
-	/* Disable audio presence detect, invalidate ELD */
+	/* Invalidate ELD */
 	intel_de_rmw(i915, HSW_AUD_PIN_ELD_CP_VLD,
-		     AUDIO_ELD_VALID(cpu_transcoder) |
+		     AUDIO_ELD_VALID(cpu_transcoder), 0);
+
+	/* Disable audio presence detect */
+	intel_de_rmw(i915, HSW_AUD_PIN_ELD_CP_VLD,
 		     AUDIO_OUTPUT_ENABLE(cpu_transcoder), 0);
 
 	mutex_unlock(&i915->display.audio.mutex);
@@ -614,10 +617,13 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP))
 		enable_audio_dsc_wa(encoder, crtc_state);
 
-	/* Enable audio presence detect, invalidate ELD */
+	/* Enable audio presence detect */
 	intel_de_rmw(i915, HSW_AUD_PIN_ELD_CP_VLD,
-		     AUDIO_ELD_VALID(cpu_transcoder),
-		     AUDIO_OUTPUT_ENABLE(cpu_transcoder));
+		     0, AUDIO_OUTPUT_ENABLE(cpu_transcoder));
+
+	/* Invalidate ELD */
+	intel_de_rmw(i915, HSW_AUD_PIN_ELD_CP_VLD,
+		     AUDIO_ELD_VALID(cpu_transcoder), 0);
 
 	/*
 	 * FIXME: We're supposed to wait for vblank here, but we have vblanks
