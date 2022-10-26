@@ -62,7 +62,7 @@ static void *rtllib_tkip_init(int key_idx)
 		return NULL;
 
 	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
-	if (priv == NULL)
+	if (!priv)
 		goto fail;
 	priv->key_idx = key_idx;
 
