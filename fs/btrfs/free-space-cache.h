@@ -48,9 +48,11 @@ static inline bool btrfs_free_space_trimming_bitmap(
  * to make it clear what we're doing.  An example is discard_extents in
  * btrfs_free_space_ctl.
  */
-#define BTRFS_STAT_NR_ENTRIES	2
-#define BTRFS_STAT_CURR		0
-#define BTRFS_STAT_PREV		1
+enum {
+	BTRFS_STAT_CURR,
+	BTRFS_STAT_PREV,
+	BTRFS_STAT_NR_ENTRIES,
+};
 
 struct btrfs_free_space_ctl {
 	spinlock_t tree_lock;
