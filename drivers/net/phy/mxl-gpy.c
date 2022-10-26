@@ -370,14 +370,14 @@ static int gpy_config_aneg(struct phy_device *phydev)
 			      VSPEC1_SGMII_CTRL_ANRS, VSPEC1_SGMII_CTRL_ANRS);
 }
 
-static void gpy_update_interface(struct phy_device *phydev)
+static int gpy_update_interface(struct phy_device *phydev)
 {
 	int ret;
 
 	/* Interface mode is fixed for USXGMII and integrated PHY */
 	if (phydev->interface == PHY_INTERFACE_MODE_USXGMII ||
 	    phydev->interface == PHY_INTERFACE_MODE_INTERNAL)
-		return;
+		return -EINVAL;
 
 	/* Automatically switch SERDES interface between SGMII and 2500-BaseX
 	 * according to speed. Disable ANEG in 2500-BaseX mode.
@@ -387,10 +387,12 @@ static void gpy_update_interface(struct phy_device *phydev)
 		phydev->interface = PHY_INTERFACE_MODE_2500BASEX;
 		ret = phy_modify_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_SGMII_CTRL,
 				     VSPEC1_SGMII_CTRL_ANEN, 0);
-		if (ret < 0)
+		if (ret < 0) {
 			phydev_err(phydev,
 				   "Error: Disable of SGMII ANEG failed: %d\n",
 				   ret);
+			return ret;
+		}
 		break;
 	case SPEED_1000:
 	case SPEED_100:
@@ -404,15 +406,22 @@ static void gpy_update_interface(struct phy_device *phydev)
 		ret = phy_modify_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_SGMII_CTRL,
 				     VSPEC1_SGMII_ANEN_ANRS,
 				     VSPEC1_SGMII_ANEN_ANRS);
-		if (ret < 0)
+		if (ret < 0) {
 			phydev_err(phydev,
 				   "Error: Enable of SGMII ANEG failed: %d\n",
 				   ret);
+			return ret;
+		}
 		break;
 	}
 
-	if (phydev->speed == SPEED_2500 || phydev->speed == SPEED_1000)
-		genphy_read_master_slave(phydev);
+	if (phydev->speed == SPEED_2500 || phydev->speed == SPEED_1000) {
+		ret = genphy_read_master_slave(phydev);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int gpy_read_status(struct phy_device *phydev)
@@ -463,8 +472,11 @@ static int gpy_read_status(struct phy_device *phydev)
 		break;
 	}
 
-	if (phydev->link)
-		gpy_update_interface(phydev);
+	if (phydev->link) {
+		ret = gpy_update_interface(phydev);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
