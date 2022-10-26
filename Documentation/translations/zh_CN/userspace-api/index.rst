@@ -26,6 +26,7 @@ Linux 内核用户空间API指南
 
    ebpf/index
    no_new_privs
+   sysfs-platform_profile
 
 TODOList:
 
@@ -38,7 +39,6 @@ TODOList:
 * iommu
 * media/index
 * netlink/index
-* sysfs-platform_profile
 * vduse
 * futex2
 
