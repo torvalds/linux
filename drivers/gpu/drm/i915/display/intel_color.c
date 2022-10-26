@@ -597,6 +597,30 @@ create_linear_lut(struct drm_i915_private *i915, int lut_size)
 	return blob;
 }
 
+static struct drm_property_blob *
+create_resized_lut(struct drm_i915_private *i915,
+		   const struct drm_property_blob *blob_in, int lut_out_size)
+{
+	int i, lut_in_size = drm_color_lut_size(blob_in);
+	struct drm_property_blob *blob_out;
+	const struct drm_color_lut *lut_in;
+	struct drm_color_lut *lut_out;
+
+	blob_out = drm_property_create_blob(&i915->drm,
+					    sizeof(lut_out[0]) * lut_out_size,
+					    NULL);
+	if (IS_ERR(blob_out))
+		return blob_out;
+
+	lut_in = blob_in->data;
+	lut_out = blob_out->data;
+
+	for (i = 0; i < lut_out_size; i++)
+		lut_out[i] = lut_in[i * (lut_in_size - 1) / (lut_out_size - 1)];
+
+	return blob_out;
+}
+
 static void i9xx_load_lut_8(struct intel_crtc *crtc,
 			    const struct drm_property_blob *blob)
 {
@@ -723,19 +747,14 @@ static void ivb_load_lut_10(struct intel_crtc *crtc,
 			    u32 prec_index)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	int hw_lut_size = ivb_lut_10_size(prec_index);
 	const struct drm_color_lut *lut = blob->data;
 	int i, lut_size = drm_color_lut_size(blob);
 	enum pipe pipe = crtc->pipe;
 
-	for (i = 0; i < hw_lut_size; i++) {
-		/* We discard half the user entries in split gamma mode */
-		const struct drm_color_lut *entry =
-			&lut[i * (lut_size - 1) / (hw_lut_size - 1)];
-
+	for (i = 0; i < lut_size; i++) {
 		intel_de_write_fw(i915, PREC_PAL_INDEX(pipe), prec_index++);
 		intel_de_write_fw(i915, PREC_PAL_DATA(pipe),
-				  ilk_lut_10(entry));
+				  ilk_lut_10(&lut[i]));
 	}
 
 	/*
@@ -751,7 +770,6 @@ static void bdw_load_lut_10(struct intel_crtc *crtc,
 			    u32 prec_index)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	int hw_lut_size = ivb_lut_10_size(prec_index);
 	const struct drm_color_lut *lut = blob->data;
 	int i, lut_size = drm_color_lut_size(blob);
 	enum pipe pipe = crtc->pipe;
@@ -759,14 +777,9 @@ static void bdw_load_lut_10(struct intel_crtc *crtc,
 	intel_de_write_fw(i915, PREC_PAL_INDEX(pipe),
 			  prec_index | PAL_PREC_AUTO_INCREMENT);
 
-	for (i = 0; i < hw_lut_size; i++) {
-		/* We discard half the user entries in split gamma mode */
-		const struct drm_color_lut *entry =
-			&lut[i * (lut_size - 1) / (hw_lut_size - 1)];
-
+	for (i = 0; i < lut_size; i++)
 		intel_de_write_fw(i915, PREC_PAL_DATA(pipe),
-				  ilk_lut_10(entry));
-	}
+				  ilk_lut_10(&lut[i]));
 
 	/*
 	 * Reset the index, otherwise it prevents the legacy palette to be
@@ -1343,7 +1356,7 @@ void intel_color_assert_luts(const struct intel_crtc_state *crtc_state)
 			    crtc_state->pre_csc_lut != i915->display.color.glk_linear_degamma_lut);
 		drm_WARN_ON(&i915->drm,
 			    crtc_state->post_csc_lut != crtc_state->hw.gamma_lut);
-	} else {
+	} else if (crtc_state->gamma_mode != GAMMA_MODE_MODE_SPLIT) {
 		drm_WARN_ON(&i915->drm,
 			    crtc_state->pre_csc_lut != crtc_state->hw.degamma_lut &&
 			    crtc_state->pre_csc_lut != crtc_state->hw.gamma_lut);
@@ -1564,6 +1577,38 @@ static u32 ivb_csc_mode(const struct intel_crtc_state *crtc_state)
 	return CSC_POSITION_BEFORE_GAMMA;
 }
 
+static int ivb_assign_luts(struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	struct drm_property_blob *degamma_lut, *gamma_lut;
+
+	if (crtc_state->gamma_mode != GAMMA_MODE_MODE_SPLIT) {
+		ilk_assign_luts(crtc_state);
+		return 0;
+	}
+
+	drm_WARN_ON(&i915->drm, drm_color_lut_size(crtc_state->hw.degamma_lut) != 1024);
+	drm_WARN_ON(&i915->drm, drm_color_lut_size(crtc_state->hw.gamma_lut) != 1024);
+
+	degamma_lut = create_resized_lut(i915, crtc_state->hw.degamma_lut, 512);
+	if (IS_ERR(degamma_lut))
+		return PTR_ERR(degamma_lut);
+
+	gamma_lut = create_resized_lut(i915, crtc_state->hw.gamma_lut, 512);
+	if (IS_ERR(gamma_lut)) {
+		drm_property_blob_put(degamma_lut);
+		return PTR_ERR(gamma_lut);
+	}
+
+	drm_property_replace_blob(&crtc_state->pre_csc_lut, degamma_lut);
+	drm_property_replace_blob(&crtc_state->post_csc_lut, gamma_lut);
+
+	drm_property_blob_put(degamma_lut);
+	drm_property_blob_put(gamma_lut);
+
+	return 0;
+}
+
 static int ivb_color_check(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
@@ -1599,7 +1644,9 @@ static int ivb_color_check(struct intel_crtc_state *crtc_state)
 	if (ret)
 		return ret;
 
-	ilk_assign_luts(crtc_state);
+	ret = ivb_assign_luts(crtc_state);
+	if (ret)
+		return ret;
 
 	crtc_state->preload_luts = intel_can_preload_luts(crtc_state);
 
