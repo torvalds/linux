@@ -2726,6 +2726,8 @@ int musb_host_setup(struct musb *musb, int power_budget)
 	if (musb->xceiv) {
 		otg_set_host(musb->xceiv->otg, &hcd->self);
 		musb->xceiv->otg->host = &hcd->self;
+	} else {
+		phy_set_mode(musb->phy, PHY_MODE_USB_HOST);
 	}
 
 	/* don't support otg protocols */
