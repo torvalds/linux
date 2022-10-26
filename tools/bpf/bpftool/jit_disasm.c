@@ -223,7 +223,7 @@ static int init_context(disasm_ctx_t *ctx, const char *arch,
 
 	memset(tpath, 0, sizeof(tpath));
 	if (get_exec_path(tpath, sizeof(tpath))) {
-		p_err("failed to create disasembler (get_exec_path)");
+		p_err("failed to create disassembler (get_exec_path)");
 		return -1;
 	}
 
