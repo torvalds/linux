@@ -935,8 +935,8 @@ static u32 ilk_lut_12p4_ldw(const struct drm_color_lut *color)
 }
 
 static void
-icl_load_gcmax(const struct intel_crtc_state *crtc_state,
-	       const struct drm_color_lut *color)
+ivb_load_lut_max(const struct intel_crtc_state *crtc_state,
+		 const struct drm_color_lut *color)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum pipe pipe = crtc->pipe;
@@ -1028,7 +1028,7 @@ icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
 
 	/* The last entry in the LUT is to be programmed in GCMAX */
 	entry = &lut[256 * 8 * 128];
-	icl_load_gcmax(crtc_state, entry);
+	ivb_load_lut_max(crtc_state, entry);
 	ivb_load_lut_ext_max(crtc_state);
 }
 
