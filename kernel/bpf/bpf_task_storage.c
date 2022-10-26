@@ -184,13 +184,17 @@ out:
 	return err;
 }
 
-static int task_storage_delete(struct task_struct *task, struct bpf_map *map)
+static int task_storage_delete(struct task_struct *task, struct bpf_map *map,
+			       bool nobusy)
 {
 	struct bpf_local_storage_data *sdata;
 
 	sdata = task_storage_lookup(task, map, false);
 	if (!sdata)
 		return -ENOENT;
+
+	if (!nobusy)
+		return -EBUSY;
 
 	bpf_selem_unlink(SELEM(sdata), true);
 
@@ -220,44 +224,91 @@ static int bpf_pid_task_storage_delete_elem(struct bpf_map *map, void *key)
 	}
 
 	bpf_task_storage_lock();
-	err = task_storage_delete(task, map);
+	err = task_storage_delete(task, map, true);
 	bpf_task_storage_unlock();
 out:
 	put_pid(pid);
 	return err;
 }
 
+/* Called by bpf_task_storage_get*() helpers */
+static void *__bpf_task_storage_get(struct bpf_map *map,
+				    struct task_struct *task, void *value,
+				    u64 flags, gfp_t gfp_flags, bool nobusy)
+{
+	struct bpf_local_storage_data *sdata;
+
+	sdata = task_storage_lookup(task, map, nobusy);
+	if (sdata)
+		return sdata->data;
+
+	/* only allocate new storage, when the task is refcounted */
+	if (refcount_read(&task->usage) &&
+	    (flags & BPF_LOCAL_STORAGE_GET_F_CREATE) && nobusy) {
+		sdata = bpf_local_storage_update(
+			task, (struct bpf_local_storage_map *)map, value,
+			BPF_NOEXIST, gfp_flags);
+		return IS_ERR(sdata) ? NULL : sdata->data;
+	}
+
+	return NULL;
+}
+
+/* *gfp_flags* is a hidden argument provided by the verifier */
+BPF_CALL_5(bpf_task_storage_get_recur, struct bpf_map *, map, struct task_struct *,
+	   task, void *, value, u64, flags, gfp_t, gfp_flags)
+{
+	bool nobusy;
+	void *data;
+
+	WARN_ON_ONCE(!bpf_rcu_lock_held());
+	if (flags & ~BPF_LOCAL_STORAGE_GET_F_CREATE || !task)
+		return (unsigned long)NULL;
+
+	nobusy = bpf_task_storage_trylock();
+	data = __bpf_task_storage_get(map, task, value, flags,
+				      gfp_flags, nobusy);
+	if (nobusy)
+		bpf_task_storage_unlock();
+	return (unsigned long)data;
+}
+
 /* *gfp_flags* is a hidden argument provided by the verifier */
 BPF_CALL_5(bpf_task_storage_get, struct bpf_map *, map, struct task_struct *,
 	   task, void *, value, u64, flags, gfp_t, gfp_flags)
 {
-	struct bpf_local_storage_data *sdata;
+	void *data;
 
 	WARN_ON_ONCE(!bpf_rcu_lock_held());
-	if (flags & ~(BPF_LOCAL_STORAGE_GET_F_CREATE))
+	if (flags & ~BPF_LOCAL_STORAGE_GET_F_CREATE || !task)
 		return (unsigned long)NULL;
 
-	if (!task)
-		return (unsigned long)NULL;
-
-	if (!bpf_task_storage_trylock())
-		return (unsigned long)NULL;
-
-	sdata = task_storage_lookup(task, map, true);
-	if (sdata)
-		goto unlock;
-
-	/* only allocate new storage, when the task is refcounted */
-	if (refcount_read(&task->usage) &&
-	    (flags & BPF_LOCAL_STORAGE_GET_F_CREATE))
-		sdata = bpf_local_storage_update(
-			task, (struct bpf_local_storage_map *)map, value,
-			BPF_NOEXIST, gfp_flags);
-
-unlock:
+	bpf_task_storage_lock();
+	data = __bpf_task_storage_get(map, task, value, flags,
+				      gfp_flags, true);
 	bpf_task_storage_unlock();
-	return IS_ERR_OR_NULL(sdata) ? (unsigned long)NULL :
-		(unsigned long)sdata->data;
+	return (unsigned long)data;
+}
+
+BPF_CALL_2(bpf_task_storage_delete_recur, struct bpf_map *, map, struct task_struct *,
+	   task)
+{
+	bool nobusy;
+	int ret;
+
+	WARN_ON_ONCE(!bpf_rcu_lock_held());
+	if (!task)
+		return -EINVAL;
+
+	nobusy = bpf_task_storage_trylock();
+	/* This helper must only be called from places where the lifetime of the task
+	 * is guaranteed. Either by being refcounted or by being protected
+	 * by an RCU read-side critical section.
+	 */
+	ret = task_storage_delete(task, map, nobusy);
+	if (nobusy)
+		bpf_task_storage_unlock();
+	return ret;
 }
 
 BPF_CALL_2(bpf_task_storage_delete, struct bpf_map *, map, struct task_struct *,
@@ -269,14 +320,12 @@ BPF_CALL_2(bpf_task_storage_delete, struct bpf_map *, map, struct task_struct *,
 	if (!task)
 		return -EINVAL;
 
-	if (!bpf_task_storage_trylock())
-		return -EBUSY;
-
+	bpf_task_storage_lock();
 	/* This helper must only be called from places where the lifetime of the task
 	 * is guaranteed. Either by being refcounted or by being protected
 	 * by an RCU read-side critical section.
 	 */
-	ret = task_storage_delete(task, map);
+	ret = task_storage_delete(task, map, true);
 	bpf_task_storage_unlock();
 	return ret;
 }
@@ -322,6 +371,17 @@ const struct bpf_map_ops task_storage_map_ops = {
 	.map_owner_storage_ptr = task_storage_ptr,
 };
 
+const struct bpf_func_proto bpf_task_storage_get_recur_proto = {
+	.func = bpf_task_storage_get_recur,
+	.gpl_only = false,
+	.ret_type = RET_PTR_TO_MAP_VALUE_OR_NULL,
+	.arg1_type = ARG_CONST_MAP_PTR,
+	.arg2_type = ARG_PTR_TO_BTF_ID,
+	.arg2_btf_id = &btf_tracing_ids[BTF_TRACING_TYPE_TASK],
+	.arg3_type = ARG_PTR_TO_MAP_VALUE_OR_NULL,
+	.arg4_type = ARG_ANYTHING,
+};
+
 const struct bpf_func_proto bpf_task_storage_get_proto = {
 	.func = bpf_task_storage_get,
 	.gpl_only = false,
@@ -331,6 +391,15 @@ const struct bpf_func_proto bpf_task_storage_get_proto = {
 	.arg2_btf_id = &btf_tracing_ids[BTF_TRACING_TYPE_TASK],
 	.arg3_type = ARG_PTR_TO_MAP_VALUE_OR_NULL,
 	.arg4_type = ARG_ANYTHING,
+};
+
+const struct bpf_func_proto bpf_task_storage_delete_recur_proto = {
+	.func = bpf_task_storage_delete_recur,
+	.gpl_only = false,
+	.ret_type = RET_INTEGER,
+	.arg1_type = ARG_CONST_MAP_PTR,
+	.arg2_type = ARG_PTR_TO_BTF_ID,
+	.arg2_btf_id = &btf_tracing_ids[BTF_TRACING_TYPE_TASK],
 };
 
 const struct bpf_func_proto bpf_task_storage_delete_proto = {
