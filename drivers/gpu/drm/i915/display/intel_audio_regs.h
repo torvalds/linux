@@ -8,14 +8,8 @@
 
 #include "i915_reg_defs.h"
 
-#define G4X_AUD_VID_DID			_MMIO(DISPLAY_MMIO_BASE(i915) + 0x62020)
-#define   INTEL_AUDIO_DEVCL		0x808629FB
-#define   INTEL_AUDIO_DEVBLC		0x80862801
-#define   INTEL_AUDIO_DEVCTG		0x80862802
-
 #define G4X_AUD_CNTL_ST			_MMIO(0x620B4)
-#define   G4X_ELDV_DEVCL_DEVBLC		(1 << 13)
-#define   G4X_ELDV_DEVCTG		(1 << 14)
+#define   G4X_ELDV			(1 << 14)
 #define   G4X_ELD_ADDR_MASK		(0xf << 5)
 #define   G4X_ELD_ACK			(1 << 4)
 #define G4X_HDMIW_HDMIEDID		_MMIO(0x6210C)
