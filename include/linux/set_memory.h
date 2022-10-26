@@ -14,6 +14,14 @@ static inline int set_memory_x(unsigned long addr,  int numpages) { return 0; }
 static inline int set_memory_nx(unsigned long addr, int numpages) { return 0; }
 #endif
 
+static inline int set_memory_rox(unsigned long addr, int numpages)
+{
+	int ret = set_memory_ro(addr, numpages);
+	if (ret)
+		return ret;
+	return set_memory_x(addr, numpages);
+}
+
 #ifndef CONFIG_ARCH_HAS_SET_DIRECT_MAP
 static inline int set_direct_map_invalid_noflush(struct page *page)
 {
