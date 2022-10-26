@@ -2326,27 +2326,31 @@ int mpp_time_record(struct mpp_task *task)
 
 int mpp_time_part_diff(struct mpp_task *task)
 {
-	ktime_t end;
-	struct mpp_dev *mpp = mpp_get_task_used_device(task, task->session);
+	if (mpp_debug_unlikely(DEBUG_TIMING)) {
+		ktime_t end;
+		struct mpp_dev *mpp = mpp_get_task_used_device(task, task->session);
 
-	end = ktime_get();
-	mpp_debug(DEBUG_PART_TIMING, "%s:%d session %d:%d part time: %lld us\n",
-		  dev_name(mpp->dev), task->core_id, task->session->pid,
-		  task->session->index, ktime_us_delta(end, task->part));
-	task->part = end;
+		end = ktime_get();
+		mpp_debug(DEBUG_PART_TIMING, "%s:%d session %d:%d part time: %lld us\n",
+			dev_name(mpp->dev), task->core_id, task->session->pid,
+			task->session->index, ktime_us_delta(end, task->part));
+		task->part = end;
+	}
 
 	return 0;
 }
 
 int mpp_time_diff(struct mpp_task *task)
 {
-	ktime_t end;
-	struct mpp_dev *mpp = mpp_get_task_used_device(task, task->session);
+	if (mpp_debug_unlikely(DEBUG_TIMING)) {
+		ktime_t end;
+		struct mpp_dev *mpp = mpp_get_task_used_device(task, task->session);
 
-	end = ktime_get();
-	mpp_debug(DEBUG_TIMING, "%s:%d session %d:%d time: %lld us\n",
-		  dev_name(mpp->dev), task->core_id, task->session->pid,
-		  task->session->index, ktime_us_delta(end, task->start));
+		end = ktime_get();
+		mpp_debug(DEBUG_TIMING, "%s:%d session %d:%d time: %lld us\n",
+			dev_name(mpp->dev), task->core_id, task->session->pid,
+			task->session->index, ktime_us_delta(end, task->start));
+	}
 
 	return 0;
 }
