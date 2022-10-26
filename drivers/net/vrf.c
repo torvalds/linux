@@ -159,13 +159,13 @@ static void vrf_get_stats64(struct net_device *dev,
 
 		dstats = per_cpu_ptr(dev->dstats, i);
 		do {
-			start = u64_stats_fetch_begin_irq(&dstats->syncp);
+			start = u64_stats_fetch_begin(&dstats->syncp);
 			tbytes = dstats->tx_bytes;
 			tpkts = dstats->tx_pkts;
 			tdrops = dstats->tx_drps;
 			rbytes = dstats->rx_bytes;
 			rpkts = dstats->rx_pkts;
-		} while (u64_stats_fetch_retry_irq(&dstats->syncp, start));
+		} while (u64_stats_fetch_retry(&dstats->syncp, start));
 		stats->tx_bytes += tbytes;
 		stats->tx_packets += tpkts;
 		stats->tx_dropped += tdrops;

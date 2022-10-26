@@ -6370,10 +6370,10 @@ ice_fetch_u64_stats_per_ring(struct u64_stats_sync *syncp,
 	unsigned int start;
 
 	do {
-		start = u64_stats_fetch_begin_irq(syncp);
+		start = u64_stats_fetch_begin(syncp);
 		*pkts = stats.pkts;
 		*bytes = stats.bytes;
-	} while (u64_stats_fetch_retry_irq(syncp, start));
+	} while (u64_stats_fetch_retry(syncp, start));
 }
 
 /**

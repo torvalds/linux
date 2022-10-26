@@ -1362,12 +1362,12 @@ static void am65_cpsw_nuss_ndo_get_stats(struct net_device *dev,
 
 		cpu_stats = per_cpu_ptr(ndev_priv->stats, cpu);
 		do {
-			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
+			start = u64_stats_fetch_begin(&cpu_stats->syncp);
 			rx_packets = cpu_stats->rx_packets;
 			rx_bytes   = cpu_stats->rx_bytes;
 			tx_packets = cpu_stats->tx_packets;
 			tx_bytes   = cpu_stats->tx_bytes;
-		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
+		} while (u64_stats_fetch_retry(&cpu_stats->syncp, start));
 
 		stats->rx_packets += rx_packets;
 		stats->rx_bytes   += rx_bytes;

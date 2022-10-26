@@ -2069,18 +2069,18 @@ static void virtnet_stats(struct net_device *dev,
 		struct send_queue *sq = &vi->sq[i];
 
 		do {
-			start = u64_stats_fetch_begin_irq(&sq->stats.syncp);
+			start = u64_stats_fetch_begin(&sq->stats.syncp);
 			tpackets = sq->stats.packets;
 			tbytes   = sq->stats.bytes;
 			terrors  = sq->stats.tx_timeouts;
-		} while (u64_stats_fetch_retry_irq(&sq->stats.syncp, start));
+		} while (u64_stats_fetch_retry(&sq->stats.syncp, start));
 
 		do {
-			start = u64_stats_fetch_begin_irq(&rq->stats.syncp);
+			start = u64_stats_fetch_begin(&rq->stats.syncp);
 			rpackets = rq->stats.packets;
 			rbytes   = rq->stats.bytes;
 			rdrops   = rq->stats.drops;
-		} while (u64_stats_fetch_retry_irq(&rq->stats.syncp, start));
+		} while (u64_stats_fetch_retry(&rq->stats.syncp, start));
 
 		tot->rx_packets += rpackets;
 		tot->tx_packets += tpackets;
@@ -2691,12 +2691,12 @@ static void virtnet_get_ethtool_stats(struct net_device *dev,
 
 		stats_base = (u8 *)&rq->stats;
 		do {
-			start = u64_stats_fetch_begin_irq(&rq->stats.syncp);
+			start = u64_stats_fetch_begin(&rq->stats.syncp);
 			for (j = 0; j < VIRTNET_RQ_STATS_LEN; j++) {
 				offset = virtnet_rq_stats_desc[j].offset;
 				data[idx + j] = *(u64 *)(stats_base + offset);
 			}
-		} while (u64_stats_fetch_retry_irq(&rq->stats.syncp, start));
+		} while (u64_stats_fetch_retry(&rq->stats.syncp, start));
 		idx += VIRTNET_RQ_STATS_LEN;
 	}
 
@@ -2705,12 +2705,12 @@ static void virtnet_get_ethtool_stats(struct net_device *dev,
 
 		stats_base = (u8 *)&sq->stats;
 		do {
-			start = u64_stats_fetch_begin_irq(&sq->stats.syncp);
+			start = u64_stats_fetch_begin(&sq->stats.syncp);
 			for (j = 0; j < VIRTNET_SQ_STATS_LEN; j++) {
 				offset = virtnet_sq_stats_desc[j].offset;
 				data[idx + j] = *(u64 *)(stats_base + offset);
 			}
-		} while (u64_stats_fetch_retry_irq(&sq->stats.syncp, start));
+		} while (u64_stats_fetch_retry(&sq->stats.syncp, start));
 		idx += VIRTNET_SQ_STATS_LEN;
 	}
 }

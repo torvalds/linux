@@ -1508,16 +1508,16 @@ static void ave_get_stats64(struct net_device *ndev,
 	unsigned int start;
 
 	do {
-		start = u64_stats_fetch_begin_irq(&priv->stats_rx.syncp);
+		start = u64_stats_fetch_begin(&priv->stats_rx.syncp);
 		stats->rx_packets = priv->stats_rx.packets;
 		stats->rx_bytes	  = priv->stats_rx.bytes;
-	} while (u64_stats_fetch_retry_irq(&priv->stats_rx.syncp, start));
+	} while (u64_stats_fetch_retry(&priv->stats_rx.syncp, start));
 
 	do {
-		start = u64_stats_fetch_begin_irq(&priv->stats_tx.syncp);
+		start = u64_stats_fetch_begin(&priv->stats_tx.syncp);
 		stats->tx_packets = priv->stats_tx.packets;
 		stats->tx_bytes	  = priv->stats_tx.bytes;
-	} while (u64_stats_fetch_retry_irq(&priv->stats_tx.syncp, start));
+	} while (u64_stats_fetch_retry(&priv->stats_tx.syncp, start));
 
 	stats->rx_errors      = priv->stats_rx.errors;
 	stats->tx_errors      = priv->stats_tx.errors;

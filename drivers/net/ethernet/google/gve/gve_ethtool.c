@@ -177,14 +177,14 @@ gve_get_ethtool_stats(struct net_device *netdev,
 				struct gve_rx_ring *rx = &priv->rx[ring];
 
 				start =
-				  u64_stats_fetch_begin_irq(&priv->rx[ring].statss);
+				  u64_stats_fetch_begin(&priv->rx[ring].statss);
 				tmp_rx_pkts = rx->rpackets;
 				tmp_rx_bytes = rx->rbytes;
 				tmp_rx_skb_alloc_fail = rx->rx_skb_alloc_fail;
 				tmp_rx_buf_alloc_fail = rx->rx_buf_alloc_fail;
 				tmp_rx_desc_err_dropped_pkt =
 					rx->rx_desc_err_dropped_pkt;
-			} while (u64_stats_fetch_retry_irq(&priv->rx[ring].statss,
+			} while (u64_stats_fetch_retry(&priv->rx[ring].statss,
 						       start));
 			rx_pkts += tmp_rx_pkts;
 			rx_bytes += tmp_rx_bytes;
@@ -198,10 +198,10 @@ gve_get_ethtool_stats(struct net_device *netdev,
 		if (priv->tx) {
 			do {
 				start =
-				  u64_stats_fetch_begin_irq(&priv->tx[ring].statss);
+				  u64_stats_fetch_begin(&priv->tx[ring].statss);
 				tmp_tx_pkts = priv->tx[ring].pkt_done;
 				tmp_tx_bytes = priv->tx[ring].bytes_done;
-			} while (u64_stats_fetch_retry_irq(&priv->tx[ring].statss,
+			} while (u64_stats_fetch_retry(&priv->tx[ring].statss,
 						       start));
 			tx_pkts += tmp_tx_pkts;
 			tx_bytes += tmp_tx_bytes;
@@ -259,13 +259,13 @@ gve_get_ethtool_stats(struct net_device *netdev,
 			data[i++] = rx->fill_cnt - rx->cnt;
 			do {
 				start =
-				  u64_stats_fetch_begin_irq(&priv->rx[ring].statss);
+				  u64_stats_fetch_begin(&priv->rx[ring].statss);
 				tmp_rx_bytes = rx->rbytes;
 				tmp_rx_skb_alloc_fail = rx->rx_skb_alloc_fail;
 				tmp_rx_buf_alloc_fail = rx->rx_buf_alloc_fail;
 				tmp_rx_desc_err_dropped_pkt =
 					rx->rx_desc_err_dropped_pkt;
-			} while (u64_stats_fetch_retry_irq(&priv->rx[ring].statss,
+			} while (u64_stats_fetch_retry(&priv->rx[ring].statss,
 						       start));
 			data[i++] = tmp_rx_bytes;
 			data[i++] = rx->rx_cont_packet_cnt;
@@ -331,9 +331,9 @@ gve_get_ethtool_stats(struct net_device *netdev,
 			}
 			do {
 				start =
-				  u64_stats_fetch_begin_irq(&priv->tx[ring].statss);
+				  u64_stats_fetch_begin(&priv->tx[ring].statss);
 				tmp_tx_bytes = tx->bytes_done;
-			} while (u64_stats_fetch_retry_irq(&priv->tx[ring].statss,
+			} while (u64_stats_fetch_retry(&priv->tx[ring].statss,
 						       start));
 			data[i++] = tmp_tx_bytes;
 			data[i++] = tx->wake_queue;
