@@ -9,6 +9,7 @@
 #define pr_fmt(fmt)		"habanalabs: " fmt
 
 #include "habanalabs.h"
+#include "../include/hw_ip/pci/pci_general.h"
 
 #include <linux/pci.h>
 #include <linux/aer.h>
@@ -74,16 +75,17 @@ MODULE_DEVICE_TABLE(pci, ids);
 /*
  * get_asic_type - translate device id to asic type
  *
- * @device: id of the PCI device
+ * @hdev: pointer to habanalabs device structure.
  *
- * Translate device id to asic type.
+ * Translate device id and revision id to asic type.
  * In case of unidentified device, return -1
  */
-static enum hl_asic_type get_asic_type(u16 device)
+static enum hl_asic_type get_asic_type(struct hl_device *hdev)
 {
-	enum hl_asic_type asic_type;
+	struct pci_dev *pdev = hdev->pdev;
+	enum hl_asic_type asic_type = ASIC_INVALID;
 
-	switch (device) {
+	switch (pdev->device) {
 	case PCI_IDS_GOYA:
 		asic_type = ASIC_GOYA;
 		break;
@@ -94,10 +96,18 @@ static enum hl_asic_type get_asic_type(u16 device)
 		asic_type = ASIC_GAUDI_SEC;
 		break;
 	case PCI_IDS_GAUDI2:
-		asic_type = ASIC_GAUDI2;
+		switch (pdev->revision) {
+		case REV_ID_A:
+			asic_type = ASIC_GAUDI2;
+			break;
+		case REV_ID_B:
+			asic_type = ASIC_GAUDI2B;
+			break;
+		default:
+			break;
+		}
 		break;
 	default:
-		asic_type = ASIC_INVALID;
 		break;
 	}
 
@@ -416,7 +426,7 @@ static int create_hdev(struct hl_device **dev, struct pci_dev *pdev)
 	/* First, we must find out which ASIC are we handling. This is needed
 	 * to configure the behavior of the driver (kernel parameters)
 	 */
-	hdev->asic_type = get_asic_type(pdev->device);
+	hdev->asic_type = get_asic_type(hdev);
 	if (hdev->asic_type == ASIC_INVALID) {
 		dev_err(&pdev->dev, "Unsupported ASIC\n");
 		rc = -ENODEV;

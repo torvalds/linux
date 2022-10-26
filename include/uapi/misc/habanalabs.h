@@ -868,6 +868,7 @@ enum hl_server_type {
  * @number_of_user_interrupts: The number of interrupts that are available to the userspace
  *                             application to use. Relevant for Gaudi2 and later.
  * @device_mem_alloc_default_page_size: default page size used in device memory allocation.
+ * @revision_id: PCI revision ID of the ASIC.
  */
 struct hl_info_hw_ip_info {
 	__u64 sram_base_address;
@@ -898,6 +899,12 @@ struct hl_info_hw_ip_info {
 	__u16 pad2;
 	__u64 reserved4;
 	__u64 device_mem_alloc_default_page_size;
+	__u64 reserved5;
+	__u64 reserved6;
+	__u32 reserved7;
+	__u8 reserved8;
+	__u8 revision_id;
+	__u8 pad[2];
 };
 
 struct hl_info_dram_usage {
