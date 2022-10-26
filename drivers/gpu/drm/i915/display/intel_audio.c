@@ -665,6 +665,32 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	mutex_unlock(&i915->display.audio.mutex);
 }
 
+struct ilk_audio_regs {
+	i915_reg_t hdmiw_hdmiedid, aud_config, aud_cntl_st, aud_cntrl_st2;
+};
+
+static void ilk_audio_regs_init(struct drm_i915_private *i915,
+				enum pipe pipe,
+				struct ilk_audio_regs *regs)
+{
+	if (HAS_PCH_IBX(i915)) {
+		regs->hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID(pipe);
+		regs->aud_config = IBX_AUD_CFG(pipe);
+		regs->aud_cntl_st = IBX_AUD_CNTL_ST(pipe);
+		regs->aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
+	} else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
+		regs->hdmiw_hdmiedid = VLV_HDMIW_HDMIEDID(pipe);
+		regs->aud_config = VLV_AUD_CFG(pipe);
+		regs->aud_cntl_st = VLV_AUD_CNTL_ST(pipe);
+		regs->aud_cntrl_st2 = VLV_AUD_CNTL_ST2;
+	} else {
+		regs->hdmiw_hdmiedid = CPT_HDMIW_HDMIEDID(pipe);
+		regs->aud_config = CPT_AUD_CFG(pipe);
+		regs->aud_cntl_st = CPT_AUD_CNTL_ST(pipe);
+		regs->aud_cntrl_st2 = CPT_AUD_CNTRL_ST2;
+	}
+}
+
 static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *old_crtc_state,
 				    const struct drm_connector_state *old_conn_state)
@@ -673,39 +699,30 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	enum pipe pipe = crtc->pipe;
 	enum port port = encoder->port;
+	struct ilk_audio_regs regs;
 	u32 tmp, eldv;
-	i915_reg_t aud_config, aud_cntrl_st2;
 
 	if (drm_WARN_ON(&i915->drm, port == PORT_A))
 		return;
 
-	if (HAS_PCH_IBX(i915)) {
-		aud_config = IBX_AUD_CFG(pipe);
-		aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
-	} else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
-		aud_config = VLV_AUD_CFG(pipe);
-		aud_cntrl_st2 = VLV_AUD_CNTL_ST2;
-	} else {
-		aud_config = CPT_AUD_CFG(pipe);
-		aud_cntrl_st2 = CPT_AUD_CNTRL_ST2;
-	}
+	ilk_audio_regs_init(i915, pipe, &regs);
 
 	/* Disable timestamps */
-	tmp = intel_de_read(i915, aud_config);
+	tmp = intel_de_read(i915, regs.aud_config);
 	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
 	tmp |= AUD_CONFIG_N_PROG_ENABLE;
 	tmp &= ~AUD_CONFIG_UPPER_N_MASK;
 	tmp &= ~AUD_CONFIG_LOWER_N_MASK;
 	if (intel_crtc_has_dp_encoder(old_crtc_state))
 		tmp |= AUD_CONFIG_N_VALUE_INDEX;
-	intel_de_write(i915, aud_config, tmp);
+	intel_de_write(i915, regs.aud_config, tmp);
 
 	eldv = IBX_ELD_VALID(port);
 
 	/* Invalidate ELD */
-	tmp = intel_de_read(i915, aud_cntrl_st2);
+	tmp = intel_de_read(i915, regs.aud_cntrl_st2);
 	tmp &= ~eldv;
-	intel_de_write(i915, aud_cntrl_st2, tmp);
+	intel_de_write(i915, regs.aud_cntrl_st2, tmp);
 }
 
 static void ilk_audio_codec_enable(struct intel_encoder *encoder,
@@ -718,9 +735,9 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	enum pipe pipe = crtc->pipe;
 	enum port port = encoder->port;
 	const u8 *eld = connector->eld;
+	struct ilk_audio_regs regs;
 	u32 tmp, eldv;
 	int len, i;
-	i915_reg_t hdmiw_hdmiedid, aud_config, aud_cntl_st, aud_cntrl_st2;
 
 	if (drm_WARN_ON(&i915->drm, port == PORT_A))
 		return;
@@ -732,49 +749,33 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	 * infrastructure is not there yet.
 	 */
 
-	if (HAS_PCH_IBX(i915)) {
-		hdmiw_hdmiedid = IBX_HDMIW_HDMIEDID(pipe);
-		aud_config = IBX_AUD_CFG(pipe);
-		aud_cntl_st = IBX_AUD_CNTL_ST(pipe);
-		aud_cntrl_st2 = IBX_AUD_CNTL_ST2;
-	} else if (IS_VALLEYVIEW(i915) ||
-		   IS_CHERRYVIEW(i915)) {
-		hdmiw_hdmiedid = VLV_HDMIW_HDMIEDID(pipe);
-		aud_config = VLV_AUD_CFG(pipe);
-		aud_cntl_st = VLV_AUD_CNTL_ST(pipe);
-		aud_cntrl_st2 = VLV_AUD_CNTL_ST2;
-	} else {
-		hdmiw_hdmiedid = CPT_HDMIW_HDMIEDID(pipe);
-		aud_config = CPT_AUD_CFG(pipe);
-		aud_cntl_st = CPT_AUD_CNTL_ST(pipe);
-		aud_cntrl_st2 = CPT_AUD_CNTRL_ST2;
-	}
+	ilk_audio_regs_init(i915, pipe, &regs);
 
 	eldv = IBX_ELD_VALID(port);
 
 	/* Invalidate ELD */
-	tmp = intel_de_read(i915, aud_cntrl_st2);
+	tmp = intel_de_read(i915, regs.aud_cntrl_st2);
 	tmp &= ~eldv;
-	intel_de_write(i915, aud_cntrl_st2, tmp);
+	intel_de_write(i915, regs.aud_cntrl_st2, tmp);
 
 	/* Reset ELD write address */
-	tmp = intel_de_read(i915, aud_cntl_st);
+	tmp = intel_de_read(i915, regs.aud_cntl_st);
 	tmp &= ~IBX_ELD_ADDRESS_MASK;
-	intel_de_write(i915, aud_cntl_st, tmp);
+	intel_de_write(i915, regs.aud_cntl_st, tmp);
 
 	/* Up to 84 bytes of hw ELD buffer */
 	len = min(drm_eld_size(eld), 84);
 	for (i = 0; i < len / 4; i++)
-		intel_de_write(i915, hdmiw_hdmiedid,
+		intel_de_write(i915, regs.hdmiw_hdmiedid,
 			       *((const u32 *)eld + i));
 
 	/* ELD valid */
-	tmp = intel_de_read(i915, aud_cntrl_st2);
+	tmp = intel_de_read(i915, regs.aud_cntrl_st2);
 	tmp |= eldv;
-	intel_de_write(i915, aud_cntrl_st2, tmp);
+	intel_de_write(i915, regs.aud_cntrl_st2, tmp);
 
 	/* Enable timestamps */
-	tmp = intel_de_read(i915, aud_config);
+	tmp = intel_de_read(i915, regs.aud_config);
 	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
 	tmp &= ~AUD_CONFIG_N_PROG_ENABLE;
 	tmp &= ~AUD_CONFIG_PIXEL_CLOCK_HDMI_MASK;
@@ -782,7 +783,7 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 		tmp |= AUD_CONFIG_N_VALUE_INDEX;
 	else
 		tmp |= audio_config_hdmi_pixel_clock(crtc_state);
-	intel_de_write(i915, aud_config, tmp);
+	intel_de_write(i915, regs.aud_config, tmp);
 }
 
 /**
