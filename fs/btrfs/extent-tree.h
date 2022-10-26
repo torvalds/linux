@@ -68,5 +68,11 @@ int btrfs_free_reserved_extent(struct btrfs_fs_info *fs_info,
 int btrfs_pin_reserved_extent(struct btrfs_trans_handle *trans, u64 start, u64 len);
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans);
 int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans, struct btrfs_ref *generic_ref);
+int __must_check btrfs_drop_snapshot(struct btrfs_root *root, int update_ref,
+				     int for_reloc);
+int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
+			struct btrfs_root *root,
+			struct extent_buffer *node,
+			struct extent_buffer *parent);
 
 #endif
