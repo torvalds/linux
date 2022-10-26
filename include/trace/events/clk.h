@@ -264,6 +264,49 @@ DEFINE_EVENT(clk_duty_cycle, clk_set_duty_cycle_complete,
 	TP_ARGS(core, duty)
 );
 
+DECLARE_EVENT_CLASS(clk_rate_request,
+
+	TP_PROTO(struct clk_rate_request *req),
+
+	TP_ARGS(req),
+
+	TP_STRUCT__entry(
+		__string(        name, req->core ? req->core->name : "none")
+		__string(       pname, req->best_parent_hw ? clk_hw_get_name(req->best_parent_hw) : "none" )
+		__field(unsigned long,           min                       )
+		__field(unsigned long,           max                       )
+		__field(unsigned long,           prate                     )
+	),
+
+	TP_fast_assign(
+		__assign_str(name, req->core ? req->core->name : "none");
+		__assign_str(pname, req->best_parent_hw ? clk_hw_get_name(req->best_parent_hw) : "none");
+		__entry->min = req->min_rate;
+		__entry->max = req->max_rate;
+		__entry->prate = req->best_parent_rate;
+	),
+
+	TP_printk("%s min %lu max %lu, parent %s (%lu)", __get_str(name),
+		  (unsigned long)__entry->min,
+		  (unsigned long)__entry->max,
+		  __get_str(pname),
+		  (unsigned long)__entry->prate)
+);
+
+DEFINE_EVENT(clk_rate_request, clk_rate_request_start,
+
+	TP_PROTO(struct clk_rate_request *req),
+
+	TP_ARGS(req)
+);
+
+DEFINE_EVENT(clk_rate_request, clk_rate_request_done,
+
+	TP_PROTO(struct clk_rate_request *req),
+
+	TP_ARGS(req)
+);
+
 #endif /* _TRACE_CLK_H */
 
 /* This part must be outside protection */
