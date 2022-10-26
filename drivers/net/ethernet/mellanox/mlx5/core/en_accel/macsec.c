@@ -1846,25 +1846,16 @@ err_hash:
 void mlx5e_macsec_cleanup(struct mlx5e_priv *priv)
 {
 	struct mlx5e_macsec *macsec = priv->macsec;
-	struct mlx5_core_dev *mdev = macsec->mdev;
+	struct mlx5_core_dev *mdev = priv->mdev;
 
 	if (!macsec)
 		return;
 
 	mlx5_notifier_unregister(mdev, &macsec->nb);
-
 	mlx5e_macsec_fs_cleanup(macsec->macsec_fs);
-
-	/* Cleanup workqueue */
 	destroy_workqueue(macsec->wq);
-
 	mlx5e_macsec_aso_cleanup(&macsec->aso, mdev);
-
-	priv->macsec = NULL;
-
 	rhashtable_destroy(&macsec->sci_hash);
-
 	mutex_destroy(&macsec->lock);
-
 	kfree(macsec);
 }
