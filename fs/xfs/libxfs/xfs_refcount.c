@@ -617,8 +617,6 @@ out_error:
 	return error;
 }
 
-#define XFS_FIND_RCEXT_SHARED	1
-#define XFS_FIND_RCEXT_COW	2
 /*
  * Find the left extent and the one after it (cleft).  This function assumes
  * that we've already split any extent crossing agbno.
@@ -628,19 +626,13 @@ xfs_refcount_find_left_extents(
 	struct xfs_btree_cur		*cur,
 	struct xfs_refcount_irec	*left,
 	struct xfs_refcount_irec	*cleft,
+	enum xfs_refc_domain		domain,
 	xfs_agblock_t			agbno,
-	xfs_extlen_t			aglen,
-	int				flags)
+	xfs_extlen_t			aglen)
 {
 	struct xfs_refcount_irec	tmp;
-	enum xfs_refc_domain		domain;
 	int				error;
 	int				found_rec;
-
-	if (flags & XFS_FIND_RCEXT_SHARED)
-		domain = XFS_REFC_DOMAIN_SHARED;
-	else
-		domain = XFS_REFC_DOMAIN_COW;
 
 	left->rc_startblock = cleft->rc_startblock = NULLAGBLOCK;
 	error = xfs_refcount_lookup_le(cur, domain, agbno - 1, &found_rec);
@@ -659,9 +651,9 @@ xfs_refcount_find_left_extents(
 
 	if (xfs_refc_next(&tmp) != agbno)
 		return 0;
-	if ((flags & XFS_FIND_RCEXT_SHARED) && tmp.rc_refcount < 2)
+	if (domain == XFS_REFC_DOMAIN_SHARED && tmp.rc_refcount < 2)
 		return 0;
-	if ((flags & XFS_FIND_RCEXT_COW) && tmp.rc_refcount > 1)
+	if (domain == XFS_REFC_DOMAIN_COW && tmp.rc_refcount > 1)
 		return 0;
 	/* We have a left extent; retrieve (or invent) the next right one */
 	*left = tmp;
@@ -725,19 +717,13 @@ xfs_refcount_find_right_extents(
 	struct xfs_btree_cur		*cur,
 	struct xfs_refcount_irec	*right,
 	struct xfs_refcount_irec	*cright,
+	enum xfs_refc_domain		domain,
 	xfs_agblock_t			agbno,
-	xfs_extlen_t			aglen,
-	int				flags)
+	xfs_extlen_t			aglen)
 {
 	struct xfs_refcount_irec	tmp;
-	enum xfs_refc_domain		domain;
 	int				error;
 	int				found_rec;
-
-	if (flags & XFS_FIND_RCEXT_SHARED)
-		domain = XFS_REFC_DOMAIN_SHARED;
-	else
-		domain = XFS_REFC_DOMAIN_COW;
 
 	right->rc_startblock = cright->rc_startblock = NULLAGBLOCK;
 	error = xfs_refcount_lookup_ge(cur, domain, agbno + aglen, &found_rec);
@@ -756,9 +742,9 @@ xfs_refcount_find_right_extents(
 
 	if (tmp.rc_startblock != agbno + aglen)
 		return 0;
-	if ((flags & XFS_FIND_RCEXT_SHARED) && tmp.rc_refcount < 2)
+	if (domain == XFS_REFC_DOMAIN_SHARED && tmp.rc_refcount < 2)
 		return 0;
-	if ((flags & XFS_FIND_RCEXT_COW) && tmp.rc_refcount > 1)
+	if (domain == XFS_REFC_DOMAIN_COW && tmp.rc_refcount > 1)
 		return 0;
 	/* We have a right extent; retrieve (or invent) the next left one */
 	*right = tmp;
@@ -827,10 +813,10 @@ xfs_refc_valid(
 STATIC int
 xfs_refcount_merge_extents(
 	struct xfs_btree_cur	*cur,
+	enum xfs_refc_domain	domain,
 	xfs_agblock_t		*agbno,
 	xfs_extlen_t		*aglen,
 	enum xfs_refc_adjust_op adjust,
-	int			flags,
 	bool			*shape_changed)
 {
 	struct xfs_refcount_irec	left = {0}, cleft = {0};
@@ -845,12 +831,12 @@ xfs_refcount_merge_extents(
 	 * just below (agbno + aglen) [cright], and just above (agbno + aglen)
 	 * [right].
 	 */
-	error = xfs_refcount_find_left_extents(cur, &left, &cleft, *agbno,
-			*aglen, flags);
+	error = xfs_refcount_find_left_extents(cur, &left, &cleft, domain,
+			*agbno, *aglen);
 	if (error)
 		return error;
-	error = xfs_refcount_find_right_extents(cur, &right, &cright, *agbno,
-			*aglen, flags);
+	error = xfs_refcount_find_right_extents(cur, &right, &cright, domain,
+			*agbno, *aglen);
 	if (error)
 		return error;
 
@@ -1139,8 +1125,8 @@ xfs_refcount_adjust(
 	/*
 	 * Try to merge with the left or right extents of the range.
 	 */
-	error = xfs_refcount_merge_extents(cur, new_agbno, new_aglen, adj,
-			XFS_FIND_RCEXT_SHARED, &shape_changed);
+	error = xfs_refcount_merge_extents(cur, XFS_REFC_DOMAIN_SHARED,
+			new_agbno, new_aglen, adj, &shape_changed);
 	if (error)
 		goto out_error;
 	if (shape_changed)
@@ -1650,8 +1636,8 @@ xfs_refcount_adjust_cow(
 	/*
 	 * Try to merge with the left or right extents of the range.
 	 */
-	error = xfs_refcount_merge_extents(cur, &agbno, &aglen, adj,
-			XFS_FIND_RCEXT_COW, &shape_changed);
+	error = xfs_refcount_merge_extents(cur, XFS_REFC_DOMAIN_COW, &agbno,
+			&aglen, adj, &shape_changed);
 	if (error)
 		goto out_error;
 
