@@ -19,8 +19,6 @@
 struct starfive_cpu_dvfs_info {
 	struct regulator *vddcpu;
 	struct clk *cpu_clk;
-	struct clk *pll0_clk;
-	struct clk *osc_clk;
 	unsigned long regulator_latency;
 	struct device *cpu_dev;
 	struct cpumask cpus;
@@ -62,16 +60,11 @@ static int starfive_cpufreq_set_target_index(struct cpufreq_policy *policy,
 		}
 	}
 
-	if (clk_set_parent(policy->clk, info->osc_clk))
-		pr_err("cpu set parent osc failed\n");
-
-	ret = clk_set_rate(info->pll0_clk, new_freq);
+	ret = clk_set_rate(info->cpu_clk, new_freq);
 	if (ret < 0) {
 		pr_err("Failed to set rate %ldkHz: %d\n",
 		       new_freq, ret);
 	}
-	if (clk_set_parent(policy->clk, info->pll0_clk))
-		pr_err("cpu set parent pll0 failed\n");
 
 	if (info->vddcpu && new_freq < old_freq) {
 		ret = regulator_set_voltage(info->vddcpu,
@@ -125,7 +118,7 @@ static int starfive_cpu_dvfs_info_init(struct platform_device *pdev,
 		if (PTR_ERR(info->vddcpu) == -EPROBE_DEFER)
 			dev_warn(&pdev->dev, "The cpu regulator is not ready, retry.\n");
 		else
-			dev_err(&pdev->dev, "Failed to get regulator for cpu\n");
+			dev_err(&pdev->dev, "Failed to get regulator for cpu!\n");
 		if (retry-- > 0)
 			return -EPROBE_DEFER;
 		else
@@ -137,19 +130,6 @@ static int starfive_cpu_dvfs_info_init(struct platform_device *pdev,
 		dev_err(&pdev->dev, "Unable to obtain cpu_clk: %ld\n",
 			   PTR_ERR(info->cpu_clk));
 		return PTR_ERR(info->cpu_clk);
-	}
-	info->pll0_clk = devm_clk_get(dev, "pll0");
-	if (IS_ERR(info->pll0_clk)) {
-		dev_err(&pdev->dev, "Unable to obtain cpu_clk: %ld\n",
-			   PTR_ERR(info->pll0_clk));
-		return PTR_ERR(info->pll0_clk);
-	}
-
-	info->osc_clk = devm_clk_get(dev, "osc");
-	if (IS_ERR(info->osc_clk)) {
-		dev_err(&pdev->dev, "Unable to obtain osc_clk: %ld\n",
-			   PTR_ERR(info->osc_clk));
-		return PTR_ERR(info->osc_clk);
 	}
 
 	info->cpu_dev = get_cpu_device(1);
@@ -224,7 +204,7 @@ static int __init starfive_cpufreq_init(void)
 {
 	return platform_driver_register(&starfive_cpufreq_plat_driver);
 }
-postcore_initcall(starfive_cpufreq_init);
+device_initcall(starfive_cpufreq_init);
 
 MODULE_DESCRIPTION("STARFIVE CPUFREQ Driver");
 MODULE_AUTHOR("Mason Huuo <mason.huo@starfivetech.com>");
