@@ -439,8 +439,8 @@ xchk_xref_is_cow_staging(
 		return;
 	}
 
-	/* CoW flag must be set, refcount must be 1. */
-	if (rc.rc_domain != XFS_REFC_DOMAIN_COW || rc.rc_refcount != 1)
+	/* CoW lookup returned a shared extent record? */
+	if (rc.rc_domain != XFS_REFC_DOMAIN_COW)
 		xchk_btree_xref_set_corrupt(sc, sc->sa.refc_cur, 0);
 
 	/* Must be at least as long as what was passed in */
