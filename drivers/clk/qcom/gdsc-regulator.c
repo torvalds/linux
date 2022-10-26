@@ -121,7 +121,7 @@ static int poll_gdsc_status(struct gdsc *sc, enum gdscr_status status)
 	int count = sc->gds_timeout;
 	u32 val, reg_offset;
 
-	if (sc->hw_ctrl)
+	if (sc->hw_ctrl && !sc->cfg_gdscr)
 		regmap = sc->hw_ctrl;
 	else
 		regmap = sc->regmap;

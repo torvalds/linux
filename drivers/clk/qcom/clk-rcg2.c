@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013, 2016-2018, 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -118,9 +119,25 @@ static u8 clk_rcg2_get_parent(struct clk_hw *hw)
 	return __clk_rcg2_get_parent(hw, cfg);
 }
 
+static int get_update_timeout(const struct clk_rcg2 *rcg)
+{
+	int timeout = 0;
+
+	/*
+	 * The time it takes an RCG to update is roughly 3 clock cycles of the
+	 * old and new clock rates.
+	 */
+	if (rcg->current_freq)
+		timeout += 3 * (1000000 / rcg->current_freq);
+	if (rcg->configured_freq)
+		timeout += 3 * (1000000 / rcg->configured_freq);
+
+	return max(timeout, 500);
+}
+
 static int update_config(struct clk_rcg2 *rcg)
 {
-	int count, ret;
+	int timeout, count, ret;
 	u32 cmd;
 	struct clk_hw *hw = &rcg->clkr.hw;
 
@@ -129,8 +146,10 @@ static int update_config(struct clk_rcg2 *rcg)
 	if (ret)
 		return ret;
 
+	timeout = get_update_timeout(rcg);
+
 	/* Wait for update to take effect */
-	for (count = 500; count > 0; count--) {
+	for (count = timeout; count > 0; count--) {
 		ret = regmap_read(rcg->clkr.regmap, rcg->cmd_rcgr + CMD_REG, &cmd);
 		if (ret)
 			return ret;
@@ -139,7 +158,7 @@ static int update_config(struct clk_rcg2 *rcg)
 		udelay(1);
 	}
 
-	WARN_CLK(hw, 1, "rcg didn't update its configuration.");
+	WARN_CLK(hw, 1, "rcg didn't update its configuration after %d us.", timeout);
 	return -EBUSY;
 }
 
@@ -486,6 +505,8 @@ static int clk_rcg2_configure(struct clk_rcg2 *rcg, const struct freq_tbl *f)
 	ret = regmap_write(rcg->clkr.regmap, RCG_CFG_OFFSET(rcg), cfg);
 	if (ret)
 		return ret;
+
+	rcg->configured_freq = f->freq;
 
 	return update_config(rcg);
 }
@@ -866,6 +887,8 @@ const struct clk_ops clk_rcg2_floor_ops = {
 	.pre_rate_change = clk_pre_change_regmap,
 	.post_rate_change = clk_post_change_regmap,
 	.is_enabled = clk_rcg2_is_enabled,
+	.enable = clk_rcg2_enable,
+	.disable = clk_rcg2_disable,
 	.get_parent = clk_rcg2_get_parent,
 	.set_parent = clk_rcg2_set_parent,
 	.recalc_rate = clk_rcg2_recalc_rate,
