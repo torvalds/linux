@@ -2299,17 +2299,12 @@ static int intel_sdvo_get_tv_modes(struct drm_connector *connector)
 
 static int intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 {
-	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(to_intel_connector(connector));
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	int num_modes = 0;
 
 	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s]\n",
 		    connector->base.id, connector->name);
 
-	num_modes += intel_panel_get_modes(to_intel_connector(connector));
-	num_modes += intel_ddc_get_modes(connector, &intel_sdvo->ddc);
-
-	return num_modes;
+	return intel_panel_get_modes(to_intel_connector(connector));
 }
 
 static int intel_sdvo_get_modes(struct drm_connector *connector)
