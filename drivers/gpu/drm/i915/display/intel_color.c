@@ -1442,6 +1442,20 @@ static int chv_color_check(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
+static bool ilk_gamma_enable(const struct intel_crtc_state *crtc_state)
+{
+	return (crtc_state->hw.gamma_lut ||
+		crtc_state->hw.degamma_lut) &&
+		!crtc_state->c8_planes;
+}
+
+static bool ilk_csc_enable(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB ||
+		ilk_csc_limited_range(crtc_state) ||
+		crtc_state->hw.ctm;
+}
+
 static u32 ilk_gamma_mode(const struct intel_crtc_state *crtc_state)
 {
 	if (!crtc_state->gamma_enable ||
@@ -1487,22 +1501,29 @@ static void ilk_assign_luts(struct intel_crtc_state *crtc_state)
 
 static int ilk_color_check(struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 	int ret;
 
 	ret = check_luts(crtc_state);
 	if (ret)
 		return ret;
 
-	crtc_state->gamma_enable =
-		crtc_state->hw.gamma_lut &&
-		!crtc_state->c8_planes;
+	if (crtc_state->hw.degamma_lut && crtc_state->hw.gamma_lut) {
+		drm_dbg_kms(&i915->drm,
+			    "Degamma and gamma together are not possible\n");
+		return -EINVAL;
+	}
 
-	/*
-	 * We don't expose the ctm on ilk/snb currently, also RGB
-	 * limited range output is handled by the hw automagically.
-	 */
-	crtc_state->csc_enable =
-		crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB;
+	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB &&
+	    crtc_state->hw.ctm) {
+		drm_dbg_kms(&i915->drm,
+			    "YCbCr and CTM together are not possible\n");
+		return -EINVAL;
+	}
+
+	crtc_state->gamma_enable = ilk_gamma_enable(crtc_state);
+
+	crtc_state->csc_enable = ilk_csc_enable(crtc_state);
 
 	crtc_state->gamma_mode = ilk_gamma_mode(crtc_state);
 
@@ -1546,7 +1567,6 @@ static u32 ivb_csc_mode(const struct intel_crtc_state *crtc_state)
 static int ivb_color_check(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
-	bool limited_color_range = ilk_csc_limited_range(crtc_state);
 	int ret;
 
 	ret = check_luts(crtc_state);
@@ -1567,14 +1587,9 @@ static int ivb_color_check(struct intel_crtc_state *crtc_state)
 		return -EINVAL;
 	}
 
-	crtc_state->gamma_enable =
-		(crtc_state->hw.gamma_lut ||
-		 crtc_state->hw.degamma_lut) &&
-		!crtc_state->c8_planes;
+	crtc_state->gamma_enable = ilk_gamma_enable(crtc_state);
 
-	crtc_state->csc_enable =
-		crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB ||
-		crtc_state->hw.ctm || limited_color_range;
+	crtc_state->csc_enable = ilk_csc_enable(crtc_state);
 
 	crtc_state->gamma_mode = ivb_gamma_mode(crtc_state);
 
