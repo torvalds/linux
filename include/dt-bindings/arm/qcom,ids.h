@@ -140,6 +140,12 @@
 #define QCOM_ID_SC7280			487
 #define QCOM_ID_SC7180P			495
 #define QCOM_ID_SM6375			507
+#define QCOM_ID_QRU1000			539
+#define QCOM_ID_QDU1000			545
+#define QCOM_ID_QDU1010			587
+#define QCOM_ID_QRU1032			588
+#define QCOM_ID_QRU1052			589
+#define QCOM_ID_QRU1062			590
 
 /*
  * The board type and revision information, used by Qualcomm bootloaders and
