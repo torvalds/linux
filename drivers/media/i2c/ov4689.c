@@ -623,9 +623,8 @@ static int ov4689_map_gain(struct ov4689 *ov4689, int logical_gain, int *result)
 
 	for (n = 0; n < ARRAY_SIZE(ov4689_gain_ranges); n++) {
 		if (logical_gain >= ov4689_gain_ranges[n].logical_min &&
-		    logical_gain <= ov4689_gain_ranges[n].logical_max) {
+		    logical_gain <= ov4689_gain_ranges[n].logical_max)
 			break;
-		}
 	}
 
 	if (n == ARRAY_SIZE(ov4689_gain_ranges)) {
@@ -815,23 +814,22 @@ static int ov4689_check_sensor_id(struct ov4689 *ov4689,
 
 static int ov4689_configure_regulators(struct ov4689 *ov4689)
 {
-	unsigned int supplies_count = ARRAY_SIZE(ov4689_supply_names);
 	unsigned int i;
 
-	for (i = 0; i < supplies_count; i++)
+	for (i = 0; i < ARRAY_SIZE(ov4689_supply_names); i++)
 		ov4689->supplies[i].supply = ov4689_supply_names[i];
 
-	return devm_regulator_bulk_get(&ov4689->client->dev, supplies_count,
+	return devm_regulator_bulk_get(&ov4689->client->dev,
+				       ARRAY_SIZE(ov4689_supply_names),
 				       ov4689->supplies);
 }
 
 static u64 ov4689_check_link_frequency(struct v4l2_fwnode_endpoint *ep)
 {
-	unsigned int freqs_count = ARRAY_SIZE(link_freq_menu_items);
 	const u64 *freqs = link_freq_menu_items;
 	unsigned int i, j;
 
-	for (i = 0; i < freqs_count; i++) {
+	for (i = 0; i < ARRAY_SIZE(link_freq_menu_items); i++) {
 		for (j = 0; j < ep->nr_of_link_frequencies; j++)
 			if (freqs[i] == ep->link_frequencies[j])
 				return freqs[i];
@@ -860,12 +858,6 @@ static int ov4689_check_hwcfg(struct device *dev)
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV4689_LANES) {
 		dev_err(dev, "Only a 4-lane CSI2 config is supported");
-		ret = -EINVAL;
-		goto out_free_bus_cfg;
-	}
-
-	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "No link frequencies defined\n");
 		ret = -EINVAL;
 		goto out_free_bus_cfg;
 	}
