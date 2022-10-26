@@ -432,7 +432,7 @@ static int mlx5e_macsec_update_rx_sa(struct mlx5e_macsec *macsec,
 				     bool active)
 {
 	struct mlx5_core_dev *mdev = macsec->mdev;
-	struct mlx5_macsec_obj_attrs attrs;
+	struct mlx5_macsec_obj_attrs attrs = {};
 	int err = 0;
 
 	if (rx_sa->active != active)
