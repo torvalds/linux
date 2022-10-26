@@ -309,6 +309,24 @@ config QSEE_IPC_IRQ_BRIDGE
 	  userspace. The interrupt will be propagated through a character device
 	  that userspace clients can poll on.
 
+config QCOM_GLINK
+	tristate "GLINK Probe Helper"
+	depends on RPMSG_QCOM_GLINK_SMEM
+	help
+	  This enables the GLINK Probe module. This is designed to set up
+	  other edges in the system. It will initialize all the transports for
+	  all the edges present in the device.
+	  Say M if you want to enable this module.
+
+config QCOM_GLINK_PKT
+	tristate "Enable device interface for GLINK packet channels"
+	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SLATECOM
+	help
+	  G-link packet driver provides the interface for the userspace
+	  clients to communicate over G-Link via device nodes.
+	  This enable the userspace clients to read and write to
+	  some glink packets channel.
+
 config QTI_PMIC_GLINK
 	tristate "Enable support for PMIC GLINK"
 	depends on RPMSG
