@@ -259,14 +259,14 @@ static bool ilk_csc_limited_range(const struct intel_crtc_state *crtc_state)
 }
 
 static void ilk_csc_convert_ctm(const struct intel_crtc_state *crtc_state,
-				u16 coeffs[9])
+				u16 coeffs[9], bool limited_color_range)
 {
 	const struct drm_color_ctm *ctm = crtc_state->hw.ctm->data;
 	const u64 *input;
 	u64 temp[9];
 	int i;
 
-	if (ilk_csc_limited_range(crtc_state))
+	if (limited_color_range)
 		input = ctm_mult_by_limited(temp, ctm->matrix);
 	else
 		input = ctm->matrix;
@@ -319,7 +319,7 @@ static void ilk_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->hw.ctm) {
 		u16 coeff[9];
 
-		ilk_csc_convert_ctm(crtc_state, coeff);
+		ilk_csc_convert_ctm(crtc_state, coeff, limited_color_range);
 		ilk_update_pipe_csc(crtc, ilk_csc_off_zero, coeff,
 				    limited_color_range ?
 				    ilk_csc_postoff_limited_range :
@@ -354,7 +354,7 @@ static void icl_load_csc_matrix(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->hw.ctm) {
 		u16 coeff[9];
 
-		ilk_csc_convert_ctm(crtc_state, coeff);
+		ilk_csc_convert_ctm(crtc_state, coeff, false);
 		ilk_update_pipe_csc(crtc, ilk_csc_off_zero,
 				    coeff, ilk_csc_off_zero);
 	}
