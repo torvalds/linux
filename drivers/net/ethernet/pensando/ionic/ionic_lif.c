@@ -2629,6 +2629,8 @@ static void ionic_vf_attr_replay(struct ionic_lif *lif)
 	}
 
 	up_read(&ionic->vf_op_lock);
+
+	ionic_vf_start(ionic);
 }
 
 static const struct net_device_ops ionic_netdev_ops = {
