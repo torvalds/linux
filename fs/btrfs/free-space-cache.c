@@ -28,6 +28,7 @@
 #include "inode-item.h"
 #include "accessors.h"
 #include "file-item.h"
+#include "file.h"
 
 #define BITS_PER_BITMAP		(PAGE_SIZE * 8UL)
 #define MAX_CACHE_BYTES_PER_GIG	SZ_64K

@@ -27,6 +27,7 @@
 #include "root-tree.h"
 #include "dir-item.h"
 #include "file-item.h"
+#include "file.h"
 
 #define MAX_CONFLICT_INODES 10
 

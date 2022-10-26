@@ -18,6 +18,7 @@
 #include "delalloc-space.h"
 #include "qgroup.h"
 #include "subpage.h"
+#include "file.h"
 
 static struct kmem_cache *btrfs_ordered_extent_cache;
 

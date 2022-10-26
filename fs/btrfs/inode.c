@@ -64,6 +64,7 @@
 #include "file-item.h"
 #include "uuid-tree.h"
 #include "ioctl.h"
+#include "file.h"
 
 struct btrfs_iget_args {
 	u64 ino;

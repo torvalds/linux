@@ -33,6 +33,7 @@
 #include "fs.h"
 #include "accessors.h"
 #include "file-item.h"
+#include "file.h"
 
 static struct kmem_cache *extent_buffer_cache;
 

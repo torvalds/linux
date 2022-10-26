@@ -13,6 +13,7 @@
 #include "subpage.h"
 #include "accessors.h"
 #include "file-item.h"
+#include "file.h"
 
 #define BTRFS_MAX_DEDUPE_LEN	SZ_16M
 
