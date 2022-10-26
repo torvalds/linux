@@ -107,7 +107,7 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 	phy->supported.lbt = NL802154_SUPPORTED_BOOL_FALSE;
 
 	/* always supported */
-	phy->supported.iftypes = BIT(NL802154_IFTYPE_NODE);
+	phy->supported.iftypes = BIT(NL802154_IFTYPE_NODE) | BIT(NL802154_IFTYPE_COORD);
 
 	return &local->hw;
 }

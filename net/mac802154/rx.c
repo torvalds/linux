@@ -208,6 +208,7 @@ __ieee802154_rx_handle_packet(struct ieee802154_local *local,
 	int ret;
 	struct ieee802154_sub_if_data *sdata;
 	struct ieee802154_hdr hdr;
+	struct sk_buff *skb2;
 
 	ret = ieee802154_parse_frame_start(skb, &hdr);
 	if (ret) {
@@ -217,7 +218,7 @@ __ieee802154_rx_handle_packet(struct ieee802154_local *local,
 	}
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->wpan_dev.iftype != NL802154_IFTYPE_NODE)
+		if (sdata->wpan_dev.iftype == NL802154_IFTYPE_MONITOR)
 			continue;
 
 		if (!ieee802154_sdata_running(sdata))
@@ -230,9 +231,11 @@ __ieee802154_rx_handle_packet(struct ieee802154_local *local,
 		    sdata->required_filtering == IEEE802154_FILTERING_4_FRAME_FIELDS)
 			continue;
 
-		ieee802154_subif_frame(sdata, skb, &hdr);
-		skb = NULL;
-		break;
+		skb2 = skb_clone(skb, GFP_ATOMIC);
+		if (skb2) {
+			skb2->dev = sdata->dev;
+			ieee802154_subif_frame(sdata, skb2, &hdr);
+		}
 	}
 }
 
