@@ -128,7 +128,6 @@ struct kfd_topology_device {
 	uint32_t			proximity_domain;
 	struct kfd_node_properties	node_props;
 	struct list_head		mem_props;
-	uint32_t			cache_count;
 	struct list_head		cache_props;
 	struct list_head		io_link_props;
 	struct list_head		p2p_link_props;

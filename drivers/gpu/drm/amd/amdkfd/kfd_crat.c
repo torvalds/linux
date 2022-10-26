@@ -1131,7 +1131,6 @@ static int kfd_parse_subtype_cache(struct crat_subtype_cache *cache,
 			if (cache->flags & CRAT_CACHE_FLAGS_SIMD_CACHE)
 				props->cache_type |= HSA_CACHE_TYPE_HSACU;
 
-			dev->cache_count++;
 			dev->node_props.caches_count++;
 			list_add_tail(&props->list, &dev->cache_props);
 
