@@ -482,14 +482,28 @@ static void ilk_lut_10_pack(struct drm_color_lut *entry, u32 val)
 	entry->blue = intel_color_lut_pack(REG_FIELD_GET(PREC_PALETTE_BLUE_MASK, val), 10);
 }
 
-static void icl_lut_multi_seg_pack(struct drm_color_lut *entry, u32 ldw, u32 udw)
+/* ilk+ "12.4" interpolated format (high 10 bits) */
+static u32 ilk_lut_12p4_udw(const struct drm_color_lut *color)
+{
+	return (color->red >> 6) << 20 | (color->green >> 6) << 10 |
+		(color->blue >> 6);
+}
+
+/* ilk+ "12.4" interpolated format (low 6 bits) */
+static u32 ilk_lut_12p4_ldw(const struct drm_color_lut *color)
+{
+	return (color->red & 0x3f) << 24 | (color->green & 0x3f) << 14 |
+		(color->blue & 0x3f) << 4;
+}
+
+static void ilk_lut_12p4_pack(struct drm_color_lut *entry, u32 ldw, u32 udw)
 {
 	entry->red = REG_FIELD_GET(PAL_PREC_MULTI_SEG_RED_UDW_MASK, udw) << 6 |
-				   REG_FIELD_GET(PAL_PREC_MULTI_SEG_RED_LDW_MASK, ldw);
+		REG_FIELD_GET(PAL_PREC_MULTI_SEG_RED_LDW_MASK, ldw);
 	entry->green = REG_FIELD_GET(PAL_PREC_MULTI_SEG_GREEN_UDW_MASK, udw) << 6 |
-				     REG_FIELD_GET(PAL_PREC_MULTI_SEG_GREEN_LDW_MASK, ldw);
+		REG_FIELD_GET(PAL_PREC_MULTI_SEG_GREEN_LDW_MASK, ldw);
 	entry->blue = REG_FIELD_GET(PAL_PREC_MULTI_SEG_BLUE_UDW_MASK, udw) << 6 |
-				    REG_FIELD_GET(PAL_PREC_MULTI_SEG_BLUE_LDW_MASK, ldw);
+		REG_FIELD_GET(PAL_PREC_MULTI_SEG_BLUE_LDW_MASK, ldw);
 }
 
 static void icl_color_commit_noarm(const struct intel_crtc_state *crtc_state)
@@ -915,20 +929,6 @@ static void glk_load_luts(const struct intel_crtc_state *crtc_state)
 		MISSING_CASE(crtc_state->gamma_mode);
 		break;
 	}
-}
-
-/* ilk+ "12.4" interpolated format (high 10 bits) */
-static u32 ilk_lut_12p4_udw(const struct drm_color_lut *color)
-{
-	return (color->red >> 6) << 20 | (color->green >> 6) << 10 |
-		(color->blue >> 6);
-}
-
-/* ilk+ "12.4" interpolated format (low 6 bits) */
-static u32 ilk_lut_12p4_ldw(const struct drm_color_lut *color)
-{
-	return (color->red & 0x3f) << 24 | (color->green & 0x3f) << 14 |
-		(color->blue & 0x3f) << 4;
 }
 
 static void
@@ -2151,7 +2151,7 @@ icl_read_lut_multi_segment(struct intel_crtc *crtc)
 		u32 ldw = intel_de_read_fw(i915, PREC_PAL_MULTI_SEG_DATA(pipe));
 		u32 udw = intel_de_read_fw(i915, PREC_PAL_MULTI_SEG_DATA(pipe));
 
-		icl_lut_multi_seg_pack(&lut[i], ldw, udw);
+		ilk_lut_12p4_pack(&lut[i], ldw, udw);
 	}
 
 	intel_de_write_fw(i915, PREC_PAL_MULTI_SEG_INDEX(pipe), 0);
