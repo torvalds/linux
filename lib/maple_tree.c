@@ -1209,7 +1209,6 @@ done:
 static inline void mas_alloc_nodes(struct ma_state *mas, gfp_t gfp)
 {
 	struct maple_alloc *node;
-	struct maple_alloc **nodep = &mas->alloc;
 	unsigned long allocated = mas_allocated(mas);
 	unsigned long success = allocated;
 	unsigned int requested = mas_alloc_req(mas);
@@ -1263,8 +1262,7 @@ static inline void mas_alloc_nodes(struct ma_state *mas, gfp_t gfp)
 			node->node_count--;
 
 		success += count;
-		nodep = &node->slot[0];
-		node = *nodep;
+		node = node->slot[0];
 		requested -= count;
 	}
 	mas->alloc->total = success;
