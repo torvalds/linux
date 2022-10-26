@@ -254,7 +254,6 @@ ieee802154_check_concurrent_iface(struct ieee802154_sub_if_data *sdata,
 				  enum nl802154_iftype iftype)
 {
 	struct ieee802154_local *local = sdata->local;
-	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	struct ieee802154_sub_if_data *nsdata;
 
 	/* we hold the RTNL here so can safely walk the list */
@@ -267,7 +266,7 @@ ieee802154_check_concurrent_iface(struct ieee802154_sub_if_data *sdata,
 			 * exist really an use case if we need to support
 			 * multiple node types at the same time.
 			 */
-			if (wpan_dev->iftype == NL802154_IFTYPE_NODE &&
+			if (sdata->wpan_dev.iftype == NL802154_IFTYPE_NODE &&
 			    nsdata->wpan_dev.iftype == NL802154_IFTYPE_NODE)
 				return -EBUSY;
 
