@@ -2448,7 +2448,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	else
 		musb->io.set_toggle = musb_default_set_toggle;
 
-	if (!musb->xceiv->io_ops) {
+	if (IS_ENABLED(CONFIG_USB_PHY) && musb->xceiv && !musb->xceiv->io_ops) {
 		musb->xceiv->io_dev = musb->controller;
 		musb->xceiv->io_priv = musb->mregs;
 		musb->xceiv->io_ops = &musb_ulpi_access;

@@ -1552,9 +1552,11 @@ static int musb_gadget_wakeup(struct usb_gadget *gadget)
 				break;
 		}
 
-		spin_unlock_irqrestore(&musb->lock, flags);
-		otg_start_srp(musb->xceiv->otg);
-		spin_lock_irqsave(&musb->lock, flags);
+		if (musb->xceiv) {
+			spin_unlock_irqrestore(&musb->lock, flags);
+			otg_start_srp(musb->xceiv->otg);
+			spin_lock_irqsave(&musb->lock, flags);
+		}
 
 		/* Block idling for at least 1s */
 		musb_platform_try_idle(musb,
@@ -1628,7 +1630,7 @@ static int musb_gadget_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 {
 	struct musb	*musb = gadget_to_musb(gadget);
 
-	if (!musb->xceiv->set_power)
+	if (!musb->xceiv || !musb->xceiv->set_power)
 		return -EOPNOTSUPP;
 	return usb_phy_set_power(musb->xceiv, mA);
 }
@@ -1834,7 +1836,6 @@ static int musb_gadget_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver)
 {
 	struct musb		*musb = gadget_to_musb(g);
-	struct usb_otg		*otg = musb->xceiv->otg;
 	unsigned long		flags;
 	int			retval = 0;
 
@@ -1851,7 +1852,9 @@ static int musb_gadget_start(struct usb_gadget *g,
 	spin_lock_irqsave(&musb->lock, flags);
 	musb->is_active = 1;
 
-	otg_set_peripheral(otg, &musb->g);
+	if (musb->xceiv)
+		otg_set_peripheral(musb->xceiv->otg, &musb->g);
+
 	musb_set_state(musb, OTG_STATE_B_IDLE);
 	spin_unlock_irqrestore(&musb->lock, flags);
 
@@ -1861,7 +1864,7 @@ static int musb_gadget_start(struct usb_gadget *g,
 	 * handles power budgeting ... this way also
 	 * ensures HdrcStart is indirectly called.
 	 */
-	if (musb->xceiv->last_event == USB_EVENT_ID)
+	if (musb->xceiv && musb->xceiv->last_event == USB_EVENT_ID)
 		musb_platform_set_vbus(musb, 1);
 
 	pm_runtime_mark_last_busy(musb->controller);
@@ -1899,7 +1902,9 @@ static int musb_gadget_stop(struct usb_gadget *g)
 
 	musb_set_state(musb, OTG_STATE_UNDEFINED);
 	musb_stop(musb);
-	otg_set_peripheral(musb->xceiv->otg, NULL);
+
+	if (musb->xceiv)
+		otg_set_peripheral(musb->xceiv->otg, NULL);
 
 	musb->is_active = 0;
 	musb->gadget_driver = NULL;
