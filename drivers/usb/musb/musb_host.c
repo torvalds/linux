@@ -2519,7 +2519,7 @@ static int musb_bus_suspend(struct usb_hcd *hcd)
 
 	if (musb->is_active) {
 		WARNING("trying to suspend as %s while active\n",
-				usb_otg_state_string(musb->xceiv->otg->state));
+			musb_otg_state_string(musb));
 		return -EBUSY;
 	} else
 		return 0;

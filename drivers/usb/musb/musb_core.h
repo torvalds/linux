@@ -603,6 +603,11 @@ static inline enum usb_otg_state musb_get_state(struct musb *musb)
 	return musb->xceiv->otg->state;
 }
 
+static inline const char *musb_otg_state_string(struct musb *musb)
+{
+	return usb_otg_state_string(musb_get_state(musb));
+}
+
 /*
  * gets the "dr_mode" property from DT and converts it into musb_mode
  * if the property is not found or not recognized returns MUSB_OTG

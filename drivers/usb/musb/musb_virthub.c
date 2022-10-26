@@ -102,7 +102,7 @@ int musb_port_suspend(struct musb *musb, bool do_suspend)
 			break;
 		default:
 			musb_dbg(musb, "bogus rh suspend? %s",
-				usb_otg_state_string(musb->xceiv->otg->state));
+				 musb_otg_state_string(musb));
 		}
 	} else if (power & MUSB_POWER_SUSPENDM) {
 		power &= ~MUSB_POWER_SUSPENDM;
@@ -221,7 +221,7 @@ void musb_root_disconnect(struct musb *musb)
 		break;
 	default:
 		musb_dbg(musb, "host disconnect (%s)",
-			usb_otg_state_string(musb->xceiv->otg->state));
+			 musb_otg_state_string(musb));
 	}
 }
 EXPORT_SYMBOL_GPL(musb_root_disconnect);
