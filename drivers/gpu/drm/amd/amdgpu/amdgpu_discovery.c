@@ -305,8 +305,13 @@ static int amdgpu_discovery_init(struct amdgpu_device *adev)
 		goto out;
 	}
 
-	if (!amdgpu_discovery_verify_binary_signature(adev->mman.discovery_bin)) {
-		dev_warn(adev->dev, "get invalid ip discovery binary signature from vram\n");
+	if (!amdgpu_discovery_verify_binary_signature(adev->mman.discovery_bin) || amdgpu_discovery == 2) {
+		/* ignore the discovery binary from vram if discovery=2 in kernel module parameter */
+		if (amdgpu_discovery == 2)
+			dev_info(adev->dev,"force read ip discovery binary from file");
+		else
+			dev_warn(adev->dev, "get invalid ip discovery binary signature from vram\n");
+
 		/* retry read ip discovery binary from file */
 		r = amdgpu_discovery_read_binary_from_file(adev, adev->mman.discovery_bin);
 		if (r) {
