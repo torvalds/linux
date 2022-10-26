@@ -1489,7 +1489,7 @@ config MFD_OMAP_USB_HOST
 	  OMAP USB Host drivers.
 
 config MFD_PALMAS
-	bool "TI Palmas series chips"
+	tristate "TI Palmas series chips"
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
