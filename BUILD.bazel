@@ -40,6 +40,22 @@ define_common_kernels(target_configs = {
             "mm/zsmalloc.ko",
         ],
     },
+    # Sync with build.config.gki.x86_64
+    "kernel_x86_64": {
+        "kmi_symbol_list_strict_mode": False,
+        "module_implicit_outs": [
+            "drivers/block/zram/zram.ko",
+            "mm/zsmalloc.ko",
+        ],
+    },
+    # Sync with build.config.gki-debug.x86_64
+    "kernel_x86_64_debug": {
+        "kmi_symbol_list_strict_mode": False,
+        "module_implicit_outs": [
+            "drivers/block/zram/zram.ko",
+            "mm/zsmalloc.ko",
+        ],
+    },
 })
 
 # Sync with build.config.db845c
