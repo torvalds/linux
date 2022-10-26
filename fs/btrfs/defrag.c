@@ -13,6 +13,7 @@
 #include "messages.h"
 #include "delalloc-space.h"
 #include "subpage.h"
+#include "defrag.h"
 
 static struct kmem_cache *btrfs_inode_defrag_cachep;
 

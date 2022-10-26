@@ -773,19 +773,10 @@ int btrfs_fileattr_set(struct user_namespace *mnt_userns,
 int btrfs_ioctl_get_supported_features(void __user *arg);
 void btrfs_sync_inode_flags_to_i_flags(struct inode *inode);
 int __pure btrfs_is_empty_uuid(u8 *uuid);
-int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
-		      struct btrfs_ioctl_defrag_range_args *range,
-		      u64 newer_than, unsigned long max_to_defrag);
 void btrfs_update_ioctl_balance_args(struct btrfs_fs_info *fs_info,
 			       struct btrfs_ioctl_balance_args *bargs);
 
 /* file.c */
-int __init btrfs_auto_defrag_init(void);
-void __cold btrfs_auto_defrag_exit(void);
-int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
-			   struct btrfs_inode *inode, u32 extent_thresh);
-int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info);
-void btrfs_cleanup_defrag_inodes(struct btrfs_fs_info *fs_info);
 int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync);
 extern const struct file_operations btrfs_file_operations;
 int btrfs_drop_extents(struct btrfs_trans_handle *trans,
@@ -810,10 +801,6 @@ int btrfs_check_nocow_lock(struct btrfs_inode *inode, loff_t pos,
 void btrfs_check_nocow_unlock(struct btrfs_inode *inode);
 bool btrfs_find_delalloc_in_range(struct btrfs_inode *inode, u64 start, u64 end,
 				  u64 *delalloc_start_ret, u64 *delalloc_end_ret);
-
-/* tree-defrag.c */
-int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
-			struct btrfs_root *root);
 
 /* super.c */
 int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
@@ -943,11 +930,6 @@ static inline int is_fstree(u64 rootid)
 	      !btrfs_qgroup_level(rootid)))
 		return 1;
 	return 0;
-}
-
-static inline int btrfs_defrag_cancelled(struct btrfs_fs_info *fs_info)
-{
-	return signal_pending(current);
 }
 
 /* verity.c */

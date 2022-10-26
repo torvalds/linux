@@ -52,6 +52,7 @@
 #include "raid56.h"
 #include "fs.h"
 #include "accessors.h"
+#include "defrag.h"
 #define CREATE_TRACE_POINTS
 #include <trace/events/btrfs.h>
 
