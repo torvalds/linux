@@ -83,7 +83,7 @@ ingenic_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	const struct ingenic_cgu_clk_info *clk_info = to_clk_info(ingenic_clk);
 	struct ingenic_cgu *cgu = ingenic_clk->cgu;
 	const struct ingenic_cgu_pll_info *pll_info;
-	unsigned m, n, od_enc, od;
+	unsigned m, n, od, od_enc = 0;
 	bool bypass;
 	u32 ctl;
 
@@ -96,8 +96,11 @@ ingenic_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	m += pll_info->m_offset;
 	n = (ctl >> pll_info->n_shift) & GENMASK(pll_info->n_bits - 1, 0);
 	n += pll_info->n_offset;
-	od_enc = ctl >> pll_info->od_shift;
-	od_enc &= GENMASK(pll_info->od_bits - 1, 0);
+
+	if (pll_info->od_bits > 0) {
+		od_enc = ctl >> pll_info->od_shift;
+		od_enc &= GENMASK(pll_info->od_bits - 1, 0);
+	}
 
 	if (pll_info->bypass_bit >= 0) {
 		ctl = readl(cgu->base + pll_info->bypass_reg);
@@ -108,11 +111,15 @@ ingenic_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 			return parent_rate;
 	}
 
-	for (od = 0; od < pll_info->od_max; od++) {
+	for (od = 0; od < pll_info->od_max; od++)
 		if (pll_info->od_encoding[od] == od_enc)
 			break;
-	}
-	BUG_ON(od == pll_info->od_max);
+
+	/* if od_max = 0, od_bits should be 0 and od is fixed to 1. */
+	if (pll_info->od_max == 0)
+		BUG_ON(pll_info->od_bits != 0);
+	else
+		BUG_ON(od == pll_info->od_max);
 	od++;
 
 	return div_u64((u64)parent_rate * m * pll_info->rate_multiplier,
@@ -215,8 +222,10 @@ ingenic_pll_set_rate(struct clk_hw *hw, unsigned long req_rate,
 	ctl &= ~(GENMASK(pll_info->n_bits - 1, 0) << pll_info->n_shift);
 	ctl |= (n - pll_info->n_offset) << pll_info->n_shift;
 
-	ctl &= ~(GENMASK(pll_info->od_bits - 1, 0) << pll_info->od_shift);
-	ctl |= pll_info->od_encoding[od - 1] << pll_info->od_shift;
+	if (pll_info->od_bits > 0) {
+		ctl &= ~(GENMASK(pll_info->od_bits - 1, 0) << pll_info->od_shift);
+		ctl |= pll_info->od_encoding[od - 1] << pll_info->od_shift;
+	}
 
 	writel(ctl, cgu->base + pll_info->reg);
 

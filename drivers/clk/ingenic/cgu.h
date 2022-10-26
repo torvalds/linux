@@ -33,7 +33,8 @@
  * @od_shift: the number of bits to shift the post-VCO divider value by (ie.
  *            the index of the lowest bit of the post-VCO divider value in
  *            the PLL's control register)
- * @od_bits: the size of the post-VCO divider field in bits
+ * @od_bits: the size of the post-VCO divider field in bits, or 0 if no
+ *	     OD field exists (then the OD is fixed to 1)
  * @od_max: the maximum post-VCO divider value
  * @od_encoding: a pointer to an array mapping post-VCO divider values to
  *               their encoded values in the PLL control register, or -1 for
