@@ -234,8 +234,6 @@ __ieee802154_rx_handle_packet(struct ieee802154_local *local,
 		skb = NULL;
 		break;
 	}
-
-	kfree_skb(skb);
 }
 
 static void
@@ -274,7 +272,7 @@ void ieee802154_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	WARN_ON_ONCE(softirq_count() == 0);
 
 	if (local->suspended)
-		goto drop;
+		goto free_skb;
 
 	/* TODO: When a transceiver omits the checksum here, we
 	 * add an own calculated one. This is currently an ugly
@@ -292,20 +290,17 @@ void ieee802154_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	/* Level 1 filtering: Check the FCS by software when relevant */
 	if (local->hw.phy->filtering == IEEE802154_FILTERING_NONE) {
 		crc = crc_ccitt(0, skb->data, skb->len);
-		if (crc) {
-			rcu_read_unlock();
+		if (crc)
 			goto drop;
-		}
 	}
 	/* remove crc */
 	skb_trim(skb, skb->len - 2);
 
 	__ieee802154_rx_handle_packet(local, skb);
 
-	rcu_read_unlock();
-
-	return;
 drop:
+	rcu_read_unlock();
+free_skb:
 	kfree_skb(skb);
 }
 
