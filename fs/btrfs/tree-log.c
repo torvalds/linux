@@ -25,6 +25,7 @@
 #include "accessors.h"
 #include "extent-tree.h"
 #include "root-tree.h"
+#include "dir-item.h"
 
 #define MAX_CONFLICT_INODES 10
 

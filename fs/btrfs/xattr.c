@@ -22,6 +22,7 @@
 #include "props.h"
 #include "locking.h"
 #include "accessors.h"
+#include "dir-item.h"
 
 int btrfs_getxattr(struct inode *inode, const char *name,
 				void *buffer, size_t size)

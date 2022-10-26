@@ -60,6 +60,7 @@
 #include "extent-tree.h"
 #include "root-tree.h"
 #include "defrag.h"
+#include "dir-item.h"
 
 struct btrfs_iget_args {
 	u64 ino;

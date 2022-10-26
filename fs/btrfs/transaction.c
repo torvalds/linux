@@ -29,6 +29,7 @@
 #include "extent-tree.h"
 #include "root-tree.h"
 #include "defrag.h"
+#include "dir-item.h"
 
 static struct kmem_cache *btrfs_trans_handle_cachep;
 
