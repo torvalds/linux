@@ -429,7 +429,7 @@ static bool allow_file_dedupe(struct file *file)
 		return true;
 	if (file->f_mode & FMODE_WRITE)
 		return true;
-	if (uid_eq(current_fsuid(), i_uid_into_mnt(mnt_userns, inode)))
+	if (vfsuid_eq_kuid(i_uid_into_vfsuid(mnt_userns, inode), current_fsuid()))
 		return true;
 	if (!inode_permission(mnt_userns, inode, MAY_WRITE))
 		return true;

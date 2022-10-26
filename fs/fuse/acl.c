@@ -99,7 +99,7 @@ int fuse_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 			return ret;
 		}
 
-		if (!in_group_p(i_gid_into_mnt(&init_user_ns, inode)) &&
+		if (!vfsgid_in_group_p(i_gid_into_vfsgid(&init_user_ns, inode)) &&
 		    !capable_wrt_inode_uidgid(&init_user_ns, inode, CAP_FSETID))
 			extra_flags |= FUSE_SETXATTR_ACL_KILL_SGID;
 

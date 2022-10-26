@@ -328,14 +328,16 @@ int cap_inode_killpriv(struct user_namespace *mnt_userns, struct dentry *dentry)
 	return error;
 }
 
-static bool rootid_owns_currentns(kuid_t kroot)
+static bool rootid_owns_currentns(vfsuid_t rootvfsuid)
 {
 	struct user_namespace *ns;
+	kuid_t kroot;
 
-	if (!uid_valid(kroot))
+	if (!vfsuid_valid(rootvfsuid))
 		return false;
 
-	for (ns = current_user_ns(); ; ns = ns->parent) {
+	kroot = vfsuid_into_kuid(rootvfsuid);
+	for (ns = current_user_ns();; ns = ns->parent) {
 		if (from_kuid(ns, kroot) == 0)
 			return true;
 		if (ns == &init_user_ns)
@@ -381,6 +383,7 @@ int cap_inode_getsecurity(struct user_namespace *mnt_userns,
 {
 	int size, ret;
 	kuid_t kroot;
+	vfsuid_t vfsroot;
 	u32 nsmagic, magic;
 	uid_t root, mappedroot;
 	char *tmpbuf = NULL;
@@ -419,11 +422,11 @@ int cap_inode_getsecurity(struct user_namespace *mnt_userns,
 	kroot = make_kuid(fs_ns, root);
 
 	/* If this is an idmapped mount shift the kuid. */
-	kroot = mapped_kuid_fs(mnt_userns, fs_ns, kroot);
+	vfsroot = make_vfsuid(mnt_userns, fs_ns, kroot);
 
 	/* If the root kuid maps to a valid uid in current ns, then return
 	 * this as a nscap. */
-	mappedroot = from_kuid(current_user_ns(), kroot);
+	mappedroot = from_kuid(current_user_ns(), vfsuid_into_kuid(vfsroot));
 	if (mappedroot != (uid_t)-1 && mappedroot != (uid_t)0) {
 		size = sizeof(struct vfs_ns_cap_data);
 		if (alloc) {
@@ -450,7 +453,7 @@ int cap_inode_getsecurity(struct user_namespace *mnt_userns,
 		goto out_free;
 	}
 
-	if (!rootid_owns_currentns(kroot)) {
+	if (!rootid_owns_currentns(vfsroot)) {
 		size = -EOVERFLOW;
 		goto out_free;
 	}
@@ -488,29 +491,17 @@ out_free:
  * @value:	vfs caps value which may be modified by this function
  * @size:	size of @ivalue
  * @task_ns:	user namespace of the caller
- * @mnt_userns:	user namespace of the mount the inode was found from
- * @fs_userns:	user namespace of the filesystem
- *
- * If the inode has been found through an idmapped mount the user namespace of
- * the vfsmount must be passed through @mnt_userns. This function will then
- * take care to map the inode according to @mnt_userns before checking
- * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply passs init_user_ns.
  */
-static kuid_t rootid_from_xattr(const void *value, size_t size,
-				struct user_namespace *task_ns,
-				struct user_namespace *mnt_userns,
-				struct user_namespace *fs_userns)
+static vfsuid_t rootid_from_xattr(const void *value, size_t size,
+				  struct user_namespace *task_ns)
 {
 	const struct vfs_ns_cap_data *nscap = value;
-	kuid_t rootkid;
 	uid_t rootid = 0;
 
 	if (size == XATTR_CAPS_SZ_3)
 		rootid = le32_to_cpu(nscap->rootid);
 
-	rootkid = make_kuid(task_ns, rootid);
-	return mapped_kuid_user(mnt_userns, fs_userns, rootkid);
+	return VFSUIDT_INIT(make_kuid(task_ns, rootid));
 }
 
 static bool validheader(size_t size, const struct vfs_cap_data *cap)
@@ -548,6 +539,7 @@ int cap_convert_nscap(struct user_namespace *mnt_userns, struct dentry *dentry,
 	struct user_namespace *task_ns = current_user_ns(),
 		*fs_ns = inode->i_sb->s_user_ns;
 	kuid_t rootid;
+	vfsuid_t vfsrootid;
 	size_t newsize;
 
 	if (!*ivalue)
@@ -561,7 +553,11 @@ int cap_convert_nscap(struct user_namespace *mnt_userns, struct dentry *dentry,
 			/* user is privileged, just write the v2 */
 			return size;
 
-	rootid = rootid_from_xattr(*ivalue, size, task_ns, mnt_userns, fs_ns);
+	vfsrootid = rootid_from_xattr(*ivalue, size, task_ns);
+	if (!vfsuid_valid(vfsrootid))
+		return -EINVAL;
+
+	rootid = from_vfsuid(mnt_userns, fs_ns, vfsrootid);
 	if (!uid_valid(rootid))
 		return -EINVAL;
 
@@ -655,6 +651,7 @@ int get_vfs_caps_from_disk(struct user_namespace *mnt_userns,
 	struct vfs_ns_cap_data data, *nscaps = &data;
 	struct vfs_cap_data *caps = (struct vfs_cap_data *) &data;
 	kuid_t rootkuid;
+	vfsuid_t rootvfsuid;
 	struct user_namespace *fs_ns;
 
 	memset(cpu_caps, 0, sizeof(struct cpu_vfs_cap_data));
@@ -699,11 +696,15 @@ int get_vfs_caps_from_disk(struct user_namespace *mnt_userns,
 	default:
 		return -EINVAL;
 	}
+
+	rootvfsuid = make_vfsuid(mnt_userns, fs_ns, rootkuid);
+	if (!vfsuid_valid(rootvfsuid))
+		return -ENODATA;
+
 	/* Limit the caps to the mounter of the filesystem
 	 * or the more limited uid specified in the xattr.
 	 */
-	rootkuid = mapped_kuid_fs(mnt_userns, fs_ns, rootkuid);
-	if (!rootid_owns_currentns(rootkuid))
+	if (!rootid_owns_currentns(rootvfsuid))
 		return -ENODATA;
 
 	CAP_FOR_EACH_U32(i) {
@@ -716,7 +717,7 @@ int get_vfs_caps_from_disk(struct user_namespace *mnt_userns,
 	cpu_caps->permitted.cap[CAP_LAST_U32] &= CAP_LAST_U32_VALID_MASK;
 	cpu_caps->inheritable.cap[CAP_LAST_U32] &= CAP_LAST_U32_VALID_MASK;
 
-	cpu_caps->rootid = rootkuid;
+	cpu_caps->rootid = vfsuid_into_kuid(rootvfsuid);
 
 	return 0;
 }
