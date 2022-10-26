@@ -380,6 +380,8 @@ static int genl_validate_ops(const struct genl_family *family)
 		genl_get_cmd_by_index(i, family, &op);
 		if (op.dumpit == NULL && op.doit == NULL)
 			return -EINVAL;
+		if (WARN_ON(op.cmd >= family->resv_start_op && op.validate))
+			return -EINVAL;
 		for (j = i + 1; j < genl_get_cmd_cnt(family); j++) {
 			struct genl_ops op2;
 
