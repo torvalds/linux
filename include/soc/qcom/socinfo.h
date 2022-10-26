@@ -83,6 +83,7 @@ int socinfo_get_pcode(void);
 char *socinfo_get_partinfo_part_name(unsigned int part_id);
 uint32_t socinfo_get_partinfo_chip_id(unsigned int part_id);
 uint32_t socinfo_get_partinfo_vulkan_id(unsigned int part_id);
+int socinfo_get_oem_variant_id(void);
 #else
 static inline uint32_t socinfo_get_id(void)
 {
@@ -117,6 +118,10 @@ uint32_t socinfo_get_partinfo_chip_id(unsigned int part_id)
 uint32_t socinfo_get_partinfo_vulkan_id(unsigned int part_id)
 {
 	return 0;
+}
+int socinfo_get_oem_variant_id(void)
+{
+	return -EINVAL;
 }
 #endif /* CONFIG_QCOM_SOCINFO */
 

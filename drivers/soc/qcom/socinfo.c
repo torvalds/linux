@@ -227,6 +227,16 @@ static const char * const hw_platform_ifeature_code[] = {
 	[SOCINFO_FC_YF - SOCINFO_FC_Y0] = "YF",
 };
 
+enum {
+	PLATFORM_OEM_VARIANT_QC = 0x0,
+	PLATFORM_OEM_VARIANT_OEM,
+};
+
+static const char * const hw_platform_oem_variant[] = {
+	[PLATFORM_OEM_VARIANT_QC] = "QC",
+	[PLATFORM_OEM_VARIANT_OEM] = "OEM",
+};
+
 /* Socinfo SMEM item structure */
 struct socinfo {
 	__le32 fmt;
@@ -278,6 +288,11 @@ struct socinfo {
 	__le32  pcode;
 	__le32  npartnamemap_offset;
 	__le32  nnum_partname_mapping;
+	/* Version 17 */
+	__le32 hw_plat_oem_variant;
+	/* Version 18 */
+	__le32 num_kvps;
+	__le32 kvps_offset;
 } *socinfo;
 
 #define PART_NAME_MAX		32
@@ -315,6 +330,7 @@ struct socinfo_params {
 	u32 nmodem_supported;
 	u32 gpu_chip_id;
 	u32 gpu_vulkan_id;
+	u32 hw_plat_oem_variant;
 };
 
 struct smem_image_version {
@@ -532,6 +548,13 @@ static uint32_t socinfo_get_pcode_id(void)
 		return SOCINFO_PCODE_UNKNOWN;
 
 	return pcode;
+}
+
+/* Version 17 */
+static uint32_t socinfo_get_platform_oem_variant(void)
+{
+	return (socinfo && socinfo_format >= SOCINFO_VERSION(0, 17)) ?
+			le32_to_cpu(socinfo->hw_plat_oem_variant) : 0;
 }
 
 /* Version 2 */
@@ -799,6 +822,34 @@ msm_get_feature_code(struct device *dev,
 	return sysfs_emit(buf, "%s\n", feature_code ? feature_code : "Unknown");
 }
 ATTR_DEFINE(feature_code);
+
+/* Version 17 */
+static ssize_t
+msm_get_platform_oem_variant_id(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	uint32_t hw_oem_variant;
+
+	hw_oem_variant = socinfo_get_platform_oem_variant();
+	return scnprintf(buf, PAGE_SIZE, "%u\n", hw_oem_variant);
+}
+ATTR_DEFINE(platform_oem_variant_id);
+
+static ssize_t
+msm_get_platform_oem_variant(struct device *dev,
+		struct device_attribute *attr,
+		char *buf)
+{
+	uint32_t hw_oem_variant;
+
+	hw_oem_variant = socinfo_get_platform_oem_variant();
+	if (hw_oem_variant != PLATFORM_OEM_VARIANT_QC)
+		hw_oem_variant = PLATFORM_OEM_VARIANT_OEM;
+
+	return scnprintf(buf, PAGE_SIZE, "%-.32s\n", hw_platform_oem_variant[hw_oem_variant]);
+}
+ATTR_DEFINE(platform_oem_variant);
 
 struct qcom_socinfo {
 	struct soc_device *soc_dev;
@@ -1195,6 +1246,12 @@ static void socinfo_populate_sysfs(struct qcom_socinfo *qcom_socinfo)
 	int i = 0;
 
 	switch (socinfo_format) {
+	case SOCINFO_VERSION(0, 18):
+		fallthrough;
+	case SOCINFO_VERSION(0, 17):
+		msm_custom_socinfo_attrs[i++] = &dev_attr_platform_oem_variant_id.attr;
+		msm_custom_socinfo_attrs[i++] = &dev_attr_platform_oem_variant.attr;
+		fallthrough;
 	case SOCINFO_VERSION(0, 16):
 		msm_custom_socinfo_attrs[i++] = &dev_attr_sku.attr;
 		msm_custom_socinfo_attrs[i++] = &dev_attr_feature_code.attr;
@@ -1512,6 +1569,64 @@ static void socinfo_print(void)
 			sku ? sku : "Unknown");
 		break;
 
+	case SOCINFO_VERSION(0, 17):
+		pr_info("v%u.%u, id=%u, ver=%u.%u, raw_id=%u, raw_ver=%u, hw_plat=%u, hw_plat_ver=%u\n accessory_chip=%u, hw_plat_subtype=%u, pmic_model=%u, pmic_die_revision=%u foundry_id=%u serial_number=%u num_pmics=%u chip_family=0x%x raw_device_family=0x%x raw_device_number=0x%x nproduct_id=0x%x num_clusters=0x%x ncluster_array_offset=0x%x num_defective_parts=0x%x ndefective_parts_array_offset=0x%x nmodem_supported=0x%x feature_code=0x%x pcode=0x%x sku=%s hw_plat_oem_variant=%u\n",
+			f_maj, f_min, socinfo->id, v_maj, v_min,
+			socinfo->raw_id, socinfo->raw_ver,
+			socinfo->hw_plat,
+			socinfo->plat_ver,
+			socinfo->accessory_chip,
+			socinfo->hw_plat_subtype,
+			socinfo->pmic_model,
+			socinfo->pmic_die_rev,
+			socinfo->foundry_id,
+			socinfo->serial_num,
+			socinfo->num_pmics,
+			socinfo->chip_family,
+			socinfo->raw_device_family,
+			socinfo->raw_device_num,
+			socinfo->nproduct_id,
+			socinfo->num_clusters,
+			socinfo->ncluster_array_offset,
+			socinfo->num_defective_parts,
+			socinfo->ndefective_parts_array_offset,
+			socinfo->nmodem_supported,
+			socinfo->feature_code,
+			socinfo->pcode,
+			sku ? sku : "Unknown",
+			socinfo->hw_plat_oem_variant);
+		break;
+
+	case SOCINFO_VERSION(0, 18):
+		pr_info("v%u.%u, id=%u, ver=%u.%u, raw_id=%u, raw_ver=%u, hw_plat=%u, hw_plat_ver=%u\n accessory_chip=%u, hw_plat_subtype=%u, pmic_model=%u, pmic_die_revision=%u foundry_id=%u serial_number=%u num_pmics=%u chip_family=0x%x raw_device_family=0x%x raw_device_number=0x%x nproduct_id=0x%x num_clusters=0x%x ncluster_array_offset=0x%x num_defective_parts=0x%x ndefective_parts_array_offset=0x%x nmodem_supported=0x%x feature_code=0x%x pcode=0x%x sku=%s hw_plat_oem_variant=%u num_kvps=%u kvps_offset=%u\n",
+			f_maj, f_min, socinfo->id, v_maj, v_min,
+			socinfo->raw_id, socinfo->raw_ver,
+			socinfo->hw_plat,
+			socinfo->plat_ver,
+			socinfo->accessory_chip,
+			socinfo->hw_plat_subtype,
+			socinfo->pmic_model,
+			socinfo->pmic_die_rev,
+			socinfo->foundry_id,
+			socinfo->serial_num,
+			socinfo->num_pmics,
+			socinfo->chip_family,
+			socinfo->raw_device_family,
+			socinfo->raw_device_num,
+			socinfo->nproduct_id,
+			socinfo->num_clusters,
+			socinfo->ncluster_array_offset,
+			socinfo->num_defective_parts,
+			socinfo->ndefective_parts_array_offset,
+			socinfo->nmodem_supported,
+			socinfo->feature_code,
+			socinfo->pcode,
+			sku ? sku : "Unknown",
+			socinfo->hw_plat_oem_variant,
+			socinfo->num_kvps,
+			socinfo->kvps_offset);
+		break;
+
 	default:
 		pr_err("Unknown format found: v%u.%u\n", f_maj, f_min);
 		break;
@@ -1616,6 +1731,17 @@ uint32_t socinfo_get_partinfo_vulkan_id(unsigned int part_id)
 	return partinfo[part_id].gpu_info.vulkan_id;
 }
 EXPORT_SYMBOL(socinfo_get_partinfo_vulkan_id);
+
+int socinfo_get_oem_variant_id(void)
+{
+	if (socinfo_format < SOCINFO_VERSION(0, 17)) {
+		pr_warn("socinfo: oem_variant is not supported by bootloaders\n");
+		return -EINVAL;
+	}
+
+	return socinfo_get_platform_oem_variant();
+}
+EXPORT_SYMBOL(socinfo_get_oem_variant_id);
 
 void socinfo_enumerate_partinfo_details(void)
 {
@@ -1795,6 +1921,16 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 			   &qcom_socinfo->info.fmt);
 
 	switch (qcom_socinfo->info.fmt) {
+	case SOCINFO_VERSION(0, 18):
+		fallthrough;
+	case SOCINFO_VERSION(0, 17):
+		qcom_socinfo->info.hw_plat_oem_variant =
+			__le32_to_cpu(info->hw_plat_oem_variant);
+
+		debugfs_create_u32("hardware_platform_oem_variant", 0444,
+				   qcom_socinfo->dbg_root,
+				   &qcom_socinfo->info.hw_plat_oem_variant);
+		fallthrough;
 	case SOCINFO_VERSION(0, 16):
 		qcom_socinfo->info.gpu_chip_id =
 			__le32_to_cpu(socinfo_get_partinfo_chip_id(SOCINFO_PART_GPU));
