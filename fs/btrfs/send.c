@@ -31,6 +31,7 @@
 #include "dir-item.h"
 #include "file-item.h"
 #include "ioctl.h"
+#include "verity.h"
 
 /*
  * Maximum number of references an extent can have in order for us to attempt to

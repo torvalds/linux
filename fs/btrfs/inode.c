@@ -67,6 +67,7 @@
 #include "file.h"
 #include "acl.h"
 #include "relocation.h"
+#include "verity.h"
 
 struct btrfs_iget_args {
 	u64 ino;

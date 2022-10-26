@@ -56,6 +56,7 @@
 #include "dir-item.h"
 #include "ioctl.h"
 #include "scrub.h"
+#include "verity.h"
 #define CREATE_TRACE_POINTS
 #include <trace/events/btrfs.h>
 
