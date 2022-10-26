@@ -979,7 +979,7 @@ int pm8001_abort_task(struct sas_task *task)
 	u32 phy_id, port_id;
 	struct sas_task_slow slow_task;
 
-	if (unlikely(!task || !task->lldd_task || !task->dev))
+	if (!task->lldd_task || !task->dev)
 		return TMF_RESP_FUNC_FAILED;
 
 	dev = task->dev;
