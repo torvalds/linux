@@ -15,7 +15,7 @@ const void *const mac802154_wpan_phy_privid = &mac802154_wpan_phy_privid;
 
 /**
  * ieee802154_wake_queue - wake ieee802154 queue
- * @local: main mac object
+ * @hw: main hardware object
  *
  * Tranceivers usually have either one transmit framebuffer or one framebuffer
  * for both transmitting and receiving. Hence, the core currently only handles
@@ -41,7 +41,7 @@ static void ieee802154_wake_queue(struct ieee802154_hw *hw)
 
 /**
  * ieee802154_stop_queue - stop ieee802154 queue
- * @local: main mac object
+ * @hw: main hardware object
  *
  * Tranceivers usually have either one transmit framebuffer or one framebuffer
  * for both transmitting and receiving. Hence, the core currently only handles
