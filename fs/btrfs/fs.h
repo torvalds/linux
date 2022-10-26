@@ -971,11 +971,20 @@ static inline void btrfs_wake_unfinished_drop(struct btrfs_fs_info *fs_info)
 			   &(fs_info)->fs_state)))
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+
+#define EXPORT_FOR_TESTS
+
 static inline int btrfs_is_testing(struct btrfs_fs_info *fs_info)
 {
 	return test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
 }
+
+void btrfs_test_destroy_inode(struct inode *inode);
+
 #else
+
+#define EXPORT_FOR_TESTS static
+
 static inline int btrfs_is_testing(struct btrfs_fs_info *fs_info)
 {
 	return 0;

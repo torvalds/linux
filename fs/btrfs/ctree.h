@@ -722,16 +722,6 @@ static inline unsigned long get_eb_page_index(unsigned long offset)
 	return offset >> PAGE_SHIFT;
 }
 
-/*
- * Use that for functions that are conditionally exported for sanity tests but
- * otherwise static
- */
-#ifndef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-#define EXPORT_FOR_TESTS static
-#else
-#define EXPORT_FOR_TESTS
-#endif
-
 static inline int is_fstree(u64 rootid)
 {
 	if (rootid == BTRFS_FS_TREE_OBJECTID ||
@@ -740,11 +730,6 @@ static inline int is_fstree(u64 rootid)
 		return 1;
 	return 0;
 }
-
-/* Sanity test specific functions */
-#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
-void btrfs_test_destroy_inode(struct inode *inode);
-#endif
 
 static inline bool btrfs_is_data_reloc_root(const struct btrfs_root *root)
 {
