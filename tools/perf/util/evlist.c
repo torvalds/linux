@@ -29,6 +29,7 @@
 #include "util/evsel_fprintf.h"
 #include "util/evlist-hybrid.h"
 #include "util/pmu.h"
+#include "util/sample.h"
 #include <signal.h>
 #include <unistd.h>
 #include <sched.h>

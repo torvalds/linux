@@ -10,6 +10,7 @@
 #include "event.h"
 #include "evsel.h"
 #include "debug.h"
+#include "util/sample.h"
 #include "util/synthetic-events.h"
 
 #include "tests/tests.h"

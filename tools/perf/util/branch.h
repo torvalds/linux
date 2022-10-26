@@ -10,7 +10,7 @@
 #include <linux/perf_event.h>
 #include <linux/types.h>
 #include "util/map_symbol.h"
-#include "event.h"
+#include "util/sample.h"
 
 struct branch_flags {
 	union {

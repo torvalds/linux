@@ -34,6 +34,7 @@
 #include <linux/time64.h>
 #include "util.h"
 #include "clockid.h"
+#include "util/sample.h"
 
 #define pr_N(n, fmt, ...) \
 	eprintf(n, debug_data_convert, fmt, ##__VA_ARGS__)

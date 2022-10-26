@@ -11,6 +11,7 @@
 #include "record.h"
 #include "tests.h"
 #include "util/mmap.h"
+#include "util/sample.h"
 
 static int sched__get_first_possible_cpu(pid_t pid, cpu_set_t *maskp)
 {

@@ -10,6 +10,7 @@
 #include "../../../util/tool.h"
 #include "../../../util/map.h"
 #include "../../../util/debug.h"
+#include "util/sample.h"
 
 #if defined(__x86_64__)
 
