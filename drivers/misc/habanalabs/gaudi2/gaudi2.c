@@ -3969,7 +3969,7 @@ static void gaudi2_init_firmware_loader(struct hl_device *hdev)
 	fw_loader->sram_bar_id = SRAM_CFG_BAR_ID;
 	fw_loader->dram_bar_id = DRAM_BAR_ID;
 
-	if (hdev->asic_type == ASIC_GAUDI2 || hdev->asic_type == ASIC_GAUDI2_SEC)
+	if (hdev->asic_type == ASIC_GAUDI2)
 		fw_loader->cpu_timeout = GAUDI2_CPU_TIMEOUT_USEC;
 	else /* ASIC_GAUDI2_FPGA */
 		fw_loader->cpu_timeout = GAUDI2_FPGA_CPU_TIMEOUT;

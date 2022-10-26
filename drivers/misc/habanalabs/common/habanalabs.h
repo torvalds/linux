@@ -1192,7 +1192,6 @@ struct hl_dec {
  * @ASIC_GAUDI: Gaudi device (HL-2000).
  * @ASIC_GAUDI_SEC: Gaudi secured device (HL-2000).
  * @ASIC_GAUDI2: Gaudi2 device.
- * @ASIC_GAUDI2_SEC: Gaudi2 secured device.
  */
 enum hl_asic_type {
 	ASIC_INVALID,
@@ -1200,7 +1199,6 @@ enum hl_asic_type {
 	ASIC_GAUDI,
 	ASIC_GAUDI_SEC,
 	ASIC_GAUDI2,
-	ASIC_GAUDI2_SEC,
 };
 
 struct hl_cs_parser;
