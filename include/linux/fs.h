@@ -2700,18 +2700,22 @@ static inline struct user_namespace *file_mnt_user_ns(struct file *file)
 	return mnt_user_ns(file->f_path.mnt);
 }
 
+static inline struct mnt_idmap *file_mnt_idmap(struct file *file)
+{
+	return mnt_idmap(file->f_path.mnt);
+}
+
 /**
  * is_idmapped_mnt - check whether a mount is mapped
  * @mnt: the mount to check
  *
- * If @mnt has an idmapping attached different from the
- * filesystem's idmapping then @mnt is mapped.
+ * If @mnt has an non @nop_mnt_idmap attached to it then @mnt is mapped.
  *
  * Return: true if mount is mapped, false if not.
  */
 static inline bool is_idmapped_mnt(const struct vfsmount *mnt)
 {
-	return mnt_user_ns(mnt) != mnt->mnt_sb->s_user_ns;
+	return mnt_idmap(mnt) != &nop_mnt_idmap;
 }
 
 extern long vfs_truncate(const struct path *, loff_t);
