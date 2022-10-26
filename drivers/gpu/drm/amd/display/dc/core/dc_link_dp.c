@@ -5227,7 +5227,7 @@ static void retrieve_cable_id(struct dc_link *link)
 				&link->dpcd_caps.cable_id, &usbc_cable_id);
 }
 
-enum dc_status wake_up_aux_channel(struct dc_link *link)
+static enum dc_status wake_up_aux_channel(struct dc_link *link)
 {
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	uint32_t aux_channel_retry_cnt = 0;
