@@ -707,6 +707,8 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 
 	ilk_audio_regs_init(i915, pipe, &regs);
 
+	mutex_lock(&i915->display.audio.mutex);
+
 	/* Disable timestamps */
 	tmp = intel_de_read(i915, regs.aud_config);
 	tmp &= ~AUD_CONFIG_N_VALUE_INDEX;
@@ -721,6 +723,8 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 	tmp = intel_de_read(i915, regs.aud_cntrl_st2);
 	tmp &= ~IBX_ELD_VALID(port);
 	intel_de_write(i915, regs.aud_cntrl_st2, tmp);
+
+	mutex_unlock(&i915->display.audio.mutex);
 }
 
 static void ilk_audio_codec_enable(struct intel_encoder *encoder,
@@ -749,6 +753,7 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 
 	ilk_audio_regs_init(i915, pipe, &regs);
 
+	mutex_lock(&i915->display.audio.mutex);
 
 	/* Invalidate ELD */
 	tmp = intel_de_read(i915, regs.aud_cntrl_st2);
@@ -781,6 +786,8 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	else
 		tmp |= audio_config_hdmi_pixel_clock(crtc_state);
 	intel_de_write(i915, regs.aud_config, tmp);
+
+	mutex_unlock(&i915->display.audio.mutex);
 }
 
 /**
