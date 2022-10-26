@@ -4554,9 +4554,19 @@ void dc_link_dp_handle_link_loss(struct dc_link *link)
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe_ctx = &link->dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe_ctx && pipe_ctx->stream && !pipe_ctx->stream->dpms_off &&
-				pipe_ctx->stream->link == link && !pipe_ctx->prev_odm_pipe)
+		if (pipe_ctx && pipe_ctx->stream && !pipe_ctx->stream->dpms_off
+				&& pipe_ctx->stream->link == link && !pipe_ctx->prev_odm_pipe) {
+			// Always use max settings here for DP 1.4a LL Compliance CTS
+			if (link->is_automated) {
+				pipe_ctx->link_config.dp_link_settings.lane_count =
+						link->verified_link_cap.lane_count;
+				pipe_ctx->link_config.dp_link_settings.link_rate =
+						link->verified_link_cap.link_rate;
+				pipe_ctx->link_config.dp_link_settings.link_spread =
+						link->verified_link_cap.link_spread;
+			}
 			core_link_enable_stream(link->dc->current_state, pipe_ctx);
+		}
 	}
 }
 
@@ -4597,6 +4607,8 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 	}
 
 	if (hpd_irq_dpcd_data.bytes.device_service_irq.bits.AUTOMATED_TEST) {
+		// Workaround for DP 1.4a LL Compliance CTS as USB4 has to share encoders unlike DP and USBC
+		link->is_automated = true;
 		device_service_clear.bits.AUTOMATED_TEST = 1;
 		core_link_write_dpcd(
 			link,
@@ -7240,6 +7252,7 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 	struct pipe_ctx *pipes =
 			&link->dc->current_state->res_ctx.pipe_ctx[0];
 	unsigned int i;
+	bool do_fallback = false;
 
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -7272,13 +7285,16 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 			memset(&link->cur_link_settings, 0,
 				sizeof(link->cur_link_settings));
 
+			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
+				do_fallback = true;
+
 			perform_link_training_with_retries(
 					link_setting,
 					skip_video_pattern,
 					LINK_TRAINING_ATTEMPTS,
 					&pipes[i],
 					SIGNAL_TYPE_DISPLAY_PORT,
-					false);
+					do_fallback);
 
 			link->dc->hwss.enable_stream(&pipes[i]);
 
