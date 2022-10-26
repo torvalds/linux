@@ -986,15 +986,29 @@ xfs_refcount_adjust_extents(
 			(*agbno) += tmp.rc_blockcount;
 			(*aglen) -= tmp.rc_blockcount;
 
+			/* Stop if there's nothing left to modify */
+			if (*aglen == 0 || !xfs_refcount_still_have_space(cur))
+				break;
+
+			/* Move the cursor to the start of ext. */
 			error = xfs_refcount_lookup_ge(cur, *agbno,
 					&found_rec);
 			if (error)
 				goto out_error;
 		}
 
-		/* Stop if there's nothing left to modify */
-		if (*aglen == 0 || !xfs_refcount_still_have_space(cur))
-			break;
+		/*
+		 * A previous step trimmed agbno/aglen such that the end of the
+		 * range would not be in the middle of the record.  If this is
+		 * no longer the case, something is seriously wrong with the
+		 * btree.  Make sure we never feed the synthesized record into
+		 * the processing loop below.
+		 */
+		if (XFS_IS_CORRUPT(cur->bc_mp, ext.rc_blockcount == 0) ||
+		    XFS_IS_CORRUPT(cur->bc_mp, ext.rc_blockcount > *aglen)) {
+			error = -EFSCORRUPTED;
+			goto out_error;
+		}
 
 		/*
 		 * Adjust the reference count and either update the tree
