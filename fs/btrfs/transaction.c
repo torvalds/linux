@@ -33,6 +33,7 @@
 #include "uuid-tree.h"
 #include "ioctl.h"
 #include "relocation.h"
+#include "scrub.h"
 
 static struct kmem_cache *btrfs_trans_handle_cachep;
 

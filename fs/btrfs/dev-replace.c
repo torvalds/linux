@@ -25,6 +25,7 @@
 #include "block-group.h"
 #include "fs.h"
 #include "accessors.h"
+#include "scrub.h"
 
 /*
  * Device replace overview
