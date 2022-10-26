@@ -764,27 +764,23 @@ static void bdw_load_lut_10(struct intel_crtc *crtc,
 static void ivb_load_lut_ext_max(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
 	/* Program the max register to clamp values > 1.0. */
 	intel_dsb_reg_write(crtc_state, PREC_PAL_EXT_GC_MAX(pipe, 0), 1 << 16);
 	intel_dsb_reg_write(crtc_state, PREC_PAL_EXT_GC_MAX(pipe, 1), 1 << 16);
 	intel_dsb_reg_write(crtc_state, PREC_PAL_EXT_GC_MAX(pipe, 2), 1 << 16);
+}
 
-	/*
-	 * Program the gc max 2 register to clamp values > 1.0.
-	 * ToDo: Extend the ABI to be able to program values
-	 * from 3.0 to 7.0
-	 */
-	if (DISPLAY_VER(i915) >= 10) {
-		intel_dsb_reg_write(crtc_state, PREC_PAL_EXT2_GC_MAX(pipe, 0),
-				    1 << 16);
-		intel_dsb_reg_write(crtc_state, PREC_PAL_EXT2_GC_MAX(pipe, 1),
-				    1 << 16);
-		intel_dsb_reg_write(crtc_state, PREC_PAL_EXT2_GC_MAX(pipe, 2),
-				    1 << 16);
-	}
+static void glk_load_lut_ext2_max(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	enum pipe pipe = crtc->pipe;
+
+	/* Program the max register to clamp values > 1.0. */
+	intel_dsb_reg_write(crtc_state, PREC_PAL_EXT2_GC_MAX(pipe, 0), 1 << 16);
+	intel_dsb_reg_write(crtc_state, PREC_PAL_EXT2_GC_MAX(pipe, 1), 1 << 16);
+	intel_dsb_reg_write(crtc_state, PREC_PAL_EXT2_GC_MAX(pipe, 2), 1 << 16);
 }
 
 static void ivb_load_luts(const struct intel_crtc_state *crtc_state)
@@ -913,6 +909,7 @@ static void glk_load_luts(const struct intel_crtc_state *crtc_state)
 	case GAMMA_MODE_MODE_10BIT:
 		bdw_load_lut_10(crtc, post_csc_lut, PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_ext_max(crtc_state);
+		glk_load_lut_ext2_max(crtc_state);
 		break;
 	default:
 		MISSING_CASE(crtc_state->gamma_mode);
@@ -1029,7 +1026,6 @@ icl_program_gamma_multi_segment(const struct intel_crtc_state *crtc_state)
 	/* The last entry in the LUT is to be programmed in GCMAX */
 	entry = &lut[256 * 8 * 128];
 	ivb_load_lut_max(crtc_state, entry);
-	ivb_load_lut_ext_max(crtc_state);
 }
 
 static void icl_load_luts(const struct intel_crtc_state *crtc_state)
@@ -1048,10 +1044,13 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 	case GAMMA_MODE_MODE_12BIT_MULTI_SEGMENTED:
 		icl_program_gamma_superfine_segment(crtc_state);
 		icl_program_gamma_multi_segment(crtc_state);
+		ivb_load_lut_ext_max(crtc_state);
+		glk_load_lut_ext2_max(crtc_state);
 		break;
 	case GAMMA_MODE_MODE_10BIT:
 		bdw_load_lut_10(crtc, post_csc_lut, PAL_PREC_INDEX_VALUE(0));
 		ivb_load_lut_ext_max(crtc_state);
+		glk_load_lut_ext2_max(crtc_state);
 		break;
 	default:
 		MISSING_CASE(crtc_state->gamma_mode);
