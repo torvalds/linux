@@ -5760,8 +5760,6 @@ void amdgpu_pci_resume(struct pci_dev *pdev)
 		if (!ring || !ring->sched.thread)
 			continue;
 
-
-		drm_sched_resubmit_jobs(&ring->sched);
 		drm_sched_start(&ring->sched, true);
 	}
 
