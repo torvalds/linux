@@ -459,9 +459,6 @@ static void uvcg_video_pump(struct work_struct *work)
  */
 int uvcg_video_enable(struct uvc_video *video, int enable)
 {
-	struct uvc_device *uvc = video->uvc;
-	struct usb_composite_dev *cdev = uvc->func.config->cdev;
-	struct usb_gadget *gadget = cdev->gadget;
 	unsigned int i;
 	int ret;
 
@@ -493,11 +490,9 @@ int uvcg_video_enable(struct uvc_video *video, int enable)
 	if (video->max_payload_size) {
 		video->encode = uvc_video_encode_bulk;
 		video->payload_size = 0;
-	} else {
-		video->encode = (video->queue.use_sg &&
-				 !(gadget->speed <= USB_SPEED_HIGH)) ?
+	} else
+		video->encode = video->queue.use_sg ?
 			uvc_video_encode_isoc_sg : uvc_video_encode_isoc;
-	}
 
 	video->req_int_count = 0;
 
