@@ -39,6 +39,11 @@ properties:
       the VBus line.
     $ref: /schemas/types.yaml#/definitions/phandle
 
+  wakeup-source:
+    description:
+      Specify if the USB phy can detect the remote wakeup signal
+      while the system sleep.
+
 required:
   - compatible
   - '#phy-cells'
