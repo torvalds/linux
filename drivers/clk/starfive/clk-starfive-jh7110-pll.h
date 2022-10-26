@@ -13,6 +13,7 @@
  * If set PLL2_DEFAULT_FREQ one of 'starfive_pll2_freq_value', then PLL2
  * frequency will be set the new rate during clock tree registering.
  */
+#define PLL0_DEFAULT_FREQ	PLL0_FREQ_1500_VALUE
 #define PLL2_DEFAULT_FREQ	PLL2_FREQ_1188_VALUE
 
 #define PLL0_INDEX		0
