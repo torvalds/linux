@@ -189,6 +189,9 @@ static inline int ingenic_pll_check_stable(struct ingenic_cgu *cgu,
 {
 	u32 ctl;
 
+	if (pll_info->stable_bit < 0)
+		return 0;
+
 	return readl_poll_timeout(cgu->base + pll_info->reg, ctl,
 				  ctl & BIT(pll_info->stable_bit),
 				  0, 100 * USEC_PER_MSEC);
@@ -230,7 +233,7 @@ ingenic_pll_set_rate(struct clk_hw *hw, unsigned long req_rate,
 	writel(ctl, cgu->base + pll_info->reg);
 
 	/* If the PLL is enabled, verify that it's stable */
-	if (ctl & BIT(pll_info->enable_bit))
+	if (pll_info->enable_bit >= 0 && (ctl & BIT(pll_info->enable_bit)))
 		ret = ingenic_pll_check_stable(cgu, pll_info);
 
 	spin_unlock_irqrestore(&cgu->lock, flags);
@@ -247,6 +250,9 @@ static int ingenic_pll_enable(struct clk_hw *hw)
 	unsigned long flags;
 	int ret;
 	u32 ctl;
+
+	if (pll_info->enable_bit < 0)
+		return 0;
 
 	spin_lock_irqsave(&cgu->lock, flags);
 	if (pll_info->bypass_bit >= 0) {
@@ -278,6 +284,9 @@ static void ingenic_pll_disable(struct clk_hw *hw)
 	unsigned long flags;
 	u32 ctl;
 
+	if (pll_info->enable_bit < 0)
+		return;
+
 	spin_lock_irqsave(&cgu->lock, flags);
 	ctl = readl(cgu->base + pll_info->reg);
 
@@ -294,6 +303,9 @@ static int ingenic_pll_is_enabled(struct clk_hw *hw)
 	const struct ingenic_cgu_clk_info *clk_info = to_clk_info(ingenic_clk);
 	const struct ingenic_cgu_pll_info *pll_info = &clk_info->pll;
 	u32 ctl;
+
+	if (pll_info->enable_bit < 0)
+		return true;
 
 	ctl = readl(cgu->base + pll_info->reg);
 
