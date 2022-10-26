@@ -199,7 +199,7 @@ to_intel_sdvo_connector(struct drm_connector *connector)
 	container_of((conn_state), struct intel_sdvo_connector_state, base.base)
 
 static bool
-intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo, u16 flags);
+intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo);
 static bool
 intel_sdvo_tv_create_property(struct intel_sdvo *intel_sdvo,
 			      struct intel_sdvo_connector *intel_sdvo_connector,
@@ -2946,11 +2946,18 @@ static u16 intel_sdvo_filter_output_flags(u16 flags)
 }
 
 static bool
-intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo, u16 flags)
+intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo)
 {
 	struct drm_i915_private *i915 = to_i915(intel_sdvo->base.base.dev);
+	u16 flags;
 
-	flags = intel_sdvo_filter_output_flags(flags);
+	flags = intel_sdvo_filter_output_flags(intel_sdvo->caps.output_flags);
+
+	if (flags == 0) {
+		DRM_DEBUG_KMS("%s: Unknown SDVO output type (0x%04x)\n",
+			      SDVO_NAME(intel_sdvo), intel_sdvo->caps.output_flags);
+		return false;
+	}
 
 	intel_sdvo->controlled_output = flags;
 
@@ -2993,15 +3000,6 @@ intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo, u16 flags)
 		if (!intel_sdvo_lvds_init(intel_sdvo, 1))
 			return false;
 
-	if (flags == 0) {
-		unsigned char bytes[2];
-
-		memcpy(bytes, &intel_sdvo->caps.output_flags, 2);
-		DRM_DEBUG_KMS("%s: Unknown SDVO output type (0x%02x%02x)\n",
-			      SDVO_NAME(intel_sdvo),
-			      bytes[0], bytes[1]);
-		return false;
-	}
 	intel_sdvo->base.pipe_mask = ~0;
 
 	return true;
@@ -3377,8 +3375,7 @@ bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 	intel_sdvo->colorimetry_cap =
 		intel_sdvo_get_colorimetry_cap(intel_sdvo);
 
-	if (intel_sdvo_output_setup(intel_sdvo,
-				    intel_sdvo->caps.output_flags) != true) {
+	if (!intel_sdvo_output_setup(intel_sdvo)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "SDVO output failed to setup on %s\n",
 			    SDVO_NAME(intel_sdvo));
