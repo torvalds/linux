@@ -421,6 +421,7 @@
 			atmel,min-sample-rate-hz = <200000>;
 			atmel,max-sample-rate-hz = <20000000>;
 			atmel,startup-time-ms = <4>;
+			#io-channel-cells = <1>;
 			status = "disabled";
 		};
 
