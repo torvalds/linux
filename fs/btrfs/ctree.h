@@ -732,24 +732,6 @@ static inline unsigned long get_eb_page_index(unsigned long offset)
 #define EXPORT_FOR_TESTS
 #endif
 
-/* acl.c */
-#ifdef CONFIG_BTRFS_FS_POSIX_ACL
-struct posix_acl *btrfs_get_acl(struct inode *inode, int type, bool rcu);
-int btrfs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
-		  struct posix_acl *acl, int type);
-int __btrfs_set_acl(struct btrfs_trans_handle *trans, struct inode *inode,
-		    struct posix_acl *acl, int type);
-#else
-#define btrfs_get_acl NULL
-#define btrfs_set_acl NULL
-static inline int __btrfs_set_acl(struct btrfs_trans_handle *trans,
-				  struct inode *inode, struct posix_acl *acl,
-				  int type)
-{
-	return -EOPNOTSUPP;
-}
-#endif
-
 /* relocation.c */
 int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start);
 int btrfs_init_reloc_root(struct btrfs_trans_handle *trans,
