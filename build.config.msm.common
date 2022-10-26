@@ -276,7 +276,7 @@ function copy_dist_bins() (
   set -e
   mkdir -p ${COMMON_OUT_DIR}/host/bin
   echo "Copying binaries to host/bin"
-  for FILE in $(ls -1 ${DIST_BINS}); do
+  for FILE in ${DIST_BINS}; do
     if [ -f ${ROOT_DIR}/${FILE} ]; then
       echo "  $FILE"
       cp -p ${ROOT_DIR}/${FILE} ${COMMON_OUT_DIR}/host/bin/
