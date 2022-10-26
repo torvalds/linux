@@ -506,8 +506,8 @@ static int test_aead_cycles(struct aead_request *req, int enc, int blen)
 
 out:
 	if (ret == 0)
-		printk("1 operation in %lu cycles (%d bytes)\n",
-		       (cycles + 4) / 8, blen);
+		pr_cont("1 operation in %lu cycles (%d bytes)\n",
+			(cycles + 4) / 8, blen);
 
 	return ret;
 }
@@ -727,8 +727,8 @@ static int test_ahash_jiffies_digest(struct ahash_request *req, int blen,
 			return ret;
 	}
 
-	printk("%6u opers/sec, %9lu bytes/sec\n",
-	       bcount / secs, ((long)bcount * blen) / secs);
+	pr_cont("%6u opers/sec, %9lu bytes/sec\n",
+		bcount / secs, ((long)bcount * blen) / secs);
 
 	return 0;
 }
