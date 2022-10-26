@@ -3412,9 +3412,12 @@ bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 			(intel_sdvo->caps.sdvo_inputs_mask & 0x2) ? 'Y' : 'N',
 			/* check currently supported outputs */
 			intel_sdvo->caps.output_flags &
-			(SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_RGB0) ? 'Y' : 'N',
+			(SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_RGB0 |
+			 SDVO_OUTPUT_LVDS0 | SDVO_OUTPUT_SVID0 |
+			 SDVO_OUTPUT_CVBS0 | SDVO_OUTPUT_YPRPB0) ? 'Y' : 'N',
 			intel_sdvo->caps.output_flags &
-			(SDVO_OUTPUT_TMDS1 | SDVO_OUTPUT_RGB1) ? 'Y' : 'N');
+			(SDVO_OUTPUT_TMDS1 | SDVO_OUTPUT_RGB1 |
+			 SDVO_OUTPUT_LVDS1) ? 'Y' : 'N');
 	return true;
 
 err_output:
