@@ -396,7 +396,9 @@ static int malidp_init(struct drm_device *drm)
 	struct malidp_drm *malidp = drm_to_malidp(drm);
 	struct malidp_hw_device *hwdev = malidp->dev;
 
-	drm_mode_config_init(drm);
+	ret = drmm_mode_config_init(drm);
+	if (ret)
+		goto out;
 
 	drm->mode_config.min_width = hwdev->min_line_size;
 	drm->mode_config.min_height = hwdev->min_line_size;
@@ -407,22 +409,14 @@ static int malidp_init(struct drm_device *drm)
 
 	ret = malidp_crtc_init(drm);
 	if (ret)
-		goto crtc_fail;
+		goto out;
 
 	ret = malidp_mw_connector_init(drm);
 	if (ret)
-		goto crtc_fail;
+		goto out;
 
-	return 0;
-
-crtc_fail:
-	drm_mode_config_cleanup(drm);
+out:
 	return ret;
-}
-
-static void malidp_fini(struct drm_device *drm)
-{
-	drm_mode_config_cleanup(drm);
 }
 
 static int malidp_irq_init(struct platform_device *pdev)
@@ -874,7 +868,6 @@ irq_init_fail:
 bind_fail:
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
-	malidp_fini(drm);
 query_hw_fail:
 	pm_runtime_put(dev);
 	if (pm_runtime_enabled(dev))
@@ -902,7 +895,6 @@ static void malidp_unbind(struct device *dev)
 	component_unbind_all(dev, drm);
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
-	malidp_fini(drm);
 	pm_runtime_put(dev);
 	if (pm_runtime_enabled(dev))
 		pm_runtime_disable(dev);
