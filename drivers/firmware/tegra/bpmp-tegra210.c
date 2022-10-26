@@ -200,10 +200,8 @@ static int tegra210_bpmp_init(struct tegra_bpmp *bpmp)
 	}
 
 	err = platform_get_irq_byname(pdev, "tx");
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to get TX IRQ: %d\n", err);
+	if (err < 0)
 		return err;
-	}
 
 	priv->tx_irq_data = irq_get_irq_data(err);
 	if (!priv->tx_irq_data) {
@@ -212,10 +210,8 @@ static int tegra210_bpmp_init(struct tegra_bpmp *bpmp)
 	}
 
 	err = platform_get_irq_byname(pdev, "rx");
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to get rx IRQ: %d\n", err);
+	if (err < 0)
 		return err;
-	}
 
 	err = devm_request_irq(&pdev->dev, err, rx_irq,
 			       IRQF_NO_SUSPEND, dev_name(&pdev->dev), bpmp);
