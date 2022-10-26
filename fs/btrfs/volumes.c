@@ -5899,7 +5899,10 @@ static struct btrfs_io_context *alloc_btrfs_io_context(struct btrfs_fs_info *fs_
 		 * and the stripes.
 		 */
 		sizeof(u64) * (total_stripes),
-		GFP_NOFS|__GFP_NOFAIL);
+		GFP_NOFS);
+
+	if (!bioc)
+		return NULL;
 
 	refcount_set(&bioc->refs, 1);
 
