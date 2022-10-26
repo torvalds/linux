@@ -18,6 +18,7 @@
 #include "inode-item.h"
 #include "space-info.h"
 #include "accessors.h"
+#include "file-item.h"
 
 #define BTRFS_DELAYED_WRITEBACK		512
 #define BTRFS_DELAYED_BACKGROUND	128

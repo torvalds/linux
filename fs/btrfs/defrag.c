@@ -14,6 +14,7 @@
 #include "delalloc-space.h"
 #include "subpage.h"
 #include "defrag.h"
+#include "file-item.h"
 
 static struct kmem_cache *btrfs_inode_defrag_cachep;
 

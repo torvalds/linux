@@ -29,6 +29,7 @@
 #include "print-tree.h"
 #include "accessors.h"
 #include "dir-item.h"
+#include "file-item.h"
 
 /*
  * Maximum number of references an extent can have in order for us to attempt to

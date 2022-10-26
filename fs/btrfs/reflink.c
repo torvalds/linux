@@ -12,6 +12,7 @@
 #include "transaction.h"
 #include "subpage.h"
 #include "accessors.h"
+#include "file-item.h"
 
 #define BTRFS_MAX_DEDUPE_LEN	SZ_16M
 

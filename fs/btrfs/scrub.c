@@ -23,6 +23,7 @@
 #include "zoned.h"
 #include "fs.h"
 #include "accessors.h"
+#include "file-item.h"
 
 /*
  * This is only the first step towards a full-features scrub. It reads all
