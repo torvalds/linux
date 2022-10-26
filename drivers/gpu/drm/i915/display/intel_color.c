@@ -1521,14 +1521,10 @@ static int ilk_color_check(struct intel_crtc_state *crtc_state)
 
 static u32 ivb_gamma_mode(const struct intel_crtc_state *crtc_state)
 {
-	if (!crtc_state->gamma_enable ||
-	    crtc_state_is_legacy_gamma(crtc_state))
-		return GAMMA_MODE_MODE_8BIT;
-	else if (crtc_state->hw.gamma_lut &&
-		 crtc_state->hw.degamma_lut)
+	if (crtc_state->hw.degamma_lut && crtc_state->hw.gamma_lut)
 		return GAMMA_MODE_MODE_SPLIT;
-	else
-		return GAMMA_MODE_MODE_10BIT;
+
+	return ilk_gamma_mode(crtc_state);
 }
 
 static u32 ivb_csc_mode(const struct intel_crtc_state *crtc_state)
