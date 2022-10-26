@@ -14,6 +14,8 @@ const struct pkvm_module_ops module_ops = {
 	.register_serial_driver = __pkvm_register_serial_driver,
 	.puts = hyp_puts,
 	.putx64 = hyp_putx64,
+	.fixmap_map = hyp_fixmap_map,
+	.fixmap_unmap = hyp_fixmap_unmap,
 };
 
 int __pkvm_init_module(void *module_init)
