@@ -1877,9 +1877,13 @@ struct dmub_cmd_psr_copy_settings_data {
 	 */
 	uint8_t use_phy_fsm;
 	/**
+	 * frame delay for frame re-lock
+	 */
+	uint8_t relock_delay_frame_cnt;
+	/**
 	 * Explicit padding to 2 byte boundary.
 	 */
-	uint8_t pad3[2];
+	uint8_t pad3;
 };
 
 /**
