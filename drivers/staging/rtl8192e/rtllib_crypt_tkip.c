@@ -91,7 +91,6 @@ fail:
 	return NULL;
 }
 
-
 static void rtllib_tkip_deinit(void *priv)
 {
 	struct rtllib_tkip_data *_priv = priv;
@@ -103,48 +102,40 @@ static void rtllib_tkip_deinit(void *priv)
 	kfree_sensitive(priv);
 }
 
-
 static inline u16 RotR1(u16 val)
 {
 	return (val >> 1) | (val << 15);
 }
-
 
 static inline u8 Lo8(u16 val)
 {
 	return val & 0xff;
 }
 
-
 static inline u8 Hi8(u16 val)
 {
 	return val >> 8;
 }
-
 
 static inline u16 Lo16(u32 val)
 {
 	return val & 0xffff;
 }
 
-
 static inline u16 Hi16(u32 val)
 {
 	return val >> 16;
 }
-
 
 static inline u16 Mk16(u8 hi, u8 lo)
 {
 	return lo | (hi << 8);
 }
 
-
 static inline u16 Mk16_le(u16 *v)
 {
 	return *v;
 }
-
 
 static const u16 Sbox[256] = {
 	0xC6A5, 0xF884, 0xEE99, 0xF68D, 0xFF0D, 0xD6BD, 0xDEB1, 0x9154,
@@ -181,16 +172,13 @@ static const u16 Sbox[256] = {
 	0x82C3, 0x29B0, 0x5A77, 0x1E11, 0x7BCB, 0xA8FC, 0x6DD6, 0x2C3A,
 };
 
-
 static inline u16 _S_(u16 v)
 {
 	u16 t = Sbox[Hi8(v)];
 	return Sbox[Lo8(v)] ^ ((t << 8) | (t >> 8));
 }
 
-
 #define PHASE1_LOOP_COUNT 8
-
 
 static void tkip_mixing_phase1(u16 *TTAK, const u8 *TK, const u8 *TA, u32 IV32)
 {
@@ -212,7 +200,6 @@ static void tkip_mixing_phase1(u16 *TTAK, const u8 *TK, const u8 *TA, u32 IV32)
 		TTAK[4] += _S_(TTAK[3] ^ Mk16(TK[1 + j], TK[0 + j])) + i;
 	}
 }
-
 
 static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 			       u16 IV16)
@@ -263,7 +250,6 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 #endif
 }
 
-
 static int rtllib_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct rtllib_tkip_data *tkey = priv;
@@ -292,7 +278,6 @@ static int rtllib_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 				   tkey->tx_iv16);
 	} else
 		tkey->tx_phase1_done = 1;
-
 
 	len = skb->len - hdr_len;
 	pos = skb_push(skb, 8);
@@ -336,7 +321,6 @@ static int rtllib_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (!tcb_desc->bHwSec)
 		return ret;
 	return 0;
-
 
 }
 
@@ -453,7 +437,6 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	return keyidx;
 }
 
-
 static int michael_mic(struct crypto_shash *tfm_michael, u8 *key, u8 *hdr,
 		       u8 *data, size_t data_len, u8 *mic)
 {
@@ -511,7 +494,6 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 *hdr)
 	hdr[13] = hdr[14] = hdr[15] = 0; /* reserved */
 }
 
-
 static int rtllib_michael_mic_add(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct rtllib_tkip_data *tkey = priv;
@@ -538,7 +520,6 @@ static int rtllib_michael_mic_add(struct sk_buff *skb, int hdr_len, void *priv)
 
 	return 0;
 }
-
 
 static void rtllib_michael_mic_failure(struct net_device *dev,
 				       struct rtllib_hdr_4addr *hdr,
@@ -609,7 +590,6 @@ static int rtllib_michael_mic_verify(struct sk_buff *skb, int keyidx,
 	return 0;
 }
 
-
 static int rtllib_tkip_set_key(void *key, int len, u8 *seq, void *priv)
 {
 	struct rtllib_tkip_data *tkey = priv;
@@ -640,7 +620,6 @@ static int rtllib_tkip_set_key(void *key, int len, u8 *seq, void *priv)
 	return 0;
 }
 
-
 static int rtllib_tkip_get_key(void *key, int len, u8 *seq, void *priv)
 {
 	struct rtllib_tkip_data *tkey = priv;
@@ -670,7 +649,6 @@ static int rtllib_tkip_get_key(void *key, int len, u8 *seq, void *priv)
 
 	return TKIP_KEY_LEN;
 }
-
 
 static void rtllib_tkip_print_stats(struct seq_file *m, void *priv)
 {
@@ -713,12 +691,10 @@ static struct lib80211_crypto_ops rtllib_crypt_tkip = {
 	.owner			= THIS_MODULE,
 };
 
-
 static int __init rtllib_crypto_tkip_init(void)
 {
 	return lib80211_register_crypto_ops(&rtllib_crypt_tkip);
 }
-
 
 static void __exit rtllib_crypto_tkip_exit(void)
 {
