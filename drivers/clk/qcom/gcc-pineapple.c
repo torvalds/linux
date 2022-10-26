@@ -564,7 +564,7 @@ static struct clk_regmap_mux gcc_usb3_prim_phy_pipe_clk_src = {
 };
 
 static const struct freq_tbl ftbl_gcc_cpuss_ubwcp_clk_src[] = {
-	F(200000000, P_GCC_GPLL0_OUT_EVEN, 1.5, 0, 0),
+	F(300000000, P_GCC_GPLL0_OUT_EVEN, 1, 0, 0),
 	F(403000000, P_GCC_GPLL4_OUT_MAIN, 2, 0, 0),
 	F(533000000, P_GCC_GPLL1_OUT_MAIN, 2, 0, 0),
 	F(710666667, P_GCC_GPLL1_OUT_MAIN, 1.5, 0, 0),
@@ -590,7 +590,7 @@ static struct clk_rcg2 gcc_cpuss_ubwcp_clk_src = {
 		.vdd_class = &vdd_cx,
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
-			[VDD_LOWER] = 200000000,
+			[VDD_LOWER] = 300000000,
 			[VDD_LOW] = 403000000,
 			[VDD_NOMINAL] = 533000000,
 			[VDD_HIGH] = 710666667},
@@ -709,6 +709,7 @@ static struct clk_rcg2 gcc_pcie_0_aux_clk_src = {
 };
 
 static const struct freq_tbl ftbl_gcc_pcie_0_phy_rchng_clk_src[] = {
+	F(19200000, P_BI_TCXO, 1, 0, 0),
 	F(100000000, P_GCC_GPLL0_OUT_EVEN, 3, 0, 0),
 	{ }
 };
@@ -1642,7 +1643,7 @@ static struct clk_rcg2 gcc_sdcc2_apps_clk_src = {
 static const struct freq_tbl ftbl_gcc_sdcc4_apps_clk_src[] = {
 	F(400000, P_BI_TCXO, 12, 1, 4),
 	F(25000000, P_GCC_GPLL0_OUT_EVEN, 12, 0, 0),
-	F(100000000, P_GCC_GPLL0_OUT_EVEN, 3, 0, 0),
+	F(75000000, P_GCC_GPLL0_OUT_EVEN, 4, 0, 0),
 	{ }
 };
 
