@@ -79,6 +79,7 @@ void stm_put_device(struct stm_device *stm);
 struct stm_source_device {
 	struct device		dev;
 	struct stm_source_data	*data;
+	struct mutex	link_mutex;
 	spinlock_t		link_lock;
 	struct stm_device __rcu	*link;
 	struct list_head	link_entry;
