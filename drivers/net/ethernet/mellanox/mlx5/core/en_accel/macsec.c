@@ -444,7 +444,7 @@ static int mlx5e_macsec_update_rx_sa(struct mlx5e_macsec *macsec,
 		return 0;
 	}
 
-	attrs.sci = rx_sa->sci;
+	attrs.sci = cpu_to_be64((__force u64)rx_sa->sci);
 	attrs.enc_key_id = rx_sa->enc_key_id;
 	err = mlx5e_macsec_create_object(mdev, &attrs, false, &rx_sa->macsec_obj_id);
 	if (err)
