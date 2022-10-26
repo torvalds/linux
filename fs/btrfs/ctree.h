@@ -676,12 +676,6 @@ static inline int btrfs_next_item(struct btrfs_root *root, struct btrfs_path *p)
 }
 int btrfs_leaf_free_space(struct extent_buffer *leaf);
 
-/* orphan.c */
-int btrfs_insert_orphan_item(struct btrfs_trans_handle *trans,
-			     struct btrfs_root *root, u64 offset);
-int btrfs_del_orphan_item(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root, u64 offset);
-
 /*
  * Get the correct offset inside the page of extent buffer.
  *

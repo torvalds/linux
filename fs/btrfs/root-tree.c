@@ -15,6 +15,7 @@
 #include "space-info.h"
 #include "accessors.h"
 #include "root-tree.h"
+#include "orphan.h"
 
 /*
  * Read a root item from the tree. In case we detect a root item smaller then

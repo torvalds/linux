@@ -41,6 +41,7 @@
 #include "extent-tree.h"
 #include "root-tree.h"
 #include "file-item.h"
+#include "orphan.h"
 
 #undef SCRAMBLE_DELAYED_REFS
 

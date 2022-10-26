@@ -20,6 +20,7 @@
 #include "accessors.h"
 #include "ioctl.h"
 #include "verity.h"
+#include "orphan.h"
 
 /*
  * Implementation of the interface defined in struct fsverity_operations.
