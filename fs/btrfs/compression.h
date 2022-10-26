@@ -6,6 +6,7 @@
 #ifndef BTRFS_COMPRESSION_H
 #define BTRFS_COMPRESSION_H
 
+#include <linux/blk_types.h>
 #include <linux/sizes.h>
 
 struct btrfs_inode;
