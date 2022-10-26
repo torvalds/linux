@@ -142,10 +142,7 @@ xfs_refcount_get_rec(
 	if (irec->rc_blockcount == 0 || irec->rc_blockcount > MAXREFCEXTLEN)
 		goto out_bad_rec;
 
-	/* handle special COW-staging domain */
-	if (irec->rc_domain == XFS_REFC_DOMAIN_COW && irec->rc_refcount != 1)
-		goto out_bad_rec;
-	if (irec->rc_domain == XFS_REFC_DOMAIN_SHARED && irec->rc_refcount < 2)
+	if (!xfs_refcount_check_domain(irec))
 		goto out_bad_rec;
 
 	/* check for valid extent range, including overflow */

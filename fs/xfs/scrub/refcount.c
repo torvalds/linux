@@ -337,14 +337,12 @@ xchk_refcountbt_rec(
 
 	xfs_refcount_btrec_to_irec(rec, &irec);
 
-	/* Only CoW records can have refcount == 1. */
-	if (irec.rc_domain == XFS_REFC_DOMAIN_SHARED && irec.rc_refcount == 1)
+	/* Check the domain and refcount are not incompatible. */
+	if (!xfs_refcount_check_domain(&irec))
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
-	if (irec.rc_domain == XFS_REFC_DOMAIN_COW) {
-		if (irec.rc_refcount != 1)
-			xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
+
+	if (irec.rc_domain == XFS_REFC_DOMAIN_COW)
 		(*cow_blocks) += irec.rc_blockcount;
-	}
 
 	/* Check the extent. */
 	if (!xfs_verify_agbext(pag, irec.rc_startblock, irec.rc_blockcount))
