@@ -488,9 +488,13 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 *hdr)
 		break;
 	}
 
-	hdr[12] = 0; /* priority */
+	/* priority */
+	hdr[12] = 0;
 
-	hdr[13] = hdr[14] = hdr[15] = 0; /* reserved */
+	/* reserved */
+	hdr[13] = 0;
+	hdr[14] = 0;
+	hdr[15] = 0;
 }
 
 static int rtllib_michael_mic_add(struct sk_buff *skb, int hdr_len, void *priv)
