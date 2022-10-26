@@ -3633,6 +3633,10 @@ mlx5e_clone_flow_attr_for_post_act(struct mlx5_flow_attr *attr,
 	attr2->action = 0;
 	attr2->flags = 0;
 	attr2->parse_attr = parse_attr;
+	attr2->esw_attr->out_count = 0;
+	attr2->esw_attr->split_count = 0;
+	attr2->dest_chain = 0;
+	attr2->dest_ft = NULL;
 	return attr2;
 }
 
