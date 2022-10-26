@@ -35,6 +35,7 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/kfifo.h>
+#include <linux/clk/qcom.h>
 
 #include "../pci.h"
 
@@ -303,7 +304,6 @@
 		ipc_log_string((dev)->ipc_log, "%s: " fmt, __func__, ##arg); \
 	pr_err("%s: " fmt, __func__, arg);  \
 	} while (0)
-
 
 enum msm_pcie_res {
 	MSM_PCIE_RES_PARF,
@@ -692,6 +692,9 @@ struct msm_aer_err_info {
 	unsigned int status;		/* COR/UNCOR Error Status */
 	unsigned int mask;		/* COR/UNCOR Error Mask */
 	struct aer_header_log_regs tlp;	/* TLP Header */
+
+	u32 l1ss_ctl1;			/* PCI_L1SS_CTL1 reg value */
+	u16 lnksta;			/* PCI_EXP_LNKSTA reg value */
 };
 
 struct aer_err_source {
@@ -1377,6 +1380,9 @@ static void msm_pcie_rumi_init(struct msm_pcie_dev_t *pcie_dev)
 	u32 phy_ctrl_offs = 0x40;
 
 	PCIE_DBG(pcie_dev, "PCIe: RC%d: enter.\n", pcie_dev->rc_idx);
+
+	/* configure PCIe to RC mode */
+	msm_pcie_write_reg(pcie_dev->rumi, 0x54, 0x7c70);
 
 	val = readl_relaxed(pcie_dev->rumi + phy_ctrl_offs) | 0x1000;
 	msm_pcie_write_reg(pcie_dev->rumi, phy_ctrl_offs, val);
@@ -2937,6 +2943,28 @@ static bool msm_pcie_check_ltssm_state(struct msm_pcie_dev_t *dev, u32 state)
 	return false;
 }
 
+void msm_pcie_clk_dump(struct msm_pcie_dev_t *pcie_dev)
+{
+	struct msm_pcie_clk_info_t *clk_info;
+	int i;
+
+	PCIE_ERR(pcie_dev,
+		 "PCIe: RC%d: Dump PCIe clocks\n",
+		 pcie_dev->rc_idx);
+
+	clk_info = pcie_dev->clk;
+	for (i = 0; i < pcie_dev->num_clk; i++, clk_info++) {
+		if (clk_info->hdl)
+			qcom_clk_dump(clk_info->hdl, NULL, 0);
+	}
+
+	clk_info = pcie_dev->pipe_clk;
+	for (i = 0; i < pcie_dev->num_pipe_clk; i++, clk_info++) {
+		if (clk_info->hdl)
+			qcom_clk_dump(clk_info->hdl, NULL, 0);
+	}
+}
+
 /**
  * msm_pcie_iatu_config - configure outbound address translation region
  * @dev: root commpex
@@ -4398,6 +4426,10 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 
 	PCIE_DBG(dev, "PCIe: RC%d: entry\n", dev->rc_idx);
 
+	ret = msm_pcie_get_reg(dev);
+	if (ret)
+		return ret;
+
 	dev->icc_path = of_icc_get(&pdev->dev, "icc_path");
 	if (IS_ERR_OR_NULL(dev->icc_path)) {
 		ret = dev->icc_path ? PTR_ERR(dev->icc_path) : -EINVAL;
@@ -4405,7 +4437,8 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 		PCIE_ERR(dev, "PCIe: RC%d: failed to get ICC path: %d\n",
 			dev->rc_idx, ret);
 
-		return ret;
+		if (!dev->rumi)
+			return ret;
 	}
 
 	for (i = 0; i < MSM_PCIE_MAX_IRQ; i++) {
@@ -4452,10 +4485,6 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 		return ret;
 
 	ret = msm_pcie_get_gpio(dev);
-	if (ret)
-		return ret;
-
-	ret = msm_pcie_get_reg(dev);
 	if (ret)
 		return ret;
 
@@ -4743,6 +4772,9 @@ static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
 			goto link_fail;
 	}
 
+	/* Disable override for fal10_veto logic to de-assert Qactive signal */
+	msm_pcie_write_mask(dev->parf + PCIE20_PARF_CFG_BITS_3, BIT(0), 0);
+
 	/**
 	 * configure LANE_SKEW_OFF BIT-5 and PARF_CFG_BITS_3 BIT-8 to support
 	 * dynamic link width upscaling.
@@ -4869,6 +4901,10 @@ static void msm_pcie_disable(struct msm_pcie_dev_t *dev)
 
 	msm_pcie_write_mask(dev->parf + PCIE20_PARF_PHY_CTRL, 0,
 				BIT(0));
+
+	/* Enable override for fal10_veto logic to assert Qactive signal.*/
+	msm_pcie_write_mask(dev->parf + PCIE20_PARF_CFG_BITS_3, 0, BIT(0));
+
 	msm_pcie_clk_deinit(dev);
 	msm_pcie_vreg_deinit(dev);
 	msm_pcie_pipe_clk_deinit(dev);
@@ -5376,6 +5412,10 @@ void msm_aer_print_error(struct pci_dev *dev, struct msm_aer_err_info *info)
 		 info->rdev->rc_idx, dev->vendor, dev->device, info->status,
 		 info->mask);
 
+	PCIE_DBG(info->rdev, "PCIe: RC%d: device [%04x:%04x] error l1ss_ctl1=%x lnkstat=%x\n",
+		info->rdev->rc_idx, dev->vendor, dev->device, info->l1ss_ctl1,
+		info->lnksta);
+
 	msm_aer_print_error_stats(dev, info);
 
 	if (info->tlp_header_valid)
@@ -5591,6 +5631,7 @@ static int msm_aer_get_device_error_info(struct pci_dev *dev,
 	int type = pci_pcie_type(dev);
 	int aer = dev->aer_cap;
 	int temp;
+	u32 l1ss_cap_id_offset;
 
 	/* Must reset in this function */
 	info->status = 0;
@@ -5600,11 +5641,25 @@ static int msm_aer_get_device_error_info(struct pci_dev *dev,
 	if (!aer)
 		return 0;
 
+	l1ss_cap_id_offset = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_L1SS);
+	if (!l1ss_cap_id_offset) {
+		PCIE_DBG(info->rdev,
+			"PCIe: RC%d: Could not read l1ss cap reg offset\n",
+			info->rdev->rc_idx);
+		return 0;
+	}
+
 	if (info->severity == AER_CORRECTABLE) {
 		pci_read_config_dword(dev, aer + PCI_ERR_COR_STATUS,
 			&info->status);
 		pci_read_config_dword(dev, aer + PCI_ERR_COR_MASK,
 			&info->mask);
+
+		pci_read_config_dword(dev, l1ss_cap_id_offset + PCI_L1SS_CTL1,
+			&info->l1ss_ctl1);
+		pcie_capability_read_word(dev, PCI_EXP_LNKSTA,
+			&info->lnksta);
+
 		if (!(info->status & ~info->mask))
 			return 0;
 	} else if (type == PCI_EXP_TYPE_ROOT_PORT ||
@@ -5617,6 +5672,12 @@ static int msm_aer_get_device_error_info(struct pci_dev *dev,
 			&info->status);
 		pci_read_config_dword(dev, aer + PCI_ERR_UNCOR_MASK,
 			&info->mask);
+
+		pci_read_config_dword(dev, l1ss_cap_id_offset + PCI_L1SS_CTL1,
+			&info->l1ss_ctl1);
+		pcie_capability_read_word(dev, PCI_EXP_LNKSTA,
+			&info->lnksta);
+
 		if (!(info->status & ~info->mask))
 			return 0;
 
@@ -7134,6 +7195,7 @@ int msm_pcie_prevent_l1(struct pci_dev *pci_dev)
 			PCIE_ERR(pcie_dev,
 				"PCIe: RC%d: dump PCIe registers\n",
 				pcie_dev->rc_idx);
+			msm_pcie_clk_dump(pcie_dev);
 			pcie_parf_dump(pcie_dev);
 			pcie_dm_core_dump(pcie_dev);
 			pcie_phy_dump(pcie_dev);
