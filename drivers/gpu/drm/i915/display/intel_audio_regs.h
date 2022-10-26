@@ -9,9 +9,9 @@
 #include "i915_reg_defs.h"
 
 #define G4X_AUD_CNTL_ST			_MMIO(0x620B4)
-#define   G4X_ELDV			REG_BIT(14)
+#define   G4X_ELD_VALID			REG_BIT(14)
 #define   G4X_ELD_BUFFER_SIZE_MASK	REG_GENMASK(13, 9)
-#define   G4X_ELD_ADDR_MASK		REG_GENMASK(8, 5)
+#define   G4X_ELD_ADDRESS_MASK		REG_GENMASK(8, 5)
 #define   G4X_ELD_ACK			REG_BIT(4)
 #define G4X_HDMIW_HDMIEDID		_MMIO(0x6210C)
 

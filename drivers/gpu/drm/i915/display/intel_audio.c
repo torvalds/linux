@@ -340,7 +340,7 @@ static void g4x_audio_codec_disable(struct intel_encoder *encoder,
 
 	/* Invalidate ELD */
 	tmp = intel_de_read(i915, G4X_AUD_CNTL_ST);
-	tmp &= ~G4X_ELDV;
+	tmp &= ~G4X_ELD_VALID;
 	intel_de_write(i915, G4X_AUD_CNTL_ST, tmp);
 }
 
@@ -355,13 +355,13 @@ static void g4x_audio_codec_enable(struct intel_encoder *encoder,
 	int len, i;
 
 	if (intel_eld_uptodate(connector,
-			       G4X_AUD_CNTL_ST, G4X_ELDV,
-			       G4X_AUD_CNTL_ST, G4X_ELD_ADDR_MASK,
+			       G4X_AUD_CNTL_ST, G4X_ELD_VALID,
+			       G4X_AUD_CNTL_ST, G4X_ELD_ADDRESS_MASK,
 			       G4X_HDMIW_HDMIEDID))
 		return;
 
 	tmp = intel_de_read(i915, G4X_AUD_CNTL_ST);
-	tmp &= ~(G4X_ELDV | G4X_ELD_ADDR_MASK);
+	tmp &= ~(G4X_ELD_VALID | G4X_ELD_ADDRESS_MASK);
 	len = REG_FIELD_GET(G4X_ELD_BUFFER_SIZE_MASK, tmp);
 	intel_de_write(i915, G4X_AUD_CNTL_ST, tmp);
 
@@ -371,7 +371,7 @@ static void g4x_audio_codec_enable(struct intel_encoder *encoder,
 			       *((const u32 *)eld + i));
 
 	tmp = intel_de_read(i915, G4X_AUD_CNTL_ST);
-	tmp |= G4X_ELDV;
+	tmp |= G4X_ELD_VALID;
 	intel_de_write(i915, G4X_AUD_CNTL_ST, tmp);
 }
 
