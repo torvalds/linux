@@ -3224,7 +3224,7 @@ static int __net_init tcp_sk_init(struct net *net)
 	net->ipv4.sysctl_tcp_plb_rehash_rounds = 12;
 	net->ipv4.sysctl_tcp_plb_suspend_rto_sec = 60;
 	/* Default congestion threshold for PLB to mark a round is 50% */
-	net->ipv4.sysctl_tcp_plb_cong_thresh = 128;
+	net->ipv4.sysctl_tcp_plb_cong_thresh = (1 << TCP_PLB_SCALE) / 2;
 
 	/* Reno is always built in */
 	if (!net_eq(net, &init_net) &&
