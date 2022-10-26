@@ -1297,13 +1297,28 @@ static bool intel_sdvo_limited_color_range(struct intel_encoder *encoder,
 	return intel_hdmi_limited_color_range(crtc_state, conn_state);
 }
 
+static bool intel_sdvo_has_audio(struct intel_encoder *encoder,
+				 const struct intel_crtc_state *crtc_state,
+				 const struct drm_connector_state *conn_state)
+{
+	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
+	const struct intel_digital_connector_state *intel_conn_state =
+		to_intel_digital_connector_state(conn_state);
+
+	if (!crtc_state->has_hdmi_sink)
+		return false;
+
+	if (intel_conn_state->force_audio == HDMI_AUDIO_AUTO)
+		return intel_sdvo->has_hdmi_audio;
+	else
+		return intel_conn_state->force_audio == HDMI_AUDIO_ON;
+}
+
 static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *pipe_config,
 				     struct drm_connector_state *conn_state)
 {
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
-	struct intel_sdvo_connector_state *intel_sdvo_state =
-		to_intel_sdvo_connector_state(conn_state);
 	struct intel_sdvo_connector *intel_sdvo_connector =
 		to_intel_sdvo_connector(conn_state->connector);
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
@@ -1362,13 +1377,7 @@ static int intel_sdvo_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->has_hdmi_sink = intel_has_hdmi_sink(intel_sdvo, conn_state);
 
-	if (pipe_config->has_hdmi_sink) {
-		if (intel_sdvo_state->base.force_audio == HDMI_AUDIO_AUTO)
-			pipe_config->has_audio = intel_sdvo->has_hdmi_audio;
-		else
-			pipe_config->has_audio =
-				intel_sdvo_state->base.force_audio == HDMI_AUDIO_ON;
-	}
+	pipe_config->has_audio = intel_sdvo_has_audio(encoder, pipe_config, conn_state);
 
 	pipe_config->limited_color_range =
 		intel_sdvo_limited_color_range(encoder, pipe_config,
