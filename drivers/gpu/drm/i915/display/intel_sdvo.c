@@ -2931,11 +2931,38 @@ static u16 intel_sdvo_filter_output_flags(u16 flags)
 	return flags;
 }
 
+static bool intel_sdvo_output_init(struct intel_sdvo *sdvo, u16 type)
+{
+	if (type & SDVO_TMDS_MASK)
+		return intel_sdvo_dvi_init(sdvo, type);
+	else if (type & SDVO_TV_MASK)
+		return intel_sdvo_tv_init(sdvo, type);
+	else if (type & SDVO_RGB_MASK)
+		return intel_sdvo_analog_init(sdvo, type);
+	else if (type & SDVO_LVDS_MASK)
+		return intel_sdvo_lvds_init(sdvo, type);
+	else
+		return false;
+}
+
 static bool
 intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo)
 {
+	static const u16 probe_order[] = {
+		SDVO_OUTPUT_TMDS0,
+		SDVO_OUTPUT_TMDS1,
+		/* TV has no XXX1 function block */
+		SDVO_OUTPUT_SVID0,
+		SDVO_OUTPUT_CVBS0,
+		SDVO_OUTPUT_YPRPB0,
+		SDVO_OUTPUT_RGB0,
+		SDVO_OUTPUT_RGB1,
+		SDVO_OUTPUT_LVDS0,
+		SDVO_OUTPUT_LVDS1,
+	};
 	struct drm_i915_private *i915 = to_i915(intel_sdvo->base.base.dev);
 	u16 flags;
+	int i;
 
 	flags = intel_sdvo_filter_output_flags(intel_sdvo->caps.output_flags);
 
@@ -2949,42 +2976,15 @@ intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo)
 
 	intel_sdvo_select_ddc_bus(i915, intel_sdvo);
 
-	if (flags & SDVO_OUTPUT_TMDS0)
-		if (!intel_sdvo_dvi_init(intel_sdvo, SDVO_OUTPUT_TMDS0))
-			return false;
+	for (i = 0; i < ARRAY_SIZE(probe_order); i++) {
+		u16 type = flags & probe_order[i];
 
-	if (flags & SDVO_OUTPUT_TMDS1)
-		if (!intel_sdvo_dvi_init(intel_sdvo, SDVO_OUTPUT_TMDS1))
-			return false;
+		if (!type)
+			continue;
 
-	/* TV has no XXX1 function block */
-	if (flags & SDVO_OUTPUT_SVID0)
-		if (!intel_sdvo_tv_init(intel_sdvo, SDVO_OUTPUT_SVID0))
+		if (!intel_sdvo_output_init(intel_sdvo, type))
 			return false;
-
-	if (flags & SDVO_OUTPUT_CVBS0)
-		if (!intel_sdvo_tv_init(intel_sdvo, SDVO_OUTPUT_CVBS0))
-			return false;
-
-	if (flags & SDVO_OUTPUT_YPRPB0)
-		if (!intel_sdvo_tv_init(intel_sdvo, SDVO_OUTPUT_YPRPB0))
-			return false;
-
-	if (flags & SDVO_OUTPUT_RGB0)
-		if (!intel_sdvo_analog_init(intel_sdvo, SDVO_OUTPUT_RGB0))
-			return false;
-
-	if (flags & SDVO_OUTPUT_RGB1)
-		if (!intel_sdvo_analog_init(intel_sdvo, SDVO_OUTPUT_RGB1))
-			return false;
-
-	if (flags & SDVO_OUTPUT_LVDS0)
-		if (!intel_sdvo_lvds_init(intel_sdvo, SDVO_OUTPUT_LVDS0))
-			return false;
-
-	if (flags & SDVO_OUTPUT_LVDS1)
-		if (!intel_sdvo_lvds_init(intel_sdvo, SDVO_OUTPUT_LVDS1))
-			return false;
+	}
 
 	intel_sdvo->base.pipe_mask = ~0;
 
