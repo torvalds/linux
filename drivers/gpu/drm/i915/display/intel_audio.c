@@ -334,19 +334,24 @@ static void g4x_audio_codec_enable(struct intel_encoder *encoder,
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct drm_connector *connector = conn_state->connector;
 	const u8 *eld = connector->eld;
+	int eld_buffer_size, len, i;
 	u32 tmp;
-	int len, i;
 
 	tmp = intel_de_read(i915, G4X_AUD_CNTL_ST);
 	tmp &= ~(G4X_ELD_VALID | G4X_ELD_ADDRESS_MASK);
 	intel_de_write(i915, G4X_AUD_CNTL_ST, tmp);
 
-	len = g4x_eld_buffer_size(i915);
-	len = min(drm_eld_size(eld) / 4, len);
+	eld_buffer_size = g4x_eld_buffer_size(i915);
+	len = min(drm_eld_size(eld) / 4, eld_buffer_size);
 
 	for (i = 0; i < len; i++)
 		intel_de_write(i915, G4X_HDMIW_HDMIEDID,
 			       *((const u32 *)eld + i));
+	for (; i < eld_buffer_size; i++)
+		intel_de_write(i915, G4X_HDMIW_HDMIEDID, 0);
+
+	drm_WARN_ON(&i915->drm,
+		    (intel_de_read(i915, G4X_AUD_CNTL_ST) & G4X_ELD_ADDRESS_MASK) != 0);
 
 	tmp = intel_de_read(i915, G4X_AUD_CNTL_ST);
 	tmp |= G4X_ELD_VALID;
@@ -610,8 +615,8 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	struct drm_connector *connector = conn_state->connector;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	const u8 *eld = connector->eld;
+	int eld_buffer_size, len, i;
 	u32 tmp;
-	int len, i;
 
 	mutex_lock(&i915->display.audio.mutex);
 
@@ -637,12 +642,18 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	tmp &= ~IBX_ELD_ADDRESS_MASK;
 	intel_de_write(i915, HSW_AUD_DIP_ELD_CTRL(cpu_transcoder), tmp);
 
-	len = hsw_eld_buffer_size(i915, cpu_transcoder);
-	len = min(drm_eld_size(eld) / 4, len);
+	eld_buffer_size = hsw_eld_buffer_size(i915, cpu_transcoder);
+	len = min(drm_eld_size(eld) / 4, eld_buffer_size);
 
 	for (i = 0; i < len; i++)
 		intel_de_write(i915, HSW_AUD_EDID_DATA(cpu_transcoder),
 			       *((const u32 *)eld + i));
+	for (; i < eld_buffer_size; i++)
+		intel_de_write(i915, HSW_AUD_EDID_DATA(cpu_transcoder), 0);
+
+	drm_WARN_ON(&i915->drm,
+		    (intel_de_read(i915, HSW_AUD_DIP_ELD_CTRL(cpu_transcoder)) &
+		     IBX_ELD_ADDRESS_MASK) != 0);
 
 	/* ELD valid */
 	tmp = intel_de_read(i915, HSW_AUD_PIN_ELD_CP_VLD);
@@ -741,8 +752,8 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	enum pipe pipe = crtc->pipe;
 	enum port port = encoder->port;
 	const u8 *eld = connector->eld;
+	int eld_buffer_size, len, i;
 	struct ilk_audio_regs regs;
-	int len, i;
 	u32 tmp;
 
 	if (drm_WARN_ON(&i915->drm, port == PORT_A))
@@ -769,12 +780,17 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	tmp &= ~IBX_ELD_ADDRESS_MASK;
 	intel_de_write(i915, regs.aud_cntl_st, tmp);
 
-	len = ilk_eld_buffer_size(i915, pipe);
-	len = min(drm_eld_size(eld) / 4, len);
+	eld_buffer_size = ilk_eld_buffer_size(i915, pipe);
+	len = min(drm_eld_size(eld) / 4, eld_buffer_size);
 
 	for (i = 0; i < len; i++)
 		intel_de_write(i915, regs.hdmiw_hdmiedid,
 			       *((const u32 *)eld + i));
+	for (; i < eld_buffer_size; i++)
+		intel_de_write(i915, regs.hdmiw_hdmiedid, 0);
+
+	drm_WARN_ON(&i915->drm,
+		    (intel_de_read(i915, regs.aud_cntl_st) & IBX_ELD_ADDRESS_MASK) != 0);
 
 	/* ELD valid */
 	tmp = intel_de_read(i915, regs.aud_cntrl_st2);
