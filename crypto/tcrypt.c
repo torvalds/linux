@@ -1329,8 +1329,7 @@ static void test_skcipher_speed(const char *algo, int enc, unsigned int secs,
 
 	req = skcipher_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
-		pr_err("tcrypt: skcipher: Failed to allocate request for %s\n",
-		       algo);
+		pr_err("skcipher: Failed to allocate request for %s\n", algo);
 		goto out;
 	}
 
