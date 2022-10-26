@@ -18,6 +18,7 @@
 #include "locking.h"
 #include "fs.h"
 #include "accessors.h"
+#include "ioctl.h"
 
 /*
  * Implementation of the interface defined in struct fsverity_operations.

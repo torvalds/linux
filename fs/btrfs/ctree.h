@@ -688,18 +688,6 @@ int btrfs_insert_orphan_item(struct btrfs_trans_handle *trans,
 int btrfs_del_orphan_item(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root, u64 offset);
 
-/* ioctl.c */
-long btrfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-long btrfs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-int btrfs_fileattr_get(struct dentry *dentry, struct fileattr *fa);
-int btrfs_fileattr_set(struct user_namespace *mnt_userns,
-		       struct dentry *dentry, struct fileattr *fa);
-int btrfs_ioctl_get_supported_features(void __user *arg);
-void btrfs_sync_inode_flags_to_i_flags(struct inode *inode);
-int __pure btrfs_is_empty_uuid(u8 *uuid);
-void btrfs_update_ioctl_balance_args(struct btrfs_fs_info *fs_info,
-			       struct btrfs_ioctl_balance_args *bargs);
-
 /* file.c */
 int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync);
 extern const struct file_operations btrfs_file_operations;

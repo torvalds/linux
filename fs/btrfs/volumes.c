@@ -36,6 +36,7 @@
 #include "fs.h"
 #include "accessors.h"
 #include "uuid-tree.h"
+#include "ioctl.h"
 
 static struct bio_set btrfs_bioset;
 

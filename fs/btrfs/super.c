@@ -54,6 +54,7 @@
 #include "accessors.h"
 #include "defrag.h"
 #include "dir-item.h"
+#include "ioctl.h"
 #define CREATE_TRACE_POINTS
 #include <trace/events/btrfs.h>
 
