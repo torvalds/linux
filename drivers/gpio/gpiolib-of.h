@@ -3,8 +3,17 @@
 #ifndef GPIOLIB_OF_H
 #define GPIOLIB_OF_H
 
+#include <linux/err.h>
+#include <linux/errno.h>
+#include <linux/types.h>
+
+#include <linux/notifier.h>
+
+struct device;
+
 struct gpio_chip;
-enum of_gpio_flags;
+struct gpio_desc;
+struct gpio_device;
 
 #ifdef CONFIG_OF_GPIO
 struct gpio_desc *of_find_gpio(struct device *dev,

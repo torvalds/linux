@@ -8,10 +8,14 @@
 #include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/seq_file.h>
+
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinmux.h>
+
 #include "../pinctrl-utils.h"
+
 #include "pinctrl-lpass-lpi.h"
 
 #define MAX_LPI_NUM_CLKS	2

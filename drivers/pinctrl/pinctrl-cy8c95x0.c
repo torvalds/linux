@@ -20,6 +20,7 @@
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/seq_file.h>
 
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinconf.h>

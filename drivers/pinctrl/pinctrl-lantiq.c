@@ -6,12 +6,13 @@
  *  Copyright (C) 2012 John Crispin <john@phrozen.org>
  */
 
-#include <linux/module.h>
 #include <linux/device.h>
 #include <linux/io.h>
-#include <linux/platform_device.h>
-#include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include "pinctrl-lantiq.h"
 
