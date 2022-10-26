@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/rational.h>
 
 #include <dt-bindings/clock/ingenic,x1000-cgu.h>
 
@@ -168,6 +169,38 @@ static const struct clk_ops x1000_otg_phy_ops = {
 	.is_enabled	= x1000_usb_phy_is_enabled,
 };
 
+static void
+x1000_i2spll_calc_m_n_od(const struct ingenic_cgu_pll_info *pll_info,
+			 unsigned long rate, unsigned long parent_rate,
+			 unsigned int *pm, unsigned int *pn, unsigned int *pod)
+{
+	const unsigned long m_max = GENMASK(pll_info->m_bits - 1, 0);
+	const unsigned long n_max = GENMASK(pll_info->n_bits - 1, 0);
+	unsigned long m, n;
+
+	rational_best_approximation(rate, parent_rate, m_max, n_max, &m, &n);
+
+	/* n should not be less than 2*m */
+	if (n < 2 * m)
+		n = 2 * m;
+
+	*pm = m;
+	*pn = n;
+	*pod = 1;
+}
+
+static void
+x1000_i2spll_set_rate_hook(const struct ingenic_cgu_pll_info *pll_info,
+			   unsigned long rate, unsigned long parent_rate)
+{
+	/*
+	 * Writing 0 causes I2SCDR1.I2SDIV_D to be automatically recalculated
+	 * based on the current value of I2SCDR.I2SDIV_N, which is needed for
+	 * the divider to function correctly.
+	 */
+	writel(0, cgu->base + CGU_REG_I2SCDR1);
+}
+
 static const s8 pll_od_encoding[8] = {
 	0x0, 0x1, -1, 0x2, -1, -1, -1, 0x3,
 };
@@ -319,6 +352,37 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 		.gate = { CGU_REG_CLKGR, 25 },
 	},
 
+	[X1000_CLK_I2SPLLMUX] = {
+		"i2s_pll_mux", CGU_CLK_MUX,
+		.parents = { X1000_CLK_SCLKA, X1000_CLK_MPLL },
+		.mux = { CGU_REG_I2SCDR, 31, 1 },
+	},
+
+	[X1000_CLK_I2SPLL] = {
+		"i2s_pll", CGU_CLK_PLL,
+		.parents = { X1000_CLK_I2SPLLMUX },
+		.pll = {
+			.reg = CGU_REG_I2SCDR,
+			.rate_multiplier = 1,
+			.m_shift = 13,
+			.m_bits = 9,
+			.n_shift = 0,
+			.n_bits = 13,
+			.calc_m_n_od = x1000_i2spll_calc_m_n_od,
+			.set_rate_hook = x1000_i2spll_set_rate_hook,
+		},
+	},
+
+	[X1000_CLK_I2S] = {
+		"i2s", CGU_CLK_MUX,
+		.parents = { X1000_CLK_EXCLK, -1, -1, X1000_CLK_I2SPLL },
+		/*
+		 * NOTE: the mux is at bit 30; bit 29 enables the M/N divider.
+		 * Therefore, the divider is disabled when EXCLK is selected.
+		 */
+		.mux = { CGU_REG_I2SCDR, 29, 2 },
+	},
+
 	[X1000_CLK_LCD] = {
 		"lcd", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { X1000_CLK_SCLKA, X1000_CLK_MPLL },
@@ -424,6 +488,12 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 		"i2c2", CGU_CLK_GATE,
 		.parents = { X1000_CLK_PCLK, -1, -1, -1 },
 		.gate = { CGU_REG_CLKGR, 9 },
+	},
+
+	[X1000_CLK_AIC] = {
+		"aic", CGU_CLK_GATE,
+		.parents = { X1000_CLK_EXCLK },
+		.gate = { CGU_REG_CLKGR, 11 },
 	},
 
 	[X1000_CLK_UART0] = {
