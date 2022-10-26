@@ -362,7 +362,7 @@ static void g4x_audio_codec_enable(struct intel_encoder *encoder,
 
 	tmp = intel_de_read(i915, G4X_AUD_CNTL_ST);
 	tmp &= ~(G4X_ELDV | G4X_ELD_ADDR_MASK);
-	len = (tmp >> 9) & 0x1f;		/* ELD buffer size */
+	len = REG_FIELD_GET(G4X_ELD_BUFFER_SIZE_MASK, tmp);
 	intel_de_write(i915, G4X_AUD_CNTL_ST, tmp);
 
 	len = min(drm_eld_size(eld) / 4, len);
@@ -700,7 +700,7 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 	enum pipe pipe = crtc->pipe;
 	enum port port = encoder->port;
 	struct ilk_audio_regs regs;
-	u32 tmp, eldv;
+	u32 tmp;
 
 	if (drm_WARN_ON(&i915->drm, port == PORT_A))
 		return;
@@ -717,11 +717,9 @@ static void ilk_audio_codec_disable(struct intel_encoder *encoder,
 		tmp |= AUD_CONFIG_N_VALUE_INDEX;
 	intel_de_write(i915, regs.aud_config, tmp);
 
-	eldv = IBX_ELD_VALID(port);
-
 	/* Invalidate ELD */
 	tmp = intel_de_read(i915, regs.aud_cntrl_st2);
-	tmp &= ~eldv;
+	tmp &= ~IBX_ELD_VALID(port);
 	intel_de_write(i915, regs.aud_cntrl_st2, tmp);
 }
 
@@ -736,8 +734,8 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	enum port port = encoder->port;
 	const u8 *eld = connector->eld;
 	struct ilk_audio_regs regs;
-	u32 tmp, eldv;
 	int len, i;
+	u32 tmp;
 
 	if (drm_WARN_ON(&i915->drm, port == PORT_A))
 		return;
@@ -751,11 +749,10 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 
 	ilk_audio_regs_init(i915, pipe, &regs);
 
-	eldv = IBX_ELD_VALID(port);
 
 	/* Invalidate ELD */
 	tmp = intel_de_read(i915, regs.aud_cntrl_st2);
-	tmp &= ~eldv;
+	tmp &= ~IBX_ELD_VALID(port);
 	intel_de_write(i915, regs.aud_cntrl_st2, tmp);
 
 	/* Reset ELD write address */
@@ -771,7 +768,7 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 
 	/* ELD valid */
 	tmp = intel_de_read(i915, regs.aud_cntrl_st2);
-	tmp |= eldv;
+	tmp |= IBX_ELD_VALID(port);
 	intel_de_write(i915, regs.aud_cntrl_st2, tmp);
 
 	/* Enable timestamps */
