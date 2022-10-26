@@ -461,7 +461,7 @@ static long __init write_buffer(char *buf, unsigned long len)
 
 static long __init flush_buffer(void *bufv, unsigned long len)
 {
-	char *buf = (char *) bufv;
+	char *buf = bufv;
 	long written;
 	long origLen = len;
 	if (message)
