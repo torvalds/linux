@@ -321,7 +321,6 @@ static int rtllib_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (!tcb_desc->bHwSec)
 		return ret;
 	return 0;
-
 }
 
 static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
@@ -420,7 +419,6 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 			tkey->dot11RSNAStatsTKIPICVErrors++;
 			return -5;
 		}
-
 	}
 
 	/* Update real counters only after Michael MIC verification has
