@@ -171,6 +171,10 @@ struct snd_sof_dsp_ops {
 	 * TODO: consider removing these operations and calling respective
 	 * implementations directly
 	 */
+	void (*writeb)(struct snd_sof_dev *sof_dev, void __iomem *addr,
+		       u8 value); /* optional */
+	u8 (*readb)(struct snd_sof_dev *sof_dev,
+		    void __iomem *addr); /* optional */
 	void (*write)(struct snd_sof_dev *sof_dev, void __iomem *addr,
 		      u32 value); /* optional */
 	u32 (*read)(struct snd_sof_dev *sof_dev,

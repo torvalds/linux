@@ -182,7 +182,7 @@ int hda_dsp_ctrl_clock_power_gating(struct snd_sof_dev *sdev, bool enable)
 	return 0;
 }
 
-int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
+int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
@@ -199,34 +199,21 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 #endif
 	hda_dsp_ctrl_misc_clock_gating(sdev, false);
 
-	if (full_reset) {
-		/* reset HDA controller */
-		ret = hda_dsp_ctrl_link_reset(sdev, true);
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: failed to reset HDA controller\n");
-			goto err;
-		}
-
-		usleep_range(500, 1000);
-
-		/* exit HDA controller reset */
-		ret = hda_dsp_ctrl_link_reset(sdev, false);
-		if (ret < 0) {
-			dev_err(sdev->dev, "error: failed to exit HDA controller reset\n");
-			goto err;
-		}
-
-		usleep_range(1000, 1200);
-	}
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* check to see if controller is ready */
-	if (!snd_hdac_chip_readb(bus, GCTL)) {
-		dev_dbg(bus->dev, "controller not ready!\n");
-		ret = -EBUSY;
+	/* reset HDA controller */
+	ret = hda_dsp_ctrl_link_reset(sdev, true);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: failed to reset HDA controller\n");
 		goto err;
 	}
 
+	/* exit HDA controller reset */
+	ret = hda_dsp_ctrl_link_reset(sdev, false);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: failed to exit HDA controller reset\n");
+		goto err;
+	}
+
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	/* Accept unsolicited responses */
 	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, AZX_GCTL_UNSOL);
 
@@ -247,7 +234,7 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset)
 	list_for_each_entry(stream, &bus->stream_list, list) {
 		sd_offset = SOF_STREAM_SD_OFFSET(stream);
 		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-				  sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
+				  sd_offset + SOF_HDA_ADSP_REG_SD_STS,
 				  SOF_HDA_CL_DMA_SD_INT_MASK);
 	}
 
@@ -313,7 +300,7 @@ void hda_dsp_ctrl_stop_chip(struct snd_sof_dev *sdev)
 		sd_offset = SOF_STREAM_SD_OFFSET(stream);
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
 					sd_offset +
-					SOF_HDA_ADSP_REG_CL_SD_CTL,
+					SOF_HDA_ADSP_REG_SD_CTL,
 					SOF_HDA_CL_DMA_SD_INT_MASK,
 					0);
 	}
@@ -331,7 +318,7 @@ void hda_dsp_ctrl_stop_chip(struct snd_sof_dev *sdev)
 	list_for_each_entry(stream, &bus->stream_list, list) {
 		sd_offset = SOF_STREAM_SD_OFFSET(stream);
 		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-				  sd_offset + SOF_HDA_ADSP_REG_CL_SD_STS,
+				  sd_offset + SOF_HDA_ADSP_REG_SD_STS,
 				  SOF_HDA_CL_DMA_SD_INT_MASK);
 	}
 

@@ -122,17 +122,17 @@
 #define SOF_HDA_ADSP_DPLBASE_ENABLE		0x01
 
 /* Stream Registers */
-#define SOF_HDA_ADSP_REG_CL_SD_CTL		0x00
-#define SOF_HDA_ADSP_REG_CL_SD_STS		0x03
-#define SOF_HDA_ADSP_REG_CL_SD_LPIB		0x04
-#define SOF_HDA_ADSP_REG_CL_SD_CBL		0x08
-#define SOF_HDA_ADSP_REG_CL_SD_LVI		0x0C
-#define SOF_HDA_ADSP_REG_CL_SD_FIFOW		0x0E
-#define SOF_HDA_ADSP_REG_CL_SD_FIFOSIZE		0x10
-#define SOF_HDA_ADSP_REG_CL_SD_FORMAT		0x12
-#define SOF_HDA_ADSP_REG_CL_SD_FIFOL		0x14
-#define SOF_HDA_ADSP_REG_CL_SD_BDLPL		0x18
-#define SOF_HDA_ADSP_REG_CL_SD_BDLPU		0x1C
+#define SOF_HDA_ADSP_REG_SD_CTL			0x00
+#define SOF_HDA_ADSP_REG_SD_STS			0x03
+#define SOF_HDA_ADSP_REG_SD_LPIB		0x04
+#define SOF_HDA_ADSP_REG_SD_CBL			0x08
+#define SOF_HDA_ADSP_REG_SD_LVI			0x0C
+#define SOF_HDA_ADSP_REG_SD_FIFOW		0x0E
+#define SOF_HDA_ADSP_REG_SD_FIFOSIZE		0x10
+#define SOF_HDA_ADSP_REG_SD_FORMAT		0x12
+#define SOF_HDA_ADSP_REG_SD_FIFOL		0x14
+#define SOF_HDA_ADSP_REG_SD_BDLPL		0x18
+#define SOF_HDA_ADSP_REG_SD_BDLPU		0x1C
 #define SOF_HDA_ADSP_SD_ENTRY_SIZE		0x20
 
 /* CL: Software Position Based FIFO Capability Registers */
@@ -307,6 +307,7 @@
 /* Intel Vendor Specific Registers */
 #define HDA_VS_INTEL_EM2		0x1030
 #define HDA_VS_INTEL_EM2_L1SEN		BIT(13)
+#define HDA_VS_INTEL_LTRP		0x1048
 #define HDA_VS_INTEL_LTRP_GB_MASK	0x3F
 
 /*  HIPCI */
@@ -702,7 +703,7 @@ void hda_dsp_ctrl_ppcap_int_enable(struct snd_sof_dev *sdev, bool enable);
 int hda_dsp_ctrl_link_reset(struct snd_sof_dev *sdev, bool reset);
 void hda_dsp_ctrl_misc_clock_gating(struct snd_sof_dev *sdev, bool enable);
 int hda_dsp_ctrl_clock_power_gating(struct snd_sof_dev *sdev, bool enable);
-int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool full_reset);
+int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev);
 void hda_dsp_ctrl_stop_chip(struct snd_sof_dev *sdev);
 /*
  * HDA bus operations.
