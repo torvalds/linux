@@ -595,7 +595,7 @@ static void update_subvp_prefetch_end_to_mall_start(struct dc *dc,
 }
 
 /**
- * setup_subvp_dmub_command - Helper to populate the SubVP pipe info for the DMUB subvp command
+ * populate_subvp_cmd_pipe_info - Helper to populate the SubVP pipe info for the DMUB subvp command
  *
  * @dc: [in] current dc state
  * @context: [in] new dc state
