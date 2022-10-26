@@ -60,6 +60,7 @@
 #include "ioctl.h"
 #include "file.h"
 #include "scrub.h"
+#include "super.h"
 
 #ifdef CONFIG_64BIT
 /* If we have a 32-bit userspace and 64-bit kernel, then the UAPI
