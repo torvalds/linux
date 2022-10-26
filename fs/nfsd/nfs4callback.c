@@ -870,7 +870,7 @@ static const struct cred *get_backchannel_cred(struct nfs4_client *clp, struct r
 	} else {
 		struct cred *kcred;
 
-		kcred = prepare_kernel_cred(NULL);
+		kcred = prepare_kernel_cred(&init_task);
 		if (!kcred)
 			return NULL;
 
