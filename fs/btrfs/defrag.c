@@ -15,6 +15,7 @@
 #include "subpage.h"
 #include "defrag.h"
 #include "file-item.h"
+#include "super.h"
 
 static struct kmem_cache *btrfs_inode_defrag_cachep;
 

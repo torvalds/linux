@@ -5,6 +5,7 @@
 #include "discard.h"
 #include "transaction.h"
 #include "space-info.h"
+#include "super.h"
 
 #ifdef CONFIG_PRINTK
 

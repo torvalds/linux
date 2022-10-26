@@ -39,6 +39,7 @@
 #include "ioctl.h"
 #include "relocation.h"
 #include "scrub.h"
+#include "super.h"
 
 static struct bio_set btrfs_bioset;
 

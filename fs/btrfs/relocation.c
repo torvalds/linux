@@ -34,6 +34,7 @@
 #include "root-tree.h"
 #include "file-item.h"
 #include "relocation.h"
+#include "super.h"
 
 /*
  * Relocation overview

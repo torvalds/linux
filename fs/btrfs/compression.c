@@ -35,6 +35,7 @@
 #include "subpage.h"
 #include "zoned.h"
 #include "file-item.h"
+#include "super.h"
 
 static const char* const btrfs_compress_types[] = { "", "zlib", "lzo", "zstd" };
 

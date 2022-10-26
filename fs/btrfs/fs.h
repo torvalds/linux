@@ -801,11 +801,6 @@ static inline u64 btrfs_get_last_root_drop_gen(const struct btrfs_fs_info *fs_in
 	return READ_ONCE(fs_info->last_root_drop_gen);
 }
 
-static inline struct btrfs_fs_info *btrfs_sb(struct super_block *sb)
-{
-	return sb->s_fs_info;
-}
-
 /*
  * Take the number of bytes to be checksummed and figure out how many leaves
  * it would require to store the csums for that many bytes.
@@ -945,18 +940,6 @@ static inline int btrfs_need_cleaner_sleep(struct btrfs_fs_info *fs_info)
 {
 	return test_bit(BTRFS_FS_STATE_RO, &fs_info->fs_state) ||
 		btrfs_fs_closing(fs_info);
-}
-
-static inline void btrfs_set_sb_rdonly(struct super_block *sb)
-{
-	sb->s_flags |= SB_RDONLY;
-	set_bit(BTRFS_FS_STATE_RO, &btrfs_sb(sb)->fs_state);
-}
-
-static inline void btrfs_clear_sb_rdonly(struct super_block *sb)
-{
-	sb->s_flags &= ~SB_RDONLY;
-	clear_bit(BTRFS_FS_STATE_RO, &btrfs_sb(sb)->fs_state);
 }
 
 static inline void btrfs_wake_unfinished_drop(struct btrfs_fs_info *fs_info)

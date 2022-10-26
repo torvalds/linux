@@ -16,6 +16,7 @@
 #include "messages.h"
 #include "compression.h"
 #include "ctree.h"
+#include "super.h"
 
 #define LZO_LEN	4
 

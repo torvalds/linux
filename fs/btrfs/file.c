@@ -36,6 +36,7 @@
 #include "file-item.h"
 #include "ioctl.h"
 #include "file.h"
+#include "super.h"
 
 /* simple helper to fault in pages and copy.  This should go away
  * and be replaced with calls into generic code.

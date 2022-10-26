@@ -19,6 +19,7 @@
 #include "qgroup.h"
 #include "subpage.h"
 #include "file.h"
+#include "super.h"
 
 static struct kmem_cache *btrfs_ordered_extent_cache;
 

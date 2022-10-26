@@ -20,6 +20,7 @@
 #include "fs.h"
 #include "accessors.h"
 #include "file-item.h"
+#include "super.h"
 
 #define __MAX_CSUM_ITEMS(r, size) ((unsigned long)(((BTRFS_LEAF_DATA_SIZE(r) - \
 				   sizeof(struct btrfs_item) * 2) / \
