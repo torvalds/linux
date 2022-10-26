@@ -3,16 +3,6 @@
  * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
  *
  */
-/ {
-	cam_ircut0: cam_ircut {
-		status = "okay";
-		compatible = "rockchip,ircut";
-		ircut-open-gpios = <&gpio1 RK_PD3 GPIO_ACTIVE_HIGH>;
-		ircut-close-gpios  = <&gpio1 RK_PD1 GPIO_ACTIVE_HIGH>;
-		rockchip,camera-module-index = <0>;
-		rockchip,camera-module-facing = "back";
-	};
-};
 
 &csi2_dphy_hw {
 	status = "okay";
@@ -102,7 +92,6 @@
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "OT01";
 		rockchip,camera-module-lens-name = "40IRC_F16";
-		lens-focus = <&cam_ircut0>;
 		port {
 			sc4336_out: endpoint {
 				remote-endpoint = <&csi_dphy_input2>;
