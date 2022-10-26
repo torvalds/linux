@@ -54,13 +54,6 @@ struct btrfs_balance_control;
 struct btrfs_delayed_root;
 struct reloc_control;
 
-static inline unsigned long btrfs_chunk_item_size(int num_stripes)
-{
-	BUG_ON(num_stripes == 0);
-	return sizeof(struct btrfs_chunk) +
-		sizeof(struct btrfs_stripe) * (num_stripes - 1);
-}
-
 /* Read ahead values for struct btrfs_path.reada */
 enum {
 	READA_NONE,

@@ -10,6 +10,7 @@
 #include <linux/sort.h>
 #include <linux/btrfs.h>
 #include "async-thread.h"
+#include "messages.h"
 
 #define BTRFS_MAX_DATA_CHUNK_SIZE	(10ULL * SZ_1G)
 
@@ -603,6 +604,13 @@ static inline enum btrfs_map_op btrfs_op(struct bio *bio)
 	case REQ_OP_READ:
 		return BTRFS_MAP_READ;
 	}
+}
+
+static inline unsigned long btrfs_chunk_item_size(int num_stripes)
+{
+	ASSERT(num_stripes);
+	return sizeof(struct btrfs_chunk) +
+		sizeof(struct btrfs_stripe) * (num_stripes - 1);
 }
 
 void btrfs_get_bioc(struct btrfs_io_context *bioc);
