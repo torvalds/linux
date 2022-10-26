@@ -6350,6 +6350,11 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 		    func_id != BPF_FUNC_task_storage_delete)
 			goto error;
 		break;
+	case BPF_MAP_TYPE_CGRP_STORAGE:
+		if (func_id != BPF_FUNC_cgrp_storage_get &&
+		    func_id != BPF_FUNC_cgrp_storage_delete)
+			goto error;
+		break;
 	case BPF_MAP_TYPE_BLOOM_FILTER:
 		if (func_id != BPF_FUNC_map_peek_elem &&
 		    func_id != BPF_FUNC_map_push_elem)
@@ -6460,6 +6465,11 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 	case BPF_FUNC_task_storage_get:
 	case BPF_FUNC_task_storage_delete:
 		if (map->map_type != BPF_MAP_TYPE_TASK_STORAGE)
+			goto error;
+		break;
+	case BPF_FUNC_cgrp_storage_get:
+	case BPF_FUNC_cgrp_storage_delete:
+		if (map->map_type != BPF_MAP_TYPE_CGRP_STORAGE)
 			goto error;
 		break;
 	default:
@@ -14139,7 +14149,8 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 
 		if (insn->imm == BPF_FUNC_task_storage_get ||
 		    insn->imm == BPF_FUNC_sk_storage_get ||
-		    insn->imm == BPF_FUNC_inode_storage_get) {
+		    insn->imm == BPF_FUNC_inode_storage_get ||
+		    insn->imm == BPF_FUNC_cgrp_storage_get) {
 			if (env->prog->aux->sleepable)
 				insn_buf[0] = BPF_MOV64_IMM(BPF_REG_5, (__force __s32)GFP_KERNEL);
 			else

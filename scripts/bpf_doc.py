@@ -685,6 +685,7 @@ class PrinterHelpers(Printer):
             'struct udp6_sock',
             'struct unix_sock',
             'struct task_struct',
+            'struct cgroup',
 
             'struct __sk_buff',
             'struct sk_msg_md',
@@ -742,6 +743,7 @@ class PrinterHelpers(Printer):
             'struct udp6_sock',
             'struct unix_sock',
             'struct task_struct',
+            'struct cgroup',
             'struct path',
             'struct btf_ptr',
             'struct inode',
