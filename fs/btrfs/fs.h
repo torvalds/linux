@@ -3,6 +3,14 @@
 #ifndef BTRFS_FS_H
 #define BTRFS_FS_H
 
+#include <linux/fs.h>
+#include <linux/btrfs_tree.h>
+#include <linux/sizes.h>
+#include "extent-io-tree.h"
+#include "extent_map.h"
+#include "async-thread.h"
+#include "block-rsv.h"
+
 #define BTRFS_MAX_EXTENT_SIZE SZ_128M
 
 #define BTRFS_OLDEST_GENERATION	0ULL

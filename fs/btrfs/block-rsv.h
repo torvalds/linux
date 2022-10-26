@@ -4,6 +4,7 @@
 #define BTRFS_BLOCK_RSV_H
 
 struct btrfs_trans_handle;
+struct btrfs_root;
 enum btrfs_reserve_flush_enum;
 
 /*
