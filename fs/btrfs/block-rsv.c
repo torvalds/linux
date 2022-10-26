@@ -227,7 +227,7 @@ int btrfs_block_rsv_add(struct btrfs_fs_info *fs_info,
 	return ret;
 }
 
-int btrfs_block_rsv_check(struct btrfs_block_rsv *block_rsv, int min_factor)
+int btrfs_block_rsv_check(struct btrfs_block_rsv *block_rsv, int min_percent)
 {
 	u64 num_bytes = 0;
 	int ret = -ENOSPC;
@@ -236,7 +236,7 @@ int btrfs_block_rsv_check(struct btrfs_block_rsv *block_rsv, int min_factor)
 		return 0;
 
 	spin_lock(&block_rsv->lock);
-	num_bytes = div_factor(block_rsv->size, min_factor);
+	num_bytes = mult_perc(block_rsv->size, min_percent);
 	if (block_rsv->reserved >= num_bytes)
 		ret = 0;
 	spin_unlock(&block_rsv->lock);

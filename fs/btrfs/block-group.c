@@ -1551,7 +1551,7 @@ static bool should_reclaim_block_group(struct btrfs_block_group *bg, u64 bytes_f
 	if (reclaim_thresh == 0)
 		return false;
 
-	thresh = div_factor_fine(bg->length, reclaim_thresh);
+	thresh = mult_perc(bg->length, reclaim_thresh);
 
 	/*
 	 * If we were below the threshold before don't reclaim, we are likely a
@@ -3523,13 +3523,13 @@ static int should_alloc_chunk(struct btrfs_fs_info *fs_info,
 	 */
 	if (force == CHUNK_ALLOC_LIMITED) {
 		thresh = btrfs_super_total_bytes(fs_info->super_copy);
-		thresh = max_t(u64, SZ_64M, div_factor_fine(thresh, 1));
+		thresh = max_t(u64, SZ_64M, mult_perc(thresh, 1));
 
 		if (sinfo->total_bytes - bytes_used < thresh)
 			return 1;
 	}
 
-	if (bytes_used + SZ_2M < div_factor(sinfo->total_bytes, 8))
+	if (bytes_used + SZ_2M < mult_perc(sinfo->total_bytes, 80))
 		return 0;
 	return 1;
 }

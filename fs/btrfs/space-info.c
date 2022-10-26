@@ -859,7 +859,7 @@ static bool need_preemptive_reclaim(struct btrfs_fs_info *fs_info,
 	u64 thresh;
 	u64 used;
 
-	thresh = div_factor_fine(total, 90);
+	thresh = mult_perc(total, 90);
 
 	lockdep_assert_held(&space_info->lock);
 
@@ -977,7 +977,7 @@ static bool steal_from_global_rsv(struct btrfs_fs_info *fs_info,
 		return false;
 
 	spin_lock(&global_rsv->lock);
-	min_bytes = div_factor(global_rsv->size, 1);
+	min_bytes = mult_perc(global_rsv->size, 10);
 	if (global_rsv->reserved < min_bytes + ticket->bytes) {
 		spin_unlock(&global_rsv->lock);
 		return false;

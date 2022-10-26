@@ -764,7 +764,7 @@ static ssize_t btrfs_chunk_size_store(struct kobject *kobj,
 	val = min(val, BTRFS_MAX_DATA_CHUNK_SIZE);
 
 	/* Limit stripe size to 10% of available space. */
-	val = min(div_factor(fs_info->fs_devices->total_rw_bytes, 1), val);
+	val = min(mult_perc(fs_info->fs_devices->total_rw_bytes, 10), val);
 
 	/* Must be multiple of 256M. */
 	val &= ~((u64)SZ_256M - 1);
