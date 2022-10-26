@@ -999,11 +999,11 @@ static int mlx5e_macsec_upd_rxsa(struct macsec_context *ctx)
 	}
 
 	rx_sa = rx_sc->rx_sa[assoc_num];
-	if (rx_sa) {
+	if (!rx_sa) {
 		netdev_err(ctx->netdev,
-			   "MACsec offload rx_sc sci %lld rx_sa %d already exist\n",
+			   "MACsec offload rx_sc sci %lld rx_sa %d doesn't exist\n",
 			   sci, assoc_num);
-		err = -EEXIST;
+		err = -EINVAL;
 		goto out;
 	}
 
@@ -1055,11 +1055,11 @@ static int mlx5e_macsec_del_rxsa(struct macsec_context *ctx)
 	}
 
 	rx_sa = rx_sc->rx_sa[assoc_num];
-	if (rx_sa) {
+	if (!rx_sa) {
 		netdev_err(ctx->netdev,
-			   "MACsec offload rx_sc sci %lld rx_sa %d already exist\n",
+			   "MACsec offload rx_sc sci %lld rx_sa %d doesn't exist\n",
 			   sci, assoc_num);
-		err = -EEXIST;
+		err = -EINVAL;
 		goto out;
 	}
 
