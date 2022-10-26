@@ -575,6 +575,7 @@ static int sft_rtc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct sft_rtc *srtc;
 	struct rtc_time tm;
+	struct irq_desc *desc;
 	int ret;
 
 	srtc = devm_kzalloc(dev, sizeof(*srtc), GFP_KERNEL);
@@ -638,6 +639,9 @@ static int sft_rtc_probe(struct platform_device *pdev)
 
 	srtc->rtc_dev->ops = &starfive_rtc_ops;
 	device_init_wakeup(dev, true);
+
+	desc = irq_to_desc(srtc->rtc_irq);
+	irq_desc_get_chip(desc)->flags = IRQCHIP_SKIP_SET_WAKE;
 
 	/* Always use 24-hour mode and keep the RTC values */
 	sft_rtc_set_mode(srtc, RTC_HOUR_MODE_24H);
@@ -725,7 +729,6 @@ static struct platform_driver starfive_rtc_driver = {
 	.driver = {
 		.name = "starfive-rtc",
 		.of_match_table = sft_rtc_of_match,
-		.pm = &sft_rtc_pm_ops,
 	},
 	.probe = sft_rtc_probe,
 	.remove = sft_rtc_remove,
