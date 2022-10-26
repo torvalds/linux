@@ -43,18 +43,39 @@ static const char *const dlp_text[] = {
 	"2CH: 2 Loopbacks",
 	"4CH: 2 Mics + 2 Loopbacks",
 	"4CH: 2 Mics + 1 Loopback-mixed",
+	"4CH: 4 Loopbacks",
+	"6CH: 4 Mics + 2 Loopbacks",
+	"6CH: 4 Mics + 1 Loopback-mixed",
+	"6CH: 6 Loopbacks",
+	"8CH: 6 Mics + 2 Loopbacks",
+	"8CH: 6 Mics + 1 Loopback-mixed",
+	"8CH: 8 Loopbacks",
+	"10CH: 8 Mics + 2 Loopbacks",
+	"10CH: 8 Mics + 1 Loopback-mixed",
+	"16CH: 8 Mics + 8 Loopbacks",
 };
 
 enum dlp_mode {
 	DLP_MODE_DISABLED,
-	DLP_MODE_2CH_1LP_1MIC,		/* replace cap-ch-0  with play-ch-0 */
-	DLP_MODE_2CH_1MIC_1LP,		/* replace cap-ch-1  with play-ch-1 */
-	DLP_MODE_2CH_1MIC_1LP_MIX,	/* replace cap-ch-1  with play-ch-all-mix */
-	DLP_MODE_2CH_2LP,		/* replace cap-ch-01 with play-ch-01 */
-	DLP_MODE_4CH_2MIC_2LP,		/* replace cap-ch-34 with play-ch-01 */
-	DLP_MODE_4CH_2MIC_1LP_MIX,	/* replace cap-ch-3  with play-ch-all-mix */
+	DLP_MODE_2CH_1LP_1MIC,		/* replace cap-ch-0   with play-ch-0 */
+	DLP_MODE_2CH_1MIC_1LP,		/* replace cap-ch-1   with play-ch-1 */
+	DLP_MODE_2CH_1MIC_1LP_MIX,	/* replace cap-ch-1   with play-ch-all-mix */
+	DLP_MODE_2CH_2LP,		/* replace cap-ch-0~1 with play-ch-0~1 */
+	DLP_MODE_4CH_2MIC_2LP,		/* replace cap-ch-2~3 with play-ch-0~1 */
+	DLP_MODE_4CH_2MIC_1LP_MIX,	/* replace cap-ch-3   with play-ch-all-mix */
+	DLP_MODE_4CH_4LP,		/* replace cap-ch-0~3 with play-ch-0~3 */
+	DLP_MODE_6CH_4MIC_2LP,		/* replace cap-ch-4~5 with play-ch-0~1 */
+	DLP_MODE_6CH_4MIC_1LP_MIX,	/* replace cap-ch-4   with play-ch-all-mix */
+	DLP_MODE_6CH_6LP,		/* replace cap-ch-0~5 with play-ch-0~5 */
+	DLP_MODE_8CH_6MIC_2LP,		/* replace cap-ch-6~7 with play-ch-0~1 */
+	DLP_MODE_8CH_6MIC_1LP_MIX,	/* replace cap-ch-6   with play-ch-all-mix */
+	DLP_MODE_8CH_8LP,		/* replace cap-ch-0~7 with play-ch-0~7 */
+	DLP_MODE_10CH_8MIC_2LP,		/* replace cap-ch-8~9 with play-ch-0~1 */
+	DLP_MODE_10CH_8MIC_1LP_MIX,	/* replace cap-ch-8   with play-ch-all-mix */
+	DLP_MODE_16CH_8MIC_8LP,		/* replace cap-ch-8~f with play-ch-8~f */
 };
 
+struct dmaengine_dlp_runtime_data;
 struct dmaengine_dlp {
 	struct device *dev;
 	struct dma_chan *chan[SNDRV_PCM_STREAM_LAST + 1];
@@ -62,7 +83,9 @@ struct dmaengine_dlp {
 	struct snd_soc_component component;
 	struct list_head ref_list;
 	enum dlp_mode mode;
+	struct dmaengine_dlp_runtime_data *pref;
 	spinlock_t lock;
+	spinlock_t pref_lock;
 };
 
 struct dmaengine_dlp_runtime_data {
@@ -115,8 +138,26 @@ static inline bool dlp_mode_channels_match(struct dmaengine_dlp *dlp,
 		return (ch == 2);
 	case DLP_MODE_4CH_2MIC_2LP:
 	case DLP_MODE_4CH_2MIC_1LP_MIX:
+	case DLP_MODE_4CH_4LP:
 		*expected = 4;
 		return (ch == 4);
+	case DLP_MODE_6CH_4MIC_2LP:
+	case DLP_MODE_6CH_4MIC_1LP_MIX:
+	case DLP_MODE_6CH_6LP:
+		*expected = 6;
+		return (ch == 6);
+	case DLP_MODE_8CH_6MIC_2LP:
+	case DLP_MODE_8CH_6MIC_1LP_MIX:
+	case DLP_MODE_8CH_8LP:
+		*expected = 8;
+		return (ch == 8);
+	case DLP_MODE_10CH_8MIC_2LP:
+	case DLP_MODE_10CH_8MIC_1LP_MIX:
+		*expected = 10;
+		return (ch == 10);
+	case DLP_MODE_16CH_8MIC_8LP:
+		*expected = 16;
+		return (ch == 16);
 	default:
 		return false;
 	}
@@ -220,6 +261,87 @@ static int dlp_get_offset_size(struct dmaengine_dlp_runtime_data *prtd,
 			*size = dlp_channels_to_bytes(prtd, 1);
 		}
 		break;
+	case DLP_MODE_4CH_4LP:
+		*ofs = 0;
+		*size = dlp_channels_to_bytes(prtd, 4);
+		break;
+	case DLP_MODE_6CH_4MIC_2LP:
+		if (is_playback) {
+			*ofs = 0;
+			*size = dlp_channels_to_bytes(prtd, 2);
+		} else {
+			*ofs = dlp_channels_to_bytes(prtd, 4);
+			*size = dlp_channels_to_bytes(prtd, 2);
+		}
+		break;
+	case DLP_MODE_6CH_4MIC_1LP_MIX:
+		if (is_playback) {
+			*ofs = 0;
+			*size = dlp_frames_to_bytes(prtd, 1);
+			if (mix)
+				*mix = true;
+		} else {
+			*ofs = dlp_channels_to_bytes(prtd, 4);
+			*size = dlp_channels_to_bytes(prtd, 1);
+		}
+		break;
+	case DLP_MODE_6CH_6LP:
+		*ofs = 0;
+		*size = dlp_channels_to_bytes(prtd, 6);
+		break;
+	case DLP_MODE_8CH_6MIC_2LP:
+		if (is_playback) {
+			*ofs = 0;
+			*size = dlp_channels_to_bytes(prtd, 2);
+		} else {
+			*ofs = dlp_channels_to_bytes(prtd, 6);
+			*size = dlp_channels_to_bytes(prtd, 2);
+		}
+		break;
+	case DLP_MODE_8CH_6MIC_1LP_MIX:
+		if (is_playback) {
+			*ofs = 0;
+			*size = dlp_frames_to_bytes(prtd, 1);
+			if (mix)
+				*mix = true;
+		} else {
+			*ofs = dlp_channels_to_bytes(prtd, 6);
+			*size = dlp_channels_to_bytes(prtd, 1);
+		}
+		break;
+	case DLP_MODE_8CH_8LP:
+		*ofs = 0;
+		*size = dlp_channels_to_bytes(prtd, 8);
+		break;
+	case DLP_MODE_10CH_8MIC_2LP:
+		if (is_playback) {
+			*ofs = 0;
+			*size = dlp_channels_to_bytes(prtd, 2);
+		} else {
+			*ofs = dlp_channels_to_bytes(prtd, 8);
+			*size = dlp_channels_to_bytes(prtd, 2);
+		}
+		break;
+	case DLP_MODE_10CH_8MIC_1LP_MIX:
+		if (is_playback) {
+			*ofs = 0;
+			*size = dlp_frames_to_bytes(prtd, 1);
+			if (mix)
+				*mix = true;
+		} else {
+			*ofs = dlp_channels_to_bytes(prtd, 8);
+			*size = dlp_channels_to_bytes(prtd, 1);
+		}
+		break;
+	case DLP_MODE_16CH_8MIC_8LP:
+		if (is_playback) {
+			*ofs = 0;
+			*size = dlp_channels_to_bytes(prtd, 8);
+		} else {
+			*ofs = dlp_channels_to_bytes(prtd, 8);
+			*size = dlp_channels_to_bytes(prtd, 8);
+		}
+		break;
 	default:
 		*ofs = 0;
 		*size = 0;
@@ -265,7 +387,6 @@ static int dmaengine_dlp_hw_params(struct snd_soc_component *component,
 	struct dma_chan *chan = snd_dmaengine_dlp_get_chan(substream);
 	struct dma_slave_config slave_config;
 	bool is_playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
-	unsigned int buf_bytes;
 	int ch_req = params_channels(params), ch_exp = 0;
 	int ret;
 
@@ -293,16 +414,8 @@ static int dmaengine_dlp_hw_params(struct snd_soc_component *component,
 	prtd->buf_sz = params_buffer_size(params);
 	prtd->channels = params_channels(params);
 
-	buf_bytes = prtd->frame_bytes * params_buffer_size(params);
-
-	if (is_playback) {
-		buf_bytes *= PBUF_CNT;
+	if (is_playback)
 		prtd->buf_sz *= PBUF_CNT;
-	}
-
-	prtd->buf = kzalloc(buf_bytes, GFP_KERNEL);
-	if (!prtd->buf)
-		return -ENOMEM;
 
 	return 0;
 }
@@ -421,12 +534,6 @@ static int dmaengine_dlp_close(struct snd_soc_component *component,
 	dmaengine_synchronize(prtd->dma_chan);
 
 	/*
-	 * free residue playback ref list for capture when close
-	 */
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-		free_ref_list(component);
-
-	/*
 	 * kref put should be after hw_ptr updated when stop,
 	 * ops->trigger: SNDRV_PCM_TRIGGER_STOP -> ops->close
 	 * obviously, it is!
@@ -499,8 +606,8 @@ static int dmaengine_dlp_prepare_and_submit(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int dmaengine_pcm_lp_setup(struct snd_soc_component *component,
-				  struct snd_pcm_substream *substream)
+static int dmaengine_dlp_setup(struct snd_soc_component *component,
+			       struct snd_pcm_substream *substream)
 {
 	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
 	int bstream = SNDRV_PCM_STREAM_LAST - substream->stream;
@@ -508,6 +615,7 @@ static int dmaengine_pcm_lp_setup(struct snd_soc_component *component,
 	struct snd_pcm_substream *bsubstream = bro->substream;
 	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
 	struct dmaengine_dlp_runtime_data *brtd = substream_to_prtd(bsubstream);
+	struct dmaengine_dlp_runtime_data *pref = dlp->pref;
 	bool is_playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	snd_pcm_uframes_t a = 0, b = 0, fifo_a = 0, fifo_b = 0;
 	snd_pcm_sframes_t delta = 0;
@@ -522,6 +630,12 @@ static int dmaengine_pcm_lp_setup(struct snd_soc_component *component,
 		fifo_b = dlp->config->get_fifo_count(dlp->dev, bstream);
 		b = dmaengine_dlp_pointer(component, bsubstream);
 
+		spin_lock(&dlp->lock);
+		if (!pref) {
+			spin_unlock(&dlp->lock);
+			return -EINVAL;
+		}
+
 		a = (prtd->period_elapsed * prtd->period_sz) + (a % prtd->period_sz);
 		b = (brtd->period_elapsed * brtd->period_sz) + (b % brtd->period_sz);
 
@@ -530,17 +644,11 @@ static int dmaengine_pcm_lp_setup(struct snd_soc_component *component,
 
 		delta = is_playback ? (a - fifo_a) - (b + fifo_b) : (b - fifo_b) - (a + fifo_a);
 
+		pref->hw_ptr_delta = delta;
+		kref_get(&pref->refcount);
 		/* push valid playback into ref list */
-		spin_lock(&dlp->lock);
-		if (is_playback) {
-			prtd->hw_ptr_delta = delta;
-			kref_get(&prtd->refcount);
-			list_add_tail(&prtd->node, &dlp->ref_list);
-		} else {
-			brtd->hw_ptr_delta = delta;
-			kref_get(&brtd->refcount);
-			list_add_tail(&brtd->node, &dlp->ref_list);
-		}
+		list_add_tail(&pref->node, &dlp->ref_list);
+
 		spin_unlock(&dlp->lock);
 	}
 
@@ -554,11 +662,12 @@ static int dmaengine_pcm_lp_setup(struct snd_soc_component *component,
 	return 0;
 }
 
-static void dmaengine_pcm_lp_release(struct snd_soc_component *component,
-				     struct snd_pcm_substream *substream)
+static void dmaengine_dlp_release(struct snd_soc_component *component,
+				  struct snd_pcm_substream *substream)
 {
 	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
 	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
+	struct dmaengine_dlp_runtime_data *pref = dlp->pref;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_uframes_t appl_ptr, hw_ptr;
 
@@ -570,7 +679,10 @@ static void dmaengine_pcm_lp_release(struct snd_soc_component *component,
 	hw_ptr = dmaengine_dlp_pointer(component, substream);
 	spin_lock(&dlp->lock);
 	hw_ptr = (prtd->period_elapsed * prtd->period_sz) + (hw_ptr % prtd->period_sz);
-	prtd->hw_ptr = hw_ptr;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		pref->hw_ptr = min(hw_ptr, appl_ptr);
+	prtd->period_elapsed = 0;
+	prtd->hw_ptr = 0;
 	spin_unlock(&dlp->lock);
 
 	/*
@@ -581,10 +693,17 @@ static void dmaengine_pcm_lp_release(struct snd_soc_component *component,
 	 *
 	 * anyway, we should use the smaller one, obviously, it's hw_ptr.
 	 */
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		spin_lock(&dlp->pref_lock);
+		kref_put(&pref->refcount, dmaengine_free_prtd);
+		dlp->pref = NULL;
+		spin_unlock(&dlp->pref_lock);
 		dlp_info("STOP-P: applptr: %lu, hwptr: %lu\n", appl_ptr, hw_ptr);
-	else
+	} else {
+		/* free residue playback ref list for capture when stop */
+		free_ref_list(component);
 		dlp_info("STOP-C: applptr: %lu, hwptr: %lu\n", appl_ptr, hw_ptr);
+	}
 }
 
 static int dmaengine_dlp_trigger(struct snd_soc_component *component,
@@ -600,7 +719,7 @@ static int dmaengine_dlp_trigger(struct snd_soc_component *component,
 		if (ret)
 			return ret;
 		dma_async_issue_pending(prtd->dma_chan);
-		dmaengine_pcm_lp_setup(component, substream);
+		dmaengine_dlp_setup(component, substream);
 		break;
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
@@ -610,7 +729,7 @@ static int dmaengine_dlp_trigger(struct snd_soc_component *component,
 		if (runtime->info & SNDRV_PCM_INFO_PAUSE) {
 			dmaengine_pause(prtd->dma_chan);
 		} else {
-			dmaengine_pcm_lp_release(component, substream);
+			dmaengine_dlp_release(component, substream);
 			dmaengine_terminate_async(prtd->dma_chan);
 		}
 		break;
@@ -618,7 +737,7 @@ static int dmaengine_dlp_trigger(struct snd_soc_component *component,
 		dmaengine_pause(prtd->dma_chan);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		dmaengine_pcm_lp_release(component, substream);
+		dmaengine_dlp_release(component, substream);
 		dmaengine_terminate_async(prtd->dma_chan);
 		break;
 	default:
@@ -818,22 +937,38 @@ static int process_playback(struct snd_soc_component *component,
 			    unsigned long hwoff,
 			    void __user *buf, unsigned long bytes)
 {
-	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
-	char *pbuf = prtd->buf + prtd->buf_ofs;
+	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
+	struct dmaengine_dlp_runtime_data *pref;
+	char *pbuf;
+	int ret = 0;
 
-	if (copy_from_user(pbuf, buf, bytes))
-		return -EFAULT;
+	spin_lock(&dlp->pref_lock);
+	pref = dlp->pref;
+	if (!pref) {
+		ret = -EFAULT;
+		goto err_unlock;
+	}
 
-	prtd->buf_ofs += bytes;
-	prtd->buf_ofs %= dlp_frames_to_bytes(prtd, prtd->buf_sz);
+	pbuf = pref->buf + pref->buf_ofs;
 
-	return 0;
+	if (copy_from_user(pbuf, buf, bytes)) {
+		ret = -EFAULT;
+		goto err_unlock;
+	}
+
+	pref->buf_ofs += bytes;
+	pref->buf_ofs %= dlp_frames_to_bytes(pref, pref->buf_sz);
+
+err_unlock:
+	spin_unlock(&dlp->pref_lock);
+
+	return ret;
 }
 
-static int dmaengine_process(struct snd_soc_component *component,
-			     struct snd_pcm_substream *substream,
-			     unsigned long hwoff,
-			     void __user *buf, unsigned long bytes)
+static int dmaengine_dlp_process(struct snd_soc_component *component,
+				 struct snd_pcm_substream *substream,
+				 unsigned long hwoff,
+				 void __user *buf, unsigned long bytes)
 {
 	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
 	int ret = 0;
@@ -849,10 +984,10 @@ static int dmaengine_process(struct snd_soc_component *component,
 	return ret;
 }
 
-static int dmaengine_copy_user(struct snd_soc_component *component,
-			       struct snd_pcm_substream *substream,
-			       int channel, unsigned long hwoff,
-			       void __user *buf, unsigned long bytes)
+static int dmaengine_dlp_copy_user(struct snd_soc_component *component,
+				   struct snd_pcm_substream *substream,
+				   int channel, unsigned long hwoff,
+				   void __user *buf, unsigned long bytes)
 {
 	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -865,7 +1000,7 @@ static int dmaengine_copy_user(struct snd_soc_component *component,
 		if (copy_from_user(dma_ptr, buf, bytes))
 			return -EFAULT;
 
-	ret = dmaengine_process(component, substream, hwoff, buf, bytes);
+	ret = dmaengine_dlp_process(component, substream, hwoff, buf, bytes);
 	if (!ret)
 		dma_ptr = prtd->buf;
 
@@ -914,15 +1049,49 @@ static const struct snd_kcontrol_new dmaengine_dlp_controls[] = {
 		     dmaengine_dlp_mode_put),
 };
 
+static int dmaengine_dlp_prepare(struct snd_soc_component *component,
+				  struct snd_pcm_substream *substream)
+{
+	struct dmaengine_dlp *dlp = soc_component_to_dlp(component);
+	struct dmaengine_dlp_runtime_data *prtd = substream_to_prtd(substream);
+	struct dmaengine_dlp_runtime_data *pref = NULL;
+	int buf_bytes = dlp_frames_to_bytes(prtd, prtd->buf_sz);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		pref = kmemdup(prtd, sizeof(*prtd), GFP_KERNEL);
+		if (!pref)
+			return -ENOMEM;
+
+		kref_init(&pref->refcount);
+		pref->buf_ofs = 0;
+		pref->buf = kzalloc(buf_bytes, GFP_KERNEL);
+		if (!pref->buf) {
+			kfree(pref);
+			return -ENOMEM;
+		}
+
+		spin_lock(&dlp->pref_lock);
+		dlp->pref = pref;
+		spin_unlock(&dlp->pref_lock);
+		dlp_info("PREF-CREATE: 0x%px\n", pref);
+	} else {
+		prtd->buf = kzalloc(buf_bytes, GFP_KERNEL);
+		if (!prtd->buf)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
 static const struct snd_soc_component_driver dmaengine_dlp_component = {
 	.name		= SND_DMAENGINE_DLP_DRV_NAME,
 	.probe_order	= SND_SOC_COMP_ORDER_LATE,
 	.open		= dmaengine_dlp_open,
 	.close		= dmaengine_dlp_close,
 	.hw_params	= dmaengine_dlp_hw_params,
+	.prepare	= dmaengine_dlp_prepare,
 	.trigger	= dmaengine_dlp_trigger,
 	.pointer	= dmaengine_dlp_pointer,
-	.copy_user	= dmaengine_copy_user,
+	.copy_user	= dmaengine_dlp_copy_user,
 	.pcm_construct	= dmaengine_dlp_new,
 	.controls	= dmaengine_dlp_controls,
 	.num_controls	= ARRAY_SIZE(dmaengine_dlp_controls),
@@ -992,6 +1161,7 @@ static int snd_dmaengine_dlp_register(struct device *dev,
 
 	INIT_LIST_HEAD(&dlp->ref_list);
 	spin_lock_init(&dlp->lock);
+	spin_lock_init(&dlp->pref_lock);
 
 #ifdef CONFIG_DEBUG_FS
 	dlp->component.debugfs_prefix = "dma";
@@ -1023,7 +1193,7 @@ err_free_dma:
  * @dev: Parent device the DLP was register with
  *
  * Removes a dmaengine based DLP device previously registered with
- * snd_dmaengine_pcm_register.
+ * snd_dmaengine_dlp_register.
  */
 static void snd_dmaengine_dlp_unregister(struct device *dev)
 {
