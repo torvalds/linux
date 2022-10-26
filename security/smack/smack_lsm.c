@@ -1477,7 +1477,7 @@ static int smack_inode_getsecurity(struct mnt_idmap *idmap,
 	struct socket_smack *ssp;
 	struct socket *sock;
 	struct super_block *sbp;
-	struct inode *ip = (struct inode *)inode;
+	struct inode *ip = inode;
 	struct smack_known *isp;
 
 	if (strcmp(name, XATTR_SMACK_SUFFIX) == 0)
