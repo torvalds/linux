@@ -461,6 +461,12 @@ static int sf_pdm_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(&pdev->dev);
+#ifdef CONFIG_PM
+	clk_disable_unprepare(priv->clk_pdm_apb);
+	clk_disable_unprepare(priv->clk_pdm_mclk);
+	clk_disable_unprepare(priv->clk_mclk);
+#endif
+
 	return 0;
 }
 
@@ -485,9 +491,7 @@ static struct platform_driver sf_pdm_driver = {
 	.driver = {
 		.name = "jh7110-pdm",
 		.of_match_table = sf_pdm_of_match,
-#ifdef CONFIG_PM
 		.pm = &sf_pdm_pm_ops,
-#endif
 	},
 	.probe = sf_pdm_probe,
 	.remove = sf_pdm_dev_remove,

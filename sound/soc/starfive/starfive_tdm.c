@@ -123,18 +123,22 @@ static void sf_tdm_config(struct sf_tdm_dev *dev, struct snd_pcm_substream *subs
 		sf_tdm_writel(dev, TDM_PCMRXCR, datarx);
 }
 
-#ifdef CONFIG_PM
-static int sf_tdm_runtime_suspend(struct device *dev)
+static void sf_tdm_clk_disable(struct sf_tdm_dev *priv)
 {
-	struct sf_tdm_dev *priv = dev_get_drvdata(dev);
-
 	clk_disable_unprepare(priv->clk_tdm);
 	clk_disable_unprepare(priv->clk_tdm_ext);
 	clk_disable_unprepare(priv->clk_tdm_internal);
 	clk_disable_unprepare(priv->clk_tdm_apb);
 	clk_disable_unprepare(priv->clk_tdm_ahb);
 	clk_disable_unprepare(priv->clk_mclk_inner);
+}
 
+#ifdef CONFIG_PM
+static int sf_tdm_runtime_suspend(struct device *dev)
+{
+	struct sf_tdm_dev *priv = dev_get_drvdata(dev);
+
+	sf_tdm_clk_disable(priv);
 	return 0;
 }
 
@@ -690,6 +694,10 @@ static int sf_tdm_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(&pdev->dev);
+#ifdef CONFIG_PM
+	sf_tdm_clk_disable(dev);
+#endif
+
 	return 0;
 }
 
@@ -713,9 +721,7 @@ static struct platform_driver sf_tdm_driver = {
 	.driver = {
 		.name = "jh7110-tdm",
 		.of_match_table = sf_tdm_of_match,
-#ifdef CONFIG_PM
 		.pm = &sf_tdm_pm_ops,
-#endif
 	},
 	.probe = sf_tdm_probe,
 	.remove = sf_tdm_dev_remove,
