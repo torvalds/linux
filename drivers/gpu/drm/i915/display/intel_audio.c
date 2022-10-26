@@ -304,6 +304,16 @@ static int audio_config_hdmi_get_n(const struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
+/* ELD buffer size in dwords */
+static int g4x_eld_buffer_size(struct drm_i915_private *i915)
+{
+	u32 tmp;
+
+	tmp = intel_de_read(i915, G4X_AUD_CNTL_ST);
+
+	return REG_FIELD_GET(G4X_ELD_BUFFER_SIZE_MASK, tmp);
+}
+
 static void g4x_audio_codec_disable(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *old_crtc_state,
 				    const struct drm_connector_state *old_conn_state)
@@ -329,10 +339,11 @@ static void g4x_audio_codec_enable(struct intel_encoder *encoder,
 
 	tmp = intel_de_read(i915, G4X_AUD_CNTL_ST);
 	tmp &= ~(G4X_ELD_VALID | G4X_ELD_ADDRESS_MASK);
-	len = REG_FIELD_GET(G4X_ELD_BUFFER_SIZE_MASK, tmp);
 	intel_de_write(i915, G4X_AUD_CNTL_ST, tmp);
 
+	len = g4x_eld_buffer_size(i915);
 	len = min(drm_eld_size(eld) / 4, len);
+
 	for (i = 0; i < len; i++)
 		intel_de_write(i915, G4X_HDMIW_HDMIEDID,
 			       *((const u32 *)eld + i));
@@ -440,6 +451,17 @@ hsw_audio_config_update(struct intel_encoder *encoder,
 		hsw_dp_audio_config_update(encoder, crtc_state);
 	else
 		hsw_hdmi_audio_config_update(encoder, crtc_state);
+}
+
+/* ELD buffer size in dwords */
+static int hsw_eld_buffer_size(struct drm_i915_private *i915,
+			       enum transcoder cpu_transcoder)
+{
+	u32 tmp;
+
+	tmp = intel_de_read(i915, HSW_AUD_DIP_ELD_CTRL(cpu_transcoder));
+
+	return REG_FIELD_GET(IBX_ELD_BUFFER_SIZE_MASK, tmp);
 }
 
 static void hsw_audio_codec_disable(struct intel_encoder *encoder,
@@ -615,9 +637,10 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	tmp &= ~IBX_ELD_ADDRESS_MASK;
 	intel_de_write(i915, HSW_AUD_DIP_ELD_CTRL(cpu_transcoder), tmp);
 
-	/* Up to 84 bytes of hw ELD buffer */
-	len = min(drm_eld_size(eld), 84);
-	for (i = 0; i < len / 4; i++)
+	len = hsw_eld_buffer_size(i915, cpu_transcoder);
+	len = min(drm_eld_size(eld) / 4, len);
+
+	for (i = 0; i < len; i++)
 		intel_de_write(i915, HSW_AUD_EDID_DATA(cpu_transcoder),
 			       *((const u32 *)eld + i));
 
@@ -656,6 +679,20 @@ static void ilk_audio_regs_init(struct drm_i915_private *i915,
 		regs->aud_cntl_st = CPT_AUD_CNTL_ST(pipe);
 		regs->aud_cntrl_st2 = CPT_AUD_CNTRL_ST2;
 	}
+}
+
+/* ELD buffer size in dwords */
+static int ilk_eld_buffer_size(struct drm_i915_private *i915,
+			       enum pipe pipe)
+{
+	struct ilk_audio_regs regs;
+	u32 tmp;
+
+	ilk_audio_regs_init(i915, pipe, &regs);
+
+	tmp = intel_de_read(i915, regs.aud_cntl_st);
+
+	return REG_FIELD_GET(IBX_ELD_BUFFER_SIZE_MASK, tmp);
 }
 
 static void ilk_audio_codec_disable(struct intel_encoder *encoder,
@@ -732,9 +769,10 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	tmp &= ~IBX_ELD_ADDRESS_MASK;
 	intel_de_write(i915, regs.aud_cntl_st, tmp);
 
-	/* Up to 84 bytes of hw ELD buffer */
-	len = min(drm_eld_size(eld), 84);
-	for (i = 0; i < len / 4; i++)
+	len = ilk_eld_buffer_size(i915, pipe);
+	len = min(drm_eld_size(eld) / 4, len);
+
+	for (i = 0; i < len; i++)
 		intel_de_write(i915, regs.hdmiw_hdmiedid,
 			       *((const u32 *)eld + i));
 
