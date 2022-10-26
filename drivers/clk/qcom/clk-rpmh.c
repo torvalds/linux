@@ -644,6 +644,18 @@ static const struct clk_rpmh_desc clk_rpmh_sdx65 = {
 	.num_clks = ARRAY_SIZE(sdx65_rpmh_clocks),
 };
 
+DEFINE_CLK_RPMH_ARC(qdu1000, bi_tcxo, bi_tcxo_ao, "xo.lvl", 0x3, 1);
+
+static struct clk_hw *qdu1000_rpmh_clocks[] = {
+	[RPMH_CXO_CLK]      = &qdu1000_bi_tcxo.hw,
+	[RPMH_CXO_CLK_A]    = &qdu1000_bi_tcxo_ao.hw,
+};
+
+static const struct clk_rpmh_desc clk_rpmh_qdu1000 = {
+	.clks = qdu1000_rpmh_clocks,
+	.num_clks = ARRAY_SIZE(qdu1000_rpmh_clocks),
+};
+
 static struct clk_hw *of_clk_rpmh_hw_get(struct of_phandle_args *clkspec,
 					 void *data)
 {
@@ -727,6 +739,7 @@ static int clk_rpmh_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id clk_rpmh_match_table[] = {
+	{ .compatible = "qcom,qdu1000-rpmh-clk", .data = &clk_rpmh_qdu1000},
 	{ .compatible = "qcom,sc7180-rpmh-clk", .data = &clk_rpmh_sc7180},
 	{ .compatible = "qcom,sc8180x-rpmh-clk", .data = &clk_rpmh_sc8180x},
 	{ .compatible = "qcom,sc8280xp-rpmh-clk", .data = &clk_rpmh_sc8280xp},
