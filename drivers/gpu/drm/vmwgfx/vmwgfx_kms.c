@@ -25,14 +25,15 @@
  *
  **************************************************************************/
 
+#include "vmwgfx_kms.h"
+#include "vmw_surface_cache.h"
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_sysfs.h>
-
-#include "vmwgfx_kms.h"
 
 void vmw_du_cleanup(struct vmw_display_unit *du)
 {
@@ -351,7 +352,6 @@ static void vmw_cursor_update_position(struct vmw_private *dev_priv,
 	spin_unlock(&dev_priv->cursor_lock);
 }
 
-
 void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 			  struct ttm_object_file *tfile,
 			  struct ttm_buffer_object *bo,
@@ -369,6 +369,9 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 		SVGA3dCmdSurfaceDMA dma;
 	} *cmd;
 	int i, ret;
+	const struct SVGA3dSurfaceDesc *desc =
+		vmw_surface_get_desc(VMW_CURSOR_SNOOP_FORMAT);
+	const u32 image_pitch = VMW_CURSOR_SNOOP_WIDTH * desc->pitchBytesPerBlock;
 
 	cmd = container_of(header, struct vmw_dma_cmd, header);
 
@@ -394,7 +397,7 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 	    box->x != 0    || box->y != 0    || box->z != 0    ||
 	    box->srcx != 0 || box->srcy != 0 || box->srcz != 0 ||
 	    box->d != 1    || box_count != 1 ||
-	    box->w > 64 || box->h > 64) {
+	    box->w > VMW_CURSOR_SNOOP_WIDTH || box->h > VMW_CURSOR_SNOOP_HEIGHT) {
 		/* TODO handle none page aligned offsets */
 		/* TODO handle more dst & src != 0 */
 		/* TODO handle more then one copy */
@@ -408,7 +411,7 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 	}
 
 	kmap_offset = cmd->dma.guest.ptr.offset >> PAGE_SHIFT;
-	kmap_num = (64*64*4) >> PAGE_SHIFT;
+	kmap_num = (VMW_CURSOR_SNOOP_HEIGHT*image_pitch) >> PAGE_SHIFT;
 
 	ret = ttm_bo_reserve(bo, true, false, NULL);
 	if (unlikely(ret != 0)) {
@@ -422,14 +425,15 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 
 	virtual = ttm_kmap_obj_virtual(&map, &dummy);
 
-	if (box->w == 64 && cmd->dma.guest.pitch == 64*4) {
-		memcpy(srf->snooper.image, virtual, 64*64*4);
+	if (box->w == VMW_CURSOR_SNOOP_WIDTH && cmd->dma.guest.pitch == image_pitch) {
+		memcpy(srf->snooper.image, virtual,
+		       VMW_CURSOR_SNOOP_HEIGHT*image_pitch);
 	} else {
 		/* Image is unsigned pointer. */
 		for (i = 0; i < box->h; i++)
-			memcpy(srf->snooper.image + i * 64,
+			memcpy(srf->snooper.image + i * image_pitch,
 			       virtual + i * cmd->dma.guest.pitch,
-			       box->w * 4);
+			       box->w * desc->pitchBytesPerBlock);
 	}
 
 	srf->snooper.age++;
@@ -480,7 +484,8 @@ void vmw_kms_cursor_post_execbuf(struct vmw_private *dev_priv)
 		du->cursor_age = du->cursor_surface->snooper.age;
 		vmw_send_define_cursor_cmd(dev_priv,
 					   du->cursor_surface->snooper.image,
-					   64, 64,
+					   VMW_CURSOR_SNOOP_WIDTH,
+					   VMW_CURSOR_SNOOP_HEIGHT,
 					   du->hotspot_x + du->core_hotspot_x,
 					   du->hotspot_y + du->core_hotspot_y);
 	}
@@ -1806,7 +1811,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	if (IS_ERR(vfb)) {
 		ret = PTR_ERR(vfb);
 		goto err_out;
- 	}
+	}
 
 err_out:
 	/* vmw_user_lookup_handle takes one ref so does new_fb */
@@ -2326,7 +2331,7 @@ retry:
 			if (ret == -EDEADLK) {
 				drm_modeset_backoff(&ctx);
 				goto retry;
-      		}
+		}
 			goto out_fini;
 		}
 	}
