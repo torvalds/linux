@@ -8304,10 +8304,10 @@ static void devlink_trap_stats_read(struct devlink_stats __percpu *trap_stats,
 
 		cpu_stats = per_cpu_ptr(trap_stats, i);
 		do {
-			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
+			start = u64_stats_fetch_begin(&cpu_stats->syncp);
 			rx_packets = u64_stats_read(&cpu_stats->rx_packets);
 			rx_bytes = u64_stats_read(&cpu_stats->rx_bytes);
-		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
+		} while (u64_stats_fetch_retry(&cpu_stats->syncp, start));
 
 		u64_stats_add(&stats->rx_packets, rx_packets);
 		u64_stats_add(&stats->rx_bytes, rx_bytes);

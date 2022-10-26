@@ -1706,9 +1706,9 @@ u64 snmp_get_cpu_field64(void __percpu *mib, int cpu, int offt,
 	bhptr = per_cpu_ptr(mib, cpu);
 	syncp = (struct u64_stats_sync *)(bhptr + syncp_offset);
 	do {
-		start = u64_stats_fetch_begin_irq(syncp);
+		start = u64_stats_fetch_begin(syncp);
 		v = *(((u64 *)bhptr) + offt);
-	} while (u64_stats_fetch_retry_irq(syncp, start));
+	} while (u64_stats_fetch_retry(syncp, start));
 
 	return v;
 }
