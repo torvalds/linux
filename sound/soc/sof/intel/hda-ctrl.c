@@ -299,10 +299,8 @@ void hda_dsp_ctrl_stop_chip(struct snd_sof_dev *sdev)
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTSTS,
 			  SOF_HDA_INT_CTRL_EN | SOF_HDA_INT_ALL_STREAM);
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* disable CORB/RIRB */
-	snd_hdac_bus_stop_cmd_io(bus);
-#endif
+	hda_codec_stop_cmd_io(sdev);
+
 	/* disable position buffer */
 	if (bus->use_posbuf && bus->posbuf.addr) {
 		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,

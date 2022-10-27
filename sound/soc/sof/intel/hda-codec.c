@@ -269,6 +269,15 @@ void hda_codec_init_cmd_io(struct snd_sof_dev *sdev)
 }
 EXPORT_SYMBOL_NS_GPL(hda_codec_init_cmd_io, SND_SOC_SOF_HDA_AUDIO_CODEC);
 
+void hda_codec_stop_cmd_io(struct snd_sof_dev *sdev)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+
+	/* initialize the codec command I/O */
+	snd_hdac_bus_stop_cmd_io(bus);
+}
+EXPORT_SYMBOL_NS_GPL(hda_codec_stop_cmd_io, SND_SOC_SOF_HDA_AUDIO_CODEC);
+
 void hda_codec_rirb_status_clear(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
