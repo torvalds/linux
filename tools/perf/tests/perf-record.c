@@ -5,6 +5,7 @@
 
 #include <sched.h>
 #include <perf/mmap.h>
+#include "event.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "debug.h"
