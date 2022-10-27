@@ -51,4 +51,25 @@ void hda_bus_ml_reset_losidv(struct hdac_bus *bus)
 		writel(0, hlink->ml_addr + AZX_REG_ML_LOSIDV);
 }
 
+int hda_bus_ml_resume(struct hdac_bus *bus)
+{
+	struct hdac_ext_link *hlink;
+	int ret;
+
+	/* power up links that were active before suspend */
+	list_for_each_entry(hlink, &bus->hlink_list, list) {
+		if (hlink->ref_count) {
+			ret = snd_hdac_ext_bus_link_power_up(hlink);
+			if (ret < 0)
+				return ret;
+		}
+	}
+	return 0;
+}
+
+int hda_bus_ml_suspend(struct hdac_bus *bus)
+{
+	return snd_hdac_ext_bus_link_power_down_all(bus);
+}
+
 #endif
