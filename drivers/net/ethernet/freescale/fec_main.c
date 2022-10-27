@@ -2236,7 +2236,7 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 	fep->link = 0;
 	fep->full_duplex = 0;
 
-	phy_dev->mac_managed_pm = 1;
+	phy_dev->mac_managed_pm = true;
 
 	phy_attached_info(phy_dev);
 
