@@ -4,6 +4,7 @@
  * Copyright (c) 2020 Linaro Ltd.
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/gpio/driver.h>
 #include <linux/module.h>
