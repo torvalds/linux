@@ -108,17 +108,23 @@ static void mtk_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 	struct mtk_pcs *mpcs = pcs_to_mtk_pcs(pcs);
 	unsigned int sgm_mode;
 
-	if (!phy_interface_mode_is_8023z(interface))
-		return;
+	if (!phylink_autoneg_inband(mode) ||
+	    phy_interface_mode_is_8023z(interface)) {
+		/* Force the speed and duplex setting */
+		if (speed == SPEED_10)
+			sgm_mode = SGMII_SPEED_10;
+		else if (speed == SPEED_100)
+			sgm_mode = SGMII_SPEED_100;
+		else
+			sgm_mode = SGMII_SPEED_1000;
 
-	/* SGMII force duplex setting */
-	if (duplex == DUPLEX_FULL)
-		sgm_mode = SGMII_DUPLEX_FULL;
-	else
-		sgm_mode = 0;
+		if (duplex == DUPLEX_FULL)
+			sgm_mode |= SGMII_DUPLEX_FULL;
 
-	regmap_update_bits(mpcs->regmap, SGMSYS_SGMII_MODE,
-			   SGMII_DUPLEX_FULL, sgm_mode);
+		regmap_update_bits(mpcs->regmap, SGMSYS_SGMII_MODE,
+				   SGMII_DUPLEX_FULL | SGMII_SPEED_MASK,
+				   sgm_mode);
+	}
 }
 
 static const struct phylink_pcs_ops mtk_pcs_ops = {
