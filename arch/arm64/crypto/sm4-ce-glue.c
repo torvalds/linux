@@ -26,9 +26,9 @@ asmlinkage void sm4_ce_crypt_block(const u32 *rkey, u8 *dst, const u8 *src);
 asmlinkage void sm4_ce_crypt(const u32 *rkey, u8 *dst, const u8 *src,
 			     unsigned int nblks);
 asmlinkage void sm4_ce_cbc_enc(const u32 *rkey, u8 *dst, const u8 *src,
-			       u8 *iv, unsigned int nblks);
+			       u8 *iv, unsigned int nblocks);
 asmlinkage void sm4_ce_cbc_dec(const u32 *rkey, u8 *dst, const u8 *src,
-			       u8 *iv, unsigned int nblks);
+			       u8 *iv, unsigned int nblocks);
 asmlinkage void sm4_ce_cfb_enc(const u32 *rkey, u8 *dst, const u8 *src,
 			       u8 *iv, unsigned int nblks);
 asmlinkage void sm4_ce_cfb_dec(const u32 *rkey, u8 *dst, const u8 *src,
@@ -94,66 +94,56 @@ static int sm4_ecb_decrypt(struct skcipher_request *req)
 	return sm4_ecb_do_crypt(req, ctx->rkey_dec);
 }
 
-static int sm4_cbc_encrypt(struct skcipher_request *req)
+static int sm4_cbc_crypt(struct skcipher_request *req,
+			 struct sm4_ctx *ctx, bool encrypt)
 {
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct sm4_ctx *ctx = crypto_skcipher_ctx(tfm);
 	struct skcipher_walk walk;
 	unsigned int nbytes;
 	int err;
 
 	err = skcipher_walk_virt(&walk, req, false);
+	if (err)
+		return err;
 
 	while ((nbytes = walk.nbytes) > 0) {
 		const u8 *src = walk.src.virt.addr;
 		u8 *dst = walk.dst.virt.addr;
-		unsigned int nblks;
+		unsigned int nblocks;
 
-		kernel_neon_begin();
+		nblocks = nbytes / SM4_BLOCK_SIZE;
+		if (nblocks) {
+			kernel_neon_begin();
 
-		nblks = BYTES2BLKS(nbytes);
-		if (nblks) {
-			sm4_ce_cbc_enc(ctx->rkey_enc, dst, src, walk.iv, nblks);
-			nbytes -= nblks * SM4_BLOCK_SIZE;
+			if (encrypt)
+				sm4_ce_cbc_enc(ctx->rkey_enc, dst, src,
+					       walk.iv, nblocks);
+			else
+				sm4_ce_cbc_dec(ctx->rkey_dec, dst, src,
+					       walk.iv, nblocks);
+
+			kernel_neon_end();
 		}
 
-		kernel_neon_end();
-
-		err = skcipher_walk_done(&walk, nbytes);
+		err = skcipher_walk_done(&walk, nbytes % SM4_BLOCK_SIZE);
 	}
 
 	return err;
+}
+
+static int sm4_cbc_encrypt(struct skcipher_request *req)
+{
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct sm4_ctx *ctx = crypto_skcipher_ctx(tfm);
+
+	return sm4_cbc_crypt(req, ctx, true);
 }
 
 static int sm4_cbc_decrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct sm4_ctx *ctx = crypto_skcipher_ctx(tfm);
-	struct skcipher_walk walk;
-	unsigned int nbytes;
-	int err;
 
-	err = skcipher_walk_virt(&walk, req, false);
-
-	while ((nbytes = walk.nbytes) > 0) {
-		const u8 *src = walk.src.virt.addr;
-		u8 *dst = walk.dst.virt.addr;
-		unsigned int nblks;
-
-		kernel_neon_begin();
-
-		nblks = BYTES2BLKS(nbytes);
-		if (nblks) {
-			sm4_ce_cbc_dec(ctx->rkey_dec, dst, src, walk.iv, nblks);
-			nbytes -= nblks * SM4_BLOCK_SIZE;
-		}
-
-		kernel_neon_end();
-
-		err = skcipher_walk_done(&walk, nbytes);
-	}
-
-	return err;
+	return sm4_cbc_crypt(req, ctx, false);
 }
 
 static int sm4_cfb_encrypt(struct skcipher_request *req)
