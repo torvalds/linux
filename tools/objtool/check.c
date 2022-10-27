@@ -861,6 +861,68 @@ static int create_ibt_endbr_seal_sections(struct objtool_file *file)
 	return 0;
 }
 
+static int create_cfi_sections(struct objtool_file *file)
+{
+	struct section *sec, *s;
+	struct symbol *sym;
+	unsigned int *loc;
+	int idx;
+
+	sec = find_section_by_name(file->elf, ".cfi_sites");
+	if (sec) {
+		INIT_LIST_HEAD(&file->call_list);
+		WARN("file already has .cfi_sites section, skipping");
+		return 0;
+	}
+
+	idx = 0;
+	for_each_sec(file, s) {
+		if (!s->text)
+			continue;
+
+		list_for_each_entry(sym, &s->symbol_list, list) {
+			if (sym->type != STT_FUNC)
+				continue;
+
+			if (strncmp(sym->name, "__cfi_", 6))
+				continue;
+
+			idx++;
+		}
+	}
+
+	sec = elf_create_section(file->elf, ".cfi_sites", 0, sizeof(unsigned int), idx);
+	if (!sec)
+		return -1;
+
+	idx = 0;
+	for_each_sec(file, s) {
+		if (!s->text)
+			continue;
+
+		list_for_each_entry(sym, &s->symbol_list, list) {
+			if (sym->type != STT_FUNC)
+				continue;
+
+			if (strncmp(sym->name, "__cfi_", 6))
+				continue;
+
+			loc = (unsigned int *)sec->data->d_buf + idx;
+			memset(loc, 0, sizeof(unsigned int));
+
+			if (elf_add_reloc_to_insn(file->elf, sec,
+						  idx * sizeof(unsigned int),
+						  R_X86_64_PC32,
+						  s, sym->offset))
+				return -1;
+
+			idx++;
+		}
+	}
+
+	return 0;
+}
+
 static int create_mcount_loc_sections(struct objtool_file *file)
 {
 	struct section *sec;
@@ -4425,6 +4487,13 @@ int check(struct objtool_file *file)
 
 	if (opts.retpoline) {
 		ret = create_retpoline_sites_sections(file);
+		if (ret < 0)
+			goto out;
+		warnings += ret;
+	}
+
+	if (opts.cfi) {
+		ret = create_cfi_sections(file);
 		if (ret < 0)
 			goto out;
 		warnings += ret;
