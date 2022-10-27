@@ -872,7 +872,21 @@ static int audioreach_widget_unload(struct snd_soc_component *scomp,
 	return 0;
 }
 
-static struct audioreach_module *audioreach_find_widget(struct snd_soc_component *comp,
+static struct snd_ar_control *audioreach_find_widget(struct snd_soc_component *comp,
+						     const char *name)
+{
+	struct q6apm *apm = dev_get_drvdata(comp->dev);
+	struct snd_ar_control *control;
+
+	list_for_each_entry(control, &apm->widget_list, node) {
+		if (control->w && !strcmp(name, control->w->name))
+			return control;
+	}
+
+	return NULL;
+}
+
+static struct audioreach_module *audioreach_find_module(struct snd_soc_component *comp,
 							const char *name)
 {
 	struct q6apm *apm = dev_get_drvdata(comp->dev);
@@ -890,14 +904,41 @@ static struct audioreach_module *audioreach_find_widget(struct snd_soc_component
 static int audioreach_route_load(struct snd_soc_component *scomp, int index,
 				 struct snd_soc_dapm_route *route)
 {
-	struct audioreach_module *src, *sink;
+	struct audioreach_module *src_module, *sink_module;
+	struct snd_ar_control *control;
+	struct snd_soc_dapm_widget *w;
+	int i;
 
-	src = audioreach_find_widget(scomp, route->source);
-	sink = audioreach_find_widget(scomp, route->sink);
+	/* check if these are actual modules */
+	src_module = audioreach_find_module(scomp, route->source);
+	sink_module = audioreach_find_module(scomp, route->sink);
 
-	if (src && sink) {
-		src->dst_mod_inst_id = sink->instance_id;
-		sink->src_mod_inst_id = src->instance_id;
+	if (sink_module && !src_module) {
+		control = audioreach_find_widget(scomp, route->source);
+		if (control)
+			control->module_instance_id = sink_module->instance_id;
+
+	} else if (!sink_module && src_module && route->control) {
+		/* check if this is a virtual mixer */
+		control = audioreach_find_widget(scomp, route->sink);
+		if (!control || !control->w)
+			return 0;
+
+		w = control->w;
+
+		for (i = 0; i < w->num_kcontrols; i++) {
+			if (!strcmp(route->control, w->kcontrol_news[i].name)) {
+				struct soc_mixer_control *sm;
+				struct snd_soc_dobj *dobj;
+				struct snd_ar_control *scontrol;
+
+				sm = (struct soc_mixer_control *)w->kcontrol_news[i].private_value;
+				dobj = &sm->dobj;
+				scontrol = dobj->private;
+				scontrol->module_instance_id = src_module->instance_id;
+			}
+		}
+
 	}
 
 	return 0;
@@ -928,6 +969,48 @@ static int audioreach_link_load(struct snd_soc_component *component, int index,
 	return 0;
 }
 
+static void audioreach_connect_sub_graphs(struct q6apm *apm,
+					  struct snd_ar_control *m1,
+					  struct snd_ar_control *m2,
+					  bool connect)
+{
+	struct audioreach_graph_info *info;
+
+	mutex_lock(&apm->lock);
+	info = idr_find(&apm->graph_info_idr, m2->graph_id);
+	mutex_unlock(&apm->lock);
+
+	if (connect) {
+		info->src_mod_inst_id = m1->module_instance_id;
+		info->src_mod_op_port_id = 1;
+		info->dst_mod_inst_id = m2->module_instance_id;
+		info->dst_mod_ip_port_id = 2;
+
+	} else {
+		info->src_mod_inst_id = 0;
+		info->src_mod_op_port_id = 0;
+		info->dst_mod_inst_id = 0;
+		info->dst_mod_ip_port_id = 0;
+	}
+}
+
+static bool audioreach_is_vmixer_connected(struct q6apm *apm,
+					   struct snd_ar_control *m1,
+					   struct snd_ar_control *m2)
+{
+	struct audioreach_graph_info *info;
+
+	mutex_lock(&apm->lock);
+	info = idr_find(&apm->graph_info_idr, m2->graph_id);
+	mutex_unlock(&apm->lock);
+
+	if (info->dst_mod_inst_id == m2->module_instance_id &&
+	    info->src_mod_inst_id == m1->module_instance_id)
+		return true;
+
+	return false;
+}
+
 static int audioreach_get_audio_mixer(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
@@ -940,7 +1023,7 @@ static int audioreach_get_audio_mixer(struct snd_kcontrol *kcontrol,
 	struct q6apm *data = dev_get_drvdata(c->dev);
 	bool connected;
 
-	connected = q6apm_is_sub_graphs_connected(data, scontrol->sgid, dapm_scontrol->sgid);
+	connected = audioreach_is_vmixer_connected(data, scontrol, dapm_scontrol);
 	if (connected)
 		ucontrol->value.integer.value[0] = 1;
 	else
@@ -961,10 +1044,10 @@ static int audioreach_put_audio_mixer(struct snd_kcontrol *kcontrol,
 	struct q6apm *data = dev_get_drvdata(c->dev);
 
 	if (ucontrol->value.integer.value[0]) {
-		q6apm_connect_sub_graphs(data, scontrol->sgid, dapm_scontrol->sgid, true);
+		audioreach_connect_sub_graphs(data, scontrol, dapm_scontrol, true);
 		snd_soc_dapm_mixer_update_power(dapm, kcontrol, 1, NULL);
 	} else {
-		q6apm_connect_sub_graphs(data, scontrol->sgid, dapm_scontrol->sgid, false);
+		audioreach_connect_sub_graphs(data, scontrol, dapm_scontrol, false);
 		snd_soc_dapm_mixer_update_power(dapm, kcontrol, 0, NULL);
 	}
 	return 0;

@@ -332,63 +332,6 @@ static void apm_populate_module_prop_obj(struct apm_mod_prop_obj *obj,
 	obj->prop_id_port.max_op_port = module->max_op_port;
 }
 
-struct audioreach_module *audioreach_get_container_last_module(
-							struct audioreach_container *container)
-{
-	struct audioreach_module *module;
-
-	list_for_each_entry(module, &container->modules_list, node) {
-		if (module->dst_mod_inst_id == 0)
-			return module;
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(audioreach_get_container_last_module);
-
-static bool is_module_in_container(struct audioreach_container *container, int module_iid)
-{
-	struct audioreach_module *module;
-
-	list_for_each_entry(module, &container->modules_list, node) {
-		if (module->instance_id == module_iid)
-			return true;
-	}
-
-	return false;
-}
-
-struct audioreach_module *audioreach_get_container_first_module(
-							struct audioreach_container *container)
-{
-	struct audioreach_module *module;
-
-	/* get the first module from both connected or un-connected containers */
-	list_for_each_entry(module, &container->modules_list, node) {
-		if (module->src_mod_inst_id == 0 ||
-		    !is_module_in_container(container, module->src_mod_inst_id))
-			return module;
-	}
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(audioreach_get_container_first_module);
-
-struct audioreach_module *audioreach_get_container_next_module(
-						struct audioreach_container *container,
-						struct audioreach_module *module)
-{
-	int nmodule_iid = module->dst_mod_inst_id;
-	struct audioreach_module *nmodule;
-
-	list_for_each_entry(nmodule, &container->modules_list, node) {
-		if (nmodule->instance_id == nmodule_iid)
-			return nmodule;
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(audioreach_get_container_next_module);
-
 static void apm_populate_module_list_obj(struct apm_mod_list_obj *obj,
 					 struct audioreach_container *container,
 					 int sub_graph_id)
@@ -400,14 +343,15 @@ static void apm_populate_module_list_obj(struct apm_mod_list_obj *obj,
 	obj->container_id = container->container_id;
 	obj->num_modules = container->num_modules;
 	i = 0;
-	list_for_each_container_module(module, container) {
+	list_for_each_entry(module, &container->modules_list, node) {
 		obj->mod_cfg[i].module_id = module->module_id;
 		obj->mod_cfg[i].instance_id = module->instance_id;
 		i++;
 	}
 }
 
-static void audioreach_populate_graph(struct apm_graph_open_params *open,
+static void audioreach_populate_graph(struct q6apm *apm, struct audioreach_graph_info *info,
+				      struct apm_graph_open_params *open,
 				      struct list_head *sg_list,
 				      int num_sub_graphs)
 {
@@ -428,6 +372,16 @@ static void audioreach_populate_graph(struct apm_graph_open_params *open,
 
 	mlobj = &ml_data->mod_list_obj[0];
 
+
+	if (info->dst_mod_inst_id && info->src_mod_inst_id) {
+		conn_obj = &mc_data->conn_obj[nconn];
+		conn_obj->src_mod_inst_id = info->src_mod_inst_id;
+		conn_obj->src_mod_op_port_id = info->src_mod_op_port_id;
+		conn_obj->dst_mod_inst_id = info->dst_mod_inst_id;
+		conn_obj->dst_mod_ip_port_id = info->dst_mod_ip_port_id;
+		nconn++;
+	}
+
 	list_for_each_entry(sg, sg_list, node) {
 		struct apm_sub_graph_data *sg_cfg = &sg_data->sg_cfg[i++];
 
@@ -439,7 +393,7 @@ static void audioreach_populate_graph(struct apm_graph_open_params *open,
 			apm_populate_container_config(cobj, container);
 			apm_populate_module_list_obj(mlobj, container, sg->sub_graph_id);
 
-			list_for_each_container_module(module, container) {
+			list_for_each_entry(module, &container->modules_list, node) {
 				uint32_t src_mod_inst_id;
 
 				src_mod_inst_id = module->src_mod_inst_id;
@@ -462,7 +416,7 @@ static void audioreach_populate_graph(struct apm_graph_open_params *open,
 	}
 }
 
-void *audioreach_alloc_graph_pkt(struct q6apm *apm, struct list_head *sg_list, int graph_id)
+void *audioreach_alloc_graph_pkt(struct q6apm *apm, struct audioreach_graph_info *info)
 {
 	int payload_size, sg_sz, cont_sz, ml_sz, mp_sz, mc_sz;
 	struct apm_module_param_data  *param_data;
@@ -475,6 +429,7 @@ void *audioreach_alloc_graph_pkt(struct q6apm *apm, struct list_head *sg_list, i
 	struct audioreach_module *module;
 	struct audioreach_sub_graph *sgs;
 	struct apm_mod_list_obj *mlobj;
+	struct list_head *sg_list;
 	int num_modules_per_list;
 	int num_connections = 0;
 	int num_containers = 0;
@@ -484,12 +439,19 @@ void *audioreach_alloc_graph_pkt(struct q6apm *apm, struct list_head *sg_list, i
 	struct gpr_pkt *pkt;
 	void *p;
 
+	sg_list = &info->sg_list;
+	ml_sz = 0;
+
+	/* add FE-BE connections */
+	if (info->dst_mod_inst_id && info->src_mod_inst_id)
+		num_connections++;
+
 	list_for_each_entry(sgs, sg_list, node) {
 		num_sub_graphs++;
 		list_for_each_entry(container, &sgs->container_list, node) {
 			num_containers++;
 			num_modules += container->num_modules;
-			list_for_each_container_module(module, container) {
+			list_for_each_entry(module, &container->modules_list, node) {
 				if (module->src_mod_inst_id)
 					num_connections++;
 			}
@@ -557,7 +519,7 @@ void *audioreach_alloc_graph_pkt(struct q6apm *apm, struct list_head *sg_list, i
 	params.mod_conn_list_data->num_connections = num_connections;
 	p += mc_sz;
 
-	audioreach_populate_graph(&params, sg_list, num_sub_graphs);
+	audioreach_populate_graph(apm, info, &params, sg_list, num_sub_graphs);
 
 	return pkt;
 }
