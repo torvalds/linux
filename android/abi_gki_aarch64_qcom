@@ -273,6 +273,7 @@
   dev_fwnode
   dev_get_by_name
   dev_get_regmap
+  dev_get_stats
   device_add
   device_add_disk
   device_add_groups
@@ -300,6 +301,7 @@
   device_wakeup_disable
   device_wakeup_enable
   _dev_info
+  __dev_kfree_skb_any
   devm_add_action
   devm_alloc_etherdev_mqs
   devm_bitmap_zalloc
@@ -1004,6 +1006,9 @@
   netdev_alert
   __netdev_alloc_skb
   netdev_rss_key_fill
+  netif_carrier_off
+  netif_carrier_on
+  netif_tx_wake_queue
   nonseekable_open
   noop_llseek
   nr_cpu_ids
@@ -1590,6 +1595,7 @@
   skb_dequeue
   skb_free_datagram
   __skb_pad
+  skb_pull
   skb_push
   skb_put
   skb_queue_purge
@@ -1597,6 +1603,7 @@
   skb_recv_datagram
   skb_set_owner_w
   skb_store_bits
+  skb_trim
   sk_error_report
   sk_free
   skip_spaces
