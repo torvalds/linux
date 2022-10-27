@@ -62,7 +62,6 @@ static void rxe_mr_init(int access, struct rxe_mr *mr)
 	mr->rkey = mr->ibmr.rkey = rkey;
 
 	mr->state = RXE_MR_STATE_INVALID;
-	mr->map_shift = ilog2(RXE_BUF_PER_MAP);
 }
 
 static int rxe_mr_alloc(struct rxe_mr *mr, int num_buf)
