@@ -373,8 +373,11 @@ static umode_t smpro_is_visible(const void *data, enum hwmon_sensor_types type,
 			ret = regmap_read(hwmon->regmap, temperature[channel].reg, &value);
 			if (ret || value == 0xFFFF)
 				return 0;
-		break;
+			break;
+		default:
+			break;
 		}
+		break;
 	default:
 		break;
 	}
