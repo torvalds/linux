@@ -736,9 +736,14 @@ static int mlx5e_macsec_add_rxsc(struct macsec_context *ctx)
 
 	sc_xarray_element->rx_sc = rx_sc;
 	err = xa_alloc(&macsec->sc_xarray, &sc_xarray_element->fs_id, sc_xarray_element,
-		       XA_LIMIT(1, USHRT_MAX), GFP_KERNEL);
-	if (err)
+		       XA_LIMIT(1, MLX5_MACEC_RX_FS_ID_MAX), GFP_KERNEL);
+	if (err) {
+		if (err == -EBUSY)
+			netdev_err(ctx->netdev,
+				   "MACsec offload: unable to create entry for RX SC (%d Rx SCs already allocated)\n",
+				   MLX5_MACEC_RX_FS_ID_MAX);
 		goto destroy_sc_xarray_elemenet;
+	}
 
 	rx_sc->md_dst = metadata_dst_alloc(0, METADATA_MACSEC, GFP_KERNEL);
 	if (!rx_sc->md_dst) {
@@ -1748,7 +1753,7 @@ void mlx5e_macsec_offload_handle_rx_skb(struct net_device *netdev,
 	if (!macsec)
 		return;
 
-	fs_id = MLX5_MACSEC_METADATA_HANDLE(macsec_meta_data);
+	fs_id = MLX5_MACSEC_RX_METADAT_HANDLE(macsec_meta_data);
 
 	rcu_read_lock();
 	sc_xarray_element = xa_load(&macsec->sc_xarray, fs_id);
