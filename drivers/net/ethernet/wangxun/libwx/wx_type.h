@@ -51,6 +51,12 @@
 #define WX_TS_ALARM_ST_DALARM        BIT(1)
 #define WX_TS_ALARM_ST_ALARM         BIT(0)
 
+/*********************** Transmit DMA registers **************************/
+/* transmit global control */
+#define WX_TDM_CTL                   0x18000
+/* TDM CTL BIT */
+#define WX_TDM_CTL_TE                BIT(0) /* Transmit Enable */
+
 /***************************** RDB registers *********************************/
 /* receive packet buffer */
 #define WX_RDB_PB_CTL                0x19000
@@ -76,6 +82,9 @@
 #define WX_PSR_CTL_MO_SHIFT          5
 #define WX_PSR_CTL_MO                (0x3 << WX_PSR_CTL_MO_SHIFT)
 #define WX_PSR_CTL_TPE               BIT(4)
+/* mcasst/ucast overflow tbl */
+#define WX_PSR_MC_TBL(_i)            (0x15200  + ((_i) * 4))
+#define WX_PSR_UC_TBL(_i)            (0x15400 + ((_i) * 4))
 
 /* Management */
 #define WX_PSR_MNG_FLEX_SEL          0x1582C
@@ -87,7 +96,20 @@
 #define WX_PSR_LAN_FLEX_DW_H(_i)     (0x15C04 + ((_i) * 16))
 #define WX_PSR_LAN_FLEX_MSK(_i)      (0x15C08 + ((_i) * 16))
 
+/* mac switcher */
+#define WX_PSR_MAC_SWC_AD_L          0x16200
+#define WX_PSR_MAC_SWC_AD_H          0x16204
+#define WX_PSR_MAC_SWC_AD_H_AD(v)       (((v) & 0xFFFF))
+#define WX_PSR_MAC_SWC_AD_H_ADTYPE(v)   (((v) & 0x1) << 30)
+#define WX_PSR_MAC_SWC_AD_H_AV       BIT(31)
+#define WX_PSR_MAC_SWC_VM_L          0x16208
+#define WX_PSR_MAC_SWC_VM_H          0x1620C
+#define WX_PSR_MAC_SWC_IDX           0x16210
+#define WX_CLEAR_VMDQ_ALL            0xFFFFFFFFU
+
 /************************************* ETH MAC *****************************/
+#define WX_MAC_TX_CFG                0x11000
+#define WX_MAC_TX_CFG_TE             BIT(0)
 #define WX_MAC_RX_CFG                0x11004
 #define WX_MAC_RX_CFG_RE             BIT(0)
 #define WX_MAC_RX_CFG_JE             BIT(8)
@@ -143,9 +165,20 @@ enum wx_mac_type {
 struct wx_mac_info {
 	enum wx_mac_type type;
 	bool set_lben;
+	u8 addr[ETH_ALEN];
+	u8 perm_addr[ETH_ALEN];
+	s32 mc_filter_type;
+	u32 mcft_size;
+	u32 num_rar_entries;
 	u32 max_tx_queues;
 	u32 max_rx_queues;
 	struct wx_thermal_sensor_data sensor;
+};
+
+struct wx_addr_filter_info {
+	u32 num_mc_addrs;
+	u32 mta_in_use;
+	bool user_set_promisc;
 };
 
 struct wx_hw {
@@ -153,6 +186,7 @@ struct wx_hw {
 	struct pci_dev *pdev;
 	struct wx_bus_info bus;
 	struct wx_mac_info mac;
+	struct wx_addr_filter_info addr_ctrl;
 	u16 device_id;
 	u16 vendor_id;
 	u16 subsystem_device_id;
@@ -196,5 +230,8 @@ wr32m(struct wx_hw *wxhw, u32 reg, u32 mask, u32 field)
 
 #define wx_err(wxhw, fmt, arg...) \
 	dev_err(&(wxhw)->pdev->dev, fmt, ##arg)
+
+#define wx_dbg(wxhw, fmt, arg...) \
+	dev_dbg(&(wxhw)->pdev->dev, fmt, ##arg)
 
 #endif /* _WX_TYPE_H_ */

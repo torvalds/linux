@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2015 - 2022 Beijing WangXun Technology Co., Ltd. */
 
+#include <linux/etherdevice.h>
+#include <linux/if_ether.h>
 #include <linux/string.h>
 #include <linux/iopoll.h>
 #include <linux/types.h>
@@ -80,6 +82,17 @@ int txgbe_reset_hw(struct txgbe_hw *hw)
 		return status;
 
 	txgbe_reset_misc(hw);
+
+	/* Store the permanent mac address */
+	wx_get_mac_addr(wxhw, wxhw->mac.perm_addr);
+
+	/* Store MAC address from RAR0, clear receive address registers, and
+	 * clear the multicast table.  Also reset num_rar_entries to 128,
+	 * since we modify this value when programming the SAN MAC address.
+	 */
+	wxhw->mac.num_rar_entries = TXGBE_SP_RAR_ENTRIES;
+	wx_init_rx_addrs(wxhw);
+
 	pci_set_master(wxhw->pdev);
 
 	return 0;

@@ -8,6 +8,7 @@
 #include <linux/string.h>
 #include <linux/aer.h>
 #include <linux/etherdevice.h>
+#include <net/ip.h>
 
 #include "../libwx/wx_type.h"
 #include "../libwx/wx_hw.h"
@@ -72,6 +73,143 @@ static int txgbe_enumerate_functions(struct txgbe_adapter *adapter)
 	return physfns;
 }
 
+static void txgbe_sync_mac_table(struct txgbe_adapter *adapter)
+{
+	struct txgbe_hw *hw = &adapter->hw;
+	struct wx_hw *wxhw = &hw->wxhw;
+	int i;
+
+	for (i = 0; i < wxhw->mac.num_rar_entries; i++) {
+		if (adapter->mac_table[i].state & TXGBE_MAC_STATE_MODIFIED) {
+			if (adapter->mac_table[i].state & TXGBE_MAC_STATE_IN_USE) {
+				wx_set_rar(wxhw, i,
+					   adapter->mac_table[i].addr,
+					   adapter->mac_table[i].pools,
+					   WX_PSR_MAC_SWC_AD_H_AV);
+			} else {
+				wx_clear_rar(wxhw, i);
+			}
+			adapter->mac_table[i].state &= ~(TXGBE_MAC_STATE_MODIFIED);
+		}
+	}
+}
+
+/* this function destroys the first RAR entry */
+static void txgbe_mac_set_default_filter(struct txgbe_adapter *adapter,
+					 u8 *addr)
+{
+	struct wx_hw *wxhw = &adapter->hw.wxhw;
+
+	memcpy(&adapter->mac_table[0].addr, addr, ETH_ALEN);
+	adapter->mac_table[0].pools = 1ULL;
+	adapter->mac_table[0].state = (TXGBE_MAC_STATE_DEFAULT |
+				       TXGBE_MAC_STATE_IN_USE);
+	wx_set_rar(wxhw, 0, adapter->mac_table[0].addr,
+		   adapter->mac_table[0].pools,
+		   WX_PSR_MAC_SWC_AD_H_AV);
+}
+
+static void txgbe_flush_sw_mac_table(struct txgbe_adapter *adapter)
+{
+	struct wx_hw *wxhw = &adapter->hw.wxhw;
+	u32 i;
+
+	for (i = 0; i < wxhw->mac.num_rar_entries; i++) {
+		adapter->mac_table[i].state |= TXGBE_MAC_STATE_MODIFIED;
+		adapter->mac_table[i].state &= ~TXGBE_MAC_STATE_IN_USE;
+		memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
+		adapter->mac_table[i].pools = 0;
+	}
+	txgbe_sync_mac_table(adapter);
+}
+
+static int txgbe_del_mac_filter(struct txgbe_adapter *adapter, u8 *addr, u16 pool)
+{
+	struct wx_hw *wxhw = &adapter->hw.wxhw;
+	u32 i;
+
+	if (is_zero_ether_addr(addr))
+		return -EINVAL;
+
+	/* search table for addr, if found, set to 0 and sync */
+	for (i = 0; i < wxhw->mac.num_rar_entries; i++) {
+		if (ether_addr_equal(addr, adapter->mac_table[i].addr)) {
+			if (adapter->mac_table[i].pools & (1ULL << pool)) {
+				adapter->mac_table[i].state |= TXGBE_MAC_STATE_MODIFIED;
+				adapter->mac_table[i].state &= ~TXGBE_MAC_STATE_IN_USE;
+				adapter->mac_table[i].pools &= ~(1ULL << pool);
+				txgbe_sync_mac_table(adapter);
+			}
+			return 0;
+		}
+
+		if (adapter->mac_table[i].pools != (1 << pool))
+			continue;
+		if (!ether_addr_equal(addr, adapter->mac_table[i].addr))
+			continue;
+
+		adapter->mac_table[i].state |= TXGBE_MAC_STATE_MODIFIED;
+		adapter->mac_table[i].state &= ~TXGBE_MAC_STATE_IN_USE;
+		memset(adapter->mac_table[i].addr, 0, ETH_ALEN);
+		adapter->mac_table[i].pools = 0;
+		txgbe_sync_mac_table(adapter);
+		return 0;
+	}
+	return -ENOMEM;
+}
+
+static void txgbe_reset(struct txgbe_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct txgbe_hw *hw = &adapter->hw;
+	u8 old_addr[ETH_ALEN];
+	int err;
+
+	err = txgbe_reset_hw(hw);
+	if (err != 0)
+		dev_err(&adapter->pdev->dev, "Hardware Error: %d\n", err);
+
+	/* do not flush user set addresses */
+	memcpy(old_addr, &adapter->mac_table[0].addr, netdev->addr_len);
+	txgbe_flush_sw_mac_table(adapter);
+	txgbe_mac_set_default_filter(adapter, old_addr);
+}
+
+static void txgbe_disable_device(struct txgbe_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	struct wx_hw *wxhw = &adapter->hw.wxhw;
+
+	wx_disable_pcie_master(wxhw);
+	/* disable receives */
+	wx_disable_rx(wxhw);
+
+	netif_carrier_off(netdev);
+	netif_tx_disable(netdev);
+
+	if (wxhw->bus.func < 2)
+		wr32m(wxhw, TXGBE_MIS_PRB_CTL, TXGBE_MIS_PRB_CTL_LAN_UP(wxhw->bus.func), 0);
+	else
+		dev_err(&adapter->pdev->dev,
+			"%s: invalid bus lan id %d\n",
+			__func__, wxhw->bus.func);
+
+	if (!(((wxhw->subsystem_device_id & WX_NCSI_MASK) == WX_NCSI_SUP) ||
+	      ((wxhw->subsystem_device_id & WX_WOL_MASK) == WX_WOL_SUP))) {
+		/* disable mac transmiter */
+		wr32m(wxhw, WX_MAC_TX_CFG, WX_MAC_TX_CFG_TE, 0);
+	}
+
+	/* Disable the Tx DMA engine */
+	wr32m(wxhw, WX_TDM_CTL, WX_TDM_CTL_TE, 0);
+}
+
+static void txgbe_down(struct txgbe_adapter *adapter)
+{
+	txgbe_disable_device(adapter);
+	txgbe_reset(adapter);
+}
+
 /**
  * txgbe_sw_init - Initialize general software structures (struct txgbe_adapter)
  * @adapter: board private structure to initialize
@@ -104,8 +242,65 @@ static int txgbe_sw_init(struct txgbe_adapter *adapter)
 		break;
 	}
 
+	wxhw->mac.num_rar_entries = TXGBE_SP_RAR_ENTRIES;
 	wxhw->mac.max_tx_queues = TXGBE_SP_MAX_TX_QUEUES;
 	wxhw->mac.max_rx_queues = TXGBE_SP_MAX_RX_QUEUES;
+	wxhw->mac.mcft_size = TXGBE_SP_MC_TBL_SIZE;
+
+	adapter->mac_table = kcalloc(wxhw->mac.num_rar_entries,
+				     sizeof(struct txgbe_mac_addr),
+				     GFP_KERNEL);
+	if (!adapter->mac_table) {
+		netif_err(adapter, probe, adapter->netdev,
+			  "mac_table allocation failed\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+/**
+ * txgbe_open - Called when a network interface is made active
+ * @netdev: network interface device structure
+ *
+ * Returns 0 on success, negative value on failure
+ *
+ * The open entry point is called when a network interface is made
+ * active by the system (IFF_UP).
+ **/
+static int txgbe_open(struct net_device *netdev)
+{
+	return 0;
+}
+
+/**
+ * txgbe_close_suspend - actions necessary to both suspend and close flows
+ * @adapter: the private adapter struct
+ *
+ * This function should contain the necessary work common to both suspending
+ * and closing of the device.
+ */
+static void txgbe_close_suspend(struct txgbe_adapter *adapter)
+{
+	txgbe_disable_device(adapter);
+}
+
+/**
+ * txgbe_close - Disables a network interface
+ * @netdev: network interface device structure
+ *
+ * Returns 0, this is not allowed to fail
+ *
+ * The close entry point is called when an interface is de-activated
+ * by the OS.  The hardware is still under the drivers control, but
+ * needs to be disabled.  A global MAC reset is issued to stop the
+ * hardware, and all transmit and receive resources are freed.
+ **/
+static int txgbe_close(struct net_device *netdev)
+{
+	struct txgbe_adapter *adapter = netdev_priv(netdev);
+
+	txgbe_down(adapter);
 
 	return 0;
 }
@@ -116,6 +311,11 @@ static void txgbe_dev_shutdown(struct pci_dev *pdev, bool *enable_wake)
 	struct net_device *netdev = adapter->netdev;
 
 	netif_device_detach(netdev);
+
+	rtnl_lock();
+	if (netif_running(netdev))
+		txgbe_close_suspend(adapter);
+	rtnl_unlock();
 
 	pci_disable_device(pdev);
 }
@@ -131,6 +331,47 @@ static void txgbe_shutdown(struct pci_dev *pdev)
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
 }
+
+static netdev_tx_t txgbe_xmit_frame(struct sk_buff *skb,
+				    struct net_device *netdev)
+{
+	return NETDEV_TX_OK;
+}
+
+/**
+ * txgbe_set_mac - Change the Ethernet Address of the NIC
+ * @netdev: network interface device structure
+ * @p: pointer to an address structure
+ *
+ * Returns 0 on success, negative on failure
+ **/
+static int txgbe_set_mac(struct net_device *netdev, void *p)
+{
+	struct txgbe_adapter *adapter = netdev_priv(netdev);
+	struct wx_hw *wxhw = &adapter->hw.wxhw;
+	struct sockaddr *addr = p;
+	int retval;
+
+	retval = eth_prepare_mac_addr_change(netdev, addr);
+	if (retval)
+		return retval;
+
+	txgbe_del_mac_filter(adapter, wxhw->mac.addr, 0);
+	eth_hw_addr_set(netdev, addr->sa_data);
+	memcpy(wxhw->mac.addr, addr->sa_data, netdev->addr_len);
+
+	txgbe_mac_set_default_filter(adapter, wxhw->mac.addr);
+
+	return 0;
+}
+
+static const struct net_device_ops txgbe_netdev_ops = {
+	.ndo_open               = txgbe_open,
+	.ndo_stop               = txgbe_close,
+	.ndo_start_xmit         = txgbe_xmit_frame,
+	.ndo_validate_addr      = eth_validate_addr,
+	.ndo_set_mac_address    = txgbe_set_mac,
+};
 
 /**
  * txgbe_probe - Device Initialization Routine
@@ -201,28 +442,35 @@ static int txgbe_probe(struct pci_dev *pdev,
 		goto err_pci_release_regions;
 	}
 
-	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
+	netdev->netdev_ops = &txgbe_netdev_ops;
 
 	/* setup the private structure */
 	err = txgbe_sw_init(adapter);
 	if (err)
-		goto err_pci_release_regions;
+		goto err_free_mac_table;
 
 	/* check if flash load is done after hw power up */
 	err = wx_check_flash_load(wxhw, TXGBE_SPI_ILDR_STATUS_PERST);
 	if (err)
-		goto err_pci_release_regions;
+		goto err_free_mac_table;
 	err = wx_check_flash_load(wxhw, TXGBE_SPI_ILDR_STATUS_PWRRST);
 	if (err)
-		goto err_pci_release_regions;
+		goto err_free_mac_table;
 
 	err = txgbe_reset_hw(hw);
 	if (err) {
 		dev_err(&pdev->dev, "HW Init failed: %d\n", err);
-		goto err_pci_release_regions;
+		goto err_free_mac_table;
 	}
 
 	netdev->features |= NETIF_F_HIGHDMA;
+
+	eth_hw_addr_set(netdev, wxhw->mac.perm_addr);
+	txgbe_mac_set_default_filter(adapter, wxhw->mac.perm_addr);
+
+	err = register_netdev(netdev);
+	if (err)
+		goto err_free_mac_table;
 
 	pci_set_drvdata(pdev, adapter);
 
@@ -240,8 +488,12 @@ static int txgbe_probe(struct pci_dev *pdev,
 	else
 		dev_warn(&pdev->dev, "Failed to enumerate PF devices.\n");
 
+	netif_info(adapter, probe, netdev, "%pM\n", netdev->dev_addr);
+
 	return 0;
 
+err_free_mac_table:
+	kfree(adapter->mac_table);
 err_pci_release_regions:
 	pci_disable_pcie_error_reporting(pdev);
 	pci_release_selected_regions(pdev,
@@ -262,8 +514,16 @@ err_pci_disable_dev:
  **/
 static void txgbe_remove(struct pci_dev *pdev)
 {
+	struct txgbe_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev;
+
+	netdev = adapter->netdev;
+	unregister_netdev(netdev);
+
 	pci_release_selected_regions(pdev,
 				     pci_select_bars(pdev, IORESOURCE_MEM));
+
+	kfree(adapter->mac_table);
 
 	pci_disable_pcie_error_reporting(pdev);
 

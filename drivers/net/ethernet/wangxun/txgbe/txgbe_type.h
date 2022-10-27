@@ -40,6 +40,9 @@
 #define TXGBE_SP_MPW  1
 
 /**************** SP Registers ****************************/
+/* chip control Registers */
+#define TXGBE_MIS_PRB_CTL                       0x10010
+#define TXGBE_MIS_PRB_CTL_LAN_UP(_i)            BIT(1 - (_i))
 /* FMGR Registers */
 #define TXGBE_SPI_ILDR_STATUS                   0x10120
 #define TXGBE_SPI_ILDR_STATUS_PERST             BIT(0) /* PCIE_PERST is done */
