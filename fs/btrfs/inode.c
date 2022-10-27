@@ -5614,7 +5614,7 @@ out:
  * is kind of like crossing a mount point.
  */
 static int fixup_tree_root_location(struct btrfs_fs_info *fs_info,
-				    struct inode *dir,
+				    struct btrfs_inode *dir,
 				    struct dentry *dentry,
 				    struct btrfs_key *location,
 				    struct btrfs_root **sub_root)
@@ -5628,7 +5628,7 @@ static int fixup_tree_root_location(struct btrfs_fs_info *fs_info,
 	int err = 0;
 	struct fscrypt_name fname;
 
-	ret = fscrypt_setup_filename(dir, &dentry->d_name, 0, &fname);
+	ret = fscrypt_setup_filename(&dir->vfs_inode, &dentry->d_name, 0, &fname);
 	if (ret)
 		return ret;
 
@@ -5639,7 +5639,7 @@ static int fixup_tree_root_location(struct btrfs_fs_info *fs_info,
 	}
 
 	err = -ENOENT;
-	key.objectid = BTRFS_I(dir)->root->root_key.objectid;
+	key.objectid = dir->root->root_key.objectid;
 	key.type = BTRFS_ROOT_REF_KEY;
 	key.offset = location->objectid;
 
@@ -5652,7 +5652,7 @@ static int fixup_tree_root_location(struct btrfs_fs_info *fs_info,
 
 	leaf = path->nodes[0];
 	ref = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_root_ref);
-	if (btrfs_root_ref_dirid(leaf, ref) != btrfs_ino(BTRFS_I(dir)) ||
+	if (btrfs_root_ref_dirid(leaf, ref) != btrfs_ino(dir) ||
 	    btrfs_root_ref_name_len(leaf, ref) != fname.disk_name.len)
 		goto out;
 
@@ -5902,7 +5902,7 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 		return inode;
 	}
 
-	ret = fixup_tree_root_location(fs_info, dir, dentry,
+	ret = fixup_tree_root_location(fs_info, BTRFS_I(dir), dentry,
 				       &location, &sub_root);
 	if (ret < 0) {
 		if (ret != -ENOENT)
