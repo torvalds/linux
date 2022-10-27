@@ -462,6 +462,9 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 	bl	early_fdt_map			// Try mapping the FDT early
 	mov	x0, x20				// pass the full boot status
 	bl	init_feature_override		// Parse cpu feature overrides
+#ifdef CONFIG_UNWIND_PATCH_PAC_INTO_SCS
+	bl	scs_patch_vmlinux
+#endif
 	mov	x0, x20
 	bl	finalise_el2			// Prefer VHE if possible
 	ldp	x29, x30, [sp], #16
