@@ -45,6 +45,7 @@
 #define ACPI_SIG_HMAT           "HMAT"	/* Heterogeneous Memory Attributes Table */
 #define ACPI_SIG_HPET           "HPET"	/* High Precision Event Timer table */
 #define ACPI_SIG_IBFT           "IBFT"	/* iSCSI Boot Firmware Table */
+#define ACPI_SIG_MSCT           "MSCT"	/* Maximum System Characteristics Table */
 
 #define ACPI_SIG_S3PT           "S3PT"	/* S3 Performance (sub)Table */
 #define ACPI_SIG_PCCS           "PCC"	/* PCC Shared Memory Region */
@@ -305,10 +306,123 @@ struct acpi_table_boot {
 
 /*******************************************************************************
  *
+ * CDAT - Coherent Device Attribute Table
+ *        Version 1
+ *
+ * Conforms to the "Coherent Device Attribute Table (CDAT) Specification
+ " (Revision 1.01, October 2020.)
+ *
+ ******************************************************************************/
+
+struct acpi_table_cdat {
+	u32 length;		/* Length of table in bytes, including this header */
+	u8 revision;		/* ACPI Specification minor version number */
+	u8 checksum;		/* To make sum of entire table == 0 */
+	u8 reserved[6];
+	u32 sequence;		/* Used to detect runtime CDAT table changes */
+};
+
+/* CDAT common subtable header */
+
+struct acpi_cdat_header {
+	u8 type;
+	u8 reserved;
+	u16 length;
+};
+
+/* Values for Type field above */
+
+enum acpi_cdat_type {
+	ACPI_CDAT_TYPE_DSMAS = 0,
+	ACPI_CDAT_TYPE_DSLBIS = 1,
+	ACPI_CDAT_TYPE_DSMSCIS = 2,
+	ACPI_CDAT_TYPE_DSIS = 3,
+	ACPI_CDAT_TYPE_DSEMTS = 4,
+	ACPI_CDAT_TYPE_SSLBIS = 5,
+	ACPI_CDAT_TYPE_RESERVED = 6	/* 6 through 0xFF are reserved */
+};
+
+/* Subtable 0: Device Scoped Memory Affinity Structure (DSMAS) */
+
+struct acpi_cadt_dsmas {
+	u8 dsmad_handle;
+	u8 flags;
+	u16 reserved;
+	u64 dpa_base_address;
+	u64 dpa_length;
+};
+
+/* Flags for subtable above */
+
+#define ACPI_CEDT_DSMAS_NON_VOLATILE        (1 << 2)
+
+/* Subtable 1: Device scoped Latency and Bandwidth Information Structure (DSLBIS) */
+
+struct acpi_cdat_dslbis {
+	u8 handle;
+	u8 flags;		/* If Handle matches a DSMAS handle, the definition of this field matches
+				 * Flags field in HMAT System Locality Latency */
+	u8 data_type;
+	u8 reserved;
+	u64 entry_base_unit;
+	u16 entry[3];
+	u16 reserved2;
+};
+
+/* Subtable 2: Device Scoped Memory Side Cache Information Structure (DSMSCIS) */
+
+struct acpi_cdat_dsmscis {
+	u8 dsmas_handle;
+	u8 reserved[3];
+	u64 side_cache_size;
+	u32 cache_attributes;
+};
+
+/* Subtable 3: Device Scoped Initiator Structure (DSIS) */
+
+struct acpi_cdat_dsis {
+	u8 flags;
+	u8 handle;
+	u16 reserved;
+};
+
+/* Flags for above subtable */
+
+#define ACPI_CDAT_DSIS_MEM_ATTACHED         (1 << 0)
+
+/* Subtable 4: Device Scoped EFI Memory Type Structure (DSEMTS) */
+
+struct acpi_cdat_dsemts {
+	u8 dsmas_handle;
+	u8 memory_type;
+	u16 reserved;
+	u64 dpa_offset;
+	u64 range_length;
+};
+
+/* Subtable 5: Switch Scoped Latency and Bandwidth Information Structure (SSLBIS) */
+
+struct acpi_cdat_sslbis {
+	u8 data_type;
+	u8 reserved[3];
+	u64 entry_base_unit;
+};
+
+/* Sub-subtable for above, sslbe_entries field */
+
+struct acpi_cdat_sslbe {
+	u16 portx_id;
+	u16 porty_id;
+	u16 latency_or_bandwidth;
+	u16 reserved;
+};
+
+/*******************************************************************************
+ *
  * CEDT - CXL Early Discovery Table
  *        Version 1
  *
- * Conforms to the "CXL Early Discovery Table" (CXL 2.0)
+ * Conforms to the "CXL Early Discovery Table" (CXL 2.0, October 2020)
  *
  ******************************************************************************/
 

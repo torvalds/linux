@@ -124,11 +124,6 @@ void
 acpi_tb_print_table_header(acpi_physical_address address,
 			   struct acpi_table_header *header);
 
-u8 acpi_tb_checksum(u8 *buffer, u32 length);
-
-acpi_status
-acpi_tb_verify_checksum(struct acpi_table_header *table, u32 length);
-
 void acpi_tb_check_dsdt_header(void);
 
 struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index);
