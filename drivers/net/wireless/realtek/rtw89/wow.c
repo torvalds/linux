@@ -162,6 +162,227 @@ static void rtw89_wow_vif_iter(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvi
 	}
 }
 
+static u16 __rtw89_cal_crc16(u8 data, u16 crc)
+{
+	u8 shift_in, data_bit;
+	u8 crc_bit4, crc_bit11, crc_bit15;
+	u16 crc_result;
+	int index;
+
+	for (index = 0; index < 8; index++) {
+		crc_bit15 = crc & BIT(15) ? 1 : 0;
+		data_bit = data & BIT(index) ? 1 : 0;
+		shift_in = crc_bit15 ^ data_bit;
+
+		crc_result = crc << 1;
+
+		if (shift_in == 0)
+			crc_result &= ~BIT(0);
+		else
+			crc_result |= BIT(0);
+
+		crc_bit11 = (crc & BIT(11) ? 1 : 0) ^ shift_in;
+
+		if (crc_bit11 == 0)
+			crc_result &= ~BIT(12);
+		else
+			crc_result |= BIT(12);
+
+		crc_bit4 = (crc & BIT(4) ? 1 : 0) ^ shift_in;
+
+		if (crc_bit4 == 0)
+			crc_result &= ~BIT(5);
+		else
+			crc_result |= BIT(5);
+
+		crc = crc_result;
+	}
+	return crc;
+}
+
+static u16 rtw89_calc_crc(u8 *pdata, int length)
+{
+	u16 crc = 0xffff;
+	int i;
+
+	for (i = 0; i < length; i++)
+		crc = __rtw89_cal_crc16(pdata[i], crc);
+
+	/* get 1' complement */
+	return ~crc;
+}
+
+static int rtw89_wow_pattern_get_type(struct rtw89_vif *rtwvif,
+				      struct rtw89_wow_cam_info *rtw_pattern,
+				      const u8 *pattern, u8 da_mask)
+{
+	u8 da[ETH_ALEN];
+
+	ether_addr_copy_mask(da, pattern, da_mask);
+
+	/* Each pattern is divided into different kinds by DA address
+	 *  a. DA is broadcast address: set bc = 0;
+	 *  b. DA is multicast address: set mc = 0
+	 *  c. DA is unicast address same as dev's mac address: set uc = 0
+	 *  d. DA is unmasked. Also called wildcard type: set uc = bc = mc = 0
+	 *  e. Others is invalid type.
+	 */
+
+	if (is_broadcast_ether_addr(da))
+		rtw_pattern->bc = true;
+	else if (is_multicast_ether_addr(da))
+		rtw_pattern->mc = true;
+	else if (ether_addr_equal(da, rtwvif->mac_addr) &&
+		 da_mask == GENMASK(5, 0))
+		rtw_pattern->uc = true;
+	else if (!da_mask) /*da_mask == 0 mean wildcard*/
+		return 0;
+	else
+		return -EPERM;
+
+	return 0;
+}
+
+static int rtw89_wow_pattern_generate(struct rtw89_dev *rtwdev,
+				      struct rtw89_vif *rtwvif,
+				      const struct cfg80211_pkt_pattern *pkt_pattern,
+				      struct rtw89_wow_cam_info *rtw_pattern)
+{
+	u8 mask_hw[RTW89_MAX_PATTERN_MASK_SIZE * 4] = {0};
+	u8 content[RTW89_MAX_PATTERN_SIZE] = {0};
+	const u8 *mask;
+	const u8 *pattern;
+	u8 mask_len;
+	u16 count;
+	u32 len;
+	int i, ret;
+
+	pattern = pkt_pattern->pattern;
+	len = pkt_pattern->pattern_len;
+	mask = pkt_pattern->mask;
+	mask_len = DIV_ROUND_UP(len, 8);
+	memset(rtw_pattern, 0, sizeof(*rtw_pattern));
+
+	ret = rtw89_wow_pattern_get_type(rtwvif, rtw_pattern, pattern,
+					 mask[0] & GENMASK(5, 0));
+	if (ret)
+		return ret;
+
+	/* translate mask from os to mask for hw
+	 * pattern from OS uses 'ethenet frame', like this:
+	 * |    6   |    6   |   2  |     20    |  Variable  |  4  |
+	 * |--------+--------+------+-----------+------------+-----|
+	 * |    802.3 Mac Header    | IP Header | TCP Packet | FCS |
+	 * |   DA   |   SA   | Type |
+	 *
+	 * BUT, packet catched by our HW is in '802.11 frame', begin from LLC
+	 * |     24 or 30      |    6   |   2  |     20    |  Variable  |  4  |
+	 * |-------------------+--------+------+-----------+------------+-----|
+	 * | 802.11 MAC Header |       LLC     | IP Header | TCP Packet | FCS |
+	 *		       | Others | Tpye |
+	 *
+	 * Therefore, we need translate mask_from_OS to mask_to_hw.
+	 * We should left-shift mask by 6 bits, then set the new bit[0~5] = 0,
+	 * because new mask[0~5] means 'SA', but our HW packet begins from LLC,
+	 * bit[0~5] corresponds to first 6 Bytes in LLC, they just don't match.
+	 */
+
+	/* Shift 6 bits */
+	for (i = 0; i < mask_len - 1; i++) {
+		mask_hw[i] = u8_get_bits(mask[i], GENMASK(7, 6)) |
+			     u8_get_bits(mask[i + 1], GENMASK(5, 0)) << 2;
+	}
+	mask_hw[i] = u8_get_bits(mask[i], GENMASK(7, 6));
+
+	/* Set bit 0-5 to zero */
+	mask_hw[0] &= ~GENMASK(5, 0);
+
+	memcpy(rtw_pattern->mask, mask_hw, sizeof(rtw_pattern->mask));
+
+	/* To get the wake up pattern from the mask.
+	 * We do not count first 12 bits which means
+	 * DA[6] and SA[6] in the pattern to match HW design.
+	 */
+	count = 0;
+	for (i = 12; i < len; i++) {
+		if ((mask[i / 8] >> (i % 8)) & 0x01) {
+			content[count] = pattern[i];
+			count++;
+		}
+	}
+
+	rtw_pattern->crc = rtw89_calc_crc(content, count);
+
+	return 0;
+}
+
+static int rtw89_wow_parse_patterns(struct rtw89_dev *rtwdev,
+				    struct rtw89_vif *rtwvif,
+				    struct cfg80211_wowlan *wowlan)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw89_wow_cam_info *rtw_pattern = rtw_wow->patterns;
+	int i;
+	int ret;
+
+	if (!wowlan->n_patterns || !wowlan->patterns)
+		return 0;
+
+	for (i = 0; i < wowlan->n_patterns; i++) {
+		rtw_pattern = &rtw_wow->patterns[i];
+		ret = rtw89_wow_pattern_generate(rtwdev, rtwvif,
+						 &wowlan->patterns[i],
+						 rtw_pattern);
+		if (ret) {
+			rtw89_err(rtwdev, "failed to generate pattern(%d)\n", i);
+			rtw_wow->pattern_cnt = 0;
+			return ret;
+		}
+
+		rtw_pattern->r_w = true;
+		rtw_pattern->idx = i;
+		rtw_pattern->negative_pattern_match = false;
+		rtw_pattern->skip_mac_hdr = true;
+		rtw_pattern->valid = true;
+	}
+	rtw_wow->pattern_cnt = wowlan->n_patterns;
+
+	return 0;
+}
+
+static void rtw89_wow_pattern_clear_cam(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw89_wow_cam_info *rtw_pattern = rtw_wow->patterns;
+	int i = 0;
+
+	for (i = 0; i < rtw_wow->pattern_cnt; i++) {
+		rtw_pattern = &rtw_wow->patterns[i];
+		rtw_pattern->valid = false;
+		rtw89_fw_wow_cam_update(rtwdev, rtw_pattern);
+	}
+}
+
+static void rtw89_wow_pattern_write(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw89_wow_cam_info *rtw_pattern = rtw_wow->patterns;
+	int i;
+
+	for (i = 0; i < rtw_wow->pattern_cnt; i++)
+		rtw89_fw_wow_cam_update(rtwdev, rtw_pattern + i);
+}
+
+static void rtw89_wow_pattern_clear(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+
+	rtw89_wow_pattern_clear_cam(rtwdev);
+
+	rtw_wow->pattern_cnt = 0;
+	memset(rtw_wow->patterns, 0, sizeof(rtw_wow->patterns));
+}
+
 static void rtw89_wow_clear_wakeups(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
@@ -188,7 +409,8 @@ static int rtw89_wow_set_wakeups(struct rtw89_dev *rtwdev,
 	if (!rtw_wow->wow_vif)
 		return -EPERM;
 
-	return 0;
+	rtwvif = (struct rtw89_vif *)rtw_wow->wow_vif->drv_priv;
+	return rtw89_wow_parse_patterns(rtwdev, rtwvif, wowlan);
 }
 
 static int rtw89_wow_cfg_wake(struct rtw89_dev *rtwdev, bool wow)
@@ -442,6 +664,8 @@ static int rtw89_wow_fw_start(struct rtw89_dev *rtwdev)
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)rtw_wow->wow_vif->drv_priv;
 	int ret;
 
+	rtw89_wow_pattern_write(rtwdev);
+
 	ret = rtw89_fw_h2c_keep_alive(rtwdev, rtwvif, true);
 	if (ret) {
 		rtw89_err(rtwdev, "wow: failed to enable keep alive\n");
@@ -475,6 +699,8 @@ static int rtw89_wow_fw_stop(struct rtw89_dev *rtwdev)
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)rtw_wow->wow_vif->drv_priv;
 	int ret;
+
+	rtw89_wow_pattern_clear(rtwdev);
 
 	ret = rtw89_fw_h2c_keep_alive(rtwdev, rtwvif, false);
 	if (ret) {

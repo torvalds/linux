@@ -3172,3 +3172,55 @@ fail:
 
 	return ret;
 }
+
+#define H2C_WOW_CAM_UPD_LEN 24
+int rtw89_fw_wow_cam_update(struct rtw89_dev *rtwdev,
+			    struct rtw89_wow_cam_info *cam_info)
+{
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_WOW_CAM_UPD_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for keep alive\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, H2C_WOW_CAM_UPD_LEN);
+
+	RTW89_SET_WOW_CAM_UPD_R_W(skb->data, cam_info->r_w);
+	RTW89_SET_WOW_CAM_UPD_IDX(skb->data, cam_info->idx);
+	if (cam_info->valid) {
+		RTW89_SET_WOW_CAM_UPD_WKFM1(skb->data, cam_info->mask[0]);
+		RTW89_SET_WOW_CAM_UPD_WKFM2(skb->data, cam_info->mask[1]);
+		RTW89_SET_WOW_CAM_UPD_WKFM3(skb->data, cam_info->mask[2]);
+		RTW89_SET_WOW_CAM_UPD_WKFM4(skb->data, cam_info->mask[3]);
+		RTW89_SET_WOW_CAM_UPD_CRC(skb->data, cam_info->crc);
+		RTW89_SET_WOW_CAM_UPD_NEGATIVE_PATTERN_MATCH(skb->data,
+							     cam_info->negative_pattern_match);
+		RTW89_SET_WOW_CAM_UPD_SKIP_MAC_HDR(skb->data,
+						   cam_info->skip_mac_hdr);
+		RTW89_SET_WOW_CAM_UPD_UC(skb->data, cam_info->uc);
+		RTW89_SET_WOW_CAM_UPD_MC(skb->data, cam_info->mc);
+		RTW89_SET_WOW_CAM_UPD_BC(skb->data, cam_info->bc);
+	}
+	RTW89_SET_WOW_CAM_UPD_VALID(skb->data, cam_info->valid);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MAC_WOW,
+			      H2C_FUNC_WOW_CAM_UPD, 0, 1,
+			      H2C_WOW_CAM_UPD_LEN);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}

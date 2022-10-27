@@ -2033,6 +2033,71 @@ static inline void RTW89_SET_WOW_WAKEUP_CTRL_MAC_ID(void *h2c, u32 val)
 	le32p_replace_bits((__le32 *)h2c, val, GENMASK(31, 24));
 }
 
+static inline void RTW89_SET_WOW_CAM_UPD_R_W(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, BIT(0));
+}
+
+static inline void RTW89_SET_WOW_CAM_UPD_IDX(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, GENMASK(7, 1));
+}
+
+static inline void RTW89_SET_WOW_CAM_UPD_WKFM1(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 1, val, GENMASK(31, 0));
+}
+
+static inline void RTW89_SET_WOW_CAM_UPD_WKFM2(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 2, val, GENMASK(31, 0));
+}
+
+static inline void RTW89_SET_WOW_CAM_UPD_WKFM3(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 3, val, GENMASK(31, 0));
+}
+
+static inline void RTW89_SET_WOW_CAM_UPD_WKFM4(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 4, val, GENMASK(31, 0));
+}
+
+static inline void RTW89_SET_WOW_CAM_UPD_CRC(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 5, val, GENMASK(15, 0));
+}
+
+static inline void RTW89_SET_WOW_CAM_UPD_NEGATIVE_PATTERN_MATCH(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 5, val, BIT(22));
+}
+
+static inline void RTW89_SET_WOW_CAM_UPD_SKIP_MAC_HDR(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 5, val, BIT(23));
+}
+
+static inline void RTW89_SET_WOW_CAM_UPD_UC(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 5, val, BIT(24));
+}
+
+static inline void RTW89_SET_WOW_CAM_UPD_MC(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 5, val, BIT(25));
+}
+
+static inline void RTW89_SET_WOW_CAM_UPD_BC(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 5, val, BIT(26));
+}
+
+static inline void RTW89_SET_WOW_CAM_UPD_VALID(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c + 5, val, BIT(31));
+}
+
 enum rtw89_btc_btf_h2c_class {
 	BTFC_SET = 0x10,
 	BTFC_GET = 0x11,
@@ -3039,6 +3104,8 @@ int rtw89_fw_h2c_wow_global(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 int rtw89_fw_h2c_wow_wakeup_ctrl(struct rtw89_dev *rtwdev,
 				 struct rtw89_vif *rtwvif, bool enable);
 
+int rtw89_fw_wow_cam_update(struct rtw89_dev *rtwdev,
+			    struct rtw89_wow_cam_info *cam_info);
 static inline void rtw89_fw_h2c_init_ba_cam(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
