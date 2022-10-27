@@ -1843,14 +1843,13 @@ int ipa_endpoint_config(struct ipa *ipa)
 	struct device *dev = &ipa->pdev->dev;
 	const struct ipa_reg *reg;
 	u32 initialized;
+	u32 tx_count;
+	u32 rx_count;
 	u32 rx_base;
-	u32 rx_mask;
-	u32 tx_mask;
-	int ret = 0;
-	u32 max;
+	u32 limit;
 	u32 val;
 
-	/* Prior to IPAv3.5, the FLAVOR_0 register was not supported.
+	/* Prior to IPA v3.5, the FLAVOR_0 register was not supported.
 	 * Furthermore, the endpoints were not grouped such that TX
 	 * endpoint numbers started with 0 and RX endpoints had numbers
 	 * higher than all TX endpoints, so we can't do the simple
@@ -1866,33 +1865,25 @@ int ipa_endpoint_config(struct ipa *ipa)
 	}
 
 	/* Find out about the endpoints supplied by the hardware, and ensure
-	 * the highest one doesn't exceed the number we support.
+	 * the highest one doesn't exceed the number supported by software.
 	 */
 	reg = ipa_reg(ipa, FLAVOR_0);
 	val = ioread32(ipa->reg_virt + ipa_reg_offset(reg));
 
-	/* Our RX is an IPA producer */
+	/* Our RX is an IPA producer; our TX is an IPA consumer. */
+	tx_count = ipa_reg_decode(reg, MAX_CONS_PIPES, val);
+	rx_count = ipa_reg_decode(reg, MAX_PROD_PIPES, val);
 	rx_base = ipa_reg_decode(reg, PROD_LOWEST, val);
-	max = rx_base + ipa_reg_decode(reg, MAX_PROD_PIPES, val);
-	if (max > IPA_ENDPOINT_MAX) {
-		dev_err(dev, "too many endpoints (%u > %u)\n",
-			max, IPA_ENDPOINT_MAX);
+
+	limit = rx_base + rx_count;
+	if (limit > IPA_ENDPOINT_MAX) {
+		dev_err(dev, "too many endpoints, %u > %u\n",
+			limit, IPA_ENDPOINT_MAX);
 		return -EINVAL;
 	}
-	rx_mask = GENMASK(max - 1, rx_base);
 
-	/* Our TX is an IPA consumer */
-	max = ipa_reg_decode(reg, MAX_CONS_PIPES, val);
-	tx_mask = GENMASK(max - 1, 0);
-
-	ipa->available = rx_mask | tx_mask;
-
-	/* Check for initialized endpoints not supported by the hardware */
-	if (ipa->initialized & ~ipa->available) {
-		dev_err(dev, "unavailable endpoint id(s) 0x%08x\n",
-			ipa->initialized & ~ipa->available);
-		ret = -EINVAL;		/* Report other errors too */
-	}
+	/* Mark all supported RX and TX endpoints as available */
+	ipa->available = GENMASK(limit - 1, rx_base) | GENMASK(tx_count - 1, 0);
 
 	initialized = ipa->initialized;
 	while (initialized) {
@@ -1901,16 +1892,32 @@ int ipa_endpoint_config(struct ipa *ipa)
 
 		initialized ^= BIT(endpoint_id);
 
+		if (endpoint_id >= limit) {
+			dev_err(dev, "invalid endpoint id, %u > %u\n",
+				endpoint_id, limit - 1);
+			return -EINVAL;
+		}
+
+		if (!(BIT(endpoint_id) & ipa->available)) {
+			dev_err(dev, "unavailable endpoint id %u\n",
+				endpoint_id);
+			return -EINVAL;
+		}
+
 		/* Make sure it's pointing in the right direction */
 		endpoint = &ipa->endpoint[endpoint_id];
-		if ((endpoint_id < rx_base) != endpoint->toward_ipa) {
-			dev_err(dev, "endpoint id %u wrong direction\n",
-				endpoint_id);
-			ret = -EINVAL;
+		if (endpoint->toward_ipa) {
+			if (endpoint_id < tx_count)
+				continue;
+		} else if (endpoint_id >= rx_base) {
+			continue;
 		}
+
+		dev_err(dev, "endpoint id %u wrong direction\n", endpoint_id);
+		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
 }
 
 void ipa_endpoint_deconfig(struct ipa *ipa)
