@@ -19,18 +19,18 @@
 #include <linux/reset.h>
 #include <linux/regmap.h>
 /* TACH Control Register */
-#define ASPEED_TACHO_CTRL_CH(ch) (((ch) * 0x10) + 0x08)
-#define TACHO_IER BIT(31)
-#define TACHO_INVERS_LIMIT BIT(30)
-#define TACHO_LOOPBACK BIT(29)
-#define TACHO_ENABLE BIT(28)
-#define TACHO_DEBOUNCE_MASK (0x3 << 26)
-#define TACHO_DEBOUNCE_BIT (26)
-#define TECHIO_EDGE_MASK (0x3 << 24)
-#define TECHIO_EDGE_BIT (24)
-#define TACHO_CLK_DIV_T_MASK (0xf << 20)
-#define TACHO_CLK_DIV_BIT (20)
-#define TACHO_THRESHOLD_MASK (0xfffff)
+#define TACH_ASPEED_CTRL(ch) (((ch) * 0x10) + 0x08)
+#define TACH_ASPEED_IER BIT(31)
+#define TACH_ASPEED_INVERS_LIMIT BIT(30)
+#define TACH_ASPEED_LOOPBACK BIT(29)
+#define TACH_ASPEED_ENABLE BIT(28)
+#define TACH_ASPEED_DEBOUNCE_MASK GENMASK(27, 26)
+#define TACH_ASPEED_DEBOUNCE_BIT (26)
+#define TACH_ASPEED_IO_EDGE_MASK GENMASK(25, 24)
+#define TACH_ASPEED_IO_EDGE_BIT (24)
+#define TACH_ASPEED_CLK_DIV_T_MASK GENMASK(23, 20)
+#define TACH_ASPEED_CLK_DIV_BIT (20)
+#define TACH_ASPEED_THRESHOLD_MASK GENMASK(19, 0)
 /* [27:26] */
 #define DEBOUNCE_3_CLK 0x00
 #define DEBOUNCE_2_CLK 0x01
@@ -45,17 +45,17 @@
 #define DEFAULT_TACHO_DIV 5
 
 /* TACH Status Register */
-#define ASPEED_TACHO_STS_CH(x) (((x) * 0x10) + 0x0C)
+#define TACH_ASPEED_STS(ch) (((ch) * 0x10) + 0x0C)
 
-/*PWM_TACHO_STS */
-#define TACHO_ISR BIT(31)
-#define PWM_OUT BIT(25)
-#define PWM_OEN BIT(24)
-#define TACHO_DEB_INPUT BIT(23)
-#define TACHO_RAW_INPUT BIT(22)
-#define TACHO_VALUE_UPDATE BIT(21)
-#define TACHO_FULL_MEASUREMENT BIT(20)
-#define TACHO_VALUE_MASK 0xfffff
+/*PWM_TACH_STS */
+#define TACH_ASPEED_ISR BIT(31)
+#define TACH_ASPEED_PWM_OUT BIT(25)
+#define TACH_ASPEED_PWM_OEN BIT(24)
+#define TACH_ASPEED_DEB_INPUT BIT(23)
+#define TACH_ASPEED_RAW_INPUT BIT(22)
+#define TACH_ASPEED_VALUE_UPDATE BIT(21)
+#define TACH_ASPEED_FULL_MEASUREMENT BIT(20)
+#define TACH_ASPEED_VALUE_MASK GENMASK(19, 0)
 /**********************************************************
  * Software setting
  *********************************************************/
@@ -118,30 +118,29 @@ static void aspeed_set_fan_tach_ch_enable(struct aspeed_tach_data *priv,
 		/* divide = 2^(tacho_div*2) */
 		priv->tacho_channel[fan_tach_ch].divide = 1 << (tacho_div << 1);
 
-		reg_value = TACHO_ENABLE |
+		reg_value = TACH_ASPEED_ENABLE |
 			    (priv->tacho_channel[fan_tach_ch].tacho_edge
-			     << TECHIO_EDGE_BIT) |
-			    (tacho_div << TACHO_CLK_DIV_BIT) |
+			     << TACH_ASPEED_IO_EDGE_BIT) |
+			    (tacho_div << TACH_ASPEED_CLK_DIV_BIT) |
 			    (priv->tacho_channel[fan_tach_ch].tacho_debounce
-			     << TACHO_DEBOUNCE_BIT);
+			     << TACH_ASPEED_DEBOUNCE_BIT);
 
 		if (priv->tacho_channel[fan_tach_ch].limited_inverse)
-			reg_value |= TACHO_INVERS_LIMIT;
+			reg_value |= TACH_ASPEED_INVERS_LIMIT;
 
 		if (priv->tacho_channel[fan_tach_ch].threshold)
 			reg_value |=
-				(TACHO_IER |
+				(TACH_ASPEED_IER |
 				 priv->tacho_channel[fan_tach_ch].threshold);
 
-		regmap_write(priv->regmap, ASPEED_TACHO_CTRL_CH(fan_tach_ch),
+		regmap_write(priv->regmap, TACH_ASPEED_CTRL(fan_tach_ch),
 			     reg_value);
 
 		priv->tacho_channel[fan_tach_ch].sample_period =
 			aspeed_get_fan_tach_sample_period(priv, fan_tach_ch);
 	} else
-		regmap_update_bits(priv->regmap,
-				   ASPEED_TACHO_CTRL_CH(fan_tach_ch),
-				   TACHO_ENABLE, 0);
+		regmap_update_bits(priv->regmap, TACH_ASPEED_CTRL(fan_tach_ch),
+				   TACH_ASPEED_ENABLE, 0);
 }
 
 static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
@@ -153,13 +152,13 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
 
 	usec = priv->tacho_channel[fan_tach_ch].sample_period;
 	/* Restart the Tach channel to guarantee the value is fresh */
-	regmap_update_bits(priv->regmap, ASPEED_TACHO_CTRL_CH(fan_tach_ch),
-			     TACHO_ENABLE, 0);
-	regmap_update_bits(priv->regmap, ASPEED_TACHO_CTRL_CH(fan_tach_ch),
-			     TACHO_ENABLE, TACHO_ENABLE);
+	regmap_update_bits(priv->regmap, TACH_ASPEED_CTRL(fan_tach_ch),
+			   TACH_ASPEED_ENABLE, 0);
+	regmap_update_bits(priv->regmap, TACH_ASPEED_CTRL(fan_tach_ch),
+			   TACH_ASPEED_ENABLE, TACH_ASPEED_ENABLE);
 	ret = regmap_read_poll_timeout(
-		priv->regmap, ASPEED_TACHO_STS_CH(fan_tach_ch), val,
-		(val & TACHO_FULL_MEASUREMENT) && (val & TACHO_VALUE_UPDATE),
+		priv->regmap, TACH_ASPEED_STS(fan_tach_ch), val,
+		(val & TACH_ASPEED_FULL_MEASUREMENT) && (val & TACH_ASPEED_VALUE_UPDATE),
 		RPM_POLLING_PERIOD_US, usec);
 
 	if (ret) {
@@ -170,7 +169,7 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
 			return ret;
 	}
 
-	raw_data = val & TACHO_VALUE_MASK;
+	raw_data = val & TACH_ASPEED_VALUE_MASK;
 	/*
 	 * We need the mode to determine if the raw_data is double (from
 	 * counting both edges).
