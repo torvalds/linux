@@ -1004,34 +1004,34 @@ static int avs_component_resume(struct snd_soc_component *component)
 	return avs_component_resume_prepare(component, false);
 }
 
+static const struct snd_pcm_hardware avs_pcm_hardware = {
+	.info			= SNDRV_PCM_INFO_MMAP |
+				  SNDRV_PCM_INFO_MMAP_VALID |
+				  SNDRV_PCM_INFO_INTERLEAVED |
+				  SNDRV_PCM_INFO_PAUSE |
+				  SNDRV_PCM_INFO_RESUME |
+				  SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
+	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
+				  SNDRV_PCM_FMTBIT_S24_LE |
+				  SNDRV_PCM_FMTBIT_S32_LE,
+	.buffer_bytes_max	= AZX_MAX_BUF_SIZE,
+	.period_bytes_min	= 128,
+	.period_bytes_max	= AZX_MAX_BUF_SIZE / 2,
+	.periods_min		= 2,
+	.periods_max		= AZX_MAX_FRAG,
+	.fifo_size		= 0,
+};
+
 static int avs_component_open(struct snd_soc_component *component,
 			      struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-	struct snd_pcm_hardware hwparams;
 
 	/* only FE DAI links are handled here */
 	if (rtd->dai_link->no_pcm)
 		return 0;
 
-	hwparams.info = SNDRV_PCM_INFO_MMAP |
-			SNDRV_PCM_INFO_MMAP_VALID |
-			SNDRV_PCM_INFO_INTERLEAVED |
-			SNDRV_PCM_INFO_PAUSE |
-			SNDRV_PCM_INFO_RESUME |
-			SNDRV_PCM_INFO_NO_PERIOD_WAKEUP;
-
-	hwparams.formats = SNDRV_PCM_FMTBIT_S16_LE |
-			   SNDRV_PCM_FMTBIT_S24_LE |
-			   SNDRV_PCM_FMTBIT_S32_LE;
-	hwparams.period_bytes_min = 128;
-	hwparams.period_bytes_max = AZX_MAX_BUF_SIZE / 2;
-	hwparams.periods_min = 2;
-	hwparams.periods_max = AZX_MAX_FRAG;
-	hwparams.buffer_bytes_max = AZX_MAX_BUF_SIZE;
-	hwparams.fifo_size = 0;
-
-	return snd_soc_set_runtime_hwparams(substream, &hwparams);
+	return snd_soc_set_runtime_hwparams(substream, &avs_pcm_hardware);
 }
 
 static unsigned int avs_hda_stream_dpib_read(struct hdac_ext_stream *stream)
@@ -1375,9 +1375,15 @@ static int avs_component_hda_open(struct snd_soc_component *component,
 	struct hdac_ext_stream *link_stream;
 	struct hda_codec *codec;
 
-	/* only BE DAI links are handled here */
-	if (!rtd->dai_link->no_pcm)
-		return avs_component_open(component, substream);
+	if (!rtd->dai_link->no_pcm) {
+		struct snd_pcm_hardware hwparams = avs_pcm_hardware;
+
+		/* RESUME unsupported for de-coupled HD-Audio capture. */
+		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+			hwparams.info &= ~SNDRV_PCM_INFO_RESUME;
+
+		return snd_soc_set_runtime_hwparams(substream, &hwparams);
+	}
 
 	codec = dev_to_hda_codec(asoc_rtd_to_codec(rtd, 0)->dev);
 	link_stream = snd_hdac_ext_stream_assign(&codec->bus->core, substream,
