@@ -17,6 +17,7 @@
 #include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
+#include <crypto/xts.h>
 #include <crypto/sm4.h>
 
 #define BYTES2BLKS(nbytes)	((nbytes) >> 4)
@@ -40,11 +41,22 @@ asmlinkage void sm4_ce_cfb_dec(const u32 *rkey, u8 *dst, const u8 *src,
 			       u8 *iv, unsigned int nblks);
 asmlinkage void sm4_ce_ctr_enc(const u32 *rkey, u8 *dst, const u8 *src,
 			       u8 *iv, unsigned int nblks);
+asmlinkage void sm4_ce_xts_enc(const u32 *rkey1, u8 *dst, const u8 *src,
+			       u8 *tweak, unsigned int nbytes,
+			       const u32 *rkey2_enc);
+asmlinkage void sm4_ce_xts_dec(const u32 *rkey1, u8 *dst, const u8 *src,
+			       u8 *tweak, unsigned int nbytes,
+			       const u32 *rkey2_enc);
 
 EXPORT_SYMBOL(sm4_ce_expand_key);
 EXPORT_SYMBOL(sm4_ce_crypt_block);
 EXPORT_SYMBOL(sm4_ce_cbc_enc);
 EXPORT_SYMBOL(sm4_ce_cfb_enc);
+
+struct sm4_xts_ctx {
+	struct sm4_ctx key1;
+	struct sm4_ctx key2;
+};
 
 static int sm4_setkey(struct crypto_skcipher *tfm, const u8 *key,
 		      unsigned int key_len)
@@ -58,6 +70,29 @@ static int sm4_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	sm4_ce_expand_key(key, ctx->rkey_enc, ctx->rkey_dec,
 			  crypto_sm4_fk, crypto_sm4_ck);
 	kernel_neon_end();
+	return 0;
+}
+
+static int sm4_xts_setkey(struct crypto_skcipher *tfm, const u8 *key,
+			  unsigned int key_len)
+{
+	struct sm4_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
+	int ret;
+
+	if (key_len != SM4_KEY_SIZE * 2)
+		return -EINVAL;
+
+	ret = xts_verify_key(tfm, key, key_len);
+	if (ret)
+		return ret;
+
+	kernel_neon_begin();
+	sm4_ce_expand_key(key, ctx->key1.rkey_enc,
+			  ctx->key1.rkey_dec, crypto_sm4_fk, crypto_sm4_ck);
+	sm4_ce_expand_key(&key[SM4_KEY_SIZE], ctx->key2.rkey_enc,
+			  ctx->key2.rkey_dec, crypto_sm4_fk, crypto_sm4_ck);
+	kernel_neon_end();
+
 	return 0;
 }
 
@@ -357,6 +392,111 @@ static int sm4_ctr_crypt(struct skcipher_request *req)
 	return err;
 }
 
+static int sm4_xts_crypt(struct skcipher_request *req, bool encrypt)
+{
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct sm4_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
+	int tail = req->cryptlen % SM4_BLOCK_SIZE;
+	const u32 *rkey2_enc = ctx->key2.rkey_enc;
+	struct scatterlist sg_src[2], sg_dst[2];
+	struct skcipher_request subreq;
+	struct scatterlist *src, *dst;
+	struct skcipher_walk walk;
+	unsigned int nbytes;
+	int err;
+
+	if (req->cryptlen < SM4_BLOCK_SIZE)
+		return -EINVAL;
+
+	err = skcipher_walk_virt(&walk, req, false);
+	if (err)
+		return err;
+
+	if (unlikely(tail > 0 && walk.nbytes < walk.total)) {
+		int nblocks = DIV_ROUND_UP(req->cryptlen, SM4_BLOCK_SIZE) - 2;
+
+		skcipher_walk_abort(&walk);
+
+		skcipher_request_set_tfm(&subreq, tfm);
+		skcipher_request_set_callback(&subreq,
+					      skcipher_request_flags(req),
+					      NULL, NULL);
+		skcipher_request_set_crypt(&subreq, req->src, req->dst,
+					   nblocks * SM4_BLOCK_SIZE, req->iv);
+
+		err = skcipher_walk_virt(&walk, &subreq, false);
+		if (err)
+			return err;
+	} else {
+		tail = 0;
+	}
+
+	while ((nbytes = walk.nbytes) >= SM4_BLOCK_SIZE) {
+		if (nbytes < walk.total)
+			nbytes &= ~(SM4_BLOCK_SIZE - 1);
+
+		kernel_neon_begin();
+
+		if (encrypt)
+			sm4_ce_xts_enc(ctx->key1.rkey_enc, walk.dst.virt.addr,
+				       walk.src.virt.addr, walk.iv, nbytes,
+				       rkey2_enc);
+		else
+			sm4_ce_xts_dec(ctx->key1.rkey_dec, walk.dst.virt.addr,
+				       walk.src.virt.addr, walk.iv, nbytes,
+				       rkey2_enc);
+
+		kernel_neon_end();
+
+		rkey2_enc = NULL;
+
+		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+		if (err)
+			return err;
+	}
+
+	if (likely(tail == 0))
+		return 0;
+
+	/* handle ciphertext stealing */
+
+	dst = src = scatterwalk_ffwd(sg_src, req->src, subreq.cryptlen);
+	if (req->dst != req->src)
+		dst = scatterwalk_ffwd(sg_dst, req->dst, subreq.cryptlen);
+
+	skcipher_request_set_crypt(&subreq, src, dst, SM4_BLOCK_SIZE + tail,
+				   req->iv);
+
+	err = skcipher_walk_virt(&walk, &subreq, false);
+	if (err)
+		return err;
+
+	kernel_neon_begin();
+
+	if (encrypt)
+		sm4_ce_xts_enc(ctx->key1.rkey_enc, walk.dst.virt.addr,
+			       walk.src.virt.addr, walk.iv, walk.nbytes,
+			       rkey2_enc);
+	else
+		sm4_ce_xts_dec(ctx->key1.rkey_dec, walk.dst.virt.addr,
+			       walk.src.virt.addr, walk.iv, walk.nbytes,
+			       rkey2_enc);
+
+	kernel_neon_end();
+
+	return skcipher_walk_done(&walk, 0);
+}
+
+static int sm4_xts_encrypt(struct skcipher_request *req)
+{
+	return sm4_xts_crypt(req, true);
+}
+
+static int sm4_xts_decrypt(struct skcipher_request *req)
+{
+	return sm4_xts_crypt(req, false);
+}
+
 static struct skcipher_alg sm4_algs[] = {
 	{
 		.base = {
@@ -435,6 +575,22 @@ static struct skcipher_alg sm4_algs[] = {
 		.setkey		= sm4_setkey,
 		.encrypt	= sm4_cbc_cts_encrypt,
 		.decrypt	= sm4_cbc_cts_decrypt,
+	}, {
+		.base = {
+			.cra_name		= "xts(sm4)",
+			.cra_driver_name	= "xts-sm4-ce",
+			.cra_priority		= 400,
+			.cra_blocksize		= SM4_BLOCK_SIZE,
+			.cra_ctxsize		= sizeof(struct sm4_xts_ctx),
+			.cra_module		= THIS_MODULE,
+		},
+		.min_keysize	= SM4_KEY_SIZE * 2,
+		.max_keysize	= SM4_KEY_SIZE * 2,
+		.ivsize		= SM4_BLOCK_SIZE,
+		.walksize	= SM4_BLOCK_SIZE * 2,
+		.setkey		= sm4_xts_setkey,
+		.encrypt	= sm4_xts_encrypt,
+		.decrypt	= sm4_xts_decrypt,
 	}
 };
 
@@ -451,7 +607,7 @@ static void __exit sm4_exit(void)
 module_cpu_feature_match(SM4, sm4_init);
 module_exit(sm4_exit);
 
-MODULE_DESCRIPTION("SM4 ECB/CBC/CFB/CTR using ARMv8 Crypto Extensions");
+MODULE_DESCRIPTION("SM4 ECB/CBC/CFB/CTR/XTS using ARMv8 Crypto Extensions");
 MODULE_ALIAS_CRYPTO("sm4-ce");
 MODULE_ALIAS_CRYPTO("sm4");
 MODULE_ALIAS_CRYPTO("ecb(sm4)");
@@ -459,5 +615,6 @@ MODULE_ALIAS_CRYPTO("cbc(sm4)");
 MODULE_ALIAS_CRYPTO("cfb(sm4)");
 MODULE_ALIAS_CRYPTO("ctr(sm4)");
 MODULE_ALIAS_CRYPTO("cts(cbc(sm4))");
+MODULE_ALIAS_CRYPTO("xts(sm4)");
 MODULE_AUTHOR("Tianjia Zhang <tianjia.zhang@linux.alibaba.com>");
 MODULE_LICENSE("GPL v2");

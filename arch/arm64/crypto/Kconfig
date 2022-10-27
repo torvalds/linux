@@ -231,7 +231,7 @@ config CRYPTO_SM4_ARM64_CE
 	  - NEON (Advanced SIMD) extensions
 
 config CRYPTO_SM4_ARM64_CE_BLK
-	tristate "Ciphers: SM4, modes: ECB/CBC/CFB/CTR (ARMv8 Crypto Extensions)"
+	tristate "Ciphers: SM4, modes: ECB/CBC/CFB/CTR/XTS (ARMv8 Crypto Extensions)"
 	depends on KERNEL_MODE_NEON
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SM4
@@ -242,6 +242,8 @@ config CRYPTO_SM4_ARM64_CE_BLK
 	  - CBC (Cipher Block Chaining) mode (NIST SP800-38A)
 	  - CFB (Cipher Feedback) mode (NIST SP800-38A)
 	  - CTR (Counter) mode (NIST SP800-38A)
+	  - XTS (XOR Encrypt XOR with ciphertext stealing) mode (NIST SP800-38E
+	    and IEEE 1619)
 
 	  Architecture: arm64 using:
 	  - ARMv8 Crypto Extensions

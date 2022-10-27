@@ -35,6 +35,7 @@
 #define RTMP3	v19
 
 #define RIV	v20
+#define RMASK	v21
 
 
 .align 3
@@ -663,6 +664,348 @@ SYM_FUNC_START(sm4_ce_ctr_enc)
 
 	ret
 SYM_FUNC_END(sm4_ce_ctr_enc)
+
+
+#define tweak_next(vt, vin, RTMP)					\
+		sshr		RTMP.2d, vin.2d, #63;			\
+		and		RTMP.16b, RTMP.16b, RMASK.16b;		\
+		add		vt.2d, vin.2d, vin.2d;			\
+		ext		RTMP.16b, RTMP.16b, RTMP.16b, #8;	\
+		eor		vt.16b, vt.16b, RTMP.16b;
+
+.align 3
+SYM_FUNC_START(sm4_ce_xts_enc)
+	/* input:
+	 *   x0: round key array, CTX
+	 *   x1: dst
+	 *   x2: src
+	 *   x3: tweak (big endian, 128 bit)
+	 *   w4: nbytes
+	 *   x5: round key array for IV
+	 */
+	ld1		{v8.16b}, [x3]
+
+	cbz		x5, .Lxts_enc_nofirst
+
+	SM4_PREPARE(x5)
+
+	/* Generate first tweak */
+	SM4_CRYPT_BLK(v8)
+
+.Lxts_enc_nofirst:
+	SM4_PREPARE(x0)
+
+	ands		w5, w4, #15
+	lsr		w4, w4, #4
+	sub		w6, w4, #1
+	csel		w4, w4, w6, eq
+	uxtw		x5, w5
+
+	movi		RMASK.2s, #0x1
+	movi		RTMP0.2s, #0x87
+	uzp1		RMASK.4s, RMASK.4s, RTMP0.4s
+
+	cbz		w4, .Lxts_enc_cts
+
+.Lxts_enc_loop_8x:
+	sub		w4, w4, #8
+	tbnz		w4, #31, .Lxts_enc_4x
+
+	tweak_next( v9,  v8, RTMP0)
+	tweak_next(v10,  v9, RTMP1)
+	tweak_next(v11, v10, RTMP2)
+	tweak_next(v12, v11, RTMP3)
+	tweak_next(v13, v12, RTMP0)
+	tweak_next(v14, v13, RTMP1)
+	tweak_next(v15, v14, RTMP2)
+
+	ld1		{v0.16b-v3.16b}, [x2], #64
+	ld1		{v4.16b-v7.16b}, [x2], #64
+	eor		v0.16b, v0.16b,  v8.16b
+	eor		v1.16b, v1.16b,  v9.16b
+	eor		v2.16b, v2.16b, v10.16b
+	eor		v3.16b, v3.16b, v11.16b
+	eor		v4.16b, v4.16b, v12.16b
+	eor		v5.16b, v5.16b, v13.16b
+	eor		v6.16b, v6.16b, v14.16b
+	eor		v7.16b, v7.16b, v15.16b
+
+	SM4_CRYPT_BLK8(v0, v1, v2, v3, v4, v5, v6, v7)
+
+	eor		v0.16b, v0.16b,  v8.16b
+	eor		v1.16b, v1.16b,  v9.16b
+	eor		v2.16b, v2.16b, v10.16b
+	eor		v3.16b, v3.16b, v11.16b
+	eor		v4.16b, v4.16b, v12.16b
+	eor		v5.16b, v5.16b, v13.16b
+	eor		v6.16b, v6.16b, v14.16b
+	eor		v7.16b, v7.16b, v15.16b
+	st1		{v0.16b-v3.16b}, [x1], #64
+	st1		{v4.16b-v7.16b}, [x1], #64
+
+	tweak_next(v8, v15, RTMP3)
+
+	cbz		w4, .Lxts_enc_cts
+	b		.Lxts_enc_loop_8x
+
+.Lxts_enc_4x:
+	add		w4, w4, #8
+	cmp		w4, #4
+	blt		.Lxts_enc_loop_1x
+
+	sub		w4, w4, #4
+
+	tweak_next( v9,  v8, RTMP0)
+	tweak_next(v10,  v9, RTMP1)
+	tweak_next(v11, v10, RTMP2)
+
+	ld1		{v0.16b-v3.16b}, [x2], #64
+	eor		v0.16b, v0.16b,  v8.16b
+	eor		v1.16b, v1.16b,  v9.16b
+	eor		v2.16b, v2.16b, v10.16b
+	eor		v3.16b, v3.16b, v11.16b
+
+	SM4_CRYPT_BLK4(v0, v1, v2, v3)
+
+	eor		v0.16b, v0.16b,  v8.16b
+	eor		v1.16b, v1.16b,  v9.16b
+	eor		v2.16b, v2.16b, v10.16b
+	eor		v3.16b, v3.16b, v11.16b
+	st1		{v0.16b-v3.16b}, [x1], #64
+
+	tweak_next(v8, v11, RTMP3)
+
+	cbz		w4, .Lxts_enc_cts
+
+.Lxts_enc_loop_1x:
+	sub		w4, w4, #1
+
+	ld1		{v0.16b}, [x2], #16
+	eor		v0.16b, v0.16b, v8.16b
+
+	SM4_CRYPT_BLK(v0)
+
+	eor		v0.16b, v0.16b, v8.16b
+	st1		{v0.16b}, [x1], #16
+
+	tweak_next(v8, v8, RTMP0)
+
+	cbnz		w4, .Lxts_enc_loop_1x
+
+.Lxts_enc_cts:
+	cbz		x5, .Lxts_enc_end
+
+	/* cipher text stealing */
+
+	tweak_next(v9, v8, RTMP0)
+	ld1		{v0.16b}, [x2]
+	eor		v0.16b, v0.16b, v8.16b
+	SM4_CRYPT_BLK(v0)
+	eor		v0.16b, v0.16b, v8.16b
+
+	/* load permute table */
+	adr_l		x6, .Lcts_permute_table
+	add		x7, x6, #32
+	add		x6, x6, x5
+	sub		x7, x7, x5
+	ld1		{v3.16b}, [x6]
+	ld1		{v4.16b}, [x7]
+
+	/* overlapping loads */
+	add		x2, x2, x5
+	ld1		{v1.16b}, [x2]
+
+	/* create Cn from En-1 */
+	tbl		v2.16b, {v0.16b}, v3.16b
+	/* padding Pn with En-1 at the end */
+	tbx		v0.16b, {v1.16b}, v4.16b
+
+	eor		v0.16b, v0.16b, v9.16b
+	SM4_CRYPT_BLK(v0)
+	eor		v0.16b, v0.16b, v9.16b
+
+
+	/* overlapping stores */
+	add		x5, x1, x5
+	st1		{v2.16b}, [x5]
+	st1		{v0.16b}, [x1]
+
+	b		.Lxts_enc_ret
+
+.Lxts_enc_end:
+	/* store new tweak */
+	st1		{v8.16b}, [x3]
+
+.Lxts_enc_ret:
+	ret
+SYM_FUNC_END(sm4_ce_xts_enc)
+
+.align 3
+SYM_FUNC_START(sm4_ce_xts_dec)
+	/* input:
+	 *   x0: round key array, CTX
+	 *   x1: dst
+	 *   x2: src
+	 *   x3: tweak (big endian, 128 bit)
+	 *   w4: nbytes
+	 *   x5: round key array for IV
+	 */
+	ld1		{v8.16b}, [x3]
+
+	cbz		x5, .Lxts_dec_nofirst
+
+	SM4_PREPARE(x5)
+
+	/* Generate first tweak */
+	SM4_CRYPT_BLK(v8)
+
+.Lxts_dec_nofirst:
+	SM4_PREPARE(x0)
+
+	ands		w5, w4, #15
+	lsr		w4, w4, #4
+	sub		w6, w4, #1
+	csel		w4, w4, w6, eq
+	uxtw		x5, w5
+
+	movi		RMASK.2s, #0x1
+	movi		RTMP0.2s, #0x87
+	uzp1		RMASK.4s, RMASK.4s, RTMP0.4s
+
+	cbz		w4, .Lxts_dec_cts
+
+.Lxts_dec_loop_8x:
+	sub		w4, w4, #8
+	tbnz		w4, #31, .Lxts_dec_4x
+
+	tweak_next( v9,  v8, RTMP0)
+	tweak_next(v10,  v9, RTMP1)
+	tweak_next(v11, v10, RTMP2)
+	tweak_next(v12, v11, RTMP3)
+	tweak_next(v13, v12, RTMP0)
+	tweak_next(v14, v13, RTMP1)
+	tweak_next(v15, v14, RTMP2)
+
+	ld1		{v0.16b-v3.16b}, [x2], #64
+	ld1		{v4.16b-v7.16b}, [x2], #64
+	eor		v0.16b, v0.16b,  v8.16b
+	eor		v1.16b, v1.16b,  v9.16b
+	eor		v2.16b, v2.16b, v10.16b
+	eor		v3.16b, v3.16b, v11.16b
+	eor		v4.16b, v4.16b, v12.16b
+	eor		v5.16b, v5.16b, v13.16b
+	eor		v6.16b, v6.16b, v14.16b
+	eor		v7.16b, v7.16b, v15.16b
+
+	SM4_CRYPT_BLK8(v0, v1, v2, v3, v4, v5, v6, v7)
+
+	eor		v0.16b, v0.16b,  v8.16b
+	eor		v1.16b, v1.16b,  v9.16b
+	eor		v2.16b, v2.16b, v10.16b
+	eor		v3.16b, v3.16b, v11.16b
+	eor		v4.16b, v4.16b, v12.16b
+	eor		v5.16b, v5.16b, v13.16b
+	eor		v6.16b, v6.16b, v14.16b
+	eor		v7.16b, v7.16b, v15.16b
+	st1		{v0.16b-v3.16b}, [x1], #64
+	st1		{v4.16b-v7.16b}, [x1], #64
+
+	tweak_next(v8, v15, RTMP3)
+
+	cbz		w4, .Lxts_dec_cts
+	b		.Lxts_dec_loop_8x
+
+.Lxts_dec_4x:
+	add		w4, w4, #8
+	cmp		w4, #4
+	blt		.Lxts_dec_loop_1x
+
+	sub		w4, w4, #4
+
+	tweak_next( v9,  v8, RTMP0)
+	tweak_next(v10,  v9, RTMP1)
+	tweak_next(v11, v10, RTMP2)
+
+	ld1		{v0.16b-v3.16b}, [x2], #64
+	eor		v0.16b, v0.16b,  v8.16b
+	eor		v1.16b, v1.16b,  v9.16b
+	eor		v2.16b, v2.16b, v10.16b
+	eor		v3.16b, v3.16b, v11.16b
+
+	SM4_CRYPT_BLK4(v0, v1, v2, v3)
+
+	eor		v0.16b, v0.16b,  v8.16b
+	eor		v1.16b, v1.16b,  v9.16b
+	eor		v2.16b, v2.16b, v10.16b
+	eor		v3.16b, v3.16b, v11.16b
+	st1		{v0.16b-v3.16b}, [x1], #64
+
+	tweak_next(v8, v11, RTMP3)
+
+	cbz		w4, .Lxts_dec_cts
+
+.Lxts_dec_loop_1x:
+	sub		w4, w4, #1
+
+	ld1		{v0.16b}, [x2], #16
+	eor		v0.16b, v0.16b, v8.16b
+
+	SM4_CRYPT_BLK(v0)
+
+	eor		v0.16b, v0.16b, v8.16b
+	st1		{v0.16b}, [x1], #16
+
+	tweak_next(v8, v8, RTMP0)
+
+	cbnz		w4, .Lxts_dec_loop_1x
+
+.Lxts_dec_cts:
+	cbz		x5, .Lxts_dec_end
+
+	/* cipher text stealing */
+
+	tweak_next(v9, v8, RTMP0)
+	ld1		{v0.16b}, [x2]
+	eor		v0.16b, v0.16b, v9.16b
+	SM4_CRYPT_BLK(v0)
+	eor		v0.16b, v0.16b, v9.16b
+
+	/* load permute table */
+	adr_l		x6, .Lcts_permute_table
+	add		x7, x6, #32
+	add		x6, x6, x5
+	sub		x7, x7, x5
+	ld1		{v3.16b}, [x6]
+	ld1		{v4.16b}, [x7]
+
+	/* overlapping loads */
+	add		x2, x2, x5
+	ld1		{v1.16b}, [x2]
+
+	/* create Cn from En-1 */
+	tbl		v2.16b, {v0.16b}, v3.16b
+	/* padding Pn with En-1 at the end */
+	tbx		v0.16b, {v1.16b}, v4.16b
+
+	eor		v0.16b, v0.16b, v8.16b
+	SM4_CRYPT_BLK(v0)
+	eor		v0.16b, v0.16b, v8.16b
+
+
+	/* overlapping stores */
+	add		x5, x1, x5
+	st1		{v2.16b}, [x5]
+	st1		{v0.16b}, [x1]
+
+	b		.Lxts_dec_ret
+
+.Lxts_dec_end:
+	/* store new tweak */
+	st1		{v8.16b}, [x3]
+
+.Lxts_dec_ret:
+	ret
+SYM_FUNC_END(sm4_ce_xts_dec)
 
 
 	.section	".rodata", "a"
