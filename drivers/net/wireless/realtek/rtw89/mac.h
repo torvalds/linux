@@ -980,6 +980,16 @@ static inline void rtw89_mac_ctrl_hci_dma_trx(struct rtw89_dev *rtwdev,
 				  B_AX_HCI_TXDMA_EN | B_AX_HCI_RXDMA_EN);
 }
 
+static inline bool rtw89_mac_get_power_state(struct rtw89_dev *rtwdev)
+{
+	u32 val;
+
+	val = rtw89_read32_mask(rtwdev, R_AX_IC_PWR_STATE,
+				B_AX_WLMAC_PWR_STE_MASK);
+
+	return !!val;
+}
+
 int rtw89_mac_set_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 			  bool resume, u32 tx_time);
 int rtw89_mac_get_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
@@ -1038,8 +1048,12 @@ void rtw89_mac_pkt_drop_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 u16 rtw89_mac_dle_buf_req(struct rtw89_dev *rtwdev, u16 buf_len, bool wd);
 int rtw89_mac_set_cpuio(struct rtw89_dev *rtwdev,
 			struct rtw89_cpuio_ctrl *ctrl_para, bool wd);
+int rtw89_mac_typ_fltr_opt(struct rtw89_dev *rtwdev,
+			   enum rtw89_machdr_frame_type type,
+			   enum rtw89_mac_fwd_target fwd_target, u8 mac_idx);
 int rtw89_mac_resize_ple_rx_quota(struct rtw89_dev *rtwdev, bool wow);
 int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
 					enum rtw89_mac_idx band);
+void rtw89_mac_hw_mgnt_sec(struct rtw89_dev *rtwdev, bool wow);
 
 #endif

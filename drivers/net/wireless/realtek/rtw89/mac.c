@@ -1566,6 +1566,16 @@ int rtw89_mac_resize_ple_rx_quota(struct rtw89_dev *rtwdev, bool wow)
 }
 #undef SET_QUOTA
 
+void rtw89_mac_hw_mgnt_sec(struct rtw89_dev *rtwdev, bool enable)
+{
+	u32 msk32 = B_AX_UC_MGNT_DEC | B_AX_BMC_MGNT_DEC;
+
+	if (enable)
+		rtw89_write32_set(rtwdev, R_AX_SEC_ENG_CTRL, msk32);
+	else
+		rtw89_write32_clr(rtwdev, R_AX_SEC_ENG_CTRL, msk32);
+}
+
 static void dle_quota_cfg(struct rtw89_dev *rtwdev,
 			  const struct rtw89_dle_mem *cfg,
 			  u16 ext_wde_min_qt_wcpu)
@@ -1915,10 +1925,10 @@ static int scheduler_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 	return 0;
 }
 
-static int rtw89_mac_typ_fltr_opt(struct rtw89_dev *rtwdev,
-				  enum rtw89_machdr_frame_type type,
-				  enum rtw89_mac_fwd_target fwd_target,
-				  u8 mac_idx)
+int rtw89_mac_typ_fltr_opt(struct rtw89_dev *rtwdev,
+			   enum rtw89_machdr_frame_type type,
+			   enum rtw89_mac_fwd_target fwd_target,
+			   u8 mac_idx)
 {
 	u32 reg;
 	u32 val;

@@ -14,6 +14,7 @@
 #include "sar.h"
 #include "ser.h"
 #include "util.h"
+#include "wow.h"
 
 static void rtw89_ops_tx(struct ieee80211_hw *hw,
 			 struct ieee80211_tx_control *control,
@@ -916,6 +917,55 @@ static int rtw89_ops_set_tid_config(struct ieee80211_hw *hw,
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int rtw89_ops_suspend(struct ieee80211_hw *hw,
+			     struct cfg80211_wowlan *wowlan)
+{
+	struct rtw89_dev *rtwdev = hw->priv;
+	int ret;
+
+	set_bit(RTW89_FLAG_FORBIDDEN_TRACK_WROK, rtwdev->flags);
+	cancel_delayed_work_sync(&rtwdev->track_work);
+
+	mutex_lock(&rtwdev->mutex);
+	ret = rtw89_wow_suspend(rtwdev, wowlan);
+	mutex_unlock(&rtwdev->mutex);
+
+	if (ret) {
+		rtw89_warn(rtwdev, "failed to suspend for wow %d\n", ret);
+		clear_bit(RTW89_FLAG_FORBIDDEN_TRACK_WROK, rtwdev->flags);
+		return 1;
+	}
+
+	return 0;
+}
+
+static int rtw89_ops_resume(struct ieee80211_hw *hw)
+{
+	struct rtw89_dev *rtwdev = hw->priv;
+	int ret;
+
+	mutex_lock(&rtwdev->mutex);
+	ret = rtw89_wow_resume(rtwdev);
+	if (ret)
+		rtw89_warn(rtwdev, "failed to resume for wow %d\n", ret);
+	mutex_unlock(&rtwdev->mutex);
+
+	clear_bit(RTW89_FLAG_FORBIDDEN_TRACK_WROK, rtwdev->flags);
+	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->track_work,
+				     RTW89_TRACK_WORK_PERIOD);
+
+	return ret ? 1 : 0;
+}
+
+static void rtw89_ops_set_wakeup(struct ieee80211_hw *hw, bool enabled)
+{
+	struct rtw89_dev *rtwdev = hw->priv;
+
+	device_set_wakeup_enable(rtwdev->dev, enabled);
+}
+#endif
+
 const struct ieee80211_ops rtw89_ops = {
 	.tx			= rtw89_ops_tx,
 	.wake_tx_queue		= rtw89_ops_wake_tx_queue,
@@ -953,5 +1003,10 @@ const struct ieee80211_ops rtw89_ops = {
 	.set_sar_specs		= rtw89_ops_set_sar_specs,
 	.sta_rc_update		= rtw89_ops_sta_rc_update,
 	.set_tid_config		= rtw89_ops_set_tid_config,
+#ifdef CONFIG_PM
+	.suspend		= rtw89_ops_suspend,
+	.resume			= rtw89_ops_resume,
+	.set_wakeup		= rtw89_ops_set_wakeup,
+#endif
 };
 EXPORT_SYMBOL(rtw89_ops);

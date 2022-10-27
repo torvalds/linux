@@ -186,6 +186,17 @@ static void rtw89_pci_ctrl_txdma_ch_pcie(struct rtw89_dev *rtwdev, bool enable)
 	}
 }
 
+static void rtw89_pci_ctrl_txdma_fw_ch_pcie(struct rtw89_dev *rtwdev, bool enable)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_reg_def *dma_stop1 = &info->dma_stop1;
+
+	if (enable)
+		rtw89_write32_clr(rtwdev, dma_stop1->addr, B_AX_STOP_CH12);
+	else
+		rtw89_write32_set(rtwdev, dma_stop1->addr, B_AX_STOP_CH12);
+}
+
 static bool
 rtw89_skb_put_rx_data(struct rtw89_dev *rtwdev, bool fs, bool ls,
 		      struct sk_buff *new,
@@ -2513,7 +2524,7 @@ static int rtw89_pci_ops_mac_pre_init(struct rtw89_dev *rtwdev)
 
 	/* disable all channels except to FW CMD channel to download firmware */
 	rtw89_pci_ctrl_txdma_ch_pcie(rtwdev, false);
-	rtw89_write32_clr(rtwdev, info->dma_stop1.addr, B_AX_STOP_CH12);
+	rtw89_pci_ctrl_txdma_fw_ch_pcie(rtwdev, true);
 
 	/* start DMA activities */
 	rtw89_pci_ctrl_dma_all(rtwdev, true);
@@ -3771,6 +3782,16 @@ static const struct rtw89_hci_ops rtw89_pci_ops = {
 
 	.recovery_start = rtw89_pci_ops_recovery_start,
 	.recovery_complete = rtw89_pci_ops_recovery_complete,
+
+	.ctrl_txdma_ch	= rtw89_pci_ctrl_txdma_ch_pcie,
+	.ctrl_txdma_fw_ch = rtw89_pci_ctrl_txdma_fw_ch_pcie,
+	.ctrl_trxhci	= rtw89_pci_ctrl_dma_trx,
+	.poll_txdma_ch	= rtw89_poll_txdma_ch_idle_pcie,
+	.clr_idx_all	= rtw89_pci_clr_idx_all,
+	.clear		= rtw89_pci_clear_resource,
+	.disable_intr	= rtw89_pci_disable_intr_lock,
+	.enable_intr	= rtw89_pci_enable_intr_lock,
+	.rst_bdram	= rtw89_pci_rst_bdram_pcie,
 };
 
 int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
