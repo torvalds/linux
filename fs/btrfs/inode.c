@@ -6895,18 +6895,18 @@ static noinline int uncompress_inline(struct btrfs_path *path,
 	return ret;
 }
 
-/**
- * btrfs_get_extent - Lookup the first extent overlapping a range in a file.
+/*
+ * Lookup the first extent overlapping a range in a file.
+ *
  * @inode:	file to search in
  * @page:	page to read extent data into if the extent is inline
  * @pg_offset:	offset into @page to copy to
  * @start:	file offset
  * @len:	length of range starting at @start
  *
- * This returns the first &struct extent_map which overlaps with the given
- * range, reading it from the B-tree and caching it if necessary. Note that
- * there may be more extents which overlap the given range after the returned
- * extent_map.
+ * Return the first &struct extent_map which overlaps the given range, reading
+ * it from the B-tree and caching it if necessary. Note that there may be more
+ * extents which overlap the given range after the returned extent_map.
  *
  * If @page is not NULL and the extent is inline, this also reads the extent
  * data directly into the page and marks the extent up to date in the io_tree.
@@ -11310,7 +11310,7 @@ void btrfs_update_inode_bytes(struct btrfs_inode *inode,
 	spin_unlock(&inode->lock);
 }
 
-/**
+/*
  * Verify that there are no ordered extents for a given file range.
  *
  * @inode:   The target inode.

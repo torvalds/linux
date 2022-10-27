@@ -1369,8 +1369,8 @@ int btrfs_wait_cache_io(struct btrfs_trans_handle *trans,
 				     path, block_group->start);
 }
 
-/**
- * Write out cached info to an inode
+/*
+ * Write out cached info to an inode.
  *
  * @root:        root the inode belongs to
  * @inode:       freespace inode we are writing out
@@ -3034,10 +3034,7 @@ void btrfs_remove_free_space_cache(struct btrfs_block_group *block_group)
 
 }
 
-/**
- * btrfs_is_free_space_trimmed - see if everything is trimmed
- * @block_group: block_group of interest
- *
+/*
  * Walk @block_group's free space rb_tree to determine if everything is trimmed.
  */
 bool btrfs_is_free_space_trimmed(struct btrfs_block_group *block_group)

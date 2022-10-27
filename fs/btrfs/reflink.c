@@ -321,16 +321,16 @@ copy_to_page:
 	goto out;
 }
 
-/**
- * btrfs_clone() - clone a range from inode file to another
+/*
+ * Clone a range from inode file to another.
  *
- * @src: Inode to clone from
- * @inode: Inode to clone to
- * @off: Offset within source to start clone from
- * @olen: Original length, passed by user, of range to clone
- * @olen_aligned: Block-aligned value of olen
- * @destoff: Offset within @inode to start clone
- * @no_time_update: Whether to update mtime/ctime on the target inode
+ * @src:             Inode to clone from
+ * @inode:           Inode to clone to
+ * @off:             Offset within source to start clone from
+ * @olen:            Original length, passed by user, of range to clone
+ * @olen_aligned:    Block-aligned value of olen
+ * @destoff:         Offset within @inode to start clone
+ * @no_time_update:  Whether to update mtime/ctime on the target inode
  */
 static int btrfs_clone(struct inode *src, struct inode *inode,
 		       const u64 off, const u64 olen, const u64 olen_aligned,

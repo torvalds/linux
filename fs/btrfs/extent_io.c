@@ -1298,7 +1298,7 @@ static void end_bio_extent_readpage(struct btrfs_bio *bbio)
 	bio_put(bio);
 }
 
-/**
+/*
  * Populate every free slot in a provided array with pages.
  *
  * @nr_pages:   number of pages to allocate
@@ -1334,16 +1334,16 @@ int btrfs_alloc_page_array(unsigned int nr_pages, struct page **page_array)
 	return 0;
 }
 
-/**
- * Attempt to add a page to bio
+/*
+ * Attempt to add a page to bio.
  *
- * @bio_ctrl:	record both the bio, and its bio_flags
- * @page:	page to add to the bio
- * @disk_bytenr:  offset of the new bio or to check whether we are adding
- *                a contiguous page to the previous one
- * @size:	portion of page that we want to write
- * @pg_offset:	starting offset in the page
- * @compress_type:   compression type of the current bio to see if we can merge them
+ * @bio_ctrl:       record both the bio, and its bio_flags
+ * @page:	    page to add to the bio
+ * @disk_bytenr:    offset of the new bio or to check whether we are adding
+ *                  a contiguous page to the previous one
+ * @size:	    portion of page that we want to write
+ * @pg_offset:	    starting offset in the page
+ * @compress_type:  compression type of the current bio to see if we can merge them
  *
  * Attempt to add a page to bio considering stripe alignment etc.
  *
@@ -3066,7 +3066,7 @@ retry:
 	return ret;
 }
 
-/**
+/*
  * Walk the list of dirty pages of the given address space and write all of them.
  *
  * @mapping: address space structure to write
@@ -5460,11 +5460,12 @@ static inline void eb_bitmap_offset(const struct extent_buffer *eb,
 	*page_offset = offset_in_page(offset);
 }
 
-/**
- * extent_buffer_test_bit - determine whether a bit in a bitmap item is set
- * @eb: the extent buffer
- * @start: offset of the bitmap item in the extent buffer
- * @nr: bit number to test
+/*
+ * Determine whether a bit in a bitmap item is set.
+ *
+ * @eb:     the extent buffer
+ * @start:  offset of the bitmap item in the extent buffer
+ * @nr:     bit number to test
  */
 int extent_buffer_test_bit(const struct extent_buffer *eb, unsigned long start,
 			   unsigned long nr)
@@ -5481,12 +5482,13 @@ int extent_buffer_test_bit(const struct extent_buffer *eb, unsigned long start,
 	return 1U & (kaddr[offset] >> (nr & (BITS_PER_BYTE - 1)));
 }
 
-/**
- * extent_buffer_bitmap_set - set an area of a bitmap
- * @eb: the extent buffer
- * @start: offset of the bitmap item in the extent buffer
- * @pos: bit number of the first bit
- * @len: number of bits to set
+/*
+ * Set an area of a bitmap to 1.
+ *
+ * @eb:     the extent buffer
+ * @start:  offset of the bitmap item in the extent buffer
+ * @pos:    bit number of the first bit
+ * @len:    number of bits to set
  */
 void extent_buffer_bitmap_set(const struct extent_buffer *eb, unsigned long start,
 			      unsigned long pos, unsigned long len)
@@ -5523,12 +5525,13 @@ void extent_buffer_bitmap_set(const struct extent_buffer *eb, unsigned long star
 }
 
 
-/**
- * extent_buffer_bitmap_clear - clear an area of a bitmap
- * @eb: the extent buffer
- * @start: offset of the bitmap item in the extent buffer
- * @pos: bit number of the first bit
- * @len: number of bits to clear
+/*
+ * Clear an area of a bitmap.
+ *
+ * @eb:     the extent buffer
+ * @start:  offset of the bitmap item in the extent buffer
+ * @pos:    bit number of the first bit
+ * @len:    number of bits to clear
  */
 void extent_buffer_bitmap_clear(const struct extent_buffer *eb,
 				unsigned long start, unsigned long pos,

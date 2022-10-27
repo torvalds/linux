@@ -144,7 +144,7 @@ static inline struct rb_node *tree_search(struct btrfs_ordered_inode_tree *tree,
 	return ret;
 }
 
-/**
+/*
  * Add an ordered extent to the per-inode tree.
  *
  * @inode:           Inode that this extent is for.
@@ -1020,17 +1020,18 @@ out:
 }
 
 /*
- * btrfs_flush_ordered_range - Lock the passed range and ensures all pending
- * ordered extents in it are run to completion.
+ * Lock the passed range and ensures all pending ordered extents in it are run
+ * to completion.
  *
  * @inode:        Inode whose ordered tree is to be searched
  * @start:        Beginning of range to flush
  * @end:          Last byte of range to lock
  * @cached_state: If passed, will return the extent state responsible for the
- * locked range. It's the caller's responsibility to free the cached state.
+ *                locked range. It's the caller's responsibility to free the
+ *                cached state.
  *
- * This function always returns with the given range locked, ensuring after it's
- * called no order extent can be pending.
+ * Always return with the given range locked, ensuring after it's called no
+ * order extent can be pending.
  */
 void btrfs_lock_and_flush_ordered_range(struct btrfs_inode *inode, u64 start,
 					u64 end,

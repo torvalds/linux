@@ -299,7 +299,7 @@ struct btrfs_block_group *btrfs_next_block_group(
 	return cache;
 }
 
-/**
+/*
  * Check if we can do a NOCOW write for a given extent.
  *
  * @fs_info:       The filesystem information object.
@@ -340,10 +340,8 @@ struct btrfs_block_group *btrfs_inc_nocow_writers(struct btrfs_fs_info *fs_info,
 	return bg;
 }
 
-/**
+/*
  * Decrement the number of NOCOW writers in a block group.
- *
- * @bg:       The block group.
  *
  * This is meant to be called after a previous call to btrfs_inc_nocow_writers(),
  * and on the block group returned by that call. Typically this is called after
@@ -1813,8 +1811,8 @@ static void set_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 	write_sequnlock(&fs_info->profiles_lock);
 }
 
-/**
- * Map a physical disk address to a list of logical addresses
+/*
+ * Map a physical disk address to a list of logical addresses.
  *
  * @fs_info:       the filesystem
  * @chunk_start:   logical address of block group
@@ -3421,8 +3419,9 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-/**
- * btrfs_add_reserved_bytes - update the block_group and space info counters
+/*
+ * Update the block_group and space info counters.
+ *
  * @cache:	The cache we are manipulating
  * @ram_bytes:  The number of bytes of file content, and will be same to
  *              @num_bytes except for the compress path.
@@ -3465,8 +3464,9 @@ int btrfs_add_reserved_bytes(struct btrfs_block_group *cache,
 	return ret;
 }
 
-/**
- * btrfs_free_reserved_bytes - update the block_group and space info counters
+/*
+ * Update the block_group and space info counters.
+ *
  * @cache:      The cache we are manipulating
  * @num_bytes:  The number of bytes in question
  * @delalloc:   The blocks are allocated for the delalloc write

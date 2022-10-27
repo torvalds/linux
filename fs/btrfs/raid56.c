@@ -908,8 +908,8 @@ static void raid_write_end_io(struct bio *bio)
 	rbio_orig_end_io(rbio, err);
 }
 
-/**
- * Get a sector pointer specified by its @stripe_nr and @sector_nr
+/*
+ * Get a sector pointer specified by its @stripe_nr and @sector_nr.
  *
  * @rbio:               The raid bio
  * @stripe_nr:          Stripe number, valid range [0, real_stripe)

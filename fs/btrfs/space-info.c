@@ -1493,8 +1493,8 @@ static void wait_reserve_ticket(struct btrfs_fs_info *fs_info,
 	spin_unlock(&space_info->lock);
 }
 
-/**
- * Do the appropriate flushing and waiting for a ticket
+/*
+ * Do the appropriate flushing and waiting for a ticket.
  *
  * @fs_info:    the filesystem
  * @space_info: space info for the reservation
@@ -1596,8 +1596,8 @@ static inline bool can_ticket(enum btrfs_reserve_flush_enum flush)
 		flush != BTRFS_RESERVE_FLUSH_EMERGENCY);
 }
 
-/**
- * Try to reserve bytes from the block_rsv's space
+/*
+ * Try to reserve bytes from the block_rsv's space.
  *
  * @fs_info:    the filesystem
  * @space_info: space info we want to allocate from
@@ -1736,8 +1736,8 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 				     orig_bytes, flush);
 }
 
-/**
- * Trye to reserve metadata bytes from the block_rsv's space
+/*
+ * Try to reserve metadata bytes from the block_rsv's space.
  *
  * @fs_info:    the filesystem
  * @block_rsv:  block_rsv we're allocating for
@@ -1771,8 +1771,8 @@ int btrfs_reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 	return ret;
 }
 
-/**
- * Try to reserve data bytes for an allocation
+/*
+ * Try to reserve data bytes for an allocation.
  *
  * @fs_info: the filesystem
  * @bytes:   number of bytes we need

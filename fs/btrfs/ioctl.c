@@ -4346,7 +4346,7 @@ void btrfs_update_ioctl_balance_args(struct btrfs_fs_info *fs_info,
 	spin_unlock(&fs_info->balance_lock);
 }
 
-/**
+/*
  * Try to acquire fs_info::balance_mutex as well as set BTRFS_EXLCOP_BALANCE as
  * required.
  *

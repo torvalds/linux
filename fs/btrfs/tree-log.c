@@ -7381,7 +7381,7 @@ void btrfs_record_snapshot_destroy(struct btrfs_trans_handle *trans,
 	mutex_unlock(&dir->log_mutex);
 }
 
-/**
+/*
  * Update the log after adding a new name for an inode.
  *
  * @trans:              Transaction handle.

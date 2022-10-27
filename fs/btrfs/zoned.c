@@ -1020,8 +1020,8 @@ int btrfs_reset_sb_log_zones(struct block_device *bdev, int mirror)
 				zone_sectors * BTRFS_NR_SB_LOG_ZONES, GFP_NOFS);
 }
 
-/**
- * btrfs_find_allocatable_zones - find allocatable zones within a given region
+/*
+ * Find allocatable zones within a given region.
  *
  * @device:	the device to allocate a region on
  * @hole_start: the position of the hole to allocate the region
@@ -1864,7 +1864,7 @@ struct btrfs_device *btrfs_zoned_get_device(struct btrfs_fs_info *fs_info,
 	return device;
 }
 
-/**
+/*
  * Activate block group and underlying device zones
  *
  * @block_group: the block group to activate

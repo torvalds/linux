@@ -27,8 +27,8 @@
 #define MAX_CSUM_ITEMS(r, size) (min_t(u32, __MAX_CSUM_ITEMS(r, size), \
 				       PAGE_SIZE))
 
-/**
- * Set inode's size according to filesystem options
+/*
+ * Set inode's size according to filesystem options.
  *
  * @inode:      inode we want to update the disk_i_size for
  * @new_i_size: i_size we want to set to, 0 if we use i_size
@@ -67,8 +67,8 @@ void btrfs_inode_safe_disk_i_size_write(struct btrfs_inode *inode, u64 new_i_siz
 	spin_unlock(&inode->lock);
 }
 
-/**
- * Mark range within a file as having a new extent inserted
+/*
+ * Mark range within a file as having a new extent inserted.
  *
  * @inode: inode being modified
  * @start: start file offset of the file extent we've inserted
@@ -95,8 +95,8 @@ int btrfs_inode_set_file_extent_range(struct btrfs_inode *inode, u64 start,
 			       EXTENT_DIRTY);
 }
 
-/**
- * Marks an inode range as not having a backing extent
+/*
+ * Mark an inode range as not having a backing extent.
  *
  * @inode: inode being modified
  * @start: start file offset of the file extent we've inserted
@@ -257,7 +257,7 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 
 /*
  * Find checksums for logical bytenr range [disk_bytenr, disk_bytenr + len) and
- * estore the result to @dst.
+ * store the result to @dst.
  *
  * Return >0 for the number of sectors we found.
  * Return 0 for the range [disk_bytenr, disk_bytenr + sectorsize) has no csum
@@ -363,15 +363,15 @@ static int search_file_offset_in_bio(struct bio *bio, struct inode *inode,
 	return ret;
 }
 
-/**
+/*
  * Lookup the checksum for the read bio in csum tree.
  *
- * @inode: inode that the bio is for.
- * @bio: bio to look up.
- * @dst: Buffer of size nblocks * btrfs_super_csum_size() used to return
- *       checksum (nblocks = bio->bi_iter.bi_size / fs_info->sectorsize). If
- *       NULL, the checksum buffer is allocated and returned in
- *       btrfs_bio(bio)->csum instead.
+ * @inode:  inode that the bio is for.
+ * @bio:    bio to look up.
+ * @dst:    Buffer of size nblocks * btrfs_super_csum_size() used to return
+ *          checksum (nblocks = bio->bi_iter.bi_size / fs_info->sectorsize). If
+ *          NULL, the checksum buffer is allocated and returned in
+ *          btrfs_bio(bio)->csum instead.
  *
  * Return: BLK_STS_RESOURCE if allocating memory fails, BLK_STS_OK otherwise.
  */
@@ -633,8 +633,8 @@ fail:
 	return ret;
 }
 
-/**
- * Calculate checksums of the data contained inside a bio
+/*
+ * Calculate checksums of the data contained inside a bio.
  *
  * @inode:	 Owner of the data inside the bio
  * @bio:	 Contains the data to be checksummed
@@ -749,15 +749,16 @@ blk_status_t btrfs_csum_one_bio(struct btrfs_inode *inode, struct bio *bio,
 }
 
 /*
- * helper function for csum removal, this expects the
- * key to describe the csum pointed to by the path, and it expects
- * the csum to overlap the range [bytenr, len]
+ * Remove one checksum overlapping a range.
  *
- * The csum should not be entirely contained in the range and the
- * range should not be entirely contained in the csum.
+ * This expects the key to describe the csum pointed to by the path, and it
+ * expects the csum to overlap the range [bytenr, len]
  *
- * This calls btrfs_truncate_item with the correct args based on the
- * overlap, and fixes up the key as required.
+ * The csum should not be entirely contained in the range and the range should
+ * not be entirely contained in the csum.
+ *
+ * This calls btrfs_truncate_item with the correct args based on the overlap,
+ * and fixes up the key as required.
  */
 static noinline void truncate_one_csum(struct btrfs_fs_info *fs_info,
 				       struct btrfs_path *path,
@@ -806,8 +807,7 @@ static noinline void truncate_one_csum(struct btrfs_fs_info *fs_info,
 }
 
 /*
- * deletes the csum items from the csum tree for a given
- * range of bytes.
+ * Delete the csum items from the csum tree for a given range of bytes.
  */
 int btrfs_del_csums(struct btrfs_trans_handle *trans,
 		    struct btrfs_root *root, u64 bytenr, u64 len)
