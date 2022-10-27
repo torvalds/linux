@@ -138,7 +138,7 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 	else if (btrfs_op(bio) == BTRFS_MAP_WRITE)
 		btrfs_submit_data_write_bio(BTRFS_I(inode), bio, mirror_num);
 	else
-		btrfs_submit_data_read_bio(inode, bio, mirror_num,
+		btrfs_submit_data_read_bio(BTRFS_I(inode), bio, mirror_num,
 					   bio_ctrl->compress_type);
 
 	/* The bio is owned by the end_io handler now */
@@ -861,7 +861,8 @@ int btrfs_repair_one_sector(struct inode *inode, struct btrfs_bio *failed_bbio,
 	 * error here.
 	 */
 	if (submit_buffered)
-		btrfs_submit_data_read_bio(inode, repair_bio, failrec->this_mirror, 0);
+		btrfs_submit_data_read_bio(BTRFS_I(inode), repair_bio,
+					   failrec->this_mirror, 0);
 	else
 		btrfs_submit_dio_repair_bio(inode, repair_bio, failrec->this_mirror);
 

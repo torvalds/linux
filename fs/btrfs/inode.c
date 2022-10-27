@@ -2768,10 +2768,10 @@ void btrfs_submit_data_write_bio(struct btrfs_inode *inode, struct bio *bio, int
 	btrfs_submit_bio(fs_info, bio, mirror_num);
 }
 
-void btrfs_submit_data_read_bio(struct inode *inode, struct bio *bio,
+void btrfs_submit_data_read_bio(struct btrfs_inode *inode, struct bio *bio,
 			int mirror_num, enum btrfs_compression_type compress_type)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	blk_status_t ret;
 
 	if (compress_type != BTRFS_COMPRESS_NONE) {
@@ -2779,7 +2779,7 @@ void btrfs_submit_data_read_bio(struct inode *inode, struct bio *bio,
 		 * btrfs_submit_compressed_read will handle completing the bio
 		 * if there were any errors, so just return here.
 		 */
-		btrfs_submit_compressed_read(inode, bio, mirror_num);
+		btrfs_submit_compressed_read(&inode->vfs_inode, bio, mirror_num);
 		return;
 	}
 
@@ -2790,7 +2790,7 @@ void btrfs_submit_data_read_bio(struct inode *inode, struct bio *bio,
 	 * Lookup bio sums does extra checks around whether we need to csum or
 	 * not, which is why we ignore skip_sum here.
 	 */
-	ret = btrfs_lookup_bio_sums(inode, bio, NULL);
+	ret = btrfs_lookup_bio_sums(&inode->vfs_inode, bio, NULL);
 	if (ret) {
 		btrfs_bio_end_io(btrfs_bio(bio), ret);
 		return;
