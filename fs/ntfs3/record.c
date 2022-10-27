@@ -220,11 +220,6 @@ struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
 			return NULL;
 		}
 
-		if (off + asize < off) {
-			/* overflow check */
-			return NULL;
-		}
-
 		attr = Add2Ptr(attr, asize);
 		off += asize;
 	}
@@ -247,8 +242,8 @@ struct ATTRIB *mi_enum_attr(struct mft_inode *mi, struct ATTRIB *attr)
 	if ((t32 & 0xf) || (t32 > 0x100))
 		return NULL;
 
-	/* Check boundary. */
-	if (off + asize > used)
+	/* Check overflow and boundary. */
+	if (off + asize < off || off + asize > used)
 		return NULL;
 
 	/* Check size of attribute. */
