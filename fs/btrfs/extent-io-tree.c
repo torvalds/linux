@@ -373,7 +373,7 @@ static void set_state_bits(struct extent_io_tree *tree,
 	int ret;
 
 	if (tree->inode)
-		btrfs_set_delalloc_extent(&tree->inode->vfs_inode, state, bits);
+		btrfs_set_delalloc_extent(tree->inode, state, bits);
 
 	ret = add_extent_changeset(state, bits_to_set, changeset, 1);
 	BUG_ON(ret < 0);

@@ -471,7 +471,7 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 void btrfs_new_inode_args_destroy(struct btrfs_new_inode_args *args);
 struct inode *btrfs_new_subvol_inode(struct user_namespace *mnt_userns,
 				     struct inode *dir);
- void btrfs_set_delalloc_extent(struct inode *inode, struct extent_state *state,
+ void btrfs_set_delalloc_extent(struct btrfs_inode *inode, struct extent_state *state,
 			        u32 bits);
 void btrfs_clear_delalloc_extent(struct inode *inode,
 				 struct extent_state *state, u32 bits);

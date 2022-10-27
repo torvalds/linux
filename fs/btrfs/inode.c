@@ -2421,10 +2421,10 @@ static void btrfs_del_delalloc_inode(struct btrfs_root *root,
  * Properly track delayed allocation bytes in the inode and to maintain the
  * list of inodes that have pending delalloc work to be done.
  */
-void btrfs_set_delalloc_extent(struct inode *inode, struct extent_state *state,
+void btrfs_set_delalloc_extent(struct btrfs_inode *inode, struct extent_state *state,
 			       u32 bits)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 
 	if ((bits & EXTENT_DEFRAG) && !(bits & EXTENT_DELALLOC))
 		WARN_ON(1);
@@ -2434,14 +2434,14 @@ void btrfs_set_delalloc_extent(struct inode *inode, struct extent_state *state,
 	 * bit, which is only set or cleared with irqs on
 	 */
 	if (!(state->state & EXTENT_DELALLOC) && (bits & EXTENT_DELALLOC)) {
-		struct btrfs_root *root = BTRFS_I(inode)->root;
+		struct btrfs_root *root = inode->root;
 		u64 len = state->end + 1 - state->start;
 		u32 num_extents = count_max_extents(fs_info, len);
-		bool do_list = !btrfs_is_free_space_inode(BTRFS_I(inode));
+		bool do_list = !btrfs_is_free_space_inode(inode);
 
-		spin_lock(&BTRFS_I(inode)->lock);
-		btrfs_mod_outstanding_extents(BTRFS_I(inode), num_extents);
-		spin_unlock(&BTRFS_I(inode)->lock);
+		spin_lock(&inode->lock);
+		btrfs_mod_outstanding_extents(inode, num_extents);
+		spin_unlock(&inode->lock);
 
 		/* For sanity tests */
 		if (btrfs_is_testing(fs_info))
@@ -2449,22 +2449,21 @@ void btrfs_set_delalloc_extent(struct inode *inode, struct extent_state *state,
 
 		percpu_counter_add_batch(&fs_info->delalloc_bytes, len,
 					 fs_info->delalloc_batch);
-		spin_lock(&BTRFS_I(inode)->lock);
-		BTRFS_I(inode)->delalloc_bytes += len;
+		spin_lock(&inode->lock);
+		inode->delalloc_bytes += len;
 		if (bits & EXTENT_DEFRAG)
-			BTRFS_I(inode)->defrag_bytes += len;
+			inode->defrag_bytes += len;
 		if (do_list && !test_bit(BTRFS_INODE_IN_DELALLOC_LIST,
-					 &BTRFS_I(inode)->runtime_flags))
-			btrfs_add_delalloc_inodes(root, BTRFS_I(inode));
-		spin_unlock(&BTRFS_I(inode)->lock);
+					 &inode->runtime_flags))
+			btrfs_add_delalloc_inodes(root, inode);
+		spin_unlock(&inode->lock);
 	}
 
 	if (!(state->state & EXTENT_DELALLOC_NEW) &&
 	    (bits & EXTENT_DELALLOC_NEW)) {
-		spin_lock(&BTRFS_I(inode)->lock);
-		BTRFS_I(inode)->new_delalloc_bytes += state->end + 1 -
-			state->start;
-		spin_unlock(&BTRFS_I(inode)->lock);
+		spin_lock(&inode->lock);
+		inode->new_delalloc_bytes += state->end + 1 - state->start;
+		spin_unlock(&inode->lock);
 	}
 }
 
