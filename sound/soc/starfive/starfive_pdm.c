@@ -298,8 +298,8 @@ static int sf_pdm_resume(struct snd_soc_component *component)
 }
 
 #else
-#define sf_tdm_suspend	NULL
-#define sf_tdm_resume	NULL
+#define sf_pdm_suspend	NULL
+#define sf_pdm_resume	NULL
 #endif
 
 static const struct snd_soc_component_driver sf_pdm_component_drv = {
