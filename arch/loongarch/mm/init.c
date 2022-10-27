@@ -22,7 +22,7 @@
 #include <linux/pfn.h>
 #include <linux/hardirq.h>
 #include <linux/gfp.h>
-#include <linux/initrd.h>
+#include <linux/hugetlb.h>
 #include <linux/mmzone.h>
 
 #include <asm/asm-offsets.h>
@@ -152,6 +152,72 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
 #endif
 
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+static int __meminit vmemmap_populate_hugepages(unsigned long start, unsigned long end,
+						int node, struct vmem_altmap *altmap)
+{
+	unsigned long addr = start;
+	unsigned long next;
+	pgd_t *pgd;
+	p4d_t *p4d;
+	pud_t *pud;
+	pmd_t *pmd;
+
+	for (addr = start; addr < end; addr = next) {
+		next = pmd_addr_end(addr, end);
+
+		pgd = vmemmap_pgd_populate(addr, node);
+		if (!pgd)
+			return -ENOMEM;
+		p4d = vmemmap_p4d_populate(pgd, addr, node);
+		if (!p4d)
+			return -ENOMEM;
+		pud = vmemmap_pud_populate(p4d, addr, node);
+		if (!pud)
+			return -ENOMEM;
+
+		pmd = pmd_offset(pud, addr);
+		if (pmd_none(*pmd)) {
+			void *p = NULL;
+
+			p = vmemmap_alloc_block_buf(PMD_SIZE, node, NULL);
+			if (p) {
+				pmd_t entry;
+
+				entry = pfn_pmd(virt_to_pfn(p), PAGE_KERNEL);
+				pmd_val(entry) |= _PAGE_HUGE | _PAGE_HGLOBAL;
+				set_pmd_at(&init_mm, addr, pmd, entry);
+
+				continue;
+			}
+		} else if (pmd_val(*pmd) & _PAGE_HUGE) {
+			vmemmap_verify((pte_t *)pmd, node, addr, next);
+			continue;
+		}
+		if (vmemmap_populate_basepages(addr, next, node, NULL))
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+int __meminit vmemmap_populate(unsigned long start, unsigned long end,
+			       int node, struct vmem_altmap *altmap)
+{
+#if CONFIG_PGTABLE_LEVELS == 2
+	return vmemmap_populate_basepages(start, end, node, NULL);
+#else
+	return vmemmap_populate_hugepages(start, end, node, NULL);
+#endif
+}
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+void vmemmap_free(unsigned long start, unsigned long end, struct vmem_altmap *altmap)
+{
+}
+#endif
+#endif
+
 static pte_t *fixmap_pte(unsigned long addr)
 {
 	pgd_t *pgd;
@@ -168,7 +234,7 @@ static pte_t *fixmap_pte(unsigned long addr)
 		new = memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
 		pgd_populate(&init_mm, pgd, new);
 #ifndef __PAGETABLE_PUD_FOLDED
-		pud_init((unsigned long)new, (unsigned long)invalid_pmd_table);
+		pud_init(new);
 #endif
 	}
 
@@ -179,7 +245,7 @@ static pte_t *fixmap_pte(unsigned long addr)
 		new = memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
 		pud_populate(&init_mm, pud, new);
 #ifndef __PAGETABLE_PMD_FOLDED
-		pmd_init((unsigned long)new, (unsigned long)invalid_pte_table);
+		pmd_init(new);
 #endif
 	}
 

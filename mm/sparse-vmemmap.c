@@ -196,6 +196,10 @@ pmd_t * __meminit vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int node)
 	return pmd;
 }
 
+void __weak __meminit pmd_init(void *addr)
+{
+}
+
 pud_t * __meminit vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node)
 {
 	pud_t *pud = pud_offset(p4d, addr);
@@ -203,9 +207,14 @@ pud_t * __meminit vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node)
 		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
 		if (!p)
 			return NULL;
+		pmd_init(p);
 		pud_populate(&init_mm, pud, p);
 	}
 	return pud;
+}
+
+void __weak __meminit pud_init(void *addr)
+{
 }
 
 p4d_t * __meminit vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int node)
@@ -215,6 +224,7 @@ p4d_t * __meminit vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int node)
 		void *p = vmemmap_alloc_block_zero(PAGE_SIZE, node);
 		if (!p)
 			return NULL;
+		pud_init(p);
 		p4d_populate(&init_mm, p4d, p);
 	}
 	return p4d;
