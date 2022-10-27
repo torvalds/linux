@@ -365,19 +365,12 @@ void jffs2_free_comprbuf(unsigned char *comprbuf, unsigned char *orig)
 int __init jffs2_compressors_init(void)
 {
 /* Registering compressors */
-#ifdef CONFIG_JFFS2_ZLIB
 	jffs2_zlib_init();
-#endif
-#ifdef CONFIG_JFFS2_RTIME
 	jffs2_rtime_init();
-#endif
-#ifdef CONFIG_JFFS2_RUBIN
 	jffs2_rubinmips_init();
 	jffs2_dynrubin_init();
-#endif
-#ifdef CONFIG_JFFS2_LZO
 	jffs2_lzo_init();
-#endif
+
 /* Setting default compression mode */
 #ifdef CONFIG_JFFS2_CMODE_NONE
 	jffs2_compression_mode = JFFS2_COMPR_MODE_NONE;
@@ -401,18 +394,10 @@ int __init jffs2_compressors_init(void)
 int jffs2_compressors_exit(void)
 {
 /* Unregistering compressors */
-#ifdef CONFIG_JFFS2_LZO
 	jffs2_lzo_exit();
-#endif
-#ifdef CONFIG_JFFS2_RUBIN
 	jffs2_dynrubin_exit();
 	jffs2_rubinmips_exit();
-#endif
-#ifdef CONFIG_JFFS2_RTIME
 	jffs2_rtime_exit();
-#endif
-#ifdef CONFIG_JFFS2_ZLIB
 	jffs2_zlib_exit();
-#endif
 	return 0;
 }
