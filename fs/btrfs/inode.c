@@ -4470,9 +4470,9 @@ fscrypt_free:
 }
 
 static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
-			       struct inode *dir, struct dentry *dentry)
+			       struct btrfs_inode *dir, struct dentry *dentry)
 {
-	struct btrfs_root *root = BTRFS_I(dir)->root;
+	struct btrfs_root *root = dir->root;
 	struct btrfs_inode *inode = BTRFS_I(d_inode(dentry));
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
@@ -4481,10 +4481,10 @@ static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 	u64 index;
 	int ret;
 	u64 objectid;
-	u64 dir_ino = btrfs_ino(BTRFS_I(dir));
+	u64 dir_ino = btrfs_ino(dir);
 	struct fscrypt_name fname;
 
-	ret = fscrypt_setup_filename(dir, &dentry->d_name, 1, &fname);
+	ret = fscrypt_setup_filename(&dir->vfs_inode, &dentry->d_name, 1, &fname);
 	if (ret)
 		return ret;
 
@@ -4557,17 +4557,17 @@ static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	ret = btrfs_delete_delayed_dir_index(trans, BTRFS_I(dir), index);
+	ret = btrfs_delete_delayed_dir_index(trans, dir, index);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
 
-	btrfs_i_size_write(BTRFS_I(dir), dir->i_size - fname.disk_name.len * 2);
-	inode_inc_iversion(dir);
-	dir->i_mtime = current_time(dir);
-	dir->i_ctime = dir->i_mtime;
-	ret = btrfs_update_inode_fallback(trans, root, BTRFS_I(dir));
+	btrfs_i_size_write(dir, dir->vfs_inode.i_size - fname.disk_name.len * 2);
+	inode_inc_iversion(&dir->vfs_inode);
+	dir->vfs_inode.i_mtime = current_time(&dir->vfs_inode);
+	dir->vfs_inode.i_ctime = dir->vfs_inode.i_mtime;
+	ret = btrfs_update_inode_fallback(trans, root, dir);
 	if (ret)
 		btrfs_abort_transaction(trans, ret);
 out:
@@ -4758,7 +4758,7 @@ int btrfs_delete_subvolume(struct btrfs_inode *dir, struct dentry *dentry)
 
 	btrfs_record_snapshot_destroy(trans, dir);
 
-	ret = btrfs_unlink_subvol(trans, &dir->vfs_inode, dentry);
+	ret = btrfs_unlink_subvol(trans, dir, dentry);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_end_trans;
@@ -4862,7 +4862,7 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 	}
 
 	if (unlikely(btrfs_ino(BTRFS_I(inode)) == BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)) {
-		err = btrfs_unlink_subvol(trans, dir, dentry);
+		err = btrfs_unlink_subvol(trans, BTRFS_I(dir), dentry);
 		goto out;
 	}
 
@@ -9208,7 +9208,7 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 
 	/* src is a subvolume */
 	if (old_ino == BTRFS_FIRST_FREE_OBJECTID) {
-		ret = btrfs_unlink_subvol(trans, old_dir, old_dentry);
+		ret = btrfs_unlink_subvol(trans, BTRFS_I(old_dir), old_dentry);
 	} else { /* src is an inode */
 		ret = __btrfs_unlink_inode(trans, BTRFS_I(old_dir),
 					   BTRFS_I(old_dentry->d_inode),
@@ -9223,7 +9223,7 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 
 	/* dest is a subvolume */
 	if (new_ino == BTRFS_FIRST_FREE_OBJECTID) {
-		ret = btrfs_unlink_subvol(trans, new_dir, new_dentry);
+		ret = btrfs_unlink_subvol(trans, BTRFS_I(new_dir), new_dentry);
 	} else { /* dest is an inode */
 		ret = __btrfs_unlink_inode(trans, BTRFS_I(new_dir),
 					   BTRFS_I(new_dentry->d_inode),
@@ -9470,7 +9470,7 @@ static int btrfs_rename(struct user_namespace *mnt_userns,
 				BTRFS_I(old_inode), 1);
 
 	if (unlikely(old_ino == BTRFS_FIRST_FREE_OBJECTID)) {
-		ret = btrfs_unlink_subvol(trans, old_dir, old_dentry);
+		ret = btrfs_unlink_subvol(trans, BTRFS_I(old_dir), old_dentry);
 	} else {
 		ret = __btrfs_unlink_inode(trans, BTRFS_I(old_dir),
 					   BTRFS_I(d_inode(old_dentry)),
@@ -9488,7 +9488,7 @@ static int btrfs_rename(struct user_namespace *mnt_userns,
 		new_inode->i_ctime = current_time(new_inode);
 		if (unlikely(btrfs_ino(BTRFS_I(new_inode)) ==
 			     BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)) {
-			ret = btrfs_unlink_subvol(trans, new_dir, new_dentry);
+			ret = btrfs_unlink_subvol(trans, BTRFS_I(new_dir), new_dentry);
 			BUG_ON(new_inode->i_nlink == 0);
 		} else {
 			ret = btrfs_unlink_inode(trans, BTRFS_I(new_dir),
