@@ -281,6 +281,22 @@ config CRYPTO_AES_ARM64_CE_CCM
 	  - ARMv8 Crypto Extensions
 	  - NEON (Advanced SIMD) extensions
 
+config CRYPTO_SM4_ARM64_CE_CCM
+	tristate "AEAD cipher: SM4 in CCM mode (ARMv8 Crypto Extensions)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_ALGAPI
+	select CRYPTO_AEAD
+	select CRYPTO_SM4
+	select CRYPTO_SM4_ARM64_CE_BLK
+	help
+	  AEAD cipher: SM4 cipher algorithms (OSCCA GB/T 32907-2016) with
+	  CCM (Counter with Cipher Block Chaining-Message Authentication Code)
+	  authenticated encryption mode (NIST SP800-38C)
+
+	  Architecture: arm64 using:
+	  - ARMv8 Crypto Extensions
+	  - NEON (Advanced SIMD) extensions
+
 config CRYPTO_CRCT10DIF_ARM64_CE
 	tristate "CRCT10DIF (PMULL)"
 	depends on KERNEL_MODE_NEON && CRC_T10DIF
