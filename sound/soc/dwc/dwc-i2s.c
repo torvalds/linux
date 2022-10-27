@@ -311,21 +311,9 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (txrx == SNDRV_PCM_STREAM_PLAYBACK) {
-		ret = clk_prepare_enable(dev->clks_dac_bclk);
-		if (ret) {
-			dev_err(dev->dev, "%s: failed to enable clks_dac_bclk\n", __func__);
-			return ret;
-		}
-
 		ret = clk_set_parent(dev->clks_bclk, dev->clks_dac_bclk);
 		if (ret) {
 			dev_err(dev->dev, "Can't set clock source for clks_bclk: %d\n", ret);
-			return ret;
-		}
-
-		ret = clk_prepare_enable(dev->clks_dac_lrck);
-		if (ret) {
-			dev_err(dev->dev, "%s: failed to enable clks_dac_lrck\n", __func__);
 			return ret;
 		}
 
@@ -480,24 +468,56 @@ static int dw_i2s_runtime_suspend(struct device *dev)
 
 	if (dw_dev->capability & DW_I2S_MASTER)
 		clk_disable(dw_dev->clk);
+	else {
+		clk_disable_unprepare(dw_dev->clks_bclk_mst);
+		clk_disable_unprepare(dw_dev->clks_mclk_out);
+		clk_disable_unprepare(dw_dev->clks_4ch_apb);
+	}
 	return 0;
 }
 
 static int dw_i2s_runtime_resume(struct device *dev)
 {
 	struct dw_i2s_dev *dw_dev = dev_get_drvdata(dev);
+	int ret;
 
 	if (dw_dev->capability & DW_I2S_MASTER)
 		clk_enable(dw_dev->clk);
+	else {
+		ret = clk_prepare_enable(dw_dev->clks_4ch_apb);
+		if (ret) {
+			dev_err(dev, "failed to enable clks_4ch_apb\n");
+			goto failed_enable;
+		}
+		ret = clk_prepare_enable(dw_dev->clks_bclk_mst);
+		if (ret) {
+			dev_err(dev, "failed to enable clks_bclk_mst\n");
+			goto failed_enable;
+		}
+		ret = clk_prepare_enable(dw_dev->clks_mclk_out);
+		if (ret) {
+			dev_err(dev, "failed to enable clks_mclk_out\n");
+			goto failed_enable;
+		}
+	}
 	return 0;
+
+failed_enable:
+	return ret;
 }
 
 static int dw_i2s_suspend(struct snd_soc_component *component)
 {
 	struct dw_i2s_dev *dev = snd_soc_component_get_drvdata(component);
+	int ret;
 
 	if (dev->capability & DW_I2S_MASTER)
 		clk_disable(dev->clk);
+
+	ret = pm_runtime_force_suspend(component->dev);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
@@ -506,9 +526,14 @@ static int dw_i2s_resume(struct snd_soc_component *component)
 	struct dw_i2s_dev *dev = snd_soc_component_get_drvdata(component);
 	struct snd_soc_dai *dai;
 	int stream;
+	int ret;
 
 	if (dev->capability & DW_I2S_MASTER)
 		clk_enable(dev->clk);
+
+	ret = pm_runtime_force_resume(component->dev);
+	if (ret)
+		return ret;
 
 	for_each_component_dais(component, dai) {
 		for_each_pcm_streams(stream)
@@ -823,33 +848,22 @@ static int dw_i2stx_4ch1_clk_init(struct platform_device *pdev, struct dw_i2s_de
 	if (IS_ERR(dev->clks_dac_lrck))
 		return PTR_ERR(dev->clks_dac_lrck);
 
-	ret = clk_prepare_enable(dev->clks_audroot);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to enable clks_audroot\n", __func__);
-		goto disable_audioroot_clk;
-	}
 	ret = clk_set_rate(dev->clks_audroot, 204800000);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to set rate for clks_audroot ret=%d\n", ret);
 		goto disable_audioroot_clk;
 	}
 
-	ret = clk_prepare_enable(dev->clks_inner);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to enable clks_inner\n", __func__);
-		goto disable_audinner_clk;
-	}
-
 	ret = clk_set_rate(dev->clks_inner, 4096000);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to set rate for clks_inner ret=%d\n", ret);
-		goto disable_audinner_clk;
+		goto disable_audioroot_clk;
 	}
 
 	ret = clk_prepare_enable(dev->clks_bclk_mst);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: failed to enable clks_bclk_mst\n", __func__);
-		goto disable_mst_bclk;
+		goto disable_audioroot_clk;
 	}
 
 	ret = clk_set_rate(dev->clks_bclk_mst, 1024000);
@@ -858,40 +872,10 @@ static int dw_i2stx_4ch1_clk_init(struct platform_device *pdev, struct dw_i2s_de
 		goto disable_mst_bclk;
 	}
 
-	ret = clk_prepare_enable(dev->clks_lrclk_mst);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to enable clks_lrclk_mst\n", __func__);
-		goto disable_mst_lrclk;
-	}
-
-	ret = clk_prepare_enable(dev->clks_mclk);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to enable clks_mclk\n", __func__);
-		goto disable_mclk;
-	}
-
-	ret = clk_prepare_enable(dev->clks_bclk);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to enable clks_bclk\n", __func__);
-		goto disable_bclk;
-	}
-
-	ret = clk_prepare_enable(dev->clks_lrclk);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to enable clks_lrclk\n", __func__);
-		goto disable_lrclk;
-	}
-
 	ret = clk_prepare_enable(dev->clks_mclk_out);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: failed to enable clks_mclk_out\n", __func__);
-		goto disable_mclk_out;
-	}
-
-	ret = clk_prepare_enable(dev->clks_apb0);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to enable clks_apb0\n", __func__);
-		goto disable_apb0;
+		goto disable_mst_bclk;
 	}
 
 	ret = clk_prepare_enable(dev->clks_4ch_apb);
@@ -899,7 +883,6 @@ static int dw_i2stx_4ch1_clk_init(struct platform_device *pdev, struct dw_i2s_de
 		dev_err(&pdev->dev, "%s: failed to enable clks_4ch_apb\n", __func__);
 		goto disable_4ch_apb;
 	}
-
 
 	dev_dbg(&pdev->dev, "dev->clks_inner = %lu \n", clk_get_rate(dev->clks_inner));
 	dev_dbg(&pdev->dev, "dev->clks_bclk_mst = %lu \n", clk_get_rate(dev->clks_bclk_mst));
@@ -914,43 +897,30 @@ static int dw_i2stx_4ch1_clk_init(struct platform_device *pdev, struct dw_i2s_de
 	dev->rstc_ch1 = devm_reset_control_array_get_exclusive(&pdev->dev);
 	if (IS_ERR(dev->rstc_ch1)) {
 		dev_err(&pdev->dev, "%s: failed to get rstc_ch1 reset control\n", __func__);
-		goto disable_4ch_apb;
+		goto disable_rst;
 	}
 
 	ret = reset_control_assert(dev->rstc_ch1);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: failed to reset control assert rstc_ch1\n", __func__);
-		goto disable_4ch_apb;
+		goto disable_rst;
 	}
 
 	ret = reset_control_deassert(dev->rstc_ch1);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: failed to reset control deassert rstc_ch1\n", __func__);
-		goto disable_4ch_apb;
+		goto disable_rst;
 	}
 
 	return 0;
 
-disable_4ch_apb:
+disable_rst:
 	clk_disable_unprepare(dev->clks_4ch_apb);
-disable_apb0:
-	clk_disable_unprepare(dev->clks_apb0);
-disable_mclk_out:
+disable_4ch_apb:
 	clk_disable_unprepare(dev->clks_mclk_out);
-disable_lrclk:
-	clk_disable_unprepare(dev->clks_lrclk);
-disable_bclk:
-	clk_disable_unprepare(dev->clks_bclk);
-disable_mclk:
-	clk_disable_unprepare(dev->clks_mclk);
-disable_mst_lrclk:
-	clk_disable_unprepare(dev->clks_lrclk_mst);
 disable_mst_bclk:
 	clk_disable_unprepare(dev->clks_bclk_mst);
-disable_audinner_clk:
-	clk_disable_unprepare(dev->clks_inner);
 disable_audioroot_clk:
-	clk_disable_unprepare(dev->clks_audroot);
 
 	return ret;
 }
@@ -1276,14 +1246,24 @@ static int dw_i2s_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(&pdev->dev);
+
+#ifdef CONFIG_PM
 	clk_disable_unprepare(dev->clks_mclk_out);
 	clk_disable_unprepare(dev->clks_bclk_mst);
-	clk_disable_unprepare(dev->clks_lrclk_mst);
+	clk_disable_unprepare(dev->clks_4ch_apb);
+#endif
+
 	return 0;
 
 err_clk_disable:
 	if (dev->capability & DW_I2S_MASTER)
 		clk_disable_unprepare(dev->clk);
+	else{
+		clk_disable_unprepare(dev->clks_mclk_out);
+		clk_disable_unprepare(dev->clks_bclk_mst);
+		clk_disable_unprepare(dev->clks_4ch_apb);
+	}
+
 	return ret;
 }
 
