@@ -1777,6 +1777,7 @@ static int fanout_add(struct sock *sk, struct fanout_args *args)
 		match->prot_hook.af_packet_net = read_pnet(&match->net);
 		match->prot_hook.id_match = match_fanout_group;
 		match->max_num_members = args->max_num_members;
+		match->prot_hook.ignore_outgoing = type_flags & PACKET_FANOUT_FLAG_IGNORE_OUTGOING;
 		list_add(&match->list, &fanout_list);
 	}
 	err = -EINVAL;
