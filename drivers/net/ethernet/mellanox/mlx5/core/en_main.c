@@ -206,10 +206,11 @@ static void mlx5e_disable_blocking_events(struct mlx5e_priv *priv)
 static u16 mlx5e_mpwrq_umr_octowords(u32 entries, enum mlx5e_mpwrq_umr_mode umr_mode)
 {
 	u8 umr_entry_size = mlx5e_mpwrq_umr_entry_size(umr_mode);
+	u32 sz;
 
-	WARN_ON_ONCE(entries * umr_entry_size % MLX5_OCTWORD);
+	sz = ALIGN(entries * umr_entry_size, MLX5_UMR_MTT_ALIGNMENT);
 
-	return entries * umr_entry_size / MLX5_OCTWORD;
+	return sz / MLX5_OCTWORD;
 }
 
 static inline void mlx5e_build_umr_wqe(struct mlx5e_rq *rq,
