@@ -3611,9 +3611,10 @@ static int create_message(struct dlm_rsb *r, struct dlm_lkb *lkb,
 /* further lowcomms enhancements or alternate implementations may make
    the return value from this function useful at some point */
 
-static int send_message(struct dlm_mhandle *mh, struct dlm_message *ms)
+static int send_message(struct dlm_mhandle *mh, struct dlm_message *ms,
+			const void *name, int namelen)
 {
-	dlm_midcomms_commit_mhandle(mh);
+	dlm_midcomms_commit_mhandle(mh, name, namelen);
 	return 0;
 }
 
@@ -3679,7 +3680,7 @@ static int send_common(struct dlm_rsb *r, struct dlm_lkb *lkb, int mstype)
 
 	send_args(r, lkb, ms);
 
-	error = send_message(mh, ms);
+	error = send_message(mh, ms, r->res_name, r->res_length);
 	if (error)
 		goto fail;
 	return 0;
@@ -3742,7 +3743,7 @@ static int send_grant(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 	ms->m_result = 0;
 
-	error = send_message(mh, ms);
+	error = send_message(mh, ms, r->res_name, r->res_length);
  out:
 	return error;
 }
@@ -3763,7 +3764,7 @@ static int send_bast(struct dlm_rsb *r, struct dlm_lkb *lkb, int mode)
 
 	ms->m_bastmode = cpu_to_le32(mode);
 
-	error = send_message(mh, ms);
+	error = send_message(mh, ms, r->res_name, r->res_length);
  out:
 	return error;
 }
@@ -3786,7 +3787,7 @@ static int send_lookup(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 	send_args(r, lkb, ms);
 
-	error = send_message(mh, ms);
+	error = send_message(mh, ms, r->res_name, r->res_length);
 	if (error)
 		goto fail;
 	return 0;
@@ -3811,7 +3812,7 @@ static int send_remove(struct dlm_rsb *r)
 	memcpy(ms->m_extra, r->res_name, r->res_length);
 	ms->m_hash = cpu_to_le32(r->res_hash);
 
-	error = send_message(mh, ms);
+	error = send_message(mh, ms, r->res_name, r->res_length);
  out:
 	return error;
 }
@@ -3833,7 +3834,7 @@ static int send_common_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 
 	ms->m_result = cpu_to_le32(to_dlm_errno(rv));
 
-	error = send_message(mh, ms);
+	error = send_message(mh, ms, r->res_name, r->res_length);
  out:
 	return error;
 }
@@ -3874,7 +3875,7 @@ static int send_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms_in,
 	ms->m_result = cpu_to_le32(to_dlm_errno(rv));
 	ms->m_nodeid = cpu_to_le32(ret_nodeid);
 
-	error = send_message(mh, ms);
+	error = send_message(mh, ms, ms_in->m_extra, receive_extralen(ms_in));
  out:
 	return error;
 }
@@ -6300,7 +6301,7 @@ static int send_purge(struct dlm_ls *ls, int nodeid, int pid)
 	ms->m_nodeid = cpu_to_le32(nodeid);
 	ms->m_pid = cpu_to_le32(pid);
 
-	return send_message(mh, ms);
+	return send_message(mh, ms, NULL, 0);
 }
 
 int dlm_user_purge(struct dlm_ls *ls, struct dlm_user_proc *proc,
