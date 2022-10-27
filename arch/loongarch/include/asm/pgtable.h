@@ -237,11 +237,11 @@ extern void set_pmd_at(struct mm_struct *mm, unsigned long addr, pmd_t *pmdp, pm
 #define pfn_pmd(pfn, prot)	__pmd(((pfn) << _PFN_SHIFT) | pgprot_val(prot))
 
 /*
- * Initialize a new pgd / pmd table with invalid pointers.
+ * Initialize a new pgd / pud / pmd table with invalid pointers.
  */
-extern void pgd_init(unsigned long page);
-extern void pud_init(unsigned long page, unsigned long pagetable);
-extern void pmd_init(unsigned long page, unsigned long pagetable);
+extern void pgd_init(void *addr);
+extern void pud_init(void *addr);
+extern void pmd_init(void *addr);
 
 /*
  * Non-present pages:  high 40 bits are offset, next 8 bits type,
