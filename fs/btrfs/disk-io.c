@@ -84,7 +84,7 @@ static void btrfs_free_csum_hash(struct btrfs_fs_info *fs_info)
  * just before they are sent down the IO stack.
  */
 struct async_submit_bio {
-	struct inode *inode;
+	struct btrfs_inode *inode;
 	struct bio *bio;
 	enum btrfs_wq_submit_cmd submit_cmd;
 	int mirror_num;
@@ -642,11 +642,11 @@ static void run_one_async_start(struct btrfs_work *work)
 		ret = btree_submit_bio_start(async->bio);
 		break;
 	case WQ_SUBMIT_DATA:
-		ret = btrfs_submit_bio_start(async->inode, async->bio);
+		ret = btrfs_submit_bio_start(&async->inode->vfs_inode, async->bio);
 		break;
 	case WQ_SUBMIT_DATA_DIO:
-		ret = btrfs_submit_bio_start_direct_io(async->inode, async->bio,
-						       async->dio_file_offset);
+		ret = btrfs_submit_bio_start_direct_io(&async->inode->vfs_inode,
+				async->bio, async->dio_file_offset);
 		break;
 	}
 	if (ret)
@@ -665,7 +665,7 @@ static void run_one_async_done(struct btrfs_work *work)
 {
 	struct async_submit_bio *async =
 		container_of(work, struct  async_submit_bio, work);
-	struct inode *inode = async->inode;
+	struct btrfs_inode *inode = async->inode;
 	struct btrfs_bio *bbio = btrfs_bio(async->bio);
 
 	/* If an error occurred we just want to clean up the bio and move on */
@@ -680,7 +680,7 @@ static void run_one_async_done(struct btrfs_work *work)
 	 * This changes nothing when cgroups aren't in use.
 	 */
 	async->bio->bi_opf |= REQ_CGROUP_PUNT;
-	btrfs_submit_bio(btrfs_sb(inode->i_sb), async->bio, async->mirror_num);
+	btrfs_submit_bio(inode->root->fs_info, async->bio, async->mirror_num);
 }
 
 static void run_one_async_free(struct btrfs_work *work)
@@ -708,7 +708,7 @@ bool btrfs_wq_submit_bio(struct inode *inode, struct bio *bio, int mirror_num,
 	if (!async)
 		return false;
 
-	async->inode = inode;
+	async->inode = BTRFS_I(inode);
 	async->bio = bio;
 	async->mirror_num = mirror_num;
 	async->submit_cmd = cmd;
