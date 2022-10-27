@@ -375,7 +375,7 @@ struct acpi_table_ccel {
  * IORT - IO Remapping Table
  *
  * Conforms to "IO Remapping Table System Software on ARM Platforms",
- * Document number: ARM DEN 0049E.d, Feb 2022
+ * Document number: ARM DEN 0049E.e, Sep 2022
  *
  ******************************************************************************/
 
@@ -546,6 +546,7 @@ struct acpi_iort_smmu_v3 {
 #define ACPI_IORT_SMMU_V3_COHACC_OVERRIDE   (1)
 #define ACPI_IORT_SMMU_V3_HTTU_OVERRIDE     (3<<1)
 #define ACPI_IORT_SMMU_V3_PXM_VALID         (1<<3)
+#define ACPI_IORT_SMMU_V3_DEVICEID_VALID    (1<<4)
 
 struct acpi_iort_pmcg {
 	u64 page0_base_address;
