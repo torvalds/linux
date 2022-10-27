@@ -854,15 +854,16 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 		return -ENOMEM;
 	}
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* mem alloc for the CORB/RIRB ringbuffers */
+	/*
+	 * mem alloc for the CORB/RIRB ringbuffers - this will be used only for
+	 * HDAudio codecs
+	 */
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
 				  PAGE_SIZE, &bus->rb);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: RB alloc failed\n");
 		return -ENOMEM;
 	}
-#endif
 
 	/* create capture streams */
 	for (i = 0; i < num_capture; i++) {
@@ -995,11 +996,9 @@ void hda_dsp_stream_free(struct snd_sof_dev *sdev)
 	if (bus->posbuf.area)
 		snd_dma_free_pages(&bus->posbuf);
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* free position buffer */
+	/* free CORB/RIRB buffer - only used for HDaudio codecs */
 	if (bus->rb.area)
 		snd_dma_free_pages(&bus->rb);
-#endif
 
 	list_for_each_entry_safe(s, _s, &bus->stream_list, list) {
 		/* TODO: decouple */
