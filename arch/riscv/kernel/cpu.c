@@ -70,14 +70,36 @@ int riscv_of_parent_hartid(struct device_node *node, unsigned long *hartid)
 	return -1;
 }
 
-#ifdef CONFIG_PROC_FS
-
 struct riscv_cpuinfo {
 	unsigned long mvendorid;
 	unsigned long marchid;
 	unsigned long mimpid;
 };
 static DEFINE_PER_CPU(struct riscv_cpuinfo, riscv_cpuinfo);
+
+unsigned long riscv_cached_mvendorid(unsigned int cpu_id)
+{
+	struct riscv_cpuinfo *ci = per_cpu_ptr(&riscv_cpuinfo, cpu_id);
+
+	return ci->mvendorid;
+}
+EXPORT_SYMBOL(riscv_cached_mvendorid);
+
+unsigned long riscv_cached_marchid(unsigned int cpu_id)
+{
+	struct riscv_cpuinfo *ci = per_cpu_ptr(&riscv_cpuinfo, cpu_id);
+
+	return ci->marchid;
+}
+EXPORT_SYMBOL(riscv_cached_marchid);
+
+unsigned long riscv_cached_mimpid(unsigned int cpu_id)
+{
+	struct riscv_cpuinfo *ci = per_cpu_ptr(&riscv_cpuinfo, cpu_id);
+
+	return ci->mimpid;
+}
+EXPORT_SYMBOL(riscv_cached_mimpid);
 
 static int riscv_cpuinfo_starting(unsigned int cpu)
 {
@@ -113,7 +135,9 @@ static int __init riscv_cpuinfo_init(void)
 
 	return 0;
 }
-device_initcall(riscv_cpuinfo_init);
+arch_initcall(riscv_cpuinfo_init);
+
+#ifdef CONFIG_PROC_FS
 
 #define __RISCV_ISA_EXT_DATA(UPROP, EXTID) \
 	{							\
