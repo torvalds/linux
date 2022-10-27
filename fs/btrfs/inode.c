@@ -2757,7 +2757,7 @@ void btrfs_submit_data_write_bio(struct inode *inode, struct bio *bio, int mirro
 	    !test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state) &&
 	    !btrfs_is_data_reloc_root(bi->root)) {
 		if (!atomic_read(&bi->sync_writers) &&
-		    btrfs_wq_submit_bio(inode, bio, mirror_num, 0, WQ_SUBMIT_DATA))
+		    btrfs_wq_submit_bio(bi, bio, mirror_num, 0, WQ_SUBMIT_DATA))
 			return;
 
 		ret = btrfs_csum_one_bio(bi, bio, (u64)-1, false);
@@ -8014,7 +8014,7 @@ static void btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 	if (btrfs_op(bio) == BTRFS_MAP_WRITE) {
 		/* Check btrfs_submit_data_write_bio() for async submit rules */
 		if (async_submit && !atomic_read(&BTRFS_I(inode)->sync_writers) &&
-		    btrfs_wq_submit_bio(inode, bio, 0, file_offset,
+		    btrfs_wq_submit_bio(BTRFS_I(inode), bio, 0, file_offset,
 					WQ_SUBMIT_DATA_DIO))
 			return;
 

@@ -698,17 +698,17 @@ static void run_one_async_free(struct btrfs_work *work)
  * - true if the work has been succesfuly submitted
  * - false in case of error
  */
-bool btrfs_wq_submit_bio(struct inode *inode, struct bio *bio, int mirror_num,
+bool btrfs_wq_submit_bio(struct btrfs_inode *inode, struct bio *bio, int mirror_num,
 			 u64 dio_file_offset, enum btrfs_wq_submit_cmd cmd)
 {
-	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct async_submit_bio *async;
 
 	async = kmalloc(sizeof(*async), GFP_NOFS);
 	if (!async)
 		return false;
 
-	async->inode = BTRFS_I(inode);
+	async->inode = inode;
 	async->bio = bio;
 	async->mirror_num = mirror_num;
 	async->submit_cmd = cmd;
@@ -784,7 +784,7 @@ void btrfs_submit_metadata_bio(struct inode *inode, struct bio *bio, int mirror_
 	 * happen in parallel across all CPUs.
 	 */
 	if (should_async_write(fs_info, BTRFS_I(inode)) &&
-	    btrfs_wq_submit_bio(inode, bio, mirror_num, 0, WQ_SUBMIT_METADATA))
+	    btrfs_wq_submit_bio(BTRFS_I(inode), bio, mirror_num, 0, WQ_SUBMIT_METADATA))
 		return;
 
 	ret = btree_csum_one_bio(bio);
