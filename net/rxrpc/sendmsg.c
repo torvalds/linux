@@ -702,9 +702,6 @@ int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
 
 	mutex_lock(&call->user_mutex);
 
-	_debug("CALL %d USR %lx ST %d on CONN %p",
-	       call->debug_id, call->user_call_ID, call->state, call->conn);
-
 	ret = rxrpc_send_data(rxrpc_sk(sock->sk), call, msg, len,
 			      notify_end_tx, &dropped_lock);
 	if (ret == -ESHUTDOWN)

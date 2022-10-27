@@ -230,14 +230,9 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn)
  */
 static void rxrpc_call_is_secure(struct rxrpc_call *call)
 {
-	_enter("%p", call);
-	if (call) {
-		write_lock(&call->state_lock);
-		if (call->state == RXRPC_CALL_SERVER_SECURING) {
-			call->state = RXRPC_CALL_SERVER_RECV_REQUEST;
-			rxrpc_notify_socket(call);
-		}
-		write_unlock(&call->state_lock);
+	if (call && __rxrpc_call_state(call) == RXRPC_CALL_SERVER_SECURING) {
+		rxrpc_set_call_state(call, RXRPC_CALL_SERVER_RECV_REQUEST);
+		rxrpc_notify_socket(call);
 	}
 }
 

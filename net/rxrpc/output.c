@@ -261,7 +261,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 				      rxrpc_tx_point_call_ack);
 	rxrpc_tx_backoff(call, ret);
 
-	if (call->state < RXRPC_CALL_COMPLETE) {
+	if (!__rxrpc_call_is_complete(call)) {
 		if (ret < 0)
 			rxrpc_cancel_rtt_probe(call, serial, rtt_slot);
 		rxrpc_set_keepalive(call);
@@ -723,7 +723,7 @@ void rxrpc_send_keepalive(struct rxrpc_peer *peer)
 static inline void rxrpc_instant_resend(struct rxrpc_call *call,
 					struct rxrpc_txbuf *txb)
 {
-	if (call->state < RXRPC_CALL_COMPLETE)
+	if (!__rxrpc_call_is_complete(call))
 		kdebug("resend");
 }
 

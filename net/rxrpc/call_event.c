@@ -257,20 +257,13 @@ out:
  */
 static void rxrpc_begin_service_reply(struct rxrpc_call *call)
 {
-	unsigned long now;
+	unsigned long now = jiffies;
 
-	write_lock(&call->state_lock);
-
-	if (call->state == RXRPC_CALL_SERVER_ACK_REQUEST) {
-		now = jiffies;
-		call->state = RXRPC_CALL_SERVER_SEND_REPLY;
-		WRITE_ONCE(call->delay_ack_at, now + MAX_JIFFY_OFFSET);
-		if (call->ackr_reason == RXRPC_ACK_DELAY)
-			call->ackr_reason = 0;
-		trace_rxrpc_timer(call, rxrpc_timer_init_for_send_reply, now);
-	}
-
-	write_unlock(&call->state_lock);
+	rxrpc_set_call_state(call, RXRPC_CALL_SERVER_SEND_REPLY);
+	WRITE_ONCE(call->delay_ack_at, now + MAX_JIFFY_OFFSET);
+	if (call->ackr_reason == RXRPC_ACK_DELAY)
+		call->ackr_reason = 0;
+	trace_rxrpc_timer(call, rxrpc_timer_init_for_send_reply, now);
 }
 
 /*
@@ -281,18 +274,16 @@ static void rxrpc_close_tx_phase(struct rxrpc_call *call)
 {
 	_debug("________awaiting reply/ACK__________");
 
-	write_lock(&call->state_lock);
-	switch (call->state) {
+	switch (__rxrpc_call_state(call)) {
 	case RXRPC_CALL_CLIENT_SEND_REQUEST:
-		call->state = RXRPC_CALL_CLIENT_AWAIT_REPLY;
+		rxrpc_set_call_state(call, RXRPC_CALL_CLIENT_AWAIT_REPLY);
 		break;
 	case RXRPC_CALL_SERVER_SEND_REPLY:
-		call->state = RXRPC_CALL_SERVER_AWAIT_ACK;
+		rxrpc_set_call_state(call, RXRPC_CALL_SERVER_AWAIT_ACK);
 		break;
 	default:
 		break;
 	}
-	write_unlock(&call->state_lock);
 }
 
 static bool rxrpc_tx_window_has_space(struct rxrpc_call *call)
@@ -341,7 +332,7 @@ static void rxrpc_decant_prepared_tx(struct rxrpc_call *call)
 
 static void rxrpc_transmit_some_data(struct rxrpc_call *call)
 {
-	switch (call->state) {
+	switch (__rxrpc_call_state(call)) {
 	case RXRPC_CALL_SERVER_ACK_REQUEST:
 		if (list_empty(&call->tx_sendmsg))
 			return;
@@ -390,9 +381,10 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 
 	//printk("\n--------------------\n");
 	_enter("{%d,%s,%lx}",
-	       call->debug_id, rxrpc_call_states[call->state], call->events);
+	       call->debug_id, rxrpc_call_states[__rxrpc_call_state(call)],
+	       call->events);
 
-	if (call->state == RXRPC_CALL_COMPLETE)
+	if (__rxrpc_call_is_complete(call))
 		goto out;
 
 	/* Handle abort request locklessly, vs rxrpc_propose_abort(). */
@@ -415,7 +407,7 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 	}
 
 	t = READ_ONCE(call->expect_req_by);
-	if (call->state == RXRPC_CALL_SERVER_RECV_REQUEST &&
+	if (__rxrpc_call_state(call) == RXRPC_CALL_SERVER_RECV_REQUEST &&
 	    time_after_eq(now, t)) {
 		trace_rxrpc_timer(call, rxrpc_timer_exp_idle, now);
 		expired = true;
@@ -499,7 +491,7 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 		rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
 			       rxrpc_propose_ack_ping_for_lost_ack);
 
-	if (resend && call->state != RXRPC_CALL_CLIENT_RECV_REPLY)
+	if (resend && __rxrpc_call_state(call) != RXRPC_CALL_CLIENT_RECV_REPLY)
 		rxrpc_resend(call, NULL);
 
 	if (test_and_clear_bit(RXRPC_CALL_RX_IS_IDLE, &call->flags))
@@ -511,7 +503,7 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 			       rxrpc_propose_ack_input_data);
 
 	/* Make sure the timer is restarted */
-	if (call->state != RXRPC_CALL_COMPLETE) {
+	if (!__rxrpc_call_is_complete(call)) {
 		next = call->expect_rx_by;
 
 #define set(T) { t = READ_ONCE(T); if (time_before(t, next)) next = t; }
@@ -532,7 +524,7 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 	}
 
 out:
-	if (call->state == RXRPC_CALL_COMPLETE) {
+	if (__rxrpc_call_is_complete(call)) {
 		del_timer_sync(&call->timer);
 		if (!test_bit(RXRPC_CALL_DISCONNECTED, &call->flags))
 			rxrpc_disconnect_call(call);

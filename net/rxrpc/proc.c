@@ -50,6 +50,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	struct rxrpc_local *local;
 	struct rxrpc_call *call;
 	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
+	enum rxrpc_call_state state;
 	unsigned long timeout = 0;
 	rxrpc_seq_t acks_hard_ack;
 	char lbuff[50], rbuff[50];
@@ -74,7 +75,8 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 
 	sprintf(rbuff, "%pISpc", &call->dest_srx.transport);
 
-	if (call->state != RXRPC_CALL_SERVER_PREALLOC) {
+	state = rxrpc_call_state(call);
+	if (state != RXRPC_CALL_SERVER_PREALLOC) {
 		timeout = READ_ONCE(call->expect_rx_by);
 		timeout -= jiffies;
 	}
@@ -91,7 +93,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 		   call->call_id,
 		   rxrpc_is_service_call(call) ? "Svc" : "Clt",
 		   refcount_read(&call->ref),
-		   rxrpc_call_states[call->state],
+		   rxrpc_call_states[state],
 		   call->abort_code,
 		   call->debug_id,
 		   acks_hard_ack, READ_ONCE(call->tx_top) - acks_hard_ack,

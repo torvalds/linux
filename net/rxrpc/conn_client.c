@@ -553,9 +553,7 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 
 	trace_rxrpc_connect_call(call);
 
-	write_lock(&call->state_lock);
-	call->state = RXRPC_CALL_CLIENT_SEND_REQUEST;
-	write_unlock(&call->state_lock);
+	rxrpc_set_call_state(call, RXRPC_CALL_CLIENT_SEND_REQUEST);
 
 	/* Paired with the read barrier in rxrpc_connect_call().  This orders
 	 * cid and epoch in the connection wrt to call_id without the need to
@@ -687,7 +685,7 @@ static int rxrpc_wait_for_channel(struct rxrpc_bundle *bundle,
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			break;
 		}
-		if (READ_ONCE(call->state) != RXRPC_CALL_CLIENT_AWAIT_CONN)
+		if (rxrpc_call_state(call) != RXRPC_CALL_CLIENT_AWAIT_CONN)
 			break;
 		if ((call->interruptibility == RXRPC_INTERRUPTIBLE ||
 		     call->interruptibility == RXRPC_PREINTERRUPTIBLE) &&
@@ -729,7 +727,7 @@ int rxrpc_connect_call(struct rxrpc_call *call, gfp_t gfp)
 		goto out;
 	}
 
-	if (call->state == RXRPC_CALL_CLIENT_AWAIT_CONN) {
+	if (rxrpc_call_state(call) == RXRPC_CALL_CLIENT_AWAIT_CONN) {
 		ret = rxrpc_wait_for_channel(bundle, call, gfp);
 		if (ret < 0)
 			goto wait_failed;
@@ -748,7 +746,7 @@ wait_failed:
 	list_del_init(&call->chan_wait_link);
 	spin_unlock(&bundle->channel_lock);
 
-	if (call->state != RXRPC_CALL_CLIENT_AWAIT_CONN) {
+	if (rxrpc_call_state(call) != RXRPC_CALL_CLIENT_AWAIT_CONN) {
 		ret = 0;
 		goto granted_channel;
 	}

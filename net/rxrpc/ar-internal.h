@@ -631,14 +631,13 @@ struct rxrpc_call {
 	unsigned long		flags;
 	unsigned long		events;
 	spinlock_t		notify_lock;	/* Kernel notification lock */
-	rwlock_t		state_lock;	/* lock for state transition */
 	unsigned int		send_abort_why; /* Why the abort [enum rxrpc_abort_reason] */
 	s32			send_abort;	/* Abort code to be sent */
 	short			send_abort_err;	/* Error to be associated with the abort */
 	rxrpc_seq_t		send_abort_seq;	/* DATA packet that incurred the abort (or 0) */
 	s32			abort_code;	/* Local/remote abort code */
 	int			error;		/* Local error incurred */
-	enum rxrpc_call_state	state;		/* current state of call */
+	enum rxrpc_call_state	_state;		/* Current state of call (needs barrier) */
 	enum rxrpc_call_completion completion;	/* Call completion condition */
 	refcount_t		ref;
 	u8			security_ix;	/* Security type */
@@ -889,25 +888,37 @@ static inline bool rxrpc_is_client_call(const struct rxrpc_call *call)
 /*
  * call_state.c
  */
-bool __rxrpc_set_call_completion(struct rxrpc_call *call,
-				 enum rxrpc_call_completion compl,
-				 u32 abort_code,
-				 int error);
 bool rxrpc_set_call_completion(struct rxrpc_call *call,
 			       enum rxrpc_call_completion compl,
 			       u32 abort_code,
 			       int error);
-bool __rxrpc_call_completed(struct rxrpc_call *call);
 bool rxrpc_call_completed(struct rxrpc_call *call);
-bool __rxrpc_abort_call(struct rxrpc_call *call, rxrpc_seq_t seq,
-			u32 abort_code, int error, enum rxrpc_abort_reason why);
 bool rxrpc_abort_call(struct rxrpc_call *call, rxrpc_seq_t seq,
 		      u32 abort_code, int error, enum rxrpc_abort_reason why);
+void rxrpc_prefail_call(struct rxrpc_call *call, enum rxrpc_call_completion compl,
+			int error);
+
+static inline void rxrpc_set_call_state(struct rxrpc_call *call,
+					enum rxrpc_call_state state)
+{
+	/* Order write of completion info before write of ->state. */
+	smp_store_release(&call->_state, state);
+}
+
+static inline enum rxrpc_call_state __rxrpc_call_state(const struct rxrpc_call *call)
+{
+	return call->_state; /* Only inside I/O thread */
+}
+
+static inline bool __rxrpc_call_is_complete(const struct rxrpc_call *call)
+{
+	return __rxrpc_call_state(call) == RXRPC_CALL_COMPLETE;
+}
 
 static inline enum rxrpc_call_state rxrpc_call_state(const struct rxrpc_call *call)
 {
-	/* Order read ->state before read ->error. */
-	return smp_load_acquire(&call->state);
+	/* Order read ->state before read of completion info. */
+	return smp_load_acquire(&call->_state);
 }
 
 static inline bool rxrpc_call_is_complete(const struct rxrpc_call *call)

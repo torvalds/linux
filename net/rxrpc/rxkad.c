@@ -1143,7 +1143,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 			call = rcu_dereference_protected(
 				conn->channels[i].call,
 				lockdep_is_held(&conn->bundle->channel_lock));
-			if (call && call->state < RXRPC_CALL_COMPLETE) {
+			if (call && !__rxrpc_call_is_complete(call)) {
 				rxrpc_abort_conn(conn, skb, RXKADSEALEDINCON, -EPROTO,
 						 rxkad_abort_resp_call_state);
 				goto protocol_error_unlock;
