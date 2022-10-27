@@ -269,6 +269,16 @@ void hda_codec_init_cmd_io(struct snd_sof_dev *sdev)
 }
 EXPORT_SYMBOL_NS_GPL(hda_codec_init_cmd_io, SND_SOC_SOF_HDA_AUDIO_CODEC);
 
+void hda_codec_resume_cmd_io(struct snd_sof_dev *sdev)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+
+	/* set up CORB/RIRB buffers if was on before suspend */
+	if (bus->cmd_dma_state)
+		snd_hdac_bus_init_cmd_io(bus);
+}
+EXPORT_SYMBOL_NS_GPL(hda_codec_resume_cmd_io, SND_SOC_SOF_HDA_AUDIO_CODEC);
+
 void hda_codec_stop_cmd_io(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
@@ -277,6 +287,17 @@ void hda_codec_stop_cmd_io(struct snd_sof_dev *sdev)
 	snd_hdac_bus_stop_cmd_io(bus);
 }
 EXPORT_SYMBOL_NS_GPL(hda_codec_stop_cmd_io, SND_SOC_SOF_HDA_AUDIO_CODEC);
+
+void hda_codec_suspend_cmd_io(struct snd_sof_dev *sdev)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+
+	/* stop the CORB/RIRB DMA if it is On */
+	if (bus->cmd_dma_state)
+		snd_hdac_bus_stop_cmd_io(bus);
+
+}
+EXPORT_SYMBOL_NS_GPL(hda_codec_suspend_cmd_io, SND_SOC_SOF_HDA_AUDIO_CODEC);
 
 void hda_codec_rirb_status_clear(struct snd_sof_dev *sdev)
 {
