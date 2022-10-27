@@ -9,6 +9,8 @@
 #include <linux/aer.h>
 #include <linux/etherdevice.h>
 
+#include "../libwx/wx_type.h"
+#include "../libwx/wx_hw.h"
 #include "txgbe.h"
 
 char txgbe_driver_name[] = "txgbe";
@@ -29,6 +31,69 @@ static const struct pci_device_id txgbe_pci_tbl[] = {
 };
 
 #define DEFAULT_DEBUG_LEVEL_SHIFT 3
+
+static void txgbe_check_minimum_link(struct txgbe_adapter *adapter)
+{
+	struct pci_dev *pdev;
+
+	pdev = adapter->pdev;
+	pcie_print_link_status(pdev);
+}
+
+/**
+ * txgbe_enumerate_functions - Get the number of ports this device has
+ * @adapter: adapter structure
+ *
+ * This function enumerates the phsyical functions co-located on a single slot,
+ * in order to determine how many ports a device has. This is most useful in
+ * determining the required GT/s of PCIe bandwidth necessary for optimal
+ * performance.
+ **/
+static int txgbe_enumerate_functions(struct txgbe_adapter *adapter)
+{
+	struct pci_dev *entry, *pdev = adapter->pdev;
+	int physfns = 0;
+
+	list_for_each_entry(entry, &pdev->bus->devices, bus_list) {
+		/* When the devices on the bus don't all match our device ID,
+		 * we can't reliably determine the correct number of
+		 * functions. This can occur if a function has been direct
+		 * attached to a virtual machine using VT-d.
+		 */
+		if (entry->vendor != pdev->vendor ||
+		    entry->device != pdev->device)
+			return -EINVAL;
+
+		physfns++;
+	}
+
+	return physfns;
+}
+
+/**
+ * txgbe_sw_init - Initialize general software structures (struct txgbe_adapter)
+ * @adapter: board private structure to initialize
+ **/
+static int txgbe_sw_init(struct txgbe_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	struct txgbe_hw *hw = &adapter->hw;
+	struct wx_hw *wxhw = &hw->wxhw;
+	int err;
+
+	wxhw->hw_addr = adapter->io_addr;
+	wxhw->pdev = pdev;
+
+	/* PCI config space info */
+	err = wx_sw_init(wxhw);
+	if (err < 0) {
+		netif_err(adapter, probe, adapter->netdev,
+			  "read of internal subsystem device id failed\n");
+		return err;
+	}
+
+	return 0;
+}
 
 static void txgbe_dev_shutdown(struct pci_dev *pdev, bool *enable_wake)
 {
@@ -67,8 +132,10 @@ static int txgbe_probe(struct pci_dev *pdev,
 		       const struct pci_device_id __always_unused *ent)
 {
 	struct txgbe_adapter *adapter = NULL;
+	struct txgbe_hw *hw = NULL;
+	struct wx_hw *wxhw = NULL;
 	struct net_device *netdev;
-	int err;
+	int err, expected_gts;
 
 	err = pci_enable_device_mem(pdev);
 	if (err)
@@ -107,6 +174,9 @@ static int txgbe_probe(struct pci_dev *pdev,
 	adapter = netdev_priv(netdev);
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
+	hw = &adapter->hw;
+	wxhw = &hw->wxhw;
+	adapter->msg_enable = (1 << DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
 
 	adapter->io_addr = devm_ioremap(&pdev->dev,
 					pci_resource_start(pdev, 0),
@@ -116,9 +186,38 @@ static int txgbe_probe(struct pci_dev *pdev,
 		goto err_pci_release_regions;
 	}
 
+	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
+
+	/* setup the private structure */
+	err = txgbe_sw_init(adapter);
+	if (err)
+		goto err_pci_release_regions;
+
+	/* check if flash load is done after hw power up */
+	err = wx_check_flash_load(wxhw, TXGBE_SPI_ILDR_STATUS_PERST);
+	if (err)
+		goto err_pci_release_regions;
+	err = wx_check_flash_load(wxhw, TXGBE_SPI_ILDR_STATUS_PWRRST);
+	if (err)
+		goto err_pci_release_regions;
+
 	netdev->features |= NETIF_F_HIGHDMA;
 
 	pci_set_drvdata(pdev, adapter);
+
+	/* calculate the expected PCIe bandwidth required for optimal
+	 * performance. Note that some older parts will never have enough
+	 * bandwidth due to being older generation PCIe parts. We clamp these
+	 * parts to ensure that no warning is displayed, as this could confuse
+	 * users otherwise.
+	 */
+	expected_gts = txgbe_enumerate_functions(adapter) * 10;
+
+	/* don't check link if we failed to enumerate functions */
+	if (expected_gts > 0)
+		txgbe_check_minimum_link(adapter);
+	else
+		dev_warn(&pdev->dev, "Failed to enumerate PF devices.\n");
 
 	return 0;
 

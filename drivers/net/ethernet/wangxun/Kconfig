@@ -16,6 +16,11 @@ config NET_VENDOR_WANGXUN
 
 if NET_VENDOR_WANGXUN
 
+config LIBWX
+	tristate
+	help
+	Common library for Wangxun(R) Ethernet drivers.
+
 config NGBE
 	tristate "Wangxun(R) GbE PCI Express adapters support"
 	depends on PCI
@@ -32,6 +37,7 @@ config NGBE
 config TXGBE
 	tristate "Wangxun(R) 10GbE PCI Express adapters support"
 	depends on PCI
+	select LIBWX
 	help
 	  This driver supports Wangxun(R) 10GbE PCI Express family of
 	  adapters.

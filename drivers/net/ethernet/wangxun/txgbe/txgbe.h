@@ -17,6 +17,10 @@ struct txgbe_adapter {
 	/* OS defined structs */
 	struct net_device *netdev;
 	struct pci_dev *pdev;
+
+	/* structs defined in txgbe_type.h */
+	struct txgbe_hw hw;
+	u16 msg_enable;
 };
 
 extern char txgbe_driver_name[];

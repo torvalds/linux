@@ -4,15 +4,6 @@
 #ifndef _TXGBE_TYPE_H_
 #define _TXGBE_TYPE_H_
 
-#include <linux/types.h>
-#include <linux/netdevice.h>
-
-/************ txgbe_register.h ************/
-/* Vendor ID */
-#ifndef PCI_VENDOR_ID_WANGXUN
-#define PCI_VENDOR_ID_WANGXUN                   0x8088
-#endif
-
 /* Device IDs */
 #define TXGBE_DEV_ID_SP1000                     0x1001
 #define TXGBE_DEV_ID_WX1820                     0x2001
@@ -53,5 +44,15 @@
 
 /* Revision ID */
 #define TXGBE_SP_MPW  1
+
+/**************** SP Registers ****************************/
+/* FMGR Registers */
+#define TXGBE_SPI_ILDR_STATUS                   0x10120
+#define TXGBE_SPI_ILDR_STATUS_PERST             BIT(0) /* PCIE_PERST is done */
+#define TXGBE_SPI_ILDR_STATUS_PWRRST            BIT(1) /* Power on reset is done */
+
+struct txgbe_hw {
+	struct wx_hw wxhw;
+};
 
 #endif /* _TXGBE_TYPE_H_ */
