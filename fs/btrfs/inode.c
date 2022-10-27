@@ -286,7 +286,7 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 	return btrfs_mark_ordered_io_finished(inode, NULL, offset, bytes, false);
 }
 
-static int btrfs_dirty_inode(struct inode *inode);
+static int btrfs_dirty_inode(struct btrfs_inode *inode);
 
 static int btrfs_init_inode_security(struct btrfs_trans_handle *trans,
 				     struct btrfs_new_inode_args *args)
@@ -5313,7 +5313,7 @@ static int btrfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentr
 	if (attr->ia_valid) {
 		setattr_copy(mnt_userns, inode, attr);
 		inode_inc_iversion(inode);
-		err = btrfs_dirty_inode(inode);
+		err = btrfs_dirty_inode(BTRFS_I(inode));
 
 		if (!err && attr->ia_valid & ATTR_MODE)
 			err = posix_acl_chmod(mnt_userns, inode, inode->i_mode);
@@ -6144,21 +6144,21 @@ err:
  * FIXME, needs more benchmarking...there are no reasons other than performance
  * to keep or drop this code.
  */
-static int btrfs_dirty_inode(struct inode *inode)
+static int btrfs_dirty_inode(struct btrfs_inode *inode)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *root = inode->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_trans_handle *trans;
 	int ret;
 
-	if (test_bit(BTRFS_INODE_DUMMY, &BTRFS_I(inode)->runtime_flags))
+	if (test_bit(BTRFS_INODE_DUMMY, &inode->runtime_flags))
 		return 0;
 
 	trans = btrfs_join_transaction(root);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
 
-	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
+	ret = btrfs_update_inode(trans, root, inode);
 	if (ret && (ret == -ENOSPC || ret == -EDQUOT)) {
 		/* whoops, lets try again with the full transaction */
 		btrfs_end_transaction(trans);
@@ -6166,10 +6166,10 @@ static int btrfs_dirty_inode(struct inode *inode)
 		if (IS_ERR(trans))
 			return PTR_ERR(trans);
 
-		ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
+		ret = btrfs_update_inode(trans, root, inode);
 	}
 	btrfs_end_transaction(trans);
-	if (BTRFS_I(inode)->delayed_node)
+	if (inode->delayed_node)
 		btrfs_balance_delayed_items(fs_info);
 
 	return ret;
@@ -6196,7 +6196,7 @@ static int btrfs_update_time(struct inode *inode, struct timespec64 *now,
 		inode->i_mtime = *now;
 	if (flags & S_ATIME)
 		inode->i_atime = *now;
-	return dirty ? btrfs_dirty_inode(inode) : 0;
+	return dirty ? btrfs_dirty_inode(BTRFS_I(inode)) : 0;
 }
 
 /*
