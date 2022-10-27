@@ -864,7 +864,8 @@ int btrfs_repair_one_sector(struct inode *inode, struct btrfs_bio *failed_bbio,
 		btrfs_submit_data_read_bio(BTRFS_I(inode), repair_bio,
 					   failrec->this_mirror, 0);
 	else
-		btrfs_submit_dio_repair_bio(inode, repair_bio, failrec->this_mirror);
+		btrfs_submit_dio_repair_bio(BTRFS_I(inode), repair_bio,
+					    failrec->this_mirror);
 
 	return BLK_STS_OK;
 }

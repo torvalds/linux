@@ -7920,15 +7920,14 @@ static void btrfs_dio_private_put(struct btrfs_dio_private *dip)
 	bio_endio(&dip->bio);
 }
 
-void btrfs_submit_dio_repair_bio(struct inode *inode, struct bio *bio, int mirror_num)
+void btrfs_submit_dio_repair_bio(struct btrfs_inode *inode, struct bio *bio, int mirror_num)
 {
 	struct btrfs_dio_private *dip = btrfs_bio(bio)->private;
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 
 	BUG_ON(bio_op(bio) == REQ_OP_WRITE);
 
 	refcount_inc(&dip->refs);
-	btrfs_submit_bio(fs_info, bio, mirror_num);
+	btrfs_submit_bio(inode->root->fs_info, bio, mirror_num);
 }
 
 static blk_status_t btrfs_check_read_dio_bio(struct btrfs_dio_private *dip,
