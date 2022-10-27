@@ -15,7 +15,7 @@
 #define __ALIGN		.balign CONFIG_FUNCTION_ALIGNMENT, 0x90;
 #define __ALIGN_STR	__stringify(__ALIGN)
 
-#if defined(CONFIG_CALL_THUNKS) && !defined(__DISABLE_EXPORTS) && !defined(BUILD_VDSO)
+#if defined(CONFIG_CALL_PADDING) && !defined(__DISABLE_EXPORTS) && !defined(BUILD_VDSO)
 #define FUNCTION_PADDING	.skip CONFIG_FUNCTION_ALIGNMENT, 0x90;
 #else
 #define FUNCTION_PADDING
@@ -57,7 +57,7 @@
 #endif /* __ASSEMBLY__ */
 
 /*
- * Depending on -fpatchable-function-entry=N,N usage (CONFIG_CALL_THUNKS) the
+ * Depending on -fpatchable-function-entry=N,N usage (CONFIG_CALL_PADDING) the
  * CFI symbol layout changes.
  *
  * Without CALL_THUNKS:
@@ -81,7 +81,7 @@
  * In both cases the whole thing is FUNCTION_ALIGNMENT aligned and sized.
  */
 
-#ifdef CONFIG_CALL_THUNKS
+#ifdef CONFIG_CALL_PADDING
 #define CFI_PRE_PADDING
 #define CFI_POST_PADDING	.skip	CONFIG_FUNCTION_PADDING_BYTES, 0x90;
 #else

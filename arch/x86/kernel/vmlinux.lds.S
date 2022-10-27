@@ -309,6 +309,15 @@ SECTIONS
 	}
 #endif
 
+#ifdef CONFIG_FINEIBT
+	. = ALIGN(8);
+	.cfi_sites : AT(ADDR(.cfi_sites) - LOAD_OFFSET) {
+		__cfi_sites = .;
+		*(.cfi_sites)
+		__cfi_sites_end = .;
+	}
+#endif
+
 	/*
 	 * struct alt_inst entries. From the header (alternative.h):
 	 * "Alternative instructions for different CPU types or capabilities"
