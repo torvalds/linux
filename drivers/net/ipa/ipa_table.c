@@ -129,13 +129,6 @@ static void ipa_table_validate_build(void)
 	 * assumes that it can be written using a pointer to __le64.
 	 */
 	BUILD_BUG_ON(IPA_ZERO_RULE_SIZE != sizeof(__le64));
-
-	/* Impose a practical limit on the number of routes */
-	BUILD_BUG_ON(IPA_ROUTE_COUNT_MAX > 32);
-	/* The modem must be allotted at least one route table entry */
-	BUILD_BUG_ON(!IPA_ROUTE_MODEM_COUNT);
-	/* AP must too, but we can't use more than what is available */
-	BUILD_BUG_ON(IPA_ROUTE_MODEM_COUNT >= IPA_ROUTE_COUNT_MAX);
 }
 
 static const struct ipa_mem *
@@ -167,9 +160,9 @@ bool ipa_filter_map_valid(struct ipa *ipa, u32 filter_map)
 	}
 
 	count = hweight32(filter_map);
-	if (count > IPA_FILTER_COUNT_MAX) {
+	if (count > ipa->filter_count) {
 		dev_err(dev, "too many filtering endpoints (%u, max %u)\n",
-			count, IPA_FILTER_COUNT_MAX);
+			count, ipa->filter_count);
 
 		return false;
 	}
@@ -185,7 +178,7 @@ static dma_addr_t ipa_table_addr(struct ipa *ipa, bool filter_mask, u16 count)
 	if (!count)
 		return 0;
 
-	WARN_ON(count > max_t(u32, IPA_FILTER_COUNT_MAX, IPA_ROUTE_COUNT_MAX));
+	WARN_ON(count > max_t(u32, ipa->filter_count, ipa->route_count));
 
 	/* Skip over the zero rule and possibly the filter mask */
 	skip = filter_mask ? 1 : 2;
@@ -285,6 +278,7 @@ static int ipa_filter_reset(struct ipa *ipa, bool modem)
  * */
 static int ipa_route_reset(struct ipa *ipa, bool modem)
 {
+	u32 modem_route_count = ipa->modem_route_count;
 	struct gsi_trans *trans;
 	u16 first;
 	u16 count;
@@ -299,10 +293,10 @@ static int ipa_route_reset(struct ipa *ipa, bool modem)
 
 	if (modem) {
 		first = 0;
-		count = IPA_ROUTE_MODEM_COUNT;
+		count = modem_route_count;
 	} else {
-		first = IPA_ROUTE_MODEM_COUNT;
-		count = IPA_ROUTE_COUNT_MAX - IPA_ROUTE_MODEM_COUNT;
+		first = modem_route_count;
+		count = ipa->route_count - modem_route_count;
 	}
 
 	ipa_table_reset_add(trans, false, first, count, IPA_MEM_V4_ROUTE);
@@ -515,9 +509,9 @@ static void ipa_filter_config(struct ipa *ipa, bool modem)
 	}
 }
 
-static bool ipa_route_id_modem(u32 route_id)
+static bool ipa_route_id_modem(struct ipa *ipa, u32 route_id)
 {
-	return route_id < IPA_ROUTE_MODEM_COUNT;
+	return route_id < ipa->modem_route_count;
 }
 
 /**
@@ -552,8 +546,8 @@ static void ipa_route_config(struct ipa *ipa, bool modem)
 	if (!ipa_table_hash_support(ipa))
 		return;
 
-	for (route_id = 0; route_id < IPA_ROUTE_COUNT_MAX; route_id++)
-		if (ipa_route_id_modem(route_id) == modem)
+	for (route_id = 0; route_id < ipa->route_count; route_id++)
+		if (ipa_route_id_modem(ipa, route_id) == modem)
 			ipa_route_tuple_zero(ipa, route_id);
 }
 
@@ -566,11 +560,12 @@ void ipa_table_config(struct ipa *ipa)
 	ipa_route_config(ipa, true);
 }
 
-/* Zero modem_route_count means filter table memory check */
-bool ipa_table_mem_valid(struct ipa *ipa, bool modem_route_count)
+/* Verify the sizes of all IPA table filter or routing table memory regions
+ * are valid.  If valid, this records the size of the routing table.
+ */
+bool ipa_table_mem_valid(struct ipa *ipa, bool filter)
 {
 	bool hash_support = ipa_table_hash_support(ipa);
-	bool filter = !modem_route_count;
 	const struct ipa_mem *mem_hashed;
 	const struct ipa_mem *mem_ipv4;
 	const struct ipa_mem *mem_ipv6;
@@ -591,14 +586,20 @@ bool ipa_table_mem_valid(struct ipa *ipa, bool modem_route_count)
 	if (mem_ipv4->size != mem_ipv6->size)
 		return false;
 
+	/* Compute and record the number of entries for each table type */
+	count = mem_ipv4->size / sizeof(__le64);
+	if (count < 2)
+		return false;
+	if (filter)
+		ipa->filter_count = count - 1;	/* Filter map in first entry */
+	else
+		ipa->route_count = count;
+
 	/* Table offset and size must fit in TABLE_INIT command fields */
 	if (!ipa_cmd_table_init_valid(ipa, mem_ipv4, !filter))
 		return false;
 
 	/* Make sure the regions are big enough */
-	count = mem_ipv4->size / sizeof(__le64);
-	if (count < 2)
-		return false;
 	if (filter) {
 		/* Filter tables must able to hold the endpoint bitmap plus
 		 * an entry for each endpoint that supports filtering
@@ -609,7 +610,7 @@ bool ipa_table_mem_valid(struct ipa *ipa, bool modem_route_count)
 		/* Routing tables must be able to hold all modem entries,
 		 * plus at least one entry for the AP.
 		 */
-		if (count < modem_route_count + 1)
+		if (count < ipa->modem_route_count + 1)
 			return false;
 	}
 
@@ -646,7 +647,7 @@ bool ipa_table_mem_valid(struct ipa *ipa, bool modem_route_count)
  *
  * The first entry in a filter table contains a bitmap indicating which
  * endpoints contain entries in the table.  In addition to that first entry,
- * there are at most IPA_FILTER_COUNT_MAX entries that follow.  Filter table
+ * there is a fixed maximum number of entries that follow.  Filter table
  * entries are 64 bits wide, and (other than the bitmap) contain the DMA
  * address of a filter rule.  A "zero rule" indicates no filtering, and
  * consists of 64 bits of zeroes.  When a filter table is initialized (or
@@ -670,8 +671,8 @@ bool ipa_table_mem_valid(struct ipa *ipa, bool modem_route_count)
  *	|\   |-------------------|
  *	| ---- zero rule address | \
  *	|\   |-------------------|  |
- *	| ---- zero rule address |  |	IPA_FILTER_COUNT_MAX
- *	|    |-------------------|   >	or IPA_ROUTE_COUNT_MAX,
+ *	| ---- zero rule address |  |	Max IPA filter count
+ *	|    |-------------------|   >	or IPA route count,
  *	|	      ...	    |	whichever is greater
  *	 \   |-------------------|  |
  *	  ---- zero rule address | /
@@ -679,14 +680,16 @@ bool ipa_table_mem_valid(struct ipa *ipa, bool modem_route_count)
  */
 int ipa_table_init(struct ipa *ipa)
 {
-	u32 count = max_t(u32, IPA_FILTER_COUNT_MAX, IPA_ROUTE_COUNT_MAX);
 	struct device *dev = &ipa->pdev->dev;
 	dma_addr_t addr;
 	__le64 le_addr;
 	__le64 *virt;
 	size_t size;
+	u32 count;
 
 	ipa_table_validate_build();
+
+	count = max_t(u32, ipa->filter_count, ipa->route_count);
 
 	/* The IPA hardware requires route and filter table rules to be
 	 * aligned on a 128-byte boundary.  We put the "zero rule" at the
@@ -722,7 +725,7 @@ int ipa_table_init(struct ipa *ipa)
 
 void ipa_table_exit(struct ipa *ipa)
 {
-	u32 count = max_t(u32, 1 + IPA_FILTER_COUNT_MAX, IPA_ROUTE_COUNT_MAX);
+	u32 count = max_t(u32, 1 + ipa->filter_count, ipa->route_count);
 	struct device *dev = &ipa->pdev->dev;
 	size_t size;
 
