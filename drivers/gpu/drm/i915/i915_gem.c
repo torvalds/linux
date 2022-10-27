@@ -843,7 +843,7 @@ void i915_gem_runtime_suspend(struct drm_i915_private *i915)
 		__i915_gem_object_release_mmap_gtt(obj);
 
 	list_for_each_entry_safe(obj, on,
-				 &to_gt(i915)->lmem_userfault_list, userfault_link)
+				 &i915->runtime_pm.lmem_userfault_list, userfault_link)
 		i915_gem_object_runtime_pm_release_mmap_offset(obj);
 
 	/*
@@ -1226,8 +1226,6 @@ void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 {
 	struct intel_gt *gt;
 	unsigned int i;
-
-	intel_wakeref_auto_fini(&to_gt(dev_priv)->userfault_wakeref);
 
 	i915_gem_suspend_late(dev_priv);
 	for_each_gt(gt, dev_priv, i)
