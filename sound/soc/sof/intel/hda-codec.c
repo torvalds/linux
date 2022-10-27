@@ -139,8 +139,7 @@ static struct hda_codec *hda_codec_device_init(struct hdac_bus *bus, int addr, i
 }
 
 /* probe individual codec */
-static int hda_codec_probe(struct snd_sof_dev *sdev, int address,
-			   bool hda_codec_use_common_hdmi)
+static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 {
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 	struct hdac_hda_priv *hda_priv;
@@ -169,10 +168,6 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address,
 	hda_priv = devm_kzalloc(sdev->dev, sizeof(*hda_priv), GFP_KERNEL);
 	if (!hda_priv)
 		return -ENOMEM;
-
-	/* only probe ASoC codec drivers for HDAC-HDMI */
-	if (!hda_codec_use_common_hdmi && (resp & 0xFFFF0000) == IDISP_VID_INTEL)
-		type = HDA_DEV_ASOC;
 
 	codec = hda_codec_device_init(&hbus->core, address, type);
 	ret = PTR_ERR_OR_ZERO(codec);
@@ -221,8 +216,7 @@ out:
 }
 
 /* Codec initialization */
-void hda_codec_probe_bus(struct snd_sof_dev *sdev,
-			 bool hda_codec_use_common_hdmi)
+void hda_codec_probe_bus(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	int i, ret;
@@ -233,7 +227,7 @@ void hda_codec_probe_bus(struct snd_sof_dev *sdev,
 		if (!(bus->codec_mask & (1 << i)))
 			continue;
 
-		ret = hda_codec_probe(sdev, i, hda_codec_use_common_hdmi);
+		ret = hda_codec_probe(sdev, i);
 		if (ret < 0) {
 			dev_warn(bus->dev, "codec #%d probe error, ret: %d\n",
 				 i, ret);
