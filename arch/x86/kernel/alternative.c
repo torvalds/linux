@@ -711,6 +711,24 @@ enum cfi_mode {
 };
 
 static enum cfi_mode cfi_mode __ro_after_init = CFI_DEFAULT;
+static bool cfi_rand __ro_after_init = true;
+static u32  cfi_seed __ro_after_init;
+
+/*
+ * Re-hash the CFI hash with a boot-time seed while making sure the result is
+ * not a valid ENDBR instruction.
+ */
+static u32 cfi_rehash(u32 hash)
+{
+	hash ^= cfi_seed;
+	while (unlikely(is_endbr(hash) || is_endbr(-hash))) {
+		bool lsb = hash & 1;
+		hash >>= 1;
+		if (lsb)
+			hash ^= 0x80200003;
+	}
+	return hash;
+}
 
 static __init int cfi_parse_cmdline(char *str)
 {
@@ -728,10 +746,13 @@ static __init int cfi_parse_cmdline(char *str)
 			cfi_mode = CFI_DEFAULT;
 		} else if (!strcmp(str, "off")) {
 			cfi_mode = CFI_OFF;
+			cfi_rand = false;
 		} else if (!strcmp(str, "kcfi")) {
 			cfi_mode = CFI_KCFI;
 		} else if (!strcmp(str, "fineibt")) {
 			cfi_mode = CFI_FINEIBT;
+		} else if (!strcmp(str, "norand")) {
+			cfi_rand = false;
 		} else {
 			pr_err("Ignoring unknown cfi option (%s).", str);
 		}
@@ -856,7 +877,50 @@ static int cfi_disable_callers(s32 *start, s32 *end)
 	return 0;
 }
 
+static int cfi_enable_callers(s32 *start, s32 *end)
+{
+	/*
+	 * Re-enable kCFI, undo what cfi_disable_callers() did.
+	 */
+	const u8 mov[] = { 0x41, 0xba };
+	s32 *s;
+
+	for (s = start; s < end; s++) {
+		void *addr = (void *)s + *s;
+		u32 hash;
+
+		addr -= fineibt_caller_size;
+		hash = decode_caller_hash(addr);
+		if (!hash) /* nocfi callers */
+			continue;
+
+		text_poke_early(addr, mov, 2);
+	}
+
+	return 0;
+}
+
 /* .cfi_sites */
+static int cfi_rand_preamble(s32 *start, s32 *end)
+{
+	s32 *s;
+
+	for (s = start; s < end; s++) {
+		void *addr = (void *)s + *s;
+		u32 hash;
+
+		hash = decode_preamble_hash(addr);
+		if (WARN(!hash, "no CFI hash found at: %pS %px %*ph\n",
+			 addr, addr, 5, addr))
+			return -EINVAL;
+
+		hash = cfi_rehash(hash);
+		text_poke_early(addr + 1, &hash, 4);
+	}
+
+	return 0;
+}
+
 static int cfi_rewrite_preamble(s32 *start, s32 *end)
 {
 	s32 *s;
@@ -879,6 +943,25 @@ static int cfi_rewrite_preamble(s32 *start, s32 *end)
 }
 
 /* .retpoline_sites */
+static int cfi_rand_callers(s32 *start, s32 *end)
+{
+	s32 *s;
+
+	for (s = start; s < end; s++) {
+		void *addr = (void *)s + *s;
+		u32 hash;
+
+		addr -= fineibt_caller_size;
+		hash = decode_caller_hash(addr);
+		if (hash) {
+			hash = -cfi_rehash(hash);
+			text_poke_early(addr + 2, &hash, 4);
+		}
+	}
+
+	return 0;
+}
+
 static int cfi_rewrite_callers(s32 *start, s32 *end)
 {
 	s32 *s;
@@ -915,31 +998,44 @@ static void __apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
 			cfi_mode = CFI_FINEIBT;
 	}
 
-	switch (cfi_mode) {
-	case CFI_OFF:
-		ret = cfi_disable_callers(start_retpoline, end_retpoline);
+	/*
+	 * Rewrite the callers to not use the __cfi_ stubs, such that we might
+	 * rewrite them. This disables all CFI. If this succeeds but any of the
+	 * later stages fails, we're without CFI.
+	 */
+	ret = cfi_disable_callers(start_retpoline, end_retpoline);
+	if (ret)
+		goto err;
+
+	if (cfi_rand) {
+		if (builtin)
+			cfi_seed = get_random_u32();
+
+		ret = cfi_rand_preamble(start_cfi, end_cfi);
 		if (ret)
 			goto err;
 
+		ret = cfi_rand_callers(start_retpoline, end_retpoline);
+		if (ret)
+			goto err;
+	}
+
+	switch (cfi_mode) {
+	case CFI_OFF:
 		if (builtin)
 			pr_info("Disabling CFI\n");
 		return;
 
 	case CFI_KCFI:
+		ret = cfi_enable_callers(start_retpoline, end_retpoline);
+		if (ret)
+			goto err;
+
 		if (builtin)
 			pr_info("Using kCFI\n");
 		return;
 
 	case CFI_FINEIBT:
-		/*
-		 * Rewrite the callers to not use the __cfi_ stubs, such that we might
-		 * rewrite them. This disables all CFI. If this succeeds but any of the
-		 * later stages fails, we're without CFI.
-		 */
-		ret = cfi_disable_callers(start_retpoline, end_retpoline);
-		if (ret)
-			goto err;
-
 		ret = cfi_rewrite_preamble(start_cfi, end_cfi);
 		if (ret)
 			goto err;
