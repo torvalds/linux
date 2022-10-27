@@ -531,6 +531,11 @@ int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type)
 	u8 val;
 	int ret;
 
+	rtw89_mac_disable_cpu(rtwdev);
+	ret = rtw89_mac_enable_cpu(rtwdev, 0, true);
+	if (ret)
+		return ret;
+
 	if (!fw || !len) {
 		rtw89_err(rtwdev, "fw type %d isn't recognized\n", type);
 		return -ENOENT;
