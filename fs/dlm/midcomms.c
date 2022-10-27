@@ -132,6 +132,7 @@
  */
 #define DLM_DEBUG_FENCE_TERMINATION	0
 
+#include <trace/events/dlm.h>
 #include <net/tcp.h>
 
 #include "dlm_internal.h"
@@ -415,7 +416,7 @@ static int dlm_send_fin(struct midcomms_node *node,
 	m_header->h_cmd = DLM_FIN;
 
 	pr_debug("sending fin msg to node %d\n", node->nodeid);
-	dlm_midcomms_commit_mhandle(mh);
+	dlm_midcomms_commit_mhandle(mh, NULL, 0);
 	set_bit(DLM_NODE_FLAG_STOP_TX, &node->flags);
 
 	return 0;
@@ -472,6 +473,20 @@ static void dlm_pas_fin_ack_rcv(struct midcomms_node *node)
 		return;
 	}
 	spin_unlock(&node->state_lock);
+}
+
+static void dlm_receive_buffer_3_2_trace(uint32_t seq, union dlm_packet *p)
+{
+	switch (p->header.h_cmd) {
+	case DLM_MSG:
+		trace_dlm_recv_message(seq, &p->message);
+		break;
+	case DLM_RCOM:
+		trace_dlm_recv_rcom(seq, &p->rcom);
+		break;
+	default:
+		break;
+	}
 }
 
 static void dlm_midcomms_receive_buffer(union dlm_packet *p,
@@ -534,6 +549,7 @@ static void dlm_midcomms_receive_buffer(union dlm_packet *p,
 			break;
 		default:
 			WARN_ON(test_bit(DLM_NODE_FLAG_STOP_RX, &node->flags));
+			dlm_receive_buffer_3_2_trace(seq, p);
 			dlm_receive_buffer(p, node->nodeid);
 			set_bit(DLM_NODE_ULP_DELIVERED, &node->flags);
 			break;
@@ -1130,11 +1146,30 @@ err:
 }
 #endif
 
-static void dlm_midcomms_commit_msg_3_2(struct dlm_mhandle *mh)
+static void dlm_midcomms_commit_msg_3_2_trace(const struct dlm_mhandle *mh,
+					      const void *name, int namelen)
+{
+	switch (mh->inner_p->header.h_cmd) {
+	case DLM_MSG:
+		trace_dlm_send_message(mh->seq, &mh->inner_p->message,
+				       name, namelen);
+		break;
+	case DLM_RCOM:
+		trace_dlm_send_rcom(mh->seq, &mh->inner_p->rcom);
+		break;
+	default:
+		/* nothing to trace */
+		break;
+	}
+}
+
+static void dlm_midcomms_commit_msg_3_2(struct dlm_mhandle *mh,
+					const void *name, int namelen)
 {
 	/* nexthdr chain for fast lookup */
 	mh->opts->o_nextcmd = mh->inner_p->header.h_cmd;
 	mh->committed = true;
+	dlm_midcomms_commit_msg_3_2_trace(mh, name, namelen);
 	dlm_lowcomms_commit_msg(mh->msg);
 }
 
@@ -1142,8 +1177,10 @@ static void dlm_midcomms_commit_msg_3_2(struct dlm_mhandle *mh)
  * dlm_midcomms_get_mhandle
  */
 #ifndef __CHECKER__
-void dlm_midcomms_commit_mhandle(struct dlm_mhandle *mh)
+void dlm_midcomms_commit_mhandle(struct dlm_mhandle *mh,
+				 const void *name, int namelen)
 {
+
 	switch (mh->node->version) {
 	case DLM_VERSION_3_1:
 		srcu_read_unlock(&nodes_srcu, mh->idx);
@@ -1154,7 +1191,7 @@ void dlm_midcomms_commit_mhandle(struct dlm_mhandle *mh)
 		dlm_free_mhandle(mh);
 		break;
 	case DLM_VERSION_3_2:
-		dlm_midcomms_commit_msg_3_2(mh);
+		dlm_midcomms_commit_msg_3_2(mh, name, namelen);
 		srcu_read_unlock(&nodes_srcu, mh->idx);
 		break;
 	default:
