@@ -132,6 +132,8 @@ struct addr_location {
 	s32	      socket;
 };
 
+void addr_location__put(struct addr_location *al);
+
 int dso__load(struct dso *dso, struct map *map);
 int dso__load_vmlinux(struct dso *dso, struct map *map,
 		      const char *vmlinux, bool vmlinux_allocated);

@@ -336,9 +336,6 @@ int perf_event__process(struct perf_tool *tool,
 			struct machine *machine);
 
 struct addr_location;
-
-void addr_location__put(struct addr_location *al);
-
 struct thread;
 
 bool is_bts_event(struct perf_event_attr *attr);
