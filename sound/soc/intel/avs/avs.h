@@ -24,6 +24,13 @@ struct avs_tplg_library;
 struct avs_soc_component;
 struct avs_ipc_msg;
 
+#ifdef CONFIG_ACPI
+#define AVS_S0IX_SUPPORTED \
+	(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0)
+#else
+#define AVS_S0IX_SUPPORTED false
+#endif
+
 /*
  * struct avs_dsp_ops - Platform-specific DSP operations
  *
