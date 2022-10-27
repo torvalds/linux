@@ -1418,7 +1418,10 @@ static void send_to_sock(struct connection *con)
 	const int msg_flags = MSG_DONTWAIT | MSG_NOSIGNAL;
 	struct writequeue_entry *e;
 	int len, offset, ret;
-	int count = 0;
+	int count;
+
+again:
+	count = 0;
 
 	mutex_lock(&con->sock_mutex);
 	if (con->sock == NULL)
@@ -1453,14 +1456,16 @@ static void send_to_sock(struct connection *con)
 		} else if (ret < 0)
 			goto out;
 
-		/* Don't starve people filling buffers */
-		if (++count >= MAX_SEND_MSG_COUNT) {
-			cond_resched();
-			count = 0;
-		}
-
 		spin_lock(&con->writequeue_lock);
 		writequeue_entry_complete(e, ret);
+
+		/* Don't starve people filling buffers */
+		if (++count >= MAX_SEND_MSG_COUNT) {
+			spin_unlock(&con->writequeue_lock);
+			mutex_unlock(&con->sock_mutex);
+			cond_resched();
+			goto again;
+		}
 	}
 	spin_unlock(&con->writequeue_lock);
 
