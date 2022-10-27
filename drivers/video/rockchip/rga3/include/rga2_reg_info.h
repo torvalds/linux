@@ -447,6 +447,7 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler);
 int rga2_init_reg(struct rga_job *job);
 int rga2_get_version(struct rga_scheduler_t *scheduler);
 void rga2_dump_read_back_reg(struct rga_scheduler_t *scheduler);
+int rga2_read_back_reg(struct rga_job *job, struct rga_scheduler_t *scheduler);
 
 #endif
 

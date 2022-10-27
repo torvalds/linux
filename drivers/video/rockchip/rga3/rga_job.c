@@ -274,11 +274,20 @@ void rga_job_done(struct rga_scheduler_t *scheduler, int ret)
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
 	job = scheduler->running_job;
+	if (job == NULL) {
+		pr_err("core[0x%x] running job has been cleanup.\n", scheduler->core);
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+		return;
+	}
 	scheduler->running_job = NULL;
 
 	scheduler->timer.busy_time += ktime_us_delta(now, job->hw_recoder_time);
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+	if (scheduler->ops->read_back_reg)
+		scheduler->ops->read_back_reg(job, scheduler);
 
 	if (DEBUGGER_EN(DUMP_IMAGE))
 		rga_dump_job_image(job);

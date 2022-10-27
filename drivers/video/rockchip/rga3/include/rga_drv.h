@@ -294,6 +294,7 @@ struct rga_backend_ops {
 	int (*set_reg)(struct rga_job *job, struct rga_scheduler_t *scheduler);
 	int (*init_reg)(struct rga_job *job);
 	void (*soft_reset)(struct rga_scheduler_t *scheduler);
+	int (*read_back_reg)(struct rga_job *job, struct rga_scheduler_t *scheduler);
 };
 
 struct rga_timer {

@@ -30,14 +30,16 @@ static const struct rga_backend_ops rga3_ops = {
 	.get_version = rga3_get_version,
 	.set_reg = rga3_set_reg,
 	.init_reg = rga3_init_reg,
-	.soft_reset = rga3_soft_reset
+	.soft_reset = rga3_soft_reset,
+	.read_back_reg = NULL,
 };
 
 static const struct rga_backend_ops rga2_ops = {
 	.get_version = rga2_get_version,
 	.set_reg = rga2_set_reg,
 	.init_reg = rga2_init_reg,
-	.soft_reset = rga2_soft_reset
+	.soft_reset = rga2_soft_reset,
+	.read_back_reg = rga2_read_back_reg,
 };
 
 static struct rga_session *rga_session_init(void);
@@ -1181,14 +1183,6 @@ static irqreturn_t rga3_irq_handler(int irq, void *data)
 static irqreturn_t rga3_irq_thread(int irq, void *data)
 {
 	struct rga_scheduler_t *scheduler = data;
-	struct rga_job *job;
-
-	job = scheduler->running_job;
-
-	if (!job) {
-		pr_err("running job is invaild on irq thread\n");
-		return IRQ_HANDLED;
-	}
 
 	if (DEBUGGER_EN(INT_FLAG))
 		pr_info("irq thread, INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
@@ -1234,21 +1228,12 @@ static irqreturn_t rga2_irq_handler(int irq, void *data)
 static irqreturn_t rga2_irq_thread(int irq, void *data)
 {
 	struct rga_scheduler_t *scheduler = data;
-	struct rga_job *job;
-
-	job = scheduler->running_job;
-
-	if (!job)
-		return IRQ_HANDLED;
 
 	if (DEBUGGER_EN(INT_FLAG))
 		pr_info("irq thread, INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
 			rga_read(RGA2_INT, scheduler),
 			rga_read(RGA2_STATUS2, scheduler),
 			rga_read(RGA2_STATUS1, scheduler));
-
-	job->rga_command_base.osd_info.cur_flags0 = rga_read(RGA2_OSD_CUR_FLAGS0, scheduler);
-	job->rga_command_base.osd_info.cur_flags1 = rga_read(RGA2_OSD_CUR_FLAGS1, scheduler);
 
 	rga_job_done(scheduler, 0);
 

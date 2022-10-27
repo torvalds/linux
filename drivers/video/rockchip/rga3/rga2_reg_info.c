@@ -2516,3 +2516,15 @@ int rga2_get_version(struct rga_scheduler_t *scheduler)
 
 	return 0;
 }
+
+int rga2_read_back_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
+{
+	if (job->rga_command_base.osd_info.enable) {
+		job->rga_command_base.osd_info.cur_flags0 = rga_read(RGA2_OSD_CUR_FLAGS0,
+								     scheduler);
+		job->rga_command_base.osd_info.cur_flags1 = rga_read(RGA2_OSD_CUR_FLAGS1,
+								     scheduler);
+	}
+
+	return 0;
+}
