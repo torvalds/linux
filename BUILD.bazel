@@ -28,7 +28,6 @@ define_common_kernels(target_configs = {
             "net/wireless/cfg80211.ko",
         ],
     },
-    # Sync with build.config.gki.aarch64.16k
     "kernel_aarch64_16k": {
         "module_implicit_outs": [
             "drivers/block/zram/zram.ko",
@@ -37,7 +36,6 @@ define_common_kernels(target_configs = {
             "net/wireless/cfg80211.ko",
         ],
     },
-    # Sync with build.config.gki-debug.aarch64
     "kernel_aarch64_debug": {
         "module_implicit_outs": [
             "drivers/block/zram/zram.ko",
@@ -46,7 +44,6 @@ define_common_kernels(target_configs = {
             "net/wireless/cfg80211.ko",
         ],
     },
-    # Sync with build.config.gki.x86_64
     "kernel_x86_64": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": [
@@ -56,7 +53,6 @@ define_common_kernels(target_configs = {
             "net/wireless/cfg80211.ko",
         ],
     },
-    # Sync with build.config.gki-debug.x86_64
     "kernel_x86_64_debug": {
         "kmi_symbol_list_strict_mode": False,
         "module_implicit_outs": [
@@ -68,7 +64,6 @@ define_common_kernels(target_configs = {
     },
 })
 
-# Sync with build.config.db845c
 define_db845c(
     name = "db845c",
     outs = [
