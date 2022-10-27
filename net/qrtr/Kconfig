@@ -25,6 +25,17 @@ config QRTR_NODE_ID
 	  but the name service application is not priveleged enough to use
 	  netlink sockets.
 
+config QRTR_WAKEUP_MS
+	int "QRTR Wakeup timeout"
+	default 0
+	help
+	  This option is used to configure the wakesource timeout that QRTR
+	  should take when a packet is received. The qrtr driver can guarantee
+	  that the packet gets queued to the socket but cannot guarantee the
+	  client process will get time to run if auto sleep is enabled. This
+	  config will help mitigate missed packets on systems where auto sleep
+	  is aggressive.
+
 config QRTR_SMD
 	tristate "SMD IPC Router channels"
 	depends on RPMSG || (COMPILE_TEST && RPMSG=n)

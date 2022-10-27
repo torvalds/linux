@@ -114,6 +114,7 @@ static inline struct qrtr_sock *qrtr_sk(struct sock *sk)
 }
 
 static unsigned int qrtr_local_nid = CONFIG_QRTR_NODE_ID;
+static unsigned int qrtr_wakeup_ms = CONFIG_QRTR_WAKEUP_MS;
 
 /* for node ids */
 static RADIX_TREE(qrtr_nodes, GFP_ATOMIC);
@@ -732,7 +733,7 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 	if (cb->type != QRTR_TYPE_DATA || cb->dst_node != qrtr_local_nid) {
 		skb_queue_tail(&node->rx_queue, skb);
 		kthread_queue_work(&node->kworker, &node->read_data);
-		__pm_wakeup_event(node->ws, 0);
+		pm_wakeup_ws_event(node->ws, qrtr_wakeup_ms, true);
 	} else {
 		ipc = qrtr_port_lookup(cb->dst_port);
 		if (!ipc) {
@@ -747,7 +748,7 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 
 		/* Force wakeup for all packets except for sensors */
 		if (node->nid != 9)
-			__pm_wakeup_event(node->ws, 0);
+			pm_wakeup_ws_event(node->ws, qrtr_wakeup_ms, true);
 
 		qrtr_port_put(ipc);
 	}
