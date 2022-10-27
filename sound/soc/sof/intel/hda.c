@@ -871,9 +871,6 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct snd_sof_pdata *pdata = sdev->pdata;
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	struct hdac_ext_link *hlink;
-#endif
 	struct sof_intel_hda_dev *hdev = pdata->hw_pdata;
 	u32 link_mask;
 	int ret = 0;
@@ -918,9 +915,7 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 
 skip_soundwire:
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	if (bus->mlcap)
-		snd_hdac_ext_bus_get_ml_capabilities(bus);
+	hda_bus_ml_get_capabilities(bus);
 
 	/* create codec instances */
 	hda_codec_probe_bus(sdev);
@@ -928,12 +923,8 @@ skip_soundwire:
 	if (!HDA_IDISP_CODEC(bus->codec_mask))
 		hda_codec_i915_display_power(sdev, false);
 
-	/*
-	 * we are done probing so decrement link counts
-	 */
-	list_for_each_entry(hlink, &bus->hlink_list, list)
-		snd_hdac_ext_bus_link_put(bus, hlink);
-#endif
+	hda_bus_ml_put_all(bus);
+
 	return 0;
 }
 
