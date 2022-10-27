@@ -45,9 +45,6 @@ static void mtk_pcs_setup_mode_an(struct mtk_pcs *mpcs)
 
 	regmap_update_bits(mpcs->regmap, SGMSYS_PCS_CONTROL_1,
 			   SGMII_AN_RESTART, SGMII_AN_RESTART);
-
-	regmap_update_bits(mpcs->regmap, SGMSYS_QPHY_PWR_STATE_CTRL,
-			   SGMII_PHYA_PWD, 0);
 }
 
 /* For 1000BASE-X and 2500BASE-X interface modes, which operate at a
@@ -72,10 +69,6 @@ static void mtk_pcs_setup_mode_force(struct mtk_pcs *mpcs,
 	regmap_update_bits(mpcs->regmap, SGMSYS_SGMII_MODE,
 			   SGMII_IF_MODE_MASK & ~SGMII_DUPLEX_FULL,
 			   SGMII_SPEED_1000);
-
-	/* Release PHYA power down state */
-	regmap_update_bits(mpcs->regmap, SGMSYS_QPHY_PWR_STATE_CTRL,
-			   SGMII_PHYA_PWD, 0);
 }
 
 static int mtk_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
@@ -90,6 +83,10 @@ static int mtk_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 		mtk_pcs_setup_mode_force(mpcs, interface);
 	else if (phylink_autoneg_inband(mode))
 		mtk_pcs_setup_mode_an(mpcs);
+
+	/* Release PHYA power down state */
+	regmap_update_bits(mpcs->regmap, SGMSYS_QPHY_PWR_STATE_CTRL,
+			   SGMII_PHYA_PWD, 0);
 
 	return 0;
 }
