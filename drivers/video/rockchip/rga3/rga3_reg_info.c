@@ -1141,7 +1141,7 @@ static void RGA3_set_reg_overlap_info(u8 *base, struct rga3_req *msg)
 	*bRGA3_OVLP_OFF = msg->wr.x_offset | (msg->wr.y_offset << 16);
 }
 
-int rga3_gen_reg_info(u8 *base, struct rga3_req *msg)
+static int rga3_gen_reg_info(u8 *base, struct rga3_req *msg)
 {
 	switch (msg->render_mode) {
 	case BITBLT_MODE:
@@ -1225,7 +1225,7 @@ static void set_wr_info(struct rga_req *req_rga, struct rga3_req *req)
 }
 
 /* TODO: common part */
-void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
+static void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 {
 	u16 alpha_mode_0, alpha_mode_1;
 	struct rga_img_info_t tmp;
@@ -1589,7 +1589,7 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 	}
 }
 
-void rga3_soft_reset(struct rga_scheduler_t *scheduler)
+static void rga3_soft_reset(struct rga_scheduler_t *scheduler)
 {
 	u32 i;
 	u32 reg;
@@ -1624,7 +1624,7 @@ void rga3_soft_reset(struct rga_scheduler_t *scheduler)
 	rga_write(0, RGA3_MMU_COMMAND, scheduler);
 
 	if (DEBUGGER_EN(INT_FLAG))
-		pr_info("soft reset, INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
+		pr_info("soft reset, INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
 			rga_read(RGA3_INT_RAW, scheduler),
 			rga_read(RGA3_STATUS0, scheduler),
 			rga_read(RGA3_CMD_STATE, scheduler));
@@ -1839,7 +1839,7 @@ static int rga3_align_check(struct rga3_req *req)
 	return 0;
 }
 
-int rga3_init_reg(struct rga_job *job)
+static int rga3_init_reg(struct rga_job *job)
 {
 	struct rga3_req req;
 	int ret = 0;
@@ -1896,7 +1896,7 @@ static void rga3_dump_read_back_reg(struct rga_scheduler_t *scheduler)
 			cmd_reg[2 + i * 4], cmd_reg[3 + i * 4]);
 }
 
-int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
+static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	int i;
 	uint32_t sys_ctrl;
@@ -1959,7 +1959,7 @@ int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	return 0;
 }
 
-int rga3_get_version(struct rga_scheduler_t *scheduler)
+static int rga3_get_version(struct rga_scheduler_t *scheduler)
 {
 	u32 major_version, minor_version, svn_version;
 	u32 reg_version;
@@ -1984,3 +1984,49 @@ int rga3_get_version(struct rga_scheduler_t *scheduler)
 
 	return 0;
 }
+
+static int rga3_irq(struct rga_scheduler_t *scheduler)
+{
+	if (DEBUGGER_EN(INT_FLAG))
+		pr_info("irq handler, INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
+			rga_read(RGA3_INT_RAW, scheduler),
+			rga_read(RGA3_STATUS0, scheduler),
+			rga_read(RGA3_CMD_STATE, scheduler));
+
+	if (rga_read(RGA3_INT_RAW, scheduler) & m_RGA3_INT_ERROR_MASK) {
+		pr_err("irq handler err! INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
+			rga_read(RGA3_INT_RAW, scheduler),
+			rga_read(RGA3_STATUS0, scheduler),
+			rga_read(RGA3_CMD_STATE, scheduler));
+		scheduler->ops->soft_reset(scheduler);
+
+		return IRQ_WAKE_THREAD;
+	}
+
+	/*clear INTR */
+	rga_write(m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH | m_RGA3_INT_ERROR_MASK,
+		  RGA3_INT_CLR, scheduler);
+
+	return IRQ_WAKE_THREAD;
+}
+
+static int rga3_isr_thread(struct rga_job *job, struct rga_scheduler_t *scheduler)
+{
+	if (DEBUGGER_EN(INT_FLAG))
+		pr_info("isr thread, INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
+			rga_read(RGA3_INT_RAW, scheduler),
+			rga_read(RGA3_STATUS0, scheduler),
+			rga_read(RGA3_CMD_STATE, scheduler));
+
+	return IRQ_HANDLED;
+}
+
+const struct rga_backend_ops rga3_ops = {
+	.get_version = rga3_get_version,
+	.set_reg = rga3_set_reg,
+	.init_reg = rga3_init_reg,
+	.soft_reset = rga3_soft_reset,
+	.read_back_reg = NULL,
+	.irq = rga3_irq,
+	.isr_thread = rga3_isr_thread,
+};

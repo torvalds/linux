@@ -26,22 +26,6 @@ struct rga_drvdata_t *rga_drvdata;
 static struct hrtimer timer;
 static ktime_t kt;
 
-static const struct rga_backend_ops rga3_ops = {
-	.get_version = rga3_get_version,
-	.set_reg = rga3_set_reg,
-	.init_reg = rga3_init_reg,
-	.soft_reset = rga3_soft_reset,
-	.read_back_reg = NULL,
-};
-
-static const struct rga_backend_ops rga2_ops = {
-	.get_version = rga2_get_version,
-	.set_reg = rga2_set_reg,
-	.init_reg = rga2_init_reg,
-	.soft_reset = rga2_soft_reset,
-	.read_back_reg = rga2_read_back_reg,
-};
-
 static struct rga_session *rga_session_init(void);
 static int rga_session_deinit(struct rga_session *session);
 
@@ -1153,91 +1137,39 @@ static int rga_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static irqreturn_t rga3_irq_handler(int irq, void *data)
+static irqreturn_t rga_irq_handler(int irq, void *data)
 {
+	irqreturn_t irq_ret = IRQ_NONE;
 	struct rga_scheduler_t *scheduler = data;
 
-	if (DEBUGGER_EN(INT_FLAG))
-		pr_info("irq handler, INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
-			rga_read(RGA3_INT_RAW, scheduler),
-			rga_read(RGA3_STATUS0, scheduler),
-			rga_read(RGA3_CMD_STATE, scheduler));
+	if (scheduler->ops->irq)
+		irq_ret = scheduler->ops->irq(scheduler);
 
-	if (rga_read(RGA3_INT_RAW, scheduler) & m_RGA3_INT_ERROR_MASK) {
-		pr_err("irq handler err! INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
-			rga_read(RGA3_INT_RAW, scheduler),
-			rga_read(RGA3_STATUS0, scheduler),
-			rga_read(RGA3_CMD_STATE, scheduler));
-		scheduler->ops->soft_reset(scheduler);
+	return irq_ret;
+}
 
-		return IRQ_WAKE_THREAD;
+static irqreturn_t rga_isr_thread(int irq, void *data)
+{
+	irqreturn_t irq_ret = IRQ_NONE;
+	struct rga_scheduler_t *scheduler = data;
+	struct rga_job *job;
+
+	job = rga_job_done(scheduler);
+	if (job == NULL) {
+		pr_err("isr thread invalid job!\n");
+		return IRQ_HANDLED;
 	}
 
-	/*clear INT */
-	rga_write(m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH | m_RGA3_INT_ERROR_MASK,
-		  RGA3_INT_CLR, scheduler);
+	if (scheduler->ops->isr_thread)
+		irq_ret = scheduler->ops->isr_thread(job, scheduler);
 
-	return IRQ_WAKE_THREAD;
-}
+	rga_request_release_signal(scheduler, job);
 
-static irqreturn_t rga3_irq_thread(int irq, void *data)
-{
-	struct rga_scheduler_t *scheduler = data;
+	rga_job_next(scheduler);
 
-	if (DEBUGGER_EN(INT_FLAG))
-		pr_info("irq thread, INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
-			rga_read(RGA3_INT_RAW, scheduler),
-			rga_read(RGA3_STATUS0, scheduler),
-			rga_read(RGA3_CMD_STATE, scheduler));
+	rga_power_disable(scheduler);
 
-	rga_job_done(scheduler, 0);
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t rga2_irq_handler(int irq, void *data)
-{
-	struct rga_scheduler_t *scheduler = data;
-
-	if (DEBUGGER_EN(INT_FLAG))
-		pr_info("irq handler, INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
-			rga_read(RGA2_INT, scheduler),
-			rga_read(RGA2_STATUS2, scheduler),
-			rga_read(RGA2_STATUS1, scheduler));
-
-	/*if error interrupt then soft reset hardware */
-	//warning
-	if (rga_read(RGA2_INT, scheduler) & m_RGA2_INT_ERROR_FLAG_MASK) {
-		pr_err("irq handler err! INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
-			rga_read(RGA2_INT, scheduler),
-			rga_read(RGA2_STATUS2, scheduler),
-			rga_read(RGA2_STATUS1, scheduler));
-		scheduler->ops->soft_reset(scheduler);
-	}
-
-	/*clear INT */
-	rga_write(rga_read(RGA2_INT, scheduler) |
-		  (m_RGA2_INT_ERROR_CLEAR_MASK |
-		   m_RGA2_INT_ALL_CMD_DONE_INT_CLEAR | m_RGA2_INT_NOW_CMD_DONE_INT_CLEAR |
-		   m_RGA2_INT_LINE_RD_CLEAR | m_RGA2_INT_LINE_WR_CLEAR),
-		  RGA2_INT, scheduler);
-
-	return IRQ_WAKE_THREAD;
-}
-
-static irqreturn_t rga2_irq_thread(int irq, void *data)
-{
-	struct rga_scheduler_t *scheduler = data;
-
-	if (DEBUGGER_EN(INT_FLAG))
-		pr_info("irq thread, INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
-			rga_read(RGA2_INT, scheduler),
-			rga_read(RGA2_STATUS2, scheduler),
-			rga_read(RGA2_STATUS1, scheduler));
-
-	rga_job_done(scheduler, 0);
-
-	return IRQ_HANDLED;
+	return irq_ret;
 }
 
 const struct file_operations rga_fops = {
@@ -1280,44 +1212,24 @@ static const char *const rga3_core_1_clks[] = {
 	"clk_rga3_1",
 };
 
-static const struct rga_irqs_data_t single_rga2_irqs[] = {
-	{"rga2_irq", rga2_irq_handler, rga2_irq_thread}
-};
-
-static const struct rga_irqs_data_t rga3_core0_irqs[] = {
-	{"rga3_core0_irq", rga3_irq_handler, rga3_irq_thread}
-};
-
-static const struct rga_irqs_data_t rga3_core1_irqs[] = {
-	{"rga3_core1_irq", rga3_irq_handler, rga3_irq_thread}
-};
-
 static const struct rga_match_data_t old_rga2_match_data = {
 	.clks = old_rga2_clks,
 	.num_clks = ARRAY_SIZE(old_rga2_clks),
-	.irqs = single_rga2_irqs,
-	.num_irqs = ARRAY_SIZE(single_rga2_irqs)
 };
 
 static const struct rga_match_data_t rk3588_rga2_match_data = {
 	.clks = rk3588_rga2_clks,
 	.num_clks = ARRAY_SIZE(rk3588_rga2_clks),
-	.irqs = single_rga2_irqs,
-	.num_irqs = ARRAY_SIZE(single_rga2_irqs)
 };
 
 static const struct rga_match_data_t rga3_core0_match_data = {
 	.clks = rga3_core_0_clks,
 	.num_clks = ARRAY_SIZE(rga3_core_0_clks),
-	.irqs = rga3_core0_irqs,
-	.num_irqs = ARRAY_SIZE(rga3_core0_irqs)
 };
 
 static const struct rga_match_data_t rga3_core1_match_data = {
 	.clks = rga3_core_1_clks,
 	.num_clks = ARRAY_SIZE(rga3_core_1_clks),
-	.irqs = rga3_core1_irqs,
-	.num_irqs = ARRAY_SIZE(rga3_core1_irqs)
 };
 
 static const struct of_device_id rga3_core0_dt_ids[] = {
@@ -1429,21 +1341,21 @@ static int rga_drv_probe(struct platform_device *pdev)
 	/* there are irq names in dts */
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "no irq %s in dts\n", match_data->irqs[0].name);
+		dev_err(dev, "no irq %s in dts\n", dev_driver_string(dev));
 		return irq;
 	}
 
 	scheduler->irq = irq;
 
-	pr_info("%s, irq = %d, match scheduler\n", match_data->irqs[0].name, irq);
+	pr_info("%s, irq = %d, match scheduler\n", dev_driver_string(dev), irq);
 
 	ret = devm_request_threaded_irq(dev, irq,
-					match_data->irqs[0].irq_hdl,
-					match_data->irqs[0].irq_thread,
+					rga_irq_handler,
+					rga_isr_thread,
 					IRQF_SHARED,
 					dev_driver_string(dev), scheduler);
 	if (ret < 0) {
-		pr_err("request irq name: %s failed: %d\n", match_data->irqs[0].name, ret);
+		pr_err("request irq name: %s failed: %d\n", dev_driver_string(dev), ret);
 		return ret;
 	}
 

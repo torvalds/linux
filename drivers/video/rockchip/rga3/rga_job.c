@@ -195,7 +195,7 @@ static int rga_job_run(struct rga_job *job, struct rga_scheduler_t *scheduler)
 
 }
 
-static void rga_job_next(struct rga_scheduler_t *scheduler)
+void rga_job_next(struct rga_scheduler_t *scheduler)
 {
 	int ret;
 	struct rga_job *job = NULL;
@@ -242,30 +242,7 @@ next_job:
 	rga_job_put(job);
 }
 
-static void rga_job_finish_and_next(struct rga_scheduler_t *scheduler,
-		struct rga_job *job, int ret)
-{
-	ktime_t now;
-
-	job->ret = ret;
-
-	if (DEBUGGER_EN(TIME)) {
-		now = ktime_get();
-		pr_info("hw use time = %lld\n", ktime_us_delta(now, job->hw_running_time));
-		pr_info("(pid:%d) job done use time = %lld\n", job->pid,
-			ktime_us_delta(now, job->timestamp));
-	}
-
-	rga_mm_unmap_job_info(job);
-
-	rga_request_release_signal(scheduler, job);
-
-	rga_job_next(scheduler);
-
-	rga_power_disable(scheduler);
-}
-
-void rga_job_done(struct rga_scheduler_t *scheduler, int ret)
+struct rga_job *rga_job_done(struct rga_scheduler_t *scheduler)
 {
 	struct rga_job *job;
 	unsigned long flags;
@@ -278,7 +255,7 @@ void rga_job_done(struct rga_scheduler_t *scheduler, int ret)
 		pr_err("core[0x%x] running job has been cleanup.\n", scheduler->core);
 
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
-		return;
+		return NULL;
 	}
 	scheduler->running_job = NULL;
 
@@ -292,7 +269,15 @@ void rga_job_done(struct rga_scheduler_t *scheduler, int ret)
 	if (DEBUGGER_EN(DUMP_IMAGE))
 		rga_dump_job_image(job);
 
-	rga_job_finish_and_next(scheduler, job, ret);
+	if (DEBUGGER_EN(TIME)) {
+		pr_info("hw use time = %lld\n", ktime_us_delta(now, job->hw_running_time));
+		pr_info("(pid:%d) job done use time = %lld\n", job->pid,
+			ktime_us_delta(now, job->timestamp));
+	}
+
+	rga_mm_unmap_job_info(job);
+
+	return job;
 }
 
 static void rga_job_scheduler_timeout_clean(struct rga_scheduler_t *scheduler)

@@ -295,6 +295,8 @@ struct rga_backend_ops {
 	int (*init_reg)(struct rga_job *job);
 	void (*soft_reset)(struct rga_scheduler_t *scheduler);
 	int (*read_back_reg)(struct rga_job *job, struct rga_scheduler_t *scheduler);
+	int (*irq)(struct rga_scheduler_t *scheduler);
+	int (*isr_thread)(struct rga_job *job, struct rga_scheduler_t *scheduler);
 };
 
 struct rga_timer {
@@ -424,8 +426,6 @@ struct rga_irqs_data_t {
 struct rga_match_data_t {
 	const char * const *clks;
 	int num_clks;
-	const struct rga_irqs_data_t *irqs;
-	int num_irqs;
 };
 
 static inline int rga_read(int offset, struct rga_scheduler_t *scheduler)

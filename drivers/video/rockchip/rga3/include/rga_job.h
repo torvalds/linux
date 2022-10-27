@@ -22,7 +22,8 @@ enum job_flags {
 };
 
 void rga_job_scheduler_dump_info(struct rga_scheduler_t *scheduler);
-void rga_job_done(struct rga_scheduler_t *scheduler, int ret);
+void rga_job_next(struct rga_scheduler_t *scheduler);
+struct rga_job *rga_job_done(struct rga_scheduler_t *scheduler);
 struct rga_job *rga_job_commit(struct rga_req *rga_command_base, struct rga_request *request);
 int rga_job_mpi_commit(struct rga_req *rga_command_base, struct rga_request *request);
 

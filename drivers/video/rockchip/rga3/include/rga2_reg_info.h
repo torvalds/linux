@@ -440,14 +440,7 @@
 #define s_RGA2_MMU_CTRL1_SW_ELS_MMU_EN(x)		((x & 0x1) << 12)
 #define s_RGA2_MMU_CTRL1_SW_ELS_MMU_FLUSH(x)		((x & 0x1) << 13)
 
-int rga2_gen_reg_info(unsigned char *base, struct rga2_req *msg);
-
-void rga2_soft_reset(struct rga_scheduler_t *scheduler);
-int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler);
-int rga2_init_reg(struct rga_job *job);
-int rga2_get_version(struct rga_scheduler_t *scheduler);
-void rga2_dump_read_back_reg(struct rga_scheduler_t *scheduler);
-int rga2_read_back_reg(struct rga_job *job, struct rga_scheduler_t *scheduler);
+extern const struct rga_backend_ops rga2_ops;
 
 #endif
 

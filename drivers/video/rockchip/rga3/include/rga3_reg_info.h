@@ -499,14 +499,7 @@
 #define RGA3_ROT_BIT_X_MIRROR			BIT(1)
 #define RGA3_ROT_BIT_Y_MIRROR			BIT(2)
 
-int rga3_gen_reg_info(unsigned char *base, struct rga3_req *msg);
-void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req);
-//void RGA_MSG_2_RGA3_MSG_32(struct rga_req_32 *req_rga, struct rga3_req *req);
-
-void rga3_soft_reset(struct rga_scheduler_t *scheduler);
-int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler);
-int rga3_init_reg(struct rga_job *job);
-int rga3_get_version(struct rga_scheduler_t *scheduler);
+extern const struct rga_backend_ops rga3_ops;
 
 #endif
 

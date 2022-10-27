@@ -7,7 +7,6 @@
 
 #define pr_fmt(fmt) "rga2_reg: " fmt
 
-#include "rga_job.h"
 #include "rga2_reg_info.h"
 #include "rga_dma_buf.h"
 #include "rga_iommu.h"
@@ -1715,7 +1714,7 @@ static void RGA2_set_mmu_reg_info(u8 *base, struct rga2_req *msg)
 	*bRGA_MMU_ELS_BASE = (u32) (msg->mmu_info.els_base_addr) >> 4;
 }
 
-int rga2_gen_reg_info(u8 *base, struct rga2_req *msg)
+static int rga2_gen_reg_info(u8 *base, struct rga2_req *msg)
 {
 	u8 dst_nn_quantize_en = 0;
 
@@ -2060,7 +2059,7 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 	}
 }
 
-void rga2_soft_reset(struct rga_scheduler_t *scheduler)
+static void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 {
 	u32 i;
 	u32 reg;
@@ -2217,7 +2216,7 @@ static void print_debug_info(struct rga2_req *req)
 	pr_info("yuv2rgb mode is %x\n", req->yuv2rgb_mode);
 }
 
-int rga2_init_reg(struct rga_job *job)
+static int rga2_init_reg(struct rga_job *job)
 {
 	struct rga2_req req;
 	int ret = 0;
@@ -2340,7 +2339,7 @@ static void rga2_dump_read_back_cmd_reg(struct rga_scheduler_t *scheduler)
 			cmd_reg[2 + i * 4], cmd_reg[3 + i * 4]);
 }
 
-void rga2_dump_read_back_reg(struct rga_scheduler_t *scheduler)
+static void rga2_dump_read_back_reg(struct rga_scheduler_t *scheduler)
 {
 	rga2_dump_read_back_sys_reg(scheduler);
 	rga2_dump_read_back_csc_reg(scheduler);
@@ -2409,7 +2408,7 @@ static void rga2_set_reg_full_csc(struct rga_job *job, struct rga_scheduler_t *s
 	rga_write(job->full_csc.coe_v.off, RGA2_DST_CSC_OFF2, scheduler);
 }
 
-int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
+static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	int i;
 	uint32_t sys_ctrl;
@@ -2485,7 +2484,7 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	return 0;
 }
 
-int rga2_get_version(struct rga_scheduler_t *scheduler)
+static int rga2_get_version(struct rga_scheduler_t *scheduler)
 {
 	u32 major_version, minor_version, svn_version;
 	u32 reg_version;
@@ -2517,7 +2516,7 @@ int rga2_get_version(struct rga_scheduler_t *scheduler)
 	return 0;
 }
 
-int rga2_read_back_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
+static int rga2_read_back_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	if (job->rga_command_base.osd_info.enable) {
 		job->rga_command_base.osd_info.cur_flags0 = rga_read(RGA2_OSD_CUR_FLAGS0,
@@ -2528,3 +2527,51 @@ int rga2_read_back_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 
 	return 0;
 }
+
+static int rga2_irq(struct rga_scheduler_t *scheduler)
+{
+	if (DEBUGGER_EN(INT_FLAG))
+		pr_info("irq handler, INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
+			rga_read(RGA2_INT, scheduler),
+			rga_read(RGA2_STATUS2, scheduler),
+			rga_read(RGA2_STATUS1, scheduler));
+
+	/*if error interrupt then soft reset hardware */
+	if (rga_read(RGA2_INT, scheduler) & m_RGA2_INT_ERROR_FLAG_MASK) {
+		pr_err("irq handler err! INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
+			rga_read(RGA2_INT, scheduler),
+			rga_read(RGA2_STATUS2, scheduler),
+			rga_read(RGA2_STATUS1, scheduler));
+		scheduler->ops->soft_reset(scheduler);
+	}
+
+	/*clear INTR */
+	rga_write(rga_read(RGA2_INT, scheduler) |
+		  (m_RGA2_INT_ERROR_CLEAR_MASK |
+		   m_RGA2_INT_ALL_CMD_DONE_INT_CLEAR | m_RGA2_INT_NOW_CMD_DONE_INT_CLEAR |
+		   m_RGA2_INT_LINE_RD_CLEAR | m_RGA2_INT_LINE_WR_CLEAR),
+		  RGA2_INT, scheduler);
+
+	return IRQ_WAKE_THREAD;
+}
+
+static int rga2_isr_thread(struct rga_job *job, struct rga_scheduler_t *scheduler)
+{
+	if (DEBUGGER_EN(INT_FLAG))
+		pr_info("isr thread, INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
+			rga_read(RGA2_INT, scheduler),
+			rga_read(RGA2_STATUS2, scheduler),
+			rga_read(RGA2_STATUS1, scheduler));
+
+	return IRQ_HANDLED;
+}
+
+const struct rga_backend_ops rga2_ops = {
+	.get_version = rga2_get_version,
+	.set_reg = rga2_set_reg,
+	.init_reg = rga2_init_reg,
+	.soft_reset = rga2_soft_reset,
+	.read_back_reg = rga2_read_back_reg,
+	.irq = rga2_irq,
+	.isr_thread = rga2_isr_thread,
+};
