@@ -2530,18 +2530,28 @@ static int rga2_read_back_reg(struct rga_job *job, struct rga_scheduler_t *sched
 
 static int rga2_irq(struct rga_scheduler_t *scheduler)
 {
+	struct rga_job *job = scheduler->running_job;
+
+	/* The hardware interrupt top-half don't need to lock the scheduler. */
+	if (job == NULL)
+		return IRQ_HANDLED;
+
+	job->intr_status = rga_read(RGA2_INT, scheduler);
+	job->hw_status = rga_read(RGA2_STATUS2, scheduler);
+	job->cmd_status = rga_read(RGA2_STATUS1, scheduler);
+
 	if (DEBUGGER_EN(INT_FLAG))
 		pr_info("irq handler, INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
-			rga_read(RGA2_INT, scheduler),
-			rga_read(RGA2_STATUS2, scheduler),
-			rga_read(RGA2_STATUS1, scheduler));
+			job->intr_status, job->hw_status, job->cmd_status);
 
-	/*if error interrupt then soft reset hardware */
-	if (rga_read(RGA2_INT, scheduler) & m_RGA2_INT_ERROR_FLAG_MASK) {
+	if (job->intr_status &
+	    (m_RGA2_INT_CUR_CMD_DONE_INT_FLAG | m_RGA2_INT_ALL_CMD_DONE_INT_FLAG)) {
+		set_bit(RGA_JOB_STATE_FINISH, &job->state);
+	} else if (job->intr_status & m_RGA2_INT_ERROR_FLAG_MASK) {
+		set_bit(RGA_JOB_STATE_INTR_ERR, &job->state);
+
 		pr_err("irq handler err! INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
-			rga_read(RGA2_INT, scheduler),
-			rga_read(RGA2_STATUS2, scheduler),
-			rga_read(RGA2_STATUS1, scheduler));
+		       job->intr_status, job->hw_status, job->cmd_status);
 		scheduler->ops->soft_reset(scheduler);
 	}
 
@@ -2562,6 +2572,21 @@ static int rga2_isr_thread(struct rga_job *job, struct rga_scheduler_t *schedule
 			rga_read(RGA2_INT, scheduler),
 			rga_read(RGA2_STATUS2, scheduler),
 			rga_read(RGA2_STATUS1, scheduler));
+
+	if (test_bit(RGA_JOB_STATE_INTR_ERR, &job->state)) {
+		if (job->hw_status & m_RGA2_STATUS2_RPP_ERROR)
+			pr_err("RGA current status: rpp error!\n");
+		if (job->hw_status & m_RGA2_STATUS2_BUS_ERROR)
+			pr_err("RGA current status: bus error!\n");
+
+		if (job->intr_status & m_RGA2_INT_ERROR_INT_FLAG) {
+			pr_err("RGA bus error intr, please check your configuration and buffer.\n");
+			job->ret = -EFAULT;
+		} else if (job->intr_status & m_RGA2_INT_MMU_INT_FLAG) {
+			pr_err("mmu failed, please check size of the buffer or whether the buffer has been freed.\n");
+			job->ret = -EACCES;
+		}
+	}
 
 	return IRQ_HANDLED;
 }

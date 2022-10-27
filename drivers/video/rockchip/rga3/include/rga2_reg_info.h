@@ -183,6 +183,13 @@
 #define s_RGA2_INT_MMU_INT_CLEAR(x)			((x & 0x1) << 5)
 #define s_RGA2_INT_ERROR_INT_CLEAR(x)			((x & 0x1) << 4)
 
+/* RGA_STATUS2 hardware status */
+#define m_RGA2_STATUS2_RPP_MKRAM_RREADY			(0x2 << 11)
+#define m_RGA2_STATUS2_DSTRPP_OUTBUF_RREADY		(0x1f << 6)
+#define m_RGA2_STATUS2_SRCRPP_OUTBUF_RREADY		(0xf << 2)
+#define m_RGA2_STATUS2_BUS_ERROR			(0x1 << 1)
+#define m_RGA2_STATUS2_RPP_ERROR			(0x1 << 0)
+
 /* RGA_READ_LINE_CNT_TH */
 #define m_RGA2_READ_LINE_SW_INTR_LINE_RD_TH		(0x1fff << 0)
 

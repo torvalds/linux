@@ -187,12 +187,13 @@ static int rga_job_run(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		return ret;
 	}
 
+	set_bit(RGA_JOB_STATE_RUNNING, &job->state);
+
 	/* for debug */
 	if (DEBUGGER_EN(MSG))
 		rga_job_dump_info(job);
 
 	return ret;
-
 }
 
 void rga_job_next(struct rga_scheduler_t *scheduler)
@@ -217,6 +218,7 @@ next_job:
 	scheduler->job_count--;
 
 	scheduler->running_job = job;
+	set_bit(RGA_JOB_STATE_PREPARE, &job->state);
 	rga_job_get(job);
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
@@ -260,6 +262,7 @@ struct rga_job *rga_job_done(struct rga_scheduler_t *scheduler)
 	scheduler->running_job = NULL;
 
 	scheduler->timer.busy_time += ktime_us_delta(now, job->hw_recoder_time);
+	set_bit(RGA_JOB_STATE_DONE, &job->state);
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
@@ -345,6 +348,7 @@ static void rga_job_insert_todo_list(struct rga_job *job)
 	}
 
 	scheduler->job_count++;
+	set_bit(RGA_JOB_STATE_PENDING, &job->state);
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 }
@@ -721,6 +725,45 @@ void rga_request_session_destroy_abort(struct rga_session *session)
 	mutex_unlock(&request_manager->lock);
 }
 
+static int rga_request_timeout_query_state(struct rga_request *request)
+{
+	int i;
+	unsigned long flags;
+	struct rga_scheduler_t *scheduler = NULL;
+	struct rga_job *job = NULL;
+
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
+		scheduler = rga_drvdata->scheduler[i];
+
+		spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+		if (scheduler->running_job) {
+			job = scheduler->running_job;
+			if (request->id == job->request_id) {
+				if (test_bit(RGA_JOB_DONE, &job->state) &&
+				    test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
+					spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+					return request->ret;
+				} else if (!test_bit(RGA_JOB_DONE, &job->state) &&
+					   test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
+					spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+					pr_err("hardware has finished, but the software has timeout!\n");
+					return -EBUSY;
+				} else if (!test_bit(RGA_JOB_DONE, &job->state) &&
+					   !test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
+					spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+					pr_err("hardware has timeout.\n");
+					return -EBUSY;
+				}
+			}
+		}
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+	}
+
+	return request->ret;
+}
+
 static int rga_request_wait(struct rga_request *request)
 {
 	int left_time;
@@ -731,8 +774,7 @@ static int rga_request_wait(struct rga_request *request)
 
 	switch (left_time) {
 	case 0:
-		pr_err("%s timeout", __func__);
-		ret = -EBUSY;
+		ret = rga_request_timeout_query_state(request);
 		goto err_request_abort;
 	case -ERESTARTSYS:
 		ret = -ERESTARTSYS;

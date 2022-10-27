@@ -1987,20 +1987,27 @@ static int rga3_get_version(struct rga_scheduler_t *scheduler)
 
 static int rga3_irq(struct rga_scheduler_t *scheduler)
 {
+	struct rga_job *job = scheduler->running_job;
+
+	if (job == NULL)
+		return IRQ_HANDLED;
+
+	job->intr_status = rga_read(RGA3_INT_RAW, scheduler);
+	job->hw_status = rga_read(RGA3_STATUS0, scheduler);
+	job->cmd_status = rga_read(RGA3_CMD_STATE, scheduler);
+
 	if (DEBUGGER_EN(INT_FLAG))
 		pr_info("irq handler, INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
-			rga_read(RGA3_INT_RAW, scheduler),
-			rga_read(RGA3_STATUS0, scheduler),
-			rga_read(RGA3_CMD_STATE, scheduler));
+			job->intr_status, job->hw_status, job->cmd_status);
 
-	if (rga_read(RGA3_INT_RAW, scheduler) & m_RGA3_INT_ERROR_MASK) {
+	if (job->intr_status & (m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH)) {
+		set_bit(RGA_JOB_STATE_FINISH, &job->state);
+	} else if (job->intr_status & m_RGA3_INT_ERROR_MASK) {
+		set_bit(RGA_JOB_STATE_INTR_ERR, &job->state);
+
 		pr_err("irq handler err! INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
-			rga_read(RGA3_INT_RAW, scheduler),
-			rga_read(RGA3_STATUS0, scheduler),
-			rga_read(RGA3_CMD_STATE, scheduler));
+		       job->intr_status, job->hw_status, job->cmd_status);
 		scheduler->ops->soft_reset(scheduler);
-
-		return IRQ_WAKE_THREAD;
 	}
 
 	/*clear INTR */
@@ -2017,6 +2024,28 @@ static int rga3_isr_thread(struct rga_job *job, struct rga_scheduler_t *schedule
 			rga_read(RGA3_INT_RAW, scheduler),
 			rga_read(RGA3_STATUS0, scheduler),
 			rga_read(RGA3_CMD_STATE, scheduler));
+
+	if (test_bit(RGA_JOB_STATE_INTR_ERR, &job->state)) {
+		if (job->intr_status & m_RGA3_INT_RGA_MMU_INTR) {
+			pr_err("iommu error, please check size of the buffer or whether the buffer has been freed.\n");
+			job->ret = -EACCES;
+		} else if (job->intr_status & m_RGA3_INT_RAG_MI_RD_BUS_ERR) {
+			pr_err("DMA read bus error, please check size of the input_buffer or whether the buffer has been freed.\n");
+			job->ret = -EFAULT;
+		} else if (job->intr_status & m_RGA3_INT_WIN0_FBCD_DEC_ERR) {
+			pr_err("win0 FBC decoder error, please check the fbc image of the source.\n");
+			job->ret = -EFAULT;
+		} else if (job->intr_status & m_RGA3_INT_WIN1_FBCD_DEC_ERR) {
+			pr_err("win1 FBC decoder error, please check the fbc image of the source.\n");
+			job->ret = -EFAULT;
+		} else if (job->intr_status & m_RGA3_INT_RGA_MI_WR_BUS_ERR) {
+			pr_err("wr buss error, please check size of the output_buffer or whether the buffer has been freed.\n");
+			job->ret = -EFAULT;
+		} else {
+			pr_err("rga intr error[0x%x]!\n", job->intr_status);
+			job->ret = -EFAULT;
+		}
+	}
 
 	return IRQ_HANDLED;
 }

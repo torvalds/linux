@@ -137,6 +137,17 @@ enum rga_scheduler_status {
 	RGA_SCHEDULER_ABORT,
 };
 
+enum rga_job_state {
+	RGA_JOB_STATE_PENDING = 0,
+	RGA_JOB_STATE_PREPARE,
+	RGA_JOB_STATE_RUNNING,
+	RGA_JOB_STATE_FINISH,
+	RGA_JOB_STATE_DONE,
+	RGA_JOB_STATE_INTR_ERR,
+	RGA_JOB_STATE_HW_TIMEOUT,
+	RGA_JOB_STATE_ABORT,
+};
+
 struct rga_iommu_dma_cookie {
 	enum iommu_dma_cookie_type  type;
 
@@ -287,6 +298,10 @@ struct rga_job {
 	bool use_batch_mode;
 
 	struct kref refcount;
+	unsigned long state;
+	uint32_t intr_status;
+	uint32_t hw_status;
+	uint32_t cmd_status;
 };
 
 struct rga_backend_ops {
