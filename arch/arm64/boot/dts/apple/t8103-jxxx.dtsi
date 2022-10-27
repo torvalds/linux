@@ -78,3 +78,7 @@
 		apple,antenna-sku = "XX";
 	};
 };
+
+&nco_clkref {
+	clock-frequency = <900000000>;
+};

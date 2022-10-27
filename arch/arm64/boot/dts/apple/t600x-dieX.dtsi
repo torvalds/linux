@@ -1,0 +1,103 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Devices used on both dies on the Apple T6002 "M1 Ultra" and present on
+ * Apple T6000/T6001 "M1 Pro/Max".
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+	DIE_NODE(pmgr): power-management@28e080000 {
+		compatible = "apple,t6000-pmgr", "apple,pmgr", "syscon", "simple-mfd";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x2 0x8e080000 0 0x4000>;
+	};
+
+	DIE_NODE(pmgr_east): power-management@28e580000 {
+		compatible = "apple,t6000-pmgr", "apple,pmgr", "syscon", "simple-mfd";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x2 0x8e580000 0 0xc000>;
+	};
+
+	DIE_NODE(pmgr_south): power-management@28e680000 {
+		compatible = "apple,t6000-pmgr", "apple,pmgr", "syscon", "simple-mfd";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x2 0x8e680000 0 0xc000>;
+	};
+
+	DIE_NODE(pinctrl_nub): pinctrl@2921f0000 {
+		compatible = "apple,t6000-pinctrl", "apple,pinctrl";
+		reg = <0x2 0x921f0000 0x0 0x4000>;
+		power-domains = <&DIE_NODE(ps_nub_gpio)>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&DIE_NODE(pinctrl_nub) 0 0 16>;
+		apple,npins = <16>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ DIE_NO 623 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 624 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 625 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 626 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 627 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 628 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 629 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	DIE_NODE(pmgr_mini): power-management@292280000 {
+		compatible = "apple,t6000-pmgr", "apple,pmgr", "syscon", "simple-mfd";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x2 0x92280000 0 0x4000>;
+	};
+
+	DIE_NODE(pinctrl_aop): pinctrl@293820000 {
+		compatible = "apple,t6000-pinctrl", "apple,pinctrl";
+		reg = <0x2 0x93820000 0x0 0x4000>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&DIE_NODE(pinctrl_aop) 0 0 63>;
+		apple,npins = <63>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ DIE_NO 567 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 568 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 569 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 570 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 571 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 572 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 573 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	DIE_NODE(pinctrl_ap): pinctrl@39b028000 {
+		compatible = "apple,t6000-pinctrl", "apple,pinctrl";
+		reg = <0x3 0x9b028000 0x0 0x4000>;
+
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ DIE_NO 427 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 428 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 429 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 430 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 431 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 432 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ DIE_NO 433 IRQ_TYPE_LEVEL_HIGH>;
+
+		clocks = <&clkref>;
+		power-domains = <&DIE_NODE(ps_gpio)>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&DIE_NODE(pinctrl_ap) 0 0 255>;
+		apple,npins = <255>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};

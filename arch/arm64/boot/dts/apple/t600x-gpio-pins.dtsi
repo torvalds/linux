@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * GPIO pin mappings for Apple T600x SoCs.
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+&pinctrl_ap {
+	i2c0_pins: i2c0-pins {
+		pinmux = <APPLE_PINMUX(92, 1)>,
+			<APPLE_PINMUX(93, 1)>;
+	};
+
+	i2c1_pins: i2c1-pins {
+		pinmux = <APPLE_PINMUX(94, 1)>,
+			<APPLE_PINMUX(95, 1)>;
+	};
+
+	i2c2_pins: i2c2-pins {
+		pinmux = <APPLE_PINMUX(96, 1)>,
+			<APPLE_PINMUX(97, 1)>;
+	};
+
+	i2c3_pins: i2c3-pins {
+		pinmux = <APPLE_PINMUX(98, 1)>,
+			<APPLE_PINMUX(99, 1)>;
+	};
+
+	i2c4_pins: i2c4-pins {
+		pinmux = <APPLE_PINMUX(8, 1)>,
+			<APPLE_PINMUX(9, 1)>;
+	};
+
+	i2c5_pins: i2c5-pins {
+		pinmux = <APPLE_PINMUX(100, 1)>,
+			<APPLE_PINMUX(101, 1)>;
+	};
+
+	pcie_pins: pcie-pins {
+		pinmux = <APPLE_PINMUX(0, 1)>,
+				<APPLE_PINMUX(1, 1)>,
+				<APPLE_PINMUX(2, 1)>,
+				<APPLE_PINMUX(3, 1)>;
+	};
+};
