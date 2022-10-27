@@ -19,6 +19,20 @@ static struct mtk_pcs *pcs_to_mtk_pcs(struct phylink_pcs *pcs)
 	return container_of(pcs, struct mtk_pcs, pcs);
 }
 
+static void mtk_pcs_get_state(struct phylink_pcs *pcs,
+			      struct phylink_link_state *state)
+{
+	struct mtk_pcs *mpcs = pcs_to_mtk_pcs(pcs);
+	unsigned int bm, adv;
+
+	/* Read the BMSR and LPA */
+	regmap_read(mpcs->regmap, SGMSYS_PCS_CONTROL_1, &bm);
+	regmap_read(mpcs->regmap, SGMSYS_PCS_ADVERTISE, &adv);
+
+	phylink_mii_c22_pcs_decode_state(state, FIELD_GET(SGMII_BMSR, bm),
+					 FIELD_GET(SGMII_LPA, adv));
+}
+
 /* For SGMII interface mode */
 static void mtk_pcs_setup_mode_an(struct mtk_pcs *mpcs)
 {
@@ -117,6 +131,7 @@ static void mtk_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 }
 
 static const struct phylink_pcs_ops mtk_pcs_ops = {
+	.pcs_get_state = mtk_pcs_get_state,
 	.pcs_config = mtk_pcs_config,
 	.pcs_an_restart = mtk_pcs_restart_an,
 	.pcs_link_up = mtk_pcs_link_up,
