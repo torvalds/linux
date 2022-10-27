@@ -153,52 +153,25 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-static int __meminit vmemmap_populate_hugepages(unsigned long start, unsigned long end,
-						int node, struct vmem_altmap *altmap)
+void __meminit vmemmap_set_pmd(pmd_t *pmd, void *p, int node,
+			       unsigned long addr, unsigned long next)
 {
-	unsigned long addr = start;
-	unsigned long next;
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
-	pmd_t *pmd;
+	pmd_t entry;
 
-	for (addr = start; addr < end; addr = next) {
-		next = pmd_addr_end(addr, end);
+	entry = pfn_pmd(virt_to_pfn(p), PAGE_KERNEL);
+	pmd_val(entry) |= _PAGE_HUGE | _PAGE_HGLOBAL;
+	set_pmd_at(&init_mm, addr, pmd, entry);
+}
 
-		pgd = vmemmap_pgd_populate(addr, node);
-		if (!pgd)
-			return -ENOMEM;
-		p4d = vmemmap_p4d_populate(pgd, addr, node);
-		if (!p4d)
-			return -ENOMEM;
-		pud = vmemmap_pud_populate(p4d, addr, node);
-		if (!pud)
-			return -ENOMEM;
+int __meminit vmemmap_check_pmd(pmd_t *pmd, int node,
+				unsigned long addr, unsigned long next)
+{
+	int huge = pmd_val(*pmd) & _PAGE_HUGE;
 
-		pmd = pmd_offset(pud, addr);
-		if (pmd_none(*pmd)) {
-			void *p = NULL;
+	if (huge)
+		vmemmap_verify((pte_t *)pmd, node, addr, next);
 
-			p = vmemmap_alloc_block_buf(PMD_SIZE, node, NULL);
-			if (p) {
-				pmd_t entry;
-
-				entry = pfn_pmd(virt_to_pfn(p), PAGE_KERNEL);
-				pmd_val(entry) |= _PAGE_HUGE | _PAGE_HGLOBAL;
-				set_pmd_at(&init_mm, addr, pmd, entry);
-
-				continue;
-			}
-		} else if (pmd_val(*pmd) & _PAGE_HUGE) {
-			vmemmap_verify((pte_t *)pmd, node, addr, next);
-			continue;
-		}
-		if (vmemmap_populate_basepages(addr, next, node, NULL))
-			return -ENOMEM;
-	}
-
-	return 0;
+	return huge;
 }
 
 int __meminit vmemmap_populate(unsigned long start, unsigned long end,
