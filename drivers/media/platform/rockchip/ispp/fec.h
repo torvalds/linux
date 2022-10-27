@@ -12,6 +12,7 @@ struct rkispp_fec_dev {
 	struct video_device vfd;
 	struct mutex apilock;
 	struct completion cmpl;
+	struct list_head list;
 };
 
 #if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISPP_FEC)

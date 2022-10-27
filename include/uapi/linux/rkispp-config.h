@@ -104,6 +104,10 @@
 /**independent fec video**/
 #define RKISPP_CMD_FEC_IN_OUT \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 10, struct rkispp_fec_in_out)
+#define RKISPP_CMD_FEC_BUF_ADD \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 11, int)
+#define RKISPP_CMD_FEC_BUF_DEL \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 12, int)
 
 /************EVENT_PRIVATE**************/
 #define RKISPP_V4L2_EVENT_TNR_COMPLETE  \
