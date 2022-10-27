@@ -347,8 +347,7 @@ static void merge_state(struct extent_io_tree *tree, struct extent_state *state)
 	if (other && other->end == state->start - 1 &&
 	    other->state == state->state) {
 		if (tree->inode)
-			btrfs_merge_delalloc_extent(&tree->inode->vfs_inode, state,
-						    other);
+			btrfs_merge_delalloc_extent(tree->inode, state, other);
 		state->start = other->start;
 		rb_erase(&other->rb_node, &tree->state);
 		RB_CLEAR_NODE(&other->rb_node);
@@ -358,8 +357,7 @@ static void merge_state(struct extent_io_tree *tree, struct extent_state *state)
 	if (other && other->start == state->end + 1 &&
 	    other->state == state->state) {
 		if (tree->inode)
-			btrfs_merge_delalloc_extent(&tree->inode->vfs_inode, state,
-						    other);
+			btrfs_merge_delalloc_extent(tree->inode, state, other);
 		state->end = other->end;
 		rb_erase(&other->rb_node, &tree->state);
 		RB_CLEAR_NODE(&other->rb_node);

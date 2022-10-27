@@ -2314,10 +2314,10 @@ void btrfs_split_delalloc_extent(struct inode *inode,
  * that are just merged onto old extents, such as when we are doing sequential
  * writes, so we can properly account for the metadata space we'll need.
  */
-void btrfs_merge_delalloc_extent(struct inode *inode, struct extent_state *new,
+void btrfs_merge_delalloc_extent(struct btrfs_inode *inode, struct extent_state *new,
 				 struct extent_state *other)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	u64 new_size, old_size;
 	u32 num_extents;
 
@@ -2332,9 +2332,9 @@ void btrfs_merge_delalloc_extent(struct inode *inode, struct extent_state *new,
 
 	/* we're not bigger than the max, unreserve the space and go */
 	if (new_size <= fs_info->max_extent_size) {
-		spin_lock(&BTRFS_I(inode)->lock);
-		btrfs_mod_outstanding_extents(BTRFS_I(inode), -1);
-		spin_unlock(&BTRFS_I(inode)->lock);
+		spin_lock(&inode->lock);
+		btrfs_mod_outstanding_extents(inode, -1);
+		spin_unlock(&inode->lock);
 		return;
 	}
 
@@ -2363,9 +2363,9 @@ void btrfs_merge_delalloc_extent(struct inode *inode, struct extent_state *new,
 	if (count_max_extents(fs_info, new_size) >= num_extents)
 		return;
 
-	spin_lock(&BTRFS_I(inode)->lock);
-	btrfs_mod_outstanding_extents(BTRFS_I(inode), -1);
-	spin_unlock(&BTRFS_I(inode)->lock);
+	spin_lock(&inode->lock);
+	btrfs_mod_outstanding_extents(inode, -1);
+	spin_unlock(&inode->lock);
 }
 
 static void btrfs_add_delalloc_inodes(struct btrfs_root *root,

@@ -475,7 +475,7 @@ struct inode *btrfs_new_subvol_inode(struct user_namespace *mnt_userns,
 			        u32 bits);
 void btrfs_clear_delalloc_extent(struct inode *inode,
 				 struct extent_state *state, u32 bits);
-void btrfs_merge_delalloc_extent(struct inode *inode, struct extent_state *new,
+void btrfs_merge_delalloc_extent(struct btrfs_inode *inode, struct extent_state *new,
 				 struct extent_state *other);
 void btrfs_split_delalloc_extent(struct inode *inode,
 				 struct extent_state *orig, u64 split);
