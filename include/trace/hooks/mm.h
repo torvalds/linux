@@ -193,6 +193,9 @@ DECLARE_HOOK(android_vh_subpage_dma_contig_alloc,
 DECLARE_HOOK(android_vh_ra_tuning_max_page,
 	TP_PROTO(struct readahead_control *ractl, unsigned long *max_page),
 	TP_ARGS(ractl, max_page));
+DECLARE_RESTRICTED_HOOK(android_rvh_handle_pte_fault_end,
+	TP_PROTO(struct vm_fault *vmf, unsigned long highest_memmap_pfn),
+	TP_ARGS(vmf, highest_memmap_pfn), 1);
 DECLARE_HOOK(android_vh_handle_pte_fault_end,
 	TP_PROTO(struct vm_fault *vmf, unsigned long highest_memmap_pfn),
 	TP_ARGS(vmf, highest_memmap_pfn));
@@ -223,16 +226,30 @@ DECLARE_HOOK(android_vh_count_swpout_vm_event,
 DECLARE_HOOK(android_vh_swap_slot_cache_active,
 	TP_PROTO(bool swap_slot_cache_active),
 	TP_ARGS(swap_slot_cache_active));
+DECLARE_RESTRICTED_HOOK(android_rvh_drain_slots_cache_cpu,
+	TP_PROTO(struct swap_slots_cache *cache, unsigned int type,
+		bool free_slots, bool *skip),
+	TP_ARGS(cache, type, free_slots, skip), 1);
 DECLARE_HOOK(android_vh_drain_slots_cache_cpu,
 	TP_PROTO(struct swap_slots_cache *cache, unsigned int type,
 		bool free_slots, bool *skip),
 	TP_ARGS(cache, type, free_slots, skip));
+DECLARE_RESTRICTED_HOOK(android_rvh_alloc_swap_slot_cache,
+	TP_PROTO(struct swap_slots_cache *cache, int *ret, bool *skip),
+	TP_ARGS(cache, ret, skip), 1);
 DECLARE_HOOK(android_vh_alloc_swap_slot_cache,
 	TP_PROTO(struct swap_slots_cache *cache, int *ret, bool *skip),
 	TP_ARGS(cache, ret, skip));
+DECLARE_RESTRICTED_HOOK(android_rvh_free_swap_slot,
+	TP_PROTO(swp_entry_t entry, struct swap_slots_cache *cache, bool *skip),
+	TP_ARGS(entry, cache, skip), 1);
 DECLARE_HOOK(android_vh_free_swap_slot,
 	TP_PROTO(swp_entry_t entry, struct swap_slots_cache *cache, bool *skip),
 	TP_ARGS(entry, cache, skip));
+DECLARE_RESTRICTED_HOOK(android_rvh_get_swap_page,
+	TP_PROTO(struct page *page, swp_entry_t *entry,
+		struct swap_slots_cache *cache, bool *found),
+	TP_ARGS(page, entry, cache, found), 1);
 DECLARE_HOOK(android_vh_get_swap_page,
 	TP_PROTO(struct page *page, swp_entry_t *entry,
 		struct swap_slots_cache *cache, bool *found),
@@ -255,6 +272,9 @@ DECLARE_HOOK(android_vh_init_swap_info_struct,
 DECLARE_HOOK(android_vh_si_swapinfo,
 	TP_PROTO(struct swap_info_struct *si, bool *skip),
 	TP_ARGS(si, skip));
+DECLARE_RESTRICTED_HOOK(android_rvh_alloc_si,
+	TP_PROTO(struct swap_info_struct **p, bool *skip),
+	TP_ARGS(p, skip), 1);
 DECLARE_HOOK(android_vh_alloc_si,
 	TP_PROTO(struct swap_info_struct **p, bool *skip),
 	TP_ARGS(p, skip));
