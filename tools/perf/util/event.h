@@ -335,13 +335,8 @@ int perf_event__process(struct perf_tool *tool,
 			struct perf_sample *sample,
 			struct machine *machine);
 
-struct addr_location;
-struct thread;
-
 bool is_bts_event(struct perf_event_attr *attr);
 bool sample_addr_correlates_sym(struct perf_event_attr *attr);
-void thread__resolve(struct thread *thread, struct addr_location *al,
-		     struct perf_sample *sample);
 
 const char *perf_event__name(unsigned int id);
 
