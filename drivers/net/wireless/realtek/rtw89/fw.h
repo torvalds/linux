@@ -1893,6 +1893,146 @@ static inline void RTW89_SET_FWCMD_PKT_DROP_MACID_BAND_SEL_3(void *cmd, u32 val)
 	le32p_replace_bits((__le32 *)cmd + 5, val, GENMASK(31, 0));
 }
 
+static inline void RTW89_SET_KEEP_ALIVE_ENABLE(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, GENMASK(1, 0));
+}
+
+static inline void RTW89_SET_KEEP_ALIVE_PKT_NULL_ID(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, GENMASK(15, 8));
+}
+
+static inline void RTW89_SET_KEEP_ALIVE_PERIOD(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, GENMASK(24, 16));
+}
+
+static inline void RTW89_SET_KEEP_ALIVE_MACID(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, GENMASK(31, 24));
+}
+
+static inline void RTW89_SET_DISCONNECT_DETECT_ENABLE(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, BIT(0));
+}
+
+static inline void RTW89_SET_DISCONNECT_DETECT_TRYOK_BCNFAIL_COUNT_EN(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, BIT(1));
+}
+
+static inline void RTW89_SET_DISCONNECT_DETECT_DISCONNECT(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, BIT(2));
+}
+
+static inline void RTW89_SET_DISCONNECT_DETECT_MAC_ID(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, GENMASK(15, 8));
+}
+
+static inline void RTW89_SET_DISCONNECT_DETECT_CHECK_PERIOD(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, GENMASK(23, 16));
+}
+
+static inline void RTW89_SET_DISCONNECT_DETECT_TRY_PKT_COUNT(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, GENMASK(31, 24));
+}
+
+static inline void RTW89_SET_DISCONNECT_DETECT_TRYOK_BCNFAIL_COUNT_LIMIT(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 1, val, GENMASK(7, 0));
+}
+
+static inline void RTW89_SET_WOW_GLOBAL_ENABLE(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, BIT(0));
+}
+
+static inline void RTW89_SET_WOW_GLOBAL_DROP_ALL_PKT(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, BIT(1));
+}
+
+static inline void RTW89_SET_WOW_GLOBAL_RX_PARSE_AFTER_WAKE(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, BIT(2));
+}
+
+static inline void RTW89_SET_WOW_GLOBAL_WAKE_BAR_PULLED(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, BIT(3));
+}
+
+static inline void RTW89_SET_WOW_GLOBAL_MAC_ID(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, GENMASK(15, 8));
+}
+
+static inline void RTW89_SET_WOW_GLOBAL_PAIRWISE_SEC_ALGO(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, GENMASK(23, 16));
+}
+
+static inline void RTW89_SET_WOW_GLOBAL_GROUP_SEC_ALGO(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, GENMASK(31, 24));
+}
+
+static inline void RTW89_SET_WOW_GLOBAL_REMOTECTRL_INFO_CONTENT(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)(h2c) + 1, val, GENMASK(31, 0));
+}
+
+static inline void RTW89_SET_WOW_WAKEUP_CTRL_PATTERN_MATCH_ENABLE(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, BIT(0));
+}
+
+static inline void RTW89_SET_WOW_WAKEUP_CTRL_MAGIC_ENABLE(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, BIT(1));
+}
+
+static inline void RTW89_SET_WOW_WAKEUP_CTRL_HW_UNICAST_ENABLE(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, BIT(2));
+}
+
+static inline void RTW89_SET_WOW_WAKEUP_CTRL_FW_UNICAST_ENABLE(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, BIT(3));
+}
+
+static inline void RTW89_SET_WOW_WAKEUP_CTRL_DEAUTH_ENABLE(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, BIT(4));
+}
+
+static inline void RTW89_SET_WOW_WAKEUP_CTRL_REKEYP_ENABLE(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, BIT(5));
+}
+
+static inline void RTW89_SET_WOW_WAKEUP_CTRL_EAP_ENABLE(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, BIT(6));
+}
+
+static inline void RTW89_SET_WOW_WAKEUP_CTRL_ALL_DATA_ENABLE(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, BIT(7));
+}
+
+static inline void RTW89_SET_WOW_WAKEUP_CTRL_MAC_ID(void *h2c, u32 val)
+{
+	le32p_replace_bits((__le32 *)h2c, val, GENMASK(31, 24));
+}
+
 enum rtw89_btc_btf_h2c_class {
 	BTFC_SET = 0x10,
 	BTFC_GET = 0x11,
@@ -2709,6 +2849,14 @@ struct rtw89_fw_h2c_rf_reg_info {
 #define H2C_FUNC_LOG_CFG		0x0
 #define H2C_FUNC_MAC_GENERAL_PKT	0x1
 
+/* CLASS 1 - WOW */
+#define H2C_CL_MAC_WOW			0x1
+#define H2C_FUNC_KEEP_ALIVE		0x0
+#define H2C_FUNC_DISCONNECT_DETECT	0x1
+#define H2C_FUNC_WOW_GLOBAL		0x2
+#define H2C_FUNC_WAKEUP_CTRL		0x8
+#define H2C_FUNC_WOW_CAM_UPD		0xC
+
 /* CLASS 2 - PS */
 #define H2C_CL_MAC_PS			0x2
 #define H2C_FUNC_MAC_LPS_PARM		0x0
@@ -2878,6 +3026,18 @@ int rtw89_fw_h2c_p2p_act(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 			 u8 act, u8 noa_id);
 int rtw89_fw_h2c_tsf32_toggle(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			      bool en);
+int rtw89_fw_h2c_wow_global(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			    bool enable);
+int rtw89_fw_h2c_wow_wakeup_ctrl(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif *rtwvif, bool enable);
+int rtw89_fw_h2c_keep_alive(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			    bool enable);
+int rtw89_fw_h2c_disconnect_detect(struct rtw89_dev *rtwdev,
+				   struct rtw89_vif *rtwvif, bool enable);
+int rtw89_fw_h2c_wow_global(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			    bool enable);
+int rtw89_fw_h2c_wow_wakeup_ctrl(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif *rtwvif, bool enable);
 
 static inline void rtw89_fw_h2c_init_ba_cam(struct rtw89_dev *rtwdev)
 {

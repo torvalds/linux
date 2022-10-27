@@ -477,6 +477,20 @@ enum rtw89_regulation_type {
 	RTW89_REGD_NUM,
 };
 
+enum rtw89_fw_pkt_ofld_type {
+	RTW89_PKT_OFLD_TYPE_PROBE_RSP = 0,
+	RTW89_PKT_OFLD_TYPE_PS_POLL = 1,
+	RTW89_PKT_OFLD_TYPE_NULL_DATA = 2,
+	RTW89_PKT_OFLD_TYPE_QOS_NULL = 3,
+	RTW89_PKT_OFLD_TYPE_CTS2SELF = 4,
+	RTW89_PKT_OFLD_TYPE_ARP_RSP = 5,
+	RTW89_PKT_OFLD_TYPE_NDP = 6,
+	RTW89_PKT_OFLD_TYPE_EAPOL_KEY = 7,
+	RTW89_PKT_OFLD_TYPE_SA_QUERY = 8,
+	RTW89_PKT_OFLD_TYPE_PROBE_REQ = 12,
+	RTW89_PKT_OFLD_TYPE_NUM,
+};
+
 struct rtw89_txpwr_byrate {
 	s8 cck[RTW89_RATE_CCK_MAX];
 	s8 ofdm[RTW89_RATE_OFDM_MAX];
@@ -634,6 +648,13 @@ enum rtw89_sc_offset {
 	RTW89_SC_20_LOW3X	= 8,
 	RTW89_SC_40_UPPER	= 9,
 	RTW89_SC_40_LOWER	= 10,
+};
+
+enum rtw89_wow_flags {
+	RTW89_WOW_FLAG_EN_MAGIC_PKT,
+	RTW89_WOW_FLAG_EN_REKEY_PKT,
+	RTW89_WOW_FLAG_EN_DISCONNECT,
+	RTW89_WOW_FLAG_NUM,
 };
 
 struct rtw89_chan {
@@ -3453,6 +3474,13 @@ struct rtw89_phy_efuse_gain {
 	s8 comp[RF_PATH_MAX][RTW89_SUBBAND_NR]; /* S(8, 0) */
 };
 
+struct rtw89_wow_param {
+	struct ieee80211_vif *wow_vif;
+	DECLARE_BITMAP(flags, RTW89_WOW_FLAG_NUM);
+	u8 pattern_cnt;
+	struct list_head pkt_list;
+};
+
 struct rtw89_dev {
 	struct ieee80211_hw *hw;
 	struct device *dev;
@@ -3540,6 +3568,8 @@ struct rtw89_dev {
 	struct rtw89_btc btc;
 	enum rtw89_ps_mode ps_mode;
 	bool lps_enabled;
+
+	struct rtw89_wow_param wow;
 
 	/* napi structure */
 	struct net_device netdev;
