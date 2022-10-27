@@ -743,6 +743,7 @@ bool dml32_CalculatePrefetchSchedule(
 		unsigned int SwathHeightY,
 		unsigned int SwathHeightC,
 		double TWait,
+		double TPreReq,
 		/* Output */
 		double   *DSTXAfterScaler,
 		double   *DSTYAfterScaler,
