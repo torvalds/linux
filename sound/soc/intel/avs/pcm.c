@@ -28,6 +28,8 @@ struct avs_dma_data {
 	 * host stream assigned
 	 */
 	struct hdac_ext_stream *host_stream;
+
+	struct snd_pcm_substream *substream;
 };
 
 static struct avs_tplg_path_template *
@@ -55,7 +57,8 @@ avs_dai_find_path_template(struct snd_soc_dai *dai, bool is_fe, int direction)
 	return dw->priv;
 }
 
-static int avs_dai_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai, bool is_fe)
+static int avs_dai_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai, bool is_fe,
+			   const struct snd_soc_dai_ops *ops)
 {
 	struct avs_tplg_path_template *template;
 	struct avs_dma_data *data;
@@ -71,6 +74,7 @@ static int avs_dai_startup(struct snd_pcm_substream *substream, struct snd_soc_d
 	if (!data)
 		return -ENOMEM;
 
+	data->substream = substream;
 	data->template = template;
 	snd_soc_dai_set_dma_data(dai, substream, data);
 
@@ -151,9 +155,11 @@ static int avs_dai_prepare(struct avs_dev *adev, struct snd_pcm_substream *subst
 	return ret;
 }
 
+static const struct snd_soc_dai_ops avs_dai_nonhda_be_ops;
+
 static int avs_dai_nonhda_be_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
-	return avs_dai_startup(substream, dai, false);
+	return avs_dai_startup(substream, dai, false, &avs_dai_nonhda_be_ops);
 }
 
 static void avs_dai_nonhda_be_shutdown(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
@@ -245,9 +251,11 @@ static const struct snd_soc_dai_ops avs_dai_nonhda_be_ops = {
 	.trigger = avs_dai_nonhda_be_trigger,
 };
 
+static const struct snd_soc_dai_ops avs_dai_hda_be_ops;
+
 static int avs_dai_hda_be_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
-	return avs_dai_startup(substream, dai, false);
+	return avs_dai_startup(substream, dai, false, &avs_dai_hda_be_ops);
 }
 
 static void avs_dai_hda_be_shutdown(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
@@ -407,6 +415,8 @@ static const struct snd_pcm_hw_constraint_list hw_rates = {
 	.mask = 0,
 };
 
+const struct snd_soc_dai_ops avs_dai_fe_ops;
+
 static int avs_dai_fe_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -416,7 +426,7 @@ static int avs_dai_fe_startup(struct snd_pcm_substream *substream, struct snd_so
 	struct hdac_ext_stream *host_stream;
 	int ret;
 
-	ret = avs_dai_startup(substream, dai, true);
+	ret = avs_dai_startup(substream, dai, true, &avs_dai_fe_ops);
 	if (ret)
 		return ret;
 
@@ -758,6 +768,198 @@ static void avs_component_remove(struct snd_soc_component *component)
 	}
 }
 
+static int avs_dai_resume_hw_params(struct snd_soc_dai *dai, struct avs_dma_data *data)
+{
+	struct snd_pcm_substream *substream;
+	struct snd_soc_pcm_runtime *rtd;
+	int ret;
+
+	substream = data->substream;
+	rtd = snd_pcm_substream_chip(substream);
+
+	ret = dai->driver->ops->hw_params(substream, &rtd->dpcm[substream->stream].hw_params, dai);
+	if (ret)
+		dev_err(dai->dev, "hw_params on resume failed: %d\n", ret);
+
+	return ret;
+}
+
+static int avs_dai_resume_fe_prepare(struct snd_soc_dai *dai, struct avs_dma_data *data)
+{
+	struct hdac_ext_stream *host_stream;
+	struct hdac_stream *hstream;
+	struct hdac_bus *bus;
+	int ret;
+
+	host_stream = data->host_stream;
+	hstream = hdac_stream(host_stream);
+	bus = hdac_stream(host_stream)->bus;
+
+	/* Set DRSM before programming stream and position registers. */
+	snd_hdac_stream_drsm_enable(bus, true, hstream->index);
+
+	ret = dai->driver->ops->prepare(data->substream, dai);
+	if (ret) {
+		dev_err(dai->dev, "prepare FE on resume failed: %d\n", ret);
+		return ret;
+	}
+
+	writel(host_stream->pphcllpl, host_stream->pphc_addr + AZX_REG_PPHCLLPL);
+	writel(host_stream->pphcllpu, host_stream->pphc_addr + AZX_REG_PPHCLLPU);
+	writel(host_stream->pphcldpl, host_stream->pphc_addr + AZX_REG_PPHCLDPL);
+	writel(host_stream->pphcldpu, host_stream->pphc_addr + AZX_REG_PPHCLDPU);
+
+	/* As per HW spec recommendation, program LPIB and DPIB to the same value. */
+	snd_hdac_stream_set_lpib(hstream, hstream->lpib);
+	snd_hdac_stream_set_dpibr(bus, hstream, hstream->lpib);
+
+	return 0;
+}
+
+static int avs_dai_resume_be_prepare(struct snd_soc_dai *dai, struct avs_dma_data *data)
+{
+	int ret;
+
+	ret = dai->driver->ops->prepare(data->substream, dai);
+	if (ret)
+		dev_err(dai->dev, "prepare BE on resume failed: %d\n", ret);
+
+	return ret;
+}
+
+static int avs_dai_suspend_fe_hw_free(struct snd_soc_dai *dai, struct avs_dma_data *data)
+{
+	struct hdac_ext_stream *host_stream;
+	int ret;
+
+	host_stream = data->host_stream;
+
+	/* Store position addresses so we can resume from them later on. */
+	hdac_stream(host_stream)->lpib = snd_hdac_stream_get_pos_lpib(hdac_stream(host_stream));
+	host_stream->pphcllpl = readl(host_stream->pphc_addr + AZX_REG_PPHCLLPL);
+	host_stream->pphcllpu = readl(host_stream->pphc_addr + AZX_REG_PPHCLLPU);
+	host_stream->pphcldpl = readl(host_stream->pphc_addr + AZX_REG_PPHCLDPL);
+	host_stream->pphcldpu = readl(host_stream->pphc_addr + AZX_REG_PPHCLDPU);
+
+	ret = __avs_dai_fe_hw_free(data->substream, dai);
+	if (ret < 0)
+		dev_err(dai->dev, "hw_free FE on suspend failed: %d\n", ret);
+
+	return ret;
+}
+
+static int avs_dai_suspend_be_hw_free(struct snd_soc_dai *dai, struct avs_dma_data *data)
+{
+	int ret;
+
+	ret = dai->driver->ops->hw_free(data->substream, dai);
+	if (ret < 0)
+		dev_err(dai->dev, "hw_free BE on suspend failed: %d\n", ret);
+
+	return ret;
+}
+
+static int avs_component_pm_op(struct snd_soc_component *component, bool be,
+			       int (*op)(struct snd_soc_dai *, struct avs_dma_data *))
+{
+	struct snd_soc_pcm_runtime *rtd;
+	struct avs_dma_data *data;
+	struct snd_soc_dai *dai;
+	int ret;
+
+	for_each_component_dais(component, dai) {
+		data = dai->playback_dma_data;
+		if (data) {
+			rtd = snd_pcm_substream_chip(data->substream);
+			if (rtd->dai_link->no_pcm == be && !rtd->dai_link->ignore_suspend) {
+				ret = op(dai, data);
+				if (ret < 0)
+					return ret;
+			}
+		}
+
+		data = dai->capture_dma_data;
+		if (data) {
+			rtd = snd_pcm_substream_chip(data->substream);
+			if (rtd->dai_link->no_pcm == be && !rtd->dai_link->ignore_suspend) {
+				ret = op(dai, data);
+				if (ret < 0)
+					return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int avs_component_resume_hw_params(struct snd_soc_component *component, bool be)
+{
+	return avs_component_pm_op(component, be, &avs_dai_resume_hw_params);
+}
+
+static int avs_component_resume_prepare(struct snd_soc_component *component, bool be)
+{
+	int (*prepare_cb)(struct snd_soc_dai *dai, struct avs_dma_data *data);
+
+	if (be)
+		prepare_cb = &avs_dai_resume_be_prepare;
+	else
+		prepare_cb = &avs_dai_resume_fe_prepare;
+
+	return avs_component_pm_op(component, be, prepare_cb);
+}
+
+static int avs_component_suspend_hw_free(struct snd_soc_component *component, bool be)
+{
+	int (*hw_free_cb)(struct snd_soc_dai *dai, struct avs_dma_data *data);
+
+	if (be)
+		hw_free_cb = &avs_dai_suspend_be_hw_free;
+	else
+		hw_free_cb = &avs_dai_suspend_fe_hw_free;
+
+	return avs_component_pm_op(component, be, hw_free_cb);
+}
+
+static int avs_component_suspend(struct snd_soc_component *component)
+{
+	int ret;
+
+	/*
+	 * When freeing paths, FEs need to be first as they perform
+	 * path unbinding.
+	 */
+	ret = avs_component_suspend_hw_free(component, false);
+	if (ret)
+		return ret;
+
+	return avs_component_suspend_hw_free(component, true);
+}
+
+static int avs_component_resume(struct snd_soc_component *component)
+{
+	int ret;
+
+	/*
+	 * When creating paths, FEs need to be last as they perform
+	 * path binding.
+	 */
+	ret = avs_component_resume_hw_params(component, true);
+	if (ret)
+		return ret;
+
+	ret = avs_component_resume_hw_params(component, false);
+	if (ret)
+		return ret;
+
+	/* It is expected that the LINK stream is prepared first. */
+	ret = avs_component_resume_prepare(component, true);
+	if (ret)
+		return ret;
+
+	return avs_component_resume_prepare(component, false);
+}
+
 static int avs_component_open(struct snd_soc_component *component,
 			      struct snd_pcm_substream *substream)
 {
@@ -846,6 +1048,8 @@ static const struct snd_soc_component_driver avs_component_driver = {
 	.name			= "avs-pcm",
 	.probe			= avs_component_probe,
 	.remove			= avs_component_remove,
+	.suspend		= avs_component_suspend,
+	.resume			= avs_component_resume,
 	.open			= avs_component_open,
 	.pointer		= avs_component_pointer,
 	.mmap			= avs_component_mmap,
@@ -1161,6 +1365,8 @@ static const struct snd_soc_component_driver avs_hda_component_driver = {
 	.name			= "avs-hda-pcm",
 	.probe			= avs_component_hda_probe,
 	.remove			= avs_component_hda_remove,
+	.suspend		= avs_component_suspend,
+	.resume			= avs_component_resume,
 	.open			= avs_component_hda_open,
 	.close			= avs_component_hda_close,
 	.pointer		= avs_component_pointer,
