@@ -4415,9 +4415,9 @@ int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
  * plenty of slack room in the global reserve to migrate, otherwise we cannot
  * allow the unlink to occur.
  */
-static struct btrfs_trans_handle *__unlink_start_trans(struct inode *dir)
+static struct btrfs_trans_handle *__unlink_start_trans(struct btrfs_inode *dir)
 {
-	struct btrfs_root *root = BTRFS_I(dir)->root;
+	struct btrfs_root *root = dir->root;
 
 	/*
 	 * 1 for the possible orphan item
@@ -4443,7 +4443,7 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	/* This needs to handle no-key deletions later on */
 
-	trans = __unlink_start_trans(dir);
+	trans = __unlink_start_trans(BTRFS_I(dir));
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
 		goto fscrypt_free;
@@ -4857,7 +4857,7 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	/* This needs to handle no-key deletions later on */
 
-	trans = __unlink_start_trans(dir);
+	trans = __unlink_start_trans(BTRFS_I(dir));
 	if (IS_ERR(trans)) {
 		err = PTR_ERR(trans);
 		goto out_notrans;
