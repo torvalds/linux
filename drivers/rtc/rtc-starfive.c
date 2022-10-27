@@ -729,6 +729,7 @@ static struct platform_driver starfive_rtc_driver = {
 	.driver = {
 		.name = "starfive-rtc",
 		.of_match_table = sft_rtc_of_match,
+		.pm   = &sft_rtc_pm_ops,
 	},
 	.probe = sft_rtc_probe,
 	.remove = sft_rtc_remove,
