@@ -43,6 +43,9 @@
 #define SOF_DBG_PRINT_IPC_SUCCESS_LOGS		BIT(9) /* print IPC success
 							* in dmesg logs
 							*/
+#define SOF_DBG_FORCE_NOCODEC			BIT(10) /* ignore all codec-related
+							 * configurations
+							 */
 
 /* Flag definitions used for controlling the DSP dump behavior */
 #define SOF_DBG_DUMP_REGS		BIT(0)
