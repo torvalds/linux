@@ -702,6 +702,47 @@ void __init_or_module noinline apply_ibt_endbr(s32 *start, s32 *end) { }
 #endif /* CONFIG_X86_KERNEL_IBT */
 
 #ifdef CONFIG_FINEIBT
+
+enum cfi_mode {
+	CFI_DEFAULT,
+	CFI_OFF,
+	CFI_KCFI,
+	CFI_FINEIBT,
+};
+
+static enum cfi_mode cfi_mode __ro_after_init = CFI_DEFAULT;
+
+static __init int cfi_parse_cmdline(char *str)
+{
+	if (!str)
+		return -EINVAL;
+
+	while (str) {
+		char *next = strchr(str, ',');
+		if (next) {
+			*next = 0;
+			next++;
+		}
+
+		if (!strcmp(str, "auto")) {
+			cfi_mode = CFI_DEFAULT;
+		} else if (!strcmp(str, "off")) {
+			cfi_mode = CFI_OFF;
+		} else if (!strcmp(str, "kcfi")) {
+			cfi_mode = CFI_KCFI;
+		} else if (!strcmp(str, "fineibt")) {
+			cfi_mode = CFI_FINEIBT;
+		} else {
+			pr_err("Ignoring unknown cfi option (%s).", str);
+		}
+
+		str = next;
+	}
+
+	return 0;
+}
+early_param("cfi", cfi_parse_cmdline);
+
 /*
  * kCFI						FineIBT
  *
@@ -868,30 +909,52 @@ static void __apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
 		      "FineIBT preamble wrong size: %ld", fineibt_preamble_size))
 		return;
 
-	if (!HAS_KERNEL_IBT || !cpu_feature_enabled(X86_FEATURE_IBT))
+	if (cfi_mode == CFI_DEFAULT) {
+		cfi_mode = CFI_KCFI;
+		if (HAS_KERNEL_IBT && cpu_feature_enabled(X86_FEATURE_IBT))
+			cfi_mode = CFI_FINEIBT;
+	}
+
+	switch (cfi_mode) {
+	case CFI_OFF:
+		ret = cfi_disable_callers(start_retpoline, end_retpoline);
+		if (ret)
+			goto err;
+
+		if (builtin)
+			pr_info("Disabling CFI\n");
 		return;
 
-	/*
-	 * Rewrite the callers to not use the __cfi_ stubs, such that we might
-	 * rewrite them. This disables all CFI. If this succeeds but any of the
-	 * later stages fails, we're without CFI.
-	 */
-	ret = cfi_disable_callers(start_retpoline, end_retpoline);
-	if (ret)
-		goto err;
+	case CFI_KCFI:
+		if (builtin)
+			pr_info("Using kCFI\n");
+		return;
 
-	ret = cfi_rewrite_preamble(start_cfi, end_cfi);
-	if (ret)
-		goto err;
+	case CFI_FINEIBT:
+		/*
+		 * Rewrite the callers to not use the __cfi_ stubs, such that we might
+		 * rewrite them. This disables all CFI. If this succeeds but any of the
+		 * later stages fails, we're without CFI.
+		 */
+		ret = cfi_disable_callers(start_retpoline, end_retpoline);
+		if (ret)
+			goto err;
 
-	ret = cfi_rewrite_callers(start_retpoline, end_retpoline);
-	if (ret)
-		goto err;
+		ret = cfi_rewrite_preamble(start_cfi, end_cfi);
+		if (ret)
+			goto err;
 
-	if (builtin)
-		pr_info("Using FineIBT CFI\n");
+		ret = cfi_rewrite_callers(start_retpoline, end_retpoline);
+		if (ret)
+			goto err;
 
-	return;
+		if (builtin)
+			pr_info("Using FineIBT CFI\n");
+		return;
+
+	default:
+		break;
+	}
 
 err:
 	pr_err("Something went horribly wrong trying to rewrite the CFI implementation.\n");
