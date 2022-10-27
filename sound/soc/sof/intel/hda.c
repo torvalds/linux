@@ -1173,10 +1173,7 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 	/* cancel any attempt for DSP D0I3 */
 	cancel_delayed_work_sync(&hda->d0i3_work);
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* codec removal, invoke bus_device_remove */
-	snd_hdac_ext_bus_device_remove(bus);
-#endif
+	hda_codec_device_remove(sdev);
 
 	hda_sdw_exit(sdev);
 
