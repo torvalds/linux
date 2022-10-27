@@ -65,32 +65,23 @@ SYM_FUNC_START(sm4_ce_expand_key)
 	sm4ekey		v6.4s, v5.4s, v30.4s;
 	sm4ekey		v7.4s, v6.4s, v31.4s;
 
+	adr_l		x5, .Lbswap128_mask
+	ld1		{v24.16b}, [x5]
+
 	st1		{v0.16b-v3.16b}, [x1], #64;
 	st1		{v4.16b-v7.16b}, [x1];
-	rev64		v7.4s, v7.4s;
-	rev64		v6.4s, v6.4s;
-	rev64		v5.4s, v5.4s;
-	rev64		v4.4s, v4.4s;
-	rev64		v3.4s, v3.4s;
-	rev64		v2.4s, v2.4s;
-	rev64		v1.4s, v1.4s;
-	rev64		v0.4s, v0.4s;
-	ext		v7.16b, v7.16b, v7.16b, #8;
-	ext		v6.16b, v6.16b, v6.16b, #8;
-	ext		v5.16b, v5.16b, v5.16b, #8;
-	ext		v4.16b, v4.16b, v4.16b, #8;
-	ext		v3.16b, v3.16b, v3.16b, #8;
-	ext		v2.16b, v2.16b, v2.16b, #8;
-	ext		v1.16b, v1.16b, v1.16b, #8;
-	ext		v0.16b, v0.16b, v0.16b, #8;
-	st1		{v7.16b}, [x2], #16;
-	st1		{v6.16b}, [x2], #16;
-	st1		{v5.16b}, [x2], #16;
-	st1		{v4.16b}, [x2], #16;
-	st1		{v3.16b}, [x2], #16;
-	st1		{v2.16b}, [x2], #16;
-	st1		{v1.16b}, [x2], #16;
-	st1		{v0.16b}, [x2];
+
+	tbl		v16.16b, {v7.16b}, v24.16b
+	tbl		v17.16b, {v6.16b}, v24.16b
+	tbl		v18.16b, {v5.16b}, v24.16b
+	tbl		v19.16b, {v4.16b}, v24.16b
+	tbl		v20.16b, {v3.16b}, v24.16b
+	tbl		v21.16b, {v2.16b}, v24.16b
+	tbl		v22.16b, {v1.16b}, v24.16b
+	tbl		v23.16b, {v0.16b}, v24.16b
+
+	st1		{v16.16b-v19.16b}, [x2], #64
+	st1		{v20.16b-v23.16b}, [x2]
 
 	ret;
 SYM_FUNC_END(sm4_ce_expand_key)
@@ -578,3 +569,10 @@ SYM_FUNC_START(sm4_ce_ctr_enc)
 
 	ret
 SYM_FUNC_END(sm4_ce_ctr_enc)
+
+
+	.section	".rodata", "a"
+	.align 4
+.Lbswap128_mask:
+	.byte		0x0c, 0x0d, 0x0e, 0x0f, 0x08, 0x09, 0x0a, 0x0b
+	.byte		0x04, 0x05, 0x06, 0x07, 0x00, 0x01, 0x02, 0x03
