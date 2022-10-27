@@ -1428,7 +1428,7 @@ again:
 		iocb->ki_pos += num_written;
 	}
 out:
-	btrfs_inode_unlock(inode, ilock_flags);
+	btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
 	return num_written ? num_written : ret;
 }
 
@@ -1474,13 +1474,13 @@ relock:
 
 	err = generic_write_checks(iocb, from);
 	if (err <= 0) {
-		btrfs_inode_unlock(inode, ilock_flags);
+		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
 		return err;
 	}
 
 	err = btrfs_write_check(iocb, from, err);
 	if (err < 0) {
-		btrfs_inode_unlock(inode, ilock_flags);
+		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
 		goto out;
 	}
 
@@ -1491,13 +1491,13 @@ relock:
 	 */
 	if ((ilock_flags & BTRFS_ILOCK_SHARED) &&
 	    pos + iov_iter_count(from) > i_size_read(inode)) {
-		btrfs_inode_unlock(inode, ilock_flags);
+		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
 		ilock_flags &= ~BTRFS_ILOCK_SHARED;
 		goto relock;
 	}
 
 	if (check_direct_IO(fs_info, from, pos)) {
-		btrfs_inode_unlock(inode, ilock_flags);
+		btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
 		goto buffered;
 	}
 
@@ -1528,7 +1528,7 @@ relock:
 	 * iocb, and that needs to lock the inode. So unlock it before calling
 	 * iomap_dio_complete() to avoid a deadlock.
 	 */
-	btrfs_inode_unlock(inode, ilock_flags);
+	btrfs_inode_unlock(BTRFS_I(inode), ilock_flags);
 
 	if (IS_ERR_OR_NULL(dio))
 		err = PTR_ERR_OR_ZERO(dio);
@@ -1635,7 +1635,7 @@ static ssize_t btrfs_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 
 	ret = btrfs_do_encoded_write(iocb, from, encoded);
 out:
-	btrfs_inode_unlock(inode, 0);
+	btrfs_inode_unlock(BTRFS_I(inode), 0);
 	return ret;
 }
 
@@ -1830,7 +1830,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 */
 	ret = start_ordered_ops(inode, start, end);
 	if (ret) {
-		btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
+		btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_MMAP);
 		goto out;
 	}
 
@@ -1933,7 +1933,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * file again, but that will end up using the synchronization
 	 * inside btrfs_sync_log to keep things safe.
 	 */
-	btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
+	btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_MMAP);
 
 	if (ret == BTRFS_NO_LOG_SYNC) {
 		ret = btrfs_end_transaction(trans);
@@ -2001,7 +2001,7 @@ out:
 
 out_release_extents:
 	btrfs_release_log_ctx_extents(&ctx);
-	btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
+	btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_MMAP);
 	goto out;
 }
 
@@ -2644,7 +2644,7 @@ static int btrfs_punch_hole(struct file *file, loff_t offset, loff_t len)
 		truncated_block = true;
 		ret = btrfs_truncate_block(BTRFS_I(inode), offset, 0, 0);
 		if (ret) {
-			btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
+			btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_MMAP);
 			return ret;
 		}
 	}
@@ -2743,7 +2743,7 @@ out_only_mutex:
 				ret = ret2;
 		}
 	}
-	btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
+	btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_MMAP);
 	return ret;
 }
 
@@ -3104,7 +3104,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 
 	if (mode & FALLOC_FL_ZERO_RANGE) {
 		ret = btrfs_zero_range(inode, offset, len, mode);
-		btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
+		btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_MMAP);
 		return ret;
 	}
 
@@ -3202,7 +3202,7 @@ out_unlock:
 	unlock_extent(&BTRFS_I(inode)->io_tree, alloc_start, locked_end,
 		      &cached_state);
 out:
-	btrfs_inode_unlock(inode, BTRFS_ILOCK_MMAP);
+	btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_MMAP);
 	extent_changeset_free(data_reserved);
 	return ret;
 }
@@ -3693,7 +3693,7 @@ static loff_t btrfs_file_llseek(struct file *file, loff_t offset, int whence)
 	case SEEK_HOLE:
 		btrfs_inode_lock(BTRFS_I(inode), BTRFS_ILOCK_SHARED);
 		offset = find_desired_extent(BTRFS_I(inode), offset, whence);
-		btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
+		btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_SHARED);
 		break;
 	}
 
@@ -3797,7 +3797,7 @@ again:
 			goto again;
 		}
 	}
-	btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
+	btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_SHARED);
 	return ret < 0 ? ret : read;
 }
 

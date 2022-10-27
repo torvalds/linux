@@ -202,14 +202,14 @@ int btrfs_inode_lock(struct btrfs_inode *inode, unsigned int ilock_flags)
  * ilock_flags should contain the same bits set as passed to btrfs_inode_lock()
  * to decide whether the lock acquired is shared or exclusive.
  */
-void btrfs_inode_unlock(struct inode *inode, unsigned int ilock_flags)
+void btrfs_inode_unlock(struct btrfs_inode *inode, unsigned int ilock_flags)
 {
 	if (ilock_flags & BTRFS_ILOCK_MMAP)
-		up_write(&BTRFS_I(inode)->i_mmap_lock);
+		up_write(&inode->i_mmap_lock);
 	if (ilock_flags & BTRFS_ILOCK_SHARED)
-		inode_unlock_shared(inode);
+		inode_unlock_shared(&inode->vfs_inode);
 	else
-		inode_unlock(inode);
+		inode_unlock(&inode->vfs_inode);
 }
 
 /*
@@ -10277,7 +10277,7 @@ static ssize_t btrfs_encoded_read_inline(
 	read_extent_buffer(leaf, tmp, ptr, count);
 	btrfs_release_path(path);
 	unlock_extent(io_tree, start, lockend, cached_state);
-	btrfs_inode_unlock(&inode->vfs_inode, BTRFS_ILOCK_SHARED);
+	btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
 	*unlocked = true;
 
 	ret = copy_to_iter(tmp, count, iter);
@@ -10480,7 +10480,7 @@ static ssize_t btrfs_encoded_read_regular(struct kiocb *iocb,
 		goto out;
 
 	unlock_extent(io_tree, start, lockend, cached_state);
-	btrfs_inode_unlock(&inode->vfs_inode, BTRFS_ILOCK_SHARED);
+	btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
 	*unlocked = true;
 
 	if (compressed) {
@@ -10532,7 +10532,7 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 	btrfs_inode_lock(inode, BTRFS_ILOCK_SHARED);
 
 	if (iocb->ki_pos >= inode->vfs_inode.i_size) {
-		btrfs_inode_unlock(&inode->vfs_inode, BTRFS_ILOCK_SHARED);
+		btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
 		return 0;
 	}
 	start = ALIGN_DOWN(iocb->ki_pos, fs_info->sectorsize);
@@ -10630,7 +10630,7 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 
 	if (disk_bytenr == EXTENT_MAP_HOLE) {
 		unlock_extent(io_tree, start, lockend, &cached_state);
-		btrfs_inode_unlock(&inode->vfs_inode, BTRFS_ILOCK_SHARED);
+		btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
 		unlocked = true;
 		ret = iov_iter_zero(count, iter);
 		if (ret != count)
@@ -10653,7 +10653,7 @@ out_unlock_extent:
 		unlock_extent(io_tree, start, lockend, &cached_state);
 out_unlock_inode:
 	if (!unlocked)
-		btrfs_inode_unlock(&inode->vfs_inode, BTRFS_ILOCK_SHARED);
+		btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
 	return ret;
 }
 

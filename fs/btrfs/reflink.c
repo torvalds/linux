@@ -911,7 +911,7 @@ loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
 
 out_unlock:
 	if (same_inode) {
-		btrfs_inode_unlock(src_inode, BTRFS_ILOCK_MMAP);
+		btrfs_inode_unlock(BTRFS_I(src_inode), BTRFS_ILOCK_MMAP);
 	} else {
 		btrfs_double_mmap_unlock(src_inode, dst_inode);
 		unlock_two_nondirectories(src_inode, dst_inode);

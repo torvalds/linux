@@ -1646,7 +1646,7 @@ bool btrfs_readdir_get_delayed_items(struct inode *inode,
 	 * We can only do one readdir with delayed items at a time because of
 	 * item->readdir_list.
 	 */
-	btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
+	btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_SHARED);
 	btrfs_inode_lock(BTRFS_I(inode), 0);
 
 	mutex_lock(&delayed_node->mutex);

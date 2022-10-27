@@ -1002,7 +1002,7 @@ out_up_read:
 out_dput:
 	dput(dentry);
 out_unlock:
-	btrfs_inode_unlock(dir, 0);
+	btrfs_inode_unlock(BTRFS_I(dir), 0);
 	return error;
 }
 
@@ -2530,14 +2530,14 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 
 	btrfs_inode_lock(BTRFS_I(inode), 0);
 	err = btrfs_delete_subvolume(dir, dentry);
-	btrfs_inode_unlock(inode, 0);
+	btrfs_inode_unlock(BTRFS_I(inode), 0);
 	if (!err)
 		d_delete_notify(dir, dentry);
 
 out_dput:
 	dput(dentry);
 out_unlock_dir:
-	btrfs_inode_unlock(dir, 0);
+	btrfs_inode_unlock(BTRFS_I(dir), 0);
 free_subvol_name:
 	kfree(subvol_name_ptr);
 free_parent:

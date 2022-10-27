@@ -1298,11 +1298,11 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 		btrfs_inode_lock(BTRFS_I(inode), 0);
 		if (IS_SWAPFILE(inode)) {
 			ret = -ETXTBSY;
-			btrfs_inode_unlock(inode, 0);
+			btrfs_inode_unlock(BTRFS_I(inode), 0);
 			break;
 		}
 		if (!(inode->i_sb->s_flags & SB_ACTIVE)) {
-			btrfs_inode_unlock(inode, 0);
+			btrfs_inode_unlock(BTRFS_I(inode), 0);
 			break;
 		}
 		if (do_compress)
@@ -1315,7 +1315,7 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 		if (sectors_defragged > prev_sectors_defragged)
 			balance_dirty_pages_ratelimited(inode->i_mapping);
 
-		btrfs_inode_unlock(inode, 0);
+		btrfs_inode_unlock(BTRFS_I(inode), 0);
 		if (ret < 0)
 			break;
 		cur = max(cluster_end + 1, last_scanned);
@@ -1353,7 +1353,7 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 	if (do_compress) {
 		btrfs_inode_lock(BTRFS_I(inode), 0);
 		BTRFS_I(inode)->defrag_compress = BTRFS_COMPRESS_NONE;
-		btrfs_inode_unlock(inode, 0);
+		btrfs_inode_unlock(BTRFS_I(inode), 0);
 	}
 	return ret;
 }

@@ -546,7 +546,7 @@ enum btrfs_ilock_type {
 };
 
 int btrfs_inode_lock(struct btrfs_inode *inode, unsigned int ilock_flags);
-void btrfs_inode_unlock(struct inode *inode, unsigned int ilock_flags);
+void btrfs_inode_unlock(struct btrfs_inode *inode, unsigned int ilock_flags);
 void btrfs_update_inode_bytes(struct btrfs_inode *inode, const u64 add_bytes,
 			      const u64 del_bytes);
 void btrfs_assert_inode_range_clean(struct btrfs_inode *inode, u64 start, u64 end);
