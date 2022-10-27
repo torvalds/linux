@@ -172,7 +172,7 @@ Here are schematics of how these functions are called when operated from
 other part of the kernel. Note that the .setkey() call might happen
 before or after any of these schematics happen, but must not happen
 during any of these are in-flight. Please note that calling .init()
-followed immediately by .finish() is also a perfectly valid
+followed immediately by .final() is also a perfectly valid
 transformation.
 
 ::
