@@ -64,7 +64,7 @@ struct intel_runtime_pm {
 	 *  but instead has exclusive access by virtue of all other accesses requiring
 	 *  holding the runtime pm wakeref.
 	 */
-	struct mutex lmem_userfault_lock;
+	spinlock_t lmem_userfault_lock;
 
 	/*
 	 *  Keep list of userfaulted gem obj, which require to release their
