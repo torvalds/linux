@@ -34,6 +34,20 @@ void hda_bus_ml_get_capabilities(struct hdac_bus *bus)
 		snd_hdac_ext_bus_get_ml_capabilities(bus);
 }
 
+void hda_bus_ml_free(struct hdac_bus *bus)
+{
+	struct hdac_ext_link *hlink;
+
+	if (!bus->mlcap)
+		return;
+
+	while (!list_empty(&bus->hlink_list)) {
+		hlink = list_first_entry(&bus->hlink_list, struct hdac_ext_link, list);
+		list_del(&hlink->list);
+		kfree(hlink);
+	}
+}
+
 void hda_bus_ml_put_all(struct hdac_bus *bus)
 {
 	struct hdac_ext_link *hlink;

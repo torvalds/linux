@@ -1201,9 +1201,8 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 		pci_free_irq_vectors(pci);
 
 	hda_dsp_stream_free(sdev);
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	snd_hdac_ext_link_free_all(bus);
-#endif
+
+	hda_bus_ml_free(sof_to_bus(sdev));
 
 	iounmap(sdev->bar[HDA_DSP_BAR]);
 	iounmap(bus->remap_addr);
