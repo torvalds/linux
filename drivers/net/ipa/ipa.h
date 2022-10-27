@@ -61,6 +61,7 @@ struct ipa_interrupt;
  * @zero_addr:		DMA address of preallocated zero-filled memory
  * @zero_virt:		Virtual address of preallocated zero-filled memory
  * @zero_size:		Size (bytes) of preallocated zero-filled memory
+ * @endpoint_count:	Number of endpoints represented by bit masks below
  * @defined:		Bit mask indicating endpoints defined in config data
  * @available:		Bit mask indicating endpoints hardware supports
  * @filter_map:		Bit mask indicating endpoints that support filtering
@@ -117,6 +118,7 @@ struct ipa {
 	size_t zero_size;
 
 	/* Bit masks indicating endpoint state */
+	u32 endpoint_count;
 	u32 defined;			/* Defined in configuration data */
 	u32 available;			/* Supported by hardware */
 	u32 filter_map;

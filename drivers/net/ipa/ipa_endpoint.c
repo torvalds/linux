@@ -433,7 +433,7 @@ void ipa_endpoint_modem_pause_all(struct ipa *ipa, bool enable)
 {
 	u32 endpoint_id = 0;
 
-	while (endpoint_id < IPA_ENDPOINT_MAX) {
+	while (endpoint_id < ipa->endpoint_count) {
 		struct ipa_endpoint *endpoint = &ipa->endpoint[endpoint_id++];
 
 		if (endpoint->ee_id != GSI_EE_MODEM)
@@ -1015,7 +1015,7 @@ void ipa_endpoint_modem_hol_block_clear_all(struct ipa *ipa)
 {
 	u32 endpoint_id = 0;
 
-	while (endpoint_id < IPA_ENDPOINT_MAX) {
+	while (endpoint_id < ipa->endpoint_count) {
 		struct ipa_endpoint *endpoint = &ipa->endpoint[endpoint_id++];
 
 		if (endpoint->toward_ipa || endpoint->ee_id != GSI_EE_MODEM)
@@ -1982,7 +1982,9 @@ u32 ipa_endpoint_init(struct ipa *ipa, u32 count,
 
 	BUILD_BUG_ON(!IPA_REPLENISH_BATCH);
 
-	if (!ipa_endpoint_max(ipa, count, data))
+	/* Number of endpoints is one more than the maximum ID */
+	ipa->endpoint_count = ipa_endpoint_max(ipa, count, data) + 1;
+	if (!ipa->endpoint_count)
 		return 0;	/* Error */
 
 	ipa->defined = 0;
