@@ -337,9 +337,6 @@ int perf_event__process(struct perf_tool *tool,
 
 struct addr_location;
 
-int machine__resolve(struct machine *machine, struct addr_location *al,
-		     struct perf_sample *sample);
-
 void addr_location__put(struct addr_location *al);
 
 struct thread;

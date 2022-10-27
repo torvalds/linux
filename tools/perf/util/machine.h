@@ -305,4 +305,7 @@ int machine__create_extra_kernel_map(struct machine *machine,
 int machine__map_x86_64_entry_trampolines(struct machine *machine,
 					  struct dso *kernel);
 
+int machine__resolve(struct machine *machine, struct addr_location *al,
+		     struct perf_sample *sample);
+
 #endif /* __PERF_MACHINE_H */
