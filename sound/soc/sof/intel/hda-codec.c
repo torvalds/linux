@@ -295,6 +295,29 @@ void hda_codec_set_codec_wakeup(struct snd_sof_dev *sdev, bool status)
 }
 EXPORT_SYMBOL_NS_GPL(hda_codec_set_codec_wakeup, SND_SOC_SOF_HDA_AUDIO_CODEC);
 
+bool hda_codec_check_rirb_status(struct snd_sof_dev *sdev)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	bool active = false;
+	u32 rirb_status;
+
+	rirb_status = snd_hdac_chip_readb(bus, RIRBSTS);
+	if (rirb_status & RIRB_INT_MASK) {
+		/*
+		 * Clearing the interrupt status here ensures
+		 * that no interrupt gets masked after the RIRB
+		 * wp is read in snd_hdac_bus_update_rirb.
+		 */
+		snd_hdac_chip_writeb(bus, RIRBSTS,
+				     RIRB_INT_MASK);
+		active = true;
+		if (rirb_status & RIRB_INT_RESPONSE)
+			snd_hdac_bus_update_rirb(bus);
+	}
+	return active;
+}
+EXPORT_SYMBOL_NS_GPL(hda_codec_check_rirb_status, SND_SOC_SOF_HDA_AUDIO_CODEC);
+
 void hda_codec_device_remove(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
