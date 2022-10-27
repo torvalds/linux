@@ -20,7 +20,7 @@ static struct mtk_pcs *pcs_to_mtk_pcs(struct phylink_pcs *pcs)
 }
 
 /* For SGMII interface mode */
-static int mtk_pcs_setup_mode_an(struct mtk_pcs *mpcs)
+static void mtk_pcs_setup_mode_an(struct mtk_pcs *mpcs)
 {
 	unsigned int val;
 
@@ -39,16 +39,13 @@ static int mtk_pcs_setup_mode_an(struct mtk_pcs *mpcs)
 	regmap_read(mpcs->regmap, SGMSYS_QPHY_PWR_STATE_CTRL, &val);
 	val &= ~SGMII_PHYA_PWD;
 	regmap_write(mpcs->regmap, SGMSYS_QPHY_PWR_STATE_CTRL, val);
-
-	return 0;
-
 }
 
 /* For 1000BASE-X and 2500BASE-X interface modes, which operate at a
  * fixed speed.
  */
-static int mtk_pcs_setup_mode_force(struct mtk_pcs *mpcs,
-				    phy_interface_t interface)
+static void mtk_pcs_setup_mode_force(struct mtk_pcs *mpcs,
+				     phy_interface_t interface)
 {
 	unsigned int val;
 
@@ -73,8 +70,6 @@ static int mtk_pcs_setup_mode_force(struct mtk_pcs *mpcs,
 	regmap_read(mpcs->regmap, SGMSYS_QPHY_PWR_STATE_CTRL, &val);
 	val &= ~SGMII_PHYA_PWD;
 	regmap_write(mpcs->regmap, SGMSYS_QPHY_PWR_STATE_CTRL, val);
-
-	return 0;
 }
 
 static int mtk_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
@@ -83,15 +78,14 @@ static int mtk_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 			  bool permit_pause_to_mac)
 {
 	struct mtk_pcs *mpcs = pcs_to_mtk_pcs(pcs);
-	int err = 0;
 
 	/* Setup SGMIISYS with the determined property */
 	if (interface != PHY_INTERFACE_MODE_SGMII)
-		err = mtk_pcs_setup_mode_force(mpcs, interface);
+		mtk_pcs_setup_mode_force(mpcs, interface);
 	else if (phylink_autoneg_inband(mode))
-		err = mtk_pcs_setup_mode_an(mpcs);
+		mtk_pcs_setup_mode_an(mpcs);
 
-	return err;
+	return 0;
 }
 
 static void mtk_pcs_restart_an(struct phylink_pcs *pcs)
