@@ -268,7 +268,7 @@ struct dlm_lkb {
 	unsigned long		lkb_timeout_cs;
 #endif
 
-	struct mutex		lkb_cb_mutex;
+	spinlock_t		lkb_cb_lock;
 	struct work_struct	lkb_cb_work;
 	struct list_head	lkb_cb_list; /* for ls_cb_delay or proc->asts */
 	struct dlm_callback	lkb_callbacks[DLM_CALLBACKS_SIZE];

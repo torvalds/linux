@@ -190,7 +190,7 @@ void dlm_add_cb(struct dlm_lkb *lkb, uint32_t flags, int mode, int status,
 		return;
 	}
 
-	mutex_lock(&lkb->lkb_cb_mutex);
+	spin_lock(&lkb->lkb_cb_lock);
 	prev_seq = lkb->lkb_callbacks[0].seq;
 
 	rv = dlm_add_lkb_callback(lkb, flags, mode, status, sbflags, new_seq);
@@ -209,7 +209,7 @@ void dlm_add_cb(struct dlm_lkb *lkb, uint32_t flags, int mode, int status,
 		spin_unlock(&ls->ls_cb_lock);
 	}
  out:
-	mutex_unlock(&lkb->lkb_cb_mutex);
+	spin_unlock(&lkb->lkb_cb_lock);
 }
 
 void dlm_callback_work(struct work_struct *work)
@@ -223,7 +223,7 @@ void dlm_callback_work(struct work_struct *work)
 
 	memset(&callbacks, 0, sizeof(callbacks));
 
-	mutex_lock(&lkb->lkb_cb_mutex);
+	spin_lock(&lkb->lkb_cb_lock);
 	if (!lkb->lkb_callbacks[0].seq) {
 		/* no callback work exists, shouldn't happen */
 		log_error(ls, "dlm_callback_work %x no work", lkb->lkb_id);
@@ -244,7 +244,7 @@ void dlm_callback_work(struct work_struct *work)
 		dlm_print_lkb(lkb);
 		dlm_dump_lkb_callbacks(lkb);
 	}
-	mutex_unlock(&lkb->lkb_cb_mutex);
+	spin_unlock(&lkb->lkb_cb_lock);
 
 	castfn = lkb->lkb_astfn;
 	bastfn = lkb->lkb_bastfn;
