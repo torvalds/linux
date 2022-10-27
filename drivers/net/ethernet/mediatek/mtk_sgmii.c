@@ -36,10 +36,6 @@ static void mtk_pcs_get_state(struct phylink_pcs *pcs,
 /* For SGMII interface mode */
 static void mtk_pcs_setup_mode_an(struct mtk_pcs *mpcs)
 {
-	/* Setup the link timer and QPHY power up inside SGMIISYS */
-	regmap_write(mpcs->regmap, SGMSYS_PCS_LINK_TIMER,
-		     SGMII_LINK_TIMER_DEFAULT);
-
 	regmap_update_bits(mpcs->regmap, SGMSYS_SGMII_MODE,
 			   SGMII_REMOTE_FAULT_DIS, SGMII_REMOTE_FAULT_DIS);
 
@@ -69,8 +65,8 @@ static int mtk_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 			  bool permit_pause_to_mac)
 {
 	struct mtk_pcs *mpcs = pcs_to_mtk_pcs(pcs);
+	int advertise, link_timer;
 	unsigned int rgc3;
-	int advertise;
 	bool changed;
 
 	if (interface == PHY_INTERFACE_MODE_2500BASEX)
@@ -83,6 +79,10 @@ static int mtk_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 	if (advertise < 0)
 		return advertise;
 
+	link_timer = phylink_get_link_timer_ns(interface);
+	if (link_timer < 0)
+		return link_timer;
+
 	/* Configure the underlying interface speed */
 	regmap_update_bits(mpcs->regmap, mpcs->ana_rgc3,
 			   RG_PHY_SPEED_3_125G, rgc3);
@@ -90,6 +90,9 @@ static int mtk_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 	/* Update the advertisement, noting whether it has changed */
 	regmap_update_bits_check(mpcs->regmap, SGMSYS_PCS_ADVERTISE,
 				 SGMII_ADVERTISE, advertise, &changed);
+
+	/* Setup the link timer and QPHY power up inside SGMIISYS */
+	regmap_write(mpcs->regmap, SGMSYS_PCS_LINK_TIMER, link_timer / 2 / 8);
 
 	/* Setup SGMIISYS with the determined property */
 	if (interface != PHY_INTERFACE_MODE_SGMII)
