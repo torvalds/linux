@@ -2529,7 +2529,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	}
 
 	btrfs_inode_lock(BTRFS_I(inode), 0);
-	err = btrfs_delete_subvolume(dir, dentry);
+	err = btrfs_delete_subvolume(BTRFS_I(dir), dentry);
 	btrfs_inode_unlock(BTRFS_I(inode), 0);
 	if (!err)
 		d_delete_notify(dir, dentry);

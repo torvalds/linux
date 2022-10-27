@@ -4698,10 +4698,10 @@ again:
 	spin_unlock(&root->inode_lock);
 }
 
-int btrfs_delete_subvolume(struct inode *dir, struct dentry *dentry)
+int btrfs_delete_subvolume(struct btrfs_inode *dir, struct dentry *dentry)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(dentry->d_sb);
-	struct btrfs_root *root = BTRFS_I(dir)->root;
+	struct btrfs_root *root = dir->root;
 	struct inode *inode = d_inode(dentry);
 	struct btrfs_root *dest = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
@@ -4758,9 +4758,9 @@ int btrfs_delete_subvolume(struct inode *dir, struct dentry *dentry)
 	trans->block_rsv = &block_rsv;
 	trans->bytes_reserved = block_rsv.size;
 
-	btrfs_record_snapshot_destroy(trans, BTRFS_I(dir));
+	btrfs_record_snapshot_destroy(trans, dir);
 
-	ret = btrfs_unlink_subvol(trans, dir, dentry);
+	ret = btrfs_unlink_subvol(trans, &dir->vfs_inode, dentry);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_end_trans;
@@ -4848,7 +4848,7 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 			"extent tree v2 doesn't support snapshot deletion yet");
 			return -EOPNOTSUPP;
 		}
-		return btrfs_delete_subvolume(dir, dentry);
+		return btrfs_delete_subvolume(BTRFS_I(dir), dentry);
 	}
 
 	err = fscrypt_setup_filename(dir, &dentry->d_name, 1, &fname);
