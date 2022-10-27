@@ -296,10 +296,28 @@ enum io_uring_op {
  *
  * IORING_RECVSEND_FIXED_BUF	Use registered buffers, the index is stored in
  *				the buf_index field.
+ *
+ * IORING_SEND_ZC_REPORT_USAGE
+ *				If set, SEND[MSG]_ZC should report
+ *				the zerocopy usage in cqe.res
+ *				for the IORING_CQE_F_NOTIF cqe.
+ *				0 is reported if zerocopy was actually possible.
+ *				IORING_NOTIF_USAGE_ZC_COPIED if data was copied
+ *				(at least partially).
  */
 #define IORING_RECVSEND_POLL_FIRST	(1U << 0)
 #define IORING_RECV_MULTISHOT		(1U << 1)
 #define IORING_RECVSEND_FIXED_BUF	(1U << 2)
+#define IORING_SEND_ZC_REPORT_USAGE	(1U << 3)
+
+/*
+ * cqe.res for IORING_CQE_F_NOTIF if
+ * IORING_SEND_ZC_REPORT_USAGE was requested
+ *
+ * It should be treated as a flag, all other
+ * bits of cqe.res should be treated as reserved!
+ */
+#define IORING_NOTIF_USAGE_ZC_COPIED    (1U << 31)
 
 /*
  * accept flags stored in sqe->ioprio

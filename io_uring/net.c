@@ -937,7 +937,8 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	zc->flags = READ_ONCE(sqe->ioprio);
 	if (zc->flags & ~(IORING_RECVSEND_POLL_FIRST |
-			  IORING_RECVSEND_FIXED_BUF))
+			  IORING_RECVSEND_FIXED_BUF |
+			  IORING_SEND_ZC_REPORT_USAGE))
 		return -EINVAL;
 	notif = zc->notif = io_alloc_notif(ctx);
 	if (!notif)
@@ -954,6 +955,9 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		idx = array_index_nospec(idx, ctx->nr_user_bufs);
 		req->imu = READ_ONCE(ctx->user_bufs[idx]);
 		io_req_set_rsrc_node(notif, ctx, 0);
+	}
+	if (zc->flags & IORING_SEND_ZC_REPORT_USAGE) {
+		io_notif_to_data(notif)->zc_report = true;
 	}
 
 	if (req->opcode == IORING_OP_SEND_ZC) {

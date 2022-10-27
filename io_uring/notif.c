@@ -18,6 +18,10 @@ static void __io_notif_complete_tw(struct io_kiocb *notif, bool *locked)
 		__io_unaccount_mem(ctx->user, nd->account_pages);
 		nd->account_pages = 0;
 	}
+
+	if (nd->zc_report && (nd->zc_copied || !nd->zc_used))
+		notif->cqe.res |= IORING_NOTIF_USAGE_ZC_COPIED;
+
 	io_req_task_complete(notif, locked);
 }
 
@@ -27,6 +31,13 @@ static void io_uring_tx_zerocopy_callback(struct sk_buff *skb,
 {
 	struct io_notif_data *nd = container_of(uarg, struct io_notif_data, uarg);
 	struct io_kiocb *notif = cmd_to_io_kiocb(nd);
+
+	if (nd->zc_report) {
+		if (success && !nd->zc_used && skb)
+			WRITE_ONCE(nd->zc_used, true);
+		else if (!success && !nd->zc_copied)
+			WRITE_ONCE(nd->zc_copied, true);
+	}
 
 	if (refcount_dec_and_test(&uarg->refcnt)) {
 		notif->io_task_work.func = __io_notif_complete_tw;
@@ -55,6 +66,7 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
 	nd->account_pages = 0;
 	nd->uarg.flags = SKBFL_ZEROCOPY_FRAG | SKBFL_DONT_ORPHAN;
 	nd->uarg.callback = io_uring_tx_zerocopy_callback;
+	nd->zc_report = nd->zc_used = nd->zc_copied = false;
 	refcount_set(&nd->uarg.refcnt, 1);
 	return notif;
 }
