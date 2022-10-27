@@ -631,7 +631,7 @@ struct dlm_ls {
 
 	/* recovery related */
 
-	struct mutex		ls_cb_mutex;
+	spinlock_t		ls_cb_lock;
 	struct list_head	ls_cb_delay; /* save for queue_work later */
 	struct timer_list	ls_timer;
 	struct task_struct	*ls_recoverd_task;

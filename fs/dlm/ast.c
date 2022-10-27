@@ -200,13 +200,13 @@ void dlm_add_cb(struct dlm_lkb *lkb, uint32_t flags, int mode, int status,
 	if (!prev_seq) {
 		kref_get(&lkb->lkb_ref);
 
-		mutex_lock(&ls->ls_cb_mutex);
+		spin_lock(&ls->ls_cb_lock);
 		if (test_bit(LSFL_CB_DELAY, &ls->ls_flags)) {
 			list_add(&lkb->lkb_cb_list, &ls->ls_cb_delay);
 		} else {
 			queue_work(ls->ls_callback_wq, &lkb->lkb_cb_work);
 		}
-		mutex_unlock(&ls->ls_cb_mutex);
+		spin_unlock(&ls->ls_cb_lock);
 	}
  out:
 	mutex_unlock(&lkb->lkb_cb_mutex);
@@ -289,9 +289,9 @@ void dlm_callback_stop(struct dlm_ls *ls)
 void dlm_callback_suspend(struct dlm_ls *ls)
 {
 	if (ls->ls_callback_wq) {
-		mutex_lock(&ls->ls_cb_mutex);
+		spin_lock(&ls->ls_cb_lock);
 		set_bit(LSFL_CB_DELAY, &ls->ls_flags);
-		mutex_unlock(&ls->ls_cb_mutex);
+		spin_unlock(&ls->ls_cb_lock);
 
 		flush_workqueue(ls->ls_callback_wq);
 	}
@@ -309,7 +309,7 @@ void dlm_callback_resume(struct dlm_ls *ls)
 		return;
 
 more:
-	mutex_lock(&ls->ls_cb_mutex);
+	spin_lock(&ls->ls_cb_lock);
 	list_for_each_entry_safe(lkb, safe, &ls->ls_cb_delay, lkb_cb_list) {
 		list_del_init(&lkb->lkb_cb_list);
 		queue_work(ls->ls_callback_wq, &lkb->lkb_cb_work);
@@ -320,7 +320,7 @@ more:
 	empty = list_empty(&ls->ls_cb_delay);
 	if (empty)
 		clear_bit(LSFL_CB_DELAY, &ls->ls_flags);
-	mutex_unlock(&ls->ls_cb_mutex);
+	spin_unlock(&ls->ls_cb_lock);
 
 	sum += count;
 	if (!empty) {
