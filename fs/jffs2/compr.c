@@ -364,12 +364,24 @@ void jffs2_free_comprbuf(unsigned char *comprbuf, unsigned char *orig)
 
 int __init jffs2_compressors_init(void)
 {
+	int ret = 0;
 /* Registering compressors */
-	jffs2_zlib_init();
-	jffs2_rtime_init();
-	jffs2_rubinmips_init();
-	jffs2_dynrubin_init();
-	jffs2_lzo_init();
+	ret = jffs2_zlib_init();
+	if (ret)
+		goto exit;
+	ret = jffs2_rtime_init();
+	if (ret)
+		goto exit_zlib;
+	ret = jffs2_rubinmips_init();
+	if (ret)
+		goto exit_rtime;
+	ret = jffs2_dynrubin_init();
+	if (ret)
+		goto exit_runinmips;
+	ret = jffs2_lzo_init();
+	if (ret)
+		goto exit_dynrubin;
+
 
 /* Setting default compression mode */
 #ifdef CONFIG_JFFS2_CMODE_NONE
@@ -389,6 +401,17 @@ int __init jffs2_compressors_init(void)
 #endif
 #endif
 	return 0;
+
+exit_dynrubin:
+	jffs2_dynrubin_exit();
+exit_runinmips:
+	jffs2_rubinmips_exit();
+exit_rtime:
+	jffs2_rtime_exit();
+exit_zlib:
+	jffs2_zlib_exit();
+exit:
+	return ret;
 }
 
 int jffs2_compressors_exit(void)
