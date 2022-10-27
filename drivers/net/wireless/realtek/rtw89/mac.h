@@ -719,6 +719,7 @@ struct rtw89_mac_size_set {
 	const struct rtw89_ple_quota ple_qt46;
 	const struct rtw89_ple_quota ple_qt47;
 	const struct rtw89_ple_quota ple_qt58;
+	const struct rtw89_ple_quota ple_qt_52a_wow;
 };
 
 extern const struct rtw89_mac_size_set rtw89_mac_size;
@@ -1026,5 +1027,6 @@ void rtw89_mac_pkt_drop_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 u16 rtw89_mac_dle_buf_req(struct rtw89_dev *rtwdev, u16 buf_len, bool wd);
 int rtw89_mac_set_cpuio(struct rtw89_dev *rtwdev,
 			struct rtw89_cpuio_ctrl *ctrl_para, bool wd);
+int rtw89_mac_resize_ple_rx_quota(struct rtw89_dev *rtwdev, bool wow);
 
 #endif
