@@ -136,7 +136,7 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 	if (!is_data_inode(inode))
 		btrfs_submit_metadata_bio(BTRFS_I(inode), bio, mirror_num);
 	else if (btrfs_op(bio) == BTRFS_MAP_WRITE)
-		btrfs_submit_data_write_bio(inode, bio, mirror_num);
+		btrfs_submit_data_write_bio(BTRFS_I(inode), bio, mirror_num);
 	else
 		btrfs_submit_data_read_bio(inode, bio, mirror_num,
 					   bio_ctrl->compress_type);

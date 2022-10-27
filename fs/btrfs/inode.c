@@ -2730,14 +2730,13 @@ out:
 	return errno_to_blk_status(ret);
 }
 
-void btrfs_submit_data_write_bio(struct inode *inode, struct bio *bio, int mirror_num)
+void btrfs_submit_data_write_bio(struct btrfs_inode *inode, struct bio *bio, int mirror_num)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_inode *bi = BTRFS_I(inode);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	blk_status_t ret;
 
 	if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
-		ret = extract_ordered_extent(bi, bio,
+		ret = extract_ordered_extent(inode, bio,
 				page_offset(bio_first_bvec_all(bio)->bv_page));
 		if (ret) {
 			btrfs_bio_end_io(btrfs_bio(bio), ret);
@@ -2753,14 +2752,14 @@ void btrfs_submit_data_write_bio(struct inode *inode, struct bio *bio, int mirro
 	 * Csum items for reloc roots have already been cloned at this point,
 	 * so they are handled as part of the no-checksum case.
 	 */
-	if (!(bi->flags & BTRFS_INODE_NODATASUM) &&
+	if (!(inode->flags & BTRFS_INODE_NODATASUM) &&
 	    !test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state) &&
-	    !btrfs_is_data_reloc_root(bi->root)) {
-		if (!atomic_read(&bi->sync_writers) &&
-		    btrfs_wq_submit_bio(bi, bio, mirror_num, 0, WQ_SUBMIT_DATA))
+	    !btrfs_is_data_reloc_root(inode->root)) {
+		if (!atomic_read(&inode->sync_writers) &&
+		    btrfs_wq_submit_bio(inode, bio, mirror_num, 0, WQ_SUBMIT_DATA))
 			return;
 
-		ret = btrfs_csum_one_bio(bi, bio, (u64)-1, false);
+		ret = btrfs_csum_one_bio(inode, bio, (u64)-1, false);
 		if (ret) {
 			btrfs_bio_end_io(btrfs_bio(bio), ret);
 			return;
