@@ -211,6 +211,7 @@ struct dlm_args {
 #endif
 #define DLM_IFL_DEADLOCK_CANCEL	0x01000000
 #define DLM_IFL_STUB_MS		0x02000000 /* magic number for m_flags */
+#define DLM_IFL_NEED_SCHED	0x04000000
 /* least significant 2 bytes are message changed, they are full transmitted
  * but at receive side only the 2 bytes LSB will be set.
  *
@@ -222,18 +223,17 @@ struct dlm_args {
 #define DLM_IFL_USER		0x00000001
 #define DLM_IFL_ORPHAN		0x00000002
 
-#define DLM_CALLBACKS_SIZE	6
-
 #define DLM_CB_CAST		0x00000001
 #define DLM_CB_BAST		0x00000002
-#define DLM_CB_SKIP		0x00000004
 
 struct dlm_callback {
-	uint64_t		seq;
 	uint32_t		flags;		/* DLM_CBF_ */
 	int			sb_status;	/* copy to lksb status */
 	uint8_t			sb_flags;	/* copy to lksb flags */
 	int8_t			mode; /* rq mode of bast, gr mode of cast */
+
+	struct list_head	list;
+	struct kref		ref;
 };
 
 struct dlm_lkb {
@@ -271,9 +271,10 @@ struct dlm_lkb {
 	spinlock_t		lkb_cb_lock;
 	struct work_struct	lkb_cb_work;
 	struct list_head	lkb_cb_list; /* for ls_cb_delay or proc->asts */
-	struct dlm_callback	lkb_callbacks[DLM_CALLBACKS_SIZE];
-	struct dlm_callback	lkb_last_cast;
-	struct dlm_callback	lkb_last_bast;
+	struct list_head	lkb_callbacks;
+	struct dlm_callback	*lkb_last_cast;
+	struct dlm_callback	*lkb_last_cb;
+	int			lkb_last_bast_mode;
 	ktime_t			lkb_last_cast_time;	/* for debugging */
 	ktime_t			lkb_last_bast_time;	/* for debugging */
 
