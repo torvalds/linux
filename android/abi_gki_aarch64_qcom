@@ -129,6 +129,7 @@
   cgroup_path_ns
   cgroup_taskset_first
   cgroup_taskset_next
+  check_move_unevictable_pages
   __check_object_size
   check_preempt_curr
   check_zeroed_user
@@ -1659,6 +1660,7 @@
   page_endio
   page_mapping
   __page_pinner_migration_failed
+  __pagevec_release
   panic
   panic_notifier_list
   panic_timeout
