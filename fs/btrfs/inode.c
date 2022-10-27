@@ -2471,11 +2471,10 @@ void btrfs_set_delalloc_extent(struct btrfs_inode *inode, struct extent_state *s
  * Once a range is no longer delalloc this function ensures that proper
  * accounting happens.
  */
-void btrfs_clear_delalloc_extent(struct inode *vfs_inode,
+void btrfs_clear_delalloc_extent(struct btrfs_inode *inode,
 				 struct extent_state *state, u32 bits)
 {
-	struct btrfs_inode *inode = BTRFS_I(vfs_inode);
-	struct btrfs_fs_info *fs_info = btrfs_sb(vfs_inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	u64 len = state->end + 1 - state->start;
 	u32 num_extents = count_max_extents(fs_info, len);
 

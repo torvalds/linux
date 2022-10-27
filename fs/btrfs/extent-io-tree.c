@@ -509,7 +509,7 @@ static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 	int ret;
 
 	if (tree->inode)
-		btrfs_clear_delalloc_extent(&tree->inode->vfs_inode, state, bits);
+		btrfs_clear_delalloc_extent(tree->inode, state, bits);
 
 	ret = add_extent_changeset(state, bits_to_clear, changeset, 0);
 	BUG_ON(ret < 0);
