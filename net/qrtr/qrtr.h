@@ -10,6 +10,8 @@ struct sk_buff;
 #define QRTR_EP_NID_AUTO (-1)
 #define QRTR_EP_NET_ID_AUTO (1)
 
+#define QRTR_DEL_PROC_MAGIC	0xe111
+
 /**
  * struct qrtr_endpoint - endpoint handle
  * @xmit: Callback for outgoing packets
