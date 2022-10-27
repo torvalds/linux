@@ -141,20 +141,6 @@ struct intel_gt {
 	struct intel_wakeref wakeref;
 	atomic_t user_wakeref;
 
-	/**
-	 *  Protects access to lmem usefault list.
-	 *  It is required, if we are outside of the runtime suspend path,
-	 *  access to @lmem_userfault_list requires always first grabbing the
-	 *  runtime pm, to ensure we can't race against runtime suspend.
-	 *  Once we have that we also need to grab @lmem_userfault_lock,
-	 *  at which point we have exclusive access.
-	 *  The runtime suspend path is special since it doesn't really hold any locks,
-	 *  but instead has exclusive access by virtue of all other accesses requiring
-	 *  holding the runtime pm wakeref.
-	 */
-	struct mutex lmem_userfault_lock;
-	struct list_head lmem_userfault_list;
-
 	struct list_head closed_vma;
 	spinlock_t closed_lock; /* guards the list of closed_vma */
 
@@ -169,9 +155,6 @@ struct intel_gt {
 	 * is a slight delay before we do so.
 	 */
 	intel_wakeref_t awake;
-
-	/* Manual runtime pm autosuspend delay for user GGTT/lmem mmaps */
-	struct intel_wakeref_auto userfault_wakeref;
 
 	u32 clock_frequency;
 	u32 clock_period_ns;

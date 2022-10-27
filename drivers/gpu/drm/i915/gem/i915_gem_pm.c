@@ -24,7 +24,7 @@ void i915_gem_suspend(struct drm_i915_private *i915)
 {
 	GEM_TRACE("%s\n", dev_name(i915->drm.dev));
 
-	intel_wakeref_auto(&to_gt(i915)->userfault_wakeref, 0);
+	intel_wakeref_auto(&i915->runtime_pm.userfault_wakeref, 0);
 	flush_workqueue(i915->wq);
 
 	/*
