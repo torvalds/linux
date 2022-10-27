@@ -2160,6 +2160,15 @@ config ARCH_NR_GPIO
 
           If unsure, leave the default value.
 
+config UNWIND_PATCH_PAC_INTO_SCS
+	bool "Enable shadow call stack dynamically using code patching"
+	# needs Clang with https://reviews.llvm.org/D111780 incorporated
+	depends on CC_IS_CLANG && CLANG_VERSION >= 150000
+	depends on ARM64_PTR_AUTH_KERNEL && CC_HAS_BRANCH_PROT_PAC_RET
+	depends on SHADOW_CALL_STACK
+	select UNWIND_TABLES
+	select DYNAMIC_SCS
+
 endmenu # "Kernel Features"
 
 menu "Boot options"
