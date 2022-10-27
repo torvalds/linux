@@ -311,6 +311,18 @@ static int rpi_firmware_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id rpi_firmware_of_match[] = {
+	{ .compatible = "raspberrypi,bcm2835-firmware", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, rpi_firmware_of_match);
+
+struct device_node *rpi_firmware_find_node(void)
+{
+	return of_find_matching_node(NULL, rpi_firmware_of_match);
+}
+EXPORT_SYMBOL_GPL(rpi_firmware_find_node);
+
 /**
  * rpi_firmware_get - Get pointer to rpi_firmware structure.
  * @firmware_node:    Pointer to the firmware Device Tree node.
@@ -365,12 +377,6 @@ struct rpi_firmware *devm_rpi_firmware_get(struct device *dev,
 	return fw;
 }
 EXPORT_SYMBOL_GPL(devm_rpi_firmware_get);
-
-static const struct of_device_id rpi_firmware_of_match[] = {
-	{ .compatible = "raspberrypi,bcm2835-firmware", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, rpi_firmware_of_match);
 
 static struct platform_driver rpi_firmware_driver = {
 	.driver = {
