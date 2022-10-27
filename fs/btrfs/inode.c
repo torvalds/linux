@@ -7965,11 +7965,11 @@ static blk_status_t btrfs_check_read_dio_bio(struct btrfs_dio_private *dip,
 	return err;
 }
 
-blk_status_t btrfs_submit_bio_start_direct_io(struct inode *inode,
+blk_status_t btrfs_submit_bio_start_direct_io(struct btrfs_inode *inode,
 					      struct bio *bio,
 					      u64 dio_file_offset)
 {
-	return btrfs_csum_one_bio(BTRFS_I(inode), bio, dio_file_offset, false);
+	return btrfs_csum_one_bio(inode, bio, dio_file_offset, false);
 }
 
 static void btrfs_end_dio_bio(struct btrfs_bio *bbio)
