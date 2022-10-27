@@ -12,7 +12,6 @@ config VIDEO_ROCKCHIP_ISPP
 config VIDEO_ROCKCHIP_ISPP_FEC
 	bool "Rockchip Image Signal FEC Processing helper"
 	depends on VIDEO_ROCKCHIP_ISPP
-	select V4L2_MEM2MEM_DEV
 	default n
 	help
 	  Say y if enable fec independent.

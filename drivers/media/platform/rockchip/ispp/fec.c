@@ -5,7 +5,6 @@
 #include <linux/delay.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
-#include <media/v4l2-mem2mem.h>
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-v4l2.h>
@@ -341,7 +340,7 @@ static long fec_ioctl_default(struct file *file, void *fh,
 	return ret;
 }
 
-static const struct v4l2_ioctl_ops m2m_ioctl_ops = {
+static const struct v4l2_ioctl_ops fec_ioctl_ops = {
 	.vidioc_default = fec_ioctl_default,
 };
 
@@ -383,9 +382,7 @@ static const struct v4l2_file_operations fec_fops = {
 	.owner = THIS_MODULE,
 	.open = fec_open,
 	.release = fec_release,
-	.poll = v4l2_m2m_fop_poll,
 	.unlocked_ioctl = video_ioctl2,
-	.mmap = v4l2_m2m_fop_mmap,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl32 = video_ioctl2,
 #endif
@@ -393,9 +390,9 @@ static const struct v4l2_file_operations fec_fops = {
 
 static const struct video_device fec_videodev = {
 	.name = "rkispp_fec",
-	.vfl_dir = VFL_DIR_M2M,
+	.vfl_dir = VFL_DIR_RX,
 	.fops = &fec_fops,
-	.ioctl_ops = &m2m_ioctl_ops,
+	.ioctl_ops = &fec_ioctl_ops,
 	.minor = -1,
 	.release = video_device_release_empty,
 };
@@ -427,6 +424,7 @@ int rkispp_register_fec(struct rkispp_hw_dev *hw)
 	if (ret)
 		return ret;
 
+	mutex_init(&fec->apilock);
 	fec->vfd = fec_videodev;
 	vfd = &fec->vfd;
 	vfd->device_caps = V4L2_CAP_STREAMING;
@@ -441,6 +439,7 @@ int rkispp_register_fec(struct rkispp_hw_dev *hw)
 	INIT_LIST_HEAD(&fec->list);
 	return 0;
 unreg_v4l2:
+	mutex_destroy(&fec->apilock);
 	v4l2_device_unregister(v4l2_dev);
 	return ret;
 }
@@ -450,6 +449,7 @@ void rkispp_unregister_fec(struct rkispp_hw_dev *hw)
 	if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISPP_FEC))
 		return;
 
+	mutex_destroy(&hw->fec_dev.apilock);
 	video_unregister_device(&hw->fec_dev.vfd);
 	v4l2_device_unregister(&hw->fec_dev.v4l2_dev);
 }
