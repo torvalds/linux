@@ -787,7 +787,7 @@ static int device_early_init(struct hl_device *hdev)
 		}
 	}
 
-	hdev->eq_wq = alloc_workqueue("hl-events", WQ_UNBOUND, 0);
+	hdev->eq_wq = create_singlethread_workqueue("hl-events");
 	if (hdev->eq_wq == NULL) {
 		dev_err(hdev->dev, "Failed to allocate EQ workqueue\n");
 		rc = -ENOMEM;
