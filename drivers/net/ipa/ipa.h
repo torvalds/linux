@@ -61,9 +61,9 @@ struct ipa_interrupt;
  * @zero_addr:		DMA address of preallocated zero-filled memory
  * @zero_virt:		Virtual address of preallocated zero-filled memory
  * @zero_size:		Size (bytes) of preallocated zero-filled memory
+ * @defined:		Bit mask indicating endpoints defined in config data
  * @available:		Bit mask indicating endpoints hardware supports
  * @filter_map:		Bit mask indicating endpoints that support filtering
- * @initialized:	Bit mask indicating endpoints initialized
  * @set_up:		Bit mask indicating endpoints set up
  * @enabled:		Bit mask indicating endpoints enabled
  * @modem_tx_count:	Number of defined modem TX endoints
@@ -117,9 +117,9 @@ struct ipa {
 	size_t zero_size;
 
 	/* Bit masks indicating endpoint state */
-	u32 available;		/* supported by hardware */
+	u32 defined;			/* Defined in configuration data */
+	u32 available;			/* Supported by hardware */
 	u32 filter_map;
-	u32 initialized;
 	u32 set_up;
 	u32 enabled;
 
