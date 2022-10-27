@@ -420,6 +420,17 @@ enum rtw89_mac_bf_rrsc_rate {
 #define S_AX_PLE_PAGE_SEL_128	1
 #define S_AX_PLE_PAGE_SEL_256	2
 
+#define B_CMAC0_MGQ_NORMAL	BIT(2)
+#define B_CMAC0_MGQ_NO_PWRSAV	BIT(3)
+#define B_CMAC0_CPUMGQ		BIT(4)
+#define B_CMAC1_MGQ_NORMAL	BIT(10)
+#define B_CMAC1_MGQ_NO_PWRSAV	BIT(11)
+#define B_CMAC1_CPUMGQ		BIT(12)
+
+#define QEMP_ACQ_GRP_MACID_NUM	8
+#define QEMP_ACQ_GRP_QSEL_SH	4
+#define QEMP_ACQ_GRP_QSEL_MASK	0xF
+
 #define SDIO_LOCAL_BASE_ADDR    0x80000000
 
 #define	PWR_CMD_WRITE		0
@@ -1028,5 +1039,7 @@ u16 rtw89_mac_dle_buf_req(struct rtw89_dev *rtwdev, u16 buf_len, bool wd);
 int rtw89_mac_set_cpuio(struct rtw89_dev *rtwdev,
 			struct rtw89_cpuio_ctrl *ctrl_para, bool wd);
 int rtw89_mac_resize_ple_rx_quota(struct rtw89_dev *rtwdev, bool wow);
+int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
+					enum rtw89_mac_idx band);
 
 #endif

@@ -2624,6 +2624,8 @@ struct rtw89_chip_info {
 	u32 rsvd_ple_ofst;
 	const struct rtw89_hfc_param_ini *hfc_param_ini;
 	const struct rtw89_dle_mem *dle_mem;
+	u8 wde_qempty_acq_num;
+	u8 wde_qempty_mgq_sel;
 	u32 rf_base_addr[2];
 	u8 support_chanctx_num;
 	u8 support_bands;
@@ -2949,6 +2951,7 @@ struct rtw89_pkt_drop_params {
 	u8 port;
 	u8 mbssid;
 	bool tf_trs;
+	u32 macid_band_sel[4];
 };
 
 struct rtw89_pkt_stat {

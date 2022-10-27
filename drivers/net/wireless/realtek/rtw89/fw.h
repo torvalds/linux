@@ -1873,6 +1873,26 @@ static inline void RTW89_SET_FWCMD_PKT_DROP_ROLE_A_INFO_TF_TRS(void *cmd, u32 va
 	le32p_replace_bits((__le32 *)cmd + 1, val, GENMASK(15, 8));
 }
 
+static inline void RTW89_SET_FWCMD_PKT_DROP_MACID_BAND_SEL_0(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd + 2, val, GENMASK(31, 0));
+}
+
+static inline void RTW89_SET_FWCMD_PKT_DROP_MACID_BAND_SEL_1(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd + 3, val, GENMASK(31, 0));
+}
+
+static inline void RTW89_SET_FWCMD_PKT_DROP_MACID_BAND_SEL_2(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd + 4, val, GENMASK(31, 0));
+}
+
+static inline void RTW89_SET_FWCMD_PKT_DROP_MACID_BAND_SEL_3(void *cmd, u32 val)
+{
+	le32p_replace_bits((__le32 *)cmd + 5, val, GENMASK(31, 0));
+}
+
 enum rtw89_btc_btf_h2c_class {
 	BTFC_SET = 0x10,
 	BTFC_GET = 0x11,

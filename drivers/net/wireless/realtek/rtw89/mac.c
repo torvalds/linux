@@ -1335,6 +1335,60 @@ static const struct rtw89_dle_mem *get_dle_mem_cfg(struct rtw89_dev *rtwdev,
 	return cfg;
 }
 
+static bool mac_is_txq_empty(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mac_dle_dfi_qempty qempty;
+	u32 qnum, qtmp, val32, msk32;
+	int i, j, ret;
+
+	qnum = rtwdev->chip->wde_qempty_acq_num;
+	qempty.dle_type = DLE_CTRL_TYPE_WDE;
+
+	for (i = 0; i < qnum; i++) {
+		qempty.grpsel = i;
+		ret = dle_dfi_qempty(rtwdev, &qempty);
+		if (ret) {
+			rtw89_warn(rtwdev, "dle dfi acq empty %d\n", ret);
+			return false;
+		}
+		qtmp = qempty.qempty;
+		for (j = 0 ; j < QEMP_ACQ_GRP_MACID_NUM; j++) {
+			val32 = FIELD_GET(QEMP_ACQ_GRP_QSEL_MASK, qtmp);
+			if (val32 != QEMP_ACQ_GRP_QSEL_MASK)
+				return false;
+			qtmp >>= QEMP_ACQ_GRP_QSEL_SH;
+		}
+	}
+
+	qempty.grpsel = rtwdev->chip->wde_qempty_mgq_sel;
+	ret = dle_dfi_qempty(rtwdev, &qempty);
+	if (ret) {
+		rtw89_warn(rtwdev, "dle dfi mgq empty %d\n", ret);
+		return false;
+	}
+	msk32 = B_CMAC0_MGQ_NORMAL | B_CMAC0_MGQ_NO_PWRSAV | B_CMAC0_CPUMGQ;
+	if ((qempty.qempty & msk32) != msk32)
+		return false;
+
+	if (rtwdev->dbcc_en) {
+		msk32 |= B_CMAC1_MGQ_NORMAL | B_CMAC1_MGQ_NO_PWRSAV | B_CMAC1_CPUMGQ;
+		if ((qempty.qempty & msk32) != msk32)
+			return false;
+	}
+
+	msk32 = B_AX_WDE_EMPTY_QTA_DMAC_WLAN_CPU | B_AX_WDE_EMPTY_QTA_DMAC_DATA_CPU |
+		B_AX_PLE_EMPTY_QTA_DMAC_WLAN_CPU | B_AX_PLE_EMPTY_QTA_DMAC_H2C |
+		B_AX_WDE_EMPTY_QUE_OTHERS | B_AX_PLE_EMPTY_QUE_DMAC_MPDU_TX |
+		B_AX_WDE_EMPTY_QTA_DMAC_CPUIO | B_AX_PLE_EMPTY_QTA_DMAC_CPUIO |
+		B_AX_WDE_EMPTY_QUE_DMAC_PKTIN | B_AX_WDE_EMPTY_QTA_DMAC_HIF |
+		B_AX_PLE_EMPTY_QUE_DMAC_SEC_TX | B_AX_WDE_EMPTY_QTA_DMAC_PKTIN |
+		B_AX_PLE_EMPTY_QTA_DMAC_B0_TXPL | B_AX_PLE_EMPTY_QTA_DMAC_B1_TXPL |
+		B_AX_PLE_EMPTY_QTA_DMAC_MPDU_TX;
+	val32 = rtw89_read32(rtwdev, R_AX_DLE_EMPTY0);
+
+	return (val32 & msk32) == msk32;
+}
+
 static inline u32 dle_used_size(const struct rtw89_dle_size *wde,
 				const struct rtw89_dle_size *ple)
 {
@@ -4892,4 +4946,25 @@ void rtw89_mac_pkt_drop_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	ieee80211_iterate_stations_atomic(rtwdev->hw,
 					  rtw89_mac_pkt_drop_vif_iter,
 					  rtwvif);
+}
+
+int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
+					enum rtw89_mac_idx band)
+{
+	struct rtw89_pkt_drop_params params = {0};
+	bool empty;
+	int i, ret = 0, try_cnt = 3;
+
+	params.mac_band = band;
+	params.sel = RTW89_PKT_DROP_SEL_BAND_ONCE;
+
+	for (i = 0; i < try_cnt; i++) {
+		ret = read_poll_timeout(mac_is_txq_empty, empty, empty, 50,
+					50000, false, rtwdev);
+		if (ret)
+			rtw89_fw_h2c_pkt_drop(rtwdev, &params);
+		else
+			return 0;
+	}
+	return ret;
 }

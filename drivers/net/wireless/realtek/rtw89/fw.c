@@ -2900,6 +2900,7 @@ int rtw89_fw_h2c_pkt_drop(struct rtw89_dev *rtwdev,
 	case RTW89_PKT_DROP_SEL_MACID_BK_ONCE:
 	case RTW89_PKT_DROP_SEL_MACID_VI_ONCE:
 	case RTW89_PKT_DROP_SEL_MACID_VO_ONCE:
+	case RTW89_PKT_DROP_SEL_BAND_ONCE:
 		break;
 	default:
 		rtw89_debug(rtwdev, RTW89_DBG_FW,
@@ -2915,6 +2916,14 @@ int rtw89_fw_h2c_pkt_drop(struct rtw89_dev *rtwdev,
 	RTW89_SET_FWCMD_PKT_DROP_PORT(skb->data, params->port);
 	RTW89_SET_FWCMD_PKT_DROP_MBSSID(skb->data, params->mbssid);
 	RTW89_SET_FWCMD_PKT_DROP_ROLE_A_INFO_TF_TRS(skb->data, params->tf_trs);
+	RTW89_SET_FWCMD_PKT_DROP_MACID_BAND_SEL_0(skb->data,
+						  params->macid_band_sel[0]);
+	RTW89_SET_FWCMD_PKT_DROP_MACID_BAND_SEL_1(skb->data,
+						  params->macid_band_sel[1]);
+	RTW89_SET_FWCMD_PKT_DROP_MACID_BAND_SEL_2(skb->data,
+						  params->macid_band_sel[2]);
+	RTW89_SET_FWCMD_PKT_DROP_MACID_BAND_SEL_3(skb->data,
+						  params->macid_band_sel[3]);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC,
