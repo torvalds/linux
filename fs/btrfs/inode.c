@@ -2550,9 +2550,9 @@ void btrfs_clear_delalloc_extent(struct inode *vfs_inode,
  * At IO completion time the cums attached on the ordered extent record
  * are inserted into the btree
  */
-blk_status_t btrfs_submit_bio_start(struct inode *inode, struct bio *bio)
+blk_status_t btrfs_submit_bio_start(struct btrfs_inode *inode, struct bio *bio)
 {
-	return btrfs_csum_one_bio(BTRFS_I(inode), bio, (u64)-1, false);
+	return btrfs_csum_one_bio(inode, bio, (u64)-1, false);
 }
 
 /*

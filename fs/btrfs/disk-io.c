@@ -642,7 +642,7 @@ static void run_one_async_start(struct btrfs_work *work)
 		ret = btree_submit_bio_start(async->bio);
 		break;
 	case WQ_SUBMIT_DATA:
-		ret = btrfs_submit_bio_start(&async->inode->vfs_inode, async->bio);
+		ret = btrfs_submit_bio_start(async->inode, async->bio);
 		break;
 	case WQ_SUBMIT_DATA_DIO:
 		ret = btrfs_submit_bio_start_direct_io(&async->inode->vfs_inode,
