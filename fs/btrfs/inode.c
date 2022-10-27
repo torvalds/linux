@@ -6345,27 +6345,27 @@ void btrfs_new_inode_args_destroy(struct btrfs_new_inode_args *args)
  *
  * Currently only the compression flags and the cow flags are inherited.
  */
-static void btrfs_inherit_iflags(struct inode *inode, struct inode *dir)
+static void btrfs_inherit_iflags(struct btrfs_inode *inode, struct btrfs_inode *dir)
 {
 	unsigned int flags;
 
-	flags = BTRFS_I(dir)->flags;
+	flags = dir->flags;
 
 	if (flags & BTRFS_INODE_NOCOMPRESS) {
-		BTRFS_I(inode)->flags &= ~BTRFS_INODE_COMPRESS;
-		BTRFS_I(inode)->flags |= BTRFS_INODE_NOCOMPRESS;
+		inode->flags &= ~BTRFS_INODE_COMPRESS;
+		inode->flags |= BTRFS_INODE_NOCOMPRESS;
 	} else if (flags & BTRFS_INODE_COMPRESS) {
-		BTRFS_I(inode)->flags &= ~BTRFS_INODE_NOCOMPRESS;
-		BTRFS_I(inode)->flags |= BTRFS_INODE_COMPRESS;
+		inode->flags &= ~BTRFS_INODE_NOCOMPRESS;
+		inode->flags |= BTRFS_INODE_COMPRESS;
 	}
 
 	if (flags & BTRFS_INODE_NODATACOW) {
-		BTRFS_I(inode)->flags |= BTRFS_INODE_NODATACOW;
-		if (S_ISREG(inode->i_mode))
-			BTRFS_I(inode)->flags |= BTRFS_INODE_NODATASUM;
+		inode->flags |= BTRFS_INODE_NODATACOW;
+		if (S_ISREG(inode->vfs_inode.i_mode))
+			inode->flags |= BTRFS_INODE_NODATASUM;
 	}
 
-	btrfs_sync_inode_flags_to_i_flags(inode);
+	btrfs_sync_inode_flags_to_i_flags(&inode->vfs_inode);
 }
 
 int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
@@ -6424,7 +6424,7 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 	 * change it now without compatibility issues.
 	 */
 	if (!args->subvol)
-		btrfs_inherit_iflags(inode, dir);
+		btrfs_inherit_iflags(BTRFS_I(inode), BTRFS_I(dir));
 
 	if (S_ISREG(inode->i_mode)) {
 		if (btrfs_test_opt(fs_info, NODATASUM))
