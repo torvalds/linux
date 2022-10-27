@@ -70,15 +70,26 @@ static int mtk_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 {
 	struct mtk_pcs *mpcs = pcs_to_mtk_pcs(pcs);
 	unsigned int rgc3;
+	int advertise;
+	bool changed;
 
 	if (interface == PHY_INTERFACE_MODE_2500BASEX)
 		rgc3 = RG_PHY_SPEED_3_125G;
 	else
 		rgc3 = 0;
 
+	advertise = phylink_mii_c22_pcs_encode_advertisement(interface,
+							     advertising);
+	if (advertise < 0)
+		return advertise;
+
 	/* Configure the underlying interface speed */
 	regmap_update_bits(mpcs->regmap, mpcs->ana_rgc3,
 			   RG_PHY_SPEED_3_125G, rgc3);
+
+	/* Update the advertisement, noting whether it has changed */
+	regmap_update_bits_check(mpcs->regmap, SGMSYS_PCS_ADVERTISE,
+				 SGMII_ADVERTISE, advertise, &changed);
 
 	/* Setup SGMIISYS with the determined property */
 	if (interface != PHY_INTERFACE_MODE_SGMII)
@@ -90,7 +101,7 @@ static int mtk_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 	regmap_update_bits(mpcs->regmap, SGMSYS_QPHY_PWR_STATE_CTRL,
 			   SGMII_PHYA_PWD, 0);
 
-	return 0;
+	return changed;
 }
 
 static void mtk_pcs_restart_an(struct phylink_pcs *pcs)
