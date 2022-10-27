@@ -35,6 +35,7 @@
 #define RTMP3	v19
 
 #define RIV	v20
+#define RMAC	v20
 #define RMASK	v21
 
 
@@ -1006,6 +1007,75 @@ SYM_FUNC_START(sm4_ce_xts_dec)
 .Lxts_dec_ret:
 	ret
 SYM_FUNC_END(sm4_ce_xts_dec)
+
+.align 3
+SYM_FUNC_START(sm4_ce_mac_update)
+	/* input:
+	 *   x0: round key array, CTX
+	 *   x1: digest
+	 *   x2: src
+	 *   w3: nblocks
+	 *   w4: enc_before
+	 *   w5: enc_after
+	 */
+	SM4_PREPARE(x0)
+
+	ld1		{RMAC.16b}, [x1]
+
+	cbz		w4, .Lmac_update
+
+	SM4_CRYPT_BLK(RMAC)
+
+.Lmac_update:
+	cbz		w3, .Lmac_ret
+
+	sub		w6, w3, #1
+	cmp		w5, wzr
+	csel		w3, w3, w6, ne
+
+	cbz		w3, .Lmac_end
+
+.Lmac_loop_4x:
+	cmp		w3, #4
+	blt		.Lmac_loop_1x
+
+	sub		w3, w3, #4
+
+	ld1		{v0.16b-v3.16b}, [x2], #64
+
+	eor		RMAC.16b, RMAC.16b, v0.16b
+	SM4_CRYPT_BLK(RMAC)
+	eor		RMAC.16b, RMAC.16b, v1.16b
+	SM4_CRYPT_BLK(RMAC)
+	eor		RMAC.16b, RMAC.16b, v2.16b
+	SM4_CRYPT_BLK(RMAC)
+	eor		RMAC.16b, RMAC.16b, v3.16b
+	SM4_CRYPT_BLK(RMAC)
+
+	cbz		w3, .Lmac_end
+	b		.Lmac_loop_4x
+
+.Lmac_loop_1x:
+	sub		w3, w3, #1
+
+	ld1		{v0.16b}, [x2], #16
+
+	eor		RMAC.16b, RMAC.16b, v0.16b
+	SM4_CRYPT_BLK(RMAC)
+
+	cbnz		w3, .Lmac_loop_1x
+
+
+.Lmac_end:
+	cbnz		w5, .Lmac_ret
+
+	ld1		{v0.16b}, [x2], #16
+	eor		RMAC.16b, RMAC.16b, v0.16b
+
+.Lmac_ret:
+	st1		{RMAC.16b}, [x1]
+	ret
+SYM_FUNC_END(sm4_ce_mac_update)
 
 
 	.section	".rodata", "a"
