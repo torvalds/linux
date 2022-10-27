@@ -7923,9 +7923,7 @@ static void btrfs_dio_private_put(struct btrfs_dio_private *dip)
 	bio_endio(&dip->bio);
 }
 
-void btrfs_submit_dio_repair_bio(struct inode *inode, struct bio *bio,
-				 int mirror_num,
-				 enum btrfs_compression_type compress_type)
+void btrfs_submit_dio_repair_bio(struct inode *inode, struct bio *bio, int mirror_num)
 {
 	struct btrfs_dio_private *dip = btrfs_bio(bio)->private;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
