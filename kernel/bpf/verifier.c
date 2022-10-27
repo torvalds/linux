@@ -10670,7 +10670,7 @@ static int check_return_code(struct bpf_verifier_env *env)
  * 3      let S be a stack
  * 4      S.push(v)
  * 5      while S is not empty
- * 6            t <- S.pop()
+ * 6            t <- S.peek()
  * 7            if t is what we're looking for:
  * 8                return t
  * 9            for all edges e in G.adjacentEdges(t) do
