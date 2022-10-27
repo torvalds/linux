@@ -297,6 +297,22 @@ config CRYPTO_SM4_ARM64_CE_CCM
 	  - ARMv8 Crypto Extensions
 	  - NEON (Advanced SIMD) extensions
 
+config CRYPTO_SM4_ARM64_CE_GCM
+	tristate "AEAD cipher: SM4 in GCM mode (ARMv8 Crypto Extensions)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_ALGAPI
+	select CRYPTO_AEAD
+	select CRYPTO_SM4
+	select CRYPTO_SM4_ARM64_CE_BLK
+	help
+	  AEAD cipher: SM4 cipher algorithms (OSCCA GB/T 32907-2016) with
+	  GCM (Galois/Counter Mode) authenticated encryption mode (NIST SP800-38D)
+
+	  Architecture: arm64 using:
+	  - ARMv8 Crypto Extensions
+	  - PMULL (Polynomial Multiply Long) instructions
+	  - NEON (Advanced SIMD) extensions
+
 config CRYPTO_CRCT10DIF_ARM64_CE
 	tristate "CRCT10DIF (PMULL)"
 	depends on KERNEL_MODE_NEON && CRC_T10DIF
