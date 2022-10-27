@@ -11,6 +11,8 @@
 
 #include "../libwx/wx_type.h"
 #include "../libwx/wx_hw.h"
+#include "txgbe_type.h"
+#include "txgbe_hw.h"
 #include "txgbe.h"
 
 char txgbe_driver_name[] = "txgbe";
@@ -91,6 +93,19 @@ static int txgbe_sw_init(struct txgbe_adapter *adapter)
 			  "read of internal subsystem device id failed\n");
 		return err;
 	}
+
+	switch (wxhw->device_id) {
+	case TXGBE_DEV_ID_SP1000:
+	case TXGBE_DEV_ID_WX1820:
+		wxhw->mac.type = wx_mac_sp;
+		break;
+	default:
+		wxhw->mac.type = wx_mac_unknown;
+		break;
+	}
+
+	wxhw->mac.max_tx_queues = TXGBE_SP_MAX_TX_QUEUES;
+	wxhw->mac.max_rx_queues = TXGBE_SP_MAX_RX_QUEUES;
 
 	return 0;
 }
@@ -200,6 +215,12 @@ static int txgbe_probe(struct pci_dev *pdev,
 	err = wx_check_flash_load(wxhw, TXGBE_SPI_ILDR_STATUS_PWRRST);
 	if (err)
 		goto err_pci_release_regions;
+
+	err = txgbe_reset_hw(hw);
+	if (err) {
+		dev_err(&pdev->dev, "HW Init failed: %d\n", err);
+		goto err_pci_release_regions;
+	}
 
 	netdev->features |= NETIF_F_HIGHDMA;
 
