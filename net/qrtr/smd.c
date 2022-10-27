@@ -26,7 +26,7 @@ static int qcom_smd_qrtr_callback(struct rpmsg_device *rpdev,
 	int rc;
 
 	if (!qdev) {
-		pr_err("%s: Not ready\n", __func__);
+		pr_err_ratelimited("%s: Not ready\n", __func__);
 		return -EAGAIN;
 	}
 
