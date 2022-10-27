@@ -2639,7 +2639,8 @@ static int nvme_pci_enable(struct nvme_dev *dev)
 
 	pci_enable_pcie_error_reporting(pdev);
 	pci_save_state(pdev);
-	return 0;
+
+	return nvme_pci_configure_admin_queue(dev);
 
  disable:
 	pci_disable_device(pdev);
@@ -2826,10 +2827,6 @@ static void nvme_reset_work(struct work_struct *work)
 
 	mutex_lock(&dev->shutdown_lock);
 	result = nvme_pci_enable(dev);
-	if (result)
-		goto out_unlock;
-
-	result = nvme_pci_configure_admin_queue(dev);
 	if (result)
 		goto out_unlock;
 
