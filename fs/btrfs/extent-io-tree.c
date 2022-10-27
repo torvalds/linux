@@ -461,7 +461,7 @@ static int split_state(struct extent_io_tree *tree, struct extent_state *orig,
 	struct rb_node **node;
 
 	if (tree->inode)
-		btrfs_split_delalloc_extent(&tree->inode->vfs_inode, orig, split);
+		btrfs_split_delalloc_extent(tree->inode, orig, split);
 
 	prealloc->start = orig->start;
 	prealloc->end = split - 1;

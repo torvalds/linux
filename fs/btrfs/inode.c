@@ -2277,10 +2277,10 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page
 	return ret;
 }
 
-void btrfs_split_delalloc_extent(struct inode *inode,
+void btrfs_split_delalloc_extent(struct btrfs_inode *inode,
 				 struct extent_state *orig, u64 split)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	u64 size;
 
 	/* not delalloc, ignore it */
@@ -2304,9 +2304,9 @@ void btrfs_split_delalloc_extent(struct inode *inode,
 			return;
 	}
 
-	spin_lock(&BTRFS_I(inode)->lock);
-	btrfs_mod_outstanding_extents(BTRFS_I(inode), 1);
-	spin_unlock(&BTRFS_I(inode)->lock);
+	spin_lock(&inode->lock);
+	btrfs_mod_outstanding_extents(inode, 1);
+	spin_unlock(&inode->lock);
 }
 
 /*
