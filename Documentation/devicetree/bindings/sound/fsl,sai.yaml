@@ -26,6 +26,7 @@ properties:
           - fsl,imx8mq-sai
           - fsl,imx8qm-sai
           - fsl,imx8ulp-sai
+          - fsl,imx93-sai
       - items:
           - enum:
               - fsl,imx8mm-sai
