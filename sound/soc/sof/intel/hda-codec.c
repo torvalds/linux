@@ -16,13 +16,12 @@
 #include <sound/sof.h>
 #include "../ops.h"
 #include "hda.h"
+
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 #include "../../codecs/hdac_hda.h"
-#endif /* CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC */
 
 #define CODEC_PROBE_RETRIES	3
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 #define IDISP_VID_INTEL	0x80860000
 
 /* load the legacy HDA codec driver */
@@ -80,6 +79,7 @@ void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev, bool enable)
 
 	snd_hdac_chip_updatew(bus, WAKEEN, STATESTS_INT_MASK, mask);
 }
+EXPORT_SYMBOL_NS(hda_codec_jack_wake_enable, SND_SOC_SOF_HDA_AUDIO_CODEC);
 
 /* check jack status after resuming from suspend mode */
 void hda_codec_jack_check(struct snd_sof_dev *sdev)
@@ -95,11 +95,6 @@ void hda_codec_jack_check(struct snd_sof_dev *sdev)
 		if (codec->jacktbl.used)
 			pm_request_resume(&codec->core.dev);
 }
-#else
-void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev, bool enable) {}
-void hda_codec_jack_check(struct snd_sof_dev *sdev) {}
-#endif /* CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC */
-EXPORT_SYMBOL_NS(hda_codec_jack_wake_enable, SND_SOC_SOF_HDA_AUDIO_CODEC);
 EXPORT_SYMBOL_NS(hda_codec_jack_check, SND_SOC_SOF_HDA_AUDIO_CODEC);
 
 #if IS_ENABLED(CONFIG_SND_HDA_GENERIC)
@@ -141,10 +136,7 @@ static struct hda_codec *hda_codec_device_init(struct hdac_bus *bus, int addr, i
 /* probe individual codec */
 static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 {
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 	struct hdac_hda_priv *hda_priv;
-	int type = HDA_DEV_LEGACY;
-#endif
 	struct hda_bus *hbus = sof_to_hbus(sdev);
 	struct hda_codec *codec;
 	u32 hda_cmd = (address << 28) | (AC_NODE_ROOT << 20) |
@@ -164,12 +156,11 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 	dev_dbg(sdev->dev, "HDA codec #%d probed OK: response: %x\n",
 		address, resp);
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 	hda_priv = devm_kzalloc(sdev->dev, sizeof(*hda_priv), GFP_KERNEL);
 	if (!hda_priv)
 		return -ENOMEM;
 
-	codec = hda_codec_device_init(&hbus->core, address, type);
+	codec = hda_codec_device_init(&hbus->core, address, HDA_DEV_LEGACY);
 	ret = PTR_ERR_OR_ZERO(codec);
 	if (ret < 0)
 		return ret;
@@ -192,25 +183,19 @@ static int hda_codec_probe(struct snd_sof_dev *sdev, int address)
 	else
 		codec->probe_id = 0;
 
-	if (type == HDA_DEV_LEGACY) {
-		ret = hda_codec_load_module(codec);
-		/*
-		 * handle ret==0 (no driver bound) as an error, but pass
-		 * other return codes without modification
-		 */
-		if (ret == 0)
-			ret = -ENOENT;
-	}
+	ret = hda_codec_load_module(codec);
+	/*
+	 * handle ret==0 (no driver bound) as an error, but pass
+	 * other return codes without modification
+	 */
+	if (ret == 0)
+		ret = -ENOENT;
 
 out:
 	if (ret < 0) {
 		snd_hdac_device_unregister(&codec->core);
 		put_device(&codec->core.dev);
 	}
-#else
-	codec = hda_codec_device_init(&hbus->core, address, HDA_DEV_ASOC);
-	ret = PTR_ERR_OR_ZERO(codec);
-#endif
 
 	return ret;
 }
@@ -236,6 +221,8 @@ void hda_codec_probe_bus(struct snd_sof_dev *sdev)
 	}
 }
 EXPORT_SYMBOL_NS(hda_codec_probe_bus, SND_SOC_SOF_HDA_AUDIO_CODEC);
+
+#endif /* CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC */
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC) && IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI)
 
