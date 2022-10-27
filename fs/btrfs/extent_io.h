@@ -268,7 +268,7 @@ struct io_failure_record {
 	int num_copies;
 };
 
-int btrfs_repair_one_sector(struct inode *inode, struct btrfs_bio *failed_bbio,
+int btrfs_repair_one_sector(struct btrfs_inode *inode, struct btrfs_bio *failed_bbio,
 			    u32 bio_offset, struct page *page, unsigned int pgoff,
 			    bool submit_buffered);
 void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start, u64 end);

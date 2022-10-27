@@ -795,13 +795,13 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 	return failrec;
 }
 
-int btrfs_repair_one_sector(struct inode *inode, struct btrfs_bio *failed_bbio,
+int btrfs_repair_one_sector(struct btrfs_inode *inode, struct btrfs_bio *failed_bbio,
 			    u32 bio_offset, struct page *page, unsigned int pgoff,
 			    bool submit_buffered)
 {
 	u64 start = failed_bbio->file_offset + bio_offset;
 	struct io_failure_record *failrec;
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct bio *failed_bio = &failed_bbio->bio;
 	const int icsum = bio_offset >> fs_info->sectorsize_bits;
 	struct bio *repair_bio;
@@ -812,7 +812,7 @@ int btrfs_repair_one_sector(struct inode *inode, struct btrfs_bio *failed_bbio,
 
 	BUG_ON(bio_op(failed_bio) == REQ_OP_WRITE);
 
-	failrec = btrfs_get_io_failure_record(inode, failed_bbio, bio_offset);
+	failrec = btrfs_get_io_failure_record(&inode->vfs_inode, failed_bbio, bio_offset);
 	if (IS_ERR(failrec))
 		return PTR_ERR(failrec);
 
@@ -830,7 +830,7 @@ int btrfs_repair_one_sector(struct inode *inode, struct btrfs_bio *failed_bbio,
 		btrfs_debug(fs_info,
 			"failed to repair num_copies %d this_mirror %d failed_mirror %d",
 			failrec->num_copies, failrec->this_mirror, failrec->failed_mirror);
-		free_io_failure(BTRFS_I(inode), failrec);
+		free_io_failure(inode, failrec);
 		return -EIO;
 	}
 
@@ -851,7 +851,7 @@ int btrfs_repair_one_sector(struct inode *inode, struct btrfs_bio *failed_bbio,
 	bio_add_page(repair_bio, page, failrec->len, pgoff);
 	repair_bbio->iter = repair_bio->bi_iter;
 
-	btrfs_debug(btrfs_sb(inode->i_sb),
+	btrfs_debug(fs_info,
 		    "repair read error: submitting new read to mirror %d",
 		    failrec->this_mirror);
 
@@ -861,11 +861,10 @@ int btrfs_repair_one_sector(struct inode *inode, struct btrfs_bio *failed_bbio,
 	 * error here.
 	 */
 	if (submit_buffered)
-		btrfs_submit_data_read_bio(BTRFS_I(inode), repair_bio,
+		btrfs_submit_data_read_bio(inode, repair_bio,
 					   failrec->this_mirror, 0);
 	else
-		btrfs_submit_dio_repair_bio(BTRFS_I(inode), repair_bio,
-					    failrec->this_mirror);
+		btrfs_submit_dio_repair_bio(inode, repair_bio, failrec->this_mirror);
 
 	return BLK_STS_OK;
 }
@@ -955,7 +954,7 @@ static void submit_data_read_repair(struct inode *inode,
 			goto next;
 		}
 
-		ret = btrfs_repair_one_sector(inode, failed_bbio,
+		ret = btrfs_repair_one_sector(BTRFS_I(inode), failed_bbio,
 				bio_offset + offset, page, pgoff + offset,
 				true);
 		if (!ret) {
