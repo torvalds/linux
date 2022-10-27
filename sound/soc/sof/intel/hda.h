@@ -718,6 +718,9 @@ void hda_codec_probe_bus(struct snd_sof_dev *sdev);
 void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev, bool enable);
 void hda_codec_jack_check(struct snd_sof_dev *sdev);
 void hda_codec_check_for_state_change(struct snd_sof_dev *sdev);
+void hda_codec_init_cmd_io(struct snd_sof_dev *sdev);
+void hda_codec_detect_mask(struct snd_sof_dev *sdev);
+void hda_codec_rirb_status_clear(struct snd_sof_dev *sdev);
 
 #else
 
@@ -725,6 +728,9 @@ static inline void hda_codec_probe_bus(struct snd_sof_dev *sdev) { }
 static inline void hda_codec_jack_wake_enable(struct snd_sof_dev *sdev, bool enable) { }
 static inline void hda_codec_jack_check(struct snd_sof_dev *sdev) { }
 static inline void hda_codec_check_for_state_change(struct snd_sof_dev *sdev) { }
+static inline void hda_codec_init_cmd_io(struct snd_sof_dev *sdev) { }
+static inline void hda_codec_detect_mask(struct snd_sof_dev *sdev) { }
+static inline void hda_codec_rirb_status_clear(struct snd_sof_dev *sdev) { }
 
 #endif /* CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC */
 

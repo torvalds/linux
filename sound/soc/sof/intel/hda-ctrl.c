@@ -22,12 +22,6 @@
 #include "../ops.h"
 #include "hda.h"
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-static int hda_codec_mask = -1;
-module_param_named(codec_mask, hda_codec_mask, int, 0444);
-MODULE_PARM_DESC(codec_mask, "SOF HDA codec mask for probing");
-#endif
-
 /*
  * HDA Operations.
  */
@@ -210,22 +204,7 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 		goto err;
 	}
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* Accept unsolicited responses */
-	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, AZX_GCTL_UNSOL);
-
-	/* detect codecs */
-	if (!bus->codec_mask) {
-		bus->codec_mask = snd_hdac_chip_readw(bus, STATESTS);
-		dev_dbg(bus->dev, "codec_mask = 0x%lx\n", bus->codec_mask);
-	}
-
-	if (hda_codec_mask != -1) {
-		bus->codec_mask &= hda_codec_mask;
-		dev_dbg(bus->dev, "filtered codec_mask = 0x%lx\n",
-			bus->codec_mask);
-	}
-#endif
+	hda_codec_detect_mask(sdev);
 
 	/* clear stream status */
 	list_for_each_entry(stream, &bus->stream_list, list) {
@@ -239,19 +218,13 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, SOF_HDA_WAKESTS,
 			  SOF_HDA_WAKESTS_INT_MASK);
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* clear rirb status */
-	snd_hdac_chip_writeb(bus, RIRBSTS, RIRB_INT_MASK);
-#endif
+	hda_codec_rirb_status_clear(sdev);
 
 	/* clear interrupt status register */
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTSTS,
 			  SOF_HDA_INT_CTRL_EN | SOF_HDA_INT_ALL_STREAM);
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* initialize the codec command I/O */
-	snd_hdac_bus_init_cmd_io(bus);
-#endif
+	hda_codec_init_cmd_io(sdev);
 
 	/* enable CIE and GIE interrupts */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
