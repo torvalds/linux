@@ -172,27 +172,27 @@ static void __cold btrfs_print_data_csum_error(struct btrfs_inode *inode,
  *		     return -EAGAIN
  * BTRFS_ILOCK_MMAP - acquire a write lock on the i_mmap_lock
  */
-int btrfs_inode_lock(struct inode *inode, unsigned int ilock_flags)
+int btrfs_inode_lock(struct btrfs_inode *inode, unsigned int ilock_flags)
 {
 	if (ilock_flags & BTRFS_ILOCK_SHARED) {
 		if (ilock_flags & BTRFS_ILOCK_TRY) {
-			if (!inode_trylock_shared(inode))
+			if (!inode_trylock_shared(&inode->vfs_inode))
 				return -EAGAIN;
 			else
 				return 0;
 		}
-		inode_lock_shared(inode);
+		inode_lock_shared(&inode->vfs_inode);
 	} else {
 		if (ilock_flags & BTRFS_ILOCK_TRY) {
-			if (!inode_trylock(inode))
+			if (!inode_trylock(&inode->vfs_inode))
 				return -EAGAIN;
 			else
 				return 0;
 		}
-		inode_lock(inode);
+		inode_lock(&inode->vfs_inode);
 	}
 	if (ilock_flags & BTRFS_ILOCK_MMAP)
-		down_write(&BTRFS_I(inode)->i_mmap_lock);
+		down_write(&inode->i_mmap_lock);
 	return 0;
 }
 
@@ -10529,7 +10529,7 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 
 	file_accessed(iocb->ki_filp);
 
-	btrfs_inode_lock(&inode->vfs_inode, BTRFS_ILOCK_SHARED);
+	btrfs_inode_lock(inode, BTRFS_ILOCK_SHARED);
 
 	if (iocb->ki_pos >= inode->vfs_inode.i_size) {
 		btrfs_inode_unlock(&inode->vfs_inode, BTRFS_ILOCK_SHARED);

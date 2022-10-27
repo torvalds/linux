@@ -545,7 +545,7 @@ enum btrfs_ilock_type {
 	ENUM_BIT(BTRFS_ILOCK_MMAP),
 };
 
-int btrfs_inode_lock(struct inode *inode, unsigned int ilock_flags);
+int btrfs_inode_lock(struct btrfs_inode *inode, unsigned int ilock_flags);
 void btrfs_inode_unlock(struct inode *inode, unsigned int ilock_flags);
 void btrfs_update_inode_bytes(struct btrfs_inode *inode, const u64 add_bytes,
 			      const u64 del_bytes);

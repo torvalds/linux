@@ -1647,7 +1647,7 @@ bool btrfs_readdir_get_delayed_items(struct inode *inode,
 	 * item->readdir_list.
 	 */
 	btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
-	btrfs_inode_lock(inode, 0);
+	btrfs_inode_lock(BTRFS_I(inode), 0);
 
 	mutex_lock(&delayed_node->mutex);
 	item = __btrfs_first_delayed_insertion_item(delayed_node);

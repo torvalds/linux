@@ -1295,7 +1295,7 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 			       (SZ_256K >> PAGE_SHIFT)) << PAGE_SHIFT) - 1;
 		cluster_end = min(cluster_end, last_byte);
 
-		btrfs_inode_lock(inode, 0);
+		btrfs_inode_lock(BTRFS_I(inode), 0);
 		if (IS_SWAPFILE(inode)) {
 			ret = -ETXTBSY;
 			btrfs_inode_unlock(inode, 0);
@@ -1351,7 +1351,7 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 		ret = sectors_defragged;
 	}
 	if (do_compress) {
-		btrfs_inode_lock(inode, 0);
+		btrfs_inode_lock(BTRFS_I(inode), 0);
 		BTRFS_I(inode)->defrag_compress = BTRFS_COMPRESS_NONE;
 		btrfs_inode_unlock(inode, 0);
 	}
