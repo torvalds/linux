@@ -109,10 +109,10 @@ struct extent_page_data {
 	/* tells writepage not to lock the state bits for this range
 	 * it still does the unlocking
 	 */
-	unsigned int extent_locked:1;
+	bool extent_locked;
 
 	/* tells the submit_bio code to use REQ_SYNC */
-	unsigned int sync_io:1;
+	bool sync_io;
 };
 
 static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
