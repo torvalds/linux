@@ -1614,7 +1614,7 @@ out:
 
 static u32 hv_compose_msi_req_v1(
 	struct pci_create_interrupt *int_pkt, const struct cpumask *affinity,
-	u32 slot, u8 vector, u8 vector_count)
+	u32 slot, u8 vector, u16 vector_count)
 {
 	int_pkt->message_type.type = PCI_CREATE_INTERRUPT_MESSAGE;
 	int_pkt->wslot.slot = slot;
@@ -1642,7 +1642,7 @@ static int hv_compose_msi_req_get_cpu(const struct cpumask *affinity)
 
 static u32 hv_compose_msi_req_v2(
 	struct pci_create_interrupt2 *int_pkt, const struct cpumask *affinity,
-	u32 slot, u8 vector, u8 vector_count)
+	u32 slot, u8 vector, u16 vector_count)
 {
 	int cpu;
 
@@ -1661,7 +1661,7 @@ static u32 hv_compose_msi_req_v2(
 
 static u32 hv_compose_msi_req_v3(
 	struct pci_create_interrupt3 *int_pkt, const struct cpumask *affinity,
-	u32 slot, u32 vector, u8 vector_count)
+	u32 slot, u32 vector, u16 vector_count)
 {
 	int cpu;
 
@@ -1701,7 +1701,12 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	struct compose_comp_ctxt comp;
 	struct tran_int_desc *int_desc;
 	struct msi_desc *msi_desc;
-	u8 vector, vector_count;
+	/*
+	 * vector_count should be u16: see hv_msi_desc, hv_msi_desc2
+	 * and hv_msi_desc3. vector must be u32: see hv_msi_desc3.
+	 */
+	u16 vector_count;
+	u32 vector;
 	struct {
 		struct pci_packet pci_pkt;
 		union {
@@ -1767,6 +1772,11 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		vector_count = 1;
 	}
 
+	/*
+	 * hv_compose_msi_req_v1 and v2 are for x86 only, meaning 'vector'
+	 * can't exceed u8. Cast 'vector' down to u8 for v1/v2 explicitly
+	 * for better readability.
+	 */
 	memset(&ctxt, 0, sizeof(ctxt));
 	init_completion(&comp.comp_pkt.host_event);
 	ctxt.pci_pkt.completion_func = hv_pci_compose_compl;
@@ -1777,7 +1787,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		size = hv_compose_msi_req_v1(&ctxt.int_pkts.v1,
 					dest,
 					hpdev->desc.win_slot.slot,
-					vector,
+					(u8)vector,
 					vector_count);
 		break;
 
@@ -1786,7 +1796,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		size = hv_compose_msi_req_v2(&ctxt.int_pkts.v2,
 					dest,
 					hpdev->desc.win_slot.slot,
-					vector,
+					(u8)vector,
 					vector_count);
 		break;
 
