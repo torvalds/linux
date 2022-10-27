@@ -16,6 +16,34 @@
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 
+#define SKIP(cond, reason)		do {			\
+	if (cond) {						\
+		kunit_skip(test, reason);			\
+		return;						\
+	}							\
+} while (0)
+
+/*
+ * Clang 11 and earlier generate unwanted libcalls for signed output
+ * on unsigned input.
+ */
+#if defined(CONFIG_CC_IS_CLANG) && __clang_major__ <= 11
+# define SKIP_SIGN_MISMATCH(t)	SKIP(t, "Clang 11 unwanted libcalls")
+#else
+# define SKIP_SIGN_MISMATCH(t)	do { } while (0)
+#endif
+
+/*
+ * Clang 13 and earlier generate unwanted libcalls for 64-bit tests on
+ * 32-bit hosts.
+ */
+#if defined(CONFIG_CC_IS_CLANG) && __clang_major__ <= 13 &&	\
+    BITS_PER_LONG != 64
+# define SKIP_64_ON_32(t)	SKIP(t, "Clang 13 unwanted libcalls")
+#else
+# define SKIP_64_ON_32(t)	do { } while (0)
+#endif
+
 #define DEFINE_TEST_ARRAY_TYPED(t1, t2, t)			\
 	static const struct test_ ## t1 ## _ ## t2 ## __ ## t {	\
 		t1 a;						\
@@ -94,7 +122,6 @@ DEFINE_TEST_ARRAY(u32) = {
 	{-4U, 5U, 1U, -9U, -20U, true, false, true},
 };
 
-#if BITS_PER_LONG == 64
 DEFINE_TEST_ARRAY(u64) = {
 	{0, 0, 0, 0, 0, false, false, false},
 	{1, 1, 2, 0, 1, false, false, false},
@@ -118,7 +145,6 @@ DEFINE_TEST_ARRAY(u64) = {
 	 false, true, false},
 	{-15ULL, 10ULL, -5ULL, -25ULL, -150ULL, false, false, true},
 };
-#endif
 
 DEFINE_TEST_ARRAY(s8) = {
 	{0, 0, 0, 0, 0, false, false, false},
@@ -194,7 +220,6 @@ DEFINE_TEST_ARRAY(s32) = {
 	{S32_MAX, S32_MAX, -2, 0, 1, true, false, true},
 };
 
-#if BITS_PER_LONG == 64
 DEFINE_TEST_ARRAY(s64) = {
 	{0, 0, 0, 0, 0, false, false, false},
 
@@ -223,7 +248,6 @@ DEFINE_TEST_ARRAY(s64) = {
 	{-128, -1, -129, -127, 128, false, false, false},
 	{0, -S64_MAX, -S64_MAX, S64_MAX, 0, false, false, false},
 };
-#endif
 
 #define check_one_op(t, fmt, op, sym, a, b, r, of) do {			\
 	int _a_orig = a, _a_bump = a + 1;				\
@@ -246,7 +270,7 @@ DEFINE_TEST_ARRAY(s64) = {
 
 #define DEFINE_TEST_FUNC_TYPED(n, t, fmt)				\
 static void do_test_ ## n(struct kunit *test, const struct test_ ## n *p) \
-{							   		\
+{									\
 	check_one_op(t, fmt, add, "+", p->a, p->b, p->sum, p->s_of);	\
 	check_one_op(t, fmt, add, "+", p->b, p->a, p->sum, p->s_of);	\
 	check_one_op(t, fmt, sub, "-", p->a, p->b, p->diff, p->d_of);	\
@@ -256,6 +280,12 @@ static void do_test_ ## n(struct kunit *test, const struct test_ ## n *p) \
 									\
 static void n ## _overflow_test(struct kunit *test) {			\
 	unsigned i;							\
+									\
+	SKIP_64_ON_32(__same_type(t, u64));				\
+	SKIP_64_ON_32(__same_type(t, s64));				\
+	SKIP_SIGN_MISMATCH(__same_type(n ## _tests[0].a, u32) &&	\
+			   __same_type(n ## _tests[0].b, u32) &&	\
+			   __same_type(n ## _tests[0].sum, int));	\
 									\
 	for (i = 0; i < ARRAY_SIZE(n ## _tests); ++i)			\
 		do_test_ ## n(test, &n ## _tests[i]);			\
@@ -272,10 +302,8 @@ DEFINE_TEST_FUNC(u16, "%d");
 DEFINE_TEST_FUNC(s16, "%d");
 DEFINE_TEST_FUNC(u32, "%u");
 DEFINE_TEST_FUNC(s32, "%d");
-#if BITS_PER_LONG == 64
 DEFINE_TEST_FUNC(u64, "%llu");
 DEFINE_TEST_FUNC(s64, "%lld");
-#endif
 
 DEFINE_TEST_ARRAY_TYPED(u32, u32, u8) = {
 	{0, 0, 0, 0, 0, false, false, false},
@@ -715,13 +743,10 @@ static struct kunit_case overflow_test_cases[] = {
 	KUNIT_CASE(s16_s16__s16_overflow_test),
 	KUNIT_CASE(u32_u32__u32_overflow_test),
 	KUNIT_CASE(s32_s32__s32_overflow_test),
-/* Clang 13 and earlier generate unwanted libcalls on 32-bit. */
-#if BITS_PER_LONG == 64
 	KUNIT_CASE(u64_u64__u64_overflow_test),
 	KUNIT_CASE(s64_s64__s64_overflow_test),
-#endif
-	KUNIT_CASE(u32_u32__u8_overflow_test),
 	KUNIT_CASE(u32_u32__int_overflow_test),
+	KUNIT_CASE(u32_u32__u8_overflow_test),
 	KUNIT_CASE(u8_u8__int_overflow_test),
 	KUNIT_CASE(int_int__u8_overflow_test),
 	KUNIT_CASE(shift_sane_test),
