@@ -5057,16 +5057,15 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 	    ex->pending && ex->has_payload)
 		kvm_deliver_exception_payload(vcpu, ex);
 
+	memset(events, 0, sizeof(*events));
+
 	/*
 	 * The API doesn't provide the instruction length for software
 	 * exceptions, so don't report them. As long as the guest RIP
 	 * isn't advanced, we should expect to encounter the exception
 	 * again.
 	 */
-	if (kvm_exception_is_soft(ex->vector)) {
-		events->exception.injected = 0;
-		events->exception.pending = 0;
-	} else {
+	if (!kvm_exception_is_soft(ex->vector)) {
 		events->exception.injected = ex->injected;
 		events->exception.pending = ex->pending;
 		/*
@@ -5086,15 +5085,13 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 	events->interrupt.injected =
 		vcpu->arch.interrupt.injected && !vcpu->arch.interrupt.soft;
 	events->interrupt.nr = vcpu->arch.interrupt.nr;
-	events->interrupt.soft = 0;
 	events->interrupt.shadow = static_call(kvm_x86_get_interrupt_shadow)(vcpu);
 
 	events->nmi.injected = vcpu->arch.nmi_injected;
 	events->nmi.pending = vcpu->arch.nmi_pending != 0;
 	events->nmi.masked = static_call(kvm_x86_get_nmi_mask)(vcpu);
-	events->nmi.pad = 0;
 
-	events->sipi_vector = 0; /* never valid when reporting to user space */
+	/* events->sipi_vector is never valid when reporting to user space */
 
 	events->smi.smm = is_smm(vcpu);
 	events->smi.pending = vcpu->arch.smi_pending;
@@ -5111,8 +5108,6 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 		events->triple_fault.pending = kvm_test_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 		events->flags |= KVM_VCPUEVENT_VALID_TRIPLE_FAULT;
 	}
-
-	memset(&events->reserved, 0, sizeof(events->reserved));
 }
 
 static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
