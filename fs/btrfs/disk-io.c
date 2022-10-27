@@ -766,9 +766,9 @@ static bool should_async_write(struct btrfs_fs_info *fs_info,
 	return true;
 }
 
-void btrfs_submit_metadata_bio(struct inode *inode, struct bio *bio, int mirror_num)
+void btrfs_submit_metadata_bio(struct btrfs_inode *inode, struct bio *bio, int mirror_num)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_bio *bbio = btrfs_bio(bio);
 	blk_status_t ret;
 
@@ -783,8 +783,8 @@ void btrfs_submit_metadata_bio(struct inode *inode, struct bio *bio, int mirror_
 	 * Kthread helpers are used to submit writes so that checksumming can
 	 * happen in parallel across all CPUs.
 	 */
-	if (should_async_write(fs_info, BTRFS_I(inode)) &&
-	    btrfs_wq_submit_bio(BTRFS_I(inode), bio, mirror_num, 0, WQ_SUBMIT_METADATA))
+	if (should_async_write(fs_info, inode) &&
+	    btrfs_wq_submit_bio(inode, bio, mirror_num, 0, WQ_SUBMIT_METADATA))
 		return;
 
 	ret = btree_csum_one_bio(bio);
