@@ -82,7 +82,7 @@ struct aspeed_tacho_channel_params {
 struct aspeed_tach_data {
 	struct device *dev;
 	struct regmap *regmap;
-	unsigned long clk_freq;
+	struct clk *clk;
 	struct reset_control *reset;
 	bool tach_present[16];
 	struct aspeed_tacho_channel_params *tacho_channel;
@@ -146,7 +146,8 @@ static void aspeed_set_fan_tach_ch_enable(struct aspeed_tach_data *priv,
 static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
 				      u8 fan_tach_ch)
 {
-	u32 raw_data, tach_div, clk_source, usec, val;
+	u32 raw_data, tach_div, usec, val;
+	unsigned long clk_source;
 	u64 rpm;
 	int ret;
 
@@ -180,10 +181,9 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
 	tach_div = raw_data * (priv->tacho_channel[fan_tach_ch].divide) *
 		   (priv->tacho_channel[fan_tach_ch].pulse_pr);
 
-	dev_dbg(priv->dev, "clk %ld, raw_data %d , tach_div %d\n",
-		priv->clk_freq, raw_data, tach_div);
-
-	clk_source = priv->clk_freq;
+	clk_source = clk_get_rate(priv->clk);
+	dev_dbg(priv->dev, "clk %ld, raw_data %d , tach_div %d\n", clk_source,
+		raw_data, tach_div);
 
 	if (tach_div == 0)
 		return -EDOM;
@@ -312,10 +312,14 @@ static int aspeed_tach_probe(struct platform_device *pdev)
 	struct device_node *np, *child;
 	struct aspeed_tach_data *priv;
 	struct device *hwmon;
-	struct clk *clk;
+	struct platform_device *parent_dev;
 	int ret;
 
 	np = dev->parent->of_node;
+	if (!of_device_is_compatible(np, "aspeed,ast2600-pwm-tach"))
+		return dev_err_probe(dev, -ENODEV,
+				     "Unsupported tach device binding\n");
+
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
@@ -328,34 +332,49 @@ static int aspeed_tach_probe(struct platform_device *pdev)
 		dev_err(priv->dev, "Couldn't get regmap\n");
 		return -ENODEV;
 	}
+	parent_dev = of_find_device_by_node(np);
+	priv->clk = devm_clk_get(&parent_dev->dev, 0);
+	if (IS_ERR(priv->clk))
+		return dev_err_probe(dev, PTR_ERR(priv->clk),
+				     "Couldn't get clock\n");
 
-	clk = of_clk_get(np, 0);
-	if (IS_ERR(clk))
-		return -ENODEV;
-	priv->clk_freq = clk_get_rate(clk);
+	priv->reset = devm_reset_control_get_shared(&parent_dev->dev, NULL);
+	if (IS_ERR(priv->reset))
+		return dev_err_probe(dev, PTR_ERR(priv->reset),
+				     "Couldn't get reset control\n");
 
-	priv->reset = of_reset_control_get_shared(np, NULL);
-	if (IS_ERR(priv->reset)) {
-		dev_err(priv->dev, "can't get aspeed_pwm_tacho reset\n");
-		return PTR_ERR(priv->reset);
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		return dev_err_probe(dev, ret, "Couldn't enable clock\n");
+
+	ret = reset_control_deassert(priv->reset);
+	if (ret) {
+		dev_err_probe(dev, ret, "Couldn't deassert reset control\n");
+		goto err_disable_clk;
 	}
-
-	reset_control_deassert(priv->reset);
 	for_each_child_of_node(dev->of_node, child) {
 		ret = aspeed_tach_create_fan(dev, child, priv);
 		if (ret) {
 			of_node_put(child);
-			return ret;
+			goto err_assert_reset;
 		}
 	}
 
 	priv->groups[0] = &fan_dev_group;
 	priv->groups[1] = NULL;
-	dev_info(priv->dev, "tach probe done\n");
 	hwmon = devm_hwmon_device_register_with_groups(dev, "aspeed_tach", priv,
 						       priv->groups);
-
-	return PTR_ERR_OR_ZERO(hwmon);
+	ret = PTR_ERR_OR_ZERO(hwmon);
+	if (ret) {
+		dev_err_probe(dev, ret, "Failed to register hwmon device\n");
+		goto err_assert_reset;
+	}
+	return 0;
+err_assert_reset:
+	reset_control_assert(priv->reset);
+err_disable_clk:
+	clk_disable_unprepare(priv->clk);
+	return ret;
 }
 
 static const struct of_device_id of_stach_match_table[] = {
