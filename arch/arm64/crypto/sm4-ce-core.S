@@ -307,6 +307,100 @@ SYM_FUNC_START(sm4_ce_cbc_dec)
 SYM_FUNC_END(sm4_ce_cbc_dec)
 
 .align 3
+SYM_FUNC_START(sm4_ce_cbc_cts_enc)
+	/* input:
+	 *   x0: round key array, CTX
+	 *   x1: dst
+	 *   x2: src
+	 *   x3: iv (big endian, 128 bit)
+	 *   w4: nbytes
+	 */
+	SM4_PREPARE(x0)
+
+	sub		w5, w4, #16
+	uxtw		x5, w5
+
+	ld1		{RIV.16b}, [x3]
+
+	ld1		{v0.16b}, [x2]
+	eor		RIV.16b, RIV.16b, v0.16b
+	SM4_CRYPT_BLK(RIV)
+
+	/* load permute table */
+	adr_l		x6, .Lcts_permute_table
+	add		x7, x6, #32
+	add		x6, x6, x5
+	sub		x7, x7, x5
+	ld1		{v3.16b}, [x6]
+	ld1		{v4.16b}, [x7]
+
+	/* overlapping loads */
+	add		x2, x2, x5
+	ld1		{v1.16b}, [x2]
+
+	/* create Cn from En-1 */
+	tbl		v0.16b, {RIV.16b}, v3.16b
+	/* padding Pn with zeros */
+	tbl		v1.16b, {v1.16b}, v4.16b
+
+	eor		v1.16b, v1.16b, RIV.16b
+	SM4_CRYPT_BLK(v1)
+
+	/* overlapping stores */
+	add		x5, x1, x5
+	st1		{v0.16b}, [x5]
+	st1		{v1.16b}, [x1]
+
+	ret
+SYM_FUNC_END(sm4_ce_cbc_cts_enc)
+
+.align 3
+SYM_FUNC_START(sm4_ce_cbc_cts_dec)
+	/* input:
+	 *   x0: round key array, CTX
+	 *   x1: dst
+	 *   x2: src
+	 *   x3: iv (big endian, 128 bit)
+	 *   w4: nbytes
+	 */
+	SM4_PREPARE(x0)
+
+	sub		w5, w4, #16
+	uxtw		x5, w5
+
+	ld1		{RIV.16b}, [x3]
+
+	/* load permute table */
+	adr_l		x6, .Lcts_permute_table
+	add		x7, x6, #32
+	add		x6, x6, x5
+	sub		x7, x7, x5
+	ld1		{v3.16b}, [x6]
+	ld1		{v4.16b}, [x7]
+
+	/* overlapping loads */
+	ld1		{v0.16b}, [x2], x5
+	ld1		{v1.16b}, [x2]
+
+	SM4_CRYPT_BLK(v0)
+	/* select the first Ln bytes of Xn to create Pn */
+	tbl		v2.16b, {v0.16b}, v3.16b
+	eor		v2.16b, v2.16b, v1.16b
+
+	/* overwrite the first Ln bytes with Cn to create En-1 */
+	tbx		v0.16b, {v1.16b}, v4.16b
+	SM4_CRYPT_BLK(v0)
+	eor		v0.16b, v0.16b, RIV.16b
+
+	/* overlapping stores */
+	add		x5, x1, x5
+	st1		{v2.16b}, [x5]
+	st1		{v0.16b}, [x1]
+
+	ret
+SYM_FUNC_END(sm4_ce_cbc_cts_dec)
+
+.align 3
 SYM_FUNC_START(sm4_ce_cfb_enc)
 	/* input:
 	 *   x0: round key array, CTX
@@ -576,3 +670,11 @@ SYM_FUNC_END(sm4_ce_ctr_enc)
 .Lbswap128_mask:
 	.byte		0x0c, 0x0d, 0x0e, 0x0f, 0x08, 0x09, 0x0a, 0x0b
 	.byte		0x04, 0x05, 0x06, 0x07, 0x00, 0x01, 0x02, 0x03
+
+.Lcts_permute_table:
+	.byte		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	.byte		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	.byte		 0x0,  0x1,  0x2,  0x3,  0x4,  0x5,  0x6,  0x7
+	.byte		 0x8,  0x9,  0xa,  0xb,  0xc,  0xd,  0xe,  0xf
+	.byte		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	.byte		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff

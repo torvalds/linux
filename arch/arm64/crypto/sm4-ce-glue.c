@@ -16,6 +16,7 @@
 #include <asm/simd.h>
 #include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
+#include <crypto/scatterwalk.h>
 #include <crypto/sm4.h>
 
 #define BYTES2BLKS(nbytes)	((nbytes) >> 4)
@@ -29,6 +30,10 @@ asmlinkage void sm4_ce_cbc_enc(const u32 *rkey, u8 *dst, const u8 *src,
 			       u8 *iv, unsigned int nblocks);
 asmlinkage void sm4_ce_cbc_dec(const u32 *rkey, u8 *dst, const u8 *src,
 			       u8 *iv, unsigned int nblocks);
+asmlinkage void sm4_ce_cbc_cts_enc(const u32 *rkey, u8 *dst, const u8 *src,
+				   u8 *iv, unsigned int nbytes);
+asmlinkage void sm4_ce_cbc_cts_dec(const u32 *rkey, u8 *dst, const u8 *src,
+				   u8 *iv, unsigned int nbytes);
 asmlinkage void sm4_ce_cfb_enc(const u32 *rkey, u8 *dst, const u8 *src,
 			       u8 *iv, unsigned int nblks);
 asmlinkage void sm4_ce_cfb_dec(const u32 *rkey, u8 *dst, const u8 *src,
@@ -151,6 +156,78 @@ static int sm4_cbc_decrypt(struct skcipher_request *req)
 	struct sm4_ctx *ctx = crypto_skcipher_ctx(tfm);
 
 	return sm4_cbc_crypt(req, ctx, false);
+}
+
+static int sm4_cbc_cts_crypt(struct skcipher_request *req, bool encrypt)
+{
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct sm4_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct scatterlist *src = req->src;
+	struct scatterlist *dst = req->dst;
+	struct scatterlist sg_src[2], sg_dst[2];
+	struct skcipher_request subreq;
+	struct skcipher_walk walk;
+	int cbc_blocks;
+	int err;
+
+	if (req->cryptlen < SM4_BLOCK_SIZE)
+		return -EINVAL;
+
+	if (req->cryptlen == SM4_BLOCK_SIZE)
+		return sm4_cbc_crypt(req, ctx, encrypt);
+
+	skcipher_request_set_tfm(&subreq, tfm);
+	skcipher_request_set_callback(&subreq, skcipher_request_flags(req),
+				      NULL, NULL);
+
+	/* handle the CBC cryption part */
+	cbc_blocks = DIV_ROUND_UP(req->cryptlen, SM4_BLOCK_SIZE) - 2;
+	if (cbc_blocks) {
+		skcipher_request_set_crypt(&subreq, src, dst,
+					   cbc_blocks * SM4_BLOCK_SIZE,
+					   req->iv);
+
+		err = sm4_cbc_crypt(&subreq, ctx, encrypt);
+		if (err)
+			return err;
+
+		dst = src = scatterwalk_ffwd(sg_src, src, subreq.cryptlen);
+		if (req->dst != req->src)
+			dst = scatterwalk_ffwd(sg_dst, req->dst,
+					       subreq.cryptlen);
+	}
+
+	/* handle ciphertext stealing */
+	skcipher_request_set_crypt(&subreq, src, dst,
+				   req->cryptlen - cbc_blocks * SM4_BLOCK_SIZE,
+				   req->iv);
+
+	err = skcipher_walk_virt(&walk, &subreq, false);
+	if (err)
+		return err;
+
+	kernel_neon_begin();
+
+	if (encrypt)
+		sm4_ce_cbc_cts_enc(ctx->rkey_enc, walk.dst.virt.addr,
+				   walk.src.virt.addr, walk.iv, walk.nbytes);
+	else
+		sm4_ce_cbc_cts_dec(ctx->rkey_dec, walk.dst.virt.addr,
+				   walk.src.virt.addr, walk.iv, walk.nbytes);
+
+	kernel_neon_end();
+
+	return skcipher_walk_done(&walk, 0);
+}
+
+static int sm4_cbc_cts_encrypt(struct skcipher_request *req)
+{
+	return sm4_cbc_cts_crypt(req, true);
+}
+
+static int sm4_cbc_cts_decrypt(struct skcipher_request *req)
+{
+	return sm4_cbc_cts_crypt(req, false);
 }
 
 static int sm4_cfb_encrypt(struct skcipher_request *req)
@@ -342,6 +419,22 @@ static struct skcipher_alg sm4_algs[] = {
 		.setkey		= sm4_setkey,
 		.encrypt	= sm4_ctr_crypt,
 		.decrypt	= sm4_ctr_crypt,
+	}, {
+		.base = {
+			.cra_name		= "cts(cbc(sm4))",
+			.cra_driver_name	= "cts-cbc-sm4-ce",
+			.cra_priority		= 400,
+			.cra_blocksize		= SM4_BLOCK_SIZE,
+			.cra_ctxsize		= sizeof(struct sm4_ctx),
+			.cra_module		= THIS_MODULE,
+		},
+		.min_keysize	= SM4_KEY_SIZE,
+		.max_keysize	= SM4_KEY_SIZE,
+		.ivsize		= SM4_BLOCK_SIZE,
+		.walksize	= SM4_BLOCK_SIZE * 2,
+		.setkey		= sm4_setkey,
+		.encrypt	= sm4_cbc_cts_encrypt,
+		.decrypt	= sm4_cbc_cts_decrypt,
 	}
 };
 
@@ -365,5 +458,6 @@ MODULE_ALIAS_CRYPTO("ecb(sm4)");
 MODULE_ALIAS_CRYPTO("cbc(sm4)");
 MODULE_ALIAS_CRYPTO("cfb(sm4)");
 MODULE_ALIAS_CRYPTO("ctr(sm4)");
+MODULE_ALIAS_CRYPTO("cts(cbc(sm4))");
 MODULE_AUTHOR("Tianjia Zhang <tianjia.zhang@linux.alibaba.com>");
 MODULE_LICENSE("GPL v2");
