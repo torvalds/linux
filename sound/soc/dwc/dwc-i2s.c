@@ -323,21 +323,9 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 			return ret;
 		}
 	} else if (txrx == SNDRV_PCM_STREAM_CAPTURE) {
-		ret = clk_prepare_enable(dev->clks[CLK_ADC_BCLK_EXT]);
-		if (ret) {
-			dev_err(dev->dev, "%s: failed to enable CLK_ADC_BCLK_EXT\n", __func__);
-			return ret;
-		}
-
 		ret = clk_set_parent(dev->clks[CLK_ADC_RX_BCLK], dev->clks[CLK_ADC_BCLK_EXT]);
 		if (ret) {
 			dev_err(dev->dev, "Can't set clock source for CLK_ADC_RX_BCLK: %d\n", ret);
-			return ret;
-		}
-
-		ret = clk_prepare_enable(dev->clks[CLK_ADC_LRCK_EXT]);
-		if (ret) {
-			dev_err(dev->dev, "%s: failed to enable CLK_ADC_LRCK_EXT\n", __func__);
 			return ret;
 		}
 
@@ -469,9 +457,14 @@ static int dw_i2s_runtime_suspend(struct device *dev)
 	if (dw_dev->capability & DW_I2S_MASTER)
 		clk_disable(dw_dev->clk);
 	else {
-		clk_disable_unprepare(dw_dev->clks_bclk_mst);
-		clk_disable_unprepare(dw_dev->clks_mclk_out);
-		clk_disable_unprepare(dw_dev->clks_4ch_apb);
+		if (dw_dev->capability & DWC_I2S_PLAY) {
+			clk_disable_unprepare(dw_dev->clks_mclk_out);
+			clk_disable_unprepare(dw_dev->clks_bclk_mst);
+			clk_disable_unprepare(dw_dev->clks_4ch_apb);
+		} else {
+			clk_disable_unprepare(dw_dev->clks[CLK_ADC_BCLK]);
+			clk_disable_unprepare(dw_dev->clks[CLK_ADC_APB]);
+		}
 	}
 	return 0;
 }
@@ -484,20 +477,33 @@ static int dw_i2s_runtime_resume(struct device *dev)
 	if (dw_dev->capability & DW_I2S_MASTER)
 		clk_enable(dw_dev->clk);
 	else {
-		ret = clk_prepare_enable(dw_dev->clks_4ch_apb);
-		if (ret) {
-			dev_err(dev, "failed to enable clks_4ch_apb\n");
-			goto failed_enable;
-		}
-		ret = clk_prepare_enable(dw_dev->clks_bclk_mst);
-		if (ret) {
-			dev_err(dev, "failed to enable clks_bclk_mst\n");
-			goto failed_enable;
-		}
-		ret = clk_prepare_enable(dw_dev->clks_mclk_out);
-		if (ret) {
-			dev_err(dev, "failed to enable clks_mclk_out\n");
-			goto failed_enable;
+		if (dw_dev->capability & DWC_I2S_PLAY) {
+			ret = clk_prepare_enable(dw_dev->clks_4ch_apb);
+			if (ret) {
+				dev_err(dev, "failed to enable clks_4ch_apb\n");
+				goto failed_enable;
+			}
+			ret = clk_prepare_enable(dw_dev->clks_bclk_mst);
+			if (ret) {
+				dev_err(dev, "failed to enable clks_bclk_mst\n");
+				goto failed_enable;
+			}
+			ret = clk_prepare_enable(dw_dev->clks_mclk_out);
+			if (ret) {
+				dev_err(dev, "failed to enable clks_mclk_out\n");
+				goto failed_enable;
+			}
+		} else {
+			ret = clk_prepare_enable(dw_dev->clks[CLK_ADC_BCLK]);
+			if (ret) {
+				dev_err(dev, "failed to enable CLK_ADC_BCLK\n");
+				goto failed_enable;
+			}
+			ret = clk_prepare_enable(dw_dev->clks[CLK_ADC_APB]);
+			if (ret) {
+				dev_err(dev, "failed to enable CLK_ADC_APB\n");
+				goto failed_enable;
+			}
 		}
 	}
 	return 0;
@@ -590,22 +596,10 @@ static int dw_i2srx_clk_init(struct platform_device *pdev, struct dw_i2s_dev *de
 	dev->clks[CLK_ADC_BCLK_EXT] = clks[9].clk;
 	dev->clks[CLK_ADC_LRCK_EXT] = clks[10].clk;
 
-	ret = clk_prepare_enable(dev->clks[CLK_ADC_APB0]);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to enable CLK_ADC_APB0\n", __func__);
-		goto disable_APB0_clk;
-	}
-
 	ret = clk_prepare_enable(dev->clks[CLK_ADC_APB]);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: failed to enable CLK_ADC_APB\n", __func__);
 		goto disable_APB_clk;
-	}
-
-	ret = clk_prepare_enable(dev->clks[CLK_ADC_AUDROOT]);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to enable CLK_ADC_AUDROOT\n", __func__);
-		goto disable_audroot_clk;
 	}
 
 	ret = clk_set_rate(dev->clks[CLK_ADC_AUDROOT], 204800000);
@@ -614,41 +608,18 @@ static int dw_i2srx_clk_init(struct platform_device *pdev, struct dw_i2s_dev *de
 		goto disable_audroot_clk;
 	}
 
-	ret = clk_prepare_enable(dev->clks[CLK_ADC_MCLK_INNER]);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to enable CLK_ADC_MCLK_INNER\n", __func__);
-		goto disable_inner_clk;
-	}
-
 	ret = clk_set_rate(dev->clks[CLK_ADC_MCLK_INNER], 4096000);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to set rate for CLK_ADC_MCLK \n");
-		goto disable_inner_clk;
+		goto disable_audroot_clk;
 	}
 
 	ret = clk_prepare_enable(dev->clks[CLK_ADC_BCLK]);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: failed to enable CLK_ADC_BCLK\n", __func__);
-		goto disable_bclk;
+		goto disable_audroot_clk;
 	}
 
-	ret = clk_prepare_enable(dev->clks[CLK_ADC_LRCLK]);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to enable CLK_ADC_LRCLK\n", __func__);
-		goto disable_lrclk;
-	}
-
-	ret = clk_prepare_enable(dev->clks[CLK_ADC_RX_BCLK]);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to enable CLK_ADC_RX_BCLK\n", __func__);
-		goto disable_rx_bclk;
-	}
-
-	ret = clk_prepare_enable(dev->clks[CLK_ADC_RX_LRCK]);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to enable CLK_ADC_RX_LRCK\n", __func__);
-		goto disable_rx_lrclk;
-	}
 	dev_dbg(&pdev->dev, "dev->clks[CLK_ADC_APB0] = %lu \n", clk_get_rate(dev->clks[CLK_ADC_APB0]));
 	dev_dbg(&pdev->dev, "dev->clks[CLK_ADC_APB] = %lu \n", clk_get_rate(dev->clks[CLK_ADC_APB]));
 	dev_dbg(&pdev->dev, "dev->clks[CLK_ADC_BCLK] = %lu \n", clk_get_rate(dev->clks[CLK_ADC_BCLK]));
@@ -659,19 +630,19 @@ static int dw_i2srx_clk_init(struct platform_device *pdev, struct dw_i2s_dev *de
 	dev->rstc_rx = devm_reset_control_array_get_exclusive(&pdev->dev);
 	if (IS_ERR(dev->rstc_rx)) {
 		dev_err(&pdev->dev, "%s: failed to get rstc_rx reset control\n", __func__);
-		goto disable_rx_lrclk;
+		goto disable_rst;
 	}
 
 	ret = reset_control_assert(dev->rstc_rx);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: failed to reset control assert rstc_rx\n", __func__);
-		goto disable_rx_lrclk;
+		goto disable_rst;
 	}
 	udelay(5);
 	ret = reset_control_deassert(dev->rstc_rx);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: failed to reset control deassert rstc_rx\n", __func__);
-		goto disable_rx_lrclk;
+		goto disable_rst;
 	}
 
 	/*i2srx_3ch_adc_enable*/
@@ -684,22 +655,11 @@ static int dw_i2srx_clk_init(struct platform_device *pdev, struct dw_i2s_dev *de
 
 	return 0;
 
-disable_rx_lrclk:
-	clk_disable_unprepare(dev->clks[CLK_ADC_RX_LRCK]);
-disable_rx_bclk:
-	clk_disable_unprepare(dev->clks[CLK_ADC_RX_BCLK]);
-disable_lrclk:
-	clk_disable_unprepare(dev->clks[CLK_ADC_LRCLK]);
-disable_bclk:
+disable_rst:
 	clk_disable_unprepare(dev->clks[CLK_ADC_BCLK]);
-disable_inner_clk:
-	clk_disable_unprepare(dev->clks[CLK_ADC_MCLK_INNER]);
 disable_audroot_clk:
-	clk_disable_unprepare(dev->clks[CLK_ADC_AUDROOT]);
-disable_APB_clk:
 	clk_disable_unprepare(dev->clks[CLK_ADC_APB]);
-disable_APB0_clk:
-	clk_disable_unprepare(dev->clks[CLK_ADC_APB0]);
+disable_APB_clk:
 
 	return ret;
 }
@@ -1248,9 +1208,14 @@ static int dw_i2s_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 #ifdef CONFIG_PM
-	clk_disable_unprepare(dev->clks_mclk_out);
-	clk_disable_unprepare(dev->clks_bclk_mst);
-	clk_disable_unprepare(dev->clks_4ch_apb);
+	if (dev->capability & DWC_I2S_PLAY) {
+		clk_disable_unprepare(dev->clks_mclk_out);
+		clk_disable_unprepare(dev->clks_bclk_mst);
+		clk_disable_unprepare(dev->clks_4ch_apb);
+	} else {
+		clk_disable_unprepare(dev->clks[CLK_ADC_BCLK]);
+		clk_disable_unprepare(dev->clks[CLK_ADC_APB]);
+	}
 #endif
 
 	return 0;
@@ -1259,9 +1224,14 @@ err_clk_disable:
 	if (dev->capability & DW_I2S_MASTER)
 		clk_disable_unprepare(dev->clk);
 	else{
-		clk_disable_unprepare(dev->clks_mclk_out);
-		clk_disable_unprepare(dev->clks_bclk_mst);
-		clk_disable_unprepare(dev->clks_4ch_apb);
+		if (dev->capability & DWC_I2S_PLAY) {
+			clk_disable_unprepare(dev->clks_mclk_out);
+			clk_disable_unprepare(dev->clks_bclk_mst);
+			clk_disable_unprepare(dev->clks_4ch_apb);
+		} else {
+			clk_disable_unprepare(dev->clks[CLK_ADC_BCLK]);
+			clk_disable_unprepare(dev->clks[CLK_ADC_APB]);
+		}
 	}
 
 	return ret;
