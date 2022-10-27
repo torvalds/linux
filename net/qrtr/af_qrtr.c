@@ -13,6 +13,7 @@
 #include <linux/wait.h>
 #include <linux/rwsem.h>
 #include <linux/uidgid.h>
+#include <linux/pm_wakeup.h>
 
 #include <net/sock.h>
 #include <uapi/linux/sched/types.h>
@@ -153,6 +154,7 @@ static struct work_struct qrtr_backup_work;
  * @task: task to run the worker thread
  * @read_data: scheduled work for recv work
  * @say_hello: scheduled work for initiating hello
+ * @ws: wakeupsource avoid system suspend
  */
 struct qrtr_node {
 	struct mutex ep_lock;
@@ -173,6 +175,8 @@ struct qrtr_node {
 	struct task_struct *task;
 	struct kthread_work read_data;
 	struct kthread_work say_hello;
+
+	struct wakeup_source *ws;
 };
 
 /**
@@ -254,6 +258,7 @@ static void __qrtr_node_release(struct kref *kref)
 	kthread_flush_worker(&node->kworker);
 	kthread_stop(node->task);
 	skb_queue_purge(&node->rx_queue);
+	wakeup_source_unregister(node->ws);
 
 	/* Free tx flow counters */
 	radix_tree_for_each_slot(slot, &node->qrtr_tx_flow, &iter, 0) {
@@ -727,6 +732,7 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 	if (cb->type != QRTR_TYPE_DATA || cb->dst_node != qrtr_local_nid) {
 		skb_queue_tail(&node->rx_queue, skb);
 		kthread_queue_work(&node->kworker, &node->read_data);
+		__pm_wakeup_event(node->ws, 0);
 	} else {
 		ipc = qrtr_port_lookup(cb->dst_port);
 		if (!ipc) {
@@ -738,6 +744,10 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 			qrtr_port_put(ipc);
 			goto err;
 		}
+
+		/* Force wakeup for all packets except for sensors */
+		if (node->nid != 9)
+			__pm_wakeup_event(node->ws, 0);
 
 		qrtr_port_put(ipc);
 	}
@@ -984,6 +994,8 @@ int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int net_id,
 	list_add(&node->item, &qrtr_all_epts);
 	up_write(&qrtr_epts_lock);
 	ep->node = node;
+
+	node->ws = wakeup_source_register(NULL, "qrtr_ws");
 
 	kthread_queue_work(&node->kworker, &node->say_hello);
 	return 0;
