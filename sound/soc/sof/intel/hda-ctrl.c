@@ -185,9 +185,6 @@ int hda_dsp_ctrl_clock_power_gating(struct snd_sof_dev *sdev, bool enable)
 int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	struct hdac_ext_link *hlink;
-#endif
 	struct hdac_stream *stream;
 	int sd_offset, ret = 0;
 
@@ -269,11 +266,7 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 				  upper_32_bits(bus->posbuf.addr));
 	}
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* Reset stream-to-link mapping */
-	list_for_each_entry(hlink, &bus->hlink_list, list)
-		writel(0, hlink->ml_addr + AZX_REG_ML_LOSIDV);
-#endif
+	hda_bus_ml_reset_losidv(bus);
 
 	bus->chip_init = true;
 

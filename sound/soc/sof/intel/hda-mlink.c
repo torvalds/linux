@@ -42,4 +42,13 @@ void hda_bus_ml_put_all(struct hdac_bus *bus)
 		snd_hdac_ext_bus_link_put(bus, hlink);
 }
 
+void hda_bus_ml_reset_losidv(struct hdac_bus *bus)
+{
+	struct hdac_ext_link *hlink;
+
+	/* Reset stream-to-link mapping */
+	list_for_each_entry(hlink, &bus->hlink_list, list)
+		writel(0, hlink->ml_addr + AZX_REG_ML_LOSIDV);
+}
+
 #endif
