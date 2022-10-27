@@ -158,15 +158,11 @@ int dlm_rem_lkb_callback(struct dlm_ls *ls, struct dlm_lkb *lkb,
 		}
 	}
 
-	if (cb->flags & DLM_CB_CAST) {
+	if (cb->flags & DLM_CB_CAST)
 		memcpy(&lkb->lkb_last_cast, cb, sizeof(struct dlm_callback));
-		lkb->lkb_last_cast_time = ktime_get();
-	}
 
-	if (cb->flags & DLM_CB_BAST) {
+	if (cb->flags & DLM_CB_BAST)
 		memcpy(&lkb->lkb_last_bast, cb, sizeof(struct dlm_callback));
-		lkb->lkb_last_bast_time = ktime_get();
-	}
 	rv = 0;
  out:
 	return rv;
@@ -256,11 +252,13 @@ void dlm_callback_work(struct work_struct *work)
 			continue;
 		} else if (callbacks[i].flags & DLM_CB_BAST) {
 			trace_dlm_bast(ls, lkb, callbacks[i].mode);
+			lkb->lkb_last_bast_time = ktime_get();
 			bastfn(lkb->lkb_astparam, callbacks[i].mode);
 		} else if (callbacks[i].flags & DLM_CB_CAST) {
 			lkb->lkb_lksb->sb_status = callbacks[i].sb_status;
 			lkb->lkb_lksb->sb_flags = callbacks[i].sb_flags;
 			trace_dlm_ast(ls, lkb);
+			lkb->lkb_last_cast_time = ktime_get();
 			castfn(lkb->lkb_astparam);
 		}
 	}
