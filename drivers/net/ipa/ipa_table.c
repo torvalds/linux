@@ -32,8 +32,8 @@
  * endian 64-bit "slot" that holds the address of a rule definition.  (The
  * size of these slots is 64 bits regardless of the host DMA address size.)
  *
- * Separate tables (both filter and route) used for IPv4 and IPv6.  There
- * are normally another set of "hashed" filter and route tables, which are
+ * Separate tables (both filter and route) are used for IPv4 and IPv6.  There
+ * is normally another set of "hashed" filter and route tables, which are
  * used with a hash of message metadata.  Hashed operation is not supported
  * by all IPA hardware (IPA v4.2 doesn't support hashed tables).
  *
@@ -51,19 +51,32 @@
  * Each filter rule is associated with an AP or modem TX endpoint, though
  * not all TX endpoints support filtering.  The first 64-bit slot in a
  * filter table is a bitmap indicating which endpoints have entries in
- * the table.  The low-order bit (bit 0) in this bitmap represents a
- * special global filter, which applies to all traffic.  This is not
- * used in the current code.  Bit 1, if set, indicates that there is an
- * entry (i.e. slot containing a system address referring to a rule) for
- * endpoint 0 in the table.  Bit 3, if set, indicates there is an entry
- * for endpoint 2, and so on.  Space is set aside in IPA local memory to
- * hold as many filter table entries as might be required, but typically
- * they are not all used.
+ * the table.  Each set bit in this bitmap indicates the presence of the
+ * address of a filter rule in the memory following the bitmap.  Until IPA
+ * v5.0,  the low-order bit (bit 0) in this bitmap represents a special
+ * global filter, which applies to all traffic.  Otherwise the position of
+ * each set bit represents an endpoint for which a filter rule is defined.
+ *
+ * The global rule is not used in current code, and support for it is
+ * removed starting at IPA v5.0.  For IPA v5.0+, the endpoint bitmap
+ * position defines the endpoint ID--i.e. if bit 1 is set in the endpoint
+ * bitmap, endpoint 1 has a filter rule.  Older versions of IPA represent
+ * the presence of a filter rule for endpoint X by bit (X + 1) being set.
+ * I.e., bit 1 set indicates the presence of a filter rule for endpoint 0,
+ * and bit 3 set means there is a filter rule present for endpoint 2.
+ *
+ * Each filter table entry has the address of a set of equations that
+ * implement a filter rule.  So following the endpoint bitmap there
+ * will be such an address/entry for each endpoint with a set bit in
+ * the bitmap.
  *
  * The AP initializes all entries in a filter table to refer to a "zero"
- * entry.  Once initialized the modem and AP update the entries for
- * endpoints they "own" directly.  Currently the AP does not use the
- * IPA filtering functionality.
+ * rule.  Once initialized, the modem and AP update the entries for
+ * endpoints they "own" directly.  Currently the AP does not use the IPA
+ * filtering functionality.
+ *
+ * This diagram shows an example of a filter table with an endpoint
+ * bitmap as defined prior to IPA v5.0.
  *
  *                    IPA Filter Table
  *                 ----------------------
@@ -658,12 +671,6 @@ bool ipa_table_mem_valid(struct ipa *ipa, bool filter)
  * when a route table is initialized or reset, its entries are made to refer
  * to the zero rule.  The zero rule is shared for route and filter tables.
  *
- * Note that the IPA hardware requires a filter or route rule address to be
- * aligned on a 128 byte boundary.  The coherent DMA buffer we allocate here
- * has a minimum alignment, and we place the zero rule at the base of that
- * allocated space.  In ipa_table_init() we verify the minimum DMA allocation
- * meets our requirement.
- *
  *	     +-------------------+
  *	 --> |     zero rule     |
  *	/    |-------------------|
@@ -708,12 +715,16 @@ int ipa_table_init(struct ipa *ipa)
 	/* First slot is the zero rule */
 	*virt++ = 0;
 
-	/* Next is the filter table bitmap.  The "soft" bitmap value
-	 * must be converted to the hardware representation by shifting
-	 * it left one position.  (Bit 0 repesents global filtering,
-	 * which is possible but not used.)
+	/* Next is the filter table bitmap.  The "soft" bitmap value might
+	 * need to be converted to the hardware representation by shifting
+	 * it left one position.  Prior to IPA v5.0, bit 0 repesents global
+	 * filtering, which is possible but not used.  IPA v5.0+ eliminated
+	 * that option, so there's no shifting required.
 	 */
-	*virt++ = cpu_to_le64((u64)ipa->filter_map << 1);
+	if (ipa->version < IPA_VERSION_5_0)
+		*virt++ = cpu_to_le64((u64)ipa->filter_map << 1);
+	else
+		*virt++ = cpu_to_le64((u64)ipa->filter_map);
 
 	/* All the rest contain the DMA address of the zero rule */
 	le_addr = cpu_to_le64(addr);
