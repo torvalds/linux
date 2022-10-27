@@ -737,6 +737,7 @@ static int avs_component_load_libraries(struct avs_soc_component *acomp)
 	if (ret < 0)
 		return ret;
 
+	avs_hda_power_gating_enable(adev, false);
 	avs_hda_clock_gating_enable(adev, false);
 	avs_hda_l1sen_enable(adev, false);
 
@@ -744,6 +745,7 @@ static int avs_component_load_libraries(struct avs_soc_component *acomp)
 
 	avs_hda_l1sen_enable(adev, true);
 	avs_hda_clock_gating_enable(adev, true);
+	avs_hda_power_gating_enable(adev, true);
 
 	if (!ret)
 		ret = avs_module_info_init(adev, false);
