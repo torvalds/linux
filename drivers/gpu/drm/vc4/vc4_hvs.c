@@ -818,6 +818,9 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 		if (max_rate >= 550000000)
 			hvs->vc5_hdmi_enable_hdmi_20 = true;
 
+		if (max_rate >= 600000000)
+			hvs->vc5_hdmi_enable_4096by2160 = true;
+
 		hvs->max_core_rate = max_rate;
 
 		ret = clk_prepare_enable(hvs->core_clk);
