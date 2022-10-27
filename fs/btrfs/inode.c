@@ -84,7 +84,7 @@ struct btrfs_dio_data {
 };
 
 struct btrfs_dio_private {
-	struct inode *inode;
+	struct btrfs_inode *inode;
 
 	/*
 	 * Since DIO can use anonymous page, we cannot use page_offset() to
@@ -7907,11 +7907,11 @@ static void btrfs_dio_private_put(struct btrfs_dio_private *dip)
 		return;
 
 	if (btrfs_op(&dip->bio) == BTRFS_MAP_WRITE) {
-		btrfs_mark_ordered_io_finished(BTRFS_I(dip->inode), NULL,
+		btrfs_mark_ordered_io_finished(dip->inode, NULL,
 					       dip->file_offset, dip->bytes,
 					       !dip->bio.bi_status);
 	} else {
-		unlock_extent(&BTRFS_I(dip->inode)->io_tree,
+		unlock_extent(&dip->inode->io_tree,
 			      dip->file_offset,
 			      dip->file_offset + dip->bytes - 1, NULL);
 	}
@@ -7934,7 +7934,7 @@ static blk_status_t btrfs_check_read_dio_bio(struct btrfs_dio_private *dip,
 					     struct btrfs_bio *bbio,
 					     const bool uptodate)
 {
-	struct inode *inode = dip->inode;
+	struct inode *inode = &dip->inode->vfs_inode;
 	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
 	const bool csum = !(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM);
 	blk_status_t err = BLK_STS_OK;
@@ -7977,9 +7977,9 @@ static void btrfs_end_dio_bio(struct btrfs_bio *bbio)
 	blk_status_t err = bio->bi_status;
 
 	if (err)
-		btrfs_warn(BTRFS_I(dip->inode)->root->fs_info,
+		btrfs_warn(dip->inode->root->fs_info,
 			   "direct IO failed ino %llu rw %d,%u sector %#Lx len %u err no %d",
-			   btrfs_ino(BTRFS_I(dip->inode)), bio_op(bio),
+			   btrfs_ino(dip->inode), bio_op(bio),
 			   bio->bi_opf, bio->bi_iter.bi_sector,
 			   bio->bi_iter.bi_size, err);
 
@@ -7989,7 +7989,7 @@ static void btrfs_end_dio_bio(struct btrfs_bio *bbio)
 	if (err)
 		dip->bio.bi_status = err;
 
-	btrfs_record_physical_zoned(dip->inode, bbio->file_offset, bio);
+	btrfs_record_physical_zoned(&dip->inode->vfs_inode, bbio->file_offset, bio);
 
 	bio_put(bio);
 	btrfs_dio_private_put(dip);
@@ -8056,7 +8056,7 @@ static void btrfs_submit_direct(const struct iomap_iter *iter,
 	struct btrfs_dio_data *dio_data = iter->private;
 	struct extent_map *em = NULL;
 
-	dip->inode = inode;
+	dip->inode = BTRFS_I(inode);
 	dip->file_offset = file_offset;
 	dip->bytes = dio_bio->bi_iter.bi_size;
 	refcount_set(&dip->refs, 1);
