@@ -415,6 +415,11 @@ void btrfs_submit_data_write_bio(struct inode *inode, struct bio *bio, int mirro
 void btrfs_submit_data_read_bio(struct inode *inode, struct bio *bio,
 			int mirror_num, enum btrfs_compression_type compress_type);
 void btrfs_submit_dio_repair_bio(struct inode *inode, struct bio *bio, int mirror_num);
+blk_status_t btrfs_submit_bio_start(struct inode *inode, struct bio *bio,
+				    u64 dio_file_offset);
+blk_status_t btrfs_submit_bio_start_direct_io(struct inode *inode,
+					      struct bio *bio,
+					      u64 dio_file_offset);
 int btrfs_check_sector_csum(struct btrfs_fs_info *fs_info, struct page *page,
 			    u32 pgoff, u8 *csum, const u8 * const csum_expected);
 int btrfs_check_data_csum(struct inode *inode, struct btrfs_bio *bbio,

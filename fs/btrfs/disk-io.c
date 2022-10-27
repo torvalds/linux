@@ -86,10 +86,10 @@ static void btrfs_free_csum_hash(struct btrfs_fs_info *fs_info)
 struct async_submit_bio {
 	struct inode *inode;
 	struct bio *bio;
-	extent_submit_bio_start_t *submit_bio_start;
+	enum btrfs_wq_submit_cmd submit_cmd;
 	int mirror_num;
 
-	/* Optional parameter for submit_bio_start used by direct io */
+	/* Optional parameter for used by direct io */
 	u64 dio_file_offset;
 	struct btrfs_work work;
 	blk_status_t status;
@@ -637,8 +637,22 @@ static void run_one_async_start(struct btrfs_work *work)
 	blk_status_t ret;
 
 	async = container_of(work, struct  async_submit_bio, work);
-	ret = async->submit_bio_start(async->inode, async->bio,
-				      async->dio_file_offset);
+	switch (async->submit_cmd) {
+	case WQ_SUBMIT_METADATA:
+		ret = btree_submit_bio_start(async->inode, async->bio,
+					     async->dio_file_offset);
+		break;
+	case WQ_SUBMIT_DATA:
+		ret = btrfs_submit_bio_start(async->inode, async->bio,
+					     async->dio_file_offset);
+
+		break;
+	case WQ_SUBMIT_DATA_DIO:
+		ret = btrfs_submit_bio_start_direct_io(async->inode, async->bio,
+						       async->dio_file_offset);
+
+		break;
+	}
 	if (ret)
 		async->status = ret;
 }
@@ -689,8 +703,7 @@ static void run_one_async_free(struct btrfs_work *work)
  * - false in case of error
  */
 bool btrfs_wq_submit_bio(struct inode *inode, struct bio *bio, int mirror_num,
-			 u64 dio_file_offset,
-			 extent_submit_bio_start_t *submit_bio_start)
+			 u64 dio_file_offset, enum btrfs_wq_submit_cmd cmd)
 {
 	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
 	struct async_submit_bio *async;
@@ -702,7 +715,7 @@ bool btrfs_wq_submit_bio(struct inode *inode, struct bio *bio, int mirror_num,
 	async->inode = inode;
 	async->bio = bio;
 	async->mirror_num = mirror_num;
-	async->submit_bio_start = submit_bio_start;
+	async->submit_cmd = cmd;
 
 	btrfs_init_work(&async->work, run_one_async_start, run_one_async_done,
 			run_one_async_free);
@@ -736,8 +749,8 @@ static blk_status_t btree_csum_one_bio(struct bio *bio)
 	return errno_to_blk_status(ret);
 }
 
-static blk_status_t btree_submit_bio_start(struct inode *inode, struct bio *bio,
-					   u64 dio_file_offset)
+blk_status_t btree_submit_bio_start(struct inode *inode, struct bio *bio,
+				    u64 dio_file_offset)
 {
 	/*
 	 * when we're called for a write, we're already in the async
@@ -776,7 +789,7 @@ void btrfs_submit_metadata_bio(struct inode *inode, struct bio *bio, int mirror_
 	 * happen in parallel across all CPUs.
 	 */
 	if (should_async_write(fs_info, BTRFS_I(inode)) &&
-	    btrfs_wq_submit_bio(inode, bio, mirror_num, 0, btree_submit_bio_start))
+	    btrfs_wq_submit_bio(inode, bio, mirror_num, 0, WQ_SUBMIT_METADATA))
 		return;
 
 	ret = btree_csum_one_bio(bio);

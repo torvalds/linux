@@ -70,9 +70,6 @@ struct extent_io_tree;
 int __init extent_buffer_init_cachep(void);
 void __cold extent_buffer_free_cachep(void);
 
-typedef blk_status_t (extent_submit_bio_start_t)(struct inode *inode,
-		struct bio *bio, u64 dio_file_offset);
-
 #define INLINE_EXTENT_BUFFER_PAGES     (BTRFS_MAX_METADATA_BLOCKSIZE / PAGE_SIZE)
 struct extent_buffer {
 	u64 start;

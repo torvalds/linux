@@ -2550,8 +2550,8 @@ void btrfs_clear_delalloc_extent(struct inode *vfs_inode,
  * At IO completion time the cums attached on the ordered extent record
  * are inserted into the btree
  */
-static blk_status_t btrfs_submit_bio_start(struct inode *inode, struct bio *bio,
-					   u64 dio_file_offset)
+blk_status_t btrfs_submit_bio_start(struct inode *inode, struct bio *bio,
+				    u64 dio_file_offset)
 {
 	return btrfs_csum_one_bio(BTRFS_I(inode), bio, (u64)-1, false);
 }
@@ -2758,8 +2758,7 @@ void btrfs_submit_data_write_bio(struct inode *inode, struct bio *bio, int mirro
 	    !test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state) &&
 	    !btrfs_is_data_reloc_root(bi->root)) {
 		if (!atomic_read(&bi->sync_writers) &&
-		    btrfs_wq_submit_bio(inode, bio, mirror_num, 0,
-					btrfs_submit_bio_start))
+		    btrfs_wq_submit_bio(inode, bio, mirror_num, 0, WQ_SUBMIT_DATA))
 			return;
 
 		ret = btrfs_csum_one_bio(bi, bio, (u64)-1, false);
@@ -7967,9 +7966,9 @@ static blk_status_t btrfs_check_read_dio_bio(struct btrfs_dio_private *dip,
 	return err;
 }
 
-static blk_status_t btrfs_submit_bio_start_direct_io(struct inode *inode,
-						     struct bio *bio,
-						     u64 dio_file_offset)
+blk_status_t btrfs_submit_bio_start_direct_io(struct inode *inode,
+					      struct bio *bio,
+					      u64 dio_file_offset)
 {
 	return btrfs_csum_one_bio(BTRFS_I(inode), bio, dio_file_offset, false);
 }
@@ -8017,7 +8016,7 @@ static void btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 		/* Check btrfs_submit_data_write_bio() for async submit rules */
 		if (async_submit && !atomic_read(&BTRFS_I(inode)->sync_writers) &&
 		    btrfs_wq_submit_bio(inode, bio, 0, file_offset,
-					btrfs_submit_bio_start_direct_io))
+					WQ_SUBMIT_DATA_DIO))
 			return;
 
 		/*
