@@ -426,10 +426,10 @@ ipa_endpoint_program_suspend(struct ipa_endpoint *endpoint, bool enable)
  */
 void ipa_endpoint_modem_pause_all(struct ipa *ipa, bool enable)
 {
-	u32 endpoint_id;
+	u32 endpoint_id = 0;
 
-	for (endpoint_id = 0; endpoint_id < IPA_ENDPOINT_MAX; endpoint_id++) {
-		struct ipa_endpoint *endpoint = &ipa->endpoint[endpoint_id];
+	while (endpoint_id < IPA_ENDPOINT_MAX) {
+		struct ipa_endpoint *endpoint = &ipa->endpoint[endpoint_id++];
 
 		if (endpoint->ee_id != GSI_EE_MODEM)
 			continue;
@@ -1008,10 +1008,10 @@ static void ipa_endpoint_init_hol_block_disable(struct ipa_endpoint *endpoint)
 
 void ipa_endpoint_modem_hol_block_clear_all(struct ipa *ipa)
 {
-	u32 i;
+	u32 endpoint_id = 0;
 
-	for (i = 0; i < IPA_ENDPOINT_MAX; i++) {
-		struct ipa_endpoint *endpoint = &ipa->endpoint[i];
+	while (endpoint_id < IPA_ENDPOINT_MAX) {
+		struct ipa_endpoint *endpoint = &ipa->endpoint[endpoint_id++];
 
 		if (endpoint->toward_ipa || endpoint->ee_id != GSI_EE_MODEM)
 			continue;
