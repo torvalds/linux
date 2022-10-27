@@ -850,7 +850,6 @@ static int lpc32xx_nand_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int lpc32xx_nand_resume(struct platform_device *pdev)
 {
 	struct lpc32xx_nand_host *host = platform_get_drvdata(pdev);
@@ -882,11 +881,6 @@ static int lpc32xx_nand_suspend(struct platform_device *pdev, pm_message_t pm)
 	return 0;
 }
 
-#else
-#define lpc32xx_nand_resume NULL
-#define lpc32xx_nand_suspend NULL
-#endif
-
 static const struct of_device_id lpc32xx_nand_match[] = {
 	{ .compatible = "nxp,lpc3220-mlc" },
 	{ /* sentinel */ },
@@ -896,8 +890,8 @@ MODULE_DEVICE_TABLE(of, lpc32xx_nand_match);
 static struct platform_driver lpc32xx_nand_driver = {
 	.probe		= lpc32xx_nand_probe,
 	.remove		= lpc32xx_nand_remove,
-	.resume		= lpc32xx_nand_resume,
-	.suspend	= lpc32xx_nand_suspend,
+	.resume		= pm_ptr(lpc32xx_nand_resume),
+	.suspend	= pm_ptr(lpc32xx_nand_suspend),
 	.driver		= {
 		.name	= DRV_NAME,
 		.of_match_table = lpc32xx_nand_match,
