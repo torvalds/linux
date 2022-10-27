@@ -5680,16 +5680,16 @@ out:
 	return err;
 }
 
-static void inode_tree_add(struct inode *inode)
+static void inode_tree_add(struct btrfs_inode *inode)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *root = inode->root;
 	struct btrfs_inode *entry;
 	struct rb_node **p;
 	struct rb_node *parent;
-	struct rb_node *new = &BTRFS_I(inode)->rb_node;
-	u64 ino = btrfs_ino(BTRFS_I(inode));
+	struct rb_node *new = &inode->rb_node;
+	u64 ino = btrfs_ino(inode);
 
-	if (inode_unhashed(inode))
+	if (inode_unhashed(&inode->vfs_inode))
 		return;
 	parent = NULL;
 	spin_lock(&root->inode_lock);
@@ -5801,7 +5801,7 @@ struct inode *btrfs_iget_path(struct super_block *s, u64 ino,
 
 		ret = btrfs_read_locked_inode(inode, path);
 		if (!ret) {
-			inode_tree_add(inode);
+			inode_tree_add(BTRFS_I(inode));
 			unlock_new_inode(inode);
 		} else {
 			iget_failed(inode);
@@ -6568,7 +6568,7 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	inode_tree_add(inode);
+	inode_tree_add(BTRFS_I(inode));
 
 	trace_btrfs_inode_new(inode);
 	btrfs_set_inode_last_trans(trans, BTRFS_I(inode));
