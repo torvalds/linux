@@ -370,6 +370,9 @@ config KASAN_SHADOW_OFFSET
 	default 0xeffffff800000000 if ARM64_VA_BITS_36 && KASAN_SW_TAGS
 	default 0xffffffffffffffff
 
+config UNWIND_TABLES
+	bool
+
 source "arch/arm64/Kconfig.platforms"
 
 menu "Kernel Features"

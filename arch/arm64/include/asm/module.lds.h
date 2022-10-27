@@ -17,4 +17,12 @@ SECTIONS {
 	 */
 	.text.hot : { *(.text.hot) }
 #endif
+
+#ifdef CONFIG_UNWIND_TABLES
+	/*
+	 * Currently, we only use unwind info at module load time, so we can
+	 * put it into the .init allocation.
+	 */
+	.init.eh_frame : { *(.eh_frame) }
+#endif
 }
