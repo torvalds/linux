@@ -185,9 +185,8 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 	if (bus->chip_init)
 		return 0;
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	snd_hdac_set_codec_wakeup(bus, true);
-#endif
+	hda_codec_set_codec_wakeup(sdev, true);
+
 	hda_dsp_ctrl_misc_clock_gating(sdev, false);
 
 	/* reset HDA controller */
@@ -245,9 +244,8 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 
 err:
 	hda_dsp_ctrl_misc_clock_gating(sdev, true);
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	snd_hdac_set_codec_wakeup(bus, false);
-#endif
+
+	hda_codec_set_codec_wakeup(sdev, false);
 
 	return ret;
 }
