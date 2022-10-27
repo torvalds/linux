@@ -196,7 +196,7 @@ static void end_compressed_bio_read(struct btrfs_bio *bbio)
 			refcount_inc(&cb->pending_ios);
 			ret = btrfs_repair_one_sector(inode, bbio, offset,
 						      bv.bv_page, bv.bv_offset,
-						      btrfs_submit_data_read_bio);
+						      true);
 			if (ret) {
 				refcount_dec(&cb->pending_ios);
 				status = errno_to_blk_status(ret);

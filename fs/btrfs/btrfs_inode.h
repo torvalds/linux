@@ -414,6 +414,9 @@ static inline void btrfs_inode_split_flags(u64 inode_item_flags,
 void btrfs_submit_data_write_bio(struct inode *inode, struct bio *bio, int mirror_num);
 void btrfs_submit_data_read_bio(struct inode *inode, struct bio *bio,
 			int mirror_num, enum btrfs_compression_type compress_type);
+void btrfs_submit_dio_repair_bio(struct inode *inode, struct bio *bio,
+				 int mirror_num,
+				 enum btrfs_compression_type compress_type);
 int btrfs_check_sector_csum(struct btrfs_fs_info *fs_info, struct page *page,
 			    u32 pgoff, u8 *csum, const u8 * const csum_expected);
 int btrfs_check_data_csum(struct inode *inode, struct btrfs_bio *bbio,

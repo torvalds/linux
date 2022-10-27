@@ -797,7 +797,7 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 
 int btrfs_repair_one_sector(struct inode *inode, struct btrfs_bio *failed_bbio,
 			    u32 bio_offset, struct page *page, unsigned int pgoff,
-			    submit_bio_hook_t *submit_bio_hook)
+			    bool submit_buffered)
 {
 	u64 start = failed_bbio->file_offset + bio_offset;
 	struct io_failure_record *failrec;
@@ -856,11 +856,15 @@ int btrfs_repair_one_sector(struct inode *inode, struct btrfs_bio *failed_bbio,
 		    failrec->this_mirror);
 
 	/*
-	 * At this point we have a bio, so any errors from submit_bio_hook()
-	 * will be handled by the endio on the repair_bio, so we can't return an
+	 * At this point we have a bio, so any errors from bio submission will
+	 * be handled by the endio on the repair_bio, so we can't return an
 	 * error here.
 	 */
-	submit_bio_hook(inode, repair_bio, failrec->this_mirror, 0);
+	if (submit_buffered)
+		btrfs_submit_data_read_bio(inode, repair_bio, failrec->this_mirror, 0);
+	else
+		btrfs_submit_dio_repair_bio(inode, repair_bio, failrec->this_mirror, 0);
+
 	return BLK_STS_OK;
 }
 
@@ -951,7 +955,7 @@ static void submit_data_read_repair(struct inode *inode,
 
 		ret = btrfs_repair_one_sector(inode, failed_bbio,
 				bio_offset + offset, page, pgoff + offset,
-				btrfs_submit_data_read_bio);
+				true);
 		if (!ret) {
 			/*
 			 * We have submitted the read repair, the page release

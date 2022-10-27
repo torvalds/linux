@@ -70,10 +70,6 @@ struct extent_io_tree;
 int __init extent_buffer_init_cachep(void);
 void __cold extent_buffer_free_cachep(void);
 
-typedef void (submit_bio_hook_t)(struct inode *inode, struct bio *bio,
-					 int mirror_num,
-					 enum btrfs_compression_type compress_type);
-
 typedef blk_status_t (extent_submit_bio_start_t)(struct inode *inode,
 		struct bio *bio, u64 dio_file_offset);
 
@@ -277,7 +273,7 @@ struct io_failure_record {
 
 int btrfs_repair_one_sector(struct inode *inode, struct btrfs_bio *failed_bbio,
 			    u32 bio_offset, struct page *page, unsigned int pgoff,
-			    submit_bio_hook_t *submit_bio_hook);
+			    bool submit_buffered);
 void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start, u64 end);
 int btrfs_clean_io_failure(struct btrfs_inode *inode, u64 start,
 			   struct page *page, unsigned int pg_offset);

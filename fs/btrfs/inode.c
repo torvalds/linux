@@ -7923,9 +7923,9 @@ static void btrfs_dio_private_put(struct btrfs_dio_private *dip)
 	bio_endio(&dip->bio);
 }
 
-static void submit_dio_repair_bio(struct inode *inode, struct bio *bio,
-				  int mirror_num,
-				  enum btrfs_compression_type compress_type)
+void btrfs_submit_dio_repair_bio(struct inode *inode, struct bio *bio,
+				 int mirror_num,
+				 enum btrfs_compression_type compress_type)
 {
 	struct btrfs_dio_private *dip = btrfs_bio(bio)->private;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
@@ -7960,8 +7960,7 @@ static blk_status_t btrfs_check_read_dio_bio(struct btrfs_dio_private *dip,
 			int ret;
 
 			ret = btrfs_repair_one_sector(inode, bbio, offset,
-					bv.bv_page, bv.bv_offset,
-					submit_dio_repair_bio);
+					bv.bv_page, bv.bv_offset, false);
 			if (ret)
 				err = errno_to_blk_status(ret);
 		}
