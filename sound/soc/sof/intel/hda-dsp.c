@@ -635,9 +635,9 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 	if (ret < 0)
 		return ret;
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	hda_codec_jack_wake_enable(sdev, runtime_suspend);
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	/* power down all hda link */
 	snd_hdac_ext_bus_link_power_down_all(bus);
 #endif
@@ -698,14 +698,12 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 		goto cleanup;
 	}
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	/* check jack status */
 	if (runtime_resume) {
 		hda_codec_jack_wake_enable(sdev, false);
 		if (sdev->system_suspend_target == SOF_SUSPEND_NONE)
 			hda_codec_jack_check(sdev);
 	}
-#endif
 
 	/* enable ppcap interrupt */
 	hda_dsp_ctrl_ppcap_enable(sdev, true);
