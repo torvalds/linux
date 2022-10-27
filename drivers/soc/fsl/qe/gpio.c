@@ -14,19 +14,22 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
-/* FIXME: needed for gpio_to_chip() get rid of this */
-#include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <soc/fsl/qe/qe.h>
+/*
+ * FIXME: this is legacy code that is accessing gpiolib internals in order
+ * to implement a custom pin controller. The proper solution is to create
+ * a real combined pin control and GPIO driver in drivers/pinctrl. However
+ * this hack is here for legacy code reasons.
+ */
+#include "../../../gpio/gpiolib.h"
 
 struct qe_gpio_chip {
 	struct of_mm_gpio_chip mm_gc;
 	spinlock_t lock;
-
-	unsigned long pin_flags[QE_PIO_PINS];
-#define QE_PIN_REQUESTED 0
 
 	/* shadowed data register to clear/set bits safely */
 	u32 cpdata;
@@ -144,6 +147,7 @@ struct qe_pin {
 	 * something like qe_pio_controller. Someday.
 	 */
 	struct qe_gpio_chip *controller;
+	struct gpio_desc *gpiod;
 	int num;
 };
 
@@ -160,9 +164,8 @@ struct qe_pin *qe_pin_request(struct device_node *np, int index)
 {
 	struct qe_pin *qe_pin;
 	struct gpio_chip *gc;
-	struct qe_gpio_chip *qe_gc;
+	struct gpio_desc *gpiod;
 	int err;
-	unsigned long flags;
 
 	qe_pin = kzalloc(sizeof(*qe_pin), GFP_KERNEL);
 	if (!qe_pin) {
@@ -170,38 +173,36 @@ struct qe_pin *qe_pin_request(struct device_node *np, int index)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	err = of_get_gpio(np, index);
-	if (err < 0)
+	gpiod = fwnode_gpiod_get_index(of_fwnode_handle(np), NULL, index, GPIOD_ASIS, "qe");
+	if (IS_ERR(gpiod)) {
+		err = PTR_ERR(gpiod);
 		goto err0;
-	gc = gpio_to_chip(err);
+	}
+	if (!gpiod) {
+		err = -EINVAL;
+		goto err0;
+	}
+	gc = gpiod_to_chip(gpiod);
 	if (WARN_ON(!gc)) {
 		err = -ENODEV;
 		goto err0;
 	}
+	qe_pin->gpiod = gpiod;
+	qe_pin->controller = gpiochip_get_data(gc);
+	/*
+	 * FIXME: this gets the local offset on the gpio_chip so that the driver
+	 * can manipulate pin control settings through its custom API. The real
+	 * solution is to create a real pin control driver for this.
+	 */
+	qe_pin->num = gpio_chip_hwgpio(gpiod);
 
 	if (!of_device_is_compatible(gc->of_node, "fsl,mpc8323-qe-pario-bank")) {
 		pr_debug("%s: tried to get a non-qe pin\n", __func__);
+		gpiod_put(gpiod);
 		err = -EINVAL;
 		goto err0;
 	}
-
-	qe_gc = gpiochip_get_data(gc);
-
-	spin_lock_irqsave(&qe_gc->lock, flags);
-
-	err -= gc->base;
-	if (test_and_set_bit(QE_PIN_REQUESTED, &qe_gc->pin_flags[err]) == 0) {
-		qe_pin->controller = qe_gc;
-		qe_pin->num = err;
-		err = 0;
-	} else {
-		err = -EBUSY;
-	}
-
-	spin_unlock_irqrestore(&qe_gc->lock, flags);
-
-	if (!err)
-		return qe_pin;
+	return qe_pin;
 err0:
 	kfree(qe_pin);
 	pr_debug("%s failed with status %d\n", __func__, err);
@@ -219,14 +220,7 @@ EXPORT_SYMBOL(qe_pin_request);
  */
 void qe_pin_free(struct qe_pin *qe_pin)
 {
-	struct qe_gpio_chip *qe_gc = qe_pin->controller;
-	unsigned long flags;
-	const int pin = qe_pin->num;
-
-	spin_lock_irqsave(&qe_gc->lock, flags);
-	test_and_clear_bit(QE_PIN_REQUESTED, &qe_gc->pin_flags[pin]);
-	spin_unlock_irqrestore(&qe_gc->lock, flags);
-
+	gpiod_put(qe_pin->gpiod);
 	kfree(qe_pin);
 }
 EXPORT_SYMBOL(qe_pin_free);
