@@ -186,7 +186,7 @@ static void end_compressed_bio_read(struct btrfs_bio *bbio)
 		u64 start = bbio->file_offset + offset;
 
 		if (!status &&
-		    (!csum || !btrfs_check_data_csum(inode, bbio, offset,
+		    (!csum || !btrfs_check_data_csum(bi, bbio, offset,
 						     bv.bv_page, bv.bv_offset))) {
 			btrfs_clean_io_failure(bi, start, bv.bv_page,
 					       bv.bv_offset);

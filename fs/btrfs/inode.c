@@ -3490,10 +3490,10 @@ static u8 *btrfs_csum_ptr(const struct btrfs_fs_info *fs_info, u8 *csums, u64 of
  * When csum mismatch is detected, we will also report the error and fill the
  * corrupted range with zero. (Thus it needs the extra parameters)
  */
-int btrfs_check_data_csum(struct inode *inode, struct btrfs_bio *bbio,
+int btrfs_check_data_csum(struct btrfs_inode *inode, struct btrfs_bio *bbio,
 			  u32 bio_offset, struct page *page, u32 pgoff)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	u32 len = fs_info->sectorsize;
 	u8 *csum_expected;
 	u8 csum[BTRFS_CSUM_SIZE];
@@ -3507,8 +3507,7 @@ int btrfs_check_data_csum(struct inode *inode, struct btrfs_bio *bbio,
 	return 0;
 
 zeroit:
-	btrfs_print_data_csum_error(BTRFS_I(inode),
-				    bbio->file_offset + bio_offset,
+	btrfs_print_data_csum_error(inode, bbio->file_offset + bio_offset,
 				    csum, csum_expected, bbio->mirror_num);
 	if (bbio->device)
 		btrfs_dev_stat_inc_and_print(bbio->device,
@@ -3573,7 +3572,7 @@ unsigned int btrfs_verify_data_csum(struct btrfs_bio *bbio,
 					  EXTENT_NODATASUM);
 			continue;
 		}
-		ret = btrfs_check_data_csum(inode, bbio, bio_offset, page, pg_off);
+		ret = btrfs_check_data_csum(BTRFS_I(inode), bbio, bio_offset, page, pg_off);
 		if (ret < 0) {
 			const int nr_bit = (pg_off - offset_in_page(start)) >>
 				     root->fs_info->sectorsize_bits;
@@ -7943,8 +7942,8 @@ static blk_status_t btrfs_check_read_dio_bio(struct btrfs_dio_private *dip,
 		u64 start = bbio->file_offset + offset;
 
 		if (uptodate &&
-		    (!csum || !btrfs_check_data_csum(inode, bbio, offset, bv.bv_page,
-					       bv.bv_offset))) {
+		    (!csum || !btrfs_check_data_csum(BTRFS_I(inode), bbio, offset,
+						     bv.bv_page, bv.bv_offset))) {
 			btrfs_clean_io_failure(BTRFS_I(inode), start,
 					       bv.bv_page, bv.bv_offset);
 		} else {
@@ -10334,7 +10333,7 @@ static blk_status_t btrfs_encoded_read_verify_csum(struct btrfs_bio *bbio)
 		pgoff = bvec->bv_offset;
 		for (i = 0; i < nr_sectors; i++) {
 			ASSERT(pgoff < PAGE_SIZE);
-			if (btrfs_check_data_csum(&inode->vfs_inode, bbio, bio_offset,
+			if (btrfs_check_data_csum(inode, bbio, bio_offset,
 					    bvec->bv_page, pgoff))
 				return BLK_STS_IOERR;
 			bio_offset += sectorsize;
