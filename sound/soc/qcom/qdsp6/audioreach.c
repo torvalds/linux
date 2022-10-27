@@ -311,15 +311,6 @@ static void apm_populate_sub_graph_config(struct apm_sub_graph_data *cfg,
 	cfg->sid.scenario_id = sg->scenario_id;
 }
 
-static void apm_populate_connection_obj(struct apm_module_conn_obj *obj,
-					struct audioreach_module *module)
-{
-	obj->src_mod_inst_id = module->src_mod_inst_id;
-	obj->src_mod_op_port_id = module->src_mod_op_port_id;
-	obj->dst_mod_inst_id = module->instance_id;
-	obj->dst_mod_ip_port_id = module->in_port;
-}
-
 static void apm_populate_module_prop_obj(struct apm_mod_prop_obj *obj,
 					 struct audioreach_module *module)
 {
@@ -394,22 +385,30 @@ static void audioreach_populate_graph(struct q6apm *apm, struct audioreach_graph
 			apm_populate_module_list_obj(mlobj, container, sg->sub_graph_id);
 
 			list_for_each_entry(module, &container->modules_list, node) {
-				uint32_t src_mod_inst_id;
+				int pn;
 
-				src_mod_inst_id = module->src_mod_inst_id;
-
-				module_prop_obj = &mp_data->mod_prop_obj[nmodule];
+				module_prop_obj = &mp_data->mod_prop_obj[nmodule++];
 				apm_populate_module_prop_obj(module_prop_obj, module);
 
-				if (src_mod_inst_id) {
-					conn_obj = &mc_data->conn_obj[nconn];
-					apm_populate_connection_obj(conn_obj, module);
-					nconn++;
-				}
+				if (!module->max_op_port)
+					continue;
 
-				nmodule++;
+				for (pn = 0; pn < module->max_op_port; pn++) {
+					if (module->dst_mod_inst_id[pn]) {
+						conn_obj = &mc_data->conn_obj[nconn];
+						conn_obj->src_mod_inst_id = module->instance_id;
+						conn_obj->src_mod_op_port_id =
+								module->src_mod_op_port_id[pn];
+						conn_obj->dst_mod_inst_id =
+								module->dst_mod_inst_id[pn];
+						conn_obj->dst_mod_ip_port_id =
+								module->dst_mod_ip_port_id[pn];
+						nconn++;
+					}
+				}
 			}
-			mlobj = (void *) mlobj + APM_MOD_LIST_OBJ_PSIZE(mlobj, container->num_modules);
+			mlobj = (void *) mlobj + APM_MOD_LIST_OBJ_PSIZE(mlobj,
+									container->num_modules);
 
 			ncontainer++;
 		}
@@ -454,8 +453,7 @@ void *audioreach_alloc_graph_pkt(struct q6apm *apm, struct audioreach_graph_info
 				APM_MOD_LIST_OBJ_PSIZE(mlobj, container->num_modules);
 
 			list_for_each_entry(module, &container->modules_list, node) {
-				if (module->src_mod_inst_id)
-					num_connections++;
+				num_connections += module->num_connections;
 			}
 		}
 	}
@@ -500,7 +498,7 @@ void *audioreach_alloc_graph_pkt(struct q6apm *apm, struct audioreach_graph_info
 	param_data->module_instance_id = APM_MODULE_INSTANCE_ID;
 	param_data->param_id = APM_PARAM_ID_MODULE_LIST;
 	param_data->param_size = ml_sz - APM_MODULE_PARAM_DATA_SIZE;
-	params.mod_list_data->num_modules_list = num_sub_graphs;
+	params.mod_list_data->num_modules_list = num_modules_list;
 	p += ml_sz;
 
 	/* Module Properties */
