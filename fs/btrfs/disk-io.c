@@ -639,18 +639,14 @@ static void run_one_async_start(struct btrfs_work *work)
 	async = container_of(work, struct  async_submit_bio, work);
 	switch (async->submit_cmd) {
 	case WQ_SUBMIT_METADATA:
-		ret = btree_submit_bio_start(async->inode, async->bio,
-					     async->dio_file_offset);
+		ret = btree_submit_bio_start(async->bio);
 		break;
 	case WQ_SUBMIT_DATA:
-		ret = btrfs_submit_bio_start(async->inode, async->bio,
-					     async->dio_file_offset);
-
+		ret = btrfs_submit_bio_start(async->inode, async->bio);
 		break;
 	case WQ_SUBMIT_DATA_DIO:
 		ret = btrfs_submit_bio_start_direct_io(async->inode, async->bio,
 						       async->dio_file_offset);
-
 		break;
 	}
 	if (ret)
@@ -749,8 +745,7 @@ static blk_status_t btree_csum_one_bio(struct bio *bio)
 	return errno_to_blk_status(ret);
 }
 
-blk_status_t btree_submit_bio_start(struct inode *inode, struct bio *bio,
-				    u64 dio_file_offset)
+blk_status_t btree_submit_bio_start(struct bio *bio)
 {
 	/*
 	 * when we're called for a write, we're already in the async
