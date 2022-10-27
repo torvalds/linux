@@ -260,7 +260,7 @@ int main(int argc, char *argv[])
 			if (ret)
 				printf("WDIOC_GETTEMP: '%s'\n", strerror(errno));
 			else
-				printf("Temeprature: %d\n", temperature);
+				printf("Temperature %d\n", temperature);
 
 			break;
 		case 't':
