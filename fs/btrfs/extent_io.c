@@ -117,7 +117,7 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 {
 	struct bio *bio;
 	struct bio_vec *bv;
-	struct inode *inode;
+	struct btrfs_inode *inode;
 	int mirror_num;
 
 	if (!bio_ctrl->bio)
@@ -125,7 +125,7 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 
 	bio = bio_ctrl->bio;
 	bv = bio_first_bvec_all(bio);
-	inode = bv->bv_page->mapping->host;
+	inode = BTRFS_I(bv->bv_page->mapping->host);
 	mirror_num = bio_ctrl->mirror_num;
 
 	/* Caller should ensure the bio has at least some range added */
@@ -133,12 +133,12 @@ static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 
 	btrfs_bio(bio)->file_offset = page_offset(bv->bv_page) + bv->bv_offset;
 
-	if (!is_data_inode(inode))
-		btrfs_submit_metadata_bio(BTRFS_I(inode), bio, mirror_num);
+	if (!is_data_inode(&inode->vfs_inode))
+		btrfs_submit_metadata_bio(inode, bio, mirror_num);
 	else if (btrfs_op(bio) == BTRFS_MAP_WRITE)
-		btrfs_submit_data_write_bio(BTRFS_I(inode), bio, mirror_num);
+		btrfs_submit_data_write_bio(inode, bio, mirror_num);
 	else
-		btrfs_submit_data_read_bio(BTRFS_I(inode), bio, mirror_num,
+		btrfs_submit_data_read_bio(inode, bio, mirror_num,
 					   bio_ctrl->compress_type);
 
 	/* The bio is owned by the end_io handler now */
