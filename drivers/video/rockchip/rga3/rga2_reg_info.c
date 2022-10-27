@@ -2069,7 +2069,9 @@ void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 	if (scheduler->data->mmu == RGA_IOMMU)
 		iommu_dte_addr = rga_read(0xf00, scheduler);
 
-	rga_write((1 << 3) | (1 << 4) | (1 << 6), RGA2_SYS_CTRL, scheduler);
+	rga_write(m_RGA2_SYS_CTRL_ACLK_SRESET_P | m_RGA2_SYS_CTRL_CCLK_SRESET_P |
+		  m_RGA2_SYS_CTRL_RST_PROTECT_P,
+		  RGA2_SYS_CTRL, scheduler);
 
 	for (i = 0; i < RGA_RESET_TIMEOUT; i++) {
 		/* RGA_SYS_CTRL */
@@ -2082,9 +2084,9 @@ void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 	}
 
 	if (scheduler->data->mmu == RGA_IOMMU) {
-		rga_write(iommu_dte_addr, 0xf00, scheduler);
+		rga_write(iommu_dte_addr, RGA2_MMU_DTE_ADDR, scheduler);
 		/* enable iommu */
-		rga_write(0, 0xf08, scheduler);
+		rga_write(0, RGA2_MMU_COMMAND, scheduler);
 	}
 
 	if (i == RGA_RESET_TIMEOUT)
@@ -2362,8 +2364,8 @@ static void rga2_set_pre_intr_reg(struct rga_job *job, struct rga_scheduler_t *s
 	}
 
 	reg = rga_read(RGA2_SYS_CTRL, scheduler);
-	reg = ((reg & (~m_RGA2_SYS_HOLD_MODE_EN)) |
-	       (s_RGA2_SYS_HOLD_MODE_EN(job->pre_intr_info.read_hold_en)));
+	reg = ((reg & (~m_RGA2_SYS_CTRL_HOLD_MODE_EN)) |
+	       (s_RGA2_SYS_CTRL_HOLD_MODE_EN(job->pre_intr_info.read_hold_en)));
 	rga_write(reg, RGA2_SYS_CTRL, scheduler);
 
 	reg = rga_read(RGA2_INT, scheduler);
@@ -2409,8 +2411,9 @@ static void rga2_set_reg_full_csc(struct rga_job *job, struct rga_scheduler_t *s
 
 int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
-	ktime_t now = ktime_get();
 	int i;
+	uint32_t sys_ctrl;
+	ktime_t now = ktime_get();
 
 	if (job->pre_intr_info.enable)
 		rga2_set_pre_intr_reg(job, scheduler);
@@ -2419,7 +2422,7 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		rga2_set_reg_full_csc(job, scheduler);
 
 	if (DEBUGGER_EN(REG)) {
-		int32_t *p;
+		uint32_t *p;
 
 		rga2_dump_read_back_sys_reg(scheduler);
 		rga2_dump_read_back_csc_reg(scheduler);
@@ -2434,42 +2437,44 @@ int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 
 	/* All CMD finish int */
 	rga_write(rga_read(RGA2_INT, scheduler) |
-		  (0x1 << 10) | (0x1 << 9) | (0x1 << 8), RGA2_INT, scheduler);
+		  m_RGA2_INT_ERROR_ENABLE_MASK | m_RGA2_INT_ALL_CMD_DONE_INT_EN,
+		  RGA2_INT, scheduler);
 
 	/* sys_reg init */
-	rga_write((0x1 << 2) | (0x1 << 5) | (0x1 << 6) | (0x1 << 11) | (0x1 << 12),
-		  RGA2_SYS_CTRL, scheduler);
+	sys_ctrl = m_RGA2_SYS_CTRL_AUTO_CKG | m_RGA2_SYS_CTRL_AUTO_RST |
+		   m_RGA2_SYS_CTRL_RST_PROTECT_P | m_RGA2_SYS_CTRL_DST_WR_OPT_DIS |
+		   m_RGA2_SYS_CTRL_SRC0YUV420SP_RD_OPT_DIS;
 
 	if (RGA2_USE_MASTER_MODE) {
 		/* master mode */
-		rga_write(rga_read(RGA2_SYS_CTRL, scheduler) | (0x1 << 1),
-			  RGA2_SYS_CTRL, scheduler);
+		sys_ctrl |= s_RGA2_SYS_CTRL_CMD_MODE(1);
 
 		/* cmd buffer flush cache to ddr */
 		rga_dma_sync_flush_range(&job->cmd_reg[0], &job->cmd_reg[32], scheduler);
 
 		/* set cmd_addr */
 		rga_write(virt_to_phys(job->cmd_reg), RGA2_CMD_BASE, scheduler);
-
-		rga_write(1, RGA2_CMD_CTRL, scheduler);
+		rga_write(sys_ctrl, RGA2_SYS_CTRL, scheduler);
+		rga_write(m_RGA2_CMD_CTRL_CMD_LINE_ST_P, RGA2_CMD_CTRL, scheduler);
 	} else {
 		/* slave mode */
-		rga_write(rga_read(RGA2_SYS_CTRL, scheduler) | (0x0 << 1),
-			  RGA2_SYS_CTRL, scheduler);
+		sys_ctrl |= s_RGA2_SYS_CTRL_CMD_MODE(0) | m_RGA2_SYS_CTRL_CMD_OP_ST_P;
 
 		/* set cmd_reg */
 		for (i = 0; i <= 32; i++)
 			rga_write(job->cmd_reg[i], 0x100 + i * 4, scheduler);
 
-		rga_write(rga_read(RGA2_SYS_CTRL, scheduler) | 0x1, RGA2_SYS_CTRL, scheduler);
+		rga_write(sys_ctrl, RGA2_SYS_CTRL, scheduler);
 	}
 
-	if (DEBUGGER_EN(TIME)) {
-		pr_info("sys_ctrl = %x, int = %x, set cmd use time = %lld\n",
+	if (DEBUGGER_EN(REG))
+		pr_info("sys_ctrl = %x, int = %x\n",
 			rga_read(RGA2_SYS_CTRL, scheduler),
-			rga_read(RGA2_INT, scheduler),
+			rga_read(RGA2_INT, scheduler));
+
+	if (DEBUGGER_EN(TIME))
+		pr_info("set cmd use time = %lld\n",
 			ktime_us_delta(now, job->timestamp));
-	}
 
 	job->hw_running_time = now;
 	job->hw_recoder_time = now;

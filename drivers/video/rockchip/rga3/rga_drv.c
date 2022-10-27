@@ -1161,11 +1161,19 @@ static irqreturn_t rga3_irq_handler(int irq, void *data)
 			rga_read(RGA3_STATUS0, scheduler),
 			rga_read(RGA3_CMD_STATE, scheduler));
 
-	/* TODO: if error interrupt then soft reset hardware */
-	//scheduler->ops->soft_reset(job->core);
+	if (rga_read(RGA3_INT_RAW, scheduler) & m_RGA3_INT_ERROR_MASK) {
+		pr_err("irq handler err! INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
+			rga_read(RGA3_INT_RAW, scheduler),
+			rga_read(RGA3_STATUS0, scheduler),
+			rga_read(RGA3_CMD_STATE, scheduler));
+		scheduler->ops->soft_reset(scheduler);
+
+		return IRQ_WAKE_THREAD;
+	}
 
 	/*clear INT */
-	rga_write(1, RGA3_INT_CLR, scheduler);
+	rga_write(m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH | m_RGA3_INT_ERROR_MASK,
+		  RGA3_INT_CLR, scheduler);
 
 	return IRQ_WAKE_THREAD;
 }
@@ -1205,7 +1213,7 @@ static irqreturn_t rga2_irq_handler(int irq, void *data)
 
 	/*if error interrupt then soft reset hardware */
 	//warning
-	if (rga_read(RGA2_INT, scheduler) & 0x01) {
+	if (rga_read(RGA2_INT, scheduler) & m_RGA2_INT_ERROR_FLAG_MASK) {
 		pr_err("irq handler err! INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
 			rga_read(RGA2_INT, scheduler),
 			rga_read(RGA2_STATUS2, scheduler),
@@ -1215,8 +1223,10 @@ static irqreturn_t rga2_irq_handler(int irq, void *data)
 
 	/*clear INT */
 	rga_write(rga_read(RGA2_INT, scheduler) |
-		  (0x1 << 4) | (0x1 << 5) | (0x1 << 6) | (0x1 << 7) |
-		  (0x1 << 15) | (0x1 << 16), RGA2_INT, scheduler);
+		  (m_RGA2_INT_ERROR_CLEAR_MASK |
+		   m_RGA2_INT_ALL_CMD_DONE_INT_CLEAR | m_RGA2_INT_NOW_CMD_DONE_INT_CLEAR |
+		   m_RGA2_INT_LINE_RD_CLEAR | m_RGA2_INT_LINE_WR_CLEAR),
+		  RGA2_INT, scheduler);
 
 	return IRQ_WAKE_THREAD;
 }

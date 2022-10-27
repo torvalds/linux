@@ -21,6 +21,19 @@
 #define RGA3_SCAN_CNT				0x038
 #define RGA3_CMD_STATE				0x040
 
+/* iommu reg */
+#define RGA3_MMU_DTE_ADDR			0xf00
+#define RGA3_MMU_STATUS				0xf04
+#define RGA3_MMU_COMMAND			0xf08
+#define RGA3_MMU_PAGE_FAULT_ADDR		0xf0c
+#define RGA3_MMU_ZAP_ONE_LINE			0xf10
+#define RGA3_MMU_INT_RAWSTAT			0xf14
+#define RGA3_MMU_INT_CLEAR			0xf18
+#define RGA3_MMU_INT_MASK			0xf1c
+#define RGA3_MMU_INT_STATUS			0xf20
+#define RGA3_MMU_AUTO_GATING			0xf24
+#define RGA3_MMU_REG_LOAD_EN			0xf28
+
 /* cmd reg */
 #define RGA3_WIN0_RD_CTRL_OFFSET		0x000
 #define RGA3_WIN0_Y_BASE_OFFSET			0x010
@@ -61,19 +74,83 @@
 #define RGA3_WR_Y_BASE_OFFSET			0x0b0
 #define RGA3_WR_U_BASE_OFFSET			0x0b4
 #define RGA3_WR_V_BASE_OFFSET			0x0b8
-#define RGA3_MMU_DTE_ADDR_OFFSET		0xf00
-#define RGA3_MMU_STATUS_OFFSET			0xf04
-#define RGA3_MMU_COMMAND_OFFSET			0xf08
-#define RGA3_MMU_PAGE_FAULT_ADDR_OFFSET		0xf0c
-#define RGA3_MMU_ZAP_ONE_LINE_OFFSET		0xf10
-#define RGA3_MMU_INT_RAWSTAT_OFFSET		0xf14
-#define RGA3_MMU_INT_CLEAR_OFFSET		0xf18
-#define RGA3_MMU_INT_MASK_OFFSET		0xf1c
-#define RGA3_MMU_INT_STATUS_OFFSET		0xf20
-#define RGA3_MMU_AUTO_GATING_OFFSET		0xf24
-#define RGA3_MMU_REG_LOAD_EN_OFFSET		0xf28
 
-/* TODO: RGA_INT */
+/* RGA3_SYS_CTRL */
+#define m_RGA3_SYS_CTRL_FRMEND_AUTO_RSTN_EN			(0x1 << 11)
+#define m_RGA3_SYS_CTRL_RGA_BIC_MODE				(0x3 << 9)
+#define m_RGA3_SYS_CTRL_RGA_RAM_CLK_ON				(0x1 << 8)
+#define m_RGA3_SYS_CTRL_CCLK_SRESET				(0x1 << 4)
+#define m_RGA3_SYS_CTRL_ACLK_SRESET				(0x1 << 3)
+#define m_RGA3_SYS_CTRL_RGA_LGC_CLK_ON				(0x1 << 2)
+#define m_RGA3_SYS_CTRL_CMD_MODE				(0x1 << 1)
+#define m_RGA3_SYS_CTRL_RGA_SART				(0x1 << 0)
+
+#define s_RGA3_SYS_CTRL_RGA_BIC_MODE(x)				((x & 0x3) << 9)
+#define s_RGA3_SYS_CTRL_CCLK_SRESET(x)				((x & 0x1) << 4)
+#define s_RGA3_SYS_CTRL_ACLK_SRESET(x)				((x & 0x1) << 3)
+#define s_RGA3_SYS_CTRL_CMD_MODE(x)				((x & 0x1) << 1)
+
+/* TODO: RGA3_INT_EN/RGA3_INT_RAW/RGA3_INT_MSK/RGA3_INT_CLR */
+#define m_RGA3_INT_WIN1_VOR_FIFO_REN_ERR			(0x1 << 29)
+#define m_RGA3_INT_WIN1_VOR_FIFO_WEN_ERR			(0x1 << 28)
+#define m_RGA3_INT_WIN1_HOR_FIFO_REN_ERR			(0x1 << 27)
+#define m_RGA3_INT_WIN1_HOR_FIFO_WEN_ERR			(0x1 << 26)
+#define m_RGA3_INT_WIN1_IN_FIFO_REB_ERR				(0x1 << 25)
+#define m_RGA3_INT_WIN1_IN_FIFO_WEN_ERR				(0x1 << 24)
+#define m_RGA3_INT_WIN0_VOR_FIFO_REN_ERR			(0x1 << 21)
+#define m_RGA3_INT_WIN0_VOR_FIFO_WEN_ERR			(0x1 << 20)
+#define m_RGA3_INT_WIN0_HOR_FIFO_REN_ERR			(0x1 << 19)
+#define m_RGA3_INT_WIN0_HOR_FIFO_WEN_ERR			(0x1 << 18)
+#define m_RGA3_INT_WIN0_IN_FIFO_REB_ERR				(0x1 << 17)
+#define m_RGA3_INT_WIN0_IN_FIFO_WEN_ERR				(0x1 << 16)
+#define m_RGA3_INT_RGA_MI_WR_BUS_ERR				(0x1 << 15)
+#define m_RGA3_INT_RGA_MI_WR_IN_HERR				(0x1 << 14)
+//The signal is invalid, it will be pulled up every time, no need to care.
+// #define m_RGA3_INT_RGA_MI_WR_IN_VERR				(0x1 << 13)
+#define m_RGA3_INT_WIN1_V_ERR					(0x1 << 11)
+#define m_RGA3_INT_WIN1_H_ERR					(0x1 << 10)
+#define m_RGA3_INT_WIN1_FBCD_DEC_ERR				(0x1 << 9)
+#define m_RGA3_INT_WIN1_RD_FRM_END				(0x1 << 8) //not error
+#define m_RGA3_INT_WIN0_V_ERR					(0x1 << 7)
+#define m_RGA3_INT_WIN0_H_ERR					(0x1 << 6)
+#define m_RGA3_INT_WIN0_FBCD_DEC_ERR				(0x1 << 5)
+#define m_RGA3_INT_WIN0_RD_FRM_END				(0x1 << 4) //not error
+#define m_RGA3_INT_CMD_LINE_FINISH				(0x1 << 3) //not error
+#define m_RGA3_INT_RAG_MI_RD_BUS_ERR				(0x1 << 2)
+#define m_RGA3_INT_RGA_MMU_INTR					(0x1 << 1)
+#define m_RGA3_INT_FRM_DONE					(0x1 << 0) //not error
+
+#define m_RGA3_INT_ERROR_MASK \
+	( \
+		m_RGA3_INT_RGA_MMU_INTR | \
+		m_RGA3_INT_RAG_MI_RD_BUS_ERR | \
+		m_RGA3_INT_WIN0_FBCD_DEC_ERR | \
+		m_RGA3_INT_WIN0_H_ERR | \
+		m_RGA3_INT_WIN0_V_ERR | \
+		m_RGA3_INT_WIN1_FBCD_DEC_ERR | \
+		m_RGA3_INT_WIN1_H_ERR | \
+		m_RGA3_INT_WIN1_V_ERR | \
+		m_RGA3_INT_RGA_MI_WR_IN_HERR | \
+		m_RGA3_INT_RGA_MI_WR_BUS_ERR | \
+		m_RGA3_INT_WIN0_IN_FIFO_WEN_ERR | \
+		m_RGA3_INT_WIN0_IN_FIFO_REB_ERR | \
+		m_RGA3_INT_WIN0_HOR_FIFO_WEN_ERR | \
+		m_RGA3_INT_WIN0_HOR_FIFO_REN_ERR| \
+		m_RGA3_INT_WIN0_VOR_FIFO_WEN_ERR | \
+		m_RGA3_INT_WIN0_VOR_FIFO_REN_ERR | \
+		m_RGA3_INT_WIN1_IN_FIFO_WEN_ERR | \
+		m_RGA3_INT_WIN1_IN_FIFO_REB_ERR | \
+		m_RGA3_INT_WIN1_HOR_FIFO_WEN_ERR | \
+		m_RGA3_INT_WIN1_HOR_FIFO_REN_ERR| \
+		m_RGA3_INT_WIN1_VOR_FIFO_WEN_ERR | \
+		m_RGA3_INT_WIN1_VOR_FIFO_REN_ERR \
+	)
+
+/* RGA3_CMD_CTRL */
+#define m_RGA3_CMD_CTRL_CMD_INCR_NUM				(0x3ff << 3)
+#define m_RGA3_CMD_CTRL_CMD_STOP_MODE				(0x1 << 2)
+#define m_RGA3_CMD_CTRL_CMD_INCR_VALID_P			(0x1 << 1)
+#define m_RGA3_CMD_CTRL_CMD_LINE_ST_P				(0x1 << 0)
 
 /* RGA3_CMD_STATE */
 #define m_RGA3_CMD_STATE_CMD_CNT_CUR				(0xfff << 16)

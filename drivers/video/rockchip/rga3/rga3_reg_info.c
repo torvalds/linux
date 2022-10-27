@@ -1597,7 +1597,8 @@ void rga3_soft_reset(struct rga_scheduler_t *scheduler)
 
 	mmu_addr = rga_read(0xf00, scheduler);
 
-	rga_write((1 << 3) | (1 << 4), RGA3_SYS_CTRL, scheduler);
+	rga_write(s_RGA3_SYS_CTRL_CCLK_SRESET(1) | s_RGA3_SYS_CTRL_ACLK_SRESET(1),
+		  RGA3_SYS_CTRL, scheduler);
 
 	pr_err("soft reset sys_ctrl = %x, ro_rest = %x",
 		rga_read(RGA3_SYS_CTRL, scheduler),
@@ -1609,16 +1610,18 @@ void rga3_soft_reset(struct rga_scheduler_t *scheduler)
 		rga_read(RGA3_SYS_CTRL, scheduler),
 		rga_read(RGA3_RO_SRST, scheduler));
 
-	rga_write((0 << 3) | (0 << 4), RGA3_SYS_CTRL, scheduler);
+	rga_write(s_RGA3_SYS_CTRL_CCLK_SRESET(0) | s_RGA3_SYS_CTRL_ACLK_SRESET(0),
+		  RGA3_SYS_CTRL, scheduler);
 
 	pr_err("soft after reset sys_ctrl = %x, ro_rest = %x",
 		rga_read(RGA3_SYS_CTRL, scheduler),
 		rga_read(RGA3_RO_SRST, scheduler));
 
-	rga_write(1, RGA3_INT_CLR, scheduler);
+	rga_write(m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH | m_RGA3_INT_ERROR_MASK,
+		  RGA3_INT_CLR, scheduler);
 
-	rga_write(mmu_addr, 0xf00, scheduler);
-	rga_write(0, 0xf08, scheduler);
+	rga_write(mmu_addr, RGA3_MMU_DTE_ADDR, scheduler);
+	rga_write(0, RGA3_MMU_COMMAND, scheduler);
 
 	if (DEBUGGER_EN(INT_FLAG))
 		pr_info("soft reset, INT[0x%x], HW_STATS[0x%x], CMD_STATS[0x%x]\n",
@@ -1895,27 +1898,12 @@ static void rga3_dump_read_back_reg(struct rga_scheduler_t *scheduler)
 
 int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
+	int i;
+	uint32_t sys_ctrl;
 	ktime_t now = ktime_get();
 
-	//rga_dma_flush_range(&job->cmd_reg[0], &job->cmd_reg[50], scheduler);
-
-	rga_write(0x0, RGA3_SYS_CTRL, scheduler);
-
-#if 0
-	/* CMD buff */
-	rga_write(virt_to_phys(job->cmd_reg), RGA3_CMD_ADDR, scheduler);
-#else
-	{
-		int32_t m, *cmd;
-
-		cmd = job->cmd_reg;
-		for (m = 0; m <= 50; m++)
-			rga_write(cmd[m], 0x100 + m * 4, scheduler);
-	}
-#endif
-
 	if (DEBUGGER_EN(REG)) {
-		int32_t i, *p;
+		uint32_t *p;
 
 		p = job->cmd_reg;
 		pr_info("CMD_REG\n");
@@ -1925,19 +1913,30 @@ int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 				p[2 + i * 4], p[3 + i * 4]);
 	}
 
+	/* All CMD finish int */
+	rga_write(m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH | m_RGA3_INT_ERROR_MASK,
+		  RGA3_INT_EN, scheduler);
+
 #if 0
 	/* master mode */
-	rga_write((0x1 << 1) | (0x1 << 2) | (0x1 << 5) | (0x1 << 6),
-		 RGA3_SYS_CTRL, scheduler);
+	sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(1);
+
+	rga_dma_flush_range(&job->cmd_reg[0], &job->cmd_reg[50], scheduler);
+
+	rga_write(virt_to_phys(job->cmd_reg), RGA3_CMD_ADDR, scheduler);
+	rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
+	rga_write(m_RGA3_CMD_CTRL_CMD_LINE_ST_P, RGA3_CMD_CTRL, scheduler);
 #else
 	/* slave mode */
-	//rga_write(1, 0xf08, scheduler);
+	sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(0) | m_RGA3_SYS_CTRL_RGA_SART;
+
+	for (i = 0; i <= 50; i++)
+		rga_write(job->cmd_reg[i], 0x100 + i * 4, scheduler);
+
+	rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
 #endif
 
-	/* All CMD finish int */
-	rga_write(1, RGA3_INT_EN, scheduler);
-
-	if (DEBUGGER_EN(MSG)) {
+	if (DEBUGGER_EN(REG)) {
 		pr_info("sys_ctrl = 0x%x, int_en = 0x%x, int_raw = 0x%x\n",
 			rga_read(RGA3_SYS_CTRL, scheduler),
 			rga_read(RGA3_INT_EN, scheduler),
@@ -1953,8 +1952,6 @@ int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 
 	job->hw_running_time = now;
 	job->hw_recoder_time = now;
-
-	rga_write(1, RGA3_SYS_CTRL, scheduler);
 
 	if (DEBUGGER_EN(REG))
 		rga3_dump_read_back_reg(scheduler);

@@ -43,6 +43,19 @@
 #define RGA2_OSD_CUR_FLAGS0			0x090
 #define RGA2_OSD_CUR_FLAGS1			0x09c
 
+/* iommu reg */
+#define RGA2_MMU_DTE_ADDR			0xf00
+#define RGA2_MMU_STATUS				0xf04
+#define RGA2_MMU_COMMAND			0xf08
+#define RGA2_MMU_PAGE_FAULT_ADDR		0xf0c
+#define RGA2_MMU_ZAP_ONE_LINE			0xf10
+#define RGA2_MMU_INT_RAWSTAT			0xf14
+#define RGA2_MMU_INT_CLEAR			0xf18
+#define RGA2_MMU_INT_MASK			0xf1c
+#define RGA2_MMU_INT_STATUS			0xf20
+#define RGA2_MMU_AUTO_GATING			0xf24
+#define RGA2_MMU_REG_LOAD_EN			0xf28
+
 /* mode ctrl */
 #define RGA2_MODE_CTRL_OFFSET			0x000
 #define RGA2_SRC_INFO_OFFSET			0x004
@@ -95,10 +108,28 @@
 #define RGA2_MMU_ELS_BASE_OFFSET		0x07c
 
 /*RGA_SYS*/
-#define m_RGA2_SYS_HOLD_MODE_EN				(1 << 9)
+#define m_RGA2_SYS_CTRL_SRC0YUV420SP_RD_OPT_DIS		(0x1 << 12)
+#define m_RGA2_SYS_CTRL_DST_WR_OPT_DIS			(0x1 << 11)
+#define m_RGA2_SYS_CTRL_CMD_CONTINUE_P			(0x1 << 10)
+#define m_RGA2_SYS_CTRL_HOLD_MODE_EN			(0x1 << 9)
+#define m_RGA2_SYS_CTRL_RST_HANDSAVE_P			(0x1 << 7)
+#define m_RGA2_SYS_CTRL_RST_PROTECT_P			(0x1 << 6)
+#define m_RGA2_SYS_CTRL_AUTO_RST			(0x1 << 5)
+#define m_RGA2_SYS_CTRL_CCLK_SRESET_P			(0x1 << 4)
+#define m_RGA2_SYS_CTRL_ACLK_SRESET_P			(0x1 << 3)
+#define m_RGA2_SYS_CTRL_AUTO_CKG			(0x1 << 2)
+#define m_RGA2_SYS_CTRL_CMD_MODE			(0x1 << 1)
+#define m_RGA2_SYS_CTRL_CMD_OP_ST_P			(0x1 << 0)
 
-#define s_RGA2_SYS_HOLD_MODE_EN(x)			((x & 0x1) << 9)
-#define s_RGA2_SYS_CMD_CONTINUE(x)			((x & 0x1) << 10)
+#define s_RGA2_SYS_CTRL_CMD_CONTINUE(x)			((x & 0x1) << 10)
+#define s_RGA2_SYS_CTRL_HOLD_MODE_EN(x)			((x & 0x1) << 9)
+#define s_RGA2_SYS_CTRL_CMD_MODE(x)			((x & 0x1) << 1)
+
+/* RGA_CMD_CTRL */
+#define m_RGA2_CMD_CTRL_INCR_NUM			(0x3ff << 3)
+#define m_RGA2_CMD_CTRL_STOP				(0x1 << 2)
+#define m_RGA2_CMD_CTRL_INCR_VALID_P			(0x1 << 1)
+#define m_RGA2_CMD_CTRL_CMD_LINE_ST_P			(0x1 << 0)
 
 /* RGA_STATUS1 */
 #define m_RGA2_STATUS1_SW_CMD_TOTAL_NUM			(0xfff << 8)
@@ -123,6 +154,22 @@
 #define m_RGA2_INT_ALL_CMD_DONE_INT_FLAG		(1 << 2)
 #define m_RGA2_INT_MMU_INT_FLAG				(1 << 1)
 #define m_RGA2_INT_ERROR_INT_FLAG			(1 << 0)
+
+#define m_RGA2_INT_ERROR_FLAG_MASK \
+	( \
+		m_RGA2_INT_MMU_INT_FLAG | \
+		m_RGA2_INT_ERROR_INT_FLAG \
+	)
+#define m_RGA2_INT_ERROR_CLEAR_MASK \
+	( \
+	m_RGA2_INT_MMU_INT_CLEAR | \
+	m_RGA2_INT_ERROR_INT_CLEAR \
+)
+#define m_RGA2_INT_ERROR_ENABLE_MASK \
+	( \
+		m_RGA2_INT_MMU_INT_EN | \
+		m_RGA2_INT_ERROR_INT_EN \
+	)
 
 #define s_RGA2_INT_LINE_WR_CLEAR(x)			((x & 0x1) << 16)
 #define s_RGA2_INT_LINE_RD_CLEAR(x)			((x & 0x1) << 15)
