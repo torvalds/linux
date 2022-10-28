@@ -25,7 +25,6 @@
 #include "adau-utils.h"
 
 struct adau1372 {
-	struct clk *clk;
 	struct regmap *regmap;
 	void (*switch_mode)(struct device *dev);
 	bool use_pll;
@@ -925,9 +924,9 @@ int adau1372_probe(struct device *dev, struct regmap *regmap,
 	if (!adau1372)
 		return -ENOMEM;
 
-	adau1372->clk = devm_clk_get(dev, "mclk");
-	if (IS_ERR(adau1372->clk))
-		return PTR_ERR(adau1372->clk);
+	adau1372->mclk = devm_clk_get(dev, "mclk");
+	if (IS_ERR(adau1372->mclk))
+		return PTR_ERR(adau1372->mclk);
 
 	adau1372->pd_gpio = devm_gpiod_get_optional(dev, "powerdown", GPIOD_OUT_HIGH);
 	if (IS_ERR(adau1372->pd_gpio))
@@ -947,7 +946,7 @@ int adau1372_probe(struct device *dev, struct regmap *regmap,
 	 * 12.288MHz. Automatically choose a valid configuration from the
 	 * external clock.
 	 */
-	rate = clk_get_rate(adau1372->clk);
+	rate = clk_get_rate(adau1372->mclk);
 
 	switch (rate) {
 	case 12288000:
