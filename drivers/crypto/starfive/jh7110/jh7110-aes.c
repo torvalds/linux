@@ -480,6 +480,8 @@ static int jh7110_cryp_hw_init(struct jh7110_sec_ctx *ctx)
 	int ret;
 	u32 hw_mode;
 
+	pm_runtime_resume_and_get(ctx->sdev->dev);
+
 	jh7110_aes_reset(ctx);
 
 	hw_mode = get_aes_mode(ctx->rctx);
@@ -641,6 +643,9 @@ static void jh7110_cryp_finish_req(struct jh7110_sec_ctx *ctx, int err)
 		pages = len ? get_order(len) : 1;
 		free_pages((unsigned long)buf_out, pages);
 	}
+
+	pm_runtime_mark_last_busy(ctx->sdev->dev);
+	pm_runtime_put_autosuspend(ctx->sdev->dev);
 
 	if (is_gcm(rctx) || is_ccm(rctx))
 		crypto_finalize_aead_request(ctx->sdev->engine, rctx->req.areq, err);

@@ -138,7 +138,7 @@ static const struct jh7110_clk_data jh7110_clk_sys_data[] __initconst = {
 			GATE_FLAG_NORMAL, JH7110_ISP_AXI),
 	JH7110_GATE(JH7110_NOC_BUS_CLK_ISP_AXI,
 			"u0_sft7110_noc_bus_clk_isp_axi",
-			CLK_IGNORE_UNUSED, JH7110_ISP_AXI),
+			CLK_IS_CRITICAL, JH7110_ISP_AXI),
 	//HIFI4
 	JH7110__DIV(JH7110_HIFI4_CORE, "hifi4_core", 15, JH7110_BUS_ROOT),
 	JH7110__DIV(JH7110_HIFI4_AXI, "hifi4_axi", 2, JH7110_HIFI4_CORE),

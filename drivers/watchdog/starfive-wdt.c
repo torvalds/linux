@@ -31,6 +31,7 @@
 #include <linux/watchdog.h>
 #include <linux/reset.h>
 #include <linux/reset-controller.h>
+#include <linux/pm_runtime.h>
 
 #define WDT_INT_DIS	BIT(0)
 #define DELAY_US	0
@@ -106,7 +107,8 @@ MODULE_PARM_DESC(tmr_atboot,
 			__MODULE_STRING(STARFIVE_WATCHDOG_ATBOOT));
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 			__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
-MODULE_PARM_DESC(soft_noboot, "Watchdog action, set to 1 to ignore reboots, 0 to reboot (default 0)");
+MODULE_PARM_DESC(soft_noboot,
+	"Watchdog action, set to 1 to ignore reboots, 0 to reboot (default 0)");
 
 struct starfive_wdt_variant_t {
 	u32 unlock_key;
@@ -183,10 +185,8 @@ static const struct starfive_wdt_variant drv_data_jh7110 = {
 };
 
 static const struct of_device_id starfive_wdt_match[] = {
-	{ .compatible = "starfive,jh7100-wdt",
-		.data = &drv_data_jh7100 },
-	{ .compatible = "starfive,jh7110-wdt",
-		.data = &drv_data_jh7110 },
+	{ .compatible = "starfive,jh7100-wdt", .data = &drv_data_jh7100 },
+	{ .compatible = "starfive,jh7110-wdt", .data = &drv_data_jh7110 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, starfive_wdt_match);
@@ -503,9 +503,21 @@ static int starfive_wdt_stop(struct watchdog_device *wdd)
 	return 0;
 }
 
+static int starfive_wdt_pm_stop(struct watchdog_device *wdd)
+{
+	struct starfive_wdt *wdt = watchdog_get_drvdata(wdd);
+
+	starfive_wdt_stop(wdd);
+	pm_runtime_put(wdt->dev);
+
+	return 0;
+}
+
 static int starfive_wdt_start(struct watchdog_device *wdd)
 {
 	struct starfive_wdt *wdt = watchdog_get_drvdata(wdd);
+
+	pm_runtime_get_sync(wdt->dev);
 
 	spin_lock(&wdt->lock);
 
@@ -606,7 +618,7 @@ static const struct watchdog_info starfive_wdt_ident = {
 static const struct watchdog_ops starfive_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = starfive_wdt_start,
-	.stop = starfive_wdt_stop,
+	.stop = starfive_wdt_pm_stop,
 	.ping = starfive_wdt_keepalive,
 	.set_timeout = starfive_wdt_set_timeout,
 	.restart = starfive_wdt_restart,
@@ -641,6 +653,8 @@ static int starfive_wdt_probe(struct platform_device *pdev)
 	struct resource *wdt_irq;
 	int started = 0;
 	int ret;
+
+	pm_runtime_enable(dev);
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
@@ -730,15 +744,16 @@ static int starfive_wdt_probe(struct platform_device *pdev)
 		 */
 		starfive_wdt_stop(&wdt->wdt_device);
 	}
+	clk_disable_unprepare(wdt->core_clk);
+	clk_disable_unprepare(wdt->apb_clk);
 
 	platform_set_drvdata(pdev, wdt);
 
 	return 0;
 
- err_unregister:
+err_unregister:
 	watchdog_unregister_device(&wdt->wdt_device);
-
- err:
+err:
 	return ret;
 }
 
@@ -754,6 +769,8 @@ static int starfive_wdt_remove(struct platform_device *dev)
 	watchdog_unregister_device(&wdt->wdt_device);
 
 	clk_disable_unprepare(wdt->core_clk);
+	clk_disable_unprepare(wdt->apb_clk);
+	pm_runtime_disable(wdt->dev);
 
 	return 0;
 }
@@ -764,8 +781,7 @@ static void starfive_wdt_shutdown(struct platform_device *dev)
 
 	starfive_wdt_mask_and_disable_reset(wdt, true);
 
-	starfive_wdt_stop(&wdt->wdt_device);
-
+	starfive_wdt_pm_stop(&wdt->wdt_device);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -786,6 +802,7 @@ static int starfive_wdt_suspend(struct device *dev)
 
 	/* Note that WTCNT doesn't need to be saved. */
 	starfive_wdt_stop(&wdt->wdt_device);
+	pm_runtime_force_suspend(dev);
 
 	starfive_wdt_lock(wdt);
 
@@ -803,20 +820,48 @@ static int starfive_wdt_resume(struct device *dev)
 	/* Restore watchdog state. */
 	starfive_wdt_set_relod_count(wdt, wdt->reload);
 
+	pm_runtime_force_resume(dev);
+
+	starfive_wdt_restart(&wdt->wdt_device, 0, NULL);
+
 	ret = starfive_wdt_mask_and_disable_reset(wdt, false);
 	if (ret < 0)
 		return ret;
 
 	starfive_wdt_lock(wdt);
 
-	dev_info(dev, "watchdog resume\n")
-
 	return 0;
 }
 #endif /* CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(starfive_wdt_pm_ops, starfive_wdt_suspend,
-			starfive_wdt_resume);
+#ifdef CONFIG_PM
+
+static int starfive_wdt_runtime_suspend(struct device *dev)
+{
+	struct starfive_wdt *wdt = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(wdt->apb_clk);
+	clk_disable_unprepare(wdt->core_clk);
+
+	return 0;
+}
+
+static int starfive_wdt_runtime_resume(struct device *dev)
+{
+	struct starfive_wdt *wdt = dev_get_drvdata(dev);
+
+	clk_prepare_enable(wdt->apb_clk);
+	clk_prepare_enable(wdt->core_clk);
+
+	return 0;
+}
+
+#endif /*CONFIG_PM*/
+
+static const struct dev_pm_ops starfive_wdt_pm_ops = {
+	SET_RUNTIME_PM_OPS(starfive_wdt_runtime_suspend, starfive_wdt_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(starfive_wdt_suspend, starfive_wdt_resume)
+};
 
 static struct platform_driver starfive_starfive_wdt_driver = {
 	.probe		= starfive_wdt_probe,

@@ -17,7 +17,7 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/reset.h>
-
+#include <linux/pm_runtime.h>
 #include "starfive-trng.h"
 
 #define to_trng(p)	container_of(p, struct trng, rng)
@@ -231,6 +231,8 @@ static int trng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	struct trng *hrng = to_trng(rng);
 	u32 intr = 0;
 
+	pm_runtime_get_sync(hrng->dev);
+
 	trng_cmd(hrng, CCORE_CTRL_EXEC_NOP);
 
 	if (hrng->mode == PRNG_256BIT)
@@ -260,6 +262,8 @@ static int trng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	trng_cmd(hrng, CCORE_CTRL_EXEC_NOP);
 	trng_wait_till_idle(hrng);
 	writel(0, hrng->base + CCORE_IE);
+
+	pm_runtime_put_sync(hrng->dev);
 
 	return max;
 }
@@ -357,6 +361,13 @@ static int trng_probe(struct platform_device *pdev)
 		goto err_disable_miscahb_clk;
 	}
 
+	clk_disable_unprepare(rng->hclk);
+	clk_disable_unprepare(rng->miscahb_clk);
+
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 100);
+	pm_runtime_enable(&pdev->dev);
+
 	return 0;
 
 err_disable_miscahb_clk:
@@ -367,6 +378,46 @@ err_disable_hclk:
 
 	return ret;
 }
+#ifdef CONFIG_PM
+
+static int starfive_trng_runtime_suspend(struct device *dev)
+{
+	struct trng *trng = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(trng->hclk);
+	clk_disable_unprepare(trng->miscahb_clk);
+
+	dev_dbg(dev, "starfive hrng runtime suspend");
+
+	return 0;
+}
+
+static int starfive_trng_runtime_resume(struct device *dev)
+{
+	struct trng *trng = dev_get_drvdata(dev);
+
+	clk_prepare_enable(trng->hclk);
+	clk_prepare_enable(trng->miscahb_clk);
+
+	dev_dbg(dev, "starfive hrng runtime resume");
+
+	return 0;
+}
+
+static int starfive_trng_runtime_idle(struct device *dev)
+{
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_autosuspend(dev);
+
+	return 0;
+}
+#endif/*CONFIG_PM*/
+
+static const struct dev_pm_ops starfive_trng_pm_ops = {
+	SET_RUNTIME_PM_OPS(starfive_trng_runtime_suspend, starfive_trng_runtime_resume,
+		starfive_trng_runtime_idle)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+};
 
 static const struct of_device_id trng_dt_ids[] = {
 	{ .compatible = "starfive,jh7110-trng" },
@@ -377,7 +428,8 @@ MODULE_DEVICE_TABLE(of, trng_dt_ids);
 static struct platform_driver trng_driver = {
 	.probe		= trng_probe,
 	.driver		= {
-		.name		= "trng",
+		.name	= "trng",
+		.pm     = &starfive_trng_pm_ops,
 		.of_match_table	= of_match_ptr(trng_dt_ids),
 	},
 };

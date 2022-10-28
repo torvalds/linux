@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/reset.h>
+#include <linux/pm_runtime.h>
 
 #include "mailbox.h"
 
@@ -144,7 +145,13 @@ static int starfive_mbox_check_state(struct mbox_chan *chan)
 {
 	unsigned long ch = (unsigned long)chan->con_priv;
 	struct starfive_mbox *mbox = to_starfive_mbox(chan->mbox);
+	unsigned long irq_flag = IRQF_SHARED;
 	long ret = 0;
+
+	pm_runtime_get_sync(mbox->dev);
+	/* MAILBOX should be with IRQF_NO_SUSPEND set */
+	if (!mbox->dev->pm_domain)
+		irq_flag |= IRQF_NO_SUSPEND;
 
 	/* Mailbox is idle so directly bail out */
 	if (readl(mbox->base + MBC_PEND_SMRY) & BIT(ch))
@@ -153,7 +160,7 @@ static int starfive_mbox_check_state(struct mbox_chan *chan)
 	if (mbox->mchan[ch].dst_irq > 0) {
 		dev_dbg(mbox->dev, "%s: host IRQ = %d, ch:%ld", __func__, mbox->mchan[ch].dst_irq, ch);
 		ret = devm_request_irq(mbox->dev, mbox->mchan[ch].dst_irq, starfive_rx_irq_handler,
-			IRQF_SHARED, irq_peer_name[ch].name, chan);
+			irq_flag, irq_peer_name[ch].name, chan);
 		if (ret < 0)
 			dev_err(mbox->dev, "request_irq %d failed\n", mbox->mchan[ch].dst_irq);
 	}
@@ -177,6 +184,7 @@ static void starfive_mbox_shutdown(struct mbox_chan *chan)
 
 	if (mbox->mchan[ch].dst_irq > 0)
 		devm_free_irq(mbox->dev, mbox->mchan[ch].dst_irq, chan);
+	pm_runtime_put_sync(mbox->dev);
 }
 
 static int starfive_mbox_send_data(struct mbox_chan *chan, void *msg)
@@ -280,6 +288,9 @@ static int starfive_mbox_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mbox);
 	dev_info(dev, "Mailbox enabled\n");
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
 	return 0;
 }
 
@@ -289,16 +300,44 @@ static int starfive_mbox_remove(struct platform_device *pdev)
 
 	mbox_controller_unregister(&mbox->controller);
 	devm_clk_put(mbox->dev, mbox->clk);
+	pm_runtime_disable(mbox->dev);
 
 	return 0;
 }
 
+static int __maybe_unused starfive_mbox_suspend(struct device *dev)
+{
+	struct starfive_mbox *mbox = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(mbox->clk);
+
+	return 0;
+}
+
+static int __maybe_unused starfive_mbox_resume(struct device *dev)
+{
+	struct starfive_mbox *mbox = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(mbox->clk);
+	if (ret)
+		dev_err(dev, "failed to enable clock\n");
+
+	return ret;
+}
+
+static const struct dev_pm_ops starfive_mbox_pm_ops = {
+	.suspend = starfive_mbox_suspend,
+	.resume = starfive_mbox_resume,
+	SET_RUNTIME_PM_OPS(starfive_mbox_suspend, starfive_mbox_resume, NULL)
+};
 static struct platform_driver starfive_mbox_driver = {
 	.probe  = starfive_mbox_probe,
 	.remove = starfive_mbox_remove,
 	.driver = {
 	.name = "mailbox",
 		.of_match_table = starfive_mbox_of_match,
+		.pm = &starfive_mbox_pm_ops,
 	},
 };
 

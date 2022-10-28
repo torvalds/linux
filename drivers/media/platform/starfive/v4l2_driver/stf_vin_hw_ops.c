@@ -7,8 +7,6 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
-#include <linux/clk-provider.h>
-#include <linux/pm_runtime.h>
 
 static void vin_intr_clear(void __iomem *sysctrl_base)
 {
@@ -213,47 +211,6 @@ static irqreturn_t stf_vin_isp_irq_csiline_handler(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-static int stf_vin_top_clk_init(struct stf_vin2_dev *vin_dev)
-{
-	struct stfcamss *stfcamss = vin_dev->stfcamss;
-	int ret;
-
-	pm_runtime_enable(stfcamss->dev);
-	ret = pm_runtime_get_sync(stfcamss->dev);
-	if (ret < 0) {
-		dev_err(stfcamss->dev,
-			"vin_clk_init: failed to get pm runtime: %d\n", ret);
-		return ret;
-	}
-
-	if (!__clk_is_enabled(stfcamss->sys_clk[STFCLK_NOC_BUS_CLK_ISP_AXI].clk))
-		clk_prepare_enable(stfcamss->sys_clk[STFCLK_NOC_BUS_CLK_ISP_AXI].clk);
-	else
-		st_warn(ST_VIN, "noc_bus_clk_isp_axi already enable\n");
-
-	clk_prepare_enable(stfcamss->sys_clk[STFCLK_ISPCORE_2X].clk);
-	clk_prepare_enable(stfcamss->sys_clk[STFCLK_ISP_AXI].clk);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_ISP_TOP_N].rstc);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rstc);
-
-	return 0;
-}
-
-static int stf_vin_top_clk_deinit(struct stf_vin2_dev *vin_dev)
-{
-	struct stfcamss *stfcamss = vin_dev->stfcamss;
-
-	reset_control_assert(stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rstc);
-	reset_control_assert(stfcamss->sys_rst[STFRST_ISP_TOP_N].rstc);
-	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_ISP_AXI].clk);
-	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_ISPCORE_2X].clk);
-
-	pm_runtime_put_sync(stfcamss->dev);
-	pm_runtime_disable(stfcamss->dev);
-
-	return 0;
-}
-
 static int stf_vin_clk_enable(struct stf_vin2_dev *vin_dev)
 {
 	struct stfcamss *stfcamss = vin_dev->stfcamss;
@@ -451,8 +408,6 @@ void dump_vin_reg(void *__iomem regbase)
 }
 
 struct vin_hw_ops vin_ops = {
-	.vin_top_clk_init      = stf_vin_top_clk_init,
-	.vin_top_clk_deinit    = stf_vin_top_clk_deinit,
 	.vin_clk_enable        = stf_vin_clk_enable,
 	.vin_clk_disable       = stf_vin_clk_disable,
 	.vin_config_set        = stf_vin_config_set,

@@ -52,6 +52,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define STARFIVE_7110_GPU_SIZE 0x00100000
 #define STARFIVE_7110_GPU_PBASE 0x18000000
 
+typedef IMG_UINT32 (*SYS_DEV_CLK_GET)(IMG_HANDLE hData);
+
 struct sf7110_cfg {
 	void __iomem *gpu_reg_base;
 	resource_size_t gpu_reg_start;
@@ -72,6 +74,8 @@ struct sf7110_cfg {
 	/* for gpu device freq/volt update, to be fill later */
 	//struct clk **top_clk;
 	struct device *dev;
+	SYS_DEV_CLK_GET runtime_resume;
+	SYS_DEV_CLK_GET runtime_suspend;
 };
 
 #define mk_crg_offset(x)  ((x) - (U0_SYS_CRG__SAIF_BD_APBS__BASE_ADDR))
@@ -86,6 +90,9 @@ struct sf7110_cfg {
 
 extern void do_sifive_l2_flush64_range(unsigned long start, unsigned long len);
 
+void u0_img_gpu_enable(void);
+void u0_img_gpu_disable(void);
+struct sf7110_cfg *sys_get_privdata(void);
 /*****************************************************************************
  * system specific data structures
  *****************************************************************************/

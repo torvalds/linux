@@ -298,6 +298,10 @@ static int cdns_starfive_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
+	device_set_wakeup_capable(dev, true);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
 	dev_info(dev, "usb mode %d %s probe success\n",
 		data->mode, data->usb2_only ? "2.0" : "3.0");
 
@@ -318,13 +322,54 @@ static int cdns_starfive_remove_core(struct device *dev, void *c)
 static int cdns_starfive_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct cdns_starfive *data = dev_get_drvdata(dev);
 
+	pm_runtime_get_sync(dev);
 	device_for_each_child(dev, NULL, cdns_starfive_remove_core);
 
+	reset_control_assert(data->resets);
+	clk_bulk_disable_unprepare(data->num_clks, data->clks);
+	pm_runtime_disable(dev);
+	pm_runtime_put_noidle(dev);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static int cdns_starfive_resume(struct device *dev)
+{
+	struct cdns_starfive *data = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_set_rate(data->usb_125m_clk, USB_125M_CLK_RATE);
+	if (ret)
+		goto err;
+
+	ret = clk_bulk_prepare_enable(data->num_clks, data->clks);
+	if (ret)
+		goto err;
+
+	ret = reset_control_deassert(data->resets);
+err:
+	return ret;
+}
+
+static int cdns_starfive_suspend(struct device *dev)
+{
+	struct cdns_starfive *data = dev_get_drvdata(dev);
+
+	clk_bulk_disable_unprepare(data->num_clks, data->clks);
+	reset_control_assert(data->resets);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops cdns_starfive_pm_ops = {
+	SET_RUNTIME_PM_OPS(cdns_starfive_suspend, cdns_starfive_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(cdns_starfive_suspend, cdns_starfive_resume)
+};
 
 static const struct of_device_id cdns_starfive_of_match[] = {
 	{ .compatible = "starfive,jh7110-cdns3", },
@@ -338,6 +383,7 @@ static struct platform_driver cdns_starfive_driver = {
 	.driver		= {
 		.name	= "cdns3-starfive",
 		.of_match_table	= cdns_starfive_of_match,
+		.pm	= &cdns_starfive_pm_ops,
 	},
 };
 

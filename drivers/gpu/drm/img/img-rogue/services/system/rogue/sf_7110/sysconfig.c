@@ -222,6 +222,23 @@ void SysDevHost_Cache_Maintenance(IMG_HANDLE hSysData,
 }
 #endif
 
+static IMG_UINT32 sys_gpu_runtime_resume(IMG_HANDLE hd)
+{
+	starfive_pmu_hw_event_turn_off_mask(0);
+	clk_prepare_enable(sf_cfg_t.clk_axi);
+	u0_img_gpu_enable();
+
+	return 0;
+}
+
+static IMG_UINT32 sys_gpu_runtime_suspend(IMG_HANDLE hd)
+{
+	u0_img_gpu_disable();
+	starfive_pmu_hw_event_turn_off_mask((uint32_t)-1);
+
+	return 0;
+}
+
 static int create_sf7110_cfg(struct device *dev)
 {
 	struct sf7110_cfg *psf = &sf_cfg_t;
@@ -282,6 +299,9 @@ static int create_sf7110_cfg(struct device *dev)
 		goto err_gpu_unmap;
 	}
 
+	psf->runtime_resume = sys_gpu_runtime_resume;
+	psf->runtime_suspend = sys_gpu_runtime_suspend;
+
 	return 0;
 err_gpu_unmap:
 	iounmap(psf->gpu_reg_base);
@@ -312,43 +332,36 @@ void u0_img_gpu_disable(void)
 	clk_disable_unprepare(sf_cfg_t.clk_sys);
 }
 
-
-
 static int sys_gpu_enable(void)
 {
 	int ret;
-	
-	pm_runtime_enable(sf_cfg_t.dev);
+
 	ret = pm_runtime_get_sync(sf_cfg_t.dev);
 	if (ret < 0) {
 		dev_err(sf_cfg_t.dev, "gpu: failed to get pm runtime: %d\n", ret);
 		return ret;
 	}
-	starfive_pmu_hw_event_turn_off_mask(0);
-	clk_prepare_enable(sf_cfg_t.clk_axi);
-	u0_img_gpu_enable();
+
 	return 0;
 }
 
 static int sys_gpu_disable(void)
 {
-	u0_img_gpu_disable();
-	starfive_pmu_hw_event_turn_off_mask((uint32_t)-1);
 	pm_runtime_put_sync(sf_cfg_t.dev);
 	//pm_runtime_disable(sf_cfg_t.dev);
 	return 0;
 }
 
-
-
-
 static PVRSRV_ERROR sfSysDevPrePowerState(
 		IMG_HANDLE hSysData,
 		PVRSRV_SYS_POWER_STATE eNewPowerState,
 		PVRSRV_SYS_POWER_STATE eCurrentPowerState,
-		IMG_BOOL bForced)
+		PVRSRV_POWER_FLAGS ePwrFlags)
 {
 	struct sf7110_cfg *psf = hSysData;
+
+	pr_debug("(%s()) state: current=%d, new=%d; flags: 0x%08x", __func__,
+	     eCurrentPowerState, eNewPowerState, ePwrFlags);
 
 	mutex_lock(&psf->set_power_state);
 
@@ -364,11 +377,13 @@ static PVRSRV_ERROR sfSysDevPostPowerState(
 		IMG_HANDLE hSysData,
 		PVRSRV_SYS_POWER_STATE eNewPowerState,
 		PVRSRV_SYS_POWER_STATE eCurrentPowerState,
-		IMG_BOOL bForced)
+		PVRSRV_POWER_FLAGS ePwrFlags)
 {
 	struct sf7110_cfg *psf = hSysData;
 	PVRSRV_ERROR ret;
 
+	pr_debug("(%s()) state: current=%d, new=%d; flags: 0x%08x", __func__,
+	     eCurrentPowerState, eNewPowerState, ePwrFlags);
 
 	mutex_lock(&psf->set_power_state);
 
@@ -423,7 +438,7 @@ PVRSRV_ERROR SysDevInit(void *pvOSDevice, PVRSRV_DEVICE_CONFIG **ppsDevConfig)
 	 * Setup RGX specific timing data
 	 */
 	gsRGXTimingInfo.ui32CoreClockSpeed	= RGX_STARFIVE_7100_CORE_CLOCK_SPEED;
-	gsRGXTimingInfo.bEnableActivePM		= IMG_FALSE;
+	gsRGXTimingInfo.bEnableActivePM		= IMG_TRUE;
 	gsRGXTimingInfo.bEnableRDPowIsland	= IMG_TRUE;
 	gsRGXTimingInfo.ui32ActivePMLatencyms	= SYS_RGX_ACTIVE_POWER_LATENCY_MS;
 
@@ -483,6 +498,7 @@ PVRSRV_ERROR SysDevInit(void *pvOSDevice, PVRSRV_DEVICE_CONFIG **ppsDevConfig)
 	}
 	gsDevices[0].hSysData = &sf_cfg_t;
 
+	pm_runtime_enable(sf_cfg_t.dev);
 	/* power management on HW system */
 	gsDevices[0].pfnPrePowerState = sfSysDevPrePowerState;
 	gsDevices[0].pfnPostPowerState = sfSysDevPostPowerState;
@@ -615,6 +631,11 @@ PVRSRV_ERROR SysDebugInfo(PVRSRV_DEVICE_CONFIG *psDevConfig,
 	PVR_UNREFERENCED_PARAMETER(pfnDumpDebugPrintf);
 	PVR_UNREFERENCED_PARAMETER(pvDumpDebugFile);
 	return PVRSRV_OK;
+}
+
+struct sf7110_cfg *sys_get_privdata(void)
+{
+	return &sf_cfg_t;
 }
 
 /******************************************************************************

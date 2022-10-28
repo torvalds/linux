@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PWMDAC driver for the StarFive JH7110 SoC
  *
@@ -623,12 +624,6 @@ static int sf_pwmdac_hw_params(struct snd_pcm_substream *substream,
 	mclk_dac_value = mclk_dac_value + 64;
 	pwmdac_set(dev);
 
-	ret = clk_prepare_enable(dev->clk_pwmdac_core);
-	if (ret) {
-		dev_err(dai->dev, "failed to prepare enable clk_pwmdac_core\n");
-		goto err_clk_pwmdac;
-	}
-
 	ret = clk_set_rate(dev->clk_pwmdac_core, mclk_dac_value);
 	if (ret) {
 		dev_err(dai->dev, "failed to set rate for clk_pwmdac_core %lu\n", mclk_dac_value);
@@ -678,28 +673,61 @@ static int sf_pwmdac_resets_get(struct platform_device *pdev,
 	return 0;
 }
 
+static int starfive_pwmdac_crg_enable(struct sf_pwmdac_dev *dev, bool enable)
+{
+	int ret = 0;
+
+	dev_dbg(dev->dev, "starfive_pwmdac clk&rst %sable.\n", enable ? "en":"dis");
+	if (enable) {
+		ret = clk_prepare_enable(dev->clk_apb0);
+		if (ret) {
+			dev_err(dev->dev, "failed to prepare enable clk_apb0\n");
+			goto err_clk_apb0;
+		}
+
+		ret = clk_prepare_enable(dev->clk_pwmdac_apb);
+		if (ret) {
+			dev_err(dev->dev, "failed to prepare enable clk_pwmdac_apb\n");
+			goto err_clk_apb;
+		}
+
+		ret = clk_prepare_enable(dev->clk_pwmdac_core);
+		if (ret) {
+			dev_err(dev->dev, "failed to prepare enable clk_pwmdac_core\n");
+			goto err_clk_core;
+		}
+
+		ret = reset_control_deassert(dev->rst_apb);
+		if (ret) {
+			dev_err(dev->dev, "failed to deassert apb\n");
+			goto err_rst_apb;
+		}
+	} else {
+		clk_disable_unprepare(dev->clk_pwmdac_core);
+		clk_disable_unprepare(dev->clk_pwmdac_apb);
+		clk_disable_unprepare(dev->clk_apb0);
+	}
+
+	return 0;
+
+err_rst_apb:
+	clk_disable_unprepare(dev->clk_pwmdac_core);
+err_clk_core:
+	clk_disable_unprepare(dev->clk_pwmdac_apb);
+err_clk_apb:
+	clk_disable_unprepare(dev->clk_apb0);
+err_clk_apb0:
+	return ret;
+}
+
 static int sf_pwmdac_clk_init(struct platform_device *pdev,
 				struct sf_pwmdac_dev *dev)
 {
 	int ret = 0;
 
-	ret = clk_prepare_enable(dev->clk_apb0);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable clk_apb0\n");
+	ret = starfive_pwmdac_crg_enable(dev, true);
+	if (ret)
 		goto err_clk_pwmdac;
-	}
-
-	ret = clk_prepare_enable(dev->clk_pwmdac_apb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable clk_pwmdac_apb\n");
-		goto err_clk_pwmdac;
-	}
-
-	ret = clk_prepare_enable(dev->clk_pwmdac_core);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable clk_pwmdac_core\n");
-		goto err_clk_pwmdac;
-	}
 
 	ret = clk_set_rate(dev->clk_pwmdac_core, 4096000);
 	if (ret) {
@@ -710,12 +738,6 @@ static int sf_pwmdac_clk_init(struct platform_device *pdev,
 	dev_info(&pdev->dev, "clk_apb0 = %lu, clk_pwmdac_apb = %lu, clk_pwmdac_core = %lu\n",
 		clk_get_rate(dev->clk_apb0), clk_get_rate(dev->clk_pwmdac_apb),
 		clk_get_rate(dev->clk_pwmdac_core));
-
-	ret = reset_control_deassert(dev->rst_apb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to deassert apb\n");
-		goto err_clk_pwmdac;
-	}
 
 err_clk_pwmdac:
 	return ret;
@@ -735,6 +757,39 @@ static int sf_pwmdac_dai_probe(struct snd_soc_dai *dai)
 
 	return 0;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int starfive_pwmdac_system_suspend(struct device *dev)
+{
+	return pm_runtime_force_suspend(dev);
+}
+
+static int starfive_pwmdac_system_resume(struct device *dev)
+{
+	return pm_runtime_force_resume(dev);
+}
+#endif
+
+#ifdef CONFIG_PM
+static int starfive_pwmdac_runtime_suspend(struct device *dev)
+{
+	struct sf_pwmdac_dev *pwmdac = dev_get_drvdata(dev);
+
+	return starfive_pwmdac_crg_enable(pwmdac, false);
+}
+
+static int starfive_pwmdac_runtime_resume(struct device *dev)
+{
+	struct sf_pwmdac_dev *pwmdac = dev_get_drvdata(dev);
+
+	return starfive_pwmdac_crg_enable(pwmdac, true);
+}
+#endif
+
+static const struct dev_pm_ops starfive_pwmdac_pm_ops = {
+	SET_RUNTIME_PM_OPS(starfive_pwmdac_runtime_suspend, starfive_pwmdac_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(starfive_pwmdac_system_suspend, starfive_pwmdac_system_resume)
+};
 
 #define SOC_PWMDAC_ENUM_DECL(xname, xinfo, xget, xput) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
@@ -825,6 +880,7 @@ static int sf_pwmdac_probe(struct platform_device *pdev)
 		return PTR_ERR(dev->pwmdac_base);
 
 	dev->mapbase = res->start;
+	dev->dev = &pdev->dev;
 
 	ret = sf_pwmdac_clks_get(pdev, dev);
 	if (ret) {
@@ -844,7 +900,6 @@ static int sf_pwmdac_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dev->dev = &pdev->dev;
 	dev->mode = shift_8Bit_inverter;
 	dev->fifo_th = 1;//8byte
 	pwmdac_config(dev);
@@ -864,6 +919,12 @@ static int sf_pwmdac_probe(struct platform_device *pdev)
 		ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL,
 				0);
 	}
+
+#ifdef CONFIG_PM
+	starfive_pwmdac_crg_enable(dev, false);
+#endif
+
+	pm_runtime_enable(dev->dev);
 
 	return 0;
 }
@@ -890,6 +951,7 @@ static struct platform_driver sf_pwmdac_driver = {
 	.driver		= {
 		.name	= "starfive-pwmdac",
 		.of_match_table = of_match_ptr(sf_pwmdac_of_match),
+		.pm = &starfive_pwmdac_pm_ops,
 	},
 };
 
@@ -908,6 +970,7 @@ late_initcall(pwmdac_driver_init);
 module_exit(pwmdac_driver_exit);
 
 MODULE_AUTHOR("curry.zhang <curry.zhang@starfivetech.com>");
+MODULE_AUTHOR("Xingyu Wu <xingyu.wu@starfivetech.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("starfive pwmdac SoC Interface");
 MODULE_ALIAS("platform:starfive-pwmdac");

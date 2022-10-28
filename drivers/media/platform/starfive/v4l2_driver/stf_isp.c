@@ -400,25 +400,16 @@ free_ctrls:
 static int isp_set_power(struct v4l2_subdev *sd, int on)
 {
 	struct stf_isp_dev *isp_dev = v4l2_get_subdevdata(sd);
-	struct stf_vin2_dev *vin_dev = isp_dev->stfcamss->vin_dev;
 
 	st_debug(ST_ISP, "%s, %d\n", __func__, __LINE__);
 	mutex_lock(&isp_dev->power_lock);
 	if (on) {
-		if (isp_dev->power_count == 0) {
-			/* Needs to enable vin clock before access ISP. */
-			vin_dev->hw_ops->vin_top_clk_init(vin_dev);
-			vin_dev->hw_ops->vin_clk_enable(vin_dev);
-			isp_dev->hw_ops->isp_clk_enable(isp_dev);
-			if (!user_config_isp)
-				isp_dev->hw_ops->isp_config_set(isp_dev);
-		}
+		if (isp_dev->power_count == 0)
+			st_debug(ST_ISP, "turn on isp\n");
 		isp_dev->power_count++;
 	} else {
 		if (isp_dev->power_count == 0)
 			goto exit;
-		if (isp_dev->power_count == 1)
-			isp_dev->hw_ops->isp_clk_disable(isp_dev);
 		isp_dev->power_count--;
 	}
 exit:
@@ -473,6 +464,9 @@ static int isp_set_stream(struct v4l2_subdev *sd, int enable)
 	mutex_lock(&isp_dev->stream_lock);
 	if (enable) {
 		if (isp_dev->stream_count == 0) {
+			isp_dev->hw_ops->isp_clk_enable(isp_dev);
+			if (!user_config_isp)
+				isp_dev->hw_ops->isp_config_set(isp_dev);
 			interface_type = isp_get_interface_type(&sd->entity);
 			if (interface_type < 0) {
 				st_err(ST_ISP, "%s, pipeline not config\n", __func__);
@@ -488,8 +482,10 @@ static int isp_set_stream(struct v4l2_subdev *sd, int enable)
 	} else {
 		if (isp_dev->stream_count == 0)
 			goto exit;
-		if (isp_dev->stream_count == 1)
+		if (isp_dev->stream_count == 1) {
 			isp_dev->hw_ops->isp_stream_set(isp_dev, enable);
+			isp_dev->hw_ops->isp_clk_disable(isp_dev);
+		}
 		isp_dev->stream_count--;
 	}
 	src_ch.type = V4L2_EVENT_SOURCE_CHANGE,

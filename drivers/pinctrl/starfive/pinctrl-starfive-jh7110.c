@@ -1666,6 +1666,7 @@ static int starfive_jh7110_pinctrl_probe(struct platform_device *pdev)
 static struct platform_driver starfive_jh7110_pinctrl_driver = {
 	.driver = {
 		.name = "starfive_jh7110-pinctrl",
+		.pm = &starfive_pinctrl_pm_ops,
 		.of_match_table = of_match_ptr(starfive_jh7110_pinctrl_of_match),
 	},
 	.probe = starfive_jh7110_pinctrl_probe,

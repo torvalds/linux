@@ -15,6 +15,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/of_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -28,13 +29,13 @@
 #include "stfcamss.h"
 
 
-#define OV4689_LANES    2
+#define OV4689_LANES    4
 
 #define OV4689_LINK_FREQ_500MHZ         500000000LL
 
 /* min/typical/max system clock (xclk) frequencies */
 #define OV4689_XCLK_MIN  6000000
-#define OV4689_XCLK_MAX 54000000
+#define OV4689_XCLK_MAX 64000000
 
 #define OV4689_CHIP_ID	(0x4688)
 
@@ -59,7 +60,7 @@
 
 #define OV4689_REG_AWB_R_GAIN           0x500C
 #define OV4689_REG_AWB_B_GAIN           0x5010
-
+#define OV4689_REG_STREAM_ON            0x0100
 
 enum ov4689_mode_id {
 	//OV4689_MODE_720P_1280_720 = 0,
@@ -175,8 +176,6 @@ struct ov4689_dev {
 	/* lock to protect all members below */
 	struct mutex lock;
 
-	int power_count;
-
 	struct v4l2_mbus_framefmt fmt;
 
 	const struct ov4689_mode_info *current_mode;
@@ -185,9 +184,6 @@ struct ov4689_dev {
 	struct v4l2_fract frame_interval;
 
 	struct ov4689_ctrls ctrls;
-
-	u32 prev_sysclk, prev_hts;
-	u32 ae_low, ae_high, ae_target;
 
 	bool pending_mode_change;
 	int streaming;
@@ -1770,11 +1766,6 @@ static int ov4689_set_gain(struct ov4689_dev *sensor, int gain)
 	return 0;
 }
 
-static int ov4689_set_stream_mipi(struct ov4689_dev *sensor, bool on)
-{
-	return 0;
-}
-
 #ifdef UNUSED_CODE
 static int ov4689_get_sysclk(struct ov4689_dev *sensor)
 {
@@ -1970,8 +1961,6 @@ static u64 ov4689_calc_pixel_rate(struct ov4689_dev *sensor)
 #define OV4689_PLL2_DIVS            0x030e  // bits[2:0]
 #define OV4689_PLL2_DIVDAC          0x0312  // bits[3:0]
 
-#define OV4689_TIMING_HTS           0x380c
-
 static int ov4689_set_mipi_pclk(struct ov4689_dev *sensor,
 				unsigned long rate)
 {
@@ -1984,17 +1973,17 @@ static int ov4689_set_mipi_pclk(struct ov4689_dev *sensor,
 
 	htot = mode->htot * ov4689_framerates[mode->max_fps] / fps;
 
-	ret = ov4689_write_reg16(sensor, OV4689_TIMING_HTS, htot);
+	ret = ov4689_write_reg16(sensor, OV4689_REG_TIMING_HTS, htot);
 
-	ret = ov4689_read_reg(sensor, OV4689_TIMING_HTS, &val);
+	ret = ov4689_read_reg(sensor, OV4689_REG_TIMING_HTS, &val);
 	val16 = val << 8;
-	ret = ov4689_read_reg(sensor, OV4689_TIMING_HTS + 1, &val);
+	ret = ov4689_read_reg(sensor, OV4689_REG_TIMING_HTS + 1, &val);
 	val16 |= val;
 
 	st_info(ST_SENSOR, "fps = %d, max_fps = %d\n", fps, mode->max_fps);
 	st_info(ST_SENSOR, "mode->htot = 0x%x, htot = 0x%x\n", mode->htot,
 			htot);
-	st_info(ST_SENSOR, "reg: 0x%x = 0x%x\n", OV4689_TIMING_HTS, val16);
+	st_info(ST_SENSOR, "reg: 0x%x = 0x%x\n", OV4689_REG_TIMING_HTS, val16);
 
 	return 0;
 }
@@ -2016,7 +2005,6 @@ static int ov4689_set_mode_direct(struct ov4689_dev *sensor,
 static int ov4689_set_mode(struct ov4689_dev *sensor)
 {
 	const struct ov4689_mode_info *mode = sensor->current_mode;
-	//const struct ov4689_mode_info *orig_mode = sensor->last_mode;
 
 	int ret = 0;
 
@@ -2024,12 +2012,7 @@ static int ov4689_set_mode(struct ov4689_dev *sensor)
 	if (ret < 0)
 		return ret;
 
-	/*
-	 * we support have 10 bits raw RGB(mipi)
-	 */
-	if (sensor->ep.bus_type == V4L2_MBUS_CSI2_DPHY)
-		ret = ov4689_set_mipi_pclk(sensor, 0);
-
+	ret = ov4689_set_mipi_pclk(sensor, 0);
 	if (ret < 0)
 		return 0;
 
@@ -2077,9 +2060,11 @@ static void ov4689_reset(struct ov4689_dev *sensor)
 	usleep_range(1000, 2000);
 }
 
-static int ov4689_set_power_on(struct ov4689_dev *sensor)
+static int ov4689_set_power_on(struct device *dev)
 {
-	struct i2c_client *client = sensor->i2c_client;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ov4689_dev *sensor = to_ov4689_dev(sd);
 	int ret;
 
 	ret = clk_prepare_enable(sensor->xclk);
@@ -2107,95 +2092,17 @@ xclk_off:
 	return ret;
 }
 
-static void ov4689_set_power_off(struct ov4689_dev *sensor)
+static int ov4689_set_power_off(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ov4689_dev *sensor = to_ov4689_dev(sd);
+
 	ov4689_power(sensor, false);
 	regulator_bulk_disable(OV4689_NUM_SUPPLIES, sensor->supplies);
 	clk_disable_unprepare(sensor->xclk);
-}
-
-static int ov4689_set_power_mipi(struct ov4689_dev *sensor, bool on)
-{
-	return 0;
-}
-
-static int ov4689_set_power(struct ov4689_dev *sensor, bool on)
-{
-	int ret = 0;
-	u16 chip_id;
-
-	if (on) {
-		ret = ov4689_set_power_on(sensor);
-		if (ret)
-			return ret;
-
-		ret = ov4689_read_reg16(sensor, OV4689_REG_CHIP_ID, &chip_id);
-		if (ret) {
-			dev_err(&sensor->i2c_client->dev, "%s: failed to read chip identifier\n",
-				__func__);
-			ret = -ENODEV;
-			goto power_off;
-		}
-
-		if (chip_id != OV4689_CHIP_ID) {
-			dev_err(&sensor->i2c_client->dev,
-					"%s: wrong chip identifier, expected 0x%x, got 0x%x\n",
-					__func__, OV4689_CHIP_ID, chip_id);
-			ret = -ENXIO;
-			goto power_off;
-		}
-		dev_err(&sensor->i2c_client->dev, "%s: chip identifier, got 0x%x\n",
-			__func__, chip_id);
-
-		ret = ov4689_restore_mode(sensor);
-		if (ret)
-			goto power_off;
-	}
-
-	if (sensor->ep.bus_type == V4L2_MBUS_CSI2_DPHY)
-		ret = ov4689_set_power_mipi(sensor, on);
-	if (ret)
-		goto power_off;
-
-	if (!on)
-		ov4689_set_power_off(sensor);
 
 	return 0;
-
-power_off:
-	ov4689_set_power_off(sensor);
-	return ret;
-}
-
-static int ov4689_s_power(struct v4l2_subdev *sd, int on)
-{
-	struct ov4689_dev *sensor = to_ov4689_dev(sd);
-	int ret = 0;
-
-	mutex_lock(&sensor->lock);
-
-	/*
-	 * If the power count is modified from 0 to != 0 or from != 0 to 0,
-	 * update the power state.
-	 */
-	if (sensor->power_count == !on) {
-		ret = ov4689_set_power(sensor, !!on);
-		if (ret)
-			goto out;
-	}
-
-	/* Update the power count. */
-	sensor->power_count += on ? 1 : -1;
-	WARN_ON(sensor->power_count < 0);
-out:
-	mutex_unlock(&sensor->lock);
-
-	if (on && !ret && sensor->power_count == 1) {
-		/* restore controls */
-		ret = v4l2_ctrl_handler_setup(&sensor->ctrls.handler);
-	}
-
-	return ret;
 }
 
 static int ov4689_try_frame_interval(struct ov4689_dev *sensor,
@@ -2502,11 +2409,16 @@ static int ov4689_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 
 	/* v4l2_ctrl_lock() locks our own mutex */
 
+	if (!pm_runtime_get_if_in_use(&sensor->i2c_client->dev))
+		return 0;
+
 	switch (ctrl->id) {
 	case V4L2_CID_ANALOGUE_GAIN:
 		val = ov4689_get_gain(sensor);
 		break;
 	}
+
+	pm_runtime_put(&sensor->i2c_client->dev);
 
 	return 0;
 }
@@ -2522,9 +2434,9 @@ static int ov4689_s_ctrl(struct v4l2_ctrl *ctrl)
 	/*
 	 * If the device is not powered up by the host driver do
 	 * not apply any controls to H/W at this time. Instead
-	 * the controls will be restored right after power-up.
+	 * the controls will be restored at start streaming time.
 	 */
-	if (sensor->power_count == 0)
+	if (!pm_runtime_get_if_in_use(&sensor->i2c_client->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -2562,6 +2474,8 @@ static int ov4689_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = -EINVAL;
 		break;
 	}
+
+	pm_runtime_put(&sensor->i2c_client->dev);
 
 	return ret;
 }
@@ -2756,7 +2670,7 @@ out:
 
 static int ov4689_stream_start(struct ov4689_dev *sensor, int enable)
 {
-	return ov4689_write_reg(sensor, 0x100, enable);
+	return ov4689_write_reg(sensor, OV4689_REG_STREAM_ON, enable);
 }
 
 static int ov4689_s_stream(struct v4l2_subdev *sd, int enable)
@@ -2764,20 +2678,32 @@ static int ov4689_s_stream(struct v4l2_subdev *sd, int enable)
 	struct ov4689_dev *sensor = to_ov4689_dev(sd);
 	int ret = 0;
 
+	if (enable) {
+		pm_runtime_get_sync(&sensor->i2c_client->dev);
+
+		ret = v4l2_ctrl_handler_setup(&sensor->ctrls.handler);
+		if (ret) {
+			pm_runtime_put_sync(&sensor->i2c_client->dev);
+			return ret;
+		}
+	}
+
 	mutex_lock(&sensor->lock);
 
 	if (sensor->streaming == !enable) {
+		if (enable) {
+			ret = ov4689_restore_mode(sensor);
+			if (ret)
+				goto out;
+		}
+
 		if (enable && sensor->pending_mode_change) {
 			ret = ov4689_set_mode(sensor);
 			if (ret)
 				goto out;
 		}
 
-		if (sensor->ep.bus_type == V4L2_MBUS_CSI2_DPHY)
-			ret = ov4689_set_stream_mipi(sensor, enable);
-
 		ret = ov4689_stream_start(sensor, enable);
-
 		if (ret)
 			goto out;
 	}
@@ -2785,11 +2711,14 @@ static int ov4689_s_stream(struct v4l2_subdev *sd, int enable)
 	WARN_ON(sensor->streaming < 0);
 out:
 	mutex_unlock(&sensor->lock);
+
+	if (!enable || ret)
+		pm_runtime_put_sync(&sensor->i2c_client->dev);
+
 	return ret;
 }
 
 static const struct v4l2_subdev_core_ops ov4689_core_ops = {
-	.s_power = ov4689_s_power,
 	.log_status = v4l2_ctrl_subdev_log_status,
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
@@ -2833,28 +2762,22 @@ static int ov4689_check_chip_id(struct ov4689_dev *sensor)
 	int ret = 0;
 	u16 chip_id;
 
-	ret = ov4689_set_power_on(sensor);
-	if (ret)
-		return ret;
-
 	ret = ov4689_read_reg16(sensor, OV4689_REG_CHIP_ID, &chip_id);
 	if (ret) {
 		dev_err(&client->dev, "%s: failed to read chip identifier\n",
 			__func__);
-		goto power_off;
+		return ret;
 	}
 
 	if (chip_id != OV4689_CHIP_ID) {
 		dev_err(&client->dev, "%s: wrong chip identifier, expected 0x%x,  got 0x%x\n",
 			__func__, OV4689_CHIP_ID, chip_id);
-		ret = -ENXIO;
+		return -ENXIO;
 	}
 	dev_err(&client->dev, "%s: chip identifier, got 0x%x\n",
 		__func__, chip_id);
 
-power_off:
-	ov4689_set_power_off(sensor);
-	return ret;
+	return 0;
 }
 
 static int ov4689_probe(struct i2c_client *client)
@@ -2888,7 +2811,6 @@ static int ov4689_probe(struct i2c_client *client)
 		&ov4689_mode_data[OV4689_MODE_1080P_1920_1080];
 	sensor->last_mode = sensor->current_mode;
 
-	sensor->ae_target = 52;
 
 	/* optional indication of physical rotation of sensor */
 	ret = fwnode_property_read_u32(dev_fwnode(&client->dev), "rotation",
@@ -2920,9 +2842,7 @@ static int ov4689_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	if (sensor->ep.bus_type != V4L2_MBUS_PARALLEL &&
-		sensor->ep.bus_type != V4L2_MBUS_CSI2_DPHY &&
-		sensor->ep.bus_type != V4L2_MBUS_BT656) {
+	if (sensor->ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(dev, "Unsupported bus type %d\n", sensor->ep.bus_type);
 		return -EINVAL;
 	}
@@ -2970,22 +2890,33 @@ static int ov4689_probe(struct i2c_client *client)
 
 	mutex_init(&sensor->lock);
 
+	ret = ov4689_set_power_on(dev);
+	if (ret) {
+		dev_err(dev, "failed to power on\n");
+		goto entity_cleanup;
+	}
+
 	ret = ov4689_check_chip_id(sensor);
 	if (ret)
-		goto entity_cleanup;
+		goto error_power_off;
 
 	ret = ov4689_init_controls(sensor);
 	if (ret)
-		goto entity_cleanup;
+		goto error_power_off;
 
 	ret = v4l2_async_register_subdev_sensor(&sensor->sd);
 	if (ret)
 		goto free_ctrls;
 
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
 	return 0;
 
 free_ctrls:
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
+error_power_off:
+	ov4689_set_power_off(dev);
 entity_cleanup:
 	media_entity_cleanup(&sensor->sd.entity);
 	mutex_destroy(&sensor->lock);
@@ -3002,6 +2933,11 @@ static int ov4689_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
 	mutex_destroy(&sensor->lock);
 
+	pm_runtime_disable(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev))
+		ov4689_set_power_off(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
+
 	return 0;
 }
 
@@ -3017,10 +2953,15 @@ static const struct of_device_id ov4689_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, ov4689_dt_ids);
 
+static const struct dev_pm_ops ov4689_pm_ops = {
+	SET_RUNTIME_PM_OPS(ov4689_set_power_off, ov4689_set_power_on, NULL)
+};
+
 static struct i2c_driver ov4689_i2c_driver = {
 	.driver = {
 		.name  = "ov4689",
 		.of_match_table = ov4689_dt_ids,
+		.pm = &ov4689_pm_ops,
 	},
 	.id_table = ov4689_id,
 	.probe_new = ov4689_probe,

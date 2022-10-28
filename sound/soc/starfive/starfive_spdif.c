@@ -21,6 +21,7 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/dmaengine_pcm.h>
+#include <linux/pm_runtime.h>
 #include "starfive_spdif.h"
 
 static irqreturn_t spdif_irq_handler(int irq, void *dev_id)
@@ -284,22 +285,52 @@ static int sf_spdif_resets_get(struct platform_device *pdev,
 	return 0;
 }
 
+static int starfive_spdif_crg_enable(struct sf_spdif_dev *spdif, bool enable)
+{
+	int ret;
+
+	dev_dbg(spdif->dev, "starfive_spdif clk&rst %sable.\n", enable ? "en":"dis");
+	if (enable) {
+		ret = clk_prepare_enable(spdif->spdif_apb);
+		if (ret) {
+			dev_err(spdif->dev, "failed to prepare enable spdif_apb\n");
+			goto failed_apb_clk;
+		}
+
+		ret = clk_prepare_enable(spdif->spdif_core);
+		if (ret) {
+			dev_err(spdif->dev, "failed to prepare enable spdif_core\n");
+			goto failed_core_clk;
+		}
+
+		ret = reset_control_deassert(spdif->rst_apb);
+		if (ret) {
+			dev_err(spdif->dev, "failed to deassert apb\n");
+			goto failed_rst;
+		}
+	} else {
+		clk_disable_unprepare(spdif->spdif_core);
+		clk_disable_unprepare(spdif->spdif_apb);
+	}
+
+	return 0;
+
+failed_rst:
+	clk_disable_unprepare(spdif->spdif_core);
+failed_core_clk:
+	clk_disable_unprepare(spdif->spdif_apb);
+failed_apb_clk:
+	return ret;
+}
+
 static int sf_spdif_clk_init(struct platform_device *pdev,
 				struct sf_spdif_dev *spdif)
 {
 	int ret = 0;
 
-	ret = clk_prepare_enable(spdif->spdif_apb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable spdif_apb\n");
-		goto disable_apb_clk;
-	}
-
-	ret = clk_prepare_enable(spdif->spdif_core);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable spdif_core\n");
-		goto disable_core_clk;
-	}
+	ret = starfive_spdif_crg_enable(spdif, true);
+	if (ret)
+		return ret;
 
 	ret = clk_set_rate(spdif->audio_root, 204800000);
 	if (ret) {
@@ -322,17 +353,10 @@ static int sf_spdif_clk_init(struct platform_device *pdev,
 		goto disable_core_clk;
 	}
 
-	ret = reset_control_deassert(spdif->rst_apb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to deassert apb\n");
-		goto disable_core_clk;
-	}
-
 	return 0;
 
 disable_core_clk:
 	clk_disable_unprepare(spdif->spdif_core);
-disable_apb_clk:
 	clk_disable_unprepare(spdif->spdif_apb);
 
 	return ret;
@@ -341,6 +365,8 @@ disable_apb_clk:
 static int sf_spdif_dai_probe(struct snd_soc_dai *dai)
 {
 	struct sf_spdif_dev *spdif = snd_soc_dai_get_drvdata(dai);
+
+	pm_runtime_get_sync(spdif->dev);
 
 	/* reset */
 	regmap_update_bits(spdif->regmap, SPDIF_CTRL,
@@ -385,6 +411,7 @@ static int sf_spdif_dai_probe(struct snd_soc_dai *dai)
 	regmap_update_bits(spdif->regmap, SPDIF_CTRL,
 		SPDIF_CHANNEL_MODE, 0);
 
+	pm_runtime_put_sync(spdif->dev);
 	return 0;
 }
 
@@ -392,6 +419,40 @@ static const struct snd_soc_dai_ops sf_spdif_dai_ops = {
 	.trigger = sf_spdif_trigger,
 	.hw_params = sf_spdif_hw_params,
 };
+
+#ifdef CONFIG_PM_SLEEP
+static int spdif_system_suspend(struct device *dev)
+{
+	return pm_runtime_force_suspend(dev);
+}
+
+static int spdif_system_resume(struct device *dev)
+{
+	return pm_runtime_force_resume(dev);
+}
+#endif
+
+#ifdef CONFIG_PM
+static int spdif_runtime_suspend(struct device *dev)
+{
+	struct sf_spdif_dev *spdif = dev_get_drvdata(dev);
+
+	return starfive_spdif_crg_enable(spdif, false);
+}
+
+static int spdif_runtime_resume(struct device *dev)
+{
+	struct sf_spdif_dev *spdif = dev_get_drvdata(dev);
+
+	return starfive_spdif_crg_enable(spdif, true);
+}
+#endif
+
+static const struct dev_pm_ops spdif_pm_ops = {
+	SET_RUNTIME_PM_OPS(spdif_runtime_suspend, spdif_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(spdif_system_suspend, spdif_system_resume)
+};
+
 
 #define SF_PCM_RATE_44100_192000  (SNDRV_PCM_RATE_44100 | \
 				   SNDRV_PCM_RATE_48000 | \
@@ -457,6 +518,8 @@ static int sf_spdif_probe(struct platform_device *pdev)
 	if (IS_ERR(spdif->regmap))
 		return PTR_ERR(spdif->regmap);
 
+	spdif->dev = &pdev->dev;
+
 	ret = sf_spdif_clks_get(pdev, spdif);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get audio clock\n");
@@ -475,7 +538,6 @@ static int sf_spdif_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	spdif->dev = &pdev->dev;
 	spdif->fifo_th = 16;
 
 	irq = platform_get_irq(pdev, 0);
@@ -505,6 +567,10 @@ static int sf_spdif_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk_disable;
 
+	starfive_spdif_crg_enable(spdif, false);
+	pm_runtime_enable(&pdev->dev);
+	dev_info(&pdev->dev, "spdif register done.\n");
+
 	return 0;
 
 err_clk_disable:
@@ -521,6 +587,7 @@ static struct platform_driver sf_spdif_driver = {
 	.driver = {
 		.name = "starfive-spdif",
 		.of_match_table = sf_spdif_of_match,
+		.pm = &spdif_pm_ops,
 	},
 	.probe = sf_spdif_probe,
 };

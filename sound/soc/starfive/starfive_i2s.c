@@ -434,8 +434,8 @@ static int dw_i2s_runtime_suspend(struct device *dev)
 	struct dw_i2s_dev *dw_dev = dev_get_drvdata(dev);
 
 	if (dw_dev->capability & DW_I2S_MASTER) {
-		clk_disable_unprepare(dw_dev->clk_i2s_lrck);
-		clk_disable_unprepare(dw_dev->clk_i2s_bclk);
+		clk_disable_unprepare(dw_dev->clk_i2s_bclk_mst);
+		clk_disable_unprepare(dw_dev->clk_i2s_apb);
 	}
 
 	return 0;
@@ -447,13 +447,13 @@ static int dw_i2s_runtime_resume(struct device *dev)
 	int ret;
 
 	if (dw_dev->capability & DW_I2S_MASTER) {
-		ret = clk_prepare_enable(dw_dev->clk_i2s_bclk);
+		ret = clk_prepare_enable(dw_dev->clk_i2s_apb);
 		if (ret) {
-			dev_err(dw_dev->dev, "Failed to enable clk_i2s_bclk\n");
+			dev_err(dw_dev->dev, "Failed to enable clk_i2s_apb\n");
 			return ret;
 		}
 
-		ret = clk_prepare_enable(dw_dev->clk_i2s_lrck);
+		ret = clk_prepare_enable(dw_dev->clk_i2s_bclk_mst);
 		if (ret) {
 			dev_err(dw_dev->dev, "Failed to enable clk_i2s_lrck\n");
 			return ret;
@@ -465,14 +465,7 @@ static int dw_i2s_runtime_resume(struct device *dev)
 
 static int dw_i2s_suspend(struct snd_soc_component *component)
 {
-	struct dw_i2s_dev *dev = snd_soc_component_get_drvdata(component);
-
-	if (dev->capability & DW_I2S_MASTER) {
-		clk_disable_unprepare(dev->clk_i2s_lrck);
-		clk_disable_unprepare(dev->clk_i2s_bclk);
-	}
-
-	return 0;
+	return pm_runtime_force_suspend(component->dev);
 }
 
 static int dw_i2s_resume(struct snd_soc_component *component)
@@ -482,19 +475,9 @@ static int dw_i2s_resume(struct snd_soc_component *component)
 	int stream;
 	int ret;
 
-	if (dev->capability & DW_I2S_MASTER) {
-		ret = clk_prepare_enable(dev->clk_i2s_bclk);
-		if (ret) {
-			dev_err(dev->dev, "Failed to enable clk_i2s_bclk\n");
-			return ret;
-		}
-
-		ret = clk_prepare_enable(dev->clk_i2s_lrck);
-		if (ret) {
-			dev_err(dev->dev, "Failed to enable clk_i2s_lrck\n");
-			return ret;
-		}
-	}
+	ret = pm_runtime_force_resume(component->dev);
+	if (ret)
+		return ret;
 
 	for_each_component_dais(component, dai) {
 		for_each_pcm_streams(stream)
@@ -521,7 +504,6 @@ static int dw_i2srx_clk_init(struct platform_device *pdev, struct dw_i2s_dev *de
 	int ret = 0;
 
 	static struct clk_bulk_data clks[] = {
-		{ .id = "apb0" },
 		{ .id = "i2srx_apb" },
 		{ .id = "i2srx_bclk_mst" },
 		{ .id = "i2srx_lrck_mst" },
@@ -535,12 +517,11 @@ static int dw_i2srx_clk_init(struct platform_device *pdev, struct dw_i2s_dev *de
 		goto exit;
 	}
 
-	dev->clk_apb0 = clks[0].clk;
-	dev->clk_i2s_apb = clks[1].clk;
-	dev->clk_i2s_bclk_mst = clks[2].clk;
-	dev->clk_i2s_lrck_mst = clks[3].clk;
-	dev->clk_i2s_bclk = clks[4].clk;
-	dev->clk_i2s_lrck = clks[5].clk;
+	dev->clk_i2s_apb = clks[0].clk;
+	dev->clk_i2s_bclk_mst = clks[1].clk;
+	dev->clk_i2s_lrck_mst = clks[2].clk;
+	dev->clk_i2s_bclk = clks[3].clk;
+	dev->clk_i2s_lrck = clks[4].clk;
 
 	dev->rst_i2s_apb = devm_reset_control_get_exclusive(&pdev->dev, "rst_apb_rx");
 	if (IS_ERR(dev->rst_i2s_apb)) {
@@ -559,40 +540,16 @@ static int dw_i2srx_clk_init(struct platform_device *pdev, struct dw_i2s_dev *de
 	reset_control_assert(dev->rst_i2s_apb);
 	reset_control_assert(dev->rst_i2s_bclk);
 
-	ret = clk_prepare_enable(dev->clk_apb0);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable clk_apb0\n");
-		goto exit;
-	}
-
 	ret = clk_prepare_enable(dev->clk_i2s_apb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to prepare enable clk_i2srx_apb\n");
-		goto err_dis_i2srx_apb;
+		goto exit;
 	}
 
 	ret = clk_prepare_enable(dev->clk_i2s_bclk_mst);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to prepare enable clk_i2srx_3ch_bclk_mst\n");
 		goto err_dis_bclk_mst;
-	}
-
-	ret = clk_prepare_enable(dev->clk_i2s_lrck_mst);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable clk_i2srx_3ch_lrck_mst\n");
-		goto err_dis_lrck_mst;
-	}
-
-	ret = clk_prepare_enable(dev->clk_i2s_bclk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable clk_i2srx_3ch_bclk\n");
-		goto err_dis_bclk;
-	}
-
-	ret = clk_prepare_enable(dev->clk_i2s_lrck);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to prepare enable clk_i2srx_3ch_lrck\n");
-		goto err_dis_lrck;
 	}
 
 	reset_control_deassert(dev->rst_i2s_apb);
@@ -602,16 +559,8 @@ static int dw_i2srx_clk_init(struct platform_device *pdev, struct dw_i2s_dev *de
 				I2SRX_3CH_ADC_MASK, I2SRX_3CH_ADC_EN);
 	return 0;
 
-err_dis_i2srx_apb:
-	clk_disable_unprepare(dev->clk_apb0);
 err_dis_bclk_mst:
 	clk_disable_unprepare(dev->clk_i2s_apb);
-err_dis_lrck_mst:
-	clk_disable_unprepare(dev->clk_i2s_bclk_mst);
-err_dis_bclk:
-	clk_disable_unprepare(dev->clk_i2s_lrck_mst);
-err_dis_lrck:
-	clk_disable_unprepare(dev->clk_i2s_bclk);
 exit:
 	return ret;
 }
@@ -1022,11 +971,21 @@ static int dw_i2s_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(&pdev->dev);
+
+#ifdef CONFIG_PM
+	if (dev->capability & DW_I2S_MASTER) {
+		clk_disable_unprepare(dev->clk_i2s_bclk_mst);
+		clk_disable_unprepare(dev->clk_i2s_apb);
+	}
+#endif
+
 	return 0;
 
 err_clk_disable:
-	if (dev->capability & DW_I2S_MASTER)
+	if (dev->capability & DW_I2S_MASTER) {
 		clk_disable_unprepare(dev->clk_i2s_bclk_mst);
+		clk_disable_unprepare(dev->clk_i2s_apb);
+	}
 	return ret;
 }
 
@@ -1034,8 +993,10 @@ static int dw_i2s_remove(struct platform_device *pdev)
 {
 	struct dw_i2s_dev *dev = dev_get_drvdata(&pdev->dev);
 
-	if (dev->capability & DW_I2S_MASTER)
+	if (dev->capability & DW_I2S_MASTER) {
 		clk_disable_unprepare(dev->clk_i2s_bclk_mst);
+		clk_disable_unprepare(dev->clk_i2s_apb);
+	}
 
 	pm_runtime_disable(&pdev->dev);
 	return 0;

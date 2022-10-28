@@ -659,6 +659,8 @@ static int jh7110_hash_cra_init_algs(struct crypto_tfm *tfm,
 	if (algs_hmac_name)
 		ctx->sha_mode |= JH7110_SHA_HMAC_FLAGS;
 
+	pm_runtime_resume_and_get(ctx->sdev->dev);
+
 	ctx->enginectx.op.do_one_request = jh7110_hash_one_request;
 	ctx->enginectx.op.prepare_request = jh7110_hash_prepare_req;
 	ctx->enginectx.op.unprepare_request = NULL;
@@ -671,6 +673,8 @@ static void jh7110_hash_cra_exit(struct crypto_tfm *tfm)
 	struct jh7110_sec_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	crypto_free_shash(ctx->fallback.shash);
+
+	pm_runtime_put_sync_suspend(ctx->sdev->dev);
 
 	ctx->fallback.shash = NULL;
 	ctx->enginectx.op.do_one_request = NULL;

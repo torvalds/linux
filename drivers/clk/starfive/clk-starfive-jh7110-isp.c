@@ -30,6 +30,12 @@
 #define JH7110_ISP_TOP_CLK_BIST_APB_CLKGEN	(JH7110_CLK_ISP_END + 2)
 #define JH7110_ISP_TOP_CLK_DVP_CLKGEN		(JH7110_CLK_ISP_END + 3)
 
+struct isp_init_crg {
+	int num_clks;
+	struct clk_bulk_data *clks;
+	struct reset_control *rsts;
+};
+
 static const struct jh7110_clk_data jh7110_clk_isp_data[] __initconst = {
 	//syscon
 	JH7110__DIV(JH7110_DOM4_APB_FUNC, "dom4_apb_func",
@@ -72,7 +78,92 @@ static const struct jh7110_clk_data jh7110_clk_isp_data[] __initconst = {
 static struct clk_bulk_data isp_top_clks[] = {
 	{ .id = "u0_dom_isp_top_clk_dom_isp_top_clk_ispcore_2x" },
 	{ .id = "u0_dom_isp_top_clk_dom_isp_top_clk_isp_axi" },
-	{ .id = "u0_sft7110_noc_bus_clk_isp_axi" },
+};
+
+static int jh7110_isp_crg_get(struct device *dev, struct isp_init_crg *crg)
+{
+	int ret;
+
+	crg->rsts = devm_reset_control_array_get_shared(dev);
+	if (IS_ERR(crg->rsts)) {
+		dev_err(dev, "rst get failed\n");
+		return PTR_ERR(crg->rsts);
+	}
+
+	crg->clks = isp_top_clks;
+	crg->num_clks = ARRAY_SIZE(isp_top_clks);
+	ret = clk_bulk_get(dev, crg->num_clks, crg->clks);
+	if (ret) {
+		dev_err(dev, "clks get failed: %d\n", ret);
+		goto clks_get_failed;
+	}
+
+	return 0;
+
+clks_get_failed:
+	reset_control_assert(crg->rsts);
+	reset_control_put(crg->rsts);
+
+	return ret;
+}
+
+static int jh7110_isp_crg_enable(struct device *dev, struct isp_init_crg *crg, bool enable)
+{
+	int ret;
+
+	dev_dbg(dev, "starfive jh7110 isp clk&rst %sable\n", enable ? "en":"dis");
+	if (enable) {
+		ret = reset_control_deassert(crg->rsts);
+		if (ret) {
+			dev_err(dev, "rst deassert failed: %d\n", ret);
+			goto crg_failed;
+		}
+
+		ret = clk_bulk_prepare_enable(crg->num_clks, crg->clks);
+		if (ret) {
+			dev_err(dev, "clks enable failed: %d\n", ret);
+			goto crg_failed;
+		}
+	} else {
+		clk_bulk_disable_unprepare(crg->num_clks, crg->clks);
+	}
+
+	return 0;
+crg_failed:
+	return ret;
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int clk_isp_system_suspend(struct device *dev)
+{
+	return pm_runtime_force_suspend(dev);
+}
+
+static int clk_isp_system_resume(struct device *dev)
+{
+	return pm_runtime_force_resume(dev);
+}
+#endif
+
+#ifdef CONFIG_PM
+static int clk_isp_runtime_suspend(struct device *dev)
+{
+	struct isp_init_crg *crg = dev_get_drvdata(dev);
+
+	return jh7110_isp_crg_enable(dev, crg, false);
+}
+
+static int clk_isp_runtime_resume(struct device *dev)
+{
+	struct isp_init_crg *crg = dev_get_drvdata(dev);
+
+	return jh7110_isp_crg_enable(dev, crg, true);
+}
+#endif
+
+static const struct dev_pm_ops clk_isp_pm_ops = {
+	SET_RUNTIME_PM_OPS(clk_isp_runtime_suspend, clk_isp_runtime_resume, NULL)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(clk_isp_system_suspend, clk_isp_system_resume)
 };
 
 static struct clk_hw *jh7110_isp_clk_get(struct of_phandle_args *clkspec,
@@ -93,9 +184,8 @@ static struct clk_hw *jh7110_isp_clk_get(struct of_phandle_args *clkspec,
 static int __init clk_starfive_jh7110_isp_probe(struct platform_device *pdev)
 {
 	struct jh7110_clk_priv *priv;
+	struct isp_init_crg *crg;
 	unsigned int idx;
-	struct reset_control *rsts;
-	int num_clks;
 	int ret = 0;
 
 	priv = devm_kzalloc(&pdev->dev, struct_size(priv, reg,
@@ -109,36 +199,22 @@ static int __init clk_starfive_jh7110_isp_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->isp_base))
 		return PTR_ERR(priv->isp_base);
 
+	crg = devm_kzalloc(&pdev->dev, sizeof(*crg), GFP_KERNEL);
+	if (!crg)
+		return -ENOMEM;
+	dev_set_drvdata(&pdev->dev, crg);
+
+	ret = jh7110_isp_crg_get(&pdev->dev, crg);
+	if (ret)
+		goto init_failed;
+
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to get pm runtime: %d\n", ret);
-		return ret;
-	}
-
-	rsts = devm_reset_control_array_get_shared(priv->dev);
-	if (!IS_ERR(rsts)) {
-		ret = reset_control_deassert(rsts);
-		if (ret) {
-			dev_err(priv->dev, "rst deassert failed: %d\n", ret);
-			goto rsts_deassert_failed;
-		}
-	} else {
-		dev_err(priv->dev, "rst get failed\n");
-		return PTR_ERR(rsts);
-	}
-
-	num_clks = ARRAY_SIZE(isp_top_clks);
-	ret = clk_bulk_get(priv->dev, num_clks, isp_top_clks);
-	if (!ret) {
-		ret = clk_bulk_prepare_enable(num_clks, isp_top_clks);
-		if (ret) {
-			dev_err(priv->dev, "clks enable failed: %d\n", ret);
-			goto clks_enable_failed;
-		}
-	} else {
-		dev_err(priv->dev, "clks get failed: %d\n", ret);
-		goto clks_get_failed;
+		goto init_failed;
 	}
 
 	priv->pll[PLL_OFI(JH7110_U3_PCLK_MUX_FUNC_PCLK)] =
@@ -247,28 +323,20 @@ static int __init clk_starfive_jh7110_isp_probe(struct platform_device *pdev)
 
 		ret = devm_clk_hw_register(priv->dev, &clk->hw);
 		if (ret)
-			return ret;
+			goto init_failed;
 	}
 
 	ret = devm_of_clk_add_hw_provider(priv->dev, jh7110_isp_clk_get, priv);
 	if (ret)
-		return ret;
+		goto init_failed;
 
-	clk_bulk_put(num_clks, isp_top_clks);
-	reset_control_put(rsts);
+	pm_runtime_put_sync(&pdev->dev);
 
 	dev_info(&pdev->dev, "starfive JH7110 clk_isp init successfully.");
 	return 0;
 
-clks_enable_failed:
-	clk_bulk_put(num_clks, isp_top_clks);
-clks_get_failed:
-	reset_control_assert(rsts);
-rsts_deassert_failed:
-	reset_control_put(rsts);
-
+init_failed:
 	return ret;
-
 }
 
 static const struct of_device_id clk_starfive_jh7110_isp_match[] = {
@@ -281,6 +349,7 @@ static struct platform_driver clk_starfive_jh7110_isp_driver = {
 		.driver = {
 		.name = "clk-starfive-jh7110-isp",
 		.of_match_table = clk_starfive_jh7110_isp_match,
+		.pm	= &clk_isp_pm_ops,
 	},
 };
 module_platform_driver(clk_starfive_jh7110_isp_driver);

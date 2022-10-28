@@ -366,7 +366,6 @@ static void dw_i2c_plat_complete(struct device *dev)
 #endif
 
 #ifdef CONFIG_PM
-/*
 static int dw_i2c_plat_suspend(struct device *dev)
 {
 	struct dw_i2c_dev *i_dev = dev_get_drvdata(dev);
@@ -401,10 +400,8 @@ static const struct dev_pm_ops dw_i2c_dev_pm_ops = {
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(dw_i2c_plat_suspend, dw_i2c_plat_resume)
 	SET_RUNTIME_PM_OPS(dw_i2c_plat_suspend, dw_i2c_plat_resume, NULL)
 };
-*/
 
-//#define DW_I2C_DEV_PMOPS (&dw_i2c_dev_pm_ops)
-#define DW_I2C_DEV_PMOPS NULL
+#define DW_I2C_DEV_PMOPS (&dw_i2c_dev_pm_ops)
 #else
 #define DW_I2C_DEV_PMOPS NULL
 #endif
@@ -427,7 +424,7 @@ static int __init dw_i2c_init_driver(void)
 {
 	return platform_driver_register(&dw_i2c_driver);
 }
-subsys_initcall(dw_i2c_init_driver);
+device_initcall(dw_i2c_init_driver);
 
 static void __exit dw_i2c_exit_driver(void)
 {

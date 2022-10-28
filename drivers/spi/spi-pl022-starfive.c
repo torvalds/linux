@@ -669,7 +669,6 @@ static void load_ssp_default_config(struct pl022 *pl022)
  */
 static void readwriter(struct pl022 *pl022)
 {
-
 	/*
 	 * The FIFO depth is different between primecell variants.
 	 * I believe filling in too much in the FIFO might cause
@@ -2156,10 +2155,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	master->cleanup = pl022_cleanup;
 	master->setup = pl022_setup;
 	/* If open CONFIG_PM, auto_runtime_pm should be false when of-platform.*/
-	if (platform_flag)
-		master->auto_runtime_pm = false;
-	else
-		master->auto_runtime_pm = true;
+	master->auto_runtime_pm = true;
 	master->transfer_one_message = pl022_transfer_one_message;
 	master->unprepare_transfer_hardware = pl022_unprepare_transfer_hardware;
 	master->rt = platform_info->rt;
@@ -2267,6 +2263,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 
 	/* Register with the SPI framework */
 	amba_set_drvdata(adev, pl022);
+
 	if (platform_flag)
 		status = spi_register_master(master);
 	else
@@ -2277,7 +2274,8 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_spi_register;
 	}
 	dev_dbg(dev, "probe succeeded\n");
-
+	if (!platform_flag)
+		platform_info->autosuspend_delay = 100;
 	/* let runtime pm put suspend */
 	if (platform_info->autosuspend_delay > 0) {
 		dev_info(&adev->dev,
@@ -2287,7 +2285,10 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 			platform_info->autosuspend_delay);
 		pm_runtime_use_autosuspend(dev);
 	}
-	pm_runtime_put(dev);
+	if (platform_flag)
+		clk_disable_unprepare(pl022->clk);
+	else
+		pm_runtime_put(dev);
 
 	return 0;
 
@@ -2359,7 +2360,8 @@ static int pl022_suspend(struct device *dev)
 
 	pinctrl_pm_select_sleep_state(dev);
 
-	dev_dbg(dev, "suspended\n");
+	dev_dbg(dev, "starfive spi suspended\n");
+
 	return 0;
 }
 
@@ -2375,7 +2377,7 @@ static int pl022_resume(struct device *dev)
 	/* Start the queue running */
 	ret = spi_master_resume(pl022->master);
 	if (!ret)
-		dev_dbg(dev, "resumed\n");
+		dev_dbg(dev, "starfive spi resumed\n");
 
 	return ret;
 }
@@ -2389,6 +2391,8 @@ static int pl022_runtime_suspend(struct device *dev)
 	clk_disable_unprepare(pl022->clk);
 	pinctrl_pm_select_idle_state(dev);
 
+	dev_dbg(dev, "starfive spi runtime suspend");
+
 	return 0;
 }
 
@@ -2399,6 +2403,7 @@ static int pl022_runtime_resume(struct device *dev)
 	pinctrl_pm_select_default_state(dev);
 	clk_prepare_enable(pl022->clk);
 
+	dev_dbg(dev, "stafive spi runtime resume");
 	return 0;
 }
 #endif
@@ -2553,11 +2558,16 @@ static int starfive_of_pl022_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_probe;
 
-	pm_runtime_get_noresume(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-
 	ret = pl022_probe(pcdev, &id);
+
+	struct pl022 *pl022 = amba_get_drvdata(pcdev);
+
+	pl022->master->dev.parent = &pdev->dev;
+	platform_set_drvdata(pdev, pl022);
+
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 100);
+	pm_runtime_use_autosuspend(&pdev->dev);
 
 	if (ret) {
 		pm_runtime_disable(dev);
@@ -2597,6 +2607,8 @@ static int starfive_of_pl022_remove(struct platform_device *pdev)
 	size = resource_size(pdev->resource);
 	release_mem_region(pdev->resource->start, size);
 	tasklet_disable(&pl022->pump_transfers);
+	pm_runtime_disable(&pdev->dev);
+
 	return 0;
 }
 
