@@ -15,10 +15,10 @@ Rust
 .. toctree::
     :maxdepth: 1
 
+    quick-start
 
 TODOList:
 
-*    quick-start
 *    general-information
 *    coding-guidelines
 *    arch-support
