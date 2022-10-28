@@ -16,10 +16,10 @@ Rust
     :maxdepth: 1
 
     quick-start
+    general-information
 
 TODOList:
 
-*    general-information
 *    coding-guidelines
 *    arch-support
 
