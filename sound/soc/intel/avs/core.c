@@ -27,6 +27,14 @@
 #include "avs.h"
 #include "cldma.h"
 
+static u32 pgctl_mask = AZX_PGCTL_LSRMD_MASK;
+module_param(pgctl_mask, uint, 0444);
+MODULE_PARM_DESC(pgctl_mask, "PCI PGCTL policy override");
+
+static u32 cgctl_mask = AZX_CGCTL_MISCBDCGE_MASK;
+module_param(cgctl_mask, uint, 0444);
+MODULE_PARM_DESC(cgctl_mask, "PCI CGCTL policy override");
+
 static void
 avs_hda_update_config_dword(struct hdac_bus *bus, u32 reg, u32 mask, u32 value)
 {
@@ -41,19 +49,16 @@ avs_hda_update_config_dword(struct hdac_bus *bus, u32 reg, u32 mask, u32 value)
 
 void avs_hda_power_gating_enable(struct avs_dev *adev, bool enable)
 {
-	u32 value;
+	u32 value = enable ? 0 : pgctl_mask;
 
-	value = enable ? 0 : AZX_PGCTL_LSRMD_MASK;
-	avs_hda_update_config_dword(&adev->base.core, AZX_PCIREG_PGCTL,
-				    AZX_PGCTL_LSRMD_MASK, value);
+	avs_hda_update_config_dword(&adev->base.core, AZX_PCIREG_PGCTL, pgctl_mask, value);
 }
 
 static void avs_hdac_clock_gating_enable(struct hdac_bus *bus, bool enable)
 {
-	u32 value;
+	u32 value = enable ? cgctl_mask : 0;
 
-	value = enable ? AZX_CGCTL_MISCBDCGE_MASK : 0;
-	avs_hda_update_config_dword(bus, AZX_PCIREG_CGCTL, AZX_CGCTL_MISCBDCGE_MASK, value);
+	avs_hda_update_config_dword(bus, AZX_PCIREG_CGCTL, cgctl_mask, value);
 }
 
 void avs_hda_clock_gating_enable(struct avs_dev *adev, bool enable)
@@ -63,9 +68,8 @@ void avs_hda_clock_gating_enable(struct avs_dev *adev, bool enable)
 
 void avs_hda_l1sen_enable(struct avs_dev *adev, bool enable)
 {
-	u32 value;
+	u32 value = enable ? AZX_VS_EM2_L1SEN : 0;
 
-	value = enable ? AZX_VS_EM2_L1SEN : 0;
 	snd_hdac_chip_updatel(&adev->base.core, VS_EM2, AZX_VS_EM2_L1SEN, value);
 }
 
@@ -534,12 +538,30 @@ static void avs_pci_remove(struct pci_dev *pci)
 	pm_runtime_get_noresume(&pci->dev);
 }
 
-static int __maybe_unused avs_suspend_common(struct avs_dev *adev)
+static int avs_suspend_standby(struct avs_dev *adev)
+{
+	struct hdac_bus *bus = &adev->base.core;
+	struct pci_dev *pci = adev->base.pci;
+
+	if (bus->cmd_dma_state)
+		snd_hdac_bus_stop_cmd_io(bus);
+
+	snd_hdac_ext_bus_link_power_down_all(bus);
+
+	enable_irq_wake(pci->irq);
+	pci_save_state(pci);
+
+	return 0;
+}
+
+static int __maybe_unused avs_suspend_common(struct avs_dev *adev, bool low_power)
 {
 	struct hdac_bus *bus = &adev->base.core;
 	int ret;
 
 	flush_work(&adev->probe_work);
+	if (low_power && adev->num_lp_paths)
+		return avs_suspend_standby(adev);
 
 	snd_hdac_ext_bus_link_power_down_all(bus);
 
@@ -577,10 +599,29 @@ static int __maybe_unused avs_suspend_common(struct avs_dev *adev)
 	return 0;
 }
 
-static int __maybe_unused avs_resume_common(struct avs_dev *adev, bool purge)
+static int avs_resume_standby(struct avs_dev *adev)
+{
+	struct hdac_bus *bus = &adev->base.core;
+	struct pci_dev *pci = adev->base.pci;
+
+	pci_restore_state(pci);
+	disable_irq_wake(pci->irq);
+
+	snd_hdac_ext_bus_link_power_up_all(bus);
+
+	if (bus->cmd_dma_state)
+		snd_hdac_bus_init_cmd_io(bus);
+
+	return 0;
+}
+
+static int __maybe_unused avs_resume_common(struct avs_dev *adev, bool low_power, bool purge)
 {
 	struct hdac_bus *bus = &adev->base.core;
 	int ret;
+
+	if (low_power && adev->num_lp_paths)
+		return avs_resume_standby(adev);
 
 	snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, true);
 	avs_hdac_bus_init_chip(bus, true);
@@ -599,26 +640,50 @@ static int __maybe_unused avs_resume_common(struct avs_dev *adev, bool purge)
 
 static int __maybe_unused avs_suspend(struct device *dev)
 {
-	return avs_suspend_common(to_avs_dev(dev));
+	return avs_suspend_common(to_avs_dev(dev), true);
 }
 
 static int __maybe_unused avs_resume(struct device *dev)
 {
-	return avs_resume_common(to_avs_dev(dev), true);
+	return avs_resume_common(to_avs_dev(dev), true, true);
 }
 
 static int __maybe_unused avs_runtime_suspend(struct device *dev)
 {
-	return avs_suspend_common(to_avs_dev(dev));
+	return avs_suspend_common(to_avs_dev(dev), true);
 }
 
 static int __maybe_unused avs_runtime_resume(struct device *dev)
 {
-	return avs_resume_common(to_avs_dev(dev), true);
+	return avs_resume_common(to_avs_dev(dev), true, false);
+}
+
+static int __maybe_unused avs_freeze(struct device *dev)
+{
+	return avs_suspend_common(to_avs_dev(dev), false);
+}
+static int __maybe_unused avs_thaw(struct device *dev)
+{
+	return avs_resume_common(to_avs_dev(dev), false, true);
+}
+
+static int __maybe_unused avs_poweroff(struct device *dev)
+{
+	return avs_suspend_common(to_avs_dev(dev), false);
+}
+
+static int __maybe_unused avs_restore(struct device *dev)
+{
+	return avs_resume_common(to_avs_dev(dev), false, true);
 }
 
 static const struct dev_pm_ops avs_dev_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(avs_suspend, avs_resume)
+	.suspend = avs_suspend,
+	.resume = avs_resume,
+	.freeze = avs_freeze,
+	.thaw = avs_thaw,
+	.poweroff = avs_poweroff,
+	.restore = avs_restore,
 	SET_RUNTIME_PM_OPS(avs_runtime_suspend, avs_runtime_resume, NULL)
 };
 
