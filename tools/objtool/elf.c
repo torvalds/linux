@@ -634,6 +634,12 @@ static int elf_update_symbol(struct elf *elf, struct section *symtab,
 
 		/* end-of-list */
 		if (!symtab_data) {
+			/*
+			 * Over-allocate to avoid O(n^2) symbol creation
+			 * behaviour.  The down side is that libelf doesn't
+			 * like this; see elf_truncate_section() for the fixup.
+			 */
+			int num = max(1U, sym->idx/3);
 			void *buf;
 
 			if (idx) {
@@ -647,28 +653,34 @@ static int elf_update_symbol(struct elf *elf, struct section *symtab,
 			if (t)
 				shndx_data = elf_newdata(t);
 
-			buf = calloc(1, entsize);
+			buf = calloc(num, entsize);
 			if (!buf) {
 				WARN("malloc");
 				return -1;
 			}
 
 			symtab_data->d_buf = buf;
-			symtab_data->d_size = entsize;
+			symtab_data->d_size = num * entsize;
 			symtab_data->d_align = 1;
 			symtab_data->d_type = ELF_T_SYM;
 
-			symtab->sh.sh_size += entsize;
 			symtab->changed = true;
+			symtab->truncate = true;
 
 			if (t) {
-				shndx_data->d_buf = &sym->sec->idx;
-				shndx_data->d_size = sizeof(Elf32_Word);
+				buf = calloc(num, sizeof(Elf32_Word));
+				if (!buf) {
+					WARN("malloc");
+					return -1;
+				}
+
+				shndx_data->d_buf = buf;
+				shndx_data->d_size = num * sizeof(Elf32_Word);
 				shndx_data->d_align = sizeof(Elf32_Word);
 				shndx_data->d_type = ELF_T_WORD;
 
-				symtab_shndx->sh.sh_size += sizeof(Elf32_Word);
 				symtab_shndx->changed = true;
+				symtab_shndx->truncate = true;
 			}
 
 			break;
@@ -768,6 +780,14 @@ non_local:
 	if (elf_update_symbol(elf, symtab, symtab_shndx, sym)) {
 		WARN("elf_update_symbol");
 		return NULL;
+	}
+
+	symtab->sh.sh_size += symtab->sh.sh_entsize;
+	symtab->changed = true;
+
+	if (symtab_shndx) {
+		symtab_shndx->sh.sh_size += sizeof(Elf32_Word);
+		symtab_shndx->changed = true;
 	}
 
 	return sym;
@@ -1286,6 +1306,60 @@ int elf_write_reloc(struct elf *elf, struct reloc *reloc)
 	return 0;
 }
 
+/*
+ * When Elf_Scn::sh_size is smaller than the combined Elf_Data::d_size
+ * do you:
+ *
+ *   A) adhere to the section header and truncate the data, or
+ *   B) ignore the section header and write out all the data you've got?
+ *
+ * Yes, libelf sucks and we need to manually truncate if we over-allocate data.
+ */
+static int elf_truncate_section(struct elf *elf, struct section *sec)
+{
+	u64 size = sec->sh.sh_size;
+	bool truncated = false;
+	Elf_Data *data = NULL;
+	Elf_Scn *s;
+
+	s = elf_getscn(elf->elf, sec->idx);
+	if (!s) {
+		WARN_ELF("elf_getscn");
+		return -1;
+	}
+
+	for (;;) {
+		/* get next data descriptor for the relevant section */
+		data = elf_getdata(s, data);
+
+		if (!data) {
+			if (size) {
+				WARN("end of section data but non-zero size left\n");
+				return -1;
+			}
+			return 0;
+		}
+
+		if (truncated) {
+			/* when we remove symbols */
+			WARN("truncated; but more data\n");
+			return -1;
+		}
+
+		if (!data->d_size) {
+			WARN("zero size data");
+			return -1;
+		}
+
+		if (data->d_size > size) {
+			truncated = true;
+			data->d_size = size;
+		}
+
+		size -= data->d_size;
+	}
+}
+
 int elf_write(struct elf *elf)
 {
 	struct section *sec;
@@ -1296,6 +1370,9 @@ int elf_write(struct elf *elf)
 
 	/* Update changed relocation sections and section headers: */
 	list_for_each_entry(sec, &elf->sections, list) {
+		if (sec->truncate)
+			elf_truncate_section(elf, sec);
+
 		if (sec->changed) {
 			s = elf_getscn(elf->elf, sec->idx);
 			if (!s) {
