@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/cc_platform.h>
 #include <linux/set_memory.h>
+#include <linux/memregion.h>
 
 #include <asm/e820/api.h>
 #include <asm/processor.h>
@@ -328,6 +329,23 @@ void arch_invalidate_pmem(void *addr, size_t size)
 	clflush_cache_range(addr, size);
 }
 EXPORT_SYMBOL_GPL(arch_invalidate_pmem);
+#endif
+
+#ifdef CONFIG_ARCH_HAS_CPU_CACHE_INVALIDATE_MEMREGION
+bool cpu_cache_has_invalidate_memregion(void)
+{
+	return !cpu_feature_enabled(X86_FEATURE_HYPERVISOR);
+}
+EXPORT_SYMBOL_NS_GPL(cpu_cache_has_invalidate_memregion, DEVMEM);
+
+int cpu_cache_invalidate_memregion(int res_desc)
+{
+	if (WARN_ON_ONCE(!cpu_cache_has_invalidate_memregion()))
+		return -ENXIO;
+	wbinvd_on_all_cpus();
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(cpu_cache_invalidate_memregion, DEVMEM);
 #endif
 
 static void __cpa_flush_all(void *arg)
