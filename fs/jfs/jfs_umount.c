@@ -87,7 +87,7 @@ int jfs_umount(struct super_block *sb)
 	dbUnmount(ipbmap, 0);
 
 	diFreeSpecial(ipbmap);
-	sbi->ipimap = NULL;
+	sbi->ipbmap = NULL;
 
 	/*
 	 * Make sure all metadata makes it to disk before we mark
