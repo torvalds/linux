@@ -17,10 +17,10 @@ Rust
 
     quick-start
     general-information
+    coding-guidelines
 
 TODOList:
 
-*    coding-guidelines
 *    arch-support
 
 .. only::  subproject and html
