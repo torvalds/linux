@@ -4,15 +4,6 @@
 #ifndef _TXGBE_TYPE_H_
 #define _TXGBE_TYPE_H_
 
-#include <linux/types.h>
-#include <linux/netdevice.h>
-
-/************ txgbe_register.h ************/
-/* Vendor ID */
-#ifndef PCI_VENDOR_ID_WANGXUN
-#define PCI_VENDOR_ID_WANGXUN                   0x8088
-#endif
-
 /* Device IDs */
 #define TXGBE_DEV_ID_SP1000                     0x1001
 #define TXGBE_DEV_ID_WX1820                     0x2001
@@ -42,16 +33,28 @@
 #define TXGBE_ID_WX1820_MAC_SGMII               0x2060
 #define TXGBE_ID_MAC_SGMII                      0x60
 
-#define TXGBE_NCSI_SUP                          0x8000
-#define TXGBE_NCSI_MASK                         0x8000
-#define TXGBE_WOL_SUP                           0x4000
-#define TXGBE_WOL_MASK                          0x4000
-#define TXGBE_DEV_MASK                          0xf0
-
 /* Combined interface*/
 #define TXGBE_ID_SFI_XAUI			0x50
 
 /* Revision ID */
 #define TXGBE_SP_MPW  1
+
+/**************** SP Registers ****************************/
+/* chip control Registers */
+#define TXGBE_MIS_PRB_CTL                       0x10010
+#define TXGBE_MIS_PRB_CTL_LAN_UP(_i)            BIT(1 - (_i))
+/* FMGR Registers */
+#define TXGBE_SPI_ILDR_STATUS                   0x10120
+#define TXGBE_SPI_ILDR_STATUS_PERST             BIT(0) /* PCIE_PERST is done */
+#define TXGBE_SPI_ILDR_STATUS_PWRRST            BIT(1) /* Power on reset is done */
+#define TXGBE_SPI_ILDR_STATUS_LAN_SW_RST(_i)    BIT((_i) + 9) /* lan soft reset done */
+
+/* Sensors for PVT(Process Voltage Temperature) */
+#define TXGBE_TS_CTL                            0x10300
+#define TXGBE_TS_CTL_EVAL_MD                    BIT(31)
+
+struct txgbe_hw {
+	struct wx_hw wxhw;
+};
 
 #endif /* _TXGBE_TYPE_H_ */
