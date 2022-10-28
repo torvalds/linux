@@ -128,11 +128,13 @@ static const struct intel_mmio_range xelpg_dss_steering_table[] = {
 	{ 0x00D800, 0x00D87F },		/* SLICE */
 	{ 0x00DC00, 0x00DCFF },		/* SLICE */
 	{ 0x00DE80, 0x00E8FF },		/* DSS (0xE000-0xE0FF reserved) */
+	{},
 };
 
 static const struct intel_mmio_range xelpmp_oaddrm_steering_table[] = {
 	{ 0x393200, 0x39323F },
 	{ 0x393400, 0x3934FF },
+	{},
 };
 
 void intel_gt_mcr_init(struct intel_gt *gt)
