@@ -1268,7 +1268,7 @@ static void disable_vbios_mode_if_required(
 
 					if (pix_clk_100hz != requested_pix_clk_100hz) {
 						dc->link_srv->set_dpms_off(pipe);
-						pipe->stream->dpms_off = false;
+						pipe->stream->dpms_off = true;
 					}
 				}
 			}
