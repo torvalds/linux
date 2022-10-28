@@ -234,3 +234,7 @@ define_db845c(
         "sound/soc/qcom/snd-soc-sm8250.ko",
     ],
 )
+
+load(":consolidate.bzl", "define_consolidate")
+
+define_consolidate()
