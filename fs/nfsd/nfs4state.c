@@ -84,6 +84,7 @@ static bool check_for_locks(struct nfs4_file *fp, struct nfs4_lockowner *lowner)
 static void nfs4_free_ol_stateid(struct nfs4_stid *stid);
 void nfsd4_end_grace(struct nfsd_net *nn);
 static void _free_cpntf_state_locked(struct nfsd_net *nn, struct nfs4_cpntf_state *cps);
+static void nfsd4_file_hash_remove(struct nfs4_file *fi);
 
 /* Locking: */
 
@@ -591,7 +592,7 @@ put_nfs4_file(struct nfs4_file *fi)
 	might_lock(&state_lock);
 
 	if (refcount_dec_and_lock(&fi->fi_ref, &state_lock)) {
-		hlist_del_rcu(&fi->fi_hash);
+		nfsd4_file_hash_remove(fi);
 		spin_unlock(&state_lock);
 		WARN_ON_ONCE(!list_empty(&fi->fi_clnt_odstate));
 		WARN_ON_ONCE(!list_empty(&fi->fi_delegations));
@@ -4748,6 +4749,11 @@ find_or_add_file(struct nfs4_file *new, struct svc_fh *fh)
 		return fp;
 
 	return insert_file(new, fh, hashval);
+}
+
+static noinline_for_stack void nfsd4_file_hash_remove(struct nfs4_file *fi)
+{
+	hlist_del_rcu(&fi->fi_hash);
 }
 
 /*
