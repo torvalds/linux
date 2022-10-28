@@ -378,6 +378,41 @@ static int __init clk_starfive_jh7110_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+/* set PLL0 default rate */
+#ifdef CONFIG_CLK_STARFIVE_JH7110_PLL
+	if (PLL0_DEFAULT_FREQ) {
+		struct clk *pll0_clk = priv->pll_priv[PLL0_INDEX].hw.clk;
+		struct clk *cpu_root = priv->reg[JH7110_CPU_ROOT].hw.clk;
+		struct clk *osc_clk = clk_get(&pdev->dev, "osc");
+
+		if (IS_ERR(osc_clk))
+			dev_err(&pdev->dev, "get osc_clk failed\n");
+
+		if (PLL0_DEFAULT_FREQ >= PLL0_FREQ_1500_VALUE) {
+			struct clk *cpu_core = priv->reg[JH7110_CPU_CORE].hw.clk;
+
+			if (clk_set_rate(cpu_core, PLL0_FREQ_1500_VALUE / 2)) {
+				dev_err(&pdev->dev, "set cpu_core rate failed\n");
+				goto failed_set;
+			}
+		}
+
+		if (clk_set_parent(cpu_root, osc_clk)) {
+			dev_err(&pdev->dev, "set parent to osc_clk failed\n");
+			goto failed_set;
+		}
+
+		if (clk_set_rate(pll0_clk, PLL0_DEFAULT_FREQ))
+			dev_err(&pdev->dev, "set pll0 rate failed\n");
+
+		if (clk_set_parent(cpu_root, pll0_clk))
+			dev_err(&pdev->dev, "set parent to pll0_clk failed\n");
+
+failed_set:
+		clk_put(osc_clk);
+	}
+#endif
+
 	ret = clk_starfive_jh7110_stg_init(pdev, priv);
 	if (ret)
 		return ret;
