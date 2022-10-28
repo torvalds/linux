@@ -1764,6 +1764,10 @@ int cifs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 		rc = PTR_ERR(full_path);
 		goto out;
 	}
+
+	if (!acl)
+		goto out;
+
 	/* return dos attributes as pseudo xattr */
 	/* return alt name if available as pseudo attr */
 
@@ -1778,8 +1782,6 @@ int cifs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		if (!acl)
-			goto out;
 		if (sb->s_flags & SB_POSIXACL)
 			rc = cifs_do_set_acl(xid, pTcon, full_path, acl,
 					     ACL_TYPE_ACCESS,
@@ -1788,8 +1790,6 @@ int cifs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 		break;
 
 	case ACL_TYPE_DEFAULT:
-		if (!acl)
-			goto out;
 		if (sb->s_flags & SB_POSIXACL)
 			rc = cifs_do_set_acl(xid, pTcon, full_path, acl,
 					     ACL_TYPE_DEFAULT,
