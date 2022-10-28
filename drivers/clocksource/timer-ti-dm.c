@@ -643,7 +643,7 @@ static int omap_dm_timer_free(struct omap_dm_timer *cookie)
 	return 0;
 }
 
-int omap_dm_timer_get_irq(struct omap_dm_timer *cookie)
+static int omap_dm_timer_get_irq(struct omap_dm_timer *cookie)
 {
 	struct dmtimer *timer = to_dmtimer(cookie);
 	if (timer)
