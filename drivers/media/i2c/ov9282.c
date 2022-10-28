@@ -217,6 +217,10 @@ struct ov9282_reg_list common_regs_list = {
 	.regs = common_regs,
 };
 
+#define MODE_1280_720		0
+
+#define DEFAULT_MODE		MODE_1280_720
+
 /* Sensor mode registers */
 static const struct ov9282_reg mode_1280x720_regs[] = {
 	{0x3778, 0x00},
@@ -252,17 +256,19 @@ static const struct ov9282_reg mode_1280x720_regs[] = {
 };
 
 /* Supported sensor mode configurations */
-static const struct ov9282_mode supported_mode = {
-	.width = 1280,
-	.height = 720,
-	.hblank = 250,
-	.vblank = 1022,
-	.vblank_min = 151,
-	.vblank_max = 51540,
-	.link_freq_idx = 0,
-	.reg_list = {
-		.num_of_regs = ARRAY_SIZE(mode_1280x720_regs),
-		.regs = mode_1280x720_regs,
+static const struct ov9282_mode supported_modes[] = {
+	[MODE_1280_720] = {
+		.width = 1280,
+		.height = 720,
+		.hblank = 250,
+		.vblank = 1022,
+		.vblank_min = 151,
+		.vblank_max = 51540,
+		.link_freq_idx = 0,
+		.reg_list = {
+			.num_of_regs = ARRAY_SIZE(mode_1280x720_regs),
+			.regs = mode_1280x720_regs,
+		},
 	},
 };
 
@@ -526,15 +532,15 @@ static int ov9282_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fsize)
 {
-	if (fsize->index > 0)
+	if (fsize->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
 	if (fsize->code != MEDIA_BUS_FMT_Y10_1X10)
 		return -EINVAL;
 
-	fsize->min_width = supported_mode.width;
+	fsize->min_width = supported_modes[fsize->index].width;
 	fsize->max_width = fsize->min_width;
-	fsize->min_height = supported_mode.height;
+	fsize->min_height = supported_modes[fsize->index].height;
 	fsize->max_height = fsize->min_height;
 
 	return 0;
@@ -609,7 +615,11 @@ static int ov9282_set_pad_format(struct v4l2_subdev *sd,
 
 	mutex_lock(&ov9282->mutex);
 
-	mode = &supported_mode;
+	mode = v4l2_find_nearest_size(supported_modes,
+				      ARRAY_SIZE(supported_modes),
+				      width, height,
+				      fmt->format.width,
+				      fmt->format.height);
 	ov9282_fill_pad_format(ov9282, mode, fmt);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
@@ -642,7 +652,7 @@ static int ov9282_init_pad_cfg(struct v4l2_subdev *sd,
 	struct v4l2_subdev_format fmt = { 0 };
 
 	fmt.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	ov9282_fill_pad_format(ov9282, &supported_mode, &fmt);
+	ov9282_fill_pad_format(ov9282, &supported_modes[DEFAULT_MODE], &fmt);
 
 	return ov9282_set_pad_format(sd, sd_state, &fmt);
 }
@@ -1043,8 +1053,8 @@ static int ov9282_probe(struct i2c_client *client)
 		goto error_power_off;
 	}
 
-	/* Set default mode to max resolution */
-	ov9282->cur_mode = &supported_mode;
+	/* Set default mode to first mode */
+	ov9282->cur_mode = &supported_modes[DEFAULT_MODE];
 	ov9282->vblank = ov9282->cur_mode->vblank;
 
 	ret = ov9282_init_controls(ov9282);
