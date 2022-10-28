@@ -360,15 +360,13 @@
 };
 
 &main_uart1 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart1_pins_default>;
 };
 
-&main_uart2 {
-	status = "disabled";
-};
-
 &mcu_uart0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&arduino_uart_pins_default>;
 };
