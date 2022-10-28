@@ -23,8 +23,10 @@ static struct string_stream_fragment *alloc_string_stream_fragment(
 		return ERR_PTR(-ENOMEM);
 
 	frag->fragment = kunit_kmalloc(test, len, gfp);
-	if (!frag->fragment)
+	if (!frag->fragment) {
+		kunit_kfree(test, frag);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	return frag;
 }
