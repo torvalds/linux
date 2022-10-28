@@ -399,6 +399,10 @@
 	status = "okay";
 };
 
+&usbphynop1 {
+	wakeup-source;
+};
+
 &usbotg1 {
 	dr_mode = "otg";
 	hnp-disable;
