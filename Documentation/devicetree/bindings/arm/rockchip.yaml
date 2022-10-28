@@ -35,6 +35,16 @@ properties:
           - const: anbernic,rg353p
           - const: rockchip,rk3566
 
+      - description: Anbernic RG353V
+        items:
+          - const: anbernic,rg353v
+          - const: rockchip,rk3566
+
+      - description: Anbernic RG353VS
+        items:
+          - const: anbernic,rg353vs
+          - const: rockchip,rk3566
+
       - description: Anbernic RG503
         items:
           - const: anbernic,rg503
