@@ -241,7 +241,7 @@ Description:	Shows total written kbytes issued to disk.
 What:		/sys/fs/f2fs/<disk>/features
 Date:		July 2017
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
-Description:	<deprecated: should use /sys/fs/f2fs/<disk>/feature_list/
+Description:	<deprecated: should use /sys/fs/f2fs/<disk>/feature_list/>
 		Shows all enabled features in current device.
 		Supported features:
 		encryption, blkzoned, extra_attr, projquota, inode_checksum,
