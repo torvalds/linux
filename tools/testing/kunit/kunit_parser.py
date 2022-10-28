@@ -58,6 +58,10 @@ class Test:
 		self.counts.errors += 1
 		stdout.print_with_timestamp(stdout.red('[ERROR]') + f' Test: {self.name}: {error_message}')
 
+	def ok_status(self) -> bool:
+		"""Returns true if the status was ok, i.e. passed or skipped."""
+		return self.status in (TestStatus.SUCCESS, TestStatus.SKIPPED)
+
 class TestStatus(Enum):
 	"""An enumeration class to represent the status of a test."""
 	SUCCESS = auto()
@@ -565,6 +569,40 @@ def print_test_footer(test: Test) -> None:
 	stdout.print_with_timestamp(format_test_divider(message,
 		len(message) - stdout.color_len()))
 
+
+
+def _summarize_failed_tests(test: Test) -> str:
+	"""Tries to summarize all the failing subtests in `test`."""
+
+	def failed_names(test: Test, parent_name: str) -> List[str]:
+		# Note: we use 'main' internally for the top-level test.
+		if not parent_name or parent_name == 'main':
+			full_name = test.name
+		else:
+			full_name = parent_name + '.' + test.name
+
+		if not test.subtests:  # this is a leaf node
+			return [full_name]
+
+		# If all the children failed, just say this subtest failed.
+		# Don't summarize it down "the top-level test failed", though.
+		failed_subtests = [sub for sub in test.subtests if not sub.ok_status()]
+		if parent_name and len(failed_subtests) ==  len(test.subtests):
+			return [full_name]
+
+		all_failures = []  # type: List[str]
+		for t in failed_subtests:
+			all_failures.extend(failed_names(t, full_name))
+		return all_failures
+
+	failures = failed_names(test, '')
+	# If there are too many failures, printing them out will just be noisy.
+	if len(failures) > 10:  # this is an arbitrary limit
+		return ''
+
+	return 'Failures: ' + ', '.join(failures)
+
+
 def print_summary_line(test: Test) -> None:
 	"""
 	Prints summary line of test object. Color of line is dependent on
@@ -586,6 +624,15 @@ def print_summary_line(test: Test) -> None:
 	else:
 		color = stdout.red
 	stdout.print_with_timestamp(color(f'Testing complete. {test.counts}'))
+
+	# Summarize failures that might have gone off-screen since we had a lot
+	# of tests (arbitrarily defined as >=100 for now).
+	if test.ok_status() or test.counts.total() < 100:
+		return
+	summarized = _summarize_failed_tests(test)
+	if not summarized:
+		return
+	stdout.print_with_timestamp(color(summarized))
 
 # Other methods:
 
