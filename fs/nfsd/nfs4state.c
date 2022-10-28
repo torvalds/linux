@@ -4699,32 +4699,6 @@ find_file_locked(const struct svc_fh *fh, unsigned int hashval)
 	return NULL;
 }
 
-static struct nfs4_file *insert_file(struct nfs4_file *new, struct svc_fh *fh,
-				     unsigned int hashval)
-{
-	struct nfs4_file *fp;
-	struct nfs4_file *ret = NULL;
-	bool alias_found = false;
-
-	spin_lock(&state_lock);
-	hlist_for_each_entry_rcu(fp, &file_hashtbl[hashval], fi_hash,
-				 lockdep_is_held(&state_lock)) {
-		if (fh_match(&fp->fi_fhandle, &fh->fh_handle)) {
-			if (refcount_inc_not_zero(&fp->fi_ref))
-				ret = fp;
-		} else if (d_inode(fh->fh_dentry) == fp->fi_inode)
-			fp->fi_aliased = alias_found = true;
-	}
-	if (likely(ret == NULL)) {
-		nfsd4_file_init(fh, new);
-		hlist_add_head_rcu(&new->fi_hash, &file_hashtbl[hashval]);
-		new->fi_aliased = alias_found;
-		ret = new;
-	}
-	spin_unlock(&state_lock);
-	return ret;
-}
-
 static struct nfs4_file * find_file(struct svc_fh *fh)
 {
 	struct nfs4_file *fp;
@@ -4736,19 +4710,37 @@ static struct nfs4_file * find_file(struct svc_fh *fh)
 	return fp;
 }
 
-static struct nfs4_file *
-find_or_add_file(struct nfs4_file *new, struct svc_fh *fh)
+/*
+ * On hash insertion, identify entries with the same inode but
+ * distinct filehandles. They will all be in the same hash bucket
+ * because nfs4_file's are hashed by the address in the fi_inode
+ * field.
+ */
+static noinline_for_stack struct nfs4_file *
+nfsd4_file_hash_insert(struct nfs4_file *new, const struct svc_fh *fhp)
 {
-	struct nfs4_file *fp;
-	unsigned int hashval = file_hashval(fh);
+	unsigned int hashval = file_hashval(fhp);
+	struct nfs4_file *ret = NULL;
+	bool alias_found = false;
+	struct nfs4_file *fi;
 
-	rcu_read_lock();
-	fp = find_file_locked(fh, hashval);
-	rcu_read_unlock();
-	if (fp)
-		return fp;
-
-	return insert_file(new, fh, hashval);
+	spin_lock(&state_lock);
+	hlist_for_each_entry_rcu(fi, &file_hashtbl[hashval], fi_hash,
+				 lockdep_is_held(&state_lock)) {
+		if (fh_match(&fi->fi_fhandle, &fhp->fh_handle)) {
+			if (refcount_inc_not_zero(&fi->fi_ref))
+				ret = fi;
+		} else if (d_inode(fhp->fh_dentry) == fi->fi_inode)
+			fi->fi_aliased = alias_found = true;
+	}
+	if (likely(ret == NULL)) {
+		nfsd4_file_init(fhp, new);
+		hlist_add_head_rcu(&new->fi_hash, &file_hashtbl[hashval]);
+		new->fi_aliased = alias_found;
+		ret = new;
+	}
+	spin_unlock(&state_lock);
+	return ret;
 }
 
 static noinline_for_stack void nfsd4_file_hash_remove(struct nfs4_file *fi)
@@ -5661,7 +5653,7 @@ nfsd4_process_open2(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nf
 	 * and check for delegations in the process of being recalled.
 	 * If not found, create the nfs4_file struct
 	 */
-	fp = find_or_add_file(open->op_file, current_fh);
+	fp = nfsd4_file_hash_insert(open->op_file, current_fh);
 	if (fp != open->op_file) {
 		status = nfs4_check_deleg(cl, open, &dp);
 		if (status)
