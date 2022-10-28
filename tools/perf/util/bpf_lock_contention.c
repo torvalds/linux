@@ -108,17 +108,22 @@ int lock_contention_stop(void)
 
 int lock_contention_read(struct lock_contention *con)
 {
-	int fd, stack;
+	int fd, stack, err = 0;
 	s32 prev_key, key;
 	struct lock_contention_data data = {};
-	struct lock_stat *st;
+	struct lock_stat *st = NULL;
 	struct machine *machine = con->machine;
-	u64 stack_trace[con->max_stack];
+	u64 *stack_trace;
+	size_t stack_size = con->max_stack * sizeof(*stack_trace);
 
 	fd = bpf_map__fd(skel->maps.lock_stat);
 	stack = bpf_map__fd(skel->maps.stacks);
 
 	con->lost = skel->bss->lost;
+
+	stack_trace = zalloc(stack_size);
+	if (stack_trace == NULL)
+		return -1;
 
 	prev_key = 0;
 	while (!bpf_map_get_next_key(fd, &prev_key, &key)) {
@@ -126,10 +131,13 @@ int lock_contention_read(struct lock_contention *con)
 		struct symbol *sym;
 		int idx = 0;
 
+		/* to handle errors in the loop body */
+		err = -1;
+
 		bpf_map_lookup_elem(fd, &key, &data);
 		st = zalloc(sizeof(*st));
 		if (st == NULL)
-			return -1;
+			break;
 
 		st->nr_contended = data.count;
 		st->wait_time_total = data.total_time;
@@ -163,25 +171,32 @@ int lock_contention_read(struct lock_contention *con)
 				st->name = strdup(sym->name);
 
 			if (ret < 0 || st->name == NULL)
-				return -1;
+				break;
 		} else if (asprintf(&st->name, "%#lx", (unsigned long)st->addr) < 0) {
-			free(st);
-			return -1;
+			break;
 		}
 
 		if (verbose) {
-			st->callstack = memdup(stack_trace, sizeof(stack_trace));
-			if (st->callstack == NULL) {
-				free(st);
-				return -1;
-			}
+			st->callstack = memdup(stack_trace, stack_size);
+			if (st->callstack == NULL)
+				break;
 		}
 
 		hlist_add_head(&st->hash_entry, con->result);
 		prev_key = key;
+
+		/* we're fine now, reset the values */
+		st = NULL;
+		err = 0;
 	}
 
-	return 0;
+	free(stack_trace);
+	if (st) {
+		free(st->name);
+		free(st);
+	}
+
+	return err;
 }
 
 int lock_contention_finish(void)
