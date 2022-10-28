@@ -8150,19 +8150,6 @@ static unsigned emulator_get_hflags(struct x86_emulate_ctxt *ctxt)
 	return emul_to_vcpu(ctxt)->arch.hflags;
 }
 
-static void emulator_exiting_smm(struct x86_emulate_ctxt *ctxt)
-{
-	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
-
-	kvm_smm_changed(vcpu, false);
-}
-
-static int emulator_leave_smm(struct x86_emulate_ctxt *ctxt,
-				  const char *smstate)
-{
-	return static_call(kvm_x86_leave_smm)(emul_to_vcpu(ctxt), smstate);
-}
-
 static void emulator_triple_fault(struct x86_emulate_ctxt *ctxt)
 {
 	kvm_make_request(KVM_REQ_TRIPLE_FAULT, emul_to_vcpu(ctxt));
@@ -8226,7 +8213,6 @@ static const struct x86_emulate_ops emulate_ops = {
 	.guest_has_rdpid     = emulator_guest_has_rdpid,
 	.set_nmi_mask        = emulator_set_nmi_mask,
 	.get_hflags          = emulator_get_hflags,
-	.exiting_smm         = emulator_exiting_smm,
 	.leave_smm           = emulator_leave_smm,
 	.triple_fault        = emulator_triple_fault,
 	.set_xcr             = emulator_set_xcr,
