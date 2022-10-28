@@ -91,7 +91,7 @@ struct thread_stat {
  * Number of stack trace entries to skip when finding callers.
  * The first few entries belong to the locking implementation itself.
  */
-#define CONTENTION_STACK_SKIP  3
+#define CONTENTION_STACK_SKIP  4
 
 /*
  * flags for lock:contention_begin
