@@ -52,6 +52,10 @@
 #define OV9282_LINK_FREQ	400000000
 #define OV9282_NUM_DATA_LANES	2
 
+/* Pixel rate */
+#define OV9282_PIXEL_RATE	(OV9282_LINK_FREQ * 2 * \
+				 OV9282_NUM_DATA_LANES / 10)
+
 #define OV9282_REG_MIN		0x00
 #define OV9282_REG_MAX		0xfffff
 
@@ -83,7 +87,6 @@ struct ov9282_reg_list {
  * @vblank: Vertical blanking in lines
  * @vblank_min: Minimum vertical blanking in lines
  * @vblank_max: Maximum vertical blanking in lines
- * @pclk: Sensor pixel clock
  * @link_freq_idx: Link frequency index
  * @reg_list: Register list for sensor mode
  */
@@ -94,7 +97,6 @@ struct ov9282_mode {
 	u32 vblank;
 	u32 vblank_min;
 	u32 vblank_max;
-	u64 pclk;
 	u32 link_freq_idx;
 	struct ov9282_reg_list reg_list;
 };
@@ -109,7 +111,6 @@ struct ov9282_mode {
  * @inclk: Sensor input clock
  * @ctrl_handler: V4L2 control handler
  * @link_freq_ctrl: Pointer to link frequency control
- * @pclk_ctrl: Pointer to pixel clock control
  * @hblank_ctrl: Pointer to horizontal blanking control
  * @vblank_ctrl: Pointer to vertical blanking control
  * @exp_ctrl: Pointer to exposure control
@@ -128,7 +129,6 @@ struct ov9282 {
 	struct clk *inclk;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl *link_freq_ctrl;
-	struct v4l2_ctrl *pclk_ctrl;
 	struct v4l2_ctrl *hblank_ctrl;
 	struct v4l2_ctrl *vblank_ctrl;
 	struct {
@@ -259,7 +259,6 @@ static const struct ov9282_mode supported_mode = {
 	.vblank = 1022,
 	.vblank_min = 151,
 	.vblank_max = 51540,
-	.pclk = 160000000,
 	.link_freq_idx = 0,
 	.reg_list = {
 		.num_of_regs = ARRAY_SIZE(mode_1280x720_regs),
@@ -968,11 +967,9 @@ static int ov9282_init_controls(struct ov9282 *ov9282)
 						1, mode->vblank);
 
 	/* Read only controls */
-	ov9282->pclk_ctrl = v4l2_ctrl_new_std(ctrl_hdlr,
-					      &ov9282_ctrl_ops,
-					      V4L2_CID_PIXEL_RATE,
-					      mode->pclk, mode->pclk,
-					      1, mode->pclk);
+	v4l2_ctrl_new_std(ctrl_hdlr, &ov9282_ctrl_ops, V4L2_CID_PIXEL_RATE,
+			  OV9282_PIXEL_RATE, OV9282_PIXEL_RATE, 1,
+			  OV9282_PIXEL_RATE);
 
 	ov9282->link_freq_ctrl = v4l2_ctrl_new_int_menu(ctrl_hdlr,
 							&ov9282_ctrl_ops,
