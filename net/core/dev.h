@@ -88,6 +88,10 @@ int dev_change_carrier(struct net_device *dev, bool new_carrier);
 
 void __dev_set_rx_mode(struct net_device *dev);
 
+void __dev_notify_flags(struct net_device *dev, unsigned int old_flags,
+			unsigned int gchanges, u32 portid,
+			const struct nlmsghdr *nlh);
+
 static inline void netif_set_gso_max_size(struct net_device *dev,
 					  unsigned int size)
 {
