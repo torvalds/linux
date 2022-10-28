@@ -22,6 +22,7 @@
 			      <&adc_mux 3>;
 		pinctrl-0 = <&joy_mux_en>;
 		pinctrl-names = "default";
+		poll-interval = <60>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
