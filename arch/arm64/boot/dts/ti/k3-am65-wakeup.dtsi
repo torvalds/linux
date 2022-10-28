@@ -66,6 +66,7 @@
 		clock-names = "fck";
 		clocks = <&k3_clks 115 1>;
 		power-domains = <&k3_pds 115 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
 	};
 
 	intr_wkup_gpio: interrupt-controller@42200000 {
