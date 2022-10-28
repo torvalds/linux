@@ -76,8 +76,6 @@ struct lpfc_iocbq {
 	struct lpfc_wcqe_complete wcqe_cmpl;	/* WQE cmpl */
 
 	uint8_t num_bdes;
-	uint8_t abort_bls;	/* ABTS by initiator or responder */
-
 	uint8_t priority;	/* OAS priority */
 	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
 	u32 cmd_flag;

@@ -129,7 +129,6 @@ void lpfc_disc_list_loopmap(struct lpfc_vport *);
 void lpfc_disc_start(struct lpfc_vport *);
 void lpfc_cleanup_discovery_resources(struct lpfc_vport *);
 void lpfc_cleanup(struct lpfc_vport *);
-void lpfc_prep_embed_io(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_ncmd);
 void lpfc_disc_timeout(struct timer_list *);
 
 int lpfc_unregister_fcf_prep(struct lpfc_hba *);

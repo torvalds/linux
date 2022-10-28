@@ -60,13 +60,6 @@
 	((ptr)->name##_WORD = ((((value) & name##_MASK) << name##_SHIFT) | \
 		 ((ptr)->name##_WORD & ~(name##_MASK << name##_SHIFT))))
 
-#define get_wqe_reqtag(x)	(((x)->wqe.words[9] >>  0) & 0xFFFF)
-
-#define get_job_ulpword(x, y)	((x)->iocb.un.ulpWord[y])
-
-#define set_job_ulpstatus(x, y)	bf_set(lpfc_wcqe_c_status, &(x)->wcqe_cmpl, y)
-#define set_job_ulpword4(x, y)	((&(x)->wcqe_cmpl)->parameter = y)
-
 struct dma_address {
 	uint32_t addr_lo;
 	uint32_t addr_hi;
