@@ -195,7 +195,7 @@ static void sbi_idle_init_cpuhp(void)
 }
 
 static const struct of_device_id sbi_cpuidle_state_match[] = {
-	{ .compatible = "starfive,jh7110-idle-state",
+	{ .compatible = "riscv,idle-state",
 	  .data = sbi_cpuidle_enter_state },
 	{ },
 };
