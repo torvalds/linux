@@ -24,6 +24,7 @@
 #include "util/data.h"
 #include "util/string2.h"
 #include "util/map.h"
+#include "util/util.h"
 
 #include <sys/types.h>
 #include <sys/prctl.h>
@@ -1858,6 +1859,29 @@ static int parse_map_entry(const struct option *opt, const char *str,
 	return 0;
 }
 
+static int parse_max_stack(const struct option *opt, const char *str,
+			   int unset __maybe_unused)
+{
+	unsigned long *len = (unsigned long *)opt->value;
+	long val;
+	char *endptr;
+
+	errno = 0;
+	val = strtol(str, &endptr, 0);
+	if (*endptr != '\0' || errno != 0) {
+		pr_err("invalid max stack depth: %s\n", str);
+		return -1;
+	}
+
+	if (val < 0 || val > sysctl__max_stack()) {
+		pr_err("invalid max stack depth: %ld\n", val);
+		return -1;
+	}
+
+	*len = val;
+	return 0;
+}
+
 int cmd_lock(int argc, const char **argv)
 {
 	const struct option lock_options[] = {
@@ -1913,9 +1937,9 @@ int cmd_lock(int argc, const char **argv)
 		   "Trace on existing thread id (exclusive to --pid)"),
 	OPT_CALLBACK(0, "map-nr-entries", &bpf_map_entries, "num",
 		     "Max number of BPF map entries", parse_map_entry),
-	OPT_INTEGER(0, "max-stack", &max_stack_depth,
-		    "Set the maximum stack depth when collecting lock contention, "
-		    "Default: " __stringify(CONTENTION_STACK_DEPTH)),
+	OPT_CALLBACK(0, "max-stack", &max_stack_depth, "num",
+		     "Set the maximum stack depth when collecting lopck contention, "
+		     "Default: " __stringify(CONTENTION_STACK_DEPTH), parse_max_stack),
 	OPT_INTEGER(0, "stack-skip", &stack_skip,
 		    "Set the number of stack depth to skip when finding a lock caller, "
 		    "Default: " __stringify(CONTENTION_STACK_SKIP)),
