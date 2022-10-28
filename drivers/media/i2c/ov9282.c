@@ -79,7 +79,6 @@ struct ov9282_reg_list {
  * struct ov9282_mode - ov9282 sensor mode structure
  * @width: Frame width
  * @height: Frame height
- * @code: Format code
  * @hblank: Horizontal blanking in lines
  * @vblank: Vertical blanking in lines
  * @vblank_min: Minimum vertical blanking in lines
@@ -91,7 +90,6 @@ struct ov9282_reg_list {
 struct ov9282_mode {
 	u32 width;
 	u32 height;
-	u32 code;
 	u32 hblank;
 	u32 vblank;
 	u32 vblank_min;
@@ -263,7 +261,6 @@ static const struct ov9282_mode supported_mode = {
 	.vblank_max = 51540,
 	.pclk = 160000000,
 	.link_freq_idx = 0,
-	.code = MEDIA_BUS_FMT_Y10_1X10,
 	.reg_list = {
 		.num_of_regs = ARRAY_SIZE(mode_1280x720_regs),
 		.regs = mode_1280x720_regs,
@@ -513,7 +510,7 @@ static int ov9282_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->index > 0)
 		return -EINVAL;
 
-	code->code = supported_mode.code;
+	code->code = MEDIA_BUS_FMT_Y10_1X10;
 
 	return 0;
 }
@@ -533,7 +530,7 @@ static int ov9282_enum_frame_size(struct v4l2_subdev *sd,
 	if (fsize->index > 0)
 		return -EINVAL;
 
-	if (fsize->code != supported_mode.code)
+	if (fsize->code != MEDIA_BUS_FMT_Y10_1X10)
 		return -EINVAL;
 
 	fsize->min_width = supported_mode.width;
@@ -557,7 +554,7 @@ static void ov9282_fill_pad_format(struct ov9282 *ov9282,
 {
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
-	fmt->format.code = mode->code;
+	fmt->format.code = MEDIA_BUS_FMT_Y10_1X10;
 	fmt->format.field = V4L2_FIELD_NONE;
 	fmt->format.colorspace = V4L2_COLORSPACE_RAW;
 	fmt->format.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
