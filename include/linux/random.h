@@ -154,26 +154,6 @@ declare_get_random_var_wait(long, unsigned long)
 
 #include <asm/archrandom.h>
 
-/*
- * Called from the boot CPU during startup; not valid to call once
- * secondary CPUs are up and preemption is possible.
- */
-#ifndef arch_get_random_seed_longs_early
-static inline size_t __init arch_get_random_seed_longs_early(unsigned long *v, size_t max_longs)
-{
-	WARN_ON(system_state != SYSTEM_BOOTING);
-	return arch_get_random_seed_longs(v, max_longs);
-}
-#endif
-
-#ifndef arch_get_random_longs_early
-static inline bool __init arch_get_random_longs_early(unsigned long *v, size_t max_longs)
-{
-	WARN_ON(system_state != SYSTEM_BOOTING);
-	return arch_get_random_longs(v, max_longs);
-}
-#endif
-
 #ifdef CONFIG_SMP
 int random_prepare_cpu(unsigned int cpu);
 int random_online_cpu(unsigned int cpu);
