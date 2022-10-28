@@ -662,6 +662,7 @@ static int adau1372_hw_params(struct snd_pcm_substream *substream,
 	case 16:
 		sai1 = ADAU1372_SAI1_BCLKRATE;
 		break;
+	case 24:
 	case 32:
 		sai1 = 0;
 		break;
@@ -699,6 +700,7 @@ static int adau1372_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	case 16:
 		sai1 = ADAU1372_SAI1_BCLK_TDMC;
 		break;
+	case 24:
 	case 32:
 		sai1 = 0;
 		break;
@@ -869,7 +871,9 @@ static const struct snd_soc_dai_ops adau1372_dai_ops = {
 	.startup = adau1372_startup,
 };
 
-#define ADAU1372_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |	SNDRV_PCM_FMTBIT_S32_LE)
+#define ADAU1372_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
+			  SNDRV_PCM_FMTBIT_S24_LE | \
+			  SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_driver adau1372_dai_driver = {
 	.name = "adau1372",
