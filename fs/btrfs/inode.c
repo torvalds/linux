@@ -520,7 +520,7 @@ struct async_extent {
 };
 
 struct async_chunk {
-	struct inode *inode;
+	struct btrfs_inode *inode;
 	struct page *locked_page;
 	u64 start;
 	u64 end;
@@ -648,7 +648,7 @@ static inline void inode_should_defrag(struct btrfs_inode *inode,
  */
 static noinline int compress_file_range(struct async_chunk *async_chunk)
 {
-	struct inode *inode = async_chunk->inode;
+	struct inode *inode = &async_chunk->inode->vfs_inode;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	u64 blocksize = fs_info->sectorsize;
 	u64 start = async_chunk->start;
@@ -1113,7 +1113,7 @@ out_free:
  */
 static noinline void submit_compressed_extents(struct async_chunk *async_chunk)
 {
-	struct btrfs_inode *inode = BTRFS_I(async_chunk->inode);
+	struct btrfs_inode *inode = async_chunk->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct async_extent *async_extent;
 	u64 alloc_hint = 0;
@@ -1494,7 +1494,7 @@ static noinline void async_cow_start(struct btrfs_work *work)
 
 	compressed_extents = compress_file_range(async_chunk);
 	if (compressed_extents == 0) {
-		btrfs_add_delayed_iput(async_chunk->inode);
+		btrfs_add_delayed_iput(&async_chunk->inode->vfs_inode);
 		async_chunk->inode = NULL;
 	}
 }
@@ -1534,7 +1534,7 @@ static noinline void async_cow_free(struct btrfs_work *work)
 
 	async_chunk = container_of(work, struct async_chunk, work);
 	if (async_chunk->inode)
-		btrfs_add_delayed_iput(async_chunk->inode);
+		btrfs_add_delayed_iput(&async_chunk->inode->vfs_inode);
 	if (async_chunk->blkcg_css)
 		css_put(async_chunk->blkcg_css);
 
@@ -1602,7 +1602,7 @@ static int cow_file_range_async(struct btrfs_inode *inode,
 		 */
 		ihold(&inode->vfs_inode);
 		async_chunk[i].async_cow = ctx;
-		async_chunk[i].inode = &inode->vfs_inode;
+		async_chunk[i].inode = inode;
 		async_chunk[i].start = start;
 		async_chunk[i].end = cur_end;
 		async_chunk[i].write_flags = write_flags;
