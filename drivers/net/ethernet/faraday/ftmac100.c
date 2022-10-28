@@ -11,6 +11,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -28,8 +29,8 @@
 #define RX_QUEUE_ENTRIES	128	/* must be power of 2 */
 #define TX_QUEUE_ENTRIES	16	/* must be power of 2 */
 
-#define MAX_PKT_SIZE		1518
 #define RX_BUF_SIZE		2044	/* must be smaller than 0x7ff */
+#define MAX_PKT_SIZE		RX_BUF_SIZE /* multi-segment not supported */
 
 #if MAX_PKT_SIZE > 0x7ff
 #error invalid MAX_PKT_SIZE
@@ -160,6 +161,7 @@ static void ftmac100_set_mac(struct ftmac100 *priv, const unsigned char *mac)
 static int ftmac100_start_hw(struct ftmac100 *priv)
 {
 	struct net_device *netdev = priv->netdev;
+	unsigned int maccr = MACCR_ENABLE_ALL;
 
 	if (ftmac100_reset(priv))
 		return -EIO;
@@ -176,7 +178,11 @@ static int ftmac100_start_hw(struct ftmac100 *priv)
 
 	ftmac100_set_mac(priv, netdev->dev_addr);
 
-	iowrite32(MACCR_ENABLE_ALL, priv->base + FTMAC100_OFFSET_MACCR);
+	 /* See ftmac100_change_mtu() */
+	if (netdev->mtu > ETH_DATA_LEN)
+		maccr |= FTMAC100_MACCR_RX_FTL;
+
+	iowrite32(maccr, priv->base + FTMAC100_OFFSET_MACCR);
 	return 0;
 }
 
@@ -1033,6 +1039,28 @@ static int ftmac100_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int c
 	return generic_mii_ioctl(&priv->mii, data, cmd, NULL);
 }
 
+static int ftmac100_change_mtu(struct net_device *netdev, int mtu)
+{
+	struct ftmac100 *priv = netdev_priv(netdev);
+	unsigned int maccr;
+
+	maccr = ioread32(priv->base + FTMAC100_OFFSET_MACCR);
+	if (mtu > ETH_DATA_LEN) {
+		/* process long packets in the driver */
+		maccr |= FTMAC100_MACCR_RX_FTL;
+	} else {
+		/* Let the controller drop incoming packets greater
+		 * than 1518 (that is 1500 + 14 Ethernet + 4 FCS).
+		 */
+		maccr &= ~FTMAC100_MACCR_RX_FTL;
+	}
+	iowrite32(maccr, priv->base + FTMAC100_OFFSET_MACCR);
+
+	netdev->mtu = mtu;
+
+	return 0;
+}
+
 static const struct net_device_ops ftmac100_netdev_ops = {
 	.ndo_open		= ftmac100_open,
 	.ndo_stop		= ftmac100_stop,
@@ -1040,6 +1068,7 @@ static const struct net_device_ops ftmac100_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_eth_ioctl		= ftmac100_do_ioctl,
+	.ndo_change_mtu		= ftmac100_change_mtu,
 };
 
 /******************************************************************************
