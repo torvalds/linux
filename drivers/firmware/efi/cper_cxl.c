@@ -9,6 +9,7 @@
 
 #include <linux/cper.h>
 #include "cper_cxl.h"
+#include <linux/cxl_err.h>
 
 #define PROT_ERR_VALID_AGENT_TYPE		BIT_ULL(0)
 #define PROT_ERR_VALID_AGENT_ADDRESS		BIT_ULL(1)
@@ -16,6 +17,7 @@
 #define PROT_ERR_VALID_SERIAL_NUMBER		BIT_ULL(3)
 #define PROT_ERR_VALID_CAPABILITY		BIT_ULL(4)
 #define PROT_ERR_VALID_DVSEC			BIT_ULL(5)
+#define PROT_ERR_VALID_ERROR_LOG		BIT_ULL(6)
 
 static const char * const prot_err_agent_type_strs[] = {
 	"Restricted CXL Device",
@@ -148,5 +150,30 @@ void cper_print_prot_err(const char *pfx, const struct cper_sec_prot_err *prot_e
 		pr_info("%s CXL DVSEC:\n", pfx);
 		print_hex_dump(pfx, "", DUMP_PREFIX_OFFSET, 16, 4, (prot_err + 1),
 			       prot_err->dvsec_len, 0);
+	}
+
+	if (prot_err->valid_bits & PROT_ERR_VALID_ERROR_LOG) {
+		size_t size = sizeof(*prot_err) + prot_err->dvsec_len;
+		struct cxl_ras_capability_regs *cxl_ras;
+
+		pr_info("%s Error log length: 0x%04x\n", pfx, prot_err->err_len);
+
+		pr_info("%s CXL Error Log:\n", pfx);
+		cxl_ras = (struct cxl_ras_capability_regs *)((long)prot_err + size);
+		pr_info("%s cxl_ras_uncor_status: 0x%08x", pfx,
+			cxl_ras->uncor_status);
+		pr_info("%s cxl_ras_uncor_mask: 0x%08x\n", pfx,
+			cxl_ras->uncor_mask);
+		pr_info("%s cxl_ras_uncor_severity: 0x%08x\n", pfx,
+			cxl_ras->uncor_severity);
+		pr_info("%s cxl_ras_cor_status: 0x%08x", pfx,
+			cxl_ras->cor_status);
+		pr_info("%s cxl_ras_cor_mask: 0x%08x\n", pfx,
+			cxl_ras->cor_mask);
+		pr_info("%s cap_control: 0x%08x\n", pfx,
+			cxl_ras->cap_control);
+		pr_info("%s Header Log Registers:\n", pfx);
+		print_hex_dump(pfx, "", DUMP_PREFIX_OFFSET, 16, 4, cxl_ras->header_log,
+			       sizeof(cxl_ras->header_log), 0);
 	}
 }
