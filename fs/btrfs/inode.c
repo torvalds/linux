@@ -648,8 +648,8 @@ static inline void inode_should_defrag(struct btrfs_inode *inode,
  */
 static noinline int compress_file_range(struct async_chunk *async_chunk)
 {
-	struct inode *inode = &async_chunk->inode->vfs_inode;
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_inode *inode = async_chunk->inode;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	u64 blocksize = fs_info->sectorsize;
 	u64 start = async_chunk->start;
 	u64 end = async_chunk->end;
@@ -666,8 +666,7 @@ static noinline int compress_file_range(struct async_chunk *async_chunk)
 	int compressed_extents = 0;
 	int redirty = 0;
 
-	inode_should_defrag(BTRFS_I(inode), start, end, end - start + 1,
-			SZ_16K);
+	inode_should_defrag(inode, start, end, end - start + 1, SZ_16K);
 
 	/*
 	 * We need to save i_size before now because it could change in between
@@ -679,7 +678,7 @@ static noinline int compress_file_range(struct async_chunk *async_chunk)
 	 * does that for us.
 	 */
 	barrier();
-	i_size = i_size_read(inode);
+	i_size = i_size_read(&inode->vfs_inode);
 	barrier();
 	actual_end = min_t(u64, i_size, end + 1);
 again:
@@ -708,7 +707,7 @@ again:
 	 * isn't an inline extent, since it doesn't save disk space at all.
 	 */
 	if (total_compressed <= blocksize &&
-	   (start > 0 || end + 1 < BTRFS_I(inode)->disk_i_size))
+	   (start > 0 || end + 1 < inode->disk_i_size))
 		goto cleanup_and_bail_uncompressed;
 
 	/*
@@ -732,7 +731,7 @@ again:
 	 * inode has not been flagged as nocompress.  This flag can
 	 * change at any time if we discover bad compression ratios.
 	 */
-	if (inode_need_compress(BTRFS_I(inode), start, end)) {
+	if (inode_need_compress(inode, start, end)) {
 		WARN_ON(pages);
 		pages = kcalloc(nr_pages, sizeof(struct page *), GFP_NOFS);
 		if (!pages) {
@@ -741,10 +740,10 @@ again:
 			goto cont;
 		}
 
-		if (BTRFS_I(inode)->defrag_compress)
-			compress_type = BTRFS_I(inode)->defrag_compress;
-		else if (BTRFS_I(inode)->prop_compress)
-			compress_type = BTRFS_I(inode)->prop_compress;
+		if (inode->defrag_compress)
+			compress_type = inode->defrag_compress;
+		else if (inode->prop_compress)
+			compress_type = inode->prop_compress;
 
 		/*
 		 * we need to call clear_page_dirty_for_io on each
@@ -759,14 +758,14 @@ again:
 		 * has moved, the end is the original one.
 		 */
 		if (!redirty) {
-			extent_range_clear_dirty_for_io(inode, start, end);
+			extent_range_clear_dirty_for_io(&inode->vfs_inode, start, end);
 			redirty = 1;
 		}
 
 		/* Compression level is applied here and only here */
 		ret = btrfs_compress_pages(
 			compress_type | (fs_info->compress_level << 4),
-					   inode->i_mapping, start,
+					   inode->vfs_inode.i_mapping, start,
 					   pages,
 					   &nr_pages,
 					   &total_in,
@@ -795,12 +794,12 @@ cont:
 			/* we didn't compress the entire range, try
 			 * to make an uncompressed inline extent.
 			 */
-			ret = cow_file_range_inline(BTRFS_I(inode), actual_end,
+			ret = cow_file_range_inline(inode, actual_end,
 						    0, BTRFS_COMPRESS_NONE,
 						    NULL, false);
 		} else {
 			/* try making a compressed inline extent */
-			ret = cow_file_range_inline(BTRFS_I(inode), actual_end,
+			ret = cow_file_range_inline(inode, actual_end,
 						    total_compressed,
 						    compress_type, pages,
 						    false);
@@ -823,7 +822,7 @@ cont:
 			 * our outstanding extent for clearing delalloc for this
 			 * range.
 			 */
-			extent_clear_unlock_delalloc(BTRFS_I(inode), start, end,
+			extent_clear_unlock_delalloc(inode, start, end,
 						     NULL,
 						     clear_flags,
 						     PAGE_UNLOCK |
@@ -898,8 +897,8 @@ cont:
 
 		/* flag the file so we don't compress in the future */
 		if (!btrfs_test_opt(fs_info, FORCE_COMPRESS) &&
-		    !(BTRFS_I(inode)->prop_compress)) {
-			BTRFS_I(inode)->flags |= BTRFS_INODE_NOCOMPRESS;
+		    !(inode->prop_compress)) {
+			inode->flags |= BTRFS_INODE_NOCOMPRESS;
 		}
 	}
 cleanup_and_bail_uncompressed:
@@ -917,7 +916,7 @@ cleanup_and_bail_uncompressed:
 	}
 
 	if (redirty)
-		extent_range_redirty_for_io(inode, start, end);
+		extent_range_redirty_for_io(&inode->vfs_inode, start, end);
 	add_async_extent(async_chunk, start, end - start + 1, 0, NULL, 0,
 			 BTRFS_COMPRESS_NONE);
 	compressed_extents++;
