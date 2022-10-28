@@ -18,10 +18,7 @@ Rust
     quick-start
     general-information
     coding-guidelines
-
-TODOList:
-
-*    arch-support
+    arch-support
 
 .. only::  subproject and html
 
