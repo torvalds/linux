@@ -204,7 +204,7 @@ static int vcap_test_port_info(struct net_device *ndev, enum vcap_type vtype,
 	return 0;
 }
 
-struct vcap_operations test_callbacks = {
+static struct vcap_operations test_callbacks = {
 	.validate_keyset = test_val_keyset,
 	.add_default_fields = test_add_def_fields,
 	.cache_erase = test_cache_erase,
@@ -216,7 +216,7 @@ struct vcap_operations test_callbacks = {
 	.port_info = vcap_test_port_info,
 };
 
-struct vcap_control test_vctrl = {
+static struct vcap_control test_vctrl = {
 	.vcaps = kunit_test_vcaps,
 	.stats = &kunit_test_vcap_stats,
 	.ops = &test_callbacks,
