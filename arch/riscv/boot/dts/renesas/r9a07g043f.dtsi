@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the RZ/Five SoC
+ *
+ * Copyright (C) 2022 Renesas Electronics Corp.
+ */
+
+#include <dt-bindings/interrupt-controller/irq.h>
+
+#define SOC_PERIPHERAL_IRQ(nr)	(nr + 32)
+
+#include <arm64/renesas/r9a07g043.dtsi>
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		timebase-frequency = <12000000>;
+
+		cpu0: cpu@0 {
+			compatible = "andestech,ax45mp", "riscv";
+			device_type = "cpu";
+			reg = <0x0>;
+			status = "okay";
+			riscv,isa = "rv64imafdc";
+			mmu-type = "riscv,sv39";
+			i-cache-size = <0x8000>;
+			i-cache-line-size = <0x40>;
+			d-cache-size = <0x8000>;
+			d-cache-line-size = <0x40>;
+			clocks = <&cpg CPG_CORE R9A07G043_CLK_I>;
+
+			cpu0_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
+		};
+	};
+};
+
+&soc {
+	interrupt-parent = <&plic>;
+
+	plic: interrupt-controller@12c00000 {
+		compatible = "renesas,r9a07g043-plic", "andestech,nceplic100";
+		#interrupt-cells = <2>;
+		#address-cells = <0>;
+		riscv,ndev = <511>;
+		interrupt-controller;
+		reg = <0x0 0x12c00000 0 0x400000>;
+		clocks = <&cpg CPG_MOD R9A07G043_NCEPLIC_ACLK>;
+		power-domains = <&cpg>;
+		resets = <&cpg R9A07G043_NCEPLIC_ARESETN>;
+		interrupts-extended = <&cpu0_intc 11 &cpu0_intc 9>;
+	};
+};
