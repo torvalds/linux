@@ -2241,6 +2241,10 @@ config TEST_UUID
 config TEST_XARRAY
 	tristate "Test the XArray code at runtime"
 
+config TEST_MAPLE_TREE
+	select DEBUG_MAPLE_TREE
+	tristate "Test the Maple Tree code at runtime"
+
 config TEST_RHASHTABLE
 	tristate "Perform selftest on resizable hash table"
 	help

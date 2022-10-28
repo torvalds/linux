@@ -183,10 +183,6 @@ static void ma_free_rcu(struct maple_node *node)
 	call_rcu(&node->rcu, mt_free_rcu);
 }
 
-static unsigned int mt_height(const struct maple_tree *mt)
-{
-	return (mt->ma_flags & MT_FLAGS_HEIGHT_MASK) >> MT_FLAGS_HEIGHT_OFFSET;
-}
 
 static void mas_set_height(struct ma_state *mas)
 {
@@ -5061,6 +5057,7 @@ retry:
 
 	return entry;
 }
+EXPORT_SYMBOL_GPL(mas_walk);
 
 static inline bool mas_rewind_node(struct ma_state *mas)
 {
@@ -5272,6 +5269,7 @@ int mas_empty_area(struct ma_state *mas, unsigned long min,
 	mas->last = mas->index + size - 1;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mas_empty_area);
 
 /*
  * mas_empty_area_rev() - Get the highest address within the range that is
@@ -5335,6 +5333,7 @@ int mas_empty_area_rev(struct ma_state *mas, unsigned long min,
 	mas->index = mas->last - size + 1;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mas_empty_area_rev);
 
 static inline int mas_alloc(struct ma_state *mas, void *entry,
 		unsigned long size, unsigned long *index)
@@ -5656,6 +5655,7 @@ void *mas_store(struct ma_state *mas, void *entry)
 	mas_wr_store_entry(&wr_mas);
 	return wr_mas.content;
 }
+EXPORT_SYMBOL_GPL(mas_store);
 
 /**
  * mas_store_gfp() - Store a value into the tree.
@@ -5682,6 +5682,7 @@ retry:
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mas_store_gfp);
 
 /**
  * mas_store_prealloc() - Store a value into the tree using memory
@@ -5699,6 +5700,7 @@ void mas_store_prealloc(struct ma_state *mas, void *entry)
 	BUG_ON(mas_is_err(mas));
 	mas_destroy(mas);
 }
+EXPORT_SYMBOL_GPL(mas_store_prealloc);
 
 /**
  * mas_preallocate() - Preallocate enough nodes for a store operation
@@ -5768,6 +5770,7 @@ void mas_destroy(struct ma_state *mas)
 	}
 	mas->alloc = NULL;
 }
+EXPORT_SYMBOL_GPL(mas_destroy);
 
 /*
  * mas_expected_entries() - Set the expected number of entries that will be inserted.
@@ -5829,6 +5832,7 @@ int mas_expected_entries(struct ma_state *mas, unsigned long nr_entries)
 	return ret;
 
 }
+EXPORT_SYMBOL_GPL(mas_expected_entries);
 
 /**
  * mas_next() - Get the next entry.
@@ -6009,6 +6013,7 @@ void *mas_find(struct ma_state *mas, unsigned long max)
 	/* Retries on dead nodes handled by mas_next_entry */
 	return mas_next_entry(mas, max);
 }
+EXPORT_SYMBOL_GPL(mas_find);
 
 /**
  * mas_find_rev: On the first call, find the first non-null entry at or below
@@ -6055,7 +6060,7 @@ void *mas_find_rev(struct ma_state *mas, unsigned long min)
 	/* Retries on dead nodes handled by mas_next_entry */
 	return mas_prev_entry(mas, min);
 }
-EXPORT_SYMBOL_GPL(mas_find);
+EXPORT_SYMBOL_GPL(mas_find_rev);
 
 /**
  * mas_erase() - Find the range in which index resides and erase the entire
@@ -6537,8 +6542,27 @@ static inline int mas_dead_node(struct ma_state *mas, unsigned long index)
 	mas_rewalk(mas, index);
 	return 1;
 }
-#endif /* not defined __KERNEL__ */
 
+void mt_cache_shrink(void)
+{
+}
+#else
+/*
+ * mt_cache_shrink() - For testing, don't use this.
+ *
+ * Certain testcases can trigger an OOM when combined with other memory
+ * debugging configuration options.  This function is used to reduce the
+ * possibility of an out of memory even due to kmem_cache objects remaining
+ * around for longer than usual.
+ */
+void mt_cache_shrink(void)
+{
+	kmem_cache_shrink(maple_node_cache);
+
+}
+EXPORT_SYMBOL_GPL(mt_cache_shrink);
+
+#endif /* not defined __KERNEL__ */
 /*
  * mas_get_slot() - Get the entry in the maple state node stored at @offset.
  * @mas: The maple state
@@ -6812,6 +6836,7 @@ void mt_dump(const struct maple_tree *mt)
 	else if (entry)
 		mt_dump_node(mt, entry, 0, mt_max[mte_node_type(entry)], 0);
 }
+EXPORT_SYMBOL_GPL(mt_dump);
 
 /*
  * Calculate the maximum gap in a node and check if that's what is reported in
@@ -7122,5 +7147,6 @@ done:
 	rcu_read_unlock();
 
 }
+EXPORT_SYMBOL_GPL(mt_validate);
 
 #endif /* CONFIG_DEBUG_MAPLE_TREE */
