@@ -3529,10 +3529,10 @@ unsigned int btrfs_verify_data_csum(struct btrfs_bio *bbio,
 				    u32 bio_offset, struct page *page,
 				    u64 start, u64 end)
 {
-	struct inode *inode = page->mapping->host;
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
+	struct btrfs_root *root = inode->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct extent_io_tree *io_tree = &inode->io_tree;
 	const u32 sectorsize = root->fs_info->sectorsize;
 	u32 pg_off;
 	unsigned int result = 0;
@@ -3545,7 +3545,7 @@ unsigned int btrfs_verify_data_csum(struct btrfs_bio *bbio,
 	if (bbio->csum == NULL)
 		return 0;
 
-	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)
+	if (inode->flags & BTRFS_INODE_NODATASUM)
 		return 0;
 
 	if (unlikely(test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state)))
@@ -3569,7 +3569,7 @@ unsigned int btrfs_verify_data_csum(struct btrfs_bio *bbio,
 					  EXTENT_NODATASUM);
 			continue;
 		}
-		ret = btrfs_check_data_csum(BTRFS_I(inode), bbio, bio_offset, page, pg_off);
+		ret = btrfs_check_data_csum(inode, bbio, bio_offset, page, pg_off);
 		if (ret < 0) {
 			const int nr_bit = (pg_off - offset_in_page(start)) >>
 				     root->fs_info->sectorsize_bits;
