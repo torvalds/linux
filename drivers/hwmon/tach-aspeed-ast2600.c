@@ -45,7 +45,7 @@
 #define BOTH_EDGES 0x02
 /* [23:20] */
 /* Cover rpm range 5~5859375 */
-#define DEFAULT_TACHO_DIV 5
+#define DEFAULT_TACH_DIV 5
 
 /* TACH Status Register */
 #define TACH_ASPEED_STS(ch) (((ch) * 0x10) + 0x0C)
@@ -71,14 +71,14 @@
  */
 #define RPM_POLLING_PERIOD_US 1000
 
-struct aspeed_tacho_channel_params {
+struct aspeed_tach_channel_params {
 	int limited_inverse;
 	u16 threshold;
-	u8 tacho_edge;
-	u8 tacho_debounce;
+	u8 tach_edge;
+	u8 tach_debounce;
 	u8 pulse_pr;
 	u32 min_rpm;
-	u32 divide;
+	u32 divisor;
 	u32 sample_period; /* unit is us */
 };
 
@@ -88,7 +88,7 @@ struct aspeed_tach_data {
 	struct clk *clk;
 	struct reset_control *reset;
 	bool tach_present[TACH_ASPEED_NR_TACHS];
-	struct aspeed_tacho_channel_params *tacho_channel;
+	struct aspeed_tach_channel_params *tach_channel;
 	/* for hwmon */
 	const struct attribute_group *groups[2];
 };
@@ -97,8 +97,8 @@ static u32 aspeed_get_fan_tach_sample_period(struct aspeed_tach_data *priv,
 					     u8 fan_tach_ch)
 {
 	u32 tach_period_us;
-	u8 pulse_pr = priv->tacho_channel[fan_tach_ch].pulse_pr;
-	u32 min_rpm = priv->tacho_channel[fan_tach_ch].min_rpm;
+	u8 pulse_pr = priv->tach_channel[fan_tach_ch].pulse_pr;
+	u32 min_rpm = priv->tach_channel[fan_tach_ch].min_rpm;
 	/*
 	 * min(Tach input clock) = (PulsePR * minRPM) / 60
 	 * max(Tach input period) = 60 / (PulsePR * minRPM)
@@ -113,33 +113,33 @@ static u32 aspeed_get_fan_tach_sample_period(struct aspeed_tach_data *priv,
 
 static void aspeed_set_fan_tach_ch_enable(struct aspeed_tach_data *priv,
 					  u8 fan_tach_ch, bool enable,
-					  u32 tacho_div)
+					  u32 tach_div)
 {
 	u32 reg_value = 0;
 
 	if (enable) {
-		/* divide = 2^(tacho_div*2) */
-		priv->tacho_channel[fan_tach_ch].divide = 1 << (tacho_div << 1);
+		/* divisor = 2^(tach_div*2) */
+		priv->tach_channel[fan_tach_ch].divisor = 1 << (tach_div << 1);
 
 		reg_value = TACH_ASPEED_ENABLE |
-			    (priv->tacho_channel[fan_tach_ch].tacho_edge
+			    (priv->tach_channel[fan_tach_ch].tach_edge
 			     << TACH_ASPEED_IO_EDGE_BIT) |
-			    (tacho_div << TACH_ASPEED_CLK_DIV_BIT) |
-			    (priv->tacho_channel[fan_tach_ch].tacho_debounce
+			    (tach_div << TACH_ASPEED_CLK_DIV_BIT) |
+			    (priv->tach_channel[fan_tach_ch].tach_debounce
 			     << TACH_ASPEED_DEBOUNCE_BIT);
 
-		if (priv->tacho_channel[fan_tach_ch].limited_inverse)
+		if (priv->tach_channel[fan_tach_ch].limited_inverse)
 			reg_value |= TACH_ASPEED_INVERS_LIMIT;
 
-		if (priv->tacho_channel[fan_tach_ch].threshold)
+		if (priv->tach_channel[fan_tach_ch].threshold)
 			reg_value |=
 				(TACH_ASPEED_IER |
-				 priv->tacho_channel[fan_tach_ch].threshold);
+				 priv->tach_channel[fan_tach_ch].threshold);
 
 		regmap_write(priv->regmap, TACH_ASPEED_CTRL(fan_tach_ch),
 			     reg_value);
 
-		priv->tacho_channel[fan_tach_ch].sample_period =
+		priv->tach_channel[fan_tach_ch].sample_period =
 			aspeed_get_fan_tach_sample_period(priv, fan_tach_ch);
 	} else
 		regmap_update_bits(priv->regmap, TACH_ASPEED_CTRL(fan_tach_ch),
@@ -154,7 +154,7 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
 	u64 rpm;
 	int ret;
 
-	usec = priv->tacho_channel[fan_tach_ch].sample_period;
+	usec = priv->tach_channel[fan_tach_ch].sample_period;
 	/* Restart the Tach channel to guarantee the value is fresh */
 	regmap_update_bits(priv->regmap, TACH_ASPEED_CTRL(fan_tach_ch),
 			   TACH_ASPEED_ENABLE, 0);
@@ -178,11 +178,11 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
 	 * We need the mode to determine if the raw_data is double (from
 	 * counting both edges).
 	 */
-	if (priv->tacho_channel[fan_tach_ch].tacho_edge == BOTH_EDGES)
+	if (priv->tach_channel[fan_tach_ch].tach_edge == BOTH_EDGES)
 		raw_data <<= 1;
 
-	tach_div = raw_data * (priv->tacho_channel[fan_tach_ch].divide) *
-		   (priv->tacho_channel[fan_tach_ch].pulse_pr);
+	tach_div = raw_data * (priv->tach_channel[fan_tach_ch].divisor) *
+		   (priv->tach_channel[fan_tach_ch].pulse_pr);
 
 	clk_source = clk_get_rate(priv->clk);
 	dev_dbg(priv->dev, "clk %ld, raw_data %d , tach_div %d\n", clk_source,
@@ -267,23 +267,23 @@ static const struct attribute_group fan_dev_group = {
 static void aspeed_create_fan_tach_channel(struct aspeed_tach_data *priv,
 					   u32 tach_ch, int count,
 					   u32 fan_pulse_pr, u32 fan_min_rpm,
-					   u32 tacho_div)
+					   u32 tach_div)
 {
 	priv->tach_present[tach_ch] = true;
-	priv->tacho_channel[tach_ch].pulse_pr = fan_pulse_pr;
-	priv->tacho_channel[tach_ch].min_rpm = fan_min_rpm;
-	priv->tacho_channel[tach_ch].limited_inverse = 0;
-	priv->tacho_channel[tach_ch].threshold = 0;
-	priv->tacho_channel[tach_ch].tacho_edge = F2F_EDGES;
-	priv->tacho_channel[tach_ch].tacho_debounce = DEBOUNCE_3_CLK;
-	aspeed_set_fan_tach_ch_enable(priv, tach_ch, true, tacho_div);
+	priv->tach_channel[tach_ch].pulse_pr = fan_pulse_pr;
+	priv->tach_channel[tach_ch].min_rpm = fan_min_rpm;
+	priv->tach_channel[tach_ch].limited_inverse = 0;
+	priv->tach_channel[tach_ch].threshold = 0;
+	priv->tach_channel[tach_ch].tach_edge = F2F_EDGES;
+	priv->tach_channel[tach_ch].tach_debounce = DEBOUNCE_3_CLK;
+	aspeed_set_fan_tach_ch_enable(priv, tach_ch, true, tach_div);
 }
 
 static int aspeed_tach_create_fan(struct device *dev, struct device_node *child,
 				  struct aspeed_tach_data *priv)
 {
 	u32 fan_pulse_pr, fan_min_rpm;
-	u32 tacho_div;
+	u32 tach_div;
 	u32 tach_channel;
 	int ret, count;
 
@@ -299,12 +299,12 @@ static int aspeed_tach_create_fan(struct device *dev, struct device_node *child,
 	if (ret)
 		fan_min_rpm = DEFAULT_FAN_MIN_RPM;
 
-	ret = of_property_read_u32(child, "aspeed,tach-div", &tacho_div);
+	ret = of_property_read_u32(child, "aspeed,tach-div", &tach_div);
 	if (ret)
-		tacho_div = DEFAULT_TACHO_DIV;
+		tach_div = DEFAULT_TACH_DIV;
 
 	aspeed_create_fan_tach_channel(priv, tach_channel, count, fan_pulse_pr,
-				       fan_min_rpm, tacho_div);
+				       fan_min_rpm, tach_div);
 
 	return 0;
 }
@@ -327,9 +327,9 @@ static int aspeed_tach_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 	priv->dev = &pdev->dev;
-	priv->tacho_channel =
+	priv->tach_channel =
 		devm_kzalloc(dev,
-			     TACH_ASPEED_NR_TACHS * sizeof(*priv->tacho_channel),
+			     TACH_ASPEED_NR_TACHS * sizeof(*priv->tach_channel),
 			     GFP_KERNEL);
 
 	priv->regmap = syscon_node_to_regmap(np);
