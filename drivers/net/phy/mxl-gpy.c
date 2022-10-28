@@ -29,6 +29,10 @@
 #define PHY_ID_GPY241BM		0x67C9DE80
 #define PHY_ID_GPY245B		0x67C9DEC0
 
+#define PHY_CTL1		0x13
+#define PHY_CTL1_MDICD		BIT(3)
+#define PHY_CTL1_MDIAB		BIT(2)
+#define PHY_CTL1_AMDIX		BIT(0)
 #define PHY_MIISTAT		0x18	/* MII state */
 #define PHY_IMASK		0x19	/* interrupt mask */
 #define PHY_ISTAT		0x1A	/* interrupt status */
@@ -58,6 +62,13 @@
 #define PHY_FWV_REL_MASK	BIT(15)
 #define PHY_FWV_MAJOR_MASK	GENMASK(11, 8)
 #define PHY_FWV_MINOR_MASK	GENMASK(7, 0)
+
+#define PHY_PMA_MGBT_POLARITY	0x82
+#define PHY_MDI_MDI_X_MASK	GENMASK(1, 0)
+#define PHY_MDI_MDI_X_NORMAL	0x3
+#define PHY_MDI_MDI_X_AB	0x2
+#define PHY_MDI_MDI_X_CD	0x1
+#define PHY_MDI_MDI_X_CROSS	0x0
 
 /* SGMII */
 #define VSPEC1_SGMII_CTRL	0x08
@@ -289,6 +300,33 @@ static bool gpy_sgmii_aneg_en(struct phy_device *phydev)
 	return (ret & VSPEC1_SGMII_CTRL_ANEN) ? true : false;
 }
 
+static int gpy_config_mdix(struct phy_device *phydev, u8 ctrl)
+{
+	int ret;
+	u16 val;
+
+	switch (ctrl) {
+	case ETH_TP_MDI_AUTO:
+		val = PHY_CTL1_AMDIX;
+		break;
+	case ETH_TP_MDI_X:
+		val = (PHY_CTL1_MDIAB | PHY_CTL1_MDICD);
+		break;
+	case ETH_TP_MDI:
+		val = 0;
+		break;
+	default:
+		return 0;
+	}
+
+	ret =  phy_modify(phydev, PHY_CTL1, PHY_CTL1_AMDIX | PHY_CTL1_MDIAB |
+			  PHY_CTL1_MDICD, val);
+	if (ret < 0)
+		return ret;
+
+	return genphy_c45_restart_aneg(phydev);
+}
+
 static int gpy_config_aneg(struct phy_device *phydev)
 {
 	bool changed = false;
@@ -303,6 +341,10 @@ static int gpy_config_aneg(struct phy_device *phydev)
 			? genphy_setup_forced(phydev)
 			: genphy_c45_pma_setup_forced(phydev);
 	}
+
+	ret = gpy_config_mdix(phydev,  phydev->mdix_ctrl);
+	if (ret < 0)
+		return ret;
 
 	ret = genphy_c45_an_config_aneg(phydev);
 	if (ret < 0)
@@ -370,14 +412,42 @@ static int gpy_config_aneg(struct phy_device *phydev)
 			      VSPEC1_SGMII_CTRL_ANRS, VSPEC1_SGMII_CTRL_ANRS);
 }
 
-static void gpy_update_interface(struct phy_device *phydev)
+static int gpy_update_mdix(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_read(phydev, PHY_CTL1);
+	if (ret < 0)
+		return ret;
+
+	if (ret & PHY_CTL1_AMDIX)
+		phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+	else
+		if (ret & PHY_CTL1_MDICD || ret & PHY_CTL1_MDIAB)
+			phydev->mdix_ctrl = ETH_TP_MDI_X;
+		else
+			phydev->mdix_ctrl = ETH_TP_MDI;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, PHY_PMA_MGBT_POLARITY);
+	if (ret < 0)
+		return ret;
+
+	if ((ret & PHY_MDI_MDI_X_MASK) < PHY_MDI_MDI_X_NORMAL)
+		phydev->mdix = ETH_TP_MDI_X;
+	else
+		phydev->mdix = ETH_TP_MDI;
+
+	return 0;
+}
+
+static int gpy_update_interface(struct phy_device *phydev)
 {
 	int ret;
 
 	/* Interface mode is fixed for USXGMII and integrated PHY */
 	if (phydev->interface == PHY_INTERFACE_MODE_USXGMII ||
 	    phydev->interface == PHY_INTERFACE_MODE_INTERNAL)
-		return;
+		return -EINVAL;
 
 	/* Automatically switch SERDES interface between SGMII and 2500-BaseX
 	 * according to speed. Disable ANEG in 2500-BaseX mode.
@@ -387,10 +457,12 @@ static void gpy_update_interface(struct phy_device *phydev)
 		phydev->interface = PHY_INTERFACE_MODE_2500BASEX;
 		ret = phy_modify_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_SGMII_CTRL,
 				     VSPEC1_SGMII_CTRL_ANEN, 0);
-		if (ret < 0)
+		if (ret < 0) {
 			phydev_err(phydev,
 				   "Error: Disable of SGMII ANEG failed: %d\n",
 				   ret);
+			return ret;
+		}
 		break;
 	case SPEED_1000:
 	case SPEED_100:
@@ -404,15 +476,22 @@ static void gpy_update_interface(struct phy_device *phydev)
 		ret = phy_modify_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_SGMII_CTRL,
 				     VSPEC1_SGMII_ANEN_ANRS,
 				     VSPEC1_SGMII_ANEN_ANRS);
-		if (ret < 0)
+		if (ret < 0) {
 			phydev_err(phydev,
 				   "Error: Enable of SGMII ANEG failed: %d\n",
 				   ret);
+			return ret;
+		}
 		break;
 	}
 
-	if (phydev->speed == SPEED_2500 || phydev->speed == SPEED_1000)
-		genphy_read_master_slave(phydev);
+	if (phydev->speed == SPEED_2500 || phydev->speed == SPEED_1000) {
+		ret = genphy_read_master_slave(phydev);
+		if (ret < 0)
+			return ret;
+	}
+
+	return gpy_update_mdix(phydev);
 }
 
 static int gpy_read_status(struct phy_device *phydev)
@@ -463,8 +542,11 @@ static int gpy_read_status(struct phy_device *phydev)
 		break;
 	}
 
-	if (phydev->link)
-		gpy_update_interface(phydev);
+	if (phydev->link) {
+		ret = gpy_update_interface(phydev);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
