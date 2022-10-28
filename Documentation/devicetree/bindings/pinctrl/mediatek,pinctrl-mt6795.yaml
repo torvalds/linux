@@ -46,7 +46,7 @@ properties:
     const: 2
 
   interrupts:
-    description: The interrupt outputs to sysirq.
+    description: Interrupt outputs to the system interrupt controller (sysirq).
     minItems: 1
     items:
       - description: EINT interrupt
