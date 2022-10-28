@@ -21,6 +21,9 @@
 #define OV9282_MODE_STANDBY	0x00
 #define OV9282_MODE_STREAMING	0x01
 
+#define OV9282_REG_TIMING_HTS	0x380c
+#define OV9282_TIMING_HTS_MAX	0x7fff
+
 /* Lines per frame */
 #define OV9282_REG_LPFR		0x380e
 
@@ -90,7 +93,8 @@ struct ov9282_reg_list {
  * struct ov9282_mode - ov9282 sensor mode structure
  * @width: Frame width
  * @height: Frame height
- * @hblank: Horizontal blanking in lines
+ * @hblank_min: Minimum horizontal blanking in lines for non-continuous[0] and
+ *		continuous[1] clock modes
  * @vblank: Vertical blanking in lines
  * @vblank_min: Minimum vertical blanking in lines
  * @vblank_max: Maximum vertical blanking in lines
@@ -100,7 +104,7 @@ struct ov9282_reg_list {
 struct ov9282_mode {
 	u32 width;
 	u32 height;
-	u32 hblank;
+	u32 hblank_min[2];
 	u32 vblank;
 	u32 vblank_min;
 	u32 vblank_max;
@@ -249,8 +253,6 @@ static const struct ov9282_reg mode_1280x720_regs[] = {
 	{0x3809, 0x00},
 	{0x380a, 0x02},
 	{0x380b, 0xd0},
-	{0x380c, 0x02},
-	{0x380d, 0xfd},
 	{0x3810, 0x00},
 	{0x3811, 0x08},
 	{0x3812, 0x00},
@@ -273,7 +275,7 @@ static const struct ov9282_mode supported_modes[] = {
 	[MODE_1280_720] = {
 		.width = 1280,
 		.height = 720,
-		.hblank = 250,
+		.hblank_min = { 250, 176 },
 		.vblank = 1022,
 		.vblank_min = 41,
 		.vblank_max = 51540,
@@ -397,13 +399,17 @@ static int ov9282_write_regs(struct ov9282 *ov9282,
 static int ov9282_update_controls(struct ov9282 *ov9282,
 				  const struct ov9282_mode *mode)
 {
+	u32 hblank_min;
 	int ret;
 
 	ret = __v4l2_ctrl_s_ctrl(ov9282->link_freq_ctrl, mode->link_freq_idx);
 	if (ret)
 		return ret;
 
-	ret = __v4l2_ctrl_s_ctrl(ov9282->hblank_ctrl, mode->hblank);
+	hblank_min = mode->hblank_min[ov9282->noncontinuous_clock ? 0 : 1];
+	ret =  __v4l2_ctrl_modify_range(ov9282->hblank_ctrl, hblank_min,
+					OV9282_TIMING_HTS_MAX - mode->width, 1,
+					hblank_min);
 	if (ret)
 		return ret;
 
@@ -537,6 +543,10 @@ static int ov9282_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_VFLIP:
 		ret = ov9282_set_ctrl_vflip(ov9282, ctrl->val);
+		break;
+	case V4L2_CID_HBLANK:
+		ret = ov9282_write_reg(ov9282, OV9282_REG_TIMING_HTS, 2,
+				       (ctrl->val + ov9282->cur_mode->width) >> 1);
 		break;
 	default:
 		dev_err(ov9282->dev, "Invalid control %d", ctrl->id);
@@ -1004,6 +1014,7 @@ static int ov9282_init_controls(struct ov9282 *ov9282)
 	struct v4l2_ctrl_handler *ctrl_hdlr = &ov9282->ctrl_handler;
 	const struct ov9282_mode *mode = ov9282->cur_mode;
 	struct v4l2_fwnode_device_properties props;
+	u32 hblank_min;
 	u32 lpfr;
 	int ret;
 
@@ -1062,14 +1073,13 @@ static int ov9282_init_controls(struct ov9282 *ov9282)
 	if (ov9282->link_freq_ctrl)
 		ov9282->link_freq_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
+	hblank_min = mode->hblank_min[ov9282->noncontinuous_clock ? 0 : 1];
 	ov9282->hblank_ctrl = v4l2_ctrl_new_std(ctrl_hdlr,
 						&ov9282_ctrl_ops,
 						V4L2_CID_HBLANK,
-						OV9282_REG_MIN,
-						OV9282_REG_MAX,
-						1, mode->hblank);
-	if (ov9282->hblank_ctrl)
-		ov9282->hblank_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+						hblank_min,
+						OV9282_TIMING_HTS_MAX - mode->width,
+						1, hblank_min);
 
 	ret = v4l2_fwnode_device_parse(ov9282->dev, &props);
 	if (!ret) {
