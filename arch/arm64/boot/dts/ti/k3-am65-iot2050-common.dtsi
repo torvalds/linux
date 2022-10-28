@@ -674,15 +674,3 @@
 			<&mcu_r5fss0_core1_memory_region>;
 	mboxes = <&mailbox0_cluster1 &mbox_mcu_r5fss0_core1>;
 };
-
-&mcasp0 {
-	status = "disabled";
-};
-
-&mcasp1 {
-	status = "disabled";
-};
-
-&mcasp2 {
-	status = "disabled";
-};
