@@ -695,6 +695,11 @@ properties:
           - const: rockchip,rk3036-evb
           - const: rockchip,rk3036
 
+      - description: Rockchip RK3128 Evaluation board
+        items:
+          - const: rockchip,rk3128-evb
+          - const: rockchip,rk3128
+
       - description: Rockchip RK3228 Evaluation board
         items:
           - const: rockchip,rk3228-evb
