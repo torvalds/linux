@@ -125,6 +125,9 @@ struct t7xx_port {
 		struct {
 			struct wwan_port		*wwan_port;
 		} wwan;
+		struct {
+			struct rchan			*relaych;
+		} log;
 	};
 };
 
