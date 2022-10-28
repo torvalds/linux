@@ -354,9 +354,8 @@ xchk_refcountbt_rec(
 
 	/* Check the extent. */
 	bno &= ~XFS_REFC_COW_START;
-	if (bno + len <= bno ||
-	    !xfs_verify_agbno(pag, bno) ||
-	    !xfs_verify_agbno(pag, bno + len - 1))
+
+	if (!xfs_verify_agbext(pag, bno, len))
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
 	if (refcount == 0)
