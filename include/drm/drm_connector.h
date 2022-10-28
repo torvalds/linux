@@ -1550,12 +1550,20 @@ struct drm_connector {
 	struct drm_cmdline_mode cmdline_mode;
 	/** @force: a DRM_FORCE_<foo> state for forced mode sets */
 	enum drm_connector_force force;
+
 	/**
-	 * @override_edid: has the EDID been overwritten through debugfs for
-	 * testing? Do not modify outside of drm_edid_override_set() and
-	 * drm_edid_override_reset().
+	 * @edid_override: Override EDID set via debugfs.
+	 *
+	 * Do not modify or access outside of the drm_edid_override_* family of
+	 * functions.
 	 */
-	bool override_edid;
+	const struct drm_edid *edid_override;
+
+	/**
+	 * @edid_override_mutex: Protect access to edid_override.
+	 */
+	struct mutex edid_override_mutex;
+
 	/** @epoch_counter: used to detect any other changes in connector, besides status */
 	u64 epoch_counter;
 

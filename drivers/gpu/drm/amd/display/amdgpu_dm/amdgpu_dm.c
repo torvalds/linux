@@ -6108,7 +6108,6 @@ static void create_eml_sink(struct amdgpu_dm_connector *aconnector)
 				aconnector->base.name);
 
 		aconnector->base.force = DRM_FORCE_OFF;
-		aconnector->base.override_edid = false;
 		return;
 	}
 
@@ -6143,8 +6142,6 @@ static void handle_edid_mgmt(struct amdgpu_dm_connector *aconnector)
 		link->verified_link_cap.link_rate = LINK_RATE_HIGH2;
 	}
 
-
-	aconnector->base.override_edid = true;
 	create_eml_sink(aconnector);
 }
 
