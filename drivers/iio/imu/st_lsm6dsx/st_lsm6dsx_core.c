@@ -53,6 +53,8 @@
 #include <linux/iio/events.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/iio/triggered_buffer.h>
+#include <linux/iio/trigger_consumer.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/minmax.h>
@@ -2117,6 +2119,32 @@ static irqreturn_t st_lsm6dsx_handler_thread(int irq, void *private)
 	return fifo_len || event ? IRQ_HANDLED : IRQ_NONE;
 }
 
+static irqreturn_t st_lsm6dsx_sw_trigger_handler_thread(int irq,
+							void *private)
+{
+	struct iio_poll_func *pf = private;
+	struct iio_dev *iio_dev = pf->indio_dev;
+	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
+	struct st_lsm6dsx_hw *hw = sensor->hw;
+
+	if (sensor->id == ST_LSM6DSX_ID_EXT0 ||
+	    sensor->id == ST_LSM6DSX_ID_EXT1 ||
+	    sensor->id == ST_LSM6DSX_ID_EXT2)
+		st_lsm6dsx_shub_read_output(hw,
+					    (u8 *)hw->scan[sensor->id].channels,
+					    sizeof(hw->scan[sensor->id].channels));
+	else
+		st_lsm6dsx_read_locked(hw, iio_dev->channels[0].address,
+				       hw->scan[sensor->id].channels,
+				       sizeof(hw->scan[sensor->id].channels));
+
+	iio_push_to_buffers_with_timestamp(iio_dev, &hw->scan[sensor->id],
+					   iio_get_time_ns(iio_dev));
+	iio_trigger_notify_done(iio_dev->trig);
+
+	return IRQ_HANDLED;
+}
+
 static int st_lsm6dsx_irq_setup(struct st_lsm6dsx_hw *hw)
 {
 	struct st_sensors_platform_data *pdata;
@@ -2170,6 +2198,46 @@ static int st_lsm6dsx_irq_setup(struct st_lsm6dsx_hw *hw)
 		dev_err(hw->dev, "failed to request trigger irq %d\n",
 			hw->irq);
 		return err;
+	}
+
+	return 0;
+}
+
+static int st_lsm6dsx_sw_buffer_preenable(struct iio_dev *iio_dev)
+{
+	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
+
+	return st_lsm6dsx_device_set_enable(sensor, true);
+}
+
+static int st_lsm6dsx_sw_buffer_postdisable(struct iio_dev *iio_dev)
+{
+	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
+
+	return st_lsm6dsx_device_set_enable(sensor, false);
+}
+
+static const struct iio_buffer_setup_ops st_lsm6dsx_sw_buffer_ops = {
+	.preenable = st_lsm6dsx_sw_buffer_preenable,
+	.postdisable = st_lsm6dsx_sw_buffer_postdisable,
+};
+
+static int st_lsm6dsx_sw_buffers_setup(struct st_lsm6dsx_hw *hw)
+{
+	int i;
+
+	for (i = 0; i < ST_LSM6DSX_ID_MAX; i++) {
+		int err;
+
+		if (!hw->iio_devs[i])
+			continue;
+
+		err = devm_iio_triggered_buffer_setup(hw->dev,
+					hw->iio_devs[i], NULL,
+					st_lsm6dsx_sw_trigger_handler_thread,
+					&st_lsm6dsx_sw_buffer_ops);
+		if (err)
+			return err;
 	}
 
 	return 0;
@@ -2252,6 +2320,16 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 
 		err = st_lsm6dsx_fifo_setup(hw);
 		if (err < 0)
+			return err;
+	}
+
+	if (!hw->irq || !hw->settings->fifo_ops.read_fifo) {
+		/*
+		 * Rely on sw triggers (e.g. hr-timers) if irq pin is not
+		 * connected of if the device does not support HW FIFO
+		 */
+		err = st_lsm6dsx_sw_buffers_setup(hw);
+		if (err)
 			return err;
 	}
 

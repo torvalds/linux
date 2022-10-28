@@ -424,7 +424,7 @@ struct st_lsm6dsx_hw {
 	struct {
 		__le16 channels[3];
 		s64 ts __aligned(8);
-	} scan[3];
+	} scan[ST_LSM6DSX_ID_MAX];
 };
 
 static __maybe_unused const struct iio_event_spec st_lsm6dsx_event = {
@@ -456,6 +456,7 @@ int st_lsm6dsx_read_tagged_fifo(struct st_lsm6dsx_hw *hw);
 int st_lsm6dsx_check_odr(struct st_lsm6dsx_sensor *sensor, u32 odr, u8 *val);
 int st_lsm6dsx_shub_probe(struct st_lsm6dsx_hw *hw, const char *name);
 int st_lsm6dsx_shub_set_enable(struct st_lsm6dsx_sensor *sensor, bool enable);
+int st_lsm6dsx_shub_read_output(struct st_lsm6dsx_hw *hw, u8 *data, int len);
 int st_lsm6dsx_set_page(struct st_lsm6dsx_hw *hw, bool enable);
 
 static inline int
