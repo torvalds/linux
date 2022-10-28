@@ -4215,7 +4215,6 @@ static bool perf_rotate_context(struct perf_cpu_pmu_context *cpc)
 	struct perf_cpu_context *cpuctx = this_cpu_ptr(&perf_cpu_context);
 	struct perf_event_pmu_context *cpu_epc, *task_epc = NULL;
 	struct perf_event *cpu_event = NULL, *task_event = NULL;
-	struct perf_event_context *task_ctx = NULL;
 	int cpu_rotate, task_rotate;
 	struct pmu *pmu;
 
@@ -4229,7 +4228,6 @@ static bool perf_rotate_context(struct perf_cpu_pmu_context *cpc)
 	task_epc = cpc->task_epc;
 
 	cpu_rotate = cpu_epc->rotate_necessary;
-	task_ctx = cpuctx->task_ctx;
 	task_rotate = task_epc ? task_epc->rotate_necessary : 0;
 
 	if (!(cpu_rotate || task_rotate))
