@@ -417,21 +417,14 @@ static int ov9282_update_controls(struct ov9282 *ov9282,
  */
 static int ov9282_update_exp_gain(struct ov9282 *ov9282, u32 exposure, u32 gain)
 {
-	u32 lpfr;
 	int ret;
 
-	lpfr = ov9282->vblank + ov9282->cur_mode->height;
-
-	dev_dbg(ov9282->dev, "Set exp %u, analog gain %u, lpfr %u",
-		exposure, gain, lpfr);
+	dev_dbg(ov9282->dev, "Set exp %u, analog gain %u",
+		exposure, gain);
 
 	ret = ov9282_write_reg(ov9282, OV9282_REG_HOLD, 1, 1);
 	if (ret)
 		return ret;
-
-	ret = ov9282_write_reg(ov9282, OV9282_REG_LPFR, 2, lpfr);
-	if (ret)
-		goto error_release_group_hold;
 
 	ret = ov9282_write_reg(ov9282, OV9282_REG_EXPOSURE, 3, exposure << 4);
 	if (ret)
@@ -463,6 +456,7 @@ static int ov9282_set_ctrl(struct v4l2_ctrl *ctrl)
 		container_of(ctrl->handler, struct ov9282, ctrl_handler);
 	u32 analog_gain;
 	u32 exposure;
+	u32 lpfr;
 	int ret;
 
 	switch (ctrl->id) {
@@ -480,11 +474,14 @@ static int ov9282_set_ctrl(struct v4l2_ctrl *ctrl)
 					       OV9282_EXPOSURE_OFFSET,
 					       1, OV9282_EXPOSURE_DEFAULT);
 		break;
-	case V4L2_CID_EXPOSURE:
-		/* Set controls only if sensor is in power on state */
-		if (!pm_runtime_get_if_in_use(ov9282->dev))
-			return 0;
+	}
 
+	/* Set controls only if sensor is in power on state */
+	if (!pm_runtime_get_if_in_use(ov9282->dev))
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_EXPOSURE:
 		exposure = ctrl->val;
 		analog_gain = ov9282->again_ctrl->val;
 
@@ -492,14 +489,17 @@ static int ov9282_set_ctrl(struct v4l2_ctrl *ctrl)
 			exposure, analog_gain);
 
 		ret = ov9282_update_exp_gain(ov9282, exposure, analog_gain);
-
-		pm_runtime_put(ov9282->dev);
-
+		break;
+	case V4L2_CID_VBLANK:
+		lpfr = ov9282->vblank + ov9282->cur_mode->height;
+		ret = ov9282_write_reg(ov9282, OV9282_REG_LPFR, 2, lpfr);
 		break;
 	default:
 		dev_err(ov9282->dev, "Invalid control %d", ctrl->id);
 		ret = -EINVAL;
 	}
+
+	pm_runtime_put(ov9282->dev);
 
 	return ret;
 }
