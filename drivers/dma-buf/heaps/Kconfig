@@ -75,3 +75,12 @@ config QCOM_DMABUF_HEAPS_CARVEOUT
 	help
 	  Choose this option to build the QCOM DMA-BUF Carveout heap.
 	  If in doubt, say Y here.
+
+config QCOM_DMABUF_HEAPS_UBWCP
+	bool "QCOM dma-buf UBWC-P Heap"
+	depends on QCOM_DMABUF_HEAPS_SYSTEM
+	help
+	  Choose this option to build the QCOM DMA-BUF UBWC-P heap.
+	  The heap itself is backed by system heap memory and works
+	  in tandem with the UBWC-P driver.
+	  If in doubt, say Y here.
