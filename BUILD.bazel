@@ -248,26 +248,62 @@ define_db845c(
 )
 
 # DDK Headers
-# All headers. This is the public target for DDK modules to use.
-ddk_headers(
+# All headers. These are the public targets for DDK modules to use.
+alias(
     name = "all_headers",
-    hdrs = [":all_headers_allowlist"] + select({
+    actual = "all_headers_aarch64",
+    visibility = ["//visibility:public"],
+)
+
+ddk_headers(
+    name = "all_headers_aarch64",
+    hdrs = [":all_headers_allowlist_aarch64"] + select({
         "//build/kernel/kleaf:allow_ddk_unsafe_headers_set": [":all_headers_unsafe"],
         "//conditions:default": [],
     }),
     visibility = ["//visibility:public"],
 )
 
+ddk_headers(
+    name = "all_headers_x86_64",
+    hdrs = [":all_headers_allowlist_x86_64"] + select({
+        "//build/kernel/kleaf:allow_ddk_unsafe_headers_set": [":all_headers_unsafe"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)
+
+# Implementation details for DDK headers. The targets below cannot be directly
+# depended on by DDK modules.
+
 # DDK headers allowlist. This is the list of all headers and include
 # directories that are safe to use in DDK modules.
 ddk_headers(
-    name = "all_headers_allowlist",
-    hdrs = [":all_headers_allowlist_globs"],
+    name = "all_headers_allowlist_aarch64",
+    hdrs = [
+        ":all_headers_allowlist_aarch64_globs",
+        ":all_headers_allowlist_common_globs",
+    ],
     # The list of include directories where source files can #include headers
     # from. In other words, these are the `-I` option to the C compiler.
     includes = [
         "arch/arm64/include",
         "arch/arm64/include/uapi",
+        "include",
+        "include/uapi",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+ddk_headers(
+    name = "all_headers_allowlist_x86_64",
+    hdrs = [
+        ":all_headers_allowlist_common_globs",
+        ":all_headers_allowlist_x86_64_globs",
+    ],
+    # The list of include directories where source files can #include headers
+    # from. In other words, these are the `-I` option to the C compiler.
+    includes = [
         "arch/x86/include",
         "arch/x86/include/uapi",
         "include",
@@ -279,13 +315,27 @@ ddk_headers(
 # List of DDK headers allowlist that are glob()-ed to avoid changes of BUILD
 # file when the list of files changes. All headers in these directories
 # are safe to use.
+# These are separate filegroup targets so the all_headers_allowlist_* are
+# more friendly to batch BUILD file update tools like buildozer.
+
+# globs() for arm64 only
 filegroup(
-    name = "all_headers_allowlist_globs",
-    srcs = glob([
-        "arch/arm64/include/**/*.h",
-        "arch/x86/include/**/*.h",
-        "include/**/*.h",
-    ]),
+    name = "all_headers_allowlist_aarch64_globs",
+    srcs = glob(["arch/arm64/include/**/*.h"]),
+    visibility = ["//visibility:private"],
+)
+
+# globs() for x86 only
+filegroup(
+    name = "all_headers_allowlist_x86_64_globs",
+    srcs = glob(["arch/x86/include/**/*.h"]),
+    visibility = ["//visibility:private"],
+)
+
+# globs() for all architectures
+filegroup(
+    name = "all_headers_allowlist_common_globs",
+    srcs = glob(["include/**/*.h"]),
     visibility = ["//visibility:private"],
 )
 
