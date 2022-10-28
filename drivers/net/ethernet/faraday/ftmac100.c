@@ -218,11 +218,6 @@ static bool ftmac100_rxdes_crc_error(struct ftmac100_rxdes *rxdes)
 	return rxdes->rxdes0 & cpu_to_le32(FTMAC100_RXDES0_CRC_ERR);
 }
 
-static bool ftmac100_rxdes_frame_too_long(struct ftmac100_rxdes *rxdes)
-{
-	return rxdes->rxdes0 & cpu_to_le32(FTMAC100_RXDES0_FTL);
-}
-
 static bool ftmac100_rxdes_runt(struct ftmac100_rxdes *rxdes)
 {
 	return rxdes->rxdes0 & cpu_to_le32(FTMAC100_RXDES0_RUNT);
@@ -337,13 +332,7 @@ static bool ftmac100_rx_packet_error(struct ftmac100 *priv,
 		error = true;
 	}
 
-	if (unlikely(ftmac100_rxdes_frame_too_long(rxdes))) {
-		if (net_ratelimit())
-			netdev_info(netdev, "rx frame too long\n");
-
-		netdev->stats.rx_length_errors++;
-		error = true;
-	} else if (unlikely(ftmac100_rxdes_runt(rxdes))) {
+	if (unlikely(ftmac100_rxdes_runt(rxdes))) {
 		if (net_ratelimit())
 			netdev_info(netdev, "rx runt\n");
 
@@ -356,6 +345,11 @@ static bool ftmac100_rx_packet_error(struct ftmac100 *priv,
 		netdev->stats.rx_length_errors++;
 		error = true;
 	}
+	/*
+	 * FTMAC100_RXDES0_FTL is not an error, it just indicates that the
+	 * frame is longer than 1518 octets. Receiving these is possible when
+	 * we told the hardware not to drop them, via FTMAC100_MACCR_RX_FTL.
+	 */
 
 	return error;
 }
@@ -400,12 +394,13 @@ static bool ftmac100_rx_packet(struct ftmac100 *priv, int *processed)
 		return true;
 	}
 
-	/*
-	 * It is impossible to get multi-segment packets
-	 * because we always provide big enough receive buffers.
-	 */
+	/* We don't support multi-segment packets for now, so drop them. */
 	ret = ftmac100_rxdes_last_segment(rxdes);
-	BUG_ON(!ret);
+	if (unlikely(!ret)) {
+		netdev->stats.rx_length_errors++;
+		ftmac100_rx_drop_packet(priv);
+		return true;
+	}
 
 	/* start processing */
 	skb = netdev_alloc_skb_ip_align(netdev, 128);
