@@ -45,6 +45,9 @@
 /* Group hold register */
 #define OV9282_REG_HOLD		0x3308
 
+#define OV9282_REG_MIPI_CTRL00	0x4800
+#define OV9282_GATED_CLOCK	BIT(5)
+
 /* Input clock rate */
 #define OV9282_INCLK_RATE	24000000
 
@@ -136,6 +139,7 @@ struct ov9282 {
 		struct v4l2_ctrl *again_ctrl;
 	};
 	u32 vblank;
+	bool noncontinuous_clock;
 	const struct ov9282_mode *cur_mode;
 	struct mutex mutex;
 	bool streaming;
@@ -145,7 +149,13 @@ static const s64 link_freq[] = {
 	OV9282_LINK_FREQ,
 };
 
-/* Common registers */
+/*
+ * Common registers
+ *
+ * Note: Do NOT include a software reset (0x0103, 0x01) in any of these
+ * register arrays as some settings are written as part of ov9282_power_on,
+ * and the reset will clear them.
+ */
 static const struct ov9282_reg common_regs[] = {
 	{0x0302, 0x32},
 	{0x030d, 0x50},
@@ -201,7 +211,6 @@ static const struct ov9282_reg common_regs[] = {
 	{0x4601, 0x04},
 	{0x470f, 0x00},
 	{0x4f07, 0x00},
-	{0x4800, 0x20},
 	{0x5000, 0x9f},
 	{0x5001, 0x00},
 	{0x5e00, 0x00},
@@ -835,6 +844,9 @@ static int ov9282_parse_hw_config(struct ov9282 *ov9282)
 	if (ret)
 		return ret;
 
+	ov9282->noncontinuous_clock =
+		bus_cfg.bus.mipi_csi2.flags & V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK;
+
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV9282_NUM_DATA_LANES) {
 		dev_err(ov9282->dev,
 			"number of CSI2 data lanes %d is not supported",
@@ -902,6 +914,14 @@ static int ov9282_power_on(struct device *dev)
 	}
 
 	usleep_range(400, 600);
+
+	ret = ov9282_write_reg(ov9282, OV9282_REG_MIPI_CTRL00, 1,
+			       ov9282->noncontinuous_clock ?
+					OV9282_GATED_CLOCK : 0);
+	if (ret) {
+		dev_err(ov9282->dev, "fail to write MIPI_CTRL00");
+		return ret;
+	}
 
 	return 0;
 
