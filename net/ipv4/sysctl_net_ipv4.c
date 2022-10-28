@@ -40,6 +40,8 @@ static int one_day_secs = 24 * 3600;
 static u32 fib_multipath_hash_fields_all_mask __maybe_unused =
 	FIB_MULTIPATH_HASH_FIELD_ALL_MASK;
 static unsigned int tcp_child_ehash_entries_max = 16 * 1024 * 1024;
+static int tcp_plb_max_rounds = 31;
+static int tcp_plb_max_cong_thresh = 256;
 
 /* obsolete */
 static int sysctl_tcp_low_latency __read_mostly;
@@ -1383,6 +1385,47 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= proc_dou8vec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_TWO,
+	},
+	{
+		.procname       = "tcp_plb_enabled",
+		.data           = &init_net.ipv4.sysctl_tcp_plb_enabled,
+		.maxlen         = sizeof(u8),
+		.mode           = 0644,
+		.proc_handler   = proc_dou8vec_minmax,
+		.extra1         = SYSCTL_ZERO,
+		.extra2         = SYSCTL_ONE,
+	},
+	{
+		.procname       = "tcp_plb_idle_rehash_rounds",
+		.data           = &init_net.ipv4.sysctl_tcp_plb_idle_rehash_rounds,
+		.maxlen         = sizeof(u8),
+		.mode           = 0644,
+		.proc_handler   = proc_dou8vec_minmax,
+		.extra2		= &tcp_plb_max_rounds,
+	},
+	{
+		.procname       = "tcp_plb_rehash_rounds",
+		.data           = &init_net.ipv4.sysctl_tcp_plb_rehash_rounds,
+		.maxlen         = sizeof(u8),
+		.mode           = 0644,
+		.proc_handler   = proc_dou8vec_minmax,
+		.extra2         = &tcp_plb_max_rounds,
+	},
+	{
+		.procname       = "tcp_plb_suspend_rto_sec",
+		.data           = &init_net.ipv4.sysctl_tcp_plb_suspend_rto_sec,
+		.maxlen         = sizeof(u8),
+		.mode           = 0644,
+		.proc_handler   = proc_dou8vec_minmax,
+	},
+	{
+		.procname       = "tcp_plb_cong_thresh",
+		.data           = &init_net.ipv4.sysctl_tcp_plb_cong_thresh,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec_minmax,
+		.extra1         = SYSCTL_ZERO,
+		.extra2         = &tcp_plb_max_cong_thresh,
 	},
 	{ }
 };
