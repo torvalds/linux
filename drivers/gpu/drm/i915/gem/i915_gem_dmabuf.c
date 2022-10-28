@@ -47,12 +47,10 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attach,
 	if (ret)
 		goto err_free;
 
-	src = obj->mm.pages->sgl;
 	dst = sgt->sgl;
-	for (i = 0; i < obj->mm.pages->orig_nents; i++) {
+	for_each_sg(obj->mm.pages->sgl, src, obj->mm.pages->orig_nents, i) {
 		sg_set_page(dst, sg_page(src), src->length, 0);
 		dst = sg_next(dst);
-		src = sg_next(src);
 	}
 
 	ret = dma_map_sgtable(attach->dev, sgt, dir, DMA_ATTR_SKIP_CPU_SYNC);
