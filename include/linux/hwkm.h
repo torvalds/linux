@@ -7,9 +7,6 @@
 #define __HWKM_H_
 
 #include <linux/types.h>
-#include <stdbool.h>
-#include <stddef.h>
-
 #include <linux/tme_hwkm_master_defs.h>
 #include <linux/crypto-qti-common.h>
 
@@ -146,12 +143,13 @@ enum hwkm_type {
 	HWKM_UNDEF_KEY_TYPE = 0xFFFFFFFF
 };
 
+// TODO: Handle v3 vs v4 gracefully
 /* Destinations which a context can use */
 enum hwkm_destination {
-	KM_MASTER = TME_KD_TME_HW,
-	GPCE_SLAVE = TME_KD_GPCE,
-	MCE_SLAVE = TME_KD_MDM_CE,
-	ICE_SLAVE = TME_KD_ICE,
+	KM_MASTER = TME_KD_TME_HW_V4,
+	GPCE_SLAVE = TME_KD_GPCE_V4,
+	MCE_SLAVE = TME_KD_MDM_CE_V4,
+	ICE_SLAVE = TME_KD_ICE_V4,
 
 	HWKM_UNDEF_DESTINATION = 0xFFFFFFFF
 };
@@ -164,7 +162,7 @@ enum hwkm_security_level {
 	/* Can be read by SW in plaintext using KEY_SLOT_RDWR cmd. */
 	SW_KEY = TME_KSL_SWKey,
 	/* Imported key managed by HW. */
-	MANAGED_KEY = TME_KSL_HWManagedKey,
+	MANAGED_KEY = TME_KSL_ImportKey,
 	/* Key only known to HW. */
 	HW_KEY = TME_KSL_HWKey,
 
