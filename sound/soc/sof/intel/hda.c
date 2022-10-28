@@ -383,12 +383,6 @@ static int mclk_id_override = -1;
 module_param_named(mclk_id, mclk_id_override, int, 0444);
 MODULE_PARM_DESC(mclk_id, "SOF SSP mclk_id");
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-static bool hda_codec_use_common_hdmi = IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI);
-module_param_named(use_common_hdmi, hda_codec_use_common_hdmi, bool, 0444);
-MODULE_PARM_DESC(use_common_hdmi, "SOF HDA use common HDMI codec driver");
-#endif
-
 static const struct hda_dsp_msg_code hda_dsp_rom_fw_error_texts[] = {
 	{HDA_DSP_ROM_CSE_ERROR, "error: cse error"},
 	{HDA_DSP_ROM_CSE_WRONG_RESPONSE, "error: cse wrong response"},
@@ -702,7 +696,7 @@ static int hda_init(struct snd_sof_dev *sdev)
 	bus = sof_to_bus(sdev);
 
 	/* HDA bus init */
-	sof_hda_bus_init(bus, &pci->dev);
+	sof_hda_bus_init(sdev, &pci->dev);
 
 	if (sof_hda_position_quirk == SOF_HDA_POSITION_QUIRK_USE_DPIB_REGISTERS)
 		bus->use_posbuf = 0;
@@ -797,7 +791,7 @@ static int check_nhlt_ssp_mclk_mask(struct snd_sof_dev *sdev, int ssp_num)
 	return intel_nhlt_ssp_mclk_mask(nhlt, ssp_num);
 }
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA) || IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC) || IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE)
 
 static const char *fixup_tplg_name(struct snd_sof_dev *sdev,
 				   const char *sof_tplg_filename,
@@ -877,9 +871,6 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct snd_sof_pdata *pdata = sdev->pdata;
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	struct hdac_ext_link *hlink;
-#endif
 	struct sof_intel_hda_dev *hdev = pdata->hw_pdata;
 	u32 link_mask;
 	int ret = 0;
@@ -924,37 +915,17 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 
 skip_soundwire:
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	if (bus->mlcap)
-		snd_hdac_ext_bus_get_ml_capabilities(bus);
+	hda_bus_ml_get_capabilities(bus);
 
 	/* create codec instances */
-	hda_codec_probe_bus(sdev, hda_codec_use_common_hdmi);
+	hda_codec_probe_bus(sdev);
 
 	if (!HDA_IDISP_CODEC(bus->codec_mask))
 		hda_codec_i915_display_power(sdev, false);
 
-	/*
-	 * we are done probing so decrement link counts
-	 */
-	list_for_each_entry(hlink, &bus->hlink_list, list)
-		snd_hdac_ext_bus_link_put(bus, hlink);
-#endif
+	hda_bus_ml_put_all(bus);
+
 	return 0;
-}
-
-static void hda_check_for_state_change(struct snd_sof_dev *sdev)
-{
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	struct hdac_bus *bus = sof_to_bus(sdev);
-	unsigned int codec_mask;
-
-	codec_mask = snd_hdac_chip_readw(bus, STATESTS);
-	if (codec_mask) {
-		hda_codec_jack_check(sdev);
-		snd_hdac_chip_writew(bus, STATESTS, codec_mask);
-	}
-#endif
 }
 
 static irqreturn_t hda_dsp_interrupt_handler(int irq, void *context)
@@ -1006,7 +977,7 @@ static irqreturn_t hda_dsp_interrupt_thread(int irq, void *context)
 		hda_sdw_process_wakeen(sdev);
 	}
 
-	hda_check_for_state_change(sdev);
+	hda_codec_check_for_state_change(sdev);
 
 	/* enable GIE interrupt */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
@@ -1202,10 +1173,7 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 	/* cancel any attempt for DSP D0I3 */
 	cancel_delayed_work_sync(&hda->d0i3_work);
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* codec removal, invoke bus_device_remove */
-	snd_hdac_ext_bus_device_remove(bus);
-#endif
+	hda_codec_device_remove(sdev);
 
 	hda_sdw_exit(sdev);
 
@@ -1233,16 +1201,14 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 		pci_free_irq_vectors(pci);
 
 	hda_dsp_stream_free(sdev);
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	snd_hdac_ext_link_free_all(bus);
-#endif
+
+	hda_bus_ml_free(sof_to_bus(sdev));
 
 	iounmap(sdev->bar[HDA_DSP_BAR]);
 	iounmap(bus->remap_addr);
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	snd_hdac_ext_bus_exit(bus);
-#endif
+	sof_hda_bus_exit(sdev);
+
 	hda_codec_i915_exit(sdev);
 
 	return 0;
@@ -1256,7 +1222,7 @@ int hda_power_down_dsp(struct snd_sof_dev *sdev)
 	return hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
 }
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 static void hda_generic_machine_select(struct snd_sof_dev *sdev,
 				       struct snd_soc_acpi_mach **mach)
 {
@@ -1335,7 +1301,7 @@ static void hda_generic_machine_select(struct snd_sof_dev *sdev,
 	if (*mach) {
 		mach_params = &(*mach)->mach_params;
 		mach_params->codec_mask = bus->codec_mask;
-		mach_params->common_hdmi_codec_drv = hda_codec_use_common_hdmi;
+		mach_params->common_hdmi_codec_drv = true;
 	}
 }
 #else

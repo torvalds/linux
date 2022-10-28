@@ -765,9 +765,6 @@ irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
 	struct hdac_bus *bus = sof_to_bus(sdev);
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	u32 rirb_status;
-#endif
 	bool active;
 	u32 status;
 	int i;
@@ -785,23 +782,9 @@ irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
 		active = hda_dsp_stream_check(bus, status);
 
 		/* check and clear RIRB interrupt */
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 		if (status & AZX_INT_CTRL_EN) {
-			rirb_status = snd_hdac_chip_readb(bus, RIRBSTS);
-			if (rirb_status & RIRB_INT_MASK) {
-				/*
-				 * Clearing the interrupt status here ensures
-				 * that no interrupt gets masked after the RIRB
-				 * wp is read in snd_hdac_bus_update_rirb.
-				 */
-				snd_hdac_chip_writeb(bus, RIRBSTS,
-						     RIRB_INT_MASK);
-				active = true;
-				if (rirb_status & RIRB_INT_RESPONSE)
-					snd_hdac_bus_update_rirb(bus);
-			}
+			active |= hda_codec_check_rirb_status(sdev);
 		}
-#endif
 		spin_unlock_irq(&bus->reg_lock);
 	}
 
@@ -854,15 +837,16 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 		return -ENOMEM;
 	}
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* mem alloc for the CORB/RIRB ringbuffers */
+	/*
+	 * mem alloc for the CORB/RIRB ringbuffers - this will be used only for
+	 * HDAudio codecs
+	 */
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev,
 				  PAGE_SIZE, &bus->rb);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: RB alloc failed\n");
 		return -ENOMEM;
 	}
-#endif
 
 	/* create capture streams */
 	for (i = 0; i < num_capture; i++) {
@@ -995,11 +979,9 @@ void hda_dsp_stream_free(struct snd_sof_dev *sdev)
 	if (bus->posbuf.area)
 		snd_dma_free_pages(&bus->posbuf);
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* free position buffer */
+	/* free CORB/RIRB buffer - only used for HDaudio codecs */
 	if (bus->rb.area)
 		snd_dma_free_pages(&bus->rb);
-#endif
 
 	list_for_each_entry_safe(s, _s, &bus->stream_list, list) {
 		/* TODO: decouple */
