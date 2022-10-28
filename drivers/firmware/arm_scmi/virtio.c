@@ -148,7 +148,6 @@ static void scmi_vio_channel_cleanup_sync(struct scmi_vio_channel *vioch)
 {
 	unsigned long flags;
 	DECLARE_COMPLETION_ONSTACK(vioch_shutdown_done);
-	void *deferred_wq = NULL;
 
 	/*
 	 * Prepare to wait for the last release if not already released
@@ -162,15 +161,10 @@ static void scmi_vio_channel_cleanup_sync(struct scmi_vio_channel *vioch)
 
 	vioch->shutdown_done = &vioch_shutdown_done;
 	virtio_break_device(vioch->vqueue->vdev);
-	if (!vioch->is_rx && vioch->deferred_tx_wq) {
-		deferred_wq = vioch->deferred_tx_wq;
+	if (!vioch->is_rx && vioch->deferred_tx_wq)
 		/* Cannot be kicked anymore after this...*/
 		vioch->deferred_tx_wq = NULL;
-	}
 	spin_unlock_irqrestore(&vioch->lock, flags);
-
-	if (deferred_wq)
-		destroy_workqueue(deferred_wq);
 
 	scmi_vio_channel_release(vioch);
 
@@ -416,6 +410,11 @@ static bool virtio_chan_available(struct device *dev, int idx)
 	return vioch && !vioch->cinfo;
 }
 
+static void scmi_destroy_tx_workqueue(void *deferred_tx_wq)
+{
+	destroy_workqueue(deferred_tx_wq);
+}
+
 static int virtio_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 			     bool tx)
 {
@@ -430,12 +429,19 @@ static int virtio_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 
 	/* Setup a deferred worker for polling. */
 	if (tx && !vioch->deferred_tx_wq) {
+		int ret;
+
 		vioch->deferred_tx_wq =
 			alloc_workqueue(dev_name(&scmi_vdev->dev),
 					WQ_UNBOUND | WQ_FREEZABLE | WQ_SYSFS,
 					0);
 		if (!vioch->deferred_tx_wq)
 			return -ENOMEM;
+
+		ret = devm_add_action_or_reset(dev, scmi_destroy_tx_workqueue,
+					       vioch->deferred_tx_wq);
+		if (ret)
+			return ret;
 
 		INIT_WORK(&vioch->deferred_tx_work,
 			  scmi_vio_deferred_tx_worker);
