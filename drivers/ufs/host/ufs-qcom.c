@@ -498,6 +498,8 @@ static int ufs_qcom_host_reset(struct ufs_hba *hba)
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	bool reenable_intr = false;
 
+	host->reset_in_progress = true;
+
 	if (!host->core_reset) {
 		dev_warn(hba->dev, "%s: reset control not set\n", __func__);
 		goto out;
@@ -542,6 +544,7 @@ static int ufs_qcom_host_reset(struct ufs_hba *hba)
 
 out:
 	host->vdd_hba_pc = false;
+	host->reset_in_progress = false;
 	return ret;
 }
 
@@ -2066,7 +2069,7 @@ static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 		hba->quirks |= UFSHCD_QUIRK_BROKEN_AUTO_HIBERN8;
 
 #if IS_ENABLED(CONFIG_SCSI_UFS_CRYPTO_QTI)
-	hba->quirks |= UFSHCD_QUIRK_CUSTOM_KEYSLOT_MANAGER;
+	hba->quirks |= UFSHCD_QUIRK_CUSTOM_CRYPTO_PROFILE;
 #endif
 }
 
