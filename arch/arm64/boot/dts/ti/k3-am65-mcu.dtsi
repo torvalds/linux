@@ -177,6 +177,7 @@
 			     <GIC_SPI 545 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "int0", "int1";
 		bosch,mram-cfg = <0x0 128 64 64 64 64 32 32>;
+		status = "disabled";
 	};
 
 	m_can1: mcan@40568000 {
@@ -192,6 +193,7 @@
 			     <GIC_SPI 548 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "int0", "int1";
 		bosch,mram-cfg = <0x0 128 64 64 64 64 32 32>;
+		status = "disabled";
 	};
 
 	fss: fss@47000000 {

@@ -431,14 +431,6 @@
 	status = "disabled";
 };
 
-&m_can0 {
-	status = "disabled";
-};
-
-&m_can1 {
-	status = "disabled";
-};
-
 &mailbox0_cluster0 {
 	interrupts = <436>;
 
