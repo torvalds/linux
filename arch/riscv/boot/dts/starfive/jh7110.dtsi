@@ -28,41 +28,13 @@
 					opp-hz = /bits/ 64 <500000000>;
 					opp-microvolt = <880000>;
 			};
-			opp-625000000 {
-					opp-hz = /bits/ 64 <625000000>;
-					opp-microvolt = <880000>;
-			};
 			opp-750000000 {
 					opp-hz = /bits/ 64 <750000000>;
 					opp-microvolt = <880000>;
 			};
-			opp-875000000 {
-					opp-hz = /bits/ 64 <875000000>;
-					opp-microvolt = <880000>;
-			};
-			opp-1000000000 {
-					opp-hz = /bits/ 64 <1000000000>;
-					opp-microvolt = <900000>;
-			};
-			opp-1250000000 {
-					opp-hz = /bits/ 64 <1250000000>;
-					opp-microvolt = <950000>;
-			};
-			opp-1375000000 {
-					opp-hz = /bits/ 64 <1375000000>;
-					opp-microvolt = <1000000>;
-			};
 			opp-1500000000 {
 					opp-hz = /bits/ 64 <1500000000>;
-					opp-microvolt = <1100000>;
-			};
-			opp-1625000000 {
-					opp-hz = /bits/ 64 <1625000000>;
-					opp-microvolt = <1100000>;
-			};
-			opp-1750000000 {
-					opp-hz = /bits/ 64 <1750000000>;
-					opp-microvolt = <1200000>;
+					opp-microvolt = <1000000>;
 			};
 	};
 
@@ -1775,10 +1747,8 @@
 
 		starfive_cpufreq: starfive,jh7110-cpufreq {
 			compatible = "starfive,jh7110-cpufreq";
-			clocks = <&clkgen JH7110_PLL0_OUT>,
-					 <&clkgen JH7110_CPU_ROOT>,
-					 <&osc>;
-			clock-names = "pll0", "cpu_clk", "osc";
+			clocks = <&clkgen JH7110_CPU_CORE>;
+			clock-names = "cpu_clk";
 		};
 	};
 };
