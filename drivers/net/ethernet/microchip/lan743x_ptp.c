@@ -339,25 +339,18 @@ static int lan743x_ptpci_adjfine(struct ptp_clock_info *ptpci, long scaled_ppm)
 	struct lan743x_adapter *adapter =
 		container_of(ptp, struct lan743x_adapter, ptp);
 	u32 lan743x_rate_adj = 0;
-	bool positive = true;
-	u64 u64_delta = 0;
+	u64 u64_delta;
 
 	if ((scaled_ppm < (-LAN743X_PTP_MAX_FINE_ADJ_IN_SCALED_PPM)) ||
 	    scaled_ppm > LAN743X_PTP_MAX_FINE_ADJ_IN_SCALED_PPM) {
 		return -EINVAL;
 	}
-	if (scaled_ppm > 0) {
-		u64_delta = (u64)scaled_ppm;
-		positive = true;
-	} else {
-		u64_delta = (u64)(-scaled_ppm);
-		positive = false;
-	}
-	u64_delta = (u64_delta << 19);
-	lan743x_rate_adj = div_u64(u64_delta, 1000000);
 
-	if (positive)
-		lan743x_rate_adj |= PTP_CLOCK_RATE_ADJ_DIR_;
+	/* diff_by_scaled_ppm returns true if the difference is negative */
+	if (diff_by_scaled_ppm(1ULL << 35, scaled_ppm, &u64_delta))
+		lan743x_rate_adj = (u32)u64_delta;
+	else
+		lan743x_rate_adj = (u32)u64_delta | PTP_CLOCK_RATE_ADJ_DIR_;
 
 	lan743x_csr_write(adapter, PTP_CLOCK_RATE_ADJ,
 			  lan743x_rate_adj);
