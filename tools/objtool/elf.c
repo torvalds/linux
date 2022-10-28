@@ -717,11 +717,11 @@ static int elf_update_symbol(struct elf *elf, struct section *symtab,
 }
 
 static struct symbol *
-elf_create_section_symbol(struct elf *elf, struct section *sec)
+__elf_create_symbol(struct elf *elf, struct symbol *sym)
 {
 	struct section *symtab, *symtab_shndx;
 	Elf32_Word first_non_local, new_idx;
-	struct symbol *sym, *old;
+	struct symbol *old;
 
 	symtab = find_section_by_name(elf, ".symtab");
 	if (symtab) {
@@ -731,27 +731,16 @@ elf_create_section_symbol(struct elf *elf, struct section *sec)
 		return NULL;
 	}
 
-	sym = calloc(1, sizeof(*sym));
-	if (!sym) {
-		perror("malloc");
-		return NULL;
-	}
+	new_idx = symtab->sh.sh_size / symtab->sh.sh_entsize;
 
-	sym->name = sec->name;
-	sym->sec = sec;
-
-	// st_name 0
-	sym->sym.st_info = GELF_ST_INFO(STB_LOCAL, STT_SECTION);
-	// st_other 0
-	// st_value 0
-	// st_size 0
+	if (GELF_ST_BIND(sym->sym.st_info) != STB_LOCAL)
+		goto non_local;
 
 	/*
 	 * Move the first global symbol, as per sh_info, into a new, higher
 	 * symbol index. This fees up a spot for a new local symbol.
 	 */
 	first_non_local = symtab->sh.sh_info;
-	new_idx = symtab->sh.sh_size / symtab->sh.sh_entsize;
 	old = find_symbol_by_index(elf, first_non_local);
 	if (old) {
 		old->idx = new_idx;
@@ -769,18 +758,43 @@ elf_create_section_symbol(struct elf *elf, struct section *sec)
 		new_idx = first_non_local;
 	}
 
+	/*
+	 * Either way, we will add a LOCAL symbol.
+	 */
+	symtab->sh.sh_info += 1;
+
+non_local:
 	sym->idx = new_idx;
 	if (elf_update_symbol(elf, symtab, symtab_shndx, sym)) {
 		WARN("elf_update_symbol");
 		return NULL;
 	}
 
-	/*
-	 * Either way, we added a LOCAL symbol.
-	 */
-	symtab->sh.sh_info += 1;
+	return sym;
+}
 
-	elf_add_symbol(elf, sym);
+static struct symbol *
+elf_create_section_symbol(struct elf *elf, struct section *sec)
+{
+	struct symbol *sym = calloc(1, sizeof(*sym));
+
+	if (!sym) {
+		perror("malloc");
+		return NULL;
+	}
+
+	sym->name = sec->name;
+	sym->sec = sec;
+
+	// st_name 0
+	sym->sym.st_info = GELF_ST_INFO(STB_LOCAL, STT_SECTION);
+	// st_other 0
+	// st_value 0
+	// st_size 0
+
+	sym = __elf_create_symbol(elf, sym);
+	if (sym)
+		elf_add_symbol(elf, sym);
 
 	return sym;
 }
