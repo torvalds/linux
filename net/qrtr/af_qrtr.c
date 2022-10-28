@@ -13,6 +13,7 @@
 #include <linux/wait.h>
 #include <linux/rwsem.h>
 #include <linux/uidgid.h>
+#include <linux/pm_wakeup.h>
 
 #include <net/sock.h>
 #include <uapi/linux/sched/types.h>
@@ -112,7 +113,8 @@ static inline struct qrtr_sock *qrtr_sk(struct sock *sk)
 	return container_of(sk, struct qrtr_sock, sk);
 }
 
-static unsigned int qrtr_local_nid = 1;
+static unsigned int qrtr_local_nid = CONFIG_QRTR_NODE_ID;
+static unsigned int qrtr_wakeup_ms = CONFIG_QRTR_WAKEUP_MS;
 
 /* for node ids */
 static RADIX_TREE(qrtr_nodes, GFP_ATOMIC);
@@ -126,6 +128,15 @@ static DECLARE_RWSEM(qrtr_epts_lock);
 static DEFINE_XARRAY_ALLOC(qrtr_ports);
 u32 qrtr_ports_next = QRTR_MIN_EPH_SOCKET;
 static DEFINE_SPINLOCK(qrtr_port_lock);
+
+/* backup buffers */
+#define QRTR_BACKUP_HI_NUM	5
+#define QRTR_BACKUP_HI_SIZE	SZ_16K
+#define QRTR_BACKUP_LO_NUM	20
+#define QRTR_BACKUP_LO_SIZE	SZ_1K
+static struct sk_buff_head qrtr_backup_lo;
+static struct sk_buff_head qrtr_backup_hi;
+static struct work_struct qrtr_backup_work;
 
 /**
  * struct qrtr_node - endpoint node
@@ -144,6 +155,7 @@ static DEFINE_SPINLOCK(qrtr_port_lock);
  * @task: task to run the worker thread
  * @read_data: scheduled work for recv work
  * @say_hello: scheduled work for initiating hello
+ * @ws: wakeupsource avoid system suspend
  */
 struct qrtr_node {
 	struct mutex ep_lock;
@@ -164,6 +176,8 @@ struct qrtr_node {
 	struct task_struct *task;
 	struct kthread_work read_data;
 	struct kthread_work say_hello;
+
+	struct wakeup_source *ws;
 };
 
 /**
@@ -245,6 +259,7 @@ static void __qrtr_node_release(struct kref *kref)
 	kthread_flush_worker(&node->kworker);
 	kthread_stop(node->task);
 	skb_queue_purge(&node->rx_queue);
+	wakeup_source_unregister(node->ws);
 
 	/* Free tx flow counters */
 	radix_tree_for_each_slot(slot, &node->qrtr_tx_flow, &iter, 0) {
@@ -446,6 +461,9 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 	hdr->confirm_rx = !!confirm_rx;
 
 	rc = skb_put_padto(skb, ALIGN(len, 4) + sizeof(*hdr));
+	if (rc)
+		pr_err("%s: failed to pad size %lu to %lu rc:%d\n", __func__,
+		       len, ALIGN(len, 4) + sizeof(*hdr), rc);
 
 	if (!rc) {
 		mutex_lock(&node->ep_lock);
@@ -479,10 +497,12 @@ static struct qrtr_node *qrtr_node_lookup(unsigned int nid)
 	struct qrtr_node *node;
 	unsigned long flags;
 
+	down_read(&qrtr_epts_lock);
 	spin_lock_irqsave(&qrtr_nodes_lock, flags);
 	node = radix_tree_lookup(&qrtr_nodes, nid);
 	node = qrtr_node_acquire(node);
 	spin_unlock_irqrestore(&qrtr_nodes_lock, flags);
+	up_read(&qrtr_epts_lock);
 
 	return node;
 }
@@ -550,6 +570,59 @@ int qrtr_peek_pkt_size(const void *data)
 }
 EXPORT_SYMBOL(qrtr_peek_pkt_size);
 
+static void qrtr_alloc_backup(struct work_struct *work)
+{
+	struct sk_buff *skb;
+	int errcode;
+
+	while (skb_queue_len(&qrtr_backup_lo) < QRTR_BACKUP_LO_NUM) {
+		skb = alloc_skb_with_frags(sizeof(struct qrtr_hdr_v1),
+					   QRTR_BACKUP_LO_SIZE, 0, &errcode,
+					   GFP_KERNEL);
+		if (!skb)
+			break;
+		skb_queue_tail(&qrtr_backup_lo, skb);
+	}
+	while (skb_queue_len(&qrtr_backup_hi) < QRTR_BACKUP_HI_NUM) {
+		skb = alloc_skb_with_frags(sizeof(struct qrtr_hdr_v1),
+					   QRTR_BACKUP_HI_SIZE, 0, &errcode,
+					   GFP_KERNEL);
+		if (!skb)
+			break;
+		skb_queue_tail(&qrtr_backup_hi, skb);
+	}
+}
+
+static struct sk_buff *qrtr_get_backup(size_t len)
+{
+	struct sk_buff *skb = NULL;
+
+	if (len < QRTR_BACKUP_LO_SIZE)
+		skb = skb_dequeue(&qrtr_backup_lo);
+	else if (len < QRTR_BACKUP_HI_SIZE)
+		skb = skb_dequeue(&qrtr_backup_hi);
+
+	if (skb)
+		queue_work(system_unbound_wq, &qrtr_backup_work);
+
+	return skb;
+}
+
+static void qrtr_backup_init(void)
+{
+	skb_queue_head_init(&qrtr_backup_lo);
+	skb_queue_head_init(&qrtr_backup_hi);
+	INIT_WORK(&qrtr_backup_work, qrtr_alloc_backup);
+	queue_work(system_unbound_wq, &qrtr_backup_work);
+}
+
+static void qrtr_backup_deinit(void)
+{
+	cancel_work_sync(&qrtr_backup_work);
+	skb_queue_purge(&qrtr_backup_lo);
+	skb_queue_purge(&qrtr_backup_hi);
+}
+
 /**
  * qrtr_endpoint_post() - post incoming data
  * @ep: endpoint handle
@@ -575,8 +648,13 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 		return -EINVAL;
 
 	skb = alloc_skb_with_frags(sizeof(*v1), len, 0, &errcode, GFP_ATOMIC);
-	if (!skb)
-		return -ENOMEM;
+	if (!skb) {
+		skb = qrtr_get_backup(len);
+		if (!skb) {
+			pr_err("qrtr: Unable to get skb with len:%lu\n", len);
+			return -ENOMEM;
+		}
+	}
 
 	skb_reserve(skb, sizeof(*v1));
 	cb = (struct qrtr_cb *)skb->cb;
@@ -658,6 +736,7 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 	if (cb->type != QRTR_TYPE_DATA || cb->dst_node != qrtr_local_nid) {
 		skb_queue_tail(&node->rx_queue, skb);
 		kthread_queue_work(&node->kworker, &node->read_data);
+		pm_wakeup_ws_event(node->ws, qrtr_wakeup_ms, true);
 	} else {
 		ipc = qrtr_port_lookup(cb->dst_port);
 		if (!ipc) {
@@ -669,6 +748,10 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 			qrtr_port_put(ipc);
 			goto err;
 		}
+
+		/* Force wakeup for all packets except for sensors */
+		if (node->nid != 9)
+			pm_wakeup_ws_event(node->ws, qrtr_wakeup_ms, true);
 
 		qrtr_port_put(ipc);
 	}
@@ -915,6 +998,8 @@ int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int net_id,
 	list_add(&node->item, &qrtr_all_epts);
 	up_write(&qrtr_epts_lock);
 	ep->node = node;
+
+	node->ws = wakeup_source_register(NULL, "qrtr_ws");
 
 	kthread_queue_work(&node->kworker, &node->say_hello);
 	return 0;
@@ -1706,6 +1791,8 @@ static int __init qrtr_proto_init(void)
 	if (rc)
 		goto err_sock;
 
+	qrtr_backup_init();
+
 	return 0;
 
 err_sock:
@@ -1721,6 +1808,8 @@ static void __exit qrtr_proto_fini(void)
 	qrtr_ns_remove();
 	sock_unregister(qrtr_family.family);
 	proto_unregister(&qrtr_proto);
+
+	qrtr_backup_deinit();
 }
 module_exit(qrtr_proto_fini);
 
