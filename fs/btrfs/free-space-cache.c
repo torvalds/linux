@@ -260,7 +260,7 @@ int btrfs_remove_free_space_inode(struct btrfs_trans_handle *trans,
 	}
 	ret = btrfs_orphan_add(trans, BTRFS_I(inode));
 	if (ret) {
-		btrfs_add_delayed_iput(inode);
+		btrfs_add_delayed_iput(BTRFS_I(inode));
 		goto out;
 	}
 	clear_nlink(inode);
@@ -274,7 +274,7 @@ int btrfs_remove_free_space_inode(struct btrfs_trans_handle *trans,
 		spin_unlock(&block_group->lock);
 	}
 	/* One for the lookup ref */
-	btrfs_add_delayed_iput(inode);
+	btrfs_add_delayed_iput(BTRFS_I(inode));
 
 	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
 	key.type = 0;

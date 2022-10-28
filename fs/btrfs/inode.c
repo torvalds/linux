@@ -1493,7 +1493,7 @@ static noinline void async_cow_start(struct btrfs_work *work)
 
 	compressed_extents = compress_file_range(async_chunk);
 	if (compressed_extents == 0) {
-		btrfs_add_delayed_iput(&async_chunk->inode->vfs_inode);
+		btrfs_add_delayed_iput(async_chunk->inode);
 		async_chunk->inode = NULL;
 	}
 }
@@ -1533,7 +1533,7 @@ static noinline void async_cow_free(struct btrfs_work *work)
 
 	async_chunk = container_of(work, struct async_chunk, work);
 	if (async_chunk->inode)
-		btrfs_add_delayed_iput(&async_chunk->inode->vfs_inode);
+		btrfs_add_delayed_iput(async_chunk->inode);
 	if (async_chunk->blkcg_css)
 		css_put(async_chunk->blkcg_css);
 
@@ -3016,7 +3016,7 @@ out_page:
 	 * that could need flushing space. Recursing back to fixup worker would
 	 * deadlock.
 	 */
-	btrfs_add_delayed_iput(&inode->vfs_inode);
+	btrfs_add_delayed_iput(inode);
 }
 
 /*
@@ -3590,18 +3590,17 @@ unsigned int btrfs_verify_data_csum(struct btrfs_bio *bbio,
  * the inode to the delayed iput machinery. Delayed iputs are processed at
  * transaction commit time/superblock commit/cleaner kthread.
  */
-void btrfs_add_delayed_iput(struct inode *inode)
+void btrfs_add_delayed_iput(struct btrfs_inode *inode)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_inode *binode = BTRFS_I(inode);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 
-	if (atomic_add_unless(&inode->i_count, -1, 1))
+	if (atomic_add_unless(&inode->vfs_inode.i_count, -1, 1))
 		return;
 
 	atomic_inc(&fs_info->nr_delayed_iputs);
 	spin_lock(&fs_info->delayed_iput_lock);
-	ASSERT(list_empty(&binode->delayed_iput));
-	list_add_tail(&binode->delayed_iput, &fs_info->delayed_iputs);
+	ASSERT(list_empty(&inode->delayed_iput));
+	list_add_tail(&inode->delayed_iput, &fs_info->delayed_iputs);
 	spin_unlock(&fs_info->delayed_iput_lock);
 	if (!test_bit(BTRFS_FS_CLEANER_RUNNING, &fs_info->flags))
 		wake_up_process(fs_info->cleaner_kthread);
@@ -9661,7 +9660,7 @@ static int start_delalloc_inodes(struct btrfs_root *root,
 					 &work->work);
 		} else {
 			ret = filemap_fdatawrite_wbc(inode->i_mapping, wbc);
-			btrfs_add_delayed_iput(inode);
+			btrfs_add_delayed_iput(BTRFS_I(inode));
 			if (ret || wbc->nr_to_write <= 0)
 				goto out;
 		}

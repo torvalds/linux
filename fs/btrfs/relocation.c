@@ -1117,7 +1117,7 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 				inode = find_next_inode(root, key.objectid);
 				first = 0;
 			} else if (inode && btrfs_ino(BTRFS_I(inode)) < key.objectid) {
-				btrfs_add_delayed_iput(inode);
+				btrfs_add_delayed_iput(BTRFS_I(inode));
 				inode = find_next_inode(root, key.objectid);
 			}
 			if (inode && btrfs_ino(BTRFS_I(inode)) == key.objectid) {
@@ -1181,7 +1181,7 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 	if (dirty)
 		btrfs_mark_buffer_dirty(leaf);
 	if (inode)
-		btrfs_add_delayed_iput(inode);
+		btrfs_add_delayed_iput(BTRFS_I(inode));
 	return ret;
 }
 

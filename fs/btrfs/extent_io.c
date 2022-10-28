@@ -3228,7 +3228,7 @@ retry:
 	if (wbc->range_cyclic || (wbc->nr_to_write > 0 && range_whole))
 		mapping->writeback_index = done_index;
 
-	btrfs_add_delayed_iput(inode);
+	btrfs_add_delayed_iput(BTRFS_I(inode));
 	return ret;
 }
 
