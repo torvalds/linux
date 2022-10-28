@@ -786,12 +786,12 @@ static inline bool task_fits_capacity(struct task_struct *p,
 	if (check_for_higher_capacity(task_cpu(p), dst_cpu)) {
 		margin = sched_capacity_margin_down[dst_cpu];
 		if (task_in_related_thread_group(p)) {
-			margin = sched_capacity_margin_early_down[dst_cpu];
+			margin = max(margin, sched_capacity_margin_early_down[dst_cpu]);
 		}
 	} else {
 		margin = sched_capacity_margin_up[task_cpu(p)];
 		if (task_in_related_thread_group(p)) {
-			margin = sched_capacity_margin_early_up[task_cpu(p)];
+			margin = max(margin, sched_capacity_margin_early_up[task_cpu(p)]);
 		}
 	}
 
