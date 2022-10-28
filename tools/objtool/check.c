@@ -3417,7 +3417,8 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 
 		if (func && insn_func(insn) && func != insn_func(insn)->pfunc) {
 			/* Ignore KCFI type preambles, which always fall through */
-			if (!strncmp(func->name, "__cfi_", 6))
+			if (!strncmp(func->name, "__cfi_", 6) ||
+			    !strncmp(func->name, "__pfx_", 6))
 				return 0;
 
 			WARN("%s() falls through to next function %s()",
@@ -3972,6 +3973,34 @@ static bool ignore_unreachable_insn(struct objtool_file *file, struct instructio
 	return false;
 }
 
+static int add_prefix_symbol(struct objtool_file *file, struct symbol *func,
+			     struct instruction *insn)
+{
+	if (!opts.prefix)
+		return 0;
+
+	for (;;) {
+		struct instruction *prev = list_prev_entry(insn, list);
+		u64 offset;
+
+		if (&prev->list == &file->insn_list)
+			break;
+
+		if (prev->type != INSN_NOP)
+			break;
+
+		offset = func->offset - prev->offset;
+		if (offset >= opts.prefix) {
+			if (offset == opts.prefix)
+				elf_create_prefix_symbol(file->elf, func, opts.prefix);
+			break;
+		}
+		insn = prev;
+	}
+
+	return 0;
+}
+
 static int validate_symbol(struct objtool_file *file, struct section *sec,
 			   struct symbol *sym, struct insn_state *state)
 {
@@ -3989,6 +4018,8 @@ static int validate_symbol(struct objtool_file *file, struct section *sec,
 	insn = find_insn(file, sec, sym->offset);
 	if (!insn || insn->ignore || insn->visited)
 		return 0;
+
+	add_prefix_symbol(file, sym, insn);
 
 	state->uaccess = sym->uaccess_safe;
 

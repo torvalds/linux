@@ -819,6 +819,37 @@ elf_create_section_symbol(struct elf *elf, struct section *sec)
 	return sym;
 }
 
+static int elf_add_string(struct elf *elf, struct section *strtab, char *str);
+
+struct symbol *
+elf_create_prefix_symbol(struct elf *elf, struct symbol *orig, long size)
+{
+	struct symbol *sym = calloc(1, sizeof(*sym));
+	size_t namelen = strlen(orig->name) + sizeof("__pfx_");
+	char *name = malloc(namelen);
+
+	if (!sym || !name) {
+		perror("malloc");
+		return NULL;
+	}
+
+	snprintf(name, namelen, "__pfx_%s", orig->name);
+
+	sym->name = name;
+	sym->sec = orig->sec;
+
+	sym->sym.st_name = elf_add_string(elf, NULL, name);
+	sym->sym.st_info = orig->sym.st_info;
+	sym->sym.st_value = orig->sym.st_value - size;
+	sym->sym.st_size = size;
+
+	sym = __elf_create_symbol(elf, sym);
+	if (sym)
+		elf_add_symbol(elf, sym);
+
+	return sym;
+}
+
 int elf_add_reloc_to_insn(struct elf *elf, struct section *sec,
 			  unsigned long offset, unsigned int type,
 			  struct section *insn_sec, unsigned long insn_off)
