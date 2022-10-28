@@ -959,10 +959,11 @@ static int ov9282_init_controls(struct ov9282 *ov9282)
 {
 	struct v4l2_ctrl_handler *ctrl_hdlr = &ov9282->ctrl_handler;
 	const struct ov9282_mode *mode = ov9282->cur_mode;
+	struct v4l2_fwnode_device_properties props;
 	u32 lpfr;
 	int ret;
 
-	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 6);
+	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 8);
 	if (ret)
 		return ret;
 
@@ -1020,7 +1021,14 @@ static int ov9282_init_controls(struct ov9282 *ov9282)
 	if (ov9282->hblank_ctrl)
 		ov9282->hblank_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	if (ctrl_hdlr->error) {
+	ret = v4l2_fwnode_device_parse(ov9282->dev, &props);
+	if (!ret) {
+		/* Failure sets ctrl_hdlr->error, which we check afterwards anyway */
+		v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &ov9282_ctrl_ops,
+						&props);
+	}
+
+	if (ctrl_hdlr->error || ret) {
 		dev_err(ov9282->dev, "control init failed: %d",
 			ctrl_hdlr->error);
 		v4l2_ctrl_handler_free(ctrl_hdlr);
