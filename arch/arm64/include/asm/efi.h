@@ -48,7 +48,16 @@ int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md);
 })
 
 extern spinlock_t efi_rt_lock;
+extern u64 *efi_rt_stack_top;
 efi_status_t __efi_rt_asm_wrapper(void *, const char *, ...);
+
+/*
+ * efi_rt_stack_top[-1] contains the value the stack pointer had before
+ * switching to the EFI runtime stack.
+ */
+#define current_in_efi()						\
+	(!preemptible() && efi_rt_stack_top != NULL &&			\
+	 on_task_stack(current, READ_ONCE(efi_rt_stack_top[-1]), 1))
 
 #define ARCH_EFI_IRQ_FLAGS_MASK (PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
 
