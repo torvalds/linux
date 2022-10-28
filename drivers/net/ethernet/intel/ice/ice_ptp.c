@@ -1444,24 +1444,10 @@ static int ice_ptp_adjfine(struct ptp_clock_info *info, long scaled_ppm)
 {
 	struct ice_pf *pf = ptp_info_to_pf(info);
 	struct ice_hw *hw = &pf->hw;
-	u64 incval, diff;
-	int neg_adj = 0;
+	u64 incval;
 	int err;
 
-	incval = ice_base_incval(pf);
-
-	if (scaled_ppm < 0) {
-		neg_adj = 1;
-		scaled_ppm = -scaled_ppm;
-	}
-
-	diff = mul_u64_u64_div_u64(incval, (u64)scaled_ppm,
-				   1000000ULL << 16);
-	if (neg_adj)
-		incval -= diff;
-	else
-		incval += diff;
-
+	incval = adjust_by_scaled_ppm(ice_base_incval(pf), scaled_ppm);
 	err = ice_ptp_write_incval_locked(hw, incval);
 	if (err) {
 		dev_err(ice_pf_to_dev(pf), "PTP failed to set incval, err %d\n",

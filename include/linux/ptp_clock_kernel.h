@@ -248,6 +248,52 @@ static inline long scaled_ppm_to_ppb(long ppm)
 	return (long)ppb;
 }
 
+/**
+ * diff_by_scaled_ppm - Calculate difference using scaled ppm
+ * @base: the base increment value to adjust
+ * @scaled_ppm: scaled parts per million to adjust by
+ * @diff: on return, the absolute value of calculated diff
+ *
+ * Calculate the difference to adjust the base increment using scaled parts
+ * per million.
+ *
+ * Use mul_u64_u64_div_u64 to perform the difference calculation in avoid
+ * possible overflow.
+ *
+ * Returns: true if scaled_ppm is negative, false otherwise
+ */
+static inline bool diff_by_scaled_ppm(u64 base, long scaled_ppm, u64 *diff)
+{
+	bool negative = false;
+
+	if (scaled_ppm < 0) {
+		negative = true;
+		scaled_ppm = -scaled_ppm;
+	}
+
+	*diff = mul_u64_u64_div_u64(base, (u64)scaled_ppm, 1000000ULL << 16);
+
+	return negative;
+}
+
+/**
+ * adjust_by_scaled_ppm - Adjust a base increment by scaled parts per million
+ * @base: the base increment value to adjust
+ * @scaled_ppm: scaled parts per million frequency adjustment
+ *
+ * Helper function which calculates a new increment value based on the
+ * requested scaled parts per million adjustment.
+ */
+static inline u64 adjust_by_scaled_ppm(u64 base, long scaled_ppm)
+{
+	u64 diff;
+
+	if (diff_by_scaled_ppm(base, scaled_ppm, &diff))
+		return base - diff;
+
+	return base + diff;
+}
+
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
 
 /**
