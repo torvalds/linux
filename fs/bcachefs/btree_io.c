@@ -445,6 +445,24 @@ void bch2_btree_build_aux_trees(struct btree *b)
 }
 
 /*
+ * If we have MAX_BSETS (3) bsets, should we sort them all down to just one?
+ *
+ * The first bset is going to be of similar order to the size of the node, the
+ * last bset is bounded by btree_write_set_buffer(), which is set to keep the
+ * memmove on insert from being too expensive: the middle bset should, ideally,
+ * be the geometric mean of the first and the last.
+ *
+ * Returns true if the middle bset is greater than that geometric mean:
+ */
+static inline bool should_compact_all(struct bch_fs *c, struct btree *b)
+{
+	unsigned mid_u64s_bits =
+		(ilog2(btree_max_u64s(c)) + BTREE_WRITE_SET_U64s_BITS) / 2;
+
+	return bset_u64s(&b->set[1]) > 1U << mid_u64s_bits;
+}
+
+/*
  * @bch_btree_init_next - initialize a new (unwritten) bset that can then be
  * inserted into
  *
@@ -461,20 +479,14 @@ void bch2_btree_init_next(struct btree_trans *trans, struct btree *b)
 
 	EBUG_ON(!(b->c.lock.state.seq & 1));
 	BUG_ON(bset_written(b, bset(b, &b->set[1])));
+	BUG_ON(btree_node_just_written(b));
 
 	if (b->nsets == MAX_BSETS &&
-	    !btree_node_write_in_flight(b)) {
-		unsigned log_u64s[] = {
-			ilog2(bset_u64s(&b->set[0])),
-			ilog2(bset_u64s(&b->set[1])),
-			ilog2(bset_u64s(&b->set[2])),
-		};
-
-		if (log_u64s[1] >= (log_u64s[0] + log_u64s[2]) / 2) {
-			bch2_btree_node_write(c, b, SIX_LOCK_write,
-					      BTREE_WRITE_init_next_bset);
-			reinit_iter = true;
-		}
+	    !btree_node_write_in_flight(b) &&
+	    should_compact_all(c, b)) {
+		bch2_btree_node_write(c, b, SIX_LOCK_write,
+				      BTREE_WRITE_init_next_bset);
+		reinit_iter = true;
 	}
 
 	if (b->nsets == MAX_BSETS &&
