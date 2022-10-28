@@ -52,6 +52,7 @@
 #include <linux/hugetlb.h>
 #include <linux/kmemleak.h>
 
+#include <asm/archrandom.h>
 #include <asm/boot_data.h>
 #include <asm/ipl.h>
 #include <asm/facility.h>
