@@ -98,7 +98,7 @@ static inline void tdx_module_call(u64 fn, u64 rcx, u64 rdx, u64 r8, u64 r9,
 		panic("TDCALL %lld failed (Buggy TDX module!)\n", fn);
 }
 
-static u64 get_cc_mask(void)
+static void tdx_parse_tdinfo(u64 *cc_mask)
 {
 	struct tdx_module_output out;
 	unsigned int gpa_width;
@@ -121,7 +121,7 @@ static u64 get_cc_mask(void)
 	 * The highest bit of a guest physical address is the "sharing" bit.
 	 * Set it for shared pages and clear it for private pages.
 	 */
-	return BIT_ULL(gpa_width - 1);
+	*cc_mask = BIT_ULL(gpa_width - 1);
 }
 
 /*
@@ -758,7 +758,7 @@ void __init tdx_early_init(void)
 	setup_force_cpu_cap(X86_FEATURE_TDX_GUEST);
 
 	cc_set_vendor(CC_VENDOR_INTEL);
-	cc_mask = get_cc_mask();
+	tdx_parse_tdinfo(&cc_mask);
 	cc_set_mask(cc_mask);
 
 	/*
