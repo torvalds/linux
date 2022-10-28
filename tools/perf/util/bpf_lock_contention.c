@@ -110,7 +110,7 @@ int lock_contention_read(struct lock_contention *con)
 {
 	int fd, stack;
 	s32 prev_key, key;
-	struct lock_contention_data data;
+	struct lock_contention_data data = {};
 	struct lock_stat *st;
 	struct machine *machine = con->machine;
 	u64 stack_trace[con->max_stack];
