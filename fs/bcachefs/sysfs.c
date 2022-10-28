@@ -183,7 +183,7 @@ read_attribute(io_latency_stats_read);
 read_attribute(io_latency_stats_write);
 read_attribute(congested);
 
-read_attribute(btree_avg_write_size);
+read_attribute(btree_write_stats);
 
 read_attribute(btree_cache_size);
 read_attribute(compression_stats);
@@ -248,14 +248,6 @@ static size_t bch2_btree_cache_size(struct bch_fs *c)
 
 	mutex_unlock(&c->btree_cache.lock);
 	return ret;
-}
-
-static size_t bch2_btree_avg_write_size(struct bch_fs *c)
-{
-	u64 nr = atomic64_read(&c->btree_writes_nr);
-	u64 sectors = atomic64_read(&c->btree_writes_sectors);
-
-	return nr ? div64_u64(sectors, nr) : 0;
 }
 
 static long data_progress_to_text(struct printbuf *out, struct bch_fs *c)
@@ -396,7 +388,9 @@ SHOW(bch2_fs)
 	sysfs_printf(internal_uuid, "%pU",	c->sb.uuid.b);
 
 	sysfs_hprint(btree_cache_size,		bch2_btree_cache_size(c));
-	sysfs_hprint(btree_avg_write_size,	bch2_btree_avg_write_size(c));
+
+	if (attr == &sysfs_btree_write_stats)
+		bch2_btree_write_stats_to_text(out, c);
 
 	sysfs_printf(btree_gc_periodic, "%u",	(int) c->btree_gc_periodic);
 
@@ -557,7 +551,7 @@ SYSFS_OPS(bch2_fs);
 struct attribute *bch2_fs_files[] = {
 	&sysfs_minor,
 	&sysfs_btree_cache_size,
-	&sysfs_btree_avg_write_size,
+	&sysfs_btree_write_stats,
 
 	&sysfs_promote_whole_extents,
 

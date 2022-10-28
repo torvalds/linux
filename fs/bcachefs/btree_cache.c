@@ -241,9 +241,11 @@ wait_on_io:
 		 * the post write cleanup:
 		 */
 		if (bch2_verify_btree_ondisk)
-			bch2_btree_node_write(c, b, SIX_LOCK_intent, 0);
+			bch2_btree_node_write(c, b, SIX_LOCK_intent,
+					      BTREE_WRITE_cache_reclaim);
 		else
-			__bch2_btree_node_write(c, b, 0);
+			__bch2_btree_node_write(c, b,
+						BTREE_WRITE_cache_reclaim);
 
 		six_unlock_write(&b->c.lock);
 		six_unlock_intent(&b->c.lock);
@@ -347,7 +349,7 @@ restart:
 			   six_trylock_read(&b->c.lock)) {
 			list_move(&bc->live, &b->list);
 			mutex_unlock(&bc->lock);
-			__bch2_btree_node_write(c, b, 0);
+			__bch2_btree_node_write(c, b, BTREE_WRITE_cache_reclaim);
 			six_unlock_read(&b->c.lock);
 			if (touched >= nr)
 				goto out_nounlock;
@@ -624,6 +626,7 @@ out:
 	b->flags		= 0;
 	b->written		= 0;
 	b->nsets		= 0;
+	b->write_type		= 0;
 	b->sib_u64s[0]		= 0;
 	b->sib_u64s[1]		= 0;
 	b->whiteout_u64s	= 0;
@@ -1067,7 +1070,7 @@ wait_on_io:
 	btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_write);
 
 	if (btree_node_dirty(b)) {
-		__bch2_btree_node_write(c, b, 0);
+		__bch2_btree_node_write(c, b, BTREE_WRITE_cache_reclaim);
 		six_unlock_write(&b->c.lock);
 		six_unlock_intent(&b->c.lock);
 		goto wait_on_io;

@@ -282,6 +282,7 @@ static inline void push_whiteout(struct bch_fs *c, struct btree *b,
 	struct bkey_packed k;
 
 	BUG_ON(bch_btree_keys_u64s_remaining(c, b) < BKEY_U64s);
+	EBUG_ON(btree_node_just_written(b));
 
 	if (!bkey_pack_pos(&k, pos, b)) {
 		struct bkey *u = (void *) &k;

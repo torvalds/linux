@@ -1308,6 +1308,7 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as,
 	bch2_btree_bset_insert_key(trans, path, b, node_iter, insert);
 	set_btree_node_dirty_acct(c, b);
 	set_btree_node_need_write(b);
+	b->write_type = BTREE_WRITE_interior;
 
 	printbuf_exit(&buf);
 }
