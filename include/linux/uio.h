@@ -361,9 +361,34 @@ static inline void iov_iter_ubuf(struct iov_iter *i, unsigned int direction,
 		.count = count
 	};
 }
-
 /* Flags for iov_iter_get/extract_pages*() */
 /* Allow P2PDMA on the extracted pages */
 #define ITER_ALLOW_P2PDMA	((__force iov_iter_extraction_t)0x01)
+
+ssize_t iov_iter_extract_pages(struct iov_iter *i, struct page ***pages,
+			       size_t maxsize, unsigned int maxpages,
+			       iov_iter_extraction_t extraction_flags,
+			       size_t *offset0);
+
+/**
+ * iov_iter_extract_will_pin - Indicate how pages from the iterator will be retained
+ * @iter: The iterator
+ *
+ * Examine the iterator and indicate by returning true or false as to how, if
+ * at all, pages extracted from the iterator will be retained by the extraction
+ * function.
+ *
+ * %true indicates that the pages will have a pin placed in them that the
+ * caller must unpin.  This is must be done for DMA/async DIO to force fork()
+ * to forcibly copy a page for the child (the parent must retain the original
+ * page).
+ *
+ * %false indicates that no measures are taken and that it's up to the caller
+ * to retain the pages.
+ */
+static inline bool iov_iter_extract_will_pin(const struct iov_iter *iter)
+{
+	return user_backed_iter(iter);
+}
 
 #endif
