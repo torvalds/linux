@@ -597,19 +597,19 @@ int setxattr_copy(const char __user *name, struct xattr_ctx *ctx)
 	return error;
 }
 
-int do_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int do_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		struct xattr_ctx *ctx)
 {
 	if (is_posix_acl_xattr(ctx->kname->name))
-		return do_set_acl(mnt_userns, dentry, ctx->kname->name,
+		return do_set_acl(idmap, dentry, ctx->kname->name,
 				  ctx->kvalue, ctx->size);
 
-	return vfs_setxattr(mnt_userns, dentry, ctx->kname->name,
+	return vfs_setxattr(mnt_idmap_owner(idmap), dentry, ctx->kname->name,
 			ctx->kvalue, ctx->size, ctx->flags);
 }
 
 static long
-setxattr(struct user_namespace *mnt_userns, struct dentry *d,
+setxattr(struct mnt_idmap *idmap, struct dentry *d,
 	const char __user *name, const void __user *value, size_t size,
 	int flags)
 {
@@ -627,7 +627,7 @@ setxattr(struct user_namespace *mnt_userns, struct dentry *d,
 	if (error)
 		return error;
 
-	error = do_setxattr(mnt_userns, d, &ctx);
+	error = do_setxattr(idmap, d, &ctx);
 
 	kvfree(ctx.kvalue);
 	return error;
@@ -646,7 +646,7 @@ retry:
 		return error;
 	error = mnt_want_write(path.mnt);
 	if (!error) {
-		error = setxattr(mnt_user_ns(path.mnt), path.dentry, name,
+		error = setxattr(mnt_idmap(path.mnt), path.dentry, name,
 				 value, size, flags);
 		mnt_drop_write(path.mnt);
 	}
@@ -683,7 +683,7 @@ SYSCALL_DEFINE5(fsetxattr, int, fd, const char __user *, name,
 	audit_file(f.file);
 	error = mnt_want_write_file(f.file);
 	if (!error) {
-		error = setxattr(file_mnt_user_ns(f.file),
+		error = setxattr(file_mnt_idmap(f.file),
 				 f.file->f_path.dentry, name,
 				 value, size, flags);
 		mnt_drop_write_file(f.file);
@@ -696,7 +696,7 @@ SYSCALL_DEFINE5(fsetxattr, int, fd, const char __user *, name,
  * Extended attribute GET operations
  */
 ssize_t
-do_getxattr(struct user_namespace *mnt_userns, struct dentry *d,
+do_getxattr(struct mnt_idmap *idmap, struct dentry *d,
 	struct xattr_ctx *ctx)
 {
 	ssize_t error;
@@ -711,9 +711,10 @@ do_getxattr(struct user_namespace *mnt_userns, struct dentry *d,
 	}
 
 	if (is_posix_acl_xattr(ctx->kname->name))
-		error = do_get_acl(mnt_userns, d, kname, ctx->kvalue, ctx->size);
+		error = do_get_acl(idmap, d, kname, ctx->kvalue, ctx->size);
 	else
-		error = vfs_getxattr(mnt_userns, d, kname, ctx->kvalue, ctx->size);
+		error = vfs_getxattr(mnt_idmap_owner(idmap), d, kname,
+				     ctx->kvalue, ctx->size);
 	if (error > 0) {
 		if (ctx->size && copy_to_user(ctx->value, ctx->kvalue, error))
 			error = -EFAULT;
@@ -727,7 +728,7 @@ do_getxattr(struct user_namespace *mnt_userns, struct dentry *d,
 }
 
 static ssize_t
-getxattr(struct user_namespace *mnt_userns, struct dentry *d,
+getxattr(struct mnt_idmap *idmap, struct dentry *d,
 	 const char __user *name, void __user *value, size_t size)
 {
 	ssize_t error;
@@ -746,7 +747,7 @@ getxattr(struct user_namespace *mnt_userns, struct dentry *d,
 	if (error < 0)
 		return error;
 
-	error =  do_getxattr(mnt_userns, d, &ctx);
+	error =  do_getxattr(idmap, d, &ctx);
 
 	kvfree(ctx.kvalue);
 	return error;
@@ -762,7 +763,7 @@ retry:
 	error = user_path_at(AT_FDCWD, pathname, lookup_flags, &path);
 	if (error)
 		return error;
-	error = getxattr(mnt_user_ns(path.mnt), path.dentry, name, value, size);
+	error = getxattr(mnt_idmap(path.mnt), path.dentry, name, value, size);
 	path_put(&path);
 	if (retry_estale(error, lookup_flags)) {
 		lookup_flags |= LOOKUP_REVAL;
@@ -792,7 +793,7 @@ SYSCALL_DEFINE4(fgetxattr, int, fd, const char __user *, name,
 	if (!f.file)
 		return error;
 	audit_file(f.file);
-	error = getxattr(file_mnt_user_ns(f.file), f.file->f_path.dentry,
+	error = getxattr(file_mnt_idmap(f.file), f.file->f_path.dentry,
 			 name, value, size);
 	fdput(f);
 	return error;
@@ -877,7 +878,7 @@ SYSCALL_DEFINE3(flistxattr, int, fd, char __user *, list, size_t, size)
  * Extended attribute REMOVE operations
  */
 static long
-removexattr(struct user_namespace *mnt_userns, struct dentry *d,
+removexattr(struct mnt_idmap *idmap, struct dentry *d,
 	    const char __user *name)
 {
 	int error;
@@ -890,9 +891,9 @@ removexattr(struct user_namespace *mnt_userns, struct dentry *d,
 		return error;
 
 	if (is_posix_acl_xattr(kname))
-		return vfs_remove_acl(mnt_userns, d, kname);
+		return vfs_remove_acl(mnt_idmap_owner(idmap), d, kname);
 
-	return vfs_removexattr(mnt_userns, d, kname);
+	return vfs_removexattr(mnt_idmap_owner(idmap), d, kname);
 }
 
 static int path_removexattr(const char __user *pathname,
@@ -906,7 +907,7 @@ retry:
 		return error;
 	error = mnt_want_write(path.mnt);
 	if (!error) {
-		error = removexattr(mnt_user_ns(path.mnt), path.dentry, name);
+		error = removexattr(mnt_idmap(path.mnt), path.dentry, name);
 		mnt_drop_write(path.mnt);
 	}
 	path_put(&path);
@@ -939,7 +940,7 @@ SYSCALL_DEFINE2(fremovexattr, int, fd, const char __user *, name)
 	audit_file(f.file);
 	error = mnt_want_write_file(f.file);
 	if (!error) {
-		error = removexattr(file_mnt_user_ns(f.file),
+		error = removexattr(file_mnt_idmap(f.file),
 				    f.file->f_path.dentry, name);
 		mnt_drop_write_file(f.file);
 	}

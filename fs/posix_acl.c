@@ -871,7 +871,7 @@ EXPORT_SYMBOL (posix_acl_to_xattr);
 
 /**
  * vfs_posix_acl_to_xattr - convert from kernel to userspace representation
- * @mnt_userns: user namespace of the mount
+ * @idmap: idmap of the mount
  * @inode: inode the posix acls are set on
  * @acl: the posix acls as represented by the vfs
  * @buffer: the buffer into which to convert @acl
@@ -884,7 +884,7 @@ EXPORT_SYMBOL (posix_acl_to_xattr);
  * Return: On success, the size of the stored uapi posix acls, on error a
  * negative errno.
  */
-static ssize_t vfs_posix_acl_to_xattr(struct user_namespace *mnt_userns,
+static ssize_t vfs_posix_acl_to_xattr(struct mnt_idmap *idmap,
 				      struct inode *inode,
 				      const struct posix_acl *acl, void *buffer,
 				      size_t size)
@@ -893,6 +893,7 @@ static ssize_t vfs_posix_acl_to_xattr(struct user_namespace *mnt_userns,
 	struct posix_acl_xattr_header *ext_acl = buffer;
 	struct posix_acl_xattr_entry *ext_entry;
 	struct user_namespace *fs_userns, *caller_userns;
+	struct user_namespace *mnt_userns;
 	ssize_t real_size, n;
 	vfsuid_t vfsuid;
 	vfsgid_t vfsgid;
@@ -908,6 +909,7 @@ static ssize_t vfs_posix_acl_to_xattr(struct user_namespace *mnt_userns,
 
 	fs_userns = i_user_ns(inode);
 	caller_userns = current_user_ns();
+	mnt_userns = mnt_idmap_owner(idmap);
 	for (n=0; n < acl->a_count; n++, ext_entry++) {
 		const struct posix_acl_entry *acl_e = &acl->a_entries[n];
 		ext_entry->e_tag  = cpu_to_le16(acl_e->e_tag);
@@ -1227,7 +1229,7 @@ out_inode_unlock:
 }
 EXPORT_SYMBOL_GPL(vfs_remove_acl);
 
-int do_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+int do_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 	       const char *acl_name, const void *kvalue, size_t size)
 {
 	int error;
@@ -1243,22 +1245,22 @@ int do_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 			return PTR_ERR(acl);
 	}
 
-	error = vfs_set_acl(mnt_userns, dentry, acl_name, acl);
+	error = vfs_set_acl(mnt_idmap_owner(idmap), dentry, acl_name, acl);
 	posix_acl_release(acl);
 	return error;
 }
 
-ssize_t do_get_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
+ssize_t do_get_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		   const char *acl_name, void *kvalue, size_t size)
 {
 	ssize_t error;
 	struct posix_acl *acl;
 
-	acl = vfs_get_acl(mnt_userns, dentry, acl_name);
+	acl = vfs_get_acl(mnt_idmap_owner(idmap), dentry, acl_name);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 
-	error = vfs_posix_acl_to_xattr(mnt_userns, d_inode(dentry),
+	error = vfs_posix_acl_to_xattr(idmap, d_inode(dentry),
 				       acl, kvalue, size);
 	posix_acl_release(acl);
 	return error;
