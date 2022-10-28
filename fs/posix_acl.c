@@ -884,9 +884,10 @@ EXPORT_SYMBOL (posix_acl_to_xattr);
  * Return: On success, the size of the stored uapi posix acls, on error a
  * negative errno.
  */
-ssize_t vfs_posix_acl_to_xattr(struct user_namespace *mnt_userns,
-			       struct inode *inode, const struct posix_acl *acl,
-			       void *buffer, size_t size)
+static ssize_t vfs_posix_acl_to_xattr(struct user_namespace *mnt_userns,
+				      struct inode *inode,
+				      const struct posix_acl *acl, void *buffer,
+				      size_t size)
 
 {
 	struct posix_acl_xattr_header *ext_acl = buffer;
