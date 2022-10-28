@@ -45,6 +45,8 @@ struct system_device_crosststamp;
 
 /**
  * struct ptp_system_timestamp - system time corresponding to a PHC timestamp
+ * @pre_ts: system timestamp before capturing PHC
+ * @post_ts: system timestamp after capturing PHC
  */
 struct ptp_system_timestamp {
 	struct timespec64 pre_ts;
@@ -316,6 +318,11 @@ int ptp_find_pin(struct ptp_clock *ptp,
  * should most likely call ptp_find_pin() directly from their
  * ptp_clock_info::enable() method.
  *
+* @ptp:    The clock obtained from ptp_clock_register().
+* @func:   One of the ptp_pin_function enumerated values.
+* @chan:   The particular functional channel to find.
+* Return:  Pin index in the range of zero to ptp_clock_caps.n_pins - 1,
+*          or -1 if the auxiliary function cannot be found.
  */
 
 int ptp_find_pin_unlocked(struct ptp_clock *ptp,
