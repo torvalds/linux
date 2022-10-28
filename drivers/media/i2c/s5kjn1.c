@@ -65,6 +65,7 @@
 #define S5KJN1_REG_AGAIN_LONG_H		0x0204
 #define S5KJN1_GAIN_MIN			0x20
 #define S5KJN1_GAIN_MAX			0x800
+#define S5KJN1_FULL_SIZE_GAIN_MAX	0x200
 #define S5KJN1_GAIN_STEP		1
 #define S5KJN1_GAIN_DEFAULT		0xc0
 
@@ -1054,6 +1055,16 @@ static int s5kjn1_set_fmt(struct v4l2_subdev *sd,
 					 pixel_rate);
 		__v4l2_ctrl_s_ctrl(s5kjn1->link_freq,
 				   mode->mipi_freq_idx);
+
+		if (mode->width == 8128)
+			__v4l2_ctrl_modify_range(s5kjn1->anal_gain, S5KJN1_GAIN_MIN,
+						 S5KJN1_FULL_SIZE_GAIN_MAX,
+						 S5KJN1_GAIN_STEP, S5KJN1_GAIN_DEFAULT);
+		else
+			__v4l2_ctrl_modify_range(s5kjn1->anal_gain, S5KJN1_GAIN_MIN,
+						 S5KJN1_GAIN_MAX,
+						 S5KJN1_GAIN_STEP, S5KJN1_GAIN_DEFAULT);
+
 	}
 	dev_info(&s5kjn1->client->dev, "%s: mode->mipi_freq_idx(%d)",
 		 __func__, mode->mipi_freq_idx);
