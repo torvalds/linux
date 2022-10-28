@@ -45,6 +45,7 @@
 #define DWCMSHC_EMMC_DLL_TIMEOUT	BIT(9)
 #define DWCMSHC_EMMC_DLL_START_POINT	16
 #define DWCMSHC_EMMC_DLL_INC		8
+#define DWCMSHC_EMMC_DLL_BYPASS		BIT(24)
 #define DWCMSHC_EMMC_DLL_DLYENA		BIT(27)
 
 #define DLL_TXCLK_TAPNUM_DEFAULT	0x10
@@ -233,8 +234,11 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 	sdhci_writel(host, extra, DWCMSHC_HOST_CTRL3);
 
 	if (clock <= 52000000) {
-		/* Disable DLL and reset both of sample and drive clock */
-		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_CTRL);
+		/*
+		 * Disable DLL and reset both of sample and drive clock.
+		 * The bypass bit and start bit need to set if DLL is not locked.
+		 */
+		sdhci_writel(host, DWCMSHC_EMMC_DLL_BYPASS | DWCMSHC_EMMC_DLL_START, DWCMSHC_EMMC_DLL_CTRL);
 		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_RXCLK);
 		sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_TXCLK);
 		sdhci_writel(host, 0, DECMSHC_EMMC_DLL_CMDOUT);
@@ -264,7 +268,8 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 		extra |= DLL_RXCLK_NO_INVERTER;
 	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
 
-	/* Init DLL settings */
+	/* Init DLL settings, clean start bit before resetting */
+	sdhci_writel(host, 0, DWCMSHC_EMMC_DLL_CTRL);
 	extra = 0x5 << DWCMSHC_EMMC_DLL_START_POINT |
 		0x2 << DWCMSHC_EMMC_DLL_INC |
 		DWCMSHC_EMMC_DLL_START;
