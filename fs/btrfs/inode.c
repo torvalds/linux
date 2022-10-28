@@ -2890,7 +2890,7 @@ int btrfs_set_extent_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 /* see btrfs_writepage_start_hook for details on why this is required */
 struct btrfs_writepage_fixup {
 	struct page *page;
-	struct inode *inode;
+	struct btrfs_inode *inode;
 	struct btrfs_work work;
 };
 
@@ -2909,7 +2909,7 @@ static void btrfs_writepage_fixup_worker(struct btrfs_work *work)
 
 	fixup = container_of(work, struct btrfs_writepage_fixup, work);
 	page = fixup->page;
-	inode = BTRFS_I(fixup->inode);
+	inode = fixup->inode;
 	page_start = page_offset(page);
 	page_end = page_offset(page) + PAGE_SIZE - 1;
 
@@ -3068,7 +3068,7 @@ int btrfs_writepage_cow_fixup(struct page *page)
 	get_page(page);
 	btrfs_init_work(&fixup->work, btrfs_writepage_fixup_worker, NULL, NULL);
 	fixup->page = page;
-	fixup->inode = inode;
+	fixup->inode = BTRFS_I(inode);
 	btrfs_queue_work(fs_info->fixup_workers, &fixup->work);
 
 	return -EAGAIN;
