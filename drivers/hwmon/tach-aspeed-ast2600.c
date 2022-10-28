@@ -18,6 +18,9 @@
 #include <linux/sysfs.h>
 #include <linux/reset.h>
 #include <linux/regmap.h>
+
+/* The channel number of Aspeed tach controller */
+#define TACH_ASPEED_NR_TACHS 16
 /* TACH Control Register */
 #define TACH_ASPEED_CTRL(ch) (((ch) * 0x10) + 0x08)
 #define TACH_ASPEED_IER BIT(31)
@@ -84,7 +87,7 @@ struct aspeed_tach_data {
 	struct regmap *regmap;
 	struct clk *clk;
 	struct reset_control *reset;
-	bool tach_present[16];
+	bool tach_present[TACH_ASPEED_NR_TACHS];
 	struct aspeed_tacho_channel_params *tacho_channel;
 	/* for hwmon */
 	const struct attribute_group *groups[2];
@@ -324,8 +327,10 @@ static int aspeed_tach_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 	priv->dev = &pdev->dev;
-	priv->tacho_channel = devm_kzalloc(
-		dev, 16 * sizeof(*priv->tacho_channel), GFP_KERNEL);
+	priv->tacho_channel =
+		devm_kzalloc(dev,
+			     TACH_ASPEED_NR_TACHS * sizeof(*priv->tacho_channel),
+			     GFP_KERNEL);
 
 	priv->regmap = syscon_node_to_regmap(np);
 	if (IS_ERR(priv->regmap)) {
