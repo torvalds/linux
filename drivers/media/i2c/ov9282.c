@@ -13,6 +13,7 @@
 #include <linux/pm_runtime.h>
 
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
@@ -1161,6 +1162,11 @@ done_endpoint_free:
 }
 
 /* V4l2 subdevice ops */
+static const struct v4l2_subdev_core_ops ov9282_core_ops = {
+	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+};
+
 static const struct v4l2_subdev_video_ops ov9282_video_ops = {
 	.s_stream = ov9282_set_stream,
 };
@@ -1175,6 +1181,7 @@ static const struct v4l2_subdev_pad_ops ov9282_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops ov9282_subdev_ops = {
+	.core = &ov9282_core_ops,
 	.video = &ov9282_video_ops,
 	.pad = &ov9282_pad_ops,
 };
@@ -1389,7 +1396,8 @@ static int ov9282_probe(struct i2c_client *client)
 	}
 
 	/* Initialize subdev */
-	ov9282->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	ov9282->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+			    V4L2_SUBDEV_FL_HAS_EVENTS;
 	ov9282->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	/* Initialize source pad */
