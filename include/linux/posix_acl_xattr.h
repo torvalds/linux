@@ -35,22 +35,12 @@ posix_acl_xattr_count(size_t size)
 #ifdef CONFIG_FS_POSIX_ACL
 struct posix_acl *posix_acl_from_xattr(struct user_namespace *user_ns,
 				       const void *value, size_t size);
-ssize_t vfs_posix_acl_to_xattr(struct user_namespace *mnt_userns,
-			       struct inode *inode, const struct posix_acl *acl,
-			       void *buffer, size_t size);
 #else
 static inline struct posix_acl *
 posix_acl_from_xattr(struct user_namespace *user_ns, const void *value,
 		     size_t size)
 {
 	return ERR_PTR(-EOPNOTSUPP);
-}
-static inline ssize_t vfs_posix_acl_to_xattr(struct user_namespace *mnt_userns,
-					     struct inode *inode,
-					     const struct posix_acl *acl,
-					     void *buffer, size_t size)
-{
-	return 0;
 }
 #endif
 
