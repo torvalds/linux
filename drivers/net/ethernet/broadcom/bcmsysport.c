@@ -295,6 +295,8 @@ static const struct bcm_sysport_stats bcm_sysport_gstrings_stats[] = {
 	/* RBUF misc statistics */
 	STAT_RBUF("rbuf_ovflow_cnt", mib.rbuf_ovflow_cnt, RBUF_OVFL_DISC_CNTR),
 	STAT_RBUF("rbuf_err_cnt", mib.rbuf_err_cnt, RBUF_ERR_PKT_CNTR),
+	/* RDMA misc statistics */
+	STAT_RDMA("rdma_ovflow_cnt", mib.rdma_ovflow_cnt, RDMA_OVFL_DISC_CNTR),
 	STAT_MIB_SOFT("alloc_rx_buff_failed", mib.alloc_rx_buff_failed),
 	STAT_MIB_SOFT("rx_dma_failed", mib.rx_dma_failed),
 	STAT_MIB_SOFT("tx_dma_failed", mib.tx_dma_failed),
@@ -333,6 +335,7 @@ static inline bool bcm_sysport_lite_stat_valid(enum bcm_sysport_stat_type type)
 	case BCM_SYSPORT_STAT_NETDEV64:
 	case BCM_SYSPORT_STAT_RXCHK:
 	case BCM_SYSPORT_STAT_RBUF:
+	case BCM_SYSPORT_STAT_RDMA:
 	case BCM_SYSPORT_STAT_SOFT:
 		return true;
 	default:
@@ -435,6 +438,14 @@ static void bcm_sysport_update_mib_counters(struct bcm_sysport_priv *priv)
 			val = rbuf_readl(priv, s->reg_offset);
 			if (val == ~0)
 				rbuf_writel(priv, 0, s->reg_offset);
+			break;
+		case BCM_SYSPORT_STAT_RDMA:
+			if (!priv->is_lite)
+				continue;
+
+			val = rdma_readl(priv, s->reg_offset);
+			if (val == ~0)
+				rdma_writel(priv, 0, s->reg_offset);
 			break;
 		}
 
