@@ -43,6 +43,9 @@ gh_dbl.ko
 gh_msgq.ko
 gh_rm_drv.ko
 gunyah.ko
+hwkm.ko
+crypto-qti.ko
+ufshcd-crypto-qti.ko
 mdt_loader.ko
 debug-regulator.ko
 phy-qcom-ufs.ko
@@ -69,6 +72,7 @@ qcom-reboot-reason.ko
 qrtr.ko
 qcom_aoss.ko
 msm_qmp.ko
+tmecom-intf.ko
 qcom_ipc_logging.ko
 qcom-cpufreq-hw.ko
 dcvs_fp.ko
