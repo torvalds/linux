@@ -678,13 +678,12 @@ int evm_inode_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 	    !evm_inode_set_acl_change(mnt_userns, dentry, acl_name, kacl))
 		return 0;
 
-	if (evm_status != INTEGRITY_PASS &&
-	    evm_status != INTEGRITY_PASS_IMMUTABLE)
+	if (evm_status != INTEGRITY_PASS_IMMUTABLE)
 		integrity_audit_msg(AUDIT_INTEGRITY_METADATA, d_backing_inode(dentry),
 				    dentry->d_name.name, "appraise_metadata",
 				    integrity_status_msg[evm_status],
 				    -EPERM, 0);
-	return evm_status == INTEGRITY_PASS ? 0 : -EPERM;
+	return -EPERM;
 }
 
 static void evm_reset_status(struct inode *inode)
