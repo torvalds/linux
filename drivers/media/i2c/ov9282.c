@@ -66,6 +66,17 @@
 #define OV9282_PIXEL_RATE	(OV9282_LINK_FREQ * 2 * \
 				 OV9282_NUM_DATA_LANES / 10)
 
+/*
+ * OV9282 native and active pixel array size.
+ * 8 dummy rows/columns on each edge of a 1280x800 active array
+ */
+#define OV9282_NATIVE_WIDTH		1296U
+#define OV9282_NATIVE_HEIGHT		816U
+#define OV9282_PIXEL_ARRAY_LEFT		8U
+#define OV9282_PIXEL_ARRAY_TOP		8U
+#define OV9282_PIXEL_ARRAY_WIDTH	1280U
+#define OV9282_PIXEL_ARRAY_HEIGHT	800U
+
 #define OV9282_REG_MIN		0x00
 #define OV9282_REG_MAX		0xfffff
 
@@ -109,6 +120,7 @@ struct ov9282_mode {
 	u32 vblank_min;
 	u32 vblank_max;
 	u32 link_freq_idx;
+	struct v4l2_rect crop;
 	struct ov9282_reg_list reg_list;
 };
 
@@ -280,6 +292,16 @@ static const struct ov9282_mode supported_modes[] = {
 		.vblank_min = 41,
 		.vblank_max = 51540,
 		.link_freq_idx = 0,
+		.crop = {
+			/*
+			 * Note that this mode takes the top 720 lines from the
+			 * 800 of the sensor. It does not take a middle crop.
+			 */
+			.left = OV9282_PIXEL_ARRAY_LEFT,
+			.top = OV9282_PIXEL_ARRAY_TOP,
+			.width = 1280,
+			.height = 720
+		},
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1280x720_regs),
 			.regs = mode_1280x720_regs,
@@ -720,6 +742,58 @@ static int ov9282_init_pad_cfg(struct v4l2_subdev *sd,
 	return ov9282_set_pad_format(sd, sd_state, &fmt);
 }
 
+static const struct v4l2_rect *
+__ov9282_get_pad_crop(struct ov9282 *ov9282,
+		      struct v4l2_subdev_state *sd_state,
+		      unsigned int pad, enum v4l2_subdev_format_whence which)
+{
+	switch (which) {
+	case V4L2_SUBDEV_FORMAT_TRY:
+		return v4l2_subdev_get_try_crop(&ov9282->sd, sd_state, pad);
+	case V4L2_SUBDEV_FORMAT_ACTIVE:
+		return &ov9282->cur_mode->crop;
+	}
+
+	return NULL;
+}
+
+static int ov9282_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
+				struct v4l2_subdev_selection *sel)
+{
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP: {
+		struct ov9282 *ov9282 = to_ov9282(sd);
+
+		mutex_lock(&ov9282->mutex);
+		sel->r = *__ov9282_get_pad_crop(ov9282, sd_state, sel->pad,
+						sel->which);
+		mutex_unlock(&ov9282->mutex);
+
+		return 0;
+	}
+
+	case V4L2_SEL_TGT_NATIVE_SIZE:
+		sel->r.top = 0;
+		sel->r.left = 0;
+		sel->r.width = OV9282_NATIVE_WIDTH;
+		sel->r.height = OV9282_NATIVE_HEIGHT;
+
+		return 0;
+
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		sel->r.top = OV9282_PIXEL_ARRAY_TOP;
+		sel->r.left = OV9282_PIXEL_ARRAY_LEFT;
+		sel->r.width = OV9282_PIXEL_ARRAY_WIDTH;
+		sel->r.height = OV9282_PIXEL_ARRAY_HEIGHT;
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 /**
  * ov9282_start_streaming() - Start sensor stream
  * @ov9282: pointer to ov9282 device
@@ -938,6 +1012,7 @@ static const struct v4l2_subdev_pad_ops ov9282_pad_ops = {
 	.enum_frame_size = ov9282_enum_frame_size,
 	.get_fmt = ov9282_get_pad_format,
 	.set_fmt = ov9282_set_pad_format,
+	.get_selection = ov9282_get_selection,
 };
 
 static const struct v4l2_subdev_ops ov9282_subdev_ops = {
