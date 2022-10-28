@@ -94,13 +94,12 @@ struct tree_entry {
 };
 
 void extent_io_tree_init(struct btrfs_fs_info *fs_info,
-			 struct extent_io_tree *tree, unsigned int owner,
-			 void *private_data)
+			 struct extent_io_tree *tree, unsigned int owner)
 {
 	tree->fs_info = fs_info;
 	tree->state = RB_ROOT;
 	spin_lock_init(&tree->lock);
-	tree->private_data = private_data;
+	tree->private_data = NULL;
 	tree->owner = owner;
 	if (owner == IO_TREE_INODE_FILE_EXTENT)
 		lockdep_set_class(&tree->lock, &file_extent_tree_class);

@@ -104,8 +104,7 @@ struct extent_state {
 };
 
 void extent_io_tree_init(struct btrfs_fs_info *fs_info,
-			 struct extent_io_tree *tree, unsigned int owner,
-			 void *private_data);
+			 struct extent_io_tree *tree, unsigned int owner);
 void extent_io_tree_release(struct extent_io_tree *tree);
 
 int lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
