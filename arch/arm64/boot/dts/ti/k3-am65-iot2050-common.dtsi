@@ -732,18 +732,6 @@
 	mboxes = <&mailbox0_cluster1 &mbox_mcu_r5fss0_core1>;
 };
 
-&icssg0_mdio {
-	status = "disabled";
-};
-
-&icssg1_mdio {
-	status = "disabled";
-};
-
-&icssg2_mdio {
-	status = "disabled";
-};
-
 &mcasp0 {
 	status = "disabled";
 };

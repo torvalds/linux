@@ -278,6 +278,7 @@
 			clocks = <&k3_clks 5 10>;
 			clock-names = "fck";
 			bus_freq = <1000000>;
+			status = "disabled";
 		};
 
 		cpts@3d000 {
