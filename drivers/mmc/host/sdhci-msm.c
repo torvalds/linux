@@ -42,6 +42,11 @@
 #include <linux/crypto-qti-common.h>
 #endif
 
+#if IS_ENABLED(CONFIG_MMC_SDHCI_MSM_SCALING)
+#include "sdhci-msm-scaling.h"
+#endif
+#include "sdhci-msm.h"
+
 #define CORE_MCI_VERSION		0x50
 #define CORE_VERSION_MAJOR_SHIFT	28
 #define CORE_VERSION_MAJOR_MASK		(0xf << CORE_VERSION_MAJOR_SHIFT)
@@ -214,39 +219,6 @@
 
 #define SDHCI_CMD_FLAGS_MASK	0xff
 
-struct sdhci_msm_offset {
-	u32 core_hc_mode;
-	u32 core_mci_data_cnt;
-	u32 core_mci_status;
-	u32 core_mci_fifo_cnt;
-	u32 core_mci_version;
-	u32 core_generics;
-	u32 core_testbus_config;
-	u32 core_testbus_sel2_bit;
-	u32 core_testbus_ena;
-	u32 core_testbus_sel2;
-	u32 core_pwrctl_status;
-	u32 core_pwrctl_mask;
-	u32 core_pwrctl_clear;
-	u32 core_pwrctl_ctl;
-	u32 core_sdcc_debug_reg;
-	u32 core_dll_config;
-	u32 core_dll_status;
-	u32 core_vendor_spec;
-	u32 core_vendor_spec_adma_err_addr0;
-	u32 core_vendor_spec_adma_err_addr1;
-	u32 core_vendor_spec_func2;
-	u32 core_vendor_spec_capabilities0;
-	u32 core_vendor_spec_capabilities1;
-	u32 core_ddr_200_cfg;
-	u32 core_vendor_spec3;
-	u32 core_dll_config_2;
-	u32 core_dll_config_3;
-	u32 core_ddr_config_old; /* Applicable to sdcc minor ver < 0x49 */
-	u32 core_ddr_config;
-	u32 core_dll_usr_ctl; /* Present on SDCC5.1 onwards */
-};
-
 static const struct sdhci_msm_offset sdhci_msm_v5_offset = {
 	.core_mci_data_cnt = 0x35c,
 	.core_mci_status = 0x324,
@@ -309,12 +281,6 @@ static const struct sdhci_msm_offset sdhci_msm_mci_offset = {
 	.core_ddr_config = 0x1bc,
 };
 
-struct sdhci_msm_variant_ops {
-	u32 (*msm_readl_relaxed)(struct sdhci_host *host, u32 offset);
-	void (*msm_writel_relaxed)(u32 val, struct sdhci_host *host,
-			u32 offset);
-};
-
 /*
  * From V5, register spaces have changed. Wrap this info in a structure
  * and choose the data_structure based on version info mentioned in DT.
@@ -361,33 +327,6 @@ struct sdhci_msm_dll_hsr {
 	u32 dll_config_3;
 	u32 dll_usr_ctl;
 	u32 ddr_config;
-};
-
-struct cqe_regs_restore {
-	u32 cqe_vendor_cfg1;
-};
-
-struct sdhci_msm_regs_restore {
-	bool is_supported;
-	bool is_valid;
-	u32 vendor_pwrctl_mask;
-	u32 vendor_pwrctl_ctl;
-	u32 vendor_caps_0;
-	u32 vendor_func;
-	u32 vendor_func2;
-	u32 vendor_func3;
-	u32 hc_2c_2e;
-	u32 hc_28_2a;
-	u32 hc_34_36;
-	u32 hc_38_3a;
-	u32 hc_3c_3e;
-	u32 hc_caps_1;
-	u32 testbus_config;
-	u32 dll_config;
-	u32 dll_config2;
-	u32 dll_config3;
-	u32 dll_usr_ctl;
-	u32 ext_fb_clk;
 };
 
 enum vdd_io_level {
@@ -463,86 +402,6 @@ enum constraint {
 	QOS_PERF,
 	QOS_POWER,
 	QOS_MAX,
-};
-
-struct sdhci_msm_host {
-	struct platform_device *pdev;
-	void __iomem *core_mem;	/* MSM SDCC mapped address */
-#ifdef CONFIG_MMC_CRYPTO
-	void __iomem *ice_mem;	/* MSM ICE mapped address (if available) */
-#endif
-#if (IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER) || IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER_V1))
-	void __iomem *ice_hwkm_mem;
-#endif
-	int pwr_irq;		/* power irq */
-	struct clk *bus_clk;	/* SDHC bus voter clock */
-	struct clk *xo_clk;	/* TCXO clk needed for FLL feature of cm_dll*/
-	/* core, iface, ice, cal, sleep clocks */
-	struct clk_bulk_data bulk_clks[5];
-	unsigned long clk_rate;
-	struct sdhci_msm_vreg_data *vreg_data;
-	struct mmc_host *mmc;
-	int opp_token;
-	bool has_opp_table;
-	struct cqhci_host *cq_host;
-	bool use_14lpp_dll_reset;
-	bool tuning_done;
-	bool calibration_done;
-	u8 saved_tuning_phase;
-	bool use_cdclp533;
-	u32 curr_pwr_state;
-	u32 curr_io_level;
-	wait_queue_head_t pwr_irq_wait;
-	bool pwr_irq_flag;
-	u32 caps_0;
-	bool mci_removed;
-	bool restore_dll_config;
-	const struct sdhci_msm_variant_ops *var_ops;
-	const struct sdhci_msm_offset *offset;
-	bool use_cdr;
-	u32 transfer_mode;
-	bool updated_ddr_cfg;
-	bool skip_bus_bw_voting;
-	struct sdhci_msm_bus_vote_data *bus_vote_data;
-	struct delayed_work bus_vote_work;
-	struct delayed_work clk_gating_work;
-	struct workqueue_struct *workq;	/* QoS work queue */
-	struct sdhci_msm_qos_req *sdhci_qos;
-	struct irq_affinity_notify affinity_notify;
-	struct device_attribute clk_gating;
-	struct device_attribute pm_qos;
-	u32 clk_gating_delay;
-	u32 pm_qos_delay;
-	bool cqhci_offset_changed;
-	bool reg_store;
-	bool vbias_skip_wa;
-	struct reset_control *core_reset;
-	bool pltfm_init_done;
-	bool fake_core_3_0v_support;
-	bool use_7nm_dll;
-	struct sdhci_msm_dll_hsr *dll_hsr;
-	struct sdhci_msm_regs_restore regs_restore;
-	struct cqe_regs_restore cqe_regs;
-	u32 *sup_ice_clk_table;
-	unsigned char sup_ice_clk_cnt;
-	u32 ice_clk_max;
-	u32 ice_clk_min;
-	u32 ice_clk_rate;
-	bool uses_tassadar_dll;
-	bool uses_level_shifter;
-	bool dll_lock_bist_fail_wa;
-	u32 dll_config;
-	u32 ddr_config;
-	u16 last_cmd;
-	bool vqmmc_enabled;
-	void *sdhci_msm_ipc_log_ctx;
-	bool dbg_en;
-	bool enable_ext_fb_clk;
-	u8 raw_ext_csd_cmdq;
-	u8 raw_ext_csd_cache_ctrl;
-	u8 raw_ext_csd_bus_width;
-	u8 raw_ext_csd_hs_timing;
-	struct mmc_ios cached_ios;
 };
 
 static struct sdhci_msm_host *sdhci_slot[2];
@@ -2020,6 +1879,10 @@ static bool sdhci_msm_populate_pdata(struct device *dev,
 
 	sdhci_msm_parse_reset_data(dev, msm_host);
 
+#if IS_ENABLED(CONFIG_MMC_SDHCI_MSM_SCALING)
+	sdhci_msm_scale_parse_dt(dev, msm_host);
+#endif
+
 	return false;
 out:
 	return true;
@@ -3314,6 +3177,9 @@ static int sdhci_msm_cqe_add_host(struct sdhci_host *host,
 	}
 
 	msm_host->mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
+#if IS_ENABLED(CONFIG_MMC_SDHCI_MSM_SCALING)
+	msm_host->scale_caps |= MMC_CAP2_CLK_SCALE;
+#endif
 	cq_host->ops = &sdhci_msm_cqhci_ops;
 	msm_host->cq_host = cq_host;
 	cq_host->offset_changed = msm_host->cqhci_offset_changed;
@@ -4238,6 +4104,18 @@ static const struct sdhci_ops sdhci_msm_ops = {
 	.set_timeout = sdhci_msm_set_timeout,
 };
 
+#if IS_ENABLED(CONFIG_MMC_SDHCI_MSM_SCALING)
+void sdhci_msm_disable_scaling(struct mmc_host *mhost)
+{
+	struct sdhci_host *shost = mmc_priv(mhost);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(shost);
+	struct sdhci_msm_host *host = sdhci_pltfm_priv(pltfm_host);
+
+	sdhci_msm_mmc_suspend_clk_scaling(mhost);
+	host->scaling_suspended = 1;
+}
+#endif
+
 static const struct sdhci_pltfm_data sdhci_msm_pdata = {
 	.quirks = SDHCI_QUIRK_BROKEN_CARD_DETECTION |
 		  SDHCI_QUIRK_SINGLE_POWER_WRITE |
@@ -4514,6 +4392,10 @@ static int mmc_partial_init(struct mmc_host *mmc)
 static void sdhci_msm_mmc_suspend(void *unused, struct mmc_host *mmc)
 {
 	mmc_cache_card(mmc);
+
+#if IS_ENABLED(CONFIG_MMC_SDHCI_MSM_SCALING)
+	sdhci_msm_disable_scaling(mmc);
+#endif
 }
 
 static void sdhci_msm_mmc_resume(void *unused, struct mmc_host *mmc, bool *resume_success)
@@ -4525,6 +4407,9 @@ static void sdhci_msm_mmc_resume(void *unused, struct mmc_host *mmc, bool *resum
 		*resume_success = false;
 	else
 		*resume_success = true;
+#if IS_ENABLED(CONFIG_MMC_SDHCI_MSM_SCALING)
+	sdhci_msm_cqe_scaling_resume(mmc);
+#endif
 }
 
 static void sdhci_msm_clkgate_bus_delayed_work(struct work_struct *work)
