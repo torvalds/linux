@@ -2025,6 +2025,16 @@ int set_memory_ro(unsigned long addr, int numpages)
 	return change_page_attr_clear(&addr, numpages, __pgprot(_PAGE_RW), 0);
 }
 
+int set_memory_rox(unsigned long addr, int numpages)
+{
+	pgprot_t clr = __pgprot(_PAGE_RW);
+
+	if (__supported_pte_mask & _PAGE_NX)
+		clr.pgprot |= _PAGE_NX;
+
+	return change_page_attr_clear(&addr, numpages, clr, 0);
+}
+
 int set_memory_rw(unsigned long addr, int numpages)
 {
 	return change_page_attr_set(&addr, numpages, __pgprot(_PAGE_RW), 0);
