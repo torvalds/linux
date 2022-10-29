@@ -60,6 +60,7 @@ struct ps_calibration_data {
 struct ps_led_info {
 	const char *name;
 	const char *color;
+	int max_brightness;
 	enum led_brightness (*brightness_get)(struct led_classdev *cdev);
 	int (*brightness_set)(struct led_classdev *cdev, enum led_brightness);
 };
@@ -703,7 +704,7 @@ static int ps_led_register(struct ps_device *ps_dev, struct led_classdev *led,
 		return -ENOMEM;
 
 	led->brightness = 0;
-	led->max_brightness = 1;
+	led->max_brightness = led_info->max_brightness;
 	led->flags = LED_CORE_SUSPENDRESUME;
 	led->brightness_get = led_info->brightness_get;
 	led->brightness_set_blocking = led_info->brightness_set;
@@ -1459,15 +1460,15 @@ static struct ps_device *dualsense_create(struct hid_device *hdev)
 	int i, ret;
 
 	static const struct ps_led_info player_leds_info[] = {
-		{ LED_FUNCTION_PLAYER1, "white", dualsense_player_led_get_brightness,
+		{ LED_FUNCTION_PLAYER1, "white", 1, dualsense_player_led_get_brightness,
 				dualsense_player_led_set_brightness },
-		{ LED_FUNCTION_PLAYER2, "white", dualsense_player_led_get_brightness,
+		{ LED_FUNCTION_PLAYER2, "white", 1, dualsense_player_led_get_brightness,
 				dualsense_player_led_set_brightness },
-		{ LED_FUNCTION_PLAYER3, "white", dualsense_player_led_get_brightness,
+		{ LED_FUNCTION_PLAYER3, "white", 1, dualsense_player_led_get_brightness,
 				dualsense_player_led_set_brightness },
-		{ LED_FUNCTION_PLAYER4, "white", dualsense_player_led_get_brightness,
+		{ LED_FUNCTION_PLAYER4, "white", 1, dualsense_player_led_get_brightness,
 				dualsense_player_led_set_brightness },
-		{ LED_FUNCTION_PLAYER5, "white", dualsense_player_led_get_brightness,
+		{ LED_FUNCTION_PLAYER5, "white", 1, dualsense_player_led_get_brightness,
 				dualsense_player_led_set_brightness }
 	};
 
