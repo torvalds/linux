@@ -316,6 +316,17 @@ struct dualsense_output_report {
 /* Battery status within batery_status field. */
 #define DS4_BATTERY_STATUS_FULL		11
 
+/* The lower 6 bits of hw_control of the Bluetooth main output report
+ * control the interval at which Dualshock 4 reports data:
+ * 0x00 - 1ms
+ * 0x01 - 1ms
+ * 0x02 - 2ms
+ * 0x3E - 62ms
+ * 0x3F - disabled
+ */
+#define DS4_OUTPUT_HWCTL_BT_POLL_MASK	0x3F
+/* Default to 4ms poll interval, which is same as USB (not adjustable). */
+#define DS4_BT_DEFAULT_POLL_INTERVAL_MS	4
 #define DS4_OUTPUT_HWCTL_CRC32		0x40
 #define DS4_OUTPUT_HWCTL_HID		0x80
 
@@ -347,6 +358,10 @@ struct dualshock4 {
 	bool sensor_timestamp_initialized;
 	uint32_t prev_sensor_timestamp;
 	uint32_t sensor_timestamp_us;
+
+	/* Bluetooth poll interval */
+	bool update_bt_poll_interval;
+	uint8_t bt_poll_interval;
 
 	bool update_rumble;
 	uint8_t motor_left;
@@ -2010,6 +2025,11 @@ static void dualshock4_output_worker(struct work_struct *work)
 		 */
 		report.bt->hw_control = DS4_OUTPUT_HWCTL_HID | DS4_OUTPUT_HWCTL_CRC32;
 
+		if (ds4->update_bt_poll_interval) {
+			report.bt->hw_control |= ds4->bt_poll_interval;
+			ds4->update_bt_poll_interval = false;
+		}
+
 		crc = crc32_le(0xFFFFFFFF, &seed, 1);
 		crc = ~crc32_le(crc, report.data, report.len - 4);
 
@@ -2241,6 +2261,13 @@ static inline void dualshock4_schedule_work(struct dualshock4 *ds4)
 	spin_unlock_irqrestore(&ds4->base.lock, flags);
 }
 
+static void dualshock4_set_bt_poll_interval(struct dualshock4 *ds4, uint8_t interval)
+{
+	ds4->bt_poll_interval = interval;
+	ds4->update_bt_poll_interval = true;
+	dualshock4_schedule_work(ds4);
+}
+
 /* Set default lightbar color based on player. */
 static void dualshock4_set_default_lightbar_colors(struct dualshock4 *ds4)
 {
@@ -2371,6 +2398,8 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 		if (ret < 0)
 			goto err;
 	}
+
+	dualshock4_set_bt_poll_interval(ds4, DS4_BT_DEFAULT_POLL_INTERVAL_MS);
 
 	ret = ps_device_set_player_id(ps_dev);
 	if (ret) {
