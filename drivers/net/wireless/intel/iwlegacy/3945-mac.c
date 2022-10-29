@@ -3435,6 +3435,7 @@ static const struct attribute_group il3945_attribute_group = {
 
 static struct ieee80211_ops il3945_mac_ops __ro_after_init = {
 	.tx = il3945_mac_tx,
+	.wake_tx_queue = ieee80211_handle_wake_tx_queue,
 	.start = il3945_mac_start,
 	.stop = il3945_mac_stop,
 	.add_interface = il_mac_add_interface,

@@ -31,6 +31,8 @@ const u32 rtw89_mac_mem_base_addrs[RTW89_MAC_MEM_NUM] = {
 	[RTW89_MAC_MEM_TXDATA_FIFO_1]	= TXDATA_FIFO_1_BASE_ADDR,
 	[RTW89_MAC_MEM_CPU_LOCAL]	= CPU_LOCAL_BASE_ADDR,
 	[RTW89_MAC_MEM_BSSID_CAM]	= BSSID_CAM_BASE_ADDR,
+	[RTW89_MAC_MEM_TXD_FIFO_0_V1]	= TXD_FIFO_0_BASE_ADDR_V1,
+	[RTW89_MAC_MEM_TXD_FIFO_1_V1]	= TXD_FIFO_1_BASE_ADDR_V1,
 };
 
 static void rtw89_mac_mem_write(struct rtw89_dev *rtwdev, u32 offset,
@@ -4819,6 +4821,7 @@ int rtw89_mac_read_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 *val)
 
 	return 0;
 }
+EXPORT_SYMBOL(rtw89_mac_read_xtal_si);
 
 static
 void rtw89_mac_pkt_drop_sta(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta)

@@ -54,7 +54,7 @@ static struct rtl8xxxu_power_base rtl8723a_power_base = {
 	.reg_0868 = 0x02040608,
 };
 
-static struct rtl8xxxu_rfregval rtl8723au_radioa_1t_init_table[] = {
+static const struct rtl8xxxu_rfregval rtl8723au_radioa_1t_init_table[] = {
 	{0x00, 0x00030159}, {0x01, 0x00031284},
 	{0x02, 0x00098000}, {0x03, 0x00039c63},
 	{0x04, 0x000210e7}, {0x09, 0x0002044f},
@@ -366,6 +366,7 @@ struct rtl8xxxu_fileops rtl8723au_fops = {
 	.llt_init = rtl8xxxu_init_llt_table,
 	.init_phy_bb = rtl8xxxu_gen1_init_phy_bb,
 	.init_phy_rf = rtl8723au_init_phy_rf,
+	.phy_lc_calibrate = rtl8723a_phy_lc_calibrate,
 	.phy_iq_calibrate = rtl8xxxu_gen1_phy_iq_calibrate,
 	.config_channel = rtl8xxxu_gen1_config_channel,
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc16,

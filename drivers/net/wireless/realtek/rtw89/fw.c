@@ -2565,6 +2565,9 @@ static void rtw89_hw_scan_add_chan(struct rtw89_dev *rtwdev, int chan_type,
 				   struct rtw89_mac_chinfo *ch_info)
 {
 	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
+	struct ieee80211_vif *vif = rtwdev->scan_info.scanning_vif;
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	struct cfg80211_scan_request *req = rtwvif->scan_req;
 	struct rtw89_pktofld_info *info;
 	u8 band, probe_count = 0;
 
@@ -2576,13 +2579,13 @@ static void rtw89_hw_scan_add_chan(struct rtw89_dev *rtwdev, int chan_type,
 	ch_info->tx_pwr_idx = 0;
 	ch_info->tx_null = false;
 	ch_info->pause_data = false;
+	ch_info->probe_id = RTW89_SCANOFLD_PKT_NONE;
 
 	if (ssid_num) {
 		ch_info->num_pkt = ssid_num;
 		band = rtw89_hw_to_nl80211_band(ch_info->ch_band);
 
 		list_for_each_entry(info, &scan_info->pkt_list[band], list) {
-			ch_info->probe_id = info->id;
 			ch_info->pkt_id[probe_count] = info->id;
 			if (++probe_count >= ssid_num)
 				break;
@@ -2591,9 +2594,16 @@ static void rtw89_hw_scan_add_chan(struct rtw89_dev *rtwdev, int chan_type,
 			rtw89_err(rtwdev, "SSID num differs from list len\n");
 	}
 
+	if (ch_info->ch_band == RTW89_BAND_6G) {
+		if (ssid_num == 1 && req->ssids[0].ssid_len == 0) {
+			ch_info->tx_pkt = false;
+			if (!req->duration_mandatory)
+				ch_info->period -= RTW89_DWELL_TIME;
+		}
+	}
+
 	switch (chan_type) {
 	case RTW89_CHAN_OPERATE:
-		ch_info->probe_id = RTW89_SCANOFLD_PKT_NONE;
 		ch_info->central_ch = scan_info->op_chan;
 		ch_info->pri_ch = scan_info->op_pri_ch;
 		ch_info->ch_band = scan_info->op_band;
@@ -2602,8 +2612,9 @@ static void rtw89_hw_scan_add_chan(struct rtw89_dev *rtwdev, int chan_type,
 		ch_info->num_pkt = 0;
 		break;
 	case RTW89_CHAN_DFS:
-		ch_info->period = max_t(u8, ch_info->period,
-					RTW89_DFS_CHAN_TIME);
+		if (ch_info->ch_band != RTW89_BAND_6G)
+			ch_info->period = max_t(u8, ch_info->period,
+						RTW89_DFS_CHAN_TIME);
 		ch_info->dwell_time = RTW89_DWELL_TIME;
 		break;
 	case RTW89_CHAN_ACTIVE:
@@ -2637,8 +2648,13 @@ static int rtw89_hw_scan_add_chan_list(struct rtw89_dev *rtwdev,
 			goto out;
 		}
 
-		ch_info->period = req->duration_mandatory ?
-				  req->duration : RTW89_CHANNEL_TIME;
+		if (req->duration_mandatory)
+			ch_info->period = req->duration;
+		else if (channel->band == NL80211_BAND_6GHZ)
+			ch_info->period = RTW89_CHANNEL_TIME_6G + RTW89_DWELL_TIME;
+		else
+			ch_info->period = RTW89_CHANNEL_TIME;
+
 		ch_info->ch_band = rtw89_nl80211_to_hw_band(channel->band);
 		ch_info->central_ch = channel->hw_value;
 		ch_info->pri_ch = channel->hw_value;
@@ -2757,6 +2773,7 @@ void rtw89_hw_scan_complete(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 
 	if (rtwvif->net_type != RTW89_NET_TYPE_NO_LINK)
 		rtw89_store_op_chan(rtwdev, false);
+	rtw89_set_channel(rtwdev);
 }
 
 void rtw89_hw_scan_abort(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)

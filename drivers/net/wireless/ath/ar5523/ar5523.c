@@ -1355,6 +1355,7 @@ static const struct ieee80211_ops ar5523_ops = {
 	.start			= ar5523_start,
 	.stop			= ar5523_stop,
 	.tx			= ar5523_tx,
+	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.set_rts_threshold	= ar5523_set_rts_threshold,
 	.add_interface		= ar5523_add_interface,
 	.remove_interface	= ar5523_remove_interface,

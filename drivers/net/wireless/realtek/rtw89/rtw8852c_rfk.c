@@ -22,8 +22,7 @@ static const u32 _tssi_de_mcs_5m[RF_PATH_NUM_8852C] = {0x5828, 0x7828};
 static const u32 _tssi_de_mcs_10m[RF_PATH_NUM_8852C] = {0x5830, 0x7830};
 
 static const u32 rtw8852c_backup_bb_regs[] = {
-	0x813c, 0x8124, 0x8120, 0xc0d4, 0xc0d8, 0xc0e8, 0x823c, 0x8224, 0x8220,
-	0xc1d4, 0xc1d8, 0xc1e8
+	0x8120, 0xc0d4, 0xc0d8, 0xc0e8, 0x8220, 0xc1d4, 0xc1d8, 0xc1e8
 };
 
 static const u32 rtw8852c_backup_rf_regs[] = {
@@ -1667,7 +1666,7 @@ static u8 _dpk_one_shot(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 
 	ret = read_poll_timeout_atomic(rtw89_phy_read32_mask, val, val == 0x55,
 				       10, 20000, false, rtwdev, 0xbff8, MASKBYTE0);
-	mdelay(10);
+	udelay(10);
 	rtw89_phy_write32_clr(rtwdev, R_NCTL_N1, MASKBYTE0);
 
 	rtw89_debug(rtwdev, RTW89_DBG_RFK,

@@ -1361,6 +1361,7 @@ static const struct ieee80211_ops wcn36xx_ops = {
 	.prepare_multicast	= wcn36xx_prepare_multicast,
 	.configure_filter       = wcn36xx_configure_filter,
 	.tx			= wcn36xx_tx,
+	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.set_key		= wcn36xx_set_key,
 	.hw_scan		= wcn36xx_hw_scan,
 	.cancel_hw_scan		= wcn36xx_cancel_hw_scan,

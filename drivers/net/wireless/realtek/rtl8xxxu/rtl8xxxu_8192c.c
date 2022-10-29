@@ -77,7 +77,7 @@ static struct rtl8xxxu_power_base rtl8188r_power_base = {
 	.reg_0868 = 0x00020204,
 };
 
-static struct rtl8xxxu_rfregval rtl8192cu_radioa_2t_init_table[] = {
+static const struct rtl8xxxu_rfregval rtl8192cu_radioa_2t_init_table[] = {
 	{0x00, 0x00030159}, {0x01, 0x00031284},
 	{0x02, 0x00098000}, {0x03, 0x00018c63},
 	{0x04, 0x000210e7}, {0x09, 0x0002044f},
@@ -152,7 +152,7 @@ static struct rtl8xxxu_rfregval rtl8192cu_radioa_2t_init_table[] = {
 	{0xff, 0xffffffff}
 };
 
-static struct rtl8xxxu_rfregval rtl8192cu_radiob_2t_init_table[] = {
+static const struct rtl8xxxu_rfregval rtl8192cu_radiob_2t_init_table[] = {
 	{0x00, 0x00030159}, {0x01, 0x00031284},
 	{0x02, 0x00098000}, {0x03, 0x00018c63},
 	{0x04, 0x000210e7}, {0x09, 0x0002044f},
@@ -176,7 +176,7 @@ static struct rtl8xxxu_rfregval rtl8192cu_radiob_2t_init_table[] = {
 	{0xff, 0xffffffff}
 };
 
-static struct rtl8xxxu_rfregval rtl8192cu_radioa_1t_init_table[] = {
+static const struct rtl8xxxu_rfregval rtl8192cu_radioa_1t_init_table[] = {
 	{0x00, 0x00030159}, {0x01, 0x00031284},
 	{0x02, 0x00098000}, {0x03, 0x00018c63},
 	{0x04, 0x000210e7}, {0x09, 0x0002044f},
@@ -251,7 +251,7 @@ static struct rtl8xxxu_rfregval rtl8192cu_radioa_1t_init_table[] = {
 	{0xff, 0xffffffff}
 };
 
-static struct rtl8xxxu_rfregval rtl8188ru_radioa_1t_highpa_table[] = {
+static const struct rtl8xxxu_rfregval rtl8188ru_radioa_1t_highpa_table[] = {
 	{0x00, 0x00030159}, {0x01, 0x00031284},
 	{0x02, 0x00098000}, {0x03, 0x00018c63},
 	{0x04, 0x000210e7}, {0x09, 0x0002044f},
@@ -413,7 +413,7 @@ static int rtl8192cu_parse_efuse(struct rtl8xxxu_priv *priv)
 
 static int rtl8192cu_init_phy_rf(struct rtl8xxxu_priv *priv)
 {
-	struct rtl8xxxu_rfregval *rftable;
+	const struct rtl8xxxu_rfregval *rftable;
 	int ret;
 
 	if (priv->rtl_chip == RTL8188R) {
@@ -549,6 +549,7 @@ struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.llt_init = rtl8xxxu_init_llt_table,
 	.init_phy_bb = rtl8xxxu_gen1_init_phy_bb,
 	.init_phy_rf = rtl8192cu_init_phy_rf,
+	.phy_lc_calibrate = rtl8723a_phy_lc_calibrate,
 	.phy_iq_calibrate = rtl8xxxu_gen1_phy_iq_calibrate,
 	.config_channel = rtl8xxxu_gen1_config_channel,
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc16,
