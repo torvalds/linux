@@ -291,16 +291,42 @@ struct dualsense_output_report {
 #define DS4_FEATURE_REPORT_PAIRING_INFO		0x12
 #define DS4_FEATURE_REPORT_PAIRING_INFO_SIZE	16
 
+/*
+ * Status of a DualShock4 touch point contact.
+ * Contact IDs, with highest bit set are 'inactive'
+ * and any associated data is then invalid.
+ */
+#define DS4_TOUCH_POINT_INACTIVE BIT(7)
+
 /* Status field of DualShock4 input report. */
 #define DS4_STATUS0_BATTERY_CAPACITY	GENMASK(3, 0)
 #define DS4_STATUS0_CABLE_STATE		BIT(4)
 /* Battery status within batery_status field. */
 #define DS4_BATTERY_STATUS_FULL		11
 
+/* DualShock4 hardware limits */
+#define DS4_TOUCHPAD_WIDTH	1920
+#define DS4_TOUCHPAD_HEIGHT	942
+
 struct dualshock4 {
 	struct ps_device base;
 	struct input_dev *gamepad;
+	struct input_dev *touchpad;
 };
+
+struct dualshock4_touch_point {
+	uint8_t contact;
+	uint8_t x_lo;
+	uint8_t x_hi:4, y_lo:4;
+	uint8_t y_hi;
+} __packed;
+static_assert(sizeof(struct dualshock4_touch_point) == 4);
+
+struct dualshock4_touch_report {
+	uint8_t timestamp;
+	struct dualshock4_touch_point points[2];
+} __packed;
+static_assert(sizeof(struct dualshock4_touch_report) == 9);
 
 /* Main DualShock4 input report excluding any BT/USB specific headers. */
 struct dualshock4_input_report_common {
@@ -317,7 +343,9 @@ static_assert(sizeof(struct dualshock4_input_report_common) == 32);
 struct dualshock4_input_report_usb {
 	uint8_t report_id; /* 0x01 */
 	struct dualshock4_input_report_common common;
-	uint8_t reserved[31];
+	uint8_t num_touch_reports;
+	struct dualshock4_touch_report touch_reports[3];
+	uint8_t reserved[3];
 } __packed;
 static_assert(sizeof(struct dualshock4_input_report_usb) == DS4_INPUT_REPORT_USB_SIZE);
 
@@ -1556,8 +1584,9 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 	struct hid_device *hdev = ps_dev->hdev;
 	struct dualshock4 *ds4 = container_of(ps_dev, struct dualshock4, base);
 	struct dualshock4_input_report_common *ds4_report;
-	uint8_t battery_capacity, value;
-	int battery_status;
+	struct dualshock4_touch_report *touch_reports;
+	uint8_t battery_capacity, num_touch_reports, value;
+	int battery_status, i, j;
 	unsigned long flags;
 
 	/*
@@ -1570,6 +1599,8 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 		struct dualshock4_input_report_usb *usb = (struct dualshock4_input_report_usb *)data;
 
 		ds4_report = &usb->common;
+		num_touch_reports = usb->num_touch_reports;
+		touch_reports = usb->touch_reports;
 	} else {
 		hid_err(hdev, "Unhandled reportID=%d\n", report->id);
 		return -1;
@@ -1602,6 +1633,29 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 	input_report_key(ds4->gamepad, BTN_THUMBR, ds4_report->buttons[1] & DS_BUTTONS1_R3);
 	input_report_key(ds4->gamepad, BTN_MODE,   ds4_report->buttons[2] & DS_BUTTONS2_PS_HOME);
 	input_sync(ds4->gamepad);
+
+	for (i = 0; i < num_touch_reports; i++) {
+		struct dualshock4_touch_report *touch_report = &touch_reports[i];
+
+		for (j = 0; j < ARRAY_SIZE(touch_report->points); j++) {
+			struct dualshock4_touch_point *point = &touch_report->points[j];
+			bool active = (point->contact & DS4_TOUCH_POINT_INACTIVE) ? false : true;
+
+			input_mt_slot(ds4->touchpad, j);
+			input_mt_report_slot_state(ds4->touchpad, MT_TOOL_FINGER, active);
+
+			if (active) {
+				int x = (point->x_hi << 8) | point->x_lo;
+				int y = (point->y_hi << 4) | point->y_lo;
+
+				input_report_abs(ds4->touchpad, ABS_MT_POSITION_X, x);
+				input_report_abs(ds4->touchpad, ABS_MT_POSITION_Y, y);
+			}
+		}
+		input_mt_sync_frame(ds4->touchpad);
+		input_sync(ds4->touchpad);
+	}
+	input_report_key(ds4->touchpad, BTN_LEFT, ds4_report->buttons[2] & DS_BUTTONS2_TOUCHPAD);
 
 	/*
 	 * Interpretation of the battery_capacity data depends on the cable state.
@@ -1697,6 +1751,12 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 	ds4->gamepad = ps_gamepad_create(hdev, NULL);
 	if (IS_ERR(ds4->gamepad)) {
 		ret = PTR_ERR(ds4->gamepad);
+		goto err;
+	}
+
+	ds4->touchpad = ps_touchpad_create(hdev, DS4_TOUCHPAD_WIDTH, DS4_TOUCHPAD_HEIGHT, 2);
+	if (IS_ERR(ds4->touchpad)) {
+		ret = PTR_ERR(ds4->touchpad);
 		goto err;
 	}
 
