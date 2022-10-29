@@ -198,8 +198,11 @@ static bool ipa_mem_id_required(struct ipa *ipa, enum ipa_mem_id mem_id)
 
 	case IPA_MEM_PDN_CONFIG:
 	case IPA_MEM_STATS_QUOTA_MODEM:
-	case IPA_MEM_STATS_TETHERING:
 		return ipa->version >= IPA_VERSION_4_0;
+
+	case IPA_MEM_STATS_TETHERING:
+		return ipa->version >= IPA_VERSION_4_0 &&
+			ipa->version != IPA_VERSION_5_0;
 
 	default:
 		return false;		/* Anything else is optional */
