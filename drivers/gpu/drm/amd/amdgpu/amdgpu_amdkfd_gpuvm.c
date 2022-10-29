@@ -1907,16 +1907,6 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 	 */
 	mutex_lock(&mem->process_info->lock);
 
-	/* Lock mmap-sem. If we find an invalid userptr BO, we can be
-	 * sure that the MMU notifier is no longer running
-	 * concurrently and the queues are actually stopped
-	 */
-	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm)) {
-		mmap_write_lock(current->mm);
-		is_invalid_userptr = atomic_read(&mem->invalid);
-		mmap_write_unlock(current->mm);
-	}
-
 	mutex_lock(&mem->lock);
 
 	domain = mem->domain;
