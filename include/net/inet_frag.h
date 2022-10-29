@@ -7,6 +7,7 @@
 #include <linux/in6.h>
 #include <linux/rbtree_types.h>
 #include <linux/refcount.h>
+#include <net/dropreason.h>
 
 /* Per netns frag queues directory */
 struct fqdir {
@@ -34,12 +35,14 @@ struct fqdir {
  * @INET_FRAG_LAST_IN: final fragment has arrived
  * @INET_FRAG_COMPLETE: frag queue has been processed and is due for destruction
  * @INET_FRAG_HASH_DEAD: inet_frag_kill() has not removed fq from rhashtable
+ * @INET_FRAG_DROP: if skbs must be dropped (instead of being consumed)
  */
 enum {
 	INET_FRAG_FIRST_IN	= BIT(0),
 	INET_FRAG_LAST_IN	= BIT(1),
 	INET_FRAG_COMPLETE	= BIT(2),
 	INET_FRAG_HASH_DEAD	= BIT(3),
+	INET_FRAG_DROP		= BIT(4),
 };
 
 struct frag_v4_compare_key {
@@ -139,7 +142,8 @@ void inet_frag_destroy(struct inet_frag_queue *q);
 struct inet_frag_queue *inet_frag_find(struct fqdir *fqdir, void *key);
 
 /* Free all skbs in the queue; return the sum of their truesizes. */
-unsigned int inet_frag_rbtree_purge(struct rb_root *root);
+unsigned int inet_frag_rbtree_purge(struct rb_root *root,
+				    enum skb_drop_reason reason);
 
 static inline void inet_frag_put(struct inet_frag_queue *q)
 {
