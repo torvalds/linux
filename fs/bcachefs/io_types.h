@@ -146,8 +146,6 @@ struct bch_write_op {
 	u64			new_i_size;
 	s64			i_sectors_delta;
 
-	int			(*index_update_fn)(struct bch_write_op *);
-
 	struct bch_devs_mask	failed;
 
 	struct keylist		insert_keys;

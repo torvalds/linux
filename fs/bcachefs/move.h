@@ -41,6 +41,7 @@ struct migrate_write {
 	struct bch_write_op	op;
 };
 
+int bch2_migrate_index_update(struct bch_write_op *);
 void bch2_migrate_read_done(struct migrate_write *, struct bch_read_bio *);
 int bch2_migrate_write_init(struct bch_fs *, struct migrate_write *,
 			    struct write_point_specifier,

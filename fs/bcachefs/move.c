@@ -52,7 +52,7 @@ struct moving_context {
 	wait_queue_head_t	wait;
 };
 
-static int bch2_migrate_index_update(struct bch_write_op *op)
+int bch2_migrate_index_update(struct bch_write_op *op)
 {
 	struct bch_fs *c = op->c;
 	struct btree_trans trans;
@@ -266,11 +266,11 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 	m->op.flags |= BCH_WRITE_PAGES_STABLE|
 		BCH_WRITE_PAGES_OWNED|
 		BCH_WRITE_DATA_ENCODED|
-		BCH_WRITE_FROM_INTERNAL;
+		BCH_WRITE_FROM_INTERNAL|
+		BCH_WRITE_MOVE;
 
 	m->op.nr_replicas	= data_opts.nr_replicas;
 	m->op.nr_replicas_required = data_opts.nr_replicas;
-	m->op.index_update_fn	= bch2_migrate_index_update;
 
 	switch (data_cmd) {
 	case DATA_ADD_REPLICAS: {

@@ -29,22 +29,38 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *, struct bch_fs *,
 const char *bch2_blk_status_to_str(blk_status_t);
 
 enum bch_write_flags {
-	BCH_WRITE_ALLOC_NOWAIT		= (1 << 0),
-	BCH_WRITE_CACHED		= (1 << 1),
-	BCH_WRITE_FLUSH			= (1 << 2),
-	BCH_WRITE_DATA_ENCODED		= (1 << 3),
-	BCH_WRITE_PAGES_STABLE		= (1 << 4),
-	BCH_WRITE_PAGES_OWNED		= (1 << 5),
-	BCH_WRITE_ONLY_SPECIFIED_DEVS	= (1 << 6),
-	BCH_WRITE_WROTE_DATA_INLINE	= (1 << 7),
-	BCH_WRITE_FROM_INTERNAL		= (1 << 8),
-	BCH_WRITE_CHECK_ENOSPC		= (1 << 9),
-
-	/* Internal: */
-	BCH_WRITE_JOURNAL_SEQ_PTR	= (1 << 10),
-	BCH_WRITE_SKIP_CLOSURE_PUT	= (1 << 11),
-	BCH_WRITE_DONE			= (1 << 12),
+	__BCH_WRITE_ALLOC_NOWAIT,
+	__BCH_WRITE_CACHED,
+	__BCH_WRITE_FLUSH,
+	__BCH_WRITE_DATA_ENCODED,
+	__BCH_WRITE_PAGES_STABLE,
+	__BCH_WRITE_PAGES_OWNED,
+	__BCH_WRITE_ONLY_SPECIFIED_DEVS,
+	__BCH_WRITE_WROTE_DATA_INLINE,
+	__BCH_WRITE_FROM_INTERNAL,
+	__BCH_WRITE_CHECK_ENOSPC,
+	__BCH_WRITE_MOVE,
+	__BCH_WRITE_JOURNAL_SEQ_PTR,
+	__BCH_WRITE_SKIP_CLOSURE_PUT,
+	__BCH_WRITE_DONE,
 };
+
+#define BCH_WRITE_ALLOC_NOWAIT		(1U << __BCH_WRITE_ALLOC_NOWAIT)
+#define BCH_WRITE_CACHED		(1U << __BCH_WRITE_CACHED)
+#define BCH_WRITE_FLUSH			(1U << __BCH_WRITE_FLUSH)
+#define BCH_WRITE_DATA_ENCODED		(1U << __BCH_WRITE_DATA_ENCODED)
+#define BCH_WRITE_PAGES_STABLE		(1U << __BCH_WRITE_PAGES_STABLE)
+#define BCH_WRITE_PAGES_OWNED		(1U << __BCH_WRITE_PAGES_OWNED)
+#define BCH_WRITE_ONLY_SPECIFIED_DEVS	(1U << __BCH_WRITE_ONLY_SPECIFIED_DEVS)
+#define BCH_WRITE_WROTE_DATA_INLINE	(1U << __BCH_WRITE_WROTE_DATA_INLINE)
+#define BCH_WRITE_FROM_INTERNAL		(1U << __BCH_WRITE_FROM_INTERNAL)
+#define BCH_WRITE_CHECK_ENOSPC		(1U << __BCH_WRITE_CHECK_ENOSPC)
+#define BCH_WRITE_MOVE			(1U << __BCH_WRITE_MOVE)
+
+/* Internal: */
+#define BCH_WRITE_JOURNAL_SEQ_PTR	(1U << __BCH_WRITE_JOURNAL_SEQ_PTR)
+#define BCH_WRITE_SKIP_CLOSURE_PUT	(1U << __BCH_WRITE_SKIP_CLOSURE_PUT)
+#define BCH_WRITE_DONE			(1U << __BCH_WRITE_DONE)
 
 static inline u64 *op_journal_seq(struct bch_write_op *op)
 {
@@ -74,8 +90,6 @@ int bch2_fpunch_at(struct btree_trans *, struct btree_iter *,
 		   struct bpos, u64 *, s64 *);
 int bch2_fpunch(struct bch_fs *c, u64, u64, u64, u64 *, s64 *);
 
-int bch2_write_index_default(struct bch_write_op *);
-
 static inline void bch2_write_op_init(struct bch_write_op *op, struct bch_fs *c,
 				      struct bch_io_opts opts)
 {
@@ -101,7 +115,6 @@ static inline void bch2_write_op_init(struct bch_write_op *op, struct bch_fs *c,
 	op->journal_seq		= 0;
 	op->new_i_size		= U64_MAX;
 	op->i_sectors_delta	= 0;
-	op->index_update_fn	= bch2_write_index_default;
 }
 
 void bch2_write(struct closure *);

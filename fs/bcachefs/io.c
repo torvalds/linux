@@ -432,7 +432,7 @@ int bch2_fpunch(struct bch_fs *c, u64 inum, u64 start, u64 end,
 	return ret;
 }
 
-int bch2_write_index_default(struct bch_write_op *op)
+static int bch2_write_index_default(struct bch_write_op *op)
 {
 	struct bch_fs *c = op->c;
 	struct bkey_buf sk;
@@ -577,7 +577,7 @@ static void __bch2_write_index(struct bch_write_op *op)
 	struct bch_extent_ptr *ptr;
 	struct bkey_i *src, *dst = keys->keys, *n, *k;
 	unsigned dev;
-	int ret;
+	int ret = 0;
 
 	for (src = keys->keys; src != keys->top; src = n) {
 		n = bkey_next(src);
@@ -614,7 +614,10 @@ static void __bch2_write_index(struct bch_write_op *op)
 
 	if (!bch2_keylist_empty(keys)) {
 		u64 sectors_start = keylist_sectors(keys);
-		int ret = op->index_update_fn(op);
+
+		ret = !(op->flags & BCH_WRITE_MOVE)
+			? bch2_write_index_default(op)
+			: bch2_migrate_index_update(op);
 
 		BUG_ON(ret == -EINTR);
 		BUG_ON(keylist_sectors(keys) && !ret);
@@ -624,7 +627,7 @@ static void __bch2_write_index(struct bch_write_op *op)
 		if (ret) {
 			bch_err_inum_ratelimited(c, op->pos.inode,
 				"write error %i from btree update", ret);
-			op->error = ret;
+			goto err;
 		}
 	}
 out:
