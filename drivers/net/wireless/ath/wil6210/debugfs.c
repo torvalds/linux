@@ -2154,7 +2154,7 @@ static const struct file_operations fops_led_blink_time = {
 };
 
 /*---------FW capabilities------------*/
-static int wil_fw_capabilities_debugfs_show(struct seq_file *s, void *data)
+static int fw_capabilities_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
 
@@ -2163,22 +2163,10 @@ static int wil_fw_capabilities_debugfs_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-static int wil_fw_capabilities_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, wil_fw_capabilities_debugfs_show,
-			   inode->i_private);
-}
-
-static const struct file_operations fops_fw_capabilities = {
-	.open		= wil_fw_capabilities_seq_open,
-	.release	= single_release,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-};
+DEFINE_SHOW_ATTRIBUTE(fw_capabilities);
 
 /*---------FW version------------*/
-static int wil_fw_version_debugfs_show(struct seq_file *s, void *data)
+static int fw_version_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
 
@@ -2189,19 +2177,7 @@ static int wil_fw_version_debugfs_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-static int wil_fw_version_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, wil_fw_version_debugfs_show,
-			   inode->i_private);
-}
-
-static const struct file_operations fops_fw_version = {
-	.open		= wil_fw_version_seq_open,
-	.release	= single_release,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-};
+DEFINE_SHOW_ATTRIBUTE(fw_version);
 
 /*---------suspend_stats---------*/
 static ssize_t wil_write_suspend_stats(struct file *file,
@@ -2366,8 +2342,8 @@ static const struct {
 	{"recovery", 0644,		&fops_recovery},
 	{"led_cfg",	0644,		&fops_led_cfg},
 	{"led_blink_time",	0644,	&fops_led_blink_time},
-	{"fw_capabilities",	0444,	&fops_fw_capabilities},
-	{"fw_version",	0444,		&fops_fw_version},
+	{"fw_capabilities",	0444,	&fw_capabilities_fops},
+	{"fw_version",	0444,		&fw_version_fops},
 	{"suspend_stats",	0644,	&fops_suspend_stats},
 	{"compressed_rx_status", 0644,	&fops_compressed_rx_status},
 	{"srings",	0444,		&srings_fops},
