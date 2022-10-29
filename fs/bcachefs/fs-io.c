@@ -2156,6 +2156,8 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 		dio->op.subvol		= inode->ei_subvol;
 		dio->op.pos		= POS(inode->v.i_ino, (u64) req->ki_pos >> 9);
 
+		if (sync)
+			dio->op.flags |= BCH_WRITE_SYNC;
 		if ((req->ki_flags & IOCB_DSYNC) &&
 		    !c->opts.journal_flush_disabled)
 			dio->op.flags |= BCH_WRITE_FLUSH;
