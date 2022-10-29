@@ -817,12 +817,28 @@ static void ublk_submit_cmd(struct ublk_queue *ubq, const struct request *rq)
 	}
 }
 
+static void ublk_queue_cmd(struct ublk_queue *ubq, struct request *rq,
+		bool last)
+{
+	struct ublk_rq_data *data = blk_mq_rq_to_pdu(rq);
+
+	if (ublk_can_use_task_work(ubq)) {
+		enum task_work_notify_mode notify_mode = last ?
+			TWA_SIGNAL_NO_IPI : TWA_NONE;
+
+		if (task_work_add(ubq->ubq_daemon, &data->work, notify_mode))
+			__ublk_abort_rq(ubq, rq);
+	} else {
+		if (llist_add(&data->node, &ubq->io_cmds))
+			ublk_submit_cmd(ubq, rq);
+	}
+}
+
 static blk_status_t ublk_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
 	struct ublk_queue *ubq = hctx->driver_data;
 	struct request *rq = bd->rq;
-	struct ublk_rq_data *data = blk_mq_rq_to_pdu(rq);
 	blk_status_t res;
 
 	/* fill iod to slot in io cmd buffer */
@@ -845,21 +861,12 @@ static blk_status_t ublk_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_mq_start_request(bd->rq);
 
 	if (unlikely(ubq_daemon_is_dying(ubq))) {
- fail:
 		__ublk_abort_rq(ubq, rq);
 		return BLK_STS_OK;
 	}
 
-	if (ublk_can_use_task_work(ubq)) {
-		enum task_work_notify_mode notify_mode = bd->last ?
-			TWA_SIGNAL_NO_IPI : TWA_NONE;
+	ublk_queue_cmd(ubq, rq, bd->last);
 
-		if (task_work_add(ubq->ubq_daemon, &data->work, notify_mode))
-			goto fail;
-	} else {
-		if (llist_add(&data->node, &ubq->io_cmds))
-			ublk_submit_cmd(ubq, rq);
-	}
 	return BLK_STS_OK;
 }
 
@@ -1185,24 +1192,12 @@ static void ublk_mark_io_ready(struct ublk_device *ub, struct ublk_queue *ubq)
 }
 
 static void ublk_handle_need_get_data(struct ublk_device *ub, int q_id,
-		int tag, struct io_uring_cmd *cmd)
+		int tag)
 {
 	struct ublk_queue *ubq = ublk_get_queue(ub, q_id);
 	struct request *req = blk_mq_tag_to_rq(ub->tag_set.tags[q_id], tag);
-	struct ublk_rq_data *data = blk_mq_rq_to_pdu(req);
 
-	if (ublk_can_use_task_work(ubq)) {
-		/* should not fail since we call it just in ubq->ubq_daemon */
-		task_work_add(ubq->ubq_daemon, &data->work, TWA_SIGNAL_NO_IPI);
-	} else {
-		struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
-
-		if (llist_add(&data->node, &ubq->io_cmds)) {
-			pdu->ubq = ubq;
-			io_uring_cmd_complete_in_task(cmd,
-					ublk_rq_task_work_cb);
-		}
-	}
+	ublk_queue_cmd(ubq, req, true);
 }
 
 static int ublk_ch_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
@@ -1290,7 +1285,7 @@ static int ublk_ch_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 		io->addr = ub_cmd->addr;
 		io->cmd = cmd;
 		io->flags |= UBLK_IO_FLAG_ACTIVE;
-		ublk_handle_need_get_data(ub, ub_cmd->q_id, ub_cmd->tag, cmd);
+		ublk_handle_need_get_data(ub, ub_cmd->q_id, ub_cmd->tag);
 		break;
 	default:
 		goto out;
