@@ -798,11 +798,12 @@ static void OnAuthClient(struct adapter *padapter, struct recv_frame *precv_fram
 	unsigned char	*p;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
 	u8 *pframe = precv_frame->rx_data;
 	uint pkt_len = precv_frame->len;
 
 	/* check A1 matches or not */
-	if (memcmp(myid(&padapter->eeprompriv), get_da(pframe), ETH_ALEN))
+	if (memcmp(myid(&padapter->eeprompriv), ieee80211_get_DA(hdr), ETH_ALEN))
 		return;
 
 	if (!(pmlmeinfo->state & WIFI_FW_AUTH_STATE))
