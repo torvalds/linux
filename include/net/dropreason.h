@@ -70,6 +70,7 @@
 	FN(PKT_TOO_BIG)			\
 	FN(DUP_FRAG)			\
 	FN(FRAG_REASM_TIMEOUT)		\
+	FN(FRAG_TOO_FAR)		\
 	FNe(MAX)
 
 /**
@@ -306,6 +307,11 @@ enum skb_drop_reason {
 	SKB_DROP_REASON_DUP_FRAG,
 	/** @SKB_DROP_REASON_FRAG_REASM_TIMEOUT: fragment reassembly timeout */
 	SKB_DROP_REASON_FRAG_REASM_TIMEOUT,
+	/**
+	 * @SKB_DROP_REASON_FRAG_TOO_FAR: ipv4 fragment too far.
+	 * (/proc/sys/net/ipv4/ipfrag_max_dist)
+	 */
+	SKB_DROP_REASON_FRAG_TOO_FAR,
 	/**
 	 * @SKB_DROP_REASON_MAX: the maximum of drop reason, which shouldn't be
 	 * used as a real 'reason'

@@ -256,7 +256,7 @@ static int ip_frag_reinit(struct ipq *qp)
 	}
 
 	sum_truesize = inet_frag_rbtree_purge(&qp->q.rb_fragments,
-					      SKB_DROP_REASON_NOT_SPECIFIED);
+					      SKB_DROP_REASON_FRAG_TOO_FAR);
 	sub_frag_mem_limit(qp->q.fqdir, sum_truesize);
 
 	qp->q.flags = 0;
