@@ -29,7 +29,7 @@ struct pt_regs {
 	unsigned long csr_euen;
 	unsigned long csr_ecfg;
 	unsigned long csr_estat;
-	unsigned long __last[0];
+	unsigned long __last[];
 } __aligned(8);
 
 static inline int regs_irqs_disabled(struct pt_regs *regs)
