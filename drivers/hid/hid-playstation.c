@@ -672,7 +672,8 @@ static struct input_dev *ps_gamepad_create(struct hid_device *hdev,
 	return gamepad;
 }
 
-static int ps_get_report(struct hid_device *hdev, uint8_t report_id, uint8_t *buf, size_t size)
+static int ps_get_report(struct hid_device *hdev, uint8_t report_id, uint8_t *buf, size_t size,
+		bool check_crc)
 {
 	int ret;
 
@@ -693,7 +694,7 @@ static int ps_get_report(struct hid_device *hdev, uint8_t report_id, uint8_t *bu
 		return -EINVAL;
 	}
 
-	if (hdev->bus == BUS_BLUETOOTH) {
+	if (hdev->bus == BUS_BLUETOOTH && check_crc) {
 		/* Last 4 bytes contains crc32. */
 		uint8_t crc_offset = size - 4;
 		uint32_t report_crc = get_unaligned_le32(&buf[crc_offset]);
@@ -894,7 +895,7 @@ static int dualsense_get_calibration_data(struct dualsense *ds)
 		return -ENOMEM;
 
 	ret = ps_get_report(ds->base.hdev, DS_FEATURE_REPORT_CALIBRATION, buf,
-			DS_FEATURE_REPORT_CALIBRATION_SIZE);
+			DS_FEATURE_REPORT_CALIBRATION_SIZE, true);
 	if (ret) {
 		hid_err(ds->base.hdev, "Failed to retrieve DualSense calibration info: %d\n", ret);
 		goto err_free;
@@ -976,7 +977,7 @@ static int dualsense_get_firmware_info(struct dualsense *ds)
 		return -ENOMEM;
 
 	ret = ps_get_report(ds->base.hdev, DS_FEATURE_REPORT_FIRMWARE_INFO, buf,
-			DS_FEATURE_REPORT_FIRMWARE_INFO_SIZE);
+			DS_FEATURE_REPORT_FIRMWARE_INFO_SIZE, true);
 	if (ret) {
 		hid_err(ds->base.hdev, "Failed to retrieve DualSense firmware info: %d\n", ret);
 		goto err_free;
@@ -1009,7 +1010,7 @@ static int dualsense_get_mac_address(struct dualsense *ds)
 		return -ENOMEM;
 
 	ret = ps_get_report(ds->base.hdev, DS_FEATURE_REPORT_PAIRING_INFO, buf,
-			DS_FEATURE_REPORT_PAIRING_INFO_SIZE);
+			DS_FEATURE_REPORT_PAIRING_INFO_SIZE, true);
 	if (ret) {
 		hid_err(ds->base.hdev, "Failed to retrieve DualSense pairing info: %d\n", ret);
 		goto err_free;
@@ -1650,7 +1651,7 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 		return -ENOMEM;
 
 	ret = ps_get_report(hdev, DS4_FEATURE_REPORT_CALIBRATION, buf,
-			DS4_FEATURE_REPORT_CALIBRATION_SIZE);
+			DS4_FEATURE_REPORT_CALIBRATION_SIZE, true);
 	if (ret) {
 		hid_err(hdev, "Failed to retrieve DualShock4 calibration info: %d\n", ret);
 		goto err_free;
@@ -1731,7 +1732,7 @@ static int dualshock4_get_firmware_info(struct dualshock4 *ds4)
 		return -ENOMEM;
 
 	ret = ps_get_report(ds4->base.hdev, DS4_FEATURE_REPORT_FIRMWARE_INFO, buf,
-			DS4_FEATURE_REPORT_FIRMWARE_INFO_SIZE);
+			DS4_FEATURE_REPORT_FIRMWARE_INFO_SIZE, true);
 	if (ret) {
 		hid_err(ds4->base.hdev, "Failed to retrieve DualShock4 firmware info: %d\n", ret);
 		goto err_free;
@@ -1755,7 +1756,7 @@ static int dualshock4_get_mac_address(struct dualshock4 *ds4)
 		return -ENOMEM;
 
 	ret = ps_get_report(ds4->base.hdev, DS4_FEATURE_REPORT_PAIRING_INFO, buf,
-			DS4_FEATURE_REPORT_PAIRING_INFO_SIZE);
+			DS4_FEATURE_REPORT_PAIRING_INFO_SIZE, true);
 	if (ret) {
 		hid_err(ds4->base.hdev, "Failed to retrieve DualShock4 pairing info: %d\n", ret);
 		goto err_free;
