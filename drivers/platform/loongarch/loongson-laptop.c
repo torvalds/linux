@@ -199,6 +199,13 @@ static int loongson_hotkey_resume(struct device *dev)
 	struct key_entry ke;
 	struct backlight_device *bd;
 
+	bd = backlight_device_get_by_type(BACKLIGHT_PLATFORM);
+	if (bd) {
+		loongson_laptop_backlight_update(bd) ?
+		pr_warn("Loongson_backlight: resume brightness failed") :
+		pr_info("Loongson_backlight: resume brightness %d\n", bd->props.brightness);
+	}
+
 	/*
 	 * Only if the firmware supports SW_LID event model, we can handle the
 	 * event. This is for the consideration of development board without EC.
@@ -226,13 +233,6 @@ static int loongson_hotkey_resume(struct device *dev)
 			ke.sw.code = SW_LID;
 			sparse_keymap_report_entry(generic_inputdev, &ke, 1, true);
 		}
-	}
-
-	bd = backlight_device_get_by_type(BACKLIGHT_PLATFORM);
-	if (bd) {
-		loongson_laptop_backlight_update(bd) ?
-		pr_warn("Loongson_backlight: resume brightness failed") :
-		pr_info("Loongson_backlight: resume brightness %d\n", bd->props.brightness);
 	}
 
 	return 0;
