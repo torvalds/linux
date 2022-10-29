@@ -311,6 +311,8 @@ struct dualsense_output_report {
 
 /* Flags for DualShock4 output report. */
 #define DS4_OUTPUT_VALID_FLAG0_MOTOR		0x01
+#define DS4_OUTPUT_VALID_FLAG0_LED		0x02
+#define DS4_OUTPUT_VALID_FLAG0_LED_BLINK	0x04
 
 /* DualShock4 hardware limits */
 #define DS4_ACC_RES_PER_G	8192
@@ -338,6 +340,14 @@ struct dualshock4 {
 	bool update_rumble;
 	uint8_t motor_left;
 	uint8_t motor_right;
+
+	/* Lightbar leds */
+	bool update_lightbar;
+	bool lightbar_enabled; /* For use by global LED control. */
+	uint8_t lightbar_red;
+	uint8_t lightbar_green;
+	uint8_t lightbar_blue;
+	struct led_classdev lightbar_leds[4];
 
 	struct work_struct output_worker;
 	bool output_worker_initialized;
@@ -697,8 +707,14 @@ static int ps_led_register(struct ps_device *ps_dev, struct led_classdev *led,
 {
 	int ret;
 
-	led->name = devm_kasprintf(&ps_dev->hdev->dev, GFP_KERNEL,
-			"%s:%s:%s", ps_dev->input_dev_name, led_info->color, led_info->name);
+	if (led_info->name) {
+		led->name = devm_kasprintf(&ps_dev->hdev->dev, GFP_KERNEL,
+				"%s:%s:%s", ps_dev->input_dev_name, led_info->color, led_info->name);
+	} else {
+		/* Backwards compatible mode for hid-sony, but not compliant with LED class spec. */
+		led->name = devm_kasprintf(&ps_dev->hdev->dev, GFP_KERNEL,
+				"%s:%s", ps_dev->input_dev_name, led_info->color);
+	}
 
 	if (!led->name)
 		return -ENOMEM;
@@ -1746,6 +1762,60 @@ err_free:
 	return ret;
 }
 
+static enum led_brightness dualshock4_led_get_brightness(struct led_classdev *led)
+{
+	struct hid_device *hdev = to_hid_device(led->dev->parent);
+	struct dualshock4 *ds4 = hid_get_drvdata(hdev);
+	unsigned int led_index;
+
+	led_index = led - ds4->lightbar_leds;
+	switch (led_index) {
+	case 0:
+		return ds4->lightbar_red;
+	case 1:
+		return ds4->lightbar_green;
+	case 2:
+		return ds4->lightbar_blue;
+	case 3:
+		return ds4->lightbar_enabled;
+	}
+
+	return -1;
+}
+
+static int dualshock4_led_set_brightness(struct led_classdev *led, enum led_brightness value)
+{
+	struct hid_device *hdev = to_hid_device(led->dev->parent);
+	struct dualshock4 *ds4 = hid_get_drvdata(hdev);
+	unsigned long flags;
+	unsigned int led_index;
+
+	spin_lock_irqsave(&ds4->base.lock, flags);
+
+	led_index = led - ds4->lightbar_leds;
+	switch (led_index) {
+	case 0:
+		ds4->lightbar_red = value;
+		break;
+	case 1:
+		ds4->lightbar_green = value;
+		break;
+	case 2:
+		ds4->lightbar_blue = value;
+		break;
+	case 3:
+		ds4->lightbar_enabled = !!value;
+	}
+
+	ds4->update_lightbar = true;
+
+	spin_unlock_irqrestore(&ds4->base.lock, flags);
+
+	dualshock4_schedule_work(ds4);
+
+	return 0;
+}
+
 static void dualshock4_init_output_report(struct dualshock4 *ds4,
 		struct dualshock4_output_report *rp, void *buf)
 {
@@ -1782,6 +1852,18 @@ static void dualshock4_output_worker(struct work_struct *work)
 		common->motor_left = ds4->motor_left;
 		common->motor_right = ds4->motor_right;
 		ds4->update_rumble = false;
+	}
+
+	if (ds4->update_lightbar) {
+		common->valid_flag0 |= DS4_OUTPUT_VALID_FLAG0_LED;
+		/* Comptabile behavior with hid-sony, which used a dummy global LED to
+		 * allow enabling/disabling the lightbar. The global LED maps to
+		 * lightbar_enabled.
+		 */
+		common->lightbar_red = ds4->lightbar_enabled ? ds4->lightbar_red : 0;
+		common->lightbar_green = ds4->lightbar_enabled ? ds4->lightbar_green : 0;
+		common->lightbar_blue = ds4->lightbar_enabled ? ds4->lightbar_blue : 0;
+		ds4->update_lightbar = false;
 	}
 
 	spin_unlock_irqrestore(&ds4->base.lock, flags);
@@ -1998,12 +2080,52 @@ static inline void dualshock4_schedule_work(struct dualshock4 *ds4)
 	spin_unlock_irqrestore(&ds4->base.lock, flags);
 }
 
+/* Set default lightbar color based on player. */
+static void dualshock4_set_default_lightbar_colors(struct dualshock4 *ds4)
+{
+	/* Use same player colors as PlayStation 4.
+	 * Array of colors is in RGB.
+	 */
+	static const int player_colors[4][3] = {
+		{ 0x00, 0x00, 0x40 }, /* Blue */
+		{ 0x40, 0x00, 0x00 }, /* Red */
+		{ 0x00, 0x40, 0x00 }, /* Green */
+		{ 0x20, 0x00, 0x20 }  /* Pink */
+	};
+
+	uint8_t player_id = ds4->base.player_id % ARRAY_SIZE(player_colors);
+
+	ds4->lightbar_enabled = true;
+	ds4->lightbar_red = player_colors[player_id][0];
+	ds4->lightbar_green = player_colors[player_id][1];
+	ds4->lightbar_blue = player_colors[player_id][2];
+
+	ds4->update_lightbar = true;
+	dualshock4_schedule_work(ds4);
+}
+
 static struct ps_device *dualshock4_create(struct hid_device *hdev)
 {
 	struct dualshock4 *ds4;
 	struct ps_device *ps_dev;
 	uint8_t max_output_report_size;
-	int ret;
+	int i, ret;
+
+	/* The DualShock4 has an RGB lightbar, which the original hid-sony driver
+	 * exposed as a set of 4 LEDs for the 3 color channels and a global control.
+	 * Ideally this should have used the multi-color LED class, which didn't exist
+	 * yet. In addition the driver used a naming scheme not compliant with the LED
+	 * naming spec by using "<mac_address>:<color>", which contained many colons.
+	 * We use a more compliant by using "<device_name>:<color>" name now. Ideally
+	 * would have been "<device_name>:<color>:indicator", but that would break
+	 * existing applications (e.g. Android). Nothing matches against MAC address.
+	 */
+	static const struct ps_led_info lightbar_leds_info[] = {
+		{ NULL, "red", 255, dualshock4_led_get_brightness, dualshock4_led_set_brightness },
+		{ NULL, "green", 255, dualshock4_led_get_brightness, dualshock4_led_set_brightness },
+		{ NULL, "blue", 255, dualshock4_led_get_brightness, dualshock4_led_set_brightness },
+		{ NULL, "global", 1, dualshock4_led_get_brightness, dualshock4_led_set_brightness },
+	};
 
 	ds4 = devm_kzalloc(&hdev->dev, sizeof(*ds4), GFP_KERNEL);
 	if (!ds4)
@@ -2060,6 +2182,9 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 		goto err;
 	}
 
+	/* Use gamepad input device name as primary device name for e.g. LEDs */
+	ps_dev->input_dev_name = dev_name(&ds4->gamepad->dev);
+
 	ds4->sensors = ps_sensors_create(hdev, DS4_ACC_RANGE, DS4_ACC_RES_PER_G,
 			DS4_GYRO_RANGE, DS4_GYRO_RES_PER_DEG_S);
 	if (IS_ERR(ds4->sensors)) {
@@ -2077,11 +2202,21 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 	if (ret)
 		goto err;
 
+	for (i = 0; i < ARRAY_SIZE(lightbar_leds_info); i++) {
+		const struct ps_led_info *led_info = &lightbar_leds_info[i];
+
+		ret = ps_led_register(ps_dev, &ds4->lightbar_leds[i], led_info);
+		if (ret < 0)
+			goto err;
+	}
+
 	ret = ps_device_set_player_id(ps_dev);
 	if (ret) {
 		hid_err(hdev, "Failed to assign player id for DualShock4: %d\n", ret);
 		goto err;
 	}
+
+	dualshock4_set_default_lightbar_colors(ds4);
 
 	/*
 	 * Reporting hardware and firmware is important as there are frequent updates, which
