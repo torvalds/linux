@@ -1305,16 +1305,16 @@ axienet_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	netdev_stats_to_stats64(stats, &dev->stats);
 
 	do {
-		start = u64_stats_fetch_begin_irq(&lp->rx_stat_sync);
+		start = u64_stats_fetch_begin(&lp->rx_stat_sync);
 		stats->rx_packets = u64_stats_read(&lp->rx_packets);
 		stats->rx_bytes = u64_stats_read(&lp->rx_bytes);
-	} while (u64_stats_fetch_retry_irq(&lp->rx_stat_sync, start));
+	} while (u64_stats_fetch_retry(&lp->rx_stat_sync, start));
 
 	do {
-		start = u64_stats_fetch_begin_irq(&lp->tx_stat_sync);
+		start = u64_stats_fetch_begin(&lp->tx_stat_sync);
 		stats->tx_packets = u64_stats_read(&lp->tx_packets);
 		stats->tx_bytes = u64_stats_read(&lp->tx_bytes);
-	} while (u64_stats_fetch_retry_irq(&lp->tx_stat_sync, start));
+	} while (u64_stats_fetch_retry(&lp->tx_stat_sync, start));
 }
 
 static const struct net_device_ops axienet_netdev_ops = {
