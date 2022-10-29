@@ -101,21 +101,16 @@ hwm_field_read_and_scale(struct hwm_drvdata *ddat, i915_reg_t rgadr,
 
 static void
 hwm_field_scale_and_write(struct hwm_drvdata *ddat, i915_reg_t rgadr,
-			  u32 field_msk, int nshift,
-			  unsigned int scale_factor, long lval)
+			  int nshift, unsigned int scale_factor, long lval)
 {
 	u32 nval;
-	u32 bits_to_clear;
-	u32 bits_to_set;
 
 	/* Computation in 64-bits to avoid overflow. Round to nearest. */
 	nval = DIV_ROUND_CLOSEST_ULL((u64)lval << nshift, scale_factor);
 
-	bits_to_clear = field_msk;
-	bits_to_set = FIELD_PREP(field_msk, nval);
-
 	hwm_locked_with_pm_intel_uncore_rmw(ddat, rgadr,
-					    bits_to_clear, bits_to_set);
+					    PKG_PWR_LIM_1,
+					    REG_FIELD_PREP(PKG_PWR_LIM_1, nval));
 }
 
 /*
@@ -406,7 +401,6 @@ hwm_power_write(struct hwm_drvdata *ddat, u32 attr, int chan, long val)
 	case hwmon_power_max:
 		hwm_field_scale_and_write(ddat,
 					  hwmon->rg.pkg_rapl_limit,
-					  PKG_PWR_LIM_1,
 					  hwmon->scl_shift_power,
 					  SF_POWER, val);
 		return 0;
