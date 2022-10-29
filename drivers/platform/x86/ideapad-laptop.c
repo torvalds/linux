@@ -46,11 +46,10 @@ static const char *const ideapad_wmi_fnesc_events[] = {
 #endif
 
 enum {
-	CFG_CAP_BT_BIT       = 16,
-	CFG_CAP_3G_BIT       = 17,
-	CFG_CAP_WIFI_BIT     = 18,
-	CFG_CAP_CAM_BIT      = 19,
-	CFG_CAP_TOUCHPAD_BIT = 30,
+	CFG_CAP_BT_BIT   = 16,
+	CFG_CAP_3G_BIT   = 17,
+	CFG_CAP_WIFI_BIT = 18,
+	CFG_CAP_CAM_BIT  = 19,
 };
 
 enum {
@@ -386,8 +385,6 @@ static int debugfs_cfg_show(struct seq_file *s, void *data)
 		seq_puts(s, " wifi");
 	if (test_bit(CFG_CAP_CAM_BIT, &priv->cfg))
 		seq_puts(s, " camera");
-	if (test_bit(CFG_CAP_TOUCHPAD_BIT, &priv->cfg))
-		seq_puts(s, " touchpad");
 	seq_puts(s, "\n");
 
 	seq_puts(s, "Graphics: ");
@@ -680,8 +677,7 @@ static umode_t ideapad_is_visible(struct kobject *kobj,
 	else if (attr == &dev_attr_fn_lock.attr)
 		supported = priv->features.fn_lock;
 	else if (attr == &dev_attr_touchpad.attr)
-		supported = priv->features.touchpad_ctrl_via_ec &&
-			    test_bit(CFG_CAP_TOUCHPAD_BIT, &priv->cfg);
+		supported = priv->features.touchpad_ctrl_via_ec;
 	else if (attr == &dev_attr_usb_charging.attr)
 		supported = priv->features.usb_charging;
 
