@@ -36,6 +36,11 @@ struct btf *btf__load_from_kernel_by_id(__u32 id)
 #endif
 
 #ifndef HAVE_LIBBPF_BPF_PROG_LOAD
+LIBBPF_API int bpf_load_program(enum bpf_prog_type type,
+				const struct bpf_insn *insns, size_t insns_cnt,
+				const char *license, __u32 kern_version,
+				char *log_buf, size_t log_buf_sz);
+
 int bpf_prog_load(enum bpf_prog_type prog_type,
 		  const char *prog_name __maybe_unused,
 		  const char *license,

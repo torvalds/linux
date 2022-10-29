@@ -1318,7 +1318,7 @@ instance. This setup would require the following commands:
 	$ v4l2-ctl -d2 -i2
 	$ v4l2-ctl -d2 -c horizontal_movement=4
 	$ v4l2-ctl -d1 --overlay=1
-	$ v4l2-ctl -d1 -c loop_video=1
+	$ v4l2-ctl -d0 -c loop_video=1
 	$ v4l2-ctl -d2 --stream-mmap --overlay=1
 
 And from another console:

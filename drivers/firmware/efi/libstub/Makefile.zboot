@@ -20,22 +20,11 @@ zboot-size-len-y			:= 4
 zboot-method-$(CONFIG_KERNEL_GZIP)	:= gzip
 zboot-size-len-$(CONFIG_KERNEL_GZIP)	:= 0
 
-quiet_cmd_sbsign = SBSIGN  $@
-      cmd_sbsign = sbsign --out $@ $< \
-		   --key $(CONFIG_EFI_ZBOOT_SIGNING_KEY) \
-		   --cert $(CONFIG_EFI_ZBOOT_SIGNING_CERT)
-
-$(obj)/$(EFI_ZBOOT_PAYLOAD).signed: $(obj)/$(EFI_ZBOOT_PAYLOAD) FORCE
-	$(call if_changed,sbsign)
-
-ZBOOT_PAYLOAD-y				 := $(EFI_ZBOOT_PAYLOAD)
-ZBOOT_PAYLOAD-$(CONFIG_EFI_ZBOOT_SIGNED) := $(EFI_ZBOOT_PAYLOAD).signed
-
-$(obj)/vmlinuz: $(obj)/$(ZBOOT_PAYLOAD-y) FORCE
+$(obj)/vmlinuz: $(obj)/$(EFI_ZBOOT_PAYLOAD) FORCE
 	$(call if_changed,$(zboot-method-y))
 
 OBJCOPYFLAGS_vmlinuz.o := -I binary -O $(EFI_ZBOOT_BFD_TARGET) \
-			 --rename-section .data=.gzdata,load,alloc,readonly,contents
+			  --rename-section .data=.gzdata,load,alloc,readonly,contents
 $(obj)/vmlinuz.o: $(obj)/vmlinuz FORCE
 	$(call if_changed,objcopy)
 
@@ -53,18 +42,8 @@ LDFLAGS_vmlinuz.efi.elf := -T $(srctree)/drivers/firmware/efi/libstub/zboot.lds
 $(obj)/vmlinuz.efi.elf: $(obj)/vmlinuz.o $(ZBOOT_DEPS) FORCE
 	$(call if_changed,ld)
 
-ZBOOT_EFI-y				:= vmlinuz.efi
-ZBOOT_EFI-$(CONFIG_EFI_ZBOOT_SIGNED)	:= vmlinuz.efi.unsigned
-
-OBJCOPYFLAGS_$(ZBOOT_EFI-y) := -O binary
-$(obj)/$(ZBOOT_EFI-y): $(obj)/vmlinuz.efi.elf FORCE
+OBJCOPYFLAGS_vmlinuz.efi := -O binary
+$(obj)/vmlinuz.efi: $(obj)/vmlinuz.efi.elf FORCE
 	$(call if_changed,objcopy)
 
 targets += zboot-header.o vmlinuz vmlinuz.o vmlinuz.efi.elf vmlinuz.efi
-
-ifneq ($(CONFIG_EFI_ZBOOT_SIGNED),)
-$(obj)/vmlinuz.efi: $(obj)/vmlinuz.efi.unsigned FORCE
-	$(call if_changed,sbsign)
-endif
-
-targets += $(EFI_ZBOOT_PAYLOAD).signed vmlinuz.efi.unsigned

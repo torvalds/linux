@@ -789,6 +789,7 @@ static bool acpi_info_matches_ids(struct acpi_device_info *info,
 static const char * const acpi_ignore_dep_ids[] = {
 	"PNP0D80", /* Windows-compatible System Power Management Controller */
 	"INT33BD", /* Intel Baytrail Mailbox Device */
+	"LATT2021", /* Lattice FW Update Client Driver */
 	NULL
 };
 
@@ -1509,9 +1510,12 @@ int acpi_dma_get_range(struct device *dev, const struct bus_dma_region **map)
 			goto out;
 		}
 
+		*map = r;
+
 		list_for_each_entry(rentry, &list, node) {
 			if (rentry->res->start >= rentry->res->end) {
-				kfree(r);
+				kfree(*map);
+				*map = NULL;
 				ret = -EINVAL;
 				dev_dbg(dma_dev, "Invalid DMA regions configuration\n");
 				goto out;
@@ -1523,8 +1527,6 @@ int acpi_dma_get_range(struct device *dev, const struct bus_dma_region **map)
 			r->offset = rentry->offset;
 			r++;
 		}
-
-		*map = r;
 	}
  out:
 	acpi_dev_free_resource_list(&list);

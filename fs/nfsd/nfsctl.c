@@ -1458,12 +1458,14 @@ static __net_init int nfsd_init_net(struct net *net)
 		goto out_drc_error;
 	retval = nfsd_reply_cache_init(nn);
 	if (retval)
-		goto out_drc_error;
+		goto out_cache_error;
 	get_random_bytes(&nn->siphash_key, sizeof(nn->siphash_key));
 	seqlock_init(&nn->writeverf_lock);
 
 	return 0;
 
+out_cache_error:
+	nfsd4_leases_net_shutdown(nn);
 out_drc_error:
 	nfsd_idmap_shutdown(net);
 out_idmap_error:
