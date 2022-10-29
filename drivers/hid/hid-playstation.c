@@ -285,6 +285,8 @@ struct dualsense_output_report {
 
 #define DS4_INPUT_REPORT_USB			0x01
 #define DS4_INPUT_REPORT_USB_SIZE		64
+#define DS4_OUTPUT_REPORT_USB			0x05
+#define DS4_OUTPUT_REPORT_USB_SIZE		32
 
 #define DS4_FEATURE_REPORT_CALIBRATION		0x02
 #define DS4_FEATURE_REPORT_CALIBRATION_SIZE	37
@@ -305,6 +307,9 @@ struct dualsense_output_report {
 #define DS4_STATUS0_CABLE_STATE		BIT(4)
 /* Battery status within batery_status field. */
 #define DS4_BATTERY_STATUS_FULL		11
+
+/* Flags for DualShock4 output report. */
+#define DS4_OUTPUT_VALID_FLAG0_MOTOR		0x01
 
 /* DualShock4 hardware limits */
 #define DS4_ACC_RES_PER_G	8192
@@ -328,6 +333,14 @@ struct dualshock4 {
 	bool sensor_timestamp_initialized;
 	uint32_t prev_sensor_timestamp;
 	uint32_t sensor_timestamp_us;
+
+	bool update_rumble;
+	uint8_t motor_left;
+	uint8_t motor_right;
+
+	struct work_struct output_worker;
+	bool output_worker_initialized;
+	void *output_report_dmabuf;
 };
 
 struct dualshock4_touch_point {
@@ -372,6 +385,45 @@ struct dualshock4_input_report_usb {
 } __packed;
 static_assert(sizeof(struct dualshock4_input_report_usb) == DS4_INPUT_REPORT_USB_SIZE);
 
+/* Common data between Bluetooth and USB DualShock4 output reports. */
+struct dualshock4_output_report_common {
+	uint8_t valid_flag0;
+	uint8_t valid_flag1;
+
+	uint8_t reserved;
+
+	uint8_t motor_right;
+	uint8_t motor_left;
+
+	uint8_t lightbar_red;
+	uint8_t lightbar_green;
+	uint8_t lightbar_blue;
+	uint8_t lightbar_blink_on;
+	uint8_t lightbar_blink_off;
+} __packed;
+
+struct dualshock4_output_report_usb {
+	uint8_t report_id; /* 0x5 */
+	struct dualshock4_output_report_common common;
+	uint8_t reserved[21];
+} __packed;
+static_assert(sizeof(struct dualshock4_output_report_usb) == DS4_OUTPUT_REPORT_USB_SIZE);
+
+/*
+ * The DualShock4 has a main output report used to control most features. It is
+ * largely the same between Bluetooth and USB except for different headers and CRC.
+ * This structure hide the differences between the two to simplify sending output reports.
+ */
+struct dualshock4_output_report {
+	uint8_t *data; /* Start of data */
+	uint8_t len; /* Size of output report */
+
+	/* Points to USB data payload in case for a USB report else NULL. */
+	struct dualshock4_output_report_usb *usb;
+	/* Points to common section of report, so past any headers. */
+	struct dualshock4_output_report_common *common;
+};
+
 /*
  * Common gamepad buttons across DualShock 3 / 4 and DualSense.
  * Note: for device with a touchpad, touchpad button is not included
@@ -399,6 +451,7 @@ static const struct {int x; int y; } ps_gamepad_hat_mapping[] = {
 };
 
 static inline void dualsense_schedule_work(struct dualsense *ds);
+static inline void dualshock4_schedule_work(struct dualshock4 *ds4);
 static void dualsense_set_lightbar(struct dualsense *ds, uint8_t red, uint8_t green, uint8_t blue);
 
 /*
@@ -1692,6 +1745,49 @@ err_free:
 	return ret;
 }
 
+static void dualshock4_init_output_report(struct dualshock4 *ds4,
+		struct dualshock4_output_report *rp, void *buf)
+{
+	struct hid_device *hdev = ds4->base.hdev;
+
+	if (hdev->bus == BUS_USB) {
+		struct dualshock4_output_report_usb *usb = buf;
+
+		memset(usb, 0, sizeof(*usb));
+		usb->report_id = DS4_OUTPUT_REPORT_USB;
+
+		rp->data = buf;
+		rp->len = sizeof(*usb);
+		rp->usb = usb;
+		rp->common = &usb->common;
+	}
+}
+
+static void dualshock4_output_worker(struct work_struct *work)
+{
+	struct dualshock4 *ds4 = container_of(work, struct dualshock4, output_worker);
+	struct dualshock4_output_report report;
+	struct dualshock4_output_report_common *common;
+	unsigned long flags;
+
+	dualshock4_init_output_report(ds4, &report, ds4->output_report_dmabuf);
+	common = report.common;
+
+	spin_lock_irqsave(&ds4->base.lock, flags);
+
+	if (ds4->update_rumble) {
+		/* Select classic rumble style haptics and enable it. */
+		common->valid_flag0 |= DS4_OUTPUT_VALID_FLAG0_MOTOR;
+		common->motor_left = ds4->motor_left;
+		common->motor_right = ds4->motor_right;
+		ds4->update_rumble = false;
+	}
+
+	spin_unlock_irqrestore(&ds4->base.lock, flags);
+
+	hid_hw_output_report(ds4->base.hdev, report.data, report.len);
+}
+
 static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *report,
 		u8 *data, int size)
 {
@@ -1860,10 +1956,52 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 	return 0;
 }
 
+static int dualshock4_play_effect(struct input_dev *dev, void *data, struct ff_effect *effect)
+{
+	struct hid_device *hdev = input_get_drvdata(dev);
+	struct dualshock4 *ds4 = hid_get_drvdata(hdev);
+	unsigned long flags;
+
+	if (effect->type != FF_RUMBLE)
+		return 0;
+
+	spin_lock_irqsave(&ds4->base.lock, flags);
+	ds4->update_rumble = true;
+	ds4->motor_left = effect->u.rumble.strong_magnitude / 256;
+	ds4->motor_right = effect->u.rumble.weak_magnitude / 256;
+	spin_unlock_irqrestore(&ds4->base.lock, flags);
+
+	dualshock4_schedule_work(ds4);
+	return 0;
+}
+
+static void dualshock4_remove(struct ps_device *ps_dev)
+{
+	struct dualshock4 *ds4 = container_of(ps_dev, struct dualshock4, base);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ds4->base.lock, flags);
+	ds4->output_worker_initialized = false;
+	spin_unlock_irqrestore(&ds4->base.lock, flags);
+
+	cancel_work_sync(&ds4->output_worker);
+}
+
+static inline void dualshock4_schedule_work(struct dualshock4 *ds4)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ds4->base.lock, flags);
+	if (ds4->output_worker_initialized)
+		schedule_work(&ds4->output_worker);
+	spin_unlock_irqrestore(&ds4->base.lock, flags);
+}
+
 static struct ps_device *dualshock4_create(struct hid_device *hdev)
 {
 	struct dualshock4 *ds4;
 	struct ps_device *ps_dev;
+	uint8_t max_output_report_size;
 	int ret;
 
 	ds4 = devm_kzalloc(&hdev->dev, sizeof(*ds4), GFP_KERNEL);
@@ -1882,7 +2020,15 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 	ps_dev->battery_capacity = 100; /* initial value until parse_report. */
 	ps_dev->battery_status = POWER_SUPPLY_STATUS_UNKNOWN;
 	ps_dev->parse_report = dualshock4_parse_report;
+	ps_dev->remove = dualshock4_remove;
+	INIT_WORK(&ds4->output_worker, dualshock4_output_worker);
+	ds4->output_worker_initialized = true;
 	hid_set_drvdata(hdev, ds4);
+
+	max_output_report_size = sizeof(struct dualshock4_output_report_usb);
+	ds4->output_report_dmabuf = devm_kzalloc(&hdev->dev, max_output_report_size, GFP_KERNEL);
+	if (!ds4->output_report_dmabuf)
+		return ERR_PTR(-ENOMEM);
 
 	ret = dualshock4_get_mac_address(ds4);
 	if (ret) {
@@ -1907,7 +2053,7 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 		goto err;
 	}
 
-	ds4->gamepad = ps_gamepad_create(hdev, NULL);
+	ds4->gamepad = ps_gamepad_create(hdev, dualshock4_play_effect);
 	if (IS_ERR(ds4->gamepad)) {
 		ret = PTR_ERR(ds4->gamepad);
 		goto err;
