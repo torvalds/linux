@@ -31,7 +31,7 @@ static char stacksplitdfa_src[] = {
 };
 struct aa_dfa *stacksplitdfa;
 
-int aa_setup_dfa_engine(void)
+int __init aa_setup_dfa_engine(void)
 {
 	int error;
 
@@ -59,7 +59,7 @@ int aa_setup_dfa_engine(void)
 	return 0;
 }
 
-void aa_teardown_dfa_engine(void)
+void __init aa_teardown_dfa_engine(void)
 {
 	aa_put_dfa(stacksplitdfa);
 	aa_put_dfa(nulldfa);
