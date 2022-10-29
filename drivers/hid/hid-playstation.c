@@ -291,6 +291,12 @@ struct dualsense_output_report {
 #define DS4_FEATURE_REPORT_PAIRING_INFO		0x12
 #define DS4_FEATURE_REPORT_PAIRING_INFO_SIZE	16
 
+/* Status field of DualShock4 input report. */
+#define DS4_STATUS0_BATTERY_CAPACITY	GENMASK(3, 0)
+#define DS4_STATUS0_CABLE_STATE		BIT(4)
+/* Battery status within batery_status field. */
+#define DS4_BATTERY_STATUS_FULL		11
+
 struct dualshock4 {
 	struct ps_device base;
 	struct input_dev *gamepad;
@@ -302,15 +308,16 @@ struct dualshock4_input_report_common {
 	uint8_t rx, ry;
 	uint8_t buttons[3];
 	uint8_t z, rz;
-
 	uint8_t reserved[20];
+	uint8_t status[2];
+	uint8_t reserved2;
 } __packed;
-static_assert(sizeof(struct dualshock4_input_report_common) == 29);
+static_assert(sizeof(struct dualshock4_input_report_common) == 32);
 
 struct dualshock4_input_report_usb {
 	uint8_t report_id; /* 0x01 */
 	struct dualshock4_input_report_common common;
-	uint8_t reserved[34];
+	uint8_t reserved[31];
 } __packed;
 static_assert(sizeof(struct dualshock4_input_report_usb) == DS4_INPUT_REPORT_USB_SIZE);
 
@@ -1549,7 +1556,9 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 	struct hid_device *hdev = ps_dev->hdev;
 	struct dualshock4 *ds4 = container_of(ps_dev, struct dualshock4, base);
 	struct dualshock4_input_report_common *ds4_report;
-	uint8_t value;
+	uint8_t battery_capacity, value;
+	int battery_status;
+	unsigned long flags;
 
 	/*
 	 * DualShock4 in USB uses the full HID report for reportID 1, but
@@ -1594,6 +1603,53 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 	input_report_key(ds4->gamepad, BTN_MODE,   ds4_report->buttons[2] & DS_BUTTONS2_PS_HOME);
 	input_sync(ds4->gamepad);
 
+	/*
+	 * Interpretation of the battery_capacity data depends on the cable state.
+	 * When no cable is connected (bit4 is 0):
+	 * - 0:10: percentage in units of 10%.
+	 * When a cable is plugged in:
+	 * - 0-10: percentage in units of 10%.
+	 * - 11: battery is full
+	 * - 14: not charging due to Voltage or temperature error
+	 * - 15: charge error
+	 */
+	if (ds4_report->status[0] & DS4_STATUS0_CABLE_STATE) {
+		uint8_t battery_data = ds4_report->status[0] & DS4_STATUS0_BATTERY_CAPACITY;
+
+		if (battery_data < 10) {
+			/* Take the mid-point for each battery capacity value,
+			 * because on the hardware side 0 = 0-9%, 1=10-19%, etc.
+			 * This matches official platform behavior, which does
+			 * the same.
+			 */
+			battery_capacity = battery_data * 10 + 5;
+			battery_status = POWER_SUPPLY_STATUS_CHARGING;
+		} else if (battery_data == 10) {
+			battery_capacity = 100;
+			battery_status = POWER_SUPPLY_STATUS_CHARGING;
+		} else if (battery_data == DS4_BATTERY_STATUS_FULL) {
+			battery_capacity = 100;
+			battery_status = POWER_SUPPLY_STATUS_FULL;
+		} else { /* 14, 15 and undefined values */
+			battery_capacity = 0;
+			battery_status = POWER_SUPPLY_STATUS_UNKNOWN;
+		}
+	} else {
+		uint8_t battery_data = ds4_report->status[0] & DS4_STATUS0_BATTERY_CAPACITY;
+
+		if (battery_data < 10)
+			battery_capacity = battery_data * 10 + 5;
+		else /* 10 */
+			battery_capacity = 100;
+
+		battery_status = POWER_SUPPLY_STATUS_DISCHARGING;
+	}
+
+	spin_lock_irqsave(&ps_dev->lock, flags);
+	ps_dev->battery_capacity = battery_capacity;
+	ps_dev->battery_status = battery_status;
+	spin_unlock_irqrestore(&ps_dev->lock, flags);
+
 	return 0;
 }
 
@@ -1616,6 +1672,8 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 	ps_dev = &ds4->base;
 	ps_dev->hdev = hdev;
 	spin_lock_init(&ps_dev->lock);
+	ps_dev->battery_capacity = 100; /* initial value until parse_report. */
+	ps_dev->battery_status = POWER_SUPPLY_STATUS_UNKNOWN;
 	ps_dev->parse_report = dualshock4_parse_report;
 	hid_set_drvdata(hdev, ds4);
 
@@ -1641,6 +1699,10 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 		ret = PTR_ERR(ds4->gamepad);
 		goto err;
 	}
+
+	ret = ps_device_register_battery(ps_dev);
+	if (ret)
+		goto err;
 
 	ret = ps_device_set_player_id(ps_dev);
 	if (ret) {
