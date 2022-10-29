@@ -319,6 +319,10 @@ static const struct {
 		.name = "FIREHOSE",
 		.devsuf = "firehose",
 	},
+	[WWAN_PORT_XMMRPC] = {
+		.name = "XMMRPC",
+		.devsuf = "xmmrpc",
+	},
 };
 
 static ssize_t type_show(struct device *dev, struct device_attribute *attr,
