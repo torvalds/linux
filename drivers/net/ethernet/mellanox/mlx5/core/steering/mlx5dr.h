@@ -164,15 +164,8 @@ struct mlx5dr_icm_buddy_mem {
 	struct mlx5dr_icm_mr	*icm_mr;
 	struct mlx5dr_icm_pool	*pool;
 
-	/* This is the list of used chunks. HW may be accessing this memory */
-	struct list_head	used_list;
+	/* Amount of memory in used chunks - HW may be accessing this memory */
 	u64			used_memory;
-
-	/* Hardware may be accessing this memory but at some future,
-	 * undetermined time, it might cease to do so.
-	 * sync_ste command sets them free.
-	 */
-	struct list_head	hot_list;
 
 	/* Memory optimisation */
 	struct mlx5dr_ste	*ste_arr;
