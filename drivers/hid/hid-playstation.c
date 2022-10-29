@@ -63,6 +63,7 @@ struct ps_led_info {
 	int max_brightness;
 	enum led_brightness (*brightness_get)(struct led_classdev *cdev);
 	int (*brightness_set)(struct led_classdev *cdev, enum led_brightness);
+	int (*blink_set)(struct led_classdev *led, unsigned long *on, unsigned long *off);
 };
 
 /* Seed values for DualShock4 / DualSense CRC32 for different report types. */
@@ -319,6 +320,7 @@ struct dualsense_output_report {
 #define DS4_ACC_RANGE		(4*DS_ACC_RES_PER_G)
 #define DS4_GYRO_RES_PER_DEG_S	1024
 #define DS4_GYRO_RANGE		(2048*DS_GYRO_RES_PER_DEG_S)
+#define DS4_LIGHTBAR_MAX_BLINK	255 /* 255 centiseconds */
 #define DS4_TOUCHPAD_WIDTH	1920
 #define DS4_TOUCHPAD_HEIGHT	942
 
@@ -343,10 +345,13 @@ struct dualshock4 {
 
 	/* Lightbar leds */
 	bool update_lightbar;
+	bool update_lightbar_blink;
 	bool lightbar_enabled; /* For use by global LED control. */
 	uint8_t lightbar_red;
 	uint8_t lightbar_green;
 	uint8_t lightbar_blue;
+	uint8_t lightbar_blink_on; /* In increments of 10ms. */
+	uint8_t lightbar_blink_off; /* In increments of 10ms. */
 	struct led_classdev lightbar_leds[4];
 
 	struct work_struct output_worker;
@@ -724,6 +729,7 @@ static int ps_led_register(struct ps_device *ps_dev, struct led_classdev *led,
 	led->flags = LED_CORE_SUSPENDRESUME;
 	led->brightness_get = led_info->brightness_get;
 	led->brightness_set_blocking = led_info->brightness_set;
+	led->blink_set = led_info->blink_set;
 
 	ret = devm_led_classdev_register(&ps_dev->hdev->dev, led);
 	if (ret) {
@@ -1783,6 +1789,37 @@ static enum led_brightness dualshock4_led_get_brightness(struct led_classdev *le
 	return -1;
 }
 
+static int dualshock4_led_set_blink(struct led_classdev *led, unsigned long *delay_on,
+		unsigned long *delay_off)
+{
+	struct hid_device *hdev = to_hid_device(led->dev->parent);
+	struct dualshock4 *ds4 = hid_get_drvdata(hdev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ds4->base.lock, flags);
+
+	if (!*delay_on && !*delay_off) {
+		/* Default to 1 Hz (50 centiseconds on, 50 centiseconds off). */
+		ds4->lightbar_blink_on = 50;
+		ds4->lightbar_blink_off = 50;
+	} else {
+		/* Blink delays in centiseconds. */
+		ds4->lightbar_blink_on = min_t(unsigned long, *delay_on/10, DS4_LIGHTBAR_MAX_BLINK);
+		ds4->lightbar_blink_off = min_t(unsigned long, *delay_off/10, DS4_LIGHTBAR_MAX_BLINK);
+	}
+
+	ds4->update_lightbar_blink = true;
+
+	spin_unlock_irqrestore(&ds4->base.lock, flags);
+
+	dualshock4_schedule_work(ds4);
+
+	*delay_on = ds4->lightbar_blink_on;
+	*delay_off = ds4->lightbar_blink_off;
+
+	return 0;
+}
+
 static int dualshock4_led_set_brightness(struct led_classdev *led, enum led_brightness value)
 {
 	struct hid_device *hdev = to_hid_device(led->dev->parent);
@@ -1864,6 +1901,13 @@ static void dualshock4_output_worker(struct work_struct *work)
 		common->lightbar_green = ds4->lightbar_enabled ? ds4->lightbar_green : 0;
 		common->lightbar_blue = ds4->lightbar_enabled ? ds4->lightbar_blue : 0;
 		ds4->update_lightbar = false;
+	}
+
+	if (ds4->update_lightbar_blink) {
+		common->valid_flag0 |= DS4_OUTPUT_VALID_FLAG0_LED_BLINK;
+		common->lightbar_blink_on = ds4->lightbar_blink_on;
+		common->lightbar_blink_off = ds4->lightbar_blink_off;
+		ds4->update_lightbar_blink = false;
 	}
 
 	spin_unlock_irqrestore(&ds4->base.lock, flags);
@@ -2124,7 +2168,8 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 		{ NULL, "red", 255, dualshock4_led_get_brightness, dualshock4_led_set_brightness },
 		{ NULL, "green", 255, dualshock4_led_get_brightness, dualshock4_led_set_brightness },
 		{ NULL, "blue", 255, dualshock4_led_get_brightness, dualshock4_led_set_brightness },
-		{ NULL, "global", 1, dualshock4_led_get_brightness, dualshock4_led_set_brightness },
+		{ NULL, "global", 1, dualshock4_led_get_brightness, dualshock4_led_set_brightness,
+				dualshock4_led_set_blink },
 	};
 
 	ds4 = devm_kzalloc(&hdev->dev, sizeof(*ds4), GFP_KERNEL);
