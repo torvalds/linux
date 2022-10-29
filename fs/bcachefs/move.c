@@ -324,9 +324,8 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 	return 0;
 }
 
-static void move_free(struct closure *cl)
+static void move_free(struct moving_io *io)
 {
-	struct moving_io *io = container_of(cl, struct moving_io, cl);
 	struct moving_context *ctxt = io->write.ctxt;
 	struct bvec_iter_all iter;
 	struct bio_vec *bv;
@@ -342,28 +341,28 @@ static void move_free(struct closure *cl)
 	kfree(io);
 }
 
-static void move_write_done(struct closure *cl)
+static void move_write_done(struct bch_write_op *op)
 {
-	struct moving_io *io = container_of(cl, struct moving_io, cl);
+	struct moving_io *io = container_of(op, struct moving_io, write.op);
+	struct moving_context *ctxt = io->write.ctxt;
 
 	atomic_sub(io->write_sectors, &io->write.ctxt->write_sectors);
-	closure_return_with_destructor(cl, move_free);
+	move_free(io);
+	closure_put(&ctxt->cl);
 }
 
-static void move_write(struct closure *cl)
+static void move_write(struct moving_io *io)
 {
-	struct moving_io *io = container_of(cl, struct moving_io, cl);
-
 	if (unlikely(io->rbio.bio.bi_status || io->rbio.hole)) {
-		closure_return_with_destructor(cl, move_free);
+		move_free(io);
 		return;
 	}
 
-	bch2_migrate_read_done(&io->write, &io->rbio);
-
+	closure_get(&io->write.ctxt->cl);
 	atomic_add(io->write_sectors, &io->write.ctxt->write_sectors);
-	closure_call(&io->write.op.cl, bch2_write, NULL, cl);
-	continue_at(cl, move_write_done, NULL);
+
+	bch2_migrate_read_done(&io->write, &io->rbio);
+	closure_call(&io->write.op.cl, bch2_write, NULL, NULL);
 }
 
 static inline struct moving_io *next_pending_write(struct moving_context *ctxt)
@@ -394,7 +393,7 @@ static void do_pending_writes(struct moving_context *ctxt)
 
 	while ((io = next_pending_write(ctxt))) {
 		list_del(&io->list);
-		closure_call(&io->cl, move_write, NULL, &ctxt->cl);
+		move_write(io);
 	}
 }
 
@@ -479,6 +478,8 @@ static int bch2_move_extent(struct btree_trans *trans,
 				      data_cmd, data_opts, btree_id, k);
 	if (ret)
 		goto err_free_pages;
+
+	io->write.op.end_io = move_write_done;
 
 	atomic64_inc(&ctxt->stats->keys_moved);
 	atomic64_add(k.k->size, &ctxt->stats->sectors_moved);

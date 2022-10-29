@@ -558,13 +558,9 @@ static void bch2_write_done(struct closure *cl)
 
 	bch2_time_stats_update(&c->times[BCH_TIME_data_write], op->start_time);
 
-	if (op->end_io) {
-		EBUG_ON(cl->parent);
-		closure_debug_destroy(cl);
-		op->end_io(op);
-	} else {
-		closure_return(cl);
-	}
+	EBUG_ON(cl->parent);
+	closure_debug_destroy(cl);
+	op->end_io(op);
 }
 
 /**
@@ -1357,7 +1353,6 @@ err:
 /* Cache promotion on read */
 
 struct promote_op {
-	struct closure		cl;
 	struct rcu_head		rcu;
 	u64			start_time;
 
@@ -1411,10 +1406,10 @@ static void promote_free(struct bch_fs *c, struct promote_op *op)
 	kfree_rcu(op, rcu);
 }
 
-static void promote_done(struct closure *cl)
+static void promote_done(struct bch_write_op *wop)
 {
 	struct promote_op *op =
-		container_of(cl, struct promote_op, cl);
+		container_of(wop, struct promote_op, write.op);
 	struct bch_fs *c = op->write.op.c;
 
 	bch2_time_stats_update(&c->times[BCH_TIME_data_promote],
@@ -1427,7 +1422,6 @@ static void promote_done(struct closure *cl)
 static void promote_start(struct promote_op *op, struct bch_read_bio *rbio)
 {
 	struct bch_fs *c = rbio->c;
-	struct closure *cl = &op->cl;
 	struct bio *bio = &op->write.op.wbio.bio;
 
 	trace_promote(&rbio->bio);
@@ -1442,9 +1436,7 @@ static void promote_start(struct promote_op *op, struct bch_read_bio *rbio)
 
 	bch2_migrate_read_done(&op->write, rbio);
 
-	closure_init(cl, NULL);
-	closure_call(&op->write.op.cl, bch2_write, c->btree_update_wq, cl);
-	closure_return_with_destructor(cl, promote_done);
+	closure_call(&op->write.op.cl, bch2_write, c->btree_update_wq, NULL);
 }
 
 static struct promote_op *__promote_alloc(struct bch_fs *c,
@@ -1509,6 +1501,7 @@ static struct promote_op *__promote_alloc(struct bch_fs *c,
 			},
 			btree_id, k);
 	BUG_ON(ret);
+	op->write.op.end_io = promote_done;
 
 	return op;
 err:

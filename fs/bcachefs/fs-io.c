@@ -65,7 +65,6 @@ struct quota_res {
 };
 
 struct bch_writepage_io {
-	struct closure			cl;
 	struct bch_inode_info		*inode;
 
 	/* must be last: */
@@ -979,18 +978,10 @@ static inline struct bch_writepage_state bch_writepage_state_init(struct bch_fs 
 	};
 }
 
-static void bch2_writepage_io_free(struct closure *cl)
+static void bch2_writepage_io_done(struct bch_write_op *op)
 {
-	struct bch_writepage_io *io = container_of(cl,
-					struct bch_writepage_io, cl);
-
-	bio_put(&io->op.wbio.bio);
-}
-
-static void bch2_writepage_io_done(struct closure *cl)
-{
-	struct bch_writepage_io *io = container_of(cl,
-					struct bch_writepage_io, cl);
+	struct bch_writepage_io *io =
+		container_of(op, struct bch_writepage_io, op);
 	struct bch_fs *c = io->op.c;
 	struct bio *bio = &io->op.wbio.bio;
 	struct bvec_iter_all iter;
@@ -1054,7 +1045,7 @@ static void bch2_writepage_io_done(struct closure *cl)
 			end_page_writeback(bvec->bv_page);
 	}
 
-	closure_return_with_destructor(&io->cl, bch2_writepage_io_free);
+	bio_put(&io->op.wbio.bio);
 }
 
 static void bch2_writepage_do_io(struct bch_writepage_state *w)
@@ -1064,8 +1055,7 @@ static void bch2_writepage_do_io(struct bch_writepage_state *w)
 	down(&io->op.c->io_in_flight);
 
 	w->io = NULL;
-	closure_call(&io->op.cl, bch2_write, NULL, &io->cl);
-	continue_at(&io->cl, bch2_writepage_io_done, NULL);
+	closure_call(&io->op.cl, bch2_write, NULL, NULL);
 }
 
 /*
@@ -1087,9 +1077,7 @@ static void bch2_writepage_io_alloc(struct bch_fs *c,
 					      &c->writepage_bioset),
 			     struct bch_writepage_io, op.wbio.bio);
 
-	closure_init(&w->io->cl, NULL);
 	w->io->inode		= inode;
-
 	op			= &w->io->op;
 	bch2_write_op_init(op, c, w->opts);
 	op->target		= w->opts.foreground_target;
@@ -1098,6 +1086,7 @@ static void bch2_writepage_io_alloc(struct bch_fs *c,
 	op->res.nr_replicas	= nr_replicas;
 	op->write_point		= writepoint_hashed(inode->ei_last_dirtied);
 	op->pos			= POS(inode->v.i_ino, sector);
+	op->end_io		= bch2_writepage_io_done;
 	op->wbio.bio.bi_iter.bi_sector = sector;
 	op->wbio.bio.bi_opf	= wbc_to_write_flags(wbc);
 }
