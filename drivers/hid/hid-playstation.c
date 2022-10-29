@@ -315,6 +315,11 @@ struct dualsense_output_report {
 #define DS4_STATUS0_CABLE_STATE		BIT(4)
 /* Battery status within batery_status field. */
 #define DS4_BATTERY_STATUS_FULL		11
+/* Status1 bit2 contains dongle connection state:
+ * 0 = connectd
+ * 1 = disconnected
+ */
+#define DS4_STATUS1_DONGLE_STATE	BIT(2)
 
 /* The lower 6 bits of hw_control of the Bluetooth main output report
  * control the interval at which Dualshock 4 reports data:
@@ -344,6 +349,13 @@ struct dualsense_output_report {
 #define DS4_TOUCHPAD_WIDTH	1920
 #define DS4_TOUCHPAD_HEIGHT	942
 
+enum dualshock4_dongle_state {
+	DONGLE_DISCONNECTED,
+	DONGLE_CALIBRATING,
+	DONGLE_CONNECTED,
+	DONGLE_DISABLED
+};
+
 struct dualshock4 {
 	struct ps_device base;
 	struct input_dev *gamepad;
@@ -353,6 +365,11 @@ struct dualshock4 {
 	/* Calibration data for accelerometer and gyroscope. */
 	struct ps_calibration_data accel_calib_data[3];
 	struct ps_calibration_data gyro_calib_data[3];
+
+	/* Only used on dongle to track state transitions. */
+	enum dualshock4_dongle_state dongle_state;
+	/* Used during calibration. */
+	struct work_struct dongle_hotplug_worker;
 
 	/* Timestamp for sensor data */
 	bool sensor_timestamp_initialized;
@@ -513,9 +530,11 @@ static const struct {int x; int y; } ps_gamepad_hat_mapping[] = {
 	{0, 0},
 };
 
+static int dualshock4_get_calibration_data(struct dualshock4 *ds4);
 static inline void dualsense_schedule_work(struct dualsense *ds);
 static inline void dualshock4_schedule_work(struct dualshock4 *ds4);
 static void dualsense_set_lightbar(struct dualsense *ds, uint8_t red, uint8_t green, uint8_t blue);
+static void dualshock4_set_default_lightbar_colors(struct dualshock4 *ds4);
 
 /*
  * Add a new ps_device to ps_devices if it doesn't exist.
@@ -1678,6 +1697,33 @@ err:
 	return ERR_PTR(ret);
 }
 
+static void dualshock4_dongle_calibration_work(struct work_struct *work)
+{
+	struct dualshock4 *ds4 = container_of(work, struct dualshock4, dongle_hotplug_worker);
+	unsigned long flags;
+	enum dualshock4_dongle_state dongle_state;
+	int ret;
+
+	ret = dualshock4_get_calibration_data(ds4);
+	if (ret < 0) {
+		/* This call is very unlikely to fail for the dongle. When it
+		 * fails we are probably in a very bad state, so mark the
+		 * dongle as disabled. We will re-enable the dongle if a new
+		 * DS4 hotplug is detect from sony_raw_event as any issues
+		 * are likely resolved then (the dongle is quite stupid).
+		 */
+		hid_err(ds4->base.hdev, "DualShock 4 USB dongle: calibration failed, disabling device\n");
+		dongle_state = DONGLE_DISABLED;
+	} else {
+		hid_info(ds4->base.hdev, "DualShock 4 USB dongle: calibration completed\n");
+		dongle_state = DONGLE_CONNECTED;
+	}
+
+	spin_lock_irqsave(&ds4->base.lock, flags);
+	ds4->dongle_state = dongle_state;
+	spin_unlock_irqrestore(&ds4->base.lock, flags);
+}
+
 static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 {
 	struct hid_device *hdev = ds4->base.hdev;
@@ -1694,15 +1740,34 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 	uint8_t *buf;
 
 	if (ds4->base.hdev->bus == BUS_USB) {
+		int retries;
+
 		buf = kzalloc(DS4_FEATURE_REPORT_CALIBRATION_SIZE, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
 
-		ret = ps_get_report(hdev, DS4_FEATURE_REPORT_CALIBRATION, buf,
-				DS4_FEATURE_REPORT_CALIBRATION_SIZE, true);
-		if (ret) {
-			hid_err(hdev, "Failed to retrieve DualShock4 calibration info: %d\n", ret);
-			goto err_free;
+		/* We should normally receive the feature report data we asked
+		 * for, but hidraw applications such as Steam can issue feature
+		 * reports as well. In particular for Dongle reconnects, Steam
+		 * and this function are competing resulting in often receiving
+		 * data for a different HID report, so retry a few times.
+		 */
+		for (retries = 0; retries < 3; retries++) {
+			ret = ps_get_report(hdev, DS4_FEATURE_REPORT_CALIBRATION, buf,
+					DS4_FEATURE_REPORT_CALIBRATION_SIZE, true);
+			if (ret) {
+				if (retries < 2) {
+					hid_warn(hdev, "Retrying DualShock 4 get calibration report (0x02) request\n");
+					continue;
+				} else {
+					ret = -EILSEQ;
+					goto err_free;
+				}
+				hid_err(hdev, "Failed to retrieve DualShock4 calibration info: %d\n", ret);
+				goto err_free;
+			} else {
+				break;
+			}
 		}
 	} else { /* Bluetooth */
 		buf = kzalloc(DS4_FEATURE_REPORT_CALIBRATION_BT_SIZE, GFP_KERNEL);
@@ -2220,6 +2285,62 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 	return 0;
 }
 
+static int dualshock4_dongle_parse_report(struct ps_device *ps_dev, struct hid_report *report,
+		u8 *data, int size)
+{
+	struct dualshock4 *ds4 = container_of(ps_dev, struct dualshock4, base);
+	bool connected = false;
+
+	/* The dongle reports data using the main USB report (0x1) no matter whether a controller
+	 * is connected with mostly zeros. The report does contain dongle status, which we use to
+	 * determine if a controller is connected and if so we forward to the regular DualShock4
+	 * parsing code.
+	 */
+	if (data[0] == DS4_INPUT_REPORT_USB && size == DS4_INPUT_REPORT_USB_SIZE) {
+		struct dualshock4_input_report_common *ds4_report = (struct dualshock4_input_report_common *)&data[1];
+		unsigned long flags;
+
+		connected = ds4_report->status[1] & DS4_STATUS1_DONGLE_STATE ? false : true;
+
+		if (ds4->dongle_state == DONGLE_DISCONNECTED && connected) {
+			hid_info(ps_dev->hdev, "DualShock 4 USB dongle: controller connected\n");
+
+			dualshock4_set_default_lightbar_colors(ds4);
+
+			spin_lock_irqsave(&ps_dev->lock, flags);
+			ds4->dongle_state = DONGLE_CALIBRATING;
+			spin_unlock_irqrestore(&ps_dev->lock, flags);
+
+			schedule_work(&ds4->dongle_hotplug_worker);
+
+			/* Don't process the report since we don't have
+			 * calibration data, but let hidraw have it anyway.
+			 */
+			return 0;
+		} else if ((ds4->dongle_state == DONGLE_CONNECTED ||
+			    ds4->dongle_state == DONGLE_DISABLED) && !connected) {
+			hid_info(ps_dev->hdev, "DualShock 4 USB dongle: controller disconnected\n");
+
+			spin_lock_irqsave(&ps_dev->lock, flags);
+			ds4->dongle_state = DONGLE_DISCONNECTED;
+			spin_unlock_irqrestore(&ps_dev->lock, flags);
+
+			/* Return 0, so hidraw can get the report. */
+			return 0;
+		} else if (ds4->dongle_state == DONGLE_CALIBRATING ||
+			   ds4->dongle_state == DONGLE_DISABLED ||
+			   ds4->dongle_state == DONGLE_DISCONNECTED) {
+			/* Return 0, so hidraw can get the report. */
+			return 0;
+		}
+	}
+
+	if (connected)
+		return dualshock4_parse_report(ps_dev, report, data, size);
+
+	return 0;
+}
+
 static int dualshock4_play_effect(struct input_dev *dev, void *data, struct ff_effect *effect)
 {
 	struct hid_device *hdev = input_get_drvdata(dev);
@@ -2249,6 +2370,9 @@ static void dualshock4_remove(struct ps_device *ps_dev)
 	spin_unlock_irqrestore(&ds4->base.lock, flags);
 
 	cancel_work_sync(&ds4->output_worker);
+
+	if (ps_dev->hdev->product == USB_DEVICE_ID_SONY_PS4_CONTROLLER_DONGLE)
+		cancel_work_sync(&ds4->dongle_hotplug_worker);
 }
 
 static inline void dualshock4_schedule_work(struct dualshock4 *ds4)
@@ -2341,6 +2465,14 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 	ds4->output_report_dmabuf = devm_kzalloc(&hdev->dev, max_output_report_size, GFP_KERNEL);
 	if (!ds4->output_report_dmabuf)
 		return ERR_PTR(-ENOMEM);
+
+	if (hdev->product == USB_DEVICE_ID_SONY_PS4_CONTROLLER_DONGLE) {
+		ds4->dongle_state = DONGLE_DISCONNECTED;
+		INIT_WORK(&ds4->dongle_hotplug_worker, dualshock4_dongle_calibration_work);
+
+		/* Override parse report for dongle specific hotplug handling. */
+		ps_dev->parse_report = dualshock4_dongle_parse_report;
+	}
 
 	ret = dualshock4_get_mac_address(ds4);
 	if (ret) {
@@ -2457,7 +2589,8 @@ static int ps_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 
 	if (hdev->product == USB_DEVICE_ID_SONY_PS4_CONTROLLER ||
-		hdev->product == USB_DEVICE_ID_SONY_PS4_CONTROLLER_2) {
+		hdev->product == USB_DEVICE_ID_SONY_PS4_CONTROLLER_2 ||
+		hdev->product == USB_DEVICE_ID_SONY_PS4_CONTROLLER_DONGLE) {
 		dev = dualshock4_create(hdev);
 		if (IS_ERR(dev)) {
 			hid_err(hdev, "Failed to create dualshock4.\n");
@@ -2503,6 +2636,7 @@ static const struct hid_device_id ps_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER) },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER_2) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER_2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER_DONGLE) },
 	/* Sony DualSense controllers for PS5 */
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS5_CONTROLLER) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS5_CONTROLLER) },
