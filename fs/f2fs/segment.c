@@ -856,7 +856,7 @@ block_t f2fs_get_unusable_blocks(struct f2fs_sb_info *sbi)
 	}
 	mutex_unlock(&dirty_i->seglist_lock);
 
-	unusable = holes[DATA] > holes[NODE] ? holes[DATA] : holes[NODE];
+	unusable = max(holes[DATA], holes[NODE]);
 	if (unusable > ovp_holes)
 		return unusable - ovp_holes;
 	return 0;
