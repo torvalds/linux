@@ -286,6 +286,8 @@ struct dualsense_output_report {
 #define DS4_INPUT_REPORT_USB			0x01
 #define DS4_INPUT_REPORT_USB_SIZE		64
 
+#define DS4_FEATURE_REPORT_CALIBRATION		0x02
+#define DS4_FEATURE_REPORT_CALIBRATION_SIZE	37
 #define DS4_FEATURE_REPORT_FIRMWARE_INFO	0xa3
 #define DS4_FEATURE_REPORT_FIRMWARE_INFO_SIZE	49
 #define DS4_FEATURE_REPORT_PAIRING_INFO		0x12
@@ -305,13 +307,27 @@ struct dualsense_output_report {
 #define DS4_BATTERY_STATUS_FULL		11
 
 /* DualShock4 hardware limits */
+#define DS4_ACC_RES_PER_G	8192
+#define DS4_ACC_RANGE		(4*DS_ACC_RES_PER_G)
+#define DS4_GYRO_RES_PER_DEG_S	1024
+#define DS4_GYRO_RANGE		(2048*DS_GYRO_RES_PER_DEG_S)
 #define DS4_TOUCHPAD_WIDTH	1920
 #define DS4_TOUCHPAD_HEIGHT	942
 
 struct dualshock4 {
 	struct ps_device base;
 	struct input_dev *gamepad;
+	struct input_dev *sensors;
 	struct input_dev *touchpad;
+
+	/* Calibration data for accelerometer and gyroscope. */
+	struct ps_calibration_data accel_calib_data[3];
+	struct ps_calibration_data gyro_calib_data[3];
+
+	/* Timestamp for sensor data */
+	bool sensor_timestamp_initialized;
+	uint32_t prev_sensor_timestamp;
+	uint32_t sensor_timestamp_us;
 };
 
 struct dualshock4_touch_point {
@@ -334,9 +350,16 @@ struct dualshock4_input_report_common {
 	uint8_t rx, ry;
 	uint8_t buttons[3];
 	uint8_t z, rz;
-	uint8_t reserved[20];
+
+	/* Motion sensors */
+	__le16 sensor_timestamp;
+	uint8_t sensor_temperature;
+	__le16 gyro[3]; /* x, y, z */
+	__le16 accel[3]; /* x, y, z */
+	uint8_t reserved2[5];
+
 	uint8_t status[2];
-	uint8_t reserved2;
+	uint8_t reserved3;
 } __packed;
 static_assert(sizeof(struct dualshock4_input_report_common) == 32);
 
@@ -1531,6 +1554,97 @@ err:
 	return ERR_PTR(ret);
 }
 
+static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
+{
+	struct hid_device *hdev = ds4->base.hdev;
+	short gyro_pitch_bias, gyro_pitch_plus, gyro_pitch_minus;
+	short gyro_yaw_bias, gyro_yaw_plus, gyro_yaw_minus;
+	short gyro_roll_bias, gyro_roll_plus, gyro_roll_minus;
+	short gyro_speed_plus, gyro_speed_minus;
+	short acc_x_plus, acc_x_minus;
+	short acc_y_plus, acc_y_minus;
+	short acc_z_plus, acc_z_minus;
+	int speed_2x;
+	int range_2g;
+	int ret = 0;
+	uint8_t *buf;
+
+	buf = kzalloc(DS4_FEATURE_REPORT_CALIBRATION_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = ps_get_report(hdev, DS4_FEATURE_REPORT_CALIBRATION, buf,
+			DS4_FEATURE_REPORT_CALIBRATION_SIZE);
+	if (ret) {
+		hid_err(hdev, "Failed to retrieve DualShock4 calibration info: %d\n", ret);
+		goto err_free;
+	}
+
+	gyro_pitch_bias  = get_unaligned_le16(&buf[1]);
+	gyro_yaw_bias    = get_unaligned_le16(&buf[3]);
+	gyro_roll_bias   = get_unaligned_le16(&buf[5]);
+	gyro_pitch_plus  = get_unaligned_le16(&buf[7]);
+	gyro_pitch_minus = get_unaligned_le16(&buf[9]);
+	gyro_yaw_plus    = get_unaligned_le16(&buf[11]);
+	gyro_yaw_minus   = get_unaligned_le16(&buf[13]);
+	gyro_roll_plus   = get_unaligned_le16(&buf[15]);
+	gyro_roll_minus  = get_unaligned_le16(&buf[17]);
+	gyro_speed_plus  = get_unaligned_le16(&buf[19]);
+	gyro_speed_minus = get_unaligned_le16(&buf[21]);
+	acc_x_plus       = get_unaligned_le16(&buf[23]);
+	acc_x_minus      = get_unaligned_le16(&buf[25]);
+	acc_y_plus       = get_unaligned_le16(&buf[27]);
+	acc_y_minus      = get_unaligned_le16(&buf[29]);
+	acc_z_plus       = get_unaligned_le16(&buf[31]);
+	acc_z_minus      = get_unaligned_le16(&buf[33]);
+
+	/*
+	 * Set gyroscope calibration and normalization parameters.
+	 * Data values will be normalized to 1/DS4_GYRO_RES_PER_DEG_S degree/s.
+	 */
+	speed_2x = (gyro_speed_plus + gyro_speed_minus);
+	ds4->gyro_calib_data[0].abs_code = ABS_RX;
+	ds4->gyro_calib_data[0].bias = gyro_pitch_bias;
+	ds4->gyro_calib_data[0].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
+	ds4->gyro_calib_data[0].sens_denom = gyro_pitch_plus - gyro_pitch_minus;
+
+	ds4->gyro_calib_data[1].abs_code = ABS_RY;
+	ds4->gyro_calib_data[1].bias = gyro_yaw_bias;
+	ds4->gyro_calib_data[1].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
+	ds4->gyro_calib_data[1].sens_denom = gyro_yaw_plus - gyro_yaw_minus;
+
+	ds4->gyro_calib_data[2].abs_code = ABS_RZ;
+	ds4->gyro_calib_data[2].bias = gyro_roll_bias;
+	ds4->gyro_calib_data[2].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
+	ds4->gyro_calib_data[2].sens_denom = gyro_roll_plus - gyro_roll_minus;
+
+	/*
+	 * Set accelerometer calibration and normalization parameters.
+	 * Data values will be normalized to 1/DS4_ACC_RES_PER_G g.
+	 */
+	range_2g = acc_x_plus - acc_x_minus;
+	ds4->accel_calib_data[0].abs_code = ABS_X;
+	ds4->accel_calib_data[0].bias = acc_x_plus - range_2g / 2;
+	ds4->accel_calib_data[0].sens_numer = 2*DS4_ACC_RES_PER_G;
+	ds4->accel_calib_data[0].sens_denom = range_2g;
+
+	range_2g = acc_y_plus - acc_y_minus;
+	ds4->accel_calib_data[1].abs_code = ABS_Y;
+	ds4->accel_calib_data[1].bias = acc_y_plus - range_2g / 2;
+	ds4->accel_calib_data[1].sens_numer = 2*DS4_ACC_RES_PER_G;
+	ds4->accel_calib_data[1].sens_denom = range_2g;
+
+	range_2g = acc_z_plus - acc_z_minus;
+	ds4->accel_calib_data[2].abs_code = ABS_Z;
+	ds4->accel_calib_data[2].bias = acc_z_plus - range_2g / 2;
+	ds4->accel_calib_data[2].sens_numer = 2*DS4_ACC_RES_PER_G;
+	ds4->accel_calib_data[2].sens_denom = range_2g;
+
+err_free:
+	kfree(buf);
+	return ret;
+}
+
 static int dualshock4_get_firmware_info(struct dualshock4 *ds4)
 {
 	uint8_t *buf;
@@ -1587,6 +1701,7 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 	struct dualshock4_touch_report *touch_reports;
 	uint8_t battery_capacity, num_touch_reports, value;
 	int battery_status, i, j;
+	uint16_t sensor_timestamp;
 	unsigned long flags;
 
 	/*
@@ -1633,6 +1748,44 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 	input_report_key(ds4->gamepad, BTN_THUMBR, ds4_report->buttons[1] & DS_BUTTONS1_R3);
 	input_report_key(ds4->gamepad, BTN_MODE,   ds4_report->buttons[2] & DS_BUTTONS2_PS_HOME);
 	input_sync(ds4->gamepad);
+
+	/* Parse and calibrate gyroscope data. */
+	for (i = 0; i < ARRAY_SIZE(ds4_report->gyro); i++) {
+		int raw_data = (short)le16_to_cpu(ds4_report->gyro[i]);
+		int calib_data = mult_frac(ds4->gyro_calib_data[i].sens_numer,
+					   raw_data - ds4->gyro_calib_data[i].bias,
+					   ds4->gyro_calib_data[i].sens_denom);
+
+		input_report_abs(ds4->sensors, ds4->gyro_calib_data[i].abs_code, calib_data);
+	}
+
+	/* Parse and calibrate accelerometer data. */
+	for (i = 0; i < ARRAY_SIZE(ds4_report->accel); i++) {
+		int raw_data = (short)le16_to_cpu(ds4_report->accel[i]);
+		int calib_data = mult_frac(ds4->accel_calib_data[i].sens_numer,
+					   raw_data - ds4->accel_calib_data[i].bias,
+					   ds4->accel_calib_data[i].sens_denom);
+
+		input_report_abs(ds4->sensors, ds4->accel_calib_data[i].abs_code, calib_data);
+	}
+
+	/* Convert timestamp (in 5.33us unit) to timestamp_us */
+	sensor_timestamp = le16_to_cpu(ds4_report->sensor_timestamp);
+	if (!ds4->sensor_timestamp_initialized) {
+		ds4->sensor_timestamp_us = DIV_ROUND_CLOSEST(sensor_timestamp*16, 3);
+		ds4->sensor_timestamp_initialized = true;
+	} else {
+		uint16_t delta;
+
+		if (ds4->prev_sensor_timestamp > sensor_timestamp)
+			delta = (U16_MAX - ds4->prev_sensor_timestamp + sensor_timestamp + 1);
+		else
+			delta = sensor_timestamp - ds4->prev_sensor_timestamp;
+		ds4->sensor_timestamp_us += DIV_ROUND_CLOSEST(delta*16, 3);
+	}
+	ds4->prev_sensor_timestamp = sensor_timestamp;
+	input_event(ds4->sensors, EV_MSC, MSC_TIMESTAMP, ds4->sensor_timestamp_us);
+	input_sync(ds4->sensors);
 
 	for (i = 0; i < num_touch_reports; i++) {
 		struct dualshock4_touch_report *touch_report = &touch_reports[i];
@@ -1748,9 +1901,22 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 	if (ret)
 		return ERR_PTR(ret);
 
+	ret = dualshock4_get_calibration_data(ds4);
+	if (ret) {
+		hid_err(hdev, "Failed to get calibration data from DualShock4\n");
+		goto err;
+	}
+
 	ds4->gamepad = ps_gamepad_create(hdev, NULL);
 	if (IS_ERR(ds4->gamepad)) {
 		ret = PTR_ERR(ds4->gamepad);
+		goto err;
+	}
+
+	ds4->sensors = ps_sensors_create(hdev, DS4_ACC_RANGE, DS4_ACC_RES_PER_G,
+			DS4_GYRO_RANGE, DS4_GYRO_RES_PER_DEG_S);
+	if (IS_ERR(ds4->sensors)) {
+		ret = PTR_ERR(ds4->sensors);
 		goto err;
 	}
 
