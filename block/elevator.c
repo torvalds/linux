@@ -778,9 +778,8 @@ ssize_t elv_iosched_store(struct request_queue *q, const char *buf,
 
 ssize_t elv_iosched_show(struct request_queue *q, char *name)
 {
-	struct elevator_queue *e = q->elevator;
-	struct elevator_type *elv = NULL;
-	struct elevator_type *__e;
+	struct elevator_queue *eq = q->elevator;
+	struct elevator_type *cur = NULL, *e;
 	int len = 0;
 
 	if (!elv_support_iosched(q))
@@ -789,17 +788,17 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 	if (!q->elevator)
 		len += sprintf(name+len, "[none] ");
 	else
-		elv = e->type;
+		cur = eq->type;
 
 	spin_lock(&elv_list_lock);
-	list_for_each_entry(__e, &elv_list, list) {
-		if (elv && elevator_match(elv, __e->elevator_name, 0)) {
-			len += sprintf(name+len, "[%s] ", elv->elevator_name);
+	list_for_each_entry(e, &elv_list, list) {
+		if (cur && elevator_match(cur, e->elevator_name, 0)) {
+			len += sprintf(name+len, "[%s] ", cur->elevator_name);
 			continue;
 		}
-		if (elevator_match(__e, __e->elevator_name,
+		if (elevator_match(e, e->elevator_name,
 				   q->required_elevator_features))
-			len += sprintf(name+len, "%s ", __e->elevator_name);
+			len += sprintf(name+len, "%s ", e->elevator_name);
 	}
 	spin_unlock(&elv_list_lock);
 
