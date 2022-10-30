@@ -3812,6 +3812,8 @@ hl_mmap_mem_buf_alloc(struct hl_mem_mgr *mmg,
 __printf(2, 3) void hl_engine_data_sprintf(struct engines_data *e, const char *fmt, ...);
 void hl_capture_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_of_engines,
 			u8 flags);
+void hl_handle_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_of_engines,
+			u8 flags, u64 *event_mask);
 void hl_capture_page_fault(struct hl_device *hdev, u64 addr, u16 eng_id, bool is_pmmu);
 
 #ifdef CONFIG_DEBUG_FS

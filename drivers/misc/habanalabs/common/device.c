@@ -2409,6 +2409,14 @@ void hl_capture_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_
 			num_of_engines * sizeof(u16));
 	hdev->captured_err_info.razwi.flags = flags;
 }
+
+void hl_handle_razwi(struct hl_device *hdev, u64 addr, u16 *engine_id, u16 num_of_engines,
+			u8 flags, u64 *event_mask)
+{
+	hl_capture_razwi(hdev, addr, engine_id, num_of_engines, flags);
+	*event_mask |= HL_NOTIFIER_EVENT_RAZWI;
+}
+
 static void hl_capture_user_mappings(struct hl_device *hdev, bool is_pmmu)
 {
 	struct page_fault_info *pgf_info = &hdev->captured_err_info.pgf_info;
