@@ -152,6 +152,8 @@ struct iwl_mei_filters {
  * @csa_throttle_end_wk: used when &csa_throttled is true
  * @data_q_lock: protects the access to the data queues which are
  *	accessed without the mutex.
+ * @netdev_work: used to defer registering and unregistering of the netdev to
+ *	avoid taking the rtnl lock in the SAP messages handlers.
  * @sap_seq_no: the sequence number for the SAP messages
  * @seq_no: the sequence number for the SAP messages
  * @dbgfs_dir: the debugfs dir entry
@@ -172,6 +174,7 @@ struct iwl_mei {
 	bool device_down;
 	struct delayed_work csa_throttle_end_wk;
 	spinlock_t data_q_lock;
+	struct work_struct netdev_work;
 
 	atomic_t sap_seq_no;
 	atomic_t seq_no;
@@ -591,6 +594,33 @@ static rx_handler_result_t iwl_mei_rx_handler(struct sk_buff **pskb)
 	return res;
 }
 
+static void iwl_mei_netdev_work(struct work_struct *wk)
+{
+	struct iwl_mei *mei =
+		container_of(wk, struct iwl_mei, netdev_work);
+	struct net_device *netdev;
+
+	/*
+	 * First take rtnl and only then the mutex to avoid an ABBA
+	 * with iwl_mei_set_netdev()
+	 */
+	rtnl_lock();
+	mutex_lock(&iwl_mei_mutex);
+
+	netdev = rcu_dereference_protected(iwl_mei_cache.netdev,
+					   lockdep_is_held(&iwl_mei_mutex));
+	if (netdev) {
+		if (mei->amt_enabled)
+			netdev_rx_handler_register(netdev, iwl_mei_rx_handler,
+						   mei);
+		else
+			netdev_rx_handler_unregister(netdev);
+	}
+
+	mutex_unlock(&iwl_mei_mutex);
+	rtnl_unlock();
+}
+
 static void
 iwl_mei_handle_rx_start_ok(struct mei_cl_device *cldev,
 			   const struct iwl_sap_me_msg_start_ok *rsp,
@@ -743,38 +773,23 @@ static void iwl_mei_handle_amt_state(struct mei_cl_device *cldev,
 				     const struct iwl_sap_msg_dw *dw)
 {
 	struct iwl_mei *mei = mei_cldev_get_drvdata(cldev);
-	struct net_device *netdev;
 
-	/*
-	 * First take rtnl and only then the mutex to avoid an ABBA
-	 * with iwl_mei_set_netdev()
-	 */
-	rtnl_lock();
 	mutex_lock(&iwl_mei_mutex);
-
-	netdev = rcu_dereference_protected(iwl_mei_cache.netdev,
-					   lockdep_is_held(&iwl_mei_mutex));
 
 	if (mei->amt_enabled == !!le32_to_cpu(dw->val))
 		goto out;
 
 	mei->amt_enabled = dw->val;
 
-	if (mei->amt_enabled) {
-		if (netdev)
-			netdev_rx_handler_register(netdev, iwl_mei_rx_handler, mei);
-
+	if (mei->amt_enabled)
 		iwl_mei_set_init_conf(mei);
-	} else {
-		if (iwl_mei_cache.ops)
-			iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false);
-		if (netdev)
-			netdev_rx_handler_unregister(netdev);
-	}
+	else if (iwl_mei_cache.ops)
+		iwl_mei_cache.ops->rfkill(iwl_mei_cache.priv, false, false);
+
+	schedule_work(&mei->netdev_work);
 
 out:
 	mutex_unlock(&iwl_mei_mutex);
-	rtnl_unlock();
 }
 
 static void iwl_mei_handle_nic_owner(struct mei_cl_device *cldev,
@@ -1827,6 +1842,7 @@ static int iwl_mei_probe(struct mei_cl_device *cldev,
 			  iwl_mei_csa_throttle_end_wk);
 	init_waitqueue_head(&mei->get_ownership_wq);
 	spin_lock_init(&mei->data_q_lock);
+	INIT_WORK(&mei->netdev_work, iwl_mei_netdev_work);
 
 	mei_cldev_set_drvdata(cldev, mei);
 	mei->cldev = cldev;
@@ -1989,6 +2005,7 @@ static void iwl_mei_remove(struct mei_cl_device *cldev)
 	 */
 	cancel_work_sync(&mei->send_csa_msg_wk);
 	cancel_delayed_work_sync(&mei->csa_throttle_end_wk);
+	cancel_work_sync(&mei->netdev_work);
 
 	/*
 	 * If someone waits for the ownership, let him know that we are going
