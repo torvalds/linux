@@ -37,6 +37,16 @@ properties:
     description:
       Protected clock specifier list as per common clock binding.
 
+  clocks:
+    items:
+      - description: board XO clock
+      - description: sleep clock
+
+  clock-names:
+    items:
+      - const: xo
+      - const: sleep_clk
+
 required:
   - compatible
   - reg
