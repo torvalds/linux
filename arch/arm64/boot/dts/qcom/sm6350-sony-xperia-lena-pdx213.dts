@@ -43,6 +43,15 @@
 			gpios = <&pm6350_gpios 2 GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	touch_en_vreg: touch-en-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "touch_en_vreg";
+		gpio = <&tlmm 10 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&pm6350_l6>;
+	};
 };
 
 &apps_rsc {
@@ -280,6 +289,23 @@
 	status = "okay";
 };
 
+&i2c8 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	touchscreen@48 {
+		compatible = "samsung,s6sy761";
+		reg = <0x48>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <22 0x2008>;
+		vdd-supply = <&pm6350_l11>;
+		avdd-supply = <&touch_en_vreg>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_int_default &ts_active>;
+	};
+};
+
 &pm6350_gpios {
 	gpio_keys_state: gpio-keys-state {
 		key-volume-down-pins {
@@ -334,6 +360,21 @@
 
 &tlmm {
 	gpio-reserved-ranges = <13 4>, <45 2>, <56 2>;
+
+	ts_active: ts-active-state {
+		pins = "gpio21";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-pull-up;
+	};
+
+	ts_int_default: ts-int-default-state {
+		pins = "gpio22";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		input-enable;
+	};
 };
 
 &usb_1 {
