@@ -843,7 +843,7 @@ static int __init save_async_options(char *buf)
 }
 __setup("driver_async_probe=", save_async_options);
 
-bool driver_allows_async_probing(struct device_driver *drv)
+static bool driver_allows_async_probing(struct device_driver *drv)
 {
 	switch (drv->probe_type) {
 	case PROBE_PREFER_ASYNCHRONOUS:
