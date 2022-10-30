@@ -1481,7 +1481,7 @@ static void OnDisassoc(struct adapter *padapter, struct recv_frame *precv_frame)
 	pmlmepriv->LinkDetectInfo.bBusyTraffic = false;
 }
 
-unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_frame)
+static void OnAction_back(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
 	struct sta_info *psta = NULL;
@@ -1494,21 +1494,20 @@ unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_fr
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	/* check RA matches or not */
 	if (memcmp(myid(&padapter->eeprompriv), mgmt->da, ETH_ALEN))/* for if1, sta/ap mode */
-		return _SUCCESS;
+		return;
 
 	if ((pmlmeinfo->state & 0x03) != WIFI_FW_AP_STATE)
 		if (!(pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS))
-			return _SUCCESS;
+			return;
 
 	psta = rtw_get_stainfo(pstapriv, mgmt->sa);
-
 	if (!psta)
-		return _SUCCESS;
+		return;
 
 	frame_body = (unsigned char *)(pframe + sizeof(struct ieee80211_hdr_3addr));
 
 	if (!pmlmeinfo->HT_enable)
-		return _SUCCESS;
+		return;
 	/* All union members start with an action code, it's ok to use addba_req. */
 	switch (mgmt->u.action.u.addba_req.action_code) {
 	case WLAN_ACTION_ADDBA_REQ:
@@ -1550,8 +1549,6 @@ unsigned int OnAction_back(struct adapter *padapter, struct recv_frame *precv_fr
 	default:
 		break;
 	}
-
-	return _SUCCESS;
 }
 
 static int get_reg_classes_full_count(struct p2p_channels *channel_list)
