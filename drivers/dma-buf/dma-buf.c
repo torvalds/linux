@@ -995,10 +995,10 @@ static void __unmap_dma_buf(struct dma_buf_attachment *attach,
  */
 void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
 {
-	if (WARN_ON(!dmabuf || !attach))
+	if (WARN_ON(!dmabuf || !attach || dmabuf != attach->dmabuf))
 		return;
 
-	dma_resv_lock(attach->dmabuf->resv, NULL);
+	dma_resv_lock(dmabuf->resv, NULL);
 
 	if (attach->sgt) {
 
