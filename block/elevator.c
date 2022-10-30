@@ -554,39 +554,6 @@ void elv_unregister(struct elevator_type *e)
 }
 EXPORT_SYMBOL_GPL(elv_unregister);
 
-static int elevator_switch_mq(struct request_queue *q,
-			      struct elevator_type *new_e)
-{
-	int ret;
-
-	lockdep_assert_held(&q->sysfs_lock);
-
-	if (q->elevator) {
-		elv_unregister_queue(q);
-		elevator_exit(q);
-	}
-
-	ret = blk_mq_init_sched(q, new_e);
-	if (ret)
-		goto out;
-
-	if (new_e) {
-		ret = elv_register_queue(q, true);
-		if (ret) {
-			elevator_exit(q);
-			goto out;
-		}
-	}
-
-	if (new_e)
-		blk_add_trace_msg(q, "elv switch: %s", new_e->elevator_name);
-	else
-		blk_add_trace_msg(q, "elv switch: none");
-
-out:
-	return ret;
-}
-
 static inline bool elv_support_iosched(struct request_queue *q)
 {
 	if (!queue_is_mq(q) ||
@@ -691,19 +658,51 @@ void elevator_init_mq(struct request_queue *q)
  */
 int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 {
-	int err;
+	int ret;
 
 	lockdep_assert_held(&q->sysfs_lock);
 
 	blk_mq_freeze_queue(q);
 	blk_mq_quiesce_queue(q);
 
-	err = elevator_switch_mq(q, new_e);
+	if (q->elevator) {
+		elv_unregister_queue(q);
+		elevator_exit(q);
+	}
+
+	ret = blk_mq_init_sched(q, new_e);
+	if (ret)
+		goto out_unfreeze;
+
+	ret = elv_register_queue(q, true);
+	if (ret) {
+		elevator_exit(q);
+		goto out_unfreeze;
+	}
+	blk_add_trace_msg(q, "elv switch: %s", new_e->elevator_name);
+
+out_unfreeze:
+	blk_mq_unquiesce_queue(q);
+	blk_mq_unfreeze_queue(q);
+	return ret;
+}
+
+void elevator_disable(struct request_queue *q)
+{
+	lockdep_assert_held(&q->sysfs_lock);
+
+	blk_mq_freeze_queue(q);
+	blk_mq_quiesce_queue(q);
+
+	elv_unregister_queue(q);
+	elevator_exit(q);
+	blk_queue_flag_clear(QUEUE_FLAG_SQ_SCHED, q);
+	q->elevator = NULL;
+	q->nr_requests = q->tag_set->queue_depth;
+	blk_add_trace_msg(q, "elv switch: none");
 
 	blk_mq_unquiesce_queue(q);
 	blk_mq_unfreeze_queue(q);
-
-	return err;
 }
 
 /*
@@ -722,9 +721,9 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
 	 * Special case for mq, turn off scheduling
 	 */
 	if (!strncmp(elevator_name, "none", 4)) {
-		if (!q->elevator)
-			return 0;
-		return elevator_switch(q, NULL);
+		if (q->elevator)
+			elevator_disable(q);
+		return 0;
 	}
 
 	if (q->elevator && elevator_match(q->elevator->type, elevator_name))

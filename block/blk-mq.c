@@ -4588,7 +4588,7 @@ static bool blk_mq_elv_switch_none(struct list_head *head,
 	__elevator_get(qe->type);
 	qe->type = q->elevator->type;
 	list_add(&qe->node, head);
-	elevator_switch(q, NULL);
+	elevator_disable(q);
 	mutex_unlock(&q->sysfs_lock);
 
 	return true;
