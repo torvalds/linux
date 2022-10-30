@@ -3835,7 +3835,7 @@ static void on_action_public(struct adapter *padapter, struct recv_frame *precv_
 static void OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	u8 *frame_body;
-	u8 category, OUI_Subtype;
+	u8 OUI_Subtype;
 	u8 *pframe = precv_frame->rx_data;
 	uint len = precv_frame->len;
 	struct	wifidirect_info	*pwdinfo = &padapter->wdinfo;
@@ -3845,10 +3845,6 @@ static void OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_fram
 		return;
 
 	frame_body = (unsigned char *)(pframe + sizeof(struct ieee80211_hdr_3addr));
-
-	category = frame_body[0];
-	if (category != RTW_WLAN_CATEGORY_P2P)
-		return;
 
 	if (be32_to_cpu(*((__be32 *)(frame_body + 1))) != P2POUI)
 		return;
