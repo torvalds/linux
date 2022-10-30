@@ -208,6 +208,15 @@ static void of_gpio_set_polarity_by_property(const struct device_node *np,
 		{ "fsl,imx8qm-fec",  "phy-reset-gpios", "phy-reset-active-high" },
 		{ "fsl,s32v234-fec", "phy-reset-gpios", "phy-reset-active-high" },
 #endif
+#if IS_ENABLED(CONFIG_PCI_IMX6)
+		{ "fsl,imx6q-pcie",  "reset-gpio", "reset-gpio-active-high" },
+		{ "fsl,imx6sx-pcie", "reset-gpio", "reset-gpio-active-high" },
+		{ "fsl,imx6qp-pcie", "reset-gpio", "reset-gpio-active-high" },
+		{ "fsl,imx7d-pcie",  "reset-gpio", "reset-gpio-active-high" },
+		{ "fsl,imx8mq-pcie", "reset-gpio", "reset-gpio-active-high" },
+		{ "fsl,imx8mm-pcie", "reset-gpio", "reset-gpio-active-high" },
+		{ "fsl,imx8mp-pcie", "reset-gpio", "reset-gpio-active-high" },
+#endif
 
 		/*
 		 * The regulator GPIO handles are specified such that the
