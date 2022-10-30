@@ -2121,8 +2121,8 @@ static void _rtl92e_dm_end_sw_fsync(struct net_device *dev)
 static void _rtl92e_dm_start_sw_fsync(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	u32			rateIndex;
-	u32			rateBitmap;
+	u32 rate_index;
+	u32 rate_bitmap;
 
 	priv->rate_record = 0;
 	priv->ContinueDiffCount = 0;
@@ -2136,12 +2136,12 @@ static void _rtl92e_dm_start_sw_fsync(struct net_device *dev)
 		priv->rtllib->fsync_firstdiff_ratethreshold = 200;
 		priv->rtllib->fsync_seconddiff_ratethreshold = 200;
 	}
-	for (rateIndex = 0; rateIndex <= 27; rateIndex++) {
-		rateBitmap  = 1 << rateIndex;
-		if (priv->rtllib->fsync_rate_bitmap & rateBitmap)
+	for (rate_index = 0; rate_index <= 27; rate_index++) {
+		rate_bitmap  = 1 << rate_index;
+		if (priv->rtllib->fsync_rate_bitmap & rate_bitmap)
 			priv->rate_record +=
 				 priv->stats.received_rate_histogram[1]
-				[rateIndex];
+				[rate_index];
 	}
 	if (timer_pending(&priv->fsync_timer))
 		del_timer_sync(&priv->fsync_timer);
