@@ -3490,7 +3490,7 @@ inline void issue_probereq_p2p(struct adapter *adapter, u8 *da)
 	_issue_probereq_p2p(adapter, da);
 }
 
-static s32 rtw_action_public_decache(struct recv_frame *recv_frame, s32 token)
+static s32 rtw_action_public_decache(struct recv_frame *recv_frame, u8 token)
 {
 	struct adapter *adapter = recv_frame->adapter;
 	struct mlme_ext_priv *mlmeext = &adapter->mlmeextpriv;
@@ -3499,21 +3499,13 @@ static s32 rtw_action_public_decache(struct recv_frame *recv_frame, s32 token)
 		(recv_frame->attrib.frag_num & 0xf);
 
 	if (GetRetry(frame)) {
-		if (token >= 0) {
-			if ((seq_ctrl == mlmeext->action_public_rxseq) &&
-			    (token == mlmeext->action_public_dialog_token))
-				return _FAIL;
-		} else {
-			if (seq_ctrl == mlmeext->action_public_rxseq)
-				return _FAIL;
-		}
+		if ((seq_ctrl == mlmeext->action_public_rxseq) &&
+		    (token == mlmeext->action_public_dialog_token))
+			return _FAIL;
 	}
 
 	mlmeext->action_public_rxseq = seq_ctrl;
-
-	if (token >= 0)
-		mlmeext->action_public_dialog_token = token;
-
+	mlmeext->action_public_dialog_token = token;
 	return _SUCCESS;
 }
 
