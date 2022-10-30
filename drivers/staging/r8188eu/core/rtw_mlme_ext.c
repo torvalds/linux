@@ -3852,19 +3852,8 @@ static void OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_fram
 	len -= sizeof(struct ieee80211_hdr_3addr);
 	OUI_Subtype = frame_body[5];
 
-	switch (OUI_Subtype) {
-	case P2P_NOTICE_OF_ABSENCE:
-		break;
-	case P2P_PRESENCE_REQUEST:
+	if (OUI_Subtype == P2P_PRESENCE_REQUEST)
 		process_p2p_presence_req(pwdinfo, pframe, len);
-		break;
-	case P2P_PRESENCE_RESPONSE:
-		break;
-	case P2P_GO_DISC_REQUEST:
-		break;
-	default:
-		break;
-	}
 }
 
 static void OnAction(struct adapter *padapter, struct recv_frame *precv_frame)
