@@ -850,8 +850,11 @@ static inline blk_status_t nvme_setup_write_zeroes(struct nvme_ns *ns,
 	cmnd->write_zeroes.length =
 		cpu_to_le16((blk_rq_bytes(req) >> ns->lba_shift) - 1);
 
+	if (!(req->cmd_flags & REQ_NOUNMAP) && (ns->features & NVME_NS_DEAC))
+		cmnd->write_zeroes.control |= cpu_to_le16(NVME_WZ_DEAC);
+
 	if (nvme_ns_has_pi(ns)) {
-		cmnd->write_zeroes.control = cpu_to_le16(NVME_RW_PRINFO_PRACT);
+		cmnd->write_zeroes.control |= cpu_to_le16(NVME_RW_PRINFO_PRACT);
 
 		switch (ns->pi_type) {
 		case NVME_NS_DPS_PI_TYPE1:
@@ -2003,6 +2006,14 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 		}
 	}
 
+	/*
+	 * Only set the DEAC bit if the device guarantees that reads from
+	 * deallocated data return zeroes.  While the DEAC bit does not
+	 * require that, it must be a no-op if reads from deallocated data
+	 * do not return zeroes.
+	 */
+	if ((id->dlfeat & 0x7) == 0x1 && (id->dlfeat & (1 << 3)))
+		ns->features |= NVME_NS_DEAC;
 	set_disk_ro(ns->disk, nvme_ns_is_readonly(ns, info));
 	set_bit(NVME_NS_READY, &ns->flags);
 	blk_mq_unfreeze_queue(ns->disk->queue);
