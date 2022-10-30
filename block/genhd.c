@@ -638,7 +638,9 @@ void del_gendisk(struct gendisk *disk)
 
 	blk_sync_queue(q);
 	blk_flush_integrity();
-	blk_mq_cancel_work_sync(q);
+
+	if (queue_is_mq(q))
+		blk_mq_cancel_work_sync(q);
 
 	blk_mq_quiesce_queue(q);
 	if (q->elevator) {
