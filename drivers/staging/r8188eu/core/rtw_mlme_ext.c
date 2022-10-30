@@ -3788,22 +3788,15 @@ static void on_action_public_vendor(struct recv_frame *precv_frame)
 		on_action_public_p2p(precv_frame);
 }
 
-static unsigned int on_action_public_default(struct recv_frame *precv_frame)
+static void on_action_public_default(struct recv_frame *precv_frame)
 {
-	unsigned int ret = _FAIL;
 	u8 *pframe = precv_frame->rx_data;
 	u8 *frame_body = pframe + sizeof(struct ieee80211_hdr_3addr);
 	u8 token;
 
 	token = frame_body[2];
 
-	if (rtw_action_public_decache(precv_frame, token) == _FAIL)
-		goto exit;
-
-	ret = _SUCCESS;
-
-exit:
-	return ret;
+	rtw_action_public_decache(precv_frame, token);
 }
 
 static void on_action_public(struct adapter *padapter, struct recv_frame *precv_frame)
