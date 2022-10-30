@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021 - 2022 Intel Corporation
  */
 
 #ifndef __sap_h__
@@ -334,12 +334,14 @@ enum iwl_sap_wifi_auth_type {
 /**
  * enum iwl_sap_wifi_cipher_alg
  * @SAP_WIFI_CIPHER_ALG_NONE: TBD
+ * @SAP_WIFI_CIPHER_ALG_TKIP: TBD
  * @SAP_WIFI_CIPHER_ALG_CCMP: TBD
  * @SAP_WIFI_CIPHER_ALG_GCMP: TBD
  * @SAP_WIFI_CIPHER_ALG_GCMP_256: TBD
  */
 enum iwl_sap_wifi_cipher_alg {
 	SAP_WIFI_CIPHER_ALG_NONE	= IWL_MEI_CIPHER_NONE,
+	SAP_WIFI_CIPHER_ALG_TKIP	= IWL_MEI_CIPHER_TKIP,
 	SAP_WIFI_CIPHER_ALG_CCMP	= IWL_MEI_CIPHER_CCMP,
 	SAP_WIFI_CIPHER_ALG_GCMP	= IWL_MEI_CIPHER_GCMP,
 	SAP_WIFI_CIPHER_ALG_GCMP_256	= IWL_MEI_CIPHER_GCMP_256,

@@ -3059,6 +3059,9 @@ static void iwl_mvm_mei_host_associated(struct iwl_mvm *mvm,
 		return;
 
 	switch (mvm_sta->pairwise_cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+		conn_info.pairwise_cipher = IWL_MEI_CIPHER_TKIP;
+		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		conn_info.pairwise_cipher = IWL_MEI_CIPHER_CCMP;
 		break;

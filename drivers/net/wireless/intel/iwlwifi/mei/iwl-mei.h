@@ -220,6 +220,7 @@ struct iwl_mei_nvm {
 /**
  * enum iwl_mei_pairwise_cipher - cipher for UCAST key
  * @IWL_MEI_CIPHER_NONE: none
+ * @IWL_MEI_CIPHER_TKIP: tkip
  * @IWL_MEI_CIPHER_CCMP: ccmp
  * @IWL_MEI_CIPHER_GCMP: gcmp
  * @IWL_MEI_CIPHER_GCMP_256: gcmp 256
@@ -228,6 +229,7 @@ struct iwl_mei_nvm {
  */
 enum iwl_mei_pairwise_cipher {
 	IWL_MEI_CIPHER_NONE	= 0,
+	IWL_MEI_CIPHER_TKIP	= 2,
 	IWL_MEI_CIPHER_CCMP	= 4,
 	IWL_MEI_CIPHER_GCMP	= 8,
 	IWL_MEI_CIPHER_GCMP_256 = 9,
