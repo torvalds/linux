@@ -3813,23 +3813,16 @@ exit:
 static void on_action_public(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
-	u8 *pframe = precv_frame->rx_data;
-	u8 *frame_body = pframe + sizeof(struct ieee80211_hdr_3addr);
-	u8 action;
 
 	/* check RA matches or not */
 	if (memcmp(myid(&padapter->eeprompriv), mgmt->da, ETH_ALEN))
 		return;
 
-	action = frame_body[1];
-	switch (action) {
-	case ACT_PUBLIC_VENDOR:
+	/* All members of the action enum start with action_code. */
+	if (mgmt->u.action.u.s1g.action_code == WLAN_PUB_ACTION_VENDOR_SPECIFIC)
 		on_action_public_vendor(precv_frame);
-		break;
-	default:
+	else
 		on_action_public_default(precv_frame);
-		break;
-	}
 }
 
 static void OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_frame)
