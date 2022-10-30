@@ -4,7 +4,9 @@
  */
 /dts-v1/;
 
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include "sm6350.dtsi"
+#include "pm6350.dtsi"
 
 / {
 	model = "Sony Xperia 10 III";
@@ -28,6 +30,35 @@
 			clocks = <&gcc GCC_DISP_AXI_CLK>;
 		};
 	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_keys_state>;
+
+		key-volume-down {
+			label = "volume_down";
+			linux,code = <KEY_VOLUMEDOWN>;
+			gpios = <&pm6350_gpios 2 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&pm6350_gpios {
+	gpio_keys_state: gpio-keys-state {
+		key-volume-down-pins {
+			pins = "gpio2";
+			function = PMIC_GPIO_FUNC_NORMAL;
+			power-source = <0>;
+			bias-disable;
+			input-enable;
+		};
+	};
+};
+
+&pm6350_resin {
+	linux,code = <KEY_VOLUMEUP>;
+	status = "okay";
 };
 
 &sdc2_off_state {
