@@ -83,10 +83,11 @@ bool elv_bio_merge_ok(struct request *rq, struct bio *bio)
 }
 EXPORT_SYMBOL(elv_bio_merge_ok);
 
-static inline bool elv_support_features(unsigned int elv_features,
-					unsigned int required_features)
+static inline bool elv_support_features(struct request_queue *q,
+		const struct elevator_type *e)
 {
-	return (required_features & elv_features) == required_features;
+	return (q->required_elevator_features & e->elevator_features) ==
+		q->required_elevator_features;
 }
 
 /**
@@ -98,37 +99,19 @@ static inline bool elv_support_features(unsigned int elv_features,
  * Return true if the elevator @e name matches @name and if @e provides all
  * the features specified by @required_features.
  */
-static bool elevator_match(const struct elevator_type *e, const char *name,
-			   unsigned int required_features)
+static bool elevator_match(const struct elevator_type *e, const char *name)
 {
-	if (!elv_support_features(e->elevator_features, required_features))
-		return false;
-	if (!strcmp(e->elevator_name, name))
-		return true;
-	if (e->elevator_alias && !strcmp(e->elevator_alias, name))
-		return true;
-
-	return false;
+	return !strcmp(e->elevator_name, name) ||
+		(e->elevator_alias && !strcmp(e->elevator_alias, name));
 }
 
-/**
- * elevator_find - Find an elevator
- * @name: Name of the elevator to find
- * @required_features: Features that the elevator must provide
- *
- * Return the first registered scheduler with name @name and supporting the
- * features @required_features and NULL otherwise.
- */
-static struct elevator_type *elevator_find(const char *name,
-					   unsigned int required_features)
+static struct elevator_type *__elevator_find(const char *name)
 {
 	struct elevator_type *e;
 
-	list_for_each_entry(e, &elv_list, list) {
-		if (elevator_match(e, name, required_features))
+	list_for_each_entry(e, &elv_list, list)
+		if (elevator_match(e, name))
 			return e;
-	}
-
 	return NULL;
 }
 
@@ -138,8 +121,8 @@ static struct elevator_type *elevator_find_get(struct request_queue *q,
 	struct elevator_type *e;
 
 	spin_lock(&elv_list_lock);
-	e = elevator_find(name, q->required_elevator_features);
-	if (e && !elevator_tryget(e))
+	e = __elevator_find(name);
+	if (e && (!elv_support_features(q, e) || !elevator_tryget(e)))
 		e = NULL;
 	spin_unlock(&elv_list_lock);
 	return e;
@@ -538,7 +521,7 @@ int elv_register(struct elevator_type *e)
 
 	/* register, don't allow duplicate names */
 	spin_lock(&elv_list_lock);
-	if (elevator_find(e->elevator_name, 0)) {
+	if (__elevator_find(e->elevator_name)) {
 		spin_unlock(&elv_list_lock);
 		kmem_cache_destroy(e->icq_cache);
 		return -EBUSY;
@@ -639,8 +622,7 @@ static struct elevator_type *elevator_get_by_features(struct request_queue *q)
 	spin_lock(&elv_list_lock);
 
 	list_for_each_entry(e, &elv_list, list) {
-		if (elv_support_features(e->elevator_features,
-					 q->required_elevator_features)) {
+		if (elv_support_features(q, e)) {
 			found = e;
 			break;
 		}
@@ -745,7 +727,7 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
 		return elevator_switch(q, NULL);
 	}
 
-	if (q->elevator && elevator_match(q->elevator->type, elevator_name, 0))
+	if (q->elevator && elevator_match(q->elevator->type, elevator_name))
 		return 0;
 
 	e = elevator_find_get(q, elevator_name);
@@ -796,8 +778,7 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 			len += sprintf(name+len, "[%s] ", cur->elevator_name);
 			continue;
 		}
-		if (elevator_match(e, e->elevator_name,
-				   q->required_elevator_features))
+		if (elv_support_features(q, e))
 			len += sprintf(name+len, "%s ", e->elevator_name);
 	}
 	spin_unlock(&elv_list_lock);
