@@ -3832,7 +3832,7 @@ static void on_action_public(struct adapter *padapter, struct recv_frame *precv_
 	}
 }
 
-unsigned int OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_frame)
+static void OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	u8 *frame_body;
 	u8 category, OUI_Subtype;
@@ -3842,16 +3842,16 @@ unsigned int OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_fra
 
 	/* check RA matches or not */
 	if (memcmp(myid(&padapter->eeprompriv), GetAddr1Ptr(pframe), ETH_ALEN))/* for if1, sta/ap mode */
-		return _SUCCESS;
+		return;
 
 	frame_body = (unsigned char *)(pframe + sizeof(struct ieee80211_hdr_3addr));
 
 	category = frame_body[0];
 	if (category != RTW_WLAN_CATEGORY_P2P)
-		return _SUCCESS;
+		return;
 
 	if (be32_to_cpu(*((__be32 *)(frame_body + 1))) != P2POUI)
-		return _SUCCESS;
+		return;
 
 	len -= sizeof(struct ieee80211_hdr_3addr);
 	OUI_Subtype = frame_body[5];
@@ -3869,7 +3869,6 @@ unsigned int OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_fra
 	default:
 		break;
 	}
-	return _SUCCESS;
 }
 
 static void OnAction(struct adapter *padapter, struct recv_frame *precv_frame)
