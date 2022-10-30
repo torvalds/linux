@@ -1173,7 +1173,7 @@ static void __cold io_move_task_work_from_local(struct io_ring_ctx *ctx)
 	}
 }
 
-int __io_run_local_work(struct io_ring_ctx *ctx, bool locked)
+int __io_run_local_work(struct io_ring_ctx *ctx, bool *locked)
 {
 	struct llist_node *node;
 	struct llist_node fake;
@@ -1192,7 +1192,7 @@ again:
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    io_task_work.node);
 		prefetch(container_of(next, struct io_kiocb, io_task_work.node));
-		req->io_task_work.func(req, &locked);
+		req->io_task_work.func(req, locked);
 		ret++;
 		node = next;
 	}
@@ -1208,7 +1208,7 @@ again:
 		goto again;
 	}
 
-	if (locked)
+	if (*locked)
 		io_submit_flush_completions(ctx);
 	trace_io_uring_local_work_run(ctx, ret, loops);
 	return ret;
@@ -1225,7 +1225,7 @@ int io_run_local_work(struct io_ring_ctx *ctx)
 
 	__set_current_state(TASK_RUNNING);
 	locked = mutex_trylock(&ctx->uring_lock);
-	ret = __io_run_local_work(ctx, locked);
+	ret = __io_run_local_work(ctx, &locked);
 	if (locked)
 		mutex_unlock(&ctx->uring_lock);
 
@@ -1446,8 +1446,7 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 		    io_task_work_pending(ctx)) {
 			u32 tail = ctx->cached_cq_tail;
 
-			if (!llist_empty(&ctx->work_llist))
-				__io_run_local_work(ctx, true);
+			(void) io_run_local_work_locked(ctx);
 
 			if (task_work_pending(current) ||
 			    wq_list_empty(&ctx->iopoll_list)) {
