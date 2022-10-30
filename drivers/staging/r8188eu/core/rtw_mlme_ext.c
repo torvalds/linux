@@ -3779,17 +3779,13 @@ static unsigned int on_action_public_p2p(struct recv_frame *precv_frame)
 	return _SUCCESS;
 }
 
-static unsigned int on_action_public_vendor(struct recv_frame *precv_frame)
+static void on_action_public_vendor(struct recv_frame *precv_frame)
 {
-	unsigned int ret = _FAIL;
 	u8 *pframe = precv_frame->rx_data;
 	u8 *frame_body = pframe + sizeof(struct ieee80211_hdr_3addr);
 
-	if (!memcmp(frame_body + 2, P2P_OUI, 4)) {
-		ret = on_action_public_p2p(precv_frame);
-	}
-
-	return ret;
+	if (!memcmp(frame_body + 2, P2P_OUI, 4))
+		on_action_public_p2p(precv_frame);
 }
 
 static unsigned int on_action_public_default(struct recv_frame *precv_frame)
