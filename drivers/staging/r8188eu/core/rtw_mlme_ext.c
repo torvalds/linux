@@ -3813,30 +3813,26 @@ exit:
 	return ret;
 }
 
-unsigned int on_action_public(struct adapter *padapter, struct recv_frame *precv_frame)
+static void on_action_public(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
-	unsigned int ret = _FAIL;
 	u8 *pframe = precv_frame->rx_data;
 	u8 *frame_body = pframe + sizeof(struct ieee80211_hdr_3addr);
 	u8 action;
 
 	/* check RA matches or not */
 	if (memcmp(myid(&padapter->eeprompriv), mgmt->da, ETH_ALEN))
-		goto exit;
+		return;
 
 	action = frame_body[1];
 	switch (action) {
 	case ACT_PUBLIC_VENDOR:
-		ret = on_action_public_vendor(precv_frame);
+		on_action_public_vendor(precv_frame);
 		break;
 	default:
-		ret = on_action_public_default(precv_frame);
+		on_action_public_default(precv_frame);
 		break;
 	}
-
-exit:
-	return ret;
 }
 
 unsigned int OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_frame)

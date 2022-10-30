@@ -538,8 +538,6 @@ void start_create_ibss(struct adapter *padapter);
 
 unsigned int OnAction_back(struct adapter *padapter,
 			   struct recv_frame *precv_frame);
-unsigned int on_action_public(struct adapter *padapter,
-			      struct recv_frame *precv_frame);
 unsigned int OnAction_p2p(struct adapter *padapter,
 			  struct recv_frame *precv_frame);
 
