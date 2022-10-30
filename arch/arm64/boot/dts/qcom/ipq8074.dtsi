@@ -360,9 +360,11 @@
 		gcc: gcc@1800000 {
 			compatible = "qcom,gcc-ipq8074";
 			reg = <0x01800000 0x80000>;
-			#clock-cells = <0x1>;
+			clocks = <&xo>, <&sleep_clk>;
+			clock-names = "xo", "sleep_clk";
+			#clock-cells = <1>;
 			#power-domain-cells = <1>;
-			#reset-cells = <0x1>;
+			#reset-cells = <1>;
 		};
 
 		tcsr_mutex: hwlock@1905000 {
