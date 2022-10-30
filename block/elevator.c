@@ -783,7 +783,7 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 	struct elevator_type *__e;
 	int len = 0;
 
-	if (!queue_is_mq(q))
+	if (!elv_support_iosched(q))
 		return sprintf(name, "none\n");
 
 	if (!q->elevator)
@@ -797,8 +797,7 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 			len += sprintf(name+len, "[%s] ", elv->elevator_name);
 			continue;
 		}
-		if (elv_support_iosched(q) &&
-		    elevator_match(__e, __e->elevator_name,
+		if (elevator_match(__e, __e->elevator_name,
 				   q->required_elevator_features))
 			len += sprintf(name+len, "%s ", __e->elevator_name);
 	}
