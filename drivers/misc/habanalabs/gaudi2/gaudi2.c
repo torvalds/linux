@@ -9148,6 +9148,11 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		break;
 
+	case GAUDI2_EVENT_CPU_FP32_NOT_SUPPORTED:
+		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
+		is_critical = true;
+		break;
+
 	default:
 		if (gaudi2_irq_map_table[event_type].valid)
 			dev_err_ratelimited(hdev->dev, "Cannot find handler for event %d\n",
