@@ -3568,7 +3568,7 @@ static int rtw_wx_set_priv(struct net_device *dev,
 
 		if ((_VENDOR_SPECIFIC_IE_ == probereq_wpsie[0]) &&
 		    (!memcmp(&probereq_wpsie[2], wps_oui, 4))) {
-			cp_sz = probereq_wpsie_len > MAX_WPS_IE_LEN ? MAX_WPS_IE_LEN : probereq_wpsie_len;
+			cp_sz = min(probereq_wpsie_len, MAX_WPS_IE_LEN);
 
 			pmlmepriv->wps_probe_req_ie_len = 0;
 			kfree(pmlmepriv->wps_probe_req_ie);
