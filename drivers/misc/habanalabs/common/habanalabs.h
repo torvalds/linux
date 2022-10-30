@@ -2498,13 +2498,9 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 #define WREG32_AND(reg, and) WREG32_P(reg, 0, and)
 #define WREG32_OR(reg, or) WREG32_P(reg, or, ~(or))
 
-#define RMWREG32(reg, val, mask)				\
-	do {							\
-		u32 tmp_ = RREG32(reg);				\
-		tmp_ &= ~(mask);				\
-		tmp_ |= ((val) << __ffs(mask));			\
-		WREG32(reg, tmp_);				\
-	} while (0)
+#define RMWREG32_SHIFTED(reg, val, mask) WREG32_P(reg, val, ~(mask))
+
+#define RMWREG32(reg, val, mask) RMWREG32_SHIFTED(reg, (val) << __ffs(mask), mask)
 
 #define RREG32_MASK(reg, mask) ((RREG32(reg) & mask) >> __ffs(mask))
 
