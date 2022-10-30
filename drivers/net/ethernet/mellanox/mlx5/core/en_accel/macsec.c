@@ -368,15 +368,15 @@ static int mlx5e_macsec_init_sa(struct macsec_context *ctx,
 	obj_attrs.aso_pdn = macsec->aso.pdn;
 	obj_attrs.epn_state = sa->epn_state;
 
-	if (is_tx) {
-		obj_attrs.ssci = cpu_to_be32((__force u32)ctx->sa.tx_sa->ssci);
-		key = &ctx->sa.tx_sa->key;
-	} else {
-		obj_attrs.ssci = cpu_to_be32((__force u32)ctx->sa.rx_sa->ssci);
-		key = &ctx->sa.rx_sa->key;
+	key = (is_tx) ? &ctx->sa.tx_sa->key : &ctx->sa.rx_sa->key;
+
+	if (sa->epn_state.epn_enabled) {
+		obj_attrs.ssci = (is_tx) ? cpu_to_be32((__force u32)ctx->sa.tx_sa->ssci) :
+					   cpu_to_be32((__force u32)ctx->sa.rx_sa->ssci);
+
+		memcpy(&obj_attrs.salt, &key->salt, sizeof(key->salt));
 	}
 
-	memcpy(&obj_attrs.salt, &key->salt, sizeof(key->salt));
 	obj_attrs.replay_window = ctx->secy->replay_window;
 	obj_attrs.replay_protect = ctx->secy->replay_protect;
 
