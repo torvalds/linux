@@ -3834,6 +3834,7 @@ static void on_action_public(struct adapter *padapter, struct recv_frame *precv_
 
 static void OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_frame)
 {
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
 	u8 *frame_body;
 	u8 OUI_Subtype;
 	u8 *pframe = precv_frame->rx_data;
@@ -3841,7 +3842,7 @@ static void OnAction_p2p(struct adapter *padapter, struct recv_frame *precv_fram
 	struct	wifidirect_info	*pwdinfo = &padapter->wdinfo;
 
 	/* check RA matches or not */
-	if (memcmp(myid(&padapter->eeprompriv), GetAddr1Ptr(pframe), ETH_ALEN))/* for if1, sta/ap mode */
+	if (memcmp(myid(&padapter->eeprompriv), mgmt->da, ETH_ALEN))/* for if1, sta/ap mode */
 		return;
 
 	frame_body = (unsigned char *)(pframe + sizeof(struct ieee80211_hdr_3addr));
