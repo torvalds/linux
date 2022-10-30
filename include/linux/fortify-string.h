@@ -43,11 +43,24 @@ extern __kernel_size_t __underlying_strlen(const char *p) __RENAME(strlen);
 extern char *__underlying_strncat(char *p, const char *q, __kernel_size_t count) __RENAME(strncat);
 extern char *__underlying_strncpy(char *p, const char *q, __kernel_size_t size) __RENAME(strncpy);
 #else
-#define __underlying_memchr	__builtin_memchr
-#define __underlying_memcmp	__builtin_memcmp
+
+#if defined(__SANITIZE_MEMORY__)
+/*
+ * For KMSAN builds all memcpy/memset/memmove calls should be replaced by the
+ * corresponding __msan_XXX functions.
+ */
+#include <linux/kmsan_string.h>
+#define __underlying_memcpy	__msan_memcpy
+#define __underlying_memmove	__msan_memmove
+#define __underlying_memset	__msan_memset
+#else
 #define __underlying_memcpy	__builtin_memcpy
 #define __underlying_memmove	__builtin_memmove
 #define __underlying_memset	__builtin_memset
+#endif
+
+#define __underlying_memchr	__builtin_memchr
+#define __underlying_memcmp	__builtin_memcmp
 #define __underlying_strcat	__builtin_strcat
 #define __underlying_strcpy	__builtin_strcpy
 #define __underlying_strlen	__builtin_strlen
