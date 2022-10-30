@@ -1155,7 +1155,7 @@ static int macsec_upd_secy_hw_address(struct macsec_context *ctx,
 				continue;
 
 			if (rx_sa->active) {
-				err = mlx5e_macsec_init_sa(ctx, rx_sa, false, false);
+				err = mlx5e_macsec_init_sa(ctx, rx_sa, true, false);
 				if (err)
 					goto out;
 			}
