@@ -186,33 +186,68 @@ static void of_gpio_try_fixup_polarity(const struct device_node *np,
 	}
 }
 
-static void of_gpio_flags_quirks(const struct device_node *np,
-				 const char *propname,
-				 enum of_gpio_flags *flags,
-				 int index)
+static void of_gpio_set_polarity_by_property(const struct device_node *np,
+					     const char *propname,
+					     enum of_gpio_flags *flags)
 {
-	of_gpio_try_fixup_polarity(np, propname, flags);
+	static const struct {
+		const char *compatible;
+		const char *gpio_propname;
+		const char *polarity_propname;
+	} gpios[] = {
+#if IS_ENABLED(CONFIG_FEC)
+		/* Freescale Fast Ethernet Controller */
+		{ "fsl,imx25-fec",   "phy-reset-gpios", "phy-reset-active-high" },
+		{ "fsl,imx27-fec",   "phy-reset-gpios", "phy-reset-active-high" },
+		{ "fsl,imx28-fec",   "phy-reset-gpios", "phy-reset-active-high" },
+		{ "fsl,imx6q-fec",   "phy-reset-gpios", "phy-reset-active-high" },
+		{ "fsl,mvf600-fec",  "phy-reset-gpios", "phy-reset-active-high" },
+		{ "fsl,imx6sx-fec",  "phy-reset-gpios", "phy-reset-active-high" },
+		{ "fsl,imx6ul-fec",  "phy-reset-gpios", "phy-reset-active-high" },
+		{ "fsl,imx8mq-fec",  "phy-reset-gpios", "phy-reset-active-high" },
+		{ "fsl,imx8qm-fec",  "phy-reset-gpios", "phy-reset-active-high" },
+		{ "fsl,s32v234-fec", "phy-reset-gpios", "phy-reset-active-high" },
+#endif
 
-	/*
-	 * Some GPIO fixed regulator quirks.
-	 * Note that active low is the default.
-	 */
-	if (IS_ENABLED(CONFIG_REGULATOR) &&
-	    (of_device_is_compatible(np, "regulator-fixed") ||
-	     of_device_is_compatible(np, "reg-fixed-voltage") ||
-	     (!(strcmp(propname, "enable-gpio") &&
-		strcmp(propname, "enable-gpios")) &&
-	      of_device_is_compatible(np, "regulator-gpio")))) {
-		bool active_high = of_property_read_bool(np,
-							 "enable-active-high");
 		/*
 		 * The regulator GPIO handles are specified such that the
 		 * presence or absence of "enable-active-high" solely controls
 		 * the polarity of the GPIO line. Any phandle flags must
 		 * be actively ignored.
 		 */
-		of_gpio_quirk_polarity(np, active_high, flags);
+#if IS_ENABLED(CONFIG_REGULATOR_FIXED_VOLTAGE)
+		{ "regulator-fixed",   "gpios",        "enable-active-high" },
+		{ "regulator-fixed",   "gpio",         "enable-active-high" },
+		{ "reg-fixed-voltage", "gpios",        "enable-active-high" },
+		{ "reg-fixed-voltage", "gpio",         "enable-active-high" },
+#endif
+#if IS_ENABLED(CONFIG_REGULATOR_GPIO)
+		{ "regulator-gpio",    "enable-gpio",  "enable-active-high" },
+		{ "regulator-gpio",    "enable-gpios", "enable-active-high" },
+#endif
+	};
+	unsigned int i;
+	bool active_high;
+
+	for (i = 0; i < ARRAY_SIZE(gpios); i++) {
+		if (of_device_is_compatible(np, gpios[i].compatible) &&
+		    !strcmp(propname, gpios[i].gpio_propname)) {
+			active_high = of_property_read_bool(np,
+						gpios[i].polarity_propname);
+			of_gpio_quirk_polarity(np, active_high, flags);
+			break;
+		}
 	}
+}
+
+static void of_gpio_flags_quirks(const struct device_node *np,
+				 const char *propname,
+				 enum of_gpio_flags *flags,
+				 int index)
+{
+	of_gpio_try_fixup_polarity(np, propname, flags);
+	of_gpio_set_polarity_by_property(np, propname, flags);
+
 	/*
 	 * Legacy open drain handling for fixed voltage regulators.
 	 */
@@ -267,33 +302,6 @@ static void of_gpio_flags_quirks(const struct device_node *np,
 	    !strcmp(propname, "snps,reset-gpio") &&
 	    of_property_read_bool(np, "snps,reset-active-low"))
 		*flags |= OF_GPIO_ACTIVE_LOW;
-
-	/*
-	 * Freescale Fast Ethernet Controller uses a separate property to
-	 * describe polarity of the phy reset line.
-	 */
-	if (IS_ENABLED(CONFIG_FEC)) {
-		static const char * const fec_devices[] = {
-			"fsl,imx25-fec",
-			"fsl,imx27-fec",
-			"fsl,imx28-fec",
-			"fsl,imx6q-fec",
-			"fsl,mvf600-fec",
-			"fsl,imx6sx-fec",
-			"fsl,imx6ul-fec",
-			"fsl,imx8mq-fec",
-			"fsl,imx8qm-fec",
-			"fsl,s32v234-fec",
-			NULL
-		};
-
-		if (!strcmp(propname, "phy-reset-gpios") &&
-		    of_device_compatible_match(np, fec_devices)) {
-			bool active_high = of_property_read_bool(np,
-						"phy-reset-active-high");
-			of_gpio_quirk_polarity(np, active_high, flags);
-		}
-	}
 }
 
 /**
