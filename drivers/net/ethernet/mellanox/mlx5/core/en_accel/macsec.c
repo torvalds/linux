@@ -1536,6 +1536,8 @@ static void macsec_async_event(struct work_struct *work)
 
 	async_work = container_of(work, struct mlx5e_macsec_async_work, work);
 	macsec = async_work->macsec;
+	mutex_lock(&macsec->lock);
+
 	mdev = async_work->mdev;
 	obj_id = async_work->obj_id;
 	macsec_sa = get_macsec_tx_sa_from_obj_id(macsec, obj_id);
@@ -1557,6 +1559,7 @@ static void macsec_async_event(struct work_struct *work)
 
 out_async_work:
 	kfree(async_work);
+	mutex_unlock(&macsec->lock);
 }
 
 static int macsec_obj_change_event(struct notifier_block *nb, unsigned long event, void *data)
