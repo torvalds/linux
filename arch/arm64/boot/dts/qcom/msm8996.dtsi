@@ -882,7 +882,7 @@
 				 <&dsi0_phy 0>,
 				 <0>,
 				 <0>,
-				 <0>;
+				 <&hdmi_phy>;
 			clock-names = "xo",
 				      "gcc_mmss_noc_cfg_ahb_clk",
 				      "gpll0",
