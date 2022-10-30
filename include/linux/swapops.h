@@ -162,16 +162,6 @@ static inline void *swp_to_radix_entry(swp_entry_t entry)
 	return xa_mk_value(entry.val);
 }
 
-static inline swp_entry_t make_swapin_error_entry(struct page *page)
-{
-	return swp_entry(SWP_SWAPIN_ERROR, page_to_pfn(page));
-}
-
-static inline int is_swapin_error_entry(swp_entry_t entry)
-{
-	return swp_type(entry) == SWP_SWAPIN_ERROR;
-}
-
 #if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
 static inline swp_entry_t make_readable_device_private_entry(pgoff_t offset)
 {
@@ -409,8 +399,9 @@ static inline bool is_migration_entry_dirty(swp_entry_t entry)
 
 typedef unsigned long pte_marker;
 
-#define  PTE_MARKER_UFFD_WP  BIT(0)
-#define  PTE_MARKER_MASK     (PTE_MARKER_UFFD_WP)
+#define  PTE_MARKER_UFFD_WP			BIT(0)
+#define  PTE_MARKER_SWAPIN_ERROR		BIT(1)
+#define  PTE_MARKER_MASK			(BIT(2) - 1)
 
 static inline swp_entry_t make_pte_marker_entry(pte_marker marker)
 {
@@ -435,6 +426,17 @@ static inline bool is_pte_marker(pte_t pte)
 static inline pte_t make_pte_marker(pte_marker marker)
 {
 	return swp_entry_to_pte(make_pte_marker_entry(marker));
+}
+
+static inline swp_entry_t make_swapin_error_entry(void)
+{
+	return make_pte_marker_entry(PTE_MARKER_SWAPIN_ERROR);
+}
+
+static inline int is_swapin_error_entry(swp_entry_t entry)
+{
+	return is_pte_marker_entry(entry) &&
+	    (pte_marker_get(entry) & PTE_MARKER_SWAPIN_ERROR);
 }
 
 /*
