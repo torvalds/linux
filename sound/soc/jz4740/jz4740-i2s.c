@@ -23,8 +23,6 @@
 #include <sound/initval.h>
 #include <sound/dmaengine_pcm.h>
 
-#include "jz4740-i2s.h"
-
 #define JZ_REG_AIC_CONF		0x00
 #define JZ_REG_AIC_CTRL		0x04
 #define JZ_REG_AIC_I2S_FMT	0x10
@@ -273,35 +271,6 @@ static int jz4740_i2s_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int jz4740_i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id,
-	unsigned int freq, int dir)
-{
-	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
-	struct clk *parent;
-	int ret = 0;
-
-	switch (clk_id) {
-	case JZ4740_I2S_CLKSRC_EXT:
-		parent = clk_get(NULL, "ext");
-		if (IS_ERR(parent))
-			return PTR_ERR(parent);
-		clk_set_parent(i2s->clk_i2s, parent);
-		break;
-	case JZ4740_I2S_CLKSRC_PLL:
-		parent = clk_get(NULL, "pll half");
-		if (IS_ERR(parent))
-			return PTR_ERR(parent);
-		clk_set_parent(i2s->clk_i2s, parent);
-		ret = clk_set_rate(i2s->clk_i2s, freq);
-		break;
-	default:
-		return -EINVAL;
-	}
-	clk_put(parent);
-
-	return ret;
-}
-
 static int jz4740_i2s_dai_probe(struct snd_soc_dai *dai)
 {
 	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
@@ -318,7 +287,6 @@ static const struct snd_soc_dai_ops jz4740_i2s_dai_ops = {
 	.trigger = jz4740_i2s_trigger,
 	.hw_params = jz4740_i2s_hw_params,
 	.set_fmt = jz4740_i2s_set_fmt,
-	.set_sysclk = jz4740_i2s_set_sysclk,
 };
 
 #define JZ4740_I2S_FMTS (SNDRV_PCM_FMTBIT_S8 | \
