@@ -10,6 +10,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -37,20 +38,19 @@ static const unsigned short normal_i2c[] = {
 #define JC42_REG_SMBUS		0x22 /* NXP and Atmel, possibly others? */
 
 /* Status bits in temperature register */
-#define JC42_ALARM_CRIT_BIT	15
-#define JC42_ALARM_MAX_BIT	14
-#define JC42_ALARM_MIN_BIT	13
+#define JC42_ALARM_CRIT		BIT(15)
+#define JC42_ALARM_MAX		BIT(14)
+#define JC42_ALARM_MIN		BIT(13)
 
 /* Configuration register defines */
-#define JC42_CFG_CRIT_ONLY	(1 << 2)
-#define JC42_CFG_TCRIT_LOCK	(1 << 6)
-#define JC42_CFG_EVENT_LOCK	(1 << 7)
-#define JC42_CFG_SHUTDOWN	(1 << 8)
-#define JC42_CFG_HYST_SHIFT	9
-#define JC42_CFG_HYST_MASK	(0x03 << 9)
+#define JC42_CFG_CRIT_ONLY	BIT(2)
+#define JC42_CFG_TCRIT_LOCK	BIT(6)
+#define JC42_CFG_EVENT_LOCK	BIT(7)
+#define JC42_CFG_SHUTDOWN	BIT(8)
+#define JC42_CFG_HYST_MASK	GENMASK(10, 9)
 
 /* Capabilities */
-#define JC42_CAP_RANGE		(1 << 2)
+#define JC42_CAP_RANGE		BIT(2)
 
 /* Manufacturer IDs */
 #define ADT_MANID		0x11d4  /* Analog Devices */
@@ -277,8 +277,8 @@ static int jc42_read(struct device *dev, enum hwmon_sensor_types type,
 			break;
 
 		temp = jc42_temp_from_reg(regval);
-		hyst = jc42_hysteresis[(data->config & JC42_CFG_HYST_MASK)
-						>> JC42_CFG_HYST_SHIFT];
+		hyst = jc42_hysteresis[FIELD_GET(JC42_CFG_HYST_MASK,
+						 data->config)];
 		*val = temp - hyst;
 		break;
 	case hwmon_temp_crit_hyst:
@@ -288,8 +288,8 @@ static int jc42_read(struct device *dev, enum hwmon_sensor_types type,
 			break;
 
 		temp = jc42_temp_from_reg(regval);
-		hyst = jc42_hysteresis[(data->config & JC42_CFG_HYST_MASK)
-						>> JC42_CFG_HYST_SHIFT];
+		hyst = jc42_hysteresis[FIELD_GET(JC42_CFG_HYST_MASK,
+						 data->config)];
 		*val = temp - hyst;
 		break;
 	case hwmon_temp_min_alarm:
@@ -297,21 +297,21 @@ static int jc42_read(struct device *dev, enum hwmon_sensor_types type,
 		if (ret)
 			break;
 
-		*val = (regval >> JC42_ALARM_MIN_BIT) & 1;
+		*val = FIELD_GET(JC42_ALARM_MIN, regval);
 		break;
 	case hwmon_temp_max_alarm:
 		ret = regmap_read(data->regmap, JC42_REG_TEMP, &regval);
 		if (ret)
 			break;
 
-		*val = (regval >> JC42_ALARM_MAX_BIT) & 1;
+		*val = FIELD_GET(JC42_ALARM_MAX, regval);
 		break;
 	case hwmon_temp_crit_alarm:
 		ret = regmap_read(data->regmap, JC42_REG_TEMP, &regval);
 		if (ret)
 			break;
 
-		*val = (regval >> JC42_ALARM_CRIT_BIT) & 1;
+		*val = FIELD_GET(JC42_ALARM_CRIT, regval);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -370,7 +370,7 @@ static int jc42_write(struct device *dev, enum hwmon_sensor_types type,
 				hyst = 3;	/* 6.0 degrees C */
 		}
 		data->config = (data->config & ~JC42_CFG_HYST_MASK) |
-				(hyst << JC42_CFG_HYST_SHIFT);
+				FIELD_PREP(JC42_CFG_HYST_MASK, hyst);
 		ret = regmap_write(data->regmap, JC42_REG_CONFIG,
 				   data->config);
 		break;
