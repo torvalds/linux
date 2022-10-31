@@ -57,6 +57,8 @@ enum btrfs_block_group_flags {
 	BLOCK_GROUP_FLAG_ZONED_DATA_RELOC,
 	/* Does the block group need to be added to the free space tree? */
 	BLOCK_GROUP_FLAG_NEEDS_FREE_SPACE,
+	/* Indicate that the block group is placed on a sequential zone */
+	BLOCK_GROUP_FLAG_SEQUENTIAL_ZONE,
 };
 
 enum btrfs_caching_type {
@@ -209,9 +211,6 @@ struct btrfs_block_group {
 
 	/* Lock for free space tree operations. */
 	struct mutex free_space_lock;
-
-	/* Flag indicating this block group is placed on a sequential zone */
-	bool seq_zone;
 
 	/*
 	 * Number of extents in this block group used for swap files.
