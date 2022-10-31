@@ -11,6 +11,7 @@ div.body h3 { font-size: 130%; }
 /* Tighten up the layout slightly */
 div.body { padding: 0 15px 0 10px; }
 div.sphinxsidebarwrapper { padding: 1em 0.4em; }
+div.sphinxsidebar { font-size: inherit; }
 /* Tweak document margins and don't force width */
 div.document {
     margin: 20px 10px 0 10px; 

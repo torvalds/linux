@@ -316,9 +316,10 @@ if major <= 1 and minor < 8:
 if  html_theme == 'alabaster':
     html_theme_options = {
         'description': get_cline_version(),
-        'font_size': '10pt',
         'page_width': '65em',
         'sidebar_width': '15em',
+        'font_size': 'inherit',
+        'font_family': 'serif',
     }
 
 sys.stderr.write("Using %s theme\n" % html_theme)
