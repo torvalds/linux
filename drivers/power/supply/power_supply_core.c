@@ -870,7 +870,6 @@ EXPORT_SYMBOL_GPL(power_supply_temp2resist_simple);
  * power_supply_vbat2ri() - find the battery internal resistance
  * from the battery voltage
  * @info: The battery information container
- * @table: Pointer to battery resistance temperature table
  * @vbat_uv: The battery voltage in microvolt
  * @charging: If we are charging (true) or not (false)
  *
