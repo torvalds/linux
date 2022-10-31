@@ -98,16 +98,19 @@ struct kprobe_data {
 	void *x2;
 };
 
+#define MAX_DEV_NAME_SIZE	41 /* it match size defined in ffs_dev */
+
 struct ipc_log_work {
-	struct ffs_data *ffs;
-	const char *dev_name;
 	struct work_struct ctxt_work;
+	struct ffs_data *ffs;
+	char dev_name[MAX_DEV_NAME_SIZE];
 };
 
 /* per-device IPC log data */
 struct ipc_log {
 	void *context;
 	struct ffs_data *ffs;
+	char dev_name[MAX_DEV_NAME_SIZE];
 };
 
 static struct workqueue_struct *ipc_wq;
@@ -118,7 +121,7 @@ static int num_devices;
 
 static int ipc_inst_exists(struct ffs_data *ffs)
 {
-	int i = 0;
+	int i;
 
 	for (i = 0; i < num_devices; i++)
 		if (ipc_log_s[i].ffs == ffs)
@@ -126,20 +129,39 @@ static int ipc_inst_exists(struct ffs_data *ffs)
 	return -ENODEV;
 }
 
+static int ipc_inst_dev_exists(const char *dev_name)
+{
+	int i;
+
+	for (i = 0; i < num_devices; i++) {
+		if (ipc_log_s[i].dev_name[0] == '\0')
+			return -ENODEV;
+
+		if (!strcmp(ipc_log_s[i].dev_name, dev_name))
+			return i;
+	}
+
+	return -ENODEV;
+}
+
 static void create_ipc_context_work(struct work_struct *w)
 {
 	struct ipc_log_work *ipc_w = container_of(w, struct ipc_log_work,
 						ctxt_work);
-	char ipcname[24] = "usb_ffs_";
+	char ipcname[50] = "usb_ffs_";
 	void *ctx;
+	int i;
+
+	i = ipc_inst_dev_exists(ipc_w->dev_name);
+	if (i >= 0) {
+		ipc_log_s[i].ffs = ipc_w->ffs;
+		goto exit;
+	}
 
 	if (num_devices >= MAX_IPC_INSTANCES) {
 		pr_err("Can't create any more FFS log contexts\n");
 		goto exit;
 	}
-
-	if (ipc_inst_exists(ipc_w->ffs) >= 0)
-		goto exit;
 
 	strlcat(ipcname, ipc_w->dev_name, sizeof(ipcname));
 	ctx = ipc_log_context_create(10, ipcname, 0);
@@ -151,6 +173,7 @@ static void create_ipc_context_work(struct work_struct *w)
 
 	ipc_log_s[num_devices].context = ctx;
 	ipc_log_s[num_devices].ffs = ipc_w->ffs;
+	strscpy(ipc_log_s[num_devices].dev_name, ipc_w->dev_name, MAX_DEV_NAME_SIZE);
 	num_devices++;
 
 exit:
@@ -166,7 +189,7 @@ static void create_ipc_context(const char *dev_name, struct ffs_data *ffs)
 		return;
 
 	INIT_WORK(&ipc_w->ctxt_work, create_ipc_context_work);
-	ipc_w->dev_name = ffs->dev_name;
+	strscpy(ipc_w->dev_name, ffs->dev_name, MAX_DEV_NAME_SIZE);
 	ipc_w->ffs = ffs;
 
 	queue_work(ipc_wq, &ipc_w->ctxt_work);
@@ -180,8 +203,6 @@ static void *get_ipc_context(struct ffs_data *ffs)
 	if (idx >= 0)
 		return ipc_log_s[idx].context;
 
-	/* not found, create a new one now */
-	create_ipc_context(ffs->dev_name, ffs);
 	return NULL;
 }
 
@@ -297,20 +318,11 @@ static int entry_ffs_data_put(struct kretprobe_instance *ri,
 				struct pt_regs *regs)
 {
 	struct ffs_data *ffs = (struct ffs_data *)regs->regs[0];
-	int idx = ipc_inst_exists(ffs);
-	void *context;
+	void *context = get_ipc_context(ffs);
 	unsigned int refcount = refcount_read(&ffs->ref);
 
-	if (idx < 0)
-		return 0;
-
-	context = ipc_log_s[idx].context;
 	kprobe_log(context, "ref %u", refcount);
 
-	if (refcount == 1) {
-		ipc_log_s[idx].context = NULL;
-		ipc_log_context_destroy(context);
-	}
 	return 0;
 }
 
