@@ -40,7 +40,10 @@ static int st_ism330dhcx_i2c_write(struct device *dev, u8 addr, int len,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct i2c_msg msg;
-	u8 send[len + 1];
+	u8 send[8];
+
+	if (len >= ARRAY_SIZE(send))
+		return -ENOMEM;
 
 	send[0] = addr;
 	memcpy(&send[1], data, len * sizeof(u8));
