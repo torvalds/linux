@@ -123,10 +123,6 @@ patternProperties:
       - $ref: /schemas/power/supply/qcom,pm8941-charger.yaml#
       - $ref: /schemas/power/supply/qcom,pm8941-coincell.yaml#
 
-  "extcon@[0-9a-f]+$":
-    type: object
-    $ref: /schemas/extcon/qcom,pm8941-misc.yaml#
-
   "gpio@[0-9a-f]+$":
     type: object
     $ref: /schemas/pinctrl/qcom,pmic-gpio.yaml#
@@ -142,6 +138,10 @@ patternProperties:
   "^temp-alarm@[0-9a-f]+$":
     type: object
     $ref: /schemas/thermal/qcom,spmi-temp-alarm.yaml#
+
+  "^usb-detect@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/extcon/qcom,pm8941-misc.yaml#
 
   "^usb-vbus-regulator@[0-9a-f]+$":
     type: object
