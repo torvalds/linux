@@ -2357,9 +2357,21 @@ EXC_VIRT_END(performance_monitor, 0x4f00, 0x20)
 EXC_COMMON_BEGIN(performance_monitor_common)
 	GEN_COMMON performance_monitor
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	performance_monitor_exception
+	lbz	r4,PACAIRQSOFTMASK(r13)
+	cmpdi	r4,IRQS_ENABLED
+	bne	1f
+	bl	performance_monitor_exception_async
 	b	interrupt_return_srr
+1:
+	bl	performance_monitor_exception_nmi
+	/* Clear MSR_RI before setting SRR0 and SRR1. */
+	li	r9,0
+	mtmsrd	r9,1
 
+	kuap_kernel_restore r9, r10
+
+	EXCEPTION_RESTORE_REGS hsrr=0
+	RFI_TO_KERNEL
 
 /**
  * Interrupt 0xf20 - Vector Unavailable Interrupt.

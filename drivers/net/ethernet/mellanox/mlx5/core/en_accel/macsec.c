@@ -432,7 +432,7 @@ static int mlx5e_macsec_update_rx_sa(struct mlx5e_macsec *macsec,
 				     bool active)
 {
 	struct mlx5_core_dev *mdev = macsec->mdev;
-	struct mlx5_macsec_obj_attrs attrs;
+	struct mlx5_macsec_obj_attrs attrs = {};
 	int err = 0;
 
 	if (rx_sa->active != active)
@@ -444,7 +444,7 @@ static int mlx5e_macsec_update_rx_sa(struct mlx5e_macsec *macsec,
 		return 0;
 	}
 
-	attrs.sci = rx_sa->sci;
+	attrs.sci = cpu_to_be64((__force u64)rx_sa->sci);
 	attrs.enc_key_id = rx_sa->enc_key_id;
 	err = mlx5e_macsec_create_object(mdev, &attrs, false, &rx_sa->macsec_obj_id);
 	if (err)
@@ -999,11 +999,11 @@ static int mlx5e_macsec_upd_rxsa(struct macsec_context *ctx)
 	}
 
 	rx_sa = rx_sc->rx_sa[assoc_num];
-	if (rx_sa) {
+	if (!rx_sa) {
 		netdev_err(ctx->netdev,
-			   "MACsec offload rx_sc sci %lld rx_sa %d already exist\n",
+			   "MACsec offload rx_sc sci %lld rx_sa %d doesn't exist\n",
 			   sci, assoc_num);
-		err = -EEXIST;
+		err = -EINVAL;
 		goto out;
 	}
 
@@ -1055,11 +1055,11 @@ static int mlx5e_macsec_del_rxsa(struct macsec_context *ctx)
 	}
 
 	rx_sa = rx_sc->rx_sa[assoc_num];
-	if (rx_sa) {
+	if (!rx_sa) {
 		netdev_err(ctx->netdev,
-			   "MACsec offload rx_sc sci %lld rx_sa %d already exist\n",
+			   "MACsec offload rx_sc sci %lld rx_sa %d doesn't exist\n",
 			   sci, assoc_num);
-		err = -EEXIST;
+		err = -EINVAL;
 		goto out;
 	}
 
@@ -1846,25 +1846,16 @@ err_hash:
 void mlx5e_macsec_cleanup(struct mlx5e_priv *priv)
 {
 	struct mlx5e_macsec *macsec = priv->macsec;
-	struct mlx5_core_dev *mdev = macsec->mdev;
+	struct mlx5_core_dev *mdev = priv->mdev;
 
 	if (!macsec)
 		return;
 
 	mlx5_notifier_unregister(mdev, &macsec->nb);
-
 	mlx5e_macsec_fs_cleanup(macsec->macsec_fs);
-
-	/* Cleanup workqueue */
 	destroy_workqueue(macsec->wq);
-
 	mlx5e_macsec_aso_cleanup(&macsec->aso, mdev);
-
-	priv->macsec = NULL;
-
 	rhashtable_destroy(&macsec->sci_hash);
-
 	mutex_destroy(&macsec->lock);
-
 	kfree(macsec);
 }

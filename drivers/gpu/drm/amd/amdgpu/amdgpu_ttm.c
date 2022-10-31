@@ -439,6 +439,9 @@ static bool amdgpu_mem_visible(struct amdgpu_device *adev,
 	while (cursor.remaining) {
 		amdgpu_res_next(&cursor, cursor.size);
 
+		if (!cursor.remaining)
+			break;
+
 		/* ttm_resource_ioremap only supports contiguous memory */
 		if (end != cursor.start)
 			return false;

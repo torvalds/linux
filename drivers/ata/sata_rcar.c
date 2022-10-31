@@ -875,7 +875,7 @@ static int sata_rcar_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->type = (enum sata_rcar_type)of_device_get_match_data(dev);
+	priv->type = (unsigned long)of_device_get_match_data(dev);
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
