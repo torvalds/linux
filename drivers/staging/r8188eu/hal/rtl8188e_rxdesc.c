@@ -126,8 +126,8 @@ void update_recvframe_phyinfo_88e(struct recv_frame *precvframe, struct phy_stat
 		 get_bssid(&padapter->mlmepriv), ETH_ALEN));
 
 	pkt_info.bPacketToSelf = pkt_info.bPacketMatchBSSID &&
-				 (!memcmp(ieee80211_get_DA(hdr),
-				  myid(&padapter->eeprompriv), ETH_ALEN));
+				 ether_addr_equal(ieee80211_get_DA(hdr),
+						  myid(&padapter->eeprompriv));
 
 	pkt_info.bPacketBeacon = pkt_info.bPacketMatchBSSID && ieee80211_is_beacon(fc);
 	if (pkt_info.bPacketBeacon) {
