@@ -32,6 +32,7 @@ properties:
           - st,lsm6dsrx
           - st,lsm6dst
           - st,lsm6dsop
+          - st,lsm6dsv
       - items:
           - const: st,asm330lhhx
           - const: st,lsm6dsr
