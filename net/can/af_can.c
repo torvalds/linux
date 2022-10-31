@@ -902,6 +902,7 @@ out_pernet:
 static __exit void can_exit(void)
 {
 	/* protocol unregister */
+	dev_remove_pack(&canxl_packet);
 	dev_remove_pack(&canfd_packet);
 	dev_remove_pack(&can_packet);
 	sock_unregister(PF_CAN);
