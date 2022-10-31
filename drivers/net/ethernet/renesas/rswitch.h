@@ -8,6 +8,7 @@
 #define __RSWITCH_H__
 
 #include <linux/platform_device.h>
+#include "rcar_gen4_ptp.h"
 
 #define RSWITCH_MAX_NUM_QUEUES	128
 
