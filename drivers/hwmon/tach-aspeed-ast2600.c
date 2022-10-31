@@ -379,12 +379,23 @@ static int aspeed_tach_probe(struct platform_device *pdev)
 		dev_err_probe(dev, ret, "Failed to register hwmon device\n");
 		goto err_assert_reset;
 	}
+	platform_set_drvdata(pdev, priv);
 	return 0;
 err_assert_reset:
 	reset_control_assert(priv->reset);
 err_disable_clk:
 	clk_disable_unprepare(priv->clk);
 	return ret;
+}
+
+static int aspeed_tach_remove(struct platform_device *pdev)
+{
+	struct aspeed_tach_data *priv = platform_get_drvdata(pdev);
+
+	reset_control_assert(priv->reset);
+	clk_disable_unprepare(priv->clk);
+
+	return 0;
 }
 
 static const struct of_device_id of_stach_match_table[] = {
@@ -397,6 +408,7 @@ MODULE_DEVICE_TABLE(of, of_stach_match_table);
 
 static struct platform_driver aspeed_tach_driver = {
 	.probe		= aspeed_tach_probe,
+	.remove		= aspeed_tach_remove,
 	.driver		= {
 		.name	= "aspeed_tach",
 		.of_match_table = of_stach_match_table,
