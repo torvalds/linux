@@ -815,14 +815,19 @@ static unsigned alua_stpg(struct scsi_device *sdev, struct alua_port_group *pg)
 	return SCSI_DH_RETRY;
 }
 
-static bool alua_rtpg_select_sdev(struct alua_port_group *pg)
+/*
+ * The caller must call scsi_device_put() on the returned pointer if it is not
+ * NULL.
+ */
+static struct scsi_device * __must_check
+alua_rtpg_select_sdev(struct alua_port_group *pg)
 {
 	struct alua_dh_data *h;
-	struct scsi_device *sdev = NULL;
+	struct scsi_device *sdev = NULL, *prev_sdev;
 
 	lockdep_assert_held(&pg->lock);
 	if (WARN_ON(!pg->rtpg_sdev))
-		return false;
+		return NULL;
 
 	/*
 	 * RCU protection isn't necessary for dh_list here
@@ -849,22 +854,22 @@ static bool alua_rtpg_select_sdev(struct alua_port_group *pg)
 		pr_warn("%s: no device found for rtpg\n",
 			(pg->device_id_len ?
 			 (char *)pg->device_id_str : "(nameless PG)"));
-		return false;
+		return NULL;
 	}
 
 	sdev_printk(KERN_INFO, sdev, "rtpg retry on different device\n");
 
-	scsi_device_put(pg->rtpg_sdev);
+	prev_sdev = pg->rtpg_sdev;
 	pg->rtpg_sdev = sdev;
 
-	return true;
+	return prev_sdev;
 }
 
 static void alua_rtpg_work(struct work_struct *work)
 {
 	struct alua_port_group *pg =
 		container_of(work, struct alua_port_group, rtpg_work.work);
-	struct scsi_device *sdev;
+	struct scsi_device *sdev, *prev_sdev = NULL;
 	LIST_HEAD(qdata_list);
 	int err = SCSI_DH_OK;
 	struct alua_queue_data *qdata, *tmp;
@@ -905,7 +910,7 @@ static void alua_rtpg_work(struct work_struct *work)
 
 		/* If RTPG failed on the current device, try using another */
 		if (err == SCSI_DH_RES_TEMP_UNAVAIL &&
-		    alua_rtpg_select_sdev(pg))
+		    (prev_sdev = alua_rtpg_select_sdev(pg)))
 			err = SCSI_DH_IMM_RETRY;
 
 		if (err == SCSI_DH_RETRY || err == SCSI_DH_IMM_RETRY ||
@@ -917,9 +922,7 @@ static void alua_rtpg_work(struct work_struct *work)
 				pg->interval = ALUA_RTPG_RETRY_DELAY;
 			pg->flags |= ALUA_PG_RUN_RTPG;
 			spin_unlock_irqrestore(&pg->lock, flags);
-			queue_delayed_work(kaluad_wq, &pg->rtpg_work,
-					   pg->interval * HZ);
-			return;
+			goto queue_rtpg;
 		}
 		if (err != SCSI_DH_OK)
 			pg->flags &= ~ALUA_PG_RUN_STPG;
@@ -934,9 +937,7 @@ static void alua_rtpg_work(struct work_struct *work)
 			pg->interval = 0;
 			pg->flags &= ~ALUA_PG_RUNNING;
 			spin_unlock_irqrestore(&pg->lock, flags);
-			queue_delayed_work(kaluad_wq, &pg->rtpg_work,
-					   pg->interval * HZ);
-			return;
+			goto queue_rtpg;
 		}
 	}
 
@@ -950,6 +951,9 @@ static void alua_rtpg_work(struct work_struct *work)
 	pg->rtpg_sdev = NULL;
 	spin_unlock_irqrestore(&pg->lock, flags);
 
+	if (prev_sdev)
+		scsi_device_put(prev_sdev);
+
 	list_for_each_entry_safe(qdata, tmp, &qdata_list, entry) {
 		list_del(&qdata->entry);
 		if (qdata->callback_fn)
@@ -961,6 +965,12 @@ static void alua_rtpg_work(struct work_struct *work)
 	spin_unlock_irqrestore(&pg->lock, flags);
 	scsi_device_put(sdev);
 	kref_put(&pg->kref, release_port_group);
+	return;
+
+queue_rtpg:
+	if (prev_sdev)
+		scsi_device_put(prev_sdev);
+	queue_delayed_work(kaluad_wq, &pg->rtpg_work, pg->interval * HZ);
 }
 
 /**
