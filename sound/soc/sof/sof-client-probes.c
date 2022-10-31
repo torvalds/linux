@@ -30,16 +30,6 @@ static bool __read_mostly sof_probes_enabled;
 module_param_named(enable, sof_probes_enabled, bool, 0444);
 MODULE_PARM_DESC(enable, "Enable SOF probes support");
 
-struct sof_probes_priv {
-	struct dentry *dfs_points;
-	struct dentry *dfs_points_remove;
-	u32 extractor_stream_tag;
-	struct snd_soc_card card;
-
-	const struct sof_probes_host_ops *host_ops;
-	const struct sof_probes_ipc_ops *ipc_ops;
-};
-
 static int sof_probes_compr_startup(struct snd_compr_stream *cstream,
 				    struct snd_soc_dai *dai)
 {
@@ -409,10 +399,6 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	if (!sof_probes_enabled)
 		return -ENXIO;
 
-	/* only ipc3 is supported */
-	if (sof_client_get_ipc_type(cdev) != SOF_IPC)
-		return -ENXIO;
-
 	if (!dev->platform_data) {
 		dev_err(dev, "missing platform data\n");
 		return -ENODEV;
@@ -431,7 +417,23 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	}
 
 	priv->host_ops = ops;
-	priv->ipc_ops = &ipc3_probe_ops;
+
+	switch (sof_client_get_ipc_type(cdev)) {
+#ifdef CONFIG_SND_SOC_SOF_INTEL_IPC4
+	case SOF_INTEL_IPC4:
+		priv->ipc_ops = &ipc4_probe_ops;
+		break;
+#endif
+#ifdef CONFIG_SND_SOC_SOF_IPC3
+	case SOF_IPC:
+		priv->ipc_ops = &ipc3_probe_ops;
+		break;
+#endif
+	default:
+		dev_err(dev, "Matching IPC ops not found.");
+		return -ENODEV;
+	}
+
 	cdev->data = priv;
 
 	/* register probes component driver and dai */
