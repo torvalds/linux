@@ -496,23 +496,25 @@ static int ccwchain_fetch_tic(struct ccw1 *ccw,
 	return -EFAULT;
 }
 
-static int ccwchain_fetch_ccw(struct ccw1 *ccw,
-			      struct page_array *pa,
-			      struct channel_program *cp)
+/*
+ * ccw_count_idaws() - Calculate the number of IDAWs needed to transfer
+ * a specified amount of data
+ *
+ * @ccw: The Channel Command Word being translated
+ * @cp: Channel Program being processed
+ */
+static int ccw_count_idaws(struct ccw1 *ccw,
+			   struct channel_program *cp)
 {
 	struct vfio_device *vdev =
 		&container_of(cp, struct vfio_ccw_private, cp)->vdev;
 	u64 iova;
-	unsigned long *idaws;
 	int ret;
 	int bytes = 1;
-	int idaw_nr, idal_len;
-	int i;
 
 	if (ccw->count)
 		bytes = ccw->count;
 
-	/* Calculate size of IDAL */
 	if (ccw_is_idal(ccw)) {
 		/* Read first IDAW to see if it's 4K-aligned or not. */
 		/* All subsequent IDAws will be 4K-aligned. */
@@ -522,7 +524,26 @@ static int ccwchain_fetch_ccw(struct ccw1 *ccw,
 	} else {
 		iova = ccw->cda;
 	}
-	idaw_nr = idal_nr_words((void *)iova, bytes);
+
+	return idal_nr_words((void *)iova, bytes);
+}
+
+static int ccwchain_fetch_ccw(struct ccw1 *ccw,
+			      struct page_array *pa,
+			      struct channel_program *cp)
+{
+	struct vfio_device *vdev =
+		&container_of(cp, struct vfio_ccw_private, cp)->vdev;
+	unsigned long *idaws;
+	int ret;
+	int idaw_nr, idal_len;
+	int i;
+
+	/* Calculate size of IDAL */
+	idaw_nr = ccw_count_idaws(ccw, cp);
+	if (idaw_nr < 0)
+		return idaw_nr;
+
 	idal_len = idaw_nr * sizeof(*idaws);
 
 	/* Allocate an IDAL from host storage */
@@ -555,7 +576,7 @@ static int ccwchain_fetch_ccw(struct ccw1 *ccw,
 		for (i = 0; i < idaw_nr; i++)
 			pa->pa_iova[i] = idaws[i];
 	} else {
-		pa->pa_iova[0] = iova;
+		pa->pa_iova[0] = ccw->cda;
 		for (i = 1; i < pa->pa_nr; i++)
 			pa->pa_iova[i] = pa->pa_iova[i - 1] + PAGE_SIZE;
 	}
