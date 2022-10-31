@@ -2490,3 +2490,12 @@ void hl_capture_page_fault(struct hl_device *hdev, u64 addr, u16 eng_id, bool is
 	hdev->captured_err_info.pgf_info.pgf.engine_id = eng_id;
 	hl_capture_user_mappings(hdev, is_pmmu);
 }
+
+void hl_handle_page_fault(struct hl_device *hdev, u64 addr, u16 eng_id, bool is_pmmu,
+				u64 *event_mask)
+{
+	hl_capture_page_fault(hdev, addr, eng_id, is_pmmu);
+
+	if (event_mask)
+		*event_mask |=  HL_NOTIFIER_EVENT_PAGE_FAULT;
+}

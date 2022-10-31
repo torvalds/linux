@@ -6740,7 +6740,7 @@ static void gaudi_print_and_get_razwi_info(struct hl_device *hdev, u16 *engine_i
 	}
 }
 
-static void gaudi_print_and_get_mmu_error_info(struct hl_device *hdev, u64 *addr)
+static void gaudi_print_and_get_mmu_error_info(struct hl_device *hdev, u64 *addr, u64 *event_mask)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	u32 val;
@@ -6755,7 +6755,7 @@ static void gaudi_print_and_get_mmu_error_info(struct hl_device *hdev, u64 *addr
 		*addr |= RREG32(mmMMU_UP_PAGE_ERROR_CAPTURE_VA);
 
 		dev_err_ratelimited(hdev->dev, "MMU page fault on va 0x%llx\n", *addr);
-		hl_capture_page_fault(hdev, *addr, 0, true);
+		hl_handle_page_fault(hdev, *addr, 0, true, event_mask);
 
 		WREG32(mmMMU_UP_PAGE_ERROR_CAPTURE, 0);
 	}
@@ -7323,7 +7323,7 @@ static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
 	if (razwi) {
 		gaudi_print_and_get_razwi_info(hdev, &engine_id[0], &engine_id[1], &is_read,
 						&is_write);
-		gaudi_print_and_get_mmu_error_info(hdev, &razwi_addr);
+		gaudi_print_and_get_mmu_error_info(hdev, &razwi_addr, event_mask);
 
 		if (is_read)
 			razwi_flags |= HL_RAZWI_READ;
