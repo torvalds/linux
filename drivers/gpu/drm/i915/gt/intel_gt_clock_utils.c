@@ -147,8 +147,10 @@ static u32 gen4_read_clock_frequency(struct intel_uncore *uncore)
 	 *     "The value in this register increments once every 16
 	 *      hclks." (through the “Clocking Configuration”
 	 *      (“CLKCFG”) MCHBAR register)
+	 *
+	 * Testing on actual hardware has shown there is no /16.
 	 */
-	return RUNTIME_INFO(uncore->i915)->rawclk_freq * 1000 / 16;
+	return RUNTIME_INFO(uncore->i915)->rawclk_freq * 1000;
 }
 
 static u32 read_clock_frequency(struct intel_uncore *uncore)
