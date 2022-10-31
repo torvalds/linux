@@ -2434,12 +2434,16 @@ cifs_writev_complete(struct work_struct *work)
 struct cifs_writedata *
 cifs_writedata_alloc(unsigned int nr_pages, work_func_t complete)
 {
+	struct cifs_writedata *writedata = NULL;
 	struct page **pages =
 		kcalloc(nr_pages, sizeof(struct page *), GFP_NOFS);
-	if (pages)
-		return cifs_writedata_direct_alloc(pages, complete);
+	if (pages) {
+		writedata = cifs_writedata_direct_alloc(pages, complete);
+		if (!writedata)
+			kvfree(pages);
+	}
 
-	return NULL;
+	return writedata;
 }
 
 struct cifs_writedata *
@@ -3299,6 +3303,9 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 					     cifs_uncached_writev_complete);
 			if (!wdata) {
 				rc = -ENOMEM;
+				for (i = 0; i < nr_pages; i++)
+					put_page(pagevec[i]);
+				kvfree(pagevec);
 				add_credits_and_wake_if(server, credits, 0);
 				break;
 			}
