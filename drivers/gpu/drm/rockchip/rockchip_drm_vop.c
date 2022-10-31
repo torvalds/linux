@@ -316,13 +316,10 @@ static int vop_convert_afbc_format(uint32_t format)
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_BGR565:
 		return AFBC_FMT_RGB565;
-	/* either of the below should not be reachable */
 	default:
-		DRM_WARN_ONCE("unsupported AFBC format[%08x]\n", format);
+		DRM_DEBUG_KMS("unsupported AFBC format[%08x]\n", format);
 		return -EINVAL;
 	}
-
-	return -EINVAL;
 }
 
 static uint16_t scl_vop_cal_scale(enum scale_mode mode, uint32_t src,
