@@ -262,10 +262,8 @@ static int adxl355_setup(struct adxl355_data *data)
 	if (ret)
 		return ret;
 
-	if (regval != ADXL355_PARTID_VAL) {
-		dev_err(data->dev, "Invalid DEV ID 0x%02x\n", regval);
-		return -ENODEV;
-	}
+	if (regval != ADXL355_PARTID_VAL)
+		dev_warn(data->dev, "Invalid DEV ID 0x%02x\n", regval);
 
 	/*
 	 * Perform a software reset to make sure the device is in a consistent
