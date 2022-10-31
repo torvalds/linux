@@ -81,18 +81,46 @@ struct dev_stripe_state {
 	u64			next_alloc[BCH_SB_MEMBERS_MAX];
 };
 
+#define WRITE_POINT_STATES()		\
+	x(stopped)			\
+	x(waiting_io)			\
+	x(waiting_work)			\
+	x(running)
+
+enum write_point_state {
+#define x(n)	WRITE_POINT_##n,
+	WRITE_POINT_STATES()
+#undef x
+	WRITE_POINT_STATE_NR
+};
+
 struct write_point {
-	struct hlist_node	node;
-	struct mutex		lock;
-	u64			last_used;
-	unsigned long		write_point;
-	enum bch_data_type	data_type;
+	struct {
+		struct hlist_node	node;
+		struct mutex		lock;
+		u64			last_used;
+		unsigned long		write_point;
+		enum bch_data_type	data_type;
 
-	/* calculated based on how many pointers we're actually going to use: */
-	unsigned		sectors_free;
+		/* calculated based on how many pointers we're actually going to use: */
+		unsigned		sectors_free;
 
-	struct open_buckets	ptrs;
-	struct dev_stripe_state	stripe;
+		struct open_buckets	ptrs;
+		struct dev_stripe_state	stripe;
+
+		u64			sectors_allocated;
+	} __attribute__((__aligned__(SMP_CACHE_BYTES)));
+
+	struct {
+		struct work_struct	index_update_work;
+
+		struct list_head	writes;
+		spinlock_t		writes_lock;
+
+		enum write_point_state	state;
+		u64			last_state_change;
+		u64			time[WRITE_POINT_STATE_NR];
+	} __attribute__((__aligned__(SMP_CACHE_BYTES)));
 };
 
 struct write_point_specifier {

@@ -41,7 +41,7 @@ enum bch_write_flags {
 	__BCH_WRITE_CHECK_ENOSPC,
 	__BCH_WRITE_MOVE,
 	__BCH_WRITE_JOURNAL_SEQ_PTR,
-	__BCH_WRITE_SKIP_CLOSURE_PUT,
+	__BCH_WRITE_IN_WORKER,
 	__BCH_WRITE_DONE,
 };
 
@@ -59,7 +59,7 @@ enum bch_write_flags {
 
 /* Internal: */
 #define BCH_WRITE_JOURNAL_SEQ_PTR	(1U << __BCH_WRITE_JOURNAL_SEQ_PTR)
-#define BCH_WRITE_SKIP_CLOSURE_PUT	(1U << __BCH_WRITE_SKIP_CLOSURE_PUT)
+#define BCH_WRITE_IN_WORKER		(1U << __BCH_WRITE_IN_WORKER)
 #define BCH_WRITE_DONE			(1U << __BCH_WRITE_DONE)
 
 static inline u64 *op_journal_seq(struct bch_write_op *op)
@@ -114,6 +114,8 @@ static inline void bch2_write_op_init(struct bch_write_op *op, struct bch_fs *c,
 }
 
 void bch2_write(struct closure *);
+
+void bch2_write_point_do_index_updates(struct work_struct *);
 
 static inline struct bch_write_bio *wbio_init(struct bio *bio)
 {

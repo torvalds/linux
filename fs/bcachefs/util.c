@@ -390,7 +390,7 @@ static const struct time_unit *pick_time_units(u64 ns)
 	return u;
 }
 
-static void pr_time_units(struct printbuf *out, u64 ns)
+void bch2_pr_time_units(struct printbuf *out, u64 ns)
 {
 	const struct time_unit *u = pick_time_units(ns);
 
@@ -410,13 +410,13 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 	       freq ?  div64_u64(NSEC_PER_SEC, freq) : 0);
 
 	pr_buf(out, "frequency:\t");
-	pr_time_units(out, freq);
+	bch2_pr_time_units(out, freq);
 
 	pr_buf(out, "\navg duration:\t");
-	pr_time_units(out, stats->average_duration);
+	bch2_pr_time_units(out, stats->average_duration);
 
 	pr_buf(out, "\nmax duration:\t");
-	pr_time_units(out, stats->max_duration);
+	bch2_pr_time_units(out, stats->max_duration);
 
 	i = eytzinger0_first(NR_QUANTILES);
 	u = pick_time_units(stats->quantiles.entries[i].m);

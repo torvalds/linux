@@ -191,6 +191,7 @@ static struct btree *__bch2_btree_node_alloc(struct bch_fs *c,
 	struct bch_devs_list devs_have = (struct bch_devs_list) { 0 };
 	unsigned nr_reserve;
 	enum alloc_reserve alloc_reserve;
+	int ret;
 
 	if (flags & BTREE_INSERT_USE_RESERVE) {
 		nr_reserve	= 0;
@@ -213,7 +214,7 @@ static struct btree *__bch2_btree_node_alloc(struct bch_fs *c,
 	mutex_unlock(&c->btree_reserve_cache_lock);
 
 retry:
-	wp = bch2_alloc_sectors_start(c,
+	ret = bch2_alloc_sectors_start(c,
 				      c->opts.metadata_target ?:
 				      c->opts.foreground_target,
 				      0,
@@ -221,9 +222,9 @@ retry:
 				      &devs_have,
 				      res->nr_replicas,
 				      c->opts.metadata_replicas_required,
-				      alloc_reserve, 0, cl);
-	if (IS_ERR(wp))
-		return ERR_CAST(wp);
+				      alloc_reserve, 0, cl, &wp);
+	if (unlikely(ret))
+		return ERR_PTR(ret);
 
 	if (wp->sectors_free < btree_sectors(c)) {
 		struct open_bucket *ob;

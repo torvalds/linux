@@ -762,16 +762,17 @@ out:
 /*
  * Get us an open_bucket we can allocate from, return with it locked:
  */
-struct write_point *bch2_alloc_sectors_start(struct bch_fs *c,
-				unsigned target,
-				unsigned erasure_code,
-				struct write_point_specifier write_point,
-				struct bch_devs_list *devs_have,
-				unsigned nr_replicas,
-				unsigned nr_replicas_required,
-				enum alloc_reserve reserve,
-				unsigned flags,
-				struct closure *cl)
+int bch2_alloc_sectors_start(struct bch_fs *c,
+			     unsigned target,
+			     unsigned erasure_code,
+			     struct write_point_specifier write_point,
+			     struct bch_devs_list *devs_have,
+			     unsigned nr_replicas,
+			     unsigned nr_replicas_required,
+			     enum alloc_reserve reserve,
+			     unsigned flags,
+			     struct closure *cl,
+			     struct write_point **wp_ret)
 {
 	struct write_point *wp;
 	struct open_bucket *ob;
@@ -792,7 +793,7 @@ retry:
 	write_points_nr = c->write_points_nr;
 	have_cache	= false;
 
-	wp = writepoint_find(c, write_point.v);
+	*wp_ret = wp = writepoint_find(c, write_point.v);
 
 	if (wp->data_type == BCH_DATA_user)
 		ob_flags |= BUCKET_MAY_ALLOC_PARTIAL;
@@ -848,7 +849,7 @@ alloc_done:
 
 	BUG_ON(!wp->sectors_free || wp->sectors_free == UINT_MAX);
 
-	return wp;
+	return 0;
 err:
 	open_bucket_for_each(c, &wp->ptrs, ob, i)
 		if (ptrs.nr < ARRAY_SIZE(ptrs.v))
@@ -866,9 +867,9 @@ err:
 	switch (ret) {
 	case -OPEN_BUCKETS_EMPTY:
 	case -FREELIST_EMPTY:
-		return cl ? ERR_PTR(-EAGAIN) : ERR_PTR(-ENOSPC);
+		return cl ? -EAGAIN : -ENOSPC;
 	case -INSUFFICIENT_DEVICES:
-		return ERR_PTR(-EROFS);
+		return -EROFS;
 	default:
 		BUG();
 	}
@@ -895,13 +896,13 @@ struct bch_extent_ptr bch2_ob_ptr(struct bch_fs *c, struct open_bucket *ob)
 void bch2_alloc_sectors_append_ptrs(struct bch_fs *c, struct write_point *wp,
 				    struct bkey_i *k, unsigned sectors,
 				    bool cached)
-
 {
 	struct open_bucket *ob;
 	unsigned i;
 
 	BUG_ON(sectors > wp->sectors_free);
-	wp->sectors_free -= sectors;
+	wp->sectors_free	-= sectors;
+	wp->sectors_allocated	+= sectors;
 
 	open_bucket_for_each(c, &wp->ptrs, ob, i) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
@@ -942,6 +943,10 @@ static inline void writepoint_init(struct write_point *wp,
 {
 	mutex_init(&wp->lock);
 	wp->data_type = type;
+
+	INIT_WORK(&wp->index_update_work, bch2_write_point_do_index_updates);
+	INIT_LIST_HEAD(&wp->writes);
+	spin_lock_init(&wp->writes_lock);
 }
 
 void bch2_fs_allocator_foreground_init(struct bch_fs *c)
@@ -996,4 +1001,34 @@ void bch2_open_buckets_to_text(struct printbuf *out, struct bch_fs *c)
 		spin_unlock(&ob->lock);
 	}
 
+}
+
+static const char * const bch2_write_point_states[] = {
+#define x(n)	#n,
+	WRITE_POINT_STATES()
+#undef x
+	NULL
+};
+
+void bch2_write_points_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	struct write_point *wp;
+	unsigned i;
+
+	for (wp = c->write_points;
+	     wp < c->write_points + ARRAY_SIZE(c->write_points);
+	     wp++) {
+		pr_buf(out, "%lu: ", wp->write_point);
+		bch2_hprint(out, wp->sectors_allocated);
+
+		pr_buf(out, " last wrote: ");
+		bch2_pr_time_units(out, sched_clock() - wp->last_used);
+
+		for (i = 0; i < WRITE_POINT_STATE_NR; i++) {
+			pr_buf(out, " %s: ", bch2_write_point_states[i]);
+			bch2_pr_time_units(out, wp->time[i]);
+		}
+
+		pr_newline(out);
+	}
 }

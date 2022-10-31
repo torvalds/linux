@@ -180,6 +180,7 @@ read_attribute(btree_key_cache);
 read_attribute(btree_transactions);
 read_attribute(stripes_heap);
 read_attribute(open_buckets);
+read_attribute(write_points);
 
 read_attribute(internal_uuid);
 
@@ -418,6 +419,9 @@ SHOW(bch2_fs)
 	if (attr == &sysfs_open_buckets)
 		bch2_open_buckets_to_text(out, c);
 
+	if (attr == &sysfs_write_points)
+		bch2_write_points_to_text(out, c);
+
 	if (attr == &sysfs_compression_stats)
 		bch2_compression_stats_to_text(out, c);
 
@@ -563,6 +567,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_new_stripes,
 	&sysfs_stripes_heap,
 	&sysfs_open_buckets,
+	&sysfs_write_points,
 	&sysfs_io_timers_read,
 	&sysfs_io_timers_write,
 

@@ -352,6 +352,8 @@ static inline void pr_sectors(struct printbuf *out, u64 v)
 	bch2_pr_units(out, v, v << 9);
 }
 
+void bch2_pr_time_units(struct printbuf *, u64);
+
 #ifdef __KERNEL__
 static inline void pr_time(struct printbuf *out, u64 time)
 {

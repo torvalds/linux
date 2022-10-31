@@ -122,14 +122,15 @@ int bch2_bucket_alloc_set(struct bch_fs *, struct open_buckets *,
 		      unsigned, unsigned *, bool *, enum alloc_reserve,
 		      unsigned, struct closure *);
 
-struct write_point *bch2_alloc_sectors_start(struct bch_fs *,
-					     unsigned, unsigned,
-					     struct write_point_specifier,
-					     struct bch_devs_list *,
-					     unsigned, unsigned,
-					     enum alloc_reserve,
-					     unsigned,
-					     struct closure *);
+int bch2_alloc_sectors_start(struct bch_fs *,
+			     unsigned, unsigned,
+			     struct write_point_specifier,
+			     struct bch_devs_list *,
+			     unsigned, unsigned,
+			     enum alloc_reserve,
+			     unsigned,
+			     struct closure *,
+			     struct write_point **);
 
 struct bch_extent_ptr bch2_ob_ptr(struct bch_fs *, struct open_bucket *);
 void bch2_alloc_sectors_append_ptrs(struct bch_fs *, struct write_point *,
@@ -155,5 +156,7 @@ static inline struct write_point_specifier writepoint_ptr(struct write_point *wp
 void bch2_fs_allocator_foreground_init(struct bch_fs *);
 
 void bch2_open_buckets_to_text(struct printbuf *, struct bch_fs *);
+
+void bch2_write_points_to_text(struct printbuf *, struct bch_fs *);
 
 #endif /* _BCACHEFS_ALLOC_FOREGROUND_H */
