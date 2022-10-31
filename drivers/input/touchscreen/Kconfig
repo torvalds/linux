@@ -284,6 +284,22 @@ config TOUCHSCREEN_CYTTSP4_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called cyttsp4_spi.
 
+config TOUCHSCREEN_CYTTSP5
+	tristate "Cypress TrueTouch Gen5 Touchscreen Driver"
+	depends on I2C
+	select REGMAP_I2C
+	select CRC_ITU_T
+	help
+	  Driver for Parade TrueTouch Standard Product Generation 5
+	  touchscreen controllers. I2C bus interface support only.
+
+	  Say Y here if you have a Cypress Gen5 touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cyttsp5.
+
 config TOUCHSCREEN_DA9034
 	tristate "Touchscreen support for Dialog Semiconductor DA9034"
 	depends on PMIC_DA903X
