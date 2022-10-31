@@ -349,7 +349,7 @@ static int hda_dsp_wait_d0i3c_done(struct snd_sof_dev *sdev)
 {
 	int retry = HDA_DSP_REG_POLL_RETRY_COUNT;
 
-	while (snd_sof_dsp_readb(sdev, HDA_DSP_HDA_BAR, SOF_HDA_VS_D0I3C) & SOF_HDA_VS_D0I3C_CIP) {
+	while (snd_sof_dsp_read8(sdev, HDA_DSP_HDA_BAR, SOF_HDA_VS_D0I3C) & SOF_HDA_VS_D0I3C_CIP) {
 		if (!retry--)
 			return -ETIMEDOUT;
 		usleep_range(10, 15);
@@ -389,7 +389,7 @@ static int hda_dsp_update_d0i3c_register(struct snd_sof_dev *sdev, u8 value)
 	}
 
 	/* Update D0I3C register */
-	snd_sof_dsp_updateb(sdev, HDA_DSP_HDA_BAR,
+	snd_sof_dsp_update8(sdev, HDA_DSP_HDA_BAR,
 			    SOF_HDA_VS_D0I3C, SOF_HDA_VS_D0I3C_I3, value);
 
 	/* Wait for cmd in progress to be cleared before exiting the function */
@@ -399,7 +399,7 @@ static int hda_dsp_update_d0i3c_register(struct snd_sof_dev *sdev, u8 value)
 		return ret;
 	}
 
-	reg = snd_sof_dsp_readb(sdev, HDA_DSP_HDA_BAR, SOF_HDA_VS_D0I3C);
+	reg = snd_sof_dsp_read8(sdev, HDA_DSP_HDA_BAR, SOF_HDA_VS_D0I3C);
 	trace_sof_intel_D0I3C_updated(sdev, reg);
 
 	return 0;

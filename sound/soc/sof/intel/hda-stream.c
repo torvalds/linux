@@ -455,7 +455,7 @@ int hda_dsp_iccmax_stream_hw_params(struct snd_sof_dev *sdev, struct hdac_ext_st
 				mask, mask);
 
 	/* Follow HW recommendation to set the guardband value to 95us during FW boot */
-	snd_sof_dsp_updateb(sdev, HDA_DSP_HDA_BAR, HDA_VS_INTEL_LTRP,
+	snd_sof_dsp_update8(sdev, HDA_DSP_HDA_BAR, HDA_VS_INTEL_LTRP,
 			    HDA_VS_INTEL_LTRP_GB_MASK, HDA_LTRP_GB_VALUE_US);
 
 	/* start DMA */
