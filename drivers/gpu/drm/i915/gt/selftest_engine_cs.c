@@ -125,7 +125,7 @@ static int perf_mi_bb_start(void *arg)
 	enum intel_engine_id id;
 	int err = 0;
 
-	if (GRAPHICS_VER(gt->i915) < 7) /* for per-engine CS_TIMESTAMP */
+	if (GRAPHICS_VER(gt->i915) < 6) /* for per-engine CS_TIMESTAMP */
 		return 0;
 
 	perf_begin(gt);
@@ -134,6 +134,9 @@ static int perf_mi_bb_start(void *arg)
 		struct i915_vma *batch;
 		u32 cycles[COUNT];
 		int i;
+
+		if (GRAPHICS_VER(engine->i915) < 7 && engine->id != RCS0)
+			continue;
 
 		intel_engine_pm_get(engine);
 
@@ -249,7 +252,7 @@ static int perf_mi_noop(void *arg)
 	enum intel_engine_id id;
 	int err = 0;
 
-	if (GRAPHICS_VER(gt->i915) < 7) /* for per-engine CS_TIMESTAMP */
+	if (GRAPHICS_VER(gt->i915) < 6) /* for per-engine CS_TIMESTAMP */
 		return 0;
 
 	perf_begin(gt);
@@ -258,6 +261,9 @@ static int perf_mi_noop(void *arg)
 		struct i915_vma *base, *nop;
 		u32 cycles[COUNT];
 		int i;
+
+		if (GRAPHICS_VER(engine->i915) < 7 && engine->id != RCS0)
+			continue;
 
 		intel_engine_pm_get(engine);
 
