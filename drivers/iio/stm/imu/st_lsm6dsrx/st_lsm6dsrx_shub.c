@@ -728,7 +728,10 @@ static int st_lsm6dsrx_shub_read_oneshot(struct st_lsm6dsrx_sensor *sensor,
 					 int *val)
 {
 	int err, delay, len = ch->scan_type.realbits >> 3;
-	u8 data[len];
+	u8 data[4];
+
+	if (len > ARRAY_SIZE(data))
+		return -ENOMEM;
 
 	err = st_lsm6dsrx_shub_set_enable(sensor, true);
 	if (err < 0)
