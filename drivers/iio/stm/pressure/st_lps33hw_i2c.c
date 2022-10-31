@@ -33,7 +33,10 @@ static int st_lps33hw_i2c_write(struct device *dev, u8 addr, int len, u8 *data)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct i2c_msg msg;
-	u8 send[len + 1];
+	u8 send[4];
+
+	if (len >= ARRAY_SIZE(send))
+		return -ENOMEM;
 
 	send[0] = addr;
 	memcpy(&send[1], data, len * sizeof(u8));
