@@ -1549,13 +1549,26 @@ int msm_gpio_mpm_wake_set(unsigned int gpio, bool enable)
 {
 	const struct msm_pingroup *g;
 	unsigned long flags;
-	u32 val;
+	u32 val, intr_cfg;
 
 	g = &msm_pinctrl_data->soc->groups[gpio];
-	if (g->wake_bit == -1)
+	if (g->wake_bit == -1 && !g->intr_wakeup_present_bit)
 		return -ENOENT;
 
 	raw_spin_lock_irqsave(&msm_pinctrl_data->lock, flags);
+
+	intr_cfg = msm_readl_intr_cfg(msm_pinctrl_data, g);
+	if (intr_cfg & BIT(g->intr_wakeup_present_bit)) {
+		if (enable)
+			intr_cfg |= BIT(g->intr_wakeup_enable_bit);
+		else
+			intr_cfg &= ~BIT(g->intr_wakeup_enable_bit);
+
+		msm_writel_intr_cfg(intr_cfg, msm_pinctrl_data, g);
+
+		goto exit;
+	}
+
 	val = readl_relaxed(msm_pinctrl_data->regs[g->tile] + g->wake_reg);
 	if (enable)
 		val |= BIT(g->wake_bit);
@@ -1563,6 +1576,8 @@ int msm_gpio_mpm_wake_set(unsigned int gpio, bool enable)
 		val &= ~BIT(g->wake_bit);
 
 	writel_relaxed(val, msm_pinctrl_data->regs[g->tile] + g->wake_reg);
+
+exit:
 	raw_spin_unlock_irqrestore(&msm_pinctrl_data->lock, flags);
 
 	return 0;
