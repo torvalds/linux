@@ -4,6 +4,7 @@
 # No binaries, but make sure arg-less "make" doesn't trigger "run_tests"
 all:
 
-TEST_PROGS := basic.sh
+TEST_PROGS := run.sh
+TEST_FILES := basic.sh
 
 include ../lib.mk
