@@ -107,7 +107,7 @@ static u32 gen9_read_clock_frequency(struct intel_uncore *uncore)
 	return freq;
 }
 
-static u32 gen5_read_clock_frequency(struct intel_uncore *uncore)
+static u32 gen6_read_clock_frequency(struct intel_uncore *uncore)
 {
 	/*
 	 * PRMs say:
@@ -117,6 +117,26 @@ static u32 gen5_read_clock_frequency(struct intel_uncore *uncore)
 	 *      rolling over every 1.5 hours).
 	 */
 	return 12500000;
+}
+
+static u32 gen5_read_clock_frequency(struct intel_uncore *uncore)
+{
+	/*
+	 * 63:32 increments every 1000 ns
+	 * 31:0 mbz
+	 */
+	return 1000000000 / 1000;
+}
+
+static u32 g4x_read_clock_frequency(struct intel_uncore *uncore)
+{
+	/*
+	 * 63:20 increments every 1/4 ns
+	 * 19:0 mbz
+	 *
+	 * -> 63:32 increments every 1024 ns
+	 */
+	return 1000000000 / 1024;
 }
 
 static u32 gen2_read_clock_frequency(struct intel_uncore *uncore)
@@ -137,8 +157,12 @@ static u32 read_clock_frequency(struct intel_uncore *uncore)
 		return gen11_read_clock_frequency(uncore);
 	else if (GRAPHICS_VER(uncore->i915) >= 9)
 		return gen9_read_clock_frequency(uncore);
-	else if (GRAPHICS_VER(uncore->i915) >= 5)
+	else if (GRAPHICS_VER(uncore->i915) >= 6)
+		return gen6_read_clock_frequency(uncore);
+	else if (GRAPHICS_VER(uncore->i915) == 5)
 		return gen5_read_clock_frequency(uncore);
+	else if (IS_G4X(uncore->i915))
+		return g4x_read_clock_frequency(uncore);
 	else
 		return gen2_read_clock_frequency(uncore);
 }
