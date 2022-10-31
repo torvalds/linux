@@ -265,6 +265,25 @@ int sof_client_ipc_tx_message(struct sof_client_dev *cdev, void *ipc_msg,
 }
 EXPORT_SYMBOL_NS_GPL(sof_client_ipc_tx_message, SND_SOC_SOF_CLIENT);
 
+int sof_client_ipc_set_get_data(struct sof_client_dev *cdev, void *ipc_msg,
+				bool set)
+{
+	if (cdev->sdev->pdata->ipc_type == SOF_IPC) {
+		struct sof_ipc_cmd_hdr *hdr = ipc_msg;
+
+		return sof_ipc_set_get_data(cdev->sdev->ipc, ipc_msg, hdr->size,
+					    set);
+	} else if (cdev->sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
+		struct sof_ipc4_msg *msg = ipc_msg;
+
+		return sof_ipc_set_get_data(cdev->sdev->ipc, ipc_msg,
+					    msg->data_size, set);
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_NS_GPL(sof_client_ipc_set_get_data, SND_SOC_SOF_CLIENT);
+
 int sof_suspend_clients(struct snd_sof_dev *sdev, pm_message_t state)
 {
 	struct auxiliary_driver *adrv;

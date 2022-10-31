@@ -84,6 +84,14 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, void *msg_data, size_t msg_bytes
 }
 EXPORT_SYMBOL(sof_ipc_tx_message);
 
+/* IPC set or get data from host to DSP */
+int sof_ipc_set_get_data(struct snd_sof_ipc *ipc, void *msg_data,
+			 size_t msg_bytes, bool set)
+{
+	return ipc->ops->set_get_data(ipc->sdev, msg_data, msg_bytes, set);
+}
+EXPORT_SYMBOL(sof_ipc_set_get_data);
+
 /*
  * send IPC message from host to DSP without modifying the DSP state.
  * This will be used for IPC's that can be handled by the DSP
