@@ -620,6 +620,7 @@ struct rvu_npc_mcam_rule {
 	bool vfvlan_cfg;
 	u16 chan;
 	u16 chan_mask;
+	u8 lxmb;
 };
 
 #endif /* NPC_H */
