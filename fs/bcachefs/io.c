@@ -507,7 +507,7 @@ static int bch2_write_index_default(struct bch_write_op *op)
 				     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
 		ret = bch2_extent_update(&trans, inum, &iter, sk.k,
-					 &op->res, op_journal_seq(op),
+					 &op->res, &op->journal_seq,
 					 op->new_i_size, &op->i_sectors_delta,
 					 op->flags & BCH_WRITE_CHECK_ENOSPC);
 		bch2_trans_iter_exit(&trans, &iter);
@@ -776,7 +776,7 @@ unlock:
 			__bch2_write(op);
 		} else if (!op->error && (op->flags & BCH_WRITE_FLUSH)) {
 			bch2_journal_flush_seq_async(&op->c->journal,
-						     *op_journal_seq(op),
+						     op->journal_seq,
 						     &op->cl);
 			continue_at(&op->cl, bch2_write_done, index_update_wq(op));
 		} else {

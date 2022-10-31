@@ -40,7 +40,6 @@ enum bch_write_flags {
 	__BCH_WRITE_FROM_INTERNAL,
 	__BCH_WRITE_CHECK_ENOSPC,
 	__BCH_WRITE_MOVE,
-	__BCH_WRITE_JOURNAL_SEQ_PTR,
 	__BCH_WRITE_IN_WORKER,
 	__BCH_WRITE_DONE,
 	__BCH_WRITE_IO_ERROR,
@@ -59,16 +58,9 @@ enum bch_write_flags {
 #define BCH_WRITE_MOVE			(1U << __BCH_WRITE_MOVE)
 
 /* Internal: */
-#define BCH_WRITE_JOURNAL_SEQ_PTR	(1U << __BCH_WRITE_JOURNAL_SEQ_PTR)
 #define BCH_WRITE_IN_WORKER		(1U << __BCH_WRITE_IN_WORKER)
 #define BCH_WRITE_DONE			(1U << __BCH_WRITE_DONE)
 #define BCH_WRITE_IO_ERROR		(1U << __BCH_WRITE_IO_ERROR)
-
-static inline u64 *op_journal_seq(struct bch_write_op *op)
-{
-	return (op->flags & BCH_WRITE_JOURNAL_SEQ_PTR)
-		? op->journal_seq_p : &op->journal_seq;
-}
 
 static inline struct workqueue_struct *index_update_wq(struct bch_write_op *op)
 {

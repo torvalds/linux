@@ -226,7 +226,7 @@ int bch2_data_update_index_update(struct bch_write_op *op)
 			bch2_trans_update(&trans, &iter, insert,
 				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
 			bch2_trans_commit(&trans, &op->res,
-				op_journal_seq(op),
+				&op->journal_seq,
 				BTREE_INSERT_NOFAIL|
 				m->data_opts.btree_insert_flags);
 		if (!ret) {

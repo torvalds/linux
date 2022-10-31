@@ -142,14 +142,7 @@ struct bch_write_op {
 
 	struct open_buckets	open_buckets;
 
-	/*
-	 * If caller wants to flush but hasn't passed us a journal_seq ptr, we
-	 * still need to stash the journal_seq somewhere:
-	 */
-	union {
-		u64			*journal_seq_p;
-		u64			journal_seq;
-	};
+	u64			journal_seq;
 	u64			new_i_size;
 	s64			i_sectors_delta;
 
