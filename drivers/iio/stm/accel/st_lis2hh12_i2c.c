@@ -34,12 +34,15 @@ static int lis2hh12_i2c_read(struct lis2hh12_data *cdata, u8 reg_addr, int len,
 	return(i2c_transfer(client->adapter, msg, 2));
 }
 
-static int lis2hh12_i2c_write(struct lis2hh12_data *cdata, u8 reg_addr, int len,
-								u8 * data)
+static int lis2hh12_i2c_write(struct lis2hh12_data *cdata,
+			      u8 reg_addr, int len, u8 *data)
 {
-	u8 send[len + 1];
-	struct i2c_msg msg;
 	struct i2c_client *client = to_i2c_client(cdata->dev);
+	struct i2c_msg msg;
+	u8 send[4];
+
+	if (len >= ARRAY_SIZE(send))
+		return -ENOMEM;
 
 	send[0] = reg_addr;
 	memcpy(&send[1], data, len * sizeof(u8));
