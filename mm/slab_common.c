@@ -1010,7 +1010,7 @@ EXPORT_SYMBOL(kfree);
 
 /**
  * __ksize -- Report full size of underlying allocation
- * @objp: pointer to the object
+ * @object: pointer to the object
  *
  * This should only be used internally to query the true size of allocations.
  * It is not meant to be a way to discover the usable size of an allocation
@@ -1018,7 +1018,7 @@ EXPORT_SYMBOL(kfree);
  * the originally requested allocation size may trigger KASAN, UBSAN_BOUNDS,
  * and/or FORTIFY_SOURCE.
  *
- * Return: size of the actual memory used by @objp in bytes
+ * Return: size of the actual memory used by @object in bytes
  */
 size_t __ksize(const void *object)
 {
