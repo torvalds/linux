@@ -1328,7 +1328,7 @@ static int happy_meal_init(struct happy_meal *hp)
 	void __iomem *erxregs      = hp->erxregs;
 	void __iomem *bregs        = hp->bigmacregs;
 	void __iomem *tregs        = hp->tcvregs;
-	const char *bursts;
+	const char *bursts = "64";
 	u32 regtmp, rxcfg;
 
 	/* If auto-negotiation timer is running, kill it. */

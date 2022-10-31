@@ -38,6 +38,9 @@
 
 #include "watchdog_core.h"	/* For watchdog_dev_register/... */
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/watchdog.h>
+
 static DEFINE_IDA(watchdog_ida);
 
 static int stop_on_reboot = -1;
@@ -163,6 +166,7 @@ static int watchdog_reboot_notifier(struct notifier_block *nb,
 			int ret;
 
 			ret = wdd->ops->stop(wdd);
+			trace_watchdog_stop(wdd, ret);
 			if (ret)
 				return NOTIFY_BAD;
 		}
