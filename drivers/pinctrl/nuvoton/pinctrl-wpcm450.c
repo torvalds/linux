@@ -49,7 +49,6 @@ struct wpcm450_bank;
 struct wpcm450_gpio {
 	struct gpio_chip	gc;
 	struct wpcm450_pinctrl	*pctrl;
-	struct irq_chip		irqc;
 	const struct wpcm450_bank *bank;
 };
 
@@ -142,7 +141,8 @@ static void wpcm450_gpio_irq_ack(struct irq_data *d)
 
 static void wpcm450_gpio_irq_mask(struct irq_data *d)
 {
-	struct wpcm450_gpio *gpio = gpiochip_get_data(irq_data_get_irq_chip_data(d));
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct wpcm450_gpio *gpio = gpiochip_get_data(gc);
 	struct wpcm450_pinctrl *pctrl = gpio->pctrl;
 	unsigned long flags;
 	unsigned long even;
@@ -157,11 +157,14 @@ static void wpcm450_gpio_irq_mask(struct irq_data *d)
 	__assign_bit(bit, &even, 0);
 	iowrite32(even, pctrl->gpio_base + WPCM450_GPEVEN);
 	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+
+	gpiochip_disable_irq(gc, irqd_to_hwirq(d));
 }
 
 static void wpcm450_gpio_irq_unmask(struct irq_data *d)
 {
-	struct wpcm450_gpio *gpio = gpiochip_get_data(irq_data_get_irq_chip_data(d));
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct wpcm450_gpio *gpio = gpiochip_get_data(gc);
 	struct wpcm450_pinctrl *pctrl = gpio->pctrl;
 	unsigned long flags;
 	unsigned long even;
@@ -170,6 +173,8 @@ static void wpcm450_gpio_irq_unmask(struct irq_data *d)
 	bit = wpcm450_gpio_irq_bitnum(gpio, d);
 	if (bit < 0)
 		return;
+
+	gpiochip_enable_irq(gc, irqd_to_hwirq(d));
 
 	raw_spin_lock_irqsave(&pctrl->lock, flags);
 	even = ioread32(pctrl->gpio_base + WPCM450_GPEVEN);
@@ -293,6 +298,8 @@ static const struct irq_chip wpcm450_gpio_irqchip = {
 	.irq_unmask = wpcm450_gpio_irq_unmask,
 	.irq_mask = wpcm450_gpio_irq_mask,
 	.irq_set_type = wpcm450_gpio_set_irq_type,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static void wpcm450_gpio_irqhandler(struct irq_desc *desc)
@@ -1068,9 +1075,8 @@ static int wpcm450_gpio_register(struct platform_device *pdev,
 		gpio->gc.fwnode = child;
 		gpio->gc.add_pin_ranges = wpcm450_gpio_add_pin_ranges;
 
-		gpio->irqc = wpcm450_gpio_irqchip;
 		girq = &gpio->gc.irq;
-		girq->chip = &gpio->irqc;
+		gpio_irq_chip_set_chip(girq, &wpcm450_gpio_irqchip);
 		girq->parent_handler = wpcm450_gpio_irqhandler;
 		girq->parents = devm_kcalloc(dev, WPCM450_NUM_GPIO_IRQS,
 					     sizeof(*girq->parents), GFP_KERNEL);
