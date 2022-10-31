@@ -63,7 +63,7 @@
 			#thermal-sensor-cells = <0>;
 		};
 
-		pm8998_coincell: coincell@2800 {
+		pm8998_coincell: charger@2800 {
 			compatible = "qcom,pm8941-coincell";
 			reg = <0x2800>;
 
