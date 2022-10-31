@@ -37,12 +37,28 @@ properties:
           devices to function properly. This eFuse region provides
           the information needed for these SoCs to report
           temperatures accurately.
+    minItems: 2
 
   power-domains:
     maxItems: 1
 
   "#thermal-sensor-cells":
     const: 1
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,j721e-vtm
+    then:
+      properties:
+        reg:
+          minItems: 3
+    else:
+      properties:
+        reg:
+          maxItems: 2
 
 required:
   - compatible
