@@ -154,7 +154,7 @@ static int pseries_eeh_get_pe_config_addr(struct pci_dn *pdn)
 /**
  * pseries_eeh_phb_reset - Reset the specified PHB
  * @phb: PCI controller
- * @config_adddr: the associated config address
+ * @config_addr: the associated config address
  * @option: reset option
  *
  * Reset the specified PHB/PE
@@ -188,7 +188,7 @@ static int pseries_eeh_phb_reset(struct pci_controller *phb, int config_addr, in
 /**
  * pseries_eeh_phb_configure_bridge - Configure PCI bridges in the indicated PE
  * @phb: PCI controller
- * @config_adddr: the associated config address
+ * @config_addr: the associated config address
  *
  * The function will be called to reconfigure the bridges included
  * in the specified PE so that the mulfunctional PE would be recovered
