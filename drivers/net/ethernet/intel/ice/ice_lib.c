@@ -3850,33 +3850,11 @@ int ice_clear_dflt_vsi(struct ice_vsi *vsi)
  */
 int ice_get_link_speed_mbps(struct ice_vsi *vsi)
 {
-	switch (vsi->port_info->phy.link_info.link_speed) {
-	case ICE_AQ_LINK_SPEED_100GB:
-		return SPEED_100000;
-	case ICE_AQ_LINK_SPEED_50GB:
-		return SPEED_50000;
-	case ICE_AQ_LINK_SPEED_40GB:
-		return SPEED_40000;
-	case ICE_AQ_LINK_SPEED_25GB:
-		return SPEED_25000;
-	case ICE_AQ_LINK_SPEED_20GB:
-		return SPEED_20000;
-	case ICE_AQ_LINK_SPEED_10GB:
-		return SPEED_10000;
-	case ICE_AQ_LINK_SPEED_5GB:
-		return SPEED_5000;
-	case ICE_AQ_LINK_SPEED_2500MB:
-		return SPEED_2500;
-	case ICE_AQ_LINK_SPEED_1000MB:
-		return SPEED_1000;
-	case ICE_AQ_LINK_SPEED_100MB:
-		return SPEED_100;
-	case ICE_AQ_LINK_SPEED_10MB:
-		return SPEED_10;
-	case ICE_AQ_LINK_SPEED_UNKNOWN:
-	default:
-		return 0;
-	}
+	unsigned int link_speed;
+
+	link_speed = vsi->port_info->phy.link_info.link_speed;
+
+	return (int)ice_get_link_speed(fls(link_speed) - 1);
 }
 
 /**
