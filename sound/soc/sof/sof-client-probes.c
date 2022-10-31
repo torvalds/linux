@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/string_helpers.h>
+#include <linux/stddef.h>
 
 #include <sound/soc.h>
 #include <sound/sof/header.h>
@@ -59,8 +60,8 @@ struct sof_ipc_probe_info_params {
 	struct sof_ipc_reply rhdr;
 	unsigned int num_elems;
 	union {
-		struct sof_probe_dma dma[0];
-		struct sof_probe_point_desc desc[0];
+		DECLARE_FLEX_ARRAY(struct sof_probe_dma, dma);
+		DECLARE_FLEX_ARRAY(struct sof_probe_point_desc, desc);
 	};
 } __packed;
 
