@@ -998,21 +998,23 @@ static int ov5645_s_stream(struct v4l2_subdev *subdev, int enable)
 	} else {
 		ret = ov5645_write_reg(ov5645, OV5645_IO_MIPI_CTRL00, 0x40);
 		if (ret < 0)
-			return ret;
+			goto stream_off_rpm_put;
 
 		ret = ov5645_write_reg(ov5645, OV5645_SYSTEM_CTRL0,
 				       OV5645_SYSTEM_CTRL0_STOP);
-		if (ret < 0)
-			return ret;
 
-		pm_runtime_mark_last_busy(ov5645->dev);
-		pm_runtime_put_autosuspend(ov5645->dev);
+		goto stream_off_rpm_put;
 	}
 
 	return 0;
 
 err_rpm_put:
 	pm_runtime_put_sync(ov5645->dev);
+	return ret;
+
+stream_off_rpm_put:
+	pm_runtime_mark_last_busy(ov5645->dev);
+	pm_runtime_put_autosuspend(ov5645->dev);
 	return ret;
 }
 
