@@ -43,7 +43,6 @@ void da7219_aad_jack_det(struct snd_soc_component *component, struct snd_soc_jac
 			    DA7219_ACCDET_EN_MASK,
 			    (jack ? DA7219_ACCDET_EN_MASK : 0));
 }
-EXPORT_SYMBOL_GPL(da7219_aad_jack_det);
 
 /*
  * Button/HPTest work
@@ -930,7 +929,6 @@ int da7219_aad_init(struct snd_soc_component *component)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(da7219_aad_init);
 
 void da7219_aad_exit(struct snd_soc_component *component)
 {
@@ -948,7 +946,6 @@ void da7219_aad_exit(struct snd_soc_component *component)
 	cancel_work_sync(&da7219_aad->btn_det_work);
 	cancel_work_sync(&da7219_aad->hptest_work);
 }
-EXPORT_SYMBOL_GPL(da7219_aad_exit);
 
 /*
  * AAD related I2C probe handling
@@ -972,7 +969,6 @@ int da7219_aad_probe(struct i2c_client *i2c)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(da7219_aad_probe);
 
 MODULE_DESCRIPTION("ASoC DA7219 AAD Driver");
 MODULE_AUTHOR("Adam Thomson <Adam.Thomson.Opensource@diasemi.com>");
