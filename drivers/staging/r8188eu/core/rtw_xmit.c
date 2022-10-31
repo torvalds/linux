@@ -476,8 +476,7 @@ static uint rtw_pktfile_read(struct pkt_file *pfile, u8 *rmem, uint rlen)
 {
 	uint len;
 
-	len = rtw_remainder_len(pfile);
-	len = (rlen > len) ? len : rlen;
+	len = min(rtw_remainder_len(pfile), rlen);
 
 	if (rmem)
 		skb_copy_bits(pfile->pkt, pfile->buf_len - pfile->pkt_len, rmem, len);

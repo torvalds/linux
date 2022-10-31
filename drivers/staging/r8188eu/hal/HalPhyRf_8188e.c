@@ -583,7 +583,7 @@ static bool phy_SimularityCompare_8188E(
 			tmp2 = resulta[c2][i];
 		}
 
-		diff = (tmp1 > tmp2) ? (tmp1 - tmp2) : (tmp2 - tmp1);
+		diff = abs(tmp1 - tmp2);
 
 		if (diff > MAX_TOLERANCE) {
 			if ((i == 2 || i == 6) && !sim_bitmap) {

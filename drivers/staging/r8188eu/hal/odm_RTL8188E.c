@@ -199,7 +199,7 @@ static void odm_HWAntDiv(struct odm_dm_struct *dm_odm)
 			Aux_RSSI = (dm_fat_tbl->AuxAnt_Cnt[i] != 0) ? (dm_fat_tbl->AuxAnt_Sum[i] / dm_fat_tbl->AuxAnt_Cnt[i]) : 0;
 			TargetAnt = (Main_RSSI >= Aux_RSSI) ? MAIN_ANT : AUX_ANT;
 			/* 2 Select MaxRSSI for DIG */
-			LocalMaxRSSI = (Main_RSSI > Aux_RSSI) ? Main_RSSI : Aux_RSSI;
+			LocalMaxRSSI = max(Main_RSSI, Aux_RSSI);
 			if ((LocalMaxRSSI > AntDivMaxRSSI) && (LocalMaxRSSI < 40))
 				AntDivMaxRSSI = LocalMaxRSSI;
 			if (LocalMaxRSSI > MaxRSSI)
@@ -211,7 +211,7 @@ static void odm_HWAntDiv(struct odm_dm_struct *dm_odm)
 			else if ((dm_fat_tbl->RxIdleAnt == AUX_ANT) && (Aux_RSSI == 0))
 				Aux_RSSI = Main_RSSI;
 
-			LocalMinRSSI = (Main_RSSI > Aux_RSSI) ? Aux_RSSI : Main_RSSI;
+			LocalMinRSSI = min(Main_RSSI, Aux_RSSI);
 			if (LocalMinRSSI < MinRSSI) {
 				MinRSSI = LocalMinRSSI;
 				RxIdleAnt = TargetAnt;
