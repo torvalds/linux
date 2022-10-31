@@ -8253,7 +8253,8 @@ static void gaudi2_handle_hif_fatal(struct hl_device *hdev, u16 event_type, u64 
 	}
 }
 
-static void gaudi2_handle_page_error(struct hl_device *hdev, u64 mmu_base, bool is_pmmu)
+static void gaudi2_handle_page_error(struct hl_device *hdev, u64 mmu_base, bool is_pmmu,
+					u64 *event_mask)
 {
 	u32 valid, val;
 	u64 addr;
@@ -8270,7 +8271,7 @@ static void gaudi2_handle_page_error(struct hl_device *hdev, u64 mmu_base, bool 
 
 	dev_err_ratelimited(hdev->dev, "%s page fault on va 0x%llx\n",
 				is_pmmu ? "PMMU" : "HMMU", addr);
-	hl_capture_page_fault(hdev, addr, 0, is_pmmu);
+	hl_handle_page_fault(hdev, addr, 0, is_pmmu, event_mask);
 
 	WREG32(mmu_base + MMU_OFFSET(mmDCORE0_HMMU0_MMU_PAGE_ERROR_CAPTURE), 0);
 }
@@ -8296,7 +8297,7 @@ static void gaudi2_handle_access_error(struct hl_device *hdev, u64 mmu_base, boo
 }
 
 static void gaudi2_handle_mmu_spi_sei_generic(struct hl_device *hdev, const char *mmu_name,
-						u64 mmu_base, bool is_pmmu)
+						u64 mmu_base, bool is_pmmu, u64 *event_mask)
 {
 	u32 spi_sei_cause, interrupt_clr = 0x0;
 	int i;
@@ -8309,7 +8310,7 @@ static void gaudi2_handle_mmu_spi_sei_generic(struct hl_device *hdev, const char
 						mmu_name, gaudi2_mmu_spi_sei[i].cause);
 
 			if (i == 0)
-				gaudi2_handle_page_error(hdev, mmu_base, is_pmmu);
+				gaudi2_handle_page_error(hdev, mmu_base, is_pmmu, event_mask);
 			else if (i == 1)
 				gaudi2_handle_access_error(hdev, mmu_base, is_pmmu);
 
@@ -8381,7 +8382,7 @@ static bool gaudi2_handle_sm_err(struct hl_device *hdev, u8 sm_index)
 	return reset;
 }
 
-static void gaudi2_handle_mmu_spi_sei_err(struct hl_device *hdev, u16 event_type)
+static void gaudi2_handle_mmu_spi_sei_err(struct hl_device *hdev, u16 event_type, u64 *event_mask)
 {
 	bool is_pmmu = false;
 	char desc[32];
@@ -8439,7 +8440,7 @@ static void gaudi2_handle_mmu_spi_sei_err(struct hl_device *hdev, u16 event_type
 		return;
 	}
 
-	gaudi2_handle_mmu_spi_sei_generic(hdev, desc, mmu_base, is_pmmu);
+	gaudi2_handle_mmu_spi_sei_generic(hdev, desc, mmu_base, is_pmmu, event_mask);
 }
 
 
@@ -8969,7 +8970,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 	case GAUDI2_EVENT_HMMU_0_AXI_ERR_RSP ... GAUDI2_EVENT_HMMU_12_AXI_ERR_RSP:
 	case GAUDI2_EVENT_PMMU0_PAGE_FAULT_WR_PERM ... GAUDI2_EVENT_PMMU0_SECURITY_ERROR:
 	case GAUDI2_EVENT_PMMU_AXI_ERR_RSP_0:
-		gaudi2_handle_mmu_spi_sei_err(hdev, event_type);
+		gaudi2_handle_mmu_spi_sei_err(hdev, event_type, &event_mask);
 		reset_flags |= HL_DRV_RESET_FW_FATAL_ERR;
 		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		break;
@@ -10206,7 +10207,7 @@ static void gaudi2_ack_mmu_error(struct hl_device *hdev, u64 mmu_id)
 	if (gaudi2_get_mmu_base(hdev, mmu_id, &mmu_base))
 		return;
 
-	gaudi2_handle_page_error(hdev, mmu_base, is_pmmu);
+	gaudi2_handle_page_error(hdev, mmu_base, is_pmmu, NULL);
 	gaudi2_handle_access_error(hdev, mmu_base, is_pmmu);
 }
 
