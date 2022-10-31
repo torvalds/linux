@@ -706,6 +706,20 @@
 
 &mipi_dsi {
 	status = "okay";
+
+	port {
+		dsi_out_port: endpoint@0 {
+			remote-endpoint = <&panel_dsi_port>;
+		};
+		dsi_in_port: endpoint@1 {
+			remote-endpoint = <&mipi_out>;
+		};
+	};
+
+	mipi_panel: panel@0 {
+		/*compatible = "";*/
+		status = "okay";
+	};
 };
 
 &mipi_dphy {

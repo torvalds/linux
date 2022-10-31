@@ -400,9 +400,22 @@
 		reg = <0x45>;
 
 		port {
-			panel_dsi_port: endpoint {
-				remote-endpoint = <&dsi_out_port>;
+			panel_out0: endpoint {
+				remote-endpoint = <&dsi0_output>;
 			};
+		};
+	};
+
+	panel_radxa@22 {
+		compatible ="starfive_jadard";
+		reg = <0x22>;
+		reset-gpio = <&gpio 23 0>;
+		enable-gpio = <&gpio 22 0>;
+
+		port {
+			panel_out1: endpoint {
+				remote-endpoint = <&dsi1_output>;
+				};
 		};
 	};
 
@@ -700,7 +713,7 @@
 };
 
 &rgb_output {
-	status = "okay";
+	status = "disabled";
 
 	ports {
 		#address-cells = <1>;
@@ -733,7 +746,7 @@
 
 		port@1 {
 			reg = <1>;
-			mipi_out: endpoint {
+			sf_dpi_output: endpoint {
 				remote-endpoint = <&dsi_in_port>;
 			};
 		};
@@ -742,6 +755,35 @@
 
 &mipi_dsi {
 	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dsi0_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_out0>;
+			};
+
+			dsi1_output: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&panel_out1>;
+			};
+		};
+
+		port@1{
+			reg = <1>;
+			dsi_in_port: endpoint {
+				remote-endpoint = <&sf_dpi_output>;
+			};
+		};
+
+	};
 };
 
 &mipi_dphy {
