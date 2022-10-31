@@ -10,6 +10,7 @@ fi
 
 source basic.sh
 source tbench.sh
+source gitsource.sh
 
 # amd-pstate-ut only run on x86/x86_64 AMD systems.
 ARCH=$(uname -m 2>/dev/null | sed -e 's/i.86/x86/' -e 's/x86_64/x86/')
@@ -19,6 +20,7 @@ msg="Skip all tests:"
 FUNC=all
 OUTFILE=selftest
 OUTFILE_TBENCH="$OUTFILE.tbench"
+OUTFILE_GIT="$OUTFILE.gitsource"
 
 SYSFS=
 CPUROOT=
@@ -131,6 +133,9 @@ amd_pstate_all()
 
 	# tbench
 	amd_pstate_tbench
+
+	# gitsource
+	amd_pstate_gitsource
 }
 
 help()
@@ -140,7 +145,8 @@ help()
 	[-o <output-file-for-dump>]
 	[-c <all: All testing,
 	     basic: Basic testing,
-	     tbench: Tbench testing.>]
+	     tbench: Tbench testing,
+	     gitsource: Gitsource testing.>]
 	[-t <tbench time limit>]
 	[-p <tbench process number>]
 	[-l <loop times for tbench>]
@@ -159,7 +165,7 @@ parse_arguments()
 				help
 				;;
 
-			c) # --func_type (Function to perform: basic, tbench (default: all))
+			c) # --func_type (Function to perform: basic, tbench, gitsource (default: all))
 				FUNC=$OPTARG
 				;;
 
@@ -175,7 +181,7 @@ parse_arguments()
 				PROCESS_NUM=$OPTARG
 				;;
 
-			l) # --tbench-loop-times
+			l) # --tbench/gitsource-loop-times
 				LOOP_TIMES=$OPTARG
 				;;
 
@@ -243,16 +249,16 @@ prerequisite()
 		fi
 	else
 		case "$FUNC" in
-			"tbench")
+			"tbench" | "gitsource")
 				if [ "$scaling_driver" != "$COMPARATIVE_TEST" ]; then
-					echo "$0 # Skipped: Comparison test can only run on $COMPARATIVE_TEST driver."
+					echo "$0 # Skipped: Comparison test can only run on $COMPARISON_TEST driver."
 					echo "$0 # Current cpufreq scaling drvier is $scaling_driver."
 					exit $ksft_skip
 				fi
 				;;
 
 			*)
-				echo "$0 # Skipped: Comparison test are only for tbench."
+				echo "$0 # Skipped: Comparison test are only for tbench or gitsource."
 				echo "$0 # Current comparative test is for $FUNC."
 				exit $ksft_skip
 				;;
@@ -273,6 +279,10 @@ prerequisite()
 		"tbench")
 			command_perf
 			command_tbench
+			;;
+
+		"gitsource")
+			command_perf
 			;;
 	esac
 
@@ -321,6 +331,10 @@ do_test()
 			amd_pstate_tbench
 			;;
 
+		"gitsource")
+			amd_pstate_gitsource
+			;;
+
 		*)
 			echo "Invalid [-f] function type"
 			help
@@ -342,6 +356,12 @@ pre_clear_dumps()
 			rm -rf $OUTFILE.log
 			rm -rf $OUTFILE.backup_governor.log
 			rm -rf tbench_*.png
+			;;
+
+		"gitsource")
+			rm -rf $OUTFILE.log
+			rm -rf $OUTFILE.backup_governor.log
+			rm -rf gitsource_*.png
 			;;
 
 		*)
