@@ -14,7 +14,6 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
-#include "../../codecs/da7219-aad.h"
 #include "../../codecs/da7219.h"
 #include "../../codecs/rt1015.h"
 #include "../common/mtk-afe-platform-driver.h"
@@ -592,7 +591,7 @@ mt8183_da7219_max98357_headset_init(struct snd_soc_component *component)
 	snd_jack_set_key(
 		priv->headset_jack.jack, SND_JACK_BTN_3, KEY_VOICECOMMAND);
 
-	da7219_aad_jack_det(component, &priv->headset_jack);
+	snd_soc_component_set_jack(component, &priv->headset_jack, NULL);
 
 	return 0;
 }
