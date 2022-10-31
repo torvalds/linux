@@ -222,6 +222,8 @@ static void convert_ccw0_to_ccw1(struct ccw1 *source, unsigned long len)
 	}
 }
 
+#define idal_is_2k(_cp) (!(_cp)->orb.cmd.c64 || (_cp)->orb.cmd.i2k)
+
 /*
  * Helpers to operate ccwchain.
  */
@@ -504,8 +506,9 @@ static unsigned long *get_guest_idal(struct ccw1 *ccw,
 	struct vfio_device *vdev =
 		&container_of(cp, struct vfio_ccw_private, cp)->vdev;
 	unsigned long *idaws;
+	unsigned int *idaws_f1;
 	int idal_len = idaw_nr * sizeof(*idaws);
-	int idaw_size = PAGE_SIZE;
+	int idaw_size = idal_is_2k(cp) ? PAGE_SIZE / 2 : PAGE_SIZE;
 	int idaw_mask = ~(idaw_size - 1);
 	int i, ret;
 
@@ -527,8 +530,10 @@ static unsigned long *get_guest_idal(struct ccw1 *ccw,
 			for (i = 1; i < idaw_nr; i++)
 				idaws[i] = (idaws[i - 1] + idaw_size) & idaw_mask;
 		} else {
-			kfree(idaws);
-			return ERR_PTR(-EOPNOTSUPP);
+			idaws_f1 = (unsigned int *)idaws;
+			idaws_f1[0] = ccw->cda;
+			for (i = 1; i < idaw_nr; i++)
+				idaws_f1[i] = (idaws_f1[i - 1] + idaw_size) & idaw_mask;
 		}
 	}
 
@@ -598,6 +603,7 @@ static int ccwchain_fetch_ccw(struct ccw1 *ccw,
 	struct vfio_device *vdev =
 		&container_of(cp, struct vfio_ccw_private, cp)->vdev;
 	unsigned long *idaws;
+	unsigned int *idaws_f1;
 	int ret;
 	int idaw_nr;
 	int i;
@@ -628,9 +634,12 @@ static int ccwchain_fetch_ccw(struct ccw1 *ccw,
 	 * Copy guest IDAWs into page_array, in case the memory they
 	 * occupy is not contiguous.
 	 */
+	idaws_f1 = (unsigned int *)idaws;
 	for (i = 0; i < idaw_nr; i++) {
 		if (cp->orb.cmd.c64)
 			pa->pa_iova[i] = idaws[i];
+		else
+			pa->pa_iova[i] = idaws_f1[i];
 	}
 
 	if (ccw_does_data_transfer(ccw)) {
@@ -851,7 +860,11 @@ union orb *cp_get_orb(struct channel_program *cp, struct subchannel *sch)
 
 	/*
 	 * Everything built by vfio-ccw is a Format-2 IDAL.
+	 * If the input was a Format-1 IDAL, indicate that
+	 * 2K Format-2 IDAWs were created here.
 	 */
+	if (!orb->cmd.c64)
+		orb->cmd.i2k = 1;
 	orb->cmd.c64 = 1;
 
 	if (orb->cmd.lpm == 0)
