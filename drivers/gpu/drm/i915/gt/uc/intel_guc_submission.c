@@ -4901,7 +4901,7 @@ void intel_guc_submission_print_info(struct intel_guc *guc,
 
 	drm_printf(p, "GuC Number Outstanding Submission G2H: %u\n",
 		   atomic_read(&guc->outstanding_submission_g2h));
-	drm_printf(p, "GuC tasklet count: %u\n\n",
+	drm_printf(p, "GuC tasklet count: %u\n",
 		   atomic_read(&sched_engine->tasklet.count));
 
 	spin_lock_irqsave(&sched_engine->lock, flags);
@@ -4949,7 +4949,7 @@ static inline void guc_log_context(struct drm_printer *p,
 		   atomic_read(&ce->pin_count));
 	drm_printf(p, "\t\tGuC ID Ref Count: %u\n",
 		   atomic_read(&ce->guc_id.ref));
-	drm_printf(p, "\t\tSchedule State: 0x%x\n\n",
+	drm_printf(p, "\t\tSchedule State: 0x%x\n",
 		   ce->guc_state.sched_state);
 }
 
@@ -4978,7 +4978,7 @@ void intel_guc_submission_print_context_info(struct intel_guc *guc,
 					   READ_ONCE(*ce->parallel.guc.wq_head));
 				drm_printf(p, "\t\tWQI Tail: %u\n",
 					   READ_ONCE(*ce->parallel.guc.wq_tail));
-				drm_printf(p, "\t\tWQI Status: %u\n\n",
+				drm_printf(p, "\t\tWQI Status: %u\n",
 					   READ_ONCE(*ce->parallel.guc.wq_status));
 			}
 
@@ -4986,7 +4986,7 @@ void intel_guc_submission_print_context_info(struct intel_guc *guc,
 			    emit_bb_start_parent_no_preempt_mid_batch) {
 				u8 i;
 
-				drm_printf(p, "\t\tChildren Go: %u\n\n",
+				drm_printf(p, "\t\tChildren Go: %u\n",
 					   get_children_go_value(ce));
 				for (i = 0; i < ce->parallel.number_children; ++i)
 					drm_printf(p, "\t\tChildren Join: %u\n",

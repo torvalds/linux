@@ -871,14 +871,14 @@ void intel_guc_load_status(struct intel_guc *guc, struct drm_printer *p)
 		u32 status = intel_uncore_read(uncore, GUC_STATUS);
 		u32 i;
 
-		drm_printf(p, "\nGuC status 0x%08x:\n", status);
+		drm_printf(p, "GuC status 0x%08x:\n", status);
 		drm_printf(p, "\tBootrom status = 0x%x\n",
 			   (status & GS_BOOTROM_MASK) >> GS_BOOTROM_SHIFT);
 		drm_printf(p, "\tuKernel status = 0x%x\n",
 			   (status & GS_UKERNEL_MASK) >> GS_UKERNEL_SHIFT);
 		drm_printf(p, "\tMIA Core status = 0x%x\n",
 			   (status & GS_MIA_MASK) >> GS_MIA_SHIFT);
-		drm_puts(p, "\nScratch registers:\n");
+		drm_puts(p, "Scratch registers:\n");
 		for (i = 0; i < 16; i++) {
 			drm_printf(p, "\t%2d: \t0x%x\n",
 				   i, intel_uncore_read(uncore, SOFT_SCRATCH(i)));
