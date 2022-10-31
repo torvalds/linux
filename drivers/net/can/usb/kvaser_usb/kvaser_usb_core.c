@@ -541,7 +541,7 @@ static int kvaser_usb_set_bittiming(struct net_device *netdev)
 	int tseg1 = bt->prop_seg + bt->phase_seg1;
 	int tseg2 = bt->phase_seg2;
 	int sjw = bt->sjw;
-	int err = -EOPNOTSUPP;
+	int err;
 
 	busparams.bitrate = cpu_to_le32(bt->bitrate);
 	busparams.sjw = (u8)sjw;
