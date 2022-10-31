@@ -28,4 +28,25 @@ struct sof_probes_host_ops {
 		       struct snd_soc_dai *dai);
 };
 
+struct sof_probe_point_desc {
+	unsigned int buffer_id;
+	unsigned int purpose;
+	unsigned int stream_tag;
+} __packed;
+
+struct sof_probes_ipc_ops {
+	int (*init)(struct sof_client_dev *cdev, u32 stream_tag,
+		    size_t buffer_size);
+	int (*deinit)(struct sof_client_dev *cdev);
+	int (*points_info)(struct sof_client_dev *cdev,
+			   struct sof_probe_point_desc **desc,
+			   size_t *num_desc);
+	int (*points_add)(struct sof_client_dev *cdev,
+			  struct sof_probe_point_desc *desc,
+			  size_t num_desc);
+	int (*points_remove)(struct sof_client_dev *cdev,
+			     unsigned int *buffer_id, size_t num_buffer_id);
+};
+
+extern const struct sof_probes_ipc_ops ipc3_probe_ops;
 #endif
