@@ -1575,8 +1575,8 @@ buffered:
 	/*
 	 * If we are in a NOWAIT context, then return -EAGAIN to signal the caller
 	 * it must retry the operation in a context where blocking is acceptable,
-	 * since we currently don't have NOWAIT semantics support for buffered IO
-	 * and may block there for many reasons (reserving space for example).
+	 * because even if we end up not blocking during the buffered IO attempt
+	 * below, we will block when flushing and waiting for the IO.
 	 */
 	if (iocb->ki_flags & IOCB_NOWAIT) {
 		err = -EAGAIN;
