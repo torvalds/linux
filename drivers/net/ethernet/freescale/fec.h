@@ -348,7 +348,6 @@ struct bufdesc_ex {
  */
 
 #define FEC_ENET_XDP_HEADROOM	(XDP_PACKET_HEADROOM)
-
 #define FEC_ENET_RX_PAGES	256
 #define FEC_ENET_RX_FRSIZE	(PAGE_SIZE - FEC_ENET_XDP_HEADROOM \
 		- SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
@@ -662,6 +661,9 @@ struct fec_enet_private {
 	u64 perout_stime;
 
 	struct imx_sc_ipc *ipc_handle;
+
+	/* XDP BPF Program */
+	struct bpf_prog *xdp_prog;
 
 	u64 ethtool_stats[];
 };
