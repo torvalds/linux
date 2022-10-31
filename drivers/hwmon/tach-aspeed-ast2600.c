@@ -67,10 +67,10 @@
 #define DEFAULT_FAN_PULSE_PR 2
 /*
  * Add this value to avoid CPU consuming a lot of resources in waiting rpm
- * updating. Assume the max rpm of fan is 60000, the period of updating tach
- * value will equal to (1000000 * 2 * 60) / (2 * max_rpm) = 1000.
+ * updating. Assume the max rpm of fan is 60000, the fastest period of updating
+ * tach value will be equal to (1000000 * 2 * 60) / (2 * max_rpm) = 1000us.
  */
-#define RPM_POLLING_PERIOD_US 1000
+#define DEFAULT_FAN_MAX_RPM 60000
 
 struct aspeed_tach_channel_params {
 	int limited_inverse;
@@ -79,8 +79,10 @@ struct aspeed_tach_channel_params {
 	u8 tach_debounce;
 	u8 pulse_pr;
 	u32 min_rpm;
+	u32 max_rpm;
 	u32 divisor;
 	u32 sample_period; /* unit is us */
+	u32 polling_period; /* unit is us */
 };
 
 struct aspeed_tach_data {
@@ -113,6 +115,18 @@ static void aspeed_update_tach_sample_period(struct aspeed_tach_data *priv,
 	priv->tach_channel[fan_tach_ch].sample_period = tach_period_us;
 }
 
+static void aspeed_update_tach_polling_period(struct aspeed_tach_data *priv,
+					     u8 fan_tach_ch)
+{
+	u32 tach_period_us;
+	u8 pulse_pr = priv->tach_channel[fan_tach_ch].pulse_pr;
+	u32 max_rpm = priv->tach_channel[fan_tach_ch].max_rpm;
+
+	tach_period_us = (USEC_PER_SEC * 2 * 60) / (pulse_pr * max_rpm);
+	dev_dbg(priv->dev, "tach%d polling period = %dus", fan_tach_ch, tach_period_us);
+	priv->tach_channel[fan_tach_ch].polling_period = tach_period_us;
+}
+
 static void aspeed_tach_ch_enable(struct aspeed_tach_data *priv, u8 tach_ch,
 				  bool enable)
 {
@@ -127,19 +141,20 @@ static void aspeed_tach_ch_enable(struct aspeed_tach_data *priv, u8 tach_ch,
 static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
 				      u8 fan_tach_ch)
 {
-	u32 raw_data, tach_div, usec, val;
+	u32 raw_data, tach_div, val;
 	unsigned long clk_source;
 	u64 rpm;
 	int ret;
 
-	usec = priv->tach_channel[fan_tach_ch].sample_period;
 	/* Restart the Tach channel to guarantee the value is fresh */
 	aspeed_tach_ch_enable(priv, fan_tach_ch, false);
 	aspeed_tach_ch_enable(priv, fan_tach_ch, true);
 	ret = regmap_read_poll_timeout(
 		priv->regmap, TACH_ASPEED_STS(fan_tach_ch), val,
-		(val & TACH_ASPEED_FULL_MEASUREMENT) && (val & TACH_ASPEED_VALUE_UPDATE),
-		RPM_POLLING_PERIOD_US, usec);
+		(val & TACH_ASPEED_FULL_MEASUREMENT) &&
+			(val & TACH_ASPEED_VALUE_UPDATE),
+		priv->tach_channel[fan_tach_ch].polling_period,
+		priv->tach_channel[fan_tach_ch].sample_period);
 
 	if (ret) {
 		/* return 0 if we didn't get an answer because of timeout*/
@@ -278,6 +293,8 @@ static void aspeed_create_fan_tach_channel(struct aspeed_tach_data *priv,
 	priv->tach_channel[tach_ch].min_rpm = DEFAULT_FAN_MIN_RPM;
 	aspeed_update_tach_sample_period(priv, tach_ch);
 
+	priv->tach_channel[tach_ch].max_rpm = DEFAULT_FAN_MAX_RPM;
+	aspeed_update_tach_polling_period(priv, tach_ch);
 
 	aspeed_tach_ch_enable(priv, tach_ch, true);
 }
