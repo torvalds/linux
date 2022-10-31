@@ -366,13 +366,6 @@ struct amdgpu_display_manager {
 	struct mutex audio_lock;
 
 	/**
-	 * @vblank_lock:
-	 *
-	 * Guards access to deferred vblank work state.
-	 */
-	spinlock_t vblank_lock;
-
-	/**
 	 * @audio_component:
 	 *
 	 * Used to notify ELD changes to sound driver.
