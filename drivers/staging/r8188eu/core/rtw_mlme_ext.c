@@ -3823,7 +3823,7 @@ static void OnAction(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
 
-	if (memcmp(myid(&padapter->eeprompriv), mgmt->da, ETH_ALEN))
+	if (!ether_addr_equal(myid(&padapter->eeprompriv), mgmt->da))
 		return;
 
 	switch (mgmt->u.action.category) {
