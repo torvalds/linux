@@ -103,11 +103,11 @@ struct page_pool;
  * size actually used at runtime, but it's not a problem when calculating static
  * array sizes.
  */
-#define MLX5_UMR_MAX_MTT_SPACE \
+#define MLX5_UMR_MAX_FLEX_SPACE \
 	(ALIGN_DOWN(MLX5_SEND_WQE_MAX_SIZE - sizeof(struct mlx5e_umr_wqe), \
-		    MLX5_UMR_MTT_ALIGNMENT))
+		    MLX5_UMR_FLEX_ALIGNMENT))
 #define MLX5_MPWRQ_MAX_PAGES_PER_WQE \
-	rounddown_pow_of_two(MLX5_UMR_MAX_MTT_SPACE / sizeof(struct mlx5_mtt))
+	rounddown_pow_of_two(MLX5_UMR_MAX_FLEX_SPACE / sizeof(struct mlx5_mtt))
 
 #define MLX5E_MAX_RQ_NUM_MTTS	\
 	(ALIGN_DOWN(U16_MAX, 4) * 2) /* Fits into u16 and aligned by WQEBB. */

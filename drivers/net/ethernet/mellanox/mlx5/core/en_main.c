@@ -208,7 +208,7 @@ static u16 mlx5e_mpwrq_umr_octowords(u32 entries, enum mlx5e_mpwrq_umr_mode umr_
 	u8 umr_entry_size = mlx5e_mpwrq_umr_entry_size(umr_mode);
 	u32 sz;
 
-	sz = ALIGN(entries * umr_entry_size, MLX5_UMR_MTT_ALIGNMENT);
+	sz = ALIGN(entries * umr_entry_size, MLX5_UMR_FLEX_ALIGNMENT);
 
 	return sz / MLX5_OCTWORD;
 }

@@ -107,7 +107,7 @@ u8 mlx5e_mpwrq_log_wqe_sz(struct mlx5_core_dev *mdev, u8 page_shift,
 	/* Keep in sync with MLX5_MPWRQ_MAX_PAGES_PER_WQE. */
 	max_wqe_size = mlx5e_get_max_sq_aligned_wqebbs(mdev) * MLX5_SEND_WQE_BB;
 	max_pages_per_wqe = ALIGN_DOWN(max_wqe_size - sizeof(struct mlx5e_umr_wqe),
-				       MLX5_UMR_MTT_ALIGNMENT) / umr_entry_size;
+				       MLX5_UMR_FLEX_ALIGNMENT) / umr_entry_size;
 	max_log_mpwqe_size = ilog2(max_pages_per_wqe) + page_shift;
 
 	WARN_ON_ONCE(max_log_mpwqe_size < MLX5E_ORDER2_MAX_PACKET_MTU);
@@ -146,7 +146,7 @@ u16 mlx5e_mpwrq_umr_wqe_sz(struct mlx5_core_dev *mdev, u8 page_shift,
 	u16 umr_wqe_sz;
 
 	umr_wqe_sz = sizeof(struct mlx5e_umr_wqe) +
-		ALIGN(pages_per_wqe * umr_entry_size, MLX5_UMR_MTT_ALIGNMENT);
+		ALIGN(pages_per_wqe * umr_entry_size, MLX5_UMR_FLEX_ALIGNMENT);
 
 	WARN_ON_ONCE(DIV_ROUND_UP(umr_wqe_sz, MLX5_SEND_WQE_DS) > MLX5_WQE_CTRL_DS_MASK);
 
