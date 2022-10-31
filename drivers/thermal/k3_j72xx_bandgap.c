@@ -386,14 +386,31 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 	if (IS_ERR(bgp->cfg2_base))
 		return PTR_ERR(bgp->cfg2_base);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	fuse_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(fuse_base))
-		return PTR_ERR(fuse_base);
-
 	driver_data = of_device_get_match_data(dev);
 	if (driver_data)
 		workaround_needed = driver_data->has_errata_i2128;
+
+	/*
+	 * Some of TI's J721E SoCs require a software trimming procedure
+	 * for the temperature monitors to function properly. To determine
+	 * if this particular SoC is NOT affected, both bits in the
+	 * WKUP_SPARE_FUSE0[31:30] will be set (0xC0000000) indicating
+	 * when software trimming should NOT be applied.
+	 *
+	 * https://www.ti.com/lit/er/sprz455c/sprz455c.pdf
+	 */
+	if (workaround_needed) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+		fuse_base = devm_ioremap_resource(dev, res);
+		if (IS_ERR(fuse_base))
+			return PTR_ERR(fuse_base);
+
+		if ((readl(fuse_base) & 0xc0000000) == 0xc0000000)
+			workaround_needed = false;
+	}
+
+	dev_dbg(bgp->dev, "Work around %sneeded\n",
+		workaround_needed ? "" : "not ");
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
@@ -426,13 +443,6 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_free_ref_table;
 	}
-
-	/* Workaround not needed if bit30/bit31 is set even for J721e */
-	if (workaround_needed && (readl(fuse_base + 0x0) & 0xc0000000) == 0xc0000000)
-		workaround_needed = false;
-
-	dev_dbg(bgp->dev, "Work around %sneeded\n",
-		workaround_needed ? "" : "not ");
 
 	if (!workaround_needed)
 		init_table(5, ref_table, golden_factors);
