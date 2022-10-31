@@ -46,10 +46,13 @@ static int st_lsm6dsm_i2c_read(struct lsm6dsm_data *cdata,
 static int st_lsm6dsm_i2c_write(struct lsm6dsm_data *cdata,
 				u8 reg_addr, int len, u8 *data, bool b_lock)
 {
-	int err = 0;
-	u8 send[len + 1];
-	struct i2c_msg msg;
 	struct i2c_client *client = to_i2c_client(cdata->dev);
+	struct i2c_msg msg;
+	int err = 0;
+	u8 send[8];
+
+	if (len >= ARRAY_SIZE(send))
+		return -ENOMEM;
 
 	send[0] = reg_addr;
 	memcpy(&send[1], data, len * sizeof(u8));
