@@ -96,11 +96,22 @@ static int sdma_v4_4_2_irq_id_to_seq(unsigned client_id)
 
 static void sdma_v4_4_2_init_golden_registers(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[SDMA0_HWIP][0]) {
-	case IP_VERSION(4, 4, 2):
-		break;
-	default:
-		break;
+	u32 val;
+	int i;
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		val = RREG32_SDMA(i, regSDMA_GB_ADDR_CONFIG);
+		val = REG_SET_FIELD(val, SDMA_GB_ADDR_CONFIG, NUM_BANKS, 4);
+		val = REG_SET_FIELD(val, SDMA_GB_ADDR_CONFIG,
+				    PIPE_INTERLEAVE_SIZE, 0);
+		WREG32_SDMA(i, regSDMA_GB_ADDR_CONFIG, val);
+
+		val = RREG32_SDMA(i, regSDMA_GB_ADDR_CONFIG_READ);
+		val = REG_SET_FIELD(val, SDMA_GB_ADDR_CONFIG_READ, NUM_BANKS,
+				    4);
+		val = REG_SET_FIELD(val, SDMA_GB_ADDR_CONFIG_READ,
+				    PIPE_INTERLEAVE_SIZE, 0);
+		WREG32_SDMA(i, regSDMA_GB_ADDR_CONFIG_READ, val);
 	}
 }
 
