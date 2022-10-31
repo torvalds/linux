@@ -14,6 +14,10 @@
 #define WX_WOL_SUP                              0x4000
 #define WX_WOL_MASK                             0x4000
 
+/* MSI-X capability fields masks */
+#define WX_PCIE_MSIX_TBL_SZ_MASK                0x7FF
+#define WX_PCI_LINK_STATUS                      0xB2
+
 /**************** Global Registers ****************************/
 /* chip control Registers */
 #define WX_MIS_PWR                   0x10000
@@ -255,6 +259,8 @@ struct wx_mac_info {
 	u32 num_rar_entries;
 	u32 max_tx_queues;
 	u32 max_rx_queues;
+
+	u16 max_msix_vectors;
 	struct wx_thermal_sensor_data sensor;
 };
 

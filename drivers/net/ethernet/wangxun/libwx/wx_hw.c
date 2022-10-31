@@ -162,8 +162,8 @@ static int wx_acquire_sw_sync(struct wx_hw *wxhw, u32 mask)
  *   So we will leave this up to the caller to read back the data
  *   in these cases.
  **/
-static int wx_host_interface_command(struct wx_hw *wxhw, u32 *buffer,
-				     u32 length, u32 timeout, bool return_data)
+int wx_host_interface_command(struct wx_hw *wxhw, u32 *buffer,
+			      u32 length, u32 timeout, bool return_data)
 {
 	u32 hdr_size = sizeof(struct wx_hic_hdr);
 	u32 hicr, i, bi, buf[64] = {};
@@ -265,6 +265,7 @@ rel_out:
 	wx_release_sw_sync(wxhw, WX_MNG_SWFW_SYNC_SW_MB);
 	return status;
 }
+EXPORT_SYMBOL(wx_host_interface_command);
 
 /**
  *  wx_read_ee_hostif_data - Read EEPROM word using a host interface cmd
@@ -869,6 +870,41 @@ void wx_reset_misc(struct wx_hw *wxhw)
 	wr32(wxhw, WX_RDB_PFCMACDAH, 0x0180);
 }
 EXPORT_SYMBOL(wx_reset_misc);
+
+/**
+ *  wx_get_pcie_msix_counts - Gets MSI-X vector count
+ *  @wxhw: pointer to hardware structure
+ *  @msix_count: number of MSI interrupts that can be obtained
+ *  @max_msix_count: number of MSI interrupts that mac need
+ *
+ *  Read PCIe configuration space, and get the MSI-X vector count from
+ *  the capabilities table.
+ **/
+int wx_get_pcie_msix_counts(struct wx_hw *wxhw, u16 *msix_count, u16 max_msix_count)
+{
+	struct pci_dev *pdev = wxhw->pdev;
+	struct device *dev = &pdev->dev;
+	int pos;
+
+	*msix_count = 1;
+	pos = pci_find_capability(pdev, PCI_CAP_ID_MSIX);
+	if (!pos) {
+		dev_err(dev, "Unable to find MSI-X Capabilities\n");
+		return -EINVAL;
+	}
+	pci_read_config_word(pdev,
+			     pos + PCI_MSIX_FLAGS,
+			     msix_count);
+	*msix_count &= WX_PCIE_MSIX_TBL_SZ_MASK;
+	/* MSI-X count is zero-based in HW */
+	*msix_count += 1;
+
+	if (*msix_count > max_msix_count)
+		*msix_count = max_msix_count;
+
+	return 0;
+}
+EXPORT_SYMBOL(wx_get_pcie_msix_counts);
 
 int wx_sw_init(struct wx_hw *wxhw)
 {

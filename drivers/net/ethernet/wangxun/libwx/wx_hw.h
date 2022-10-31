@@ -7,6 +7,8 @@
 int wx_check_flash_load(struct wx_hw *hw, u32 check_bit);
 void wx_control_hw(struct wx_hw *wxhw, bool drv);
 int wx_mng_present(struct wx_hw *wxhw);
+int wx_host_interface_command(struct wx_hw *wxhw, u32 *buffer,
+			      u32 length, u32 timeout, bool return_data);
 int wx_read_ee_hostif(struct wx_hw *wxhw, u16 offset, u16 *data);
 int wx_read_ee_hostif_buffer(struct wx_hw *wxhw,
 			     u16 offset, u16 words, u16 *data);
@@ -20,6 +22,7 @@ void wx_disable_rx(struct wx_hw *wxhw);
 int wx_disable_pcie_master(struct wx_hw *wxhw);
 int wx_stop_adapter(struct wx_hw *wxhw);
 void wx_reset_misc(struct wx_hw *wxhw);
+int wx_get_pcie_msix_counts(struct wx_hw *wxhw, u16 *msix_count, u16 max_msix_count);
 int wx_sw_init(struct wx_hw *wxhw);
 
 #endif /* _WX_HW_H_ */
