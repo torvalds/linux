@@ -1241,11 +1241,15 @@ disable_sensorhub:
 }
 
 static int st_lsm6ds3h_i2c_master_read_raw(struct iio_dev *indio_dev,
-		struct iio_chan_spec const *ch, int *val, int *val2, long mask)
+					   struct iio_chan_spec const *ch,
+					   int *val, int *val2, long mask)
 {
-	int err;
-	u8 outdata[(ch->scan_type.storagebits >> 3)];
 	struct lsm6ds3h_sensor_data *sdata = iio_priv(indio_dev);
+	int err, ch_num_byte = ch->scan_type.storagebits >> 3;
+	u8 outdata[4];
+
+	if (ch_num_byte > ARRAY_SIZE(outdata))
+		return -ENOMEM;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -1270,7 +1274,7 @@ static int st_lsm6ds3h_i2c_master_read_raw(struct iio_dev *indio_dev,
 		msleep((1000U / sdata->cdata->trigger_odr) + 2);
 
 		err = sdata->cdata->tf->read(sdata->cdata, sdata->data_out_reg,
-				ch->scan_type.storagebits >> 3, outdata, true);
+					     ch_num_byte, outdata, true);
 		if (err < 0) {
 			st_lsm6ds3h_i2c_master_set_enable(sdata, false, false);
 			mutex_unlock(&sdata->cdata->odr_lock);
@@ -1285,7 +1289,7 @@ static int st_lsm6ds3h_i2c_master_read_raw(struct iio_dev *indio_dev,
 			return err;
 		}
 
-		if ((ch->scan_type.storagebits >> 3) > 2)
+		if (ch_num_byte > 2)
 			*val = (s32)get_unaligned_le32(outdata);
 		else
 			*val = (s16)get_unaligned_le16(outdata);
