@@ -262,3 +262,51 @@ Description:
 		For more details, see section `5.7 GPI Status Registers,
 		Altra Family Soc BMC Interface Specification`.
 
+What:		/sys/bus/platform/devices/smpro-misc.*/boot_progress
+KernelVersion:	6.1
+Contact:	Quan Nguyen <quan@os.amperecomputing.com>
+Description:
+		(RO) Contains the boot stages information in hex as format below::
+
+		    AABBCCCCCCCC
+
+		where:
+
+		  - ``AA``      : The boot stages
+
+		    - 00: SMpro firmware booting
+		    - 01: PMpro firmware booting
+		    - 02: ATF BL1 firmware booting
+		    - 03: DDR initialization
+		    - 04: DDR training report status
+		    - 05: ATF BL2 firmware booting
+		    - 06: ATF BL31 firmware booting
+		    - 07: ATF BL32 firmware booting
+		    - 08: UEFI firmware booting
+		    - 09: OS booting
+
+		  - ``BB``      : Boot status
+
+		    - 00: Not started
+		    - 01: Started
+		    - 02: Completed without error
+		    - 03: Failed.
+
+		  - ``CCCCCCCC``: Boot status information defined for each boot stages
+
+		For details, see section `5.11 Boot Stage Register Definitions`
+		and section `6. Processor Boot Progress Codes, Altra Family Soc BMC
+		Interface Specification`.
+
+
+What:		/sys/bus/platform/devices/smpro-misc*/soc_power_limit
+KernelVersion:	6.1
+Contact:	Quan Nguyen <quan@os.amperecomputing.com>
+Description:
+		(RW) Contains the desired SoC power limit in Watt.
+		Writes to this sysfs set the desired SoC power limit (W).
+		Reads from this register return the current SoC power limit (W).
+		The value ranges:
+
+		  - Minimum: 120 W
+		  - Maximum: Socket TDP power
