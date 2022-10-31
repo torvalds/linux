@@ -1,0 +1,87 @@
+export ECRNX_MODULE_NAME=wlan_ecr6600
+
+# Enable 6600 hal config
+export CONFIG_6600_HAL=y
+# Enable A-MSDU support (need FW support)
+## Select this if FW is compiled with AMSDU support
+export CONFIG_ECRNX_SPLIT_TX_BUF=n
+
+## Select this TO send AMSDU
+export CONFIG_ECRNX_AMSDUS_TX=n
+
+# Enable BFMER support (need FW support)
+export CONFIG_ECRNX_BFMER=n
+CONFIG_ECRNX_MUMIMO_TX=n
+
+# Enable handling of radar event
+export CONFIG_ECRNX_RADAR=y
+
+# Enable HW queue for Broadcast/Multicast traffic (need FW support)
+export CONFIG_ECRNX_BCMC=y
+
+# Enable Monitor+Data interface support (need FW support)
+export CONFIG_ECRNX_MON_DATA=n
+
+# extra DEBUG config
+export CONFIG_ECRNX_SW_PROFILING=n
+export CONFIG_ECRNX_DBG=y
+export CONFIG_ECRNX_DBG_LEVEL=3
+export CONFIG_DEBUG_FS=y
+export CONFIG_ECRNX_DEBUGFS_CUSTOM ?= y
+# CONFIG PLATFORM
+export CONFIG_ECRNX_ESWIN=y
+export CONFIG_ECRNX_ESWIN_SDIO=y
+
+export CONFIG_ECRNX_ESWIN_USB=n
+
+# CONFIG SYSTERM TEST
+export CONFIG_TEST_ESWIN_SDIO=n
+
+# CONFIG SYSTERM TEST
+export CONFIG_STANDALONE_WIFI=n
+
+# CONFIG SYSTERM TEST
+export CONFIG_STANDALONE_WIFI_BLE=y
+# Enable BFMER support (need FW support)
+export CONFIG_ECRNX_HE=y
+
+# Enable P2P Listen
+export CONFIG_ECRNX_P2P=y
+# Enable 5G
+export CONFIG_ECRNX_5G=n
+
+#CONFIG SDIO WIFI CALIBRATION
+export CONFIG_ECRNX_WIFO_CAIL=y
+
+#
+# WAITING FOR KCONFIG {
+#
+export CONFIG_ECRNX_SOFTMAC=n
+export CONFIG_ECRNX_FULLMAC=m
+export CONFIG_ECRNX_FHOST=n
+
+#
+# DEBUG OPTIONS
+export CONFIG_ECRNX_UM_HELPER_DFLT="/dini/dini_bin/ecrnx_umh.sh"
+
+#
+# FW ARCH:
+export CONFIG_ECRNX_SDM=n
+export CONFIG_ECRNX_TL4=n
+
+# IPC version
+export CONFIG_ECRNX_OLD_IPC=n
+
+# Support of P2P DebugFS for enabling/disabling NoA and OppPS
+export CONFIG_ECRNX_P2P_DEBUGFS=n
+
+# config_ceva_rtos = y use ceva rtos and add task_cli id
+# config_ceva_rtos = n use freertos and no task_cli id
+#export CONFIG_CEVA_RTOS=n
+
+export NX_VIRT_DEV_MAX=3
+export NX_REMOTE_STA_MAX=2
+export NX_MU_GROUP_MAX=62
+export NX_TXDESC_CNT=4
+export NX_TX_MAX_RATES=4
+export NX_CHAN_CTXT_CNT=3
