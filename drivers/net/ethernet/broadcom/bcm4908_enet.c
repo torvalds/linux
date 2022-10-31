@@ -505,6 +505,7 @@ static int bcm4908_enet_stop(struct net_device *netdev)
 	netif_carrier_off(netdev);
 	napi_disable(&rx_ring->napi);
 	napi_disable(&tx_ring->napi);
+	netdev_reset_queue(netdev);
 
 	bcm4908_enet_dma_rx_ring_disable(enet, &enet->rx_ring);
 	bcm4908_enet_dma_tx_ring_disable(enet, &enet->tx_ring);
@@ -563,6 +564,8 @@ static netdev_tx_t bcm4908_enet_start_xmit(struct sk_buff *skb, struct net_devic
 	tmp |= DMA_CTL_STATUS_APPEND_CRC;
 	if (ring->write_idx + 1 == ring->length - 1)
 		tmp |= DMA_CTL_STATUS_WRAP;
+
+	netdev_sent_queue(enet->netdev, skb->len);
 
 	buf_desc->addr = cpu_to_le32((uint32_t)slot->dma_addr);
 	buf_desc->ctl = cpu_to_le32(tmp);
@@ -671,6 +674,7 @@ static int bcm4908_enet_poll_tx(struct napi_struct *napi, int weight)
 			tx_ring->read_idx = 0;
 	}
 
+	netdev_completed_queue(enet->netdev, handled, bytes);
 	enet->netdev->stats.tx_packets += handled;
 	enet->netdev->stats.tx_bytes += bytes;
 
