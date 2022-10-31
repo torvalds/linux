@@ -45,7 +45,10 @@ static int st_mag40_i2c_write(struct st_mag40_data *cdata, u8 reg_addr,
 {
 	struct i2c_client *client = to_i2c_client(cdata->dev);
 	struct i2c_msg msg;
-	u8 send[len + 1];
+	u8 send[4];
+
+	if (len >= ARRAY_SIZE(send))
+		return -ENOMEM;
 
 	send[0] = reg_addr;
 	memcpy(&send[1], data, len * sizeof(u8));
