@@ -2,8 +2,8 @@
 /*
  * SVA library for IOMMU drivers
  */
-#ifndef _IOMMU_SVA_LIB_H
-#define _IOMMU_SVA_LIB_H
+#ifndef _IOMMU_SVA_H
+#define _IOMMU_SVA_H
 
 #include <linux/ioasid.h>
 #include <linux/mm_types.h>
@@ -72,4 +72,4 @@ iommu_sva_handle_iopf(struct iommu_fault *fault, void *data)
 	return IOMMU_PAGE_RESP_INVALID;
 }
 #endif /* CONFIG_IOMMU_SVA */
-#endif /* _IOMMU_SVA_LIB_H */
+#endif /* _IOMMU_SVA_H */
