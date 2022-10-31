@@ -139,7 +139,7 @@ static u32 g4x_read_clock_frequency(struct intel_uncore *uncore)
 	return 1000000000 / 1024;
 }
 
-static u32 gen2_read_clock_frequency(struct intel_uncore *uncore)
+static u32 gen4_read_clock_frequency(struct intel_uncore *uncore)
 {
 	/*
 	 * PRMs say:
@@ -163,8 +163,10 @@ static u32 read_clock_frequency(struct intel_uncore *uncore)
 		return gen5_read_clock_frequency(uncore);
 	else if (IS_G4X(uncore->i915))
 		return g4x_read_clock_frequency(uncore);
+	else if (GRAPHICS_VER(uncore->i915) == 4)
+		return gen4_read_clock_frequency(uncore);
 	else
-		return gen2_read_clock_frequency(uncore);
+		return 0;
 }
 
 void intel_gt_init_clock_frequency(struct intel_gt *gt)
