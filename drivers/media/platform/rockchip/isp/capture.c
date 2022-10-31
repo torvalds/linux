@@ -366,7 +366,7 @@ void rkisp_config_dmatx_valid_buf(struct rkisp_device *dev)
 			continue;
 		for (j = RKISP_STREAM_DMATX0; j < RKISP_MAX_STREAM; j++) {
 			stream = &isp->cap_dev.stream[j];
-			if (!stream->linked || stream->u.dmatx.is_config)
+			if (!stream->linked || stream->curr_buf || stream->next_buf)
 				continue;
 			mi_set_y_addr(stream, hw->dummy_buf.dma_addr);
 		}
