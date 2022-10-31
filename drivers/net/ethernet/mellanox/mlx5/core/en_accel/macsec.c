@@ -427,15 +427,15 @@ mlx5e_macsec_get_rx_sc_from_sc_list(const struct list_head *list, sci_t sci)
 	return NULL;
 }
 
-static int mlx5e_macsec_update_rx_sa(struct mlx5e_macsec *macsec,
-				     struct mlx5e_macsec_sa *rx_sa,
-				     bool active)
+static int macsec_rx_sa_active_update(struct macsec_context *ctx,
+				      struct mlx5e_macsec_sa *rx_sa,
+				      bool active)
 {
-	struct mlx5_core_dev *mdev = macsec->mdev;
-	struct mlx5_macsec_obj_attrs attrs = {};
+	struct mlx5e_priv *priv = netdev_priv(ctx->netdev);
+	struct mlx5e_macsec *macsec = priv->macsec;
 	int err = 0;
 
-	if (rx_sa->active != active)
+	if (rx_sa->active == active)
 		return 0;
 
 	rx_sa->active = active;
@@ -444,13 +444,11 @@ static int mlx5e_macsec_update_rx_sa(struct mlx5e_macsec *macsec,
 		return 0;
 	}
 
-	attrs.sci = cpu_to_be64((__force u64)rx_sa->sci);
-	attrs.enc_key_id = rx_sa->enc_key_id;
-	err = mlx5e_macsec_create_object(mdev, &attrs, false, &rx_sa->macsec_obj_id);
+	err = mlx5e_macsec_init_sa(ctx, rx_sa, true, false);
 	if (err)
-		return err;
+		rx_sa->active = false;
 
-	return 0;
+	return err;
 }
 
 static bool mlx5e_macsec_secy_features_validate(struct macsec_context *ctx)
@@ -812,7 +810,7 @@ static int mlx5e_macsec_upd_rxsc(struct macsec_context *ctx)
 		if (!rx_sa)
 			continue;
 
-		err = mlx5e_macsec_update_rx_sa(macsec, rx_sa, rx_sa->active && ctx_rx_sc->active);
+		err = macsec_rx_sa_active_update(ctx, rx_sa, rx_sa->active && ctx_rx_sc->active);
 		if (err)
 			goto out;
 	}
@@ -1023,7 +1021,7 @@ static int mlx5e_macsec_upd_rxsa(struct macsec_context *ctx)
 		goto out;
 	}
 
-	err = mlx5e_macsec_update_rx_sa(macsec, rx_sa, ctx_rx_sa->active);
+	err = macsec_rx_sa_active_update(ctx, rx_sa, ctx_rx_sa->active);
 out:
 	mutex_unlock(&macsec->lock);
 
