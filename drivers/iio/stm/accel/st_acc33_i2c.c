@@ -42,7 +42,10 @@ static int st_acc33_i2c_write(struct device *dev, u8 addr, int len, u8 *data)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct i2c_msg msg;
-	u8 send[len + 1];
+	u8 send[4];
+
+	if (len >= ARRAY_SIZE(send))
+		return -ENOMEM;
 
 	if (len > 1)
 		addr |= I2C_AUTO_INCREMENT;
