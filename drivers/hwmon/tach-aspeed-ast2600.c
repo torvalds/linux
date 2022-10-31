@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) ASPEED Technology Inc.
  */
@@ -18,6 +18,7 @@
 #include <linux/sysfs.h>
 #include <linux/reset.h>
 #include <linux/regmap.h>
+#include <linux/bitfield.h>
 
 /* The channel number of Aspeed tach controller */
 #define TACH_ASPEED_NR_TACHS 16
@@ -188,7 +189,7 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
 	return rpm;
 }
 
-static ssize_t show_rpm(struct device *dev, struct device_attribute *attr,
+static ssize_t fan_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
@@ -209,27 +210,227 @@ static umode_t fan_dev_is_visible(struct kobject *kobj, struct attribute *a,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct aspeed_tach_data *priv = dev_get_drvdata(dev);
 
-	if (!priv->tach_present[index])
+	if (!priv->tach_present[index % TACH_ASPEED_NR_TACHS])
 		return 0;
 	return a->mode;
 }
 
-static SENSOR_DEVICE_ATTR(fan1_input, 0444, show_rpm, NULL, 0);
-static SENSOR_DEVICE_ATTR(fan2_input, 0444, show_rpm, NULL, 1);
-static SENSOR_DEVICE_ATTR(fan3_input, 0444, show_rpm, NULL, 2);
-static SENSOR_DEVICE_ATTR(fan4_input, 0444, show_rpm, NULL, 3);
-static SENSOR_DEVICE_ATTR(fan5_input, 0444, show_rpm, NULL, 4);
-static SENSOR_DEVICE_ATTR(fan6_input, 0444, show_rpm, NULL, 5);
-static SENSOR_DEVICE_ATTR(fan7_input, 0444, show_rpm, NULL, 6);
-static SENSOR_DEVICE_ATTR(fan8_input, 0444, show_rpm, NULL, 7);
-static SENSOR_DEVICE_ATTR(fan9_input, 0444, show_rpm, NULL, 8);
-static SENSOR_DEVICE_ATTR(fan10_input, 0444, show_rpm, NULL, 9);
-static SENSOR_DEVICE_ATTR(fan11_input, 0444, show_rpm, NULL, 10);
-static SENSOR_DEVICE_ATTR(fan12_input, 0444, show_rpm, NULL, 11);
-static SENSOR_DEVICE_ATTR(fan13_input, 0444, show_rpm, NULL, 12);
-static SENSOR_DEVICE_ATTR(fan14_input, 0444, show_rpm, NULL, 13);
-static SENSOR_DEVICE_ATTR(fan15_input, 0444, show_rpm, NULL, 14);
-static SENSOR_DEVICE_ATTR(fan16_input, 0444, show_rpm, NULL, 15);
+static SENSOR_DEVICE_ATTR_RO(fan1_input, fan, 0);
+static SENSOR_DEVICE_ATTR_RO(fan2_input, fan, 1);
+static SENSOR_DEVICE_ATTR_RO(fan3_input, fan, 2);
+static SENSOR_DEVICE_ATTR_RO(fan4_input, fan, 3);
+static SENSOR_DEVICE_ATTR_RO(fan5_input, fan, 4);
+static SENSOR_DEVICE_ATTR_RO(fan6_input, fan, 5);
+static SENSOR_DEVICE_ATTR_RO(fan7_input, fan, 6);
+static SENSOR_DEVICE_ATTR_RO(fan8_input, fan, 7);
+static SENSOR_DEVICE_ATTR_RO(fan9_input, fan, 8);
+static SENSOR_DEVICE_ATTR_RO(fan10_input, fan, 9);
+static SENSOR_DEVICE_ATTR_RO(fan11_input, fan, 10);
+static SENSOR_DEVICE_ATTR_RO(fan12_input, fan, 11);
+static SENSOR_DEVICE_ATTR_RO(fan13_input, fan, 12);
+static SENSOR_DEVICE_ATTR_RO(fan14_input, fan, 13);
+static SENSOR_DEVICE_ATTR_RO(fan15_input, fan, 14);
+static SENSOR_DEVICE_ATTR_RO(fan16_input, fan, 15);
+
+static ssize_t fan_max_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int index = sensor_attr->index;
+	struct aspeed_tach_data *priv = dev_get_drvdata(dev);
+	u32 max_rpm = priv->tach_channel[index].max_rpm;
+
+	return sprintf(buf, "%d\n", max_rpm);
+}
+
+static ssize_t fan_max_store(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int index = sensor_attr->index;
+	struct aspeed_tach_data *priv = dev_get_drvdata(dev);
+	long max_rpm;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &max_rpm);
+	if (ret < 0)
+		return ret;
+
+	priv->tach_channel[index].max_rpm = max_rpm;
+	aspeed_update_tach_polling_period(priv, index);
+	return count;
+}
+
+static SENSOR_DEVICE_ATTR_RW(fan1_max, fan_max, 0);
+static SENSOR_DEVICE_ATTR_RW(fan2_max, fan_max, 1);
+static SENSOR_DEVICE_ATTR_RW(fan3_max, fan_max, 2);
+static SENSOR_DEVICE_ATTR_RW(fan4_max, fan_max, 3);
+static SENSOR_DEVICE_ATTR_RW(fan5_max, fan_max, 4);
+static SENSOR_DEVICE_ATTR_RW(fan6_max, fan_max, 5);
+static SENSOR_DEVICE_ATTR_RW(fan7_max, fan_max, 6);
+static SENSOR_DEVICE_ATTR_RW(fan8_max, fan_max, 7);
+static SENSOR_DEVICE_ATTR_RW(fan9_max, fan_max, 8);
+static SENSOR_DEVICE_ATTR_RW(fan10_max, fan_max, 9);
+static SENSOR_DEVICE_ATTR_RW(fan11_max, fan_max, 10);
+static SENSOR_DEVICE_ATTR_RW(fan12_max, fan_max, 11);
+static SENSOR_DEVICE_ATTR_RW(fan13_max, fan_max, 12);
+static SENSOR_DEVICE_ATTR_RW(fan14_max, fan_max, 13);
+static SENSOR_DEVICE_ATTR_RW(fan15_max, fan_max, 14);
+static SENSOR_DEVICE_ATTR_RW(fan16_max, fan_max, 15);
+
+static ssize_t fan_min_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int index = sensor_attr->index;
+	struct aspeed_tach_data *priv = dev_get_drvdata(dev);
+	u32 min_rpm = priv->tach_channel[index].min_rpm;
+
+	return sprintf(buf, "%d\n", min_rpm);
+}
+
+static ssize_t fan_min_store(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int index = sensor_attr->index;
+	struct aspeed_tach_data *priv = dev_get_drvdata(dev);
+	long min_rpm;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &min_rpm);
+	if (ret < 0)
+		return ret;
+
+	priv->tach_channel[index].min_rpm = min_rpm;
+	aspeed_update_tach_sample_period(priv, index);
+	return count;
+}
+
+static SENSOR_DEVICE_ATTR_RW(fan1_min, fan_min, 0);
+static SENSOR_DEVICE_ATTR_RW(fan2_min, fan_min, 1);
+static SENSOR_DEVICE_ATTR_RW(fan3_min, fan_min, 2);
+static SENSOR_DEVICE_ATTR_RW(fan4_min, fan_min, 3);
+static SENSOR_DEVICE_ATTR_RW(fan5_min, fan_min, 4);
+static SENSOR_DEVICE_ATTR_RW(fan6_min, fan_min, 5);
+static SENSOR_DEVICE_ATTR_RW(fan7_min, fan_min, 6);
+static SENSOR_DEVICE_ATTR_RW(fan8_min, fan_min, 7);
+static SENSOR_DEVICE_ATTR_RW(fan9_min, fan_min, 8);
+static SENSOR_DEVICE_ATTR_RW(fan10_min, fan_min, 9);
+static SENSOR_DEVICE_ATTR_RW(fan11_min, fan_min, 10);
+static SENSOR_DEVICE_ATTR_RW(fan12_min, fan_min, 11);
+static SENSOR_DEVICE_ATTR_RW(fan13_min, fan_min, 12);
+static SENSOR_DEVICE_ATTR_RW(fan14_min, fan_min, 13);
+static SENSOR_DEVICE_ATTR_RW(fan15_min, fan_min, 14);
+static SENSOR_DEVICE_ATTR_RW(fan16_min, fan_min, 15);
+
+static ssize_t fan_pulse_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int index = sensor_attr->index;
+	struct aspeed_tach_data *priv = dev_get_drvdata(dev);
+	u32 pulse_pr = priv->tach_channel[index].pulse_pr;
+
+	return sprintf(buf, "%d\n", pulse_pr);
+}
+
+static ssize_t fan_pulse_store(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int index = sensor_attr->index;
+	struct aspeed_tach_data *priv = dev_get_drvdata(dev);
+	long pulse_pr;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &pulse_pr);
+	if (ret < 0)
+		return ret;
+
+	priv->tach_channel[index].pulse_pr = pulse_pr;
+	aspeed_update_tach_sample_period(priv, index);
+	return count;
+}
+
+static SENSOR_DEVICE_ATTR_RW(fan1_pulse, fan_pulse, 0);
+static SENSOR_DEVICE_ATTR_RW(fan2_pulse, fan_pulse, 1);
+static SENSOR_DEVICE_ATTR_RW(fan3_pulse, fan_pulse, 2);
+static SENSOR_DEVICE_ATTR_RW(fan4_pulse, fan_pulse, 3);
+static SENSOR_DEVICE_ATTR_RW(fan5_pulse, fan_pulse, 4);
+static SENSOR_DEVICE_ATTR_RW(fan6_pulse, fan_pulse, 5);
+static SENSOR_DEVICE_ATTR_RW(fan7_pulse, fan_pulse, 6);
+static SENSOR_DEVICE_ATTR_RW(fan8_pulse, fan_pulse, 7);
+static SENSOR_DEVICE_ATTR_RW(fan9_pulse, fan_pulse, 8);
+static SENSOR_DEVICE_ATTR_RW(fan10_pulse, fan_pulse, 9);
+static SENSOR_DEVICE_ATTR_RW(fan11_pulse, fan_pulse, 10);
+static SENSOR_DEVICE_ATTR_RW(fan12_pulse, fan_pulse, 11);
+static SENSOR_DEVICE_ATTR_RW(fan13_pulse, fan_pulse, 12);
+static SENSOR_DEVICE_ATTR_RW(fan14_pulse, fan_pulse, 13);
+static SENSOR_DEVICE_ATTR_RW(fan15_pulse, fan_pulse, 14);
+static SENSOR_DEVICE_ATTR_RW(fan16_pulse, fan_pulse, 15);
+
+static ssize_t fan_div_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int index = sensor_attr->index;
+	struct aspeed_tach_data *priv = dev_get_drvdata(dev);
+	u32 divisor, val = priv->tach_channel[index].divisor;
+
+	regmap_read(priv->regmap, TACH_ASPEED_CTRL(index), &val);
+	divisor = FIELD_GET(TACH_ASPEED_CLK_DIV_T_MASK, val);
+	divisor = 1 << (divisor << 1);
+
+	return sprintf(buf, "%d\n", divisor);
+}
+
+static ssize_t fan_div_store(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
+	int index = sensor_attr->index;
+	struct aspeed_tach_data *priv = dev_get_drvdata(dev);
+	long divisor;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &divisor);
+	if (ret < 0)
+		return ret;
+
+	if ((is_power_of_2(divisor) && !(ilog2(divisor) % 2))) {
+		priv->tach_channel[index].divisor = divisor;
+		regmap_write_bits(priv->regmap, TACH_ASPEED_CTRL(index),
+				  TACH_ASPEED_CLK_DIV_T_MASK,
+				  DIV_TO_REG(priv->tach_channel[index].divisor)
+					  << TACH_ASPEED_CLK_DIV_BIT);
+	} else {
+		dev_err(dev,
+			"fan_div value %ld not supported. Only support power of 4\n",
+			divisor);
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static SENSOR_DEVICE_ATTR_RW(fan1_div, fan_div, 0);
+static SENSOR_DEVICE_ATTR_RW(fan2_div, fan_div, 1);
+static SENSOR_DEVICE_ATTR_RW(fan3_div, fan_div, 2);
+static SENSOR_DEVICE_ATTR_RW(fan4_div, fan_div, 3);
+static SENSOR_DEVICE_ATTR_RW(fan5_div, fan_div, 4);
+static SENSOR_DEVICE_ATTR_RW(fan6_div, fan_div, 5);
+static SENSOR_DEVICE_ATTR_RW(fan7_div, fan_div, 6);
+static SENSOR_DEVICE_ATTR_RW(fan8_div, fan_div, 7);
+static SENSOR_DEVICE_ATTR_RW(fan9_div, fan_div, 8);
+static SENSOR_DEVICE_ATTR_RW(fan10_div, fan_div, 9);
+static SENSOR_DEVICE_ATTR_RW(fan11_div, fan_div, 10);
+static SENSOR_DEVICE_ATTR_RW(fan12_div, fan_div, 11);
+static SENSOR_DEVICE_ATTR_RW(fan13_div, fan_div, 12);
+static SENSOR_DEVICE_ATTR_RW(fan14_div, fan_div, 13);
+static SENSOR_DEVICE_ATTR_RW(fan15_div, fan_div, 14);
+static SENSOR_DEVICE_ATTR_RW(fan16_div, fan_div, 15);
+
 static struct attribute *fan_dev_attrs[] = {
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
 	&sensor_dev_attr_fan2_input.dev_attr.attr,
@@ -247,6 +448,74 @@ static struct attribute *fan_dev_attrs[] = {
 	&sensor_dev_attr_fan14_input.dev_attr.attr,
 	&sensor_dev_attr_fan15_input.dev_attr.attr,
 	&sensor_dev_attr_fan16_input.dev_attr.attr,
+
+	&sensor_dev_attr_fan1_max.dev_attr.attr,
+	&sensor_dev_attr_fan2_max.dev_attr.attr,
+	&sensor_dev_attr_fan3_max.dev_attr.attr,
+	&sensor_dev_attr_fan4_max.dev_attr.attr,
+	&sensor_dev_attr_fan5_max.dev_attr.attr,
+	&sensor_dev_attr_fan6_max.dev_attr.attr,
+	&sensor_dev_attr_fan7_max.dev_attr.attr,
+	&sensor_dev_attr_fan8_max.dev_attr.attr,
+	&sensor_dev_attr_fan9_max.dev_attr.attr,
+	&sensor_dev_attr_fan10_max.dev_attr.attr,
+	&sensor_dev_attr_fan11_max.dev_attr.attr,
+	&sensor_dev_attr_fan12_max.dev_attr.attr,
+	&sensor_dev_attr_fan13_max.dev_attr.attr,
+	&sensor_dev_attr_fan14_max.dev_attr.attr,
+	&sensor_dev_attr_fan15_max.dev_attr.attr,
+	&sensor_dev_attr_fan16_max.dev_attr.attr,
+
+	&sensor_dev_attr_fan1_min.dev_attr.attr,
+	&sensor_dev_attr_fan2_min.dev_attr.attr,
+	&sensor_dev_attr_fan3_min.dev_attr.attr,
+	&sensor_dev_attr_fan4_min.dev_attr.attr,
+	&sensor_dev_attr_fan5_min.dev_attr.attr,
+	&sensor_dev_attr_fan6_min.dev_attr.attr,
+	&sensor_dev_attr_fan7_min.dev_attr.attr,
+	&sensor_dev_attr_fan8_min.dev_attr.attr,
+	&sensor_dev_attr_fan9_min.dev_attr.attr,
+	&sensor_dev_attr_fan10_min.dev_attr.attr,
+	&sensor_dev_attr_fan11_min.dev_attr.attr,
+	&sensor_dev_attr_fan12_min.dev_attr.attr,
+	&sensor_dev_attr_fan13_min.dev_attr.attr,
+	&sensor_dev_attr_fan14_min.dev_attr.attr,
+	&sensor_dev_attr_fan15_min.dev_attr.attr,
+	&sensor_dev_attr_fan16_min.dev_attr.attr,
+
+	&sensor_dev_attr_fan1_div.dev_attr.attr,
+	&sensor_dev_attr_fan2_div.dev_attr.attr,
+	&sensor_dev_attr_fan3_div.dev_attr.attr,
+	&sensor_dev_attr_fan4_div.dev_attr.attr,
+	&sensor_dev_attr_fan5_div.dev_attr.attr,
+	&sensor_dev_attr_fan6_div.dev_attr.attr,
+	&sensor_dev_attr_fan7_div.dev_attr.attr,
+	&sensor_dev_attr_fan8_div.dev_attr.attr,
+	&sensor_dev_attr_fan9_div.dev_attr.attr,
+	&sensor_dev_attr_fan10_div.dev_attr.attr,
+	&sensor_dev_attr_fan11_div.dev_attr.attr,
+	&sensor_dev_attr_fan12_div.dev_attr.attr,
+	&sensor_dev_attr_fan13_div.dev_attr.attr,
+	&sensor_dev_attr_fan14_div.dev_attr.attr,
+	&sensor_dev_attr_fan15_div.dev_attr.attr,
+	&sensor_dev_attr_fan16_div.dev_attr.attr,
+
+	&sensor_dev_attr_fan1_pulse.dev_attr.attr,
+	&sensor_dev_attr_fan2_pulse.dev_attr.attr,
+	&sensor_dev_attr_fan3_pulse.dev_attr.attr,
+	&sensor_dev_attr_fan4_pulse.dev_attr.attr,
+	&sensor_dev_attr_fan5_pulse.dev_attr.attr,
+	&sensor_dev_attr_fan6_pulse.dev_attr.attr,
+	&sensor_dev_attr_fan7_pulse.dev_attr.attr,
+	&sensor_dev_attr_fan8_pulse.dev_attr.attr,
+	&sensor_dev_attr_fan9_pulse.dev_attr.attr,
+	&sensor_dev_attr_fan10_pulse.dev_attr.attr,
+	&sensor_dev_attr_fan11_pulse.dev_attr.attr,
+	&sensor_dev_attr_fan12_pulse.dev_attr.attr,
+	&sensor_dev_attr_fan13_pulse.dev_attr.attr,
+	&sensor_dev_attr_fan14_pulse.dev_attr.attr,
+	&sensor_dev_attr_fan15_pulse.dev_attr.attr,
+	&sensor_dev_attr_fan16_pulse.dev_attr.attr,
 	NULL
 };
 
@@ -417,6 +686,7 @@ static struct platform_driver aspeed_tach_driver = {
 
 module_platform_driver(aspeed_tach_driver);
 
-MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
-MODULE_DESCRIPTION("ASPEED Fan tach device driver");
-MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Billy Tsai <billy_tsai@aspeedtech.com>");
+MODULE_DESCRIPTION("Aspeed ast2600 TACH device driver");
+MODULE_LICENSE("GPL v2");
+
