@@ -10,6 +10,7 @@ void css_get(struct cgroup_subsys_state *css)
 	if (!(css->flags & CSS_NO_REF))
 		percpu_ref_get(&css->refcnt);
 }
+CGROUP_REF_EXPORT(css_get)
 
 /**
  * css_get_many - obtain references on the specified css
@@ -24,6 +25,7 @@ void css_get_many(struct cgroup_subsys_state *css, unsigned int n)
 	if (!(css->flags & CSS_NO_REF))
 		percpu_ref_get_many(&css->refcnt, n);
 }
+CGROUP_REF_EXPORT(css_get_many)
 
 /**
  * css_tryget - try to obtain a reference on the specified css
@@ -43,6 +45,7 @@ bool css_tryget(struct cgroup_subsys_state *css)
 		return percpu_ref_tryget(&css->refcnt);
 	return true;
 }
+CGROUP_REF_EXPORT(css_tryget)
 
 /**
  * css_tryget_online - try to obtain a reference on the specified css if online
@@ -61,6 +64,7 @@ bool css_tryget_online(struct cgroup_subsys_state *css)
 		return percpu_ref_tryget_live(&css->refcnt);
 	return true;
 }
+CGROUP_REF_EXPORT(css_tryget_online)
 
 /**
  * css_put - put a css reference
@@ -74,6 +78,7 @@ void css_put(struct cgroup_subsys_state *css)
 	if (!(css->flags & CSS_NO_REF))
 		percpu_ref_put(&css->refcnt);
 }
+CGROUP_REF_EXPORT(css_put)
 
 /**
  * css_put_many - put css references
@@ -88,3 +93,4 @@ void css_put_many(struct cgroup_subsys_state *css, unsigned int n)
 	if (!(css->flags & CSS_NO_REF))
 		percpu_ref_put_many(&css->refcnt, n);
 }
+CGROUP_REF_EXPORT(css_put_many)
