@@ -299,9 +299,6 @@ static struct platform_driver *drm_sub_drivers[] = {
 #ifdef CONFIG_STARFIVE_INNO_HDMI
 	&inno_hdmi_driver,
 #endif
-#ifdef CONFIG_STARFIVE_DSI
-	&starfive_dsi_platform_driver,
-#endif
 
 	&simple_encoder_driver,
 

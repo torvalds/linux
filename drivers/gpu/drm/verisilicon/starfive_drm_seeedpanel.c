@@ -17,7 +17,7 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
 #include "vs_drv.h"
-#define RPI_DSI_DRIVER_NAME "cdns-dri-panel"
+#define RPI_DSI_DRIVER_NAME "starfive-dri-panel"
 
 /* I2C registers of the Atmel microcontroller. */
 enum REG_ADDR {
@@ -493,6 +493,7 @@ static int seeed_dsi_probe(struct mipi_dsi_device *dsi)
 				MIPI_DSI_MODE_LPM);
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->lanes = 1;
+	dsi->hs_rate = 750000000;
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret)
@@ -506,7 +507,7 @@ static struct mipi_dsi_driver seeed_dsi_driver = {
 	.probe = seeed_dsi_probe,
 };
 
-int init_seeed_panel(void)
+static int __init init_seeed_panel(void)
 {
 	int err;
 
@@ -514,14 +515,16 @@ int init_seeed_panel(void)
 	err = i2c_add_driver(&seeed_panel_driver);
 	return err;
 }
-EXPORT_SYMBOL(init_seeed_panel);
+module_init(init_seeed_panel);
 
-void exit_seeed_panel(void)
+static void __exit exit_seeed_panel(void)
 {
 	i2c_del_driver(&seeed_panel_driver);
 	mipi_dsi_driver_unregister(&seeed_dsi_driver);
 }
-EXPORT_SYMBOL(exit_seeed_panel);
+module_exit(exit_seeed_panel);
 
-MODULE_DESCRIPTION("A driver for seeed_panel");
-MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Eric Anholt <eric@anholt.net>");
+MODULE_DESCRIPTION("Raspberry Pi 7-inch touchscreen driver");
+MODULE_LICENSE("GPL v2");
+

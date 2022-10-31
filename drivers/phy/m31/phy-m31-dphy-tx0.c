@@ -197,308 +197,6 @@ static int sf_dphy_clkrst_disa_assert(struct device *dev, struct sf_dphy *dphy)
 	return ret;
 }
 
-/*
-*static int sf_dphy_remove(struct platform_device *pdev)
-*{
-*	struct sf_dphy *dphy = dev_get_drvdata(&pdev->dev);
-*	reset_control_assert(dphy->sys_rst);
-*	//reset_control_assert(dphy->txbytehs_rst);
-*	clk_disable_unprepare(dphy->txesc_clk);
-*	return 0;
-*}
-*/
-
-#if 0
-static u32 top_sys_read32(struct sf_dphy *priv, u32 reg)
-{
-	return ioread32(priv->topsys + reg);
-}
-
-
-static inline void top_sys_write32(struct sf_dphy *priv, u32 reg, u32 val)
-{
-	iowrite32(val, priv->topsys + reg);
-}
-
-static void dsi_csi2tx_sel(struct sf_dphy *priv, int sel)
-{
-  u32 temp = 0;
-  temp = top_sys_read32(priv, SCFG_DSI_CSI_SEL);
-  temp &= ~(0x1);
-  temp |= (sel & 0x1);
-  top_sys_write32(priv, SCFG_DSI_CSI_SEL, temp);
-}
-
-static void dphy_clane_hs_txready_sel(struct sf_dphy *priv, u32 ready_sel)
-{
-	top_sys_write32(priv, SCFG_TXREADY_SRC_SEL_D, ready_sel);
-	top_sys_write32(priv, SCFG_TXREADY_SRC_SEL_C, ready_sel);
-	top_sys_write32(priv, SCFG_HS_PRE_ZERO_T_D, 0x30);
-	top_sys_write32(priv, SCFG_HS_PRE_ZERO_T_C, 0x30);
-}
-
-static void mipi_tx_lxn_set(struct sf_dphy *priv, u32 reg, u32 n_hstx, u32 p_hstx)
-{
-	u32 temp = 0;
-
-	temp = n_hstx;
-	temp |= p_hstx << 5;
-	top_sys_write32(priv, reg, temp);
-}
-
-static void dphy_config(struct sf_dphy *priv, int bit_rate)
-{
-	int pre_div,      fbk_int,       extd_cycle_sel;
-	int dhs_pre_time, dhs_zero_time, dhs_trial_time;
-	int chs_pre_time, chs_zero_time, chs_trial_time;
-	int chs_clk_pre_time, chs_clk_post_time;
-	u32 set_val = 0;
-
-	mipi_tx_lxn_set(priv, SCFG_L0N_L0P_HSTX, 0x10, 0x10);
-	mipi_tx_lxn_set(priv, SCFG_L1N_L1P_HSTX, 0x10, 0x10);
-	mipi_tx_lxn_set(priv, SCFG_L2N_L2P_HSTX, 0x10, 0x10);
-	mipi_tx_lxn_set(priv, SCFG_L3N_L3P_HSTX, 0x10, 0x10);
-	mipi_tx_lxn_set(priv, SCFG_L4N_L4P_HSTX, 0x10, 0x10);
-
-	if(bit_rate == 80) {
-		pre_div=0x1,		fbk_int=2*0x33,		extd_cycle_sel=0x4,
-		dhs_pre_time=0xe,	dhs_zero_time=0x1d,	dhs_trial_time=0x15,
-		chs_pre_time=0x5,	chs_zero_time=0x2b,	chs_trial_time=0xd,
-		chs_clk_pre_time=0xf,
-		chs_clk_post_time=0x71;
-	} else if (bit_rate == 100) {
-		pre_div=0x1,		fbk_int=2*0x40,		extd_cycle_sel=0x4,
-		dhs_pre_time=0x10,	dhs_zero_time=0x21,	dhs_trial_time=0x17,
-		chs_pre_time=0x7,	chs_zero_time=0x35,	chs_trial_time=0xf,
-		chs_clk_pre_time=0xf,
-		chs_clk_post_time=0x73;
-	} else if (bit_rate == 200) {
-		pre_div=0x1,		fbk_int=2*0x40,		extd_cycle_sel=0x3;
-		dhs_pre_time=0xc,	dhs_zero_time=0x1b,	dhs_trial_time=0x13;
-		chs_pre_time=0x7,	chs_zero_time=0x35,	chs_trial_time=0xf,
-		chs_clk_pre_time=0x7,
-		chs_clk_post_time=0x3f;
-	} else if(bit_rate == 300) {
-		pre_div=0x1,		fbk_int=2*0x60, 	extd_cycle_sel=0x3,
-		dhs_pre_time=0x11,	dhs_zero_time=0x25, dhs_trial_time=0x19,
-		chs_pre_time=0xa, 	chs_zero_time=0x50, chs_trial_time=0x15,
-		chs_clk_pre_time=0x7,
-		chs_clk_post_time=0x45;
-    } else if(bit_rate == 400) {
-		pre_div=0x1,      	fbk_int=2*0x40,		extd_cycle_sel=0x2,
-		dhs_pre_time=0xa, 	dhs_zero_time=0x18,	dhs_trial_time=0x11,
-		chs_pre_time=0x7, 	chs_zero_time=0x35, chs_trial_time=0xf,
-		chs_clk_pre_time=0x3,
-		chs_clk_post_time=0x25;
-    } else if(bit_rate == 500 ) {
-		pre_div=0x1,      fbk_int=2*0x50,       extd_cycle_sel=0x2,
-		dhs_pre_time=0xc, dhs_zero_time=0x1d,	dhs_trial_time=0x14,
-		chs_pre_time=0x9, chs_zero_time=0x42,	chs_trial_time=0x12,
-		chs_clk_pre_time=0x3,
-		chs_clk_post_time=0x28;
-    } else if(bit_rate == 600 ) {
-		pre_div=0x1,      fbk_int=2*0x60,       extd_cycle_sel=0x2,
-		dhs_pre_time=0xe, dhs_zero_time=0x23,	dhs_trial_time=0x17,
-		chs_pre_time=0xa, chs_zero_time=0x50,	chs_trial_time=0x15,
-		chs_clk_pre_time=0x3,
-		chs_clk_post_time=0x2b;
-    } else if(bit_rate == 700) {
-		pre_div=0x1,      fbk_int=2*0x38,       extd_cycle_sel=0x1,
-		dhs_pre_time=0x8, dhs_zero_time=0x14,	dhs_trial_time=0xf,
-		chs_pre_time=0x6, chs_zero_time=0x2f,	chs_trial_time=0xe,
-		chs_clk_pre_time=0x1,
-		chs_clk_post_time=0x16;
-    } else if(bit_rate == 800 ) {
-		pre_div=0x1,      fbk_int=2*0x40,       extd_cycle_sel=0x1,
-		dhs_pre_time=0x9, dhs_zero_time=0x17,	dhs_trial_time=0x10,
-		chs_pre_time=0x7, chs_zero_time=0x35,	chs_trial_time=0xf,
-		chs_clk_pre_time=0x1,
-		chs_clk_post_time=0x18;
-    } else if(bit_rate == 900 ) {
-		pre_div=0x1,      fbk_int=2*0x48,       extd_cycle_sel=0x1,
-		dhs_pre_time=0xa, dhs_zero_time=0x19, 	dhs_trial_time=0x12,
-		chs_pre_time=0x8, chs_zero_time=0x3c, 	chs_trial_time=0x10,
-		chs_clk_pre_time=0x1,
-		chs_clk_post_time=0x19;
-    } else if(bit_rate == 1000) {
-		pre_div=0x1,      fbk_int=2*0x50,       extd_cycle_sel=0x1,
-		dhs_pre_time=0xb, dhs_zero_time=0x1c,	dhs_trial_time=0x13,
-		chs_pre_time=0x9, chs_zero_time=0x42,	chs_trial_time=0x12,
-		chs_clk_pre_time=0x1,
-		chs_clk_post_time=0x1b;
-    } else if(bit_rate == 1100) {
-		pre_div=0x1,      fbk_int=2*0x58,       extd_cycle_sel=0x1,
-		dhs_pre_time=0xc, dhs_zero_time=0x1e,	dhs_trial_time=0x15,
-		chs_pre_time=0x9, chs_zero_time=0x4a,	chs_trial_time=0x14,
-		chs_clk_pre_time=0x1,
-		chs_clk_post_time=0x1d;
-    } else if(bit_rate == 1200) {
-		pre_div=0x1,      fbk_int=2*0x60,       extd_cycle_sel=0x1,
-		dhs_pre_time=0xe, dhs_zero_time=0x20,	dhs_trial_time=0x16,
-		chs_pre_time=0xa, chs_zero_time=0x50,	chs_trial_time=0x15,
-		chs_clk_pre_time=0x1,
-		chs_clk_post_time=0x1e;
-    } else if(bit_rate == 1300) {
-		pre_div=0x1,      fbk_int=2*0x34,       extd_cycle_sel=0x0,
-		dhs_pre_time=0x7, dhs_zero_time=0x12,	dhs_trial_time=0xd,
-		chs_pre_time=0x5, chs_zero_time=0x2c,	chs_trial_time=0xd,
-		chs_clk_pre_time=0x0,
-		chs_clk_post_time=0xf;
-    } else if(bit_rate == 1400) {
-		pre_div=0x1,      fbk_int=2*0x38,       extd_cycle_sel=0x0,
-		dhs_pre_time=0x7, dhs_zero_time=0x14,	dhs_trial_time=0xe,
-		chs_pre_time=0x6, chs_zero_time=0x2f,	chs_trial_time=0xe,
-		chs_clk_pre_time=0x0,
-		chs_clk_post_time=0x10;
-    } else if(bit_rate == 1500) {
-		pre_div=0x1,      fbk_int=2*0x3c,       extd_cycle_sel=0x0,
-		dhs_pre_time=0x8, dhs_zero_time=0x14,	dhs_trial_time=0xf,
-		chs_pre_time=0x6, chs_zero_time=0x32,	chs_trial_time=0xe,
-		chs_clk_pre_time=0x0,
-		chs_clk_post_time=0x11;
-    } else if(bit_rate == 1600) {
-		pre_div=0x1,      fbk_int=2*0x40,       extd_cycle_sel=0x0,
-		dhs_pre_time=0x9, dhs_zero_time=0x15,	dhs_trial_time=0x10,
-		chs_pre_time=0x7, chs_zero_time=0x35,	chs_trial_time=0xf,
-		chs_clk_pre_time=0x0,
-		chs_clk_post_time=0x12;
-    } else if(bit_rate == 1700) {
-		pre_div=0x1,      fbk_int=2*0x44,       extd_cycle_sel=0x0,
-		dhs_pre_time=0x9, dhs_zero_time=0x17,	dhs_trial_time=0x10,
-		chs_pre_time=0x7, chs_zero_time=0x39,	chs_trial_time=0x10,
-		chs_clk_pre_time=0x0,
-		chs_clk_post_time=0x12;
-    } else if(bit_rate == 1800) {
-		pre_div=0x1,      fbk_int=2*0x48,       extd_cycle_sel=0x0,
-		dhs_pre_time=0xa, dhs_zero_time=0x18,	dhs_trial_time=0x11,
-		chs_pre_time=0x8, chs_zero_time=0x3c,	chs_trial_time=0x10,
-		chs_clk_pre_time=0x0,
-		chs_clk_post_time=0x13;
-    } else if(bit_rate == 1900) {
-		pre_div=0x1,      fbk_int=2*0x4c,       extd_cycle_sel=0x0,
-		dhs_pre_time=0xa, dhs_zero_time=0x1a,	dhs_trial_time=0x12,
-		chs_pre_time=0x8, chs_zero_time=0x3f,	chs_trial_time=0x11,
-		chs_clk_pre_time=0x0,
-		chs_clk_post_time=0x14;
-    } else if(bit_rate == 2000) {
-		pre_div=0x1,      fbk_int=2*0x50,       extd_cycle_sel=0x0,
-		dhs_pre_time=0xb, dhs_zero_time=0x1b,	dhs_trial_time=0x13,
-		chs_pre_time=0x9, chs_zero_time=0x42,	chs_trial_time=0x12,
-		chs_clk_pre_time=0x0,
-		chs_clk_post_time=0x15;
-    } else if(bit_rate == 2100) {
-		pre_div=0x1,      fbk_int=2*0x54,       extd_cycle_sel=0x0,
-		dhs_pre_time=0xb, dhs_zero_time=0x1c,	dhs_trial_time=0x13,
-		chs_pre_time=0x9, chs_zero_time=0x46,	chs_trial_time=0x13,
-		chs_clk_pre_time=0x0,
-		chs_clk_post_time=0x15;
-    } else if(bit_rate == 2200) {
-		pre_div=0x1,      fbk_int=2*0x5b,       extd_cycle_sel=0x0,
-		dhs_pre_time=0xc, dhs_zero_time=0x1d,	dhs_trial_time=0x14,
-		chs_pre_time=0x9, chs_zero_time=0x4a,	chs_trial_time=0x14,
-		chs_clk_pre_time=0x0,
-		chs_clk_post_time=0x16;
-    } else if(bit_rate == 2300) {
-		pre_div=0x1,      fbk_int=2*0x5c,       extd_cycle_sel=0x0,
-		dhs_pre_time=0xc, dhs_zero_time=0x1f,	dhs_trial_time=0x15,
-		chs_pre_time=0xa, chs_zero_time=0x4c,	chs_trial_time=0x14,
-		chs_clk_pre_time=0x0,
-		chs_clk_post_time=0x17;
-    } else if(bit_rate == 2400) {
-		pre_div=0x1,      fbk_int=2*0x60,       extd_cycle_sel=0x0,
-		dhs_pre_time=0xd, dhs_zero_time=0x20,	dhs_trial_time=0x16,
-		chs_pre_time=0xa, chs_zero_time=0x50,	chs_trial_time=0x15,
-		chs_clk_pre_time=0x0,
-		chs_clk_post_time=0x18;
-    } else if(bit_rate == 2500) {
-		pre_div=0x1,      fbk_int=2*0x64,       extd_cycle_sel=0x0,
-		dhs_pre_time=0xe, dhs_zero_time=0x21,	dhs_trial_time=0x16,
-		chs_pre_time=0xb, chs_zero_time=0x53,	chs_trial_time=0x16,
-		chs_clk_pre_time=0x0,
-		chs_clk_post_time=0x18;
-    } else {
-		//default bit_rate == 700
-		pre_div=0x1,      fbk_int=2*0x38,       extd_cycle_sel=0x1,
-		dhs_pre_time=0x8, dhs_zero_time=0x14,	dhs_trial_time=0xf,
-		chs_pre_time=0x6, chs_zero_time=0x2f,	chs_trial_time=0xe,
-		chs_clk_pre_time=0x1,
-		chs_clk_post_time=0x16;
-    }
-	top_sys_write32(priv, SCFG_REFCLK_SEL, 0x3);
-
-	set_val = 0
-			| (1 << OFFSET_CFG_L1_SWAP_SEL)
-			| (4 << OFFSET_CFG_L2_SWAP_SEL)
-			| (2 << OFFSET_CFG_L3_SWAP_SEL)
-			| (3 << OFFSET_CFG_L4_SWAP_SEL);
-	top_sys_write32(priv, SCFG_LX_SWAP_SEL, set_val);
-
-	set_val = 0
-			| (0 << OFFSET_SCFG_PWRON_READY_N)
-			| (1 << OFFSET_RG_CDTX_PLL_FM_EN)
-			| (0 << OFFSET_SCFG_PLLSSC_EN)
-			| (1 << OFFSET_RG_CDTX_PLL_LDO_STB_X2_EN);
-	top_sys_write32(priv, SCFG_DBUS_PW_PLL_SSC_LD0, set_val);
-
-	set_val = fbk_int
-			| (pre_div << 9);
-	top_sys_write32(priv, SCFG_RG_CDTX_PLL_FBK_PRE, set_val);
-
-	top_sys_write32(priv, SCFG_RG_EXTD_CYCLE_SEL, extd_cycle_sel);
-
-	set_val = chs_zero_time
-			| (dhs_pre_time << OFFSET_DHS_PRE_TIME)
-			| (dhs_trial_time << OFFSET_DHS_TRIAL_TIME)
-			| (dhs_zero_time << OFFSET_DHS_ZERO_TIME);
-	top_sys_write32(priv, SCFG_RG_CLANE_DLANE_TIME, set_val);
-
-	set_val = chs_clk_post_time
-			| (chs_clk_pre_time << OFFSET_CHS_PRE_TIME)
-			| (chs_pre_time << OFFSET_CHS_TRIAL_TIME)
-			| (chs_trial_time << OFFSET_CHS_ZERO_TIME);
-	top_sys_write32(priv, SCFG_RG_CLANE_HS_TIME, set_val);
-
-}
-
-static void reset_dphy(struct sf_dphy *priv, int resetb)
-{
-	u32 cfg_dsc_enable = 0x01;//bit0
-
-	u32 precfg = top_sys_read32(priv, SCFG_PHY_RESETB);
-	precfg &= ~(cfg_dsc_enable);
-	precfg |= (resetb&cfg_dsc_enable);
-	top_sys_write32(priv, SCFG_PHY_RESETB, precfg);
-}
-
-static void polling_dphy_lock(struct sf_dphy *priv)
-{
-	int pll_unlock;
-
-	udelay(10);
-
-	do {
-		pll_unlock = top_sys_read32(priv, SCFG_GRS_CDTX_PLL) >> 3;
-		pll_unlock &= 0x1;
-	} while(pll_unlock == 0x1);
-}
-
-static int sf_dphy_configure(struct phy *phy, union phy_configure_opts *opts)
-{	//dev_info(dphy->dev,"--->sf_dphy_configure\n");
-	struct sf_dphy *dphy = phy_get_drvdata(phy);
-	uint32_t bit_rate = 800000000/1000000UL;//new mipi panel clock setting
-	//uint32_t bit_rate = 500000000/1000000UL;//7110 mipi panel clock setting
-
-
-	dphy_config(dphy, bit_rate);
-	reset_dphy(dphy, 1);
-	mdelay(10);
-	polling_dphy_lock(dphy);
-
-	//dev_info(dphy->dev,"--->sf_dphy_configure\n");
-	return 0;
-}
-#endif
-
 static int is_pll_locked(struct sf_dphy *dphy)
 {
 	int tmp = sf_dphy_get_reg(dphy->topsys + 0x8,
@@ -527,7 +225,11 @@ static int sys_m31_dphy_tx_configure(struct phy *phy, union phy_configure_opts *
 	const uint32_t AON_POWER_READY_N_active = 0;
 	dphy = phy_get_drvdata(phy);	
 	//bitrate = 680000000;//1228M 60fps
-	bitrate = 750000000;//1188M 60fps
+	//bitrate = 750000000;//1188M 60fps
+	//  bitrate = 490000000;//1188M 60fps
+	bitrate = opts->mipi_dphy.hs_clk_rate;//1188M 60fps
+	printk("sys_m31_dphy_tx_configure opts->mipi_dphy.hs_clk_rate = %ld\n",opts->mipi_dphy.hs_clk_rate);
+
 
 	sf_dphy_set_reg(dphy->topsys + 0x8, 0x10, 
 					RG_CDTX_L0N_HSTX_RES_SHIFT, RG_CDTX_L0N_HSTX_RES_MASK);
@@ -658,6 +360,35 @@ static int sf_dphy_power_off(struct phy *phy)
 
 static int sf_dphy_init(struct phy *phy)
 {
+	struct sf_dphy *dphy = phy_get_drvdata(phy);
+	uint32_t temp;
+	int ret;
+
+	temp = 0;
+	temp = sf_dphy_get_reg(dphy->aonsys, AON_GP_REG_SHIFT,AON_GP_REG_MASK);
+	dev_info(dphy->dev, "GET_AON_GP_REG\n");
+
+	if (!(temp & DPHY_TX_PSW_EN_MASK)) {
+		temp |= DPHY_TX_PSW_EN_MASK;
+		sf_dphy_set_reg(dphy->aonsys, temp,AON_GP_REG_SHIFT,AON_GP_REG_MASK);
+	}
+	dev_info(dphy->dev, "control ECO\n");
+
+	//pmic turn on
+	ret = regulator_enable(dphy->mipitx_0p9);
+	if (ret) {
+		dev_err(dphy->dev, "Cannot enable mipitx_0p9 regulator\n");
+		//goto err_reg_0p9;
+	}
+	udelay(100);	
+	ret = regulator_enable(dphy->mipitx_1p8);
+	if (ret) {
+		dev_err(dphy->dev, "Cannot enable mipitx_1p8 regulator\n");
+		//goto err_reg_1p8;
+	}
+	udelay(100);
+	//mipi_pmic setting
+
 	return 0;
 }
 
@@ -704,7 +435,6 @@ static int sf_dphy_probe(struct platform_device *pdev)
 	struct sf_dphy *dphy;
 	struct resource *res;
 	int ret;
-	uint32_t temp;
 
 	dev_info(&pdev->dev, "sf_dphy_probe begin\n");
 	dphy = devm_kzalloc(&pdev->dev, sizeof(*dphy), GFP_KERNEL);
@@ -731,15 +461,6 @@ static int sf_dphy_probe(struct platform_device *pdev)
 	// this power switch control bit was added in ECO, check ECO item "aon psw_en" for detail
 	dev_info(dphy->dev, "control ECO\n");
 	dphy->aonsys = ioremap(0x17010000, 0x10000);
-	temp = 0;
-	temp = sf_dphy_get_reg(dphy->aonsys, AON_GP_REG_SHIFT,AON_GP_REG_MASK);
-	dev_info(dphy->dev, "GET_AON_GP_REG\n");
-
-	if (!(temp & DPHY_TX_PSW_EN_MASK)) {
-		temp |= DPHY_TX_PSW_EN_MASK;
-		sf_dphy_set_reg(dphy->aonsys, temp,AON_GP_REG_SHIFT,AON_GP_REG_MASK);
-	}
-	dev_info(dphy->dev, "control ECO\n");
 
 	//mipi_pmic setting
 	dphy->mipitx_1p8 = devm_regulator_get(&pdev->dev, "mipi_1p8");
@@ -750,20 +471,6 @@ static int sf_dphy_probe(struct platform_device *pdev)
 	if (IS_ERR(dphy->mipitx_0p9))
 		return PTR_ERR(dphy->mipitx_0p9);
 
-	//pmic turn on
-	ret = regulator_enable(dphy->mipitx_0p9);
-	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable mipitx_0p9 regulator\n");
-		//goto err_reg_0p9;
-	}
-	udelay(100);	
-	ret = regulator_enable(dphy->mipitx_1p8);
-	if (ret) {
-		dev_err(&pdev->dev, "Cannot enable mipitx_1p8 regulator\n");
-		//goto err_reg_1p8;
-	}
-	udelay(100);
-	//mipi_pmic setting
 
 	ret = sf_dphy_clkrst_get(&pdev->dev, dphy);
 

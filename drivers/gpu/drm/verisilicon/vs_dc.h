@@ -87,8 +87,6 @@ struct vs_dc {
 };
 
 extern struct platform_driver dc_platform_driver;
-extern struct platform_driver starfive_dsi_platform_driver;
-extern int init_seeed_panel(void);
-extern void exit_seeed_panel(void);
+
 
 #endif /* __VS_DC_H__ */

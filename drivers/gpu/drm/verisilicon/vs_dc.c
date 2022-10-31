@@ -812,14 +812,12 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc)
 		}
 
 		clk_set_parent(dc->dc8200_clk_pix1, dc->dc8200_pix0);
-		udelay(1000);
 		dc_hw_set_out(&dc->hw, OUT_DPI, display.id);
 	} else {
 		if (dc->pix_clk_rate != mode->clock) {
 			clk_set_rate(dc->dc8200_pix0, mode->clock * 1000);
 			dc->pix_clk_rate = mode->clock;
 		}
-
 		clk_set_parent(dc->dc8200_clk_pix1, dc->dc8200_pix0);
 		clk_set_parent(dc->dc8200_clk_pix0, dc->hdmitx0_pixelclk);
 		dc_hw_set_out(&dc->hw, OUT_DP, display.id);
