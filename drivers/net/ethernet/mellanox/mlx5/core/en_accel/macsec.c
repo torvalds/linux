@@ -803,10 +803,10 @@ static int mlx5e_macsec_upd_rxsc(struct macsec_context *ctx)
 		goto out;
 	}
 
-	rx_sc->active = ctx_rx_sc->active;
 	if (rx_sc->active == ctx_rx_sc->active)
 		goto out;
 
+	rx_sc->active = ctx_rx_sc->active;
 	for (i = 0; i < MACSEC_NUM_AN; ++i) {
 		rx_sa = rx_sc->rx_sa[i];
 		if (!rx_sa)
