@@ -123,7 +123,10 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	 * Offset 0x3e0, 32 bytes reserved
 	 * for use by hypervisor/software.
 	 */
-	u8 reserved_sw[32];
+	union {
+		struct hv_enlightenments hv_enlightenments;
+		u8 reserved_sw[32];
+	};
 };
 
 
