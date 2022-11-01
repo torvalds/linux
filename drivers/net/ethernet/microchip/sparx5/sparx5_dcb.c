@@ -49,6 +49,13 @@ static int sparx5_dcb_app_validate(struct net_device *dev,
 	int err = 0;
 
 	switch (app->selector) {
+	/* Default priority checks */
+	case IEEE_8021QAZ_APP_SEL_ETHERTYPE:
+		if (app->protocol != 0)
+			err = -EINVAL;
+		else if (app->priority >= SPX5_PRIOS)
+			err = -ERANGE;
+		break;
 	/* Dscp checks */
 	case IEEE_8021QAZ_APP_SEL_DSCP:
 		if (app->protocol >= SPARX5_PORT_QOS_DSCP_COUNT)
@@ -136,6 +143,11 @@ static int sparx5_dcb_app_update(struct net_device *dev)
 
 	dscp_map = &qos.dscp.map;
 	pcp_map = &qos.pcp.map;
+
+	/* Get default prio. */
+	qos.default_prio = dcb_ieee_getapp_default_prio_mask(dev);
+	if (qos.default_prio)
+		qos.default_prio = fls(qos.default_prio) - 1;
 
 	/* Get dscp ingress mapping */
 	for (i = 0; i < ARRAY_SIZE(dscp_map->map); i++) {

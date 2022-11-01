@@ -119,6 +119,7 @@ struct sparx5_port_qos_dscp {
 struct sparx5_port_qos {
 	struct sparx5_port_qos_pcp pcp;
 	struct sparx5_port_qos_dscp dscp;
+	u8 default_prio;
 };
 
 int sparx5_port_qos_set(struct sparx5_port *port, struct sparx5_port_qos *qos);
@@ -128,4 +129,8 @@ int sparx5_port_qos_pcp_set(const struct sparx5_port *port,
 
 int sparx5_port_qos_dscp_set(const struct sparx5_port *port,
 			     struct sparx5_port_qos_dscp *qos);
+
+int sparx5_port_qos_default_set(const struct sparx5_port *port,
+				const struct sparx5_port_qos *qos);
+
 #endif	/* __SPARX5_PORT_H__ */
