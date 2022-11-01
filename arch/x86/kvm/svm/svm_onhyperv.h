@@ -64,7 +64,7 @@ static inline void svm_hv_vmcb_dirty_nested_enlightenments(
 		(struct hv_enlightenments *)vmcb->control.reserved_sw;
 
 	if (hve->hv_enlightenments_control.msr_bitmap)
-		vmcb_mark_dirty(vmcb, VMCB_HV_NESTED_ENLIGHTENMENTS);
+		vmcb_mark_dirty(vmcb, HV_VMCB_NESTED_ENLIGHTENMENTS);
 }
 
 static inline void svm_hv_update_vp_id(struct vmcb *vmcb,
@@ -76,7 +76,7 @@ static inline void svm_hv_update_vp_id(struct vmcb *vmcb,
 
 	if (hve->hv_vp_id != vp_index) {
 		hve->hv_vp_id = vp_index;
-		vmcb_mark_dirty(vmcb, VMCB_HV_NESTED_ENLIGHTENMENTS);
+		vmcb_mark_dirty(vmcb, HV_VMCB_NESTED_ENLIGHTENMENTS);
 	}
 }
 #else

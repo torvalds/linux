@@ -32,7 +32,7 @@ int svm_hv_enable_direct_tlbflush(struct kvm_vcpu *vcpu)
 	hve->hv_vm_id = (unsigned long)vcpu->kvm;
 	if (!hve->hv_enlightenments_control.nested_flush_hypercall) {
 		hve->hv_enlightenments_control.nested_flush_hypercall = 1;
-		vmcb_mark_dirty(to_svm(vcpu)->vmcb, VMCB_HV_NESTED_ENLIGHTENMENTS);
+		vmcb_mark_dirty(to_svm(vcpu)->vmcb, HV_VMCB_NESTED_ENLIGHTENMENTS);
 	}
 
 	return 0;
