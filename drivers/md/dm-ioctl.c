@@ -681,7 +681,7 @@ static void list_version_get_info(struct target_type *tt, void *param)
     strcpy(info->vers->name, tt->name);
 
     info->old_vers = info->vers;
-    info->vers = align_ptr(((void *) ++info->vers) + strlen(tt->name) + 1);
+    info->vers = align_ptr((void *)(info->vers + 1) + strlen(tt->name) + 1);
 }
 
 static int __list_versions(struct dm_ioctl *param, size_t param_size, const char *name)
