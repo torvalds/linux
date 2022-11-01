@@ -3404,22 +3404,16 @@ static long btf_hash_enum(struct btf_type *t)
 {
 	long h;
 
-	/* don't hash vlen and enum members to support enum fwd resolving */
+	/* don't hash vlen, enum members and size to support enum fwd resolving */
 	h = hash_combine(0, t->name_off);
-	h = hash_combine(h, t->info & ~0xffff);
-	h = hash_combine(h, t->size);
 	return h;
 }
 
-/* Check structural equality of two ENUMs. */
-static bool btf_equal_enum(struct btf_type *t1, struct btf_type *t2)
+static bool btf_equal_enum_members(struct btf_type *t1, struct btf_type *t2)
 {
 	const struct btf_enum *m1, *m2;
 	__u16 vlen;
 	int i;
-
-	if (!btf_equal_common(t1, t2))
-		return false;
 
 	vlen = btf_vlen(t1);
 	m1 = btf_enum(t1);
@@ -3433,14 +3427,11 @@ static bool btf_equal_enum(struct btf_type *t1, struct btf_type *t2)
 	return true;
 }
 
-static bool btf_equal_enum64(struct btf_type *t1, struct btf_type *t2)
+static bool btf_equal_enum64_members(struct btf_type *t1, struct btf_type *t2)
 {
 	const struct btf_enum64 *m1, *m2;
 	__u16 vlen;
 	int i;
-
-	if (!btf_equal_common(t1, t2))
-		return false;
 
 	vlen = btf_vlen(t1);
 	m1 = btf_enum64(t1);
@@ -3455,6 +3446,19 @@ static bool btf_equal_enum64(struct btf_type *t1, struct btf_type *t2)
 	return true;
 }
 
+/* Check structural equality of two ENUMs or ENUM64s. */
+static bool btf_equal_enum(struct btf_type *t1, struct btf_type *t2)
+{
+	if (!btf_equal_common(t1, t2))
+		return false;
+
+	/* t1 & t2 kinds are identical because of btf_equal_common */
+	if (btf_kind(t1) == BTF_KIND_ENUM)
+		return btf_equal_enum_members(t1, t2);
+	else
+		return btf_equal_enum64_members(t1, t2);
+}
+
 static inline bool btf_is_enum_fwd(struct btf_type *t)
 {
 	return btf_is_any_enum(t) && btf_vlen(t) == 0;
@@ -3464,21 +3468,14 @@ static bool btf_compat_enum(struct btf_type *t1, struct btf_type *t2)
 {
 	if (!btf_is_enum_fwd(t1) && !btf_is_enum_fwd(t2))
 		return btf_equal_enum(t1, t2);
-	/* ignore vlen when comparing */
+	/* At this point either t1 or t2 or both are forward declarations, thus:
+	 * - skip comparing vlen because it is zero for forward declarations;
+	 * - skip comparing size to allow enum forward declarations
+	 *   to be compatible with enum64 full declarations;
+	 * - skip comparing kind for the same reason.
+	 */
 	return t1->name_off == t2->name_off &&
-	       (t1->info & ~0xffff) == (t2->info & ~0xffff) &&
-	       t1->size == t2->size;
-}
-
-static bool btf_compat_enum64(struct btf_type *t1, struct btf_type *t2)
-{
-	if (!btf_is_enum_fwd(t1) && !btf_is_enum_fwd(t2))
-		return btf_equal_enum64(t1, t2);
-
-	/* ignore vlen when comparing */
-	return t1->name_off == t2->name_off &&
-	       (t1->info & ~0xffff) == (t2->info & ~0xffff) &&
-	       t1->size == t2->size;
+	       btf_is_any_enum(t1) && btf_is_any_enum(t2);
 }
 
 /*
@@ -3763,6 +3760,7 @@ static int btf_dedup_prim_type(struct btf_dedup *d, __u32 type_id)
 		break;
 
 	case BTF_KIND_ENUM:
+	case BTF_KIND_ENUM64:
 		h = btf_hash_enum(t);
 		for_each_dedup_cand(d, hash_entry, h) {
 			cand_id = (__u32)(long)hash_entry->value;
@@ -3772,27 +3770,6 @@ static int btf_dedup_prim_type(struct btf_dedup *d, __u32 type_id)
 				break;
 			}
 			if (btf_compat_enum(t, cand)) {
-				if (btf_is_enum_fwd(t)) {
-					/* resolve fwd to full enum */
-					new_id = cand_id;
-					break;
-				}
-				/* resolve canonical enum fwd to full enum */
-				d->map[cand_id] = type_id;
-			}
-		}
-		break;
-
-	case BTF_KIND_ENUM64:
-		h = btf_hash_enum(t);
-		for_each_dedup_cand(d, hash_entry, h) {
-			cand_id = (__u32)(long)hash_entry->value;
-			cand = btf_type_by_id(d->btf, cand_id);
-			if (btf_equal_enum64(t, cand)) {
-				new_id = cand_id;
-				break;
-			}
-			if (btf_compat_enum64(t, cand)) {
 				if (btf_is_enum_fwd(t)) {
 					/* resolve fwd to full enum */
 					new_id = cand_id;
@@ -4099,10 +4076,8 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 		return btf_equal_int_tag(cand_type, canon_type);
 
 	case BTF_KIND_ENUM:
-		return btf_compat_enum(cand_type, canon_type);
-
 	case BTF_KIND_ENUM64:
-		return btf_compat_enum64(cand_type, canon_type);
+		return btf_compat_enum(cand_type, canon_type);
 
 	case BTF_KIND_FWD:
 	case BTF_KIND_FLOAT:
