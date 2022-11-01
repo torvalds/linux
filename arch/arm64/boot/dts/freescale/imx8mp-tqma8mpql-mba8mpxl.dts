@@ -8,6 +8,7 @@
 
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/net/ti-dp83867.h>
+#include <dt-bindings/phy/phy-imx8-pcie.h>
 #include <dt-bindings/pwm/pwm.h>
 #include "imx8mp-tqma8mpql.dtsi"
 
@@ -46,6 +47,12 @@
 		power-supply = <&reg_vcc_12v0>;
 		enable-gpios = <&gpio3 19 GPIO_ACTIVE_HIGH>;
 		status = "disabled";
+	};
+
+	clk_xtal25: clk-xtal25 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
 	};
 
 	gpio-keys {
@@ -340,9 +347,16 @@
 			  "", "", "", "",
 			  "", "", "", "",
 			  "", "", "DP_IRQ", "DSI_EN",
-			  "HDMI_OC#", "TEMP_EVENT#", "PCIE_CLK_OE#", "",
+			  "HDMI_OC#", "TEMP_EVENT#", "PCIE_REFCLK_OE#", "",
 			  "", "", "", "FAN_PWR",
 			  "RTC_EVENT#", "CODEC_RST#", "", "";
+
+	pcie-refclkreq-hog {
+		gpio-hog;
+		gpios = <22 0>;
+		output-high;
+		line-name = "PCIE_REFCLK_OE#";
+	};
 };
 
 &gpio5 {
@@ -377,6 +391,13 @@
 		pagesize = <16>;
 		vcc-supply = <&reg_vcc_3v3>;
 	};
+
+	pcieclk: clock-generator@6a {
+		compatible = "renesas,9fgv0241";
+		reg = <0x6a>;
+		clocks = <&clk_xtal25>;
+		#clock-cells = <1>;
+	};
 };
 
 &i2c4 {
@@ -405,6 +426,25 @@
 	pinctrl-0 = <&pinctrl_pcf85063>;
 	interrupt-parent = <&gpio4>;
 	interrupts = <28 IRQ_TYPE_EDGE_FALLING>;
+};
+
+&pcie_phy {
+	fsl,clkreq-unsupported;
+	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_INPUT>;
+	clocks = <&pcieclk 0>;
+	clock-names = "ref";
+	status = "okay";
+};
+
+&pcie {
+	clocks = <&clk IMX8MP_CLK_HSIO_ROOT>,
+		 <&clk IMX8MP_CLK_HSIO_AXI>,
+		 <&clk IMX8MP_CLK_PCIE_ROOT>;
+	clock-names = "pcie", "pcie_bus", "pcie_aux";
+	assigned-clocks = <&clk IMX8MP_CLK_PCIE_AUX>;
+	assigned-clock-rates = <10000000>;
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL2_50M>;
+	status = "okay";
 };
 
 &pwm2 {
