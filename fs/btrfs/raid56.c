@@ -2707,21 +2707,15 @@ static void raid56_parity_scrub_end_io_work(struct work_struct *work)
 	validate_rbio_for_parity_scrub(rbio);
 }
 
-static void raid56_parity_scrub_stripe(struct btrfs_raid_bio *rbio)
+static int scrub_assemble_read_bios(struct btrfs_raid_bio *rbio,
+				    struct bio_list *bio_list)
 {
-	int bios_to_read = 0;
-	struct bio_list bio_list;
-	int ret;
-	int total_sector_nr;
 	struct bio *bio;
+	int total_sector_nr;
+	int ret = 0;
 
-	bio_list_init(&bio_list);
+	ASSERT(bio_list_size(bio_list) == 0);
 
-	ret = alloc_rbio_essential_pages(rbio);
-	if (ret)
-		goto cleanup;
-
-	atomic_set(&rbio->error, 0);
 	/* Build a list of bios to read all the missing parts. */
 	for (total_sector_nr = 0; total_sector_nr < rbio->nr_sectors;
 	     total_sector_nr++) {
@@ -2750,11 +2744,35 @@ static void raid56_parity_scrub_stripe(struct btrfs_raid_bio *rbio)
 		if (sector->uptodate)
 			continue;
 
-		ret = rbio_add_io_sector(rbio, &bio_list, sector, stripe,
+		ret = rbio_add_io_sector(rbio, bio_list, sector, stripe,
 					 sectornr, REQ_OP_READ);
 		if (ret)
-			goto cleanup;
+			goto error;
 	}
+	return 0;
+error:
+	while ((bio = bio_list_pop(bio_list)))
+		bio_put(bio);
+	return ret;
+}
+
+static void raid56_parity_scrub_stripe(struct btrfs_raid_bio *rbio)
+{
+	int bios_to_read = 0;
+	struct bio_list bio_list;
+	int ret;
+	struct bio *bio;
+
+	bio_list_init(&bio_list);
+
+	ret = alloc_rbio_essential_pages(rbio);
+	if (ret)
+		goto cleanup;
+
+	atomic_set(&rbio->error, 0);
+	ret = scrub_assemble_read_bios(rbio, &bio_list);
+	if (ret < 0)
+		goto cleanup;
 
 	bios_to_read = bio_list_size(&bio_list);
 	if (!bios_to_read) {
