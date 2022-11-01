@@ -2788,7 +2788,8 @@ static void nvme_remove_dead_ctrl(struct nvme_dev *dev)
 	nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_DELETING);
 	nvme_get_ctrl(&dev->ctrl);
 	nvme_dev_disable(dev, false);
-	nvme_kill_queues(&dev->ctrl);
+	nvme_mark_namespaces_dead(&dev->ctrl);
+	nvme_start_queues(&dev->ctrl);
 	if (!queue_work(nvme_wq, &dev->remove_work))
 		nvme_put_ctrl(&dev->ctrl);
 }
@@ -2913,7 +2914,8 @@ static void nvme_reset_work(struct work_struct *work)
 			nvme_unfreeze(&dev->ctrl);
 		} else {
 			dev_warn(dev->ctrl.device, "IO queues lost\n");
-			nvme_kill_queues(&dev->ctrl);
+			nvme_mark_namespaces_dead(&dev->ctrl);
+			nvme_start_queues(&dev->ctrl);
 			nvme_remove_namespaces(&dev->ctrl);
 			nvme_free_tagset(dev);
 		}

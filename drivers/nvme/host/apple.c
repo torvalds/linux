@@ -1153,7 +1153,8 @@ out:
 	nvme_change_ctrl_state(&anv->ctrl, NVME_CTRL_DELETING);
 	nvme_get_ctrl(&anv->ctrl);
 	apple_nvme_disable(anv, false);
-	nvme_kill_queues(&anv->ctrl);
+	nvme_mark_namespaces_dead(&anv->ctrl);
+	nvme_start_queues(&anv->ctrl);
 	if (!queue_work(nvme_wq, &anv->remove_work))
 		nvme_put_ctrl(&anv->ctrl);
 }
