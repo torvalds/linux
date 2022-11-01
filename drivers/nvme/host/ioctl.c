@@ -22,9 +22,23 @@ static bool nvme_cmd_allowed(struct nvme_ns *ns, struct nvme_command *c,
 	    c->common.opcode == nvme_fabrics_command)
 		return false;
 
-	/* do not allow unprivileged admin commands */
-	if (!ns)
+	/*
+	 * Do not allow unprivileged passthrough of admin commands except
+	 * for a subset of identify commands that contain information required
+	 * to form proper I/O commands in userspace and do not expose any
+	 * potentially sensitive information.
+	 */
+	if (!ns) {
+		if (c->common.opcode == nvme_admin_identify) {
+			switch (c->identify.cns) {
+			case NVME_ID_CNS_NS:
+			case NVME_ID_CNS_CS_NS:
+			case NVME_ID_CNS_NS_CS_INDEP:
+				return true;
+			}
+		}
 		return false;
+	}
 
 	/*
 	 * Only allow I/O commands that transfer data to the controller if the
