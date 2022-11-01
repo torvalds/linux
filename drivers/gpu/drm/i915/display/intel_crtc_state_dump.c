@@ -298,11 +298,13 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 			    pipe_config->csc_mode, pipe_config->gamma_mode,
 			    pipe_config->gamma_enable, pipe_config->csc_enable);
 
-	drm_dbg_kms(&i915->drm, "degamma lut: %d entries, gamma lut: %d entries\n",
-		    pipe_config->hw.degamma_lut ?
-		    drm_color_lut_size(pipe_config->hw.degamma_lut) : 0,
-		    pipe_config->hw.gamma_lut ?
-		    drm_color_lut_size(pipe_config->hw.gamma_lut) : 0);
+	drm_dbg_kms(&i915->drm, "pre csc lut: %s%d entries, post csc lut: %d entries\n",
+		    pipe_config->pre_csc_lut && pipe_config->pre_csc_lut ==
+		    i915->display.color.glk_linear_degamma_lut ? "(linear) " : "",
+		    pipe_config->pre_csc_lut ?
+		    drm_color_lut_size(pipe_config->pre_csc_lut) : 0,
+		    pipe_config->post_csc_lut ?
+		    drm_color_lut_size(pipe_config->post_csc_lut) : 0);
 
 dump_planes:
 	if (!state)

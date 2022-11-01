@@ -431,15 +431,15 @@ intel_uncore_read64_2x32(struct intel_uncore *uncore,
 #define intel_uncore_write64_fw(...) __raw_uncore_write64(__VA_ARGS__)
 #define intel_uncore_posting_read_fw(...) ((void)intel_uncore_read_fw(__VA_ARGS__))
 
-static inline void intel_uncore_rmw(struct intel_uncore *uncore,
-				    i915_reg_t reg, u32 clear, u32 set)
+static inline u32 intel_uncore_rmw(struct intel_uncore *uncore,
+				   i915_reg_t reg, u32 clear, u32 set)
 {
 	u32 old, val;
 
 	old = intel_uncore_read(uncore, reg);
 	val = (old & ~clear) | set;
-	if (val != old)
-		intel_uncore_write(uncore, reg, val);
+	intel_uncore_write(uncore, reg, val);
+	return old;
 }
 
 static inline void intel_uncore_rmw_fw(struct intel_uncore *uncore,

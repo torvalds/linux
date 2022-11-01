@@ -135,6 +135,19 @@ static const struct intel_step_info adlp_n_revids[] = {
 	[0x0] = { COMMON_GT_MEDIA_STEP(A0), .display_step = STEP_D0 },
 };
 
+static u8 gmd_to_intel_step(struct drm_i915_private *i915,
+			    struct intel_ip_version *gmd)
+{
+	u8 step = gmd->step + STEP_A0;
+
+	if (step >= STEP_FUTURE) {
+		drm_dbg(&i915->drm, "Using future steppings\n");
+		return STEP_FUTURE;
+	}
+
+	return step;
+}
+
 static void pvc_step_init(struct drm_i915_private *i915, int pci_revid);
 
 void intel_step_init(struct drm_i915_private *i915)
@@ -143,6 +156,18 @@ void intel_step_init(struct drm_i915_private *i915)
 	int size = 0;
 	int revid = INTEL_REVID(i915);
 	struct intel_step_info step = {};
+
+	if (HAS_GMD_ID(i915)) {
+		step.graphics_step = gmd_to_intel_step(i915,
+						       &RUNTIME_INFO(i915)->graphics.ip);
+		step.media_step = gmd_to_intel_step(i915,
+						    &RUNTIME_INFO(i915)->media.ip);
+		step.display_step = gmd_to_intel_step(i915,
+						      &RUNTIME_INFO(i915)->display.ip);
+		RUNTIME_INFO(i915)->step = step;
+
+		return;
+	}
 
 	if (IS_PONTEVECCHIO(i915)) {
 		pvc_step_init(i915, revid);

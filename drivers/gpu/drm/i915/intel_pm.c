@@ -895,19 +895,14 @@ static void pnv_update_wm(struct drm_i915_private *dev_priv)
 		wm = intel_calculate_wm(pixel_rate, &pnv_cursor_wm,
 					pnv_display_wm.fifo_size,
 					4, latency->cursor_sr);
-		reg = intel_uncore_read(&dev_priv->uncore, DSPFW3);
-		reg &= ~DSPFW_CURSOR_SR_MASK;
-		reg |= FW_WM(wm, CURSOR_SR);
-		intel_uncore_write(&dev_priv->uncore, DSPFW3, reg);
+		intel_uncore_rmw(&dev_priv->uncore, DSPFW3, DSPFW_CURSOR_SR_MASK,
+				 FW_WM(wm, CURSOR_SR));
 
 		/* Display HPLL off SR */
 		wm = intel_calculate_wm(pixel_rate, &pnv_display_hplloff_wm,
 					pnv_display_hplloff_wm.fifo_size,
 					cpp, latency->display_hpll_disable);
-		reg = intel_uncore_read(&dev_priv->uncore, DSPFW3);
-		reg &= ~DSPFW_HPLL_SR_MASK;
-		reg |= FW_WM(wm, HPLL_SR);
-		intel_uncore_write(&dev_priv->uncore, DSPFW3, reg);
+		intel_uncore_rmw(&dev_priv->uncore, DSPFW3, DSPFW_HPLL_SR_MASK, FW_WM(wm, HPLL_SR));
 
 		/* cursor HPLL off SR */
 		wm = intel_calculate_wm(pixel_rate, &pnv_cursor_hplloff_wm,
@@ -1337,34 +1332,14 @@ static bool g4x_compute_fbc_en(const struct g4x_wm_state *wm_state,
 	return true;
 }
 
-static int g4x_compute_pipe_wm(struct intel_atomic_state *state,
-			       struct intel_crtc *crtc)
+static int _g4x_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc_state *crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct g4x_wm_state *wm_state = &crtc_state->wm.g4x.optimal;
 	u8 active_planes = crtc_state->active_planes & ~BIT(PLANE_CURSOR);
 	const struct g4x_pipe_wm *raw;
-	const struct intel_plane_state *old_plane_state;
-	const struct intel_plane_state *new_plane_state;
-	struct intel_plane *plane;
 	enum plane_id plane_id;
-	int i, level;
-	unsigned int dirty = 0;
-
-	for_each_oldnew_intel_plane_in_state(state, plane,
-					     old_plane_state,
-					     new_plane_state, i) {
-		if (new_plane_state->hw.crtc != &crtc->base &&
-		    old_plane_state->hw.crtc != &crtc->base)
-			continue;
-
-		if (g4x_raw_plane_wm_compute(crtc_state, new_plane_state))
-			dirty |= BIT(plane->id);
-	}
-
-	if (!dirty)
-		return 0;
+	int level;
 
 	level = G4X_WM_LEVEL_NORMAL;
 	if (!g4x_raw_crtc_wm_is_valid(crtc_state, level))
@@ -1415,6 +1390,34 @@ static int g4x_compute_pipe_wm(struct intel_atomic_state *state,
 	wm_state->fbc_en = g4x_compute_fbc_en(wm_state, level - 1);
 
 	return 0;
+}
+
+static int g4x_compute_pipe_wm(struct intel_atomic_state *state,
+			       struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	const struct intel_plane_state *old_plane_state;
+	const struct intel_plane_state *new_plane_state;
+	struct intel_plane *plane;
+	unsigned int dirty = 0;
+	int i;
+
+	for_each_oldnew_intel_plane_in_state(state, plane,
+					     old_plane_state,
+					     new_plane_state, i) {
+		if (new_plane_state->hw.crtc != &crtc->base &&
+		    old_plane_state->hw.crtc != &crtc->base)
+			continue;
+
+		if (g4x_raw_plane_wm_compute(crtc_state, new_plane_state))
+			dirty |= BIT(plane->id);
+	}
+
+	if (!dirty)
+		return 0;
+
+	return _g4x_compute_pipe_wm(crtc_state);
 }
 
 static int g4x_compute_intermediate_wm(struct intel_atomic_state *state,
@@ -1857,64 +1860,17 @@ static bool vlv_raw_crtc_wm_is_valid(const struct intel_crtc_state *crtc_state, 
 		vlv_raw_plane_wm_is_valid(crtc_state, PLANE_CURSOR, level);
 }
 
-static int vlv_compute_pipe_wm(struct intel_atomic_state *state,
-			       struct intel_crtc *crtc)
+static int _vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_crtc_state *crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
 	struct vlv_wm_state *wm_state = &crtc_state->wm.vlv.optimal;
 	const struct vlv_fifo_state *fifo_state =
 		&crtc_state->wm.vlv.fifo_state;
 	u8 active_planes = crtc_state->active_planes & ~BIT(PLANE_CURSOR);
 	int num_active_planes = hweight8(active_planes);
-	bool needs_modeset = drm_atomic_crtc_needs_modeset(&crtc_state->uapi);
-	const struct intel_plane_state *old_plane_state;
-	const struct intel_plane_state *new_plane_state;
-	struct intel_plane *plane;
 	enum plane_id plane_id;
-	int level, ret, i;
-	unsigned int dirty = 0;
-
-	for_each_oldnew_intel_plane_in_state(state, plane,
-					     old_plane_state,
-					     new_plane_state, i) {
-		if (new_plane_state->hw.crtc != &crtc->base &&
-		    old_plane_state->hw.crtc != &crtc->base)
-			continue;
-
-		if (vlv_raw_plane_wm_compute(crtc_state, new_plane_state))
-			dirty |= BIT(plane->id);
-	}
-
-	/*
-	 * DSPARB registers may have been reset due to the
-	 * power well being turned off. Make sure we restore
-	 * them to a consistent state even if no primary/sprite
-	 * planes are initially active.
-	 */
-	if (needs_modeset)
-		crtc_state->fifo_changed = true;
-
-	if (!dirty)
-		return 0;
-
-	/* cursor changes don't warrant a FIFO recompute */
-	if (dirty & ~BIT(PLANE_CURSOR)) {
-		const struct intel_crtc_state *old_crtc_state =
-			intel_atomic_get_old_crtc_state(state, crtc);
-		const struct vlv_fifo_state *old_fifo_state =
-			&old_crtc_state->wm.vlv.fifo_state;
-
-		ret = vlv_compute_fifo(crtc_state);
-		if (ret)
-			return ret;
-
-		if (needs_modeset ||
-		    memcmp(old_fifo_state, fifo_state,
-			   sizeof(*fifo_state)) != 0)
-			crtc_state->fifo_changed = true;
-	}
+	int level;
 
 	/* initially allow all levels */
 	wm_state->num_levels = intel_wm_num_levels(dev_priv);
@@ -1959,6 +1915,67 @@ static int vlv_compute_pipe_wm(struct intel_atomic_state *state,
 	vlv_invalidate_wms(crtc, wm_state, level);
 
 	return 0;
+}
+
+static int vlv_compute_pipe_wm(struct intel_atomic_state *state,
+			       struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	bool needs_modeset = drm_atomic_crtc_needs_modeset(&crtc_state->uapi);
+	const struct intel_plane_state *old_plane_state;
+	const struct intel_plane_state *new_plane_state;
+	struct intel_plane *plane;
+	unsigned int dirty = 0;
+	int i;
+
+	for_each_oldnew_intel_plane_in_state(state, plane,
+					     old_plane_state,
+					     new_plane_state, i) {
+		if (new_plane_state->hw.crtc != &crtc->base &&
+		    old_plane_state->hw.crtc != &crtc->base)
+			continue;
+
+		if (vlv_raw_plane_wm_compute(crtc_state, new_plane_state))
+			dirty |= BIT(plane->id);
+	}
+
+	/*
+	 * DSPARB registers may have been reset due to the
+	 * power well being turned off. Make sure we restore
+	 * them to a consistent state even if no primary/sprite
+	 * planes are initially active. We also force a FIFO
+	 * recomputation so that we are sure to sanitize the
+	 * FIFO setting we took over from the BIOS even if there
+	 * are no active planes on the crtc.
+	 */
+	if (needs_modeset)
+		dirty = ~0;
+
+	if (!dirty)
+		return 0;
+
+	/* cursor changes don't warrant a FIFO recompute */
+	if (dirty & ~BIT(PLANE_CURSOR)) {
+		const struct intel_crtc_state *old_crtc_state =
+			intel_atomic_get_old_crtc_state(state, crtc);
+		const struct vlv_fifo_state *old_fifo_state =
+			&old_crtc_state->wm.vlv.fifo_state;
+		const struct vlv_fifo_state *new_fifo_state =
+			&crtc_state->wm.vlv.fifo_state;
+		int ret;
+
+		ret = vlv_compute_fifo(crtc_state);
+		if (ret)
+			return ret;
+
+		if (needs_modeset ||
+		    memcmp(old_fifo_state, new_fifo_state,
+			   sizeof(*new_fifo_state)) != 0)
+			crtc_state->fifo_changed = true;
+	}
+
+	return _vlv_compute_pipe_wm(crtc_state);
 }
 
 #define VLV_FIFO(plane, value) \
@@ -3458,7 +3475,6 @@ static void ilk_write_wm_values(struct drm_i915_private *dev_priv,
 {
 	struct ilk_wm_values *previous = &dev_priv->display.wm.hw;
 	unsigned int dirty;
-	u32 val;
 
 	dirty = ilk_compute_wm_dirty(dev_priv, previous, results);
 	if (!dirty)
@@ -3474,31 +3490,19 @@ static void ilk_write_wm_values(struct drm_i915_private *dev_priv,
 		intel_uncore_write(&dev_priv->uncore, WM0_PIPE_ILK(PIPE_C), results->wm_pipe[2]);
 
 	if (dirty & WM_DIRTY_DDB) {
-		if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
-			val = intel_uncore_read(&dev_priv->uncore, WM_MISC);
-			if (results->partitioning == INTEL_DDB_PART_1_2)
-				val &= ~WM_MISC_DATA_PARTITION_5_6;
-			else
-				val |= WM_MISC_DATA_PARTITION_5_6;
-			intel_uncore_write(&dev_priv->uncore, WM_MISC, val);
-		} else {
-			val = intel_uncore_read(&dev_priv->uncore, DISP_ARB_CTL2);
-			if (results->partitioning == INTEL_DDB_PART_1_2)
-				val &= ~DISP_DATA_PARTITION_5_6;
-			else
-				val |= DISP_DATA_PARTITION_5_6;
-			intel_uncore_write(&dev_priv->uncore, DISP_ARB_CTL2, val);
-		}
+		if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+			intel_uncore_rmw(&dev_priv->uncore, WM_MISC, WM_MISC_DATA_PARTITION_5_6,
+					 results->partitioning == INTEL_DDB_PART_1_2 ? 0 :
+					 WM_MISC_DATA_PARTITION_5_6);
+		else
+			intel_uncore_rmw(&dev_priv->uncore, DISP_ARB_CTL2, DISP_DATA_PARTITION_5_6,
+					 results->partitioning == INTEL_DDB_PART_1_2 ? 0 :
+					 DISP_DATA_PARTITION_5_6);
 	}
 
-	if (dirty & WM_DIRTY_FBC) {
-		val = intel_uncore_read(&dev_priv->uncore, DISP_ARB_CTL);
-		if (results->enable_fbc_wm)
-			val &= ~DISP_FBC_WM_DIS;
-		else
-			val |= DISP_FBC_WM_DIS;
-		intel_uncore_write(&dev_priv->uncore, DISP_ARB_CTL, val);
-	}
+	if (dirty & WM_DIRTY_FBC)
+		intel_uncore_rmw(&dev_priv->uncore, DISP_ARB_CTL, DISP_FBC_WM_DIS,
+				 results->enable_fbc_wm ? 0 : DISP_FBC_WM_DIS);
 
 	if (dirty & WM_DIRTY_LP(1) &&
 	    previous->wm_lp_spr[0] != results->wm_lp_spr[0])
@@ -3824,6 +3828,8 @@ void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv)
 					     plane_id, USHRT_MAX);
 		g4x_raw_fbc_wm_set(crtc_state, level, USHRT_MAX);
 
+		g4x_invalidate_wms(crtc, active, level);
+
 		crtc_state->wm.g4x.optimal = *active;
 		crtc_state->wm.g4x.intermediate = *active;
 
@@ -3860,37 +3866,30 @@ void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane_state *plane_state =
 			to_intel_plane_state(plane->base.state);
-		struct g4x_wm_state *wm_state = &crtc_state->wm.g4x.optimal;
 		enum plane_id plane_id = plane->id;
-		int level;
+		int level, num_levels = intel_wm_num_levels(dev_priv);
 
 		if (plane_state->uapi.visible)
 			continue;
 
-		for (level = 0; level < 3; level++) {
+		for (level = 0; level < num_levels; level++) {
 			struct g4x_pipe_wm *raw =
 				&crtc_state->wm.g4x.raw[level];
 
 			raw->plane[plane_id] = 0;
-			wm_state->wm.plane[plane_id] = 0;
-		}
 
-		if (plane_id == PLANE_PRIMARY) {
-			for (level = 0; level < 3; level++) {
-				struct g4x_pipe_wm *raw =
-					&crtc_state->wm.g4x.raw[level];
+			if (plane_id == PLANE_PRIMARY)
 				raw->fbc = 0;
-			}
-
-			wm_state->sr.fbc = 0;
-			wm_state->hpll.fbc = 0;
-			wm_state->fbc_en = false;
 		}
 	}
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
+		int ret;
+
+		ret = _g4x_compute_pipe_wm(crtc_state);
+		drm_WARN_ON(&dev_priv->drm, ret);
 
 		crtc_state->wm.g4x.intermediate =
 			crtc_state->wm.g4x.optimal;
@@ -4016,30 +4015,27 @@ void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane_state *plane_state =
 			to_intel_plane_state(plane->base.state);
-		struct vlv_wm_state *wm_state = &crtc_state->wm.vlv.optimal;
-		const struct vlv_fifo_state *fifo_state =
-			&crtc_state->wm.vlv.fifo_state;
 		enum plane_id plane_id = plane->id;
-		int level;
+		int level, num_levels = intel_wm_num_levels(dev_priv);
 
 		if (plane_state->uapi.visible)
 			continue;
 
-		for (level = 0; level < wm_state->num_levels; level++) {
+		for (level = 0; level < num_levels; level++) {
 			struct g4x_pipe_wm *raw =
 				&crtc_state->wm.vlv.raw[level];
 
 			raw->plane[plane_id] = 0;
-
-			wm_state->wm[level].plane[plane_id] =
-				vlv_invert_wm_value(raw->plane[plane_id],
-						    fifo_state->plane[plane_id]);
 		}
 	}
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
+		int ret;
+
+		ret = _vlv_compute_pipe_wm(crtc_state);
+		drm_WARN_ON(&dev_priv->drm, ret);
 
 		crtc_state->wm.vlv.intermediate =
 			crtc_state->wm.vlv.optimal;
@@ -4117,7 +4113,7 @@ static void g4x_disable_trickle_feed(struct drm_i915_private *dev_priv)
 			   intel_uncore_read(&dev_priv->uncore, DSPCNTR(pipe)) |
 			   DISP_TRICKLE_FEED_DISABLE);
 
-		intel_uncore_write(&dev_priv->uncore, DSPSURF(pipe), intel_uncore_read(&dev_priv->uncore, DSPSURF(pipe)));
+		intel_uncore_rmw(&dev_priv->uncore, DSPSURF(pipe), 0, 0);
 		intel_uncore_posting_read(&dev_priv->uncore, DSPSURF(pipe));
 	}
 }
@@ -4325,8 +4321,8 @@ static void gen8_set_l3sqc_credits(struct drm_i915_private *dev_priv,
 	u32 val;
 
 	/* WaTempDisableDOPClkGating:bdw */
-	misccpctl = intel_uncore_read(&dev_priv->uncore, GEN7_MISCCPCTL);
-	intel_uncore_write(&dev_priv->uncore, GEN7_MISCCPCTL, misccpctl & ~GEN7_DOP_CLOCK_GATE_ENABLE);
+	misccpctl = intel_uncore_rmw(&dev_priv->uncore, GEN7_MISCCPCTL,
+				     GEN7_DOP_CLOCK_GATE_ENABLE, 0);
 
 	val = intel_uncore_read(&dev_priv->uncore, GEN8_L3SQCREG1);
 	val &= ~L3_PRIO_CREDITS_MASK;
@@ -4605,8 +4601,6 @@ static void hsw_init_clock_gating(struct drm_i915_private *dev_priv)
 
 static void ivb_init_clock_gating(struct drm_i915_private *dev_priv)
 {
-	u32 snpcr;
-
 	intel_uncore_write(&dev_priv->uncore, ILK_DSPCLK_GATE_D, ILK_VRHUNIT_CLOCK_GATE_DISABLE);
 
 	/* WaFbcAsynchFlipDisableFbcQueue:ivb */
@@ -4644,10 +4638,8 @@ static void ivb_init_clock_gating(struct drm_i915_private *dev_priv)
 
 	g4x_disable_trickle_feed(dev_priv);
 
-	snpcr = intel_uncore_read(&dev_priv->uncore, GEN6_MBCUNIT_SNPCR);
-	snpcr &= ~GEN6_MBC_SNPCR_MASK;
-	snpcr |= GEN6_MBC_SNPCR_MED;
-	intel_uncore_write(&dev_priv->uncore, GEN6_MBCUNIT_SNPCR, snpcr);
+	intel_uncore_rmw(&dev_priv->uncore, GEN6_MBCUNIT_SNPCR, GEN6_MBC_SNPCR_MASK,
+			 GEN6_MBC_SNPCR_MED);
 
 	if (!HAS_PCH_NOP(dev_priv))
 		cpt_init_clock_gating(dev_priv);
