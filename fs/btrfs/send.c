@@ -1281,6 +1281,9 @@ struct backref_ctx {
 
 	/* may be truncated in case it's the last extent in a file */
 	u64 extent_len;
+
+	/* The bytenr the file extent item we are processing refers to. */
+	u64 bytenr;
 };
 
 static int __clone_root_cmp_bsearch(const void *key, const void *elt)
@@ -1518,6 +1521,43 @@ static void store_backref_cache(u64 leaf_bytenr, const struct ulist *root_ids,
 	sctx->backref_cache.size++;
 }
 
+static int check_extent_item(u64 bytenr, const struct btrfs_extent_item *ei,
+			     const struct extent_buffer *leaf, void *ctx)
+{
+	const u64 refs = btrfs_extent_refs(leaf, ei);
+	const struct backref_ctx *bctx = ctx;
+	const struct send_ctx *sctx = bctx->sctx;
+
+	if (bytenr == bctx->bytenr) {
+		const u64 flags = btrfs_extent_flags(leaf, ei);
+
+		if (WARN_ON(flags & BTRFS_EXTENT_FLAG_TREE_BLOCK))
+			return -EUCLEAN;
+
+		/*
+		 * If we have only one reference and only the send root as a
+		 * clone source - meaning no clone roots were given in the
+		 * struct btrfs_ioctl_send_args passed to the send ioctl - then
+		 * it's our reference and there's no point in doing backref
+		 * walking which is expensive, so exit early.
+		 */
+		if (refs == 1 && sctx->clone_roots_cnt == 1)
+			return -ENOENT;
+	}
+
+	/*
+	 * Backreference walking (iterate_extent_inodes() below) is currently
+	 * too expensive when an extent has a large number of references, both
+	 * in time spent and used memory. So for now just fallback to write
+	 * operations instead of clone operations when an extent has more than
+	 * a certain amount of references.
+	 */
+	if (refs > SEND_MAX_EXTENT_REFS)
+		return -ENOENT;
+
+	return 0;
+}
+
 /*
  * Given an inode, offset and extent item, it finds a good clone for a clone
  * instruction. Returns -ENOENT when none could be found. The function makes
@@ -1539,16 +1579,11 @@ static int find_extent_clone(struct send_ctx *sctx,
 	u64 logical;
 	u64 disk_byte;
 	u64 num_bytes;
-	u64 extent_refs;
-	u64 flags = 0;
 	struct btrfs_file_extent_item *fi;
 	struct extent_buffer *eb = path->nodes[0];
 	struct backref_ctx backref_ctx = { 0 };
 	struct btrfs_backref_walk_ctx backref_walk_ctx = { 0 };
 	struct clone_root *cur_clone_root;
-	struct btrfs_key found_key;
-	struct btrfs_path *tmp_path;
-	struct btrfs_extent_item *ei;
 	int compressed;
 	u32 i;
 
@@ -1574,48 +1609,6 @@ static int find_extent_clone(struct send_ctx *sctx,
 	num_bytes = btrfs_file_extent_num_bytes(eb, fi);
 	logical = disk_byte + btrfs_file_extent_offset(eb, fi);
 
-	tmp_path = alloc_path_for_send();
-	if (!tmp_path)
-		return -ENOMEM;
-
-	/* We only use this path under the commit sem */
-	tmp_path->need_commit_sem = 0;
-
-	down_read(&fs_info->commit_root_sem);
-	ret = extent_from_logical(fs_info, disk_byte, tmp_path,
-				  &found_key, &flags);
-	up_read(&fs_info->commit_root_sem);
-
-	if (ret < 0)
-		goto out;
-	if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
-		ret = -EIO;
-		goto out;
-	}
-
-	ei = btrfs_item_ptr(tmp_path->nodes[0], tmp_path->slots[0],
-			    struct btrfs_extent_item);
-	extent_refs = btrfs_extent_refs(tmp_path->nodes[0], ei);
-	/*
-	 * Backreference walking (iterate_extent_inodes() below) is currently
-	 * too expensive when an extent has a large number of references, both
-	 * in time spent and used memory. So for now just fallback to write
-	 * operations instead of clone operations when an extent has more than
-	 * a certain amount of references.
-	 *
-	 * Also, if we have only one reference and only the send root as a clone
-	 * source - meaning no clone roots were given in the struct
-	 * btrfs_ioctl_send_args passed to the send ioctl - then it's our
-	 * reference and there's no point in doing backref walking which is
-	 * expensive, so exit early.
-	 */
-	if ((extent_refs == 1 && sctx->clone_roots_cnt == 1) ||
-	    extent_refs > SEND_MAX_EXTENT_REFS) {
-		ret = -ENOENT;
-		goto out;
-	}
-	btrfs_release_path(tmp_path);
-
 	/*
 	 * Setup the clone roots.
 	 */
@@ -1630,6 +1623,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 	backref_ctx.sctx = sctx;
 	backref_ctx.cur_objectid = ino;
 	backref_ctx.cur_offset = data_offset;
+	backref_ctx.bytenr = disk_byte;
 
 	/*
 	 * The last extent of a file may be too large due to page alignment.
@@ -1644,19 +1638,20 @@ static int find_extent_clone(struct send_ctx *sctx,
 	/*
 	 * Now collect all backrefs.
 	 */
-	backref_walk_ctx.bytenr = found_key.objectid;
+	backref_walk_ctx.bytenr = disk_byte;
 	if (compressed == BTRFS_COMPRESS_NONE)
-		backref_walk_ctx.extent_item_pos = logical - found_key.objectid;
+		backref_walk_ctx.extent_item_pos = btrfs_file_extent_offset(eb, fi);
 	backref_walk_ctx.fs_info = fs_info;
 	backref_walk_ctx.cache_lookup = lookup_backref_cache;
 	backref_walk_ctx.cache_store = store_backref_cache;
 	backref_walk_ctx.indirect_ref_iterator = iterate_backrefs;
+	backref_walk_ctx.check_extent_item = check_extent_item;
 	backref_walk_ctx.user_ctx = &backref_ctx;
 
 	ret = iterate_extent_inodes(&backref_walk_ctx, true, iterate_backrefs,
 				    &backref_ctx);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	down_read(&fs_info->commit_root_sem);
 	if (fs_info->last_reloc_trans > sctx->last_reloc_trans) {
@@ -1673,8 +1668,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 		 * was already reallocated after the relocation.
 		 */
 		up_read(&fs_info->commit_root_sem);
-		ret = -ENOENT;
-		goto out;
+		return -ENOENT;
 	}
 	up_read(&fs_info->commit_root_sem);
 
@@ -1684,8 +1678,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 
 	if (!backref_ctx.found) {
 		btrfs_debug(fs_info, "no clones found");
-		ret = -ENOENT;
-		goto out;
+		return -ENOENT;
 	}
 
 	cur_clone_root = NULL;
@@ -1720,8 +1713,6 @@ static int find_extent_clone(struct send_ctx *sctx,
 		ret = -ENOENT;
 	}
 
-out:
-	btrfs_free_path(tmp_path);
 	return ret;
 }
 

@@ -109,9 +109,14 @@ struct btrfs_backref_walk_ctx {
 	 */
 	iterate_extent_inodes_t *indirect_ref_iterator;
 	/*
-	 * Context object to pass to the @cache_lookup, @cache_store and
-	 * @indirect_ref_iterator callbacks.
+	 * If this is not NULL, then the backref walking code will call this for
+	 * each extent item it's meant to process before it actually starts
+	 * processing it. If this returns anything other than 0, then it stops
+	 * the backref walking code immediately.
 	 */
+	int (*check_extent_item)(u64 bytenr, const struct btrfs_extent_item *ei,
+				 const struct extent_buffer *leaf, void *user_ctx);
+	/* Context object to pass to the callbacks defined above. */
 	void *user_ctx;
 };
 

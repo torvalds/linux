@@ -1003,8 +1003,8 @@ static int add_delayed_refs(const struct btrfs_fs_info *fs_info,
  *
  * Returns 0 on success, <0 on error, or BACKREF_FOUND_SHARED.
  */
-static int add_inline_refs(const struct btrfs_fs_info *fs_info,
-			   struct btrfs_path *path, u64 bytenr,
+static int add_inline_refs(struct btrfs_backref_walk_ctx *ctx,
+			   struct btrfs_path *path,
 			   int *info_level, struct preftrees *preftrees,
 			   struct share_check *sc)
 {
@@ -1029,6 +1029,13 @@ static int add_inline_refs(const struct btrfs_fs_info *fs_info,
 	BUG_ON(item_size < sizeof(*ei));
 
 	ei = btrfs_item_ptr(leaf, slot, struct btrfs_extent_item);
+
+	if (ctx->check_extent_item) {
+		ret = ctx->check_extent_item(ctx->bytenr, ei, leaf, ctx->user_ctx);
+		if (ret)
+			return ret;
+	}
+
 	flags = btrfs_extent_flags(leaf, ei);
 	btrfs_item_key_to_cpu(leaf, &found_key, slot);
 
@@ -1064,9 +1071,9 @@ static int add_inline_refs(const struct btrfs_fs_info *fs_info,
 
 		switch (type) {
 		case BTRFS_SHARED_BLOCK_REF_KEY:
-			ret = add_direct_ref(fs_info, preftrees,
+			ret = add_direct_ref(ctx->fs_info, preftrees,
 					     *info_level + 1, offset,
-					     bytenr, 1, NULL, GFP_NOFS);
+					     ctx->bytenr, 1, NULL, GFP_NOFS);
 			break;
 		case BTRFS_SHARED_DATA_REF_KEY: {
 			struct btrfs_shared_data_ref *sdref;
@@ -1075,14 +1082,14 @@ static int add_inline_refs(const struct btrfs_fs_info *fs_info,
 			sdref = (struct btrfs_shared_data_ref *)(iref + 1);
 			count = btrfs_shared_data_ref_count(leaf, sdref);
 
-			ret = add_direct_ref(fs_info, preftrees, 0, offset,
-					     bytenr, count, sc, GFP_NOFS);
+			ret = add_direct_ref(ctx->fs_info, preftrees, 0, offset,
+					     ctx->bytenr, count, sc, GFP_NOFS);
 			break;
 		}
 		case BTRFS_TREE_BLOCK_REF_KEY:
-			ret = add_indirect_ref(fs_info, preftrees, offset,
+			ret = add_indirect_ref(ctx->fs_info, preftrees, offset,
 					       NULL, *info_level + 1,
-					       bytenr, 1, NULL, GFP_NOFS);
+					       ctx->bytenr, 1, NULL, GFP_NOFS);
 			break;
 		case BTRFS_EXTENT_DATA_REF_KEY: {
 			struct btrfs_extent_data_ref *dref;
@@ -1104,8 +1111,8 @@ static int add_inline_refs(const struct btrfs_fs_info *fs_info,
 
 			root = btrfs_extent_data_ref_root(leaf, dref);
 
-			ret = add_indirect_ref(fs_info, preftrees, root,
-					       &key, 0, bytenr, count,
+			ret = add_indirect_ref(ctx->fs_info, preftrees, root,
+					       &key, 0, ctx->bytenr, count,
 					       sc, GFP_NOFS);
 
 			break;
@@ -1455,8 +1462,8 @@ again:
 		if (key.objectid == ctx->bytenr &&
 		    (key.type == BTRFS_EXTENT_ITEM_KEY ||
 		     key.type == BTRFS_METADATA_ITEM_KEY)) {
-			ret = add_inline_refs(ctx->fs_info, path, ctx->bytenr,
-					      &info_level, &preftrees, sc);
+			ret = add_inline_refs(ctx, path, &info_level,
+					      &preftrees, sc);
 			if (ret)
 				goto out;
 			ret = add_keyed_refs(root, path, ctx->bytenr, info_level,
