@@ -75,8 +75,8 @@ struct btrfs_backref_share_check_ctx {
 	int prev_extents_cache_slot;
 };
 
-typedef int (iterate_extent_inodes_t)(u64 inum, u64 offset, u64 root,
-		void *ctx);
+typedef int (iterate_extent_inodes_t)(u64 inum, u64 offset, u64 num_bytes,
+				      u64 root, void *ctx);
 
 struct btrfs_backref_share_check_ctx *btrfs_alloc_backref_share_check_ctx(void);
 void btrfs_free_backref_share_ctx(struct btrfs_backref_share_check_ctx *ctx);

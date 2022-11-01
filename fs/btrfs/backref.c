@@ -27,6 +27,7 @@
 struct extent_inode_elem {
 	u64 inum;
 	u64 offset;
+	u64 num_bytes;
 	struct extent_inode_elem *next;
 };
 
@@ -37,6 +38,7 @@ static int check_extent_in_eb(const struct btrfs_key *key,
 			      struct extent_inode_elem **eie,
 			      bool ignore_offset)
 {
+	const u64 data_len = btrfs_file_extent_num_bytes(eb, fi);
 	u64 offset = 0;
 	struct extent_inode_elem *e;
 
@@ -45,10 +47,8 @@ static int check_extent_in_eb(const struct btrfs_key *key,
 	    !btrfs_file_extent_encryption(eb, fi) &&
 	    !btrfs_file_extent_other_encoding(eb, fi)) {
 		u64 data_offset;
-		u64 data_len;
 
 		data_offset = btrfs_file_extent_offset(eb, fi);
-		data_len = btrfs_file_extent_num_bytes(eb, fi);
 
 		if (extent_item_pos < data_offset ||
 		    extent_item_pos >= data_offset + data_len)
@@ -63,6 +63,7 @@ static int check_extent_in_eb(const struct btrfs_key *key,
 	e->next = *eie;
 	e->inum = key->objectid;
 	e->offset = key->offset + offset;
+	e->num_bytes = data_len;
 	*eie = e;
 
 	return 0;
@@ -2265,7 +2266,7 @@ static int iterate_leaf_refs(struct btrfs_fs_info *fs_info,
 			    "ref for %llu resolved, key (%llu EXTEND_DATA %llu), root %llu",
 			    extent_item_objectid, eie->inum,
 			    eie->offset, root);
-		ret = iterate(eie->inum, eie->offset, root, ctx);
+		ret = iterate(eie->inum, eie->offset, eie->num_bytes, root, ctx);
 		if (ret) {
 			btrfs_debug(fs_info,
 				    "stopping iteration for %llu due to ret=%d",
@@ -2357,7 +2358,7 @@ out:
 	return ret;
 }
 
-static int build_ino_list(u64 inum, u64 offset, u64 root, void *ctx)
+static int build_ino_list(u64 inum, u64 offset, u64 num_bytes, u64 root, void *ctx)
 {
 	struct btrfs_data_container *inodes = ctx;
 	const size_t c = 3 * sizeof(u64);

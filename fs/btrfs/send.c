@@ -76,7 +76,7 @@ struct clone_root {
 	struct btrfs_root *root;
 	u64 ino;
 	u64 offset;
-
+	u64 num_bytes;
 	u64 found_refs;
 };
 
@@ -1273,7 +1273,8 @@ static int __clone_root_cmp_sort(const void *e1, const void *e2)
  * Called for every backref that is found for the current extent.
  * Results are collected in sctx->clone_roots->ino/offset/found_refs
  */
-static int __iterate_backrefs(u64 ino, u64 offset, u64 root, void *ctx_)
+static int __iterate_backrefs(u64 ino, u64 offset, u64 num_bytes, u64 root,
+			      void *ctx_)
 {
 	struct backref_ctx *bctx = ctx_;
 	struct clone_root *found;
@@ -1318,15 +1319,17 @@ static int __iterate_backrefs(u64 ino, u64 offset, u64 root, void *ctx_)
 
 	bctx->found++;
 	found->found_refs++;
-	if (ino < found->ino) {
+
+	/*
+	 * If the given backref refers to a file extent item with a larger
+	 * number of bytes than what we found before, use the new one so that
+	 * we clone more optimally and end up doing less writes and getting
+	 * less exclusive, non-shared extents at the destination.
+	 */
+	if (num_bytes > found->num_bytes) {
 		found->ino = ino;
 		found->offset = offset;
-	} else if (found->ino == ino) {
-		/*
-		 * same extent found more then once in the same file.
-		 */
-		if (found->offset > offset + bctx->extent_len)
-			found->offset = offset;
+		found->num_bytes = num_bytes;
 	}
 
 	return 0;
@@ -1437,6 +1440,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 		cur_clone_root = sctx->clone_roots + i;
 		cur_clone_root->ino = (u64)-1;
 		cur_clone_root->offset = 0;
+		cur_clone_root->num_bytes = 0;
 		cur_clone_root->found_refs = 0;
 	}
 
@@ -1506,14 +1510,27 @@ static int find_extent_clone(struct send_ctx *sctx,
 
 	cur_clone_root = NULL;
 	for (i = 0; i < sctx->clone_roots_cnt; i++) {
-		if (sctx->clone_roots[i].found_refs) {
-			if (!cur_clone_root)
-				cur_clone_root = sctx->clone_roots + i;
-			else if (sctx->clone_roots[i].root == sctx->send_root)
-				/* prefer clones from send_root over others */
-				cur_clone_root = sctx->clone_roots + i;
-		}
+		struct clone_root *clone_root = &sctx->clone_roots[i];
 
+		if (clone_root->found_refs == 0)
+			continue;
+
+		/*
+		 * Choose the root from which we can clone more bytes, to
+		 * minimize write operations and therefore have more extent
+		 * sharing at the destination (the same as in the source).
+		 */
+		if (!cur_clone_root ||
+		    clone_root->num_bytes > cur_clone_root->num_bytes) {
+			cur_clone_root = clone_root;
+
+			/*
+			 * We found an optimal clone candidate (any inode from
+			 * any root is fine), so we're done.
+			 */
+			if (clone_root->num_bytes >= backref_ctx.extent_len)
+				break;
+		}
 	}
 
 	if (cur_clone_root) {
