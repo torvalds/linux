@@ -63,6 +63,7 @@ struct fsl_micfil_soc_data {
 	unsigned int fifo_depth;
 	unsigned int dataline;
 	bool imx;
+	bool use_edma;
 	u64  formats;
 };
 
@@ -82,9 +83,19 @@ static struct fsl_micfil_soc_data fsl_micfil_imx8mp = {
 	.formats = SNDRV_PCM_FMTBIT_S32_LE,
 };
 
+static struct fsl_micfil_soc_data fsl_micfil_imx93 = {
+	.imx = true,
+	.fifos = 8,
+	.fifo_depth = 32,
+	.dataline =  0xf,
+	.formats = SNDRV_PCM_FMTBIT_S32_LE,
+	.use_edma = true,
+};
+
 static const struct of_device_id fsl_micfil_dt_ids[] = {
 	{ .compatible = "fsl,imx8mm-micfil", .data = &fsl_micfil_imx8mm },
 	{ .compatible = "fsl,imx8mp-micfil", .data = &fsl_micfil_imx8mp },
+	{ .compatible = "fsl,imx93-micfil", .data = &fsl_micfil_imx93 },
 	{}
 };
 MODULE_DEVICE_TABLE(of, fsl_micfil_dt_ids);
@@ -681,6 +692,8 @@ static int fsl_micfil_hw_params(struct snd_pcm_substream *substream,
 	micfil->sdmacfg.n_fifos_src = channels;
 	micfil->sdmacfg.sw_done = true;
 	micfil->dma_params_rx.maxburst = channels * MICFIL_DMA_MAXBURST_RX;
+	if (micfil->soc->use_edma)
+		micfil->dma_params_rx.maxburst = channels;
 
 	return 0;
 }
