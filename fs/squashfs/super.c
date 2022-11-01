@@ -197,6 +197,7 @@ static int squashfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		return -ENOMEM;
 	}
 	msblk = sb->s_fs_info;
+	msblk->thread_ops = opts->thread_ops;
 
 	msblk->panic_on_errors = (opts->errors == Opt_errors_panic);
 
@@ -231,7 +232,7 @@ static int squashfs_fill_super(struct super_block *sb, struct fs_context *fc)
 			       sb->s_bdev);
 		goto failed_mount;
 	}
-	msblk->thread_ops = opts->thread_ops;
+
 	if (opts->thread_num == 0) {
 		msblk->max_thread_num = msblk->thread_ops->max_decompressors();
 	} else {
