@@ -1,4 +1,4 @@
-mm/zsmalloc.ko
 drivers/block/zram/zram.ko
-net/wireless/cfg80211.ko
+mm/zsmalloc.ko
 net/mac80211/mac80211.ko
+net/wireless/cfg80211.ko
