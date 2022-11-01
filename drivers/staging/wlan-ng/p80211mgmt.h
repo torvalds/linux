@@ -225,13 +225,6 @@ struct wlan_ie {
 	u8 len;
 } __packed;
 
-/*-- Supported Rates  -----------------------------*/
-struct wlan_ie_supp_rates {
-	u8 eid;
-	u8 len;
-	u8 rates[1];		/* had better be at LEAST one! */
-} __packed;
-
 /*-- FH Parameter Set  ----------------------------*/
 struct wlan_ie_fh_parms {
 	u8 eid;
@@ -312,7 +305,6 @@ struct wlan_fr_beacon {
 	u16 *bcn_int;
 	u16 *cap_info;
 	/*-- info elements ----------*/
-	struct wlan_ie_supp_rates *supp_rates;
 	struct wlan_ie_fh_parms *fh_parms;
 	struct wlan_ie_ds_parms *ds_parms;
 	struct wlan_ie_cf_parms *cf_parms;
@@ -364,7 +356,6 @@ struct wlan_fr_assocreq {
 	u16 *cap_info;
 	u16 *listen_int;
 	/*-- info elements ----------*/
-	struct wlan_ie_supp_rates *supp_rates;
 
 };
 
@@ -381,7 +372,6 @@ struct wlan_fr_assocresp {
 	u16 *status;
 	u16 *aid;
 	/*-- info elements ----------*/
-	struct wlan_ie_supp_rates *supp_rates;
 
 };
 
@@ -398,7 +388,6 @@ struct wlan_fr_reassocreq {
 	u16 *listen_int;
 	u8 *curr_ap;
 	/*-- info elements ----------*/
-	struct wlan_ie_supp_rates *supp_rates;
 
 };
 
@@ -415,7 +404,6 @@ struct wlan_fr_reassocresp {
 	u16 *status;
 	u16 *aid;
 	/*-- info elements ----------*/
-	struct wlan_ie_supp_rates *supp_rates;
 
 };
 
@@ -429,7 +417,6 @@ struct wlan_fr_probereq {
 	void *priv;
 	/*-- fixed fields -----------*/
 	/*-- info elements ----------*/
-	struct wlan_ie_supp_rates *supp_rates;
 
 };
 
@@ -446,7 +433,6 @@ struct wlan_fr_proberesp {
 	u16 *bcn_int;
 	u16 *cap_info;
 	/*-- info elements ----------*/
-	struct wlan_ie_supp_rates *supp_rates;
 	struct wlan_ie_fh_parms *fh_parms;
 	struct wlan_ie_ds_parms *ds_parms;
 	struct wlan_ie_cf_parms *cf_parms;
