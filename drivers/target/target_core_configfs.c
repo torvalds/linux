@@ -12,6 +12,7 @@
  *
  ****************************************************************************/
 
+#include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <generated/utsrelease.h>
@@ -578,7 +579,7 @@ static ssize_t _name##_store(struct config_item *item, const char *page,	\
 	bool flag;							\
 	int ret;							\
 									\
-	ret = strtobool(page, &flag);					\
+	ret = kstrtobool(page, &flag);					\
 	if (ret < 0)							\
 		return ret;						\
 	da->_name = flag;						\
@@ -638,7 +639,7 @@ static ssize_t emulate_model_alias_store(struct config_item *item,
 		return -EINVAL;
 	}
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -660,7 +661,7 @@ static ssize_t emulate_write_cache_store(struct config_item *item,
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -712,7 +713,7 @@ static ssize_t emulate_tas_store(struct config_item *item,
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -737,7 +738,7 @@ static ssize_t emulate_tpu_store(struct config_item *item,
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -767,7 +768,7 @@ static ssize_t emulate_tpws_store(struct config_item *item,
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -866,7 +867,7 @@ static ssize_t pi_prot_format_store(struct config_item *item,
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -903,7 +904,7 @@ static ssize_t pi_prot_verify_store(struct config_item *item,
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -932,7 +933,7 @@ static ssize_t force_pr_aptpl_store(struct config_item *item,
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 	if (da->da_dev->export_count) {
@@ -954,7 +955,7 @@ static ssize_t emulate_rest_reord_store(struct config_item *item,
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -977,7 +978,7 @@ static ssize_t unmap_zeroes_data_store(struct config_item *item,
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -1126,7 +1127,7 @@ static ssize_t alua_support_store(struct config_item *item,
 	bool flag, oldflag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -1165,7 +1166,7 @@ static ssize_t pgr_support_store(struct config_item *item,
 	bool flag, oldflag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
@@ -1194,7 +1195,7 @@ static ssize_t emulate_rsoc_store(struct config_item *item,
 	bool flag;
 	int ret;
 
-	ret = strtobool(page, &flag);
+	ret = kstrtobool(page, &flag);
 	if (ret < 0)
 		return ret;
 
