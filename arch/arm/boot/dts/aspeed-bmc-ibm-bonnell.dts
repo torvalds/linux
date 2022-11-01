@@ -336,6 +336,11 @@
 
 			fsi_occ0: occ {
 				compatible = "ibm,p10-occ";
+
+				occ-hwmon {
+					compatible = "ibm,p10-occ-hwmon";
+					ibm,no-poll-on-init;
+				};
 			};
 		};
 
@@ -480,6 +485,11 @@
 
 			fsi_occ1: occ {
 				compatible = "ibm,p10-occ";
+
+				occ-hwmon {
+					compatible = "ibm,p10-occ-hwmon";
+					ibm,no-poll-on-init;
+				};
 			};
 		};
 
