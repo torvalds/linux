@@ -1674,32 +1674,36 @@ int btrfs_find_all_leafs(struct btrfs_backref_walk_ctx *ctx)
  * the current while iterating. The process stops when we reach the end of the
  * list.
  *
- * Found roots are added to @ctx->roots, which is allocated by this function and
- * @ctx->roots should be NULL when calling this function. This function also
- * requires @ctx->refs to be NULL, as it uses it for allocating a ulist to do
- * temporary work, and frees it before returning.
+ * Found roots are added to @ctx->roots, which is allocated by this function if
+ * it points to NULL, in which case the caller is responsible for freeing it
+ * after it's not needed anymore.
+ * This function requires @ctx->refs to be NULL, as it uses it for allocating a
+ * ulist to do temporary work, and frees it before returning.
  *
- * Returns 0 on success, < 0 on error. On error @ctx->roots is always NULL.
+ * Returns 0 on success, < 0 on error.
  */
 static int btrfs_find_all_roots_safe(struct btrfs_backref_walk_ctx *ctx)
 {
 	const u64 orig_bytenr = ctx->bytenr;
 	const bool orig_ignore_extent_item_pos = ctx->ignore_extent_item_pos;
+	bool roots_ulist_allocated = false;
 	struct ulist_iterator uiter;
 	int ret = 0;
 
 	ASSERT(ctx->refs == NULL);
-	ASSERT(ctx->roots == NULL);
 
 	ctx->refs = ulist_alloc(GFP_NOFS);
 	if (!ctx->refs)
 		return -ENOMEM;
 
-	ctx->roots = ulist_alloc(GFP_NOFS);
 	if (!ctx->roots) {
-		ulist_free(ctx->refs);
-		ctx->refs = NULL;
-		return -ENOMEM;
+		ctx->roots = ulist_alloc(GFP_NOFS);
+		if (!ctx->roots) {
+			ulist_free(ctx->refs);
+			ctx->refs = NULL;
+			return -ENOMEM;
+		}
+		roots_ulist_allocated = true;
 	}
 
 	ctx->ignore_extent_item_pos = true;
@@ -1710,8 +1714,10 @@ static int btrfs_find_all_roots_safe(struct btrfs_backref_walk_ctx *ctx)
 
 		ret = find_parent_nodes(ctx, NULL);
 		if (ret < 0 && ret != -ENOENT) {
-			ulist_free(ctx->roots);
-			ctx->roots = NULL;
+			if (roots_ulist_allocated) {
+				ulist_free(ctx->roots);
+				ctx->roots = NULL;
+			}
 			break;
 		}
 		ret = 0;
@@ -2295,6 +2301,11 @@ int iterate_extent_inodes(struct btrfs_backref_walk_ctx *ctx,
 		    ctx->bytenr);
 
 	ASSERT(ctx->trans == NULL);
+	ASSERT(ctx->roots == NULL);
+
+	ctx->roots = ulist_alloc(GFP_NOFS);
+	if (!ctx->roots)
+		return -ENOMEM;
 
 	if (!search_commit_root) {
 		struct btrfs_trans_handle *trans;
@@ -2302,8 +2313,11 @@ int iterate_extent_inodes(struct btrfs_backref_walk_ctx *ctx,
 		trans = btrfs_attach_transaction(ctx->fs_info->tree_root);
 		if (IS_ERR(trans)) {
 			if (PTR_ERR(trans) != -ENOENT &&
-			    PTR_ERR(trans) != -EROFS)
+			    PTR_ERR(trans) != -EROFS) {
+				ulist_free(ctx->roots);
+				ctx->roots = NULL;
 				return PTR_ERR(trans);
+			}
 			trans = NULL;
 		}
 		ctx->trans = trans;
@@ -2344,8 +2358,7 @@ int iterate_extent_inodes(struct btrfs_backref_walk_ctx *ctx,
 						root_node->val, ctx->bytenr,
 						iterate, user_ctx);
 		}
-		ulist_free(ctx->roots);
-		ctx->roots = NULL;
+		ulist_reinit(ctx->roots);
 	}
 
 	free_leaf_list(refs);
@@ -2357,6 +2370,9 @@ out:
 	} else {
 		up_read(&ctx->fs_info->commit_root_sem);
 	}
+
+	ulist_free(ctx->roots);
+	ctx->roots = NULL;
 
 	return ret;
 }
