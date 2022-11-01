@@ -703,7 +703,7 @@ static int rtl8188fu_parse_efuse(struct rtl8xxxu_priv *priv)
 	priv->ofdm_tx_power_diff[0].a = efuse->tx_power_index_A.ht20_ofdm_1s_diff.a;
 	priv->ht20_tx_power_diff[0].a = efuse->tx_power_index_A.ht20_ofdm_1s_diff.b;
 
-	priv->xtalk = efuse->xtal_k & 0x3f;
+	priv->default_crystal_cap = efuse->xtal_k & 0x3f;
 
 	dev_info(&priv->udev->dev, "Vendor: %.7s\n", efuse->vendor_name);
 	dev_info(&priv->udev->dev, "Product: %.7s\n", efuse->device_name);
@@ -737,7 +737,6 @@ static void rtl8188fu_init_phy_bb(struct rtl8xxxu_priv *priv)
 {
 	u8 val8;
 	u16 val16;
-	u32 val32;
 
 	/* Enable BB and RF */
 	val16 = rtl8xxxu_read16(priv, REG_SYS_FUNC);
@@ -759,12 +758,6 @@ static void rtl8188fu_init_phy_bb(struct rtl8xxxu_priv *priv)
 
 	rtl8xxxu_init_phy_regs(priv, rtl8188fu_phy_init_table);
 	rtl8xxxu_init_phy_regs(priv, rtl8188f_agc_table);
-
-	val32 = rtl8xxxu_read32(priv, REG_AFE_XTAL_CTRL);
-	val8 = priv->xtalk;
-	val32 &= ~0x007FF800;
-	val32 |= ((val8 | (val8 << 6)) << 11);
-	rtl8xxxu_write32(priv, REG_AFE_XTAL_CTRL, val32);
 }
 
 static int rtl8188fu_init_phy_rf(struct rtl8xxxu_priv *priv)
@@ -1636,6 +1629,35 @@ static void rtl8188f_usb_quirks(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write32(priv, REG_TXDMA_OFFSET_CHK, val32);
 }
 
+#define XTAL1	GENMASK(22, 17)
+#define XTAL0	GENMASK(16, 11)
+
+static void rtl8188f_set_crystal_cap(struct rtl8xxxu_priv *priv, u8 crystal_cap)
+{
+	struct rtl8xxxu_cfo_tracking *cfo = &priv->cfo_tracking;
+	u32 val32;
+
+	if (crystal_cap == cfo->crystal_cap)
+		return;
+
+	val32 = rtl8xxxu_read32(priv, REG_AFE_XTAL_CTRL);
+
+	dev_dbg(&priv->udev->dev,
+	        "%s: Adjusting crystal cap from 0x%x (actually 0x%lx 0x%lx) to 0x%x\n",
+	        __func__,
+	        cfo->crystal_cap,
+	        FIELD_GET(XTAL1, val32),
+	        FIELD_GET(XTAL0, val32),
+	        crystal_cap);
+
+	val32 &= ~(XTAL1 | XTAL0);
+	val32 |= FIELD_PREP(XTAL1, crystal_cap) |
+		 FIELD_PREP(XTAL0, crystal_cap);
+	rtl8xxxu_write32(priv, REG_AFE_XTAL_CTRL, val32);
+
+	cfo->crystal_cap = crystal_cap;
+}
+
 struct rtl8xxxu_fileops rtl8188fu_fops = {
 	.parse_efuse = rtl8188fu_parse_efuse,
 	.load_firmware = rtl8188fu_load_firmware,
@@ -1659,6 +1681,7 @@ struct rtl8xxxu_fileops rtl8188fu_fops = {
 	.update_rate_mask = rtl8xxxu_gen2_update_rate_mask,
 	.report_connect = rtl8xxxu_gen2_report_connect,
 	.fill_txdesc = rtl8xxxu_fill_txdesc_v2,
+	.set_crystal_cap = rtl8188f_set_crystal_cap,
 	.writeN_block_size = 128,
 	.rx_desc_size = sizeof(struct rtl8xxxu_rxdesc24),
 	.tx_desc_size = sizeof(struct rtl8xxxu_txdesc40),

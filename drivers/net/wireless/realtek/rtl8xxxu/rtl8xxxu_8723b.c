@@ -445,8 +445,7 @@ static int rtl8723bu_parse_efuse(struct rtl8xxxu_priv *priv)
 			efuse->tx_power_index_B.pwr_diff[i - 1].ht40;
 	}
 
-	priv->has_xtalk = 1;
-	priv->xtalk = priv->efuse_wifi.efuse8723bu.xtal_k & 0x3f;
+	priv->default_crystal_cap = priv->efuse_wifi.efuse8723bu.xtal_k & 0x3f;
 
 	dev_info(&priv->udev->dev, "Vendor: %.7s\n", efuse->vendor_name);
 	dev_info(&priv->udev->dev, "Product: %.41s\n", efuse->device_name);
@@ -1663,6 +1662,7 @@ struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.update_rate_mask = rtl8xxxu_gen2_update_rate_mask,
 	.report_connect = rtl8xxxu_gen2_report_connect,
 	.fill_txdesc = rtl8xxxu_fill_txdesc_v2,
+	.set_crystal_cap = rtl8723a_set_crystal_cap,
 	.writeN_block_size = 1024,
 	.tx_desc_size = sizeof(struct rtl8xxxu_txdesc40),
 	.rx_desc_size = sizeof(struct rtl8xxxu_rxdesc24),

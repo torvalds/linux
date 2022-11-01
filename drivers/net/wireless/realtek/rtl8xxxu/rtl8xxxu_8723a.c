@@ -166,10 +166,10 @@ static int rtl8723au_parse_efuse(struct rtl8xxxu_priv *priv)
 	       efuse->ht20_max_power_offset,
 	       sizeof(efuse->ht20_max_power_offset));
 
-	if (priv->efuse_wifi.efuse8723.version >= 0x01) {
-		priv->has_xtalk = 1;
-		priv->xtalk = priv->efuse_wifi.efuse8723.xtal_k & 0x3f;
-	}
+	if (priv->efuse_wifi.efuse8723.version >= 0x01)
+		priv->default_crystal_cap = priv->efuse_wifi.efuse8723.xtal_k & 0x3f;
+	else
+		priv->fops->set_crystal_cap = NULL;
 
 	priv->power_base = &rtl8723a_power_base;
 
@@ -357,6 +357,35 @@ exit:
 	return ret;
 }
 
+#define XTAL1	GENMASK(23, 18)
+#define XTAL0	GENMASK(17, 12)
+
+void rtl8723a_set_crystal_cap(struct rtl8xxxu_priv *priv, u8 crystal_cap)
+{
+	struct rtl8xxxu_cfo_tracking *cfo = &priv->cfo_tracking;
+	u32 val32;
+
+	if (crystal_cap == cfo->crystal_cap)
+		return;
+
+	val32 = rtl8xxxu_read32(priv, REG_MAC_PHY_CTRL);
+
+	dev_dbg(&priv->udev->dev,
+	        "%s: Adjusting crystal cap from 0x%x (actually 0x%lx 0x%lx) to 0x%x\n",
+	        __func__,
+	        cfo->crystal_cap,
+	        FIELD_GET(XTAL1, val32),
+	        FIELD_GET(XTAL0, val32),
+	        crystal_cap);
+
+	val32 &= ~(XTAL1 | XTAL0);
+	val32 |= FIELD_PREP(XTAL1, crystal_cap) |
+		 FIELD_PREP(XTAL0, crystal_cap);
+	rtl8xxxu_write32(priv, REG_MAC_PHY_CTRL, val32);
+
+	cfo->crystal_cap = crystal_cap;
+}
+
 struct rtl8xxxu_fileops rtl8723au_fops = {
 	.parse_efuse = rtl8723au_parse_efuse,
 	.load_firmware = rtl8723au_load_firmware,
@@ -378,6 +407,7 @@ struct rtl8xxxu_fileops rtl8723au_fops = {
 	.update_rate_mask = rtl8xxxu_update_rate_mask,
 	.report_connect = rtl8xxxu_gen1_report_connect,
 	.fill_txdesc = rtl8xxxu_fill_txdesc_v1,
+	.set_crystal_cap = rtl8723a_set_crystal_cap,
 	.writeN_block_size = 1024,
 	.rx_agg_buf_size = 16000,
 	.tx_desc_size = sizeof(struct rtl8xxxu_txdesc32),

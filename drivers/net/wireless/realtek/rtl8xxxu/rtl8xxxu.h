@@ -570,7 +570,7 @@ struct rtl8723au_phy_stats {
 	u8	cck_rpt_b_ofdm_cfosho_b;
 	u8	reserved_1;
 	u8	noise_power_db_msb;
-	u8	path_cfotail[RTL8723A_MAX_RF_PATHS];
+	s8	path_cfotail[RTL8723A_MAX_RF_PATHS];
 	u8	pcts_mask[RTL8723A_MAX_RF_PATHS];
 	s8	stream_rxevm[RTL8723A_MAX_RF_PATHS];
 	u8	path_rxsnr[RTL8723A_MAX_RF_PATHS];
@@ -1323,6 +1323,19 @@ struct rtl8xxxu_ra_report {
 	u8 desc_rate;
 };
 
+#define CFO_TH_XTAL_HIGH	20 /* kHz */
+#define CFO_TH_XTAL_LOW	10 /* kHz */
+#define CFO_TH_ATC		80 /* kHz */
+
+struct rtl8xxxu_cfo_tracking {
+	bool adjust;
+	bool atc_status;
+	int cfo_tail[2];
+	u8 crystal_cap;
+	u32 packet_count;
+	u32 packet_count_pre;
+};
+
 struct rtl8xxxu_priv {
 	struct ieee80211_hw *hw;
 	struct usb_device *udev;
@@ -1381,9 +1394,8 @@ struct rtl8xxxu_priv {
 	u32 ep_tx_high_queue:1;
 	u32 ep_tx_normal_queue:1;
 	u32 ep_tx_low_queue:1;
-	u32 has_xtalk:1;
 	u32 rx_buf_aggregation:1;
-	u8 xtalk;
+	u8 default_crystal_cap;
 	unsigned int pipe_interrupt;
 	unsigned int pipe_in;
 	unsigned int pipe_out[TXDESC_QUEUE_MAX];
@@ -1441,6 +1453,7 @@ struct rtl8xxxu_priv {
 	struct sk_buff_head c2hcmd_queue;
 	struct rtl8xxxu_btcoex bt_coex;
 	struct rtl8xxxu_ra_report ra_report;
+	struct rtl8xxxu_cfo_tracking cfo_tracking;
 };
 
 struct rtl8xxxu_rx_urb {
@@ -1485,6 +1498,7 @@ struct rtl8xxxu_fileops {
 			     struct rtl8xxxu_txdesc32 *tx_desc, bool sgi,
 			     bool short_preamble, bool ampdu_enable,
 			     u32 rts_rate);
+	void (*set_crystal_cap) (struct rtl8xxxu_priv *priv, u8 crystal_cap);
 	int writeN_block_size;
 	int rx_agg_buf_size;
 	char tx_desc_size;
@@ -1594,6 +1608,7 @@ void rtl8xxxu_fill_txdesc_v2(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 void rtl8723bu_set_ps_tdma(struct rtl8xxxu_priv *priv,
 			   u8 arg1, u8 arg2, u8 arg3, u8 arg4, u8 arg5);
 void rtl8723bu_phy_init_antenna_selection(struct rtl8xxxu_priv *priv);
+void rtl8723a_set_crystal_cap(struct rtl8xxxu_priv *priv, u8 crystal_cap);
 
 extern struct rtl8xxxu_fileops rtl8188fu_fops;
 extern struct rtl8xxxu_fileops rtl8192cu_fops;
