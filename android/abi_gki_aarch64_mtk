@@ -2973,6 +2973,7 @@
   platform_find_device_by_driver
   pm_wq
   power_supply_is_system_supplied
+  power_supply_register_no_ws
   power_supply_unreg_notifier
   prepare_to_wait
   printk_deferred
