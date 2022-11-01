@@ -849,7 +849,8 @@ int audio_graph2_link_dpcm(struct asoc_simple_priv *priv,
 			goto err;
 	}
 
-	graph_parse_convert(rep, dai_props);
+	graph_parse_convert(ep,  dai_props); /* at node of <dpcm> */
+	graph_parse_convert(rep, dai_props); /* at node of <CPU/Codec> */
 
 	snd_soc_dai_link_set_capabilities(dai_link);
 
