@@ -221,6 +221,12 @@ static const struct acpi_device_id hisi_gpio_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, hisi_gpio_acpi_match);
 
+static const struct of_device_id hisi_gpio_dts_match[] = {
+	{ .compatible = "hisilicon,ascend910-gpio", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, hisi_gpio_dts_match);
+
 static void hisi_gpio_get_pdata(struct device *dev,
 				struct hisi_gpio *hisi_gpio)
 {
@@ -311,6 +317,7 @@ static struct platform_driver hisi_gpio_driver = {
 	.driver		= {
 		.name	= HISI_GPIO_DRIVER_NAME,
 		.acpi_match_table = hisi_gpio_acpi_match,
+		.of_match_table = hisi_gpio_dts_match,
 	},
 	.probe		= hisi_gpio_probe,
 };
