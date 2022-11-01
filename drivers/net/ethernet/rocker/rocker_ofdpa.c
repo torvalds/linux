@@ -1826,6 +1826,7 @@ static void ofdpa_port_fdb_learn_work(struct work_struct *work)
 
 	info.addr = lw->addr;
 	info.vid = lw->vid;
+	info.offloaded = !removing;
 	event = removing ? SWITCHDEV_FDB_DEL_TO_BRIDGE :
 			   SWITCHDEV_FDB_ADD_TO_BRIDGE;
 
