@@ -61,8 +61,16 @@ int bch2_rechecksum_bio(struct bch_fs *, struct bio *, struct bversion,
 			struct bch_extent_crc_unpacked *,
 			unsigned, unsigned, unsigned);
 
-int bch2_encrypt_bio(struct bch_fs *, unsigned,
-		     struct nonce, struct bio *);
+int __bch2_encrypt_bio(struct bch_fs *, unsigned,
+		       struct nonce, struct bio *);
+
+static inline int bch2_encrypt_bio(struct bch_fs *c, unsigned type,
+				   struct nonce nonce, struct bio *bio)
+{
+	return bch2_csum_type_is_encryption(type)
+		? __bch2_encrypt_bio(c, type, nonce, bio)
+		: 0;
+}
 
 int bch2_decrypt_sb_key(struct bch_fs *, struct bch_sb_field_crypt *,
 			struct bch_key *);

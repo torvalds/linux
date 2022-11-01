@@ -316,7 +316,7 @@ struct bch_csum bch2_checksum_bio(struct bch_fs *c, unsigned type,
 	return __bch2_checksum_bio(c, type, nonce, bio, &iter);
 }
 
-int bch2_encrypt_bio(struct bch_fs *c, unsigned type,
+int __bch2_encrypt_bio(struct bch_fs *c, unsigned type,
 		     struct nonce nonce, struct bio *bio)
 {
 	struct bio_vec bv;

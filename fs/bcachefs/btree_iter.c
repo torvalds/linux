@@ -1160,7 +1160,7 @@ int __must_check bch2_btree_path_traverse(struct btree_trans *trans,
 		btree_path_traverse_one(trans, path, flags, _RET_IP_);
 }
 
-static void btree_path_copy(struct btree_trans *trans, struct btree_path *dst,
+static inline void btree_path_copy(struct btree_trans *trans, struct btree_path *dst,
 			    struct btree_path *src)
 {
 	unsigned i, offset = offsetof(struct btree_path, pos);
@@ -1189,6 +1189,7 @@ static struct btree_path *btree_path_clone(struct btree_trans *trans, struct btr
 	return new;
 }
 
+__flatten
 struct btree_path *__bch2_btree_path_make_mut(struct btree_trans *trans,
 			 struct btree_path *path, bool intent)
 {
