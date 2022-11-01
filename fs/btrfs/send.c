@@ -1365,39 +1365,34 @@ static int find_extent_clone(struct send_ctx *sctx,
 	int compressed;
 	u32 i;
 
-	tmp_path = alloc_path_for_send();
-	if (!tmp_path)
-		return -ENOMEM;
-
-	/* We only use this path under the commit sem */
-	tmp_path->need_commit_sem = 0;
-
 	if (data_offset >= ino_size) {
 		/*
 		 * There may be extents that lie behind the file's size.
 		 * I at least had this in combination with snapshotting while
 		 * writing large files.
 		 */
-		ret = 0;
-		goto out;
+		return 0;
 	}
 
-	fi = btrfs_item_ptr(eb, path->slots[0],
-			struct btrfs_file_extent_item);
+	fi = btrfs_item_ptr(eb, path->slots[0], struct btrfs_file_extent_item);
 	extent_type = btrfs_file_extent_type(eb, fi);
-	if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
-		ret = -ENOENT;
-		goto out;
-	}
-	compressed = btrfs_file_extent_compression(eb, fi);
+	if (extent_type == BTRFS_FILE_EXTENT_INLINE)
+		return -ENOENT;
 
-	num_bytes = btrfs_file_extent_num_bytes(eb, fi);
 	disk_byte = btrfs_file_extent_disk_bytenr(eb, fi);
-	if (disk_byte == 0) {
-		ret = -ENOENT;
-		goto out;
-	}
+	if (disk_byte == 0)
+		return -ENOENT;
+
+	compressed = btrfs_file_extent_compression(eb, fi);
+	num_bytes = btrfs_file_extent_num_bytes(eb, fi);
 	logical = disk_byte + btrfs_file_extent_offset(eb, fi);
+
+	tmp_path = alloc_path_for_send();
+	if (!tmp_path)
+		return -ENOMEM;
+
+	/* We only use this path under the commit sem */
+	tmp_path->need_commit_sem = 0;
 
 	down_read(&fs_info->commit_root_sem);
 	ret = extent_from_logical(fs_info, disk_byte, tmp_path,
