@@ -83,6 +83,39 @@ struct clone_root {
 #define SEND_CTX_MAX_NAME_CACHE_SIZE 128
 #define SEND_CTX_NAME_CACHE_CLEAN_SIZE (SEND_CTX_MAX_NAME_CACHE_SIZE * 2)
 
+/*
+ * Limit the root_ids array of struct backref_cache_entry to 12 elements.
+ * This makes the size of a cache entry to be exactly 128 bytes on x86_64.
+ * The most common case is to have a single root for cloning, which corresponds
+ * to the send root. Having the user specify more than 11 clone roots is not
+ * common, and in such rare cases we simply don't use caching if the number of
+ * cloning roots that lead down to a leaf is more than 12.
+ */
+#define SEND_MAX_BACKREF_CACHE_ROOTS 12
+
+/*
+ * Max number of entries in the cache.
+ * With SEND_MAX_BACKREF_CACHE_ROOTS as 12, the size in bytes, excluding
+ * maple tree's internal nodes, is 16K.
+ */
+#define SEND_MAX_BACKREF_CACHE_SIZE 128
+
+/*
+ * A backref cache entry maps a leaf to a list of IDs of roots from which the
+ * leaf is accessible and we can use for clone operations.
+ * With SEND_MAX_BACKREF_CACHE_ROOTS as 12, each cache entry is 128 bytes (on
+ * x86_64).
+ */
+struct backref_cache_entry {
+	/* List to link to the cache's lru list. */
+	struct list_head list;
+	/* The key for this entry in the cache. */
+	u64 key;
+	u64 root_ids[SEND_MAX_BACKREF_CACHE_ROOTS];
+	/* Number of valid elements in the root_ids array. */
+	int num_roots;
+};
+
 struct send_ctx {
 	struct file *send_filp;
 	loff_t send_off;
@@ -251,6 +284,14 @@ struct send_ctx {
 
 	struct rb_root rbtree_new_refs;
 	struct rb_root rbtree_deleted_refs;
+
+	struct {
+		u64 last_reloc_trans;
+		struct list_head lru_list;
+		struct maple_tree entries;
+		/* Number of entries stored in the cache. */
+		int size;
+	} backref_cache;
 };
 
 struct pending_dir_move {
@@ -1335,6 +1376,142 @@ static int __iterate_backrefs(u64 ino, u64 offset, u64 num_bytes, u64 root,
 	return 0;
 }
 
+static void empty_backref_cache(struct send_ctx *sctx)
+{
+	struct backref_cache_entry *entry;
+	struct backref_cache_entry *tmp;
+
+	list_for_each_entry_safe(entry, tmp, &sctx->backref_cache.lru_list, list)
+		kfree(entry);
+
+	INIT_LIST_HEAD(&sctx->backref_cache.lru_list);
+	mtree_destroy(&sctx->backref_cache.entries);
+	sctx->backref_cache.size = 0;
+}
+
+static bool lookup_backref_cache(u64 leaf_bytenr, void *ctx,
+				 const u64 **root_ids_ret, int *root_count_ret)
+{
+	struct send_ctx *sctx = ctx;
+	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
+	const u64 key = leaf_bytenr >> fs_info->sectorsize_bits;
+	struct backref_cache_entry *entry;
+
+	if (sctx->backref_cache.size == 0)
+		return false;
+
+	/*
+	 * If relocation happened since we first filled the cache, then we must
+	 * empty the cache and can not use it, because even though we operate on
+	 * read-only roots, their leaves and nodes may have been reallocated and
+	 * now be used for different nodes/leaves of the same tree or some other
+	 * tree.
+	 *
+	 * We are called from iterate_extent_inodes() while either holding a
+	 * transaction handle or holding fs_info->commit_root_sem, so no need
+	 * to take any lock here.
+	 */
+	if (fs_info->last_reloc_trans > sctx->backref_cache.last_reloc_trans) {
+		empty_backref_cache(sctx);
+		return false;
+	}
+
+	entry = mtree_load(&sctx->backref_cache.entries, key);
+	if (!entry)
+		return false;
+
+	*root_ids_ret = entry->root_ids;
+	*root_count_ret = entry->num_roots;
+	list_move_tail(&entry->list, &sctx->backref_cache.lru_list);
+
+	return true;
+}
+
+static void store_backref_cache(u64 leaf_bytenr, const struct ulist *root_ids,
+				void *ctx)
+{
+	struct send_ctx *sctx = ctx;
+	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
+	struct backref_cache_entry *new_entry;
+	struct ulist_iterator uiter;
+	struct ulist_node *node;
+	int ret;
+
+	/*
+	 * We're called while holding a transaction handle or while holding
+	 * fs_info->commit_root_sem (at iterate_extent_inodes()), so must do a
+	 * NOFS allocation.
+	 */
+	new_entry = kmalloc(sizeof(struct backref_cache_entry), GFP_NOFS);
+	/* No worries, cache is optional. */
+	if (!new_entry)
+		return;
+
+	new_entry->key = leaf_bytenr >> fs_info->sectorsize_bits;
+	new_entry->num_roots = 0;
+	ULIST_ITER_INIT(&uiter);
+	while ((node = ulist_next(root_ids, &uiter)) != NULL) {
+		const u64 root_id = node->val;
+		struct clone_root *root;
+
+		root = bsearch((void *)(uintptr_t)root_id, sctx->clone_roots,
+			       sctx->clone_roots_cnt, sizeof(struct clone_root),
+			       __clone_root_cmp_bsearch);
+		if (!root)
+			continue;
+
+		/* Too many roots, just exit, no worries as caching is optional. */
+		if (new_entry->num_roots >= SEND_MAX_BACKREF_CACHE_ROOTS) {
+			kfree(new_entry);
+			return;
+		}
+
+		new_entry->root_ids[new_entry->num_roots] = root_id;
+		new_entry->num_roots++;
+	}
+
+	/*
+	 * We may have not added any roots to the new cache entry, which means
+	 * none of the roots is part of the list of roots from which we are
+	 * allowed to clone. Cache the new entry as it's still useful to avoid
+	 * backref walking to determine which roots have a path to the leaf.
+	 */
+
+	if (sctx->backref_cache.size >= SEND_MAX_BACKREF_CACHE_SIZE) {
+		struct backref_cache_entry *lru_entry;
+		struct backref_cache_entry *mt_entry;
+
+		lru_entry = list_first_entry(&sctx->backref_cache.lru_list,
+					     struct backref_cache_entry, list);
+		mt_entry = mtree_erase(&sctx->backref_cache.entries, lru_entry->key);
+		ASSERT(mt_entry == lru_entry);
+		list_del(&mt_entry->list);
+		kfree(mt_entry);
+		sctx->backref_cache.size--;
+	}
+
+	ret = mtree_insert(&sctx->backref_cache.entries, new_entry->key,
+			   new_entry, GFP_NOFS);
+	ASSERT(ret == 0 || ret == -ENOMEM);
+	if (ret) {
+		/* Caching is optional, no worries. */
+		kfree(new_entry);
+		return;
+	}
+
+	list_add_tail(&new_entry->list, &sctx->backref_cache.lru_list);
+
+	/*
+	 * We are called from iterate_extent_inodes() while either holding a
+	 * transaction handle or holding fs_info->commit_root_sem, so no need
+	 * to take any lock here.
+	 */
+	if (sctx->backref_cache.size == 0)
+		sctx->backref_cache.last_reloc_trans = fs_info->last_reloc_trans;
+
+	sctx->backref_cache.size++;
+}
+
 /*
  * Given an inode, offset and extent item, it finds a good clone for a clone
  * instruction. Returns -ENOENT when none could be found. The function makes
@@ -1465,6 +1642,9 @@ static int find_extent_clone(struct send_ctx *sctx,
 	if (compressed == BTRFS_COMPRESS_NONE)
 		backref_walk_ctx.extent_item_pos = logical - found_key.objectid;
 	backref_walk_ctx.fs_info = fs_info;
+	backref_walk_ctx.cache_lookup = lookup_backref_cache;
+	backref_walk_ctx.cache_store = store_backref_cache;
+	backref_walk_ctx.user_ctx = sctx;
 
 	ret = iterate_extent_inodes(&backref_walk_ctx, true, __iterate_backrefs,
 				    &backref_ctx);
@@ -7891,6 +8071,9 @@ long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg)
 	INIT_RADIX_TREE(&sctx->name_cache, GFP_KERNEL);
 	INIT_LIST_HEAD(&sctx->name_cache_list);
 
+	INIT_LIST_HEAD(&sctx->backref_cache.lru_list);
+	mt_init(&sctx->backref_cache.entries);
+
 	sctx->flags = arg->flags;
 
 	if (arg->flags & BTRFS_SEND_FLAG_VERSION) {
@@ -8152,6 +8335,8 @@ out:
 		name_cache_free(sctx);
 
 		close_current_inode(sctx);
+
+		empty_backref_cache(sctx);
 
 		kfree(sctx);
 	}

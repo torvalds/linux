@@ -69,6 +69,17 @@ struct btrfs_backref_walk_ctx {
 	 * about collecting root IDs.
 	 */
 	struct ulist *roots;
+	/*
+	 * Used by iterate_extent_inodes(). Lookup and store functions for an
+	 * optional cache which maps the logical address (bytenr) of leaves
+	 * to an array of root IDs.
+	 */
+	bool (*cache_lookup)(u64 leaf_bytenr, void *user_ctx,
+			     const u64 **root_ids_ret, int *root_count_ret);
+	void (*cache_store)(u64 leaf_bytenr, const struct ulist *root_ids,
+			    void *user_ctx);
+	/* Context object to pass to @cache_lookup and @cache_store. */
+	void *user_ctx;
 };
 
 struct inode_fs_paths {

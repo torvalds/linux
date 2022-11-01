@@ -2303,21 +2303,14 @@ int iterate_extent_inodes(struct btrfs_backref_walk_ctx *ctx,
 	ASSERT(ctx->trans == NULL);
 	ASSERT(ctx->roots == NULL);
 
-	ctx->roots = ulist_alloc(GFP_NOFS);
-	if (!ctx->roots)
-		return -ENOMEM;
-
 	if (!search_commit_root) {
 		struct btrfs_trans_handle *trans;
 
 		trans = btrfs_attach_transaction(ctx->fs_info->tree_root);
 		if (IS_ERR(trans)) {
 			if (PTR_ERR(trans) != -ENOENT &&
-			    PTR_ERR(trans) != -EROFS) {
-				ulist_free(ctx->roots);
-				ctx->roots = NULL;
+			    PTR_ERR(trans) != -EROFS)
 				return PTR_ERR(trans);
-			}
 			trans = NULL;
 		}
 		ctx->trans = trans;
@@ -2338,13 +2331,50 @@ int iterate_extent_inodes(struct btrfs_backref_walk_ctx *ctx,
 
 	ULIST_ITER_INIT(&ref_uiter);
 	while (!ret && (ref_node = ulist_next(refs, &ref_uiter))) {
+		const u64 leaf_bytenr = ref_node->val;
 		struct ulist_node *root_node;
 		struct ulist_iterator root_uiter;
+		struct extent_inode_elem *inode_list;
 
-		ctx->bytenr = ref_node->val;
+		inode_list = (struct extent_inode_elem *)(uintptr_t)ref_node->aux;
+
+		if (ctx->cache_lookup) {
+			const u64 *root_ids;
+			int root_count;
+			bool cached;
+
+			cached = ctx->cache_lookup(leaf_bytenr, ctx->user_ctx,
+						   &root_ids, &root_count);
+			if (cached) {
+				for (int i = 0; i < root_count; i++) {
+					ret = iterate_leaf_refs(ctx->fs_info,
+								inode_list,
+								root_ids[i],
+								leaf_bytenr,
+								iterate,
+								user_ctx);
+					if (ret)
+						break;
+				}
+				continue;
+			}
+		}
+
+		if (!ctx->roots) {
+			ctx->roots = ulist_alloc(GFP_NOFS);
+			if (!ctx->roots) {
+				ret = -ENOMEM;
+				break;
+			}
+		}
+
+		ctx->bytenr = leaf_bytenr;
 		ret = btrfs_find_all_roots_safe(ctx);
 		if (ret)
 			break;
+
+		if (ctx->cache_store)
+			ctx->cache_store(leaf_bytenr, ctx->roots, ctx->user_ctx);
 
 		ULIST_ITER_INIT(&root_uiter);
 		while (!ret && (root_node = ulist_next(ctx->roots, &root_uiter))) {
@@ -2352,9 +2382,7 @@ int iterate_extent_inodes(struct btrfs_backref_walk_ctx *ctx,
 				    "root %llu references leaf %llu, data list %#llx",
 				    root_node->val, ref_node->val,
 				    ref_node->aux);
-			ret = iterate_leaf_refs(ctx->fs_info,
-						(struct extent_inode_elem *)
-						(uintptr_t)ref_node->aux,
+			ret = iterate_leaf_refs(ctx->fs_info, inode_list,
 						root_node->val, ctx->bytenr,
 						iterate, user_ctx);
 		}
