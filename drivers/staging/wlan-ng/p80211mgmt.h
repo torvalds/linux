@@ -449,26 +449,4 @@ struct wlan_fr_deauthen {
 	/*-- info elements ----------*/
 
 };
-
-void wlan_mgmt_encode_beacon(struct wlan_fr_beacon *f);
-void wlan_mgmt_decode_beacon(struct wlan_fr_beacon *f);
-void wlan_mgmt_encode_disassoc(struct wlan_fr_disassoc *f);
-void wlan_mgmt_decode_disassoc(struct wlan_fr_disassoc *f);
-void wlan_mgmt_encode_assocreq(struct wlan_fr_assocreq *f);
-void wlan_mgmt_decode_assocreq(struct wlan_fr_assocreq *f);
-void wlan_mgmt_encode_assocresp(struct wlan_fr_assocresp *f);
-void wlan_mgmt_decode_assocresp(struct wlan_fr_assocresp *f);
-void wlan_mgmt_encode_reassocreq(struct wlan_fr_reassocreq *f);
-void wlan_mgmt_decode_reassocreq(struct wlan_fr_reassocreq *f);
-void wlan_mgmt_encode_reassocresp(struct wlan_fr_reassocresp *f);
-void wlan_mgmt_decode_reassocresp(struct wlan_fr_reassocresp *f);
-void wlan_mgmt_encode_probereq(struct wlan_fr_probereq *f);
-void wlan_mgmt_decode_probereq(struct wlan_fr_probereq *f);
-void wlan_mgmt_encode_proberesp(struct wlan_fr_proberesp *f);
-void wlan_mgmt_decode_proberesp(struct wlan_fr_proberesp *f);
-void wlan_mgmt_encode_authen(struct wlan_fr_authen *f);
-void wlan_mgmt_decode_authen(struct wlan_fr_authen *f);
-void wlan_mgmt_encode_deauthen(struct wlan_fr_deauthen *f);
-void wlan_mgmt_decode_deauthen(struct wlan_fr_deauthen *f);
-
 #endif /* _P80211MGMT_H */
