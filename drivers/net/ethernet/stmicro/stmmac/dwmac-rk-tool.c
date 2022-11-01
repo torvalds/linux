@@ -574,15 +574,15 @@ static inline int dwmac_rk_rx_fill(struct stmmac_priv *priv,
 static void dwmac_rk_rx_clean(struct stmmac_priv *priv,
 			      struct dwmac_rk_lb_priv *lb_priv)
 {
-	struct sk_buff *skb;
-
-	skb = lb_priv->rx_skbuff;
-
-	if (likely(lb_priv->rx_skbuff)) {
+	if (likely(lb_priv->rx_skbuff_dma)) {
 		dma_unmap_single(priv->device,
 				 lb_priv->rx_skbuff_dma,
 				 lb_priv->dma_buf_sz, DMA_FROM_DEVICE);
-		dev_kfree_skb(skb);
+		lb_priv->rx_skbuff_dma = 0;
+	}
+
+	if (likely(lb_priv->rx_skbuff)) {
+		dev_consume_skb_any(lb_priv->rx_skbuff);
 		lb_priv->rx_skbuff = NULL;
 	}
 }
@@ -594,7 +594,6 @@ static int dwmac_rk_rx_validate(struct stmmac_priv *priv,
 	struct sk_buff *skb;
 	int coe = priv->hw->rx_csum;
 	unsigned int frame_len;
-	int ret;
 
 	p = lb_priv->dma_rx;
 	skb = lb_priv->rx_skbuff;
@@ -619,11 +618,7 @@ static int dwmac_rk_rx_validate(struct stmmac_priv *priv,
 			 lb_priv->dma_buf_sz,
 			 DMA_FROM_DEVICE);
 
-	ret = dwmac_rk_loopback_validate(priv, lb_priv, skb);
-	dwmac_rk_rx_clean(priv, lb_priv);
-	dwmac_rk_rx_fill(priv, lb_priv);
-
-	return ret;
+	return dwmac_rk_loopback_validate(priv, lb_priv, skb);
 }
 
 static int dwmac_rk_get_desc_status(struct stmmac_priv *priv,
@@ -655,10 +650,9 @@ static int dwmac_rk_get_desc_status(struct stmmac_priv *priv,
 static void dwmac_rk_tx_clean(struct stmmac_priv *priv,
 			      struct dwmac_rk_lb_priv *lb_priv)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb = lb_priv->tx_skbuff;
 	struct dma_desc *p;
 
-	skb = lb_priv->tx_skbuff;
 	p = lb_priv->dma_tx;
 
 	if (likely(lb_priv->tx_skbuff_dma)) {
@@ -670,7 +664,7 @@ static void dwmac_rk_tx_clean(struct stmmac_priv *priv,
 	}
 
 	if (likely(skb)) {
-		dev_kfree_skb(skb);
+		dev_consume_skb_any(skb);
 		lb_priv->tx_skbuff = NULL;
 	}
 
@@ -694,9 +688,10 @@ static int dwmac_rk_xmit(struct sk_buff *skb, struct net_device *dev,
 	lb_priv->tx_skbuff = skb;
 
 	des = dma_map_single(priv->device, skb->data,
-				    nopaged_len, DMA_TO_DEVICE);
+			     nopaged_len, DMA_TO_DEVICE);
 	if (dma_mapping_error(priv->device, des))
 		goto dma_map_err;
+	lb_priv->tx_skbuff_dma = des;
 
 	stmmac_set_desc_addr(priv, desc, des);
 	lb_priv->tx_skbuff_dma_len = nopaged_len;
