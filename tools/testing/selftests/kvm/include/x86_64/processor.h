@@ -677,11 +677,6 @@ static inline void cpu_relax(void)
 	asm volatile("rep; nop" ::: "memory");
 }
 
-#define vmmcall()		\
-	__asm__ __volatile__(	\
-		"vmmcall\n"	\
-		)
-
 #define ud2()			\
 	__asm__ __volatile__(	\
 		"ud2\n"	\

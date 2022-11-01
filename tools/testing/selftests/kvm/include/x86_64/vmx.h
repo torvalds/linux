@@ -437,11 +437,16 @@ static inline int vmresume(void)
 
 static inline void vmcall(void)
 {
-	/* Currently, L1 destroys our GPRs during vmexits.  */
-	__asm__ __volatile__("push %%rbp; vmcall; pop %%rbp" : : :
-			     "rax", "rbx", "rcx", "rdx",
-			     "rsi", "rdi", "r8", "r9", "r10", "r11", "r12",
-			     "r13", "r14", "r15");
+	/*
+	 * Stuff RAX and RCX with "safe" values to make sure L0 doesn't handle
+	 * it as a valid hypercall (e.g. Hyper-V L2 TLB flush) as the intended
+	 * use of this function is to exit to L1 from L2.  Clobber all other
+	 * GPRs as L1 doesn't correctly preserve them during vmexits.
+	 */
+	__asm__ __volatile__("push %%rbp; vmcall; pop %%rbp"
+			     : : "a"(0xdeadbeef), "c"(0xbeefdead)
+			     : "rbx", "rdx", "rsi", "rdi", "r8", "r9",
+			       "r10", "r11", "r12", "r13", "r14", "r15");
 }
 
 static inline int vmread(uint64_t encoding, uint64_t *value)
