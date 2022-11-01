@@ -7,7 +7,6 @@
 #include <asm/mmu_context.h>
 
 #include "cpuid.h"
-#include "evmcs.h"
 #include "hyperv.h"
 #include "mmu.h"
 #include "nested.h"

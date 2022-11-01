@@ -1,12 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __KVM_X86_VMX_EVMCS_H
-#define __KVM_X86_VMX_EVMCS_H
+#ifndef __KVM_X86_VMX_HYPERV_H
+#define __KVM_X86_VMX_HYPERV_H
 
 #include <linux/jump_label.h>
 
 #include <asm/hyperv-tlfs.h>
 #include <asm/mshyperv.h>
 #include <asm/vmx.h>
+
+#include "../hyperv.h"
 
 #include "capabilities.h"
 #include "vmcs.h"
@@ -242,4 +244,4 @@ int nested_enable_evmcs(struct kvm_vcpu *vcpu,
 void nested_evmcs_filter_control_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata);
 int nested_evmcs_check_controls(struct vmcs12 *vmcs12);
 
-#endif /* __KVM_X86_VMX_EVMCS_H */
+#endif /* __KVM_X86_VMX_HYPERV_H */

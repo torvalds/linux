@@ -3,9 +3,8 @@
 #include <linux/errno.h>
 #include <linux/smp.h>
 
-#include "../hyperv.h"
 #include "../cpuid.h"
-#include "evmcs.h"
+#include "hyperv.h"
 #include "vmcs.h"
 #include "vmx.h"
 #include "trace.h"
