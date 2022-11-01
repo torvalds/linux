@@ -2789,7 +2789,6 @@ static void nvme_remove_dead_ctrl(struct nvme_dev *dev)
 	nvme_get_ctrl(&dev->ctrl);
 	nvme_dev_disable(dev, false);
 	nvme_mark_namespaces_dead(&dev->ctrl);
-	nvme_start_queues(&dev->ctrl);
 	if (!queue_work(nvme_wq, &dev->remove_work))
 		nvme_put_ctrl(&dev->ctrl);
 }
