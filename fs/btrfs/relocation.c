@@ -3417,7 +3417,7 @@ int add_data_references(struct reloc_control *rc,
 
 	btrfs_release_path(path);
 	ret = btrfs_find_all_leafs(NULL, fs_info, extent_key->objectid,
-				   0, &leaves, NULL, true);
+				   0, &leaves, BTRFS_IGNORE_EXTENT_OFFSET);
 	if (ret < 0)
 		return ret;
 

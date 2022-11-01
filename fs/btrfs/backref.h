@@ -12,6 +12,13 @@
 #include "disk-io.h"
 #include "extent_io.h"
 
+/*
+ * Pass to backref walking functions to tell them to include references from
+ * all file extent items that point to the target data extent, regardless if
+ * they refer to the whole extent or just sections of it (bookend extents).
+ */
+#define BTRFS_IGNORE_EXTENT_OFFSET   ((u64)-1)
+
 struct inode_fs_paths {
 	struct btrfs_path		*btrfs_path;
 	struct btrfs_root		*fs_root;
@@ -92,8 +99,7 @@ int tree_backref_for_extent(unsigned long *ptr, struct extent_buffer *eb,
 int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 				u64 extent_item_objectid,
 				u64 extent_offset, int search_commit_root,
-				iterate_extent_inodes_t *iterate, void *ctx,
-				bool ignore_offset);
+				iterate_extent_inodes_t *iterate, void *ctx);
 
 int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
 				struct btrfs_path *path, void *ctx,
@@ -104,7 +110,7 @@ int paths_from_inode(u64 inum, struct inode_fs_paths *ipath);
 int btrfs_find_all_leafs(struct btrfs_trans_handle *trans,
 			 struct btrfs_fs_info *fs_info, u64 bytenr,
 			 u64 time_seq, struct ulist **leafs,
-			 const u64 *extent_item_pos, bool ignore_offset);
+			 u64 extent_item_pos);
 int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 			 struct btrfs_fs_info *fs_info, u64 bytenr,
 			 u64 time_seq, struct ulist **roots,
