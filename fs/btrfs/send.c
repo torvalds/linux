@@ -1284,6 +1284,10 @@ struct backref_ctx {
 
 	/* The bytenr the file extent item we are processing refers to. */
 	u64 bytenr;
+	/* The owner (root id) of the data backref for the current extent. */
+	u64 backref_owner;
+	/* The offset of the data backref for the current extent. */
+	u64 backref_offset;
 };
 
 static int __clone_root_cmp_bsearch(const void *key, const void *elt)
@@ -1558,6 +1562,18 @@ static int check_extent_item(u64 bytenr, const struct btrfs_extent_item *ei,
 	return 0;
 }
 
+static bool skip_self_data_ref(u64 root, u64 ino, u64 offset, void *ctx)
+{
+	const struct backref_ctx *bctx = ctx;
+
+	if (ino == bctx->cur_objectid &&
+	    root == bctx->backref_owner &&
+	    offset == bctx->backref_offset)
+		return true;
+
+	return false;
+}
+
 /*
  * Given an inode, offset and extent item, it finds a good clone for a clone
  * instruction. Returns -ENOENT when none could be found. The function makes
@@ -1624,6 +1640,12 @@ static int find_extent_clone(struct send_ctx *sctx,
 	backref_ctx.cur_objectid = ino;
 	backref_ctx.cur_offset = data_offset;
 	backref_ctx.bytenr = disk_byte;
+	/*
+	 * Use the header owner and not the send root's id, because in case of a
+	 * snapshot we can have shared subtrees.
+	 */
+	backref_ctx.backref_owner = btrfs_header_owner(eb);
+	backref_ctx.backref_offset = data_offset - btrfs_file_extent_offset(eb, fi);
 
 	/*
 	 * The last extent of a file may be too large due to page alignment.
@@ -1647,6 +1669,17 @@ static int find_extent_clone(struct send_ctx *sctx,
 	backref_walk_ctx.indirect_ref_iterator = iterate_backrefs;
 	backref_walk_ctx.check_extent_item = check_extent_item;
 	backref_walk_ctx.user_ctx = &backref_ctx;
+
+	/*
+	 * If have a single clone root, then it's the send root and we can tell
+	 * the backref walking code to skip our own backref and not resolve it,
+	 * since we can not use it for cloning - the source and destination
+	 * ranges can't overlap and in case the leaf is shared through a subtree
+	 * due to snapshots, we can't use those other roots since they are not
+	 * in the list of clone roots.
+	 */
+	if (sctx->clone_roots_cnt == 1)
+		backref_walk_ctx.skip_data_ref = skip_self_data_ref;
 
 	ret = iterate_extent_inodes(&backref_walk_ctx, true, iterate_backrefs,
 				    &backref_ctx);

@@ -116,6 +116,15 @@ struct btrfs_backref_walk_ctx {
 	 */
 	int (*check_extent_item)(u64 bytenr, const struct btrfs_extent_item *ei,
 				 const struct extent_buffer *leaf, void *user_ctx);
+	/*
+	 * If this is not NULL, then the backref walking code will call this for
+	 * each extent data ref it finds (BTRFS_EXTENT_DATA_REF_KEY keys) before
+	 * processing that data ref. If this callback return false, then it will
+	 * ignore this data ref and it will never resolve the indirect data ref,
+	 * saving time searching for leaves in a fs tree with file extent items
+	 * matching the data ref.
+	 */
+	bool (*skip_data_ref)(u64 root, u64 ino, u64 offset, void *user_ctx);
 	/* Context object to pass to the callbacks defined above. */
 	void *user_ctx;
 };

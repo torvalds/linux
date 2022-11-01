@@ -1111,10 +1111,12 @@ static int add_inline_refs(struct btrfs_backref_walk_ctx *ctx,
 
 			root = btrfs_extent_data_ref_root(leaf, dref);
 
-			ret = add_indirect_ref(ctx->fs_info, preftrees, root,
-					       &key, 0, ctx->bytenr, count,
-					       sc, GFP_NOFS);
-
+			if (!ctx->skip_data_ref ||
+			    !ctx->skip_data_ref(root, key.objectid, key.offset,
+						ctx->user_ctx))
+				ret = add_indirect_ref(ctx->fs_info, preftrees,
+						       root, &key, 0, ctx->bytenr,
+						       count, sc, GFP_NOFS);
 			break;
 		}
 		default:
@@ -1133,8 +1135,9 @@ static int add_inline_refs(struct btrfs_backref_walk_ctx *ctx,
  *
  * Returns 0 on success, <0 on error, or BACKREF_FOUND_SHARED.
  */
-static int add_keyed_refs(struct btrfs_root *extent_root,
-			  struct btrfs_path *path, u64 bytenr,
+static int add_keyed_refs(struct btrfs_backref_walk_ctx *ctx,
+			  struct btrfs_root *extent_root,
+			  struct btrfs_path *path,
 			  int info_level, struct preftrees *preftrees,
 			  struct share_check *sc)
 {
@@ -1157,7 +1160,7 @@ static int add_keyed_refs(struct btrfs_root *extent_root,
 		leaf = path->nodes[0];
 		btrfs_item_key_to_cpu(leaf, &key, slot);
 
-		if (key.objectid != bytenr)
+		if (key.objectid != ctx->bytenr)
 			break;
 		if (key.type < BTRFS_TREE_BLOCK_REF_KEY)
 			continue;
@@ -1169,7 +1172,7 @@ static int add_keyed_refs(struct btrfs_root *extent_root,
 			/* SHARED DIRECT METADATA backref */
 			ret = add_direct_ref(fs_info, preftrees,
 					     info_level + 1, key.offset,
-					     bytenr, 1, NULL, GFP_NOFS);
+					     ctx->bytenr, 1, NULL, GFP_NOFS);
 			break;
 		case BTRFS_SHARED_DATA_REF_KEY: {
 			/* SHARED DIRECT FULL backref */
@@ -1180,14 +1183,14 @@ static int add_keyed_refs(struct btrfs_root *extent_root,
 					      struct btrfs_shared_data_ref);
 			count = btrfs_shared_data_ref_count(leaf, sdref);
 			ret = add_direct_ref(fs_info, preftrees, 0,
-					     key.offset, bytenr, count,
+					     key.offset, ctx->bytenr, count,
 					     sc, GFP_NOFS);
 			break;
 		}
 		case BTRFS_TREE_BLOCK_REF_KEY:
 			/* NORMAL INDIRECT METADATA backref */
 			ret = add_indirect_ref(fs_info, preftrees, key.offset,
-					       NULL, info_level + 1, bytenr,
+					       NULL, info_level + 1, ctx->bytenr,
 					       1, NULL, GFP_NOFS);
 			break;
 		case BTRFS_EXTENT_DATA_REF_KEY: {
@@ -1211,9 +1214,13 @@ static int add_keyed_refs(struct btrfs_root *extent_root,
 			}
 
 			root = btrfs_extent_data_ref_root(leaf, dref);
-			ret = add_indirect_ref(fs_info, preftrees, root,
-					       &key, 0, bytenr, count,
-					       sc, GFP_NOFS);
+
+			if (!ctx->skip_data_ref ||
+			    !ctx->skip_data_ref(root, key.objectid, key.offset,
+						ctx->user_ctx))
+				ret = add_indirect_ref(fs_info, preftrees, root,
+						       &key, 0, ctx->bytenr,
+						       count, sc, GFP_NOFS);
 			break;
 		}
 		default:
@@ -1466,7 +1473,7 @@ again:
 					      &preftrees, sc);
 			if (ret)
 				goto out;
-			ret = add_keyed_refs(root, path, ctx->bytenr, info_level,
+			ret = add_keyed_refs(ctx, root, path, info_level,
 					     &preftrees, sc);
 			if (ret)
 				goto out;
