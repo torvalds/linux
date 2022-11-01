@@ -4566,17 +4566,15 @@
 
 	ramdisk_start=	[RAM] RAM disk image start address
 
-	random.trust_cpu={on,off}
-			[KNL] Enable or disable trusting the use of the
-			CPU's random number generator (if available) to
-			fully seed the kernel's CRNG. Default is controlled
-			by CONFIG_RANDOM_TRUST_CPU.
+	random.trust_cpu=off
+			[KNL] Disable trusting the use of the CPU's
+			random number generator (if available) to
+			initialize the kernel's RNG.
 
-	random.trust_bootloader={on,off}
-			[KNL] Enable or disable trusting the use of a
-			seed passed by the bootloader (if available) to
-			fully seed the kernel's CRNG. Default is controlled
-			by CONFIG_RANDOM_TRUST_BOOTLOADER.
+	random.trust_bootloader=off
+			[KNL] Disable trusting the use of the a seed
+			passed by the bootloader (if available) to
+			initialize the kernel's RNG.
 
 	randomize_kstack_offset=
 			[KNL] Enable or disable kernel stack offset

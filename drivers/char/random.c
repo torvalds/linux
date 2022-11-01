@@ -748,7 +748,7 @@ static void __cold _credit_init_bits(size_t bits)
  *
  * add_bootloader_randomness() is called by bootloader drivers, such as EFI
  * and device tree, and credits its input depending on whether or not the
- * configuration option CONFIG_RANDOM_TRUST_BOOTLOADER is set.
+ * command line option 'random.trust_bootloader'.
  *
  * add_vmfork_randomness() adds a unique (but not necessarily secret) ID
  * representing the current instance of a VM to the pool, without crediting,
@@ -774,8 +774,8 @@ static void __cold _credit_init_bits(size_t bits)
  *
  **********************************************************************/
 
-static bool trust_cpu __initdata = IS_ENABLED(CONFIG_RANDOM_TRUST_CPU);
-static bool trust_bootloader __initdata = IS_ENABLED(CONFIG_RANDOM_TRUST_BOOTLOADER);
+static bool trust_cpu __initdata = true;
+static bool trust_bootloader __initdata = true;
 static int __init parse_trust_cpu(char *arg)
 {
 	return kstrtobool(arg, &trust_cpu);
@@ -926,8 +926,8 @@ void add_hwgenerator_randomness(const void *buf, size_t len, size_t entropy)
 EXPORT_SYMBOL_GPL(add_hwgenerator_randomness);
 
 /*
- * Handle random seed passed by bootloader, and credit it if
- * CONFIG_RANDOM_TRUST_BOOTLOADER is set.
+ * Handle random seed passed by bootloader, and credit it depending
+ * on the command line option 'random.trust_bootloader'.
  */
 void __init add_bootloader_randomness(const void *buf, size_t len)
 {
