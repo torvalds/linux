@@ -3723,6 +3723,13 @@ static void svm_flush_tlb_current(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	/*
+	 * Unlike VMX, SVM doesn't provide a way to flush only NPT TLB entries.
+	 * A TLB flush for the current ASID flushes both "host" and "guest" TLB
+	 * entries, and thus is a superset of Hyper-V's fine grained flushing.
+	 */
+	kvm_clear_request(KVM_REQ_HV_TLB_FLUSH, vcpu);
+
+	/*
 	 * Flush only the current ASID even if the TLB flush was invoked via
 	 * kvm_flush_remote_tlbs().  Although flushing remote TLBs requires all
 	 * ASIDs to be flushed, KVM uses a single ASID for L1 and L2, and
