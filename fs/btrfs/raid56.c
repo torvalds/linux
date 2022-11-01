@@ -1253,6 +1253,14 @@ static int rmw_assemble_write_bios(struct btrfs_raid_bio *rbio,
 	ASSERT(bitmap_weight(&rbio->dbitmap, rbio->stripe_nsectors));
 
 	/*
+	 * Reset errors, as we may have errors inherited from from degraded
+	 * write.
+	 */
+	atomic_set(&rbio->error, 0);
+	rbio->faila = -1;
+	rbio->failb = -1;
+
+	/*
 	 * Start assembly.  Make bios for everything from the higher layers (the
 	 * bio_list in our rbio) and our P/Q.  Ignore everything else.
 	 */
@@ -1663,6 +1671,19 @@ cleanup:
 	while ((bio = bio_list_pop(bio_list)))
 		bio_put(bio);
 	return ret;
+}
+
+static int alloc_rbio_data_pages(struct btrfs_raid_bio *rbio)
+{
+	const int data_pages = rbio->nr_data * rbio->stripe_npages;
+	int ret;
+
+	ret = btrfs_alloc_page_array(data_pages, rbio->stripe_pages);
+	if (ret < 0)
+		return ret;
+
+	index_stripe_sectors(rbio);
+	return 0;
 }
 
 /*
@@ -2452,6 +2473,146 @@ void raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
 	}
 
 	start_async_work(rbio, recover_rbio_work);
+}
+
+static int rmw_read_and_wait(struct btrfs_raid_bio *rbio)
+{
+	struct bio_list bio_list;
+	struct bio *bio;
+	int ret;
+
+	bio_list_init(&bio_list);
+	atomic_set(&rbio->error, 0);
+
+	ret = rmw_assemble_read_bios(rbio, &bio_list);
+	if (ret < 0)
+		goto out;
+
+	submit_read_bios(rbio, &bio_list);
+	wait_event(rbio->io_wait, atomic_read(&rbio->stripes_pending) == 0);
+	return ret;
+out:
+	while ((bio = bio_list_pop(&bio_list)))
+		bio_put(bio);
+
+	return ret;
+}
+
+static void raid_wait_write_end_io(struct bio *bio)
+{
+	struct btrfs_raid_bio *rbio = bio->bi_private;
+	blk_status_t err = bio->bi_status;
+
+	if (err)
+		fail_bio_stripe(rbio, bio);
+	bio_put(bio);
+	if (atomic_dec_and_test(&rbio->stripes_pending))
+		wake_up(&rbio->io_wait);
+}
+
+static void submit_write_bios(struct btrfs_raid_bio *rbio,
+			      struct bio_list *bio_list)
+{
+	struct bio *bio;
+
+	atomic_set(&rbio->stripes_pending, bio_list_size(bio_list));
+	while ((bio = bio_list_pop(bio_list))) {
+		bio->bi_end_io = raid_wait_write_end_io;
+
+		if (trace_raid56_write_stripe_enabled()) {
+			struct raid56_bio_trace_info trace_info = { 0 };
+
+			bio_get_trace_info(rbio, bio, &trace_info);
+			trace_raid56_write_stripe(rbio, bio, &trace_info);
+		}
+		submit_bio(bio);
+	}
+}
+
+int rmw_rbio(struct btrfs_raid_bio *rbio)
+{
+	struct bio_list bio_list;
+	int sectornr;
+	int ret = 0;
+
+	/*
+	 * Allocate the pages for parity first, as P/Q pages will always be
+	 * needed for both full-stripe and sub-stripe writes.
+	 */
+	ret = alloc_rbio_parity_pages(rbio);
+	if (ret < 0)
+		return ret;
+
+	/* Full stripe write, can write the full stripe right now. */
+	if (rbio_is_full(rbio))
+		goto write;
+	/*
+	 * Now we're doing sub-stripe write, also need all data stripes to do
+	 * the full RMW.
+	 */
+	ret = alloc_rbio_data_pages(rbio);
+	if (ret < 0)
+		return ret;
+
+	atomic_set(&rbio->error, 0);
+	index_rbio_pages(rbio);
+
+	ret = rmw_read_and_wait(rbio);
+	if (ret < 0)
+		return ret;
+
+	/* Too many read errors, beyond our tolerance. */
+	if (atomic_read(&rbio->error) > rbio->bioc->max_errors)
+		return ret;
+
+	/* Have read failures but under tolerance, needs recovery. */
+	if (rbio->faila >= 0 || rbio->failb >= 0) {
+		ret = recover_rbio(rbio);
+		if (ret < 0)
+			return ret;
+	}
+write:
+	/*
+	 * At this stage we're not allowed to add any new bios to the
+	 * bio list any more, anyone else that wants to change this stripe
+	 * needs to do their own rmw.
+	 */
+	spin_lock_irq(&rbio->bio_list_lock);
+	set_bit(RBIO_RMW_LOCKED_BIT, &rbio->flags);
+	spin_unlock_irq(&rbio->bio_list_lock);
+
+	atomic_set(&rbio->error, 0);
+
+	index_rbio_pages(rbio);
+
+	/*
+	 * We don't cache full rbios because we're assuming
+	 * the higher layers are unlikely to use this area of
+	 * the disk again soon.  If they do use it again,
+	 * hopefully they will send another full bio.
+	 */
+	if (!rbio_is_full(rbio))
+		cache_rbio_pages(rbio);
+	else
+		clear_bit(RBIO_CACHE_READY_BIT, &rbio->flags);
+
+	for (sectornr = 0; sectornr < rbio->stripe_nsectors; sectornr++)
+		generate_pq_vertical(rbio, sectornr);
+
+	bio_list_init(&bio_list);
+	ret = rmw_assemble_write_bios(rbio, &bio_list);
+	if (ret < 0)
+		return ret;
+
+	/* We should have at least one bio assembled. */
+	ASSERT(bio_list_size(&bio_list));
+	submit_write_bios(rbio, &bio_list);
+	wait_event(rbio->io_wait, atomic_read(&rbio->stripes_pending) == 0);
+
+	/* We have more errors than our tolerance during the read. */
+	if (atomic_read(&rbio->error) > rbio->bioc->max_errors)
+		ret = -EIO;
+	return ret;
 }
 
 static void rmw_work(struct work_struct *work)

@@ -185,4 +185,9 @@ void raid56_submit_missing_rbio(struct btrfs_raid_bio *rbio);
 int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info);
 void btrfs_free_stripe_hash_table(struct btrfs_fs_info *info);
 
+/*
+ * Placeholder definition to avoid warning, will be removed when
+ * the full write path is migrated.
+ */
+int rmw_rbio(struct btrfs_raid_bio *rbio);
 #endif
