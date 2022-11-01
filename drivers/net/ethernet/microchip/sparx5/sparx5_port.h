@@ -91,4 +91,25 @@ int sparx5_get_port_status(struct sparx5 *sparx5,
 void sparx5_port_enable(struct sparx5_port *port, bool enable);
 int sparx5_port_fwd_urg(struct sparx5 *sparx5, u32 speed);
 
+#define SPARX5_PORT_QOS_PCP_COUNT 8
+#define SPARX5_PORT_QOS_DEI_COUNT 8
+#define SPARX5_PORT_QOS_PCP_DEI_COUNT \
+	(SPARX5_PORT_QOS_PCP_COUNT + SPARX5_PORT_QOS_DEI_COUNT)
+struct sparx5_port_qos_pcp_map {
+	u8 map[SPARX5_PORT_QOS_PCP_DEI_COUNT];
+};
+
+struct sparx5_port_qos_pcp {
+	struct sparx5_port_qos_pcp_map map;
+};
+
+struct sparx5_port_qos {
+	struct sparx5_port_qos_pcp pcp;
+};
+
+int sparx5_port_qos_set(struct sparx5_port *port, struct sparx5_port_qos *qos);
+
+int sparx5_port_qos_pcp_set(const struct sparx5_port *port,
+			    struct sparx5_port_qos_pcp *qos);
+
 #endif	/* __SPARX5_PORT_H__ */

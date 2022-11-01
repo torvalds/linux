@@ -6,6 +6,7 @@
 
 #include <linux/module.h>
 #include <linux/phy/phy.h>
+#include <net/dcbnl.h>
 
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
@@ -1143,4 +1144,40 @@ void sparx5_port_enable(struct sparx5_port *port, bool enable)
 		 QFWD_SWITCH_PORT_MODE_PORT_ENA,
 		 sparx5,
 		 QFWD_SWITCH_PORT_MODE(port->portno));
+}
+
+int sparx5_port_qos_set(struct sparx5_port *port,
+			struct sparx5_port_qos *qos)
+{
+	sparx5_port_qos_pcp_set(port, &qos->pcp);
+
+	return 0;
+}
+
+int sparx5_port_qos_pcp_set(const struct sparx5_port *port,
+			    struct sparx5_port_qos_pcp *qos)
+{
+	struct sparx5 *sparx5 = port->sparx5;
+	u8 *pcp_itr = qos->map.map;
+	u8 pcp, dp;
+	int i;
+
+	/* Enable/disable pcp and dp for qos classification. */
+	spx5_rmw(ANA_CL_QOS_CFG_PCP_DEI_QOS_ENA_SET(1) |
+		 ANA_CL_QOS_CFG_PCP_DEI_DP_ENA_SET(1),
+		 ANA_CL_QOS_CFG_PCP_DEI_QOS_ENA | ANA_CL_QOS_CFG_PCP_DEI_DP_ENA,
+		 sparx5, ANA_CL_QOS_CFG(port->portno));
+
+	/* Map each pcp and dei value to priority and dp */
+	for (i = 0; i < ARRAY_SIZE(qos->map.map); i++) {
+		pcp = *(pcp_itr + i);
+		dp = (i < SPARX5_PORT_QOS_PCP_COUNT) ? 0 : 1;
+		spx5_rmw(ANA_CL_PCP_DEI_MAP_CFG_PCP_DEI_QOS_VAL_SET(pcp) |
+			 ANA_CL_PCP_DEI_MAP_CFG_PCP_DEI_DP_VAL_SET(dp),
+			 ANA_CL_PCP_DEI_MAP_CFG_PCP_DEI_QOS_VAL |
+			 ANA_CL_PCP_DEI_MAP_CFG_PCP_DEI_DP_VAL, sparx5,
+			 ANA_CL_PCP_DEI_MAP_CFG(port->portno, i));
+	}
+
+	return 0;
 }
