@@ -2134,30 +2134,14 @@ static void raid_recover_end_io_work(struct work_struct *work)
 		__raid_recover_end_io(rbio);
 }
 
-/*
- * reads everything we need off the disk to reconstruct
- * the parity. endio handlers trigger final reconstruction
- * when the IO is done.
- *
- * This is used both for reads from the higher layers and for
- * parity construction required to finish a rmw cycle.
- */
-static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
+static int recover_assemble_read_bios(struct btrfs_raid_bio *rbio,
+				      struct bio_list *bio_list)
 {
-	int bios_to_read = 0;
-	struct bio_list bio_list;
-	int ret;
-	int total_sector_nr;
 	struct bio *bio;
+	int total_sector_nr;
+	int ret = 0;
 
-	bio_list_init(&bio_list);
-
-	ret = alloc_rbio_pages(rbio);
-	if (ret)
-		goto cleanup;
-
-	atomic_set(&rbio->error, 0);
-
+	ASSERT(bio_list_size(bio_list) == 0);
 	/*
 	 * Read everything that hasn't failed. However this time we will
 	 * not trust any cached sector.
@@ -2180,11 +2164,45 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
 			continue;
 		}
 		sector = rbio_stripe_sector(rbio, stripe, sectornr);
-		ret = rbio_add_io_sector(rbio, &bio_list, sector, stripe,
+		ret = rbio_add_io_sector(rbio, bio_list, sector, stripe,
 					 sectornr, REQ_OP_READ);
 		if (ret < 0)
-			goto cleanup;
+			goto error;
 	}
+	return 0;
+error:
+	while ((bio = bio_list_pop(bio_list)))
+		bio_put(bio);
+
+	return -EIO;
+}
+
+/*
+ * reads everything we need off the disk to reconstruct
+ * the parity. endio handlers trigger final reconstruction
+ * when the IO is done.
+ *
+ * This is used both for reads from the higher layers and for
+ * parity construction required to finish a rmw cycle.
+ */
+static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
+{
+	int bios_to_read = 0;
+	struct bio_list bio_list;
+	int ret;
+	struct bio *bio;
+
+	bio_list_init(&bio_list);
+
+	ret = alloc_rbio_pages(rbio);
+	if (ret)
+		goto cleanup;
+
+	atomic_set(&rbio->error, 0);
+
+	ret = recover_assemble_read_bios(rbio, &bio_list);
+	if (ret < 0)
+		goto cleanup;
 
 	bios_to_read = bio_list_size(&bio_list);
 	if (!bios_to_read) {
