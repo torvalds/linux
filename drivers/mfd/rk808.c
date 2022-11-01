@@ -159,29 +159,29 @@ static const struct regmap_config rk817_regmap_config = {
 	.volatile_reg = rk817_is_volatile_reg,
 };
 
-static struct resource rtc_resources[] = {
+static const struct resource rtc_resources[] = {
 	DEFINE_RES_IRQ(RK808_IRQ_RTC_ALARM),
 };
 
-static struct resource rk816_rtc_resources[] = {
+static const struct resource rk816_rtc_resources[] = {
 	DEFINE_RES_IRQ(RK816_IRQ_RTC_ALARM),
 };
 
-static struct resource rk817_rtc_resources[] = {
+static const struct resource rk817_rtc_resources[] = {
 	DEFINE_RES_IRQ(RK817_IRQ_RTC_ALARM),
 };
 
-static struct resource rk805_key_resources[] = {
+static const struct resource rk805_key_resources[] = {
 	DEFINE_RES_IRQ(RK805_IRQ_PWRON_FALL),
 	DEFINE_RES_IRQ(RK805_IRQ_PWRON_RISE),
 };
 
-static struct resource rk816_pwrkey_resources[] = {
+static const struct resource rk816_pwrkey_resources[] = {
 	DEFINE_RES_IRQ(RK816_IRQ_PWRON_FALL),
 	DEFINE_RES_IRQ(RK816_IRQ_PWRON_RISE),
 };
 
-static struct resource rk817_pwrkey_resources[] = {
+static const struct resource rk817_pwrkey_resources[] = {
 	DEFINE_RES_IRQ(RK817_IRQ_PWRON_FALL),
 	DEFINE_RES_IRQ(RK817_IRQ_PWRON_RISE),
 };
@@ -581,7 +581,7 @@ static const struct regmap_irq rk817_irqs[RK817_IRQ_END] = {
 	REGMAP_IRQ_REG_LINE(23, 8)
 };
 
-static struct regmap_irq_chip rk805_irq_chip = {
+static const struct regmap_irq_chip rk805_irq_chip = {
 	.name = "rk805",
 	.irqs = rk805_irqs,
 	.num_irqs = ARRAY_SIZE(rk805_irqs),
@@ -636,7 +636,7 @@ static const struct regmap_irq rk816_battery_irqs[] = {
 	},
 };
 
-static struct regmap_irq_chip rk816_irq_chip = {
+static const struct regmap_irq_chip rk816_irq_chip = {
 	.name = "rk816",
 	.irqs = rk816_irqs,
 	.num_irqs = ARRAY_SIZE(rk816_irqs),
@@ -648,7 +648,7 @@ static struct regmap_irq_chip rk816_irq_chip = {
 	.init_ack_masked = true,
 };
 
-static struct regmap_irq_chip rk816_battery_irq_chip = {
+static const struct regmap_irq_chip rk816_battery_irq_chip = {
 	.name = "rk816_battery",
 	.irqs = rk816_battery_irqs,
 	.num_irqs = ARRAY_SIZE(rk816_battery_irqs),
@@ -659,7 +659,7 @@ static struct regmap_irq_chip rk816_battery_irq_chip = {
 	.init_ack_masked = true,
 };
 
-static struct regmap_irq_chip rk817_irq_chip = {
+static const struct regmap_irq_chip rk817_irq_chip = {
 	.name = "rk817",
 	.irqs = rk817_irqs,
 	.num_irqs = ARRAY_SIZE(rk817_irqs),
