@@ -583,6 +583,13 @@ static int aspeed_tach_create_fan(struct device *dev, struct device_node *child,
 	return 0;
 }
 
+static void aspeed_tach_reset_assert(void *data)
+{
+	struct reset_control *rst = data;
+
+	reset_control_assert(rst);
+}
+
 static int aspeed_tach_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -612,7 +619,7 @@ static int aspeed_tach_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	parent_dev = of_find_device_by_node(np);
-	priv->clk = devm_clk_get(&parent_dev->dev, 0);
+	priv->clk = devm_clk_get_enabled(&parent_dev->dev, 0);
 	if (IS_ERR(priv->clk))
 		return dev_err_probe(dev, PTR_ERR(priv->clk),
 				     "Couldn't get clock\n");
@@ -622,20 +629,21 @@ static int aspeed_tach_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(priv->reset),
 				     "Couldn't get reset control\n");
 
-	ret = clk_prepare_enable(priv->clk);
-	if (ret)
-		return dev_err_probe(dev, ret, "Couldn't enable clock\n");
-
 	ret = reset_control_deassert(priv->reset);
-	if (ret) {
-		dev_err_probe(dev, ret, "Couldn't deassert reset control\n");
-		goto err_disable_clk;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Couldn't deassert reset control\n");
+
+	ret = devm_add_action_or_reset(dev, aspeed_tach_reset_assert,
+				       priv->reset);
+	if (ret)
+		return ret;
+
 	for_each_child_of_node(dev->of_node, child) {
 		ret = aspeed_tach_create_fan(dev, child, priv);
 		if (ret) {
 			of_node_put(child);
-			goto err_assert_reset;
+			return ret;
 		}
 	}
 
@@ -644,26 +652,9 @@ static int aspeed_tach_probe(struct platform_device *pdev)
 	hwmon = devm_hwmon_device_register_with_groups(dev, "aspeed_tach", priv,
 						       priv->groups);
 	ret = PTR_ERR_OR_ZERO(hwmon);
-	if (ret) {
-		dev_err_probe(dev, ret, "Failed to register hwmon device\n");
-		goto err_assert_reset;
-	}
-	platform_set_drvdata(pdev, priv);
-	return 0;
-err_assert_reset:
-	reset_control_assert(priv->reset);
-err_disable_clk:
-	clk_disable_unprepare(priv->clk);
-	return ret;
-}
-
-static int aspeed_tach_remove(struct platform_device *pdev)
-{
-	struct aspeed_tach_data *priv = platform_get_drvdata(pdev);
-
-	reset_control_assert(priv->reset);
-	clk_disable_unprepare(priv->clk);
-
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Failed to register hwmon device\n");
 	return 0;
 }
 
@@ -677,7 +668,6 @@ MODULE_DEVICE_TABLE(of, of_stach_match_table);
 
 static struct platform_driver aspeed_tach_driver = {
 	.probe		= aspeed_tach_probe,
-	.remove		= aspeed_tach_remove,
 	.driver		= {
 		.name	= "aspeed_tach",
 		.of_match_table = of_stach_match_table,
