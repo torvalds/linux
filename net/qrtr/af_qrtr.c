@@ -301,6 +301,64 @@ static void qrtr_log_rx_msg(struct qrtr_node *node, struct sk_buff *skb)
 	}
 }
 
+void qrtr_print_wakeup_reason(const void *data)
+{
+	const struct qrtr_hdr_v1 *v1;
+	const struct qrtr_hdr_v2 *v2;
+	struct qrtr_cb cb;
+	unsigned int size;
+	unsigned int ver;
+	int service_id;
+	size_t hdrlen;
+	u64 preview = 0;
+
+	ver = *(u8 *)data;
+	switch (ver) {
+	case QRTR_PROTO_VER_1:
+		v1 = data;
+		hdrlen = sizeof(*v1);
+		cb.src_node = le32_to_cpu(v1->src_node_id);
+		cb.src_port = le32_to_cpu(v1->src_port_id);
+		cb.dst_node = le32_to_cpu(v1->dst_node_id);
+		cb.dst_port = le32_to_cpu(v1->dst_port_id);
+
+		size = le32_to_cpu(v1->size);
+		break;
+	case QRTR_PROTO_VER_2:
+		v2 = data;
+		hdrlen = sizeof(*v2) + v2->optlen;
+		cb.src_node = le16_to_cpu(v2->src_node_id);
+		cb.src_port = le16_to_cpu(v2->src_port_id);
+		cb.dst_node = le16_to_cpu(v2->dst_node_id);
+		cb.dst_port = le16_to_cpu(v2->dst_port_id);
+
+		if (cb.src_port == (u16)QRTR_PORT_CTRL)
+			cb.src_port = QRTR_PORT_CTRL;
+		if (cb.dst_port == (u16)QRTR_PORT_CTRL)
+			cb.dst_port = QRTR_PORT_CTRL;
+
+		size = le32_to_cpu(v2->size);
+		break;
+	default:
+		return;
+	}
+
+	service_id = qrtr_get_service_id(cb.src_node, cb.src_port);
+	if (service_id < 0)
+		service_id = qrtr_get_service_id(cb.dst_node, cb.dst_port);
+
+	size = (sizeof(preview) > size) ? size : sizeof(preview);
+	memcpy(&preview, data + hdrlen, size);
+
+	pr_info("%s: src[0x%x:0x%x] dst[0x%x:0x%x] [%08x %08x] service[0x%x]\n",
+		__func__,
+		cb.src_node, cb.src_port,
+		cb.dst_node, cb.dst_port,
+		(unsigned int)preview, (unsigned int)(preview >> 32),
+		service_id);
+}
+EXPORT_SYMBOL(qrtr_print_wakeup_reason);
+
 static bool refcount_dec_and_rwsem_lock(refcount_t *r,
 					struct rw_semaphore *sem)
 {
