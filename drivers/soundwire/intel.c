@@ -831,7 +831,7 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	int ch, dir;
 	int ret;
 
-	dai_runtime = snd_soc_dai_get_dma_data(dai, substream);
+	dai_runtime = cdns->dai_runtime_array[dai->id];
 	if (!dai_runtime)
 		return -EIO;
 
@@ -902,7 +902,7 @@ static int intel_prepare(struct snd_pcm_substream *substream,
 	int ch, dir;
 	int ret = 0;
 
-	dai_runtime = snd_soc_dai_get_dma_data(dai, substream);
+	dai_runtime = cdns->dai_runtime_array[dai->id];
 	if (!dai_runtime) {
 		dev_err(dai->dev, "failed to get dai runtime in %s\n",
 			__func__);
@@ -949,7 +949,7 @@ intel_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 	struct sdw_cdns_dai_runtime *dai_runtime;
 	int ret;
 
-	dai_runtime = snd_soc_dai_get_dma_data(dai, substream);
+	dai_runtime = cdns->dai_runtime_array[dai->id];
 	if (!dai_runtime)
 		return -EIO;
 
@@ -996,13 +996,10 @@ static int intel_pcm_set_sdw_stream(struct snd_soc_dai *dai,
 static void *intel_get_sdw_stream(struct snd_soc_dai *dai,
 				  int direction)
 {
+	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
 	struct sdw_cdns_dai_runtime *dai_runtime;
 
-	if (direction == SNDRV_PCM_STREAM_PLAYBACK)
-		dai_runtime = dai->playback_dma_data;
-	else
-		dai_runtime = dai->capture_dma_data;
-
+	dai_runtime = cdns->dai_runtime_array[dai->id];
 	if (!dai_runtime)
 		return ERR_PTR(-EINVAL);
 
@@ -1025,7 +1022,7 @@ static int intel_trigger(struct snd_pcm_substream *substream, int cmd, struct sn
 	if (res->ops && res->ops->trigger)
 		res->ops->trigger(dai, cmd, substream->stream);
 
-	dai_runtime = snd_soc_dai_get_dma_data(dai, substream);
+	dai_runtime = cdns->dai_runtime_array[dai->id];
 	if (!dai_runtime) {
 		dev_err(dai->dev, "failed to get dai runtime in %s\n",
 			__func__);
@@ -1092,15 +1089,9 @@ static int intel_component_dais_suspend(struct snd_soc_component *component)
 		struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
 		struct sdw_intel *sdw = cdns_to_intel(cdns);
 		struct sdw_cdns_dai_runtime *dai_runtime;
-		int stream;
 		int ret;
 
-		dai_runtime = dai->playback_dma_data;
-		stream = SNDRV_PCM_STREAM_PLAYBACK;
-		if (!dai_runtime) {
-			dai_runtime = dai->capture_dma_data;
-			stream = SNDRV_PCM_STREAM_CAPTURE;
-		}
+		dai_runtime = cdns->dai_runtime_array[dai->id];
 
 		if (!dai_runtime)
 			continue;
@@ -1111,7 +1102,7 @@ static int intel_component_dais_suspend(struct snd_soc_component *component)
 		if (dai_runtime->paused) {
 			dai_runtime->suspended = true;
 
-			ret = intel_free_stream(sdw, stream, dai, sdw->instance);
+			ret = intel_free_stream(sdw, dai_runtime->direction, dai, sdw->instance);
 			if (ret < 0)
 				return ret;
 		}
@@ -1178,6 +1169,7 @@ static int intel_create_dai(struct sdw_cdns *cdns,
 
 static int intel_register_dai(struct sdw_intel *sdw)
 {
+	struct sdw_cdns_dai_runtime **dai_runtime_array;
 	struct sdw_cdns_stream_config config;
 	struct sdw_cdns *cdns = &sdw->cdns;
 	struct sdw_cdns_streams *stream;
@@ -1194,6 +1186,13 @@ static int intel_register_dai(struct sdw_intel *sdw)
 
 	/* DAIs are created based on total number of PDIs supported */
 	num_dai = cdns->pcm.num_pdi;
+
+	dai_runtime_array = devm_kcalloc(cdns->dev, num_dai,
+					 sizeof(struct sdw_cdns_dai_runtime *),
+					 GFP_KERNEL);
+	if (!dai_runtime_array)
+		return -ENOMEM;
+	cdns->dai_runtime_array = dai_runtime_array;
 
 	dais = devm_kcalloc(cdns->dev, num_dai, sizeof(*dais), GFP_KERNEL);
 	if (!dais)

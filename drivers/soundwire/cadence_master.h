@@ -81,6 +81,7 @@ struct sdw_cdns_stream_config {
  * @hw_params: hw_params to be applied in .prepare step
  * @suspended: status set when suspended, to be used in .prepare
  * @paused: status set in .trigger, to be used in suspend
+ * @direction: stream direction
  */
 struct sdw_cdns_dai_runtime {
 	char *name;
@@ -92,6 +93,7 @@ struct sdw_cdns_dai_runtime {
 	struct snd_pcm_hw_params *hw_params;
 	bool suspended;
 	bool paused;
+	int direction;
 };
 
 /**
@@ -108,6 +110,7 @@ struct sdw_cdns_dai_runtime {
  * @registers: Cadence registers
  * @link_up: Link status
  * @msg_count: Messages sent on bus
+ * @dai_runtime_array: runtime context for each allocated DAI.
  */
 struct sdw_cdns {
 	struct device *dev;
@@ -135,6 +138,8 @@ struct sdw_cdns {
 	struct work_struct work;
 
 	struct list_head list;
+
+	struct sdw_cdns_dai_runtime **dai_runtime_array;
 };
 
 #define bus_to_cdns(_bus) container_of(_bus, struct sdw_cdns, bus)
