@@ -1244,3 +1244,83 @@ void damon_sysfs_schemes_update_stats(
 		sysfs_stats->qt_exceeds = scheme->stat.qt_exceeds;
 	}
 }
+
+/*
+ * damon_sysfs_schemes that need to update its schemes regions dir.  Protected
+ * by damon_sysfs_lock
+ */
+static struct damon_sysfs_schemes *damon_sysfs_schemes_for_damos_callback;
+static int damon_sysfs_schemes_region_idx;
+
+/*
+ * DAMON callback that called before damos apply.  While this callback is
+ * registered, damon_sysfs_lock should be held to ensure the regions
+ * directories exist.
+ */
+static int damon_sysfs_before_damos_apply(struct damon_ctx *ctx,
+		struct damon_target *t, struct damon_region *r,
+		struct damos *s)
+{
+	struct damos *scheme;
+	struct damon_sysfs_scheme_regions *sysfs_regions;
+	struct damon_sysfs_scheme_region *region;
+	struct damon_sysfs_schemes *sysfs_schemes =
+		damon_sysfs_schemes_for_damos_callback;
+	int schemes_idx = 0;
+
+	damon_for_each_scheme(scheme, ctx) {
+		if (scheme == s)
+			break;
+		schemes_idx++;
+	}
+
+	/* user could have removed the scheme sysfs dir */
+	if (schemes_idx >= sysfs_schemes->nr)
+		return 0;
+
+	sysfs_regions = sysfs_schemes->schemes_arr[schemes_idx]->tried_regions;
+	region = damon_sysfs_scheme_region_alloc(r);
+	list_add_tail(&region->list, &sysfs_regions->regions_list);
+	sysfs_regions->nr_regions++;
+	if (kobject_init_and_add(&region->kobj,
+				&damon_sysfs_scheme_region_ktype,
+				&sysfs_regions->kobj, "%d",
+				damon_sysfs_schemes_region_idx++)) {
+		kobject_put(&region->kobj);
+	}
+	return 0;
+}
+
+/* Called from damon_sysfs_cmd_request_callback under damon_sysfs_lock */
+int damon_sysfs_schemes_update_regions_start(
+		struct damon_sysfs_schemes *sysfs_schemes,
+		struct damon_ctx *ctx)
+{
+	struct damos *scheme;
+	int schemes_idx = 0;
+
+	damon_for_each_scheme(scheme, ctx) {
+		struct damon_sysfs_scheme *sysfs_scheme;
+
+		sysfs_scheme = sysfs_schemes->schemes_arr[schemes_idx++];
+		damon_sysfs_scheme_regions_rm_dirs(
+				sysfs_scheme->tried_regions);
+	}
+
+	damon_sysfs_schemes_for_damos_callback = sysfs_schemes;
+	ctx->callback.before_damos_apply = damon_sysfs_before_damos_apply;
+	return 0;
+}
+
+/*
+ * Called from damon_sysfs_cmd_request_callback under damon_sysfs_lock.  Caller
+ * should unlock damon_sysfs_lock which held before
+ * damon_sysfs_schemes_update_regions_start()
+ */
+int damon_sysfs_schemes_update_regions_stop(struct damon_ctx *ctx)
+{
+	damon_sysfs_schemes_for_damos_callback = NULL;
+	ctx->callback.before_damos_apply = NULL;
+	damon_sysfs_schemes_region_idx = 0;
+	return 0;
+}

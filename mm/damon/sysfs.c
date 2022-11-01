@@ -1000,6 +1000,11 @@ enum damon_sysfs_cmd {
 	 */
 	DAMON_SYSFS_CMD_UPDATE_SCHEMES_STATS,
 	/*
+	 * @DAMON_SYSFS_CMD_UPDATE_SCHEMES_TRIED_REGIONS: Update schemes tried
+	 * regions
+	 */
+	DAMON_SYSFS_CMD_UPDATE_SCHEMES_TRIED_REGIONS,
+	/*
 	 * @NR_DAMON_SYSFS_CMDS: Total number of DAMON sysfs commands.
 	 */
 	NR_DAMON_SYSFS_CMDS,
@@ -1011,6 +1016,7 @@ static const char * const damon_sysfs_cmd_strs[] = {
 	"off",
 	"commit",
 	"update_schemes_stats",
+	"update_schemes_tried_regions",
 };
 
 /*
@@ -1193,6 +1199,16 @@ static int damon_sysfs_set_targets(struct damon_ctx *ctx,
 static void damon_sysfs_before_terminate(struct damon_ctx *ctx)
 {
 	struct damon_target *t, *next;
+	struct damon_sysfs_kdamond *kdamond;
+
+	/* damon_sysfs_schemes_update_regions_stop() might not yet called */
+	kdamond = damon_sysfs_cmd_request.kdamond;
+	if (kdamond && damon_sysfs_cmd_request.cmd ==
+			DAMON_SYSFS_CMD_UPDATE_SCHEMES_TRIED_REGIONS &&
+			ctx == kdamond->damon_ctx) {
+		damon_sysfs_schemes_update_regions_stop(ctx);
+		mutex_unlock(&damon_sysfs_lock);
+	}
 
 	if (!damon_target_has_pid(ctx))
 		return;
@@ -1223,6 +1239,27 @@ static int damon_sysfs_upd_schemes_stats(struct damon_sysfs_kdamond *kdamond)
 	damon_sysfs_schemes_update_stats(
 			kdamond->contexts->contexts_arr[0]->schemes, ctx);
 	return 0;
+}
+
+static int damon_sysfs_upd_schemes_regions_start(
+		struct damon_sysfs_kdamond *kdamond)
+{
+	struct damon_ctx *ctx = kdamond->damon_ctx;
+
+	if (!ctx)
+		return -EINVAL;
+	return damon_sysfs_schemes_update_regions_start(
+			kdamond->contexts->contexts_arr[0]->schemes, ctx);
+}
+
+static int damon_sysfs_upd_schemes_regions_stop(
+		struct damon_sysfs_kdamond *kdamond)
+{
+	struct damon_ctx *ctx = kdamond->damon_ctx;
+
+	if (!ctx)
+		return -EINVAL;
+	return damon_sysfs_schemes_update_regions_stop(ctx);
 }
 
 static inline bool damon_sysfs_kdamond_running(
@@ -1277,10 +1314,12 @@ static int damon_sysfs_commit_input(struct damon_sysfs_kdamond *kdamond)
 static int damon_sysfs_cmd_request_callback(struct damon_ctx *c)
 {
 	struct damon_sysfs_kdamond *kdamond;
+	static bool damon_sysfs_schemes_regions_updating;
 	int err = 0;
 
 	/* avoid deadlock due to concurrent state_store('off') */
-	if (!mutex_trylock(&damon_sysfs_lock))
+	if (!damon_sysfs_schemes_regions_updating &&
+			!mutex_trylock(&damon_sysfs_lock))
 		return 0;
 	kdamond = damon_sysfs_cmd_request.kdamond;
 	if (!kdamond || kdamond->damon_ctx != c)
@@ -1292,13 +1331,27 @@ static int damon_sysfs_cmd_request_callback(struct damon_ctx *c)
 	case DAMON_SYSFS_CMD_COMMIT:
 		err = damon_sysfs_commit_input(kdamond);
 		break;
+	case DAMON_SYSFS_CMD_UPDATE_SCHEMES_TRIED_REGIONS:
+		if (!damon_sysfs_schemes_regions_updating) {
+			err = damon_sysfs_upd_schemes_regions_start(kdamond);
+			if (!err) {
+				damon_sysfs_schemes_regions_updating = true;
+				goto keep_lock_out;
+			}
+		} else {
+			err = damon_sysfs_upd_schemes_regions_stop(kdamond);
+			damon_sysfs_schemes_regions_updating = false;
+		}
+		break;
 	default:
 		break;
 	}
 	/* Mark the request as invalid now. */
 	damon_sysfs_cmd_request.kdamond = NULL;
 out:
-	mutex_unlock(&damon_sysfs_lock);
+	if (!damon_sysfs_schemes_regions_updating)
+		mutex_unlock(&damon_sysfs_lock);
+keep_lock_out:
 	return err;
 }
 
