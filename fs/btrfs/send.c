@@ -77,7 +77,7 @@ struct clone_root {
 	u64 ino;
 	u64 offset;
 	u64 num_bytes;
-	u64 found_refs;
+	bool found_ref;
 };
 
 #define SEND_CTX_MAX_NAME_CACHE_SIZE 128
@@ -1281,9 +1281,6 @@ struct backref_ctx {
 
 	/* may be truncated in case it's the last extent in a file */
 	u64 extent_len;
-
-	/* Just to check for bugs in backref resolving */
-	int found_itself;
 };
 
 static int __clone_root_cmp_bsearch(const void *key, const void *elt)
@@ -1312,33 +1309,33 @@ static int __clone_root_cmp_sort(const void *e1, const void *e2)
 
 /*
  * Called for every backref that is found for the current extent.
- * Results are collected in sctx->clone_roots->ino/offset/found_refs
+ * Results are collected in sctx->clone_roots->ino/offset.
  */
-static int __iterate_backrefs(u64 ino, u64 offset, u64 num_bytes, u64 root,
-			      void *ctx_)
+static int iterate_backrefs(u64 ino, u64 offset, u64 num_bytes, u64 root_id,
+			    void *ctx_)
 {
 	struct backref_ctx *bctx = ctx_;
-	struct clone_root *found;
+	struct clone_root *clone_root;
 
 	/* First check if the root is in the list of accepted clone sources */
-	found = bsearch((void *)(uintptr_t)root, bctx->sctx->clone_roots,
-			bctx->sctx->clone_roots_cnt,
-			sizeof(struct clone_root),
-			__clone_root_cmp_bsearch);
-	if (!found)
+	clone_root = bsearch((void *)(uintptr_t)root_id, bctx->sctx->clone_roots,
+			     bctx->sctx->clone_roots_cnt,
+			     sizeof(struct clone_root),
+			     __clone_root_cmp_bsearch);
+	if (!clone_root)
 		return 0;
 
-	if (found->root == bctx->sctx->send_root &&
+	/* This is our own reference, bail out as we can't clone from it. */
+	if (clone_root->root == bctx->sctx->send_root &&
 	    ino == bctx->cur_objectid &&
-	    offset == bctx->cur_offset) {
-		bctx->found_itself = 1;
-	}
+	    offset == bctx->cur_offset)
+		return 0;
 
 	/*
 	 * Make sure we don't consider clones from send_root that are
 	 * behind the current inode/offset.
 	 */
-	if (found->root == bctx->sctx->send_root) {
+	if (clone_root->root == bctx->sctx->send_root) {
 		/*
 		 * If the source inode was not yet processed we can't issue a
 		 * clone operation, as the source extent does not exist yet at
@@ -1359,7 +1356,7 @@ static int __iterate_backrefs(u64 ino, u64 offset, u64 num_bytes, u64 root,
 	}
 
 	bctx->found++;
-	found->found_refs++;
+	clone_root->found_ref = true;
 
 	/*
 	 * If the given backref refers to a file extent item with a larger
@@ -1367,10 +1364,17 @@ static int __iterate_backrefs(u64 ino, u64 offset, u64 num_bytes, u64 root,
 	 * we clone more optimally and end up doing less writes and getting
 	 * less exclusive, non-shared extents at the destination.
 	 */
-	if (num_bytes > found->num_bytes) {
-		found->ino = ino;
-		found->offset = offset;
-		found->num_bytes = num_bytes;
+	if (num_bytes > clone_root->num_bytes) {
+		clone_root->ino = ino;
+		clone_root->offset = offset;
+		clone_root->num_bytes = num_bytes;
+
+		/*
+		 * Found a perfect candidate, so there's no need to continue
+		 * backref walking.
+		 */
+		if (num_bytes >= bctx->extent_len)
+			return BTRFS_ITERATE_EXTENT_INODES_STOP;
 	}
 
 	return 0;
@@ -1392,7 +1396,8 @@ static void empty_backref_cache(struct send_ctx *sctx)
 static bool lookup_backref_cache(u64 leaf_bytenr, void *ctx,
 				 const u64 **root_ids_ret, int *root_count_ret)
 {
-	struct send_ctx *sctx = ctx;
+	struct backref_ctx *bctx = ctx;
+	struct send_ctx *sctx = bctx->sctx;
 	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	const u64 key = leaf_bytenr >> fs_info->sectorsize_bits;
 	struct backref_cache_entry *entry;
@@ -1430,7 +1435,8 @@ static bool lookup_backref_cache(u64 leaf_bytenr, void *ctx,
 static void store_backref_cache(u64 leaf_bytenr, const struct ulist *root_ids,
 				void *ctx)
 {
-	struct send_ctx *sctx = ctx;
+	struct backref_ctx *bctx = ctx;
+	struct send_ctx *sctx = bctx->sctx;
 	struct btrfs_fs_info *fs_info = sctx->send_root->fs_info;
 	struct backref_cache_entry *new_entry;
 	struct ulist_iterator uiter;
@@ -1618,7 +1624,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 		cur_clone_root->ino = (u64)-1;
 		cur_clone_root->offset = 0;
 		cur_clone_root->num_bytes = 0;
-		cur_clone_root->found_refs = 0;
+		cur_clone_root->found_ref = false;
 	}
 
 	backref_ctx.sctx = sctx;
@@ -1628,7 +1634,7 @@ static int find_extent_clone(struct send_ctx *sctx,
 	/*
 	 * The last extent of a file may be too large due to page alignment.
 	 * We need to adjust extent_len in this case so that the checks in
-	 * __iterate_backrefs work.
+	 * iterate_backrefs() work.
 	 */
 	if (data_offset + num_bytes >= ino_size)
 		backref_ctx.extent_len = ino_size - data_offset;
@@ -1644,9 +1650,10 @@ static int find_extent_clone(struct send_ctx *sctx,
 	backref_walk_ctx.fs_info = fs_info;
 	backref_walk_ctx.cache_lookup = lookup_backref_cache;
 	backref_walk_ctx.cache_store = store_backref_cache;
-	backref_walk_ctx.user_ctx = sctx;
+	backref_walk_ctx.indirect_ref_iterator = iterate_backrefs;
+	backref_walk_ctx.user_ctx = &backref_ctx;
 
-	ret = iterate_extent_inodes(&backref_walk_ctx, true, __iterate_backrefs,
+	ret = iterate_extent_inodes(&backref_walk_ctx, true, iterate_backrefs,
 				    &backref_ctx);
 	if (ret < 0)
 		goto out;
@@ -1671,27 +1678,21 @@ static int find_extent_clone(struct send_ctx *sctx,
 	}
 	up_read(&fs_info->commit_root_sem);
 
-	if (!backref_ctx.found_itself) {
-		/* found a bug in backref code? */
-		ret = -EIO;
-		btrfs_err(fs_info,
-			  "did not find backref in send_root. inode=%llu, offset=%llu, disk_byte=%llu found extent=%llu",
-			  ino, data_offset, disk_byte, found_key.objectid);
-		goto out;
-	}
-
 	btrfs_debug(fs_info,
 		    "find_extent_clone: data_offset=%llu, ino=%llu, num_bytes=%llu, logical=%llu",
 		    data_offset, ino, num_bytes, logical);
 
-	if (!backref_ctx.found)
+	if (!backref_ctx.found) {
 		btrfs_debug(fs_info, "no clones found");
+		ret = -ENOENT;
+		goto out;
+	}
 
 	cur_clone_root = NULL;
 	for (i = 0; i < sctx->clone_roots_cnt; i++) {
 		struct clone_root *clone_root = &sctx->clone_roots[i];
 
-		if (clone_root->found_refs == 0)
+		if (!clone_root->found_ref)
 			continue;
 
 		/*

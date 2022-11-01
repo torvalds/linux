@@ -31,15 +31,18 @@ struct extent_inode_elem {
 	struct extent_inode_elem *next;
 };
 
-static int check_extent_in_eb(const struct btrfs_key *key,
+static int check_extent_in_eb(struct btrfs_backref_walk_ctx *ctx,
+			      const struct btrfs_key *key,
 			      const struct extent_buffer *eb,
 			      const struct btrfs_file_extent_item *fi,
-			      u64 extent_item_pos,
 			      struct extent_inode_elem **eie)
 {
 	const u64 data_len = btrfs_file_extent_num_bytes(eb, fi);
-	u64 offset = 0;
+	u64 offset = key->offset;
 	struct extent_inode_elem *e;
+	const u64 *root_ids;
+	int root_count;
+	bool cached;
 
 	if (!btrfs_file_extent_compression(eb, fi) &&
 	    !btrfs_file_extent_encryption(eb, fi) &&
@@ -48,19 +51,38 @@ static int check_extent_in_eb(const struct btrfs_key *key,
 
 		data_offset = btrfs_file_extent_offset(eb, fi);
 
-		if (extent_item_pos < data_offset ||
-		    extent_item_pos >= data_offset + data_len)
+		if (ctx->extent_item_pos < data_offset ||
+		    ctx->extent_item_pos >= data_offset + data_len)
 			return 1;
-		offset = extent_item_pos - data_offset;
+		offset += ctx->extent_item_pos - data_offset;
 	}
 
+	if (!ctx->indirect_ref_iterator || !ctx->cache_lookup)
+		goto add_inode_elem;
+
+	cached = ctx->cache_lookup(eb->start, ctx->user_ctx, &root_ids,
+				   &root_count);
+	if (!cached)
+		goto add_inode_elem;
+
+	for (int i = 0; i < root_count; i++) {
+		int ret;
+
+		ret = ctx->indirect_ref_iterator(key->objectid, offset,
+						 data_len, root_ids[i],
+						 ctx->user_ctx);
+		if (ret)
+			return ret;
+	}
+
+add_inode_elem:
 	e = kmalloc(sizeof(*e), GFP_NOFS);
 	if (!e)
 		return -ENOMEM;
 
 	e->next = *eie;
 	e->inum = key->objectid;
-	e->offset = key->offset + offset;
+	e->offset = offset;
 	e->num_bytes = data_len;
 	*eie = e;
 
@@ -77,8 +99,8 @@ static void free_inode_elem_list(struct extent_inode_elem *eie)
 	}
 }
 
-static int find_extent_in_eb(const struct extent_buffer *eb,
-			     u64 wanted_disk_byte, u64 extent_item_pos,
+static int find_extent_in_eb(struct btrfs_backref_walk_ctx *ctx,
+			     const struct extent_buffer *eb,
 			     struct extent_inode_elem **eie)
 {
 	u64 disk_byte;
@@ -105,11 +127,11 @@ static int find_extent_in_eb(const struct extent_buffer *eb,
 			continue;
 		/* don't skip BTRFS_FILE_EXTENT_PREALLOC, we can handle that */
 		disk_byte = btrfs_file_extent_disk_bytenr(eb, fi);
-		if (disk_byte != wanted_disk_byte)
+		if (disk_byte != ctx->bytenr)
 			continue;
 
-		ret = check_extent_in_eb(&key, eb, fi, extent_item_pos, eie);
-		if (ret < 0)
+		ret = check_extent_in_eb(ctx, &key, eb, fi, eie);
+		if (ret == BTRFS_ITERATE_EXTENT_INODES_STOP || ret < 0)
 			return ret;
 	}
 
@@ -526,9 +548,9 @@ static int add_all_parents(struct btrfs_backref_walk_ctx *ctx,
 			else
 				goto next;
 			if (!ctx->ignore_extent_item_pos) {
-				ret = check_extent_in_eb(&key, eb, fi,
-							 ctx->extent_item_pos, &eie);
-				if (ret < 0)
+				ret = check_extent_in_eb(ctx, &key, eb, fi, &eie);
+				if (ret == BTRFS_ITERATE_EXTENT_INODES_STOP ||
+				    ret < 0)
 					break;
 			}
 			if (ret > 0)
@@ -551,10 +573,11 @@ next:
 			ret = btrfs_next_old_item(root, path, ctx->time_seq);
 	}
 
-	if (ret > 0)
-		ret = 0;
-	else if (ret < 0)
+	if (ret == BTRFS_ITERATE_EXTENT_INODES_STOP || ret < 0)
 		free_inode_elem_list(eie);
+	else if (ret > 0)
+		ret = 0;
+
 	return ret;
 }
 
@@ -1570,12 +1593,12 @@ again:
 
 				if (!path->skip_locking)
 					btrfs_tree_read_lock(eb);
-				ret = find_extent_in_eb(eb, ctx->bytenr,
-							ctx->extent_item_pos, &eie);
+				ret = find_extent_in_eb(ctx, eb, &eie);
 				if (!path->skip_locking)
 					btrfs_tree_read_unlock(eb);
 				free_extent_buffer(eb);
-				if (ret < 0)
+				if (ret == BTRFS_ITERATE_EXTENT_INODES_STOP ||
+				    ret < 0)
 					goto out;
 				ref->inode_list = eie;
 				/*
@@ -1628,7 +1651,7 @@ out:
 	prelim_release(&preftrees.indirect);
 	prelim_release(&preftrees.indirect_missing_keys);
 
-	if (ret < 0)
+	if (ret == BTRFS_ITERATE_EXTENT_INODES_STOP || ret < 0)
 		free_inode_elem_list(eie);
 	return ret;
 }
@@ -1654,7 +1677,8 @@ int btrfs_find_all_leafs(struct btrfs_backref_walk_ctx *ctx)
 		return -ENOMEM;
 
 	ret = find_parent_nodes(ctx, NULL);
-	if (ret < 0 && ret != -ENOENT) {
+	if (ret == BTRFS_ITERATE_EXTENT_INODES_STOP ||
+	    (ret < 0 && ret != -ENOENT)) {
 		free_leaf_list(ctx->refs);
 		ctx->refs = NULL;
 		return ret;
@@ -2401,6 +2425,9 @@ out:
 
 	ulist_free(ctx->roots);
 	ctx->roots = NULL;
+
+	if (ret == BTRFS_ITERATE_EXTENT_INODES_STOP)
+		ret = 0;
 
 	return ret;
 }

@@ -13,6 +13,25 @@
 #include "extent_io.h"
 
 /*
+ * Used by implementations of iterate_extent_inodes_t (see definition below) to
+ * signal that backref iteration can stop immediately and no error happened.
+ * The value must be non-negative and must not be 0, 1 (which is a common return
+ * value from things like btrfs_search_slot() and used internally in the backref
+ * walking code) and different from BACKREF_FOUND_SHARED and
+ * BACKREF_FOUND_NOT_SHARED
+ */
+#define BTRFS_ITERATE_EXTENT_INODES_STOP 5
+
+/*
+ * Should return 0 if no errors happened and iteration of backrefs should
+ * continue. Can return BTRFS_ITERATE_EXTENT_INODES_STOP or any other non-zero
+ * value to immediately stop iteration and possibly signal an error back to
+ * the caller.
+ */
+typedef int (iterate_extent_inodes_t)(u64 inum, u64 offset, u64 num_bytes,
+				      u64 root, void *ctx);
+
+/*
  * Context and arguments for backref walking functions. Some of the fields are
  * to be filled by the caller of such functions while other are filled by the
  * functions themselves, as described below.
@@ -70,15 +89,29 @@ struct btrfs_backref_walk_ctx {
 	 */
 	struct ulist *roots;
 	/*
-	 * Used by iterate_extent_inodes(). Lookup and store functions for an
-	 * optional cache which maps the logical address (bytenr) of leaves
-	 * to an array of root IDs.
+	 * Used by iterate_extent_inodes() and the main backref walk code
+	 * (find_parent_nodes()). Lookup and store functions for an optional
+	 * cache which maps the logical address (bytenr) of leaves to an array
+	 * of root IDs.
 	 */
 	bool (*cache_lookup)(u64 leaf_bytenr, void *user_ctx,
 			     const u64 **root_ids_ret, int *root_count_ret);
 	void (*cache_store)(u64 leaf_bytenr, const struct ulist *root_ids,
 			    void *user_ctx);
-	/* Context object to pass to @cache_lookup and @cache_store. */
+	/*
+	 * If this is not NULL, then the backref walking code will call this
+	 * for each indirect data extent reference as soon as it finds one,
+	 * before collecting all the remaining backrefs and before resolving
+	 * indirect backrefs. This allows for the caller to terminate backref
+	 * walking as soon as it finds one backref that matches some specific
+	 * criteria. The @cache_lookup and @cache_store callbacks should not
+	 * be NULL in order to use this callback.
+	 */
+	iterate_extent_inodes_t *indirect_ref_iterator;
+	/*
+	 * Context object to pass to the @cache_lookup, @cache_store and
+	 * @indirect_ref_iterator callbacks.
+	 */
 	void *user_ctx;
 };
 
@@ -144,9 +177,6 @@ struct btrfs_backref_share_check_ctx {
 	 */
 	int prev_extents_cache_slot;
 };
-
-typedef int (iterate_extent_inodes_t)(u64 inum, u64 offset, u64 num_bytes,
-				      u64 root, void *ctx);
 
 struct btrfs_backref_share_check_ctx *btrfs_alloc_backref_share_check_ctx(void);
 void btrfs_free_backref_share_ctx(struct btrfs_backref_share_check_ctx *ctx);
