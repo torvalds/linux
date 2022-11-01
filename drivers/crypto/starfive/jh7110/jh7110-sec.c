@@ -228,7 +228,9 @@ static int jh7110_cryp_probe(struct platform_device *pdev)
 
 	pm_runtime_get_noresume(dev);
 	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
+
+	if (!pm_runtime_enabled(dev))
+		pm_runtime_enable(dev);
 
 	sdev->rst_hresetn = devm_reset_control_get_shared(sdev->dev, "sec_hre");
 	if (IS_ERR(sdev->rst_hresetn)) {
