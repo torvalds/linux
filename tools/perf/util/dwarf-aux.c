@@ -123,7 +123,7 @@ int cu_find_lineinfo(Dwarf_Die *cu_die, Dwarf_Addr addr,
 	if (die_find_realfunc(cu_die, addr, &die_mem)
 	    && die_entrypc(&die_mem, &faddr) == 0 &&
 	    faddr == addr) {
-		*fname = dwarf_decl_file(&die_mem);
+		*fname = die_get_decl_file(&die_mem);
 		dwarf_decl_line(&die_mem, lineno);
 		goto out;
 	}
@@ -486,6 +486,19 @@ static int die_get_decl_fileno(Dwarf_Die *pdie)
 		return -ENOENT;
 }
 
+/* Return the file name by index */
+static const char *die_get_file_name(Dwarf_Die *dw_die, int idx)
+{
+	Dwarf_Die cu_die;
+	Dwarf_Files *files;
+
+	if (idx < 0 || !dwarf_diecu(dw_die, &cu_die, NULL, NULL) ||
+	    dwarf_getsrcfiles(&cu_die, &files, NULL) != 0)
+		return NULL;
+
+	return dwarf_filesrc(files, idx, NULL, NULL);
+}
+
 /**
  * die_get_call_file - Get callsite file name of inlined function instance
  * @in_die: a DIE of an inlined function instance
@@ -495,18 +508,22 @@ static int die_get_decl_fileno(Dwarf_Die *pdie)
  */
 const char *die_get_call_file(Dwarf_Die *in_die)
 {
-	Dwarf_Die cu_die;
-	Dwarf_Files *files;
-	int idx;
-
-	idx = die_get_call_fileno(in_die);
-	if (idx < 0 || !dwarf_diecu(in_die, &cu_die, NULL, NULL) ||
-	    dwarf_getsrcfiles(&cu_die, &files, NULL) != 0)
-		return NULL;
-
-	return dwarf_filesrc(files, idx, NULL, NULL);
+	return die_get_file_name(in_die, die_get_call_fileno(in_die));
 }
 
+/**
+ * die_get_decl_file - Find the declared file name of this DIE
+ * @dw_die: a DIE for something declared.
+ *
+ * Get declared file name of @dw_die.
+ * NOTE: Since some version of clang DWARF5 implementation incorrectly uses
+ * file index 0 for DW_AT_decl_file, die_get_decl_file() will return NULL for
+ * such cases. Use this function instead.
+ */
+const char *die_get_decl_file(Dwarf_Die *dw_die)
+{
+	return die_get_file_name(dw_die, die_get_decl_fileno(dw_die));
+}
 
 /**
  * die_find_child - Generic DIE search function in DIE tree
@@ -790,7 +807,7 @@ static int __die_walk_funclines_cb(Dwarf_Die *in_die, void *data)
 	}
 
 	if (addr) {
-		fname = dwarf_decl_file(in_die);
+		fname = die_get_decl_file(in_die);
 		if (fname && dwarf_decl_line(in_die, &lineno) == 0) {
 			lw->retval = lw->callback(fname, lineno, addr, lw->data);
 			if (lw->retval != 0)
@@ -818,7 +835,7 @@ static int __die_walk_funclines(Dwarf_Die *sp_die, bool recursive,
 	int lineno;
 
 	/* Handle function declaration line */
-	fname = dwarf_decl_file(sp_die);
+	fname = die_get_decl_file(sp_die);
 	if (fname && dwarf_decl_line(sp_die, &lineno) == 0 &&
 	    die_entrypc(sp_die, &addr) == 0) {
 		lw.retval = callback(fname, lineno, addr, data);
@@ -873,7 +890,7 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 	if (dwarf_tag(rt_die) != DW_TAG_compile_unit) {
 		cu_die = dwarf_diecu(rt_die, &die_mem, NULL, NULL);
 		dwarf_decl_line(rt_die, &decl);
-		decf = dwarf_decl_file(rt_die);
+		decf = die_get_decl_file(rt_die);
 		if (!decf) {
 			pr_debug2("Failed to get the declared file name of %s\n",
 				  dwarf_diename(rt_die));
@@ -928,7 +945,7 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 
 				dwarf_decl_line(&die_mem, &inl);
 				if (inl != decl ||
-				    decf != dwarf_decl_file(&die_mem))
+				    decf != die_get_decl_file(&die_mem))
 					continue;
 			}
 		}

@@ -763,7 +763,7 @@ static int find_best_scope_cb(Dwarf_Die *fn_die, void *data)
 
 	/* Skip if declared file name does not match */
 	if (fsp->file) {
-		file = dwarf_decl_file(fn_die);
+		file = die_get_decl_file(fn_die);
 		if (!file || strcmp(fsp->file, file) != 0)
 			return 0;
 	}
@@ -1071,7 +1071,7 @@ static int probe_point_search_cb(Dwarf_Die *sp_die, void *data)
 		return DWARF_CB_OK;
 
 	/* Check declared file */
-	fname = dwarf_decl_file(sp_die);
+	fname = die_get_decl_file(sp_die);
 	if (!fname) {
 		pr_warning("A function DIE doesn't have decl_line. Maybe broken DWARF?\n");
 		return DWARF_CB_OK;
@@ -1151,7 +1151,7 @@ static int pubname_search_cb(Dwarf *dbg, Dwarf_Global *gl, void *data)
 				return DWARF_CB_OK;
 
 			if (param->file) {
-				fname = dwarf_decl_file(param->sp_die);
+				fname = die_get_decl_file(param->sp_die);
 				if (!fname || strtailcmp(param->file, fname))
 					return DWARF_CB_OK;
 			}
@@ -1750,7 +1750,7 @@ int debuginfo__find_probe_point(struct debuginfo *dbg, u64 addr,
 			goto post;
 		}
 
-		fname = dwarf_decl_file(&spdie);
+		fname = die_get_decl_file(&spdie);
 		if (addr == baseaddr) {
 			/* Function entry - Relative line number is 0 */
 			lineno = baseline;
@@ -1787,7 +1787,7 @@ int debuginfo__find_probe_point(struct debuginfo *dbg, u64 addr,
 			}
 		}
 		/* Verify the lineno and baseline are in a same file */
-		tmp = dwarf_decl_file(&spdie);
+		tmp = die_get_decl_file(&spdie);
 		if (!tmp || (fname && strcmp(tmp, fname) != 0))
 			lineno = 0;
 	}
@@ -1902,13 +1902,13 @@ static int line_range_search_cb(Dwarf_Die *sp_die, void *data)
 
 	/* Check declared file */
 	if (lr->file) {
-		fname = dwarf_decl_file(sp_die);
+		fname = die_get_decl_file(sp_die);
 		if (!fname || strtailcmp(lr->file, fname))
 			return DWARF_CB_OK;
 	}
 
 	if (die_match_name(sp_die, lr->function) && die_is_func_def(sp_die)) {
-		lf->fname = dwarf_decl_file(sp_die);
+		lf->fname = die_get_decl_file(sp_die);
 		dwarf_decl_line(sp_die, &lr->offset);
 		pr_debug("fname: %s, lineno:%d\n", lf->fname, lr->offset);
 		lf->lno_s = lr->offset + lr->start;
