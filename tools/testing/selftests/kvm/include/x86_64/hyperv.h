@@ -187,6 +187,7 @@
 /* hypercall options */
 #define HV_HYPERCALL_FAST_BIT		BIT(16)
 #define HV_HYPERCALL_VARHEAD_OFFSET	17
+#define HV_HYPERCALL_REP_COMP_OFFSET	32
 
 /*
  * Issue a Hyper-V hypercall. Returns exception vector raised or 0, 'hv_status'
