@@ -9,6 +9,8 @@
 #ifndef SELFTEST_KVM_HYPERV_H
 #define SELFTEST_KVM_HYPERV_H
 
+#include "processor.h"
+
 #define HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS	0x40000000
 #define HYPERV_CPUID_INTERFACE			0x40000001
 #define HYPERV_CPUID_VERSION			0x40000002
@@ -184,10 +186,15 @@
 
 /* hypercall options */
 #define HV_HYPERCALL_FAST_BIT		BIT(16)
+#define HV_HYPERCALL_VARHEAD_OFFSET	17
 
-static inline uint8_t hyperv_hypercall(u64 control, vm_vaddr_t input_address,
-				       vm_vaddr_t output_address,
-				       uint64_t *hv_status)
+/*
+ * Issue a Hyper-V hypercall. Returns exception vector raised or 0, 'hv_status'
+ * is set to the hypercall status (if no exception occurred).
+ */
+static inline uint8_t __hyperv_hypercall(u64 control, vm_vaddr_t input_address,
+					 vm_vaddr_t output_address,
+					 uint64_t *hv_status)
 {
 	uint64_t error_code;
 	uint8_t vector;
@@ -202,6 +209,28 @@ static inline uint8_t hyperv_hypercall(u64 control, vm_vaddr_t input_address,
 		       "a" (-EFAULT)
 		     : "cc", "memory", "r8", KVM_ASM_SAFE_CLOBBERS);
 	return vector;
+}
+
+/* Issue a Hyper-V hypercall and assert that it succeeded. */
+static inline void hyperv_hypercall(u64 control, vm_vaddr_t input_address,
+				    vm_vaddr_t output_address)
+{
+	uint64_t hv_status;
+	uint8_t vector;
+
+	vector = __hyperv_hypercall(control, input_address, output_address, &hv_status);
+
+	GUEST_ASSERT(!vector);
+	GUEST_ASSERT((hv_status & 0xffff) == 0);
+}
+
+/* Write 'Fast' hypercall input 'data' to the first 'n_sse_regs' SSE regs */
+static inline void hyperv_write_xmm_input(void *data, int n_sse_regs)
+{
+	int i;
+
+	for (i = 0; i < n_sse_regs; i++)
+		write_sse_reg(i, (sse128_t *)(data + sizeof(sse128_t) * i));
 }
 
 /* Proper HV_X64_MSR_GUEST_OS_ID value */
