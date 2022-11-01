@@ -1432,11 +1432,8 @@ static int find_extent_clone(struct send_ctx *sctx,
 	}
 
 	backref_ctx.sctx = sctx;
-	backref_ctx.found = 0;
 	backref_ctx.cur_objectid = ino;
 	backref_ctx.cur_offset = data_offset;
-	backref_ctx.found_itself = 0;
-	backref_ctx.extent_len = num_bytes;
 
 	/*
 	 * The last extent of a file may be too large due to page alignment.
@@ -1445,6 +1442,8 @@ static int find_extent_clone(struct send_ctx *sctx,
 	 */
 	if (data_offset + num_bytes >= ino_size)
 		backref_ctx.extent_len = ino_size - data_offset;
+	else
+		backref_ctx.extent_len = num_bytes;
 
 	/*
 	 * Now collect all backrefs.
