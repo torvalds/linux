@@ -10,17 +10,137 @@
 #include "sysfs-common.h"
 
 /*
+ * scheme region directory
+ */
+
+struct damon_sysfs_scheme_region {
+	struct kobject kobj;
+	struct damon_addr_range ar;
+	unsigned int nr_accesses;
+	unsigned int age;
+	struct list_head list;
+};
+
+static struct damon_sysfs_scheme_region *damon_sysfs_scheme_region_alloc(
+		struct damon_region *region)
+{
+	struct damon_sysfs_scheme_region *sysfs_region = kmalloc(
+			sizeof(*sysfs_region), GFP_KERNEL);
+
+	if (!sysfs_region)
+		return NULL;
+	sysfs_region->kobj = (struct kobject){};
+	sysfs_region->ar = region->ar;
+	sysfs_region->nr_accesses = region->nr_accesses;
+	sysfs_region->age = region->age;
+	INIT_LIST_HEAD(&sysfs_region->list);
+	return sysfs_region;
+}
+
+static ssize_t start_show(struct kobject *kobj, struct kobj_attribute *attr,
+		char *buf)
+{
+	struct damon_sysfs_scheme_region *region = container_of(kobj,
+			struct damon_sysfs_scheme_region, kobj);
+
+	return sysfs_emit(buf, "%lu\n", region->ar.start);
+}
+
+static ssize_t end_show(struct kobject *kobj, struct kobj_attribute *attr,
+		char *buf)
+{
+	struct damon_sysfs_scheme_region *region = container_of(kobj,
+			struct damon_sysfs_scheme_region, kobj);
+
+	return sysfs_emit(buf, "%lu\n", region->ar.end);
+}
+
+static ssize_t nr_accesses_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct damon_sysfs_scheme_region *region = container_of(kobj,
+			struct damon_sysfs_scheme_region, kobj);
+
+	return sysfs_emit(buf, "%u\n", region->nr_accesses);
+}
+
+static ssize_t age_show(struct kobject *kobj, struct kobj_attribute *attr,
+		char *buf)
+{
+	struct damon_sysfs_scheme_region *region = container_of(kobj,
+			struct damon_sysfs_scheme_region, kobj);
+
+	return sysfs_emit(buf, "%u\n", region->age);
+}
+
+static void damon_sysfs_scheme_region_release(struct kobject *kobj)
+{
+	struct damon_sysfs_scheme_region *region = container_of(kobj,
+			struct damon_sysfs_scheme_region, kobj);
+
+	list_del(&region->list);
+	kfree(region);
+}
+
+static struct kobj_attribute damon_sysfs_scheme_region_start_attr =
+		__ATTR_RO_MODE(start, 0400);
+
+static struct kobj_attribute damon_sysfs_scheme_region_end_attr =
+		__ATTR_RO_MODE(end, 0400);
+
+static struct kobj_attribute damon_sysfs_scheme_region_nr_accesses_attr =
+		__ATTR_RO_MODE(nr_accesses, 0400);
+
+static struct kobj_attribute damon_sysfs_scheme_region_age_attr =
+		__ATTR_RO_MODE(age, 0400);
+
+static struct attribute *damon_sysfs_scheme_region_attrs[] = {
+	&damon_sysfs_scheme_region_start_attr.attr,
+	&damon_sysfs_scheme_region_end_attr.attr,
+	&damon_sysfs_scheme_region_nr_accesses_attr.attr,
+	&damon_sysfs_scheme_region_age_attr.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(damon_sysfs_scheme_region);
+
+static struct kobj_type damon_sysfs_scheme_region_ktype = {
+	.release = damon_sysfs_scheme_region_release,
+	.sysfs_ops = &kobj_sysfs_ops,
+	.default_groups = damon_sysfs_scheme_region_groups,
+};
+
+/*
  * scheme regions directory
  */
 
 struct damon_sysfs_scheme_regions {
 	struct kobject kobj;
+	struct list_head regions_list;
+	int nr_regions;
 };
 
 static struct damon_sysfs_scheme_regions *
 damon_sysfs_scheme_regions_alloc(void)
 {
-	return kzalloc(sizeof(struct damon_sysfs_scheme_regions), GFP_KERNEL);
+	struct damon_sysfs_scheme_regions *regions = kmalloc(sizeof(*regions),
+			GFP_KERNEL);
+
+	regions->kobj = (struct kobject){};
+	INIT_LIST_HEAD(&regions->regions_list);
+	regions->nr_regions = 0;
+	return regions;
+}
+
+static void damon_sysfs_scheme_regions_rm_dirs(
+		struct damon_sysfs_scheme_regions *regions)
+{
+	struct damon_sysfs_scheme_region *r, *next;
+
+	list_for_each_entry_safe(r, next, &regions->regions_list, list) {
+		/* release function deletes it from the list */
+		kobject_put(&r->kobj);
+		regions->nr_regions--;
+	}
 }
 
 static void damon_sysfs_scheme_regions_release(struct kobject *kobj)
@@ -837,6 +957,7 @@ static void damon_sysfs_scheme_rm_dirs(struct damon_sysfs_scheme *scheme)
 	kobject_put(&scheme->quotas->kobj);
 	kobject_put(&scheme->watermarks->kobj);
 	kobject_put(&scheme->stats->kobj);
+	damon_sysfs_scheme_regions_rm_dirs(scheme->tried_regions);
 	kobject_put(&scheme->tried_regions->kobj);
 }
 
