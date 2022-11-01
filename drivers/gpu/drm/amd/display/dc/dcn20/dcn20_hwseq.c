@@ -1834,6 +1834,17 @@ void dcn20_program_front_end_for_ctx(
 			context->stream_status[0].plane_count > 1) {
 			pipe->plane_res.hubp->funcs->hubp_wait_pipe_read_start(pipe->plane_res.hubp);
 		}
+
+		/* when dynamic ODM is active, pipes must be reconfigured when all planes are
+		 * disabled, as some transitions will leave software and hardware state
+		 * mismatched.
+		 */
+		if (dc->debug.enable_single_display_2to1_odm_policy &&
+			pipe->stream &&
+			pipe->update_flags.bits.disable &&
+			!pipe->prev_odm_pipe &&
+			hws->funcs.update_odm)
+			hws->funcs.update_odm(dc, context, pipe);
 	}
 }
 
