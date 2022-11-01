@@ -253,13 +253,6 @@ struct wlan_ie_cf_parms {
 	u16 cfp_durremaining;
 } __packed;
 
-/*-- IBSS Parameter Set ---------------------------*/
-struct wlan_ie_ibss_parms {
-	u8 eid;
-	u8 len;
-	u16 atim_win;
-} __packed;
-
 /*-- Challenge Text  ------------------------------*/
 struct wlan_ie_challenge {
 	u8 eid;
@@ -298,7 +291,6 @@ struct wlan_fr_beacon {
 	struct wlan_ie_fh_parms *fh_parms;
 	struct wlan_ie_ds_parms *ds_parms;
 	struct wlan_ie_cf_parms *cf_parms;
-	struct wlan_ie_ibss_parms *ibss_parms;
 };
 
 /*-- IBSS ATIM ------------------------------------*/
@@ -424,7 +416,6 @@ struct wlan_fr_proberesp {
 	struct wlan_ie_fh_parms *fh_parms;
 	struct wlan_ie_ds_parms *ds_parms;
 	struct wlan_ie_cf_parms *cf_parms;
-	struct wlan_ie_ibss_parms *ibss_parms;
 };
 
 /*-- Authentication -------------------------------*/
