@@ -1237,6 +1237,97 @@ static void generate_pq_vertical(struct btrfs_raid_bio *rbio, int sectornr)
 		kunmap_local(pointers[stripe]);
 }
 
+static int rmw_assemble_write_bios(struct btrfs_raid_bio *rbio,
+				   struct bio_list *bio_list)
+{
+	struct bio *bio;
+	/* The total sector number inside the full stripe. */
+	int total_sector_nr;
+	int sectornr;
+	int stripe;
+	int ret;
+
+	ASSERT(bio_list_size(bio_list) == 0);
+
+	/* We should have at least one data sector. */
+	ASSERT(bitmap_weight(&rbio->dbitmap, rbio->stripe_nsectors));
+
+	/*
+	 * Start assembly.  Make bios for everything from the higher layers (the
+	 * bio_list in our rbio) and our P/Q.  Ignore everything else.
+	 */
+	for (total_sector_nr = 0; total_sector_nr < rbio->nr_sectors;
+	     total_sector_nr++) {
+		struct sector_ptr *sector;
+
+		stripe = total_sector_nr / rbio->stripe_nsectors;
+		sectornr = total_sector_nr % rbio->stripe_nsectors;
+
+		/* This vertical stripe has no data, skip it. */
+		if (!test_bit(sectornr, &rbio->dbitmap))
+			continue;
+
+		if (stripe < rbio->nr_data) {
+			sector = sector_in_rbio(rbio, stripe, sectornr, 1);
+			if (!sector)
+				continue;
+		} else {
+			sector = rbio_stripe_sector(rbio, stripe, sectornr);
+		}
+
+		ret = rbio_add_io_sector(rbio, bio_list, sector, stripe,
+					 sectornr, REQ_OP_WRITE);
+		if (ret)
+			goto error;
+	}
+
+	if (likely(!rbio->bioc->num_tgtdevs))
+		return 0;
+
+	/* Make a copy for the replace target device. */
+	for (total_sector_nr = 0; total_sector_nr < rbio->nr_sectors;
+	     total_sector_nr++) {
+		struct sector_ptr *sector;
+
+		stripe = total_sector_nr / rbio->stripe_nsectors;
+		sectornr = total_sector_nr % rbio->stripe_nsectors;
+
+		if (!rbio->bioc->tgtdev_map[stripe]) {
+			/*
+			 * We can skip the whole stripe completely, note
+			 * total_sector_nr will be increased by one anyway.
+			 */
+			ASSERT(sectornr == 0);
+			total_sector_nr += rbio->stripe_nsectors - 1;
+			continue;
+		}
+
+		/* This vertical stripe has no data, skip it. */
+		if (!test_bit(sectornr, &rbio->dbitmap))
+			continue;
+
+		if (stripe < rbio->nr_data) {
+			sector = sector_in_rbio(rbio, stripe, sectornr, 1);
+			if (!sector)
+				continue;
+		} else {
+			sector = rbio_stripe_sector(rbio, stripe, sectornr);
+		}
+
+		ret = rbio_add_io_sector(rbio, bio_list, sector,
+					 rbio->bioc->tgtdev_map[stripe],
+					 sectornr, REQ_OP_WRITE);
+		if (ret)
+			goto error;
+	}
+
+	return 0;
+error:
+	while ((bio = bio_list_pop(bio_list)))
+		bio_put(bio);
+	return -EIO;
+}
+
 /*
  * this is called from one of two situations.  We either
  * have a full stripe from the higher layers, or we've read all
@@ -1247,10 +1338,7 @@ static void generate_pq_vertical(struct btrfs_raid_bio *rbio, int sectornr)
  */
 static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 {
-	struct btrfs_io_context *bioc = rbio->bioc;
 	/* The total sector number inside the full stripe. */
-	int total_sector_nr;
-	int stripe;
 	/* Sector number inside a stripe. */
 	int sectornr;
 	struct bio_list bio_list;
@@ -1294,75 +1382,10 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 	for (sectornr = 0; sectornr < rbio->stripe_nsectors; sectornr++)
 		generate_pq_vertical(rbio, sectornr);
 
-	/*
-	 * Start writing.  Make bios for everything from the higher layers (the
-	 * bio_list in our rbio) and our P/Q.  Ignore everything else.
-	 */
-	for (total_sector_nr = 0; total_sector_nr < rbio->nr_sectors;
-	     total_sector_nr++) {
-		struct sector_ptr *sector;
+	ret = rmw_assemble_write_bios(rbio, &bio_list);
+	if (ret < 0)
+		goto cleanup;
 
-		stripe = total_sector_nr / rbio->stripe_nsectors;
-		sectornr = total_sector_nr % rbio->stripe_nsectors;
-
-		/* This vertical stripe has no data, skip it. */
-		if (!test_bit(sectornr, &rbio->dbitmap))
-			continue;
-
-		if (stripe < rbio->nr_data) {
-			sector = sector_in_rbio(rbio, stripe, sectornr, 1);
-			if (!sector)
-				continue;
-		} else {
-			sector = rbio_stripe_sector(rbio, stripe, sectornr);
-		}
-
-		ret = rbio_add_io_sector(rbio, &bio_list, sector, stripe,
-					 sectornr, REQ_OP_WRITE);
-		if (ret)
-			goto cleanup;
-	}
-
-	if (likely(!bioc->num_tgtdevs))
-		goto write_data;
-
-	for (total_sector_nr = 0; total_sector_nr < rbio->nr_sectors;
-	     total_sector_nr++) {
-		struct sector_ptr *sector;
-
-		stripe = total_sector_nr / rbio->stripe_nsectors;
-		sectornr = total_sector_nr % rbio->stripe_nsectors;
-
-		if (!bioc->tgtdev_map[stripe]) {
-			/*
-			 * We can skip the whole stripe completely, note
-			 * total_sector_nr will be increased by one anyway.
-			 */
-			ASSERT(sectornr == 0);
-			total_sector_nr += rbio->stripe_nsectors - 1;
-			continue;
-		}
-
-		/* This vertical stripe has no data, skip it. */
-		if (!test_bit(sectornr, &rbio->dbitmap))
-			continue;
-
-		if (stripe < rbio->nr_data) {
-			sector = sector_in_rbio(rbio, stripe, sectornr, 1);
-			if (!sector)
-				continue;
-		} else {
-			sector = rbio_stripe_sector(rbio, stripe, sectornr);
-		}
-
-		ret = rbio_add_io_sector(rbio, &bio_list, sector,
-					 rbio->bioc->tgtdev_map[stripe],
-					 sectornr, REQ_OP_WRITE);
-		if (ret)
-			goto cleanup;
-	}
-
-write_data:
 	atomic_set(&rbio->stripes_pending, bio_list_size(&bio_list));
 	BUG_ON(atomic_read(&rbio->stripes_pending) == 0);
 
