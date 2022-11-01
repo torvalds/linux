@@ -2022,36 +2022,24 @@ cleanup:
 		kunmap_local(unmap_array[stripe_nr]);
 }
 
-/*
- * all parity reconstruction happens here.  We've read in everything
- * we can find from the drives and this does the heavy lifting of
- * sorting the good from the bad.
- */
-static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
+static int recover_sectors(struct btrfs_raid_bio *rbio)
 {
-	int sectornr;
 	void **pointers = NULL;
 	void **unmap_array = NULL;
-	blk_status_t err;
+	int sectornr;
+	int ret = 0;
 
 	/*
-	 * This array stores the pointer for each sector, thus it has the extra
-	 * pgoff value added from each sector
+	 * @pointers array stores the pointer for each sector.
+	 *
+	 * @unmap_array stores copy of pointers that does not get reordered
+	 * during reconstruction so that kunmap_local works.
 	 */
 	pointers = kcalloc(rbio->real_stripes, sizeof(void *), GFP_NOFS);
-	if (!pointers) {
-		err = BLK_STS_RESOURCE;
-		goto cleanup;
-	}
-
-	/*
-	 * Store copy of pointers that does not get reordered during
-	 * reconstruction so that kunmap_local works.
-	 */
 	unmap_array = kcalloc(rbio->real_stripes, sizeof(void *), GFP_NOFS);
-	if (!unmap_array) {
-		err = BLK_STS_RESOURCE;
-		goto cleanup;
+	if (!pointers || !unmap_array) {
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	/* Make sure faila and fail b are in order. */
@@ -2070,11 +2058,22 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 	for (sectornr = 0; sectornr < rbio->stripe_nsectors; sectornr++)
 		recover_vertical(rbio, sectornr, pointers, unmap_array);
 
-	err = BLK_STS_OK;
-
-cleanup:
-	kfree(unmap_array);
+out:
 	kfree(pointers);
+	kfree(unmap_array);
+	return ret;
+}
+
+/*
+ * all parity reconstruction happens here.  We've read in everything
+ * we can find from the drives and this does the heavy lifting of
+ * sorting the good from the bad.
+ */
+static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
+{
+	int ret;
+
+	ret = recover_sectors(rbio);
 
 	/*
 	 * Similar to READ_REBUILD, REBUILD_MISSING at this point also has a
@@ -2098,13 +2097,13 @@ cleanup:
 		 *   Cache this rbio iff the above read reconstruction is
 		 *   executed without problems.
 		 */
-		if (err == BLK_STS_OK && rbio->failb < 0)
+		if (!ret && rbio->failb < 0)
 			cache_rbio_pages(rbio);
 		else
 			clear_bit(RBIO_CACHE_READY_BIT, &rbio->flags);
 
-		rbio_orig_end_io(rbio, err);
-	} else if (err == BLK_STS_OK) {
+		rbio_orig_end_io(rbio, errno_to_blk_status(ret));
+	} else if (!ret) {
 		rbio->faila = -1;
 		rbio->failb = -1;
 
@@ -2115,7 +2114,7 @@ cleanup:
 		else
 			BUG();
 	} else {
-		rbio_orig_end_io(rbio, err);
+		rbio_orig_end_io(rbio, errno_to_blk_status(ret));
 	}
 }
 
