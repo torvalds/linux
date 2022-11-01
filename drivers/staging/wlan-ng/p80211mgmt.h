@@ -253,16 +253,6 @@ struct wlan_ie_cf_parms {
 	u16 cfp_durremaining;
 } __packed;
 
-/*-- TIM ------------------------------------------*/
-struct wlan_ie_tim {
-	u8 eid;
-	u8 len;
-	u8 dtim_cnt;
-	u8 dtim_period;
-	u8 bitmap_ctl;
-	u8 virt_bm[1];
-} __packed;
-
 /*-- IBSS Parameter Set ---------------------------*/
 struct wlan_ie_ibss_parms {
 	u8 eid;
@@ -309,8 +299,6 @@ struct wlan_fr_beacon {
 	struct wlan_ie_ds_parms *ds_parms;
 	struct wlan_ie_cf_parms *cf_parms;
 	struct wlan_ie_ibss_parms *ibss_parms;
-	struct wlan_ie_tim *tim;
-
 };
 
 /*-- IBSS ATIM ------------------------------------*/
