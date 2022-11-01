@@ -51,7 +51,6 @@ static int loongson_dwmac_probe(struct pci_dev *pdev, const struct pci_device_id
 	struct stmmac_resources res;
 	struct device_node *np;
 	int ret, i, phy_mode;
-	bool mdio = false;
 
 	np = dev_of_node(&pdev->dev);
 
@@ -69,12 +68,10 @@ static int loongson_dwmac_probe(struct pci_dev *pdev, const struct pci_device_id
 	if (!plat)
 		return -ENOMEM;
 
+	plat->mdio_node = of_get_child_by_name(np, "mdio");
 	if (plat->mdio_node) {
-		dev_err(&pdev->dev, "Found MDIO subnode\n");
-		mdio = true;
-	}
+		dev_info(&pdev->dev, "Found MDIO subnode\n");
 
-	if (mdio) {
 		plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
 						   sizeof(*plat->mdio_bus_data),
 						   GFP_KERNEL);
