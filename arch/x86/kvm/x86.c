@@ -3425,7 +3425,7 @@ static void kvm_vcpu_flush_tlb_guest(struct kvm_vcpu *vcpu)
 	 * Flushing all "guest" TLB is always a superset of Hyper-V's fine
 	 * grained flushing.
 	 */
-	kvm_clear_request(KVM_REQ_HV_TLB_FLUSH, vcpu);
+	kvm_hv_vcpu_purge_flush_tlb(vcpu);
 }
 
 
@@ -10256,7 +10256,14 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 
 		kvm_service_local_tlb_flush_requests(vcpu);
 
-		if (kvm_check_request(KVM_REQ_HV_TLB_FLUSH, vcpu))
+		/*
+		 * Fall back to a "full" guest flush if Hyper-V's precise
+		 * flushing fails.  Note, Hyper-V's flushing is per-vCPU, but
+		 * the flushes are considered "remote" and not "local" because
+		 * the requests can be initiated from other vCPUs.
+		 */
+		if (kvm_check_request(KVM_REQ_HV_TLB_FLUSH, vcpu) &&
+		    kvm_hv_vcpu_flush_tlb(vcpu))
 			kvm_vcpu_flush_tlb_guest(vcpu);
 
 		if (kvm_check_request(KVM_REQ_REPORT_TPR_ACCESS, vcpu)) {
