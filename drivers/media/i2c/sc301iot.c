@@ -1172,7 +1172,7 @@ static int SC301IOT_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(SC301IOT->hblank, h_blank,
 					 h_blank, 1, h_blank);
 		vblank_def = mode->vts_def - mode->height;
-		__v4l2_ctrl_modify_range(SC301IOT->vblank, SC301IOT_VTS_MIN - vblank_def,
+		__v4l2_ctrl_modify_range(SC301IOT->vblank, vblank_def,
 					 SC301IOT_VTS_MAX - mode->height,
 					 1, vblank_def);
 		SC301IOT->cur_fps = mode->max_fps;
@@ -1359,7 +1359,7 @@ static long SC301IOT_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			h = SC301IOT->cur_mode->vts_def - SC301IOT->cur_mode->height;
 			__v4l2_ctrl_modify_range(SC301IOT->hblank, w, w, 1, w);
 			__v4l2_ctrl_modify_range(SC301IOT->vblank,
-				SC301IOT_VTS_MIN - SC301IOT->cur_mode->height,
+				h,
 				SC301IOT_VTS_MAX - SC301IOT->cur_mode->height, 1, h);
 			SC301IOT->cur_fps = SC301IOT->cur_mode->max_fps;
 			SC301IOT->cur_vts = SC301IOT->cur_mode->vts_def;
@@ -1999,7 +1999,7 @@ static int SC301IOT_initialize_controls(struct SC301IOT *SC301IOT)
 		SC301IOT->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 	vblank_def = mode->vts_def - mode->height;
 	SC301IOT->vblank = v4l2_ctrl_new_std(handler, &SC301IOT_ctrl_ops,
-					    V4L2_CID_VBLANK, SC301IOT_VTS_MIN - mode->height,
+					    V4L2_CID_VBLANK, vblank_def,
 					    SC301IOT_VTS_MAX - mode->height,
 					    1, vblank_def);
 	exposure_max = mode->vts_def - 8;
