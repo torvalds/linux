@@ -95,6 +95,8 @@ struct btrfs_raid_bio {
 
 	atomic_t error;
 
+	wait_queue_head_t io_wait;
+
 	struct work_struct end_io_work;
 
 	/* Bitmap to record which horizontal stripe has data */

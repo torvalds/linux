@@ -67,7 +67,6 @@ struct sector_ptr {
 static int __raid56_parity_recover(struct btrfs_raid_bio *rbio);
 static noinline void finish_rmw(struct btrfs_raid_bio *rbio);
 static void rmw_work(struct work_struct *work);
-static void read_rebuild_work(struct work_struct *work);
 static int fail_bio_stripe(struct btrfs_raid_bio *rbio, struct bio *bio);
 static int fail_rbio_index(struct btrfs_raid_bio *rbio, int failed);
 static void index_rbio_pages(struct btrfs_raid_bio *rbio);
@@ -752,6 +751,8 @@ out:
 	return ret;
 }
 
+static void recover_rbio_work_locked(struct work_struct *work);
+
 /*
  * called as rmw or parity rebuild is completed.  If the plug list has more
  * rbios waiting for this stripe, the next one on the list will be started
@@ -809,10 +810,10 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 			spin_unlock_irqrestore(&h->lock, flags);
 
 			if (next->operation == BTRFS_RBIO_READ_REBUILD)
-				start_async_work(next, read_rebuild_work);
+				start_async_work(next, recover_rbio_work_locked);
 			else if (next->operation == BTRFS_RBIO_REBUILD_MISSING) {
 				steal_rbio(rbio, next);
-				start_async_work(next, read_rebuild_work);
+				start_async_work(next, recover_rbio_work_locked);
 			} else if (next->operation == BTRFS_RBIO_WRITE) {
 				steal_rbio(rbio, next);
 				start_async_work(next, rmw_work);
@@ -989,6 +990,7 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	}
 
 	bio_list_init(&rbio->bio_list);
+	init_waitqueue_head(&rbio->io_wait);
 	INIT_LIST_HEAD(&rbio->plug_list);
 	spin_lock_init(&rbio->bio_list_lock);
 	INIT_LIST_HEAD(&rbio->stripe_cache);
@@ -1516,6 +1518,39 @@ static void set_bio_pages_uptodate(struct btrfs_raid_bio *rbio, struct bio *bio)
 			if (sector)
 				sector->uptodate = 1;
 		}
+	}
+}
+
+static void raid_wait_read_end_io(struct bio *bio)
+{
+	struct btrfs_raid_bio *rbio = bio->bi_private;
+
+	if (bio->bi_status)
+		fail_bio_stripe(rbio, bio);
+	else
+		set_bio_pages_uptodate(rbio, bio);
+
+	bio_put(bio);
+	if (atomic_dec_and_test(&rbio->stripes_pending))
+		wake_up(&rbio->io_wait);
+}
+
+static void submit_read_bios(struct btrfs_raid_bio *rbio,
+			     struct bio_list *bio_list)
+{
+	struct bio *bio;
+
+	atomic_set(&rbio->stripes_pending, bio_list_size(bio_list));
+	while ((bio = bio_list_pop(bio_list))) {
+		bio->bi_end_io = raid_wait_read_end_io;
+
+		if (trace_raid56_scrub_read_recover_enabled()) {
+			struct raid56_bio_trace_info trace_info = { 0 };
+
+			bio_get_trace_info(rbio, bio, &trace_info);
+			trace_raid56_scrub_read_recover(rbio, bio, &trace_info);
+		}
+		submit_bio(bio);
 	}
 }
 
@@ -2176,6 +2211,79 @@ error:
 	return -EIO;
 }
 
+static int recover_rbio(struct btrfs_raid_bio *rbio)
+{
+	struct bio_list bio_list;
+	struct bio *bio;
+	int ret;
+
+	/*
+	 * Either we're doing recover for a read failure or degraded write,
+	 * caller should have set faila/b correctly.
+	 */
+	ASSERT(rbio->faila >= 0 || rbio->failb >= 0);
+	bio_list_init(&bio_list);
+
+	/*
+	 * Reset error to 0, as we will later increase error for missing
+	 * devices.
+	 */
+	atomic_set(&rbio->error, 0);
+
+	/* For recovery, we need to read all sectors including P/Q. */
+	ret = alloc_rbio_pages(rbio);
+	if (ret < 0)
+		goto out;
+
+	index_rbio_pages(rbio);
+
+	ret = recover_assemble_read_bios(rbio, &bio_list);
+	if (ret < 0)
+		goto out;
+
+	submit_read_bios(rbio, &bio_list);
+	wait_event(rbio->io_wait, atomic_read(&rbio->stripes_pending) == 0);
+
+	/* We have more errors than our tolerance during the read. */
+	if (atomic_read(&rbio->error) > rbio->bioc->max_errors) {
+		ret = -EIO;
+		goto out;
+	}
+
+	ret = recover_sectors(rbio);
+
+out:
+	while ((bio = bio_list_pop(&bio_list)))
+		bio_put(bio);
+
+	return ret;
+}
+
+static void recover_rbio_work(struct work_struct *work)
+{
+	struct btrfs_raid_bio *rbio;
+	int ret;
+
+	rbio = container_of(work, struct btrfs_raid_bio, work);
+
+	ret = lock_stripe_add(rbio);
+	if (ret == 0) {
+		ret = recover_rbio(rbio);
+		rbio_orig_end_io(rbio, errno_to_blk_status(ret));
+	}
+}
+
+static void recover_rbio_work_locked(struct work_struct *work)
+{
+	struct btrfs_raid_bio *rbio;
+	int ret;
+
+	rbio = container_of(work, struct btrfs_raid_bio, work);
+
+	ret = recover_rbio(rbio);
+	rbio_orig_end_io(rbio, errno_to_blk_status(ret));
+}
+
 /*
  * reads everything we need off the disk to reconstruct
  * the parity. endio handlers trigger final reconstruction
@@ -2264,7 +2372,8 @@ void raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
 	rbio = alloc_rbio(fs_info, bioc);
 	if (IS_ERR(rbio)) {
 		bio->bi_status = errno_to_blk_status(PTR_ERR(rbio));
-		goto out_end_bio;
+		bio_endio(bio);
+		return;
 	}
 
 	rbio->operation = BTRFS_RBIO_READ_REBUILD;
@@ -2278,7 +2387,8 @@ void raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
 			   (u64)bio->bi_iter.bi_size, bioc->map_type);
 		free_raid_bio(rbio);
 		bio->bi_status = BLK_STS_IOERR;
-		goto out_end_bio;
+		bio_endio(bio);
+		return;
 	}
 
 	/*
@@ -2298,18 +2408,7 @@ void raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
 			rbio->failb--;
 	}
 
-	if (lock_stripe_add(rbio))
-		return;
-
-	/*
-	 * This adds our rbio to the list of rbios that will be handled after
-	 * the current lock owner is done.
-	 */
-	__raid56_parity_recover(rbio);
-	return;
-
-out_end_bio:
-	bio_endio(bio);
+	start_async_work(rbio, recover_rbio_work);
 }
 
 static void rmw_work(struct work_struct *work)
@@ -2318,14 +2417,6 @@ static void rmw_work(struct work_struct *work)
 
 	rbio = container_of(work, struct btrfs_raid_bio, work);
 	raid56_rmw_stripe(rbio);
-}
-
-static void read_rebuild_work(struct work_struct *work)
-{
-	struct btrfs_raid_bio *rbio;
-
-	rbio = container_of(work, struct btrfs_raid_bio, work);
-	__raid56_parity_recover(rbio);
 }
 
 /*
@@ -2818,6 +2909,5 @@ raid56_alloc_missing_rbio(struct bio *bio, struct btrfs_io_context *bioc)
 
 void raid56_submit_missing_rbio(struct btrfs_raid_bio *rbio)
 {
-	if (!lock_stripe_add(rbio))
-		start_async_work(rbio, read_rebuild_work);
+	start_async_work(rbio, recover_rbio_work);
 }
