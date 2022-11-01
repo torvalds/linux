@@ -39,7 +39,7 @@
  * avoid hitting limitations of the backreference walking code (taking a lot of
  * time and using too much memory for extents with large number of references).
  */
-#define SEND_MAX_EXTENT_REFS	64
+#define SEND_MAX_EXTENT_REFS	1024
 
 /*
  * A fs_path is a helper to dynamically build path names with unknown size.
