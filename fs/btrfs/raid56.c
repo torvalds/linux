@@ -1887,19 +1887,154 @@ fail:
 }
 
 /*
+ * Recover a vertical stripe specified by @sector_nr.
+ * @*pointers are the pre-allocated pointers by the caller, so we don't
+ * need to allocate/free the pointers again and again.
+ */
+static void recover_vertical(struct btrfs_raid_bio *rbio, int sector_nr,
+			     void **pointers, void **unmap_array)
+{
+	struct btrfs_fs_info *fs_info = rbio->bioc->fs_info;
+	struct sector_ptr *sector;
+	const u32 sectorsize = fs_info->sectorsize;
+	const int faila = rbio->faila;
+	const int failb = rbio->failb;
+	int stripe_nr;
+
+	/*
+	 * Now we just use bitmap to mark the horizontal stripes in
+	 * which we have data when doing parity scrub.
+	 */
+	if (rbio->operation == BTRFS_RBIO_PARITY_SCRUB &&
+	    !test_bit(sector_nr, &rbio->dbitmap))
+		return;
+
+	/*
+	 * Setup our array of pointers with sectors from each stripe
+	 *
+	 * NOTE: store a duplicate array of pointers to preserve the
+	 * pointer order.
+	 */
+	for (stripe_nr = 0; stripe_nr < rbio->real_stripes; stripe_nr++) {
+		/*
+		 * If we're rebuilding a read, we have to use
+		 * pages from the bio list
+		 */
+		if ((rbio->operation == BTRFS_RBIO_READ_REBUILD ||
+		     rbio->operation == BTRFS_RBIO_REBUILD_MISSING) &&
+		    (stripe_nr == faila || stripe_nr == failb)) {
+			sector = sector_in_rbio(rbio, stripe_nr, sector_nr, 0);
+		} else {
+			sector = rbio_stripe_sector(rbio, stripe_nr, sector_nr);
+		}
+		ASSERT(sector->page);
+		pointers[stripe_nr] = kmap_local_page(sector->page) +
+				   sector->pgoff;
+		unmap_array[stripe_nr] = pointers[stripe_nr];
+	}
+
+	/* All raid6 handling here */
+	if (rbio->bioc->map_type & BTRFS_BLOCK_GROUP_RAID6) {
+		/* Single failure, rebuild from parity raid5 style */
+		if (failb < 0) {
+			if (faila == rbio->nr_data)
+				/*
+				 * Just the P stripe has failed, without
+				 * a bad data or Q stripe.
+				 * We have nothing to do, just skip the
+				 * recovery for this stripe.
+				 */
+				goto cleanup;
+			/*
+			 * a single failure in raid6 is rebuilt
+			 * in the pstripe code below
+			 */
+			goto pstripe;
+		}
+
+		/*
+		 * If the q stripe is failed, do a pstripe reconstruction from
+		 * the xors.
+		 * If both the q stripe and the P stripe are failed, we're
+		 * here due to a crc mismatch and we can't give them the
+		 * data they want.
+		 */
+		if (rbio->bioc->raid_map[failb] == RAID6_Q_STRIPE) {
+			if (rbio->bioc->raid_map[faila] ==
+			    RAID5_P_STRIPE)
+				/*
+				 * Only P and Q are corrupted.
+				 * We only care about data stripes recovery,
+				 * can skip this vertical stripe.
+				 */
+				goto cleanup;
+			/*
+			 * Otherwise we have one bad data stripe and
+			 * a good P stripe.  raid5!
+			 */
+			goto pstripe;
+		}
+
+		if (rbio->bioc->raid_map[failb] == RAID5_P_STRIPE) {
+			raid6_datap_recov(rbio->real_stripes, sectorsize,
+					  faila, pointers);
+		} else {
+			raid6_2data_recov(rbio->real_stripes, sectorsize,
+					  faila, failb, pointers);
+		}
+	} else {
+		void *p;
+
+		/* Rebuild from P stripe here (raid5 or raid6). */
+		ASSERT(failb == -1);
+pstripe:
+		/* Copy parity block into failed block to start with */
+		memcpy(pointers[faila], pointers[rbio->nr_data], sectorsize);
+
+		/* Rearrange the pointer array */
+		p = pointers[faila];
+		for (stripe_nr = faila; stripe_nr < rbio->nr_data - 1;
+		     stripe_nr++)
+			pointers[stripe_nr] = pointers[stripe_nr + 1];
+		pointers[rbio->nr_data - 1] = p;
+
+		/* Xor in the rest */
+		run_xor(pointers, rbio->nr_data - 1, sectorsize);
+
+	}
+
+	/*
+	 * No matter if this is a RMW or recovery, we should have all
+	 * failed sectors repaired in the vertical stripe, thus they are now
+	 * uptodate.
+	 * Especially if we determine to cache the rbio, we need to
+	 * have at least all data sectors uptodate.
+	 */
+	if (rbio->faila >= 0) {
+		sector = rbio_stripe_sector(rbio, rbio->faila, sector_nr);
+		sector->uptodate = 1;
+	}
+	if (rbio->failb >= 0) {
+		sector = rbio_stripe_sector(rbio, rbio->failb, sector_nr);
+		sector->uptodate = 1;
+	}
+
+cleanup:
+	for (stripe_nr = rbio->real_stripes - 1; stripe_nr >= 0; stripe_nr--)
+		kunmap_local(unmap_array[stripe_nr]);
+}
+
+/*
  * all parity reconstruction happens here.  We've read in everything
  * we can find from the drives and this does the heavy lifting of
  * sorting the good from the bad.
  */
 static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 {
-	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
-	int sectornr, stripe;
-	void **pointers;
-	void **unmap_array;
-	int faila = -1, failb = -1;
+	int sectornr;
+	void **pointers = NULL;
+	void **unmap_array = NULL;
 	blk_status_t err;
-	int i;
 
 	/*
 	 * This array stores the pointer for each sector, thus it has the extra
@@ -1908,7 +2043,7 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 	pointers = kcalloc(rbio->real_stripes, sizeof(void *), GFP_NOFS);
 	if (!pointers) {
 		err = BLK_STS_RESOURCE;
-		goto cleanup_io;
+		goto cleanup;
 	}
 
 	/*
@@ -1918,11 +2053,12 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 	unmap_array = kcalloc(rbio->real_stripes, sizeof(void *), GFP_NOFS);
 	if (!unmap_array) {
 		err = BLK_STS_RESOURCE;
-		goto cleanup_pointers;
+		goto cleanup;
 	}
 
-	faila = rbio->faila;
-	failb = rbio->failb;
+	/* Make sure faila and fail b are in order. */
+	if (rbio->faila >= 0 && rbio->failb >= 0 && rbio->faila > rbio->failb)
+		swap(rbio->faila, rbio->failb);
 
 	if (rbio->operation == BTRFS_RBIO_READ_REBUILD ||
 	    rbio->operation == BTRFS_RBIO_REBUILD_MISSING) {
@@ -1933,138 +2069,15 @@ static void __raid_recover_end_io(struct btrfs_raid_bio *rbio)
 
 	index_rbio_pages(rbio);
 
-	for (sectornr = 0; sectornr < rbio->stripe_nsectors; sectornr++) {
-		struct sector_ptr *sector;
-
-		/*
-		 * Now we just use bitmap to mark the horizontal stripes in
-		 * which we have data when doing parity scrub.
-		 */
-		if (rbio->operation == BTRFS_RBIO_PARITY_SCRUB &&
-		    !test_bit(sectornr, &rbio->dbitmap))
-			continue;
-
-		/*
-		 * Setup our array of pointers with sectors from each stripe
-		 *
-		 * NOTE: store a duplicate array of pointers to preserve the
-		 * pointer order
-		 */
-		for (stripe = 0; stripe < rbio->real_stripes; stripe++) {
-			/*
-			 * If we're rebuilding a read, we have to use
-			 * pages from the bio list
-			 */
-			if ((rbio->operation == BTRFS_RBIO_READ_REBUILD ||
-			     rbio->operation == BTRFS_RBIO_REBUILD_MISSING) &&
-			    (stripe == faila || stripe == failb)) {
-				sector = sector_in_rbio(rbio, stripe, sectornr, 0);
-			} else {
-				sector = rbio_stripe_sector(rbio, stripe, sectornr);
-			}
-			ASSERT(sector->page);
-			pointers[stripe] = kmap_local_page(sector->page) +
-					   sector->pgoff;
-			unmap_array[stripe] = pointers[stripe];
-		}
-
-		/* All raid6 handling here */
-		if (rbio->bioc->map_type & BTRFS_BLOCK_GROUP_RAID6) {
-			/* Single failure, rebuild from parity raid5 style */
-			if (failb < 0) {
-				if (faila == rbio->nr_data) {
-					/*
-					 * Just the P stripe has failed, without
-					 * a bad data or Q stripe.
-					 * TODO, we should redo the xor here.
-					 */
-					err = BLK_STS_IOERR;
-					goto cleanup;
-				}
-				/*
-				 * a single failure in raid6 is rebuilt
-				 * in the pstripe code below
-				 */
-				goto pstripe;
-			}
-
-			/* make sure our ps and qs are in order */
-			if (faila > failb)
-				swap(faila, failb);
-
-			/* if the q stripe is failed, do a pstripe reconstruction
-			 * from the xors.
-			 * If both the q stripe and the P stripe are failed, we're
-			 * here due to a crc mismatch and we can't give them the
-			 * data they want
-			 */
-			if (rbio->bioc->raid_map[failb] == RAID6_Q_STRIPE) {
-				if (rbio->bioc->raid_map[faila] ==
-				    RAID5_P_STRIPE) {
-					err = BLK_STS_IOERR;
-					goto cleanup;
-				}
-				/*
-				 * otherwise we have one bad data stripe and
-				 * a good P stripe.  raid5!
-				 */
-				goto pstripe;
-			}
-
-			if (rbio->bioc->raid_map[failb] == RAID5_P_STRIPE) {
-				raid6_datap_recov(rbio->real_stripes,
-						  sectorsize, faila, pointers);
-			} else {
-				raid6_2data_recov(rbio->real_stripes,
-						  sectorsize, faila, failb,
-						  pointers);
-			}
-		} else {
-			void *p;
-
-			/* rebuild from P stripe here (raid5 or raid6) */
-			BUG_ON(failb != -1);
-pstripe:
-			/* Copy parity block into failed block to start with */
-			memcpy(pointers[faila], pointers[rbio->nr_data], sectorsize);
-
-			/* rearrange the pointer array */
-			p = pointers[faila];
-			for (stripe = faila; stripe < rbio->nr_data - 1; stripe++)
-				pointers[stripe] = pointers[stripe + 1];
-			pointers[rbio->nr_data - 1] = p;
-
-			/* xor in the rest */
-			run_xor(pointers, rbio->nr_data - 1, sectorsize);
-		}
-
-		/*
-		 * No matter if this is a RMW or recovery, we should have all
-		 * failed sectors repaired, thus they are now uptodate.
-		 * Especially if we determine to cache the rbio, we need to
-		 * have at least all data sectors uptodate.
-		 */
-		for (i = 0;  i < rbio->stripe_nsectors; i++) {
-			if (faila != -1) {
-				sector = rbio_stripe_sector(rbio, faila, i);
-				sector->uptodate = 1;
-			}
-			if (failb != -1) {
-				sector = rbio_stripe_sector(rbio, failb, i);
-				sector->uptodate = 1;
-			}
-		}
-		for (stripe = rbio->real_stripes - 1; stripe >= 0; stripe--)
-			kunmap_local(unmap_array[stripe]);
-	}
+	for (sectornr = 0; sectornr < rbio->stripe_nsectors; sectornr++)
+		recover_vertical(rbio, sectornr, pointers, unmap_array);
 
 	err = BLK_STS_OK;
+
 cleanup:
 	kfree(unmap_array);
-cleanup_pointers:
 	kfree(pointers);
 
-cleanup_io:
 	/*
 	 * Similar to READ_REBUILD, REBUILD_MISSING at this point also has a
 	 * valid rbio which is consistent with ondisk content, thus such a
