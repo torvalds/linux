@@ -1399,11 +1399,11 @@ on the pins defined by group B::
 		if (IS_ERR(p))
 			...
 
-		s1 = pinctrl_lookup_state(foo->p, "pos-A");
+		s1 = pinctrl_lookup_state(p, "pos-A");
 		if (IS_ERR(s1))
 			...
 
-		s2 = pinctrl_lookup_state(foo->p, "pos-B");
+		s2 = pinctrl_lookup_state(p, "pos-B");
 		if (IS_ERR(s2))
 			...
 	}
