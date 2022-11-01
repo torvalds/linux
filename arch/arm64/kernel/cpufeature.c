@@ -65,6 +65,7 @@
 #include <linux/bsearch.h>
 #include <linux/cpumask.h>
 #include <linux/crash_dump.h>
+#include <linux/kstrtox.h>
 #include <linux/sort.h>
 #include <linux/stop_machine.h>
 #include <linux/sysfs.h>
@@ -1795,7 +1796,7 @@ kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
 static int __init parse_kpti(char *str)
 {
 	bool enabled;
-	int ret = strtobool(str, &enabled);
+	int ret = kstrtobool(str, &enabled);
 
 	if (ret)
 		return ret;
@@ -2039,7 +2040,7 @@ static bool enable_pseudo_nmi;
 
 static int __init early_enable_pseudo_nmi(char *p)
 {
-	return strtobool(p, &enable_pseudo_nmi);
+	return kstrtobool(p, &enable_pseudo_nmi);
 }
 early_param("irqchip.gicv3_pseudo_nmi", early_enable_pseudo_nmi);
 
