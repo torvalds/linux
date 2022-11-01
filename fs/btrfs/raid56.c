@@ -1595,28 +1595,16 @@ static void raid56_rmw_end_io_work(struct work_struct *work)
 	validate_rbio_for_rmw(rbio);
 }
 
-/*
- * the stripe must be locked by the caller.  It will
- * unlock after all the writes are done
- */
-static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
+static int rmw_assemble_read_bios(struct btrfs_raid_bio *rbio,
+				  struct bio_list *bio_list)
 {
-	int bios_to_read = 0;
-	struct bio_list bio_list;
 	const int nr_data_sectors = rbio->stripe_nsectors * rbio->nr_data;
-	int ret;
-	int total_sector_nr;
 	struct bio *bio;
+	int total_sector_nr;
+	int ret = 0;
 
-	bio_list_init(&bio_list);
+	ASSERT(bio_list_size(bio_list) == 0);
 
-	ret = alloc_rbio_pages(rbio);
-	if (ret)
-		goto cleanup;
-
-	index_rbio_pages(rbio);
-
-	atomic_set(&rbio->error, 0);
 	/* Build a list of bios to read all the missing data sectors. */
 	for (total_sector_nr = 0; total_sector_nr < nr_data_sectors;
 	     total_sector_nr++) {
@@ -1641,11 +1629,43 @@ static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
 		if (sector->uptodate)
 			continue;
 
-		ret = rbio_add_io_sector(rbio, &bio_list, sector,
+		ret = rbio_add_io_sector(rbio, bio_list, sector,
 			       stripe, sectornr, REQ_OP_READ);
 		if (ret)
 			goto cleanup;
 	}
+	return 0;
+
+cleanup:
+	while ((bio = bio_list_pop(bio_list)))
+		bio_put(bio);
+	return ret;
+}
+
+/*
+ * the stripe must be locked by the caller.  It will
+ * unlock after all the writes are done
+ */
+static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
+{
+	int bios_to_read = 0;
+	struct bio_list bio_list;
+	int ret;
+	struct bio *bio;
+
+	bio_list_init(&bio_list);
+
+	ret = alloc_rbio_pages(rbio);
+	if (ret)
+		goto cleanup;
+
+	index_rbio_pages(rbio);
+
+	atomic_set(&rbio->error, 0);
+
+	ret = rmw_assemble_read_bios(rbio, &bio_list);
+	if (ret < 0)
+		goto cleanup;
 
 	bios_to_read = bio_list_size(&bio_list);
 	if (!bios_to_read) {
