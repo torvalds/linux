@@ -10263,8 +10263,8 @@ int amdgpu_dm_process_dmub_aux_transfer_sync(bool is_cmd_aux, struct dc_context 
  */
 bool check_seamless_boot_capability(struct amdgpu_device *adev)
 {
-	switch (adev->asic_type) {
-	case CHIP_VANGOGH:
+	switch (adev->ip_versions[DCE_HWIP][0]) {
+	case IP_VERSION(3, 0, 1):
 		if (!adev->mman.keep_stolen_vga_memory)
 			return true;
 		break;
