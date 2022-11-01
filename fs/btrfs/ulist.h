@@ -66,7 +66,7 @@ static inline int ulist_add_merge_ptr(struct ulist *ulist, u64 val, void *aux,
 #endif
 }
 
-struct ulist_node *ulist_next(struct ulist *ulist,
+struct ulist_node *ulist_next(const struct ulist *ulist,
 			      struct ulist_iterator *uiter);
 
 #define ULIST_ITER_INIT(uiter) ((uiter)->cur_list = NULL)

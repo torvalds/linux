@@ -266,7 +266,7 @@ int ulist_del(struct ulist *ulist, u64 val, u64 aux)
  * It is allowed to call ulist_add during an enumeration. Newly added items
  * are guaranteed to show up in the running enumeration.
  */
-struct ulist_node *ulist_next(struct ulist *ulist, struct ulist_iterator *uiter)
+struct ulist_node *ulist_next(const struct ulist *ulist, struct ulist_iterator *uiter)
 {
 	struct ulist_node *node;
 
