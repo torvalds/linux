@@ -70,7 +70,7 @@ struct sdw_cdns_stream_config {
 };
 
 /**
- * struct sdw_cdns_dma_data: Cadence DMA data
+ * struct sdw_cdns_dai_runtime: Cadence DAI runtime data
  *
  * @name: SoundWire stream name
  * @stream: stream runtime
@@ -82,7 +82,7 @@ struct sdw_cdns_stream_config {
  * @suspended: status set when suspended, to be used in .prepare
  * @paused: status set in .trigger, to be used in suspend
  */
-struct sdw_cdns_dma_data {
+struct sdw_cdns_dai_runtime {
 	char *name;
 	struct sdw_stream_runtime *stream;
 	struct sdw_cdns_pdi *pdi;
