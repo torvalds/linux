@@ -53,6 +53,24 @@
 	};
 };
 
+&gpio0 {
+	gpio-line-names =
+		/* 0 */ "", "host-reset-control-n", "", "", "", "", "", "",
+		/* 8 */ "", "", "", "", "power-chassis-control-n", "", "uid-button", "";
+};
+
+&gpio1 {
+	gpio-line-names =
+		/* 0 */ "", "", "", "", "led-heartbeat", "", "", "led-uid",
+		/* 8 */ "", "", "", "", "", "", "", "";
+};
+
+&gpio4 {
+	gpio-line-names =
+		/* 0 */ "", "", "", "", "", "", "", "",
+		/* 8 */ "", "", "", "", "", "", "", "power-chassis-good";
+};
+
 &pinctrl {
 	key_pins: mux-keys {
 		groups = "gspi", "sspi";
