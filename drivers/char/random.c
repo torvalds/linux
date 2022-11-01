@@ -120,7 +120,7 @@ static void try_to_generate_entropy(void);
  * Wait for the input pool to be seeded and thus guaranteed to supply
  * cryptographically secure random numbers. This applies to: the /dev/urandom
  * device, the get_random_bytes function, and the get_random_{u8,u16,u32,u64,
- * int,long} family of functions. Using any of these functions without first
+ * long} family of functions. Using any of these functions without first
  * calling this function forfeits the guarantee of security.
  *
  * Returns: 0 if the input pool has been seeded.
