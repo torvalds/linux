@@ -23,6 +23,15 @@
 
 #define L2_GUEST_STACK_SIZE 256
 
+/* Exit to L1 from L2 with RDMSR instruction */
+static inline void rdmsr_from_l2(uint32_t msr)
+{
+	/* Currently, L1 doesn't preserve GPRs during vmexits. */
+	__asm__ __volatile__ ("rdmsr" : : "c"(msr) :
+			      "rax", "rbx", "rdx", "rsi", "rdi", "r8", "r9",
+			      "r10", "r11", "r12", "r13", "r14", "r15");
+}
+
 void l2_guest_code(void)
 {
 	GUEST_SYNC(3);
@@ -30,11 +39,11 @@ void l2_guest_code(void)
 	vmmcall();
 
 	/* MSR-Bitmap tests */
-	rdmsr(MSR_FS_BASE); /* intercepted */
-	rdmsr(MSR_FS_BASE); /* intercepted */
-	rdmsr(MSR_GS_BASE); /* not intercepted */
+	rdmsr_from_l2(MSR_FS_BASE); /* intercepted */
+	rdmsr_from_l2(MSR_FS_BASE); /* intercepted */
+	rdmsr_from_l2(MSR_GS_BASE); /* not intercepted */
 	vmmcall();
-	rdmsr(MSR_GS_BASE); /* intercepted */
+	rdmsr_from_l2(MSR_GS_BASE); /* intercepted */
 
 	GUEST_SYNC(5);
 
