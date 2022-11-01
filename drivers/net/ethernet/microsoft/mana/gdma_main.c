@@ -1208,8 +1208,10 @@ static int mana_gd_setup_irqs(struct pci_dev *pdev)
 	struct gdma_context *gc = pci_get_drvdata(pdev);
 	struct gdma_irq_context *gic;
 	unsigned int max_irqs;
+	u16 *cpus;
+	cpumask_var_t req_mask;
 	int nvec, irq;
-	int err, i, j;
+	int err, i = 0, j;
 
 	if (max_queues_per_port > MANA_MAX_NUM_QUEUES)
 		max_queues_per_port = MANA_MAX_NUM_QUEUES;
@@ -1228,7 +1230,21 @@ static int mana_gd_setup_irqs(struct pci_dev *pdev)
 		goto free_irq_vector;
 	}
 
+	if (!zalloc_cpumask_var(&req_mask, GFP_KERNEL)) {
+		err = -ENOMEM;
+		goto free_irq;
+	}
+
+	cpus = kcalloc(nvec, sizeof(*cpus), GFP_KERNEL);
+	if (!cpus) {
+		err = -ENOMEM;
+		goto free_mask;
+	}
+	for (i = 0; i < nvec; i++)
+		cpus[i] = cpumask_local_spread(i, gc->numa_node);
+
 	for (i = 0; i < nvec; i++) {
+		cpumask_set_cpu(cpus[i], req_mask);
 		gic = &gc->irq_contexts[i];
 		gic->handler = NULL;
 		gic->arg = NULL;
@@ -1236,13 +1252,17 @@ static int mana_gd_setup_irqs(struct pci_dev *pdev)
 		irq = pci_irq_vector(pdev, i);
 		if (irq < 0) {
 			err = irq;
-			goto free_irq;
+			goto free_mask;
 		}
 
 		err = request_irq(irq, mana_gd_intr, 0, "mana_intr", gic);
 		if (err)
-			goto free_irq;
+			goto free_mask;
+		irq_set_affinity_and_hint(irq, req_mask);
+		cpumask_clear(req_mask);
 	}
+	free_cpumask_var(req_mask);
+	kfree(cpus);
 
 	err = mana_gd_alloc_res_map(nvec, &gc->msix_resource);
 	if (err)
@@ -1253,6 +1273,9 @@ static int mana_gd_setup_irqs(struct pci_dev *pdev)
 
 	return 0;
 
+free_mask:
+	free_cpumask_var(req_mask);
+	kfree(cpus);
 free_irq:
 	for (j = i - 1; j >= 0; j--) {
 		irq = pci_irq_vector(pdev, j);
@@ -1382,6 +1405,7 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!bar0_va)
 		goto free_gc;
 
+	gc->numa_node = dev_to_node(&pdev->dev);
 	gc->is_pf = mana_is_pf(pdev->device);
 	gc->bar0_va = bar0_va;
 	gc->dev = &pdev->dev;
