@@ -1630,7 +1630,7 @@ void arch_setup_new_exec(void)
 }
 
 #ifdef CONFIG_PPC64
-/**
+/*
  * Assign a TIDR (thread ID) for task @t and set it in the thread
  * structure. For now, we only support setting TIDR for 'current' task.
  *
