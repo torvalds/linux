@@ -53,7 +53,7 @@ config DRM_GM12U320
 
 config DRM_OFDRM
 	tristate "Open Firmware display driver"
-	depends on DRM && OF && (PPC || COMPILE_TEST)
+	depends on DRM && MMU && OF && (PPC || COMPILE_TEST)
 	select APERTURE_HELPERS
 	select DRM_GEM_SHMEM_HELPER
 	select DRM_KMS_HELPER
