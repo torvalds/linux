@@ -1238,7 +1238,7 @@ default state like this::
 			return PTR_ERR(foo->s);
 		}
 
-		ret = pinctrl_select_state(foo->s);
+		ret = pinctrl_select_state(foo->p, foo->s);
 		if (ret < 0) {
 			/* FIXME: clean up "foo" here */
 			return ret;
@@ -1411,14 +1411,14 @@ on the pins defined by group B::
 	foo_switch()
 	{
 		/* Enable on position A */
-		ret = pinctrl_select_state(s1);
+		ret = pinctrl_select_state(p, s1);
 		if (ret < 0)
 		...
 
 		...
 
 		/* Enable on position B */
-		ret = pinctrl_select_state(s2);
+		ret = pinctrl_select_state(p, s2);
 		if (ret < 0)
 		...
 
