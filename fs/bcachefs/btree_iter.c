@@ -1175,8 +1175,6 @@ static inline void btree_path_copy(struct btree_trans *trans, struct btree_path 
 		if (t != BTREE_NODE_UNLOCKED)
 			six_lock_increment(&dst->l[i].b->c.lock, t);
 	}
-
-	trans->paths_sorted = false;
 }
 
 static struct btree_path *btree_path_clone(struct btree_trans *trans, struct btree_path *src,
@@ -1196,10 +1194,6 @@ struct btree_path *__bch2_btree_path_make_mut(struct btree_trans *trans,
 	__btree_path_put(path, intent);
 	path = btree_path_clone(trans, path, intent);
 	path->preserve = false;
-#ifdef CONFIG_BCACHEFS_DEBUG
-	path->ip_allocated = _RET_IP_;
-#endif
-	path->should_be_locked = false;
 	return path;
 }
 
