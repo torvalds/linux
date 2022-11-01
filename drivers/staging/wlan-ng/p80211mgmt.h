@@ -225,13 +225,6 @@ struct wlan_ie {
 	u8 len;
 } __packed;
 
-/*-- Service Set Identity (SSID)  -----------------*/
-struct wlan_ie_ssid {
-	u8 eid;
-	u8 len;
-	u8 ssid[1];		/* may be zero, ptrs may overlap */
-} __packed;
-
 /*-- Supported Rates  -----------------------------*/
 struct wlan_ie_supp_rates {
 	u8 eid;
@@ -319,7 +312,6 @@ struct wlan_fr_beacon {
 	u16 *bcn_int;
 	u16 *cap_info;
 	/*-- info elements ----------*/
-	struct wlan_ie_ssid *ssid;
 	struct wlan_ie_supp_rates *supp_rates;
 	struct wlan_ie_fh_parms *fh_parms;
 	struct wlan_ie_ds_parms *ds_parms;
@@ -372,7 +364,6 @@ struct wlan_fr_assocreq {
 	u16 *cap_info;
 	u16 *listen_int;
 	/*-- info elements ----------*/
-	struct wlan_ie_ssid *ssid;
 	struct wlan_ie_supp_rates *supp_rates;
 
 };
@@ -407,7 +398,6 @@ struct wlan_fr_reassocreq {
 	u16 *listen_int;
 	u8 *curr_ap;
 	/*-- info elements ----------*/
-	struct wlan_ie_ssid *ssid;
 	struct wlan_ie_supp_rates *supp_rates;
 
 };
@@ -439,7 +429,6 @@ struct wlan_fr_probereq {
 	void *priv;
 	/*-- fixed fields -----------*/
 	/*-- info elements ----------*/
-	struct wlan_ie_ssid *ssid;
 	struct wlan_ie_supp_rates *supp_rates;
 
 };
@@ -457,7 +446,6 @@ struct wlan_fr_proberesp {
 	u16 *bcn_int;
 	u16 *cap_info;
 	/*-- info elements ----------*/
-	struct wlan_ie_ssid *ssid;
 	struct wlan_ie_supp_rates *supp_rates;
 	struct wlan_ie_fh_parms *fh_parms;
 	struct wlan_ie_ds_parms *ds_parms;
