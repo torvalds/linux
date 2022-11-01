@@ -227,7 +227,7 @@ spc_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	unsigned char *prod = &dev->t10_wwn.model[0];
 	u32 prod_len;
-	u32 unit_serial_len, off = 0;
+	u32 off = 0;
 	u16 len = 0, id_len;
 
 	off = 4;
@@ -272,13 +272,9 @@ check_t10_vend_desc:
 	prod_len += strlen(prod);
 	prod_len++; /* For : */
 
-	if (dev->dev_flags & DF_EMULATED_VPD_UNIT_SERIAL) {
-		unit_serial_len = strlen(&dev->t10_wwn.unit_serial[0]);
-		unit_serial_len++; /* For NULL Terminator */
-
+	if (dev->dev_flags & DF_EMULATED_VPD_UNIT_SERIAL)
 		id_len += sprintf(&buf[off+12], "%s:%s", prod,
 				&dev->t10_wwn.unit_serial[0]);
-	}
 	buf[off] = 0x2; /* ASCII */
 	buf[off+1] = 0x1; /* T10 Vendor ID */
 	buf[off+2] = 0x0;
