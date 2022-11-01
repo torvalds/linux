@@ -909,7 +909,6 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 	struct btrfs_extent_item *ei;
 	struct scrub_warning swarn;
 	unsigned long ptr = 0;
-	u64 extent_item_pos;
 	u64 flags = 0;
 	u64 ref_root;
 	u32 item_size;
@@ -941,7 +940,6 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 	if (ret < 0)
 		goto out;
 
-	extent_item_pos = swarn.logical - found_key.objectid;
 	swarn.extent_item_size = found_key.offset;
 
 	eb = path->nodes[0];
@@ -964,12 +962,18 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 		} while (ret != 1);
 		btrfs_release_path(path);
 	} else {
+		struct btrfs_backref_walk_ctx ctx = { 0 };
+
 		btrfs_release_path(path);
+
+		ctx.bytenr = found_key.objectid;
+		ctx.extent_item_pos = swarn.logical - found_key.objectid;
+		ctx.fs_info = fs_info;
+
 		swarn.path = path;
 		swarn.dev = dev;
-		iterate_extent_inodes(fs_info, found_key.objectid,
-					extent_item_pos, 1,
-					scrub_print_warning_inode, &swarn);
+
+		iterate_extent_inodes(&ctx, true, scrub_print_warning_inode, &swarn);
 	}
 
 out:

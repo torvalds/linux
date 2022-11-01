@@ -1356,12 +1356,12 @@ static int find_extent_clone(struct send_ctx *sctx,
 	u64 logical;
 	u64 disk_byte;
 	u64 num_bytes;
-	u64 extent_item_pos;
 	u64 extent_refs;
 	u64 flags = 0;
 	struct btrfs_file_extent_item *fi;
 	struct extent_buffer *eb = path->nodes[0];
-	struct backref_ctx backref_ctx = {0};
+	struct backref_ctx backref_ctx = { 0 };
+	struct btrfs_backref_walk_ctx backref_walk_ctx = { 0 };
 	struct clone_root *cur_clone_root;
 	struct btrfs_key found_key;
 	struct btrfs_path *tmp_path;
@@ -1461,14 +1461,13 @@ static int find_extent_clone(struct send_ctx *sctx,
 	/*
 	 * Now collect all backrefs.
 	 */
+	backref_walk_ctx.bytenr = found_key.objectid;
 	if (compressed == BTRFS_COMPRESS_NONE)
-		extent_item_pos = logical - found_key.objectid;
-	else
-		extent_item_pos = 0;
-	ret = iterate_extent_inodes(fs_info, found_key.objectid,
-				    extent_item_pos, 1, __iterate_backrefs,
-				    &backref_ctx);
+		backref_walk_ctx.extent_item_pos = logical - found_key.objectid;
+	backref_walk_ctx.fs_info = fs_info;
 
+	ret = iterate_extent_inodes(&backref_walk_ctx, true, __iterate_backrefs,
+				    &backref_ctx);
 	if (ret < 0)
 		goto out;
 

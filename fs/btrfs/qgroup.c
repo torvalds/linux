@@ -1794,8 +1794,7 @@ int btrfs_qgroup_trace_extent_nolock(struct btrfs_fs_info *fs_info,
 int btrfs_qgroup_trace_extent_post(struct btrfs_trans_handle *trans,
 				   struct btrfs_qgroup_extent_record *qrecord)
 {
-	struct ulist *old_root;
-	u64 bytenr = qrecord->bytenr;
+	struct btrfs_backref_walk_ctx ctx = { 0 };
 	int ret;
 
 	/*
@@ -1822,8 +1821,10 @@ int btrfs_qgroup_trace_extent_post(struct btrfs_trans_handle *trans,
 	if (trans->fs_info->qgroup_flags & BTRFS_QGROUP_RUNTIME_FLAG_NO_ACCOUNTING)
 		return 0;
 
-	ret = btrfs_find_all_roots(NULL, trans->fs_info, bytenr, 0, &old_root,
-				   true);
+	ctx.bytenr = qrecord->bytenr;
+	ctx.fs_info = trans->fs_info;
+
+	ret = btrfs_find_all_roots(&ctx, true);
 	if (ret < 0) {
 		qgroup_mark_inconsistent(trans->fs_info);
 		btrfs_warn(trans->fs_info,
@@ -1839,7 +1840,7 @@ int btrfs_qgroup_trace_extent_post(struct btrfs_trans_handle *trans,
 	 *
 	 * So modifying qrecord->old_roots is safe here
 	 */
-	qrecord->old_roots = old_root;
+	qrecord->old_roots = ctx.roots;
 	return 0;
 }
 
@@ -2750,17 +2751,22 @@ int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans)
 
 		if (!ret && !(fs_info->qgroup_flags &
 			      BTRFS_QGROUP_RUNTIME_FLAG_NO_ACCOUNTING)) {
+			struct btrfs_backref_walk_ctx ctx = { 0 };
+
+			ctx.bytenr = record->bytenr;
+			ctx.fs_info = fs_info;
+
 			/*
 			 * Old roots should be searched when inserting qgroup
 			 * extent record
 			 */
 			if (WARN_ON(!record->old_roots)) {
 				/* Search commit root to find old_roots */
-				ret = btrfs_find_all_roots(NULL, fs_info,
-						record->bytenr, 0,
-						&record->old_roots, false);
+				ret = btrfs_find_all_roots(&ctx, false);
 				if (ret < 0)
 					goto cleanup;
+				record->old_roots = ctx.roots;
+				ctx.roots = NULL;
 			}
 
 			/* Free the reserved data space */
@@ -2773,10 +2779,11 @@ int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans)
 			 * which doesn't lock tree or delayed_refs and search
 			 * current root. It's safe inside commit_transaction().
 			 */
-			ret = btrfs_find_all_roots(trans, fs_info,
-			   record->bytenr, BTRFS_SEQ_LAST, &new_roots, false);
+			ctx.trans = trans;
+			ret = btrfs_find_all_roots(&ctx, false);
 			if (ret < 0)
 				goto cleanup;
+			new_roots = ctx.roots;
 			if (qgroup_to_skip) {
 				ulist_del(new_roots, qgroup_to_skip, 0);
 				ulist_del(record->old_roots, qgroup_to_skip,
@@ -3242,7 +3249,6 @@ static int qgroup_rescan_leaf(struct btrfs_trans_handle *trans,
 	struct btrfs_root *extent_root;
 	struct btrfs_key found;
 	struct extent_buffer *scratch_leaf = NULL;
-	struct ulist *roots = NULL;
 	u64 num_bytes;
 	bool done;
 	int slot;
@@ -3292,6 +3298,8 @@ static int qgroup_rescan_leaf(struct btrfs_trans_handle *trans,
 	mutex_unlock(&fs_info->qgroup_rescan_lock);
 
 	for (; slot < btrfs_header_nritems(scratch_leaf); ++slot) {
+		struct btrfs_backref_walk_ctx ctx = { 0 };
+
 		btrfs_item_key_to_cpu(scratch_leaf, &found, slot);
 		if (found.type != BTRFS_EXTENT_ITEM_KEY &&
 		    found.type != BTRFS_METADATA_ITEM_KEY)
@@ -3301,13 +3309,15 @@ static int qgroup_rescan_leaf(struct btrfs_trans_handle *trans,
 		else
 			num_bytes = found.offset;
 
-		ret = btrfs_find_all_roots(NULL, fs_info, found.objectid, 0,
-					   &roots, false);
+		ctx.bytenr = found.objectid;
+		ctx.fs_info = fs_info;
+
+		ret = btrfs_find_all_roots(&ctx, false);
 		if (ret < 0)
 			goto out;
 		/* For rescan, just pass old_roots as NULL */
 		ret = btrfs_qgroup_account_extent(trans, found.objectid,
-						  num_bytes, NULL, roots);
+						  num_bytes, NULL, ctx.roots);
 		if (ret < 0)
 			goto out;
 	}

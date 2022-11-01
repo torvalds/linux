@@ -13,11 +13,63 @@
 #include "extent_io.h"
 
 /*
- * Pass to backref walking functions to tell them to include references from
- * all file extent items that point to the target data extent, regardless if
- * they refer to the whole extent or just sections of it (bookend extents).
+ * Context and arguments for backref walking functions. Some of the fields are
+ * to be filled by the caller of such functions while other are filled by the
+ * functions themselves, as described below.
  */
-#define BTRFS_IGNORE_EXTENT_OFFSET   ((u64)-1)
+struct btrfs_backref_walk_ctx {
+	/*
+	 * The address of the extent for which we are doing backref walking.
+	 * Can be either a data extent or a metadata extent.
+	 *
+	 * Must always be set by the top level caller.
+	 */
+	u64 bytenr;
+	/*
+	 * Offset relative to the target extent. This is only used for data
+	 * extents, and it's meaningful because we can have file extent items
+	 * that point only to a section of a data extent ("bookend" extents),
+	 * and we want to filter out any that don't point to a section of the
+	 * data extent containing the given offset.
+	 *
+	 * Must always be set by the top level caller.
+	 */
+	u64 extent_item_pos;
+	/*
+	 * If true and bytenr corresponds to a data extent, then references from
+	 * all file extent items that point to the data extent are considered,
+	 * @extent_item_pos is ignored.
+	 */
+	bool ignore_extent_item_pos;
+	/* A valid transaction handle or NULL. */
+	struct btrfs_trans_handle *trans;
+	/*
+	 * The file system's info object, can not be NULL.
+	 *
+	 * Must always be set by the top level caller.
+	 */
+	struct btrfs_fs_info *fs_info;
+	/*
+	 * Time sequence acquired from btrfs_get_tree_mod_seq(), in case the
+	 * caller joined the tree mod log to get a consistent view of b+trees
+	 * while we do backref walking, or BTRFS_SEQ_LAST.
+	 * When using BTRFS_SEQ_LAST, delayed refs are not checked and it uses
+	 * commit roots when searching b+trees - this is a special case for
+	 * qgroups used during a transaction commit.
+	 */
+	u64 time_seq;
+	/*
+	 * Used to collect the bytenr of metadata extents that point to the
+	 * target extent.
+	 */
+	struct ulist *refs;
+	/*
+	 * List used to collect the IDs of the roots from which the target
+	 * extent is accessible. Can be NULL in case the caller does not care
+	 * about collecting root IDs.
+	 */
+	struct ulist *roots;
+};
 
 struct inode_fs_paths {
 	struct btrfs_path		*btrfs_path;
@@ -96,10 +148,9 @@ int tree_backref_for_extent(unsigned long *ptr, struct extent_buffer *eb,
 			    struct btrfs_key *key, struct btrfs_extent_item *ei,
 			    u32 item_size, u64 *out_root, u8 *out_level);
 
-int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
-				u64 extent_item_objectid,
-				u64 extent_offset, int search_commit_root,
-				iterate_extent_inodes_t *iterate, void *ctx);
+int iterate_extent_inodes(struct btrfs_backref_walk_ctx *ctx,
+			  bool search_commit_root,
+			  iterate_extent_inodes_t *iterate, void *user_ctx);
 
 int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
 				struct btrfs_path *path, void *ctx,
@@ -107,13 +158,8 @@ int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
 
 int paths_from_inode(u64 inum, struct inode_fs_paths *ipath);
 
-int btrfs_find_all_leafs(struct btrfs_trans_handle *trans,
-			 struct btrfs_fs_info *fs_info, u64 bytenr,
-			 u64 time_seq, struct ulist **leafs,
-			 u64 extent_item_pos);
-int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
-			 struct btrfs_fs_info *fs_info, u64 bytenr,
-			 u64 time_seq, struct ulist **roots,
+int btrfs_find_all_leafs(struct btrfs_backref_walk_ctx *ctx);
+int btrfs_find_all_roots(struct btrfs_backref_walk_ctx *ctx,
 			 bool skip_commit_root_sem);
 char *btrfs_ref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 			u32 name_len, unsigned long name_off,
