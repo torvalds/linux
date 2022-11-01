@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/kstrtox.h>
 #include <linux/panic_notifier.h>
 #include <linux/reboot.h>
 #include <linux/ctype.h>
@@ -779,7 +780,7 @@ static ssize_t reipl_fcp_clear_store(struct kobject *kobj,
 				     struct kobj_attribute *attr,
 				     const char *buf, size_t len)
 {
-	if (strtobool(buf, &reipl_fcp_clear) < 0)
+	if (kstrtobool(buf, &reipl_fcp_clear) < 0)
 		return -EINVAL;
 	return len;
 }
@@ -899,7 +900,7 @@ static ssize_t reipl_nvme_clear_store(struct kobject *kobj,
 				      struct kobj_attribute *attr,
 				      const char *buf, size_t len)
 {
-	if (strtobool(buf, &reipl_nvme_clear) < 0)
+	if (kstrtobool(buf, &reipl_nvme_clear) < 0)
 		return -EINVAL;
 	return len;
 }
@@ -952,7 +953,7 @@ static ssize_t reipl_ccw_clear_store(struct kobject *kobj,
 				     struct kobj_attribute *attr,
 				     const char *buf, size_t len)
 {
-	if (strtobool(buf, &reipl_ccw_clear) < 0)
+	if (kstrtobool(buf, &reipl_ccw_clear) < 0)
 		return -EINVAL;
 	return len;
 }
