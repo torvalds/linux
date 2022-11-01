@@ -19,53 +19,31 @@ package(
 
 load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define_db845c")
 
+_common_gki_modules_list = [
+    # keep sorted
+    "drivers/block/zram/zram.ko",
+    "mm/zsmalloc.ko",
+    "net/mac80211/mac80211.ko",
+    "net/wireless/cfg80211.ko",
+]
+
 define_common_kernels(target_configs = {
     "kernel_aarch64": {
-        "module_implicit_outs": [
-            # keep sorted
-            "drivers/block/zram/zram.ko",
-            "mm/zsmalloc.ko",
-            "net/mac80211/mac80211.ko",
-            "net/wireless/cfg80211.ko",
-        ],
+        "module_implicit_outs": _common_gki_modules_list,
     },
     "kernel_aarch64_16k": {
-        "module_implicit_outs": [
-            # keep sorted
-            "drivers/block/zram/zram.ko",
-            "mm/zsmalloc.ko",
-            "net/mac80211/mac80211.ko",
-            "net/wireless/cfg80211.ko",
-        ],
+        "module_implicit_outs": _common_gki_modules_list,
     },
     "kernel_aarch64_debug": {
-        "module_implicit_outs": [
-            # keep sorted
-            "drivers/block/zram/zram.ko",
-            "mm/zsmalloc.ko",
-            "net/mac80211/mac80211.ko",
-            "net/wireless/cfg80211.ko",
-        ],
+        "module_implicit_outs": _common_gki_modules_list,
     },
     "kernel_x86_64": {
         "kmi_symbol_list_strict_mode": False,
-        "module_implicit_outs": [
-            # keep sorted
-            "drivers/block/zram/zram.ko",
-            "mm/zsmalloc.ko",
-            "net/mac80211/mac80211.ko",
-            "net/wireless/cfg80211.ko",
-        ],
+        "module_implicit_outs": _common_gki_modules_list,
     },
     "kernel_x86_64_debug": {
         "kmi_symbol_list_strict_mode": False,
-        "module_implicit_outs": [
-            # keep sorted
-            "drivers/block/zram/zram.ko",
-            "mm/zsmalloc.ko",
-            "net/mac80211/mac80211.ko",
-            "net/wireless/cfg80211.ko",
-        ],
+        "module_implicit_outs": _common_gki_modules_list,
     },
 })
 
