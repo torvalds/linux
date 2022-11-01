@@ -101,6 +101,8 @@ struct sparx5_port_qos_pcp_map {
 
 struct sparx5_port_qos_pcp {
 	struct sparx5_port_qos_pcp_map map;
+	bool qos_enable;
+	bool dp_enable;
 };
 
 struct sparx5_port_qos {

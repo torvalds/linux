@@ -8,6 +8,37 @@
 
 #include "sparx5_port.h"
 
+enum sparx5_dcb_apptrust_values {
+	SPARX5_DCB_APPTRUST_EMPTY,
+	SPARX5_DCB_APPTRUST_DSCP,
+	SPARX5_DCB_APPTRUST_PCP,
+	SPARX5_DCB_APPTRUST_DSCP_PCP,
+	__SPARX5_DCB_APPTRUST_MAX
+};
+
+static const struct sparx5_dcb_apptrust {
+	u8 selectors[IEEE_8021QAZ_APP_SEL_MAX + 1];
+	int nselectors;
+} *sparx5_port_apptrust[SPX5_PORTS];
+
+static const char *sparx5_dcb_apptrust_names[__SPARX5_DCB_APPTRUST_MAX] = {
+	[SPARX5_DCB_APPTRUST_EMPTY]    = "empty",
+	[SPARX5_DCB_APPTRUST_DSCP]     = "dscp",
+	[SPARX5_DCB_APPTRUST_PCP]      = "pcp",
+	[SPARX5_DCB_APPTRUST_DSCP_PCP] = "dscp pcp"
+};
+
+/* Sparx5 supported apptrust policies */
+static const struct sparx5_dcb_apptrust
+	sparx5_dcb_apptrust_policies[__SPARX5_DCB_APPTRUST_MAX] = {
+	/* Empty *must* be first */
+	[SPARX5_DCB_APPTRUST_EMPTY]    = { { 0 }, 0 },
+	[SPARX5_DCB_APPTRUST_DSCP]     = { { IEEE_8021QAZ_APP_SEL_DSCP }, 1 },
+	[SPARX5_DCB_APPTRUST_PCP]      = { { DCB_APP_SEL_PCP }, 1 },
+	[SPARX5_DCB_APPTRUST_DSCP_PCP] = { { IEEE_8021QAZ_APP_SEL_DSCP,
+					     DCB_APP_SEL_PCP }, 2 },
+};
+
 /* Validate app entry.
  *
  * Check for valid selectors and valid protocol and priority ranges.
@@ -37,12 +68,62 @@ static int sparx5_dcb_app_validate(struct net_device *dev,
 	return err;
 }
 
+/* Validate apptrust configuration.
+ *
+ * Return index of supported apptrust configuration if valid, otherwise return
+ * error.
+ */
+static int sparx5_dcb_apptrust_validate(struct net_device *dev, u8 *selectors,
+					int nselectors, int *err)
+{
+	bool match;
+	int i, ii;
+
+	for (i = 0; i < ARRAY_SIZE(sparx5_dcb_apptrust_policies); i++) {
+		if (sparx5_dcb_apptrust_policies[i].nselectors != nselectors)
+			continue;
+		match = true;
+		for (ii = 0; ii < nselectors; ii++) {
+			if (sparx5_dcb_apptrust_policies[i].selectors[ii] !=
+			    *(selectors + ii)) {
+				match = false;
+				break;
+			}
+		}
+		if (match)
+			break;
+	}
+
+	/* Requested trust configuration is not supported */
+	if (!match) {
+		netdev_err(dev, "Valid apptrust configurations are:\n");
+		for (i = 0; i < ARRAY_SIZE(sparx5_dcb_apptrust_names); i++)
+			pr_info("order: %s\n", sparx5_dcb_apptrust_names[i]);
+		*err = -EOPNOTSUPP;
+	}
+
+	return i;
+}
+
+static bool sparx5_dcb_apptrust_contains(int portno, u8 selector)
+{
+	const struct sparx5_dcb_apptrust *conf = sparx5_port_apptrust[portno];
+	int i;
+
+	for (i = 0; i < conf->nselectors; i++)
+		if (conf->selectors[i] == selector)
+			return true;
+
+	return false;
+}
+
 static int sparx5_dcb_app_update(struct net_device *dev)
 {
 	struct dcb_app app_itr = { .selector = DCB_APP_SEL_PCP };
 	struct sparx5_port *port = netdev_priv(dev);
 	struct sparx5_port_qos_pcp_map *pcp_map;
 	struct sparx5_port_qos qos = {0};
+	int portno = port->portno;
 	int i;
 
 	pcp_map = &qos.pcp.map;
@@ -51,6 +132,12 @@ static int sparx5_dcb_app_update(struct net_device *dev)
 	for (i = 0; i < ARRAY_SIZE(pcp_map->map); i++) {
 		app_itr.protocol = i;
 		pcp_map->map[i] = dcb_getapp(dev, &app_itr);
+	}
+
+	/* Enable use of pcp for queue classification ? */
+	if (sparx5_dcb_apptrust_contains(portno, DCB_APP_SEL_PCP)) {
+		qos.pcp.qos_enable = true;
+		qos.pcp.dp_enable = qos.pcp.qos_enable;
 	}
 
 	return sparx5_port_qos_set(port, &qos);
@@ -95,9 +182,40 @@ static int sparx5_dcb_ieee_delapp(struct net_device *dev, struct dcb_app *app)
 	return sparx5_dcb_app_update(dev);
 }
 
+static int sparx5_dcb_setapptrust(struct net_device *dev, u8 *selectors,
+				  int nselectors)
+{
+	struct sparx5_port *port = netdev_priv(dev);
+	int err = 0, idx;
+
+	idx = sparx5_dcb_apptrust_validate(dev, selectors, nselectors, &err);
+	if (err < 0)
+		return err;
+
+	sparx5_port_apptrust[port->portno] = &sparx5_dcb_apptrust_policies[idx];
+
+	return sparx5_dcb_app_update(dev);
+}
+
+static int sparx5_dcb_getapptrust(struct net_device *dev, u8 *selectors,
+				  int *nselectors)
+{
+	struct sparx5_port *port = netdev_priv(dev);
+	const struct sparx5_dcb_apptrust *trust;
+
+	trust = sparx5_port_apptrust[port->portno];
+
+	memcpy(selectors, trust->selectors, trust->nselectors);
+	*nselectors = trust->nselectors;
+
+	return 0;
+}
+
 const struct dcbnl_rtnl_ops sparx5_dcbnl_ops = {
 	.ieee_setapp = sparx5_dcb_ieee_setapp,
 	.ieee_delapp = sparx5_dcb_ieee_delapp,
+	.dcbnl_setapptrust = sparx5_dcb_setapptrust,
+	.dcbnl_getapptrust = sparx5_dcb_getapptrust,
 };
 
 int sparx5_dcb_init(struct sparx5 *sparx5)
@@ -110,6 +228,10 @@ int sparx5_dcb_init(struct sparx5 *sparx5)
 		if (!port)
 			continue;
 		port->ndev->dcbnl_ops = &sparx5_dcbnl_ops;
+		/* Initialize [dscp, pcp] default trust */
+		sparx5_port_apptrust[port->portno] =
+			&sparx5_dcb_apptrust_policies
+				[SPARX5_DCB_APPTRUST_DSCP_PCP];
 	}
 
 	return 0;
