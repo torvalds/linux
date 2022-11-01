@@ -143,6 +143,8 @@
 
 #define YTPHY_EXTREG_CHIP_CONFIG	0xa001
 #define YTPHY_EXTREG_RGMII_CONFIG1	0xa003
+#define YTPHY_PAD_DRIVES_STRENGTH_CFG	0xa010
+#define YTPHY_RGMII_SW_DR_MASK		GENMASK(5, 4)
 
 enum ytphy_wol_feature_trigger_type_e {
 	YTPHY_WOL_FEATURE_PULSE_TRIGGER,
@@ -204,10 +206,22 @@ struct ytphy_reg_field {
 	const u8	dflt;	/* Default value */
 };
 
+struct ytphy_priv_t {
+	u32 tx_inverted_1000;
+	u32 tx_inverted_100;
+	u32 tx_inverted_10;
+};
+
 static const struct ytphy_reg_field ytphy_rxtxd_grp[] = {
 	{ "rx_delay_sel", 4, 10, 0x0 },
 	{ "tx_delay_sel_fe", 4, 4, 0xf },
 	{ "tx_delay_sel", 4, 0, 0x1 }
+};
+
+static const struct ytphy_reg_field ytphy_txinver_grp[] = {
+	{ "tx_inverted_1000", 1, 14, 0x0 },
+	{ "tx_inverted_100", 1, 14, 0x0 },
+	{ "tx_inverted_10", 1, 14, 0x0 }
 };
 
 static const struct ytphy_reg_field ytphy_rxden_grp[] = {
@@ -785,6 +799,24 @@ static int yt8521_hw_strap_polling(struct phy_device *phydev)
 	}
 }
 
+static struct device_node *ytphy_get_of_node(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	const struct device_node *of_node;
+	int i = 0;
+
+	do {
+		of_node = dev->of_node;
+		dev = dev->parent;
+		if (i++ > 5) {
+			phydev_err(phydev, "Get of node timeout\n");
+			return NULL;
+		}
+	} while (!of_node && dev);
+
+	return of_node->child;
+}
+
 static int ytphy_of_config(struct phy_device *phydev)
 {
 	const struct device_node *of_node;
@@ -792,19 +824,10 @@ static int ytphy_of_config(struct phy_device *phydev)
 	u32 val;
 	u32 cfg;
 	int ret;
-	int i = 0;
+	int i;
 
 	dev = &phydev->mdio.dev;
-	do {
-		of_node = dev->of_node;
-		dev = dev->parent;
-		if (i++ > 5) {
-			phydev_err(phydev, "Get of node timeout\n");
-			return -EINVAL;
-		}
-	} while (!of_node && dev);
-
-	of_node = of_node->child;
+	of_node = ytphy_get_of_node(phydev);
 	if (of_node) {
 		ret = of_property_read_u32(of_node, ytphy_rxden_grp[0].name, &cfg);
 		if (!ret) {
@@ -817,6 +840,10 @@ static int ytphy_of_config(struct phy_device *phydev)
 				ytphy_rxden_grp[0].size, cfg);
 			ytphy_write_ext(phydev, YTPHY_EXTREG_CHIP_CONFIG, val);
 		}
+
+		val = ytphy_read_ext(phydev, YTPHY_PAD_DRIVES_STRENGTH_CFG);
+		val |= YTPHY_RGMII_SW_DR_MASK;
+		ytphy_write_ext(phydev, YTPHY_PAD_DRIVES_STRENGTH_CFG, val);
 
 		val = ytphy_read_ext(phydev, YTPHY_EXTREG_RGMII_CONFIG1);
 		for (i = 0; i < ARRAY_SIZE(ytphy_rxtxd_grp); i++) {
@@ -834,7 +861,6 @@ static int ytphy_of_config(struct phy_device *phydev)
 		}
 		return ytphy_write_ext(phydev, YTPHY_EXTREG_RGMII_CONFIG1, val);
 	}
-
 	phydev_err(phydev, "Get of node fail\n");
 	return -EINVAL;
 }
@@ -1123,6 +1149,71 @@ static int yt8531S_config_init(struct phy_device *phydev)
 	ret = yt8521_config_init(phydev);
 
 	return ret;
+}
+
+static int yt8531_read_status(struct phy_device *phydev)
+{
+	int ret;
+	u32 val;
+	struct ytphy_priv_t *ytphy_priv = phydev->priv;
+
+	val = ytphy_read_ext(phydev, YTPHY_EXTREG_RGMII_CONFIG1);
+	ret = genphy_read_status(phydev);
+	if (ret)
+		return ret;
+
+	switch (phydev->speed) {
+	case SPEED_1000:
+		val = bitfield_replace(val, ytphy_txinver_grp[0].off,
+					ytphy_txinver_grp[0].size,
+					ytphy_priv->tx_inverted_1000);
+		break;
+	case SPEED_100:
+		val = bitfield_replace(val, ytphy_txinver_grp[1].off,
+					ytphy_txinver_grp[1].size,
+					ytphy_priv->tx_inverted_100);
+		break;
+	case SPEED_10:
+		val = bitfield_replace(val, ytphy_txinver_grp[2].off,
+					ytphy_txinver_grp[2].size,
+					ytphy_priv->tx_inverted_10);
+		break;
+	default:
+		break;
+	}
+	ret = ytphy_write_ext(phydev, YTPHY_EXTREG_RGMII_CONFIG1, val);
+	return ret;
+}
+
+static int yt8531_probe(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	struct ytphy_priv_t *priv;
+	const struct device_node *of_node;
+	u32 val;
+	int ret;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	of_node = ytphy_get_of_node(phydev);
+	if (of_node) {
+		ret = of_property_read_u32(of_node, ytphy_txinver_grp[0].name, &val);
+		if (!ret)
+			priv->tx_inverted_1000 = val;
+
+		ret = of_property_read_u32(of_node, ytphy_txinver_grp[1].name, &val);
+		if (!ret)
+			priv->tx_inverted_100 = val;
+
+		ret = of_property_read_u32(of_node, ytphy_txinver_grp[2].name, &val);
+		if (!ret)
+			priv->tx_inverted_10 = val;
+
+	}
+	phydev->priv = priv;
+	return 0;
 }
 
 static int yt8531_config_init(struct phy_device *phydev)
@@ -2097,10 +2188,10 @@ static struct phy_driver ytphy_drvs[] = {
 		.phy_id_mask   = MOTORCOMM_PHY_ID_MASK,
 		.features      = PHY_GBIT_FEATURES,
 		.flags         = PHY_POLL,
+		.probe         = yt8531_probe,
 		.config_aneg   = genphy_config_aneg,
-
 		.config_init   = yt8531_config_init,
-		.read_status   = genphy_read_status,
+		.read_status   = yt8531_read_status,
 		.suspend       = genphy_suspend,
 		.resume        = genphy_resume,
 #if (YTPHY_WOL_FEATURE_ENABLE)
