@@ -135,8 +135,7 @@ struct sfdp_4bait {
 /**
  * spi_nor_read_raw() - raw read of serial flash memory. read_opcode,
  *			addr_nbytes and read_dummy members of the struct spi_nor
- *			should be previously
- * set.
+ *			should be previously set.
  * @nor:	pointer to a 'struct spi_nor'
  * @addr:	offset in the serial flash memory
  * @len:	number of bytes to read
