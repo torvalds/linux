@@ -261,15 +261,35 @@ int bch2_trans_mark_dev_sb(struct bch_fs *, struct bch_dev *);
 static inline void bch2_disk_reservation_put(struct bch_fs *c,
 					     struct disk_reservation *res)
 {
-	this_cpu_sub(*c->online_reserved, res->sectors);
-	res->sectors = 0;
+	if (res->sectors) {
+		this_cpu_sub(*c->online_reserved, res->sectors);
+		res->sectors = 0;
+	}
 }
 
 #define BCH_DISK_RESERVATION_NOFAIL		(1 << 0)
 
-int bch2_disk_reservation_add(struct bch_fs *,
-			      struct disk_reservation *,
-			      u64, int);
+int __bch2_disk_reservation_add(struct bch_fs *,
+				struct disk_reservation *,
+				u64, int);
+
+static inline int bch2_disk_reservation_add(struct bch_fs *c, struct disk_reservation *res,
+					    u64 sectors, int flags)
+{
+	u64 old, new;
+
+	do {
+		old = this_cpu_read(c->pcpu->sectors_available);
+		if (sectors > old)
+			return __bch2_disk_reservation_add(c, res, sectors, flags);
+
+		new = old - sectors;
+	} while (this_cpu_cmpxchg(c->pcpu->sectors_available, old, new) != old);
+
+	this_cpu_add(*c->online_reserved, sectors);
+	res->sectors			+= sectors;
+	return 0;
+}
 
 static inline struct disk_reservation
 bch2_disk_reservation_init(struct bch_fs *c, unsigned nr_replicas)

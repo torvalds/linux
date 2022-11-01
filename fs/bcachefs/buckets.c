@@ -2107,7 +2107,7 @@ int bch2_trans_mark_dev_sb(struct bch_fs *c, struct bch_dev *ca)
 
 #define SECTORS_CACHE	1024
 
-int bch2_disk_reservation_add(struct bch_fs *c, struct disk_reservation *res,
+int __bch2_disk_reservation_add(struct bch_fs *c, struct disk_reservation *res,
 			      u64 sectors, int flags)
 {
 	struct bch_fs_pcpu *pcpu;
