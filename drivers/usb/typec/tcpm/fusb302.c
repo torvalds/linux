@@ -1342,6 +1342,8 @@ static int fusb302_handle_togdone_src(struct fusb302_chip *chip,
 	} else if (cc2 == TYPEC_CC_RD &&
 		    (cc1 == TYPEC_CC_OPEN || cc1 == TYPEC_CC_RA)) {
 		cc_polarity = TYPEC_POLARITY_CC2;
+	} else if (cc1 == TYPEC_CC_RA && cc2 == TYPEC_CC_RA) {
+		cc_polarity = TYPEC_POLARITY_CC2;
 	} else {
 		fusb302_log(chip, "unexpected CC status cc1=%s, cc2=%s, restarting toggling",
 			    typec_cc_status_name[cc1],
