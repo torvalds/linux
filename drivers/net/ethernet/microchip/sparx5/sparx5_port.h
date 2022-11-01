@@ -99,14 +99,26 @@ struct sparx5_port_qos_pcp_map {
 	u8 map[SPARX5_PORT_QOS_PCP_DEI_COUNT];
 };
 
+#define SPARX5_PORT_QOS_DSCP_COUNT 64
+struct sparx5_port_qos_dscp_map {
+	u8 map[SPARX5_PORT_QOS_DSCP_COUNT];
+};
+
 struct sparx5_port_qos_pcp {
 	struct sparx5_port_qos_pcp_map map;
 	bool qos_enable;
 	bool dp_enable;
 };
 
+struct sparx5_port_qos_dscp {
+	struct sparx5_port_qos_dscp_map map;
+	bool qos_enable;
+	bool dp_enable;
+};
+
 struct sparx5_port_qos {
 	struct sparx5_port_qos_pcp pcp;
+	struct sparx5_port_qos_dscp dscp;
 };
 
 int sparx5_port_qos_set(struct sparx5_port *port, struct sparx5_port_qos *qos);
@@ -114,4 +126,6 @@ int sparx5_port_qos_set(struct sparx5_port *port, struct sparx5_port_qos *qos);
 int sparx5_port_qos_pcp_set(const struct sparx5_port *port,
 			    struct sparx5_port_qos_pcp *qos);
 
+int sparx5_port_qos_dscp_set(const struct sparx5_port *port,
+			     struct sparx5_port_qos_dscp *qos);
 #endif	/* __SPARX5_PORT_H__ */
