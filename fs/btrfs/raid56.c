@@ -1193,6 +1193,48 @@ not_found:
 	trace_info->stripe_nr = -1;
 }
 
+/* Generate PQ for one veritical stripe. */
+static void generate_pq_vertical(struct btrfs_raid_bio *rbio, int sectornr)
+{
+	void **pointers = rbio->finish_pointers;
+	const u32 sectorsize = rbio->bioc->fs_info->sectorsize;
+	struct sector_ptr *sector;
+	int stripe;
+	const bool has_qstripe = rbio->bioc->map_type & BTRFS_BLOCK_GROUP_RAID6;
+
+	/* First collect one sector from each data stripe */
+	for (stripe = 0; stripe < rbio->nr_data; stripe++) {
+		sector = sector_in_rbio(rbio, stripe, sectornr, 0);
+		pointers[stripe] = kmap_local_page(sector->page) +
+				   sector->pgoff;
+	}
+
+	/* Then add the parity stripe */
+	sector = rbio_pstripe_sector(rbio, sectornr);
+	sector->uptodate = 1;
+	pointers[stripe++] = kmap_local_page(sector->page) + sector->pgoff;
+
+	if (has_qstripe) {
+		/*
+		 * RAID6, add the qstripe and call the library function
+		 * to fill in our p/q
+		 */
+		sector = rbio_qstripe_sector(rbio, sectornr);
+		sector->uptodate = 1;
+		pointers[stripe++] = kmap_local_page(sector->page) +
+				     sector->pgoff;
+
+		raid6_call.gen_syndrome(rbio->real_stripes, sectorsize,
+					pointers);
+	} else {
+		/* raid5 */
+		memcpy(pointers[rbio->nr_data], pointers[0], sectorsize);
+		run_xor(pointers + 1, rbio->nr_data - 1, sectorsize);
+	}
+	for (stripe = stripe - 1; stripe >= 0; stripe--)
+		kunmap_local(pointers[stripe]);
+}
+
 /*
  * this is called from one of two situations.  We either
  * have a full stripe from the higher layers, or we've read all
@@ -1204,27 +1246,16 @@ not_found:
 static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 {
 	struct btrfs_io_context *bioc = rbio->bioc;
-	const u32 sectorsize = bioc->fs_info->sectorsize;
-	void **pointers = rbio->finish_pointers;
-	int nr_data = rbio->nr_data;
 	/* The total sector number inside the full stripe. */
 	int total_sector_nr;
 	int stripe;
 	/* Sector number inside a stripe. */
 	int sectornr;
-	bool has_qstripe;
 	struct bio_list bio_list;
 	struct bio *bio;
 	int ret;
 
 	bio_list_init(&bio_list);
-
-	if (rbio->real_stripes - rbio->nr_data == 1)
-		has_qstripe = false;
-	else if (rbio->real_stripes - rbio->nr_data == 2)
-		has_qstripe = true;
-	else
-		BUG();
 
 	/* We should have at least one data sector. */
 	ASSERT(bitmap_weight(&rbio->dbitmap, rbio->stripe_nsectors));
@@ -1258,41 +1289,8 @@ static noinline void finish_rmw(struct btrfs_raid_bio *rbio)
 	else
 		clear_bit(RBIO_CACHE_READY_BIT, &rbio->flags);
 
-	for (sectornr = 0; sectornr < rbio->stripe_nsectors; sectornr++) {
-		struct sector_ptr *sector;
-
-		/* First collect one sector from each data stripe */
-		for (stripe = 0; stripe < nr_data; stripe++) {
-			sector = sector_in_rbio(rbio, stripe, sectornr, 0);
-			pointers[stripe] = kmap_local_page(sector->page) +
-					   sector->pgoff;
-		}
-
-		/* Then add the parity stripe */
-		sector = rbio_pstripe_sector(rbio, sectornr);
-		sector->uptodate = 1;
-		pointers[stripe++] = kmap_local_page(sector->page) + sector->pgoff;
-
-		if (has_qstripe) {
-			/*
-			 * RAID6, add the qstripe and call the library function
-			 * to fill in our p/q
-			 */
-			sector = rbio_qstripe_sector(rbio, sectornr);
-			sector->uptodate = 1;
-			pointers[stripe++] = kmap_local_page(sector->page) +
-					     sector->pgoff;
-
-			raid6_call.gen_syndrome(rbio->real_stripes, sectorsize,
-						pointers);
-		} else {
-			/* raid5 */
-			memcpy(pointers[nr_data], pointers[0], sectorsize);
-			run_xor(pointers + 1, nr_data - 1, sectorsize);
-		}
-		for (stripe = stripe - 1; stripe >= 0; stripe--)
-			kunmap_local(pointers[stripe]);
-	}
+	for (sectornr = 0; sectornr < rbio->stripe_nsectors; sectornr++)
+		generate_pq_vertical(rbio, sectornr);
 
 	/*
 	 * Start writing.  Make bios for everything from the higher layers (the
