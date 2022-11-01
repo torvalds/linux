@@ -817,6 +817,36 @@ static struct device_node *ytphy_get_of_node(struct phy_device *phydev)
 	return of_node->child;
 }
 
+static int ytphy_inverted(struct phy_device *phydev)
+{
+	u32 val;
+	struct ytphy_priv_t *ytphy_priv = phydev->priv;
+
+	val = ytphy_read_ext(phydev, YTPHY_EXTREG_RGMII_CONFIG1);
+	switch (phydev->speed) {
+	case SPEED_1000:
+		val = bitfield_replace(val, ytphy_txinver_grp[0].off,
+					ytphy_txinver_grp[0].size,
+					ytphy_priv->tx_inverted_1000);
+		break;
+	case SPEED_100:
+		val = bitfield_replace(val, ytphy_txinver_grp[1].off,
+					ytphy_txinver_grp[1].size,
+					ytphy_priv->tx_inverted_100);
+		break;
+	case SPEED_10:
+		val = bitfield_replace(val, ytphy_txinver_grp[2].off,
+					ytphy_txinver_grp[2].size,
+					ytphy_priv->tx_inverted_10);
+		break;
+	default:
+		break;
+	}
+
+	return ytphy_write_ext(phydev, YTPHY_EXTREG_RGMII_CONFIG1, val);
+}
+
+
 static int ytphy_of_config(struct phy_device *phydev)
 {
 	const struct device_node *of_node;
@@ -957,6 +987,8 @@ static int yt8521_adjust_status(struct phy_device *phydev, int val, int is_utp)
 
 	phydev->speed = speed;
 	phydev->duplex = duplex;
+
+	ytphy_inverted(phydev);
 
 	return 0;
 }
@@ -1154,38 +1186,15 @@ static int yt8531S_config_init(struct phy_device *phydev)
 static int yt8531_read_status(struct phy_device *phydev)
 {
 	int ret;
-	u32 val;
-	struct ytphy_priv_t *ytphy_priv = phydev->priv;
 
-	val = ytphy_read_ext(phydev, YTPHY_EXTREG_RGMII_CONFIG1);
 	ret = genphy_read_status(phydev);
 	if (ret)
 		return ret;
 
-	switch (phydev->speed) {
-	case SPEED_1000:
-		val = bitfield_replace(val, ytphy_txinver_grp[0].off,
-					ytphy_txinver_grp[0].size,
-					ytphy_priv->tx_inverted_1000);
-		break;
-	case SPEED_100:
-		val = bitfield_replace(val, ytphy_txinver_grp[1].off,
-					ytphy_txinver_grp[1].size,
-					ytphy_priv->tx_inverted_100);
-		break;
-	case SPEED_10:
-		val = bitfield_replace(val, ytphy_txinver_grp[2].off,
-					ytphy_txinver_grp[2].size,
-					ytphy_priv->tx_inverted_10);
-		break;
-	default:
-		break;
-	}
-	ret = ytphy_write_ext(phydev, YTPHY_EXTREG_RGMII_CONFIG1, val);
-	return ret;
+	return ytphy_inverted(phydev);
 }
 
-static int yt8531_probe(struct phy_device *phydev)
+static int ytphy_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
 	struct ytphy_priv_t *priv;
@@ -2152,6 +2161,7 @@ static struct phy_driver ytphy_drvs[] = {
 		.phy_id_mask    = MOTORCOMM_PHY_ID_MASK,
 		.features       = PHY_GBIT_FEATURES,
 		.flags          = PHY_POLL,
+		.probe          = ytphy_probe,
 		.soft_reset     = yt8521_soft_reset,
 		.config_aneg    = genphy_config_aneg,
 		.aneg_done      = yt8521_aneg_done,
@@ -2188,7 +2198,7 @@ static struct phy_driver ytphy_drvs[] = {
 		.phy_id_mask   = MOTORCOMM_PHY_ID_MASK,
 		.features      = PHY_GBIT_FEATURES,
 		.flags         = PHY_POLL,
-		.probe         = yt8531_probe,
+		.probe         = ytphy_probe,
 		.config_aneg   = genphy_config_aneg,
 		.config_init   = yt8531_config_init,
 		.read_status   = yt8531_read_status,
