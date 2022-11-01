@@ -148,8 +148,7 @@ static void init_mgmt_queue(struct rtllib_device *ieee)
 }
 
 
-u8
-MgntQuery_TxRateExcludeCCKRates(struct rtllib_device *ieee)
+u8 MgntQuery_TxRateExcludeCCKRates(struct rtllib_device *ieee)
 {
 	u16	i;
 	u8	QueryRate = 0;
