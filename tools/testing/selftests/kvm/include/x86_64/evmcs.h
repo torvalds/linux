@@ -256,9 +256,9 @@ static inline int evmcs_vmptrld(uint64_t vmcs_pa, void *vmcs)
 	return 0;
 }
 
-static inline bool load_evmcs(uint64_t enlightened_vmcs_gpa, void *enlightened_vmcs)
+static inline bool load_evmcs(struct hyperv_test_pages *hv)
 {
-	if (evmcs_vmptrld(enlightened_vmcs_gpa, enlightened_vmcs))
+	if (evmcs_vmptrld(hv->enlightened_vmcs_gpa, hv->enlightened_vmcs))
 		return false;
 
 	current_evmcs->revision_id = EVMCS_VERSION;

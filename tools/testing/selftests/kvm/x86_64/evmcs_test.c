@@ -68,7 +68,7 @@ void l2_guest_code(void)
 	vmcall();
 }
 
-void guest_code(struct vmx_pages *vmx_pages)
+void guest_code(struct vmx_pages *vmx_pages, struct hyperv_test_pages *hv_pages)
 {
 #define L2_GUEST_STACK_SIZE 64
 	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
@@ -78,23 +78,22 @@ void guest_code(struct vmx_pages *vmx_pages)
 	GUEST_SYNC(1);
 	GUEST_SYNC(2);
 
-	enable_vp_assist(vmx_pages->vp_assist_gpa, vmx_pages->vp_assist);
+	enable_vp_assist(hv_pages->vp_assist_gpa, hv_pages->vp_assist);
 	evmcs_enable();
 
 	GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
 	GUEST_SYNC(3);
-	GUEST_ASSERT(load_evmcs(vmx_pages->enlightened_vmcs_gpa,
-				vmx_pages->enlightened_vmcs));
-	GUEST_ASSERT(vmptrstz() == vmx_pages->enlightened_vmcs_gpa);
+	GUEST_ASSERT(load_evmcs(hv_pages));
+	GUEST_ASSERT(vmptrstz() == hv_pages->enlightened_vmcs_gpa);
 
 	GUEST_SYNC(4);
-	GUEST_ASSERT(vmptrstz() == vmx_pages->enlightened_vmcs_gpa);
+	GUEST_ASSERT(vmptrstz() == hv_pages->enlightened_vmcs_gpa);
 
 	prepare_vmcs(vmx_pages, l2_guest_code,
 		     &l2_guest_stack[L2_GUEST_STACK_SIZE]);
 
 	GUEST_SYNC(5);
-	GUEST_ASSERT(vmptrstz() == vmx_pages->enlightened_vmcs_gpa);
+	GUEST_ASSERT(vmptrstz() == hv_pages->enlightened_vmcs_gpa);
 	current_evmcs->revision_id = -1u;
 	GUEST_ASSERT(vmlaunch());
 	current_evmcs->revision_id = EVMCS_VERSION;
@@ -104,7 +103,7 @@ void guest_code(struct vmx_pages *vmx_pages)
 		PIN_BASED_NMI_EXITING);
 
 	GUEST_ASSERT(!vmlaunch());
-	GUEST_ASSERT(vmptrstz() == vmx_pages->enlightened_vmcs_gpa);
+	GUEST_ASSERT(vmptrstz() == hv_pages->enlightened_vmcs_gpa);
 
 	/*
 	 * NMI forces L2->L1 exit, resuming L2 and hope that EVMCS is
@@ -152,7 +151,7 @@ void guest_code(struct vmx_pages *vmx_pages)
 	GUEST_SYNC(11);
 
 	/* Try enlightened vmptrld with an incorrect GPA */
-	evmcs_vmptrld(0xdeadbeef, vmx_pages->enlightened_vmcs);
+	evmcs_vmptrld(0xdeadbeef, hv_pages->enlightened_vmcs);
 	GUEST_ASSERT(vmlaunch());
 	GUEST_ASSERT(ud_count == 1);
 	GUEST_DONE();
@@ -199,7 +198,7 @@ static struct kvm_vcpu *save_restore_vm(struct kvm_vm *vm,
 
 int main(int argc, char *argv[])
 {
-	vm_vaddr_t vmx_pages_gva = 0;
+	vm_vaddr_t vmx_pages_gva = 0, hv_pages_gva = 0;
 
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
@@ -217,7 +216,8 @@ int main(int argc, char *argv[])
 	vcpu_enable_evmcs(vcpu);
 
 	vcpu_alloc_vmx(vm, &vmx_pages_gva);
-	vcpu_args_set(vcpu, 1, vmx_pages_gva);
+	vcpu_alloc_hyperv_test_pages(vm, &hv_pages_gva);
+	vcpu_args_set(vcpu, 2, vmx_pages_gva, hv_pages_gva);
 
 	vm_init_descriptor_tables(vm);
 	vcpu_init_descriptor_tables(vcpu);

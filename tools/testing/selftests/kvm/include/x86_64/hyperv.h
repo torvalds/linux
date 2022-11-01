@@ -268,4 +268,19 @@ extern struct hv_vp_assist_page *current_vp_assist;
 
 int enable_vp_assist(uint64_t vp_assist_pa, void *vp_assist);
 
+struct hyperv_test_pages {
+	/* VP assist page */
+	void *vp_assist_hva;
+	uint64_t vp_assist_gpa;
+	void *vp_assist;
+
+	/* Enlightened VMCS */
+	void *enlightened_vmcs_hva;
+	uint64_t enlightened_vmcs_gpa;
+	void *enlightened_vmcs;
+};
+
+struct hyperv_test_pages *vcpu_alloc_hyperv_test_pages(struct kvm_vm *vm,
+						       vm_vaddr_t *p_hv_pages_gva);
+
 #endif /* !SELFTEST_KVM_HYPERV_H */

@@ -517,14 +517,6 @@ struct vmx_pages {
 	uint64_t vmwrite_gpa;
 	void *vmwrite;
 
-	void *vp_assist_hva;
-	uint64_t vp_assist_gpa;
-	void *vp_assist;
-
-	void *enlightened_vmcs_hva;
-	uint64_t enlightened_vmcs_gpa;
-	void *enlightened_vmcs;
-
 	void *eptp_hva;
 	uint64_t eptp_gpa;
 	void *eptp;

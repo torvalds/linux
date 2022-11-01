@@ -109,18 +109,6 @@ vcpu_alloc_vmx(struct kvm_vm *vm, vm_vaddr_t *p_vmx_gva)
 	vmx->vmwrite_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->vmwrite);
 	memset(vmx->vmwrite_hva, 0, getpagesize());
 
-	/* Setup of a region of guest memory for the VP Assist page. */
-	vmx->vp_assist = (void *)vm_vaddr_alloc_page(vm);
-	vmx->vp_assist_hva = addr_gva2hva(vm, (uintptr_t)vmx->vp_assist);
-	vmx->vp_assist_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->vp_assist);
-
-	/* Setup of a region of guest memory for the enlightened VMCS. */
-	vmx->enlightened_vmcs = (void *)vm_vaddr_alloc_page(vm);
-	vmx->enlightened_vmcs_hva =
-		addr_gva2hva(vm, (uintptr_t)vmx->enlightened_vmcs);
-	vmx->enlightened_vmcs_gpa =
-		addr_gva2gpa(vm, (uintptr_t)vmx->enlightened_vmcs);
-
 	*p_vmx_gva = vmx_gva;
 	return vmx;
 }
