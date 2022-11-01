@@ -198,6 +198,17 @@ static inline bool kvm_hv_is_tlb_flush_hcall(struct kvm_vcpu *vcpu)
 		code == HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST_EX);
 }
 
+static inline int kvm_hv_verify_vp_assist(struct kvm_vcpu *vcpu)
+{
+	if (!to_hv_vcpu(vcpu))
+		return 0;
+
+	if (!kvm_hv_assist_page_enabled(vcpu))
+		return 0;
+
+	return kvm_hv_get_assist_page(vcpu);
+}
+
 int kvm_hv_vcpu_flush_tlb(struct kvm_vcpu *vcpu);
 
 #endif
