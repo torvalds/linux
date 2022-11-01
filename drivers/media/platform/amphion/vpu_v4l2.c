@@ -65,18 +65,11 @@ unsigned int vpu_get_buffer_state(struct vb2_v4l2_buffer *vbuf)
 
 void vpu_v4l2_set_error(struct vpu_inst *inst)
 {
-	struct vb2_queue *src_q;
-	struct vb2_queue *dst_q;
-
 	vpu_inst_lock(inst);
 	dev_err(inst->dev, "some error occurs in codec\n");
 	if (inst->fh.m2m_ctx) {
-		src_q = v4l2_m2m_get_src_vq(inst->fh.m2m_ctx);
-		dst_q = v4l2_m2m_get_dst_vq(inst->fh.m2m_ctx);
-		src_q->error = 1;
-		dst_q->error = 1;
-		wake_up(&src_q->done_wq);
-		wake_up(&dst_q->done_wq);
+		vb2_queue_error(v4l2_m2m_get_src_vq(inst->fh.m2m_ctx));
+		vb2_queue_error(v4l2_m2m_get_dst_vq(inst->fh.m2m_ctx));
 	}
 	vpu_inst_unlock(inst);
 }
