@@ -1670,6 +1670,28 @@ static void rtl8192e_enable_rf(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write8(priv, REG_PAD_CTRL1, val8);
 }
 
+static s8 rtl8192e_cck_rssi(struct rtl8xxxu_priv *priv, u8 cck_agc_rpt)
+{
+	static const s8 lna_gain_table_0[8] = {15, 9, -10, -21, -23, -27, -43, -44};
+	static const s8 lna_gain_table_1[8] = {24, 18, 13, -4, -11, -18, -31, -36};
+
+	s8 rx_pwr_all = 0x00;
+	u8 vga_idx, lna_idx;
+	s8 lna_gain = 0;
+
+	lna_idx = (cck_agc_rpt & 0xE0) >> 5;
+	vga_idx = cck_agc_rpt & 0x1F;
+
+	if (priv->cck_agc_report_type == 0)
+		lna_gain = lna_gain_table_0[lna_idx];
+	else
+		lna_gain = lna_gain_table_1[lna_idx];
+
+	rx_pwr_all = lna_gain - (2 * vga_idx);
+
+	return rx_pwr_all;
+}
+
 struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.parse_efuse = rtl8192eu_parse_efuse,
 	.load_firmware = rtl8192eu_load_firmware,
@@ -1691,6 +1713,7 @@ struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.report_connect = rtl8xxxu_gen2_report_connect,
 	.fill_txdesc = rtl8xxxu_fill_txdesc_v2,
 	.set_crystal_cap = rtl8723a_set_crystal_cap,
+	.cck_rssi = rtl8192e_cck_rssi,
 	.writeN_block_size = 128,
 	.tx_desc_size = sizeof(struct rtl8xxxu_txdesc40),
 	.rx_desc_size = sizeof(struct rtl8xxxu_rxdesc24),

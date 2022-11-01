@@ -386,6 +386,28 @@ void rtl8723a_set_crystal_cap(struct rtl8xxxu_priv *priv, u8 crystal_cap)
 	cfo->crystal_cap = crystal_cap;
 }
 
+s8 rtl8723a_cck_rssi(struct rtl8xxxu_priv *priv, u8 cck_agc_rpt)
+{
+	s8 rx_pwr_all = 0x00;
+
+	switch (cck_agc_rpt & 0xc0) {
+	case 0xc0:
+		rx_pwr_all = -46 - (cck_agc_rpt & 0x3e);
+		break;
+	case 0x80:
+		rx_pwr_all = -26 - (cck_agc_rpt & 0x3e);
+		break;
+	case 0x40:
+		rx_pwr_all = -12 - (cck_agc_rpt & 0x3e);
+		break;
+	case 0x00:
+		rx_pwr_all = 16 - (cck_agc_rpt & 0x3e);
+		break;
+	}
+
+	return rx_pwr_all;
+}
+
 struct rtl8xxxu_fileops rtl8723au_fops = {
 	.parse_efuse = rtl8723au_parse_efuse,
 	.load_firmware = rtl8723au_load_firmware,
@@ -408,6 +430,7 @@ struct rtl8xxxu_fileops rtl8723au_fops = {
 	.report_connect = rtl8xxxu_gen1_report_connect,
 	.fill_txdesc = rtl8xxxu_fill_txdesc_v1,
 	.set_crystal_cap = rtl8723a_set_crystal_cap,
+	.cck_rssi = rtl8723a_cck_rssi,
 	.writeN_block_size = 1024,
 	.rx_agg_buf_size = 16000,
 	.tx_desc_size = sizeof(struct rtl8xxxu_txdesc32),

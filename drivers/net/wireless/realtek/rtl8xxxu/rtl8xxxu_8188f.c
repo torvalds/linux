@@ -1658,6 +1658,37 @@ static void rtl8188f_set_crystal_cap(struct rtl8xxxu_priv *priv, u8 crystal_cap)
 	cfo->crystal_cap = crystal_cap;
 }
 
+static s8 rtl8188f_cck_rssi(struct rtl8xxxu_priv *priv, u8 cck_agc_rpt)
+{
+	s8 rx_pwr_all = 0x00;
+	u8 vga_idx, lna_idx;
+
+	lna_idx = (cck_agc_rpt & 0xE0) >> 5;
+	vga_idx = cck_agc_rpt & 0x1F;
+
+	switch (lna_idx) {
+	case 7:
+		if (vga_idx <= 27)
+			rx_pwr_all = -100 + 2 * (27 - vga_idx);
+		else
+			rx_pwr_all = -100;
+		break;
+	case 5:
+		rx_pwr_all = -74 + 2 * (21 - vga_idx);
+		break;
+	case 3:
+		rx_pwr_all = -60 + 2 * (20 - vga_idx);
+		break;
+	case 1:
+		rx_pwr_all = -44 + 2 * (19 - vga_idx);
+		break;
+	default:
+		break;
+	}
+
+	return rx_pwr_all;
+}
+
 struct rtl8xxxu_fileops rtl8188fu_fops = {
 	.parse_efuse = rtl8188fu_parse_efuse,
 	.load_firmware = rtl8188fu_load_firmware,
@@ -1682,6 +1713,7 @@ struct rtl8xxxu_fileops rtl8188fu_fops = {
 	.report_connect = rtl8xxxu_gen2_report_connect,
 	.fill_txdesc = rtl8xxxu_fill_txdesc_v2,
 	.set_crystal_cap = rtl8188f_set_crystal_cap,
+	.cck_rssi = rtl8188f_cck_rssi,
 	.writeN_block_size = 128,
 	.rx_desc_size = sizeof(struct rtl8xxxu_rxdesc24),
 	.tx_desc_size = sizeof(struct rtl8xxxu_txdesc40),

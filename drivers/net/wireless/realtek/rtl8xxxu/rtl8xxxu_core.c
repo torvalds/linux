@@ -4318,6 +4318,29 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		val32 &= 0xfff00fff;
 		val32 |= 0x0007e000;
 		rtl8xxxu_write32(priv, REG_AFE_MISC, val32);
+
+		/*
+		 * 0x824[9] = 0x82C[9] = 0xA80[7] those registers setting
+		 * should be equal or CCK RSSI report may be incorrect
+		 */
+		val32 = rtl8xxxu_read32(priv, REG_FPGA0_XA_HSSI_PARM2);
+		priv->cck_agc_report_type = val32 & FPGA0_HSSI_PARM2_CCK_HIGH_PWR;
+
+		val32 = rtl8xxxu_read32(priv, REG_FPGA0_XB_HSSI_PARM2);
+		if (priv->cck_agc_report_type != (bool)(val32 & FPGA0_HSSI_PARM2_CCK_HIGH_PWR)) {
+			if (priv->cck_agc_report_type)
+				val32 |= FPGA0_HSSI_PARM2_CCK_HIGH_PWR;
+			else
+				val32 &= ~FPGA0_HSSI_PARM2_CCK_HIGH_PWR;
+			rtl8xxxu_write32(priv, REG_FPGA0_XB_HSSI_PARM2, val32);
+		}
+
+		val32 = rtl8xxxu_read32(priv, REG_AGC_RPT);
+		if (priv->cck_agc_report_type)
+			val32 |= AGC_RPT_CCK;
+		else
+			val32 &= ~AGC_RPT_CCK;
+		rtl8xxxu_write32(priv, REG_AGC_RPT, val32);
 	}
 
 	/* Initialise the center frequency offset tracking */
@@ -5307,20 +5330,7 @@ static void rtl8xxxu_rx_parse_phystats(struct rtl8xxxu_priv *priv,
 		 */
 		u8 cck_agc_rpt = phy_stats->cck_agc_rpt_ofdm_cfosho_a;
 
-		switch (cck_agc_rpt & 0xc0) {
-		case 0xc0:
-			rx_status->signal = -46 - (cck_agc_rpt & 0x3e);
-			break;
-		case 0x80:
-			rx_status->signal = -26 - (cck_agc_rpt & 0x3e);
-			break;
-		case 0x40:
-			rx_status->signal = -12 - (cck_agc_rpt & 0x3e);
-			break;
-		case 0x00:
-			rx_status->signal = 16 - (cck_agc_rpt & 0x3e);
-			break;
-		}
+		rx_status->signal = priv->fops->cck_rssi(priv, cck_agc_rpt);
 	} else {
 		bool parse_cfo = priv->fops->set_crystal_cap &&
 				 priv->vif &&

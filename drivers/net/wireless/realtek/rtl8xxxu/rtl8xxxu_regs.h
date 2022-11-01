@@ -960,6 +960,9 @@
 #define  CCK_PD_TYPE1_LV3_TH		0xdd
 #define  CCK_PD_TYPE1_LV4_TH		0xed
 
+#define REG_AGC_RPT			0xa80
+#define  AGC_RPT_CCK			BIT(7)
+
 #define REG_CONFIG_ANT_A		0x0b68
 #define REG_CONFIG_ANT_B		0x0b6c
 
