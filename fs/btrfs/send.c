@@ -1365,14 +1365,14 @@ static int find_extent_clone(struct send_ctx *sctx,
 	int compressed;
 	u32 i;
 
-	if (data_offset >= ino_size) {
-		/*
-		 * There may be extents that lie behind the file's size.
-		 * I at least had this in combination with snapshotting while
-		 * writing large files.
-		 */
+	/*
+	 * With fallocate we can get prealloc extents beyond the inode's i_size,
+	 * so we don't do anything here because clone operations can not clone
+	 * to a range beyond i_size without increasing the i_size of the
+	 * destination inode.
+	 */
+	if (data_offset >= ino_size)
 		return 0;
-	}
 
 	fi = btrfs_item_ptr(eb, path->slots[0], struct btrfs_file_extent_item);
 	extent_type = btrfs_file_extent_type(eb, fi);
