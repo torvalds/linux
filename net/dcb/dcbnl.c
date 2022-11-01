@@ -179,6 +179,38 @@ static const struct nla_policy dcbnl_featcfg_nest[DCB_FEATCFG_ATTR_MAX + 1] = {
 static LIST_HEAD(dcb_app_list);
 static DEFINE_SPINLOCK(dcb_lock);
 
+static enum ieee_attrs_app dcbnl_app_attr_type_get(u8 selector)
+{
+	switch (selector) {
+	case IEEE_8021QAZ_APP_SEL_ETHERTYPE:
+	case IEEE_8021QAZ_APP_SEL_STREAM:
+	case IEEE_8021QAZ_APP_SEL_DGRAM:
+	case IEEE_8021QAZ_APP_SEL_ANY:
+	case IEEE_8021QAZ_APP_SEL_DSCP:
+		return DCB_ATTR_IEEE_APP;
+	case DCB_APP_SEL_PCP:
+		return DCB_ATTR_DCB_APP;
+	default:
+		return DCB_ATTR_IEEE_APP_UNSPEC;
+	}
+}
+
+static bool dcbnl_app_attr_type_validate(enum ieee_attrs_app type)
+{
+	switch (type) {
+	case DCB_ATTR_IEEE_APP:
+	case DCB_ATTR_DCB_APP:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool dcbnl_app_selector_validate(enum ieee_attrs_app type, u8 selector)
+{
+	return dcbnl_app_attr_type_get(selector) == type;
+}
+
 static struct sk_buff *dcbnl_newmsg(int type, u8 cmd, u32 port, u32 seq,
 				    u32 flags, struct nlmsghdr **nlhp)
 {
@@ -1116,8 +1148,9 @@ static int dcbnl_ieee_fill(struct sk_buff *skb, struct net_device *netdev)
 	spin_lock_bh(&dcb_lock);
 	list_for_each_entry(itr, &dcb_app_list, list) {
 		if (itr->ifindex == netdev->ifindex) {
-			err = nla_put(skb, DCB_ATTR_IEEE_APP, sizeof(itr->app),
-					 &itr->app);
+			enum ieee_attrs_app type =
+				dcbnl_app_attr_type_get(itr->app.selector);
+			err = nla_put(skb, type, sizeof(itr->app), &itr->app);
 			if (err) {
 				spin_unlock_bh(&dcb_lock);
 				return -EMSGSIZE;
@@ -1493,9 +1526,10 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlmsghdr *nlh,
 		int rem;
 
 		nla_for_each_nested(attr, ieee[DCB_ATTR_IEEE_APP_TABLE], rem) {
+			enum ieee_attrs_app type = nla_type(attr);
 			struct dcb_app *app_data;
 
-			if (nla_type(attr) != DCB_ATTR_IEEE_APP)
+			if (!dcbnl_app_attr_type_validate(type))
 				continue;
 
 			if (nla_len(attr) < sizeof(struct dcb_app)) {
@@ -1504,6 +1538,13 @@ static int dcbnl_ieee_set(struct net_device *netdev, struct nlmsghdr *nlh,
 			}
 
 			app_data = nla_data(attr);
+
+			if (!dcbnl_app_selector_validate(type,
+							 app_data->selector)) {
+				err = -EINVAL;
+				goto err;
+			}
+
 			if (ops->ieee_setapp)
 				err = ops->ieee_setapp(netdev, app_data);
 			else
@@ -1554,11 +1595,20 @@ static int dcbnl_ieee_del(struct net_device *netdev, struct nlmsghdr *nlh,
 		int rem;
 
 		nla_for_each_nested(attr, ieee[DCB_ATTR_IEEE_APP_TABLE], rem) {
+			enum ieee_attrs_app type = nla_type(attr);
 			struct dcb_app *app_data;
 
-			if (nla_type(attr) != DCB_ATTR_IEEE_APP)
+			if (!dcbnl_app_attr_type_validate(type))
 				continue;
+
 			app_data = nla_data(attr);
+
+			if (!dcbnl_app_selector_validate(type,
+							 app_data->selector)) {
+				err = -EINVAL;
+				goto err;
+			}
+
 			if (ops->ieee_delapp)
 				err = ops->ieee_delapp(netdev, app_data);
 			else
