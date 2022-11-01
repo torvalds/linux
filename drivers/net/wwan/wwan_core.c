@@ -1058,7 +1058,7 @@ static void wwan_create_default_link(struct wwan_device *wwandev,
 		goto unlock;
 	}
 
-	rtnl_configure_link(dev, NULL); /* Link initialized, notify new link */
+	rtnl_configure_link(dev, NULL, 0, NULL); /* Link initialized, notify new link */
 
 unlock:
 	rtnl_unlock();
