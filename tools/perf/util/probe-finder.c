@@ -1063,6 +1063,7 @@ static int probe_point_search_cb(Dwarf_Die *sp_die, void *data)
 	struct dwarf_callback_param *param = data;
 	struct probe_finder *pf = param->data;
 	struct perf_probe_point *pp = &pf->pev->point;
+	const char *fname;
 
 	/* Check tag and diename */
 	if (!die_is_func_def(sp_die) ||
@@ -1070,12 +1071,17 @@ static int probe_point_search_cb(Dwarf_Die *sp_die, void *data)
 		return DWARF_CB_OK;
 
 	/* Check declared file */
-	if (pp->file && strtailcmp(pp->file, dwarf_decl_file(sp_die)))
+	fname = dwarf_decl_file(sp_die);
+	if (!fname) {
+		pr_warning("A function DIE doesn't have decl_line. Maybe broken DWARF?\n");
+		return DWARF_CB_OK;
+	}
+	if (pp->file && fname && strtailcmp(pp->file, fname))
 		return DWARF_CB_OK;
 
 	pr_debug("Matched function: %s [%lx]\n", dwarf_diename(sp_die),
 		 (unsigned long)dwarf_dieoffset(sp_die));
-	pf->fname = dwarf_decl_file(sp_die);
+	pf->fname = fname;
 	if (pp->line) { /* Function relative line */
 		dwarf_decl_line(sp_die, &pf->lno);
 		pf->lno += pp->line;
@@ -1134,6 +1140,7 @@ struct pubname_callback_param {
 static int pubname_search_cb(Dwarf *dbg, Dwarf_Global *gl, void *data)
 {
 	struct pubname_callback_param *param = data;
+	const char *fname;
 
 	if (dwarf_offdie(dbg, gl->die_offset, param->sp_die)) {
 		if (dwarf_tag(param->sp_die) != DW_TAG_subprogram)
@@ -1143,9 +1150,11 @@ static int pubname_search_cb(Dwarf *dbg, Dwarf_Global *gl, void *data)
 			if (!dwarf_offdie(dbg, gl->cu_offset, param->cu_die))
 				return DWARF_CB_OK;
 
-			if (param->file &&
-			    strtailcmp(param->file, dwarf_decl_file(param->sp_die)))
-				return DWARF_CB_OK;
+			if (param->file) {
+				fname = dwarf_decl_file(param->sp_die);
+				if (!fname || strtailcmp(param->file, fname))
+					return DWARF_CB_OK;
+			}
 
 			param->found = 1;
 			return DWARF_CB_ABORT;
@@ -1779,7 +1788,7 @@ int debuginfo__find_probe_point(struct debuginfo *dbg, u64 addr,
 		}
 		/* Verify the lineno and baseline are in a same file */
 		tmp = dwarf_decl_file(&spdie);
-		if (!tmp || strcmp(tmp, fname) != 0)
+		if (!tmp || (fname && strcmp(tmp, fname) != 0))
 			lineno = 0;
 	}
 
@@ -1889,10 +1898,14 @@ static int line_range_search_cb(Dwarf_Die *sp_die, void *data)
 	struct dwarf_callback_param *param = data;
 	struct line_finder *lf = param->data;
 	struct line_range *lr = lf->lr;
+	const char *fname;
 
 	/* Check declared file */
-	if (lr->file && strtailcmp(lr->file, dwarf_decl_file(sp_die)))
-		return DWARF_CB_OK;
+	if (lr->file) {
+		fname = dwarf_decl_file(sp_die);
+		if (!fname || strtailcmp(lr->file, fname))
+			return DWARF_CB_OK;
+	}
 
 	if (die_match_name(sp_die, lr->function) && die_is_func_def(sp_die)) {
 		lf->fname = dwarf_decl_file(sp_die);

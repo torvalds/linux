@@ -137,7 +137,7 @@ int cu_find_lineinfo(Dwarf_Die *cu_die, Dwarf_Addr addr,
 	}
 
 out:
-	return *lineno ?: -ENOENT;
+	return (*lineno && *fname) ? *lineno : -ENOENT;
 }
 
 static int __die_find_inline_cb(Dwarf_Die *die_mem, void *data);
@@ -874,6 +874,11 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 		cu_die = dwarf_diecu(rt_die, &die_mem, NULL, NULL);
 		dwarf_decl_line(rt_die, &decl);
 		decf = dwarf_decl_file(rt_die);
+		if (!decf) {
+			pr_debug2("Failed to get the declared file name of %s\n",
+				  dwarf_diename(rt_die));
+			return -EINVAL;
+		}
 	} else
 		cu_die = rt_die;
 	if (!cu_die) {
