@@ -17,7 +17,6 @@ static inline void bch2_keylist_free(struct keylist *l, u64 *inline_keys)
 {
 	if (l->keys_p != inline_keys)
 		kfree(l->keys_p);
-	bch2_keylist_init(l, inline_keys);
 }
 
 static inline void bch2_keylist_push(struct keylist *l)
