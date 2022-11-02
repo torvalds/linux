@@ -59,11 +59,9 @@
 #define MTRR_TO_PHYS_WC_OFFSET 1000
 
 u32 num_var_ranges;
-static bool __mtrr_enabled;
-
 static bool mtrr_enabled(void)
 {
-	return __mtrr_enabled;
+	return !!mtrr_if;
 }
 
 unsigned int mtrr_usage_table[MTRR_MAX_VAR_RANGES];
@@ -755,18 +753,17 @@ void __init mtrr_bp_init(void)
 		}
 	}
 
-	if (mtrr_if) {
-		__mtrr_enabled = true;
+	if (mtrr_enabled()) {
 		set_num_var_ranges(mtrr_if == &generic_mtrr_ops);
 		init_table();
 		if (mtrr_if == &generic_mtrr_ops) {
 			/* BIOS may override */
-			__mtrr_enabled = get_mtrr_state();
-
-			if (mtrr_enabled()) {
+			if (get_mtrr_state()) {
 				memory_caching_control |= CACHE_MTRR | CACHE_PAT;
 				changed_by_mtrr_cleanup = mtrr_cleanup(phys_addr);
 				cache_cpu_init();
+			} else {
+				mtrr_if = NULL;
 			}
 		}
 	}
