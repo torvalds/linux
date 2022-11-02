@@ -82,6 +82,16 @@ static long rxrpc_local_cmp_key(const struct rxrpc_local *local,
 	}
 }
 
+static void rxrpc_client_conn_reap_timeout(struct timer_list *timer)
+{
+	struct rxrpc_local *local =
+		container_of(timer, struct rxrpc_local, client_conn_reap_timer);
+
+	if (local->kill_all_client_conns &&
+	    test_and_set_bit(RXRPC_CLIENT_CONN_REAP_TIMER, &local->client_conn_flags))
+		rxrpc_wake_up_io_thread(local);
+}
+
 /*
  * Allocate a new local endpoint.
  */
@@ -103,8 +113,15 @@ static struct rxrpc_local *rxrpc_alloc_local(struct net *net,
 		skb_queue_head_init(&local->rx_queue);
 		INIT_LIST_HEAD(&local->conn_attend_q);
 		INIT_LIST_HEAD(&local->call_attend_q);
+
 		local->client_bundles = RB_ROOT;
 		spin_lock_init(&local->client_bundles_lock);
+		local->kill_all_client_conns = false;
+		spin_lock_init(&local->client_conn_cache_lock);
+		INIT_LIST_HEAD(&local->idle_client_conns);
+		timer_setup(&local->client_conn_reap_timer,
+			    rxrpc_client_conn_reap_timeout, 0);
+
 		spin_lock_init(&local->lock);
 		rwlock_init(&local->services_lock);
 		local->debug_id = atomic_inc_return(&rxrpc_debug_id);

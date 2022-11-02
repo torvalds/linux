@@ -76,13 +76,7 @@ struct rxrpc_net {
 
 	bool			live;
 
-	bool			kill_all_client_conns;
 	atomic_t		nr_client_conns;
-	spinlock_t		client_conn_cache_lock; /* Lock for ->*_client_conns */
-	struct mutex		client_conn_discard_lock; /* Prevent multiple discarders */
-	struct list_head	idle_client_conns;
-	struct work_struct	client_conn_reaper;
-	struct timer_list	client_conn_reap_timer;
 
 	struct hlist_head	local_endpoints;
 	struct mutex		local_mutex;	/* Lock for ->local_endpoints */
@@ -294,8 +288,16 @@ struct rxrpc_local {
 	struct sk_buff_head	rx_queue;	/* Received packets */
 	struct list_head	conn_attend_q;	/* Conns requiring immediate attention */
 	struct list_head	call_attend_q;	/* Calls requiring immediate attention */
+
 	struct rb_root		client_bundles;	/* Client connection bundles by socket params */
 	spinlock_t		client_bundles_lock; /* Lock for client_bundles */
+	bool			kill_all_client_conns;
+	spinlock_t		client_conn_cache_lock; /* Lock for ->*_client_conns */
+	struct list_head	idle_client_conns;
+	struct timer_list	client_conn_reap_timer;
+	unsigned long		client_conn_flags;
+#define RXRPC_CLIENT_CONN_REAP_TIMER	0	/* The client conn reap timer expired */
+
 	spinlock_t		lock;		/* access lock */
 	rwlock_t		services_lock;	/* lock for services list */
 	int			debug_id;	/* debug ID for printks */
@@ -946,8 +948,7 @@ void rxrpc_expose_client_call(struct rxrpc_call *);
 void rxrpc_disconnect_client_call(struct rxrpc_bundle *, struct rxrpc_call *);
 void rxrpc_deactivate_bundle(struct rxrpc_bundle *bundle);
 void rxrpc_put_client_conn(struct rxrpc_connection *, enum rxrpc_conn_trace);
-void rxrpc_discard_expired_client_conns(struct work_struct *);
-void rxrpc_destroy_all_client_connections(struct rxrpc_net *);
+void rxrpc_discard_expired_client_conns(struct rxrpc_local *local);
 void rxrpc_clean_up_local_conns(struct rxrpc_local *);
 
 /*

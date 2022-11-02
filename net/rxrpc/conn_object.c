@@ -470,7 +470,6 @@ void rxrpc_destroy_all_connections(struct rxrpc_net *rxnet)
 	_enter("");
 
 	atomic_dec(&rxnet->nr_conns);
-	rxrpc_destroy_all_client_connections(rxnet);
 
 	del_timer_sync(&rxnet->service_conn_reap_timer);
 	rxrpc_queue_work(&rxnet->service_conn_reaper);

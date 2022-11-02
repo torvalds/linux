@@ -578,17 +578,17 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
  */
 static void rxrpc_unidle_conn(struct rxrpc_bundle *bundle, struct rxrpc_connection *conn)
 {
-	struct rxrpc_net *rxnet = bundle->local->rxnet;
+	struct rxrpc_local *local = bundle->local;
 	bool drop_ref;
 
 	if (!list_empty(&conn->cache_link)) {
 		drop_ref = false;
-		spin_lock(&rxnet->client_conn_cache_lock);
+		spin_lock(&local->client_conn_cache_lock);
 		if (!list_empty(&conn->cache_link)) {
 			list_del_init(&conn->cache_link);
 			drop_ref = true;
 		}
-		spin_unlock(&rxnet->client_conn_cache_lock);
+		spin_unlock(&local->client_conn_cache_lock);
 		if (drop_ref)
 			rxrpc_put_connection(conn, rxrpc_conn_put_unidle);
 	}
@@ -710,13 +710,9 @@ out:
 int rxrpc_connect_call(struct rxrpc_call *call, gfp_t gfp)
 {
 	struct rxrpc_bundle *bundle;
-	struct rxrpc_local *local = call->local;
-	struct rxrpc_net *rxnet = local->rxnet;
 	int ret = 0;
 
 	_enter("{%d,%lx},", call->debug_id, call->user_call_ID);
-
-	rxrpc_discard_expired_client_conns(&rxnet->client_conn_reaper);
 
 	rxrpc_get_call(call, rxrpc_call_get_io_thread);
 
@@ -787,14 +783,14 @@ void rxrpc_expose_client_call(struct rxrpc_call *call)
 /*
  * Set the reap timer.
  */
-static void rxrpc_set_client_reap_timer(struct rxrpc_net *rxnet)
+static void rxrpc_set_client_reap_timer(struct rxrpc_local *local)
 {
-	if (!rxnet->kill_all_client_conns) {
+	if (!local->kill_all_client_conns) {
 		unsigned long now = jiffies;
 		unsigned long reap_at = now + rxrpc_conn_idle_client_expiry;
 
-		if (rxnet->live)
-			timer_reduce(&rxnet->client_conn_reap_timer, reap_at);
+		if (local->rxnet->live)
+			timer_reduce(&local->client_conn_reap_timer, reap_at);
 	}
 }
 
@@ -805,7 +801,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_bundle *bundle, struct rxrpc_call
 {
 	struct rxrpc_connection *conn;
 	struct rxrpc_channel *chan = NULL;
-	struct rxrpc_net *rxnet = bundle->local->rxnet;
+	struct rxrpc_local *local = bundle->local;
 	unsigned int channel;
 	bool may_reuse;
 	u32 cid;
@@ -895,11 +891,11 @@ void rxrpc_disconnect_client_call(struct rxrpc_bundle *bundle, struct rxrpc_call
 		conn->idle_timestamp = jiffies;
 
 		rxrpc_get_connection(conn, rxrpc_conn_get_idle);
-		spin_lock(&rxnet->client_conn_cache_lock);
-		list_move_tail(&conn->cache_link, &rxnet->idle_client_conns);
-		spin_unlock(&rxnet->client_conn_cache_lock);
+		spin_lock(&local->client_conn_cache_lock);
+		list_move_tail(&conn->cache_link, &local->idle_client_conns);
+		spin_unlock(&local->client_conn_cache_lock);
 
-		rxrpc_set_client_reap_timer(rxnet);
+		rxrpc_set_client_reap_timer(local);
 	}
 
 out:
@@ -986,42 +982,34 @@ void rxrpc_kill_client_conn(struct rxrpc_connection *conn)
  * This may be called from conn setup or from a work item so cannot be
  * considered non-reentrant.
  */
-void rxrpc_discard_expired_client_conns(struct work_struct *work)
+void rxrpc_discard_expired_client_conns(struct rxrpc_local *local)
 {
 	struct rxrpc_connection *conn;
-	struct rxrpc_net *rxnet =
-		container_of(work, struct rxrpc_net, client_conn_reaper);
 	unsigned long expiry, conn_expires_at, now;
 	unsigned int nr_conns;
 
 	_enter("");
 
-	if (list_empty(&rxnet->idle_client_conns)) {
+	if (list_empty(&local->idle_client_conns)) {
 		_leave(" [empty]");
-		return;
-	}
-
-	/* Don't double up on the discarding */
-	if (!mutex_trylock(&rxnet->client_conn_discard_lock)) {
-		_leave(" [already]");
 		return;
 	}
 
 	/* We keep an estimate of what the number of conns ought to be after
 	 * we've discarded some so that we don't overdo the discarding.
 	 */
-	nr_conns = atomic_read(&rxnet->nr_client_conns);
+	nr_conns = atomic_read(&local->rxnet->nr_client_conns);
 
 next:
-	spin_lock(&rxnet->client_conn_cache_lock);
+	spin_lock(&local->client_conn_cache_lock);
 
-	if (list_empty(&rxnet->idle_client_conns))
+	if (list_empty(&local->idle_client_conns))
 		goto out;
 
-	conn = list_entry(rxnet->idle_client_conns.next,
+	conn = list_entry(local->idle_client_conns.next,
 			  struct rxrpc_connection, cache_link);
 
-	if (!rxnet->kill_all_client_conns) {
+	if (!local->kill_all_client_conns) {
 		/* If the number of connections is over the reap limit, we
 		 * expedite discard by reducing the expiry timeout.  We must,
 		 * however, have at least a short grace period to be able to do
@@ -1044,7 +1032,7 @@ next:
 	trace_rxrpc_client(conn, -1, rxrpc_client_discard);
 	list_del_init(&conn->cache_link);
 
-	spin_unlock(&rxnet->client_conn_cache_lock);
+	spin_unlock(&local->client_conn_cache_lock);
 
 	rxrpc_unbundle_conn(conn);
 	/* Drop the ->cache_link ref */
@@ -1062,32 +1050,11 @@ not_yet_expired:
 	 * then things get messier.
 	 */
 	_debug("not yet");
-	if (!rxnet->kill_all_client_conns)
-		timer_reduce(&rxnet->client_conn_reap_timer, conn_expires_at);
+	if (!local->kill_all_client_conns)
+		timer_reduce(&local->client_conn_reap_timer, conn_expires_at);
 
 out:
-	spin_unlock(&rxnet->client_conn_cache_lock);
-	mutex_unlock(&rxnet->client_conn_discard_lock);
-	_leave("");
-}
-
-/*
- * Preemptively destroy all the client connection records rather than waiting
- * for them to time out
- */
-void rxrpc_destroy_all_client_connections(struct rxrpc_net *rxnet)
-{
-	_enter("");
-
-	spin_lock(&rxnet->client_conn_cache_lock);
-	rxnet->kill_all_client_conns = true;
-	spin_unlock(&rxnet->client_conn_cache_lock);
-
-	del_timer_sync(&rxnet->client_conn_reap_timer);
-
-	if (!rxrpc_queue_work(&rxnet->client_conn_reaper))
-		_debug("destroy: queue failed");
-
+	spin_unlock(&local->client_conn_cache_lock);
 	_leave("");
 }
 
@@ -1097,14 +1064,19 @@ void rxrpc_destroy_all_client_connections(struct rxrpc_net *rxnet)
 void rxrpc_clean_up_local_conns(struct rxrpc_local *local)
 {
 	struct rxrpc_connection *conn, *tmp;
-	struct rxrpc_net *rxnet = local->rxnet;
 	LIST_HEAD(graveyard);
 
 	_enter("");
 
-	spin_lock(&rxnet->client_conn_cache_lock);
+	spin_lock(&local->client_conn_cache_lock);
+	local->kill_all_client_conns = true;
+	spin_unlock(&local->client_conn_cache_lock);
 
-	list_for_each_entry_safe(conn, tmp, &rxnet->idle_client_conns,
+	del_timer_sync(&local->client_conn_reap_timer);
+
+	spin_lock(&local->client_conn_cache_lock);
+
+	list_for_each_entry_safe(conn, tmp, &local->idle_client_conns,
 				 cache_link) {
 		if (conn->local == local) {
 			atomic_dec(&conn->active);
@@ -1113,7 +1085,7 @@ void rxrpc_clean_up_local_conns(struct rxrpc_local *local)
 		}
 	}
 
-	spin_unlock(&rxnet->client_conn_cache_lock);
+	spin_unlock(&local->client_conn_cache_lock);
 
 	while (!list_empty(&graveyard)) {
 		conn = list_entry(graveyard.next,
