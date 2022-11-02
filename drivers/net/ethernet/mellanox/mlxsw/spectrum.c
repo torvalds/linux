@@ -1259,16 +1259,6 @@ static int mlxsw_sp_set_features(struct net_device *dev,
 	return 0;
 }
 
-static struct devlink_port *
-mlxsw_sp_port_get_devlink_port(struct net_device *dev)
-{
-	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-
-	return mlxsw_core_port_devlink_port_get(mlxsw_sp->core,
-						mlxsw_sp_port->local_port);
-}
-
 static int mlxsw_sp_port_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				      struct ifreq *ifr)
 {
@@ -1342,7 +1332,6 @@ static const struct net_device_ops mlxsw_sp_port_netdev_ops = {
 	.ndo_vlan_rx_add_vid	= mlxsw_sp_port_add_vid,
 	.ndo_vlan_rx_kill_vid	= mlxsw_sp_port_kill_vid,
 	.ndo_set_features	= mlxsw_sp_set_features,
-	.ndo_get_devlink_port	= mlxsw_sp_port_get_devlink_port,
 	.ndo_eth_ioctl		= mlxsw_sp_port_ioctl,
 };
 

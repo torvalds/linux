@@ -81,20 +81,9 @@ static int mlxsw_m_port_stop(struct net_device *dev)
 	return 0;
 }
 
-static struct devlink_port *
-mlxsw_m_port_get_devlink_port(struct net_device *dev)
-{
-	struct mlxsw_m_port *mlxsw_m_port = netdev_priv(dev);
-	struct mlxsw_m *mlxsw_m = mlxsw_m_port->mlxsw_m;
-
-	return mlxsw_core_port_devlink_port_get(mlxsw_m->core,
-						mlxsw_m_port->local_port);
-}
-
 static const struct net_device_ops mlxsw_m_port_netdev_ops = {
 	.ndo_open		= mlxsw_m_port_open,
 	.ndo_stop		= mlxsw_m_port_stop,
-	.ndo_get_devlink_port	= mlxsw_m_port_get_devlink_port,
 };
 
 static void mlxsw_m_module_get_drvinfo(struct net_device *dev,

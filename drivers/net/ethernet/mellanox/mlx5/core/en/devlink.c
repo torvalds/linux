@@ -62,13 +62,3 @@ void mlx5e_devlink_port_unregister(struct mlx5e_priv *priv)
 	if (!(priv->mdev->priv.flags & MLX5_PRIV_FLAGS_MLX5E_LOCKED_FLOW))
 		devl_unlock(devlink);
 }
-
-struct devlink_port *mlx5e_get_devlink_port(struct net_device *dev)
-{
-	struct mlx5e_priv *priv = netdev_priv(dev);
-
-	if (!netif_device_present(dev))
-		return NULL;
-
-	return mlx5e_devlink_get_dl_port(priv);
-}

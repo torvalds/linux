@@ -569,7 +569,6 @@ static const struct net_device_ops prestera_netdev_ops = {
 	.ndo_change_mtu = prestera_port_change_mtu,
 	.ndo_get_stats64 = prestera_port_get_stats64,
 	.ndo_set_mac_address = prestera_port_set_mac_address,
-	.ndo_get_devlink_port = prestera_devlink_get_port,
 };
 
 int prestera_port_autoneg_set(struct prestera_port *port, u64 link_modes)
