@@ -65,7 +65,7 @@ struct ipa_interrupt;
  * @available_count:	Number of defined bits in the available bitmap
  * @defined:		Bitmap of endpoints defined in config data
  * @available:		Bitmap of endpoints supported by hardware
- * @filter_map:		Bit mask indicating endpoints that support filtering
+ * @filtered:		Bitmap of endpoints that support filtering
  * @set_up:		Bit mask indicating endpoints set up
  * @enabled:		Bit mask indicating endpoints enabled
  * @modem_tx_count:	Number of defined modem TX endoints
@@ -123,7 +123,7 @@ struct ipa {
 	u32 available_count;
 	unsigned long *defined;		/* Defined in configuration data */
 	unsigned long *available;	/* Supported by hardware */
-	u32 filter_map;
+	u64 filtered;			/* Support filtering (AP and modem) */
 	u32 set_up;
 	u32 enabled;
 

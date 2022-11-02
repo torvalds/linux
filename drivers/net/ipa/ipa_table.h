@@ -11,13 +11,13 @@
 struct ipa;
 
 /**
- * ipa_filter_map_valid() - Validate a filter table endpoint bitmap
+ * ipa_filtered_valid() - Validate a filter table endpoint bitmap
  * @ipa:	IPA pointer
- * @filter_mask: Filter table endpoint bitmap to check
+ * @filtered:	Filter table endpoint bitmap to check
  *
  * Return:	true if all regions are valid, false otherwise
  */
-bool ipa_filter_map_valid(struct ipa *ipa, u32 filter_mask);
+bool ipa_filtered_valid(struct ipa *ipa, u64 filtered);
 
 /**
  * ipa_table_hash_support() - Return true if hashed tables are supported

@@ -788,12 +788,9 @@ static int ipa_probe(struct platform_device *pdev)
 		goto err_mem_exit;
 
 	/* Result is a non-zero mask of endpoints that support filtering */
-	ipa->filter_map = ipa_endpoint_init(ipa, data->endpoint_count,
-					    data->endpoint_data);
-	if (!ipa->filter_map) {
-		ret = -EINVAL;
+	ret = ipa_endpoint_init(ipa, data->endpoint_count, data->endpoint_data);
+	if (ret)
 		goto err_gsi_exit;
-	}
 
 	ret = ipa_table_init(ipa);
 	if (ret)

@@ -1973,6 +1973,8 @@ void ipa_endpoint_exit(struct ipa *ipa)
 {
 	u32 endpoint_id;
 
+	ipa->filtered = 0;
+
 	for_each_set_bit(endpoint_id, ipa->defined, ipa->endpoint_count)
 		ipa_endpoint_exit_one(&ipa->endpoint[endpoint_id]);
 
@@ -1984,25 +1986,25 @@ void ipa_endpoint_exit(struct ipa *ipa)
 }
 
 /* Returns a bitmask of endpoints that support filtering, or 0 on error */
-u32 ipa_endpoint_init(struct ipa *ipa, u32 count,
+int ipa_endpoint_init(struct ipa *ipa, u32 count,
 		      const struct ipa_gsi_endpoint_data *data)
 {
 	enum ipa_endpoint_name name;
-	u32 filter_map;
+	u32 filtered;
 
 	BUILD_BUG_ON(!IPA_REPLENISH_BATCH);
 
 	/* Number of endpoints is one more than the maximum ID */
 	ipa->endpoint_count = ipa_endpoint_max(ipa, count, data) + 1;
 	if (!ipa->endpoint_count)
-		return 0;	/* Error */
+		return -EINVAL;
 
 	/* Initialize the defined endpoint bitmap */
 	ipa->defined = bitmap_zalloc(ipa->endpoint_count, GFP_KERNEL);
 	if (!ipa->defined)
-		return 0;	/* Error */
+		return -ENOMEM;
 
-	filter_map = 0;
+	filtered = 0;
 	for (name = 0; name < count; name++, data++) {
 		if (ipa_gsi_endpoint_data_empty(data))
 			continue;	/* Skip over empty slots */
@@ -2010,18 +2012,20 @@ u32 ipa_endpoint_init(struct ipa *ipa, u32 count,
 		ipa_endpoint_init_one(ipa, name, data);
 
 		if (data->endpoint.filter_support)
-			filter_map |= BIT(data->endpoint_id);
+			filtered |= BIT(data->endpoint_id);
 		if (data->ee_id == GSI_EE_MODEM && data->toward_ipa)
 			ipa->modem_tx_count++;
 	}
 
-	if (!ipa_filter_map_valid(ipa, filter_map))
+	if (!ipa_filtered_valid(ipa, filtered))
 		goto err_endpoint_exit;
 
-	return filter_map;	/* Non-zero bitmask */
+	ipa->filtered = filtered;
+
+	return 0;
 
 err_endpoint_exit:
 	ipa_endpoint_exit(ipa);
 
-	return 0;	/* Error */
+	return -EINVAL;
 }
