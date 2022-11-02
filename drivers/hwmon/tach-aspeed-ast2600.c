@@ -19,57 +19,57 @@
 #include <linux/sysfs.h>
 
 /* The channel number of Aspeed tach controller */
-#define TACH_ASPEED_NR_TACHS 16
+#define TACH_ASPEED_NR_TACHS		16
 /* TACH Control Register */
-#define TACH_ASPEED_CTRL(ch) (((ch) * 0x10) + 0x08)
-#define TACH_ASPEED_IER BIT(31)
-#define TACH_ASPEED_INVERS_LIMIT BIT(30)
-#define TACH_ASPEED_LOOPBACK BIT(29)
-#define TACH_ASPEED_ENABLE BIT(28)
-#define TACH_ASPEED_DEBOUNCE_MASK GENMASK(27, 26)
-#define TACH_ASPEED_DEBOUNCE_BIT (26)
-#define TACH_ASPEED_IO_EDGE_MASK GENMASK(25, 24)
-#define TACH_ASPEED_IO_EDGE_BIT (24)
-#define TACH_ASPEED_CLK_DIV_T_MASK GENMASK(23, 20)
-#define TACH_ASPEED_CLK_DIV_BIT (20)
-#define TACH_ASPEED_THRESHOLD_MASK GENMASK(19, 0)
+#define TACH_ASPEED_CTRL(ch)		(((ch) * 0x10) + 0x08)
+#define TACH_ASPEED_IER			BIT(31)
+#define TACH_ASPEED_INVERS_LIMIT	BIT(30)
+#define TACH_ASPEED_LOOPBACK		BIT(29)
+#define TACH_ASPEED_ENABLE		BIT(28)
+#define TACH_ASPEED_DEBOUNCE_MASK	GENMASK(27, 26)
+#define TACH_ASPEED_DEBOUNCE_BIT	26
+#define TACH_ASPEED_IO_EDGE_MASK	GENMASK(25, 24)
+#define TACH_ASPEED_IO_EDGE_BIT		24
+#define TACH_ASPEED_CLK_DIV_T_MASK	GENMASK(23, 20)
+#define TACH_ASPEED_CLK_DIV_BIT		20
+#define TACH_ASPEED_THRESHOLD_MASK	GENMASK(19, 0)
 /* [27:26] */
-#define DEBOUNCE_3_CLK 0x00
-#define DEBOUNCE_2_CLK 0x01
-#define DEBOUNCE_1_CLK 0x02
-#define DEBOUNCE_0_CLK 0x03
+#define DEBOUNCE_3_CLK			0x00
+#define DEBOUNCE_2_CLK			0x01
+#define DEBOUNCE_1_CLK			0x02
+#define DEBOUNCE_0_CLK			0x03
 /* [25:24] */
-#define F2F_EDGES 0x00
-#define R2R_EDGES 0x01
-#define BOTH_EDGES 0x02
+#define F2F_EDGES			0x00
+#define R2R_EDGES			0x01
+#define BOTH_EDGES			0x02
 /* [23:20] */
 /* divisor = 4 to the nth power, n = register value */
-#define DEFAULT_TACH_DIV 1024
-#define DIV_TO_REG(divisor) (ilog2(divisor) >> 1)
+#define DEFAULT_TACH_DIV		1024
+#define DIV_TO_REG(divisor)		(ilog2(divisor) >> 1)
 
 /* TACH Status Register */
-#define TACH_ASPEED_STS(ch) (((ch) * 0x10) + 0x0C)
+#define TACH_ASPEED_STS(ch)		(((ch) * 0x10) + 0x0C)
 
 /*PWM_TACH_STS */
-#define TACH_ASPEED_ISR BIT(31)
-#define TACH_ASPEED_PWM_OUT BIT(25)
-#define TACH_ASPEED_PWM_OEN BIT(24)
-#define TACH_ASPEED_DEB_INPUT BIT(23)
-#define TACH_ASPEED_RAW_INPUT BIT(22)
-#define TACH_ASPEED_VALUE_UPDATE BIT(21)
-#define TACH_ASPEED_FULL_MEASUREMENT BIT(20)
-#define TACH_ASPEED_VALUE_MASK GENMASK(19, 0)
+#define TACH_ASPEED_ISR			BIT(31)
+#define TACH_ASPEED_PWM_OUT		BIT(25)
+#define TACH_ASPEED_PWM_OEN		BIT(24)
+#define TACH_ASPEED_DEB_INPUT		BIT(23)
+#define TACH_ASPEED_RAW_INPUT		BIT(22)
+#define TACH_ASPEED_VALUE_UPDATE	BIT(21)
+#define TACH_ASPEED_FULL_MEASUREMENT	BIT(20)
+#define TACH_ASPEED_VALUE_MASK		GENMASK(19, 0)
 /**********************************************************
  * Software setting
  *********************************************************/
-#define DEFAULT_FAN_MIN_RPM 1000
-#define DEFAULT_FAN_PULSE_PR 2
+#define DEFAULT_FAN_MIN_RPM		1000
+#define DEFAULT_FAN_PULSE_PR		2
 /*
  * Add this value to avoid CPU consuming a lot of resources in waiting rpm
  * updating. Assume the max rpm of fan is 60000, the fastest period of updating
  * tach value will be equal to (1000000 * 2 * 60) / (2 * max_rpm) = 1000us.
  */
-#define DEFAULT_FAN_MAX_RPM 60000
+#define DEFAULT_FAN_MAX_RPM		60000
 
 struct aspeed_tach_channel_params {
 	int limited_inverse;
@@ -113,7 +113,7 @@ static void aspeed_update_tach_sample_period(struct aspeed_tach_data *priv,
 }
 
 static void aspeed_update_tach_polling_period(struct aspeed_tach_data *priv,
-					     u8 fan_tach_ch)
+					      u8 fan_tach_ch)
 {
 	u32 tach_period_us;
 	u8 pulse_pr = priv->tach_channel[fan_tach_ch].pulse_pr;
@@ -132,7 +132,7 @@ static void aspeed_tach_ch_enable(struct aspeed_tach_data *priv, u8 tach_ch,
 				TACH_ASPEED_ENABLE);
 	else
 		regmap_clear_bits(priv->regmap, TACH_ASPEED_CTRL(tach_ch),
-				   TACH_ASPEED_ENABLE);
+				  TACH_ASPEED_ENABLE);
 }
 
 static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
@@ -146,19 +146,17 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
 	/* Restart the Tach channel to guarantee the value is fresh */
 	aspeed_tach_ch_enable(priv, fan_tach_ch, false);
 	aspeed_tach_ch_enable(priv, fan_tach_ch, true);
-	ret = regmap_read_poll_timeout(
-		priv->regmap, TACH_ASPEED_STS(fan_tach_ch), val,
-		(val & TACH_ASPEED_FULL_MEASUREMENT) &&
-			(val & TACH_ASPEED_VALUE_UPDATE),
-		priv->tach_channel[fan_tach_ch].polling_period,
-		priv->tach_channel[fan_tach_ch].sample_period);
+	ret = regmap_read_poll_timeout(priv->regmap, TACH_ASPEED_STS(fan_tach_ch), val,
+				       (val & TACH_ASPEED_FULL_MEASUREMENT) &&
+					       (val & TACH_ASPEED_VALUE_UPDATE),
+				       priv->tach_channel[fan_tach_ch].polling_period,
+				       priv->tach_channel[fan_tach_ch].sample_period);
 
 	if (ret) {
-		/* return 0 if we didn't get an answer because of timeout*/
+		/* return 0 if we didn't get an answer because of timeout */
 		if (ret == -ETIMEDOUT)
 			return 0;
-		else
-			return ret;
+		return ret;
 	}
 
 	raw_data = val & TACH_ASPEED_VALUE_MASK;
@@ -185,8 +183,9 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
 	return rpm;
 }
 
-static int aspeed_tach_hwmon_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
-			int channel, long *val)
+static int aspeed_tach_hwmon_read(struct device *dev,
+				  enum hwmon_sensor_types type, u32 attr,
+				  int channel, long *val)
 {
 	struct aspeed_tach_data *priv = dev_get_drvdata(dev);
 	u32 reg_val;
@@ -208,7 +207,7 @@ static int aspeed_tach_hwmon_read(struct device *dev, enum hwmon_sensor_types ty
 	case hwmon_fan_div:
 		regmap_read(priv->regmap, TACH_ASPEED_CTRL(channel), &reg_val);
 		reg_val = FIELD_GET(TACH_ASPEED_CLK_DIV_T_MASK, reg_val);
-		*val = 1 << (reg_val << 1);
+		*val = BIT(reg_val << 1);
 		break;
 	case hwmon_fan_pulses:
 		*val = priv->tach_channel[channel].pulse_pr;
@@ -219,8 +218,9 @@ static int aspeed_tach_hwmon_read(struct device *dev, enum hwmon_sensor_types ty
 	return 0;
 }
 
-static int aspeed_tach_hwmon_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
-			 int channel, long val)
+static int aspeed_tach_hwmon_write(struct device *dev,
+				   enum hwmon_sensor_types type, u32 attr,
+				   int channel, long val)
 {
 	struct aspeed_tach_data *priv = dev_get_drvdata(dev);
 
@@ -234,19 +234,17 @@ static int aspeed_tach_hwmon_write(struct device *dev, enum hwmon_sensor_types t
 		aspeed_update_tach_polling_period(priv, channel);
 		break;
 	case hwmon_fan_div:
-		if ((is_power_of_2(val) && !(ilog2(val) % 2))) {
-			priv->tach_channel[channel].divisor = val;
-			regmap_write_bits(
-				priv->regmap, TACH_ASPEED_CTRL(channel),
-				TACH_ASPEED_CLK_DIV_T_MASK,
-				DIV_TO_REG(priv->tach_channel[channel].divisor)
-					<< TACH_ASPEED_CLK_DIV_BIT);
-		} else {
+		if (!(is_power_of_2(val) && !(ilog2(val) % 2))) {
 			dev_err(dev,
 				"fan_div value %ld not supported. Only support power of 4\n",
 				val);
 			return -EINVAL;
 		}
+		priv->tach_channel[channel].divisor = val;
+		regmap_write_bits(priv->regmap, TACH_ASPEED_CTRL(channel),
+				  TACH_ASPEED_CLK_DIV_T_MASK,
+				  DIV_TO_REG(priv->tach_channel[channel].divisor)
+					  << TACH_ASPEED_CLK_DIV_BIT);
 		break;
 	case hwmon_fan_pulses:
 		priv->tach_channel[channel].pulse_pr = val;
@@ -259,8 +257,9 @@ static int aspeed_tach_hwmon_write(struct device *dev, enum hwmon_sensor_types t
 	return 0;
 }
 
-static umode_t aspeed_tach_dev_is_visible(const void *drvdata, enum hwmon_sensor_types type,
-				  u32 attr, int channel)
+static umode_t aspeed_tach_dev_is_visible(const void *drvdata,
+					  enum hwmon_sensor_types type,
+					  u32 attr, int channel)
 {
 	const struct aspeed_tach_data *priv = drvdata;
 
@@ -411,17 +410,15 @@ static int aspeed_tach_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	priv->dev = &pdev->dev;
 	priv->tach_channel =
-		devm_kzalloc(dev,
-			     TACH_ASPEED_NR_TACHS * sizeof(*priv->tach_channel),
-			     GFP_KERNEL);
+		devm_kcalloc(dev, TACH_ASPEED_NR_TACHS,
+			     sizeof(*priv->tach_channel), GFP_KERNEL);
 
 	priv->regmap = syscon_node_to_regmap(np);
-	if (IS_ERR(priv->regmap)) {
-		dev_err(priv->dev, "Couldn't get regmap\n");
-		return -ENODEV;
-	}
+	if (IS_ERR(priv->regmap))
+		return dev_err_probe(dev, PTR_ERR(priv->regmap),
+				     "Couldn't get regmap\n");
 	parent_dev = of_find_device_by_node(np);
-	priv->clk = devm_clk_get_enabled(&parent_dev->dev, 0);
+	priv->clk = devm_clk_get_enabled(&parent_dev->dev, NULL);
 	if (IS_ERR(priv->clk))
 		return dev_err_probe(dev, PTR_ERR(priv->clk),
 				     "Couldn't get clock\n");
@@ -449,8 +446,8 @@ static int aspeed_tach_probe(struct platform_device *pdev)
 		}
 	}
 
-	hwmon = devm_hwmon_device_register_with_info(
-		dev, "aspeed_tach", priv, &aspeed_tach_chip_info, NULL);
+	hwmon = devm_hwmon_device_register_with_info(dev, "aspeed_tach", priv,
+						     &aspeed_tach_chip_info, NULL);
 	ret = PTR_ERR_OR_ZERO(hwmon);
 	if (ret)
 		return dev_err_probe(dev, ret,
