@@ -1832,7 +1832,8 @@ static void btree_write_submit(struct work_struct *work)
 	bkey_for_each_ptr(bch2_bkey_ptrs(bkey_i_to_s(&tmp.k)), ptr)
 		ptr->offset += wbio->sector_offset;
 
-	bch2_submit_wbio_replicas(&wbio->wbio, wbio->wbio.c, BCH_DATA_btree, &tmp.k);
+	bch2_submit_wbio_replicas(&wbio->wbio, wbio->wbio.c, BCH_DATA_btree,
+				  &tmp.k, false);
 }
 
 void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, unsigned flags)

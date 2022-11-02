@@ -227,6 +227,11 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 		return NULL;
 	}
 
+	if (bch2_bucket_nocow_is_locked(&c->nocow_locks, POS(ca->dev_idx, bucket))) {
+		s->skipped_nocow++;
+		return NULL;
+	}
+
 	spin_lock(&c->freelist_lock);
 
 	if (unlikely(c->open_buckets_nr_free <= open_buckets_reserved(reserve))) {

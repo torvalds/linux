@@ -260,6 +260,12 @@ static int bch2_move_extent(struct btree_trans *trans,
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_move))
 		return -BCH_ERR_erofs_no_writes;
 
+	/*
+	 * Before memory allocations & taking nocow locks in
+	 * bch2_data_update_init():
+	 */
+	bch2_trans_unlock(trans);
+
 	/* write path might have to decompress data: */
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
 		sectors = max_t(unsigned, sectors, p.crc.uncompressed_size);
@@ -506,6 +512,7 @@ static int __bch2_move_data(struct moving_context *ctxt,
 		 */
 		bch2_bkey_buf_reassemble(&sk, c, k);
 		k = bkey_i_to_s_c(sk.k);
+		bch2_trans_unlock(&trans);
 
 		ret2 = bch2_move_extent(&trans, &iter, ctxt, io_opts,
 					btree_id, k, data_opts);

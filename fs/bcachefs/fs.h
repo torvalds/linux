@@ -25,6 +25,17 @@ struct bch_inode_info {
 
 	u32			ei_subvol;
 
+	/*
+	 * When we've been doing nocow writes we'll need to issue flushes to the
+	 * underlying block devices
+	 *
+	 * XXX: a device may have had a flush issued by some other codepath. It
+	 * would be better to keep for each device a sequence number that's
+	 * incremented when we isusue a cache flush, and track here the sequence
+	 * number that needs flushing.
+	 */
+	struct bch_devs_mask	ei_devs_need_flush;
+
 	/* copy of inode in btree: */
 	struct bch_inode_unpacked ei_inode;
 };

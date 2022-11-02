@@ -392,6 +392,13 @@ enum opt_type {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		NULL)						\
+	x(nocow,			u8,				\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME|OPT_INODE,		\
+	  OPT_BOOL(),							\
+	  BCH_SB_NOCOW,			false,				\
+	  NULL,		"Nocow mode: Writes will be done in place when possible.\n"\
+			"Snapshots and reflink will still caused writes to be COW\n"\
+			"Implicitly disables data checksumming, compression and encryption")\
 	x(no_data_io,			u8,				\
 	  OPT_MOUNT,							\
 	  OPT_BOOL(),							\

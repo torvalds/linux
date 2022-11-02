@@ -22,7 +22,7 @@ static inline void bch2_latency_acct(struct bch_dev *ca, u64 submit_time, int rw
 #endif
 
 void bch2_submit_wbio_replicas(struct bch_write_bio *, struct bch_fs *,
-			       enum bch_data_type, const struct bkey_i *);
+			       enum bch_data_type, const struct bkey_i *, bool);
 
 #define BLK_STS_REMOVED		((__force blk_status_t)128)
 
@@ -43,6 +43,7 @@ enum bch_write_flags {
 	__BCH_WRITE_IN_WORKER,
 	__BCH_WRITE_DONE,
 	__BCH_WRITE_IO_ERROR,
+	__BCH_WRITE_CONVERT_UNWRITTEN,
 };
 
 #define BCH_WRITE_ALLOC_NOWAIT		(1U << __BCH_WRITE_ALLOC_NOWAIT)
@@ -61,6 +62,7 @@ enum bch_write_flags {
 #define BCH_WRITE_IN_WORKER		(1U << __BCH_WRITE_IN_WORKER)
 #define BCH_WRITE_DONE			(1U << __BCH_WRITE_DONE)
 #define BCH_WRITE_IO_ERROR		(1U << __BCH_WRITE_IO_ERROR)
+#define BCH_WRITE_CONVERT_UNWRITTEN	(1U << __BCH_WRITE_CONVERT_UNWRITTEN)
 
 static inline struct workqueue_struct *index_update_wq(struct bch_write_op *op)
 {
@@ -90,7 +92,7 @@ static inline void bch2_write_op_init(struct bch_write_op *op, struct bch_fs *c,
 	op->flags		= 0;
 	op->written		= 0;
 	op->error		= 0;
-	op->csum_type		= bch2_data_checksum_type(c, opts.data_checksum);
+	op->csum_type		= bch2_data_checksum_type(c, opts);
 	op->compression_type	= bch2_compression_opt_to_type[opts.compression];
 	op->nr_replicas		= 0;
 	op->nr_replicas_required = c->opts.data_replicas_required;
@@ -107,6 +109,7 @@ static inline void bch2_write_op_init(struct bch_write_op *op, struct bch_fs *c,
 	op->res			= (struct disk_reservation) { 0 };
 	op->new_i_size		= U64_MAX;
 	op->i_sectors_delta	= 0;
+	op->devs_need_flush	= NULL;
 }
 
 void bch2_write(struct closure *);

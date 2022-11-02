@@ -543,6 +543,7 @@ DECLARE_EVENT_CLASS(bucket_alloc,
 		__field(u64,			need_journal_commit	)
 		__field(u64,			nouse			)
 		__field(bool,			nonblocking		)
+		__field(u64,			nocow			)
 		__array(char,			err,	32		)
 	),
 
@@ -560,10 +561,11 @@ DECLARE_EVENT_CLASS(bucket_alloc,
 		__entry->need_journal_commit = s->skipped_need_journal_commit;
 		__entry->nouse		= s->skipped_nouse;
 		__entry->nonblocking	= nonblocking;
+		__entry->nocow		= s->skipped_nocow;
 		strscpy(__entry->err, err, sizeof(__entry->err));
 	),
 
-	TP_printk("%d,%d reserve %s user %u bucket %llu free %llu avail %llu copygc_wait %llu/%lli seen %llu open %llu need_journal_commit %llu nouse %llu nonblocking %u err %s",
+	TP_printk("%d,%d reserve %s user %u bucket %llu free %llu avail %llu copygc_wait %llu/%lli seen %llu open %llu need_journal_commit %llu nouse %llu nocow %llu nonblocking %u err %s",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->reserve,
 		  __entry->user,
@@ -576,6 +578,7 @@ DECLARE_EVENT_CLASS(bucket_alloc,
 		  __entry->open,
 		  __entry->need_journal_commit,
 		  __entry->nouse,
+		  __entry->nocow,
 		  __entry->nonblocking,
 		  __entry->err)
 );

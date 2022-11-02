@@ -97,6 +97,7 @@ struct bch_write_bio {
 				bounce:1,
 				put_bio:1,
 				have_ioref:1,
+				nocow:1,
 				used_mempool:1,
 				first_btree_write:1;
 	);
@@ -150,6 +151,12 @@ struct bch_write_op {
 
 	struct keylist		insert_keys;
 	u64			inline_keys[BKEY_EXTENT_U64s_MAX * 2];
+
+	/*
+	 * Bitmask of devices that have had nocow writes issued to them since
+	 * last flush:
+	 */
+	struct bch_devs_mask	*devs_need_flush;
 
 	/* Must be last: */
 	struct bch_write_bio	wbio;

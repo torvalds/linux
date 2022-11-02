@@ -303,6 +303,13 @@ void bch2_data_update_read_done(struct data_update *m,
 void bch2_data_update_exit(struct data_update *update)
 {
 	struct bch_fs *c = update->op.c;
+	struct bkey_ptrs_c ptrs =
+		bch2_bkey_ptrs_c(bkey_i_to_s_c(update->k.k));
+	const struct bch_extent_ptr *ptr;
+
+	bkey_for_each_ptr(ptrs, ptr)
+		bch2_bucket_nocow_unlock(&c->nocow_locks,
+				       PTR_BUCKET_POS(c, ptr), 0);
 
 	bch2_bkey_buf_exit(&update->k, c);
 	bch2_disk_reservation_put(c, &update->op.res);
@@ -451,6 +458,9 @@ int bch2_data_update_init(struct bch_fs *c, struct data_update *m,
 			m->op.incompressible = true;
 
 		i++;
+
+		bch2_bucket_nocow_lock(&c->nocow_locks,
+				       PTR_BUCKET_POS(c, &p.ptr), 0);
 	}
 
 	if (reserve_sectors) {

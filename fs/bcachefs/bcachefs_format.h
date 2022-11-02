@@ -798,7 +798,8 @@ struct bch_inode_generation {
 	x(bi_dir,			64)	\
 	x(bi_dir_offset,		64)	\
 	x(bi_subvol,			32)	\
-	x(bi_parent_subvol,		32)
+	x(bi_parent_subvol,		32)	\
+	x(bi_nocow,			8)
 
 /* subset of BCH_INODE_FIELDS */
 #define BCH_INODE_OPTS()			\
@@ -810,7 +811,8 @@ struct bch_inode_generation {
 	x(promote_target,		16)	\
 	x(foreground_target,		16)	\
 	x(background_target,		16)	\
-	x(erasure_code,			16)
+	x(erasure_code,			16)	\
+	x(nocow,			8)
 
 enum inode_opt_id {
 #define x(name, ...)				\
@@ -1548,7 +1550,8 @@ struct bch_sb_field_journal_seq_blacklist {
 	x(alloc_v4,			20)		\
 	x(new_data_types,		21)		\
 	x(backpointers,			22)		\
-	x(inode_v3,			23)
+	x(inode_v3,			23)		\
+	x(unwritten_extents,		24)
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
@@ -1696,6 +1699,7 @@ LE64_BITMASK(BCH_SB_JOURNAL_FLUSH_DELAY,struct bch_sb, flags[3], 30, 62);
 LE64_BITMASK(BCH_SB_JOURNAL_FLUSH_DISABLED,struct bch_sb, flags[3], 62, 63);
 LE64_BITMASK(BCH_SB_JOURNAL_RECLAIM_DELAY,struct bch_sb, flags[4], 0, 32);
 LE64_BITMASK(BCH_SB_JOURNAL_TRANSACTION_NAMES,struct bch_sb, flags[4], 32, 33);
+LE64_BITMASK(BCH_SB_NOCOW,		struct bch_sb, flags[4], 33, 34);
 LE64_BITMASK(BCH_SB_WRITE_BUFFER_SIZE,	struct bch_sb, flags[4], 34, 54);
 
 /*

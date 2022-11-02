@@ -596,6 +596,7 @@ bool bch2_bkey_is_incompressible(struct bkey_s_c);
 unsigned bch2_bkey_sectors_compressed(struct bkey_s_c);
 
 unsigned bch2_bkey_replicas(struct bch_fs *, struct bkey_s_c);
+unsigned bch2_extent_ptr_durability(struct bch_fs *, struct extent_ptr_decoded *);
 unsigned bch2_bkey_durability(struct bch_fs *, struct bkey_s_c);
 
 void bch2_bkey_drop_device(struct bkey_s, unsigned);
