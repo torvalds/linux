@@ -10,6 +10,7 @@
 #include <linux/mm.h>
 
 #include <asm/processor-flags.h>
+#include <asm/cacheinfo.h>
 #include <asm/cpufeature.h>
 #include <asm/tlbflush.h>
 #include <asm/mtrr.h>
@@ -396,9 +397,6 @@ print_fixed(unsigned base, unsigned step, const mtrr_type *types)
 	}
 }
 
-static void prepare_set(void);
-static void post_set(void);
-
 static void __init print_mtrr_state(void)
 {
 	unsigned int i;
@@ -450,11 +448,11 @@ void __init mtrr_bp_pat_init(void)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	prepare_set();
+	cache_disable();
 
 	pat_init();
 
-	post_set();
+	cache_enable();
 	local_irq_restore(flags);
 }
 
@@ -687,7 +685,7 @@ static u32 deftype_lo, deftype_hi;
  * NOTE: The CPU must already be in a safe state for MTRR changes, including
  *       measures that only a single CPU can be active in set_mtrr_state() in
  *       order to not be subject to races for usage of deftype_lo. This is
- *       accomplished by taking set_atomicity_lock.
+ *       accomplished by taking cache_disable_lock.
  * RETURNS: 0 if no changes made, else a mask indicating what was changed.
  */
 static unsigned long set_mtrr_state(void)
@@ -718,18 +716,19 @@ static unsigned long set_mtrr_state(void)
 	return change_mask;
 }
 
-
-static unsigned long cr4;
-static DEFINE_RAW_SPINLOCK(set_atomicity_lock);
-
 /*
+ * Disable and enable caches. Needed for changing MTRRs and the PAT MSR.
+ *
  * Since we are disabling the cache don't allow any interrupts,
  * they would run extremely slow and would only increase the pain.
  *
  * The caller must ensure that local interrupts are disabled and
- * are reenabled after post_set() has been called.
+ * are reenabled after cache_enable() has been called.
  */
-static void prepare_set(void) __acquires(set_atomicity_lock)
+static unsigned long saved_cr4;
+static DEFINE_RAW_SPINLOCK(cache_disable_lock);
+
+void cache_disable(void) __acquires(cache_disable_lock)
 {
 	unsigned long cr0;
 
@@ -740,7 +739,7 @@ static void prepare_set(void) __acquires(set_atomicity_lock)
 	 * changes to the way the kernel boots
 	 */
 
-	raw_spin_lock(&set_atomicity_lock);
+	raw_spin_lock(&cache_disable_lock);
 
 	/* Enter the no-fill (CD=1, NW=0) cache mode and flush caches. */
 	cr0 = read_cr0() | X86_CR0_CD;
@@ -757,8 +756,8 @@ static void prepare_set(void) __acquires(set_atomicity_lock)
 
 	/* Save value of CR4 and clear Page Global Enable (bit 7) */
 	if (boot_cpu_has(X86_FEATURE_PGE)) {
-		cr4 = __read_cr4();
-		__write_cr4(cr4 & ~X86_CR4_PGE);
+		saved_cr4 = __read_cr4();
+		__write_cr4(saved_cr4 & ~X86_CR4_PGE);
 	}
 
 	/* Flush all TLBs via a mov %cr3, %reg; mov %reg, %cr3 */
@@ -776,7 +775,7 @@ static void prepare_set(void) __acquires(set_atomicity_lock)
 		wbinvd();
 }
 
-static void post_set(void) __releases(set_atomicity_lock)
+void cache_enable(void) __releases(cache_disable_lock)
 {
 	/* Flush TLBs (no need to flush caches - they are disabled) */
 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
@@ -790,8 +789,8 @@ static void post_set(void) __releases(set_atomicity_lock)
 
 	/* Restore value of CR4 */
 	if (boot_cpu_has(X86_FEATURE_PGE))
-		__write_cr4(cr4);
-	raw_spin_unlock(&set_atomicity_lock);
+		__write_cr4(saved_cr4);
+	raw_spin_unlock(&cache_disable_lock);
 }
 
 static void generic_set_all(void)
@@ -800,7 +799,7 @@ static void generic_set_all(void)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	prepare_set();
+	cache_disable();
 
 	/* Actually set the state */
 	mask = set_mtrr_state();
@@ -808,7 +807,7 @@ static void generic_set_all(void)
 	/* also set PAT */
 	pat_init();
 
-	post_set();
+	cache_enable();
 	local_irq_restore(flags);
 
 	/* Use the atomic bitops to update the global mask */
@@ -839,7 +838,7 @@ static void generic_set_mtrr(unsigned int reg, unsigned long base,
 	vr = &mtrr_state.var_ranges[reg];
 
 	local_irq_save(flags);
-	prepare_set();
+	cache_disable();
 
 	if (size == 0) {
 		/*
@@ -858,7 +857,7 @@ static void generic_set_mtrr(unsigned int reg, unsigned long base,
 		mtrr_wrmsr(MTRRphysMask_MSR(reg), vr->mask_lo, vr->mask_hi);
 	}
 
-	post_set();
+	cache_enable();
 	local_irq_restore(flags);
 }
 
