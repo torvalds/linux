@@ -453,6 +453,21 @@ void iwl_mei_host_disassociated(void);
  */
 void iwl_mei_device_state(bool up);
 
+/**
+ * iwl_mei_pldr_req() - must be called before loading the fw
+ *
+ * Return: 0 if the PLDR flow was successful and the fw can be loaded, negative
+ *	value otherwise.
+ */
+int iwl_mei_pldr_req(void);
+
+/**
+ * iwl_mei_alive_notif() - must be called when alive notificaiton is received
+ * @success: true if received alive notification, false if waiting for the
+ *	notificaiton timed out.
+ */
+void iwl_mei_alive_notif(bool success);
+
 #else
 
 static inline bool iwl_mei_is_connected(void)
@@ -501,6 +516,12 @@ static inline void iwl_mei_host_disassociated(void)
 {}
 
 static inline void iwl_mei_device_state(bool up)
+{}
+
+static inline int iwl_mei_pldr_req(void)
+{ return 0; }
+
+static inline void iwl_mei_alive_notif(bool success)
 {}
 
 #endif /* CONFIG_IWLMEI */

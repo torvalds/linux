@@ -377,6 +377,7 @@ enum {
 #define PREG_PRPH_WPROT_22000		0xA04D00
 
 #define SB_MODIFY_CFG_FLAG		0xA03088
+#define SB_CFG_RESIDES_IN_OTP_MASK	0x10
 #define SB_CPU_1_STATUS			0xA01E30
 #define SB_CPU_2_STATUS			0xA01E34
 #define UMAG_SB_CPU_1_STATUS		0xA038C0
@@ -499,5 +500,8 @@ enum {
 #define WFPM_DPHY_OFF 0xDF10FF
 
 #define REG_OTP_MINOR 0xA0333C
+
+#define WFPM_LMAC2_PD_NOTIFICATION 0xA033CC
+#define WFPM_LMAC2_PD_RE_READ BIT(31)
 
 #endif				/* __iwl_prph_h__ */

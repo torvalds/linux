@@ -203,6 +203,7 @@ struct iwl_sap_me_msg_start_ok {
  * @SAP_MSG_NOTIF_NIC_OWNER: Payload is a DW. See &enum iwl_sap_nic_owner.
  * @SAP_MSG_NOTIF_CSME_CONN_STATUS: See &struct iwl_sap_notif_conn_status.
  * @SAP_MSG_NOTIF_NVM: See &struct iwl_sap_nvm.
+ * @SAP_MSG_NOTIF_PLDR_ACK: See &struct iwl_sap_pldr_ack_data.
  * @SAP_MSG_NOTIF_FROM_CSME_MAX: Not used.
  *
  * @SAP_MSG_NOTIF_FROM_HOST_MIN: Not used.
@@ -226,6 +227,8 @@ struct iwl_sap_me_msg_start_ok {
  * @SAP_MSG_NOTIF_HOST_OWNERSHIP_CONFIRMED: No payload.
  * @SAP_MSG_NOTIF_SAR_LIMITS: See &struct iwl_sap_notif_sar_limits.
  * @SAP_MSG_NOTIF_GET_NVM: No payload. Triggers %SAP_MSG_NOTIF_NVM.
+ * @SAP_MSG_NOTIF_PLDR: See &struct iwl_sap_pldr_data.
+ * @SAP_MSG_NOTIF_PLDR_END: See &struct iwl_sap_pldr_end_data.
  * @SAP_MSG_NOTIF_FROM_HOST_MAX: Not used.
  *
  * @SAP_MSG_DATA_MIN: Not used.
@@ -258,6 +261,8 @@ enum iwl_sap_msg {
 	SAP_MSG_NOTIF_NIC_OWNER				= 511,
 	SAP_MSG_NOTIF_CSME_CONN_STATUS			= 512,
 	SAP_MSG_NOTIF_NVM				= 513,
+	/* 514 - 517 not supported */
+	SAP_MSG_NOTIF_PLDR_ACK				= 518,
 	SAP_MSG_NOTIF_FROM_CSME_MAX,
 
 	SAP_MSG_NOTIF_FROM_HOST_MIN			= 1000,
@@ -279,6 +284,9 @@ enum iwl_sap_msg {
 	SAP_MSG_NOTIF_HOST_OWNERSHIP_CONFIRMED		= 1015,
 	SAP_MSG_NOTIF_SAR_LIMITS			= 1016,
 	SAP_MSG_NOTIF_GET_NVM				= 1017,
+	/* 1018 - 1023 not supported */
+	SAP_MSG_NOTIF_PLDR				= 1024,
+	SAP_MSG_NOTIF_PLDR_END				= 1025,
 	SAP_MSG_NOTIF_FROM_HOST_MAX,
 
 	SAP_MSG_DATA_MIN				= 2000,
@@ -731,5 +739,48 @@ struct iwl_sap_cb_data {
 	__le32 data_len;
 	u8 payload[];
 };
+
+/**
+ * struct iwl_sap_pldr_data - payload of %SAP_MSG_NOTIF_PLDR
+ * @hdr: The SAP header.
+ * @version: SAP message version
+ */
+struct iwl_sap_pldr_data {
+	struct iwl_sap_hdr hdr;
+	__le32 version;
+} __packed;
+
+/**
+ * enum iwl_sap_pldr_status -
+ * @SAP_PLDR_STATUS_SUCCESS: PLDR started/ended successfully
+ * @SAP_PLDR_STATUS_FAILURE: PLDR failed to start/end
+ */
+enum iwl_sap_pldr_status {
+	SAP_PLDR_STATUS_SUCCESS	= 0,
+	SAP_PLDR_STATUS_FAILURE	= 1,
+};
+
+/*
+ * struct iwl_sap_pldr_end_data - payload of %SAP_MSG_NOTIF_PLDR_END
+ * @hdr: The SAP header.
+ * @version: SAP message version
+ * @status: PLDR end status
+ */
+struct iwl_sap_pldr_end_data {
+	struct iwl_sap_hdr hdr;
+	__le32 version;
+	__le32 status;
+} __packed;
+
+/*
+ * struct iwl_sap_pldr_ack_data - payload of %SAP_MSG_NOTIF_PLDR_ACK
+ * @version: SAP message version
+ * @status: CSME accept/refuse to the PLDR request
+ */
+struct iwl_sap_pldr_ack_data {
+	struct iwl_sap_hdr hdr;
+	__le32 version;
+	__le32 status;
+} __packed;
 
 #endif /* __sap_h__ */
