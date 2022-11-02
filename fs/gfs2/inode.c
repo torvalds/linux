@@ -403,12 +403,15 @@ static int alloc_dinode(struct gfs2_inode *ip, u32 flags, unsigned *dblocks)
 		goto out_ipreserv;
 
 	error = gfs2_alloc_blocks(ip, &ip->i_no_addr, dblocks, 1, &ip->i_generation);
+	if (error)
+		goto out_trans_end;
+
 	ip->i_no_formal_ino = ip->i_generation;
 	ip->i_inode.i_ino = ip->i_no_addr;
 	ip->i_goal = ip->i_no_addr;
 
+out_trans_end:
 	gfs2_trans_end(sdp);
-
 out_ipreserv:
 	gfs2_inplace_release(ip);
 out_quota:
