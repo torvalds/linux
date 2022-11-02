@@ -338,8 +338,6 @@ struct msm_gem_address_space *
 adreno_iommu_create_address_space(struct msm_gpu *gpu,
 		struct platform_device *pdev);
 
-void adreno_set_llc_attributes(struct iommu_domain *iommu);
-
 int adreno_read_speedbin(struct device *dev, u32 *speedbin);
 
 /*
