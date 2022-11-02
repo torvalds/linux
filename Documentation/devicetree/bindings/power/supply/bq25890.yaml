@@ -93,7 +93,7 @@ required:
   - ti,boost-voltage
   - ti,boost-max-current
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
