@@ -248,7 +248,7 @@ void gen3_irq_reset(struct intel_uncore *uncore, i915_reg_t imr,
 	intel_uncore_posting_read(uncore, iir);
 }
 
-void gen2_irq_reset(struct intel_uncore *uncore)
+static void gen2_irq_reset(struct intel_uncore *uncore)
 {
 	intel_uncore_write16(uncore, GEN2_IMR, 0xffff);
 	intel_uncore_posting_read16(uncore, GEN2_IMR);
@@ -309,8 +309,8 @@ void gen3_irq_init(struct intel_uncore *uncore,
 	intel_uncore_posting_read(uncore, imr);
 }
 
-void gen2_irq_init(struct intel_uncore *uncore,
-		   u32 imr_val, u32 ier_val)
+static void gen2_irq_init(struct intel_uncore *uncore,
+			  u32 imr_val, u32 ier_val)
 {
 	gen2_assert_iir_is_zero(uncore);
 
@@ -3871,7 +3871,7 @@ static void i8xx_irq_reset(struct drm_i915_private *dev_priv)
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
-	GEN2_IRQ_RESET(uncore);
+	gen2_irq_reset(uncore);
 	dev_priv->irq_mask = ~0u;
 }
 
@@ -3897,7 +3897,7 @@ static void i8xx_irq_postinstall(struct drm_i915_private *dev_priv)
 		I915_MASTER_ERROR_INTERRUPT |
 		I915_USER_INTERRUPT;
 
-	GEN2_IRQ_INIT(uncore, dev_priv->irq_mask, enable_mask);
+	gen2_irq_init(uncore, dev_priv->irq_mask, enable_mask);
 
 	/* Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked check happy. */
