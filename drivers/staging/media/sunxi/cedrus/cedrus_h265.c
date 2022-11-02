@@ -463,7 +463,7 @@ static int cedrus_h265_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 	}
 
 	/* Activate H265 engine. */
-	cedrus_engine_enable(ctx, CEDRUS_CODEC_H265);
+	cedrus_engine_enable(ctx);
 
 	/* Source offset and length in bits. */
 

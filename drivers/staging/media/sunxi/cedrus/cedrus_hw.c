@@ -31,7 +31,7 @@
 #include "cedrus_hw.h"
 #include "cedrus_regs.h"
 
-int cedrus_engine_enable(struct cedrus_ctx *ctx, enum cedrus_codec codec)
+int cedrus_engine_enable(struct cedrus_ctx *ctx)
 {
 	u32 reg = 0;
 
@@ -42,18 +42,18 @@ int cedrus_engine_enable(struct cedrus_ctx *ctx, enum cedrus_codec codec)
 	reg |= VE_MODE_REC_WR_MODE_2MB;
 	reg |= VE_MODE_DDR_MODE_BW_128;
 
-	switch (codec) {
-	case CEDRUS_CODEC_MPEG2:
+	switch (ctx->src_fmt.pixelformat) {
+	case V4L2_PIX_FMT_MPEG2_SLICE:
 		reg |= VE_MODE_DEC_MPEG;
 		break;
 
 	/* H.264 and VP8 both use the same decoding mode bit. */
-	case CEDRUS_CODEC_H264:
-	case CEDRUS_CODEC_VP8:
+	case V4L2_PIX_FMT_H264_SLICE:
+	case V4L2_PIX_FMT_VP8_FRAME:
 		reg |= VE_MODE_DEC_H264;
 		break;
 
-	case CEDRUS_CODEC_H265:
+	case V4L2_PIX_FMT_HEVC_SLICE:
 		reg |= VE_MODE_DEC_H265;
 		break;
 
