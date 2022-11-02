@@ -261,17 +261,6 @@ enum tc_port_mode {
 	TC_PORT_LEGACY,
 };
 
-enum dpio_channel {
-	DPIO_CH0,
-	DPIO_CH1
-};
-
-enum dpio_phy {
-	DPIO_PHY0,
-	DPIO_PHY1,
-	DPIO_PHY2,
-};
-
 enum aux_ch {
 	AUX_CH_A,
 	AUX_CH_B,
