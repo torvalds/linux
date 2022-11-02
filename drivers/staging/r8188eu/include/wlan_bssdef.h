@@ -177,20 +177,6 @@ struct ndis_802_11_status_ind {
 /*  MIC check time, 60 seconds. */
 #define MIC_CHECK_TIME	60000000
 
-struct ndis_802_11_auth_evt {
-	struct ndis_802_11_status_ind       Status;
-	struct ndis_802_11_auth_req  Request[1];
-};
-
-struct ndis_802_11_test {
-	u32 Length;
-	u32 Type;
-	union {
-		struct ndis_802_11_auth_evt AuthenticationEvent;
-		NDIS_802_11_RSSI RssiTrigger;
-	} tt;
-};
-
 #ifndef Ndis802_11APMode
 #define Ndis802_11APMode (Ndis802_11InfrastructureMax+1)
 #endif
@@ -278,34 +264,6 @@ enum UAPSD_MAX_SP {
 
 #define NUM_PRE_AUTH_KEY 16
 #define NUM_PMKID_CACHE NUM_PRE_AUTH_KEY
-
-/*
-*	WPA2
-*/
-
-struct pmkid_candidate {
-	unsigned char BSSID[ETH_ALEN];
-	u32 Flags;
-};
-
-struct ndis_802_11_pmkid_list {
-	u32 Version;       /*  Version of the structure */
-	u32 NumCandidates; /*  No. of pmkid candidates */
-	struct pmkid_candidate CandidateList[1];
-};
-
-struct ndis_802_11_auth_encrypt {
-	enum ndis_802_11_auth_mode AuthModeSupported;
-	enum ndis_802_11_wep_status EncryptStatusSupported;
-};
-
-struct ndis_802_11_cap {
-	u32  Length;
-	u32  Version;
-	u32  NoOfPMKIDs;
-	u32  NoOfAuthEncryptPairsSupported;
-	struct ndis_802_11_auth_encrypt AuthenticationEncryptionSupported[1];
-};
 
 u8 key_2char2num(u8 hch, u8 lch);
 u8 key_char2num(u8 ch);
