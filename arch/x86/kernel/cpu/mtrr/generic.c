@@ -716,6 +716,21 @@ static unsigned long set_mtrr_state(void)
 	return change_mask;
 }
 
+void mtrr_disable(void)
+{
+	/* Save MTRR state */
+	rdmsr(MSR_MTRRdefType, deftype_lo, deftype_hi);
+
+	/* Disable MTRRs, and set the default type to uncached */
+	mtrr_wrmsr(MSR_MTRRdefType, deftype_lo & ~0xcff, deftype_hi);
+}
+
+void mtrr_enable(void)
+{
+	/* Intel (P6) standard MTRRs */
+	mtrr_wrmsr(MSR_MTRRdefType, deftype_lo, deftype_hi);
+}
+
 /*
  * Disable and enable caches. Needed for changing MTRRs and the PAT MSR.
  *
@@ -764,11 +779,8 @@ void cache_disable(void) __acquires(cache_disable_lock)
 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
 	flush_tlb_local();
 
-	/* Save MTRR state */
-	rdmsr(MSR_MTRRdefType, deftype_lo, deftype_hi);
-
-	/* Disable MTRRs, and set the default type to uncached */
-	mtrr_wrmsr(MSR_MTRRdefType, deftype_lo & ~0xcff, deftype_hi);
+	if (cpu_feature_enabled(X86_FEATURE_MTRR))
+		mtrr_disable();
 
 	/* Again, only flush caches if we have to. */
 	if (!static_cpu_has(X86_FEATURE_SELFSNOOP))
@@ -781,8 +793,8 @@ void cache_enable(void) __releases(cache_disable_lock)
 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
 	flush_tlb_local();
 
-	/* Intel (P6) standard MTRRs */
-	mtrr_wrmsr(MSR_MTRRdefType, deftype_lo, deftype_hi);
+	if (cpu_feature_enabled(X86_FEATURE_MTRR))
+		mtrr_enable();
 
 	/* Enable caches */
 	write_cr0(read_cr0() & ~X86_CR0_CD);
