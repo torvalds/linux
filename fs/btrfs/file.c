@@ -1598,6 +1598,9 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 						write_bytes);
 			else
 				btrfs_check_nocow_unlock(BTRFS_I(inode));
+
+			if (nowait && ret == -ENOSPC)
+				ret = -EAGAIN;
 			break;
 		}
 
