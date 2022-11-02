@@ -3,22 +3,20 @@
  * Copyright (C) ASPEED Technology Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
-#include <linux/errno.h>
 #include <linux/delay.h>
+#include <linux/errno.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/syscon.h>
-#include <linux/sysfs.h>
-#include <linux/reset.h>
 #include <linux/regmap.h>
-#include <linux/bitfield.h>
+#include <linux/reset.h>
+#include <linux/sysfs.h>
 
 /* The channel number of Aspeed tach controller */
 #define TACH_ASPEED_NR_TACHS 16
