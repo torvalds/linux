@@ -1990,6 +1990,7 @@ free:
 }
 
 #define SEND_SAP_MAX_WAIT_ITERATION 10
+#define IWLMEI_DEVICE_DOWN_WAIT_ITERATION 50
 
 static void iwl_mei_remove(struct mei_cl_device *cldev)
 {
@@ -2000,8 +2001,26 @@ static void iwl_mei_remove(struct mei_cl_device *cldev)
 	 * We are being removed while the bus is active, it means we are
 	 * going to suspend/ shutdown, so the NIC will disappear.
 	 */
-	if (mei_cldev_enabled(cldev) && iwl_mei_cache.ops)
-		iwl_mei_cache.ops->nic_stolen(iwl_mei_cache.priv);
+	if (mei_cldev_enabled(cldev) && iwl_mei_cache.ops) {
+		unsigned int iter = IWLMEI_DEVICE_DOWN_WAIT_ITERATION;
+		bool down = false;
+
+		/*
+		 * In case of suspend, wait for the mac to stop and don't remove
+		 * the interface. This will allow the interface to come back
+		 * on resume.
+		 */
+		while (!down && iter--) {
+			mdelay(1);
+
+			mutex_lock(&iwl_mei_mutex);
+			down = mei->device_down;
+			mutex_unlock(&iwl_mei_mutex);
+		}
+
+		if (!down)
+			iwl_mei_cache.ops->nic_stolen(iwl_mei_cache.priv);
+	}
 
 	if (rcu_access_pointer(iwl_mei_cache.netdev)) {
 		struct net_device *dev;
