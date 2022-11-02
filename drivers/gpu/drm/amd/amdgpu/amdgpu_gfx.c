@@ -696,6 +696,41 @@ late_fini:
 	return r;
 }
 
+int amdgpu_gfx_ras_sw_init(struct amdgpu_device *adev)
+{
+	int err = 0;
+	struct amdgpu_gfx_ras *ras = NULL;
+
+	/* adev->gfx.ras is NULL, which means gfx does not
+	 * support ras function, then do nothing here.
+	 */
+	if (!adev->gfx.ras)
+		return 0;
+
+	ras = adev->gfx.ras;
+
+	err = amdgpu_ras_register_ras_block(adev, &ras->ras_block);
+	if (err) {
+		dev_err(adev->dev, "Failed to register gfx ras block!\n");
+		return err;
+	}
+
+	strcpy(ras->ras_block.ras_comm.name, "gfx");
+	ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__GFX;
+	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+	adev->gfx.ras_if = &ras->ras_block.ras_comm;
+
+	/* If not define special ras_late_init function, use gfx default ras_late_init */
+	if (!ras->ras_block.ras_late_init)
+		ras->ras_block.ras_late_init = amdgpu_ras_block_late_init;
+
+	/* If not defined special ras_cb function, use default ras_cb */
+	if (!ras->ras_block.ras_cb)
+		ras->ras_block.ras_cb = amdgpu_gfx_process_ras_data_cb;
+
+	return 0;
+}
+
 int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,
 		void *err_data,
 		struct amdgpu_iv_entry *entry)
