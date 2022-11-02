@@ -783,7 +783,38 @@ static bool vfio_assert_device_open(struct vfio_device *device)
 	return !WARN_ON_ONCE(!READ_ONCE(device->open_count));
 }
 
-static int vfio_device_first_open(struct vfio_device *device)
+static int vfio_device_group_use_iommu(struct vfio_device *device)
+{
+	struct vfio_group *group = device->group;
+	int ret = 0;
+
+	lockdep_assert_held(&group->group_lock);
+
+	if (WARN_ON(!group->container))
+		return -EINVAL;
+
+	ret = vfio_group_use_container(group);
+	if (ret)
+		return ret;
+	vfio_device_container_register(device);
+	return 0;
+}
+
+static void vfio_device_group_unuse_iommu(struct vfio_device *device)
+{
+	struct vfio_group *group = device->group;
+
+	lockdep_assert_held(&group->group_lock);
+
+	if (WARN_ON(!group->container))
+		return;
+
+	vfio_device_container_unregister(device);
+	vfio_group_unuse_container(group);
+}
+
+static int vfio_device_first_open(struct vfio_device *device,
+				  struct iommufd_ctx *iommufd, struct kvm *kvm)
 {
 	int ret;
 
@@ -792,77 +823,56 @@ static int vfio_device_first_open(struct vfio_device *device)
 	if (!try_module_get(device->dev->driver->owner))
 		return -ENODEV;
 
-	/*
-	 * Here we pass the KVM pointer with the group under the lock.  If the
-	 * device driver will use it, it must obtain a reference and release it
-	 * during close_device.
-	 */
-	mutex_lock(&device->group->group_lock);
-	if (!vfio_group_has_iommu(device->group)) {
-		ret = -EINVAL;
+	if (iommufd)
+		ret = vfio_iommufd_bind(device, iommufd);
+	else
+		ret = vfio_device_group_use_iommu(device);
+	if (ret)
 		goto err_module_put;
-	}
 
-	if (device->group->container) {
-		ret = vfio_group_use_container(device->group);
-		if (ret)
-			goto err_module_put;
-		vfio_device_container_register(device);
-	} else if (device->group->iommufd) {
-		ret = vfio_iommufd_bind(device, device->group->iommufd);
-		if (ret)
-			goto err_module_put;
-	}
-
-	device->kvm = device->group->kvm;
+	device->kvm = kvm;
 	if (device->ops->open_device) {
 		ret = device->ops->open_device(device);
 		if (ret)
-			goto err_container;
+			goto err_unuse_iommu;
 	}
-	mutex_unlock(&device->group->group_lock);
 	return 0;
 
-err_container:
+err_unuse_iommu:
 	device->kvm = NULL;
-	if (device->group->container) {
-		vfio_device_container_unregister(device);
-		vfio_group_unuse_container(device->group);
-	} else if (device->group->iommufd) {
+	if (iommufd)
 		vfio_iommufd_unbind(device);
-	}
+	else
+		vfio_device_group_unuse_iommu(device);
 err_module_put:
-	mutex_unlock(&device->group->group_lock);
 	module_put(device->dev->driver->owner);
 	return ret;
 }
 
-static void vfio_device_last_close(struct vfio_device *device)
+static void vfio_device_last_close(struct vfio_device *device,
+				   struct iommufd_ctx *iommufd)
 {
 	lockdep_assert_held(&device->dev_set->lock);
 
-	mutex_lock(&device->group->group_lock);
 	if (device->ops->close_device)
 		device->ops->close_device(device);
 	device->kvm = NULL;
-	if (device->group->container) {
-		vfio_device_container_unregister(device);
-		vfio_group_unuse_container(device->group);
-	} else if (device->group->iommufd) {
+	if (iommufd)
 		vfio_iommufd_unbind(device);
-	}
-	mutex_unlock(&device->group->group_lock);
+	else
+		vfio_device_group_unuse_iommu(device);
 	module_put(device->dev->driver->owner);
 }
 
-static int vfio_device_open(struct vfio_device *device)
+static int vfio_device_open(struct vfio_device *device,
+			    struct iommufd_ctx *iommufd, struct kvm *kvm)
 {
 	int ret = 0;
 
 	mutex_lock(&device->dev_set->lock);
 	device->open_count++;
 	if (device->open_count == 1) {
-		ret = vfio_device_first_open(device);
+		ret = vfio_device_first_open(device, iommufd, kvm);
 		if (ret)
 			device->open_count--;
 	}
@@ -871,14 +881,45 @@ static int vfio_device_open(struct vfio_device *device)
 	return ret;
 }
 
-static void vfio_device_close(struct vfio_device *device)
+static void vfio_device_close(struct vfio_device *device,
+			      struct iommufd_ctx *iommufd)
 {
 	mutex_lock(&device->dev_set->lock);
 	vfio_assert_device_open(device);
 	if (device->open_count == 1)
-		vfio_device_last_close(device);
+		vfio_device_last_close(device, iommufd);
 	device->open_count--;
 	mutex_unlock(&device->dev_set->lock);
+}
+
+static int vfio_device_group_open(struct vfio_device *device)
+{
+	int ret;
+
+	mutex_lock(&device->group->group_lock);
+	if (!vfio_group_has_iommu(device->group)) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	/*
+	 * Here we pass the KVM pointer with the group under the lock.  If the
+	 * device driver will use it, it must obtain a reference and release it
+	 * during close_device.
+	 */
+	ret = vfio_device_open(device, device->group->iommufd,
+			       device->group->kvm);
+
+out_unlock:
+	mutex_unlock(&device->group->group_lock);
+	return ret;
+}
+
+static void vfio_device_group_close(struct vfio_device *device)
+{
+	mutex_lock(&device->group->group_lock);
+	vfio_device_close(device, device->group->iommufd);
+	mutex_unlock(&device->group->group_lock);
 }
 
 static struct file *vfio_device_open_file(struct vfio_device *device)
@@ -886,7 +927,7 @@ static struct file *vfio_device_open_file(struct vfio_device *device)
 	struct file *filep;
 	int ret;
 
-	ret = vfio_device_open(device);
+	ret = vfio_device_group_open(device);
 	if (ret)
 		goto err_out;
 
@@ -918,7 +959,7 @@ static struct file *vfio_device_open_file(struct vfio_device *device)
 	return filep;
 
 err_close_device:
-	vfio_device_close(device);
+	vfio_device_group_close(device);
 err_out:
 	return ERR_PTR(ret);
 }
@@ -1130,7 +1171,7 @@ static int vfio_device_fops_release(struct inode *inode, struct file *filep)
 {
 	struct vfio_device *device = filep->private_data;
 
-	vfio_device_close(device);
+	vfio_device_group_close(device);
 
 	vfio_device_put_registration(device);
 
