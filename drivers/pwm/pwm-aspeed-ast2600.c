@@ -43,48 +43,47 @@
  *   This improvement can disable/enable through PWM_ASPEED_CTRL_DUTY_SYNC_DISABLE.
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/math64.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
 #include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
-#include <linux/sysfs.h>
-#include <linux/reset.h>
-#include <linux/regmap.h>
-#include <linux/bitfield.h>
-#include <linux/slab.h>
 #include <linux/pwm.h>
-#include <linux/math64.h>
+#include <linux/regmap.h>
+#include <linux/reset.h>
+#include <linux/slab.h>
+#include <linux/sysfs.h>
 
 /* The channel number of Aspeed pwm controller */
-#define PWM_ASPEED_NR_PWMS 16
-
+#define PWM_ASPEED_NR_PWMS			16
 /* PWM Control Register */
-#define PWM_ASPEED_CTRL(ch) ((ch) * 0x10 + 0x00)
-#define PWM_ASPEED_CTRL_LOAD_SEL_RISING_AS_WDT BIT(19)
-#define PWM_ASPEED_CTRL_DUTY_LOAD_AS_WDT_ENABLE BIT(18)
-#define PWM_ASPEED_CTRL_DUTY_SYNC_DISABLE BIT(17)
-#define PWM_ASPEED_CTRL_CLK_ENABLE BIT(16)
-#define PWM_ASPEED_CTRL_LEVEL_OUTPUT BIT(15)
-#define PWM_ASPEED_CTRL_INVERSE BIT(14)
-#define PWM_ASPEED_CTRL_OPEN_DRAIN_ENABLE BIT(13)
-#define PWM_ASPEED_CTRL_PIN_ENABLE BIT(12)
-#define PWM_ASPEED_CTRL_CLK_DIV_H GENMASK(11, 8)
-#define PWM_ASPEED_CTRL_CLK_DIV_L GENMASK(7, 0)
+#define PWM_ASPEED_CTRL(ch)			((ch) * 0x10 + 0x00)
+#define PWM_ASPEED_CTRL_LOAD_SEL_RISING_AS_WDT	BIT(19)
+#define PWM_ASPEED_CTRL_DUTY_LOAD_AS_WDT_ENABLE	BIT(18)
+#define PWM_ASPEED_CTRL_DUTY_SYNC_DISABLE	BIT(17)
+#define PWM_ASPEED_CTRL_CLK_ENABLE		BIT(16)
+#define PWM_ASPEED_CTRL_LEVEL_OUTPUT		BIT(15)
+#define PWM_ASPEED_CTRL_INVERSE			BIT(14)
+#define PWM_ASPEED_CTRL_OPEN_DRAIN_ENABLE	BIT(13)
+#define PWM_ASPEED_CTRL_PIN_ENABLE		BIT(12)
+#define PWM_ASPEED_CTRL_CLK_DIV_H		GENMASK(11, 8)
+#define PWM_ASPEED_CTRL_CLK_DIV_L		GENMASK(7, 0)
 
 /* PWM Duty Cycle Register */
-#define PWM_ASPEED_DUTY_CYCLE(ch) ((ch) * 0x10 + 0x04)
-#define PWM_ASPEED_DUTY_CYCLE_PERIOD GENMASK(31, 24)
-#define PWM_ASPEED_DUTY_CYCLE_POINT_AS_WDT GENMASK(23, 16)
-#define PWM_ASPEED_DUTY_CYCLE_FALLING_POINT GENMASK(15, 8)
-#define PWM_ASPEED_DUTY_CYCLE_RISING_POINT GENMASK(7, 0)
+#define PWM_ASPEED_DUTY_CYCLE(ch)		((ch) * 0x10 + 0x04)
+#define PWM_ASPEED_DUTY_CYCLE_PERIOD		GENMASK(31, 24)
+#define PWM_ASPEED_DUTY_CYCLE_POINT_AS_WDT	GENMASK(23, 16)
+#define PWM_ASPEED_DUTY_CYCLE_FALLING_POINT	GENMASK(15, 8)
+#define PWM_ASPEED_DUTY_CYCLE_RISING_POINT	GENMASK(7, 0)
 
 /* PWM fixed value */
-#define PWM_ASPEED_FIXED_PERIOD FIELD_MAX(PWM_ASPEED_DUTY_CYCLE_PERIOD)
+#define PWM_ASPEED_FIXED_PERIOD			FIELD_MAX(PWM_ASPEED_DUTY_CYCLE_PERIOD)
 
 struct aspeed_pwm_data {
 	struct pwm_chip chip;
@@ -184,7 +183,7 @@ static int aspeed_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	duty_pt = div64_u64(state->duty_cycle * rate,
 			    (u64)NSEC_PER_SEC * (div_l + 1) << div_h);
 	dev_dbg(dev, "duty_cycle = %lld, duty_pt = %d\n", state->duty_cycle,
-		 duty_pt);
+		duty_pt);
 
 	/*
 	 * Fixed DUTY_CYCLE_PERIOD to its max value to get a
@@ -202,24 +201,21 @@ static int aspeed_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		clk_en = 1;
 		if (duty_pt >= (PWM_ASPEED_FIXED_PERIOD + 1))
 			duty_pt = 0;
-		regmap_update_bits(
-			priv->regmap, PWM_ASPEED_DUTY_CYCLE(hwpwm),
-			PWM_ASPEED_DUTY_CYCLE_RISING_POINT |
-				PWM_ASPEED_DUTY_CYCLE_FALLING_POINT,
-			FIELD_PREP(PWM_ASPEED_DUTY_CYCLE_FALLING_POINT,
-				   duty_pt));
+		regmap_update_bits(priv->regmap, PWM_ASPEED_DUTY_CYCLE(hwpwm),
+				   PWM_ASPEED_DUTY_CYCLE_RISING_POINT |
+					   PWM_ASPEED_DUTY_CYCLE_FALLING_POINT,
+				   FIELD_PREP(PWM_ASPEED_DUTY_CYCLE_FALLING_POINT, duty_pt));
 	}
 
-	regmap_update_bits(
-		priv->regmap, PWM_ASPEED_CTRL(hwpwm),
-		PWM_ASPEED_CTRL_CLK_DIV_H | PWM_ASPEED_CTRL_CLK_DIV_L |
-			PWM_ASPEED_CTRL_PIN_ENABLE |
-			PWM_ASPEED_CTRL_CLK_ENABLE | PWM_ASPEED_CTRL_INVERSE,
-		FIELD_PREP(PWM_ASPEED_CTRL_CLK_DIV_H, div_h) |
-			FIELD_PREP(PWM_ASPEED_CTRL_CLK_DIV_L, div_l) |
-			FIELD_PREP(PWM_ASPEED_CTRL_PIN_ENABLE, state->enabled) |
-			FIELD_PREP(PWM_ASPEED_CTRL_CLK_ENABLE, clk_en) |
-			FIELD_PREP(PWM_ASPEED_CTRL_INVERSE, state->polarity));
+	regmap_update_bits(priv->regmap, PWM_ASPEED_CTRL(hwpwm),
+			   PWM_ASPEED_CTRL_CLK_DIV_H | PWM_ASPEED_CTRL_CLK_DIV_L |
+				   PWM_ASPEED_CTRL_PIN_ENABLE | PWM_ASPEED_CTRL_CLK_ENABLE |
+				   PWM_ASPEED_CTRL_INVERSE,
+			   FIELD_PREP(PWM_ASPEED_CTRL_CLK_DIV_H, div_h) |
+				   FIELD_PREP(PWM_ASPEED_CTRL_CLK_DIV_L, div_l) |
+				   FIELD_PREP(PWM_ASPEED_CTRL_PIN_ENABLE, state->enabled) |
+				   FIELD_PREP(PWM_ASPEED_CTRL_CLK_ENABLE, clk_en) |
+				   FIELD_PREP(PWM_ASPEED_CTRL_INVERSE, state->polarity));
 	return 0;
 }
 
@@ -264,6 +260,20 @@ static int aspeed_pwm_extend_feature(struct device *dev,
 	return 0;
 }
 
+static void aspeed_pwm_reset_assert(void *data)
+{
+	struct reset_control *rst = data;
+
+	reset_control_assert(rst);
+}
+
+static void aspeed_pwm_chip_remove(void *data)
+{
+	struct pwm_chip *chip = data;
+
+	pwmchip_remove(chip);
+}
+
 static int aspeed_pwm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -287,7 +297,7 @@ static int aspeed_pwm_probe(struct platform_device *pdev)
 				     "Couldn't get regmap\n");
 
 	parent_dev = of_find_device_by_node(np);
-	priv->clk = devm_clk_get(&parent_dev->dev, 0);
+	priv->clk = devm_clk_get_enabled(&parent_dev->dev, NULL);
 	if (IS_ERR(priv->clk))
 		return dev_err_probe(dev, PTR_ERR(priv->clk),
 				     "Couldn't get clock\n");
@@ -297,15 +307,15 @@ static int aspeed_pwm_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(priv->reset),
 				     "Couldn't get reset control\n");
 
-	ret = clk_prepare_enable(priv->clk);
-	if (ret)
-		return dev_err_probe(dev, ret, "Couldn't enable clock\n");
-
 	ret = reset_control_deassert(priv->reset);
-	if (ret) {
-		dev_err_probe(dev, ret, "Couldn't deassert reset control\n");
-		goto err_disable_clk;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Couldn't deassert reset control\n");
+
+	ret = devm_add_action_or_reset(dev, aspeed_pwm_reset_assert,
+				       priv->reset);
+	if (ret)
+		return ret;
 
 	for_each_child_of_node(dev->of_node, child) {
 		ret = aspeed_pwm_extend_feature(dev, child, priv);
@@ -318,27 +328,12 @@ static int aspeed_pwm_probe(struct platform_device *pdev)
 	priv->chip.npwm = PWM_ASPEED_NR_PWMS;
 
 	ret = pwmchip_add(&priv->chip);
-	if (ret < 0) {
-		dev_err_probe(dev, ret, "Failed to add PWM chip\n");
-		goto err_assert_reset;
-	}
-	dev_set_drvdata(dev, priv);
-	return 0;
-err_assert_reset:
-	reset_control_assert(priv->reset);
-err_disable_clk:
-	clk_disable_unprepare(priv->clk);
-	return ret;
-}
-
-static int aspeed_pwm_remove(struct platform_device *dev)
-{
-	struct aspeed_pwm_data *priv = platform_get_drvdata(dev);
-
-	pwmchip_remove(&priv->chip);
-	reset_control_assert(priv->reset);
-	clk_disable_unprepare(priv->clk);
-
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to add PWM chip\n");
+	ret = devm_add_action_or_reset(dev, aspeed_pwm_chip_remove,
+				       &priv->chip);
+	if (ret)
+		return ret;
 	return 0;
 }
 
@@ -352,7 +347,6 @@ MODULE_DEVICE_TABLE(of, of_pwm_match_table);
 
 static struct platform_driver aspeed_pwm_driver = {
 	.probe = aspeed_pwm_probe,
-	.remove	= aspeed_pwm_remove,
 	.driver	= {
 		.name = "aspeed-pwm",
 		.of_match_table = of_pwm_match_table,
