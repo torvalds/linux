@@ -1639,6 +1639,31 @@ static bool is_dual_plane(enum surface_pixel_format format)
 	return format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN || format == SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA;
 }
 
+int dcn31x_populate_dml_pipes_from_context(struct dc *dc,
+					  struct dc_state *context,
+					  display_e2e_pipe_params_st *pipes,
+					  bool fast_validate)
+{
+	uint32_t pipe_cnt;
+	int i;
+
+	dc_assert_fp_enabled();
+
+	pipe_cnt = dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
+
+	for (i = 0; i < pipe_cnt; i++) {
+		pipes[i].pipe.src.gpuvm = 1;
+		if (dc->debug.dml_hostvm_override == DML_HOSTVM_NO_OVERRIDE) {
+			//pipes[pipe_cnt].pipe.src.hostvm = dc->res_pool->hubbub->riommu_active;
+			pipes[i].pipe.src.hostvm = dc->vm_pa_config.is_hvm_enabled;
+		} else if (dc->debug.dml_hostvm_override == DML_HOSTVM_OVERRIDE_FALSE)
+			pipes[i].pipe.src.hostvm = false;
+		else if (dc->debug.dml_hostvm_override == DML_HOSTVM_OVERRIDE_TRUE)
+			pipes[i].pipe.src.hostvm = true;
+	}
+	return pipe_cnt;
+}
+
 int dcn31_populate_dml_pipes_from_context(
 	struct dc *dc, struct dc_state *context,
 	display_e2e_pipe_params_st *pipes,
@@ -1650,7 +1675,7 @@ int dcn31_populate_dml_pipes_from_context(
 	bool upscaled = false;
 
 	DC_FP_START();
-	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
+	dcn31x_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
 	DC_FP_END();
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
@@ -1680,12 +1705,6 @@ int dcn31_populate_dml_pipes_from_context(
 		dcn31_zero_pipe_dcc_fraction(pipes, pipe_cnt);
 		DC_FP_END();
 
-		if (dc->debug.dml_hostvm_override == DML_HOSTVM_NO_OVERRIDE)
-			pipes[pipe_cnt].pipe.src.hostvm = dc->res_pool->hubbub->riommu_active;
-		else if (dc->debug.dml_hostvm_override == DML_HOSTVM_OVERRIDE_FALSE)
-			pipes[pipe_cnt].pipe.src.hostvm = false;
-		else if (dc->debug.dml_hostvm_override == DML_HOSTVM_OVERRIDE_TRUE)
-			pipes[pipe_cnt].pipe.src.hostvm = true;
 
 		if (pipes[pipe_cnt].dout.dsc_enable) {
 			switch (timing->display_color_depth) {
