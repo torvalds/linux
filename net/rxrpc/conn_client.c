@@ -725,8 +725,11 @@ int rxrpc_connect_call(struct rxrpc_sock *rx,
 
 	rxrpc_discard_expired_client_conns(&rxnet->client_conn_reaper);
 
+	rxrpc_get_call(call, rxrpc_call_get_io_thread);
+
 	bundle = rxrpc_prep_call(rx, call, cp, srx, gfp);
 	if (IS_ERR(bundle)) {
+		rxrpc_put_call(call, rxrpc_call_get_io_thread);
 		ret = PTR_ERR(bundle);
 		goto out;
 	}
@@ -820,7 +823,6 @@ void rxrpc_disconnect_client_call(struct rxrpc_bundle *bundle, struct rxrpc_call
 	_enter("c=%x", call->debug_id);
 
 	spin_lock(&bundle->channel_lock);
-	set_bit(RXRPC_CALL_DISCONNECTED, &call->flags);
 
 	/* Calls that have never actually been assigned a channel can simply be
 	 * discarded.
@@ -912,8 +914,6 @@ void rxrpc_disconnect_client_call(struct rxrpc_bundle *bundle, struct rxrpc_call
 
 out:
 	spin_unlock(&bundle->channel_lock);
-	_leave("");
-	return;
 }
 
 /*

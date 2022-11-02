@@ -178,6 +178,9 @@ void rxrpc_disconnect_call(struct rxrpc_call *call)
 {
 	struct rxrpc_connection *conn = call->conn;
 
+	set_bit(RXRPC_CALL_DISCONNECTED, &call->flags);
+	rxrpc_see_call(call, rxrpc_call_see_disconnected);
+
 	call->peer->cong_ssthresh = call->cong_ssthresh;
 
 	if (!hlist_unhashed(&call->error_link)) {
@@ -186,18 +189,20 @@ void rxrpc_disconnect_call(struct rxrpc_call *call)
 		spin_unlock(&call->peer->lock);
 	}
 
-	if (rxrpc_is_client_call(call))
-		return rxrpc_disconnect_client_call(conn->bundle, call);
+	if (rxrpc_is_client_call(call)) {
+		rxrpc_disconnect_client_call(conn->bundle, call);
+	} else {
+		spin_lock(&conn->bundle->channel_lock);
+		__rxrpc_disconnect_call(conn, call);
+		spin_unlock(&conn->bundle->channel_lock);
 
-	spin_lock(&conn->bundle->channel_lock);
-	__rxrpc_disconnect_call(conn, call);
-	spin_unlock(&conn->bundle->channel_lock);
+		conn->idle_timestamp = jiffies;
+		if (atomic_dec_and_test(&conn->active))
+			rxrpc_set_service_reap_timer(conn->rxnet,
+						     jiffies + rxrpc_connection_expiry);
+	}
 
-	set_bit(RXRPC_CALL_DISCONNECTED, &call->flags);
-	conn->idle_timestamp = jiffies;
-	if (atomic_dec_and_test(&conn->active))
-		rxrpc_set_service_reap_timer(conn->rxnet,
-					     jiffies + rxrpc_connection_expiry);
+	rxrpc_put_call(call, rxrpc_call_put_io_thread);
 }
 
 /*

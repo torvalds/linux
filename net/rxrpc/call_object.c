@@ -453,6 +453,8 @@ void rxrpc_incoming_call(struct rxrpc_sock *rx,
 		BUG();
 	}
 
+	rxrpc_get_call(call, rxrpc_call_get_io_thread);
+
 	/* Set the channel for this call.  We don't get channel_lock as we're
 	 * only defending against the data_ready handler (which we're called
 	 * from) and the RESPONSE packet parser (which is only really
