@@ -44,6 +44,218 @@ static void txgbe_init_thermal_sensor_thresh(struct txgbe_hw *hw)
 	wr32(wxhw, WX_TS_DALARM_THRE, 614);
 }
 
+/**
+ *  txgbe_read_pba_string - Reads part number string from EEPROM
+ *  @hw: pointer to hardware structure
+ *  @pba_num: stores the part number string from the EEPROM
+ *  @pba_num_size: part number string buffer length
+ *
+ *  Reads the part number string from the EEPROM.
+ **/
+int txgbe_read_pba_string(struct txgbe_hw *hw, u8 *pba_num, u32 pba_num_size)
+{
+	u16 pba_ptr, offset, length, data;
+	struct wx_hw *wxhw = &hw->wxhw;
+	int ret_val;
+
+	if (!pba_num) {
+		wx_err(wxhw, "PBA string buffer was null\n");
+		return -EINVAL;
+	}
+
+	ret_val = wx_read_ee_hostif(wxhw,
+				    wxhw->eeprom.sw_region_offset + TXGBE_PBANUM0_PTR,
+				    &data);
+	if (ret_val != 0) {
+		wx_err(wxhw, "NVM Read Error\n");
+		return ret_val;
+	}
+
+	ret_val = wx_read_ee_hostif(wxhw,
+				    wxhw->eeprom.sw_region_offset + TXGBE_PBANUM1_PTR,
+				    &pba_ptr);
+	if (ret_val != 0) {
+		wx_err(wxhw, "NVM Read Error\n");
+		return ret_val;
+	}
+
+	/* if data is not ptr guard the PBA must be in legacy format which
+	 * means pba_ptr is actually our second data word for the PBA number
+	 * and we can decode it into an ascii string
+	 */
+	if (data != TXGBE_PBANUM_PTR_GUARD) {
+		wx_err(wxhw, "NVM PBA number is not stored as string\n");
+
+		/* we will need 11 characters to store the PBA */
+		if (pba_num_size < 11) {
+			wx_err(wxhw, "PBA string buffer too small\n");
+			return -ENOMEM;
+		}
+
+		/* extract hex string from data and pba_ptr */
+		pba_num[0] = (data >> 12) & 0xF;
+		pba_num[1] = (data >> 8) & 0xF;
+		pba_num[2] = (data >> 4) & 0xF;
+		pba_num[3] = data & 0xF;
+		pba_num[4] = (pba_ptr >> 12) & 0xF;
+		pba_num[5] = (pba_ptr >> 8) & 0xF;
+		pba_num[6] = '-';
+		pba_num[7] = 0;
+		pba_num[8] = (pba_ptr >> 4) & 0xF;
+		pba_num[9] = pba_ptr & 0xF;
+
+		/* put a null character on the end of our string */
+		pba_num[10] = '\0';
+
+		/* switch all the data but the '-' to hex char */
+		for (offset = 0; offset < 10; offset++) {
+			if (pba_num[offset] < 0xA)
+				pba_num[offset] += '0';
+			else if (pba_num[offset] < 0x10)
+				pba_num[offset] += 'A' - 0xA;
+		}
+
+		return 0;
+	}
+
+	ret_val = wx_read_ee_hostif(wxhw, pba_ptr, &length);
+	if (ret_val != 0) {
+		wx_err(wxhw, "NVM Read Error\n");
+		return ret_val;
+	}
+
+	if (length == 0xFFFF || length == 0) {
+		wx_err(wxhw, "NVM PBA number section invalid length\n");
+		return -EINVAL;
+	}
+
+	/* check if pba_num buffer is big enough */
+	if (pba_num_size  < (((u32)length * 2) - 1)) {
+		wx_err(wxhw, "PBA string buffer too small\n");
+		return -ENOMEM;
+	}
+
+	/* trim pba length from start of string */
+	pba_ptr++;
+	length--;
+
+	for (offset = 0; offset < length; offset++) {
+		ret_val = wx_read_ee_hostif(wxhw, pba_ptr + offset, &data);
+		if (ret_val != 0) {
+			wx_err(wxhw, "NVM Read Error\n");
+			return ret_val;
+		}
+		pba_num[offset * 2] = (u8)(data >> 8);
+		pba_num[(offset * 2) + 1] = (u8)(data & 0xFF);
+	}
+	pba_num[offset * 2] = '\0';
+
+	return 0;
+}
+
+/**
+ *  txgbe_calc_eeprom_checksum - Calculates and returns the checksum
+ *  @hw: pointer to hardware structure
+ *  @checksum: pointer to cheksum
+ *
+ *  Returns a negative error code on error
+ **/
+static int txgbe_calc_eeprom_checksum(struct txgbe_hw *hw, u16 *checksum)
+{
+	struct wx_hw *wxhw = &hw->wxhw;
+	u16 *eeprom_ptrs = NULL;
+	u32 buffer_size = 0;
+	u16 *buffer = NULL;
+	u16 *local_buffer;
+	int status;
+	u16 i;
+
+	wx_init_eeprom_params(wxhw);
+
+	if (!buffer) {
+		eeprom_ptrs = kvmalloc_array(TXGBE_EEPROM_LAST_WORD, sizeof(u16),
+					     GFP_KERNEL);
+		if (!eeprom_ptrs)
+			return -ENOMEM;
+		/* Read pointer area */
+		status = wx_read_ee_hostif_buffer(wxhw, 0,
+						  TXGBE_EEPROM_LAST_WORD,
+						  eeprom_ptrs);
+		if (status != 0) {
+			wx_err(wxhw, "Failed to read EEPROM image\n");
+			return status;
+		}
+		local_buffer = eeprom_ptrs;
+	} else {
+		if (buffer_size < TXGBE_EEPROM_LAST_WORD)
+			return -EFAULT;
+		local_buffer = buffer;
+	}
+
+	for (i = 0; i < TXGBE_EEPROM_LAST_WORD; i++)
+		if (i != wxhw->eeprom.sw_region_offset + TXGBE_EEPROM_CHECKSUM)
+			*checksum += local_buffer[i];
+
+	*checksum = TXGBE_EEPROM_SUM - *checksum;
+	if (*checksum < 0)
+		return -EINVAL;
+
+	if (eeprom_ptrs)
+		kvfree(eeprom_ptrs);
+
+	return 0;
+}
+
+/**
+ *  txgbe_validate_eeprom_checksum - Validate EEPROM checksum
+ *  @hw: pointer to hardware structure
+ *  @checksum_val: calculated checksum
+ *
+ *  Performs checksum calculation and validates the EEPROM checksum.  If the
+ *  caller does not need checksum_val, the value can be NULL.
+ **/
+int txgbe_validate_eeprom_checksum(struct txgbe_hw *hw, u16 *checksum_val)
+{
+	struct wx_hw *wxhw = &hw->wxhw;
+	u16 read_checksum = 0;
+	u16 checksum;
+	int status;
+
+	/* Read the first word from the EEPROM. If this times out or fails, do
+	 * not continue or we could be in for a very long wait while every
+	 * EEPROM read fails
+	 */
+	status = wx_read_ee_hostif(wxhw, 0, &checksum);
+	if (status) {
+		wx_err(wxhw, "EEPROM read failed\n");
+		return status;
+	}
+
+	checksum = 0;
+	status = txgbe_calc_eeprom_checksum(hw, &checksum);
+	if (status != 0)
+		return status;
+
+	status = wx_read_ee_hostif(wxhw, wxhw->eeprom.sw_region_offset +
+				   TXGBE_EEPROM_CHECKSUM, &read_checksum);
+	if (status != 0)
+		return status;
+
+	/* Verify read checksum from EEPROM is the same as
+	 * calculated checksum
+	 */
+	if (read_checksum != checksum) {
+		status = -EIO;
+		wx_err(wxhw, "Invalid EEPROM checksum\n");
+	}
+
+	/* If the user cares, return the calculated checksum */
+	if (checksum_val)
+		*checksum_val = checksum;
+
+	return status;
+}
+
 static void txgbe_reset_misc(struct txgbe_hw *hw)
 {
 	struct wx_hw *wxhw = &hw->wxhw;
@@ -63,7 +275,6 @@ static void txgbe_reset_misc(struct txgbe_hw *hw)
 int txgbe_reset_hw(struct txgbe_hw *hw)
 {
 	struct wx_hw *wxhw = &hw->wxhw;
-	u32 reset = 0;
 	int status;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
@@ -71,10 +282,10 @@ int txgbe_reset_hw(struct txgbe_hw *hw)
 	if (status != 0)
 		return status;
 
-	reset = WX_MIS_RST_LAN_RST(wxhw->bus.func);
-	wr32(wxhw, WX_MIS_RST, reset | rd32(wxhw, WX_MIS_RST));
+	if (!(((wxhw->subsystem_device_id & WX_NCSI_MASK) == WX_NCSI_SUP) ||
+	      ((wxhw->subsystem_device_id & WX_WOL_MASK) == WX_WOL_SUP)))
+		wx_reset_hostif(wxhw);
 
-	WX_WRITE_FLUSH(wxhw);
 	usleep_range(10, 100);
 
 	status = wx_check_flash_load(wxhw, TXGBE_SPI_ILDR_STATUS_LAN_SW_RST(wxhw->bus.func));

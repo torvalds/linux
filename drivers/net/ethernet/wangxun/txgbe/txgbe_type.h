@@ -53,6 +53,20 @@
 #define TXGBE_TS_CTL                            0x10300
 #define TXGBE_TS_CTL_EVAL_MD                    BIT(31)
 
+/* Part Number String Length */
+#define TXGBE_PBANUM_LENGTH                     32
+
+/* Checksum and EEPROM pointers */
+#define TXGBE_EEPROM_LAST_WORD                  0x800
+#define TXGBE_EEPROM_CHECKSUM                   0x2F
+#define TXGBE_EEPROM_SUM                        0xBABA
+#define TXGBE_EEPROM_VERSION_L                  0x1D
+#define TXGBE_EEPROM_VERSION_H                  0x1E
+#define TXGBE_ISCSI_BOOT_CONFIG                 0x07
+#define TXGBE_PBANUM0_PTR                       0x05
+#define TXGBE_PBANUM1_PTR                       0x06
+#define TXGBE_PBANUM_PTR_GUARD                  0xFAFA
+
 struct txgbe_hw {
 	struct wx_hw wxhw;
 };

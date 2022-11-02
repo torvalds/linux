@@ -24,6 +24,7 @@ config LIBWX
 config NGBE
 	tristate "Wangxun(R) GbE PCI Express adapters support"
 	depends on PCI
+	select LIBWX
 	help
 	  This driver supports Wangxun(R) GbE PCI Express family of
 	  adapters.

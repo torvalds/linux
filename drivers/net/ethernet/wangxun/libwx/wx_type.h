@@ -14,11 +14,20 @@
 #define WX_WOL_SUP                              0x4000
 #define WX_WOL_MASK                             0x4000
 
+/* MSI-X capability fields masks */
+#define WX_PCIE_MSIX_TBL_SZ_MASK                0x7FF
+#define WX_PCI_LINK_STATUS                      0xB2
+
 /**************** Global Registers ****************************/
 /* chip control Registers */
 #define WX_MIS_PWR                   0x10000
 #define WX_MIS_RST                   0x1000C
 #define WX_MIS_RST_LAN_RST(_i)       BIT((_i) + 1)
+#define WX_MIS_RST_SW_RST            BIT(0)
+#define WX_MIS_ST                    0x10028
+#define WX_MIS_ST_MNG_INIT_DN        BIT(0)
+#define WX_MIS_SWSM                  0x1002C
+#define WX_MIS_SWSM_SMBI             BIT(0)
 #define WX_MIS_RST_ST                0x10030
 #define WX_MIS_RST_ST_RST_INI_SHIFT  8
 #define WX_MIS_RST_ST_RST_INIT       (0xFF << WX_MIS_RST_ST_RST_INI_SHIFT)
@@ -50,6 +59,11 @@
 #define WX_TS_ALARM_ST               0x10318
 #define WX_TS_ALARM_ST_DALARM        BIT(1)
 #define WX_TS_ALARM_ST_ALARM         BIT(0)
+
+/************************* Port Registers ************************************/
+/* port cfg Registers */
+#define WX_CFG_PORT_CTL              0x14400
+#define WX_CFG_PORT_CTL_DRV_LOAD     BIT(3)
 
 /*********************** Transmit DMA registers **************************/
 /* transmit global control */
@@ -107,6 +121,15 @@
 #define WX_PSR_MAC_SWC_IDX           0x16210
 #define WX_CLEAR_VMDQ_ALL            0xFFFFFFFFU
 
+/************************************** MNG ********************************/
+#define WX_MNG_SWFW_SYNC             0x1E008
+#define WX_MNG_SWFW_SYNC_SW_MB       BIT(2)
+#define WX_MNG_SWFW_SYNC_SW_FLASH    BIT(3)
+#define WX_MNG_MBOX                  0x1E100
+#define WX_MNG_MBOX_CTL              0x1E044
+#define WX_MNG_MBOX_CTL_SWRDY        BIT(0)
+#define WX_MNG_MBOX_CTL_FWRDY        BIT(2)
+
 /************************************* ETH MAC *****************************/
 #define WX_MAC_TX_CFG                0x11000
 #define WX_MAC_TX_CFG_TE             BIT(0)
@@ -144,6 +167,70 @@
 /* Number of 80 microseconds we wait for PCI Express master disable */
 #define WX_PCI_MASTER_DISABLE_TIMEOUT        80000
 
+/****************** Manageablility Host Interface defines ********************/
+#define WX_HI_MAX_BLOCK_BYTE_LENGTH  256 /* Num of bytes in range */
+#define WX_HI_COMMAND_TIMEOUT        1000 /* Process HI command limit */
+
+#define FW_READ_SHADOW_RAM_CMD       0x31
+#define FW_READ_SHADOW_RAM_LEN       0x6
+#define FW_DEFAULT_CHECKSUM          0xFF /* checksum always 0xFF */
+#define FW_NVM_DATA_OFFSET           3
+#define FW_MAX_READ_BUFFER_SIZE      244
+#define FW_RESET_CMD                 0xDF
+#define FW_RESET_LEN                 0x2
+#define FW_CEM_HDR_LEN               0x4
+#define FW_CEM_CMD_RESERVED          0X0
+#define FW_CEM_MAX_RETRIES           3
+#define FW_CEM_RESP_STATUS_SUCCESS   0x1
+
+#define WX_SW_REGION_PTR             0x1C
+
+/* Host Interface Command Structures */
+struct wx_hic_hdr {
+	u8 cmd;
+	u8 buf_len;
+	union {
+		u8 cmd_resv;
+		u8 ret_status;
+	} cmd_or_resp;
+	u8 checksum;
+};
+
+struct wx_hic_hdr2_req {
+	u8 cmd;
+	u8 buf_lenh;
+	u8 buf_lenl;
+	u8 checksum;
+};
+
+struct wx_hic_hdr2_rsp {
+	u8 cmd;
+	u8 buf_lenl;
+	u8 buf_lenh_status;     /* 7-5: high bits of buf_len, 4-0: status */
+	u8 checksum;
+};
+
+union wx_hic_hdr2 {
+	struct wx_hic_hdr2_req req;
+	struct wx_hic_hdr2_rsp rsp;
+};
+
+/* These need to be dword aligned */
+struct wx_hic_read_shadow_ram {
+	union wx_hic_hdr2 hdr;
+	u32 address;
+	u16 length;
+	u16 pad2;
+	u16 data;
+	u16 pad3;
+};
+
+struct wx_hic_reset {
+	struct wx_hic_hdr hdr;
+	u16 lan_id;
+	u16 reset_type;
+};
+
 /* Bus parameters */
 struct wx_bus_info {
 	u8 func;
@@ -172,7 +259,23 @@ struct wx_mac_info {
 	u32 num_rar_entries;
 	u32 max_tx_queues;
 	u32 max_rx_queues;
+
+	u16 max_msix_vectors;
 	struct wx_thermal_sensor_data sensor;
+};
+
+enum wx_eeprom_type {
+	wx_eeprom_uninitialized = 0,
+	wx_eeprom_spi,
+	wx_flash,
+	wx_eeprom_none /* No NVM support */
+};
+
+struct wx_eeprom_info {
+	enum wx_eeprom_type type;
+	u32 semaphore_delay;
+	u16 word_size;
+	u16 sw_region_offset;
 };
 
 struct wx_addr_filter_info {
@@ -181,11 +284,18 @@ struct wx_addr_filter_info {
 	bool user_set_promisc;
 };
 
+enum wx_reset_type {
+	WX_LAN_RESET = 0,
+	WX_SW_RESET,
+	WX_GLOBAL_RESET
+};
+
 struct wx_hw {
 	u8 __iomem *hw_addr;
 	struct pci_dev *pdev;
 	struct wx_bus_info bus;
 	struct wx_mac_info mac;
+	struct wx_eeprom_info eeprom;
 	struct wx_addr_filter_info addr_ctrl;
 	u16 device_id;
 	u16 vendor_id;
@@ -195,6 +305,7 @@ struct wx_hw {
 	u16 oem_ssid;
 	u16 oem_svid;
 	bool adapter_stopped;
+	enum wx_reset_type reset_type;
 };
 
 #define WX_INTR_ALL (~0ULL)
@@ -202,6 +313,10 @@ struct wx_hw {
 /* register operations */
 #define wr32(a, reg, value)	writel((value), ((a)->hw_addr + (reg)))
 #define rd32(a, reg)		readl((a)->hw_addr + (reg))
+#define rd32a(a, reg, offset) ( \
+	rd32((a), (reg) + ((offset) << 2)))
+#define wr32a(a, reg, off, val) \
+	wr32((a), (reg) + ((off) << 2), (val))
 
 static inline u32
 rd32m(struct wx_hw *wxhw, u32 reg, u32 mask)

@@ -35,6 +35,7 @@ struct txgbe_adapter {
 	struct txgbe_hw hw;
 	u16 msg_enable;
 	struct txgbe_mac_addr *mac_table;
+	char eeprom_id[32];
 };
 
 extern char txgbe_driver_name[];

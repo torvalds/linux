@@ -73,6 +73,434 @@ int wx_check_flash_load(struct wx_hw *hw, u32 check_bit)
 }
 EXPORT_SYMBOL(wx_check_flash_load);
 
+void wx_control_hw(struct wx_hw *wxhw, bool drv)
+{
+	if (drv) {
+		/* Let firmware know the driver has taken over */
+		wr32m(wxhw, WX_CFG_PORT_CTL,
+		      WX_CFG_PORT_CTL_DRV_LOAD, WX_CFG_PORT_CTL_DRV_LOAD);
+	} else {
+		/* Let firmware take over control of hw */
+		wr32m(wxhw, WX_CFG_PORT_CTL,
+		      WX_CFG_PORT_CTL_DRV_LOAD, 0);
+	}
+}
+EXPORT_SYMBOL(wx_control_hw);
+
+/**
+ * wx_mng_present - returns 0 when management capability is present
+ * @wxhw: pointer to hardware structure
+ */
+int wx_mng_present(struct wx_hw *wxhw)
+{
+	u32 fwsm;
+
+	fwsm = rd32(wxhw, WX_MIS_ST);
+	if (fwsm & WX_MIS_ST_MNG_INIT_DN)
+		return 0;
+	else
+		return -EACCES;
+}
+EXPORT_SYMBOL(wx_mng_present);
+
+/* Software lock to be held while software semaphore is being accessed. */
+static DEFINE_MUTEX(wx_sw_sync_lock);
+
+/**
+ *  wx_release_sw_sync - Release SW semaphore
+ *  @wxhw: pointer to hardware structure
+ *  @mask: Mask to specify which semaphore to release
+ *
+ *  Releases the SW semaphore for the specified
+ *  function (CSR, PHY0, PHY1, EEPROM, Flash)
+ **/
+static void wx_release_sw_sync(struct wx_hw *wxhw, u32 mask)
+{
+	mutex_lock(&wx_sw_sync_lock);
+	wr32m(wxhw, WX_MNG_SWFW_SYNC, mask, 0);
+	mutex_unlock(&wx_sw_sync_lock);
+}
+
+/**
+ *  wx_acquire_sw_sync - Acquire SW semaphore
+ *  @wxhw: pointer to hardware structure
+ *  @mask: Mask to specify which semaphore to acquire
+ *
+ *  Acquires the SW semaphore for the specified
+ *  function (CSR, PHY0, PHY1, EEPROM, Flash)
+ **/
+static int wx_acquire_sw_sync(struct wx_hw *wxhw, u32 mask)
+{
+	u32 sem = 0;
+	int ret = 0;
+
+	mutex_lock(&wx_sw_sync_lock);
+	ret = read_poll_timeout(rd32, sem, !(sem & mask),
+				5000, 2000000, false, wxhw, WX_MNG_SWFW_SYNC);
+	if (!ret) {
+		sem |= mask;
+		wr32(wxhw, WX_MNG_SWFW_SYNC, sem);
+	} else {
+		wx_err(wxhw, "SW Semaphore not granted: 0x%x.\n", sem);
+	}
+	mutex_unlock(&wx_sw_sync_lock);
+
+	return ret;
+}
+
+/**
+ *  wx_host_interface_command - Issue command to manageability block
+ *  @wxhw: pointer to the HW structure
+ *  @buffer: contains the command to write and where the return status will
+ *   be placed
+ *  @length: length of buffer, must be multiple of 4 bytes
+ *  @timeout: time in ms to wait for command completion
+ *  @return_data: read and return data from the buffer (true) or not (false)
+ *   Needed because FW structures are big endian and decoding of
+ *   these fields can be 8 bit or 16 bit based on command. Decoding
+ *   is not easily understood without making a table of commands.
+ *   So we will leave this up to the caller to read back the data
+ *   in these cases.
+ **/
+int wx_host_interface_command(struct wx_hw *wxhw, u32 *buffer,
+			      u32 length, u32 timeout, bool return_data)
+{
+	u32 hdr_size = sizeof(struct wx_hic_hdr);
+	u32 hicr, i, bi, buf[64] = {};
+	int status = 0;
+	u32 dword_len;
+	u16 buf_len;
+
+	if (length == 0 || length > WX_HI_MAX_BLOCK_BYTE_LENGTH) {
+		wx_err(wxhw, "Buffer length failure buffersize=%d.\n", length);
+		return -EINVAL;
+	}
+
+	status = wx_acquire_sw_sync(wxhw, WX_MNG_SWFW_SYNC_SW_MB);
+	if (status != 0)
+		return status;
+
+	/* Calculate length in DWORDs. We must be DWORD aligned */
+	if ((length % (sizeof(u32))) != 0) {
+		wx_err(wxhw, "Buffer length failure, not aligned to dword");
+		status = -EINVAL;
+		goto rel_out;
+	}
+
+	dword_len = length >> 2;
+
+	/* The device driver writes the relevant command block
+	 * into the ram area.
+	 */
+	for (i = 0; i < dword_len; i++) {
+		wr32a(wxhw, WX_MNG_MBOX, i, (__force u32)cpu_to_le32(buffer[i]));
+		/* write flush */
+		buf[i] = rd32a(wxhw, WX_MNG_MBOX, i);
+	}
+	/* Setting this bit tells the ARC that a new command is pending. */
+	wr32m(wxhw, WX_MNG_MBOX_CTL,
+	      WX_MNG_MBOX_CTL_SWRDY, WX_MNG_MBOX_CTL_SWRDY);
+
+	status = read_poll_timeout(rd32, hicr, hicr & WX_MNG_MBOX_CTL_FWRDY, 1000,
+				   timeout * 1000, false, wxhw, WX_MNG_MBOX_CTL);
+	if (status)
+		goto rel_out;
+
+	/* Check command completion */
+	if (status) {
+		wx_dbg(wxhw, "Command has failed with no status valid.\n");
+
+		buf[0] = rd32(wxhw, WX_MNG_MBOX);
+		if ((buffer[0] & 0xff) != (~buf[0] >> 24)) {
+			status = -EINVAL;
+			goto rel_out;
+		}
+		if ((buf[0] & 0xff0000) >> 16 == 0x80) {
+			wx_dbg(wxhw, "It's unknown cmd.\n");
+			status = -EINVAL;
+			goto rel_out;
+		}
+
+		wx_dbg(wxhw, "write value:\n");
+		for (i = 0; i < dword_len; i++)
+			wx_dbg(wxhw, "%x ", buffer[i]);
+		wx_dbg(wxhw, "read value:\n");
+		for (i = 0; i < dword_len; i++)
+			wx_dbg(wxhw, "%x ", buf[i]);
+	}
+
+	if (!return_data)
+		goto rel_out;
+
+	/* Calculate length in DWORDs */
+	dword_len = hdr_size >> 2;
+
+	/* first pull in the header so we know the buffer length */
+	for (bi = 0; bi < dword_len; bi++) {
+		buffer[bi] = rd32a(wxhw, WX_MNG_MBOX, bi);
+		le32_to_cpus(&buffer[bi]);
+	}
+
+	/* If there is any thing in data position pull it in */
+	buf_len = ((struct wx_hic_hdr *)buffer)->buf_len;
+	if (buf_len == 0)
+		goto rel_out;
+
+	if (length < buf_len + hdr_size) {
+		wx_err(wxhw, "Buffer not large enough for reply message.\n");
+		status = -EFAULT;
+		goto rel_out;
+	}
+
+	/* Calculate length in DWORDs, add 3 for odd lengths */
+	dword_len = (buf_len + 3) >> 2;
+
+	/* Pull in the rest of the buffer (bi is where we left off) */
+	for (; bi <= dword_len; bi++) {
+		buffer[bi] = rd32a(wxhw, WX_MNG_MBOX, bi);
+		le32_to_cpus(&buffer[bi]);
+	}
+
+rel_out:
+	wx_release_sw_sync(wxhw, WX_MNG_SWFW_SYNC_SW_MB);
+	return status;
+}
+EXPORT_SYMBOL(wx_host_interface_command);
+
+/**
+ *  wx_read_ee_hostif_data - Read EEPROM word using a host interface cmd
+ *  assuming that the semaphore is already obtained.
+ *  @wxhw: pointer to hardware structure
+ *  @offset: offset of  word in the EEPROM to read
+ *  @data: word read from the EEPROM
+ *
+ *  Reads a 16 bit word from the EEPROM using the hostif.
+ **/
+static int wx_read_ee_hostif_data(struct wx_hw *wxhw, u16 offset, u16 *data)
+{
+	struct wx_hic_read_shadow_ram buffer;
+	int status;
+
+	buffer.hdr.req.cmd = FW_READ_SHADOW_RAM_CMD;
+	buffer.hdr.req.buf_lenh = 0;
+	buffer.hdr.req.buf_lenl = FW_READ_SHADOW_RAM_LEN;
+	buffer.hdr.req.checksum = FW_DEFAULT_CHECKSUM;
+
+	/* convert offset from words to bytes */
+	buffer.address = (__force u32)cpu_to_be32(offset * 2);
+	/* one word */
+	buffer.length = (__force u16)cpu_to_be16(sizeof(u16));
+
+	status = wx_host_interface_command(wxhw, (u32 *)&buffer, sizeof(buffer),
+					   WX_HI_COMMAND_TIMEOUT, false);
+
+	if (status != 0)
+		return status;
+
+	*data = (u16)rd32a(wxhw, WX_MNG_MBOX, FW_NVM_DATA_OFFSET);
+
+	return status;
+}
+
+/**
+ *  wx_read_ee_hostif - Read EEPROM word using a host interface cmd
+ *  @wxhw: pointer to hardware structure
+ *  @offset: offset of  word in the EEPROM to read
+ *  @data: word read from the EEPROM
+ *
+ *  Reads a 16 bit word from the EEPROM using the hostif.
+ **/
+int wx_read_ee_hostif(struct wx_hw *wxhw, u16 offset, u16 *data)
+{
+	int status = 0;
+
+	status = wx_acquire_sw_sync(wxhw, WX_MNG_SWFW_SYNC_SW_FLASH);
+	if (status == 0) {
+		status = wx_read_ee_hostif_data(wxhw, offset, data);
+		wx_release_sw_sync(wxhw, WX_MNG_SWFW_SYNC_SW_FLASH);
+	}
+
+	return status;
+}
+EXPORT_SYMBOL(wx_read_ee_hostif);
+
+/**
+ *  wx_read_ee_hostif_buffer- Read EEPROM word(s) using hostif
+ *  @wxhw: pointer to hardware structure
+ *  @offset: offset of  word in the EEPROM to read
+ *  @words: number of words
+ *  @data: word(s) read from the EEPROM
+ *
+ *  Reads a 16 bit word(s) from the EEPROM using the hostif.
+ **/
+int wx_read_ee_hostif_buffer(struct wx_hw *wxhw,
+			     u16 offset, u16 words, u16 *data)
+{
+	struct wx_hic_read_shadow_ram buffer;
+	u32 current_word = 0;
+	u16 words_to_read;
+	u32 value = 0;
+	int status;
+	u32 i;
+
+	/* Take semaphore for the entire operation. */
+	status = wx_acquire_sw_sync(wxhw, WX_MNG_SWFW_SYNC_SW_FLASH);
+	if (status != 0)
+		return status;
+
+	while (words) {
+		if (words > FW_MAX_READ_BUFFER_SIZE / 2)
+			words_to_read = FW_MAX_READ_BUFFER_SIZE / 2;
+		else
+			words_to_read = words;
+
+		buffer.hdr.req.cmd = FW_READ_SHADOW_RAM_CMD;
+		buffer.hdr.req.buf_lenh = 0;
+		buffer.hdr.req.buf_lenl = FW_READ_SHADOW_RAM_LEN;
+		buffer.hdr.req.checksum = FW_DEFAULT_CHECKSUM;
+
+		/* convert offset from words to bytes */
+		buffer.address = (__force u32)cpu_to_be32((offset + current_word) * 2);
+		buffer.length = (__force u16)cpu_to_be16(words_to_read * 2);
+
+		status = wx_host_interface_command(wxhw, (u32 *)&buffer,
+						   sizeof(buffer),
+						   WX_HI_COMMAND_TIMEOUT,
+						   false);
+
+		if (status != 0) {
+			wx_err(wxhw, "Host interface command failed\n");
+			goto out;
+		}
+
+		for (i = 0; i < words_to_read; i++) {
+			u32 reg = WX_MNG_MBOX + (FW_NVM_DATA_OFFSET << 2) + 2 * i;
+
+			value = rd32(wxhw, reg);
+			data[current_word] = (u16)(value & 0xffff);
+			current_word++;
+			i++;
+			if (i < words_to_read) {
+				value >>= 16;
+				data[current_word] = (u16)(value & 0xffff);
+				current_word++;
+			}
+		}
+		words -= words_to_read;
+	}
+
+out:
+	wx_release_sw_sync(wxhw, WX_MNG_SWFW_SYNC_SW_FLASH);
+	return status;
+}
+EXPORT_SYMBOL(wx_read_ee_hostif_buffer);
+
+/**
+ *  wx_calculate_checksum - Calculate checksum for buffer
+ *  @buffer: pointer to EEPROM
+ *  @length: size of EEPROM to calculate a checksum for
+ *  Calculates the checksum for some buffer on a specified length.  The
+ *  checksum calculated is returned.
+ **/
+static u8 wx_calculate_checksum(u8 *buffer, u32 length)
+{
+	u8 sum = 0;
+	u32 i;
+
+	if (!buffer)
+		return 0;
+
+	for (i = 0; i < length; i++)
+		sum += buffer[i];
+
+	return (u8)(0 - sum);
+}
+
+/**
+ *  wx_reset_hostif - send reset cmd to fw
+ *  @wxhw: pointer to hardware structure
+ *
+ *  Sends reset cmd to firmware through the manageability
+ *  block.
+ **/
+int wx_reset_hostif(struct wx_hw *wxhw)
+{
+	struct wx_hic_reset reset_cmd;
+	int ret_val = 0;
+	int i;
+
+	reset_cmd.hdr.cmd = FW_RESET_CMD;
+	reset_cmd.hdr.buf_len = FW_RESET_LEN;
+	reset_cmd.hdr.cmd_or_resp.cmd_resv = FW_CEM_CMD_RESERVED;
+	reset_cmd.lan_id = wxhw->bus.func;
+	reset_cmd.reset_type = (u16)wxhw->reset_type;
+	reset_cmd.hdr.checksum = 0;
+	reset_cmd.hdr.checksum = wx_calculate_checksum((u8 *)&reset_cmd,
+						       (FW_CEM_HDR_LEN +
+							reset_cmd.hdr.buf_len));
+
+	for (i = 0; i <= FW_CEM_MAX_RETRIES; i++) {
+		ret_val = wx_host_interface_command(wxhw, (u32 *)&reset_cmd,
+						    sizeof(reset_cmd),
+						    WX_HI_COMMAND_TIMEOUT,
+						    true);
+		if (ret_val != 0)
+			continue;
+
+		if (reset_cmd.hdr.cmd_or_resp.ret_status ==
+		    FW_CEM_RESP_STATUS_SUCCESS)
+			ret_val = 0;
+		else
+			ret_val = -EFAULT;
+
+		break;
+	}
+
+	return ret_val;
+}
+EXPORT_SYMBOL(wx_reset_hostif);
+
+/**
+ *  wx_init_eeprom_params - Initialize EEPROM params
+ *  @wxhw: pointer to hardware structure
+ *
+ *  Initializes the EEPROM parameters wx_eeprom_info within the
+ *  wx_hw struct in order to set up EEPROM access.
+ **/
+void wx_init_eeprom_params(struct wx_hw *wxhw)
+{
+	struct wx_eeprom_info *eeprom = &wxhw->eeprom;
+	u16 eeprom_size;
+	u16 data = 0x80;
+
+	if (eeprom->type == wx_eeprom_uninitialized) {
+		eeprom->semaphore_delay = 10;
+		eeprom->type = wx_eeprom_none;
+
+		if (!(rd32(wxhw, WX_SPI_STATUS) &
+		      WX_SPI_STATUS_FLASH_BYPASS)) {
+			eeprom->type = wx_flash;
+
+			eeprom_size = 4096;
+			eeprom->word_size = eeprom_size >> 1;
+
+			wx_dbg(wxhw, "Eeprom params: type = %d, size = %d\n",
+			       eeprom->type, eeprom->word_size);
+		}
+	}
+
+	if (wxhw->mac.type == wx_mac_sp) {
+		if (wx_read_ee_hostif(wxhw, WX_SW_REGION_PTR, &data)) {
+			wx_err(wxhw, "NVM Read Error\n");
+			return;
+		}
+		data = data >> 1;
+	}
+
+	eeprom->sw_region_offset = data;
+}
+EXPORT_SYMBOL(wx_init_eeprom_params);
+
 /**
  *  wx_get_mac_addr - Generic get MAC address
  *  @wxhw: pointer to hardware structure
@@ -442,6 +870,41 @@ void wx_reset_misc(struct wx_hw *wxhw)
 	wr32(wxhw, WX_RDB_PFCMACDAH, 0x0180);
 }
 EXPORT_SYMBOL(wx_reset_misc);
+
+/**
+ *  wx_get_pcie_msix_counts - Gets MSI-X vector count
+ *  @wxhw: pointer to hardware structure
+ *  @msix_count: number of MSI interrupts that can be obtained
+ *  @max_msix_count: number of MSI interrupts that mac need
+ *
+ *  Read PCIe configuration space, and get the MSI-X vector count from
+ *  the capabilities table.
+ **/
+int wx_get_pcie_msix_counts(struct wx_hw *wxhw, u16 *msix_count, u16 max_msix_count)
+{
+	struct pci_dev *pdev = wxhw->pdev;
+	struct device *dev = &pdev->dev;
+	int pos;
+
+	*msix_count = 1;
+	pos = pci_find_capability(pdev, PCI_CAP_ID_MSIX);
+	if (!pos) {
+		dev_err(dev, "Unable to find MSI-X Capabilities\n");
+		return -EINVAL;
+	}
+	pci_read_config_word(pdev,
+			     pos + PCI_MSIX_FLAGS,
+			     msix_count);
+	*msix_count &= WX_PCIE_MSIX_TBL_SZ_MASK;
+	/* MSI-X count is zero-based in HW */
+	*msix_count += 1;
+
+	if (*msix_count > max_msix_count)
+		*msix_count = max_msix_count;
+
+	return 0;
+}
+EXPORT_SYMBOL(wx_get_pcie_msix_counts);
 
 int wx_sw_init(struct wx_hw *wxhw)
 {

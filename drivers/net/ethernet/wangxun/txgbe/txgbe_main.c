@@ -158,6 +158,14 @@ static int txgbe_del_mac_filter(struct txgbe_adapter *adapter, u8 *addr, u16 poo
 	return -ENOMEM;
 }
 
+static void txgbe_up_complete(struct txgbe_adapter *adapter)
+{
+	struct txgbe_hw *hw = &adapter->hw;
+	struct wx_hw *wxhw = &hw->wxhw;
+
+	wx_control_hw(wxhw, true);
+}
+
 static void txgbe_reset(struct txgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -270,6 +278,10 @@ static int txgbe_sw_init(struct txgbe_adapter *adapter)
  **/
 static int txgbe_open(struct net_device *netdev)
 {
+	struct txgbe_adapter *adapter = netdev_priv(netdev);
+
+	txgbe_up_complete(adapter);
+
 	return 0;
 }
 
@@ -301,6 +313,7 @@ static int txgbe_close(struct net_device *netdev)
 	struct txgbe_adapter *adapter = netdev_priv(netdev);
 
 	txgbe_down(adapter);
+	wx_control_hw(&adapter->hw.wxhw, false);
 
 	return 0;
 }
@@ -309,6 +322,8 @@ static void txgbe_dev_shutdown(struct pci_dev *pdev, bool *enable_wake)
 {
 	struct txgbe_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev = adapter->netdev;
+	struct txgbe_hw *hw = &adapter->hw;
+	struct wx_hw *wxhw = &hw->wxhw;
 
 	netif_device_detach(netdev);
 
@@ -316,6 +331,8 @@ static void txgbe_dev_shutdown(struct pci_dev *pdev, bool *enable_wake)
 	if (netif_running(netdev))
 		txgbe_close_suspend(adapter);
 	rtnl_unlock();
+
+	wx_control_hw(wxhw, false);
 
 	pci_disable_device(pdev);
 }
@@ -393,6 +410,12 @@ static int txgbe_probe(struct pci_dev *pdev,
 	struct net_device *netdev;
 	int err, expected_gts;
 
+	u16 eeprom_verh = 0, eeprom_verl = 0, offset = 0;
+	u16 eeprom_cfg_blkh = 0, eeprom_cfg_blkl = 0;
+	u16 build = 0, major = 0, patch = 0;
+	u8 part_str[TXGBE_PBANUM_LENGTH];
+	u32 etrack_id = 0;
+
 	err = pci_enable_device_mem(pdev);
 	if (err)
 		return err;
@@ -457,6 +480,12 @@ static int txgbe_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_free_mac_table;
 
+	err = wx_mng_present(wxhw);
+	if (err) {
+		dev_err(&pdev->dev, "Management capability is not present\n");
+		goto err_free_mac_table;
+	}
+
 	err = txgbe_reset_hw(hw);
 	if (err) {
 		dev_err(&pdev->dev, "HW Init failed: %d\n", err);
@@ -465,12 +494,59 @@ static int txgbe_probe(struct pci_dev *pdev,
 
 	netdev->features |= NETIF_F_HIGHDMA;
 
+	/* make sure the EEPROM is good */
+	err = txgbe_validate_eeprom_checksum(hw, NULL);
+	if (err != 0) {
+		dev_err(&pdev->dev, "The EEPROM Checksum Is Not Valid\n");
+		wr32(wxhw, WX_MIS_RST, WX_MIS_RST_SW_RST);
+		err = -EIO;
+		goto err_free_mac_table;
+	}
+
 	eth_hw_addr_set(netdev, wxhw->mac.perm_addr);
 	txgbe_mac_set_default_filter(adapter, wxhw->mac.perm_addr);
 
+	/* Save off EEPROM version number and Option Rom version which
+	 * together make a unique identify for the eeprom
+	 */
+	wx_read_ee_hostif(wxhw,
+			  wxhw->eeprom.sw_region_offset + TXGBE_EEPROM_VERSION_H,
+			  &eeprom_verh);
+	wx_read_ee_hostif(wxhw,
+			  wxhw->eeprom.sw_region_offset + TXGBE_EEPROM_VERSION_L,
+			  &eeprom_verl);
+	etrack_id = (eeprom_verh << 16) | eeprom_verl;
+
+	wx_read_ee_hostif(wxhw,
+			  wxhw->eeprom.sw_region_offset + TXGBE_ISCSI_BOOT_CONFIG,
+			  &offset);
+
+	/* Make sure offset to SCSI block is valid */
+	if (!(offset == 0x0) && !(offset == 0xffff)) {
+		wx_read_ee_hostif(wxhw, offset + 0x84, &eeprom_cfg_blkh);
+		wx_read_ee_hostif(wxhw, offset + 0x83, &eeprom_cfg_blkl);
+
+		/* Only display Option Rom if exist */
+		if (eeprom_cfg_blkl && eeprom_cfg_blkh) {
+			major = eeprom_cfg_blkl >> 8;
+			build = (eeprom_cfg_blkl << 8) | (eeprom_cfg_blkh >> 8);
+			patch = eeprom_cfg_blkh & 0x00ff;
+
+			snprintf(adapter->eeprom_id, sizeof(adapter->eeprom_id),
+				 "0x%08x, %d.%d.%d", etrack_id, major, build,
+				 patch);
+		} else {
+			snprintf(adapter->eeprom_id, sizeof(adapter->eeprom_id),
+				 "0x%08x", etrack_id);
+		}
+	} else {
+		snprintf(adapter->eeprom_id, sizeof(adapter->eeprom_id),
+			 "0x%08x", etrack_id);
+	}
+
 	err = register_netdev(netdev);
 	if (err)
-		goto err_free_mac_table;
+		goto err_release_hw;
 
 	pci_set_drvdata(pdev, adapter);
 
@@ -488,10 +564,17 @@ static int txgbe_probe(struct pci_dev *pdev,
 	else
 		dev_warn(&pdev->dev, "Failed to enumerate PF devices.\n");
 
+	/* First try to read PBA as a string */
+	err = txgbe_read_pba_string(hw, part_str, TXGBE_PBANUM_LENGTH);
+	if (err)
+		strncpy(part_str, "Unknown", TXGBE_PBANUM_LENGTH);
+
 	netif_info(adapter, probe, netdev, "%pM\n", netdev->dev_addr);
 
 	return 0;
 
+err_release_hw:
+	wx_control_hw(wxhw, false);
 err_free_mac_table:
 	kfree(adapter->mac_table);
 err_pci_release_regions:
