@@ -2306,6 +2306,9 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			 */
 			if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART,
 				      &mvm->status)) {
+				/* first remove remaining keys */
+				iwl_mvm_sec_key_remove_ap(mvm, vif);
+
 				/*
 				 * Remove AP station now that
 				 * the MAC is unassoc
@@ -3464,6 +3467,8 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 	struct iwl_mvm_sta *mvmsta = NULL;
 	struct iwl_mvm_key_pn *ptk_pn;
 	int keyidx = key->keyidx;
+	u32 sec_key_id = WIDE_ID(DATA_PATH_GROUP, SEC_KEY_CMD);
+	u8 sec_key_ver = iwl_fw_lookup_cmd_ver(mvm->fw, sec_key_id, 0);
 	int ret, i;
 	u8 key_offset;
 
@@ -3603,7 +3608,12 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			mvmsta->pairwise_cipher = key->cipher;
 
 		IWL_DEBUG_MAC80211(mvm, "set hwcrypto key\n");
-		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, key_offset);
+
+		if (sec_key_ver)
+			ret = iwl_mvm_sec_key_add(mvm, vif, sta, key);
+		else
+			ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, key_offset);
+
 		if (ret) {
 			IWL_WARN(mvm, "set key failed\n");
 			key->hw_key_idx = STA_KEY_IDX_INVALID;
@@ -3656,7 +3666,10 @@ static int __iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 		}
 
 		IWL_DEBUG_MAC80211(mvm, "disable hwcrypto key\n");
-		ret = iwl_mvm_remove_sta_key(mvm, vif, sta, key);
+		if (sec_key_ver)
+			ret = iwl_mvm_sec_key_del(mvm, vif, sta, key);
+		else
+			ret = iwl_mvm_remove_sta_key(mvm, vif, sta, key);
 		break;
 	default:
 		ret = -EINVAL;
