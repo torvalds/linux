@@ -77,7 +77,7 @@ struct dio_read {
 };
 
 /* pagecache_block must be held */
-static int write_invalidate_inode_pages_range(struct address_space *mapping,
+static noinline int write_invalidate_inode_pages_range(struct address_space *mapping,
 					      loff_t start, loff_t end)
 {
 	int ret;
@@ -1693,11 +1693,13 @@ ssize_t bch2_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		struct blk_plug plug;
 
-		ret = filemap_write_and_wait_range(mapping,
-					iocb->ki_pos,
-					iocb->ki_pos + count - 1);
-		if (ret < 0)
-			return ret;
+		if (unlikely(mapping->nrpages)) {
+			ret = filemap_write_and_wait_range(mapping,
+						iocb->ki_pos,
+						iocb->ki_pos + count - 1);
+			if (ret < 0)
+				return ret;
+		}
 
 		file_accessed(file);
 
@@ -1961,11 +1963,13 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 					dio->op.opts.data_replicas))
 		goto err_put_bio;
 
-	ret = write_invalidate_inode_pages_range(mapping,
-					req->ki_pos,
-					req->ki_pos + iter->count - 1);
-	if (unlikely(ret))
-		goto err_put_bio;
+	if (unlikely(mapping->nrpages)) {
+		ret = write_invalidate_inode_pages_range(mapping,
+						req->ki_pos,
+						req->ki_pos + iter->count - 1);
+		if (unlikely(ret))
+			goto err_put_bio;
+	}
 
 	ret = bch2_dio_write_loop(dio);
 err:
