@@ -107,9 +107,9 @@ static struct mt76_wcid *mt7615_rx_get_wcid(struct mt7615_dev *dev,
 	return &sta->vif->sta.wcid;
 }
 
-void mt7615_mac_reset_counters(struct mt7615_dev *dev)
+void mt7615_mac_reset_counters(struct mt7615_phy *phy)
 {
-	struct mt76_phy *mphy_ext = dev->mt76.phys[MT_BAND1];
+	struct mt7615_dev *dev = phy->dev;
 	int i;
 
 	for (i = 0; i < 4; i++) {
@@ -118,9 +118,7 @@ void mt7615_mac_reset_counters(struct mt7615_dev *dev)
 	}
 
 	memset(dev->mt76.aggr_stats, 0, sizeof(dev->mt76.aggr_stats));
-	dev->mt76.phy.survey_time = ktime_get_boottime();
-	if (mphy_ext)
-		mphy_ext->survey_time = ktime_get_boottime();
+	phy->mt76->survey_time = ktime_get_boottime();
 
 	/* reset airtime counters */
 	mt76_rr(dev, MT_MIB_SDR9(0));
