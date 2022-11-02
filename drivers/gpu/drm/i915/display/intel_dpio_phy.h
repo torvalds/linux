@@ -10,9 +10,11 @@
 
 enum dpio_channel;
 enum dpio_phy;
+enum pipe;
 enum port;
 struct drm_i915_private;
 struct intel_crtc_state;
+struct intel_digital_port;
 struct intel_encoder;
 
 void bxt_port_to_phy_channel(struct drm_i915_private *dev_priv, enum port port,
@@ -29,6 +31,10 @@ u8 bxt_ddi_phy_calc_lane_lat_optim_mask(u8 lane_count);
 void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
 				     u8 lane_lat_optim_mask);
 u8 bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder);
+
+enum dpio_channel vlv_dig_port_to_channel(struct intel_digital_port *dig_port);
+enum dpio_phy vlv_dig_port_to_phy(struct intel_digital_port *dig_port);
+enum dpio_channel vlv_pipe_to_channel(enum pipe pipe);
 
 void chv_set_phy_signal_level(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *crtc_state,

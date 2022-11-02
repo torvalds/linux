@@ -90,6 +90,7 @@
 #include "intel_display_types.h"
 #include "intel_dmc.h"
 #include "intel_dp_link_training.h"
+#include "intel_dpio_phy.h"
 #include "intel_dpt.h"
 #include "intel_dsb.h"
 #include "intel_fbc.h"
