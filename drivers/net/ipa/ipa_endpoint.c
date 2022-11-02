@@ -351,19 +351,17 @@ ipa_endpoint_program_delay(struct ipa_endpoint *endpoint, bool enable)
 static bool ipa_endpoint_aggr_active(struct ipa_endpoint *endpoint)
 {
 	u32 endpoint_id = endpoint->endpoint_id;
-	u32 mask = BIT(endpoint_id % 32);
 	struct ipa *ipa = endpoint->ipa;
 	u32 unit = endpoint_id / 32;
 	const struct ipa_reg *reg;
 	u32 val;
 
-	/* This works until we actually have more than 32 endpoints */
-	WARN_ON(!(mask & ipa->available));
+	WARN_ON(!test_bit(endpoint_id, ipa->available));
 
 	reg = ipa_reg(ipa, STATE_AGGR_ACTIVE);
 	val = ioread32(ipa->reg_virt + ipa_reg_n_offset(reg, unit));
 
-	return !!(val & mask);
+	return !!(val & BIT(endpoint_id % 32));
 }
 
 static void ipa_endpoint_force_close(struct ipa_endpoint *endpoint)
@@ -374,8 +372,7 @@ static void ipa_endpoint_force_close(struct ipa_endpoint *endpoint)
 	u32 unit = endpoint_id / 32;
 	const struct ipa_reg *reg;
 
-	/* This works until we actually have more than 32 endpoints */
-	WARN_ON(!(mask & ipa->available));
+	WARN_ON(!test_bit(endpoint_id, ipa->available));
 
 	reg = ipa_reg(ipa, AGGR_FORCE_CLOSE);
 	iowrite32(mask, ipa->reg_virt + ipa_reg_n_offset(reg, unit));
@@ -1841,6 +1838,13 @@ void ipa_endpoint_teardown(struct ipa *ipa)
 	ipa->set_up = 0;
 }
 
+void ipa_endpoint_deconfig(struct ipa *ipa)
+{
+	ipa->available_count = 0;
+	bitmap_free(ipa->available);
+	ipa->available = NULL;
+}
+
 int ipa_endpoint_config(struct ipa *ipa)
 {
 	struct device *dev = &ipa->pdev->dev;
@@ -1863,7 +1867,13 @@ int ipa_endpoint_config(struct ipa *ipa)
 	 * assume the configuration is valid.
 	 */
 	if (ipa->version < IPA_VERSION_3_5) {
-		ipa->available = ~0;
+		ipa->available = bitmap_zalloc(IPA_ENDPOINT_MAX, GFP_KERNEL);
+		if (!ipa->available)
+			return -ENOMEM;
+		ipa->available_count = IPA_ENDPOINT_MAX;
+
+		bitmap_set(ipa->available, 0, IPA_ENDPOINT_MAX);
+
 		return 0;
 	}
 
@@ -1885,8 +1895,15 @@ int ipa_endpoint_config(struct ipa *ipa)
 		return -EINVAL;
 	}
 
+	/* Allocate and initialize the available endpoint bitmap */
+	ipa->available = bitmap_zalloc(limit, GFP_KERNEL);
+	if (!ipa->available)
+		return -ENOMEM;
+	ipa->available_count = limit;
+
 	/* Mark all supported RX and TX endpoints as available */
-	ipa->available = GENMASK(limit - 1, rx_base) | GENMASK(tx_count - 1, 0);
+	bitmap_set(ipa->available, 0, tx_count);
+	bitmap_set(ipa->available, rx_base, rx_count);
 
 	for_each_set_bit(endpoint_id, ipa->defined, ipa->endpoint_count) {
 		struct ipa_endpoint *endpoint;
@@ -1894,13 +1911,13 @@ int ipa_endpoint_config(struct ipa *ipa)
 		if (endpoint_id >= limit) {
 			dev_err(dev, "invalid endpoint id, %u > %u\n",
 				endpoint_id, limit - 1);
-			return -EINVAL;
+			goto err_free_bitmap;
 		}
 
-		if (!(BIT(endpoint_id) & ipa->available)) {
+		if (!test_bit(endpoint_id, ipa->available)) {
 			dev_err(dev, "unavailable endpoint id %u\n",
 				endpoint_id);
-			return -EINVAL;
+			goto err_free_bitmap;
 		}
 
 		/* Make sure it's pointing in the right direction */
@@ -1913,15 +1930,15 @@ int ipa_endpoint_config(struct ipa *ipa)
 		}
 
 		dev_err(dev, "endpoint id %u wrong direction\n", endpoint_id);
-		return -EINVAL;
+		goto err_free_bitmap;
 	}
 
 	return 0;
-}
 
-void ipa_endpoint_deconfig(struct ipa *ipa)
-{
-	ipa->available = 0;	/* Nothing more to do */
+err_free_bitmap:
+	ipa_endpoint_deconfig(ipa);
+
+	return -EINVAL;
 }
 
 static void ipa_endpoint_init_one(struct ipa *ipa, enum ipa_endpoint_name name,
