@@ -571,8 +571,8 @@ static void for_each_tracepoint_range(
 bool trace_module_has_bad_taint(struct module *mod)
 {
 	return mod->taints & ~((1 << TAINT_OOT_MODULE) | (1 << TAINT_CRAP) |
-			       (1 << TAINT_UNSIGNED_MODULE) |
-			       (1 << TAINT_TEST));
+				(1 << TAINT_UNSIGNED_MODULE) | (1 << TAINT_TEST) |
+				(1 << TAINT_LIVEPATCH));
 }
 
 static BLOCKING_NOTIFIER_HEAD(tracepoint_notify_list);
