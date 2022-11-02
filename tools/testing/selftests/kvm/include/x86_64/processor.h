@@ -786,6 +786,7 @@ void vm_install_exception_handler(struct kvm_vm *vm, int vector,
  *
  * REGISTER OUTPUTS:
  * r9  = exception vector (non-zero)
+ * r10 = error code
  */
 #define KVM_ASM_SAFE(insn)					\
 	"mov $" __stringify(KVM_EXCEPTION_MAGIC) ", %%r9\n\t"	\
@@ -794,29 +795,43 @@ void vm_install_exception_handler(struct kvm_vm *vm, int vector,
 	"1: " insn "\n\t"					\
 	"xor %%r9, %%r9\n\t"					\
 	"2:\n\t"						\
-	"mov  %%r9b, %[vector]\n\t"
+	"mov  %%r9b, %[vector]\n\t"				\
+	"mov  %%r10, %[error_code]\n\t"
 
-#define KVM_ASM_SAFE_OUTPUTS(v)	[vector] "=qm"(v)
+#define KVM_ASM_SAFE_OUTPUTS(v, ec)	[vector] "=qm"(v), [error_code] "=rm"(ec)
 #define KVM_ASM_SAFE_CLOBBERS	"r9", "r10", "r11"
 
-#define kvm_asm_safe(insn, inputs...)			\
-({							\
-	uint8_t vector;					\
-							\
-	asm volatile(KVM_ASM_SAFE(insn)			\
-		     : KVM_ASM_SAFE_OUTPUTS(vector)	\
-		     : inputs				\
-		     : KVM_ASM_SAFE_CLOBBERS);		\
-	vector;						\
+#define kvm_asm_safe(insn, inputs...)					\
+({									\
+	uint64_t ign_error_code;					\
+	uint8_t vector;							\
+									\
+	asm volatile(KVM_ASM_SAFE(insn)					\
+		     : KVM_ASM_SAFE_OUTPUTS(vector, ign_error_code)	\
+		     : inputs						\
+		     : KVM_ASM_SAFE_CLOBBERS);				\
+	vector;								\
+})
+
+#define kvm_asm_safe_ec(insn, error_code, inputs...)			\
+({									\
+	uint8_t vector;							\
+									\
+	asm volatile(KVM_ASM_SAFE(insn)					\
+		     : KVM_ASM_SAFE_OUTPUTS(vector, error_code)		\
+		     : inputs						\
+		     : KVM_ASM_SAFE_CLOBBERS);				\
+	vector;								\
 })
 
 static inline uint8_t rdmsr_safe(uint32_t msr, uint64_t *val)
 {
+	uint64_t error_code;
 	uint8_t vector;
 	uint32_t a, d;
 
 	asm volatile(KVM_ASM_SAFE("rdmsr")
-		     : "=a"(a), "=d"(d), KVM_ASM_SAFE_OUTPUTS(vector)
+		     : "=a"(a), "=d"(d), KVM_ASM_SAFE_OUTPUTS(vector, error_code)
 		     : "c"(msr)
 		     : KVM_ASM_SAFE_CLOBBERS);
 
