@@ -695,9 +695,19 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 		}
 	}
 
-	/* Search for "opp-microwatt" */
-	sprintf(name, "opp-microwatt");
-	prop = of_find_property(opp->np, name, NULL);
+	/* Search for "opp-microwatt-<name>" */
+	prop = NULL;
+	if (opp_table->prop_name) {
+		snprintf(name, sizeof(name), "opp-microwatt-%s",
+			 opp_table->prop_name);
+		prop = of_find_property(opp->np, name, NULL);
+	}
+
+	if (!prop) {
+		/* Search for "opp-microwatt" */
+		sprintf(name, "opp-microwatt");
+		prop = of_find_property(opp->np, name, NULL);
+	}
 
 	if (prop) {
 		pcount = of_property_count_u32_elems(opp->np, name);
