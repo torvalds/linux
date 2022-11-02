@@ -25,9 +25,15 @@
 #include "blk-rq-qos.h"
 #include "blk-cgroup.h"
 
+#define ALLOC_CACHE_THRESHOLD	16
+#define ALLOC_CACHE_SLACK	64
+#define ALLOC_CACHE_MAX		512
+
 struct bio_alloc_cache {
 	struct bio		*free_list;
+	struct bio		*free_list_irq;
 	unsigned int		nr;
+	unsigned int		nr_irq;
 };
 
 static struct biovec_slab {
@@ -408,6 +414,22 @@ static void punt_bios_to_rescuer(struct bio_set *bs)
 	queue_work(bs->rescue_workqueue, &bs->rescue_work);
 }
 
+static void bio_alloc_irq_cache_splice(struct bio_alloc_cache *cache)
+{
+	unsigned long flags;
+
+	/* cache->free_list must be empty */
+	if (WARN_ON_ONCE(cache->free_list))
+		return;
+
+	local_irq_save(flags);
+	cache->free_list = cache->free_list_irq;
+	cache->free_list_irq = NULL;
+	cache->nr += cache->nr_irq;
+	cache->nr_irq = 0;
+	local_irq_restore(flags);
+}
+
 static struct bio *bio_alloc_percpu_cache(struct block_device *bdev,
 		unsigned short nr_vecs, blk_opf_t opf, gfp_t gfp,
 		struct bio_set *bs)
@@ -417,8 +439,12 @@ static struct bio *bio_alloc_percpu_cache(struct block_device *bdev,
 
 	cache = per_cpu_ptr(bs->cache, get_cpu());
 	if (!cache->free_list) {
-		put_cpu();
-		return NULL;
+		if (READ_ONCE(cache->nr_irq) >= ALLOC_CACHE_THRESHOLD)
+			bio_alloc_irq_cache_splice(cache);
+		if (!cache->free_list) {
+			put_cpu();
+			return NULL;
+		}
 	}
 	bio = cache->free_list;
 	cache->free_list = bio->bi_next;
@@ -461,9 +487,6 @@ static struct bio *bio_alloc_percpu_cache(struct block_device *bdev,
  * mempools. Doing multiple allocations from the same mempool under
  * submit_bio_noacct() should be avoided - instead, use bio_set's front_pad
  * for per bio allocations.
- *
- * If REQ_ALLOC_CACHE is set, the final put of the bio MUST be done from process
- * context, not hard/soft IRQ.
  *
  * Returns: Pointer to new bio on success, NULL on failure.
  */
@@ -678,11 +701,8 @@ void guard_bio_eod(struct bio *bio)
 	bio_truncate(bio, maxsector << 9);
 }
 
-#define ALLOC_CACHE_MAX		512
-#define ALLOC_CACHE_SLACK	 64
-
-static void bio_alloc_cache_prune(struct bio_alloc_cache *cache,
-				  unsigned int nr)
+static int __bio_alloc_cache_prune(struct bio_alloc_cache *cache,
+				   unsigned int nr)
 {
 	unsigned int i = 0;
 	struct bio *bio;
@@ -693,6 +713,17 @@ static void bio_alloc_cache_prune(struct bio_alloc_cache *cache,
 		bio_free(bio);
 		if (++i == nr)
 			break;
+	}
+	return i;
+}
+
+static void bio_alloc_cache_prune(struct bio_alloc_cache *cache,
+				  unsigned int nr)
+{
+	nr -= __bio_alloc_cache_prune(cache, nr);
+	if (!READ_ONCE(cache->free_list)) {
+		bio_alloc_irq_cache_splice(cache);
+		__bio_alloc_cache_prune(cache, nr);
 	}
 }
 
@@ -732,6 +763,12 @@ static inline void bio_put_percpu_cache(struct bio *bio)
 	struct bio_alloc_cache *cache;
 
 	cache = per_cpu_ptr(bio->bi_pool->cache, get_cpu());
+	if (READ_ONCE(cache->nr_irq) + cache->nr > ALLOC_CACHE_MAX) {
+		put_cpu();
+		bio_free(bio);
+		return;
+	}
+
 	bio_uninit(bio);
 
 	if ((bio->bi_opf & REQ_POLLED) && !WARN_ON_ONCE(in_interrupt())) {
@@ -739,13 +776,14 @@ static inline void bio_put_percpu_cache(struct bio *bio)
 		cache->free_list = bio;
 		cache->nr++;
 	} else {
-		put_cpu();
-		bio_free(bio);
-		return;
-	}
+		unsigned long flags;
 
-	if (cache->nr > ALLOC_CACHE_MAX + ALLOC_CACHE_SLACK)
-		bio_alloc_cache_prune(cache, ALLOC_CACHE_SLACK);
+		local_irq_save(flags);
+		bio->bi_next = cache->free_list_irq;
+		cache->free_list_irq = bio;
+		cache->nr_irq++;
+		local_irq_restore(flags);
+	}
 	put_cpu();
 }
 
