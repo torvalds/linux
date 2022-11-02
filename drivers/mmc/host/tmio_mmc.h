@@ -205,17 +205,6 @@ void tmio_mmc_enable_mmc_irqs(struct tmio_mmc_host *host, u32 i);
 void tmio_mmc_disable_mmc_irqs(struct tmio_mmc_host *host, u32 i);
 irqreturn_t tmio_mmc_irq(int irq, void *devid);
 
-static inline char *tmio_mmc_kmap_atomic(struct scatterlist *sg)
-{
-	return kmap_local_page(sg_page(sg)) + sg->offset;
-}
-
-static inline void tmio_mmc_kunmap_atomic(struct scatterlist *sg,
-					  void *virt)
-{
-	kunmap_local(virt - sg->offset);
-}
-
 #ifdef CONFIG_PM
 int tmio_mmc_host_runtime_suspend(struct device *dev);
 int tmio_mmc_host_runtime_resume(struct device *dev);
