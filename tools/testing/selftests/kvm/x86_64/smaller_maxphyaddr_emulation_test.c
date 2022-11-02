@@ -21,9 +21,27 @@
 #define MEM_REGION_SLOT	10
 #define MEM_REGION_SIZE PAGE_SIZE
 
-static void guest_code(void)
+static void guest_code(bool tdp_enabled)
 {
-	flds(MEM_REGION_GVA);
+	uint64_t error_code;
+	uint64_t vector;
+
+	vector = kvm_asm_safe_ec(FLDS_MEM_EAX, error_code, "a"(MEM_REGION_GVA));
+
+	/*
+	 * When TDP is enabled, flds will trigger an emulation failure, exit to
+	 * userspace, and then the selftest host "VMM" skips the instruction.
+	 *
+	 * When TDP is disabled, no instruction emulation is required so flds
+	 * should generate #PF(RSVD).
+	 */
+	if (tdp_enabled) {
+		GUEST_ASSERT(!vector);
+	} else {
+		GUEST_ASSERT_EQ(vector, PF_VECTOR);
+		GUEST_ASSERT(error_code & PFERR_RSVD_MASK);
+	}
+
 	GUEST_DONE();
 }
 
@@ -31,6 +49,7 @@ int main(int argc, char *argv[])
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
+	struct ucall uc;
 	uint64_t *pte;
 	uint64_t *hva;
 	uint64_t gpa;
@@ -39,6 +58,10 @@ int main(int argc, char *argv[])
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_SMALLER_MAXPHYADDR));
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
+	vcpu_args_set(vcpu, 1, kvm_is_tdp_enabled());
+
+	vm_init_descriptor_tables(vm);
+	vcpu_init_descriptor_tables(vcpu);
 
 	vcpu_set_cpuid_maxphyaddr(vcpu, MAXPHYADDR);
 
@@ -60,9 +83,27 @@ int main(int argc, char *argv[])
 	*pte |= BIT_ULL(MAXPHYADDR);
 
 	vcpu_run(vcpu);
-	handle_flds_emulation_failure_exit(vcpu);
-	vcpu_run(vcpu);
-	ASSERT_EQ(get_ucall(vcpu, NULL), UCALL_DONE);
+
+	/*
+	 * When TDP is enabled, KVM must emulate in response the guest physical
+	 * address that is illegal from the guest's perspective, but is legal
+	 * from hardware's perspeective.  This should result in an emulation
+	 * failure exit to userspace since KVM doesn't support emulating flds.
+	 */
+	if (kvm_is_tdp_enabled()) {
+		handle_flds_emulation_failure_exit(vcpu);
+		vcpu_run(vcpu);
+	}
+
+	switch (get_ucall(vcpu, &uc)) {
+	case UCALL_ABORT:
+		REPORT_GUEST_ASSERT(uc);
+		break;
+	case UCALL_DONE:
+		break;
+	default:
+		TEST_FAIL("Unrecognized ucall: %lu\n", uc.cmd);
+	}
 
 	kvm_vm_free(vm);
 
