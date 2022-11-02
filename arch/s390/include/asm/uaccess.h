@@ -390,4 +390,187 @@ do {									\
 		goto err_label;						\
 } while (0)
 
+void __cmpxchg_user_key_called_with_bad_pointer(void);
+
+static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
+					      __uint128_t old, __uint128_t new,
+					      unsigned long key, int size)
+{
+	int rc = 0;
+
+	switch (size) {
+	case 1: {
+		unsigned int prev, tmp, shift;
+
+		shift = (3 ^ (address & 3)) << 3;
+		address ^= address & 3;
+		asm volatile(
+			"	spka	0(%[key])\n"
+			"	sacf	256\n"
+			"0:	l	%[prev],%[address]\n"
+			"1:	nr	%[prev],%[mask]\n"
+			"	lr	%[tmp],%[prev]\n"
+			"	or	%[prev],%[old]\n"
+			"	or	%[tmp],%[new]\n"
+			"2:	cs	%[prev],%[tmp],%[address]\n"
+			"3:	jnl	4f\n"
+			"	xr	%[tmp],%[prev]\n"
+			"	nr	%[tmp],%[mask]\n"
+			"	jnz	1b\n"
+			"4:	sacf	768\n"
+			"	spka	%[default_key]\n"
+			EX_TABLE_UA_LOAD_REG(0b, 4b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REG(1b, 4b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REG(2b, 4b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REG(3b, 4b, %[rc], %[prev])
+			: [rc] "+&d" (rc),
+			  [prev] "=&d" (prev),
+			  [tmp] "=&d" (tmp),
+			  [address] "+Q" (*(int *)address)
+			: [old] "d" (((unsigned int)old & 0xff) << shift),
+			  [new] "d" (((unsigned int)new & 0xff) << shift),
+			  [mask] "d" (~(0xff << shift)),
+			  [key] "a" (key << 4),
+			  [default_key] "J" (PAGE_DEFAULT_KEY)
+			: "memory", "cc");
+		*(unsigned char *)uval = prev >> shift;
+		return rc;
+	}
+	case 2: {
+		unsigned int prev, tmp, shift;
+
+		shift = (2 ^ (address & 2)) << 3;
+		address ^= address & 2;
+		asm volatile(
+			"	spka	0(%[key])\n"
+			"	sacf	256\n"
+			"0:	l	%[prev],%[address]\n"
+			"1:	nr	%[prev],%[mask]\n"
+			"	lr	%[tmp],%[prev]\n"
+			"	or	%[prev],%[old]\n"
+			"	or	%[tmp],%[new]\n"
+			"2:	cs	%[prev],%[tmp],%[address]\n"
+			"3:	jnl	4f\n"
+			"	xr	%[tmp],%[prev]\n"
+			"	nr	%[tmp],%[mask]\n"
+			"	jnz	1b\n"
+			"4:	sacf	768\n"
+			"	spka	%[default_key]\n"
+			EX_TABLE_UA_LOAD_REG(0b, 4b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REG(1b, 4b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REG(2b, 4b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REG(3b, 4b, %[rc], %[prev])
+			: [rc] "+&d" (rc),
+			  [prev] "=&d" (prev),
+			  [tmp] "=&d" (tmp),
+			  [address] "+Q" (*(int *)address)
+			: [old] "d" (((unsigned int)old & 0xffff) << shift),
+			  [new] "d" (((unsigned int)new & 0xffff) << shift),
+			  [mask] "d" (~(0xffff << shift)),
+			  [key] "a" (key << 4),
+			  [default_key] "J" (PAGE_DEFAULT_KEY)
+			: "memory", "cc");
+		*(unsigned short *)uval = prev >> shift;
+		return rc;
+	}
+	case 4:	{
+		unsigned int prev = old;
+
+		asm volatile(
+			"	spka	0(%[key])\n"
+			"	sacf	256\n"
+			"0:	cs	%[prev],%[new],%[address]\n"
+			"1:	sacf	768\n"
+			"	spka	%[default_key]\n"
+			EX_TABLE_UA_LOAD_REG(0b, 1b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REG(1b, 1b, %[rc], %[prev])
+			: [rc] "+&d" (rc),
+			  [prev] "+&d" (prev),
+			  [address] "+Q" (*(int *)address)
+			: [new] "d" ((unsigned int)new),
+			  [key] "a" (key << 4),
+			  [default_key] "J" (PAGE_DEFAULT_KEY)
+			: "memory", "cc");
+		*(unsigned int *)uval = prev;
+		return rc;
+	}
+	case 8: {
+		unsigned long prev = old;
+
+		asm volatile(
+			"	spka	0(%[key])\n"
+			"	sacf	256\n"
+			"0:	csg	%[prev],%[new],%[address]\n"
+			"1:	sacf	768\n"
+			"	spka	%[default_key]\n"
+			EX_TABLE_UA_LOAD_REG(0b, 1b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REG(1b, 1b, %[rc], %[prev])
+			: [rc] "+&d" (rc),
+			  [prev] "+&d" (prev),
+			  [address] "+QS" (*(long *)address)
+			: [new] "d" ((unsigned long)new),
+			  [key] "a" (key << 4),
+			  [default_key] "J" (PAGE_DEFAULT_KEY)
+			: "memory", "cc");
+		*(unsigned long *)uval = prev;
+		return rc;
+	}
+	case 16: {
+		__uint128_t prev = old;
+
+		asm volatile(
+			"	spka	0(%[key])\n"
+			"	sacf	256\n"
+			"0:	cdsg	%[prev],%[new],%[address]\n"
+			"1:	sacf	768\n"
+			"	spka	%[default_key]\n"
+			EX_TABLE_UA_LOAD_REGPAIR(0b, 1b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REGPAIR(1b, 1b, %[rc], %[prev])
+			: [rc] "+&d" (rc),
+			  [prev] "+&d" (prev),
+			  [address] "+QS" (*(__int128_t *)address)
+			: [new] "d" (new),
+			  [key] "a" (key << 4),
+			  [default_key] "J" (PAGE_DEFAULT_KEY)
+			: "memory", "cc");
+		*(__uint128_t *)uval = prev;
+		return rc;
+	}
+	}
+	__cmpxchg_user_key_called_with_bad_pointer();
+	return rc;
+}
+
+/**
+ * cmpxchg_user_key() - cmpxchg with user space target, honoring storage keys
+ * @ptr: User space address of value to compare to @old and exchange with
+ *	 @new. Must be aligned to sizeof(*@ptr).
+ * @uval: Address where the old value of *@ptr is written to.
+ * @old: Old value. Compared to the content pointed to by @ptr in order to
+ *	 determine if the exchange occurs. The old value read from *@ptr is
+ *	 written to *@uval.
+ * @new: New value to place at *@ptr.
+ * @key: Access key to use for checking storage key protection.
+ *
+ * Perform a cmpxchg on a user space target, honoring storage key protection.
+ * @key alone determines how key checking is performed, neither
+ * storage-protection-override nor fetch-protection-override apply.
+ * The caller must compare *@uval and @old to determine if values have been
+ * exchanged. In case of an exception *@uval is set to zero.
+ *
+ * Return:     0: cmpxchg executed
+ *	       -EFAULT: an exception happened when trying to access *@ptr
+ */
+#define cmpxchg_user_key(ptr, uval, old, new, key)			\
+({									\
+	__typeof__(ptr) __ptr = (ptr);					\
+	__typeof__(uval) __uval = (uval);				\
+									\
+	BUILD_BUG_ON(sizeof(*(__ptr)) != sizeof(*(__uval)));		\
+	might_fault();							\
+	__chk_user_ptr(__ptr);						\
+	__cmpxchg_user_key((unsigned long)(__ptr), (void *)(__uval),	\
+			   (old), (new), (key), sizeof(*(__ptr)));	\
+})
+
 #endif /* __S390_UACCESS_H */
