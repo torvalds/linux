@@ -807,6 +807,12 @@
 };
 
 /* Verdin USB_1 */
+&usb3_0 {
+	fsl,over-current-active-low;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb_1_oc_n>;
+};
+
 &usb3_phy0 {
 	vbus-supply = <&reg_usb1_vbus>;
 };
@@ -816,7 +822,6 @@
 	dr_mode = "otg";
 	hnp-disable;
 	maximum-speed = "high-speed";
-	over-current-active-low;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usb_1_id>;
 	srp-disable;
@@ -1045,7 +1050,6 @@
 
 	pinctrl_gpio_hog3: gpiohog3grp {
 		fsl,pins =
-			<MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13		0x1c4>,	/* SODIMM 157 */
 			/* CSI_1_MCLK */
 			<MX8MP_IOMUXC_GPIO1_IO15__GPIO1_IO15		0x1c4>;	/* SODIMM 91 */
 	};
@@ -1227,6 +1231,12 @@
 	pinctrl_usb_1_id: usb1idgrp {
 		fsl,pins =
 			<MX8MP_IOMUXC_SD1_RESET_B__GPIO2_IO10		0x1c4>;	/* SODIMM 161 */
+	};
+
+	/* USB_1_OC# */
+	pinctrl_usb_1_oc_n: usb1ocngrp {
+		fsl,pins =
+			<MX8MP_IOMUXC_GPIO1_IO13__USB1_OTG_OC		0x1c4>;	/* SODIMM 157 */
 	};
 
 	pinctrl_usb2_vbus: usb2vbusgrp {
