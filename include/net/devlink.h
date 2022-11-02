@@ -129,6 +129,8 @@ struct devlink_port {
 	union {
 		struct {
 			struct net_device *netdev;
+			int ifindex;
+			char ifname[IFNAMSIZ];
 		} type_eth;
 		struct {
 			struct ib_device *ibdev;
