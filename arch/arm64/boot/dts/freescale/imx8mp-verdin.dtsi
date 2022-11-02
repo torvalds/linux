@@ -808,6 +808,7 @@
 
 /* Verdin USB_1 */
 &usb3_0 {
+	fsl,disable-port-power-control;
 	fsl,over-current-active-low;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usb_1_oc_n>;
@@ -828,6 +829,10 @@
 };
 
 /* Verdin USB_2 */
+&usb3_1 {
+	fsl,disable-port-power-control;
+};
+
 &usb3_phy1 {
 	vbus-supply = <&reg_usb2_vbus>;
 };
