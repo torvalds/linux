@@ -109,6 +109,7 @@ struct jh7110_sec_dev {
 	struct mutex				sha_lock;
 	struct mutex				aes_lock;
 	struct mutex				rsa_lock;
+	struct completion			rsa_comp;
 
 #define JH7110_SHA_SHA_DONE			BIT(2)
 #define JH7110_AES_DONE				BIT(3)
