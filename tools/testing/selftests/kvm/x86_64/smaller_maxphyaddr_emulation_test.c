@@ -19,33 +19,13 @@
 #define MEM_REGION_SLOT	10
 #define MEM_REGION_SIZE PAGE_SIZE
 
+#define FLDS_MEM_EAX ".byte 0xd9, 0x00"
+
 static void guest_code(void)
 {
-	__asm__ __volatile__("flds (%[addr])"
-			     :: [addr]"r"(MEM_REGION_GVA));
+	__asm__ __volatile__(FLDS_MEM_EAX :: "a"(MEM_REGION_GVA));
 
 	GUEST_DONE();
-}
-
-/*
- * Accessors to get R/M, REG, and Mod bits described in the SDM vol 2,
- * figure 2-2 "Table Interpretation of ModR/M Byte (C8H)".
- */
-#define GET_RM(insn_byte) (insn_byte & 0x7)
-#define GET_REG(insn_byte) ((insn_byte & 0x38) >> 3)
-#define GET_MOD(insn_byte) ((insn_byte & 0xc) >> 6)
-
-/* Ensure we are dealing with a simple 2-byte flds instruction. */
-static bool is_flds(uint8_t *insn_bytes, uint8_t insn_size)
-{
-	return insn_size >= 2 &&
-	       insn_bytes[0] == 0xd9 &&
-	       GET_REG(insn_bytes[1]) == 0x0 &&
-	       GET_MOD(insn_bytes[1]) == 0x0 &&
-	       /* Ensure there is no SIB byte. */
-	       GET_RM(insn_bytes[1]) != 0x4 &&
-	       /* Ensure there is no displacement byte. */
-	       GET_RM(insn_bytes[1]) != 0x5;
 }
 
 static void process_exit_on_emulation_error(struct kvm_vcpu *vcpu)
@@ -53,7 +33,6 @@ static void process_exit_on_emulation_error(struct kvm_vcpu *vcpu)
 	struct kvm_run *run = vcpu->run;
 	struct kvm_regs regs;
 	uint8_t *insn_bytes;
-	uint8_t insn_size;
 	uint64_t flags;
 
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_INTERNAL_ERROR,
@@ -65,30 +44,23 @@ static void process_exit_on_emulation_error(struct kvm_vcpu *vcpu)
 		    "Unexpected suberror: %u",
 		    run->emulation_failure.suberror);
 
-	if (run->emulation_failure.ndata >= 1) {
-		flags = run->emulation_failure.flags;
-		if ((flags & KVM_INTERNAL_ERROR_EMULATION_FLAG_INSTRUCTION_BYTES) &&
-		    run->emulation_failure.ndata >= 3) {
-			insn_size = run->emulation_failure.insn_size;
-			insn_bytes = run->emulation_failure.insn_bytes;
+	flags = run->emulation_failure.flags;
+	TEST_ASSERT(run->emulation_failure.ndata >= 3 &&
+		    flags & KVM_INTERNAL_ERROR_EMULATION_FLAG_INSTRUCTION_BYTES,
+		    "run->emulation_failure is missing instruction bytes");
 
-			TEST_ASSERT(insn_size <= 15 && insn_size > 0,
-				    "Unexpected instruction size: %u",
-				    insn_size);
+	TEST_ASSERT(run->emulation_failure.insn_size >= 2,
+		    "Expected a 2-byte opcode for 'flds', got %d bytes",
+		    run->emulation_failure.insn_size);
 
-			TEST_ASSERT(is_flds(insn_bytes, insn_size),
-				    "Unexpected instruction.  Expected 'flds' (0xd9 /0)");
+	insn_bytes = run->emulation_failure.insn_bytes;
+	TEST_ASSERT(insn_bytes[0] == 0xd9 && insn_bytes[1] == 0,
+		    "Expected 'flds [eax]', opcode '0xd9 0x00', got opcode 0x%02x 0x%02x\n",
+		    insn_bytes[0], insn_bytes[1]);
 
-			/*
-			 * If is_flds() succeeded then the instruction bytes
-			 * contained an flds instruction that is 2-bytes in
-			 * length (ie: no prefix, no SIB, no displacement).
-			 */
-			vcpu_regs_get(vcpu, &regs);
-			regs.rip += 2;
-			vcpu_regs_set(vcpu, &regs);
-		}
-	}
+	vcpu_regs_get(vcpu, &regs);
+	regs.rip += 2;
+	vcpu_regs_set(vcpu, &regs);
 }
 
 static void do_guest_assert(struct ucall *uc)
