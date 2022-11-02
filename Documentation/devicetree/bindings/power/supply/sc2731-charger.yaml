@@ -28,7 +28,6 @@ properties:
       The charger uses the following battery properties
       - charge-term-current-microamp: current for charge termination phase.
       - constant-charge-voltage-max-microvolt: maximum constant input voltage.
-      See Documentation/devicetree/bindings/power/supply/battery.yaml
 
 additionalProperties: false
 
