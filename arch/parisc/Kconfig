@@ -220,8 +220,18 @@ config MLONGCALLS
 	  Enabling this option will probably slow down your kernel.
 
 config 64BIT
-	def_bool "$(ARCH)" = "parisc64"
+	def_bool y if "$(ARCH)" = "parisc64"
+	bool "64-bit kernel" if "$(ARCH)" = "parisc"
 	depends on PA8X00
+	help
+	  Enable this if you want to support 64bit kernel on PA-RISC platform.
+
+	  At the moment, only people willing to use more than 2GB of RAM,
+	  or having a 64bit-only capable PA-RISC machine should say Y here.
+
+	  Since there is no 64bit userland on PA-RISC, there is no point to
+	  enable this option otherwise. The 64bit kernel is significantly bigger
+	  and slower than the 32bit one.
 
 choice
 	prompt "Kernel page size"

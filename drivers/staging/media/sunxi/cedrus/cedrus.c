@@ -369,6 +369,8 @@ static int cedrus_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
+	platform_set_drvdata(pdev, dev);
+
 	dev->vfd = cedrus_video_device;
 	dev->dev = &pdev->dev;
 	dev->pdev = pdev;
@@ -439,8 +441,6 @@ static int cedrus_probe(struct platform_device *pdev)
 		v4l2_err(&dev->v4l2_dev, "Failed to register media device\n");
 		goto err_m2m_mc;
 	}
-
-	platform_set_drvdata(pdev, dev);
 
 	return 0;
 

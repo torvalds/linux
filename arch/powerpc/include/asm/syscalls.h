@@ -8,6 +8,18 @@
 #include <linux/types.h>
 #include <linux/compat.h>
 
+/*
+ * long long munging:
+ * The 32 bit ABI passes long longs in an odd even register pair.
+ * High and low parts are swapped depending on endian mode,
+ * so define a macro (similar to mips linux32) to handle that.
+ */
+#ifdef __LITTLE_ENDIAN__
+#define merge_64(low, high) (((u64)high << 32) | low)
+#else
+#define merge_64(high, low) (((u64)high << 32) | low)
+#endif
+
 struct rtas_args;
 
 asmlinkage long sys_mmap(unsigned long addr, size_t len,

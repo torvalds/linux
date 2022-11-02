@@ -40,7 +40,9 @@ void mte_sync_tags(pte_t old_pte, pte_t pte);
 void mte_copy_page_tags(void *kto, const void *kfrom);
 void mte_thread_init_user(void);
 void mte_thread_switch(struct task_struct *next);
+void mte_cpu_setup(void);
 void mte_suspend_enter(void);
+void mte_suspend_exit(void);
 long set_mte_ctrl(struct task_struct *task, unsigned long arg);
 long get_mte_ctrl(struct task_struct *task);
 int mte_ptrace_copy_tags(struct task_struct *child, long request,
@@ -67,6 +69,9 @@ static inline void mte_thread_switch(struct task_struct *next)
 {
 }
 static inline void mte_suspend_enter(void)
+{
+}
+static inline void mte_suspend_exit(void)
 {
 }
 static inline long set_mte_ctrl(struct task_struct *task, unsigned long arg)

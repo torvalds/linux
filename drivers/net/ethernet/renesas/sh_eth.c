@@ -2033,6 +2033,8 @@ static int sh_eth_phy_init(struct net_device *ndev)
 		}
 	}
 
+	/* Indicate that the MAC is responsible for managing PHY PM */
+	phydev->mac_managed_pm = true;
 	phy_attached_info(phydev);
 
 	return 0;

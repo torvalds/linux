@@ -315,16 +315,9 @@ static inline void binder_alloc_set_vma(struct binder_alloc *alloc,
 {
 	unsigned long vm_start = 0;
 
-	/*
-	 * Allow clearing the vma with holding just the read lock to allow
-	 * munmapping downgrade of the write lock before freeing and closing the
-	 * file using binder_alloc_vma_close().
-	 */
 	if (vma) {
 		vm_start = vma->vm_start;
 		mmap_assert_write_locked(alloc->vma_vm_mm);
-	} else {
-		mmap_assert_locked(alloc->vma_vm_mm);
 	}
 
 	alloc->vma_addr = vm_start;

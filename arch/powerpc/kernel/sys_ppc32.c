@@ -56,18 +56,6 @@ unsigned long compat_sys_mmap2(unsigned long addr, size_t len,
 	return sys_mmap(addr, len, prot, flags, fd, pgoff << 12);
 }
 
-/* 
- * long long munging:
- * The 32 bit ABI passes long longs in an odd even register pair.
- * High and low parts are swapped depending on endian mode,
- * so define a macro (similar to mips linux32) to handle that.
- */
-#ifdef __LITTLE_ENDIAN__
-#define merge_64(low, high) ((u64)high << 32) | low
-#else
-#define merge_64(high, low) ((u64)high << 32) | low
-#endif
-
 compat_ssize_t compat_sys_pread64(unsigned int fd, char __user *ubuf, compat_size_t count,
 			     u32 reg6, u32 pos1, u32 pos2)
 {
@@ -94,7 +82,7 @@ asmlinkage int compat_sys_truncate64(const char __user * path, u32 reg4,
 asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offset1, u32 offset2,
 				     u32 len1, u32 len2)
 {
-	return ksys_fallocate(fd, mode, ((loff_t)offset1 << 32) | offset2,
+	return ksys_fallocate(fd, mode, merge_64(offset1, offset2),
 			     merge_64(len1, len2));
 }
 

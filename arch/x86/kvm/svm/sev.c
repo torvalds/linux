@@ -2037,6 +2037,14 @@ static void sev_flush_guest_memory(struct vcpu_svm *svm, void *va,
 	wbinvd_on_all_cpus();
 }
 
+void sev_guest_memory_reclaimed(struct kvm *kvm)
+{
+	if (!sev_guest(kvm))
+		return;
+
+	wbinvd_on_all_cpus();
+}
+
 void sev_free_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm;

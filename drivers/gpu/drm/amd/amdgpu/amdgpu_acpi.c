@@ -1056,6 +1056,10 @@ bool amdgpu_acpi_should_gpu_reset(struct amdgpu_device *adev)
 {
 	if (adev->flags & AMD_IS_APU)
 		return false;
+
+	if (amdgpu_sriov_vf(adev))
+		return false;
+
 	return pm_suspend_target_state != PM_SUSPEND_TO_IDLE;
 }
 
