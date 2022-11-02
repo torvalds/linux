@@ -1912,7 +1912,7 @@ enum dc_status dpcd_configure_lttpr_mode(struct dc_link *link, struct link_train
 	return status;
 }
 
-static void dpcd_exit_training_mode(struct dc_link *link)
+static void dpcd_exit_training_mode(struct dc_link *link, enum dp_link_encoding encoding)
 {
 	uint8_t sink_status = 0;
 	uint8_t i;
@@ -1920,12 +1920,14 @@ static void dpcd_exit_training_mode(struct dc_link *link)
 	/* clear training pattern set */
 	dpcd_set_training_pattern(link, DP_TRAINING_PATTERN_VIDEOIDLE);
 
-	/* poll for intra-hop disable */
-	for (i = 0; i < 10; i++) {
-		if ((core_link_read_dpcd(link, DP_SINK_STATUS, &sink_status, 1) == DC_OK) &&
-				(sink_status & DP_INTRA_HOP_AUX_REPLY_INDICATION) == 0)
-			break;
-		udelay(1000);
+	if (encoding == DP_128b_132b_ENCODING) {
+		/* poll for intra-hop disable */
+		for (i = 0; i < 10; i++) {
+			if ((core_link_read_dpcd(link, DP_SINK_STATUS, &sink_status, 1) == DC_OK) &&
+					(sink_status & DP_INTRA_HOP_AUX_REPLY_INDICATION) == 0)
+				break;
+			udelay(1000);
+		}
 	}
 }
 
@@ -2649,7 +2651,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 			&lt_settings);
 
 	/* reset previous training states */
-	dpcd_exit_training_mode(link);
+	dpcd_exit_training_mode(link, encoding);
 
 	/* configure link prior to entering training mode */
 	dpcd_configure_lttpr_mode(link, &lt_settings);
@@ -2670,7 +2672,7 @@ enum link_training_result dc_link_dp_perform_link_training(
 		ASSERT(0);
 
 	/* exit training mode */
-	dpcd_exit_training_mode(link);
+	dpcd_exit_training_mode(link, encoding);
 
 	/* switch to video idle */
 	if ((status == LINK_TRAINING_SUCCESS) || !skip_video_pattern)
