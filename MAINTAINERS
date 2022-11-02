@@ -15630,7 +15630,7 @@ F:	drivers/input/serio/gscps2.c
 F:	drivers/input/serio/hp_sdc*
 F:	drivers/parisc/
 F:	drivers/parport/parport_gsc.*
-F:	drivers/tty/serial/8250/8250_gsc.c
+F:	drivers/tty/serial/8250/8250_parisc.c
 F:	drivers/video/console/sti*
 F:	drivers/video/fbdev/sti*
 F:	drivers/video/logo/logo_parisc*
