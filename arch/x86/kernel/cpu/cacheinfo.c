@@ -1133,7 +1133,7 @@ static void cache_cpu_init(void)
 		mtrr_generic_set_state();
 
 	if (memory_caching_control & CACHE_PAT)
-		pat_init();
+		pat_cpu_init();
 
 	cache_enable();
 	local_irq_restore(flags);
@@ -1162,6 +1162,7 @@ static int cache_rendezvous_handler(void *unused)
 void __init cache_bp_init(void)
 {
 	mtrr_bp_init();
+	pat_bp_init();
 
 	if (memory_caching_control)
 		cache_cpu_init();
