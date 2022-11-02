@@ -456,11 +456,6 @@ static int cedrus_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dev->dec_ops[CEDRUS_CODEC_MPEG2] = &cedrus_dec_ops_mpeg2;
-	dev->dec_ops[CEDRUS_CODEC_H264] = &cedrus_dec_ops_h264;
-	dev->dec_ops[CEDRUS_CODEC_H265] = &cedrus_dec_ops_h265;
-	dev->dec_ops[CEDRUS_CODEC_VP8] = &cedrus_dec_ops_vp8;
-
 	mutex_init(&dev->dev_mutex);
 
 	INIT_DELAYED_WORK(&dev->watchdog_work, cedrus_watchdog);

@@ -132,12 +132,12 @@ static irqreturn_t cedrus_irq(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	status = dev->dec_ops[ctx->current_codec]->irq_status(ctx);
+	status = ctx->current_codec->irq_status(ctx);
 	if (status == CEDRUS_IRQ_NONE)
 		return IRQ_NONE;
 
-	dev->dec_ops[ctx->current_codec]->irq_disable(ctx);
-	dev->dec_ops[ctx->current_codec]->irq_clear(ctx);
+	ctx->current_codec->irq_disable(ctx);
+	ctx->current_codec->irq_clear(ctx);
 
 	if (status == CEDRUS_IRQ_ERROR)
 		state = VB2_BUF_STATE_ERROR;

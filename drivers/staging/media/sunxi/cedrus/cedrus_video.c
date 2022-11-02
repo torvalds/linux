@@ -333,6 +333,21 @@ static int cedrus_s_fmt_vid_out_p(struct cedrus_ctx *ctx,
 		break;
 	}
 
+	switch (ctx->src_fmt.pixelformat) {
+	case V4L2_PIX_FMT_MPEG2_SLICE:
+		ctx->current_codec = &cedrus_dec_ops_mpeg2;
+		break;
+	case V4L2_PIX_FMT_H264_SLICE:
+		ctx->current_codec = &cedrus_dec_ops_h264;
+		break;
+	case V4L2_PIX_FMT_HEVC_SLICE:
+		ctx->current_codec = &cedrus_dec_ops_h265;
+		break;
+	case V4L2_PIX_FMT_VP8_FRAME:
+		ctx->current_codec = &cedrus_dec_ops_vp8;
+		break;
+	}
+
 	/* Propagate format information to capture. */
 	ctx->dst_fmt.colorspace = pix_fmt->colorspace;
 	ctx->dst_fmt.xfer_func = pix_fmt->xfer_func;
@@ -491,34 +506,13 @@ static int cedrus_start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct cedrus_dev *dev = ctx->dev;
 	int ret = 0;
 
-	switch (ctx->src_fmt.pixelformat) {
-	case V4L2_PIX_FMT_MPEG2_SLICE:
-		ctx->current_codec = CEDRUS_CODEC_MPEG2;
-		break;
-
-	case V4L2_PIX_FMT_H264_SLICE:
-		ctx->current_codec = CEDRUS_CODEC_H264;
-		break;
-
-	case V4L2_PIX_FMT_HEVC_SLICE:
-		ctx->current_codec = CEDRUS_CODEC_H265;
-		break;
-
-	case V4L2_PIX_FMT_VP8_FRAME:
-		ctx->current_codec = CEDRUS_CODEC_VP8;
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
 	if (V4L2_TYPE_IS_OUTPUT(vq->type)) {
 		ret = pm_runtime_resume_and_get(dev->dev);
 		if (ret < 0)
 			goto err_cleanup;
 
-		if (dev->dec_ops[ctx->current_codec]->start) {
-			ret = dev->dec_ops[ctx->current_codec]->start(ctx);
+		if (ctx->current_codec->start) {
+			ret = ctx->current_codec->start(ctx);
 			if (ret)
 				goto err_pm;
 		}
@@ -540,8 +534,8 @@ static void cedrus_stop_streaming(struct vb2_queue *vq)
 	struct cedrus_dev *dev = ctx->dev;
 
 	if (V4L2_TYPE_IS_OUTPUT(vq->type)) {
-		if (dev->dec_ops[ctx->current_codec]->stop)
-			dev->dec_ops[ctx->current_codec]->stop(ctx);
+		if (ctx->current_codec->stop)
+			ctx->current_codec->stop(ctx);
 
 		pm_runtime_put(dev->dev);
 	}
