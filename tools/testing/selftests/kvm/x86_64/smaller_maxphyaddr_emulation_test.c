@@ -8,6 +8,8 @@
 
 #define _GNU_SOURCE /* for program_invocation_short_name */
 
+#include "flds_emulation.h"
+
 #include "test_util.h"
 #include "kvm_util.h"
 #include "vmx.h"
@@ -19,48 +21,10 @@
 #define MEM_REGION_SLOT	10
 #define MEM_REGION_SIZE PAGE_SIZE
 
-#define FLDS_MEM_EAX ".byte 0xd9, 0x00"
-
 static void guest_code(void)
 {
-	__asm__ __volatile__(FLDS_MEM_EAX :: "a"(MEM_REGION_GVA));
-
+	flds(MEM_REGION_GVA);
 	GUEST_DONE();
-}
-
-static void process_exit_on_emulation_error(struct kvm_vcpu *vcpu)
-{
-	struct kvm_run *run = vcpu->run;
-	struct kvm_regs regs;
-	uint8_t *insn_bytes;
-	uint64_t flags;
-
-	TEST_ASSERT(run->exit_reason == KVM_EXIT_INTERNAL_ERROR,
-		    "Unexpected exit reason: %u (%s)",
-		    run->exit_reason,
-		    exit_reason_str(run->exit_reason));
-
-	TEST_ASSERT(run->emulation_failure.suberror == KVM_INTERNAL_ERROR_EMULATION,
-		    "Unexpected suberror: %u",
-		    run->emulation_failure.suberror);
-
-	flags = run->emulation_failure.flags;
-	TEST_ASSERT(run->emulation_failure.ndata >= 3 &&
-		    flags & KVM_INTERNAL_ERROR_EMULATION_FLAG_INSTRUCTION_BYTES,
-		    "run->emulation_failure is missing instruction bytes");
-
-	TEST_ASSERT(run->emulation_failure.insn_size >= 2,
-		    "Expected a 2-byte opcode for 'flds', got %d bytes",
-		    run->emulation_failure.insn_size);
-
-	insn_bytes = run->emulation_failure.insn_bytes;
-	TEST_ASSERT(insn_bytes[0] == 0xd9 && insn_bytes[1] == 0,
-		    "Expected 'flds [eax]', opcode '0xd9 0x00', got opcode 0x%02x 0x%02x\n",
-		    insn_bytes[0], insn_bytes[1]);
-
-	vcpu_regs_get(vcpu, &regs);
-	regs.rip += 2;
-	vcpu_regs_set(vcpu, &regs);
 }
 
 int main(int argc, char *argv[])
@@ -96,7 +60,7 @@ int main(int argc, char *argv[])
 	*pte |= BIT_ULL(MAXPHYADDR);
 
 	vcpu_run(vcpu);
-	process_exit_on_emulation_error(vcpu);
+	handle_flds_emulation_failure_exit(vcpu);
 	vcpu_run(vcpu);
 	ASSERT_EQ(get_ucall(vcpu, NULL), UCALL_DONE);
 
