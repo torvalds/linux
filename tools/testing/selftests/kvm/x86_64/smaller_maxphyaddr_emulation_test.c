@@ -2,7 +2,8 @@
 /*
  * Copyright (C) 2020, Google LLC.
  *
- * Tests for KVM_CAP_EXIT_ON_EMULATION_FAILURE capability.
+ * Test that KVM emulates instructions in response to EPT violations when
+ * allow_smaller_maxphyaddr is enabled and guest.MAXPHYADDR < host.MAXPHYADDR.
  */
 
 #define _GNU_SOURCE /* for program_invocation_short_name */
