@@ -356,6 +356,7 @@ static void elf_add_symbol(struct elf *elf, struct symbol *sym)
 	struct rb_node *pnode;
 	struct symbol *iter;
 
+	INIT_LIST_HEAD(&sym->reloc_list);
 	INIT_LIST_HEAD(&sym->pv_target);
 	sym->alias = sym;
 
@@ -557,6 +558,7 @@ int elf_add_reloc(struct elf *elf, struct section *sec, unsigned long offset,
 	reloc->sym = sym;
 	reloc->addend = addend;
 
+	list_add_tail(&reloc->sym_reloc_entry, &sym->reloc_list);
 	list_add_tail(&reloc->list, &sec->reloc->reloc_list);
 	elf_hash_add(reloc, &reloc->hash, reloc_hash(reloc));
 
@@ -573,21 +575,10 @@ int elf_add_reloc(struct elf *elf, struct section *sec, unsigned long offset,
  */
 static void elf_dirty_reloc_sym(struct elf *elf, struct symbol *sym)
 {
-	struct section *sec;
+	struct reloc *reloc;
 
-	list_for_each_entry(sec, &elf->sections, list) {
-		struct reloc *reloc;
-
-		if (sec->changed)
-			continue;
-
-		list_for_each_entry(reloc, &sec->reloc_list, list) {
-			if (reloc->sym == sym) {
-				sec->changed = true;
-				break;
-			}
-		}
-	}
+	list_for_each_entry(reloc, &sym->reloc_list, sym_reloc_entry)
+		reloc->sec->changed = true;
 }
 
 /*
@@ -902,11 +893,12 @@ static int read_rela_reloc(struct section *sec, int i, struct reloc *reloc, unsi
 
 static int read_relocs(struct elf *elf)
 {
+	unsigned long nr_reloc, max_reloc = 0, tot_reloc = 0;
 	struct section *sec;
 	struct reloc *reloc;
-	int i;
 	unsigned int symndx;
-	unsigned long nr_reloc, max_reloc = 0, tot_reloc = 0;
+	struct symbol *sym;
+	int i;
 
 	if (!elf_alloc_hash(reloc, elf->text_size / 16))
 		return -1;
@@ -947,13 +939,14 @@ static int read_relocs(struct elf *elf)
 
 			reloc->sec = sec;
 			reloc->idx = i;
-			reloc->sym = find_symbol_by_index(elf, symndx);
+			reloc->sym = sym = find_symbol_by_index(elf, symndx);
 			if (!reloc->sym) {
 				WARN("can't find reloc entry symbol %d for %s",
 				     symndx, sec->name);
 				return -1;
 			}
 
+			list_add_tail(&reloc->sym_reloc_entry, &sym->reloc_list);
 			list_add_tail(&reloc->list, &sec->reloc_list);
 			elf_hash_add(reloc, &reloc->hash, reloc_hash(reloc));
 
