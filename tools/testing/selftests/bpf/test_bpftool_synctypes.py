@@ -501,6 +501,14 @@ def main():
     source_map_types = set(bpf_info.get_map_type_map().values())
     source_map_types.discard('unspec')
 
+    # BPF_MAP_TYPE_CGROUP_STORAGE_DEPRECATED and BPF_MAP_TYPE_CGROUP_STORAGE
+    # share the same enum value and source_map_types picks
+    # BPF_MAP_TYPE_CGROUP_STORAGE_DEPRECATED/cgroup_storage_deprecated.
+    # Replace 'cgroup_storage_deprecated' with 'cgroup_storage'
+    # so it aligns with what `bpftool map help` shows.
+    source_map_types.remove('cgroup_storage_deprecated')
+    source_map_types.add('cgroup_storage')
+
     help_map_types = map_info.get_map_help()
     help_map_options = map_info.get_options()
     map_info.close()

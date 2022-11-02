@@ -941,10 +941,10 @@ static void test_bpf_array_map(void)
 {
 	__u64 val, expected_val = 0, res_first_val, first_val = 0;
 	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
-	__u32 expected_key = 0, res_first_key;
+	__u32 key, expected_key = 0, res_first_key;
+	int err, i, map_fd, hash_fd, iter_fd;
 	struct bpf_iter_bpf_array_map *skel;
 	union bpf_iter_link_info linfo;
-	int err, i, map_fd, iter_fd;
 	struct bpf_link *link;
 	char buf[64] = {};
 	int len, start;
@@ -1001,12 +1001,20 @@ static void test_bpf_array_map(void)
 	if (!ASSERT_EQ(skel->bss->val_sum, expected_val, "val_sum"))
 		goto close_iter;
 
+	hash_fd = bpf_map__fd(skel->maps.hashmap1);
 	for (i = 0; i < bpf_map__max_entries(skel->maps.arraymap1); i++) {
 		err = bpf_map_lookup_elem(map_fd, &i, &val);
-		if (!ASSERT_OK(err, "map_lookup"))
-			goto out;
-		if (!ASSERT_EQ(i, val, "invalid_val"))
-			goto out;
+		if (!ASSERT_OK(err, "map_lookup arraymap1"))
+			goto close_iter;
+		if (!ASSERT_EQ(i, val, "invalid_val arraymap1"))
+			goto close_iter;
+
+		val = i + 4;
+		err = bpf_map_lookup_elem(hash_fd, &val, &key);
+		if (!ASSERT_OK(err, "map_lookup hashmap1"))
+			goto close_iter;
+		if (!ASSERT_EQ(key, val - 4, "invalid_val hashmap1"))
+			goto close_iter;
 	}
 
 close_iter:

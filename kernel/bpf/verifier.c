@@ -5634,16 +5634,6 @@ struct bpf_reg_types {
 	u32 *btf_id;
 };
 
-static const struct bpf_reg_types map_key_value_types = {
-	.types = {
-		PTR_TO_STACK,
-		PTR_TO_PACKET,
-		PTR_TO_PACKET_META,
-		PTR_TO_MAP_KEY,
-		PTR_TO_MAP_VALUE,
-	},
-};
-
 static const struct bpf_reg_types sock_types = {
 	.types = {
 		PTR_TO_SOCK_COMMON,
@@ -5710,8 +5700,8 @@ static const struct bpf_reg_types dynptr_types = {
 };
 
 static const struct bpf_reg_types *compatible_reg_types[__BPF_ARG_TYPE_MAX] = {
-	[ARG_PTR_TO_MAP_KEY]		= &map_key_value_types,
-	[ARG_PTR_TO_MAP_VALUE]		= &map_key_value_types,
+	[ARG_PTR_TO_MAP_KEY]		= &mem_types,
+	[ARG_PTR_TO_MAP_VALUE]		= &mem_types,
 	[ARG_CONST_SIZE]		= &scalar_types,
 	[ARG_CONST_SIZE_OR_ZERO]	= &scalar_types,
 	[ARG_CONST_ALLOC_SIZE_OR_ZERO]	= &scalar_types,
@@ -6360,6 +6350,11 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 		    func_id != BPF_FUNC_task_storage_delete)
 			goto error;
 		break;
+	case BPF_MAP_TYPE_CGRP_STORAGE:
+		if (func_id != BPF_FUNC_cgrp_storage_get &&
+		    func_id != BPF_FUNC_cgrp_storage_delete)
+			goto error;
+		break;
 	case BPF_MAP_TYPE_BLOOM_FILTER:
 		if (func_id != BPF_FUNC_map_peek_elem &&
 		    func_id != BPF_FUNC_map_push_elem)
@@ -6470,6 +6465,11 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 	case BPF_FUNC_task_storage_get:
 	case BPF_FUNC_task_storage_delete:
 		if (map->map_type != BPF_MAP_TYPE_TASK_STORAGE)
+			goto error;
+		break;
+	case BPF_FUNC_cgrp_storage_get:
+	case BPF_FUNC_cgrp_storage_delete:
+		if (map->map_type != BPF_MAP_TYPE_CGRP_STORAGE)
 			goto error;
 		break;
 	default:
@@ -10671,7 +10671,7 @@ static int check_return_code(struct bpf_verifier_env *env)
  * 3      let S be a stack
  * 4      S.push(v)
  * 5      while S is not empty
- * 6            t <- S.pop()
+ * 6            t <- S.peek()
  * 7            if t is what we're looking for:
  * 8                return t
  * 9            for all edges e in G.adjacentEdges(t) do
@@ -14150,7 +14150,8 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 
 		if (insn->imm == BPF_FUNC_task_storage_get ||
 		    insn->imm == BPF_FUNC_sk_storage_get ||
-		    insn->imm == BPF_FUNC_inode_storage_get) {
+		    insn->imm == BPF_FUNC_inode_storage_get ||
+		    insn->imm == BPF_FUNC_cgrp_storage_get) {
 			if (env->prog->aux->sleepable)
 				insn_buf[0] = BPF_MOV64_IMM(BPF_REG_5, (__force __s32)GFP_KERNEL);
 			else

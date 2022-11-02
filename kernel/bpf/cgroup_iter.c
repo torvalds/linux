@@ -157,7 +157,7 @@ static const struct seq_operations cgroup_iter_seq_ops = {
 	.show   = cgroup_iter_seq_show,
 };
 
-BTF_ID_LIST_SINGLE(bpf_cgroup_btf_id, struct, cgroup)
+BTF_ID_LIST_GLOBAL_SINGLE(bpf_cgroup_btf_id, struct, cgroup)
 
 static int cgroup_iter_seq_init(void *priv, struct bpf_iter_aux_info *aux)
 {

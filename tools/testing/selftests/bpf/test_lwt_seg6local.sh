@@ -23,6 +23,7 @@
 
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
+BPF_FILE="test_lwt_seg6local.bpf.o"
 readonly NS1="ns1-$(mktemp -u XXXXXX)"
 readonly NS2="ns2-$(mktemp -u XXXXXX)"
 readonly NS3="ns3-$(mktemp -u XXXXXX)"
@@ -117,18 +118,18 @@ ip netns exec ${NS6} ip -6 addr add fb00::109/16 dev veth10 scope link
 ip netns exec ${NS1} ip -6 addr add fb00::1/16 dev lo
 ip netns exec ${NS1} ip -6 route add fb00::6 dev veth1 via fb00::21
 
-ip netns exec ${NS2} ip -6 route add fb00::6 encap bpf in obj test_lwt_seg6local.o sec encap_srh dev veth2
+ip netns exec ${NS2} ip -6 route add fb00::6 encap bpf in obj ${BPF_FILE} sec encap_srh dev veth2
 ip netns exec ${NS2} ip -6 route add fd00::1 dev veth3 via fb00::43 scope link
 
 ip netns exec ${NS3} ip -6 route add fc42::1 dev veth5 via fb00::65
-ip netns exec ${NS3} ip -6 route add fd00::1 encap seg6local action End.BPF endpoint obj test_lwt_seg6local.o sec add_egr_x dev veth4
+ip netns exec ${NS3} ip -6 route add fd00::1 encap seg6local action End.BPF endpoint obj ${BPF_FILE} sec add_egr_x dev veth4
 
-ip netns exec ${NS4} ip -6 route add fd00::2 encap seg6local action End.BPF endpoint obj test_lwt_seg6local.o sec pop_egr dev veth6
+ip netns exec ${NS4} ip -6 route add fd00::2 encap seg6local action End.BPF endpoint obj ${BPF_FILE} sec pop_egr dev veth6
 ip netns exec ${NS4} ip -6 addr add fc42::1 dev lo
 ip netns exec ${NS4} ip -6 route add fd00::3 dev veth7 via fb00::87
 
 ip netns exec ${NS5} ip -6 route add fd00::4 table 117 dev veth9 via fb00::109
-ip netns exec ${NS5} ip -6 route add fd00::3 encap seg6local action End.BPF endpoint obj test_lwt_seg6local.o sec inspect_t dev veth8
+ip netns exec ${NS5} ip -6 route add fd00::3 encap seg6local action End.BPF endpoint obj ${BPF_FILE} sec inspect_t dev veth8
 
 ip netns exec ${NS6} ip -6 addr add fb00::6/16 dev lo
 ip netns exec ${NS6} ip -6 addr add fd00::4/16 dev lo

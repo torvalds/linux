@@ -4,6 +4,9 @@
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
+BPF_FILE_USED="metadata_used.bpf.o"
+BPF_FILE_UNUSED="metadata_unused.bpf.o"
+
 TESTNAME=bpftool_metadata
 BPF_FS=$(awk '$3 == "bpf" {print $2; exit}' /proc/mounts)
 BPF_DIR=$BPF_FS/test_$TESTNAME
@@ -55,7 +58,7 @@ mkdir $BPF_DIR
 
 trap cleanup EXIT
 
-bpftool prog load metadata_unused.o $BPF_DIR/unused
+bpftool prog load $BPF_FILE_UNUSED $BPF_DIR/unused
 
 METADATA_PLAIN="$(bpftool prog)"
 echo "$METADATA_PLAIN" | grep 'a = "foo"' > /dev/null
@@ -67,7 +70,7 @@ bpftool map | grep 'metadata.rodata' > /dev/null
 
 rm $BPF_DIR/unused
 
-bpftool prog load metadata_used.o $BPF_DIR/used
+bpftool prog load $BPF_FILE_USED $BPF_DIR/used
 
 METADATA_PLAIN="$(bpftool prog)"
 echo "$METADATA_PLAIN" | grep 'a = "bar"' > /dev/null
