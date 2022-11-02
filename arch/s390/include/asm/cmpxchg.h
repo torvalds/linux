@@ -88,11 +88,10 @@ static __always_inline unsigned long __cmpxchg(unsigned long address,
 					       unsigned long old,
 					       unsigned long new, int size)
 {
-	unsigned long prev, tmp;
-	int shift;
-
 	switch (size) {
-	case 1:
+	case 1: {
+		unsigned int prev, tmp, shift;
+
 		shift = (3 ^ (address & 3)) << 3;
 		address ^= address & 3;
 		asm volatile(
@@ -115,7 +114,10 @@ static __always_inline unsigned long __cmpxchg(unsigned long address,
 			  [mask] "d" (~(0xff << shift))
 			: "memory", "cc");
 		return prev >> shift;
-	case 2:
+	}
+	case 2: {
+		unsigned int prev, tmp, shift;
+
 		shift = (2 ^ (address & 2)) << 3;
 		address ^= address & 2;
 		asm volatile(
@@ -138,16 +140,22 @@ static __always_inline unsigned long __cmpxchg(unsigned long address,
 			  [mask] "d" (~(0xffff << shift))
 			: "memory", "cc");
 		return prev >> shift;
-	case 4:
+	}
+	case 4: {
+		unsigned int prev;
+
 		asm volatile(
 			"	cs	%[prev],%[new],%[address]\n"
 			: [prev] "=&d" (prev),
 			  [address] "+Q" (*(int *)address)
-			: "0" (old),
+			: "0" ((unsigned int)old),
 			  [new] "d" (new)
 			: "memory", "cc");
 		return prev;
-	case 8:
+	}
+	case 8: {
+		unsigned long prev;
+
 		asm volatile(
 			"	csg	%[prev],%[new],%[address]\n"
 			: [prev] "=&d" (prev),
@@ -156,6 +164,7 @@ static __always_inline unsigned long __cmpxchg(unsigned long address,
 			  [new] "d" (new)
 			: "memory", "cc");
 		return prev;
+	}
 	}
 	__cmpxchg_called_with_bad_pointer();
 	return old;
