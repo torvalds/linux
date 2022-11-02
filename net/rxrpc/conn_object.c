@@ -363,7 +363,7 @@ static void rxrpc_destroy_connection(struct rcu_head *rcu)
 
 	conn->security->clear(conn);
 	key_put(conn->key);
-	rxrpc_put_bundle(conn->bundle);
+	rxrpc_put_bundle(conn->bundle, rxrpc_bundle_put_conn);
 	rxrpc_put_peer(conn->peer, rxrpc_peer_put_conn);
 
 	if (atomic_dec_and_test(&conn->local->rxnet->nr_conns))

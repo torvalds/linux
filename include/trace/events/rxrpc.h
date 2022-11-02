@@ -81,6 +81,15 @@
 	EM(rxrpc_peer_put_input_error,		"PUT inpt-err") \
 	E_(rxrpc_peer_put_keepalive,		"PUT keepaliv")
 
+#define rxrpc_bundle_traces \
+	EM(rxrpc_bundle_free,			"FREE        ") \
+	EM(rxrpc_bundle_get_client_call,	"GET clt-call") \
+	EM(rxrpc_bundle_get_client_conn,	"GET clt-conn") \
+	EM(rxrpc_bundle_get_service_conn,	"GET svc-conn") \
+	EM(rxrpc_bundle_put_conn,		"PUT conn    ") \
+	EM(rxrpc_bundle_put_discard,		"PUT discard ") \
+	E_(rxrpc_bundle_new,			"NEW         ")
+
 #define rxrpc_conn_traces \
 	EM(rxrpc_conn_free,			"FREE        ") \
 	EM(rxrpc_conn_get_activate_call,	"GET act-call") \
@@ -361,6 +370,7 @@
 #define EM(a, b) a,
 #define E_(a, b) a
 
+enum rxrpc_bundle_trace		{ rxrpc_bundle_traces } __mode(byte);
 enum rxrpc_call_trace		{ rxrpc_call_traces } __mode(byte);
 enum rxrpc_client_trace		{ rxrpc_client_traces } __mode(byte);
 enum rxrpc_congest_change	{ rxrpc_congest_changes } __mode(byte);
@@ -390,6 +400,7 @@ enum rxrpc_txqueue_trace	{ rxrpc_txqueue_traces } __mode(byte);
 #define EM(a, b) TRACE_DEFINE_ENUM(a);
 #define E_(a, b) TRACE_DEFINE_ENUM(a);
 
+rxrpc_bundle_traces;
 rxrpc_call_traces;
 rxrpc_client_traces;
 rxrpc_congest_changes;
@@ -464,6 +475,29 @@ TRACE_EVENT(rxrpc_peer,
 	    TP_printk("P=%08x %s r=%d",
 		      __entry->peer,
 		      __print_symbolic(__entry->why, rxrpc_peer_traces),
+		      __entry->ref)
+	    );
+
+TRACE_EVENT(rxrpc_bundle,
+	    TP_PROTO(unsigned int bundle_debug_id, int ref, enum rxrpc_bundle_trace why),
+
+	    TP_ARGS(bundle_debug_id, ref, why),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	bundle		)
+		    __field(int,		ref		)
+		    __field(int,		why		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->bundle = bundle_debug_id;
+		    __entry->ref = ref;
+		    __entry->why = why;
+			   ),
+
+	    TP_printk("CB=%08x %s r=%d",
+		      __entry->bundle,
+		      __print_symbolic(__entry->why, rxrpc_bundle_traces),
 		      __entry->ref)
 	    );
 

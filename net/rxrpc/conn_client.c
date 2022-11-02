@@ -133,31 +133,36 @@ static struct rxrpc_bundle *rxrpc_alloc_bundle(struct rxrpc_conn_parameters *cp,
 		atomic_set(&bundle->active, 1);
 		spin_lock_init(&bundle->channel_lock);
 		INIT_LIST_HEAD(&bundle->waiting_calls);
+		trace_rxrpc_bundle(bundle->debug_id, 1, rxrpc_bundle_new);
 	}
 	return bundle;
 }
 
-struct rxrpc_bundle *rxrpc_get_bundle(struct rxrpc_bundle *bundle)
+struct rxrpc_bundle *rxrpc_get_bundle(struct rxrpc_bundle *bundle,
+				      enum rxrpc_bundle_trace why)
 {
-	refcount_inc(&bundle->ref);
+	int r;
+
+	__refcount_inc(&bundle->ref, &r);
+	trace_rxrpc_bundle(bundle->debug_id, r + 1, why);
 	return bundle;
 }
 
 static void rxrpc_free_bundle(struct rxrpc_bundle *bundle)
 {
+	trace_rxrpc_bundle(bundle->debug_id, 1, rxrpc_bundle_free);
 	rxrpc_put_peer(bundle->peer, rxrpc_peer_put_bundle);
 	kfree(bundle);
 }
 
-void rxrpc_put_bundle(struct rxrpc_bundle *bundle)
+void rxrpc_put_bundle(struct rxrpc_bundle *bundle, enum rxrpc_bundle_trace why)
 {
-	unsigned int d = bundle->debug_id;
+	unsigned int id = bundle->debug_id;
 	bool dead;
 	int r;
 
 	dead = __refcount_dec_and_test(&bundle->ref, &r);
-
-	_debug("PUT B=%x %d", d, r - 1);
+	trace_rxrpc_bundle(id, r - 1, why);
 	if (dead)
 		rxrpc_free_bundle(bundle);
 }
@@ -206,7 +211,7 @@ rxrpc_alloc_client_connection(struct rxrpc_bundle *bundle, gfp_t gfp)
 	list_add_tail(&conn->proc_link, &rxnet->conn_proc_list);
 	write_unlock(&rxnet->conn_lock);
 
-	rxrpc_get_bundle(bundle);
+	rxrpc_get_bundle(bundle, rxrpc_bundle_get_client_conn);
 	rxrpc_get_peer(conn->peer, rxrpc_peer_get_client_conn);
 	rxrpc_get_local(conn->local, rxrpc_local_get_client_conn);
 	key_get(conn->key);
@@ -342,7 +347,7 @@ static struct rxrpc_bundle *rxrpc_look_up_bundle(struct rxrpc_conn_parameters *c
 	candidate->debug_id = atomic_inc_return(&rxrpc_bundle_id);
 	rb_link_node(&candidate->local_node, parent, pp);
 	rb_insert_color(&candidate->local_node, &local->client_bundles);
-	rxrpc_get_bundle(candidate);
+	rxrpc_get_bundle(candidate, rxrpc_bundle_get_client_call);
 	spin_unlock(&local->client_bundles_lock);
 	_leave(" = %u [new]", candidate->debug_id);
 	return candidate;
@@ -350,7 +355,7 @@ static struct rxrpc_bundle *rxrpc_look_up_bundle(struct rxrpc_conn_parameters *c
 found_bundle_free:
 	rxrpc_free_bundle(candidate);
 found_bundle:
-	rxrpc_get_bundle(bundle);
+	rxrpc_get_bundle(bundle, rxrpc_bundle_get_client_call);
 	atomic_inc(&bundle->active);
 	spin_unlock(&local->client_bundles_lock);
 	_leave(" = %u [found]", bundle->debug_id);
@@ -740,7 +745,7 @@ granted_channel:
 
 out_put_bundle:
 	rxrpc_deactivate_bundle(bundle);
-	rxrpc_put_bundle(bundle);
+	rxrpc_put_bundle(bundle, rxrpc_bundle_get_client_call);
 out:
 	_leave(" = %d", ret);
 	return ret;
@@ -958,7 +963,7 @@ static void rxrpc_deactivate_bundle(struct rxrpc_bundle *bundle)
 
 		spin_unlock(&local->client_bundles_lock);
 		if (need_put)
-			rxrpc_put_bundle(bundle);
+			rxrpc_put_bundle(bundle, rxrpc_bundle_put_discard);
 	}
 }
 
