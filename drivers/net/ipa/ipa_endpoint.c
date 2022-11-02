@@ -1802,12 +1802,12 @@ static void ipa_endpoint_setup_one(struct ipa_endpoint *endpoint)
 
 	ipa_endpoint_program(endpoint);
 
-	endpoint->ipa->set_up |= BIT(endpoint->endpoint_id);
+	__set_bit(endpoint->endpoint_id, endpoint->ipa->set_up);
 }
 
 static void ipa_endpoint_teardown_one(struct ipa_endpoint *endpoint)
 {
-	endpoint->ipa->set_up &= ~BIT(endpoint->endpoint_id);
+	__clear_bit(endpoint->endpoint_id, endpoint->ipa->set_up);
 
 	if (!endpoint->toward_ipa)
 		cancel_delayed_work_sync(&endpoint->replenish_work);
@@ -1819,23 +1819,16 @@ void ipa_endpoint_setup(struct ipa *ipa)
 {
 	u32 endpoint_id;
 
-	ipa->set_up = 0;
 	for_each_set_bit(endpoint_id, ipa->defined, ipa->endpoint_count)
 		ipa_endpoint_setup_one(&ipa->endpoint[endpoint_id]);
 }
 
 void ipa_endpoint_teardown(struct ipa *ipa)
 {
-	u32 set_up = ipa->set_up;
+	u32 endpoint_id;
 
-	while (set_up) {
-		u32 endpoint_id = __fls(set_up);
-
-		set_up ^= BIT(endpoint_id);
-
+	for_each_set_bit(endpoint_id, ipa->set_up, ipa->endpoint_count)
 		ipa_endpoint_teardown_one(&ipa->endpoint[endpoint_id]);
-	}
-	ipa->set_up = 0;
 }
 
 void ipa_endpoint_deconfig(struct ipa *ipa)
@@ -1978,6 +1971,8 @@ void ipa_endpoint_exit(struct ipa *ipa)
 	for_each_set_bit(endpoint_id, ipa->defined, ipa->endpoint_count)
 		ipa_endpoint_exit_one(&ipa->endpoint[endpoint_id]);
 
+	bitmap_free(ipa->set_up);
+	ipa->set_up = NULL;
 	bitmap_free(ipa->defined);
 	ipa->defined = NULL;
 
@@ -1999,10 +1994,14 @@ int ipa_endpoint_init(struct ipa *ipa, u32 count,
 	if (!ipa->endpoint_count)
 		return -EINVAL;
 
-	/* Initialize the defined endpoint bitmap */
+	/* Initialize endpoint state bitmaps */
 	ipa->defined = bitmap_zalloc(ipa->endpoint_count, GFP_KERNEL);
 	if (!ipa->defined)
 		return -ENOMEM;
+
+	ipa->set_up = bitmap_zalloc(ipa->endpoint_count, GFP_KERNEL);
+	if (!ipa->set_up)
+		goto err_free_defined;
 
 	filtered = 0;
 	for (name = 0; name < count; name++, data++) {
@@ -2017,15 +2016,20 @@ int ipa_endpoint_init(struct ipa *ipa, u32 count,
 			ipa->modem_tx_count++;
 	}
 
-	if (!ipa_filtered_valid(ipa, filtered))
-		goto err_endpoint_exit;
+	/* Make sure the set of filtered endpoints is valid */
+	if (!ipa_filtered_valid(ipa, filtered)) {
+		ipa_endpoint_exit(ipa);
+
+		return -EINVAL;
+	}
 
 	ipa->filtered = filtered;
 
 	return 0;
 
-err_endpoint_exit:
-	ipa_endpoint_exit(ipa);
+err_free_defined:
+	bitmap_free(ipa->defined);
+	ipa->defined = NULL;
 
-	return -EINVAL;
+	return -ENOMEM;
 }
