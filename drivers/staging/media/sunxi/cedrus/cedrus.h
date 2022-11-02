@@ -57,7 +57,7 @@ enum cedrus_h264_pic_type {
 
 struct cedrus_control {
 	struct v4l2_ctrl_config cfg;
-	enum cedrus_codec	codec;
+	unsigned int		capabilities;
 };
 
 struct cedrus_h264_run {
