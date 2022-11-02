@@ -23,6 +23,7 @@
 		hdptxhdmi1 = &hdptxphy_hdmi1;
 		hdmi0 = &hdmi0;
 		hdmi1 = &hdmi1;
+		hdmirx0 = &hdmirx_ctrler;
 		rkcif_mipi_lvds4= &rkcif_mipi_lvds4;
 		rkcif_mipi_lvds5= &rkcif_mipi_lvds5;
 		usbdp0 = &usbdp_phy0;
