@@ -129,9 +129,9 @@ static int dell_wmi_ddv_query_buffer(struct wmi_device *wdev, enum dell_ddv_meth
 	if (obj->package.elements[1].type != ACPI_TYPE_BUFFER)
 		goto err_free;
 
-	if (buffer_size != obj->package.elements[1].buffer.length) {
+	if (buffer_size > obj->package.elements[1].buffer.length) {
 		dev_warn(&wdev->dev,
-			 FW_WARN "ACPI buffer size (%llu) does not match WMI buffer size (%d)\n",
+			 FW_WARN "WMI buffer size (%llu) exceeds ACPI buffer size (%d)\n",
 			 buffer_size, obj->package.elements[1].buffer.length);
 
 		goto err_free;
@@ -271,15 +271,17 @@ static int dell_wmi_ddv_buffer_read(struct seq_file *seq, enum dell_ddv_method m
 	struct device *dev = seq->private;
 	struct dell_wmi_ddv_data *data = dev_get_drvdata(dev);
 	union acpi_object *obj;
-	union acpi_object buf;
+	u64 size;
+	u8 *buf;
 	int ret;
 
 	ret = dell_wmi_ddv_query_buffer(data->wdev, method, 0, &obj);
 	if (ret < 0)
 		return ret;
 
-	buf = obj->package.elements[1];
-	ret = seq_write(seq, buf.buffer.pointer, buf.buffer.length);
+	size = obj->package.elements[0].integer.value;
+	buf = obj->package.elements[1].buffer.pointer;
+	ret = seq_write(seq, buf, size);
 	kfree(obj);
 
 	return ret;
