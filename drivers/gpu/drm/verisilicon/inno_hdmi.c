@@ -482,14 +482,18 @@ static void inno_hdmi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct inno_hdmi *hdmi = to_inno_hdmi(encoder);
 
+	/* for powerdown the innohdmi, syspm can use*/
+	inno_hdmi_set_pwr_mode(hdmi, LOWER_PWR);
+
 	inno_hdmi_set_pwr_mode(hdmi, NORMAL);
 }
 
 static void inno_hdmi_encoder_disable(struct drm_encoder *encoder)
 {
-	struct inno_hdmi *hdmi = to_inno_hdmi(encoder);
-
-	inno_hdmi_set_pwr_mode(hdmi, LOWER_PWR);
+	return;
+	/*mention: if enable, sys pm test will be crashed*/
+	//struct inno_hdmi *hdmi = to_inno_hdmi(encoder);
+	//inno_hdmi_set_pwr_mode(hdmi, LOWER_PWR);
 }
 
 static bool inno_hdmi_encoder_mode_fixup(struct drm_encoder *encoder,
@@ -810,7 +814,7 @@ static int inno_hdmi_get_clk_rst(struct device *dev, struct inno_hdmi *hdmi)
 		DRM_DEV_ERROR(dev, "Unable to get HDMI bclk clk\n");
 		return PTR_ERR(hdmi->bclk);
 	}
-	hdmi->tx_rst = reset_control_get_exclusive(dev, "hdmi_tx");
+	hdmi->tx_rst = reset_control_get_shared(dev, "hdmi_tx");
 	if (IS_ERR(hdmi->tx_rst)) {
 		DRM_DEV_ERROR(dev, "Unable to get HDMI tx rst\n");
 		return PTR_ERR(hdmi->tx_rst);
@@ -818,7 +822,7 @@ static int inno_hdmi_get_clk_rst(struct device *dev, struct inno_hdmi *hdmi)
 	return 0;
 }
 
-static int inno_hdmi_en_clk_deas_rst(struct device *dev, struct inno_hdmi *hdmi)
+static int inno_hdmi_enable_clk_deassert_rst(struct device *dev, struct inno_hdmi *hdmi)
 {
 	int ret;
 
@@ -828,6 +832,7 @@ static int inno_hdmi_en_clk_deas_rst(struct device *dev, struct inno_hdmi *hdmi)
 			      "Cannot enable HDMI sys clock: %d\n", ret);
 		return ret;
 	}
+
 	ret = clk_prepare_enable(hdmi->mclk);
 	if (ret) {
 		DRM_DEV_ERROR(dev,
@@ -840,13 +845,25 @@ static int inno_hdmi_en_clk_deas_rst(struct device *dev, struct inno_hdmi *hdmi)
 			      "Cannot enable HDMI bclk clock: %d\n", ret);
 		return ret;
 	}
-
 	ret = reset_control_deassert(hdmi->tx_rst);
 	if (ret < 0) {
 		dev_err(dev, "failed to deassert tx_rst\n");
 		return ret;
     }
-	return ret;
+	return 0;
+}
+
+static void inno_hdmi_disable_clk_assert_rst(struct device *dev, struct inno_hdmi *hdmi)
+{
+	int ret;
+
+	ret = reset_control_assert(hdmi->tx_rst);
+	if (ret < 0)
+		dev_err(dev, "failed to assert tx_rst\n");
+
+	clk_disable_unprepare(hdmi->sys_clk);
+	clk_disable_unprepare(hdmi->mclk);
+	clk_disable_unprepare(hdmi->bclk);
 }
 
 
@@ -859,6 +876,8 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	struct resource *iores;
 	int irq;
 	int ret;
+
+	dev_info(dev, "inno hdmi bind begin\n");
 
 	hdmi = devm_kzalloc(dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
@@ -895,7 +914,7 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	udelay(100);
 
 	ret = inno_hdmi_get_clk_rst(dev, hdmi);
-	ret = inno_hdmi_en_clk_deas_rst(dev, hdmi);
+	ret = inno_hdmi_enable_clk_deassert_rst(dev, hdmi);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -933,6 +952,10 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	if (ret)
 		dev_err(dev, "failed to audio init\n");
 
+	inno_hdmi_disable_clk_assert_rst(dev, hdmi);
+
+	dev_info(dev, "inno hdmi bind end\n");
+
 	return 0;
 err_cleanup_hdmi:
 	hdmi->connector.funcs->destroy(&hdmi->connector);
@@ -951,20 +974,13 @@ static void inno_hdmi_unbind(struct device *dev, struct device *master,
 			     void *data)
 {
 	struct inno_hdmi *hdmi = dev_get_drvdata(dev);
-	int ret;
 
 	hdmi->connector.funcs->destroy(&hdmi->connector);
 	hdmi->encoder.funcs->destroy(&hdmi->encoder);
 
 	i2c_put_adapter(hdmi->ddc);
 
-	ret = reset_control_assert(hdmi->tx_rst);
-	if (ret < 0)
-		dev_err(dev, "failed to assert tx_rst\n");
-
-	clk_disable_unprepare(hdmi->sys_clk);
-	clk_disable_unprepare(hdmi->mclk);
-	clk_disable_unprepare(hdmi->bclk);
+	inno_hdmi_disable_clk_assert_rst(dev, hdmi);
 
 	regulator_disable(hdmi->hdmi_1p8);
 	udelay(100);

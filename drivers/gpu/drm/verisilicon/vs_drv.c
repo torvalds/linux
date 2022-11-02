@@ -7,6 +7,7 @@
 #include <linux/component.h>
 #include <linux/iommu.h>
 #include <linux/version.h>
+#include <linux/delay.h>
 
 #include <drm/drm_of.h>
 #include <drm/drm_crtc.h>
@@ -35,6 +36,10 @@
 #include "vs_virtual.h"
 #include "dw_mipi_dsi.h"
 
+#include <linux/pm_runtime.h>
+#include <linux/clk.h>
+#include <linux/reset.h>
+
 extern struct platform_driver starfive_encoder_driver;
 
 #define DRV_NAME	"starfive"
@@ -46,10 +51,132 @@ extern struct platform_driver starfive_encoder_driver;
 static bool has_iommu = true;
 static struct platform_driver vs_drm_platform_driver;
 
+struct drm_minor *drm_minor_acquire(unsigned int minor_id);
+
+static int vs_hdmi_get_clk_rst(struct device *dev, struct vs_drm_private *priv)
+{
+	priv->vs_hdmi_sys_clk = devm_clk_get(dev, "hdmi_sysclk");
+	if (IS_ERR(priv->vs_hdmi_sys_clk)) {
+		DRM_DEV_ERROR(dev, "Unable to get HDMI sysclk clk\n");
+		return PTR_ERR(priv->vs_hdmi_sys_clk);
+	}
+
+	priv->vs_hdmi_mclk = devm_clk_get(dev, "hdmi_mclk");
+	if (IS_ERR(priv->vs_hdmi_mclk)) {
+		DRM_DEV_ERROR(dev, "Unable to get HDMI mclk clk\n");
+		return PTR_ERR(priv->vs_hdmi_mclk);
+	}
+	priv->vs_hdmi_bclk = devm_clk_get(dev, "hdmi_bclk");
+	if (IS_ERR(priv->vs_hdmi_bclk)) {
+		DRM_DEV_ERROR(dev, "Unable to get HDMI bclk clk\n");
+		return PTR_ERR(priv->vs_hdmi_bclk);
+	}
+
+	priv->vs_hdmi_tx_rst = reset_control_get_shared(dev, "hdmi_txrst");
+	if (IS_ERR(priv->vs_hdmi_tx_rst)) {
+		DRM_DEV_ERROR(dev, "Unable to get HDMI tx rst in vs_drm\n");
+		return PTR_ERR(priv->vs_hdmi_tx_rst);
+	}
+
+	return 0;
+}
+
+static int vs_hdmi_enable_clk_deassert_rst(struct device *dev, struct vs_drm_private *priv)
+{
+	int ret;
+
+	ret = clk_prepare_enable(priv->vs_hdmi_sys_clk);
+	if (ret) {
+		DRM_DEV_ERROR(dev,
+			      "Cannot enable HDMI sys clock: %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(priv->vs_hdmi_mclk);
+	if (ret) {
+		DRM_DEV_ERROR(dev,
+			      "Cannot enable HDMI mclk clock: %d\n", ret);
+		return ret;
+	}
+	ret = clk_prepare_enable(priv->vs_hdmi_bclk);
+	if (ret) {
+		DRM_DEV_ERROR(dev,
+			      "Cannot enable HDMI bclk clock: %d\n", ret);
+		return ret;
+	}
+	ret = reset_control_deassert(priv->vs_hdmi_tx_rst);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert tx_rst\n");
+		return ret;
+	}
+	return 0;
+}
+
+static void vs_hdmi_disable_clk_assert_rst(struct device *dev, struct vs_drm_private *priv)
+{
+	int ret;
+
+	ret = reset_control_assert(priv->vs_hdmi_tx_rst);
+	if (ret < 0)
+		dev_err(dev, "failed to assert tx_rst in vs_drm\n");
+
+	clk_disable_unprepare(priv->vs_hdmi_sys_clk);
+	clk_disable_unprepare(priv->vs_hdmi_mclk);
+	clk_disable_unprepare(priv->vs_hdmi_bclk);
+}
+
+static int vs_drm_open(struct inode *inode, struct file *filp)
+{
+	struct drm_minor *minor; //= file_priv->minor;
+	struct drm_device *drm_dev; //= minor->dev;
+	struct device *dev;
+	int ret;
+	struct vs_drm_private *priv;
+
+	minor = drm_minor_acquire(iminor(inode));
+	if (IS_ERR(minor))
+		return PTR_ERR(minor);
+
+	dev = minor->dev->dev;
+	dev_info(dev, "vs drm open\n");
+
+	drm_dev = dev_get_drvdata(dev);
+	priv = drm_dev->dev_private;
+
+	ret = vs_hdmi_enable_clk_deassert_rst(dev, priv);
+	if (ret < 0) {
+		dev_err(dev, "failed to enable clk or deassert rst in %s\n", __func__);
+		return ret;
+	}
+	return drm_open(inode, filp);
+}
+
+static int vs_drm_release(struct inode *inode, struct file *filp)
+{
+	struct drm_file *file_priv = filp->private_data;
+	struct drm_minor *minor = file_priv->minor;
+	struct device *dev;
+
+	dev = minor->dev->dev;
+	dev_info(dev, "vs drm release\n");
+
+	return drm_release(inode, filp);
+}
+
+static void vs_drm_lastclose(struct drm_device *dev)
+{
+	struct vs_drm_private *priv;
+
+	dev_info(dev->dev, "vs drm lastclose\n");
+	drm_fb_helper_lastclose(dev);
+	priv = dev->dev_private;
+	vs_hdmi_disable_clk_assert_rst(dev->dev, priv);
+}
+
 static const struct file_operations fops = {
 	.owner			= THIS_MODULE,
-	.open			= drm_open,
-	.release		= drm_release,
+	.open			= vs_drm_open,//drm_open,
+	.release		= vs_drm_release,//drm_release,
 	.unlocked_ioctl	= drm_ioctl,
 	.compat_ioctl	= drm_compat_ioctl,
 	.poll			= drm_poll,
@@ -119,7 +246,7 @@ static int vs_debugfs_init(struct drm_minor *minor)
 
 static struct drm_driver vs_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_GEM,
-	.lastclose		= drm_fb_helper_lastclose,
+	.lastclose		= vs_drm_lastclose,//drm_fb_helper_lastclose,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import	= vs_gem_prime_import,
@@ -218,6 +345,12 @@ static int vs_drm_bind(struct device *dev)
 		goto err_put_dev;
 	}
 
+	ret = vs_hdmi_get_clk_rst(dev, priv);
+	if (ret) {
+		dev_err(dev, "vs_hdmi_get_clk_rst failed\n");
+		goto err_put_dev;
+	}
+
 	priv->pitch_alignment = 64;
 	priv->dma_dev = drm_dev->dev;
 	priv->dma_dev->coherent_dma_mask = dma_mask;
@@ -298,9 +431,6 @@ static struct platform_driver *drm_sub_drivers[] = {
 	/* connector */
 #ifdef CONFIG_STARFIVE_INNO_HDMI
 	&inno_hdmi_driver,
-#endif
-#ifdef CONFIG_STARFIVE_DSI
-	&starfive_dsi_platform_driver,
 #endif
 
 	&simple_encoder_driver,
@@ -415,6 +545,7 @@ static int vs_drm_platform_remove(struct platform_device *pdev)
 static int vs_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
+	dev_info(dev, "vs_drm_suspend\n");
 
 	return drm_mode_config_helper_suspend(drm);
 }
@@ -422,13 +553,13 @@ static int vs_drm_suspend(struct device *dev)
 static int vs_drm_resume(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
+	dev_info(dev, "vs_drm_resume\n");
 
 	return drm_mode_config_helper_resume(drm);
 }
 #endif
 
 static SIMPLE_DEV_PM_OPS(vs_drm_pm_ops, vs_drm_suspend, vs_drm_resume);
-
 
 static const struct of_device_id vs_drm_dt_ids[] = {
 

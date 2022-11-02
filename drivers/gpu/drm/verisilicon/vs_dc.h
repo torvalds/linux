@@ -82,6 +82,16 @@ struct vs_dc {
 
 	struct reset_control *vout_resets;
 
+//20221014
+	struct reset_control *dc8200_rst_axi;
+	struct reset_control *dc8200_rst_core;
+	struct reset_control *dc8200_rst_ahb;
+
+	struct reset_control *rst_vout_src;
+	struct reset_control *noc_disp;
+
+//20221014
+
 	struct regmap *dss_regmap;
 
 };
