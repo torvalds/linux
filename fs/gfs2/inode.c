@@ -659,12 +659,12 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	error = -ENOMEM;
 	if (!inode)
 		goto fail_gunlock;
+	ip = GFS2_I(inode);
 
 	error = posix_acl_create(dir, &mode, &default_acl, &acl);
 	if (error)
 		goto fail_gunlock;
 
-	ip = GFS2_I(inode);
 	error = gfs2_qa_get(ip);
 	if (error)
 		goto fail_free_acls;
@@ -821,7 +821,7 @@ fail_gunlock:
 		if (!free_vfs_inode)
 			mark_inode_dirty(inode);
 		set_bit(free_vfs_inode ? GIF_FREE_VFS_INODE : GIF_ALLOC_FAILED,
-			&GFS2_I(inode)->i_flags);
+			&ip->i_flags);
 		if (inode->i_state & I_NEW)
 			iget_failed(inode);
 		else
