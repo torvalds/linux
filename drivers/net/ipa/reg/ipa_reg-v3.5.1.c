@@ -108,7 +108,7 @@ static const u32 ipa_reg_filt_rout_hash_flush_fmask[] = {
 IPA_REG_FIELDS(FILT_ROUT_HASH_FLUSH, filt_rout_hash_flush, 0x0000090);
 
 /* Valid bits defined by ipa->available */
-IPA_REG(STATE_AGGR_ACTIVE, state_aggr_active, 0x0000010c);
+IPA_REG_STRIDE(STATE_AGGR_ACTIVE, state_aggr_active, 0x0000010c, 0x0004);
 
 IPA_REG(IPA_BCR, ipa_bcr, 0x000001d0);
 
@@ -121,7 +121,7 @@ static const u32 ipa_reg_local_pkt_proc_cntxt_fmask[] = {
 IPA_REG_FIELDS(LOCAL_PKT_PROC_CNTXT, local_pkt_proc_cntxt, 0x000001e8);
 
 /* Valid bits defined by ipa->available */
-IPA_REG(AGGR_FORCE_CLOSE, aggr_force_close, 0x000001ec);
+IPA_REG_STRIDE(AGGR_FORCE_CLOSE, aggr_force_close, 0x000001ec, 0x0004);
 
 static const u32 ipa_reg_counter_cfg_fmask[] = {
 						/* Bits 0-3 reserved */

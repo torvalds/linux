@@ -350,29 +350,35 @@ ipa_endpoint_program_delay(struct ipa_endpoint *endpoint, bool enable)
 
 static bool ipa_endpoint_aggr_active(struct ipa_endpoint *endpoint)
 {
-	u32 mask = BIT(endpoint->endpoint_id);
+	u32 endpoint_id = endpoint->endpoint_id;
+	u32 mask = BIT(endpoint_id % 32);
 	struct ipa *ipa = endpoint->ipa;
+	u32 unit = endpoint_id / 32;
 	const struct ipa_reg *reg;
 	u32 val;
 
+	/* This works until we actually have more than 32 endpoints */
 	WARN_ON(!(mask & ipa->available));
 
 	reg = ipa_reg(ipa, STATE_AGGR_ACTIVE);
-	val = ioread32(ipa->reg_virt + ipa_reg_offset(reg));
+	val = ioread32(ipa->reg_virt + ipa_reg_n_offset(reg, unit));
 
 	return !!(val & mask);
 }
 
 static void ipa_endpoint_force_close(struct ipa_endpoint *endpoint)
 {
-	u32 mask = BIT(endpoint->endpoint_id);
+	u32 endpoint_id = endpoint->endpoint_id;
+	u32 mask = BIT(endpoint_id % 32);
 	struct ipa *ipa = endpoint->ipa;
+	u32 unit = endpoint_id / 32;
 	const struct ipa_reg *reg;
 
+	/* This works until we actually have more than 32 endpoints */
 	WARN_ON(!(mask & ipa->available));
 
 	reg = ipa_reg(ipa, AGGR_FORCE_CLOSE);
-	iowrite32(mask, ipa->reg_virt + ipa_reg_offset(reg));
+	iowrite32(mask, ipa->reg_virt + ipa_reg_n_offset(reg, unit));
 }
 
 /**
