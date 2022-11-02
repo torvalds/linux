@@ -1999,6 +1999,11 @@ enum netdev_ml_priv_type {
  *					registered
  *	@offload_xstats_l3:	L3 HW stats for this netdevice.
  *
+ *	@devlink_port:	Pointer to related devlink port structure.
+ *			Assigned by a driver before netdev registration using
+ *			SET_NETDEV_DEVLINK_PORT macro. This pointer is static
+ *			during the time netdevice is registered.
+ *
  *	FIXME: cleanup struct net_device such that network protocol info
  *	moves out.
  */
@@ -2349,8 +2354,21 @@ struct net_device {
 	netdevice_tracker	watchdog_dev_tracker;
 	netdevice_tracker	dev_registered_tracker;
 	struct rtnl_hw_stats64	*offload_xstats_l3;
+
+	struct devlink_port	*devlink_port;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
+
+/*
+ * Driver should use this to assign devlink port instance to a netdevice
+ * before it registers the netdevice. Therefore devlink_port is static
+ * during the netdev lifetime after it is registered.
+ */
+#define SET_NETDEV_DEVLINK_PORT(dev, port)			\
+({								\
+	WARN_ON((dev)->reg_state != NETREG_UNINITIALIZED);	\
+	((dev)->devlink_port = (port));				\
+})
 
 static inline bool netif_elide_gro(const struct net_device *dev)
 {
@@ -2785,6 +2803,7 @@ enum netdev_cmd {
 	NETDEV_PRE_TYPE_CHANGE,
 	NETDEV_POST_TYPE_CHANGE,
 	NETDEV_POST_INIT,
+	NETDEV_PRE_UNINIT,
 	NETDEV_RELEASE,
 	NETDEV_NOTIFY_PEERS,
 	NETDEV_JOIN,

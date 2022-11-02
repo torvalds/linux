@@ -1621,10 +1621,10 @@ const char *netdev_cmd_to_name(enum netdev_cmd cmd)
 	N(UP) N(DOWN) N(REBOOT) N(CHANGE) N(REGISTER) N(UNREGISTER)
 	N(CHANGEMTU) N(CHANGEADDR) N(GOING_DOWN) N(CHANGENAME) N(FEAT_CHANGE)
 	N(BONDING_FAILOVER) N(PRE_UP) N(PRE_TYPE_CHANGE) N(POST_TYPE_CHANGE)
-	N(POST_INIT) N(RELEASE) N(NOTIFY_PEERS) N(JOIN) N(CHANGEUPPER)
-	N(RESEND_IGMP) N(PRECHANGEMTU) N(CHANGEINFODATA) N(BONDING_INFO)
-	N(PRECHANGEUPPER) N(CHANGELOWERSTATE) N(UDP_TUNNEL_PUSH_INFO)
-	N(UDP_TUNNEL_DROP_INFO) N(CHANGE_TX_QUEUE_LEN)
+	N(POST_INIT) N(PRE_UNINIT) N(RELEASE) N(NOTIFY_PEERS) N(JOIN)
+	N(CHANGEUPPER) N(RESEND_IGMP) N(PRECHANGEMTU) N(CHANGEINFODATA)
+	N(BONDING_INFO) N(PRECHANGEUPPER) N(CHANGELOWERSTATE)
+	N(UDP_TUNNEL_PUSH_INFO) N(UDP_TUNNEL_DROP_INFO) N(CHANGE_TX_QUEUE_LEN)
 	N(CVLAN_FILTER_PUSH_INFO) N(CVLAN_FILTER_DROP_INFO)
 	N(SVLAN_FILTER_PUSH_INFO) N(SVLAN_FILTER_DROP_INFO)
 	N(PRE_CHANGEADDR) N(OFFLOAD_XSTATS_ENABLE) N(OFFLOAD_XSTATS_DISABLE)
@@ -10060,7 +10060,7 @@ int register_netdevice(struct net_device *dev)
 	dev->reg_state = ret ? NETREG_UNREGISTERED : NETREG_REGISTERED;
 	write_unlock(&dev_base_lock);
 	if (ret)
-		goto err_uninit;
+		goto err_uninit_notify;
 
 	__netdev_update_features(dev);
 
@@ -10107,6 +10107,8 @@ int register_netdevice(struct net_device *dev)
 out:
 	return ret;
 
+err_uninit_notify:
+	call_netdevice_notifiers(NETDEV_PRE_UNINIT, dev);
 err_uninit:
 	if (dev->netdev_ops->ndo_uninit)
 		dev->netdev_ops->ndo_uninit(dev);
@@ -10855,6 +10857,8 @@ void unregister_netdevice_many_notify(struct list_head *head,
 
 		netdev_name_node_alt_flush(dev);
 		netdev_name_node_free(dev->name_node);
+
+		call_netdevice_notifiers(NETDEV_PRE_UNINIT, dev);
 
 		if (dev->netdev_ops->ndo_uninit)
 			dev->netdev_ops->ndo_uninit(dev);

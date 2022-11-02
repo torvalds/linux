@@ -71,6 +71,7 @@ struct devlink {
 	refcount_t refcount;
 	struct completion comp;
 	struct rcu_head rcu;
+	struct notifier_block netdevice_nb;
 	char priv[] __aligned(NETDEV_ALIGN);
 };
 
@@ -9615,6 +9616,9 @@ void devlink_set_features(struct devlink *devlink, u64 features)
 }
 EXPORT_SYMBOL_GPL(devlink_set_features);
 
+static int devlink_netdevice_event(struct notifier_block *nb,
+				   unsigned long event, void *ptr);
+
 /**
  *	devlink_alloc_ns - Allocate new devlink instance resources
  *	in specific namespace
@@ -9645,10 +9649,13 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 
 	ret = xa_alloc_cyclic(&devlinks, &devlink->index, devlink, xa_limit_31b,
 			      &last_id, GFP_KERNEL);
-	if (ret < 0) {
-		kfree(devlink);
-		return NULL;
-	}
+	if (ret < 0)
+		goto err_xa_alloc;
+
+	devlink->netdevice_nb.notifier_call = devlink_netdevice_event;
+	ret = register_netdevice_notifier_net(net, &devlink->netdevice_nb);
+	if (ret)
+		goto err_register_netdevice_notifier;
 
 	devlink->dev = dev;
 	devlink->ops = ops;
@@ -9675,6 +9682,12 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 	init_completion(&devlink->comp);
 
 	return devlink;
+
+err_register_netdevice_notifier:
+	xa_erase(&devlinks, devlink->index);
+err_xa_alloc:
+	kfree(devlink);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(devlink_alloc_ns);
 
@@ -9828,6 +9841,10 @@ void devlink_free(struct devlink *devlink)
 	WARN_ON(!list_empty(&devlink->port_list));
 
 	xa_destroy(&devlink->snapshot_ids);
+
+	unregister_netdevice_notifier_net(devlink_net(devlink),
+					  &devlink->netdevice_nb);
+
 	xa_erase(&devlinks, devlink->index);
 
 	kfree(devlink);
@@ -10120,6 +10137,56 @@ void devlink_port_type_clear(struct devlink_port *devlink_port)
 				false);
 }
 EXPORT_SYMBOL_GPL(devlink_port_type_clear);
+
+static int devlink_netdevice_event(struct notifier_block *nb,
+				   unsigned long event, void *ptr)
+{
+	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	struct devlink_port *devlink_port = netdev->devlink_port;
+	struct devlink *devlink;
+
+	devlink = container_of(nb, struct devlink, netdevice_nb);
+
+	if (!devlink_port || devlink_port->devlink != devlink)
+		return NOTIFY_OK;
+
+	switch (event) {
+	case NETDEV_POST_INIT:
+		/* Set the type but not netdev pointer. It is going to be set
+		 * later on by NETDEV_REGISTER event. Happens once during
+		 * netdevice register
+		 */
+		__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_ETH,
+					NULL, true);
+		break;
+	case NETDEV_REGISTER:
+		/* Set the netdev on top of previously set type. Note this
+		 * event happens also during net namespace change so here
+		 * we take into account netdev pointer appearing in this
+		 * namespace.
+		 */
+		__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_ETH,
+					netdev, true);
+		break;
+	case NETDEV_UNREGISTER:
+		/* Clear netdev pointer, but not the type. This event happens
+		 * also during net namespace change so we need to clear
+		 * pointer to netdev that is going to another net namespace.
+		 */
+		__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_ETH,
+					NULL, true);
+		break;
+	case NETDEV_PRE_UNINIT:
+		/* Clear the type and the netdev pointer. Happens one during
+		 * netdevice unregister.
+		 */
+		__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_NOTSET,
+					NULL, true);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
 
 static int __devlink_port_attrs_set(struct devlink_port *devlink_port,
 				    enum devlink_port_flavour flavour)
