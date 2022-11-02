@@ -4111,6 +4111,9 @@ static inline void guc_kernel_context_pin(struct intel_guc *guc,
 	if (context_guc_id_invalid(ce))
 		pin_guc_id(guc, ce);
 
+	if (!test_bit(CONTEXT_GUC_INIT, &ce->flags))
+		guc_context_init(ce);
+
 	try_context_registration(ce, true);
 }
 
