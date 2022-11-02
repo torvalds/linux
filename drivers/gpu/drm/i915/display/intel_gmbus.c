@@ -49,9 +49,27 @@ struct intel_gmbus {
 	struct drm_i915_private *i915;
 };
 
+enum gmbus_gpio {
+	GPIOA,
+	GPIOB,
+	GPIOC,
+	GPIOD,
+	GPIOE,
+	GPIOF,
+	GPIOG,
+	GPIOH,
+	__GPIOI_UNUSED,
+	GPIOJ,
+	GPIOK,
+	GPIOL,
+	GPIOM,
+	GPION,
+	GPIOO,
+};
+
 struct gmbus_pin {
 	const char *name;
-	enum i915_gpio gpio;
+	enum gmbus_gpio gpio;
 };
 
 /* Map gmbus pin pairs to names and registers. */
