@@ -526,6 +526,8 @@ struct bio *bio_alloc_bioset(struct block_device *bdev, unsigned short nr_vecs,
 	}
 	if (unlikely(!p))
 		return NULL;
+	if (!mempool_is_saturated(&bs->bio_pool))
+		opf &= ~REQ_ALLOC_CACHE;
 
 	bio = p + bs->front_pad;
 	if (nr_vecs > BIO_INLINE_VECS) {
