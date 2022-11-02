@@ -440,6 +440,7 @@ enum rtw89_mac_bf_rrsc_rate {
 #define ACCESS_CMAC(_addr) \
 	({typeof(_addr) __addr = (_addr); \
 	  __addr >= R_AX_CMAC_REG_START && __addr <= R_AX_CMAC_REG_END; })
+#define RTW89_MAC_AX_BAND_REG_OFFSET 0x2000
 
 #define PTCL_IDLE_POLL_CNT	10000
 #define SW_CVR_DUR_US	8

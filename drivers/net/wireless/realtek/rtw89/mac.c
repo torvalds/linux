@@ -7,6 +7,7 @@
 #include "debug.h"
 #include "fw.h"
 #include "mac.h"
+#include "pci.h"
 #include "ps.h"
 #include "reg.h"
 #include "util.h"
@@ -274,106 +275,163 @@ static void rtw89_mac_dump_l0_to_l1(struct rtw89_dev *rtwdev,
 	}
 }
 
-static void rtw89_mac_dump_err_status(struct rtw89_dev *rtwdev,
-				      enum mac_ax_err_info err)
+static void rtw89_mac_dump_dmac_err_status(struct rtw89_dev *rtwdev)
 {
-	u32 dmac_err, cmac_err;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u32 dmac_err;
+	int i, ret;
 
-	if (err != MAC_AX_ERR_L1_ERR_DMAC &&
-	    err != MAC_AX_ERR_L0_PROMOTE_TO_L1 &&
-	    err != MAC_AX_ERR_L0_ERR_CMAC0 &&
-	    err != MAC_AX_ERR_L0_ERR_CMAC1)
+	ret = rtw89_mac_check_mac_en(rtwdev, 0, RTW89_DMAC_SEL);
+	if (ret) {
+		rtw89_warn(rtwdev, "[DMAC] : DMAC not enabled\n");
 		return;
+	}
 
-	rtw89_info(rtwdev, "--->\nerr=0x%x\n", err);
-	rtw89_info(rtwdev, "R_AX_SER_DBG_INFO =0x%08x\n",
-		   rtw89_read32(rtwdev, R_AX_SER_DBG_INFO));
-
-	cmac_err = rtw89_read32(rtwdev, R_AX_CMAC_ERR_ISR);
-	rtw89_info(rtwdev, "R_AX_CMAC_ERR_ISR =0x%08x\n", cmac_err);
 	dmac_err = rtw89_read32(rtwdev, R_AX_DMAC_ERR_ISR);
-	rtw89_info(rtwdev, "R_AX_DMAC_ERR_ISR =0x%08x\n", dmac_err);
+	rtw89_info(rtwdev, "R_AX_DMAC_ERR_ISR=0x%08x\n", dmac_err);
+	rtw89_info(rtwdev, "R_AX_DMAC_ERR_IMR=0x%08x\n",
+		   rtw89_read32(rtwdev, R_AX_DMAC_ERR_IMR));
 
 	if (dmac_err) {
-		rtw89_info(rtwdev, "R_AX_WDE_ERR_FLAG_CFG =0x%08x ",
-			   rtw89_read32(rtwdev, R_AX_WDE_ERR_FLAG_CFG));
-		rtw89_info(rtwdev, "R_AX_PLE_ERR_FLAG_CFG =0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_PLE_ERR_FLAG_CFG));
+		rtw89_info(rtwdev, "R_AX_WDE_ERR_FLAG_CFG=0x%08x\n",
+			   rtw89_read32(rtwdev, R_AX_WDE_ERR_FLAG_CFG_NUM1));
+		rtw89_info(rtwdev, "R_AX_PLE_ERR_FLAG_CFG=0x%08x\n",
+			   rtw89_read32(rtwdev, R_AX_PLE_ERR_FLAG_CFG_NUM1));
+		if (chip->chip_id == RTL8852C) {
+			rtw89_info(rtwdev, "R_AX_PLE_ERRFLAG_MSG=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_PLE_ERRFLAG_MSG));
+			rtw89_info(rtwdev, "R_AX_WDE_ERRFLAG_MSG=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_WDE_ERRFLAG_MSG));
+			rtw89_info(rtwdev, "R_AX_PLE_DBGERR_LOCKEN=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_PLE_DBGERR_LOCKEN));
+			rtw89_info(rtwdev, "R_AX_PLE_DBGERR_STS=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_PLE_DBGERR_STS));
+		}
 	}
 
 	if (dmac_err & B_AX_WDRLS_ERR_FLAG) {
-		rtw89_info(rtwdev, "R_AX_WDRLS_ERR_IMR =0x%08x ",
+		rtw89_info(rtwdev, "R_AX_WDRLS_ERR_IMR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_WDRLS_ERR_IMR));
-		rtw89_info(rtwdev, "R_AX_WDRLS_ERR_ISR =0x%08x\n",
+		rtw89_info(rtwdev, "R_AX_WDRLS_ERR_ISR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_WDRLS_ERR_ISR));
+		if (chip->chip_id == RTL8852C)
+			rtw89_info(rtwdev, "R_AX_RPQ_RXBD_IDX=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_RPQ_RXBD_IDX_V1));
+		else
+			rtw89_info(rtwdev, "R_AX_RPQ_RXBD_IDX=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_RPQ_RXBD_IDX));
 	}
 
 	if (dmac_err & B_AX_WSEC_ERR_FLAG) {
-		rtw89_info(rtwdev, "R_AX_SEC_ERR_IMR_ISR =0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_SEC_DEBUG));
-		rtw89_info(rtwdev, "SEC_local_Register 0x9D00 =0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_SEC_ENG_CTRL));
-		rtw89_info(rtwdev, "SEC_local_Register 0x9D04 =0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_SEC_MPDU_PROC));
-		rtw89_info(rtwdev, "SEC_local_Register 0x9D10 =0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_SEC_CAM_ACCESS));
-		rtw89_info(rtwdev, "SEC_local_Register 0x9D14 =0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_SEC_CAM_RDATA));
-		rtw89_info(rtwdev, "SEC_local_Register 0x9D18 =0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_SEC_CAM_WDATA));
-		rtw89_info(rtwdev, "SEC_local_Register 0x9D20 =0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_SEC_TX_DEBUG));
-		rtw89_info(rtwdev, "SEC_local_Register 0x9D24 =0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_SEC_RX_DEBUG));
-		rtw89_info(rtwdev, "SEC_local_Register 0x9D28 =0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_SEC_TRX_PKT_CNT));
-		rtw89_info(rtwdev, "SEC_local_Register 0x9D2C =0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_SEC_TRX_BLK_CNT));
+		if (chip->chip_id == RTL8852C) {
+			rtw89_info(rtwdev, "R_AX_SEC_ERR_IMR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_ERROR_FLAG_IMR));
+			rtw89_info(rtwdev, "R_AX_SEC_ERR_ISR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_ERROR_FLAG));
+			rtw89_info(rtwdev, "R_AX_SEC_ENG_CTRL=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_ENG_CTRL));
+			rtw89_info(rtwdev, "R_AX_SEC_MPDU_PROC=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_MPDU_PROC));
+			rtw89_info(rtwdev, "R_AX_SEC_CAM_ACCESS=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_CAM_ACCESS));
+			rtw89_info(rtwdev, "R_AX_SEC_CAM_RDATA=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_CAM_RDATA));
+			rtw89_info(rtwdev, "R_AX_SEC_DEBUG1=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_DEBUG1));
+			rtw89_info(rtwdev, "R_AX_SEC_TX_DEBUG=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_TX_DEBUG));
+			rtw89_info(rtwdev, "R_AX_SEC_RX_DEBUG=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_RX_DEBUG));
+
+			rtw89_write32_mask(rtwdev, R_AX_DBG_CTRL,
+					   B_AX_DBG_SEL0, 0x8B);
+			rtw89_write32_mask(rtwdev, R_AX_DBG_CTRL,
+					   B_AX_DBG_SEL1, 0x8B);
+			rtw89_write32_mask(rtwdev, R_AX_SYS_STATUS1,
+					   B_AX_SEL_0XC0_MASK, 1);
+			for (i = 0; i < 0x10; i++) {
+				rtw89_write32_mask(rtwdev, R_AX_SEC_ENG_CTRL,
+						   B_AX_SEC_DBG_PORT_FIELD_MASK, i);
+				rtw89_info(rtwdev, "sel=%x,R_AX_SEC_DEBUG2=0x%08x\n",
+					   i, rtw89_read32(rtwdev, R_AX_SEC_DEBUG2));
+			}
+		} else {
+			rtw89_info(rtwdev, "R_AX_SEC_ERR_IMR_ISR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_DEBUG));
+			rtw89_info(rtwdev, "R_AX_SEC_ENG_CTRL=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_ENG_CTRL));
+			rtw89_info(rtwdev, "R_AX_SEC_MPDU_PROC=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_MPDU_PROC));
+			rtw89_info(rtwdev, "R_AX_SEC_CAM_ACCESS=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_CAM_ACCESS));
+			rtw89_info(rtwdev, "R_AX_SEC_CAM_RDATA=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_CAM_RDATA));
+			rtw89_info(rtwdev, "R_AX_SEC_CAM_WDATA=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_CAM_WDATA));
+			rtw89_info(rtwdev, "R_AX_SEC_TX_DEBUG=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_TX_DEBUG));
+			rtw89_info(rtwdev, "R_AX_SEC_RX_DEBUG=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_RX_DEBUG));
+			rtw89_info(rtwdev, "R_AX_SEC_TRX_PKT_CNT=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_TRX_PKT_CNT));
+			rtw89_info(rtwdev, "R_AX_SEC_TRX_BLK_CNT=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_SEC_TRX_BLK_CNT));
+		}
 	}
 
 	if (dmac_err & B_AX_MPDU_ERR_FLAG) {
-		rtw89_info(rtwdev, "R_AX_MPDU_TX_ERR_IMR =0x%08x ",
+		rtw89_info(rtwdev, "R_AX_MPDU_TX_ERR_IMR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_MPDU_TX_ERR_IMR));
-		rtw89_info(rtwdev, "R_AX_MPDU_TX_ERR_ISR =0x%08x\n",
+		rtw89_info(rtwdev, "R_AX_MPDU_TX_ERR_ISR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_MPDU_TX_ERR_ISR));
-		rtw89_info(rtwdev, "R_AX_MPDU_RX_ERR_IMR =0x%08x ",
+		rtw89_info(rtwdev, "R_AX_MPDU_RX_ERR_IMR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_MPDU_RX_ERR_IMR));
-		rtw89_info(rtwdev, "R_AX_MPDU_RX_ERR_ISR =0x%08x\n",
+		rtw89_info(rtwdev, "R_AX_MPDU_RX_ERR_ISR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_MPDU_RX_ERR_ISR));
 	}
 
 	if (dmac_err & B_AX_STA_SCHEDULER_ERR_FLAG) {
-		rtw89_info(rtwdev, "R_AX_STA_SCHEDULER_ERR_IMR =0x%08x ",
+		rtw89_info(rtwdev, "R_AX_STA_SCHEDULER_ERR_IMR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_STA_SCHEDULER_ERR_IMR));
-		rtw89_info(rtwdev, "R_AX_STA_SCHEDULER_ERR_ISR= 0x%08x\n",
+		rtw89_info(rtwdev, "R_AX_STA_SCHEDULER_ERR_ISR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_STA_SCHEDULER_ERR_ISR));
 	}
 
 	if (dmac_err & B_AX_WDE_DLE_ERR_FLAG) {
-		rtw89_info(rtwdev, "R_AX_WDE_ERR_IMR=0x%08x ",
+		rtw89_info(rtwdev, "R_AX_WDE_ERR_IMR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_WDE_ERR_IMR));
 		rtw89_info(rtwdev, "R_AX_WDE_ERR_ISR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_WDE_ERR_ISR));
-		rtw89_info(rtwdev, "R_AX_PLE_ERR_IMR=0x%08x ",
+		rtw89_info(rtwdev, "R_AX_PLE_ERR_IMR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_PLE_ERR_IMR));
 		rtw89_info(rtwdev, "R_AX_PLE_ERR_FLAG_ISR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_PLE_ERR_FLAG_ISR));
-		dump_err_status_dispatcher(rtwdev);
 	}
 
 	if (dmac_err & B_AX_TXPKTCTRL_ERR_FLAG) {
-		rtw89_info(rtwdev, "R_AX_TXPKTCTL_ERR_IMR_ISR=0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_TXPKTCTL_ERR_IMR_ISR));
-		rtw89_info(rtwdev, "R_AX_TXPKTCTL_ERR_IMR_ISR_B1=0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_TXPKTCTL_ERR_IMR_ISR_B1));
+		if (chip->chip_id == RTL8852C) {
+			rtw89_info(rtwdev, "R_AX_TXPKTCTL_B0_ERRFLAG_IMR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_TXPKTCTL_B0_ERRFLAG_IMR));
+			rtw89_info(rtwdev, "R_AX_TXPKTCTL_B0_ERRFLAG_ISR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_TXPKTCTL_B0_ERRFLAG_ISR));
+			rtw89_info(rtwdev, "R_AX_TXPKTCTL_B1_ERRFLAG_IMR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_TXPKTCTL_B1_ERRFLAG_IMR));
+			rtw89_info(rtwdev, "R_AX_TXPKTCTL_B1_ERRFLAG_ISR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_TXPKTCTL_B1_ERRFLAG_ISR));
+		} else {
+			rtw89_info(rtwdev, "R_AX_TXPKTCTL_ERR_IMR_ISR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_TXPKTCTL_ERR_IMR_ISR));
+			rtw89_info(rtwdev, "R_AX_TXPKTCTL_ERR_IMR_ISR_B1=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_TXPKTCTL_ERR_IMR_ISR_B1));
+		}
 	}
 
 	if (dmac_err & B_AX_PLE_DLE_ERR_FLAG) {
-		rtw89_info(rtwdev, "R_AX_WDE_ERR_IMR=0x%08x ",
+		rtw89_info(rtwdev, "R_AX_WDE_ERR_IMR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_WDE_ERR_IMR));
 		rtw89_info(rtwdev, "R_AX_WDE_ERR_ISR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_WDE_ERR_ISR));
-		rtw89_info(rtwdev, "R_AX_PLE_ERR_IMR=0x%08x ",
+		rtw89_info(rtwdev, "R_AX_PLE_ERR_IMR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_PLE_ERR_IMR));
 		rtw89_info(rtwdev, "R_AX_PLE_ERR_FLAG_ISR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_PLE_ERR_FLAG_ISR));
@@ -393,85 +451,189 @@ static void rtw89_mac_dump_err_status(struct rtw89_dev *rtwdev,
 			   rtw89_read32(rtwdev, R_AX_PL_CPUQ_OP_2));
 		rtw89_info(rtwdev, "R_AX_PL_CPUQ_OP_STATUS=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_PL_CPUQ_OP_STATUS));
-		rtw89_info(rtwdev, "R_AX_RXDMA_PKT_INFO_0=0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_RXDMA_PKT_INFO_0));
-		rtw89_info(rtwdev, "R_AX_RXDMA_PKT_INFO_1=0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_RXDMA_PKT_INFO_1));
-		rtw89_info(rtwdev, "R_AX_RXDMA_PKT_INFO_2=0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_RXDMA_PKT_INFO_2));
-		dump_err_status_dispatcher(rtwdev);
+		if (chip->chip_id == RTL8852C) {
+			rtw89_info(rtwdev, "R_AX_RX_CTRL0=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_RX_CTRL0));
+			rtw89_info(rtwdev, "R_AX_RX_CTRL1=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_RX_CTRL1));
+			rtw89_info(rtwdev, "R_AX_RX_CTRL2=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_RX_CTRL2));
+		} else {
+			rtw89_info(rtwdev, "R_AX_RXDMA_PKT_INFO_0=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_RXDMA_PKT_INFO_0));
+			rtw89_info(rtwdev, "R_AX_RXDMA_PKT_INFO_1=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_RXDMA_PKT_INFO_1));
+			rtw89_info(rtwdev, "R_AX_RXDMA_PKT_INFO_2=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_RXDMA_PKT_INFO_2));
+		}
 	}
 
 	if (dmac_err & B_AX_PKTIN_ERR_FLAG) {
-		rtw89_info(rtwdev, "R_AX_PKTIN_ERR_IMR =0x%08x ",
+		rtw89_info(rtwdev, "R_AX_PKTIN_ERR_IMR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_PKTIN_ERR_IMR));
-		rtw89_info(rtwdev, "R_AX_PKTIN_ERR_ISR =0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_PKTIN_ERR_ISR));
-		rtw89_info(rtwdev, "R_AX_PKTIN_ERR_IMR =0x%08x ",
-			   rtw89_read32(rtwdev, R_AX_PKTIN_ERR_IMR));
-		rtw89_info(rtwdev, "R_AX_PKTIN_ERR_ISR =0x%08x\n",
+		rtw89_info(rtwdev, "R_AX_PKTIN_ERR_ISR=0x%08x\n",
 			   rtw89_read32(rtwdev, R_AX_PKTIN_ERR_ISR));
 	}
 
-	if (dmac_err & B_AX_DISPATCH_ERR_FLAG)
-		dump_err_status_dispatcher(rtwdev);
-
-	if (dmac_err & B_AX_DLE_CPUIO_ERR_FLAG) {
-		rtw89_info(rtwdev, "R_AX_CPUIO_ERR_IMR=0x%08x ",
-			   rtw89_read32(rtwdev, R_AX_CPUIO_ERR_IMR));
-		rtw89_info(rtwdev, "R_AX_CPUIO_ERR_ISR=0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_CPUIO_ERR_ISR));
+	if (dmac_err & B_AX_DISPATCH_ERR_FLAG) {
+		rtw89_info(rtwdev, "R_AX_HOST_DISPATCHER_ERR_IMR=0x%08x\n",
+			   rtw89_read32(rtwdev, R_AX_HOST_DISPATCHER_ERR_IMR));
+		rtw89_info(rtwdev, "R_AX_HOST_DISPATCHER_ERR_ISR=0x%08x\n",
+			   rtw89_read32(rtwdev, R_AX_HOST_DISPATCHER_ERR_ISR));
+		rtw89_info(rtwdev, "R_AX_CPU_DISPATCHER_ERR_IMR=0x%08x\n",
+			   rtw89_read32(rtwdev, R_AX_CPU_DISPATCHER_ERR_IMR));
+		rtw89_info(rtwdev, "R_AX_CPU_DISPATCHER_ERR_ISR=0x%08x\n",
+			   rtw89_read32(rtwdev, R_AX_CPU_DISPATCHER_ERR_ISR));
+		rtw89_info(rtwdev, "R_AX_OTHER_DISPATCHER_ERR_IMR=0x%08x\n",
+			   rtw89_read32(rtwdev, R_AX_OTHER_DISPATCHER_ERR_IMR));
+		rtw89_info(rtwdev, "R_AX_OTHER_DISPATCHER_ERR_ISR=0x%08x\n",
+			   rtw89_read32(rtwdev, R_AX_OTHER_DISPATCHER_ERR_ISR));
 	}
 
-	if (dmac_err & BIT(11)) {
-		rtw89_info(rtwdev, "R_AX_BBRPT_COM_ERR_IMR_ISR=0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_BBRPT_COM_ERR_IMR_ISR));
+	if (dmac_err & B_AX_BBRPT_ERR_FLAG) {
+		if (chip->chip_id == RTL8852C) {
+			rtw89_info(rtwdev, "R_AX_BBRPT_COM_ERR_IMR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_BBRPT_COM_ERR_IMR));
+			rtw89_info(rtwdev, "R_AX_BBRPT_COM_ERR_ISR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_BBRPT_COM_ERR_ISR));
+			rtw89_info(rtwdev, "R_AX_BBRPT_CHINFO_ERR_ISR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_BBRPT_CHINFO_ERR_ISR));
+			rtw89_info(rtwdev, "R_AX_BBRPT_CHINFO_ERR_IMR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_BBRPT_CHINFO_ERR_IMR));
+			rtw89_info(rtwdev, "R_AX_BBRPT_DFS_ERR_IMR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_BBRPT_DFS_ERR_IMR));
+			rtw89_info(rtwdev, "R_AX_BBRPT_DFS_ERR_ISR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_BBRPT_DFS_ERR_ISR));
+		} else {
+			rtw89_info(rtwdev, "R_AX_BBRPT_COM_ERR_IMR_ISR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_BBRPT_COM_ERR_IMR_ISR));
+			rtw89_info(rtwdev, "R_AX_BBRPT_CHINFO_ERR_ISR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_BBRPT_CHINFO_ERR_ISR));
+			rtw89_info(rtwdev, "R_AX_BBRPT_CHINFO_ERR_IMR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_BBRPT_CHINFO_ERR_IMR));
+			rtw89_info(rtwdev, "R_AX_BBRPT_DFS_ERR_IMR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_BBRPT_DFS_ERR_IMR));
+			rtw89_info(rtwdev, "R_AX_BBRPT_DFS_ERR_ISR=0x%08x\n",
+				   rtw89_read32(rtwdev, R_AX_BBRPT_DFS_ERR_ISR));
+		}
 	}
+
+	if (dmac_err & B_AX_HAXIDMA_ERR_FLAG && chip->chip_id == RTL8852C) {
+		rtw89_info(rtwdev, "R_AX_HAXIDMA_ERR_IMR=0x%08x\n",
+			   rtw89_read32(rtwdev, R_AX_HAXI_IDCT_MSK));
+		rtw89_info(rtwdev, "R_AX_HAXIDMA_ERR_ISR=0x%08x\n",
+			   rtw89_read32(rtwdev, R_AX_HAXI_IDCT));
+	}
+}
+
+static void rtw89_mac_dump_cmac_err_status(struct rtw89_dev *rtwdev,
+					   u8 band)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u32 offset = 0;
+	u32 cmac_err;
+	int ret;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, band, RTW89_CMAC_SEL);
+	if (ret) {
+		if (band)
+			rtw89_warn(rtwdev, "[CMAC] : CMAC1 not enabled\n");
+		else
+			rtw89_warn(rtwdev, "[CMAC] : CMAC0 not enabled\n");
+		return;
+	}
+
+	if (band)
+		offset = RTW89_MAC_AX_BAND_REG_OFFSET;
+
+	cmac_err = rtw89_read32(rtwdev, R_AX_CMAC_ERR_ISR + offset);
+	rtw89_info(rtwdev, "R_AX_CMAC_ERR_ISR [%d]=0x%08x\n", band,
+		   rtw89_read32(rtwdev, R_AX_CMAC_ERR_ISR + offset));
+	rtw89_info(rtwdev, "R_AX_CMAC_FUNC_EN [%d]=0x%08x\n", band,
+		   rtw89_read32(rtwdev, R_AX_CMAC_FUNC_EN + offset));
+	rtw89_info(rtwdev, "R_AX_CK_EN [%d]=0x%08x\n", band,
+		   rtw89_read32(rtwdev, R_AX_CK_EN + offset));
 
 	if (cmac_err & B_AX_SCHEDULE_TOP_ERR_IND) {
-		rtw89_info(rtwdev, "R_AX_SCHEDULE_ERR_IMR=0x%08x ",
-			   rtw89_read32(rtwdev, R_AX_SCHEDULE_ERR_IMR));
-		rtw89_info(rtwdev, "R_AX_SCHEDULE_ERR_ISR=0x%04x\n",
-			   rtw89_read16(rtwdev, R_AX_SCHEDULE_ERR_ISR));
+		rtw89_info(rtwdev, "R_AX_SCHEDULE_ERR_IMR [%d]=0x%08x\n", band,
+			   rtw89_read32(rtwdev, R_AX_SCHEDULE_ERR_IMR + offset));
+		rtw89_info(rtwdev, "R_AX_SCHEDULE_ERR_ISR [%d]=0x%08x\n", band,
+			   rtw89_read32(rtwdev, R_AX_SCHEDULE_ERR_ISR + offset));
 	}
 
 	if (cmac_err & B_AX_PTCL_TOP_ERR_IND) {
-		rtw89_info(rtwdev, "R_AX_PTCL_IMR0=0x%08x ",
-			   rtw89_read32(rtwdev, R_AX_PTCL_IMR0));
-		rtw89_info(rtwdev, "R_AX_PTCL_ISR0=0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_PTCL_ISR0));
+		rtw89_info(rtwdev, "R_AX_PTCL_IMR0 [%d]=0x%08x\n", band,
+			   rtw89_read32(rtwdev, R_AX_PTCL_IMR0 + offset));
+		rtw89_info(rtwdev, "R_AX_PTCL_ISR0 [%d]=0x%08x\n", band,
+			   rtw89_read32(rtwdev, R_AX_PTCL_ISR0 + offset));
 	}
 
 	if (cmac_err & B_AX_DMA_TOP_ERR_IND) {
-		rtw89_info(rtwdev, "R_AX_DLE_CTRL=0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_DLE_CTRL));
+		if (chip->chip_id == RTL8852C) {
+			rtw89_info(rtwdev, "R_AX_RX_ERR_FLAG [%d]=0x%08x\n", band,
+				   rtw89_read32(rtwdev, R_AX_RX_ERR_FLAG + offset));
+			rtw89_info(rtwdev, "R_AX_RX_ERR_FLAG_IMR [%d]=0x%08x\n", band,
+				   rtw89_read32(rtwdev, R_AX_RX_ERR_FLAG_IMR + offset));
+		} else {
+			rtw89_info(rtwdev, "R_AX_DLE_CTRL [%d]=0x%08x\n", band,
+				   rtw89_read32(rtwdev, R_AX_DLE_CTRL + offset));
+		}
 	}
 
-	if (cmac_err & B_AX_PHYINTF_ERR_IND) {
-		rtw89_info(rtwdev, "R_AX_PHYINFO_ERR_IMR=0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_PHYINFO_ERR_IMR));
+	if (cmac_err & B_AX_DMA_TOP_ERR_IND || cmac_err & B_AX_WMAC_RX_ERR_IND) {
+		if (chip->chip_id == RTL8852C) {
+			rtw89_info(rtwdev, "R_AX_PHYINFO_ERR_ISR [%d]=0x%08x\n", band,
+				   rtw89_read32(rtwdev, R_AX_PHYINFO_ERR_ISR + offset));
+			rtw89_info(rtwdev, "R_AX_PHYINFO_ERR_IMR [%d]=0x%08x\n", band,
+				   rtw89_read32(rtwdev, R_AX_PHYINFO_ERR_IMR + offset));
+		} else {
+			rtw89_info(rtwdev, "R_AX_PHYINFO_ERR_IMR [%d]=0x%08x\n", band,
+				   rtw89_read32(rtwdev, R_AX_PHYINFO_ERR_IMR + offset));
+		}
 	}
 
 	if (cmac_err & B_AX_TXPWR_CTRL_ERR_IND) {
-		rtw89_info(rtwdev, "R_AX_TXPWR_IMR=0x%08x ",
-			   rtw89_read32(rtwdev, R_AX_TXPWR_IMR));
-		rtw89_info(rtwdev, "R_AX_TXPWR_ISR=0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_TXPWR_ISR));
-	}
-
-	if (cmac_err & B_AX_WMAC_RX_ERR_IND) {
-		rtw89_info(rtwdev, "R_AX_DBGSEL_TRXPTCL=0x%08x ",
-			   rtw89_read32(rtwdev, R_AX_DBGSEL_TRXPTCL));
-		rtw89_info(rtwdev, "R_AX_PHYINFO_ERR_ISR=0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_PHYINFO_ERR_ISR));
+		rtw89_info(rtwdev, "R_AX_TXPWR_IMR [%d]=0x%08x\n", band,
+			   rtw89_read32(rtwdev, R_AX_TXPWR_IMR + offset));
+		rtw89_info(rtwdev, "R_AX_TXPWR_ISR [%d]=0x%08x\n", band,
+			   rtw89_read32(rtwdev, R_AX_TXPWR_ISR + offset));
 	}
 
 	if (cmac_err & B_AX_WMAC_TX_ERR_IND) {
-		rtw89_info(rtwdev, "R_AX_TMAC_ERR_IMR_ISR=0x%08x ",
-			   rtw89_read32(rtwdev, R_AX_TMAC_ERR_IMR_ISR));
-		rtw89_info(rtwdev, "R_AX_DBGSEL_TRXPTCL=0x%08x\n",
-			   rtw89_read32(rtwdev, R_AX_DBGSEL_TRXPTCL));
+		if (chip->chip_id == RTL8852C) {
+			rtw89_info(rtwdev, "R_AX_TRXPTCL_ERROR_INDICA [%d]=0x%08x\n", band,
+				   rtw89_read32(rtwdev, R_AX_TRXPTCL_ERROR_INDICA + offset));
+			rtw89_info(rtwdev, "R_AX_TRXPTCL_ERROR_INDICA_MASK [%d]=0x%08x\n", band,
+				   rtw89_read32(rtwdev, R_AX_TRXPTCL_ERROR_INDICA_MASK + offset));
+		} else {
+			rtw89_info(rtwdev, "R_AX_TMAC_ERR_IMR_ISR [%d]=0x%08x\n", band,
+				   rtw89_read32(rtwdev, R_AX_TMAC_ERR_IMR_ISR + offset));
+		}
+		rtw89_info(rtwdev, "R_AX_DBGSEL_TRXPTCL [%d]=0x%08x\n", band,
+			   rtw89_read32(rtwdev, R_AX_DBGSEL_TRXPTCL + offset));
 	}
+
+	rtw89_info(rtwdev, "R_AX_CMAC_ERR_IMR [%d]=0x%08x\n", band,
+		   rtw89_read32(rtwdev, R_AX_CMAC_ERR_IMR + offset));
+}
+
+static void rtw89_mac_dump_err_status(struct rtw89_dev *rtwdev,
+				      enum mac_ax_err_info err)
+{
+	if (err != MAC_AX_ERR_L1_ERR_DMAC &&
+	    err != MAC_AX_ERR_L0_PROMOTE_TO_L1 &&
+	    err != MAC_AX_ERR_L0_ERR_CMAC0 &&
+	    err != MAC_AX_ERR_L0_ERR_CMAC1)
+		return;
+
+	rtw89_info(rtwdev, "--->\nerr=0x%x\n", err);
+	rtw89_info(rtwdev, "R_AX_SER_DBG_INFO =0x%08x\n",
+		   rtw89_read32(rtwdev, R_AX_SER_DBG_INFO));
+
+	rtw89_mac_dump_dmac_err_status(rtwdev);
+	rtw89_mac_dump_cmac_err_status(rtwdev, RTW89_MAC_0);
+	if (rtwdev->dbcc_en)
+		rtw89_mac_dump_cmac_err_status(rtwdev, RTW89_MAC_1);
 
 	rtwdev->hci.ops->dump_err_status(rtwdev);
 
