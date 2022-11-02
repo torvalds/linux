@@ -96,56 +96,64 @@ static __always_inline unsigned long __cmpxchg(unsigned long address,
 		shift = (3 ^ (address & 3)) << 3;
 		address ^= address & 3;
 		asm volatile(
-			"       l       %0,%2\n"
-			"0:     nr      %0,%5\n"
-			"       lr      %1,%0\n"
-			"       or      %0,%3\n"
-			"       or      %1,%4\n"
-			"       cs      %0,%1,%2\n"
-			"       jnl     1f\n"
-			"       xr      %1,%0\n"
-			"       nr      %1,%5\n"
-			"       jnz     0b\n"
+			"	l	%[prev],%[address]\n"
+			"0:	nr	%[prev],%[mask]\n"
+			"	lr	%[tmp],%[prev]\n"
+			"	or	%[prev],%[old]\n"
+			"	or	%[tmp],%[new]\n"
+			"	cs	%[prev],%[tmp],%[address]\n"
+			"	jnl	1f\n"
+			"	xr	%[tmp],%[prev]\n"
+			"	nr	%[tmp],%[mask]\n"
+			"	jnz	0b\n"
 			"1:"
-			: "=&d" (prev), "=&d" (tmp), "+Q" (*(int *) address)
-			: "d" ((old & 0xff) << shift),
-			  "d" ((new & 0xff) << shift),
-			  "d" (~(0xff << shift))
+			: [prev] "=&d" (prev),
+			  [tmp] "=&d" (tmp),
+			  [address] "+Q" (*(int *)address)
+			: [old] "d" ((old & 0xff) << shift),
+			  [new] "d" ((new & 0xff) << shift),
+			  [mask] "d" (~(0xff << shift))
 			: "memory", "cc");
 		return prev >> shift;
 	case 2:
 		shift = (2 ^ (address & 2)) << 3;
 		address ^= address & 2;
 		asm volatile(
-			"       l       %0,%2\n"
-			"0:     nr      %0,%5\n"
-			"       lr      %1,%0\n"
-			"       or      %0,%3\n"
-			"       or      %1,%4\n"
-			"       cs      %0,%1,%2\n"
-			"       jnl     1f\n"
-			"       xr      %1,%0\n"
-			"       nr      %1,%5\n"
-			"       jnz     0b\n"
+			"	l	%[prev],%[address]\n"
+			"0:	nr	%[prev],%[mask]\n"
+			"	lr	%[tmp],%[prev]\n"
+			"	or	%[prev],%[old]\n"
+			"	or	%[tmp],%[new]\n"
+			"	cs	%[prev],%[tmp],%[address]\n"
+			"	jnl	1f\n"
+			"	xr	%[tmp],%[prev]\n"
+			"	nr	%[tmp],%[mask]\n"
+			"	jnz	0b\n"
 			"1:"
-			: "=&d" (prev), "=&d" (tmp), "+Q" (*(int *) address)
-			: "d" ((old & 0xffff) << shift),
-			  "d" ((new & 0xffff) << shift),
-			  "d" (~(0xffff << shift))
+			: [prev] "=&d" (prev),
+			  [tmp] "=&d" (tmp),
+			  [address] "+Q" (*(int *)address)
+			: [old] "d" ((old & 0xffff) << shift),
+			  [new] "d" ((new & 0xffff) << shift),
+			  [mask] "d" (~(0xffff << shift))
 			: "memory", "cc");
 		return prev >> shift;
 	case 4:
 		asm volatile(
-			"       cs      %0,%3,%1\n"
-			: "=&d" (prev), "+Q" (*(int *) address)
-			: "0" (old), "d" (new)
+			"	cs	%[prev],%[new],%[address]\n"
+			: [prev] "=&d" (prev),
+			  [address] "+Q" (*(int *)address)
+			: "0" (old),
+			  [new] "d" (new)
 			: "memory", "cc");
 		return prev;
 	case 8:
 		asm volatile(
-			"       csg     %0,%3,%1\n"
-			: "=&d" (prev), "+QS" (*(long *) address)
-			: "0" (old), "d" (new)
+			"	csg	%[prev],%[new],%[address]\n"
+			: [prev] "=&d" (prev),
+			  [address] "+QS" (*(long *)address)
+			: "0" (old),
+			  [new] "d" (new)
 			: "memory", "cc");
 		return prev;
 	}
