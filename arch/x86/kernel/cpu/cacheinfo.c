@@ -15,6 +15,7 @@
 #include <linux/capability.h>
 #include <linux/sysfs.h>
 #include <linux/pci.h>
+#include <linux/stop_machine.h>
 
 #include <asm/cpufeature.h>
 #include <asm/cacheinfo.h>
@@ -1121,7 +1122,7 @@ void cache_enable(void) __releases(cache_disable_lock)
 	raw_spin_unlock(&cache_disable_lock);
 }
 
-void cache_cpu_init(void)
+static void cache_cpu_init(void)
 {
 	unsigned long flags;
 
@@ -1148,4 +1149,60 @@ void set_cache_aps_delayed_init(bool val)
 bool get_cache_aps_delayed_init(void)
 {
 	return cache_aps_delayed_init;
+}
+
+static int cache_rendezvous_handler(void *unused)
+{
+	if (get_cache_aps_delayed_init() || !cpu_online(smp_processor_id()))
+		cache_cpu_init();
+
+	return 0;
+}
+
+void __init cache_bp_init(void)
+{
+	mtrr_bp_init();
+
+	if (memory_caching_control)
+		cache_cpu_init();
+}
+
+void cache_bp_restore(void)
+{
+	if (memory_caching_control)
+		cache_cpu_init();
+}
+
+void cache_ap_init(void)
+{
+	if (!memory_caching_control || get_cache_aps_delayed_init())
+		return;
+
+	/*
+	 * Ideally we should hold mtrr_mutex here to avoid MTRR entries
+	 * changed, but this routine will be called in CPU boot time,
+	 * holding the lock breaks it.
+	 *
+	 * This routine is called in two cases:
+	 *
+	 *   1. very early time of software resume, when there absolutely
+	 *      isn't MTRR entry changes;
+	 *
+	 *   2. CPU hotadd time. We let mtrr_add/del_page hold cpuhotplug
+	 *      lock to prevent MTRR entry changes
+	 */
+	stop_machine_from_inactive_cpu(cache_rendezvous_handler, NULL,
+				       cpu_callout_mask);
+}
+
+/*
+ * Delayed cache initialization for all AP's
+ */
+void cache_aps_init(void)
+{
+	if (!memory_caching_control || !get_cache_aps_delayed_init())
+		return;
+
+	stop_machine(cache_rendezvous_handler, NULL, cpu_online_mask);
+	set_cache_aps_delayed_init(false);
 }
