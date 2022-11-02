@@ -45,7 +45,6 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-#include <sound/tlv320aic3x.h>
 
 #include "tlv320aic3x.h"
 
@@ -64,6 +63,10 @@ struct aic3x_priv;
 struct aic3x_disable_nb {
 	struct notifier_block nb;
 	struct aic3x_priv *aic3x;
+};
+
+struct aic3x_setup_data {
+	unsigned int gpio_func[2];
 };
 
 /* codec private data */
@@ -1748,7 +1751,6 @@ static const struct reg_sequence aic3007_class_d[] = {
 
 int aic3x_probe(struct device *dev, struct regmap *regmap, kernel_ulong_t driver_data)
 {
-	struct aic3x_pdata *pdata = dev->platform_data;
 	struct aic3x_priv *aic3x;
 	struct aic3x_setup_data *ai3x_setup;
 	struct device_node *np = dev->of_node;
@@ -1768,11 +1770,7 @@ int aic3x_probe(struct device *dev, struct regmap *regmap, kernel_ulong_t driver
 	regcache_cache_only(aic3x->regmap, true);
 
 	dev_set_drvdata(dev, aic3x);
-	if (pdata) {
-		aic3x->gpio_reset = pdata->gpio_reset;
-		aic3x->setup = pdata->setup;
-		aic3x->micbias_vg = pdata->micbias_vg;
-	} else if (np) {
+	if (np) {
 		ai3x_setup = devm_kzalloc(dev, sizeof(*ai3x_setup), GFP_KERNEL);
 		if (!ai3x_setup)
 			return -ENOMEM;
