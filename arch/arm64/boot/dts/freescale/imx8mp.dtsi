@@ -1072,11 +1072,11 @@
 			noc_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
-				opp-200M {
+				opp-200000000 {
 					opp-hz = /bits/ 64 <200000000>;
 				};
 
-				opp-1000M {
+				opp-1000000000 {
 					opp-hz = /bits/ 64 <1000000000>;
 				};
 			};
