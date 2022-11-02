@@ -234,7 +234,7 @@ static void cyrix_set_arr(unsigned int reg, unsigned long base,
 	post_set();
 }
 
-static const struct mtrr_ops cyrix_mtrr_ops = {
+const struct mtrr_ops cyrix_mtrr_ops = {
 	.vendor            = X86_VENDOR_CYRIX,
 	.set               = cyrix_set_arr,
 	.get               = cyrix_get_arr,
@@ -242,9 +242,3 @@ static const struct mtrr_ops cyrix_mtrr_ops = {
 	.validate_add_page = generic_validate_add_page,
 	.have_wrcomb       = positive_have_wrcomb,
 };
-
-int __init cyrix_init_mtrr(void)
-{
-	set_mtrr_ops(&cyrix_mtrr_ops);
-	return 0;
-}

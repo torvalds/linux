@@ -51,8 +51,6 @@ void fill_mtrr_var_range(unsigned int index,
 		u32 base_lo, u32 base_hi, u32 mask_lo, u32 mask_hi);
 bool get_mtrr_state(void);
 
-extern void __init set_mtrr_ops(const struct mtrr_ops *ops);
-
 extern u64 size_or_mask, size_and_mask;
 extern const struct mtrr_ops *mtrr_if;
 
@@ -66,10 +64,10 @@ void mtrr_state_warn(void);
 const char *mtrr_attrib_to_str(int x);
 void mtrr_wrmsr(unsigned, unsigned, unsigned);
 
-/* CPU specific mtrr init functions */
-int amd_init_mtrr(void);
-int cyrix_init_mtrr(void);
-int centaur_init_mtrr(void);
+/* CPU specific mtrr_ops vectors. */
+extern const struct mtrr_ops amd_mtrr_ops;
+extern const struct mtrr_ops cyrix_mtrr_ops;
+extern const struct mtrr_ops centaur_mtrr_ops;
 
 extern int changed_by_mtrr_cleanup;
 extern int mtrr_cleanup(unsigned address_bits);
