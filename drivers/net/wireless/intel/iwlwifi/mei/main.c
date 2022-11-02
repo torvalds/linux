@@ -1535,7 +1535,7 @@ void iwl_mei_host_disassociated(void)
 	struct iwl_sap_notif_host_link_down msg = {
 		.hdr.type = cpu_to_le16(SAP_MSG_NOTIF_HOST_LINK_DOWN),
 		.hdr.len = cpu_to_le16(sizeof(msg) - sizeof(msg.hdr)),
-		.type = HOST_LINK_DOWN_TYPE_LONG,
+		.type = HOST_LINK_DOWN_TYPE_TEMPORARY,
 	};
 
 	mutex_lock(&iwl_mei_mutex);
