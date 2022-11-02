@@ -2414,6 +2414,9 @@ static bool dcn32_resource_construct(
 		pool->base.oem_device = NULL;
 	}
 
+	if (ASICREV_IS_GC_11_0_3(dc->ctx->asic_id.hw_internal_rev) && (dc->config.sdpif_request_limit_words_per_umc == 0))
+		dc->config.sdpif_request_limit_words_per_umc = 16;
+
 	DC_FP_END();
 
 	return true;
