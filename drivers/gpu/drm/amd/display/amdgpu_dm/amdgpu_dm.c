@@ -4536,14 +4536,14 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		link = dc_get_link_at_index(dm->dc, i);
 
 		if (link->connector_signal == SIGNAL_TYPE_VIRTUAL) {
-			struct drm_writeback_connector *wbcon = kzalloc(sizeof(*wbcon), GFP_KERNEL);
+			struct amdgpu_dm_wb_connector *wbcon = kzalloc(sizeof(*wbcon), GFP_KERNEL);
 
 			if (!wbcon) {
 				DRM_ERROR("KMS: Failed to allocate writeback connector\n");
 				continue;
 			}
 
-			if (amdgpu_dm_wb_connector_init(dm, wbcon)) {
+			if (amdgpu_dm_wb_connector_init(dm, wbcon, i)) {
 				DRM_ERROR("KMS: Failed to initialize writeback connector\n");
 				kfree(wbcon);
 				continue;
@@ -7648,6 +7648,7 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 	struct dc_link *link = dc_get_link_at_index(dc, link_index);
 	struct amdgpu_i2c_adapter *i2c;
 
+	/* Not needed for writeback connector */
 	link->priv = aconnector;
 
 
