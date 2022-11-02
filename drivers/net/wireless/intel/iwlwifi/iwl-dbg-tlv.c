@@ -1327,7 +1327,7 @@ static void iwl_dbg_tlv_init_cfg(struct iwl_fw_runtime *fwrt)
 			     "WRT: removing allocation id %d from region id %d\n",
 			     le32_to_cpu(reg->dram_alloc_id), i);
 
-		failed_alloc &= ~le32_to_cpu(reg->dram_alloc_id);
+		failed_alloc &= ~BIT(le32_to_cpu(reg->dram_alloc_id));
 		fwrt->trans->dbg.unsupported_region_msk |= BIT(i);
 
 		kfree(*active_reg);
