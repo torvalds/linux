@@ -67,7 +67,7 @@ struct ipa_interrupt;
  * @available:		Bitmap of endpoints supported by hardware
  * @filtered:		Bitmap of endpoints that support filtering
  * @set_up:		Bitmap of endpoints that are set up for use
- * @enabled:		Bit mask indicating endpoints enabled
+ * @enabled:		Bitmap of currently enabled endpoints
  * @modem_tx_count:	Number of defined modem TX endoints
  * @endpoint:		Array of endpoint information
  * @channel_map:	Mapping of GSI channel to IPA endpoint
@@ -125,7 +125,7 @@ struct ipa {
 	unsigned long *available;	/* Supported by hardware */
 	u64 filtered;			/* Support filtering (AP and modem) */
 	unsigned long *set_up;
-	u32 enabled;
+	unsigned long *enabled;
 
 	u32 modem_tx_count;
 	struct ipa_endpoint endpoint[IPA_ENDPOINT_MAX];
