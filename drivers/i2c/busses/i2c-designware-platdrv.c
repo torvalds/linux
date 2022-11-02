@@ -424,7 +424,7 @@ static int __init dw_i2c_init_driver(void)
 {
 	return platform_driver_register(&dw_i2c_driver);
 }
-device_initcall(dw_i2c_init_driver);
+subsys_initcall(dw_i2c_init_driver);
 
 static void __exit dw_i2c_exit_driver(void)
 {
