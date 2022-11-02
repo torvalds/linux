@@ -764,12 +764,8 @@ void __init mtrr_bp_init(void)
 			__mtrr_enabled = get_mtrr_state();
 
 			if (mtrr_enabled()) {
-				mtrr_bp_pat_init();
 				memory_caching_control |= CACHE_MTRR | CACHE_PAT;
-			}
-
-			if (mtrr_cleanup(phys_addr)) {
-				changed_by_mtrr_cleanup = 1;
+				changed_by_mtrr_cleanup = mtrr_cleanup(phys_addr);
 				cache_cpu_init();
 			}
 		}
