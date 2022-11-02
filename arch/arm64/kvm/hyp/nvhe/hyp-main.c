@@ -1348,13 +1348,17 @@ static void handle_host_hcall(struct kvm_cpu_context *host_ctxt)
 	cpu_reg(host_ctxt, 0) = SMCCC_RET_SUCCESS;
 	hfn(host_ctxt);
 
+	trace_host_hcall(id, 0);
+
 	return;
 inval:
+	trace_host_hcall(id, 1);
 	cpu_reg(host_ctxt, 0) = SMCCC_RET_NOT_SUPPORTED;
 }
 
 static void handle_host_smc(struct kvm_cpu_context *host_ctxt)
 {
+	DECLARE_REG(u64, func_id, host_ctxt, 0);
 	struct pkvm_hyp_vcpu *hyp_vcpu;
 	bool handled;
 
@@ -1369,6 +1373,8 @@ static void handle_host_smc(struct kvm_cpu_context *host_ctxt)
 		handled = default_host_smc_handler(host_ctxt);
 	if (!handled)
 		__kvm_hyp_host_forward_smc(host_ctxt);
+
+	trace_host_smc(func_id, !handled);
 
 	/* SMC was trapped, move ELR past the current PC. */
 	kvm_skip_host_instr();
