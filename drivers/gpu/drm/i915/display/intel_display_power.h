@@ -6,11 +6,12 @@
 #ifndef __INTEL_DISPLAY_POWER_H__
 #define __INTEL_DISPLAY_POWER_H__
 
-#include "intel_runtime_pm.h"
+#include "intel_wakeref.h"
 
 enum aux_ch;
 enum dpio_channel;
 enum dpio_phy;
+enum i915_drm_suspend_mode;
 enum port;
 struct drm_i915_private;
 struct i915_power_well;
