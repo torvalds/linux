@@ -1919,8 +1919,6 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 	u32 gb_addr_config;
 	int err;
 
-	adev->gfx.funcs = &gfx_v9_0_gfx_funcs;
-
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(9, 0, 1):
 		adev->gfx.config.max_hw_contexts = 8;
@@ -4538,6 +4536,8 @@ fail:
 static int gfx_v9_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	adev->gfx.funcs = &gfx_v9_0_gfx_funcs;
 
 	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 1) ||
 	    adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2))
