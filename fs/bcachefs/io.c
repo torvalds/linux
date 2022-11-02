@@ -1274,19 +1274,19 @@ again:
 		 * freeing up space on specific disks, which means that
 		 * allocations for specific disks may hang arbitrarily long:
 		 */
-		ret = bch2_alloc_sectors_start(c,
-			op->target,
-			op->opts.erasure_code && !(op->flags & BCH_WRITE_CACHED),
-			op->write_point,
-			&op->devs_have,
-			op->nr_replicas,
-			op->nr_replicas_required,
-			op->alloc_reserve,
-			op->flags,
-			(op->flags & (BCH_WRITE_ALLOC_NOWAIT|
-				      BCH_WRITE_ONLY_SPECIFIED_DEVS))
-			? NULL : &op->cl,
-			&wp);
+		ret = bch2_trans_do(c, NULL, NULL, 0,
+			bch2_alloc_sectors_start_trans(&trans,
+				op->target,
+				op->opts.erasure_code && !(op->flags & BCH_WRITE_CACHED),
+				op->write_point,
+				&op->devs_have,
+				op->nr_replicas,
+				op->nr_replicas_required,
+				op->alloc_reserve,
+				op->flags,
+				(op->flags & (BCH_WRITE_ALLOC_NOWAIT|
+					      BCH_WRITE_ONLY_SPECIFIED_DEVS))
+				? NULL : &op->cl, &wp));
 		if (unlikely(ret)) {
 			if (ret == -EAGAIN)
 				break;

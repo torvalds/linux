@@ -1228,29 +1228,6 @@ err:
 	return ret;
 }
 
-int bch2_alloc_sectors_start(struct bch_fs *c,
-			     unsigned target,
-			     unsigned erasure_code,
-			     struct write_point_specifier write_point,
-			     struct bch_devs_list *devs_have,
-			     unsigned nr_replicas,
-			     unsigned nr_replicas_required,
-			     enum alloc_reserve reserve,
-			     unsigned flags,
-			     struct closure *cl,
-			     struct write_point **wp_ret)
-{
-	return bch2_trans_do(c, NULL, NULL, 0,
-			     bch2_alloc_sectors_start_trans(&trans, target,
-							    erasure_code,
-							    write_point,
-							    devs_have,
-							    nr_replicas,
-							    nr_replicas_required,
-							    reserve,
-							    flags, cl, wp_ret));
-}
-
 struct bch_extent_ptr bch2_ob_ptr(struct bch_fs *c, struct open_bucket *ob)
 {
 	struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
