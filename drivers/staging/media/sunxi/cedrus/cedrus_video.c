@@ -73,8 +73,8 @@ static inline struct cedrus_ctx *cedrus_file2ctx(struct file *file)
 	return container_of(file->private_data, struct cedrus_ctx, fh);
 }
 
-static struct cedrus_format *cedrus_find_format(u32 pixelformat, u32 directions,
-						unsigned int capabilities)
+static struct cedrus_format *cedrus_find_format(struct cedrus_ctx *ctx,
+						u32 pixelformat, u32 directions)
 {
 	struct cedrus_format *first_valid_fmt = NULL;
 	struct cedrus_format *fmt;
@@ -83,7 +83,7 @@ static struct cedrus_format *cedrus_find_format(u32 pixelformat, u32 directions,
 	for (i = 0; i < CEDRUS_FORMATS_COUNT; i++) {
 		fmt = &cedrus_formats[i];
 
-		if ((fmt->capabilities & capabilities) != fmt->capabilities ||
+		if (!cedrus_is_capable(ctx, fmt->capabilities) ||
 		    !(fmt->directions & directions))
 			continue;
 
@@ -177,19 +177,13 @@ static int cedrus_enum_fmt(struct file *file, struct v4l2_fmtdesc *f,
 			   u32 direction)
 {
 	struct cedrus_ctx *ctx = cedrus_file2ctx(file);
-	struct cedrus_dev *dev = ctx->dev;
-	unsigned int capabilities = dev->capabilities;
-	struct cedrus_format *fmt;
 	unsigned int i, index;
 
 	/* Index among formats that match the requested direction. */
 	index = 0;
 
 	for (i = 0; i < CEDRUS_FORMATS_COUNT; i++) {
-		fmt = &cedrus_formats[i];
-
-		if (fmt->capabilities && (fmt->capabilities & capabilities) !=
-		    fmt->capabilities)
+		if (!cedrus_is_capable(ctx, cedrus_formats[i].capabilities))
 			continue;
 
 		if (!(cedrus_formats[i].directions & direction))
@@ -244,10 +238,9 @@ static int cedrus_g_fmt_vid_out(struct file *file, void *priv,
 static int cedrus_try_fmt_vid_cap_p(struct cedrus_ctx *ctx,
 				    struct v4l2_pix_format *pix_fmt)
 {
-	struct cedrus_dev *dev = ctx->dev;
 	struct cedrus_format *fmt =
-		cedrus_find_format(pix_fmt->pixelformat, CEDRUS_DECODE_DST,
-				   dev->capabilities);
+		cedrus_find_format(ctx, pix_fmt->pixelformat,
+				   CEDRUS_DECODE_DST);
 
 	if (!fmt)
 		return -EINVAL;
@@ -269,10 +262,9 @@ static int cedrus_try_fmt_vid_cap(struct file *file, void *priv,
 static int cedrus_try_fmt_vid_out_p(struct cedrus_ctx *ctx,
 				    struct v4l2_pix_format *pix_fmt)
 {
-	struct cedrus_dev *dev = ctx->dev;
 	struct cedrus_format *fmt =
-		cedrus_find_format(pix_fmt->pixelformat, CEDRUS_DECODE_SRC,
-				   dev->capabilities);
+		cedrus_find_format(ctx, pix_fmt->pixelformat,
+				   CEDRUS_DECODE_SRC);
 
 	if (!fmt)
 		return -EINVAL;
