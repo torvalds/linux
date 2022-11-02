@@ -83,7 +83,7 @@
 		enable-active-high;
 	};
 
-	watchdog-gpio {
+	watchdog {
 		/* TPS3813 */
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_watchdog_gpio>;
