@@ -142,26 +142,24 @@ static __always_inline unsigned long __cmpxchg(unsigned long address,
 		return prev >> shift;
 	}
 	case 4: {
-		unsigned int prev;
+		unsigned int prev = old;
 
 		asm volatile(
 			"	cs	%[prev],%[new],%[address]\n"
-			: [prev] "=&d" (prev),
+			: [prev] "+&d" (prev),
 			  [address] "+Q" (*(int *)address)
-			: "0" ((unsigned int)old),
-			  [new] "d" (new)
+			: [new] "d" (new)
 			: "memory", "cc");
 		return prev;
 	}
 	case 8: {
-		unsigned long prev;
+		unsigned long prev = old;
 
 		asm volatile(
 			"	csg	%[prev],%[new],%[address]\n"
-			: [prev] "=&d" (prev),
+			: [prev] "+&d" (prev),
 			  [address] "+QS" (*(long *)address)
-			: "0" (old),
-			  [new] "d" (new)
+			: [new] "d" (new)
 			: "memory", "cc");
 		return prev;
 	}
