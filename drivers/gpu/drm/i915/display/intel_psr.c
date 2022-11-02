@@ -1684,9 +1684,6 @@ static void intel_psr2_sel_fetch_pipe_alignment(const struct intel_crtc_state *c
 	pipe_clip->y1 -= pipe_clip->y1 % y_alignment;
 	if (pipe_clip->y2 % y_alignment)
 		pipe_clip->y2 = ((pipe_clip->y2 / y_alignment) + 1) * y_alignment;
-
-	if (IS_ALDERLAKE_P(dev_priv) && crtc_state->dsc.compression_enable)
-		drm_warn(&dev_priv->drm, "Missing PSR2 sel fetch alignment with DSC\n");
 }
 
 /*
