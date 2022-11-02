@@ -1124,6 +1124,17 @@ config REGULATOR_RT6160
 	  The wide output range is from 2025mV to 5200mV and can be used on most
 	  common application scenario.
 
+config REGULATOR_RT6190
+	tristate "Richtek RT6190 4-Switch BuckBoost controller"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  The RT6190 is a 4-Switch BuckBoost controller designed for converting
+	  input voltage to output voltage that can be equal to, higher or lower
+	  than input voltage. It operates with wide input voltage range from
+	  4.5V to 36V, and the output voltage can be set from 3V to 36V by
+	  external FB pin.
+
 config REGULATOR_RT6245
 	tristate "Richtek RT6245 voltage regulator"
 	depends on I2C
