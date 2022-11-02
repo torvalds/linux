@@ -50,6 +50,7 @@
 #include "en/mapping.h"
 #include "devlink.h"
 #include "lag/lag.h"
+#include "en/tc/post_meter.h"
 
 #define mlx5_esw_for_each_rep(esw, i, rep) \
 	xa_for_each(&((esw)->offloads.vport_reps), i, rep)
@@ -199,6 +200,21 @@ esw_cleanup_decap_indir(struct mlx5_eswitch *esw,
 		mlx5_esw_indir_table_put(esw, attr,
 					 mlx5_esw_indir_table_decap_vport(attr),
 					 true);
+}
+
+static int
+esw_setup_mtu_dest(struct mlx5_flow_destination *dest,
+		   struct mlx5e_meter_attr *meter,
+		   int i)
+{
+	dest[i].type = MLX5_FLOW_DESTINATION_TYPE_RANGE;
+	dest[i].range.field = MLX5_FLOW_DEST_RANGE_FIELD_PKT_LEN;
+	dest[i].range.min = 0;
+	dest[i].range.max = meter->params.mtu;
+	dest[i].range.hit_ft = mlx5e_post_meter_get_mtu_true_ft(meter->post_meter);
+	dest[i].range.miss_ft = mlx5e_post_meter_get_mtu_false_ft(meter->post_meter);
+
+	return 0;
 }
 
 static int
@@ -490,6 +506,9 @@ esw_setup_dests(struct mlx5_flow_destination *dest,
 		(*i)++;
 	} else if (attr->flags & MLX5_ATTR_FLAG_ACCEPT) {
 		esw_setup_accept_dest(dest, flow_act, chains, *i);
+		(*i)++;
+	} else if (attr->flags & MLX5_ATTR_FLAG_MTU) {
+		err = esw_setup_mtu_dest(dest, &attr->meter_attr, *i);
 		(*i)++;
 	} else if (esw_is_indir_table(esw, attr)) {
 		err = esw_setup_indir_table(dest, flow_act, esw, attr, spec, true, i);

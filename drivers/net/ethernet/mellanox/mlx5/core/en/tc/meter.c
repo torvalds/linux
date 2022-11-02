@@ -241,7 +241,7 @@ mlx5e_flow_meter_destroy_aso_obj(struct mlx5_core_dev *mdev, u32 obj_id)
 }
 
 static struct mlx5e_flow_meter_handle *
-__mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters)
+__mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters, bool alloc_aso)
 {
 	struct mlx5_core_dev *mdev = flow_meters->mdev;
 	struct mlx5e_flow_meter_aso_obj *meters_obj;
@@ -267,6 +267,9 @@ __mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters)
 		goto err_act_counter;
 	}
 	meter->act_counter = counter;
+
+	if (!alloc_aso)
+		goto no_aso;
 
 	meters_obj = list_first_entry_or_null(&flow_meters->partial_list,
 					      struct mlx5e_flow_meter_aso_obj,
@@ -300,11 +303,12 @@ __mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters)
 	}
 
 	bitmap_set(meters_obj->meters_map, pos, 1);
-	meter->flow_meters = flow_meters;
 	meter->meters_obj = meters_obj;
 	meter->obj_id = meters_obj->base_id + pos / 2;
 	meter->idx = pos % 2;
 
+no_aso:
+	meter->flow_meters = flow_meters;
 	mlx5_core_dbg(mdev, "flow meter allocated, obj_id=0x%x, index=%d\n",
 		      meter->obj_id, meter->idx);
 
@@ -332,6 +336,9 @@ __mlx5e_flow_meter_free(struct mlx5e_flow_meter_handle *meter)
 	mlx5_fc_destroy(mdev, meter->act_counter);
 	mlx5_fc_destroy(mdev, meter->drop_counter);
 
+	if (meter->params.mtu)
+		goto out_no_aso;
+
 	meters_obj = meter->meters_obj;
 	pos = (meter->obj_id - meters_obj->base_id) * 2 + meter->idx;
 	bitmap_clear(meters_obj->meters_map, pos, 1);
@@ -345,6 +352,7 @@ __mlx5e_flow_meter_free(struct mlx5e_flow_meter_handle *meter)
 		list_add(&meters_obj->entry, &flow_meters->partial_list);
 	}
 
+out_no_aso:
 	mlx5_core_dbg(mdev, "flow meter freed, obj_id=0x%x, index=%d\n",
 		      meter->obj_id, meter->idx);
 	kfree(meter);
@@ -409,12 +417,13 @@ mlx5e_tc_meter_alloc(struct mlx5e_flow_meters *flow_meters,
 {
 	struct mlx5e_flow_meter_handle *meter;
 
-	meter = __mlx5e_flow_meter_alloc(flow_meters);
+	meter = __mlx5e_flow_meter_alloc(flow_meters, !params->mtu);
 	if (IS_ERR(meter))
 		return meter;
 
 	hash_add(flow_meters->hashtbl, &meter->hlist, params->index);
 	meter->params.index = params->index;
+	meter->params.mtu = params->mtu;
 	meter->refcnt++;
 
 	return meter;

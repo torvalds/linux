@@ -43,6 +43,18 @@ mlx5e_post_meter_get_ft(struct mlx5e_post_meter_priv *post_meter)
 	return post_meter->rate_steering_table.ft;
 }
 
+struct mlx5_flow_table *
+mlx5e_post_meter_get_mtu_true_ft(struct mlx5e_post_meter_priv *post_meter)
+{
+	return post_meter->mtu_tables.green_table.ft;
+}
+
+struct mlx5_flow_table *
+mlx5e_post_meter_get_mtu_false_ft(struct mlx5e_post_meter_priv *post_meter)
+{
+	return post_meter->mtu_tables.red_table.ft;
+}
+
 static struct mlx5_flow_table *
 mlx5e_post_meter_table_create(struct mlx5e_priv *priv,
 			      enum mlx5_flow_namespace_type ns_type)

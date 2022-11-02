@@ -114,6 +114,7 @@ enum {
 	MLX5_ATTR_FLAG_ACCEPT        = BIT(5),
 	MLX5_ATTR_FLAG_CT            = BIT(6),
 	MLX5_ATTR_FLAG_TERMINATING   = BIT(7),
+	MLX5_ATTR_FLAG_MTU           = BIT(8),
 };
 
 /* Returns true if any of the flags that require skipping further TC/NF processing are set. */

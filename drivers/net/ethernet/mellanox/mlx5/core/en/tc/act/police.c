@@ -3,6 +3,7 @@
 
 #include "act.h"
 #include "en/tc_priv.h"
+#include "fs_core.h"
 
 static bool police_act_validate_control(enum flow_action_id act_id,
 					struct netlink_ext_ack *extack)
@@ -71,6 +72,8 @@ fill_meter_params_from_act(const struct flow_action_entry *act,
 		params->mode = MLX5_RATE_LIMIT_PPS;
 		params->rate = act->police.rate_pkt_ps;
 		params->burst = act->police.burst_pkt;
+	} else if (act->police.mtu) {
+		params->mtu = act->police.mtu;
 	} else {
 		return -EOPNOTSUPP;
 	}
@@ -84,14 +87,25 @@ tc_act_parse_police(struct mlx5e_tc_act_parse_state *parse_state,
 		    struct mlx5e_priv *priv,
 		    struct mlx5_flow_attr *attr)
 {
+	enum mlx5_flow_namespace_type ns =  mlx5e_get_flow_namespace(parse_state->flow);
+	struct mlx5e_flow_meter_params *params = &attr->meter_attr.params;
 	int err;
 
-	err = fill_meter_params_from_act(act, &attr->meter_attr.params);
+	err = fill_meter_params_from_act(act, params);
 	if (err)
 		return err;
 
-	attr->action |= MLX5_FLOW_CONTEXT_ACTION_EXECUTE_ASO;
-	attr->exe_aso_type = MLX5_EXE_ASO_FLOW_METER;
+	if (params->mtu) {
+		if (!(mlx5_fs_get_capabilities(priv->mdev, ns) &
+		      MLX5_FLOW_STEERING_CAP_MATCH_RANGES))
+			return -EOPNOTSUPP;
+
+		attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+		attr->flags |= MLX5_ATTR_FLAG_MTU;
+	} else {
+		attr->action |= MLX5_FLOW_CONTEXT_ACTION_EXECUTE_ASO;
+		attr->exe_aso_type = MLX5_EXE_ASO_FLOW_METER;
+	}
 
 	return 0;
 }

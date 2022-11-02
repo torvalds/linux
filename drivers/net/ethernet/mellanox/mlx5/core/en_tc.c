@@ -402,8 +402,9 @@ mlx5_tc_rule_delete(struct mlx5e_priv *priv,
 static bool
 is_flow_meter_action(struct mlx5_flow_attr *attr)
 {
-	return ((attr->action & MLX5_FLOW_CONTEXT_ACTION_EXECUTE_ASO) &&
-		(attr->exe_aso_type == MLX5_EXE_ASO_FLOW_METER));
+	return (((attr->action & MLX5_FLOW_CONTEXT_ACTION_EXECUTE_ASO) &&
+		 (attr->exe_aso_type == MLX5_EXE_ASO_FLOW_METER)) ||
+		attr->flags & MLX5_ATTR_FLAG_MTU);
 }
 
 static int
@@ -414,6 +415,7 @@ mlx5e_tc_add_flow_meter(struct mlx5e_priv *priv,
 	struct mlx5e_post_meter_priv *post_meter;
 	enum mlx5_flow_namespace_type ns_type;
 	struct mlx5e_flow_meter_handle *meter;
+	enum mlx5e_post_meter_type type;
 
 	meter = mlx5e_tc_meter_replace(priv->mdev, &attr->meter_attr.params);
 	if (IS_ERR(meter)) {
@@ -422,8 +424,9 @@ mlx5e_tc_add_flow_meter(struct mlx5e_priv *priv,
 	}
 
 	ns_type = mlx5e_tc_meter_get_namespace(meter->flow_meters);
+	type = meter->params.mtu ? MLX5E_POST_METER_MTU : MLX5E_POST_METER_RATE;
 	post_meter = mlx5e_post_meter_init(priv, ns_type, post_act,
-					   MLX5E_POST_METER_RATE,
+					   type,
 					   meter->act_counter, meter->drop_counter,
 					   attr->branch_true, attr->branch_false);
 	if (IS_ERR(post_meter)) {
