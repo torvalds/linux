@@ -1159,12 +1159,8 @@ void mt7915_mac_reset_counters(struct mt7915_phy *phy)
 		mt76_rr(dev, MT_TX_AGG_CNT2(phy->band_idx, i));
 	}
 
-	i = 0;
 	phy->mt76->survey_time = ktime_get_boottime();
-	if (phy->band_idx)
-		i = ARRAY_SIZE(dev->mt76.aggr_stats) / 2;
-
-	memset(&dev->mt76.aggr_stats[i], 0, sizeof(dev->mt76.aggr_stats) / 2);
+	memset(phy->mt76->aggr_stats, 0, sizeof(phy->mt76->aggr_stats));
 
 	/* reset airtime counters */
 	mt76_set(dev, MT_WF_RMAC_MIB_AIRTIME0(phy->band_idx),
@@ -1507,7 +1503,7 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 {
 	struct mt7915_dev *dev = phy->dev;
 	struct mib_stats *mib = &phy->mib;
-	int i, aggr0, aggr1, cnt;
+	int i, aggr0 = 0, aggr1, cnt;
 	u32 val;
 
 	cnt = mt76_rr(dev, MT_MIB_SDR3(phy->band_idx));
@@ -1639,7 +1635,6 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 		mib->tx_amsdu_cnt += cnt;
 	}
 
-	aggr0 = phy->band_idx ? ARRAY_SIZE(dev->mt76.aggr_stats) / 2 : 0;
 	if (is_mt7915(&dev->mt76)) {
 		for (i = 0, aggr1 = aggr0 + 8; i < 4; i++) {
 			val = mt76_rr(dev, MT_MIB_MB_SDR1(phy->band_idx, (i << 4)));
@@ -1654,12 +1649,12 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 				FIELD_GET(MT_MIB_RTS_RETRIES_COUNT_MASK, val);
 
 			val = mt76_rr(dev, MT_TX_AGG_CNT(phy->band_idx, i));
-			dev->mt76.aggr_stats[aggr0++] += val & 0xffff;
-			dev->mt76.aggr_stats[aggr0++] += val >> 16;
+			phy->mt76->aggr_stats[aggr0++] += val & 0xffff;
+			phy->mt76->aggr_stats[aggr0++] += val >> 16;
 
 			val = mt76_rr(dev, MT_TX_AGG_CNT2(phy->band_idx, i));
-			dev->mt76.aggr_stats[aggr1++] += val & 0xffff;
-			dev->mt76.aggr_stats[aggr1++] += val >> 16;
+			phy->mt76->aggr_stats[aggr1++] += val & 0xffff;
+			phy->mt76->aggr_stats[aggr1++] += val >> 16;
 		}
 
 		cnt = mt76_rr(dev, MT_MIB_SDR32(phy->band_idx));
@@ -1706,8 +1701,8 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 
 		for (i = 0; i < 8; i++) {
 			val = mt76_rr(dev, MT_TX_AGG_CNT(phy->band_idx, i));
-			dev->mt76.aggr_stats[aggr0++] += FIELD_GET(GENMASK(15, 0), val);
-			dev->mt76.aggr_stats[aggr0++] += FIELD_GET(GENMASK(31, 16), val);
+			phy->mt76->aggr_stats[aggr0++] += FIELD_GET(GENMASK(15, 0), val);
+			phy->mt76->aggr_stats[aggr0++] += FIELD_GET(GENMASK(31, 16), val);
 		}
 
 		cnt = mt76_rr(dev, MT_MIB_SDR32(phy->band_idx));

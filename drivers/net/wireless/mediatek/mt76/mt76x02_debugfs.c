@@ -20,7 +20,7 @@ mt76x02_ampdu_stat_show(struct seq_file *file, void *data)
 		seq_puts(file, "Count:  ");
 		for (j = 0; j < 8; j++)
 			seq_printf(file, "%8d | ",
-				   dev->mt76.aggr_stats[i * 8 + j]);
+				   dev->mphy.aggr_stats[i * 8 + j]);
 		seq_puts(file, "\n");
 		seq_puts(file, "--------");
 		for (j = 0; j < 8; j++)

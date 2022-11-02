@@ -1075,7 +1075,7 @@ void mt7921_get_et_stats(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	/* Tx ampdu stat */
 	for (i = 0; i < 15; i++)
-		data[ei++] = dev->mt76.aggr_stats[i];
+		data[ei++] = phy->mt76->aggr_stats[i];
 
 	data[ei++] = phy->mib.ba_miss_cnt;
 

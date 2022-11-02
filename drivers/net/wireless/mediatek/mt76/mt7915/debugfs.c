@@ -639,7 +639,7 @@ mt7915_ampdu_stat_read_phy(struct mt7915_phy *phy,
 {
 	struct mt7915_dev *dev = phy->dev;
 	bool ext_phy = phy != &dev->phy;
-	int bound[15], range[4], i, n;
+	int bound[15], range[4], i;
 
 	/* Tx ampdu stat */
 	for (i = 0; i < ARRAY_SIZE(range); i++)
@@ -656,9 +656,8 @@ mt7915_ampdu_stat_read_phy(struct mt7915_phy *phy,
 			   bound[i] + 1, bound[i + 1]);
 
 	seq_puts(file, "\nCount:  ");
-	n = phy->band_idx ? ARRAY_SIZE(dev->mt76.aggr_stats) / 2 : 0;
 	for (i = 0; i < ARRAY_SIZE(bound); i++)
-		seq_printf(file, "%8d | ", dev->mt76.aggr_stats[i + n]);
+		seq_printf(file, "%8d | ", phy->mt76->aggr_stats[i]);
 	seq_puts(file, "\n");
 
 	seq_printf(file, "BA miss count: %d\n", phy->mib.ba_miss_cnt);

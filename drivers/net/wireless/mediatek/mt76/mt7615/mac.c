@@ -117,7 +117,7 @@ void mt7615_mac_reset_counters(struct mt7615_phy *phy)
 		mt76_rr(dev, MT_TX_AGG_CNT(1, i));
 	}
 
-	memset(dev->mt76.aggr_stats, 0, sizeof(dev->mt76.aggr_stats));
+	memset(phy->mt76->aggr_stats, 0, sizeof(phy->mt76->aggr_stats));
 	phy->mt76->survey_time = ktime_get_boottime();
 
 	/* reset airtime counters */
@@ -2012,7 +2012,7 @@ mt7615_mac_update_mib_stats(struct mt7615_phy *phy)
 	struct mt7615_dev *dev = phy->dev;
 	struct mib_stats *mib = &phy->mib;
 	bool ext_phy = phy != &dev->phy;
-	int i, aggr;
+	int i, aggr = 0;
 	u32 val, val2;
 
 	mib->fcs_err_cnt += mt76_get_field(dev, MT_MIB_SDR3(ext_phy),
@@ -2026,7 +2026,6 @@ mt7615_mac_update_mib_stats(struct mt7615_phy *phy)
 		mib->aggr_per = 1000 * (val - val2) / val;
 	}
 
-	aggr = ext_phy ? ARRAY_SIZE(dev->mt76.aggr_stats) / 2 : 0;
 	for (i = 0; i < 4; i++) {
 		val = mt76_rr(dev, MT_MIB_MB_SDR1(ext_phy, i));
 		mib->ba_miss_cnt += FIELD_GET(MT_MIB_BA_MISS_COUNT_MASK, val);
@@ -2039,8 +2038,8 @@ mt7615_mac_update_mib_stats(struct mt7615_phy *phy)
 						  val);
 
 		val = mt76_rr(dev, MT_TX_AGG_CNT(ext_phy, i));
-		dev->mt76.aggr_stats[aggr++] += val & 0xffff;
-		dev->mt76.aggr_stats[aggr++] += val >> 16;
+		phy->mt76->aggr_stats[aggr++] += val & 0xffff;
+		phy->mt76->aggr_stats[aggr++] += val >> 16;
 	}
 }
 

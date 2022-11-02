@@ -745,7 +745,7 @@ void mt7921_mac_reset_counters(struct mt7921_phy *phy)
 	}
 
 	dev->mt76.phy.survey_time = ktime_get_boottime();
-	memset(&dev->mt76.aggr_stats[0], 0, sizeof(dev->mt76.aggr_stats) / 2);
+	memset(phy->mt76->aggr_stats, 0, sizeof(phy->mt76->aggr_stats));
 
 	/* reset airtime counters */
 	mt76_rr(dev, MT_MIB_SDR9(0));
@@ -990,10 +990,10 @@ void mt7921_mac_update_mib_stats(struct mt7921_phy *phy)
 		val = mt76_rr(dev, MT_TX_AGG_CNT(0, i));
 		val2 = mt76_rr(dev, MT_TX_AGG_CNT2(0, i));
 
-		dev->mt76.aggr_stats[aggr0++] += val & 0xffff;
-		dev->mt76.aggr_stats[aggr0++] += val >> 16;
-		dev->mt76.aggr_stats[aggr1++] += val2 & 0xffff;
-		dev->mt76.aggr_stats[aggr1++] += val2 >> 16;
+		phy->mt76->aggr_stats[aggr0++] += val & 0xffff;
+		phy->mt76->aggr_stats[aggr0++] += val >> 16;
+		phy->mt76->aggr_stats[aggr1++] += val2 & 0xffff;
+		phy->mt76->aggr_stats[aggr1++] += val2 >> 16;
 	}
 }
 

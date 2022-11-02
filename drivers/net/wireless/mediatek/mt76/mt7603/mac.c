@@ -39,7 +39,7 @@ void mt7603_mac_reset_counters(struct mt7603_dev *dev)
 	for (i = 0; i < 2; i++)
 		mt76_rr(dev, MT_TX_AGG_CNT(i));
 
-	memset(dev->mt76.aggr_stats, 0, sizeof(dev->mt76.aggr_stats));
+	memset(dev->mphy.aggr_stats, 0, sizeof(dev->mphy.aggr_stats));
 }
 
 void mt7603_mac_set_timing(struct mt7603_dev *dev)
@@ -1827,8 +1827,8 @@ void mt7603_mac_work(struct work_struct *work)
 	for (i = 0, idx = 0; i < 2; i++) {
 		u32 val = mt76_rr(dev, MT_TX_AGG_CNT(i));
 
-		dev->mt76.aggr_stats[idx++] += val & 0xffff;
-		dev->mt76.aggr_stats[idx++] += val >> 16;
+		dev->mphy.aggr_stats[idx++] += val & 0xffff;
+		dev->mphy.aggr_stats[idx++] += val >> 16;
 	}
 
 	if (dev->mphy.mac_work_count == 10)

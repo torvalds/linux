@@ -1267,7 +1267,7 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
 	};
 	struct mib_stats *mib = &phy->mib;
 	/* See mt7915_ampdu_stat_read_phy, etc */
-	int i, n, ei = 0;
+	int i, ei = 0;
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -1283,9 +1283,8 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
 	data[ei++] = mib->tx_pkt_ibf_cnt;
 
 	/* Tx ampdu stat */
-	n = phy->band_idx ? ARRAY_SIZE(dev->mt76.aggr_stats) / 2 : 0;
 	for (i = 0; i < 15 /*ARRAY_SIZE(bound)*/; i++)
-		data[ei++] = dev->mt76.aggr_stats[i + n];
+		data[ei++] = phy->mt76->aggr_stats[i];
 
 	data[ei++] = phy->mib.ba_miss_cnt;
 

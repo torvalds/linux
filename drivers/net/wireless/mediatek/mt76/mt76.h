@@ -693,6 +693,8 @@ struct mt76_phy {
 	enum mt76_dfs_state dfs_state;
 	ktime_t survey_time;
 
+	u32 aggr_stats[32];
+
 	struct mt76_hw_cap cap;
 	struct mt76_sband sband_2g;
 	struct mt76_sband sband_5g;
@@ -780,8 +782,6 @@ struct mt76_dev {
 	struct list_head wcid_list;
 
 	u32 rev;
-
-	u32 aggr_stats[32];
 
 	struct tasklet_struct pre_tbtt_tasklet;
 	int beacon_int;
