@@ -10,12 +10,14 @@
 #include <linux/acpi.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
+#include <linux/dev_printk.h>
 #include <linux/kernel.h>
 #include <linux/kstrtox.h>
 #include <linux/math.h>
 #include <linux/module.h>
 #include <linux/limits.h>
 #include <linux/power_supply.h>
+#include <linux/printk.h>
 #include <linux/seq_file.h>
 #include <linux/sysfs.h>
 #include <linux/wmi.h>
@@ -26,6 +28,9 @@
 
 #define DELL_DDV_SUPPORTED_INTERFACE 2
 #define DELL_DDV_GUID	"8A42EA14-4F2A-FD45-6422-0087F7A7E608"
+
+#define DELL_EPPID_LENGTH	20
+#define DELL_EPPID_EXT_LENGTH	23
 
 enum dell_ddv_method {
 	DELL_DDV_BATTERY_DESIGN_CAPACITY	= 0x01,
@@ -195,6 +200,10 @@ static ssize_t eppid_show(struct device *dev, struct device_attribute *attr, cha
 	ret = dell_wmi_ddv_query_string(data->wdev, DELL_DDV_BATTERY_EPPID, index, &obj);
 	if (ret < 0)
 		return ret;
+
+	if (obj->string.length != DELL_EPPID_LENGTH && obj->string.length != DELL_EPPID_EXT_LENGTH)
+		dev_info_once(&data->wdev->dev, FW_INFO "Suspicious ePPID length (%d)\n",
+			      obj->string.length);
 
 	ret = sysfs_emit(buf, "%s\n", obj->string.pointer);
 
