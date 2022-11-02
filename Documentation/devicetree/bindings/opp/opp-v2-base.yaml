@@ -230,9 +230,9 @@ patternProperties:
         minItems: 1
         maxItems: 8   # Should be enough regulators
 
-      '^opp-microwatt':
+      '^opp-microwatt-':
         description:
-          Named opp-microwatt property. Similar to opp-microamp property,
+          Named opp-microwatt property. Similar to opp-microamp-<name> property,
           but for microwatt instead.
         $ref: /schemas/types.yaml#/definitions/uint32-array
         minItems: 1
