@@ -1429,8 +1429,6 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 
 	uv_system_init();
 
-	set_cache_aps_delayed_init(true);
-
 	smp_quirk_init_udelay();
 
 	speculative_store_bypass_ht_init();

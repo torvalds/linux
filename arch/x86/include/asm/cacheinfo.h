@@ -16,7 +16,6 @@ void set_cache_aps_delayed_init(bool val);
 bool get_cache_aps_delayed_init(void);
 void cache_bp_init(void);
 void cache_bp_restore(void);
-void cache_ap_init(void);
 void cache_aps_init(void);
 
 #endif /* _ASM_X86_CACHEINFO_H */

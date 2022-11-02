@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/cacheinfo.h>
 #include <linux/cpu.h>
+#include <linux/cpuhotplug.h>
 #include <linux/sched.h>
 #include <linux/capability.h>
 #include <linux/sysfs.h>
@@ -1139,7 +1140,7 @@ static void cache_cpu_init(void)
 	local_irq_restore(flags);
 }
 
-static bool cache_aps_delayed_init;
+static bool cache_aps_delayed_init = true;
 
 void set_cache_aps_delayed_init(bool val)
 {
@@ -1174,10 +1175,10 @@ void cache_bp_restore(void)
 		cache_cpu_init();
 }
 
-void cache_ap_init(void)
+static int cache_ap_init(unsigned int cpu)
 {
 	if (!memory_caching_control || get_cache_aps_delayed_init())
-		return;
+		return 0;
 
 	/*
 	 * Ideally we should hold mtrr_mutex here to avoid MTRR entries
@@ -1194,6 +1195,8 @@ void cache_ap_init(void)
 	 */
 	stop_machine_from_inactive_cpu(cache_rendezvous_handler, NULL,
 				       cpu_callout_mask);
+
+	return 0;
 }
 
 /*
@@ -1207,3 +1210,12 @@ void cache_aps_init(void)
 	stop_machine(cache_rendezvous_handler, NULL, cpu_online_mask);
 	set_cache_aps_delayed_init(false);
 }
+
+static int __init cache_ap_register(void)
+{
+	cpuhp_setup_state_nocalls(CPUHP_AP_CACHECTRL_STARTING,
+				  "x86/cachectrl:starting",
+				  cache_ap_init, NULL);
+	return 0;
+}
+core_initcall(cache_ap_register);
