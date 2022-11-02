@@ -108,7 +108,7 @@ patternProperties:
           The power for the OPP in micro-Watts.
 
           Entries for multiple regulators shall be provided in the same field
-          separated by angular brackets <>. If current values aren't required
+          separated by angular brackets <>. If power values aren't required
           for a regulator, then it shall be filled with 0. If power values
           aren't required for any of the regulators, then this field is not
           required. The OPP binding doesn't provide any provisions to relate the
