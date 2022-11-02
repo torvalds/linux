@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/qcom,aoncc-sm8250.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Clock bindings for LPASS Always ON Clock Controller on SM8250 SoCs
+title: LPASS Always ON Clock Controller on SM8250 SoCs
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>

@@ -11,11 +11,11 @@ maintainers:
   - Taniya Das <quic_tdas@quicinc.com>
 
 description: |
-  Qualcomm global clock control module which supports the clocks, resets and
-  power domains on SDM630, SDM636 and SDM660
+  Qualcomm global clock control module provides the clocks, resets and power
+  domains on SDM630, SDM636 and SDM660
 
-  See also:
-  - dt-bindings/clock/qcom,gcc-sdm660.h  (qcom,gcc-sdm630 and qcom,gcc-sdm660)
+  See also::
+    include/dt-bindings/clock/qcom,gcc-sdm660.h  (qcom,gcc-sdm630 and qcom,gcc-sdm660)
 
 $ref: qcom,gcc.yaml#
 

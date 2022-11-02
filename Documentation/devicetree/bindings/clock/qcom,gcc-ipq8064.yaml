@@ -4,21 +4,21 @@
 $id: http://devicetree.org/schemas/clock/qcom,gcc-ipq8064.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Global Clock & Reset Controller Binding for IPQ8064
-
-allOf:
-  - $ref: qcom,gcc.yaml#
+title: Qualcomm Global Clock & Reset Controller on IPQ8064
 
 maintainers:
   - Ansuel Smith <ansuelsmth@gmail.com>
 
 description: |
-  Qualcomm global clock control module which supports the clocks, resets and
-  power domains on IPQ8064.
+  Qualcomm global clock control module provides the clocks, resets and power
+  domains on IPQ8064.
 
-  See also:
-  - dt-bindings/clock/qcom,gcc-ipq806x.h (qcom,gcc-ipq8064)
-  - dt-bindings/reset/qcom,gcc-ipq806x.h (qcom,gcc-ipq8064)
+  See also::
+    include/dt-bindings/clock/qcom,gcc-ipq806x.h (qcom,gcc-ipq8064)
+    include/dt-bindings/reset/qcom,gcc-ipq806x.h (qcom,gcc-ipq8064)
+
+allOf:
+  - $ref: qcom,gcc.yaml#
 
 properties:
   compatible:

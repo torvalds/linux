@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/qcom,audiocc-sm8250.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Clock bindings for LPASS Audio Clock Controller on SM8250 SoCs
+title: LPASS Audio Clock Controller on SM8250 SoCs
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
