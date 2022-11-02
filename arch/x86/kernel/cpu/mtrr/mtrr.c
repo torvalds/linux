@@ -46,6 +46,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/rcupdate.h>
 
+#include <asm/cacheinfo.h>
 #include <asm/cpufeature.h>
 #include <asm/e820/api.h>
 #include <asm/mtrr.h>
@@ -119,11 +120,11 @@ static int have_wrcomb(void)
 }
 
 /*  This function returns the number of variable MTRRs  */
-static void __init set_num_var_ranges(void)
+static void __init set_num_var_ranges(bool use_generic)
 {
 	unsigned long config = 0, dummy;
 
-	if (use_intel())
+	if (use_generic)
 		rdmsr(MSR_MTRRcap, config, dummy);
 	else if (is_cpu(AMD) || is_cpu(HYGON))
 		config = 2;
@@ -756,14 +757,16 @@ void __init mtrr_bp_init(void)
 
 	if (mtrr_if) {
 		__mtrr_enabled = true;
-		set_num_var_ranges();
+		set_num_var_ranges(mtrr_if == &generic_mtrr_ops);
 		init_table();
-		if (use_intel()) {
+		if (mtrr_if == &generic_mtrr_ops) {
 			/* BIOS may override */
 			__mtrr_enabled = get_mtrr_state();
 
-			if (mtrr_enabled())
+			if (mtrr_enabled()) {
 				mtrr_bp_pat_init();
+				memory_caching_control |= CACHE_MTRR | CACHE_PAT;
+			}
 
 			if (mtrr_cleanup(phys_addr)) {
 				changed_by_mtrr_cleanup = 1;
@@ -786,10 +789,7 @@ void __init mtrr_bp_init(void)
 
 void mtrr_ap_init(void)
 {
-	if (!mtrr_enabled())
-		return;
-
-	if (!use_intel() || mtrr_aps_delayed_init)
+	if (!memory_caching_control || mtrr_aps_delayed_init)
 		return;
 
 	/*
@@ -825,9 +825,7 @@ void mtrr_save_state(void)
 
 void set_mtrr_aps_delayed_init(void)
 {
-	if (!mtrr_enabled())
-		return;
-	if (!use_intel())
+	if (!memory_caching_control)
 		return;
 
 	mtrr_aps_delayed_init = true;
@@ -838,7 +836,7 @@ void set_mtrr_aps_delayed_init(void)
  */
 void mtrr_aps_init(void)
 {
-	if (!use_intel() || !mtrr_enabled())
+	if (!memory_caching_control)
 		return;
 
 	/*
@@ -855,7 +853,7 @@ void mtrr_aps_init(void)
 
 void mtrr_bp_restore(void)
 {
-	if (!use_intel() || !mtrr_enabled())
+	if (!memory_caching_control)
 		return;
 
 	mtrr_if->set_all();
@@ -866,7 +864,7 @@ static int __init mtrr_init_finialize(void)
 	if (!mtrr_enabled())
 		return 0;
 
-	if (use_intel()) {
+	if (memory_caching_control & CACHE_MTRR) {
 		if (!changed_by_mtrr_cleanup)
 			mtrr_state_warn();
 		return 0;
