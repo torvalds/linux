@@ -1607,8 +1607,10 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 		release_bytes = reserve_bytes;
 again:
 		ret = balance_dirty_pages_ratelimited_flags(inode->i_mapping, bdp_flags);
-		if (ret)
+		if (ret) {
+			btrfs_delalloc_release_extents(BTRFS_I(inode), reserve_bytes);
 			break;
+		}
 
 		/*
 		 * This is going to setup the pages array with the number of
