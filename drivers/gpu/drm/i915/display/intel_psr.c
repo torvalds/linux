@@ -779,6 +779,7 @@ static bool psr2_granularity_check(struct intel_dp *intel_dp,
 				   struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	const int crtc_hdisplay = crtc_state->hw.adjusted_mode.crtc_hdisplay;
 	const int crtc_vdisplay = crtc_state->hw.adjusted_mode.crtc_vdisplay;
 	u16 y_granularity = 0;
@@ -807,6 +808,10 @@ static bool psr2_granularity_check(struct intel_dp *intel_dp,
 		y_granularity = intel_dp->psr.su_y_granularity;
 
 	if (y_granularity == 0 || crtc_vdisplay % y_granularity)
+		return false;
+
+	if (crtc_state->dsc.compression_enable &&
+	    vdsc_cfg->slice_height % y_granularity)
 		return false;
 
 	crtc_state->su_y_granularity = y_granularity;
