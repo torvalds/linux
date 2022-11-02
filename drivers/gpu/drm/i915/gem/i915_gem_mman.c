@@ -330,7 +330,7 @@ retry:
 	if (ret)
 		goto err_rpm;
 
-	ret = intel_gt_reset_trylock(ggtt->vm.gt, &srcu);
+	ret = intel_gt_reset_lock_interruptible(ggtt->vm.gt, &srcu);
 	if (ret)
 		goto err_pages;
 
