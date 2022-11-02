@@ -4,6 +4,7 @@
  */
 
 #include <dt-bindings/clock/px30-cru.h>
+#include <dt-bindings/display/media-bus-format.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
