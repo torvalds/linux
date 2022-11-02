@@ -1760,6 +1760,7 @@ static int fun_create_netdev(struct fun_ethdev *ed, unsigned int portid)
 		goto free_rss;
 
 	SET_NETDEV_DEV(netdev, fdev->dev);
+	SET_NETDEV_DEVLINK_PORT(netdev, &fp->dl_port);
 	netdev->netdev_ops = &fun_netdev_ops;
 
 	netdev->hw_features = NETIF_F_SG | NETIF_F_RXHASH | NETIF_F_RXCSUM;
@@ -1800,9 +1801,6 @@ static int fun_create_netdev(struct fun_ethdev *ed, unsigned int portid)
 	rc = register_netdev(netdev);
 	if (rc)
 		goto unreg_devlink;
-
-	devlink_port_type_eth_set(&fp->dl_port, netdev);
-
 	return 0;
 
 unreg_devlink:
@@ -1827,7 +1825,6 @@ static void fun_destroy_netdev(struct net_device *netdev)
 	struct funeth_priv *fp;
 
 	fp = netdev_priv(netdev);
-	devlink_port_type_clear(&fp->dl_port);
 	unregister_netdev(netdev);
 	devlink_port_unregister(&fp->dl_port);
 	fun_ktls_cleanup(fp);

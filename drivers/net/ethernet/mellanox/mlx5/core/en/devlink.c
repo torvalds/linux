@@ -51,13 +51,6 @@ int mlx5e_devlink_port_register(struct mlx5e_priv *priv)
 	return ret;
 }
 
-void mlx5e_devlink_port_type_eth_set(struct mlx5e_priv *priv)
-{
-	struct devlink_port *dl_port = mlx5e_devlink_get_dl_port(priv);
-
-	devlink_port_type_eth_set(dl_port, priv->netdev);
-}
-
 void mlx5e_devlink_port_unregister(struct mlx5e_priv *priv)
 {
 	struct devlink_port *dl_port = mlx5e_devlink_get_dl_port(priv);

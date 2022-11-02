@@ -339,11 +339,10 @@ static int ice_repr_add(struct ice_vf *vf)
 	repr->netdev->max_mtu = ICE_MAX_MTU;
 
 	SET_NETDEV_DEV(repr->netdev, ice_pf_to_dev(vf->pf));
+	SET_NETDEV_DEVLINK_PORT(repr->netdev, &vf->devlink_port);
 	err = ice_repr_reg_netdev(repr->netdev);
 	if (err)
 		goto err_netdev;
-
-	devlink_port_type_eth_set(&vf->devlink_port, repr->netdev);
 
 	ice_virtchnl_set_repr_ops(vf);
 

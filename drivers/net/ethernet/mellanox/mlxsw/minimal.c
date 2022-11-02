@@ -265,6 +265,8 @@ mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u16 local_port, u8 slot_index,
 	SET_NETDEV_DEV(dev, mlxsw_m->bus_info->dev);
 	dev_net_set(dev, mlxsw_core_net(mlxsw_m->core));
 	mlxsw_m_port = netdev_priv(dev);
+	mlxsw_core_port_netdev_link(mlxsw_m->core, local_port,
+				    mlxsw_m_port, dev);
 	mlxsw_m_port->dev = dev;
 	mlxsw_m_port->mlxsw_m = mlxsw_m;
 	mlxsw_m_port->local_port = local_port;
@@ -298,9 +300,6 @@ mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u16 local_port, u8 slot_index,
 		goto err_register_netdev;
 	}
 
-	mlxsw_core_port_eth_set(mlxsw_m->core, mlxsw_m_port->local_port,
-				mlxsw_m_port, dev);
-
 	return 0;
 
 err_register_netdev:
@@ -316,7 +315,6 @@ static void mlxsw_m_port_remove(struct mlxsw_m *mlxsw_m, u16 local_port)
 {
 	struct mlxsw_m_port *mlxsw_m_port = mlxsw_m->ports[local_port];
 
-	mlxsw_core_port_clear(mlxsw_m->core, local_port, mlxsw_m);
 	unregister_netdev(mlxsw_m_port->dev); /* This calls ndo_stop */
 	mlxsw_m->ports[local_port] = NULL;
 	free_netdev(mlxsw_m_port->dev);
