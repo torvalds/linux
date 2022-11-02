@@ -770,7 +770,7 @@ void vm_install_exception_handler(struct kvm_vm *vm, int vector,
  * for recursive faults when accessing memory in the handler.  The downside to
  * using registers is that it restricts what registers can be used by the actual
  * instruction.  But, selftests are 64-bit only, making register* pressure a
- * minor concern.  Use r9-r11 as they are volatile, i.e. don't need* to be saved
+ * minor concern.  Use r9-r11 as they are volatile, i.e. don't need to be saved
  * by the callee, and except for r11 are not implicit parameters to any
  * instructions.  Ideally, fixup would use r8-r10 and thus avoid implicit
  * parameters entirely, but Hyper-V's hypercall ABI uses r8 and testing Hyper-V
@@ -792,11 +792,9 @@ void vm_install_exception_handler(struct kvm_vm *vm, int vector,
 	"lea 1f(%%rip), %%r10\n\t"				\
 	"lea 2f(%%rip), %%r11\n\t"				\
 	"1: " insn "\n\t"					\
-	"movb $0, %[vector]\n\t"				\
-	"jmp 3f\n\t"						\
+	"xor %%r9, %%r9\n\t"					\
 	"2:\n\t"						\
-	"mov  %%r9b, %[vector]\n\t"				\
-	"3:\n\t"
+	"mov  %%r9b, %[vector]\n\t"
 
 #define KVM_ASM_SAFE_OUTPUTS(v)	[vector] "=qm"(v)
 #define KVM_ASM_SAFE_CLOBBERS	"r9", "r10", "r11"
