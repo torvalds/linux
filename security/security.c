@@ -161,8 +161,8 @@ static void __init append_ordered_lsm(struct lsm_info *lsm, const char *from)
 		lsm->enabled = &lsm_enabled_true;
 	ordered_lsms[last_lsm++] = lsm;
 
-	init_debug("%s ordering: %s (%sabled)\n", from, lsm->name,
-		   is_enabled(lsm) ? "en" : "dis");
+	init_debug("%s ordered: %s (%s)\n", from, lsm->name,
+		   is_enabled(lsm) ? "enabled" : "disabled");
 }
 
 /* Is an LSM allowed to be initialized? */
@@ -224,7 +224,7 @@ static void __init prepare_lsm(struct lsm_info *lsm)
 	if (enabled) {
 		if ((lsm->flags & LSM_FLAG_EXCLUSIVE) && !exclusive) {
 			exclusive = lsm;
-			init_debug("exclusive chosen: %s\n", lsm->name);
+			init_debug("exclusive chosen:   %s\n", lsm->name);
 		}
 
 		lsm_set_blob_sizes(lsm->blobs);
@@ -252,7 +252,7 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 	/* LSM_ORDER_FIRST is always first. */
 	for (lsm = __start_lsm_info; lsm < __end_lsm_info; lsm++) {
 		if (lsm->order == LSM_ORDER_FIRST)
-			append_ordered_lsm(lsm, "first");
+			append_ordered_lsm(lsm, "  first");
 	}
 
 	/* Process "security=", if given. */
@@ -270,7 +270,7 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 			if ((major->flags & LSM_FLAG_LEGACY_MAJOR) &&
 			    strcmp(major->name, chosen_major_lsm) != 0) {
 				set_enabled(major, false);
-				init_debug("security=%s disabled: %s\n",
+				init_debug("security=%s disabled: %s (only one legacy major LSM)\n",
 					   chosen_major_lsm, major->name);
 			}
 		}
@@ -291,7 +291,8 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 		}
 
 		if (!found)
-			init_debug("%s ignored: %s\n", origin, name);
+			init_debug("%s ignored: %s (not built into kernel)\n",
+				   origin, name);
 	}
 
 	/* Process "security=", if given. */
@@ -309,7 +310,8 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 		if (exists_ordered_lsm(lsm))
 			continue;
 		set_enabled(lsm, false);
-		init_debug("%s disabled: %s\n", origin, lsm->name);
+		init_debug("%s skipped: %s (not in requested order)\n",
+			   origin, lsm->name);
 	}
 
 	kfree(sep);
@@ -320,6 +322,24 @@ static void __init lsm_early_task(struct task_struct *task);
 
 static int lsm_append(const char *new, char **result);
 
+static void __init report_lsm_order(void)
+{
+	struct lsm_info **lsm, *early;
+	int first = 0;
+
+	pr_info("initializing lsm=");
+
+	/* Report each enabled LSM name, comma separated. */
+	for (early = __start_early_lsm_info; early < __end_early_lsm_info; early++)
+		if (is_enabled(early))
+			pr_cont("%s%s", first++ == 0 ? "" : ",", early->name);
+	for (lsm = ordered_lsms; *lsm; lsm++)
+		if (is_enabled(*lsm))
+			pr_cont("%s%s", first++ == 0 ? "" : ",", (*lsm)->name);
+
+	pr_cont("\n");
+}
+
 static void __init ordered_lsm_init(void)
 {
 	struct lsm_info **lsm;
@@ -329,7 +349,8 @@ static void __init ordered_lsm_init(void)
 
 	if (chosen_lsm_order) {
 		if (chosen_major_lsm) {
-			pr_info("security= is ignored because it is superseded by lsm=\n");
+			pr_warn("security=%s is ignored because it is superseded by lsm=%s\n",
+				chosen_major_lsm, chosen_lsm_order);
 			chosen_major_lsm = NULL;
 		}
 		ordered_lsm_parse(chosen_lsm_order, "cmdline");
@@ -338,6 +359,8 @@ static void __init ordered_lsm_init(void)
 
 	for (lsm = ordered_lsms; *lsm; lsm++)
 		prepare_lsm(*lsm);
+
+	report_lsm_order();
 
 	init_debug("cred blob size       = %d\n", blob_sizes.lbs_cred);
 	init_debug("file blob size       = %d\n", blob_sizes.lbs_file);
@@ -395,13 +418,17 @@ int __init security_init(void)
 {
 	struct lsm_info *lsm;
 
-	pr_info("Security Framework initializing\n");
+	init_debug("legacy security=%s\n", chosen_major_lsm ?: " *unspecified*");
+	init_debug("  CONFIG_LSM=%s\n", builtin_lsm_order);
+	init_debug("boot arg lsm=%s\n", chosen_lsm_order ?: " *unspecified*");
 
 	/*
 	 * Append the names of the early LSM modules now that kmalloc() is
 	 * available
 	 */
 	for (lsm = __start_early_lsm_info; lsm < __end_early_lsm_info; lsm++) {
+		init_debug("  early started: %s (%s)\n", lsm->name,
+			   is_enabled(lsm) ? "enabled" : "disabled");
 		if (lsm->enabled)
 			lsm_append(lsm->name, &lsm_names);
 	}
