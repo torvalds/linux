@@ -1137,3 +1137,15 @@ void cache_cpu_init(void)
 	cache_enable();
 	local_irq_restore(flags);
 }
+
+static bool cache_aps_delayed_init;
+
+void set_cache_aps_delayed_init(bool val)
+{
+	cache_aps_delayed_init = val;
+}
+
+bool get_cache_aps_delayed_init(void)
+{
+	return cache_aps_delayed_init;
+}

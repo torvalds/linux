@@ -13,5 +13,7 @@ void cacheinfo_hygon_init_llc_id(struct cpuinfo_x86 *c, int cpu);
 void cache_disable(void);
 void cache_enable(void);
 void cache_cpu_init(void);
+void set_cache_aps_delayed_init(bool val);
+bool get_cache_aps_delayed_init(void);
 
 #endif /* _ASM_X86_CACHEINFO_H */
