@@ -143,9 +143,6 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
 	u64 rpm;
 	int ret;
 
-	/* Restart the Tach channel to guarantee the value is fresh */
-	aspeed_tach_ch_enable(priv, fan_tach_ch, false);
-	aspeed_tach_ch_enable(priv, fan_tach_ch, true);
 	ret = regmap_read_poll_timeout(priv->regmap, TACH_ASPEED_STS(fan_tach_ch), val,
 				       (val & TACH_ASPEED_FULL_MEASUREMENT) &&
 					       (val & TACH_ASPEED_VALUE_UPDATE),
