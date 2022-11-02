@@ -1120,3 +1120,20 @@ void cache_enable(void) __releases(cache_disable_lock)
 
 	raw_spin_unlock(&cache_disable_lock);
 }
+
+void cache_cpu_init(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	cache_disable();
+
+	if (memory_caching_control & CACHE_MTRR)
+		mtrr_generic_set_state();
+
+	if (memory_caching_control & CACHE_PAT)
+		pat_init();
+
+	cache_enable();
+	local_irq_restore(flags);
+}
