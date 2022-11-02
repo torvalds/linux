@@ -309,10 +309,6 @@ static int cedrus_s_fmt_vid_out(struct file *file, void *priv,
 	struct vb2_queue *peer_vq;
 	int ret;
 
-	ret = cedrus_try_fmt_vid_out(file, priv, f);
-	if (ret)
-		return ret;
-
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, f->type);
 	/*
 	 * In order to support dynamic resolution change,
