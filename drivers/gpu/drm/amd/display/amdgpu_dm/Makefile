@@ -37,7 +37,8 @@ AMDGPUDM = \
 	amdgpu_dm_helpers.o \
 	amdgpu_dm_pp_smu.o \
 	amdgpu_dm_psr.o \
-	amdgpu_dm_replay.o
+	amdgpu_dm_replay.o \
+	amdgpu_dm_wb.o
 
 ifdef CONFIG_DRM_AMD_DC_FP
 AMDGPUDM += dc_fpu.o
