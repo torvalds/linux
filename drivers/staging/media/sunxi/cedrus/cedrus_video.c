@@ -56,13 +56,13 @@ static struct cedrus_format cedrus_formats[] = {
 		.capabilities	= CEDRUS_CAPABILITY_VP8_DEC,
 	},
 	{
-		.pixelformat	= V4L2_PIX_FMT_NV12_32L32,
-		.directions	= CEDRUS_DECODE_DST,
-	},
-	{
 		.pixelformat	= V4L2_PIX_FMT_NV12,
 		.directions	= CEDRUS_DECODE_DST,
 		.capabilities	= CEDRUS_CAPABILITY_UNTILED,
+	},
+	{
+		.pixelformat	= V4L2_PIX_FMT_NV12_32L32,
+		.directions	= CEDRUS_DECODE_DST,
 	},
 };
 
