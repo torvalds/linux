@@ -53,6 +53,7 @@ struct intel_digital_port;
 struct intel_dp;
 struct intel_encoder;
 struct intel_initial_plane_config;
+struct intel_link_m_n;
 struct intel_load_detect_pipe;
 struct intel_plane;
 struct intel_plane_state;
@@ -286,15 +287,6 @@ enum aux_ch {
 };
 
 #define aux_ch_name(a) ((a) + 'A')
-
-/* Used by dp and fdi links */
-struct intel_link_m_n {
-	u32 tu;
-	u32 data_m;
-	u32 data_n;
-	u32 link_m;
-	u32 link_n;
-};
 
 enum phy {
 	PHY_NONE = -1,

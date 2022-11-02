@@ -969,6 +969,15 @@ struct intel_mpllb_state {
 	u32 mpllb_sscstep;
 };
 
+/* Used by dp and fdi links */
+struct intel_link_m_n {
+	u32 tu;
+	u32 data_m;
+	u32 data_n;
+	u32 link_m;
+	u32 link_n;
+};
+
 struct intel_crtc_state {
 	/*
 	 * uapi (drm) state. This is the software state shown to userspace.
