@@ -475,6 +475,12 @@ static void gfs2_dirty_inode(struct inode *inode, int flags)
 	int need_endtrans = 0;
 	int ret;
 
+	if (unlikely(!ip->i_gl)) {
+		/* This can only happen during incomplete inode creation. */
+		BUG_ON(!test_bit(GIF_ALLOC_FAILED, &ip->i_flags));
+		return;
+	}
+
 	if (unlikely(gfs2_withdrawn(sdp)))
 		return;
 	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
@@ -927,8 +933,7 @@ static int gfs2_drop_inode(struct inode *inode)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 
-	if (!test_bit(GIF_FREE_VFS_INODE, &ip->i_flags) &&
-	    inode->i_nlink &&
+	if (inode->i_nlink &&
 	    gfs2_holder_initialized(&ip->i_iopen_gh)) {
 		struct gfs2_glock *gl = ip->i_iopen_gh.gh_gl;
 		if (test_bit(GLF_DEMOTE, &gl->gl_flags))
@@ -1076,7 +1081,13 @@ static void gfs2_final_release_pages(struct gfs2_inode *ip)
 	struct inode *inode = &ip->i_inode;
 	struct gfs2_glock *gl = ip->i_gl;
 
-	truncate_inode_pages(gfs2_glock2aspace(ip->i_gl), 0);
+	if (unlikely(!gl)) {
+		/* This can only happen during incomplete inode creation. */
+		BUG_ON(!test_bit(GIF_ALLOC_FAILED, &ip->i_flags));
+		return;
+	}
+
+	truncate_inode_pages(gfs2_glock2aspace(gl), 0);
 	truncate_inode_pages(&inode->i_data, 0);
 
 	if (atomic_read(&gl->gl_revokes) == 0) {
@@ -1218,10 +1229,8 @@ static enum dinode_demise evict_should_delete(struct inode *inode,
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	int ret;
 
-	if (test_bit(GIF_ALLOC_FAILED, &ip->i_flags)) {
-		BUG_ON(!gfs2_glock_is_locked_by_me(ip->i_gl));
+	if (unlikely(test_bit(GIF_ALLOC_FAILED, &ip->i_flags)))
 		goto should_delete;
-	}
 
 	if (test_bit(GIF_DEFERRED_DELETE, &ip->i_flags))
 		return SHOULD_DEFER_EVICTION;
@@ -1298,9 +1307,11 @@ static int evict_unlinked_inode(struct inode *inode)
 	   do, gfs2_create_inode can create another inode at the same block
 	   location and try to set gl_object again. We clear gl_object here so
 	   that subsequent inode creates don't see an old gl_object. */
-	glock_clear_object(ip->i_gl, ip);
+	if (ip->i_gl) {
+		glock_clear_object(ip->i_gl, ip);
+		gfs2_inode_remember_delete(ip->i_gl, ip->i_no_formal_ino);
+	}
 	ret = gfs2_dinode_dealloc(ip);
-	gfs2_inode_remember_delete(ip->i_gl, ip->i_no_formal_ino);
 out:
 	return ret;
 }
@@ -1367,12 +1378,7 @@ static void gfs2_evict_inode(struct inode *inode)
 	struct gfs2_holder gh;
 	int ret;
 
-	if (test_bit(GIF_FREE_VFS_INODE, &ip->i_flags)) {
-		clear_inode(inode);
-		return;
-	}
-
-	if (inode->i_nlink || sb_rdonly(sb))
+	if (inode->i_nlink || sb_rdonly(sb) || !ip->i_no_addr)
 		goto out;
 
 	gfs2_holder_mark_uninitialized(&gh);
@@ -1429,6 +1435,7 @@ static struct inode *gfs2_alloc_inode(struct super_block *sb)
 	ip = alloc_inode_sb(sb, gfs2_inode_cachep, GFP_KERNEL);
 	if (!ip)
 		return NULL;
+	ip->i_no_addr = 0;
 	ip->i_flags = 0;
 	ip->i_gl = NULL;
 	gfs2_holder_mark_uninitialized(&ip->i_iopen_gh);

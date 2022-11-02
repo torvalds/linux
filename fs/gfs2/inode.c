@@ -409,6 +409,8 @@ static int alloc_dinode(struct gfs2_inode *ip, u32 flags, unsigned *dblocks)
 	ip->i_no_formal_ino = ip->i_generation;
 	ip->i_inode.i_ino = ip->i_no_addr;
 	ip->i_goal = ip->i_no_addr;
+	if (*dblocks > 1)
+		ip->i_eattr = ip->i_no_addr + 1;
 
 out_trans_end:
 	gfs2_trans_end(sdp);
@@ -589,6 +591,12 @@ static int gfs2_initxattrs(struct inode *inode, const struct xattr *xattr_array,
  * @size: The initial size of the inode (ignored for directories)
  * @excl: Force fail if inode exists
  *
+ * FIXME: Change to allocate the disk blocks and write them out in the same
+ * transaction.  That way, we can no longer end up in a situation in which an
+ * inode is allocated, the node crashes, and the block looks like a valid
+ * inode.  (With atomic creates in place, we will also no longer need to zero
+ * the link count and dirty the inode here on failure.)
+ *
  * Returns: 0 on success, or error code
  */
 
@@ -604,7 +612,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	struct gfs2_inode *dip = GFS2_I(dir), *ip;
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct gfs2_glock *io_gl;
-	int error, free_vfs_inode = 1;
+	int error;
 	u32 aflags = 0;
 	unsigned blocks = 1;
 	struct gfs2_diradd da = { .bh = NULL, .save_loc = 1, };
@@ -742,10 +750,8 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (error)
 		goto fail_gunlock3;
 
-	if (blocks > 1) {
-		ip->i_eattr = ip->i_no_addr + 1;
+	if (blocks > 1)
 		gfs2_init_xattr(ip);
-	}
 	init_dinode(dip, ip, symname);
 	gfs2_trans_end(sdp);
 
@@ -753,9 +759,6 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	glock_set_object(io_gl, ip);
 	gfs2_set_iop(inode);
 
-	free_vfs_inode = 0; /* After this point, the inode is no longer
-			       considered free. Any failures need to undo
-			       the gfs2 structures. */
 	if (default_acl) {
 		error = __gfs2_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
 		if (error)
@@ -804,10 +807,6 @@ fail_gunlock3:
 fail_gunlock2:
 	gfs2_glock_put(io_gl);
 fail_free_inode:
-	if (ip->i_gl) {
-		if (free_vfs_inode) /* else evict will do the put for us */
-			gfs2_glock_put(ip->i_gl);
-	}
 	gfs2_rs_deltree(&ip->i_res);
 	gfs2_qa_put(ip);
 fail_free_acls:
@@ -817,11 +816,10 @@ fail_gunlock:
 	gfs2_dir_no_add(&da);
 	gfs2_glock_dq_uninit(&d_gh);
 	if (!IS_ERR_OR_NULL(inode)) {
+		set_bit(GIF_ALLOC_FAILED, &ip->i_flags);
 		clear_nlink(inode);
-		if (!free_vfs_inode)
+		if (ip->i_no_addr)
 			mark_inode_dirty(inode);
-		set_bit(free_vfs_inode ? GIF_FREE_VFS_INODE : GIF_ALLOC_FAILED,
-			&ip->i_flags);
 		if (inode->i_state & I_NEW)
 			iget_failed(inode);
 		else
