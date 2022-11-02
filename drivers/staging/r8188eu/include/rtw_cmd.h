@@ -727,7 +727,7 @@ u8 rtw_clearstakey_cmd(struct adapter *padapter, u8 *psta, u8 entry, u8 enqueue)
 u8 rtw_joinbss_cmd(struct adapter *padapter, struct wlan_network *pnetwork);
 u8 rtw_disassoc_cmd(struct adapter *padapter, u32 deauth_timeout_ms, bool enqueue);
 u8 rtw_setopmode_cmd(struct adapter *padapter, enum ndis_802_11_network_infra networktype);
-u8 rtw_setdatarate_cmd(struct adapter *padapter, u8 *rateset);
+int rtw_setdatarate_cmd(struct adapter *padapter, u8 *rateset);
 u8 rtw_setrfintfs_cmd(struct adapter *padapter, u8 mode);
 
 u8 rtw_gettssi_cmd(struct adapter *padapter, u8 offset, u8 *pval);

@@ -1340,7 +1340,7 @@ static int rtw_wx_set_rate(struct net_device *dev,
 			      struct iw_request_info *a,
 			      union iwreq_data *wrqu, char *extra)
 {
-	int i, ret = 0;
+	int i;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	u8 datarates[NumRates];
 	u32	target_rate = wrqu->bitrate.value;
@@ -1408,10 +1408,7 @@ set_rate:
 		}
 	}
 
-	if (rtw_setdatarate_cmd(padapter, datarates) != _SUCCESS)
-		ret = -1;
-
-	return ret;
+	return rtw_setdatarate_cmd(padapter, datarates);
 }
 
 static int rtw_wx_get_rate(struct net_device *dev,
