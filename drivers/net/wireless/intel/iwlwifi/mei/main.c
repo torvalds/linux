@@ -1447,26 +1447,7 @@ int iwl_mei_get_ownership(void)
 
 	ret = wait_event_timeout(mei->get_ownership_wq,
 				 mei->got_ownership, HZ / 2);
-	if (!ret)
-		return -ETIMEDOUT;
-
-	mutex_lock(&iwl_mei_mutex);
-
-	/* In case we didn't have a bind */
-	if (!iwl_mei_is_connected()) {
-		ret = 0;
-		goto out;
-	}
-
-	mei = mei_cldev_get_drvdata(iwl_mei_global_cldev);
-
-	if (!mei) {
-		ret = -ENODEV;
-		goto out;
-	}
-
-	ret = !mei->got_ownership;
-
+	return (!ret) ? -ETIMEDOUT : 0;
 out:
 	mutex_unlock(&iwl_mei_mutex);
 	return ret;
