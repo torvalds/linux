@@ -9100,6 +9100,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/hid/hid.git
 F:	drivers/hid/
 F:	include/linux/hid*
 F:	include/uapi/linux/hid*
+F:	tools/testing/selftests/hid/
 
 HID LOGITECH DRIVERS
 R:	Filipe Laíns <lains@riseup.net>

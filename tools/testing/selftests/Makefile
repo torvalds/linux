@@ -26,6 +26,7 @@ TARGETS += fpu
 TARGETS += ftrace
 TARGETS += futex
 TARGETS += gpio
+TARGETS += hid
 TARGETS += intel_pstate
 TARGETS += ipc
 TARGETS += ir
