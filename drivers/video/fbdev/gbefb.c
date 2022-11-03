@@ -1060,14 +1060,14 @@ static const struct fb_ops gbefb_ops = {
 
 static ssize_t gbefb_show_memsize(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%u\n", gbe_mem_size);
+	return sysfs_emit(buf, "%u\n", gbe_mem_size);
 }
 
 static DEVICE_ATTR(size, S_IRUGO, gbefb_show_memsize, NULL);
 
 static ssize_t gbefb_show_rev(struct device *device, struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", gbe_revision);
+	return sysfs_emit(buf, "%d\n", gbe_revision);
 }
 
 static DEVICE_ATTR(revision, S_IRUGO, gbefb_show_rev, NULL);

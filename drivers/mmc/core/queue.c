@@ -48,6 +48,7 @@ static enum mmc_issue_type mmc_cqe_issue_type(struct mmc_host *host,
 	case REQ_OP_DRV_OUT:
 	case REQ_OP_DISCARD:
 	case REQ_OP_SECURE_ERASE:
+	case REQ_OP_WRITE_ZEROES:
 		return MMC_ISSUE_SYNC;
 	case REQ_OP_FLUSH:
 		return mmc_cqe_can_dcmd(host) ? MMC_ISSUE_DCMD : MMC_ISSUE_SYNC;
@@ -492,6 +493,13 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 	 */
 	if (blk_queue_quiesced(q))
 		blk_mq_unquiesce_queue(q);
+
+	/*
+	 * If the recovery completes the last (and only remaining) request in
+	 * the queue, and the card has been removed, we could end up here with
+	 * the recovery not quite finished yet, so cancel it.
+	 */
+	cancel_work_sync(&mq->recovery_work);
 
 	blk_mq_free_tag_set(&mq->tag_set);
 

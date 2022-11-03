@@ -9846,6 +9846,7 @@ void perf_tp_event(u16 event_type, u64 count, void *record, int entry_size,
 
 	perf_sample_data_init(&data, 0, 0);
 	data.raw = &raw;
+	data.sample_flags |= PERF_SAMPLE_RAW;
 
 	perf_trace_buf_update(record, event_type);
 

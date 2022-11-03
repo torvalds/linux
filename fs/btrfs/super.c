@@ -2555,6 +2555,7 @@ static int check_dev_super(struct btrfs_device *dev)
 {
 	struct btrfs_fs_info *fs_info = dev->fs_info;
 	struct btrfs_super_block *sb;
+	u16 csum_type;
 	int ret = 0;
 
 	/* This should be called with fs still frozen. */
@@ -2568,6 +2569,21 @@ static int check_dev_super(struct btrfs_device *dev)
 	sb = btrfs_read_dev_one_super(dev->bdev, 0, true);
 	if (IS_ERR(sb))
 		return PTR_ERR(sb);
+
+	/* Verify the checksum. */
+	csum_type = btrfs_super_csum_type(sb);
+	if (csum_type != btrfs_super_csum_type(fs_info->super_copy)) {
+		btrfs_err(fs_info, "csum type changed, has %u expect %u",
+			  csum_type, btrfs_super_csum_type(fs_info->super_copy));
+		ret = -EUCLEAN;
+		goto out;
+	}
+
+	if (btrfs_check_super_csum(fs_info, sb)) {
+		btrfs_err(fs_info, "csum for on-disk super block no longer matches");
+		ret = -EUCLEAN;
+		goto out;
+	}
 
 	/* Btrfs_validate_super() includes fsid check against super->fsid. */
 	ret = btrfs_validate_super(fs_info, sb, 0);

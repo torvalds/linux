@@ -459,6 +459,7 @@ static int paiext_push_sample(void)
 		raw.frag.data = cpump->save;
 		raw.size = raw.frag.size;
 		data.raw = &raw;
+		data.sample_flags |= PERF_SAMPLE_RAW;
 	}
 
 	overflow = perf_event_overflow(event, &data, &regs);

@@ -813,6 +813,13 @@ kernel_dbg_exc:
 	EXCEPTION_COMMON(0x260)
 	CHECK_NAPPING()
 	addi	r3,r1,STACK_FRAME_OVERHEAD
+	/*
+	 * XXX: Returning from performance_monitor_exception taken as a
+	 * soft-NMI (Linux irqs disabled) may be risky to use interrupt_return
+	 * and could cause bugs in return or elsewhere. That case should just
+	 * restore registers and return. There is a workaround for one known
+	 * problem in interrupt_exit_kernel_prepare().
+	 */
 	bl	performance_monitor_exception
 	b	interrupt_return
 
