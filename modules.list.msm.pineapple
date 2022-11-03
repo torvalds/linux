@@ -12,6 +12,8 @@ mem_buf.ko
 qcom-scm.ko
 pinctrl-msm.ko
 pinctrl-pineapple.ko
+sched-walt.ko
+sched-walt-debug.ko
 clk-qcom.ko
 clk-dummy.ko
 clk-rpmh.ko
