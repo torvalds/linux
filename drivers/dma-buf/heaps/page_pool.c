@@ -41,10 +41,10 @@ static void dmabuf_page_pool_add(struct dmabuf_page_pool *pool, struct page *pag
 	else
 		index = POOL_LOWPAGE;
 
-	mutex_lock(&pool->mutex);
+	spin_lock(&pool->lock);
 	list_add_tail(&page->lru, &pool->items[index]);
 	pool->count[index]++;
-	mutex_unlock(&pool->mutex);
+	spin_unlock(&pool->lock);
 	mod_node_page_state(page_pgdat(page), NR_KERNEL_MISC_RECLAIMABLE,
 			    1 << pool->order);
 }
@@ -53,16 +53,18 @@ static struct page *dmabuf_page_pool_remove(struct dmabuf_page_pool *pool, int i
 {
 	struct page *page;
 
-	mutex_lock(&pool->mutex);
+	spin_lock(&pool->lock);
 	page = list_first_entry_or_null(&pool->items[index], struct page, lru);
 	if (page) {
 		pool->count[index]--;
 		list_del(&page->lru);
+		spin_unlock(&pool->lock);
 		mod_node_page_state(page_pgdat(page), NR_KERNEL_MISC_RECLAIMABLE,
 				    -(1 << pool->order));
+		goto out;
 	}
-	mutex_unlock(&pool->mutex);
-
+	spin_unlock(&pool->lock);
+out:
 	return page;
 }
 
@@ -125,7 +127,7 @@ struct dmabuf_page_pool *dmabuf_page_pool_create(gfp_t gfp_mask, unsigned int or
 	}
 	pool->gfp_mask = gfp_mask | __GFP_COMP;
 	pool->order = order;
-	mutex_init(&pool->mutex);
+	spin_lock_init(&pool->lock);
 
 	mutex_lock(&pool_list_lock);
 	list_add(&pool->list, &pool_list);
