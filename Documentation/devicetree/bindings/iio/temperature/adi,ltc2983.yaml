@@ -230,13 +230,6 @@ patternProperties:
           resistor is used for multiple 2-, 3-, and/or 4-wire RTDs.
         type: boolean
 
-      adi,current-rotate:
-        description:
-          Boolean property which enables excitation current rotation to
-          automatically remove parasitic thermocouple effects. Note that
-          this property is not allowed for 2- and 3-wire RTDs.
-        type: boolean
-
       adi,excitation-current-microamp:
         description:
           This property controls the magnitude of the excitation current
@@ -269,10 +262,22 @@ patternProperties:
     required:
       - adi,rsense-handle
 
-    dependencies:
-      adi,current-rotate: [ "adi,rsense-share" ]
-
     allOf:
+      - if:
+          properties:
+            adi,number-of-wires:
+              const: 4
+        then:
+          properties:
+            adi,current-rotate:
+              description:
+                Whether to enable excitation current rotation to automatically
+                remove parasitic thermocouple effects.
+              type: boolean
+
+          dependencies:
+            adi,current-rotate: [ "adi,rsense-share" ]
+
       - if:
           properties:
             adi,sensor-type:
