@@ -4689,10 +4689,10 @@ static int gfx_v11_0_ras_late_init(void *handle)
 
 	ret = amdgpu_ras_feature_enable(adev, gfx_common_if, true);
 	if (ret)
-		dev_err(adev->dev, "Failed to enable gfx11 ras feature\n");
+		dev_warn(adev->dev, "Failed to enable gfx11 ras feature\n");
 
 	kfree(gfx_common_if);
-	return ret;
+	return 0;
 }
 
 static int gfx_v11_0_late_init(void *handle)
