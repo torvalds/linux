@@ -4053,8 +4053,28 @@ static int add_prefix_symbol(struct objtool_file *file, struct symbol *func,
 
 		offset = func->offset - prev->offset;
 		if (offset >= opts.prefix) {
-			if (offset == opts.prefix)
+			if (offset == opts.prefix) {
+				/*
+				 * Since the sec->symbol_list is ordered by
+				 * offset (see elf_add_symbol()) the added
+				 * symbol will not be seen by the iteration in
+				 * validate_section().
+				 *
+				 * Hence the lack of list_for_each_entry_safe()
+				 * there.
+				 *
+				 * The direct concequence is that prefix symbols
+				 * don't get visited (because pointless), except
+				 * for the logic in ignore_unreachable_insn()
+				 * that needs the terminating insn to be visited
+				 * otherwise it will report the hole.
+				 *
+				 * Hence mark the first instruction of the
+				 * prefix symbol as visisted.
+				 */
+				prev->visited |= VISITED_BRANCH;
 				elf_create_prefix_symbol(file->elf, func, opts.prefix);
+			}
 			break;
 		}
 		insn = prev;
