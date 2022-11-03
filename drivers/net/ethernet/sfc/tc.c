@@ -144,11 +144,29 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 				     struct netlink_ext_ack *extack)
 {
 	struct flow_dissector *dissector = rule->match.dissector;
+	unsigned char ipv = 0;
 
+	/* Owing to internal TC infelicities, the IPV6_ADDRS key might be set
+	 * even on IPv4 filters; so rather than relying on dissector->used_keys
+	 * we check the addr_type in the CONTROL key.  If we don't find it (or
+	 * it's masked, which should never happen), we treat both IPV4_ADDRS
+	 * and IPV6_ADDRS as absent.
+	 */
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
 		struct flow_match_control fm;
 
 		flow_rule_match_control(rule, &fm);
+		if (IS_ALL_ONES(fm.mask->addr_type))
+			switch (fm.key->addr_type) {
+			case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
+				ipv = 4;
+				break;
+			case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
+				ipv = 6;
+				break;
+			default:
+				break;
+			}
 
 		if (fm.mask->flags) {
 			NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported match on control.flags %#x",
@@ -161,22 +179,28 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
-	      BIT(FLOW_DISSECTOR_KEY_CVLAN))) {
+	      BIT(FLOW_DISSECTOR_KEY_CVLAN) |
+	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_IP))) {
 		NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported flower keys %#x",
 				       dissector->used_keys);
 		return -EOPNOTSUPP;
 	}
 
 	MAP_KEY_AND_MASK(BASIC, basic, n_proto, eth_proto);
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
-		struct flow_match_basic fm;
-
-		flow_rule_match_basic(rule, &fm);
-		if (fm.mask->ip_proto) {
-			NL_SET_ERR_MSG_MOD(extack, "Unsupported ip_proto match");
-			return -EOPNOTSUPP;
+	/* Make sure we're IP if any L3/L4 keys used. */
+	if (!IS_ALL_ONES(match->mask.eth_proto) ||
+	    !(match->value.eth_proto == htons(ETH_P_IP) ||
+	      match->value.eth_proto == htons(ETH_P_IPV6)))
+		if (dissector->used_keys &
+		    (BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
+		     BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
+		     BIT(FLOW_DISSECTOR_KEY_IP))) {
+			NL_SET_ERR_MSG_FMT_MOD(extack, "L3 flower keys %#x require protocol ipv[46]",
+					       dissector->used_keys);
+			return -EINVAL;
 		}
-	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
 		struct flow_match_vlan fm;
@@ -215,6 +239,20 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 		ether_addr_copy(match->mask.eth_saddr, fm.mask->src);
 		ether_addr_copy(match->mask.eth_daddr, fm.mask->dst);
 	}
+
+	MAP_KEY_AND_MASK(BASIC, basic, ip_proto, ip_proto);
+	MAP_KEY_AND_MASK(IP, ip, tos, ip_tos);
+	MAP_KEY_AND_MASK(IP, ip, ttl, ip_ttl);
+	if (ipv == 4) {
+		MAP_KEY_AND_MASK(IPV4_ADDRS, ipv4_addrs, src, src_ip);
+		MAP_KEY_AND_MASK(IPV4_ADDRS, ipv4_addrs, dst, dst_ip);
+	}
+#ifdef CONFIG_IPV6
+	else if (ipv == 6) {
+		MAP_KEY_AND_MASK(IPV6_ADDRS, ipv6_addrs, src, src_ip6);
+		MAP_KEY_AND_MASK(IPV6_ADDRS, ipv6_addrs, dst, dst_ip6);
+	}
+#endif
 
 	return 0;
 }
