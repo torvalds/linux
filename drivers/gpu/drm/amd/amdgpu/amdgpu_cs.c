@@ -992,6 +992,7 @@ out_free_user_pages:
 		kvfree(e->user_pages);
 		e->user_pages = NULL;
 	}
+	mutex_unlock(&p->bo_list->bo_list_mutex);
 	return r;
 }
 
