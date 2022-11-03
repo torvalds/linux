@@ -943,66 +943,6 @@ int map_check_no_btf(const struct bpf_map *map,
 	return -ENOTSUPP;
 }
 
-static int map_field_offs_cmp(const void *_a, const void *_b, const void *priv)
-{
-	const u32 a = *(const u32 *)_a;
-	const u32 b = *(const u32 *)_b;
-
-	if (a < b)
-		return -1;
-	else if (a > b)
-		return 1;
-	return 0;
-}
-
-static void map_field_offs_swap(void *_a, void *_b, int size, const void *priv)
-{
-	struct bpf_map *map = (struct bpf_map *)priv;
-	u32 *off_base = map->field_offs->field_off;
-	u32 *a = _a, *b = _b;
-	u8 *sz_a, *sz_b;
-
-	sz_a = map->field_offs->field_sz + (a - off_base);
-	sz_b = map->field_offs->field_sz + (b - off_base);
-
-	swap(*a, *b);
-	swap(*sz_a, *sz_b);
-}
-
-static int bpf_map_alloc_off_arr(struct bpf_map *map)
-{
-	bool has_fields = !IS_ERR_OR_NULL(map->record);
-	struct btf_field_offs *fo;
-	struct btf_record *rec;
-	u32 i, *off;
-	u8 *sz;
-
-	if (!has_fields) {
-		map->field_offs = NULL;
-		return 0;
-	}
-
-	fo = kzalloc(sizeof(*map->field_offs), GFP_KERNEL | __GFP_NOWARN);
-	if (!fo)
-		return -ENOMEM;
-	map->field_offs = fo;
-
-	rec = map->record;
-	off = fo->field_off;
-	sz = fo->field_sz;
-	for (i = 0; i < rec->cnt; i++) {
-		*off++ = rec->fields[i].offset;
-		*sz++ = btf_field_type_size(rec->fields[i].type);
-	}
-	fo->cnt = rec->cnt;
-
-	if (fo->cnt == 1)
-		return 0;
-	sort_r(fo->field_off, fo->cnt, sizeof(fo->field_off[0]),
-	       map_field_offs_cmp, map_field_offs_swap, map);
-	return 0;
-}
-
 static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 			 u32 btf_key_id, u32 btf_value_id)
 {
@@ -1097,6 +1037,7 @@ free_map_tab:
 static int map_create(union bpf_attr *attr)
 {
 	int numa_node = bpf_map_attr_numa_node(attr);
+	struct btf_field_offs *foffs;
 	struct bpf_map *map;
 	int f_flags;
 	int err;
@@ -1176,13 +1117,17 @@ static int map_create(union bpf_attr *attr)
 			attr->btf_vmlinux_value_type_id;
 	}
 
-	err = bpf_map_alloc_off_arr(map);
-	if (err)
+
+	foffs = btf_parse_field_offs(map->record);
+	if (IS_ERR(foffs)) {
+		err = PTR_ERR(foffs);
 		goto free_map;
+	}
+	map->field_offs = foffs;
 
 	err = security_bpf_map_alloc(map);
 	if (err)
-		goto free_map_off_arr;
+		goto free_map_field_offs;
 
 	err = bpf_map_alloc_id(map);
 	if (err)
@@ -1206,7 +1151,7 @@ static int map_create(union bpf_attr *attr)
 
 free_map_sec:
 	security_bpf_map_free(map);
-free_map_off_arr:
+free_map_field_offs:
 	kfree(map->field_offs);
 free_map:
 	btf_put(map->btf);
