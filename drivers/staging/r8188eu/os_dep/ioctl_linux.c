@@ -1011,7 +1011,6 @@ static int rtw_wx_set_mlme(struct net_device *dev,
 			     struct iw_request_info *info,
 			     union iwreq_data *wrqu, char *extra)
 {
-	int ret = 0;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(dev);
 	struct iw_mlme *mlme = (struct iw_mlme *)extra;
 
@@ -1020,17 +1019,15 @@ static int rtw_wx_set_mlme(struct net_device *dev,
 
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:
-		if (!rtw_set_802_11_disassociate(padapter))
-			ret = -1;
+		rtw_set_802_11_disassociate(padapter);
 		break;
 	case IW_MLME_DISASSOC:
-		if (!rtw_set_802_11_disassociate(padapter))
-			ret = -1;
+		rtw_set_802_11_disassociate(padapter);
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
-	return ret;
+	return 0;
 }
 
 static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
