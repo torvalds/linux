@@ -250,6 +250,20 @@ static int efx_mae_match_check_cap_typ(u8 support, enum mask_type typ)
 	}
 }
 
+/* Validate field mask against hardware capabilities.  Captures caller's 'rc' */
+#define CHECK(_mcdi, _field)	({					       \
+	enum mask_type typ = classify_mask((const u8 *)&mask->_field,	       \
+					   sizeof(mask->_field));	       \
+									       \
+	rc = efx_mae_match_check_cap_typ(supported_fields[MAE_FIELD_ ## _mcdi],\
+					 typ);				       \
+	if (rc)								       \
+		NL_SET_ERR_MSG_FMT_MOD(extack,				       \
+				       "No support for %s mask in field %s",   \
+				       mask_type_name(typ), #_field);	       \
+	rc;								       \
+})
+
 int efx_mae_match_check_caps(struct efx_nic *efx,
 			     const struct efx_tc_match_fields *mask,
 			     struct netlink_ext_ack *extack)
@@ -269,8 +283,11 @@ int efx_mae_match_check_caps(struct efx_nic *efx,
 				       mask_type_name(ingress_port_mask_type));
 		return rc;
 	}
+	if (CHECK(RECIRC_ID, recirc_id))
+		return rc;
 	return 0;
 }
+#undef CHECK
 
 static bool efx_mae_asl_id(u32 id)
 {
