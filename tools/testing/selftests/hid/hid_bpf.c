@@ -82,10 +82,21 @@ static unsigned char rdesc[] = {
 	0xc0,			/* END_COLLECTION */
 };
 
+static __u8 feature_data[] = { 1, 2 };
+
 struct attach_prog_args {
 	int prog_fd;
 	unsigned int hid;
 	int retval;
+};
+
+struct hid_hw_request_syscall_args {
+	__u8 data[10];
+	unsigned int hid;
+	int retval;
+	size_t size;
+	enum hid_report_type type;
+	__u8 request_type;
 };
 
 #define ASSERT_OK(data) ASSERT_FALSE(data)
@@ -155,7 +166,7 @@ static void uhid_destroy(struct __test_metadata *_metadata, int fd)
 
 static int uhid_event(struct __test_metadata *_metadata, int fd)
 {
-	struct uhid_event ev;
+	struct uhid_event ev, answer;
 	ssize_t ret;
 
 	memset(&ev, 0, sizeof(ev));
@@ -196,6 +207,15 @@ static int uhid_event(struct __test_metadata *_metadata, int fd)
 		break;
 	case UHID_GET_REPORT:
 		UHID_LOG("UHID_GET_REPORT from uhid-dev");
+
+		answer.type = UHID_GET_REPORT_REPLY;
+		answer.u.get_report_reply.id = ev.u.get_report.id;
+		answer.u.get_report_reply.err = ev.u.get_report.rnum == 1 ? 0 : -EIO;
+		answer.u.get_report_reply.size = sizeof(feature_data);
+		memcpy(answer.u.get_report_reply.data, feature_data, sizeof(feature_data));
+
+		uhid_write(_metadata, fd, &answer);
+
 		break;
 	case UHID_SET_REPORT:
 		UHID_LOG("UHID_SET_REPORT from uhid-dev");
@@ -684,6 +704,40 @@ TEST_F(hid_bpf, test_hid_change_report)
 	ASSERT_EQ(buf[0], 2);
 	ASSERT_EQ(buf[1], 42);
 	ASSERT_EQ(buf[2], 0) TH_LOG("leftovers_from_previous_test");
+}
+
+/*
+ * Attach hid_user_raw_request to the given uhid device,
+ * call the bpf program from userspace
+ * check that the program is called and does the expected.
+ */
+TEST_F(hid_bpf, test_hid_user_raw_request_call)
+{
+	struct hid_hw_request_syscall_args args = {
+		.retval = -1,
+		.type = HID_FEATURE_REPORT,
+		.request_type = HID_REQ_GET_REPORT,
+		.size = 10,
+	};
+	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, tattrs,
+			    .ctx_in = &args,
+			    .ctx_size_in = sizeof(args),
+	);
+	int err, prog_fd;
+
+	LOAD_BPF;
+
+	args.hid = self->hid_id;
+	args.data[0] = 1; /* report ID */
+
+	prog_fd = bpf_program__fd(self->skel->progs.hid_user_raw_request);
+
+	err = bpf_prog_test_run_opts(prog_fd, &tattrs);
+	ASSERT_OK(err) TH_LOG("error while calling bpf_prog_test_run_opts");
+
+	ASSERT_EQ(args.retval, 2);
+
+	ASSERT_EQ(args.data[1], 2);
 }
 
 static int libbpf_print_fn(enum libbpf_print_level level,
