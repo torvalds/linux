@@ -126,8 +126,9 @@ patternProperties:
         minItems: 3
         maxItems: 64
         items:
-          minItems: 2
-          maxItems: 2
+          items:
+            - description: Voltage point in nV, signed.
+            - description: Temperature point in uK.
 
   "^diode@":
     type: object
@@ -249,12 +250,12 @@ patternProperties:
           resistance(ohm)-temperature(K). The entries added here are in uohm
           and uK. For more details values look at table 74 and 75.
         $ref: /schemas/types.yaml#/definitions/uint64-matrix
+        minItems: 3
+        maxItems: 64
         items:
-          minItems: 3
-          maxItems: 64
           items:
-            minItems: 2
-            maxItems: 2
+            - description: Resistance point in uOhms.
+            - description: Temperature point in uK.
 
     required:
       - adi,rsense-handle
@@ -328,8 +329,9 @@ patternProperties:
         minItems: 3
         maxItems: 64
         items:
-          minItems: 2
-          maxItems: 2
+          items:
+            - description: Resistance point in uOhms.
+            - description: Temperature point in uK.
 
       adi,custom-steinhart:
         description:
@@ -338,9 +340,8 @@ patternProperties:
           Steinhart sensors the coefficients are given in the raw
           format. Look at table 82 for more information.
         $ref: /schemas/types.yaml#/definitions/uint32-array
-        items:
-          minItems: 6
-          maxItems: 6
+        minItems: 6
+        maxItems: 6
 
     required:
       - adi,rsense-handle
