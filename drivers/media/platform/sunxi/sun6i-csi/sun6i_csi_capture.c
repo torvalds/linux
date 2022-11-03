@@ -90,8 +90,13 @@ static void
 sun6i_csi_capture_buffer_configure(struct sun6i_csi_device *csi_dev,
 				   struct sun6i_csi_buffer *csi_buffer)
 {
-	csi_buffer->queued_to_csi = true;
-	sun6i_csi_update_buf_addr(csi_dev, csi_buffer->dma_addr);
+	struct vb2_buffer *vb2_buffer;
+	dma_addr_t address;
+
+	vb2_buffer = &csi_buffer->v4l2_buffer.vb2_buf;
+	address = vb2_dma_contig_plane_dma_addr(vb2_buffer, 0);
+
+	sun6i_csi_update_buf_addr(csi_dev, address);
 }
 
 static void sun6i_csi_capture_configure(struct sun6i_csi_device *csi_dev)
@@ -108,6 +113,119 @@ static void sun6i_csi_capture_configure(struct sun6i_csi_device *csi_dev)
 	sun6i_csi_update_config(csi_dev, &config);
 }
 
+/* State */
+
+static void sun6i_csi_capture_state_cleanup(struct sun6i_csi_device *csi_dev,
+					    bool error)
+{
+	struct sun6i_csi_capture_state *state = &csi_dev->capture.state;
+	struct sun6i_csi_buffer **csi_buffer_states[] = {
+		&state->pending, &state->current, &state->complete,
+	};
+	struct sun6i_csi_buffer *csi_buffer;
+	struct vb2_buffer *vb2_buffer;
+	unsigned long flags;
+	unsigned int i;
+
+	spin_lock_irqsave(&state->lock, flags);
+
+	for (i = 0; i < ARRAY_SIZE(csi_buffer_states); i++) {
+		csi_buffer = *csi_buffer_states[i];
+		if (!csi_buffer)
+			continue;
+
+		vb2_buffer = &csi_buffer->v4l2_buffer.vb2_buf;
+		vb2_buffer_done(vb2_buffer, error ? VB2_BUF_STATE_ERROR :
+				VB2_BUF_STATE_QUEUED);
+
+		*csi_buffer_states[i] = NULL;
+	}
+
+	list_for_each_entry(csi_buffer, &state->queue, list) {
+		vb2_buffer = &csi_buffer->v4l2_buffer.vb2_buf;
+		vb2_buffer_done(vb2_buffer, error ? VB2_BUF_STATE_ERROR :
+				VB2_BUF_STATE_QUEUED);
+	}
+
+	INIT_LIST_HEAD(&state->queue);
+
+	spin_unlock_irqrestore(&state->lock, flags);
+}
+
+static void sun6i_csi_capture_state_update(struct sun6i_csi_device *csi_dev)
+{
+	struct sun6i_csi_capture_state *state = &csi_dev->capture.state;
+	struct sun6i_csi_buffer *csi_buffer;
+	unsigned long flags;
+
+	spin_lock_irqsave(&state->lock, flags);
+
+	if (list_empty(&state->queue))
+		goto complete;
+
+	if (state->pending)
+		goto complete;
+
+	csi_buffer = list_first_entry(&state->queue, struct sun6i_csi_buffer,
+				      list);
+
+	sun6i_csi_capture_buffer_configure(csi_dev, csi_buffer);
+
+	list_del(&csi_buffer->list);
+
+	state->pending = csi_buffer;
+
+complete:
+	spin_unlock_irqrestore(&state->lock, flags);
+}
+
+static void sun6i_csi_capture_state_complete(struct sun6i_csi_device *csi_dev)
+{
+	struct sun6i_csi_capture_state *state = &csi_dev->capture.state;
+	unsigned long flags;
+
+	spin_lock_irqsave(&state->lock, flags);
+
+	if (!state->pending)
+		goto complete;
+
+	state->complete = state->current;
+	state->current = state->pending;
+	state->pending = NULL;
+
+	if (state->complete) {
+		struct sun6i_csi_buffer *csi_buffer = state->complete;
+		struct vb2_buffer *vb2_buffer =
+			&csi_buffer->v4l2_buffer.vb2_buf;
+
+		vb2_buffer->timestamp = ktime_get_ns();
+		csi_buffer->v4l2_buffer.sequence = state->sequence;
+
+		vb2_buffer_done(vb2_buffer, VB2_BUF_STATE_DONE);
+
+		state->complete = NULL;
+	}
+
+complete:
+	spin_unlock_irqrestore(&state->lock, flags);
+}
+
+void sun6i_csi_capture_frame_done(struct sun6i_csi_device *csi_dev)
+{
+	struct sun6i_csi_capture_state *state = &csi_dev->capture.state;
+	unsigned long flags;
+
+	spin_lock_irqsave(&state->lock, flags);
+	state->sequence++;
+	spin_unlock_irqrestore(&state->lock, flags);
+}
+
+void sun6i_csi_capture_sync(struct sun6i_csi_device *csi_dev)
+{
+	sun6i_csi_capture_state_complete(csi_dev);
+	sun6i_csi_capture_state_update(csi_dev);
+}
+
 /* Queue */
 
 static int sun6i_csi_capture_queue_setup(struct vb2_queue *queue,
@@ -117,8 +235,7 @@ static int sun6i_csi_capture_queue_setup(struct vb2_queue *queue,
 					 struct device *alloc_devs[])
 {
 	struct sun6i_csi_device *csi_dev = vb2_get_drv_priv(queue);
-	struct sun6i_csi_capture *capture = &csi_dev->capture;
-	unsigned int size = capture->format.fmt.pix.sizeimage;
+	unsigned int size = csi_dev->capture.format.fmt.pix.sizeimage;
 
 	if (*planes_count)
 		return sizes[0] < size ? -EINVAL : 0;
@@ -135,8 +252,6 @@ static int sun6i_csi_capture_buffer_prepare(struct vb2_buffer *buffer)
 	struct sun6i_csi_capture *capture = &csi_dev->capture;
 	struct v4l2_device *v4l2_dev = &csi_dev->v4l2.v4l2_dev;
 	struct vb2_v4l2_buffer *v4l2_buffer = to_vb2_v4l2_buffer(buffer);
-	struct sun6i_csi_buffer *csi_buffer =
-		container_of(v4l2_buffer, struct sun6i_csi_buffer, v4l2_buffer);
 	unsigned long size = capture->format.fmt.pix.sizeimage;
 
 	if (vb2_plane_size(buffer, 0) < size) {
@@ -147,7 +262,6 @@ static int sun6i_csi_capture_buffer_prepare(struct vb2_buffer *buffer)
 
 	vb2_set_plane_payload(buffer, 0, size);
 
-	csi_buffer->dma_addr = vb2_dma_contig_plane_dma_addr(buffer, 0);
 	v4l2_buffer->field = capture->format.fmt.pix.field;
 
 	return 0;
@@ -156,16 +270,15 @@ static int sun6i_csi_capture_buffer_prepare(struct vb2_buffer *buffer)
 static void sun6i_csi_capture_buffer_queue(struct vb2_buffer *buffer)
 {
 	struct sun6i_csi_device *csi_dev = vb2_get_drv_priv(buffer->vb2_queue);
-	struct sun6i_csi_capture *capture = &csi_dev->capture;
+	struct sun6i_csi_capture_state *state = &csi_dev->capture.state;
 	struct vb2_v4l2_buffer *v4l2_buffer = to_vb2_v4l2_buffer(buffer);
 	struct sun6i_csi_buffer *csi_buffer =
 		container_of(v4l2_buffer, struct sun6i_csi_buffer, v4l2_buffer);
 	unsigned long flags;
 
-	spin_lock_irqsave(&capture->dma_queue_lock, flags);
-	csi_buffer->queued_to_csi = false;
-	list_add_tail(&csi_buffer->list, &capture->dma_queue);
-	spin_unlock_irqrestore(&capture->dma_queue_lock, flags);
+	spin_lock_irqsave(&state->lock, flags);
+	list_add_tail(&csi_buffer->list, &state->queue);
+	spin_unlock_irqrestore(&state->lock, flags);
 }
 
 static int sun6i_csi_capture_start_streaming(struct vb2_queue *queue,
@@ -173,18 +286,16 @@ static int sun6i_csi_capture_start_streaming(struct vb2_queue *queue,
 {
 	struct sun6i_csi_device *csi_dev = vb2_get_drv_priv(queue);
 	struct sun6i_csi_capture *capture = &csi_dev->capture;
+	struct sun6i_csi_capture_state *state = &capture->state;
 	struct video_device *video_dev = &capture->video_dev;
-	struct sun6i_csi_buffer *buf;
-	struct sun6i_csi_buffer *next_buf;
 	struct v4l2_subdev *subdev;
-	unsigned long flags;
 	int ret;
 
-	capture->sequence = 0;
+	state->sequence = 0;
 
 	ret = video_device_pipeline_alloc_start(video_dev);
 	if (ret < 0)
-		goto error_dma_queue_flush;
+		goto error_state;
 
 	if (capture->mbus_code == 0) {
 		ret = -EINVAL;
@@ -197,37 +308,17 @@ static int sun6i_csi_capture_start_streaming(struct vb2_queue *queue,
 		goto error_media_pipeline;
 	}
 
+	/* Configure */
+
 	sun6i_csi_capture_configure(csi_dev);
 
-	spin_lock_irqsave(&capture->dma_queue_lock, flags);
+	/* State Update */
 
-	buf = list_first_entry(&capture->dma_queue,
-			       struct sun6i_csi_buffer, list);
-	sun6i_csi_capture_buffer_configure(csi_dev, buf);
+	sun6i_csi_capture_state_update(csi_dev);
+
+	/* Enable */
 
 	sun6i_csi_set_stream(csi_dev, true);
-
-	/*
-	 * CSI will lookup the next dma buffer for next frame before the
-	 * current frame done IRQ triggered. This is not documented
-	 * but reported by Ondřej Jirman.
-	 * The BSP code has workaround for this too. It skip to mark the
-	 * first buffer as frame done for VB2 and pass the second buffer
-	 * to CSI in the first frame done ISR call. Then in second frame
-	 * done ISR call, it mark the first buffer as frame done for VB2
-	 * and pass the third buffer to CSI. And so on. The bad thing is
-	 * that the first buffer will be written twice and the first frame
-	 * is dropped even the queued buffer is sufficient.
-	 * So, I make some improvement here. Pass the next buffer to CSI
-	 * just follow starting the CSI. In this case, the first frame
-	 * will be stored in first buffer, second frame in second buffer.
-	 * This method is used to avoid dropping the first frame, it
-	 * would also drop frame when lacking of queued buffer.
-	 */
-	next_buf = list_next_entry(buf, list);
-	sun6i_csi_capture_buffer_configure(csi_dev, next_buf);
-
-	spin_unlock_irqrestore(&capture->dma_queue_lock, flags);
 
 	ret = v4l2_subdev_call(subdev, video, s_stream, 1);
 	if (ret && ret != -ENOIOCTLCMD)
@@ -241,13 +332,8 @@ error_stream:
 error_media_pipeline:
 	video_device_pipeline_stop(video_dev);
 
-error_dma_queue_flush:
-	spin_lock_irqsave(&capture->dma_queue_lock, flags);
-	list_for_each_entry(buf, &capture->dma_queue, list)
-		vb2_buffer_done(&buf->v4l2_buffer.vb2_buf,
-				VB2_BUF_STATE_QUEUED);
-	INIT_LIST_HEAD(&capture->dma_queue);
-	spin_unlock_irqrestore(&capture->dma_queue_lock, flags);
+error_state:
+	sun6i_csi_capture_state_cleanup(csi_dev, false);
 
 	return ret;
 }
@@ -257,8 +343,6 @@ static void sun6i_csi_capture_stop_streaming(struct vb2_queue *queue)
 	struct sun6i_csi_device *csi_dev = vb2_get_drv_priv(queue);
 	struct sun6i_csi_capture *capture = &csi_dev->capture;
 	struct v4l2_subdev *subdev;
-	unsigned long flags;
-	struct sun6i_csi_buffer *buf;
 
 	subdev = sun6i_csi_capture_remote_subdev(capture, NULL);
 	if (subdev)
@@ -268,59 +352,7 @@ static void sun6i_csi_capture_stop_streaming(struct vb2_queue *queue)
 
 	video_device_pipeline_stop(&capture->video_dev);
 
-	/* Release all active buffers */
-	spin_lock_irqsave(&capture->dma_queue_lock, flags);
-	list_for_each_entry(buf, &capture->dma_queue, list)
-		vb2_buffer_done(&buf->v4l2_buffer.vb2_buf, VB2_BUF_STATE_ERROR);
-	INIT_LIST_HEAD(&capture->dma_queue);
-	spin_unlock_irqrestore(&capture->dma_queue_lock, flags);
-}
-
-void sun6i_csi_capture_frame_done(struct sun6i_csi_device *csi_dev)
-{
-	struct sun6i_csi_capture *capture = &csi_dev->capture;
-	struct sun6i_csi_buffer *buf;
-	struct sun6i_csi_buffer *next_buf;
-	struct vb2_v4l2_buffer *v4l2_buffer;
-
-	spin_lock(&capture->dma_queue_lock);
-
-	buf = list_first_entry(&capture->dma_queue,
-			       struct sun6i_csi_buffer, list);
-	if (list_is_last(&buf->list, &capture->dma_queue)) {
-		dev_dbg(csi_dev->dev, "Frame dropped!\n");
-		goto complete;
-	}
-
-	next_buf = list_next_entry(buf, list);
-	/* If a new buffer (#next_buf) had not been queued to CSI, the old
-	 * buffer (#buf) is still holding by CSI for storing the next
-	 * frame. So, we queue a new buffer (#next_buf) to CSI then wait
-	 * for next ISR call.
-	 */
-	if (!next_buf->queued_to_csi) {
-		sun6i_csi_capture_buffer_configure(csi_dev, next_buf);
-		dev_dbg(csi_dev->dev, "Frame dropped!\n");
-		goto complete;
-	}
-
-	list_del(&buf->list);
-	v4l2_buffer = &buf->v4l2_buffer;
-	v4l2_buffer->vb2_buf.timestamp = ktime_get_ns();
-	v4l2_buffer->sequence = capture->sequence;
-	vb2_buffer_done(&v4l2_buffer->vb2_buf, VB2_BUF_STATE_DONE);
-
-	/* Prepare buffer for next frame but one.  */
-	if (!list_is_last(&next_buf->list, &capture->dma_queue)) {
-		next_buf = list_next_entry(next_buf, list);
-		sun6i_csi_capture_buffer_configure(csi_dev, next_buf);
-	} else {
-		dev_dbg(csi_dev->dev, "Next frame will be dropped!\n");
-	}
-
-complete:
-	capture->sequence++;
-	spin_unlock(&capture->dma_queue_lock);
+	sun6i_csi_capture_state_cleanup(csi_dev, true);
 }
 
 static const struct vb2_ops sun6i_csi_capture_queue_ops = {
@@ -635,6 +667,7 @@ static const struct media_entity_operations sun6i_csi_capture_media_ops = {
 int sun6i_csi_capture_setup(struct sun6i_csi_device *csi_dev)
 {
 	struct sun6i_csi_capture *capture = &csi_dev->capture;
+	struct sun6i_csi_capture_state *state = &capture->state;
 	struct v4l2_device *v4l2_dev = &csi_dev->v4l2.v4l2_dev;
 	struct v4l2_subdev *bridge_subdev = &csi_dev->bridge.subdev;
 	struct video_device *video_dev = &capture->video_dev;
@@ -643,6 +676,11 @@ int sun6i_csi_capture_setup(struct sun6i_csi_device *csi_dev)
 	struct v4l2_format format = { 0 };
 	struct v4l2_pix_format *pix_format = &format.fmt.pix;
 	int ret;
+
+	/* State */
+
+	INIT_LIST_HEAD(&state->queue);
+	spin_lock_init(&state->lock);
 
 	/* Media Entity */
 
@@ -656,13 +694,6 @@ int sun6i_csi_capture_setup(struct sun6i_csi_device *csi_dev)
 	if (ret < 0)
 		return ret;
 
-	/* DMA queue */
-
-	INIT_LIST_HEAD(&capture->dma_queue);
-	spin_lock_init(&capture->dma_queue_lock);
-
-	capture->sequence = 0;
-
 	/* Queue */
 
 	mutex_init(&capture->lock);
@@ -672,13 +703,11 @@ int sun6i_csi_capture_setup(struct sun6i_csi_device *csi_dev)
 	queue->buf_struct_size = sizeof(struct sun6i_csi_buffer);
 	queue->ops = &sun6i_csi_capture_queue_ops;
 	queue->mem_ops = &vb2_dma_contig_memops;
+	queue->min_buffers_needed = 2;
 	queue->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	queue->lock = &capture->lock;
 	queue->dev = csi_dev->dev;
 	queue->drv_priv = csi_dev;
-
-	/* Make sure non-dropped frame. */
-	queue->min_buffers_needed = 3;
 
 	ret = vb2_queue_init(queue);
 	if (ret) {

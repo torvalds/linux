@@ -566,6 +566,7 @@ void sun6i_csi_set_stream(struct sun6i_csi_device *csi_dev, bool enable)
 
 	regmap_write(regmap, CSI_CH_INT_STA_REG, 0xFF);
 	regmap_write(regmap, CSI_CH_INT_EN_REG,
+		     CSI_CH_INT_EN_VS_INT_EN |
 		     CSI_CH_INT_EN_HB_OF_INT_EN |
 		     CSI_CH_INT_EN_FIFO2_OF_INT_EN |
 		     CSI_CH_INT_EN_FIFO1_OF_INT_EN |
@@ -663,6 +664,9 @@ static irqreturn_t sun6i_csi_interrupt(int irq, void *private)
 
 	if (status & CSI_CH_INT_STA_FD_PD)
 		sun6i_csi_capture_frame_done(csi_dev);
+
+	if (status & CSI_CH_INT_STA_VS_PD)
+		sun6i_csi_capture_sync(csi_dev);
 
 	regmap_write(regmap, CSI_CH_INT_STA_REG, status);
 
