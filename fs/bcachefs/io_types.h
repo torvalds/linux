@@ -142,7 +142,6 @@ struct bch_write_op {
 
 	struct open_buckets	open_buckets;
 
-	u64			journal_seq;
 	u64			new_i_size;
 	s64			i_sectors_delta;
 

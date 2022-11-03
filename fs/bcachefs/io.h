@@ -31,7 +31,6 @@ const char *bch2_blk_status_to_str(blk_status_t);
 enum bch_write_flags {
 	__BCH_WRITE_ALLOC_NOWAIT,
 	__BCH_WRITE_CACHED,
-	__BCH_WRITE_FLUSH,
 	__BCH_WRITE_DATA_ENCODED,
 	__BCH_WRITE_PAGES_STABLE,
 	__BCH_WRITE_PAGES_OWNED,
@@ -48,7 +47,6 @@ enum bch_write_flags {
 
 #define BCH_WRITE_ALLOC_NOWAIT		(1U << __BCH_WRITE_ALLOC_NOWAIT)
 #define BCH_WRITE_CACHED		(1U << __BCH_WRITE_CACHED)
-#define BCH_WRITE_FLUSH			(1U << __BCH_WRITE_FLUSH)
 #define BCH_WRITE_DATA_ENCODED		(1U << __BCH_WRITE_DATA_ENCODED)
 #define BCH_WRITE_PAGES_STABLE		(1U << __BCH_WRITE_PAGES_STABLE)
 #define BCH_WRITE_PAGES_OWNED		(1U << __BCH_WRITE_PAGES_OWNED)
@@ -75,7 +73,7 @@ int bch2_sum_sector_overwrites(struct btree_trans *, struct btree_iter *,
 			       struct bkey_i *, bool *, bool *, s64 *, s64 *);
 int bch2_extent_update(struct btree_trans *, subvol_inum,
 		       struct btree_iter *, struct bkey_i *,
-		       struct disk_reservation *, u64 *, u64, s64 *, bool);
+		       struct disk_reservation *, u64, s64 *, bool);
 
 int bch2_fpunch_at(struct btree_trans *, struct btree_iter *,
 		   subvol_inum, u64, s64 *);
@@ -104,7 +102,6 @@ static inline void bch2_write_op_init(struct bch_write_op *op, struct bch_fs *c,
 	op->version		= ZERO_VERSION;
 	op->write_point		= (struct write_point_specifier) { 0 };
 	op->res			= (struct disk_reservation) { 0 };
-	op->journal_seq		= 0;
 	op->new_i_size		= U64_MAX;
 	op->i_sectors_delta	= 0;
 }

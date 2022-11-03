@@ -78,6 +78,7 @@ struct dio_write {
 	struct mm_struct		*mm;
 	unsigned			loop:1,
 					sync:1,
+					flush:1,
 					free_iov:1;
 	struct quota_res		quota_res;
 	u64				written;
@@ -2056,6 +2057,9 @@ static noinline bool bch2_dio_write_check_allocated(struct dio_write *dio)
 				dio->op.opts.compression != 0);
 }
 
+static void bch2_dio_write_loop_async(struct bch_write_op *);
+static __always_inline long bch2_dio_write_done(struct dio_write *dio);
+
 /*
  * We're going to return -EIOCBQUEUED, but we haven't finished consuming the
  * iov_iter yet, so we need to stash a copy of the iovec: it might be on the
@@ -2093,7 +2097,43 @@ static noinline int bch2_dio_write_copy_iov(struct dio_write *dio)
 	return 0;
 }
 
-static void bch2_dio_write_loop_async(struct bch_write_op *);
+static void bch2_dio_write_flush_done(struct closure *cl)
+{
+	struct dio_write *dio = container_of(cl, struct dio_write, op.cl);
+	struct bch_fs *c = dio->op.c;
+
+	closure_debug_destroy(cl);
+
+	dio->op.error = bch2_journal_error(&c->journal);
+
+	bch2_dio_write_done(dio);
+}
+
+static noinline void bch2_dio_write_flush(struct dio_write *dio)
+{
+	struct bch_fs *c = dio->op.c;
+	struct bch_inode_unpacked inode;
+	int ret;
+
+	dio->flush = 0;
+
+	closure_init(&dio->op.cl, NULL);
+
+	if (!dio->op.error) {
+		ret = bch2_inode_find_by_inum(c, inode_inum(dio->inode), &inode);
+		if (ret)
+			dio->op.error = ret;
+		else
+			bch2_journal_flush_seq_async(&c->journal, inode.bi_journal_seq, &dio->op.cl);
+	}
+
+	if (dio->sync) {
+		closure_sync(&dio->op.cl);
+		closure_debug_destroy(&dio->op.cl);
+	} else {
+		continue_at(&dio->op.cl, bch2_dio_write_flush_done, NULL);
+	}
+}
 
 static __always_inline long bch2_dio_write_done(struct dio_write *dio)
 {
@@ -2101,13 +2141,21 @@ static __always_inline long bch2_dio_write_done(struct dio_write *dio)
 	struct kiocb *req = dio->req;
 	struct bch_inode_info *inode = dio->inode;
 	bool sync = dio->sync;
-	long ret = dio->op.error ?: ((long) dio->written << 9);
+	long ret;
+
+	if (unlikely(dio->flush)) {
+		bch2_dio_write_flush(dio);
+		if (!sync)
+			return -EIOCBQUEUED;
+	}
 
 	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
 	bch2_quota_reservation_put(c, inode, &dio->quota_res);
 
 	if (dio->free_iov)
 		kfree(dio->iter.__iov);
+
+	ret = dio->op.error ?: ((long) dio->written << 9);
 	bio_put(&dio->op.wbio.bio);
 
 	/* inode->i_dio_count is our ref on inode and thus bch_fs */
@@ -2215,9 +2263,6 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 
 		if (sync)
 			dio->op.flags |= BCH_WRITE_SYNC;
-		if ((req->ki_flags & IOCB_DSYNC) &&
-		    !c->opts.journal_flush_disabled)
-			dio->op.flags |= BCH_WRITE_FLUSH;
 		dio->op.flags |= BCH_WRITE_CHECK_ENOSPC;
 
 		ret = bch2_disk_reservation_get(c, &dio->op.res, bio_sectors(bio),
@@ -2332,6 +2377,7 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	dio->mm			= current->mm;
 	dio->loop		= false;
 	dio->sync		= is_sync_kiocb(req) || extending;
+	dio->flush		= iocb_is_dsync(req) && !c->opts.journal_flush_disabled;
 	dio->free_iov		= false;
 	dio->quota_res.sectors	= 0;
 	dio->written		= 0;
@@ -3050,8 +3096,7 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 		}
 
 		ret = bch2_extent_update(&trans, inode_inum(inode), &iter,
-					 &reservation.k_i,
-				&disk_res, NULL,
+				&reservation.k_i, &disk_res,
 				0, &i_sectors_delta, true);
 		if (ret)
 			goto bkey_err;

@@ -226,7 +226,7 @@ int bch2_data_update_index_update(struct bch_write_op *op)
 			bch2_trans_update(&trans, &iter, insert,
 				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
 			bch2_trans_commit(&trans, &op->res,
-				&op->journal_seq,
+				NULL,
 				BTREE_INSERT_NOFAIL|
 				m->data_opts.btree_insert_flags);
 		if (!ret) {
@@ -320,7 +320,6 @@ int bch2_data_update_init(struct bch_fs *c, struct data_update *m,
 	m->op.flags	|= BCH_WRITE_PAGES_STABLE|
 		BCH_WRITE_PAGES_OWNED|
 		BCH_WRITE_DATA_ENCODED|
-		BCH_WRITE_FROM_INTERNAL|
 		BCH_WRITE_MOVE|
 		m->data_opts.write_flags;
 	m->op.compression_type =
