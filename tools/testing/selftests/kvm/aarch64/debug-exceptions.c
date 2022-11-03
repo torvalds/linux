@@ -423,7 +423,7 @@ int main(int argc, char *argv[])
 	while ((opt = getopt(argc, argv, "i:")) != -1) {
 		switch (opt) {
 		case 'i':
-			ss_iteration = atoi(optarg);
+			ss_iteration = atoi_paranoid(optarg);
 			break;
 		case 'h':
 		default:
