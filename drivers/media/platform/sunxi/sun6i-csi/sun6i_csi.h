@@ -60,8 +60,6 @@ struct sun6i_csi_device {
 	struct clk			*clock_mod;
 	struct clk			*clock_ram;
 	struct reset_control		*reset;
-
-	int				planar_offset[3];
 };
 
 struct sun6i_csi_variant {
@@ -97,14 +95,6 @@ int sun6i_csi_set_power(struct sun6i_csi_device *csi_dev, bool enable);
  */
 int sun6i_csi_update_config(struct sun6i_csi_device *csi_dev,
 			    struct sun6i_csi_config *config);
-
-/**
- * sun6i_csi_update_buf_addr() - update the csi frame buffer address
- * @csi_dev:	pointer to the csi device
- * @addr:	frame buffer's physical address
- */
-void sun6i_csi_update_buf_addr(struct sun6i_csi_device *csi_dev,
-			       dma_addr_t addr);
 
 /**
  * sun6i_csi_set_stream() - start/stop csi streaming
