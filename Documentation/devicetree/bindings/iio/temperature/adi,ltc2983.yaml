@@ -112,7 +112,7 @@ patternProperties:
         description:
           Phandle which points to a sensor object responsible for measuring
           the thermocouple cold junction temperature.
-        $ref: "/schemas/types.yaml#/definitions/phandle"
+        $ref: /schemas/types.yaml#/definitions/phandle
 
       adi,custom-thermocouple:
         description:
@@ -204,7 +204,7 @@ patternProperties:
       adi,rsense-handle:
         description:
           Phandle pointing to a rsense object associated with this RTD.
-        $ref: "/schemas/types.yaml#/definitions/phandle"
+        $ref: /schemas/types.yaml#/definitions/phandle
 
       adi,number-of-wires:
         description:
@@ -288,7 +288,7 @@ patternProperties:
         description:
           Phandle pointing to a rsense object associated with this
           thermistor.
-        $ref: "/schemas/types.yaml#/definitions/phandle"
+        $ref: /schemas/types.yaml#/definitions/phandle
 
       adi,single-ended:
         description:
