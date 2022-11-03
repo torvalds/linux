@@ -627,7 +627,7 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 	if (!ifbdev || !ifbdev->vma)
 		goto set_suspend;
 
-	info = ifbdev->helper.fbdev;
+	info = ifbdev->helper.info;
 
 	if (synchronous) {
 		/* Flush any pending work to turn the console on, and then

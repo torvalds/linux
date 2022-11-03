@@ -96,7 +96,7 @@ struct drm_fb_helper_funcs {
  * @fb: Scanout framebuffer object
  * @dev: DRM device
  * @funcs: driver callbacks for fb helper
- * @fbdev: emulated fbdev device info struct
+ * @info: emulated fbdev device info struct
  * @pseudo_palette: fake palette of 16 colors
  * @damage_clip: clip rectangle used with deferred_io to accumulate damage to
  *                the screen buffer
@@ -127,7 +127,7 @@ struct drm_fb_helper {
 	struct drm_framebuffer *fb;
 	struct drm_device *dev;
 	const struct drm_fb_helper_funcs *funcs;
-	struct fb_info *fbdev;
+	struct fb_info *info;
 	u32 pseudo_palette[17];
 	struct drm_clip_rect damage_clip;
 	spinlock_t damage_lock;
