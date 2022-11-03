@@ -1072,12 +1072,6 @@ void ufshcd_update_evt_hist(struct ufs_hba *hba, u32 id, u32 val);
 void ufshcd_hba_stop(struct ufs_hba *hba);
 void ufshcd_schedule_eh_work(struct ufs_hba *hba);
 
-static inline void check_upiu_size(void)
-{
-	BUILD_BUG_ON(ALIGNED_UPIU_SIZE <
-		GENERAL_UPIU_REQUEST_SIZE + QUERY_DESC_MAX_SIZE);
-}
-
 /**
  * ufshcd_set_variant - set variant specific data to the hba
  * @hba: per adapter instance
