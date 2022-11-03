@@ -34,6 +34,7 @@ properties:
       cases. An extra delay can be configured using this property. The value is
       rounded to nearest 100us.
     maximum: 255
+    default: 0
 
   adi,filter-notch-freq:
     description:
@@ -45,6 +46,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 2
+    default: 0
 
   '#address-cells':
     const: 1
@@ -104,6 +106,7 @@ patternProperties:
           This property set's the pulsed current value applied during
           open-circuit detect.
         enum: [10, 100, 500, 1000]
+        default: 10
 
       adi,cold-junction-handle:
         description:
@@ -163,6 +166,7 @@ patternProperties:
           cycles, this property will assume different predefined values on
           each cycle. Just set the value of the first cycle (1l).
         enum: [10, 20, 40, 80]
+        default: 10
 
       adi,ideal-factor-value:
         description:
@@ -170,6 +174,7 @@ patternProperties:
           be multiplied by 1000000 to remove the fractional part. For more
           information look at table 20 of the datasheet.
         $ref: /schemas/types.yaml#/definitions/uint32
+        default: 0
 
   "^rtd@":
     type: object
@@ -207,6 +212,7 @@ patternProperties:
           property to 5 means 4 wires with Kelvin Rsense.
         $ref: /schemas/types.yaml#/definitions/uint32
         enum: [2, 3, 4, 5]
+        default: 2
 
       adi,rsense-share:
         description:
@@ -226,6 +232,7 @@ patternProperties:
           This property controls the magnitude of the excitation current
           applied to the RTD.
         enum: [5, 10, 25, 50, 100, 250, 500, 1000]
+        default: 5
 
       adi,rtd-curve:
         description:
@@ -234,6 +241,7 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 3
+        default: 0
 
       adi,custom-rtd:
         description:
@@ -308,6 +316,7 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 250, 500, 1000, 5000, 10000, 25000, 50000, 100000, 250000,
                500000, 1000000]
+        default: 0
 
       adi,custom-thermistor:
         description:
