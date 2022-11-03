@@ -286,7 +286,8 @@ ddk_headers(
     ],
     # The list of include directories where source files can #include headers
     # from. In other words, these are the `-I` option to the C compiler.
-    includes = [
+    # These are prepended to LINUXINCLUDE.
+    linux_includes = [
         "arch/arm64/include",
         "arch/arm64/include/uapi",
         "include",
@@ -303,7 +304,8 @@ ddk_headers(
     ],
     # The list of include directories where source files can #include headers
     # from. In other words, these are the `-I` option to the C compiler.
-    includes = [
+    # These are prepended to LINUXINCLUDE.
+    linux_includes = [
         "arch/x86/include",
         "arch/x86/include/uapi",
         "include",
@@ -352,6 +354,7 @@ ddk_headers(
     ],
     # The list of include directories where source files can #include headers
     # from. In other words, these are the `-I` option to the C compiler.
+    # Unsafe include directories are appended to ccflags-y.
     includes = [],
     visibility = ["//visibility:private"],
 )
