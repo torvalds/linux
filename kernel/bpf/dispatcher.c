@@ -4,7 +4,6 @@
 #include <linux/hash.h>
 #include <linux/bpf.h>
 #include <linux/filter.h>
-#include <linux/init.h>
 
 /* The BPF dispatcher is a multiway branch code generator. The
  * dispatcher is a mechanism to avoid the performance penalty of an
@@ -87,11 +86,6 @@ static bool bpf_dispatcher_remove_prog(struct bpf_dispatcher *d,
 }
 
 int __weak arch_prepare_bpf_dispatcher(void *image, void *buf, s64 *funcs, int num_funcs)
-{
-	return -ENOTSUPP;
-}
-
-int __weak __init bpf_arch_init_dispatcher_early(void *ip)
 {
 	return -ENOTSUPP;
 }
