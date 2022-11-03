@@ -51,6 +51,22 @@ arch_ftrace_get_regs(struct ftrace_regs *fregs)
 #define ftrace_regs_set_instruction_pointer(fregs, _ip)	\
 	do { (fregs)->regs.ip = (_ip); } while (0)
 
+#define ftrace_regs_get_instruction_pointer(fregs) \
+	((fregs)->regs.ip)
+
+#define ftrace_regs_get_argument(fregs, n) \
+	regs_get_kernel_argument(&(fregs)->regs, n)
+#define ftrace_regs_get_stack_pointer(fregs) \
+	kernel_stack_pointer(&(fregs)->regs)
+#define ftrace_regs_return_value(fregs) \
+	regs_return_value(&(fregs)->regs)
+#define ftrace_regs_set_return_value(fregs, ret) \
+	regs_set_return_value(&(fregs)->regs, ret)
+#define ftrace_override_function_with_return(fregs) \
+	override_function_with_return(&(fregs)->regs)
+#define ftrace_regs_query_register_offset(name) \
+	regs_query_register_offset(name)
+
 struct ftrace_ops;
 #define ftrace_graph_func ftrace_graph_func
 void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
