@@ -27,6 +27,7 @@ properties:
       should default to OTG.
     $ref: /schemas/types.yaml#/definitions/string
     enum: [host, peripheral, otg]
+    default: otg
 
   hnp-disable:
     description:
