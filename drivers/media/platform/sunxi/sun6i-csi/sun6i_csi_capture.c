@@ -570,7 +570,7 @@ static int sun6i_csi_capture_buffer_prepare(struct vb2_buffer *buffer)
 {
 	struct sun6i_csi_device *csi_dev = vb2_get_drv_priv(buffer->vb2_queue);
 	struct sun6i_csi_capture *capture = &csi_dev->capture;
-	struct v4l2_device *v4l2_dev = &csi_dev->v4l2.v4l2_dev;
+	struct v4l2_device *v4l2_dev = csi_dev->v4l2_dev;
 	struct vb2_v4l2_buffer *v4l2_buffer = to_vb2_v4l2_buffer(buffer);
 	unsigned long size = capture->format.fmt.pix.sizeimage;
 
@@ -889,7 +889,7 @@ static int sun6i_csi_capture_link_validate(struct media_link *link)
 	struct video_device *video_dev =
 		media_entity_to_video_device(link->sink->entity);
 	struct sun6i_csi_device *csi_dev = video_get_drvdata(video_dev);
-	struct v4l2_device *v4l2_dev = &csi_dev->v4l2.v4l2_dev;
+	struct v4l2_device *v4l2_dev = csi_dev->v4l2_dev;
 	const struct sun6i_csi_capture_format *capture_format;
 	const struct sun6i_csi_bridge_format *bridge_format;
 	unsigned int capture_width, capture_height;
@@ -971,7 +971,7 @@ int sun6i_csi_capture_setup(struct sun6i_csi_device *csi_dev)
 {
 	struct sun6i_csi_capture *capture = &csi_dev->capture;
 	struct sun6i_csi_capture_state *state = &capture->state;
-	struct v4l2_device *v4l2_dev = &csi_dev->v4l2.v4l2_dev;
+	struct v4l2_device *v4l2_dev = csi_dev->v4l2_dev;
 	struct v4l2_subdev *bridge_subdev = &csi_dev->bridge.subdev;
 	struct video_device *video_dev = &capture->video_dev;
 	struct vb2_queue *queue = &capture->queue;
@@ -979,6 +979,10 @@ int sun6i_csi_capture_setup(struct sun6i_csi_device *csi_dev)
 	struct v4l2_format *format = &csi_dev->capture.format;
 	struct v4l2_pix_format *pix_format = &format->fmt.pix;
 	int ret;
+
+	/* This may happen with multiple bridge notifier bound calls. */
+	if (state->setup)
+		return 0;
 
 	/* State */
 
@@ -1055,6 +1059,7 @@ int sun6i_csi_capture_setup(struct sun6i_csi_device *csi_dev)
 	ret = media_create_pad_link(&bridge_subdev->entity,
 				    SUN6I_CSI_BRIDGE_PAD_SOURCE,
 				    &video_dev->entity, 0,
+				    csi_dev->isp_available ? 0 :
 				    MEDIA_LNK_FL_ENABLED |
 				    MEDIA_LNK_FL_IMMUTABLE);
 	if (ret < 0) {
@@ -1064,6 +1069,8 @@ int sun6i_csi_capture_setup(struct sun6i_csi_device *csi_dev)
 			 video_dev->entity.name, 0);
 		goto error_video_device;
 	}
+
+	state->setup = true;
 
 	return 0;
 
@@ -1083,7 +1090,13 @@ void sun6i_csi_capture_cleanup(struct sun6i_csi_device *csi_dev)
 	struct sun6i_csi_capture *capture = &csi_dev->capture;
 	struct video_device *video_dev = &capture->video_dev;
 
+	/* This may happen if async registration failed to complete. */
+	if (!capture->state.setup)
+		return;
+
 	vb2_video_unregister_device(video_dev);
 	media_entity_cleanup(&video_dev->entity);
 	mutex_destroy(&capture->lock);
+
+	capture->state.setup = false;
 }

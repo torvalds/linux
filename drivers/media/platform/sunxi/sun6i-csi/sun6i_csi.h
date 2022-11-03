@@ -36,6 +36,8 @@ struct sun6i_csi_v4l2 {
 
 struct sun6i_csi_device {
 	struct device			*dev;
+	struct v4l2_device		*v4l2_dev;
+	struct media_device		*media_dev;
 
 	struct sun6i_csi_v4l2		v4l2;
 	struct sun6i_csi_bridge		bridge;
@@ -52,5 +54,10 @@ struct sun6i_csi_device {
 struct sun6i_csi_variant {
 	unsigned long	clock_mod_rate;
 };
+
+/* ISP */
+
+int sun6i_csi_isp_complete(struct sun6i_csi_device *csi_dev,
+			   struct v4l2_device *v4l2_dev);
 
 #endif

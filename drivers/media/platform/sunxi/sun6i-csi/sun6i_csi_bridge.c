@@ -653,6 +653,7 @@ sun6i_csi_bridge_notifier_bound(struct v4l2_async_notifier *notifier,
 	struct sun6i_csi_bridge *bridge = &csi_dev->bridge;
 	struct sun6i_csi_bridge_source *source = bridge_async_subdev->source;
 	bool enabled;
+	int ret;
 
 	switch (source->endpoint.base.port) {
 	case SUN6I_CSI_PORT_PARALLEL:
@@ -667,6 +668,16 @@ sun6i_csi_bridge_notifier_bound(struct v4l2_async_notifier *notifier,
 
 	source->subdev = remote_subdev;
 
+	if (csi_dev->isp_available) {
+		/*
+		 * Hook to the first available remote subdev to get v4l2 and
+		 * media devices and register the capture device then.
+		 */
+		ret = sun6i_csi_isp_complete(csi_dev, remote_subdev->v4l2_dev);
+		if (ret)
+			return ret;
+	}
+
 	return sun6i_csi_bridge_link(csi_dev, SUN6I_CSI_BRIDGE_PAD_SINK,
 				     remote_subdev, enabled);
 }
@@ -678,6 +689,9 @@ sun6i_csi_bridge_notifier_complete(struct v4l2_async_notifier *notifier)
 		container_of(notifier, struct sun6i_csi_device,
 			     bridge.notifier);
 	struct v4l2_device *v4l2_dev = &csi_dev->v4l2.v4l2_dev;
+
+	if (csi_dev->isp_available)
+		return 0;
 
 	return v4l2_device_register_subdev_nodes(v4l2_dev);
 }
@@ -752,7 +766,7 @@ int sun6i_csi_bridge_setup(struct sun6i_csi_device *csi_dev)
 {
 	struct device *dev = csi_dev->dev;
 	struct sun6i_csi_bridge *bridge = &csi_dev->bridge;
-	struct v4l2_device *v4l2_dev = &csi_dev->v4l2.v4l2_dev;
+	struct v4l2_device *v4l2_dev = csi_dev->v4l2_dev;
 	struct v4l2_subdev *subdev = &bridge->subdev;
 	struct v4l2_async_notifier *notifier = &bridge->notifier;
 	struct media_pad *pads = bridge->pads;
@@ -793,7 +807,11 @@ int sun6i_csi_bridge_setup(struct sun6i_csi_device *csi_dev)
 
 	/* V4L2 Subdev */
 
-	ret = v4l2_device_register_subdev(v4l2_dev, subdev);
+	if (csi_dev->isp_available)
+		ret = v4l2_async_register_subdev(subdev);
+	else
+		ret = v4l2_device_register_subdev(v4l2_dev, subdev);
+
 	if (ret) {
 		dev_err(dev, "failed to register v4l2 subdev: %d\n", ret);
 		goto error_media_entity;
@@ -810,7 +828,10 @@ int sun6i_csi_bridge_setup(struct sun6i_csi_device *csi_dev)
 	sun6i_csi_bridge_source_setup(csi_dev, &bridge->source_mipi_csi2,
 				      SUN6I_CSI_PORT_MIPI_CSI2, NULL);
 
-	ret = v4l2_async_nf_register(v4l2_dev, notifier);
+	if (csi_dev->isp_available)
+		ret = v4l2_async_subdev_nf_register(subdev, notifier);
+	else
+		ret = v4l2_async_nf_register(v4l2_dev, notifier);
 	if (ret) {
 		dev_err(dev, "failed to register v4l2 async notifier: %d\n",
 			ret);
@@ -822,7 +843,10 @@ int sun6i_csi_bridge_setup(struct sun6i_csi_device *csi_dev)
 error_v4l2_async_notifier:
 	v4l2_async_nf_cleanup(notifier);
 
-	v4l2_device_unregister_subdev(subdev);
+	if (csi_dev->isp_available)
+		v4l2_async_unregister_subdev(subdev);
+	else
+		v4l2_device_unregister_subdev(subdev);
 
 error_media_entity:
 	media_entity_cleanup(&subdev->entity);

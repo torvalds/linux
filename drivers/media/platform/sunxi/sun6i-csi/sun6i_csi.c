@@ -26,6 +26,18 @@
 
 /* ISP */
 
+int sun6i_csi_isp_complete(struct sun6i_csi_device *csi_dev,
+			   struct v4l2_device *v4l2_dev)
+{
+	if (csi_dev->v4l2_dev && csi_dev->v4l2_dev != v4l2_dev)
+		return -EINVAL;
+
+	csi_dev->v4l2_dev = v4l2_dev;
+	csi_dev->media_dev = v4l2_dev->mdev;
+
+	return sun6i_csi_capture_setup(csi_dev);
+}
+
 static int sun6i_csi_isp_detect(struct sun6i_csi_device *csi_dev)
 {
 	struct device *dev = csi_dev->dev;
@@ -95,6 +107,9 @@ static int sun6i_csi_v4l2_setup(struct sun6i_csi_device *csi_dev)
 		dev_err(dev, "failed to register v4l2 device: %d\n", ret);
 		goto error_media;
 	}
+
+	csi_dev->v4l2_dev = v4l2_dev;
+	csi_dev->media_dev = media_dev;
 
 	return 0;
 
@@ -323,17 +338,27 @@ static int sun6i_csi_probe(struct platform_device *platform_dev)
 	if (ret)
 		goto error_resources;
 
-	ret = sun6i_csi_v4l2_setup(csi_dev);
-	if (ret)
-		goto error_resources;
+	/*
+	 * Register our own v4l2 and media devices when there is no ISP around.
+	 * Otherwise the ISP will use async subdev registration with our bridge,
+	 * which will provide v4l2 and media devices that are used to register
+	 * the video interface.
+	 */
+	if (!csi_dev->isp_available) {
+		ret = sun6i_csi_v4l2_setup(csi_dev);
+		if (ret)
+			goto error_resources;
+	}
 
 	ret = sun6i_csi_bridge_setup(csi_dev);
 	if (ret)
 		goto error_v4l2;
 
-	ret = sun6i_csi_capture_setup(csi_dev);
-	if (ret)
-		goto error_bridge;
+	if (!csi_dev->isp_available) {
+		ret = sun6i_csi_capture_setup(csi_dev);
+		if (ret)
+			goto error_bridge;
+	}
 
 	return 0;
 
@@ -341,7 +366,8 @@ error_bridge:
 	sun6i_csi_bridge_cleanup(csi_dev);
 
 error_v4l2:
-	sun6i_csi_v4l2_cleanup(csi_dev);
+	if (!csi_dev->isp_available)
+		sun6i_csi_v4l2_cleanup(csi_dev);
 
 error_resources:
 	sun6i_csi_resources_cleanup(csi_dev);
@@ -355,7 +381,10 @@ static int sun6i_csi_remove(struct platform_device *pdev)
 
 	sun6i_csi_capture_cleanup(csi_dev);
 	sun6i_csi_bridge_cleanup(csi_dev);
-	sun6i_csi_v4l2_cleanup(csi_dev);
+
+	if (!csi_dev->isp_available)
+		sun6i_csi_v4l2_cleanup(csi_dev);
+
 	sun6i_csi_resources_cleanup(csi_dev);
 
 	return 0;

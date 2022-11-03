@@ -45,6 +45,7 @@ struct sun6i_csi_capture_state {
 
 	unsigned int			sequence;
 	bool				streaming;
+	bool				setup;
 };
 
 struct sun6i_csi_capture {
