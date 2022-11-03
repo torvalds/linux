@@ -98,6 +98,7 @@ module_param_cb(level, &level_param_ops, &perf_level, 0644);
 static __init int rockchip_perf_init(void)
 {
 	int cpu;
+	int cpub_min_cap = SCHED_CAPACITY_SCALE - (SCHED_CAPACITY_SCALE >> 3);
 
 	if (!zalloc_cpumask_var(&cpul_mask, GFP_KERNEL))
 		return -ENOMEM;
@@ -105,7 +106,7 @@ static __init int rockchip_perf_init(void)
 		return -ENOMEM;
 
 	for_each_possible_cpu(cpu) {
-		if (arch_scale_cpu_capacity(cpu) == SCHED_CAPACITY_SCALE)
+		if (arch_scale_cpu_capacity(cpu) > cpub_min_cap)
 			cpumask_set_cpu(cpu, cpub_mask);
 		else
 			cpumask_set_cpu(cpu, cpul_mask);
