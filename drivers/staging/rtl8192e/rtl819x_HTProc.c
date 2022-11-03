@@ -282,7 +282,7 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 	memset(posHTCap, 0, *len);
 
 	if ((bAssoc) && (pHT->ePeerHTSpecVer == HT_SPEC_VER_EWC)) {
-		u8	EWC11NHTCap[] = {0x00, 0x90, 0x4c, 0x33};
+		static const u8	EWC11NHTCap[] = { 0x00, 0x90, 0x4c, 0x33 };
 
 		memcpy(posHTCap, EWC11NHTCap, sizeof(EWC11NHTCap));
 		pCapELE = (struct ht_capab_ele *)&posHTCap[4];
@@ -515,8 +515,8 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	u16 nMaxAMSDUSize = 0;
 	u8 *pMcsFilter = NULL;
 
-	static u8 EWC11NHTCap[] = {0x00, 0x90, 0x4c, 0x33};
-	static u8 EWC11NHTInfo[] = {0x00, 0x90, 0x4c, 0x34};
+	static const u8 EWC11NHTCap[] = { 0x00, 0x90, 0x4c, 0x33 };
+	static const u8 EWC11NHTInfo[] = { 0x00, 0x90, 0x4c, 0x34 };
 
 	if (!pHTInfo->bCurrentHTSupport) {
 		netdev_warn(ieee->dev, "%s(): HT_DISABLE\n", __func__);
