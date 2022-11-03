@@ -39,6 +39,7 @@ gunyah.ko
 mdt_loader.ko
 debug-regulator.ko
 phy-qcom-ufs.ko
+phy-qcom-ufs-qmp-v4-pineapple.ko
 phy-qcom-ufs-qrbtc-sdm845.ko
 ufs_qcom.ko
 interconnect_qcom.ko
