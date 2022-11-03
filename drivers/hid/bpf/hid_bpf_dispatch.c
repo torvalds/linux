@@ -15,6 +15,7 @@
 #include <linux/hid_bpf.h>
 #include <linux/init.h>
 #include <linux/kfifo.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
 #include "hid_bpf_dispatch.h"
@@ -84,6 +85,65 @@ dispatch_hid_bpf_device_event(struct hid_device *hdev, enum hid_report_type type
 	return ctx_kern.data;
 }
 EXPORT_SYMBOL_GPL(dispatch_hid_bpf_device_event);
+
+/**
+ * hid_bpf_rdesc_fixup - Called when the probe function parses the report
+ * descriptor of the HID device
+ *
+ * @ctx: The HID-BPF context
+ *
+ * @return 0 on success and keep processing; a positive value to change the
+ * incoming size buffer; a negative error code to interrupt the processing
+ * of this event
+ *
+ * Declare an %fmod_ret tracing bpf program to this function and attach this
+ * program through hid_bpf_attach_prog() to have this helper called before any
+ * parsing of the report descriptor by HID.
+ */
+/* never used by the kernel but declared so we can load and attach a tracepoint */
+__weak noinline int hid_bpf_rdesc_fixup(struct hid_bpf_ctx *ctx)
+{
+	return 0;
+}
+ALLOW_ERROR_INJECTION(hid_bpf_rdesc_fixup, ERRNO);
+
+u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *size)
+{
+	int ret;
+	struct hid_bpf_ctx_kern ctx_kern = {
+		.ctx = {
+			.hid = hdev,
+			.size = *size,
+			.allocated_size = HID_MAX_DESCRIPTOR_SIZE,
+		},
+	};
+
+	ctx_kern.data = kzalloc(ctx_kern.ctx.allocated_size, GFP_KERNEL);
+	if (!ctx_kern.data)
+		goto ignore_bpf;
+
+	memcpy(ctx_kern.data, rdesc, min_t(unsigned int, *size, HID_MAX_DESCRIPTOR_SIZE));
+
+	ret = hid_bpf_prog_run(hdev, HID_BPF_PROG_TYPE_RDESC_FIXUP, &ctx_kern);
+	if (ret < 0)
+		goto ignore_bpf;
+
+	if (ret) {
+		if (ret > ctx_kern.ctx.allocated_size)
+			goto ignore_bpf;
+
+		*size = ret;
+	}
+
+	rdesc = krealloc(ctx_kern.data, *size, GFP_KERNEL);
+
+	return rdesc;
+
+ ignore_bpf:
+	kfree(ctx_kern.data);
+	return kmemdup(rdesc, *size, GFP_KERNEL);
+}
+EXPORT_SYMBOL_GPL(call_hid_bpf_rdesc_fixup);
 
 /**
  * hid_bpf_get_data - Get the kernel memory pointer associated with the context @ctx
@@ -176,6 +236,14 @@ static int hid_bpf_allocate_event_data(struct hid_device *hdev)
 	return __hid_bpf_allocate_data(hdev, &hdev->bpf.device_data, &hdev->bpf.allocated_data);
 }
 
+int hid_bpf_reconnect(struct hid_device *hdev)
+{
+	if (!test_and_set_bit(ffs(HID_STAT_REPROBED), &hdev->status))
+		return device_reprobe(&hdev->dev);
+
+	return 0;
+}
+
 /**
  * hid_bpf_attach_prog - Attach the given @prog_fd to the given HID device
  *
@@ -217,7 +285,17 @@ hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
 			return err;
 	}
 
-	return __hid_bpf_attach_prog(hdev, prog_type, prog_fd, flags);
+	err = __hid_bpf_attach_prog(hdev, prog_type, prog_fd, flags);
+	if (err)
+		return err;
+
+	if (prog_type == HID_BPF_PROG_TYPE_RDESC_FIXUP) {
+		err = hid_bpf_reconnect(hdev);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 /**
