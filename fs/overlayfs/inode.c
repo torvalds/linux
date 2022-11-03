@@ -621,11 +621,11 @@ static int ovl_set_or_remove_acl(struct dentry *dentry, struct inode *inode,
 		real_acl = vfs_get_acl(mnt_user_ns(realpath.mnt), realdentry,
 				       acl_name);
 		revert_creds(old_cred);
-		posix_acl_release(real_acl);
 		if (IS_ERR(real_acl)) {
 			err = PTR_ERR(real_acl);
 			goto out_drop_write;
 		}
+		posix_acl_release(real_acl);
 	}
 
 	if (!upperdentry) {
