@@ -740,6 +740,38 @@ TEST_F(hid_bpf, test_hid_user_raw_request_call)
 	ASSERT_EQ(args.data[1], 2);
 }
 
+/*
+ * Attach hid_rdesc_fixup to the given uhid device,
+ * retrieve and open the matching hidraw node,
+ * check that the hidraw report descriptor has been updated.
+ */
+TEST_F(hid_bpf, test_rdesc_fixup)
+{
+	struct hidraw_report_descriptor rpt_desc = {0};
+	const struct test_program progs[] = {
+		{ .name = "hid_rdesc_fixup" },
+	};
+	int err, desc_size;
+
+	LOAD_PROGRAMS(progs);
+
+	/* check that hid_rdesc_fixup() was executed */
+	ASSERT_EQ(self->skel->data->callback2_check, 0x21);
+
+	/* read the exposed report descriptor from hidraw */
+	err = ioctl(self->hidraw_fd, HIDIOCGRDESCSIZE, &desc_size);
+	ASSERT_GE(err, 0) TH_LOG("error while reading HIDIOCGRDESCSIZE: %d", err);
+
+	/* ensure the new size of the rdesc is bigger than the old one */
+	ASSERT_GT(desc_size, sizeof(rdesc));
+
+	rpt_desc.size = desc_size;
+	err = ioctl(self->hidraw_fd, HIDIOCGRDESC, &rpt_desc);
+	ASSERT_GE(err, 0) TH_LOG("error while reading HIDIOCGRDESC: %d", err);
+
+	ASSERT_EQ(rpt_desc.value[4], 0x42);
+}
+
 static int libbpf_print_fn(enum libbpf_print_level level,
 			   const char *format, va_list args)
 {
