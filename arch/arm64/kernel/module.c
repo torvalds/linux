@@ -497,9 +497,6 @@ static int module_init_ftrace_plt(const Elf_Ehdr *hdr,
 
 	__init_plt(&plts[FTRACE_PLT_IDX], FTRACE_ADDR);
 
-	if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS))
-		__init_plt(&plts[FTRACE_REGS_PLT_IDX], FTRACE_REGS_ADDR);
-
 	mod->arch.ftrace_trampolines = plts;
 #endif
 	return 0;

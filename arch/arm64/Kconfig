@@ -181,8 +181,10 @@ config ARM64
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
+	select HAVE_DYNAMIC_FTRACE_WITH_ARGS \
+		if $(cc-option,-fpatchable-function-entry=2)
 	select FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY \
-		if DYNAMIC_FTRACE_WITH_REGS
+		if DYNAMIC_FTRACE_WITH_ARGS
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_FAST_GUP
 	select HAVE_FTRACE_MCOUNT_RECORD
@@ -233,16 +235,16 @@ config ARM64
 	help
 	  ARM 64-bit (AArch64) Linux support.
 
-config CLANG_SUPPORTS_DYNAMIC_FTRACE_WITH_REGS
+config CLANG_SUPPORTS_DYNAMIC_FTRACE_WITH_ARGS
 	def_bool CC_IS_CLANG
 	# https://github.com/ClangBuiltLinux/linux/issues/1507
 	depends on AS_IS_GNU || (AS_IS_LLVM && (LD_IS_LLD || LD_VERSION >= 23600))
-	select HAVE_DYNAMIC_FTRACE_WITH_REGS
+	select HAVE_DYNAMIC_FTRACE_WITH_ARGS
 
-config GCC_SUPPORTS_DYNAMIC_FTRACE_WITH_REGS
+config GCC_SUPPORTS_DYNAMIC_FTRACE_WITH_ARGS
 	def_bool CC_IS_GCC
 	depends on $(cc-option,-fpatchable-function-entry=2)
-	select HAVE_DYNAMIC_FTRACE_WITH_REGS
+	select HAVE_DYNAMIC_FTRACE_WITH_ARGS
 
 config 64BIT
 	def_bool y
@@ -1816,7 +1818,7 @@ config ARM64_PTR_AUTH_KERNEL
 	# which is only understood by binutils starting with version 2.33.1.
 	depends on LD_IS_LLD || LD_VERSION >= 23301 || (CC_IS_GCC && GCC_VERSION < 90100)
 	depends on !CC_IS_CLANG || AS_HAS_CFI_NEGATE_RA_STATE
-	depends on (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_REGS)
+	depends on (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_ARGS)
 	help
 	  If the compiler supports the -mbranch-protection or
 	  -msign-return-address flag (e.g. GCC 7 or later), then this option
@@ -1826,7 +1828,7 @@ config ARM64_PTR_AUTH_KERNEL
 	  disabled with minimal loss of protection.
 
 	  This feature works with FUNCTION_GRAPH_TRACER option only if
-	  DYNAMIC_FTRACE_WITH_REGS is enabled.
+	  DYNAMIC_FTRACE_WITH_ARGS is enabled.
 
 config CC_HAS_BRANCH_PROT_PAC_RET
 	# GCC 9 or later, clang 8 or later
@@ -1924,7 +1926,7 @@ config ARM64_BTI_KERNEL
 	depends on !CC_IS_GCC
 	# https://github.com/llvm/llvm-project/commit/a88c722e687e6780dcd6a58718350dc76fcc4cc9
 	depends on !CC_IS_CLANG || CLANG_VERSION >= 120000
-	depends on (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_REGS)
+	depends on (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_ARGS)
 	help
 	  Build the kernel with Branch Target Identification annotations
 	  and enable enforcement of this for kernel code. When this option
