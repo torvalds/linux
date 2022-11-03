@@ -318,7 +318,8 @@ static void usb_write_done(struct byte_cntr *drvdata,
 				   struct qdss_request *d_req)
 {
 	atomic_inc(&drvdata->usb_free_buf);
-	if (d_req->status)
+	if (d_req->status && d_req->status != -ECONNRESET
+			&& d_req->status != -ESHUTDOWN)
 		pr_err_ratelimited("USB write failed err:%d\n", d_req->status);
 	kfree(d_req->sg);
 	kfree(d_req);
