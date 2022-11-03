@@ -27,22 +27,6 @@ struct sun6i_csi_buffer {
 	struct list_head		list;
 };
 
-/**
- * struct sun6i_csi_config - configs for sun6i csi
- * @pixelformat: v4l2 pixel format (V4L2_PIX_FMT_*)
- * @code:	media bus format code (MEDIA_BUS_FMT_*)
- * @field:	used interlacing type (enum v4l2_field)
- * @width:	frame width
- * @height:	frame height
- */
-struct sun6i_csi_config {
-	u32		pixelformat;
-	u32		code;
-	u32		field;
-	u32		width;
-	u32		height;
-};
-
 struct sun6i_csi_v4l2 {
 	struct v4l2_device		v4l2_dev;
 	struct media_device		media_dev;
@@ -51,7 +35,6 @@ struct sun6i_csi_v4l2 {
 struct sun6i_csi_device {
 	struct device			*dev;
 
-	struct sun6i_csi_config		config;
 	struct sun6i_csi_v4l2		v4l2;
 	struct sun6i_csi_bridge		bridge;
 	struct sun6i_csi_capture	capture;
@@ -76,16 +59,6 @@ struct sun6i_csi_variant {
  */
 bool sun6i_csi_is_format_supported(struct sun6i_csi_device *csi_dev,
 				   u32 pixformat, u32 mbus_code);
-
-/**
- * sun6i_csi_update_config() - update the csi register settings
- * @csi_dev:	pointer to the csi device
- * @config:	see struct sun6i_csi_config
- *
- * Return: 0 if successful, error code otherwise.
- */
-int sun6i_csi_update_config(struct sun6i_csi_device *csi_dev,
-			    struct sun6i_csi_config *config);
 
 /* get bpp form v4l2 pixformat */
 static inline int sun6i_csi_get_bpp(unsigned int pixformat)

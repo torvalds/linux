@@ -198,18 +198,366 @@ sun6i_csi_capture_buffer_configure(struct sun6i_csi_device *csi_dev,
 	}
 }
 
-static void sun6i_csi_capture_configure(struct sun6i_csi_device *csi_dev)
+static enum csi_input_fmt get_csi_input_format(struct sun6i_csi_device *csi_dev,
+					       u32 mbus_code, u32 pixformat)
+{
+	/* non-YUV */
+	if ((mbus_code & 0xF000) != 0x2000)
+		return CSI_INPUT_FORMAT_RAW;
+
+	switch (pixformat) {
+	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_YVYU:
+	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_VYUY:
+		return CSI_INPUT_FORMAT_RAW;
+	default:
+		break;
+	}
+
+	/* not support YUV420 input format yet */
+	dev_dbg(csi_dev->dev, "Select YUV422 as default input format of CSI.\n");
+	return CSI_INPUT_FORMAT_YUV422;
+}
+
+static enum csi_output_fmt
+get_csi_output_format(struct sun6i_csi_device *csi_dev, u32 pixformat,
+		      u32 field)
+{
+	bool buf_interlaced = false;
+
+	if (field == V4L2_FIELD_INTERLACED
+	    || field == V4L2_FIELD_INTERLACED_TB
+	    || field == V4L2_FIELD_INTERLACED_BT)
+		buf_interlaced = true;
+
+	switch (pixformat) {
+	case V4L2_PIX_FMT_SBGGR8:
+	case V4L2_PIX_FMT_SGBRG8:
+	case V4L2_PIX_FMT_SGRBG8:
+	case V4L2_PIX_FMT_SRGGB8:
+		return buf_interlaced ? CSI_FRAME_RAW_8 : CSI_FIELD_RAW_8;
+	case V4L2_PIX_FMT_SBGGR10:
+	case V4L2_PIX_FMT_SGBRG10:
+	case V4L2_PIX_FMT_SGRBG10:
+	case V4L2_PIX_FMT_SRGGB10:
+		return buf_interlaced ? CSI_FRAME_RAW_10 : CSI_FIELD_RAW_10;
+	case V4L2_PIX_FMT_SBGGR12:
+	case V4L2_PIX_FMT_SGBRG12:
+	case V4L2_PIX_FMT_SGRBG12:
+	case V4L2_PIX_FMT_SRGGB12:
+		return buf_interlaced ? CSI_FRAME_RAW_12 : CSI_FIELD_RAW_12;
+
+	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_YVYU:
+	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_VYUY:
+		return buf_interlaced ? CSI_FRAME_RAW_8 : CSI_FIELD_RAW_8;
+
+	case V4L2_PIX_FMT_NV12_16L16:
+		return buf_interlaced ? CSI_FRAME_MB_YUV420 :
+					CSI_FIELD_MB_YUV420;
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+		return buf_interlaced ? CSI_FRAME_UV_CB_YUV420 :
+					CSI_FIELD_UV_CB_YUV420;
+	case V4L2_PIX_FMT_YUV420:
+	case V4L2_PIX_FMT_YVU420:
+		return buf_interlaced ? CSI_FRAME_PLANAR_YUV420 :
+					CSI_FIELD_PLANAR_YUV420;
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
+		return buf_interlaced ? CSI_FRAME_UV_CB_YUV422 :
+					CSI_FIELD_UV_CB_YUV422;
+	case V4L2_PIX_FMT_YUV422P:
+		return buf_interlaced ? CSI_FRAME_PLANAR_YUV422 :
+					CSI_FIELD_PLANAR_YUV422;
+
+	case V4L2_PIX_FMT_RGB565:
+	case V4L2_PIX_FMT_RGB565X:
+		return buf_interlaced ? CSI_FRAME_RGB565 : CSI_FIELD_RGB565;
+
+	case V4L2_PIX_FMT_JPEG:
+		return buf_interlaced ? CSI_FRAME_RAW_8 : CSI_FIELD_RAW_8;
+
+	default:
+		dev_warn(csi_dev->dev, "Unsupported pixformat: 0x%x\n", pixformat);
+		break;
+	}
+
+	return CSI_FIELD_RAW_8;
+}
+
+static enum csi_input_seq get_csi_input_seq(struct sun6i_csi_device *csi_dev,
+					    u32 mbus_code, u32 pixformat)
+{
+	/* Input sequence does not apply to non-YUV formats */
+	if ((mbus_code & 0xF000) != 0x2000)
+		return 0;
+
+	switch (pixformat) {
+	case V4L2_PIX_FMT_NV12_16L16:
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_YUV420:
+	case V4L2_PIX_FMT_YUV422P:
+		switch (mbus_code) {
+		case MEDIA_BUS_FMT_UYVY8_2X8:
+		case MEDIA_BUS_FMT_UYVY8_1X16:
+			return CSI_INPUT_SEQ_UYVY;
+		case MEDIA_BUS_FMT_VYUY8_2X8:
+		case MEDIA_BUS_FMT_VYUY8_1X16:
+			return CSI_INPUT_SEQ_VYUY;
+		case MEDIA_BUS_FMT_YUYV8_2X8:
+		case MEDIA_BUS_FMT_YUYV8_1X16:
+			return CSI_INPUT_SEQ_YUYV;
+		case MEDIA_BUS_FMT_YVYU8_1X16:
+		case MEDIA_BUS_FMT_YVYU8_2X8:
+			return CSI_INPUT_SEQ_YVYU;
+		default:
+			dev_warn(csi_dev->dev, "Unsupported mbus code: 0x%x\n",
+				 mbus_code);
+			break;
+		}
+		break;
+	case V4L2_PIX_FMT_NV21:
+	case V4L2_PIX_FMT_NV61:
+	case V4L2_PIX_FMT_YVU420:
+		switch (mbus_code) {
+		case MEDIA_BUS_FMT_UYVY8_2X8:
+		case MEDIA_BUS_FMT_UYVY8_1X16:
+			return CSI_INPUT_SEQ_VYUY;
+		case MEDIA_BUS_FMT_VYUY8_2X8:
+		case MEDIA_BUS_FMT_VYUY8_1X16:
+			return CSI_INPUT_SEQ_UYVY;
+		case MEDIA_BUS_FMT_YUYV8_2X8:
+		case MEDIA_BUS_FMT_YUYV8_1X16:
+			return CSI_INPUT_SEQ_YVYU;
+		case MEDIA_BUS_FMT_YVYU8_1X16:
+		case MEDIA_BUS_FMT_YVYU8_2X8:
+			return CSI_INPUT_SEQ_YUYV;
+		default:
+			dev_warn(csi_dev->dev, "Unsupported mbus code: 0x%x\n",
+				 mbus_code);
+			break;
+		}
+		break;
+
+	case V4L2_PIX_FMT_YUYV:
+		return CSI_INPUT_SEQ_YUYV;
+
+	default:
+		dev_warn(csi_dev->dev, "Unsupported pixformat: 0x%x, defaulting to YUYV\n",
+			 pixformat);
+		break;
+	}
+
+	return CSI_INPUT_SEQ_YUYV;
+}
+
+static void
+sun6i_csi_capture_configure_interface(struct sun6i_csi_device *csi_dev)
+{
+	struct v4l2_fwnode_endpoint *endpoint =
+		&csi_dev->bridge.source_parallel.endpoint;
+	u32 pixelformat, field;
+	unsigned char bus_width;
+	u32 flags;
+	u32 cfg = 0;
+	bool input_interlaced = false;
+
+	sun6i_csi_capture_format(csi_dev, &pixelformat, &field);
+
+	if (field == V4L2_FIELD_INTERLACED ||
+	    field == V4L2_FIELD_INTERLACED_TB ||
+	    field == V4L2_FIELD_INTERLACED_BT)
+		input_interlaced = true;
+
+	bus_width = endpoint->bus.parallel.bus_width;
+
+	if (input_interlaced)
+		cfg |= SUN6I_CSI_IF_CFG_SRC_TYPE_INTERLACED |
+		       SUN6I_CSI_IF_CFG_FIELD_DT_PCLK_SHIFT(1) |
+		       SUN6I_CSI_IF_CFG_FIELD_DT_FIELD_VSYNC;
+	else
+		cfg |= SUN6I_CSI_IF_CFG_SRC_TYPE_PROGRESSIVE;
+
+	switch (endpoint->bus_type) {
+	case V4L2_MBUS_PARALLEL:
+		cfg |= SUN6I_CSI_IF_CFG_IF_CSI;
+
+		flags = endpoint->bus.parallel.flags;
+
+		if (bus_width == 16)
+			cfg |= SUN6I_CSI_IF_CFG_IF_CSI_YUV_COMBINED;
+		else
+			cfg |= SUN6I_CSI_IF_CFG_IF_CSI_YUV_RAW;
+
+		if (flags & V4L2_MBUS_FIELD_EVEN_LOW)
+			cfg |= SUN6I_CSI_IF_CFG_FIELD_NEGATIVE;
+		else
+			cfg |= SUN6I_CSI_IF_CFG_FIELD_POSITIVE;
+
+		if (flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
+			cfg |= SUN6I_CSI_IF_CFG_VREF_POL_NEGATIVE;
+		else
+			cfg |= SUN6I_CSI_IF_CFG_VREF_POL_POSITIVE;
+
+		if (flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
+			cfg |= SUN6I_CSI_IF_CFG_HREF_POL_NEGATIVE;
+		else
+			cfg |= SUN6I_CSI_IF_CFG_HREF_POL_POSITIVE;
+
+		if (flags & V4L2_MBUS_PCLK_SAMPLE_RISING)
+			cfg |= SUN6I_CSI_IF_CFG_CLK_POL_RISING;
+		else
+			cfg |= SUN6I_CSI_IF_CFG_CLK_POL_FALLING;
+		break;
+	case V4L2_MBUS_BT656:
+		cfg |= SUN6I_CSI_IF_CFG_IF_CSI;
+
+		flags = endpoint->bus.parallel.flags;
+
+		if (bus_width == 16)
+			cfg |= SUN6I_CSI_IF_CFG_IF_CSI_BT1120;
+		else
+			cfg |= SUN6I_CSI_IF_CFG_IF_CSI_BT656;
+
+		if (flags & V4L2_MBUS_FIELD_EVEN_LOW)
+			cfg |= SUN6I_CSI_IF_CFG_FIELD_NEGATIVE;
+		else
+			cfg |= SUN6I_CSI_IF_CFG_FIELD_POSITIVE;
+
+		if (flags & V4L2_MBUS_PCLK_SAMPLE_FALLING)
+			cfg |= SUN6I_CSI_IF_CFG_CLK_POL_RISING;
+		else
+			cfg |= SUN6I_CSI_IF_CFG_CLK_POL_FALLING;
+		break;
+	default:
+		dev_warn(csi_dev->dev, "Unsupported bus type: %d\n",
+			 endpoint->bus_type);
+		break;
+	}
+
+	switch (bus_width) {
+	case 8:
+		cfg |= SUN6I_CSI_IF_CFG_DATA_WIDTH_8;
+		break;
+	case 10:
+		cfg |= SUN6I_CSI_IF_CFG_DATA_WIDTH_10;
+		break;
+	case 12:
+		cfg |= SUN6I_CSI_IF_CFG_DATA_WIDTH_12;
+		break;
+	case 16: /* No need to configure DATA_WIDTH for 16bit */
+		break;
+	default:
+		dev_warn(csi_dev->dev, "Unsupported bus width: %u\n", bus_width);
+		break;
+	}
+
+	regmap_write(csi_dev->regmap, SUN6I_CSI_IF_CFG_REG, cfg);
+}
+
+static void sun6i_csi_capture_configure_format(struct sun6i_csi_device *csi_dev)
 {
 	struct sun6i_csi_capture *capture = &csi_dev->capture;
-	struct sun6i_csi_config config = { 0 };
+	u32 pixelformat, field;
+	u32 cfg = 0;
+	u32 val;
 
-	config.pixelformat = capture->format.fmt.pix.pixelformat;
-	config.code = capture->mbus_code;
-	config.field = capture->format.fmt.pix.field;
-	config.width = capture->format.fmt.pix.width;
-	config.height = capture->format.fmt.pix.height;
+	sun6i_csi_capture_format(csi_dev, &pixelformat, &field);
 
-	sun6i_csi_update_config(csi_dev, &config);
+	val = get_csi_input_format(csi_dev, capture->mbus_code, pixelformat);
+	cfg |= SUN6I_CSI_CH_CFG_INPUT_FMT(val);
+
+	val = get_csi_output_format(csi_dev, pixelformat, field);
+	cfg |= SUN6I_CSI_CH_CFG_OUTPUT_FMT(val);
+
+	val = get_csi_input_seq(csi_dev, capture->mbus_code, pixelformat);
+	cfg |= SUN6I_CSI_CH_CFG_INPUT_YUV_SEQ(val);
+
+	if (field == V4L2_FIELD_TOP)
+		cfg |= SUN6I_CSI_CH_CFG_FIELD_SEL_FIELD0;
+	else if (field == V4L2_FIELD_BOTTOM)
+		cfg |= SUN6I_CSI_CH_CFG_FIELD_SEL_FIELD1;
+	else
+		cfg |= SUN6I_CSI_CH_CFG_FIELD_SEL_EITHER;
+
+	regmap_write(csi_dev->regmap, SUN6I_CSI_CH_CFG_REG, cfg);
+}
+
+static void sun6i_csi_capture_configure_window(struct sun6i_csi_device *csi_dev)
+{
+	u32 pixelformat, field;
+	u32 width, height;
+	u32 bytesperline_y;
+	u32 bytesperline_c;
+	u32 hor_len;
+
+	sun6i_csi_capture_dimensions(csi_dev, &width, &height);
+	sun6i_csi_capture_format(csi_dev, &pixelformat, &field);
+
+	hor_len = width;
+
+	switch (pixelformat) {
+	case V4L2_PIX_FMT_YUYV:
+	case V4L2_PIX_FMT_YVYU:
+	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_VYUY:
+		dev_dbg(csi_dev->dev,
+			"Horizontal length should be 2 times of width for packed YUV formats!\n");
+		hor_len = width * 2;
+		break;
+	default:
+		break;
+	}
+
+	regmap_write(csi_dev->regmap, SUN6I_CSI_CH_HSIZE_REG,
+		     SUN6I_CSI_CH_HSIZE_LEN(hor_len) |
+		     SUN6I_CSI_CH_HSIZE_START(0));
+	regmap_write(csi_dev->regmap, SUN6I_CSI_CH_VSIZE_REG,
+		     SUN6I_CSI_CH_VSIZE_LEN(height) |
+		     SUN6I_CSI_CH_VSIZE_START(0));
+
+	switch (pixelformat) {
+	case V4L2_PIX_FMT_NV12_16L16:
+	case V4L2_PIX_FMT_NV12:
+	case V4L2_PIX_FMT_NV21:
+	case V4L2_PIX_FMT_NV16:
+	case V4L2_PIX_FMT_NV61:
+		bytesperline_y = width;
+		bytesperline_c = width;
+		break;
+	case V4L2_PIX_FMT_YUV420:
+	case V4L2_PIX_FMT_YVU420:
+		bytesperline_y = width;
+		bytesperline_c = width / 2;
+		break;
+	case V4L2_PIX_FMT_YUV422P:
+		bytesperline_y = width;
+		bytesperline_c = width / 2;
+		break;
+	default: /* raw */
+		dev_dbg(csi_dev->dev,
+			"Calculating pixelformat(0x%x)'s bytesperline as a packed format\n",
+			pixelformat);
+		bytesperline_y = (sun6i_csi_get_bpp(pixelformat) *
+				  width) / 8;
+		bytesperline_c = 0;
+		break;
+	}
+
+	regmap_write(csi_dev->regmap, SUN6I_CSI_CH_BUF_LEN_REG,
+		     SUN6I_CSI_CH_BUF_LEN_CHROMA_LINE(bytesperline_c) |
+		     SUN6I_CSI_CH_BUF_LEN_LUMA_LINE(bytesperline_y));
+}
+
+static void sun6i_csi_capture_configure(struct sun6i_csi_device *csi_dev)
+{
+	sun6i_csi_capture_configure_interface(csi_dev);
+	sun6i_csi_capture_configure_format(csi_dev);
+	sun6i_csi_capture_configure_window(csi_dev);
 }
 
 /* State */
