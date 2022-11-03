@@ -9,16 +9,12 @@
 
 /* rxe_av.c */
 void rxe_init_av(struct rdma_ah_attr *attr, struct rxe_av *av);
-
-int rxe_av_chk_attr(struct rxe_dev *rxe, struct rdma_ah_attr *attr);
-
+int rxe_av_chk_attr(struct rxe_qp *qp, struct rdma_ah_attr *attr);
+int rxe_ah_chk_attr(struct rxe_ah *ah, struct rdma_ah_attr *attr);
 void rxe_av_from_attr(u8 port_num, struct rxe_av *av,
 		     struct rdma_ah_attr *attr);
-
 void rxe_av_to_attr(struct rxe_av *av, struct rdma_ah_attr *attr);
-
 void rxe_av_fill_ip_info(struct rxe_av *av, struct rdma_ah_attr *attr);
-
 struct rxe_av *rxe_get_av(struct rxe_pkt_info *pkt, struct rxe_ah **ahp);
 
 /* rxe_cq.c */

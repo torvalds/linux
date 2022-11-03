@@ -172,10 +172,6 @@ static int rxe_create_ah(struct ib_ah *ibah,
 		ah->is_user = false;
 	}
 
-	err = rxe_av_chk_attr(rxe, init_attr->ah_attr);
-	if (err)
-		return err;
-
 	err = rxe_add_to_pool_ah(&rxe->ah_pool, ah,
 			init_attr->flags & RDMA_CREATE_AH_SLEEPABLE);
 	if (err)
@@ -183,6 +179,12 @@ static int rxe_create_ah(struct ib_ah *ibah,
 
 	/* create index > 0 */
 	ah->ah_num = ah->elem.index;
+
+	err = rxe_ah_chk_attr(ah, init_attr->ah_attr);
+	if (err) {
+		rxe_cleanup(ah);
+		return err;
+	}
 
 	if (uresp) {
 		/* only if new user provider */
@@ -206,10 +208,9 @@ static int rxe_create_ah(struct ib_ah *ibah,
 static int rxe_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
 	int err;
-	struct rxe_dev *rxe = to_rdev(ibah->device);
 	struct rxe_ah *ah = to_rah(ibah);
 
-	err = rxe_av_chk_attr(rxe, attr);
+	err = rxe_ah_chk_attr(ah, attr);
 	if (err)
 		return err;
 
