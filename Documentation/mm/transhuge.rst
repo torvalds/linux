@@ -125,24 +125,6 @@ pages:
     ->_mapcount of all sub-pages in order to have race-free detection of
     last unmap of subpages.
 
-PageDoubleMap() indicates that the page is *possibly* mapped with PTEs.
-
-For anonymous pages, PageDoubleMap() also indicates ->_mapcount in all
-subpages is offset up by one. This additional reference is required to
-get race-free detection of unmap of subpages when we have them mapped with
-both PMDs and PTEs.
-
-This optimization is required to lower the overhead of per-subpage mapcount
-tracking. The alternative is to alter ->_mapcount in all subpages on each
-map/unmap of the whole compound page.
-
-For anonymous pages, we set PG_double_map when a PMD of the page is split
-for the first time, but still have a PMD mapping. The additional references
-go away with the last compound_mapcount.
-
-File pages get PG_double_map set on the first map of the page with PTE and
-goes away when the page gets evicted from the page cache.
-
 split_huge_page internally has to distribute the refcounts in the head
 page to the tail pages before clearing all PG_head/tail bits from the page
 structures. It can be done easily for refcounts taken by page table

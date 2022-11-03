@@ -206,6 +206,8 @@ void hugepage_add_new_anon_rmap(struct page *, struct vm_area_struct *,
 
 static inline void __page_dup_rmap(struct page *page, bool compound)
 {
+	if (!compound && PageCompound(page))
+		atomic_inc(subpages_mapcount_ptr(compound_head(page)));
 	atomic_inc(compound ? compound_mapcount_ptr(page) : &page->_mapcount);
 }
 

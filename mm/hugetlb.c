@@ -1333,6 +1333,7 @@ static void __destroy_compound_gigantic_page(struct page *page,
 	struct page *p;
 
 	atomic_set(compound_mapcount_ptr(page), 0);
+	atomic_set(subpages_mapcount_ptr(page), 0);
 	atomic_set(compound_pincount_ptr(page), 0);
 
 	for (i = 1; i < nr_pages; i++) {
@@ -1852,6 +1853,7 @@ static bool __prep_compound_gigantic_page(struct page *page, unsigned int order,
 			set_compound_head(p, page);
 	}
 	atomic_set(compound_mapcount_ptr(page), -1);
+	atomic_set(subpages_mapcount_ptr(page), 0);
 	atomic_set(compound_pincount_ptr(page), 0);
 	return true;
 

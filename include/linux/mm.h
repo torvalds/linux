@@ -818,8 +818,8 @@ static inline int is_vmalloc_or_module_addr(const void *x)
 /*
  * How many times the entire folio is mapped as a single unit (eg by a
  * PMD or PUD entry).  This is probably not what you want, except for
- * debugging purposes; look at folio_mapcount() or page_mapcount()
- * instead.
+ * debugging purposes - it does not include PTE-mapped sub-pages; look
+ * at folio_mapcount() or page_mapcount() or total_mapcount() instead.
  */
 static inline int folio_entire_mapcount(struct folio *folio)
 {
@@ -829,12 +829,20 @@ static inline int folio_entire_mapcount(struct folio *folio)
 
 /*
  * Mapcount of compound page as a whole, does not include mapped sub-pages.
- *
- * Must be called only for compound pages.
+ * Must be called only on head of compound page.
  */
-static inline int compound_mapcount(struct page *page)
+static inline int head_compound_mapcount(struct page *head)
 {
-	return folio_entire_mapcount(page_folio(page));
+	return atomic_read(compound_mapcount_ptr(head)) + 1;
+}
+
+/*
+ * Sum of mapcounts of sub-pages, does not include compound mapcount.
+ * Must be called only on head of compound page.
+ */
+static inline int head_subpages_mapcount(struct page *head)
+{
+	return atomic_read(subpages_mapcount_ptr(head));
 }
 
 /*
@@ -847,11 +855,9 @@ static inline void page_mapcount_reset(struct page *page)
 	atomic_set(&(page)->_mapcount, -1);
 }
 
-int __page_mapcount(struct page *page);
-
 /*
  * Mapcount of 0-order page; when compound sub-page, includes
- * compound_mapcount().
+ * compound_mapcount of compound_head of page.
  *
  * Result is undefined for pages which cannot be mapped into userspace.
  * For example SLAB or special types of pages. See function page_has_type().
@@ -859,25 +865,61 @@ int __page_mapcount(struct page *page);
  */
 static inline int page_mapcount(struct page *page)
 {
-	if (unlikely(PageCompound(page)))
-		return __page_mapcount(page);
-	return atomic_read(&page->_mapcount) + 1;
+	int mapcount = atomic_read(&page->_mapcount) + 1;
+
+	if (likely(!PageCompound(page)))
+		return mapcount;
+	page = compound_head(page);
+	return head_compound_mapcount(page) + mapcount;
 }
 
-int folio_mapcount(struct folio *folio);
-
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static inline int total_mapcount(struct page *page)
 {
-	return folio_mapcount(page_folio(page));
+	if (likely(!PageCompound(page)))
+		return atomic_read(&page->_mapcount) + 1;
+	page = compound_head(page);
+	return head_compound_mapcount(page) + head_subpages_mapcount(page);
 }
 
-#else
-static inline int total_mapcount(struct page *page)
+/*
+ * Return true if this page is mapped into pagetables.
+ * For compound page it returns true if any subpage of compound page is mapped,
+ * even if this particular subpage is not itself mapped by any PTE or PMD.
+ */
+static inline bool page_mapped(struct page *page)
 {
-	return page_mapcount(page);
+	return total_mapcount(page) > 0;
 }
-#endif
+
+/**
+ * folio_mapcount() - Calculate the number of mappings of this folio.
+ * @folio: The folio.
+ *
+ * A large folio tracks both how many times the entire folio is mapped,
+ * and how many times each individual page in the folio is mapped.
+ * This function calculates the total number of times the folio is
+ * mapped.
+ *
+ * Return: The number of times this folio is mapped.
+ */
+static inline int folio_mapcount(struct folio *folio)
+{
+	if (likely(!folio_test_large(folio)))
+		return atomic_read(&folio->_mapcount) + 1;
+	return atomic_read(folio_mapcount_ptr(folio)) + 1 +
+		atomic_read(folio_subpages_mapcount_ptr(folio));
+}
+
+/**
+ * folio_mapped - Is this folio mapped into userspace?
+ * @folio: The folio.
+ *
+ * Return: True if any page in this folio is referenced by user page tables.
+ */
+static inline bool folio_mapped(struct folio *folio)
+{
+	return folio_mapcount(folio) > 0;
+}
 
 static inline struct page *virt_to_head_page(const void *x)
 {
@@ -1799,9 +1841,6 @@ static inline pgoff_t page_index(struct page *page)
 		return __page_file_index(page);
 	return page->index;
 }
-
-bool page_mapped(struct page *page);
-bool folio_mapped(struct folio *folio);
 
 /*
  * Return true only if the page has been allocated with

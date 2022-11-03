@@ -798,6 +798,7 @@ static void prep_compound_head(struct page *page, unsigned int order)
 	set_compound_page_dtor(page, COMPOUND_PAGE_DTOR);
 	set_compound_order(page, order);
 	atomic_set(compound_mapcount_ptr(page), -1);
+	atomic_set(subpages_mapcount_ptr(page), 0);
 	atomic_set(compound_pincount_ptr(page), 0);
 }
 
@@ -1324,9 +1325,17 @@ static int free_tail_pages_check(struct page *head_page, struct page *page)
 	}
 	switch (page - head_page) {
 	case 1:
-		/* the first tail page: ->mapping may be compound_mapcount() */
-		if (unlikely(compound_mapcount(page))) {
+		/* the first tail page: these may be in place of ->mapping */
+		if (unlikely(head_compound_mapcount(head_page))) {
 			bad_page(page, "nonzero compound_mapcount");
+			goto out;
+		}
+		if (unlikely(head_subpages_mapcount(head_page))) {
+			bad_page(page, "nonzero subpages_mapcount");
+			goto out;
+		}
+		if (unlikely(head_compound_pincount(head_page))) {
+			bad_page(page, "nonzero compound_pincount");
 			goto out;
 		}
 		break;
@@ -1431,10 +1440,8 @@ static __always_inline bool free_pages_prepare(struct page *page,
 
 		VM_BUG_ON_PAGE(compound && compound_order(page) != order, page);
 
-		if (compound) {
-			ClearPageDoubleMap(page);
+		if (compound)
 			ClearPageHasHWPoisoned(page);
-		}
 		for (i = 1; i < (1 << order); i++) {
 			if (compound)
 				bad += free_tail_pages_check(page, page + i);
@@ -6874,13 +6881,11 @@ static void __ref memmap_init_compound(struct page *head,
 		set_page_count(page, 0);
 
 		/*
-		 * The first tail page stores compound_mapcount_ptr() and
-		 * compound_order() and the second tail page stores
-		 * compound_pincount_ptr(). Call prep_compound_head() after
-		 * the first and second tail pages have been initialized to
-		 * not have the data overwritten.
+		 * The first tail page stores important compound page info.
+		 * Call prep_compound_head() after the first tail page has
+		 * been initialized, to not have the data overwritten.
 		 */
-		if (pfn == head_pfn + 2)
+		if (pfn == head_pfn + 1)
 			prep_compound_head(head, order);
 	}
 }

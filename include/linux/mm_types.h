@@ -142,6 +142,7 @@ struct page {
 			unsigned char compound_dtor;
 			unsigned char compound_order;
 			atomic_t compound_mapcount;
+			atomic_t subpages_mapcount;
 			atomic_t compound_pincount;
 #ifdef CONFIG_64BIT
 			unsigned int compound_nr; /* 1 << compound_order */
@@ -270,7 +271,8 @@ struct page {
  * @_head_1: Points to the folio.  Do not use.
  * @_folio_dtor: Which destructor to use for this folio.
  * @_folio_order: Do not use directly, call folio_order().
- * @_total_mapcount: Do not use directly, call folio_entire_mapcount().
+ * @_compound_mapcount: Do not use directly, call folio_entire_mapcount().
+ * @_subpages_mapcount: Do not use directly, call folio_mapcount().
  * @_pincount: Do not use directly, call folio_maybe_dma_pinned().
  * @_folio_nr_pages: Do not use directly, call folio_nr_pages().
  * @_flags_2: For alignment.  Do not use.
@@ -323,7 +325,8 @@ struct folio {
 			unsigned long _head_1;
 			unsigned char _folio_dtor;
 			unsigned char _folio_order;
-			atomic_t _total_mapcount;
+			atomic_t _compound_mapcount;
+			atomic_t _subpages_mapcount;
 			atomic_t _pincount;
 #ifdef CONFIG_64BIT
 			unsigned int _folio_nr_pages;
@@ -365,7 +368,8 @@ FOLIO_MATCH(flags, _flags_1);
 FOLIO_MATCH(compound_head, _head_1);
 FOLIO_MATCH(compound_dtor, _folio_dtor);
 FOLIO_MATCH(compound_order, _folio_order);
-FOLIO_MATCH(compound_mapcount, _total_mapcount);
+FOLIO_MATCH(compound_mapcount, _compound_mapcount);
+FOLIO_MATCH(subpages_mapcount, _subpages_mapcount);
 FOLIO_MATCH(compound_pincount, _pincount);
 #ifdef CONFIG_64BIT
 FOLIO_MATCH(compound_nr, _folio_nr_pages);
@@ -388,9 +392,20 @@ static inline atomic_t *folio_mapcount_ptr(struct folio *folio)
 	return &tail->compound_mapcount;
 }
 
+static inline atomic_t *folio_subpages_mapcount_ptr(struct folio *folio)
+{
+	struct page *tail = &folio->page + 1;
+	return &tail->subpages_mapcount;
+}
+
 static inline atomic_t *compound_mapcount_ptr(struct page *page)
 {
 	return &page[1].compound_mapcount;
+}
+
+static inline atomic_t *subpages_mapcount_ptr(struct page *page)
+{
+	return &page[1].subpages_mapcount;
 }
 
 static inline atomic_t *compound_pincount_ptr(struct page *page)
