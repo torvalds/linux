@@ -17,6 +17,7 @@
 #include <bpf/libbpf.h>
 #include <libelf.h>
 #include <gelf.h>
+#include <float.h>
 
 enum stat_id {
 	VERDICT,
@@ -32,6 +33,45 @@ enum stat_id {
 
 	ALL_STATS_CNT,
 	NUM_STATS_CNT = FILE_NAME - VERDICT,
+};
+
+/* In comparison mode each stat can specify up to four different values:
+ *   - A side value;
+ *   - B side value;
+ *   - absolute diff value;
+ *   - relative (percentage) diff value.
+ *
+ * When specifying stat specs in comparison mode, user can use one of the
+ * following variant suffixes to specify which exact variant should be used for
+ * ordering or filtering:
+ *   - `_a` for A side value;
+ *   - `_b` for B side value;
+ *   - `_diff` for absolute diff value;
+ *   - `_pct` for relative (percentage) diff value.
+ *
+ * If no variant suffix is provided, then `_b` (control data) is assumed.
+ *
+ * As an example, let's say instructions stat has the following output:
+ *
+ * Insns (A)  Insns (B)  Insns   (DIFF)
+ * ---------  ---------  --------------
+ * 21547      20920       -627 (-2.91%)
+ *
+ * Then:
+ *   - 21547 is A side value (insns_a);
+ *   - 20920 is B side value (insns_b);
+ *   - -627 is absolute diff value (insns_diff);
+ *   - -2.91% is relative diff value (insns_pct).
+ *
+ * For verdict there is no verdict_pct variant.
+ * For file and program name, _a and _b variants are equivalent and there are
+ * no _diff or _pct variants.
+ */
+enum stat_variant {
+	VARIANT_A,
+	VARIANT_B,
+	VARIANT_DIFF,
+	VARIANT_PCT,
 };
 
 struct verif_stats {
@@ -53,6 +93,7 @@ struct verif_stats_join {
 struct stat_specs {
 	int spec_cnt;
 	enum stat_id ids[ALL_STATS_CNT];
+	enum stat_variant variants[ALL_STATS_CNT];
 	bool asc[ALL_STATS_CNT];
 	int lens[ALL_STATS_CNT * 3]; /* 3x for comparison mode */
 };
@@ -86,6 +127,7 @@ struct filter {
 	/* FILTER_STAT */
 	enum operator_kind op;
 	int stat_id;
+	enum stat_variant stat_var;
 	long value;
 };
 
@@ -360,7 +402,7 @@ static struct {
 	{ OP_EQ, "=" },
 };
 
-static bool parse_stat_id(const char *name, size_t len, int *id);
+static bool parse_stat_id_var(const char *name, size_t len, int *id, enum stat_variant *var);
 
 static int append_filter(struct filter **filters, int *cnt, const char *str)
 {
@@ -388,6 +430,7 @@ static int append_filter(struct filter **filters, int *cnt, const char *str)
 	 * glob filter.
 	 */
 	for (i = 0; i < ARRAY_SIZE(operators); i++) {
+		enum stat_variant var;
 		int id;
 		long val;
 		const char *end = str;
@@ -398,7 +441,7 @@ static int append_filter(struct filter **filters, int *cnt, const char *str)
 		if (!p)
 			continue;
 
-		if (!parse_stat_id(str, p - str, &id)) {
+		if (!parse_stat_id_var(str, p - str, &id, &var)) {
 			fprintf(stderr, "Unrecognized stat name in '%s'!\n", str);
 			return -EINVAL;
 		}
@@ -431,6 +474,7 @@ static int append_filter(struct filter **filters, int *cnt, const char *str)
 
 		f->kind = FILTER_STAT;
 		f->stat_id = id;
+		f->stat_var = var;
 		f->op = operators[i].op_kind;
 		f->value = val;
 
@@ -556,22 +600,52 @@ static struct stat_def {
 	[MARK_READ_MAX_LEN] = { "Max mark read length", {"max_mark_read_len", "mark_read"}, },
 };
 
-static bool parse_stat_id(const char *name, size_t len, int *id)
+static bool parse_stat_id_var(const char *name, size_t len, int *id, enum stat_variant *var)
 {
-	int i, j;
+	static const char *var_sfxs[] = {
+		[VARIANT_A] = "_a",
+		[VARIANT_B] = "_b",
+		[VARIANT_DIFF] = "_diff",
+		[VARIANT_PCT] = "_pct",
+	};
+	int i, j, k;
 
 	for (i = 0; i < ARRAY_SIZE(stat_defs); i++) {
 		struct stat_def *def = &stat_defs[i];
+		size_t alias_len, sfx_len;
+		const char *alias;
 
 		for (j = 0; j < ARRAY_SIZE(stat_defs[i].names); j++) {
-
-			if (!def->names[j] ||
-			    strlen(def->names[j]) != len ||
-			    strncmp(def->names[j], name, len) != 0)
+			alias = def->names[j];
+			if (!alias)
 				continue;
 
-			*id = i;
-			return true;
+			alias_len = strlen(alias);
+			if (strncmp(name, alias, alias_len) != 0)
+				continue;
+
+			if (alias_len == len) {
+				/* If no variant suffix is specified, we
+				 * assume control group (just in case we are
+				 * in comparison mode. Variant is ignored in
+				 * non-comparison mode.
+				 */
+				*var = VARIANT_B;
+				*id = i;
+				return true;
+			}
+
+			for (k = 0; k < ARRAY_SIZE(var_sfxs); k++) {
+				sfx_len = strlen(var_sfxs[k]);
+				if (alias_len + sfx_len != len)
+					continue;
+
+				if (strncmp(name + alias_len, var_sfxs[k], sfx_len) == 0) {
+					*var = (enum stat_variant)k;
+					*id = i;
+					return true;
+				}
+			}
 		}
 	}
 
@@ -593,6 +667,7 @@ static int parse_stat(const char *stat_name, struct stat_specs *specs)
 	int id;
 	bool has_order = false, is_asc = false;
 	size_t len = strlen(stat_name);
+	enum stat_variant var;
 
 	if (specs->spec_cnt >= ARRAY_SIZE(specs->ids)) {
 		fprintf(stderr, "Can't specify more than %zd stats\n", ARRAY_SIZE(specs->ids));
@@ -605,12 +680,13 @@ static int parse_stat(const char *stat_name, struct stat_specs *specs)
 		len -= 1;
 	}
 
-	if (!parse_stat_id(stat_name, len, &id)) {
+	if (!parse_stat_id_var(stat_name, len, &id, &var)) {
 		fprintf(stderr, "Unrecognized stat name '%s'\n", stat_name);
 		return -ESRCH;
 	}
 
 	specs->ids[specs->spec_cnt] = id;
+	specs->variants[specs->spec_cnt] = var;
 	specs->asc[specs->spec_cnt] = has_order ? is_asc : stat_defs[id].asc_by_default;
 	specs->spec_cnt++;
 
@@ -889,6 +965,99 @@ static int cmp_prog_stats(const void *v1, const void *v2)
 
 	for (i = 0; i < env.sort_spec.spec_cnt; i++) {
 		cmp = cmp_stat(s1, s2, env.sort_spec.ids[i], env.sort_spec.asc[i]);
+		if (cmp != 0)
+			return cmp;
+	}
+
+	/* always disambiguate with file+prog, which are unique */
+	cmp = strcmp(s1->file_name, s2->file_name);
+	if (cmp != 0)
+		return cmp;
+	return strcmp(s1->prog_name, s2->prog_name);
+}
+
+static void fetch_join_stat_value(const struct verif_stats_join *s,
+				  enum stat_id id, enum stat_variant var,
+				  const char **str_val,
+				  double *num_val)
+{
+	long v1, v2;
+
+	if (id == FILE_NAME) {
+		*str_val = s->file_name;
+		return;
+	}
+	if (id == PROG_NAME) {
+		*str_val = s->prog_name;
+		return;
+	}
+
+	v1 = s->stats_a ? s->stats_a->stats[id] : 0;
+	v2 = s->stats_b ? s->stats_b->stats[id] : 0;
+
+	switch (var) {
+	case VARIANT_A:
+		if (!s->stats_a)
+			*num_val = -DBL_MAX;
+		else
+			*num_val = s->stats_a->stats[id];
+		return;
+	case VARIANT_B:
+		if (!s->stats_b)
+			*num_val = -DBL_MAX;
+		else
+			*num_val = s->stats_b->stats[id];
+		return;
+	case VARIANT_DIFF:
+		if (!s->stats_a || !s->stats_b)
+			*num_val = -DBL_MAX;
+		else
+			*num_val = (double)(v2 - v1);
+		return;
+	case VARIANT_PCT:
+		if (!s->stats_a || !s->stats_b) {
+			*num_val = -DBL_MAX;
+		} else if (v1 == 0) {
+			if (v1 == v2)
+				*num_val = 0.0;
+			else
+				*num_val = v2 < v1 ? -100.0 : 100.0;
+		} else {
+			 *num_val = (v2 - v1) * 100.0 / v1;
+		}
+		return;
+	}
+}
+
+static int cmp_join_stat(const struct verif_stats_join *s1,
+			 const struct verif_stats_join *s2,
+			 enum stat_id id, enum stat_variant var, bool asc)
+{
+	const char *str1 = NULL, *str2 = NULL;
+	double v1, v2;
+	int cmp = 0;
+
+	fetch_join_stat_value(s1, id, var, &str1, &v1);
+	fetch_join_stat_value(s2, id, var, &str2, &v2);
+
+	if (str1)
+		cmp = strcmp(str1, str2);
+	else if (v1 != v2)
+		cmp = v1 < v2 ? -1 : 1;
+
+	return asc ? cmp : -cmp;
+}
+
+static int cmp_join_stats(const void *v1, const void *v2)
+{
+	const struct verif_stats_join *s1 = v1, *s2 = v2;
+	int i, cmp;
+
+	for (i = 0; i < env.sort_spec.spec_cnt; i++) {
+		cmp = cmp_join_stat(s1, s2,
+				    env.sort_spec.ids[i],
+				    env.sort_spec.variants[i],
+				    env.sort_spec.asc[i]);
 		if (cmp != 0)
 			return cmp;
 	}
@@ -1476,6 +1645,9 @@ static int handle_comparison_mode(void)
 		}
 		env.join_stat_cnt += 1;
 	}
+
+	/* now sort joined results accorsing to sort spec */
+	qsort(env.join_stats, env.join_stat_cnt, sizeof(*env.join_stats), cmp_join_stats);
 
 	/* for human-readable table output we need to do extra pass to
 	 * calculate column widths, so we substitute current output format
