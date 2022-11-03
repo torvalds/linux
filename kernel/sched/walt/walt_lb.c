@@ -422,19 +422,34 @@ unlock:
 /*
  * find_first_idle_if_others_are_busy
  *
- * Get an idle cpu in the src_mask, iif the other cpus are busy
- * with larger tasks or more than one task.
+ * Get an idle cpu in the middle clusters
  *
  * Returns -1 if there are no idle cpus in the mask, or if there
  * is a CPU that is about to be come newly idle. Returns <cpu>
  * if there is an idle cpu in a cluster that's not about to do
  * newly idle load balancing.
+ * Also returns -1  if called on a single or dual cluster system
  */
-static int find_first_idle_if_others_are_busy(const cpumask_t *src_mask)
+static int find_first_idle_if_others_are_busy(void)
 {
 	int i, first_idle = -1;
+	struct cpumask src_mask;
 
-	for_each_cpu(i, src_mask) {
+	cpumask_clear(&src_mask);
+	for (i = 0; i < num_sched_clusters; i++) {
+		if (i == 0 || i == num_sched_clusters - 1)
+			continue;
+		else
+			cpumask_or(&src_mask, &src_mask, &cpu_array[0][i]);
+	}
+
+	for_each_cpu(i, &src_mask) {
+		if (!cpu_active(i))
+			continue;
+
+		if (cpu_halted(i))
+			continue;
+
 		if (available_idle_cpu(i))
 			first_idle = i;
 
@@ -800,9 +815,10 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 	int order_index;
 	int busy_cpu = -1;
 	bool enough_idle = (this_rq->avg_idle > NEWIDLE_BALANCE_THRESHOLD);
-	bool help_min_cap = false, find_next_cluster = false;
+	bool help_min_cap = false;
 	int first_idle;
 	int has_misfit = 0;
+	int i;
 
 	if (unlikely(walt_disabled))
 		return;
@@ -858,98 +874,48 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 	 * can be queued remotely, so keep a check on nr_running
 	 * and bail out.
 	 */
-	if (num_sched_clusters <= 2) {
-		busy_cpu = walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][0],
-				&has_misfit, true);
-		if (busy_cpu != -1)
-			goto found_busy_cpu;
 
-		if (num_sched_clusters == 2) {
-			has_misfit = false;
-			find_next_cluster = (order_index == 0) ? enough_idle : 1;
-			if (find_next_cluster) {
-				busy_cpu = walt_lb_find_busiest_cpu(this_cpu,
-						&cpu_array[order_index][1], &has_misfit, true);
-				if (busy_cpu != -1 && (enough_idle || has_misfit))
-					goto found_busy_cpu;
-			}
-		}
+	order_index = wrq->cluster->id;
+	for (i = 0; i < num_sched_clusters; i++) {
+		int first_cpu = cpumask_first(&cpu_array[order_index][i]);
+		struct walt_rq *src_wrq = &per_cpu(walt_rq, first_cpu);
+		int src_cluster_id = src_wrq->cluster->id;
 
-		goto unlock;
-	}
-
-	if (order_index == 0) {
-		busy_cpu = walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][0],
-				&has_misfit, true);
-		if (busy_cpu != -1)
-			goto found_busy_cpu;
-
-		if (enough_idle) {
-			busy_cpu = walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][1],
-					&has_misfit, true);
-			if (busy_cpu != -1)
-				goto found_busy_cpu;
-		}
-
-		/*
-		 * help the farthest cluster by kicking an idle cpu in the next
-		 * cluster. In case no idle is found, pull it in.
+		busy_cpu = walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][i],
+										&has_misfit, true);
+		if (busy_cpu == -1)
+			continue;
+		/* when not enough idle
+		 *   Small should not help big.
+		 *   Big should help small ONLY is mifit is present.
+		 *   Same capacity cpus should help each other
 		 */
-		busy_cpu = walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][2],
-				&has_misfit, true);
-		if (busy_cpu != -1) {
-			first_idle =
-				find_first_idle_if_others_are_busy(&cpu_array[order_index][1]);
+		if (!enough_idle &&
+			(capacity_orig_of(this_cpu) < capacity_orig_of(busy_cpu) ||
+			(capacity_orig_of(this_cpu) > capacity_orig_of(busy_cpu) && !has_misfit)))
+			continue;
+
+		/* if helping farthest cluster,  kick a middle */
+		if (num_sched_clusters > 2 &&
+		    ((wrq->cluster->id == 0 && src_cluster_id == num_sched_clusters - 1) ||
+		    (wrq->cluster->id == num_sched_clusters - 1 && src_cluster_id == 0))) {
+			first_idle = find_first_idle_if_others_are_busy();
 			if (first_idle != -1) {
 				walt_kick_cpu(first_idle);
-			} else if (walt_rotation_enabled) {
-				goto found_busy_cpu;
+			} else {
+				if (walt_rotation_enabled &&
+					capacity_orig_of(this_cpu) >
+					capacity_orig_of(busy_cpu)) {
+					/*
+					 * When BTR active help
+					 * smallest immediately
+					 */
+					goto found_busy_cpu;
+				}
 			}
+		} else {
+			goto found_busy_cpu;
 		}
-	} else if (order_index == 2) {
-		busy_cpu = walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][0],
-				&has_misfit, true);
-		if (busy_cpu != -1)
-			goto found_busy_cpu;
-
-		/* help gold only if prime has had enough idle or gold has a misfit */
-		has_misfit = false;
-		busy_cpu = walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][1],
-				&has_misfit, true);
-		if (busy_cpu != -1 && (enough_idle || has_misfit))
-			goto found_busy_cpu;
-
-		/* help the farthest cluster indirectly if it needs help */
-		busy_cpu = walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][2],
-				&has_misfit, true);
-		if (busy_cpu != -1) {
-			first_idle =
-				find_first_idle_if_others_are_busy(&cpu_array[order_index][1]);
-			if (first_idle != -1) {
-				walt_kick_cpu(first_idle);
-			} else if (walt_rotation_enabled) {
-				goto found_busy_cpu;
-			}
-		}
-	} else {
-		busy_cpu =
-			walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][0],
-				&has_misfit, true);
-		if (busy_cpu != -1)
-			goto found_busy_cpu;
-
-		if (enough_idle) {
-			busy_cpu = walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][1],
-					&has_misfit, true);
-			if (busy_cpu != -1)
-				goto found_busy_cpu;
-		}
-
-		has_misfit = false;
-		busy_cpu = walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][2],
-				&has_misfit, true);
-		if (busy_cpu != -1 && (enough_idle || has_misfit))
-			goto found_busy_cpu;
 	}
 	goto unlock;
 

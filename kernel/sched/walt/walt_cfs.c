@@ -61,6 +61,14 @@ unsigned int sched_capacity_margin_down[WALT_NR_CPUS] = {
 			[0 ... WALT_NR_CPUS-1] = 1205 /* ~15% margin */
 };
 
+/* Migration margins for topapp */
+unsigned int sched_capacity_margin_early_up[WALT_NR_CPUS] = {
+			[0 ... WALT_NR_CPUS-1] = 1078 /* ~5% margin */
+};
+unsigned int sched_capacity_margin_early_down[WALT_NR_CPUS] = {
+			[0 ... WALT_NR_CPUS-1] = 1205 /* ~15% margin */
+};
+
 static inline bool
 bias_to_this_cpu(struct task_struct *p, int cpu, int start_cpu)
 {
@@ -72,19 +80,17 @@ bias_to_this_cpu(struct task_struct *p, int cpu, int start_cpu)
 	return base_test && start_cap_test;
 }
 
-static inline bool task_demand_fits(struct task_struct *p, int cpu)
+static inline bool task_demand_fits(struct task_struct *p, int dst_cpu)
 {
-	unsigned long capacity = capacity_orig_of(cpu);
-
-	if (is_max_cluster_cpu(cpu))
+	if (is_max_cluster_cpu(dst_cpu))
 		return true;
 
 	if (!task_in_related_thread_group(p) && p->prio >= 124 &&
-			!is_min_cluster_cpu(cpu) && !is_max_cluster_cpu(cpu)) {
+			!is_min_cluster_cpu(dst_cpu) && !is_max_cluster_cpu(dst_cpu)) {
 		/* a non topapp low prio task fits on gold */
 		return true;
 	}
-	return task_fits_capacity(p, capacity, cpu);
+	return task_fits_capacity(p, dst_cpu);
 }
 
 struct find_best_target_env {
@@ -165,8 +171,6 @@ static void walt_get_indicies(struct task_struct *p, int *order_index,
 		int *end_index, int per_task_boost, bool is_uclamp_boosted,
 		bool *energy_eval_needed)
 {
-	int i = 0;
-
 	*order_index = 0;
 	*end_index = 0;
 
@@ -182,9 +186,12 @@ static void walt_get_indicies(struct task_struct *p, int *order_index,
 	if (is_full_throttle_boost()) {
 		*energy_eval_needed = false;
 		*order_index = num_sched_clusters - 1;
-		if ((*order_index > 1) && task_demand_fits(p,
-			cpumask_first(&cpu_array[*order_index][1])))
-			*end_index = 1;
+		*end_index = num_sched_clusters - 2;
+
+		for (; *end_index >= 0; (*end_index)--)
+			if (task_demand_fits(p,
+					cpumask_first(&cpu_array[*order_index][*end_index])))
+				break;
 		return;
 	}
 
@@ -193,18 +200,18 @@ static void walt_get_indicies(struct task_struct *p, int *order_index,
 		walt_task_skip_min_cpu(p)) {
 		*energy_eval_needed = false;
 		*order_index = 1;
+		*end_index = max(0, num_sched_clusters - 3);
+
 		if (sysctl_sched_asymcap_boost) {
-			*end_index = 1;
+			(*end_index)++;
 			return;
 		}
 	}
 
-	for (i = *order_index ; i < num_sched_clusters - 1; i++) {
-		if (task_demand_fits(p, cpumask_first(&cpu_array[i][0])))
+	for (; *order_index < num_sched_clusters - 1; (*order_index)++) {
+		if (task_demand_fits(p, cpumask_first(&cpu_array[*order_index][0])))
 			break;
 	}
-
-	*order_index = i;
 
 	if (*order_index == 0 &&
 			(task_util(p) >= MIN_UTIL_FOR_ENERGY_EVAL) &&
