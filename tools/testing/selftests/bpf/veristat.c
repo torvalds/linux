@@ -419,32 +419,65 @@ static struct stat_def {
 	[MARK_READ_MAX_LEN] = { "Max mark read length", {"max_mark_read_len", "mark_read"}, },
 };
 
+static bool parse_stat_id(const char *name, size_t len, int *id)
+{
+	int i, j;
+
+	for (i = 0; i < ARRAY_SIZE(stat_defs); i++) {
+		struct stat_def *def = &stat_defs[i];
+
+		for (j = 0; j < ARRAY_SIZE(stat_defs[i].names); j++) {
+
+			if (!def->names[j] ||
+			    strlen(def->names[j]) != len ||
+			    strncmp(def->names[j], name, len) != 0)
+				continue;
+
+			*id = i;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static bool is_asc_sym(char c)
+{
+	return c == '^';
+}
+
+static bool is_desc_sym(char c)
+{
+	return c == 'v' || c == 'V' || c == '.' || c == '!' || c == '_';
+}
+
 static int parse_stat(const char *stat_name, struct stat_specs *specs)
 {
-	int id, i;
+	int id;
+	bool has_order = false, is_asc = false;
+	size_t len = strlen(stat_name);
 
 	if (specs->spec_cnt >= ARRAY_SIZE(specs->ids)) {
 		fprintf(stderr, "Can't specify more than %zd stats\n", ARRAY_SIZE(specs->ids));
 		return -E2BIG;
 	}
 
-	for (id = 0; id < ARRAY_SIZE(stat_defs); id++) {
-		struct stat_def *def = &stat_defs[id];
-
-		for (i = 0; i < ARRAY_SIZE(stat_defs[id].names); i++) {
-			if (!def->names[i] || strcmp(def->names[i], stat_name) != 0)
-				continue;
-
-			specs->ids[specs->spec_cnt] = id;
-			specs->asc[specs->spec_cnt] = def->asc_by_default;
-			specs->spec_cnt++;
-
-			return 0;
-		}
+	if (len > 1 && (is_asc_sym(stat_name[len - 1]) || is_desc_sym(stat_name[len - 1]))) {
+		has_order = true;
+		is_asc = is_asc_sym(stat_name[len - 1]);
+		len -= 1;
 	}
 
-	fprintf(stderr, "Unrecognized stat name '%s'\n", stat_name);
-	return -ESRCH;
+	if (!parse_stat_id(stat_name, len, &id)) {
+		fprintf(stderr, "Unrecognized stat name '%s'\n", stat_name);
+		return -ESRCH;
+	}
+
+	specs->ids[specs->spec_cnt] = id;
+	specs->asc[specs->spec_cnt] = has_order ? is_asc : stat_defs[id].asc_by_default;
+	specs->spec_cnt++;
+
+	return 0;
 }
 
 static int parse_stats(const char *stats_str, struct stat_specs *specs)
