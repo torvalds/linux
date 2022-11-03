@@ -52,3 +52,13 @@ config QTI_CPU_PAUSE_COOLING_DEVICE
 	   scheduled and hence will let the CPU to power collapse.  Pausing
 	   a CPU will be used when the CPU frequency mitigation
 	   is not good enough to achieve the necessary cooling.
+
+config QTI_BCL_PMIC5
+	tristate "BCL driver for BCL peripherals in PMIC5"
+	depends on SPMI && THERMAL
+	help
+	  This driver provides routines to configure and monitor the BCL
+	  PMIC peripheral. This driver registers the battery current and
+	  voltage sensors with the thermal core framework and can take
+	  threshold input and notify the thermal core when the threshold is
+	  reached.
