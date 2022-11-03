@@ -29,6 +29,7 @@ static void do_task(struct tasklet_struct *t)
 	int cont;
 	int ret;
 	struct rxe_task *task = from_tasklet(task, t, tasklet);
+	struct rxe_qp *qp = (struct rxe_qp *)task->arg;
 	unsigned int iterations = RXE_MAX_ITERATIONS;
 
 	spin_lock_bh(&task->lock);
@@ -47,7 +48,7 @@ static void do_task(struct tasklet_struct *t)
 
 	default:
 		spin_unlock_bh(&task->lock);
-		pr_warn("%s failed with bad state %d\n", __func__, task->state);
+		rxe_dbg_qp(qp, "failed with bad state %d\n", task->state);
 		return;
 	}
 
@@ -81,8 +82,8 @@ static void do_task(struct tasklet_struct *t)
 			break;
 
 		default:
-			pr_warn("%s failed with bad state %d\n", __func__,
-				task->state);
+			rxe_dbg_qp(qp, "failed with bad state %d\n",
+					task->state);
 		}
 		spin_unlock_bh(&task->lock);
 	} while (cont);
