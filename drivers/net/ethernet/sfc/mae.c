@@ -311,6 +311,9 @@ int efx_mae_match_check_caps(struct efx_nic *efx,
 	    CHECK(SRC_IP6, src_ip6) ||
 	    CHECK(DST_IP6, dst_ip6) ||
 #endif
+	    CHECK(L4_SPORT, l4_sport) ||
+	    CHECK(L4_DPORT, l4_dport) ||
+	    CHECK(TCP_FLAGS, tcp_flags) ||
 	    CHECK_BIT(IS_IP_FRAG, ip_frag) ||
 	    CHECK_BIT(IP_FIRST_FRAG, ip_firstfrag) ||
 	    CHECK(RECIRC_ID, recirc_id))
@@ -559,6 +562,18 @@ static int efx_mae_populate_match_criteria(MCDI_DECLARE_STRUCT_PTR(match_crit),
 	memcpy(MCDI_STRUCT_PTR(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_DST_IP6_BE_MASK),
 	       &match->mask.dst_ip6, sizeof(struct in6_addr));
 #endif
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_L4_SPORT_BE,
+				match->value.l4_sport);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_L4_SPORT_BE_MASK,
+				match->mask.l4_sport);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_L4_DPORT_BE,
+				match->value.l4_dport);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_L4_DPORT_BE_MASK,
+				match->mask.l4_dport);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_TCP_FLAGS_BE,
+				match->value.tcp_flags);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_TCP_FLAGS_BE_MASK,
+				match->mask.tcp_flags);
 	return 0;
 }
 

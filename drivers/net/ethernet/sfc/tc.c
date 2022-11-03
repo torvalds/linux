@@ -190,6 +190,8 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 	      BIT(FLOW_DISSECTOR_KEY_CVLAN) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_TCP) |
 	      BIT(FLOW_DISSECTOR_KEY_IP))) {
 		NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported flower keys %#x",
 				       dissector->used_keys);
@@ -204,8 +206,10 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 		if (dissector->used_keys &
 		    (BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 		     BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
-		     BIT(FLOW_DISSECTOR_KEY_IP))) {
-			NL_SET_ERR_MSG_FMT_MOD(extack, "L3 flower keys %#x require protocol ipv[46]",
+		     BIT(FLOW_DISSECTOR_KEY_PORTS) |
+		     BIT(FLOW_DISSECTOR_KEY_IP) |
+		     BIT(FLOW_DISSECTOR_KEY_TCP))) {
+			NL_SET_ERR_MSG_FMT_MOD(extack, "L3/L4 flower keys %#x require protocol ipv[46]",
 					       dissector->used_keys);
 			return -EINVAL;
 		}
@@ -249,6 +253,16 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 	}
 
 	MAP_KEY_AND_MASK(BASIC, basic, ip_proto, ip_proto);
+	/* Make sure we're TCP/UDP if any L4 keys used. */
+	if ((match->value.ip_proto != IPPROTO_UDP &&
+	     match->value.ip_proto != IPPROTO_TCP) || !IS_ALL_ONES(match->mask.ip_proto))
+		if (dissector->used_keys &
+		    (BIT(FLOW_DISSECTOR_KEY_PORTS) |
+		     BIT(FLOW_DISSECTOR_KEY_TCP))) {
+			NL_SET_ERR_MSG_FMT_MOD(extack, "L4 flower keys %#x require ipproto udp or tcp",
+					       dissector->used_keys);
+			return -EINVAL;
+		}
 	MAP_KEY_AND_MASK(IP, ip, tos, ip_tos);
 	MAP_KEY_AND_MASK(IP, ip, ttl, ip_ttl);
 	if (ipv == 4) {
@@ -261,6 +275,9 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 		MAP_KEY_AND_MASK(IPV6_ADDRS, ipv6_addrs, dst, dst_ip6);
 	}
 #endif
+	MAP_KEY_AND_MASK(PORTS, ports, src, l4_sport);
+	MAP_KEY_AND_MASK(PORTS, ports, dst, l4_dport);
+	MAP_KEY_AND_MASK(TCP, tcp, flags, tcp_flags);
 
 	return 0;
 }
