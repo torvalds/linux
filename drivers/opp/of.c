@@ -654,9 +654,12 @@ static u32 *opp_parse_microvolt(struct dev_pm_opp *opp, struct device *dev,
 		/*
 		 * Missing property isn't a problem, but an invalid
 		 * entry is. This property isn't optional if regulator
-		 * information is provided.
+		 * information is provided. Check only for the first OPP, as
+		 * regulator_count may get initialized after that to a valid
+		 * value.
 		 */
-		if (opp_table->regulator_count > 0) {
+		if (list_empty(&opp_table->opp_list) &&
+		    opp_table->regulator_count > 0) {
 			dev_err(dev, "%s: opp-microvolt missing although OPP managing regulators\n",
 				__func__);
 			return ERR_PTR(-EINVAL);
@@ -674,7 +677,7 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 	bool triplet;
 
 	microvolt = opp_parse_microvolt(opp, dev, opp_table, &triplet);
-	if (IS_ERR_OR_NULL(microvolt))
+	if (IS_ERR(microvolt))
 		return PTR_ERR(microvolt);
 
 	microamp = _parse_named_prop(opp, dev, opp_table, "microamp", NULL);
@@ -689,15 +692,26 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 		goto free_microamp;
 	}
 
-	for (i = 0, j = 0; i < opp_table->regulator_count; i++) {
-		opp->supplies[i].u_volt = microvolt[j++];
+	/*
+	 * Initialize regulator_count if it is uninitialized and no properties
+	 * are found.
+	 */
+	if (unlikely(opp_table->regulator_count == -1)) {
+		opp_table->regulator_count = 0;
+		return 0;
+	}
 
-		if (triplet) {
-			opp->supplies[i].u_volt_min = microvolt[j++];
-			opp->supplies[i].u_volt_max = microvolt[j++];
-		} else {
-			opp->supplies[i].u_volt_min = opp->supplies[i].u_volt;
-			opp->supplies[i].u_volt_max = opp->supplies[i].u_volt;
+	for (i = 0, j = 0; i < opp_table->regulator_count; i++) {
+		if (microvolt) {
+			opp->supplies[i].u_volt = microvolt[j++];
+
+			if (triplet) {
+				opp->supplies[i].u_volt_min = microvolt[j++];
+				opp->supplies[i].u_volt_max = microvolt[j++];
+			} else {
+				opp->supplies[i].u_volt_min = opp->supplies[i].u_volt;
+				opp->supplies[i].u_volt_max = opp->supplies[i].u_volt;
+			}
 		}
 
 		if (microamp)
