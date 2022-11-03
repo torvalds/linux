@@ -7980,7 +7980,7 @@ static void btrfs_submit_direct(const struct iomap_iter *iter,
 		 */
 		status = BLK_STS_RESOURCE;
 		dip->csums = kcalloc(nr_sectors, fs_info->csum_size, GFP_NOFS);
-		if (!dip)
+		if (!dip->csums)
 			goto out_err;
 
 		status = btrfs_lookup_bio_sums(inode, dio_bio, dip->csums);
@@ -8078,13 +8078,21 @@ static const struct iomap_dio_ops btrfs_dio_ops = {
 	.bio_set		= &btrfs_dio_bioset,
 };
 
-ssize_t btrfs_dio_rw(struct kiocb *iocb, struct iov_iter *iter, size_t done_before)
+ssize_t btrfs_dio_read(struct kiocb *iocb, struct iov_iter *iter, size_t done_before)
 {
 	struct btrfs_dio_data data;
 
 	return iomap_dio_rw(iocb, iter, &btrfs_dio_iomap_ops, &btrfs_dio_ops,
-			    IOMAP_DIO_PARTIAL | IOMAP_DIO_NOSYNC,
-			    &data, done_before);
+			    IOMAP_DIO_PARTIAL, &data, done_before);
+}
+
+struct iomap_dio *btrfs_dio_write(struct kiocb *iocb, struct iov_iter *iter,
+				  size_t done_before)
+{
+	struct btrfs_dio_data data;
+
+	return __iomap_dio_rw(iocb, iter, &btrfs_dio_iomap_ops, &btrfs_dio_ops,
+			    IOMAP_DIO_PARTIAL, &data, done_before);
 }
 
 static int btrfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
