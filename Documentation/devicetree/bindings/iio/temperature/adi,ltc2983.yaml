@@ -55,7 +55,7 @@ properties:
     const: 0
 
 patternProperties:
-  "@([1-9]|1[0-9]|20)$":
+  "@([0-9a-f]+)$":
     type: object
 
     properties:
