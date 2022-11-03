@@ -24,6 +24,36 @@
 #include "sun6i_csi_capture.h"
 #include "sun6i_csi_reg.h"
 
+/* ISP */
+
+static int sun6i_csi_isp_detect(struct sun6i_csi_device *csi_dev)
+{
+	struct device *dev = csi_dev->dev;
+	struct fwnode_handle *handle;
+
+	/*
+	 * ISP is not available if not connected via fwnode graph.
+	 * This will also check that the remote parent node is available.
+	 */
+	handle = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev),
+						 SUN6I_CSI_PORT_ISP, 0,
+						 FWNODE_GRAPH_ENDPOINT_NEXT);
+	if (!handle)
+		return 0;
+
+	fwnode_handle_put(handle);
+
+	if (!IS_ENABLED(CONFIG_VIDEO_SUN6I_ISP)) {
+		dev_warn(dev,
+			 "ISP link is detected but not enabled in kernel config!");
+		return 0;
+	}
+
+	csi_dev->isp_available = true;
+
+	return 0;
+}
+
 /* Media */
 
 static const struct media_device_ops sun6i_csi_media_ops = {
@@ -288,6 +318,10 @@ static int sun6i_csi_probe(struct platform_device *platform_dev)
 	ret = sun6i_csi_resources_setup(csi_dev, platform_dev);
 	if (ret)
 		return ret;
+
+	ret = sun6i_csi_isp_detect(csi_dev);
+	if (ret)
+		goto error_resources;
 
 	ret = sun6i_csi_v4l2_setup(csi_dev);
 	if (ret)
