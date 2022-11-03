@@ -54,10 +54,30 @@ enum resfmt {
 	RESFMT_CSV,
 };
 
+enum filter_kind {
+	FILTER_NAME,
+	FILTER_STAT,
+};
+
+enum operator_kind {
+	OP_EQ,		/* == or = */
+	OP_NEQ,		/* != or <> */
+	OP_LT,		/* < */
+	OP_LE,		/* <= */
+	OP_GT,		/* > */
+	OP_GE,		/* >= */
+};
+
 struct filter {
+	enum filter_kind kind;
+	/* FILTER_NAME */
 	char *any_glob;
 	char *file_glob;
 	char *prog_glob;
+	/* FILTER_STAT */
+	enum operator_kind op;
+	int stat_id;
+	long value;
 };
 
 static struct env {
@@ -271,6 +291,8 @@ static bool should_process_file_prog(const char *filename, const char *prog_name
 
 	for (i = 0; i < env.deny_filter_cnt; i++) {
 		f = &env.deny_filters[i];
+		if (f->kind != FILTER_NAME)
+			continue;
 
 		if (f->any_glob && glob_matches(filename, f->any_glob))
 			return false;
@@ -284,8 +306,10 @@ static bool should_process_file_prog(const char *filename, const char *prog_name
 
 	for (i = 0; i < env.allow_filter_cnt; i++) {
 		f = &env.allow_filters[i];
-		allow_cnt++;
+		if (f->kind != FILTER_NAME)
+			continue;
 
+		allow_cnt++;
 		if (f->any_glob) {
 			if (glob_matches(filename, f->any_glob))
 				return true;
@@ -306,11 +330,32 @@ static bool should_process_file_prog(const char *filename, const char *prog_name
 	return allow_cnt == 0;
 }
 
+static struct {
+	enum operator_kind op_kind;
+	const char *op_str;
+} operators[] = {
+	/* Order of these definitions matter to avoid situations like '<'
+	 * matching part of what is actually a '<>' operator. That is,
+	 * substrings should go last.
+	 */
+	{ OP_EQ, "==" },
+	{ OP_NEQ, "!=" },
+	{ OP_NEQ, "<>" },
+	{ OP_LE, "<=" },
+	{ OP_LT, "<" },
+	{ OP_GE, ">=" },
+	{ OP_GT, ">" },
+	{ OP_EQ, "=" },
+};
+
+static bool parse_stat_id(const char *name, size_t len, int *id);
+
 static int append_filter(struct filter **filters, int *cnt, const char *str)
 {
 	struct filter *f;
 	void *tmp;
 	const char *p;
+	int i;
 
 	tmp = realloc(*filters, (*cnt + 1) * sizeof(**filters));
 	if (!tmp)
@@ -320,6 +365,67 @@ static int append_filter(struct filter **filters, int *cnt, const char *str)
 	f = &(*filters)[*cnt];
 	memset(f, 0, sizeof(*f));
 
+	/* First, let's check if it's a stats filter of the following form:
+	 * <stat><op><value, where:
+	 *   - <stat> is one of supported numerical stats (verdict is also
+	 *     considered numerical, failure == 0, success == 1);
+	 *   - <op> is comparison operator (see `operators` definitions);
+	 *   - <value> is an integer (or failure/success, or false/true as
+	 *     special aliases for 0 and 1, respectively).
+	 * If the form doesn't match what user provided, we assume file/prog
+	 * glob filter.
+	 */
+	for (i = 0; i < ARRAY_SIZE(operators); i++) {
+		int id;
+		long val;
+		const char *end = str;
+		const char *op_str;
+
+		op_str = operators[i].op_str;
+		p = strstr(str, op_str);
+		if (!p)
+			continue;
+
+		if (!parse_stat_id(str, p - str, &id)) {
+			fprintf(stderr, "Unrecognized stat name in '%s'!\n", str);
+			return -EINVAL;
+		}
+		if (id >= FILE_NAME) {
+			fprintf(stderr, "Non-integer stat is specified in '%s'!\n", str);
+			return -EINVAL;
+		}
+
+		p += strlen(op_str);
+
+		if (strcasecmp(p, "true") == 0 ||
+		    strcasecmp(p, "t") == 0 ||
+		    strcasecmp(p, "success") == 0 ||
+		    strcasecmp(p, "succ") == 0 ||
+		    strcasecmp(p, "s") == 0) {
+			val = 1;
+		} else if (strcasecmp(p, "false") == 0 ||
+			   strcasecmp(p, "f") == 0 ||
+			   strcasecmp(p, "failure") == 0 ||
+			   strcasecmp(p, "fail") == 0) {
+			val = 0;
+		} else {
+			errno = 0;
+			val = strtol(p, (char **)&end, 10);
+			if (errno || end == p || *end != '\0' ) {
+				fprintf(stderr, "Invalid integer value in '%s'!\n", str);
+				return -EINVAL;
+			}
+		}
+
+		f->kind = FILTER_STAT;
+		f->stat_id = id;
+		f->op = operators[i].op_kind;
+		f->value = val;
+
+		*cnt += 1;
+		return 0;
+	}
+
 	/* File/prog filter can be specified either as '<glob>' or
 	 * '<file-glob>/<prog-glob>'. In the former case <glob> is applied to
 	 * both file and program names. This seems to be way more useful in
@@ -328,6 +434,7 @@ static int append_filter(struct filter **filters, int *cnt, const char *str)
 	 * name. But usually common <glob> seems to be the most useful and
 	 * ergonomic way.
 	 */
+	f->kind = FILTER_NAME;
 	p = strchr(str, '/');
 	if (!p) {
 		f->any_glob = strdup(str);
@@ -1317,6 +1424,51 @@ one_more_time:
 	return 0;
 }
 
+static bool is_stat_filter_matched(struct filter *f, const struct verif_stats *stats)
+{
+	long value = stats->stats[f->stat_id];
+
+	switch (f->op) {
+	case OP_EQ: return value == f->value;
+	case OP_NEQ: return value != f->value;
+	case OP_LT: return value < f->value;
+	case OP_LE: return value <= f->value;
+	case OP_GT: return value > f->value;
+	case OP_GE: return value >= f->value;
+	}
+
+	fprintf(stderr, "BUG: unknown filter op %d!\n", f->op);
+	return false;
+}
+
+static bool should_output_stats(const struct verif_stats *stats)
+{
+	struct filter *f;
+	int i, allow_cnt = 0;
+
+	for (i = 0; i < env.deny_filter_cnt; i++) {
+		f = &env.deny_filters[i];
+		if (f->kind != FILTER_STAT)
+			continue;
+
+		if (is_stat_filter_matched(f, stats))
+			return false;
+	}
+
+	for (i = 0; i < env.allow_filter_cnt; i++) {
+		f = &env.allow_filters[i];
+		if (f->kind != FILTER_STAT)
+			continue;
+		allow_cnt++;
+
+		if (is_stat_filter_matched(f, stats))
+			return true;
+	}
+
+	/* if there are no stat allowed filters, pass everything through */
+	return allow_cnt == 0;
+}
+
 static void output_prog_stats(void)
 {
 	const struct verif_stats *stats;
@@ -1327,6 +1479,8 @@ static void output_prog_stats(void)
 		output_headers(RESFMT_TABLE_CALCLEN);
 		for (i = 0; i < env.prog_stat_cnt; i++) {
 			stats = &env.prog_stats[i];
+			if (!should_output_stats(stats))
+				continue;
 			output_stats(stats, RESFMT_TABLE_CALCLEN, false);
 			last_stat_idx = i;
 		}
@@ -1336,6 +1490,8 @@ static void output_prog_stats(void)
 	output_headers(env.out_fmt);
 	for (i = 0; i < env.prog_stat_cnt; i++) {
 		stats = &env.prog_stats[i];
+		if (!should_output_stats(stats))
+			continue;
 		output_stats(stats, env.out_fmt, i == last_stat_idx);
 	}
 }
