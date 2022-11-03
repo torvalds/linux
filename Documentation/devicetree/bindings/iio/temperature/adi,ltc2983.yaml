@@ -29,6 +29,9 @@ properties:
       Extra delay prior to each conversion, in addition to the internal 1ms
       delay, for the multiplexer to switch input configurations and
       excitation values.
+
+      This property is supposed to be in microseconds, but to maintain
+      compatibility, this value will be multiplied by 100 before usage.
     maximum: 255
     default: 0
 
