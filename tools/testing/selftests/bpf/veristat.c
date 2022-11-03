@@ -723,7 +723,11 @@ static int cmp_prog_stats(const void *v1, const void *v2)
 			return cmp;
 	}
 
-	return 0;
+	/* always disambiguate with file+prog, which are unique */
+	cmp = strcmp(s1->file_name, s2->file_name);
+	if (cmp != 0)
+		return cmp;
+	return strcmp(s1->prog_name, s2->prog_name);
 }
 
 #define HEADER_CHAR '-'
