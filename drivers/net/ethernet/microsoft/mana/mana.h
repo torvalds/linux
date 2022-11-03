@@ -380,6 +380,10 @@ struct mana_port_context {
 	mana_handle_t port_handle;
 	mana_handle_t pf_filter_handle;
 
+	/* Mutex for sharing access to vport_use_count */
+	struct mutex vport_mutex;
+	int vport_use_count;
+
 	u16 port_idx;
 
 	bool port_is_up;
@@ -631,4 +635,7 @@ struct mana_tx_package {
 	struct gdma_posted_wqe_info wqe_info;
 };
 
+int mana_cfg_vport(struct mana_port_context *apc, u32 protection_dom_id,
+		   u32 doorbell_pg_id);
+void mana_uncfg_vport(struct mana_port_context *apc);
 #endif /* _MANA_H */
