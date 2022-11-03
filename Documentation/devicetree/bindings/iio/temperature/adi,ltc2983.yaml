@@ -130,6 +130,15 @@ patternProperties:
             - description: Voltage point in nV, signed.
             - description: Temperature point in uK.
 
+    allOf:
+      - if:
+          properties:
+            adi,sensor-type:
+              const: 9
+        then:
+          required:
+            - adi,custom-thermocouple
+
   "^diode@":
     type: object
     description:
@@ -263,6 +272,15 @@ patternProperties:
     dependencies:
       adi,current-rotate: [ "adi,rsense-share" ]
 
+    allOf:
+      - if:
+          properties:
+            adi,sensor-type:
+              const: 18
+        then:
+          required:
+            - adi,custom-rtd
+
   "^thermistor@":
     type: object
     description:
@@ -348,6 +366,22 @@ patternProperties:
 
     dependencies:
       adi,current-rotate: [ "adi,rsense-share" ]
+
+    allOf:
+      - if:
+          properties:
+            adi,sensor-type:
+              const: 26
+        then:
+          required:
+            - adi,custom-steinhart
+      - if:
+          properties:
+            adi,sensor-type:
+              const: 27
+        then:
+          required:
+            - adi,custom-thermistor
 
   "^adc@":
     type: object
