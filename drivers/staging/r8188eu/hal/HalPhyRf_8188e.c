@@ -882,14 +882,6 @@ void PHY_IQCalibrate_8188E(struct adapter *adapt, bool recovery)
 	if (RegE94 != 0)
 		patha_fill_iqk(adapt, pathaok, result, final_candidate, (RegEA4 == 0));
 
-/* To Fix BSOD when final_candidate is 0xff */
-/* by sherry 20120321 */
-	if (final_candidate < 4) {
-		for (i = 0; i < IQK_Matrix_REG_NUM; i++)
-			dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.Value[0][i] = result[final_candidate][i];
-		dm_odm->RFCalibrateInfo.IQKMatrixRegSetting.bIQKDone = true;
-	}
-
 	_PHY_SaveADDARegisters(adapt, IQK_BB_REG_92C, dm_odm->RFCalibrateInfo.IQK_BB_backup_recover, 9);
 }
 
