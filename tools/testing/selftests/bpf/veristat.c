@@ -67,6 +67,7 @@ static struct env {
 	int log_level;
 	enum resfmt out_fmt;
 	bool comparison_mode;
+	bool replay_mode;
 
 	struct verif_stats *prog_stats;
 	int prog_stat_cnt;
@@ -115,6 +116,7 @@ static const struct argp_option opts[] = {
 	{ "sort", 's', "SPEC", 0, "Specify sort order" },
 	{ "output-format", 'o', "FMT", 0, "Result output format (table, csv), default is table." },
 	{ "compare", 'C', NULL, 0, "Comparison mode" },
+	{ "replay", 'R', NULL, 0, "Replay mode" },
 	{ "filter", 'f', "FILTER", 0, "Filter expressions (or @filename for file with expressions)." },
 	{},
 };
@@ -168,6 +170,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		break;
 	case 'C':
 		env.comparison_mode = true;
+		break;
+	case 'R':
+		env.replay_mode = true;
 		break;
 	case 'f':
 		if (arg[0] == '@')
@@ -841,42 +846,6 @@ static void output_stats(const struct verif_stats *s, enum resfmt fmt, bool last
 	}
 }
 
-static int handle_verif_mode(void)
-{
-	int i, err;
-
-	if (env.filename_cnt == 0) {
-		fprintf(stderr, "Please provide path to BPF object file!\n");
-		argp_help(&argp, stderr, ARGP_HELP_USAGE, "veristat");
-		return -EINVAL;
-	}
-
-	for (i = 0; i < env.filename_cnt; i++) {
-		err = process_obj(env.filenames[i]);
-		if (err) {
-			fprintf(stderr, "Failed to process '%s': %d\n", env.filenames[i], err);
-			return err;
-		}
-	}
-
-	qsort(env.prog_stats, env.prog_stat_cnt, sizeof(*env.prog_stats), cmp_prog_stats);
-
-	if (env.out_fmt == RESFMT_TABLE) {
-		/* calculate column widths */
-		output_headers(RESFMT_TABLE_CALCLEN);
-		for (i = 0; i < env.prog_stat_cnt; i++)
-			output_stats(&env.prog_stats[i], RESFMT_TABLE_CALCLEN, false);
-	}
-
-	/* actually output the table */
-	output_headers(env.out_fmt);
-	for (i = 0; i < env.prog_stat_cnt; i++) {
-		output_stats(&env.prog_stats[i], env.out_fmt, i == env.prog_stat_cnt - 1);
-	}
-
-	return 0;
-}
-
 static int parse_stat_value(const char *str, enum stat_id id, struct verif_stats *st)
 {
 	switch (id) {
@@ -1206,7 +1175,7 @@ static int handle_comparison_mode(void)
 	int err, i, j;
 
 	if (env.filename_cnt != 2) {
-		fprintf(stderr, "Comparison mode expects exactly two input CSV files!\n");
+		fprintf(stderr, "Comparison mode expects exactly two input CSV files!\n\n");
 		argp_help(&argp, stderr, ARGP_HELP_USAGE, "veristat");
 		return -EINVAL;
 	}
@@ -1307,6 +1276,79 @@ one_more_time:
 	return 0;
 }
 
+static void output_prog_stats(void)
+{
+	const struct verif_stats *stats;
+	int i, last_stat_idx = 0;
+
+	if (env.out_fmt == RESFMT_TABLE) {
+		/* calculate column widths */
+		output_headers(RESFMT_TABLE_CALCLEN);
+		for (i = 0; i < env.prog_stat_cnt; i++) {
+			stats = &env.prog_stats[i];
+			output_stats(stats, RESFMT_TABLE_CALCLEN, false);
+			last_stat_idx = i;
+		}
+	}
+
+	/* actually output the table */
+	output_headers(env.out_fmt);
+	for (i = 0; i < env.prog_stat_cnt; i++) {
+		stats = &env.prog_stats[i];
+		output_stats(stats, env.out_fmt, i == last_stat_idx);
+	}
+}
+
+static int handle_verif_mode(void)
+{
+	int i, err;
+
+	if (env.filename_cnt == 0) {
+		fprintf(stderr, "Please provide path to BPF object file!\n\n");
+		argp_help(&argp, stderr, ARGP_HELP_USAGE, "veristat");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < env.filename_cnt; i++) {
+		err = process_obj(env.filenames[i]);
+		if (err) {
+			fprintf(stderr, "Failed to process '%s': %d\n", env.filenames[i], err);
+			return err;
+		}
+	}
+
+	qsort(env.prog_stats, env.prog_stat_cnt, sizeof(*env.prog_stats), cmp_prog_stats);
+
+	output_prog_stats();
+
+	return 0;
+}
+
+static int handle_replay_mode(void)
+{
+	struct stat_specs specs = {};
+	int err;
+
+	if (env.filename_cnt != 1) {
+		fprintf(stderr, "Replay mode expects exactly one input CSV file!\n\n");
+		argp_help(&argp, stderr, ARGP_HELP_USAGE, "veristat");
+		return -EINVAL;
+	}
+
+	err = parse_stats_csv(env.filenames[0], &specs,
+			      &env.prog_stats, &env.prog_stat_cnt);
+	if (err) {
+		fprintf(stderr, "Failed to parse stats from '%s': %d\n", env.filenames[0], err);
+		return err;
+	}
+
+	qsort(env.prog_stats, env.prog_stat_cnt, sizeof(*env.prog_stats), cmp_prog_stats);
+
+	output_prog_stats();
+
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	int err = 0, i;
@@ -1315,7 +1357,7 @@ int main(int argc, char **argv)
 		return 1;
 
 	if (env.verbose && env.quiet) {
-		fprintf(stderr, "Verbose and quiet modes are incompatible, please specify just one or neither!\n");
+		fprintf(stderr, "Verbose and quiet modes are incompatible, please specify just one or neither!\n\n");
 		argp_help(&argp, stderr, ARGP_HELP_USAGE, "veristat");
 		return 1;
 	}
@@ -1327,8 +1369,16 @@ int main(int argc, char **argv)
 	if (env.sort_spec.spec_cnt == 0)
 		env.sort_spec = default_sort_spec;
 
+	if (env.comparison_mode && env.replay_mode) {
+		fprintf(stderr, "Can't specify replay and comparison mode at the same time!\n\n");
+		argp_help(&argp, stderr, ARGP_HELP_USAGE, "veristat");
+		return 1;
+	}
+
 	if (env.comparison_mode)
 		err = handle_comparison_mode();
+	else if (env.replay_mode)
+		err = handle_replay_mode();
 	else
 		err = handle_verif_mode();
 
