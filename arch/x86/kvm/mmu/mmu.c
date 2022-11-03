@@ -6841,6 +6841,7 @@ static int set_nx_huge_pages_recovery_param(const char *val, const struct kernel
 static void kvm_recover_nx_huge_pages(struct kvm *kvm)
 {
 	unsigned long nx_lpage_splits = kvm->stat.nx_lpage_splits;
+	struct kvm_memory_slot *slot;
 	int rcu_idx;
 	struct kvm_mmu_page *sp;
 	unsigned int ratio;
@@ -6875,7 +6876,21 @@ static void kvm_recover_nx_huge_pages(struct kvm *kvm)
 				      struct kvm_mmu_page,
 				      possible_nx_huge_page_link);
 		WARN_ON_ONCE(!sp->nx_huge_page_disallowed);
-		if (is_tdp_mmu_page(sp))
+		WARN_ON_ONCE(!sp->role.direct);
+
+		slot = gfn_to_memslot(kvm, sp->gfn);
+		WARN_ON_ONCE(!slot);
+
+		/*
+		 * Unaccount and do not attempt to recover any NX Huge Pages
+		 * that are being dirty tracked, as they would just be faulted
+		 * back in as 4KiB pages. The NX Huge Pages in this slot will be
+		 * recovered, along with all the other huge pages in the slot,
+		 * when dirty logging is disabled.
+		 */
+		if (slot && kvm_slot_dirty_track_enabled(slot))
+			unaccount_nx_huge_page(kvm, sp);
+		else if (is_tdp_mmu_page(sp))
 			flush |= kvm_tdp_mmu_zap_sp(kvm, sp);
 		else
 			kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list);
