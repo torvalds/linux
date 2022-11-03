@@ -561,10 +561,9 @@ static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
 				link_dec->stuff_cnt++;
 				if (link_dec->stuff_cnt >=
 				    link_dec->statistic_count) {
-					dev_info(
-						link_dec->dev, "hw cycle %u\n",
-						(u32)(link_dec->stuff_cycle_sum /
-						      link_dec->statistic_count));
+					dev_info(link_dec->dev, "hw cycle %u\n",
+						(u32)(div_u64(link_dec->task_cycle_sum,
+								link_dec->statistic_count)));
 					link_dec->stuff_cycle_sum = 0;
 					link_dec->stuff_cnt = 0;
 				}
@@ -618,8 +617,8 @@ static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
 			link_dec->task_cnt++;
 			if (link_dec->task_cnt >= link_dec->statistic_count) {
 				dev_info(link_dec->dev, "hw cycle %u\n",
-					 (u32)(link_dec->task_cycle_sum /
-					       link_dec->statistic_count));
+					 (u32)(div_u64(link_dec->task_cycle_sum,
+							link_dec->statistic_count)));
 				link_dec->task_cycle_sum = 0;
 				link_dec->task_cnt = 0;
 			}
