@@ -12,8 +12,8 @@
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
 
-#include "mana.h"
-#include "mana_auxiliary.h"
+#include <net/mana/mana.h>
+#include <net/mana/mana_auxiliary.h>
 
 static DEFINE_IDA(mana_adev_ida);
 

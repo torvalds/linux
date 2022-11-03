@@ -5,7 +5,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 
-#include "mana.h"
+#include <net/mana/mana.h>
 
 static const struct {
 	char name[ETH_GSTRING_LEN];
