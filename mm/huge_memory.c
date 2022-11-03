@@ -2142,7 +2142,6 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 
 		VM_BUG_ON_PAGE(!page_count(page), page);
 		page_ref_add(page, HPAGE_PMD_NR - 1);
-		atomic_add(HPAGE_PMD_NR, subpages_mapcount_ptr(page));
 
 		/*
 		 * Without "freeze", we'll simply split the PMD, propagating the
@@ -2222,7 +2221,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 		BUG_ON(!pte_none(*pte));
 		set_pte_at(mm, addr, pte, entry);
 		if (!pmd_migration)
-			atomic_inc(&page[i]._mapcount);
+			page_dup_compound_rmap(page + i, false);
 		pte_unmap(pte);
 	}
 

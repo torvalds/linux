@@ -1085,11 +1085,66 @@ int pfn_mkclean_range(unsigned long pfn, unsigned long nr_pages, pgoff_t pgoff,
 	return page_vma_mkclean_one(&pvmw);
 }
 
+struct compound_mapcounts {
+	unsigned int compound_mapcount;
+	unsigned int subpages_mapcount;
+};
+
+/*
+ * lock_compound_mapcounts() first locks, then copies subpages_mapcount and
+ * compound_mapcount from head[1].compound_mapcount and subpages_mapcount,
+ * converting from struct page's internal representation to logical count
+ * (that is, adding 1 to compound_mapcount to hide its offset by -1).
+ */
+static void lock_compound_mapcounts(struct page *head,
+		struct compound_mapcounts *local)
+{
+	bit_spin_lock(PG_locked, &head[1].flags);
+	local->compound_mapcount = atomic_read(compound_mapcount_ptr(head)) + 1;
+	local->subpages_mapcount = atomic_read(subpages_mapcount_ptr(head));
+}
+
+/*
+ * After caller has updated subpage._mapcount, local subpages_mapcount and
+ * local compound_mapcount, as necessary, unlock_compound_mapcounts() converts
+ * and copies them back to the compound head[1] fields, and then unlocks.
+ */
+static void unlock_compound_mapcounts(struct page *head,
+		struct compound_mapcounts *local)
+{
+	atomic_set(compound_mapcount_ptr(head), local->compound_mapcount - 1);
+	atomic_set(subpages_mapcount_ptr(head), local->subpages_mapcount);
+	bit_spin_unlock(PG_locked, &head[1].flags);
+}
+
+/*
+ * When acting on a compound page under lock_compound_mapcounts(), avoid the
+ * unnecessary overhead of an actual atomic operation on its subpage mapcount.
+ * Return true if this is the first increment or the last decrement
+ * (remembering that page->_mapcount -1 represents logical mapcount 0).
+ */
+static bool subpage_mapcount_inc(struct page *page)
+{
+	int orig_mapcount = atomic_read(&page->_mapcount);
+
+	atomic_set(&page->_mapcount, orig_mapcount + 1);
+	return orig_mapcount < 0;
+}
+
+static bool subpage_mapcount_dec(struct page *page)
+{
+	int orig_mapcount = atomic_read(&page->_mapcount);
+
+	atomic_set(&page->_mapcount, orig_mapcount - 1);
+	return orig_mapcount == 0;
+}
+
 /*
  * When mapping a THP's first pmd, or unmapping its last pmd, if that THP
  * also has pte mappings, then those must be discounted: in order to maintain
  * NR_ANON_MAPPED and NR_FILE_MAPPED statistics exactly, without any drift,
  * and to decide when an anon THP should be put on the deferred split queue.
+ * This function must be called between lock_ and unlock_compound_mapcounts().
  */
 static int nr_subpages_unmapped(struct page *head, int nr_subpages)
 {
@@ -1101,6 +1156,40 @@ static int nr_subpages_unmapped(struct page *head, int nr_subpages)
 		if (atomic_read(&head[i]._mapcount) >= 0)
 			nr--;
 	return nr;
+}
+
+/*
+ * page_dup_compound_rmap(), used when copying mm, or when splitting pmd,
+ * provides a simple example of using lock_ and unlock_compound_mapcounts().
+ */
+void page_dup_compound_rmap(struct page *page, bool compound)
+{
+	struct compound_mapcounts mapcounts;
+	struct page *head;
+
+	/*
+	 * Hugetlb pages could use lock_compound_mapcounts(), like THPs do;
+	 * but at present they are still being managed by atomic operations:
+	 * which are likely to be somewhat faster, so don't rush to convert
+	 * them over without evaluating the effect.
+	 *
+	 * Note that hugetlb does not call page_add_file_rmap():
+	 * here is where hugetlb shared page mapcount is raised.
+	 */
+	if (PageHuge(page)) {
+		atomic_inc(compound_mapcount_ptr(page));
+		return;
+	}
+
+	head = compound_head(page);
+	lock_compound_mapcounts(head, &mapcounts);
+	if (compound) {
+		mapcounts.compound_mapcount++;
+	} else {
+		mapcounts.subpages_mapcount++;
+		subpage_mapcount_inc(page);
+	}
+	unlock_compound_mapcounts(head, &mapcounts);
 }
 
 /**
@@ -1212,7 +1301,8 @@ static void __page_check_anon_rmap(struct page *page,
 void page_add_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address, rmap_t flags)
 {
-	int nr, nr_pages;
+	struct compound_mapcounts mapcounts;
+	int nr = 0, nr_pmdmapped = 0;
 	bool compound = flags & RMAP_COMPOUND;
 	bool first;
 
@@ -1222,33 +1312,37 @@ void page_add_anon_rmap(struct page *page,
 		VM_BUG_ON_PAGE(!PageLocked(page), page);
 
 	if (compound && PageTransHuge(page)) {
-		atomic_t *mapcount;
-		VM_BUG_ON_PAGE(!PageLocked(page), page);
-		mapcount = compound_mapcount_ptr(page);
-		first = atomic_inc_and_test(mapcount);
-
-		nr = nr_pages = thp_nr_pages(page);
-		if (first && head_subpages_mapcount(page))
-			nr = nr_subpages_unmapped(page, nr_pages);
-	} else {
-		nr = 1;
-		if (PageTransCompound(page)) {
-			struct page *head = compound_head(page);
-
-			atomic_inc(subpages_mapcount_ptr(head));
-			nr = !head_compound_mapcount(head);
+		lock_compound_mapcounts(page, &mapcounts);
+		first = !mapcounts.compound_mapcount;
+		mapcounts.compound_mapcount++;
+		if (first) {
+			nr = nr_pmdmapped = thp_nr_pages(page);
+			if (mapcounts.subpages_mapcount)
+				nr = nr_subpages_unmapped(page, nr_pmdmapped);
 		}
+		unlock_compound_mapcounts(page, &mapcounts);
+
+	} else if (PageCompound(page)) {
+		struct page *head = compound_head(page);
+
+		lock_compound_mapcounts(head, &mapcounts);
+		mapcounts.subpages_mapcount++;
+		first = subpage_mapcount_inc(page);
+		nr = first && !mapcounts.compound_mapcount;
+		unlock_compound_mapcounts(head, &mapcounts);
+
+	} else {
 		first = atomic_inc_and_test(&page->_mapcount);
+		nr = first;
 	}
 
 	VM_BUG_ON_PAGE(!first && (flags & RMAP_EXCLUSIVE), page);
 	VM_BUG_ON_PAGE(!first && PageAnonExclusive(page), page);
 
-	if (first) {
-		if (compound)
-			__mod_lruvec_page_state(page, NR_ANON_THPS, nr_pages);
+	if (nr_pmdmapped)
+		__mod_lruvec_page_state(page, NR_ANON_THPS, nr_pmdmapped);
+	if (nr)
 		__mod_lruvec_page_state(page, NR_ANON_MAPPED, nr);
-	}
 
 	if (unlikely(PageKsm(page)))
 		unlock_page_memcg(page);
@@ -1308,124 +1402,46 @@ void page_add_new_anon_rmap(struct page *page,
 void page_add_file_rmap(struct page *page,
 	struct vm_area_struct *vma, bool compound)
 {
-	int nr = 0;
+	struct compound_mapcounts mapcounts;
+	int nr = 0, nr_pmdmapped = 0;
+	bool first;
 
 	VM_BUG_ON_PAGE(compound && !PageTransHuge(page), page);
 	lock_page_memcg(page);
+
 	if (compound && PageTransHuge(page)) {
-		int nr_pages;
-
-		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
-			goto out;
-
-		nr = nr_pages = thp_nr_pages(page);
-		if (head_subpages_mapcount(page))
-			nr = nr_subpages_unmapped(page, nr_pages);
-
-		if (PageSwapBacked(page))
-			__mod_lruvec_page_state(page, NR_SHMEM_PMDMAPPED,
-						nr_pages);
-		else
-			__mod_lruvec_page_state(page, NR_FILE_PMDMAPPED,
-						nr_pages);
-	} else {
-		bool pmd_mapped = false;
-
-		if (PageTransCompound(page)) {
-			struct page *head = compound_head(page);
-
-			atomic_inc(subpages_mapcount_ptr(head));
-			pmd_mapped = head_compound_mapcount(head);
+		lock_compound_mapcounts(page, &mapcounts);
+		first = !mapcounts.compound_mapcount;
+		mapcounts.compound_mapcount++;
+		if (first) {
+			nr = nr_pmdmapped = thp_nr_pages(page);
+			if (mapcounts.subpages_mapcount)
+				nr = nr_subpages_unmapped(page, nr_pmdmapped);
 		}
-		if (atomic_inc_and_test(&page->_mapcount) && !pmd_mapped)
-			nr++;
+		unlock_compound_mapcounts(page, &mapcounts);
+
+	} else if (PageCompound(page)) {
+		struct page *head = compound_head(page);
+
+		lock_compound_mapcounts(head, &mapcounts);
+		mapcounts.subpages_mapcount++;
+		first = subpage_mapcount_inc(page);
+		nr = first && !mapcounts.compound_mapcount;
+		unlock_compound_mapcounts(head, &mapcounts);
+
+	} else {
+		first = atomic_inc_and_test(&page->_mapcount);
+		nr = first;
 	}
-out:
+
+	if (nr_pmdmapped)
+		__mod_lruvec_page_state(page, PageSwapBacked(page) ?
+			NR_SHMEM_PMDMAPPED : NR_FILE_PMDMAPPED, nr_pmdmapped);
 	if (nr)
 		__mod_lruvec_page_state(page, NR_FILE_MAPPED, nr);
 	unlock_page_memcg(page);
 
 	mlock_vma_page(page, vma, compound);
-}
-
-static void page_remove_file_rmap(struct page *page, bool compound)
-{
-	int nr = 0;
-
-	VM_BUG_ON_PAGE(compound && !PageHead(page), page);
-
-	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
-	if (unlikely(PageHuge(page))) {
-		/* hugetlb pages are always mapped with pmds */
-		atomic_dec(compound_mapcount_ptr(page));
-		return;
-	}
-
-	/* page still mapped by someone else? */
-	if (compound && PageTransHuge(page)) {
-		int nr_pages;
-
-		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
-			return;
-
-		nr = nr_pages = thp_nr_pages(page);
-		if (head_subpages_mapcount(page))
-			nr = nr_subpages_unmapped(page, nr_pages);
-
-		if (PageSwapBacked(page))
-			__mod_lruvec_page_state(page, NR_SHMEM_PMDMAPPED,
-						-nr_pages);
-		else
-			__mod_lruvec_page_state(page, NR_FILE_PMDMAPPED,
-						-nr_pages);
-	} else {
-		bool pmd_mapped = false;
-
-		if (PageTransCompound(page)) {
-			struct page *head = compound_head(page);
-
-			atomic_dec(subpages_mapcount_ptr(head));
-			pmd_mapped = head_compound_mapcount(head);
-		}
-		if (atomic_add_negative(-1, &page->_mapcount) && !pmd_mapped)
-			nr++;
-	}
-
-	if (nr)
-		__mod_lruvec_page_state(page, NR_FILE_MAPPED, -nr);
-}
-
-static void page_remove_anon_compound_rmap(struct page *page)
-{
-	int nr, nr_pages;
-
-	if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
-		return;
-
-	/* Hugepages are not counted in NR_ANON_PAGES for now. */
-	if (unlikely(PageHuge(page)))
-		return;
-
-	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))
-		return;
-
-	nr = nr_pages = thp_nr_pages(page);
-	__mod_lruvec_page_state(page, NR_ANON_THPS, -nr);
-
-	if (head_subpages_mapcount(page)) {
-		nr = nr_subpages_unmapped(page, nr_pages);
-
-		/*
-		 * Queue the page for deferred split if at least one small
-		 * page of the compound page is unmapped, but at least one
-		 * small page is still mapped.
-		 */
-		if (nr && nr < nr_pages)
-			deferred_split_huge_page(page);
-	}
-
-	if (nr)
-		__mod_lruvec_page_state(page, NR_ANON_MAPPED, -nr);
 }
 
 /**
@@ -1439,46 +1455,73 @@ static void page_remove_anon_compound_rmap(struct page *page)
 void page_remove_rmap(struct page *page,
 	struct vm_area_struct *vma, bool compound)
 {
-	bool pmd_mapped = false;
+	struct compound_mapcounts mapcounts;
+	int nr = 0, nr_pmdmapped = 0;
+	bool last;
+
+	VM_BUG_ON_PAGE(compound && !PageHead(page), page);
+
+	/* Hugetlb pages are not counted in NR_*MAPPED */
+	if (unlikely(PageHuge(page))) {
+		/* hugetlb pages are always mapped with pmds */
+		atomic_dec(compound_mapcount_ptr(page));
+		return;
+	}
 
 	lock_page_memcg(page);
 
-	if (!PageAnon(page)) {
-		page_remove_file_rmap(page, compound);
-		goto out;
-	}
+	/* page still mapped by someone else? */
+	if (compound && PageTransHuge(page)) {
+		lock_compound_mapcounts(page, &mapcounts);
+		mapcounts.compound_mapcount--;
+		last = !mapcounts.compound_mapcount;
+		if (last) {
+			nr = nr_pmdmapped = thp_nr_pages(page);
+			if (mapcounts.subpages_mapcount)
+				nr = nr_subpages_unmapped(page, nr_pmdmapped);
+		}
+		unlock_compound_mapcounts(page, &mapcounts);
 
-	if (compound) {
-		page_remove_anon_compound_rmap(page);
-		goto out;
-	}
-
-	if (PageTransCompound(page)) {
+	} else if (PageCompound(page)) {
 		struct page *head = compound_head(page);
 
-		atomic_dec(subpages_mapcount_ptr(head));
-		pmd_mapped = head_compound_mapcount(head);
+		lock_compound_mapcounts(head, &mapcounts);
+		mapcounts.subpages_mapcount--;
+		last = subpage_mapcount_dec(page);
+		nr = last && !mapcounts.compound_mapcount;
+		unlock_compound_mapcounts(head, &mapcounts);
+
+	} else {
+		last = atomic_add_negative(-1, &page->_mapcount);
+		nr = last;
 	}
 
-	/* page still mapped by someone else? */
-	if (!atomic_add_negative(-1, &page->_mapcount) || pmd_mapped)
-		goto out;
-
-	__dec_lruvec_page_state(page, NR_ANON_MAPPED);
-
-	if (PageTransCompound(page))
-		deferred_split_huge_page(compound_head(page));
+	if (nr_pmdmapped) {
+		__mod_lruvec_page_state(page, PageAnon(page) ? NR_ANON_THPS :
+				(PageSwapBacked(page) ? NR_SHMEM_PMDMAPPED :
+				NR_FILE_PMDMAPPED), -nr_pmdmapped);
+	}
+	if (nr) {
+		__mod_lruvec_page_state(page, PageAnon(page) ? NR_ANON_MAPPED :
+				NR_FILE_MAPPED, -nr);
+		/*
+		 * Queue anon THP for deferred split if at least one small
+		 * page of the compound page is unmapped, but at least one
+		 * small page is still mapped.
+		 */
+		if (PageTransCompound(page) && PageAnon(page))
+			if (!compound || nr < nr_pmdmapped)
+				deferred_split_huge_page(compound_head(page));
+	}
 
 	/*
-	 * It would be tidy to reset the PageAnon mapping here,
+	 * It would be tidy to reset PageAnon mapping when fully unmapped,
 	 * but that might overwrite a racing page_add_anon_rmap
 	 * which increments mapcount after us but sets mapping
-	 * before us: so leave the reset to free_unref_page,
+	 * before us: so leave the reset to free_pages_prepare,
 	 * and remember that it's only reliable while mapped.
-	 * Leaving it set also helps swapoff to reinstate ptes
-	 * faster for those pages still in swapcache.
 	 */
-out:
+
 	unlock_page_memcg(page);
 
 	munlock_vma_page(page, vma, compound);

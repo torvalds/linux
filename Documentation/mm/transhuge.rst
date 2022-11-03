@@ -117,13 +117,15 @@ pages:
   - ->_refcount in tail pages is always zero: get_page_unless_zero() never
     succeeds on tail pages.
 
-  - map/unmap of the pages with PTE entry increment/decrement ->_mapcount
-    on relevant sub-page of the compound page.
+  - map/unmap of PMD entry for the whole compound page increment/decrement
+    ->compound_mapcount, stored in the first tail page of the compound page.
 
-  - map/unmap of the whole compound page is accounted for in compound_mapcount
-    (stored in first tail page). For file huge pages, we also increment
-    ->_mapcount of all sub-pages in order to have race-free detection of
-    last unmap of subpages.
+  - map/unmap of sub-pages with PTE entry increment/decrement ->_mapcount
+    on relevant sub-page of the compound page, and also increment/decrement
+    ->subpages_mapcount, stored in first tail page of the compound page.
+    In order to have race-free accounting of sub-pages mapped, changes to
+    sub-page ->_mapcount, ->subpages_mapcount and ->compound_mapcount are
+    are all locked by bit_spin_lock of PG_locked in the first tail ->flags.
 
 split_huge_page internally has to distribute the refcounts in the head
 page to the tail pages before clearing all PG_head/tail bits from the page
