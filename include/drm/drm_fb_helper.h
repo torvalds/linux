@@ -257,6 +257,11 @@ void drm_fb_helper_sys_copyarea(struct fb_info *info,
 void drm_fb_helper_sys_imageblit(struct fb_info *info,
 				 const struct fb_image *image);
 
+ssize_t drm_fb_helper_cfb_read(struct fb_info *info, char __user *buf,
+			       size_t count, loff_t *ppos);
+ssize_t drm_fb_helper_cfb_write(struct fb_info *info, const char __user *buf,
+				size_t count, loff_t *ppos);
+
 void drm_fb_helper_cfb_fillrect(struct fb_info *info,
 				const struct fb_fillrect *rect);
 void drm_fb_helper_cfb_copyarea(struct fb_info *info,
@@ -400,6 +405,18 @@ static inline void drm_fb_helper_sys_copyarea(struct fb_info *info,
 static inline void drm_fb_helper_sys_imageblit(struct fb_info *info,
 					       const struct fb_image *image)
 {
+}
+
+static inline ssize_t drm_fb_helper_cfb_read(struct fb_info *info, char __user *buf,
+					     size_t count, loff_t *ppos)
+{
+	return -ENODEV;
+}
+
+static inline ssize_t drm_fb_helper_cfb_write(struct fb_info *info, const char __user *buf,
+					      size_t count, loff_t *ppos)
+{
+	return -ENODEV;
 }
 
 static inline void drm_fb_helper_cfb_fillrect(struct fb_info *info,
