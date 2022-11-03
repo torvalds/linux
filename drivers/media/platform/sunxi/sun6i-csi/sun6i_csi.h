@@ -78,15 +78,6 @@ bool sun6i_csi_is_format_supported(struct sun6i_csi_device *csi_dev,
 				   u32 pixformat, u32 mbus_code);
 
 /**
- * sun6i_csi_set_power() - power on/off the csi
- * @csi_dev:	pointer to the csi device
- * @enable:	on/off
- *
- * Return: 0 if successful, error code otherwise.
- */
-int sun6i_csi_set_power(struct sun6i_csi_device *csi_dev, bool enable);
-
-/**
  * sun6i_csi_update_config() - update the csi register settings
  * @csi_dev:	pointer to the csi device
  * @config:	see struct sun6i_csi_config
