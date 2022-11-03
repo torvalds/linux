@@ -1368,6 +1368,7 @@
 		#size-cells = <0>;
 
 		ethernet@1 {
+			compatible = "usb955,9ff";
 			reg = <1>;
 		};
 	};
