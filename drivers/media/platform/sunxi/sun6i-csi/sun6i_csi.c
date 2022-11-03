@@ -155,7 +155,8 @@ int sun6i_csi_set_power(struct sun6i_csi_device *csi_dev, bool enable)
 	int ret;
 
 	if (!enable) {
-		regmap_update_bits(regmap, CSI_EN_REG, CSI_EN_CSI_EN, 0);
+		regmap_update_bits(regmap, SUN6I_CSI_EN_REG,
+				   SUN6I_CSI_EN_CSI_EN, 0);
 		pm_runtime_put(dev);
 
 		return 0;
@@ -165,7 +166,8 @@ int sun6i_csi_set_power(struct sun6i_csi_device *csi_dev, bool enable)
 	if (ret < 0)
 		return ret;
 
-	regmap_update_bits(regmap, CSI_EN_REG, CSI_EN_CSI_EN, CSI_EN_CSI_EN);
+	regmap_update_bits(regmap, SUN6I_CSI_EN_REG, SUN6I_CSI_EN_CSI_EN,
+			   SUN6I_CSI_EN_CSI_EN);
 
 	return 0;
 }
@@ -334,7 +336,7 @@ static void sun6i_csi_setup_bus(struct sun6i_csi_device *csi_dev)
 	struct sun6i_csi_config *config = &csi_dev->config;
 	unsigned char bus_width;
 	u32 flags;
-	u32 cfg;
+	u32 cfg = 0;
 	bool input_interlaced = false;
 
 	if (config->field == V4L2_FIELD_INTERLACED
@@ -344,52 +346,63 @@ static void sun6i_csi_setup_bus(struct sun6i_csi_device *csi_dev)
 
 	bus_width = endpoint->bus.parallel.bus_width;
 
-	regmap_read(csi_dev->regmap, CSI_IF_CFG_REG, &cfg);
-
-	cfg &= ~(CSI_IF_CFG_CSI_IF_MASK | CSI_IF_CFG_MIPI_IF_MASK |
-		 CSI_IF_CFG_IF_DATA_WIDTH_MASK |
-		 CSI_IF_CFG_CLK_POL_MASK | CSI_IF_CFG_VREF_POL_MASK |
-		 CSI_IF_CFG_HREF_POL_MASK | CSI_IF_CFG_FIELD_MASK |
-		 CSI_IF_CFG_SRC_TYPE_MASK);
-
 	if (input_interlaced)
-		cfg |= CSI_IF_CFG_SRC_TYPE_INTERLACED;
+		cfg |= SUN6I_CSI_IF_CFG_SRC_TYPE_INTERLACED |
+		       SUN6I_CSI_IF_CFG_FIELD_DT_PCLK_SHIFT(1) |
+		       SUN6I_CSI_IF_CFG_FIELD_DT_FIELD_VSYNC;
 	else
-		cfg |= CSI_IF_CFG_SRC_TYPE_PROGRESSED;
+		cfg |= SUN6I_CSI_IF_CFG_SRC_TYPE_PROGRESSIVE;
 
 	switch (endpoint->bus_type) {
 	case V4L2_MBUS_PARALLEL:
-		cfg |= CSI_IF_CFG_MIPI_IF_CSI;
+		cfg |= SUN6I_CSI_IF_CFG_IF_CSI;
 
 		flags = endpoint->bus.parallel.flags;
 
-		cfg |= (bus_width == 16) ? CSI_IF_CFG_CSI_IF_YUV422_16BIT :
-					   CSI_IF_CFG_CSI_IF_YUV422_INTLV;
+		if (bus_width == 16)
+			cfg |= SUN6I_CSI_IF_CFG_IF_CSI_YUV_COMBINED;
+		else
+			cfg |= SUN6I_CSI_IF_CFG_IF_CSI_YUV_RAW;
 
 		if (flags & V4L2_MBUS_FIELD_EVEN_LOW)
-			cfg |= CSI_IF_CFG_FIELD_POSITIVE;
+			cfg |= SUN6I_CSI_IF_CFG_FIELD_NEGATIVE;
+		else
+			cfg |= SUN6I_CSI_IF_CFG_FIELD_POSITIVE;
 
 		if (flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
-			cfg |= CSI_IF_CFG_VREF_POL_POSITIVE;
+			cfg |= SUN6I_CSI_IF_CFG_VREF_POL_NEGATIVE;
+		else
+			cfg |= SUN6I_CSI_IF_CFG_VREF_POL_POSITIVE;
+
 		if (flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
-			cfg |= CSI_IF_CFG_HREF_POL_POSITIVE;
+			cfg |= SUN6I_CSI_IF_CFG_HREF_POL_NEGATIVE;
+		else
+			cfg |= SUN6I_CSI_IF_CFG_HREF_POL_POSITIVE;
 
 		if (flags & V4L2_MBUS_PCLK_SAMPLE_RISING)
-			cfg |= CSI_IF_CFG_CLK_POL_FALLING_EDGE;
+			cfg |= SUN6I_CSI_IF_CFG_CLK_POL_RISING;
+		else
+			cfg |= SUN6I_CSI_IF_CFG_CLK_POL_FALLING;
 		break;
 	case V4L2_MBUS_BT656:
-		cfg |= CSI_IF_CFG_MIPI_IF_CSI;
+		cfg |= SUN6I_CSI_IF_CFG_IF_CSI;
 
 		flags = endpoint->bus.parallel.flags;
 
-		cfg |= (bus_width == 16) ? CSI_IF_CFG_CSI_IF_BT1120 :
-					   CSI_IF_CFG_CSI_IF_BT656;
+		if (bus_width == 16)
+			cfg |= SUN6I_CSI_IF_CFG_IF_CSI_BT1120;
+		else
+			cfg |= SUN6I_CSI_IF_CFG_IF_CSI_BT656;
 
 		if (flags & V4L2_MBUS_FIELD_EVEN_LOW)
-			cfg |= CSI_IF_CFG_FIELD_POSITIVE;
+			cfg |= SUN6I_CSI_IF_CFG_FIELD_NEGATIVE;
+		else
+			cfg |= SUN6I_CSI_IF_CFG_FIELD_POSITIVE;
 
 		if (flags & V4L2_MBUS_PCLK_SAMPLE_FALLING)
-			cfg |= CSI_IF_CFG_CLK_POL_FALLING_EDGE;
+			cfg |= SUN6I_CSI_IF_CFG_CLK_POL_RISING;
+		else
+			cfg |= SUN6I_CSI_IF_CFG_CLK_POL_FALLING;
 		break;
 	default:
 		dev_warn(csi_dev->dev, "Unsupported bus type: %d\n",
@@ -399,13 +412,13 @@ static void sun6i_csi_setup_bus(struct sun6i_csi_device *csi_dev)
 
 	switch (bus_width) {
 	case 8:
-		cfg |= CSI_IF_CFG_IF_DATA_WIDTH_8BIT;
+		cfg |= SUN6I_CSI_IF_CFG_DATA_WIDTH_8;
 		break;
 	case 10:
-		cfg |= CSI_IF_CFG_IF_DATA_WIDTH_10BIT;
+		cfg |= SUN6I_CSI_IF_CFG_DATA_WIDTH_10;
 		break;
 	case 12:
-		cfg |= CSI_IF_CFG_IF_DATA_WIDTH_12BIT;
+		cfg |= SUN6I_CSI_IF_CFG_DATA_WIDTH_12;
 		break;
 	case 16: /* No need to configure DATA_WIDTH for 16bit */
 		break;
@@ -414,42 +427,35 @@ static void sun6i_csi_setup_bus(struct sun6i_csi_device *csi_dev)
 		break;
 	}
 
-	regmap_write(csi_dev->regmap, CSI_IF_CFG_REG, cfg);
+	regmap_write(csi_dev->regmap, SUN6I_CSI_IF_CFG_REG, cfg);
 }
 
 static void sun6i_csi_set_format(struct sun6i_csi_device *csi_dev)
 {
 	struct sun6i_csi_config *config = &csi_dev->config;
-	u32 cfg;
+	u32 cfg = 0;
 	u32 val;
-
-	regmap_read(csi_dev->regmap, CSI_CH_CFG_REG, &cfg);
-
-	cfg &= ~(CSI_CH_CFG_INPUT_FMT_MASK |
-		 CSI_CH_CFG_OUTPUT_FMT_MASK | CSI_CH_CFG_VFLIP_EN |
-		 CSI_CH_CFG_HFLIP_EN | CSI_CH_CFG_FIELD_SEL_MASK |
-		 CSI_CH_CFG_INPUT_SEQ_MASK);
 
 	val = get_csi_input_format(csi_dev, config->code,
 				   config->pixelformat);
-	cfg |= CSI_CH_CFG_INPUT_FMT(val);
+	cfg |= SUN6I_CSI_CH_CFG_INPUT_FMT(val);
 
 	val = get_csi_output_format(csi_dev, config->pixelformat,
 				    config->field);
-	cfg |= CSI_CH_CFG_OUTPUT_FMT(val);
+	cfg |= SUN6I_CSI_CH_CFG_OUTPUT_FMT(val);
 
 	val = get_csi_input_seq(csi_dev, config->code,
 				config->pixelformat);
-	cfg |= CSI_CH_CFG_INPUT_SEQ(val);
+	cfg |= SUN6I_CSI_CH_CFG_INPUT_YUV_SEQ(val);
 
 	if (config->field == V4L2_FIELD_TOP)
-		cfg |= CSI_CH_CFG_FIELD_SEL_FIELD0;
+		cfg |= SUN6I_CSI_CH_CFG_FIELD_SEL_FIELD0;
 	else if (config->field == V4L2_FIELD_BOTTOM)
-		cfg |= CSI_CH_CFG_FIELD_SEL_FIELD1;
+		cfg |= SUN6I_CSI_CH_CFG_FIELD_SEL_FIELD1;
 	else
-		cfg |= CSI_CH_CFG_FIELD_SEL_BOTH;
+		cfg |= SUN6I_CSI_CH_CFG_FIELD_SEL_EITHER;
 
-	regmap_write(csi_dev->regmap, CSI_CH_CFG_REG, cfg);
+	regmap_write(csi_dev->regmap, SUN6I_CSI_CH_CFG_REG, cfg);
 }
 
 static void sun6i_csi_set_window(struct sun6i_csi_device *csi_dev)
@@ -475,12 +481,12 @@ static void sun6i_csi_set_window(struct sun6i_csi_device *csi_dev)
 		break;
 	}
 
-	regmap_write(csi_dev->regmap, CSI_CH_HSIZE_REG,
-		     CSI_CH_HSIZE_HOR_LEN(hor_len) |
-		     CSI_CH_HSIZE_HOR_START(0));
-	regmap_write(csi_dev->regmap, CSI_CH_VSIZE_REG,
-		     CSI_CH_VSIZE_VER_LEN(height) |
-		     CSI_CH_VSIZE_VER_START(0));
+	regmap_write(csi_dev->regmap, SUN6I_CSI_CH_HSIZE_REG,
+		     SUN6I_CSI_CH_HSIZE_LEN(hor_len) |
+		     SUN6I_CSI_CH_HSIZE_START(0));
+	regmap_write(csi_dev->regmap, SUN6I_CSI_CH_VSIZE_REG,
+		     SUN6I_CSI_CH_VSIZE_LEN(height) |
+		     SUN6I_CSI_CH_VSIZE_START(0));
 
 	planar_offset[0] = 0;
 	switch (config->pixelformat) {
@@ -521,9 +527,9 @@ static void sun6i_csi_set_window(struct sun6i_csi_device *csi_dev)
 		break;
 	}
 
-	regmap_write(csi_dev->regmap, CSI_CH_BUF_LEN_REG,
-		     CSI_CH_BUF_LEN_BUF_LEN_C(bytesperline_c) |
-		     CSI_CH_BUF_LEN_BUF_LEN_Y(bytesperline_y));
+	regmap_write(csi_dev->regmap, SUN6I_CSI_CH_BUF_LEN_REG,
+		     SUN6I_CSI_CH_BUF_LEN_CHROMA_LINE(bytesperline_c) |
+		     SUN6I_CSI_CH_BUF_LEN_LUMA_LINE(bytesperline_y));
 }
 
 int sun6i_csi_update_config(struct sun6i_csi_device *csi_dev,
@@ -544,14 +550,16 @@ int sun6i_csi_update_config(struct sun6i_csi_device *csi_dev,
 void sun6i_csi_update_buf_addr(struct sun6i_csi_device *csi_dev,
 			       dma_addr_t addr)
 {
-	regmap_write(csi_dev->regmap, CSI_CH_F0_BUFA_REG,
-		     (addr + csi_dev->planar_offset[0]) >> 2);
+	regmap_write(csi_dev->regmap, SUN6I_CSI_CH_FIFO0_ADDR_REG,
+		     SUN6I_CSI_ADDR_VALUE(addr + csi_dev->planar_offset[0]));
 	if (csi_dev->planar_offset[1] != -1)
-		regmap_write(csi_dev->regmap, CSI_CH_F1_BUFA_REG,
-			     (addr + csi_dev->planar_offset[1]) >> 2);
+		regmap_write(csi_dev->regmap, SUN6I_CSI_CH_FIFO1_ADDR_REG,
+			     SUN6I_CSI_ADDR_VALUE(addr +
+						  csi_dev->planar_offset[1]));
 	if (csi_dev->planar_offset[2] != -1)
-		regmap_write(csi_dev->regmap, CSI_CH_F2_BUFA_REG,
-			     (addr + csi_dev->planar_offset[2]) >> 2);
+		regmap_write(csi_dev->regmap, SUN6I_CSI_CH_FIFO2_ADDR_REG,
+			     SUN6I_CSI_ADDR_VALUE(addr +
+						  csi_dev->planar_offset[2]));
 }
 
 void sun6i_csi_set_stream(struct sun6i_csi_device *csi_dev, bool enable)
@@ -559,23 +567,25 @@ void sun6i_csi_set_stream(struct sun6i_csi_device *csi_dev, bool enable)
 	struct regmap *regmap = csi_dev->regmap;
 
 	if (!enable) {
-		regmap_update_bits(regmap, CSI_CAP_REG, CSI_CAP_CH0_VCAP_ON, 0);
-		regmap_write(regmap, CSI_CH_INT_EN_REG, 0);
+		regmap_update_bits(regmap, SUN6I_CSI_CAP_REG,
+				   SUN6I_CSI_CAP_VCAP_ON, 0);
+		regmap_write(regmap, SUN6I_CSI_CH_INT_EN_REG, 0);
 		return;
 	}
 
-	regmap_write(regmap, CSI_CH_INT_STA_REG, 0xFF);
-	regmap_write(regmap, CSI_CH_INT_EN_REG,
-		     CSI_CH_INT_EN_VS_INT_EN |
-		     CSI_CH_INT_EN_HB_OF_INT_EN |
-		     CSI_CH_INT_EN_FIFO2_OF_INT_EN |
-		     CSI_CH_INT_EN_FIFO1_OF_INT_EN |
-		     CSI_CH_INT_EN_FIFO0_OF_INT_EN |
-		     CSI_CH_INT_EN_FD_INT_EN |
-		     CSI_CH_INT_EN_CD_INT_EN);
+	regmap_write(regmap, SUN6I_CSI_CH_INT_STA_REG,
+		     SUN6I_CSI_CH_INT_STA_CLEAR);
+	regmap_write(regmap, SUN6I_CSI_CH_INT_EN_REG,
+		     SUN6I_CSI_CH_INT_EN_VS |
+		     SUN6I_CSI_CH_INT_EN_HB_OF |
+		     SUN6I_CSI_CH_INT_EN_FIFO2_OF |
+		     SUN6I_CSI_CH_INT_EN_FIFO1_OF |
+		     SUN6I_CSI_CH_INT_EN_FIFO0_OF |
+		     SUN6I_CSI_CH_INT_EN_FD |
+		     SUN6I_CSI_CH_INT_EN_CD);
 
-	regmap_update_bits(regmap, CSI_CAP_REG, CSI_CAP_CH0_VCAP_ON,
-			   CSI_CAP_CH0_VCAP_ON);
+	regmap_update_bits(regmap, SUN6I_CSI_CAP_REG, SUN6I_CSI_CAP_VCAP_ON,
+			   SUN6I_CSI_CAP_VCAP_ON);
 }
 
 /* Media */
@@ -646,29 +656,31 @@ static irqreturn_t sun6i_csi_interrupt(int irq, void *private)
 	struct regmap *regmap = csi_dev->regmap;
 	u32 status;
 
-	regmap_read(regmap, CSI_CH_INT_STA_REG, &status);
+	regmap_read(regmap, SUN6I_CSI_CH_INT_STA_REG, &status);
 
 	if (!(status & 0xFF))
 		return IRQ_NONE;
 
-	if ((status & CSI_CH_INT_STA_FIFO0_OF_PD) ||
-	    (status & CSI_CH_INT_STA_FIFO1_OF_PD) ||
-	    (status & CSI_CH_INT_STA_FIFO2_OF_PD) ||
-	    (status & CSI_CH_INT_STA_HB_OF_PD)) {
-		regmap_write(regmap, CSI_CH_INT_STA_REG, status);
-		regmap_update_bits(regmap, CSI_EN_REG, CSI_EN_CSI_EN, 0);
-		regmap_update_bits(regmap, CSI_EN_REG, CSI_EN_CSI_EN,
-				   CSI_EN_CSI_EN);
+	if ((status & SUN6I_CSI_CH_INT_STA_FIFO0_OF) ||
+	    (status & SUN6I_CSI_CH_INT_STA_FIFO1_OF) ||
+	    (status & SUN6I_CSI_CH_INT_STA_FIFO2_OF) ||
+	    (status & SUN6I_CSI_CH_INT_STA_HB_OF)) {
+		regmap_write(regmap, SUN6I_CSI_CH_INT_STA_REG, status);
+
+		regmap_update_bits(regmap, SUN6I_CSI_EN_REG,
+				   SUN6I_CSI_EN_CSI_EN, 0);
+		regmap_update_bits(regmap, SUN6I_CSI_EN_REG,
+				   SUN6I_CSI_EN_CSI_EN, SUN6I_CSI_EN_CSI_EN);
 		return IRQ_HANDLED;
 	}
 
-	if (status & CSI_CH_INT_STA_FD_PD)
+	if (status & SUN6I_CSI_CH_INT_STA_FD)
 		sun6i_csi_capture_frame_done(csi_dev);
 
-	if (status & CSI_CH_INT_STA_VS_PD)
+	if (status & SUN6I_CSI_CH_INT_STA_VS)
 		sun6i_csi_capture_sync(csi_dev);
 
-	regmap_write(regmap, CSI_CH_INT_STA_REG, status);
+	regmap_write(regmap, SUN6I_CSI_CH_INT_STA_REG, status);
 
 	return IRQ_HANDLED;
 }
