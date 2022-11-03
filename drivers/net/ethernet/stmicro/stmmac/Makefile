@@ -27,6 +27,7 @@ obj-$(CONFIG_DWMAC_QCOM_ETHQOS)	+= dwmac-qcom-ethqos.o
 obj-$(CONFIG_DWMAC_ROCKCHIP)	+= dwmac-rockchip.o
 dwmac-rockchip-objs := dwmac-rk.o
 dwmac-rockchip-$(CONFIG_DWMAC_ROCKCHIP_TOOL) += dwmac-rk-tool.o
+obj-$(CONFIG_STMMAC_UIO) += stmmac_uio.o
 obj-$(CONFIG_DWMAC_SOCFPGA)	+= dwmac-altr-socfpga.o
 obj-$(CONFIG_DWMAC_STI)		+= dwmac-sti.o
 obj-$(CONFIG_DWMAC_STM32)	+= dwmac-stm32.o

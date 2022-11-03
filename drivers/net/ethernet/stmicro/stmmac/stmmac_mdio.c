@@ -396,6 +396,7 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 #endif
 	return 0;
 }
+EXPORT_SYMBOL(stmmac_mdio_reset);
 
 /**
  * stmmac_mdio_register

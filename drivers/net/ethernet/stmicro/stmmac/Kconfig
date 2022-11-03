@@ -25,6 +25,13 @@ config STMMAC_SELFTESTS
 	  feature if you are facing problems with your HW and submit the test
 	  results to the netdev Mailing List.
 
+config STMMAC_UIO
+	tristate "STMMAC_UIO ethernet controller"
+	default n
+	select UIO
+	help
+	  Say M here if you want to use the stmmac_uio.ko for DPDK.
+
 config STMMAC_ETHTOOL
 	bool "Ethtool feature for STMMAC"
 	default STMMAC_ETH if !ROCKCHIP_MINI_KERNEL

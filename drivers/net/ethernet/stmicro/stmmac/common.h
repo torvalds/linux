@@ -48,10 +48,18 @@
  */
 #define DMA_MIN_TX_SIZE		64
 #define DMA_MAX_TX_SIZE		1024
+#if IS_ENABLED(CONFIG_STMMAC_UIO)
+#define DMA_DEFAULT_TX_SIZE	1024
+#else
 #define DMA_DEFAULT_TX_SIZE	512
+#endif
 #define DMA_MIN_RX_SIZE		64
 #define DMA_MAX_RX_SIZE		1024
+#if IS_ENABLED(CONFIG_STMMAC_UIO)
+#define DMA_DEFAULT_RX_SIZE	1024
+#else
 #define DMA_DEFAULT_RX_SIZE	512
+#endif
 #define STMMAC_GET_ENTRY(x, size)	((x + 1) & (size - 1))
 
 #undef FRAME_FILTER_DEBUG
