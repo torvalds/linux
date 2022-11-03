@@ -26,6 +26,10 @@ struct efx_tc_match_fields {
 	/* L1 */
 	u32 ingress_port;
 	u8 recirc_id;
+	/* L2 (inner when encap) */
+	__be16 eth_proto;
+	__be16 vlan_tci[2], vlan_proto[2];
+	u8 eth_saddr[ETH_ALEN], eth_daddr[ETH_ALEN];
 };
 
 struct efx_tc_match {
