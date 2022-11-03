@@ -2246,6 +2246,9 @@ static ssize_t drm_fbdev_fb_read(struct fb_info *info, char __user *buf,
 	if (total_size - count < pos)
 		count = total_size - pos;
 
+	if (info->fbops->fb_sync)
+		info->fbops->fb_sync(info);
+
 	if (drm_fbdev_use_iomem(info))
 		ret = fb_read_screen_base(info, buf, count, pos);
 	else
@@ -2326,6 +2329,9 @@ static ssize_t drm_fbdev_fb_write(struct fb_info *info, const char __user *buf,
 			err = -ENOSPC;
 		count = total_size - pos;
 	}
+
+	if (info->fbops->fb_sync)
+		info->fbops->fb_sync(info);
 
 	/*
 	 * Copy to framebuffer even if we already logged an error. Emulates
