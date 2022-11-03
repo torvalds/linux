@@ -38,6 +38,7 @@ struct efx_tc_match_fields {
 #ifdef CONFIG_IPV6
 	struct in6_addr src_ip6, dst_ip6;
 #endif
+	bool ip_frag, ip_firstfrag;
 };
 
 struct efx_tc_match {

@@ -263,6 +263,18 @@ static int efx_mae_match_check_cap_typ(u8 support, enum mask_type typ)
 				       mask_type_name(typ), #_field);	       \
 	rc;								       \
 })
+/* Booleans need special handling */
+#define CHECK_BIT(_mcdi, _field)	({				       \
+	enum mask_type typ = mask->_field ? MASK_ONES : MASK_ZEROES;	       \
+									       \
+	rc = efx_mae_match_check_cap_typ(supported_fields[MAE_FIELD_ ## _mcdi],\
+					 typ);				       \
+	if (rc)								       \
+		NL_SET_ERR_MSG_FMT_MOD(extack,				       \
+				       "No support for %s mask in field %s",   \
+				       mask_type_name(typ), #_field);	       \
+	rc;								       \
+})
 
 int efx_mae_match_check_caps(struct efx_nic *efx,
 			     const struct efx_tc_match_fields *mask,
@@ -299,10 +311,13 @@ int efx_mae_match_check_caps(struct efx_nic *efx,
 	    CHECK(SRC_IP6, src_ip6) ||
 	    CHECK(DST_IP6, dst_ip6) ||
 #endif
+	    CHECK_BIT(IS_IP_FRAG, ip_frag) ||
+	    CHECK_BIT(IP_FIRST_FRAG, ip_firstfrag) ||
 	    CHECK(RECIRC_ID, recirc_id))
 		return rc;
 	return 0;
 }
+#undef CHECK_BIT
 #undef CHECK
 
 static bool efx_mae_asl_id(u32 id)
@@ -472,6 +487,16 @@ static int efx_mae_populate_match_criteria(MCDI_DECLARE_STRUCT_PTR(match_crit),
 	}
 	MCDI_STRUCT_SET_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_INGRESS_MPORT_SELECTOR_MASK,
 			      match->mask.ingress_port);
+	EFX_POPULATE_DWORD_2(*_MCDI_STRUCT_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_FLAGS),
+			     MAE_FIELD_MASK_VALUE_PAIRS_V2_IS_IP_FRAG,
+			     match->value.ip_frag,
+			     MAE_FIELD_MASK_VALUE_PAIRS_V2_IP_FIRST_FRAG,
+			     match->value.ip_firstfrag);
+	EFX_POPULATE_DWORD_2(*_MCDI_STRUCT_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_FLAGS_MASK),
+			     MAE_FIELD_MASK_VALUE_PAIRS_V2_IS_IP_FRAG,
+			     match->mask.ip_frag,
+			     MAE_FIELD_MASK_VALUE_PAIRS_V2_IP_FIRST_FRAG,
+			     match->mask.ip_firstfrag);
 	MCDI_STRUCT_SET_BYTE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_RECIRC_ID,
 			     match->value.recirc_id);
 	MCDI_STRUCT_SET_BYTE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_RECIRC_ID_MASK,

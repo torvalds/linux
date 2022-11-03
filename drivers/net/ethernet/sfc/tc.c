@@ -168,7 +168,15 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 				break;
 			}
 
-		if (fm.mask->flags) {
+		if (fm.mask->flags & FLOW_DIS_IS_FRAGMENT) {
+			match->value.ip_frag = fm.key->flags & FLOW_DIS_IS_FRAGMENT;
+			match->mask.ip_frag = true;
+		}
+		if (fm.mask->flags & FLOW_DIS_FIRST_FRAG) {
+			match->value.ip_firstfrag = fm.key->flags & FLOW_DIS_FIRST_FRAG;
+			match->mask.ip_firstfrag = true;
+		}
+		if (fm.mask->flags & ~(FLOW_DIS_IS_FRAGMENT | FLOW_DIS_FIRST_FRAG)) {
 			NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported match on control.flags %#x",
 					       fm.mask->flags);
 			return -EOPNOTSUPP;
