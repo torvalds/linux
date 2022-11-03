@@ -447,6 +447,14 @@ int hyp_assign_table(struct sg_table *table,
 
 	/* Save stacktrace & hyp_assign parameters */
 	track = alloc_debug_tracking(dest_vmids, dest_perms, dest_nelems);
+#if IS_ENABLED(CONFIG_HYP_ASSIGN_DEBUG)
+	if (!track) {
+		ret = -ENOMEM;
+		dma_unmap_single(qcom_secure_buffer_dev, dest_dma_addr,
+				 dest_vm_copy_size, DMA_TO_DEVICE);
+		goto out_free_dest;
+	}
+#endif /* CONFIG_HYP_ASSIGN_DEBUG */
 
 	trace_hyp_assign_info(source_vm_list, source_nelems, dest_vmids,
 			      dest_perms, dest_nelems);
