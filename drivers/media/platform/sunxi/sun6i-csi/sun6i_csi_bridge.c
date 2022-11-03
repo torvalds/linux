@@ -226,7 +226,7 @@ static void sun6i_csi_bridge_disable(struct sun6i_csi_device *csi_dev)
 }
 
 static void
-sun6i_csi_bridge_configure_interface(struct sun6i_csi_device *csi_dev)
+sun6i_csi_bridge_configure_parallel(struct sun6i_csi_device *csi_dev)
 {
 	struct device *dev = csi_dev->dev;
 	struct regmap *regmap = csi_dev->regmap;
@@ -316,6 +316,25 @@ sun6i_csi_bridge_configure_interface(struct sun6i_csi_device *csi_dev)
 	regmap_write(regmap, SUN6I_CSI_IF_CFG_REG, value);
 }
 
+static void
+sun6i_csi_bridge_configure_mipi_csi2(struct sun6i_csi_device *csi_dev)
+{
+	struct regmap *regmap = csi_dev->regmap;
+	u32 value = SUN6I_CSI_IF_CFG_IF_MIPI;
+	u32 field;
+
+	sun6i_csi_bridge_format(csi_dev, NULL, &field);
+
+	if (field == V4L2_FIELD_INTERLACED ||
+	    field == V4L2_FIELD_INTERLACED_TB ||
+	    field == V4L2_FIELD_INTERLACED_BT)
+		value |= SUN6I_CSI_IF_CFG_SRC_TYPE_INTERLACED;
+	else
+		value |= SUN6I_CSI_IF_CFG_SRC_TYPE_PROGRESSIVE;
+
+	regmap_write(regmap, SUN6I_CSI_IF_CFG_REG, value);
+}
+
 static void sun6i_csi_bridge_configure_format(struct sun6i_csi_device *csi_dev)
 {
 	struct regmap *regmap = csi_dev->regmap;
@@ -367,9 +386,16 @@ static void sun6i_csi_bridge_configure_format(struct sun6i_csi_device *csi_dev)
 	regmap_write(regmap, SUN6I_CSI_CH_CFG_REG, value);
 }
 
-static void sun6i_csi_bridge_configure(struct sun6i_csi_device *csi_dev)
+static void sun6i_csi_bridge_configure(struct sun6i_csi_device *csi_dev,
+				       struct sun6i_csi_bridge_source *source)
 {
-	sun6i_csi_bridge_configure_interface(csi_dev);
+	struct sun6i_csi_bridge *bridge = &csi_dev->bridge;
+
+	if (source == &bridge->source_parallel)
+		sun6i_csi_bridge_configure_parallel(csi_dev);
+	else
+		sun6i_csi_bridge_configure_mipi_csi2(csi_dev);
+
 	sun6i_csi_bridge_configure_format(csi_dev);
 }
 
@@ -381,6 +407,7 @@ static int sun6i_csi_bridge_s_stream(struct v4l2_subdev *subdev, int on)
 	struct sun6i_csi_bridge *bridge = &csi_dev->bridge;
 	struct media_pad *local_pad = &bridge->pads[SUN6I_CSI_BRIDGE_PAD_SINK];
 	struct device *dev = csi_dev->dev;
+	struct sun6i_csi_bridge_source *source;
 	struct v4l2_subdev *source_subdev;
 	struct media_pad *remote_pad;
 	/* Initialize to 0 to use both in disable label (ret != 0) and off. */
@@ -396,6 +423,11 @@ static int sun6i_csi_bridge_s_stream(struct v4l2_subdev *subdev, int on)
 	}
 
 	source_subdev = media_entity_to_v4l2_subdev(remote_pad->entity);
+
+	if (source_subdev == bridge->source_parallel.subdev)
+		source = &bridge->source_parallel;
+	else
+		source = &bridge->source_mipi_csi2;
 
 	if (!on) {
 		v4l2_subdev_call(source_subdev, video, s_stream, 0);
@@ -414,7 +446,7 @@ static int sun6i_csi_bridge_s_stream(struct v4l2_subdev *subdev, int on)
 
 	/* Configure */
 
-	sun6i_csi_bridge_configure(csi_dev);
+	sun6i_csi_bridge_configure(csi_dev, source);
 	sun6i_csi_capture_configure(csi_dev);
 
 	/* State Update */
@@ -606,12 +638,16 @@ sun6i_csi_bridge_notifier_bound(struct v4l2_async_notifier *notifier,
 	struct sun6i_csi_bridge_async_subdev *bridge_async_subdev =
 		container_of(async_subdev, struct sun6i_csi_bridge_async_subdev,
 			     async_subdev);
+	struct sun6i_csi_bridge *bridge = &csi_dev->bridge;
 	struct sun6i_csi_bridge_source *source = bridge_async_subdev->source;
 	bool enabled;
 
 	switch (source->endpoint.base.port) {
 	case SUN6I_CSI_PORT_PARALLEL:
 		enabled = true;
+		break;
+	case SUN6I_CSI_PORT_MIPI_CSI2:
+		enabled = !bridge->source_parallel.expected;
 		break;
 	default:
 		break;
@@ -759,6 +795,8 @@ int sun6i_csi_bridge_setup(struct sun6i_csi_device *csi_dev)
 	sun6i_csi_bridge_source_setup(csi_dev, &bridge->source_parallel,
 				      SUN6I_CSI_PORT_PARALLEL,
 				      parallel_mbus_types);
+	sun6i_csi_bridge_source_setup(csi_dev, &bridge->source_mipi_csi2,
+				      SUN6I_CSI_PORT_MIPI_CSI2, NULL);
 
 	ret = v4l2_async_nf_register(v4l2_dev, notifier);
 	if (ret) {
