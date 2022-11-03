@@ -378,6 +378,11 @@ patternProperties:
             adi,sensor-type:
               const: 26
         then:
+          properties:
+            adi,excitation-current-nanoamp:
+              enum: [250, 500, 1000, 5000, 10000, 25000, 50000, 100000,
+                     250000, 500000, 1000000]
+              default: 1000
           required:
             - adi,custom-steinhart
       - if:
@@ -385,6 +390,11 @@ patternProperties:
             adi,sensor-type:
               const: 27
         then:
+          properties:
+            adi,excitation-current-nanoamp:
+              enum: [250, 500, 1000, 5000, 10000, 25000, 50000, 100000,
+                     250000, 500000, 1000000]
+              default: 1000
           required:
             - adi,custom-thermistor
 
