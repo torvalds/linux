@@ -39,8 +39,7 @@ properties:
           - const: mclk
 
   clock-output-names:
-    items:
-      - const: fsgen
+    maxItems: 1
 
   power-domains:
     maxItems: 2
