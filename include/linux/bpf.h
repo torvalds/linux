@@ -166,13 +166,13 @@ struct bpf_map_ops {
 
 enum {
 	/* Support at most 8 pointers in a BTF type */
-	BTF_FIELDS_MAX	      = 8,
-	BPF_MAP_OFF_ARR_MAX   = BTF_FIELDS_MAX +
-				1 + /* for bpf_spin_lock */
-				1,  /* for bpf_timer */
+	BTF_FIELDS_MAX	      = 10,
+	BPF_MAP_OFF_ARR_MAX   = BTF_FIELDS_MAX,
 };
 
 enum btf_field_type {
+	BPF_SPIN_LOCK  = (1 << 0),
+	BPF_TIMER      = (1 << 1),
 	BPF_KPTR_UNREF = (1 << 2),
 	BPF_KPTR_REF   = (1 << 3),
 	BPF_KPTR       = BPF_KPTR_UNREF | BPF_KPTR_REF,
@@ -196,6 +196,8 @@ struct btf_field {
 struct btf_record {
 	u32 cnt;
 	u32 field_mask;
+	int spin_lock_off;
+	int timer_off;
 	struct btf_field fields[];
 };
 
@@ -220,10 +222,8 @@ struct bpf_map {
 	u32 max_entries;
 	u64 map_extra; /* any per-map-type extra fields */
 	u32 map_flags;
-	int spin_lock_off; /* >=0 valid offset, <0 error */
-	struct btf_record *record;
-	int timer_off; /* >=0 valid offset, <0 error */
 	u32 id;
+	struct btf_record *record;
 	int numa_node;
 	u32 btf_key_type_id;
 	u32 btf_value_type_id;
@@ -257,9 +257,29 @@ struct bpf_map {
 	bool frozen; /* write-once; write-protected by freeze_mutex */
 };
 
+static inline const char *btf_field_type_name(enum btf_field_type type)
+{
+	switch (type) {
+	case BPF_SPIN_LOCK:
+		return "bpf_spin_lock";
+	case BPF_TIMER:
+		return "bpf_timer";
+	case BPF_KPTR_UNREF:
+	case BPF_KPTR_REF:
+		return "kptr";
+	default:
+		WARN_ON_ONCE(1);
+		return "unknown";
+	}
+}
+
 static inline u32 btf_field_type_size(enum btf_field_type type)
 {
 	switch (type) {
+	case BPF_SPIN_LOCK:
+		return sizeof(struct bpf_spin_lock);
+	case BPF_TIMER:
+		return sizeof(struct bpf_timer);
 	case BPF_KPTR_UNREF:
 	case BPF_KPTR_REF:
 		return sizeof(u64);
@@ -272,6 +292,10 @@ static inline u32 btf_field_type_size(enum btf_field_type type)
 static inline u32 btf_field_type_align(enum btf_field_type type)
 {
 	switch (type) {
+	case BPF_SPIN_LOCK:
+		return __alignof__(struct bpf_spin_lock);
+	case BPF_TIMER:
+		return __alignof__(struct bpf_timer);
 	case BPF_KPTR_UNREF:
 	case BPF_KPTR_REF:
 		return __alignof__(u64);
@@ -288,22 +312,8 @@ static inline bool btf_record_has_field(const struct btf_record *rec, enum btf_f
 	return rec->field_mask & type;
 }
 
-static inline bool map_value_has_spin_lock(const struct bpf_map *map)
-{
-	return map->spin_lock_off >= 0;
-}
-
-static inline bool map_value_has_timer(const struct bpf_map *map)
-{
-	return map->timer_off >= 0;
-}
-
 static inline void check_and_init_map_value(struct bpf_map *map, void *dst)
 {
-	if (unlikely(map_value_has_spin_lock(map)))
-		memset(dst + map->spin_lock_off, 0, sizeof(struct bpf_spin_lock));
-	if (unlikely(map_value_has_timer(map)))
-		memset(dst + map->timer_off, 0, sizeof(struct bpf_timer));
 	if (!IS_ERR_OR_NULL(map->record)) {
 		struct btf_field *fields = map->record->fields;
 		u32 cnt = map->record->cnt;
@@ -1740,6 +1750,7 @@ void btf_record_free(struct btf_record *rec);
 void bpf_map_free_record(struct bpf_map *map);
 struct btf_record *btf_record_dup(const struct btf_record *rec);
 bool btf_record_equal(const struct btf_record *rec_a, const struct btf_record *rec_b);
+void bpf_obj_free_timer(const struct btf_record *rec, void *obj);
 void bpf_obj_free_fields(const struct btf_record *rec, void *obj);
 
 struct bpf_map *bpf_map_get(u32 ufd);

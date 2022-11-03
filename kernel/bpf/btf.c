@@ -3205,16 +3205,20 @@ enum {
 struct btf_field_info {
 	enum btf_field_type type;
 	u32 off;
-	u32 type_id;
+	struct {
+		u32 type_id;
+	} kptr;
 };
 
 static int btf_find_struct(const struct btf *btf, const struct btf_type *t,
-			   u32 off, int sz, struct btf_field_info *info)
+			   u32 off, int sz, enum btf_field_type field_type,
+			   struct btf_field_info *info)
 {
 	if (!__btf_type_is_struct(t))
 		return BTF_FIELD_IGNORE;
 	if (t->size != sz)
 		return BTF_FIELD_IGNORE;
+	info->type = field_type;
 	info->off = off;
 	return BTF_FIELD_FOUND;
 }
@@ -3251,28 +3255,66 @@ static int btf_find_kptr(const struct btf *btf, const struct btf_type *t,
 	if (!__btf_type_is_struct(t))
 		return -EINVAL;
 
-	info->type_id = res_id;
-	info->off = off;
 	info->type = type;
+	info->off = off;
+	info->kptr.type_id = res_id;
 	return BTF_FIELD_FOUND;
 }
 
-static int btf_find_struct_field(const struct btf *btf, const struct btf_type *t,
-				 const char *name, int sz, int align,
-				 enum btf_field_info_type field_type,
+static int btf_get_field_type(const char *name, u32 field_mask, u32 *seen_mask,
+			      int *align, int *sz)
+{
+	int type = 0;
+
+	if (field_mask & BPF_SPIN_LOCK) {
+		if (!strcmp(name, "bpf_spin_lock")) {
+			if (*seen_mask & BPF_SPIN_LOCK)
+				return -E2BIG;
+			*seen_mask |= BPF_SPIN_LOCK;
+			type = BPF_SPIN_LOCK;
+			goto end;
+		}
+	}
+	if (field_mask & BPF_TIMER) {
+		if (!strcmp(name, "bpf_timer")) {
+			if (*seen_mask & BPF_TIMER)
+				return -E2BIG;
+			*seen_mask |= BPF_TIMER;
+			type = BPF_TIMER;
+			goto end;
+		}
+	}
+	/* Only return BPF_KPTR when all other types with matchable names fail */
+	if (field_mask & BPF_KPTR) {
+		type = BPF_KPTR_REF;
+		goto end;
+	}
+	return 0;
+end:
+	*sz = btf_field_type_size(type);
+	*align = btf_field_type_align(type);
+	return type;
+}
+
+static int btf_find_struct_field(const struct btf *btf,
+				 const struct btf_type *t, u32 field_mask,
 				 struct btf_field_info *info, int info_cnt)
 {
+	int ret, idx = 0, align, sz, field_type;
 	const struct btf_member *member;
 	struct btf_field_info tmp;
-	int ret, idx = 0;
-	u32 i, off;
+	u32 i, off, seen_mask = 0;
 
 	for_each_member(i, t, member) {
 		const struct btf_type *member_type = btf_type_by_id(btf,
 								    member->type);
 
-		if (name && strcmp(__btf_name_by_offset(btf, member_type->name_off), name))
+		field_type = btf_get_field_type(__btf_name_by_offset(btf, member_type->name_off),
+						field_mask, &seen_mask, &align, &sz);
+		if (field_type == 0)
 			continue;
+		if (field_type < 0)
+			return field_type;
 
 		off = __btf_member_bit_offset(t, member);
 		if (off % 8)
@@ -3280,17 +3322,18 @@ static int btf_find_struct_field(const struct btf *btf, const struct btf_type *t
 			return -EINVAL;
 		off /= 8;
 		if (off % align)
-			return -EINVAL;
+			continue;
 
 		switch (field_type) {
-		case BTF_FIELD_SPIN_LOCK:
-		case BTF_FIELD_TIMER:
-			ret = btf_find_struct(btf, member_type, off, sz,
+		case BPF_SPIN_LOCK:
+		case BPF_TIMER:
+			ret = btf_find_struct(btf, member_type, off, sz, field_type,
 					      idx < info_cnt ? &info[idx] : &tmp);
 			if (ret < 0)
 				return ret;
 			break;
-		case BTF_FIELD_KPTR:
+		case BPF_KPTR_UNREF:
+		case BPF_KPTR_REF:
 			ret = btf_find_kptr(btf, member_type, off, sz,
 					    idx < info_cnt ? &info[idx] : &tmp);
 			if (ret < 0)
@@ -3310,37 +3353,41 @@ static int btf_find_struct_field(const struct btf *btf, const struct btf_type *t
 }
 
 static int btf_find_datasec_var(const struct btf *btf, const struct btf_type *t,
-				const char *name, int sz, int align,
-				enum btf_field_info_type field_type,
-				struct btf_field_info *info, int info_cnt)
+				u32 field_mask, struct btf_field_info *info,
+				int info_cnt)
 {
+	int ret, idx = 0, align, sz, field_type;
 	const struct btf_var_secinfo *vsi;
 	struct btf_field_info tmp;
-	int ret, idx = 0;
-	u32 i, off;
+	u32 i, off, seen_mask = 0;
 
 	for_each_vsi(i, t, vsi) {
 		const struct btf_type *var = btf_type_by_id(btf, vsi->type);
 		const struct btf_type *var_type = btf_type_by_id(btf, var->type);
 
-		off = vsi->offset;
-
-		if (name && strcmp(__btf_name_by_offset(btf, var_type->name_off), name))
+		field_type = btf_get_field_type(__btf_name_by_offset(btf, var_type->name_off),
+						field_mask, &seen_mask, &align, &sz);
+		if (field_type == 0)
 			continue;
+		if (field_type < 0)
+			return field_type;
+
+		off = vsi->offset;
 		if (vsi->size != sz)
 			continue;
 		if (off % align)
-			return -EINVAL;
+			continue;
 
 		switch (field_type) {
-		case BTF_FIELD_SPIN_LOCK:
-		case BTF_FIELD_TIMER:
-			ret = btf_find_struct(btf, var_type, off, sz,
+		case BPF_SPIN_LOCK:
+		case BPF_TIMER:
+			ret = btf_find_struct(btf, var_type, off, sz, field_type,
 					      idx < info_cnt ? &info[idx] : &tmp);
 			if (ret < 0)
 				return ret;
 			break;
-		case BTF_FIELD_KPTR:
+		case BPF_KPTR_UNREF:
+		case BPF_KPTR_REF:
 			ret = btf_find_kptr(btf, var_type, off, sz,
 					    idx < info_cnt ? &info[idx] : &tmp);
 			if (ret < 0)
@@ -3360,78 +3407,98 @@ static int btf_find_datasec_var(const struct btf *btf, const struct btf_type *t,
 }
 
 static int btf_find_field(const struct btf *btf, const struct btf_type *t,
-			  enum btf_field_info_type field_type,
-			  struct btf_field_info *info, int info_cnt)
+			  u32 field_mask, struct btf_field_info *info,
+			  int info_cnt)
 {
-	const char *name;
-	int sz, align;
-
-	switch (field_type) {
-	case BTF_FIELD_SPIN_LOCK:
-		name = "bpf_spin_lock";
-		sz = sizeof(struct bpf_spin_lock);
-		align = __alignof__(struct bpf_spin_lock);
-		break;
-	case BTF_FIELD_TIMER:
-		name = "bpf_timer";
-		sz = sizeof(struct bpf_timer);
-		align = __alignof__(struct bpf_timer);
-		break;
-	case BTF_FIELD_KPTR:
-		name = NULL;
-		sz = sizeof(u64);
-		align = 8;
-		break;
-	default:
-		return -EFAULT;
-	}
-
 	if (__btf_type_is_struct(t))
-		return btf_find_struct_field(btf, t, name, sz, align, field_type, info, info_cnt);
+		return btf_find_struct_field(btf, t, field_mask, info, info_cnt);
 	else if (btf_type_is_datasec(t))
-		return btf_find_datasec_var(btf, t, name, sz, align, field_type, info, info_cnt);
+		return btf_find_datasec_var(btf, t, field_mask, info, info_cnt);
 	return -EINVAL;
 }
 
-/* find 'struct bpf_spin_lock' in map value.
- * return >= 0 offset if found
- * and < 0 in case of error
- */
-int btf_find_spin_lock(const struct btf *btf, const struct btf_type *t)
+static int btf_parse_kptr(const struct btf *btf, struct btf_field *field,
+			  struct btf_field_info *info)
 {
-	struct btf_field_info info;
+	struct module *mod = NULL;
+	const struct btf_type *t;
+	struct btf *kernel_btf;
 	int ret;
+	s32 id;
 
-	ret = btf_find_field(btf, t, BTF_FIELD_SPIN_LOCK, &info, 1);
-	if (ret < 0)
-		return ret;
-	if (!ret)
-		return -ENOENT;
-	return info.off;
+	/* Find type in map BTF, and use it to look up the matching type
+	 * in vmlinux or module BTFs, by name and kind.
+	 */
+	t = btf_type_by_id(btf, info->kptr.type_id);
+	id = bpf_find_btf_id(__btf_name_by_offset(btf, t->name_off), BTF_INFO_KIND(t->info),
+			     &kernel_btf);
+	if (id < 0)
+		return id;
+
+	/* Find and stash the function pointer for the destruction function that
+	 * needs to be eventually invoked from the map free path.
+	 */
+	if (info->type == BPF_KPTR_REF) {
+		const struct btf_type *dtor_func;
+		const char *dtor_func_name;
+		unsigned long addr;
+		s32 dtor_btf_id;
+
+		/* This call also serves as a whitelist of allowed objects that
+		 * can be used as a referenced pointer and be stored in a map at
+		 * the same time.
+		 */
+		dtor_btf_id = btf_find_dtor_kfunc(kernel_btf, id);
+		if (dtor_btf_id < 0) {
+			ret = dtor_btf_id;
+			goto end_btf;
+		}
+
+		dtor_func = btf_type_by_id(kernel_btf, dtor_btf_id);
+		if (!dtor_func) {
+			ret = -ENOENT;
+			goto end_btf;
+		}
+
+		if (btf_is_module(kernel_btf)) {
+			mod = btf_try_get_module(kernel_btf);
+			if (!mod) {
+				ret = -ENXIO;
+				goto end_btf;
+			}
+		}
+
+		/* We already verified dtor_func to be btf_type_is_func
+		 * in register_btf_id_dtor_kfuncs.
+		 */
+		dtor_func_name = __btf_name_by_offset(kernel_btf, dtor_func->name_off);
+		addr = kallsyms_lookup_name(dtor_func_name);
+		if (!addr) {
+			ret = -EINVAL;
+			goto end_mod;
+		}
+		field->kptr.dtor = (void *)addr;
+	}
+
+	field->kptr.btf_id = id;
+	field->kptr.btf = kernel_btf;
+	field->kptr.module = mod;
+	return 0;
+end_mod:
+	module_put(mod);
+end_btf:
+	btf_put(kernel_btf);
+	return ret;
 }
 
-int btf_find_timer(const struct btf *btf, const struct btf_type *t)
-{
-	struct btf_field_info info;
-	int ret;
-
-	ret = btf_find_field(btf, t, BTF_FIELD_TIMER, &info, 1);
-	if (ret < 0)
-		return ret;
-	if (!ret)
-		return -ENOENT;
-	return info.off;
-}
-
-struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type *t)
+struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type *t,
+				    u32 field_mask, u32 value_size)
 {
 	struct btf_field_info info_arr[BTF_FIELDS_MAX];
-	struct btf *kernel_btf = NULL;
-	struct module *mod = NULL;
 	struct btf_record *rec;
 	int ret, i, cnt;
 
-	ret = btf_find_field(btf, t, BTF_FIELD_KPTR, info_arr, ARRAY_SIZE(info_arr));
+	ret = btf_find_field(btf, t, field_mask, info_arr, ARRAY_SIZE(info_arr));
 	if (ret < 0)
 		return ERR_PTR(ret);
 	if (!ret)
@@ -3441,80 +3508,44 @@ struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type
 	rec = kzalloc(offsetof(struct btf_record, fields[cnt]), GFP_KERNEL | __GFP_NOWARN);
 	if (!rec)
 		return ERR_PTR(-ENOMEM);
-	rec->cnt = 0;
+
+	rec->spin_lock_off = -EINVAL;
+	rec->timer_off = -EINVAL;
 	for (i = 0; i < cnt; i++) {
-		const struct btf_type *t;
-		s32 id;
-
-		/* Find type in map BTF, and use it to look up the matching type
-		 * in vmlinux or module BTFs, by name and kind.
-		 */
-		t = btf_type_by_id(btf, info_arr[i].type_id);
-		id = bpf_find_btf_id(__btf_name_by_offset(btf, t->name_off), BTF_INFO_KIND(t->info),
-				     &kernel_btf);
-		if (id < 0) {
-			ret = id;
+		if (info_arr[i].off + btf_field_type_size(info_arr[i].type) > value_size) {
+			WARN_ONCE(1, "verifier bug off %d size %d", info_arr[i].off, value_size);
+			ret = -EFAULT;
 			goto end;
-		}
-
-		/* Find and stash the function pointer for the destruction function that
-		 * needs to be eventually invoked from the map free path.
-		 */
-		if (info_arr[i].type == BPF_KPTR_REF) {
-			const struct btf_type *dtor_func;
-			const char *dtor_func_name;
-			unsigned long addr;
-			s32 dtor_btf_id;
-
-			/* This call also serves as a whitelist of allowed objects that
-			 * can be used as a referenced pointer and be stored in a map at
-			 * the same time.
-			 */
-			dtor_btf_id = btf_find_dtor_kfunc(kernel_btf, id);
-			if (dtor_btf_id < 0) {
-				ret = dtor_btf_id;
-				goto end_btf;
-			}
-
-			dtor_func = btf_type_by_id(kernel_btf, dtor_btf_id);
-			if (!dtor_func) {
-				ret = -ENOENT;
-				goto end_btf;
-			}
-
-			if (btf_is_module(kernel_btf)) {
-				mod = btf_try_get_module(kernel_btf);
-				if (!mod) {
-					ret = -ENXIO;
-					goto end_btf;
-				}
-			}
-
-			/* We already verified dtor_func to be btf_type_is_func
-			 * in register_btf_id_dtor_kfuncs.
-			 */
-			dtor_func_name = __btf_name_by_offset(kernel_btf, dtor_func->name_off);
-			addr = kallsyms_lookup_name(dtor_func_name);
-			if (!addr) {
-				ret = -EINVAL;
-				goto end_mod;
-			}
-			rec->fields[i].kptr.dtor = (void *)addr;
 		}
 
 		rec->field_mask |= info_arr[i].type;
 		rec->fields[i].offset = info_arr[i].off;
 		rec->fields[i].type = info_arr[i].type;
-		rec->fields[i].kptr.btf_id = id;
-		rec->fields[i].kptr.btf = kernel_btf;
-		rec->fields[i].kptr.module = mod;
+
+		switch (info_arr[i].type) {
+		case BPF_SPIN_LOCK:
+			WARN_ON_ONCE(rec->spin_lock_off >= 0);
+			/* Cache offset for faster lookup at runtime */
+			rec->spin_lock_off = rec->fields[i].offset;
+			break;
+		case BPF_TIMER:
+			WARN_ON_ONCE(rec->timer_off >= 0);
+			/* Cache offset for faster lookup at runtime */
+			rec->timer_off = rec->fields[i].offset;
+			break;
+		case BPF_KPTR_UNREF:
+		case BPF_KPTR_REF:
+			ret = btf_parse_kptr(btf, &rec->fields[i], &info_arr[i]);
+			if (ret < 0)
+				goto end;
+			break;
+		default:
+			ret = -EFAULT;
+			goto end;
+		}
 		rec->cnt++;
 	}
 	return rec;
-end_mod:
-	module_put(mod);
-end_btf:
-	btf_put(kernel_btf);
 end:
 	btf_record_free(rec);
 	return ERR_PTR(ret);
