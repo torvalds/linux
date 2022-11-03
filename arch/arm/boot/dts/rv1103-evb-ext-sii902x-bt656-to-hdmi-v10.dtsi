@@ -28,9 +28,9 @@
 			enable-gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
 			/*
 			 * MEDIA_BUS_FMT_YUYV8_1X16 for bt1120
-			 * MEDIA_BUS_FMT_YUYV8_2X8  for bt656
+			 * MEDIA_BUS_FMT_UYVY8_2X8  for bt656
 			 */
-			bus-format = <MEDIA_BUS_FMT_YUYV8_2X8>;
+			bus-format = <MEDIA_BUS_FMT_UYVY8_2X8>;
 
 			ports {
 			#address-cells = <1>;
