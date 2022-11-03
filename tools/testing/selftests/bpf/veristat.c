@@ -41,6 +41,15 @@ struct verif_stats {
 	long stats[NUM_STATS_CNT];
 };
 
+/* joined comparison mode stats */
+struct verif_stats_join {
+	char *file_name;
+	char *prog_name;
+
+	const struct verif_stats *stats_a;
+	const struct verif_stats *stats_b;
+};
+
 struct stat_specs {
 	int spec_cnt;
 	enum stat_id ids[ALL_STATS_CNT];
@@ -96,6 +105,9 @@ static struct env {
 	/* baseline_stats is allocated and used only in comparsion mode */
 	struct verif_stats *baseline_stats;
 	int baseline_stat_cnt;
+
+	struct verif_stats_join *join_stats;
+	int join_stat_cnt;
 
 	struct stat_specs output_spec;
 	struct stat_specs sort_spec;
@@ -511,6 +523,15 @@ static const struct stat_specs default_csv_output_spec = {
 };
 
 static const struct stat_specs default_sort_spec = {
+	.spec_cnt = 2,
+	.ids = {
+		FILE_NAME, PROG_NAME,
+	},
+	.asc = { true, true, },
+};
+
+/* sorting for comparison mode to join two data sets */
+static const struct stat_specs join_sort_spec = {
 	.spec_cnt = 2,
 	.ids = {
 		FILE_NAME, PROG_NAME,
@@ -934,13 +955,16 @@ static void prepare_value(const struct verif_stats *s, enum stat_id id,
 {
 	switch (id) {
 	case FILE_NAME:
-		*str = s->file_name;
+		*str = s ? s->file_name : "N/A";
 		break;
 	case PROG_NAME:
-		*str = s->prog_name;
+		*str = s ? s->prog_name : "N/A";
 		break;
 	case VERDICT:
-		*str = s->stats[VERDICT] ? "success" : "failure";
+		if (!s)
+			*str = "N/A";
+		else
+			*str = s->stats[VERDICT] ? "success" : "failure";
 		break;
 	case DURATION:
 	case TOTAL_INSNS:
@@ -948,7 +972,7 @@ static void prepare_value(const struct verif_stats *s, enum stat_id id,
 	case PEAK_STATES:
 	case MAX_STATES_PER_INSN:
 	case MARK_READ_MAX_LEN:
-		*val = s->stats[id];
+		*val = s ? s->stats[id] : 0;
 		break;
 	default:
 		fprintf(stderr, "Unrecognized stat #%d\n", id);
@@ -1223,9 +1247,11 @@ static void output_comp_headers(enum resfmt fmt)
 		output_comp_header_underlines();
 }
 
-static void output_comp_stats(const struct verif_stats *base, const struct verif_stats *comp,
+static void output_comp_stats(const struct verif_stats_join *join_stats,
 			      enum resfmt fmt, bool last)
 {
+	const struct verif_stats *base = join_stats->stats_a;
+	const struct verif_stats *comp = join_stats->stats_b;
 	char base_buf[1024] = {}, comp_buf[1024] = {}, diff_buf[1024] = {};
 	int i;
 
@@ -1243,33 +1269,45 @@ static void output_comp_stats(const struct verif_stats *base, const struct verif
 		/* normalize all the outputs to be in string buffers for simplicity */
 		if (is_key_stat(id)) {
 			/* key stats (file and program name) are always strings */
-			if (base != &fallback_stats)
+			if (base)
 				snprintf(base_buf, sizeof(base_buf), "%s", base_str);
 			else
 				snprintf(base_buf, sizeof(base_buf), "%s", comp_str);
 		} else if (base_str) {
 			snprintf(base_buf, sizeof(base_buf), "%s", base_str);
 			snprintf(comp_buf, sizeof(comp_buf), "%s", comp_str);
-			if (strcmp(base_str, comp_str) == 0)
+			if (!base || !comp)
+				snprintf(diff_buf, sizeof(diff_buf), "%s", "N/A");
+			else if (strcmp(base_str, comp_str) == 0)
 				snprintf(diff_buf, sizeof(diff_buf), "%s", "MATCH");
 			else
 				snprintf(diff_buf, sizeof(diff_buf), "%s", "MISMATCH");
 		} else {
 			double p = 0.0;
 
-			snprintf(base_buf, sizeof(base_buf), "%ld", base_val);
-			snprintf(comp_buf, sizeof(comp_buf), "%ld", comp_val);
+			if (base)
+				snprintf(base_buf, sizeof(base_buf), "%ld", base_val);
+			else
+				snprintf(base_buf, sizeof(base_buf), "%s", "N/A");
+			if (comp)
+				snprintf(comp_buf, sizeof(comp_buf), "%ld", comp_val);
+			else
+				snprintf(comp_buf, sizeof(comp_buf), "%s", "N/A");
 
 			diff_val = comp_val - base_val;
-			if (base == &fallback_stats || comp == &fallback_stats || base_val == 0) {
-				if (comp_val == base_val)
-					p = 0.0; /* avoid +0 (+100%) case */
-				else
-					p = comp_val < base_val ? -100.0 : 100.0;
+			if (!base || !comp) {
+				snprintf(diff_buf, sizeof(diff_buf), "%s", "N/A");
 			} else {
-				 p = diff_val * 100.0 / base_val;
+				if (base_val == 0) {
+					if (comp_val == base_val)
+						p = 0.0; /* avoid +0 (+100%) case */
+					else
+						p = comp_val < base_val ? -100.0 : 100.0;
+				} else {
+					 p = diff_val * 100.0 / base_val;
+				}
+				snprintf(diff_buf, sizeof(diff_buf), "%+ld (%+.2lf%%)", diff_val, p);
 			}
-			snprintf(diff_buf, sizeof(diff_buf), "%+ld (%+.2lf%%)", diff_val, p);
 		}
 
 		switch (fmt) {
@@ -1328,6 +1366,7 @@ static int cmp_stats_key(const struct verif_stats *base, const struct verif_stat
 static int handle_comparison_mode(void)
 {
 	struct stat_specs base_specs = {}, comp_specs = {};
+	struct stat_specs tmp_sort_spec;
 	enum resfmt cur_fmt;
 	int err, i, j;
 
@@ -1370,31 +1409,26 @@ static int handle_comparison_mode(void)
 		}
 	}
 
+	/* Replace user-specified sorting spec with file+prog sorting rule to
+	 * be able to join two datasets correctly. Once we are done, we will
+	 * restore the original sort spec.
+	 */
+	tmp_sort_spec = env.sort_spec;
+	env.sort_spec = join_sort_spec;
 	qsort(env.prog_stats, env.prog_stat_cnt, sizeof(*env.prog_stats), cmp_prog_stats);
 	qsort(env.baseline_stats, env.baseline_stat_cnt, sizeof(*env.baseline_stats), cmp_prog_stats);
+	env.sort_spec = tmp_sort_spec;
 
-	/* for human-readable table output we need to do extra pass to
-	 * calculate column widths, so we substitute current output format
-	 * with RESFMT_TABLE_CALCLEN and later revert it back to RESFMT_TABLE
-	 * and do everything again.
-	 */
-	if (env.out_fmt == RESFMT_TABLE)
-		cur_fmt = RESFMT_TABLE_CALCLEN;
-	else
-		cur_fmt = env.out_fmt;
-
-one_more_time:
-	output_comp_headers(cur_fmt);
-
-	/* If baseline and comparison datasets have different subset of rows
-	 * (we match by 'object + prog' as a unique key) then assume
-	 * empty/missing/zero value for rows that are missing in the opposite
-	 * data set
+	/* Join two datasets together. If baseline and comparison datasets
+	 * have different subset of rows (we match by 'object + prog' as
+	 * a unique key) then assume empty/missing/zero value for rows that
+	 * are missing in the opposite data set.
 	 */
 	i = j = 0;
 	while (i < env.baseline_stat_cnt || j < env.prog_stat_cnt) {
-		bool last = (i == env.baseline_stat_cnt - 1) || (j == env.prog_stat_cnt - 1);
 		const struct verif_stats *base, *comp;
+		struct verif_stats_join *join;
+		void *tmp;
 		int r;
 
 		base = i < env.baseline_stat_cnt ? &env.baseline_stats[i] : &fallback_stats;
@@ -1411,18 +1445,56 @@ one_more_time:
 			return -EINVAL;
 		}
 
+		tmp = realloc(env.join_stats, (env.join_stat_cnt + 1) * sizeof(*env.join_stats));
+		if (!tmp)
+			return -ENOMEM;
+		env.join_stats = tmp;
+
+		join = &env.join_stats[env.join_stat_cnt];
+		memset(join, 0, sizeof(*join));
+
 		r = cmp_stats_key(base, comp);
 		if (r == 0) {
-			output_comp_stats(base, comp, cur_fmt, last);
+			join->file_name = base->file_name;
+			join->prog_name = base->prog_name;
+			join->stats_a = base;
+			join->stats_b = comp;
 			i++;
 			j++;
 		} else if (comp == &fallback_stats || r < 0) {
-			output_comp_stats(base, &fallback_stats, cur_fmt, last);
+			join->file_name = base->file_name;
+			join->prog_name = base->prog_name;
+			join->stats_a = base;
+			join->stats_b = NULL;
 			i++;
 		} else {
-			output_comp_stats(&fallback_stats, comp, cur_fmt, last);
+			join->file_name = comp->file_name;
+			join->prog_name = comp->prog_name;
+			join->stats_a = NULL;
+			join->stats_b = comp;
 			j++;
 		}
+		env.join_stat_cnt += 1;
+	}
+
+	/* for human-readable table output we need to do extra pass to
+	 * calculate column widths, so we substitute current output format
+	 * with RESFMT_TABLE_CALCLEN and later revert it back to RESFMT_TABLE
+	 * and do everything again.
+	 */
+	if (env.out_fmt == RESFMT_TABLE)
+		cur_fmt = RESFMT_TABLE_CALCLEN;
+	else
+		cur_fmt = env.out_fmt;
+
+one_more_time:
+	output_comp_headers(cur_fmt);
+
+	for (i = 0; i < env.join_stat_cnt; i++) {
+		const struct verif_stats_join *join = &env.join_stats[i];
+		bool last = i == env.join_stat_cnt - 1;
+
+		output_comp_stats(join, cur_fmt, last);
 	}
 
 	if (cur_fmt == RESFMT_TABLE_CALCLEN) {
@@ -1594,6 +1666,7 @@ int main(int argc, char **argv)
 
 	free_verif_stats(env.prog_stats, env.prog_stat_cnt);
 	free_verif_stats(env.baseline_stats, env.baseline_stat_cnt);
+	free(env.join_stats);
 	for (i = 0; i < env.filename_cnt; i++)
 		free(env.filenames[i]);
 	free(env.filenames);
