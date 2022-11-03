@@ -1390,7 +1390,7 @@ static int rswitch_stop(struct net_device *ndev)
 	return 0;
 };
 
-static int rswitch_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t rswitch_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
 	struct rswitch_gwca_queue *gq = rdev->tx_queue;
