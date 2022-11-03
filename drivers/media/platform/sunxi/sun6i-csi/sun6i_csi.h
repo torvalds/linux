@@ -49,15 +49,4 @@ struct sun6i_csi_variant {
 	unsigned long	clock_mod_rate;
 };
 
-/**
- * sun6i_csi_is_format_supported() - check if the format supported by csi
- * @csi_dev:	pointer to the csi device
- * @pixformat:	v4l2 pixel format (V4L2_PIX_FMT_*)
- * @mbus_code:	media bus format code (MEDIA_BUS_FMT_*)
- *
- * Return: true if format is supported, false otherwise.
- */
-bool sun6i_csi_is_format_supported(struct sun6i_csi_device *csi_dev,
-				   u32 pixformat, u32 mbus_code);
-
 #endif /* __SUN6I_CSI_H__ */
