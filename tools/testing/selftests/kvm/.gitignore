@@ -41,6 +41,7 @@
 /x86_64/svm_vmcall_test
 /x86_64/svm_int_ctl_test
 /x86_64/svm_nested_soft_inject_test
+/x86_64/svm_nested_shutdown_test
 /x86_64/sync_regs_test
 /x86_64/tsc_msrs_test
 /x86_64/tsc_scaling_sync
