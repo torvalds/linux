@@ -70,15 +70,21 @@ properties:
     minItems: 1
     maxItems: 8
 
+  iommu-map:
+    maxItems: 1
+
+  iommu-map-mask:
+    const: 0
+
   resets:
     minItems: 1
     maxItems: 2
 
   reset-names:
     minItems: 1
+    maxItems: 2
     items:
-      - const: phy
-      - const: mac
+      enum: [ phy, mac ]
 
   clocks:
     maxItems: 6
@@ -106,6 +112,9 @@ properties:
   phy-names:
     items:
       - const: pcie-phy
+
+  power-domains:
+    maxItems: 1
 
   '#interrupt-cells':
     const: 1
