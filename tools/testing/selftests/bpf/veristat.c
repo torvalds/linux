@@ -55,6 +55,7 @@ enum resfmt {
 };
 
 struct filter {
+	char *any_glob;
 	char *file_glob;
 	char *prog_glob;
 };
@@ -231,28 +232,6 @@ static bool glob_matches(const char *str, const char *pat)
 	return !*str && !*pat;
 }
 
-static bool should_process_file(const char *filename)
-{
-	int i;
-
-	if (env.deny_filter_cnt > 0) {
-		for (i = 0; i < env.deny_filter_cnt; i++) {
-			if (glob_matches(filename, env.deny_filters[i].file_glob))
-				return false;
-		}
-	}
-
-	if (env.allow_filter_cnt == 0)
-		return true;
-
-	for (i = 0; i < env.allow_filter_cnt; i++) {
-		if (glob_matches(filename, env.allow_filters[i].file_glob))
-			return true;
-	}
-
-	return false;
-}
-
 static bool is_bpf_obj_file(const char *path) {
 	Elf64_Ehdr *ehdr;
 	int fd, err = -EINVAL;
@@ -285,38 +264,46 @@ cleanup:
 	return err == 0;
 }
 
-static bool should_process_prog(const char *path, const char *prog_name)
+static bool should_process_file_prog(const char *filename, const char *prog_name)
 {
-	const char *filename = basename(path);
-	int i;
+	struct filter *f;
+	int i, allow_cnt = 0;
 
-	if (env.deny_filter_cnt > 0) {
-		for (i = 0; i < env.deny_filter_cnt; i++) {
-			if (glob_matches(filename, env.deny_filters[i].file_glob))
-				return false;
-			if (!env.deny_filters[i].prog_glob)
+	for (i = 0; i < env.deny_filter_cnt; i++) {
+		f = &env.deny_filters[i];
+
+		if (f->any_glob && glob_matches(filename, f->any_glob))
+			return false;
+		if (f->any_glob && prog_name && glob_matches(prog_name, f->any_glob))
+			return false;
+		if (f->file_glob && glob_matches(filename, f->file_glob))
+			return false;
+		if (f->prog_glob && prog_name && glob_matches(prog_name, f->prog_glob))
+			return false;
+	}
+
+	for (i = 0; i < env.allow_filter_cnt; i++) {
+		f = &env.allow_filters[i];
+		allow_cnt++;
+
+		if (f->any_glob) {
+			if (glob_matches(filename, f->any_glob))
+				return true;
+			if (prog_name && glob_matches(prog_name, f->any_glob))
+				return true;
+		} else {
+			if (f->file_glob && !glob_matches(filename, f->file_glob))
 				continue;
-			if (glob_matches(prog_name, env.deny_filters[i].prog_glob))
-				return false;
+			if (f->prog_glob && prog_name && !glob_matches(prog_name, f->prog_glob))
+				continue;
+			return true;
 		}
 	}
 
-	if (env.allow_filter_cnt == 0)
-		return true;
-
-	for (i = 0; i < env.allow_filter_cnt; i++) {
-		if (!glob_matches(filename, env.allow_filters[i].file_glob))
-			continue;
-		/* if filter specifies only filename glob part, it implicitly
-		 * allows all progs within that file
-		 */
-		if (!env.allow_filters[i].prog_glob)
-			return true;
-		if (glob_matches(prog_name, env.allow_filters[i].prog_glob))
-			return true;
-	}
-
-	return false;
+	/* if there are no file/prog name allow filters, allow all progs,
+	 * unless they are denied earlier explicitly
+	 */
+	return allow_cnt == 0;
 }
 
 static int append_filter(struct filter **filters, int *cnt, const char *str)
@@ -331,26 +318,40 @@ static int append_filter(struct filter **filters, int *cnt, const char *str)
 	*filters = tmp;
 
 	f = &(*filters)[*cnt];
-	f->file_glob = f->prog_glob = NULL;
+	memset(f, 0, sizeof(*f));
 
-	/* filter can be specified either as "<obj-glob>" or "<obj-glob>/<prog-glob>" */
+	/* File/prog filter can be specified either as '<glob>' or
+	 * '<file-glob>/<prog-glob>'. In the former case <glob> is applied to
+	 * both file and program names. This seems to be way more useful in
+	 * practice. If user needs full control, they can use '/<prog-glob>'
+	 * form to glob just program name, or '<file-glob>/' to glob only file
+	 * name. But usually common <glob> seems to be the most useful and
+	 * ergonomic way.
+	 */
 	p = strchr(str, '/');
 	if (!p) {
-		f->file_glob = strdup(str);
-		if (!f->file_glob)
+		f->any_glob = strdup(str);
+		if (!f->any_glob)
 			return -ENOMEM;
 	} else {
-		f->file_glob = strndup(str, p - str);
-		f->prog_glob = strdup(p + 1);
-		if (!f->file_glob || !f->prog_glob) {
-			free(f->file_glob);
-			free(f->prog_glob);
-			f->file_glob = f->prog_glob = NULL;
-			return -ENOMEM;
+		if (str != p) {
+			/* non-empty file glob */
+			f->file_glob = strndup(str, p - str);
+			if (!f->file_glob)
+				return -ENOMEM;
+		}
+		if (strlen(p + 1) > 0) {
+			/* non-empty prog glob */
+			f->prog_glob = strdup(p + 1);
+			if (!f->prog_glob) {
+				free(f->file_glob);
+				f->file_glob = NULL;
+				return -ENOMEM;
+			}
 		}
 	}
 
-	*cnt = *cnt + 1;
+	*cnt += 1;
 	return 0;
 }
 
@@ -546,7 +547,7 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 	int err = 0;
 	void *tmp;
 
-	if (!should_process_prog(filename, bpf_program__name(prog))) {
+	if (!should_process_file_prog(basename(filename), bpf_program__name(prog))) {
 		env.progs_skipped++;
 		return 0;
 	}
@@ -602,7 +603,7 @@ static int process_obj(const char *filename)
 	LIBBPF_OPTS(bpf_object_open_opts, opts);
 	int err = 0, prog_cnt = 0;
 
-	if (!should_process_file(basename(filename))) {
+	if (!should_process_file_prog(basename(filename), NULL)) {
 		if (env.verbose)
 			printf("Skipping '%s' due to filters...\n", filename);
 		env.files_skipped++;
@@ -980,7 +981,7 @@ static int parse_stats_csv(const char *filename, struct stat_specs *specs,
 		 * parsed entire line; if row should be ignored we pretend we
 		 * never parsed it
 		 */
-		if (!should_process_prog(st->file_name, st->prog_name)) {
+		if (!should_process_file_prog(st->file_name, st->prog_name)) {
 			free(st->file_name);
 			free(st->prog_name);
 			*stat_cntp -= 1;
@@ -1391,11 +1392,13 @@ int main(int argc, char **argv)
 		free(env.filenames[i]);
 	free(env.filenames);
 	for (i = 0; i < env.allow_filter_cnt; i++) {
+		free(env.allow_filters[i].any_glob);
 		free(env.allow_filters[i].file_glob);
 		free(env.allow_filters[i].prog_glob);
 	}
 	free(env.allow_filters);
 	for (i = 0; i < env.deny_filter_cnt; i++) {
+		free(env.deny_filters[i].any_glob);
 		free(env.deny_filters[i].file_glob);
 		free(env.deny_filters[i].prog_glob);
 	}
