@@ -775,7 +775,7 @@ endchoice
 
 config THP_SWAP
 	def_bool y
-	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP && SWAP
+	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP && SWAP && 64BIT
 	help
 	  Swap transparent huge pages in one piece, without splitting.
 	  XXX: For now, swap cluster backing transparent huge page

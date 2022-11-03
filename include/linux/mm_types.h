@@ -145,14 +145,21 @@ struct page {
 			atomic_t compound_pincount;
 #ifdef CONFIG_64BIT
 			unsigned int compound_nr; /* 1 << compound_order */
-			unsigned long _private_1;
 #endif
 		};
-		struct {	/* Second tail page of compound page */
+		struct {	/* Second tail page of transparent huge page */
 			unsigned long _compound_pad_1;	/* compound_head */
 			unsigned long _compound_pad_2;
 			/* For both global and memcg */
 			struct list_head deferred_list;
+		};
+		struct {	/* Second tail page of hugetlb page */
+			unsigned long _hugetlb_pad_1;	/* compound_head */
+			void *hugetlb_subpool;
+			void *hugetlb_cgroup;
+			void *hugetlb_cgroup_rsvd;
+			void *hugetlb_hwpoison;
+			/* No more space on 32-bit: use third tail if more */
 		};
 		struct {	/* Page table pages */
 			unsigned long _pt_pad_1;	/* compound_head */
@@ -260,13 +267,18 @@ struct page {
  *    to find how many references there are to this folio.
  * @memcg_data: Memory Control Group data.
  * @_flags_1: For large folios, additional page flags.
- * @__head: Points to the folio.  Do not use.
+ * @_head_1: Points to the folio.  Do not use.
  * @_folio_dtor: Which destructor to use for this folio.
  * @_folio_order: Do not use directly, call folio_order().
  * @_total_mapcount: Do not use directly, call folio_entire_mapcount().
  * @_pincount: Do not use directly, call folio_maybe_dma_pinned().
  * @_folio_nr_pages: Do not use directly, call folio_nr_pages().
- * @_private_1: Do not use directly, call folio_get_private_1().
+ * @_flags_2: For alignment.  Do not use.
+ * @_head_2: Points to the folio.  Do not use.
+ * @_hugetlb_subpool: Do not use directly, use accessor in hugetlb.h.
+ * @_hugetlb_cgroup: Do not use directly, use accessor in hugetlb_cgroup.h.
+ * @_hugetlb_cgroup_rsvd: Do not use directly, use accessor in hugetlb_cgroup.h.
+ * @_hugetlb_hwpoison: Do not use directly, call raw_hwp_list_head().
  *
  * A folio is a physically, virtually and logically contiguous set
  * of bytes.  It is a power-of-two in size, and it is aligned to that
@@ -305,16 +317,31 @@ struct folio {
 		};
 		struct page page;
 	};
-	unsigned long _flags_1;
-	unsigned long __head;
-	unsigned char _folio_dtor;
-	unsigned char _folio_order;
-	atomic_t _total_mapcount;
-	atomic_t _pincount;
+	union {
+		struct {
+			unsigned long _flags_1;
+			unsigned long _head_1;
+			unsigned char _folio_dtor;
+			unsigned char _folio_order;
+			atomic_t _total_mapcount;
+			atomic_t _pincount;
 #ifdef CONFIG_64BIT
-	unsigned int _folio_nr_pages;
+			unsigned int _folio_nr_pages;
 #endif
-	unsigned long _private_1;
+		};
+		struct page __page_1;
+	};
+	union {
+		struct {
+			unsigned long _flags_2;
+			unsigned long _head_2;
+			void *_hugetlb_subpool;
+			void *_hugetlb_cgroup;
+			void *_hugetlb_cgroup_rsvd;
+			void *_hugetlb_hwpoison;
+		};
+		struct page __page_2;
+	};
 };
 
 #define FOLIO_MATCH(pg, fl)						\
@@ -335,15 +362,24 @@ FOLIO_MATCH(memcg_data, memcg_data);
 	static_assert(offsetof(struct folio, fl) ==			\
 			offsetof(struct page, pg) + sizeof(struct page))
 FOLIO_MATCH(flags, _flags_1);
-FOLIO_MATCH(compound_head, __head);
+FOLIO_MATCH(compound_head, _head_1);
 FOLIO_MATCH(compound_dtor, _folio_dtor);
 FOLIO_MATCH(compound_order, _folio_order);
 FOLIO_MATCH(compound_mapcount, _total_mapcount);
 FOLIO_MATCH(compound_pincount, _pincount);
 #ifdef CONFIG_64BIT
 FOLIO_MATCH(compound_nr, _folio_nr_pages);
-FOLIO_MATCH(_private_1, _private_1);
 #endif
+#undef FOLIO_MATCH
+#define FOLIO_MATCH(pg, fl)						\
+	static_assert(offsetof(struct folio, fl) ==			\
+			offsetof(struct page, pg) + 2 * sizeof(struct page))
+FOLIO_MATCH(flags, _flags_2);
+FOLIO_MATCH(compound_head, _head_2);
+FOLIO_MATCH(hugetlb_subpool, _hugetlb_subpool);
+FOLIO_MATCH(hugetlb_cgroup, _hugetlb_cgroup);
+FOLIO_MATCH(hugetlb_cgroup_rsvd, _hugetlb_cgroup_rsvd);
+FOLIO_MATCH(hugetlb_hwpoison, _hugetlb_hwpoison);
 #undef FOLIO_MATCH
 
 static inline atomic_t *folio_mapcount_ptr(struct folio *folio)
@@ -386,16 +422,6 @@ static inline void set_page_private(struct page *page, unsigned long private)
 static inline void *folio_get_private(struct folio *folio)
 {
 	return folio->private;
-}
-
-static inline void folio_set_private_1(struct folio *folio, unsigned long private)
-{
-	folio->_private_1 = private;
-}
-
-static inline unsigned long folio_get_private_1(struct folio *folio)
-{
-	return folio->_private_1;
 }
 
 struct page_frag_cache {

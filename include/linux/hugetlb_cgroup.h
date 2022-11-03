@@ -24,12 +24,10 @@ struct file_region;
 #ifdef CONFIG_CGROUP_HUGETLB
 /*
  * Minimum page order trackable by hugetlb cgroup.
- * At least 4 pages are necessary for all the tracking information.
- * The second tail page (hpage[SUBPAGE_INDEX_CGROUP]) is the fault
- * usage cgroup. The third tail page (hpage[SUBPAGE_INDEX_CGROUP_RSVD])
- * is the reservation usage cgroup.
+ * At least 3 pages are necessary for all the tracking information.
+ * The second tail page contains all of the hugetlb-specific fields.
  */
-#define HUGETLB_CGROUP_MIN_ORDER order_base_2(__MAX_CGROUP_SUBPAGE_INDEX + 1)
+#define HUGETLB_CGROUP_MIN_ORDER order_base_2(__NR_USED_SUBPAGE)
 
 enum hugetlb_memory_event {
 	HUGETLB_MAX,
@@ -69,21 +67,13 @@ struct hugetlb_cgroup {
 static inline struct hugetlb_cgroup *
 __hugetlb_cgroup_from_folio(struct folio *folio, bool rsvd)
 {
-	struct page *tail;
-
 	VM_BUG_ON_FOLIO(!folio_test_hugetlb(folio), folio);
 	if (folio_order(folio) < HUGETLB_CGROUP_MIN_ORDER)
 		return NULL;
-
-	if (rsvd) {
-		tail = folio_page(folio, SUBPAGE_INDEX_CGROUP_RSVD);
-		return (void *)page_private(tail);
-	}
-
-	else {
-		tail = folio_page(folio, SUBPAGE_INDEX_CGROUP);
-		return (void *)page_private(tail);
-	}
+	if (rsvd)
+		return folio->_hugetlb_cgroup_rsvd;
+	else
+		return folio->_hugetlb_cgroup;
 }
 
 static inline struct hugetlb_cgroup *hugetlb_cgroup_from_folio(struct folio *folio)
@@ -101,15 +91,12 @@ static inline void __set_hugetlb_cgroup(struct folio *folio,
 				       struct hugetlb_cgroup *h_cg, bool rsvd)
 {
 	VM_BUG_ON_FOLIO(!folio_test_hugetlb(folio), folio);
-
 	if (folio_order(folio) < HUGETLB_CGROUP_MIN_ORDER)
 		return;
 	if (rsvd)
-		set_page_private(folio_page(folio, SUBPAGE_INDEX_CGROUP_RSVD),
-				 (unsigned long)h_cg);
+		folio->_hugetlb_cgroup_rsvd = h_cg;
 	else
-		set_page_private(folio_page(folio, SUBPAGE_INDEX_CGROUP),
-				 (unsigned long)h_cg);
+		folio->_hugetlb_cgroup = h_cg;
 }
 
 static inline void set_hugetlb_cgroup(struct folio *folio,

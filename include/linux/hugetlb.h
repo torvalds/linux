@@ -33,22 +33,9 @@ typedef struct { unsigned long pd; } hugepd_t;
 /*
  * For HugeTLB page, there are more metadata to save in the struct page. But
  * the head struct page cannot meet our needs, so we have to abuse other tail
- * struct page to store the metadata. In order to avoid conflicts caused by
- * subsequent use of more tail struct pages, we gather these discrete indexes
- * of tail struct page here.
+ * struct page to store the metadata.
  */
-enum {
-	SUBPAGE_INDEX_SUBPOOL = 1,	/* reuse page->private */
-#ifdef CONFIG_CGROUP_HUGETLB
-	SUBPAGE_INDEX_CGROUP,		/* reuse page->private */
-	SUBPAGE_INDEX_CGROUP_RSVD,	/* reuse page->private */
-	__MAX_CGROUP_SUBPAGE_INDEX = SUBPAGE_INDEX_CGROUP_RSVD,
-#endif
-#ifdef CONFIG_MEMORY_FAILURE
-	SUBPAGE_INDEX_HWPOISON,
-#endif
-	__NR_USED_SUBPAGE,
-};
+#define __NR_USED_SUBPAGE 3
 
 struct hugepage_subpool {
 	spinlock_t lock;
@@ -722,11 +709,11 @@ extern unsigned int default_hstate_idx;
 
 static inline struct hugepage_subpool *hugetlb_folio_subpool(struct folio *folio)
 {
-	return (void *)folio_get_private_1(folio);
+	return folio->_hugetlb_subpool;
 }
 
 /*
- * hugetlb page subpool pointer located in hpage[1].private
+ * hugetlb page subpool pointer located in hpage[2].hugetlb_subpool
  */
 static inline struct hugepage_subpool *hugetlb_page_subpool(struct page *hpage)
 {
@@ -736,7 +723,7 @@ static inline struct hugepage_subpool *hugetlb_page_subpool(struct page *hpage)
 static inline void hugetlb_set_folio_subpool(struct folio *folio,
 					struct hugepage_subpool *subpool)
 {
-	folio_set_private_1(folio, (unsigned long)subpool);
+	folio->_hugetlb_subpool = subpool;
 }
 
 static inline void hugetlb_set_page_subpool(struct page *hpage,
