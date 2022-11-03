@@ -5,15 +5,15 @@
  * Author: Yong Deng <yong.deng@magewell.com>
  */
 
-#ifndef __SUN6I_VIDEO_H__
-#define __SUN6I_VIDEO_H__
+#ifndef __SUN6I_CAPTURE_H__
+#define __SUN6I_CAPTURE_H__
 
 #include <media/v4l2-dev.h>
 #include <media/videobuf2-core.h>
 
 struct sun6i_csi_device;
 
-struct sun6i_video {
+struct sun6i_csi_capture {
 	struct video_device		video_dev;
 	struct vb2_queue		queue;
 	struct mutex			lock; /* Queue lock. */
@@ -27,9 +27,9 @@ struct sun6i_video {
 	unsigned int			sequence;
 };
 
-int sun6i_video_setup(struct sun6i_csi_device *csi_dev);
-void sun6i_video_cleanup(struct sun6i_csi_device *csi_dev);
+int sun6i_csi_capture_setup(struct sun6i_csi_device *csi_dev);
+void sun6i_csi_capture_cleanup(struct sun6i_csi_device *csi_dev);
 
-void sun6i_video_frame_done(struct sun6i_csi_device *csi_dev);
+void sun6i_csi_capture_frame_done(struct sun6i_csi_device *csi_dev);
 
-#endif /* __SUN6I_VIDEO_H__ */
+#endif /* __SUN6I_CAPTURE_H__ */

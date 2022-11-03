@@ -662,7 +662,7 @@ static irqreturn_t sun6i_csi_interrupt(int irq, void *private)
 	}
 
 	if (status & CSI_CH_INT_STA_FD_PD)
-		sun6i_video_frame_done(csi_dev);
+		sun6i_csi_capture_frame_done(csi_dev);
 
 	regmap_write(regmap, CSI_CH_INT_STA_REG, status);
 
@@ -840,7 +840,7 @@ static int sun6i_csi_probe(struct platform_device *platform_dev)
 	if (ret)
 		goto error_v4l2;
 
-	ret = sun6i_video_setup(csi_dev);
+	ret = sun6i_csi_capture_setup(csi_dev);
 	if (ret)
 		goto error_bridge;
 
@@ -862,7 +862,7 @@ static int sun6i_csi_remove(struct platform_device *pdev)
 {
 	struct sun6i_csi_device *csi_dev = platform_get_drvdata(pdev);
 
-	sun6i_video_cleanup(csi_dev);
+	sun6i_csi_capture_cleanup(csi_dev);
 	sun6i_csi_bridge_cleanup(csi_dev);
 	sun6i_csi_v4l2_cleanup(csi_dev);
 	sun6i_csi_resources_cleanup(csi_dev);

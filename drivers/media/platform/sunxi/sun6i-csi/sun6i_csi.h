@@ -13,7 +13,7 @@
 #include <media/videobuf2-v4l2.h>
 
 #include "sun6i_csi_bridge.h"
-#include "sun6i_video.h"
+#include "sun6i_csi_capture.h"
 
 #define SUN6I_CSI_NAME		"sun6i-csi"
 #define SUN6I_CSI_DESCRIPTION	"Allwinner A31 CSI Device"
@@ -57,7 +57,7 @@ struct sun6i_csi_device {
 	struct sun6i_csi_config		config;
 	struct sun6i_csi_v4l2		v4l2;
 	struct sun6i_csi_bridge		bridge;
-	struct sun6i_video		video;
+	struct sun6i_csi_capture	capture;
 
 	struct regmap			*regmap;
 	struct clk			*clock_mod;
