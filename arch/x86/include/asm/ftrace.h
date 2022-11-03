@@ -48,7 +48,7 @@ arch_ftrace_get_regs(struct ftrace_regs *fregs)
 	return &fregs->regs;
 }
 
-#define ftrace_instruction_pointer_set(fregs, _ip)	\
+#define ftrace_regs_set_instruction_pointer(fregs, _ip)	\
 	do { (fregs)->regs.ip = (_ip); } while (0)
 
 struct ftrace_ops;

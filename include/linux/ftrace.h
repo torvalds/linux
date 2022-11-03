@@ -111,12 +111,11 @@ struct ftrace_regs {
 #define arch_ftrace_get_regs(fregs) (&(fregs)->regs)
 
 /*
- * ftrace_instruction_pointer_set() is to be defined by the architecture
- * if to allow setting of the instruction pointer from the ftrace_regs
- * when HAVE_DYNAMIC_FTRACE_WITH_ARGS is set and it supports
- * live kernel patching.
+ * ftrace_regs_set_instruction_pointer() is to be defined by the architecture
+ * if to allow setting of the instruction pointer from the ftrace_regs when
+ * HAVE_DYNAMIC_FTRACE_WITH_ARGS is set and it supports live kernel patching.
  */
-#define ftrace_instruction_pointer_set(fregs, ip) do { } while (0)
+#define ftrace_regs_set_instruction_pointer(fregs, ip) do { } while (0)
 #endif /* CONFIG_HAVE_DYNAMIC_FTRACE_WITH_ARGS */
 
 static __always_inline struct pt_regs *ftrace_get_regs(struct ftrace_regs *fregs)

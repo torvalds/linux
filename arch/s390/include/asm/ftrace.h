@@ -54,8 +54,9 @@ static __always_inline struct pt_regs *arch_ftrace_get_regs(struct ftrace_regs *
 	return NULL;
 }
 
-static __always_inline void ftrace_instruction_pointer_set(struct ftrace_regs *fregs,
-							   unsigned long ip)
+static __always_inline void
+ftrace_regs_set_instruction_pointer(struct ftrace_regs *fregs,
+				    unsigned long ip)
 {
 	fregs->regs.psw.addr = ip;
 }

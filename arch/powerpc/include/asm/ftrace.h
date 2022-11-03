@@ -37,8 +37,9 @@ static __always_inline struct pt_regs *arch_ftrace_get_regs(struct ftrace_regs *
 	return fregs->regs.msr ? &fregs->regs : NULL;
 }
 
-static __always_inline void ftrace_instruction_pointer_set(struct ftrace_regs *fregs,
-							   unsigned long ip)
+static __always_inline void
+ftrace_regs_set_instruction_pointer(struct ftrace_regs *fregs,
+				    unsigned long ip)
 {
 	regs_set_return_ip(&fregs->regs, ip);
 }
