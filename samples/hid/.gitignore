@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
+hid_mouse
+*.out
+*.skel.h
+/vmlinux.h
+/bpftool/
+/libbpf/
