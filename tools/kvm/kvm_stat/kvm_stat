@@ -1756,7 +1756,7 @@ def assign_globals():
 
     debugfs = ''
     for line in open('/proc/mounts'):
-        if line.split(' ')[0] == 'debugfs':
+        if line.split(' ')[2] == 'debugfs':
             debugfs = line.split(' ')[1]
             break
     if debugfs == '':
