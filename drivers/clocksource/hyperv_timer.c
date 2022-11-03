@@ -370,10 +370,11 @@ static union {
 static struct ms_hyperv_tsc_page *tsc_page = &tsc_pg.page;
 static unsigned long tsc_pfn;
 
-static unsigned long hv_get_tsc_pfn(void)
+unsigned long hv_get_tsc_pfn(void)
 {
 	return tsc_pfn;
 }
+EXPORT_SYMBOL_GPL(hv_get_tsc_pfn);
 
 struct ms_hyperv_tsc_page *hv_get_tsc_page(void)
 {
