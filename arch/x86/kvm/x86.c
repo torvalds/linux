@@ -9811,7 +9811,7 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu)
 
 int kvm_check_nested_events(struct kvm_vcpu *vcpu)
 {
-	if (kvm_check_request(KVM_REQ_TRIPLE_FAULT, vcpu)) {
+	if (kvm_test_request(KVM_REQ_TRIPLE_FAULT, vcpu)) {
 		kvm_x86_ops.nested_ops->triple_fault(vcpu);
 		return 1;
 	}
@@ -10566,15 +10566,16 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			r = 0;
 			goto out;
 		}
-		if (kvm_check_request(KVM_REQ_TRIPLE_FAULT, vcpu)) {
-			if (is_guest_mode(vcpu)) {
+		if (kvm_test_request(KVM_REQ_TRIPLE_FAULT, vcpu)) {
+			if (is_guest_mode(vcpu))
 				kvm_x86_ops.nested_ops->triple_fault(vcpu);
-			} else {
+
+			if (kvm_check_request(KVM_REQ_TRIPLE_FAULT, vcpu)) {
 				vcpu->run->exit_reason = KVM_EXIT_SHUTDOWN;
 				vcpu->mmio_needed = 0;
 				r = 0;
-				goto out;
 			}
+			goto out;
 		}
 		if (kvm_check_request(KVM_REQ_APF_HALT, vcpu)) {
 			/* Page is swapped out. Do synthetic halt */
