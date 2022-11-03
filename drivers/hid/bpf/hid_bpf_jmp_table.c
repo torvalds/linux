@@ -39,7 +39,6 @@ struct hid_bpf_prog_entry {
 
 struct hid_bpf_jmp_table {
 	struct bpf_map *map;
-	struct bpf_map *prog_keys;
 	struct hid_bpf_prog_entry entries[HID_BPF_MAX_PROGS]; /* compacted list, circular buffer */
 	int tail, head;
 	struct bpf_prog *progs[HID_BPF_MAX_PROGS]; /* idx -> progs mapping */
@@ -286,32 +285,23 @@ static void hid_bpf_release_prog_at(int idx)
  */
 static int hid_bpf_insert_prog(int prog_fd, struct bpf_prog *prog)
 {
-	int i, cnt, index = -1, map_fd = -1, progs_map_fd = -1, err = -EINVAL;
+	int i, index = -1, map_fd = -1, err = -EINVAL;
 
 	/* retrieve a fd of our prog_array map in BPF */
 	map_fd = skel_map_get_fd_by_id(jmp_table.map->id);
-	/* take an fd for the table of progs we monitor with SEC("fexit/bpf_prog_release") */
-	progs_map_fd = skel_map_get_fd_by_id(jmp_table.prog_keys->id);
 
-	if (map_fd < 0 || progs_map_fd < 0) {
+	if (map_fd < 0) {
 		err = -EINVAL;
 		goto out;
 	}
 
-	cnt = 0;
-	/* find the first available index in the jmp_table
-	 * and count how many time this program has been inserted
-	 */
+	/* find the first available index in the jmp_table */
 	for (i = 0; i < HID_BPF_MAX_PROGS; i++) {
 		if (!jmp_table.progs[i] && index < 0) {
 			/* mark the index as used */
 			jmp_table.progs[i] = prog;
 			index = i;
 			__set_bit(i, jmp_table.enabled);
-			cnt++;
-		} else {
-			if (jmp_table.progs[i] == prog)
-				cnt++;
 		}
 	}
 	if (index < 0) {
@@ -324,10 +314,15 @@ static int hid_bpf_insert_prog(int prog_fd, struct bpf_prog *prog)
 	if (err)
 		goto out;
 
-	/* insert the program in the prog list table */
-	err = skel_map_update_elem(progs_map_fd, &prog, &cnt, 0);
-	if (err)
-		goto out;
+	/*
+	 * The program has been safely inserted, decrement the reference count
+	 * so it doesn't interfere with the number of actual user handles.
+	 * This is safe to do because:
+	 * - we overrite the put_ptr in the prog fd map
+	 * - we also have a cleanup function that monitors when a program gets
+	 *   released and we manually do the cleanup in the prog fd map
+	 */
+	bpf_prog_sub(prog, 1);
 
 	/* return the index */
 	err = index;
@@ -337,8 +332,6 @@ static int hid_bpf_insert_prog(int prog_fd, struct bpf_prog *prog)
 		__hid_bpf_do_release_prog(map_fd, index);
 	if (map_fd >= 0)
 		close_fd(map_fd);
-	if (progs_map_fd >= 0)
-		close_fd(progs_map_fd);
 	return err;
 }
 
@@ -457,41 +450,38 @@ void __hid_bpf_destroy_device(struct hid_device *hdev)
 	schedule_work(&release_work);
 }
 
-noinline bool
-call_hid_bpf_prog_release(u64 prog_key, int table_cnt)
+void call_hid_bpf_prog_put_deferred(struct work_struct *work)
 {
-	/* compare with how many refs are left in the bpf program */
-	struct bpf_prog *prog = (struct bpf_prog *)prog_key;
-	int idx;
+	struct bpf_prog_aux *aux;
+	struct bpf_prog *prog;
+	bool found = false;
+	int i;
 
-	if (!prog)
-		return false;
-
-	if (atomic64_read(&prog->aux->refcnt) != table_cnt)
-		return false;
+	aux = container_of(work, struct bpf_prog_aux, work);
+	prog = aux->prog;
 
 	/* we don't need locking here because the entries in the progs table
 	 * are stable:
 	 * if there are other users (and the progs entries might change), we
-	 * would return in the statement above.
+	 * would simply not have been called.
 	 */
-	for (idx = 0; idx < HID_BPF_MAX_PROGS; idx++) {
-		if (jmp_table.progs[idx] == prog) {
-			__clear_bit(idx, jmp_table.enabled);
-			break;
+	for (i = 0; i < HID_BPF_MAX_PROGS; i++) {
+		if (jmp_table.progs[i] == prog) {
+			__clear_bit(i, jmp_table.enabled);
+			found = true;
 		}
 	}
-	if (idx >= HID_BPF_MAX_PROGS) {
-		/* should never happen if we get our refcount right */
-		idx = -1;
-	}
 
-	/* schedule release of all detached progs */
-	schedule_work(&release_work);
-	return idx >= 0;
+	if (found)
+		/* schedule release of all detached progs */
+		schedule_work(&release_work);
 }
 
-#define HID_BPF_PROGS_COUNT 3
+static void hid_bpf_prog_fd_array_put_ptr(void *ptr)
+{
+}
+
+#define HID_BPF_PROGS_COUNT 2
 
 static struct bpf_link *links[HID_BPF_PROGS_COUNT];
 static struct entrypoints_bpf *skel;
@@ -501,9 +491,6 @@ void hid_bpf_free_links_and_skel(void)
 	int i;
 
 	/* the following is enough to release all programs attached to hid */
-	if (jmp_table.prog_keys)
-		bpf_map_put_with_uref(jmp_table.prog_keys);
-
 	if (jmp_table.map)
 		bpf_map_put_with_uref(jmp_table.map);
 
@@ -533,6 +520,8 @@ void hid_bpf_free_links_and_skel(void)
 	idx++;									\
 } while (0)
 
+static struct bpf_map_ops hid_bpf_prog_fd_maps_ops;
+
 int hid_bpf_preload_skel(void)
 {
 	int err, idx = 0;
@@ -551,15 +540,14 @@ int hid_bpf_preload_skel(void)
 		goto out;
 	}
 
-	jmp_table.prog_keys = bpf_map_get_with_uref(skel->maps.progs_map.map_fd);
-	if (IS_ERR(jmp_table.prog_keys)) {
-		err = PTR_ERR(jmp_table.prog_keys);
-		goto out;
-	}
+	/* our jump table is stealing refs, so we should not decrement on removal of elements */
+	hid_bpf_prog_fd_maps_ops = *jmp_table.map->ops;
+	hid_bpf_prog_fd_maps_ops.map_fd_put_ptr = hid_bpf_prog_fd_array_put_ptr;
+
+	jmp_table.map->ops = &hid_bpf_prog_fd_maps_ops;
 
 	ATTACH_AND_STORE_LINK(hid_tail_call);
-	ATTACH_AND_STORE_LINK(hid_prog_release);
-	ATTACH_AND_STORE_LINK(hid_free_inode);
+	ATTACH_AND_STORE_LINK(hid_bpf_prog_put_deferred);
 
 	return 0;
 out:

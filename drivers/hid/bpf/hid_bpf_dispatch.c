@@ -94,7 +94,7 @@ hid_bpf_get_data(struct hid_bpf_ctx *ctx, unsigned int offset, const size_t rdwr
  * can use.
  */
 BTF_SET8_START(hid_bpf_kfunc_ids)
-BTF_ID_FLAGS(func, call_hid_bpf_prog_release)
+BTF_ID_FLAGS(func, call_hid_bpf_prog_put_deferred)
 BTF_ID_FLAGS(func, hid_bpf_get_data, KF_RET_NULL)
 BTF_SET8_END(hid_bpf_kfunc_ids)
 

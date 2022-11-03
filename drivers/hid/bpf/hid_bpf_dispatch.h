@@ -22,6 +22,6 @@ int hid_bpf_prog_run(struct hid_device *hdev, enum hid_bpf_prog_type type,
 struct bpf_prog;
 
 /* HID-BPF internal kfuncs API */
-bool call_hid_bpf_prog_release(u64 prog, int table_cnt);
+void call_hid_bpf_prog_put_deferred(struct work_struct *work);
 
 #endif
