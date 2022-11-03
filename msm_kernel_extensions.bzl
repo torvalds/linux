@@ -1,3 +1,6 @@
+def define_top_level_rules():
+    return
+
 def define_extras(target, flavor = None):
     return
 
