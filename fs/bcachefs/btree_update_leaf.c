@@ -767,6 +767,33 @@ static noinline void bch2_drop_overwrites_from_journal(struct btree_trans *trans
 		bch2_journal_key_overwritten(trans->c, i->btree_id, i->level, i->k->k.p);
 }
 
+static noinline int bch2_trans_commit_bkey_invalid(struct btree_trans *trans,
+						   struct btree_insert_entry *i,
+						   struct printbuf *err)
+{
+	struct bch_fs *c = trans->c;
+	int rw = (trans->flags & BTREE_INSERT_JOURNAL_REPLAY) ? READ : WRITE;
+
+	printbuf_reset(err);
+	prt_printf(err, "invalid bkey on insert from %s -> %ps",
+		   trans->fn, (void *) i->ip_allocated);
+	prt_newline(err);
+	printbuf_indent_add(err, 2);
+
+	bch2_bkey_val_to_text(err, c, bkey_i_to_s_c(i->k));
+	prt_newline(err);
+
+	bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
+			  i->bkey_type, rw, err);
+	bch2_print_string_as_lines(KERN_ERR, err->buf);
+
+	bch2_inconsistent_error(c);
+	bch2_dump_trans_updates(trans);
+	printbuf_exit(err);
+
+	return -EINVAL;
+}
+
 /*
  * Get journal reservation, take write locks, and attempt to do btree update(s):
  */
@@ -781,24 +808,9 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 	int rw = (trans->flags & BTREE_INSERT_JOURNAL_REPLAY) ? READ : WRITE;
 
 	trans_for_each_update(trans, i) {
-		if (bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
-				      i->bkey_type, rw, &buf)) {
-			printbuf_reset(&buf);
-			prt_printf(&buf, "invalid bkey on insert from %s -> %ps",
-			       trans->fn, (void *) i->ip_allocated);
-			prt_newline(&buf);
-			printbuf_indent_add(&buf, 2);
-
-			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(i->k));
-			prt_newline(&buf);
-
-			bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
-					  i->bkey_type, rw, &buf);
-
-			bch2_trans_inconsistent(trans, "%s", buf.buf);
-			printbuf_exit(&buf);
-			return -EINVAL;
-		}
+		if (unlikely(bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
+					       i->bkey_type, rw, &buf)))
+			return bch2_trans_commit_bkey_invalid(trans, i, &buf);
 		btree_insert_entry_checks(trans, i);
 	}
 
