@@ -875,6 +875,7 @@ static struct ib_mr *rxe_get_dma_mr(struct ib_pd *ibpd, int access)
 
 	rxe_get(pd);
 	mr->ibmr.pd = ibpd;
+	mr->ibmr.device = ibpd->device;
 
 	rxe_mr_init_dma(access, mr);
 	rxe_finalize(mr);
@@ -899,6 +900,7 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd,
 
 	rxe_get(pd);
 	mr->ibmr.pd = ibpd;
+	mr->ibmr.device = ibpd->device;
 
 	err = rxe_mr_init_user(rxe, start, length, iova, access, mr);
 	if (err)
@@ -930,6 +932,7 @@ static struct ib_mr *rxe_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
 
 	rxe_get(pd);
 	mr->ibmr.pd = ibpd;
+	mr->ibmr.device = ibpd->device;
 
 	err = rxe_mr_init_fast(max_num_sg, mr);
 	if (err)
