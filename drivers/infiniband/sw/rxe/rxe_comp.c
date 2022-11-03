@@ -114,7 +114,7 @@ void retransmit_timer(struct timer_list *t)
 {
 	struct rxe_qp *qp = from_timer(qp, t, retrans_timer);
 
-	pr_debug("%s: fired for qp#%d\n", __func__, qp->elem.index);
+	rxe_dbg_qp(qp, "retransmit timer fired\n");
 
 	if (qp->valid) {
 		qp->comp.timeout = 1;
@@ -334,7 +334,7 @@ static inline enum comp_state check_ack(struct rxe_qp *qp,
 				return COMPST_ERROR;
 
 			default:
-				pr_warn("unexpected nak %x\n", syn);
+				rxe_dbg_qp(qp, "unexpected nak %x\n", syn);
 				wqe->status = IB_WC_REM_OP_ERR;
 				return COMPST_ERROR;
 			}
@@ -345,7 +345,7 @@ static inline enum comp_state check_ack(struct rxe_qp *qp,
 		break;
 
 	default:
-		pr_warn("unexpected opcode\n");
+		rxe_dbg_qp(qp, "unexpected opcode\n");
 	}
 
 	return COMPST_ERROR;
@@ -598,8 +598,7 @@ int rxe_completer(void *arg)
 	state = COMPST_GET_ACK;
 
 	while (1) {
-		pr_debug("qp#%d state = %s\n", qp_num(qp),
-			 comp_state_name[state]);
+		rxe_dbg_qp(qp, "state = %s\n", comp_state_name[state]);
 		switch (state) {
 		case COMPST_GET_ACK:
 			skb = skb_dequeue(&qp->resp_pkts);
@@ -746,8 +745,7 @@ int rxe_completer(void *arg)
 				 * rnr timer has fired
 				 */
 				qp->req.wait_for_rnr_timer = 1;
-				pr_debug("qp#%d set rnr nak timer\n",
-					 qp_num(qp));
+				rxe_dbg_qp(qp, "set rnr nak timer\n");
 				mod_timer(&qp->rnr_nak_timer,
 					  jiffies + rnrnak_jiffies(aeth_syn(pkt)
 						& ~AETH_TYPE_MASK));
