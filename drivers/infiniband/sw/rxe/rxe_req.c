@@ -100,7 +100,7 @@ void rnr_nak_timer(struct timer_list *t)
 {
 	struct rxe_qp *qp = from_timer(qp, t, rnr_nak_timer);
 
-	pr_debug("%s: fired for qp#%d\n", __func__, qp_num(qp));
+	rxe_dbg_qp(qp, "nak timer fired\n");
 
 	/* request a send queue retry */
 	qp->req.need_retry = 1;
@@ -595,7 +595,7 @@ static int rxe_do_local_ops(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 		}
 		break;
 	default:
-		pr_err("Unexpected send wqe opcode %d\n", opcode);
+		rxe_dbg_qp(qp, "Unexpected send wqe opcode %d\n", opcode);
 		wqe->status = IB_WC_LOC_QP_OP_ERR;
 		return -EINVAL;
 	}
@@ -748,14 +748,14 @@ int rxe_requester(void *arg)
 
 	av = rxe_get_av(&pkt, &ah);
 	if (unlikely(!av)) {
-		pr_err("qp#%d Failed no address vector\n", qp_num(qp));
+		rxe_dbg_qp(qp, "Failed no address vector\n");
 		wqe->status = IB_WC_LOC_QP_OP_ERR;
 		goto err;
 	}
 
 	skb = init_req_packet(qp, av, wqe, opcode, payload, &pkt);
 	if (unlikely(!skb)) {
-		pr_err("qp#%d Failed allocating skb\n", qp_num(qp));
+		rxe_dbg_qp(qp, "Failed allocating skb\n");
 		wqe->status = IB_WC_LOC_QP_OP_ERR;
 		if (ah)
 			rxe_put(ah);
@@ -764,7 +764,7 @@ int rxe_requester(void *arg)
 
 	err = finish_packet(qp, av, wqe, &pkt, skb, payload);
 	if (unlikely(err)) {
-		pr_debug("qp#%d Error during finish packet\n", qp_num(qp));
+		rxe_dbg_qp(qp, "Error during finish packet\n");
 		if (err == -EFAULT)
 			wqe->status = IB_WC_LOC_PROT_ERR;
 		else
