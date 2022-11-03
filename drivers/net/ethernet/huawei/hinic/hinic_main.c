@@ -1092,6 +1092,16 @@ static int set_features(struct hinic_dev *nic_dev,
 		}
 	}
 
+	if (changed & NETIF_F_HW_VLAN_CTAG_FILTER) {
+		ret = hinic_set_vlan_fliter(nic_dev,
+					    !!(features &
+					       NETIF_F_HW_VLAN_CTAG_FILTER));
+		if (ret) {
+			err = ret;
+			failed_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+		}
+	}
+
 	if (err) {
 		nic_dev->netdev->features = features ^ failed_features;
 		return -EIO;
