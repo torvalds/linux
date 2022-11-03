@@ -791,6 +791,20 @@ static void ast_vhub_epn_dispose(struct usb_ep *u_ep)
 	ep->dev = NULL;
 }
 
+static void ast_vhub_epn_flush(struct usb_ep *u_ep)
+{
+	struct ast_vhub_ep *ep = to_ast_ep(u_ep);
+	struct ast_vhub *vhub = ep->vhub;
+	unsigned long flags;
+
+	EPDBG(ep, "flushing !\n");
+
+	spin_lock_irqsave(&vhub->lock, flags);
+	/* This will clear out all the request of the endpoint and send requests done messages. */
+	ast_vhub_nuke(ep, -EINVAL);
+	spin_unlock_irqrestore(&vhub->lock, flags);
+}
+
 static const struct usb_ep_ops ast_vhub_epn_ops = {
 	.enable		= ast_vhub_epn_enable,
 	.disable	= ast_vhub_epn_disable,
@@ -801,6 +815,7 @@ static const struct usb_ep_ops ast_vhub_epn_ops = {
 	.set_wedge	= ast_vhub_epn_set_wedge,
 	.alloc_request	= ast_vhub_alloc_request,
 	.free_request	= ast_vhub_free_request,
+	.fifo_flush	= ast_vhub_epn_flush,
 };
 
 struct ast_vhub_ep *ast_vhub_alloc_epn(struct ast_vhub_dev *d, u8 addr)
