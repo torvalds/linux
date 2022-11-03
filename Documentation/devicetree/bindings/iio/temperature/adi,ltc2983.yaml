@@ -420,7 +420,7 @@ examples:
         #address-cells = <1>;
         #size-cells = <0>;
 
-        sensor_ltc2983: ltc2983@0 {
+        temperature-sensor@0 {
                 compatible = "adi,ltc2983";
                 reg = <0>;
 
