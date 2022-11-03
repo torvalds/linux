@@ -182,9 +182,7 @@ class KUnitParserTest(unittest.TestCase):
 				kunit_parser.extract_tap_lines(
 				file.readlines()))
 		# A missing test plan is not an error.
-		self.assertEqual(0, result.counts.errors)
-		# All tests should be accounted for.
-		self.assertEqual(10, result.counts.total())
+		self.assertEqual(result.counts, kunit_parser.TestCounts(passed=10, errors=0))
 		self.assertEqual(
 			kunit_parser.TestStatus.SUCCESS,
 			result.status)

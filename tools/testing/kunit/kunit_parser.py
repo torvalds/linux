@@ -10,6 +10,7 @@
 # Author: Rae Moar <rmoar@google.com>
 
 from __future__ import annotations
+from dataclasses import dataclass
 import re
 import sys
 
@@ -71,27 +72,17 @@ class TestStatus(Enum):
 	NO_TESTS = auto()
 	FAILURE_TO_PARSE_TESTS = auto()
 
+@dataclass
 class TestCounts:
 	"""
 	Tracks the counts of statuses of all test cases and any errors within
 	a Test.
-
-	Attributes:
-	passed : int - the number of tests that have passed
-	failed : int - the number of tests that have failed
-	crashed : int - the number of tests that have crashed
-	skipped : int - the number of tests that have skipped
-	errors : int - the number of errors in the test and subtests
 	"""
-	def __init__(self):
-		"""Creates TestCounts object with counts of all test
-		statuses and test errors set to 0.
-		"""
-		self.passed = 0
-		self.failed = 0
-		self.crashed = 0
-		self.skipped = 0
-		self.errors = 0
+	passed: int = 0
+	failed: int = 0
+	crashed: int = 0
+	skipped: int = 0
+	errors: int = 0
 
 	def __str__(self) -> str:
 		"""Returns the string representation of a TestCounts object."""
