@@ -39,6 +39,10 @@ struct perf_test_args {
 
 	/* Run vCPUs in L2 instead of L1, if the architecture supports it. */
 	bool nested;
+	/* True if all vCPUs are pinned to pCPUs */
+	bool pin_vcpus;
+	/* The vCPU=>pCPU pinning map. Only valid if pin_vcpus is true. */
+	uint32_t vcpu_to_pcpu[KVM_MAX_VCPUS];
 
 	struct perf_test_vcpu_args vcpu_args[KVM_MAX_VCPUS];
 };
