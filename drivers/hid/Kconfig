@@ -1284,6 +1284,8 @@ config HID_KUNIT_TEST
 
 endmenu
 
+source "drivers/hid/bpf/Kconfig"
+
 endif # HID
 
 source "drivers/hid/usbhid/Kconfig"

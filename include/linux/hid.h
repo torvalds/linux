@@ -26,6 +26,7 @@
 #include <linux/mutex.h>
 #include <linux/power_supply.h>
 #include <uapi/linux/hid.h>
+#include <linux/hid_bpf.h>
 
 /*
  * We parse each description item into this structure. Short items data
@@ -651,6 +652,10 @@ struct hid_device {							/* device report descriptor */
 	wait_queue_head_t debug_wait;
 
 	unsigned int id;						/* system unique id */
+
+#ifdef CONFIG_BPF
+	struct hid_bpf bpf;						/* hid-bpf data */
+#endif /* CONFIG_BPF */
 };
 
 #define to_hid_device(pdev) \
