@@ -3591,6 +3591,7 @@ static int vfs_tmpfile(struct user_namespace *mnt_userns,
 	struct inode *dir = d_inode(parentpath->dentry);
 	struct inode *inode;
 	int error;
+	int open_flag = file->f_flags;
 
 	/* we want directory to be writable */
 	error = inode_permission(mnt_userns, dir, MAY_WRITE | MAY_EXEC);
@@ -3613,7 +3614,7 @@ static int vfs_tmpfile(struct user_namespace *mnt_userns,
 	if (error)
 		return error;
 	inode = file_inode(file);
-	if (!(file->f_flags & O_EXCL)) {
+	if (!(open_flag & O_EXCL)) {
 		spin_lock(&inode->i_lock);
 		inode->i_state |= I_LINKABLE;
 		spin_unlock(&inode->i_lock);
