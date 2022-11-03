@@ -78,7 +78,7 @@ struct nfs_server *nfs3_clone_server(struct nfs_server *source,
  * the MDS.
  */
 struct nfs_client *nfs3_set_ds_client(struct nfs_server *mds_srv,
-		const struct sockaddr *ds_addr, int ds_addrlen,
+		const struct sockaddr_storage *ds_addr, int ds_addrlen,
 		int ds_proto, unsigned int ds_timeo, unsigned int ds_retrans)
 {
 	struct rpc_timeout ds_timeout;
@@ -98,7 +98,7 @@ struct nfs_client *nfs3_set_ds_client(struct nfs_server *mds_srv,
 	char buf[INET6_ADDRSTRLEN + 1];
 
 	/* fake a hostname because lockd wants it */
-	if (rpc_ntop(ds_addr, buf, sizeof(buf)) <= 0)
+	if (rpc_ntop((struct sockaddr *)ds_addr, buf, sizeof(buf)) <= 0)
 		return ERR_PTR(-EINVAL);
 	cl_init.hostname = buf;
 
