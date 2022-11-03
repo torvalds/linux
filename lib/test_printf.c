@@ -179,18 +179,6 @@ test_number(void)
 	 * behaviour.
 	 */
 	test("00|0|0|0|0", "%.2d|%.1d|%.0d|%.*d|%1.0d", 0, 0, 0, 0, 0, 0);
-#ifndef __CHAR_UNSIGNED__
-	{
-		/*
-		 * Passing a 'char' to a %02x specifier doesn't do
-		 * what was presumably the intention when char is
-		 * signed and the value is negative. One must either &
-		 * with 0xff or cast to u8.
-		 */
-		char val = -16;
-		test("0xfffffff0|0xf0|0xf0", "%#02x|%#02x|%#02x", val, val & 0xff, (u8)val);
-	}
-#endif
 }
 
 static void __init
