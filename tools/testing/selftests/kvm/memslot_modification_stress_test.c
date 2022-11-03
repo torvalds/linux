@@ -156,16 +156,14 @@ int main(int argc, char *argv[])
 			guest_modes_cmdline(optarg);
 			break;
 		case 'd':
-			p.delay = atoi_paranoid(optarg);
-			TEST_ASSERT(p.delay >= 0,
-				    "A negative delay is not supported.");
+			p.delay = atoi_non_negative("Delay", optarg);
 			break;
 		case 'b':
 			guest_percpu_mem_size = parse_size(optarg);
 			break;
 		case 'v':
-			nr_vcpus = atoi_paranoid(optarg);
-			TEST_ASSERT(nr_vcpus > 0 && nr_vcpus <= max_vcpus,
+			nr_vcpus = atoi_positive("Number of vCPUs", optarg);
+			TEST_ASSERT(nr_vcpus <= max_vcpus,
 				    "Invalid number of vcpus, must be between 1 and %d",
 				    max_vcpus);
 			break;
@@ -173,7 +171,7 @@ int main(int argc, char *argv[])
 			p.partition_vcpu_memory_access = false;
 			break;
 		case 'i':
-			p.nr_iterations = atoi_paranoid(optarg);
+			p.nr_iterations = atoi_positive("Number of iterations", optarg);
 			break;
 		case 'h':
 		default:

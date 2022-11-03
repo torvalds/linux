@@ -193,16 +193,13 @@ int main(int argc, char *argv[])
 	while ((opt = getopt(argc, argv, "c:h:m:s:H")) != -1) {
 		switch (opt) {
 		case 'c':
-			nr_vcpus = atoi_paranoid(optarg);
-			TEST_ASSERT(nr_vcpus > 0, "number of vcpus must be >0");
+			nr_vcpus = atoi_positive("Number of vCPUs", optarg);
 			break;
 		case 'm':
-			max_mem = 1ull * atoi_paranoid(optarg) * SZ_1G;
-			TEST_ASSERT(max_mem > 0, "memory size must be >0");
+			max_mem = 1ull * atoi_positive("Memory size", optarg) * SZ_1G;
 			break;
 		case 's':
-			slot_size = 1ull * atoi_paranoid(optarg) * SZ_1G;
-			TEST_ASSERT(slot_size > 0, "slot size must be >0");
+			slot_size = 1ull * atoi_positive("Slot size", optarg) * SZ_1G;
 			break;
 		case 'H':
 			hugepages = true;

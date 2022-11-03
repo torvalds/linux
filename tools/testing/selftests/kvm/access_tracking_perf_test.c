@@ -368,7 +368,7 @@ int main(int argc, char *argv[])
 			params.vcpu_memory_bytes = parse_size(optarg);
 			break;
 		case 'v':
-			params.nr_vcpus = atoi_paranoid(optarg);
+			params.nr_vcpus = atoi_positive("Number of vCPUs", optarg);
 			break;
 		case 'o':
 			overlap_memory_access = true;

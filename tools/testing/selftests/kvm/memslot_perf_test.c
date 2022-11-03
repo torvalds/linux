@@ -892,33 +892,21 @@ static bool parse_args(int argc, char *argv[],
 			}
 			break;
 		case 'f':
-			targs->tfirst = atoi_paranoid(optarg);
-			if (targs->tfirst < 0) {
-				pr_info("First test to run has to be non-negative\n");
-				return false;
-			}
+			targs->tfirst = atoi_non_negative("First test", optarg);
 			break;
 		case 'e':
-			targs->tlast = atoi_paranoid(optarg);
-			if (targs->tlast < 0 || targs->tlast >= NTESTS) {
+			targs->tlast = atoi_non_negative("Last test", optarg);
+			if (targs->tlast >= NTESTS) {
 				pr_info("Last test to run has to be non-negative and less than %zu\n",
 					NTESTS);
 				return false;
 			}
 			break;
 		case 'l':
-			targs->seconds = atoi_paranoid(optarg);
-			if (targs->seconds < 0) {
-				pr_info("Test length in seconds has to be non-negative\n");
-				return false;
-			}
+			targs->seconds = atoi_non_negative("Test length", optarg);
 			break;
 		case 'r':
-			targs->runs = atoi_paranoid(optarg);
-			if (targs->runs <= 0) {
-				pr_info("Runs per test has to be positive\n");
-				return false;
-			}
+			targs->runs = atoi_positive("Runs per test", optarg);
 			break;
 		}
 	}

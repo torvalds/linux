@@ -414,36 +414,21 @@ static bool parse_args(int argc, char *argv[])
 	while ((opt = getopt(argc, argv, "hn:i:p:m:")) != -1) {
 		switch (opt) {
 		case 'n':
-			test_args.nr_vcpus = atoi_paranoid(optarg);
-			if (test_args.nr_vcpus <= 0) {
-				pr_info("Positive value needed for -n\n");
-				goto err;
-			} else if (test_args.nr_vcpus > KVM_MAX_VCPUS) {
+			test_args.nr_vcpus = atoi_positive("Number of vCPUs", optarg);
+			if (test_args.nr_vcpus > KVM_MAX_VCPUS) {
 				pr_info("Max allowed vCPUs: %u\n",
 					KVM_MAX_VCPUS);
 				goto err;
 			}
 			break;
 		case 'i':
-			test_args.nr_iter = atoi_paranoid(optarg);
-			if (test_args.nr_iter <= 0) {
-				pr_info("Positive value needed for -i\n");
-				goto err;
-			}
+			test_args.nr_iter = atoi_positive("Number of iterations", optarg);
 			break;
 		case 'p':
-			test_args.timer_period_ms = atoi_paranoid(optarg);
-			if (test_args.timer_period_ms <= 0) {
-				pr_info("Positive value needed for -p\n");
-				goto err;
-			}
+			test_args.timer_period_ms = atoi_positive("Periodicity", optarg);
 			break;
 		case 'm':
-			test_args.migration_freq_ms = atoi_paranoid(optarg);
-			if (test_args.migration_freq_ms < 0) {
-				pr_info("0 or positive value needed for -m\n");
-				goto err;
-			}
+			test_args.migration_freq_ms = atoi_non_negative("Frequency", optarg);
 			break;
 		case 'h':
 		default:
