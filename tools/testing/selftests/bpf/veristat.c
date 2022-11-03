@@ -456,12 +456,16 @@ static int append_filter(struct filter **filters, int *cnt, const char *str)
 		    strcasecmp(p, "t") == 0 ||
 		    strcasecmp(p, "success") == 0 ||
 		    strcasecmp(p, "succ") == 0 ||
-		    strcasecmp(p, "s") == 0) {
+		    strcasecmp(p, "s") == 0 ||
+		    strcasecmp(p, "match") == 0 ||
+		    strcasecmp(p, "m") == 0) {
 			val = 1;
 		} else if (strcasecmp(p, "false") == 0 ||
 			   strcasecmp(p, "f") == 0 ||
 			   strcasecmp(p, "failure") == 0 ||
-			   strcasecmp(p, "fail") == 0) {
+			   strcasecmp(p, "fail") == 0 ||
+			   strcasecmp(p, "mismatch") == 0 ||
+			   strcasecmp(p, "mis") == 0) {
 			val = 0;
 		} else {
 			errno = 0;
@@ -1011,6 +1015,8 @@ static void fetch_join_stat_value(const struct verif_stats_join *s,
 	case VARIANT_DIFF:
 		if (!s->stats_a || !s->stats_b)
 			*num_val = -DBL_MAX;
+		else if (id == VERDICT)
+			*num_val = v1 == v2 ? 1.0 /* MATCH */ : 0.0 /* MISMATCH */;
 		else
 			*num_val = (double)(v2 - v1);
 		return;
@@ -1532,12 +1538,61 @@ static int cmp_stats_key(const struct verif_stats *base, const struct verif_stat
 	return strcmp(base->prog_name, comp->prog_name);
 }
 
+static bool is_join_stat_filter_matched(struct filter *f, const struct verif_stats_join *stats)
+{
+	static const double eps = 1e-9;
+	const char *str = NULL;
+	double value = 0.0;
+
+	fetch_join_stat_value(stats, f->stat_id, f->stat_var, &str, &value);
+
+	switch (f->op) {
+	case OP_EQ: return value > f->value - eps && value < f->value + eps;
+	case OP_NEQ: return value < f->value - eps || value > f->value + eps;
+	case OP_LT: return value < f->value - eps;
+	case OP_LE: return value <= f->value + eps;
+	case OP_GT: return value > f->value + eps;
+	case OP_GE: return value >= f->value - eps;
+	}
+
+	fprintf(stderr, "BUG: unknown filter op %d!\n", f->op);
+	return false;
+}
+
+static bool should_output_join_stats(const struct verif_stats_join *stats)
+{
+	struct filter *f;
+	int i, allow_cnt = 0;
+
+	for (i = 0; i < env.deny_filter_cnt; i++) {
+		f = &env.deny_filters[i];
+		if (f->kind != FILTER_STAT)
+			continue;
+
+		if (is_join_stat_filter_matched(f, stats))
+			return false;
+	}
+
+	for (i = 0; i < env.allow_filter_cnt; i++) {
+		f = &env.allow_filters[i];
+		if (f->kind != FILTER_STAT)
+			continue;
+		allow_cnt++;
+
+		if (is_join_stat_filter_matched(f, stats))
+			return true;
+	}
+
+	/* if there are no stat allowed filters, pass everything through */
+	return allow_cnt == 0;
+}
+
 static int handle_comparison_mode(void)
 {
 	struct stat_specs base_specs = {}, comp_specs = {};
 	struct stat_specs tmp_sort_spec;
 	enum resfmt cur_fmt;
-	int err, i, j;
+	int err, i, j, last_idx;
 
 	if (env.filename_cnt != 2) {
 		fprintf(stderr, "Comparison mode expects exactly two input CSV files!\n\n");
@@ -1664,9 +1719,14 @@ one_more_time:
 
 	for (i = 0; i < env.join_stat_cnt; i++) {
 		const struct verif_stats_join *join = &env.join_stats[i];
-		bool last = i == env.join_stat_cnt - 1;
 
-		output_comp_stats(join, cur_fmt, last);
+		if (!should_output_join_stats(join))
+			continue;
+
+		if (cur_fmt == RESFMT_TABLE_CALCLEN)
+			last_idx = i;
+
+		output_comp_stats(join, cur_fmt, i == last_idx);
 	}
 
 	if (cur_fmt == RESFMT_TABLE_CALCLEN) {
