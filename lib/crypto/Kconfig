@@ -11,6 +11,9 @@ config CRYPTO_LIB_AES
 config CRYPTO_LIB_ARC4
 	tristate
 
+config CRYPTO_LIB_GF128MUL
+	tristate
+
 config CRYPTO_ARCH_HAVE_LIB_BLAKE2S
 	bool
 	help

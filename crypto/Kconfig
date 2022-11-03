@@ -175,9 +175,6 @@ config CRYPTO_MANAGER_EXTRA_TESTS
 	  This is intended for developer use only, as these tests take much
 	  longer to run than the normal self tests.
 
-config CRYPTO_GF128MUL
-	tristate
-
 config CRYPTO_NULL
 	tristate "Null algorithms"
 	select CRYPTO_NULL2
@@ -714,9 +711,9 @@ config CRYPTO_KEYWRAP
 
 config CRYPTO_LRW
 	tristate "LRW (Liskov Rivest Wagner)"
+	select CRYPTO_LIB_GF128MUL
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
-	select CRYPTO_GF128MUL
 	select CRYPTO_ECB
 	help
 	  LRW (Liskov Rivest Wagner) mode
@@ -926,8 +923,8 @@ config CRYPTO_CMAC
 
 config CRYPTO_GHASH
 	tristate "GHASH"
-	select CRYPTO_GF128MUL
 	select CRYPTO_HASH
+	select CRYPTO_LIB_GF128MUL
 	help
 	  GCM GHASH function (NIST SP800-38D)
 
@@ -967,8 +964,8 @@ config CRYPTO_MICHAEL_MIC
 
 config CRYPTO_POLYVAL
 	tristate
-	select CRYPTO_GF128MUL
 	select CRYPTO_HASH
+	select CRYPTO_LIB_GF128MUL
 	help
 	  POLYVAL hash function for HCTR2
 
