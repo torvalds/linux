@@ -34,16 +34,17 @@
 bool sun6i_csi_is_format_supported(struct sun6i_csi_device *csi_dev,
 				   u32 pixformat, u32 mbus_code)
 {
-	struct sun6i_csi_v4l2 *v4l2 = &csi_dev->v4l2;
+	struct v4l2_fwnode_endpoint *endpoint =
+		&csi_dev->bridge.source_parallel.endpoint;
 
 	/*
 	 * Some video receivers have the ability to be compatible with
 	 * 8bit and 16bit bus width.
 	 * Identify the media bus format from device tree.
 	 */
-	if ((v4l2->v4l2_ep.bus_type == V4L2_MBUS_PARALLEL
-	     || v4l2->v4l2_ep.bus_type == V4L2_MBUS_BT656)
-	     && v4l2->v4l2_ep.bus.parallel.bus_width == 16) {
+	if ((endpoint->bus_type == V4L2_MBUS_PARALLEL
+	     || endpoint->bus_type == V4L2_MBUS_BT656)
+	     && endpoint->bus.parallel.bus_width == 16) {
 		switch (pixformat) {
 		case V4L2_PIX_FMT_NV12_16L16:
 		case V4L2_PIX_FMT_NV12:
@@ -328,7 +329,8 @@ static enum csi_input_seq get_csi_input_seq(struct sun6i_csi_device *csi_dev,
 
 static void sun6i_csi_setup_bus(struct sun6i_csi_device *csi_dev)
 {
-	struct v4l2_fwnode_endpoint *endpoint = &csi_dev->v4l2.v4l2_ep;
+	struct v4l2_fwnode_endpoint *endpoint =
+		&csi_dev->bridge.source_parallel.endpoint;
 	struct sun6i_csi_config *config = &csi_dev->config;
 	unsigned char bus_width;
 	u32 flags;
@@ -583,103 +585,11 @@ static const struct media_device_ops sun6i_csi_media_ops = {
 
 /* V4L2 */
 
-static int sun6i_csi_link_entity(struct sun6i_csi_device *csi_dev,
-				 struct media_entity *entity,
-				 struct fwnode_handle *fwnode)
-{
-	struct media_entity *sink;
-	struct media_pad *sink_pad;
-	int src_pad_index;
-	int ret;
-
-	ret = media_entity_get_fwnode_pad(entity, fwnode, MEDIA_PAD_FL_SOURCE);
-	if (ret < 0) {
-		dev_err(csi_dev->dev,
-			"%s: no source pad in external entity %s\n", __func__,
-			entity->name);
-		return -EINVAL;
-	}
-
-	src_pad_index = ret;
-
-	sink = &csi_dev->video.video_dev.entity;
-	sink_pad = &csi_dev->video.pad;
-
-	dev_dbg(csi_dev->dev, "creating %s:%u -> %s:%u link\n",
-		entity->name, src_pad_index, sink->name, sink_pad->index);
-	ret = media_create_pad_link(entity, src_pad_index, sink,
-				    sink_pad->index,
-				    MEDIA_LNK_FL_ENABLED |
-				    MEDIA_LNK_FL_IMMUTABLE);
-	if (ret < 0) {
-		dev_err(csi_dev->dev, "failed to create %s:%u -> %s:%u link\n",
-			entity->name, src_pad_index,
-			sink->name, sink_pad->index);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int sun6i_subdev_notify_complete(struct v4l2_async_notifier *notifier)
-{
-	struct sun6i_csi_device *csi_dev =
-		container_of(notifier, struct sun6i_csi_device,
-			     v4l2.notifier);
-	struct sun6i_csi_v4l2 *v4l2 = &csi_dev->v4l2;
-	struct v4l2_device *v4l2_dev = &v4l2->v4l2_dev;
-	struct v4l2_subdev *sd;
-	int ret;
-
-	dev_dbg(csi_dev->dev, "notify complete, all subdevs registered\n");
-
-	sd = list_first_entry(&v4l2_dev->subdevs, struct v4l2_subdev, list);
-	if (!sd)
-		return -EINVAL;
-
-	ret = sun6i_csi_link_entity(csi_dev, &sd->entity, sd->fwnode);
-	if (ret < 0)
-		return ret;
-
-	ret = v4l2_device_register_subdev_nodes(v4l2_dev);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static const struct v4l2_async_notifier_operations sun6i_csi_async_ops = {
-	.complete = sun6i_subdev_notify_complete,
-};
-
-static int sun6i_csi_fwnode_parse(struct device *dev,
-				  struct v4l2_fwnode_endpoint *vep,
-				  struct v4l2_async_subdev *asd)
-{
-	struct sun6i_csi_device *csi_dev = dev_get_drvdata(dev);
-
-	if (vep->base.port || vep->base.id) {
-		dev_warn(dev, "Only support a single port with one endpoint\n");
-		return -ENOTCONN;
-	}
-
-	switch (vep->bus_type) {
-	case V4L2_MBUS_PARALLEL:
-	case V4L2_MBUS_BT656:
-		csi_dev->v4l2.v4l2_ep = *vep;
-		return 0;
-	default:
-		dev_err(dev, "Unsupported media bus type\n");
-		return -ENOTCONN;
-	}
-}
-
 static int sun6i_csi_v4l2_setup(struct sun6i_csi_device *csi_dev)
 {
 	struct sun6i_csi_v4l2 *v4l2 = &csi_dev->v4l2;
 	struct media_device *media_dev = &v4l2->media_dev;
 	struct v4l2_device *v4l2_dev = &v4l2->v4l2_dev;
-	struct v4l2_async_notifier *notifier = &v4l2->notifier;
 	struct device *dev = csi_dev->dev;
 	int ret;
 
@@ -709,41 +619,7 @@ static int sun6i_csi_v4l2_setup(struct sun6i_csi_device *csi_dev)
 		goto error_media;
 	}
 
-	/* Video */
-
-	ret = sun6i_video_setup(csi_dev);
-	if (ret)
-		goto error_v4l2_device;
-
-	/* V4L2 Async */
-
-	v4l2_async_nf_init(notifier);
-	notifier->ops = &sun6i_csi_async_ops;
-
-	ret = v4l2_async_nf_parse_fwnode_endpoints(dev, notifier,
-						   sizeof(struct
-							  v4l2_async_subdev),
-						   sun6i_csi_fwnode_parse);
-	if (ret)
-		goto error_video;
-
-	ret = v4l2_async_nf_register(v4l2_dev, notifier);
-	if (ret) {
-		dev_err(dev, "failed to register v4l2 async notifier: %d\n",
-			ret);
-		goto error_v4l2_async_notifier;
-	}
-
 	return 0;
-
-error_v4l2_async_notifier:
-	v4l2_async_nf_cleanup(notifier);
-
-error_video:
-	sun6i_video_cleanup(csi_dev);
-
-error_v4l2_device:
-	v4l2_device_unregister(&v4l2->v4l2_dev);
 
 error_media:
 	media_device_unregister(media_dev);
@@ -757,9 +633,6 @@ static void sun6i_csi_v4l2_cleanup(struct sun6i_csi_device *csi_dev)
 	struct sun6i_csi_v4l2 *v4l2 = &csi_dev->v4l2;
 
 	media_device_unregister(&v4l2->media_dev);
-	v4l2_async_nf_unregister(&v4l2->notifier);
-	v4l2_async_nf_cleanup(&v4l2->notifier);
-	sun6i_video_cleanup(csi_dev);
 	v4l2_device_unregister(&v4l2->v4l2_dev);
 	media_device_cleanup(&v4l2->media_dev);
 }
@@ -963,7 +836,21 @@ static int sun6i_csi_probe(struct platform_device *platform_dev)
 	if (ret)
 		goto error_resources;
 
+	ret = sun6i_csi_bridge_setup(csi_dev);
+	if (ret)
+		goto error_v4l2;
+
+	ret = sun6i_video_setup(csi_dev);
+	if (ret)
+		goto error_bridge;
+
 	return 0;
+
+error_bridge:
+	sun6i_csi_bridge_cleanup(csi_dev);
+
+error_v4l2:
+	sun6i_csi_v4l2_cleanup(csi_dev);
 
 error_resources:
 	sun6i_csi_resources_cleanup(csi_dev);
@@ -975,6 +862,8 @@ static int sun6i_csi_remove(struct platform_device *pdev)
 {
 	struct sun6i_csi_device *csi_dev = platform_get_drvdata(pdev);
 
+	sun6i_video_cleanup(csi_dev);
+	sun6i_csi_bridge_cleanup(csi_dev);
 	sun6i_csi_v4l2_cleanup(csi_dev);
 	sun6i_csi_resources_cleanup(csi_dev);
 

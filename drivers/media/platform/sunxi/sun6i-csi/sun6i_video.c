@@ -632,6 +632,7 @@ int sun6i_video_setup(struct sun6i_csi_device *csi_dev)
 {
 	struct sun6i_video *video = &csi_dev->video;
 	struct v4l2_device *v4l2_dev = &csi_dev->v4l2.v4l2_dev;
+	struct v4l2_subdev *bridge_subdev = &csi_dev->bridge.subdev;
 	struct video_device *video_dev = &video->video_dev;
 	struct vb2_queue *queue = &video->queue;
 	struct media_pad *pad = &video->pad;
@@ -712,7 +713,25 @@ int sun6i_video_setup(struct sun6i_csi_device *csi_dev)
 		goto error_media_entity;
 	}
 
+	/* Media Pad Link */
+
+	ret = media_create_pad_link(&bridge_subdev->entity,
+				    SUN6I_CSI_BRIDGE_PAD_SOURCE,
+				    &video_dev->entity, 0,
+				    MEDIA_LNK_FL_ENABLED |
+				    MEDIA_LNK_FL_IMMUTABLE);
+	if (ret < 0) {
+		v4l2_err(v4l2_dev, "failed to create %s:%u -> %s:%u link\n",
+			 bridge_subdev->entity.name,
+			 SUN6I_CSI_BRIDGE_PAD_SOURCE,
+			 video_dev->entity.name, 0);
+		goto error_video_device;
+	}
+
 	return 0;
+
+error_video_device:
+	vb2_video_unregister_device(video_dev);
 
 error_media_entity:
 	media_entity_cleanup(&video_dev->entity);

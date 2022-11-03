@@ -12,10 +12,15 @@
 #include <media/v4l2-fwnode.h>
 #include <media/videobuf2-v4l2.h>
 
+#include "sun6i_csi_bridge.h"
 #include "sun6i_video.h"
 
 #define SUN6I_CSI_NAME		"sun6i-csi"
 #define SUN6I_CSI_DESCRIPTION	"Allwinner A31 CSI Device"
+
+enum sun6i_csi_port {
+	SUN6I_CSI_PORT_PARALLEL		= 0,
+};
 
 struct sun6i_csi_buffer {
 	struct vb2_v4l2_buffer		v4l2_buffer;
@@ -44,10 +49,6 @@ struct sun6i_csi_config {
 struct sun6i_csi_v4l2 {
 	struct v4l2_device		v4l2_dev;
 	struct media_device		media_dev;
-
-	struct v4l2_async_notifier	notifier;
-	/* video port settings */
-	struct v4l2_fwnode_endpoint	v4l2_ep;
 };
 
 struct sun6i_csi_device {
@@ -55,6 +56,7 @@ struct sun6i_csi_device {
 
 	struct sun6i_csi_config		config;
 	struct sun6i_csi_v4l2		v4l2;
+	struct sun6i_csi_bridge		bridge;
 	struct sun6i_video		video;
 
 	struct regmap			*regmap;
