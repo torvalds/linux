@@ -405,13 +405,14 @@ static struct stat_def {
 	const char *header;
 	const char *names[4];
 	bool asc_by_default;
+	bool left_aligned;
 } stat_defs[] = {
-	[FILE_NAME] = { "File", {"file_name", "filename", "file"}, true /* asc */ },
-	[PROG_NAME] = { "Program", {"prog_name", "progname", "prog"}, true /* asc */ },
-	[VERDICT] = { "Verdict", {"verdict"}, true /* asc: failure, success */ },
+	[FILE_NAME] = { "File", {"file_name", "filename", "file"}, true /* asc */, true /* left */ },
+	[PROG_NAME] = { "Program", {"prog_name", "progname", "prog"}, true /* asc */, true /* left */ },
+	[VERDICT] = { "Verdict", {"verdict"}, true /* asc: failure, success */, true /* left */ },
 	[DURATION] = { "Duration (us)", {"duration", "dur"}, },
-	[TOTAL_INSNS] = { "Total insns", {"total_insns", "insns"}, },
-	[TOTAL_STATES] = { "Total states", {"total_states", "states"}, },
+	[TOTAL_INSNS] = { "Insns", {"total_insns", "insns"}, },
+	[TOTAL_STATES] = { "States", {"total_states", "states"}, },
 	[PEAK_STATES] = { "Peak states", {"peak_states"}, },
 	[MAX_STATES_PER_INSN] = { "Max states per insn", {"max_states_per_insn"}, },
 	[MARK_READ_MAX_LEN] = { "Max mark read length", {"max_mark_read_len", "mark_read"}, },
@@ -743,6 +744,7 @@ static void output_header_underlines(void)
 
 static void output_headers(enum resfmt fmt)
 {
+	const char *fmt_str;
 	int i, len;
 
 	for (i = 0; i < env.output_spec.spec_cnt; i++) {
@@ -756,7 +758,8 @@ static void output_headers(enum resfmt fmt)
 				*max_len = len;
 			break;
 		case RESFMT_TABLE:
-			printf("%s%-*s", i == 0 ? "" : COLUMN_SEP,  *max_len, stat_defs[id].header);
+			fmt_str = stat_defs[id].left_aligned ? "%s%-*s" : "%s%*s";
+			printf(fmt_str, i == 0 ? "" : COLUMN_SEP,  *max_len, stat_defs[id].header);
 			if (i == env.output_spec.spec_cnt - 1)
 				printf("\n");
 			break;
