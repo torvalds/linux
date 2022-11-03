@@ -204,6 +204,8 @@ struct gdma_dev {
 
 	/* GDMA driver specific pointer */
 	void *driver_data;
+
+	struct auxiliary_device *adev;
 };
 
 #define MINIMUM_SUPPORTED_PAGE_SIZE PAGE_SIZE

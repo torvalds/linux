@@ -13,6 +13,19 @@
 #include <net/ip6_checksum.h>
 
 #include "mana.h"
+#include "mana_auxiliary.h"
+
+static DEFINE_IDA(mana_adev_ida);
+
+static int mana_adev_idx_alloc(void)
+{
+	return ida_alloc(&mana_adev_ida, GFP_KERNEL);
+}
+
+static void mana_adev_idx_free(int idx)
+{
+	ida_free(&mana_adev_ida, idx);
+}
 
 /* Microsoft Azure Network Adapter (MANA) functions */
 
@@ -2106,6 +2119,69 @@ free_net:
 	return err;
 }
 
+static void adev_release(struct device *dev)
+{
+	struct mana_adev *madev = container_of(dev, struct mana_adev, adev.dev);
+
+	kfree(madev);
+}
+
+static void remove_adev(struct gdma_dev *gd)
+{
+	struct auxiliary_device *adev = gd->adev;
+	int id = adev->id;
+
+	auxiliary_device_delete(adev);
+	auxiliary_device_uninit(adev);
+
+	mana_adev_idx_free(id);
+	gd->adev = NULL;
+}
+
+static int add_adev(struct gdma_dev *gd)
+{
+	struct auxiliary_device *adev;
+	struct mana_adev *madev;
+	int ret;
+
+	madev = kzalloc(sizeof(*madev), GFP_KERNEL);
+	if (!madev)
+		return -ENOMEM;
+
+	adev = &madev->adev;
+	ret = mana_adev_idx_alloc();
+	if (ret < 0)
+		goto idx_fail;
+	adev->id = ret;
+
+	adev->name = "rdma";
+	adev->dev.parent = gd->gdma_context->dev;
+	adev->dev.release = adev_release;
+	madev->mdev = gd;
+
+	ret = auxiliary_device_init(adev);
+	if (ret)
+		goto init_fail;
+
+	ret = auxiliary_device_add(adev);
+	if (ret)
+		goto add_fail;
+
+	gd->adev = adev;
+	return 0;
+
+add_fail:
+	auxiliary_device_uninit(adev);
+
+init_fail:
+	mana_adev_idx_free(adev->id);
+
+idx_fail:
+	kfree(madev);
+
+	return ret;
+}
+
 int mana_probe(struct gdma_dev *gd, bool resuming)
 {
 	struct gdma_context *gc = gd->gdma_context;
@@ -2173,6 +2249,8 @@ int mana_probe(struct gdma_dev *gd, bool resuming)
 				break;
 		}
 	}
+
+	err = add_adev(gd);
 out:
 	if (err)
 		mana_remove(gd, false);
@@ -2188,6 +2266,10 @@ void mana_remove(struct gdma_dev *gd, bool suspending)
 	struct net_device *ndev;
 	int err;
 	int i;
+
+	/* adev currently doesn't support suspending, always remove it */
+	if (gd->adev)
+		remove_adev(gd);
 
 	for (i = 0; i < ac->num_ports; i++) {
 		ndev = ac->ports[i];
@@ -2221,7 +2303,6 @@ void mana_remove(struct gdma_dev *gd, bool suspending)
 	}
 
 	mana_destroy_eq(ac);
-
 out:
 	mana_gd_deregister_device(gd);
 
