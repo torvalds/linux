@@ -87,8 +87,8 @@ static void add_remove_memslot(struct kvm_vm *vm, useconds_t delay,
 }
 
 struct test_params {
-	useconds_t memslot_modification_delay;
-	uint64_t nr_memslot_modifications;
+	useconds_t delay;
+	uint64_t nr_iterations;
 	bool partition_vcpu_memory_access;
 };
 
@@ -107,8 +107,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	pr_info("Started all vCPUs\n");
 
-	add_remove_memslot(vm, p->memslot_modification_delay,
-			   p->nr_memslot_modifications);
+	add_remove_memslot(vm, p->delay, p->nr_iterations);
 
 	run_vcpus = false;
 
@@ -144,9 +143,8 @@ int main(int argc, char *argv[])
 	int max_vcpus = kvm_check_cap(KVM_CAP_MAX_VCPUS);
 	int opt;
 	struct test_params p = {
-		.memslot_modification_delay = 0,
-		.nr_memslot_modifications =
-			DEFAULT_MEMSLOT_MODIFICATION_ITERATIONS,
+		.delay = 0,
+		.nr_iterations = DEFAULT_MEMSLOT_MODIFICATION_ITERATIONS,
 		.partition_vcpu_memory_access = true
 	};
 
@@ -158,8 +156,8 @@ int main(int argc, char *argv[])
 			guest_modes_cmdline(optarg);
 			break;
 		case 'd':
-			p.memslot_modification_delay = atoi_paranoid(optarg);
-			TEST_ASSERT(p.memslot_modification_delay >= 0,
+			p.delay = atoi_paranoid(optarg);
+			TEST_ASSERT(p.delay >= 0,
 				    "A negative delay is not supported.");
 			break;
 		case 'b':
@@ -175,7 +173,7 @@ int main(int argc, char *argv[])
 			p.partition_vcpu_memory_access = false;
 			break;
 		case 'i':
-			p.nr_memslot_modifications = atoi_paranoid(optarg);
+			p.nr_iterations = atoi_paranoid(optarg);
 			break;
 		case 'h':
 		default:
