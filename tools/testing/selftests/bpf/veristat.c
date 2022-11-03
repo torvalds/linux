@@ -501,6 +501,15 @@ static const struct stat_specs default_output_spec = {
 	},
 };
 
+static const struct stat_specs default_csv_output_spec = {
+	.spec_cnt = 9,
+	.ids = {
+		FILE_NAME, PROG_NAME, VERDICT, DURATION,
+		TOTAL_INSNS, TOTAL_STATES, PEAK_STATES,
+		MAX_STATES_PER_INSN, MARK_READ_MAX_LEN,
+	},
+};
+
 static const struct stat_specs default_sort_spec = {
 	.spec_cnt = 2,
 	.ids = {
@@ -1561,8 +1570,12 @@ int main(int argc, char **argv)
 	if (env.verbose && env.log_level == 0)
 		env.log_level = 1;
 
-	if (env.output_spec.spec_cnt == 0)
-		env.output_spec = default_output_spec;
+	if (env.output_spec.spec_cnt == 0) {
+		if (env.out_fmt == RESFMT_CSV)
+			env.output_spec = default_csv_output_spec;
+		else
+			env.output_spec = default_output_spec;
+	}
 	if (env.sort_spec.spec_cnt == 0)
 		env.sort_spec = default_sort_spec;
 
