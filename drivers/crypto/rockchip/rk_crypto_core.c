@@ -663,6 +663,12 @@ static const struct rk_crypto_soc_data rk3288_soc_data =
 static const struct of_device_id crypto_of_id_table[] = {
 
 #if IS_ENABLED(CONFIG_CRYPTO_DEV_ROCKCHIP_V3)
+	/* crypto v4 in belows same with crypto-v3*/
+	{
+		.compatible = "rockchip,crypto-v4",
+		.data = (void *)&cryto_v3_soc_data,
+	},
+
 	/* crypto v3 in belows */
 	{
 		.compatible = "rockchip,crypto-v3",
