@@ -131,3 +131,12 @@ config QTI_DDR_COOLING_DEVICE
 	   to meet the performance requirement under thermally constrained
 	   conditions.
 
+config QTI_USERSPACE_CDEV
+	tristate "QTI Userspace cooling device"
+	depends on THERMAL_OF
+	help
+	   This enables the QTI userspace cooling device, which will help
+	   send the mitigation notification via thermal framework netlink
+	   socket, so that userspace cooling device can perform a mitigation
+	   action.
+
