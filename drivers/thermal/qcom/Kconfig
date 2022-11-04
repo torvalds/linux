@@ -73,3 +73,12 @@ config QTI_BCL_SOC_DRIVER
 	  are reached and cleared. This will help to monitor and apply any
 	  mitigation when state of charge goes below a certain threshold.
 
+config QTI_POLICY_ENGINE_SENSOR
+	tristate "QTI Policy Engine Sensor device"
+	depends on THERMAL
+	help
+	    This enables the QTI Policy Engine sensor device. This driver will
+	    register the policy engine recommendation with thermal framework as
+	    a sensor. This will enable to provide configuration to mitigate
+	    cooling devices when a recommendation is sent from hardware.
+
