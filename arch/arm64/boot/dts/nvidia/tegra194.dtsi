@@ -632,7 +632,7 @@
 			reg = <0x2430000 0x17000>;
 			status = "okay";
 
-			pex_rst_c5_out_state: pex_rst_c5_out {
+			pex_rst_c5_out_state: pinmux-pex-rst-c5-out {
 				pex_rst {
 					nvidia,pins = "pex_l5_rst_n_pgg1";
 					nvidia,schmitt = <TEGRA_PIN_DISABLE>;
@@ -643,7 +643,7 @@
 				};
 			};
 
-			clkreq_c5_bi_dir_state: clkreq_c5_bi_dir {
+			clkreq_c5_bi_dir_state: pinmux-clkreq-c5-bi-dir {
 				clkreq {
 					nvidia,pins = "pex_l5_clkreq_n_pgg0";
 					nvidia,schmitt = <TEGRA_PIN_DISABLE>;
