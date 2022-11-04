@@ -54,7 +54,6 @@ static int vfio_ccw_mdev_init_dev(struct vfio_device *vdev)
 	INIT_LIST_HEAD(&private->crw);
 	INIT_WORK(&private->io_work, vfio_ccw_sch_io_todo);
 	INIT_WORK(&private->crw_work, vfio_ccw_crw_todo);
-	init_completion(&private->release_comp);
 
 	private->cp.guest_cp = kcalloc(CCWCHAIN_LEN_MAX, sizeof(struct ccw1),
 				       GFP_KERNEL);
@@ -137,7 +136,7 @@ static void vfio_ccw_mdev_release_dev(struct vfio_device *vdev)
 	struct vfio_ccw_private *private =
 		container_of(vdev, struct vfio_ccw_private, vdev);
 
-	complete(&private->release_comp);
+	vfio_ccw_free_private(private);
 }
 
 static void vfio_ccw_mdev_remove(struct mdev_device *mdev)
@@ -155,17 +154,6 @@ static void vfio_ccw_mdev_remove(struct mdev_device *mdev)
 
 	dev_set_drvdata(&parent->dev, NULL);
 	vfio_put_device(&private->vdev);
-	/*
-	 * Wait for all active references on mdev are released so it
-	 * is safe to defer kfree() to a later point.
-	 *
-	 * TODO: the clean fix is to split parent/mdev info from ccw
-	 * private structure so each can be managed in its own life
-	 * cycle.
-	 */
-	wait_for_completion(&private->release_comp);
-
-	vfio_ccw_free_private(private);
 }
 
 static int vfio_ccw_mdev_open_device(struct vfio_device *vdev)
