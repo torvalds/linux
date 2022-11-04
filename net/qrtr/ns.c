@@ -99,6 +99,25 @@ static struct qrtr_node *node_get(unsigned int node_id)
 	return node;
 }
 
+int qrtr_get_service_id(unsigned int node_id, unsigned int port_id)
+{
+	struct qrtr_server *srv;
+	struct qrtr_node *node;
+	unsigned long index;
+
+	node = node_get(node_id);
+	if (!node)
+		return -EINVAL;
+
+	xa_for_each(&node->servers, index, srv) {
+		if (srv->node == node_id && srv->port == port_id)
+			return srv->service;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL(qrtr_get_service_id);
+
 static int server_match(const struct qrtr_server *srv,
 			const struct qrtr_server_filter *f)
 {
