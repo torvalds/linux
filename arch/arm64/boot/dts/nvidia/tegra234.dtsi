@@ -998,7 +998,7 @@
 		};
 
 		mmc@3400000 {
-			compatible = "nvidia,tegra194-sdhci", "nvidia,tegra234-sdhci";
+			compatible = "nvidia,tegra234-sdhci", "nvidia,tegra186-sdhci";
 			reg = <0x03400000 0x20000>;
 			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA234_CLK_SDMMC1>,
