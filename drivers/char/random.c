@@ -386,11 +386,11 @@ static void _get_random_bytes(void *buf, size_t len)
 }
 
 /*
- * This function is the exported kernel interface. It returns some number of
- * good random numbers, suitable for key generation, seeding TCP sequence
- * numbers, etc. In order to ensure that the randomness returned by this
- * function is okay, the function wait_for_random_bytes() should be called and
- * return 0 at least once at any point prior.
+ * This returns random bytes in arbitrary quantities. The quality of the
+ * random bytes is good as /dev/urandom. In order to ensure that the
+ * randomness provided by this function is okay, the function
+ * wait_for_random_bytes() should be called and return 0 at least once
+ * at any point prior.
  */
 void get_random_bytes(void *buf, size_t len)
 {
