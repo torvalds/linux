@@ -155,8 +155,8 @@ any code which does so in the mainline.  Note that all files created with
 debugfs_create_blob() are read-only.
 
 If you want to dump a block of registers (something that happens quite
-often during development, even if little such code reaches mainline.
-Debugfs offers two functions: one to make a registers-only file, and
+often during development, even if little such code reaches mainline),
+debugfs offers two functions: one to make a registers-only file, and
 another to insert a register block in the middle of another sequential
 file::
 
@@ -183,7 +183,7 @@ The "base" argument may be 0, but you may want to build the reg32 array
 using __stringify, and a number of register names (macros) are actually
 byte offsets over a base for the register block.
 
-If you want to dump an u32 array in debugfs, you can create file with::
+If you want to dump a u32 array in debugfs, you can create a file with::
 
     struct debugfs_u32_array {
 	u32 *array;
@@ -197,7 +197,7 @@ If you want to dump an u32 array in debugfs, you can create file with::
 The "array" argument wraps a pointer to the array's data and the number
 of its elements. Note: Once array is created its size can not be changed.
 
-There is a helper function to create device related seq_file::
+There is a helper function to create a device-related seq_file::
 
    void debugfs_create_devm_seqfile(struct device *dev,
 				const char *name,
