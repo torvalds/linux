@@ -25,10 +25,10 @@ warnings:
 
 -	A CPU looping with bottom halves disabled.
 
--	For !CONFIG_PREEMPTION kernels, a CPU looping anywhere in the kernel
-	without invoking schedule().  If the looping in the kernel is
-	really expected and desirable behavior, you might need to add
-	some calls to cond_resched().
+-	For !CONFIG_PREEMPTION kernels, a CPU looping anywhere in the
+	kernel without potentially invoking schedule().  If the looping
+	in the kernel is really expected and desirable behavior, you
+	might need to add some calls to cond_resched().
 
 -	Booting Linux using a console connection that is too slow to
 	keep up with the boot-time console-message rate.  For example,
@@ -108,16 +108,17 @@ warnings:
 
 -	A bug in the RCU implementation.
 
--	A hardware failure.  This is quite unlikely, but has occurred
-	at least once in real life.  A CPU failed in a running system,
-	becoming unresponsive, but not causing an immediate crash.
-	This resulted in a series of RCU CPU stall warnings, eventually
-	leading the realization that the CPU had failed.
+-	A hardware failure.  This is quite unlikely, but is not at all
+	uncommon in large datacenter.  In one memorable case some decades
+	back, a CPU failed in a running system, becoming unresponsive,
+	but not causing an immediate crash.  This resulted in a series
+	of RCU CPU stall warnings, eventually leading the realization
+	that the CPU had failed.
 
-The RCU, RCU-sched, and RCU-tasks implementations have CPU stall warning.
-Note that SRCU does *not* have CPU stall warnings.  Please note that
-RCU only detects CPU stalls when there is a grace period in progress.
-No grace period, no CPU stall warnings.
+The RCU, RCU-sched, RCU-tasks, and RCU-tasks-trace implementations have
+CPU stall warning.  Note that SRCU does *not* have CPU stall warnings.
+Please note that RCU only detects CPU stalls when there is a grace period
+in progress.  No grace period, no CPU stall warnings.
 
 To diagnose the cause of the stall, inspect the stack traces.
 The offending function will usually be near the top of the stack.
@@ -205,15 +206,20 @@ RCU_STALL_RAT_DELAY
 rcupdate.rcu_task_stall_timeout
 -------------------------------
 
-	This boot/sysfs parameter controls the RCU-tasks stall warning
-	interval.  A value of zero or less suppresses RCU-tasks stall
-	warnings.  A positive value sets the stall-warning interval
-	in seconds.  An RCU-tasks stall warning starts with the line:
+	This boot/sysfs parameter controls the RCU-tasks and
+	RCU-tasks-trace stall warning intervals.  A value of zero or less
+	suppresses RCU-tasks stall warnings.  A positive value sets the
+	stall-warning interval in seconds.  An RCU-tasks stall warning
+	starts with the line:
 
 		INFO: rcu_tasks detected stalls on tasks:
 
 	And continues with the output of sched_show_task() for each
 	task stalling the current RCU-tasks grace period.
+
+	An RCU-tasks-trace stall warning starts (and continues) similarly:
+
+		INFO: rcu_tasks_trace detected stalls on tasks
 
 
 Interpreting RCU's CPU Stall-Detector "Splats"
@@ -248,7 +254,8 @@ dynticks counter, which will have an even-numbered value if the CPU
 is in dyntick-idle mode and an odd-numbered value otherwise.  The hex
 number between the two "/"s is the value of the nesting, which will be
 a small non-negative number if in the idle loop (as shown above) and a
-very large positive number otherwise.
+very large positive number otherwise.  The number following the final
+"/" is the NMI nesting, which will be a small non-negative number.
 
 The "softirq=" portion of the message tracks the number of RCU softirq
 handlers that the stalled CPU has executed.  The number before the "/"
