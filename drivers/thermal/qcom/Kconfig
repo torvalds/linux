@@ -122,3 +122,12 @@ config QTI_CPU_HOTPLUG_COOLING_DEVICE
 	   thermal cooling. CPU Hotplug will be done after core isolation,
 	   to prevent any process from waking the mitigated CPU.
 
+config QTI_DDR_COOLING_DEVICE
+	tristate "QTI DDR cooling devices"
+	depends on THERMAL && INTERCONNECT
+	help
+	   This enables the QTI DDR cooling devices. These cooling
+	   devices will be used by QTI chipset to place a DDR state request
+	   to meet the performance requirement under thermally constrained
+	   conditions.
+
