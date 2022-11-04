@@ -150,7 +150,6 @@
 				nvidia,pins = "sdmmc3_cmd_pa7",
 						"sdmmc3_dat3_pb4",
 						"sdmmc3_dat2_pb5",
-						"sdmmc3_dat2_pb5",
 						"sdmmc3_dat1_pb6",
 						"sdmmc3_dat0_pb7",
 						"sdmmc3_dat5_pd0",
