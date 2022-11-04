@@ -86,15 +86,15 @@ properties:
     minItems: 1
     items:
       - description: NAND CTLRDY interrupt
-      - description: FLASH_DMA_DONE if flash DMA is available
-      - description: FLASH_EDU_DONE if EDU is available
+      - description: FLASH_DMA_DONE (if flash DMA is available) or FLASH_EDU_DONE (if EDU is available)
 
   interrupt-names:
     minItems: 1
     items:
       - const: nand_ctlrdy
-      - const: flash_dma_done
-      - const: flash_edu_done
+      - enum:
+          - flash_dma_done
+          - flash_edu_done
 
   clocks:
     maxItems: 1
@@ -173,6 +173,13 @@ allOf:
             - const: nand
             - const: iproc-idm
             - const: iproc-ext
+  - if:
+      properties:
+        interrupts:
+          minItems: 2
+    then:
+      required:
+        - interrupt-names
 
 unevaluatedProperties: false
 
@@ -190,6 +197,7 @@ examples:
             reg-names = "nand", "flash-dma";
             interrupt-parent = <&hif_intr2_intc>;
             interrupts = <24>, <4>;
+            interrupt-names = "nand_ctlrdy", "flash_dma_done";
 
             #address-cells = <1>;
             #size-cells = <0>;
