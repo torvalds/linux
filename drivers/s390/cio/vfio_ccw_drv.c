@@ -36,9 +36,18 @@ debug_info_t *vfio_ccw_debug_trace_id;
  */
 int vfio_ccw_sch_quiesce(struct subchannel *sch)
 {
-	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_parent *parent = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_private *private = dev_get_drvdata(&parent->dev);
 	DECLARE_COMPLETION_ONSTACK(completion);
 	int iretry, ret = 0;
+
+	/*
+	 * Probably an impossible situation, after being called through
+	 * FSM callbacks. But in the event it did, register a warning
+	 * and return as if things were fine.
+	 */
+	if (WARN_ON(!private))
+		return 0;
 
 	iretry = 255;
 	do {
@@ -121,7 +130,23 @@ static void vfio_ccw_crw_todo(struct work_struct *work)
  */
 static void vfio_ccw_sch_irq(struct subchannel *sch)
 {
-	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_parent *parent = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_private *private = dev_get_drvdata(&parent->dev);
+
+	/*
+	 * The subchannel should still be disabled at this point,
+	 * so an interrupt would be quite surprising. As with an
+	 * interrupt while the FSM is closed, let's attempt to
+	 * disable the subchannel again.
+	 */
+	if (!private) {
+		VFIO_CCW_MSG_EVENT(2, "sch %x.%x.%04x: unexpected interrupt\n",
+				   sch->schid.cssid, sch->schid.ssid,
+				   sch->schid.sch_no);
+
+		cio_disable_subchannel(sch);
+		return;
+	}
 
 	inc_irq_stat(IRQIO_CIO);
 	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_INTERRUPT);
@@ -201,10 +226,19 @@ static void vfio_ccw_free_private(struct vfio_ccw_private *private)
 	mutex_destroy(&private->io_mutex);
 	kfree(private);
 }
+
+static void vfio_ccw_free_parent(struct device *dev)
+{
+	struct vfio_ccw_parent *parent = container_of(dev, struct vfio_ccw_parent, dev);
+
+	kfree(parent);
+}
+
 static int vfio_ccw_sch_probe(struct subchannel *sch)
 {
 	struct pmcw *pmcw = &sch->schib.pmcw;
 	struct vfio_ccw_private *private;
+	struct vfio_ccw_parent *parent;
 	int ret = -ENOMEM;
 
 	if (pmcw->qf) {
@@ -213,38 +247,58 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 		return -ENODEV;
 	}
 
-	private = vfio_ccw_alloc_private(sch);
-	if (IS_ERR(private))
-		return PTR_ERR(private);
+	parent = kzalloc(sizeof(*parent), GFP_KERNEL);
+	if (!parent)
+		return -ENOMEM;
 
-	dev_set_drvdata(&sch->dev, private);
-
-	private->mdev_type.sysfs_name = "io";
-	private->mdev_type.pretty_name = "I/O subchannel (Non-QDIO)";
-	private->mdev_types[0] = &private->mdev_type;
-	ret = mdev_register_parent(&private->parent, &sch->dev,
-				   &vfio_ccw_mdev_driver,
-				   private->mdev_types, 1);
+	dev_set_name(&parent->dev, "parent");
+	parent->dev.parent = &sch->dev;
+	parent->dev.release = &vfio_ccw_free_parent;
+	ret = device_register(&parent->dev);
 	if (ret)
 		goto out_free;
+
+	private = vfio_ccw_alloc_private(sch);
+	if (IS_ERR(private)) {
+		device_unregister(&parent->dev);
+		return PTR_ERR(private);
+	}
+
+	dev_set_drvdata(&sch->dev, parent);
+	dev_set_drvdata(&parent->dev, private);
+
+	parent->mdev_type.sysfs_name = "io";
+	parent->mdev_type.pretty_name = "I/O subchannel (Non-QDIO)";
+	parent->mdev_types[0] = &parent->mdev_type;
+	ret = mdev_register_parent(&parent->parent, &sch->dev,
+				   &vfio_ccw_mdev_driver,
+				   parent->mdev_types, 1);
+	if (ret)
+		goto out_unreg;
 
 	VFIO_CCW_MSG_EVENT(4, "bound to subchannel %x.%x.%04x\n",
 			   sch->schid.cssid, sch->schid.ssid,
 			   sch->schid.sch_no);
 	return 0;
 
+out_unreg:
+	device_unregister(&parent->dev);
 out_free:
+	dev_set_drvdata(&parent->dev, NULL);
 	dev_set_drvdata(&sch->dev, NULL);
-	vfio_ccw_free_private(private);
+	if (private)
+		vfio_ccw_free_private(private);
 	return ret;
 }
 
 static void vfio_ccw_sch_remove(struct subchannel *sch)
 {
-	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_parent *parent = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_private *private = dev_get_drvdata(&parent->dev);
 
-	mdev_unregister_parent(&private->parent);
+	mdev_unregister_parent(&parent->parent);
 
+	device_unregister(&parent->dev);
 	dev_set_drvdata(&sch->dev, NULL);
 
 	vfio_ccw_free_private(private);
@@ -256,7 +310,11 @@ static void vfio_ccw_sch_remove(struct subchannel *sch)
 
 static void vfio_ccw_sch_shutdown(struct subchannel *sch)
 {
-	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_parent *parent = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_private *private = dev_get_drvdata(&parent->dev);
+
+	if (WARN_ON(!private))
+		return;
 
 	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_CLOSE);
 	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_NOT_OPER);
@@ -274,7 +332,8 @@ static void vfio_ccw_sch_shutdown(struct subchannel *sch)
  */
 static int vfio_ccw_sch_event(struct subchannel *sch, int process)
 {
-	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_parent *parent = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_private *private = dev_get_drvdata(&parent->dev);
 	unsigned long flags;
 	int rc = -EAGAIN;
 
@@ -287,8 +346,10 @@ static int vfio_ccw_sch_event(struct subchannel *sch, int process)
 
 	rc = 0;
 
-	if (cio_update_schib(sch))
-		vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_NOT_OPER);
+	if (cio_update_schib(sch)) {
+		if (private)
+			vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_NOT_OPER);
+	}
 
 out_unlock:
 	spin_unlock_irqrestore(sch->lock, flags);
@@ -326,7 +387,8 @@ static void vfio_ccw_queue_crw(struct vfio_ccw_private *private,
 static int vfio_ccw_chp_event(struct subchannel *sch,
 			      struct chp_link *link, int event)
 {
-	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_parent *parent = dev_get_drvdata(&sch->dev);
+	struct vfio_ccw_private *private = dev_get_drvdata(&parent->dev);
 	int mask = chp_ssd_get_mask(&sch->ssd_info, link);
 	int retry = 255;
 

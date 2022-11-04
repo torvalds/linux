@@ -68,6 +68,21 @@ struct vfio_ccw_crw {
 };
 
 /**
+ * struct vfio_ccw_parent
+ *
+ * @dev: embedded device struct
+ * @parent: parent data structures for mdevs created
+ * @mdev_type(s): identifying information for mdevs created
+ */
+struct vfio_ccw_parent {
+	struct device		dev;
+
+	struct mdev_parent	parent;
+	struct mdev_type	mdev_type;
+	struct mdev_type	*mdev_types[1];
+};
+
+/**
  * struct vfio_ccw_private
  * @vdev: Embedded VFIO device
  * @sch: pointer to the subchannel
@@ -89,7 +104,6 @@ struct vfio_ccw_crw {
  * @io_work: work for deferral process of I/O handling
  * @crw_work: work for deferral process of CRW handling
  * @release_comp: synchronization helper for vfio device release
- * @parent: parent data structures for mdevs created
  */
 struct vfio_ccw_private {
 	struct vfio_device vdev;
@@ -116,10 +130,6 @@ struct vfio_ccw_private {
 	struct work_struct	crw_work;
 
 	struct completion	release_comp;
-
-	struct mdev_parent	parent;
-	struct mdev_type	mdev_type;
-	struct mdev_type	*mdev_types[1];
 } __aligned(8);
 
 int vfio_ccw_sch_quiesce(struct subchannel *sch);
