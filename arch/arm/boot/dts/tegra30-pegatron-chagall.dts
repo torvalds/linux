@@ -134,7 +134,7 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 				nvidia,lock = <0>;
-				nvidia,ioreset = <0>;
+				nvidia,io-reset = <0>;
 			};
 
 			/* SDMMC3 pinmux */
@@ -622,7 +622,7 @@
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 				nvidia,lock = <0>;
-				nvidia,ioreset = <0>;
+				nvidia,io-reset = <0>;
 			};
 
 			pu1 {
@@ -689,7 +689,7 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_ENABLE>;
 				nvidia,lock = <0>;
-				nvidia,ioreset = <0>;
+				nvidia,io-reset = <0>;
 			};
 
 			vi_d10_pt2 {
@@ -864,7 +864,7 @@
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 				nvidia,enable-input = <TEGRA_PIN_DISABLE>;
 				nvidia,lock = <0>;
-				nvidia,ioreset = <0>;
+				nvidia,io-reset = <0>;
 			};
 
 			vi_mclk_pt1 {
