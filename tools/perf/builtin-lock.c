@@ -1390,6 +1390,34 @@ static int dump_info(void)
 	return rc;
 }
 
+static const struct evsel_str_handler lock_tracepoints[] = {
+	{ "lock:lock_acquire",	 evsel__process_lock_acquire,   }, /* CONFIG_LOCKDEP */
+	{ "lock:lock_acquired",	 evsel__process_lock_acquired,  }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
+	{ "lock:lock_contended", evsel__process_lock_contended, }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
+	{ "lock:lock_release",	 evsel__process_lock_release,   }, /* CONFIG_LOCKDEP */
+};
+
+static const struct evsel_str_handler contention_tracepoints[] = {
+	{ "lock:contention_begin", evsel__process_contention_begin, },
+	{ "lock:contention_end",   evsel__process_contention_end,   },
+};
+
+static int process_event_update(struct perf_tool *tool,
+				union perf_event *event,
+				struct evlist **pevlist)
+{
+	int ret;
+
+	ret = perf_event__process_event_update(tool, event, pevlist);
+	if (ret < 0)
+		return ret;
+
+	/* this can return -EEXIST since we call it for each evsel */
+	perf_session__set_tracepoints_handlers(session, lock_tracepoints);
+	perf_session__set_tracepoints_handlers(session, contention_tracepoints);
+	return 0;
+}
+
 typedef int (*tracepoint_handler)(struct evsel *evsel,
 				  struct perf_sample *sample);
 
@@ -1545,28 +1573,19 @@ next:
 	print_bad_events(bad, total);
 }
 
-static const struct evsel_str_handler lock_tracepoints[] = {
-	{ "lock:lock_acquire",	 evsel__process_lock_acquire,   }, /* CONFIG_LOCKDEP */
-	{ "lock:lock_acquired",	 evsel__process_lock_acquired,  }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
-	{ "lock:lock_contended", evsel__process_lock_contended, }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
-	{ "lock:lock_release",	 evsel__process_lock_release,   }, /* CONFIG_LOCKDEP */
-};
-
-static const struct evsel_str_handler contention_tracepoints[] = {
-	{ "lock:contention_begin", evsel__process_contention_begin, },
-	{ "lock:contention_end",   evsel__process_contention_end,   },
-};
-
 static bool force;
 
 static int __cmd_report(bool display_info)
 {
 	int err = -EINVAL;
 	struct perf_tool eops = {
+		.attr		 = perf_event__process_attr,
+		.event_update	 = process_event_update,
 		.sample		 = process_sample_event,
 		.comm		 = perf_event__process_comm,
 		.mmap		 = perf_event__process_mmap,
 		.namespaces	 = perf_event__process_namespaces,
+		.tracing_data	 = perf_event__process_tracing_data,
 		.ordered_events	 = true,
 	};
 	struct perf_data data = {
@@ -1585,17 +1604,19 @@ static int __cmd_report(bool display_info)
 	symbol_conf.sort_by_name = true;
 	symbol__init(&session->header.env);
 
-	if (!perf_session__has_traces(session, "lock record"))
-		goto out_delete;
+	if (!data.is_pipe) {
+		if (!perf_session__has_traces(session, "lock record"))
+			goto out_delete;
 
-	if (perf_session__set_tracepoints_handlers(session, lock_tracepoints)) {
-		pr_err("Initializing perf session tracepoint handlers failed\n");
-		goto out_delete;
-	}
+		if (perf_session__set_tracepoints_handlers(session, lock_tracepoints)) {
+			pr_err("Initializing perf session tracepoint handlers failed\n");
+			goto out_delete;
+		}
 
-	if (perf_session__set_tracepoints_handlers(session, contention_tracepoints)) {
-		pr_err("Initializing perf session tracepoint handlers failed\n");
-		goto out_delete;
+		if (perf_session__set_tracepoints_handlers(session, contention_tracepoints)) {
+			pr_err("Initializing perf session tracepoint handlers failed\n");
+			goto out_delete;
+		}
 	}
 
 	if (setup_output_field(false, output_fields))
@@ -1633,9 +1654,12 @@ static int __cmd_contention(int argc, const char **argv)
 {
 	int err = -EINVAL;
 	struct perf_tool eops = {
+		.attr		 = perf_event__process_attr,
+		.event_update	 = process_event_update,
 		.sample		 = process_sample_event,
 		.comm		 = perf_event__process_comm,
 		.mmap		 = perf_event__process_mmap,
+		.tracing_data	 = perf_event__process_tracing_data,
 		.ordered_events	 = true,
 	};
 	struct perf_data data = {
@@ -1698,7 +1722,7 @@ static int __cmd_contention(int argc, const char **argv)
 			pr_err("lock contention BPF setup failed\n");
 			goto out_delete;
 		}
-	} else {
+	} else if (!data.is_pipe) {
 		if (!perf_session__has_traces(session, "lock record"))
 			goto out_delete;
 
