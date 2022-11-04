@@ -89,6 +89,10 @@ static const char * const ar0521_supply_names[] = {
 	"vaa",		/* Analog (2.7V) supply */
 };
 
+static const s64 ar0521_link_frequencies[] = {
+	184000000,
+};
+
 struct ar0521_ctrls {
 	struct v4l2_ctrl_handler handler;
 	struct {
@@ -570,6 +574,7 @@ static int ar0521_init_controls(struct ar0521_dev *sensor)
 	const struct v4l2_ctrl_ops *ops = &ar0521_ctrl_ops;
 	struct ar0521_ctrls *ctrls = &sensor->ctrls;
 	struct v4l2_ctrl_handler *hdl = &ctrls->handler;
+	struct v4l2_ctrl *link_freq;
 	int ret;
 
 	v4l2_ctrl_handler_init(hdl, 32);
@@ -607,6 +612,12 @@ static int ar0521_init_controls(struct ar0521_dev *sensor)
 	/* Manual exposure time */
 	ctrls->exposure = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE, 0,
 					    65535, 1, 360);
+
+	link_freq = v4l2_ctrl_new_int_menu(hdl, ops, V4L2_CID_LINK_FREQ,
+					ARRAY_SIZE(ar0521_link_frequencies) - 1,
+					0, ar0521_link_frequencies);
+	if (link_freq)
+		link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	ctrls->test_pattern = v4l2_ctrl_new_std_menu_items(hdl, ops,
 					V4L2_CID_TEST_PATTERN,
