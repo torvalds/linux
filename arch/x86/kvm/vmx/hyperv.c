@@ -361,6 +361,7 @@ enum evmcs_revision {
 enum evmcs_ctrl_type {
 	EVMCS_EXIT_CTRLS,
 	EVMCS_ENTRY_CTRLS,
+	EVMCS_EXEC_CTRL,
 	EVMCS_2NDEXEC,
 	EVMCS_PINCTRL,
 	EVMCS_VMFUNC,
@@ -373,6 +374,9 @@ static const u32 evmcs_unsupported_ctrls[NR_EVMCS_CTRLS][NR_EVMCS_REVISIONS] = {
 	},
 	[EVMCS_ENTRY_CTRLS] = {
 		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_VMENTRY_CTRL,
+	},
+	[EVMCS_EXEC_CTRL] = {
+		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_EXEC_CTRL,
 	},
 	[EVMCS_2NDEXEC] = {
 		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_2NDEXEC,
@@ -434,6 +438,10 @@ void nested_evmcs_filter_control_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *
 			unsupported_ctrls |= VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
 		ctl_high &= ~unsupported_ctrls;
 		break;
+	case MSR_IA32_VMX_PROCBASED_CTLS:
+	case MSR_IA32_VMX_TRUE_PROCBASED_CTLS:
+		ctl_high &= ~evmcs_get_unsupported_ctls(EVMCS_EXEC_CTRL);
+		break;
 	case MSR_IA32_VMX_PROCBASED_CTLS2:
 		ctl_high &= ~evmcs_get_unsupported_ctls(EVMCS_2NDEXEC);
 		break;
@@ -459,6 +467,10 @@ int nested_evmcs_check_controls(struct vmcs12 *vmcs12)
 {
 	if (CC(!nested_evmcs_is_valid_controls(EVMCS_PINCTRL,
 					       vmcs12->pin_based_vm_exec_control)))
+		return -EINVAL;
+
+	if (CC(!nested_evmcs_is_valid_controls(EVMCS_EXEC_CTRL,
+					       vmcs12->cpu_based_vm_exec_control)))
 		return -EINVAL;
 
 	if (CC(!nested_evmcs_is_valid_controls(EVMCS_2NDEXEC,
