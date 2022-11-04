@@ -10,3 +10,6 @@ obj-$(CONFIG_QTI_CPU_PAUSE_COOLING_DEVICE) += thermal_pause.o
 obj-$(CONFIG_QTI_BCL_PMIC5) += bcl_pmic5.o
 obj-$(CONFIG_QTI_BCL_SOC_DRIVER) += bcl_soc.o
 obj-$(CONFIG_QTI_POLICY_ENGINE_SENSOR) += policy_engine.o
+
+obj-$(CONFIG_QTI_QMI_SENSOR_V2) += qti_qmi_sensor_v2.o
+qti_qmi_sensor_v2-y += thermal_sensor_service_v02.o qmi_sensors_v2.o

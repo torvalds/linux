@@ -82,3 +82,13 @@ config QTI_POLICY_ENGINE_SENSOR
 	    a sensor. This will enable to provide configuration to mitigate
 	    cooling devices when a recommendation is sent from hardware.
 
+config QTI_QMI_SENSOR_V2
+	tristate "QTI QMI TS V2 sensor driver"
+	depends on THERMAL_OF
+	select QCOM_QMI_HELPERS
+	help
+	   This enables to list the QTI remote subsystem temperature sensors
+	   with QMI TS V2 interface. This driver can read the temperature of
+	   the remote sensor. These sensors can take thresholds and notify the
+	   thermal framework when the threshold is reached.
+
