@@ -59,6 +59,12 @@ MODULE_PARM_DESC(swap_opt_cmd, "Swap the Option (\"Alt\") and Command (\"Flag\")
 		"(For people who want to keep Windows PC keyboard muscle memory. "
 		"[0] = as-is, Mac layout. 1 = swapped, Windows layout.)");
 
+static unsigned int swap_ctrl_cmd;
+module_param(swap_ctrl_cmd, uint, 0644);
+MODULE_PARM_DESC(swap_ctrl_cmd, "Swap the Control (\"Ctrl\") and Command (\"Flag\") keys. "
+		"(For people who are used to Mac shortcuts involving Command instead of Control. "
+		"[0] = No change. 1 = Swapped.)");
+
 static unsigned int swap_fn_leftctrl;
 module_param(swap_fn_leftctrl, uint, 0644);
 MODULE_PARM_DESC(swap_fn_leftctrl, "Swap the Fn and left Control keys. "
@@ -308,7 +314,15 @@ static const struct apple_key_translation swapped_option_cmd_keys[] = {
 	{ KEY_LEFTALT,	KEY_LEFTMETA },
 	{ KEY_LEFTMETA,	KEY_LEFTALT },
 	{ KEY_RIGHTALT,	KEY_RIGHTMETA },
-	{ KEY_RIGHTMETA,KEY_RIGHTALT },
+	{ KEY_RIGHTMETA, KEY_RIGHTALT },
+	{ }
+};
+
+static const struct apple_key_translation swapped_ctrl_cmd_keys[] = {
+	{ KEY_LEFTCTRL,	KEY_LEFTMETA },
+	{ KEY_LEFTMETA,	KEY_LEFTCTRL },
+	{ KEY_RIGHTCTRL, KEY_RIGHTMETA },
+	{ KEY_RIGHTMETA, KEY_RIGHTCTRL },
 	{ }
 };
 
@@ -402,6 +416,13 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 
 	if (swap_opt_cmd) {
 		trans = apple_find_translation(swapped_option_cmd_keys, code);
+
+		if (trans)
+			code = trans->to;
+	}
+
+	if (swap_ctrl_cmd) {
+		trans = apple_find_translation(swapped_ctrl_cmd_keys, code);
 
 		if (trans)
 			code = trans->to;
