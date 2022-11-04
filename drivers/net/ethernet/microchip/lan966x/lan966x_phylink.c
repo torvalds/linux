@@ -5,7 +5,6 @@
 #include <linux/device.h>
 #include <linux/netdevice.h>
 #include <linux/phy/phy.h>
-#include <linux/sfp.h>
 
 #include "lan966x_main.h"
 
