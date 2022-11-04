@@ -990,7 +990,14 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 	if (cxl_rr->nr_targets_set) {
 		int i, distance;
 
-		distance = p->nr_targets / cxl_rr->nr_targets;
+		/*
+		 * Passthrough ports impose no distance requirements between
+		 * peers
+		 */
+		if (port->nr_dports == 1)
+			distance = 0;
+		else
+			distance = p->nr_targets / cxl_rr->nr_targets;
 		for (i = 0; i < cxl_rr->nr_targets_set; i++)
 			if (ep->dport == cxlsd->target[i]) {
 				rc = check_last_peer(cxled, ep, cxl_rr,
