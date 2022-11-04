@@ -57,4 +57,6 @@ qcom_aoss.ko
 msm_qmp.ko
 qcom_ipc_logging.ko
 qcom-cpufreq-hw.ko
+sdhci-msm.ko
+cqhci.ko
 crm.ko
