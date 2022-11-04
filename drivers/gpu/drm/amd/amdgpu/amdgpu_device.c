@@ -5454,6 +5454,8 @@ skip_sched_resume:
 			amdgpu_device_resume_display_audio(tmp_adev);
 
 		amdgpu_device_unset_mp1_state(tmp_adev);
+
+		amdgpu_ras_set_error_query_ready(tmp_adev, true);
 	}
 
 recover_end:
