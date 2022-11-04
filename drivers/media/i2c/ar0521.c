@@ -26,10 +26,17 @@
 #define AR0521_PIXEL_CLOCK_MIN	 (168 * 1000 * 1000)
 #define AR0521_PIXEL_CLOCK_MAX	 (414 * 1000 * 1000)
 
+#define AR0521_NATIVE_WIDTH		2604u
+#define AR0521_NATIVE_HEIGHT		1964u
+#define AR0521_MIN_X_ADDR_START		0u
+#define AR0521_MIN_Y_ADDR_START		0u
+#define AR0521_MAX_X_ADDR_END		2603u
+#define AR0521_MAX_Y_ADDR_END		1955u
+
 #define AR0521_WIDTH_MIN	       8u
-#define AR0521_WIDTH_MAX	    2608u
+#define AR0521_WIDTH_MAX	    2592u
 #define AR0521_HEIGHT_MIN	       8u
-#define AR0521_HEIGHT_MAX	    1958u
+#define AR0521_HEIGHT_MAX	    1944u
 
 #define AR0521_WIDTH_BLANKING_MIN     572u
 #define AR0521_HEIGHT_BLANKING_MIN     38u /* must be even */
@@ -176,13 +183,17 @@ static int ar0521_write_reg(struct ar0521_dev *sensor, u16 reg, u16 val)
 
 static int ar0521_set_geometry(struct ar0521_dev *sensor)
 {
+	/* Center the image in the visible output window. */
+	u16 x = clamp((AR0521_WIDTH_MAX - sensor->fmt.width) / 2,
+		       AR0521_MIN_X_ADDR_START, AR0521_MAX_X_ADDR_END);
+	u16 y = clamp(((AR0521_HEIGHT_MAX - sensor->fmt.height) / 2) & ~1,
+		       AR0521_MIN_Y_ADDR_START, AR0521_MAX_Y_ADDR_END);
+
 	/* All dimensions are unsigned 12-bit integers */
-	u16 x = (AR0521_WIDTH_MAX - sensor->fmt.width) / 2;
-	u16 y = ((AR0521_HEIGHT_MAX - sensor->fmt.height) / 2) & ~1;
 	__be16 regs[] = {
 		be(AR0521_REG_FRAME_LENGTH_LINES),
-		be(sensor->total_height),
-		be(sensor->total_width),
+		be(sensor->fmt.height + sensor->ctrls.vblank->val),
+		be(sensor->fmt.width + sensor->ctrls.hblank->val),
 		be(x),
 		be(y),
 		be(x + sensor->fmt.width - 1),
