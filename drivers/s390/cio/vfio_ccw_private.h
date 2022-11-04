@@ -85,7 +85,6 @@ struct vfio_ccw_parent {
 /**
  * struct vfio_ccw_private
  * @vdev: Embedded VFIO device
- * @sch: pointer to the subchannel
  * @state: internal state of the device
  * @completion: synchronization helper of the I/O completion
  * @io_region: MMIO region to input/output I/O arguments/results
@@ -107,7 +106,6 @@ struct vfio_ccw_parent {
  */
 struct vfio_ccw_private {
 	struct vfio_device vdev;
-	struct subchannel	*sch;
 	int			state;
 	struct completion	*completion;
 	struct ccw_io_region	*io_region;
@@ -172,7 +170,10 @@ extern fsm_func_t *vfio_ccw_jumptable[NR_VFIO_CCW_STATES][NR_VFIO_CCW_EVENTS];
 static inline void vfio_ccw_fsm_event(struct vfio_ccw_private *private,
 				      enum vfio_ccw_event event)
 {
-	trace_vfio_ccw_fsm_event(private->sch->schid, private->state, event);
+	struct subchannel *sch = to_subchannel(private->vdev.dev->parent);
+
+	if (sch)
+		trace_vfio_ccw_fsm_event(sch->schid, private->state, event);
 	vfio_ccw_jumptable[private->state][event](private, event);
 }
 
