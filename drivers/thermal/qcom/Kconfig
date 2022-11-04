@@ -113,3 +113,12 @@ config QTI_CPU_VOLTAGE_COOLING_DEVICE
 	    decrease or increase the voltages in a cluster based on thermal
 	    conditions.
 
+config QTI_CPU_HOTPLUG_COOLING_DEVICE
+	tristate "QTI CPU Hotplug cooling devices"
+	depends on THERMAL && HOTPLUG_CPU
+	help
+	   This enables the QTI CPU Hotplug cooling devices. These cooling
+	   devices will be used by QTI chipset to hotplug a CPU to achieve
+	   thermal cooling. CPU Hotplug will be done after core isolation,
+	   to prevent any process from waking the mitigated CPU.
+
