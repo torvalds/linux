@@ -312,6 +312,7 @@ static const struct regval sc3336_linear_10_2304x1296_25fps_regs[] = {
 	{0x5aed, 0x2c},
 	{0x36e9, 0x54},
 	{0x37f9, 0x27},
+	{0x3028, 0x05},
 	{REG_NULL, 0x00},
 };
 
