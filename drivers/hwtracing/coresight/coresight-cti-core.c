@@ -15,9 +15,11 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
 #include <linux/spinlock.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "coresight-priv.h"
 #include "coresight-cti.h"
@@ -346,6 +348,98 @@ int cti_add_default_connection(struct device *dev, struct cti_drvdata *drvdata)
 	return ret;
 }
 
+static int cti_trigin_gpio_enable(struct cti_drvdata *drvdata)
+{
+	int ret;
+	struct pinctrl *pctrl;
+	struct pinctrl_state *pctrl_state;
+
+	if (drvdata->gpio_trigin->pctrl)
+		return 0;
+
+	pctrl = devm_pinctrl_get(drvdata->csdev->dev.parent);
+	if (IS_ERR(pctrl)) {
+		dev_err(&drvdata->csdev->dev, "pinctrl get failed\n");
+		return PTR_ERR(pctrl);
+	}
+
+	pctrl_state = pinctrl_lookup_state(pctrl, "cti-trigin-pctrl");
+	if (IS_ERR(pctrl_state)) {
+		dev_err(&drvdata->csdev->dev,
+			"pinctrl get state failed\n");
+		ret = PTR_ERR(pctrl_state);
+		goto err;
+	}
+
+	ret = pinctrl_select_state(pctrl, pctrl_state);
+	if (ret) {
+		dev_err(&drvdata->csdev->dev,
+			"pinctrl enable state failed\n");
+		goto err;
+	}
+
+	drvdata->gpio_trigin->pctrl = pctrl;
+	return 0;
+err:
+	devm_pinctrl_put(pctrl);
+	return ret;
+}
+
+static int cti_trigout_gpio_enable(struct cti_drvdata *drvdata)
+{
+	int ret;
+	struct pinctrl *pctrl;
+	struct pinctrl_state *pctrl_state;
+
+	if (drvdata->gpio_trigout->pctrl)
+		return 0;
+
+	pctrl = devm_pinctrl_get(drvdata->csdev->dev.parent);
+	if (IS_ERR(pctrl)) {
+		dev_err(&drvdata->csdev->dev, "pinctrl get failed\n");
+		return PTR_ERR(pctrl);
+	}
+
+	pctrl_state = pinctrl_lookup_state(pctrl, "cti-trigout-pctrl");
+	if (IS_ERR(pctrl_state)) {
+		dev_err(&drvdata->csdev->dev,
+			"pinctrl get state failed\n");
+		ret = PTR_ERR(pctrl_state);
+		goto err;
+	}
+
+	ret = pinctrl_select_state(pctrl, pctrl_state);
+	if (ret) {
+		dev_err(&drvdata->csdev->dev,
+			"pinctrl enable state failed\n");
+		goto err;
+	}
+
+	drvdata->gpio_trigout->pctrl = pctrl;
+	return 0;
+err:
+	devm_pinctrl_put(pctrl);
+	return ret;
+}
+
+void cti_trigin_gpio_disable(struct cti_drvdata *drvdata)
+{
+	if (!drvdata->gpio_trigin->pctrl)
+		return;
+
+	devm_pinctrl_put(drvdata->gpio_trigin->pctrl);
+	drvdata->gpio_trigin->pctrl = NULL;
+}
+
+void cti_trigout_gpio_disable(struct cti_drvdata *drvdata)
+{
+	if (!drvdata->gpio_trigout->pctrl)
+		return;
+
+	devm_pinctrl_put(drvdata->gpio_trigout->pctrl);
+	drvdata->gpio_trigout->pctrl = NULL;
+}
+
 /** cti channel api **/
 /* attach/detach channel from trigger - write through if enabled. */
 int cti_channel_trig_op(struct device *dev, enum cti_chan_op op,
@@ -400,6 +494,22 @@ int cti_channel_trig_op(struct device *dev, enum cti_chan_op op,
 		config->ctiinen[trigger_idx] = reg_value;
 	else
 		config->ctiouten[trigger_idx] = reg_value;
+
+	if (op == CTI_CHAN_ATTACH) {
+		if (direction == CTI_TRIG_IN &&
+			drvdata->gpio_trigin->trig == trigger_idx)
+			cti_trigin_gpio_enable(drvdata);
+		else if (direction == CTI_TRIG_OUT &&
+			drvdata->gpio_trigout->trig == trigger_idx)
+			cti_trigout_gpio_enable(drvdata);
+	} else {
+		if (direction == CTI_TRIG_IN &&
+			drvdata->gpio_trigin->trig == trigger_idx)
+			cti_trigin_gpio_disable(drvdata);
+		else if (direction == CTI_TRIG_OUT &&
+			drvdata->gpio_trigout->trig == trigger_idx)
+			cti_trigout_gpio_disable(drvdata);
+	}
 
 	/* write through if enabled */
 	if (cti_active(config))
@@ -886,6 +996,41 @@ static bool is_extended_cti(struct device *dev)
 	return fwnode_property_present(dev->fwnode, "qcom,extended_cti");
 }
 
+static int cti_parse_gpio(struct cti_drvdata *drvdata, struct amba_device *adev)
+{
+	int ret;
+	int trig;
+
+	drvdata->gpio_trigin = devm_kzalloc(&adev->dev,
+			sizeof(struct cti_pctrl), GFP_KERNEL);
+	if (!drvdata->gpio_trigin)
+		return -ENOMEM;
+
+	drvdata->gpio_trigin->trig = -1;
+	ret = of_property_read_u32(adev->dev.of_node,
+			"qcom,cti-gpio-trigin", &trig);
+	if (!ret)
+		drvdata->gpio_trigin->trig = trig;
+	else if (ret != -EINVAL)
+		return ret;
+
+	drvdata->gpio_trigout = devm_kzalloc(&adev->dev,
+			sizeof(struct cti_pctrl), GFP_KERNEL);
+	if (!drvdata->gpio_trigout)
+		return -ENOMEM;
+
+	drvdata->gpio_trigout->trig = -1;
+	ret = of_property_read_u32(adev->dev.of_node,
+			"qcom,cti-gpio-trigout", &trig);
+
+	if (!ret)
+		drvdata->gpio_trigout->trig = trig;
+	else if (ret != -EINVAL)
+		return ret;
+
+	return 0;
+}
+
 static int cti_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret = 0;
@@ -939,6 +1084,10 @@ static int cti_probe(struct amba_device *adev, const struct amba_id *id)
 		cti_desc.name = coresight_alloc_device_name(&cti_sys_devs, dev);
 	if (!cti_desc.name)
 		return -ENOMEM;
+
+	ret = cti_parse_gpio(drvdata, adev);
+	if (ret)
+		return ret;
 
 	/* setup CPU power management handling for CPU bound CTI devices. */
 	ret = cti_pm_setup(drvdata);
