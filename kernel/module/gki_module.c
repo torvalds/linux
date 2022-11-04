@@ -30,6 +30,15 @@ static int cmp_name(const void *sym, const void *protected_sym)
  */
 bool gki_is_module_unprotected_symbol(const char *name)
 {
-	return bsearch(name, gki_unprotected_symbols, NO_OF_UNPROTECTED_SYMBOLS,
-		       MAX_UNPROTECTED_NAME_LEN, cmp_name) != NULL;
+	if (NO_OF_UNPROTECTED_SYMBOLS) {
+		return bsearch(name, gki_unprotected_symbols, NO_OF_UNPROTECTED_SYMBOLS,
+				MAX_UNPROTECTED_NAME_LEN, cmp_name) != NULL;
+	} else {
+		/*
+		 * If there are no symbols in unprotected list;
+		 * there isn't a KMI enforcement for the kernel.
+		 * Treat evertything accessible in this case.
+		 */
+		return true;
+	}
 }
