@@ -62,3 +62,14 @@ config QTI_BCL_PMIC5
 	  voltage sensors with the thermal core framework and can take
 	  threshold input and notify the thermal core when the threshold is
 	  reached.
+
+config QTI_BCL_SOC_DRIVER
+	tristate "QTI Battery state of charge sensor driver"
+	depends on THERMAL && POWER_SUPPLY
+	help
+	  This driver registers battery state of charge as a sensor with
+	  thermal framework. This sensor can monitor for state of charge
+	  thresholds and notify the thermal framework when the thresholds
+	  are reached and cleared. This will help to monitor and apply any
+	  mitigation when state of charge goes below a certain threshold.
+
