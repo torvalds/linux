@@ -220,13 +220,6 @@ static inline __be32 svc_getu32(struct kvec *iov)
 	return val;
 }
 
-static inline void svc_ungetu32(struct kvec *iov)
-{
-	__be32 *vp = (__be32 *)iov->iov_base;
-	iov->iov_base = (void *)(vp - 1);
-	iov->iov_len += sizeof(*vp);
-}
-
 static inline void svc_putu32(struct kvec *iov, __be32 val)
 {
 	__be32 *vp = iov->iov_base + iov->iov_len;
