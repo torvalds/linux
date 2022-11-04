@@ -94,6 +94,8 @@ struct vs_dc {
 
 	struct regmap *dss_regmap;
 
+	bool init_finished;
+
 };
 
 extern struct platform_driver dc_platform_driver;
