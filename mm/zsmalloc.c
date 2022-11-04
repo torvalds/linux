@@ -387,7 +387,7 @@ static int zs_zpool_malloc(void *pool, size_t size, gfp_t gfp,
 {
 	*handle = zs_malloc(pool, size, gfp);
 
-	if (IS_ERR((void *)(*handle)))
+	if (IS_ERR_VALUE(*handle))
 		return PTR_ERR((void *)*handle);
 	return 0;
 }
