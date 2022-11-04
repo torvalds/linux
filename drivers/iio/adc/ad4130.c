@@ -1480,7 +1480,7 @@ static int ad4130_validate_diff_channel(struct ad4130_state *st, u32 pin)
 
 	if (pin >= AD4130_MAX_DIFF_INPUTS)
 		return dev_err_probe(dev, -EINVAL,
-				     "Invalid diffreential channel %u\n", pin);
+				     "Invalid differential channel %u\n", pin);
 
 	if (pin >= AD4130_MAX_ANALOG_PINS)
 		return 0;
