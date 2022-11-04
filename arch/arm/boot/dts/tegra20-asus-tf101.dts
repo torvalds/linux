@@ -1019,7 +1019,7 @@
 	};
 
 	display-panel {
-		compatible = "panel-lvds";
+		compatible = "auo,b101ew05", "panel-lvds";
 
 		/* AUO B101EW05 using custom timings */
 
