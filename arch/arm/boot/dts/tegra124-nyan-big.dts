@@ -18,6 +18,7 @@
 			aux-bus {
 				panel: panel {
 					compatible = "auo,b133xtn01";
+					power-supply = <&vdd_3v3_panel>;
 					backlight = <&backlight>;
 				};
 			};
