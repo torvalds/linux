@@ -57,7 +57,7 @@
 #define CFG_GDSCR_OFFSET	(REG_OFFSET + 0x4)
 
 /* Timeout Delay */
-#define TIMEOUT_US		500
+#define TIMEOUT_US		1500
 
 #define MBOX_TOUT_MS		500
 
