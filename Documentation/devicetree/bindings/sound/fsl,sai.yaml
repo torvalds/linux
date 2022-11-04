@@ -18,21 +18,27 @@ description: |
 properties:
   compatible:
     oneOf:
-      - enum:
-          - fsl,vf610-sai
-          - fsl,imx6sx-sai
-          - fsl,imx6ul-sai
-          - fsl,imx7ulp-sai
-          - fsl,imx8mq-sai
-          - fsl,imx8qm-sai
-          - fsl,imx8ulp-sai
-          - fsl,imx93-sai
+      - items:
+          - enum:
+              - fsl,imx6ul-sai
+              - fsl,imx7d-sai
+          - const: fsl,imx6sx-sai
+
       - items:
           - enum:
               - fsl,imx8mm-sai
               - fsl,imx8mn-sai
               - fsl,imx8mp-sai
           - const: fsl,imx8mq-sai
+
+      - items:
+          - enum:
+              - fsl,imx6sx-sai
+              - fsl,imx7ulp-sai
+              - fsl,imx8mq-sai
+              - fsl,imx8qm-sai
+              - fsl,imx8ulp-sai
+              - fsl,vf610-sai
 
   reg:
     maxItems: 1
