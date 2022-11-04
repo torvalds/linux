@@ -252,6 +252,57 @@ static void genl_get_cmd_by_index(unsigned int i,
 		WARN_ON_ONCE(1);
 }
 
+struct genl_op_iter {
+	const struct genl_family *family;
+	struct genl_split_ops doit;
+	struct genl_split_ops dumpit;
+	int i;
+	u32 cmd;
+	u8 flags;
+};
+
+static bool
+genl_op_iter_init(const struct genl_family *family, struct genl_op_iter *iter)
+{
+	iter->family = family;
+	iter->i = 0;
+
+	iter->flags = 0;
+
+	return genl_get_cmd_cnt(iter->family);
+}
+
+static bool genl_op_iter_next(struct genl_op_iter *iter)
+{
+	struct genl_ops op;
+
+	if (iter->i >= genl_get_cmd_cnt(iter->family))
+		return false;
+
+	genl_get_cmd_by_index(iter->i, iter->family, &op);
+	iter->i++;
+
+	genl_cmd_full_to_split(&iter->doit, iter->family, &op, GENL_CMD_CAP_DO);
+	genl_cmd_full_to_split(&iter->dumpit, iter->family,
+			       &op, GENL_CMD_CAP_DUMP);
+
+	iter->cmd = iter->doit.cmd | iter->dumpit.cmd;
+	iter->flags = iter->doit.flags | iter->dumpit.flags;
+
+	return true;
+}
+
+static void
+genl_op_iter_copy(struct genl_op_iter *dst, struct genl_op_iter *src)
+{
+	*dst = *src;
+}
+
+static unsigned int genl_op_iter_idx(struct genl_op_iter *iter)
+{
+	return iter->i;
+}
+
 static int genl_allocate_reserve_groups(int n_groups, int *first_id)
 {
 	unsigned long *new_groups;
@@ -419,25 +470,23 @@ static void genl_unregister_mc_groups(const struct genl_family *family)
 
 static int genl_validate_ops(const struct genl_family *family)
 {
-	int i, j;
+	struct genl_op_iter i, j;
 
 	if (WARN_ON(family->n_ops && !family->ops) ||
 	    WARN_ON(family->n_small_ops && !family->small_ops))
 		return -EINVAL;
 
-	for (i = 0; i < genl_get_cmd_cnt(family); i++) {
-		struct genl_ops op;
-
-		genl_get_cmd_by_index(i, family, &op);
-		if (op.dumpit == NULL && op.doit == NULL)
+	for (genl_op_iter_init(family, &i); genl_op_iter_next(&i); ) {
+		if (!(i.flags & (GENL_CMD_CAP_DO | GENL_CMD_CAP_DUMP)))
 			return -EINVAL;
-		if (WARN_ON(op.cmd >= family->resv_start_op && op.validate))
-			return -EINVAL;
-		for (j = i + 1; j < genl_get_cmd_cnt(family); j++) {
-			struct genl_ops op2;
 
-			genl_get_cmd_by_index(j, family, &op2);
-			if (op.cmd == op2.cmd)
+		if (WARN_ON(i.cmd >= family->resv_start_op &&
+			    (i.doit.validate || i.dumpit.validate)))
+			return -EINVAL;
+
+		genl_op_iter_copy(&j, &i);
+		while (genl_op_iter_next(&j)) {
+			if (i.cmd == j.cmd)
 				return -EINVAL;
 		}
 	}
@@ -917,6 +966,7 @@ static struct genl_family genl_ctrl;
 static int ctrl_fill_info(const struct genl_family *family, u32 portid, u32 seq,
 			  u32 flags, struct sk_buff *skb, u8 cmd)
 {
+	struct genl_op_iter i;
 	void *hdr;
 
 	hdr = genlmsg_put(skb, portid, seq, &genl_ctrl, flags, cmd);
@@ -930,33 +980,26 @@ static int ctrl_fill_info(const struct genl_family *family, u32 portid, u32 seq,
 	    nla_put_u32(skb, CTRL_ATTR_MAXATTR, family->maxattr))
 		goto nla_put_failure;
 
-	if (genl_get_cmd_cnt(family)) {
+	if (genl_op_iter_init(family, &i)) {
 		struct nlattr *nla_ops;
-		int i;
 
 		nla_ops = nla_nest_start_noflag(skb, CTRL_ATTR_OPS);
 		if (nla_ops == NULL)
 			goto nla_put_failure;
 
-		for (i = 0; i < genl_get_cmd_cnt(family); i++) {
+		while (genl_op_iter_next(&i)) {
 			struct nlattr *nest;
-			struct genl_ops op;
 			u32 op_flags;
 
-			genl_get_cmd_by_index(i, family, &op);
-			op_flags = op.flags;
-			if (op.dumpit)
-				op_flags |= GENL_CMD_CAP_DUMP;
-			if (op.doit)
-				op_flags |= GENL_CMD_CAP_DO;
-			if (op.policy)
+			op_flags = i.flags;
+			if (i.doit.policy || i.dumpit.policy)
 				op_flags |= GENL_CMD_CAP_HASPOL;
 
-			nest = nla_nest_start_noflag(skb, i + 1);
+			nest = nla_nest_start_noflag(skb, genl_op_iter_idx(&i));
 			if (nest == NULL)
 				goto nla_put_failure;
 
-			if (nla_put_u32(skb, CTRL_ATTR_OP_ID, op.cmd) ||
+			if (nla_put_u32(skb, CTRL_ATTR_OP_ID, i.cmd) ||
 			    nla_put_u32(skb, CTRL_ATTR_OP_FLAGS, op_flags))
 				goto nla_put_failure;
 
@@ -1229,8 +1272,8 @@ static int ctrl_dumppolicy_start(struct netlink_callback *cb)
 	struct ctrl_dump_policy_ctx *ctx = (void *)cb->ctx;
 	struct nlattr **tb = info->attrs;
 	const struct genl_family *rt;
-	struct genl_ops op;
-	int err, i;
+	struct genl_op_iter i;
+	int err;
 
 	BUILD_BUG_ON(sizeof(*ctx) > sizeof(cb->ctx));
 
@@ -1285,26 +1328,18 @@ static int ctrl_dumppolicy_start(struct netlink_callback *cb)
 		return 0;
 	}
 
-	for (i = 0; i < genl_get_cmd_cnt(rt); i++) {
-		struct genl_split_ops doit, dumpit;
-
-		genl_get_cmd_by_index(i, rt, &op);
-
-		genl_cmd_full_to_split(&doit, ctx->rt, &op, GENL_CMD_CAP_DO);
-		genl_cmd_full_to_split(&dumpit, ctx->rt,
-				       &op, GENL_CMD_CAP_DUMP);
-
-		if (doit.policy) {
+	for (genl_op_iter_init(rt, &i); genl_op_iter_next(&i); ) {
+		if (i.doit.policy) {
 			err = netlink_policy_dump_add_policy(&ctx->state,
-							     doit.policy,
-							     doit.maxattr);
+							     i.doit.policy,
+							     i.doit.maxattr);
 			if (err)
 				goto err_free_state;
 		}
-		if (dumpit.policy) {
+		if (i.dumpit.policy) {
 			err = netlink_policy_dump_add_policy(&ctx->state,
-							     dumpit.policy,
-							     dumpit.maxattr);
+							     i.dumpit.policy,
+							     i.dumpit.maxattr);
 			if (err)
 				goto err_free_state;
 		}
