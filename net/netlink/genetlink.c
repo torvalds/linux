@@ -189,11 +189,17 @@ static int genl_get_cmd(u32 cmd, const struct genl_family *family,
 	return genl_get_cmd_small(cmd, family, op);
 }
 
-static void
+static int
 genl_cmd_full_to_split(struct genl_split_ops *op,
 		       const struct genl_family *family,
 		       const struct genl_ops *full, u8 flags)
 {
+	if ((flags & GENL_CMD_CAP_DO && !full->doit) ||
+	    (flags & GENL_CMD_CAP_DUMP && !full->dumpit)) {
+		memset(op, 0, sizeof(*op));
+		return -ENOENT;
+	}
+
 	if (flags & GENL_CMD_CAP_DUMP) {
 		op->start	= full->start;
 		op->dumpit	= full->dumpit;
@@ -220,6 +226,8 @@ genl_cmd_full_to_split(struct genl_split_ops *op,
 
 	/* Make sure flags include the GENL_CMD_CAP_DO / GENL_CMD_CAP_DUMP */
 	op->flags		|= flags;
+
+	return 0;
 }
 
 static int
@@ -235,9 +243,7 @@ genl_get_cmd_split(u32 cmd, u8 flags, const struct genl_family *family,
 		return err;
 	}
 
-	genl_cmd_full_to_split(op, family, &full, flags);
-
-	return 0;
+	return genl_cmd_full_to_split(op, family, &full, flags);
 }
 
 static void genl_get_cmd_by_index(unsigned int i,
@@ -730,9 +736,6 @@ static int genl_family_rcv_msg_dumpit(const struct genl_family *family,
 	struct genl_start_context ctx;
 	int err;
 
-	if (!ops->dumpit)
-		return -EOPNOTSUPP;
-
 	ctx.family = family;
 	ctx.nlh = nlh;
 	ctx.extack = extack;
@@ -776,9 +779,6 @@ static int genl_family_rcv_msg_doit(const struct genl_family *family,
 	struct nlattr **attrbuf;
 	struct genl_info info;
 	int err;
-
-	if (!ops->doit)
-		return -EOPNOTSUPP;
 
 	attrbuf = genl_family_rcv_msg_attrs_parse(family, nlh, extack,
 						  ops, hdrlen,
