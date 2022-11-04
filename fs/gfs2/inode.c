@@ -599,7 +599,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 {
 	const struct qstr *name = &dentry->d_name;
 	struct posix_acl *default_acl, *acl;
-	struct gfs2_holder ghs[2];
+	struct gfs2_holder d_gh, gh;
 	struct inode *inode = NULL;
 	struct gfs2_inode *dip = GFS2_I(dir), *ip;
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
@@ -620,10 +620,10 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (error)
 		goto fail;
 
-	error = gfs2_glock_nq_init(dip->i_gl, LM_ST_EXCLUSIVE, 0, ghs);
+	error = gfs2_glock_nq_init(dip->i_gl, LM_ST_EXCLUSIVE, 0, &d_gh);
 	if (error)
 		goto fail;
-	gfs2_holder_mark_uninitialized(ghs + 1);
+	gfs2_holder_mark_uninitialized(&gh);
 
 	error = create_ok(dip, name, mode);
 	if (error)
@@ -645,7 +645,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 			else
 				error = finish_no_open(file, NULL);
 		}
-		gfs2_glock_dq_uninit(ghs);
+		gfs2_glock_dq_uninit(&d_gh);
 		goto fail;
 	} else if (error != -ENOENT) {
 		goto fail_gunlock;
@@ -734,7 +734,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	if (error)
 		goto fail_gunlock2;
 
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_SKIP, ghs + 1);
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_SKIP, &gh);
 	if (error)
 		goto fail_gunlock3;
 
@@ -788,9 +788,9 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 		file->f_mode |= FMODE_CREATED;
 		error = finish_open(file, dentry, gfs2_open_common);
 	}
-	gfs2_glock_dq_uninit(ghs);
+	gfs2_glock_dq_uninit(&d_gh);
 	gfs2_qa_put(ip);
-	gfs2_glock_dq_uninit(ghs + 1);
+	gfs2_glock_dq_uninit(&gh);
 	gfs2_glock_put(io_gl);
 	gfs2_qa_put(dip);
 	unlock_new_inode(inode);
@@ -815,7 +815,7 @@ fail_free_acls:
 	posix_acl_release(acl);
 fail_gunlock:
 	gfs2_dir_no_add(&da);
-	gfs2_glock_dq_uninit(ghs);
+	gfs2_glock_dq_uninit(&d_gh);
 	if (!IS_ERR_OR_NULL(inode)) {
 		clear_nlink(inode);
 		if (!free_vfs_inode)
@@ -827,8 +827,8 @@ fail_gunlock:
 		else
 			iput(inode);
 	}
-	if (gfs2_holder_initialized(ghs + 1))
-		gfs2_glock_dq_uninit(ghs + 1);
+	if (gfs2_holder_initialized(&gh))
+		gfs2_glock_dq_uninit(&gh);
 fail:
 	gfs2_qa_put(dip);
 	return error;
