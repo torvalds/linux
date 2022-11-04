@@ -168,7 +168,7 @@ static void handle_rx(struct uart_port *port)
 
 		c = readw(port->membase + VT8500_RXFIFO) & 0x3ff;
 
-		/* Mask conditions we're ignorning. */
+		/* Mask conditions we're ignoring. */
 		c &= ~port->read_status_mask;
 
 		if (c & FER) {

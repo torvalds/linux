@@ -816,7 +816,7 @@ static void msm_handle_rx(struct uart_port *port)
 			port->icount.rx++;
 		}
 
-		/* Mask conditions we're ignorning. */
+		/* Mask conditions we're ignoring. */
 		sr &= port->read_status_mask;
 
 		if (sr & MSM_UART_SR_RX_BREAK)
