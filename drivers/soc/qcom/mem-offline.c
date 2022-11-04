@@ -17,7 +17,9 @@
 #include <linux/of.h>
 #include <linux/mailbox_client.h>
 #include <linux/mailbox/qmp.h>
+#ifdef CONFIG_MSM_RPM_SMD
 #include <soc/qcom/rpm-smd.h>
+#endif
 
 #define RPM_DDR_REQ 0x726464
 #define AOP_MSG_ADDR_MASK		0xffffffff
@@ -176,6 +178,7 @@ static int mem_region_refresh_control(unsigned long pfn,
 				      unsigned long nr_pages,
 				      bool enable)
 {
+#ifdef CONFIG_MSM_RPM_SMD
 	struct memory_refresh_request mem_req;
 	struct msm_rpm_kvp rpm_kvp;
 
@@ -189,6 +192,9 @@ static int mem_region_refresh_control(unsigned long pfn,
 
 	return msm_rpm_send_message(MSM_RPM_CTX_ACTIVE_SET, RPM_DDR_REQ, 0,
 				    &rpm_kvp, 1);
+#else
+	return -EINVAL;
+#endif
 }
 
 static int aop_send_msg(unsigned long addr, bool online)
