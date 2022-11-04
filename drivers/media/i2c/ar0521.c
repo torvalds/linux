@@ -35,6 +35,11 @@
 #define AR0521_HEIGHT_BLANKING_MIN     38u /* must be even */
 #define AR0521_TOTAL_WIDTH_MIN	     2968u
 
+#define AR0521_ANA_GAIN_MIN		0x00
+#define AR0521_ANA_GAIN_MAX		0x3f
+#define AR0521_ANA_GAIN_STEP		0x01
+#define AR0521_ANA_GAIN_DEFAULT		0x00
+
 /* AR0521 registers */
 #define AR0521_REG_VT_PIX_CLK_DIV		0x0300
 #define AR0521_REG_FRAME_LENGTH_LINES		0x0340
@@ -49,6 +54,8 @@
 #define   AR0521_REG_RESET_STREAM		  BIT(2)
 #define   AR0521_REG_RESET_RESTART		  BIT(1)
 #define   AR0521_REG_RESET_INIT			  BIT(0)
+
+#define AR0521_REG_ANA_GAIN_CODE_GLOBAL		0x3028
 
 #define AR0521_REG_GREEN1_GAIN			0x3056
 #define AR0521_REG_BLUE_GAIN			0x3058
@@ -455,6 +462,10 @@ static int ar0521_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_VBLANK:
 		ret = ar0521_set_geometry(sensor);
 		break;
+	case V4L2_CID_ANALOGUE_GAIN:
+		ret = ar0521_write_reg(sensor, AR0521_REG_ANA_GAIN_CODE_GLOBAL,
+				       ctrl->val);
+		break;
 	case V4L2_CID_GAIN:
 	case V4L2_CID_RED_BALANCE:
 	case V4L2_CID_BLUE_BALANCE:
@@ -497,6 +508,11 @@ static int ar0521_init_controls(struct ar0521_dev *sensor)
 
 	/* We can use our own mutex for the ctrl lock */
 	hdl->lock = &sensor->lock;
+
+	/* Analog gain */
+	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_ANALOGUE_GAIN,
+			  AR0521_ANA_GAIN_MIN, AR0521_ANA_GAIN_MAX,
+			  AR0521_ANA_GAIN_STEP, AR0521_ANA_GAIN_DEFAULT);
 
 	/* Manual gain */
 	ctrls->gain = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_GAIN, 0, 511, 1, 0);
