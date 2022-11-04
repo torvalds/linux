@@ -482,7 +482,7 @@ static void ufs_qcom_select_unipro_mode(struct ufs_qcom_host *host)
 		   ufs_qcom_cap_qunipro(host) ? QUNIPRO_SEL : 0,
 		   REG_UFS_CFG1);
 
-	if (host->hw_ver.major == 0x05)
+	if (host->hw_ver.major >= 0x05)
 		ufshcd_rmwl(host->hba, QUNIPRO_G4_SEL, 0, REG_UFS_CFG0);
 
 	/* make sure above configuration is applied before we return */
@@ -646,7 +646,7 @@ static int ufs_qcom_enable_hw_clk_gating(struct ufs_hba *hba)
 		ufshcd_readl(hba, REG_UFS_CFG2) | REG_UFS_CFG2_CGC_EN_ALL,
 		REG_UFS_CFG2);
 
-	if (host->hw_ver.major == 0x05)
+	if (host->hw_ver.major >= 0x05)
 		/* Ensure unused Unipro block's clock is gated */
 		ufshcd_rmwl(host->hba, UNUSED_UNIPRO_CLK_GATED,
 			UNUSED_UNIPRO_CLK_GATED, UFS_AH8_CFG);
