@@ -6603,7 +6603,6 @@ static void mvpp2_mac_link_down(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops mvpp2_phylink_ops = {
-	.validate = phylink_generic_validate,
 	.mac_select_pcs = mvpp2_select_pcs,
 	.mac_prepare = mvpp2_mac_prepare,
 	.mac_config = mvpp2_mac_config,

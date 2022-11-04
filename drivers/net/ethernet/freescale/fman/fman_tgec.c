@@ -469,7 +469,6 @@ static void tgec_link_down(struct phylink_config *config, unsigned int mode,
 }
 
 static const struct phylink_mac_ops tgec_mac_ops = {
-	.validate = phylink_generic_validate,
 	.mac_config = tgec_mac_config,
 	.mac_link_up = tgec_link_up,
 	.mac_link_down = tgec_link_down,

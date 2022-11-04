@@ -653,7 +653,6 @@ static void mtk_mac_link_up(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops mtk_phylink_ops = {
-	.validate = phylink_generic_validate,
 	.mac_select_pcs = mtk_mac_select_pcs,
 	.mac_pcs_get_state = mtk_mac_pcs_get_state,
 	.mac_config = mtk_mac_config,

@@ -236,7 +236,6 @@ static void dpaa2_mac_link_down(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops dpaa2_mac_phylink_ops = {
-	.validate = phylink_generic_validate,
 	.mac_select_pcs = dpaa2_mac_select_pcs,
 	.mac_config = dpaa2_mac_config,
 	.mac_link_up = dpaa2_mac_link_up,

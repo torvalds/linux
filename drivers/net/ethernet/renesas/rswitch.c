@@ -1190,7 +1190,6 @@ static void rswitch_mac_link_up(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops rswitch_phylink_ops = {
-	.validate = phylink_generic_validate,
 	.mac_config = rswitch_mac_config,
 	.mac_link_down = rswitch_mac_link_down,
 	.mac_link_up = rswitch_mac_link_up,

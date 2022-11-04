@@ -986,7 +986,6 @@ static void dtsec_link_down(struct phylink_config *config, unsigned int mode,
 }
 
 static const struct phylink_mac_ops dtsec_mac_ops = {
-	.validate = phylink_generic_validate,
 	.mac_select_pcs = dtsec_select_pcs,
 	.mac_config = dtsec_mac_config,
 	.mac_link_up = dtsec_link_up,

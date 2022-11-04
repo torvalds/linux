@@ -773,7 +773,6 @@ static void ax88772_mac_link_up(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops ax88772_phylink_mac_ops = {
-	.validate = phylink_generic_validate,
 	.mac_config = ax88772_mac_config,
 	.mac_link_down = ax88772_mac_link_down,
 	.mac_link_up = ax88772_mac_link_up,

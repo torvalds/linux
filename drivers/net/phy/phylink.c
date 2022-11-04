@@ -649,7 +649,10 @@ static int phylink_validate_mac_and_pcs(struct phylink *pl,
 	}
 
 	/* Then validate the link parameters with the MAC */
-	pl->mac_ops->validate(pl->config, supported, state);
+	if (pl->mac_ops->validate)
+		pl->mac_ops->validate(pl->config, supported, state);
+	else
+		phylink_generic_validate(pl->config, supported, state);
 
 	return phylink_is_empty_linkmode(supported) ? -EINVAL : 0;
 }

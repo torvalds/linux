@@ -1727,7 +1727,6 @@ static void vsc7514_phylink_mac_link_up(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops ocelot_phylink_ops = {
-	.validate		= phylink_generic_validate,
 	.mac_config		= vsc7514_phylink_mac_config,
 	.mac_link_down		= vsc7514_phylink_mac_link_down,
 	.mac_link_up		= vsc7514_phylink_mac_link_up,

@@ -360,7 +360,6 @@ static void prestera_pcs_an_restart(struct phylink_pcs *pcs)
 }
 
 static const struct phylink_mac_ops prestera_mac_ops = {
-	.validate = phylink_generic_validate,
 	.mac_select_pcs = prestera_mac_select_pcs,
 	.mac_config = prestera_mac_config,
 	.mac_link_down = prestera_mac_link_down,

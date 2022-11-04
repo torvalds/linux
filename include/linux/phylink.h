@@ -207,6 +207,11 @@ struct phylink_mac_ops {
  *
  * If the @state->interface mode is not supported, then the @supported
  * mask must be cleared.
+ *
+ * This member is optional; if not set, the generic validator will be
+ * used making use of @config->mac_capabilities and
+ * @config->supported_interfaces to determine which link modes are
+ * supported.
  */
 void validate(struct phylink_config *config, unsigned long *supported,
 	      struct phylink_link_state *state);

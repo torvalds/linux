@@ -742,7 +742,6 @@ static struct phylink_pcs *macb_mac_select_pcs(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops macb_phylink_ops = {
-	.validate = phylink_generic_validate,
 	.mac_select_pcs = macb_mac_select_pcs,
 	.mac_config = macb_mac_config,
 	.mac_link_down = macb_mac_link_down,

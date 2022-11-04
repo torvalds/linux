@@ -4228,7 +4228,6 @@ static void mvneta_mac_link_up(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops mvneta_phylink_ops = {
-	.validate = phylink_generic_validate,
 	.mac_select_pcs = mvneta_mac_select_pcs,
 	.mac_prepare = mvneta_mac_prepare,
 	.mac_config = mvneta_mac_config,

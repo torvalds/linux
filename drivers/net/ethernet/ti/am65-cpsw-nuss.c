@@ -1520,7 +1520,6 @@ static void am65_cpsw_nuss_mac_link_up(struct phylink_config *config, struct phy
 }
 
 static const struct phylink_mac_ops am65_cpsw_phylink_mac_ops = {
-	.validate = phylink_generic_validate,
 	.mac_config = am65_cpsw_nuss_mac_config,
 	.mac_link_down = am65_cpsw_nuss_mac_link_down,
 	.mac_link_up = am65_cpsw_nuss_mac_link_up,
