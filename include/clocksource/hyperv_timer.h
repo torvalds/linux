@@ -31,6 +31,7 @@ extern void hv_stimer_global_cleanup(void);
 extern void hv_stimer0_isr(void);
 
 extern void hv_init_clocksource(void);
+extern void hv_remap_tsc_clocksource(void);
 
 extern unsigned long hv_get_tsc_pfn(void);
 extern struct ms_hyperv_tsc_page *hv_get_tsc_page(void);
