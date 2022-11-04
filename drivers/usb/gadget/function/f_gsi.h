@@ -9,7 +9,6 @@
 
 #include <linux/poll.h>
 #include <linux/cdev.h>
-#include <linux/ipa.h>
 #include <uapi/linux/usb/cdc.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/composite.h>
@@ -253,6 +252,8 @@ struct gsi_data_port {
 	struct ipa_usb_xdci_chan_params ipa_in_channel_params;
 	struct ipa_usb_xdci_chan_params ipa_out_channel_params;
 	struct ipa_usb_xdci_connect_params ipa_conn_pms;
+
+	struct ipa_usb_ops *ipa_ops;
 };
 
 struct f_gsi {

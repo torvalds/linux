@@ -175,181 +175,34 @@ struct ipa_req_chan_out_params {
 	u32 db_reg_phs_addr_msb;
 };
 
-#if IS_ENABLED(CONFIG_IPA3)
+struct ipa_usb_ops {
+	int (*init_teth_prot)(enum ipa_usb_teth_prot teth_prot,
+		struct ipa_usb_teth_params *teth_params,
+		int (*ipa_usb_notify_cb)(enum ipa_usb_notify_event, void *),
+		void *user_data);
+	int (*xdci_connect)
+		(struct ipa_usb_xdci_chan_params *ul_chan_params,
+		struct ipa_usb_xdci_chan_params *dl_chan_params,
+		struct ipa_req_chan_out_params *ul_out_params,
+		struct ipa_req_chan_out_params *dl_out_params,
+		struct ipa_usb_xdci_connect_params *connect_params);
+	int (*xdci_disconnect)(u32 ul_clnt_hdl, u32 dl_clnt_hdl,
+		enum ipa_usb_teth_prot teth_prot);
+	int (*deinit_teth_prot)(enum ipa_usb_teth_prot teth_prot);
+	int (*xdci_suspend)(u32 ul_clnt_hdl, u32 dl_clnt_hdl,
+		enum ipa_usb_teth_prot teth_prot,
+		bool with_remote_wakeup);
+	int (*xdci_resume)(u32 ul_clnt_hdl, u32 dl_clnt_hdl,
+		enum ipa_usb_teth_prot teth_prot);
+	bool (*ipa_usb_is_teth_prot_connected)
+		(enum ipa_usb_teth_prot usb_teth_prot);
+};
 
-/**
- * ipa_usb_init_teth_prot - Peripheral should call this function to initialize
- * RNDIS/ECM/teth_bridge/DPL, prior to calling ipa_usb_xdci_connect()
- *
- * @usb_teth_type: tethering protocol type
- * @teth_params:   pointer to tethering protocol parameters.
- *                 Should be struct ipa_usb_teth_params for RNDIS/ECM,
- *                 or NULL for teth_bridge
- * @ipa_usb_notify_cb: will be called to notify USB driver on certain events
- * @user_data:     cookie used for ipa_usb_notify_cb
- *
- * @Return 0 on success, negative on failure
- */
-int ipa_usb_init_teth_prot(enum ipa_usb_teth_prot teth_prot,
-			   struct ipa_usb_teth_params *teth_params,
-			   int (*ipa_usb_notify_cb)(enum ipa_usb_notify_event,
-			   void *),
-			   void *user_data);
-
-/**
- * ipa_usb_xdci_connect - Peripheral should call this function to start IN &
- * OUT xDCI channels, and connect RNDIS/ECM/MBIM/RMNET.
- * For DPL, only starts IN channel.
- *
- * @ul_chan_params: parameters for allocating UL xDCI channel. containing
- *              required info on event and transfer rings, and IPA EP
- *              configuration
- * @ul_out_params: [out] opaque client handle assigned by IPA to client & DB
- *              registers physical address for UL channel
- * @dl_chan_params: parameters for allocating DL xDCI channel. containing
- *              required info on event and transfer rings, and IPA EP
- *              configuration
- * @dl_out_params: [out] opaque client handle assigned by IPA to client & DB
- *              registers physical address for DL channel
- * @connect_params: handles and scratch params of the required channels,
- *              tethering protocol and the tethering protocol parameters.
- *
- * Note: Should not be called from atomic context
- *
- * @Return 0 on success, negative on failure
- */
-int ipa_usb_xdci_connect(struct ipa_usb_xdci_chan_params *ul_chan_params,
-			 struct ipa_usb_xdci_chan_params *dl_chan_params,
-			 struct ipa_req_chan_out_params *ul_out_params,
-			 struct ipa_req_chan_out_params *dl_out_params,
-			 struct ipa_usb_xdci_connect_params *connect_params);
-
-/**
- * ipa_usb_xdci_disconnect - Peripheral should call this function to stop
- * IN & OUT xDCI channels
- * For DPL, only stops IN channel.
- *
- * @ul_clnt_hdl:    client handle received from ipa_usb_xdci_connect()
- *                  for OUT channel
- * @dl_clnt_hdl:    client handle received from ipa_usb_xdci_connect()
- *                  for IN channel
- * @teth_prot:      tethering protocol
- *
- * Note: Should not be called from atomic context
- *
- * @Return 0 on success, negative on failure
- */
-int ipa_usb_xdci_disconnect(u32 ul_clnt_hdl, u32 dl_clnt_hdl,
-			    enum ipa_usb_teth_prot teth_prot);
-
-/**
- * ipa_usb_deinit_teth_prot - Peripheral should call this function to deinit
- * RNDIS/ECM/MBIM/RMNET
- *
- * @teth_prot: tethering protocol
- *
- * @Return 0 on success, negative on failure
- */
-int ipa_usb_deinit_teth_prot(enum ipa_usb_teth_prot teth_prot);
-
-/**
- * ipa_usb_xdci_suspend - Peripheral should call this function to suspend
- * IN & OUT or DPL xDCI channels
- *
- * @ul_clnt_hdl: client handle previously obtained from
- *               ipa_usb_xdci_connect() for OUT channel
- * @dl_clnt_hdl: client handle previously obtained from
- *               ipa_usb_xdci_connect() for IN channel
- * @teth_prot:   tethering protocol
- * @with_remote_wakeup: Does host support remote wakeup?
- *
- * Note: Should not be called from atomic context
- * Note: for DPL, the ul will be ignored as irrelevant
- *
- * @Return 0 on success, negative on failure
- */
-int ipa_usb_xdci_suspend(u32 ul_clnt_hdl, u32 dl_clnt_hdl,
-			 enum ipa_usb_teth_prot teth_prot,
-			 bool with_remote_wakeup);
-
-/**
- * ipa_usb_xdci_resume - Peripheral should call this function to resume
- * IN & OUT or DPL xDCI channels
- *
- * @ul_clnt_hdl:   client handle received from ipa_usb_xdci_connect()
- *                 for OUT channel
- * @dl_clnt_hdl:   client handle received from ipa_usb_xdci_connect()
- *                 for IN channel
- * @teth_prot:   tethering protocol
- *
- * Note: Should not be called from atomic context
- * Note: for DPL, the ul will be ignored as irrelevant
- *
- * @Return 0 on success, negative on failure
- */
-int ipa_usb_xdci_resume(u32 ul_clnt_hdl, u32 dl_clnt_hdl,
-			enum ipa_usb_teth_prot teth_prot);
-
-/**
- * ipa_usb_is_teth_prot_connected - Internal API for checking USB
- *		protocol is connected
- *
- * @usb_teth_prot:   USB tethering protocol
- * @Return true if connected, false if not
- */
-bool ipa_usb_is_teth_prot_connected(enum ipa_usb_teth_prot usb_teth_prot);
-
-#else /* IS_ENABLED(CONFIG_IPA3) */
-
-static inline int ipa_usb_init_teth_prot(enum ipa_usb_teth_prot teth_prot,
-			   struct ipa_usb_teth_params *teth_params,
-			   int (*ipa_usb_notify_cb)(enum ipa_usb_notify_event,
-			   void *),
-			   void *user_data)
-{
-	return -EPERM;
-}
-
-static inline int ipa_usb_xdci_connect(
-			 struct ipa_usb_xdci_chan_params *ul_chan_params,
-			 struct ipa_usb_xdci_chan_params *dl_chan_params,
-			 struct ipa_req_chan_out_params *ul_out_params,
-			 struct ipa_req_chan_out_params *dl_out_params,
-			 struct ipa_usb_xdci_connect_params *connect_params)
-{
-	return -EPERM;
-}
-
-static inline int ipa_usb_xdci_disconnect(u32 ul_clnt_hdl, u32 dl_clnt_hdl,
-			    enum ipa_usb_teth_prot teth_prot)
-{
-	return -EPERM;
-}
-
-static inline int ipa_usb_deinit_teth_prot(enum ipa_usb_teth_prot teth_prot)
-{
-	return -EPERM;
-}
-
-static inline int ipa_usb_xdci_suspend(u32 ul_clnt_hdl, u32 dl_clnt_hdl,
-			 enum ipa_usb_teth_prot teth_prot,
-			 bool with_remote_wakeup)
-{
-	return -EPERM;
-}
-
-static inline int ipa_usb_xdci_resume(u32 ul_clnt_hdl, u32 dl_clnt_hdl,
-			enum ipa_usb_teth_prot teth_prot)
-{
-	return -EPERM;
-}
-
-static inline int ipa_usb_is_teth_prot_connected(enum ipa_usb_teth_prot usb_teth_prot)
-{
-	return -EPERM;
-}
-
-
-#endif /* IS_ENABLED(CONFIG_IPA3) */
+#if IS_ENABLED(CONFIG_USB_F_GSI)
+void ipa_ready_callback(void *ops);
+#else
+static inline void ipa_ready_callback(void *ops)
+{ }
+#endif
 
 #endif /* _IPA_USB_H_ */
