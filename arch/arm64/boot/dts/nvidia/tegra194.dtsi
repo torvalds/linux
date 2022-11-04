@@ -958,7 +958,6 @@
 				     "nvidia,tegra186-pwm";
 			reg = <0x3280000 0x10000>;
 			clocks = <&bpmp TEGRA194_CLK_PWM1>;
-			clock-names = "pwm";
 			resets = <&bpmp TEGRA194_RESET_PWM1>;
 			reset-names = "pwm";
 			status = "disabled";
@@ -970,7 +969,6 @@
 				     "nvidia,tegra186-pwm";
 			reg = <0x3290000 0x10000>;
 			clocks = <&bpmp TEGRA194_CLK_PWM2>;
-			clock-names = "pwm";
 			resets = <&bpmp TEGRA194_RESET_PWM2>;
 			reset-names = "pwm";
 			status = "disabled";
@@ -982,7 +980,6 @@
 				     "nvidia,tegra186-pwm";
 			reg = <0x32a0000 0x10000>;
 			clocks = <&bpmp TEGRA194_CLK_PWM3>;
-			clock-names = "pwm";
 			resets = <&bpmp TEGRA194_RESET_PWM3>;
 			reset-names = "pwm";
 			status = "disabled";
@@ -994,7 +991,6 @@
 				     "nvidia,tegra186-pwm";
 			reg = <0x32c0000 0x10000>;
 			clocks = <&bpmp TEGRA194_CLK_PWM5>;
-			clock-names = "pwm";
 			resets = <&bpmp TEGRA194_RESET_PWM5>;
 			reset-names = "pwm";
 			status = "disabled";
@@ -1006,7 +1002,6 @@
 				     "nvidia,tegra186-pwm";
 			reg = <0x32d0000 0x10000>;
 			clocks = <&bpmp TEGRA194_CLK_PWM6>;
-			clock-names = "pwm";
 			resets = <&bpmp TEGRA194_RESET_PWM6>;
 			reset-names = "pwm";
 			status = "disabled";
@@ -1018,7 +1013,6 @@
 				     "nvidia,tegra186-pwm";
 			reg = <0x32e0000 0x10000>;
 			clocks = <&bpmp TEGRA194_CLK_PWM7>;
-			clock-names = "pwm";
 			resets = <&bpmp TEGRA194_RESET_PWM7>;
 			reset-names = "pwm";
 			status = "disabled";
@@ -1030,7 +1024,6 @@
 				     "nvidia,tegra186-pwm";
 			reg = <0x32f0000 0x10000>;
 			clocks = <&bpmp TEGRA194_CLK_PWM8>;
-			clock-names = "pwm";
 			resets = <&bpmp TEGRA194_RESET_PWM8>;
 			reset-names = "pwm";
 			status = "disabled";
@@ -1687,7 +1680,6 @@
 				     "nvidia,tegra186-pwm";
 			reg = <0xc340000 0x10000>;
 			clocks = <&bpmp TEGRA194_CLK_PWM4>;
-			clock-names = "pwm";
 			resets = <&bpmp TEGRA194_RESET_PWM4>;
 			reset-names = "pwm";
 			status = "disabled";
