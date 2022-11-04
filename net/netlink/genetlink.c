@@ -1609,14 +1609,22 @@ static int ctrl_dumppolicy_done(struct netlink_callback *cb)
 	return 0;
 }
 
-static const struct genl_ops genl_ctrl_ops[] = {
+static const struct genl_split_ops genl_ctrl_ops[] = {
 	{
 		.cmd		= CTRL_CMD_GETFAMILY,
-		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
+		.validate	= GENL_DONT_VALIDATE_STRICT,
 		.policy		= ctrl_policy_family,
 		.maxattr	= ARRAY_SIZE(ctrl_policy_family) - 1,
 		.doit		= ctrl_getfamily,
+		.flags		= GENL_CMD_CAP_DO,
+	},
+	{
+		.cmd		= CTRL_CMD_GETFAMILY,
+		.validate	= GENL_DONT_VALIDATE_DUMP,
+		.policy		= ctrl_policy_family,
+		.maxattr	= ARRAY_SIZE(ctrl_policy_family) - 1,
 		.dumpit		= ctrl_dumpfamily,
+		.flags		= GENL_CMD_CAP_DUMP,
 	},
 	{
 		.cmd		= CTRL_CMD_GETPOLICY,
@@ -1625,6 +1633,7 @@ static const struct genl_ops genl_ctrl_ops[] = {
 		.start		= ctrl_dumppolicy_start,
 		.dumpit		= ctrl_dumppolicy,
 		.done		= ctrl_dumppolicy_done,
+		.flags		= GENL_CMD_CAP_DUMP,
 	},
 };
 
@@ -1634,8 +1643,8 @@ static const struct genl_multicast_group genl_ctrl_groups[] = {
 
 static struct genl_family genl_ctrl __ro_after_init = {
 	.module = THIS_MODULE,
-	.ops = genl_ctrl_ops,
-	.n_ops = ARRAY_SIZE(genl_ctrl_ops),
+	.split_ops = genl_ctrl_ops,
+	.n_split_ops = ARRAY_SIZE(genl_ctrl_ops),
 	.resv_start_op = CTRL_CMD_GETPOLICY + 1,
 	.mcgrps = genl_ctrl_groups,
 	.n_mcgrps = ARRAY_SIZE(genl_ctrl_groups),
