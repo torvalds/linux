@@ -514,9 +514,6 @@ static int ar0521_s_ctrl(struct v4l2_ctrl *ctrl)
 		sensor->total_height = sensor->fmt.width +
 			sensor->ctrls.vblank->val;
 		break;
-	default:
-		ret = -EINVAL;
-		break;
 	}
 
 	/* access the sensor only if it's powered up */
@@ -545,6 +542,11 @@ static int ar0521_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_TEST_PATTERN:
 		ret = ar0521_write_reg(sensor, AR0521_REG_TEST_PATTERN_MODE,
 				       ctrl->val);
+		break;
+	default:
+		dev_err(&sensor->i2c_client->dev,
+			"Unsupported control %x\n", ctrl->id);
+		ret = -EINVAL;
 		break;
 	}
 
