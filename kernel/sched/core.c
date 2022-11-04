@@ -3739,13 +3739,6 @@ void sched_ttwu_pending(void *arg)
 	if (!llist)
 		return;
 
-	/*
-	 * rq::ttwu_pending racy indication of out-standing wakeups.
-	 * Races such that false-negatives are possible, since they
-	 * are shorter lived that false-positives would be.
-	 */
-	WRITE_ONCE(rq->ttwu_pending, 0);
-
 	rq_lock_irqsave(rq, &rf);
 	update_rq_clock(rq);
 
@@ -3759,6 +3752,17 @@ void sched_ttwu_pending(void *arg)
 		ttwu_do_activate(rq, p, p->sched_remote_wakeup ? WF_MIGRATED : 0, &rf);
 	}
 
+	/*
+	 * Must be after enqueueing at least once task such that
+	 * idle_cpu() does not observe a false-negative -- if it does,
+	 * it is possible for select_idle_siblings() to stack a number
+	 * of tasks on this CPU during that window.
+	 *
+	 * It is ok to clear ttwu_pending when another task pending.
+	 * We will receive IPI after local irq enabled and then enqueue it.
+	 * Since now nr_running > 0, idle_cpu() will always get correct result.
+	 */
+	WRITE_ONCE(rq->ttwu_pending, 0);
 	rq_unlock_irqrestore(rq, &rf);
 }
 
