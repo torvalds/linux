@@ -1097,6 +1097,7 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 			return ret;
 		msg.sg_from_iter = io_sg_from_iter;
 	} else {
+		io_notif_set_extended(zc->notif);
 		ret = import_single_range(WRITE, zc->buf, zc->len, &iov,
 					  &msg.msg_iter);
 		if (unlikely(ret))
@@ -1157,6 +1158,8 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 	struct socket *sock;
 	unsigned flags;
 	int ret, min_ret = 0;
+
+	io_notif_set_extended(sr->notif);
 
 	sock = sock_from_file(req->file);
 	if (unlikely(!sock))

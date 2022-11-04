@@ -9,26 +9,19 @@
 #include "notif.h"
 #include "rsrc.h"
 
-static void __io_notif_complete_tw(struct io_kiocb *notif, bool *locked)
+static void io_notif_complete_tw_ext(struct io_kiocb *notif, bool *locked)
 {
 	struct io_notif_data *nd = io_notif_to_data(notif);
 	struct io_ring_ctx *ctx = notif->ctx;
+
+	if (nd->zc_report && (nd->zc_copied || !nd->zc_used))
+		notif->cqe.res |= IORING_NOTIF_USAGE_ZC_COPIED;
 
 	if (nd->account_pages && ctx->user) {
 		__io_unaccount_mem(ctx->user, nd->account_pages);
 		nd->account_pages = 0;
 	}
 	io_req_task_complete(notif, locked);
-}
-
-static void io_notif_complete_tw_ext(struct io_kiocb *notif, bool *locked)
-{
-	struct io_notif_data *nd = io_notif_to_data(notif);
-
-	if (nd->zc_report && (nd->zc_copied || !nd->zc_used))
-		notif->cqe.res |= IORING_NOTIF_USAGE_ZC_COPIED;
-
-	__io_notif_complete_tw(notif, locked);
 }
 
 static void io_tx_ubuf_callback(struct sk_buff *skb, struct ubuf_info *uarg,
@@ -59,11 +52,14 @@ void io_notif_set_extended(struct io_kiocb *notif)
 {
 	struct io_notif_data *nd = io_notif_to_data(notif);
 
-	nd->zc_report = false;
-	nd->zc_used = false;
-	nd->zc_copied = false;
-	notif->io_task_work.func = io_notif_complete_tw_ext;
-	io_notif_to_data(notif)->uarg.callback = io_tx_ubuf_callback_ext;
+	if (nd->uarg.callback != io_tx_ubuf_callback_ext) {
+		nd->account_pages = 0;
+		nd->zc_report = false;
+		nd->zc_used = false;
+		nd->zc_copied = false;
+		nd->uarg.callback = io_tx_ubuf_callback_ext;
+		notif->io_task_work.func = io_notif_complete_tw_ext;
+	}
 }
 
 struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
@@ -81,10 +77,9 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
 	notif->task = current;
 	io_get_task_refs(1);
 	notif->rsrc_node = NULL;
-	notif->io_task_work.func = __io_notif_complete_tw;
+	notif->io_task_work.func = io_req_task_complete;
 
 	nd = io_notif_to_data(notif);
-	nd->account_pages = 0;
 	nd->uarg.flags = SKBFL_ZEROCOPY_FRAG | SKBFL_DONT_ORPHAN;
 	nd->uarg.callback = io_tx_ubuf_callback;
 	refcount_set(&nd->uarg.refcnt, 1);
