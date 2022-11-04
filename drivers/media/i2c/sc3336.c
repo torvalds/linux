@@ -589,57 +589,58 @@ static int sc3336_set_gain_reg(struct sc3336 *sc3336, u32 gain)
 {
 	struct i2c_client *client = sc3336->client;
 	u32 coarse_again = 0, coarse_dgain = 0, fine_dgain = 0;
-	int ret = 0;
+	int ret = 0, gain_factor;
 
 	if (gain < 128)
 		gain = 128;
 	else if (gain > SC3336_GAIN_MAX)
 		gain = SC3336_GAIN_MAX;
 
-	if (gain < 1520) {
+	gain_factor = gain * 1000 / 128;
+	if (gain_factor < 1520) {
 		coarse_again = 0x00;
 		coarse_dgain = 0x00;
-		fine_dgain = gain * 128 / 1000;
-	} else if (gain < 3040) {
+		fine_dgain = gain_factor * 128 / 1000;
+	} else if (gain_factor < 3040) {
 		coarse_again = 0x40;
 		coarse_dgain = 0x00;
-		fine_dgain = gain * 128 / 1520;
-	} else if (gain < 6080) {
+		fine_dgain = gain_factor * 128 / 1520;
+	} else if (gain_factor < 6080) {
 		coarse_again = 0x48;
 		coarse_dgain = 0x00;
-		fine_dgain = gain * 128 / 3040;
-	} else if (gain < 12160) {
+		fine_dgain = gain_factor * 128 / 3040;
+	} else if (gain_factor < 12160) {
 		coarse_again = 0x49;
 		coarse_dgain = 0x00;
-		fine_dgain = gain * 128 / 6080;
-	} else if (gain < 24320) {
+		fine_dgain = gain_factor * 128 / 6080;
+	} else if (gain_factor < 24320) {
 		coarse_again = 0x4b;
 		coarse_dgain = 0x00;
-		fine_dgain = gain * 128 / 12160;
-	} else if (gain < 48640) {
+		fine_dgain = gain_factor * 128 / 12160;
+	} else if (gain_factor < 48640) {
 		coarse_again = 0x4f;
 		coarse_dgain = 0x00;
-		fine_dgain = gain * 128 / 24320;
-	} else if (gain < 48640 * 2) {
+		fine_dgain = gain_factor * 128 / 24320;
+	} else if (gain_factor < 48640 * 2) {
 		//open dgain begin  max digital gain 4X
 		coarse_again = 0x5f;
 		coarse_dgain = 0x00;
-		fine_dgain = gain * 128 / 48640;
-	} else if (gain < 48640 * 4) {
+		fine_dgain = gain_factor * 128 / 48640;
+	} else if (gain_factor < 48640 * 4) {
 		coarse_again = 0x5f;
 		coarse_dgain = 0x01;
-		fine_dgain = gain * 128 / 48640 / 2;
-	} else if (gain < 48640 * 8) {
+		fine_dgain = gain_factor * 128 / 48640 / 2;
+	} else if (gain_factor < 48640 * 8) {
 		coarse_again = 0x5f;
 		coarse_dgain = 0x03;
-		fine_dgain = gain * 128 / 48640 / 4;
-	} else if (gain < 48640 * 16) {
+		fine_dgain = gain_factor * 128 / 48640 / 4;
+	} else if (gain_factor < 48640 * 16) {
 		coarse_again = 0x5f;
 		coarse_dgain = 0x07;
-		fine_dgain = gain * 128 / 48640 / 8;
+		fine_dgain = gain_factor * 128 / 48640 / 8;
 	}
 	dev_dbg(&client->dev, "c_again: 0x%x, c_dgain: 0x%x, f_dgain: 0x%0x\n",
-		coarse_again, coarse_dgain, fine_dgain);
+		    coarse_again, coarse_dgain, fine_dgain);
 
 	ret = sc3336_write_reg(sc3336->client,
 				SC3336_REG_DIG_GAIN,
