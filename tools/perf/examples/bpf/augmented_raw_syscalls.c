@@ -129,6 +129,7 @@ struct augmented_args_payload {
 			struct augmented_arg arg, arg2;
 		};
 		struct sockaddr_storage saddr;
+		char   __data[sizeof(struct augmented_arg)];
 	};
 };
 
@@ -291,6 +292,49 @@ int sys_enter_renameat(struct syscall_enter_args *args)
 	len += oldpath_len + augmented_arg__read_str((void *)(&augmented_args->arg) + oldpath_len, newpath_arg, sizeof(augmented_args->arg.value));
 
 	return augmented__output(args, augmented_args, len);
+}
+
+#define PERF_ATTR_SIZE_VER0     64      /* sizeof first published struct */
+
+// we need just the start, get the size to then copy it
+struct perf_event_attr_size {
+        __u32                   type;
+        /*
+         * Size of the attr structure, for fwd/bwd compat.
+         */
+        __u32                   size;
+};
+
+SEC("!syscalls:sys_enter_perf_event_open")
+int sys_enter_perf_event_open(struct syscall_enter_args *args)
+{
+	struct augmented_args_payload *augmented_args = augmented_args_payload();
+	const struct perf_event_attr_size *attr = (const struct perf_event_attr_size *)args->args[0], *attr_read;
+	unsigned int len = sizeof(augmented_args->args);
+
+        if (augmented_args == NULL)
+		goto failure;
+
+	if (bpf_probe_read(&augmented_args->__data, sizeof(*attr), attr) < 0)
+		goto failure;
+
+	attr_read = (const struct perf_event_attr_size *)augmented_args->__data;
+
+	__u32 size = attr_read->size;
+
+	if (!size)
+		size = PERF_ATTR_SIZE_VER0;
+
+	if (size > sizeof(augmented_args->__data))
+                goto failure;
+
+	// Now that we read attr->size and tested it against the size limits, read it completely
+	if (bpf_probe_read(&augmented_args->__data, size, attr) < 0)
+		goto failure;
+
+	return augmented__output(args, augmented_args, len + size);
+failure:
+	return 1; /* Failure: don't filter */
 }
 
 static pid_t getpid(void)
