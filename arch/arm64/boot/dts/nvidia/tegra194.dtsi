@@ -86,6 +86,7 @@
 			interrupt-controller;
 			#gpio-cells = <2>;
 			gpio-controller;
+			gpio-ranges = <&pinmux 0 0 169>;
 		};
 
 		cbb-noc@2300000 {
@@ -626,9 +627,7 @@
 
 		pinmux: pinmux@2430000 {
 			compatible = "nvidia,tegra194-pinmux";
-			reg = <0x2430000 0x17000>,
-			      <0xc300000 0x4000>;
-
+			reg = <0x2430000 0x17000>;
 			status = "okay";
 
 			pex_rst_c5_out_state: pex_rst_c5_out {
@@ -1673,6 +1672,14 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-range = <&pinmux_aon 0 0 30>;
+		};
+
+		pinmux_aon: pinmux@c300000 {
+			compatible = "nvidia,tegra194-pinmux-aon";
+			reg = <0xc300000 0x4000>;
+
+			status = "okay";
 		};
 
 		pwm4: pwm@c340000 {
