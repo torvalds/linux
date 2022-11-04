@@ -118,11 +118,6 @@ static const struct genl_family *genl_family_find_byname(char *name)
 	return NULL;
 }
 
-static int genl_get_cmd_cnt(const struct genl_family *family)
-{
-	return family->n_ops + family->n_small_ops;
-}
-
 static void genl_op_from_full(const struct genl_family *family,
 			      unsigned int i, struct genl_ops *op)
 {
@@ -240,18 +235,6 @@ genl_get_cmd(u32 cmd, u8 flags, const struct genl_family *family,
 	return genl_cmd_full_to_split(op, family, &full, flags);
 }
 
-static void genl_get_cmd_by_index(unsigned int i,
-				  const struct genl_family *family,
-				  struct genl_ops *op)
-{
-	if (i < family->n_ops)
-		genl_op_from_full(family, i, op);
-	else if (i < family->n_ops + family->n_small_ops)
-		genl_op_from_small(family, i - family->n_ops, op);
-	else
-		WARN_ON_ONCE(1);
-}
-
 struct genl_op_iter {
 	const struct genl_family *family;
 	struct genl_split_ops doit;
@@ -269,22 +252,25 @@ genl_op_iter_init(const struct genl_family *family, struct genl_op_iter *iter)
 
 	iter->flags = 0;
 
-	return genl_get_cmd_cnt(iter->family);
+	return iter->family->n_ops + iter->family->n_small_ops;
 }
 
 static bool genl_op_iter_next(struct genl_op_iter *iter)
 {
+	const struct genl_family *family = iter->family;
 	struct genl_ops op;
 
-	if (iter->i >= genl_get_cmd_cnt(iter->family))
+	if (iter->i < family->n_ops)
+		genl_op_from_full(family, iter->i, &op);
+	else if (iter->i < family->n_ops + family->n_small_ops)
+		genl_op_from_small(family, iter->i - family->n_ops, &op);
+	else
 		return false;
 
-	genl_get_cmd_by_index(iter->i, iter->family, &op);
 	iter->i++;
 
-	genl_cmd_full_to_split(&iter->doit, iter->family, &op, GENL_CMD_CAP_DO);
-	genl_cmd_full_to_split(&iter->dumpit, iter->family,
-			       &op, GENL_CMD_CAP_DUMP);
+	genl_cmd_full_to_split(&iter->doit, family, &op, GENL_CMD_CAP_DO);
+	genl_cmd_full_to_split(&iter->dumpit, family, &op, GENL_CMD_CAP_DUMP);
 
 	iter->cmd = iter->doit.cmd | iter->dumpit.cmd;
 	iter->flags = iter->doit.flags | iter->dumpit.flags;
