@@ -2653,7 +2653,6 @@
 
 	extcon-keys {
 		compatible = "gpio-keys";
-		interrupt-parent = <&gpio>;
 
 		switch-dock-insert {
 			label = "Chagall Dock";
@@ -2686,7 +2685,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		interrupt-parent = <&gpio>;
 
 		key-power {
 			label = "Power";

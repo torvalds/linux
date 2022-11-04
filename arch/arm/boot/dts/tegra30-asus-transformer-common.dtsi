@@ -1509,7 +1509,6 @@
 
 	extcon-keys {
 		compatible = "gpio-keys";
-		interrupt-parent = <&gpio>;
 
 		switch-dock-hall-sensor {
 			label = "Lid sensor";
@@ -1542,7 +1541,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		interrupt-parent = <&gpio>;
 
 		key-power {
 			label = "Power";
