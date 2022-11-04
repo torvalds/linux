@@ -799,6 +799,24 @@ static int ar0521_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int ar0521_enum_frame_size(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *sd_state,
+				  struct v4l2_subdev_frame_size_enum *fse)
+{
+	if (fse->index)
+		return -EINVAL;
+
+	if (fse->code != MEDIA_BUS_FMT_SGRBG8_1X8)
+		return -EINVAL;
+
+	fse->min_width = AR0521_WIDTH_MIN;
+	fse->max_width = AR0521_WIDTH_MAX;
+	fse->min_height = AR0521_HEIGHT_MIN;
+	fse->max_height = AR0521_HEIGHT_MAX;
+
+	return 0;
+}
+
 static int ar0521_pre_streamon(struct v4l2_subdev *sd, u32 flags)
 {
 	struct ar0521_dev *sensor = to_ar0521_dev(sd);
@@ -865,6 +883,7 @@ static const struct v4l2_subdev_video_ops ar0521_video_ops = {
 
 static const struct v4l2_subdev_pad_ops ar0521_pad_ops = {
 	.enum_mbus_code = ar0521_enum_mbus_code,
+	.enum_frame_size = ar0521_enum_frame_size,
 	.get_fmt = ar0521_get_fmt,
 	.set_fmt = ar0521_set_fmt,
 };
