@@ -181,14 +181,6 @@ static int genl_get_cmd_small(u32 cmd, const struct genl_family *family,
 	return -ENOENT;
 }
 
-static int genl_get_cmd(u32 cmd, const struct genl_family *family,
-			struct genl_ops *op)
-{
-	if (!genl_get_cmd_full(cmd, family, op))
-		return 0;
-	return genl_get_cmd_small(cmd, family, op);
-}
-
 static int
 genl_cmd_full_to_split(struct genl_split_ops *op,
 		       const struct genl_family *family,
@@ -231,13 +223,15 @@ genl_cmd_full_to_split(struct genl_split_ops *op,
 }
 
 static int
-genl_get_cmd_split(u32 cmd, u8 flags, const struct genl_family *family,
-		   struct genl_split_ops *op)
+genl_get_cmd(u32 cmd, u8 flags, const struct genl_family *family,
+	     struct genl_split_ops *op)
 {
 	struct genl_ops full;
 	int err;
 
-	err = genl_get_cmd(cmd, family, &full);
+	err = genl_get_cmd_full(cmd, family, &full);
+	if (err == -ENOENT)
+		err = genl_get_cmd_small(cmd, family, &full);
 	if (err) {
 		memset(op, 0, sizeof(*op));
 		return err;
@@ -867,7 +861,7 @@ static int genl_family_rcv_msg(const struct genl_family *family,
 
 	flags = (nlh->nlmsg_flags & NLM_F_DUMP) == NLM_F_DUMP ?
 		GENL_CMD_CAP_DUMP : GENL_CMD_CAP_DO;
-	if (genl_get_cmd_split(hdr->cmd, flags, family, &op))
+	if (genl_get_cmd(hdr->cmd, flags, family, &op))
 		return -EOPNOTSUPP;
 
 	if ((op.flags & GENL_ADMIN_PERM) &&
@@ -1265,8 +1259,8 @@ static int ctrl_dumppolicy_start(struct netlink_callback *cb)
 		ctx->single_op = true;
 		ctx->op = nla_get_u32(tb[CTRL_ATTR_OP]);
 
-		if (genl_get_cmd_split(ctx->op, GENL_CMD_CAP_DO, rt, &doit) &&
-		    genl_get_cmd_split(ctx->op, GENL_CMD_CAP_DUMP, rt, &dump)) {
+		if (genl_get_cmd(ctx->op, GENL_CMD_CAP_DO, rt, &doit) &&
+		    genl_get_cmd(ctx->op, GENL_CMD_CAP_DUMP, rt, &dump)) {
 			NL_SET_BAD_ATTR(cb->extack, tb[CTRL_ATTR_OP]);
 			return -ENOENT;
 		}
@@ -1406,10 +1400,10 @@ static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
 		struct genl_ops op;
 
 		if (ctx->single_op) {
-			if (genl_get_cmd_split(ctx->op, GENL_CMD_CAP_DO,
-					       ctx->rt, &doit) &&
-			    genl_get_cmd_split(ctx->op, GENL_CMD_CAP_DUMP,
-					       ctx->rt, &dumpit)) {
+			if (genl_get_cmd(ctx->op, GENL_CMD_CAP_DO,
+					 ctx->rt, &doit) &&
+			    genl_get_cmd(ctx->op, GENL_CMD_CAP_DUMP,
+					 ctx->rt, &dumpit)) {
 				WARN_ON(1);
 				return -ENOENT;
 			}
