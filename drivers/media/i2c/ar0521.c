@@ -40,7 +40,8 @@
 
 #define AR0521_WIDTH_BLANKING_MIN     572u
 #define AR0521_HEIGHT_BLANKING_MIN     38u /* must be even */
-#define AR0521_TOTAL_WIDTH_MIN	     2968u
+#define AR0521_TOTAL_HEIGHT_MAX     65535u /* max_frame_length_lines */
+#define AR0521_TOTAL_WIDTH_MAX      65532u /* max_line_length_pck */
 
 #define AR0521_ANA_GAIN_MIN		0x00
 #define AR0521_ANA_GAIN_MAX		0x3f
@@ -125,8 +126,6 @@ struct ar0521_dev {
 	struct v4l2_mbus_framefmt fmt;
 	struct ar0521_ctrls ctrls;
 	unsigned int lane_count;
-	u16 total_width;
-	u16 total_height;
 	struct {
 		u16 pre;
 		u16 mult;
@@ -483,6 +482,8 @@ static int ar0521_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_format *format)
 {
 	struct ar0521_dev *sensor = to_ar0521_dev(sd);
+	int max_vblank, max_hblank, exposure_max;
+	int ret;
 
 	ar0521_adj_fmt(&format->format);
 
@@ -493,30 +494,73 @@ static int ar0521_set_fmt(struct v4l2_subdev *sd,
 
 		fmt = v4l2_subdev_get_try_format(sd, sd_state, 0 /* pad */);
 		*fmt = format->format;
-	} else {
-		sensor->fmt = format->format;
-		ar0521_calc_mode(sensor);
+
+		mutex_unlock(&sensor->lock);
+
+		return 0;
 	}
 
+	sensor->fmt = format->format;
+	ar0521_calc_mode(sensor);
+
+	/*
+	 * Update the exposure and blankings limits. Blankings are also reset
+	 * to the minimum.
+	 */
+	max_hblank = AR0521_TOTAL_WIDTH_MAX - sensor->fmt.width;
+	ret = __v4l2_ctrl_modify_range(sensor->ctrls.hblank,
+				       sensor->ctrls.hblank->minimum,
+				       max_hblank, sensor->ctrls.hblank->step,
+				       sensor->ctrls.hblank->minimum);
+	if (ret)
+		goto unlock;
+
+	ret = __v4l2_ctrl_s_ctrl(sensor->ctrls.hblank,
+				 sensor->ctrls.hblank->minimum);
+	if (ret)
+		goto unlock;
+
+	max_vblank = AR0521_TOTAL_HEIGHT_MAX - sensor->fmt.height;
+	ret = __v4l2_ctrl_modify_range(sensor->ctrls.vblank,
+				       sensor->ctrls.vblank->minimum,
+				       max_vblank, sensor->ctrls.vblank->step,
+				       sensor->ctrls.vblank->minimum);
+	if (ret)
+		goto unlock;
+
+	ret = __v4l2_ctrl_s_ctrl(sensor->ctrls.vblank,
+				 sensor->ctrls.vblank->minimum);
+	if (ret)
+		goto unlock;
+
+	exposure_max = sensor->fmt.height + AR0521_HEIGHT_BLANKING_MIN - 4;
+	ret = __v4l2_ctrl_modify_range(sensor->ctrls.exposure,
+				       sensor->ctrls.exposure->minimum,
+				       exposure_max,
+				       sensor->ctrls.exposure->step,
+				       sensor->ctrls.exposure->default_value);
+unlock:
 	mutex_unlock(&sensor->lock);
-	return 0;
+
+	return ret;
 }
 
 static int ar0521_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
 	struct ar0521_dev *sensor = to_ar0521_dev(sd);
+	int exp_max;
 	int ret;
 
 	/* v4l2_ctrl_lock() locks our own mutex */
 
 	switch (ctrl->id) {
-	case V4L2_CID_HBLANK:
 	case V4L2_CID_VBLANK:
-		sensor->total_width = sensor->fmt.width +
-			sensor->ctrls.hblank->val;
-		sensor->total_height = sensor->fmt.width +
-			sensor->ctrls.vblank->val;
+		exp_max = sensor->fmt.height + ctrl->val - 4;
+		__v4l2_ctrl_modify_range(sensor->ctrls.exposure,
+					 sensor->ctrls.exposure->minimum,
+					 exp_max, sensor->ctrls.exposure->step,
+					 sensor->ctrls.exposure->default_value);
 		break;
 	}
 
@@ -574,6 +618,7 @@ static int ar0521_init_controls(struct ar0521_dev *sensor)
 	const struct v4l2_ctrl_ops *ops = &ar0521_ctrl_ops;
 	struct ar0521_ctrls *ctrls = &sensor->ctrls;
 	struct v4l2_ctrl_handler *hdl = &ctrls->handler;
+	int max_vblank, max_hblank, exposure_max;
 	struct v4l2_ctrl *link_freq;
 	int ret;
 
@@ -595,11 +640,17 @@ static int ar0521_init_controls(struct ar0521_dev *sensor)
 						-512, 511, 1, 0);
 	v4l2_ctrl_cluster(3, &ctrls->gain);
 
+	/* Initialize blanking limits using the default 2592x1944 format. */
+	max_hblank = AR0521_TOTAL_WIDTH_MAX - AR0521_WIDTH_MAX;
 	ctrls->hblank = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HBLANK,
-					  AR0521_WIDTH_BLANKING_MIN, 4094, 1,
+					  AR0521_WIDTH_BLANKING_MIN,
+					  max_hblank, 1,
 					  AR0521_WIDTH_BLANKING_MIN);
+
+	max_vblank = AR0521_TOTAL_HEIGHT_MAX - AR0521_HEIGHT_MAX;
 	ctrls->vblank = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VBLANK,
-					  AR0521_HEIGHT_BLANKING_MIN, 4094, 2,
+					  AR0521_HEIGHT_BLANKING_MIN,
+					  max_vblank, 2,
 					  AR0521_HEIGHT_BLANKING_MIN);
 	v4l2_ctrl_cluster(2, &ctrls->hblank);
 
@@ -609,9 +660,10 @@ static int ar0521_init_controls(struct ar0521_dev *sensor)
 					   AR0521_PIXEL_CLOCK_MAX, 1,
 					   AR0521_PIXEL_CLOCK_RATE);
 
-	/* Manual exposure time */
+	/* Manual exposure time: max exposure time = visible + blank - 4 */
+	exposure_max = AR0521_HEIGHT_MAX + AR0521_HEIGHT_BLANKING_MIN - 4;
 	ctrls->exposure = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE, 0,
-					    65535, 1, 360);
+					    exposure_max, 1, 0x70);
 
 	link_freq = v4l2_ctrl_new_int_menu(hdl, ops, V4L2_CID_LINK_FREQ,
 					ARRAY_SIZE(ar0521_link_frequencies) - 1,
