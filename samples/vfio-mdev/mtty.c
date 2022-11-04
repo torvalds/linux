@@ -784,7 +784,6 @@ static void mtty_release_dev(struct vfio_device *vdev)
 
 	atomic_add(mdev_state->nr_ports, &mdev_avail_ports);
 	kfree(mdev_state->vconfig);
-	vfio_free_device(vdev);
 }
 
 static void mtty_remove(struct mdev_device *mdev)

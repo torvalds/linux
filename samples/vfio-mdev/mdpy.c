@@ -283,7 +283,6 @@ static void mdpy_release_dev(struct vfio_device *vdev)
 
 	vfree(mdev_state->memblk);
 	kfree(mdev_state->vconfig);
-	vfio_free_device(vdev);
 }
 
 static void mdpy_remove(struct mdev_device *mdev)

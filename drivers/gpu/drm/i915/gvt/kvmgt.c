@@ -1461,7 +1461,6 @@ static void intel_vgpu_release_dev(struct vfio_device *vfio_dev)
 	struct intel_vgpu *vgpu = vfio_dev_to_vgpu(vfio_dev);
 
 	intel_gvt_destroy_vgpu(vgpu);
-	vfio_free_device(vfio_dev);
 }
 
 static const struct vfio_device_ops intel_vgpu_dev_ops = {

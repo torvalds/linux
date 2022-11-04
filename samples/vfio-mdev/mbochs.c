@@ -594,7 +594,6 @@ static void mbochs_release_dev(struct vfio_device *vdev)
 	atomic_add(mdev_state->type->mbytes, &mbochs_avail_mbytes);
 	kfree(mdev_state->pages);
 	kfree(mdev_state->vconfig);
-	vfio_free_device(vdev);
 }
 
 static void mbochs_remove(struct mdev_device *mdev)

@@ -2109,7 +2109,6 @@ void vfio_pci_core_release_dev(struct vfio_device *core_vdev)
 	mutex_destroy(&vdev->vma_lock);
 	kfree(vdev->region);
 	kfree(vdev->pm_save);
-	vfio_free_device(core_vdev);
 }
 EXPORT_SYMBOL_GPL(vfio_pci_core_release_dev);
 

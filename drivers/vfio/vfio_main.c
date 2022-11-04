@@ -339,13 +339,10 @@ static void vfio_device_release(struct device *dev)
 	vfio_release_device_set(device);
 	ida_free(&vfio.device_ida, device->index);
 
-	/*
-	 * kvfree() cannot be done here due to a life cycle mess in
-	 * vfio-ccw. Before the ccw part is fixed all drivers are
-	 * required to support @release and call vfio_free_device()
-	 * from there.
-	 */
-	device->ops->release(device);
+	if (device->ops->release)
+		device->ops->release(device);
+
+	kvfree(device);
 }
 
 static int vfio_init_device(struct vfio_device *device, struct device *dev,
@@ -423,17 +420,6 @@ out_uninit:
 	ida_free(&vfio.device_ida, device->index);
 	return ret;
 }
-
-/*
- * The helper called by driver @release callback to free the device
- * structure. Drivers which don't have private data to clean can
- * simply use this helper as its @release.
- */
-void vfio_free_device(struct vfio_device *device)
-{
-	kvfree(device);
-}
-EXPORT_SYMBOL_GPL(vfio_free_device);
 
 static struct vfio_group *vfio_noiommu_group_alloc(struct device *dev,
 		enum vfio_group_type type)
