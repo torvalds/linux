@@ -296,14 +296,15 @@ static int erofs_fscache_data_read(struct address_space *mapping,
 		return PAGE_SIZE;
 	}
 
-	count = min_t(size_t, map.m_llen - (pos - map.m_la), len);
-	DBG_BUGON(!count || count % PAGE_SIZE);
-
 	if (!(map.m_flags & EROFS_MAP_MAPPED)) {
+		count = len;
 		iov_iter_xarray(&iter, READ, &mapping->i_pages, pos, count);
 		iov_iter_zero(count, &iter);
 		return count;
 	}
+
+	count = min_t(size_t, map.m_llen - (pos - map.m_la), len);
+	DBG_BUGON(!count || count % PAGE_SIZE);
 
 	mdev = (struct erofs_map_dev) {
 		.m_deviceid = map.m_deviceid,
