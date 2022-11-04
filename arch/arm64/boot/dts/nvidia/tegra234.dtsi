@@ -1064,7 +1064,7 @@
 		};
 
 		hda@3510000 {
-			compatible = "nvidia,tegra234-hda", "nvidia,tegra30-hda";
+			compatible = "nvidia,tegra234-hda";
 			reg = <0x3510000 0x10000>;
 			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA234_CLK_AZA_BIT>,
