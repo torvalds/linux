@@ -1252,10 +1252,10 @@ static int genl_ctrl_event(int event, const struct genl_family *family,
 struct ctrl_dump_policy_ctx {
 	struct netlink_policy_dump_state *state;
 	const struct genl_family *rt;
-	unsigned int opidx;
+	struct genl_op_iter *op_iter;
 	u32 op;
 	u16 fam_id;
-	u8 policies:1,
+	u8 dump_map:1,
 	   single_op:1;
 };
 
@@ -1325,8 +1325,15 @@ static int ctrl_dumppolicy_start(struct netlink_callback *cb)
 
 		if (!ctx->state)
 			return -ENODATA;
+
+		ctx->dump_map = 1;
 		return 0;
 	}
+
+	ctx->op_iter = kmalloc(sizeof(*ctx->op_iter), GFP_KERNEL);
+	if (!ctx->op_iter)
+		return -ENOMEM;
+	ctx->dump_map = genl_op_iter_init(rt, ctx->op_iter);
 
 	for (genl_op_iter_init(rt, &i); genl_op_iter_next(&i); ) {
 		if (i.doit.policy) {
@@ -1345,12 +1352,16 @@ static int ctrl_dumppolicy_start(struct netlink_callback *cb)
 		}
 	}
 
-	if (!ctx->state)
-		return -ENODATA;
+	if (!ctx->state) {
+		err = -ENODATA;
+		goto err_free_op_iter;
+	}
 	return 0;
 
 err_free_state:
 	netlink_policy_dump_free(ctx->state);
+err_free_op_iter:
+	kfree(ctx->op_iter);
 	return err;
 }
 
@@ -1430,11 +1441,10 @@ static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
 	struct ctrl_dump_policy_ctx *ctx = (void *)cb->ctx;
 	void *hdr;
 
-	if (!ctx->policies) {
-		struct genl_split_ops doit, dumpit;
-		struct genl_ops op;
-
+	if (ctx->dump_map) {
 		if (ctx->single_op) {
+			struct genl_split_ops doit, dumpit;
+
 			if (genl_get_cmd(ctx->op, GENL_CMD_CAP_DO,
 					 ctx->rt, &doit) &&
 			    genl_get_cmd(ctx->op, GENL_CMD_CAP_DUMP,
@@ -1446,26 +1456,18 @@ static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
 			if (ctrl_dumppolicy_put_op(skb, cb, &doit, &dumpit))
 				return skb->len;
 
-			/* don't enter the loop below */
-			ctx->opidx = genl_get_cmd_cnt(ctx->rt);
+			/* done with the per-op policy index list */
+			ctx->dump_map = 0;
 		}
 
-		while (ctx->opidx < genl_get_cmd_cnt(ctx->rt)) {
-			genl_get_cmd_by_index(ctx->opidx, ctx->rt, &op);
-
-			genl_cmd_full_to_split(&doit, ctx->rt,
-					       &op, GENL_CMD_CAP_DO);
-			genl_cmd_full_to_split(&dumpit, ctx->rt,
-					       &op, GENL_CMD_CAP_DUMP);
-
-			if (ctrl_dumppolicy_put_op(skb, cb, &doit, &dumpit))
+		while (ctx->dump_map) {
+			if (ctrl_dumppolicy_put_op(skb, cb,
+						   &ctx->op_iter->doit,
+						   &ctx->op_iter->dumpit))
 				return skb->len;
 
-			ctx->opidx++;
+			ctx->dump_map = genl_op_iter_next(ctx->op_iter);
 		}
-
-		/* completed with the per-op policy index list */
-		ctx->policies = true;
 	}
 
 	while (netlink_policy_dump_loop(ctx->state)) {
@@ -1498,6 +1500,7 @@ static int ctrl_dumppolicy_done(struct netlink_callback *cb)
 {
 	struct ctrl_dump_policy_ctx *ctx = (void *)cb->ctx;
 
+	kfree(ctx->op_iter);
 	netlink_policy_dump_free(ctx->state);
 	return 0;
 }
