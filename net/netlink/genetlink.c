@@ -204,8 +204,14 @@ genl_cmd_full_to_split(struct genl_split_ops *op,
 		op->post_doit	= family->post_doit;
 	}
 
-	op->policy		= full->policy;
-	op->maxattr		= full->maxattr;
+	if (flags & GENL_CMD_CAP_DUMP &&
+	    full->validate & GENL_DONT_VALIDATE_DUMP) {
+		op->policy	= NULL;
+		op->maxattr	= 0;
+	} else {
+		op->policy	= full->policy;
+		op->maxattr	= full->maxattr;
+	}
 
 	op->cmd			= full->cmd;
 	op->internal_flags	= full->internal_flags;
@@ -638,10 +644,8 @@ static int genl_start(struct netlink_callback *cb)
 	int rc = 0;
 
 	ops = ctx->ops;
-	if (ops->validate & GENL_DONT_VALIDATE_DUMP)
-		goto no_attrs;
-
-	if (ctx->nlh->nlmsg_len < nlmsg_msg_size(ctx->hdrlen))
+	if (!(ops->validate & GENL_DONT_VALIDATE_DUMP) &&
+	    ctx->nlh->nlmsg_len < nlmsg_msg_size(ctx->hdrlen))
 		return -EINVAL;
 
 	attrs = genl_family_rcv_msg_attrs_parse(ctx->family, ctx->nlh, ctx->extack,
@@ -650,7 +654,6 @@ static int genl_start(struct netlink_callback *cb)
 	if (IS_ERR(attrs))
 		return PTR_ERR(attrs);
 
-no_attrs:
 	info = genl_dumpit_info_alloc();
 	if (!info) {
 		genl_family_rcv_msg_attrs_free(attrs);
