@@ -52,20 +52,4 @@ struct panel_dpi_platform_data {
 	int enable_gpio;
 };
 
-/**
- * panel_acx565akm platform data
- * @name: name for this display entity
- * @source: name of the display entity used as a video source
- * @reset_gpio: gpio to reset the panel (or -1)
- * @datapairs: number of SDI datapairs
- */
-struct panel_acx565akm_platform_data {
-	const char *name;
-	const char *source;
-
-	int reset_gpio;
-
-	int datapairs;
-};
-
 #endif /* __OMAP_PANEL_DATA_H */
