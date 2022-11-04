@@ -3408,22 +3408,6 @@ static void commit_planes_for_stream(struct dc *dc,
 		dc->hwss.pipe_control_lock(dc, top_pipe_to_program, true);
 	}
 
-	if (update_type != UPDATE_TYPE_FAST) {
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct pipe_ctx *new_pipe = &context->res_ctx.pipe_ctx[i];
-
-			if ((new_pipe->stream && new_pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) ||
-					subvp_prev_use) {
-				// If old context or new context has phantom pipes, apply
-				// the phantom timings now. We can't change the phantom
-				// pipe configuration safely without driver acquiring
-				// the DMCUB lock first.
-				dc->hwss.apply_ctx_to_hw(dc, context);
-				break;
-			}
-		}
-	}
-
 	dc_dmub_update_dirty_rect(dc, surface_count, stream, srf_updates, context);
 
 	if (update_type != UPDATE_TYPE_FAST) {
@@ -3651,6 +3635,44 @@ static void commit_planes_for_stream(struct dc *dc,
 				top_pipe_to_program->stream_res.tg->funcs->lock_doublebuffer_disable(
 					top_pipe_to_program->stream_res.tg);
 		}
+
+	/* For phantom pipe OTG enable, it has to be done after any previous pipe
+	 * that was in use has already been programmed at gotten its double buffer
+	 * update for "disable".
+	 */
+	if (update_type != UPDATE_TYPE_FAST) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+			struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+			/* If an active, non-phantom pipe is being transitioned into a phantom
+			 * pipe, wait for the double buffer update to complete first before we do
+			 * ANY phantom pipe programming.
+			 */
+			if (pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_PHANTOM &&
+					old_pipe->stream && old_pipe->stream->mall_stream_config.type != SUBVP_PHANTOM) {
+				old_pipe->stream_res.tg->funcs->wait_for_state(
+						old_pipe->stream_res.tg,
+						CRTC_STATE_VBLANK);
+				old_pipe->stream_res.tg->funcs->wait_for_state(
+						old_pipe->stream_res.tg,
+						CRTC_STATE_VACTIVE);
+			}
+		}
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *new_pipe = &context->res_ctx.pipe_ctx[i];
+
+			if ((new_pipe->stream && new_pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) ||
+					subvp_prev_use) {
+				// If old context or new context has phantom pipes, apply
+				// the phantom timings now. We can't change the phantom
+				// pipe configuration safely without driver acquiring
+				// the DMCUB lock first.
+				dc->hwss.apply_ctx_to_hw(dc, context);
+				break;
+			}
+		}
+	}
 
 	if (update_type != UPDATE_TYPE_FAST)
 		dc->hwss.post_unlock_program_front_end(dc, context);
