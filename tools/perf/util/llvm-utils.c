@@ -463,7 +463,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	char *pipe_template = NULL;
 	const char *opts = llvm_param.opts;
 	char *command_echo = NULL, *command_out;
-	char *perf_include_dir = system_path(PERF_INCLUDE_DIR);
+	char *libbpf_include_dir = system_path(LIBBPF_INCLUDE_DIR);
 
 	if (path[0] != '-' && realpath(path, abspath) == NULL) {
 		err = errno;
@@ -495,7 +495,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 
 	snprintf(linux_version_code_str, sizeof(linux_version_code_str),
 		 "0x%x", kernel_version);
-	if (asprintf(&perf_bpf_include_opts, "-I%s/", perf_include_dir) < 0)
+	if (asprintf(&perf_bpf_include_opts, "-I%s/", libbpf_include_dir) < 0)
 		goto errout;
 	force_set_env("NR_CPUS", nr_cpus_avail_str);
 	force_set_env("LINUX_VERSION_CODE", linux_version_code_str);
@@ -556,7 +556,7 @@ int llvm__compile_bpf(const char *path, void **p_obj_buf,
 	free(kbuild_dir);
 	free(kbuild_include_opts);
 	free(perf_bpf_include_opts);
-	free(perf_include_dir);
+	free(libbpf_include_dir);
 
 	if (!p_obj_buf)
 		free(obj_buf);
@@ -572,7 +572,7 @@ errout:
 	free(kbuild_include_opts);
 	free(obj_buf);
 	free(perf_bpf_include_opts);
-	free(perf_include_dir);
+	free(libbpf_include_dir);
 	free(pipe_template);
 	if (p_obj_buf)
 		*p_obj_buf = NULL;

@@ -220,7 +220,7 @@ perf-$(CONFIG_CXX) += c++/
 perf-$(CONFIG_LIBPFM4) += pfm.o
 
 CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
-CFLAGS_llvm-utils.o += -DPERF_INCLUDE_DIR="BUILD_STR($(perf_include_dir_SQ))"
+CFLAGS_llvm-utils.o += -DLIBBPF_INCLUDE_DIR="BUILD_STR($(libbpf_include_dir_SQ))"
 
 # avoid compiler warnings in 32-bit mode
 CFLAGS_genelf_debug.o  += -Wno-packed
