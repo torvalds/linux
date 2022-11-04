@@ -17,6 +17,7 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,msm8976-tcsr
           - qcom,msm8998-tcsr
           - qcom,qcs404-tcsr
           - qcom,sc7180-tcsr
