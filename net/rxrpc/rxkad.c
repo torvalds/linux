@@ -233,16 +233,8 @@ static int rxkad_prime_packet_security(struct rxrpc_connection *conn,
 static struct skcipher_request *rxkad_get_call_crypto(struct rxrpc_call *call)
 {
 	struct crypto_skcipher *tfm = &call->conn->rxkad.cipher->base;
-	struct skcipher_request	*cipher_req = call->cipher_req;
 
-	if (!cipher_req) {
-		cipher_req = skcipher_request_alloc(tfm, GFP_NOFS);
-		if (!cipher_req)
-			return NULL;
-		call->cipher_req = cipher_req;
-	}
-
-	return cipher_req;
+	return skcipher_request_alloc(tfm, GFP_NOFS);
 }
 
 /*
@@ -250,9 +242,6 @@ static struct skcipher_request *rxkad_get_call_crypto(struct rxrpc_call *call)
  */
 static void rxkad_free_call_crypto(struct rxrpc_call *call)
 {
-	if (call->cipher_req)
-		skcipher_request_free(call->cipher_req);
-	call->cipher_req = NULL;
 }
 
 /*
@@ -348,6 +337,9 @@ static int rxkad_secure_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	struct skcipher_request	*req;
 	struct rxrpc_crypt iv;
 	struct scatterlist sg;
+	union {
+		__be32 buf[2];
+	} crypto __aligned(8);
 	u32 x, y;
 	int ret;
 
@@ -372,17 +364,17 @@ static int rxkad_secure_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	/* calculate the security checksum */
 	x = (ntohl(txb->wire.cid) & RXRPC_CHANNELMASK) << (32 - RXRPC_CIDSHIFT);
 	x |= txb->seq & 0x3fffffff;
-	call->crypto_buf[0] = txb->wire.callNumber;
-	call->crypto_buf[1] = htonl(x);
+	crypto.buf[0] = txb->wire.callNumber;
+	crypto.buf[1] = htonl(x);
 
-	sg_init_one(&sg, call->crypto_buf, 8);
+	sg_init_one(&sg, crypto.buf, 8);
 	skcipher_request_set_sync_tfm(req, call->conn->rxkad.cipher);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
 	skcipher_request_set_crypt(req, &sg, &sg, 8, iv.x);
 	crypto_skcipher_encrypt(req);
 	skcipher_request_zero(req);
 
-	y = ntohl(call->crypto_buf[1]);
+	y = ntohl(crypto.buf[1]);
 	y = (y >> 16) & 0xffff;
 	if (y == 0)
 		y = 1; /* zero checksums are not permitted */
@@ -403,6 +395,7 @@ static int rxkad_secure_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 		break;
 	}
 
+	skcipher_request_free(req);
 	_leave(" = %d [set %x]", ret, y);
 	return ret;
 }
@@ -593,8 +586,12 @@ static int rxkad_verify_packet(struct rxrpc_call *call, struct sk_buff *skb)
 	struct skcipher_request	*req;
 	struct rxrpc_crypt iv;
 	struct scatterlist sg;
+	union {
+		__be32 buf[2];
+	} crypto __aligned(8);
 	rxrpc_seq_t seq = sp->hdr.seq;
 	bool aborted;
+	int ret;
 	u16 cksum;
 	u32 x, y;
 
@@ -614,17 +611,17 @@ static int rxkad_verify_packet(struct rxrpc_call *call, struct sk_buff *skb)
 	/* validate the security checksum */
 	x = (call->cid & RXRPC_CHANNELMASK) << (32 - RXRPC_CIDSHIFT);
 	x |= seq & 0x3fffffff;
-	call->crypto_buf[0] = htonl(call->call_id);
-	call->crypto_buf[1] = htonl(x);
+	crypto.buf[0] = htonl(call->call_id);
+	crypto.buf[1] = htonl(x);
 
-	sg_init_one(&sg, call->crypto_buf, 8);
+	sg_init_one(&sg, crypto.buf, 8);
 	skcipher_request_set_sync_tfm(req, call->conn->rxkad.cipher);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
 	skcipher_request_set_crypt(req, &sg, &sg, 8, iv.x);
 	crypto_skcipher_encrypt(req);
 	skcipher_request_zero(req);
 
-	y = ntohl(call->crypto_buf[1]);
+	y = ntohl(crypto.buf[1]);
 	cksum = (y >> 16) & 0xffff;
 	if (cksum == 0)
 		cksum = 1; /* zero checksums are not permitted */
@@ -637,14 +634,21 @@ static int rxkad_verify_packet(struct rxrpc_call *call, struct sk_buff *skb)
 
 	switch (call->conn->params.security_level) {
 	case RXRPC_SECURITY_PLAIN:
-		return 0;
+		ret = 0;
+		break;
 	case RXRPC_SECURITY_AUTH:
-		return rxkad_verify_packet_1(call, skb, seq, req);
+		ret = rxkad_verify_packet_1(call, skb, seq, req);
+		break;
 	case RXRPC_SECURITY_ENCRYPT:
-		return rxkad_verify_packet_2(call, skb, seq, req);
+		ret = rxkad_verify_packet_2(call, skb, seq, req);
+		break;
 	default:
-		return -ENOANO;
+		ret = -ENOANO;
+		break;
 	}
+
+	skcipher_request_free(req);
+	return ret;
 
 protocol_error:
 	if (aborted)
