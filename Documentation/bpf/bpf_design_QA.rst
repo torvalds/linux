@@ -326,11 +326,11 @@ size, type, and alignment, or any other user visible API or ABI detail across
 kernel releases. The users must adapt their BPF programs to the new changes and
 update them to make sure their programs continue to work correctly.
 
-NOTE: BPF subsystem specially reserves the 'bpf_' prefix for type names, in
+NOTE: BPF subsystem specially reserves the 'bpf\_' prefix for type names, in
 order to introduce more special fields in the future. Hence, user programs must
-avoid defining types with 'bpf_' prefix to not be broken in future releases. In
-other words, no backwards compatibility is guaranteed if one using a type in BTF
-with 'bpf_' prefix.
+avoid defining types with 'bpf\_' prefix to not be broken in future releases.
+In other words, no backwards compatibility is guaranteed if one using a type
+in BTF with 'bpf\_' prefix.
 
 Q: What is the compatibility story for special BPF types in local kptrs?
 ------------------------------------------------------------------------
