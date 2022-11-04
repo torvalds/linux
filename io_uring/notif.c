@@ -60,7 +60,6 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
 	notif->task = current;
 	io_get_task_refs(1);
 	notif->rsrc_node = NULL;
-	io_req_set_rsrc_node(notif, ctx, 0);
 
 	nd = io_notif_to_data(notif);
 	nd->account_pages = 0;
