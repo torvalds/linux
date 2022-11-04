@@ -31,6 +31,8 @@ Optional properties for all bus drivers:
 - drive-open-drain:  the interrupt/data ready line will be configured as open drain,
                      which is useful if several sensors share the same interrupt line.
 
+- enable-sensor-hub: enable i2c master interface. Default is disabled.
+
 - drive-pullup-shub: enable pull up on the i2c master interface. Default is disabled.
 
 - interrupts:        interrupt mapping for IRQ. It should be configured with

@@ -1613,9 +1613,12 @@ int st_lsm6dsvx_probe(struct device *dev, int irq, int hw_id,
 			return -ENOMEM;
 	}
 
-	err = st_lsm6dsvx_shub_probe(hw);
-	if (err < 0)
-		return err;
+	if (!dev_fwnode(dev) ||
+	    device_property_read_bool(dev, "enable-sensor-hub")) {
+		err = st_lsm6dsvx_shub_probe(hw);
+		if (err < 0)
+			return err;
+	}
 
 	/* allocate step counter before buffer setup because use FIFO */
 	err = st_lsm6dsvx_probe_embfunc(hw);
