@@ -87,6 +87,27 @@
 #define TRNG_v1_VERSION_CODE			0x46bc
 /* end of TRNG_V1 register define */
 
+/* start of RKRNG register define */
+#define RKRNG_CTRL				0x0010
+#define RKRNG_CTRL_INST_REQ			BIT(0)
+#define RKRNG_CTRL_RESEED_REQ			BIT(1)
+#define RKRNG_CTRL_TEST_REQ			BIT(2)
+#define RKRNG_CTRL_SW_DRNG_REQ			BIT(3)
+#define RKRNG_CTRL_SW_TRNG_REQ			BIT(4)
+
+#define RKRNG_STATE				0x0014
+#define RKRNG_STATE_INST_ACK			BIT(0)
+#define RKRNG_STATE_RESEED_ACK			BIT(1)
+#define RKRNG_STATE_TEST_ACK			BIT(2)
+#define RKRNG_STATE_SW_DRNG_ACK			BIT(3)
+#define RKRNG_STATE_SW_TRNG_ACK			BIT(4)
+
+/* DRNG_DATA_0 ~ DNG_DATA_7 */
+#define RKRNG_DRNG_DATA_0			0x0070
+#define RKRNG_DRNG_DATA_7			0x008C
+
+/* end of RKRNG register define */
+
 struct rk_rng_soc_data {
 	u32 default_offset;
 
@@ -178,7 +199,7 @@ static void rk_rng_read_regs(struct rk_rng *rng, u32 offset, void *buf,
 		*(u32 *)(buf + i) = be32_to_cpu(rk_rng_readl(rng, offset + i));
 }
 
-static int rk_crypto_v1_read(struct hwrng *rng, void *buf, size_t max, bool wait)
+static int crypto_v1_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 {
 	int ret = 0;
 	u32 reg_ctrl = 0;
@@ -213,7 +234,7 @@ out:
 	return ret;
 }
 
-static int rk_crypto_v2_read(struct hwrng *rng, void *buf, size_t max, bool wait)
+static int crypto_v2_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 {
 	int ret = 0;
 	u32 reg_ctrl = 0;
@@ -249,18 +270,12 @@ out:
 	return ret;
 }
 
-static int rk_trng_v1_init(struct hwrng *rng)
+static int trng_v1_init(struct hwrng *rng)
 {
 	int ret;
 	uint32_t auto_reseed_cnt = 1000;
 	uint32_t reg_ctrl, status, version;
 	struct rk_rng *rk_rng = container_of(rng, struct rk_rng, rng);
-
-	ret = pm_runtime_get_sync(rk_rng->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(rk_rng->dev);
-		return ret;
-	}
 
 	version = rk_rng_readl(rk_rng, TRNG_V1_VERSION);
 	if (version != TRNG_v1_VERSION_CODE) {
@@ -300,13 +315,11 @@ static int rk_trng_v1_init(struct hwrng *rng)
 
 	ret = 0;
 exit:
-	pm_runtime_mark_last_busy(rk_rng->dev);
-	pm_runtime_put_sync_autosuspend(rk_rng->dev);
 
 	return ret;
 }
 
-static int rk_trng_v1_read(struct hwrng *rng, void *buf, size_t max, bool wait)
+static int trng_v1_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 {
 	int ret = 0;
 	u32 reg_ctrl = 0;
@@ -350,37 +363,92 @@ out:
 	return ret;
 }
 
-static const struct rk_rng_soc_data rk_crypto_v1_soc_data = {
+static int rkrng_init(struct hwrng *rng)
+{
+	struct rk_rng *rk_rng = container_of(rng, struct rk_rng, rng);
+	u32 reg = 0;
+
+	rk_rng_writel(rk_rng, HIWORD_UPDATE(0, 0xffff, 0), RKRNG_CTRL);
+
+	reg = rk_rng_readl(rk_rng, RKRNG_STATE);
+	rk_rng_writel(rk_rng, reg, RKRNG_STATE);
+
+	return 0;
+}
+
+static int rkrng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
+{
+	struct rk_rng *rk_rng = container_of(rng, struct rk_rng, rng);
+	u32 reg_ctrl = 0;
+	int ret;
+
+	reg_ctrl = RKRNG_CTRL_SW_DRNG_REQ;
+
+	rk_rng_writel(rk_rng, HIWORD_UPDATE(reg_ctrl, 0xffff, 0), RKRNG_CTRL);
+
+	ret = readl_poll_timeout(rk_rng->mem + RKRNG_STATE, reg_ctrl,
+				 (reg_ctrl & RKRNG_STATE_SW_DRNG_ACK),
+				 ROCKCHIP_POLL_PERIOD_US,
+				 ROCKCHIP_POLL_TIMEOUT_US);
+
+	if (ret)
+		goto exit;
+
+	rk_rng_writel(rk_rng, reg_ctrl, RKRNG_STATE);
+
+	ret = min_t(size_t, max, RK_MAX_RNG_BYTE);
+
+	rk_rng_read_regs(rk_rng, RKRNG_DRNG_DATA_0, buf, ret);
+
+exit:
+	/* close TRNG */
+	rk_rng_writel(rk_rng, HIWORD_UPDATE(0, 0xffff, 0), RKRNG_CTRL);
+
+	return ret;
+}
+
+static const struct rk_rng_soc_data crypto_v1_soc_data = {
 	.default_offset = 0,
 
-	.rk_rng_read = rk_crypto_v1_read,
+	.rk_rng_read = crypto_v1_read,
 };
 
-static const struct rk_rng_soc_data rk_crypto_v2_soc_data = {
+static const struct rk_rng_soc_data crypto_v2_soc_data = {
 	.default_offset = CRYPTO_V2_RNG_DEFAULT_OFFSET,
 
-	.rk_rng_read = rk_crypto_v2_read,
+	.rk_rng_read = crypto_v2_read,
 };
 
-static const struct rk_rng_soc_data rk_trng_v1_soc_data = {
+static const struct rk_rng_soc_data trng_v1_soc_data = {
 	.default_offset = 0,
 
-	.rk_rng_init = rk_trng_v1_init,
-	.rk_rng_read = rk_trng_v1_read,
+	.rk_rng_init = trng_v1_init,
+	.rk_rng_read = trng_v1_read,
+};
+
+static const struct rk_rng_soc_data rkrng_soc_data = {
+	.default_offset = 0,
+
+	.rk_rng_init = rkrng_init,
+	.rk_rng_read = rkrng_read,
 };
 
 static const struct of_device_id rk_rng_dt_match[] = {
 	{
 		.compatible = "rockchip,cryptov1-rng",
-		.data = (void *)&rk_crypto_v1_soc_data,
+		.data = (void *)&crypto_v1_soc_data,
 	},
 	{
 		.compatible = "rockchip,cryptov2-rng",
-		.data = (void *)&rk_crypto_v2_soc_data,
+		.data = (void *)&crypto_v2_soc_data,
 	},
 	{
 		.compatible = "rockchip,trngv1",
-		.data = (void *)&rk_trng_v1_soc_data,
+		.data = (void *)&trng_v1_soc_data,
+	},
+		{
+		.compatible = "rockchip,rkrng",
+		.data = (void *)&rkrng_soc_data,
 	},
 	{ },
 };
@@ -450,8 +518,14 @@ static int rk_rng_probe(struct platform_device *pdev)
 	}
 
 	/* for some platform need hardware operation when probe */
-	if (rk_rng->soc_data->rk_rng_init)
+	if (rk_rng->soc_data->rk_rng_init) {
+		pm_runtime_get_sync(rk_rng->dev);
+
 		ret = rk_rng->soc_data->rk_rng_init(&rk_rng->rng);
+
+		pm_runtime_mark_last_busy(rk_rng->dev);
+		pm_runtime_put_sync_autosuspend(rk_rng->dev);
+	}
 
 	return ret;
 }
