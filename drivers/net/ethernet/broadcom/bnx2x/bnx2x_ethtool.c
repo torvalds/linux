@@ -1112,7 +1112,7 @@ static void bnx2x_get_drvinfo(struct net_device *dev,
 	int ext_dev_info_offset;
 	u32 mbi;
 
-	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
+	strscpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
 
 	if (SHMEM2_HAS(bp, extended_dev_info_shared_addr)) {
 		ext_dev_info_offset = SHMEM2_RD(bp,
@@ -1126,7 +1126,7 @@ static void bnx2x_get_drvinfo(struct net_device *dev,
 				 (mbi & 0xff000000) >> 24,
 				 (mbi & 0x00ff0000) >> 16,
 				 (mbi & 0x0000ff00) >> 8);
-			strlcpy(info->fw_version, version,
+			strscpy(info->fw_version, version,
 				sizeof(info->fw_version));
 		}
 	}
@@ -1135,7 +1135,7 @@ static void bnx2x_get_drvinfo(struct net_device *dev,
 	bnx2x_fill_fw_str(bp, version, ETHTOOL_FWVERS_LEN);
 	strlcat(info->fw_version, version, sizeof(info->fw_version));
 
-	strlcpy(info->bus_info, pci_name(bp->pdev), sizeof(info->bus_info));
+	strscpy(info->bus_info, pci_name(bp->pdev), sizeof(info->bus_info));
 }
 
 static void bnx2x_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)

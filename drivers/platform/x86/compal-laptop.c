@@ -721,16 +721,6 @@ static struct attribute *compal_hwmon_attrs[] = {
 };
 ATTRIBUTE_GROUPS(compal_hwmon);
 
-static int compal_probe(struct platform_device *);
-static int compal_remove(struct platform_device *);
-static struct platform_driver compal_driver = {
-	.driver = {
-		.name = DRIVER_NAME,
-	},
-	.probe	= compal_probe,
-	.remove	= compal_remove,
-};
-
 static enum power_supply_property compal_bat_properties[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -965,69 +955,6 @@ err_wifi:
 	return ret;
 }
 
-static int __init compal_init(void)
-{
-	int ret;
-
-	if (acpi_disabled) {
-		pr_err("ACPI needs to be enabled for this driver to work!\n");
-		return -ENODEV;
-	}
-
-	if (!force && !dmi_check_system(compal_dmi_table)) {
-		pr_err("Motherboard not recognized (You could try the module's force-parameter)\n");
-		return -ENODEV;
-	}
-
-	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
-		struct backlight_properties props;
-		memset(&props, 0, sizeof(struct backlight_properties));
-		props.type = BACKLIGHT_PLATFORM;
-		props.max_brightness = BACKLIGHT_LEVEL_MAX;
-		compalbl_device = backlight_device_register(DRIVER_NAME,
-							    NULL, NULL,
-							    &compalbl_ops,
-							    &props);
-		if (IS_ERR(compalbl_device))
-			return PTR_ERR(compalbl_device);
-	}
-
-	ret = platform_driver_register(&compal_driver);
-	if (ret)
-		goto err_backlight;
-
-	compal_device = platform_device_alloc(DRIVER_NAME, -1);
-	if (!compal_device) {
-		ret = -ENOMEM;
-		goto err_platform_driver;
-	}
-
-	ret = platform_device_add(compal_device); /* This calls compal_probe */
-	if (ret)
-		goto err_platform_device;
-
-	ret = setup_rfkill();
-	if (ret)
-		goto err_rfkill;
-
-	pr_info("Driver " DRIVER_VERSION " successfully loaded\n");
-	return 0;
-
-err_rfkill:
-	platform_device_del(compal_device);
-
-err_platform_device:
-	platform_device_put(compal_device);
-
-err_platform_driver:
-	platform_driver_unregister(&compal_driver);
-
-err_backlight:
-	backlight_device_unregister(compalbl_device);
-
-	return ret;
-}
-
 static int compal_probe(struct platform_device *pdev)
 {
 	int err;
@@ -1076,19 +1003,6 @@ remove:
 	return err;
 }
 
-static void __exit compal_cleanup(void)
-{
-	platform_device_unregister(compal_device);
-	platform_driver_unregister(&compal_driver);
-	backlight_device_unregister(compalbl_device);
-	rfkill_unregister(wifi_rfkill);
-	rfkill_unregister(bt_rfkill);
-	rfkill_destroy(wifi_rfkill);
-	rfkill_destroy(bt_rfkill);
-
-	pr_info("Driver unloaded\n");
-}
-
 static int compal_remove(struct platform_device *pdev)
 {
 	struct compal_data *data;
@@ -1107,6 +1021,89 @@ static int compal_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct platform_driver compal_driver = {
+	.driver = {
+		.name = DRIVER_NAME,
+	},
+	.probe	= compal_probe,
+	.remove	= compal_remove,
+};
+
+static int __init compal_init(void)
+{
+	int ret;
+
+	if (acpi_disabled) {
+		pr_err("ACPI needs to be enabled for this driver to work!\n");
+		return -ENODEV;
+	}
+
+	if (!force && !dmi_check_system(compal_dmi_table)) {
+		pr_err("Motherboard not recognized (You could try the module's force-parameter)\n");
+		return -ENODEV;
+	}
+
+	if (acpi_video_get_backlight_type() == acpi_backlight_vendor) {
+		struct backlight_properties props;
+		memset(&props, 0, sizeof(struct backlight_properties));
+		props.type = BACKLIGHT_PLATFORM;
+		props.max_brightness = BACKLIGHT_LEVEL_MAX;
+		compalbl_device = backlight_device_register(DRIVER_NAME,
+							    NULL, NULL,
+							    &compalbl_ops,
+							    &props);
+		if (IS_ERR(compalbl_device))
+			return PTR_ERR(compalbl_device);
+	}
+
+	ret = platform_driver_register(&compal_driver);
+	if (ret)
+		goto err_backlight;
+
+	compal_device = platform_device_alloc(DRIVER_NAME, PLATFORM_DEVID_NONE);
+	if (!compal_device) {
+		ret = -ENOMEM;
+		goto err_platform_driver;
+	}
+
+	ret = platform_device_add(compal_device); /* This calls compal_probe */
+	if (ret)
+		goto err_platform_device;
+
+	ret = setup_rfkill();
+	if (ret)
+		goto err_rfkill;
+
+	pr_info("Driver " DRIVER_VERSION " successfully loaded\n");
+	return 0;
+
+err_rfkill:
+	platform_device_del(compal_device);
+
+err_platform_device:
+	platform_device_put(compal_device);
+
+err_platform_driver:
+	platform_driver_unregister(&compal_driver);
+
+err_backlight:
+	backlight_device_unregister(compalbl_device);
+
+	return ret;
+}
+
+static void __exit compal_cleanup(void)
+{
+	platform_device_unregister(compal_device);
+	platform_driver_unregister(&compal_driver);
+	backlight_device_unregister(compalbl_device);
+	rfkill_unregister(wifi_rfkill);
+	rfkill_unregister(bt_rfkill);
+	rfkill_destroy(wifi_rfkill);
+	rfkill_destroy(bt_rfkill);
+
+	pr_info("Driver unloaded\n");
+}
 
 module_init(compal_init);
 module_exit(compal_cleanup);

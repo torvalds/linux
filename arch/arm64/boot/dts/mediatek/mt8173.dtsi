@@ -444,9 +444,8 @@
 		};
 
 		scpsys: syscon@10006000 {
-			compatible = "syscon", "simple-mfd";
+			compatible = "mediatek,mt8173-scpsys", "syscon", "simple-mfd";
 			reg = <0 0x10006000 0 0x1000>;
-			#power-domain-cells = <1>;
 
 			/* System Power Manager */
 			spm: power-controller {
@@ -1468,7 +1467,7 @@
 			clock-names = "venc_sel";
 			assigned-clocks = <&topckgen CLK_TOP_VENC_SEL>;
 			assigned-clock-parents = <&topckgen CLK_TOP_VCODECPLL>;
-			power-domains = <&scpsys MT8173_POWER_DOMAIN_VENC>;
+			power-domains = <&spm MT8173_POWER_DOMAIN_VENC>;
 		};
 
 		jpegdec: jpegdec@18004000 {
@@ -1519,7 +1518,7 @@
 			assigned-clocks = <&topckgen CLK_TOP_VENC_LT_SEL>;
 			assigned-clock-parents =
 				 <&topckgen CLK_TOP_VCODECPLL_370P5>;
-			power-domains = <&scpsys MT8173_POWER_DOMAIN_VENC_LT>;
+			power-domains = <&spm MT8173_POWER_DOMAIN_VENC_LT>;
 		};
 	};
 };

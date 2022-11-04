@@ -31,4 +31,14 @@ config SND_SOC_SOF_AMD_RENOIR
 	select SND_SOC_SOF_AMD_COMMON
 	help
 	  Select this option for SOF support on AMD Renoir platform
+
+config SND_SOC_SOF_AMD_REMBRANDT
+	tristate "SOF support for REMBRANDT"
+	depends on SND_SOC_SOF_PCI
+	select SND_SOC_SOF_AMD_COMMON
+	help
+	  Select this option for SOF support on AMD Rembrandt platform
+	  Say Y if you want to enable SOF on Rembrandt.
+	  If unsure select "N".
+
 endif

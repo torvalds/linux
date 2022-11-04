@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm A53 PLL Binding
 
 maintainers:
-  - Sivaprakash Murugesan <sivaprak@codeaurora.org>
+  - Bjorn Andersson <andersson@kernel.org>
 
 description:
   The A53 PLL on few Qualcomm platforms is the main CPU PLL used used for
@@ -17,6 +17,7 @@ properties:
   compatible:
     enum:
       - qcom,ipq6018-a53pll
+      - qcom,ipq8074-a53pll
       - qcom,msm8916-a53pll
       - qcom,msm8939-a53pll
 

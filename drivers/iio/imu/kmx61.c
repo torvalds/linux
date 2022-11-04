@@ -1418,7 +1418,7 @@ err_chip_uninit:
 	return ret;
 }
 
-static int kmx61_remove(struct i2c_client *client)
+static void kmx61_remove(struct i2c_client *client)
 {
 	struct kmx61_data *data = i2c_get_clientdata(client);
 
@@ -1439,8 +1439,6 @@ static int kmx61_remove(struct i2c_client *client)
 	mutex_lock(&data->lock);
 	kmx61_set_mode(data, KMX61_ALL_STBY, KMX61_ACC | KMX61_MAG, true);
 	mutex_unlock(&data->lock);
-
-	return 0;
 }
 
 static int kmx61_suspend(struct device *dev)

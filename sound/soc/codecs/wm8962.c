@@ -3778,10 +3778,9 @@ err:
 	return ret;
 }
 
-static int wm8962_i2c_remove(struct i2c_client *client)
+static void wm8962_i2c_remove(struct i2c_client *client)
 {
 	pm_runtime_disable(&client->dev);
-	return 0;
 }
 
 #ifdef CONFIG_PM

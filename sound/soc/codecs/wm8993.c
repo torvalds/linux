@@ -1722,15 +1722,13 @@ err_enable:
 	return ret;
 }
 
-static int wm8993_i2c_remove(struct i2c_client *i2c)
+static void wm8993_i2c_remove(struct i2c_client *i2c)
 {
 	struct wm8993_priv *wm8993 = i2c_get_clientdata(i2c);
 
 	if (i2c->irq)
 		free_irq(i2c->irq, wm8993);
 	regulator_bulk_disable(ARRAY_SIZE(wm8993->supplies), wm8993->supplies);
-
-	return 0;
 }
 
 static const struct i2c_device_id wm8993_i2c_id[] = {

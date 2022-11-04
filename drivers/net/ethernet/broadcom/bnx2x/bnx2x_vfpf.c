@@ -380,7 +380,7 @@ int bnx2x_vfpf_acquire(struct bnx2x *bp, u8 tx_count, u8 rx_count)
 	bp->igu_base_sb = bp->acquire_resp.resc.hw_sbs[0].hw_sb_id;
 	bp->vlan_credit = bp->acquire_resp.resc.num_vlan_filters;
 
-	strlcpy(bp->fw_ver, bp->acquire_resp.pfdev_info.fw_ver,
+	strscpy(bp->fw_ver, bp->acquire_resp.pfdev_info.fw_ver,
 		sizeof(bp->fw_ver));
 
 	if (is_valid_ether_addr(bp->acquire_resp.resc.current_mac_addr))

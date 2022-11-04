@@ -111,7 +111,6 @@
 		vin-supply = <&dc_in>;
 
 		gpio = <&gpio GPIOH_8 GPIO_OPEN_DRAIN>;
-		enable-active-low;
 	};
 
 	vddao_1v8: regulator-vddao_1v8 {

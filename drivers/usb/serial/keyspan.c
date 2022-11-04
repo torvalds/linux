@@ -616,7 +616,8 @@ static void keyspan_break_ctl(struct tty_struct *tty, int break_state)
 
 
 static void keyspan_set_termios(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ktermios *old_termios)
+				struct usb_serial_port *port,
+				const struct ktermios *old_termios)
 {
 	int				baud_rate, device_port;
 	struct keyspan_port_private 	*p_priv;

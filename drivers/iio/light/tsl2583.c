@@ -873,7 +873,7 @@ static int tsl2583_probe(struct i2c_client *clientp,
 	return 0;
 }
 
-static int tsl2583_remove(struct i2c_client *client)
+static void tsl2583_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct tsl2583_chip *chip = iio_priv(indio_dev);
@@ -884,8 +884,6 @@ static int tsl2583_remove(struct i2c_client *client)
 	pm_runtime_set_suspended(&client->dev);
 
 	tsl2583_set_power_state(chip, TSL2583_CNTL_PWR_OFF);
-
-	return 0;
 }
 
 static int tsl2583_suspend(struct device *dev)

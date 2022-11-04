@@ -15,7 +15,7 @@ extern int acpi_pci_disabled;
 extern int acpi_noirq;
 
 #define acpi_os_ioremap acpi_os_ioremap
-void __init __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size);
+void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size);
 
 static inline void disable_acpi(void)
 {

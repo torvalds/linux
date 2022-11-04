@@ -798,7 +798,7 @@ static int nct7904_detect(struct i2c_client *client,
 	    (i2c_smbus_read_byte_data(client, BANK_SEL_REG) & 0xf8) != 0x00)
 		return -ENODEV;
 
-	strlcpy(info->type, "nct7904", I2C_NAME_SIZE);
+	strscpy(info->type, "nct7904", I2C_NAME_SIZE);
 
 	return 0;
 }

@@ -13,6 +13,7 @@
 #define arch___test_and_change_bit generic___test_and_change_bit
 
 #define arch_test_bit generic_test_bit
+#define arch_test_bit_acquire generic_test_bit_acquire
 
 #include <asm-generic/bitops/non-instrumented-non-atomic.h>
 

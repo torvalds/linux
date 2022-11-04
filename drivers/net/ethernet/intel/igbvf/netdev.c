@@ -1109,7 +1109,7 @@ static int igbvf_alloc_queues(struct igbvf_adapter *adapter)
 		return -ENOMEM;
 	}
 
-	netif_napi_add(netdev, &adapter->rx_ring->napi, igbvf_poll, 64);
+	netif_napi_add(netdev, &adapter->rx_ring->napi, igbvf_poll);
 
 	return 0;
 }

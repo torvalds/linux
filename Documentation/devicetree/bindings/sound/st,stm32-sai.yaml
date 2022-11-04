@@ -60,6 +60,7 @@ required:
 patternProperties:
   "^audio-controller@[0-9a-f]+$":
     type: object
+    additionalProperties: false
     description:
       Two subnodes corresponding to SAI sub-block instances A et B
       can be defined. Subnode can be omitted for unsused sub-block.
@@ -120,6 +121,10 @@ patternProperties:
       "#clock-cells":
         description: Configure the SAI device as master clock provider.
         const: 0
+
+      port:
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
 
     required:
       - compatible

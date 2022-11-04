@@ -71,8 +71,8 @@ nf_socket_get_sock_v4(struct net *net, struct sk_buff *skb, const int doff,
 {
 	switch (protocol) {
 	case IPPROTO_TCP:
-		return inet_lookup(net, &tcp_hashinfo, skb, doff,
-				   saddr, sport, daddr, dport,
+		return inet_lookup(net, net->ipv4.tcp_death_row.hashinfo,
+				   skb, doff, saddr, sport, daddr, dport,
 				   in->ifindex);
 	case IPPROTO_UDP:
 		return udp4_lib_lookup(net, saddr, sport, daddr, dport,

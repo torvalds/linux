@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/reserved-memory/nvidia,tegra210-emc-table.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NVIDIA Tegra210 EMC Frequency Table Device Tree Bindings
+title: NVIDIA Tegra210 EMC Frequency Table
 
 maintainers:
   - Thierry Reding <thierry.reding@gmail.com>

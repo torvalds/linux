@@ -632,7 +632,7 @@ static int snd_card_asihpi_trigger(struct snd_pcm_substream *substream,
 
 			/*? workaround linked streams don't
 			transition to SETUP 20070706*/
-			s->runtime->status->state = SNDRV_PCM_STATE_SETUP;
+			__snd_pcm_set_state(s->runtime, SNDRV_PCM_STATE_SETUP);
 
 			if (card->support_grouping) {
 				snd_printdd("%d group\n", s->number);

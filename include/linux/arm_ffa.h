@@ -17,6 +17,7 @@ struct ffa_device {
 	bool mode_32bit;
 	uuid_t uuid;
 	struct device dev;
+	const struct ffa_ops *ops;
 };
 
 #define to_ffa_dev(d) container_of(d, struct ffa_device, dev)
@@ -47,17 +48,18 @@ static inline void *ffa_dev_get_drvdata(struct ffa_device *fdev)
 }
 
 #if IS_REACHABLE(CONFIG_ARM_FFA_TRANSPORT)
-struct ffa_device *ffa_device_register(const uuid_t *uuid, int vm_id);
+struct ffa_device *ffa_device_register(const uuid_t *uuid, int vm_id,
+				       const struct ffa_ops *ops);
 void ffa_device_unregister(struct ffa_device *ffa_dev);
 int ffa_driver_register(struct ffa_driver *driver, struct module *owner,
 			const char *mod_name);
 void ffa_driver_unregister(struct ffa_driver *driver);
 bool ffa_device_is_valid(struct ffa_device *ffa_dev);
-const struct ffa_dev_ops *ffa_dev_ops_get(struct ffa_device *dev);
 
 #else
 static inline
-struct ffa_device *ffa_device_register(const uuid_t *uuid, int vm_id)
+struct ffa_device *ffa_device_register(const uuid_t *uuid, int vm_id,
+				       const struct ffa_ops *ops)
 {
 	return NULL;
 }
@@ -76,11 +78,6 @@ static inline void ffa_driver_unregister(struct ffa_driver *driver) {}
 static inline
 bool ffa_device_is_valid(struct ffa_device *ffa_dev) { return false; }
 
-static inline
-const struct ffa_dev_ops *ffa_dev_ops_get(struct ffa_device *dev)
-{
-	return NULL;
-}
 #endif /* CONFIG_ARM_FFA_TRANSPORT */
 
 #define ffa_register(driver) \
@@ -109,7 +106,10 @@ struct ffa_partition_info {
 #define FFA_PARTITION_DIRECT_SEND	BIT(1)
 /* partition can send and receive indirect messages. */
 #define FFA_PARTITION_INDIRECT_MSG	BIT(2)
+/* partition runs in the AArch64 execution state. */
+#define FFA_PARTITION_AARCH64_EXEC	BIT(8)
 	u32 properties;
+	u32 uuid[4];
 };
 
 /* For use with FFA_MSG_SEND_DIRECT_{REQ,RESP} which pass data via registers */
@@ -257,18 +257,28 @@ struct ffa_mem_ops_args {
 	struct ffa_mem_region_attributes *attrs;
 };
 
-struct ffa_dev_ops {
+struct ffa_info_ops {
 	u32 (*api_version_get)(void);
 	int (*partition_info_get)(const char *uuid_str,
 				  struct ffa_partition_info *buffer);
+};
+
+struct ffa_msg_ops {
 	void (*mode_32bit_set)(struct ffa_device *dev);
 	int (*sync_send_receive)(struct ffa_device *dev,
 				 struct ffa_send_direct_data *data);
+};
+
+struct ffa_mem_ops {
 	int (*memory_reclaim)(u64 g_handle, u32 flags);
-	int (*memory_share)(struct ffa_device *dev,
-			    struct ffa_mem_ops_args *args);
-	int (*memory_lend)(struct ffa_device *dev,
-			   struct ffa_mem_ops_args *args);
+	int (*memory_share)(struct ffa_mem_ops_args *args);
+	int (*memory_lend)(struct ffa_mem_ops_args *args);
+};
+
+struct ffa_ops {
+	const struct ffa_info_ops *info_ops;
+	const struct ffa_msg_ops *msg_ops;
+	const struct ffa_mem_ops *mem_ops;
 };
 
 #endif /* _LINUX_ARM_FFA_H */

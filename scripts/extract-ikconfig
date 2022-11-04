@@ -62,6 +62,7 @@ try_decompress 'BZh'          xy    bunzip2
 try_decompress '\135\0\0\0'   xxx   unlzma
 try_decompress '\211\114\132' xy    'lzop -d'
 try_decompress '\002\041\114\030' xyy 'lz4 -d -l'
+try_decompress '\050\265\057\375' xxx unzstd
 
 # Bail out:
 echo "$me: Cannot find kernel config." >&2

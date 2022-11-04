@@ -5,8 +5,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-static int duration;
-
 void test_udp_limit(void)
 {
 	struct udp_limit *skel;
@@ -14,11 +12,11 @@ void test_udp_limit(void)
 	int cgroup_fd;
 
 	cgroup_fd = test__join_cgroup("/udp_limit");
-	if (CHECK(cgroup_fd < 0, "cg-join", "errno %d", errno))
+	if (!ASSERT_GE(cgroup_fd, 0, "cg-join"))
 		return;
 
 	skel = udp_limit__open_and_load();
-	if (CHECK(!skel, "skel-load", "errno %d", errno))
+	if (!ASSERT_OK_PTR(skel, "skel-load"))
 		goto close_cgroup_fd;
 
 	skel->links.sock = bpf_program__attach_cgroup(skel->progs.sock, cgroup_fd);
@@ -32,11 +30,11 @@ void test_udp_limit(void)
 	 * verify that.
 	 */
 	fd1 = socket(AF_INET, SOCK_DGRAM, 0);
-	if (CHECK(fd1 < 0, "fd1", "errno %d", errno))
+	if (!ASSERT_GE(fd1, 0, "socket(fd1)"))
 		goto close_skeleton;
 
 	fd2 = socket(AF_INET, SOCK_DGRAM, 0);
-	if (CHECK(fd2 >= 0, "fd2", "errno %d", errno))
+	if (!ASSERT_LT(fd2, 0, "socket(fd2)"))
 		goto close_skeleton;
 
 	/* We can reopen again after close. */
@@ -44,7 +42,7 @@ void test_udp_limit(void)
 	fd1 = -1;
 
 	fd1 = socket(AF_INET, SOCK_DGRAM, 0);
-	if (CHECK(fd1 < 0, "fd1-again", "errno %d", errno))
+	if (!ASSERT_GE(fd1, 0, "socket(fd1-again)"))
 		goto close_skeleton;
 
 	/* Make sure the program was invoked the expected
@@ -54,13 +52,11 @@ void test_udp_limit(void)
 	 * - close fd1          - BPF_CGROUP_INET_SOCK_RELEASE
 	 * - open fd1 again     - BPF_CGROUP_INET_SOCK_CREATE
 	 */
-	if (CHECK(skel->bss->invocations != 4, "bss-invocations",
-		  "invocations=%d", skel->bss->invocations))
+	if (!ASSERT_EQ(skel->bss->invocations, 4, "bss-invocations"))
 		goto close_skeleton;
 
 	/* We should still have a single socket in use */
-	if (CHECK(skel->bss->in_use != 1, "bss-in_use",
-		  "in_use=%d", skel->bss->in_use))
+	if (!ASSERT_EQ(skel->bss->in_use, 1, "bss-in_use"))
 		goto close_skeleton;
 
 close_skeleton:

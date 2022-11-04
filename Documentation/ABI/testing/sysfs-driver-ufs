@@ -1417,6 +1417,15 @@ Description:	This node is used to set or display whether UFS WriteBooster is
 		platform that doesn't support UFSHCD_CAP_CLK_SCALING, we can
 		disable/enable WriteBooster through this sysfs node.
 
+What:		/sys/bus/platform/drivers/ufshcd/*/enable_wb_buf_flush
+What:		/sys/bus/platform/devices/*.ufs/enable_wb_buf_flush
+Date:		July 2022
+Contact:	Jinyoung Choi <j-young.choi@samsung.com>
+Description:	This entry shows the status of WriteBooster buffer flushing
+		and it can be used to enable or disable the flushing.
+		If flushing is enabled, the device executes the flush
+		operation when the command queue is empty.
+
 What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/hpb_version
 What:		/sys/bus/platform/devices/*.ufs/device_descriptor/hpb_version
 Date:		June 2021
@@ -1587,6 +1596,43 @@ Description:	This entry shows the status of HPB.
 		== ============================
 		0  HPB is not enabled.
 		1  HPB is enabled
+		== ============================
+
+		The file is read only.
+
+Contact:	Daniil Lunev <dlunev@chromium.org>
+What:		/sys/bus/platform/drivers/ufshcd/*/capabilities/
+What:		/sys/bus/platform/devices/*.ufs/capabilities/
+Date:		August 2022
+Description:	The group represents the effective capabilities of the
+		host-device pair. i.e. the capabilities which are enabled in the
+		driver for the specific host controller, supported by the host
+		controller and are supported and/or have compatible
+		configuration on the device side.
+
+Contact:	Daniil Lunev <dlunev@chromium.org>
+What:		/sys/bus/platform/drivers/ufshcd/*/capabilities/clock_scaling
+What:		/sys/bus/platform/devices/*.ufs/capabilities/clock_scaling
+Date:		August 2022
+Contact:	Daniil Lunev <dlunev@chromium.org>
+Description:	Indicates status of clock scaling.
+
+		== ============================
+		0  Clock scaling is not supported.
+		1  Clock scaling is supported.
+		== ============================
+
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/capabilities/write_booster
+What:		/sys/bus/platform/devices/*.ufs/capabilities/write_booster
+Date:		August 2022
+Contact:	Daniil Lunev <dlunev@chromium.org>
+Description:	Indicates status of Write Booster.
+
+		== ============================
+		0  Write Booster can not be enabled.
+		1  Write Booster can be enabled.
 		== ============================
 
 		The file is read only.

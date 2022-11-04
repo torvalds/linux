@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/usb/usb-hcd.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Generic USB Host Controller Device Tree Bindings
+title: Generic USB Host Controller
 
 maintainers:
   - Greg Kroah-Hartman <gregkh@linuxfoundation.org>

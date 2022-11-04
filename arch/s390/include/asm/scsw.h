@@ -215,6 +215,11 @@ union scsw {
 #define SNS2_ENV_DATA_PRESENT	0x10
 #define SNS2_INPRECISE_END	0x04
 
+/*
+ * architectured values for PPRC errors
+ */
+#define SNS7_INVALID_ON_SEC	0x0e
+
 /**
  * scsw_is_tm - check for transport mode scsw
  * @scsw: pointer to scsw

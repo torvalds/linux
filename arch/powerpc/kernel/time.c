@@ -178,92 +178,6 @@ static inline unsigned long read_spurr(unsigned long tb)
 	return tb;
 }
 
-#ifdef CONFIG_PPC_SPLPAR
-
-#include <asm/dtl.h>
-
-void (*dtl_consumer)(struct dtl_entry *, u64);
-
-/*
- * Scan the dispatch trace log and count up the stolen time.
- * Should be called with interrupts disabled.
- */
-static u64 scan_dispatch_log(u64 stop_tb)
-{
-	u64 i = local_paca->dtl_ridx;
-	struct dtl_entry *dtl = local_paca->dtl_curr;
-	struct dtl_entry *dtl_end = local_paca->dispatch_log_end;
-	struct lppaca *vpa = local_paca->lppaca_ptr;
-	u64 tb_delta;
-	u64 stolen = 0;
-	u64 dtb;
-
-	if (!dtl)
-		return 0;
-
-	if (i == be64_to_cpu(vpa->dtl_idx))
-		return 0;
-	while (i < be64_to_cpu(vpa->dtl_idx)) {
-		dtb = be64_to_cpu(dtl->timebase);
-		tb_delta = be32_to_cpu(dtl->enqueue_to_dispatch_time) +
-			be32_to_cpu(dtl->ready_to_enqueue_time);
-		barrier();
-		if (i + N_DISPATCH_LOG < be64_to_cpu(vpa->dtl_idx)) {
-			/* buffer has overflowed */
-			i = be64_to_cpu(vpa->dtl_idx) - N_DISPATCH_LOG;
-			dtl = local_paca->dispatch_log + (i % N_DISPATCH_LOG);
-			continue;
-		}
-		if (dtb > stop_tb)
-			break;
-		if (dtl_consumer)
-			dtl_consumer(dtl, i);
-		stolen += tb_delta;
-		++i;
-		++dtl;
-		if (dtl == dtl_end)
-			dtl = local_paca->dispatch_log;
-	}
-	local_paca->dtl_ridx = i;
-	local_paca->dtl_curr = dtl;
-	return stolen;
-}
-
-/*
- * Accumulate stolen time by scanning the dispatch trace log.
- * Called on entry from user mode.
- */
-void notrace accumulate_stolen_time(void)
-{
-	u64 sst, ust;
-	struct cpu_accounting_data *acct = &local_paca->accounting;
-
-	sst = scan_dispatch_log(acct->starttime_user);
-	ust = scan_dispatch_log(acct->starttime);
-	acct->stime -= sst;
-	acct->utime -= ust;
-	acct->steal_time += ust + sst;
-}
-
-static inline u64 calculate_stolen_time(u64 stop_tb)
-{
-	if (!firmware_has_feature(FW_FEATURE_SPLPAR))
-		return 0;
-
-	if (get_paca()->dtl_ridx != be64_to_cpu(get_lppaca()->dtl_idx))
-		return scan_dispatch_log(stop_tb);
-
-	return 0;
-}
-
-#else /* CONFIG_PPC_SPLPAR */
-static inline u64 calculate_stolen_time(u64 stop_tb)
-{
-	return 0;
-}
-
-#endif /* CONFIG_PPC_SPLPAR */
-
 /*
  * Account time for a transition between system, hard irq
  * or soft irq state.
@@ -322,7 +236,11 @@ static unsigned long vtime_delta(struct cpu_accounting_data *acct,
 
 	*stime_scaled = vtime_delta_scaled(acct, now, stime);
 
-	*steal_time = calculate_stolen_time(now);
+	if (IS_ENABLED(CONFIG_PPC_SPLPAR) &&
+			firmware_has_feature(FW_FEATURE_SPLPAR))
+		*steal_time = pseries_calculate_stolen_time(now);
+	else
+		*steal_time = 0;
 
 	return stime;
 }
@@ -614,22 +532,23 @@ DEFINE_INTERRUPT_HANDLER_ASYNC(timer_interrupt)
 		return;
 	}
 
-	/*
-	 * Ensure a positive value is written to the decrementer, or
-	 * else some CPUs will continue to take decrementer exceptions.
-	 * When the PPC_WATCHDOG (decrementer based) is configured,
-	 * keep this at most 31 bits, which is about 4 seconds on most
-	 * systems, which gives the watchdog a chance of catching timer
-	 * interrupt hard lockups.
-	 */
-	if (IS_ENABLED(CONFIG_PPC_WATCHDOG))
-		set_dec(0x7fffffff);
-	else
-		set_dec(decrementer_max);
-
 	/* Conditionally hard-enable interrupts. */
-	if (should_hard_irq_enable())
+	if (should_hard_irq_enable()) {
+		/*
+		 * Ensure a positive value is written to the decrementer, or
+		 * else some CPUs will continue to take decrementer exceptions.
+		 * When the PPC_WATCHDOG (decrementer based) is configured,
+		 * keep this at most 31 bits, which is about 4 seconds on most
+		 * systems, which gives the watchdog a chance of catching timer
+		 * interrupt hard lockups.
+		 */
+		if (IS_ENABLED(CONFIG_PPC_WATCHDOG))
+			set_dec(0x7fffffff);
+		else
+			set_dec(decrementer_max);
+
 		do_hard_irq_enable();
+	}
 
 #if defined(CONFIG_PPC32) && defined(CONFIG_PPC_PMAC)
 	if (atomic_read(&ppc_n_lost_interrupts) != 0)

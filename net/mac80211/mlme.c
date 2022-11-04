@@ -314,7 +314,7 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 	if (eht_oper && (eht_oper->params & IEEE80211_EHT_OPER_INFO_PRESENT)) {
 		struct cfg80211_chan_def eht_chandef = *chandef;
 
-		ieee80211_chandef_eht_oper(sdata, eht_oper,
+		ieee80211_chandef_eht_oper(eht_oper,
 					   eht_chandef.width ==
 					   NL80211_CHAN_WIDTH_160,
 					   false, &eht_chandef);
@@ -695,6 +695,7 @@ static bool ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_add_he_ie(struct ieee80211_sub_if_data *sdata,
 				struct sk_buff *skb,
 				struct ieee80211_supported_band *sband,
+				enum ieee80211_smps_mode smps_mode,
 				ieee80211_conn_flags_t conn_flags)
 {
 	u8 *pos, *pre_he_pos;
@@ -719,7 +720,7 @@ static void ieee80211_add_he_ie(struct ieee80211_sub_if_data *sdata,
 	/* trim excess if any */
 	skb_trim(skb, skb->len - (pre_he_pos + he_cap_size - pos));
 
-	ieee80211_ie_build_he_6ghz_cap(sdata, skb);
+	ieee80211_ie_build_he_6ghz_cap(sdata, smps_mode, skb);
 }
 
 static void ieee80211_add_eht_ie(struct ieee80211_sub_if_data *sdata,
@@ -746,11 +747,13 @@ static void ieee80211_add_eht_ie(struct ieee80211_sub_if_data *sdata,
 	eht_cap_size =
 		2 + 1 + sizeof(eht_cap->eht_cap_elem) +
 		ieee80211_eht_mcs_nss_size(&he_cap->he_cap_elem,
-					   &eht_cap->eht_cap_elem) +
+					   &eht_cap->eht_cap_elem,
+					   false) +
 		ieee80211_eht_ppe_size(eht_cap->eht_ppe_thres[0],
 				       eht_cap->eht_cap_elem.phy_cap_info);
 	pos = skb_put(skb, eht_cap_size);
-	ieee80211_ie_build_eht_cap(pos, he_cap, eht_cap, pos + eht_cap_size);
+	ieee80211_ie_build_eht_cap(pos, he_cap, eht_cap, pos + eht_cap_size,
+				   false);
 }
 
 static void ieee80211_assoc_add_rates(struct sk_buff *skb,
@@ -1098,7 +1101,7 @@ static size_t ieee80211_assoc_link_elems(struct ieee80211_sub_if_data *sdata,
 					       offset);
 
 	if (!(assoc_data->link[link_id].conn_flags & IEEE80211_CONN_DISABLE_HE)) {
-		ieee80211_add_he_ie(sdata, skb, sband,
+		ieee80211_add_he_ie(sdata, skb, sband, smps_mode,
 				    assoc_data->link[link_id].conn_flags);
 		ADD_PRESENT_EXT_ELEM(WLAN_EID_EXT_HE_CAPABILITY);
 	}
@@ -1220,14 +1223,21 @@ static void ieee80211_assoc_add_ml_elem(struct ieee80211_sub_if_data *sdata,
 	ml_elem = skb_put(skb, sizeof(*ml_elem));
 	ml_elem->control =
 		cpu_to_le16(IEEE80211_ML_CONTROL_TYPE_BASIC |
-			    IEEE80211_MLC_BASIC_PRES_EML_CAPA |
 			    IEEE80211_MLC_BASIC_PRES_MLD_CAPA_OP);
 	common = skb_put(skb, sizeof(*common));
 	common->len = sizeof(*common) +
-		      2 + /* EML capabilities */
 		      2;  /* MLD capa/ops */
 	memcpy(common->mld_mac_addr, sdata->vif.addr, ETH_ALEN);
-	skb_put_data(skb, &eml_capa, sizeof(eml_capa));
+
+	/* add EML_CAPA only if needed, see Draft P802.11be_D2.1, 35.3.17 */
+	if (eml_capa &
+	    cpu_to_le16((IEEE80211_EML_CAP_EMLSR_SUPP |
+			 IEEE80211_EML_CAP_EMLMR_SUPPORT))) {
+		common->len += 2; /* EML capabilities */
+		ml_elem->control |=
+			cpu_to_le16(IEEE80211_MLC_BASIC_PRES_EML_CAPA);
+		skb_put_data(skb, &eml_capa, sizeof(eml_capa));
+	}
 	/* need indication from userspace to support this */
 	mld_capa_ops &= ~cpu_to_le16(IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP);
 	skb_put_data(skb, &mld_capa_ops, sizeof(mld_capa_ops));
@@ -1536,8 +1546,9 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 	struct ieee80211_hdr_3addr *nullfunc;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
-	skb = ieee80211_nullfunc_get(&local->hw, &sdata->vif,
-		!ieee80211_hw_check(&local->hw, DOESNT_SUPPORT_QOS_NDP));
+	skb = ieee80211_nullfunc_get(&local->hw, &sdata->vif, -1,
+				     !ieee80211_hw_check(&local->hw,
+							 DOESNT_SUPPORT_QOS_NDP));
 	if (!skb)
 		return;
 
@@ -1902,7 +1913,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
 	mutex_unlock(&local->mtx);
 
-	cfg80211_ch_switch_started_notify(sdata->dev, &csa_ie.chandef,
+	cfg80211_ch_switch_started_notify(sdata->dev, &csa_ie.chandef, 0,
 					  csa_ie.count, csa_ie.mode);
 
 	if (local->ops->channel_switch) {
@@ -2435,6 +2446,29 @@ static void ieee80211_sta_handle_tspec_ac_params_wk(struct work_struct *work)
 	ieee80211_sta_handle_tspec_ac_params(sdata);
 }
 
+void ieee80211_mgd_set_link_qos_params(struct ieee80211_link_data *link)
+{
+	struct ieee80211_sub_if_data *sdata = link->sdata;
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct ieee80211_tx_queue_params *params = link->tx_conf;
+	u8 ac;
+
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		mlme_dbg(sdata,
+			 "WMM AC=%d acm=%d aifs=%d cWmin=%d cWmax=%d txop=%d uapsd=%d, downgraded=%d\n",
+			 ac, params[ac].acm,
+			 params[ac].aifs, params[ac].cw_min, params[ac].cw_max,
+			 params[ac].txop, params[ac].uapsd,
+			 ifmgd->tx_tspec[ac].downgraded);
+		if (!ifmgd->tx_tspec[ac].downgraded &&
+		    drv_conf_tx(local, link, ac, &params[ac]))
+			link_err(link,
+				 "failed to set TX queue parameters for AC %d\n",
+				 ac);
+	}
+}
+
 /* MLME */
 static bool
 ieee80211_sta_wmm_params(struct ieee80211_local *local,
@@ -2566,20 +2600,10 @@ ieee80211_sta_wmm_params(struct ieee80211_local *local,
 		}
 	}
 
-	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		mlme_dbg(sdata,
-			 "WMM AC=%d acm=%d aifs=%d cWmin=%d cWmax=%d txop=%d uapsd=%d, downgraded=%d\n",
-			 ac, params[ac].acm,
-			 params[ac].aifs, params[ac].cw_min, params[ac].cw_max,
-			 params[ac].txop, params[ac].uapsd,
-			 ifmgd->tx_tspec[ac].downgraded);
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 		link->tx_conf[ac] = params[ac];
-		if (!ifmgd->tx_tspec[ac].downgraded &&
-		    drv_conf_tx(local, link, ac, &params[ac]))
-			link_err(link,
-				 "failed to set TX queue parameters for AC %d\n",
-				 ac);
-	}
+
+	ieee80211_mgd_set_link_qos_params(link);
 
 	/* enable WMM or activate new settings */
 	link->conf->qos = true;
@@ -3420,11 +3444,11 @@ static void ieee80211_destroy_auth_data(struct ieee80211_sub_if_data *sdata,
 		ieee80211_link_info_change_notify(sdata, &sdata->deflink,
 						  BSS_CHANGED_BSSID);
 		sdata->u.mgd.flags = 0;
+
 		mutex_lock(&sdata->local->mtx);
 		ieee80211_link_release_channel(&sdata->deflink);
-		mutex_unlock(&sdata->local->mtx);
-
 		ieee80211_vif_set_links(sdata, 0);
+		mutex_unlock(&sdata->local->mtx);
 	}
 
 	cfg80211_put_bss(sdata->local->hw.wiphy, auth_data->bss);
@@ -3462,10 +3486,6 @@ static void ieee80211_destroy_assoc_data(struct ieee80211_sub_if_data *sdata,
 		sdata->u.mgd.flags = 0;
 		sdata->vif.bss_conf.mu_mimo_owner = false;
 
-		mutex_lock(&sdata->local->mtx);
-		ieee80211_link_release_channel(&sdata->deflink);
-		mutex_unlock(&sdata->local->mtx);
-
 		if (status != ASSOC_REJECTED) {
 			struct cfg80211_assoc_failure data = {
 				.timeout = status == ASSOC_TIMEOUT,
@@ -3484,7 +3504,10 @@ static void ieee80211_destroy_assoc_data(struct ieee80211_sub_if_data *sdata,
 			cfg80211_assoc_failure(sdata->dev, &data);
 		}
 
+		mutex_lock(&sdata->local->mtx);
+		ieee80211_link_release_channel(&sdata->deflink);
 		ieee80211_vif_set_links(sdata, 0);
+		mutex_unlock(&sdata->local->mtx);
 	}
 
 	kfree(assoc_data);
@@ -3905,6 +3928,7 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		.len = elem_len,
 		.bss = cbss,
 		.link_id = link == &sdata->deflink ? -1 : link->link_id,
+		.from_ap = true,
 	};
 	bool is_6ghz = cbss->channel->band == NL80211_BAND_6GHZ;
 	bool is_s1g = cbss->channel->band == NL80211_BAND_S1GHZ;
@@ -4033,15 +4057,14 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		goto out;
 	}
 
-	sband = ieee80211_get_link_sband(link);
-	if (!sband) {
+	if (WARN_ON(!link->conf->chandef.chan)) {
 		ret = false;
 		goto out;
 	}
+	sband = local->hw.wiphy->bands[link->conf->chandef.chan->band];
 
 	if (!(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE) &&
 	    (!elems->he_cap || !elems->he_operation)) {
-		mutex_unlock(&sdata->local->sta_mtx);
 		sdata_info(sdata,
 			   "HE AP is missing HE capability/operation\n");
 		ret = false;
@@ -4386,8 +4409,11 @@ ieee80211_verify_peer_he_mcs_support(struct ieee80211_sub_if_data *sdata,
 	he_cap_elem = cfg80211_find_ext_elem(WLAN_EID_EXT_HE_CAPABILITY,
 					     ies->data, ies->len);
 
+	if (!he_cap_elem)
+		return false;
+
 	/* invalid HE IE */
-	if (!he_cap_elem || he_cap_elem->datalen < 1 + sizeof(*he_cap)) {
+	if (he_cap_elem->datalen < 1 + sizeof(*he_cap)) {
 		sdata_info(sdata,
 			   "Invalid HE elem, Disable HE\n");
 		return false;
@@ -4573,6 +4599,11 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	bool is_6ghz = cbss->channel->band == NL80211_BAND_6GHZ;
 	bool is_5ghz = cbss->channel->band == NL80211_BAND_5GHZ;
 	struct ieee80211_bss *bss = (void *)cbss->priv;
+	struct ieee80211_elems_parse_params parse_params = {
+		.bss = cbss,
+		.link_id = -1,
+		.from_ap = true,
+	};
 	struct ieee802_11_elems *elems;
 	const struct cfg80211_bss_ies *ies;
 	int ret;
@@ -4582,7 +4613,9 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	rcu_read_lock();
 
 	ies = rcu_dereference(cbss->ies);
-	elems = ieee802_11_parse_elems(ies->data, ies->len, false, cbss);
+	parse_params.start = ies->data;
+	parse_params.len = ies->len;
+	elems = ieee802_11_parse_elems_full(&parse_params);
 	if (!elems) {
 		rcu_read_unlock();
 		return -ENOMEM;
@@ -4646,8 +4679,6 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 		}
 
 		if (!elems->vht_cap_elem) {
-			sdata_info(sdata,
-				   "bad VHT capabilities, disabling VHT\n");
 			*conn_flags |= IEEE80211_CONN_DISABLE_VHT;
 			vht_oper = NULL;
 		}
@@ -4788,6 +4819,40 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	return ret;
 }
 
+static bool ieee80211_get_dtim(const struct cfg80211_bss_ies *ies,
+			       u8 *dtim_count, u8 *dtim_period)
+{
+	const u8 *tim_ie = cfg80211_find_ie(WLAN_EID_TIM, ies->data, ies->len);
+	const u8 *idx_ie = cfg80211_find_ie(WLAN_EID_MULTI_BSSID_IDX, ies->data,
+					 ies->len);
+	const struct ieee80211_tim_ie *tim = NULL;
+	const struct ieee80211_bssid_index *idx;
+	bool valid = tim_ie && tim_ie[1] >= 2;
+
+	if (valid)
+		tim = (void *)(tim_ie + 2);
+
+	if (dtim_count)
+		*dtim_count = valid ? tim->dtim_count : 0;
+
+	if (dtim_period)
+		*dtim_period = valid ? tim->dtim_period : 0;
+
+	/* Check if value is overridden by non-transmitted profile */
+	if (!idx_ie || idx_ie[1] < 3)
+		return valid;
+
+	idx = (void *)(idx_ie + 2);
+
+	if (dtim_count)
+		*dtim_count = idx->dtim_count;
+
+	if (dtim_period)
+		*dtim_period = idx->dtim_period;
+
+	return true;
+}
+
 static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_mgmt *mgmt,
 				    struct ieee802_11_elems *elems,
@@ -4851,11 +4916,24 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 			goto out_err;
 
 		if (link_id != assoc_data->assoc_link_id) {
-			err = ieee80211_prep_channel(sdata, link,
-						     assoc_data->link[link_id].bss,
+			struct cfg80211_bss *cbss = assoc_data->link[link_id].bss;
+			const struct cfg80211_bss_ies *ies;
+
+			rcu_read_lock();
+			ies = rcu_dereference(cbss->ies);
+			ieee80211_get_dtim(ies,
+					   &link->conf->sync_dtim_count,
+					   &link->u.mgd.dtim_period);
+			link->conf->dtim_period = link->u.mgd.dtim_period ?: 1;
+			link->conf->beacon_int = cbss->beacon_interval;
+			rcu_read_unlock();
+
+			err = ieee80211_prep_channel(sdata, link, cbss,
 						     &link->u.mgd.conn_flags);
-			if (err)
+			if (err) {
+				link_info(link, "prep_channel failed\n");
 				goto out_err;
+			}
 		}
 
 		err = ieee80211_mgd_setup_link_sta(link, sta, link_sta,
@@ -4937,6 +5015,11 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_mgd_assoc_data *assoc_data = ifmgd->assoc_data;
 	u16 capab_info, status_code, aid;
+	struct ieee80211_elems_parse_params parse_params = {
+		.bss = NULL,
+		.link_id = -1,
+		.from_ap = true,
+	};
 	struct ieee802_11_elems *elems;
 	int ac;
 	const u8 *elem_start;
@@ -4991,7 +5074,9 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	elem_len = len - (elem_start - (u8 *)mgmt);
-	elems = ieee802_11_parse_elems(elem_start, elem_len, false, NULL);
+	parse_params.start = elem_start;
+	parse_params.len = elem_len;
+	elems = ieee802_11_parse_elems_full(&parse_params);
 	if (!elems)
 		goto notify_driver;
 
@@ -5124,7 +5209,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	resp.req_ies = ifmgd->assoc_req_ies;
 	resp.req_ies_len = ifmgd->assoc_req_ies_len;
 	if (sdata->vif.valid_links)
-		resp.ap_mld_addr = assoc_data->ap_addr;
+		resp.ap_mld_addr = sdata->vif.cfg.ap_addr;
 	cfg80211_rx_assoc_resp(sdata->dev, &resp);
 notify_driver:
 	drv_mgd_complete_tx(sdata->local, sdata, &info);
@@ -5356,6 +5441,10 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	u32 ncrc = 0;
 	u8 *bssid, *variable = mgmt->u.beacon.variable;
 	u8 deauth_buf[IEEE80211_DEAUTH_FRAME_LEN];
+	struct ieee80211_elems_parse_params parse_params = {
+		.link_id = -1,
+		.from_ap = true,
+	};
 
 	sdata_assert_lock(sdata);
 
@@ -5373,6 +5462,9 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	baselen = (u8 *) variable - (u8 *) mgmt;
 	if (baselen > len)
 		return;
+
+	parse_params.start = variable;
+	parse_params.len = len - baselen;
 
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(link->conf->chanctx_conf);
@@ -5392,8 +5484,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	if (ifmgd->assoc_data && ifmgd->assoc_data->need_beacon &&
 	    !WARN_ON(sdata->vif.valid_links) &&
 	    ieee80211_rx_our_beacon(bssid, ifmgd->assoc_data->link[0].bss)) {
-		elems = ieee802_11_parse_elems(variable, len - baselen, false,
-					       ifmgd->assoc_data->link[0].bss);
+		parse_params.bss = ifmgd->assoc_data->link[0].bss;
+		elems = ieee802_11_parse_elems_full(&parse_params);
 		if (!elems)
 			return;
 
@@ -5459,9 +5551,10 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	 */
 	if (!ieee80211_is_s1g_beacon(hdr->frame_control))
 		ncrc = crc32_be(0, (void *)&mgmt->u.beacon.beacon_int, 4);
-	elems = ieee802_11_parse_elems_crc(variable, len - baselen,
-					   false, care_about_ies, ncrc,
-					   link->u.mgd.bss);
+	parse_params.bss = link->u.mgd.bss;
+	parse_params.filter = care_about_ies;
+	parse_params.crc = ncrc;
+	elems = ieee802_11_parse_elems_full(&parse_params);
 	if (!elems)
 		return;
 	ncrc = elems->crc;
@@ -5590,12 +5683,16 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 
 	mutex_lock(&local->sta_mtx);
 	sta = sta_info_get(sdata, sdata->vif.cfg.ap_addr);
-	if (WARN_ON(!sta))
+	if (WARN_ON(!sta)) {
+		mutex_unlock(&local->sta_mtx);
 		goto free;
+	}
 	link_sta = rcu_dereference_protected(sta->link[link->link_id],
 					     lockdep_is_held(&local->sta_mtx));
-	if (WARN_ON(!link_sta))
+	if (WARN_ON(!link_sta)) {
+		mutex_unlock(&local->sta_mtx);
 		goto free;
+	}
 
 	changed |= ieee80211_recalc_twt_req(link, link_sta, elems);
 
@@ -5670,6 +5767,13 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	fc = le16_to_cpu(mgmt->frame_control);
 
 	sdata_lock(sdata);
+
+	if (rx_status->link_valid) {
+		link = sdata_dereference(sdata->link[rx_status->link_id],
+					 sdata);
+		if (!link)
+			goto out;
+	}
 
 	switch (fc & IEEE80211_FCTL_STYPE) {
 	case IEEE80211_STYPE_BEACON:
@@ -5747,6 +5851,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		}
 		break;
 	}
+out:
 	sdata_unlock(sdata);
 }
 
@@ -6282,6 +6387,8 @@ void ieee80211_mgd_setup_link(struct ieee80211_link_data *link)
 	if (sdata->u.mgd.assoc_data)
 		ether_addr_copy(link->conf->addr,
 				sdata->u.mgd.assoc_data->link[link_id].addr);
+	else if (!is_valid_ether_addr(link->conf->addr))
+		eth_random_addr(link->conf->addr);
 }
 
 /* scan finished notification */
@@ -6296,40 +6403,6 @@ void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local)
 			ieee80211_restart_sta_timer(sdata);
 	}
 	rcu_read_unlock();
-}
-
-static bool ieee80211_get_dtim(const struct cfg80211_bss_ies *ies,
-			       u8 *dtim_count, u8 *dtim_period)
-{
-	const u8 *tim_ie = cfg80211_find_ie(WLAN_EID_TIM, ies->data, ies->len);
-	const u8 *idx_ie = cfg80211_find_ie(WLAN_EID_MULTI_BSSID_IDX, ies->data,
-					 ies->len);
-	const struct ieee80211_tim_ie *tim = NULL;
-	const struct ieee80211_bssid_index *idx;
-	bool valid = tim_ie && tim_ie[1] >= 2;
-
-	if (valid)
-		tim = (void *)(tim_ie + 2);
-
-	if (dtim_count)
-		*dtim_count = valid ? tim->dtim_count : 0;
-
-	if (dtim_period)
-		*dtim_period = valid ? tim->dtim_period : 0;
-
-	/* Check if value is overridden by non-transmitted profile */
-	if (!idx_ie || idx_ie[1] < 3)
-		return valid;
-
-	idx = (void *)(idx_ie + 2);
-
-	if (dtim_count)
-		*dtim_count = idx->dtim_count;
-
-	if (dtim_period)
-		*dtim_period = idx->dtim_period;
-
-	return true;
 }
 
 static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
@@ -6368,9 +6441,6 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 		err = -ENOLINK;
 		goto out_err;
 	}
-
-	if (mlo && !is_valid_ether_addr(link->conf->addr))
-		eth_random_addr(link->conf->addr);
 
 	if (WARN_ON(!ifmgd->auth_data && !ifmgd->assoc_data)) {
 		err = -EINVAL;
@@ -6509,6 +6579,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	return 0;
 
 out_err:
+	ieee80211_link_release_channel(&sdata->deflink);
 	ieee80211_vif_set_links(sdata, 0);
 	return err;
 }
@@ -6836,22 +6907,9 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++)
 		size += req->links[i].elems_len;
 
-	if (req->ap_mld_addr) {
-		for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
-			if (!req->links[i].bss)
-				continue;
-			if (i == assoc_link_id)
-				continue;
-			/*
-			 * For now, support only a single link in MLO, we
-			 * don't have the necessary parsing of the multi-
-			 * link element in the association response, etc.
-			 */
-			sdata_info(sdata,
-				   "refusing MLO association with >1 links\n");
-			return -EINVAL;
-		}
-	}
+	/* FIXME: no support for 4-addr MLO yet */
+	if (sdata->u.mgd.use_4addr && req->link_id >= 0)
+		return -EOPNOTSUPP;
 
 	assoc_data = kzalloc(size, GFP_KERNEL);
 	if (!assoc_data)

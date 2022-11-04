@@ -89,6 +89,9 @@ properties:
         - tx
         - rx
 
+  iommus:
+    maxItems: 1
+
   power-domains:
     maxItems: 1
 

@@ -833,7 +833,7 @@ error_hdl_free:
 	return ret;
 }
 
-static int mt9m001_remove(struct i2c_client *client)
+static void mt9m001_remove(struct i2c_client *client)
 {
 	struct mt9m001 *mt9m001 = to_mt9m001(client);
 
@@ -853,8 +853,6 @@ static int mt9m001_remove(struct i2c_client *client)
 
 	v4l2_ctrl_handler_free(&mt9m001->hdl);
 	mutex_destroy(&mt9m001->mutex);
-
-	return 0;
 }
 
 static const struct i2c_device_id mt9m001_id[] = {

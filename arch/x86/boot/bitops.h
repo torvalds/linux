@@ -19,13 +19,13 @@
 
 static inline bool constant_test_bit(int nr, const void *addr)
 {
-	const u32 *p = (const u32 *)addr;
+	const u32 *p = addr;
 	return ((1UL << (nr & 31)) & (p[nr >> 5])) != 0;
 }
 static inline bool variable_test_bit(int nr, const void *addr)
 {
 	bool v;
-	const u32 *p = (const u32 *)addr;
+	const u32 *p = addr;
 
 	asm("btl %2,%1" CC_SET(c) : CC_OUT(c) (v) : "m" (*p), "Ir" (nr));
 	return v;

@@ -20,11 +20,15 @@
  * 0c08: Xeon E3-1200 v3 Processor DRAM Controller
  * 1918: Xeon E3-1200 v5 Skylake Host Bridge/DRAM Registers
  * 5918: Xeon E3-1200 Xeon E3-1200 v6/7th Gen Core Processor Host Bridge/DRAM Registers
+ * 190f: 6th Gen Core Dual-Core Processor Host Bridge/DRAM Registers
+ * 191f: 6th Gen Core Quad-Core Processor Host Bridge/DRAM Registers
  * 3e..: 8th/9th Gen Core Processor Host Bridge/DRAM Registers
  *
  * Based on Intel specification:
  * https://www.intel.com/content/dam/www/public/us/en/documents/datasheets/xeon-e3-1200v3-vol-2-datasheet.pdf
  * http://www.intel.com/content/www/us/en/processors/xeon/xeon-e3-1200-family-vol-2-datasheet.html
+ * https://www.intel.com/content/dam/www/public/us/en/documents/datasheets/desktop-6th-gen-core-family-datasheet-vol-2.pdf
+ * https://www.intel.com/content/dam/www/public/us/en/documents/datasheets/xeon-e3-1200v6-vol-2-datasheet.pdf
  * https://www.intel.com/content/www/us/en/processors/core/7th-gen-core-family-mobile-h-processor-lines-datasheet-vol-2.html
  * https://www.intel.com/content/www/us/en/products/docs/processors/core/8th-gen-core-family-datasheet-vol-2.html
  *
@@ -53,15 +57,17 @@
 #define ie31200_printk(level, fmt, arg...) \
 	edac_printk(level, "ie31200", fmt, ##arg)
 
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_1 0x0108
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_2 0x010c
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_3 0x0150
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_4 0x0158
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_5 0x015c
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_6 0x0c04
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_7 0x0c08
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_8 0x1918
-#define PCI_DEVICE_ID_INTEL_IE31200_HB_9 0x5918
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_1  0x0108
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_2  0x010c
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_3  0x0150
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_4  0x0158
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_5  0x015c
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_6  0x0c04
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_7  0x0c08
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_8  0x190F
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_9  0x1918
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_10 0x191F
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_11 0x5918
 
 /* Coffee Lake-S */
 #define PCI_DEVICE_ID_INTEL_IE31200_HB_CFL_MASK 0x3e00
@@ -80,6 +86,8 @@
 #define DEVICE_ID_SKYLAKE_OR_LATER(did)                                        \
 	(((did) == PCI_DEVICE_ID_INTEL_IE31200_HB_8) ||                        \
 	 ((did) == PCI_DEVICE_ID_INTEL_IE31200_HB_9) ||                        \
+	 ((did) == PCI_DEVICE_ID_INTEL_IE31200_HB_10) ||                       \
+	 ((did) == PCI_DEVICE_ID_INTEL_IE31200_HB_11) ||                       \
 	 (((did) & PCI_DEVICE_ID_INTEL_IE31200_HB_CFL_MASK) ==                 \
 	  PCI_DEVICE_ID_INTEL_IE31200_HB_CFL_MASK))
 
@@ -577,6 +585,8 @@ static const struct pci_device_id ie31200_pci_tbl[] = {
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_7),      PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_8),      PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_9),      PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
+	{ PCI_VEND_DEV(INTEL, IE31200_HB_10),     PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
+	{ PCI_VEND_DEV(INTEL, IE31200_HB_11),     PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_CFL_1),  PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_CFL_2),  PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },
 	{ PCI_VEND_DEV(INTEL, IE31200_HB_CFL_3),  PCI_ANY_ID, PCI_ANY_ID, 0, 0, IE31200 },

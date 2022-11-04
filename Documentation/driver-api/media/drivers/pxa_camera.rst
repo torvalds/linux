@@ -19,7 +19,7 @@ Global video workflow
 
 a) QCI stopped
    Initially, the QCI interface is stopped.
-   When a buffer is queued (pxa_videobuf_ops->buf_queue), the QCI starts.
+   When a buffer is queued, start_streaming is called and the QCI starts.
 
 b) QCI started
    More buffers can be queued while the QCI is started without halting the

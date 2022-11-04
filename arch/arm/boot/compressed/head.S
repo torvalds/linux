@@ -67,11 +67,7 @@
 #if defined(CONFIG_ARCH_SA1100)
 		.macro	loadsp, rb, tmp1, tmp2
 		mov	\rb, #0x80000000	@ physical base address
-#ifdef CONFIG_DEBUG_LL_SER3
-		add	\rb, \rb, #0x00050000	@ Ser3
-#else
 		add	\rb, \rb, #0x00010000	@ Ser1
-#endif
 		.endm
 #else
 		.macro	loadsp,	rb, tmp1, tmp2

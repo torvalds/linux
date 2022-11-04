@@ -12,8 +12,9 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
-#include <linux/interrupt.h>
+#include <linux/reset.h>
 #include <linux/spinlock.h>
+#include <linux/interrupt.h>
 
 #include "dmaengine.h"
 
@@ -95,7 +96,9 @@ struct admac_data {
 	struct dma_device dma;
 	struct device *dev;
 	__iomem void *base;
+	struct reset_control *rstc;
 
+	int irq;
 	int irq_index;
 	int nchannels;
 	struct admac_chan channels[];
@@ -724,17 +727,16 @@ static int admac_probe(struct platform_device *pdev)
 
 	if (irq < 0)
 		return dev_err_probe(&pdev->dev, irq, "no usable interrupt\n");
-
-	err = devm_request_irq(&pdev->dev, irq, admac_interrupt,
-			       0, dev_name(&pdev->dev), ad);
-	if (err)
-		return dev_err_probe(&pdev->dev, err,
-				     "unable to register interrupt\n");
+	ad->irq = irq;
 
 	ad->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ad->base))
 		return dev_err_probe(&pdev->dev, PTR_ERR(ad->base),
 				     "unable to obtain MMIO resource\n");
+
+	ad->rstc = devm_reset_control_get_optional_shared(&pdev->dev, NULL);
+	if (IS_ERR(ad->rstc))
+		return PTR_ERR(ad->rstc);
 
 	dma = &ad->dma;
 
@@ -774,17 +776,38 @@ static int admac_probe(struct platform_device *pdev)
 		tasklet_setup(&adchan->tasklet, admac_chan_tasklet);
 	}
 
-	err = dma_async_device_register(&ad->dma);
+	err = reset_control_reset(ad->rstc);
 	if (err)
-		return dev_err_probe(&pdev->dev, err, "failed to register DMA device\n");
+		return dev_err_probe(&pdev->dev, err,
+				     "unable to trigger reset\n");
+
+	err = request_irq(irq, admac_interrupt, 0, dev_name(&pdev->dev), ad);
+	if (err) {
+		dev_err_probe(&pdev->dev, err,
+				"unable to register interrupt\n");
+		goto free_reset;
+	}
+
+	err = dma_async_device_register(&ad->dma);
+	if (err) {
+		dev_err_probe(&pdev->dev, err, "failed to register DMA device\n");
+		goto free_irq;
+	}
 
 	err = of_dma_controller_register(pdev->dev.of_node, admac_dma_of_xlate, ad);
 	if (err) {
 		dma_async_device_unregister(&ad->dma);
-		return dev_err_probe(&pdev->dev, err, "failed to register with OF\n");
+		dev_err_probe(&pdev->dev, err, "failed to register with OF\n");
+		goto free_irq;
 	}
 
 	return 0;
+
+free_irq:
+	free_irq(ad->irq, ad);
+free_reset:
+	reset_control_rearm(ad->rstc);
+	return err;
 }
 
 static int admac_remove(struct platform_device *pdev)
@@ -793,6 +816,8 @@ static int admac_remove(struct platform_device *pdev)
 
 	of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(&ad->dma);
+	free_irq(ad->irq, ad);
+	reset_control_rearm(ad->rstc);
 
 	return 0;
 }

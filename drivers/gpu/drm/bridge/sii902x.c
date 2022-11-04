@@ -1145,7 +1145,7 @@ static int sii902x_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int sii902x_remove(struct i2c_client *client)
+static void sii902x_remove(struct i2c_client *client)
 
 {
 	struct sii902x *sii902x = i2c_get_clientdata(client);
@@ -1154,8 +1154,6 @@ static int sii902x_remove(struct i2c_client *client)
 	drm_bridge_remove(&sii902x->bridge);
 	regulator_bulk_disable(ARRAY_SIZE(sii902x->supplies),
 			       sii902x->supplies);
-
-	return 0;
 }
 
 static const struct of_device_id sii902x_dt_ids[] = {

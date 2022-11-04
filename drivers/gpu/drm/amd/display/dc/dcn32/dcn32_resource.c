@@ -718,6 +718,9 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.force_disable_subvp = false,
 	.exit_idle_opt_for_cursor_updates = true,
 	.enable_single_display_2to1_odm_policy = true,
+
+	/* Must match enable_single_display_2to1_odm_policy to support dynamic ODM transitions*/
+	.enable_double_buffered_dsc_pg_support = true,
 	.enable_dp_dig_pixel_rate_div_policy = 1,
 	.allow_sw_cursor_fallback = false,
 	.alloc_extra_way_for_cursor = true,
@@ -1677,6 +1680,8 @@ static void dcn32_enable_phantom_plane(struct dc *dc,
 		phantom_plane->clip_rect.y = 0;
 		phantom_plane->clip_rect.height = phantom_stream->timing.v_addressable;
 
+		phantom_plane->is_phantom = true;
+
 		dc_add_plane_to_context(dc, phantom_stream, phantom_plane, context);
 
 		curr_pipe = curr_pipe->bottom_pipe;
@@ -1746,6 +1751,10 @@ bool dcn32_remove_phantom_pipes(struct dc *dc, struct dc_state *context)
 			pipe->stream->mall_stream_config.type = SUBVP_NONE;
 			pipe->stream->mall_stream_config.paired_stream = NULL;
 		}
+
+		if (pipe->plane_state) {
+			pipe->plane_state->is_phantom = false;
+		}
 	}
 	return removed_pipe;
 }
@@ -1795,13 +1804,38 @@ bool dcn32_validate_bandwidth(struct dc *dc,
 	int vlevel = 0;
 	int pipe_cnt = 0;
 	display_e2e_pipe_params_st *pipes = kzalloc(dc->res_pool->pipe_count * sizeof(display_e2e_pipe_params_st), GFP_KERNEL);
+	struct mall_temp_config mall_temp_config;
+
+	/* To handle Freesync properly, setting FreeSync DML parameters
+	 * to its default state for the first stage of validation
+	 */
+	context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
+	context->bw_ctx.dml.soc.dram_clock_change_requirement_final = true;
+
 	DC_LOGGER_INIT(dc->ctx->logger);
+
+	/* For fast validation, there are situations where a shallow copy of
+	 * of the dc->current_state is created for the validation. In this case
+	 * we want to save and restore the mall config because we always
+	 * teardown subvp at the beginning of validation (and don't attempt
+	 * to add it back if it's fast validation). If we don't restore the
+	 * subvp config in cases of fast validation + shallow copy of the
+	 * dc->current_state, the dc->current_state will have a partially
+	 * removed subvp state when we did not intend to remove it.
+	 */
+	if (fast_validate) {
+		memset(&mall_temp_config, 0, sizeof(mall_temp_config));
+		dcn32_save_mall_state(dc, context, &mall_temp_config);
+	}
 
 	BW_VAL_TRACE_COUNT();
 
 	DC_FP_START();
 	out = dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, fast_validate);
 	DC_FP_END();
+
+	if (fast_validate)
+		dcn32_restore_mall_state(dc, context, &mall_temp_config);
 
 	if (pipe_cnt == 0)
 		goto validate_out;
@@ -1846,7 +1880,7 @@ int dcn32_populate_dml_pipes_from_context(
 	struct resource_context *res_ctx = &context->res_ctx;
 	struct pipe_ctx *pipe;
 	bool subvp_in_use = false;
-	int plane_count = 0;
+	uint8_t is_pipe_split_expected[MAX_PIPES] = {0};
 	struct dc_crtc_timing *timing;
 
 	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
@@ -1865,12 +1899,13 @@ int dcn32_populate_dml_pipes_from_context(
 		timing = &pipe->stream->timing;
 
 		pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
-		if (context->stream_count == 1 && !dc_is_hdmi_signal(res_ctx->pipe_ctx[i].stream->signal) &&
-				is_h_timing_divisible_by_2(res_ctx->pipe_ctx[i].stream)) {
-			if (dc->debug.enable_single_display_2to1_odm_policy) {
-				if (!((plane_count > 2) && pipe->top_pipe))
-					pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
-			}
+		if (context->stream_count == 1 &&
+				context->stream_status[0].plane_count <= 1 &&
+				!dc_is_hdmi_signal(res_ctx->pipe_ctx[i].stream->signal) &&
+				is_h_timing_divisible_by_2(res_ctx->pipe_ctx[i].stream) &&
+				pipe->stream->timing.pix_clk_100hz * 100 > DCN3_2_VMIN_DISPCLK_HZ &&
+				dc->debug.enable_single_display_2to1_odm_policy) {
+			pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
 		}
 		pipe_cnt++;
 	}
@@ -1927,12 +1962,10 @@ int dcn32_populate_dml_pipes_from_context(
 			}
 		}
 
-		/* Calculate the number of planes we have so we can determine
-		 *  whether to apply ODM 2to1 policy or not
-		 */
-		if (pipe->stream && !pipe->prev_odm_pipe &&
-				(!pipe->top_pipe || pipe->top_pipe->plane_state != pipe->plane_state))
-			++plane_count;
+		DC_FP_START();
+		is_pipe_split_expected[i] = dcn32_predict_pipe_split(context, &pipes[pipe_cnt]);
+		DC_FP_END();
+
 		pipe_cnt++;
 	}
 

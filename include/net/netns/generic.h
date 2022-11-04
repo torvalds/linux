@@ -33,7 +33,7 @@ struct net_generic {
 			struct rcu_head rcu;
 		} s;
 
-		void *ptr[0];
+		DECLARE_FLEX_ARRAY(void *, ptr);
 	};
 };
 

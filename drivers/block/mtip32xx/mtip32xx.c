@@ -1397,15 +1397,15 @@ static void mtip_dump_identify(struct mtip_port *port)
 	if (!port->identify_valid)
 		return;
 
-	strlcpy(cbuf, (char *)(port->identify+10), 21);
+	strscpy(cbuf, (char *)(port->identify + 10), 21);
 	dev_info(&port->dd->pdev->dev,
 		"Serial No.: %s\n", cbuf);
 
-	strlcpy(cbuf, (char *)(port->identify+23), 9);
+	strscpy(cbuf, (char *)(port->identify + 23), 9);
 	dev_info(&port->dd->pdev->dev,
 		"Firmware Ver.: %s\n", cbuf);
 
-	strlcpy(cbuf, (char *)(port->identify+27), 41);
+	strscpy(cbuf, (char *)(port->identify + 27), 41);
 	dev_info(&port->dd->pdev->dev, "Model: %s\n", cbuf);
 
 	dev_info(&port->dd->pdev->dev, "Security: %04x %s\n",
@@ -1421,13 +1421,13 @@ static void mtip_dump_identify(struct mtip_port *port)
 	pci_read_config_word(port->dd->pdev, PCI_REVISION_ID, &revid);
 	switch (revid & 0xFF) {
 	case 0x1:
-		strlcpy(cbuf, "A0", 3);
+		strscpy(cbuf, "A0", 3);
 		break;
 	case 0x3:
-		strlcpy(cbuf, "A2", 3);
+		strscpy(cbuf, "A2", 3);
 		break;
 	default:
-		strlcpy(cbuf, "?", 2);
+		strscpy(cbuf, "?", 2);
 		break;
 	}
 	dev_info(&port->dd->pdev->dev,

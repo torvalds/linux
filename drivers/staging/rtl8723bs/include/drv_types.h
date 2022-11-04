@@ -50,7 +50,6 @@
 #include <rtw_mlme_ext.h>
 #include <rtw_ap.h>
 #include <rtw_version.h>
-#include <rtw_odm.h>
 
 #include "ioctl_cfg80211.h"
 
@@ -492,8 +491,6 @@ static inline u8 *myid(struct eeprom_priv *peepriv)
 #include <sdio_hal.h>
 
 #include <rtw_btcoex.h>
-
-int rtw_change_ifname(struct adapter *padapter, const char *ifname);
 
 extern char *rtw_initmac;
 extern int rtw_mc2u_disable;

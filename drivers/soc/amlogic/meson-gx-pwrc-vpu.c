@@ -273,6 +273,7 @@ static int meson_gx_pwrc_vpu_probe(struct platform_device *pdev)
 	const struct meson_gx_pwrc_vpu *vpu_pd_match;
 	struct regmap *regmap_ao, *regmap_hhi;
 	struct meson_gx_pwrc_vpu *vpu_pd;
+	struct device_node *parent_np;
 	struct reset_control *rstc;
 	struct clk *vpu_clk;
 	struct clk *vapb_clk;
@@ -291,7 +292,9 @@ static int meson_gx_pwrc_vpu_probe(struct platform_device *pdev)
 
 	memcpy(vpu_pd, vpu_pd_match, sizeof(*vpu_pd));
 
-	regmap_ao = syscon_node_to_regmap(of_get_parent(pdev->dev.of_node));
+	parent_np = of_get_parent(pdev->dev.of_node);
+	regmap_ao = syscon_node_to_regmap(parent_np);
+	of_node_put(parent_np);
 	if (IS_ERR(regmap_ao)) {
 		dev_err(&pdev->dev, "failed to get regmap\n");
 		return PTR_ERR(regmap_ao);

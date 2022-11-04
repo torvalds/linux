@@ -84,13 +84,11 @@ static int arizona_i2c_probe(struct i2c_client *i2c,
 	return arizona_dev_init(arizona);
 }
 
-static int arizona_i2c_remove(struct i2c_client *i2c)
+static void arizona_i2c_remove(struct i2c_client *i2c)
 {
 	struct arizona *arizona = dev_get_drvdata(&i2c->dev);
 
 	arizona_dev_exit(arizona);
-
-	return 0;
 }
 
 static const struct i2c_device_id arizona_i2c_id[] = {

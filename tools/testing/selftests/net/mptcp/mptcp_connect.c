@@ -72,6 +72,8 @@ static int cfg_wait;
 static uint32_t cfg_mark;
 static char *cfg_input;
 static int cfg_repeat = 1;
+static int cfg_truncate;
+static int cfg_rcv_trunc;
 
 struct cfg_cmsg_types {
 	unsigned int cmsg_enabled:1;
@@ -95,11 +97,15 @@ static struct cfg_sockopt_types cfg_sockopt_types;
 
 static void die_usage(void)
 {
-	fprintf(stderr, "Usage: mptcp_connect [-6] [-c cmsg] [-i file] [-I num] [-j] [-l] "
+	fprintf(stderr, "Usage: mptcp_connect [-6] [-c cmsg] [-f offset] [-i file] [-I num] [-j] [-l] "
 		"[-m mode] [-M mark] [-o option] [-p port] [-P mode] [-j] [-l] [-r num] "
 		"[-s MPTCP|TCP] [-S num] [-r num] [-t num] [-T num] [-u] [-w sec] connect_address\n");
 	fprintf(stderr, "\t-6 use ipv6\n");
 	fprintf(stderr, "\t-c cmsg -- test cmsg type <cmsg>\n");
+	fprintf(stderr, "\t-f offset -- stop the I/O after receiving and sending the specified amount "
+		"of bytes. If there are unread bytes in the receive queue, that will cause a MPTCP "
+		"fastclose at close/shutdown. If offset is negative, expect the peer to close before "
+		"all the local data as been sent, thus toleration errors on write and EPIPE signals\n");
 	fprintf(stderr, "\t-i file -- read the data to send from the given file instead of stdin");
 	fprintf(stderr, "\t-I num -- repeat the transfer 'num' times. In listen mode accepts num "
 		"incoming connections, in client mode, disconnect and reconnect to the server\n");
@@ -382,7 +388,7 @@ static size_t do_rnd_write(const int fd, char *buf, const size_t len)
 
 	bw = write(fd, buf, do_w);
 	if (bw < 0)
-		perror("write");
+		return bw;
 
 	/* let the join handshake complete, before going on */
 	if (cfg_join && first) {
@@ -571,7 +577,7 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd, bool *in_closed_after
 		.fd = peerfd,
 		.events = POLLIN | POLLOUT,
 	};
-	unsigned int woff = 0, wlen = 0;
+	unsigned int woff = 0, wlen = 0, total_wlen = 0, total_rlen = 0;
 	char wbuf[8192];
 
 	set_nonblock(peerfd, true);
@@ -597,7 +603,16 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd, bool *in_closed_after
 		}
 
 		if (fds.revents & POLLIN) {
-			len = do_rnd_read(peerfd, rbuf, sizeof(rbuf));
+			ssize_t rb = sizeof(rbuf);
+
+			/* limit the total amount of read data to the trunc value*/
+			if (cfg_truncate > 0) {
+				if (rb + total_rlen > cfg_truncate)
+					rb = cfg_truncate - total_rlen;
+				len = read(peerfd, rbuf, rb);
+			} else {
+				len = do_rnd_read(peerfd, rbuf, sizeof(rbuf));
+			}
 			if (len == 0) {
 				/* no more data to receive:
 				 * peer has closed its write side
@@ -612,10 +627,13 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd, bool *in_closed_after
 
 			/* Else, still have data to transmit */
 			} else if (len < 0) {
+				if (cfg_rcv_trunc)
+					return 0;
 				perror("read");
 				return 3;
 			}
 
+			total_rlen += len;
 			do_write(outfd, rbuf, len);
 		}
 
@@ -628,12 +646,21 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd, bool *in_closed_after
 			if (wlen > 0) {
 				ssize_t bw;
 
+				/* limit the total amount of written data to the trunc value */
+				if (cfg_truncate > 0 && wlen + total_wlen > cfg_truncate)
+					wlen = cfg_truncate - total_wlen;
+
 				bw = do_rnd_write(peerfd, wbuf + woff, wlen);
-				if (bw < 0)
+				if (bw < 0) {
+					if (cfg_rcv_trunc)
+						return 0;
+					perror("write");
 					return 111;
+				}
 
 				woff += bw;
 				wlen -= bw;
+				total_wlen += bw;
 			} else if (wlen == 0) {
 				/* We have no more data to send. */
 				fds.events &= ~POLLOUT;
@@ -652,10 +679,16 @@ static int copyfd_io_poll(int infd, int peerfd, int outfd, bool *in_closed_after
 		}
 
 		if (fds.revents & (POLLERR | POLLNVAL)) {
+			if (cfg_rcv_trunc)
+				return 0;
 			fprintf(stderr, "Unexpected revents: "
 				"POLLERR/POLLNVAL(%x)\n", fds.revents);
 			return 5;
 		}
+
+		if (cfg_truncate > 0 && total_wlen >= cfg_truncate &&
+		    total_rlen >= cfg_truncate)
+			break;
 	}
 
 	/* leave some time for late join/announce */
@@ -1160,11 +1193,13 @@ again:
 	}
 
 	/* close the client socket open only if we are not going to reconnect */
-	ret = copyfd_io(fd_in, fd, 1, cfg_repeat == 1);
+	ret = copyfd_io(fd_in, fd, 1, 0);
 	if (ret)
 		return ret;
 
-	if (--cfg_repeat > 0) {
+	if (cfg_truncate > 0) {
+		xdisconnect(fd, peer->ai_addrlen);
+	} else if (--cfg_repeat > 0) {
 		xdisconnect(fd, peer->ai_addrlen);
 
 		/* the socket could be unblocking at this point, we need the
@@ -1176,7 +1211,10 @@ again:
 		if (cfg_input)
 			close(fd_in);
 		goto again;
+	} else {
+		close(fd);
 	}
+
 	return 0;
 }
 
@@ -1262,8 +1300,19 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "6c:hi:I:jlm:M:o:p:P:r:R:s:S:t:T:w:")) != -1) {
+	while ((c = getopt(argc, argv, "6c:f:hi:I:jlm:M:o:p:P:r:R:s:S:t:T:w:")) != -1) {
 		switch (c) {
+		case 'f':
+			cfg_truncate = atoi(optarg);
+
+			/* when receiving a fastclose, ignore PIPE signals and
+			 * all the I/O errors later in the code
+			 */
+			if (cfg_truncate < 0) {
+				cfg_rcv_trunc = true;
+				signal(SIGPIPE, handle_signal);
+			}
+			break;
 		case 'j':
 			cfg_join = true;
 			cfg_mode = CFG_MODE_POLL;

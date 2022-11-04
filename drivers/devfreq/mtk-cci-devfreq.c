@@ -291,9 +291,13 @@ static int mtk_ccifreq_probe(struct platform_device *pdev)
 	}
 
 	drv->sram_reg = devm_regulator_get_optional(dev, "sram");
-	if (IS_ERR(drv->sram_reg))
+	if (IS_ERR(drv->sram_reg)) {
+		ret = PTR_ERR(drv->sram_reg);
+		if (ret == -EPROBE_DEFER)
+			goto out_free_resources;
+
 		drv->sram_reg = NULL;
-	else {
+	} else {
 		ret = regulator_enable(drv->sram_reg);
 		if (ret) {
 			dev_err(dev, "failed to enable sram regulator\n");

@@ -35,6 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/syscore_ops.h>
 #include <linux/dma-map-ops.h>
+#include <linux/pci.h>
 #include <clocksource/hyperv_timer.h>
 #include "hyperv_vmbus.h"
 
@@ -44,8 +45,6 @@ struct vmbus_dynid {
 };
 
 static struct acpi_device  *hv_acpi_dev;
-
-static struct completion probe_event;
 
 static int hyperv_cpuhp_online;
 
@@ -1131,7 +1130,8 @@ void vmbus_on_msg_dpc(unsigned long data)
 			return;
 
 		INIT_WORK(&ctx->work, vmbus_onmessage_work);
-		memcpy(&ctx->msg, &msg_copy, sizeof(msg->header) + payload_size);
+		ctx->msg.header = msg_copy.header;
+		memcpy(&ctx->msg.payload, msg_copy.u.payload, payload_size);
 
 		/*
 		 * The host can generate a rescind message while we
@@ -1572,7 +1572,7 @@ err_setup:
 }
 
 /**
- * __vmbus_child_driver_register() - Register a vmbus's driver
+ * __vmbus_driver_register() - Register a vmbus's driver
  * @hv_driver: Pointer to driver structure you want to register
  * @owner: owner module of the drv
  * @mod_name: module name string
@@ -2051,7 +2051,7 @@ struct hv_device *vmbus_device_create(const guid_t *type,
 	child_device_obj->channel = channel;
 	guid_copy(&child_device_obj->dev_type, type);
 	guid_copy(&child_device_obj->dev_instance, instance);
-	child_device_obj->vendor_id = 0x1414; /* MSFT vendor ID */
+	child_device_obj->vendor_id = PCI_VENDOR_ID_MICROSOFT;
 
 	return child_device_obj;
 }
@@ -2262,26 +2262,43 @@ static int vmbus_acpi_remove(struct acpi_device *device)
 
 static void vmbus_reserve_fb(void)
 {
-	int size;
+	resource_size_t start = 0, size;
+	struct pci_dev *pdev;
+
+	if (efi_enabled(EFI_BOOT)) {
+		/* Gen2 VM: get FB base from EFI framebuffer */
+		start = screen_info.lfb_base;
+		size = max_t(__u32, screen_info.lfb_size, 0x800000);
+	} else {
+		/* Gen1 VM: get FB base from PCI */
+		pdev = pci_get_device(PCI_VENDOR_ID_MICROSOFT,
+				      PCI_DEVICE_ID_HYPERV_VIDEO, NULL);
+		if (!pdev)
+			return;
+
+		if (pdev->resource[0].flags & IORESOURCE_MEM) {
+			start = pci_resource_start(pdev, 0);
+			size = pci_resource_len(pdev, 0);
+		}
+
+		/*
+		 * Release the PCI device so hyperv_drm or hyperv_fb driver can
+		 * grab it later.
+		 */
+		pci_dev_put(pdev);
+	}
+
+	if (!start)
+		return;
+
 	/*
 	 * Make a claim for the frame buffer in the resource tree under the
 	 * first node, which will be the one below 4GB.  The length seems to
 	 * be underreported, particularly in a Generation 1 VM.  So start out
 	 * reserving a larger area and make it smaller until it succeeds.
 	 */
-
-	if (screen_info.lfb_base) {
-		if (efi_enabled(EFI_BOOT))
-			size = max_t(__u32, screen_info.lfb_size, 0x800000);
-		else
-			size = max_t(__u32, screen_info.lfb_size, 0x4000000);
-
-		for (; !fb_mmio && (size >= 0x100000); size >>= 1) {
-			fb_mmio = __request_region(hyperv_mmio,
-						   screen_info.lfb_base, size,
-						   fb_mmio_name, 0);
-		}
-	}
+	for (; !fb_mmio && (size >= 0x100000); size >>= 1)
+		fb_mmio = __request_region(hyperv_mmio, start, size, fb_mmio_name, 0);
 }
 
 /**
@@ -2313,7 +2330,7 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 			bool fb_overlap_ok)
 {
 	struct resource *iter, *shadow;
-	resource_size_t range_min, range_max, start;
+	resource_size_t range_min, range_max, start, end;
 	const char *dev_n = dev_name(&device_obj->device);
 	int retval;
 
@@ -2348,6 +2365,14 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 		range_max = iter->end;
 		start = (range_min + align - 1) & ~(align - 1);
 		for (; start + size - 1 <= range_max; start += align) {
+			end = start + size - 1;
+
+			/* Skip the whole fb_mmio region if not fb_overlap_ok */
+			if (!fb_overlap_ok && fb_mmio &&
+			    (((start >= fb_mmio->start) && (start <= fb_mmio->end)) ||
+			     ((end >= fb_mmio->start) && (end <= fb_mmio->end))))
+				continue;
+
 			shadow = __request_region(iter, start, size, NULL,
 						  IORESOURCE_BUSY);
 			if (!shadow)
@@ -2427,7 +2452,8 @@ static int vmbus_acpi_add(struct acpi_device *device)
 	 * Some ancestor of the vmbus acpi device (Gen1 or Gen2
 	 * firmware) is the VMOD that has the mmio ranges. Get that.
 	 */
-	for (ancestor = device->parent; ancestor; ancestor = ancestor->parent) {
+	for (ancestor = acpi_dev_parent(device); ancestor;
+	     ancestor = acpi_dev_parent(ancestor)) {
 		result = acpi_walk_resources(ancestor->handle, METHOD_NAME__CRS,
 					     vmbus_walk_resources, NULL);
 
@@ -2441,7 +2467,6 @@ static int vmbus_acpi_add(struct acpi_device *device)
 	ret_val = 0;
 
 acpi_walk_err:
-	complete(&probe_event);
 	if (ret_val)
 		vmbus_acpi_remove(device);
 	return ret_val;
@@ -2620,6 +2645,7 @@ static struct acpi_driver vmbus_acpi_driver = {
 		.remove = vmbus_acpi_remove,
 	},
 	.drv.pm = &vmbus_bus_pm,
+	.drv.probe_type = PROBE_FORCE_SYNCHRONOUS,
 };
 
 static void hv_kexec_handler(void)
@@ -2692,15 +2718,13 @@ static struct syscore_ops hv_synic_syscore_ops = {
 
 static int __init hv_acpi_init(void)
 {
-	int ret, t;
+	int ret;
 
 	if (!hv_is_hyperv_initialized())
 		return -ENODEV;
 
 	if (hv_root_partition)
 		return 0;
-
-	init_completion(&probe_event);
 
 	/*
 	 * Get ACPI resources first.
@@ -2710,9 +2734,8 @@ static int __init hv_acpi_init(void)
 	if (ret)
 		return ret;
 
-	t = wait_for_completion_timeout(&probe_event, 5*HZ);
-	if (t == 0) {
-		ret = -ETIMEDOUT;
+	if (!hv_acpi_dev) {
+		ret = -ENODEV;
 		goto cleanup;
 	}
 

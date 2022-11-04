@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/microchip,sparx5.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Microchip Sparx5 Boards Device Tree Bindings
+title: Microchip Sparx5 Boards
 
 maintainers:
   - Lars Povlsen <lars.povlsen@microchip.com>

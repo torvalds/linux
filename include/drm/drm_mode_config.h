@@ -345,7 +345,6 @@ struct drm_mode_config_funcs {
  * @max_width: maximum fb pixel width on this device
  * @max_height: maximum fb pixel height on this device
  * @funcs: core driver provided mode setting functions
- * @fb_base: base address of the framebuffer
  * @poll_enabled: track polling support for this device
  * @poll_running: track polling status for this device
  * @delayed_event: track delayed poll uevent deliver for this device
@@ -542,7 +541,6 @@ struct drm_mode_config {
 	int min_width, min_height;
 	int max_width, max_height;
 	const struct drm_mode_config_funcs *funcs;
-	resource_size_t fb_base;
 
 	/* output poll support */
 	bool poll_enabled;

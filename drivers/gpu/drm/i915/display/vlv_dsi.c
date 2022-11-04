@@ -1659,19 +1659,10 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 
 static void vlv_dsi_add_properties(struct intel_connector *connector)
 {
-	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	const struct drm_display_mode *fixed_mode =
 		intel_panel_preferred_fixed_mode(connector);
-	u32 allowed_scalers;
 
-	allowed_scalers = BIT(DRM_MODE_SCALE_ASPECT) | BIT(DRM_MODE_SCALE_FULLSCREEN);
-	if (!HAS_GMCH(dev_priv))
-		allowed_scalers |= BIT(DRM_MODE_SCALE_CENTER);
-
-	drm_connector_attach_scaling_mode_property(&connector->base,
-						   allowed_scalers);
-
-	connector->base.state->scaling_mode = DRM_MODE_SCALE_ASPECT;
+	intel_attach_scaling_mode_property(&connector->base);
 
 	drm_connector_set_panel_orientation_with_quirk(&connector->base,
 						       intel_dsi_get_panel_orientation(connector),
@@ -1854,7 +1845,6 @@ static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
 
 void vlv_dsi_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_dsi *intel_dsi;
 	struct intel_encoder *intel_encoder;
 	struct drm_encoder *encoder;
@@ -1891,7 +1881,7 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 
 	connector = &intel_connector->base;
 
-	drm_encoder_init(dev, encoder, &intel_dsi_funcs, DRM_MODE_ENCODER_DSI,
+	drm_encoder_init(&dev_priv->drm, encoder, &intel_dsi_funcs, DRM_MODE_ENCODER_DSI,
 			 "DSI %c", port_name(port));
 
 	intel_encoder->compute_config = intel_dsi_compute_config;
@@ -1974,20 +1964,18 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 	intel_dsi_vbt_gpio_init(intel_dsi,
 				intel_dsi_get_hw_state(intel_encoder, &pipe));
 
-	drm_connector_init(dev, connector, &intel_dsi_connector_funcs,
+	drm_connector_init(&dev_priv->drm, connector, &intel_dsi_connector_funcs,
 			   DRM_MODE_CONNECTOR_DSI);
 
 	drm_connector_helper_add(connector, &intel_dsi_connector_helper_funcs);
 
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB; /*XXX*/
-	connector->interlace_allowed = false;
-	connector->doublescan_allowed = false;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
 
-	mutex_lock(&dev->mode_config.mutex);
+	mutex_lock(&dev_priv->drm.mode_config.mutex);
 	intel_panel_add_vbt_lfp_fixed_mode(intel_connector);
-	mutex_unlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev_priv->drm.mode_config.mutex);
 
 	if (!intel_panel_preferred_fixed_mode(intel_connector)) {
 		drm_dbg_kms(&dev_priv->drm, "no fixed mode\n");

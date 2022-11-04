@@ -354,14 +354,13 @@ static int s5k6a3_probe(struct i2c_client *client)
 	return ret;
 }
 
-static int s5k6a3_remove(struct i2c_client *client)
+static void s5k6a3_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	pm_runtime_disable(&client->dev);
 	v4l2_async_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
-	return 0;
 }
 
 static const struct i2c_device_id s5k6a3_ids[] = {

@@ -258,7 +258,7 @@ extern long exception_handlers[VECSIZE * 128 / sizeof(long)];
 void setup_tlb_handler(int cpu)
 {
 	setup_ptwalker();
-	output_pgtable_bits_defines();
+	local_flush_tlb_all();
 
 	/* The tlb handlers are generated only once */
 	if (cpu == 0) {
@@ -301,6 +301,7 @@ void tlb_init(int cpu)
 	write_csr_pagesize(PS_DEFAULT_SIZE);
 	write_csr_stlbpgsize(PS_DEFAULT_SIZE);
 	write_csr_tlbrefill_pagesize(PS_DEFAULT_SIZE);
+
 	setup_tlb_handler(cpu);
-	local_flush_tlb_all();
+	output_pgtable_bits_defines();
 }

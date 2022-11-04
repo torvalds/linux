@@ -934,8 +934,10 @@ look_up_lock_class(const struct lockdep_map *lock, unsigned int subclass)
 			 * Huh! same key, different name? Did someone trample
 			 * on some memory? We're most confused.
 			 */
-			WARN_ON_ONCE(class->name != lock->name &&
-				     lock->key != &__lockdep_no_validate__);
+			WARN_ONCE(class->name != lock->name &&
+				  lock->key != &__lockdep_no_validate__,
+				  "Looking for class \"%s\" with key %ps, but found a different class \"%s\" with the same key\n",
+				  lock->name, lock->key, class->name);
 			return class;
 		}
 	}

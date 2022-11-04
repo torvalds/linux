@@ -2691,12 +2691,12 @@ static void ace_get_drvinfo(struct net_device *dev,
 {
 	struct ace_private *ap = netdev_priv(dev);
 
-	strlcpy(info->driver, "acenic", sizeof(info->driver));
+	strscpy(info->driver, "acenic", sizeof(info->driver));
 	snprintf(info->fw_version, sizeof(info->version), "%i.%i.%i",
 		 ap->firmware_major, ap->firmware_minor, ap->firmware_fix);
 
 	if (ap->pdev)
-		strlcpy(info->bus_info, pci_name(ap->pdev),
+		strscpy(info->bus_info, pci_name(ap->pdev),
 			sizeof(info->bus_info));
 
 }

@@ -1482,8 +1482,8 @@ struct nvmf_connect_command {
 };
 
 enum {
-	NVME_CONNECT_AUTHREQ_ASCR	= (1 << 2),
-	NVME_CONNECT_AUTHREQ_ATR	= (1 << 1),
+	NVME_CONNECT_AUTHREQ_ASCR	= (1U << 18),
+	NVME_CONNECT_AUTHREQ_ATR	= (1U << 17),
 };
 
 struct nvmf_connect_data {

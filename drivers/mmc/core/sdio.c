@@ -1043,7 +1043,7 @@ static int mmc_sdio_suspend(struct mmc_host *host)
 
 	/* Prevent processing of SDIO IRQs in suspended state. */
 	mmc_card_set_suspended(host->card);
-	cancel_delayed_work_sync(&host->sdio_irq_work);
+	cancel_work_sync(&host->sdio_irq_work);
 
 	mmc_claim_host(host);
 
@@ -1103,7 +1103,7 @@ static int mmc_sdio_resume(struct mmc_host *host)
 		if (!(host->caps2 & MMC_CAP2_SDIO_IRQ_NOTHREAD))
 			wake_up_process(host->sdio_irq_thread);
 		else if (host->caps & MMC_CAP_SDIO_IRQ)
-			queue_delayed_work(system_wq, &host->sdio_irq_work, 0);
+			schedule_work(&host->sdio_irq_work);
 	}
 
 out:

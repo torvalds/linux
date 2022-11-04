@@ -1001,10 +1001,14 @@ struct intel_crtc_state {
 	 */
 	struct {
 		bool active, enable;
+		/* logical state of LUTs */
 		struct drm_property_blob *degamma_lut, *gamma_lut, *ctm;
 		struct drm_display_mode mode, pipe_mode, adjusted_mode;
 		enum drm_scaling_filter scaling_filter;
 	} hw;
+
+	/* actual state of LUTs */
+	struct drm_property_blob *pre_csc_lut, *post_csc_lut;
 
 	/**
 	 * quirks - bitfield with hw state readout quirks
@@ -2040,21 +2044,36 @@ static inline bool
 intel_crtc_has_type(const struct intel_crtc_state *crtc_state,
 		    enum intel_output_type type)
 {
-	return crtc_state->output_types & (1 << type);
+	return crtc_state->output_types & BIT(type);
 }
+
 static inline bool
 intel_crtc_has_dp_encoder(const struct intel_crtc_state *crtc_state)
 {
 	return crtc_state->output_types &
-		((1 << INTEL_OUTPUT_DP) |
-		 (1 << INTEL_OUTPUT_DP_MST) |
-		 (1 << INTEL_OUTPUT_EDP));
+		(BIT(INTEL_OUTPUT_DP) |
+		 BIT(INTEL_OUTPUT_DP_MST) |
+		 BIT(INTEL_OUTPUT_EDP));
 }
 
 static inline bool
 intel_crtc_needs_modeset(const struct intel_crtc_state *crtc_state)
 {
 	return drm_atomic_crtc_needs_modeset(&crtc_state->uapi);
+}
+
+static inline bool
+intel_crtc_needs_fastset(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->update_pipe;
+}
+
+static inline bool
+intel_crtc_needs_color_update(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->uapi.color_mgmt_changed ||
+		intel_crtc_needs_fastset(crtc_state) ||
+		intel_crtc_needs_modeset(crtc_state);
 }
 
 static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *plane_state)

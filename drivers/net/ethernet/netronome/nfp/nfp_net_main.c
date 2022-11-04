@@ -77,12 +77,6 @@ static int nfp_net_pf_get_num_ports(struct nfp_pf *pf)
 	return nfp_pf_rtsym_read_optional(pf, "nfd_cfg_pf%u_num_ports", 1);
 }
 
-static int nfp_net_pf_get_app_id(struct nfp_pf *pf)
-{
-	return nfp_pf_rtsym_read_optional(pf, "_pf%u_net_app_id",
-					  NFP_APP_CORE_NIC);
-}
-
 static void nfp_net_pf_free_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 {
 	if (nfp_net_is_data_vnic(nn))
@@ -201,6 +195,9 @@ nfp_net_pf_alloc_vnics(struct nfp_pf *pf, void __iomem *ctrl_bar,
 			err = PTR_ERR(nn);
 			goto err_free_prev;
 		}
+
+		if (nn->port)
+			nn->port->link_cb = nfp_net_refresh_port_table;
 
 		ctrl_bar += NFP_PF_CSR_SLICE_SIZE;
 
@@ -523,6 +520,57 @@ err_unmap_ctrl:
 	return err;
 }
 
+static const unsigned int lr_to_speed[] = {
+	[NFP_NET_CFG_STS_LINK_RATE_UNSUPPORTED]	= 0,
+	[NFP_NET_CFG_STS_LINK_RATE_UNKNOWN]	= SPEED_UNKNOWN,
+	[NFP_NET_CFG_STS_LINK_RATE_1G]		= SPEED_1000,
+	[NFP_NET_CFG_STS_LINK_RATE_10G]		= SPEED_10000,
+	[NFP_NET_CFG_STS_LINK_RATE_25G]		= SPEED_25000,
+	[NFP_NET_CFG_STS_LINK_RATE_40G]		= SPEED_40000,
+	[NFP_NET_CFG_STS_LINK_RATE_50G]		= SPEED_50000,
+	[NFP_NET_CFG_STS_LINK_RATE_100G]	= SPEED_100000,
+};
+
+unsigned int nfp_net_lr2speed(unsigned int linkrate)
+{
+	if (linkrate < ARRAY_SIZE(lr_to_speed))
+		return lr_to_speed[linkrate];
+
+	return SPEED_UNKNOWN;
+}
+
+unsigned int nfp_net_speed2lr(unsigned int speed)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(lr_to_speed); i++) {
+		if (speed == lr_to_speed[i])
+			return i;
+	}
+
+	return NFP_NET_CFG_STS_LINK_RATE_UNKNOWN;
+}
+
+static void nfp_net_notify_port_speed(struct nfp_port *port)
+{
+	struct net_device *netdev = port->netdev;
+	struct nfp_net *nn;
+	u16 sts;
+
+	if (!nfp_netdev_is_nfp_net(netdev))
+		return;
+
+	nn = netdev_priv(netdev);
+	sts = nn_readw(nn, NFP_NET_CFG_STS);
+
+	if (!(sts & NFP_NET_CFG_STS_LINK)) {
+		nn_writew(nn, NFP_NET_CFG_STS_NSP_LINK_RATE, NFP_NET_CFG_STS_LINK_RATE_UNKNOWN);
+		return;
+	}
+
+	nn_writew(nn, NFP_NET_CFG_STS_NSP_LINK_RATE, nfp_net_speed2lr(port->eth_port->speed));
+}
+
 static int
 nfp_net_eth_port_update(struct nfp_cpp *cpp, struct nfp_port *port,
 			struct nfp_eth_table *eth_table)
@@ -544,6 +592,7 @@ nfp_net_eth_port_update(struct nfp_cpp *cpp, struct nfp_port *port,
 	}
 
 	memcpy(port->eth_port, eth_port, sizeof(*eth_port));
+	nfp_net_notify_port_speed(port);
 
 	return 0;
 }

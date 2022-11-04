@@ -41,17 +41,21 @@ BTF_SET_END(bpf_lsm_hooks)
  */
 BTF_SET_START(bpf_lsm_current_hooks)
 /* operate on freshly allocated sk without any cgroup association */
+#ifdef CONFIG_SECURITY_NETWORK
 BTF_ID(func, bpf_lsm_sk_alloc_security)
 BTF_ID(func, bpf_lsm_sk_free_security)
+#endif
 BTF_SET_END(bpf_lsm_current_hooks)
 
 /* List of LSM hooks that trigger while the socket is properly locked.
  */
 BTF_SET_START(bpf_lsm_locked_sockopt_hooks)
+#ifdef CONFIG_SECURITY_NETWORK
 BTF_ID(func, bpf_lsm_socket_sock_rcv_skb)
 BTF_ID(func, bpf_lsm_sock_graft)
 BTF_ID(func, bpf_lsm_inet_csk_clone)
 BTF_ID(func, bpf_lsm_inet_conn_established)
+#endif
 BTF_SET_END(bpf_lsm_locked_sockopt_hooks)
 
 /* List of LSM hooks that trigger while the socket is _not_ locked,
@@ -59,8 +63,10 @@ BTF_SET_END(bpf_lsm_locked_sockopt_hooks)
  * in the early init phase.
  */
 BTF_SET_START(bpf_lsm_unlocked_sockopt_hooks)
+#ifdef CONFIG_SECURITY_NETWORK
 BTF_ID(func, bpf_lsm_socket_post_create)
 BTF_ID(func, bpf_lsm_socket_socketpair)
+#endif
 BTF_SET_END(bpf_lsm_unlocked_sockopt_hooks)
 
 #ifdef CONFIG_CGROUP_BPF
@@ -189,6 +195,14 @@ static const struct bpf_func_proto bpf_get_attach_cookie_proto = {
 static const struct bpf_func_proto *
 bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
+	const struct bpf_func_proto *func_proto;
+
+	if (prog->expected_attach_type == BPF_LSM_CGROUP) {
+		func_proto = cgroup_common_func_proto(func_id, prog);
+		if (func_proto)
+			return func_proto;
+	}
+
 	switch (func_id) {
 	case BPF_FUNC_inode_storage_get:
 		return &bpf_inode_storage_get_proto;
@@ -212,15 +226,6 @@ bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return prog->aux->sleepable ? &bpf_ima_file_hash_proto : NULL;
 	case BPF_FUNC_get_attach_cookie:
 		return bpf_prog_has_trampoline(prog) ? &bpf_get_attach_cookie_proto : NULL;
-	case BPF_FUNC_get_local_storage:
-		return prog->expected_attach_type == BPF_LSM_CGROUP ?
-			&bpf_get_local_storage_proto : NULL;
-	case BPF_FUNC_set_retval:
-		return prog->expected_attach_type == BPF_LSM_CGROUP ?
-			&bpf_set_retval_proto : NULL;
-	case BPF_FUNC_get_retval:
-		return prog->expected_attach_type == BPF_LSM_CGROUP ?
-			&bpf_get_retval_proto : NULL;
 #ifdef CONFIG_NET
 	case BPF_FUNC_setsockopt:
 		if (prog->expected_attach_type != BPF_LSM_CGROUP)
@@ -335,6 +340,7 @@ BTF_ID(func, bpf_lsm_task_getsecid_obj)
 BTF_ID(func, bpf_lsm_task_prctl)
 BTF_ID(func, bpf_lsm_task_setscheduler)
 BTF_ID(func, bpf_lsm_task_to_inode)
+BTF_ID(func, bpf_lsm_userns_create)
 BTF_SET_END(sleepable_lsm_hooks)
 
 bool bpf_lsm_is_sleepable_hook(u32 btf_id)

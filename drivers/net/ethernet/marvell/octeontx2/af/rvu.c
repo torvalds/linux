@@ -16,14 +16,13 @@
 #include "rvu.h"
 #include "rvu_reg.h"
 #include "ptp.h"
+#include "mcs.h"
 
 #include "rvu_trace.h"
 #include "rvu_npc_hash.h"
 
 #define DRV_NAME	"rvu_af"
 #define DRV_STRING      "Marvell OcteonTX2 RVU Admin Function Driver"
-
-static int rvu_get_hwvf(struct rvu *rvu, int pcifunc);
 
 static void rvu_set_msix_offset(struct rvu *rvu, struct rvu_pfvf *pfvf,
 				struct rvu_block *block, int lf);
@@ -418,7 +417,7 @@ void rvu_get_pf_numvfs(struct rvu *rvu, int pf, int *numvfs, int *hwvf)
 		*hwvf = cfg & 0xFFF;
 }
 
-static int rvu_get_hwvf(struct rvu *rvu, int pcifunc)
+int rvu_get_hwvf(struct rvu *rvu, int pcifunc)
 {
 	int pf, func;
 	u64 cfg;
@@ -1158,6 +1157,12 @@ cpt:
 	}
 
 	rvu_program_channels(rvu);
+
+	err = rvu_mcs_init(rvu);
+	if (err) {
+		dev_err(rvu->dev, "%s: Failed to initialize mcs\n", __func__);
+		goto nix_err;
+	}
 
 	return 0;
 
@@ -3293,6 +3298,7 @@ err_mbox:
 err_hwsetup:
 	rvu_cgx_exit(rvu);
 	rvu_fwdata_exit(rvu);
+	rvu_mcs_exit(rvu);
 	rvu_reset_all_blocks(rvu);
 	rvu_free_hw_resources(rvu);
 	rvu_clear_rvum_blk_revid(rvu);
@@ -3319,6 +3325,7 @@ static void rvu_remove(struct pci_dev *pdev)
 	rvu_flr_wq_destroy(rvu);
 	rvu_cgx_exit(rvu);
 	rvu_fwdata_exit(rvu);
+	rvu_mcs_exit(rvu);
 	rvu_mbox_destroy(&rvu->afpf_wq_info);
 	rvu_disable_sriov(rvu);
 	rvu_reset_all_blocks(rvu);
@@ -3354,12 +3361,18 @@ static int __init rvu_init_module(void)
 	if (err < 0)
 		goto ptp_err;
 
+	err = pci_register_driver(&mcs_driver);
+	if (err < 0)
+		goto mcs_err;
+
 	err =  pci_register_driver(&rvu_driver);
 	if (err < 0)
 		goto rvu_err;
 
 	return 0;
 rvu_err:
+	pci_unregister_driver(&mcs_driver);
+mcs_err:
 	pci_unregister_driver(&ptp_driver);
 ptp_err:
 	pci_unregister_driver(&cgx_driver);
@@ -3370,6 +3383,7 @@ ptp_err:
 static void __exit rvu_cleanup_module(void)
 {
 	pci_unregister_driver(&rvu_driver);
+	pci_unregister_driver(&mcs_driver);
 	pci_unregister_driver(&ptp_driver);
 	pci_unregister_driver(&cgx_driver);
 }

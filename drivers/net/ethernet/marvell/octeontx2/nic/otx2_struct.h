@@ -236,8 +236,15 @@ struct nix_sqe_sg_s {
 
 /* NIX send memory subdescriptor structure */
 struct nix_sqe_mem_s {
-	u64 offset        : 16; /* W0 */
-	u64 rsvd_51_16    : 36;
+	u64 start_offset  : 8;
+	u64 rsvd_11_8	  : 4;
+	u64 rsvd_12	  : 1;
+	u64 udp_csum_crt  : 1;
+	u64 update64      : 1;
+	u64 rsvd_15_16    : 1;
+	u64 base_ns       : 32;
+	u64 step_type     : 1;
+	u64 rsvd_51_49    : 3;
 	u64 per_lso_seg   : 1;
 	u64 wmem          : 1;
 	u64 dsz           : 2;

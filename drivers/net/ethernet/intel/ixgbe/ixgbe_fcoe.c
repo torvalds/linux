@@ -1004,7 +1004,7 @@ int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 		 ixgbe_driver_name,
 		 UTS_RELEASE);
 	/* Firmware Version */
-	strlcpy(info->firmware_version, adapter->eeprom_id,
+	strscpy(info->firmware_version, adapter->eeprom_id,
 		sizeof(info->firmware_version));
 
 	/* Model */

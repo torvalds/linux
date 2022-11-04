@@ -66,17 +66,6 @@ static u32 num_mb = 8;
 static unsigned int klen;
 static char *tvmem[TVMEMSIZE];
 
-static const char *check[] = {
-	"des", "md5", "des3_ede", "rot13", "sha1", "sha224", "sha256", "sm3",
-	"blowfish", "twofish", "serpent", "sha384", "sha512", "md4", "aes",
-	"cast6", "arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
-	"khazad", "wp512", "wp384", "wp256", "xeta",  "fcrypt",
-	"camellia", "seed", "rmd160", "aria",
-	"lzo", "lzo-rle", "cts", "sha3-224", "sha3-256", "sha3-384",
-	"sha3-512", "streebog256", "streebog512",
-	NULL
-};
-
 static const int block_sizes[] = { 16, 64, 128, 256, 1024, 1420, 4096, 0 };
 static const int aead_sizes[] = { 16, 64, 256, 512, 1024, 1420, 4096, 8192, 0 };
 
@@ -1454,18 +1443,6 @@ static void test_cipher_speed(const char *algo, int enc, unsigned int secs,
 				   false);
 }
 
-static void test_available(void)
-{
-	const char **name = check;
-
-	while (*name) {
-		printk("alg %s ", *name);
-		printk(crypto_has_alg(*name, 0, 0) ?
-		       "found\n" : "not found\n");
-		name++;
-	}
-}
-
 static inline int tcrypt_test(const char *alg)
 {
 	int ret;
@@ -2228,6 +2205,13 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 				NULL, 0, 16, 8, speed_template_16_24_32);
 		break;
 
+	case 229:
+		test_mb_aead_speed("gcm(aria)", ENCRYPT, sec, NULL, 0, 16, 8,
+				   speed_template_16, num_mb);
+		test_mb_aead_speed("gcm(aria)", DECRYPT, sec, NULL, 0, 16, 8,
+				   speed_template_16, num_mb);
+		break;
+
 	case 300:
 		if (alg) {
 			test_hash_speed(alg, sec, generic_hash_speed_template);
@@ -2648,6 +2632,17 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 				speed_template_16);
 		break;
 
+	case 519:
+		test_acipher_speed("ecb(aria)", ENCRYPT, sec, NULL, 0,
+				   speed_template_16_24_32);
+		test_acipher_speed("ecb(aria)", DECRYPT, sec, NULL, 0,
+				   speed_template_16_24_32);
+		test_acipher_speed("ctr(aria)", ENCRYPT, sec, NULL, 0,
+				   speed_template_16_24_32);
+		test_acipher_speed("ctr(aria)", DECRYPT, sec, NULL, 0,
+				   speed_template_16_24_32);
+		break;
+
 	case 600:
 		test_mb_skcipher_speed("ecb(aes)", ENCRYPT, sec, NULL, 0,
 				       speed_template_16_24_32, num_mb);
@@ -2860,9 +2855,17 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 				       speed_template_8_32, num_mb);
 		break;
 
-	case 1000:
-		test_available();
+	case 610:
+		test_mb_skcipher_speed("ecb(aria)", ENCRYPT, sec, NULL, 0,
+				       speed_template_16_32, num_mb);
+		test_mb_skcipher_speed("ecb(aria)", DECRYPT, sec, NULL, 0,
+				       speed_template_16_32, num_mb);
+		test_mb_skcipher_speed("ctr(aria)", ENCRYPT, sec, NULL, 0,
+				       speed_template_16_32, num_mb);
+		test_mb_skcipher_speed("ctr(aria)", DECRYPT, sec, NULL, 0,
+				       speed_template_16_32, num_mb);
 		break;
+
 	}
 
 	return ret;

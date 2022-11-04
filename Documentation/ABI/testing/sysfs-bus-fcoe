@@ -31,7 +31,7 @@ Description:	'FCoE Controller' instances on the fcoe bus.
 		1) Write interface name to ctlr_create 2) Configure the FCoE
 		Controller (ctlr_X) 3) Enable the FCoE Controller to begin
 		discovery and login. The FCoE Controller is destroyed by
-		writing it's name, i.e. ctlr_X to the ctlr_delete file.
+		writing its name, i.e. ctlr_X to the ctlr_delete file.
 
 Attributes:
 

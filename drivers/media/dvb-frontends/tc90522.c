@@ -819,14 +819,13 @@ free_state:
 	return ret;
 }
 
-static int tc90522_remove(struct i2c_client *client)
+static void tc90522_remove(struct i2c_client *client)
 {
 	struct tc90522_state *state;
 
 	state = cfg_to_state(i2c_get_clientdata(client));
 	i2c_del_adapter(&state->tuner_i2c);
 	kfree(state);
-	return 0;
 }
 
 

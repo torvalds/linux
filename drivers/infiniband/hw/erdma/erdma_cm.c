@@ -10,15 +10,7 @@
 /* Copyright (c) 2008-2019, IBM Corporation */
 /* Copyright (c) 2017, Open Grid Computing, Inc. */
 
-#include <linux/errno.h>
-#include <linux/inetdevice.h>
-#include <linux/net.h>
-#include <linux/types.h>
 #include <linux/workqueue.h>
-#include <net/addrconf.h>
-
-#include <rdma/ib_user_verbs.h>
-#include <rdma/ib_verbs.h>
 
 #include "erdma.h"
 #include "erdma_cm.h"

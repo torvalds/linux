@@ -56,7 +56,7 @@ static void do_vary_offset(void)
 static int write_eraseblock(int ebnum)
 {
 	int i;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int err = 0;
 	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
@@ -165,7 +165,7 @@ static size_t memffshow(loff_t addr, loff_t offset, const void *cs,
 static int verify_eraseblock(int ebnum)
 {
 	int i;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int err = 0;
 	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 	size_t bitflips;
@@ -260,7 +260,7 @@ static int verify_eraseblock(int ebnum)
 
 static int verify_eraseblock_in_one_go(int ebnum)
 {
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int err = 0;
 	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 	size_t len = mtd->oobavail * pgcnt;
@@ -338,7 +338,7 @@ static int __init mtd_oobtest_init(void)
 	int err = 0;
 	unsigned int i;
 	uint64_t tmp;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	loff_t addr = 0, addr0;
 
 	printk(KERN_INFO "\n");

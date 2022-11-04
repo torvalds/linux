@@ -2691,6 +2691,7 @@ static void mlxsw_sp_traps_fini(struct mlxsw_sp *mlxsw_sp)
 static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
 {
 	char slcr_pl[MLXSW_REG_SLCR_LEN];
+	u16 max_lag;
 	u32 seed;
 	int err;
 
@@ -2709,12 +2710,14 @@ static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		return err;
 
-	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_LAG) ||
-	    !MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_LAG_MEMBERS))
+	err = mlxsw_core_max_lag(mlxsw_sp->core, &max_lag);
+	if (err)
+		return err;
+
+	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_LAG_MEMBERS))
 		return -EIO;
 
-	mlxsw_sp->lags = kcalloc(MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_LAG),
-				 sizeof(struct mlxsw_sp_upper),
+	mlxsw_sp->lags = kcalloc(max_lag, sizeof(struct mlxsw_sp_upper),
 				 GFP_KERNEL);
 	if (!mlxsw_sp->lags)
 		return -ENOMEM;
@@ -3509,6 +3512,33 @@ static const struct mlxsw_config_profile mlxsw_sp2_config_profile = {
 	.cqe_time_stamp_type		= MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_UTC,
 };
 
+/* Reduce number of LAGs from full capacity (256) to the maximum supported LAGs
+ * in Spectrum-2/3, to avoid regression in number of free entries in the PGT
+ * table.
+ */
+#define MLXSW_SP4_CONFIG_PROFILE_MAX_LAG 128
+
+static const struct mlxsw_config_profile mlxsw_sp4_config_profile = {
+	.used_max_lag			= 1,
+	.max_lag			= MLXSW_SP4_CONFIG_PROFILE_MAX_LAG,
+	.used_flood_mode                = 1,
+	.flood_mode                     = MLXSW_CMD_MBOX_CONFIG_PROFILE_FLOOD_MODE_CONTROLLED,
+	.used_max_ib_mc			= 1,
+	.max_ib_mc			= 0,
+	.used_max_pkey			= 1,
+	.max_pkey			= 0,
+	.used_ubridge			= 1,
+	.ubridge			= 1,
+	.swid_config			= {
+		{
+			.used_type	= 1,
+			.type		= MLXSW_PORT_SWID_TYPE_ETH,
+		}
+	},
+	.used_cqe_time_stamp_type	= 1,
+	.cqe_time_stamp_type		= MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_UTC,
+};
+
 static void
 mlxsw_sp_resource_size_params_prepare(struct mlxsw_core *mlxsw_core,
 				      struct devlink_resource_size_params *kvd_size_params,
@@ -4039,7 +4069,7 @@ static struct mlxsw_driver mlxsw_sp4_driver = {
 	.params_unregister		= mlxsw_sp2_params_unregister,
 	.ptp_transmitted		= mlxsw_sp_ptp_transmitted,
 	.txhdr_len			= MLXSW_TXHDR_LEN,
-	.profile			= &mlxsw_sp2_config_profile,
+	.profile			= &mlxsw_sp4_config_profile,
 	.sdq_supports_cqe_v2		= true,
 };
 
@@ -4263,10 +4293,13 @@ static int mlxsw_sp_lag_index_get(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_upper *lag;
 	int free_lag_id = -1;
-	u64 max_lag;
-	int i;
+	u16 max_lag;
+	int err, i;
 
-	max_lag = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_LAG);
+	err = mlxsw_core_max_lag(mlxsw_sp->core, &max_lag);
+	if (err)
+		return err;
+
 	for (i = 0; i < max_lag; i++) {
 		lag = mlxsw_sp_lag_get(mlxsw_sp, i);
 		if (lag->ref_count) {

@@ -133,7 +133,7 @@ struct audit_context {
 	struct sockaddr_storage *sockaddr;
 	size_t sockaddr_len;
 				/* Save things to print about task_struct */
-	pid_t		    pid, ppid;
+	pid_t		    ppid;
 	kuid_t		    uid, euid, suid, fsuid;
 	kgid_t		    gid, egid, sgid, fsgid;
 	unsigned long	    personality;
@@ -244,8 +244,6 @@ struct audit_netlink_list {
 };
 
 int audit_send_list_thread(void *_dest);
-
-extern int selinux_audit_rule_update(void);
 
 extern struct mutex audit_filter_mutex;
 extern int audit_del_rule(struct audit_entry *entry);

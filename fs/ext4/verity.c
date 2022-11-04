@@ -298,16 +298,14 @@ static int ext4_get_verity_descriptor_location(struct inode *inode,
 	last_extent = path[path->p_depth].p_ext;
 	if (!last_extent) {
 		EXT4_ERROR_INODE(inode, "verity file has no extents");
-		ext4_ext_drop_refs(path);
-		kfree(path);
+		ext4_free_ext_path(path);
 		return -EFSCORRUPTED;
 	}
 
 	end_lblk = le32_to_cpu(last_extent->ee_block) +
 		   ext4_ext_get_actual_len(last_extent);
 	desc_size_pos = (u64)end_lblk << inode->i_blkbits;
-	ext4_ext_drop_refs(path);
-	kfree(path);
+	ext4_free_ext_path(path);
 
 	if (desc_size_pos < sizeof(desc_size_disk))
 		goto bad;
@@ -365,13 +363,14 @@ static struct page *ext4_read_merkle_tree_page(struct inode *inode,
 					       pgoff_t index,
 					       unsigned long num_ra_pages)
 {
-	DEFINE_READAHEAD(ractl, NULL, NULL, inode->i_mapping, index);
 	struct page *page;
 
 	index += ext4_verity_metadata_pos(inode) >> PAGE_SHIFT;
 
 	page = find_get_page_flags(inode->i_mapping, index, FGP_ACCESSED);
 	if (!page || !PageUptodate(page)) {
+		DEFINE_READAHEAD(ractl, NULL, NULL, inode->i_mapping, index);
+
 		if (page)
 			put_page(page);
 		else if (num_ra_pages > 1)

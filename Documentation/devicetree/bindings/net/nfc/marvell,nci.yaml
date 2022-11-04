@@ -128,7 +128,7 @@ examples:
 
             i2c-int-rising;
 
-            reset-n-io = <&gpio3 19 GPIO_ACTIVE_HIGH>;
+            reset-n-io = <&gpio3 19 GPIO_ACTIVE_LOW>;
         };
     };
 
@@ -151,7 +151,7 @@ examples:
             interrupt-parent = <&gpio1>;
             interrupts = <17 IRQ_TYPE_EDGE_RISING>;
 
-            reset-n-io = <&gpio3 19 GPIO_ACTIVE_HIGH>;
+            reset-n-io = <&gpio3 19 GPIO_ACTIVE_LOW>;
         };
     };
 
@@ -162,7 +162,7 @@ examples:
         nfc {
             compatible = "marvell,nfc-uart";
 
-            reset-n-io = <&gpio3 16 GPIO_ACTIVE_HIGH>;
+            reset-n-io = <&gpio3 16 GPIO_ACTIVE_LOW>;
 
             hci-muxed;
             flow-control;

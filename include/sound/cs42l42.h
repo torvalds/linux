@@ -40,6 +40,7 @@
 #define CS42L42_PAGE_30		0x3000
 
 #define CS42L42_CHIP_ID		0x42A42
+#define CS42L83_CHIP_ID		0x42A83
 
 /* Page 0x10 Global Registers */
 #define CS42L42_DEVID_AB		(CS42L42_PAGE_10 + 0x01)

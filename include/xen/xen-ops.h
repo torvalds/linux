@@ -219,6 +219,7 @@ static inline void xen_preemptible_hcall_end(void) { }
 void xen_grant_setup_dma_ops(struct device *dev);
 bool xen_is_grant_dma_device(struct device *dev);
 bool xen_virtio_mem_acc(struct virtio_device *dev);
+bool xen_virtio_restricted_mem_acc(struct virtio_device *dev);
 #else
 static inline void xen_grant_setup_dma_ops(struct device *dev)
 {
@@ -231,6 +232,11 @@ static inline bool xen_is_grant_dma_device(struct device *dev)
 struct virtio_device;
 
 static inline bool xen_virtio_mem_acc(struct virtio_device *dev)
+{
+	return false;
+}
+
+static inline bool xen_virtio_restricted_mem_acc(struct virtio_device *dev)
 {
 	return false;
 }

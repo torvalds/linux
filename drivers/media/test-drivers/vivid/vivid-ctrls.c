@@ -35,6 +35,7 @@
 #define VIVID_CID_AREA			(VIVID_CID_CUSTOM_BASE + 11)
 #define VIVID_CID_RO_INTEGER		(VIVID_CID_CUSTOM_BASE + 12)
 #define VIVID_CID_U32_DYN_ARRAY		(VIVID_CID_CUSTOM_BASE + 13)
+#define VIVID_CID_U8_PIXEL_ARRAY	(VIVID_CID_CUSTOM_BASE + 14)
 
 #define VIVID_CID_VIVID_BASE		(0x00f00000 | 0xf000)
 #define VIVID_CID_VIVID_CLASS		(0x00f00000 | 1)
@@ -226,6 +227,18 @@ static const struct v4l2_ctrl_config vivid_ctrl_u8_4d_array = {
 	.max = 0x20,
 	.step = 1,
 	.dims = { 2, 3, 4, 5 },
+};
+
+static const struct v4l2_ctrl_config vivid_ctrl_u8_pixel_array = {
+	.ops = &vivid_user_gen_ctrl_ops,
+	.id = VIVID_CID_U8_PIXEL_ARRAY,
+	.name = "U8 Pixel Array",
+	.type = V4L2_CTRL_TYPE_U8,
+	.def = 0x80,
+	.min = 0x00,
+	.max = 0xff,
+	.step = 1,
+	.dims = { 640 / PIXEL_ARRAY_DIV, 360 / PIXEL_ARRAY_DIV },
 };
 
 static const char * const vivid_ctrl_menu_strings[] = {
@@ -1642,6 +1655,7 @@ int vivid_create_controls(struct vivid_dev *dev, bool show_ccs_cap,
 	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_u32_dyn_array, NULL);
 	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_u16_matrix, NULL);
 	v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_u8_4d_array, NULL);
+	dev->pixel_array = v4l2_ctrl_new_custom(hdl_user_gen, &vivid_ctrl_u8_pixel_array, NULL);
 
 	if (dev->has_vid_cap) {
 		/* Image Processing Controls */

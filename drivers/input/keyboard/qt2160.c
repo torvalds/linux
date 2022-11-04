@@ -432,7 +432,7 @@ err_free_mem:
 	return error;
 }
 
-static int qt2160_remove(struct i2c_client *client)
+static void qt2160_remove(struct i2c_client *client)
 {
 	struct qt2160_data *qt2160 = i2c_get_clientdata(client);
 
@@ -446,8 +446,6 @@ static int qt2160_remove(struct i2c_client *client)
 
 	input_unregister_device(qt2160->input);
 	kfree(qt2160);
-
-	return 0;
 }
 
 static const struct i2c_device_id qt2160_idtable[] = {

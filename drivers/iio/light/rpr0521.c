@@ -1041,7 +1041,7 @@ err_poweroff:
 	return ret;
 }
 
-static int rpr0521_remove(struct i2c_client *client)
+static void rpr0521_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
@@ -1051,8 +1051,6 @@ static int rpr0521_remove(struct i2c_client *client)
 	pm_runtime_set_suspended(&client->dev);
 
 	rpr0521_poweroff(iio_priv(indio_dev));
-
-	return 0;
 }
 
 static int rpr0521_runtime_suspend(struct device *dev)

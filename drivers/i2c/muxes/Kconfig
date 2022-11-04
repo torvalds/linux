@@ -9,7 +9,7 @@ menu "Multiplexer I2C Chip support"
 config I2C_ARB_GPIO_CHALLENGE
 	tristate "GPIO-based I2C arbitration"
 	depends on GPIOLIB || COMPILE_TEST
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	  If you say yes to this option, support will be included for an
 	  I2C multimaster arbitration scheme using GPIOs and a challenge &
@@ -34,7 +34,7 @@ config I2C_MUX_GPIO
 config I2C_MUX_GPMUX
 	tristate "General Purpose I2C multiplexer"
 	select MULTIPLEXER
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	  If you say yes to this option, support will be included for a
 	  general purpose I2C multiplexer. This driver provides access to
@@ -77,7 +77,7 @@ config I2C_MUX_PCA954x
 config I2C_MUX_PINCTRL
 	tristate "pinctrl-based I2C multiplexer"
 	depends on PINCTRL
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	  If you say yes to this option, support will be included for an I2C
 	  multiplexer that uses the pinctrl subsystem, i.e. pin multiplexing.

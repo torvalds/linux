@@ -706,15 +706,13 @@ static int tpm_tis_i2c_probe(struct i2c_client *client,
 	return rc;
 }
 
-static int tpm_tis_i2c_remove(struct i2c_client *client)
+static void tpm_tis_i2c_remove(struct i2c_client *client)
 {
 	struct tpm_chip *chip = tpm_dev.chip;
 
 	tpm_chip_unregister(chip);
 	release_locality(chip, tpm_dev.locality, 1);
 	tpm_dev.client = NULL;
-
-	return 0;
 }
 
 static struct i2c_driver tpm_tis_i2c_driver = {

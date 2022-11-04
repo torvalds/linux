@@ -35,6 +35,7 @@
 #include "en.h"
 #include "en/params.h"
 #include "ipoib.h"
+#include "en/fs_ethtool.h"
 
 #define IB_DEFAULT_Q_KEY   0xb1b
 #define MLX5I_PARAMS_DEFAULT_LOG_RQ_SIZE 9
@@ -320,43 +321,47 @@ static void mlx5i_cleanup_tx(struct mlx5e_priv *priv)
 
 static int mlx5i_create_flow_steering(struct mlx5e_priv *priv)
 {
+	struct mlx5_flow_namespace *ns =
+		mlx5_get_flow_namespace(priv->mdev, MLX5_FLOW_NAMESPACE_KERNEL);
 	int err;
 
-	priv->fs->ns = mlx5_get_flow_namespace(priv->mdev,
-					       MLX5_FLOW_NAMESPACE_KERNEL);
 
-	if (!priv->fs->ns)
+	if (!ns)
 		return -EINVAL;
 
-	err = mlx5e_arfs_create_tables(priv);
+	mlx5e_fs_set_ns(priv->fs, ns, false);
+	err = mlx5e_arfs_create_tables(priv->fs, priv->rx_res,
+				       !!(priv->netdev->hw_features & NETIF_F_NTUPLE));
 	if (err) {
 		netdev_err(priv->netdev, "Failed to create arfs tables, err=%d\n",
 			   err);
 		priv->netdev->hw_features &= ~NETIF_F_NTUPLE;
 	}
 
-	err = mlx5e_create_ttc_table(priv);
+	err = mlx5e_create_ttc_table(priv->fs, priv->rx_res);
 	if (err) {
 		netdev_err(priv->netdev, "Failed to create ttc table, err=%d\n",
 			   err);
 		goto err_destroy_arfs_tables;
 	}
 
-	mlx5e_ethtool_init_steering(priv);
+	mlx5e_ethtool_init_steering(priv->fs);
 
 	return 0;
 
 err_destroy_arfs_tables:
-	mlx5e_arfs_destroy_tables(priv);
+	mlx5e_arfs_destroy_tables(priv->fs,
+				  !!(priv->netdev->hw_features & NETIF_F_NTUPLE));
 
 	return err;
 }
 
 static void mlx5i_destroy_flow_steering(struct mlx5e_priv *priv)
 {
-	mlx5e_destroy_ttc_table(priv);
-	mlx5e_arfs_destroy_tables(priv);
-	mlx5e_ethtool_cleanup_steering(priv);
+	mlx5e_destroy_ttc_table(priv->fs);
+	mlx5e_arfs_destroy_tables(priv->fs,
+				  !!(priv->netdev->hw_features & NETIF_F_NTUPLE));
+	mlx5e_ethtool_cleanup_steering(priv->fs);
 }
 
 static int mlx5i_init_rx(struct mlx5e_priv *priv)
@@ -458,7 +463,6 @@ static const struct mlx5e_profile mlx5i_nic_profile = {
 	.update_carrier    = NULL, /* no HW update in IB link */
 	.rx_handlers       = &mlx5i_rx_handlers,
 	.max_tc		   = MLX5I_MAX_NUM_TC,
-	.rq_groups	   = MLX5E_NUM_RQ_GROUPS(REGULAR),
 	.stats_grps        = mlx5i_stats_grps,
 	.stats_grps_num    = mlx5i_stats_grps_num,
 };

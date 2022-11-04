@@ -301,6 +301,19 @@ static bool plane_caps_contain_all(u8 caps, u8 mask)
 }
 
 /**
+ * intel_fb_is_tiled_modifier: Check if a modifier is a tiled modifier type
+ * @modifier: Modifier to check
+ *
+ * Returns:
+ * Returns %true if @modifier is a tiled modifier.
+ */
+bool intel_fb_is_tiled_modifier(u64 modifier)
+{
+	return plane_caps_contain_any(lookup_modifier(modifier)->plane_caps,
+				      INTEL_PLANE_CAP_TILING_MASK);
+}
+
+/**
  * intel_fb_is_ccs_modifier: Check if a modifier is a CCS modifier type
  * @modifier: Modifier to check
  *

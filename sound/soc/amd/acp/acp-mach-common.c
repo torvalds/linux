@@ -584,7 +584,7 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 	if (drv_data->dmic_cpu_id)
 		num_links++;
 
-	links = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link) * num_links, GFP_KERNEL);
+	links = devm_kcalloc(dev, num_links, sizeof(struct snd_soc_dai_link), GFP_KERNEL);
 	if (!links)
 		return -ENOMEM;
 
@@ -749,7 +749,7 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 	if (drv_data->dmic_cpu_id)
 		num_links++;
 
-	links = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link) * num_links, GFP_KERNEL);
+	links = devm_kcalloc(dev, num_links, sizeof(struct snd_soc_dai_link), GFP_KERNEL);
 	if (!links)
 		return -ENOMEM;
 

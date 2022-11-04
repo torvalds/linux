@@ -127,9 +127,11 @@ int btrfs_alloc_data_chunk_ondemand(struct btrfs_inode *inode, u64 bytes)
 }
 
 int btrfs_check_data_free_space(struct btrfs_inode *inode,
-			struct extent_changeset **reserved, u64 start, u64 len)
+				struct extent_changeset **reserved, u64 start,
+				u64 len, bool noflush)
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	enum btrfs_reserve_flush_enum flush = BTRFS_RESERVE_FLUSH_DATA;
 	int ret;
 
 	/* align the range */
@@ -137,7 +139,12 @@ int btrfs_check_data_free_space(struct btrfs_inode *inode,
 	      round_down(start, fs_info->sectorsize);
 	start = round_down(start, fs_info->sectorsize);
 
-	ret = btrfs_alloc_data_chunk_ondemand(inode, len);
+	if (noflush)
+		flush = BTRFS_RESERVE_NO_FLUSH;
+	else if (btrfs_is_free_space_inode(inode))
+		flush = BTRFS_RESERVE_FLUSH_FREE_SPACE_INODE;
+
+	ret = btrfs_reserve_data_bytes(fs_info, len, flush);
 	if (ret < 0)
 		return ret;
 
@@ -454,7 +461,7 @@ int btrfs_delalloc_reserve_space(struct btrfs_inode *inode,
 {
 	int ret;
 
-	ret = btrfs_check_data_free_space(inode, reserved, start, len);
+	ret = btrfs_check_data_free_space(inode, reserved, start, len, false);
 	if (ret < 0)
 		return ret;
 	ret = btrfs_delalloc_reserve_metadata(inode, len, len, false);

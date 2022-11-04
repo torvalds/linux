@@ -33,7 +33,7 @@ properties:
       - description: Primary USB SuperSpeed pipe clock
       - description: USB4 PHY pipegmux clock source
       - description: USB4 PHY DP gmux clock source
-      - description: USB4 PHY sys piegmux clock source
+      - description: USB4 PHY sys pipegmux clock source
       - description: USB4 PHY PCIe pipe clock
       - description: USB4 PHY router max pipe clock
       - description: Primary USB4 RX0 clock
@@ -46,7 +46,7 @@ properties:
       - description: Second USB4 PHY router max pipe clock
       - description: Secondary USB4 RX0 clock
       - description: Secondary USB4 RX1 clock
-      - description: Multiport USB first SupserSpeed pipe clock
+      - description: Multiport USB first SuperSpeed pipe clock
       - description: Multiport USB second SuperSpeed pipe clock
       - description: PCIe 2a pipe clock
       - description: PCIe 2b pipe clock
@@ -56,30 +56,17 @@ properties:
       - description: First EMAC controller reference clock
       - description: Second EMAC controller reference clock
 
-  '#clock-cells':
-    const: 1
-
-  '#reset-cells':
-    const: 1
-
-  '#power-domain-cells':
-    const: 1
-
-  reg:
-    maxItems: 1
-
   protected-clocks:
     maxItems: 389
 
 required:
   - compatible
   - clocks
-  - reg
-  - '#clock-cells'
-  - '#reset-cells'
-  - '#power-domain-cells'
 
-additionalProperties: false
+allOf:
+  - $ref: qcom,gcc.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

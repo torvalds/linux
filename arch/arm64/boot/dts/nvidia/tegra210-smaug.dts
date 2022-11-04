@@ -17,6 +17,7 @@
 
 	aliases {
 		serial0 = &uarta;
+		serial3 = &uartd;
 	};
 
 	chosen {
@@ -1309,6 +1310,22 @@
 		status = "okay";
 	};
 
+	uartd: serial@70006300 {
+		compatible = "nvidia,tegra30-hsuart";
+		status = "okay";
+
+		bluetooth {
+			compatible = "brcm,bcm43540-bt";
+			max-speed = <4000000>;
+			brcm,bt-pcm-int-params = [01 02 00 01 01];
+			device-wakeup-gpios = <&gpio TEGRA_GPIO(H, 3) GPIO_ACTIVE_HIGH>;
+			shutdown-gpios = <&gpio TEGRA_GPIO(H, 4) GPIO_ACTIVE_HIGH>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(H, 5) IRQ_TYPE_LEVEL_LOW>;
+			interrupt-names = "host-wakeup";
+		};
+	};
+
 	i2c@7000c400 {
 		status = "okay";
 		clock-frequency = <1000000>;
@@ -1689,6 +1706,25 @@
 				nvidia,usb2-companion = <0>;
 				status = "okay";
 			};
+		};
+	};
+
+	mmc@700b0200 {
+		power-gpios = <&gpio TEGRA_GPIO(H, 1) GPIO_ACTIVE_HIGH>;
+		bus-width = <4>;
+		non-removable;
+		vqmmc-supply = <&pp1800>;
+		vmmc-supply = <&pp3300>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		wifi@1 {
+			compatible = "brcm,bcm4354-fmac", "brcm,bcm4329-fmac";
+			reg = <1>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(H, 2) IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "host-wake";
 		};
 	};
 

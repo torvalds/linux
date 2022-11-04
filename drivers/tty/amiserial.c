@@ -94,7 +94,7 @@ static struct tty_driver *serial_driver;
 static unsigned char current_ctl_bits;
 
 static void change_speed(struct tty_struct *tty, struct serial_state *info,
-		struct ktermios *old);
+			 const struct ktermios *old);
 static void rs_wait_until_sent(struct tty_struct *tty, int timeout);
 
 
@@ -566,7 +566,7 @@ static void shutdown(struct tty_struct *tty, struct serial_state *info)
  * the specified baud rate for a serial port.
  */
 static void change_speed(struct tty_struct *tty, struct serial_state *info,
-			 struct ktermios *old_termios)
+			 const struct ktermios *old_termios)
 {
 	struct tty_port *port = &info->tport;
 	int	quot = 0, baud_base, baud;
@@ -1169,7 +1169,7 @@ static int rs_ioctl(struct tty_struct *tty,
 	return 0;
 }
 
-static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
+static void rs_set_termios(struct tty_struct *tty, const struct ktermios *old_termios)
 {
 	struct serial_state *info = tty->driver_data;
 	unsigned long flags;

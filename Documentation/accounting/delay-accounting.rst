@@ -13,7 +13,7 @@ a) waiting for a CPU (while being runnable)
 b) completion of synchronous block I/O initiated by the task
 c) swapping in pages
 d) memory reclaim
-e) thrashing page cache
+e) thrashing
 f) direct compact
 g) write-protect copy
 

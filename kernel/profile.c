@@ -59,43 +59,39 @@ int profile_setup(char *str)
 	static const char schedstr[] = "schedule";
 	static const char sleepstr[] = "sleep";
 	static const char kvmstr[] = "kvm";
+	const char *select = NULL;
 	int par;
 
 	if (!strncmp(str, sleepstr, strlen(sleepstr))) {
 #ifdef CONFIG_SCHEDSTATS
 		force_schedstat_enabled();
 		prof_on = SLEEP_PROFILING;
-		if (str[strlen(sleepstr)] == ',')
-			str += strlen(sleepstr) + 1;
-		if (get_option(&str, &par))
-			prof_shift = clamp(par, 0, BITS_PER_LONG - 1);
-		pr_info("kernel sleep profiling enabled (shift: %u)\n",
-			prof_shift);
+		select = sleepstr;
 #else
 		pr_warn("kernel sleep profiling requires CONFIG_SCHEDSTATS\n");
 #endif /* CONFIG_SCHEDSTATS */
 	} else if (!strncmp(str, schedstr, strlen(schedstr))) {
 		prof_on = SCHED_PROFILING;
-		if (str[strlen(schedstr)] == ',')
-			str += strlen(schedstr) + 1;
-		if (get_option(&str, &par))
-			prof_shift = clamp(par, 0, BITS_PER_LONG - 1);
-		pr_info("kernel schedule profiling enabled (shift: %u)\n",
-			prof_shift);
+		select = schedstr;
 	} else if (!strncmp(str, kvmstr, strlen(kvmstr))) {
 		prof_on = KVM_PROFILING;
-		if (str[strlen(kvmstr)] == ',')
-			str += strlen(kvmstr) + 1;
-		if (get_option(&str, &par))
-			prof_shift = clamp(par, 0, BITS_PER_LONG - 1);
-		pr_info("kernel KVM profiling enabled (shift: %u)\n",
-			prof_shift);
+		select = kvmstr;
 	} else if (get_option(&str, &par)) {
 		prof_shift = clamp(par, 0, BITS_PER_LONG - 1);
 		prof_on = CPU_PROFILING;
 		pr_info("kernel profiling enabled (shift: %u)\n",
 			prof_shift);
 	}
+
+	if (select) {
+		if (str[strlen(select)] == ',')
+			str += strlen(select) + 1;
+		if (get_option(&str, &par))
+			prof_shift = clamp(par, 0, BITS_PER_LONG - 1);
+		pr_info("kernel %s profiling enabled (shift: %u)\n",
+			select, prof_shift);
+	}
+
 	return 1;
 }
 __setup("profile=", profile_setup);

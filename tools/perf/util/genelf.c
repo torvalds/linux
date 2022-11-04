@@ -30,10 +30,6 @@
 
 #define BUILD_ID_URANDOM /* different uuid for each run */
 
-// FIXME, remove this and fix the deprecation warnings before its removed and
-// We'll break for good here...
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-
 #ifdef HAVE_LIBCRYPTO_SUPPORT
 
 #define BUILD_ID_MD5
@@ -45,6 +41,7 @@
 #endif
 
 #ifdef BUILD_ID_MD5
+#include <openssl/evp.h>
 #include <openssl/md5.h>
 #endif
 #endif
@@ -142,15 +139,20 @@ gen_build_id(struct buildid_note *note,
 static void
 gen_build_id(struct buildid_note *note, unsigned long load_addr, const void *code, size_t csize)
 {
-	MD5_CTX context;
+	EVP_MD_CTX *mdctx;
 
 	if (sizeof(note->build_id) < 16)
 		errx(1, "build_id too small for MD5");
 
-	MD5_Init(&context);
-	MD5_Update(&context, &load_addr, sizeof(load_addr));
-	MD5_Update(&context, code, csize);
-	MD5_Final((unsigned char *)note->build_id, &context);
+	mdctx = EVP_MD_CTX_new();
+	if (!mdctx)
+		errx(2, "failed to create EVP_MD_CTX");
+
+	EVP_DigestInit_ex(mdctx, EVP_md5(), NULL);
+	EVP_DigestUpdate(mdctx, &load_addr, sizeof(load_addr));
+	EVP_DigestUpdate(mdctx, code, csize);
+	EVP_DigestFinal_ex(mdctx, (unsigned char *)note->build_id, NULL);
+	EVP_MD_CTX_free(mdctx);
 }
 #endif
 
@@ -251,6 +253,7 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 	Elf_Data *d;
 	Elf_Scn *scn;
 	Elf_Ehdr *ehdr;
+	Elf_Phdr *phdr;
 	Elf_Shdr *shdr;
 	uint64_t eh_frame_base_offset;
 	char *strsym = NULL;
@@ -284,6 +287,19 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 	ehdr->e_entry = GEN_ELF_TEXT_OFFSET;
 	ehdr->e_version = EV_CURRENT;
 	ehdr->e_shstrndx= unwinding ? 4 : 2; /* shdr index for section name */
+
+	/*
+	 * setup program header
+	 */
+	phdr = elf_newphdr(e, 1);
+	phdr[0].p_type = PT_LOAD;
+	phdr[0].p_offset = 0;
+	phdr[0].p_vaddr = 0;
+	phdr[0].p_paddr = 0;
+	phdr[0].p_filesz = csize;
+	phdr[0].p_memsz = csize;
+	phdr[0].p_flags = PF_X | PF_R;
+	phdr[0].p_align = 8;
 
 	/*
 	 * setup text section
@@ -329,6 +345,7 @@ jit_write_elf(int fd, uint64_t load_addr, const char *sym,
 					       eh_frame_base_offset);
 		if (retval)
 			goto error;
+		retval = -1;
 	}
 
 	/*

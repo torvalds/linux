@@ -67,7 +67,7 @@ void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 	vaf.va = &args;
 
 	if (pe->flags & PNV_IODA_PE_DEV)
-		strlcpy(pfix, dev_name(&pe->pdev->dev), sizeof(pfix));
+		strscpy(pfix, dev_name(&pe->pdev->dev), sizeof(pfix));
 	else if (pe->flags & (PNV_IODA_PE_BUS | PNV_IODA_PE_BUS_ALL))
 		sprintf(pfix, "%04x:%02x     ",
 			pci_domain_nr(pe->pbus), pe->pbus->number);

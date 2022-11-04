@@ -262,7 +262,6 @@ static int post_one_recv(struct rxe_rq *rq, const struct ib_recv_wr *ibwr)
 
 	recv_wqe = queue_producer_addr(rq->queue, QUEUE_TYPE_TO_DRIVER);
 	recv_wqe->wr_id = ibwr->wr_id;
-	recv_wqe->num_sge = num_sge;
 
 	memcpy(recv_wqe->dma.sge, ibwr->sg_list,
 	       num_sge * sizeof(struct ib_sge));
@@ -526,7 +525,6 @@ static void init_send_wr(struct rxe_qp *qp, struct rxe_send_wr *wr,
 			 const struct ib_send_wr *ibwr)
 {
 	wr->wr_id = ibwr->wr_id;
-	wr->num_sge = ibwr->num_sge;
 	wr->opcode = ibwr->opcode;
 	wr->send_flags = ibwr->send_flags;
 
@@ -903,7 +901,9 @@ static struct ib_mr *rxe_get_dma_mr(struct ib_pd *ibpd, int access)
 		return ERR_PTR(-ENOMEM);
 
 	rxe_get(pd);
-	rxe_mr_init_dma(pd, access, mr);
+	mr->ibmr.pd = ibpd;
+
+	rxe_mr_init_dma(access, mr);
 	rxe_finalize(mr);
 
 	return &mr->ibmr;
@@ -928,8 +928,9 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd,
 
 
 	rxe_get(pd);
+	mr->ibmr.pd = ibpd;
 
-	err = rxe_mr_init_user(pd, start, length, iova, access, mr);
+	err = rxe_mr_init_user(rxe, start, length, iova, access, mr);
 	if (err)
 		goto err3;
 
@@ -938,7 +939,6 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd,
 	return &mr->ibmr;
 
 err3:
-	rxe_put(pd);
 	rxe_cleanup(mr);
 err2:
 	return ERR_PTR(err);
@@ -962,8 +962,9 @@ static struct ib_mr *rxe_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
 	}
 
 	rxe_get(pd);
+	mr->ibmr.pd = ibpd;
 
-	err = rxe_mr_init_fast(pd, max_num_sg, mr);
+	err = rxe_mr_init_fast(max_num_sg, mr);
 	if (err)
 		goto err2;
 
@@ -972,7 +973,6 @@ static struct ib_mr *rxe_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
 	return &mr->ibmr;
 
 err2:
-	rxe_put(pd);
 	rxe_cleanup(mr);
 err1:
 	return ERR_PTR(err);
@@ -1007,12 +1007,9 @@ static int rxe_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg,
 
 	n = ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, rxe_set_page);
 
-	mr->va = ibmr->iova;
-	mr->iova = ibmr->iova;
-	mr->length = ibmr->length;
 	mr->page_shift = ilog2(ibmr->page_size);
 	mr->page_mask = ibmr->page_size - 1;
-	mr->offset = mr->iova & mr->page_mask;
+	mr->offset = ibmr->iova & mr->page_mask;
 
 	return n;
 }

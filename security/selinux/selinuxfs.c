@@ -71,7 +71,7 @@ struct selinux_fs_info {
 	struct dentry *bool_dir;
 	unsigned int bool_num;
 	char **bool_pending_names;
-	unsigned int *bool_pending_values;
+	int *bool_pending_values;
 	struct dentry *class_dir;
 	unsigned long last_class_ino;
 	bool policy_opened;
@@ -356,7 +356,7 @@ static const struct file_operations sel_policyvers_ops = {
 /* declaration for sel_write_load */
 static int sel_make_bools(struct selinux_policy *newpolicy, struct dentry *bool_dir,
 			  unsigned int *bool_num, char ***bool_pending_names,
-			  unsigned int **bool_pending_values);
+			  int **bool_pending_values);
 static int sel_make_classes(struct selinux_policy *newpolicy,
 			    struct dentry *class_dir,
 			    unsigned long *last_class_ino);
@@ -527,7 +527,7 @@ static const struct file_operations sel_policy_ops = {
 };
 
 static void sel_remove_old_bool_data(unsigned int bool_num, char **bool_names,
-				unsigned int *bool_values)
+				     int *bool_values)
 {
 	u32 i;
 
@@ -545,7 +545,7 @@ static int sel_make_policy_nodes(struct selinux_fs_info *fsi,
 	struct dentry *tmp_parent, *tmp_bool_dir, *tmp_class_dir, *old_dentry;
 	unsigned int tmp_bool_num, old_bool_num;
 	char **tmp_bool_names, **old_bool_names;
-	unsigned int *tmp_bool_values, *old_bool_values;
+	int *tmp_bool_values, *old_bool_values;
 	unsigned long tmp_ino = fsi->last_ino; /* Don't increment last_ino in this function */
 
 	tmp_parent = sel_make_disconnected_dir(fsi->sb, &tmp_ino);
@@ -1423,7 +1423,7 @@ static void sel_remove_entries(struct dentry *de)
 
 static int sel_make_bools(struct selinux_policy *newpolicy, struct dentry *bool_dir,
 			  unsigned int *bool_num, char ***bool_pending_names,
-			  unsigned int **bool_pending_values)
+			  int **bool_pending_values)
 {
 	int ret;
 	ssize_t len;
@@ -1917,7 +1917,6 @@ static int sel_make_class_dir_entries(struct selinux_policy *newpolicy,
 	struct selinux_fs_info *fsi = sb->s_fs_info;
 	struct dentry *dentry = NULL;
 	struct inode *inode = NULL;
-	int rc;
 
 	dentry = d_alloc_name(dir, "index");
 	if (!dentry)
@@ -1937,9 +1936,7 @@ static int sel_make_class_dir_entries(struct selinux_policy *newpolicy,
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	rc = sel_make_perm_files(newpolicy, classname, index, dentry);
-
-	return rc;
+	return sel_make_perm_files(newpolicy, classname, index, dentry);
 }
 
 static int sel_make_classes(struct selinux_policy *newpolicy,

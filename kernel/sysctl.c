@@ -82,9 +82,16 @@
 #include <linux/rtmutex.h>
 #endif
 
+/* shared constants to be used in various sysctls */
+const int sysctl_vals[] = { 0, 1, 2, 3, 4, 100, 200, 1000, 3000, INT_MAX, 65535, -1 };
+EXPORT_SYMBOL(sysctl_vals);
+
+const unsigned long sysctl_long_vals[] = { 0, 1, LONG_MAX };
+EXPORT_SYMBOL_GPL(sysctl_long_vals);
+
 #if defined(CONFIG_SYSCTL)
 
-/* Constants used for minimum and  maximum */
+/* Constants used for minimum and maximum */
 
 #ifdef CONFIG_PERF_EVENTS
 static const int six_hundred_forty_kb = 640 * 1024;
@@ -127,11 +134,6 @@ static enum sysctl_writes_mode sysctl_writes_strict = SYSCTL_WRITES_STRICT;
 #if defined(HAVE_ARCH_PICK_MMAP_LAYOUT) || \
     defined(CONFIG_ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT)
 int sysctl_legacy_va_layout;
-#endif
-
-#ifdef CONFIG_COMPACTION
-/* min_extfrag_threshold is SYSCTL_ZERO */;
-static const int max_extfrag_threshold = 1000;
 #endif
 
 #endif /* CONFIG_SYSCTL */
@@ -1052,9 +1054,9 @@ static int __do_proc_doulongvec_minmax(void *data, struct ctl_table *table,
 		return 0;
 	}
 
-	i = (unsigned long *) data;
-	min = (unsigned long *) table->extra1;
-	max = (unsigned long *) table->extra2;
+	i = data;
+	min = table->extra1;
+	max = table->extra2;
 	vleft = table->maxlen / sizeof(unsigned long);
 	left = *lenp;
 
@@ -1641,6 +1643,14 @@ static struct ctl_table kern_table[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_FOUR,
 	},
+	{
+		.procname	= "numa_balancing_promote_rate_limit_MBps",
+		.data		= &sysctl_numa_balancing_promote_rate_limit,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+	},
 #endif /* CONFIG_NUMA_BALANCING */
 	{
 		.procname	= "panic",
@@ -2216,7 +2226,7 @@ static struct ctl_table vm_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
-		.extra2		= (void *)&max_extfrag_threshold,
+		.extra2		= SYSCTL_ONE_THOUSAND,
 	},
 	{
 		.procname	= "compact_unevictable_allowed",

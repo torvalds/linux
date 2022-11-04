@@ -408,7 +408,7 @@ static void tc_bridge_enable(struct drm_bridge *bridge)
 		 (val >> 8) & 0xFF, val & 0xFF);
 
 	d2l_write(tc->i2c, SYSRST, SYS_RST_REG | SYS_RST_DSIRX | SYS_RST_BM |
-		  SYS_RST_LCD | SYS_RST_I2CM | SYS_RST_I2CS);
+		  SYS_RST_LCD | SYS_RST_I2CM);
 	usleep_range(30000, 40000);
 
 	d2l_write(tc->i2c, PPI_TX_RX_TA, TTA_GET | TTA_SURE);
@@ -704,13 +704,11 @@ err_bridge_remove:
 	return ret;
 }
 
-static int tc_remove(struct i2c_client *client)
+static void tc_remove(struct i2c_client *client)
 {
 	struct tc_data *tc = i2c_get_clientdata(client);
 
 	drm_bridge_remove(&tc->bridge);
-
-	return 0;
 }
 
 static const struct i2c_device_id tc358775_i2c_ids[] = {

@@ -19,6 +19,7 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/regmap.h>
 
@@ -155,6 +156,12 @@ static int rockchip_gpio_set_direction(struct gpio_chip *chip,
 	struct rockchip_pin_bank *bank = gpiochip_get_data(chip);
 	unsigned long flags;
 	u32 data = input ? 0 : 1;
+
+
+	if (input)
+		pinctrl_gpio_direction_input(bank->pin_base + offset);
+	else
+		pinctrl_gpio_direction_output(bank->pin_base + offset);
 
 	raw_spin_lock_irqsave(&bank->slock, flags);
 	rockchip_gpio_writel_bit(bank, offset, data, bank->gpio_regs->port_ddr);
@@ -325,26 +332,15 @@ static void rockchip_irq_demux(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct rockchip_pin_bank *bank = irq_desc_get_handler_data(desc);
-	u32 pend;
+	unsigned long pending;
+	unsigned int irq;
 
 	dev_dbg(bank->dev, "got irq for bank %s\n", bank->name);
 
 	chained_irq_enter(chip, desc);
 
-	pend = readl_relaxed(bank->reg_base + bank->gpio_regs->int_status);
-
-	while (pend) {
-		unsigned int irq, virq;
-
-		irq = __ffs(pend);
-		pend &= ~BIT(irq);
-		virq = irq_find_mapping(bank->domain, irq);
-
-		if (!virq) {
-			dev_err(bank->dev, "unmapped irq %d\n", irq);
-			continue;
-		}
-
+	pending = readl_relaxed(bank->reg_base + bank->gpio_regs->int_status);
+	for_each_set_bit(irq, &pending, 32) {
 		dev_dbg(bank->dev, "handling irq %d\n", irq);
 
 		/*
@@ -378,7 +374,7 @@ static void rockchip_irq_demux(struct irq_desc *desc)
 			} while ((data & BIT(irq)) != (data_old & BIT(irq)));
 		}
 
-		generic_handle_irq(virq);
+		generic_handle_domain_irq(bank->domain, irq);
 	}
 
 	chained_irq_exit(chip, desc);
@@ -419,11 +415,11 @@ static int rockchip_irq_set_type(struct irq_data *d, unsigned int type)
 			goto out;
 		} else {
 			bank->toggle_edge_mode |= mask;
-			level |= mask;
+			level &= ~mask;
 
 			/*
 			 * Determine gpio state. If 1 next interrupt should be
-			 * falling otherwise rising.
+			 * low otherwise high.
 			 */
 			data = readl(bank->reg_base + bank->gpio_regs->ext_port);
 			if (data & mask)

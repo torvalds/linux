@@ -39,6 +39,10 @@
 	status = "okay";
 };
 
+&enetc_port3 {
+	status = "okay";
+};
+
 &mscc_felix {
 	status = "okay";
 };
@@ -60,6 +64,9 @@
 };
 
 &mscc_felix_port4 {
-	ethernet = <&enetc_port2>;
+	status = "okay";
+};
+
+&mscc_felix_port5 {
 	status = "okay";
 };

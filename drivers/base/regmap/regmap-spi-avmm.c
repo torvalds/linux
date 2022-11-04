@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
+#include <linux/swab.h>
 
 /*
  * This driver implements the regmap operations for a generic SPI
@@ -162,19 +163,12 @@ struct spi_avmm_bridge {
 	/* bridge buffer used in translation between protocol layers */
 	char trans_buf[TRANS_BUF_SIZE];
 	char phy_buf[PHY_BUF_SIZE];
-	void (*swap_words)(char *buf, unsigned int len);
+	void (*swap_words)(void *buf, unsigned int len);
 };
 
-static void br_swap_words_32(char *buf, unsigned int len)
+static void br_swap_words_32(void *buf, unsigned int len)
 {
-	u32 *p = (u32 *)buf;
-	unsigned int count;
-
-	count = len / 4;
-	while (count--) {
-		*p = swab32p(p);
-		p++;
-	}
+	swab32_array(buf, len / 4);
 }
 
 /*

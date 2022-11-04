@@ -81,7 +81,7 @@ static bool __init amd_brs_detect(void)
  * a br_sel_map. Software filtering is not supported because it would not correlate well
  * with a sampling period.
  */
-int amd_brs_setup_filter(struct perf_event *event)
+static int amd_brs_setup_filter(struct perf_event *event)
 {
 	u64 type = event->attr.branch_sample_type;
 
@@ -94,6 +94,73 @@ int amd_brs_setup_filter(struct perf_event *event)
 		return -EINVAL;
 
 	return 0;
+}
+
+static inline int amd_is_brs_event(struct perf_event *e)
+{
+	return (e->hw.config & AMD64_RAW_EVENT_MASK) == AMD_FAM19H_BRS_EVENT;
+}
+
+int amd_brs_hw_config(struct perf_event *event)
+{
+	int ret = 0;
+
+	/*
+	 * Due to interrupt holding, BRS is not recommended in
+	 * counting mode.
+	 */
+	if (!is_sampling_event(event))
+		return -EINVAL;
+
+	/*
+	 * Due to the way BRS operates by holding the interrupt until
+	 * lbr_nr entries have been captured, it does not make sense
+	 * to allow sampling on BRS with an event that does not match
+	 * what BRS is capturing, i.e., retired taken branches.
+	 * Otherwise the correlation with the event's period is even
+	 * more loose:
+	 *
+	 * With retired taken branch:
+	 *   Effective P = P + 16 + X
+	 * With any other event:
+	 *   Effective P = P + Y + X
+	 *
+	 * Where X is the number of taken branches due to interrupt
+	 * skid. Skid is large.
+	 *
+	 * Where Y is the occurences of the event while BRS is
+	 * capturing the lbr_nr entries.
+	 *
+	 * By using retired taken branches, we limit the impact on the
+	 * Y variable. We know it cannot be more than the depth of
+	 * BRS.
+	 */
+	if (!amd_is_brs_event(event))
+		return -EINVAL;
+
+	/*
+	 * BRS implementation does not work with frequency mode
+	 * reprogramming of the period.
+	 */
+	if (event->attr.freq)
+		return -EINVAL;
+	/*
+	 * The kernel subtracts BRS depth from period, so it must
+	 * be big enough.
+	 */
+	if (event->attr.sample_period <= x86_pmu.lbr_nr)
+		return -EINVAL;
+
+	/*
+	 * Check if we can allow PERF_SAMPLE_BRANCH_STACK
+	 */
+	ret = amd_brs_setup_filter(event);
+
+	/* only set in case of success */
+	if (!ret)
+		event->hw.flags |= PERF_X86_EVENT_AMD_BRS;
+
+	return ret;
 }
 
 /* tos = top of stack, i.e., last valid entry written */

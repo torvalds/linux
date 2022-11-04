@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+#include "msm8916-samsung-a2015-common.dtsi"
+
+/ {
+	haptic {
+		compatible = "regulator-haptic";
+		haptic-supply = <&reg_motor_vdd>;
+		min-microvolt = <3300000>;
+		max-microvolt = <3300000>;
+	};
+
+	i2c-muic {
+		/* SM5504 MUIC instead of SM5502 */
+		/delete-node/ extcon@25;
+
+		muic: extcon@14 {
+			compatible = "siliconmitus,sm5504-muic";
+			reg = <0x14>;
+
+			interrupt-parent = <&msmgpio>;
+			interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&muic_int_default>;
+		};
+	};
+
+	reg_motor_vdd: regulator-motor-vdd {
+		compatible = "regulator-fixed";
+		regulator-name = "motor_vdd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&msmgpio 76 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&motor_en_default>;
+	};
+
+	reg_touch_key: regulator-touch-key {
+		compatible = "regulator-fixed";
+		regulator-name = "touch_key";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&msmgpio 97 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tkey_en_default>;
+	};
+};
+
+&blsp_i2c2 {
+	/* lis2hh12 accelerometer instead of BMC150 */
+	status = "disabled";
+
+	/delete-node/ accelerometer@10;
+	/delete-node/ magnetometer@12;
+};
+
+&touchkey {
+	vcc-supply = <&reg_touch_key>;
+	vdd-supply = <&reg_touch_key>;
+};
+
+&msmgpio {
+	motor_en_default: motor-en-default {
+		pins = "gpio76";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	tkey_en_default: tkey-en-default {
+		pins = "gpio97";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+};

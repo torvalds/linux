@@ -29,12 +29,6 @@ description: >
     Documentation/devicetree/bindings/mmc/mmc-pwrseq-simple.yaml for more
     information.
 
-  For SPI:
-
-    In add of the properties below, please consult
-    Documentation/devicetree/bindings/spi/spi-controller.yaml for optional SPI
-    related properties.
-
 properties:
   compatible:
     items:
@@ -51,8 +45,6 @@ properties:
       the chip select address of the device as defined in the SPI devices
       bindings.
     maxItems: 1
-
-  spi-max-frequency: true
 
   interrupts:
     description: The interrupt line. Should be IRQ_TYPE_EDGE_RISING. When SPI is
@@ -84,11 +76,14 @@ properties:
 
   mac-address: true
 
-additionalProperties: false
-
 required:
   - compatible
   - reg
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

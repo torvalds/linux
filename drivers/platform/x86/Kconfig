@@ -791,6 +791,7 @@ config SAMSUNG_Q10
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
 	depends on ACPI
+	depends on ACPI_BATTERY
 	depends on ACPI_WMI
 	select LEDS_CLASS
 	select NEW_LEDS
@@ -798,6 +799,7 @@ config ACPI_TOSHIBA
 	depends on INPUT
 	depends on SERIO_I8042 || SERIO_I8042 = n
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
+	depends on HWMON || HWMON = n
 	depends on RFKILL || RFKILL = n
 	depends on IIO
 	select INPUT_SPARSEKMAP

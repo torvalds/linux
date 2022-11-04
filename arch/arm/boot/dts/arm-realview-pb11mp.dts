@@ -555,7 +555,7 @@
 			interrupt-parent = <&intc_pb11mp>;
 			interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&sspclk>, <&pclk>;
-			clock-names = "SSPCLK", "apb_pclk";
+			clock-names = "sspclk", "apb_pclk";
 		};
 
 		watchdog@1000f000 {

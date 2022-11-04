@@ -109,8 +109,6 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 
 	drm_fb_helper_fill_info(fbi, helper, sizes);
 
-	dev->mode_config.fb_base = paddr;
-
 	fbi->screen_base = msm_gem_get_vaddr(bo);
 	if (IS_ERR(fbi->screen_base)) {
 		ret = PTR_ERR(fbi->screen_base);

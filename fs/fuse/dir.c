@@ -529,7 +529,7 @@ out_err:
  */
 static int fuse_create_open(struct inode *dir, struct dentry *entry,
 			    struct file *file, unsigned int flags,
-			    umode_t mode)
+			    umode_t mode, u32 opcode)
 {
 	int err;
 	struct inode *inode;
@@ -573,7 +573,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 		inarg.open_flags |= FUSE_OPEN_KILL_SUIDGID;
 	}
 
-	args.opcode = FUSE_CREATE;
+	args.opcode = opcode;
 	args.nodeid = get_node_id(dir);
 	args.in_numargs = 2;
 	args.in_args[0].size = sizeof(inarg);
@@ -676,7 +676,7 @@ static int fuse_atomic_open(struct inode *dir, struct dentry *entry,
 	if (fc->no_create)
 		goto mknod;
 
-	err = fuse_create_open(dir, entry, file, flags, mode);
+	err = fuse_create_open(dir, entry, file, flags, mode, FUSE_CREATE);
 	if (err == -ENOSYS) {
 		fc->no_create = 1;
 		goto mknod;
@@ -800,6 +800,23 @@ static int fuse_create(struct user_namespace *mnt_userns, struct inode *dir,
 		       struct dentry *entry, umode_t mode, bool excl)
 {
 	return fuse_mknod(&init_user_ns, dir, entry, mode, 0);
+}
+
+static int fuse_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
+			struct file *file, umode_t mode)
+{
+	struct fuse_conn *fc = get_fuse_conn(dir);
+	int err;
+
+	if (fc->no_tmpfile)
+		return -EOPNOTSUPP;
+
+	err = fuse_create_open(dir, file->f_path.dentry, file, file->f_flags, mode, FUSE_TMPFILE);
+	if (err == -ENOSYS) {
+		fc->no_tmpfile = 1;
+		err = -EOPNOTSUPP;
+	}
+	return err;
 }
 
 static int fuse_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
@@ -1913,6 +1930,7 @@ static const struct inode_operations fuse_dir_inode_operations = {
 	.setattr	= fuse_setattr,
 	.create		= fuse_create,
 	.atomic_open	= fuse_atomic_open,
+	.tmpfile	= fuse_tmpfile,
 	.mknod		= fuse_mknod,
 	.permission	= fuse_permission,
 	.getattr	= fuse_getattr,

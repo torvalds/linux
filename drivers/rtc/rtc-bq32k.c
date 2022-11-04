@@ -297,11 +297,9 @@ static int bq32k_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int bq32k_remove(struct i2c_client *client)
+static void bq32k_remove(struct i2c_client *client)
 {
 	bq32k_sysfs_unregister(&client->dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id bq32k_id[] = {

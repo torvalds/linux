@@ -1089,6 +1089,17 @@ config EBC_C384_WDT
 	  WinSystems EBC-C384 motherboard. The timeout may be configured via
 	  the timeout module parameter.
 
+config EXAR_WDT
+	tristate "Exar Watchdog Timer"
+	depends on X86
+	select WATCHDOG_CORE
+	help
+	  Enables watchdog timer support for the watchdog timer present
+	  in some Exar/MaxLinear UART chips like the XR28V38x.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called exar_wdt.
+
 config F71808E_WDT
 	tristate "Fintek F718xx, F818xx Super I/O Watchdog"
 	depends on X86
@@ -1315,7 +1326,7 @@ config IT87_WDT
 config HP_WATCHDOG
 	tristate "HP ProLiant iLO2+ Hardware Watchdog Timer"
 	select WATCHDOG_CORE
-	depends on X86 && PCI
+	depends on (ARM64 || X86) && PCI
 	help
 	  A software monitoring watchdog and NMI handling driver. This driver
 	  will detect lockups and provide a stack trace. This is a driver that
@@ -1325,7 +1336,7 @@ config HP_WATCHDOG
 
 config HPWDT_NMI_DECODING
 	bool "NMI support for the HP ProLiant iLO2+ Hardware Watchdog Timer"
-	depends on HP_WATCHDOG
+	depends on X86 && HP_WATCHDOG
 	default y
 	help
 	  Enables the NMI handler for the watchdog pretimeout NMI and the iLO
@@ -1799,7 +1810,7 @@ config BCM7038_WDT
 	tristate "BCM63xx/BCM7038 Watchdog"
 	select WATCHDOG_CORE
 	depends on HAS_IOMEM
-	depends on ARCH_BCM4908 || ARCH_BRCMSTB || BMIPS_GENERIC || BCM63XX || COMPILE_TEST
+	depends on ARCH_BCMBCA || ARCH_BRCMSTB || BMIPS_GENERIC || BCM63XX || COMPILE_TEST
 	help
 	  Watchdog driver for the built-in hardware in Broadcom 7038 and
 	  later SoCs used in set-top boxes.  BCM7038 was made public
@@ -1935,10 +1946,10 @@ config BOOKE_WDT
 config BOOKE_WDT_DEFAULT_TIMEOUT
 	int "PowerPC Book-E Watchdog Timer Default Timeout"
 	depends on BOOKE_WDT
-	default 38 if PPC_FSL_BOOK3E
-	range 0 63 if PPC_FSL_BOOK3E
-	default 3 if !PPC_FSL_BOOK3E
-	range 0 3 if !PPC_FSL_BOOK3E
+	default 38 if PPC_E500
+	range 0 63 if PPC_E500
+	default 3 if !PPC_E500
+	range 0 3 if !PPC_E500
 	help
 	  Select the default watchdog timer period to be used by the PowerPC
 	  Book-E watchdog driver.  A watchdog "event" occurs when the bit

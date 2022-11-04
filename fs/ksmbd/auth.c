@@ -424,6 +424,9 @@ ksmbd_build_ntlmssp_challenge_blob(struct challenge_message *chgblob,
 				   NTLMSSP_NEGOTIATE_56);
 	}
 
+	if (cflags & NTLMSSP_NEGOTIATE_SEAL && smb3_encryption_negotiated(conn))
+		flags |= NTLMSSP_NEGOTIATE_SEAL;
+
 	if (cflags & NTLMSSP_NEGOTIATE_ALWAYS_SIGN)
 		flags |= NTLMSSP_NEGOTIATE_ALWAYS_SIGN;
 
@@ -984,13 +987,16 @@ out:
 	return rc;
 }
 
-static int ksmbd_get_encryption_key(struct ksmbd_conn *conn, __u64 ses_id,
+static int ksmbd_get_encryption_key(struct ksmbd_work *work, __u64 ses_id,
 				    int enc, u8 *key)
 {
 	struct ksmbd_session *sess;
 	u8 *ses_enc_key;
 
-	sess = ksmbd_session_lookup_all(conn, ses_id);
+	if (enc)
+		sess = work->sess;
+	else
+		sess = ksmbd_session_lookup_all(work->conn, ses_id);
 	if (!sess)
 		return -EINVAL;
 
@@ -1078,9 +1084,10 @@ static struct scatterlist *ksmbd_init_sg(struct kvec *iov, unsigned int nvec,
 	return sg;
 }
 
-int ksmbd_crypt_message(struct ksmbd_conn *conn, struct kvec *iov,
+int ksmbd_crypt_message(struct ksmbd_work *work, struct kvec *iov,
 			unsigned int nvec, int enc)
 {
+	struct ksmbd_conn *conn = work->conn;
 	struct smb2_transform_hdr *tr_hdr = smb2_get_msg(iov[0].iov_base);
 	unsigned int assoc_data_len = sizeof(struct smb2_transform_hdr) - 20;
 	int rc;
@@ -1094,7 +1101,7 @@ int ksmbd_crypt_message(struct ksmbd_conn *conn, struct kvec *iov,
 	unsigned int crypt_len = le32_to_cpu(tr_hdr->OriginalMessageSize);
 	struct ksmbd_crypto_ctx *ctx;
 
-	rc = ksmbd_get_encryption_key(conn,
+	rc = ksmbd_get_encryption_key(work,
 				      le64_to_cpu(tr_hdr->SessionId),
 				      enc,
 				      key);

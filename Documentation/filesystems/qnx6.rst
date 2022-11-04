@@ -176,7 +176,7 @@ Then userspace.
 The requirement for a static, fixed preallocated system area comes from how
 qnx6fs deals with writes.
 
-Each superblock got it's own half of the system area. So superblock #1
+Each superblock got its own half of the system area. So superblock #1
 always uses blocks from the lower half while superblock #2 just writes to
 blocks represented by the upper half bitmap system area bits.
 

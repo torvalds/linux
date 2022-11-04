@@ -7,9 +7,6 @@
  *  82C710 C&T mouse port chip driver for Linux
  */
 
-/*
- */
-
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
@@ -170,7 +167,7 @@ static int ct82c710_probe(struct platform_device *dev)
 	ct82c710_port->open = ct82c710_open;
 	ct82c710_port->close = ct82c710_close;
 	ct82c710_port->write = ct82c710_write;
-	strlcpy(ct82c710_port->name, "C&T 82c710 mouse port",
+	strscpy(ct82c710_port->name, "C&T 82c710 mouse port",
 		sizeof(ct82c710_port->name));
 	snprintf(ct82c710_port->phys, sizeof(ct82c710_port->phys),
 		 "isa%16llx/serio0", (unsigned long long)CT82C710_DATA);

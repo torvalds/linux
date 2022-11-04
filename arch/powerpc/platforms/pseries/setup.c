@@ -41,6 +41,7 @@
 #include <linux/of_pci.h>
 #include <linux/memblock.h>
 #include <linux/swiotlb.h>
+#include <linux/seq_buf.h>
 
 #include <asm/mmu.h>
 #include <asm/processor.h>
@@ -79,6 +80,20 @@
 
 DEFINE_STATIC_KEY_FALSE(shared_processor);
 EXPORT_SYMBOL(shared_processor);
+
+#ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
+struct static_key paravirt_steal_enabled;
+struct static_key paravirt_steal_rq_enabled;
+
+static bool steal_acc = true;
+static int __init parse_no_stealacc(char *arg)
+{
+	steal_acc = false;
+	return 0;
+}
+
+early_param("no-steal-acc", parse_no_stealacc);
+#endif
 
 int CMO_PrPSP = -1;
 int CMO_SecPSP = -1;
@@ -834,6 +849,11 @@ static void __init pSeries_setup_arch(void)
 		if (lppaca_shared_proc(get_lppaca())) {
 			static_branch_enable(&shared_processor);
 			pv_spinlocks_init();
+#ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
+			static_key_slow_inc(&paravirt_steal_enabled);
+			if (steal_acc)
+				static_key_slow_inc(&paravirt_steal_rq_enabled);
+#endif
 		}
 
 		ppc_md.power_save = pseries_lpar_idle;
@@ -992,12 +1012,41 @@ static void __init pSeries_cmo_feature_init(void)
 	pr_debug(" <- fw_cmo_feature_init()\n");
 }
 
+static void __init pseries_add_hw_description(void)
+{
+	struct device_node *dn;
+	const char *s;
+
+	dn = of_find_node_by_path("/openprom");
+	if (dn) {
+		if (of_property_read_string(dn, "model", &s) == 0)
+			seq_buf_printf(&ppc_hw_desc, "of:%s ", s);
+
+		of_node_put(dn);
+	}
+
+	dn = of_find_node_by_path("/hypervisor");
+	if (dn) {
+		if (of_property_read_string(dn, "compatible", &s) == 0)
+			seq_buf_printf(&ppc_hw_desc, "hv:%s ", s);
+
+		of_node_put(dn);
+		return;
+	}
+
+	if (of_property_read_bool(of_root, "ibm,powervm-partition") ||
+	    of_property_read_bool(of_root, "ibm,fw-net-version"))
+		seq_buf_printf(&ppc_hw_desc, "hv:phyp ");
+}
+
 /*
  * Early initialization.  Relocation is on but do not reference unbolted pages
  */
 static void __init pseries_init(void)
 {
 	pr_debug(" -> pseries_init()\n");
+
+	pseries_add_hw_description();
 
 #ifdef CONFIG_HVC_CONSOLE
 	if (firmware_has_feature(FW_FEATURE_LPAR))

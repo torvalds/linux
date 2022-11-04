@@ -17,8 +17,13 @@ struct mod_section {
 };
 
 struct mod_arch_specific {
+	struct mod_section got;
 	struct mod_section plt;
 	struct mod_section plt_idx;
+};
+
+struct got_entry {
+	Elf_Addr symbol_addr;
 };
 
 struct plt_entry {
@@ -29,10 +34,16 @@ struct plt_entry {
 };
 
 struct plt_idx_entry {
-	unsigned long symbol_addr;
+	Elf_Addr symbol_addr;
 };
 
-Elf_Addr module_emit_plt_entry(struct module *mod, unsigned long val);
+Elf_Addr module_emit_got_entry(struct module *mod, Elf_Addr val);
+Elf_Addr module_emit_plt_entry(struct module *mod, Elf_Addr val);
+
+static inline struct got_entry emit_got_entry(Elf_Addr val)
+{
+	return (struct got_entry) { val };
+}
 
 static inline struct plt_entry emit_plt_entry(unsigned long val)
 {
@@ -75,6 +86,18 @@ static inline struct plt_entry *get_plt_entry(unsigned long val,
 		return NULL;
 
 	return plt + plt_idx;
+}
+
+static inline struct got_entry *get_got_entry(Elf_Addr val,
+					      const struct mod_section *sec)
+{
+	struct got_entry *got = (struct got_entry *)sec->shdr->sh_addr;
+	int i;
+
+	for (i = 0; i < sec->num_entries; i++)
+		if (got[i].symbol_addr == val)
+			return &got[i];
+	return NULL;
 }
 
 #endif /* _ASM_MODULE_H */

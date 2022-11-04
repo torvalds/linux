@@ -40,16 +40,17 @@ static noinline bool
 nft_sock_get_eval_cgroupv2(u32 *dest, struct sock *sk, const struct nft_pktinfo *pkt, u32 level)
 {
 	struct cgroup *cgrp;
+	u64 cgid;
 
 	if (!sk_fullsock(sk))
 		return false;
 
-	cgrp = sock_cgroup_ptr(&sk->sk_cgrp_data);
-	if (level > cgrp->level)
+	cgrp = cgroup_ancestor(sock_cgroup_ptr(&sk->sk_cgrp_data), level);
+	if (!cgrp)
 		return false;
 
-	memcpy(dest, &cgrp->ancestor_ids[level], sizeof(u64));
-
+	cgid = cgroup_id(cgrp);
+	memcpy(dest, &cgid, sizeof(u64));
 	return true;
 }
 #endif

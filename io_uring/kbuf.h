@@ -86,14 +86,6 @@ static inline bool io_do_buffer_select(struct io_kiocb *req)
 
 static inline void io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 {
-	/*
-	 * READV uses fields in `struct io_rw` (len/addr) to stash the selected
-	 * buffer data. However if that buffer is recycled the original request
-	 * data stored in addr is lost. Therefore forbid recycling for now.
-	 */
-	if (req->opcode == IORING_OP_READV)
-		return;
-
 	if (req->flags & REQ_F_BUFFER_SELECTED)
 		io_kbuf_recycle_legacy(req, issue_flags);
 	if (req->flags & REQ_F_BUFFER_RING)

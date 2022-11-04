@@ -140,6 +140,7 @@ properties:
 
   glink-edge:
     $ref: qcom,glink-edge.yaml#
+    unevaluatedProperties: false
     description:
       Qualcomm G-Link subnode which represents communication edge, channels
       and devices related to the DSP.

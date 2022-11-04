@@ -5,6 +5,7 @@
 /proc-fsconfig-hidepid
 /proc-loadavg-001
 /proc-multiple-procfs
+/proc-empty-vm
 /proc-pid-vm
 /proc-self-map-files-001
 /proc-self-map-files-002

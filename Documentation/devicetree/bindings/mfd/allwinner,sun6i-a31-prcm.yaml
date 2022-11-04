@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mfd/allwinner,sun6i-a31-prcm.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A31 PRCM Device Tree Bindings
+title: Allwinner A31 PRCM
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
@@ -22,6 +22,7 @@ properties:
 patternProperties:
   "^.*_(clk|rst)$":
     type: object
+    unevaluatedProperties: false
 
     properties:
       compatible:
@@ -34,6 +35,45 @@ patternProperties:
           - fixed-factor-clock
 
     allOf:
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: fixed-factor-clock
+
+        then:
+          $ref: /schemas/clock/fixed-factor-clock.yaml#
+
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: allwinner,sun4i-a10-mod0-clk
+
+        then:
+          properties:
+            "#clock-cells":
+              const: 0
+
+            # Already checked in the main schema
+            compatible: true
+
+            clocks:
+              maxItems: 2
+
+            clock-output-names:
+              maxItems: 1
+
+            phandle: true
+
+          required:
+            - "#clock-cells"
+            - compatible
+            - clocks
+            - clock-output-names
+
+          additionalProperties: false
+
       - if:
           properties:
             compatible:

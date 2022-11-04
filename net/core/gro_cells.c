@@ -26,7 +26,7 @@ int gro_cells_receive(struct gro_cells *gcells, struct sk_buff *skb)
 
 	cell = this_cpu_ptr(gcells->cells);
 
-	if (skb_queue_len(&cell->napi_skbs) > netdev_max_backlog) {
+	if (skb_queue_len(&cell->napi_skbs) > READ_ONCE(netdev_max_backlog)) {
 drop:
 		dev_core_stats_rx_dropped_inc(dev);
 		kfree_skb(skb);
@@ -81,8 +81,7 @@ int gro_cells_init(struct gro_cells *gcells, struct net_device *dev)
 
 		set_bit(NAPI_STATE_NO_BUSY_POLL, &cell->napi.state);
 
-		netif_napi_add(dev, &cell->napi, gro_cell_poll,
-			       NAPI_POLL_WEIGHT);
+		netif_napi_add(dev, &cell->napi, gro_cell_poll);
 		napi_enable(&cell->napi);
 	}
 	return 0;

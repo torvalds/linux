@@ -1307,7 +1307,10 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 		}
 
 		if (link->connector_signal == SIGNAL_TYPE_EDP) {
-			// Init dc_panel_config
+			/* Init dc_panel_config by HW config */
+			if (dc_ctx->dc->res_pool->funcs->get_panel_config_defaults)
+				dc_ctx->dc->res_pool->funcs->get_panel_config_defaults(&link->panel_config);
+			/* Pickup base DM settings */
 			dm_helpers_init_panel_settings(dc_ctx, &link->panel_config, sink);
 			// Override dc_panel_config if system has specific settings
 			dm_helpers_override_panel_settings(dc_ctx, &link->panel_config);
@@ -3143,7 +3146,7 @@ bool dc_link_set_psr_allow_active(struct dc_link *link, const bool *allow_active
 	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
 		return false;
 
-	if (allow_active && link->type == dc_connection_none) {
+	if ((allow_active != NULL) && (*allow_active == true) && (link->type == dc_connection_none)) {
 		// Don't enter PSR if panel is not connected
 		return false;
 	}
@@ -3375,8 +3378,8 @@ bool dc_link_setup_psr(struct dc_link *link,
 		case FAMILY_YELLOW_CARP:
 		case AMDGPU_FAMILY_GC_10_3_6:
 		case AMDGPU_FAMILY_GC_11_0_1:
-			if(!dc->debug.disable_z10)
-				psr_context->psr_level.bits.SKIP_CRTC_DISABLE = false;
+			if (dc->debug.disable_z10)
+				psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
 			break;
 		default:
 			psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;

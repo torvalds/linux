@@ -531,7 +531,7 @@ static void sbd_init_port(struct sbd_port *sport)
 }
 
 static void sbd_set_termios(struct uart_port *uport, struct ktermios *termios,
-			    struct ktermios *old_termios)
+			    const struct ktermios *old_termios)
 {
 	struct sbd_port *sport = to_sport(uport);
 	unsigned int mode1 = 0, mode2 = 0, aux = 0;

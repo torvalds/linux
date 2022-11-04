@@ -84,9 +84,15 @@ static struct s3c2410_uartcfg n30_uartcfgs[] = {
 };
 
 static struct s3c2410_udc_mach_info n30_udc_cfg __initdata = {
-	.vbus_pin		= S3C2410_GPG(1),
-	.vbus_pin_inverted	= 0,
-	.pullup_pin		= S3C2410_GPB(3),
+};
+
+static struct gpiod_lookup_table n30_udc_gpio_table = {
+	.dev_id = "s3c2410-usbgadget",
+	.table = {
+		GPIO_LOOKUP("GPIOG", 1, "vbus", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("GPIOB", 3, "pullup", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct gpio_keys_button n30_buttons[] = {
@@ -595,6 +601,7 @@ static void __init n30_init(void)
 	WARN_ON(gpio_request(S3C2410_GPG(4), "mmc power"));
 
 	s3c24xx_fb_set_platdata(&n30_fb_info);
+	gpiod_add_lookup_table(&n30_udc_gpio_table);
 	s3c24xx_udc_set_platdata(&n30_udc_cfg);
 	gpiod_add_lookup_table(&n30_mci_gpio_table);
 	s3c24xx_mci_set_platdata(&n30_mci_cfg);

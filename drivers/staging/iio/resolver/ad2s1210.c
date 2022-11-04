@@ -94,8 +94,8 @@ struct ad2s1210_state {
 	bool hysteresis;
 	u8 resolution;
 	enum ad2s1210_mode mode;
-	u8 rx[2] ____cacheline_aligned;
-	u8 tx[2] ____cacheline_aligned;
+	u8 rx[2] __aligned(IIO_DMA_MINALIGN);
+	u8 tx[2];
 };
 
 static const int ad2s1210_mode_vals[4][2] = {

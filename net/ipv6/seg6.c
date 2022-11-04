@@ -191,6 +191,11 @@ static int seg6_genl_sethmac(struct sk_buff *skb, struct genl_info *info)
 		goto out_unlock;
 	}
 
+	if (slen > nla_len(info->attrs[SEG6_ATTR_SECRET])) {
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
 	if (hinfo) {
 		err = seg6_hmac_info_del(net, hmackeyid);
 		if (err)
@@ -499,6 +504,7 @@ static struct genl_family seg6_genl_family __ro_after_init = {
 	.parallel_ops	= true,
 	.ops		= seg6_genl_ops,
 	.n_ops		= ARRAY_SIZE(seg6_genl_ops),
+	.resv_start_op	= SEG6_CMD_GET_TUNSRC + 1,
 	.module		= THIS_MODULE,
 };
 

@@ -210,7 +210,6 @@
 	status = "okay";
 };
 
-
 &reg_1p8v {
 	vin-supply = <&reg_main_5v>;
 };

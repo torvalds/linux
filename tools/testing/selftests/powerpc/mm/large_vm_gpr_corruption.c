@@ -112,6 +112,8 @@ static int test(void)
 	// This tests a hash MMU specific bug.
 	FAIL_IF(using_hash_mmu(&hash_mmu));
 	SKIP_IF(!hash_mmu);
+	// 4K kernels don't support 4PB address space
+	SKIP_IF(sysconf(_SC_PAGESIZE) < 65536);
 
 	page_size = sysconf(_SC_PAGESIZE);
 

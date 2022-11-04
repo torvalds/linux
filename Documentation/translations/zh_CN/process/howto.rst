@@ -306,7 +306,7 @@ bugzilla.kernel.org是Linux内核开发者们用来跟踪内核Bug的网站。�
 网上很多地方都有这个邮件列表的存档(archive)。可以使用搜索引擎来找到这些
 存档。比如：
 
-	http://dir.gmane.org/gmane.linux.kernel
+	https://lore.kernel.org/lkml/
 
 在发信之前，我们强烈建议你先在存档中搜索你想要讨论的问题。很多已经被详细
 讨论过的问题只在邮件列表的存档中可以找到。

@@ -112,13 +112,11 @@ static int madera_i2c_probe(struct i2c_client *i2c,
 	return madera_dev_init(madera);
 }
 
-static int madera_i2c_remove(struct i2c_client *i2c)
+static void madera_i2c_remove(struct i2c_client *i2c)
 {
 	struct madera *madera = dev_get_drvdata(&i2c->dev);
 
 	madera_dev_exit(madera);
-
-	return 0;
 }
 
 static const struct i2c_device_id madera_i2c_id[] = {

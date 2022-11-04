@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#define __NO_FORTIFY
 #include <linux/types.h>
 #include <linux/module.h>
 

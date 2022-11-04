@@ -181,14 +181,12 @@ static int i2c_slave_eeprom_probe(struct i2c_client *client, const struct i2c_de
 	return 0;
 };
 
-static int i2c_slave_eeprom_remove(struct i2c_client *client)
+static void i2c_slave_eeprom_remove(struct i2c_client *client)
 {
 	struct eeprom_data *eeprom = i2c_get_clientdata(client);
 
 	i2c_slave_unregister(client);
 	sysfs_remove_bin_file(&client->dev.kobj, &eeprom->bin);
-
-	return 0;
 }
 
 static const struct i2c_device_id i2c_slave_eeprom_id[] = {

@@ -1801,19 +1801,23 @@ bool drm_mode_parse_command_line_for_connector(const char *mode_option,
 
 	name = mode_option;
 
-	/* Try to locate the bpp and refresh specifiers, if any */
-	bpp_ptr = strchr(name, '-');
-	if (bpp_ptr)
-		bpp_off = bpp_ptr - name;
-
-	refresh_ptr = strchr(name, '@');
-	if (refresh_ptr)
-		refresh_off = refresh_ptr - name;
-
 	/* Locate the start of named options */
 	options_ptr = strchr(name, ',');
 	if (options_ptr)
 		options_off = options_ptr - name;
+	else
+		options_off = strlen(name);
+
+	/* Try to locate the bpp and refresh specifiers, if any */
+	bpp_ptr = strnchr(name, options_off, '-');
+	while (bpp_ptr && !isdigit(bpp_ptr[1]))
+		bpp_ptr = strnchr(bpp_ptr + 1, options_off, '-');
+	if (bpp_ptr)
+		bpp_off = bpp_ptr - name;
+
+	refresh_ptr = strnchr(name, options_off, '@');
+	if (refresh_ptr)
+		refresh_off = refresh_ptr - name;
 
 	/* Locate the end of the name / resolution, and parse it */
 	if (bpp_ptr) {

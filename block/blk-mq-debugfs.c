@@ -283,7 +283,9 @@ static const char *const rqf_name[] = {
 	RQF_NAME(SPECIAL_PAYLOAD),
 	RQF_NAME(ZONE_WRITE_LOCKED),
 	RQF_NAME(MQ_POLL_SLEPT),
+	RQF_NAME(TIMED_OUT),
 	RQF_NAME(ELV),
+	RQF_NAME(RESV),
 };
 #undef RQF_NAME
 
@@ -805,8 +807,6 @@ static const char *rq_qos_id_to_name(enum rq_qos_id id)
 		return "latency";
 	case RQ_QOS_COST:
 		return "cost";
-	case RQ_QOS_IOPRIO:
-		return "ioprio";
 	}
 	return "unknown";
 }

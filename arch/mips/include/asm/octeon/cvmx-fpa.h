@@ -264,26 +264,6 @@ static inline void cvmx_fpa_free(void *ptr, uint64_t pool,
 }
 
 /**
- * Setup a FPA pool to control a new block of memory.
- * This can only be called once per pool. Make sure proper
- * locking enforces this.
- *
- * @pool:	Pool to initialize
- *		     0 <= pool < 8
- * @name:	Constant character string to name this pool.
- *		     String is not copied.
- * @buffer:	Pointer to the block of memory to use. This must be
- *		     accessible by all processors and external hardware.
- * @block_size: Size for each block controlled by the FPA
- * @num_blocks: Number of blocks
- *
- * Returns 0 on Success,
- *	   -1 on failure
- */
-extern int cvmx_fpa_setup_pool(uint64_t pool, const char *name, void *buffer,
-			       uint64_t block_size, uint64_t num_blocks);
-
-/**
  * Shutdown a Memory pool and validate that it had all of
  * the buffers originally placed in it. This should only be
  * called by one processor after all hardware has finished

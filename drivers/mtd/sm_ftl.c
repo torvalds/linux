@@ -239,7 +239,7 @@ static int sm_read_sector(struct sm_ftl *ftl,
 			  uint8_t *buffer, struct sm_oob *oob)
 {
 	struct mtd_info *mtd = ftl->trans->mtd;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	struct sm_oob tmp_oob;
 	int ret = -EIO;
 	int try = 0;
@@ -323,7 +323,7 @@ static int sm_write_sector(struct sm_ftl *ftl,
 			   int zone, int block, int boffset,
 			   uint8_t *buffer, struct sm_oob *oob)
 {
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	struct mtd_info *mtd = ftl->trans->mtd;
 	int ret;
 

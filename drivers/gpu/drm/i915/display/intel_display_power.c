@@ -1148,10 +1148,9 @@ static void hsw_assert_cdclk(struct drm_i915_private *dev_priv)
 
 static void assert_can_disable_lcpll(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_crtc *crtc;
 
-	for_each_intel_crtc(dev, crtc)
+	for_each_intel_crtc(&dev_priv->drm, crtc)
 		I915_STATE_WARN(crtc->active, "CRTC for pipe %c enabled\n",
 				pipe_name(crtc->pipe));
 

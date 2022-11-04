@@ -1859,6 +1859,7 @@ static struct genl_family gtp_genl_family __ro_after_init = {
 	.module		= THIS_MODULE,
 	.small_ops	= gtp_genl_ops,
 	.n_small_ops	= ARRAY_SIZE(gtp_genl_ops),
+	.resv_start_op	= GTP_CMD_ECHOREQ + 1,
 	.mcgrps		= gtp_genl_mcgrps,
 	.n_mcgrps	= ARRAY_SIZE(gtp_genl_mcgrps),
 };

@@ -676,10 +676,9 @@ static int sst_soc_pcm_new(struct snd_soc_component *component,
 
 	if (dai->driver->playback.channels_min ||
 			dai->driver->capture.channels_min) {
-		snd_pcm_set_managed_buffer_all(pcm,
-			SNDRV_DMA_TYPE_CONTINUOUS,
-			snd_dma_continuous_data(GFP_DMA),
-			SST_MIN_BUFFER, SST_MAX_BUFFER);
+		snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
+					       pcm->card->dev,
+					       SST_MIN_BUFFER, SST_MAX_BUFFER);
 	}
 	return 0;
 }

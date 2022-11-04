@@ -63,7 +63,6 @@ struct safexcel_cipher_ctx {
 	u32 hash_alg;
 	u32 state_sz;
 
-	struct crypto_cipher *hkaes;
 	struct crypto_aead *fback;
 };
 
@@ -642,10 +641,16 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 	safexcel_complete(priv, ring);
 
 	if (src == dst) {
-		dma_unmap_sg(priv->dev, src, sreq->nr_src, DMA_BIDIRECTIONAL);
+		if (sreq->nr_src > 0)
+			dma_unmap_sg(priv->dev, src, sreq->nr_src,
+				     DMA_BIDIRECTIONAL);
 	} else {
-		dma_unmap_sg(priv->dev, src, sreq->nr_src, DMA_TO_DEVICE);
-		dma_unmap_sg(priv->dev, dst, sreq->nr_dst, DMA_FROM_DEVICE);
+		if (sreq->nr_src > 0)
+			dma_unmap_sg(priv->dev, src, sreq->nr_src,
+				     DMA_TO_DEVICE);
+		if (sreq->nr_dst > 0)
+			dma_unmap_sg(priv->dev, dst, sreq->nr_dst,
+				     DMA_FROM_DEVICE);
 	}
 
 	/*
@@ -737,23 +742,29 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 				max(totlen_src, totlen_dst));
 			return -EINVAL;
 		}
-		dma_map_sg(priv->dev, src, sreq->nr_src, DMA_BIDIRECTIONAL);
+		if (sreq->nr_src > 0)
+			dma_map_sg(priv->dev, src, sreq->nr_src,
+				   DMA_BIDIRECTIONAL);
 	} else {
 		if (unlikely(totlen_src && (sreq->nr_src <= 0))) {
 			dev_err(priv->dev, "Source buffer not large enough (need %d bytes)!",
 				totlen_src);
 			return -EINVAL;
 		}
-		dma_map_sg(priv->dev, src, sreq->nr_src, DMA_TO_DEVICE);
+
+		if (sreq->nr_src > 0)
+			dma_map_sg(priv->dev, src, sreq->nr_src, DMA_TO_DEVICE);
 
 		if (unlikely(totlen_dst && (sreq->nr_dst <= 0))) {
 			dev_err(priv->dev, "Dest buffer not large enough (need %d bytes)!",
 				totlen_dst);
-			dma_unmap_sg(priv->dev, src, sreq->nr_src,
-				     DMA_TO_DEVICE);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto unmap;
 		}
-		dma_map_sg(priv->dev, dst, sreq->nr_dst, DMA_FROM_DEVICE);
+
+		if (sreq->nr_dst > 0)
+			dma_map_sg(priv->dev, dst, sreq->nr_dst,
+				   DMA_FROM_DEVICE);
 	}
 
 	memcpy(ctx->base.ctxr->data, ctx->key, ctx->key_len);
@@ -883,12 +894,18 @@ rdesc_rollback:
 cdesc_rollback:
 	for (i = 0; i < n_cdesc; i++)
 		safexcel_ring_rollback_wptr(priv, &priv->ring[ring].cdr);
-
+unmap:
 	if (src == dst) {
-		dma_unmap_sg(priv->dev, src, sreq->nr_src, DMA_BIDIRECTIONAL);
+		if (sreq->nr_src > 0)
+			dma_unmap_sg(priv->dev, src, sreq->nr_src,
+				     DMA_BIDIRECTIONAL);
 	} else {
-		dma_unmap_sg(priv->dev, src, sreq->nr_src, DMA_TO_DEVICE);
-		dma_unmap_sg(priv->dev, dst, sreq->nr_dst, DMA_FROM_DEVICE);
+		if (sreq->nr_src > 0)
+			dma_unmap_sg(priv->dev, src, sreq->nr_src,
+				     DMA_TO_DEVICE);
+		if (sreq->nr_dst > 0)
+			dma_unmap_sg(priv->dev, dst, sreq->nr_dst,
+				     DMA_FROM_DEVICE);
 	}
 
 	return ret;
@@ -2589,15 +2606,8 @@ static int safexcel_aead_gcm_setkey(struct crypto_aead *ctfm, const u8 *key,
 	ctx->key_len = len;
 
 	/* Compute hash key by encrypting zeroes with cipher key */
-	crypto_cipher_clear_flags(ctx->hkaes, CRYPTO_TFM_REQ_MASK);
-	crypto_cipher_set_flags(ctx->hkaes, crypto_aead_get_flags(ctfm) &
-				CRYPTO_TFM_REQ_MASK);
-	ret = crypto_cipher_setkey(ctx->hkaes, key, len);
-	if (ret)
-		return ret;
-
 	memset(hashkey, 0, AES_BLOCK_SIZE);
-	crypto_cipher_encrypt_one(ctx->hkaes, (u8 *)hashkey, (u8 *)hashkey);
+	aes_encrypt(&aes, (u8 *)hashkey, (u8 *)hashkey);
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
 		for (i = 0; i < AES_BLOCK_SIZE / sizeof(u32); i++) {
@@ -2626,15 +2636,11 @@ static int safexcel_aead_gcm_cra_init(struct crypto_tfm *tfm)
 	ctx->xcm = EIP197_XCM_MODE_GCM;
 	ctx->mode = CONTEXT_CONTROL_CRYPTO_MODE_XCM; /* override default */
 
-	ctx->hkaes = crypto_alloc_cipher("aes", 0, 0);
-	return PTR_ERR_OR_ZERO(ctx->hkaes);
+	return 0;
 }
 
 static void safexcel_aead_gcm_cra_exit(struct crypto_tfm *tfm)
 {
-	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	crypto_free_cipher(ctx->hkaes);
 	safexcel_aead_cra_exit(tfm);
 }
 

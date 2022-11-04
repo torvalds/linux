@@ -291,7 +291,7 @@ static void rds_rdma_listen_stop(void)
 #endif
 }
 
-static int rds_rdma_init(void)
+static int __init rds_rdma_init(void)
 {
 	int ret;
 
@@ -307,7 +307,7 @@ out:
 }
 module_init(rds_rdma_init);
 
-static void rds_rdma_exit(void)
+static void __exit rds_rdma_exit(void)
 {
 	/* stop listening first to ensure no new connections are attempted */
 	rds_rdma_listen_stop();

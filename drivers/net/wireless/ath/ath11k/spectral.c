@@ -30,6 +30,7 @@
 #define ATH11K_SPECTRAL_20MHZ			20
 #define ATH11K_SPECTRAL_40MHZ			40
 #define ATH11K_SPECTRAL_80MHZ			80
+#define ATH11K_SPECTRAL_160MHZ			160
 
 #define ATH11K_SPECTRAL_SIGNATURE		0xFA
 
@@ -182,6 +183,8 @@ static int ath11k_spectral_scan_trigger(struct ath11k *ar)
 
 	if (ar->spectral.mode == ATH11K_SPECTRAL_DISABLED)
 		return 0;
+
+	ar->spectral.is_primary = true;
 
 	ret = ath11k_wmi_vdev_spectral_enable(ar, arvif->vdev_id,
 					      ATH11K_WMI_SPECTRAL_TRIGGER_CMD_CLEAR,
@@ -585,6 +588,7 @@ int ath11k_spectral_process_fft(struct ath11k *ar,
 	u8 chan_width_mhz, bin_sz;
 	int ret;
 	u32 check_length;
+	bool fragment_sample = false;
 
 	lockdep_assert_held(&ar->spectral.lock);
 
@@ -639,6 +643,13 @@ int ath11k_spectral_process_fft(struct ath11k *ar,
 	case ATH11K_SPECTRAL_80MHZ:
 		fft_sample->chan_width_mhz = chan_width_mhz;
 		break;
+	case ATH11K_SPECTRAL_160MHZ:
+		if (ab->hw_params.spectral.fragment_160mhz) {
+			chan_width_mhz /= 2;
+			fragment_sample = true;
+		}
+		fft_sample->chan_width_mhz = chan_width_mhz;
+		break;
 	default:
 		ath11k_warn(ab, "invalid channel width %d\n", chan_width_mhz);
 		return -EINVAL;
@@ -662,6 +673,17 @@ int ath11k_spectral_process_fft(struct ath11k *ar,
 
 	freq = summary->meta.freq2;
 	fft_sample->freq2 = __cpu_to_be16(freq);
+
+	/* If freq2 is available then the spectral scan results are fragmented
+	 * as primary and secondary
+	 */
+	if (fragment_sample && freq) {
+		if (!ar->spectral.is_primary)
+			fft_sample->freq1 = cpu_to_be16(freq);
+
+		/* We have to toggle the is_primary to handle the next report */
+		ar->spectral.is_primary = !ar->spectral.is_primary;
+	}
 
 	ath11k_spectral_parse_fft(fft_sample->data, fft_report->bins, num_bins,
 				  ab->hw_params.spectral.fft_sz);

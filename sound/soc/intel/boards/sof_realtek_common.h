@@ -32,7 +32,7 @@ void sof_rt1015p_codec_conf(struct snd_soc_card *card);
 #define RT1015_DEV0_NAME	"i2c-10EC1015:00"
 #define RT1015_DEV1_NAME	"i2c-10EC1015:01"
 
-void sof_rt1015_dai_link(struct snd_soc_dai_link *link, unsigned int fs);
+void sof_rt1015_dai_link(struct snd_soc_dai_link *link);
 void sof_rt1015_codec_conf(struct snd_soc_card *card);
 
 #define RT1308_CODEC_DAI	"rt1308-aif"

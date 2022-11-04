@@ -754,7 +754,7 @@ void vm_install_exception_handler(struct kvm_vm *vm, int vector,
 			void (*handler)(struct ex_regs *));
 
 /* If a toddler were to say "abracadabra". */
-#define KVM_EXCEPTION_MAGIC 0xabacadabaull
+#define KVM_EXCEPTION_MAGIC 0xabacadabaULL
 
 /*
  * KVM selftest exception fixup uses registers to coordinate with the exception
@@ -786,7 +786,7 @@ void vm_install_exception_handler(struct kvm_vm *vm, int vector,
 	"lea 1f(%%rip), %%r10\n\t"				\
 	"lea 2f(%%rip), %%r11\n\t"				\
 	"1: " insn "\n\t"					\
-	"mov $0, %[vector]\n\t"					\
+	"movb $0, %[vector]\n\t"				\
 	"jmp 3f\n\t"						\
 	"2:\n\t"						\
 	"mov  %%r9b, %[vector]\n\t"				\
@@ -825,6 +825,8 @@ static inline uint8_t wrmsr_safe(uint32_t msr, uint64_t val)
 	return kvm_asm_safe("wrmsr", "a"(val & -1u), "d"(val >> 32), "c"(msr));
 }
 
+bool kvm_is_tdp_enabled(void);
+
 uint64_t vm_get_page_table_entry(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
 				 uint64_t vaddr);
 void vm_set_page_table_entry(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
@@ -855,6 +857,8 @@ enum pg_level {
 #define PG_SIZE_1G PG_LEVEL_SIZE(PG_LEVEL_1G)
 
 void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr, int level);
+void virt_map_level(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
+		    uint64_t nr_bytes, int level);
 
 /*
  * Basic CPU control in CR0

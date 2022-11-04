@@ -9,7 +9,8 @@ snd-sof-objs +=	ipc3.o ipc3-loader.o ipc3-topology.o ipc3-control.o ipc3-pcm.o\
 		ipc3-dtrace.o
 endif
 ifneq ($(CONFIG_SND_SOC_SOF_INTEL_IPC4),)
-snd-sof-objs += ipc4.o ipc4-loader.o ipc4-topology.o ipc4-control.o ipc4-pcm.o
+snd-sof-objs += ipc4.o ipc4-loader.o ipc4-topology.o ipc4-control.o ipc4-pcm.o\
+		ipc4-mtrace.o
 endif
 
 # SOF client support

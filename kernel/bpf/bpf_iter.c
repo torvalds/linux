@@ -202,6 +202,11 @@ static ssize_t bpf_seq_read(struct file *file, char __user *buf, size_t size,
 	}
 stop:
 	offs = seq->count;
+	if (IS_ERR(p)) {
+		seq->op->stop(seq, NULL);
+		err = PTR_ERR(p);
+		goto done;
+	}
 	/* bpf program called if !p */
 	seq->op->stop(seq, p);
 	if (!p) {
@@ -689,19 +694,24 @@ struct bpf_prog *bpf_iter_get_info(struct bpf_iter_meta *meta, bool in_stop)
 
 int bpf_iter_run_prog(struct bpf_prog *prog, void *ctx)
 {
+	struct bpf_run_ctx run_ctx, *old_run_ctx;
 	int ret;
 
 	if (prog->aux->sleepable) {
 		rcu_read_lock_trace();
 		migrate_disable();
 		might_fault();
+		old_run_ctx = bpf_set_run_ctx(&run_ctx);
 		ret = bpf_prog_run(prog, ctx);
+		bpf_reset_run_ctx(old_run_ctx);
 		migrate_enable();
 		rcu_read_unlock_trace();
 	} else {
 		rcu_read_lock();
 		migrate_disable();
+		old_run_ctx = bpf_set_run_ctx(&run_ctx);
 		ret = bpf_prog_run(prog, ctx);
+		bpf_reset_run_ctx(old_run_ctx);
 		migrate_enable();
 		rcu_read_unlock();
 	}

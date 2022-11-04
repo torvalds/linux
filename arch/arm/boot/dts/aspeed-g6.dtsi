@@ -323,6 +323,14 @@
 			#size-cells = <1>;
 			ranges;
 
+			hace: crypto@1e6d0000 {
+				compatible = "aspeed,ast2600-hace";
+				reg = <0x1e6d0000 0x200>;
+				interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_YCLK>;
+				resets = <&syscon ASPEED_RESET_HACE>;
+			};
+
 			syscon: syscon@1e6e2000 {
 				compatible = "aspeed,ast2600-scu", "syscon", "simple-mfd";
 				reg = <0x1e6e2000 0x1000>;
@@ -753,6 +761,62 @@
 				no-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd4_default &pinctrl_rxd4_default>;
+				status = "disabled";
+			};
+
+			uart6: serial@1e790000 {
+				compatible = "ns16550a";
+				reg = <0x1e790000 0x20>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART6CLK>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart6_default>;
+
+				status = "disabled";
+			};
+
+			uart7: serial@1e790100 {
+				compatible = "ns16550a";
+				reg = <0x1e790100 0x20>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART7CLK>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart7_default>;
+
+				status = "disabled";
+			};
+
+			uart8: serial@1e790200 {
+				compatible = "ns16550a";
+				reg = <0x1e790200 0x20>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART8CLK>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart8_default>;
+
+				status = "disabled";
+			};
+
+			uart9: serial@1e790300 {
+				compatible = "ns16550a";
+				reg = <0x1e790300 0x20>;
+				reg-shift = <2>;
+				reg-io-width = <4>;
+				interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon ASPEED_CLK_GATE_UART9CLK>;
+				no-loopback-test;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart9_default>;
+
 				status = "disabled";
 			};
 

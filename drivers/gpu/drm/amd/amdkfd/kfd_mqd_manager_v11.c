@@ -126,6 +126,10 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 	m->compute_static_thread_mgmt_se1 = 0xFFFFFFFF;
 	m->compute_static_thread_mgmt_se2 = 0xFFFFFFFF;
 	m->compute_static_thread_mgmt_se3 = 0xFFFFFFFF;
+	m->compute_static_thread_mgmt_se4 = 0xFFFFFFFF;
+	m->compute_static_thread_mgmt_se5 = 0xFFFFFFFF;
+	m->compute_static_thread_mgmt_se6 = 0xFFFFFFFF;
+	m->compute_static_thread_mgmt_se7 = 0xFFFFFFFF;
 
 	m->cp_hqd_persistent_state = CP_HQD_PERSISTENT_STATE__PRELOAD_REQ_MASK |
 			0x55 << CP_HQD_PERSISTENT_STATE__PRELOAD_SIZE__SHIFT;
@@ -329,7 +333,8 @@ static void update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 		<< SDMA0_QUEUE0_RB_CNTL__RB_SIZE__SHIFT |
 		q->vmid << SDMA0_QUEUE0_RB_CNTL__RB_VMID__SHIFT |
 		1 << SDMA0_QUEUE0_RB_CNTL__RPTR_WRITEBACK_ENABLE__SHIFT |
-		6 << SDMA0_QUEUE0_RB_CNTL__RPTR_WRITEBACK_TIMER__SHIFT;
+		6 << SDMA0_QUEUE0_RB_CNTL__RPTR_WRITEBACK_TIMER__SHIFT |
+		1 << SDMA0_QUEUE0_RB_CNTL__F32_WPTR_POLL_ENABLE__SHIFT;
 
 	m->sdmax_rlcx_rb_base = lower_32_bits(q->queue_address >> 8);
 	m->sdmax_rlcx_rb_base_hi = upper_32_bits(q->queue_address >> 8);

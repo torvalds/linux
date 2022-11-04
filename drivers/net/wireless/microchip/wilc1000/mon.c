@@ -229,7 +229,7 @@ struct net_device *wilc_wfi_init_mon_interface(struct wilc *wl,
 		return NULL;
 
 	wl->monitor_dev->type = ARPHRD_IEEE80211_RADIOTAP;
-	strlcpy(wl->monitor_dev->name, name, IFNAMSIZ);
+	strscpy(wl->monitor_dev->name, name, IFNAMSIZ);
 	wl->monitor_dev->netdev_ops = &wilc_wfi_netdev_ops;
 	wl->monitor_dev->needs_free_netdev = true;
 

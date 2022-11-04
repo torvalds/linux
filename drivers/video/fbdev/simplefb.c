@@ -355,7 +355,7 @@ static int simplefb_regulators_get(struct simplefb_par *par,
 		if (!p || p == prop->name)
 			continue;
 
-		strlcpy(name, prop->name,
+		strscpy(name, prop->name,
 			strlen(prop->name) - strlen(SUPPLY_SUFFIX) + 1);
 		regulator = devm_regulator_get_optional(&pdev->dev, name);
 		if (IS_ERR(regulator)) {

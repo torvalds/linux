@@ -344,6 +344,9 @@ static const struct key_entry dell_wmi_keymap_type_0011[] = {
  * They are events with extended data
  */
 static const struct key_entry dell_wmi_keymap_type_0012[] = {
+	/* Backlight brightness change event */
+	{ KE_IGNORE, 0x0003, { KEY_RESERVED } },
+
 	/* Ultra-performance mode switch request */
 	{ KE_IGNORE, 0x000d, { KEY_RESERVED } },
 

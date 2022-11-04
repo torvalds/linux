@@ -21,7 +21,6 @@
 
 #define DRIVER_DESC "OHCI Exynos driver"
 
-static const char hcd_name[] = "ohci-exynos";
 static struct hc_driver __read_mostly exynos_ohci_hc_driver;
 
 #define to_exynos_ohci(hcd) (struct exynos_ohci_hcd *)(hcd_to_ohci(hcd)->priv)
@@ -310,7 +309,6 @@ static int __init ohci_exynos_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 	ohci_init_driver(&exynos_ohci_hc_driver, &exynos_overrides);
 	return platform_driver_register(&exynos_ohci_driver);
 }

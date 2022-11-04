@@ -51,6 +51,7 @@ properties:
       provides the reference clock for the entire U8500 system and
       the DB8500 counterpart.
     type: object
+    additionalProperties: false
 
     properties:
       compatible:
@@ -63,6 +64,7 @@ properties:
     description: Node describing the AB8500 GPIO controller. A few
       GPIO pins available for misc usage.
     type: object
+    additionalProperties: false
 
     properties:
       compatible:
@@ -78,6 +80,7 @@ properties:
   rtc:
     description: Node describing the AB8500 battery-backed RTC.
     type: object
+    additionalProperties: false
 
     properties:
       compatible:
@@ -337,34 +340,40 @@ properties:
         description: The voltage for the auxilary LDO regulator 1
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
       ab8500_ldo_aux2:
         description: The voltage for the auxilary LDO regulator 2
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
       ab8500_ldo_aux3:
         description: The voltage for the auxilary LDO regulator 3
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
       ab8500_ldo_aux4:
         description: The voltage for the auxilary LDO regulator 4
           only present on AB8505
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
       ab8500_ldo_aux5:
         description: The voltage for the auxilary LDO regulator 5
           only present on AB8505
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
       ab8500_ldo_aux6:
         description: The voltage for the auxilary LDO regulator 6
           only present on AB8505
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
       # There is never any AUX7 regulator which is confusing
 
@@ -373,18 +382,21 @@ properties:
           only present on AB8505
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
       ab8500_ldo_intcore:
         description: The LDO regulator for the internal core voltage
           of the AB8500
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
       ab8500_ldo_adc:
         description: Analog power regulator for the analog to digital converter
           ADC, only present on AB8505
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
       ab8500_ldo_tvout:
         description: The voltage for the TV output regulator, incidentally
@@ -393,33 +405,39 @@ properties:
           Only present on AB8500.
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
       ab8500_ldo_audio:
         description: The LDO regulator for the audio codec output
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
       ab8500_ldo_anamic1:
         description: The LDO regulator for the analog microphone 1
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
       ab8500_ldo_anamic2:
         description: The LDO regulator for the analog microphone 2
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
       ab8500_ldo_dmic:
         description: The LDO regulator for the digital microphone
           only present on AB8500
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
       ab8500_ldo_ana:
         description: Analog power regulator for CSI and DSI interfaces,
           Camera Serial Interface CSI and Display Serial Interface DSI.
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
     required:
       - compatible
@@ -442,16 +460,19 @@ properties:
         description: The voltage for the VSMPS1 external regulator
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
       ab8500_ext2:
         description: The voltage for the VSMPS2 external regulator
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
       ab8500_ext3:
         description: The voltage for the VSMPS3 external regulator
         type: object
         $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
 
     required:
       - compatible
@@ -462,6 +483,7 @@ patternProperties:
   "^pwm@[1-9]+?$":
     type: object
     $ref: ../pwm/pwm.yaml#
+    unevaluatedProperties: false
     description: Represents each of the PWM blocks in the AB8500
 
     properties:

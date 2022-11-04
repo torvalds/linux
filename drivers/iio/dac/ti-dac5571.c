@@ -382,15 +382,13 @@ static int dac5571_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int dac5571_remove(struct i2c_client *i2c)
+static void dac5571_remove(struct i2c_client *i2c)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(i2c);
 	struct dac5571_data *data = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	regulator_disable(data->vref);
-
-	return 0;
 }
 
 static const struct of_device_id dac5571_of_id[] = {

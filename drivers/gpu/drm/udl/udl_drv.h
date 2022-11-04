@@ -14,10 +14,13 @@
 #include <linux/mm_types.h>
 #include <linux/usb.h>
 
+#include <drm/drm_connector.h>
+#include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_simple_kms_helper.h>
+#include <drm/drm_plane.h>
 
 struct drm_mode_create_dumb;
 
@@ -46,21 +49,31 @@ struct urb_list {
 	size_t size;
 };
 
+struct udl_connector {
+	struct drm_connector connector;
+	/* last udl_detect edid */
+	struct edid *edid;
+};
+
+static inline struct udl_connector *to_udl_connector(struct drm_connector *connector)
+{
+	return container_of(connector, struct udl_connector, connector);
+}
+
 struct udl_device {
 	struct drm_device drm;
 	struct device *dev;
 	struct device *dmadev;
 
-	struct drm_simple_display_pipe display_pipe;
+	struct drm_plane primary_plane;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
 
 	struct mutex gem_lock;
 
 	int sku_pixel_limit;
 
 	struct urb_list urbs;
-
-	char mode_buf[1024];
-	uint32_t mode_buf_len;
 };
 
 #define to_udl(x) container_of(x, struct udl_device, drm)
@@ -88,24 +101,5 @@ int udl_render_hline(struct drm_device *dev, int log_bpp, struct urb **urb_ptr,
 
 int udl_drop_usb(struct drm_device *dev);
 int udl_select_std_channel(struct udl_device *udl);
-
-#define CMD_WRITE_RAW8   "\xAF\x60" /**< 8 bit raw write command. */
-#define CMD_WRITE_RL8    "\xAF\x61" /**< 8 bit run length command. */
-#define CMD_WRITE_COPY8  "\xAF\x62" /**< 8 bit copy command. */
-#define CMD_WRITE_RLX8   "\xAF\x63" /**< 8 bit extended run length command. */
-
-#define CMD_WRITE_RAW16  "\xAF\x68" /**< 16 bit raw write command. */
-#define CMD_WRITE_RL16   "\xAF\x69" /**< 16 bit run length command. */
-#define CMD_WRITE_COPY16 "\xAF\x6A" /**< 16 bit copy command. */
-#define CMD_WRITE_RLX16  "\xAF\x6B" /**< 16 bit extended run length command. */
-
-/* On/Off for driving the DisplayLink framebuffer to the display */
-#define UDL_REG_BLANK_MODE		0x1f
-
-#define UDL_BLANK_MODE_ON		0x00 /* hsync and vsync on, visible */
-#define UDL_BLANK_MODE_BLANKED		0x01 /* hsync and vsync on, blanked */
-#define UDL_BLANK_MODE_VSYNC_OFF	0x03 /* vsync off, blanked */
-#define UDL_BLANK_MODE_HSYNC_OFF	0x05 /* hsync off, blanked */
-#define UDL_BLANK_MODE_POWERDOWN	0x07 /* powered off; requires modeset */
 
 #endif

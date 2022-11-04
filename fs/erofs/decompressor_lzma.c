@@ -217,6 +217,9 @@ again:
 			strm->buf.out_size = min_t(u32, outlen,
 						   PAGE_SIZE - pageofs);
 			outlen -= strm->buf.out_size;
+			if (!rq->out[no] && rq->fillgaps)	/* deduped */
+				rq->out[no] = erofs_allocpage(pagepool,
+						GFP_KERNEL | __GFP_NOFAIL);
 			if (rq->out[no])
 				strm->buf.out = kmap(rq->out[no]) + pageofs;
 			pageofs = 0;

@@ -73,6 +73,9 @@ properties:
       - const: apb_pclk
       - const: atclk
 
+  power-domains:
+    maxItems: 1
+
   arm,coresight-loses-context-with-cpu:
     type: boolean
     description:

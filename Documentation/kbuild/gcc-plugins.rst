@@ -90,7 +90,11 @@ e.g., on Ubuntu for gcc-10::
 
 Or on Fedora::
 
-	dnf install gcc-plugin-devel
+	dnf install gcc-plugin-devel libmpc-devel
+
+Or on Fedora when using cross-compilers that include plugins::
+
+	dnf install libmpc-devel
 
 Enable the GCC plugin infrastructure and some plugin(s) you want to use
 in the kernel config::
@@ -98,6 +102,19 @@ in the kernel config::
 	CONFIG_GCC_PLUGINS=y
 	CONFIG_GCC_PLUGIN_LATENT_ENTROPY=y
 	...
+
+Run gcc (native or cross-compiler) to ensure plugin headers are detected::
+
+	gcc -print-file-name=plugin
+	CROSS_COMPILE=arm-linux-gnu- ${CROSS_COMPILE}gcc -print-file-name=plugin
+
+The word "plugin" means they are not detected::
+
+	plugin
+
+A full path means they are detected::
+
+       /usr/lib/gcc/x86_64-redhat-linux/12/plugin
 
 To compile the minimum tool set including the plugin(s)::
 

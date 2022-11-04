@@ -269,7 +269,8 @@ union MESAPI__ADD_QUEUE {
 			uint32_t map_kiq_utility_queue  : 1;
 			uint32_t is_kfd_process		: 1;
 			uint32_t trap_en		: 1;
-			uint32_t reserved		: 21;
+			uint32_t is_aql_queue		: 1;
+			uint32_t reserved		: 20;
 		};
 		struct MES_API_STATUS		api_status;
 		uint64_t                        tma_addr;

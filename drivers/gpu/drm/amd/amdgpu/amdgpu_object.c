@@ -542,6 +542,7 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 		/* GWS and OA don't need any alignment. */
 		page_align = bp->byte_align;
 		size <<= PAGE_SHIFT;
+
 	} else if (bp->domain & AMDGPU_GEM_DOMAIN_GDS) {
 		/* Both size and alignment must be a multiple of 4. */
 		page_align = ALIGN(bp->byte_align, 4);
@@ -688,13 +689,16 @@ int amdgpu_bo_create_vm(struct amdgpu_device *adev,
 	 * num of amdgpu_vm_pt entries.
 	 */
 	BUG_ON(bp->bo_ptr_size < sizeof(struct amdgpu_bo_vm));
-	bp->destroy = &amdgpu_bo_vm_destroy;
 	r = amdgpu_bo_create(adev, bp, &bo_ptr);
 	if (r)
 		return r;
 
 	*vmbo_ptr = to_amdgpu_bo_vm(bo_ptr);
 	INIT_LIST_HEAD(&(*vmbo_ptr)->shadow_list);
+	/* Set destroy callback to amdgpu_bo_vm_destroy after vmbo->shadow_list
+	 * is initialized.
+	 */
+	bo_ptr->tbo.destroy = &amdgpu_bo_vm_destroy;
 	return r;
 }
 
@@ -773,7 +777,7 @@ int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 		return 0;
 	}
 
-	r = ttm_bo_kmap(&bo->tbo, 0, bo->tbo.resource->num_pages, &bo->kmap);
+	r = ttm_bo_kmap(&bo->tbo, 0, PFN_UP(bo->tbo.base.size), &bo->kmap);
 	if (r)
 		return r;
 

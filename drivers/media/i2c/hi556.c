@@ -1101,7 +1101,7 @@ check_hwcfg_error:
 	return ret;
 }
 
-static int hi556_remove(struct i2c_client *client)
+static void hi556_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct hi556 *hi556 = to_hi556(sd);
@@ -1111,8 +1111,6 @@ static int hi556_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	pm_runtime_disable(&client->dev);
 	mutex_destroy(&hi556->mutex);
-
-	return 0;
 }
 
 static int hi556_probe(struct i2c_client *client)

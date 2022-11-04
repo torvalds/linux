@@ -16,8 +16,12 @@
 
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
+#include <linux/pm_qos.h>
+#include <linux/bpf.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/timecounter.h>
+#include <dt-bindings/firmware/imx/rsrc.h>
+#include <linux/firmware/imx/sci.h>
 
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
     defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARM) || \
@@ -343,8 +347,11 @@ struct bufdesc_ex {
  * the skbuffer directly.
  */
 
+#define FEC_ENET_XDP_HEADROOM	(XDP_PACKET_HEADROOM)
+
 #define FEC_ENET_RX_PAGES	256
-#define FEC_ENET_RX_FRSIZE	2048
+#define FEC_ENET_RX_FRSIZE	(PAGE_SIZE - FEC_ENET_XDP_HEADROOM \
+		- SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 #define FEC_ENET_RX_FRPPG	(PAGE_SIZE / FEC_ENET_RX_FRSIZE)
 #define RX_RING_SIZE		(FEC_ENET_RX_FRPPG * FEC_ENET_RX_PAGES)
 #define FEC_ENET_TX_FRSIZE	2048
@@ -498,6 +505,9 @@ struct bufdesc_ex {
 /* i.MX8MQ SoC integration mix wakeup interrupt signal into "int2" interrupt line. */
 #define FEC_QUIRK_WAKEUP_FROM_INT2	(1 << 22)
 
+/* i.MX6Q adds pm_qos support */
+#define FEC_QUIRK_HAS_PMQOS			BIT(23)
+
 struct bufdesc_prop {
 	int qid;
 	/* Address of Rx and Tx buffers */
@@ -509,6 +519,12 @@ struct bufdesc_prop {
 	unsigned short ring_size;
 	unsigned char dsize;
 	unsigned char dsize_log2;
+};
+
+struct fec_enet_priv_txrx_info {
+	int	offset;
+	struct	page *page;
+	struct  sk_buff *skb;
 };
 
 struct fec_enet_priv_tx_q {
@@ -526,7 +542,14 @@ struct fec_enet_priv_tx_q {
 
 struct fec_enet_priv_rx_q {
 	struct bufdesc_prop bd;
-	struct  sk_buff *rx_skbuff[RX_RING_SIZE];
+	struct  fec_enet_priv_txrx_info rx_skb_info[RX_RING_SIZE];
+
+	/* page_pool */
+	struct page_pool *page_pool;
+	struct xdp_rxq_info xdp_rxq;
+
+	/* rx queue number, in the range 0-7 */
+	u8 id;
 };
 
 struct fec_stop_mode_gpr {
@@ -579,6 +602,7 @@ struct fec_enet_private {
 	struct device_node *phy_node;
 	bool	rgmii_txc_dly;
 	bool	rgmii_rxc_dly;
+	bool	rpm_active;
 	int	link;
 	int	full_duplex;
 	int	speed;
@@ -608,6 +632,7 @@ struct fec_enet_private {
 	struct delayed_work time_keep;
 	struct regulator *reg_phy;
 	struct fec_stop_mode_gpr stop_gpr;
+	struct pm_qos_request pm_qos_req;
 
 	unsigned int tx_align;
 	unsigned int rx_align;
@@ -633,6 +658,8 @@ struct fec_enet_private {
 	unsigned int reload_period;
 	int pps_enable;
 	unsigned int next_counter;
+
+	struct imx_sc_ipc *ipc_handle;
 
 	u64 ethtool_stats[];
 };

@@ -9,9 +9,27 @@
 #include <asm/perf_regs.h>
 #include <asm/ptrace.h>
 
+static u64 perf_ext_regs_value(int idx)
+{
+	switch (idx) {
+	case PERF_REG_ARM64_VG:
+		if (WARN_ON_ONCE(!system_supports_sve()))
+			return 0;
+
+		/*
+		 * Vector granule is current length in bits of SVE registers
+		 * divided by 64.
+		 */
+		return (task_get_sve_vl(current) * 8) / 64;
+	default:
+		WARN_ON_ONCE(true);
+		return 0;
+	}
+}
+
 u64 perf_reg_value(struct pt_regs *regs, int idx)
 {
-	if (WARN_ON_ONCE((u32)idx >= PERF_REG_ARM64_MAX))
+	if (WARN_ON_ONCE((u32)idx >= PERF_REG_ARM64_EXTENDED_MAX))
 		return 0;
 
 	/*
@@ -51,6 +69,9 @@ u64 perf_reg_value(struct pt_regs *regs, int idx)
 	if ((u32)idx == PERF_REG_ARM64_PC)
 		return regs->pc;
 
+	if ((u32)idx >= PERF_REG_ARM64_MAX)
+		return perf_ext_regs_value(idx);
+
 	return regs->regs[idx];
 }
 
@@ -58,7 +79,12 @@ u64 perf_reg_value(struct pt_regs *regs, int idx)
 
 int perf_reg_validate(u64 mask)
 {
-	if (!mask || mask & REG_RESERVED)
+	u64 reserved_mask = REG_RESERVED;
+
+	if (system_supports_sve())
+		reserved_mask &= ~(1ULL << PERF_REG_ARM64_VG);
+
+	if (!mask || mask & reserved_mask)
 		return -EINVAL;
 
 	return 0;

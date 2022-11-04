@@ -49,8 +49,14 @@ void affinity__set(struct affinity *a, int cpu)
 {
 	int cpu_set_size = get_cpu_set_size();
 
-	if (cpu == -1)
+	/*
+	 * Return:
+	 * - if cpu is -1
+	 * - restrict out of bound access to sched_cpus
+	 */
+	if (cpu == -1 || ((cpu >= (cpu_set_size * 8))))
 		return;
+
 	a->changed = true;
 	set_bit(cpu, a->sched_cpus);
 	/*

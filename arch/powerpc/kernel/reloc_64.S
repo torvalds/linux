@@ -27,8 +27,8 @@ _GLOBAL(relocate)
 	add	r9,r9,r12	/* r9 has runtime addr of .rela.dyn section */
 	ld	r10,(p_st - 0b)(r12)
 	add	r10,r10,r12	/* r10 has runtime addr of _stext */
-	ld	r13,(p_sym - 0b)(r12)
-	add	r13,r13,r12	/* r13 has runtime addr of .dynsym */
+	ld	r4,(p_sym - 0b)(r12)
+	add	r4,r4,r12	/* r4 has runtime addr of .dynsym */
 
 	/*
 	 * Scan the dynamic section for the RELA, RELASZ and RELAENT entries.
@@ -84,16 +84,16 @@ _GLOBAL(relocate)
 	ld	r0,16(r9)	/* reloc->r_addend */
 	b	.Lstore
 .Luaddr64:
-	srdi	r14,r0,32	/* ELF64_R_SYM(reloc->r_info) */
+	srdi	r5,r0,32	/* ELF64_R_SYM(reloc->r_info) */
 	clrldi	r0,r0,32
 	cmpdi	r0,R_PPC64_UADDR64
 	bne	.Lnext
 	ld	r6,0(r9)
 	ld	r0,16(r9)
-	mulli	r14,r14,24	/* 24 == sizeof(elf64_sym) */
-	add	r14,r14,r13	/* elf64_sym[ELF64_R_SYM] */
-	ld	r14,8(r14)
-	add	r0,r0,r14
+	mulli	r5,r5,24	/* 24 == sizeof(elf64_sym) */
+	add	r5,r5,r4	/* elf64_sym[ELF64_R_SYM] */
+	ld	r5,8(r5)
+	add	r0,r0,r5
 .Lstore:
 	add	r0,r0,r3
 	stdx	r0,r7,r6

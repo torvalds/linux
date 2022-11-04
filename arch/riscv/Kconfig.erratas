@@ -46,7 +46,7 @@ config ERRATA_THEAD
 
 config ERRATA_THEAD_PBMT
 	bool "Apply T-Head memory type errata"
-	depends on ERRATA_THEAD && 64BIT
+	depends on ERRATA_THEAD && 64BIT && MMU
 	select RISCV_ALTERNATIVE_EARLY
 	default y
 	help
@@ -57,7 +57,7 @@ config ERRATA_THEAD_PBMT
 
 config ERRATA_THEAD_CMO
 	bool "Apply T-Head cache management errata"
-	depends on ERRATA_THEAD
+	depends on ERRATA_THEAD && MMU
 	select RISCV_DMA_NONCOHERENT
 	default y
 	help

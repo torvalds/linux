@@ -57,6 +57,7 @@ properties:
     patternProperties:
       "^[a-zA-Z]*-pins$":
         type: object
+        additionalProperties: false
 
         allOf:
           - $ref: ../pinctrl/pinmux-node.yaml

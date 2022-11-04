@@ -384,7 +384,7 @@ error_unreg_trigger:
 	return ret;
 }
 
-static int lmp91000_remove(struct i2c_client *client)
+static void lmp91000_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct lmp91000_data *data = iio_priv(indio_dev);
@@ -396,8 +396,6 @@ static int lmp91000_remove(struct i2c_client *client)
 
 	iio_triggered_buffer_cleanup(indio_dev);
 	iio_trigger_unregister(data->trig);
-
-	return 0;
 }
 
 static const struct of_device_id lmp91000_of_match[] = {

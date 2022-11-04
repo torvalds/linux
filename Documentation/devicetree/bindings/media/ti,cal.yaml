@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/media/ti,cal.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Texas Instruments DRA72x CAMERA ADAPTATION LAYER (CAL) Device Tree Bindings
+title: Texas Instruments DRA72x CAMERA ADAPTATION LAYER (CAL)
 
 maintainers:
   - Benoit Parrot <bparrot@ti.com>

@@ -193,7 +193,7 @@ static struct mtd_partition * newpart(char *s,
 	parts[this_part].mask_flags = mask_flags;
 	parts[this_part].add_flags = add_flags;
 	if (name)
-		strlcpy(extra_mem, name, name_len + 1);
+		strscpy(extra_mem, name, name_len + 1);
 	else
 		sprintf(extra_mem, "Partition_%03d", this_part);
 	parts[this_part].name = extra_mem;
@@ -298,7 +298,7 @@ static int mtdpart_setup_real(char *s)
 		this_mtd->parts = parts;
 		this_mtd->num_parts = num_parts;
 		this_mtd->mtd_id = (char*)(this_mtd + 1);
-		strlcpy(this_mtd->mtd_id, mtd_id, mtd_id_len + 1);
+		strscpy(this_mtd->mtd_id, mtd_id, mtd_id_len + 1);
 
 		/* link into chain */
 		this_mtd->next = partitions;

@@ -313,6 +313,33 @@ static struct spi_test spi_tests[] = {
 			},
 		},
 	},
+	{
+		.description	= "three tx+rx transfers with overlapping cache lines",
+		.fill_option	= FILL_COUNT_8,
+		/*
+		 * This should be large enough for the controller driver to
+		 * choose to transfer it with DMA.
+		 */
+		.iterate_len    = { 512, -1 },
+		.iterate_transfer_mask = BIT(1),
+		.transfer_count = 3,
+		.transfers		= {
+			{
+				.len = 1,
+				.tx_buf = TX(0),
+				.rx_buf = RX(0),
+			},
+			{
+				.tx_buf = TX(1),
+				.rx_buf = RX(1),
+			},
+			{
+				.len = 1,
+				.tx_buf = TX(513),
+				.rx_buf = RX(513),
+			},
+		},
+	},
 
 	{ /* end of tests sequence */ }
 };

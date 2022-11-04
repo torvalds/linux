@@ -392,8 +392,8 @@ int fsi_slave_write(struct fsi_slave *slave, uint32_t addr,
 }
 EXPORT_SYMBOL_GPL(fsi_slave_write);
 
-extern int fsi_slave_claim_range(struct fsi_slave *slave,
-		uint32_t addr, uint32_t size)
+int fsi_slave_claim_range(struct fsi_slave *slave,
+			  uint32_t addr, uint32_t size)
 {
 	if (addr + size < addr)
 		return -EINVAL;
@@ -406,8 +406,8 @@ extern int fsi_slave_claim_range(struct fsi_slave *slave,
 }
 EXPORT_SYMBOL_GPL(fsi_slave_claim_range);
 
-extern void fsi_slave_release_range(struct fsi_slave *slave,
-		uint32_t addr, uint32_t size)
+void fsi_slave_release_range(struct fsi_slave *slave,
+			     uint32_t addr, uint32_t size)
 {
 }
 EXPORT_SYMBOL_GPL(fsi_slave_release_range);
@@ -1314,6 +1314,9 @@ int fsi_master_register(struct fsi_master *master)
 
 	mutex_init(&master->scan_lock);
 	master->idx = ida_simple_get(&master_ida, 0, INT_MAX, GFP_KERNEL);
+	if (master->idx < 0)
+		return master->idx;
+
 	dev_set_name(&master->dev, "fsi%d", master->idx);
 	master->dev.class = &fsi_master_class;
 

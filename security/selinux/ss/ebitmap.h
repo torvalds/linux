@@ -44,7 +44,7 @@ struct ebitmap {
 
 #define ebitmap_length(e) ((e)->highbit)
 
-static inline unsigned int ebitmap_start_positive(struct ebitmap *e,
+static inline unsigned int ebitmap_start_positive(const struct ebitmap *e,
 						  struct ebitmap_node **n)
 {
 	unsigned int ofs;
@@ -62,7 +62,7 @@ static inline void ebitmap_init(struct ebitmap *e)
 	memset(e, 0, sizeof(*e));
 }
 
-static inline unsigned int ebitmap_next_positive(struct ebitmap *e,
+static inline unsigned int ebitmap_next_positive(const struct ebitmap *e,
 						 struct ebitmap_node **n,
 						 unsigned int bit)
 {
@@ -85,7 +85,7 @@ static inline unsigned int ebitmap_next_positive(struct ebitmap *e,
 #define EBITMAP_NODE_OFFSET(node, bit)	\
 	(((bit) - (node)->startbit) % EBITMAP_UNIT_SIZE)
 
-static inline int ebitmap_node_get_bit(struct ebitmap_node *n,
+static inline int ebitmap_node_get_bit(const struct ebitmap_node *n,
 				       unsigned int bit)
 {
 	unsigned int index = EBITMAP_NODE_INDEX(n, bit);
@@ -122,15 +122,15 @@ static inline void ebitmap_node_clr_bit(struct ebitmap_node *n,
 	     (bit) < ebitmap_length(e);			\
 	     (bit) = ebitmap_next_positive(e, &(n), bit))	\
 
-int ebitmap_cmp(struct ebitmap *e1, struct ebitmap *e2);
-int ebitmap_cpy(struct ebitmap *dst, struct ebitmap *src);
-int ebitmap_and(struct ebitmap *dst, struct ebitmap *e1, struct ebitmap *e2);
-int ebitmap_contains(struct ebitmap *e1, struct ebitmap *e2, u32 last_e2bit);
-int ebitmap_get_bit(struct ebitmap *e, unsigned long bit);
+int ebitmap_cmp(const struct ebitmap *e1, const struct ebitmap *e2);
+int ebitmap_cpy(struct ebitmap *dst, const struct ebitmap *src);
+int ebitmap_and(struct ebitmap *dst, const struct ebitmap *e1, const struct ebitmap *e2);
+int ebitmap_contains(const struct ebitmap *e1, const struct ebitmap *e2, u32 last_e2bit);
+int ebitmap_get_bit(const struct ebitmap *e, unsigned long bit);
 int ebitmap_set_bit(struct ebitmap *e, unsigned long bit, int value);
 void ebitmap_destroy(struct ebitmap *e);
 int ebitmap_read(struct ebitmap *e, void *fp);
-int ebitmap_write(struct ebitmap *e, void *fp);
+int ebitmap_write(const struct ebitmap *e, void *fp);
 u32 ebitmap_hash(const struct ebitmap *e, u32 hash);
 
 #ifdef CONFIG_NETLABEL

@@ -333,7 +333,7 @@ static struct vas_window *vas_allocate_window(int vas_id, u64 flags,
 		 * So no unpacking needs to be done.
 		 */
 		rc = plpar_hcall9(H_HOME_NODE_ASSOCIATIVITY, domain,
-				  VPHN_FLAG_VCPU, smp_processor_id());
+				  VPHN_FLAG_VCPU, hard_smp_processor_id());
 		if (rc != H_SUCCESS) {
 			pr_err("H_HOME_NODE_ASSOCIATIVITY error: %d\n", rc);
 			goto out;
@@ -501,14 +501,10 @@ static const struct vas_user_win_ops vops_pseries = {
 int vas_register_api_pseries(struct module *mod, enum vas_cop_type cop_type,
 			     const char *name)
 {
-	int rc;
-
 	if (!copypaste_feat)
 		return -ENOTSUPP;
 
-	rc = vas_register_coproc_api(mod, cop_type, name, &vops_pseries);
-
-	return rc;
+	return vas_register_coproc_api(mod, cop_type, name, &vops_pseries);
 }
 EXPORT_SYMBOL_GPL(vas_register_api_pseries);
 

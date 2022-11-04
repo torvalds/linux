@@ -725,7 +725,7 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 
 	/* ib device init */
 	ibdev->node_type = RDMA_NODE_IB_CA;
-	strlcpy(ibdev->node_desc, BNXT_RE_DESC " HCA",
+	strscpy(ibdev->node_desc, BNXT_RE_DESC " HCA",
 		strlen(BNXT_RE_DESC) + 5);
 	ibdev->phys_port_cnt = 1;
 

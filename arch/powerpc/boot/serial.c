@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Generic serial console support
  *
@@ -6,10 +7,7 @@
  * Code in serial_edit_cmdline() copied from <file:arch/ppc/boot/simple/misc.c>
  * and was written by Matt Porter <mporter@kernel.crashing.org>.
  *
- * 2001,2006 (c) MontaVista Software, Inc.  This file is licensed under
- * the terms of the GNU General Public License version 2.  This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2001,2006 (c) MontaVista Software, Inc.
  */
 #include <stdarg.h>
 #include <stddef.h>

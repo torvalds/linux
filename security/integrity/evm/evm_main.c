@@ -457,10 +457,21 @@ static int evm_xattr_acl_change(struct user_namespace *mnt_userns,
 	int rc;
 
 	/*
-	 * user_ns is not relevant here, ACL_USER/ACL_GROUP don't have impact
-	 * on the inode mode (see posix_acl_equiv_mode()).
+	 * An earlier comment here mentioned that the idmappings for
+	 * ACL_{GROUP,USER} don't matter since EVM is only interested in the
+	 * mode stored as part of POSIX ACLs. Nonetheless, if it must translate
+	 * from the uapi POSIX ACL representation to the VFS internal POSIX ACL
+	 * representation it should do so correctly. There's no guarantee that
+	 * we won't change POSIX ACLs in a way that ACL_{GROUP,USER} matters
+	 * for the mode at some point and it's difficult to keep track of all
+	 * the LSM and integrity modules and what they do to POSIX ACLs.
+	 *
+	 * Frankly, EVM shouldn't try to interpret the uapi struct for POSIX
+	 * ACLs it received. It requires knowledge that only the VFS is
+	 * guaranteed to have.
 	 */
-	acl = posix_acl_from_xattr(&init_user_ns, xattr_value, xattr_value_len);
+	acl = vfs_set_acl_prepare(mnt_userns, i_user_ns(inode),
+				  xattr_value, xattr_value_len);
 	if (IS_ERR_OR_NULL(acl))
 		return 1;
 

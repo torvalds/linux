@@ -530,7 +530,7 @@ its tunnel close actions. For L2TPIP sockets, the socket's close
 handler initiates the same tunnel close actions. All sessions are
 first closed. Each session drops its tunnel ref. When the tunnel ref
 reaches zero, the tunnel puts its socket ref. When the socket is
-eventually destroyed, it's sk_destruct finally frees the L2TP tunnel
+eventually destroyed, its sk_destruct finally frees the L2TP tunnel
 context.
 
 Sessions

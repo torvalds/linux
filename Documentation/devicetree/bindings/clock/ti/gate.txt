@@ -10,7 +10,7 @@ will be controlled instead and the corresponding hw-ops for
 that is used.
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
-[2] Documentation/devicetree/bindings/clock/gpio-gate-clock.txt
+[2] Documentation/devicetree/bindings/clock/gpio-gate-clock.yaml
 [3] Documentation/devicetree/bindings/clock/ti/clockdomain.txt
 
 Required properties:

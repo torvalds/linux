@@ -36,6 +36,7 @@
 #include <uapi/linux/pci_regs.h>
 #include <linux/kvm_host.h>
 #include <linux/vfio.h>
+#include <linux/mdev.h>
 
 #include "i915_drv.h"
 #include "intel_gvt.h"
@@ -172,6 +173,7 @@ struct intel_vgpu_submission {
 #define KVMGT_DEBUGFS_FILENAME		"kvmgt_nr_cache_entries"
 
 struct intel_vgpu {
+	struct vfio_device vfio_device;
 	struct intel_gvt *gvt;
 	struct mutex vgpu_lock;
 	int id;
@@ -211,7 +213,6 @@ struct intel_vgpu {
 
 	u32 scan_nonprivbb;
 
-	struct vfio_device vfio_device;
 	struct vfio_region *region;
 	int num_regions;
 	struct eventfd_ctx *intx_trigger;
@@ -294,15 +295,25 @@ struct intel_gvt_firmware {
 	bool firmware_loaded;
 };
 
-#define NR_MAX_INTEL_VGPU_TYPES 20
-struct intel_vgpu_type {
-	char name[16];
-	unsigned int avail_instance;
-	unsigned int low_gm_size;
-	unsigned int high_gm_size;
+struct intel_vgpu_config {
+	unsigned int low_mm;
+	unsigned int high_mm;
 	unsigned int fence;
+
+	/*
+	 * A vGPU with a weight of 8 will get twice as much GPU as a vGPU with
+	 * a weight of 4 on a contended host, different vGPU type has different
+	 * weight set. Legal weights range from 1 to 16.
+	 */
 	unsigned int weight;
-	enum intel_vgpu_edid resolution;
+	enum intel_vgpu_edid edid;
+	const char *name;
+};
+
+struct intel_vgpu_type {
+	struct mdev_type type;
+	char name[16];
+	const struct intel_vgpu_config *conf;
 };
 
 struct intel_gvt {
@@ -326,6 +337,8 @@ struct intel_gvt {
 	struct intel_gvt_workload_scheduler scheduler;
 	struct notifier_block shadow_ctx_notifier_block[I915_NUM_ENGINES];
 	DECLARE_HASHTABLE(cmd_table, GVT_CMD_HASH_BITS);
+	struct mdev_parent parent;
+	struct mdev_type **mdev_types;
 	struct intel_vgpu_type *types;
 	unsigned int num_types;
 	struct intel_vgpu *idle_vgpu;
@@ -436,19 +449,8 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt);
 /* ring context size i.e. the first 0x50 dwords*/
 #define RING_CTX_SIZE 320
 
-struct intel_vgpu_creation_params {
-	__u64 low_gm_sz;  /* in MB */
-	__u64 high_gm_sz; /* in MB */
-	__u64 fence_sz;
-	__u64 resolution;
-	__s32 primary;
-	__u64 vgpu_id;
-
-	__u32 weight;
-};
-
 int intel_vgpu_alloc_resource(struct intel_vgpu *vgpu,
-			      struct intel_vgpu_creation_params *param);
+			      const struct intel_vgpu_config *conf);
 void intel_vgpu_reset_resource(struct intel_vgpu *vgpu);
 void intel_vgpu_free_resource(struct intel_vgpu *vgpu);
 void intel_vgpu_write_fence(struct intel_vgpu *vgpu,
@@ -494,8 +496,8 @@ void intel_gvt_clean_vgpu_types(struct intel_gvt *gvt);
 
 struct intel_vgpu *intel_gvt_create_idle_vgpu(struct intel_gvt *gvt);
 void intel_gvt_destroy_idle_vgpu(struct intel_vgpu *vgpu);
-struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
-					 struct intel_vgpu_type *type);
+int intel_gvt_create_vgpu(struct intel_vgpu *vgpu,
+			  const struct intel_vgpu_config *conf);
 void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_release_vgpu(struct intel_vgpu *vgpu);
 void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,

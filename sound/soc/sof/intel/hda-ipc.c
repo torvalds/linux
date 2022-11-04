@@ -16,6 +16,7 @@
  */
 
 #include <sound/sof/ipc4/header.h>
+#include <trace/events/sof_intel.h>
 #include "../ops.h"
 #include "hda.h"
 
@@ -212,9 +213,7 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 		msg = hipci & HDA_DSP_REG_HIPCI_MSG_MASK;
 		msg_ext = hipcie & HDA_DSP_REG_HIPCIE_MSG_MASK;
 
-		dev_vdbg(sdev->dev,
-			 "ipc: firmware response, msg:0x%x, msg_ext:0x%x\n",
-			 msg, msg_ext);
+		trace_sof_intel_ipc_firmware_response(sdev, msg, msg_ext);
 
 		/* mask Done interrupt */
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
@@ -255,9 +254,7 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 		msg = hipct & HDA_DSP_REG_HIPCT_MSG_MASK;
 		msg_ext = hipcte & HDA_DSP_REG_HIPCTE_MSG_MASK;
 
-		dev_vdbg(sdev->dev,
-			 "ipc: firmware initiated, msg:0x%x, msg_ext:0x%x\n",
-			 msg, msg_ext);
+		trace_sof_intel_ipc_firmware_initiated(sdev, msg, msg_ext);
 
 		/* mask BUSY interrupt */
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
@@ -307,12 +304,13 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 /* Check if an IPC IRQ occurred */
 bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 {
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	bool ret = false;
 	u32 irq_status;
 
 	/* store status */
 	irq_status = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_ADSPIS);
-	dev_vdbg(sdev->dev, "irq handler: irq_status:0x%x\n", irq_status);
+	trace_sof_intel_hda_irq_ipc_check(sdev, irq_status);
 
 	/* invalid message ? */
 	if (irq_status == 0xffffffff)
@@ -321,6 +319,13 @@ bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev)
 	/* IPC message ? */
 	if (irq_status & HDA_DSP_ADSPIS_IPC)
 		ret = true;
+
+	/* CLDMA message ? */
+	if (irq_status & HDA_DSP_ADSPIS_CL_DMA) {
+		hda->code_loading = 0;
+		wake_up(&hda->waitq);
+		ret = false;
+	}
 
 out:
 	return ret;

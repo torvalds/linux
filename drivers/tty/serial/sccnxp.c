@@ -636,7 +636,8 @@ static void sccnxp_break_ctl(struct uart_port *port, int break_state)
 }
 
 static void sccnxp_set_termios(struct uart_port *port,
-			       struct ktermios *termios, struct ktermios *old)
+			       struct ktermios *termios,
+			       const struct ktermios *old)
 {
 	struct sccnxp_port *s = dev_get_drvdata(port->dev);
 	unsigned long flags;

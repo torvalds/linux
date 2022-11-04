@@ -3071,6 +3071,7 @@ static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
 	err = device_create_file(&dev->persist->pdev->dev, &info->port_attr);
 	if (err) {
 		mlx4_err(dev, "Failed to create file for port %d\n", port);
+		devlink_port_type_clear(&info->devlink_port);
 		devl_port_unregister(&info->devlink_port);
 		info->port = -1;
 		return err;
@@ -3093,6 +3094,7 @@ static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
 		mlx4_err(dev, "Failed to create mtu file for port %d\n", port);
 		device_remove_file(&info->dev->persist->pdev->dev,
 				   &info->port_attr);
+		devlink_port_type_clear(&info->devlink_port);
 		devl_port_unregister(&info->devlink_port);
 		info->port = -1;
 		return err;
@@ -3109,6 +3111,7 @@ static void mlx4_cleanup_port_info(struct mlx4_port_info *info)
 	device_remove_file(&info->dev->persist->pdev->dev, &info->port_attr);
 	device_remove_file(&info->dev->persist->pdev->dev,
 			   &info->port_mtu_attr);
+	devlink_port_type_clear(&info->devlink_port);
 	devl_port_unregister(&info->devlink_port);
 
 #ifdef CONFIG_RFS_ACCEL

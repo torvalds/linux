@@ -552,6 +552,76 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 		.multi_read_bit = false,
 		.bootime = 2,
 	},
+	{
+		/*
+		 * CUSTOM VALUES FOR LPS22DF SENSOR
+		 * See LPS22DF datasheet:
+		 * http://www.st.com/resource/en/datasheet/lps22df.pdf
+		 */
+		.wai = 0xb4,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
+		.sensors_supported = {
+			[0] = LPS22DF_PRESS_DEV_NAME,
+		},
+		.ch = (struct iio_chan_spec *)st_press_lps22hb_channels,
+		.num_ch = ARRAY_SIZE(st_press_lps22hb_channels),
+		.odr = {
+			.addr = 0x10,
+			.mask = 0x78,
+			.odr_avl = {
+				{ .hz = 1, .value = 0x01 },
+				{ .hz = 4, .value = 0x02 },
+				{ .hz = 10, .value = 0x03 },
+				{ .hz = 25, .value = 0x04 },
+				{ .hz = 50, .value = 0x05 },
+				{ .hz = 75, .value = 0x06 },
+				{ .hz = 100, .value = 0x07 },
+				{ .hz = 200, .value = 0x08 },
+			},
+		},
+		.pw = {
+			.addr = 0x10,
+			.mask = 0x78,
+			.value_off = ST_SENSORS_DEFAULT_POWER_OFF_VALUE,
+		},
+		.fs = {
+			.fs_avl = {
+				/*
+				 * Pressure and temperature sensitivity values
+				 * as defined in table 2 of LPS22DF datasheet.
+				 */
+				[0] = {
+					.num = ST_PRESS_FS_AVL_1260MB,
+					.gain = ST_PRESS_KPASCAL_NANO_SCALE,
+					.gain2 = ST_PRESS_LPS22HB_LSB_PER_CELSIUS,
+				},
+			},
+		},
+		.bdu = {
+			.addr = 0x11,
+			.mask = BIT(3),
+		},
+		.drdy_irq = {
+			.int1 = {
+				.addr = 0x13,
+				.mask = BIT(5),
+				.addr_od = 0x12,
+				.mask_od = BIT(1),
+			},
+			.addr_ihl = 0x12,
+			.mask_ihl = BIT(3),
+			.stat_drdy = {
+				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
+				.mask = 0x03,
+			},
+		},
+		.sim = {
+			.addr = 0x0E,
+			.value = BIT(5),
+		},
+		.multi_read_bit = false,
+		.bootime = 2,
+	},
 };
 
 static int st_press_write_raw(struct iio_dev *indio_dev,

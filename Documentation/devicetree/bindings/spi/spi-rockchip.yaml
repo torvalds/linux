@@ -27,6 +27,7 @@ properties:
       - items:
           - enum:
               - rockchip,px30-spi
+              - rockchip,rk3128-spi
               - rockchip,rk3188-spi
               - rockchip,rk3288-spi
               - rockchip,rk3308-spi
@@ -34,6 +35,7 @@ properties:
               - rockchip,rk3368-spi
               - rockchip,rk3399-spi
               - rockchip,rk3568-spi
+              - rockchip,rk3588-spi
               - rockchip,rv1126-spi
           - const: rockchip,rk3066-spi
 
@@ -79,6 +81,9 @@ properties:
       Names for the pin configuration(s); may be "default" or "sleep",
       where the "sleep" configuration may describe the state
       the pins should be in during system suspend.
+
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible

@@ -164,7 +164,7 @@
 		};
 	};
 
-	spi3 {
+	spi-3 {
 		compatible = "spi-gpio";
 		status = "okay";
 		gpio-sck = <&gpio0 25 GPIO_ACTIVE_LOW>;

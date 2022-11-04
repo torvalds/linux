@@ -81,11 +81,11 @@ struct npcm7xx_gpio {
 	int			irq;
 	struct irq_chip		irq_chip;
 	u32			pinctrl_id;
-	int (*direction_input)(struct gpio_chip *chip, unsigned offset);
-	int (*direction_output)(struct gpio_chip *chip, unsigned offset,
+	int (*direction_input)(struct gpio_chip *chip, unsigned int offset);
+	int (*direction_output)(struct gpio_chip *chip, unsigned int offset,
 				int value);
-	int (*request)(struct gpio_chip *chip, unsigned offset);
-	void (*free)(struct gpio_chip *chip, unsigned offset);
+	int (*request)(struct gpio_chip *chip, unsigned int offset);
+	void (*free)(struct gpio_chip *chip, unsigned int offset);
 };
 
 struct npcm7xx_pinctrl {

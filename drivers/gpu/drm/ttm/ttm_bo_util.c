@@ -173,7 +173,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 
 	clear = src_iter->ops->maps_tt && (!ttm || !ttm_tt_is_populated(ttm));
 	if (!(clear && ttm && !(ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC)))
-		ttm_move_memcpy(clear, dst_mem->num_pages, dst_iter, src_iter);
+		ttm_move_memcpy(clear, ttm->num_pages, dst_iter, src_iter);
 
 	if (!src_iter->ops->maps_tt)
 		ttm_kmap_iter_linear_io_fini(&_src_iter.io, bdev, src_mem);
@@ -239,15 +239,18 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	if (bo->type != ttm_bo_type_sg)
 		fbo->base.base.resv = &fbo->base.base._resv;
 
-	if (fbo->base.resource) {
-		ttm_resource_set_bo(fbo->base.resource, &fbo->base);
-		bo->resource = NULL;
-	}
-
 	dma_resv_init(&fbo->base.base._resv);
 	fbo->base.base.dev = NULL;
 	ret = dma_resv_trylock(&fbo->base.base._resv);
 	WARN_ON(!ret);
+
+	if (fbo->base.resource) {
+		ttm_resource_set_bo(fbo->base.resource, &fbo->base);
+		bo->resource = NULL;
+		ttm_bo_set_bulk_move(&fbo->base, NULL);
+	} else {
+		fbo->base.bulk_move = NULL;
+	}
 
 	ret = dma_resv_reserve_fences(&fbo->base.base._resv, 1);
 	if (ret) {
@@ -354,9 +357,9 @@ int ttm_bo_kmap(struct ttm_buffer_object *bo,
 
 	map->virtual = NULL;
 	map->bo = bo;
-	if (num_pages > bo->resource->num_pages)
+	if (num_pages > PFN_UP(bo->resource->size))
 		return -EINVAL;
-	if ((start_page + num_pages) > bo->resource->num_pages)
+	if ((start_page + num_pages) > PFN_UP(bo->resource->size))
 		return -EINVAL;
 
 	ret = ttm_mem_io_reserve(bo->bdev, bo->resource);
@@ -401,6 +404,8 @@ int ttm_bo_vmap(struct ttm_buffer_object *bo, struct iosys_map *map)
 {
 	struct ttm_resource *mem = bo->resource;
 	int ret;
+
+	dma_resv_assert_held(bo->base.resv);
 
 	ret = ttm_mem_io_reserve(bo->bdev, mem);
 	if (ret)
@@ -459,6 +464,8 @@ EXPORT_SYMBOL(ttm_bo_vmap);
 void ttm_bo_vunmap(struct ttm_buffer_object *bo, struct iosys_map *map)
 {
 	struct ttm_resource *mem = bo->resource;
+
+	dma_resv_assert_held(bo->base.resv);
 
 	if (iosys_map_is_null(map))
 		return;

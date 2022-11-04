@@ -196,7 +196,7 @@ SYM_CODE_END(__kvm_hyp_vector)
 	sub	sp, sp, #(8 * 4)
 	stp	x2, x3, [sp, #(8 * 0)]
 	stp	x0, x1, [sp, #(8 * 2)]
-	alternative_cb spectre_bhb_patch_wa3
+	alternative_cb ARM64_ALWAYS_SYSTEM, spectre_bhb_patch_wa3
 	/* Patched to mov WA3 when supported */
 	mov	w0, #ARM_SMCCC_ARCH_WORKAROUND_1
 	alternative_cb_end
@@ -216,7 +216,7 @@ SYM_CODE_END(__kvm_hyp_vector)
 	mitigate_spectre_bhb_clear_insn
 	.endif
 	.if \indirect != 0
-	alternative_cb  kvm_patch_vector_branch
+	alternative_cb ARM64_ALWAYS_SYSTEM, kvm_patch_vector_branch
 	/*
 	 * For ARM64_SPECTRE_V3A configurations, these NOPs get replaced with:
 	 *

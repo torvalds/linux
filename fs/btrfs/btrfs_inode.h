@@ -65,6 +65,8 @@ enum {
 	 * on the same file.
 	 */
 	BTRFS_INODE_VERITY_IN_PROGRESS,
+	/* Set when this inode is a free space inode. */
+	BTRFS_INODE_FREE_SPACE_INODE,
 };
 
 /* in memory btrfs inode */
@@ -94,7 +96,8 @@ struct btrfs_inode {
 	/* special utility tree used to record which mirrors have already been
 	 * tried when checksums fail for a given block
 	 */
-	struct extent_io_tree io_failure_tree;
+	struct rb_root io_failure_tree;
+	spinlock_t io_failure_lock;
 
 	/*
 	 * Keep track of where the inode has extent items mapped in order to
@@ -250,11 +253,6 @@ struct btrfs_inode {
 	struct inode vfs_inode;
 };
 
-static inline u32 btrfs_inode_sectorsize(const struct btrfs_inode *inode)
-{
-	return inode->root->fs_info->sectorsize;
-}
-
 static inline struct btrfs_inode *BTRFS_I(const struct inode *inode)
 {
 	return container_of(inode, struct btrfs_inode, vfs_inode);
@@ -270,13 +268,6 @@ static inline unsigned long btrfs_inode_hash(u64 objectid,
 #endif
 
 	return (unsigned long)h;
-}
-
-static inline void btrfs_insert_inode_hash(struct inode *inode)
-{
-	unsigned long h = btrfs_inode_hash(inode->i_ino, BTRFS_I(inode)->root);
-
-	__insert_inode_hash(inode, h);
 }
 
 #if BITS_PER_LONG == 32
@@ -312,13 +303,7 @@ static inline void btrfs_i_size_write(struct btrfs_inode *inode, u64 size)
 
 static inline bool btrfs_is_free_space_inode(struct btrfs_inode *inode)
 {
-	struct btrfs_root *root = inode->root;
-
-	if (root == root->fs_info->tree_root &&
-	    btrfs_ino(inode) != BTRFS_BTREE_INODE_OBJECTID)
-		return true;
-
-	return false;
+	return test_bit(BTRFS_INODE_FREE_SPACE_INODE, &inode->runtime_flags);
 }
 
 static inline bool is_data_inode(struct inode *inode)

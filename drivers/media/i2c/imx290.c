@@ -1119,7 +1119,7 @@ free_err:
 	return ret;
 }
 
-static int imx290_remove(struct i2c_client *client)
+static void imx290_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct imx290 *imx290 = to_imx290(sd);
@@ -1134,8 +1134,6 @@ static int imx290_remove(struct i2c_client *client)
 	if (!pm_runtime_status_suspended(imx290->dev))
 		imx290_power_off(imx290->dev);
 	pm_runtime_set_suspended(imx290->dev);
-
-	return 0;
 }
 
 static const struct of_device_id imx290_of_match[] = {

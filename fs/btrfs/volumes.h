@@ -181,6 +181,31 @@ struct btrfs_device {
 };
 
 /*
+ * Block group or device which contains an active swapfile. Used for preventing
+ * unsafe operations while a swapfile is active.
+ *
+ * These are sorted on (ptr, inode) (note that a block group or device can
+ * contain more than one swapfile). We compare the pointer values because we
+ * don't actually care what the object is, we just need a quick check whether
+ * the object exists in the rbtree.
+ */
+struct btrfs_swapfile_pin {
+	struct rb_node node;
+	void *ptr;
+	struct inode *inode;
+	/*
+	 * If true, ptr points to a struct btrfs_block_group. Otherwise, ptr
+	 * points to a struct btrfs_device.
+	 */
+	bool is_block_group;
+	/*
+	 * Only used when 'is_block_group' is true and it is the number of
+	 * extents used by a swapfile for this block group ('ptr' field).
+	 */
+	int bg_extent_count;
+};
+
+/*
  * If we read those variants at the context of their own lock, we needn't
  * use the following helpers, reading them directly is safe.
  */
@@ -361,6 +386,8 @@ struct btrfs_fs_devices {
  */
 #define BTRFS_MAX_BIO_SECTORS				(256)
 
+typedef void (*btrfs_bio_end_io_t)(struct btrfs_bio *bbio);
+
 /*
  * Additional info to pass along bio.
  *
@@ -378,6 +405,10 @@ struct btrfs_bio {
 	u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
 	struct bvec_iter iter;
 
+	/* End I/O information supplied to btrfs_bio_alloc */
+	btrfs_bio_end_io_t end_io;
+	void *private;
+
 	/* For read end I/O handling */
 	struct work_struct end_io_work;
 
@@ -391,6 +422,20 @@ struct btrfs_bio {
 static inline struct btrfs_bio *btrfs_bio(struct bio *bio)
 {
 	return container_of(bio, struct btrfs_bio, bio);
+}
+
+int __init btrfs_bioset_init(void);
+void __cold btrfs_bioset_exit(void);
+
+struct bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
+			    btrfs_bio_end_io_t end_io, void *private);
+struct bio *btrfs_bio_clone_partial(struct bio *orig, u64 offset, u64 size,
+				    btrfs_bio_end_io_t end_io, void *private);
+
+static inline void btrfs_bio_end_io(struct btrfs_bio *bbio, blk_status_t status)
+{
+	bbio->bio.bi_status = status;
+	bbio->end_io(bbio);
 }
 
 static inline void btrfs_bio_free_csum(struct btrfs_bio *bbio)
@@ -451,12 +496,9 @@ struct btrfs_discard_stripe {
  */
 struct btrfs_io_context {
 	refcount_t refs;
-	atomic_t stripes_pending;
 	struct btrfs_fs_info *fs_info;
 	u64 map_type; /* get from map_lookup->type */
-	bio_end_io_t *end_io;
 	struct bio *orig_bio;
-	void *private;
 	atomic_t error;
 	int max_errors;
 	int num_stripes;
@@ -713,5 +755,7 @@ int btrfs_bg_type_to_factor(u64 flags);
 const char *btrfs_bg_type_to_raid_name(u64 flags);
 int btrfs_verify_dev_extents(struct btrfs_fs_info *fs_info);
 bool btrfs_repair_one_zone(struct btrfs_fs_info *fs_info, u64 logical);
+
+bool btrfs_pinned_by_swapfile(struct btrfs_fs_info *fs_info, void *ptr);
 
 #endif

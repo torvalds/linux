@@ -525,7 +525,7 @@ static void tegra_uart_tx_dma_complete(void *args)
 	count = tup->tx_bytes_requested - state.residue;
 	async_tx_ack(tup->tx_dma_desc);
 	spin_lock_irqsave(&tup->uport.lock, flags);
-	xmit->tail = (xmit->tail + count) & (UART_XMIT_SIZE - 1);
+	uart_xmit_advance(&tup->uport, count);
 	tup->tx_in_progress = 0;
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&tup->uport);
@@ -613,7 +613,6 @@ static unsigned int tegra_uart_tx_empty(struct uart_port *u)
 static void tegra_uart_stop_tx(struct uart_port *u)
 {
 	struct tegra_uart_port *tup = to_tegra_uport(u);
-	struct circ_buf *xmit = &tup->uport.state->xmit;
 	struct dma_tx_state state;
 	unsigned int count;
 
@@ -624,7 +623,7 @@ static void tegra_uart_stop_tx(struct uart_port *u)
 	dmaengine_tx_status(tup->tx_dma_chan, tup->tx_cookie, &state);
 	count = tup->tx_bytes_requested - state.residue;
 	async_tx_ack(tup->tx_dma_desc);
-	xmit->tail = (xmit->tail + count) & (UART_XMIT_SIZE - 1);
+	uart_xmit_advance(&tup->uport, count);
 	tup->tx_in_progress = 0;
 }
 
@@ -1271,14 +1270,14 @@ static void tegra_uart_enable_ms(struct uart_port *u)
 }
 
 static void tegra_uart_set_termios(struct uart_port *u,
-		struct ktermios *termios, struct ktermios *oldtermios)
+				   struct ktermios *termios,
+				   const struct ktermios *oldtermios)
 {
 	struct tegra_uart_port *tup = to_tegra_uport(u);
 	unsigned int baud;
 	unsigned long flags;
 	unsigned int lcr;
 	unsigned char char_bits;
-	int symb_bit = 1;
 	struct clk *parent_clk = clk_get_parent(tup->uart_clk);
 	unsigned long parent_clk_rate = clk_get_rate(parent_clk);
 	int max_divider = (tup->cdata->support_clk_src_div) ? 0x7FFF : 0xFFFF;
@@ -1305,7 +1304,6 @@ static void tegra_uart_set_termios(struct uart_port *u,
 	termios->c_cflag &= ~CMSPAR;
 
 	if ((termios->c_cflag & PARENB) == PARENB) {
-		symb_bit++;
 		if (termios->c_cflag & PARODD) {
 			lcr |= UART_LCR_PARITY;
 			lcr &= ~UART_LCR_EPAR;
@@ -1318,22 +1316,18 @@ static void tegra_uart_set_termios(struct uart_port *u,
 	}
 
 	char_bits = tty_get_char_size(termios->c_cflag);
-	symb_bit += char_bits;
 	lcr &= ~UART_LCR_WLEN8;
 	lcr |= UART_LCR_WLEN(char_bits);
 
 	/* Stop bits */
-	if (termios->c_cflag & CSTOPB) {
+	if (termios->c_cflag & CSTOPB)
 		lcr |= UART_LCR_STOP;
-		symb_bit += 2;
-	} else {
+	else
 		lcr &= ~UART_LCR_STOP;
-		symb_bit++;
-	}
 
 	tegra_uart_write(tup, lcr, UART_LCR);
 	tup->lcr_shadow = lcr;
-	tup->symb_bit = symb_bit;
+	tup->symb_bit = tty_get_frame_size(termios->c_cflag);
 
 	/* Baud rate. */
 	baud = uart_get_baud_rate(u, termios, oldtermios,

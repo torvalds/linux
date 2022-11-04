@@ -228,14 +228,13 @@ exit_sysfs_remove:
 	return err;
 }
 
-static int pcf8591_remove(struct i2c_client *client)
+static void pcf8591_remove(struct i2c_client *client)
 {
 	struct pcf8591_data *data = i2c_get_clientdata(client);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group_opt);
 	sysfs_remove_group(&client->dev.kobj, &pcf8591_attr_group);
-	return 0;
 }
 
 /* Called when we have found a new PCF8591. */

@@ -1,0 +1,61 @@
+What:		/sys/devices/hisi_ptt<sicl_id>_<core_id>/tune
+Date:		October 2022
+KernelVersion:	6.1
+Contact:	Yicong Yang <yangyicong@hisilicon.com>
+Description:	This directory contains files for tuning the PCIe link
+		parameters(events). Each file is named after the event
+		of the PCIe link.
+
+		See Documentation/trace/hisi-ptt.rst for more information.
+
+What:		/sys/devices/hisi_ptt<sicl_id>_<core_id>/tune/qos_tx_cpl
+Date:		October 2022
+KernelVersion:	6.1
+Contact:	Yicong Yang <yangyicong@hisilicon.com>
+Description:	(RW) Controls the weight of Tx completion TLPs, which influence
+		the proportion of outbound completion TLPs on the PCIe link.
+		The available tune data is [0, 1, 2]. Writing a negative value
+		will return an error, and out of range values will be converted
+		to 2. The value indicates a probable level of the event.
+
+What:		/sys/devices/hisi_ptt<sicl_id>_<core_id>/tune/qos_tx_np
+Date:		October 2022
+KernelVersion:	6.1
+Contact:	Yicong Yang <yangyicong@hisilicon.com>
+Description:	(RW) Controls the weight of Tx non-posted TLPs, which influence
+		the proportion of outbound non-posted TLPs on the PCIe link.
+		The available tune data is [0, 1, 2]. Writing a negative value
+		will return an error, and out of range values will be converted
+		to 2. The value indicates a probable level of the event.
+
+What:		/sys/devices/hisi_ptt<sicl_id>_<core_id>/tune/qos_tx_p
+Date:		October 2022
+KernelVersion:	6.1
+Contact:	Yicong Yang <yangyicong@hisilicon.com>
+Description:	(RW) Controls the weight of Tx posted TLPs, which influence the
+		proportion of outbound posted TLPs on the PCIe link.
+		The available tune data is [0, 1, 2]. Writing a negative value
+		will return an error, and out of range values will be converted
+		to 2. The value indicates a probable level of the event.
+
+What:		/sys/devices/hisi_ptt<sicl_id>_<core_id>/tune/rx_alloc_buf_level
+Date:		October 2022
+KernelVersion:	6.1
+Contact:	Yicong Yang <yangyicong@hisilicon.com>
+Description:	(RW) Control the allocated buffer watermark for inbound packets.
+		The packets will be stored in the buffer first and then transmitted
+		either when the watermark reached or when timed out.
+		The available tune data is [0, 1, 2]. Writing a negative value
+		will return an error, and out of range values will be converted
+		to 2. The value indicates a probable level of the event.
+
+What:		/sys/devices/hisi_ptt<sicl_id>_<core_id>/tune/tx_alloc_buf_level
+Date:		October 2022
+KernelVersion:	6.1
+Contact:	Yicong Yang <yangyicong@hisilicon.com>
+Description:	(RW) Control the allocated buffer watermark of outbound packets.
+		The packets will be stored in the buffer first and then transmitted
+		either when the watermark reached or when timed out.
+		The available tune data is [0, 1, 2]. Writing a negative value
+		will return an error, and out of range values will be converted
+		to 2. The value indicates a probable level of the event.

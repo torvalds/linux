@@ -8,7 +8,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
 #include <linux/scmi_protocol.h>
 
@@ -51,27 +50,6 @@ static int scmi_pd_power_on(struct generic_pm_domain *domain)
 static int scmi_pd_power_off(struct generic_pm_domain *domain)
 {
 	return scmi_pd_power(domain, false);
-}
-
-static int scmi_pd_attach_dev(struct generic_pm_domain *pd, struct device *dev)
-{
-	int ret;
-
-	ret = pm_clk_create(dev);
-	if (ret)
-		return ret;
-
-	ret = of_pm_clk_add_clks(dev);
-	if (ret >= 0)
-		return 0;
-
-	pm_clk_destroy(dev);
-	return ret;
-}
-
-static void scmi_pd_detach_dev(struct generic_pm_domain *pd, struct device *dev)
-{
-	pm_clk_destroy(dev);
 }
 
 static int scmi_pm_domain_probe(struct scmi_device *sdev)
@@ -124,10 +102,6 @@ static int scmi_pm_domain_probe(struct scmi_device *sdev)
 		scmi_pd->genpd.name = scmi_pd->name;
 		scmi_pd->genpd.power_off = scmi_pd_power_off;
 		scmi_pd->genpd.power_on = scmi_pd_power_on;
-		scmi_pd->genpd.attach_dev = scmi_pd_attach_dev;
-		scmi_pd->genpd.detach_dev = scmi_pd_detach_dev;
-		scmi_pd->genpd.flags = GENPD_FLAG_PM_CLK |
-				       GENPD_FLAG_ACTIVE_WAKEUP;
 
 		pm_genpd_init(&scmi_pd->genpd, NULL,
 			      state == SCMI_POWER_STATE_GENERIC_OFF);
@@ -138,7 +112,26 @@ static int scmi_pm_domain_probe(struct scmi_device *sdev)
 	scmi_pd_data->domains = domains;
 	scmi_pd_data->num_domains = num_domains;
 
+	dev_set_drvdata(dev, scmi_pd_data);
+
 	return of_genpd_add_provider_onecell(np, scmi_pd_data);
+}
+
+static void scmi_pm_domain_remove(struct scmi_device *sdev)
+{
+	int i;
+	struct genpd_onecell_data *scmi_pd_data;
+	struct device *dev = &sdev->dev;
+	struct device_node *np = dev->of_node;
+
+	of_genpd_del_provider(np);
+
+	scmi_pd_data = dev_get_drvdata(dev);
+	for (i = 0; i < scmi_pd_data->num_domains; i++) {
+		if (!scmi_pd_data->domains[i])
+			continue;
+		pm_genpd_remove(scmi_pd_data->domains[i]);
+	}
 }
 
 static const struct scmi_device_id scmi_id_table[] = {
@@ -150,6 +143,7 @@ MODULE_DEVICE_TABLE(scmi, scmi_id_table);
 static struct scmi_driver scmi_power_domain_driver = {
 	.name = "scmi-power-domain",
 	.probe = scmi_pm_domain_probe,
+	.remove = scmi_pm_domain_remove,
 	.id_table = scmi_id_table,
 };
 module_scmi_driver(scmi_power_domain_driver);

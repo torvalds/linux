@@ -36,9 +36,9 @@
 #include <asm/time.h>
 #include <asm/unistd.h>
 
-static inline long do_mmap2(unsigned long addr, size_t len,
-			unsigned long prot, unsigned long flags,
-			unsigned long fd, unsigned long off, int shift)
+static long do_mmap2(unsigned long addr, size_t len,
+		     unsigned long prot, unsigned long flags,
+		     unsigned long fd, unsigned long off, int shift)
 {
 	if (!arch_validate_prot(prot, addr))
 		return -EINVAL;
@@ -56,6 +56,16 @@ SYSCALL_DEFINE6(mmap2, unsigned long, addr, size_t, len,
 	return do_mmap2(addr, len, prot, flags, fd, pgoff, PAGE_SHIFT-12);
 }
 
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE6(mmap2,
+		       unsigned long, addr, size_t, len,
+		       unsigned long, prot, unsigned long, flags,
+		       unsigned long, fd, unsigned long, off_4k)
+{
+	return do_mmap2(addr, len, prot, flags, fd, off_4k, PAGE_SHIFT-12);
+}
+#endif
+
 SYSCALL_DEFINE6(mmap, unsigned long, addr, size_t, len,
 		unsigned long, prot, unsigned long, flags,
 		unsigned long, fd, off_t, offset)
@@ -63,43 +73,39 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, size_t, len,
 	return do_mmap2(addr, len, prot, flags, fd, offset, PAGE_SHIFT);
 }
 
-#ifdef CONFIG_PPC32
-/*
- * Due to some executables calling the wrong select we sometimes
- * get wrong args.  This determines how the args are being passed
- * (a single ptr to them all args passed) then calls
- * sys_select() with the appropriate args. -- Cort
- */
-int
-ppc_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, struct __kernel_old_timeval __user *tvp)
-{
-	if ((unsigned long)n >= 4096)
-		return sys_old_select((void __user *)n);
-
-	return sys_select(n, inp, outp, exp, tvp);
-}
-#endif
-
 #ifdef CONFIG_PPC64
-long ppc64_personality(unsigned long personality)
+static long do_ppc64_personality(unsigned long personality)
 {
 	long ret;
 
 	if (personality(current->personality) == PER_LINUX32
 	    && personality(personality) == PER_LINUX)
 		personality = (personality & ~PER_MASK) | PER_LINUX32;
-	ret = sys_personality(personality);
+	ret = ksys_personality(personality);
 	if (personality(ret) == PER_LINUX32)
 		ret = (ret & ~PER_MASK) | PER_LINUX;
 	return ret;
 }
-#endif
 
-long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
-		      u32 len_high, u32 len_low)
+SYSCALL_DEFINE1(ppc64_personality, unsigned long, personality)
 {
-	return ksys_fadvise64_64(fd, (u64)offset_high << 32 | offset_low,
-				 (u64)len_high << 32 | len_low, advice);
+	return do_ppc64_personality(personality);
+}
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE1(ppc64_personality, unsigned long, personality)
+{
+	return do_ppc64_personality(personality);
+}
+#endif /* CONFIG_COMPAT */
+#endif /* CONFIG_PPC64 */
+
+SYSCALL_DEFINE6(ppc_fadvise64_64,
+		int, fd, int, advice, u32, offset_high, u32, offset_low,
+		u32, len_high, u32, len_low)
+{
+	return ksys_fadvise64_64(fd, merge_64(offset_high, offset_low),
+				 merge_64(len_high, len_low), advice);
 }
 
 SYSCALL_DEFINE0(switch_endian)

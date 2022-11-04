@@ -19,7 +19,7 @@
 #include <linux/mfd/lochnagar1_regs.h>
 #include <linux/mfd/lochnagar2_regs.h>
 
-#include <dt-bindings/clk/lochnagar.h>
+#include <dt-bindings/clock/lochnagar.h>
 
 #define LOCHNAGAR_NUM_CLOCKS	(LOCHNAGAR_SPDIF_CLKOUT + 1)
 

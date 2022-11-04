@@ -52,6 +52,7 @@ int __get_compat_msghdr(struct msghdr *kmsg,
 		kmsg->msg_namelen = sizeof(struct sockaddr_storage);
 
 	kmsg->msg_control_is_user = true;
+	kmsg->msg_get_inq = 0;
 	kmsg->msg_control_user = compat_ptr(msg->msg_control);
 	kmsg->msg_controllen = msg->msg_controllen;
 

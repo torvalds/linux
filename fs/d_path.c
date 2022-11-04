@@ -34,7 +34,7 @@ static bool prepend_char(struct prepend_buffer *p, unsigned char c)
 }
 
 /*
- * The source of the prepend data can be an optimistoc load
+ * The source of the prepend data can be an optimistic load
  * of a dentry name and length. And because we don't hold any
  * locks, the length and the pointer to the name may not be
  * in sync if a concurrent rename happens, and the kernel
@@ -297,8 +297,7 @@ EXPORT_SYMBOL(d_path);
 /*
  * Helper function for dentry_operations.d_dname() members
  */
-char *dynamic_dname(struct dentry *dentry, char *buffer, int buflen,
-			const char *fmt, ...)
+char *dynamic_dname(char *buffer, int buflen, const char *fmt, ...)
 {
 	va_list args;
 	char temp[64];

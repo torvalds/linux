@@ -35,6 +35,7 @@ void dcn31_zero_pipe_dcc_fraction(display_e2e_pipe_params_st *pipes,
 				  int pipe_cnt);
 
 void dcn31_update_soc_for_wm_a(struct dc *dc, struct dc_state *context);
+void dcn315_update_soc_for_wm_a(struct dc *dc, struct dc_state *context);
 
 void dcn31_calculate_wm_and_dlg_fp(
 		struct dc *dc, struct dc_state *context,

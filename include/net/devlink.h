@@ -118,7 +118,6 @@ struct devlink_rate {
 
 struct devlink_port {
 	struct list_head list;
-	struct list_head param_list;
 	struct list_head region_list;
 	struct devlink *devlink;
 	unsigned int index;
@@ -130,7 +129,9 @@ struct devlink_port {
 	void *type_dev;
 	struct devlink_port_attrs attrs;
 	u8 attrs_set:1,
-	   switch_port:1;
+	   switch_port:1,
+	   registered:1,
+	   initialized:1;
 	struct delayed_work type_warn_dw;
 	struct list_head reporter_list;
 	struct mutex reporters_lock; /* Protects reporter_list */
@@ -624,8 +625,7 @@ struct devlink_flash_update_params {
 	u32 overwrite_mask;
 };
 
-#define DEVLINK_SUPPORT_FLASH_UPDATE_COMPONENT		BIT(0)
-#define DEVLINK_SUPPORT_FLASH_UPDATE_OVERWRITE_MASK	BIT(1)
+#define DEVLINK_SUPPORT_FLASH_UPDATE_OVERWRITE_MASK	BIT(0)
 
 struct devlink_region;
 struct devlink_info_req;
@@ -1564,6 +1564,9 @@ void devlink_set_features(struct devlink *devlink, u64 features);
 void devlink_register(struct devlink *devlink);
 void devlink_unregister(struct devlink *devlink);
 void devlink_free(struct devlink *devlink);
+void devlink_port_init(struct devlink *devlink,
+		       struct devlink_port *devlink_port);
+void devlink_port_fini(struct devlink_port *devlink_port);
 int devl_port_register(struct devlink *devlink,
 		       struct devlink_port *devlink_port,
 		       unsigned int port_index);
@@ -1714,15 +1717,31 @@ int devlink_info_driver_name_put(struct devlink_info_req *req,
 				 const char *name);
 int devlink_info_board_serial_number_put(struct devlink_info_req *req,
 					 const char *bsn);
+
+enum devlink_info_version_type {
+	DEVLINK_INFO_VERSION_TYPE_NONE,
+	DEVLINK_INFO_VERSION_TYPE_COMPONENT, /* May be used as flash update
+					      * component by name.
+					      */
+};
+
 int devlink_info_version_fixed_put(struct devlink_info_req *req,
 				   const char *version_name,
 				   const char *version_value);
 int devlink_info_version_stored_put(struct devlink_info_req *req,
 				    const char *version_name,
 				    const char *version_value);
+int devlink_info_version_stored_put_ext(struct devlink_info_req *req,
+					const char *version_name,
+					const char *version_value,
+					enum devlink_info_version_type version_type);
 int devlink_info_version_running_put(struct devlink_info_req *req,
 				     const char *version_name,
 				     const char *version_value);
+int devlink_info_version_running_put_ext(struct devlink_info_req *req,
+					 const char *version_name,
+					 const char *version_value,
+					 enum devlink_info_version_type version_type);
 
 int devlink_fmsg_obj_nest_start(struct devlink_fmsg *fmsg);
 int devlink_fmsg_obj_nest_end(struct devlink_fmsg *fmsg);

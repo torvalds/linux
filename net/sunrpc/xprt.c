@@ -1179,11 +1179,8 @@ xprt_request_dequeue_receive_locked(struct rpc_task *task)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
 
-	if (test_and_clear_bit(RPC_TASK_NEED_RECV, &task->tk_runstate)) {
+	if (test_and_clear_bit(RPC_TASK_NEED_RECV, &task->tk_runstate))
 		xprt_request_rb_remove(req->rq_xprt, req);
-		xdr_free_bvec(&req->rq_rcv_buf);
-		req->rq_private_buf.bvec = NULL;
-	}
 }
 
 /**
@@ -1221,6 +1218,8 @@ void xprt_complete_rqst(struct rpc_task *task, int copied)
 
 	xprt->stat.recvs++;
 
+	xdr_free_bvec(&req->rq_rcv_buf);
+	req->rq_private_buf.bvec = NULL;
 	req->rq_private_buf.len = copied;
 	/* Ensure all writes are done before we update */
 	/* req->rq_reply_bytes_recvd */
@@ -1453,6 +1452,7 @@ xprt_request_dequeue_xprt(struct rpc_task *task)
 		xprt_request_dequeue_transmit_locked(task);
 		xprt_request_dequeue_receive_locked(task);
 		spin_unlock(&xprt->queue_lock);
+		xdr_free_bvec(&req->rq_rcv_buf);
 	}
 }
 
@@ -1788,7 +1788,7 @@ static int xprt_alloc_id(struct rpc_xprt *xprt)
 {
 	int id;
 
-	id = ida_simple_get(&rpc_xprt_ids, 0, 0, GFP_KERNEL);
+	id = ida_alloc(&rpc_xprt_ids, GFP_KERNEL);
 	if (id < 0)
 		return id;
 
@@ -1798,7 +1798,7 @@ static int xprt_alloc_id(struct rpc_xprt *xprt)
 
 static void xprt_free_id(struct rpc_xprt *xprt)
 {
-	ida_simple_remove(&rpc_xprt_ids, xprt->id);
+	ida_free(&rpc_xprt_ids, xprt->id);
 }
 
 struct rpc_xprt *xprt_alloc(struct net *net, size_t size,
@@ -1822,10 +1822,7 @@ struct rpc_xprt *xprt_alloc(struct net *net, size_t size,
 			goto out_free;
 		list_add(&req->rq_list, &xprt->free);
 	}
-	if (max_alloc > num_prealloc)
-		xprt->max_reqs = max_alloc;
-	else
-		xprt->max_reqs = num_prealloc;
+	xprt->max_reqs = max_t(unsigned int, max_alloc, num_prealloc);
 	xprt->min_reqs = num_prealloc;
 	xprt->num_reqs = num_prealloc;
 
@@ -1868,7 +1865,7 @@ xprt_alloc_xid(struct rpc_xprt *xprt)
 static void
 xprt_init_xid(struct rpc_xprt *xprt)
 {
-	xprt->xid = prandom_u32();
+	xprt->xid = get_random_u32();
 }
 
 static void

@@ -13,6 +13,7 @@ maintainers:
 properties:
   compatible:
     enum:
+      - qcom,msm8226-cci
       - qcom,msm8916-cci
       - qcom,msm8974-cci
       - qcom,msm8996-cci
@@ -27,11 +28,11 @@ properties:
     const: 0
 
   clocks:
-    minItems: 4
+    minItems: 3
     maxItems: 6
 
   clock-names:
-    minItems: 4
+    minItems: 3
     maxItems: 6
 
   interrupts:
@@ -78,10 +79,28 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,msm8226-cci
               - qcom,msm8916-cci
     then:
       properties:
         i2c-bus@1: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8226-cci
+              - qcom,msm8974-cci
+    then:
+      properties:
+        clocks:
+          maxItems: 3
+        clock-names:
+          items:
+            - const: camss_top_ahb
+            - const: cci_ahb
+            - const: cci
 
   - if:
       properties:
@@ -126,6 +145,7 @@ allOf:
           contains:
             enum:
               - qcom,sm8250-cci
+              - qcom,sm8450-cci
     then:
       properties:
         clocks:

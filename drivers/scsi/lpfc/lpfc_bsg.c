@@ -1977,8 +1977,6 @@ lpfc_sli4_bsg_set_loopback_mode(struct lpfc_hba *phba, int mode,
 static int
 lpfc_sli4_diag_fcport_reg_setup(struct lpfc_hba *phba)
 {
-	int rc;
-
 	if (phba->pport->fc_flag & FC_VFI_REGISTERED) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_LIBDFC,
 				"3136 Port still had vfi registered: "
@@ -1988,8 +1986,7 @@ lpfc_sli4_diag_fcport_reg_setup(struct lpfc_hba *phba)
 				phba->vpi_ids[phba->pport->vpi]);
 		return -EINVAL;
 	}
-	rc = lpfc_issue_reg_vfi(phba->pport);
-	return rc;
+	return lpfc_issue_reg_vfi(phba->pport);
 }
 
 /**

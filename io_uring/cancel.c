@@ -218,7 +218,7 @@ static int __io_sync_cancel(struct io_uring_task *tctx,
 	    (cd->flags & IORING_ASYNC_CANCEL_FD_FIXED)) {
 		unsigned long file_ptr;
 
-		if (unlikely(fd > ctx->nr_user_files))
+		if (unlikely(fd >= ctx->nr_user_files))
 			return -EBADF;
 		fd = array_index_nospec(fd, ctx->nr_user_files);
 		file_ptr = io_fixed_file_slot(&ctx->file_table, fd)->file_ptr;
@@ -292,7 +292,7 @@ int io_sync_cancel(struct io_ring_ctx *ctx, void __user *arg)
 			break;
 
 		mutex_unlock(&ctx->uring_lock);
-		ret = io_run_task_work_sig();
+		ret = io_run_task_work_sig(ctx);
 		if (ret < 0) {
 			mutex_lock(&ctx->uring_lock);
 			break;

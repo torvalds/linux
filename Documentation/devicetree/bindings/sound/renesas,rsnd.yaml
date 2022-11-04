@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/renesas,rsnd.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Renesas R-Car Sound Driver Device Tree Bindings
+title: Renesas R-Car Sound Driver
 
 maintainers:
   - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
@@ -129,6 +129,8 @@ properties:
     patternProperties:
       "^dvc-[0-1]$":
         type: object
+        additionalProperties: false
+
         properties:
           dmas:
             maxItems: 1
@@ -145,7 +147,7 @@ properties:
     patternProperties:
       "^mix-[0-1]$":
         type: object
-        # no properties
+        additionalProperties: false
     additionalProperties: false
 
   rcar_sound,ctu:
@@ -154,7 +156,7 @@ properties:
     patternProperties:
       "^ctu-[0-7]$":
         type: object
-        # no properties
+        additionalProperties: false
     additionalProperties: false
 
   rcar_sound,src:
@@ -163,6 +165,8 @@ properties:
     patternProperties:
       "^src-[0-9]$":
         type: object
+        additionalProperties: false
+
         properties:
           interrupts:
             maxItems: 1
@@ -186,6 +190,8 @@ properties:
     patternProperties:
       "^ssiu-[0-9]+$":
         type: object
+        additionalProperties: false
+
         properties:
           dmas:
             maxItems: 2
@@ -206,6 +212,8 @@ properties:
     patternProperties:
       "^ssi-[0-9]$":
         type: object
+        additionalProperties: false
+
         properties:
           interrupts:
             maxItems: 1
@@ -243,6 +251,8 @@ properties:
     patternProperties:
       "^dai([0-9]+)?$":
         type: object
+        additionalProperties: false
+
         properties:
           playback:
             $ref: /schemas/types.yaml#/definitions/phandle-array

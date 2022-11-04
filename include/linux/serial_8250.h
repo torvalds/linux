@@ -32,7 +32,7 @@ struct plat_serial8250_port {
 	void		(*serial_out)(struct uart_port *, int, int);
 	void		(*set_termios)(struct uart_port *,
 			               struct ktermios *new,
-			               struct ktermios *old);
+			               const struct ktermios *old);
 	void		(*set_ldisc)(struct uart_port *,
 				     struct ktermios *);
 	unsigned int	(*get_mctrl)(struct uart_port *);
@@ -74,6 +74,7 @@ struct uart_8250_port;
 struct uart_8250_ops {
 	int		(*setup_irq)(struct uart_8250_port *);
 	void		(*release_irq)(struct uart_8250_port *);
+	void		(*setup_timer)(struct uart_8250_port *);
 };
 
 struct uart_8250_em485 {
@@ -157,7 +158,7 @@ extern int early_serial8250_setup(struct earlycon_device *device,
 extern void serial8250_update_uartclk(struct uart_port *port,
 				      unsigned int uartclk);
 extern void serial8250_do_set_termios(struct uart_port *port,
-		struct ktermios *termios, struct ktermios *old);
+		struct ktermios *termios, const struct ktermios *old);
 extern void serial8250_do_set_ldisc(struct uart_port *port,
 				    struct ktermios *termios);
 extern unsigned int serial8250_do_get_mctrl(struct uart_port *port);

@@ -676,7 +676,7 @@ static int __init acerhdf_register_platform(void)
 	if (err)
 		return err;
 
-	acerhdf_dev = platform_device_alloc("acerhdf", -1);
+	acerhdf_dev = platform_device_alloc("acerhdf", PLATFORM_DEVID_NONE);
 	if (!acerhdf_dev) {
 		err = -ENOMEM;
 		goto err_device_alloc;

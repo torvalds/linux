@@ -14,7 +14,7 @@ maintainers:
   - Florian Fainelli <f.fainelli@gmail.com>
 
 allOf:
-  - $ref: sata-common.yaml#
+  - $ref: ahci-common.yaml#
 
 properties:
   compatible:
@@ -30,7 +30,6 @@ properties:
           - const: brcm,bcm-nsp-ahci
 
   reg:
-    minItems: 2
     maxItems: 2
 
   reg-names:
@@ -40,8 +39,6 @@ properties:
 
   interrupts:
     maxItems: 1
-
-  dma-coherent: true
 
 if:
   properties:

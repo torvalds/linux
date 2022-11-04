@@ -19,6 +19,12 @@
 #include "cn10k.h"
 
 #define CQE_ADDR(CQ, idx) ((CQ)->cqe_base + ((CQ)->cqe_size * (idx)))
+#define PTP_PORT	        0x13F
+/* PTPv2 header Original Timestamp starts at byte offset 34 and
+ * contains 6 byte seconds field and 4 byte nano seconds field.
+ */
+#define PTP_SYNC_SEC_OFFSET	34
+
 static bool otx2_xdp_rcv_pkt_handler(struct otx2_nic *pfvf,
 				     struct bpf_prog *prog,
 				     struct nix_cqe_rx_s *cqe,
@@ -686,7 +692,8 @@ static void otx2_sqe_add_ext(struct otx2_nic *pfvf, struct otx2_snd_queue *sq,
 }
 
 static void otx2_sqe_add_mem(struct otx2_snd_queue *sq, int *offset,
-			     int alg, u64 iova)
+			     int alg, u64 iova, int ptp_offset,
+			     u64 base_ns, int udp_csum)
 {
 	struct nix_sqe_mem_s *mem;
 
@@ -695,6 +702,13 @@ static void otx2_sqe_add_mem(struct otx2_snd_queue *sq, int *offset,
 	mem->alg = alg;
 	mem->wmem = 1; /* wait for the memory operation */
 	mem->addr = iova;
+
+	if (ptp_offset) {
+		mem->start_offset = ptp_offset;
+		mem->udp_csum_crt = udp_csum;
+		mem->base_ns = base_ns;
+		mem->step_type = 1;
+	}
 
 	*offset += sizeof(*mem);
 }
@@ -952,16 +966,102 @@ static int otx2_get_sqe_count(struct otx2_nic *pfvf, struct sk_buff *skb)
 	return skb_shinfo(skb)->gso_segs;
 }
 
+static bool otx2_validate_network_transport(struct sk_buff *skb)
+{
+	if ((ip_hdr(skb)->protocol == IPPROTO_UDP) ||
+	    (ipv6_hdr(skb)->nexthdr == IPPROTO_UDP)) {
+		struct udphdr *udph = udp_hdr(skb);
+
+		if (udph->source == htons(PTP_PORT) &&
+		    udph->dest == htons(PTP_PORT))
+			return true;
+	}
+
+	return false;
+}
+
+static bool otx2_ptp_is_sync(struct sk_buff *skb, int *offset, int *udp_csum)
+{
+	struct ethhdr *eth = (struct ethhdr *)(skb->data);
+	u16 nix_offload_hlen = 0, inner_vhlen = 0;
+	u8 *data = skb->data, *msgtype;
+	__be16 proto = eth->h_proto;
+	int network_depth = 0;
+
+	/* NIX is programmed to offload outer  VLAN header
+	 * in case of single vlan protocol field holds Network header ETH_IP/V6
+	 * in case of stacked vlan protocol field holds Inner vlan (8100)
+	 */
+	if (skb->dev->features & NETIF_F_HW_VLAN_CTAG_TX &&
+	    skb->dev->features & NETIF_F_HW_VLAN_STAG_TX) {
+		if (skb->vlan_proto == htons(ETH_P_8021AD)) {
+			/* Get vlan protocol */
+			proto = __vlan_get_protocol(skb, eth->h_proto, NULL);
+			/* SKB APIs like skb_transport_offset does not include
+			 * offloaded vlan header length. Need to explicitly add
+			 * the length
+			 */
+			nix_offload_hlen = VLAN_HLEN;
+			inner_vhlen = VLAN_HLEN;
+		} else if (skb->vlan_proto == htons(ETH_P_8021Q)) {
+			nix_offload_hlen = VLAN_HLEN;
+		}
+	} else if (eth_type_vlan(eth->h_proto)) {
+		proto = __vlan_get_protocol(skb, eth->h_proto, &network_depth);
+	}
+
+	switch (ntohs(proto)) {
+	case ETH_P_1588:
+		if (network_depth)
+			*offset = network_depth;
+		else
+			*offset = ETH_HLEN + nix_offload_hlen +
+				  inner_vhlen;
+		break;
+	case ETH_P_IP:
+	case ETH_P_IPV6:
+		if (!otx2_validate_network_transport(skb))
+			return false;
+
+		*udp_csum = 1;
+		*offset = nix_offload_hlen + skb_transport_offset(skb) +
+			  sizeof(struct udphdr);
+	}
+
+	msgtype = data + *offset;
+
+	/* Check PTP messageId is SYNC or not */
+	return (*msgtype & 0xf) == 0;
+}
+
 static void otx2_set_txtstamp(struct otx2_nic *pfvf, struct sk_buff *skb,
 			      struct otx2_snd_queue *sq, int *offset)
 {
+	struct ptpv2_tstamp *origin_tstamp;
+	int ptp_offset = 0, udp_csum = 0;
+	struct timespec64 ts;
 	u64 iova;
 
-	if (!skb_shinfo(skb)->gso_size &&
-	    skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
-		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+	if (unlikely(!skb_shinfo(skb)->gso_size &&
+		     (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))) {
+		if (unlikely(pfvf->flags & OTX2_FLAG_PTP_ONESTEP_SYNC)) {
+			if (otx2_ptp_is_sync(skb, &ptp_offset, &udp_csum)) {
+				origin_tstamp = (struct ptpv2_tstamp *)
+						((u8 *)skb->data + ptp_offset +
+						 PTP_SYNC_SEC_OFFSET);
+				ts = ns_to_timespec64(pfvf->ptp->tstamp);
+				origin_tstamp->seconds_msb = htons((ts.tv_sec >> 32) & 0xffff);
+				origin_tstamp->seconds_lsb = htonl(ts.tv_sec & 0xffffffff);
+				origin_tstamp->nanoseconds = htonl(ts.tv_nsec);
+				/* Point to correction field in PTP packet */
+				ptp_offset += 8;
+			}
+		} else {
+			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+		}
 		iova = sq->timestamps->iova + (sq->head * sizeof(u64));
-		otx2_sqe_add_mem(sq, offset, NIX_SENDMEMALG_E_SETTSTMP, iova);
+		otx2_sqe_add_mem(sq, offset, NIX_SENDMEMALG_E_SETTSTMP, iova,
+				 ptp_offset, pfvf->ptp->base_ns, udp_csum);
 	} else {
 		skb_tx_timestamp(skb);
 	}

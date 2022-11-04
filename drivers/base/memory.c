@@ -869,12 +869,6 @@ void remove_memory_block_devices(unsigned long start, unsigned long size)
 	}
 }
 
-/* return true if the memory block is offlined, otherwise, return false */
-bool is_memblock_offlined(struct memory_block *mem)
-{
-	return mem->state == MEM_OFFLINE;
-}
-
 static struct attribute *memory_root_attrs[] = {
 #ifdef CONFIG_ARCH_MEMORY_PROBE
 	&dev_attr_probe.attr,

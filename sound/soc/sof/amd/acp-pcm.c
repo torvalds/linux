@@ -42,7 +42,8 @@ int acp_pcm_hw_params(struct snd_sof_dev *sdev, struct snd_pcm_substream *substr
 
 	/* write buffer size of stream in scratch memory */
 
-	buf_offset = offsetof(struct scratch_reg_conf, buf_size);
+	buf_offset = sdev->debug_box.offset +
+		     offsetof(struct scratch_reg_conf, buf_size);
 	index = stream->stream_tag - 1;
 	buf_offset = buf_offset + index * 4;
 

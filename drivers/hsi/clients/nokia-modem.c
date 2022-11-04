@@ -13,7 +13,6 @@
 #include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
-#include <linux/of_gpio.h>
 #include <linux/hsi/ssi_protocol.h>
 
 static unsigned int pm = 1;
@@ -75,8 +74,7 @@ static int nokia_modem_gpio_probe(struct device *dev)
 	struct nokia_modem_device *modem = dev_get_drvdata(dev);
 	int gpio_count, gpio_name_count, i, err;
 
-	gpio_count = of_gpio_count(np);
-
+	gpio_count = gpiod_count(dev, NULL);
 	if (gpio_count < 0) {
 		dev_err(dev, "missing gpios: %d\n", gpio_count);
 		return gpio_count;

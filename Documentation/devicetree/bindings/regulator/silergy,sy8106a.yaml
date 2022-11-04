@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/regulator/silergy,sy8106a.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Silergy SY8106A Voltage Regulator Device Tree Bindings
+title: Silergy SY8106A Voltage Regulator
 
 maintainers:
   - Ondrej Jirman <megous@megous.com>

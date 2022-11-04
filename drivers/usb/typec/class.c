@@ -2346,6 +2346,7 @@ static void __exit typec_exit(void)
 	ida_destroy(&typec_index_ida);
 	bus_unregister(&typec_bus);
 	class_unregister(&typec_mux_class);
+	class_unregister(&retimer_class);
 }
 module_exit(typec_exit);
 

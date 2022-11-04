@@ -68,7 +68,6 @@ static int mei_gsc_probe(struct auxiliary_device *aux_dev,
 	hw = to_me_hw(dev);
 	hw->mem_addr = devm_ioremap_resource(device, &adev->bar);
 	if (IS_ERR(hw->mem_addr)) {
-		dev_err(device, "mmio not mapped\n");
 		ret = PTR_ERR(hw->mem_addr);
 		goto err;
 	}

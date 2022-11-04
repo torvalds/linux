@@ -103,8 +103,8 @@ struct rcar_dmac_desc_page {
 	struct list_head node;
 
 	union {
-		struct rcar_dmac_desc descs[0];
-		struct rcar_dmac_xfer_chunk chunks[0];
+		DECLARE_FLEX_ARRAY(struct rcar_dmac_desc, descs);
+		DECLARE_FLEX_ARRAY(struct rcar_dmac_xfer_chunk, chunks);
 	};
 };
 

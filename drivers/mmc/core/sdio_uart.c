@@ -246,7 +246,7 @@ static inline void sdio_uart_update_mctrl(struct sdio_uart_port *port,
 
 static void sdio_uart_change_speed(struct sdio_uart_port *port,
 				   struct ktermios *termios,
-				   struct ktermios *old)
+				   const struct ktermios *old)
 {
 	unsigned char cval, fcr = 0;
 	unsigned int baud, quot;
@@ -859,7 +859,7 @@ static void sdio_uart_unthrottle(struct tty_struct *tty)
 }
 
 static void sdio_uart_set_termios(struct tty_struct *tty,
-						struct ktermios *old_termios)
+				  const struct ktermios *old_termios)
 {
 	struct sdio_uart_port *port = tty->driver_data;
 	unsigned int cflag = tty->termios.c_cflag;

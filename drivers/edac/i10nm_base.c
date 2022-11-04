@@ -74,31 +74,47 @@ static struct list_head *i10nm_edac_list;
 
 static struct res_config *res_cfg;
 static int retry_rd_err_log;
+static int decoding_via_mca;
+static bool mem_cfg_2lm;
 
 static u32 offsets_scrub_icx[]  = {0x22c60, 0x22c54, 0x22c5c, 0x22c58, 0x22c28, 0x20ed8};
 static u32 offsets_scrub_spr[]  = {0x22c60, 0x22c54, 0x22f08, 0x22c58, 0x22c28, 0x20ed8};
+static u32 offsets_scrub_spr_hbm0[]  = {0x2860, 0x2854, 0x2b08, 0x2858, 0x2828, 0x0ed8};
+static u32 offsets_scrub_spr_hbm1[]  = {0x2c60, 0x2c54, 0x2f08, 0x2c58, 0x2c28, 0x0fa8};
 static u32 offsets_demand_icx[] = {0x22e54, 0x22e60, 0x22e64, 0x22e58, 0x22e5c, 0x20ee0};
 static u32 offsets_demand_spr[] = {0x22e54, 0x22e60, 0x22f10, 0x22e58, 0x22e5c, 0x20ee0};
+static u32 offsets_demand2_spr[] = {0x22c70, 0x22d80, 0x22f18, 0x22d58, 0x22c64, 0x20f10};
+static u32 offsets_demand_spr_hbm0[] = {0x2a54, 0x2a60, 0x2b10, 0x2a58, 0x2a5c, 0x0ee0};
+static u32 offsets_demand_spr_hbm1[] = {0x2e54, 0x2e60, 0x2f10, 0x2e58, 0x2e5c, 0x0fb0};
 
-static void __enable_retry_rd_err_log(struct skx_imc *imc, int chan, bool enable)
+static void __enable_retry_rd_err_log(struct skx_imc *imc, int chan, bool enable,
+				      u32 *offsets_scrub, u32 *offsets_demand,
+				      u32 *offsets_demand2)
 {
-	u32 s, d;
+	u32 s, d, d2;
 
-	if (!imc->mbase)
-		return;
-
-	s = I10NM_GET_REG32(imc, chan, res_cfg->offsets_scrub[0]);
-	d = I10NM_GET_REG32(imc, chan, res_cfg->offsets_demand[0]);
+	s = I10NM_GET_REG32(imc, chan, offsets_scrub[0]);
+	d = I10NM_GET_REG32(imc, chan, offsets_demand[0]);
+	if (offsets_demand2)
+		d2 = I10NM_GET_REG32(imc, chan, offsets_demand2[0]);
 
 	if (enable) {
 		/* Save default configurations */
 		imc->chan[chan].retry_rd_err_log_s = s;
 		imc->chan[chan].retry_rd_err_log_d = d;
+		if (offsets_demand2)
+			imc->chan[chan].retry_rd_err_log_d2 = d2;
 
 		s &= ~RETRY_RD_ERR_LOG_NOOVER_UC;
 		s |=  RETRY_RD_ERR_LOG_EN;
 		d &= ~RETRY_RD_ERR_LOG_NOOVER_UC;
 		d |=  RETRY_RD_ERR_LOG_EN;
+
+		if (offsets_demand2) {
+			d2 &= ~RETRY_RD_ERR_LOG_UC;
+			d2 |=  RETRY_RD_ERR_LOG_NOOVER;
+			d2 |=  RETRY_RD_ERR_LOG_EN;
+		}
 	} else {
 		/* Restore default configurations */
 		if (imc->chan[chan].retry_rd_err_log_s & RETRY_RD_ERR_LOG_UC)
@@ -113,23 +129,55 @@ static void __enable_retry_rd_err_log(struct skx_imc *imc, int chan, bool enable
 			d |=  RETRY_RD_ERR_LOG_NOOVER;
 		if (!(imc->chan[chan].retry_rd_err_log_d & RETRY_RD_ERR_LOG_EN))
 			d &= ~RETRY_RD_ERR_LOG_EN;
+
+		if (offsets_demand2) {
+			if (imc->chan[chan].retry_rd_err_log_d2 & RETRY_RD_ERR_LOG_UC)
+				d2 |=  RETRY_RD_ERR_LOG_UC;
+			if (!(imc->chan[chan].retry_rd_err_log_d2 & RETRY_RD_ERR_LOG_NOOVER))
+				d2 &=  ~RETRY_RD_ERR_LOG_NOOVER;
+			if (!(imc->chan[chan].retry_rd_err_log_d2 & RETRY_RD_ERR_LOG_EN))
+				d2 &= ~RETRY_RD_ERR_LOG_EN;
+		}
 	}
 
-	I10NM_SET_REG32(imc, chan, res_cfg->offsets_scrub[0], s);
-	I10NM_SET_REG32(imc, chan, res_cfg->offsets_demand[0], d);
+	I10NM_SET_REG32(imc, chan, offsets_scrub[0], s);
+	I10NM_SET_REG32(imc, chan, offsets_demand[0], d);
+	if (offsets_demand2)
+		I10NM_SET_REG32(imc, chan, offsets_demand2[0], d2);
 }
 
 static void enable_retry_rd_err_log(bool enable)
 {
+	struct skx_imc *imc;
 	struct skx_dev *d;
 	int i, j;
 
 	edac_dbg(2, "\n");
 
 	list_for_each_entry(d, i10nm_edac_list, list)
-		for (i = 0; i < I10NM_NUM_IMC; i++)
-			for (j = 0; j < I10NM_NUM_CHANNELS; j++)
-				__enable_retry_rd_err_log(&d->imc[i], j, enable);
+		for (i = 0; i < I10NM_NUM_IMC; i++) {
+			imc = &d->imc[i];
+			if (!imc->mbase)
+				continue;
+
+			for (j = 0; j < I10NM_NUM_CHANNELS; j++) {
+				if (imc->hbm_mc) {
+					__enable_retry_rd_err_log(imc, j, enable,
+								  res_cfg->offsets_scrub_hbm0,
+								  res_cfg->offsets_demand_hbm0,
+								  NULL);
+					__enable_retry_rd_err_log(imc, j, enable,
+								  res_cfg->offsets_scrub_hbm1,
+								  res_cfg->offsets_demand_hbm1,
+								  NULL);
+				} else {
+					__enable_retry_rd_err_log(imc, j, enable,
+								  res_cfg->offsets_scrub,
+								  res_cfg->offsets_demand,
+								  res_cfg->offsets_demand2);
+				}
+			}
+	}
 }
 
 static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
@@ -138,14 +186,33 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 	struct skx_imc *imc = &res->dev->imc[res->imc];
 	u32 log0, log1, log2, log3, log4;
 	u32 corr0, corr1, corr2, corr3;
+	u32 lxg0, lxg1, lxg3, lxg4;
+	u32 *xffsets = NULL;
 	u64 log2a, log5;
+	u64 lxg2a, lxg5;
 	u32 *offsets;
-	int n;
+	int n, pch;
 
 	if (!imc->mbase)
 		return;
 
-	offsets = scrub_err ? res_cfg->offsets_scrub : res_cfg->offsets_demand;
+	if (imc->hbm_mc) {
+		pch = res->cs & 1;
+
+		if (pch)
+			offsets = scrub_err ? res_cfg->offsets_scrub_hbm1 :
+					      res_cfg->offsets_demand_hbm1;
+		else
+			offsets = scrub_err ? res_cfg->offsets_scrub_hbm0 :
+					      res_cfg->offsets_demand_hbm0;
+	} else {
+		if (scrub_err) {
+			offsets = res_cfg->offsets_scrub;
+		} else {
+			offsets = res_cfg->offsets_demand;
+			xffsets = res_cfg->offsets_demand2;
+		}
+	}
 
 	log0 = I10NM_GET_REG32(imc, res->channel, offsets[0]);
 	log1 = I10NM_GET_REG32(imc, res->channel, offsets[1]);
@@ -153,20 +220,52 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 	log4 = I10NM_GET_REG32(imc, res->channel, offsets[4]);
 	log5 = I10NM_GET_REG64(imc, res->channel, offsets[5]);
 
+	if (xffsets) {
+		lxg0 = I10NM_GET_REG32(imc, res->channel, xffsets[0]);
+		lxg1 = I10NM_GET_REG32(imc, res->channel, xffsets[1]);
+		lxg3 = I10NM_GET_REG32(imc, res->channel, xffsets[3]);
+		lxg4 = I10NM_GET_REG32(imc, res->channel, xffsets[4]);
+		lxg5 = I10NM_GET_REG64(imc, res->channel, xffsets[5]);
+	}
+
 	if (res_cfg->type == SPR) {
 		log2a = I10NM_GET_REG64(imc, res->channel, offsets[2]);
-		n = snprintf(msg, len, " retry_rd_err_log[%.8x %.8x %.16llx %.8x %.8x %.16llx]",
+		n = snprintf(msg, len, " retry_rd_err_log[%.8x %.8x %.16llx %.8x %.8x %.16llx",
 			     log0, log1, log2a, log3, log4, log5);
+
+		if (len - n > 0) {
+			if (xffsets) {
+				lxg2a = I10NM_GET_REG64(imc, res->channel, xffsets[2]);
+				n += snprintf(msg + n, len - n, " %.8x %.8x %.16llx %.8x %.8x %.16llx]",
+					     lxg0, lxg1, lxg2a, lxg3, lxg4, lxg5);
+			} else {
+				n += snprintf(msg + n, len - n, "]");
+			}
+		}
 	} else {
 		log2 = I10NM_GET_REG32(imc, res->channel, offsets[2]);
 		n = snprintf(msg, len, " retry_rd_err_log[%.8x %.8x %.8x %.8x %.8x %.16llx]",
 			     log0, log1, log2, log3, log4, log5);
 	}
 
-	corr0 = I10NM_GET_REG32(imc, res->channel, 0x22c18);
-	corr1 = I10NM_GET_REG32(imc, res->channel, 0x22c1c);
-	corr2 = I10NM_GET_REG32(imc, res->channel, 0x22c20);
-	corr3 = I10NM_GET_REG32(imc, res->channel, 0x22c24);
+	if (imc->hbm_mc) {
+		if (pch) {
+			corr0 = I10NM_GET_REG32(imc, res->channel, 0x2c18);
+			corr1 = I10NM_GET_REG32(imc, res->channel, 0x2c1c);
+			corr2 = I10NM_GET_REG32(imc, res->channel, 0x2c20);
+			corr3 = I10NM_GET_REG32(imc, res->channel, 0x2c24);
+		} else {
+			corr0 = I10NM_GET_REG32(imc, res->channel, 0x2818);
+			corr1 = I10NM_GET_REG32(imc, res->channel, 0x281c);
+			corr2 = I10NM_GET_REG32(imc, res->channel, 0x2820);
+			corr3 = I10NM_GET_REG32(imc, res->channel, 0x2824);
+		}
+	} else {
+		corr0 = I10NM_GET_REG32(imc, res->channel, 0x22c18);
+		corr1 = I10NM_GET_REG32(imc, res->channel, 0x22c1c);
+		corr2 = I10NM_GET_REG32(imc, res->channel, 0x22c20);
+		corr3 = I10NM_GET_REG32(imc, res->channel, 0x22c24);
+	}
 
 	if (len - n > 0)
 		snprintf(msg + n, len - n,
@@ -177,9 +276,16 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 			 corr3 & 0xffff, corr3 >> 16);
 
 	/* Clear status bits */
-	if (retry_rd_err_log == 2 && (log0 & RETRY_RD_ERR_LOG_OVER_UC_V)) {
-		log0 &= ~RETRY_RD_ERR_LOG_OVER_UC_V;
-		I10NM_SET_REG32(imc, res->channel, offsets[0], log0);
+	if (retry_rd_err_log == 2) {
+		if (log0 & RETRY_RD_ERR_LOG_OVER_UC_V) {
+			log0 &= ~RETRY_RD_ERR_LOG_OVER_UC_V;
+			I10NM_SET_REG32(imc, res->channel, offsets[0], log0);
+		}
+
+		if (xffsets && (lxg0 & RETRY_RD_ERR_LOG_OVER_UC_V)) {
+			lxg0 &= ~RETRY_RD_ERR_LOG_OVER_UC_V;
+			I10NM_SET_REG32(imc, res->channel, xffsets[0], lxg0);
+		}
 	}
 }
 
@@ -229,6 +335,103 @@ static bool i10nm_check_2lm(struct res_config *cfg)
 	}
 
 	return false;
+}
+
+/*
+ * Check whether the error comes from DDRT by ICX/Tremont model specific error code.
+ * Refer to SDM vol3B 16.11.3 Intel IMC MC error codes for IA32_MCi_STATUS.
+ */
+static bool i10nm_mscod_is_ddrt(u32 mscod)
+{
+	switch (mscod) {
+	case 0x0106: case 0x0107:
+	case 0x0800: case 0x0804:
+	case 0x0806 ... 0x0808:
+	case 0x080a ... 0x080e:
+	case 0x0810: case 0x0811:
+	case 0x0816: case 0x081e:
+	case 0x081f:
+		return true;
+	}
+
+	return false;
+}
+
+static bool i10nm_mc_decode_available(struct mce *mce)
+{
+	u8 bank;
+
+	if (!decoding_via_mca || mem_cfg_2lm)
+		return false;
+
+	if ((mce->status & (MCI_STATUS_MISCV | MCI_STATUS_ADDRV))
+			!= (MCI_STATUS_MISCV | MCI_STATUS_ADDRV))
+		return false;
+
+	bank = mce->bank;
+
+	switch (res_cfg->type) {
+	case I10NM:
+		if (bank < 13 || bank > 26)
+			return false;
+
+		/* DDRT errors can't be decoded from MCA bank registers */
+		if (MCI_MISC_ECC_MODE(mce->misc) == MCI_MISC_ECC_DDRT)
+			return false;
+
+		if (i10nm_mscod_is_ddrt(MCI_STATUS_MSCOD(mce->status)))
+			return false;
+
+		/* Check whether one of {13,14,17,18,21,22,25,26} */
+		return ((bank - 13) & BIT(1)) == 0;
+	default:
+		return false;
+	}
+}
+
+static bool i10nm_mc_decode(struct decoded_addr *res)
+{
+	struct mce *m = res->mce;
+	struct skx_dev *d;
+	u8 bank;
+
+	if (!i10nm_mc_decode_available(m))
+		return false;
+
+	list_for_each_entry(d, i10nm_edac_list, list) {
+		if (d->imc[0].src_id == m->socketid) {
+			res->socket = m->socketid;
+			res->dev = d;
+			break;
+		}
+	}
+
+	switch (res_cfg->type) {
+	case I10NM:
+		bank = m->bank - 13;
+		res->imc = bank / 4;
+		res->channel = bank % 2;
+		break;
+	default:
+		return false;
+	}
+
+	if (!res->dev) {
+		skx_printk(KERN_ERR, "No device for src_id %d imc %d\n",
+			   m->socketid, res->imc);
+		return false;
+	}
+
+	res->column       = GET_BITFIELD(m->misc, 9, 18) << 2;
+	res->row          = GET_BITFIELD(m->misc, 19, 39);
+	res->bank_group   = GET_BITFIELD(m->misc, 40, 41);
+	res->bank_address = GET_BITFIELD(m->misc, 42, 43);
+	res->bank_group  |= GET_BITFIELD(m->misc, 44, 44) << 2;
+	res->rank         = GET_BITFIELD(m->misc, 56, 58);
+	res->dimm         = res->rank >> 2;
+	res->rank         = res->rank % 4;
+
+	return true;
 }
 
 static int i10nm_get_ddr_munits(void)
@@ -420,7 +623,12 @@ static struct res_config spr_cfg = {
 	.sad_all_devfn		= PCI_DEVFN(10, 0),
 	.sad_all_offset		= 0x300,
 	.offsets_scrub		= offsets_scrub_spr,
+	.offsets_scrub_hbm0	= offsets_scrub_spr_hbm0,
+	.offsets_scrub_hbm1	= offsets_scrub_spr_hbm1,
 	.offsets_demand		= offsets_demand_spr,
+	.offsets_demand2	= offsets_demand2_spr,
+	.offsets_demand_hbm0	= offsets_demand_spr_hbm0,
+	.offsets_demand_hbm1	= offsets_demand_spr_hbm1,
 };
 
 static const struct x86_cpu_id i10nm_cpuids[] = {
@@ -574,7 +782,8 @@ static int __init i10nm_init(void)
 		return -ENODEV;
 	}
 
-	skx_set_mem_cfg(i10nm_check_2lm(cfg));
+	mem_cfg_2lm = i10nm_check_2lm(cfg);
+	skx_set_mem_cfg(mem_cfg_2lm);
 
 	rc = i10nm_get_ddr_munits();
 
@@ -626,9 +835,11 @@ static int __init i10nm_init(void)
 	setup_i10nm_debug();
 
 	if (retry_rd_err_log && res_cfg->offsets_scrub && res_cfg->offsets_demand) {
-		skx_set_decode(NULL, show_retry_rd_err_log);
+		skx_set_decode(i10nm_mc_decode, show_retry_rd_err_log);
 		if (retry_rd_err_log == 2)
 			enable_retry_rd_err_log(true);
+	} else {
+		skx_set_decode(i10nm_mc_decode, NULL);
 	}
 
 	i10nm_printk(KERN_INFO, "%s\n", I10NM_REVISION);
@@ -657,6 +868,34 @@ static void __exit i10nm_exit(void)
 
 module_init(i10nm_init);
 module_exit(i10nm_exit);
+
+static int set_decoding_via_mca(const char *buf, const struct kernel_param *kp)
+{
+	unsigned long val;
+	int ret;
+
+	ret = kstrtoul(buf, 0, &val);
+
+	if (ret || val > 1)
+		return -EINVAL;
+
+	if (val && mem_cfg_2lm) {
+		i10nm_printk(KERN_NOTICE, "Decoding errors via MCA banks for 2LM isn't supported yet\n");
+		return -EIO;
+	}
+
+	ret = param_set_int(buf, kp);
+
+	return ret;
+}
+
+static const struct kernel_param_ops decoding_via_mca_param_ops = {
+	.set = set_decoding_via_mca,
+	.get = param_get_int,
+};
+
+module_param_cb(decoding_via_mca, &decoding_via_mca_param_ops, &decoding_via_mca, 0644);
+MODULE_PARM_DESC(decoding_via_mca, "decoding_via_mca: 0=off(default), 1=enable");
 
 module_param(retry_rd_err_log, int, 0444);
 MODULE_PARM_DESC(retry_rd_err_log, "retry_rd_err_log: 0=off(default), 1=bios(Linux doesn't reset any control bits, but just reports values.), 2=linux(Linux tries to take control and resets mode bits, clear valid/UC bits after reading.)");

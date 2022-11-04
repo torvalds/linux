@@ -484,12 +484,11 @@ static void cpm_uart_shutdown(struct uart_port *port)
 
 static void cpm_uart_set_termios(struct uart_port *port,
                                  struct ktermios *termios,
-                                 struct ktermios *old)
+                                 const struct ktermios *old)
 {
 	int baud;
 	unsigned long flags;
 	u16 cval, scval, prev_mode;
-	int bits, sbits;
 	struct uart_cpm_port *pinfo =
 		container_of(port, struct uart_cpm_port, port);
 	smc_t __iomem *smcp = pinfo->smcp;
@@ -515,28 +514,17 @@ static void cpm_uart_set_termios(struct uart_port *port,
 	if (maxidl > 0x10)
 		maxidl = 0x10;
 
-	/* Character length programmed into the mode register is the
-	 * sum of: 1 start bit, number of data bits, 0 or 1 parity bit,
-	 * 1 or 2 stop bits, minus 1.
-	 * The value 'bits' counts this for us.
-	 */
 	cval = 0;
 	scval = 0;
-
-	/* byte size */
-	bits = tty_get_char_size(termios->c_cflag);
-	sbits = bits - 5;
 
 	if (termios->c_cflag & CSTOPB) {
 		cval |= SMCMR_SL;	/* Two stops */
 		scval |= SCU_PSMR_SL;
-		bits++;
 	}
 
 	if (termios->c_cflag & PARENB) {
 		cval |= SMCMR_PEN;
 		scval |= SCU_PSMR_PEN;
-		bits++;
 		if (!(termios->c_cflag & PARODD)) {
 			cval |= SMCMR_PM_EVEN;
 			scval |= (SCU_PSMR_REVP | SCU_PSMR_TEVP);
@@ -580,12 +568,9 @@ static void cpm_uart_set_termios(struct uart_port *port,
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	/* Start bit has not been added (so don't, because we would just
-	 * subtract it later), and we need to add one for the number of
-	 * stops bits (there is always at least one).
-	 */
-	bits++;
 	if (IS_SMC(pinfo)) {
+		unsigned int bits = tty_get_frame_size(termios->c_cflag);
+
 		/*
 		 * MRBLR can be changed while an SMC/SCC is operating only
 		 * if it is done in a single bus cycle with one 16-bit move
@@ -604,13 +589,17 @@ static void cpm_uart_set_termios(struct uart_port *port,
 		 */
 		prev_mode = in_be16(&smcp->smc_smcmr) & (SMCMR_REN | SMCMR_TEN);
 		/* Output in *one* operation, so we don't interrupt RX/TX if they
-		 * were already enabled. */
-		out_be16(&smcp->smc_smcmr, smcr_mk_clen(bits) | cval |
-		    SMCMR_SM_UART | prev_mode);
+		 * were already enabled.
+		 * Character length programmed into the register is frame bits minus 1.
+		 */
+		out_be16(&smcp->smc_smcmr, smcr_mk_clen(bits - 1) | cval |
+					   SMCMR_SM_UART | prev_mode);
 	} else {
+		unsigned int bits = tty_get_char_size(termios->c_cflag);
+
 		out_be16(&pinfo->sccup->scc_genscc.scc_mrblr, pinfo->rx_fifosize);
 		out_be16(&pinfo->sccup->scc_maxidl, maxidl);
-		out_be16(&sccp->scc_psmr, (sbits << 12) | scval);
+		out_be16(&sccp->scc_psmr, (UART_LCR_WLEN(bits) << 12) | scval);
 	}
 
 	if (pinfo->clk)
@@ -1214,12 +1203,6 @@ static int cpm_uart_init_port(struct device_node *np,
 	pinfo->port.fifosize = pinfo->tx_nrfifos * pinfo->tx_fifosize;
 	spin_lock_init(&pinfo->port.lock);
 
-	pinfo->port.irq = irq_of_parse_and_map(np, 0);
-	if (pinfo->port.irq == NO_IRQ) {
-		ret = -EINVAL;
-		goto out_pram;
-	}
-
 	for (i = 0; i < NUM_GPIOS; i++) {
 		struct gpio_desc *gpiod;
 
@@ -1229,7 +1212,7 @@ static int cpm_uart_init_port(struct device_node *np,
 
 		if (IS_ERR(gpiod)) {
 			ret = PTR_ERR(gpiod);
-			goto out_irq;
+			goto out_pram;
 		}
 
 		if (gpiod) {
@@ -1255,8 +1238,6 @@ static int cpm_uart_init_port(struct device_node *np,
 
 	return cpm_uart_request_port(&pinfo->port);
 
-out_irq:
-	irq_dispose_mapping(pinfo->port.irq);
 out_pram:
 	cpm_uart_unmap_pram(pinfo, pram);
 out_mem:
@@ -1436,11 +1417,17 @@ static int cpm_uart_probe(struct platform_device *ofdev)
 	/* initialize the device pointer for the port */
 	pinfo->port.dev = &ofdev->dev;
 
-	ret = cpm_uart_init_port(ofdev->dev.of_node, pinfo);
-	if (ret)
-		return ret;
+	pinfo->port.irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	if (!pinfo->port.irq)
+		return -EINVAL;
 
-	return uart_add_one_port(&cpm_reg, &pinfo->port);
+	ret = cpm_uart_init_port(ofdev->dev.of_node, pinfo);
+	if (!ret)
+		return uart_add_one_port(&cpm_reg, &pinfo->port);
+
+	irq_dispose_mapping(pinfo->port.irq);
+
+	return ret;
 }
 
 static int cpm_uart_remove(struct platform_device *ofdev)

@@ -35,6 +35,11 @@
 
 #include <uapi/scsi/fc/fc_els.h>
 
+#define QLA_DFS_DEFINE_DENTRY(_debugfs_file_name) \
+	struct dentry *dfs_##_debugfs_file_name
+#define QLA_DFS_ROOT_DEFINE_DENTRY(_debugfs_file_name) \
+	struct dentry *qla_dfs_##_debugfs_file_name
+
 /* Big endian Fibre Channel S_ID (source ID) or D_ID (destination ID). */
 typedef struct {
 	uint8_t domain;
@@ -4768,6 +4773,7 @@ struct active_regions {
 		uint8_t vpd_nvram;
 		uint8_t npiv_config_0_1;
 		uint8_t npiv_config_2_3;
+		uint8_t nvme_params;
 	} aux;
 };
 
@@ -5052,6 +5058,7 @@ struct qla27xx_image_status {
 #define QLA28XX_AUX_IMG_VPD_NVRAM		BIT_1
 #define QLA28XX_AUX_IMG_NPIV_CONFIG_0_1		BIT_2
 #define QLA28XX_AUX_IMG_NPIV_CONFIG_2_3		BIT_3
+#define QLA28XX_AUX_IMG_NVME_PARAMS		BIT_4
 
 #define SET_VP_IDX	1
 #define SET_AL_PA	2

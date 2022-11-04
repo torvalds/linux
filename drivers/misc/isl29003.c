@@ -410,12 +410,11 @@ exit_kfree:
 	return err;
 }
 
-static int isl29003_remove(struct i2c_client *client)
+static void isl29003_remove(struct i2c_client *client)
 {
 	sysfs_remove_group(&client->dev.kobj, &isl29003_attr_group);
 	isl29003_set_power_state(client, 0);
 	kfree(i2c_get_clientdata(client));
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

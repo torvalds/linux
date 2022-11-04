@@ -326,9 +326,6 @@ void __init swiotlb_init_remap(bool addressing_limit, unsigned int flags,
 		swiotlb_adjust_nareas(num_possible_cpus());
 
 	nslabs = default_nslabs;
-	if (nslabs < IO_TLB_MIN_SLABS)
-		panic("%s: nslabs = %lu too small\n", __func__, nslabs);
-
 	/*
 	 * By default allocate the bounce buffer memory from low memory, but
 	 * allow to pick a location everywhere for hypervisors with guest
@@ -341,8 +338,7 @@ retry:
 	else
 		tlb = memblock_alloc_low(bytes, PAGE_SIZE);
 	if (!tlb) {
-		pr_warn("%s: Failed to allocate %zu bytes tlb structure\n",
-			__func__, bytes);
+		pr_warn("%s: failed to allocate tlb structure\n", __func__);
 		return;
 	}
 
@@ -350,22 +346,27 @@ retry:
 		memblock_free(tlb, PAGE_ALIGN(bytes));
 
 		nslabs = ALIGN(nslabs >> 1, IO_TLB_SEGSIZE);
-		if (nslabs < IO_TLB_MIN_SLABS)
-			panic("%s: Failed to remap %zu bytes\n",
-			      __func__, bytes);
-		goto retry;
+		if (nslabs >= IO_TLB_MIN_SLABS)
+			goto retry;
+
+		pr_warn("%s: Failed to remap %zu bytes\n", __func__, bytes);
+		return;
 	}
 
 	alloc_size = PAGE_ALIGN(array_size(sizeof(*mem->slots), nslabs));
 	mem->slots = memblock_alloc(alloc_size, PAGE_SIZE);
-	if (!mem->slots)
-		panic("%s: Failed to allocate %zu bytes align=0x%lx\n",
-		      __func__, alloc_size, PAGE_SIZE);
+	if (!mem->slots) {
+		pr_warn("%s: Failed to allocate %zu bytes align=0x%lx\n",
+			__func__, alloc_size, PAGE_SIZE);
+		return;
+	}
 
 	mem->areas = memblock_alloc(array_size(sizeof(struct io_tlb_area),
 		default_nareas), SMP_CACHE_BYTES);
-	if (!mem->areas)
-		panic("%s: Failed to allocate mem->areas.\n", __func__);
+	if (!mem->areas) {
+		pr_warn("%s: Failed to allocate mem->areas.\n", __func__);
+		return;
+	}
 
 	swiotlb_init_io_tlb_mem(mem, __pa(tlb), nslabs, flags, false,
 				default_nareas);
@@ -549,9 +550,8 @@ static void swiotlb_bounce(struct device *dev, phys_addr_t tlb_addr, size_t size
 	}
 
 	if (PageHighMem(pfn_to_page(pfn))) {
-		/* The buffer does not have a mapping.  Map it in and copy */
 		unsigned int offset = orig_addr & ~PAGE_MASK;
-		char *buffer;
+		struct page *page;
 		unsigned int sz = 0;
 		unsigned long flags;
 
@@ -559,12 +559,11 @@ static void swiotlb_bounce(struct device *dev, phys_addr_t tlb_addr, size_t size
 			sz = min_t(size_t, PAGE_SIZE - offset, size);
 
 			local_irq_save(flags);
-			buffer = kmap_atomic(pfn_to_page(pfn));
+			page = pfn_to_page(pfn);
 			if (dir == DMA_TO_DEVICE)
-				memcpy(vaddr, buffer + offset, sz);
+				memcpy_from_page(vaddr, page, offset, sz);
 			else
-				memcpy(buffer + offset, vaddr, sz);
-			kunmap_atomic(buffer);
+				memcpy_to_page(page, offset, vaddr, sz);
 			local_irq_restore(flags);
 
 			size -= sz;
@@ -579,7 +578,10 @@ static void swiotlb_bounce(struct device *dev, phys_addr_t tlb_addr, size_t size
 	}
 }
 
-#define slot_addr(start, idx)	((start) + ((idx) << IO_TLB_SHIFT))
+static inline phys_addr_t slot_addr(phys_addr_t start, phys_addr_t idx)
+{
+	return start + (idx << IO_TLB_SHIFT);
+}
 
 /*
  * Carefully handle integer overflow which can occur when boundary_mask == ~0UL.
@@ -732,8 +734,11 @@ phys_addr_t swiotlb_tbl_map_single(struct device *dev, phys_addr_t orig_addr,
 	int index;
 	phys_addr_t tlb_addr;
 
-	if (!mem || !mem->nslabs)
-		panic("Can not allocate SWIOTLB buffer earlier and can't now provide you with the DMA bounce buffer");
+	if (!mem || !mem->nslabs) {
+		dev_warn_ratelimited(dev,
+			"Can not allocate SWIOTLB buffer earlier and can't now provide you with the DMA bounce buffer");
+		return (phys_addr_t)DMA_MAPPING_ERROR;
+	}
 
 	if (cc_platform_has(CC_ATTR_MEM_ENCRYPT))
 		pr_warn_once("Memory encryption is active and system is using DMA bounce buffers\n");
@@ -765,7 +770,7 @@ phys_addr_t swiotlb_tbl_map_single(struct device *dev, phys_addr_t orig_addr,
 	/*
 	 * When dir == DMA_FROM_DEVICE we could omit the copy from the orig
 	 * to the tlb buffer, if we knew for sure the device will
-	 * overwirte the entire current content. But we don't. Thus
+	 * overwrite the entire current content. But we don't. Thus
 	 * unconditional bounce may prevent leaking swiotlb content (i.e.
 	 * kernel memory) to user-space.
 	 */

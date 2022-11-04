@@ -536,8 +536,16 @@ static int __init dsa_init_module(void)
 	dsa_tag_driver_register(&DSA_TAG_DRIVER_NAME(none_ops),
 				THIS_MODULE);
 
+	rc = rtnl_link_register(&dsa_link_ops);
+	if (rc)
+		goto netlink_register_fail;
+
 	return 0;
 
+netlink_register_fail:
+	dsa_tag_driver_unregister(&DSA_TAG_DRIVER_NAME(none_ops));
+	dsa_slave_unregister_notifier();
+	dev_remove_pack(&dsa_pack_type);
 register_notifier_fail:
 	destroy_workqueue(dsa_owq);
 
@@ -547,6 +555,7 @@ module_init(dsa_init_module);
 
 static void __exit dsa_cleanup_module(void)
 {
+	rtnl_link_unregister(&dsa_link_ops);
 	dsa_tag_driver_unregister(&DSA_TAG_DRIVER_NAME(none_ops));
 
 	dsa_slave_unregister_notifier();

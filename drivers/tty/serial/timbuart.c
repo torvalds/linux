@@ -275,8 +275,8 @@ static int get_bindex(int baud)
 }
 
 static void timbuart_set_termios(struct uart_port *port,
-	struct ktermios *termios,
-	struct ktermios *old)
+				 struct ktermios *termios,
+				 const struct ktermios *old)
 {
 	unsigned int baud;
 	short bindex;

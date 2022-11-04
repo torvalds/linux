@@ -17,7 +17,6 @@ enum rq_qos_id {
 	RQ_QOS_WBT,
 	RQ_QOS_LATENCY,
 	RQ_QOS_COST,
-	RQ_QOS_IOPRIO,
 };
 
 struct rq_wait {

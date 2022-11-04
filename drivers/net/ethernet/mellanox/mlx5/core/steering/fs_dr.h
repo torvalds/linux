@@ -14,10 +14,6 @@ struct mlx5_fs_dr_action {
 	struct mlx5dr_action *dr_action;
 };
 
-struct mlx5_fs_dr_ns {
-	struct mlx5_dr_ns *dr_ns;
-};
-
 struct mlx5_fs_dr_rule {
 	struct mlx5dr_rule    *dr_rule;
 	/* Only actions created by fs_dr */

@@ -700,6 +700,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.dwb_fi_phase = -1, // -1 = disable
 	.dmub_command_table = true,
 	.use_max_lb = false,
+	.exit_idle_opt_for_cursor_updates = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -851,7 +852,7 @@ static struct hubbub *dcn301_hubbub_create(struct dc_context *ctx)
 		vmid->masks = &vmid_masks;
 	}
 
-	 hubbub3->num_vmid = res_cap_dcn301.num_vmid;
+	hubbub3->num_vmid = res_cap_dcn301.num_vmid;
 
 	return &hubbub3->base;
 }

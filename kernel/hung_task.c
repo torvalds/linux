@@ -95,8 +95,8 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 	 * Ensure the task is not frozen.
 	 * Also, skip vfork and any other user process that freezer should skip.
 	 */
-	if (unlikely(t->flags & (PF_FROZEN | PF_FREEZER_SKIP)))
-	    return;
+	if (unlikely(READ_ONCE(t->__state) & TASK_FROZEN))
+		return;
 
 	/*
 	 * When a freshly created task is scheduled once, changes its state to
@@ -191,6 +191,8 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 	hung_task_show_lock = false;
 	rcu_read_lock();
 	for_each_process_thread(g, t) {
+		unsigned int state;
+
 		if (!max_count--)
 			goto unlock;
 		if (time_after(jiffies, last_break + HUNG_TASK_LOCK_BREAK)) {
@@ -198,8 +200,14 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 				goto unlock;
 			last_break = jiffies;
 		}
-		/* use "==" to skip the TASK_KILLABLE tasks waiting on NFS */
-		if (READ_ONCE(t->__state) == TASK_UNINTERRUPTIBLE)
+		/*
+		 * skip the TASK_KILLABLE tasks -- these can be killed
+		 * skip the TASK_IDLE tasks -- those are genuinely idle
+		 */
+		state = READ_ONCE(t->__state);
+		if ((state & TASK_UNINTERRUPTIBLE) &&
+		    !(state & TASK_WAKEKILL) &&
+		    !(state & TASK_NOLOAD))
 			check_hung_task(t, timeout);
 	}
  unlock:

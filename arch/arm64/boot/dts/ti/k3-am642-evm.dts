@@ -676,3 +676,11 @@
 	pinctrl-0 = <&main_mcan1_pins_default>;
 	phys = <&transceiver2>;
 };
+
+&gpmc0 {
+	status = "disabled";
+};
+
+&elm0 {
+	status = "disabled";
+};

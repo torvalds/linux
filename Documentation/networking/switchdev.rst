@@ -1,5 +1,6 @@
 .. SPDX-License-Identifier: GPL-2.0
 .. include:: <isonum.txt>
+.. _switchdev:
 
 ===============================================
 Ethernet switch device driver model (switchdev)
@@ -159,7 +160,7 @@ tools such as iproute2.
 
 The switchdev driver can know a particular port's position in the topology by
 monitoring NETDEV_CHANGEUPPER notifications.  For example, a port moved into a
-bond will see it's upper master change.  If that bond is moved into a bridge,
+bond will see its upper master change.  If that bond is moved into a bridge,
 the bond's upper master will change.  And so on.  The driver will track such
 movements to know what position a port is in in the overall topology by
 registering for netdevice events and acting on NETDEV_CHANGEUPPER.

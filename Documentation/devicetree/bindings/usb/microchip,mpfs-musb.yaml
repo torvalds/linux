@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/usb/microchip,mpfs-musb.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Microchip MPFS USB Controller Device Tree Bindings
+title: Microchip MPFS USB Controller
 
 allOf:
   - $ref: usb-drd.yaml#

@@ -18,6 +18,7 @@
 #include <sys/socket.h>
 #include <time.h>
 #include <sys/mman.h>
+#include <poll.h>
 
 #include "timeout.h"
 #include "control.h"
@@ -596,6 +597,108 @@ static void test_seqpacket_invalid_rec_buffer_server(const struct test_opts *opt
 	close(fd);
 }
 
+#define RCVLOWAT_BUF_SIZE 128
+
+static void test_stream_poll_rcvlowat_server(const struct test_opts *opts)
+{
+	int fd;
+	int i;
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Send 1 byte. */
+	send_byte(fd, 1, 0);
+
+	control_writeln("SRVSENT");
+
+	/* Wait until client is ready to receive rest of data. */
+	control_expectln("CLNSENT");
+
+	for (i = 0; i < RCVLOWAT_BUF_SIZE - 1; i++)
+		send_byte(fd, 1, 0);
+
+	/* Keep socket in active state. */
+	control_expectln("POLLDONE");
+
+	close(fd);
+}
+
+static void test_stream_poll_rcvlowat_client(const struct test_opts *opts)
+{
+	unsigned long lowat_val = RCVLOWAT_BUF_SIZE;
+	char buf[RCVLOWAT_BUF_SIZE];
+	struct pollfd fds;
+	ssize_t read_res;
+	short poll_flags;
+	int fd;
+
+	fd = vsock_stream_connect(opts->peer_cid, 1234);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVLOWAT,
+		       &lowat_val, sizeof(lowat_val))) {
+		perror("setsockopt");
+		exit(EXIT_FAILURE);
+	}
+
+	control_expectln("SRVSENT");
+
+	/* At this point, server sent 1 byte. */
+	fds.fd = fd;
+	poll_flags = POLLIN | POLLRDNORM;
+	fds.events = poll_flags;
+
+	/* Try to wait for 1 sec. */
+	if (poll(&fds, 1, 1000) < 0) {
+		perror("poll");
+		exit(EXIT_FAILURE);
+	}
+
+	/* poll() must return nothing. */
+	if (fds.revents) {
+		fprintf(stderr, "Unexpected poll result %hx\n",
+			fds.revents);
+		exit(EXIT_FAILURE);
+	}
+
+	/* Tell server to send rest of data. */
+	control_writeln("CLNSENT");
+
+	/* Poll for data. */
+	if (poll(&fds, 1, 10000) < 0) {
+		perror("poll");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Only these two bits are expected. */
+	if (fds.revents != poll_flags) {
+		fprintf(stderr, "Unexpected poll result %hx\n",
+			fds.revents);
+		exit(EXIT_FAILURE);
+	}
+
+	/* Use MSG_DONTWAIT, if call is going to wait, EAGAIN
+	 * will be returned.
+	 */
+	read_res = recv(fd, buf, sizeof(buf), MSG_DONTWAIT);
+	if (read_res != RCVLOWAT_BUF_SIZE) {
+		fprintf(stderr, "Unexpected recv result %zi\n",
+			read_res);
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("POLLDONE");
+
+	close(fd);
+}
+
 static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM connection reset",
@@ -645,6 +748,11 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_SEQPACKET invalid receive buffer",
 		.run_client = test_seqpacket_invalid_rec_buffer_client,
 		.run_server = test_seqpacket_invalid_rec_buffer_server,
+	},
+	{
+		.name = "SOCK_STREAM poll() + SO_RCVLOWAT",
+		.run_client = test_stream_poll_rcvlowat_client,
+		.run_server = test_stream_poll_rcvlowat_server,
 	},
 	{},
 };

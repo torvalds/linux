@@ -7,6 +7,10 @@
 #define BTRFS_DEV_REPLACE_H
 
 struct btrfs_ioctl_dev_replace_args;
+struct btrfs_fs_info;
+struct btrfs_trans_handle;
+struct btrfs_dev_replace;
+struct btrfs_block_group;
 
 int btrfs_init_dev_replace(struct btrfs_fs_info *fs_info);
 int btrfs_run_dev_replace(struct btrfs_trans_handle *trans);

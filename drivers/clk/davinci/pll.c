@@ -98,7 +98,7 @@
  * @hw: clk_hw for the pll
  * @base: Base memory address
  * @pllm_min: The minimum allowable PLLM[PLLM] value
- * @pllm_max: The maxiumum allowable PLLM[PLLM] value
+ * @pllm_max: The maximum allowable PLLM[PLLM] value
  * @pllm_mask: Bitmask for PLLM[PLLM] value
  */
 struct davinci_pll_clk {
@@ -889,14 +889,6 @@ static const struct platform_device_id davinci_pll_id_table[] = {
 #ifdef CONFIG_ARCH_DAVINCI_DM365
 	{ .name = "dm365-pll1",  .driver_data = (kernel_ulong_t)dm365_pll1_init  },
 	{ .name = "dm365-pll2",  .driver_data = (kernel_ulong_t)dm365_pll2_init  },
-#endif
-#ifdef CONFIG_ARCH_DAVINCI_DM644x
-	{ .name = "dm644x-pll1", .driver_data = (kernel_ulong_t)dm644x_pll1_init },
-	{ .name = "dm644x-pll2", .driver_data = (kernel_ulong_t)dm644x_pll2_init },
-#endif
-#ifdef CONFIG_ARCH_DAVINCI_DM646x
-	{ .name = "dm646x-pll1", .driver_data = (kernel_ulong_t)dm646x_pll1_init },
-	{ .name = "dm646x-pll2", .driver_data = (kernel_ulong_t)dm646x_pll2_init },
 #endif
 	{ }
 };

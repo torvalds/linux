@@ -42,6 +42,7 @@
 #include <asm/setup.h>
 #include <asm/smp-ops.h>
 #include <asm/prom.h>
+#include <asm/fw/fw.h>
 
 #ifdef CONFIG_MIPS_ELF_APPENDED_DTB
 char __section(".appended_dtb") __appended_dtb[0x100000];
@@ -750,11 +751,29 @@ static void __init prefill_possible_map(void)
 	for (; i < NR_CPUS; i++)
 		set_cpu_possible(i, false);
 
-	nr_cpu_ids = possible;
+	set_nr_cpu_ids(possible);
 }
 #else
 static inline void prefill_possible_map(void) {}
 #endif
+
+static void __init setup_rng_seed(void)
+{
+	char *rng_seed_hex = fw_getenv("rngseed");
+	u8 rng_seed[512];
+	size_t len;
+
+	if (!rng_seed_hex)
+		return;
+
+	len = min(sizeof(rng_seed), strlen(rng_seed_hex) / 2);
+	if (hex2bin(rng_seed, rng_seed_hex, len))
+		return;
+
+	add_bootloader_randomness(rng_seed, len);
+	memzero_explicit(rng_seed, len);
+	memzero_explicit(rng_seed_hex, len * 2);
+}
 
 void __init setup_arch(char **cmdline_p)
 {
@@ -786,6 +805,8 @@ void __init setup_arch(char **cmdline_p)
 	paging_init();
 
 	memblock_dump_all();
+
+	setup_rng_seed();
 }
 
 unsigned long kernelsp[NR_CPUS];

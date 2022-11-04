@@ -32,18 +32,10 @@
 #define ARIA_RD_KEY_WORDS	(ARIA_BLOCK_SIZE / sizeof(u32))
 
 struct aria_ctx {
-	int key_length;
-	int rounds;
 	u32 enc_key[ARIA_MAX_RD_KEYS][ARIA_RD_KEY_WORDS];
 	u32 dec_key[ARIA_MAX_RD_KEYS][ARIA_RD_KEY_WORDS];
-};
-
-static const u32 key_rc[5][4] = {
-	{ 0x517cc1b7, 0x27220a94, 0xfe13abe8, 0xfa9a6ee0 },
-	{ 0x6db14acc, 0x9e21c820, 0xff28b1d5, 0xef5de2b0 },
-	{ 0xdb92371d, 0x2126e970, 0x03249775, 0x04e8c90e },
-	{ 0x517cc1b7, 0x27220a94, 0xfe13abe8, 0xfa9a6ee0 },
-	{ 0x6db14acc, 0x9e21c820, 0xff28b1d5, 0xef5de2b0 }
+	int rounds;
+	int key_length;
 };
 
 static const u32 s1[256] = {
@@ -457,5 +449,10 @@ static inline void aria_gsrk(u32 *rk, u32 *x, u32 *y, u32 n)
 		((y[(q + 3) % 4]) >> r) ^
 		((y[(q + 2) % 4]) << (32 - r));
 }
+
+void aria_encrypt(void *ctx, u8 *out, const u8 *in);
+void aria_decrypt(void *ctx, u8 *out, const u8 *in);
+int aria_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+		 unsigned int key_len);
 
 #endif

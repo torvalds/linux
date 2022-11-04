@@ -219,14 +219,12 @@ static int ee1004_probe(struct i2c_client *client)
 	return err;
 }
 
-static int ee1004_remove(struct i2c_client *client)
+static void ee1004_remove(struct i2c_client *client)
 {
 	/* Remove page select clients if this is the last device */
 	mutex_lock(&ee1004_bus_lock);
 	ee1004_cleanup(EE1004_NUM_PAGES);
 	mutex_unlock(&ee1004_bus_lock);
-
-	return 0;
 }
 
 /*-------------------------------------------------------------------------*/

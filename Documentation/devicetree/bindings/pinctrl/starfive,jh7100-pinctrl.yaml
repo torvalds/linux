@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pinctrl/starfive,jh7100-pinctrl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: StarFive JH7100 Pin Controller Device Tree Bindings
+title: StarFive JH7100 Pin Controller
 
 description: |
   Bindings for the JH7100 RISC-V SoC from StarFive Ltd.
@@ -165,7 +165,7 @@ examples:
   - |
     #include <dt-bindings/clock/starfive-jh7100.h>
     #include <dt-bindings/reset/starfive-jh7100.h>
-    #include <dt-bindings/pinctrl/pinctrl-starfive.h>
+    #include <dt-bindings/pinctrl/pinctrl-starfive-jh7100.h>
 
     soc {
         #address-cells = <2>;

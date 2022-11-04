@@ -196,6 +196,7 @@ int nvmet_setup_auth(struct nvmet_ctrl *ctrl)
 	if (IS_ERR(ctrl->ctrl_key)) {
 		ret = PTR_ERR(ctrl->ctrl_key);
 		ctrl->ctrl_key = NULL;
+		goto out_free_hash;
 	}
 	pr_debug("%s: using ctrl hash %s key %*ph\n", __func__,
 		 ctrl->ctrl_key->hash > 0 ?

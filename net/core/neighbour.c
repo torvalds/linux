@@ -111,7 +111,7 @@ static void neigh_cleanup_and_release(struct neighbour *neigh)
 
 unsigned long neigh_rand_reach_time(unsigned long base)
 {
-	return base ? (prandom_u32() % base) + (base >> 1) : 0;
+	return base ? prandom_u32_max(base) + (base >> 1) : 0;
 }
 EXPORT_SYMBOL(neigh_rand_reach_time);
 
@@ -309,14 +309,17 @@ static int neigh_del_timer(struct neighbour *n)
 
 static void pneigh_queue_purge(struct sk_buff_head *list, struct net *net)
 {
+	struct sk_buff_head tmp;
 	unsigned long flags;
 	struct sk_buff *skb;
 
+	skb_queue_head_init(&tmp);
 	spin_lock_irqsave(&list->lock, flags);
 	skb = skb_peek(list);
 	while (skb != NULL) {
 		struct sk_buff *skb_next = skb_peek_next(skb, list);
 		struct net_device *dev = skb->dev;
+
 		if (net == NULL || net_eq(dev_net(dev), net)) {
 			struct in_device *in_dev;
 
@@ -326,13 +329,16 @@ static void pneigh_queue_purge(struct sk_buff_head *list, struct net *net)
 				in_dev->arp_parms->qlen--;
 			rcu_read_unlock();
 			__skb_unlink(skb, list);
-
-			dev_put(dev);
-			kfree_skb(skb);
+			__skb_queue_tail(&tmp, skb);
 		}
 		skb = skb_next;
 	}
 	spin_unlock_irqrestore(&list->lock, flags);
+
+	while ((skb = __skb_dequeue(&tmp))) {
+		dev_put(skb->dev);
+		kfree_skb(skb);
+	}
 }
 
 static void neigh_flush_dev(struct neigh_table *tbl, struct net_device *dev,
@@ -1846,9 +1852,6 @@ static struct neigh_table *neigh_find_table(int family)
 		break;
 	case AF_INET6:
 		tbl = neigh_tables[NEIGH_ND_TABLE];
-		break;
-	case AF_DECnet:
-		tbl = neigh_tables[NEIGH_DN_TABLE];
 		break;
 	}
 

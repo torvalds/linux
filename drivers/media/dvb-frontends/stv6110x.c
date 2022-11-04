@@ -436,12 +436,11 @@ static int stv6110x_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int stv6110x_remove(struct i2c_client *client)
+static void stv6110x_remove(struct i2c_client *client)
 {
 	struct stv6110x_state *stv6110x = i2c_get_clientdata(client);
 
 	stv6110x_release(stv6110x->frontend);
-	return 0;
 }
 
 const struct stv6110x_devctl *stv6110x_attach(struct dvb_frontend *fe,

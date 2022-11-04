@@ -1149,19 +1149,7 @@ out_unlock:
 
 	return ret;
 }
-
-static int pi433_debugfs_regs_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, pi433_debugfs_regs_show, inode->i_private);
-}
-
-static const struct file_operations debugfs_fops = {
-	.llseek =	seq_lseek,
-	.open =		pi433_debugfs_regs_open,
-	.owner =	THIS_MODULE,
-	.read =		seq_read,
-	.release =	single_release
-};
+DEFINE_SHOW_ATTRIBUTE(pi433_debugfs_regs);
 
 /*-------------------------------------------------------------------------*/
 
@@ -1320,7 +1308,7 @@ static int pi433_probe(struct spi_device *spi)
 
 	entry = debugfs_create_dir(dev_name(device->dev),
 				   debugfs_lookup(KBUILD_MODNAME, NULL));
-	debugfs_create_file("regs", 0400, entry, device, &debugfs_fops);
+	debugfs_create_file("regs", 0400, entry, device, &pi433_debugfs_regs_fops);
 
 	return 0;
 

@@ -5,8 +5,6 @@
  *
  * This file supplies definitions required by the PPP over Ethernet driver
  * (pppox.c).  All version information wrt this file is located in pppox.c
- *
- * License:
  */
 #ifndef __LINUX_IF_PPPOX_H
 #define __LINUX_IF_PPPOX_H

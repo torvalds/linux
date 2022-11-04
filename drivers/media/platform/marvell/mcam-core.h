@@ -32,7 +32,7 @@
 
 #if !defined(MCAM_MODE_VMALLOC) && !defined(MCAM_MODE_DMA_CONTIG) && \
 	!defined(MCAM_MODE_DMA_SG)
-#error One of the videobuf buffer modes must be selected in the config
+#error One of the vb2 buffer modes must be selected in the config
 #endif
 
 

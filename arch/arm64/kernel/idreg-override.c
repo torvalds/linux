@@ -50,7 +50,7 @@ static const struct ftr_set_desc mmfr1 __initconst = {
 	.name		= "id_aa64mmfr1",
 	.override	= &id_aa64mmfr1_override,
 	.fields		= {
-		FIELD("vh", ID_AA64MMFR1_VHE_SHIFT, mmfr1_vh_filter),
+		FIELD("vh", ID_AA64MMFR1_EL1_VH_SHIFT, mmfr1_vh_filter),
 		{}
 	},
 };
@@ -74,7 +74,7 @@ static const struct ftr_set_desc pfr0 __initconst = {
 	.name		= "id_aa64pfr0",
 	.override	= &id_aa64pfr0_override,
 	.fields		= {
-	        FIELD("sve", ID_AA64PFR0_SVE_SHIFT, pfr0_sve_filter),
+	        FIELD("sve", ID_AA64PFR0_EL1_SVE_SHIFT, pfr0_sve_filter),
 		{}
 	},
 };
@@ -98,9 +98,9 @@ static const struct ftr_set_desc pfr1 __initconst = {
 	.name		= "id_aa64pfr1",
 	.override	= &id_aa64pfr1_override,
 	.fields		= {
-		FIELD("bt", ID_AA64PFR1_BT_SHIFT, NULL ),
-		FIELD("mte", ID_AA64PFR1_MTE_SHIFT, NULL),
-		FIELD("sme", ID_AA64PFR1_SME_SHIFT, pfr1_sme_filter),
+		FIELD("bt", ID_AA64PFR1_EL1_BT_SHIFT, NULL ),
+		FIELD("mte", ID_AA64PFR1_EL1_MTE_SHIFT, NULL),
+		FIELD("sme", ID_AA64PFR1_EL1_SME_SHIFT, pfr1_sme_filter),
 		{}
 	},
 };

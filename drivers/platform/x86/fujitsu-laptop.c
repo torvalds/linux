@@ -543,7 +543,7 @@ static int fujitsu_laptop_platform_add(struct acpi_device *device)
 	struct fujitsu_laptop *priv = acpi_driver_data(device);
 	int ret;
 
-	priv->pf_device = platform_device_alloc("fujitsu-laptop", -1);
+	priv->pf_device = platform_device_alloc("fujitsu-laptop", PLATFORM_DEVID_NONE);
 	if (!priv->pf_device)
 		return -ENOMEM;
 

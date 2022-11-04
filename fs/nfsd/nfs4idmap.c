@@ -82,8 +82,8 @@ ent_init(struct cache_head *cnew, struct cache_head *citm)
 	new->id = itm->id;
 	new->type = itm->type;
 
-	strlcpy(new->name, itm->name, sizeof(new->name));
-	strlcpy(new->authname, itm->authname, sizeof(new->authname));
+	strscpy(new->name, itm->name, sizeof(new->name));
+	strscpy(new->authname, itm->authname, sizeof(new->authname));
 }
 
 static void
@@ -548,7 +548,7 @@ idmap_name_to_id(struct svc_rqst *rqstp, int type, const char *name, u32 namelen
 		return nfserr_badowner;
 	memcpy(key.name, name, namelen);
 	key.name[namelen] = '\0';
-	strlcpy(key.authname, rqst_authname(rqstp), sizeof(key.authname));
+	strscpy(key.authname, rqst_authname(rqstp), sizeof(key.authname));
 	ret = idmap_lookup(rqstp, nametoid_lookup, &key, nn->nametoid_cache, &item);
 	if (ret == -ENOENT)
 		return nfserr_badowner;
@@ -584,7 +584,7 @@ static __be32 idmap_id_to_name(struct xdr_stream *xdr,
 	int ret;
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 
-	strlcpy(key.authname, rqst_authname(rqstp), sizeof(key.authname));
+	strscpy(key.authname, rqst_authname(rqstp), sizeof(key.authname));
 	ret = idmap_lookup(rqstp, idtoname_lookup, &key, nn->idtoname_cache, &item);
 	if (ret == -ENOENT)
 		return encode_ascii_id(xdr, id);

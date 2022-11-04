@@ -1651,9 +1651,10 @@ void bfq_requeue_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
  * the service tree. As a special case, it can be invoked during an
  * expiration.
  */
-void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
-		       bool expiration)
+void bfq_del_bfqq_busy(struct bfq_queue *bfqq, bool expiration)
 {
+	struct bfq_data *bfqd = bfqq->bfqd;
+
 	bfq_log_bfqq(bfqd, bfqq, "del from busy");
 
 	bfq_clear_bfqq_busy(bfqq);
@@ -1674,8 +1675,10 @@ void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 /*
  * Called when an inactive queue receives a new request.
  */
-void bfq_add_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq)
+void bfq_add_bfqq_busy(struct bfq_queue *bfqq)
 {
+	struct bfq_data *bfqd = bfqq->bfqd;
+
 	bfq_log_bfqq(bfqd, bfqq, "add to busy");
 
 	bfq_activate_bfqq(bfqd, bfqq);

@@ -2664,7 +2664,7 @@ static ssize_t tun_flags_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
 	struct tun_struct *tun = netdev_priv(to_net_dev(dev));
-	return sprintf(buf, "0x%x\n", tun_flags(tun));
+	return sysfs_emit(buf, "0x%x\n", tun_flags(tun));
 }
 
 static ssize_t owner_show(struct device *dev, struct device_attribute *attr,
@@ -2672,9 +2672,9 @@ static ssize_t owner_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tun_struct *tun = netdev_priv(to_net_dev(dev));
 	return uid_valid(tun->owner)?
-		sprintf(buf, "%u\n",
-			from_kuid_munged(current_user_ns(), tun->owner)):
-		sprintf(buf, "-1\n");
+		sysfs_emit(buf, "%u\n",
+			   from_kuid_munged(current_user_ns(), tun->owner)) :
+		sysfs_emit(buf, "-1\n");
 }
 
 static ssize_t group_show(struct device *dev, struct device_attribute *attr,
@@ -2682,9 +2682,9 @@ static ssize_t group_show(struct device *dev, struct device_attribute *attr,
 {
 	struct tun_struct *tun = netdev_priv(to_net_dev(dev));
 	return gid_valid(tun->group) ?
-		sprintf(buf, "%u\n",
-			from_kgid_munged(current_user_ns(), tun->group)):
-		sprintf(buf, "-1\n");
+		sysfs_emit(buf, "%u\n",
+			   from_kgid_munged(current_user_ns(), tun->group)) :
+		sysfs_emit(buf, "-1\n");
 }
 
 static DEVICE_ATTR_RO(tun_flags);
@@ -2828,7 +2828,10 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		rcu_assign_pointer(tfile->tun, tun);
 	}
 
-	netif_carrier_on(tun->dev);
+	if (ifr->ifr_flags & IFF_NO_CARRIER)
+		netif_carrier_off(tun->dev);
+	else
+		netif_carrier_on(tun->dev);
 
 	/* Make sure persistent devices do not get stuck in
 	 * xoff state.
@@ -3056,8 +3059,8 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 		 * This is needed because we never checked for invalid flags on
 		 * TUNSETIFF.
 		 */
-		return put_user(IFF_TUN | IFF_TAP | TUN_FEATURES,
-				(unsigned int __user*)argp);
+		return put_user(IFF_TUN | IFF_TAP | IFF_NO_CARRIER |
+				TUN_FEATURES, (unsigned int __user*)argp);
 	} else if (cmd == TUNSETQUEUE) {
 		return tun_set_queue(file, &ifr);
 	} else if (cmd == SIOCGSKNS) {
@@ -3540,15 +3543,15 @@ static void tun_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 {
 	struct tun_struct *tun = netdev_priv(dev);
 
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_VERSION, sizeof(info->version));
 
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case IFF_TUN:
-		strlcpy(info->bus_info, "tun", sizeof(info->bus_info));
+		strscpy(info->bus_info, "tun", sizeof(info->bus_info));
 		break;
 	case IFF_TAP:
-		strlcpy(info->bus_info, "tap", sizeof(info->bus_info));
+		strscpy(info->bus_info, "tap", sizeof(info->bus_info));
 		break;
 	}
 }

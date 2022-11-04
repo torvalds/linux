@@ -1091,7 +1091,7 @@ error_mutex_destroy:
  *
  * Return: 0 if successful, error code otherwise.
  */
-static int ov9282_remove(struct i2c_client *client)
+static void ov9282_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov9282 *ov9282 = to_ov9282(sd);
@@ -1106,8 +1106,6 @@ static int ov9282_remove(struct i2c_client *client)
 	pm_runtime_set_suspended(&client->dev);
 
 	mutex_destroy(&ov9282->mutex);
-
-	return 0;
 }
 
 static const struct dev_pm_ops ov9282_pm_ops = {

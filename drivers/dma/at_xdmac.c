@@ -1470,10 +1470,7 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	bool			initd;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret == DMA_COMPLETE)
-		return ret;
-
-	if (!txstate)
+	if (ret == DMA_COMPLETE || !txstate)
 		return ret;
 
 	spin_lock_irqsave(&atchan->lock, flags);

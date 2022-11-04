@@ -375,8 +375,6 @@ static ssize_t user_pin_configs_show(struct device *dev,
 	return pin_configs_show(codec, &codec->user_pins, buf);
 }
 
-#define MAX_PIN_CONFIGS		32
-
 static int parse_user_pin_configs(struct hda_codec *codec, const char *buf)
 {
 	int nid, cfg, err;

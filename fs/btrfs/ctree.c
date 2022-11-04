@@ -1447,6 +1447,11 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 			return 0;
 		}
 
+		if (p->nowait) {
+			free_extent_buffer(tmp);
+			return -EAGAIN;
+		}
+
 		if (unlock_up)
 			btrfs_unlock_up_safe(p, level + 1);
 
@@ -1467,6 +1472,8 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 			ret = -EAGAIN;
 
 		goto out;
+	} else if (p->nowait) {
+		return -EAGAIN;
 	}
 
 	if (unlock_up) {
@@ -1634,7 +1641,13 @@ static struct extent_buffer *btrfs_search_slot_get_root(struct btrfs_root *root,
 		 * We don't know the level of the root node until we actually
 		 * have it read locked
 		 */
-		b = btrfs_read_lock_root_node(root);
+		if (p->nowait) {
+			b = btrfs_try_read_lock_root_node(root);
+			if (IS_ERR(b))
+				return b;
+		} else {
+			b = btrfs_read_lock_root_node(root);
+		}
 		level = btrfs_header_level(b);
 		if (level > write_lock_level)
 			goto out;
@@ -1910,6 +1923,13 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	WARN_ON(p->nodes[0] != NULL);
 	BUG_ON(!cow && ins_len);
 
+	/*
+	 * For now only allow nowait for read only operations.  There's no
+	 * strict reason why we can't, we just only need it for reads so it's
+	 * only implemented for reads.
+	 */
+	ASSERT(!p->nowait || !cow);
+
 	if (ins_len < 0) {
 		lowest_unlock = 2;
 
@@ -1936,7 +1956,12 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 
 	if (p->need_commit_sem) {
 		ASSERT(p->search_commit_root);
-		down_read(&fs_info->commit_root_sem);
+		if (p->nowait) {
+			if (!down_read_trylock(&fs_info->commit_root_sem))
+				return -EAGAIN;
+		} else {
+			down_read(&fs_info->commit_root_sem);
+		}
 	}
 
 again:
@@ -2082,7 +2107,15 @@ cow_done:
 				btrfs_tree_lock(b);
 				p->locks[level] = BTRFS_WRITE_LOCK;
 			} else {
-				btrfs_tree_read_lock(b);
+				if (p->nowait) {
+					if (!btrfs_try_tree_read_lock(b)) {
+						free_extent_buffer(b);
+						ret = -EAGAIN;
+						goto done;
+					}
+				} else {
+					btrfs_tree_read_lock(b);
+				}
 				p->locks[level] = BTRFS_READ_LOCK;
 			}
 			p->nodes[level] = b;
@@ -2131,6 +2164,7 @@ int btrfs_search_old_slot(struct btrfs_root *root, const struct btrfs_key *key,
 
 	lowest_level = p->lowest_level;
 	WARN_ON(p->nodes[0] != NULL);
+	ASSERT(!p->nowait);
 
 	if (p->search_commit_root) {
 		BUG_ON(time_seq);
@@ -4432,6 +4466,7 @@ int btrfs_search_forward(struct btrfs_root *root, struct btrfs_key *min_key,
 	int ret = 1;
 	int keep_locks = path->keep_locks;
 
+	ASSERT(!path->nowait);
 	path->keep_locks = 1;
 again:
 	cur = btrfs_read_lock_root_node(root);
@@ -4611,6 +4646,8 @@ int btrfs_next_old_leaf(struct btrfs_root *root, struct btrfs_path *path,
 	u32 nritems;
 	int ret;
 	int i;
+
+	ASSERT(!path->nowait);
 
 	nritems = btrfs_header_nritems(path->nodes[0]);
 	if (nritems == 0)

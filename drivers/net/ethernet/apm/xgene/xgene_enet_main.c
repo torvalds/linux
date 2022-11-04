@@ -1977,14 +1977,12 @@ static void xgene_enet_napi_add(struct xgene_enet_pdata *pdata)
 
 	for (i = 0; i < pdata->rxq_cnt; i++) {
 		napi = &pdata->rx_ring[i]->napi;
-		netif_napi_add(pdata->ndev, napi, xgene_enet_napi,
-			       NAPI_POLL_WEIGHT);
+		netif_napi_add(pdata->ndev, napi, xgene_enet_napi);
 	}
 
 	for (i = 0; i < pdata->cq_cnt; i++) {
 		napi = &pdata->tx_ring[i]->cp_ring->napi;
-		netif_napi_add(pdata->ndev, napi, xgene_enet_napi,
-			       NAPI_POLL_WEIGHT);
+		netif_napi_add(pdata->ndev, napi, xgene_enet_napi);
 	}
 }
 

@@ -2057,7 +2057,7 @@ struct ocfs2_orphan_filldir_priv {
 	enum ocfs2_orphan_reco_type orphan_reco_type;
 };
 
-static int ocfs2_orphan_filldir(struct dir_context *ctx, const char *name,
+static bool ocfs2_orphan_filldir(struct dir_context *ctx, const char *name,
 				int name_len, loff_t pos, u64 ino,
 				unsigned type)
 {
@@ -2066,21 +2066,21 @@ static int ocfs2_orphan_filldir(struct dir_context *ctx, const char *name,
 	struct inode *iter;
 
 	if (name_len == 1 && !strncmp(".", name, 1))
-		return 0;
+		return true;
 	if (name_len == 2 && !strncmp("..", name, 2))
-		return 0;
+		return true;
 
 	/* do not include dio entry in case of orphan scan */
 	if ((p->orphan_reco_type == ORPHAN_NO_NEED_TRUNCATE) &&
 			(!strncmp(name, OCFS2_DIO_ORPHAN_PREFIX,
 			OCFS2_DIO_ORPHAN_PREFIX_LEN)))
-		return 0;
+		return true;
 
 	/* Skip bad inodes so that recovery can continue */
 	iter = ocfs2_iget(p->osb, ino,
 			  OCFS2_FI_FLAG_ORPHAN_RECOVERY, 0);
 	if (IS_ERR(iter))
-		return 0;
+		return true;
 
 	if (!strncmp(name, OCFS2_DIO_ORPHAN_PREFIX,
 			OCFS2_DIO_ORPHAN_PREFIX_LEN))
@@ -2090,7 +2090,7 @@ static int ocfs2_orphan_filldir(struct dir_context *ctx, const char *name,
 	 * happen concurrently with unlink/rename */
 	if (OCFS2_I(iter)->ip_next_orphan) {
 		iput(iter);
-		return 0;
+		return true;
 	}
 
 	trace_ocfs2_orphan_filldir((unsigned long long)OCFS2_I(iter)->ip_blkno);
@@ -2099,7 +2099,7 @@ static int ocfs2_orphan_filldir(struct dir_context *ctx, const char *name,
 	OCFS2_I(iter)->ip_next_orphan = p->head;
 	p->head = iter;
 
-	return 0;
+	return true;
 }
 
 static int ocfs2_queue_orphans(struct ocfs2_super *osb,

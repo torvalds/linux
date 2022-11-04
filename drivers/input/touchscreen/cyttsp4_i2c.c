@@ -43,13 +43,11 @@ static int cyttsp4_i2c_probe(struct i2c_client *client,
 	return PTR_ERR_OR_ZERO(ts);
 }
 
-static int cyttsp4_i2c_remove(struct i2c_client *client)
+static void cyttsp4_i2c_remove(struct i2c_client *client)
 {
 	struct cyttsp4 *ts = i2c_get_clientdata(client);
 
 	cyttsp4_remove(ts);
-
-	return 0;
 }
 
 static const struct i2c_device_id cyttsp4_i2c_id[] = {

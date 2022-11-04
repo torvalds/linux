@@ -341,14 +341,12 @@ static int ipmb_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int ipmb_remove(struct i2c_client *client)
+static void ipmb_remove(struct i2c_client *client)
 {
 	struct ipmb_dev *ipmb_dev = i2c_get_clientdata(client);
 
 	i2c_slave_unregister(client);
 	misc_deregister(&ipmb_dev->miscdev);
-
-	return 0;
 }
 
 static const struct i2c_device_id ipmb_id[] = {

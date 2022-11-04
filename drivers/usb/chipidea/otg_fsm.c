@@ -471,6 +471,10 @@ static void ci_otg_drv_vbus(struct otg_fsm *fsm, int on)
 				return;
 			}
 		}
+
+		if (ci->platdata->flags & CI_HDRC_PHY_VBUS_CONTROL)
+			usb_phy_vbus_on(ci->usb_phy);
+
 		/* Disable data pulse irq */
 		hw_write_otgsc(ci, OTGSC_DPIE, 0);
 
@@ -479,6 +483,9 @@ static void ci_otg_drv_vbus(struct otg_fsm *fsm, int on)
 	} else {
 		if (ci->platdata->reg_vbus)
 			regulator_disable(ci->platdata->reg_vbus);
+
+		if (ci->platdata->flags & CI_HDRC_PHY_VBUS_CONTROL)
+			usb_phy_vbus_off(ci->usb_phy);
 
 		fsm->a_bus_drop = 1;
 		fsm->a_bus_req = 0;

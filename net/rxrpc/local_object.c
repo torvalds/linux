@@ -137,6 +137,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 
 	tuncfg.encap_type = UDP_ENCAP_RXRPC;
 	tuncfg.encap_rcv = rxrpc_input_packet;
+	tuncfg.encap_err_rcv = rxrpc_encap_err_rcv;
 	tuncfg.sk_user_data = local;
 	setup_udp_tunnel_sock(net, local->socket, &tuncfg);
 
@@ -404,6 +405,9 @@ static void rxrpc_local_processor(struct work_struct *work)
 	struct rxrpc_local *local =
 		container_of(work, struct rxrpc_local, processor);
 	bool again;
+
+	if (local->dead)
+		return;
 
 	trace_rxrpc_local(local->debug_id, rxrpc_local_processing,
 			  refcount_read(&local->ref), NULL);

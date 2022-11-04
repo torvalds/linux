@@ -319,8 +319,8 @@ enum drm_panel_orientation {
  *             EDID's detailed monitor range
  */
 struct drm_monitor_range_info {
-	u8 min_vfreq;
-	u8 max_vfreq;
+	u16 min_vfreq;
+	u16 max_vfreq;
 };
 
 /**
@@ -692,7 +692,8 @@ struct drm_connector_tv_margins {
 
 /**
  * struct drm_tv_connector_state - TV connector related states
- * @subconnector: selected subconnector
+ * @select_subconnector: selected subconnector
+ * @subconnector: detected subconnector
  * @margins: TV margins
  * @mode: TV mode
  * @brightness: brightness in percent
@@ -703,6 +704,7 @@ struct drm_connector_tv_margins {
  * @hue: hue in percent
  */
 struct drm_tv_connector_state {
+	enum drm_mode_subconnector select_subconnector;
 	enum drm_mode_subconnector subconnector;
 	struct drm_connector_tv_margins margins;
 	unsigned int mode;
@@ -1548,12 +1550,20 @@ struct drm_connector {
 	struct drm_cmdline_mode cmdline_mode;
 	/** @force: a DRM_FORCE_<foo> state for forced mode sets */
 	enum drm_connector_force force;
+
 	/**
-	 * @override_edid: has the EDID been overwritten through debugfs for
-	 * testing? Do not modify outside of drm_edid_override_set() and
-	 * drm_edid_override_reset().
+	 * @edid_override: Override EDID set via debugfs.
+	 *
+	 * Do not modify or access outside of the drm_edid_override_* family of
+	 * functions.
 	 */
-	bool override_edid;
+	const struct drm_edid *edid_override;
+
+	/**
+	 * @edid_override_mutex: Protect access to edid_override.
+	 */
+	struct mutex edid_override_mutex;
+
 	/** @epoch_counter: used to detect any other changes in connector, besides status */
 	u64 epoch_counter;
 

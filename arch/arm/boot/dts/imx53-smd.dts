@@ -19,13 +19,13 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		volume-up {
+		key-volume-up {
 			label = "Volume Up";
 			gpios = <&gpio2 14 0>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 
-		volume-down {
+		key-volume-down {
 			label = "Volume Down";
 			gpios = <&gpio2 15 0>;
 			linux,code = <KEY_VOLUMEDOWN>;

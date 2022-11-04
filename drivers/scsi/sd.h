@@ -150,11 +150,6 @@ struct scsi_disk {
 	unsigned	urswrz : 1;
 	unsigned	security : 1;
 	unsigned	ignore_medium_access_errors : 1;
-
-	int		start_result;
-	u32		start_sense_len;
-	u8		start_sense_buffer[SCSI_SENSE_BUFFERSIZE];
-	struct work_struct start_done_work;
 };
 #define to_scsi_disk(obj) container_of(obj, struct scsi_disk, disk_dev)
 

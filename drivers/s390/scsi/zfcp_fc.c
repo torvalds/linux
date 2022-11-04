@@ -885,7 +885,7 @@ static int zfcp_fc_gspn(struct zfcp_adapter *adapter,
 			 dev_name(&adapter->ccw_device->dev),
 			 init_utsname()->nodename);
 	else
-		strlcpy(fc_host_symbolic_name(adapter->scsi_host),
+		strscpy(fc_host_symbolic_name(adapter->scsi_host),
 			gspn_rsp->gspn.fp_name, FC_SYMBOLIC_NAME_SIZE);
 
 	return 0;

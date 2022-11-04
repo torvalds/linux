@@ -572,11 +572,10 @@ static int rt9120_probe(struct i2c_client *i2c)
 					       &rt9120_dai, 1);
 }
 
-static int rt9120_remove(struct i2c_client *i2c)
+static void rt9120_remove(struct i2c_client *i2c)
 {
 	pm_runtime_disable(&i2c->dev);
 	pm_runtime_set_suspended(&i2c->dev);
-	return 0;
 }
 
 static int __maybe_unused rt9120_runtime_suspend(struct device *dev)

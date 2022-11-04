@@ -1133,7 +1133,7 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 				       PAGE_SIZE * (QDIO_MAX_ELEMENTS_PER_BUFFER - 1));
 	}
 
-	netif_napi_add(card->dev, &card->napi, qeth_poll, NAPI_POLL_WEIGHT);
+	netif_napi_add(card->dev, &card->napi, qeth_poll);
 	return register_netdev(card->dev);
 }
 
@@ -1530,8 +1530,8 @@ static void qeth_addr_change_event(struct qeth_card *card,
 	else
 		INIT_DELAYED_WORK(&data->dwork, qeth_l2_dev2br_worker);
 	data->card = card;
-	memcpy(&data->ac_event, hostevs,
-			sizeof(struct qeth_ipacmd_addr_change) + extrasize);
+	data->ac_event = *hostevs;
+	memcpy(data->ac_event.entry, hostevs->entry, extrasize);
 	queue_delayed_work(card->event_wq, &data->dwork, 0);
 }
 

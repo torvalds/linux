@@ -323,10 +323,12 @@ static umode_t atkbd_attr_is_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-static struct attribute_group atkbd_attribute_group = {
+static const struct attribute_group atkbd_attribute_group = {
 	.attrs	= atkbd_attributes,
 	.is_visible = atkbd_attr_is_visible,
 };
+
+__ATTRIBUTE_GROUPS(atkbd_attribute);
 
 static const unsigned int xl_table[] = {
 	ATKBD_RET_BAT, ATKBD_RET_ERR, ATKBD_RET_ACK,
@@ -922,8 +924,6 @@ static void atkbd_disconnect(struct serio *serio)
 {
 	struct atkbd *atkbd = serio_get_drvdata(serio);
 
-	sysfs_remove_group(&serio->dev.kobj, &atkbd_attribute_group);
-
 	atkbd_disable(atkbd);
 
 	input_unregister_device(atkbd->dev);
@@ -1271,21 +1271,16 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 	atkbd_set_keycode_table(atkbd);
 	atkbd_set_device_attrs(atkbd);
 
-	err = sysfs_create_group(&serio->dev.kobj, &atkbd_attribute_group);
-	if (err)
-		goto fail3;
-
 	atkbd_enable(atkbd);
 	if (serio->write)
 		atkbd_activate(atkbd);
 
 	err = input_register_device(atkbd->dev);
 	if (err)
-		goto fail4;
+		goto fail3;
 
 	return 0;
 
- fail4: sysfs_remove_group(&serio->dev.kobj, &atkbd_attribute_group);
  fail3:	serio_close(serio);
  fail2:	serio_set_drvdata(serio, NULL);
  fail1:	input_free_device(dev);
@@ -1378,7 +1373,8 @@ MODULE_DEVICE_TABLE(serio, atkbd_serio_ids);
 
 static struct serio_driver atkbd_drv = {
 	.driver		= {
-		.name	= "atkbd",
+		.name		= "atkbd",
+		.dev_groups	= atkbd_attribute_groups,
 	},
 	.description	= DRIVER_DESC,
 	.id_table	= atkbd_serio_ids,

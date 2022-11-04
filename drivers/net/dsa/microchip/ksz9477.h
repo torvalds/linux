@@ -16,8 +16,9 @@ u32 ksz9477_get_port_addr(int port, int offset);
 void ksz9477_cfg_port_member(struct ksz_device *dev, int port, u8 member);
 void ksz9477_flush_dyn_mac_table(struct ksz_device *dev, int port);
 void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port);
-void ksz9477_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data);
-void ksz9477_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val);
+int ksz9477_set_ageing_time(struct ksz_device *dev, unsigned int msecs);
+int ksz9477_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data);
+int ksz9477_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val);
 void ksz9477_r_mib_cnt(struct ksz_device *dev, int port, u16 addr, u64 *cnt);
 void ksz9477_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 		       u64 *dropped, u64 *cnt);

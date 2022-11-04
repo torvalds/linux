@@ -292,6 +292,7 @@ static netdev_tx_t brcmf_netdev_start_xmit(struct sk_buff *skb,
 	struct brcmf_pub *drvr = ifp->drvr;
 	struct ethhdr *eh;
 	int head_delta;
+	unsigned int tx_bytes = skb->len;
 
 	brcmf_dbg(DATA, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
 
@@ -366,7 +367,7 @@ done:
 		ndev->stats.tx_dropped++;
 	} else {
 		ndev->stats.tx_packets++;
-		ndev->stats.tx_bytes += skb->len;
+		ndev->stats.tx_bytes += tx_bytes;
 	}
 
 	/* Return ok: we always eat the packet */
@@ -561,10 +562,10 @@ static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
 
 	if (drvr->revinfo.result == 0)
 		brcmu_dotrev_str(drvr->revinfo.driverrev, drev);
-	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
-	strlcpy(info->version, drev, sizeof(info->version));
-	strlcpy(info->fw_version, drvr->fwver, sizeof(info->fw_version));
-	strlcpy(info->bus_info, dev_name(drvr->bus_if->dev),
+	strscpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strscpy(info->version, drev, sizeof(info->version));
+	strscpy(info->fw_version, drvr->fwver, sizeof(info->fw_version));
+	strscpy(info->bus_info, dev_name(drvr->bus_if->dev),
 		sizeof(info->bus_info));
 }
 
@@ -1480,8 +1481,10 @@ int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp)
 				 !brcmf_get_pend_8021x_cnt(ifp),
 				 MAX_WAIT_FOR_8021X_TX);
 
-	if (!err)
+	if (!err) {
 		bphy_err(drvr, "Timed out waiting for no pending 802.1x packets\n");
+		atomic_set(&ifp->pend_8021x_cnt, 0);
+	}
 
 	return !err;
 }

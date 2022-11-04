@@ -101,7 +101,6 @@ struct netns_ct {
 	u8			sysctl_log_invalid; /* Log invalid packets */
 	u8			sysctl_events;
 	u8			sysctl_acct;
-	u8			sysctl_auto_assign_helper;
 	u8			sysctl_tstamp;
 	u8			sysctl_checksum;
 

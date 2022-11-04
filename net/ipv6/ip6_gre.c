@@ -360,7 +360,7 @@ static struct ip6_tnl *ip6gre_tunnel_locate(struct net *net,
 	if (parms->name[0]) {
 		if (!dev_valid_name(parms->name))
 			return NULL;
-		strlcpy(name, parms->name, IFNAMSIZ);
+		strscpy(name, parms->name, IFNAMSIZ);
 	} else {
 		strcpy(name, "ip6gre%d");
 	}

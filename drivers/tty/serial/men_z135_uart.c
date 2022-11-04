@@ -646,8 +646,8 @@ static void men_z135_shutdown(struct uart_port *port)
 }
 
 static void men_z135_set_termios(struct uart_port *port,
-				struct ktermios *termios,
-				struct ktermios *old)
+				 struct ktermios *termios,
+				 const struct ktermios *old)
 {
 	struct men_z135_port *uart = to_men_z135(port);
 	unsigned int baud;

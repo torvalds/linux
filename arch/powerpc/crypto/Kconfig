@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menu "Accelerated Cryptographic Algorithms for CPU (powerpc)"
+
+config CRYPTO_CRC32C_VPMSUM
+	tristate "CRC32c"
+	depends on PPC64 && ALTIVEC
+	select CRYPTO_HASH
+	select CRC32
+	help
+	  CRC32c CRC algorithm with the iSCSI polynomial (RFC 3385 and RFC 3720)
+
+	  Architecture: powerpc64 using
+	  - AltiVec extensions
+
+	  Enable on POWER8 and newer processors for improved performance.
+
+config CRYPTO_CRCT10DIF_VPMSUM
+	tristate "CRC32T10DIF"
+	depends on PPC64 && ALTIVEC && CRC_T10DIF
+	select CRYPTO_HASH
+	help
+	  CRC16 CRC algorithm used for the T10 (SCSI) Data Integrity Field (DIF)
+
+	  Architecture: powerpc64 using
+	  - AltiVec extensions
+
+	  Enable on POWER8 and newer processors for improved performance.
+
+config CRYPTO_VPMSUM_TESTER
+	tristate "CRC32c and CRC32T10DIF hardware acceleration tester"
+	depends on CRYPTO_CRCT10DIF_VPMSUM && CRYPTO_CRC32C_VPMSUM
+	help
+	  Stress test for CRC32c and CRCT10DIF algorithms implemented with
+	  powerpc64 AltiVec extensions (POWER8 vpmsum instructions).
+	  Unless you are testing these algorithms, you don't need this.
+
+config CRYPTO_MD5_PPC
+	tristate "Digests: MD5"
+	depends on PPC
+	select CRYPTO_HASH
+	help
+	  MD5 message digest algorithm (RFC1321)
+
+	  Architecture: powerpc
+
+config CRYPTO_SHA1_PPC
+	tristate "Hash functions: SHA-1"
+	depends on PPC
+	help
+	  SHA-1 secure hash algorithm (FIPS 180)
+
+	  Architecture: powerpc
+
+config CRYPTO_SHA1_PPC_SPE
+	tristate "Hash functions: SHA-1 (SPE)"
+	depends on PPC && SPE
+	help
+	  SHA-1 secure hash algorithm (FIPS 180)
+
+	  Architecture: powerpc using
+	  - SPE (Signal Processing Engine) extensions
+
+config CRYPTO_SHA256_PPC_SPE
+	tristate "Hash functions: SHA-224 and SHA-256 (SPE)"
+	depends on PPC && SPE
+	select CRYPTO_SHA256
+	select CRYPTO_HASH
+	help
+	  SHA-224 and SHA-256 secure hash algorithms (FIPS 180)
+
+	  Architecture: powerpc using
+	  - SPE (Signal Processing Engine) extensions
+
+config CRYPTO_AES_PPC_SPE
+	tristate "Ciphers: AES, modes: ECB/CBC/CTR/XTS (SPE)"
+	depends on PPC && SPE
+	select CRYPTO_SKCIPHER
+	help
+	  Block ciphers: AES cipher algorithms (FIPS-197)
+	  Length-preserving ciphers: AES with ECB, CBC, CTR, and XTS modes
+
+	  Architecture: powerpc using:
+	  - SPE (Signal Processing Engine) extensions
+
+	  SPE is available for:
+	  - Processor Type: Freescale 8500
+	  - CPU selection: e500 (8540)
+
+	  This module should only be used for low power (router) devices
+	  without hardware AES acceleration (e.g. caam crypto). It reduces the
+	  size of the AES tables from 16KB to 8KB + 256 bytes and mitigates
+	  timining attacks. Nevertheless it might be not as secure as other
+	  architecture specific assembler implementations that work on 1KB
+	  tables or 256 bytes S-boxes.
+
+endmenu

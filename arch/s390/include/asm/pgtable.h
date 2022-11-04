@@ -1777,6 +1777,10 @@ static inline swp_entry_t __swp_entry(unsigned long type, unsigned long offset)
 
 extern int vmem_add_mapping(unsigned long start, unsigned long size);
 extern void vmem_remove_mapping(unsigned long start, unsigned long size);
+extern int __vmem_map_4k_page(unsigned long addr, unsigned long phys, pgprot_t prot, bool alloc);
+extern int vmem_map_4k_page(unsigned long addr, unsigned long phys, pgprot_t prot);
+extern void vmem_unmap_4k_page(unsigned long addr);
+extern pte_t *vmem_get_alloc_pte(unsigned long addr, bool alloc);
 extern int s390_enable_sie(void);
 extern int s390_enable_skey(void);
 extern void s390_reset_cmma(struct mm_struct *mm);

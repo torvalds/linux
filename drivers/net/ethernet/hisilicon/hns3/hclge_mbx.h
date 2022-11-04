@@ -233,6 +233,17 @@ struct hclgevf_mbx_arq_ring {
 	__le16 msg_q[HCLGE_MBX_MAX_ARQ_MSG_NUM][HCLGE_MBX_MAX_ARQ_MSG_SIZE];
 };
 
+struct hclge_dev;
+
+#define HCLGE_MBX_OPCODE_MAX 256
+struct hclge_mbx_ops_param {
+	struct hclge_vport *vport;
+	struct hclge_mbx_vf_to_pf_cmd *req;
+	struct hclge_respond_to_vf_msg *resp_msg;
+};
+
+typedef int (*hclge_mbx_ops_fn)(struct hclge_mbx_ops_param *param);
+
 #define hclge_mbx_ring_ptr_move_crq(crq) \
 	(crq->next_to_use = (crq->next_to_use + 1) % crq->desc_num)
 #define hclge_mbx_tail_ptr_move_arq(arq) \

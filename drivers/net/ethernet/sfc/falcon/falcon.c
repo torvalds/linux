@@ -2387,7 +2387,7 @@ static int falcon_probe_nic(struct ef4_nic *efx)
 	board->i2c_data.data = efx;
 	board->i2c_adap.algo_data = &board->i2c_data;
 	board->i2c_adap.dev.parent = &efx->pci_dev->dev;
-	strlcpy(board->i2c_adap.name, "SFC4000 GPIO",
+	strscpy(board->i2c_adap.name, "SFC4000 GPIO",
 		sizeof(board->i2c_adap.name));
 	rc = i2c_bit_add_bus(&board->i2c_adap);
 	if (rc)

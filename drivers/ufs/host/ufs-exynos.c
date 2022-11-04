@@ -1711,7 +1711,7 @@ static struct exynos_ufs_uic_attr fsd_uic_attr = {
 	.pa_dbg_option_suite		= 0x2E820183,
 };
 
-struct exynos_ufs_drv_data fsd_ufs_drvs = {
+static const struct exynos_ufs_drv_data fsd_ufs_drvs = {
 	.uic_attr               = &fsd_uic_attr,
 	.quirks                 = UFSHCD_QUIRK_PRDT_BYTE_GRAN |
 				  UFSHCI_QUIRK_BROKEN_REQ_LIST_CLR |

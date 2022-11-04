@@ -1192,7 +1192,7 @@ err:
 	return ret;
 }
 
-static int mt9v032_remove(struct i2c_client *client)
+static void mt9v032_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct mt9v032 *mt9v032 = to_mt9v032(subdev);
@@ -1200,8 +1200,6 @@ static int mt9v032_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(subdev);
 	v4l2_ctrl_handler_free(&mt9v032->ctrls);
 	media_entity_cleanup(&subdev->entity);
-
-	return 0;
 }
 
 static const struct mt9v032_model_data mt9v032_model_data[] = {

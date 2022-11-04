@@ -23,7 +23,6 @@
 
 #define DRIVER_DESC "OHCI SPEAr driver"
 
-static const char hcd_name[] = "SPEAr-ohci";
 struct spear_ohci {
 	struct clk *clk;
 };
@@ -178,8 +177,6 @@ static int __init ohci_spear_init(void)
 {
 	if (usb_disabled())
 		return -ENODEV;
-
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 
 	ohci_init_driver(&ohci_spear_hc_driver, &spear_overrides);
 	return platform_driver_register(&spear_ohci_hcd_driver);

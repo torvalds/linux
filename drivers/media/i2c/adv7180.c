@@ -1514,7 +1514,7 @@ err_unregister_csi_client:
 	return ret;
 }
 
-static int adv7180_remove(struct i2c_client *client)
+static void adv7180_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct adv7180_state *state = to_state(sd);
@@ -1534,8 +1534,6 @@ static int adv7180_remove(struct i2c_client *client)
 	adv7180_set_power_pin(state, false);
 
 	mutex_destroy(&state->mutex);
-
-	return 0;
 }
 
 static const struct i2c_device_id adv7180_id[] = {

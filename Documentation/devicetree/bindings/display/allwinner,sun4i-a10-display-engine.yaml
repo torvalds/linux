@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/allwinner,sun4i-a10-display-engine.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 Display Engine Pipeline Device Tree Bindings
+title: Allwinner A10 Display Engine Pipeline
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

@@ -82,7 +82,7 @@ static int test_extents(struct btrfs_block_group *cache)
 	}
 
 	/* Cleanup */
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 
 	return 0;
 }
@@ -149,7 +149,7 @@ static int test_bitmaps(struct btrfs_block_group *cache, u32 sectorsize)
 		return -1;
 	}
 
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 
 	return 0;
 }
@@ -230,7 +230,7 @@ static int test_bitmaps_and_extents(struct btrfs_block_group *cache,
 		return -1;
 	}
 
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 
 	/* Now with the extent entry offset into the bitmap */
 	ret = test_add_free_space_entry(cache, SZ_4M, SZ_4M, 1);
@@ -266,7 +266,7 @@ static int test_bitmaps_and_extents(struct btrfs_block_group *cache,
 	 *      [ bitmap ]
 	 *        [ del ]
 	 */
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 	ret = test_add_free_space_entry(cache, bitmap_offset + SZ_4M, SZ_4M, 1);
 	if (ret) {
 		test_err("couldn't add bitmap %d", ret);
@@ -291,7 +291,7 @@ static int test_bitmaps_and_extents(struct btrfs_block_group *cache,
 		return -1;
 	}
 
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 
 	/*
 	 * This blew up before, we have part of the free space in a bitmap and
@@ -317,7 +317,7 @@ static int test_bitmaps_and_extents(struct btrfs_block_group *cache,
 		return ret;
 	}
 
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 	return 0;
 }
 
@@ -629,7 +629,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 	if (ret)
 		return ret;
 
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 
 	/*
 	 * Now test a similar scenario, but where our extent entry is located
@@ -819,7 +819,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 		return ret;
 
 	cache->free_space_ctl->op = orig_free_space_ops;
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 
 	return 0;
 }
@@ -868,7 +868,7 @@ static int test_bytes_index(struct btrfs_block_group *cache, u32 sectorsize)
 	}
 
 	/* Now validate bitmaps do the correct thing. */
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 	for (i = 0; i < 2; i++) {
 		offset = i * BITS_PER_BITMAP * sectorsize;
 		bytes = (i + 1) * SZ_1M;
@@ -891,7 +891,7 @@ static int test_bytes_index(struct btrfs_block_group *cache, u32 sectorsize)
 	}
 
 	/* Now validate bitmaps with different ->max_extent_size. */
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 	orig_free_space_ops = cache->free_space_ctl->op;
 	cache->free_space_ctl->op = &test_free_space_ops;
 
@@ -998,7 +998,7 @@ static int test_bytes_index(struct btrfs_block_group *cache, u32 sectorsize)
 	}
 
 	cache->free_space_ctl->op = orig_free_space_ops;
-	__btrfs_remove_free_space_cache(cache->free_space_ctl);
+	btrfs_remove_free_space_cache(cache);
 	return 0;
 }
 

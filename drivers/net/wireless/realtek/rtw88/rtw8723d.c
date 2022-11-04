@@ -2720,7 +2720,7 @@ const struct rtw_chip_info rtw8723d_hw_spec = {
 	.max_power_index = 0x3f,
 	.csi_buf_pg_num = 0,
 	.band = RTW_BAND_2G,
-	.page_size = 128,
+	.page_size = TX_PAGE_SIZE,
 	.dig_min = 0x20,
 	.ht_supported = true,
 	.vht_supported = false,
@@ -2748,6 +2748,7 @@ const struct rtw_chip_info rtw8723d_hw_spec = {
 	.pwr_track_tbl = &rtw8723d_rtw_pwr_track_tbl,
 	.iqk_threshold = 8,
 	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
+	.max_scan_ie_len = IEEE80211_MAX_DATA_LEN,
 
 	.coex_para_ver = 0x2007022f,
 	.bt_desired_ver = 0x2f,

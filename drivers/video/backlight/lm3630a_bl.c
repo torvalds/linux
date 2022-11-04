@@ -579,7 +579,7 @@ static int lm3630a_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int lm3630a_remove(struct i2c_client *client)
+static void lm3630a_remove(struct i2c_client *client)
 {
 	int rval;
 	struct lm3630a_chip *pchip = i2c_get_clientdata(client);
@@ -596,7 +596,6 @@ static int lm3630a_remove(struct i2c_client *client)
 		free_irq(pchip->irq, pchip);
 		destroy_workqueue(pchip->irqthread);
 	}
-	return 0;
 }
 
 static const struct i2c_device_id lm3630a_id[] = {

@@ -645,7 +645,7 @@ static int __init dcdrbu_init(void)
 	spin_lock_init(&rbu_data.lock);
 
 	init_packet_head();
-	rbu_device = platform_device_register_simple("dell_rbu", -1, NULL, 0);
+	rbu_device = platform_device_register_simple("dell_rbu", PLATFORM_DEVID_NONE, NULL, 0);
 	if (IS_ERR(rbu_device)) {
 		pr_err("platform_device_register_simple failed\n");
 		return PTR_ERR(rbu_device);

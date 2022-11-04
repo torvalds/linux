@@ -209,7 +209,7 @@ static void read_route(struct nlmsghdr *nh, int nll)
 					/* Rereading the route table to check if
 					 * there is an entry with the same
 					 * prefix but a different metric as the
-					 * deleted enty.
+					 * deleted entry.
 					 */
 					get_route_table(AF_INET);
 				} else if (prefix_key->data[0] ==

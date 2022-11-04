@@ -1697,7 +1697,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mac->pdev = pdev;
 	mac->netdev = dev;
 
-	netif_napi_add(dev, &mac->napi, pasemi_mac_poll, 64);
+	netif_napi_add(dev, &mac->napi, pasemi_mac_poll);
 
 	dev->features = NETIF_F_IP_CSUM | NETIF_F_LLTX | NETIF_F_SG |
 			NETIF_F_HIGHDMA | NETIF_F_GSO;

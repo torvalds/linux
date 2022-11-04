@@ -520,14 +520,12 @@ static int ps8622_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int ps8622_remove(struct i2c_client *client)
+static void ps8622_remove(struct i2c_client *client)
 {
 	struct ps8622_bridge *ps8622 = i2c_get_clientdata(client);
 
 	backlight_device_unregister(ps8622->bl);
 	drm_bridge_remove(&ps8622->bridge);
-
-	return 0;
 }
 
 static const struct i2c_device_id ps8622_i2c_table[] = {

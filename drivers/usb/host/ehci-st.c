@@ -42,8 +42,6 @@ struct st_ehci_platform_priv {
 #define hcd_to_ehci_priv(h) \
 	((struct st_ehci_platform_priv *)hcd_to_ehci(h)->priv)
 
-static const char hcd_name[] = "ehci-st";
-
 #define EHCI_CAPS_SIZE 0x10
 #define AHB2STBUS_INSREG01 (EHCI_CAPS_SIZE + 0x84)
 
@@ -345,8 +343,6 @@ static int __init ehci_platform_init(void)
 {
 	if (usb_disabled())
 		return -ENODEV;
-
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 
 	ehci_init_driver(&ehci_platform_hc_driver, &platform_overrides);
 	return platform_driver_register(&ehci_platform_driver);

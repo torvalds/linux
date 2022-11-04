@@ -127,11 +127,21 @@ struct dc_panel_config {
 		unsigned int extra_t12_ms;
 		unsigned int extra_post_OUI_ms;
 	} pps;
+	// ABM
+	struct varib {
+		unsigned int varibright_feature_enable;
+		unsigned int def_varibright_level;
+		unsigned int abm_config_setting;
+	} varib;
 	// edp DSC
 	struct dsc {
 		bool disable_dsc_edp;
 		unsigned int force_dsc_edp_policy;
 	} dsc;
+	/* eDP ILR */
+	struct ilr {
+		bool optimize_edp_link_rate; /* eDP ILR */
+	} ilr;
 };
 /*
  * A link contains one or more sinks and their connected status.
@@ -151,7 +161,6 @@ struct dc_link {
 	bool link_state_valid;
 	bool aux_access_disabled;
 	bool sync_lt_in_progress;
-	enum lttpr_mode lttpr_mode;
 	bool is_internal_display;
 
 	/* TODO: Rename. Flag an endpoint as having a programmable mapping to a

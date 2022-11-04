@@ -8,7 +8,7 @@ void serial_test_xdp_attach(void)
 {
 	__u32 duration = 0, id1, id2, id0 = 0, len;
 	struct bpf_object *obj1, *obj2, *obj3;
-	const char *file = "./test_xdp.o";
+	const char *file = "./test_xdp.bpf.o";
 	struct bpf_prog_info info = {};
 	int err, fd1, fd2, fd3;
 	LIBBPF_OPTS(bpf_xdp_attach_opts, opts);

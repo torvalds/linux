@@ -708,13 +708,11 @@ err_remove_bridge:
 	return ret;
 }
 
-static int sn65dsi83_remove(struct i2c_client *client)
+static void sn65dsi83_remove(struct i2c_client *client)
 {
 	struct sn65dsi83 *ctx = i2c_get_clientdata(client);
 
 	drm_bridge_remove(&ctx->bridge);
-
-	return 0;
 }
 
 static struct i2c_device_id sn65dsi83_id[] = {

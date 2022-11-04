@@ -461,7 +461,7 @@ static int block2mtd_setup(const char *val, const struct kernel_param *kp)
 	   the device (even kmalloc() fails). Deter that work to
 	   block2mtd_setup2(). */
 
-	strlcpy(block2mtd_paramline, val, sizeof(block2mtd_paramline));
+	strscpy(block2mtd_paramline, val, sizeof(block2mtd_paramline));
 
 	return 0;
 #endif

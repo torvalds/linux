@@ -520,3 +520,4 @@ MODULE_AUTHOR("Fabrice Gasnier <fabrice.gasnier@st.com>");
 MODULE_ALIAS("platform:stm32-lptimer-counter");
 MODULE_DESCRIPTION("STMicroelectronics STM32 LPTIM counter driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(COUNTER);

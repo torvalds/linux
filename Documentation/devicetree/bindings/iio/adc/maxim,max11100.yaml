@@ -26,12 +26,15 @@ properties:
     minimum: 100000
     maximum: 4800000
 
-additionalProperties: false
-
 required:
   - compatible
   - reg
   - vref-supply
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

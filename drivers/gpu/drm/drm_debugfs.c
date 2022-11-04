@@ -328,13 +328,7 @@ static ssize_t connector_write(struct file *file, const char __user *ubuf,
 
 static int edid_show(struct seq_file *m, void *data)
 {
-	struct drm_connector *connector = m->private;
-	struct drm_property_blob *edid = connector->edid_blob_ptr;
-
-	if (connector->override_edid && edid)
-		seq_write(m, edid->data, edid->length);
-
-	return 0;
+	return drm_edid_override_show(m->private, m);
 }
 
 static int edid_open(struct inode *inode, struct file *file)
@@ -377,8 +371,8 @@ static int vrr_range_show(struct seq_file *m, void *data)
 	if (connector->status != connector_status_connected)
 		return -ENODEV;
 
-	seq_printf(m, "Min: %u\n", (u8)connector->display_info.monitor_range.min_vfreq);
-	seq_printf(m, "Max: %u\n", (u8)connector->display_info.monitor_range.max_vfreq);
+	seq_printf(m, "Min: %u\n", connector->display_info.monitor_range.min_vfreq);
+	seq_printf(m, "Max: %u\n", connector->display_info.monitor_range.max_vfreq);
 
 	return 0;
 }

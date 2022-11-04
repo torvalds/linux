@@ -20,9 +20,11 @@ properties:
       - qcom,apq8016-sbc-sndcard
       - qcom,db845c-sndcard
       - qcom,msm8916-qdsp6-sndcard
+      - qcom,qrb5165-rb5-sndcard
+      - qcom,sc8280xp-sndcard
       - qcom,sdm845-sndcard
       - qcom,sm8250-sndcard
-      - qcom,qrb5165-rb5-sndcard
+      - qcom,sm8450-sndcard
 
   audio-routing:
     $ref: /schemas/types.yaml#/definitions/non-unique-string-array
@@ -71,6 +73,8 @@ patternProperties:
       cpu:
         description: Holds subnode which indicates cpu dai.
         type: object
+        additionalProperties: false
+
         properties:
           sound-dai:
             maxItems: 1
@@ -78,6 +82,8 @@ patternProperties:
       platform:
         description: Holds subnode which indicates platform dai.
         type: object
+        additionalProperties: false
+
         properties:
           sound-dai:
             maxItems: 1
@@ -85,6 +91,8 @@ patternProperties:
       codec:
         description: Holds subnode which indicates codec dai.
         type: object
+        additionalProperties: false
+
         properties:
           sound-dai:
             minItems: 1

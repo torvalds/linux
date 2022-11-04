@@ -34,7 +34,8 @@ module_param_hw_array(base, uint, ioport, &num_dio48e, 0);
 MODULE_PARM_DESC(base, "ACCES 104-DIO-48E base addresses");
 
 static unsigned int irq[MAX_NUM_DIO48E];
-module_param_hw_array(irq, uint, irq, NULL, 0);
+static unsigned int num_irq;
+module_param_hw_array(irq, uint, irq, &num_irq, 0);
 MODULE_PARM_DESC(irq, "ACCES 104-DIO-48E interrupt line numbers");
 
 #define DIO48E_NUM_PPI 2
@@ -164,6 +165,7 @@ static void dio48e_irq_mask(struct irq_data *data)
 		dio48egpio->irq_mask &= ~BIT(0);
 	else
 		dio48egpio->irq_mask &= ~BIT(1);
+	gpiochip_disable_irq(chip, offset);
 
 	if (!dio48egpio->irq_mask)
 		/* disable interrupts */
@@ -191,6 +193,7 @@ static void dio48e_irq_unmask(struct irq_data *data)
 		iowrite8(0x00, &dio48egpio->reg->enable_interrupt);
 	}
 
+	gpiochip_enable_irq(chip, offset);
 	if (offset == 19)
 		dio48egpio->irq_mask |= BIT(0);
 	else
@@ -213,12 +216,14 @@ static int dio48e_irq_set_type(struct irq_data *data, unsigned int flow_type)
 	return 0;
 }
 
-static struct irq_chip dio48e_irqchip = {
+static const struct irq_chip dio48e_irqchip = {
 	.name = "104-dio-48e",
 	.irq_ack = dio48e_irq_ack,
 	.irq_mask = dio48e_irq_mask,
 	.irq_unmask = dio48e_irq_unmask,
-	.irq_set_type = dio48e_irq_set_type
+	.irq_set_type = dio48e_irq_set_type,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static irqreturn_t dio48e_irq_handler(int irq, void *dev_id)
@@ -322,7 +327,7 @@ static int dio48e_probe(struct device *dev, unsigned int id)
 	dio48egpio->chip.set_multiple = dio48e_gpio_set_multiple;
 
 	girq = &dio48egpio->chip.irq;
-	girq->chip = &dio48e_irqchip;
+	gpio_irq_chip_set_chip(girq, &dio48e_irqchip);
 	/* This will let us handle the parent IRQ in the driver */
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
@@ -358,7 +363,7 @@ static struct isa_driver dio48e_driver = {
 		.name = "104-dio-48e"
 	},
 };
-module_isa_driver(dio48e_driver, num_dio48e);
+module_isa_driver_with_irq(dio48e_driver, num_dio48e, num_irq);
 
 MODULE_AUTHOR("William Breathitt Gray <vilhelm.gray@gmail.com>");
 MODULE_DESCRIPTION("ACCES 104-DIO-48E GPIO driver");

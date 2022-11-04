@@ -1290,14 +1290,12 @@ static int rt298_i2c_probe(struct i2c_client *i2c)
 	return ret;
 }
 
-static int rt298_i2c_remove(struct i2c_client *i2c)
+static void rt298_i2c_remove(struct i2c_client *i2c)
 {
 	struct rt298_priv *rt298 = i2c_get_clientdata(i2c);
 
 	if (i2c->irq)
 		free_irq(i2c->irq, rt298);
-
-	return 0;
 }
 
 

@@ -20,6 +20,16 @@
    SOFTWARE IS DISCLAIMED.
 */
 
+struct mgmt_mesh_tx {
+	struct list_head list;
+	int index;
+	size_t param_len;
+	struct sock *sk;
+	u8 handle;
+	u8 instance;
+	u8 param[sizeof(struct mgmt_cp_mesh_send) + 29];
+};
+
 struct mgmt_pending_cmd {
 	struct list_head list;
 	u16 opcode;
@@ -59,3 +69,11 @@ struct mgmt_pending_cmd *mgmt_pending_new(struct sock *sk, u16 opcode,
 					  void *data, u16 len);
 void mgmt_pending_free(struct mgmt_pending_cmd *cmd);
 void mgmt_pending_remove(struct mgmt_pending_cmd *cmd);
+void mgmt_mesh_foreach(struct hci_dev *hdev,
+		       void (*cb)(struct mgmt_mesh_tx *mesh_tx, void *data),
+		       void *data, struct sock *sk);
+struct mgmt_mesh_tx *mgmt_mesh_find(struct hci_dev *hdev, u8 handle);
+struct mgmt_mesh_tx *mgmt_mesh_next(struct hci_dev *hdev, struct sock *sk);
+struct mgmt_mesh_tx *mgmt_mesh_add(struct sock *sk, struct hci_dev *hdev,
+				   void *data, u16 len);
+void mgmt_mesh_remove(struct mgmt_mesh_tx *mesh_tx);

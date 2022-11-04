@@ -21,7 +21,7 @@ static int fake_sigreturn_bad_size_for_magic0_run(struct tdescr *td,
 	struct _aarch64_ctx *shead = GET_SF_RESV_HEAD(sf), *head;
 
 	/* just to fill the ucontext_t with something real */
-	if (!get_current_context(td, &sf.uc))
+	if (!get_current_context(td, &sf.uc, sizeof(sf.uc)))
 		return 1;
 
 	/* at least HDR_SZ for the badly sized terminator. */

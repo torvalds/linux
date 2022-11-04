@@ -1270,9 +1270,9 @@ struct pmbus_thermal_data {
 	struct pmbus_sensor *sensor;
 };
 
-static int pmbus_thermal_get_temp(void *data, int *temp)
+static int pmbus_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct pmbus_thermal_data *tdata = data;
+	struct pmbus_thermal_data *tdata = tz->devdata;
 	struct pmbus_sensor *sensor = tdata->sensor;
 	struct pmbus_data *pmbus_data = tdata->pmbus_data;
 	struct i2c_client *client = to_i2c_client(pmbus_data->dev);
@@ -1296,7 +1296,7 @@ static int pmbus_thermal_get_temp(void *data, int *temp)
 	return ret;
 }
 
-static const struct thermal_zone_of_device_ops pmbus_thermal_ops = {
+static const struct thermal_zone_device_ops pmbus_thermal_ops = {
 	.get_temp = pmbus_thermal_get_temp,
 };
 
@@ -1314,8 +1314,8 @@ static int pmbus_thermal_add_sensor(struct pmbus_data *pmbus_data,
 	tdata->sensor = sensor;
 	tdata->pmbus_data = pmbus_data;
 
-	tzd = devm_thermal_zone_of_sensor_register(dev, index, tdata,
-						   &pmbus_thermal_ops);
+	tzd = devm_thermal_of_zone_register(dev, index, tdata,
+					    &pmbus_thermal_ops);
 	/*
 	 * If CONFIG_THERMAL_OF is disabled, this returns -ENODEV,
 	 * so ignore that error but forward any other error.
@@ -2861,7 +2861,7 @@ static int pmbus_regulator_get_low_margin(struct i2c_client *client, int page)
 		.data = -1,
 	};
 
-	if (!data->vout_low[page]) {
+	if (data->vout_low[page] < 0) {
 		if (pmbus_check_word_register(client, page, PMBUS_MFR_VOUT_MIN))
 			s.data = _pmbus_read_word_data(client, page, 0xff,
 						       PMBUS_MFR_VOUT_MIN);
@@ -2887,7 +2887,7 @@ static int pmbus_regulator_get_high_margin(struct i2c_client *client, int page)
 		.data = -1,
 	};
 
-	if (!data->vout_high[page]) {
+	if (data->vout_high[page] < 0) {
 		if (pmbus_check_word_register(client, page, PMBUS_MFR_VOUT_MAX))
 			s.data = _pmbus_read_word_data(client, page, 0xff,
 						       PMBUS_MFR_VOUT_MAX);
@@ -3016,11 +3016,10 @@ static int pmbus_regulator_register(struct pmbus_data *data)
 
 		rdev = devm_regulator_register(dev, &info->reg_desc[i],
 					       &config);
-		if (IS_ERR(rdev)) {
-			dev_err(dev, "Failed to register %s regulator\n",
-				info->reg_desc[i].name);
-			return PTR_ERR(rdev);
-		}
+		if (IS_ERR(rdev))
+			return dev_err_probe(dev, PTR_ERR(rdev),
+					     "Failed to register %s regulator\n",
+					     info->reg_desc[i].name);
 	}
 
 	return 0;
@@ -3320,6 +3319,7 @@ int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info)
 	struct pmbus_data *data;
 	size_t groups_num = 0;
 	int ret;
+	int i;
 	char *name;
 
 	if (!info)
@@ -3352,6 +3352,11 @@ int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info)
 	data->info = info;
 	data->currpage = -1;
 	data->currphase = -1;
+
+	for (i = 0; i < ARRAY_SIZE(data->vout_low); i++) {
+		data->vout_low[i] = -1;
+		data->vout_high[i] = -1;
+	}
 
 	ret = pmbus_init_common(client, data, info);
 	if (ret < 0)

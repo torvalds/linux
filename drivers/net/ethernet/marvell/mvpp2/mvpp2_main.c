@@ -5425,11 +5425,11 @@ mvpp2_ethtool_get_coalesce(struct net_device *dev,
 static void mvpp2_ethtool_get_drvinfo(struct net_device *dev,
 				      struct ethtool_drvinfo *drvinfo)
 {
-	strlcpy(drvinfo->driver, MVPP2_DRIVER_NAME,
+	strscpy(drvinfo->driver, MVPP2_DRIVER_NAME,
 		sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, MVPP2_DRIVER_VERSION,
+	strscpy(drvinfo->version, MVPP2_DRIVER_VERSION,
 		sizeof(drvinfo->version));
-	strlcpy(drvinfo->bus_info, dev_name(&dev->dev),
+	strscpy(drvinfo->bus_info, dev_name(&dev->dev),
 		sizeof(drvinfo->bus_info));
 }
 
@@ -5770,8 +5770,7 @@ static int mvpp2_simple_queue_vectors_init(struct mvpp2_port *port,
 	v->irq = irq_of_parse_and_map(port_node, 0);
 	if (v->irq <= 0)
 		return -EINVAL;
-	netif_napi_add(port->dev, &v->napi, mvpp2_poll,
-		       NAPI_POLL_WEIGHT);
+	netif_napi_add(port->dev, &v->napi, mvpp2_poll);
 
 	port->nqvecs = 1;
 
@@ -5831,8 +5830,7 @@ static int mvpp2_multi_queue_vectors_init(struct mvpp2_port *port,
 			goto err;
 		}
 
-		netif_napi_add(port->dev, &v->napi, mvpp2_poll,
-			       NAPI_POLL_WEIGHT);
+		netif_napi_add(port->dev, &v->napi, mvpp2_poll);
 	}
 
 	return 0;
@@ -7706,7 +7704,18 @@ static struct platform_driver mvpp2_driver = {
 	},
 };
 
-module_platform_driver(mvpp2_driver);
+static int __init mvpp2_driver_init(void)
+{
+	return platform_driver_register(&mvpp2_driver);
+}
+module_init(mvpp2_driver_init);
+
+static void __exit mvpp2_driver_exit(void)
+{
+	platform_driver_unregister(&mvpp2_driver);
+	mvpp2_dbgfs_exit();
+}
+module_exit(mvpp2_driver_exit);
 
 MODULE_DESCRIPTION("Marvell PPv2 Ethernet Driver - www.marvell.com");
 MODULE_AUTHOR("Marcin Wojtas <mw@semihalf.com>");

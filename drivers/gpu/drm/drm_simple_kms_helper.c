@@ -102,10 +102,14 @@ static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	int ret;
 
-	ret = drm_atomic_helper_check_crtc_state(crtc_state, false);
+	if (!crtc_state->enable)
+		goto out;
+
+	ret = drm_atomic_helper_check_crtc_primary_plane(crtc_state);
 	if (ret)
 		return ret;
 
+out:
 	return drm_atomic_add_affected_planes(state, crtc);
 }
 

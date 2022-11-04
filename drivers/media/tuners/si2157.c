@@ -951,7 +951,7 @@ err:
 	return ret;
 }
 
-static int si2157_remove(struct i2c_client *client)
+static void si2157_remove(struct i2c_client *client)
 {
 	struct si2157_dev *dev = i2c_get_clientdata(client);
 	struct dvb_frontend *fe = dev->fe;
@@ -969,8 +969,6 @@ static int si2157_remove(struct i2c_client *client)
 	memset(&fe->ops.tuner_ops, 0, sizeof(struct dvb_tuner_ops));
 	fe->tuner_priv = NULL;
 	kfree(dev);
-
-	return 0;
 }
 
 /*

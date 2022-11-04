@@ -28,12 +28,22 @@
 		enable-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>;
 	};
 
-	backlight_led: backlight_led {
+	backlight_led: backlight-led {
 		compatible = "pwm-backlight";
 		pwms = <&pwm3 0 5000000 0>;
 		brightness-levels = <0 16 64 255>;
 		num-interpolated-steps = <16>;
 		default-brightness-level = <48>;
+		power-supply = <&reg_3v3>;
+	};
+
+	/* only for backwards compatibility with old HW */
+	backlight_isb: backlight-isb {
+		compatible = "pwm-backlight";
+		pwms = <&pwm2 0 5000000 0>;
+		brightness-levels = <0 8 48 255>;
+		num-interpolated-steps = <5>;
+		default-brightness-level = <0>;
 		power-supply = <&reg_3v3>;
 	};
 
@@ -370,6 +380,12 @@
 	status = "okay";
 };
 
+&pwm2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm2>;
+	status = "okay";
+};
+
 &pwm3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm3>;
@@ -598,6 +614,12 @@
 	pinctrl_pwm1: pwm1grp {
 		fsl,pins = <
 			MX6QDL_PAD_DISP0_DAT8__PWM1_OUT			0x1b0b0
+		>;
+	};
+
+	pinctrl_pwm2: pwm2grp {
+		fsl,pins = <
+			MX6QDL_PAD_DISP0_DAT9__PWM2_OUT			0x1b0b0
 		>;
 	};
 

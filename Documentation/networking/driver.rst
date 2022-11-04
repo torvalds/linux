@@ -8,7 +8,7 @@ Transmit path guidelines:
 
 1) The ndo_start_xmit method must not return NETDEV_TX_BUSY under
    any normal circumstances.  It is considered a hard error unless
-   there is no way your device can tell ahead of time when it's
+   there is no way your device can tell ahead of time when its
    transmit function will become busy.
 
    Instead it must maintain the queue properly.  For example,

@@ -356,8 +356,6 @@ static void b53_mdio_remove(struct mdio_device *mdiodev)
 		return;
 
 	b53_switch_remove(dev);
-
-	dev_set_drvdata(&mdiodev->dev, NULL);
 }
 
 static void b53_mdio_shutdown(struct mdio_device *mdiodev)

@@ -1350,7 +1350,7 @@ static bool fanout_flow_is_huge(struct packet_sock *po, struct sk_buff *skb)
 		if (READ_ONCE(history[i]) == rxhash)
 			count++;
 
-	victim = prandom_u32() % ROLLOVER_HLEN;
+	victim = prandom_u32_max(ROLLOVER_HLEN);
 
 	/* Avoid dirtying the cache line if possible */
 	if (READ_ONCE(history[victim]) != rxhash)
@@ -1905,7 +1905,7 @@ static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,
 	 */
 
 	spkt->spkt_family = dev->type;
-	strlcpy(spkt->spkt_device, dev->name, sizeof(spkt->spkt_device));
+	strscpy(spkt->spkt_device, dev->name, sizeof(spkt->spkt_device));
 	spkt->spkt_protocol = skb->protocol;
 
 	/*
@@ -3565,7 +3565,7 @@ static int packet_getname_spkt(struct socket *sock, struct sockaddr *uaddr,
 	rcu_read_lock();
 	dev = dev_get_by_index_rcu(sock_net(sk), READ_ONCE(pkt_sk(sk)->ifindex));
 	if (dev)
-		strlcpy(uaddr->sa_data, dev->name, sizeof(uaddr->sa_data));
+		strscpy(uaddr->sa_data, dev->name, sizeof(uaddr->sa_data));
 	rcu_read_unlock();
 
 	return sizeof(*uaddr);
@@ -4725,37 +4725,37 @@ static struct pernet_operations packet_net_ops = {
 
 static void __exit packet_exit(void)
 {
-	unregister_netdevice_notifier(&packet_netdev_notifier);
-	unregister_pernet_subsys(&packet_net_ops);
 	sock_unregister(PF_PACKET);
 	proto_unregister(&packet_proto);
+	unregister_netdevice_notifier(&packet_netdev_notifier);
+	unregister_pernet_subsys(&packet_net_ops);
 }
 
 static int __init packet_init(void)
 {
 	int rc;
 
-	rc = proto_register(&packet_proto, 0);
-	if (rc)
-		goto out;
-	rc = sock_register(&packet_family_ops);
-	if (rc)
-		goto out_proto;
 	rc = register_pernet_subsys(&packet_net_ops);
 	if (rc)
-		goto out_sock;
+		goto out;
 	rc = register_netdevice_notifier(&packet_netdev_notifier);
 	if (rc)
 		goto out_pernet;
+	rc = proto_register(&packet_proto, 0);
+	if (rc)
+		goto out_notifier;
+	rc = sock_register(&packet_family_ops);
+	if (rc)
+		goto out_proto;
 
 	return 0;
 
-out_pernet:
-	unregister_pernet_subsys(&packet_net_ops);
-out_sock:
-	sock_unregister(PF_PACKET);
 out_proto:
 	proto_unregister(&packet_proto);
+out_notifier:
+	unregister_netdevice_notifier(&packet_netdev_notifier);
+out_pernet:
+	unregister_pernet_subsys(&packet_net_ops);
 out:
 	return rc;
 }

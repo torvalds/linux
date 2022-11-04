@@ -450,7 +450,7 @@ static int uda134x_soc_probe(struct snd_soc_component *component)
 	struct uda134x_priv *uda134x = snd_soc_component_get_drvdata(component);
 	struct uda134x_platform_data *pd = uda134x->pd;
 	const struct snd_soc_dapm_widget *widgets;
-	unsigned num_widgets;
+	unsigned int num_widgets;
 	int ret;
 
 	printk(KERN_INFO "UDA134X SoC Audio Codec\n");

@@ -1020,7 +1020,7 @@ static int solo_g_parm(struct file *file, void *priv,
 	cp->timeperframe.numerator = solo_enc->interval;
 	cp->timeperframe.denominator = solo_enc->solo_dev->fps;
 	cp->capturemode = 0;
-	/* XXX: Shouldn't we be able to get/set this from videobuf? */
+	/* XXX: Shouldn't we be able to get/set this from vb2? */
 	cp->readbuffers = 2;
 
 	return 0;

@@ -612,7 +612,7 @@ struct fw_control_info {
 	operations.*/
 	u32			reserved;/* padding required for 64 bit
 	alignment */
-	u8			buffer[1];/* Start of buffer */
+	u8			buffer[];/* Start of buffer */
 };
 struct fw_control_ex {
 	struct fw_control_info *fw_control;

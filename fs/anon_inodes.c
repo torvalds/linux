@@ -32,7 +32,7 @@ static struct inode *anon_inode_inode;
  */
 static char *anon_inodefs_dname(struct dentry *dentry, char *buffer, int buflen)
 {
-	return dynamic_dname(dentry, buffer, buflen, "anon_inode:%s",
+	return dynamic_dname(buffer, buflen, "anon_inode:%s",
 				dentry->d_name.name);
 }
 

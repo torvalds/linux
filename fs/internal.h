@@ -16,6 +16,7 @@ struct shrink_control;
 struct fs_context;
 struct user_namespace;
 struct pipe_inode_info;
+struct iov_iter;
 
 /*
  * block/bdev.c
@@ -62,7 +63,7 @@ extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
 			   const char *, unsigned int, struct path *);
 int do_rmdir(int dfd, struct filename *name);
 int do_unlinkat(int dfd, struct filename *name);
-int may_linkat(struct user_namespace *mnt_userns, struct path *link);
+int may_linkat(struct user_namespace *mnt_userns, const struct path *link);
 int do_renameat2(int olddfd, struct filename *oldname, int newdfd,
 		 struct filename *newname, unsigned int flags);
 int do_mkdirat(int dfd, struct filename *name, umode_t mode);
@@ -100,6 +101,16 @@ extern void chroot_fs_refs(const struct path *, const struct path *);
  */
 extern struct file *alloc_empty_file(int, const struct cred *);
 extern struct file *alloc_empty_file_noaccount(int, const struct cred *);
+
+static inline void put_file_access(struct file *file)
+{
+	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ) {
+		i_readcount_dec(file->f_inode);
+	} else if (file->f_mode & FMODE_WRITER) {
+		put_write_access(file->f_inode);
+		__mnt_drop_write(file->f_path.mnt);
+	}
+}
 
 /*
  * super.c
@@ -221,3 +232,5 @@ ssize_t do_getxattr(struct user_namespace *mnt_userns,
 int setxattr_copy(const char __user *name, struct xattr_ctx *ctx);
 int do_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		struct xattr_ctx *ctx);
+
+ssize_t __kernel_write_iter(struct file *file, struct iov_iter *from, loff_t *pos);

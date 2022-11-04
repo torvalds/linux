@@ -100,6 +100,20 @@
 #define TLS_CIPHER_SM4_CCM_TAG_SIZE		16
 #define TLS_CIPHER_SM4_CCM_REC_SEQ_SIZE		8
 
+#define TLS_CIPHER_ARIA_GCM_128				57
+#define TLS_CIPHER_ARIA_GCM_128_IV_SIZE			8
+#define TLS_CIPHER_ARIA_GCM_128_KEY_SIZE		16
+#define TLS_CIPHER_ARIA_GCM_128_SALT_SIZE		4
+#define TLS_CIPHER_ARIA_GCM_128_TAG_SIZE		16
+#define TLS_CIPHER_ARIA_GCM_128_REC_SEQ_SIZE		8
+
+#define TLS_CIPHER_ARIA_GCM_256				58
+#define TLS_CIPHER_ARIA_GCM_256_IV_SIZE			8
+#define TLS_CIPHER_ARIA_GCM_256_KEY_SIZE		32
+#define TLS_CIPHER_ARIA_GCM_256_SALT_SIZE		4
+#define TLS_CIPHER_ARIA_GCM_256_TAG_SIZE		16
+#define TLS_CIPHER_ARIA_GCM_256_REC_SEQ_SIZE		8
+
 #define TLS_SET_RECORD_TYPE	1
 #define TLS_GET_RECORD_TYPE	2
 
@@ -154,6 +168,22 @@ struct tls12_crypto_info_sm4_ccm {
 	unsigned char key[TLS_CIPHER_SM4_CCM_KEY_SIZE];
 	unsigned char salt[TLS_CIPHER_SM4_CCM_SALT_SIZE];
 	unsigned char rec_seq[TLS_CIPHER_SM4_CCM_REC_SEQ_SIZE];
+};
+
+struct tls12_crypto_info_aria_gcm_128 {
+	struct tls_crypto_info info;
+	unsigned char iv[TLS_CIPHER_ARIA_GCM_128_IV_SIZE];
+	unsigned char key[TLS_CIPHER_ARIA_GCM_128_KEY_SIZE];
+	unsigned char salt[TLS_CIPHER_ARIA_GCM_128_SALT_SIZE];
+	unsigned char rec_seq[TLS_CIPHER_ARIA_GCM_128_REC_SEQ_SIZE];
+};
+
+struct tls12_crypto_info_aria_gcm_256 {
+	struct tls_crypto_info info;
+	unsigned char iv[TLS_CIPHER_ARIA_GCM_256_IV_SIZE];
+	unsigned char key[TLS_CIPHER_ARIA_GCM_256_KEY_SIZE];
+	unsigned char salt[TLS_CIPHER_ARIA_GCM_256_SALT_SIZE];
+	unsigned char rec_seq[TLS_CIPHER_ARIA_GCM_256_REC_SEQ_SIZE];
 };
 
 enum {

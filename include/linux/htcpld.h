@@ -13,8 +13,6 @@ struct htcpld_chip_platform_data {
 };
 
 struct htcpld_core_platform_data {
-	unsigned int                      int_reset_gpio_hi;
-	unsigned int                      int_reset_gpio_lo;
 	unsigned int                      i2c_adapter_id;
 
 	struct htcpld_chip_platform_data  *chip;

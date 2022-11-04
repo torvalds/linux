@@ -41,7 +41,7 @@
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio1 6 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-        };
+	};
 
 	reg_wlreg_on: regulator-wlreg_on {
 		compatible = "regulator-fixed";
@@ -432,7 +432,7 @@
 			MX7D_PAD_ENET1_RGMII_RD2__ENET1_RGMII_RD2	0x1
 			MX7D_PAD_ENET1_RGMII_RD3__ENET1_RGMII_RD3	0x1
 			MX7D_PAD_ENET1_RGMII_RX_CTL__ENET1_RGMII_RX_CTL	0x1
-			MX7D_PAD_SD3_RESET_B__GPIO6_IO11                0x1  /* Ethernet reset */
+			MX7D_PAD_SD3_RESET_B__GPIO6_IO11		0x1  /* Ethernet reset */
 		>;
 	};
 
@@ -493,19 +493,19 @@
 
 	pinctrl_pwm1: pwm1 {
 		fsl,pins = <
-			MX7D_PAD_GPIO1_IO08__PWM1_OUT   0x7f
+			MX7D_PAD_GPIO1_IO08__PWM1_OUT	0x7f
 		>;
 	};
 
 	pinctrl_pwm2: pwm2 {
 		fsl,pins = <
-			MX7D_PAD_GPIO1_IO09__PWM2_OUT   0x7f
+			MX7D_PAD_GPIO1_IO09__PWM2_OUT	0x7f
 		>;
 	};
 
 	pinctrl_pwm3: pwm3 {
 		fsl,pins = <
-			MX7D_PAD_GPIO1_IO10__PWM3_OUT   0x7f
+			MX7D_PAD_GPIO1_IO10__PWM3_OUT	0x7f
 		>;
 	};
 

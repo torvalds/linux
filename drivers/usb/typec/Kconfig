@@ -56,6 +56,7 @@ config TYPEC_ANX7411
 	tristate "Analogix ANX7411 Type-C DRP Port controller driver"
 	depends on I2C
 	depends on USB_ROLE_SWITCH
+	depends on POWER_SUPPLY
 	help
 	  Say Y or M here if your system has Analogix ANX7411 Type-C DRP Port
 	  controller driver.

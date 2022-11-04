@@ -125,6 +125,8 @@ struct bpf_map;
 struct btf;
 struct btf_ext;
 
+LIBBPF_API struct btf *libbpf_find_kernel_btf(void);
+
 LIBBPF_API enum bpf_prog_type bpf_program__get_type(const struct bpf_program *prog);
 LIBBPF_API enum bpf_attach_type bpf_program__get_expected_attach_type(const struct bpf_program *prog);
 LIBBPF_API const char *bpf_map__get_pin_path(const struct bpf_map *map);

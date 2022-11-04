@@ -410,7 +410,7 @@ static void octep_napi_add(struct octep_device *oct)
 	for (i = 0; i < oct->num_oqs; i++) {
 		netdev_dbg(oct->netdev, "Adding NAPI on Q-%d\n", i);
 		netif_napi_add(oct->netdev, &oct->ioq_vector[i]->napi,
-			       octep_napi_poll, 64);
+			       octep_napi_poll);
 		oct->oq[i]->napi = &oct->ioq_vector[i]->napi;
 	}
 }

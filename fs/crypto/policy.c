@@ -744,12 +744,8 @@ int fscrypt_set_context(struct inode *inode, void *fs_data)
 	 * delayed key setup that requires the inode number.
 	 */
 	if (ci->ci_policy.version == FSCRYPT_POLICY_V2 &&
-	    (ci->ci_policy.v2.flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32)) {
-		const struct fscrypt_master_key *mk =
-			ci->ci_master_key->payload.data[0];
-
-		fscrypt_hash_inode_number(ci, mk);
-	}
+	    (ci->ci_policy.v2.flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32))
+		fscrypt_hash_inode_number(ci, ci->ci_master_key);
 
 	return inode->i_sb->s_cop->set_context(inode, &ctx, ctxsize, fs_data);
 }
@@ -832,19 +828,6 @@ bool fscrypt_dummy_policies_equal(const struct fscrypt_dummy_policy *p1,
 	return fscrypt_policies_equal(p1->policy, p2->policy);
 }
 EXPORT_SYMBOL_GPL(fscrypt_dummy_policies_equal);
-
-/* Deprecated, do not use */
-int fscrypt_set_test_dummy_encryption(struct super_block *sb, const char *arg,
-				      struct fscrypt_dummy_policy *dummy_policy)
-{
-	struct fs_parameter param = {
-		.type = fs_value_is_string,
-		.string = arg ? (char *)arg : "",
-	};
-	return fscrypt_parse_test_dummy_encryption(&param, dummy_policy) ?:
-		fscrypt_add_test_dummy_key(sb, dummy_policy);
-}
-EXPORT_SYMBOL_GPL(fscrypt_set_test_dummy_encryption);
 
 /**
  * fscrypt_show_test_dummy_encryption() - show '-o test_dummy_encryption'

@@ -470,7 +470,12 @@ static bool match_str_list(const char *str, char **list, int list_size)
 
 static bool is_need(char *buf)
 {
-	if ((filter & FILTER_UNRELEASE) && get_free_ts_nsec(buf) != 0)
+	__u64 ts_nsec, free_ts_nsec;
+
+	ts_nsec = get_ts_nsec(buf);
+	free_ts_nsec = get_free_ts_nsec(buf);
+
+	if ((filter & FILTER_UNRELEASE) && free_ts_nsec != 0 && ts_nsec < free_ts_nsec)
 		return false;
 	if ((filter & FILTER_PID) && !match_num_list(get_pid(buf), fc.pids, fc.pids_size))
 		return false;

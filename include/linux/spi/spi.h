@@ -378,6 +378,8 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  * @cleanup: frees controller-specific state
  * @can_dma: determine whether this controller supports DMA
  * @dma_map_dev: device which can be used for DMA mapping
+ * @cur_rx_dma_dev: device which is currently used for RX DMA mapping
+ * @cur_tx_dma_dev: device which is currently used for TX DMA mapping
  * @queued: whether this controller is providing an internal message queue
  * @kworker: pointer to thread struct for message pump
  * @pump_messages: work struct for scheduling work to the message pump
@@ -469,6 +471,7 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  *	SPI_TRANS_FAIL_NO_START.
  * @queue_empty: signal green light for opportunistically skipping the queue
  *	for spi_sync transfers.
+ * @must_async: disable all fast paths in the core
  *
  * Each SPI controller can communicate with one or more @spi_device
  * children.  These make a small bus, sharing MOSI, MISO and SCK signals
@@ -609,6 +612,8 @@ struct spi_controller {
 					   struct spi_device *spi,
 					   struct spi_transfer *xfer);
 	struct device *dma_map_dev;
+	struct device *cur_rx_dma_dev;
+	struct device *cur_tx_dma_dev;
 
 	/*
 	 * These hooks are for drivers that want to use the generic
@@ -690,6 +695,7 @@ struct spi_controller {
 
 	/* Flag for enabling opportunistic skipping of the queue in spi_sync */
 	bool			queue_empty;
+	bool			must_async;
 };
 
 static inline void *spi_controller_get_devdata(struct spi_controller *ctlr)
@@ -846,6 +852,7 @@ struct spi_res {
  * @bits_per_word: select a bits_per_word other than the device default
  *      for this transfer. If 0 the default (from @spi_device) is used.
  * @dummy_data: indicates transfer is dummy bytes transfer.
+ * @cs_off: performs the transfer with chipselect off.
  * @cs_change: affects chipselect after this transfer completes
  * @cs_change_delay: delay between cs deassert and assert when
  *      @cs_change is set and @spi_transfer is not the last in @spi_message
@@ -956,6 +963,7 @@ struct spi_transfer {
 	struct sg_table rx_sg;
 
 	unsigned	dummy_data:1;
+	unsigned	cs_off:1;
 	unsigned	cs_change:1;
 	unsigned	tx_nbits:3;
 	unsigned	rx_nbits:3;

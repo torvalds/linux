@@ -156,7 +156,7 @@ Below is a high Level block diagram::
  |  MDEV CORE  |
  |   MODULE    |
  |   mdev.ko   |
- | +---------+ | mdev_register_device() +--------------+
+ | +---------+ | mdev_register_parent() +--------------+
  | |Physical | +<-----------------------+              |
  | | device  | |                        |  vfio_ccw.ko |<-> subchannel
  | |interface| +----------------------->+              |     device

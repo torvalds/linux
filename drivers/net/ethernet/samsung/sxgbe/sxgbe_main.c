@@ -2143,7 +2143,7 @@ struct sxgbe_priv_data *sxgbe_drv_probe(struct device *device,
 		pr_info("Enable RX Mitigation via HW Watchdog Timer\n");
 	}
 
-	netif_napi_add(ndev, &priv->napi, sxgbe_poll, 64);
+	netif_napi_add(ndev, &priv->napi, sxgbe_poll);
 
 	spin_lock_init(&priv->stats_lock);
 

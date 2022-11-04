@@ -19,6 +19,17 @@ properties:
       - const: fsl,imx21-i2c
       - const: fsl,vf610-i2c
       - items:
+          - enum:
+              - fsl,ls1012a-i2c
+              - fsl,ls1021a-i2c
+              - fsl,ls1028a-i2c
+              - fsl,ls1043a-i2c
+              - fsl,ls1046a-i2c
+              - fsl,ls1088a-i2c
+              - fsl,ls208xa-i2c
+              - fsl,lx2160a-i2c
+          - const: fsl,vf610-i2c
+      - items:
           - const: fsl,imx35-i2c
           - const: fsl,imx1-i2c
       - items:

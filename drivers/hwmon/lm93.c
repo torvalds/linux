@@ -2575,7 +2575,7 @@ static int lm93_detect(struct i2c_client *client, struct i2c_board_info *info)
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, name, I2C_NAME_SIZE);
+	strscpy(info->type, name, I2C_NAME_SIZE);
 	dev_dbg(&adapter->dev, "loading %s at %d, 0x%02x\n",
 		client->name, i2c_adapter_id(client->adapter),
 		client->addr);

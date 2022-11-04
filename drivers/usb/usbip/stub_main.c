@@ -100,7 +100,7 @@ static int add_match_busid(char *busid)
 	for (i = 0; i < MAX_BUSID; i++) {
 		spin_lock(&busid_table[i].busid_lock);
 		if (!busid_table[i].name[0]) {
-			strlcpy(busid_table[i].name, busid, BUSID_SIZE);
+			strscpy(busid_table[i].name, busid, BUSID_SIZE);
 			if ((busid_table[i].status != STUB_BUSID_ALLOC) &&
 			    (busid_table[i].status != STUB_BUSID_REMOV))
 				busid_table[i].status = STUB_BUSID_ADDED;

@@ -55,6 +55,9 @@
 #define FORCEWAKE_ACK_GSC			_MMIO(0xdf8)
 #define FORCEWAKE_ACK_GT_MTL			_MMIO(0xdfc)
 
+#define GMD_ID_GRAPHICS				_MMIO(0xd8c)
+#define GMD_ID_MEDIA				_MMIO(MTL_MEDIA_GSI_BASE + 0xd8c)
+
 #define MCFG_MCR_SELECTOR			_MMIO(0xfd0)
 #define MTL_MCR_SELECTOR			_MMIO(0xfd4)
 #define SF_MCR_SELECTOR				_MMIO(0xfd8)

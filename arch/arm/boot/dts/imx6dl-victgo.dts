@@ -18,14 +18,14 @@
 		pinctrl-0 = <&pinctrl_gpiokeys>;
 		autorepeat;
 
-		power {
+		key-power {
 			label = "Power Button";
 			gpios = <&gpio2 23 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			wakeup-source;
 		};
 
-		enter {
+		key-enter {
 			label = "Rotary Key";
 			gpios = <&gpio2 05 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_ENTER>;

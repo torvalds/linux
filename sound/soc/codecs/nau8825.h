@@ -225,6 +225,15 @@
 #define NAU8825_JKDET_PULL_EN	(1 << 9) /* 0 - enable pull, 1 - disable */
 #define NAU8825_JKDET_OUTPUT_EN	(1 << 8) /* 0 - enable input, 1 - enable output */
 
+/* TDM_CTRL (0x1b) */
+#define NAU8825_TDM_MODE		(0x1 << 15)
+#define NAU8825_TDM_OFFSET_EN		(0x1 << 14)
+#define NAU8825_TDM_DACL_RX_SFT		6
+#define NAU8825_TDM_DACL_RX_MASK	(0x3 << NAU8825_TDM_DACL_RX_SFT)
+#define NAU8825_TDM_DACR_RX_SFT		4
+#define NAU8825_TDM_DACR_RX_MASK	(0x3 << NAU8825_TDM_DACR_RX_SFT)
+#define NAU8825_TDM_TX_MASK		0x3
+
 /* I2S_PCM_CTRL1 (0x1c) */
 #define NAU8825_I2S_BP_SFT	7
 #define NAU8825_I2S_BP_MASK	(1 << NAU8825_I2S_BP_SFT)
@@ -249,6 +258,9 @@
 #define NAU8825_I2S_TRISTATE	(1 << 15) /* 0 - normal mode, 1 - Hi-Z output */
 #define NAU8825_I2S_LRC_DIV_SFT	12
 #define NAU8825_I2S_LRC_DIV_MASK	(0x3 << NAU8825_I2S_LRC_DIV_SFT)
+#define NAU8825_I2S_PCM_TS_EN_SFT	10
+#define NAU8825_I2S_PCM_TS_EN_MASK	(1 << NAU8825_I2S_PCM_TS_EN_SFT)
+#define NAU8825_I2S_PCM_TS_EN		(1 << NAU8825_I2S_PCM_TS_EN_SFT)
 #define NAU8825_I2S_MS_SFT	3
 #define NAU8825_I2S_MS_MASK	(1 << NAU8825_I2S_MS_SFT)
 #define NAU8825_I2S_MS_MASTER	(1 << NAU8825_I2S_MS_SFT)
@@ -259,6 +271,8 @@
 #define NAU8825_FS_ERR_CMP_SEL_SFT	14
 #define NAU8825_FS_ERR_CMP_SEL_MASK	(0x3 << NAU8825_FS_ERR_CMP_SEL_SFT)
 #define NAU8825_DIS_FS_SHORT_DET	(1 << 13)
+#define NAU8825_TSLOT_L0_MASK		0x3ff
+#define NAU8825_TSLOT_R0_MASK		0x3ff
 
 /* BIQ_CTRL (0x20) */
 #define NAU8825_BIQ_WRT_SFT   4
@@ -418,6 +432,8 @@
 #define NAU8825_POWERUP_HP_DRV_L	(1 << 0)
 
 /* CHARGE_PUMP (0x80) */
+#define NAU8825_ADCOUT_DS_SFT	12
+#define NAU8825_ADCOUT_DS_MASK	(1 << NAU8825_ADCOUT_DS_SFT)
 #define NAU8825_JAMNODCLOW	(1 << 10)
 #define NAU8825_POWER_DOWN_DACR	(1 << 9)
 #define NAU8825_POWER_DOWN_DACL	(1 << 8)
@@ -477,6 +493,7 @@ struct nau8825 {
 	int imp_rms[NAU8825_XTALK_IMM];
 	int xtalk_enable;
 	bool xtalk_baktab_initialized; /* True if initialized. */
+	bool adcout_ds;
 };
 
 int nau8825_enable_jack_detect(struct snd_soc_component *component,

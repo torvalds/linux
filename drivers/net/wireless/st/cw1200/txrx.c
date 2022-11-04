@@ -762,8 +762,7 @@ void cw1200_tx(struct ieee80211_hw *dev,
 	if (ret)
 		goto drop;
 
-	rcu_read_lock();
-	sta = rcu_dereference(t.sta);
+	sta = t.sta;
 
 	spin_lock_bh(&priv->ps_state_lock);
 	{
@@ -775,8 +774,6 @@ void cw1200_tx(struct ieee80211_hw *dev,
 
 	if (tid_update && sta)
 		ieee80211_sta_set_buffered(sta, t.txpriv.tid, true);
-
-	rcu_read_unlock();
 
 	cw1200_bh_wakeup(priv);
 
@@ -1145,8 +1142,7 @@ void cw1200_rx_cb(struct cw1200_common *priv,
 
 	/* Remove TSF from the end of frame */
 	if (arg->flags & WSM_RX_STATUS_TSF_INCLUDED) {
-		memcpy(&hdr->mactime, skb->data + skb->len - 8, 8);
-		hdr->mactime = le64_to_cpu(hdr->mactime);
+		hdr->mactime = get_unaligned_le64(skb->data + skb->len - 8);
 		if (skb->len >= 8)
 			skb_trim(skb, skb->len - 8);
 	} else {

@@ -307,7 +307,7 @@ vmci_transport_handle_wrote(struct sock *sk,
 	struct vsock_sock *vsk = vsock_sk(sk);
 	PKT_FIELD(vsk, sent_waiting_read) = false;
 #endif
-	sk->sk_data_ready(sk);
+	vsock_data_ready(sk);
 }
 
 static void vmci_transport_notify_pkt_socket_init(struct sock *sk)
@@ -340,12 +340,12 @@ vmci_transport_notify_pkt_poll_in(struct sock *sk,
 {
 	struct vsock_sock *vsk = vsock_sk(sk);
 
-	if (vsock_stream_has_data(vsk)) {
+	if (vsock_stream_has_data(vsk) >= target) {
 		*data_ready_now = true;
 	} else {
-		/* We can't read right now because there is nothing in the
-		 * queue. Ask for notifications when there is something to
-		 * read.
+		/* We can't read right now because there is not enough data
+		 * in the queue. Ask for notifications when there is something
+		 * to read.
 		 */
 		if (sk->sk_state == TCP_ESTABLISHED) {
 			if (!send_waiting_read(sk, 1))

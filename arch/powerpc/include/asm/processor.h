@@ -75,7 +75,6 @@ extern int _chrp_type;
 
 struct task_struct;
 void start_thread(struct pt_regs *regs, unsigned long fdptr, unsigned long sp);
-void release_thread(struct task_struct *);
 
 #define TS_FPR(i) fp_state.fpr[i][TS_FPROFFSET]
 #define TS_CKFPR(i) ckfp_state.fpr[i][TS_FPROFFSET]
@@ -355,11 +354,23 @@ static inline unsigned long __pack_fe01(unsigned int fpmode)
 
 #ifdef CONFIG_PPC64
 
-#define spin_begin()	HMT_low()
+#define spin_begin()							\
+	asm volatile(ASM_FTR_IFCLR(					\
+		"or 1,1,1", /* HMT_LOW */				\
+		"nop", /* v3.1 uses pause_short in cpu_relax instead */	\
+		%0) :: "i" (CPU_FTR_ARCH_31) : "memory")
 
-#define spin_cpu_relax()	barrier()
+#define spin_cpu_relax()						\
+	asm volatile(ASM_FTR_IFCLR(					\
+		"nop", /* Before v3.1 use priority nops in spin_begin/end */ \
+		PPC_WAIT(2, 0),	/* aka pause_short */			\
+		%0) :: "i" (CPU_FTR_ARCH_31) : "memory")
 
-#define spin_end()	HMT_medium()
+#define spin_end()							\
+	asm volatile(ASM_FTR_IFCLR(					\
+		"or 2,2,2", /* HMT_MEDIUM */				\
+		"nop",							\
+		%0) :: "i" (CPU_FTR_ARCH_31) : "memory")
 
 #endif
 
@@ -426,6 +437,8 @@ extern int fix_alignment(struct pt_regs *);
 #endif
 
 int do_mathemu(struct pt_regs *regs);
+int do_spe_mathemu(struct pt_regs *regs);
+int speround_handler(struct pt_regs *regs);
 
 /* VMX copying */
 int enter_vmx_usercopy(void);

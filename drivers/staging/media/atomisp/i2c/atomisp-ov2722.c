@@ -1090,7 +1090,7 @@ static const struct v4l2_subdev_ops ov2722_ops = {
 	.sensor = &ov2722_sensor_ops,
 };
 
-static int ov2722_remove(struct i2c_client *client)
+static void ov2722_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov2722_device *dev = to_ov2722_sensor(sd);
@@ -1103,8 +1103,6 @@ static int ov2722_remove(struct i2c_client *client)
 
 	media_entity_cleanup(&dev->sd.entity);
 	kfree(dev);
-
-	return 0;
 }
 
 static int __ov2722_init_ctrl_handler(struct ov2722_device *dev)

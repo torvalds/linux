@@ -590,7 +590,7 @@ int ipc_imem_sys_devlink_write(struct iosm_devlink *ipc_devlink,
 		goto out;
 	}
 
-	memcpy(skb_put(skb, count), buf, count);
+	skb_put_data(skb, buf, count);
 
 	IPC_CB(skb)->op_type = UL_USR_OP_BLOCKED;
 

@@ -587,11 +587,12 @@ static int get_tc_info(struct nlmsghdr *nh, libbpf_dump_nlmsg_t fn,
 
 static int tc_add_fd_and_name(struct libbpf_nla_req *req, int fd)
 {
-	struct bpf_prog_info info = {};
+	struct bpf_prog_info info;
 	__u32 info_len = sizeof(info);
 	char name[256];
 	int len, ret;
 
+	memset(&info, 0, info_len);
 	ret = bpf_obj_get_info_by_fd(fd, &info, &info_len);
 	if (ret < 0)
 		return ret;

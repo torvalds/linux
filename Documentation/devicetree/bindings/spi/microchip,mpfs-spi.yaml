@@ -4,7 +4,11 @@
 $id: http://devicetree.org/schemas/spi/microchip,mpfs-spi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Microchip MPFS {Q,}SPI Controller Device Tree Bindings
+title: Microchip FPGA {Q,}SPI Controllers
+
+description:
+  SPI and QSPI controllers on Microchip PolarFire SoC and the "soft"/
+  fabric IP cores they are based on
 
 maintainers:
   - Conor Dooley <conor.dooley@microchip.com>
@@ -14,9 +18,12 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - microchip,mpfs-spi
-      - microchip,mpfs-qspi
+    oneOf:
+      - items:
+          - const: microchip,mpfs-qspi
+          - const: microchip,coreqspi-rtl-v2
+      - const: microchip,coreqspi-rtl-v2 #FPGA QSPI
+      - const: microchip,mpfs-spi
 
   reg:
     maxItems: 1

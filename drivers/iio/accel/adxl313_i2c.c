@@ -14,41 +14,71 @@
 
 #include "adxl313.h"
 
-static const struct regmap_config adxl313_i2c_regmap_config = {
-	.reg_bits	= 8,
-	.val_bits	= 8,
-	.rd_table	= &adxl313_readable_regs_table,
-	.wr_table	= &adxl313_writable_regs_table,
-	.max_register	= 0x39,
+static const struct regmap_config adxl31x_i2c_regmap_config[] = {
+	[ADXL312] = {
+		.reg_bits	= 8,
+		.val_bits	= 8,
+		.rd_table	= &adxl312_readable_regs_table,
+		.wr_table	= &adxl312_writable_regs_table,
+		.max_register	= 0x39,
+	},
+	[ADXL313] = {
+		.reg_bits	= 8,
+		.val_bits	= 8,
+		.rd_table	= &adxl313_readable_regs_table,
+		.wr_table	= &adxl313_writable_regs_table,
+		.max_register	= 0x39,
+	},
+	[ADXL314] = {
+		.reg_bits	= 8,
+		.val_bits	= 8,
+		.rd_table	= &adxl314_readable_regs_table,
+		.wr_table	= &adxl314_writable_regs_table,
+		.max_register	= 0x39,
+	},
 };
 
-static int adxl313_i2c_probe(struct i2c_client *client)
-{
-	struct regmap *regmap;
-
-	regmap = devm_regmap_init_i2c(client, &adxl313_i2c_regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(&client->dev, "Error initializing i2c regmap: %ld\n",
-			PTR_ERR(regmap));
-		return PTR_ERR(regmap);
-	}
-
-	return adxl313_core_probe(&client->dev, regmap, client->name, NULL);
-}
-
 static const struct i2c_device_id adxl313_i2c_id[] = {
-	{ "adxl313" },
+	{ .name = "adxl312", .driver_data = (kernel_ulong_t)&adxl31x_chip_info[ADXL312] },
+	{ .name = "adxl313", .driver_data = (kernel_ulong_t)&adxl31x_chip_info[ADXL312] },
+	{ .name = "adxl314", .driver_data = (kernel_ulong_t)&adxl31x_chip_info[ADXL312] },
 	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, adxl313_i2c_id);
 
 static const struct of_device_id adxl313_of_match[] = {
-	{ .compatible = "adi,adxl313" },
+	{ .compatible = "adi,adxl312", .data = &adxl31x_chip_info[ADXL312] },
+	{ .compatible = "adi,adxl313", .data = &adxl31x_chip_info[ADXL313] },
+	{ .compatible = "adi,adxl314", .data = &adxl31x_chip_info[ADXL314] },
 	{ }
 };
 
 MODULE_DEVICE_TABLE(of, adxl313_of_match);
+
+static int adxl313_i2c_probe(struct i2c_client *client)
+{
+	const struct adxl313_chip_info *chip_data;
+	struct regmap *regmap;
+
+	/*
+	 * Retrieves device specific data as a pointer to a
+	 * adxl313_chip_info structure
+	 */
+	chip_data = device_get_match_data(&client->dev);
+	if (!chip_data)
+		chip_data = (const struct adxl313_chip_info *)i2c_match_id(adxl313_i2c_id, client)->driver_data;
+
+	regmap = devm_regmap_init_i2c(client,
+				      &adxl31x_i2c_regmap_config[chip_data->type]);
+	if (IS_ERR(regmap)) {
+		dev_err(&client->dev, "Error initializing i2c regmap: %ld\n",
+			PTR_ERR(regmap));
+		return PTR_ERR(regmap);
+	}
+
+	return adxl313_core_probe(&client->dev, regmap, chip_data, NULL);
+}
 
 static struct i2c_driver adxl313_i2c_driver = {
 	.driver = {
