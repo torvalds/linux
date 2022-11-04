@@ -19,6 +19,7 @@ struct io_notif_data {
 };
 
 struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx);
+void io_notif_set_extended(struct io_kiocb *notif);
 
 static inline struct io_notif_data *io_notif_to_data(struct io_kiocb *notif)
 {
