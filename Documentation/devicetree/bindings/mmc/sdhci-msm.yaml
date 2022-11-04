@@ -26,6 +26,7 @@ properties:
               - qcom,msm8226-sdhci
               - qcom,msm8953-sdhci
               - qcom,msm8974-sdhci
+              - qcom,msm8976-sdhci
               - qcom,msm8916-sdhci
               - qcom,msm8992-sdhci
               - qcom,msm8994-sdhci
