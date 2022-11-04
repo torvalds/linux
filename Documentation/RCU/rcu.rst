@@ -89,4 +89,5 @@ Frequently Asked Questions
 - Where can I find more information on RCU?
 
   See the Documentation/RCU/RTFP.txt file.
-  Or point your browser at (http://www.rdrop.com/users/paulmck/RCU/).
+  Or point your browser at (https://docs.google.com/document/d/1X0lThx8OK0ZgLMqVoXiR4ZrGURHrXK6NyLRbeXe3Xac/edit)
+  or (https://docs.google.com/document/d/1GCdQC8SDbb54W1shjEXqGZ0Rq8a6kIeYutdSIajfpLA/edit?usp=sharing).
