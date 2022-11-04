@@ -8,8 +8,13 @@
 
 #include <linux/types.h>
 
-struct work_struct;
+struct intel_pxp;
 
-void intel_pxp_session_work(struct work_struct *work);
-
+#ifdef CONFIG_DRM_I915_PXP
+void intel_pxp_session_management_init(struct intel_pxp *pxp);
+#else
+static inline void intel_pxp_session_management_init(struct intel_pxp *pxp)
+{
+}
+#endif
 #endif /* __INTEL_PXP_SESSION_H__ */

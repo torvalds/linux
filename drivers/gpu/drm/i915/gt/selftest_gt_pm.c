@@ -36,6 +36,19 @@ static int cmp_u32(const void *A, const void *B)
 		return 0;
 }
 
+static u32 read_timestamp(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *i915 = engine->i915;
+
+	/* On i965 the first read tends to give a stale value */
+	ENGINE_READ_FW(engine, RING_TIMESTAMP);
+
+	if (GRAPHICS_VER(i915) == 5 || IS_G4X(i915))
+		return ENGINE_READ_FW(engine, RING_TIMESTAMP_UDW);
+	else
+		return ENGINE_READ_FW(engine, RING_TIMESTAMP);
+}
+
 static void measure_clocks(struct intel_engine_cs *engine,
 			   u32 *out_cycles, ktime_t *out_dt)
 {
@@ -45,13 +58,13 @@ static void measure_clocks(struct intel_engine_cs *engine,
 
 	for (i = 0; i < 5; i++) {
 		local_irq_disable();
-		cycles[i] = -ENGINE_READ_FW(engine, RING_TIMESTAMP);
+		cycles[i] = -read_timestamp(engine);
 		dt[i] = ktime_get();
 
 		udelay(1000);
 
 		dt[i] = ktime_sub(ktime_get(), dt[i]);
-		cycles[i] += ENGINE_READ_FW(engine, RING_TIMESTAMP);
+		cycles[i] += read_timestamp(engine);
 		local_irq_enable();
 	}
 
@@ -76,25 +89,6 @@ static int live_gt_clocks(void *arg)
 	}
 
 	if (GRAPHICS_VER(gt->i915) < 4) /* Any CS_TIMESTAMP? */
-		return 0;
-
-	if (GRAPHICS_VER(gt->i915) == 5)
-		/*
-		 * XXX CS_TIMESTAMP low dword is dysfunctional?
-		 *
-		 * Ville's experiments indicate the high dword still works,
-		 * but at a correspondingly reduced frequency.
-		 */
-		return 0;
-
-	if (GRAPHICS_VER(gt->i915) == 4)
-		/*
-		 * XXX CS_TIMESTAMP appears gibberish
-		 *
-		 * Ville's experiments indicate that it mostly appears 'stuck'
-		 * in that we see the register report the same cycle count
-		 * for a couple of reads.
-		 */
 		return 0;
 
 	intel_gt_pm_get(gt);

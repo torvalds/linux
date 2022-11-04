@@ -6,8 +6,12 @@
 
 #include "i915_drv.h"
 #include "i915_selftest.h"
+#include "gem/i915_gem_context.h"
 
+#include "mock_context.h"
 #include "mock_dmabuf.h"
+#include "igt_gem_utils.h"
+#include "selftests/mock_drm.h"
 #include "selftests/mock_gem_device.h"
 
 static int igt_dmabuf_export(void *arg)
@@ -140,6 +144,75 @@ out_ret:
 	return err;
 }
 
+static int verify_access(struct drm_i915_private *i915,
+			 struct drm_i915_gem_object *native_obj,
+			 struct drm_i915_gem_object *import_obj)
+{
+	struct i915_gem_engines_iter it;
+	struct i915_gem_context *ctx;
+	struct intel_context *ce;
+	struct i915_vma *vma;
+	struct file *file;
+	u32 *vaddr;
+	int err = 0, i;
+
+	file = mock_file(i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	ctx = live_context(i915, file);
+	if (IS_ERR(ctx)) {
+		err = PTR_ERR(ctx);
+		goto out_file;
+	}
+
+	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
+		if (intel_engine_can_store_dword(ce->engine))
+			break;
+	}
+	i915_gem_context_unlock_engines(ctx);
+	if (!ce)
+		goto out_file;
+
+	vma = i915_vma_instance(import_obj, ce->vm, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto out_file;
+	}
+
+	err = i915_vma_pin(vma, 0, 0, PIN_USER);
+	if (err)
+		goto out_file;
+
+	err = igt_gpu_fill_dw(ce, vma, 0,
+			      vma->size >> PAGE_SHIFT, 0xdeadbeaf);
+	i915_vma_unpin(vma);
+	if (err)
+		goto out_file;
+
+	err = i915_gem_object_wait(import_obj, 0, MAX_SCHEDULE_TIMEOUT);
+	if (err)
+		goto out_file;
+
+	vaddr = i915_gem_object_pin_map_unlocked(native_obj, I915_MAP_WB);
+	if (IS_ERR(vaddr)) {
+		err = PTR_ERR(vaddr);
+		goto out_file;
+	}
+
+	for (i = 0; i < native_obj->base.size / sizeof(u32); i += PAGE_SIZE / sizeof(u32)) {
+		if (vaddr[i] != 0xdeadbeaf) {
+			pr_err("Data mismatch [%d]=%u\n", i, vaddr[i]);
+			err = -EINVAL;
+			goto out_file;
+		}
+	}
+
+out_file:
+	fput(file);
+	return err;
+}
+
 static int igt_dmabuf_import_same_driver(struct drm_i915_private *i915,
 					 struct intel_memory_region **regions,
 					 unsigned int num_regions)
@@ -154,7 +227,7 @@ static int igt_dmabuf_import_same_driver(struct drm_i915_private *i915,
 
 	force_different_devices = true;
 
-	obj = __i915_gem_object_create_user(i915, PAGE_SIZE,
+	obj = __i915_gem_object_create_user(i915, SZ_8M,
 					    regions, num_regions);
 	if (IS_ERR(obj)) {
 		pr_err("__i915_gem_object_create_user failed with err=%ld\n",
@@ -205,6 +278,10 @@ static int igt_dmabuf_import_same_driver(struct drm_i915_private *i915,
 	}
 
 	i915_gem_object_unlock(import_obj);
+
+	err = verify_access(i915, obj, import_obj);
+	if (err)
+		goto out_import;
 
 	/* Now try a fake an importer */
 	import_attach = dma_buf_attach(dmabuf, obj->base.dev->dev);
