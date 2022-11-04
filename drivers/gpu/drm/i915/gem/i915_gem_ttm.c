@@ -649,7 +649,7 @@ bool i915_ttm_resource_mappable(struct ttm_resource *res)
 	if (!i915_ttm_cpu_maps_iomem(res))
 		return true;
 
-	return bman_res->used_visible_size == bman_res->base.num_pages;
+	return bman_res->used_visible_size == PFN_UP(bman_res->base.size);
 }
 
 static int i915_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resource *mem)
