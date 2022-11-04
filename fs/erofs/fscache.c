@@ -287,8 +287,10 @@ static int erofs_fscache_data_read(struct address_space *mapping,
 			return PTR_ERR(src);
 
 		iov_iter_xarray(&iter, READ, &mapping->i_pages, pos, PAGE_SIZE);
-		if (copy_to_iter(src + offset, size, &iter) != size)
+		if (copy_to_iter(src + offset, size, &iter) != size) {
+			erofs_put_metabuf(&buf);
 			return -EFAULT;
+		}
 		iov_iter_zero(PAGE_SIZE - size, &iter);
 		erofs_put_metabuf(&buf);
 		return PAGE_SIZE;
