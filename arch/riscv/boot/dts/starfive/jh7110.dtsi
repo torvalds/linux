@@ -1550,7 +1550,6 @@
 			clock-names = "hdmi_sysclk","hdmi_mclk","hdmi_bclk";
 			resets = <&rstgen RSTN_U0_HDMI_TX_HDMI>;
 			reset-names = "hdmi_txrst";
-			power-domains = <&pwrc JH7110_PD_VOUT>;
 		};
 
 		dssctrl: dssctrl@295B0000 {
@@ -1607,7 +1606,6 @@
 				 <&rstgen RSTN_U0_NOC_BUS_DISP_AXI_N>;
 			reset-names = "rst_vout_src","rst_axi","rst_ahb","rst_core",
 					"rst_noc_disp";
-			power-domains = <&pwrc JH7110_PD_VOUT>;
 		};
 
 		dsi_output: dsi-output {
