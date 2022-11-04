@@ -355,7 +355,7 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 		data->hsic_pad_regulator =
 				devm_regulator_get_optional(dev, "hsic");
 		if (PTR_ERR(data->hsic_pad_regulator) == -ENODEV) {
-			/* no pad regualator is needed */
+			/* no pad regulator is needed */
 			data->hsic_pad_regulator = NULL;
 		} else if (IS_ERR(data->hsic_pad_regulator))
 			return dev_err_probe(dev, PTR_ERR(data->hsic_pad_regulator),
