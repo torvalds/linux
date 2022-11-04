@@ -99,7 +99,7 @@ static void host1x_syncpt_fence_release(struct dma_fence *f)
 	dma_fence_free(f);
 }
 
-const struct dma_fence_ops host1x_syncpt_fence_ops = {
+static const struct dma_fence_ops host1x_syncpt_fence_ops = {
 	.get_driver_name = host1x_syncpt_fence_get_driver_name,
 	.get_timeline_name = host1x_syncpt_fence_get_timeline_name,
 	.enable_signaling = host1x_syncpt_fence_enable_signaling,
