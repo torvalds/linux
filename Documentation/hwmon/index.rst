@@ -160,6 +160,7 @@ Hardware Monitoring Kernel Drivers
    nzxt-kraken2
    nzxt-smart2
    occ
+   oxp-sensors
    pc87360
    pc87427
    pcf8591
