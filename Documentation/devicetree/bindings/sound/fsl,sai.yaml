@@ -74,7 +74,7 @@ properties:
           - const: mclk3
           - const: pll8k
           - const: pll11k
-        minItems: 4
+        minItems: 5
       - items:
           - const: bus
           - const: mclk1
