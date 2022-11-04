@@ -150,8 +150,10 @@ static int gve_prefill_rx_pages(struct gve_rx_ring *rx)
 		for (j = 0; j < rx->qpl_copy_pool_mask + 1; j++) {
 			struct page *page = alloc_page(GFP_KERNEL);
 
-			if (!page)
+			if (!page) {
+				err = -ENOMEM;
 				goto alloc_err_qpl;
+			}
 
 			rx->qpl_copy_pool[j].page = page;
 			rx->qpl_copy_pool[j].page_offset = 0;
