@@ -132,7 +132,7 @@ static const u32 ipa_reg_filt_rout_hash_flush_fmask[] = {
 IPA_REG_FIELDS(FILT_ROUT_HASH_FLUSH, filt_rout_hash_flush, 0x000014c);
 
 /* Valid bits defined by ipa->available */
-IPA_REG(STATE_AGGR_ACTIVE, state_aggr_active, 0x000000b4);
+IPA_REG_STRIDE(STATE_AGGR_ACTIVE, state_aggr_active, 0x000000b4, 0x0004);
 
 IPA_REG(IPA_BCR, ipa_bcr, 0x000001d0);
 
@@ -145,7 +145,7 @@ static const u32 ipa_reg_local_pkt_proc_cntxt_fmask[] = {
 IPA_REG_FIELDS(LOCAL_PKT_PROC_CNTXT, local_pkt_proc_cntxt, 0x000001e8);
 
 /* Valid bits defined by ipa->available */
-IPA_REG(AGGR_FORCE_CLOSE, aggr_force_close, 0x000001ec);
+IPA_REG_STRIDE(AGGR_FORCE_CLOSE, aggr_force_close, 0x000001ec, 0x0004);
 
 static const u32 ipa_reg_counter_cfg_fmask[] = {
 						/* Bits 0-3 reserved */
@@ -399,13 +399,16 @@ static const u32 ipa_reg_ipa_irq_uc_fmask[] = {
 IPA_REG_FIELDS(IPA_IRQ_UC, ipa_irq_uc, 0x0000301c + 0x1000 * GSI_EE_AP);
 
 /* Valid bits defined by ipa->available */
-IPA_REG(IRQ_SUSPEND_INFO, irq_suspend_info, 0x00003030 + 0x1000 * GSI_EE_AP);
+IPA_REG_STRIDE(IRQ_SUSPEND_INFO, irq_suspend_info,
+	       0x00003030 + 0x1000 * GSI_EE_AP, 0x0004);
 
 /* Valid bits defined by ipa->available */
-IPA_REG(IRQ_SUSPEND_EN, irq_suspend_en, 0x00003034 + 0x1000 * GSI_EE_AP);
+IPA_REG_STRIDE(IRQ_SUSPEND_EN, irq_suspend_en,
+	       0x00003034 + 0x1000 * GSI_EE_AP, 0x0004);
 
 /* Valid bits defined by ipa->available */
-IPA_REG(IRQ_SUSPEND_CLR, irq_suspend_clr, 0x00003038 + 0x1000 * GSI_EE_AP);
+IPA_REG_STRIDE(IRQ_SUSPEND_CLR, irq_suspend_clr,
+	       0x00003038 + 0x1000 * GSI_EE_AP, 0x0004);
 
 static const struct ipa_reg *ipa_reg_array[] = {
 	[COMP_CFG]			= &ipa_reg_comp_cfg,
