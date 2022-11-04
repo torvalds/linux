@@ -1260,29 +1260,57 @@ static int ctrl_dumppolicy_start(struct netlink_callback *cb)
 	ctx->rt = rt;
 
 	if (tb[CTRL_ATTR_OP]) {
+		struct genl_split_ops doit, dump;
+
 		ctx->single_op = true;
 		ctx->op = nla_get_u32(tb[CTRL_ATTR_OP]);
 
-		err = genl_get_cmd(ctx->op, rt, &op);
-		if (err) {
+		if (genl_get_cmd_split(ctx->op, GENL_CMD_CAP_DO, rt, &doit) &&
+		    genl_get_cmd_split(ctx->op, GENL_CMD_CAP_DUMP, rt, &dump)) {
 			NL_SET_BAD_ATTR(cb->extack, tb[CTRL_ATTR_OP]);
-			return err;
+			return -ENOENT;
 		}
 
-		if (!op.policy)
-			return -ENODATA;
+		if (doit.policy) {
+			err = netlink_policy_dump_add_policy(&ctx->state,
+							     doit.policy,
+							     doit.maxattr);
+			if (err)
+				goto err_free_state;
+		}
+		if (dump.policy) {
+			err = netlink_policy_dump_add_policy(&ctx->state,
+							     dump.policy,
+							     dump.maxattr);
+			if (err)
+				goto err_free_state;
+		}
 
-		return netlink_policy_dump_add_policy(&ctx->state, op.policy,
-						      op.maxattr);
+		if (!ctx->state)
+			return -ENODATA;
+		return 0;
 	}
 
 	for (i = 0; i < genl_get_cmd_cnt(rt); i++) {
+		struct genl_split_ops doit, dumpit;
+
 		genl_get_cmd_by_index(i, rt, &op);
 
-		if (op.policy) {
+		genl_cmd_full_to_split(&doit, ctx->rt, &op, GENL_CMD_CAP_DO);
+		genl_cmd_full_to_split(&dumpit, ctx->rt,
+				       &op, GENL_CMD_CAP_DUMP);
+
+		if (doit.policy) {
 			err = netlink_policy_dump_add_policy(&ctx->state,
-							     op.policy,
-							     op.maxattr);
+							     doit.policy,
+							     doit.maxattr);
+			if (err)
+				goto err_free_state;
+		}
+		if (dumpit.policy) {
+			err = netlink_policy_dump_add_policy(&ctx->state,
+							     dumpit.policy,
+							     dumpit.maxattr);
 			if (err)
 				goto err_free_state;
 		}
