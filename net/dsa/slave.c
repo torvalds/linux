@@ -2165,13 +2165,6 @@ static const struct dcbnl_rtnl_ops __maybe_unused dsa_slave_dcbnl_ops = {
 	.ieee_delapp		= dsa_slave_dcbnl_ieee_delapp,
 };
 
-static struct devlink_port *dsa_slave_get_devlink_port(struct net_device *dev)
-{
-	struct dsa_port *dp = dsa_slave_to_port(dev);
-
-	return &dp->devlink_port;
-}
-
 static void dsa_slave_get_stats64(struct net_device *dev,
 				  struct rtnl_link_stats64 *s)
 {
@@ -2219,7 +2212,6 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_get_stats64	= dsa_slave_get_stats64,
 	.ndo_vlan_rx_add_vid	= dsa_slave_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= dsa_slave_vlan_rx_kill_vid,
-	.ndo_get_devlink_port	= dsa_slave_get_devlink_port,
 	.ndo_change_mtu		= dsa_slave_change_mtu,
 	.ndo_fill_forward_path	= dsa_slave_fill_forward_path,
 };
@@ -2406,6 +2398,7 @@ int dsa_slave_create(struct dsa_port *port)
 	SET_NETDEV_DEVTYPE(slave_dev, &dsa_type);
 
 	SET_NETDEV_DEV(slave_dev, port->ds->dev);
+	SET_NETDEV_DEVLINK_PORT(slave_dev, &port->devlink_port);
 	slave_dev->dev.of_node = port->dn;
 	slave_dev->vlan_features = master->vlan_features;
 

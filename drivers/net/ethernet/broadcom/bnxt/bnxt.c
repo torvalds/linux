@@ -13073,13 +13073,6 @@ int bnxt_get_port_parent_id(struct net_device *dev,
 	return 0;
 }
 
-static struct devlink_port *bnxt_get_devlink_port(struct net_device *dev)
-{
-	struct bnxt *bp = netdev_priv(dev);
-
-	return &bp->dl_port;
-}
-
 static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_open		= bnxt_open,
 	.ndo_start_xmit		= bnxt_start_xmit,
@@ -13111,7 +13104,6 @@ static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_xdp_xmit		= bnxt_xdp_xmit,
 	.ndo_bridge_getlink	= bnxt_bridge_getlink,
 	.ndo_bridge_setlink	= bnxt_bridge_setlink,
-	.ndo_get_devlink_port	= bnxt_get_devlink_port,
 };
 
 static void bnxt_remove_one(struct pci_dev *pdev)
@@ -13121,9 +13113,6 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 
 	if (BNXT_PF(bp))
 		bnxt_sriov_disable(bp);
-
-	if (BNXT_PF(bp))
-		devlink_port_type_clear(&bp->dl_port);
 
 	bnxt_ptp_clear(bp);
 	pci_disable_pcie_error_reporting(pdev);
@@ -13537,6 +13526,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENOMEM;
 
 	bp = netdev_priv(dev);
+	SET_NETDEV_DEVLINK_PORT(dev, &bp->dl_port);
 	bp->board_idx = ent->driver_data;
 	bp->msg_enable = BNXT_DEF_MSG_ENABLE;
 	bnxt_set_max_func_irqs(bp, max_irqs);
@@ -13712,8 +13702,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto init_err_cleanup;
 
-	if (BNXT_PF(bp))
-		devlink_port_type_eth_set(&bp->dl_port, bp->dev);
 	bnxt_dl_fw_reporters_create(bp);
 
 	bnxt_print_device_info(bp);

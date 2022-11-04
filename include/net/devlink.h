@@ -121,12 +121,21 @@ struct devlink_port {
 	struct list_head region_list;
 	struct devlink *devlink;
 	unsigned int index;
-	spinlock_t type_lock; /* Protects type and type_dev
-			       * pointer consistency.
+	spinlock_t type_lock; /* Protects type and type_eth/ib
+			       * structures consistency.
 			       */
 	enum devlink_port_type type;
 	enum devlink_port_type desired_type;
-	void *type_dev;
+	union {
+		struct {
+			struct net_device *netdev;
+			int ifindex;
+			char ifname[IFNAMSIZ];
+		} type_eth;
+		struct {
+			struct ib_device *ibdev;
+		} type_ib;
+	};
 	struct devlink_port_attrs attrs;
 	u8 attrs_set:1,
 	   switch_port:1,
@@ -1575,8 +1584,7 @@ int devlink_port_register(struct devlink *devlink,
 			  unsigned int port_index);
 void devl_port_unregister(struct devlink_port *devlink_port);
 void devlink_port_unregister(struct devlink_port *devlink_port);
-void devlink_port_type_eth_set(struct devlink_port *devlink_port,
-			       struct net_device *netdev);
+void devlink_port_type_eth_set(struct devlink_port *devlink_port);
 void devlink_port_type_ib_set(struct devlink_port *devlink_port,
 			      struct ib_device *ibdev);
 void devlink_port_type_clear(struct devlink_port *devlink_port);
@@ -1865,6 +1873,9 @@ int devlink_compat_phys_port_name_get(struct net_device *dev,
 int devlink_compat_switch_id_get(struct net_device *dev,
 				 struct netdev_phys_item_id *ppid);
 
+int devlink_nl_port_handle_fill(struct sk_buff *msg, struct devlink_port *devlink_port);
+size_t devlink_nl_port_handle_size(struct devlink_port *devlink_port);
+
 #else
 
 static inline struct devlink *devlink_try_get(struct devlink *devlink)
@@ -1899,6 +1910,17 @@ devlink_compat_switch_id_get(struct net_device *dev,
 			     struct netdev_phys_item_id *ppid)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline int
+devlink_nl_port_handle_fill(struct sk_buff *msg, struct devlink_port *devlink_port)
+{
+	return 0;
+}
+
+static inline size_t devlink_nl_port_handle_size(struct devlink_port *devlink_port)
+{
+	return 0;
 }
 
 #endif

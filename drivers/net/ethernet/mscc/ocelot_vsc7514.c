@@ -377,9 +377,6 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 		return -ENOMEM;
 
 	for_each_available_child_of_node(ports, portnp) {
-		struct ocelot_port_private *priv;
-		struct ocelot_port *ocelot_port;
-		struct devlink_port *dlp;
 		struct regmap *target;
 		struct resource *res;
 		char res_name[8];
@@ -420,12 +417,6 @@ static int mscc_ocelot_init_ports(struct platform_device *pdev,
 		}
 
 		devlink_ports_registered |= BIT(port);
-
-		ocelot_port = ocelot->ports[port];
-		priv = container_of(ocelot_port, struct ocelot_port_private,
-				    port);
-		dlp = &ocelot->devlink_ports[port];
-		devlink_port_type_eth_set(dlp, priv->dev);
 	}
 
 	/* Initialize unused devlink ports at the end */

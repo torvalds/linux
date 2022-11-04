@@ -238,13 +238,6 @@ nsim_set_features(struct net_device *dev, netdev_features_t features)
 	return 0;
 }
 
-static struct devlink_port *nsim_get_devlink_port(struct net_device *dev)
-{
-	struct netdevsim *ns = netdev_priv(dev);
-
-	return &ns->nsim_dev_port->devlink_port;
-}
-
 static const struct net_device_ops nsim_netdev_ops = {
 	.ndo_start_xmit		= nsim_start_xmit,
 	.ndo_set_rx_mode	= nsim_set_rx_mode,
@@ -263,7 +256,6 @@ static const struct net_device_ops nsim_netdev_ops = {
 	.ndo_setup_tc		= nsim_setup_tc,
 	.ndo_set_features	= nsim_set_features,
 	.ndo_bpf		= nsim_bpf,
-	.ndo_get_devlink_port	= nsim_get_devlink_port,
 };
 
 static const struct net_device_ops nsim_vf_netdev_ops = {
@@ -275,7 +267,6 @@ static const struct net_device_ops nsim_vf_netdev_ops = {
 	.ndo_get_stats64	= nsim_get_stats64,
 	.ndo_setup_tc		= nsim_setup_tc,
 	.ndo_set_features	= nsim_set_features,
-	.ndo_get_devlink_port	= nsim_get_devlink_port,
 };
 
 static void nsim_setup(struct net_device *dev)
@@ -360,6 +351,7 @@ nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port)
 	ns->nsim_dev_port = nsim_dev_port;
 	ns->nsim_bus_dev = nsim_dev->nsim_bus_dev;
 	SET_NETDEV_DEV(dev, &ns->nsim_bus_dev->dev);
+	SET_NETDEV_DEVLINK_PORT(dev, &nsim_dev_port->devlink_port);
 	nsim_ethtool_init(ns);
 	if (nsim_dev_port_is_pf(nsim_dev_port))
 		err = nsim_init_netdevsim(ns);

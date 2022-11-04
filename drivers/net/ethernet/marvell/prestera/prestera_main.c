@@ -569,7 +569,6 @@ static const struct net_device_ops prestera_netdev_ops = {
 	.ndo_change_mtu = prestera_port_change_mtu,
 	.ndo_get_stats64 = prestera_port_get_stats64,
 	.ndo_set_mac_address = prestera_port_set_mac_address,
-	.ndo_get_devlink_port = prestera_devlink_get_port,
 };
 
 int prestera_port_autoneg_set(struct prestera_port *port, u64 link_modes)
@@ -644,6 +643,7 @@ static int prestera_port_create(struct prestera_switch *sw, u32 id)
 	dev->netdev_ops = &prestera_netdev_ops;
 	dev->ethtool_ops = &prestera_ethtool_ops;
 	SET_NETDEV_DEV(dev, sw->dev->dev);
+	SET_NETDEV_DEVLINK_PORT(dev, &port->dl_port);
 
 	if (port->caps.transceiver != PRESTERA_PORT_TCVR_SFP)
 		netif_carrier_off(dev);
@@ -737,8 +737,6 @@ static int prestera_port_create(struct prestera_switch *sw, u32 id)
 	if (err)
 		goto err_register_netdev;
 
-	prestera_devlink_port_set(port);
-
 	err = prestera_port_sfp_bind(port);
 	if (err)
 		goto err_sfp_bind;
@@ -761,7 +759,6 @@ static void prestera_port_destroy(struct prestera_port *port)
 	struct net_device *dev = port->dev;
 
 	cancel_delayed_work_sync(&port->cached_hw_stats.caching_dw);
-	prestera_devlink_port_clear(port);
 	unregister_netdev(dev);
 	prestera_port_list_del(port);
 	prestera_devlink_port_unregister(port);

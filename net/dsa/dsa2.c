@@ -529,7 +529,6 @@ static void dsa_port_devlink_teardown(struct dsa_port *dp)
 
 static int dsa_port_setup(struct dsa_port *dp)
 {
-	struct devlink_port *dlp = &dp->devlink_port;
 	bool dsa_port_link_registered = false;
 	struct dsa_switch *ds = dp->ds;
 	bool dsa_port_enabled = false;
@@ -585,10 +584,6 @@ static int dsa_port_setup(struct dsa_port *dp)
 	case DSA_PORT_TYPE_USER:
 		of_get_mac_address(dp->dn, dp->mac);
 		err = dsa_slave_create(dp);
-		if (err)
-			break;
-
-		devlink_port_type_eth_set(dlp, dp->slave);
 		break;
 	}
 
@@ -608,12 +603,8 @@ static int dsa_port_setup(struct dsa_port *dp)
 
 static void dsa_port_teardown(struct dsa_port *dp)
 {
-	struct devlink_port *dlp = &dp->devlink_port;
-
 	if (!dp->setup)
 		return;
-
-	devlink_port_type_clear(dlp);
 
 	switch (dp->type) {
 	case DSA_PORT_TYPE_UNUSED:

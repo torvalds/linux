@@ -71,6 +71,7 @@ struct devlink {
 	refcount_t refcount;
 	struct completion comp;
 	struct rcu_head rcu;
+	struct notifier_block netdevice_nb;
 	char priv[] __aligned(NETDEV_ALIGN);
 };
 
@@ -879,6 +880,24 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+int devlink_nl_port_handle_fill(struct sk_buff *msg, struct devlink_port *devlink_port)
+{
+	if (devlink_nl_put_handle(msg, devlink_port->devlink))
+		return -EMSGSIZE;
+	if (nla_put_u32(msg, DEVLINK_ATTR_PORT_INDEX, devlink_port->index))
+		return -EMSGSIZE;
+	return 0;
+}
+
+size_t devlink_nl_port_handle_size(struct devlink_port *devlink_port)
+{
+	struct devlink *devlink = devlink_port->devlink;
+
+	return nla_total_size(strlen(devlink->dev->bus->name) + 1) /* DEVLINK_ATTR_BUS_NAME */
+	     + nla_total_size(strlen(dev_name(devlink->dev)) + 1) /* DEVLINK_ATTR_DEV_NAME */
+	     + nla_total_size(4); /* DEVLINK_ATTR_PORT_INDEX */
+}
+
 struct devlink_reload_combination {
 	enum devlink_reload_action action;
 	enum devlink_reload_limit limit;
@@ -1292,8 +1311,6 @@ static int devlink_nl_port_fill(struct sk_buff *msg,
 	if (nla_put_u32(msg, DEVLINK_ATTR_PORT_INDEX, devlink_port->index))
 		goto nla_put_failure;
 
-	/* Hold rtnl lock while accessing port's netdev attributes. */
-	rtnl_lock();
 	spin_lock_bh(&devlink_port->type_lock);
 	if (nla_put_u16(msg, DEVLINK_ATTR_PORT_TYPE, devlink_port->type))
 		goto nla_put_failure_type_locked;
@@ -1302,18 +1319,15 @@ static int devlink_nl_port_fill(struct sk_buff *msg,
 			devlink_port->desired_type))
 		goto nla_put_failure_type_locked;
 	if (devlink_port->type == DEVLINK_PORT_TYPE_ETH) {
-		struct net *net = devlink_net(devlink_port->devlink);
-		struct net_device *netdev = devlink_port->type_dev;
-
-		if (netdev && net_eq(net, dev_net(netdev)) &&
+		if (devlink_port->type_eth.netdev &&
 		    (nla_put_u32(msg, DEVLINK_ATTR_PORT_NETDEV_IFINDEX,
-				 netdev->ifindex) ||
+				 devlink_port->type_eth.ifindex) ||
 		     nla_put_string(msg, DEVLINK_ATTR_PORT_NETDEV_NAME,
-				    netdev->name)))
+				    devlink_port->type_eth.ifname)))
 			goto nla_put_failure_type_locked;
 	}
 	if (devlink_port->type == DEVLINK_PORT_TYPE_IB) {
-		struct ib_device *ibdev = devlink_port->type_dev;
+		struct ib_device *ibdev = devlink_port->type_ib.ibdev;
 
 		if (ibdev &&
 		    nla_put_string(msg, DEVLINK_ATTR_PORT_IBDEV_NAME,
@@ -1321,7 +1335,6 @@ static int devlink_nl_port_fill(struct sk_buff *msg,
 			goto nla_put_failure_type_locked;
 	}
 	spin_unlock_bh(&devlink_port->type_lock);
-	rtnl_unlock();
 	if (devlink_nl_port_attrs_put(msg, devlink_port))
 		goto nla_put_failure;
 	if (devlink_nl_port_function_attrs_put(msg, devlink_port, extack))
@@ -1336,7 +1349,6 @@ static int devlink_nl_port_fill(struct sk_buff *msg,
 
 nla_put_failure_type_locked:
 	spin_unlock_bh(&devlink_port->type_lock);
-	rtnl_unlock();
 nla_put_failure:
 	genlmsg_cancel(msg, hdr);
 	return -EMSGSIZE;
@@ -9602,6 +9614,9 @@ void devlink_set_features(struct devlink *devlink, u64 features)
 }
 EXPORT_SYMBOL_GPL(devlink_set_features);
 
+static int devlink_netdevice_event(struct notifier_block *nb,
+				   unsigned long event, void *ptr);
+
 /**
  *	devlink_alloc_ns - Allocate new devlink instance resources
  *	in specific namespace
@@ -9632,10 +9647,13 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 
 	ret = xa_alloc_cyclic(&devlinks, &devlink->index, devlink, xa_limit_31b,
 			      &last_id, GFP_KERNEL);
-	if (ret < 0) {
-		kfree(devlink);
-		return NULL;
-	}
+	if (ret < 0)
+		goto err_xa_alloc;
+
+	devlink->netdevice_nb.notifier_call = devlink_netdevice_event;
+	ret = register_netdevice_notifier_net(net, &devlink->netdevice_nb);
+	if (ret)
+		goto err_register_netdevice_notifier;
 
 	devlink->dev = dev;
 	devlink->ops = ops;
@@ -9662,6 +9680,12 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 	init_completion(&devlink->comp);
 
 	return devlink;
+
+err_register_netdevice_notifier:
+	xa_erase(&devlinks, devlink->index);
+err_xa_alloc:
+	kfree(devlink);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(devlink_alloc_ns);
 
@@ -9815,6 +9839,10 @@ void devlink_free(struct devlink *devlink)
 	WARN_ON(!list_empty(&devlink->port_list));
 
 	xa_destroy(&devlink->snapshot_ids);
+
+	unregister_netdevice_notifier_net(devlink_net(devlink),
+					  &devlink->netdevice_nb);
+
 	xa_erase(&devlinks, devlink->index);
 
 	kfree(devlink);
@@ -9967,6 +9995,7 @@ EXPORT_SYMBOL_GPL(devlink_port_register);
 void devl_port_unregister(struct devlink_port *devlink_port)
 {
 	lockdep_assert_held(&devlink_port->devlink->lock);
+	WARN_ON(devlink_port->type != DEVLINK_PORT_TYPE_NOTSET);
 
 	devlink_port_type_warn_cancel(devlink_port);
 	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_DEL);
@@ -9993,20 +10022,6 @@ void devlink_port_unregister(struct devlink_port *devlink_port)
 	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_port_unregister);
-
-static void __devlink_port_type_set(struct devlink_port *devlink_port,
-				    enum devlink_port_type type,
-				    void *type_dev)
-{
-	ASSERT_DEVLINK_PORT_REGISTERED(devlink_port);
-
-	devlink_port_type_warn_cancel(devlink_port);
-	spin_lock_bh(&devlink_port->type_lock);
-	devlink_port->type = type;
-	devlink_port->type_dev = type_dev;
-	spin_unlock_bh(&devlink_port->type_lock);
-	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
-}
 
 static void devlink_port_type_netdev_checks(struct devlink_port *devlink_port,
 					    struct net_device *netdev)
@@ -10045,23 +10060,58 @@ static void devlink_port_type_netdev_checks(struct devlink_port *devlink_port,
 	}
 }
 
+static void __devlink_port_type_set(struct devlink_port *devlink_port,
+				    enum devlink_port_type type,
+				    void *type_dev)
+{
+	struct net_device *netdev = type_dev;
+
+	ASSERT_DEVLINK_PORT_REGISTERED(devlink_port);
+
+	if (type == DEVLINK_PORT_TYPE_NOTSET) {
+		devlink_port_type_warn_schedule(devlink_port);
+	} else {
+		devlink_port_type_warn_cancel(devlink_port);
+		if (type == DEVLINK_PORT_TYPE_ETH && netdev)
+			devlink_port_type_netdev_checks(devlink_port, netdev);
+	}
+
+	spin_lock_bh(&devlink_port->type_lock);
+	devlink_port->type = type;
+	switch (type) {
+	case DEVLINK_PORT_TYPE_ETH:
+		devlink_port->type_eth.netdev = netdev;
+		if (netdev) {
+			ASSERT_RTNL();
+			devlink_port->type_eth.ifindex = netdev->ifindex;
+			BUILD_BUG_ON(sizeof(devlink_port->type_eth.ifname) !=
+				     sizeof(netdev->name));
+			strcpy(devlink_port->type_eth.ifname, netdev->name);
+		}
+		break;
+	case DEVLINK_PORT_TYPE_IB:
+		devlink_port->type_ib.ibdev = type_dev;
+		break;
+	default:
+		break;
+	}
+	spin_unlock_bh(&devlink_port->type_lock);
+	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_NEW);
+}
+
 /**
  *	devlink_port_type_eth_set - Set port type to Ethernet
  *
  *	@devlink_port: devlink port
- *	@netdev: related netdevice
+ *
+ *	If driver is calling this, most likely it is doing something wrong.
  */
-void devlink_port_type_eth_set(struct devlink_port *devlink_port,
-			       struct net_device *netdev)
+void devlink_port_type_eth_set(struct devlink_port *devlink_port)
 {
-	if (netdev)
-		devlink_port_type_netdev_checks(devlink_port, netdev);
-	else
-		dev_warn(devlink_port->devlink->dev,
-			 "devlink port type for port %d set to Ethernet without a software interface reference, device type not supported by the kernel?\n",
-			 devlink_port->index);
-
-	__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_ETH, netdev);
+	dev_warn(devlink_port->devlink->dev,
+		 "devlink port type for port %d set to Ethernet without a software interface reference, device type not supported by the kernel?\n",
+		 devlink_port->index);
+	__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_ETH, NULL);
 }
 EXPORT_SYMBOL_GPL(devlink_port_type_eth_set);
 
@@ -10082,13 +10132,70 @@ EXPORT_SYMBOL_GPL(devlink_port_type_ib_set);
  *	devlink_port_type_clear - Clear port type
  *
  *	@devlink_port: devlink port
+ *
+ *	If driver is calling this for clearing Ethernet type, most likely
+ *	it is doing something wrong.
  */
 void devlink_port_type_clear(struct devlink_port *devlink_port)
 {
+	if (devlink_port->type == DEVLINK_PORT_TYPE_ETH)
+		dev_warn(devlink_port->devlink->dev,
+			 "devlink port type for port %d cleared without a software interface reference, device type not supported by the kernel?\n",
+			 devlink_port->index);
 	__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_NOTSET, NULL);
-	devlink_port_type_warn_schedule(devlink_port);
 }
 EXPORT_SYMBOL_GPL(devlink_port_type_clear);
+
+static int devlink_netdevice_event(struct notifier_block *nb,
+				   unsigned long event, void *ptr)
+{
+	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	struct devlink_port *devlink_port = netdev->devlink_port;
+	struct devlink *devlink;
+
+	devlink = container_of(nb, struct devlink, netdevice_nb);
+
+	if (!devlink_port || devlink_port->devlink != devlink)
+		return NOTIFY_OK;
+
+	switch (event) {
+	case NETDEV_POST_INIT:
+		/* Set the type but not netdev pointer. It is going to be set
+		 * later on by NETDEV_REGISTER event. Happens once during
+		 * netdevice register
+		 */
+		__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_ETH,
+					NULL);
+		break;
+	case NETDEV_REGISTER:
+	case NETDEV_CHANGENAME:
+		/* Set the netdev on top of previously set type. Note this
+		 * event happens also during net namespace change so here
+		 * we take into account netdev pointer appearing in this
+		 * namespace.
+		 */
+		__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_ETH,
+					netdev);
+		break;
+	case NETDEV_UNREGISTER:
+		/* Clear netdev pointer, but not the type. This event happens
+		 * also during net namespace change so we need to clear
+		 * pointer to netdev that is going to another net namespace.
+		 */
+		__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_ETH,
+					NULL);
+		break;
+	case NETDEV_PRE_UNINIT:
+		/* Clear the type and the netdev pointer. Happens one during
+		 * netdevice unregister.
+		 */
+		__devlink_port_type_set(devlink_port, DEVLINK_PORT_TYPE_NOTSET,
+					NULL);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
 
 static int __devlink_port_attrs_set(struct devlink_port *devlink_port,
 				    enum devlink_port_flavour flavour)
@@ -12016,7 +12123,7 @@ devlink_trap_report_metadata_set(struct devlink_trap_metadata *metadata,
 
 	spin_lock(&in_devlink_port->type_lock);
 	if (in_devlink_port->type == DEVLINK_PORT_TYPE_ETH)
-		metadata->input_dev = in_devlink_port->type_dev;
+		metadata->input_dev = in_devlink_port->type_eth.netdev;
 	spin_unlock(&in_devlink_port->type_lock);
 }
 
@@ -12416,14 +12523,6 @@ free_msg:
 	nlmsg_free(msg);
 }
 
-static struct devlink_port *netdev_to_devlink_port(struct net_device *dev)
-{
-	if (!dev->netdev_ops->ndo_get_devlink_port)
-		return NULL;
-
-	return dev->netdev_ops->ndo_get_devlink_port(dev);
-}
-
 void devlink_compat_running_version(struct devlink *devlink,
 				    char *buf, size_t len)
 {
@@ -12469,7 +12568,7 @@ int devlink_compat_phys_port_name_get(struct net_device *dev,
 	 */
 	ASSERT_RTNL();
 
-	devlink_port = netdev_to_devlink_port(dev);
+	devlink_port = dev->devlink_port;
 	if (!devlink_port)
 		return -EOPNOTSUPP;
 
@@ -12485,7 +12584,7 @@ int devlink_compat_switch_id_get(struct net_device *dev,
 	 * devlink_port instance cannot disappear in the middle. No need to take
 	 * any devlink lock as only permanent values are accessed.
 	 */
-	devlink_port = netdev_to_devlink_port(dev);
+	devlink_port = dev->devlink_port;
 	if (!devlink_port || !devlink_port->switch_port)
 		return -EOPNOTSUPP;
 
