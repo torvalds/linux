@@ -1868,7 +1868,6 @@
 			 <&tegra_car TEGRA210_CLK_QSPI_PM>;
 		clock-names = "qspi", "qspi_out";
 		resets = <&tegra_car 211>;
-		reset-names = "qspi";
 		dmas = <&apbdma 5>, <&apbdma 5>;
 		dma-names = "rx", "tx";
 		status = "disabled";
