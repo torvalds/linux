@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/compiler.h>
+#include <linux/bits.h>
 #include <string.h>
+#include <cpuid.h>
+#include <sched.h>
 
 #include "intel-pt-decoder/intel-pt-pkt-decoder.h"
 
 #include "debug.h"
 #include "tests/tests.h"
 #include "arch-tests.h"
+#include "cpumap.h"
 
 /**
  * struct test_data - Test data.
@@ -312,4 +317,153 @@ int test__intel_pt_pkt_decoder(struct test_suite *test __maybe_unused, int subte
 	}
 
 	return TEST_OK;
+}
+
+static int setaffinity(int cpu)
+{
+	cpu_set_t cpu_set;
+
+	CPU_ZERO(&cpu_set);
+	CPU_SET(cpu, &cpu_set);
+	if (sched_setaffinity(0, sizeof(cpu_set), &cpu_set)) {
+		pr_debug("sched_setaffinity() failed for CPU %d\n", cpu);
+		return -1;
+	}
+	return 0;
+}
+
+#define INTEL_PT_ADDR_FILT_CNT_MASK	GENMASK(2, 0)
+#define INTEL_PT_SUBLEAF_CNT		2
+#define CPUID_REG_CNT			4
+
+struct cpuid_result {
+	union {
+		struct {
+			unsigned int eax;
+			unsigned int ebx;
+			unsigned int ecx;
+			unsigned int edx;
+		};
+		unsigned int reg[CPUID_REG_CNT];
+	};
+};
+
+struct pt_caps {
+	struct cpuid_result subleaf[INTEL_PT_SUBLEAF_CNT];
+};
+
+static int get_pt_caps(int cpu, struct pt_caps *caps)
+{
+	struct cpuid_result r;
+	int i;
+
+	if (setaffinity(cpu))
+		return -1;
+
+	memset(caps, 0, sizeof(*caps));
+
+	for (i = 0; i < INTEL_PT_SUBLEAF_CNT; i++) {
+		__get_cpuid_count(20, i, &r.eax, &r.ebx, &r.ecx, &r.edx);
+		pr_debug("CPU %d CPUID leaf 20 subleaf %d\n", cpu, i);
+		pr_debug("eax = 0x%08x\n", r.eax);
+		pr_debug("ebx = 0x%08x\n", r.ebx);
+		pr_debug("ecx = 0x%08x\n", r.ecx);
+		pr_debug("edx = 0x%08x\n", r.edx);
+		caps->subleaf[i] = r;
+	}
+
+	return 0;
+}
+
+static bool is_hydrid(void)
+{
+	unsigned int eax, ebx, ecx, edx = 0;
+	bool result;
+
+	__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx);
+	result = edx & BIT(15);
+	pr_debug("Is %shybrid : CPUID leaf 7 subleaf 0 edx %#x (bit-15 indicates hybrid)\n",
+		 result ? "" : "not ", edx);
+	return result;
+}
+
+static int compare_caps(int cpu, struct pt_caps *caps, struct pt_caps *caps0)
+{
+	struct pt_caps mask = { /* Mask of bits to check*/
+		.subleaf = {
+			[0] = {
+				.ebx = GENMASK(8, 0),
+				.ecx = GENMASK(3, 0),
+			},
+			[1] = {
+				.eax = GENMASK(31, 16),
+				.ebx = GENMASK(31, 0),
+			}
+		}
+	};
+	unsigned int m, reg, reg0;
+	int ret = 0;
+	int i, j;
+
+	for (i = 0; i < INTEL_PT_SUBLEAF_CNT; i++) {
+		for (j = 0; j < CPUID_REG_CNT; j++) {
+			m = mask.subleaf[i].reg[j];
+			reg = m & caps->subleaf[i].reg[j];
+			reg0 = m & caps0->subleaf[i].reg[j];
+			if ((reg & reg0) != reg0) {
+				pr_debug("CPU %d subleaf %d reg %d FAIL %#x vs %#x\n",
+					 cpu, i, j, reg, reg0);
+				ret = -1;
+			}
+		}
+	}
+
+	m = INTEL_PT_ADDR_FILT_CNT_MASK;
+	reg = m & caps->subleaf[1].eax;
+	reg0 = m & caps0->subleaf[1].eax;
+	if (reg < reg0) {
+		pr_debug("CPU %d subleaf 1 reg 0 FAIL address filter count %#x vs %#x\n",
+			 cpu, reg, reg0);
+		ret = -1;
+	}
+
+	if (!ret)
+		pr_debug("CPU %d OK\n", cpu);
+
+	return ret;
+}
+
+int test__intel_pt_hybrid_compat(struct test_suite *test, int subtest)
+{
+	int max_cpu = cpu__max_cpu().cpu;
+	struct pt_caps last_caps;
+	struct pt_caps caps0;
+	int ret = TEST_OK;
+	int cpu;
+
+	if (!is_hydrid()) {
+		test->test_cases[subtest].skip_reason = "not hybrid";
+		return TEST_SKIP;
+	}
+
+	if (get_pt_caps(0, &caps0))
+		return TEST_FAIL;
+
+	for (cpu = 1, last_caps = caps0; cpu < max_cpu; cpu++) {
+		struct pt_caps caps;
+
+		if (get_pt_caps(cpu, &caps)) {
+			pr_debug("CPU %d not found\n", cpu);
+			continue;
+		}
+		if (!memcmp(&caps, &last_caps, sizeof(caps))) {
+			pr_debug("CPU %d same caps as previous CPU\n", cpu);
+			continue;
+		}
+		if (compare_caps(cpu, &caps, &caps0))
+			ret = TEST_FAIL;
+		last_caps = caps;
+	}
+
+	return ret;
 }

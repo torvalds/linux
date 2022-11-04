@@ -8,11 +8,12 @@ DEFINE_SUITE("x86 instruction decoder - new instructions", insn_x86);
 
 static struct test_case intel_pt_tests[] = {
 	TEST_CASE("Intel PT packet decoder", intel_pt_pkt_decoder),
+	TEST_CASE("Intel PT hybrid CPU compatibility", intel_pt_hybrid_compat),
 	{ .name = NULL, }
 };
 
 struct test_suite suite__intel_pt = {
-	.desc = "Intel PT packet decoder",
+	.desc = "Intel PT",
 	.test_cases = intel_pt_tests,
 };
 
