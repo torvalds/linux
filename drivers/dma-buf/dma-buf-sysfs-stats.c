@@ -13,6 +13,8 @@
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
 
+#include <trace/hooks/dmabuf.h>
+
 #include "dma-buf-sysfs-stats.h"
 
 #define to_dma_buf_entry_from_kobj(x) container_of(x, struct dma_buf_sysfs_entry, kobj)
@@ -88,13 +90,17 @@ static struct kobj_type dma_buf_ktype = {
 void dma_buf_stats_teardown(struct dma_buf *dmabuf)
 {
 	struct dma_buf_sysfs_entry *sysfs_entry;
+	bool skip_sysfs_release = false;
 
 	sysfs_entry = dmabuf->sysfs_entry;
 	if (!sysfs_entry)
 		return;
 
-	kobject_del(&sysfs_entry->kobj);
-	kobject_put(&sysfs_entry->kobj);
+	trace_android_rvh_dma_buf_stats_teardown(sysfs_entry, &skip_sysfs_release);
+	if (!skip_sysfs_release) {
+		kobject_del(&sysfs_entry->kobj);
+		kobject_put(&sysfs_entry->kobj);
+	}
 }
 
 /*
