@@ -1581,8 +1581,20 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 	bool	need_swap = fep->quirks & FEC_QUIRK_SWAP_FRAME;
 	struct bpf_prog *xdp_prog = READ_ONCE(fep->xdp_prog);
 	u32 ret, xdp_result = FEC_ENET_XDP_PASS;
+	u32 data_start = FEC_ENET_XDP_HEADROOM;
 	struct xdp_buff xdp;
 	struct page *page;
+	u32 sub_len = 4;
+
+#if !defined(CONFIG_M5272)
+	/*If it has the FEC_QUIRK_HAS_RACC quirk property, the bit of
+	 * FEC_RACC_SHIFT16 is set by default in the probe function.
+	 */
+	if (fep->quirks & FEC_QUIRK_HAS_RACC) {
+		data_start += 2;
+		sub_len += 2;
+	}
+#endif
 
 #ifdef CONFIG_M532x
 	flush_cache_all();
@@ -1645,9 +1657,9 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 
 		if (xdp_prog) {
 			xdp_buff_clear_frags_flag(&xdp);
+			/* subtract 16bit shift and FCS */
 			xdp_prepare_buff(&xdp, page_address(page),
-					 FEC_ENET_XDP_HEADROOM, pkt_len, false);
-
+					 data_start, pkt_len - sub_len, false);
 			ret = fec_enet_run_xdp(fep, xdp_prog, &xdp, rxq, index);
 			xdp_result |= ret;
 			if (ret != FEC_ENET_XDP_PASS)
@@ -1659,18 +1671,15 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 		 * bridging applications.
 		 */
 		skb = build_skb(page_address(page), PAGE_SIZE);
-		skb_reserve(skb, FEC_ENET_XDP_HEADROOM);
-		skb_put(skb, pkt_len - 4);
+		skb_reserve(skb, data_start);
+		skb_put(skb, pkt_len - sub_len);
 		skb_mark_for_recycle(skb);
-		data = skb->data;
 
-		if (need_swap)
+		if (unlikely(need_swap)) {
+			data = page_address(page) + FEC_ENET_XDP_HEADROOM;
 			swap_buffer(data, pkt_len);
-
-#if !defined(CONFIG_M5272)
-		if (fep->quirks & FEC_QUIRK_HAS_RACC)
-			data = skb_pull_inline(skb, 2);
-#endif
+		}
+		data = skb->data;
 
 		/* Extract the enhanced buffer descriptor */
 		ebdp = NULL;
@@ -3604,6 +3613,13 @@ static int fec_enet_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 
 	switch (bpf->command) {
 	case XDP_SETUP_PROG:
+		/* No need to support the SoCs that require to
+		 * do the frame swap because the performance wouldn't be
+		 * better than the skb mode.
+		 */
+		if (fep->quirks & FEC_QUIRK_SWAP_FRAME)
+			return -EOPNOTSUPP;
+
 		if (is_run) {
 			napi_disable(&fep->napi);
 			netif_tx_disable(dev);
@@ -3631,17 +3647,12 @@ static int fec_enet_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 }
 
 static int
-fec_enet_xdp_get_tx_queue(struct fec_enet_private *fep, int cpu)
+fec_enet_xdp_get_tx_queue(struct fec_enet_private *fep, int index)
 {
-	int index = cpu;
-
 	if (unlikely(index < 0))
-		index = 0;
+		return 0;
 
-	while (index >= fep->num_tx_queues)
-		index -= fep->num_tx_queues;
-
-	return index;
+	return (index % fep->num_tx_queues);
 }
 
 static int fec_enet_txq_xmit_frame(struct fec_enet_private *fep,
