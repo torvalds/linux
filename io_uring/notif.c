@@ -67,13 +67,3 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
 	refcount_set(&nd->uarg.refcnt, 1);
 	return notif;
 }
-
-void io_notif_flush(struct io_kiocb *notif)
-	__must_hold(&slot->notif->ctx->uring_lock)
-{
-	struct io_notif_data *nd = io_notif_to_data(notif);
-
-	/* drop slot's master ref */
-	if (refcount_dec_and_test(&nd->uarg.refcnt))
-		io_req_task_work_add(notif);
-}
