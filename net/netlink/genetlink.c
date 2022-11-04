@@ -101,6 +101,17 @@ genl_op_fill_in_reject_policy(const struct genl_family *family,
 	op->maxattr = 1;
 }
 
+static void
+genl_op_fill_in_reject_policy_split(const struct genl_family *family,
+				    struct genl_split_ops *op)
+{
+	if (op->policy)
+		return;
+
+	op->policy = genl_policy_reject_all;
+	op->maxattr = 1;
+}
+
 static const struct genl_family *genl_family_find_byid(unsigned int id)
 {
 	return idr_find(&genl_fam_idr, id);
@@ -117,6 +128,16 @@ static const struct genl_family *genl_family_find_byname(char *name)
 
 	return NULL;
 }
+
+struct genl_op_iter {
+	const struct genl_family *family;
+	struct genl_split_ops doit;
+	struct genl_split_ops dumpit;
+	int cmd_idx;
+	int entry_idx;
+	u32 cmd;
+	u8 flags;
+};
 
 static void genl_op_from_full(const struct genl_family *family,
 			      unsigned int i, struct genl_ops *op)
@@ -176,6 +197,50 @@ static int genl_get_cmd_small(u32 cmd, const struct genl_family *family,
 	return -ENOENT;
 }
 
+static void genl_op_from_split(struct genl_op_iter *iter)
+{
+	const struct genl_family *family = iter->family;
+	int i, cnt = 0;
+
+	i = iter->entry_idx - family->n_ops - family->n_small_ops;
+
+	if (family->split_ops[i + cnt].flags & GENL_CMD_CAP_DO) {
+		iter->doit = family->split_ops[i + cnt];
+		genl_op_fill_in_reject_policy_split(family, &iter->doit);
+		cnt++;
+	} else {
+		memset(&iter->doit, 0, sizeof(iter->doit));
+	}
+
+	if (i + cnt < family->n_split_ops &&
+	    family->split_ops[i + cnt].flags & GENL_CMD_CAP_DUMP) {
+		iter->dumpit = family->split_ops[i + cnt];
+		genl_op_fill_in_reject_policy_split(family, &iter->dumpit);
+		cnt++;
+	} else {
+		memset(&iter->dumpit, 0, sizeof(iter->dumpit));
+	}
+
+	WARN_ON(!cnt);
+	iter->entry_idx += cnt;
+}
+
+static int
+genl_get_cmd_split(u32 cmd, u8 flag, const struct genl_family *family,
+		   struct genl_split_ops *op)
+{
+	int i;
+
+	for (i = 0; i < family->n_split_ops; i++)
+		if (family->split_ops[i].cmd == cmd &&
+		    family->split_ops[i].flags & flag) {
+			*op = family->split_ops[i];
+			return 0;
+		}
+
+	return -ENOENT;
+}
+
 static int
 genl_cmd_full_to_split(struct genl_split_ops *op,
 		       const struct genl_family *family,
@@ -227,50 +292,60 @@ genl_get_cmd(u32 cmd, u8 flags, const struct genl_family *family,
 	err = genl_get_cmd_full(cmd, family, &full);
 	if (err == -ENOENT)
 		err = genl_get_cmd_small(cmd, family, &full);
-	if (err) {
+	/* Found one of legacy forms */
+	if (err == 0)
+		return genl_cmd_full_to_split(op, family, &full, flags);
+
+	err = genl_get_cmd_split(cmd, flags, family, op);
+	if (err)
 		memset(op, 0, sizeof(*op));
-		return err;
-	}
-
-	return genl_cmd_full_to_split(op, family, &full, flags);
+	return err;
 }
-
-struct genl_op_iter {
-	const struct genl_family *family;
-	struct genl_split_ops doit;
-	struct genl_split_ops dumpit;
-	int i;
-	u32 cmd;
-	u8 flags;
-};
 
 static bool
 genl_op_iter_init(const struct genl_family *family, struct genl_op_iter *iter)
 {
 	iter->family = family;
-	iter->i = 0;
+	iter->cmd_idx = 0;
+	iter->entry_idx = 0;
 
 	iter->flags = 0;
 
-	return iter->family->n_ops + iter->family->n_small_ops;
+	return iter->family->n_ops +
+		iter->family->n_small_ops +
+		iter->family->n_split_ops;
 }
 
 static bool genl_op_iter_next(struct genl_op_iter *iter)
 {
 	const struct genl_family *family = iter->family;
+	bool legacy_op = true;
 	struct genl_ops op;
 
-	if (iter->i < family->n_ops)
-		genl_op_from_full(family, iter->i, &op);
-	else if (iter->i < family->n_ops + family->n_small_ops)
-		genl_op_from_small(family, iter->i - family->n_ops, &op);
-	else
+	if (iter->entry_idx < family->n_ops) {
+		genl_op_from_full(family, iter->entry_idx, &op);
+	} else if (iter->entry_idx < family->n_ops + family->n_small_ops) {
+		genl_op_from_small(family, iter->entry_idx - family->n_ops,
+				   &op);
+	} else if (iter->entry_idx <
+		   family->n_ops + family->n_small_ops + family->n_split_ops) {
+		legacy_op = false;
+		/* updates entry_idx */
+		genl_op_from_split(iter);
+	} else {
 		return false;
+	}
 
-	iter->i++;
+	iter->cmd_idx++;
 
-	genl_cmd_full_to_split(&iter->doit, family, &op, GENL_CMD_CAP_DO);
-	genl_cmd_full_to_split(&iter->dumpit, family, &op, GENL_CMD_CAP_DUMP);
+	if (legacy_op) {
+		iter->entry_idx++;
+
+		genl_cmd_full_to_split(&iter->doit, family,
+				       &op, GENL_CMD_CAP_DO);
+		genl_cmd_full_to_split(&iter->dumpit, family,
+				       &op, GENL_CMD_CAP_DUMP);
+	}
 
 	iter->cmd = iter->doit.cmd | iter->dumpit.cmd;
 	iter->flags = iter->doit.flags | iter->dumpit.flags;
@@ -286,7 +361,7 @@ genl_op_iter_copy(struct genl_op_iter *dst, struct genl_op_iter *src)
 
 static unsigned int genl_op_iter_idx(struct genl_op_iter *iter)
 {
-	return iter->i;
+	return iter->cmd_idx;
 }
 
 static int genl_allocate_reserve_groups(int n_groups, int *first_id)
@@ -454,12 +529,22 @@ static void genl_unregister_mc_groups(const struct genl_family *family)
 	}
 }
 
+static bool genl_split_op_check(const struct genl_split_ops *op)
+{
+	if (WARN_ON(hweight8(op->flags & (GENL_CMD_CAP_DO |
+					  GENL_CMD_CAP_DUMP)) != 1))
+		return true;
+	return false;
+}
+
 static int genl_validate_ops(const struct genl_family *family)
 {
 	struct genl_op_iter i, j;
+	unsigned int s;
 
 	if (WARN_ON(family->n_ops && !family->ops) ||
-	    WARN_ON(family->n_small_ops && !family->small_ops))
+	    WARN_ON(family->n_small_ops && !family->small_ops) ||
+	    WARN_ON(family->n_split_ops && !family->split_ops))
 		return -EINVAL;
 
 	for (genl_op_iter_init(family, &i); genl_op_iter_next(&i); ) {
@@ -475,6 +560,39 @@ static int genl_validate_ops(const struct genl_family *family)
 			if (i.cmd == j.cmd)
 				return -EINVAL;
 		}
+	}
+
+	if (family->n_split_ops) {
+		if (genl_split_op_check(&family->split_ops[0]))
+			return -EINVAL;
+	}
+
+	for (s = 1; s < family->n_split_ops; s++) {
+		const struct genl_split_ops *a, *b;
+
+		a = &family->split_ops[s - 1];
+		b = &family->split_ops[s];
+
+		if (genl_split_op_check(b))
+			return -EINVAL;
+
+		/* Check sort order */
+		if (a->cmd < b->cmd)
+			continue;
+
+		if (a->internal_flags != b->internal_flags ||
+		    ((a->flags ^ b->flags) & ~(GENL_CMD_CAP_DO |
+					       GENL_CMD_CAP_DUMP))) {
+			WARN_ON(1);
+			return -EINVAL;
+		}
+
+		if ((a->flags & GENL_CMD_CAP_DO) &&
+		    (b->flags & GENL_CMD_CAP_DUMP))
+			continue;
+
+		WARN_ON(1);
+		return -EINVAL;
 	}
 
 	return 0;

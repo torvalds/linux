@@ -46,6 +46,9 @@ struct genl_info;
  * @n_ops: number of operations supported by this family
  * @small_ops: the small-struct operations supported by this family
  * @n_small_ops: number of small-struct operations supported by this family
+ * @split_ops: the split do/dump form of operation definition
+ * @n_split_ops: number of entries in @split_ops, not that with split do/dump
+ *	ops the number of entries is not the same as number of commands
  *
  * Attribute policies (the combination of @policy and @maxattr fields)
  * can be attached at the family level or at the operation level.
@@ -63,6 +66,7 @@ struct genl_family {
 	u8			parallel_ops:1;
 	u8			n_ops;
 	u8			n_small_ops;
+	u8			n_split_ops;
 	u8			n_mcgrps;
 	u8			resv_start_op;
 	const struct nla_policy *policy;
@@ -74,6 +78,7 @@ struct genl_family {
 					     struct genl_info *info);
 	const struct genl_ops *	ops;
 	const struct genl_small_ops *small_ops;
+	const struct genl_split_ops *split_ops;
 	const struct genl_multicast_group *mcgrps;
 	struct module		*module;
 
