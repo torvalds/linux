@@ -1345,7 +1345,8 @@ static void *ctrl_dumppolicy_prep(struct sk_buff *skb,
 
 static int ctrl_dumppolicy_put_op(struct sk_buff *skb,
 				  struct netlink_callback *cb,
-			          struct genl_ops *op)
+				  struct genl_split_ops *doit,
+				  struct genl_split_ops *dumpit)
 {
 	struct ctrl_dump_policy_ctx *ctx = (void *)cb->ctx;
 	struct nlattr *nest_pol, *nest_op;
@@ -1353,10 +1354,7 @@ static int ctrl_dumppolicy_put_op(struct sk_buff *skb,
 	int idx;
 
 	/* skip if we have nothing to show */
-	if (!op->policy)
-		return 0;
-	if (!op->doit &&
-	    (!op->dumpit || op->validate & GENL_DONT_VALIDATE_DUMP))
+	if (!doit->policy && !dumpit->policy)
 		return 0;
 
 	hdr = ctrl_dumppolicy_prep(skb, cb);
@@ -1367,21 +1365,26 @@ static int ctrl_dumppolicy_put_op(struct sk_buff *skb,
 	if (!nest_pol)
 		goto err;
 
-	nest_op = nla_nest_start(skb, op->cmd);
+	nest_op = nla_nest_start(skb, doit->cmd);
 	if (!nest_op)
 		goto err;
 
-	/* for now both do/dump are always the same */
-	idx = netlink_policy_dump_get_policy_idx(ctx->state,
-						 op->policy,
-						 op->maxattr);
+	if (doit->policy) {
+		idx = netlink_policy_dump_get_policy_idx(ctx->state,
+							 doit->policy,
+							 doit->maxattr);
 
-	if (op->doit && nla_put_u32(skb, CTRL_ATTR_POLICY_DO, idx))
-		goto err;
+		if (nla_put_u32(skb, CTRL_ATTR_POLICY_DO, idx))
+			goto err;
+	}
+	if (dumpit->policy) {
+		idx = netlink_policy_dump_get_policy_idx(ctx->state,
+							 dumpit->policy,
+							 dumpit->maxattr);
 
-	if (op->dumpit && !(op->validate & GENL_DONT_VALIDATE_DUMP) &&
-	    nla_put_u32(skb, CTRL_ATTR_POLICY_DUMP, idx))
-		goto err;
+		if (nla_put_u32(skb, CTRL_ATTR_POLICY_DUMP, idx))
+			goto err;
+	}
 
 	nla_nest_end(skb, nest_op);
 	nla_nest_end(skb, nest_pol);
@@ -1399,16 +1402,19 @@ static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
 	void *hdr;
 
 	if (!ctx->policies) {
+		struct genl_split_ops doit, dumpit;
 		struct genl_ops op;
 
 		if (ctx->single_op) {
-			int err;
+			if (genl_get_cmd_split(ctx->op, GENL_CMD_CAP_DO,
+					       ctx->rt, &doit) &&
+			    genl_get_cmd_split(ctx->op, GENL_CMD_CAP_DUMP,
+					       ctx->rt, &dumpit)) {
+				WARN_ON(1);
+				return -ENOENT;
+			}
 
-			err = genl_get_cmd(ctx->op, ctx->rt, &op);
-			if (WARN_ON(err))
-				return err;
-
-			if (ctrl_dumppolicy_put_op(skb, cb, &op))
+			if (ctrl_dumppolicy_put_op(skb, cb, &doit, &dumpit))
 				return skb->len;
 
 			/* don't enter the loop below */
@@ -1418,7 +1424,12 @@ static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
 		while (ctx->opidx < genl_get_cmd_cnt(ctx->rt)) {
 			genl_get_cmd_by_index(ctx->opidx, ctx->rt, &op);
 
-			if (ctrl_dumppolicy_put_op(skb, cb, &op))
+			genl_cmd_full_to_split(&doit, ctx->rt,
+					       &op, GENL_CMD_CAP_DO);
+			genl_cmd_full_to_split(&dumpit, ctx->rt,
+					       &op, GENL_CMD_CAP_DUMP);
+
+			if (ctrl_dumppolicy_put_op(skb, cb, &doit, &dumpit))
 				return skb->len;
 
 			ctx->opidx++;
