@@ -17,7 +17,7 @@ description: |
 
 properties:
   compatible:
-    const: qcom,sm8250-lpass-aon
+    const: qcom,sm8250-lpass-aoncc
 
   reg:
     maxItems: 1
@@ -50,7 +50,7 @@ examples:
     #include <dt-bindings/sound/qcom,q6afe.h>
     clock-controller@3800000 {
       #clock-cells = <1>;
-      compatible = "qcom,sm8250-lpass-aon";
+      compatible = "qcom,sm8250-lpass-aoncc";
       reg = <0x03380000 0x40000>;
       clocks = <&q6afecc LPASS_HW_MACRO_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>,
                <&q6afecc LPASS_CLK_ID_TX_CORE_MCLK LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
