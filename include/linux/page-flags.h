@@ -132,7 +132,7 @@ enum pageflags {
 	PG_young,
 	PG_idle,
 #endif
-#ifdef CONFIG_64BIT
+#ifdef CONFIG_ARCH_USES_PG_ARCH_X
 	PG_arch_2,
 #endif
 #ifdef CONFIG_KASAN_HW_TAGS
