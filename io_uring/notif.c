@@ -25,9 +25,8 @@ static void __io_notif_complete_tw(struct io_kiocb *notif, bool *locked)
 	io_req_task_complete(notif, locked);
 }
 
-static void io_uring_tx_zerocopy_callback(struct sk_buff *skb,
-					  struct ubuf_info *uarg,
-					  bool success)
+static void io_tx_ubuf_callback(struct sk_buff *skb, struct ubuf_info *uarg,
+				bool success)
 {
 	struct io_notif_data *nd = container_of(uarg, struct io_notif_data, uarg);
 	struct io_kiocb *notif = cmd_to_io_kiocb(nd);
@@ -63,7 +62,7 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
 	nd = io_notif_to_data(notif);
 	nd->account_pages = 0;
 	nd->uarg.flags = SKBFL_ZEROCOPY_FRAG | SKBFL_DONT_ORPHAN;
-	nd->uarg.callback = io_uring_tx_zerocopy_callback;
+	nd->uarg.callback = io_tx_ubuf_callback;
 	nd->zc_report = nd->zc_used = nd->zc_copied = false;
 	refcount_set(&nd->uarg.refcnt, 1);
 	return notif;
