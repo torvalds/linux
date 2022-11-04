@@ -1319,21 +1319,24 @@ static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
 	void *hdr;
 
 	if (!ctx->policies) {
+		struct genl_ops op;
+
+		if (ctx->single_op) {
+			int err;
+
+			err = genl_get_cmd(ctx->op, ctx->rt, &op);
+			if (WARN_ON(err))
+				return err;
+
+			if (ctrl_dumppolicy_put_op(skb, cb, &op))
+				return skb->len;
+
+			/* don't enter the loop below */
+			ctx->opidx = genl_get_cmd_cnt(ctx->rt);
+		}
+
 		while (ctx->opidx < genl_get_cmd_cnt(ctx->rt)) {
-			struct genl_ops op;
-
-			if (ctx->single_op) {
-				int err;
-
-				err = genl_get_cmd(ctx->op, ctx->rt, &op);
-				if (WARN_ON(err))
-					return skb->len;
-
-				/* break out of the loop after this one */
-				ctx->opidx = genl_get_cmd_cnt(ctx->rt);
-			} else {
-				genl_get_cmd_by_index(ctx->opidx, ctx->rt, &op);
-			}
+			genl_get_cmd_by_index(ctx->opidx, ctx->rt, &op);
 
 			if (ctrl_dumppolicy_put_op(skb, cb, &op))
 				return skb->len;
