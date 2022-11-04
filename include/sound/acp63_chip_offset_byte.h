@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * AMD ACP 6.2 Register Documentation
+ * AMD ACP 6.3 Register Documentation
  *
  * Copyright 2022 Advanced Micro Devices, Inc.
  */

@@ -5,7 +5,7 @@
  * Copyright (C) 2022 Advanced Micro Devices, Inc. All rights reserved.
  */
 
-#include <sound/acp62_chip_offset_byte.h>
+#include <sound/acp63_chip_offset_byte.h>
 
 #define ACP_DEVICE_ID 0x15E2
 #define ACP6x_REG_START		0x1240000
@@ -78,21 +78,21 @@ struct pdm_stream_instance {
 	u16 channels;
 	dma_addr_t dma_addr;
 	u64 bytescount;
-	void __iomem *acp62_base;
+	void __iomem *acp63_base;
 };
 
 struct pdm_dev_data {
 	u32 pdm_irq;
-	void __iomem *acp62_base;
+	void __iomem *acp63_base;
 	struct snd_pcm_substream *capture_stream;
 };
 
-static inline u32 acp62_readl(void __iomem *base_addr)
+static inline u32 acp63_readl(void __iomem *base_addr)
 {
 	return readl(base_addr);
 }
 
-static inline void acp62_writel(u32 val, void __iomem *base_addr)
+static inline void acp63_writel(u32 val, void __iomem *base_addr)
 {
 	writel(val, base_addr);
 }
