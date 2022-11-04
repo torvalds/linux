@@ -31,25 +31,4 @@ struct connector_atv_platform_data {
 	bool invert_polarity;
 };
 
-/**
- * panel_dpi platform data
- * @name: name for this display entity
- * @source: name of the display entity used as a video source
- * @data_lines: number of DPI datalines
- * @display_timing: timings for this panel
- * @backlight_gpio: gpio to enable/disable the backlight (or -1)
- * @enable_gpio: gpio to enable/disable the panel (or -1)
- */
-struct panel_dpi_platform_data {
-	const char *name;
-	const char *source;
-
-	int data_lines;
-
-	const struct display_timing *display_timing;
-
-	int backlight_gpio;
-	int enable_gpio;
-};
-
 #endif /* __OMAP_PANEL_DATA_H */
