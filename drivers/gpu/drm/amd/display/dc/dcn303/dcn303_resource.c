@@ -431,6 +431,7 @@ static struct clock_source *dcn303_clock_source_create(struct dc_context *ctx, s
 		return &clk_src->base;
 	}
 
+	kfree(clk_src);
 	BREAK_TO_DEBUGGER();
 	return NULL;
 }
