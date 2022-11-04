@@ -195,7 +195,7 @@ int main(int argc, char **argv)
 			exit(1);
 	}
 
-	/* addr + length should be aligned up to huge page size */
+	/* addr + length should be aligned down to huge page size */
 	if (madvise(addr,
 			((NR_HUGE_PAGES - 1) * huge_page_size) + base_page_size,
 			MADV_DONTNEED)) {
@@ -203,10 +203,11 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	/* should free all pages in mapping */
-	validate_free_pages(free_hugepages);
+	/* should free all but last page in mapping */
+	validate_free_pages(free_hugepages - 1);
 
 	(void)munmap(addr, NR_HUGE_PAGES * huge_page_size);
+	validate_free_pages(free_hugepages);
 
 	/*
 	 * Test MADV_DONTNEED on anonymous private mapping
