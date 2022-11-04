@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# QCOM TMECOM driver
+
+config MSM_TMECOM_QMP
+	tristate "TMECom QMP interface for HWKM master"
+	select MSM_QMP
+	help
+        Set to enable TMECom interface over QTI Mailbox
+        Protocol (QMP) for HWKM master on MSM platform.
+        This interface helps to comminicate with TME
+        mainly for HWKM functionality.

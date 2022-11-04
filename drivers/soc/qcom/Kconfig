@@ -632,6 +632,33 @@ config QCOM_HUNG_TASK_ENH
           processes in iowait for specific situation will be monitored
           to avoid devices long time no response.
 
+config QTI_CRYPTO_COMMON
+	tristate "Enable common crypto functionality used for FBE"
+	depends on SCSI_UFS_CRYPTO_QTI
+	help
+	 Say 'Y' to enable the common crypto implementation to be used by
+	 different storage layers such as UFS and EMMC for file based hardware
+	 encryption. This library implements API to program and evict
+	 keys using Trustzone or Hardware Key Manager.
+
+config QTI_CRYPTO_TZ
+	tristate "Enable Trustzone to be used for FBE"
+	depends on QTI_CRYPTO_COMMON
+	help
+	 Say 'Y' to enable routing crypto requests to Trustzone while
+	 performing hardware based file encryption. This means keys are
+	 programmed and managed through SCM calls to TZ where ICE driver
+	 will configure keys.
+
+config QTI_HW_KEY_MANAGER
+	tristate "Enable QTI Hardware Key Manager for storage encryption"
+	default n
+	help
+	 Say 'Y' to enable the hardware key manager driver used to operate
+	 and access key manager hardware block. This is used to interface with
+	 HWKM hardware to perform key operations from the kernel which will
+	 be used for storage encryption.
+
 config QCOM_MINIDUMP
 	tristate "QCOM Minidump Support"
 	depends on QCOM_SMEM || ARCH_QTI_VM
@@ -736,6 +763,7 @@ config QCOM_ICC_BWMON
 	  memory throughput even with lower CPU frequencies.
 
 source "drivers/soc/qcom/mem_buf/Kconfig"
+source "drivers/soc/qcom/tmecom/Kconfig"
 
 config MSM_PERFORMANCE
         tristate "msm performance driver to support userspace fmin/fmax request"
