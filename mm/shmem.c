@@ -3255,7 +3255,7 @@ static int shmem_initxattrs(struct inode *inode,
 		memcpy(new_xattr->name + XATTR_SECURITY_PREFIX_LEN,
 		       xattr->name, len);
 
-		simple_xattr_list_add(&info->xattrs, new_xattr);
+		simple_xattr_add(&info->xattrs, new_xattr);
 	}
 
 	return 0;

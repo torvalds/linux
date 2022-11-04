@@ -80,48 +80,28 @@ static inline const char *xattr_prefix(const struct xattr_handler *handler)
 }
 
 struct simple_xattrs {
-	struct list_head head;
-	spinlock_t lock;
+	struct rb_root rb_root;
+	rwlock_t lock;
 };
 
 struct simple_xattr {
-	struct list_head list;
+	struct rb_node rb_node;
 	char *name;
 	size_t size;
 	char value[];
 };
 
-/*
- * initialize the simple_xattrs structure
- */
-static inline void simple_xattrs_init(struct simple_xattrs *xattrs)
-{
-	INIT_LIST_HEAD(&xattrs->head);
-	spin_lock_init(&xattrs->lock);
-}
-
-/*
- * free all the xattrs
- */
-static inline void simple_xattrs_free(struct simple_xattrs *xattrs)
-{
-	struct simple_xattr *xattr, *node;
-
-	list_for_each_entry_safe(xattr, node, &xattrs->head, list) {
-		kfree(xattr->name);
-		kvfree(xattr);
-	}
-}
-
+void simple_xattrs_init(struct simple_xattrs *xattrs);
+void simple_xattrs_free(struct simple_xattrs *xattrs);
 struct simple_xattr *simple_xattr_alloc(const void *value, size_t size);
 int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
 		     void *buffer, size_t size);
 int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
 		     const void *value, size_t size, int flags,
 		     ssize_t *removed_size);
-ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs, char *buffer,
-			  size_t size);
-void simple_xattr_list_add(struct simple_xattrs *xattrs,
-			   struct simple_xattr *new_xattr);
+ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
+			  char *buffer, size_t size);
+void simple_xattr_add(struct simple_xattrs *xattrs,
+		      struct simple_xattr *new_xattr);
 
 #endif	/* _LINUX_XATTR_H */
