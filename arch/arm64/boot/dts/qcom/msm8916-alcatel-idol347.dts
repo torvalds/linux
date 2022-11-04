@@ -130,6 +130,27 @@
 	};
 };
 
+&blsp_i2c6 {
+	status = "okay";
+
+	led-controller@68 {
+		compatible = "si-en,sn3190";
+		reg = <0x68>;
+		shutdown-gpios = <&msmgpio 89 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_enable_default &led_shutdown_default>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@1 {
+			reg = <1>;
+			led-max-microamp = <5000>;
+			function = LED_FUNCTION_INDICATOR;
+			color = <LED_COLOR_ID_WHITE>;
+		};
+	};
+};
+
 &pm8916_resin {
 	status = "okay";
 	linux,code = <KEY_VOLUMEDOWN>;
@@ -300,6 +321,29 @@
 
 	gyro_int_default: gyro-int-default-state {
 		pins = "gpio97", "gpio98";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	/*
+	 * The OEM wired an additional GPIO to be asserted so that
+	 * the si-en,sn3190 LED IC works. Since this GPIO is not
+	 * part of the IC datasheet nor supported by the driver,
+	 * force it asserted here.
+	 */
+	led_enable_default: led-enable-default-state {
+		pins = "gpio102";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+		output-high;
+	};
+
+	led_shutdown_default: led-shutdown-default-state {
+		pins = "gpio89";
 		function = "gpio";
 
 		drive-strength = <2>;
