@@ -368,32 +368,32 @@ enum evmcs_ctrl_type {
 	NR_EVMCS_CTRLS,
 };
 
-static const u32 evmcs_unsupported_ctrls[NR_EVMCS_CTRLS][NR_EVMCS_REVISIONS] = {
+static const u32 evmcs_supported_ctrls[NR_EVMCS_CTRLS][NR_EVMCS_REVISIONS] = {
 	[EVMCS_EXIT_CTRLS] = {
-		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_VMEXIT_CTRL,
+		[EVMCSv1_LEGACY] = EVMCS1_SUPPORTED_VMEXIT_CTRL,
 	},
 	[EVMCS_ENTRY_CTRLS] = {
-		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_VMENTRY_CTRL,
+		[EVMCSv1_LEGACY] = EVMCS1_SUPPORTED_VMENTRY_CTRL,
 	},
 	[EVMCS_EXEC_CTRL] = {
-		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_EXEC_CTRL,
+		[EVMCSv1_LEGACY] = EVMCS1_SUPPORTED_EXEC_CTRL,
 	},
 	[EVMCS_2NDEXEC] = {
-		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_2NDEXEC,
+		[EVMCSv1_LEGACY] = EVMCS1_SUPPORTED_2NDEXEC & ~SECONDARY_EXEC_TSC_SCALING,
 	},
 	[EVMCS_PINCTRL] = {
-		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_PINCTRL,
+		[EVMCSv1_LEGACY] = EVMCS1_SUPPORTED_PINCTRL,
 	},
 	[EVMCS_VMFUNC] = {
-		[EVMCSv1_LEGACY] = EVMCS1_UNSUPPORTED_VMFUNC,
+		[EVMCSv1_LEGACY] = EVMCS1_SUPPORTED_VMFUNC,
 	},
 };
 
-static u32 evmcs_get_unsupported_ctls(enum evmcs_ctrl_type ctrl_type)
+static u32 evmcs_get_supported_ctls(enum evmcs_ctrl_type ctrl_type)
 {
 	enum evmcs_revision evmcs_rev = EVMCSv1_LEGACY;
 
-	return evmcs_unsupported_ctrls[ctrl_type][evmcs_rev];
+	return evmcs_supported_ctrls[ctrl_type][evmcs_rev];
 }
 
 static bool evmcs_has_perf_global_ctrl(struct kvm_vcpu *vcpu)
@@ -417,7 +417,7 @@ void nested_evmcs_filter_control_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *
 {
 	u32 ctl_low = (u32)*pdata;
 	u32 ctl_high = (u32)(*pdata >> 32);
-	u32 unsupported_ctrls;
+	u32 supported_ctrls;
 
 	/*
 	 * Hyper-V 2016 and 2019 try using these features even when eVMCS
@@ -426,31 +426,31 @@ void nested_evmcs_filter_control_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *
 	switch (msr_index) {
 	case MSR_IA32_VMX_EXIT_CTLS:
 	case MSR_IA32_VMX_TRUE_EXIT_CTLS:
-		unsupported_ctrls = evmcs_get_unsupported_ctls(EVMCS_EXIT_CTRLS);
+		supported_ctrls = evmcs_get_supported_ctls(EVMCS_EXIT_CTRLS);
 		if (!evmcs_has_perf_global_ctrl(vcpu))
-			unsupported_ctrls |= VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL;
-		ctl_high &= ~unsupported_ctrls;
+			supported_ctrls &= ~VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL;
+		ctl_high &= supported_ctrls;
 		break;
 	case MSR_IA32_VMX_ENTRY_CTLS:
 	case MSR_IA32_VMX_TRUE_ENTRY_CTLS:
-		unsupported_ctrls = evmcs_get_unsupported_ctls(EVMCS_ENTRY_CTRLS);
+		supported_ctrls = evmcs_get_supported_ctls(EVMCS_ENTRY_CTRLS);
 		if (!evmcs_has_perf_global_ctrl(vcpu))
-			unsupported_ctrls |= VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
-		ctl_high &= ~unsupported_ctrls;
+			supported_ctrls &= ~VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
+		ctl_high &= supported_ctrls;
 		break;
 	case MSR_IA32_VMX_PROCBASED_CTLS:
 	case MSR_IA32_VMX_TRUE_PROCBASED_CTLS:
-		ctl_high &= ~evmcs_get_unsupported_ctls(EVMCS_EXEC_CTRL);
+		ctl_high &= evmcs_get_supported_ctls(EVMCS_EXEC_CTRL);
 		break;
 	case MSR_IA32_VMX_PROCBASED_CTLS2:
-		ctl_high &= ~evmcs_get_unsupported_ctls(EVMCS_2NDEXEC);
+		ctl_high &= evmcs_get_supported_ctls(EVMCS_2NDEXEC);
 		break;
 	case MSR_IA32_VMX_TRUE_PINBASED_CTLS:
 	case MSR_IA32_VMX_PINBASED_CTLS:
-		ctl_high &= ~evmcs_get_unsupported_ctls(EVMCS_PINCTRL);
+		ctl_high &= evmcs_get_supported_ctls(EVMCS_PINCTRL);
 		break;
 	case MSR_IA32_VMX_VMFUNC:
-		ctl_low &= ~evmcs_get_unsupported_ctls(EVMCS_VMFUNC);
+		ctl_low &= evmcs_get_supported_ctls(EVMCS_VMFUNC);
 		break;
 	}
 
@@ -460,7 +460,7 @@ void nested_evmcs_filter_control_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *
 static bool nested_evmcs_is_valid_controls(enum evmcs_ctrl_type ctrl_type,
 					   u32 val)
 {
-	return !(val & evmcs_get_unsupported_ctls(ctrl_type));
+	return !(val & ~evmcs_get_supported_ctls(ctrl_type));
 }
 
 int nested_evmcs_check_controls(struct vmcs12 *vmcs12)
