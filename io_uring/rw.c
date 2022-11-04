@@ -286,6 +286,12 @@ static inline int io_fixup_rw_res(struct io_kiocb *req, long res)
 static void io_req_rw_complete(struct io_kiocb *req, bool *locked)
 {
 	io_req_io_end(req);
+
+	if (req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)) {
+		unsigned issue_flags = *locked ? 0 : IO_URING_F_UNLOCKED;
+
+		req->cqe.flags |= io_put_kbuf(req, issue_flags);
+	}
 	io_req_task_complete(req, locked);
 }
 

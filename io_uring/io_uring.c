@@ -1476,12 +1476,6 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 
 void io_req_task_complete(struct io_kiocb *req, bool *locked)
 {
-	if (req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)) {
-		unsigned issue_flags = *locked ? 0 : IO_URING_F_UNLOCKED;
-
-		req->cqe.flags |= io_put_kbuf(req, issue_flags);
-	}
-
 	if (*locked)
 		io_req_complete_defer(req);
 	else
