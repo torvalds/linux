@@ -399,7 +399,7 @@ static int ar0521_set_stream(struct ar0521_dev *sensor, bool on)
 		if (ret)
 			goto err;
 
-		ret = ar0521_set_gains(sensor);
+		ret =  __v4l2_ctrl_handler_setup(&sensor->ctrls.handler);
 		if (ret)
 			goto err;
 
