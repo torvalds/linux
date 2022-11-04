@@ -278,7 +278,7 @@ static u32 calc_pll(struct ar0521_dev *sensor, u32 freq, u16 *pre_ptr, u16 *mult
 	return pll;
 }
 
-static void ar0521_calc_mode(struct ar0521_dev *sensor)
+static void ar0521_calc_pll(struct ar0521_dev *sensor)
 {
 	unsigned int pixel_clock;
 	u16 pre, mult;
@@ -342,7 +342,7 @@ static void ar0521_calc_mode(struct ar0521_dev *sensor)
 	sensor->pll.mult = sensor->pll.mult2 = mult;
 }
 
-static int ar0521_write_mode(struct ar0521_dev *sensor)
+static int ar0521_pll_config(struct ar0521_dev *sensor)
 {
 	__be16 pll_regs[] = {
 		be(AR0521_REG_VT_PIX_CLK_DIV),
@@ -353,36 +353,9 @@ static int ar0521_write_mode(struct ar0521_dev *sensor)
 		/* 0x308 */ be(sensor->pll.vt_pix * 2), /* op_pix_clk_div = 2 * vt_pix_clk_div */
 		/* 0x30A */ be(1)  /* op_sys_clk_div */
 	};
-	int ret;
 
-	/* Stop streaming for just a moment */
-	ret = ar0521_write_reg(sensor, AR0521_REG_RESET,
-			       AR0521_REG_RESET_DEFAULTS);
-	if (ret)
-		return ret;
-
-	ret = ar0521_set_geometry(sensor);
-	if (ret)
-		return ret;
-
-	ret = ar0521_write_regs(sensor, pll_regs, ARRAY_SIZE(pll_regs));
-	if (ret)
-		return ret;
-
-	ret = ar0521_write_reg(sensor, AR0521_REG_COARSE_INTEGRATION_TIME,
-			       sensor->ctrls.exposure->val);
-	if (ret)
-		return ret;
-
-	ret = ar0521_write_reg(sensor, AR0521_REG_RESET,
-			       AR0521_REG_RESET_DEFAULTS |
-			       AR0521_REG_RESET_STREAM);
-	if (ret)
-		return ret;
-
-	ret = ar0521_write_reg(sensor, AR0521_REG_TEST_PATTERN_MODE,
-			       sensor->ctrls.test_pattern->val);
-	return ret;
+	ar0521_calc_pll(sensor);
+	return ar0521_write_regs(sensor, pll_regs, ARRAY_SIZE(pll_regs));
 }
 
 static int ar0521_set_stream(struct ar0521_dev *sensor, bool on)
@@ -394,8 +367,17 @@ static int ar0521_set_stream(struct ar0521_dev *sensor, bool on)
 		if (ret < 0)
 			return ret;
 
-		ar0521_calc_mode(sensor);
-		ret = ar0521_write_mode(sensor);
+		/* Stop streaming for just a moment */
+		ret = ar0521_write_reg(sensor, AR0521_REG_RESET,
+				       AR0521_REG_RESET_DEFAULTS);
+		if (ret)
+			return ret;
+
+		ret = ar0521_set_geometry(sensor);
+		if (ret)
+			return ret;
+
+		ret = ar0521_pll_config(sensor);
 		if (ret)
 			goto err;
 
@@ -501,7 +483,7 @@ static int ar0521_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	sensor->fmt = format->format;
-	ar0521_calc_mode(sensor);
+	ar0521_calc_pll(sensor);
 
 	/*
 	 * Update the exposure and blankings limits. Blankings are also reset
