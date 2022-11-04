@@ -82,6 +82,17 @@ config QTI_POLICY_ENGINE_SENSOR
 	    a sensor. This will enable to provide configuration to mitigate
 	    cooling devices when a recommendation is sent from hardware.
 
+config QTI_QMI_COOLING_DEVICE
+	tristate "QTI QMI cooling devices"
+	depends on QCOM_QMI_HELPERS && THERMAL
+	help
+	   This enables the QTI remote subsystem cooling devices. These cooling
+	   devices will be used by QTI chipset to place various remote
+	   subsystem mitigations like remote processor passive mitigation,
+	   remote subsystem voltage restriction at low temperatures etc.
+	   The QMI cooling device will interface with remote subsystem
+	   using QTI QMI interface.
+
 config QTI_QMI_SENSOR_V2
 	tristate "QTI QMI TS V2 sensor driver"
 	depends on THERMAL_OF
