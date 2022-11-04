@@ -751,25 +751,25 @@ vm_fault_t bch2_page_fault(struct vm_fault *vmf)
 	if (fdm > mapping) {
 		struct bch_inode_info *fdm_host = to_bch_ei(fdm->host);
 
-		if (bch2_pagecache_add_tryget(&inode->ei_pagecache_lock))
+		if (bch2_pagecache_add_tryget(inode))
 			goto got_lock;
 
-		bch2_pagecache_block_put(&fdm_host->ei_pagecache_lock);
+		bch2_pagecache_block_put(fdm_host);
 
-		bch2_pagecache_add_get(&inode->ei_pagecache_lock);
-		bch2_pagecache_add_put(&inode->ei_pagecache_lock);
+		bch2_pagecache_add_get(inode);
+		bch2_pagecache_add_put(inode);
 
-		bch2_pagecache_block_get(&fdm_host->ei_pagecache_lock);
+		bch2_pagecache_block_get(fdm_host);
 
 		/* Signal that lock has been dropped: */
 		set_fdm_dropped_locks();
 		return VM_FAULT_SIGBUS;
 	}
 
-	bch2_pagecache_add_get(&inode->ei_pagecache_lock);
+	bch2_pagecache_add_get(inode);
 got_lock:
 	ret = filemap_fault(vmf);
-	bch2_pagecache_add_put(&inode->ei_pagecache_lock);
+	bch2_pagecache_add_put(inode);
 
 	return ret;
 }
@@ -797,7 +797,7 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 	 * a write_invalidate_inode_pages_range() that works without dropping
 	 * page lock before invalidating page
 	 */
-	bch2_pagecache_add_get(&inode->ei_pagecache_lock);
+	bch2_pagecache_add_get(inode);
 
 	lock_page(page);
 	isize = i_size_read(&inode->v);
@@ -830,7 +830,7 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 	wait_for_stable_page(page);
 	ret = VM_FAULT_LOCKED;
 out:
-	bch2_pagecache_add_put(&inode->ei_pagecache_lock);
+	bch2_pagecache_add_put(inode);
 	sb_end_pagefault(inode->v.i_sb);
 
 	return ret;
@@ -1098,7 +1098,7 @@ void bch2_readahead(struct readahead_control *ractl)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	bch2_pagecache_add_get(&inode->ei_pagecache_lock);
+	bch2_pagecache_add_get(inode);
 
 	while ((page = readpage_iter_next(&readpages_iter))) {
 		pgoff_t index = readpages_iter.offset + readpages_iter.idx;
@@ -1121,7 +1121,7 @@ void bch2_readahead(struct readahead_control *ractl)
 			   &readpages_iter);
 	}
 
-	bch2_pagecache_add_put(&inode->ei_pagecache_lock);
+	bch2_pagecache_add_put(inode);
 
 	bch2_trans_exit(&trans);
 	kfree(readpages_iter.pages);
@@ -1483,7 +1483,7 @@ int bch2_write_begin(struct file *file, struct address_space *mapping,
 	bch2_page_reservation_init(c, inode, res);
 	*fsdata = res;
 
-	bch2_pagecache_add_get(&inode->ei_pagecache_lock);
+	bch2_pagecache_add_get(inode);
 
 	page = grab_cache_page_write_begin(mapping, index);
 	if (!page)
@@ -1540,7 +1540,7 @@ err:
 	put_page(page);
 	*pagep = NULL;
 err_unlock:
-	bch2_pagecache_add_put(&inode->ei_pagecache_lock);
+	bch2_pagecache_add_put(inode);
 	kfree(res);
 	*fsdata = NULL;
 	return bch2_err_class(ret);
@@ -1584,7 +1584,7 @@ int bch2_write_end(struct file *file, struct address_space *mapping,
 
 	unlock_page(page);
 	put_page(page);
-	bch2_pagecache_add_put(&inode->ei_pagecache_lock);
+	bch2_pagecache_add_put(inode);
 
 	bch2_page_reservation_put(c, inode, res);
 	kfree(res);
@@ -1753,7 +1753,7 @@ static ssize_t bch2_buffered_write(struct kiocb *iocb, struct iov_iter *iter)
 	ssize_t written = 0;
 	int ret = 0;
 
-	bch2_pagecache_add_get(&inode->ei_pagecache_lock);
+	bch2_pagecache_add_get(inode);
 
 	do {
 		unsigned offset = pos & (PAGE_SIZE - 1);
@@ -1811,7 +1811,7 @@ again:
 		balance_dirty_pages_ratelimited(mapping);
 	} while (iov_iter_count(iter));
 
-	bch2_pagecache_add_put(&inode->ei_pagecache_lock);
+	bch2_pagecache_add_put(inode);
 
 	return written ? written : ret;
 }
@@ -1991,9 +1991,9 @@ ssize_t bch2_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		if (ret >= 0)
 			iocb->ki_pos += ret;
 	} else {
-		bch2_pagecache_add_get(&inode->ei_pagecache_lock);
+		bch2_pagecache_add_get(inode);
 		ret = generic_file_read_iter(iocb, iter);
-		bch2_pagecache_add_put(&inode->ei_pagecache_lock);
+		bch2_pagecache_add_put(inode);
 	}
 out:
 	return bch2_err_class(ret);
@@ -2149,7 +2149,7 @@ static __always_inline long bch2_dio_write_done(struct dio_write *dio)
 			return -EIOCBQUEUED;
 	}
 
-	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
+	bch2_pagecache_block_put(inode);
 	bch2_quota_reservation_put(c, inode, &dio->quota_res);
 
 	if (dio->free_iov)
@@ -2357,7 +2357,7 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 		goto err;
 
 	inode_dio_begin(&inode->v);
-	bch2_pagecache_block_get(&inode->ei_pagecache_lock);
+	bch2_pagecache_block_get(inode);
 
 	extending = req->ki_pos + iter->count > inode->v.i_size;
 	if (!extending) {
@@ -2403,7 +2403,7 @@ err:
 		inode_unlock(&inode->v);
 	return ret;
 err_put_bio:
-	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
+	bch2_pagecache_block_put(inode);
 	bch2_quota_reservation_put(c, inode, &dio->quota_res);
 	bio_put(bio);
 	inode_dio_end(&inode->v);
@@ -2704,7 +2704,7 @@ int bch2_truncate(struct mnt_idmap *idmap,
 	}
 
 	inode_dio_wait(&inode->v);
-	bch2_pagecache_block_get(&inode->ei_pagecache_lock);
+	bch2_pagecache_block_get(inode);
 
 	ret = bch2_inode_find_by_inum(c, inode_inum(inode), &inode_u);
 	if (ret)
@@ -2783,7 +2783,7 @@ int bch2_truncate(struct mnt_idmap *idmap,
 
 	ret = bch2_setattr_nonsize(idmap, inode, iattr);
 err:
-	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
+	bch2_pagecache_block_put(inode);
 	return bch2_err_class(ret);
 }
 
@@ -3195,7 +3195,7 @@ long bch2_fallocate_dispatch(struct file *file, int mode,
 
 	inode_lock(&inode->v);
 	inode_dio_wait(&inode->v);
-	bch2_pagecache_block_get(&inode->ei_pagecache_lock);
+	bch2_pagecache_block_get(inode);
 
 	ret = file_modified(file);
 	if (ret)
@@ -3212,7 +3212,7 @@ long bch2_fallocate_dispatch(struct file *file, int mode,
 	else
 		ret = -EOPNOTSUPP;
 err:
-	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
+	bch2_pagecache_block_put(inode);
 	inode_unlock(&inode->v);
 	percpu_ref_put(&c->writes);
 

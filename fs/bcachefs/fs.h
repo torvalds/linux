@@ -6,30 +6,10 @@
 #include "opts.h"
 #include "str_hash.h"
 #include "quota_types.h"
+#include "two_state_shared_lock.h"
 
 #include <linux/seqlock.h>
 #include <linux/stat.h>
-
-/*
- * Two-state lock - can be taken for add or block - both states are shared,
- * like read side of rwsem, but conflict with other state:
- */
-struct pagecache_lock {
-	atomic_long_t		v;
-	wait_queue_head_t	wait;
-};
-
-static inline void pagecache_lock_init(struct pagecache_lock *lock)
-{
-	atomic_long_set(&lock->v, 0);
-	init_waitqueue_head(&lock->wait);
-}
-
-void bch2_pagecache_add_put(struct pagecache_lock *);
-bool bch2_pagecache_add_tryget(struct pagecache_lock *);
-void bch2_pagecache_add_get(struct pagecache_lock *);
-void bch2_pagecache_block_put(struct pagecache_lock *);
-void bch2_pagecache_block_get(struct pagecache_lock *);
 
 struct bch_inode_info {
 	struct inode		v;
@@ -38,7 +18,7 @@ struct bch_inode_info {
 	struct mutex		ei_update_lock;
 	u64			ei_quota_reserved;
 	unsigned long		ei_last_dirtied;
-	struct pagecache_lock	ei_pagecache_lock;
+	two_state_lock_t	ei_pagecache_lock;
 
 	struct mutex		ei_quota_lock;
 	struct bch_qid		ei_qid;
@@ -48,6 +28,13 @@ struct bch_inode_info {
 	/* copy of inode in btree: */
 	struct bch_inode_unpacked ei_inode;
 };
+
+#define bch2_pagecache_add_put(i)	bch2_two_state_unlock(&i->ei_pagecache_lock, 0)
+#define bch2_pagecache_add_tryget(i)	bch2_two_state_trylock(&i->ei_pagecache_lock, 0)
+#define bch2_pagecache_add_get(i)	bch2_two_state_lock(&i->ei_pagecache_lock, 0)
+
+#define bch2_pagecache_block_put(i)	bch2_two_state_unlock(&i->ei_pagecache_lock, 1)
+#define bch2_pagecache_block_get(i)	bch2_two_state_lock(&i->ei_pagecache_lock, 1)
 
 static inline subvol_inum inode_inum(struct bch_inode_info *inode)
 {
@@ -95,7 +82,7 @@ do {									\
 			if ((_locks) & INODE_LOCK)			\
 				down_write_nested(&a[i]->v.i_rwsem, i);	\
 			if ((_locks) & INODE_PAGECACHE_BLOCK)		\
-				bch2_pagecache_block_get(&a[i]->ei_pagecache_lock);\
+				bch2_pagecache_block_get(a[i]);\
 			if ((_locks) & INODE_UPDATE_LOCK)			\
 				mutex_lock_nested(&a[i]->ei_update_lock, i);\
 		}							\
@@ -113,7 +100,7 @@ do {									\
 			if ((_locks) & INODE_LOCK)			\
 				up_write(&a[i]->v.i_rwsem);		\
 			if ((_locks) & INODE_PAGECACHE_BLOCK)		\
-				bch2_pagecache_block_put(&a[i]->ei_pagecache_lock);\
+				bch2_pagecache_block_put(a[i]);\
 			if ((_locks) & INODE_UPDATE_LOCK)			\
 				mutex_unlock(&a[i]->ei_update_lock);	\
 		}							\

@@ -65,6 +65,7 @@ bcachefs-y		:=	\
 	sysfs.o			\
 	tests.o			\
 	trace.o			\
+	two_state_shared_lock.o	\
 	util.o			\
 	varint.o		\
 	xattr.o
