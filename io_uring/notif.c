@@ -39,10 +39,8 @@ static void io_uring_tx_zerocopy_callback(struct sk_buff *skb,
 			WRITE_ONCE(nd->zc_copied, true);
 	}
 
-	if (refcount_dec_and_test(&uarg->refcnt)) {
-		notif->io_task_work.func = __io_notif_complete_tw;
+	if (refcount_dec_and_test(&uarg->refcnt))
 		io_req_task_work_add(notif);
-	}
 }
 
 struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
@@ -60,6 +58,7 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
 	notif->task = current;
 	io_get_task_refs(1);
 	notif->rsrc_node = NULL;
+	notif->io_task_work.func = __io_notif_complete_tw;
 
 	nd = io_notif_to_data(notif);
 	nd->account_pages = 0;
@@ -76,8 +75,6 @@ void io_notif_flush(struct io_kiocb *notif)
 	struct io_notif_data *nd = io_notif_to_data(notif);
 
 	/* drop slot's master ref */
-	if (refcount_dec_and_test(&nd->uarg.refcnt)) {
-		notif->io_task_work.func = __io_notif_complete_tw;
+	if (refcount_dec_and_test(&nd->uarg.refcnt))
 		io_req_task_work_add(notif);
-	}
 }
