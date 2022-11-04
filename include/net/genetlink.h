@@ -18,7 +18,7 @@ struct genl_multicast_group {
 	u8			flags;
 };
 
-struct genl_ops;
+struct genl_split_ops;
 struct genl_info;
 
 /**
@@ -66,10 +66,10 @@ struct genl_family {
 	u8			n_mcgrps;
 	u8			resv_start_op;
 	const struct nla_policy *policy;
-	int			(*pre_doit)(const struct genl_ops *ops,
+	int			(*pre_doit)(const struct genl_split_ops *ops,
 					    struct sk_buff *skb,
 					    struct genl_info *info);
-	void			(*post_doit)(const struct genl_ops *ops,
+	void			(*post_doit)(const struct genl_split_ops *ops,
 					     struct sk_buff *skb,
 					     struct genl_info *info);
 	const struct genl_ops *	ops;
@@ -183,6 +183,58 @@ struct genl_ops {
 };
 
 /**
+ * struct genl_split_ops - generic netlink operations (do/dump split version)
+ * @cmd: command identifier
+ * @internal_flags: flags used by the family
+ * @flags: GENL_* flags (%GENL_ADMIN_PERM or %GENL_UNS_ADMIN_PERM)
+ * @validate: validation flags from enum genl_validate_flags
+ * @policy: netlink policy (takes precedence over family policy)
+ * @maxattr: maximum number of attributes supported
+ *
+ * Do callbacks:
+ * @pre_doit: called before an operation's @doit callback, it may
+ *	do additional, common, filtering and return an error
+ * @doit: standard command callback
+ * @post_doit: called after an operation's @doit callback, it may
+ *	undo operations done by pre_doit, for example release locks
+ *
+ * Dump callbacks:
+ * @start: start callback for dumps
+ * @dumpit: callback for dumpers
+ * @done: completion callback for dumps
+ *
+ * Do callbacks can be used if %GENL_CMD_CAP_DO is set in @flags.
+ * Dump callbacks can be used if %GENL_CMD_CAP_DUMP is set in @flags.
+ * Exactly one of those flags must be set.
+ */
+struct genl_split_ops {
+	union {
+		struct {
+			int (*pre_doit)(const struct genl_split_ops *ops,
+					struct sk_buff *skb,
+					struct genl_info *info);
+			int (*doit)(struct sk_buff *skb,
+				    struct genl_info *info);
+			void (*post_doit)(const struct genl_split_ops *ops,
+					  struct sk_buff *skb,
+					  struct genl_info *info);
+		};
+		struct {
+			int (*start)(struct netlink_callback *cb);
+			int (*dumpit)(struct sk_buff *skb,
+				      struct netlink_callback *cb);
+			int (*done)(struct netlink_callback *cb);
+		};
+	};
+	const struct nla_policy *policy;
+	unsigned int		maxattr;
+	u8			cmd;
+	u8			internal_flags;
+	u8			flags;
+	u8			validate;
+};
+
+/**
  * struct genl_dumpit_info - info that is available during dumpit op call
  * @family: generic netlink family - for internal genl code usage
  * @op: generic netlink ops - for internal genl code usage
@@ -190,7 +242,7 @@ struct genl_ops {
  */
 struct genl_dumpit_info {
 	const struct genl_family *family;
-	struct genl_ops op;
+	struct genl_split_ops op;
 	struct nlattr **attrs;
 };
 
