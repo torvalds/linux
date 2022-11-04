@@ -103,3 +103,13 @@ config QTI_QMI_SENSOR_V2
 	   the remote sensor. These sensors can take thresholds and notify the
 	   thermal framework when the threshold is reached.
 
+config QTI_CPU_VOLTAGE_COOLING_DEVICE
+	tristate "QTI CPU VOLTAGE cooling devices"
+	depends on CPU_FREQ && THERMAL
+	help
+	    This enables the QTI CPU Voltage cooling devices. This cooling
+	    device will allow the CPUs with different frequency plan in a
+	    cluster to be mitigated together based on the voltages. This will
+	    decrease or increase the voltages in a cluster based on thermal
+	    conditions.
+
