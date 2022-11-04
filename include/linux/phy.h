@@ -600,6 +600,7 @@ struct macsec_ops;
  * @psec: Pointer to Power Sourcing Equipment control struct
  * @lock:  Mutex for serialization access to PHY
  * @state_queue: Work queue for state machine
+ * @link_down_events: Number of times link was lost
  * @shared: Pointer to private data shared by phys in one package
  * @priv: Pointer to driver private data
  *
@@ -722,6 +723,8 @@ struct phy_device {
 	u8 mdix_ctrl;
 
 	int pma_extable;
+
+	unsigned int link_down_events;
 
 	void (*phy_link_change)(struct phy_device *phydev, bool up);
 	void (*adjust_link)(struct net_device *dev);

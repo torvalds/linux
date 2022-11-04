@@ -125,6 +125,20 @@ struct ethtool_link_ext_state_info {
 	};
 };
 
+struct ethtool_link_ext_stats {
+	/* Custom Linux statistic for PHY level link down events.
+	 * In a simpler world it should be equal to netdev->carrier_down_count
+	 * unfortunately netdev also counts local reconfigurations which don't
+	 * actually take the physical link down, not to mention NC-SI which,
+	 * if present, keeps the link up regardless of host state.
+	 * This statistic counts when PHY _actually_ went down, or lost link.
+	 *
+	 * Note that we need u64 for ethtool_stats_init() and comparisons
+	 * to ETHTOOL_STAT_NOT_SET, but only u32 is exposed to the user.
+	 */
+	u64 link_down_events;
+};
+
 /**
  * ethtool_rxfh_indir_default - get default value for RX flow hash indirection
  * @index: Index in RX flow hash indirection table
@@ -481,6 +495,7 @@ struct ethtool_module_power_mode_params {
  *	do not attach ext_substate attribute to netlink message). If link_ext_state
  *	and link_ext_substate are unknown, return -ENODATA. If not implemented,
  *	link_ext_state and link_ext_substate will not be sent to userspace.
+ * @get_link_ext_stats: Read extra link-related counters.
  * @get_eeprom_len: Read range of EEPROM addresses for validation of
  *	@get_eeprom and @set_eeprom requests.
  *	Returns 0 if device does not support EEPROM access.
@@ -652,6 +667,8 @@ struct ethtool_ops {
 	u32	(*get_link)(struct net_device *);
 	int	(*get_link_ext_state)(struct net_device *,
 				      struct ethtool_link_ext_state_info *);
+	void	(*get_link_ext_stats)(struct net_device *dev,
+				      struct ethtool_link_ext_stats *stats);
 	int	(*get_eeprom_len)(struct net_device *);
 	int	(*get_eeprom)(struct net_device *,
 			      struct ethtool_eeprom *, u8 *);
