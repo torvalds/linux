@@ -348,6 +348,9 @@ static void vfio_device_release(struct device *dev)
 	device->ops->release(device);
 }
 
+static int vfio_init_device(struct vfio_device *device, struct device *dev,
+			    const struct vfio_device_ops *ops);
+
 /*
  * Allocate and initialize vfio_device so it can be registered to vfio
  * core.
@@ -386,11 +389,9 @@ EXPORT_SYMBOL_GPL(_vfio_alloc_device);
 
 /*
  * Initialize a vfio_device so it can be registered to vfio core.
- *
- * Only vfio-ccw driver should call this interface.
  */
-int vfio_init_device(struct vfio_device *device, struct device *dev,
-		     const struct vfio_device_ops *ops)
+static int vfio_init_device(struct vfio_device *device, struct device *dev,
+			    const struct vfio_device_ops *ops)
 {
 	int ret;
 
@@ -422,7 +423,6 @@ out_uninit:
 	ida_free(&vfio.device_ida, device->index);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(vfio_init_device);
 
 /*
  * The helper called by driver @release callback to free the device

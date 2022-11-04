@@ -176,8 +176,6 @@ struct vfio_device *_vfio_alloc_device(size_t size, struct device *dev,
 					dev, ops),				\
 		     struct dev_struct, member)
 
-int vfio_init_device(struct vfio_device *device, struct device *dev,
-		     const struct vfio_device_ops *ops);
 void vfio_free_device(struct vfio_device *device);
 static inline void vfio_put_device(struct vfio_device *device)
 {
