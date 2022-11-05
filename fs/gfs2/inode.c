@@ -734,8 +734,12 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 		goto fail_free_inode;
 	gfs2_cancel_delete_work(io_gl);
 
+retry:
 	error = insert_inode_locked4(inode, ip->i_no_addr, iget_test, &ip->i_no_addr);
-	BUG_ON(error);
+	if (error == -EBUSY)
+		goto retry;
+	if (error)
+		goto fail_gunlock2;
 
 	error = gfs2_glock_nq_init(io_gl, LM_ST_SHARED, GL_EXACT | GL_NOPID,
 				   &ip->i_iopen_gh);
