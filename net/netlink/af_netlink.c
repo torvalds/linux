@@ -2500,7 +2500,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 
 	skb = nlmsg_new(payload + tlvlen, GFP_KERNEL);
 	if (!skb)
-		goto err_bad_put;
+		goto err_skb;
 
 	rep = nlmsg_put(skb, NETLINK_CB(in_skb).portid, nlh->nlmsg_seq,
 			NLMSG_ERROR, sizeof(*errmsg), flags);
@@ -2528,6 +2528,8 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 	return;
 
 err_bad_put:
+	nlmsg_free(skb);
+err_skb:
 	NETLINK_CB(in_skb).sk->sk_err = ENOBUFS;
 	sk_error_report(NETLINK_CB(in_skb).sk);
 }
