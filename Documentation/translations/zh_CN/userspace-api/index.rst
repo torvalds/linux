@@ -28,6 +28,7 @@ Linux 内核用户空间API指南
    seccomp_filter
    ebpf/index
    sysfs-platform_profile
+   futex2
 
 TODOList:
 
@@ -40,7 +41,6 @@ TODOList:
 * media/index
 * netlink/index
 * vduse
-* futex2
 
 .. only::  subproject and html
 
