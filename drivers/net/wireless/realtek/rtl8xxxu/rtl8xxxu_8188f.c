@@ -352,7 +352,7 @@ out:
 	return ret;
 }
 
-static void rtl8xxxu_8188f_channel_to_group(int channel, int *group, int *cck_group)
+static void rtl8188f_channel_to_group(int channel, int *group, int *cck_group)
 {
 	if (channel < 3)
 		*group = 0;
@@ -378,7 +378,7 @@ rtl8188f_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 	u8 cck, ofdmbase, mcsbase;
 	int group, cck_group;
 
-	rtl8xxxu_8188f_channel_to_group(channel, &group, &cck_group);
+	rtl8188f_channel_to_group(channel, &group, &cck_group);
 
 	cck = priv->cck_tx_power_index_A[cck_group];
 
