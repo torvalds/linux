@@ -124,19 +124,59 @@ static void efx_tc_flow_free(void *ptr, void *arg)
 	kfree(rule);
 }
 
+/* Boilerplate for the simple 'copy a field' cases */
+#define _MAP_KEY_AND_MASK(_name, _type, _tcget, _tcfield, _field)	\
+if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_##_name)) {		\
+	struct flow_match_##_type fm;					\
+									\
+	flow_rule_match_##_tcget(rule, &fm);				\
+	match->value._field = fm.key->_tcfield;				\
+	match->mask._field = fm.mask->_tcfield;				\
+}
+#define MAP_KEY_AND_MASK(_name, _type, _tcfield, _field)	\
+	_MAP_KEY_AND_MASK(_name, _type, _type, _tcfield, _field)
+#define MAP_ENC_KEY_AND_MASK(_name, _type, _tcget, _tcfield, _field)	\
+	_MAP_KEY_AND_MASK(ENC_##_name, _type, _tcget, _tcfield, _field)
+
 static int efx_tc_flower_parse_match(struct efx_nic *efx,
 				     struct flow_rule *rule,
 				     struct efx_tc_match *match,
 				     struct netlink_ext_ack *extack)
 {
 	struct flow_dissector *dissector = rule->match.dissector;
+	unsigned char ipv = 0;
 
+	/* Owing to internal TC infelicities, the IPV6_ADDRS key might be set
+	 * even on IPv4 filters; so rather than relying on dissector->used_keys
+	 * we check the addr_type in the CONTROL key.  If we don't find it (or
+	 * it's masked, which should never happen), we treat both IPV4_ADDRS
+	 * and IPV6_ADDRS as absent.
+	 */
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
 		struct flow_match_control fm;
 
 		flow_rule_match_control(rule, &fm);
+		if (IS_ALL_ONES(fm.mask->addr_type))
+			switch (fm.key->addr_type) {
+			case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
+				ipv = 4;
+				break;
+			case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
+				ipv = 6;
+				break;
+			default:
+				break;
+			}
 
-		if (fm.mask->flags) {
+		if (fm.mask->flags & FLOW_DIS_IS_FRAGMENT) {
+			match->value.ip_frag = fm.key->flags & FLOW_DIS_IS_FRAGMENT;
+			match->mask.ip_frag = true;
+		}
+		if (fm.mask->flags & FLOW_DIS_FIRST_FRAG) {
+			match->value.ip_firstfrag = fm.key->flags & FLOW_DIS_FIRST_FRAG;
+			match->mask.ip_firstfrag = true;
+		}
+		if (fm.mask->flags & ~(FLOW_DIS_IS_FRAGMENT | FLOW_DIS_FIRST_FRAG)) {
 			NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported match on control.flags %#x",
 					       fm.mask->flags);
 			return -EOPNOTSUPP;
@@ -144,25 +184,100 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 	}
 	if (dissector->used_keys &
 	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
-	      BIT(FLOW_DISSECTOR_KEY_BASIC))) {
+	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
+	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
+	      BIT(FLOW_DISSECTOR_KEY_CVLAN) |
+	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
+	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_TCP) |
+	      BIT(FLOW_DISSECTOR_KEY_IP))) {
 		NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported flower keys %#x",
 				       dissector->used_keys);
 		return -EOPNOTSUPP;
 	}
 
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
-		struct flow_match_basic fm;
-
-		flow_rule_match_basic(rule, &fm);
-		if (fm.mask->n_proto) {
-			NL_SET_ERR_MSG_MOD(extack, "Unsupported eth_proto match");
-			return -EOPNOTSUPP;
+	MAP_KEY_AND_MASK(BASIC, basic, n_proto, eth_proto);
+	/* Make sure we're IP if any L3/L4 keys used. */
+	if (!IS_ALL_ONES(match->mask.eth_proto) ||
+	    !(match->value.eth_proto == htons(ETH_P_IP) ||
+	      match->value.eth_proto == htons(ETH_P_IPV6)))
+		if (dissector->used_keys &
+		    (BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
+		     BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
+		     BIT(FLOW_DISSECTOR_KEY_PORTS) |
+		     BIT(FLOW_DISSECTOR_KEY_IP) |
+		     BIT(FLOW_DISSECTOR_KEY_TCP))) {
+			NL_SET_ERR_MSG_FMT_MOD(extack, "L3/L4 flower keys %#x require protocol ipv[46]",
+					       dissector->used_keys);
+			return -EINVAL;
 		}
-		if (fm.mask->ip_proto) {
-			NL_SET_ERR_MSG_MOD(extack, "Unsupported ip_proto match");
-			return -EOPNOTSUPP;
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_match_vlan fm;
+
+		flow_rule_match_vlan(rule, &fm);
+		if (fm.mask->vlan_id || fm.mask->vlan_priority || fm.mask->vlan_tpid) {
+			match->value.vlan_proto[0] = fm.key->vlan_tpid;
+			match->mask.vlan_proto[0] = fm.mask->vlan_tpid;
+			match->value.vlan_tci[0] = cpu_to_be16(fm.key->vlan_priority << 13 |
+							       fm.key->vlan_id);
+			match->mask.vlan_tci[0] = cpu_to_be16(fm.mask->vlan_priority << 13 |
+							      fm.mask->vlan_id);
 		}
 	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CVLAN)) {
+		struct flow_match_vlan fm;
+
+		flow_rule_match_cvlan(rule, &fm);
+		if (fm.mask->vlan_id || fm.mask->vlan_priority || fm.mask->vlan_tpid) {
+			match->value.vlan_proto[1] = fm.key->vlan_tpid;
+			match->mask.vlan_proto[1] = fm.mask->vlan_tpid;
+			match->value.vlan_tci[1] = cpu_to_be16(fm.key->vlan_priority << 13 |
+							       fm.key->vlan_id);
+			match->mask.vlan_tci[1] = cpu_to_be16(fm.mask->vlan_priority << 13 |
+							      fm.mask->vlan_id);
+		}
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+		struct flow_match_eth_addrs fm;
+
+		flow_rule_match_eth_addrs(rule, &fm);
+		ether_addr_copy(match->value.eth_saddr, fm.key->src);
+		ether_addr_copy(match->value.eth_daddr, fm.key->dst);
+		ether_addr_copy(match->mask.eth_saddr, fm.mask->src);
+		ether_addr_copy(match->mask.eth_daddr, fm.mask->dst);
+	}
+
+	MAP_KEY_AND_MASK(BASIC, basic, ip_proto, ip_proto);
+	/* Make sure we're TCP/UDP if any L4 keys used. */
+	if ((match->value.ip_proto != IPPROTO_UDP &&
+	     match->value.ip_proto != IPPROTO_TCP) || !IS_ALL_ONES(match->mask.ip_proto))
+		if (dissector->used_keys &
+		    (BIT(FLOW_DISSECTOR_KEY_PORTS) |
+		     BIT(FLOW_DISSECTOR_KEY_TCP))) {
+			NL_SET_ERR_MSG_FMT_MOD(extack, "L4 flower keys %#x require ipproto udp or tcp",
+					       dissector->used_keys);
+			return -EINVAL;
+		}
+	MAP_KEY_AND_MASK(IP, ip, tos, ip_tos);
+	MAP_KEY_AND_MASK(IP, ip, ttl, ip_ttl);
+	if (ipv == 4) {
+		MAP_KEY_AND_MASK(IPV4_ADDRS, ipv4_addrs, src, src_ip);
+		MAP_KEY_AND_MASK(IPV4_ADDRS, ipv4_addrs, dst, dst_ip);
+	}
+#ifdef CONFIG_IPV6
+	else if (ipv == 6) {
+		MAP_KEY_AND_MASK(IPV6_ADDRS, ipv6_addrs, src, src_ip6);
+		MAP_KEY_AND_MASK(IPV6_ADDRS, ipv6_addrs, dst, dst_ip6);
+	}
+#endif
+	MAP_KEY_AND_MASK(PORTS, ports, src, l4_sport);
+	MAP_KEY_AND_MASK(PORTS, ports, dst, l4_dport);
+	MAP_KEY_AND_MASK(TCP, tcp, flags, tcp_flags);
 
 	return 0;
 }

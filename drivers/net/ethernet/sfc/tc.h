@@ -15,6 +15,8 @@
 #include <linux/rhashtable.h>
 #include "net_driver.h"
 
+#define IS_ALL_ONES(v)	(!(typeof (v))~(v))
+
 struct efx_tc_action_set {
 	u16 deliver:1;
 	u32 dest_mport;
@@ -26,6 +28,20 @@ struct efx_tc_match_fields {
 	/* L1 */
 	u32 ingress_port;
 	u8 recirc_id;
+	/* L2 (inner when encap) */
+	__be16 eth_proto;
+	__be16 vlan_tci[2], vlan_proto[2];
+	u8 eth_saddr[ETH_ALEN], eth_daddr[ETH_ALEN];
+	/* L3 (when IP) */
+	u8 ip_proto, ip_tos, ip_ttl;
+	__be32 src_ip, dst_ip;
+#ifdef CONFIG_IPV6
+	struct in6_addr src_ip6, dst_ip6;
+#endif
+	bool ip_frag, ip_firstfrag;
+	/* L4 */
+	__be16 l4_sport, l4_dport; /* Ports (UDP, TCP) */
+	__be16 tcp_flags;
 };
 
 struct efx_tc_match {
