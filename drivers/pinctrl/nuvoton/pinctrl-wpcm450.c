@@ -628,6 +628,9 @@ struct wpcm450_pincfg {
 	int fn1, reg1, bit1;
 };
 
+/* Add this value to bit0 or bit1 to indicate that the MFSEL bit is inverted */
+#define INV	BIT(5)
+
 static const struct wpcm450_pincfg pincfg[] = {
 	/*		PIN	  FUNCTION 1		   FUNCTION 2 */
 	WPCM450_PINCFG(0,	 none, NONE, 0,		  none, NONE, 0),
@@ -665,7 +668,7 @@ static const struct wpcm450_pincfg pincfg[] = {
 
 	WPCM450_PINCFG(32,	 scs1, MFSEL1, 3,	  none, NONE, 0),
 	WPCM450_PINCFG(33,	 scs2, MFSEL1, 4,	  none, NONE, 0),
-	WPCM450_PINCFG(34,	 scs3, MFSEL1, 5,	  none, NONE, 0),
+	WPCM450_PINCFG(34,	 scs3, MFSEL1, 5 | INV,	  none, NONE, 0),
 	WPCM450_PINCFG(35,	 xcs1, MFSEL1, 29,	  none, NONE, 0),
 	WPCM450_PINCFG(36,	 xcs2, MFSEL1, 28,	  none, NONE, 0),
 	WPCM450_PINCFG(37,	 none, NONE, 0,		  none, NONE, 0), /* DVO */
@@ -725,8 +728,8 @@ static const struct wpcm450_pincfg pincfg[] = {
 	WPCM450_PINCFG(90,	r2err, MFSEL1, 15,	  none, NONE, 0),
 	WPCM450_PINCFG(91,	 r2md, MFSEL1, 16,	  none, NONE, 0),
 	WPCM450_PINCFG(92,	 r2md, MFSEL1, 16,	  none, NONE, 0),
-	WPCM450_PINCFG(93,	 kbcc, MFSEL1, 17,	  none, NONE, 0),
-	WPCM450_PINCFG(94,	 kbcc, MFSEL1, 17,	  none, NONE, 0),
+	WPCM450_PINCFG(93,	 kbcc, MFSEL1, 17 | INV,  none, NONE, 0),
+	WPCM450_PINCFG(94,	 kbcc, MFSEL1, 17 | INV,  none, NONE, 0),
 	WPCM450_PINCFG(95,	 none, NONE, 0,		  none, NONE, 0),
 
 	WPCM450_PINCFG(96,	 none, NONE, 0,		  none, NONE, 0),
@@ -804,6 +807,11 @@ static const struct pinctrl_pin_desc wpcm450_pins[] = {
 static void wpcm450_update_mfsel(struct regmap *gcr_regmap, int reg, int bit, int fn, int fn_selected)
 {
 	bool value = (fn == fn_selected);
+
+	if (bit & INV) {
+		value = !value;
+		bit &= ~INV;
+	}
 
 	regmap_update_bits(gcr_regmap, reg, BIT(bit), value ? BIT(bit) : 0);
 }
