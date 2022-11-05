@@ -152,6 +152,7 @@ struct mtk_wdma_desc {
 
 #define MTK_WED_RING_RX(_n)				(0x400 + (_n) * 0x10)
 
+#define MTK_WED_SCR0					0x3c0
 #define MTK_WED_WPDMA_INT_TRIGGER			0x504
 #define MTK_WED_WPDMA_INT_TRIGGER_RX_DONE		BIT(1)
 #define MTK_WED_WPDMA_INT_TRIGGER_TX_DONE		GENMASK(5, 4)
