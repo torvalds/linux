@@ -409,6 +409,9 @@ static int ft260_i2c_write(struct ft260_device *dev, u8 addr, u8 *data,
 	struct ft260_i2c_write_request_report *rep =
 		(struct ft260_i2c_write_request_report *)dev->write_buf;
 
+	if (len < 1)
+		return -EINVAL;
+
 	rep->flag = FT260_FLAG_START;
 
 	do {
