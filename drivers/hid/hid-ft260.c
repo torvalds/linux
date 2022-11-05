@@ -464,7 +464,7 @@ static int ft260_i2c_read(struct ft260_device *dev, u8 addr, u8 *data,
 			  u16 len, u8 flag)
 {
 	u16 rd_len;
-	int timeout, ret;
+	int timeout, ret = 0;
 	struct ft260_i2c_read_request_report rep;
 	struct hid_device *hdev = dev->hdev;
 
@@ -480,10 +480,6 @@ static int ft260_i2c_read(struct ft260_device *dev, u8 addr, u8 *data,
 			rd_len = FT260_RD_DATA_MAX;
 		}
 
-		dev->read_idx = 0;
-		dev->read_buf = data;
-		dev->read_len = rd_len;
-
 		rep.report = FT260_I2C_READ_REQ;
 		rep.length = cpu_to_le16(rd_len);
 		rep.address = addr;
@@ -494,22 +490,30 @@ static int ft260_i2c_read(struct ft260_device *dev, u8 addr, u8 *data,
 
 		reinit_completion(&dev->wait);
 
+		dev->read_idx = 0;
+		dev->read_buf = data;
+		dev->read_len = rd_len;
+
 		ret = ft260_hid_output_report(hdev, (u8 *)&rep, sizeof(rep));
 		if (ret < 0) {
 			hid_err(hdev, "%s: failed with %d\n", __func__, ret);
-			return ret;
+			goto ft260_i2c_read_exit;
 		}
 
 		timeout = msecs_to_jiffies(5000);
 		if (!wait_for_completion_timeout(&dev->wait, timeout)) {
+			ret = -ETIMEDOUT;
 			ft260_i2c_reset(hdev);
-			return -ETIMEDOUT;
+			goto ft260_i2c_read_exit;
 		}
+
+		dev->read_buf = NULL;
 
 		ret = ft260_xfer_status(dev);
 		if (ret < 0) {
+			ret = -EIO;
 			ft260_i2c_reset(hdev);
-			return -EIO;
+			goto ft260_i2c_read_exit;
 		}
 
 		len -= rd_len;
@@ -518,7 +522,9 @@ static int ft260_i2c_read(struct ft260_device *dev, u8 addr, u8 *data,
 
 	} while (len > 0);
 
-	return 0;
+ft260_i2c_read_exit:
+	dev->read_buf = NULL;
+	return ret;
 }
 
 /*
@@ -1036,6 +1042,13 @@ static int ft260_raw_event(struct hid_device *hdev, struct hid_report *report,
 		ft260_dbg("i2c resp: rep %#02x len %d\n", xfer->report,
 			  xfer->length);
 
+		if ((dev->read_buf == NULL) ||
+		    (xfer->length > dev->read_len - dev->read_idx)) {
+			hid_err(hdev, "unexpected report %#02x, length %d\n",
+				xfer->report, xfer->length);
+			return -1;
+		}
+
 		memcpy(&dev->read_buf[dev->read_idx], &xfer->data,
 		       xfer->length);
 		dev->read_idx += xfer->length;
@@ -1044,10 +1057,9 @@ static int ft260_raw_event(struct hid_device *hdev, struct hid_report *report,
 			complete(&dev->wait);
 
 	} else {
-		hid_err(hdev, "unknown report: %#02x\n", xfer->report);
-		return 0;
+		hid_err(hdev, "unhandled report %#02x\n", xfer->report);
 	}
-	return 1;
+	return 0;
 }
 
 static struct hid_driver ft260_driver = {
