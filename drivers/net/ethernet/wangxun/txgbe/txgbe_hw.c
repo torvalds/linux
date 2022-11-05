@@ -200,9 +200,10 @@ static int txgbe_calc_eeprom_checksum(struct txgbe_hw *hw, u16 *checksum)
 	if (eeprom_ptrs)
 		kvfree(eeprom_ptrs);
 
-	*checksum = TXGBE_EEPROM_SUM - *checksum;
-	if (*checksum < 0)
+	if (*checksum > TXGBE_EEPROM_SUM)
 		return -EINVAL;
+
+	*checksum = TXGBE_EEPROM_SUM - *checksum;
 
 	return 0;
 }
