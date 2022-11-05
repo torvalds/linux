@@ -7,6 +7,7 @@
 #include <linux/pci.h>
 
 #define MTK_WED_TX_QUEUES		2
+#define MTK_WED_RX_QUEUES		2
 
 struct mtk_wed_hw;
 struct mtk_wdma_desc;
@@ -66,7 +67,7 @@ struct mtk_wed_device {
 
 	struct mtk_wed_ring tx_ring[MTK_WED_TX_QUEUES];
 	struct mtk_wed_ring txfree_ring;
-	struct mtk_wed_ring tx_wdma[MTK_WED_TX_QUEUES];
+	struct mtk_wed_ring rx_wdma[MTK_WED_RX_QUEUES];
 
 	struct {
 		int size;
