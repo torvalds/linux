@@ -21747,6 +21747,12 @@ F:	include/linux/virtio*.h
 F:	include/uapi/linux/virtio_*.h
 F:	tools/virtio/
 
+VISL VIRTUAL STATELESS DECODER DRIVER
+M:	Daniel Almeida <daniel.almeida@collabora.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+F:	drivers/media/test-drivers/visl
+
 IFCVF VIRTIO DATA PATH ACCELERATOR
 R:	Zhu Lingshan <lingshan.zhu@intel.com>
 F:	drivers/vdpa/ifcvf/

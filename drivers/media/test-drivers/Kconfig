@@ -20,6 +20,7 @@ config VIDEO_VIM2M
 source "drivers/media/test-drivers/vicodec/Kconfig"
 source "drivers/media/test-drivers/vimc/Kconfig"
 source "drivers/media/test-drivers/vivid/Kconfig"
+source "drivers/media/test-drivers/visl/Kconfig"
 
 endif #V4L_TEST_DRIVERS
 
