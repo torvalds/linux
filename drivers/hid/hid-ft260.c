@@ -588,7 +588,7 @@ static int ft260_i2c_write_read(struct ft260_device *dev, struct i2c_msg *msgs)
 
 	if (ft260_debug) {
 		if (wr_len == 2)
-			read_off = be16_to_cpu(*(u16 *)msgs[0].buf);
+			read_off = be16_to_cpu(*(__be16 *)msgs[0].buf);
 		else
 			read_off = *msgs[0].buf;
 
@@ -830,7 +830,7 @@ static int ft260_byte_show(struct hid_device *hdev, int id, u8 *cfg, int len,
 }
 
 static int ft260_word_show(struct hid_device *hdev, int id, u8 *cfg, int len,
-			   u16 *field, u8 *buf)
+			   __le16 *field, u8 *buf)
 {
 	int ret;
 
@@ -859,9 +859,9 @@ static int ft260_word_show(struct hid_device *hdev, int id, u8 *cfg, int len,
 
 #define FT260_I2CST_ATTR_SHOW(name)					       \
 		FT260_ATTR_SHOW(name, ft260_get_i2c_status_report,	       \
-				FT260_I2C_STATUS, u16, ft260_word_show)
+				FT260_I2C_STATUS, __le16, ft260_word_show)
 
-#define FT260_ATTR_STORE(name, reptype, id, req, type, func)		       \
+#define FT260_ATTR_STORE(name, reptype, id, req, type, ctype, func)	       \
 	static ssize_t name##_store(struct device *kdev,		       \
 				    struct device_attribute *attr,	       \
 				    const char *buf, size_t count)	       \
@@ -871,7 +871,7 @@ static int ft260_word_show(struct hid_device *hdev, int id, u8 *cfg, int len,
 		type name;						       \
 		int ret;						       \
 									       \
-		if (!func(buf, 10, &name)) {				       \
+		if (!func(buf, 10, (ctype *)&name)) {			       \
 			rep.name = name;				       \
 			rep.report = id;				       \
 			rep.request = req;				       \
@@ -887,11 +887,11 @@ static int ft260_word_show(struct hid_device *hdev, int id, u8 *cfg, int len,
 
 #define FT260_BYTE_ATTR_STORE(name, reptype, req)			       \
 		FT260_ATTR_STORE(name, reptype, FT260_SYSTEM_SETTINGS, req,    \
-				 u8, kstrtou8)
+				 u8, u8, kstrtou8)
 
 #define FT260_WORD_ATTR_STORE(name, reptype, req)			       \
 		FT260_ATTR_STORE(name, reptype, FT260_SYSTEM_SETTINGS, req,    \
-				 u16, kstrtou16)
+				 __le16, u16, kstrtou16)
 
 FT260_SSTAT_ATTR_SHOW(chip_mode);
 static DEVICE_ATTR_RO(chip_mode);
