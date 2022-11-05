@@ -456,5 +456,21 @@
 				function = "hg7";
 			};
 		};
+
+		fiu: spi-controller@c8000000 {
+			compatible = "nuvoton,wpcm450-fiu";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xc8000000 0x1000>, <0xc0000000 0x4000000>;
+			reg-names = "control", "memory";
+			clocks = <&clk 0>;
+			status = "disabled";
+		};
+
+		shm: syscon@c8001000 {
+			compatible = "nuvoton,wpcm450-shm", "syscon";
+			reg = <0xc8001000 0x1000>;
+			reg-io-width = <1>;
+		};
 	};
 };
