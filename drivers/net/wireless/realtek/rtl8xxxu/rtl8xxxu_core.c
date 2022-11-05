@@ -3886,6 +3886,52 @@ static void rtl8xxxu_init_queue_reserved_page(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write32(priv, REG_RQPN, val32);
 }
 
+void rtl8xxxu_init_burst(struct rtl8xxxu_priv *priv)
+{
+	u8 val8;
+
+	/*
+	 * For USB high speed set 512B packets
+	 */
+	val8 = rtl8xxxu_read8(priv, REG_RXDMA_PRO_8723B);
+	val8 &= ~(BIT(4) | BIT(5));
+	val8 |= BIT(4);
+	val8 |= BIT(1) | BIT(2) | BIT(3);
+	rtl8xxxu_write8(priv, REG_RXDMA_PRO_8723B, val8);
+
+	/*
+	 * Enable single packet AMPDU
+	 */
+	val8 = rtl8xxxu_read8(priv, REG_HT_SINGLE_AMPDU_8723B);
+	val8 |= BIT(7);
+	rtl8xxxu_write8(priv, REG_HT_SINGLE_AMPDU_8723B, val8);
+
+	rtl8xxxu_write16(priv, REG_MAX_AGGR_NUM, 0x0c14);
+	if (priv->rtl_chip == RTL8723B)
+		val8 = 0x5e;
+	else if (priv->rtl_chip == RTL8188F)
+		val8 = 0x70; /* 0x5e would make it very slow */
+	rtl8xxxu_write8(priv, REG_AMPDU_MAX_TIME_8723B, val8);
+	rtl8xxxu_write32(priv, REG_AGGLEN_LMT, 0xffffffff);
+	rtl8xxxu_write8(priv, REG_RX_PKT_LIMIT, 0x18);
+	rtl8xxxu_write8(priv, REG_PIFS, 0x00);
+	if (priv->rtl_chip == RTL8188F) {
+		rtl8xxxu_write8(priv, REG_FWHW_TXQ_CTRL, FWHW_TXQ_CTRL_AMPDU_RETRY);
+		rtl8xxxu_write32(priv, REG_FAST_EDCA_CTRL, 0x03086666);
+	}
+	if (priv->rtl_chip == RTL8723B)
+		val8 = 0x50;
+	else if (priv->rtl_chip == RTL8188F)
+		val8 = 0x28; /* 0x50 would make the upload slow */
+	rtl8xxxu_write8(priv, REG_USTIME_TSF_8723B, val8);
+	rtl8xxxu_write8(priv, REG_USTIME_EDCA, val8);
+
+	/* to prevent mac is reseted by bus. */
+	val8 = rtl8xxxu_read8(priv, REG_RSV_CTRL);
+	val8 |= BIT(5) | BIT(6);
+	rtl8xxxu_write8(priv, REG_RSV_CTRL, val8);
+}
+
 static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 {
 	struct rtl8xxxu_priv *priv = hw->priv;
@@ -4139,48 +4185,9 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	/*
 	 * Initialize burst parameters
 	 */
-	if (priv->rtl_chip == RTL8723B || priv->rtl_chip == RTL8188F) {
-		/*
-		 * For USB high speed set 512B packets
-		 */
-		val8 = rtl8xxxu_read8(priv, REG_RXDMA_PRO_8723B);
-		val8 &= ~(BIT(4) | BIT(5));
-		val8 |= BIT(4);
-		val8 |= BIT(1) | BIT(2) | BIT(3);
-		rtl8xxxu_write8(priv, REG_RXDMA_PRO_8723B, val8);
 
-		/*
-		 * For USB high speed set 512B packets
-		 */
-		val8 = rtl8xxxu_read8(priv, REG_HT_SINGLE_AMPDU_8723B);
-		val8 |= BIT(7);
-		rtl8xxxu_write8(priv, REG_HT_SINGLE_AMPDU_8723B, val8);
-
-		rtl8xxxu_write16(priv, REG_MAX_AGGR_NUM, 0x0c14);
-		if (priv->rtl_chip == RTL8723B)
-			val8 = 0x5e;
-		else if (priv->rtl_chip == RTL8188F)
-			val8 = 0x70; /* 0x5e would make it very slow */
-		rtl8xxxu_write8(priv, REG_AMPDU_MAX_TIME_8723B, val8);
-		rtl8xxxu_write32(priv, REG_AGGLEN_LMT, 0xffffffff);
-		rtl8xxxu_write8(priv, REG_RX_PKT_LIMIT, 0x18);
-		rtl8xxxu_write8(priv, REG_PIFS, 0x00);
-		if (priv->rtl_chip == RTL8188F) {
-			rtl8xxxu_write8(priv, REG_FWHW_TXQ_CTRL, FWHW_TXQ_CTRL_AMPDU_RETRY);
-			rtl8xxxu_write32(priv, REG_FAST_EDCA_CTRL, 0x03086666);
-		}
-		if (priv->rtl_chip == RTL8723B)
-			val8 = 0x50;
-		else if (priv->rtl_chip == RTL8188F)
-			val8 = 0x28; /* 0x50 would make the upload slow */
-		rtl8xxxu_write8(priv, REG_USTIME_TSF_8723B, val8);
-		rtl8xxxu_write8(priv, REG_USTIME_EDCA, val8);
-
-		/* to prevent mac is reseted by bus. */
-		val8 = rtl8xxxu_read8(priv, REG_RSV_CTRL);
-		val8 |= BIT(5) | BIT(6);
-		rtl8xxxu_write8(priv, REG_RSV_CTRL, val8);
-	}
+	if (priv->fops->init_burst)
+		priv->fops->init_burst(priv);
 
 	if (fops->init_aggregation)
 		fops->init_aggregation(priv);

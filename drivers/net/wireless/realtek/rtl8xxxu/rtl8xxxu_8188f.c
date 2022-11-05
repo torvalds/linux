@@ -1705,6 +1705,7 @@ struct rtl8xxxu_fileops rtl8188fu_fops = {
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc24,
 	.init_aggregation = rtl8188fu_init_aggregation,
 	.init_statistics = rtl8188fu_init_statistics,
+	.init_burst = rtl8xxxu_init_burst,
 	.enable_rf = rtl8188f_enable_rf,
 	.disable_rf = rtl8188f_disable_rf,
 	.usb_quirks = rtl8188f_usb_quirks,
