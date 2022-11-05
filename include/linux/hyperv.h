@@ -969,7 +969,7 @@ struct vmbus_channel {
 	 * mechanism improves throughput by:
 	 *
 	 * A) Making the host more efficient - each time it wakes up,
-	 *    potentially it will process morev number of packets. The
+	 *    potentially it will process more number of packets. The
 	 *    monitor latency allows a batch to build up.
 	 * B) By deferring the hypercall to signal, we will also minimize
 	 *    the interrupts.
