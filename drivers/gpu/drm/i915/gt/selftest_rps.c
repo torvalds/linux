@@ -1107,19 +1107,25 @@ static u64 __measure_power(int duration_ms)
 	return div64_u64(1000 * 1000 * dE, dt);
 }
 
-static u64 measure_power_at(struct intel_rps *rps, int *freq)
+static u64 measure_power(struct intel_rps *rps, int *freq)
 {
 	u64 x[5];
 	int i;
 
-	*freq = rps_set_check(rps, *freq);
 	for (i = 0; i < 5; i++)
 		x[i] = __measure_power(5);
-	*freq = (*freq + read_cagf(rps)) / 2;
+
+	*freq = (*freq + intel_rps_read_actual_frequency(rps)) / 2;
 
 	/* A simple triangle filter for better result stability */
 	sort(x, 5, sizeof(*x), cmp_u64, NULL);
 	return div_u64(x[1] + 2 * x[2] + x[3], 4);
+}
+
+static u64 measure_power_at(struct intel_rps *rps, int *freq)
+{
+	*freq = rps_set_check(rps, *freq);
+	return measure_power(rps, freq);
 }
 
 int live_rps_power(void *arg)

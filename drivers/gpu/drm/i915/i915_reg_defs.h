@@ -104,22 +104,21 @@ typedef struct {
 
 #define _MMIO(r) ((const i915_reg_t){ .reg = (r) })
 
+typedef struct {
+	u32 reg;
+} i915_mcr_reg_t;
+
 #define INVALID_MMIO_REG _MMIO(0)
 
-static __always_inline u32 i915_mmio_reg_offset(i915_reg_t reg)
-{
-	return reg.reg;
-}
-
-static inline bool i915_mmio_reg_equal(i915_reg_t a, i915_reg_t b)
-{
-	return i915_mmio_reg_offset(a) == i915_mmio_reg_offset(b);
-}
-
-static inline bool i915_mmio_reg_valid(i915_reg_t reg)
-{
-	return !i915_mmio_reg_equal(reg, INVALID_MMIO_REG);
-}
+/*
+ * These macros can be used on either i915_reg_t or i915_mcr_reg_t since they're
+ * simply operations on the register's offset and don't care about the MCR vs
+ * non-MCR nature of the register.
+ */
+#define i915_mmio_reg_offset(r) \
+	_Generic((r), i915_reg_t: (r).reg, i915_mcr_reg_t: (r).reg)
+#define i915_mmio_reg_equal(a, b) (i915_mmio_reg_offset(a) == i915_mmio_reg_offset(b))
+#define i915_mmio_reg_valid(r) (!i915_mmio_reg_equal(r, INVALID_MMIO_REG))
 
 #define VLV_DISPLAY_BASE		0x180000
 

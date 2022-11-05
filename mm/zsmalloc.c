@@ -2311,6 +2311,9 @@ void zs_destroy_pool(struct zs_pool *pool)
 		int fg;
 		struct size_class *class = pool->size_class[i];
 
+		if (!class)
+			continue;
+
 		if (class->index != i)
 			continue;
 

@@ -3,8 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#ifndef __INTEL_TC_PHY_REGS__
-#define __INTEL_TC_PHY_REGS__
+#ifndef __INTEL_MG_PHY_REGS__
+#define __INTEL_MG_PHY_REGS__
 
 #include "i915_reg_defs.h"
 
@@ -277,4 +277,4 @@
 						   _MG_PLL_TDC_COLDST_BIAS_PORT1, \
 						   _MG_PLL_TDC_COLDST_BIAS_PORT2)
 
-#endif /* __INTEL_TC_PHY_REGS__ */
+#endif /* __INTEL_MG_PHY_REGS__ */
