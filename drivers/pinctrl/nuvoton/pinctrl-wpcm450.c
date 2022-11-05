@@ -800,6 +800,14 @@ static const struct pinctrl_pin_desc wpcm450_pins[] = {
 	WPCM450_PIN(124), WPCM450_PIN(125), WPCM450_PIN(126), WPCM450_PIN(127),
 };
 
+/* Helper function to update MFSEL field according to the selected function */
+static void wpcm450_update_mfsel(struct regmap *gcr_regmap, int reg, int bit, int fn, int fn_selected)
+{
+	bool value = (fn == fn_selected);
+
+	regmap_update_bits(gcr_regmap, reg, BIT(bit), value ? BIT(bit) : 0);
+}
+
 /* Enable mode in pin group */
 static void wpcm450_setfunc(struct regmap *gcr_regmap, const unsigned int *pin,
 			    int npins, int func)
@@ -811,13 +819,11 @@ static void wpcm450_setfunc(struct regmap *gcr_regmap, const unsigned int *pin,
 		cfg = &pincfg[pin[i]];
 		if (func == fn_gpio || cfg->fn0 == func || cfg->fn1 == func) {
 			if (cfg->reg0)
-				regmap_update_bits(gcr_regmap, cfg->reg0,
-						   BIT(cfg->bit0),
-						   (cfg->fn0 == func) ?  BIT(cfg->bit0) : 0);
+				wpcm450_update_mfsel(gcr_regmap, cfg->reg0,
+						     cfg->bit0, cfg->fn0, func);
 			if (cfg->reg1)
-				regmap_update_bits(gcr_regmap, cfg->reg1,
-						   BIT(cfg->bit1),
-						   (cfg->fn1 == func) ?  BIT(cfg->bit1) : 0);
+				wpcm450_update_mfsel(gcr_regmap, cfg->reg1,
+						     cfg->bit1, cfg->fn1, func);
 		}
 	}
 }
