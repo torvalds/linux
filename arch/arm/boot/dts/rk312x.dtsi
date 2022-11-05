@@ -57,9 +57,6 @@
 
 	aliases {
 		ethernet0 = &gmac;
-		serial0 = &uart0;
-		serial1 = &uart1;
-		serial2 = &uart2;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -67,6 +64,10 @@
 		mmc0 = &sdmmc;
 		mmc1 = &sdio;
 		mmc2 = &emmc;
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		spi0 = &spi0;
 	};
 
 	cpus {
@@ -1181,7 +1182,7 @@
 		reg = <0x20074000 0x1000>;
 		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&spi0_tx &spi0_rx &spi0_clk &spi0_cs0 &spi0_cs1>;
+		pinctrl-0 = <&spi0m0_tx &spi0m0_rx &spi0m0_clk &spi0m0_cs0 &spi0m0_cs1>;
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&pdma 8>, <&pdma 9>;
 		dma-names = "tx", "rx";
@@ -1608,60 +1609,60 @@
 			};
 		};
 
-		spi {
-			spi0_clk: spi0-clk {
+		spi0 {
+			spi0m0_clk: spi0m0-clk {
 				rockchip,pins = <1 RK_PB0 1 &pcfg_pull_default>;
 			};
 
-			spi0_cs0: spi0-cs0 {
+			spi0m0_cs0: spi0m0-cs0 {
 				rockchip,pins = <1 RK_PB3 1 &pcfg_pull_default>;
 			};
 
-			spi0_tx: spi0-tx {
+			spi0m0_tx: spi0m0-tx {
 				rockchip,pins = <1 RK_PB1 1 &pcfg_pull_default>;
 			};
 
-			spi0_rx: spi0-rx {
+			spi0m0_rx: spi0m0-rx {
 				rockchip,pins = <1 RK_PB2 1 &pcfg_pull_default>;
 			};
 
-			spi0_cs1: spi0-cs1 {
+			spi0m0_cs1: spi0m0-cs1 {
 				rockchip,pins = <1 RK_PB4 1 &pcfg_pull_default>;
 			};
 
-			spi1_clk: spi1-clk {
+			spi0m1_clk: spi0m1-clk {
 				rockchip,pins = <2 RK_PA0 2 &pcfg_pull_default>;
 			};
 
-			spi1_cs0: spi1-cs0 {
+			spi0m1_cs0: spi0m1-cs0 {
 				rockchip,pins = <1 RK_PD6 3 &pcfg_pull_default>;
 			};
 
-			spi1_tx: spi1-tx {
+			spi0m1_tx: spi0m1-tx {
 				rockchip,pins = <1 RK_PD5 3 &pcfg_pull_default>;
 			};
 
-			spi1_rx: spi1-rx {
+			spi0m1_rx: spi0m1-rx {
 				rockchip,pins = <1 RK_PD4 3 &pcfg_pull_default>;
 			};
 
-			spi1_cs1: spi1-cs1 {
+			spi0m1_cs1: spi0m1-cs1 {
 				rockchip,pins = <1 RK_PD7 3 &pcfg_pull_default>;
 			};
 
-			spi2_clk: spi2-clk {
+			spi0m2_clk: spi0m2-clk {
 				rockchip,pins = <0 RK_PB1 2 &pcfg_pull_default>;
 			};
 
-			spi2_cs0: spi2-cs0 {
+			spi0m2_cs0: spi0m2-cs0 {
 				rockchip,pins = <0 RK_PB6 2 &pcfg_pull_default>;
 			};
 
-			spi2_tx: spi2-tx {
+			spi0m2_tx: spi0m2-tx {
 				rockchip,pins = <0 RK_PB3 2 &pcfg_pull_default>;
 			};
 
-			spi2_rx: spi2-rx {
+			spi0m2_rx: spi0m2-rx {
 				rockchip,pins = <0 RK_PB5 2 &pcfg_pull_default>;
 			};
 		};
