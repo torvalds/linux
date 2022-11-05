@@ -939,7 +939,7 @@ static int ft260_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return ret;
 	}
 
-	ret = hid_hw_start(hdev, HID_CONNECT_HIDRAW);
+	ret = hid_hw_start(hdev, 0);
 	if (ret) {
 		hid_err(hdev, "failed to start HID HW\n");
 		return ret;
@@ -966,6 +966,10 @@ static int ft260_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (ret <= 0)
 		goto err_hid_close;
 
+	hid_info(hdev, "USB HID v%x.%02x Device [%s] on %s\n",
+		hdev->version >> 8, hdev->version & 0xff, hdev->name,
+		hdev->phys);
+
 	hid_set_drvdata(hdev, dev);
 	dev->hdev = hdev;
 	dev->adap.owner = THIS_MODULE;
@@ -974,8 +978,7 @@ static int ft260_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	dev->adap.quirks = &ft260_i2c_quirks;
 	dev->adap.dev.parent = &hdev->dev;
 	snprintf(dev->adap.name, sizeof(dev->adap.name),
-		 "FT260 usb-i2c bridge on hidraw%d",
-		 ((struct hidraw *)hdev->hidraw)->minor);
+		 "FT260 usb-i2c bridge");
 
 	mutex_init(&dev->lock);
 	init_completion(&dev->wait);
