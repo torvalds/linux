@@ -311,10 +311,8 @@ restart:
 				if ((hybrid_supported == 0) ||
 				    (hybrid_supported == npmus)) {
 					evt_list[evt_i] = strdup(name);
-					if (npmus > 0) {
-						for (j = 0; j < npmus; j++)
-							zfree(&evt_pmus[j]);
-					}
+					for (j = 0; j < npmus; j++)
+						zfree(&evt_pmus[j]);
 				} else {
 					for (j = 0; j < hybrid_supported; j++) {
 						evt_list[evt_i++] = evt_pmus[j];
