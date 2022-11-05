@@ -183,6 +183,7 @@ static int txgbe_calc_eeprom_checksum(struct txgbe_hw *hw, u16 *checksum)
 						  eeprom_ptrs);
 		if (status != 0) {
 			wx_err(wxhw, "Failed to read EEPROM image\n");
+			kvfree(eeprom_ptrs);
 			return status;
 		}
 		local_buffer = eeprom_ptrs;
@@ -196,12 +197,12 @@ static int txgbe_calc_eeprom_checksum(struct txgbe_hw *hw, u16 *checksum)
 		if (i != wxhw->eeprom.sw_region_offset + TXGBE_EEPROM_CHECKSUM)
 			*checksum += local_buffer[i];
 
+	if (eeprom_ptrs)
+		kvfree(eeprom_ptrs);
+
 	*checksum = TXGBE_EEPROM_SUM - *checksum;
 	if (*checksum < 0)
 		return -EINVAL;
-
-	if (eeprom_ptrs)
-		kvfree(eeprom_ptrs);
 
 	return 0;
 }
