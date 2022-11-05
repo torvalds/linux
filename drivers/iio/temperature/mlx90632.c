@@ -1267,7 +1267,10 @@ static int mlx90632_probe(struct i2c_client *client,
 	pm_runtime_get_noresume(&client->dev);
 	pm_runtime_set_active(&client->dev);
 
-	devm_pm_runtime_enable(&client->dev);
+	ret = devm_pm_runtime_enable(&client->dev);
+	if (ret)
+		return ret;
+
 	pm_runtime_set_autosuspend_delay(&client->dev, MLX90632_SLEEP_DELAY_MS);
 	pm_runtime_use_autosuspend(&client->dev);
 	pm_runtime_put_autosuspend(&client->dev);
