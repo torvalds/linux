@@ -10,6 +10,7 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -17,6 +18,7 @@
 #include <linux/phy/pcie.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
@@ -886,6 +888,10 @@ static const struct qmp_phy_init_tbl sc8280xp_qmp_gen3x2_pcie_rc_serdes_tbl[] = 
 	QMP_PHY_INIT_CFG(QSERDES_V5_COM_BIAS_EN_CLKBUFLR_EN, 0x14),
 };
 
+static const struct qmp_phy_init_tbl sc8280xp_qmp_gen3x4_pcie_serdes_4ln_tbl[] = {
+	QMP_PHY_INIT_CFG(QSERDES_V5_COM_BIAS_EN_CLKBUFLR_EN, 0x1c),
+};
+
 static const struct qmp_phy_init_tbl sc8280xp_qmp_gen3x1_pcie_tx_tbl[] = {
 	QMP_PHY_INIT_CFG(QSERDES_V5_TX_PI_QEC_CTRL, 0x20),
 	QMP_PHY_INIT_CFG(QSERDES_V5_TX_LANE_MODE_1, 0x75),
@@ -1491,6 +1497,9 @@ struct qmp_phy_cfg {
 	const struct qmp_phy_cfg_tbls *tbls_rc;
 	const struct qmp_phy_cfg_tbls *tbls_ep;
 
+	const struct qmp_phy_init_tbl *serdes_4ln_tbl;
+	int serdes_4ln_num;
+
 	/* clock ids to be requested */
 	const char * const *clk_list;
 	int num_clks;
@@ -1518,6 +1527,7 @@ struct qmp_pcie {
 	struct device *dev;
 
 	const struct qmp_phy_cfg *cfg;
+	bool tcsr_4ln_config;
 
 	void __iomem *serdes;
 	void __iomem *pcs;
@@ -1526,6 +1536,8 @@ struct qmp_pcie {
 	void __iomem *rx;
 	void __iomem *tx2;
 	void __iomem *rx2;
+
+	void __iomem *port_b;
 
 	struct clk_bulk_data *clks;
 	struct clk_bulk_data pipe_clks[2];
@@ -1932,6 +1944,44 @@ static const struct qmp_phy_cfg sc8280xp_qmp_gen3x2_pciephy_cfg = {
 	.phy_status		= PHYSTATUS,
 };
 
+static const struct qmp_phy_cfg sc8280xp_qmp_gen3x4_pciephy_cfg = {
+	.lanes			= 4,
+
+	.offsets		= &qmp_pcie_offsets_v5,
+
+	.tbls = {
+		.serdes		= sc8280xp_qmp_pcie_serdes_tbl,
+		.serdes_num	= ARRAY_SIZE(sc8280xp_qmp_pcie_serdes_tbl),
+		.tx		= sc8280xp_qmp_gen3x2_pcie_tx_tbl,
+		.tx_num		= ARRAY_SIZE(sc8280xp_qmp_gen3x2_pcie_tx_tbl),
+		.rx		= sc8280xp_qmp_gen3x2_pcie_rx_tbl,
+		.rx_num		= ARRAY_SIZE(sc8280xp_qmp_gen3x2_pcie_rx_tbl),
+		.pcs		= sc8280xp_qmp_gen3x2_pcie_pcs_tbl,
+		.pcs_num	= ARRAY_SIZE(sc8280xp_qmp_gen3x2_pcie_pcs_tbl),
+		.pcs_misc	= sc8280xp_qmp_gen3x2_pcie_pcs_misc_tbl,
+		.pcs_misc_num	= ARRAY_SIZE(sc8280xp_qmp_gen3x2_pcie_pcs_misc_tbl),
+	},
+
+	.tbls_rc = &(const struct qmp_phy_cfg_tbls) {
+		.serdes		= sc8280xp_qmp_gen3x2_pcie_rc_serdes_tbl,
+		.serdes_num	= ARRAY_SIZE(sc8280xp_qmp_gen3x2_pcie_rc_serdes_tbl),
+	},
+
+	.serdes_4ln_tbl		= sc8280xp_qmp_gen3x4_pcie_serdes_4ln_tbl,
+	.serdes_4ln_num		= ARRAY_SIZE(sc8280xp_qmp_gen3x4_pcie_serdes_4ln_tbl),
+
+	.clk_list		= sc8280xp_pciephy_clk_l,
+	.num_clks		= ARRAY_SIZE(sc8280xp_pciephy_clk_l),
+	.reset_list		= sdm845_pciephy_reset_l,
+	.num_resets		= ARRAY_SIZE(sdm845_pciephy_reset_l),
+	.vreg_list		= qmp_phy_vreg_l,
+	.num_vregs		= ARRAY_SIZE(qmp_phy_vreg_l),
+	.regs			= sm8250_pcie_regs_layout,
+
+	.pwrdn_ctrl		= SW_PWRDN | REFCLK_DRV_DSBL,
+	.phy_status		= PHYSTATUS,
+};
+
 static const struct qmp_phy_cfg sdx55_qmp_pciephy_cfg = {
 	.lanes			= 2,
 
@@ -2054,6 +2104,24 @@ static void qmp_pcie_configure(void __iomem *base,
 	qmp_pcie_configure_lane(base, tbl, num, 0xff);
 }
 
+static void qmp_pcie_init_port_b(struct qmp_pcie *qmp, const struct qmp_phy_cfg_tbls *tbls)
+{
+	const struct qmp_phy_cfg *cfg = qmp->cfg;
+	const struct qmp_pcie_offsets *offs = cfg->offsets;
+	void __iomem *tx3, *rx3, *tx4, *rx4;
+
+	tx3 = qmp->port_b + offs->tx;
+	rx3 = qmp->port_b + offs->rx;
+	tx4 = qmp->port_b + offs->tx2;
+	rx4 = qmp->port_b + offs->rx2;
+
+	qmp_pcie_configure_lane(tx3, tbls->tx, tbls->tx_num, 1);
+	qmp_pcie_configure_lane(rx3, tbls->rx, tbls->rx_num, 1);
+
+	qmp_pcie_configure_lane(tx4, tbls->tx, tbls->tx_num, 2);
+	qmp_pcie_configure_lane(rx4, tbls->rx, tbls->rx_num, 2);
+}
+
 static void qmp_pcie_init_registers(struct qmp_pcie *qmp, const struct qmp_phy_cfg_tbls *tbls)
 {
 	const struct qmp_phy_cfg *cfg = qmp->cfg;
@@ -2080,6 +2148,11 @@ static void qmp_pcie_init_registers(struct qmp_pcie *qmp, const struct qmp_phy_c
 
 	qmp_pcie_configure(pcs, tbls->pcs, tbls->pcs_num);
 	qmp_pcie_configure(pcs_misc, tbls->pcs_misc, tbls->pcs_misc_num);
+
+	if (cfg->lanes >= 4 && qmp->tcsr_4ln_config) {
+		qmp_pcie_configure(serdes, cfg->serdes_4ln_tbl, cfg->serdes_4ln_num);
+		qmp_pcie_init_port_b(qmp, tbls);
+	}
 }
 
 static int qmp_pcie_init(struct phy *phy)
@@ -2452,6 +2525,37 @@ static int qmp_pcie_parse_dt_legacy(struct qmp_pcie *qmp, struct device_node *np
 	return 0;
 }
 
+static int qmp_pcie_get_4ln_config(struct qmp_pcie *qmp)
+{
+	struct regmap *tcsr;
+	unsigned int args[2];
+	int ret;
+
+	tcsr = syscon_regmap_lookup_by_phandle_args(qmp->dev->of_node,
+						    "qcom,4ln-config-sel",
+						    ARRAY_SIZE(args), args);
+	if (IS_ERR(tcsr)) {
+		ret = PTR_ERR(tcsr);
+		if (ret == -ENOENT)
+			return 0;
+
+		dev_err(qmp->dev, "failed to lookup syscon: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_test_bits(tcsr, args[0], BIT(args[1]));
+	if (ret < 0) {
+		dev_err(qmp->dev, "failed to read tcsr: %d\n", ret);
+		return ret;
+	}
+
+	qmp->tcsr_4ln_config = ret;
+
+	dev_dbg(qmp->dev, "4ln_config_sel = %d\n", qmp->tcsr_4ln_config);
+
+	return 0;
+}
+
 static int qmp_pcie_parse_dt(struct qmp_pcie *qmp)
 {
 	struct platform_device *pdev = to_platform_device(qmp->dev);
@@ -2463,6 +2567,10 @@ static int qmp_pcie_parse_dt(struct qmp_pcie *qmp)
 
 	if (!offs)
 		return -EINVAL;
+
+	ret = qmp_pcie_get_4ln_config(qmp);
+	if (ret)
+		return ret;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -2477,6 +2585,12 @@ static int qmp_pcie_parse_dt(struct qmp_pcie *qmp)
 	if (cfg->lanes >= 2) {
 		qmp->tx2 = base + offs->tx2;
 		qmp->rx2 = base + offs->rx2;
+	}
+
+	if (qmp->cfg->lanes >= 4 && qmp->tcsr_4ln_config) {
+		qmp->port_b = devm_platform_ioremap_resource(pdev, 1);
+		if (IS_ERR(qmp->port_b))
+			return PTR_ERR(qmp->port_b);
 	}
 
 	qmp->num_pipe_clks = 2;
@@ -2582,6 +2696,9 @@ static const struct of_device_id qmp_pcie_of_match_table[] = {
 	}, {
 		.compatible = "qcom,sc8280xp-qmp-gen3x2-pcie-phy",
 		.data = &sc8280xp_qmp_gen3x2_pciephy_cfg,
+	}, {
+		.compatible = "qcom,sc8280xp-qmp-gen3x4-pcie-phy",
+		.data = &sc8280xp_qmp_gen3x4_pciephy_cfg,
 	}, {
 		.compatible = "qcom,sdm845-qhp-pcie-phy",
 		.data = &sdm845_qhp_pciephy_cfg,
