@@ -378,41 +378,46 @@ static int ft260_hid_output_report_check_status(struct ft260_device *dev,
 }
 
 static int ft260_i2c_write(struct ft260_device *dev, u8 addr, u8 *data,
-			   int data_len, u8 flag)
+			   int len, u8 flag)
 {
-	int len, ret, idx = 0;
+	int ret, wr_len, idx = 0;
 	struct hid_device *hdev = dev->hdev;
 	struct ft260_i2c_write_request_report *rep =
 		(struct ft260_i2c_write_request_report *)dev->write_buf;
 
+	rep->flag = FT260_FLAG_START;
+
 	do {
-		if (data_len <= FT260_WR_DATA_MAX)
-			len = data_len;
-		else
-			len = FT260_WR_DATA_MAX;
+		if (len <= FT260_WR_DATA_MAX) {
+			wr_len = len;
+			if (flag == FT260_FLAG_START_STOP)
+				rep->flag |= FT260_FLAG_STOP;
+		} else {
+			wr_len = FT260_WR_DATA_MAX;
+		}
 
-		rep->report = FT260_I2C_DATA_REPORT_ID(len);
+		rep->report = FT260_I2C_DATA_REPORT_ID(wr_len);
 		rep->address = addr;
-		rep->length = len;
-		rep->flag = flag;
+		rep->length = wr_len;
 
-		memcpy(rep->data, &data[idx], len);
+		memcpy(rep->data, &data[idx], wr_len);
 
-		ft260_dbg("rep %#02x addr %#02x off %d len %d d[0] %#02x\n",
-			  rep->report, addr, idx, len, data[0]);
+		ft260_dbg("rep %#02x addr %#02x off %d len %d wlen %d flag %#x d[0] %#02x\n",
+			  rep->report, addr, idx, len, wr_len,
+			  rep->flag, data[0]);
 
 		ret = ft260_hid_output_report_check_status(dev, (u8 *)rep,
-							   len + 4);
+							   wr_len + 4);
 		if (ret < 0) {
-			hid_err(hdev, "%s: failed to start transfer, ret %d\n",
-				__func__, ret);
+			hid_err(hdev, "%s: failed with %d\n", __func__, ret);
 			return ret;
 		}
 
-		data_len -= len;
-		idx += len;
+		len -= wr_len;
+		idx += wr_len;
+		rep->flag = 0;
 
-	} while (data_len > 0);
+	} while (len > 0);
 
 	return 0;
 }
