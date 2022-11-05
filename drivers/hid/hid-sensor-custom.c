@@ -862,7 +862,7 @@ hid_sensor_register_platform_device(struct platform_device *pdev,
 		return ERR_PTR(-ENOMEM);
 
 	custom_pdev = platform_device_register_data(pdev->dev.parent, dev_name,
-						    PLATFORM_DEVID_NONE, hsdev,
+						    PLATFORM_DEVID_AUTO, hsdev,
 						    sizeof(*hsdev));
 	kfree(dev_name);
 	return custom_pdev;
