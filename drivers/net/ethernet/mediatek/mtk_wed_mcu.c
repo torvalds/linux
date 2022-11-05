@@ -10,6 +10,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/mfd/syscon.h>
 #include <linux/soc/mediatek/mtk_wed.h>
+#include <asm/unaligned.h>
 
 #include "mtk_wed_regs.h"
 #include "mtk_wed_wo.h"
@@ -60,24 +61,37 @@ void mtk_wed_mcu_rx_event(struct mtk_wed_wo *wo, struct sk_buff *skb)
 	wake_up(&wo->mcu.wait);
 }
 
+static void
+mtk_wed_update_rx_stats(struct mtk_wed_device *wed, struct sk_buff *skb)
+{
+	u32 count = get_unaligned_le32(skb->data);
+	struct mtk_wed_wo_rx_stats *stats;
+	int i;
+
+	if (count * sizeof(*stats) > skb->len - sizeof(u32))
+		return;
+
+	stats = (struct mtk_wed_wo_rx_stats *)(skb->data + sizeof(u32));
+	for (i = 0 ; i < count ; i++)
+		wed->wlan.update_wo_rx_stats(wed, &stats[i]);
+}
+
 void mtk_wed_mcu_rx_unsolicited_event(struct mtk_wed_wo *wo,
 				      struct sk_buff *skb)
 {
 	struct mtk_wed_mcu_hdr *hdr = (struct mtk_wed_mcu_hdr *)skb->data;
 
-	switch (hdr->cmd) {
-	case MTK_WED_WO_EVT_LOG_DUMP: {
-		const char *msg = (const char *)(skb->data + sizeof(*hdr));
+	skb_pull(skb, sizeof(*hdr));
 
-		dev_notice(wo->hw->dev, "%s\n", msg);
+	switch (hdr->cmd) {
+	case MTK_WED_WO_EVT_LOG_DUMP:
+		dev_notice(wo->hw->dev, "%s\n", skb->data);
 		break;
-	}
 	case MTK_WED_WO_EVT_PROFILING: {
-		struct mtk_wed_wo_log_info *info;
-		u32 count = (skb->len - sizeof(*hdr)) / sizeof(*info);
+		struct mtk_wed_wo_log_info *info = (void *)skb->data;
+		u32 count = skb->len / sizeof(*info);
 		int i;
 
-		info = (struct mtk_wed_wo_log_info *)(skb->data + sizeof(*hdr));
 		for (i = 0 ; i < count ; i++)
 			dev_notice(wo->hw->dev,
 				   "SN:%u latency: total=%u, rro:%u, mod:%u\n",
@@ -88,6 +102,7 @@ void mtk_wed_mcu_rx_unsolicited_event(struct mtk_wed_wo *wo,
 		break;
 	}
 	case MTK_WED_WO_EVT_RXCNT_INFO:
+		mtk_wed_update_rx_stats(wo->hw->wed_dev, skb);
 		break;
 	default:
 		break;
@@ -144,6 +159,8 @@ mtk_wed_mcu_parse_response(struct mtk_wed_wo *wo, struct sk_buff *skb,
 	skb_pull(skb, sizeof(*hdr));
 	switch (cmd) {
 	case MTK_WED_WO_CMD_RXCNT_INFO:
+		mtk_wed_update_rx_stats(wo->hw->wed_dev, skb);
+		break;
 	default:
 		break;
 	}
@@ -180,6 +197,18 @@ unlock:
 	mutex_unlock(&wo->mcu.mutex);
 
 	return ret;
+}
+
+int mtk_wed_mcu_msg_update(struct mtk_wed_device *dev, int id, void *data,
+			   int len)
+{
+	struct mtk_wed_wo *wo = dev->hw->wed_wo;
+
+	if (dev->hw->version == 1)
+		return 0;
+
+	return mtk_wed_mcu_send_msg(wo, MTK_WED_MODULE_ID_WO, id, data, len,
+				    true);
 }
 
 static int

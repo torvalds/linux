@@ -49,12 +49,38 @@ enum {
 	MTK_WED_WARP_CMD_FLAG_FROM_TO_WO	= BIT(2),
 };
 
+#define MTK_WED_WO_CPU_MCUSYS_RESET_ADDR	0x15194050
+#define MTK_WED_WO_CPU_WO0_MCUSYS_RESET_MASK	0x20
+#define MTK_WED_WO_CPU_WO1_MCUSYS_RESET_MASK	0x1
+
 enum {
 	MTK_WED_WO_REGION_EMI,
 	MTK_WED_WO_REGION_ILM,
 	MTK_WED_WO_REGION_DATA,
 	MTK_WED_WO_REGION_BOOT,
 	__MTK_WED_WO_REGION_MAX,
+};
+
+enum mtk_wed_wo_state {
+	MTK_WED_WO_STATE_UNDEFINED,
+	MTK_WED_WO_STATE_INIT,
+	MTK_WED_WO_STATE_ENABLE,
+	MTK_WED_WO_STATE_DISABLE,
+	MTK_WED_WO_STATE_HALT,
+	MTK_WED_WO_STATE_GATING,
+	MTK_WED_WO_STATE_SER_RESET,
+	MTK_WED_WO_STATE_WF_RESET,
+};
+
+enum mtk_wed_wo_done_state {
+	MTK_WED_WOIF_UNDEFINED,
+	MTK_WED_WOIF_DISABLE_DONE,
+	MTK_WED_WOIF_TRIGGER_ENABLE,
+	MTK_WED_WOIF_ENABLE_DONE,
+	MTK_WED_WOIF_TRIGGER_GATING,
+	MTK_WED_WOIF_GATING_DONE,
+	MTK_WED_WOIF_TRIGGER_HALT,
+	MTK_WED_WOIF_HALT_DONE,
 };
 
 enum mtk_wed_dummy_cr_idx {
@@ -245,6 +271,8 @@ void mtk_wed_mcu_rx_unsolicited_event(struct mtk_wed_wo *wo,
 				      struct sk_buff *skb);
 int mtk_wed_mcu_send_msg(struct mtk_wed_wo *wo, int id, int cmd,
 			 const void *data, int len, bool wait_resp);
+int mtk_wed_mcu_msg_update(struct mtk_wed_device *dev, int id, void *data,
+			   int len);
 int mtk_wed_mcu_init(struct mtk_wed_wo *wo);
 int mtk_wed_wo_init(struct mtk_wed_hw *hw);
 void mtk_wed_wo_deinit(struct mtk_wed_hw *hw);
