@@ -630,14 +630,6 @@ static int ft260_smbus_xfer(struct i2c_adapter *adapter, u16 addr, u16 flags,
 	}
 
 	switch (size) {
-	case I2C_SMBUS_QUICK:
-		if (read_write == I2C_SMBUS_READ)
-			ret = ft260_i2c_read(dev, addr, &data->byte, 0,
-					     FT260_FLAG_START_STOP);
-		else
-			ret = ft260_smbus_write(dev, addr, cmd, NULL, 0,
-						FT260_FLAG_START_STOP);
-		break;
 	case I2C_SMBUS_BYTE:
 		if (read_write == I2C_SMBUS_READ)
 			ret = ft260_i2c_read(dev, addr, &data->byte, 1,
@@ -720,7 +712,7 @@ smbus_exit:
 
 static u32 ft260_functionality(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_BYTE | I2C_FUNC_SMBUS_QUICK |
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_BYTE |
 	       I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
 	       I2C_FUNC_SMBUS_BLOCK_DATA | I2C_FUNC_SMBUS_I2C_BLOCK;
 }
