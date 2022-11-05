@@ -10,6 +10,7 @@
 #include <linux/netdevice.h>
 
 struct mtk_eth;
+struct mtk_wed_wo;
 
 struct mtk_wed_hw {
 	struct device_node *node;
@@ -22,6 +23,7 @@ struct mtk_wed_hw {
 	struct regmap *mirror;
 	struct dentry *debugfs_dir;
 	struct mtk_wed_device *wed_dev;
+	struct mtk_wed_wo *wed_wo;
 	u32 debugfs_reg;
 	u32 num_flows;
 	u8 version;

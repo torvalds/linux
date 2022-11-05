@@ -16,6 +16,7 @@
 #include "mtk_wed_regs.h"
 #include "mtk_wed.h"
 #include "mtk_ppe.h"
+#include "mtk_wed_wo.h"
 
 #define MTK_PCIE_BASE(n)		(0x1a143000 + (n) * 0x2000)
 
@@ -355,6 +356,8 @@ mtk_wed_detach(struct mtk_wed_device *dev)
 
 	mtk_wed_free_buffer(dev);
 	mtk_wed_free_tx_rings(dev);
+	if (hw->version != 1)
+		mtk_wed_wo_deinit(hw);
 
 	if (dev->wlan.bus_type == MTK_WED_BUS_PCIE) {
 		struct device_node *wlan_node;
@@ -878,9 +881,11 @@ mtk_wed_attach(struct mtk_wed_device *dev)
 	}
 
 	mtk_wed_hw_init_early(dev);
-	if (hw->hifsys)
+	if (hw->version == 1)
 		regmap_update_bits(hw->hifsys, HIFSYS_DMA_AG_MAP,
 				   BIT(hw->index), 0);
+	else
+		ret = mtk_wed_wo_init(hw);
 
 out:
 	mutex_unlock(&hw_lock);

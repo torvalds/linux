@@ -80,6 +80,54 @@ enum mtk_wed_dummy_cr_idx {
 #define MTK_WO_MCU_CFG_LS_WF_WM_WA_WM_CPU_RSTB_MASK	BIT(5)
 #define MTK_WO_MCU_CFG_LS_WF_WM_WA_WA_CPU_RSTB_MASK	BIT(0)
 
+#define MTK_WED_WO_RING_SIZE	256
+#define MTK_WED_WO_CMD_LEN	1504
+
+#define MTK_WED_WO_TXCH_NUM		0
+#define MTK_WED_WO_RXCH_NUM		1
+#define MTK_WED_WO_RXCH_WO_EXCEPTION	7
+
+#define MTK_WED_WO_TXCH_INT_MASK	BIT(0)
+#define MTK_WED_WO_RXCH_INT_MASK	BIT(1)
+#define MTK_WED_WO_EXCEPTION_INT_MASK	BIT(7)
+#define MTK_WED_WO_ALL_INT_MASK		(MTK_WED_WO_RXCH_INT_MASK | \
+					 MTK_WED_WO_EXCEPTION_INT_MASK)
+
+#define MTK_WED_WO_CCIF_BUSY		0x004
+#define MTK_WED_WO_CCIF_START		0x008
+#define MTK_WED_WO_CCIF_TCHNUM		0x00c
+#define MTK_WED_WO_CCIF_RCHNUM		0x010
+#define MTK_WED_WO_CCIF_RCHNUM_MASK	GENMASK(7, 0)
+
+#define MTK_WED_WO_CCIF_ACK		0x014
+#define MTK_WED_WO_CCIF_IRQ0_MASK	0x018
+#define MTK_WED_WO_CCIF_IRQ1_MASK	0x01c
+#define MTK_WED_WO_CCIF_DUMMY1		0x020
+#define MTK_WED_WO_CCIF_DUMMY2		0x024
+#define MTK_WED_WO_CCIF_DUMMY3		0x028
+#define MTK_WED_WO_CCIF_DUMMY4		0x02c
+#define MTK_WED_WO_CCIF_SHADOW1		0x030
+#define MTK_WED_WO_CCIF_SHADOW2		0x034
+#define MTK_WED_WO_CCIF_SHADOW3		0x038
+#define MTK_WED_WO_CCIF_SHADOW4		0x03c
+#define MTK_WED_WO_CCIF_DUMMY5		0x050
+#define MTK_WED_WO_CCIF_DUMMY6		0x054
+#define MTK_WED_WO_CCIF_DUMMY7		0x058
+#define MTK_WED_WO_CCIF_DUMMY8		0x05c
+#define MTK_WED_WO_CCIF_SHADOW5		0x060
+#define MTK_WED_WO_CCIF_SHADOW6		0x064
+#define MTK_WED_WO_CCIF_SHADOW7		0x068
+#define MTK_WED_WO_CCIF_SHADOW8		0x06c
+
+#define MTK_WED_WO_CTL_SD_LEN1		GENMASK(13, 0)
+#define MTK_WED_WO_CTL_LAST_SEC1	BIT(14)
+#define MTK_WED_WO_CTL_BURST		BIT(15)
+#define MTK_WED_WO_CTL_SD_LEN0_SHIFT	16
+#define MTK_WED_WO_CTL_SD_LEN0		GENMASK(29, 16)
+#define MTK_WED_WO_CTL_LAST_SEC0	BIT(30)
+#define MTK_WED_WO_CTL_DMA_DONE		BIT(31)
+#define MTK_WED_WO_INFO_WINFO		GENMASK(15, 0)
+
 struct mtk_wed_wo_memory_region {
 	const char *name;
 	void __iomem *addr;
@@ -112,9 +160,52 @@ struct mtk_wed_fw_trailer {
 	u32 crc;
 };
 
+struct mtk_wed_wo_queue_regs {
+	u32 desc_base;
+	u32 ring_size;
+	u32 cpu_idx;
+	u32 dma_idx;
+};
+
+struct mtk_wed_wo_queue_desc {
+	__le32 buf0;
+	__le32 ctrl;
+	__le32 buf1;
+	__le32 info;
+	__le32 reserved[4];
+} __packed __aligned(32);
+
+struct mtk_wed_wo_queue_entry {
+	dma_addr_t addr;
+	void *buf;
+	u32 len;
+};
+
+struct mtk_wed_wo_queue {
+	struct mtk_wed_wo_queue_regs regs;
+
+	struct page_frag_cache cache;
+	spinlock_t lock;
+
+	struct mtk_wed_wo_queue_desc *desc;
+	dma_addr_t desc_dma;
+
+	struct mtk_wed_wo_queue_entry *entry;
+
+	u16 head;
+	u16 tail;
+	int n_desc;
+	int queued;
+	int buf_size;
+
+};
+
 struct mtk_wed_wo {
 	struct mtk_wed_hw *hw;
 	struct mtk_wed_wo_memory_region boot;
+
+	struct mtk_wed_wo_queue q_tx;
+	struct mtk_wed_wo_queue q_rx;
 
 	struct {
 		struct mutex mutex;
@@ -124,6 +215,15 @@ struct mtk_wed_wo {
 		struct sk_buff_head res_q;
 		wait_queue_head_t wait;
 	} mcu;
+
+	struct {
+		struct regmap *regs;
+
+		spinlock_t lock;
+		struct tasklet_struct irq_tasklet;
+		int irq;
+		u32 irq_mask;
+	} mmio;
 };
 
 static inline int
@@ -146,5 +246,9 @@ void mtk_wed_mcu_rx_unsolicited_event(struct mtk_wed_wo *wo,
 int mtk_wed_mcu_send_msg(struct mtk_wed_wo *wo, int id, int cmd,
 			 const void *data, int len, bool wait_resp);
 int mtk_wed_mcu_init(struct mtk_wed_wo *wo);
+int mtk_wed_wo_init(struct mtk_wed_hw *hw);
+void mtk_wed_wo_deinit(struct mtk_wed_hw *hw);
+int mtk_wed_wo_queue_tx_skb(struct mtk_wed_wo *dev, struct mtk_wed_wo_queue *q,
+			    struct sk_buff *skb);
 
 #endif /* __MTK_WED_WO_H */

@@ -122,8 +122,7 @@ mtk_wed_mcu_skb_send_msg(struct mtk_wed_wo *wo, struct sk_buff *skb,
 	if (id == MTK_WED_MODULE_ID_WO)
 		hdr->flag |= cpu_to_le16(MTK_WED_WARP_CMD_FLAG_FROM_TO_WO);
 
-	dev_kfree_skb(skb);
-	return 0;
+	return mtk_wed_wo_queue_tx_skb(wo, &wo->q_tx, skb);
 }
 
 static int
