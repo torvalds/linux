@@ -313,27 +313,17 @@ static int ft260_xfer_status(struct ft260_device *dev)
 	if (report.bus_status & FT260_I2C_STATUS_CTRL_BUSY)
 		return -EAGAIN;
 
-	if (report.bus_status & FT260_I2C_STATUS_BUS_BUSY)
-		return -EBUSY;
-
-	if (report.bus_status & FT260_I2C_STATUS_ERROR)
+	/*
+	 * The error condition (bit 1) is a status bit reflecting any
+	 * error conditions. When any of the bits 2, 3, or 4 are raised
+	 * to 1, bit 1 is also set to 1.
+	 */
+	if (report.bus_status & FT260_I2C_STATUS_ERROR) {
+		hid_err(hdev, "i2c bus error: %#02x\n", report.bus_status);
 		return -EIO;
+	}
 
-	ret = -EIO;
-
-	if (report.bus_status & FT260_I2C_STATUS_ADDR_NO_ACK)
-		ft260_dbg("unacknowledged address\n");
-
-	if (report.bus_status & FT260_I2C_STATUS_DATA_NO_ACK)
-		ft260_dbg("unacknowledged data\n");
-
-	if (report.bus_status & FT260_I2C_STATUS_ARBITR_LOST)
-		ft260_dbg("arbitration loss\n");
-
-	if (report.bus_status & FT260_I2C_STATUS_CTRL_IDLE)
-		ret = 0;
-
-	return ret;
+	return 0;
 }
 
 static int ft260_hid_output_report(struct hid_device *hdev, u8 *data,
@@ -376,7 +366,7 @@ static int ft260_hid_output_report_check_status(struct ft260_device *dev,
 			break;
 	} while (--try);
 
-	if (ret == 0 || ret == -EBUSY)
+	if (ret == 0)
 		return 0;
 
 	ft260_i2c_reset(hdev);
