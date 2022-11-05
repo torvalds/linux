@@ -321,6 +321,37 @@ static const struct rtl8xxxu_rfregval rtl8188fu_cut_b_radioa_init_table[] = {
 	{0xff, 0xffffffff}
 };
 
+static int rtl8188fu_identify_chip(struct rtl8xxxu_priv *priv)
+{
+	struct device *dev = &priv->udev->dev;
+	u32 sys_cfg, vendor;
+	int ret = 0;
+
+	sprintf(priv->chip_name, "8188FU");
+	priv->rtl_chip = RTL8188F;
+	priv->rf_paths = 1;
+	priv->rx_paths = 1;
+	priv->tx_paths = 1;
+	priv->has_wifi = 1;
+
+	sys_cfg = rtl8xxxu_read32(priv, REG_SYS_CFG);
+	priv->chip_cut = (sys_cfg & SYS_CFG_CHIP_VERSION_MASK) >>
+		SYS_CFG_CHIP_VERSION_SHIFT;
+	if (sys_cfg & SYS_CFG_TRP_VAUX_EN) {
+		dev_info(dev, "Unsupported test chip\n");
+		ret = -ENOTSUPP;
+		goto out;
+	}
+
+	vendor = sys_cfg & SYS_CFG_VENDOR_EXT_MASK;
+	rtl8xxxu_identify_vendor_2bits(priv, vendor);
+
+	ret = rtl8xxxu_config_endpoints_no_sie(priv);
+
+out:
+	return ret;
+}
+
 static void rtl8xxxu_8188f_channel_to_group(int channel, int *group, int *cck_group)
 {
 	if (channel < 3)
@@ -1690,6 +1721,7 @@ static s8 rtl8188f_cck_rssi(struct rtl8xxxu_priv *priv, u8 cck_agc_rpt)
 }
 
 struct rtl8xxxu_fileops rtl8188fu_fops = {
+	.identify_chip = rtl8188fu_identify_chip,
 	.parse_efuse = rtl8188fu_parse_efuse,
 	.load_firmware = rtl8188fu_load_firmware,
 	.power_on = rtl8188fu_power_on,

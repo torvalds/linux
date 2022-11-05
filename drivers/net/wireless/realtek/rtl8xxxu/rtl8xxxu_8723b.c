@@ -304,6 +304,54 @@ static const struct rtl8xxxu_rfregval rtl8723bu_radioa_1t_init_table[] = {
 	{0xff, 0xffffffff}
 };
 
+static int rtl8723bu_identify_chip(struct rtl8xxxu_priv *priv)
+{
+	struct device *dev = &priv->udev->dev;
+	u32 val32, sys_cfg, vendor;
+	int ret = 0;
+
+	sys_cfg = rtl8xxxu_read32(priv, REG_SYS_CFG);
+	priv->chip_cut = (sys_cfg & SYS_CFG_CHIP_VERSION_MASK) >>
+		SYS_CFG_CHIP_VERSION_SHIFT;
+	if (sys_cfg & SYS_CFG_TRP_VAUX_EN) {
+		dev_info(dev, "Unsupported test chip\n");
+		ret = -ENOTSUPP;
+		goto out;
+	}
+
+	sprintf(priv->chip_name, "8723BU");
+	priv->rtl_chip = RTL8723B;
+	priv->rf_paths = 1;
+	priv->rx_paths = 1;
+	priv->tx_paths = 1;
+
+	val32 = rtl8xxxu_read32(priv, REG_MULTI_FUNC_CTRL);
+	if (val32 & MULTI_WIFI_FUNC_EN)
+		priv->has_wifi = 1;
+	if (val32 & MULTI_BT_FUNC_EN)
+		priv->has_bluetooth = 1;
+	if (val32 & MULTI_GPS_FUNC_EN)
+		priv->has_gps = 1;
+	priv->is_multi_func = 1;
+
+	vendor = sys_cfg & SYS_CFG_VENDOR_EXT_MASK;
+	rtl8xxxu_identify_vendor_2bits(priv, vendor);
+
+	val32 = rtl8xxxu_read32(priv, REG_GPIO_OUTSTS);
+	priv->rom_rev = (val32 & GPIO_RF_RL_ID) >> 28;
+
+	rtl8xxxu_config_endpoints_sie(priv);
+
+	/*
+	 * Fallback for devices that do not provide REG_NORMAL_SIE_EP_TX
+	 */
+	if (!priv->ep_tx_count)
+		ret = rtl8xxxu_config_endpoints_no_sie(priv);
+
+out:
+	return ret;
+}
+
 static void rtl8723bu_write_btreg(struct rtl8xxxu_priv *priv, u8 reg, u8 data)
 {
 	struct h2c_cmd h2c;
@@ -1668,6 +1716,7 @@ static s8 rtl8723b_cck_rssi(struct rtl8xxxu_priv *priv, u8 cck_agc_rpt)
 }
 
 struct rtl8xxxu_fileops rtl8723bu_fops = {
+	.identify_chip = rtl8723bu_identify_chip,
 	.parse_efuse = rtl8723bu_parse_efuse,
 	.load_firmware = rtl8723bu_load_firmware,
 	.power_on = rtl8723bu_power_on,

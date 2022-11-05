@@ -326,6 +326,65 @@ static const struct rtl8xxxu_rfregval rtl8188ru_radioa_1t_highpa_table[] = {
 	{0xff, 0xffffffff}
 };
 
+static int rtl8192cu_identify_chip(struct rtl8xxxu_priv *priv)
+{
+	struct device *dev = &priv->udev->dev;
+	u32 val32, bonding, sys_cfg, vendor;
+	int ret = 0;
+
+	sys_cfg = rtl8xxxu_read32(priv, REG_SYS_CFG);
+	priv->chip_cut = (sys_cfg & SYS_CFG_CHIP_VERSION_MASK) >>
+		SYS_CFG_CHIP_VERSION_SHIFT;
+	if (sys_cfg & SYS_CFG_TRP_VAUX_EN) {
+		dev_info(dev, "Unsupported test chip\n");
+		ret = -ENOTSUPP;
+		goto out;
+	}
+
+	if (sys_cfg & SYS_CFG_TYPE_ID) {
+		bonding = rtl8xxxu_read32(priv, REG_HPON_FSM);
+		bonding &= HPON_FSM_BONDING_MASK;
+		if (bonding == HPON_FSM_BONDING_1T2R) {
+			sprintf(priv->chip_name, "8191CU");
+			priv->tx_paths = 1;
+			priv->usb_interrupts = 1;
+			priv->rtl_chip = RTL8191C;
+		} else {
+			sprintf(priv->chip_name, "8192CU");
+			priv->tx_paths = 2;
+			priv->usb_interrupts = 0;
+			priv->rtl_chip = RTL8192C;
+		}
+		priv->rf_paths = 2;
+		priv->rx_paths = 2;
+	} else {
+		sprintf(priv->chip_name, "8188CU");
+		priv->rf_paths = 1;
+		priv->rx_paths = 1;
+		priv->tx_paths = 1;
+		priv->rtl_chip = RTL8188C;
+		priv->usb_interrupts = 0;
+	}
+	priv->has_wifi = 1;
+
+	vendor = sys_cfg & SYS_CFG_VENDOR_ID;
+	rtl8xxxu_identify_vendor_1bit(priv, vendor);
+
+	val32 = rtl8xxxu_read32(priv, REG_GPIO_OUTSTS);
+	priv->rom_rev = (val32 & GPIO_RF_RL_ID) >> 28;
+
+	rtl8xxxu_config_endpoints_sie(priv);
+
+	/*
+	 * Fallback for devices that do not provide REG_NORMAL_SIE_EP_TX
+	 */
+	if (!priv->ep_tx_count)
+		ret = rtl8xxxu_config_endpoints_no_sie(priv);
+
+out:
+	return ret;
+}
+
 static int rtl8192cu_load_firmware(struct rtl8xxxu_priv *priv)
 {
 	char *fw_name;
@@ -541,6 +600,7 @@ static int rtl8192cu_power_on(struct rtl8xxxu_priv *priv)
 }
 
 struct rtl8xxxu_fileops rtl8192cu_fops = {
+	.identify_chip = rtl8192cu_identify_chip,
 	.parse_efuse = rtl8192cu_parse_efuse,
 	.load_firmware = rtl8192cu_load_firmware,
 	.power_on = rtl8192cu_power_on,

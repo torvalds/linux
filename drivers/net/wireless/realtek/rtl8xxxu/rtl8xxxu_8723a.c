@@ -129,6 +129,56 @@ static const struct rtl8xxxu_rfregval rtl8723au_radioa_1t_init_table[] = {
 	{0xff, 0xffffffff}
 };
 
+static int rtl8723au_identify_chip(struct rtl8xxxu_priv *priv)
+{
+	struct device *dev = &priv->udev->dev;
+	u32 val32, sys_cfg, vendor;
+	int ret = 0;
+
+	sys_cfg = rtl8xxxu_read32(priv, REG_SYS_CFG);
+	priv->chip_cut = (sys_cfg & SYS_CFG_CHIP_VERSION_MASK) >>
+		SYS_CFG_CHIP_VERSION_SHIFT;
+	if (sys_cfg & SYS_CFG_TRP_VAUX_EN) {
+		dev_info(dev, "Unsupported test chip\n");
+		ret = -ENOTSUPP;
+		goto out;
+	}
+
+	sprintf(priv->chip_name, "8723AU");
+	priv->usb_interrupts = 1;
+	priv->rtl_chip = RTL8723A;
+
+	priv->rf_paths = 1;
+	priv->rx_paths = 1;
+	priv->tx_paths = 1;
+
+	val32 = rtl8xxxu_read32(priv, REG_MULTI_FUNC_CTRL);
+	if (val32 & MULTI_WIFI_FUNC_EN)
+		priv->has_wifi = 1;
+	if (val32 & MULTI_BT_FUNC_EN)
+		priv->has_bluetooth = 1;
+	if (val32 & MULTI_GPS_FUNC_EN)
+		priv->has_gps = 1;
+	priv->is_multi_func = 1;
+
+	vendor = sys_cfg & SYS_CFG_VENDOR_ID;
+	rtl8xxxu_identify_vendor_1bit(priv, vendor);
+
+	val32 = rtl8xxxu_read32(priv, REG_GPIO_OUTSTS);
+	priv->rom_rev = (val32 & GPIO_RF_RL_ID) >> 28;
+
+	rtl8xxxu_config_endpoints_sie(priv);
+
+	/*
+	 * Fallback for devices that do not provide REG_NORMAL_SIE_EP_TX
+	 */
+	if (!priv->ep_tx_count)
+		ret = rtl8xxxu_config_endpoints_no_sie(priv);
+
+out:
+	return ret;
+}
+
 static int rtl8723au_parse_efuse(struct rtl8xxxu_priv *priv)
 {
 	struct rtl8723au_efuse *efuse = &priv->efuse_wifi.efuse8723;
@@ -409,6 +459,7 @@ s8 rtl8723a_cck_rssi(struct rtl8xxxu_priv *priv, u8 cck_agc_rpt)
 }
 
 struct rtl8xxxu_fileops rtl8723au_fops = {
+	.identify_chip = rtl8723au_identify_chip,
 	.parse_efuse = rtl8723au_parse_efuse,
 	.load_firmware = rtl8723au_load_firmware,
 	.power_on = rtl8723au_power_on,

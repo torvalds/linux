@@ -1589,148 +1589,40 @@ static void rtl8xxxu_print_chipinfo(struct rtl8xxxu_priv *priv)
 	dev_info(dev, "RTL%s MAC: %pM\n", priv->chip_name, priv->mac_addr);
 }
 
-static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
+void rtl8xxxu_identify_vendor_1bit(struct rtl8xxxu_priv *priv, u32 vendor)
 {
-	const struct usb_device_descriptor *descriptor = &priv->udev->descriptor;
-	struct device *dev = &priv->udev->dev;
-	struct ieee80211_hw *hw = priv->hw;
-	u32 val32, bonding, sys_cfg;
-	u16 val16;
-
-	sys_cfg = rtl8xxxu_read32(priv, REG_SYS_CFG);
-	priv->chip_cut = (sys_cfg & SYS_CFG_CHIP_VERSION_MASK) >>
-		SYS_CFG_CHIP_VERSION_SHIFT;
-	if (sys_cfg & SYS_CFG_TRP_VAUX_EN) {
-		dev_info(dev, "Unsupported test chip\n");
-		return -ENOTSUPP;
-	}
-
-	if (descriptor->idVendor == USB_VENDOR_ID_REALTEK &&
-	    descriptor->idProduct == 0xf179) {
-		sprintf(priv->chip_name, "8188FU");
-		priv->rtl_chip = RTL8188F;
-		priv->rf_paths = 1;
-		priv->rx_paths = 1;
-		priv->tx_paths = 1;
-		priv->has_wifi = 1;
-		goto skip_complicated_chip_detection;
-	}
-
-	if (sys_cfg & SYS_CFG_BT_FUNC) {
-		if (priv->chip_cut >= 3) {
-			sprintf(priv->chip_name, "8723BU");
-			priv->rtl_chip = RTL8723B;
-		} else {
-			sprintf(priv->chip_name, "8723AU");
-			priv->usb_interrupts = 1;
-			priv->rtl_chip = RTL8723A;
-		}
-
-		priv->rf_paths = 1;
-		priv->rx_paths = 1;
-		priv->tx_paths = 1;
-
-		val32 = rtl8xxxu_read32(priv, REG_MULTI_FUNC_CTRL);
-		if (val32 & MULTI_WIFI_FUNC_EN)
-			priv->has_wifi = 1;
-		if (val32 & MULTI_BT_FUNC_EN)
-			priv->has_bluetooth = 1;
-		if (val32 & MULTI_GPS_FUNC_EN)
-			priv->has_gps = 1;
-		priv->is_multi_func = 1;
-	} else if (sys_cfg & SYS_CFG_TYPE_ID) {
-		bonding = rtl8xxxu_read32(priv, REG_HPON_FSM);
-		bonding &= HPON_FSM_BONDING_MASK;
-		if (priv->fops->tx_desc_size ==
-		    sizeof(struct rtl8xxxu_txdesc40)) {
-			if (bonding == HPON_FSM_BONDING_1T2R) {
-				sprintf(priv->chip_name, "8191EU");
-				priv->rf_paths = 2;
-				priv->rx_paths = 2;
-				priv->tx_paths = 1;
-				priv->rtl_chip = RTL8191E;
-			} else {
-				sprintf(priv->chip_name, "8192EU");
-				priv->rf_paths = 2;
-				priv->rx_paths = 2;
-				priv->tx_paths = 2;
-				priv->rtl_chip = RTL8192E;
-			}
-		} else if (bonding == HPON_FSM_BONDING_1T2R) {
-			sprintf(priv->chip_name, "8191CU");
-			priv->rf_paths = 2;
-			priv->rx_paths = 2;
-			priv->tx_paths = 1;
-			priv->usb_interrupts = 1;
-			priv->rtl_chip = RTL8191C;
-		} else {
-			sprintf(priv->chip_name, "8192CU");
-			priv->rf_paths = 2;
-			priv->rx_paths = 2;
-			priv->tx_paths = 2;
-			priv->usb_interrupts = 0;
-			priv->rtl_chip = RTL8192C;
-		}
-		priv->has_wifi = 1;
+	if (vendor) {
+		sprintf(priv->chip_vendor, "UMC");
+		priv->vendor_umc = 1;
 	} else {
-		sprintf(priv->chip_name, "8188CU");
-		priv->rf_paths = 1;
-		priv->rx_paths = 1;
-		priv->tx_paths = 1;
-		priv->rtl_chip = RTL8188C;
-		priv->usb_interrupts = 0;
-		priv->has_wifi = 1;
+		sprintf(priv->chip_vendor, "TSMC");
 	}
+}
 
-skip_complicated_chip_detection:
-
-	hw->wiphy->available_antennas_tx = BIT(priv->tx_paths) - 1;
-	hw->wiphy->available_antennas_rx = BIT(priv->rx_paths) - 1;
-
-	switch (priv->rtl_chip) {
-	case RTL8188E:
-	case RTL8188F:
-	case RTL8192E:
-	case RTL8723B:
-		switch (sys_cfg & SYS_CFG_VENDOR_EXT_MASK) {
-		case SYS_CFG_VENDOR_ID_TSMC:
-			sprintf(priv->chip_vendor, "TSMC");
-			break;
-		case SYS_CFG_VENDOR_ID_SMIC:
-			sprintf(priv->chip_vendor, "SMIC");
-			priv->vendor_smic = 1;
-			break;
-		case SYS_CFG_VENDOR_ID_UMC:
-			sprintf(priv->chip_vendor, "UMC");
-			priv->vendor_umc = 1;
-			break;
-		default:
-			sprintf(priv->chip_vendor, "unknown");
-		}
+void rtl8xxxu_identify_vendor_2bits(struct rtl8xxxu_priv *priv, u32 vendor)
+{
+	switch (vendor) {
+	case SYS_CFG_VENDOR_ID_TSMC:
+		sprintf(priv->chip_vendor, "TSMC");
+		break;
+	case SYS_CFG_VENDOR_ID_SMIC:
+		sprintf(priv->chip_vendor, "SMIC");
+		priv->vendor_smic = 1;
+		break;
+	case SYS_CFG_VENDOR_ID_UMC:
+		sprintf(priv->chip_vendor, "UMC");
+		priv->vendor_umc = 1;
 		break;
 	default:
-		if (sys_cfg & SYS_CFG_VENDOR_ID) {
-			sprintf(priv->chip_vendor, "UMC");
-			priv->vendor_umc = 1;
-		} else {
-			sprintf(priv->chip_vendor, "TSMC");
-		}
+		sprintf(priv->chip_vendor, "unknown");
 	}
+}
 
-	val32 = rtl8xxxu_read32(priv, REG_GPIO_OUTSTS);
-	priv->rom_rev = (val32 & GPIO_RF_RL_ID) >> 28;
+void rtl8xxxu_config_endpoints_sie(struct rtl8xxxu_priv *priv)
+{
+	u16 val16;
 
-	/*
-	 * 8188FU vendor driver doesn't use REG_NORMAL_SIE_EP_TX,
-	 * it just decides the queue mapping based on nr_out_eps.
-	 * However, reading the register returns "0x321" which
-	 * results in a wrong ep_tx_count of 3 and most frames
-	 * not being transmitted.
-	 */
-	if (priv->rtl_chip == RTL8188F)
-		val16 = 0;
-	else
-		val16 = rtl8xxxu_read16(priv, REG_NORMAL_SIE_EP_TX);
+	val16 = rtl8xxxu_read16(priv, REG_NORMAL_SIE_EP_TX);
 
 	if (val16 & NORMAL_SIE_EP_TX_HIGH_MASK) {
 		priv->ep_tx_high_queue = 1;
@@ -1746,29 +1638,29 @@ skip_complicated_chip_detection:
 		priv->ep_tx_low_queue = 1;
 		priv->ep_tx_count++;
 	}
+}
 
-	/*
-	 * Fallback for devices that do not provide REG_NORMAL_SIE_EP_TX
-	 */
-	if (!priv->ep_tx_count) {
-		switch (priv->nr_out_eps) {
-		case 4:
-		case 3:
-			priv->ep_tx_low_queue = 1;
-			priv->ep_tx_count++;
-			fallthrough;
-		case 2:
-			priv->ep_tx_normal_queue = 1;
-			priv->ep_tx_count++;
-			fallthrough;
-		case 1:
-			priv->ep_tx_high_queue = 1;
-			priv->ep_tx_count++;
-			break;
-		default:
-			dev_info(dev, "Unsupported USB TX end-points\n");
-			return -ENOTSUPP;
-		}
+int rtl8xxxu_config_endpoints_no_sie(struct rtl8xxxu_priv *priv)
+{
+	struct device *dev = &priv->udev->dev;
+
+	switch (priv->nr_out_eps) {
+	case 4:
+	case 3:
+		priv->ep_tx_low_queue = 1;
+		priv->ep_tx_count++;
+		fallthrough;
+	case 2:
+		priv->ep_tx_normal_queue = 1;
+		priv->ep_tx_count++;
+		fallthrough;
+	case 1:
+		priv->ep_tx_high_queue = 1;
+		priv->ep_tx_count++;
+		break;
+	default:
+		dev_info(dev, "Unsupported USB TX end-points\n");
+		return -ENOTSUPP;
 	}
 
 	return 0;
@@ -6937,11 +6829,14 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	if (ret)
 		goto err_set_intfdata;
 
-	ret = rtl8xxxu_identify_chip(priv);
+	ret = priv->fops->identify_chip(priv);
 	if (ret) {
 		dev_err(&udev->dev, "Fatal - failed to identify chip\n");
 		goto err_set_intfdata;
 	}
+
+	hw->wiphy->available_antennas_tx = BIT(priv->tx_paths) - 1;
+	hw->wiphy->available_antennas_rx = BIT(priv->rx_paths) - 1;
 
 	ret = rtl8xxxu_read_efuse(priv);
 	if (ret) {

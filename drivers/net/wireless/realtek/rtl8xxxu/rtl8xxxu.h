@@ -1470,6 +1470,7 @@ struct rtl8xxxu_tx_urb {
 };
 
 struct rtl8xxxu_fileops {
+	int (*identify_chip) (struct rtl8xxxu_priv *priv);
 	int (*parse_efuse) (struct rtl8xxxu_priv *priv);
 	int (*load_firmware) (struct rtl8xxxu_priv *priv);
 	int (*power_on) (struct rtl8xxxu_priv *priv);
@@ -1562,6 +1563,10 @@ int rtl8xxxu_init_phy_regs(struct rtl8xxxu_priv *priv,
 int rtl8xxxu_load_firmware(struct rtl8xxxu_priv *priv, char *fw_name);
 void rtl8xxxu_firmware_self_reset(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_power_off(struct rtl8xxxu_priv *priv);
+void rtl8xxxu_identify_vendor_1bit(struct rtl8xxxu_priv *priv, u32 vendor);
+void rtl8xxxu_identify_vendor_2bits(struct rtl8xxxu_priv *priv, u32 vendor);
+void rtl8xxxu_config_endpoints_sie(struct rtl8xxxu_priv *priv);
+int rtl8xxxu_config_endpoints_no_sie(struct rtl8xxxu_priv *priv);
 int rtl8xxxu_read_efuse8(struct rtl8xxxu_priv *priv, u16 offset, u8 *data);
 void rtl8xxxu_reset_8051(struct rtl8xxxu_priv *priv);
 int rtl8xxxu_auto_llt_table(struct rtl8xxxu_priv *priv);
