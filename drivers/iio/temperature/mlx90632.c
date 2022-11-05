@@ -1326,7 +1326,7 @@ static int mlx90632_pm_runtime_suspend(struct device *dev)
 	return mlx90632_pwr_set_sleep_step(data->regmap);
 }
 
-const struct dev_pm_ops mlx90632_pm_ops = {
+static const struct dev_pm_ops mlx90632_pm_ops = {
 	SYSTEM_SLEEP_PM_OPS(mlx90632_pm_suspend, mlx90632_pm_resume)
 	RUNTIME_PM_OPS(mlx90632_pm_runtime_suspend, NULL, NULL)
 };
