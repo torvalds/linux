@@ -464,6 +464,7 @@ static int ft260_i2c_read(struct ft260_device *dev, u8 addr, u8 *data,
 			  u16 len, u8 flag)
 {
 	u16 rd_len;
+	u16 rd_data_max = 60;
 	int timeout, ret = 0;
 	struct ft260_i2c_read_request_report rep;
 	struct hid_device *hdev = dev->hdev;
@@ -473,12 +474,13 @@ static int ft260_i2c_read(struct ft260_device *dev, u8 addr, u8 *data,
 	else
 		flag = FT260_FLAG_START;
 	do {
-		if (len <= FT260_RD_DATA_MAX) {
+		if (len <= rd_data_max) {
 			rd_len = len;
 			flag |= FT260_FLAG_STOP;
 		} else {
-			rd_len = FT260_RD_DATA_MAX;
+			rd_len = rd_data_max;
 		}
+		rd_data_max = FT260_RD_DATA_MAX;
 
 		rep.report = FT260_I2C_READ_REQ;
 		rep.length = cpu_to_le16(rd_len);
