@@ -53,6 +53,15 @@
 	};
 };
 
+&fiu {
+	status = "okay";
+
+	flash@0 {
+		reg = <0>;
+		compatible = "jedec,spi-nor";
+	};
+};
+
 &gpio0 {
 	gpio-line-names =
 		/* 0 */ "", "host-reset-control-n", "", "", "", "", "", "",
