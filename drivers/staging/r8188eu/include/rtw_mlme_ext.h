@@ -432,9 +432,9 @@ void update_network(struct wlan_bssid_ex *dst, struct wlan_bssid_ex *src,
 u8 *get_my_bssid(struct wlan_bssid_ex *pnetwork);
 u16 get_beacon_interval(struct wlan_bssid_ex *bss);
 
-int is_client_associated_to_ap(struct adapter *padapter);
-int is_client_associated_to_ibss(struct adapter *padapter);
-int is_IBSS_empty(struct adapter *padapter);
+bool is_client_associated_to_ap(struct adapter *padapter);
+bool is_client_associated_to_ibss(struct adapter *padapter);
+bool is_IBSS_empty(struct adapter *padapter);
 
 unsigned char check_assoc_AP(u8 *pframe, uint len);
 
