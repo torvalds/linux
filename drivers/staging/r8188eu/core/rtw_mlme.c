@@ -76,19 +76,6 @@ void _rtw_free_network(struct mlme_priv *pmlmepriv, struct wlan_network *pnetwor
 	spin_unlock_bh(&free_queue->lock);
 }
 
-void _rtw_free_network_nolock(struct	mlme_priv *pmlmepriv, struct wlan_network *pnetwork)
-{
-	struct __queue *free_queue = &pmlmepriv->free_bss_pool;
-
-	if (!pnetwork)
-		return;
-	if (pnetwork->fixed)
-		return;
-	list_del_init(&pnetwork->list);
-	list_add_tail(&pnetwork->list, get_list_head(free_queue));
-	pmlmepriv->num_of_scanned--;
-}
-
 /*
 	return the wlan_network with the matching addr
 
@@ -307,9 +294,15 @@ exit:
 static void rtw_free_network_nolock(struct mlme_priv *pmlmepriv,
 				    struct wlan_network *pnetwork)
 {
+	struct __queue *free_queue = &pmlmepriv->free_bss_pool;
 
-	_rtw_free_network_nolock(pmlmepriv, pnetwork);
-
+	if (!pnetwork)
+		return;
+	if (pnetwork->fixed)
+		return;
+	list_del_init(&pnetwork->list);
+	list_add_tail(&pnetwork->list, get_list_head(free_queue));
+	pmlmepriv->num_of_scanned--;
 }
 
 void rtw_free_network_queue(struct adapter *dev, u8 isfreeall)
