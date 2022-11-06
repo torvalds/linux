@@ -312,10 +312,6 @@ int plpks_write_var(struct plpks_var var)
 	if (!rc)
 		rc = plpks_confirm_object_flushed(label, auth);
 
-	if (rc)
-		pr_err("Failed to write variable %s for component %s with error %d\n",
-		       var.name, var.component, rc);
-
 	rc = pseries_status_to_err(rc);
 	kfree(label);
 out:
@@ -349,10 +345,6 @@ int plpks_remove_var(char *component, u8 varos, struct plpks_var_name vname)
 
 	if (!rc)
 		rc = plpks_confirm_object_flushed(label, auth);
-
-	if (rc)
-		pr_err("Failed to remove variable %s for component %s with error %d\n",
-		       vname.name, component, rc);
 
 	rc = pseries_status_to_err(rc);
 	kfree(label);
@@ -395,8 +387,6 @@ static int plpks_read_var(u8 consumer, struct plpks_var *var)
 			 maxobjsize);
 
 	if (rc != H_SUCCESS) {
-		pr_err("Failed to read variable %s for component %s with error %d\n",
-		       var->name, var->component, rc);
 		rc = pseries_status_to_err(rc);
 		goto out_free_output;
 	}
