@@ -676,11 +676,7 @@ s32 InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy)
 	return status;
 }
 
-void
-Hal_EfuseParseIDCode88E(
-		struct adapter *padapter,
-		u8 *hwinfo
-	)
+void Hal_EfuseParseIDCode88E(struct adapter *padapter, u8 *hwinfo)
 {
 	struct eeprom_priv *pEEPROM = &padapter->eeprompriv;
 	struct net_device *netdev = padapter->pnetdev;
