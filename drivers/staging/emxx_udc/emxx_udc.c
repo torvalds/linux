@@ -1004,10 +1004,7 @@ static int _nbu2ss_in_dma(struct nbu2ss_udc *udc, struct nbu2ss_ep *ep,
 	/* MAX Packet Size */
 	mpkt = _nbu2ss_readl(&preg->EP_REGS[num].EP_PCKT_ADRS) & EPN_MPKT;
 
-	if ((DMA_MAX_COUNT * mpkt) < length)
-		i_write_length = DMA_MAX_COUNT * mpkt;
-	else
-		i_write_length = length;
+	i_write_length = min(DMA_MAX_COUNT * mpkt, length);
 
 	/*------------------------------------------------------------*/
 	/* Number of transmission packets */
