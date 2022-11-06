@@ -17,17 +17,22 @@ MODULE_PARM_DESC(clx, "allow low power states on the high-speed lanes (default: 
 
 static const char *clx_name(unsigned int clx)
 {
-	if (!clx)
-		return "disabled";
-
-	if (clx & TB_CL2)
+	switch (clx) {
+	case TB_CL0S | TB_CL1 | TB_CL2:
 		return "CL0s/CL1/CL2";
-	if (clx & TB_CL1)
+	case TB_CL1 | TB_CL2:
+		return "CL1/CL2";
+	case TB_CL0S | TB_CL2:
+		return "CL0s/CL2";
+	case TB_CL0S | TB_CL1:
 		return "CL0s/CL1";
-	if (clx & TB_CL0S)
+	case TB_CL0S:
 		return "CL0s";
-
-	return "unknown";
+	case 0:
+		return "disabled";
+	default:
+		return "unknown";
+	}
 }
 
 static int tb_port_pm_secondary_set(struct tb_port *port, bool secondary)
@@ -104,6 +109,8 @@ static int tb_port_clx_set(struct tb_port *port, unsigned int clx, bool enable)
 		mask |= LANE_ADP_CS_1_CL0S_ENABLE;
 	if (clx & TB_CL1)
 		mask |= LANE_ADP_CS_1_CL1_ENABLE;
+	if (clx & TB_CL2)
+		mask |= LANE_ADP_CS_1_CL2_ENABLE;
 
 	if (!mask)
 		return -EOPNOTSUPP;
@@ -291,8 +298,6 @@ bool tb_switch_clx_is_supported(const struct tb_switch *sw)
 static bool validate_mask(unsigned int clx)
 {
 	/* Previous states need to be enabled */
-	if (clx & TB_CL2)
-		return (clx & (TB_CL0S | TB_CL1)) == (TB_CL0S | TB_CL1);
 	if (clx & TB_CL1)
 		return (clx & TB_CL0S) == TB_CL0S;
 	return true;
@@ -331,8 +336,10 @@ int tb_switch_clx_enable(struct tb_switch *sw, unsigned int clx)
 	    !tb_switch_clx_is_supported(sw))
 		return 0;
 
-	/* CL2 is not yet supported */
-	if (clx & TB_CL2)
+	/* Only support CL2 for v2 routers */
+	if ((clx & TB_CL2) &&
+	    (usb4_switch_version(parent_sw) < 2 ||
+	     usb4_switch_version(sw) < 2))
 		return -EOPNOTSUPP;
 
 	ret = tb_switch_pm_secondary_resolve(sw);

@@ -244,6 +244,7 @@ static void tb_discover_dp_resources(struct tb *tb)
 static int tb_enable_clx(struct tb_switch *sw)
 {
 	struct tb_cm *tcm = tb_priv(sw->tb);
+	unsigned int clx = TB_CL0S | TB_CL1;
 	const struct tb_tunnel *tunnel;
 	int ret;
 
@@ -275,10 +276,12 @@ static int tb_enable_clx(struct tb_switch *sw)
 	}
 
 	/*
-	 * CL0s and CL1 are enabled and supported together.
-	 * Silently ignore CLx enabling in case CLx is not supported.
+	 * Initially try with CL2. If that's not supported by the
+	 * topology try with CL0s and CL1 and then give up.
 	 */
-	ret = tb_switch_clx_enable(sw, TB_CL0S | TB_CL1);
+	ret = tb_switch_clx_enable(sw, clx | TB_CL2);
+	if (ret == -EOPNOTSUPP)
+		ret = tb_switch_clx_enable(sw, clx);
 	return ret == -EOPNOTSUPP ? 0 : ret;
 }
 
