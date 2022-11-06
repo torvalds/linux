@@ -123,6 +123,10 @@ static int hw_events_info(struct hl_device *hdev, bool aggregate,
 		return -EINVAL;
 
 	arr = hdev->asic_funcs->get_events_stat(hdev, aggregate, &size);
+	if (!arr) {
+		dev_err(hdev->dev, "Events info not supported\n");
+		return -EOPNOTSUPP;
+	}
 
 	return copy_to_user(out, arr, min(max_size, size)) ? -EFAULT : 0;
 }
