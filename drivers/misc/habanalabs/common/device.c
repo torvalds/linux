@@ -511,11 +511,6 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 		return 0;
 	}
 
-	/* Each pending user interrupt holds the user's context, hence we
-	 * must release them all before calling hl_ctx_mgr_fini().
-	 */
-	hl_release_pending_user_interrupts(hpriv->hdev);
-
 	hl_ctx_mgr_fini(hdev, &hpriv->ctx_mgr);
 	hl_mem_mgr_fini(&hpriv->mem_mgr);
 
