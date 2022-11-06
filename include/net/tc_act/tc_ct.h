@@ -10,6 +10,7 @@
 #include <net/netfilter/nf_conntrack_labels.h>
 
 struct tcf_ct_params {
+	struct nf_conntrack_helper *helper;
 	struct nf_conn *tmpl;
 	u16 zone;
 
