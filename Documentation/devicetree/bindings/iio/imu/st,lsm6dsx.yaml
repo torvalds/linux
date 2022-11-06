@@ -39,6 +39,9 @@ properties:
       - items:
           - const: st,lsm6dstx
           - const: st,lsm6dst
+      - items:
+          - const: st,lsm6dsv16x
+          - const: st,lsm6dsv
 
   reg:
     maxItems: 1
