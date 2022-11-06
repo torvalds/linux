@@ -266,6 +266,28 @@ allOf:
   - if:
       properties:
         compatible:
+          enum:
+            - mediatek,mt8186-mmc
+            - mediatek,mt8188-mmc
+            - mediatek,mt8195-mmc
+    then:
+      properties:
+        clocks:
+          items:
+            - description: source clock
+            - description: HCLK which used for host
+            - description: independent source clock gate
+            - description: crypto clock used for data encrypt/decrypt (optional)
+        clock-names:
+          items:
+            - const: source
+            - const: hclk
+            - const: source_cg
+            - const: crypto
+
+  - if:
+      properties:
+        compatible:
           contains:
             const: mediatek,mt8192-mmc
     then:
