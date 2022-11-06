@@ -309,6 +309,37 @@ int nf_ct_helper(struct sk_buff *skb, struct nf_conn *ct,
 }
 EXPORT_SYMBOL_GPL(nf_ct_helper);
 
+int nf_ct_add_helper(struct nf_conn *ct, const char *name, u8 family,
+		     u8 proto, bool nat, struct nf_conntrack_helper **hp)
+{
+	struct nf_conntrack_helper *helper;
+	struct nf_conn_help *help;
+	int ret = 0;
+
+	helper = nf_conntrack_helper_try_module_get(name, family, proto);
+	if (!helper)
+		return -EINVAL;
+
+	help = nf_ct_helper_ext_add(ct, GFP_KERNEL);
+	if (!help) {
+		nf_conntrack_helper_put(helper);
+		return -ENOMEM;
+	}
+#if IS_ENABLED(CONFIG_NF_NAT)
+	if (nat) {
+		ret = nf_nat_helper_try_module_get(name, family, proto);
+		if (ret) {
+			nf_conntrack_helper_put(helper);
+			return ret;
+		}
+	}
+#endif
+	rcu_assign_pointer(help->helper, helper);
+	*hp = helper;
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nf_ct_add_helper);
+
 /* appropriate ct lock protecting must be taken by caller */
 static int unhelp(struct nf_conn *ct, void *me)
 {
