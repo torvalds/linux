@@ -443,11 +443,6 @@ static inline bool check_fwstate(struct mlme_priv *pmlmepriv, int state)
 	return false;
 }
 
-static inline int get_fwstate(struct mlme_priv *pmlmepriv)
-{
-	return pmlmepriv->fw_state;
-}
-
 /*
  * No Limit on the calling context,
  * therefore set it to be the critical section...
