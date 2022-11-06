@@ -430,14 +430,6 @@ struct WMM_para_element {
 	struct AC_param	ac_param[4];
 } __packed;
 
-struct ADDBA_request {
-	unsigned char	action_code;
-	unsigned char	dialog_token;
-	__le16	BA_para_set;
-	__le16	BA_timeout_value;
-	__le16	BA_starting_seqctrl;
-} __packed;
-
 #define MAX_AMPDU_FACTOR_64K	3
 
 /* Spatial Multiplexing Power Save Modes */

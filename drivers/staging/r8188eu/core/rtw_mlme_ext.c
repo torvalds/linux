@@ -1486,11 +1486,9 @@ static void OnAction_back(struct adapter *padapter, struct recv_frame *precv_fra
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)precv_frame->rx_data;
 	struct sta_info *psta = NULL;
 	struct recv_reorder_ctrl *preorder_ctrl;
-	unsigned char		*frame_body;
 	unsigned short	tid;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
-	u8 *pframe = precv_frame->rx_data;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 
 	if ((pmlmeinfo->state & 0x03) != WIFI_FW_AP_STATE)
@@ -1501,23 +1499,19 @@ static void OnAction_back(struct adapter *padapter, struct recv_frame *precv_fra
 	if (!psta)
 		return;
 
-	frame_body = (unsigned char *)(pframe + sizeof(struct ieee80211_hdr_3addr));
-
 	if (!pmlmeinfo->HT_enable)
 		return;
 	/* All union members start with an action code, it's ok to use addba_req. */
 	switch (mgmt->u.action.u.addba_req.action_code) {
 	case WLAN_ACTION_ADDBA_REQ:
-		memcpy(&pmlmeinfo->ADDBA_req, &frame_body[2], sizeof(struct ADDBA_request));
 		tid = u16_get_bits(le16_to_cpu(mgmt->u.action.u.addba_req.capab),
 				   IEEE80211_ADDBA_PARAM_TID_MASK);
 		preorder_ctrl = &psta->recvreorder_ctrl[tid];
 		preorder_ctrl->indicate_seq = 0xffff;
 		preorder_ctrl->enable = pmlmeinfo->bAcceptAddbaReq;
-
 		issue_action_BA(padapter, mgmt->sa, WLAN_ACTION_ADDBA_RESP,
 				pmlmeinfo->bAcceptAddbaReq ?
-					WLAN_STATUS_SUCCESS : WLAN_STATUS_REQUEST_DECLINED);
+					WLAN_STATUS_SUCCESS : WLAN_STATUS_REQUEST_DECLINED, mgmt);
 		break;
 	case WLAN_ACTION_ADDBA_RESP:
 		tid = u16_get_bits(le16_to_cpu(mgmt->u.action.u.addba_resp.capab),
@@ -5377,7 +5371,8 @@ exit:
 	return ret;
 }
 
-void issue_action_BA(struct adapter *padapter, unsigned char *raddr, u8 action, u16 status)
+void issue_action_BA(struct adapter *padapter, unsigned char *raddr, u8 action,
+		     u16 status, struct ieee80211_mgmt *mgmt_req)
 {
 	u16 start_seq;
 	u16 BA_starting_seqctrl = 0;
@@ -5446,13 +5441,13 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, u8 action, 
 		break;
 	case WLAN_ACTION_ADDBA_RESP:
 		mgmt->u.action.u.addba_resp.action_code = WLAN_ACTION_ADDBA_RESP;
-		mgmt->u.action.u.addba_resp.dialog_token = pmlmeinfo->ADDBA_req.dialog_token;
+		mgmt->u.action.u.addba_resp.dialog_token = mgmt_req->u.action.u.addba_req.dialog_token;
 		mgmt->u.action.u.addba_resp.status = cpu_to_le16(status);
-		capab = le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f;
+		capab = le16_to_cpu(mgmt_req->u.action.u.addba_req.capab) & 0x3f;
 		capab |= u16_encode_bits(64, IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK);
 		capab |= u16_encode_bits(pregpriv->ampdu_amsdu, IEEE80211_ADDBA_PARAM_AMSDU_MASK);
 		mgmt->u.action.u.addba_req.capab = cpu_to_le16(capab);
-		mgmt->u.action.u.addba_resp.timeout = pmlmeinfo->ADDBA_req.BA_timeout_value;
+		mgmt->u.action.u.addba_resp.timeout = mgmt_req->u.action.u.addba_req.timeout;
 		pattrib->pktlen = offsetofend(struct ieee80211_mgmt, u.action.u.addba_resp.timeout);
 		break;
 	case WLAN_ACTION_DELBA:
@@ -5620,7 +5615,8 @@ unsigned int send_delba(struct adapter *padapter, u8 initiator, u8 *addr)
 	if (initiator == 0) { /*  recipient */
 		for (tid = 0; tid < MAXTID; tid++) {
 			if (psta->recvreorder_ctrl[tid].enable) {
-				issue_action_BA(padapter, addr, WLAN_ACTION_DELBA, (((tid << 1) | initiator) & 0x1F));
+				issue_action_BA(padapter, addr, WLAN_ACTION_DELBA,
+						(((tid << 1) | initiator) & 0x1F), NULL);
 				psta->recvreorder_ctrl[tid].enable = false;
 				psta->recvreorder_ctrl[tid].indicate_seq = 0xffff;
 			}
@@ -5628,7 +5624,8 @@ unsigned int send_delba(struct adapter *padapter, u8 initiator, u8 *addr)
 	} else if (initiator == 1) { /*  originator */
 		for (tid = 0; tid < MAXTID; tid++) {
 			if (psta->htpriv.agg_enable_bitmap & BIT(tid)) {
-				issue_action_BA(padapter, addr, WLAN_ACTION_DELBA, (((tid << 1) | initiator) & 0x1F));
+				issue_action_BA(padapter, addr, WLAN_ACTION_DELBA,
+						(((tid << 1) | initiator) & 0x1F), NULL);
 				psta->htpriv.agg_enable_bitmap &= ~BIT(tid);
 				psta->htpriv.candidate_tid_bitmap &= ~BIT(tid);
 			}
@@ -7683,7 +7680,7 @@ u8 add_ba_hdl(struct adapter *padapter, unsigned char *pbuf)
 
 	if (((pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS) && (pmlmeinfo->HT_enable)) ||
 	    ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE)) {
-		issue_action_BA(padapter, pparm->addr, WLAN_ACTION_ADDBA_REQ, (u16)pparm->tid);
+		issue_action_BA(padapter, pparm->addr, WLAN_ACTION_ADDBA_REQ, (u16)pparm->tid, NULL);
 		_set_timer(&psta->addba_retry_timer, ADDBA_TO);
 	} else {
 		psta->htpriv.candidate_tid_bitmap &= ~BIT(pparm->tid);

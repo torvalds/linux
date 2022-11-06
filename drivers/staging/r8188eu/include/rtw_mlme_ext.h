@@ -285,7 +285,6 @@ struct mlme_ext_info {
 	u8	bwmode_updated;
 	u8	hidden_ssid_mode;
 
-	struct ADDBA_request	ADDBA_req;
 	struct WMM_para_element	WMM_param;
 	struct HT_caps_element	HT_caps;
 	struct HT_info_element	HT_info;
@@ -523,7 +522,8 @@ int issue_deauth(struct adapter *padapter, unsigned char *da,
 		 unsigned short reason);
 int issue_deauth_ex(struct adapter *padapter, u8 *da, unsigned short reason,
 		    int try_cnt, int wait_ms);
-void issue_action_BA(struct adapter *padapter, unsigned char *raddr, u8 action, u16 status);
+void issue_action_BA(struct adapter *padapter, unsigned char *raddr, u8 action,
+		     u16 status, struct ieee80211_mgmt *mgmt_req);
 unsigned int send_delba(struct adapter *padapter, u8 initiator, u8 *addr);
 unsigned int send_beacon(struct adapter *padapter);
 bool get_beacon_valid_bit(struct adapter *adapter);
