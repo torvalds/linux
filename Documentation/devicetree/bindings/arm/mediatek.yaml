@@ -83,6 +83,7 @@ properties:
           - const: mediatek,mt7629
       - items:
           - enum:
+              - bananapi,bpi-r3
               - mediatek,mt7986a-rfb
           - const: mediatek,mt7986a
       - items:
