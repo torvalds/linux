@@ -6828,6 +6828,7 @@ static inline bool is_info_event(u32 event)
 {
 	switch (event) {
 	case GAUDI2_EVENT_CPU_CPLD_SHUTDOWN_CAUSE:
+	case GAUDI2_EVENT_CPU_FIX_POWER_ENV_S ... GAUDI2_EVENT_CPU_FIX_THERMAL_ENV_E:
 		return true;
 	default:
 		return false;
