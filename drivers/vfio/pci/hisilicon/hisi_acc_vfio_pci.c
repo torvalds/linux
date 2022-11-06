@@ -958,6 +958,14 @@ hisi_acc_vfio_pci_set_device_state(struct vfio_device *vdev,
 }
 
 static int
+hisi_acc_vfio_pci_get_data_size(struct vfio_device *vdev,
+				unsigned long *stop_copy_length)
+{
+	*stop_copy_length = sizeof(struct acc_vf_data);
+	return 0;
+}
+
+static int
 hisi_acc_vfio_pci_get_device_state(struct vfio_device *vdev,
 				   enum vfio_device_mig_state *curr_state)
 {
@@ -1213,6 +1221,7 @@ static void hisi_acc_vfio_pci_close_device(struct vfio_device *core_vdev)
 static const struct vfio_migration_ops hisi_acc_vfio_pci_migrn_state_ops = {
 	.migration_set_state = hisi_acc_vfio_pci_set_device_state,
 	.migration_get_state = hisi_acc_vfio_pci_get_device_state,
+	.migration_get_data_size = hisi_acc_vfio_pci_get_data_size,
 };
 
 static int hisi_acc_vfio_pci_migrn_init_dev(struct vfio_device *core_vdev)
