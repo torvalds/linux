@@ -1002,6 +1002,15 @@ struct mlx5dr_ste_action_modify_field {
 	u8 l4_type;
 };
 
+struct mlx5dr_ptrn_obj {
+	struct mlx5dr_icm_chunk *chunk;
+	u8 *data;
+	u16 num_of_actions;
+	u32 index;
+	refcount_t refcount;
+	struct list_head list;
+};
+
 struct mlx5dr_action_rewrite {
 	struct mlx5dr_domain *dmn;
 	struct mlx5dr_icm_chunk *chunk;
@@ -1011,6 +1020,7 @@ struct mlx5dr_action_rewrite {
 	u8 allow_rx:1;
 	u8 allow_tx:1;
 	u8 modify_ttl:1;
+	struct mlx5dr_ptrn_obj *ptrn;
 };
 
 struct mlx5dr_action_reformat {
@@ -1448,6 +1458,10 @@ int mlx5dr_send_postsend_formatted_htbl(struct mlx5dr_domain *dmn,
 					bool update_hw_ste);
 int mlx5dr_send_postsend_action(struct mlx5dr_domain *dmn,
 				struct mlx5dr_action *action);
+int mlx5dr_send_postsend_pattern(struct mlx5dr_domain *dmn,
+				 struct mlx5dr_icm_chunk *chunk,
+				 u16 num_of_actions,
+				 u8 *data);
 
 int mlx5dr_send_info_pool_create(struct mlx5dr_domain *dmn);
 void mlx5dr_send_info_pool_destroy(struct mlx5dr_domain *dmn);
@@ -1537,5 +1551,9 @@ static inline bool mlx5dr_supp_match_ranges(struct mlx5_core_dev *dev)
 bool mlx5dr_domain_is_support_ptrn_arg(struct mlx5dr_domain *dmn);
 struct mlx5dr_ptrn_mgr *mlx5dr_ptrn_mgr_create(struct mlx5dr_domain *dmn);
 void mlx5dr_ptrn_mgr_destroy(struct mlx5dr_ptrn_mgr *mgr);
+struct mlx5dr_ptrn_obj *mlx5dr_ptrn_cache_get_pattern(struct mlx5dr_ptrn_mgr *mgr,
+						      u16 num_of_actions, u8 *data);
+void mlx5dr_ptrn_cache_put_pattern(struct mlx5dr_ptrn_mgr *mgr,
+				   struct mlx5dr_ptrn_obj *pattern);
 
 #endif  /* _DR_TYPES_H_ */

@@ -754,6 +754,26 @@ int mlx5dr_send_postsend_action(struct mlx5dr_domain *dmn,
 	return dr_postsend_icm_data(dmn, &send_info);
 }
 
+int mlx5dr_send_postsend_pattern(struct mlx5dr_domain *dmn,
+				 struct mlx5dr_icm_chunk *chunk,
+				 u16 num_of_actions,
+				 u8 *data)
+{
+	struct postsend_info send_info = {};
+	int ret;
+
+	send_info.write.addr = (uintptr_t)data;
+	send_info.write.length = num_of_actions * DR_MODIFY_ACTION_SIZE;
+	send_info.remote_addr = mlx5dr_icm_pool_get_chunk_mr_addr(chunk);
+	send_info.rkey = mlx5dr_icm_pool_get_chunk_rkey(chunk);
+
+	ret = dr_postsend_icm_data(dmn, &send_info);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int dr_modify_qp_rst2init(struct mlx5_core_dev *mdev,
 				 struct mlx5dr_qp *dr_qp,
 				 int port)
