@@ -1065,8 +1065,6 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	if (!psta)
 		return _FAIL;
 
-	/* psta->rssi = prxcmd->rssi; */
-	/* psta->signal_quality = prxcmd->sq; */
 	precv_frame->psta = psta;
 
 	pattrib->amsdu = 0;
