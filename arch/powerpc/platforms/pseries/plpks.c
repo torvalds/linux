@@ -75,7 +75,7 @@ static int pseries_status_to_err(int rc)
 	case H_FUNCTION:
 		err = -ENXIO;
 		break;
-	case H_P1:
+	case H_PARAMETER:
 	case H_P2:
 	case H_P3:
 	case H_P4:
