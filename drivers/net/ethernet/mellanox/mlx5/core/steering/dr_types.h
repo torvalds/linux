@@ -21,6 +21,7 @@
 #define DR_NUM_OF_FLEX_PARSERS 8
 #define DR_STE_MAX_FLEX_0_ID 3
 #define DR_STE_MAX_FLEX_1_ID 7
+#define DR_ACTION_CACHE_LINE_SIZE 64
 
 #define mlx5dr_err(dmn, arg...) mlx5_core_err((dmn)->mdev, ##arg)
 #define mlx5dr_info(dmn, arg...) mlx5_core_info((dmn)->mdev, ##arg)

@@ -1365,8 +1365,6 @@ out_err:
 	return -EINVAL;
 }
 
-#define ACTION_CACHE_LINE_SIZE 64
-
 static int
 dr_action_create_reformat_action(struct mlx5dr_domain *dmn,
 				 u8 reformat_param_0, u8 reformat_param_1,
@@ -1403,13 +1401,13 @@ dr_action_create_reformat_action(struct mlx5dr_domain *dmn,
 	}
 	case DR_ACTION_TYP_TNL_L3_TO_L2:
 	{
-		u8 hw_actions[ACTION_CACHE_LINE_SIZE] = {};
+		u8 hw_actions[DR_ACTION_CACHE_LINE_SIZE] = {};
 		int ret;
 
 		ret = mlx5dr_ste_set_action_decap_l3_list(dmn->ste_ctx,
 							  data, data_sz,
 							  hw_actions,
-							  ACTION_CACHE_LINE_SIZE,
+							  DR_ACTION_CACHE_LINE_SIZE,
 							  &action->rewrite->num_of_actions);
 		if (ret) {
 			mlx5dr_dbg(dmn, "Failed creating decap l3 action list\n");
@@ -1427,7 +1425,7 @@ dr_action_create_reformat_action(struct mlx5dr_domain *dmn,
 		action->rewrite->index = (mlx5dr_icm_pool_get_chunk_icm_addr
 					  (action->rewrite->chunk) -
 					 dmn->info.caps.hdr_modify_icm_addr) /
-					 ACTION_CACHE_LINE_SIZE;
+					 DR_ACTION_CACHE_LINE_SIZE;
 
 		ret = mlx5dr_send_postsend_action(dmn, action);
 		if (ret) {
@@ -2006,7 +2004,7 @@ static int dr_action_create_modify_action(struct mlx5dr_domain *dmn,
 	action->rewrite->num_of_actions = num_hw_actions;
 	action->rewrite->index = (mlx5dr_icm_pool_get_chunk_icm_addr(chunk) -
 				  dmn->info.caps.hdr_modify_icm_addr) /
-				  ACTION_CACHE_LINE_SIZE;
+				  DR_ACTION_CACHE_LINE_SIZE;
 
 	ret = mlx5dr_send_postsend_action(dmn, action);
 	if (ret)
