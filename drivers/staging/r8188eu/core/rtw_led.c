@@ -140,8 +140,7 @@ void rtw_led_control(struct adapter *padapter, enum LED_CTL_MODE LedAction)
 	struct registry_priv *registry_par;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	if ((padapter->bSurpriseRemoved) || (padapter->bDriverStopped) ||
-	    (!padapter->hw_init_completed))
+	if (!padapter->hw_init_completed)
 		return;
 
 	if (!pLed->bRegUseLed)
