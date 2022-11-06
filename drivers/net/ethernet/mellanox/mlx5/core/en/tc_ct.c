@@ -35,6 +35,7 @@
 #define MLX5_CT_STATE_REPLY_BIT BIT(4)
 #define MLX5_CT_STATE_RELATED_BIT BIT(5)
 #define MLX5_CT_STATE_INVALID_BIT BIT(6)
+#define MLX5_CT_STATE_NEW_BIT BIT(7)
 
 #define MLX5_CT_LABELS_BITS MLX5_REG_MAPPING_MBITS(LABELS_TO_REG)
 #define MLX5_CT_LABELS_MASK MLX5_REG_MAPPING_MASK(LABELS_TO_REG)
@@ -721,12 +722,14 @@ mlx5_tc_ct_entry_create_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
 	DECLARE_MOD_HDR_ACTS_ACTIONS(actions_arr, MLX5_CT_MIN_MOD_ACTS);
 	DECLARE_MOD_HDR_ACTS(mod_acts, actions_arr);
 	struct flow_action_entry *meta;
+	enum ip_conntrack_info ctinfo;
 	u16 ct_state = 0;
 	int err;
 
 	meta = mlx5_tc_ct_get_ct_metadata_action(flow_rule);
 	if (!meta)
 		return -EOPNOTSUPP;
+	ctinfo = meta->ct_metadata.cookie & NFCT_INFOMASK;
 
 	err = mlx5_get_label_mapping(ct_priv, meta->ct_metadata.labels,
 				     &attr->ct_attr.ct_labels_id);
@@ -742,7 +745,8 @@ mlx5_tc_ct_entry_create_mod_hdr(struct mlx5_tc_ct_priv *ct_priv,
 		ct_state |= MLX5_CT_STATE_NAT_BIT;
 	}
 
-	ct_state |= MLX5_CT_STATE_ESTABLISHED_BIT | MLX5_CT_STATE_TRK_BIT;
+	ct_state |= MLX5_CT_STATE_TRK_BIT;
+	ct_state |= ctinfo == IP_CT_NEW ? MLX5_CT_STATE_NEW_BIT : MLX5_CT_STATE_ESTABLISHED_BIT;
 	ct_state |= meta->ct_metadata.orig_dir ? 0 : MLX5_CT_STATE_REPLY_BIT;
 	err = mlx5_tc_ct_entry_set_registers(ct_priv, &mod_acts,
 					     ct_state,
@@ -1181,15 +1185,11 @@ mlx5_tc_ct_block_flow_offload_add(struct mlx5_ct_ft *ft,
 	struct mlx5_tc_ct_priv *ct_priv = ft->ct_priv;
 	struct flow_action_entry *meta_action;
 	unsigned long cookie = flow->cookie;
-	enum ip_conntrack_info ctinfo;
 	struct mlx5_ct_entry *entry;
 	int err;
 
 	meta_action = mlx5_tc_ct_get_ct_metadata_action(flow_rule);
 	if (!meta_action)
-		return -EOPNOTSUPP;
-	ctinfo = meta_action->ct_metadata.cookie & NFCT_INFOMASK;
-	if (ctinfo == IP_CT_NEW)
 		return -EOPNOTSUPP;
 
 	spin_lock_bh(&ct_priv->ht_lock);
@@ -1443,7 +1443,7 @@ mlx5_tc_ct_match_add(struct mlx5_tc_ct_priv *priv,
 		     struct mlx5_ct_attr *ct_attr,
 		     struct netlink_ext_ack *extack)
 {
-	bool trk, est, untrk, unest, new, rpl, unrpl, rel, unrel, inv, uninv;
+	bool trk, est, untrk, unnew, unest, new, rpl, unrpl, rel, unrel, inv, uninv;
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector_key_ct *mask, *key;
 	u32 ctstate = 0, ctstate_mask = 0;
@@ -1489,15 +1489,18 @@ mlx5_tc_ct_match_add(struct mlx5_tc_ct_priv *priv,
 	rel = ct_state_on & TCA_FLOWER_KEY_CT_FLAGS_RELATED;
 	inv = ct_state_on & TCA_FLOWER_KEY_CT_FLAGS_INVALID;
 	untrk = ct_state_off & TCA_FLOWER_KEY_CT_FLAGS_TRACKED;
+	unnew = ct_state_off & TCA_FLOWER_KEY_CT_FLAGS_NEW;
 	unest = ct_state_off & TCA_FLOWER_KEY_CT_FLAGS_ESTABLISHED;
 	unrpl = ct_state_off & TCA_FLOWER_KEY_CT_FLAGS_REPLY;
 	unrel = ct_state_off & TCA_FLOWER_KEY_CT_FLAGS_RELATED;
 	uninv = ct_state_off & TCA_FLOWER_KEY_CT_FLAGS_INVALID;
 
 	ctstate |= trk ? MLX5_CT_STATE_TRK_BIT : 0;
+	ctstate |= new ? MLX5_CT_STATE_NEW_BIT : 0;
 	ctstate |= est ? MLX5_CT_STATE_ESTABLISHED_BIT : 0;
 	ctstate |= rpl ? MLX5_CT_STATE_REPLY_BIT : 0;
 	ctstate_mask |= (untrk || trk) ? MLX5_CT_STATE_TRK_BIT : 0;
+	ctstate_mask |= (unnew || new) ? MLX5_CT_STATE_NEW_BIT : 0;
 	ctstate_mask |= (unest || est) ? MLX5_CT_STATE_ESTABLISHED_BIT : 0;
 	ctstate_mask |= (unrpl || rpl) ? MLX5_CT_STATE_REPLY_BIT : 0;
 	ctstate_mask |= unrel ? MLX5_CT_STATE_RELATED_BIT : 0;
@@ -1512,12 +1515,6 @@ mlx5_tc_ct_match_add(struct mlx5_tc_ct_priv *priv,
 	if (inv) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "matching on ct_state +inv isn't supported");
-		return -EOPNOTSUPP;
-	}
-
-	if (new) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "matching on ct_state +new isn't supported");
 		return -EOPNOTSUPP;
 	}
 
