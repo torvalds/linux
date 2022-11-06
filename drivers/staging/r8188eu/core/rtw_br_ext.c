@@ -610,12 +610,11 @@ void dhcp_flag_bcast(struct adapter *priv, struct sk_buff *skb)
 			struct iphdr *iph = (struct iphdr *)(skb->data + ETH_HLEN);
 
 			if (iph->protocol == IPPROTO_UDP) { /*  UDP */
-				struct udphdr *udph = (struct udphdr *)((size_t)iph + (iph->ihl << 2));
+				struct udphdr *udph = (void *)iph + (iph->ihl << 2);
 
 				if ((udph->source == htons(CLIENT_PORT)) &&
 				    (udph->dest == htons(SERVER_PORT))) { /*  DHCP request */
-					struct dhcpMessage *dhcph =
-						(struct dhcpMessage *)((size_t)udph + sizeof(struct udphdr));
+					struct dhcpMessage *dhcph = (void *)udph + sizeof(struct udphdr);
 					u32 cookie = be32_to_cpu((__be32)dhcph->cookie);
 
 					if (cookie == DHCP_MAGIC) { /*  match magic word */
