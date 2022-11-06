@@ -228,7 +228,7 @@ static void hl_ts_free_objects(struct work_struct *work)
  * list to a dedicated workqueue to do the actual put.
  */
 static int handle_registration_node(struct hl_device *hdev, struct hl_user_pending_interrupt *pend,
-						struct list_head **free_list)
+						struct list_head **free_list, ktime_t now)
 {
 	struct timestamp_reg_free_node *free_node;
 	u64 timestamp;
@@ -246,7 +246,7 @@ static int handle_registration_node(struct hl_device *hdev, struct hl_user_pendi
 	if (!free_node)
 		return -ENOMEM;
 
-	timestamp = ktime_get_ns();
+	timestamp = ktime_to_ns(now);
 
 	*pend->ts_reg_info.timestamp_kernel_addr = timestamp;
 
@@ -298,7 +298,7 @@ static void handle_user_interrupt(struct hl_device *hdev, struct hl_user_interru
 			if (pend->ts_reg_info.buf) {
 				if (!reg_node_handle_fail) {
 					rc = handle_registration_node(hdev, pend,
-									&ts_reg_free_list_head);
+								&ts_reg_free_list_head, now);
 					if (rc)
 						reg_node_handle_fail = true;
 				}
