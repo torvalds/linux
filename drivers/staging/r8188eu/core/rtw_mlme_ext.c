@@ -3959,9 +3959,6 @@ void update_mgntframe_attrib(struct adapter *padapter, struct pkt_attrib *pattri
 
 void dump_mgntframe(struct adapter *padapter, struct xmit_frame *pmgntframe)
 {
-	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
-		return;
-
 	rtl8188eu_mgnt_xmit(padapter, pmgntframe);
 }
 
