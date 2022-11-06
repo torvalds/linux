@@ -263,7 +263,7 @@ static LIST_HEAD(retry_list);
 
 /**
  * ti_clk_retry_init - retries a failed clock init at later phase
- * @node: device not for the clock
+ * @node: device node for the clock
  * @user: user data pointer
  * @func: init function to be called for the clock
  *
