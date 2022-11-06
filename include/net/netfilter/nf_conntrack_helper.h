@@ -115,6 +115,9 @@ struct nf_conn_help *nf_ct_helper_ext_add(struct nf_conn *ct, gfp_t gfp);
 int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 			      gfp_t flags);
 
+int nf_ct_helper(struct sk_buff *skb, struct nf_conn *ct,
+		 enum ip_conntrack_info ctinfo, u16 proto);
+
 void nf_ct_helper_destroy(struct nf_conn *ct);
 
 static inline struct nf_conn_help *nfct_help(const struct nf_conn *ct)
