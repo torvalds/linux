@@ -1521,6 +1521,7 @@ static int ext4_fc_replay_inode(struct super_block *sb, struct ext4_fc_tl *tl,
 	struct ext4_iloc iloc;
 	int inode_len, ino, ret, tag = tl->fc_tag;
 	struct ext4_extent_header *eh;
+	size_t off_gen = offsetof(struct ext4_inode, i_generation);
 
 	memcpy(&fc_inode, val, sizeof(fc_inode));
 
@@ -1548,8 +1549,8 @@ static int ext4_fc_replay_inode(struct super_block *sb, struct ext4_fc_tl *tl,
 	raw_inode = ext4_raw_inode(&iloc);
 
 	memcpy(raw_inode, raw_fc_inode, offsetof(struct ext4_inode, i_block));
-	memcpy(&raw_inode->i_generation, &raw_fc_inode->i_generation,
-		inode_len - offsetof(struct ext4_inode, i_generation));
+	memcpy((u8 *)raw_inode + off_gen, (u8 *)raw_fc_inode + off_gen,
+	       inode_len - off_gen);
 	if (le32_to_cpu(raw_inode->i_flags) & EXT4_EXTENTS_FL) {
 		eh = (struct ext4_extent_header *)(&raw_inode->i_block[0]);
 		if (eh->eh_magic != EXT4_EXT_MAGIC) {
