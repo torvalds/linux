@@ -162,19 +162,15 @@ static struct plpks_auth *construct_auth(u8 consumer)
 	if (consumer > PKS_OS_OWNER)
 		return ERR_PTR(-EINVAL);
 
-	auth = kmalloc(struct_size(auth, password, maxpwsize), GFP_KERNEL);
+	auth = kzalloc(struct_size(auth, password, maxpwsize), GFP_KERNEL);
 	if (!auth)
 		return ERR_PTR(-ENOMEM);
 
 	auth->version = 1;
 	auth->consumer = consumer;
-	auth->rsvd0 = 0;
-	auth->rsvd1 = 0;
 
-	if (consumer == PKS_FW_OWNER || consumer == PKS_BOOTLOADER_OWNER) {
-		auth->passwordlength = 0;
+	if (consumer == PKS_FW_OWNER || consumer == PKS_BOOTLOADER_OWNER)
 		return auth;
-	}
 
 	memcpy(auth->password, ospassword, ospasswordlength);
 
