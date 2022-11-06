@@ -357,6 +357,19 @@ config MAX517
 	  This driver can also be built as a module.  If so, the module
 	  will be called max517.
 
+config MAX5522
+	tristate "Maxim MAX5522 DAC driver"
+	depends on SPI_MASTER
+	select REGMAP_SPI
+	help
+	  Say Y here if you want to build a driver for the Maxim MAX5522.
+
+	  MAX5522 is a dual, ultra-low-power, 10-Bit, voltage-output
+	  digital to analog converter (DAC) offering rail-to-rail buffered
+	  voltage outputs.
+
+	  If compiled as a module, it will be called max5522.
+
 config MAX5821
 	tristate "Maxim MAX5821 DAC driver"
 	depends on I2C
