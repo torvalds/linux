@@ -19,6 +19,7 @@
 #include <linux/bitops.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
+#include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/rtc.h>
 
