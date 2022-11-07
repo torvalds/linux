@@ -1813,6 +1813,39 @@ static int sof_ipc4_dai_get_clk(struct snd_sof_dev *sdev, struct snd_sof_dai *da
 	return -EINVAL;
 }
 
+static int sof_ipc4_tear_down_all_pipelines(struct snd_sof_dev *sdev, bool verify)
+{
+	struct snd_sof_pcm *spcm;
+	int dir, ret;
+
+	/*
+	 * This function is called during system suspend, we need to make sure
+	 * that all streams have been freed up.
+	 * Freeing might have been skipped when xrun happened just at the start
+	 * of the suspend and it sent a SNDRV_PCM_TRIGGER_STOP to the active
+	 * stream. This will call sof_pcm_stream_free() with
+	 * free_widget_list = false which will leave the kernel and firmware out
+	 * of sync during suspend/resume.
+	 *
+	 * This will also make sure that paused streams handled correctly.
+	 */
+	list_for_each_entry(spcm, &sdev->pcm_list, list) {
+		for_each_pcm_streams(dir) {
+			struct snd_pcm_substream *substream = spcm->stream[dir].substream;
+
+			if (!substream || !substream->runtime)
+				continue;
+
+			if (spcm->stream[dir].list) {
+				ret = sof_pcm_stream_free(sdev, substream, spcm, dir, true);
+				if (ret < 0)
+					return ret;
+			}
+		}
+	}
+	return 0;
+}
+
 static enum sof_tokens host_token_list[] = {
 	SOF_COMP_TOKENS,
 	SOF_AUDIO_FMT_NUM_TOKENS,
@@ -1913,4 +1946,5 @@ const struct sof_ipc_tplg_ops ipc4_tplg_ops = {
 	.dai_config = sof_ipc4_dai_config,
 	.parse_manifest = sof_ipc4_parse_manifest,
 	.dai_get_clk = sof_ipc4_dai_get_clk,
+	.tear_down_all_pipelines = sof_ipc4_tear_down_all_pipelines,
 };
