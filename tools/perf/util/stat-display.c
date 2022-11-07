@@ -890,7 +890,7 @@ static void print_interval(struct perf_stat_config *config,
 	FILE *output = config->output;
 	static int num_print_interval;
 
-	if (config->interval_clear)
+	if (config->interval_clear && isatty(fileno(output)))
 		puts(CONSOLE_CLEAR);
 
 	if (!config->iostat_run && !config->json_output)
