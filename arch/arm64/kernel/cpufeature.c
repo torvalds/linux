@@ -2101,6 +2101,11 @@ static void cpu_trap_el0_impdef(const struct arm64_cpu_capabilities *__unused)
 	sysreg_clear_set(sctlr_el1, 0, SCTLR_EL1_TIDCP);
 }
 
+static void cpu_enable_dit(const struct arm64_cpu_capabilities *__unused)
+{
+	set_pstate_dit(1);
+}
+
 /* Internal helper functions to match cpu capability type */
 static bool
 cpucap_late_cpu_optional(const struct arm64_cpu_capabilities *cap)
@@ -2663,6 +2668,18 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.min_field_value = ID_AA64MMFR1_EL1_TIDCP1_IMP,
 		.matches = has_cpuid_feature,
 		.cpu_enable = cpu_trap_el0_impdef,
+	},
+	{
+		.desc = "Data independent timing control (DIT)",
+		.capability = ARM64_HAS_DIT,
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.sys_reg = SYS_ID_AA64PFR0_EL1,
+		.sign = FTR_UNSIGNED,
+		.field_pos = ID_AA64PFR0_EL1_DIT_SHIFT,
+		.field_width = 4,
+		.min_field_value = ID_AA64PFR0_EL1_DIT_IMP,
+		.matches = has_cpuid_feature,
+		.cpu_enable = cpu_enable_dit,
 	},
 	{},
 };
