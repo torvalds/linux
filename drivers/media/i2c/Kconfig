@@ -1316,7 +1316,6 @@ config VIDEO_TC358746
 	select V4L2_FWNODE
 	select GENERIC_PHY_MIPI_DPHY
 	select REGMAP_I2C
-	select COMMON_CLK
 	help
 	  Support for the Toshiba TC358746 parallel to MIPI CSI-2 bridge.
 	  The bridge can work in both directions but currently only the
