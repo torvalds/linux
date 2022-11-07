@@ -30,11 +30,9 @@ static int ksz9477_i2c_probe(struct i2c_client *i2c,
 		rc.lock_arg = &dev->regmap_mutex;
 		dev->regmap[i] = devm_regmap_init_i2c(i2c, &rc);
 		if (IS_ERR(dev->regmap[i])) {
-			ret = PTR_ERR(dev->regmap[i]);
-			dev_err(&i2c->dev,
-				"Failed to initialize regmap%i: %d\n",
-				ksz9477_regmap_config[i].val_bits, ret);
-			return ret;
+			return dev_err_probe(&i2c->dev, PTR_ERR(dev->regmap[i]),
+					     "Failed to initialize regmap%i\n",
+					     ksz9477_regmap_config[i].val_bits);
 		}
 	}
 

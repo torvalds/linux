@@ -71,11 +71,9 @@ static int ksz_spi_probe(struct spi_device *spi)
 		dev->regmap[i] = devm_regmap_init_spi(spi, &rc);
 
 		if (IS_ERR(dev->regmap[i])) {
-			ret = PTR_ERR(dev->regmap[i]);
-			dev_err(&spi->dev,
-				"Failed to initialize regmap%i: %d\n",
-				regmap_config[i].val_bits, ret);
-			return ret;
+			return dev_err_probe(&spi->dev, PTR_ERR(dev->regmap[i]),
+					     "Failed to initialize regmap%i\n",
+					     regmap_config[i].val_bits);
 		}
 	}
 
