@@ -200,6 +200,13 @@ struct drm_fb_helper {
 	 */
 	int preferred_bpp;
 
+	/**
+	 * @hint_leak_smem_start:
+	 *
+	 * Hint to the fbdev emulation to store the framebuffer's physical
+	 * address in struct &fb_info.fix.smem_start. If the hint is unset,
+	 * the smem_start field should always be cleared to zero.
+	 */
 	bool hint_leak_smem_start;
 };
 
