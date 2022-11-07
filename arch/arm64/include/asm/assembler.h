@@ -660,12 +660,10 @@ alternative_endif
 	.endm
 
 	.macro	pte_to_phys, phys, pte
-#ifdef CONFIG_ARM64_PA_BITS_52
-	ubfiz	\phys, \pte, #(48 - 16 - 12), #16
-	bfxil	\phys, \pte, #16, #32
-	lsl	\phys, \phys, #16
-#else
 	and	\phys, \pte, #PTE_ADDR_MASK
+#ifdef CONFIG_ARM64_PA_BITS_52
+	orr	\phys, \phys, \phys, lsl #PTE_ADDR_HIGH_SHIFT
+	and	\phys, \phys, GENMASK_ULL(PHYS_MASK_SHIFT - 1, PAGE_SHIFT)
 #endif
 	.endm
 
