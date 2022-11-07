@@ -51,12 +51,11 @@
  * Depending on the size of the I2C EEPROM device(s), bits 18:16 may
  * address memory in a device or a device on the I2C bus, depending on
  * the status of pins 1-3. See top of amdgpu_eeprom.c.
+ *
+ * The RAS table lives either at address 0 or address 40000h of EEPROM.
  */
-#define EEPROM_I2C_MADDR_VEGA20         0x0
-#define EEPROM_I2C_MADDR_ARCTURUS       0x40000
-#define EEPROM_I2C_MADDR_ARCTURUS_D342  0x0
-#define EEPROM_I2C_MADDR_SIENNA_CICHLID 0x0
-#define EEPROM_I2C_MADDR_ALDEBARAN      0x0
+#define EEPROM_I2C_MADDR_0      0x0
+#define EEPROM_I2C_MADDR_4      0x40000
 
 /*
  * The 2 macros bellow represent the actual size in bytes that
@@ -135,9 +134,9 @@ static bool __get_eeprom_i2c_addr_arct(struct amdgpu_device *adev,
 	if (strnstr(atom_ctx->vbios_version,
 	            "D342",
 		    sizeof(atom_ctx->vbios_version)))
-		control->i2c_address = EEPROM_I2C_MADDR_ARCTURUS_D342;
+		control->i2c_address = EEPROM_I2C_MADDR_0;
 	else
-		control->i2c_address = EEPROM_I2C_MADDR_ARCTURUS;
+		control->i2c_address = EEPROM_I2C_MADDR_4;
 
 	return true;
 }
@@ -148,7 +147,7 @@ static bool __get_eeprom_i2c_addr_ip_discovery(struct amdgpu_device *adev,
 	switch (adev->ip_versions[MP1_HWIP][0]) {
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 10):
-		control->i2c_address = EEPROM_I2C_MADDR_ARCTURUS;
+		control->i2c_address = EEPROM_I2C_MADDR_4;
 		return true;
 	default:
 		return false;
@@ -180,18 +179,18 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA20:
-		control->i2c_address = EEPROM_I2C_MADDR_VEGA20;
+		control->i2c_address = EEPROM_I2C_MADDR_0;
 		break;
 
 	case CHIP_ARCTURUS:
 		return __get_eeprom_i2c_addr_arct(adev, control);
 
 	case CHIP_SIENNA_CICHLID:
-		control->i2c_address = EEPROM_I2C_MADDR_SIENNA_CICHLID;
+		control->i2c_address = EEPROM_I2C_MADDR_0;
 		break;
 
 	case CHIP_ALDEBARAN:
-		control->i2c_address = EEPROM_I2C_MADDR_ALDEBARAN;
+		control->i2c_address = EEPROM_I2C_MADDR_0;
 		break;
 
 	case CHIP_IP_DISCOVERY:
@@ -203,7 +202,7 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 
 	switch (adev->ip_versions[MP1_HWIP][0]) {
 	case IP_VERSION(13, 0, 0):
-		control->i2c_address = EEPROM_I2C_MADDR_ARCTURUS;
+		control->i2c_address = EEPROM_I2C_MADDR_4;
 		break;
 
 	default:
