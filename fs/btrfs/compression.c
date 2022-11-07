@@ -119,7 +119,7 @@ static int compression_decompress_bio(struct list_head *ws,
 }
 
 static int compression_decompress(int type, struct list_head *ws,
-               unsigned char *data_in, struct page *dest_page,
+               const u8 *data_in, struct page *dest_page,
                unsigned long start_byte, size_t srclen, size_t destlen)
 {
 	switch (type) {
@@ -1232,7 +1232,7 @@ static int btrfs_decompress_bio(struct compressed_bio *cb)
  * single page, and we want to read a single page out of it.
  * start_byte tells us the offset into the compressed data we're interested in
  */
-int btrfs_decompress(int type, unsigned char *data_in, struct page *dest_page,
+int btrfs_decompress(int type, const u8 *data_in, struct page *dest_page,
 		     unsigned long start_byte, size_t srclen, size_t destlen)
 {
 	struct list_head *workspace;

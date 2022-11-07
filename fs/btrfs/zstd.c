@@ -616,7 +616,7 @@ done:
 	return ret;
 }
 
-int zstd_decompress(struct list_head *ws, unsigned char *data_in,
+int zstd_decompress(struct list_head *ws, const u8 *data_in,
 		struct page *dest_page, unsigned long start_byte, size_t srclen,
 		size_t destlen)
 {
