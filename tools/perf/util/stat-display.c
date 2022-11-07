@@ -430,12 +430,12 @@ static void print_metric_header(struct perf_stat_config *config,
 	    os->evsel->priv != os->evsel->evlist->selected->priv)
 		return;
 
-	if (!valid_only_metric(unit) && !config->json_output)
+	if (!valid_only_metric(unit))
 		return;
 	unit = fixunit(tbuf, os->evsel, unit);
 
 	if (config->json_output)
-		fprintf(os->fh, "\"unit\" : \"%s\"", unit);
+		fprintf(os->fh, "{\"unit\" : \"%s\"}", unit);
 	else if (config->csv_output)
 		fprintf(os->fh, "%s%s", unit, config->csv_sep);
 	else
@@ -845,10 +845,6 @@ static void print_metric_headers(struct perf_stat_config *config,
 		.new_line = new_line_metric,
 		.force_header = true,
 	};
-	bool first = true;
-
-	if (config->json_output && !config->interval)
-		fprintf(config->output, "{");
 
 	if (prefix && !config->json_output)
 		fprintf(config->output, "%s", prefix);
@@ -869,18 +865,12 @@ static void print_metric_headers(struct perf_stat_config *config,
 	evlist__for_each_entry(evlist, counter) {
 		os.evsel = counter;
 
-		if (!first && config->json_output)
-			fprintf(config->output, ", ");
-		first = false;
-
 		perf_stat__print_shadow_stats(config, counter, 0,
 					      0,
 					      &out,
 					      &config->metric_events,
 					      &rt_stat);
 	}
-	if (config->json_output)
-		fprintf(config->output, "}");
 	fputc('\n', config->output);
 }
 
@@ -952,14 +942,8 @@ static void print_interval(struct perf_stat_config *config,
 		}
 	}
 
-	if ((num_print_interval == 0 || config->interval_clear)
-			 && metric_only && !config->json_output)
+	if ((num_print_interval == 0 || config->interval_clear) && metric_only)
 		print_metric_headers(config, evlist, " ", true);
-	if ((num_print_interval == 0 || config->interval_clear)
-			 && metric_only && config->json_output) {
-		fprintf(output, "{");
-		print_metric_headers(config, evlist, " ", true);
-	}
 	if (++num_print_interval == 25)
 		num_print_interval = 0;
 }
