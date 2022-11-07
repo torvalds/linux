@@ -57,7 +57,6 @@
 #include <linux/pwm.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
-#include <linux/slab.h>
 #include <linux/sysfs.h>
 
 /* The channel number of Aspeed pwm controller */
