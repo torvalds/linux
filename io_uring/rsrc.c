@@ -321,6 +321,11 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 		if (atomic_dec_and_test(&data->refs))
 			break;
 		mutex_unlock(&ctx->uring_lock);
+
+		ret = io_run_task_work_sig(ctx);
+		if (ret < 0)
+			goto reinit;
+
 		flush_delayed_work(&ctx->rsrc_put_work);
 		ret = wait_for_completion_interruptible(&data->done);
 		if (!ret) {
@@ -336,12 +341,12 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 			}
 		}
 
+reinit:
 		atomic_inc(&data->refs);
 		/* wait for all works potentially completing data->done */
 		flush_delayed_work(&ctx->rsrc_put_work);
 		reinit_completion(&data->done);
 
-		ret = io_run_task_work_sig(ctx);
 		mutex_lock(&ctx->uring_lock);
 	} while (ret >= 0);
 	data->quiesce = false;
