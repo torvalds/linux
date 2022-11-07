@@ -332,6 +332,8 @@ static int aspeed_tach_probe(struct platform_device *pdev)
 	priv->tach_channel =
 		devm_kcalloc(dev, TACH_ASPEED_NR_TACHS,
 			     sizeof(*priv->tach_channel), GFP_KERNEL);
+	if (!priv->tach_channel)
+		return -ENOMEM;
 
 	priv->regmap = syscon_node_to_regmap(np);
 	if (IS_ERR(priv->regmap))
