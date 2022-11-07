@@ -940,17 +940,30 @@ static int ufs_qcom_set_dme_vs_core_clk_ctrl_max_freq_mode(struct ufs_hba *hba)
 	}
 
 	switch (max_freq) {
+	case 403000000:
+		err = ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(hba, 403, 16);
+		break;
 	case 300000000:
 		err = ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(hba, 300, 12);
 		break;
+	case 201500000:
+		err = ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(hba, 202, 8);
+		break;
 	case 150000000:
 		err = ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(hba, 150, 6);
+		break;
+	case 100000000:
+		err = ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(hba, 100, 4);
 		break;
 	default:
 		err = -EINVAL;
 		break;
 	}
 
+	if (err) {
+		dev_err(hba->dev, "unipro max_freq=%u entry missing\n", max_freq);
+		dump_stack();
+	}
 	return err;
 }
 
@@ -2078,6 +2091,7 @@ static void ufs_qcom_set_caps(struct ufs_hba *hba)
 		hba->caps |= UFSHCD_CAP_CLK_GATING |
 			UFSHCD_CAP_AUTO_BKOPS_SUSPEND;
 		hba->caps |= UFSHCD_CAP_WB_EN;
+		hba->caps |= UFSHCD_CAP_CLK_SCALING;
 	}
 
 	hba->caps |= UFSHCD_CAP_CRYPTO;
@@ -3514,8 +3528,12 @@ static int ufs_qcom_clk_scale_down_post_change(struct ufs_hba *hba)
 	case 75000000:
 		err = ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(hba, 75, 3);
 		break;
+	case 100000000:
+		err = ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(hba, 100, 4);
+		break;
 	default:
 		err = -EINVAL;
+		dev_err(hba->dev, "unipro curr_freq=%u entry missing\n", curr_freq);
 		break;
 	}
 
