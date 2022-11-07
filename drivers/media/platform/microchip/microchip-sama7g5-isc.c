@@ -526,14 +526,22 @@ static int microchip_xisc_probe(struct platform_device *pdev)
 			break;
 	}
 
+	regmap_read(isc->regmap, ISC_VERSION + isc->offsets.version, &ver);
+
+	ret = isc_mc_init(isc, ver);
+	if (ret < 0)
+		goto isc_probe_mc_init_err;
+
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_request_idle(dev);
 
-	regmap_read(isc->regmap, ISC_VERSION + isc->offsets.version, &ver);
 	dev_info(dev, "Microchip XISC version %x\n", ver);
 
 	return 0;
+
+isc_probe_mc_init_err:
+	isc_mc_cleanup(isc);
 
 cleanup_subdev:
 	microchip_isc_subdev_cleanup(isc);
@@ -554,6 +562,8 @@ static int microchip_xisc_remove(struct platform_device *pdev)
 	struct isc_device *isc = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
+
+	isc_mc_cleanup(isc);
 
 	microchip_isc_subdev_cleanup(isc);
 
