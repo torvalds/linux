@@ -592,7 +592,7 @@ static int svm_hardware_enable(void)
 
 	wrmsrl(MSR_EFER, efer | EFER_SVME);
 
-	wrmsrl(MSR_VM_HSAVE_PA, __sme_page_pa(sd->save_area));
+	wrmsrl(MSR_VM_HSAVE_PA, sd->save_area_pa);
 
 	if (static_cpu_has(X86_FEATURE_TSCRATEMSR)) {
 		/*
@@ -648,6 +648,7 @@ static void svm_cpu_uninit(int cpu)
 
 	kfree(sd->sev_vmcbs);
 	__free_page(sd->save_area);
+	sd->save_area_pa = 0;
 	sd->save_area = NULL;
 }
 
@@ -665,6 +666,7 @@ static int svm_cpu_init(int cpu)
 	if (ret)
 		goto free_save_area;
 
+	sd->save_area_pa = __sme_page_pa(sd->save_area);
 	return 0;
 
 free_save_area:
@@ -1450,7 +1452,7 @@ static void svm_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	 * Save additional host state that will be restored on VMEXIT (sev-es)
 	 * or subsequent vmload of host save area.
 	 */
-	vmsave(__sme_page_pa(sd->save_area));
+	vmsave(sd->save_area_pa);
 	if (sev_es_guest(vcpu->kvm)) {
 		struct sev_es_save_area *hostsa;
 		hostsa = (struct sev_es_save_area *)(page_address(sd->save_area) + 0x400);
@@ -3905,14 +3907,10 @@ static noinstr void svm_vcpu_enter_exit(struct kvm_vcpu *vcpu)
 
 	guest_state_enter_irqoff();
 
-	if (sev_es_guest(vcpu->kvm)) {
+	if (sev_es_guest(vcpu->kvm))
 		__svm_sev_es_vcpu_run(svm);
-	} else {
-		struct svm_cpu_data *sd = per_cpu_ptr(&svm_data, vcpu->cpu);
-
+	else
 		__svm_vcpu_run(svm);
-		vmload(__sme_page_pa(sd->save_area));
-	}
 
 	guest_state_exit_irqoff();
 }
