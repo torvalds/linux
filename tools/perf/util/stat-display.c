@@ -849,7 +849,7 @@ static void print_metric_headers(struct perf_stat_config *config,
 	if (prefix && !config->json_output)
 		fprintf(config->output, "%s", prefix);
 
-	if (!config->csv_output && !no_indent)
+	if (!config->csv_output && !config->json_output && !no_indent)
 		fprintf(config->output, "%*s",
 			aggr_header_lens[config->aggr_mode], "");
 	if (config->csv_output) {
