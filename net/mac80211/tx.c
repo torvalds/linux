@@ -1343,7 +1343,7 @@ static struct txq_info *ieee80211_get_txq(struct ieee80211_local *local,
 			return NULL;
 
 		txq = sta->sta.txq[tid];
-	} else if (vif) {
+	} else {
 		txq = vif->txq;
 	}
 
