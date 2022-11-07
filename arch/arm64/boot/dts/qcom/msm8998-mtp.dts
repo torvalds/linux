@@ -124,15 +124,11 @@
 };
 
 &funnel4 {
-	// FIXME: Figure out why clock late_initcall crashes the board with
-	// this enabled.
-	// status = "okay";
+	/* FIXME: Figure out why clock late_initcall crashes the board with this enabled. */
 };
 
 &funnel5 {
-	// FIXME: Figure out why clock late_initcall crashes the board with
-	// this enabled.
-	// status = "okay";
+	/* FIXME: Figure out why clock late_initcall crashes the board with this enabled. */
 };
 
 &pcie0 {
