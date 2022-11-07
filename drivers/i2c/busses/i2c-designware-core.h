@@ -123,12 +123,12 @@
 #define DW_IC_COMP_PARAM_1_SPEED_MODE_MASK	GENMASK(3, 2)
 
 /*
- * status codes
+ * Sofware status flags
  */
-#define STATUS_IDLE			0x0
-#define STATUS_ACTIVE			0x1
-#define STATUS_WRITE_IN_PROGRESS	0x2
-#define STATUS_READ_IN_PROGRESS		0x4
+#define STATUS_ACTIVE			BIT(0)
+#define STATUS_WRITE_IN_PROGRESS	BIT(1)
+#define STATUS_READ_IN_PROGRESS		BIT(2)
+#define STATUS_MASK			GENMASK(2, 0)
 
 /*
  * operation modes
