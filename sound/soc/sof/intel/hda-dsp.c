@@ -348,8 +348,12 @@ void hda_dsp_ipc_int_disable(struct snd_sof_dev *sdev)
 static int hda_dsp_wait_d0i3c_done(struct snd_sof_dev *sdev)
 {
 	int retry = HDA_DSP_REG_POLL_RETRY_COUNT;
+	struct snd_sof_pdata *pdata = sdev->pdata;
+	const struct sof_intel_dsp_desc *chip;
 
-	while (snd_sof_dsp_read8(sdev, HDA_DSP_HDA_BAR, SOF_HDA_VS_D0I3C) & SOF_HDA_VS_D0I3C_CIP) {
+	chip = get_chip_info(pdata);
+	while (snd_sof_dsp_read8(sdev, HDA_DSP_HDA_BAR, chip->d0i3_offset) &
+		SOF_HDA_VS_D0I3C_CIP) {
 		if (!retry--)
 			return -ETIMEDOUT;
 		usleep_range(10, 15);
@@ -377,29 +381,32 @@ static int hda_dsp_send_pm_gate_ipc(struct snd_sof_dev *sdev, u32 flags)
 
 static int hda_dsp_update_d0i3c_register(struct snd_sof_dev *sdev, u8 value)
 {
-	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct snd_sof_pdata *pdata = sdev->pdata;
+	const struct sof_intel_dsp_desc *chip;
 	int ret;
 	u8 reg;
+
+	chip = get_chip_info(pdata);
 
 	/* Write to D0I3C after Command-In-Progress bit is cleared */
 	ret = hda_dsp_wait_d0i3c_done(sdev);
 	if (ret < 0) {
-		dev_err(bus->dev, "CIP timeout before D0I3C update!\n");
+		dev_err(sdev->dev, "CIP timeout before D0I3C update!\n");
 		return ret;
 	}
 
 	/* Update D0I3C register */
-	snd_sof_dsp_update8(sdev, HDA_DSP_HDA_BAR,
-			    SOF_HDA_VS_D0I3C, SOF_HDA_VS_D0I3C_I3, value);
+	snd_sof_dsp_update8(sdev, HDA_DSP_HDA_BAR, chip->d0i3_offset,
+			    SOF_HDA_VS_D0I3C_I3, value);
 
 	/* Wait for cmd in progress to be cleared before exiting the function */
 	ret = hda_dsp_wait_d0i3c_done(sdev);
 	if (ret < 0) {
-		dev_err(bus->dev, "CIP timeout after D0I3C update!\n");
+		dev_err(sdev->dev, "CIP timeout after D0I3C update!\n");
 		return ret;
 	}
 
-	reg = snd_sof_dsp_read8(sdev, HDA_DSP_HDA_BAR, SOF_HDA_VS_D0I3C);
+	reg = snd_sof_dsp_read8(sdev, HDA_DSP_HDA_BAR, chip->d0i3_offset);
 	trace_sof_intel_D0I3C_updated(sdev, reg);
 
 	return 0;
