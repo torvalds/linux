@@ -79,9 +79,9 @@
 #define DW_IC_CLR_RESTART_DET			0xa8
 #define DW_IC_COMP_PARAM_1			0xf4
 #define DW_IC_COMP_VERSION			0xf8
-#define DW_IC_SDA_HOLD_MIN_VERS			0x3131312A
+#define DW_IC_SDA_HOLD_MIN_VERS			0x3131312A /* "111*" == v1.11* */
 #define DW_IC_COMP_TYPE				0xfc
-#define DW_IC_COMP_TYPE_VALUE			0x44570140
+#define DW_IC_COMP_TYPE_VALUE			0x44570140 /* "DW" + 0x0140 */
 
 #define DW_IC_INTR_RX_UNDER			BIT(0)
 #define DW_IC_INTR_RX_OVER			BIT(1)
