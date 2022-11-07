@@ -948,12 +948,26 @@ static void rk_tsadcv7_initialize(struct regmap *grf, void __iomem *regs,
 		writel_relaxed(0U & ~TSADCV2_AUTO_TSHUT_POLARITY_HIGH,
 			       regs + TSADCV2_AUTO_CON);
 
+	/*
+	 * The general register file will is optional
+	 * and might not be available.
+	 */
 	if (!IS_ERR(grf)) {
 		regmap_write(grf, RK3568_GRF_TSADC_CON, RK3568_GRF_TSADC_TSEN);
+		/*
+		 * RK3568 TRM, section 18.5. requires a delay no less
+		 * than 10us between the rising edge of tsadc_tsen_en
+		 * and the rising edge of tsadc_ana_reg_0/1/2.
+		 */
 		udelay(15);
 		regmap_write(grf, RK3568_GRF_TSADC_CON, RK3568_GRF_TSADC_ANA_REG0);
 		regmap_write(grf, RK3568_GRF_TSADC_CON, RK3568_GRF_TSADC_ANA_REG1);
 		regmap_write(grf, RK3568_GRF_TSADC_CON, RK3568_GRF_TSADC_ANA_REG2);
+
+		/*
+		 * RK3568 TRM, section 18.5. requires a delay no less
+		 * than 90us after the rising edge of tsadc_ana_reg_0/1/2.
+		 */
 		usleep_range(100, 200);
 	}
 }
