@@ -126,8 +126,6 @@ xrep_roll_ag_trans(
 		xfs_trans_bhold(sc->tp, sc->sa.agi_bp);
 	if (sc->sa.agf_bp)
 		xfs_trans_bhold(sc->tp, sc->sa.agf_bp);
-	if (sc->sa.agfl_bp)
-		xfs_trans_bhold(sc->tp, sc->sa.agfl_bp);
 
 	/*
 	 * Roll the transaction.  We still own the buffer and the buffer lock
@@ -145,8 +143,6 @@ xrep_roll_ag_trans(
 		xfs_trans_bjoin(sc->tp, sc->sa.agi_bp);
 	if (sc->sa.agf_bp)
 		xfs_trans_bjoin(sc->tp, sc->sa.agf_bp);
-	if (sc->sa.agfl_bp)
-		xfs_trans_bjoin(sc->tp, sc->sa.agfl_bp);
 
 	return 0;
 }
@@ -498,6 +494,7 @@ xrep_put_freelist(
 	struct xfs_scrub	*sc,
 	xfs_agblock_t		agbno)
 {
+	struct xfs_buf		*agfl_bp;
 	int			error;
 
 	/* Make sure there's space on the freelist. */
@@ -516,8 +513,12 @@ xrep_put_freelist(
 		return error;
 
 	/* Put the block on the AGFL. */
+	error = xfs_alloc_read_agfl(sc->sa.pag, sc->tp, &agfl_bp);
+	if (error)
+		return error;
+
 	error = xfs_alloc_put_freelist(sc->sa.pag, sc->tp, sc->sa.agf_bp,
-			sc->sa.agfl_bp, agbno, 0);
+			agfl_bp, agbno, 0);
 	if (error)
 		return error;
 	xfs_extent_busy_insert(sc->tp, sc->sa.pag, agbno, 1,

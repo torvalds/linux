@@ -697,7 +697,6 @@ xrep_agfl(
 	 * freespace overflow to the freespace btrees.
 	 */
 	sc->sa.agf_bp = agf_bp;
-	sc->sa.agfl_bp = agfl_bp;
 	error = xrep_roll_ag_trans(sc);
 	if (error)
 		goto err;
