@@ -3050,36 +3050,51 @@
 		};
 
 		l2c_0: l2-cache0 {
+			compatible = "cache";
+			cache-unified;
 			cache-size = <2097152>;
 			cache-line-size = <64>;
 			cache-sets = <2048>;
+			cache-level = <2>;
 			next-level-cache = <&l3c>;
 		};
 
 		l2c_1: l2-cache1 {
+			compatible = "cache";
+			cache-unified;
 			cache-size = <2097152>;
 			cache-line-size = <64>;
 			cache-sets = <2048>;
+			cache-level = <2>;
 			next-level-cache = <&l3c>;
 		};
 
 		l2c_2: l2-cache2 {
+			compatible = "cache";
+			cache-unified;
 			cache-size = <2097152>;
 			cache-line-size = <64>;
 			cache-sets = <2048>;
+			cache-level = <2>;
 			next-level-cache = <&l3c>;
 		};
 
 		l2c_3: l2-cache3 {
+			compatible = "cache";
+			cache-unified;
 			cache-size = <2097152>;
 			cache-line-size = <64>;
 			cache-sets = <2048>;
+			cache-level = <2>;
 			next-level-cache = <&l3c>;
 		};
 
 		l3c: l3-cache {
+			compatible = "cache";
+			cache-unified;
 			cache-size = <4194304>;
 			cache-line-size = <64>;
+			cache-level = <3>;
 			cache-sets = <4096>;
 		};
 	};
