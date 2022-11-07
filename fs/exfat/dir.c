@@ -905,17 +905,24 @@ static inline void exfat_reset_empty_hint(struct exfat_hint_femp *hint_femp)
 
 static inline void exfat_set_empty_hint(struct exfat_inode_info *ei,
 		struct exfat_hint_femp *candi_empty, struct exfat_chain *clu,
-		int dentry, int num_entries)
+		int dentry, int num_entries, int entry_type)
 {
 	if (ei->hint_femp.eidx == EXFAT_HINT_NONE ||
 	    ei->hint_femp.eidx > dentry) {
+		int total_entries = EXFAT_B_TO_DEN(i_size_read(&ei->vfs_inode));
+
 		if (candi_empty->count == 0) {
 			candi_empty->cur = *clu;
 			candi_empty->eidx = dentry;
 		}
 
-		candi_empty->count++;
-		if (candi_empty->count == num_entries)
+		if (entry_type == TYPE_UNUSED)
+			candi_empty->count += total_entries - dentry;
+		else
+			candi_empty->count++;
+
+		if (candi_empty->count == num_entries ||
+		    candi_empty->count + candi_empty->eidx == total_entries)
 			ei->hint_femp = *candi_empty;
 	}
 }
@@ -989,7 +996,8 @@ rewind:
 				step = DIRENT_STEP_FILE;
 
 				exfat_set_empty_hint(ei, &candi_empty, &clu,
-						dentry, num_entries);
+						dentry, num_entries,
+						entry_type);
 
 				brelse(bh);
 				if (entry_type == TYPE_UNUSED)
@@ -1098,6 +1106,16 @@ not_found:
 		dentry = 0;
 		clu.dir = p_dir->dir;
 		goto rewind;
+	}
+
+	/*
+	 * set the EXFAT_EOF_CLUSTER flag to avoid search
+	 * from the beginning again when allocated a new cluster
+	 */
+	if (ei->hint_femp.eidx == EXFAT_HINT_NONE) {
+		ei->hint_femp.cur.dir = EXFAT_EOF_CLUSTER;
+		ei->hint_femp.eidx = p_dir->size * dentries_per_clu;
+		ei->hint_femp.count = 0;
 	}
 
 	/* initialized hint_stat */

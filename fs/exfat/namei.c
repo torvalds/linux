@@ -224,11 +224,18 @@ static int exfat_search_empty_slot(struct super_block *sb,
 
 	if (hint_femp->eidx != EXFAT_HINT_NONE) {
 		dentry = hint_femp->eidx;
-		if (num_entries <= hint_femp->count) {
-			hint_femp->eidx = EXFAT_HINT_NONE;
-			return dentry;
-		}
 
+		/*
+		 * If hint_femp->count is enough, it is needed to check if
+		 * there are actual empty entries.
+		 * Otherwise, and if "dentry + hint_famp->count" is also equal
+		 * to "p_dir->size * dentries_per_clu", it means ENOSPC.
+		 */
+		if (dentry + hint_femp->count == p_dir->size * dentries_per_clu &&
+		    num_entries > hint_femp->count)
+			return -ENOSPC;
+
+		hint_femp->eidx = EXFAT_HINT_NONE;
 		exfat_chain_dup(&clu, &hint_femp->cur);
 	} else {
 		exfat_chain_dup(&clu, p_dir);
@@ -292,6 +299,12 @@ static int exfat_search_empty_slot(struct super_block *sb,
 				return -EIO;
 		}
 	}
+
+	hint_femp->eidx = p_dir->size * dentries_per_clu - num_empty;
+	hint_femp->count = num_empty;
+	if (num_empty == 0)
+		exfat_chain_set(&hint_femp->cur, EXFAT_EOF_CLUSTER, 0,
+				clu.flags);
 
 	return -ENOSPC;
 }
@@ -369,15 +382,11 @@ static int exfat_find_empty_entry(struct inode *inode,
 			if (exfat_ent_set(sb, last_clu, clu.dir))
 				return -EIO;
 
-		if (hint_femp.eidx == EXFAT_HINT_NONE) {
-			/* the special case that new dentry
-			 * should be allocated from the start of new cluster
-			 */
-			hint_femp.eidx = EXFAT_B_TO_DEN_IDX(p_dir->size, sbi);
-			hint_femp.count = sbi->dentries_per_clu;
-
+		if (hint_femp.cur.dir == EXFAT_EOF_CLUSTER)
 			exfat_chain_set(&hint_femp.cur, clu.dir, 0, clu.flags);
-		}
+
+		hint_femp.count += sbi->dentries_per_clu;
+
 		hint_femp.cur.size++;
 		p_dir->size++;
 		size = EXFAT_CLU_TO_B(p_dir->size, sbi);
