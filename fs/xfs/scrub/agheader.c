@@ -737,7 +737,7 @@ xchk_agfl(
 		goto out;
 	}
 	sai.entries = kvcalloc(sai.agflcount, sizeof(xfs_agblock_t),
-			GFP_KERNEL | __GFP_RETRY_MAYFAIL);
+			       XCHK_GFP_FLAGS);
 	if (!sai.entries) {
 		error = -ENOMEM;
 		goto out;
