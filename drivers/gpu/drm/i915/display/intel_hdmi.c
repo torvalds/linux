@@ -40,6 +40,7 @@
 #include <drm/drm_edid.h>
 #include <drm/intel_lpe_audio.h>
 
+#include "g4x_hdmi.h"
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_atomic.h"
@@ -2624,10 +2625,21 @@ static const struct drm_connector_funcs intel_hdmi_connector_funcs = {
 	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
 };
 
+static int intel_hdmi_connector_atomic_check(struct drm_connector *connector,
+					     struct drm_atomic_state *state)
+{
+	struct drm_i915_private *i915 = to_i915(state->dev);
+
+	if (HAS_DDI(i915))
+		return intel_digital_connector_atomic_check(connector, state);
+	else
+		return g4x_hdmi_connector_atomic_check(connector, state);
+}
+
 static const struct drm_connector_helper_funcs intel_hdmi_connector_helper_funcs = {
 	.get_modes = intel_hdmi_get_modes,
 	.mode_valid = intel_hdmi_mode_valid,
-	.atomic_check = intel_digital_connector_atomic_check,
+	.atomic_check = intel_hdmi_connector_atomic_check,
 };
 
 static void
