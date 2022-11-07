@@ -90,6 +90,7 @@ out:
 
 struct xchk_bmap_info {
 	struct xfs_scrub	*sc;
+	struct xfs_iext_cursor	icur;
 	xfs_fileoff_t		lastoff;
 	bool			is_rt;
 	bool			is_shared;
@@ -144,6 +145,48 @@ xchk_bmap_get_rmap(
 		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
 			irec->br_startoff);
 	return has_rmap;
+}
+
+static inline bool
+xchk_bmap_has_prev(
+	struct xchk_bmap_info	*info,
+	struct xfs_bmbt_irec	*irec)
+{
+	struct xfs_bmbt_irec	got;
+	struct xfs_ifork	*ifp;
+
+	ifp = xfs_ifork_ptr(info->sc->ip, info->whichfork);
+
+	if (!xfs_iext_peek_prev_extent(ifp, &info->icur, &got))
+		return false;
+	if (got.br_startoff + got.br_blockcount != irec->br_startoff)
+		return false;
+	if (got.br_startblock + got.br_blockcount != irec->br_startblock)
+		return false;
+	if (got.br_state != irec->br_state)
+		return false;
+	return true;
+}
+
+static inline bool
+xchk_bmap_has_next(
+	struct xchk_bmap_info	*info,
+	struct xfs_bmbt_irec	*irec)
+{
+	struct xfs_bmbt_irec	got;
+	struct xfs_ifork	*ifp;
+
+	ifp = xfs_ifork_ptr(info->sc->ip, info->whichfork);
+
+	if (!xfs_iext_peek_next_extent(ifp, &info->icur, &got))
+		return false;
+	if (irec->br_startoff + irec->br_blockcount != got.br_startoff)
+		return false;
+	if (irec->br_startblock + irec->br_blockcount != got.br_startblock)
+		return false;
+	if (got.br_state != irec->br_state)
+		return false;
+	return true;
 }
 
 /* Make sure that we have rmapbt records for this extent. */
@@ -214,6 +257,34 @@ xchk_bmap_xref_rmap(
 	if (rmap.rm_flags & XFS_RMAP_BMBT_BLOCK)
 		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
 				irec->br_startoff);
+
+	/*
+	 * If the rmap starts before this bmbt record, make sure there's a bmbt
+	 * record for the previous offset that is contiguous with this mapping.
+	 * Skip this for CoW fork extents because the refcount btree (and not
+	 * the inode) is the ondisk owner for those extents.
+	 */
+	if (info->whichfork != XFS_COW_FORK && rmap.rm_startblock < agbno &&
+	    !xchk_bmap_has_prev(info, irec)) {
+		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
+		return;
+	}
+
+	/*
+	 * If the rmap ends after this bmbt record, make sure there's a bmbt
+	 * record for the next offset that is contiguous with this mapping.
+	 * Skip this for CoW fork extents because the refcount btree (and not
+	 * the inode) is the ondisk owner for those extents.
+	 */
+	rmap_end = (unsigned long long)rmap.rm_startblock + rmap.rm_blockcount;
+	if (info->whichfork != XFS_COW_FORK &&
+	    rmap_end > agbno + irec->br_blockcount &&
+	    !xchk_bmap_has_next(info, irec)) {
+		xchk_fblock_xref_set_corrupt(info->sc, info->whichfork,
+				irec->br_startoff);
+		return;
+	}
 }
 
 /* Cross-reference a single rtdev extent record. */
@@ -626,7 +697,6 @@ xchk_bmap(
 	struct xfs_inode	*ip = sc->ip;
 	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, whichfork);
 	xfs_fileoff_t		endoff;
-	struct xfs_iext_cursor	icur;
 	int			error = 0;
 
 	/* Non-existent forks can be ignored. */
@@ -690,7 +760,7 @@ xchk_bmap(
 	/* Scrub extent records. */
 	info.lastoff = 0;
 	ifp = xfs_ifork_ptr(ip, whichfork);
-	for_each_xfs_iext(ifp, &icur, &irec) {
+	for_each_xfs_iext(ifp, &info.icur, &irec) {
 		if (xchk_should_terminate(sc, &error) ||
 		    (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 			goto out;
