@@ -12,9 +12,14 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - allwinner,sun6i-a31-mipi-dsi
-      - allwinner,sun50i-a64-mipi-dsi
+    oneOf:
+      - enum:
+          - allwinner,sun6i-a31-mipi-dsi
+          - allwinner,sun50i-a64-mipi-dsi
+          - allwinner,sun50i-a100-mipi-dsi
+      - items:
+          - const: allwinner,sun20i-d1-mipi-dsi
+          - const: allwinner,sun50i-a100-mipi-dsi
 
   reg:
     maxItems: 1
@@ -59,7 +64,6 @@ required:
   - phys
   - phy-names
   - resets
-  - vcc-dsi-supply
   - port
 
 allOf:
@@ -68,7 +72,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: allwinner,sun6i-a31-mipi-dsi
+            enum:
+              - allwinner,sun6i-a31-mipi-dsi
+              - allwinner,sun50i-a100-mipi-dsi
 
     then:
       properties:
@@ -82,6 +88,18 @@ allOf:
       properties:
         clocks:
           maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - allwinner,sun6i-a31-mipi-dsi
+              - allwinner,sun50i-a64-mipi-dsi
+
+    then:
+      required:
+        - vcc-dsi-supply
 
 unevaluatedProperties: false
 
