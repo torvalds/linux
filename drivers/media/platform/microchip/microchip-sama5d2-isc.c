@@ -80,20 +80,40 @@ static const struct isc_format sama5d2_controller_formats[] = {
 		.fourcc		= V4L2_PIX_FMT_Y10,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SBGGR8,
+		.raw		= true,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SGBRG8,
+		.raw		= true,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SGRBG8,
+		.raw		= true,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SRGGB8,
+		.raw		= true,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SBGGR10,
+		.raw		= true,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SGBRG10,
+		.raw		= true,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SGRBG10,
+		.raw		= true,
 	}, {
 		.fourcc		= V4L2_PIX_FMT_SRGGB10,
+		.raw		= true,
+	}, {
+		.fourcc		= V4L2_PIX_FMT_SBGGR12,
+		.raw		= true,
+	}, {
+		.fourcc		= V4L2_PIX_FMT_SGBRG12,
+		.raw		= true,
+	}, {
+		.fourcc		= V4L2_PIX_FMT_SGRBG12,
+		.raw		= true,
+	}, {
+		.fourcc		= V4L2_PIX_FMT_SRGGB12,
+		.raw		= true,
 	},
 };
 
