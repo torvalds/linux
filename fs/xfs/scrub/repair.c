@@ -121,24 +121,36 @@ xrep_roll_ag_trans(
 {
 	int			error;
 
-	/* Keep the AG header buffers locked so we can keep going. */
-	if (sc->sa.agi_bp)
+	/*
+	 * Keep the AG header buffers locked while we roll the transaction.
+	 * Ensure that both AG buffers are dirty and held when we roll the
+	 * transaction so that they move forward in the log without losing the
+	 * bli (and hence the bli type) when the transaction commits.
+	 *
+	 * Normal code would never hold clean buffers across a roll, but repair
+	 * needs both buffers to maintain a total lock on the AG.
+	 */
+	if (sc->sa.agi_bp) {
+		xfs_ialloc_log_agi(sc->tp, sc->sa.agi_bp, XFS_AGI_MAGICNUM);
 		xfs_trans_bhold(sc->tp, sc->sa.agi_bp);
-	if (sc->sa.agf_bp)
+	}
+
+	if (sc->sa.agf_bp) {
+		xfs_alloc_log_agf(sc->tp, sc->sa.agf_bp, XFS_AGF_MAGICNUM);
 		xfs_trans_bhold(sc->tp, sc->sa.agf_bp);
+	}
 
 	/*
-	 * Roll the transaction.  We still own the buffer and the buffer lock
-	 * regardless of whether or not the roll succeeds.  If the roll fails,
-	 * the buffers will be released during teardown on our way out of the
-	 * kernel.  If it succeeds, we join them to the new transaction and
-	 * move on.
+	 * Roll the transaction.  We still hold the AG header buffers locked
+	 * regardless of whether or not that succeeds.  On failure, the buffers
+	 * will be released during teardown on our way out of the kernel.  If
+	 * successful, join the buffers to the new transaction and move on.
 	 */
 	error = xfs_trans_roll(&sc->tp);
 	if (error)
 		return error;
 
-	/* Join AG headers to the new transaction. */
+	/* Join the AG headers to the new transaction. */
 	if (sc->sa.agi_bp)
 		xfs_trans_bjoin(sc->tp, sc->sa.agi_bp);
 	if (sc->sa.agf_bp)
