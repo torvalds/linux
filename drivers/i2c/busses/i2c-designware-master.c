@@ -711,9 +711,18 @@ static u32 i2c_dw_read_clear_intrbits(struct dw_i2c_dev *dev)
  * Interrupt service routine. This gets called whenever an I2C master interrupt
  * occurs.
  */
-static int i2c_dw_irq_handler_master(struct dw_i2c_dev *dev)
+static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 {
-	u32 stat;
+	struct dw_i2c_dev *dev = dev_id;
+	u32 stat, enabled;
+
+	regmap_read(dev->map, DW_IC_ENABLE, &enabled);
+	regmap_read(dev->map, DW_IC_RAW_INTR_STAT, &stat);
+	if (!enabled || !(stat & ~DW_IC_INTR_ACTIVITY))
+		return IRQ_NONE;
+	if (pm_runtime_suspended(dev->dev) || stat == GENMASK(31, 0))
+		return IRQ_NONE;
+	dev_dbg(dev->dev, "enabled=%#x stat=%#x\n", enabled, stat);
 
 	stat = i2c_dw_read_clear_intrbits(dev);
 
@@ -726,7 +735,7 @@ static int i2c_dw_irq_handler_master(struct dw_i2c_dev *dev)
 		 * the HW active).
 		 */
 		regmap_write(dev->map, DW_IC_INTR_MASK, 0);
-		return 0;
+		return IRQ_HANDLED;
 	}
 
 	if (stat & DW_IC_INTR_TX_ABRT) {
@@ -764,24 +773,6 @@ tx_aborted:
 		i2c_dw_disable_int(dev);
 		regmap_write(dev->map, DW_IC_INTR_MASK, stat);
 	}
-
-	return 0;
-}
-
-static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
-{
-	struct dw_i2c_dev *dev = dev_id;
-	u32 stat, enabled;
-
-	regmap_read(dev->map, DW_IC_ENABLE, &enabled);
-	regmap_read(dev->map, DW_IC_RAW_INTR_STAT, &stat);
-	if (!enabled || !(stat & ~DW_IC_INTR_ACTIVITY))
-		return IRQ_NONE;
-	if (pm_runtime_suspended(dev->dev) || stat == GENMASK(31, 0))
-		return IRQ_NONE;
-	dev_dbg(dev->dev, "enabled=%#x stat=%#x\n", enabled, stat);
-
-	i2c_dw_irq_handler_master(dev);
 
 	return IRQ_HANDLED;
 }
