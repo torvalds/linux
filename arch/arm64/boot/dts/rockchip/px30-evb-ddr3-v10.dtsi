@@ -158,6 +158,7 @@
 		compatible = "wlan-platdata";
 		wifi_chip_type = "AP6210";
 		WIFI,host_wake_irq = <&gpio0 RK_PB2 GPIO_ACTIVE_HIGH>;
+		WIFI,poweren_gpio = <&gpio0 RK_PA2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
