@@ -948,21 +948,21 @@
 			#iommu-cells = <1>;
 			#size-cells = <1>;
 
-			// vfe
+			/* VFE */
 			iommu-ctx@14000 {
 				compatible = "qcom,msm-iommu-v1-ns";
 				reg = <0x14000 0x1000>;
 				interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			// mdp_0
+			/* MDP_0 */
 			iommu-ctx@15000 {
 				compatible = "qcom,msm-iommu-v1-ns";
 				reg = <0x15000 0x1000>;
 				interrupts = <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			// venus_ns
+			/* VENUS_NS */
 			iommu-ctx@16000 {
 				compatible = "qcom,msm-iommu-v1-ns";
 				reg = <0x16000 0x1000>;
