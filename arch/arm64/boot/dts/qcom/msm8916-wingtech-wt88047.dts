@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// Copyright (C) 2020 Stephan Gerhold
+/*
+ * Copyright (C) 2020 Stephan Gerhold
+ */
 
 /dts-v1/;
 

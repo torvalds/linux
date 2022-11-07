@@ -839,7 +839,7 @@
 		function = "digital";
 
 		output-low;
-		power-source = <PM8916_MPP_L5>;	// 1.8V
+		power-source = <PM8916_MPP_L5>;	/* 1.8V */
 	};
 
 	pm8916_mpps_leds: pm8916-mpps-state {

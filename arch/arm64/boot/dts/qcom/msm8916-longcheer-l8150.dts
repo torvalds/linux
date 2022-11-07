@@ -22,7 +22,7 @@
 	};
 
 	reserved-memory {
-		// wcnss.mdt is not relocatable, so it must be loaded at 0x8b600000
+		/* wcnss.mdt is not relocatable, so it must be loaded at 0x8b600000 */
 		/delete-node/ wcnss@89300000;
 
 		wcnss_mem: wcnss@8b600000 {
@@ -204,12 +204,12 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <1>; // Allow sleeping
+			syna,nosleep-mode = <1>; /* Allow sleeping */
 		};
 
 		rmi4-f12@12 {
 			reg = <0x12>;
-			syna,sensor-type = <1>; // Touchscreen
+			syna,sensor-type = <1>; /* Touchscreen */
 		};
 	};
 };

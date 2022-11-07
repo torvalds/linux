@@ -6,7 +6,7 @@
 &msmgpio {
 
 	blsp1_uart1_default: blsp1-uart1-default-state {
-		//	TX, RX, CTS_N, RTS_N
+		/* TX, RX, CTS_N, RTS_N */
 		pins = "gpio0", "gpio1", "gpio2", "gpio3";
 		function = "blsp_uart1";
 

@@ -1263,21 +1263,21 @@
 			clock-names = "iface", "bus";
 			qcom,iommu-secure-id = <17>;
 
-			// vfe:
+			/* VFE */
 			iommu-ctx@3000 {
 				compatible = "qcom,msm-iommu-v1-sec";
 				reg = <0x3000 0x1000>;
 				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			// mdp_0:
+			/* MDP_0 */
 			iommu-ctx@4000 {
 				compatible = "qcom,msm-iommu-v1-ns";
 				reg = <0x4000 0x1000>;
 				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			// venus_ns:
+			/* VENUS_NS */
 			iommu-ctx@5000 {
 				compatible = "qcom,msm-iommu-v1-sec";
 				reg = <0x5000 0x1000>;
@@ -1296,14 +1296,14 @@
 			clock-names = "iface", "bus";
 			qcom,iommu-secure-id = <18>;
 
-			// gfx3d_user:
+			/* GFX3D_USER */
 			iommu-ctx@1000 {
 				compatible = "qcom,msm-iommu-v1-ns";
 				reg = <0x1000 0x1000>;
 				interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
-			// gfx3d_priv:
+			/* GFX3D_PRIV */
 			iommu-ctx@2000 {
 				compatible = "qcom,msm-iommu-v1-ns";
 				reg = <0x2000 0x1000>;
