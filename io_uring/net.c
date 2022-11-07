@@ -602,15 +602,11 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 
 	if (!mshot_finished) {
 		if (io_post_aux_cqe(req->ctx, req->cqe.user_data, *ret,
-				    cflags | IORING_CQE_F_MORE, false)) {
+				    cflags | IORING_CQE_F_MORE, true)) {
 			io_recv_prep_retry(req);
 			return false;
 		}
-		/*
-		 * Otherwise stop multishot but use the current result.
-		 * Probably will end up going into overflow, but this means
-		 * we cannot trust the ordering anymore
-		 */
+		/* Otherwise stop multishot but use the current result. */
 	}
 
 	io_req_set_res(req, *ret, cflags);
