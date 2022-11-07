@@ -144,7 +144,7 @@
 			regulator-max-microvolt = <880000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 			regulator-boot-on;
-			regulator-always-on;	// FIXME: VDD_A_EDP_0_0P9
+			regulator-always-on;	/* FIXME: VDD_A_EDP_0_0P9 */
 		};
 	};
 
