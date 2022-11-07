@@ -2258,9 +2258,6 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		pipe_config->pixel_multiplier = 2;
 
-	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv))
-		pipe_config->has_pch_encoder = true;
-
 	pipe_config->has_audio =
 		intel_hdmi_has_audio(encoder, pipe_config, conn_state);
 
