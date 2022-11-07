@@ -243,6 +243,17 @@
 			status = "disabled";
 		};
 
+		ir: ir@1c22c00 {
+			compatible = "allwinner,suniv-f1c100s-ir",
+				     "allwinner,sun6i-a31-ir";
+			reg = <0x01c22c00 0x400>;
+			clocks = <&ccu CLK_BUS_IR>, <&ccu CLK_IR>;
+			clock-names = "apb", "ir";
+			resets = <&ccu RST_BUS_IR>;
+			interrupts = <6>;
+			status = "disabled";
+		};
+
 		uart0: serial@1c25000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c25000 0x400>;
