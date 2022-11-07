@@ -62,23 +62,13 @@
 /**********************************************************
  * Software setting
  *********************************************************/
-#define DEFAULT_FAN_MIN_RPM		1000
 #define DEFAULT_FAN_PULSE_PR		2
-/*
- * Add this value to avoid CPU consuming a lot of resources in waiting rpm
- * updating. Assume the max rpm of fan is 60000, the fastest period of updating
- * tach value will be equal to (1000000 * 2 * 60) / (2 * max_rpm) = 1000us.
- */
-#define DEFAULT_FAN_MAX_RPM		60000
-
 struct aspeed_tach_channel_params {
 	int limited_inverse;
 	u16 threshold;
 	u8 tach_edge;
 	u8 tach_debounce;
 	u8 pulse_pr;
-	u32 min_rpm;
-	u32 max_rpm;
 	u32 divisor;
 	u32 sample_period; /* unit is us */
 	u32 polling_period; /* unit is us */
@@ -93,37 +83,6 @@ struct aspeed_tach_data {
 	struct aspeed_tach_channel_params *tach_channel;
 };
 
-static void aspeed_update_tach_sample_period(struct aspeed_tach_data *priv,
-					     u8 fan_tach_ch)
-{
-	u32 tach_period_us;
-	u8 pulse_pr = priv->tach_channel[fan_tach_ch].pulse_pr;
-	u32 min_rpm = priv->tach_channel[fan_tach_ch].min_rpm;
-
-	/*
-	 * min(Tach input clock) = (PulsePR * minRPM) / 60
-	 * max(Tach input period) = 60 / (PulsePR * minRPM)
-	 * Tach sample period > 2 * max(Tach input period) = (2*60) / (PulsePR * minRPM)
-	 */
-	tach_period_us = (USEC_PER_SEC * 2 * 60) / (pulse_pr * min_rpm);
-	/* Add the margin (about 1.5) of tach sample period to avoid sample miss */
-	tach_period_us = (tach_period_us * 1500) >> 10;
-	dev_dbg(priv->dev, "tach%d sample period = %dus", fan_tach_ch, tach_period_us);
-	priv->tach_channel[fan_tach_ch].sample_period = tach_period_us;
-}
-
-static void aspeed_update_tach_polling_period(struct aspeed_tach_data *priv,
-					      u8 fan_tach_ch)
-{
-	u32 tach_period_us;
-	u8 pulse_pr = priv->tach_channel[fan_tach_ch].pulse_pr;
-	u32 max_rpm = priv->tach_channel[fan_tach_ch].max_rpm;
-
-	tach_period_us = (USEC_PER_SEC * 2 * 60) / (pulse_pr * max_rpm);
-	dev_dbg(priv->dev, "tach%d polling period = %dus", fan_tach_ch, tach_period_us);
-	priv->tach_channel[fan_tach_ch].polling_period = tach_period_us;
-}
-
 static void aspeed_tach_ch_enable(struct aspeed_tach_data *priv, u8 tach_ch,
 				  bool enable)
 {
@@ -135,47 +94,49 @@ static void aspeed_tach_ch_enable(struct aspeed_tach_data *priv, u8 tach_ch,
 				  TACH_ASPEED_ENABLE);
 }
 
-static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
-				      u8 fan_tach_ch)
+static u64 aspeed_tach_val_to_rpm(struct aspeed_tach_data *priv, u8 fan_tach_ch,
+				  u32 tach_val)
 {
-	u32 raw_data, tach_div, val;
 	unsigned long clk_source;
 	u64 rpm;
-	int ret;
+	u32 tach_div;
 
-	ret = regmap_read_poll_timeout(priv->regmap, TACH_ASPEED_STS(fan_tach_ch), val,
-				       (val & TACH_ASPEED_FULL_MEASUREMENT) &&
-					       (val & TACH_ASPEED_VALUE_UPDATE),
-				       priv->tach_channel[fan_tach_ch].polling_period,
-				       priv->tach_channel[fan_tach_ch].sample_period);
-
-	if (ret) {
-		/* return 0 if we didn't get an answer because of timeout */
-		if (ret == -ETIMEDOUT)
-			return 0;
-		return ret;
-	}
-
-	raw_data = val & TACH_ASPEED_VALUE_MASK;
 	/*
-	 * We need the mode to determine if the raw_data is double (from
+	 * We need the mode to determine if the tach_val is double (from
 	 * counting both edges).
 	 */
 	if (priv->tach_channel[fan_tach_ch].tach_edge == BOTH_EDGES)
-		raw_data <<= 1;
+		tach_val <<= 1;
 
-	tach_div = raw_data * (priv->tach_channel[fan_tach_ch].divisor) *
+	tach_div = tach_val * (priv->tach_channel[fan_tach_ch].divisor) *
 		   (priv->tach_channel[fan_tach_ch].pulse_pr);
 
 	clk_source = clk_get_rate(priv->clk);
-	dev_dbg(priv->dev, "clk %ld, raw_data %d , tach_div %d\n", clk_source,
-		raw_data, tach_div);
-
-	if (tach_div == 0)
-		return -EDOM;
+	dev_dbg(priv->dev, "clk %ld, tach_val %d , tach_div %d\n", clk_source,
+		tach_val, tach_div);
 
 	rpm = (u64)clk_source * 60;
 	do_div(rpm, tach_div);
+
+	return rpm;
+}
+
+static int aspeed_get_fan_tach_ch_rpm(struct aspeed_tach_data *priv,
+				      u8 fan_tach_ch)
+{
+	u32 val;
+	u64 rpm;
+	int ret;
+
+	ret = regmap_read(priv->regmap, TACH_ASPEED_STS(fan_tach_ch), &val);
+
+	if (ret)
+		return ret;
+
+	if (!(val & TACH_ASPEED_FULL_MEASUREMENT))
+		return 0;
+	rpm = aspeed_tach_val_to_rpm(priv, fan_tach_ch,
+				     val & TACH_ASPEED_VALUE_MASK);
 
 	return rpm;
 }
@@ -194,12 +155,6 @@ static int aspeed_tach_hwmon_read(struct device *dev,
 		if (ret < 0)
 			return ret;
 		*val = ret;
-		break;
-	case hwmon_fan_min:
-		*val = priv->tach_channel[channel].min_rpm;
-		break;
-	case hwmon_fan_max:
-		*val = priv->tach_channel[channel].max_rpm;
 		break;
 	case hwmon_fan_div:
 		regmap_read(priv->regmap, TACH_ASPEED_CTRL(channel), &reg_val);
@@ -222,14 +177,6 @@ static int aspeed_tach_hwmon_write(struct device *dev,
 	struct aspeed_tach_data *priv = dev_get_drvdata(dev);
 
 	switch (attr) {
-	case hwmon_fan_min:
-		priv->tach_channel[channel].min_rpm = val;
-		aspeed_update_tach_sample_period(priv, channel);
-		break;
-	case hwmon_fan_max:
-		priv->tach_channel[channel].max_rpm = val;
-		aspeed_update_tach_polling_period(priv, channel);
-		break;
 	case hwmon_fan_div:
 		if (!(is_power_of_2(val) && !(ilog2(val) % 2))) {
 			dev_err(dev,
@@ -245,7 +192,6 @@ static int aspeed_tach_hwmon_write(struct device *dev,
 		break;
 	case hwmon_fan_pulses:
 		priv->tach_channel[channel].pulse_pr = val;
-		aspeed_update_tach_sample_period(priv, channel);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -265,8 +211,6 @@ static umode_t aspeed_tach_dev_is_visible(const void *drvdata,
 	switch (attr) {
 	case hwmon_fan_input:
 		return 0444;
-	case hwmon_fan_min:
-	case hwmon_fan_max:
 	case hwmon_fan_div:
 	case hwmon_fan_pulses:
 		return 0644;
@@ -281,39 +225,22 @@ static const struct hwmon_ops aspeed_tach_ops = {
 };
 
 static const struct hwmon_channel_info *aspeed_tach_info[] = {
-	HWMON_CHANNEL_INFO(fan,
-			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
-				   HWMON_F_DIV | HWMON_F_PULSES,
-			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
-				   HWMON_F_DIV | HWMON_F_PULSES,
-			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
-				   HWMON_F_DIV | HWMON_F_PULSES,
-			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
-				   HWMON_F_DIV | HWMON_F_PULSES,
-			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
-				   HWMON_F_DIV | HWMON_F_PULSES,
-			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
-				   HWMON_F_DIV | HWMON_F_PULSES,
-			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
-				   HWMON_F_DIV | HWMON_F_PULSES,
-			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
-				   HWMON_F_DIV | HWMON_F_PULSES,
-			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
-				   HWMON_F_DIV | HWMON_F_PULSES,
-			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
-				   HWMON_F_DIV | HWMON_F_PULSES,
-			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
-				   HWMON_F_DIV | HWMON_F_PULSES,
-			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
-				   HWMON_F_DIV | HWMON_F_PULSES,
-			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
-				   HWMON_F_DIV | HWMON_F_PULSES,
-			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
-				   HWMON_F_DIV | HWMON_F_PULSES,
-			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
-				   HWMON_F_DIV | HWMON_F_PULSES,
-			   HWMON_F_INPUT | HWMON_F_MIN | HWMON_F_MAX |
-				   HWMON_F_DIV | HWMON_F_PULSES),
+	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_PULSES,
+			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_PULSES,
+			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_PULSES,
+			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_PULSES,
+			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_PULSES,
+			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_PULSES,
+			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_PULSES,
+			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_PULSES,
+			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_PULSES,
+			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_PULSES,
+			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_PULSES,
+			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_PULSES,
+			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_PULSES,
+			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_PULSES,
+			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_PULSES,
+			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_PULSES),
 	NULL
 };
 
@@ -357,11 +284,7 @@ static void aspeed_create_fan_tach_channel(struct aspeed_tach_data *priv,
 			  priv->tach_channel[tach_ch].threshold);
 
 	priv->tach_channel[tach_ch].pulse_pr = DEFAULT_FAN_PULSE_PR;
-	priv->tach_channel[tach_ch].min_rpm = DEFAULT_FAN_MIN_RPM;
-	aspeed_update_tach_sample_period(priv, tach_ch);
 
-	priv->tach_channel[tach_ch].max_rpm = DEFAULT_FAN_MAX_RPM;
-	aspeed_update_tach_polling_period(priv, tach_ch);
 
 	aspeed_tach_ch_enable(priv, tach_ch, true);
 }
