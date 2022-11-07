@@ -94,7 +94,6 @@ static inline bool elv_support_features(struct request_queue *q,
  * elevator_match - Test an elevator name and features
  * @e: Scheduler to test
  * @name: Elevator name to test
- * @required_features: Features that the elevator must provide
  *
  * Return true if the elevator @e name matches @name and if @e provides all
  * the features specified by @required_features.
