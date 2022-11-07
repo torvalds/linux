@@ -89,6 +89,9 @@ static int g4x_hdmi_compute_config(struct intel_encoder *encoder,
 	if (HAS_PCH_SPLIT(i915))
 		crtc_state->has_pch_encoder = true;
 
+	crtc_state->has_hdmi_sink =
+		intel_hdmi_compute_has_hdmi_sink(encoder, crtc_state, conn_state);
+
 	return intel_hdmi_compute_config(encoder, crtc_state, conn_state);
 }
 
