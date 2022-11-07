@@ -778,6 +778,8 @@ static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 	dev_dbg(dev->dev, "enabled=%#x stat=%#x\n", enabled, stat);
 	if (!enabled || !(stat & ~DW_IC_INTR_ACTIVITY))
 		return IRQ_NONE;
+	if (pm_runtime_suspended(dev->dev) || stat == GENMASK(31, 0))
+		return IRQ_NONE;
 
 	i2c_dw_irq_handler_master(dev);
 
