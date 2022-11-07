@@ -524,7 +524,7 @@
 			pins = "gpio5";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			output-low;
-			power-source = <2>; // PM8994_GPIO_S4, 1.8V
+			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 		};
 	};
 
@@ -533,7 +533,7 @@
 			pins = "gpio19";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			output-low;
-			power-source = <PM8994_GPIO_S4>; // 1.8V
+			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
 			bias-pull-down;
 		};
@@ -544,7 +544,7 @@
 			pins = "gpio8";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			output-low;
-			power-source = <PM8994_GPIO_S4>; // 1.8V
+			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
 			bias-pull-down;
 		};
@@ -554,7 +554,7 @@
 		pinconf {
 			pins = "gpio15";
 			function = "func1";
-			power-source = <PM8994_GPIO_S4>; // 1.8V
+			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 		};
 	};
 
@@ -566,7 +566,7 @@
 			drive-push-pull;
 			bias-pull-up;
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
-			power-source = <PM8994_GPIO_S4>; // 1.8V
+			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 		};
 	};
 
@@ -587,7 +587,7 @@
 			input-enable;
 			bias-pull-down;
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
-			power-source = <PM8994_GPIO_S4>; // 1.8V
+			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 		};
 	};
 };
@@ -643,7 +643,7 @@
 			input-enable;
 			bias-pull-down;
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
-			power-source = <PM8994_GPIO_S4>; // 1.8V
+			power-source = <PM8994_GPIO_S4>; /* 1.8V */
 		};
 	};
 };
