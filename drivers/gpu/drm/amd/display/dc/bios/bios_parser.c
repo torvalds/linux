@@ -138,7 +138,9 @@ static uint8_t get_number_of_objects(struct bios_parser *bp, uint32_t offset)
 
 	uint32_t object_table_offset = bp->object_info_tbl_offset + offset;
 
-	table = GET_IMAGE(ATOM_OBJECT_TABLE, object_table_offset);
+	table = ((ATOM_OBJECT_TABLE *) bios_get_image(&bp->base,
+				object_table_offset,
+				struct_size(table, asObjects, 1)));
 
 	if (!table)
 		return 0;
@@ -166,8 +168,9 @@ static struct graphics_object_id bios_parser_get_connector_id(
 	uint32_t connector_table_offset = bp->object_info_tbl_offset
 		+ le16_to_cpu(bp->object_info_tbl.v1_1->usConnectorObjectTableOffset);
 
-	ATOM_OBJECT_TABLE *tbl =
-		GET_IMAGE(ATOM_OBJECT_TABLE, connector_table_offset);
+	ATOM_OBJECT_TABLE *tbl = ((ATOM_OBJECT_TABLE *) bios_get_image(&bp->base,
+				connector_table_offset,
+				struct_size(tbl, asObjects, 1)));
 
 	if (!tbl) {
 		dm_error("Can't get connector table from atom bios.\n");
@@ -1789,11 +1792,13 @@ static enum bp_result bios_parser_get_gpio_pin_info(
 	if (!DATA_TABLES(GPIO_Pin_LUT))
 		return BP_RESULT_BADBIOSTABLE;
 
-	header = GET_IMAGE(ATOM_GPIO_PIN_LUT, DATA_TABLES(GPIO_Pin_LUT));
+	header = ((ATOM_GPIO_PIN_LUT *) bios_get_image(&bp->base,
+				DATA_TABLES(GPIO_Pin_LUT),
+				struct_size(header, asGPIO_Pin, 1)));
 	if (!header)
 		return BP_RESULT_BADBIOSTABLE;
 
-	if (sizeof(ATOM_COMMON_TABLE_HEADER) + sizeof(ATOM_GPIO_PIN_LUT)
+	if (sizeof(ATOM_COMMON_TABLE_HEADER) + struct_size(header, asGPIO_Pin, 1)
 			> le16_to_cpu(header->sHeader.usStructureSize))
 		return BP_RESULT_BADBIOSTABLE;
 
@@ -1978,7 +1983,8 @@ static ATOM_OBJECT *get_bios_object(struct bios_parser *bp,
 
 	offset += bp->object_info_tbl_offset;
 
-	tbl = GET_IMAGE(ATOM_OBJECT_TABLE, offset);
+	tbl = ((ATOM_OBJECT_TABLE *) bios_get_image(&bp->base, offset,
+				struct_size(tbl, asObjects, 1)));
 	if (!tbl)
 		return NULL;
 
@@ -2709,8 +2715,9 @@ static enum bp_result get_bracket_layout_record(
 
 	genericTableOffset = bp->object_info_tbl_offset +
 		bp->object_info_tbl.v1_3->usMiscObjectTableOffset;
-	object_table = (ATOM_OBJECT_TABLE *)
-		GET_IMAGE(ATOM_OBJECT_TABLE, genericTableOffset);
+	object_table = ((ATOM_OBJECT_TABLE *) bios_get_image(&bp->base,
+				genericTableOffset,
+				struct_size(object_table, asObjects, 1)));
 	if (!object_table)
 		return BP_RESULT_FAILURE;
 
