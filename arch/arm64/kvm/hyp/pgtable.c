@@ -189,6 +189,7 @@ static inline int __kvm_pgtable_visit(struct kvm_pgtable_walk_data *data,
 	enum kvm_pgtable_walk_flags flags = data->walker->flags;
 	struct kvm_pgtable_visit_ctx ctx = {
 		.ptep	= ptep,
+		.old	= READ_ONCE(*ptep),
 		.arg	= data->walker->arg,
 		.addr	= data->addr,
 		.end	= data->end,
@@ -196,16 +197,16 @@ static inline int __kvm_pgtable_visit(struct kvm_pgtable_walk_data *data,
 		.flags	= flags,
 	};
 	int ret = 0;
-	kvm_pte_t *childp, pte = *ptep;
-	bool table = kvm_pte_table(pte, level);
+	kvm_pte_t *childp;
+	bool table = kvm_pte_table(ctx.old, level);
 
 	if (table && (ctx.flags & KVM_PGTABLE_WALK_TABLE_PRE))
 		ret = kvm_pgtable_visitor_cb(data, &ctx, KVM_PGTABLE_WALK_TABLE_PRE);
 
 	if (!table && (ctx.flags & KVM_PGTABLE_WALK_LEAF)) {
 		ret = kvm_pgtable_visitor_cb(data, &ctx, KVM_PGTABLE_WALK_LEAF);
-		pte = *ptep;
-		table = kvm_pte_table(pte, level);
+		ctx.old = READ_ONCE(*ptep);
+		table = kvm_pte_table(ctx.old, level);
 	}
 
 	if (ret)
@@ -217,7 +218,7 @@ static inline int __kvm_pgtable_visit(struct kvm_pgtable_walk_data *data,
 		goto out;
 	}
 
-	childp = kvm_pte_follow(pte, data->pgt->mm_ops);
+	childp = kvm_pte_follow(ctx.old, data->pgt->mm_ops);
 	ret = __kvm_pgtable_walk(data, childp, level + 1);
 	if (ret)
 		goto out;
@@ -299,7 +300,7 @@ static int leaf_walker(const struct kvm_pgtable_visit_ctx *ctx,
 {
 	struct leaf_walk_data *data = ctx->arg;
 
-	data->pte   = *ctx->ptep;
+	data->pte   = ctx->old;
 	data->level = ctx->level;
 
 	return 0;
@@ -388,7 +389,7 @@ enum kvm_pgtable_prot kvm_pgtable_hyp_pte_prot(kvm_pte_t pte)
 static bool hyp_map_walker_try_leaf(const struct kvm_pgtable_visit_ctx *ctx,
 				    struct hyp_map_data *data)
 {
-	kvm_pte_t new, old = *ctx->ptep;
+	kvm_pte_t new;
 	u64 granule = kvm_granule_size(ctx->level), phys = data->phys;
 
 	if (!kvm_block_mapping_supported(ctx, phys))
@@ -396,11 +397,11 @@ static bool hyp_map_walker_try_leaf(const struct kvm_pgtable_visit_ctx *ctx,
 
 	data->phys += granule;
 	new = kvm_init_valid_leaf_pte(phys, data->attr, ctx->level);
-	if (old == new)
+	if (ctx->old == new)
 		return true;
-	if (!kvm_pte_valid(old))
+	if (!kvm_pte_valid(ctx->old))
 		data->mm_ops->get_page(ctx->ptep);
-	else if (WARN_ON((old ^ new) & ~KVM_PTE_LEAF_ATTR_HI_SW))
+	else if (WARN_ON((ctx->old ^ new) & ~KVM_PTE_LEAF_ATTR_HI_SW))
 		return false;
 
 	smp_store_release(ctx->ptep, new);
@@ -461,16 +462,16 @@ struct hyp_unmap_data {
 static int hyp_unmap_walker(const struct kvm_pgtable_visit_ctx *ctx,
 			    enum kvm_pgtable_walk_flags visit)
 {
-	kvm_pte_t pte = *ctx->ptep, *childp = NULL;
+	kvm_pte_t *childp = NULL;
 	u64 granule = kvm_granule_size(ctx->level);
 	struct hyp_unmap_data *data = ctx->arg;
 	struct kvm_pgtable_mm_ops *mm_ops = data->mm_ops;
 
-	if (!kvm_pte_valid(pte))
+	if (!kvm_pte_valid(ctx->old))
 		return -EINVAL;
 
-	if (kvm_pte_table(pte, ctx->level)) {
-		childp = kvm_pte_follow(pte, mm_ops);
+	if (kvm_pte_table(ctx->old, ctx->level)) {
+		childp = kvm_pte_follow(ctx->old, mm_ops);
 
 		if (mm_ops->page_count(childp) != 1)
 			return 0;
@@ -538,15 +539,14 @@ static int hyp_free_walker(const struct kvm_pgtable_visit_ctx *ctx,
 			   enum kvm_pgtable_walk_flags visit)
 {
 	struct kvm_pgtable_mm_ops *mm_ops = ctx->arg;
-	kvm_pte_t pte = *ctx->ptep;
 
-	if (!kvm_pte_valid(pte))
+	if (!kvm_pte_valid(ctx->old))
 		return 0;
 
 	mm_ops->put_page(ctx->ptep);
 
-	if (kvm_pte_table(pte, ctx->level))
-		mm_ops->put_page(kvm_pte_follow(pte, mm_ops));
+	if (kvm_pte_table(ctx->old, ctx->level))
+		mm_ops->put_page(kvm_pte_follow(ctx->old, mm_ops));
 
 	return 0;
 }
@@ -691,7 +691,7 @@ static void stage2_put_pte(const struct kvm_pgtable_visit_ctx *ctx, struct kvm_s
 	 * Clear the existing PTE, and perform break-before-make with
 	 * TLB maintenance if it was valid.
 	 */
-	if (kvm_pte_valid(*ctx->ptep)) {
+	if (kvm_pte_valid(ctx->old)) {
 		kvm_clear_pte(ctx->ptep);
 		kvm_call_hyp(__kvm_tlb_flush_vmid_ipa, mmu, ctx->addr, ctx->level);
 	}
@@ -722,7 +722,7 @@ static bool stage2_leaf_mapping_allowed(const struct kvm_pgtable_visit_ctx *ctx,
 static int stage2_map_walker_try_leaf(const struct kvm_pgtable_visit_ctx *ctx,
 				      struct stage2_map_data *data)
 {
-	kvm_pte_t new, old = *ctx->ptep;
+	kvm_pte_t new;
 	u64 granule = kvm_granule_size(ctx->level), phys = data->phys;
 	struct kvm_pgtable *pgt = data->mmu->pgt;
 	struct kvm_pgtable_mm_ops *mm_ops = data->mm_ops;
@@ -735,14 +735,14 @@ static int stage2_map_walker_try_leaf(const struct kvm_pgtable_visit_ctx *ctx,
 	else
 		new = kvm_init_invalid_leaf_owner(data->owner_id);
 
-	if (stage2_pte_is_counted(old)) {
+	if (stage2_pte_is_counted(ctx->old)) {
 		/*
 		 * Skip updating the PTE if we are trying to recreate the exact
 		 * same mapping or only change the access permissions. Instead,
 		 * the vCPU will exit one more time from guest if still needed
 		 * and then go through the path of relaxing permissions.
 		 */
-		if (!stage2_pte_needs_update(old, new))
+		if (!stage2_pte_needs_update(ctx->old, new))
 			return -EAGAIN;
 
 		stage2_put_pte(ctx, data->mmu, mm_ops);
@@ -773,7 +773,7 @@ static int stage2_map_walk_table_pre(const struct kvm_pgtable_visit_ctx *ctx,
 	if (!stage2_leaf_mapping_allowed(ctx, data))
 		return 0;
 
-	data->childp = kvm_pte_follow(*ctx->ptep, data->mm_ops);
+	data->childp = kvm_pte_follow(ctx->old, data->mm_ops);
 	kvm_clear_pte(ctx->ptep);
 
 	/*
@@ -790,11 +790,11 @@ static int stage2_map_walk_leaf(const struct kvm_pgtable_visit_ctx *ctx,
 				struct stage2_map_data *data)
 {
 	struct kvm_pgtable_mm_ops *mm_ops = data->mm_ops;
-	kvm_pte_t *childp, pte = *ctx->ptep;
+	kvm_pte_t *childp;
 	int ret;
 
 	if (data->anchor) {
-		if (stage2_pte_is_counted(pte))
+		if (stage2_pte_is_counted(ctx->old))
 			mm_ops->put_page(ctx->ptep);
 
 		return 0;
@@ -819,7 +819,7 @@ static int stage2_map_walk_leaf(const struct kvm_pgtable_visit_ctx *ctx,
 	 * a table. Accesses beyond 'end' that fall within the new table
 	 * will be mapped lazily.
 	 */
-	if (stage2_pte_is_counted(pte))
+	if (stage2_pte_is_counted(ctx->old))
 		stage2_put_pte(ctx, data->mmu, mm_ops);
 
 	kvm_set_table_pte(ctx->ptep, childp, mm_ops);
@@ -844,7 +844,7 @@ static int stage2_map_walk_table_post(const struct kvm_pgtable_visit_ctx *ctx,
 		data->childp = NULL;
 		ret = stage2_map_walk_leaf(ctx, data);
 	} else {
-		childp = kvm_pte_follow(*ctx->ptep, mm_ops);
+		childp = kvm_pte_follow(ctx->old, mm_ops);
 	}
 
 	mm_ops->put_page(childp);
@@ -954,23 +954,23 @@ static int stage2_unmap_walker(const struct kvm_pgtable_visit_ctx *ctx,
 	struct kvm_pgtable *pgt = ctx->arg;
 	struct kvm_s2_mmu *mmu = pgt->mmu;
 	struct kvm_pgtable_mm_ops *mm_ops = pgt->mm_ops;
-	kvm_pte_t pte = *ctx->ptep, *childp = NULL;
+	kvm_pte_t *childp = NULL;
 	bool need_flush = false;
 
-	if (!kvm_pte_valid(pte)) {
-		if (stage2_pte_is_counted(pte)) {
+	if (!kvm_pte_valid(ctx->old)) {
+		if (stage2_pte_is_counted(ctx->old)) {
 			kvm_clear_pte(ctx->ptep);
 			mm_ops->put_page(ctx->ptep);
 		}
 		return 0;
 	}
 
-	if (kvm_pte_table(pte, ctx->level)) {
-		childp = kvm_pte_follow(pte, mm_ops);
+	if (kvm_pte_table(ctx->old, ctx->level)) {
+		childp = kvm_pte_follow(ctx->old, mm_ops);
 
 		if (mm_ops->page_count(childp) != 1)
 			return 0;
-	} else if (stage2_pte_cacheable(pgt, pte)) {
+	} else if (stage2_pte_cacheable(pgt, ctx->old)) {
 		need_flush = !stage2_has_fwb(pgt);
 	}
 
@@ -982,7 +982,7 @@ static int stage2_unmap_walker(const struct kvm_pgtable_visit_ctx *ctx,
 	stage2_put_pte(ctx, mmu, mm_ops);
 
 	if (need_flush && mm_ops->dcache_clean_inval_poc)
-		mm_ops->dcache_clean_inval_poc(kvm_pte_follow(pte, mm_ops),
+		mm_ops->dcache_clean_inval_poc(kvm_pte_follow(ctx->old, mm_ops),
 					       kvm_granule_size(ctx->level));
 
 	if (childp)
@@ -1013,11 +1013,11 @@ struct stage2_attr_data {
 static int stage2_attr_walker(const struct kvm_pgtable_visit_ctx *ctx,
 			      enum kvm_pgtable_walk_flags visit)
 {
-	kvm_pte_t pte = *ctx->ptep;
+	kvm_pte_t pte = ctx->old;
 	struct stage2_attr_data *data = ctx->arg;
 	struct kvm_pgtable_mm_ops *mm_ops = data->mm_ops;
 
-	if (!kvm_pte_valid(pte))
+	if (!kvm_pte_valid(ctx->old))
 		return 0;
 
 	data->level = ctx->level;
@@ -1036,7 +1036,7 @@ static int stage2_attr_walker(const struct kvm_pgtable_visit_ctx *ctx,
 		 * stage-2 PTE if we are going to add executable permission.
 		 */
 		if (mm_ops->icache_inval_pou &&
-		    stage2_pte_executable(pte) && !stage2_pte_executable(*ctx->ptep))
+		    stage2_pte_executable(pte) && !stage2_pte_executable(ctx->old))
 			mm_ops->icache_inval_pou(kvm_pte_follow(pte, mm_ops),
 						  kvm_granule_size(ctx->level));
 		WRITE_ONCE(*ctx->ptep, pte);
@@ -1142,13 +1142,12 @@ static int stage2_flush_walker(const struct kvm_pgtable_visit_ctx *ctx,
 {
 	struct kvm_pgtable *pgt = ctx->arg;
 	struct kvm_pgtable_mm_ops *mm_ops = pgt->mm_ops;
-	kvm_pte_t pte = *ctx->ptep;
 
-	if (!kvm_pte_valid(pte) || !stage2_pte_cacheable(pgt, pte))
+	if (!kvm_pte_valid(ctx->old) || !stage2_pte_cacheable(pgt, ctx->old))
 		return 0;
 
 	if (mm_ops->dcache_clean_inval_poc)
-		mm_ops->dcache_clean_inval_poc(kvm_pte_follow(pte, mm_ops),
+		mm_ops->dcache_clean_inval_poc(kvm_pte_follow(ctx->old, mm_ops),
 					       kvm_granule_size(ctx->level));
 	return 0;
 }
@@ -1200,15 +1199,14 @@ static int stage2_free_walker(const struct kvm_pgtable_visit_ctx *ctx,
 			      enum kvm_pgtable_walk_flags visit)
 {
 	struct kvm_pgtable_mm_ops *mm_ops = ctx->arg;
-	kvm_pte_t pte = *ctx->ptep;
 
-	if (!stage2_pte_is_counted(pte))
+	if (!stage2_pte_is_counted(ctx->old))
 		return 0;
 
 	mm_ops->put_page(ctx->ptep);
 
-	if (kvm_pte_table(pte, ctx->level))
-		mm_ops->put_page(kvm_pte_follow(pte, mm_ops));
+	if (kvm_pte_table(ctx->old, ctx->level))
+		mm_ops->put_page(kvm_pte_follow(ctx->old, mm_ops));
 
 	return 0;
 }

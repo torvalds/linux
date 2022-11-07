@@ -421,12 +421,11 @@ static int __check_page_state_visitor(const struct kvm_pgtable_visit_ctx *ctx,
 				      enum kvm_pgtable_walk_flags visit)
 {
 	struct check_walk_data *d = ctx->arg;
-	kvm_pte_t pte = *ctx->ptep;
 
-	if (kvm_pte_valid(pte) && !addr_is_memory(kvm_pte_to_phys(pte)))
+	if (kvm_pte_valid(ctx->old) && !addr_is_memory(kvm_pte_to_phys(ctx->old)))
 		return -EINVAL;
 
-	return d->get_page_state(pte) == d->desired ? 0 : -EPERM;
+	return d->get_page_state(ctx->old) == d->desired ? 0 : -EPERM;
 }
 
 static int check_page_state_range(struct kvm_pgtable *pgt, u64 addr, u64 size,

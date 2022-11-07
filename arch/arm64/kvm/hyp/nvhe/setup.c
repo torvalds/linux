@@ -192,10 +192,9 @@ static int finalize_host_mappings_walker(const struct kvm_pgtable_visit_ctx *ctx
 	struct kvm_pgtable_mm_ops *mm_ops = ctx->arg;
 	enum kvm_pgtable_prot prot;
 	enum pkvm_page_state state;
-	kvm_pte_t pte = *ctx->ptep;
 	phys_addr_t phys;
 
-	if (!kvm_pte_valid(pte))
+	if (!kvm_pte_valid(ctx->old))
 		return 0;
 
 	/*
@@ -210,7 +209,7 @@ static int finalize_host_mappings_walker(const struct kvm_pgtable_visit_ctx *ctx
 	if (ctx->level != (KVM_PGTABLE_MAX_LEVELS - 1))
 		return -EINVAL;
 
-	phys = kvm_pte_to_phys(pte);
+	phys = kvm_pte_to_phys(ctx->old);
 	if (!addr_is_memory(phys))
 		return -EINVAL;
 
@@ -218,7 +217,7 @@ static int finalize_host_mappings_walker(const struct kvm_pgtable_visit_ctx *ctx
 	 * Adjust the host stage-2 mappings to match the ownership attributes
 	 * configured in the hypervisor stage-1.
 	 */
-	state = pkvm_getstate(kvm_pgtable_hyp_pte_prot(pte));
+	state = pkvm_getstate(kvm_pgtable_hyp_pte_prot(ctx->old));
 	switch (state) {
 	case PKVM_PAGE_OWNED:
 		return host_stage2_set_owner_locked(phys, PAGE_SIZE, pkvm_hyp_id);
