@@ -335,6 +335,8 @@ xchk_bmap_iextent_xref(
 	case XFS_COW_FORK:
 		xchk_xref_is_cow_staging(info->sc, agbno,
 				irec->br_blockcount);
+		xchk_xref_is_not_shared(info->sc, agbno,
+				irec->br_blockcount);
 		break;
 	}
 
