@@ -789,28 +789,24 @@
 
 &tlmm {
 	/* eMMC pins, all 8 data lines connected */
-	dragon_sdcc1_pins: sdcc1 {
-		mux {
-			pins = "gpio159", "gpio160", "gpio161",
-			     "gpio162", "gpio163", "gpio164",
-			     "gpio165", "gpio166", "gpio167",
-			     "gpio168";
-			     function = "sdc1";
-		};
-		clk {
+	dragon_sdcc1_pins: sdcc1-state {
+		clk-pins {
 			pins = "gpio167"; /* SDC1 CLK */
+			function = "sdc1";
 			drive-strength = <16>;
 			bias-disable;
 		};
-		cmd {
+		cmd-pins {
 			pins = "gpio168"; /* SDC1 CMD */
+			function = "sdc1";
 			drive-strength = <10>;
 			bias-pull-up;
 		};
-		data {
+		data-pins {
 			/* SDC1 D0 to D7 */
 			pins = "gpio159", "gpio160", "gpio161", "gpio162",
 			     "gpio163", "gpio164", "gpio165", "gpio166";
+			function = "sdc1";
 			drive-strength = <10>;
 			bias-pull-up;
 		};
@@ -820,18 +816,18 @@
 	 * The SDCC3 pins are hardcoded (non-muxable) but need some pin
 	 * configuration.
 	 */
-	dragon_sdcc3_pins: sdcc3 {
-		clk {
+	dragon_sdcc3_pins: sdcc3-state {
+		clk-pins {
 			pins = "sdc3_clk";
 			drive-strength = <8>;
 			bias-disable;
 		};
-		cmd {
+		cmd-pins {
 			pins = "sdc3_cmd";
 			drive-strength = <8>;
 			bias-pull-up;
 		};
-		data {
+		data-pins {
 			pins = "sdc3_data";
 			drive-strength = <8>;
 			bias-pull-up;
@@ -839,101 +835,82 @@
 	};
 
 	/* Second SD card slot pins */
-	dragon_sdcc5_pins: sdcc5 {
-		mux {
-			pins = "gpio95", "gpio96", "gpio97",
-			    "gpio98", "gpio99", "gpio100";
-			function = "sdc5";
-		};
-		clk {
+	dragon_sdcc5_pins: sdcc5-state {
+		clk-pins {
 			pins = "gpio97"; /* SDC5 CLK */
+			function = "sdc5";
 			drive-strength = <16>;
 			bias-disable;
 		};
-		cmd {
+		cmd-pins {
 			pins = "gpio95"; /* SDC5 CMD */
+			function = "sdc5";
 			drive-strength = <10>;
 			bias-pull-up;
 		};
-		data {
+		data-pins {
 			/* SDC5 D0 to D3 */
 			pins = "gpio96", "gpio98", "gpio99", "gpio100";
+			function = "sdc5";
 			drive-strength = <10>;
 			bias-pull-up;
 		};
 	};
 
-	dragon_gsbi3_i2c_pins: gsbi3_i2c {
-		mux {
-			pins = "gpio43", "gpio44";
-			function = "gsbi3";
-		};
-		pinconf {
-			pins = "gpio43", "gpio44";
-			drive-strength = <8>;
-			/* These have external pull-up 2.2kOhm to 1.8V */
-			bias-disable;
-		};
+	dragon_gsbi3_i2c_pins: gsbi3-i2c-state {
+		pins = "gpio43", "gpio44";
+		function = "gsbi3";
+		drive-strength = <8>;
+		/* These have external pull-up 2.2kOhm to 1.8V */
+		bias-disable;
 	};
 
-	dragon_gsbi8_i2c_pins: gsbi8_i2c {
-		mux {
-			pins = "gpio64", "gpio65";
-			function = "gsbi8";
-		};
-		pinconf {
-			pins = "gpio64", "gpio65";
-			drive-strength = <16>;
-			/* These have external pull-up 2.2kOhm to 1.8V */
-			bias-disable;
-		};
+	dragon_gsbi8_i2c_pins: gsbi8-i2c-state {
+		pins = "gpio64", "gpio65";
+		function = "gsbi8";
+		drive-strength = <16>;
+		/* These have external pull-up 2.2kOhm to 1.8V */
+		bias-disable;
 	};
 
-	dragon_gsbi12_i2c_pins: gsbi12_i2c {
-		mux {
-			pins = "gpio115", "gpio116";
-			function = "gsbi12";
-		};
-		pinconf {
-			pins = "gpio115", "gpio116";
-			drive-strength = <16>;
-			/* These have external pull-up 4.7kOhm to 1.8V */
-			bias-disable;
-		};
+	dragon_gsbi12_i2c_pins: gsbi12-i2c-state {
+		pins = "gpio115", "gpio116";
+		function = "gsbi12";
+		drive-strength = <16>;
+		/* These have external pull-up 4.7kOhm to 1.8V */
+		bias-disable;
 	};
 
 	/* Primary serial port uart 0 pins */
-	dragon_gsbi12_serial_pins: gsbi12_serial {
-		mux {
-			pins = "gpio117", "gpio118";
-			function = "gsbi12";
-		};
-		tx {
+	dragon_gsbi12_serial_pins: gsbi12-serial-state {
+		tx-pins {
 			pins = "gpio117";
+			function = "gsbi12";
 			drive-strength = <8>;
 			bias-disable;
 		};
-		rx {
+		rx-pins {
 			pins = "gpio118";
+			function = "gsbi12";
 			drive-strength = <2>;
 			bias-pull-up;
 		};
 	};
 
-	dragon_ebi2_pins: ebi2 {
+	dragon_ebi2_pins: ebi2-state {
 		/*
 		 * Pins used by EBI2 on the Dragonboard, actually only
 		 * CS2 is used by a real peripheral. CS0 is just
 		 * routed to a test point.
 		 */
-		mux0 {
+		mux0-pins {
 			pins =
 			    /* "gpio39", CS1A_N this is not good to mux */
 			    "gpio40", /* CS2A_N */
 			    "gpio134"; /* CS0_N testpoint TP29 */
 			function = "ebi2cs";
 		};
-		mux1 {
+		mux1-pins {
 			pins =
 			    /* EBI2_ADDR_7 downto EBI2_ADDR_0 address bus */
 			    "gpio123", "gpio124", "gpio125", "gpio126",
@@ -951,22 +928,21 @@
 	};
 
 	/* Interrupt line for the KXSD9 accelerometer */
-	dragon_kxsd9_gpios: kxsd9 {
-		irq {
-			pins = "gpio57"; /* IRQ line */
-			bias-pull-up;
-		};
+	dragon_kxsd9_gpios: kxsd9-state {
+		pins = "gpio57"; /* IRQ line */
+		function = "gpio";
+		bias-pull-up;
 	};
 
-	dragon_tma340_gpios: tma340 {
-		reset {
+	dragon_tma340_gpios: tma340-state {
+		reset-pins {
 			/* RESET line, TS_ATTN, WAKE_CTP */
 			pins = "gpio58";
 			function = "gpio";
 			drive-strength = <6>;
 			bias-disable;
 		};
-		irq {
+		irq-pins {
 			pins = "gpio61"; /* IRQ line */
 			function = "gpio";
 			drive-strength = <2>;
