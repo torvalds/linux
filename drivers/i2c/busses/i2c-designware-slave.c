@@ -87,7 +87,7 @@ static int i2c_dw_unreg_slave(struct i2c_client *slave)
 {
 	struct dw_i2c_dev *dev = i2c_get_adapdata(slave->adapter);
 
-	dev->disable_int(dev);
+	regmap_write(dev->map, DW_IC_INTR_MASK, 0);
 	dev->disable(dev);
 	synchronize_irq(dev->irq);
 	dev->slave = NULL;
@@ -232,7 +232,6 @@ int i2c_dw_probe_slave(struct dw_i2c_dev *dev)
 
 	dev->init = i2c_dw_init_slave;
 	dev->disable = i2c_dw_disable;
-	dev->disable_int = i2c_dw_disable_int;
 
 	ret = i2c_dw_init_regmap(dev);
 	if (ret)
