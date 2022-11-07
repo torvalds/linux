@@ -770,7 +770,7 @@ devlink_region_snapshot_get_by_id(struct devlink_region *region, u32 id)
 #define DEVLINK_NL_FLAG_NEED_RATE_NODE		BIT(3)
 #define DEVLINK_NL_FLAG_NEED_LINECARD		BIT(4)
 
-static int devlink_nl_pre_doit(const struct genl_ops *ops,
+static int devlink_nl_pre_doit(const struct genl_split_ops *ops,
 			       struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink_linecard *linecard;
@@ -828,7 +828,7 @@ unlock:
 	return err;
 }
 
-static void devlink_nl_post_doit(const struct genl_ops *ops,
+static void devlink_nl_post_doit(const struct genl_split_ops *ops,
 				 struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink_linecard *linecard;
