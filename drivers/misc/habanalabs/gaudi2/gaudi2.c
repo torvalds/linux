@@ -8684,8 +8684,8 @@ static void gaudi2_print_out_of_sync_info(struct hl_device *hdev,
 {
 	struct hl_hw_queue *q = &hdev->kernel_queues[GAUDI2_QUEUE_ID_CPU_PQ];
 
-	dev_err(hdev->dev, "Out of sync with FW, FW: pi=%u, ci=%u, LKD: pi=%u, ci=%u\n",
-			sync_err->pi, sync_err->ci, q->pi, atomic_read(&q->ci));
+	dev_err(hdev->dev, "Out of sync with FW, FW: pi=%u, ci=%u, LKD: pi=%u, ci=%d\n",
+		le32_to_cpu(sync_err->pi), le32_to_cpu(sync_err->ci), q->pi, atomic_read(&q->ci));
 }
 
 static void gaudi2_handle_pcie_p2p_msix(struct hl_device *hdev)
@@ -8751,8 +8751,8 @@ static void gaudi2_print_cpu_pkt_failure_info(struct hl_device *hdev,
 	struct hl_hw_queue *q = &hdev->kernel_queues[GAUDI2_QUEUE_ID_CPU_PQ];
 
 	dev_warn(hdev->dev,
-		"FW reported sanity check failure, FW: pi=%u, ci=%u, LKD: pi=%u, ci=%u\n",
-		sync_err->pi, sync_err->ci, q->pi, atomic_read(&q->ci));
+		"FW reported sanity check failure, FW: pi=%u, ci=%u, LKD: pi=%u, ci=%d\n",
+		le32_to_cpu(sync_err->pi), le32_to_cpu(sync_err->ci), q->pi, atomic_read(&q->ci));
 }
 
 static void hl_arc_event_handle(struct hl_device *hdev,

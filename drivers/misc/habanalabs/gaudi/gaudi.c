@@ -7347,8 +7347,8 @@ static void gaudi_print_out_of_sync_info(struct hl_device *hdev,
 {
 	struct hl_hw_queue *q = &hdev->kernel_queues[GAUDI_QUEUE_ID_CPU_PQ];
 
-	dev_err(hdev->dev, "Out of sync with FW, FW: pi=%u, ci=%u, LKD: pi=%u, ci=%u\n",
-			sync_err->pi, sync_err->ci, q->pi, atomic_read(&q->ci));
+	dev_err(hdev->dev, "Out of sync with FW, FW: pi=%u, ci=%u, LKD: pi=%u, ci=%d\n",
+		le32_to_cpu(sync_err->pi), le32_to_cpu(sync_err->ci), q->pi, atomic_read(&q->ci));
 }
 
 static void gaudi_print_fw_alive_info(struct hl_device *hdev,
