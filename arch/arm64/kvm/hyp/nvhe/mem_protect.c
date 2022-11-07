@@ -417,13 +417,11 @@ struct check_walk_data {
 	enum pkvm_page_state	(*get_page_state)(kvm_pte_t pte);
 };
 
-static int __check_page_state_visitor(u64 addr, u64 end, u32 level,
-				      kvm_pte_t *ptep,
-				      enum kvm_pgtable_walk_flags flag,
-				      void * const arg)
+static int __check_page_state_visitor(const struct kvm_pgtable_visit_ctx *ctx,
+				      enum kvm_pgtable_walk_flags visit)
 {
-	struct check_walk_data *d = arg;
-	kvm_pte_t pte = *ptep;
+	struct check_walk_data *d = ctx->arg;
+	kvm_pte_t pte = *ctx->ptep;
 
 	if (kvm_pte_valid(pte) && !addr_is_memory(kvm_pte_to_phys(pte)))
 		return -EINVAL;

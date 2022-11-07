@@ -199,10 +199,17 @@ enum kvm_pgtable_walk_flags {
 	KVM_PGTABLE_WALK_TABLE_POST		= BIT(2),
 };
 
-typedef int (*kvm_pgtable_visitor_fn_t)(u64 addr, u64 end, u32 level,
-					kvm_pte_t *ptep,
-					enum kvm_pgtable_walk_flags flag,
-					void * const arg);
+struct kvm_pgtable_visit_ctx {
+	kvm_pte_t				*ptep;
+	void					*arg;
+	u64					addr;
+	u64					end;
+	u32					level;
+	enum kvm_pgtable_walk_flags		flags;
+};
+
+typedef int (*kvm_pgtable_visitor_fn_t)(const struct kvm_pgtable_visit_ctx *ctx,
+					enum kvm_pgtable_walk_flags visit);
 
 /**
  * struct kvm_pgtable_walker - Hook into a page-table walk.

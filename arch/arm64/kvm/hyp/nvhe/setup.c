@@ -186,15 +186,13 @@ static void hpool_put_page(void *addr)
 	hyp_put_page(&hpool, addr);
 }
 
-static int finalize_host_mappings_walker(u64 addr, u64 end, u32 level,
-					 kvm_pte_t *ptep,
-					 enum kvm_pgtable_walk_flags flag,
-					 void * const arg)
+static int finalize_host_mappings_walker(const struct kvm_pgtable_visit_ctx *ctx,
+					 enum kvm_pgtable_walk_flags visit)
 {
-	struct kvm_pgtable_mm_ops *mm_ops = arg;
+	struct kvm_pgtable_mm_ops *mm_ops = ctx->arg;
 	enum kvm_pgtable_prot prot;
 	enum pkvm_page_state state;
-	kvm_pte_t pte = *ptep;
+	kvm_pte_t pte = *ctx->ptep;
 	phys_addr_t phys;
 
 	if (!kvm_pte_valid(pte))
@@ -205,11 +203,11 @@ static int finalize_host_mappings_walker(u64 addr, u64 end, u32 level,
 	 * was unable to access the hyp_vmemmap and so the buddy allocator has
 	 * initialised the refcount to '1'.
 	 */
-	mm_ops->get_page(ptep);
-	if (flag != KVM_PGTABLE_WALK_LEAF)
+	mm_ops->get_page(ctx->ptep);
+	if (visit != KVM_PGTABLE_WALK_LEAF)
 		return 0;
 
-	if (level != (KVM_PGTABLE_MAX_LEVELS - 1))
+	if (ctx->level != (KVM_PGTABLE_MAX_LEVELS - 1))
 		return -EINVAL;
 
 	phys = kvm_pte_to_phys(pte);
