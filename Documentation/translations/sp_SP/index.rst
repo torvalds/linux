@@ -78,3 +78,4 @@ Traducciones al español
    :maxdepth: 1
 
    howto
+   submitting-patches
