@@ -261,11 +261,14 @@ u64 mlx5dr_ste_get_mr_addr(struct mlx5dr_ste *ste);
 struct list_head *mlx5dr_ste_get_miss_list(struct mlx5dr_ste *ste);
 
 #define MLX5DR_MAX_VLANS 2
+#define MLX5DR_INVALID_PATTERN_INDEX 0xffffffff
 
 struct mlx5dr_ste_actions_attr {
 	u32	modify_index;
+	u32	modify_pat_idx;
 	u16	modify_actions;
 	u32	decap_index;
+	u32	decap_pat_idx;
 	u16	decap_actions;
 	u8	decap_with_vlan:1;
 	u64	final_icm_addr;
@@ -1036,6 +1039,7 @@ struct mlx5dr_action_rewrite {
 	u8 allow_tx:1;
 	u8 modify_ttl:1;
 	struct mlx5dr_ptrn_obj *ptrn;
+	struct mlx5dr_arg_obj *arg;
 };
 
 struct mlx5dr_action_reformat {

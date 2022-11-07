@@ -2179,10 +2179,19 @@ dr_ste_v1_build_tnl_gtpu_flex_parser_1_init(struct mlx5dr_ste_build *sb,
 int dr_ste_v1_alloc_modify_hdr_ptrn_arg(struct mlx5dr_action *action)
 {
 	struct mlx5dr_ptrn_mgr *ptrn_mgr;
+	int ret;
 
 	ptrn_mgr = action->rewrite->dmn->ptrn_mgr;
 	if (!ptrn_mgr)
 		return -EOPNOTSUPP;
+
+	action->rewrite->arg = mlx5dr_arg_get_obj(action->rewrite->dmn->arg_mgr,
+						  action->rewrite->num_of_actions,
+						  action->rewrite->data);
+	if (!action->rewrite->arg) {
+		mlx5dr_err(action->rewrite->dmn, "Failed allocating args for modify header\n");
+		return -EAGAIN;
+	}
 
 	action->rewrite->ptrn =
 		mlx5dr_ptrn_cache_get_pattern(ptrn_mgr,
@@ -2190,16 +2199,24 @@ int dr_ste_v1_alloc_modify_hdr_ptrn_arg(struct mlx5dr_action *action)
 					      action->rewrite->data);
 	if (!action->rewrite->ptrn) {
 		mlx5dr_err(action->rewrite->dmn, "Failed to get pattern\n");
-		return -EAGAIN;
+		ret = -EAGAIN;
+		goto put_arg;
 	}
 
 	return 0;
+
+put_arg:
+	mlx5dr_arg_put_obj(action->rewrite->dmn->arg_mgr,
+			   action->rewrite->arg);
+	return ret;
 }
 
 void dr_ste_v1_free_modify_hdr_ptrn_arg(struct mlx5dr_action *action)
 {
 	mlx5dr_ptrn_cache_put_pattern(action->rewrite->dmn->ptrn_mgr,
 				      action->rewrite->ptrn);
+	mlx5dr_arg_put_obj(action->rewrite->dmn->arg_mgr,
+			   action->rewrite->arg);
 }
 
 static struct mlx5dr_ste_ctx ste_ctx_v1 = {

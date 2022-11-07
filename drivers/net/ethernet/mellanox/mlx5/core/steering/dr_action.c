@@ -819,14 +819,28 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 		case DR_ACTION_TYP_TNL_L2_TO_L2:
 			break;
 		case DR_ACTION_TYP_TNL_L3_TO_L2:
-			attr.decap_index = action->rewrite->index;
-			attr.decap_actions = action->rewrite->num_of_actions;
-			attr.decap_with_vlan =
-				attr.decap_actions == WITH_VLAN_NUM_HW_ACTIONS;
+			if (action->rewrite->ptrn && action->rewrite->arg) {
+				attr.decap_index = mlx5dr_arg_get_obj_id(action->rewrite->arg);
+				attr.decap_actions = action->rewrite->ptrn->num_of_actions;
+				attr.decap_pat_idx = action->rewrite->ptrn->index;
+			} else {
+				attr.decap_index = action->rewrite->index;
+				attr.decap_actions = action->rewrite->num_of_actions;
+				attr.decap_with_vlan =
+					attr.decap_actions == WITH_VLAN_NUM_HW_ACTIONS;
+				attr.decap_pat_idx = MLX5DR_INVALID_PATTERN_INDEX;
+			}
 			break;
 		case DR_ACTION_TYP_MODIFY_HDR:
-			attr.modify_index = action->rewrite->index;
-			attr.modify_actions = action->rewrite->num_of_actions;
+			if (action->rewrite->ptrn && action->rewrite->arg) {
+				attr.modify_index = mlx5dr_arg_get_obj_id(action->rewrite->arg);
+				attr.modify_actions = action->rewrite->ptrn->num_of_actions;
+				attr.modify_pat_idx = action->rewrite->ptrn->index;
+			} else {
+				attr.modify_index = action->rewrite->index;
+				attr.modify_actions = action->rewrite->num_of_actions;
+				attr.modify_pat_idx = MLX5DR_INVALID_PATTERN_INDEX;
+			}
 			if (action->rewrite->modify_ttl)
 				dr_action_modify_ttl_adjust(dmn, &attr, rx_rule,
 							    &recalc_cs_required);
