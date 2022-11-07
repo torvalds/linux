@@ -126,6 +126,17 @@ struct btrfs_raid_bio {
 
 	/* Allocated with real_stripes-many pointers for finish_*() calls */
 	void **finish_pointers;
+
+	/*
+	 * The bitmap recording where IO errors happened.
+	 * Each bit is corresponding to one sector in either bio_sectors[] or
+	 * stripe_sectors[] array.
+	 *
+	 * The reason we don't use another bit in sector_ptr is, we have two
+	 * arrays of sectors, and a lot of IO can use sectors in both arrays.
+	 * Thus making it much harder to iterate.
+	 */
+	unsigned long *error_bitmap;
 };
 
 /*

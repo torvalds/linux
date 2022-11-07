@@ -76,6 +76,7 @@ static void scrub_rbio_work_locked(struct work_struct *work);
 
 static void free_raid_bio_pointers(struct btrfs_raid_bio *rbio)
 {
+	bitmap_free(rbio->error_bitmap);
 	kfree(rbio->stripe_pages);
 	kfree(rbio->bio_sectors);
 	kfree(rbio->stripe_sectors);
@@ -950,9 +951,10 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	rbio->stripe_sectors = kcalloc(num_sectors, sizeof(struct sector_ptr),
 				       GFP_NOFS);
 	rbio->finish_pointers = kcalloc(real_stripes, sizeof(void *), GFP_NOFS);
+	rbio->error_bitmap = bitmap_zalloc(num_sectors, GFP_NOFS);
 
 	if (!rbio->stripe_pages || !rbio->bio_sectors || !rbio->stripe_sectors ||
-	    !rbio->finish_pointers) {
+	    !rbio->finish_pointers || !rbio->error_bitmap) {
 		free_raid_bio_pointers(rbio);
 		kfree(rbio);
 		return ERR_PTR(-ENOMEM);
@@ -1044,8 +1046,11 @@ static int rbio_add_io_sector(struct btrfs_raid_bio *rbio,
 	disk_start = stripe->physical + sector_nr * sectorsize;
 
 	/* if the device is missing, just fail this stripe */
-	if (!stripe->dev->bdev)
+	if (!stripe->dev->bdev) {
+		set_bit(stripe_nr * rbio->stripe_nsectors + sector_nr,
+			rbio->error_bitmap);
 		return fail_rbio_index(rbio, stripe_nr);
+	}
 
 	/* see if we can add this page onto our existing bio */
 	if (last) {
@@ -1209,6 +1214,7 @@ static int rmw_assemble_write_bios(struct btrfs_raid_bio *rbio,
 	 * write.
 	 */
 	atomic_set(&rbio->error, 0);
+	bitmap_clear(rbio->error_bitmap, 0, rbio->nr_sectors);
 	rbio->faila = -1;
 	rbio->failb = -1;
 
@@ -1332,6 +1338,40 @@ static int find_logical_bio_stripe(struct btrfs_raid_bio *rbio,
 	return -1;
 }
 
+static void set_rbio_range_error(struct btrfs_raid_bio *rbio, struct bio *bio)
+{
+	struct btrfs_fs_info *fs_info = rbio->bioc->fs_info;
+	u32 offset = (bio->bi_iter.bi_sector << SECTOR_SHIFT) -
+		     rbio->bioc->raid_map[0];
+	int total_nr_sector = offset >> fs_info->sectorsize_bits;
+
+	ASSERT(total_nr_sector < rbio->nr_data * rbio->stripe_nsectors);
+
+	bitmap_set(rbio->error_bitmap, total_nr_sector,
+		   bio->bi_iter.bi_size >> fs_info->sectorsize_bits);
+
+	/*
+	 * Special handling for raid56_alloc_missing_rbio() used by
+	 * scrub/replace.  Unlike call path in raid56_parity_recover(), they
+	 * pass an empty bio here.  Thus we have to find out the missing device
+	 * and mark the stripe error instead.
+	 */
+	if (bio->bi_iter.bi_size == 0) {
+		bool found_missing = false;
+		int stripe_nr;
+
+		for (stripe_nr = 0; stripe_nr < rbio->real_stripes; stripe_nr++) {
+			if (!rbio->bioc->stripes[stripe_nr].dev->bdev) {
+				found_missing = true;
+				bitmap_set(rbio->error_bitmap,
+					   stripe_nr * rbio->stripe_nsectors,
+					   rbio->stripe_nsectors);
+			}
+		}
+		ASSERT(found_missing);
+	}
+}
+
 /*
  * returns -EIO if we had too many failures
  */
@@ -1423,14 +1463,49 @@ static void set_bio_pages_uptodate(struct btrfs_raid_bio *rbio, struct bio *bio)
 	}
 }
 
+static int get_bio_sector_nr(struct btrfs_raid_bio *rbio, struct bio *bio)
+{
+	struct bio_vec *bv = bio_first_bvec_all(bio);
+	int i;
+
+	for (i = 0; i < rbio->nr_sectors; i++) {
+		struct sector_ptr *sector;
+
+		sector = &rbio->stripe_sectors[i];
+		if (sector->page == bv->bv_page && sector->pgoff == bv->bv_offset)
+			break;
+		sector = &rbio->bio_sectors[i];
+		if (sector->page == bv->bv_page && sector->pgoff == bv->bv_offset)
+			break;
+	}
+	ASSERT(i < rbio->nr_sectors);
+	return i;
+}
+
+static void rbio_update_error_bitmap(struct btrfs_raid_bio *rbio, struct bio *bio)
+{
+	int total_sector_nr = get_bio_sector_nr(rbio, bio);
+	u32 bio_size = 0;
+	struct bio_vec *bvec;
+	struct bvec_iter_all iter_all;
+
+	bio_for_each_segment_all(bvec, bio, iter_all)
+		bio_size += bvec->bv_len;
+
+	bitmap_set(rbio->error_bitmap, total_sector_nr,
+		   bio_size >> rbio->bioc->fs_info->sectorsize_bits);
+}
+
 static void raid_wait_read_end_io(struct bio *bio)
 {
 	struct btrfs_raid_bio *rbio = bio->bi_private;
 
-	if (bio->bi_status)
+	if (bio->bi_status) {
 		fail_bio_stripe(rbio, bio);
-	else
+		rbio_update_error_bitmap(rbio, bio);
+	} else {
 		set_bio_pages_uptodate(rbio, bio);
+	}
 
 	bio_put(bio);
 	if (atomic_dec_and_test(&rbio->stripes_pending))
@@ -1863,10 +1938,10 @@ static int recover_assemble_read_bios(struct btrfs_raid_bio *rbio,
 		struct sector_ptr *sector;
 
 		if (rbio->faila == stripe || rbio->failb == stripe) {
-			atomic_inc(&rbio->error);
 			/* Skip the current stripe. */
 			ASSERT(sectornr == 0);
 			total_sector_nr += rbio->stripe_nsectors - 1;
+			atomic_inc(&rbio->error);
 			continue;
 		}
 		sector = rbio_stripe_sector(rbio, stripe, sectornr);
@@ -1891,9 +1966,10 @@ static int recover_rbio(struct btrfs_raid_bio *rbio)
 
 	/*
 	 * Either we're doing recover for a read failure or degraded write,
-	 * caller should have set faila/b correctly.
+	 * caller should have set faila/b and error bitmap correctly.
 	 */
 	ASSERT(rbio->faila >= 0 || rbio->failb >= 0);
+	ASSERT(bitmap_weight(rbio->error_bitmap, rbio->nr_sectors));
 	bio_list_init(&bio_list);
 
 	/*
@@ -1978,6 +2054,8 @@ void raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
 	rbio->operation = BTRFS_RBIO_READ_REBUILD;
 	rbio_add_bio(rbio, bio);
 
+	set_rbio_range_error(rbio, bio);
+
 	rbio->faila = find_logical_bio_stripe(rbio, bio);
 	if (rbio->faila == -1) {
 		btrfs_warn(fs_info,
@@ -2038,8 +2116,10 @@ static void raid_wait_write_end_io(struct bio *bio)
 	struct btrfs_raid_bio *rbio = bio->bi_private;
 	blk_status_t err = bio->bi_status;
 
-	if (err)
+	if (err) {
 		fail_bio_stripe(rbio, bio);
+		rbio_update_error_bitmap(rbio, bio);
+	}
 	bio_put(bio);
 	if (atomic_dec_and_test(&rbio->stripes_pending))
 		wake_up(&rbio->io_wait);
@@ -2117,6 +2197,7 @@ write:
 	spin_unlock_irq(&rbio->bio_list_lock);
 
 	atomic_set(&rbio->error, 0);
+	bitmap_clear(rbio->error_bitmap, 0, rbio->nr_sectors);
 
 	index_rbio_pages(rbio);
 
@@ -2328,6 +2409,7 @@ static int finish_parity_scrub(struct btrfs_raid_bio *rbio, int need_check)
 	}
 
 	atomic_set(&rbio->error, 0);
+	bitmap_clear(rbio->error_bitmap, 0, rbio->nr_sectors);
 
 	/* Map the parity stripe just once */
 	pointers[nr_data] = kmap_local_page(p_sector.page);
@@ -2533,6 +2615,8 @@ static int scrub_rbio(struct btrfs_raid_bio *rbio)
 		goto cleanup;
 
 	atomic_set(&rbio->error, 0);
+	bitmap_clear(rbio->error_bitmap, 0, rbio->nr_sectors);
+
 	ret = scrub_assemble_read_bios(rbio, &bio_list);
 	if (ret < 0)
 		goto cleanup;
@@ -2612,6 +2696,7 @@ raid56_alloc_missing_rbio(struct bio *bio, struct btrfs_io_context *bioc)
 	 */
 	ASSERT(!bio->bi_iter.bi_size);
 
+	set_rbio_range_error(rbio, bio);
 	rbio->faila = find_logical_bio_stripe(rbio, bio);
 	if (rbio->faila == -1) {
 		btrfs_warn_rl(fs_info,
