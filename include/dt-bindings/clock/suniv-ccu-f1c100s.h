@@ -67,4 +67,6 @@
 #define CLK_CODEC		65
 #define CLK_AVS			66
 
+#define CLK_IR			67
+
 #endif
