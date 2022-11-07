@@ -255,7 +255,7 @@ out_invalid:
 
 /**
  * ns_match() - Returns true if current namespace matches dev/ino provided.
- * @ns_common: current ns
+ * @ns: current namespace
  * @dev: dev_t from nsfs that will be matched against current nsfs
  * @ino: ino_t from nsfs that will be matched against current nsfs
  *
