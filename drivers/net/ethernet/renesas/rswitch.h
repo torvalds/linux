@@ -908,9 +908,9 @@ struct rswitch_gwca_queue {
 		struct rswitch_ext_ts_desc *ts_ring;
 	};
 	dma_addr_t ring_dma;
-	u32 ring_size;
-	u32 cur;
-	u32 dirty;
+	int ring_size;
+	int cur;
+	int dirty;
 	struct sk_buff **skbs;
 
 	struct net_device *ndev;	/* queue to ndev for irq */

@@ -219,9 +219,9 @@ static void rswitch_ack_data_irq(struct rswitch_private *priv, int index)
 	iowrite32(BIT(index % 32), priv->addr + offs);
 }
 
-static u32 rswitch_next_queue_index(struct rswitch_gwca_queue *gq, bool cur, u32 num)
+static int rswitch_next_queue_index(struct rswitch_gwca_queue *gq, bool cur, int num)
 {
-	u32 index = cur ? gq->cur : gq->dirty;
+	int index = cur ? gq->cur : gq->dirty;
 
 	if (index + num >= gq->ring_size)
 		index = (index + num) % gq->ring_size;
@@ -231,7 +231,7 @@ static u32 rswitch_next_queue_index(struct rswitch_gwca_queue *gq, bool cur, u32
 	return index;
 }
 
-static u32 rswitch_get_num_cur_queues(struct rswitch_gwca_queue *gq)
+static int rswitch_get_num_cur_queues(struct rswitch_gwca_queue *gq)
 {
 	if (gq->cur >= gq->dirty)
 		return gq->cur - gq->dirty;
@@ -250,9 +250,9 @@ static bool rswitch_is_queue_rxed(struct rswitch_gwca_queue *gq)
 }
 
 static int rswitch_gwca_queue_alloc_skb(struct rswitch_gwca_queue *gq,
-					u32 start_index, u32 num)
+					int start_index, int num)
 {
-	u32 i, index;
+	int i, index;
 
 	for (i = 0; i < num; i++) {
 		index = (i + start_index) % gq->ring_size;
@@ -410,12 +410,12 @@ err:
 
 static int rswitch_gwca_queue_ts_fill(struct net_device *ndev,
 				      struct rswitch_gwca_queue *gq,
-				      u32 start_index, u32 num)
+				      int start_index, int num)
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
 	struct rswitch_ext_ts_desc *desc;
 	dma_addr_t dma_addr;
-	u32 i, index;
+	int i, index;
 
 	for (i = 0; i < num; i++) {
 		index = (i + start_index) % gq->ring_size;
@@ -736,7 +736,8 @@ static int rswitch_tx_free(struct net_device *ndev, bool free_txed_only)
 	int free_num = 0;
 	int size;
 
-	for (; gq->cur - gq->dirty > 0; gq->dirty = rswitch_next_queue_index(gq, false, 1)) {
+	for (; rswitch_get_num_cur_queues(gq) > 0;
+	     gq->dirty = rswitch_next_queue_index(gq, false, 1)) {
 		desc = &gq->ring[gq->dirty];
 		if (free_txed_only && (desc->desc.die_dt & DT_MASK) != DT_FEMPTY)
 			break;
