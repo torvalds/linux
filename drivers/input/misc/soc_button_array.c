@@ -78,6 +78,13 @@ static const struct dmi_system_id dmi_use_low_level_irq[] = {
 		},
 	},
 	{
+		/* Acer Switch V 10 SW5-017, same issue as Acer Switch 10 SW5-012. */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SW5-017"),
+		},
+	},
+	{
 		/*
 		 * Acer One S1003. _LID method messes with power-button GPIO
 		 * IRQ settings, leading to a non working power-button.
