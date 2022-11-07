@@ -2191,9 +2191,13 @@ static bool intel_hdmi_has_audio(struct intel_encoder *encoder,
 }
 
 static enum intel_output_format
-intel_hdmi_output_format(struct intel_connector *connector,
+intel_hdmi_output_format(const struct intel_crtc_state *crtc_state,
+			 struct intel_connector *connector,
 			 bool ycbcr_420_output)
 {
+	if (!crtc_state->has_hdmi_sink)
+		return INTEL_OUTPUT_FORMAT_RGB;
+
 	if (connector->base.ycbcr_420_allowed && ycbcr_420_output)
 		return INTEL_OUTPUT_FORMAT_YCBCR420;
 	else
@@ -2212,7 +2216,8 @@ static int intel_hdmi_compute_output_format(struct intel_encoder *encoder,
 	bool ycbcr_420_only = drm_mode_is_420_only(info, adjusted_mode);
 	int ret;
 
-	crtc_state->output_format = intel_hdmi_output_format(connector, ycbcr_420_only);
+	crtc_state->output_format =
+		intel_hdmi_output_format(crtc_state, connector, ycbcr_420_only);
 
 	if (ycbcr_420_only && !intel_hdmi_is_ycbcr420(crtc_state)) {
 		drm_dbg_kms(&i915->drm,
@@ -2227,7 +2232,7 @@ static int intel_hdmi_compute_output_format(struct intel_encoder *encoder,
 		    !drm_mode_is_420_also(info, adjusted_mode))
 			return ret;
 
-		crtc_state->output_format = intel_hdmi_output_format(connector, true);
+		crtc_state->output_format = intel_hdmi_output_format(crtc_state, connector, true);
 		ret = intel_hdmi_compute_clock(encoder, crtc_state, respect_downstream_limits);
 	}
 
