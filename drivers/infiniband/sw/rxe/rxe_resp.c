@@ -393,16 +393,36 @@ static enum resp_states check_resource(struct rxe_qp *qp,
 static enum resp_states check_length(struct rxe_qp *qp,
 				     struct rxe_pkt_info *pkt)
 {
-	switch (qp_type(qp)) {
-	case IB_QPT_RC:
-		return RESPST_CHK_RKEY;
+	int mtu = qp->mtu;
+	u32 payload = payload_size(pkt);
+	u32 dmalen = reth_len(pkt);
 
-	case IB_QPT_UC:
-		return RESPST_CHK_RKEY;
+	/* RoCEv2 packets do not have LRH.
+	 * Let's skip checking it.
+	 */
 
-	default:
-		return RESPST_CHK_RKEY;
+	if ((pkt->opcode & RXE_START_MASK) &&
+	    (pkt->opcode & RXE_END_MASK)) {
+		/* "only" packets */
+		if (payload > mtu)
+			return RESPST_ERR_LENGTH;
+	} else if ((pkt->opcode & RXE_START_MASK) ||
+		   (pkt->opcode & RXE_MIDDLE_MASK)) {
+		/* "first" or "middle" packets */
+		if (payload != mtu)
+			return RESPST_ERR_LENGTH;
+	} else if (pkt->opcode & RXE_END_MASK) {
+		/* "last" packets */
+		if ((payload == 0) || (payload > mtu))
+			return RESPST_ERR_LENGTH;
 	}
+
+	if (pkt->opcode & (RXE_WRITE_MASK | RXE_READ_MASK)) {
+		if (dmalen > (1 << 31))
+			return RESPST_ERR_LENGTH;
+	}
+
+	return RESPST_CHK_RKEY;
 }
 
 static enum resp_states check_rkey(struct rxe_qp *qp,
