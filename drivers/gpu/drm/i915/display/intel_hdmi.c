@@ -2058,13 +2058,6 @@ static bool hdmi_bpc_possible(const struct intel_crtc_state *crtc_state, int bpc
 	if (!intel_hdmi_source_bpc_possible(dev_priv, bpc))
 		return false;
 
-	/*
-	 * HDMI deep color affects the clocks, so it's only possible
-	 * when not cloning with other encoder types.
-	 */
-	if (bpc > 8 && crtc_state->output_types != BIT(INTEL_OUTPUT_HDMI))
-		return false;
-
 	/* Display Wa_1405510057:icl,ehl */
 	if (intel_hdmi_is_ycbcr420(crtc_state) &&
 	    bpc == 10 && DISPLAY_VER(dev_priv) == 11 &&
@@ -2239,6 +2232,12 @@ static int intel_hdmi_compute_output_format(struct intel_encoder *encoder,
 	return ret;
 }
 
+static bool intel_hdmi_is_cloned(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->uapi.encoder_mask &&
+		!is_power_of_2(crtc_state->uapi.encoder_mask);
+}
+
 int intel_hdmi_compute_config(struct intel_encoder *encoder,
 			      struct intel_crtc_state *pipe_config,
 			      struct drm_connector_state *conn_state)
@@ -2254,8 +2253,9 @@ int intel_hdmi_compute_config(struct intel_encoder *encoder,
 		return -EINVAL;
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
-	pipe_config->has_hdmi_sink = intel_has_hdmi_sink(intel_hdmi,
-							 conn_state);
+	pipe_config->has_hdmi_sink =
+		intel_has_hdmi_sink(intel_hdmi, conn_state) &&
+		!intel_hdmi_is_cloned(pipe_config);
 
 	if (pipe_config->has_hdmi_sink)
 		pipe_config->has_infoframe = true;
