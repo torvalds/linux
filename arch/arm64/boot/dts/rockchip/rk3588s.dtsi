@@ -3553,6 +3553,8 @@
 		clocks = <&cru ACLK_FISHEYE0>, <&cru HCLK_FISHEYE0>,
 			 <&cru CLK_FISHEYE0_CORE>;
 		clock-names = "aclk_ispp", "hclk_ispp", "clk_ispp";
+		assigned-clocks = <&cru HCLK_FISHEYE0>;
+		assigned-clock-rates = <100000000>;
 		power-domains = <&power RK3588_PD_FEC>;
 		iommus = <&fec0_mmu>;
 		status = "disabled";
@@ -3579,6 +3581,8 @@
 		clocks = <&cru ACLK_FISHEYE1>, <&cru HCLK_FISHEYE1>,
 			 <&cru CLK_FISHEYE1_CORE>;
 		clock-names = "aclk_ispp", "hclk_ispp", "clk_ispp";
+		assigned-clocks = <&cru HCLK_FISHEYE1>;
+		assigned-clock-rates = <100000000>;
 		power-domains = <&power RK3588_PD_FEC>;
 		iommus = <&fec1_mmu>;
 		status = "disabled";
