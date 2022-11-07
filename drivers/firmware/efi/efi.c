@@ -396,10 +396,6 @@ static int __init efisubsys_init(void)
 		goto err_unregister;
 	}
 
-	error = efi_runtime_map_init(efi_kobj);
-	if (error)
-		goto err_remove_group;
-
 	/* and the standard mountpoint for efivarfs */
 	error = sysfs_create_mount_point(efi_kobj, "efivars");
 	if (error) {
@@ -425,6 +421,7 @@ err_unregister:
 		generic_ops_unregister();
 err_put:
 	kobject_put(efi_kobj);
+	efi_kobj = NULL;
 	destroy_workqueue(efi_rts_wq);
 	return error;
 }

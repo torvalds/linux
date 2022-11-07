@@ -1089,34 +1089,6 @@ extern int efi_capsule_update(efi_capsule_header_t *capsule,
 static inline bool efi_capsule_pending(int *reset_type) { return false; }
 #endif
 
-#ifdef CONFIG_EFI_RUNTIME_MAP
-int efi_runtime_map_init(struct kobject *);
-int efi_get_runtime_map_size(void);
-int efi_get_runtime_map_desc_size(void);
-int efi_runtime_map_copy(void *buf, size_t bufsz);
-#else
-static inline int efi_runtime_map_init(struct kobject *kobj)
-{
-	return 0;
-}
-
-static inline int efi_get_runtime_map_size(void)
-{
-	return 0;
-}
-
-static inline int efi_get_runtime_map_desc_size(void)
-{
-	return 0;
-}
-
-static inline int efi_runtime_map_copy(void *buf, size_t bufsz)
-{
-	return 0;
-}
-
-#endif
-
 #ifdef CONFIG_EFI
 extern bool efi_runtime_disabled(void);
 #else

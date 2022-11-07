@@ -432,4 +432,26 @@ extern void __init efi_memmap_insert(struct efi_memory_map *old_memmap,
 #define arch_ima_efi_boot_mode	\
 	({ extern struct boot_params boot_params; boot_params.secure_boot; })
 
+#ifdef CONFIG_EFI_RUNTIME_MAP
+int efi_get_runtime_map_size(void);
+int efi_get_runtime_map_desc_size(void);
+int efi_runtime_map_copy(void *buf, size_t bufsz);
+#else
+static inline int efi_get_runtime_map_size(void)
+{
+	return 0;
+}
+
+static inline int efi_get_runtime_map_desc_size(void)
+{
+	return 0;
+}
+
+static inline int efi_runtime_map_copy(void *buf, size_t bufsz)
+{
+	return 0;
+}
+
+#endif
+
 #endif /* _ASM_X86_EFI_H */

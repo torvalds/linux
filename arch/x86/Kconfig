@@ -2014,6 +2014,17 @@ config EFI_MAX_FAKE_MEM
 	  Ranges can be set up to this value using comma-separated list.
 	  The default value is 8.
 
+config EFI_RUNTIME_MAP
+	bool "Export EFI runtime maps to sysfs" if EXPERT
+	depends on EFI
+	default KEXEC_CORE
+	help
+	  Export EFI runtime memory regions to /sys/firmware/efi/runtime-map.
+	  That memory map is required by the 2nd kernel to set up EFI virtual
+	  mappings after kexec, but can also be used for debugging purposes.
+
+	  See also Documentation/ABI/testing/sysfs-firmware-efi-runtime-map.
+
 source "kernel/Kconfig.hz"
 
 config KEXEC
