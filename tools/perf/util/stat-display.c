@@ -900,8 +900,8 @@ static void print_interval(struct perf_stat_config *config,
 		sprintf(prefix, "{\"interval\" : %lu.%09lu}", (unsigned long)
 				 ts->tv_sec, ts->tv_nsec);
 
-	if ((num_print_interval == 0 && !config->csv_output && !config->json_output)
-			 || config->interval_clear) {
+	if ((num_print_interval == 0 || config->interval_clear) &&
+			!config->csv_output && !config->json_output) {
 		switch (config->aggr_mode) {
 		case AGGR_NODE:
 			fprintf(output, "#           time node   cpus");
