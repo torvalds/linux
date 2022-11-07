@@ -63,15 +63,16 @@ struct isc_subdev_entity {
  * @cfa_baycfg:		If this format is RAW BAYER, indicate the type of bayer.
 			this is either BGBG, RGRG, etc.
  * @pfe_cfg0_bps:	Number of hardware data lines connected to the ISC
+ * @raw:		If the format is raw bayer.
  */
 
 struct isc_format {
 	u32	fourcc;
 	u32	mbus_code;
 	u32	cfa_baycfg;
-
-	bool	sd_support;
 	u32	pfe_cfg0_bps;
+
+	bool	raw;
 };
 
 /* Pipeline bitmap */
@@ -216,8 +217,7 @@ enum isc_scaler_pads {
  * @comp:		completion reference that signals frame completion
  *
  * @fmt:		current v42l format
- * @user_formats:	list of formats that are supported and agreed with sd
- * @num_user_formats:	how many formats are in user_formats
+ * @try_fmt:		current v4l2 try format
  *
  * @config:		current ISC format configuration
  * @try_config:		the current ISC try format , not yet activated
@@ -272,6 +272,7 @@ enum isc_scaler_pads {
  * @formats_list_size:	size of formats_list array
  * @pads:		media controller pads for isc video entity
  * @mdev:		media device that is registered by the isc
+ * @mpipe:		media device pipeline used by the isc
  * @remote_pad:		remote pad on the connected subdevice
  * @scaler_sd:		subdevice for the scaler that isc registers
  * @scaler_pads:	media controller pads for the scaler subdevice
@@ -298,8 +299,7 @@ struct isc_device {
 	struct completion	comp;
 
 	struct v4l2_format	fmt;
-	struct isc_format	**user_formats;
-	unsigned int		num_user_formats;
+	struct v4l2_format	try_fmt;
 
 	struct fmt_config	config;
 	struct fmt_config	try_config;
@@ -369,6 +369,7 @@ struct isc_device {
 	struct {
 		struct media_pad		pads[ISC_PADS_NUM];
 		struct media_device		mdev;
+		struct media_pipeline		mpipe;
 
 		u32				remote_pad;
 	};

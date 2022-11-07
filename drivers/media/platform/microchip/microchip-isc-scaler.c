@@ -173,6 +173,10 @@ static const struct v4l2_subdev_pad_ops isc_scaler_pad_ops = {
 	.init_cfg = isc_scaler_init_cfg,
 };
 
+static const struct media_entity_operations isc_scaler_entity_ops = {
+	.link_validate = v4l2_subdev_link_validate,
+};
+
 static const struct v4l2_subdev_ops xisc_scaler_subdev_ops = {
 	.pad = &isc_scaler_pad_ops,
 };
@@ -190,6 +194,7 @@ int isc_scaler_init(struct isc_device *isc)
 
 	isc->scaler_sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	isc->scaler_sd.entity.function = MEDIA_ENT_F_PROC_VIDEO_SCALER;
+	isc->scaler_sd.entity.ops = &isc_scaler_entity_ops;
 	isc->scaler_pads[ISC_SCALER_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	isc->scaler_pads[ISC_SCALER_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 
