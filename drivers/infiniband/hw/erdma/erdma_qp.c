@@ -285,15 +285,16 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 	u32 wqe_size, wqebb_cnt, hw_op, flags, sgl_offset;
 	u32 idx = *pi & (qp->attrs.sq_size - 1);
 	enum ib_wr_opcode op = send_wr->opcode;
+	struct erdma_atomic_sqe *atomic_sqe;
 	struct erdma_readreq_sqe *read_sqe;
 	struct erdma_reg_mr_sqe *regmr_sge;
 	struct erdma_write_sqe *write_sqe;
 	struct erdma_send_sqe *send_sqe;
 	struct ib_rdma_wr *rdma_wr;
-	struct erdma_mr *mr;
+	struct erdma_sge *sge;
 	__le32 *length_field;
+	struct erdma_mr *mr;
 	u64 wqe_hdr, *entry;
-	struct ib_sge *sge;
 	u32 attrs;
 	int ret;
 
@@ -360,9 +361,9 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 
 		sge = get_queue_entry(qp->kern_qp.sq_buf, idx + 1,
 				      qp->attrs.sq_size, SQEBB_SHIFT);
-		sge->addr = rdma_wr->remote_addr;
-		sge->lkey = rdma_wr->rkey;
-		sge->length = send_wr->sg_list[0].length;
+		sge->addr = cpu_to_le64(rdma_wr->remote_addr);
+		sge->key = cpu_to_le32(rdma_wr->rkey);
+		sge->length = cpu_to_le32(send_wr->sg_list[0].length);
 		wqe_size = sizeof(struct erdma_readreq_sqe) +
 			   send_wr->num_sge * sizeof(struct ib_sge);
 
@@ -422,6 +423,35 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 		regmr_sge = (struct erdma_reg_mr_sqe *)entry;
 		regmr_sge->stag = cpu_to_le32(send_wr->ex.invalidate_rkey);
 		wqe_size = sizeof(struct erdma_reg_mr_sqe);
+		goto out;
+	case IB_WR_ATOMIC_CMP_AND_SWP:
+	case IB_WR_ATOMIC_FETCH_AND_ADD:
+		atomic_sqe = (struct erdma_atomic_sqe *)entry;
+		if (op == IB_WR_ATOMIC_CMP_AND_SWP) {
+			wqe_hdr |= FIELD_PREP(ERDMA_SQE_HDR_OPCODE_MASK,
+					      ERDMA_OP_ATOMIC_CAS);
+			atomic_sqe->fetchadd_swap_data =
+				cpu_to_le64(atomic_wr(send_wr)->swap);
+			atomic_sqe->cmp_data =
+				cpu_to_le64(atomic_wr(send_wr)->compare_add);
+		} else {
+			wqe_hdr |= FIELD_PREP(ERDMA_SQE_HDR_OPCODE_MASK,
+					      ERDMA_OP_ATOMIC_FAD);
+			atomic_sqe->fetchadd_swap_data =
+				cpu_to_le64(atomic_wr(send_wr)->compare_add);
+		}
+
+		sge = get_queue_entry(qp->kern_qp.sq_buf, idx + 1,
+				      qp->attrs.sq_size, SQEBB_SHIFT);
+		sge->addr = cpu_to_le64(atomic_wr(send_wr)->remote_addr);
+		sge->key = cpu_to_le32(atomic_wr(send_wr)->rkey);
+		sge++;
+
+		sge->addr = cpu_to_le64(send_wr->sg_list[0].addr);
+		sge->key = cpu_to_le32(send_wr->sg_list[0].lkey);
+		sge->length = cpu_to_le32(send_wr->sg_list[0].length);
+
+		wqe_size = sizeof(*atomic_sqe);
 		goto out;
 	default:
 		return -EOPNOTSUPP;

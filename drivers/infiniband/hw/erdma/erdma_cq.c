@@ -64,6 +64,8 @@ static const enum ib_wc_opcode wc_mapping_table[ERDMA_NUM_OPCODES] = {
 	[ERDMA_OP_REG_MR] = IB_WC_REG_MR,
 	[ERDMA_OP_LOCAL_INV] = IB_WC_LOCAL_INV,
 	[ERDMA_OP_READ_WITH_INV] = IB_WC_RDMA_READ,
+	[ERDMA_OP_ATOMIC_CAS] = IB_WC_COMP_SWAP,
+	[ERDMA_OP_ATOMIC_FAD] = IB_WC_FETCH_ADD,
 };
 
 static const struct {

@@ -344,9 +344,9 @@ struct erdma_cqe {
 };
 
 struct erdma_sge {
-	__aligned_le64 laddr;
+	__aligned_le64 addr;
 	__le32 length;
-	__le32 lkey;
+	__le32 key;
 };
 
 /* Receive Queue Element */
@@ -413,6 +413,16 @@ struct erdma_readreq_sqe {
 	__le32 rsvd;
 };
 
+struct erdma_atomic_sqe {
+	__le64 hdr;
+	__le64 rsvd;
+	__le64 fetchadd_swap_data;
+	__le64 cmp_data;
+
+	struct erdma_sge remote;
+	struct erdma_sge sgl;
+};
+
 struct erdma_reg_mr_sqe {
 	__le64 hdr;
 	__le64 addr;
@@ -472,7 +482,9 @@ enum erdma_opcode {
 	ERDMA_OP_REG_MR = 14,
 	ERDMA_OP_LOCAL_INV = 15,
 	ERDMA_OP_READ_WITH_INV = 16,
-	ERDMA_NUM_OPCODES = 17,
+	ERDMA_OP_ATOMIC_CAS = 17,
+	ERDMA_OP_ATOMIC_FAD = 18,
+	ERDMA_NUM_OPCODES = 19,
 	ERDMA_OP_INVALID = ERDMA_NUM_OPCODES + 1
 };
 
