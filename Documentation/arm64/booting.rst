@@ -348,7 +348,7 @@ Before jumping into the kernel, the following conditions must be met:
 
     - HWFGWTR_EL2.nSMPRI_EL1 (bit 54) must be initialised to 0b01.
 
-  For CPUs with the Scalable Matrix Extension FA64 feature (FEAT_SME_FA64)
+  For CPUs with the Scalable Matrix Extension FA64 feature (FEAT_SME_FA64):
 
   - If EL3 is present:
 
