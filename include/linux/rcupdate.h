@@ -340,6 +340,11 @@ static inline int rcu_read_lock_any_held(void)
 	return !preemptible();
 }
 
+static inline int debug_lockdep_rcu_enabled(void)
+{
+	return 0;
+}
+
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
 #ifdef CONFIG_PROVE_RCU
