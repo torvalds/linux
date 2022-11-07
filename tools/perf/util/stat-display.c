@@ -218,7 +218,7 @@ struct outstate {
 	struct evsel *evsel;
 };
 
-#define METRIC_LEN  35
+#define METRIC_LEN  38
 
 static void new_line_std(struct perf_stat_config *config __maybe_unused,
 			 void *ctx)
