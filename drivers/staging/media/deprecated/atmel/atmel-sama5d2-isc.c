@@ -408,7 +408,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	if (IS_ERR(io_base))
 		return PTR_ERR(io_base);
 
-	isc->regmap = devm_regmap_init_mmio(dev, io_base, &isc_regmap_config);
+	isc->regmap = devm_regmap_init_mmio(dev, io_base, &atmel_isc_regmap_config);
 	if (IS_ERR(isc->regmap)) {
 		ret = PTR_ERR(isc->regmap);
 		dev_err(dev, "failed to init register map: %d\n", ret);
@@ -419,7 +419,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	ret = devm_request_irq(dev, irq, isc_interrupt, 0,
+	ret = devm_request_irq(dev, irq, atmel_isc_interrupt, 0,
 			       "atmel-sama5d2-isc", isc);
 	if (ret < 0) {
 		dev_err(dev, "can't register ISR for IRQ %u (ret=%i)\n",
@@ -464,7 +464,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	/* sama5d2-isc : ISPCK is required and mandatory */
 	isc->ispck_required = true;
 
-	ret = isc_pipeline_init(isc);
+	ret = atmel_isc_pipeline_init(isc);
 	if (ret)
 		return ret;
 
@@ -481,7 +481,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = isc_clk_init(isc);
+	ret = atmel_isc_clk_init(isc);
 	if (ret) {
 		dev_err(dev, "failed to init isc clock: %d\n", ret);
 		goto unprepare_hclk;
@@ -523,7 +523,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 			goto cleanup_subdev;
 		}
 
-		subdev_entity->notifier.ops = &isc_async_ops;
+		subdev_entity->notifier.ops = &atmel_isc_async_ops;
 
 		ret = v4l2_async_nf_register(&isc->v4l2_dev,
 					     &subdev_entity->notifier);
@@ -567,7 +567,7 @@ disable_pm:
 	pm_runtime_disable(dev);
 
 cleanup_subdev:
-	isc_subdev_cleanup(isc);
+	atmel_isc_subdev_cleanup(isc);
 
 unregister_v4l2_device:
 	v4l2_device_unregister(&isc->v4l2_dev);
@@ -575,7 +575,7 @@ unregister_v4l2_device:
 unprepare_hclk:
 	clk_disable_unprepare(isc->hclock);
 
-	isc_clk_cleanup(isc);
+	atmel_isc_clk_cleanup(isc);
 
 	return ret;
 }
@@ -586,14 +586,14 @@ static int atmel_isc_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	isc_subdev_cleanup(isc);
+	atmel_isc_subdev_cleanup(isc);
 
 	v4l2_device_unregister(&isc->v4l2_dev);
 
 	clk_disable_unprepare(isc->ispck);
 	clk_disable_unprepare(isc->hclock);
 
-	isc_clk_cleanup(isc);
+	atmel_isc_clk_cleanup(isc);
 
 	return 0;
 }

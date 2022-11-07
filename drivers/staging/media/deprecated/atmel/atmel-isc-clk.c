@@ -277,7 +277,7 @@ static int isc_clk_register(struct isc_device *isc, unsigned int id)
 	return 0;
 }
 
-int isc_clk_init(struct isc_device *isc)
+int atmel_isc_clk_init(struct isc_device *isc)
 {
 	unsigned int i;
 	int ret;
@@ -293,9 +293,9 @@ int isc_clk_init(struct isc_device *isc)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(isc_clk_init);
+EXPORT_SYMBOL_GPL(atmel_isc_clk_init);
 
-void isc_clk_cleanup(struct isc_device *isc)
+void atmel_isc_clk_cleanup(struct isc_device *isc)
 {
 	unsigned int i;
 
@@ -308,4 +308,4 @@ void isc_clk_cleanup(struct isc_device *isc)
 			clk_unregister(isc_clk->clk);
 	}
 }
-EXPORT_SYMBOL_GPL(isc_clk_cleanup);
+EXPORT_SYMBOL_GPL(atmel_isc_clk_cleanup);

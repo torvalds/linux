@@ -397,7 +397,7 @@ static int microchip_xisc_probe(struct platform_device *pdev)
 	if (IS_ERR(io_base))
 		return PTR_ERR(io_base);
 
-	isc->regmap = devm_regmap_init_mmio(dev, io_base, &isc_regmap_config);
+	isc->regmap = devm_regmap_init_mmio(dev, io_base, &atmel_isc_regmap_config);
 	if (IS_ERR(isc->regmap)) {
 		ret = PTR_ERR(isc->regmap);
 		dev_err(dev, "failed to init register map: %d\n", ret);
@@ -408,7 +408,7 @@ static int microchip_xisc_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	ret = devm_request_irq(dev, irq, isc_interrupt, 0,
+	ret = devm_request_irq(dev, irq, atmel_isc_interrupt, 0,
 			       "microchip-sama7g5-xisc", isc);
 	if (ret < 0) {
 		dev_err(dev, "can't register ISR for IRQ %u (ret=%i)\n",
@@ -453,7 +453,7 @@ static int microchip_xisc_probe(struct platform_device *pdev)
 	/* sama7g5-isc : ISPCK does not exist, ISC is clocked by MCK */
 	isc->ispck_required = false;
 
-	ret = isc_pipeline_init(isc);
+	ret = atmel_isc_pipeline_init(isc);
 	if (ret)
 		return ret;
 
@@ -470,7 +470,7 @@ static int microchip_xisc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = isc_clk_init(isc);
+	ret = atmel_isc_clk_init(isc);
 	if (ret) {
 		dev_err(dev, "failed to init isc clock: %d\n", ret);
 		goto unprepare_hclk;
@@ -513,7 +513,7 @@ static int microchip_xisc_probe(struct platform_device *pdev)
 			goto cleanup_subdev;
 		}
 
-		subdev_entity->notifier.ops = &isc_async_ops;
+		subdev_entity->notifier.ops = &atmel_isc_async_ops;
 
 		ret = v4l2_async_nf_register(&isc->v4l2_dev,
 					     &subdev_entity->notifier);
@@ -536,7 +536,7 @@ static int microchip_xisc_probe(struct platform_device *pdev)
 	return 0;
 
 cleanup_subdev:
-	isc_subdev_cleanup(isc);
+	atmel_isc_subdev_cleanup(isc);
 
 unregister_v4l2_device:
 	v4l2_device_unregister(&isc->v4l2_dev);
@@ -544,7 +544,7 @@ unregister_v4l2_device:
 unprepare_hclk:
 	clk_disable_unprepare(isc->hclock);
 
-	isc_clk_cleanup(isc);
+	atmel_isc_clk_cleanup(isc);
 
 	return ret;
 }
@@ -555,13 +555,13 @@ static int microchip_xisc_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	isc_subdev_cleanup(isc);
+	atmel_isc_subdev_cleanup(isc);
 
 	v4l2_device_unregister(&isc->v4l2_dev);
 
 	clk_disable_unprepare(isc->hclock);
 
-	isc_clk_cleanup(isc);
+	atmel_isc_clk_cleanup(isc);
 
 	return 0;
 }

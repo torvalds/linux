@@ -1221,7 +1221,7 @@ static const struct v4l2_file_operations isc_fops = {
 	.poll		= vb2_fop_poll,
 };
 
-irqreturn_t isc_interrupt(int irq, void *dev_id)
+irqreturn_t atmel_isc_interrupt(int irq, void *dev_id)
 {
 	struct isc_device *isc = (struct isc_device *)dev_id;
 	struct regmap *regmap = isc->regmap;
@@ -1267,7 +1267,7 @@ irqreturn_t isc_interrupt(int irq, void *dev_id)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(isc_interrupt);
+EXPORT_SYMBOL_GPL(atmel_isc_interrupt);
 
 static void isc_hist_count(struct isc_device *isc, u32 *min, u32 *max)
 {
@@ -1934,14 +1934,14 @@ isc_async_complete_err:
 	return ret;
 }
 
-const struct v4l2_async_notifier_operations isc_async_ops = {
+const struct v4l2_async_notifier_operations atmel_isc_async_ops = {
 	.bound = isc_async_bound,
 	.unbind = isc_async_unbind,
 	.complete = isc_async_complete,
 };
-EXPORT_SYMBOL_GPL(isc_async_ops);
+EXPORT_SYMBOL_GPL(atmel_isc_async_ops);
 
-void isc_subdev_cleanup(struct isc_device *isc)
+void atmel_isc_subdev_cleanup(struct isc_device *isc)
 {
 	struct isc_subdev_entity *subdev_entity;
 
@@ -1952,9 +1952,9 @@ void isc_subdev_cleanup(struct isc_device *isc)
 
 	INIT_LIST_HEAD(&isc->subdev_entities);
 }
-EXPORT_SYMBOL_GPL(isc_subdev_cleanup);
+EXPORT_SYMBOL_GPL(atmel_isc_subdev_cleanup);
 
-int isc_pipeline_init(struct isc_device *isc)
+int atmel_isc_pipeline_init(struct isc_device *isc)
 {
 	struct device *dev = isc->dev;
 	struct regmap *regmap = isc->regmap;
@@ -1993,17 +1993,17 @@ int isc_pipeline_init(struct isc_device *isc)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(isc_pipeline_init);
+EXPORT_SYMBOL_GPL(atmel_isc_pipeline_init);
 
 /* regmap configuration */
 #define ATMEL_ISC_REG_MAX    0xd5c
-const struct regmap_config isc_regmap_config = {
+const struct regmap_config atmel_isc_regmap_config = {
 	.reg_bits       = 32,
 	.reg_stride     = 4,
 	.val_bits       = 32,
 	.max_register	= ATMEL_ISC_REG_MAX,
 };
-EXPORT_SYMBOL_GPL(isc_regmap_config);
+EXPORT_SYMBOL_GPL(atmel_isc_regmap_config);
 
 MODULE_AUTHOR("Songjun Wu");
 MODULE_AUTHOR("Eugen Hristev");
