@@ -748,6 +748,8 @@ xchk_bmap(
 	case XFS_DINODE_FMT_DEV:
 	case XFS_DINODE_FMT_LOCAL:
 		/* No mappings to check. */
+		if (whichfork == XFS_COW_FORK)
+			xchk_fblock_set_corrupt(sc, whichfork, 0);
 		goto out;
 	case XFS_DINODE_FMT_EXTENTS:
 		break;
