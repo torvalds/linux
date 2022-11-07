@@ -1711,6 +1711,13 @@ static int vgxy61_power_on(struct device *dev)
 	struct vgxy61_dev *sensor = to_vgxy61_dev(sd);
 	int ret;
 
+	ret = regulator_bulk_enable(ARRAY_SIZE(vgxy61_supply_name),
+				    sensor->supplies);
+	if (ret) {
+		dev_err(&client->dev, "failed to enable regulators %d\n", ret);
+		return ret;
+	}
+
 	ret = clk_prepare_enable(sensor->xclk);
 	if (ret) {
 		dev_err(&client->dev, "failed to enable clock %d\n", ret);
@@ -1844,13 +1851,6 @@ static int vgxy61_probe(struct i2c_client *client)
 	ret = vgxy61_get_regulators(sensor);
 	if (ret) {
 		dev_err(&client->dev, "failed to get regulators %d\n", ret);
-		return ret;
-	}
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(vgxy61_supply_name),
-				    sensor->supplies);
-	if (ret) {
-		dev_err(&client->dev, "failed to enable regulators %d\n", ret);
 		return ret;
 	}
 
