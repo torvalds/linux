@@ -600,9 +600,7 @@ static void printout(struct perf_stat_config *config, struct aggr_cpu_id id, int
 			pm(config, &os, NULL, NULL, "", 0);
 		print_noise(config, counter, noise);
 		print_running(config, run, ena);
-		if (config->csv_output)
-			pm(config, &os, NULL, NULL, "", 0);
-		else if (config->json_output)
+		if (config->csv_output || config->json_output)
 			pm(config, &os, NULL, NULL, "", 0);
 		return;
 	}
