@@ -49,7 +49,7 @@ xchk_setup_xattr_buf(
 	if (ab) {
 		if (sz <= ab->sz)
 			return 0;
-		kmem_free(ab);
+		kvfree(ab);
 		sc->buf = NULL;
 	}
 
