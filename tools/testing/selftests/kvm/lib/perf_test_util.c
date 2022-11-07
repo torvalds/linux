@@ -51,6 +51,8 @@ void perf_test_guest_code(uint32_t vcpu_idx)
 	struct guest_random_state rand_state;
 	uint64_t gva;
 	uint64_t pages;
+	uint64_t addr;
+	uint64_t page;
 	int i;
 
 	rand_state = new_guest_random_state(pta->random_seed + vcpu_idx);
@@ -63,7 +65,12 @@ void perf_test_guest_code(uint32_t vcpu_idx)
 
 	while (true) {
 		for (i = 0; i < pages; i++) {
-			uint64_t addr = gva + (i * pta->guest_page_size);
+			if (pta->random_access)
+				page = guest_random_u32(&rand_state) % pages;
+			else
+				page = i;
+
+			addr = gva + (page * pta->guest_page_size);
 
 			if (guest_random_u32(&rand_state) % 100 < pta->write_percent)
 				*(uint64_t *)addr = 0x0123456789ABCDEF;
@@ -238,6 +245,12 @@ void perf_test_set_random_seed(struct kvm_vm *vm, uint32_t random_seed)
 {
 	perf_test_args.random_seed = random_seed;
 	sync_global_to_guest(vm, perf_test_args.random_seed);
+}
+
+void perf_test_set_random_access(struct kvm_vm *vm, bool random_access)
+{
+	perf_test_args.random_access = random_access;
+	sync_global_to_guest(vm, perf_test_args.random_access);
 }
 
 uint64_t __weak perf_test_nested_pages(int nr_vcpus)

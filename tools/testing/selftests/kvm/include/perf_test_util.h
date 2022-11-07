@@ -40,6 +40,8 @@ struct perf_test_args {
 
 	/* Run vCPUs in L2 instead of L1, if the architecture supports it. */
 	bool nested;
+	/* Randomize which pages are accessed by the guest. */
+	bool random_access;
 	/* True if all vCPUs are pinned to pCPUs */
 	bool pin_vcpus;
 	/* The vCPU=>pCPU pinning map. Only valid if pin_vcpus is true. */
@@ -58,6 +60,7 @@ void perf_test_destroy_vm(struct kvm_vm *vm);
 
 void perf_test_set_write_percent(struct kvm_vm *vm, uint32_t write_percent);
 void perf_test_set_random_seed(struct kvm_vm *vm, uint32_t random_seed);
+void perf_test_set_random_access(struct kvm_vm *vm, bool random_access);
 
 void perf_test_start_vcpu_threads(int vcpus, void (*vcpu_fn)(struct perf_test_vcpu_args *));
 void perf_test_join_vcpu_threads(int vcpus);
