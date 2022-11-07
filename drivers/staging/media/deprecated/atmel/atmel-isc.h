@@ -350,13 +350,13 @@ struct isc_device {
 	u32				formats_list_size;
 };
 
-extern const struct regmap_config isc_regmap_config;
-extern const struct v4l2_async_notifier_operations isc_async_ops;
+extern const struct regmap_config atmel_isc_regmap_config;
+extern const struct v4l2_async_notifier_operations atmel_isc_async_ops;
 
-irqreturn_t isc_interrupt(int irq, void *dev_id);
-int isc_pipeline_init(struct isc_device *isc);
-int isc_clk_init(struct isc_device *isc);
-void isc_subdev_cleanup(struct isc_device *isc);
-void isc_clk_cleanup(struct isc_device *isc);
+irqreturn_t atmel_isc_interrupt(int irq, void *dev_id);
+int atmel_isc_pipeline_init(struct isc_device *isc);
+int atmel_isc_clk_init(struct isc_device *isc);
+void atmel_isc_subdev_cleanup(struct isc_device *isc);
+void atmel_isc_clk_cleanup(struct isc_device *isc);
 
 #endif
