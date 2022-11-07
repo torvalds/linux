@@ -90,6 +90,13 @@
 #define SOF_TKN_COMP_NUM_AUDIO_FORMATS		410
 #define SOF_TKN_COMP_NUM_SINK_PINS		411
 #define SOF_TKN_COMP_NUM_SOURCE_PINS		412
+/*
+ * The token for sink/source pin binding, it specifies the widget
+ * name that the sink/source pin is connected from/to.
+ */
+#define SOF_TKN_COMP_SINK_PIN_BINDING_WNAME	413
+#define SOF_TKN_COMP_SRC_PIN_BINDING_WNAME	414
+
 
 /* SSP */
 #define SOF_TKN_INTEL_SSP_CLKS_CONTROL		500

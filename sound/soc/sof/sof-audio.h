@@ -30,6 +30,10 @@
  */
 #define SOF_WIDGET_MAX_NUM_PINS	8
 
+/* The type of a widget pin is either sink or source */
+#define SOF_PIN_TYPE_SINK	0
+#define SOF_PIN_TYPE_SOURCE	1
+
 /* max number of FE PCMs before BEs */
 #define SOF_BE_PCM_BASE		16
 
@@ -402,6 +406,22 @@ struct snd_sof_widget {
 	u32 num_sink_pins;
 	u32 num_source_pins;
 
+	/*
+	 * The sink/source pin binding array, it takes the form of
+	 * [widget_name_connected_to_pin0, widget_name_connected_to_pin1, ...],
+	 * with the index as the queue ID.
+	 *
+	 * The array is used for special pin binding. Note that even if there
+	 * is only one sink/source pin requires special pin binding, pin binding
+	 * should be defined for all sink/source pins in topology, for pin(s) that
+	 * are not used, give the value "NotConnected".
+	 *
+	 * If pin binding is not defined in topology, nothing to parse in the kernel,
+	 * sink_pin_binding and src_pin_binding shall be NULL.
+	 */
+	char **sink_pin_binding;
+	char **src_pin_binding;
+
 	void *private;		/* core does not touch this */
 };
 
@@ -546,6 +566,7 @@ int get_token_u16(void *elem, void *object, u32 offset);
 int get_token_comp_format(void *elem, void *object, u32 offset);
 int get_token_dai_type(void *elem, void *object, u32 offset);
 int get_token_uuid(void *elem, void *object, u32 offset);
+int get_token_string(void *elem, void *object, u32 offset);
 int sof_update_ipc_object(struct snd_soc_component *scomp, void *object, enum sof_tokens token_id,
 			  struct snd_sof_tuple *tuples, int num_tuples,
 			  size_t object_size, int token_instance_num);
