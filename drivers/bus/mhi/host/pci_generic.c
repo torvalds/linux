@@ -598,6 +598,9 @@ static const struct pci_device_id mhi_pci_id_table[] = {
 	/* MV32-WB (Cinterion) */
 	{ PCI_DEVICE(0x1269, 0x00bb),
 		.driver_data = (kernel_ulong_t) &mhi_mv32_info },
+	/* T99W175 (sdx55), HP variant */
+	{ PCI_DEVICE(0x03f0, 0x0a6c),
+		.driver_data = (kernel_ulong_t) &mhi_foxconn_sdx55_info },
 	{  }
 };
 MODULE_DEVICE_TABLE(pci, mhi_pci_id_table);
