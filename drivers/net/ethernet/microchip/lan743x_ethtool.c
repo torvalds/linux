@@ -1190,9 +1190,7 @@ static int lan743x_ethtool_set_wol(struct net_device *netdev,
 }
 #endif /* CONFIG_PM */
 
-static void lan743x_common_regs(struct net_device *dev,
-				struct ethtool_regs *regs, void *p)
-
+static void lan743x_common_regs(struct net_device *dev, void *p)
 {
 	struct lan743x_adapter *adapter = netdev_priv(dev);
 	u32 *rb = p;
@@ -1230,7 +1228,7 @@ static void lan743x_get_regs(struct net_device *dev,
 {
 	regs->version = LAN743X_ETH_REG_VERSION;
 
-	lan743x_common_regs(dev, regs, p);
+	lan743x_common_regs(dev, p);
 }
 
 static void lan743x_get_pauseparam(struct net_device *dev,
