@@ -599,14 +599,14 @@ xchk_bmap_check_rmaps(
 
 	for_each_perag(sc->mp, agno, pag) {
 		error = xchk_bmap_check_ag_rmaps(sc, whichfork, pag);
-		if (error)
-			break;
-		if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-			break;
+		if (error ||
+		    (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)) {
+			xfs_perag_put(pag);
+			return error;
+		}
 	}
-	if (pag)
-		xfs_perag_put(pag);
-	return error;
+
+	return 0;
 }
 
 /*
