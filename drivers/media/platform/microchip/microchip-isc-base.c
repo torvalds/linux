@@ -328,6 +328,13 @@ static int isc_configure(struct isc_device *isc)
 	return isc_update_profile(isc);
 }
 
+static int isc_prepare_streaming(struct vb2_queue *vq)
+{
+	struct isc_device *isc = vb2_get_drv_priv(vq);
+
+	return media_pipeline_start(isc->video_dev.entity.pads, &isc->mpipe);
+}
+
 static int isc_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct isc_device *isc = vb2_get_drv_priv(vq);
@@ -335,10 +342,6 @@ static int isc_start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct isc_buffer *buf;
 	unsigned long flags;
 	int ret;
-
-	ret = media_pipeline_start(isc->video_dev.entity.pads, &isc->mpipe);
-	if (ret)
-		goto err_pipeline_start;
 
 	/* Enable stream on the sub device */
 	ret = v4l2_subdev_call(isc->current_subdev->sd, video, s_stream, 1);
@@ -389,9 +392,6 @@ err_pm_get:
 	v4l2_subdev_call(isc->current_subdev->sd, video, s_stream, 0);
 
 err_start_stream:
-	media_pipeline_stop(isc->video_dev.entity.pads);
-
-err_pipeline_start:
 	spin_lock_irqsave(&isc->dma_queue_lock, flags);
 	list_for_each_entry(buf, &isc->dma_queue, list)
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_QUEUED);
@@ -399,6 +399,14 @@ err_pipeline_start:
 	spin_unlock_irqrestore(&isc->dma_queue_lock, flags);
 
 	return ret;
+}
+
+static void isc_unprepare_streaming(struct vb2_queue *vq)
+{
+	struct isc_device *isc = vb2_get_drv_priv(vq);
+
+	/* Stop media pipeline */
+	media_pipeline_stop(isc->video_dev.entity.pads);
 }
 
 static void isc_stop_streaming(struct vb2_queue *vq)
@@ -429,9 +437,6 @@ static void isc_stop_streaming(struct vb2_queue *vq)
 	ret = v4l2_subdev_call(isc->current_subdev->sd, video, s_stream, 0);
 	if (ret && ret != -ENOIOCTLCMD)
 		v4l2_err(&isc->v4l2_dev, "stream off failed in subdev\n");
-
-	/* Stop media pipeline */
-	media_pipeline_stop(isc->video_dev.entity.pads);
 
 	/* Release all active buffers */
 	spin_lock_irqsave(&isc->dma_queue_lock, flags);
@@ -472,6 +477,8 @@ static const struct vb2_ops isc_vb2_ops = {
 	.start_streaming	= isc_start_streaming,
 	.stop_streaming		= isc_stop_streaming,
 	.buf_queue		= isc_buffer_queue,
+	.prepare_streaming	= isc_prepare_streaming,
+	.unprepare_streaming	= isc_unprepare_streaming,
 };
 
 static int isc_querycap(struct file *file, void *priv,
