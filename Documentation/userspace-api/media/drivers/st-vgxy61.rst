@@ -7,8 +7,8 @@ The ST VGXY61 driver implements the following controls:
 
 ``V4L2_CID_HDR_SENSOR_MODE``
 -------------------------------
-    Change the sensor HDR mode. A HDR picture is obtained by merging two captures of the same scene
-    using two different exposure periods.
+    Change the sensor HDR mode. A HDR picture is obtained by merging two
+    captures of the same scene using two different exposure periods.
 
 .. flat-table::
     :header-rows:  0
@@ -16,8 +16,10 @@ The ST VGXY61 driver implements the following controls:
     :widths:       1 4
 
     * - HDR linearize
-      - The merger outputs a long exposure capture as long as it is not saturated.
+      - The merger outputs a long exposure capture as long as it is not
+        saturated.
     * - HDR substraction
-      - This involves subtracting the short exposure frame from the long exposure frame.
+      - This involves subtracting the short exposure frame from the long
+        exposure frame.
     * - "No HDR"
       - This mode is used for standard dynamic range (SDR) exposures.
