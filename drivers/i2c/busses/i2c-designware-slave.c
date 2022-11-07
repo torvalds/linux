@@ -214,8 +214,6 @@ static irqreturn_t i2c_dw_isr_slave(int this_irq, void *dev_id)
 	int ret;
 
 	ret = i2c_dw_irq_handler_slave(dev);
-	if (ret > 0)
-		complete(&dev->cmd_complete);
 
 	return IRQ_RETVAL(ret);
 }
@@ -241,8 +239,6 @@ int i2c_dw_probe_slave(struct dw_i2c_dev *dev)
 {
 	struct i2c_adapter *adap = &dev->adapter;
 	int ret;
-
-	init_completion(&dev->cmd_complete);
 
 	dev->init = i2c_dw_init_slave;
 	dev->disable = i2c_dw_disable;
