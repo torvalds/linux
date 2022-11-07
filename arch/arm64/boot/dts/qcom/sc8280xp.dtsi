@@ -1053,70 +1053,56 @@
 			status = "disabled";
 		};
 
-		usb_2_qmpphy0: phy-wrapper@88ef000 {
+		usb_2_qmpphy0: phy@88ef000 {
 			compatible = "qcom,sc8280xp-qmp-usb3-uni-phy";
-			reg = <0 0x088ef000 0 0x1c8>;
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			reg = <0 0x088ef000 0 0x2000>;
 
 			clocks = <&gcc GCC_USB3_MP_PHY_AUX_CLK>,
 				 <&rpmhcc RPMH_CXO_CLK>,
 				 <&gcc GCC_USB3_MP0_CLKREF_CLK>,
-				 <&gcc GCC_USB3_MP_PHY_COM_AUX_CLK>;
-			clock-names = "aux", "ref_clk_src", "ref", "com_aux";
+				 <&gcc GCC_USB3_MP_PHY_COM_AUX_CLK>,
+				 <&gcc GCC_USB3_MP_PHY_PIPE_0_CLK>;
+			clock-names = "aux", "ref_clk_src", "ref", "com_aux",
+				      "pipe";
 
 			resets = <&gcc GCC_USB3_UNIPHY_MP0_BCR>,
 				 <&gcc GCC_USB3UNIPHY_PHY_MP0_BCR>;
-			reset-names = "phy", "common";
+			reset-names = "phy", "phy_phy";
 
 			power-domains = <&gcc USB30_MP_GDSC>;
 
-			status = "disabled";
+			#clock-cells = <0>;
+			clock-output-names = "usb2_phy0_pipe_clk";
 
-			usb_2_ssphy0: phy@88efe00 {
-				reg = <0 0x088efe00 0 0x160>,
-				      <0 0x088f0000 0 0x1ec>,
-				      <0 0x088ef200 0 0x1f0>;
-				#phy-cells = <0>;
-				#clock-cells = <0>;
-				clocks = <&gcc GCC_USB3_MP_PHY_PIPE_0_CLK>;
-				clock-names = "pipe0";
-				clock-output-names = "usb2_phy0_pipe_clk";
-			};
+			#phy-cells = <0>;
+
+			status = "disabled";
 		};
 
-		usb_2_qmpphy1: phy-wrapper@88f1000 {
+		usb_2_qmpphy1: phy@88f1000 {
 			compatible = "qcom,sc8280xp-qmp-usb3-uni-phy";
-			reg = <0 0x088f1000 0 0x1c8>;
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			reg = <0 0x088f1000 0 0x2000>;
 
 			clocks = <&gcc GCC_USB3_MP_PHY_AUX_CLK>,
 				 <&rpmhcc RPMH_CXO_CLK>,
 				 <&gcc GCC_USB3_MP1_CLKREF_CLK>,
-				 <&gcc GCC_USB3_MP_PHY_COM_AUX_CLK>;
-			clock-names = "aux", "ref_clk_src", "ref", "com_aux";
+				 <&gcc GCC_USB3_MP_PHY_COM_AUX_CLK>,
+				 <&gcc GCC_USB3_MP_PHY_PIPE_1_CLK>;
+			clock-names = "aux", "ref_clk_src", "ref", "com_aux",
+				      "pipe";
 
 			resets = <&gcc GCC_USB3_UNIPHY_MP1_BCR>,
 				 <&gcc GCC_USB3UNIPHY_PHY_MP1_BCR>;
-			reset-names = "phy", "common";
+			reset-names = "phy", "phy_phy";
 
 			power-domains = <&gcc USB30_MP_GDSC>;
 
-			status = "disabled";
+			#clock-cells = <0>;
+			clock-output-names = "usb2_phy1_pipe_clk";
 
-			usb_2_ssphy1: phy@88f1e00 {
-				reg = <0 0x088f1e00 0 0x160>,
-				      <0 0x088f2000 0 0x1ec>,
-				      <0 0x088f1200 0 0x1f0>;
-				#phy-cells = <0>;
-				#clock-cells = <0>;
-				clocks = <&gcc GCC_USB3_MP_PHY_PIPE_1_CLK>;
-				clock-names = "pipe0";
-				clock-output-names = "usb2_phy1_pipe_clk";
-			};
+			#phy-cells = <0>;
+
+			status = "disabled";
 		};
 
 		remoteproc_adsp: remoteproc@3000000 {
