@@ -192,6 +192,15 @@
 			clocks = <&osc32k>;
 		};
 
+		pwm: pwm@1c21000 {
+			compatible = "allwinner,suniv-f1c100s-pwm",
+				     "allwinner,sun7i-a20-pwm";
+			reg = <0x01c21000 0x400>;
+			clocks = <&osc24M>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		uart0: serial@1c25000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c25000 0x400>;
