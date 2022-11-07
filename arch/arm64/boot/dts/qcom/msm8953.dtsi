@@ -42,13 +42,6 @@
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&L2_0>;
 			#cooling-cells = <2>;
-
-			l1-icache {
-				compatible = "cache";
-			};
-			l1-dcache {
-				compatible = "cache";
-			};
 		};
 
 		CPU1: cpu@1 {
@@ -59,13 +52,6 @@
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&L2_0>;
 			#cooling-cells = <2>;
-
-			l1-icache {
-				compatible = "cache";
-			};
-			l1-dcache {
-				compatible = "cache";
-			};
 		};
 
 		CPU2: cpu@2 {
@@ -76,13 +62,6 @@
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&L2_0>;
 			#cooling-cells = <2>;
-
-			l1-icache {
-				compatible = "cache";
-			};
-			l1-dcache {
-				compatible = "cache";
-			};
 		};
 
 		CPU3: cpu@3 {
@@ -93,13 +72,6 @@
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&L2_0>;
 			#cooling-cells = <2>;
-
-			l1-icache {
-				compatible = "cache";
-			};
-			l1-dcache {
-				compatible = "cache";
-			};
 		};
 
 		CPU4: cpu@100 {
@@ -110,13 +82,6 @@
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&L2_1>;
 			#cooling-cells = <2>;
-
-			l1-icache {
-				compatible = "cache";
-			};
-			l1-dcache {
-				compatible = "cache";
-			};
 		};
 
 		CPU5: cpu@101 {
@@ -127,13 +92,6 @@
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&L2_1>;
 			#cooling-cells = <2>;
-
-			l1-icache {
-				compatible = "cache";
-			};
-			l1-dcache {
-				compatible = "cache";
-			};
 		};
 
 		CPU6: cpu@102 {
@@ -144,13 +102,6 @@
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&L2_1>;
 			#cooling-cells = <2>;
-
-			l1-icache {
-				compatible = "cache";
-			};
-			l1-dcache {
-				compatible = "cache";
-			};
 		};
 
 		CPU7: cpu@103 {
@@ -161,13 +112,6 @@
 			capacity-dmips-mhz = <1024>;
 			next-level-cache = <&L2_1>;
 			#cooling-cells = <2>;
-
-			l1-icache {
-				compatible = "cache";
-			};
-			l1-dcache {
-				compatible = "cache";
-			};
 		};
 
 		cpu-map {
