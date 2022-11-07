@@ -74,12 +74,6 @@ struct btrfs_raid_bio {
 	/* How many sectors there are for each stripe */
 	u8 stripe_nsectors;
 
-	/* First bad stripe, -1 means no corruption */
-	s8 faila;
-
-	/* Second bad stripe (for RAID6 use) */
-	s8 failb;
-
 	/* Stripe number that we're scrubbing  */
 	u8 scrubp;
 
@@ -92,8 +86,6 @@ struct btrfs_raid_bio {
 	refcount_t refs;
 
 	atomic_t stripes_pending;
-
-	atomic_t error;
 
 	wait_queue_head_t io_wait;
 
