@@ -21,6 +21,8 @@ enum test_flags {
 	TEST_F_NONE = 0x0,
 	/* Perform raw allocations (no zeroing of memory). */
 	TEST_F_RAW = 0x1,
+	/* Perform allocations on the exact node specified. */
+	TEST_F_EXACT = 0x2
 };
 
 /**
