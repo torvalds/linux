@@ -2124,6 +2124,7 @@ static bool dcn32_resource_construct(
 	dc->caps.subvp_swath_height_margin_lines = 16;
 	dc->caps.subvp_pstate_allow_width_us = 20;
 	dc->caps.subvp_vertical_int_margin_us = 30;
+	dc->caps.subvp_drr_vblank_start_margin_us = 100; // 100us margin
 
 	dc->caps.max_slave_planes = 2;
 	dc->caps.max_slave_yuv_planes = 2;

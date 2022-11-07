@@ -3740,6 +3740,8 @@ static bool could_mpcc_tree_change_for_active_pipes(struct dc *dc,
 
 	struct dc_stream_status *cur_stream_status = stream_get_status(dc->current_state, stream);
 	bool force_minimal_pipe_splitting = false;
+	bool subvp_active = false;
+	uint32_t i;
 
 	*is_plane_addition = false;
 
@@ -3771,11 +3773,25 @@ static bool could_mpcc_tree_change_for_active_pipes(struct dc *dc,
 		}
 	}
 
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream && pipe->stream->mall_stream_config.type != SUBVP_NONE) {
+			subvp_active = true;
+			break;
+		}
+	}
+
 	/* For SubVP when adding or removing planes we need to add a minimal transition
 	 * (even when disabling all planes). Whenever disabling a phantom pipe, we
 	 * must use the minimal transition path to disable the pipe correctly.
+	 *
+	 * We want to use the minimal transition whenever subvp is active, not only if
+	 * a plane is being added / removed from a subvp stream (MPO plane can be added
+	 * to a DRR pipe of SubVP + DRR config, in which case we still want to run through
+	 * a min transition to disable subvp.
 	 */
-	if (cur_stream_status && stream->mall_stream_config.type == SUBVP_MAIN) {
+	if (cur_stream_status && subvp_active) {
 		/* determine if minimal transition is required due to SubVP*/
 		if (cur_stream_status->plane_count > surface_count) {
 			force_minimal_pipe_splitting = true;

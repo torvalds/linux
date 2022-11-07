@@ -1029,13 +1029,14 @@ struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 {
 			uint16_t vtotal;
 			uint16_t htotal;
 			uint8_t vblank_pipe_index;
-			uint8_t padding[2];
+			uint8_t padding[1];
 			struct {
 				uint8_t drr_in_use;
 				uint8_t drr_window_size_ms;	// Indicates largest VMIN/VMAX adjustment per frame
 				uint16_t min_vtotal_supported;	// Min VTOTAL that supports switching in VBLANK
 				uint16_t max_vtotal_supported;	// Max VTOTAL that can support SubVP static scheduling
 				uint8_t use_ramping;		// Use ramping or not
+				uint8_t drr_vblank_start_margin;
 			} drr_info;				// DRR considered as part of SubVP + VBLANK case
 		} vblank_data;
 	} pipe_config;
