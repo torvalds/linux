@@ -59,7 +59,7 @@ static u8 secondary_ctrl_report[] = {
 	0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x34, 0xC6
 };
 
-/* Register offsets for all Aquacomputer devices */
+/* Sensor sizes and offsets for all Aquacomputer devices */
 #define AQC_TEMP_SENSOR_SIZE		0x02
 #define AQC_TEMP_SENSOR_DISCONNECTED	0x7FFF
 #define AQC_FAN_PERCENT_OFFSET		0x00
@@ -68,67 +68,80 @@ static u8 secondary_ctrl_report[] = {
 #define AQC_FAN_POWER_OFFSET		0x06
 #define AQC_FAN_SPEED_OFFSET		0x08
 
-/* Register offsets for the D5 Next pump */
-#define D5NEXT_POWER_CYCLES		0x18
-#define D5NEXT_COOLANT_TEMP		0x57
+/* Specs of the D5 Next pump */
 #define D5NEXT_NUM_FANS			2
 #define D5NEXT_NUM_SENSORS		1
 #define D5NEXT_NUM_VIRTUAL_SENSORS	8
-#define D5NEXT_VIRTUAL_SENSORS_START	0x3f
+#define D5NEXT_CTRL_REPORT_SIZE		0x329
+
+/* Sensor report offsets for the D5 Next pump */
+#define D5NEXT_POWER_CYCLES		0x18
+#define D5NEXT_COOLANT_TEMP		0x57
 #define D5NEXT_PUMP_OFFSET		0x6c
 #define D5NEXT_FAN_OFFSET		0x5f
 #define D5NEXT_5V_VOLTAGE		0x39
 #define D5NEXT_12V_VOLTAGE		0x37
-#define D5NEXT_CTRL_REPORT_SIZE		0x329
-#define D5NEXT_TEMP_CTRL_OFFSET		0x2D
+#define D5NEXT_VIRTUAL_SENSORS_START	0x3f
 static u8 d5next_sensor_fan_offsets[] = { D5NEXT_PUMP_OFFSET, D5NEXT_FAN_OFFSET };
 
-/* Pump and fan speed registers in D5 Next control report (from 0-100%) */
-static u16 d5next_ctrl_fan_offsets[] = { 0x97, 0x42 };
+/* Control report offsets for the D5 Next pump */
+#define D5NEXT_TEMP_CTRL_OFFSET		0x2D	/* Temperature sensor offsets location */
+static u16 d5next_ctrl_fan_offsets[] = { 0x97, 0x42 };	/* Pump and fan speed (from 0-100%) */
 
-/* Register offsets for the Farbwerk RGB controller */
+/* Spec and sensor report offset for the Farbwerk RGB controller */
 #define FARBWERK_NUM_SENSORS		4
 #define FARBWERK_SENSOR_START		0x2f
 
-/* Register offsets for the Farbwerk 360 RGB controller */
+/* Specs of the Farbwerk 360 RGB controller */
 #define FARBWERK360_NUM_SENSORS			4
-#define FARBWERK360_SENSOR_START		0x32
 #define FARBWERK360_NUM_VIRTUAL_SENSORS		16
-#define FARBWERK360_VIRTUAL_SENSORS_START	0x3a
 #define FARBWERK360_CTRL_REPORT_SIZE		0x682
+
+/* Sensor report offsets for the Farbwerk 360 */
+#define FARBWERK360_SENSOR_START		0x32
+#define FARBWERK360_VIRTUAL_SENSORS_START	0x3a
+
+/* Control report offsets for the Farbwerk 360 */
 #define FARBWERK360_TEMP_CTRL_OFFSET		0x8
 
-/* Register offsets for the Octo fan controller */
-#define OCTO_POWER_CYCLES		0x18
+/* Specs of the Octo fan controller */
 #define OCTO_NUM_FANS			8
 #define OCTO_NUM_SENSORS		4
-#define OCTO_SENSOR_START		0x3D
 #define OCTO_NUM_VIRTUAL_SENSORS	16
-#define OCTO_VIRTUAL_SENSORS_START	0x45
 #define OCTO_CTRL_REPORT_SIZE		0x65F
-#define OCTO_TEMP_CTRL_OFFSET		0xA
+
+/* Sensor report offsets for the Octo */
+#define OCTO_POWER_CYCLES		0x18
+#define OCTO_SENSOR_START		0x3D
+#define OCTO_VIRTUAL_SENSORS_START	0x45
 static u8 octo_sensor_fan_offsets[] = { 0x7D, 0x8A, 0x97, 0xA4, 0xB1, 0xBE, 0xCB, 0xD8 };
 
-/* Fan speed registers in Octo control report (from 0-100%) */
+/* Control report offsets for the Octo */
+#define OCTO_TEMP_CTRL_OFFSET		0xA
+/* Fan speed offsets (0-100%) */
 static u16 octo_ctrl_fan_offsets[] = { 0x5B, 0xB0, 0x105, 0x15A, 0x1AF, 0x204, 0x259, 0x2AE };
 
-/* Register offsets for the Quadro fan controller */
-#define QUADRO_POWER_CYCLES		0x18
+/* Specs of Quadro fan controller */
 #define QUADRO_NUM_FANS			4
 #define QUADRO_NUM_SENSORS		4
-#define QUADRO_SENSOR_START		0x34
 #define QUADRO_NUM_VIRTUAL_SENSORS	16
-#define QUADRO_VIRTUAL_SENSORS_START	0x3c
 #define QUADRO_CTRL_REPORT_SIZE		0x3c1
+
+/* Sensor report offsets for the Quadro */
+#define QUADRO_POWER_CYCLES		0x18
+#define QUADRO_SENSOR_START		0x34
+#define QUADRO_VIRTUAL_SENSORS_START	0x3c
 #define QUADRO_FLOW_SENSOR_OFFSET	0x6e
-#define QUADRO_TEMP_CTRL_OFFSET		0xA
 static u8 quadro_sensor_fan_offsets[] = { 0x70, 0x7D, 0x8A, 0x97 };
 
-/* Fan speed registers in Quadro control report (from 0-100%) */
-static u16 quadro_ctrl_fan_offsets[] = { 0x37, 0x8c, 0xe1, 0x136 };
+/* Control report offsets for the Quadro */
+#define QUADRO_TEMP_CTRL_OFFSET		0xA
+static u16 quadro_ctrl_fan_offsets[] = { 0x37, 0x8c, 0xe1, 0x136 }; /* Fan speed offsets (0-100%) */
 
-/* Register offsets for the High Flow Next */
+/* Specs of High Flow Next flow sensor */
 #define HIGHFLOWNEXT_NUM_SENSORS	2
+
+/* Sensor report offsets for the High Flow Next */
 #define HIGHFLOWNEXT_SENSOR_START	85
 #define HIGHFLOWNEXT_FLOW		81
 #define HIGHFLOWNEXT_WATER_QUALITY	89
@@ -903,13 +916,16 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->num_fans = D5NEXT_NUM_FANS;
 		priv->fan_sensor_offsets = d5next_sensor_fan_offsets;
 		priv->fan_ctrl_offsets = d5next_ctrl_fan_offsets;
+
 		priv->num_temp_sensors = D5NEXT_NUM_SENSORS;
 		priv->temp_sensor_start_offset = D5NEXT_COOLANT_TEMP;
 		priv->num_virtual_temp_sensors = D5NEXT_NUM_VIRTUAL_SENSORS;
 		priv->virtual_temp_sensor_start_offset = D5NEXT_VIRTUAL_SENSORS_START;
-		priv->power_cycle_count_offset = D5NEXT_POWER_CYCLES;
-		priv->buffer_size = D5NEXT_CTRL_REPORT_SIZE;
 		priv->temp_ctrl_offset = D5NEXT_TEMP_CTRL_OFFSET;
+
+		priv->buffer_size = D5NEXT_CTRL_REPORT_SIZE;
+
+		priv->power_cycle_count_offset = D5NEXT_POWER_CYCLES;
 
 		priv->temp_label = label_d5next_temp;
 		priv->virtual_temp_label = label_virtual_temp_sensors;
@@ -922,20 +938,25 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->kind = farbwerk;
 
 		priv->num_fans = 0;
+
 		priv->num_temp_sensors = FARBWERK_NUM_SENSORS;
 		priv->temp_sensor_start_offset = FARBWERK_SENSOR_START;
+
 		priv->temp_label = label_temp_sensors;
 		break;
 	case USB_PRODUCT_ID_FARBWERK360:
 		priv->kind = farbwerk360;
 
 		priv->num_fans = 0;
+
 		priv->num_temp_sensors = FARBWERK360_NUM_SENSORS;
 		priv->temp_sensor_start_offset = FARBWERK360_SENSOR_START;
 		priv->num_virtual_temp_sensors = FARBWERK360_NUM_VIRTUAL_SENSORS;
 		priv->virtual_temp_sensor_start_offset = FARBWERK360_VIRTUAL_SENSORS_START;
-		priv->buffer_size = FARBWERK360_CTRL_REPORT_SIZE;
 		priv->temp_ctrl_offset = FARBWERK360_TEMP_CTRL_OFFSET;
+
+		priv->buffer_size = FARBWERK360_CTRL_REPORT_SIZE;
+
 		priv->temp_label = label_temp_sensors;
 		priv->virtual_temp_label = label_virtual_temp_sensors;
 		break;
@@ -945,13 +966,16 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->num_fans = OCTO_NUM_FANS;
 		priv->fan_sensor_offsets = octo_sensor_fan_offsets;
 		priv->fan_ctrl_offsets = octo_ctrl_fan_offsets;
+
 		priv->num_temp_sensors = OCTO_NUM_SENSORS;
 		priv->temp_sensor_start_offset = OCTO_SENSOR_START;
 		priv->num_virtual_temp_sensors = OCTO_NUM_VIRTUAL_SENSORS;
 		priv->virtual_temp_sensor_start_offset = OCTO_VIRTUAL_SENSORS_START;
-		priv->power_cycle_count_offset = OCTO_POWER_CYCLES;
-		priv->buffer_size = OCTO_CTRL_REPORT_SIZE;
 		priv->temp_ctrl_offset = OCTO_TEMP_CTRL_OFFSET;
+
+		priv->buffer_size = OCTO_CTRL_REPORT_SIZE;
+
+		priv->power_cycle_count_offset = OCTO_POWER_CYCLES;
 
 		priv->temp_label = label_temp_sensors;
 		priv->virtual_temp_label = label_virtual_temp_sensors;
@@ -966,14 +990,17 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->num_fans = QUADRO_NUM_FANS;
 		priv->fan_sensor_offsets = quadro_sensor_fan_offsets;
 		priv->fan_ctrl_offsets = quadro_ctrl_fan_offsets;
+
 		priv->num_temp_sensors = QUADRO_NUM_SENSORS;
 		priv->temp_sensor_start_offset = QUADRO_SENSOR_START;
 		priv->num_virtual_temp_sensors = QUADRO_NUM_VIRTUAL_SENSORS;
 		priv->virtual_temp_sensor_start_offset = QUADRO_VIRTUAL_SENSORS_START;
-		priv->power_cycle_count_offset = QUADRO_POWER_CYCLES;
-		priv->buffer_size = QUADRO_CTRL_REPORT_SIZE;
-		priv->flow_sensor_offset = QUADRO_FLOW_SENSOR_OFFSET;
 		priv->temp_ctrl_offset = QUADRO_TEMP_CTRL_OFFSET;
+
+		priv->buffer_size = QUADRO_CTRL_REPORT_SIZE;
+
+		priv->flow_sensor_offset = QUADRO_FLOW_SENSOR_OFFSET;
+		priv->power_cycle_count_offset = QUADRO_POWER_CYCLES;
 
 		priv->temp_label = label_temp_sensors;
 		priv->virtual_temp_label = label_virtual_temp_sensors;
@@ -986,8 +1013,10 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->kind = highflownext;
 
 		priv->num_fans = 0;
+
 		priv->num_temp_sensors = HIGHFLOWNEXT_NUM_SENSORS;
 		priv->temp_sensor_start_offset = HIGHFLOWNEXT_SENSOR_START;
+
 		priv->power_cycle_count_offset = QUADRO_POWER_CYCLES;
 
 		priv->temp_label = label_highflownext_temp_sensors;
