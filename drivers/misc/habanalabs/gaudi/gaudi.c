@@ -7356,9 +7356,10 @@ static void gaudi_print_fw_alive_info(struct hl_device *hdev,
 {
 	dev_err(hdev->dev,
 		"FW alive report: severity=%s, process_id=%u, thread_id=%u, uptime=%llu seconds\n",
-		(fw_alive->severity == FW_ALIVE_SEVERITY_MINOR) ?
-		"Minor" : "Critical", fw_alive->process_id,
-		fw_alive->thread_id, fw_alive->uptime_seconds);
+		(fw_alive->severity == FW_ALIVE_SEVERITY_MINOR) ? "Minor" : "Critical",
+		le32_to_cpu(fw_alive->process_id),
+		le32_to_cpu(fw_alive->thread_id),
+		le64_to_cpu(fw_alive->uptime_seconds));
 }
 
 static void gaudi_print_nic_axi_irq_info(struct hl_device *hdev, u16 event_type,
