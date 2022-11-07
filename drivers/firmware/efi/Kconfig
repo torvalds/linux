@@ -27,13 +27,13 @@ config EFI_VARS_PSTORE_DEFAULT_DISABLE
 	  using the efivars module's pstore_disable parameter.
 
 config EFI_RUNTIME_MAP
-	bool "Export efi runtime maps to sysfs"
-	depends on X86 && EFI && KEXEC_CORE
-	default y
+	bool "Export EFI runtime maps to sysfs" if EXPERT
+	depends on X86 && EFI
+	default KEXEC_CORE
 	help
-	  Export efi runtime memory maps to /sys/firmware/efi/runtime-map.
-	  That memory map is used for example by kexec to set up efi virtual
-	  mapping the 2nd kernel, but can also be used for debugging purposes.
+	  Export EFI runtime memory regions to /sys/firmware/efi/runtime-map.
+	  That memory map is required by the 2nd kernel to set up EFI virtual
+	  mappings after kexec, but can also be used for debugging purposes.
 
 	  See also Documentation/ABI/testing/sysfs-firmware-efi-runtime-map.
 
