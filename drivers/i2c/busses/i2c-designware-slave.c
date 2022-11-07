@@ -78,13 +78,7 @@ static int i2c_dw_reg_slave(struct i2c_client *slave)
 
 	__i2c_dw_enable(dev);
 
-	dev->cmd_err = 0;
-	dev->msg_write_idx = 0;
-	dev->msg_read_idx = 0;
-	dev->msg_err = 0;
 	dev->status = 0;
-	dev->abort_source = 0;
-	dev->rx_outstanding = 0;
 
 	return 0;
 }
