@@ -124,7 +124,7 @@ static int exp_idx;
 
 // Operations vector for selecting different types of tests.
 struct ref_scale_ops {
-	void (*init)(void);
+	bool (*init)(void);
 	void (*cleanup)(void);
 	void (*readsection)(const int nloops);
 	void (*delaysection)(const int nloops, const int udl, const int ndl);
@@ -162,8 +162,9 @@ static void ref_rcu_delay_section(const int nloops, const int udl, const int ndl
 	}
 }
 
-static void rcu_sync_scale_init(void)
+static bool rcu_sync_scale_init(void)
 {
+	return true;
 }
 
 static struct ref_scale_ops rcu_ops = {
@@ -315,9 +316,10 @@ static struct ref_scale_ops refcnt_ops = {
 // Definitions for rwlock
 static rwlock_t test_rwlock;
 
-static void ref_rwlock_init(void)
+static bool ref_rwlock_init(void)
 {
 	rwlock_init(&test_rwlock);
+	return true;
 }
 
 static void ref_rwlock_section(const int nloops)
@@ -351,9 +353,10 @@ static struct ref_scale_ops rwlock_ops = {
 // Definitions for rwsem
 static struct rw_semaphore test_rwsem;
 
-static void ref_rwsem_init(void)
+static bool ref_rwsem_init(void)
 {
 	init_rwsem(&test_rwsem);
+	return true;
 }
 
 static void ref_rwsem_section(const int nloops)
@@ -833,7 +836,10 @@ ref_scale_init(void)
 		goto unwind;
 	}
 	if (cur_ops->init)
-		cur_ops->init();
+		if (!cur_ops->init()) {
+			firsterr = -EUCLEAN;
+			goto unwind;
+		}
 
 	ref_scale_print_module_parms(cur_ops, "Start of test");
 
