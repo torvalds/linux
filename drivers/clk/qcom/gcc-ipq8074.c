@@ -4671,6 +4671,20 @@ static const struct qcom_reset_map gcc_ipq8074_resets[] = {
 	[GCC_PCIE1_AXI_SLAVE_ARES] = { 0x76040, 4 },
 	[GCC_PCIE1_AHB_ARES] = { 0x76040, 5 },
 	[GCC_PCIE1_AXI_MASTER_STICKY_ARES] = { 0x76040, 6 },
+	[GCC_PPE_FULL_RESET] = { .reg = 0x68014, .bitmask = GENMASK(19, 16) },
+	[GCC_UNIPHY0_SOFT_RESET] = { .reg = 0x56004, .bitmask = GENMASK(13, 4) | BIT(1) },
+	[GCC_UNIPHY0_XPCS_RESET] = { 0x56004, 2 },
+	[GCC_UNIPHY1_SOFT_RESET] = { .reg = 0x56104, .bitmask = GENMASK(5, 4) | BIT(1) },
+	[GCC_UNIPHY1_XPCS_RESET] = { 0x56104, 2 },
+	[GCC_UNIPHY2_SOFT_RESET] = { .reg = 0x56204, .bitmask = GENMASK(5, 4) | BIT(1) },
+	[GCC_UNIPHY2_XPCS_RESET] = { 0x56204, 2 },
+	[GCC_EDMA_HW_RESET] = { .reg = 0x68014, .bitmask = GENMASK(21, 20) },
+	[GCC_NSSPORT1_RESET] = { .reg = 0x68014, .bitmask = BIT(24) | GENMASK(1, 0) },
+	[GCC_NSSPORT2_RESET] = { .reg = 0x68014, .bitmask = BIT(25) | GENMASK(3, 2) },
+	[GCC_NSSPORT3_RESET] = { .reg = 0x68014, .bitmask = BIT(26) | GENMASK(5, 4) },
+	[GCC_NSSPORT4_RESET] = { .reg = 0x68014, .bitmask = BIT(27) | GENMASK(9, 8) },
+	[GCC_NSSPORT5_RESET] = { .reg = 0x68014, .bitmask = BIT(28) | GENMASK(11, 10) },
+	[GCC_NSSPORT6_RESET] = { .reg = 0x68014, .bitmask = BIT(29) | GENMASK(13, 12) },
 };
 
 static struct gdsc *gcc_ipq8074_gdscs[] = {
