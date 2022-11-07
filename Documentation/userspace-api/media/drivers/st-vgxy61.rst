@@ -21,5 +21,5 @@ The ST VGXY61 driver implements the following controls:
     * - HDR substraction
       - This involves subtracting the short exposure frame from the long
         exposure frame.
-    * - "No HDR"
+    * - No HDR
       - This mode is used for standard dynamic range (SDR) exposures.
