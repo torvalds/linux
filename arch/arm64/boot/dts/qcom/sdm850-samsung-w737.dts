@@ -43,7 +43,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		// Firmware initialized the display at 1280p instead of 1440p
+		/* Firmware initialized the display at 1280p instead of 1440p */
 		framebuffer0: framebuffer@80400000 {
 			compatible = "simple-framebuffer";
 			reg = <0 0x80400000 0 (1920 * 1280 * 4)>;

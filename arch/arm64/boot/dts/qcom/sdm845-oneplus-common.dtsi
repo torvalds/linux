@@ -50,7 +50,8 @@
 	};
 
 	reserved-memory {
-		/* The rmtfs_mem needs to be guarded due to "XPU limitations"
+		/*
+		 * The rmtfs_mem needs to be guarded due to "XPU limitations"
 		 * it is otherwise possible for an allocation adjacent to the
 		 * rmtfs_mem region to trigger an XPU violation, causing a crash.
 		 */
@@ -433,7 +434,7 @@
 	status = "okay";
 };
 
-/* Modem/wifi*/
+/* Modem/wifi */
 &mss_pil {
 	status = "okay";
 	firmware-name = "qcom/sdm845/oneplus6/mba.mbn", "qcom/sdm845/oneplus6/modem.mbn";
