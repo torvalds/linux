@@ -408,7 +408,6 @@ xchk_btree_check_owner(
 	struct xfs_buf		*bp)
 {
 	struct xfs_btree_cur	*cur = bs->cur;
-	struct check_owner	*co;
 
 	/*
 	 * In theory, xfs_btree_get_block should only give us a null buffer
@@ -431,10 +430,14 @@ xchk_btree_check_owner(
 	 * later scanning.
 	 */
 	if (cur->bc_btnum == XFS_BTNUM_BNO || cur->bc_btnum == XFS_BTNUM_RMAP) {
+		struct check_owner	*co;
+
 		co = kmem_alloc(sizeof(struct check_owner),
 				KM_MAYFAIL);
 		if (!co)
 			return -ENOMEM;
+
+		INIT_LIST_HEAD(&co->list);
 		co->level = level;
 		co->daddr = xfs_buf_daddr(bp);
 		list_add_tail(&co->list, &bs->to_check);
