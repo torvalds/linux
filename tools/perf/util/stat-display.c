@@ -835,10 +835,15 @@ static void print_metric_headers(struct perf_stat_config *config,
 				 struct evlist *evlist,
 				 const char *prefix, bool no_indent)
 {
-	struct perf_stat_output_ctx out;
 	struct evsel *counter;
 	struct outstate os = {
 		.fh = config->output
+	};
+	struct perf_stat_output_ctx out = {
+		.ctx = &os,
+		.print_metric = print_metric_header,
+		.new_line = new_line_metric,
+		.force_header = true,
 	};
 	bool first = true;
 
@@ -863,13 +868,11 @@ static void print_metric_headers(struct perf_stat_config *config,
 	/* Print metrics headers only */
 	evlist__for_each_entry(evlist, counter) {
 		os.evsel = counter;
-		out.ctx = &os;
-		out.print_metric = print_metric_header;
+
 		if (!first && config->json_output)
 			fprintf(config->output, ", ");
 		first = false;
-		out.new_line = new_line_metric;
-		out.force_header = true;
+
 		perf_stat__print_shadow_stats(config, counter, 0,
 					      0,
 					      &out,
