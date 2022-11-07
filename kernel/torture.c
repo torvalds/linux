@@ -450,7 +450,7 @@ unsigned long
 torture_random(struct torture_random_state *trsp)
 {
 	if (--trsp->trs_count < 0) {
-		trsp->trs_state += (unsigned long)local_clock();
+		trsp->trs_state += (unsigned long)local_clock() + raw_smp_processor_id();
 		trsp->trs_count = TORTURE_RANDOM_REFRESH;
 	}
 	trsp->trs_state = trsp->trs_state * TORTURE_RANDOM_MULT +
