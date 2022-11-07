@@ -66,6 +66,7 @@ properties:
           - enum:
               - asus,rt-ac88u
               - dlink,dir-885l
+              - dlink,dir-890l
               - linksys,panamera
               - luxul,abr-4500-v1
               - luxul,xap-1610-v1
