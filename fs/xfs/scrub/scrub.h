@@ -169,12 +169,4 @@ void xchk_xref_is_used_rt_space(struct xfs_scrub *sc, xfs_rtblock_t rtbno,
 # define xchk_xref_is_used_rt_space(sc, rtbno, len) do { } while (0)
 #endif
 
-struct xchk_fscounters {
-	uint64_t		icount;
-	uint64_t		ifree;
-	uint64_t		fdblocks;
-	unsigned long long	icount_min;
-	unsigned long long	icount_max;
-};
-
 #endif	/* __XFS_SCRUB_SCRUB_H__ */
