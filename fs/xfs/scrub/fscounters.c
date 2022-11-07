@@ -138,6 +138,18 @@ xchk_setup_fscounters(
 	return xchk_trans_alloc(sc, 0);
 }
 
+/*
+ * Part 1: Collecting filesystem summary counts.  For each AG, we add its
+ * summary counts (total inodes, free inodes, free data blocks) to an incore
+ * copy of the overall filesystem summary counts.
+ *
+ * To avoid false corruption reports in part 2, any failure in this part must
+ * set the INCOMPLETE flag even when a negative errno is returned.  This care
+ * must be taken with certain errno values (i.e. EFSBADCRC, EFSCORRUPTED,
+ * ECANCELED) that are absorbed into a scrub state flag update by
+ * xchk_*_process_error.
+ */
+
 /* Count free space btree blocks manually for pre-lazysbcount filesystems. */
 static int
 xchk_fscount_btreeblks(
@@ -225,8 +237,10 @@ retry:
 	}
 	if (pag)
 		xfs_perag_put(pag);
-	if (error)
+	if (error) {
+		xchk_set_incomplete(sc);
 		return error;
+	}
 
 	/*
 	 * The global incore space reservation is taken from the incore
@@ -266,6 +280,11 @@ retry:
 
 	return 0;
 }
+
+/*
+ * Part 2: Comparing filesystem summary counters.  All we have to do here is
+ * sum the percpu counters and compare them to what we've observed.
+ */
 
 /*
  * Is the @counter reasonably close to the @expected value?
