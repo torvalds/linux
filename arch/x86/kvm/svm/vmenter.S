@@ -28,6 +28,8 @@
 #define VCPU_R15	(SVM_vcpu_arch_regs + __VCPU_REGS_R15 * WORD_SIZE)
 #endif
 
+#define SVM_vmcb01_pa	(SVM_vmcb01 + KVM_VMCB_pa)
+
 .section .noinstr.text, "ax"
 
 /**
@@ -55,6 +57,16 @@ SYM_FUNC_START(__svm_vcpu_run)
 	mov %_ASM_ARG1, %_ASM_DI
 .endif
 
+	/*
+	 * Use a single vmcb (vmcb01 because it's always valid) for
+	 * context switching guest state via VMLOAD/VMSAVE, that way
+	 * the state doesn't need to be copied between vmcb01 and
+	 * vmcb02 when switching vmcbs for nested virtualization.
+	 */
+	mov SVM_vmcb01_pa(%_ASM_DI), %_ASM_AX
+1:	vmload %_ASM_AX
+2:
+
 	/* Get svm->current_vmcb->pa into RAX. */
 	mov SVM_current_vmcb(%_ASM_DI), %_ASM_AX
 	mov KVM_VMCB_pa(%_ASM_AX), %_ASM_AX
@@ -80,16 +92,11 @@ SYM_FUNC_START(__svm_vcpu_run)
 	/* Enter guest mode */
 	sti
 
-1:	vmrun %_ASM_AX
+3:	vmrun %_ASM_AX
+4:
+	cli
 
-2:	cli
-
-#ifdef CONFIG_RETPOLINE
-	/* IMPORTANT: Stuff the RSB immediately after VM-Exit, before RET! */
-	FILL_RETURN_BUFFER %_ASM_AX, RSB_CLEAR_LOOPS, X86_FEATURE_RETPOLINE
-#endif
-
-	/* "POP" @svm to RAX. */
+	/* Pop @svm to RAX while it's the only available register. */
 	pop %_ASM_AX
 
 	/* Save all guest registers.  */
@@ -108,6 +115,18 @@ SYM_FUNC_START(__svm_vcpu_run)
 	mov %r13, VCPU_R13(%_ASM_AX)
 	mov %r14, VCPU_R14(%_ASM_AX)
 	mov %r15, VCPU_R15(%_ASM_AX)
+#endif
+
+	/* @svm can stay in RDI from now on.  */
+	mov %_ASM_AX, %_ASM_DI
+
+	mov SVM_vmcb01_pa(%_ASM_DI), %_ASM_AX
+5:	vmsave %_ASM_AX
+6:
+
+#ifdef CONFIG_RETPOLINE
+	/* IMPORTANT: Stuff the RSB immediately after VM-Exit, before RET! */
+	FILL_RETURN_BUFFER %_ASM_AX, RSB_CLEAR_LOOPS, X86_FEATURE_RETPOLINE
 #endif
 
 	/*
@@ -159,11 +178,19 @@ SYM_FUNC_START(__svm_vcpu_run)
 	pop %_ASM_BP
 	RET
 
-3:	cmpb $0, kvm_rebooting
+10:	cmpb $0, kvm_rebooting
 	jne 2b
 	ud2
+30:	cmpb $0, kvm_rebooting
+	jne 4b
+	ud2
+50:	cmpb $0, kvm_rebooting
+	jne 6b
+	ud2
 
-	_ASM_EXTABLE(1b, 3b)
+	_ASM_EXTABLE(1b, 10b)
+	_ASM_EXTABLE(3b, 30b)
+	_ASM_EXTABLE(5b, 50b)
 
 SYM_FUNC_END(__svm_vcpu_run)
 
