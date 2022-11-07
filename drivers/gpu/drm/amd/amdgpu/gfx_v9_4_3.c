@@ -888,46 +888,6 @@ static int gfx_v9_4_3_sw_fini(void *handle)
 	return 0;
 }
 
-static u32 gfx_v9_4_3_get_rb_active_bitmap(struct amdgpu_device *adev)
-{
-	u32 data, mask;
-
-	data = RREG32_SOC15(GC, GET_INST(GC, 0), regCC_RB_BACKEND_DISABLE);
-	data |= RREG32_SOC15(GC, GET_INST(GC, 0), regGC_USER_RB_BACKEND_DISABLE);
-
-	data &= CC_RB_BACKEND_DISABLE__BACKEND_DISABLE_MASK;
-	data >>= GC_USER_RB_BACKEND_DISABLE__BACKEND_DISABLE__SHIFT;
-
-	mask = amdgpu_gfx_create_bitmask(adev->gfx.config.max_backends_per_se /
-					 adev->gfx.config.max_sh_per_se);
-
-	return (~data) & mask;
-}
-
-static void gfx_v9_4_3_setup_rb(struct amdgpu_device *adev, int xcc_id)
-{
-	int i, j;
-	u32 data;
-	u32 active_rbs = 0;
-	u32 rb_bitmap_width_per_sh = adev->gfx.config.max_backends_per_se /
-					adev->gfx.config.max_sh_per_se;
-
-	mutex_lock(&adev->grbm_idx_mutex);
-	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
-		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
-			gfx_v9_4_3_select_se_sh(adev, i, j, 0xffffffff, xcc_id);
-			data = gfx_v9_4_3_get_rb_active_bitmap(adev);
-			active_rbs |= data << ((i * adev->gfx.config.max_sh_per_se + j) *
-					       rb_bitmap_width_per_sh);
-		}
-	}
-	gfx_v9_4_3_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff, xcc_id);
-	mutex_unlock(&adev->grbm_idx_mutex);
-
-	adev->gfx.config.backend_enable_mask = active_rbs;
-	adev->gfx.config.num_rbs = hweight32(active_rbs);
-}
-
 #define DEFAULT_SH_MEM_BASES	(0x6000)
 static void gfx_v9_4_3_init_compute_vmid(struct amdgpu_device *adev, int xcc_id)
 {
@@ -991,10 +951,6 @@ static void gfx_v9_4_3_constants_init(struct amdgpu_device *adev)
 	int i, j, num_xcc;
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	for (i = 0; i < num_xcc; i++) {
-		WREG32_FIELD15_PREREG(GC, GET_INST(GC, i), GRBM_CNTL, READ_TIMEOUT, 0xff);
-		gfx_v9_4_3_setup_rb(adev, i);
-	}
 
 	gfx_v9_4_3_get_cu_info(adev, &adev->gfx.cu_info);
 	adev->gfx.config.db_debug2 = RREG32_SOC15(GC, GET_INST(GC, 0), regDB_DEBUG2);
