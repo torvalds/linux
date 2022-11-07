@@ -1392,6 +1392,8 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	swidget->id = w->id;
 	swidget->pipeline_id = index;
 	swidget->private = NULL;
+	ida_init(&swidget->src_queue_ida);
+	ida_init(&swidget->sink_queue_ida);
 
 	ret = sof_parse_tokens(scomp, swidget, comp_pin_tokens,
 			       ARRAY_SIZE(comp_pin_tokens), priv->array,
@@ -1623,6 +1625,9 @@ out:
 	/* free IPC related data */
 	if (widget_ops[swidget->id].ipc_free)
 		widget_ops[swidget->id].ipc_free(swidget);
+
+	ida_destroy(&swidget->src_queue_ida);
+	ida_destroy(&swidget->sink_queue_ida);
 
 	sof_free_pin_binding(swidget, SOF_PIN_TYPE_SINK);
 	sof_free_pin_binding(swidget, SOF_PIN_TYPE_SOURCE);

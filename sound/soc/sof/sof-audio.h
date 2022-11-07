@@ -422,6 +422,9 @@ struct snd_sof_widget {
 	char **sink_pin_binding;
 	char **src_pin_binding;
 
+	struct ida src_queue_ida;
+	struct ida sink_queue_ida;
+
 	void *private;		/* core does not touch this */
 };
 
@@ -434,6 +437,9 @@ struct snd_sof_route {
 	struct snd_sof_widget *src_widget;
 	struct snd_sof_widget *sink_widget;
 	bool setup;
+
+	int src_queue_id;
+	int dst_queue_id;
 
 	void *private;
 };
