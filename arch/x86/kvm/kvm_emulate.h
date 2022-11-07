@@ -278,7 +278,6 @@ enum x86emul_mode {
 /* These match some of the HF_* flags defined in kvm_host.h  */
 #define X86EMUL_GUEST_MASK           (1 << 5) /* VCPU is in guest-mode */
 #define X86EMUL_SMM_MASK             (1 << 6)
-#define X86EMUL_SMM_INSIDE_NMI_MASK  (1 << 7)
 
 /*
  * fastop functions are declared as taking a never-defined fastop parameter,
