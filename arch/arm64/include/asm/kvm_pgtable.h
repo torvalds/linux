@@ -203,6 +203,7 @@ struct kvm_pgtable_visit_ctx {
 	kvm_pte_t				*ptep;
 	kvm_pte_t				old;
 	void					*arg;
+	struct kvm_pgtable_mm_ops		*mm_ops;
 	u64					addr;
 	u64					end;
 	u32					level;
