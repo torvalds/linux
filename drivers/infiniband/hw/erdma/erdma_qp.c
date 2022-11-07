@@ -397,8 +397,7 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 		regmr_sge->addr = cpu_to_le64(mr->ibmr.iova);
 		regmr_sge->length = cpu_to_le32(mr->ibmr.length);
 		regmr_sge->stag = cpu_to_le32(reg_wr(send_wr)->key);
-		attrs = FIELD_PREP(ERDMA_SQE_MR_MODE_MASK, 0) |
-			FIELD_PREP(ERDMA_SQE_MR_ACCESS_MASK, mr->access) |
+		attrs = FIELD_PREP(ERDMA_SQE_MR_ACCESS_MASK, mr->access) |
 			FIELD_PREP(ERDMA_SQE_MR_MTT_CNT_MASK,
 				   mr->mem.mtt_nents);
 

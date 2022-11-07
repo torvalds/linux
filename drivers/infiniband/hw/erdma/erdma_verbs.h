@@ -71,16 +71,18 @@ struct erdma_pd {
 #define ERDMA_MR_INLINE_MTT 0
 #define ERDMA_MR_INDIRECT_MTT 1
 
-#define ERDMA_MR_ACC_LR BIT(0)
-#define ERDMA_MR_ACC_LW BIT(1)
-#define ERDMA_MR_ACC_RR BIT(2)
-#define ERDMA_MR_ACC_RW BIT(3)
+#define ERDMA_MR_ACC_RA BIT(0)
+#define ERDMA_MR_ACC_LR BIT(1)
+#define ERDMA_MR_ACC_LW BIT(2)
+#define ERDMA_MR_ACC_RR BIT(3)
+#define ERDMA_MR_ACC_RW BIT(4)
 
 static inline u8 to_erdma_access_flags(int access)
 {
 	return (access & IB_ACCESS_REMOTE_READ ? ERDMA_MR_ACC_RR : 0) |
 	       (access & IB_ACCESS_LOCAL_WRITE ? ERDMA_MR_ACC_LW : 0) |
-	       (access & IB_ACCESS_REMOTE_WRITE ? ERDMA_MR_ACC_RW : 0);
+	       (access & IB_ACCESS_REMOTE_WRITE ? ERDMA_MR_ACC_RW : 0) |
+	       (access & IB_ACCESS_REMOTE_ATOMIC ? ERDMA_MR_ACC_RA : 0);
 }
 
 struct erdma_mem {

@@ -118,8 +118,7 @@ static int regmr_cmd(struct erdma_dev *dev, struct erdma_mr *mr)
 		   FIELD_PREP(ERDMA_CMD_MR_MPT_IDX_MASK, mr->ibmr.lkey >> 8);
 	req.cfg1 = FIELD_PREP(ERDMA_CMD_REGMR_PD_MASK, pd->pdn) |
 		   FIELD_PREP(ERDMA_CMD_REGMR_TYPE_MASK, mr->type) |
-		   FIELD_PREP(ERDMA_CMD_REGMR_RIGHT_MASK, mr->access) |
-		   FIELD_PREP(ERDMA_CMD_REGMR_ACC_MODE_MASK, 0);
+		   FIELD_PREP(ERDMA_CMD_REGMR_RIGHT_MASK, mr->access);
 	req.cfg2 = FIELD_PREP(ERDMA_CMD_REGMR_PAGESIZE_MASK,
 			      ilog2(mr->mem.page_size)) |
 		   FIELD_PREP(ERDMA_CMD_REGMR_MTT_TYPE_MASK, mr->mem.mtt_type) |
