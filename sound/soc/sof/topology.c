@@ -392,6 +392,13 @@ static const struct sof_topology_token led_tokens[] = {
 		offsetof(struct snd_sof_led_control, direction)},
 };
 
+static const struct sof_topology_token comp_pin_tokens[] = {
+	{SOF_TKN_COMP_NUM_SINK_PINS, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct snd_sof_widget, num_sink_pins)},
+	{SOF_TKN_COMP_NUM_SOURCE_PINS, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct snd_sof_widget, num_source_pins)},
+};
+
 /**
  * sof_parse_uuid_tokens - Parse multiple sets of UUID tokens
  * @scomp: pointer to soc component
@@ -1259,6 +1266,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	const struct sof_ipc_tplg_ops *ipc_tplg_ops = sdev->ipc->ops->tplg;
 	const struct sof_ipc_tplg_widget_ops *widget_ops = ipc_tplg_ops->widget;
+	struct snd_soc_tplg_private *priv = &tw->priv;
 	struct snd_sof_widget *swidget;
 	struct snd_sof_dai *dai;
 	enum sof_tokens *token_list;
@@ -1277,10 +1285,27 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	swidget->pipeline_id = index;
 	swidget->private = NULL;
 
-	dev_dbg(scomp->dev, "tplg: ready widget id %d pipe %d type %d name : %s stream %s\n",
-		swidget->comp_id, index, swidget->id, tw->name,
-		strnlen(tw->sname, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) > 0
-			? tw->sname : "none");
+	ret = sof_parse_tokens(scomp, swidget, comp_pin_tokens,
+			       ARRAY_SIZE(comp_pin_tokens), priv->array,
+			       le32_to_cpu(priv->size));
+	if (ret < 0) {
+		dev_err(scomp->dev, "failed to parse component pin tokens for %s\n",
+			w->name);
+		return ret;
+	}
+
+	if (swidget->num_sink_pins > SOF_WIDGET_MAX_NUM_PINS ||
+	    swidget->num_source_pins > SOF_WIDGET_MAX_NUM_PINS) {
+		dev_err(scomp->dev, "invalid pins for %s: [sink: %d, src: %d]\n",
+			swidget->widget->name, swidget->num_sink_pins, swidget->num_source_pins);
+		return -EINVAL;
+	}
+
+	dev_dbg(scomp->dev,
+		"tplg: widget %d (%s) is ready [type: %d, pipe: %d, pins: %d / %d, stream: %s]\n",
+		swidget->comp_id, w->name, swidget->id, index,
+		swidget->num_sink_pins, swidget->num_source_pins,
+		strnlen(w->sname, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) > 0 ? w->sname : "none");
 
 	token_list = widget_ops[w->id].token_list;
 	token_list_size = widget_ops[w->id].token_list_size;

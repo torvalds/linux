@@ -23,6 +23,13 @@
 
 #define SOF_AUDIO_PCM_DRV_NAME	"sof-audio-component"
 
+/*
+ * The ipc4 firmware only supports up to 8 sink or source pins
+ * per widget, because only 3 bits are used for queue(pin) ID
+ * in ipc4 protocol.
+ */
+#define SOF_WIDGET_MAX_NUM_PINS	8
+
 /* max number of FE PCMs before BEs */
 #define SOF_BE_PCM_BASE		16
 
@@ -386,6 +393,14 @@ struct snd_sof_widget {
 
 	int num_tuples;
 	struct snd_sof_tuple *tuples;
+
+	/*
+	 * The allowed range for num_sink/source_pins is [0, SOF_WIDGET_MAX_NUM_PINS].
+	 * Widgets may have zero sink or source pins, for example the tone widget has
+	 * zero sink pins.
+	 */
+	u32 num_sink_pins;
+	u32 num_source_pins;
 
 	void *private;		/* core does not touch this */
 };
