@@ -6850,7 +6850,7 @@ static int rkcif_dvp_g_ch_id(struct v4l2_device *v4l2_dev,
 		if ((frm_stat & DVP_CHANNEL2_FRM_READ) ==
 		    DVP_CHANNEL2_FRM_READ)
 			v4l2_warn(v4l2_dev, "frame0/1 trigger simultaneously in DVP ID2\n");
-			*intstat &= ~DVP_FRAME_END_ID2;
+		*intstat &= ~DVP_FRAME_END_ID2;
 		return RKCIF_STREAM_MIPI_ID2;
 	}
 
@@ -6858,7 +6858,7 @@ static int rkcif_dvp_g_ch_id(struct v4l2_device *v4l2_dev,
 		if ((frm_stat & DVP_CHANNEL3_FRM_READ) ==
 		    DVP_CHANNEL3_FRM_READ)
 			v4l2_warn(v4l2_dev, "frame0/1 trigger simultaneously in DVP ID3\n");
-			*intstat &= ~DVP_FRAME_END_ID3;
+		*intstat &= ~DVP_FRAME_END_ID3;
 		return RKCIF_STREAM_MIPI_ID3;
 	}
 
