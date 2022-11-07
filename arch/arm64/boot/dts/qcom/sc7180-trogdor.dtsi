@@ -894,13 +894,16 @@ ap_spi_fp: &spi10 {
 	cs-gpios = <&tlmm 89 GPIO_ACTIVE_LOW>;
 
 	cros_ec_fp: ec@0 {
-		compatible = "google,cros-ec-spi";
+		compatible = "google,cros-ec-fp", "google,cros-ec-spi";
 		reg = <0>;
 		interrupt-parent = <&tlmm>;
 		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&fp_to_ap_irq_l>;
+		pinctrl-0 = <&fp_to_ap_irq_l>, <&fp_rst_l>, <&fpmcu_boot0>;
+		boot0-gpios = <&tlmm 10 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 22 GPIO_ACTIVE_LOW>;
 		spi-max-frequency = <3000000>;
+		vdd-supply = <&pp3300_fp_tp>;
 	};
 };
 
@@ -1226,12 +1229,25 @@ ap_spi_fp: &spi10 {
 		bias-disable;
 	};
 
+	fp_rst_l: fp-rst-l-state {
+		pins = "gpio22";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+	};
+
 	fp_to_ap_irq_l: fp-to-ap-irq-l-state {
 		pins = "gpio4";
 		function = "gpio";
 		input-enable;
 
 		/* Has external pullup */
+		bias-disable;
+	};
+
+	fpmcu_boot0: fpmcu-boot0-state {
+		pins = "gpio10";
+		function = "gpio";
 		bias-disable;
 	};
 
