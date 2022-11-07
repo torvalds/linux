@@ -858,6 +858,10 @@ static void print_metric_headers(struct perf_stat_config *config,
 		if (!config->iostat_run)
 			fputs(aggr_header_csv[config->aggr_mode], config->output);
 	}
+	if (config->json_output) {
+		if (config->interval)
+			fputs("{\"unit\" : \"sec\"}", config->output);
+	}
 	if (config->iostat_run)
 		iostat_print_header_prefix(config);
 
