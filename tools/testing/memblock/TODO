@@ -1,10 +1,5 @@
 TODO
 =====
 
-1. Add test cases using this functions (implement them for both directions):
-   + memblock_alloc_raw()
-   + memblock_alloc_exact_nid_raw()
-   + memblock_alloc_try_nid_raw()
-
-2. Add tests for memblock_alloc_node() to check if the correct NUMA node is set
+1. Add tests for memblock_alloc_node() to check if the correct NUMA node is set
    for the new region
