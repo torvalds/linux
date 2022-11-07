@@ -1854,6 +1854,26 @@ static void dw_dp_encoder_disable(struct drm_encoder *encoder)
 		s->output_if &= ~(dp->id ? VOP_OUTPUT_IF_DP1 : VOP_OUTPUT_IF_DP0);
 }
 
+static void dw_dp_mode_fixup(struct dw_dp *dp, struct drm_display_mode *adjusted_mode)
+{
+	int min_hbp = 16;
+	int min_hsync = 9;
+
+	if (dp->split_mode) {
+		min_hbp *= 2;
+		min_hsync *= 2;
+	}
+
+	if (adjusted_mode->hsync_end - adjusted_mode->hsync_start < min_hsync) {
+		adjusted_mode->hsync_end = adjusted_mode->hsync_start + min_hsync;
+		dev_warn(dp->dev, "hsync is too narrow, fixup to min hsync:%d\n", min_hsync);
+	}
+	if (adjusted_mode->htotal - adjusted_mode->hsync_end < min_hbp) {
+		adjusted_mode->htotal = adjusted_mode->hsync_end + min_hbp;
+		dev_warn(dp->dev, "hbp is too narrow, fixup to min hbp:%d\n", min_hbp);
+	}
+}
+
 static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 				      struct drm_crtc_state *crtc_state,
 				      struct drm_connector_state *conn_state)
@@ -1891,6 +1911,8 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	s->tv_state = &conn_state->tv;
 	s->eotf = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
 	s->color_space = V4L2_COLORSPACE_DEFAULT;
+
+	dw_dp_mode_fixup(dp, &crtc_state->adjusted_mode);
 
 	return 0;
 }
@@ -2031,9 +2053,6 @@ static int dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
 
 	if (dp->split_mode)
 		drm_mode_convert_to_origin_mode(&m);
-
-	if (m.hsync_end - m.hsync_start <= 8)
-		return MODE_HSYNC_NARROW;
 
 	if (info->color_formats & DRM_COLOR_FORMAT_YCRCB420 &&
 	    link->vsc_sdp_extension_for_colorimetry_supported &&
