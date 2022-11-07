@@ -13,13 +13,13 @@
 		compatible = "google,sc7280-herobrine";
 		model = "sc7280-rt5682-max98360a-1mic";
 
-		status = "okay";
-		audio-routing =
-			"Headphone Jack", "HPOL",
-			"Headphone Jack", "HPOR";
+		audio-routing = "Headphone Jack", "HPOL",
+				"Headphone Jack", "HPOR";
 
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		status = "okay";
 
 		dai-link@0 {
 			link-name = "MAX98360";
@@ -50,8 +50,8 @@
 };
 
 hp_i2c: &i2c2 {
-	status = "okay";
 	clock-frequency = <400000>;
+	status = "okay";
 
 	alc5682: codec@1a {
 		compatible = "realtek,rt5682s";
@@ -75,14 +75,14 @@ hp_i2c: &i2c2 {
 };
 
 &lpass_cpu {
-	status = "okay";
-
 	pinctrl-names = "default";
 	pinctrl-0 = <&mi2s0_data0>, <&mi2s0_data1>, <&mi2s0_mclk>, <&mi2s0_sclk>, <&mi2s0_ws>,
 			<&mi2s1_data0>, <&mi2s1_sclk>, <&mi2s1_ws>;
 
 	#address-cells = <1>;
 	#size-cells = <0>;
+
+	status = "okay";
 
 	dai-link@0 {
 		reg = <MI2S_PRIMARY>;
