@@ -254,6 +254,14 @@
 			status = "disabled";
 		};
 
+		lradc: lradc@1c23400 {
+			compatible = "allwinner,suniv-f1c100s-lradc",
+				     "allwinner,sun8i-a83t-r-lradc";
+			reg = <0x01c23400 0x400>;
+			interrupts = <22>;
+			status = "disabled";
+		};
+
 		uart0: serial@1c25000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x01c25000 0x400>;
