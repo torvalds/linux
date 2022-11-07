@@ -7420,6 +7420,9 @@ enum skl_power_gate {
 #define _DKL_PHY5_BASE			0x16C000
 #define _DKL_PHY6_BASE			0x16D000
 
+#define DKL_REG_TC_PORT(__reg) \
+	(TC_PORT_1 + ((__reg).reg - _DKL_PHY1_BASE) / (_DKL_PHY2_BASE - _DKL_PHY1_BASE))
+
 /* DEKEL PHY MMIO Address = Phy base + (internal address & ~index_mask) */
 #define _DKL_PCS_DW5			0x14
 #define DKL_PCS_DW5(tc_port)		_MMIO(_PORT(tc_port, _DKL_PHY1_BASE, \

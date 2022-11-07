@@ -215,11 +215,6 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 		kfree(cifs_i->symlink_target);
 		cifs_i->symlink_target = fattr->cf_symlink_target;
 		fattr->cf_symlink_target = NULL;
-
-		if (unlikely(!cifs_i->symlink_target))
-			inode->i_link = ERR_PTR(-EOPNOTSUPP);
-		else
-			inode->i_link = cifs_i->symlink_target;
 	}
 	spin_unlock(&inode->i_lock);
 

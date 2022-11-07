@@ -619,12 +619,8 @@ static int rapl_check_hw_unit(struct rapl_model *rm)
 	case RAPL_UNIT_QUIRK_INTEL_HSW:
 		rapl_hw_unit[PERF_RAPL_RAM] = 16;
 		break;
-	/*
-	 * SPR shares the same DRAM domain energy unit as HSW, plus it
-	 * also has a fixed energy unit for Psys domain.
-	 */
+	/* SPR uses a fixed energy unit for Psys domain. */
 	case RAPL_UNIT_QUIRK_INTEL_SPR:
-		rapl_hw_unit[PERF_RAPL_RAM] = 16;
 		rapl_hw_unit[PERF_RAPL_PSYS] = 0;
 		break;
 	default:

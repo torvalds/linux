@@ -34,6 +34,8 @@
 #define VE_GET_PORT_NUM(e)	((e) >> 16)
 #define VE_IS_IO_STRING(e)	((e) & BIT(4))
 
+#define ATTR_SEPT_VE_DISABLE	BIT(28)
+
 /*
  * Wrapper for standard use of __tdx_hypercall with no output aside from
  * return code.
@@ -98,10 +100,11 @@ static inline void tdx_module_call(u64 fn, u64 rcx, u64 rdx, u64 r8, u64 r9,
 		panic("TDCALL %lld failed (Buggy TDX module!)\n", fn);
 }
 
-static u64 get_cc_mask(void)
+static void tdx_parse_tdinfo(u64 *cc_mask)
 {
 	struct tdx_module_output out;
 	unsigned int gpa_width;
+	u64 td_attr;
 
 	/*
 	 * TDINFO TDX module call is used to get the TD execution environment
@@ -109,19 +112,27 @@ static u64 get_cc_mask(void)
 	 * information, etc. More details about the ABI can be found in TDX
 	 * Guest-Host-Communication Interface (GHCI), section 2.4.2 TDCALL
 	 * [TDG.VP.INFO].
-	 *
-	 * The GPA width that comes out of this call is critical. TDX guests
-	 * can not meaningfully run without it.
 	 */
 	tdx_module_call(TDX_GET_INFO, 0, 0, 0, 0, &out);
-
-	gpa_width = out.rcx & GENMASK(5, 0);
 
 	/*
 	 * The highest bit of a guest physical address is the "sharing" bit.
 	 * Set it for shared pages and clear it for private pages.
+	 *
+	 * The GPA width that comes out of this call is critical. TDX guests
+	 * can not meaningfully run without it.
 	 */
-	return BIT_ULL(gpa_width - 1);
+	gpa_width = out.rcx & GENMASK(5, 0);
+	*cc_mask = BIT_ULL(gpa_width - 1);
+
+	/*
+	 * The kernel can not handle #VE's when accessing normal kernel
+	 * memory.  Ensure that no #VE will be delivered for accesses to
+	 * TD-private memory.  Only VMM-shared memory (MMIO) will #VE.
+	 */
+	td_attr = out.rdx;
+	if (!(td_attr & ATTR_SEPT_VE_DISABLE))
+		panic("TD misconfiguration: SEPT_VE_DISABLE attibute must be set.\n");
 }
 
 /*
@@ -758,7 +769,7 @@ void __init tdx_early_init(void)
 	setup_force_cpu_cap(X86_FEATURE_TDX_GUEST);
 
 	cc_set_vendor(CC_VENDOR_INTEL);
-	cc_mask = get_cc_mask();
+	tdx_parse_tdinfo(&cc_mask);
 	cc_set_mask(cc_mask);
 
 	/*

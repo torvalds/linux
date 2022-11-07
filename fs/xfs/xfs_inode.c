@@ -2818,7 +2818,7 @@ retry:
 	 * Lock all the participating inodes. Depending upon whether
 	 * the target_name exists in the target directory, and
 	 * whether the target directory is the same as the source
-	 * directory, we can lock from 2 to 4 inodes.
+	 * directory, we can lock from 2 to 5 inodes.
 	 */
 	xfs_lock_inodes(inodes, num_inodes, XFS_ILOCK_EXCL);
 

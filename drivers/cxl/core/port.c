@@ -811,6 +811,7 @@ static struct cxl_dport *find_dport(struct cxl_port *port, int id)
 static int add_dport(struct cxl_port *port, struct cxl_dport *new)
 {
 	struct cxl_dport *dup;
+	int rc;
 
 	device_lock_assert(&port->dev);
 	dup = find_dport(port, new->port_id);
@@ -821,8 +822,14 @@ static int add_dport(struct cxl_port *port, struct cxl_dport *new)
 			dev_name(dup->dport));
 		return -EBUSY;
 	}
-	return xa_insert(&port->dports, (unsigned long)new->dport, new,
-			 GFP_KERNEL);
+
+	rc = xa_insert(&port->dports, (unsigned long)new->dport, new,
+		       GFP_KERNEL);
+	if (rc)
+		return rc;
+
+	port->nr_dports++;
+	return 0;
 }
 
 /*

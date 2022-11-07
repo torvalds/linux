@@ -174,7 +174,8 @@ static int cxl_region_decode_commit(struct cxl_region *cxlr)
 		     iter = to_cxl_port(iter->dev.parent)) {
 			cxl_rr = cxl_rr_load(iter, cxlr);
 			cxld = cxl_rr->decoder;
-			rc = cxld->commit(cxld);
+			if (cxld->commit)
+				rc = cxld->commit(cxld);
 			if (rc)
 				break;
 		}
@@ -657,6 +658,9 @@ static struct cxl_region_ref *alloc_region_ref(struct cxl_port *port,
 	xa_for_each(&port->regions, index, iter) {
 		struct cxl_region_params *ip = &iter->region->params;
 
+		if (!ip->res)
+			continue;
+
 		if (ip->res->start > p->res->start) {
 			dev_dbg(&cxlr->dev,
 				"%s: HPA order violation %s:%pr vs %pr\n",
@@ -686,18 +690,27 @@ static struct cxl_region_ref *alloc_region_ref(struct cxl_port *port,
 	return cxl_rr;
 }
 
-static void free_region_ref(struct cxl_region_ref *cxl_rr)
+static void cxl_rr_free_decoder(struct cxl_region_ref *cxl_rr)
 {
-	struct cxl_port *port = cxl_rr->port;
 	struct cxl_region *cxlr = cxl_rr->region;
 	struct cxl_decoder *cxld = cxl_rr->decoder;
+
+	if (!cxld)
+		return;
 
 	dev_WARN_ONCE(&cxlr->dev, cxld->region != cxlr, "region mismatch\n");
 	if (cxld->region == cxlr) {
 		cxld->region = NULL;
 		put_device(&cxlr->dev);
 	}
+}
 
+static void free_region_ref(struct cxl_region_ref *cxl_rr)
+{
+	struct cxl_port *port = cxl_rr->port;
+	struct cxl_region *cxlr = cxl_rr->region;
+
+	cxl_rr_free_decoder(cxl_rr);
 	xa_erase(&port->regions, (unsigned long)cxlr);
 	xa_destroy(&cxl_rr->endpoints);
 	kfree(cxl_rr);
@@ -725,6 +738,33 @@ static int cxl_rr_ep_add(struct cxl_region_ref *cxl_rr,
 		get_device(&cxlr->dev);
 	}
 
+	return 0;
+}
+
+static int cxl_rr_alloc_decoder(struct cxl_port *port, struct cxl_region *cxlr,
+				struct cxl_endpoint_decoder *cxled,
+				struct cxl_region_ref *cxl_rr)
+{
+	struct cxl_decoder *cxld;
+
+	if (port == cxled_to_port(cxled))
+		cxld = &cxled->cxld;
+	else
+		cxld = cxl_region_find_decoder(port, cxlr);
+	if (!cxld) {
+		dev_dbg(&cxlr->dev, "%s: no decoder available\n",
+			dev_name(&port->dev));
+		return -EBUSY;
+	}
+
+	if (cxld->region) {
+		dev_dbg(&cxlr->dev, "%s: %s already attached to %s\n",
+			dev_name(&port->dev), dev_name(&cxld->dev),
+			dev_name(&cxld->region->dev));
+		return -EBUSY;
+	}
+
+	cxl_rr->decoder = cxld;
 	return 0;
 }
 
@@ -794,12 +834,6 @@ static int cxl_port_attach_region(struct cxl_port *port,
 			cxl_rr->nr_targets++;
 			nr_targets_inc = true;
 		}
-
-		/*
-		 * The decoder for @cxlr was allocated when the region was first
-		 * attached to @port.
-		 */
-		cxld = cxl_rr->decoder;
 	} else {
 		cxl_rr = alloc_region_ref(port, cxlr);
 		if (IS_ERR(cxl_rr)) {
@@ -810,26 +844,11 @@ static int cxl_port_attach_region(struct cxl_port *port,
 		}
 		nr_targets_inc = true;
 
-		if (port == cxled_to_port(cxled))
-			cxld = &cxled->cxld;
-		else
-			cxld = cxl_region_find_decoder(port, cxlr);
-		if (!cxld) {
-			dev_dbg(&cxlr->dev, "%s: no decoder available\n",
-				dev_name(&port->dev));
+		rc = cxl_rr_alloc_decoder(port, cxlr, cxled, cxl_rr);
+		if (rc)
 			goto out_erase;
-		}
-
-		if (cxld->region) {
-			dev_dbg(&cxlr->dev, "%s: %s already attached to %s\n",
-				dev_name(&port->dev), dev_name(&cxld->dev),
-				dev_name(&cxld->region->dev));
-			rc = -EBUSY;
-			goto out_erase;
-		}
-
-		cxl_rr->decoder = cxld;
 	}
+	cxld = cxl_rr->decoder;
 
 	rc = cxl_rr_ep_add(cxl_rr, cxled);
 	if (rc) {
@@ -971,7 +990,14 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 	if (cxl_rr->nr_targets_set) {
 		int i, distance;
 
-		distance = p->nr_targets / cxl_rr->nr_targets;
+		/*
+		 * Passthrough ports impose no distance requirements between
+		 * peers
+		 */
+		if (port->nr_dports == 1)
+			distance = 0;
+		else
+			distance = p->nr_targets / cxl_rr->nr_targets;
 		for (i = 0; i < cxl_rr->nr_targets_set; i++)
 			if (ep->dport == cxlsd->target[i]) {
 				rc = check_last_peer(cxled, ep, cxl_rr,
@@ -1508,9 +1534,24 @@ static const struct attribute_group *region_groups[] = {
 
 static void cxl_region_release(struct device *dev)
 {
+	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(dev->parent);
 	struct cxl_region *cxlr = to_cxl_region(dev);
+	int id = atomic_read(&cxlrd->region_id);
+
+	/*
+	 * Try to reuse the recently idled id rather than the cached
+	 * next id to prevent the region id space from increasing
+	 * unnecessarily.
+	 */
+	if (cxlr->id < id)
+		if (atomic_try_cmpxchg(&cxlrd->region_id, &id, cxlr->id)) {
+			memregion_free(id);
+			goto out;
+		}
 
 	memregion_free(cxlr->id);
+out:
+	put_device(dev->parent);
 	kfree(cxlr);
 }
 
@@ -1538,8 +1579,19 @@ static struct cxl_region *to_cxl_region(struct device *dev)
 static void unregister_region(void *dev)
 {
 	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_region_params *p = &cxlr->params;
+	int i;
 
 	device_del(dev);
+
+	/*
+	 * Now that region sysfs is shutdown, the parameter block is now
+	 * read-only, so no need to hold the region rwsem to access the
+	 * region parameters.
+	 */
+	for (i = 0; i < p->interleave_ways; i++)
+		detach_target(cxlr, i);
+
 	cxl_region_iomem_release(cxlr);
 	put_device(dev);
 }
@@ -1561,6 +1613,11 @@ static struct cxl_region *cxl_region_alloc(struct cxl_root_decoder *cxlrd, int i
 	device_initialize(dev);
 	lockdep_set_class(&dev->mutex, &cxl_region_key);
 	dev->parent = &cxlrd->cxlsd.cxld.dev;
+	/*
+	 * Keep root decoder pinned through cxl_region_release to fixup
+	 * region id allocations
+	 */
+	get_device(dev->parent);
 	device_set_pm_not_required(dev);
 	dev->bus = &cxl_bus_type;
 	dev->type = &cxl_region_type;

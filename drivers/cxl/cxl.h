@@ -423,7 +423,7 @@ struct cxl_nvdimm {
 	struct device dev;
 	struct cxl_memdev *cxlmd;
 	struct cxl_nvdimm_bridge *bridge;
-	struct cxl_pmem_region *region;
+	struct xarray pmem_regions;
 };
 
 struct cxl_pmem_region_mapping {
@@ -457,6 +457,7 @@ struct cxl_pmem_region {
  * @regions: cxl_region_ref instances, regions mapped by this port
  * @parent_dport: dport that points to this port in the parent
  * @decoder_ida: allocator for decoder ids
+ * @nr_dports: number of entries in @dports
  * @hdm_end: track last allocated HDM decoder instance for allocation ordering
  * @commit_end: cursor to track highest committed decoder for commit ordering
  * @component_reg_phys: component register capability base address (optional)
@@ -475,6 +476,7 @@ struct cxl_port {
 	struct xarray regions;
 	struct cxl_dport *parent_dport;
 	struct ida decoder_ida;
+	int nr_dports;
 	int hdm_end;
 	int commit_end;
 	resource_size_t component_reg_phys;
