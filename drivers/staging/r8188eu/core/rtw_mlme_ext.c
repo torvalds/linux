@@ -4496,9 +4496,6 @@ int issue_probereq_ex(struct adapter *padapter, struct ndis_802_11_ssid *pssid, 
 
 		i++;
 
-		if (padapter->bDriverStopped || padapter->bSurpriseRemoved)
-			break;
-
 		if (i < try_cnt && wait_ms > 0 && ret == _FAIL)
 			msleep(wait_ms);
 
