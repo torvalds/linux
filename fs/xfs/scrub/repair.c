@@ -61,7 +61,6 @@ xrep_attempt(
 		sc->flags |= XREP_ALREADY_FIXED;
 		return -EAGAIN;
 	case -EDEADLOCK:
-	case -EAGAIN:
 		/* Tell the caller to try again having grabbed all the locks. */
 		if (!(sc->flags & XCHK_TRY_HARDER)) {
 			sc->flags |= XCHK_TRY_HARDER;
@@ -74,6 +73,11 @@ xrep_attempt(
 		 */
 		return -EFSCORRUPTED;
 	default:
+		/*
+		 * EAGAIN tells the caller to re-scrub, so we cannot return
+		 * that here.
+		 */
+		ASSERT(error != -EAGAIN);
 		return error;
 	}
 }
