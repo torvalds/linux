@@ -288,6 +288,10 @@ int erdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 	attr->max_mw = dev->attrs.max_mw;
 	attr->max_fast_reg_page_list_len = ERDMA_MAX_FRMR_PA;
 	attr->page_size_cap = ERDMA_PAGE_SIZE_SUPPORT;
+
+	if (dev->attrs.cap_flags & ERDMA_DEV_CAP_FLAGS_ATOMIC)
+		attr->atomic_cap = IB_ATOMIC_GLOB;
+
 	attr->fw_ver = dev->attrs.fw_version;
 
 	if (dev->netdev)

@@ -303,6 +303,7 @@ struct erdma_cmdq_destroy_qp_req {
 
 /* cap qword 0 definition */
 #define ERDMA_CMD_DEV_CAP_MAX_CQE_MASK GENMASK_ULL(47, 40)
+#define ERDMA_CMD_DEV_CAP_FLAGS_MASK GENMASK_ULL(31, 24)
 #define ERDMA_CMD_DEV_CAP_MAX_RECV_WR_MASK GENMASK_ULL(23, 16)
 #define ERDMA_CMD_DEV_CAP_MAX_MR_SIZE_MASK GENMASK_ULL(7, 0)
 
@@ -313,6 +314,10 @@ struct erdma_cmdq_destroy_qp_req {
 #define ERDMA_CMD_DEV_CAP_MAX_MW_MASK GENMASK_ULL(7, 0)
 
 #define ERDMA_NQP_PER_QBLOCK 1024
+
+enum {
+	ERDMA_DEV_CAP_FLAGS_ATOMIC = 1 << 7,
+};
 
 #define ERDMA_CMD_INFO0_FW_VER_MASK GENMASK_ULL(31, 0)
 

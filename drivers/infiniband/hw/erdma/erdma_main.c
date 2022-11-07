@@ -374,6 +374,7 @@ static int erdma_dev_attrs_init(struct erdma_dev *dev)
 	dev->attrs.max_qp = ERDMA_NQP_PER_QBLOCK * ERDMA_GET_CAP(QBLOCK, cap1);
 	dev->attrs.max_mr = dev->attrs.max_qp << 1;
 	dev->attrs.max_cq = dev->attrs.max_qp << 1;
+	dev->attrs.cap_flags = ERDMA_GET_CAP(FLAGS, cap0);
 
 	dev->attrs.max_send_wr = ERDMA_MAX_SEND_WR;
 	dev->attrs.max_ord = ERDMA_MAX_ORD;
