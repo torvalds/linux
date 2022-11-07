@@ -5250,7 +5250,7 @@ int bnxt_get_nr_rss_ctxs(struct bnxt *bp, int rx_rings)
 	return 1;
 }
 
-static void __bnxt_fill_hw_rss_tbl(struct bnxt *bp, struct bnxt_vnic_info *vnic)
+static void bnxt_fill_hw_rss_tbl(struct bnxt *bp, struct bnxt_vnic_info *vnic)
 {
 	bool no_rss = !(vnic->flags & BNXT_VNIC_RSS_FLAG);
 	u16 i, j;
@@ -5263,8 +5263,8 @@ static void __bnxt_fill_hw_rss_tbl(struct bnxt *bp, struct bnxt_vnic_info *vnic)
 	}
 }
 
-static void __bnxt_fill_hw_rss_tbl_p5(struct bnxt *bp,
-				      struct bnxt_vnic_info *vnic)
+static void bnxt_fill_hw_rss_tbl_p5(struct bnxt *bp,
+				    struct bnxt_vnic_info *vnic)
 {
 	__le16 *ring_tbl = vnic->rss_table;
 	struct bnxt_rx_ring_info *rxr;
@@ -5285,12 +5285,19 @@ static void __bnxt_fill_hw_rss_tbl_p5(struct bnxt *bp,
 	}
 }
 
-static void bnxt_fill_hw_rss_tbl(struct bnxt *bp, struct bnxt_vnic_info *vnic)
+static void
+__bnxt_hwrm_vnic_set_rss(struct bnxt *bp, struct hwrm_vnic_rss_cfg_input *req,
+			 struct bnxt_vnic_info *vnic)
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5)
-		__bnxt_fill_hw_rss_tbl_p5(bp, vnic);
+		bnxt_fill_hw_rss_tbl_p5(bp, vnic);
 	else
-		__bnxt_fill_hw_rss_tbl(bp, vnic);
+		bnxt_fill_hw_rss_tbl(bp, vnic);
+
+	req->hash_type = cpu_to_le32(bp->rss_hash_cfg);
+	req->hash_mode_flags = VNIC_RSS_CFG_REQ_HASH_MODE_FLAGS_DEFAULT;
+	req->ring_grp_tbl_addr = cpu_to_le64(vnic->rss_table_dma_addr);
+	req->hash_key_tbl_addr = cpu_to_le64(vnic->rss_hash_key_dma_addr);
 }
 
 static int bnxt_hwrm_vnic_set_rss(struct bnxt *bp, u16 vnic_id, bool set_rss)
@@ -5307,14 +5314,8 @@ static int bnxt_hwrm_vnic_set_rss(struct bnxt *bp, u16 vnic_id, bool set_rss)
 	if (rc)
 		return rc;
 
-	if (set_rss) {
-		bnxt_fill_hw_rss_tbl(bp, vnic);
-		req->hash_type = cpu_to_le32(bp->rss_hash_cfg);
-		req->hash_mode_flags = VNIC_RSS_CFG_REQ_HASH_MODE_FLAGS_DEFAULT;
-		req->ring_grp_tbl_addr = cpu_to_le64(vnic->rss_table_dma_addr);
-		req->hash_key_tbl_addr =
-			cpu_to_le64(vnic->rss_hash_key_dma_addr);
-	}
+	if (set_rss)
+		__bnxt_hwrm_vnic_set_rss(bp, req, vnic);
 	req->rss_ctx_idx = cpu_to_le16(vnic->fw_rss_cos_lb_ctx[0]);
 	return hwrm_req_send(bp, req);
 }
@@ -5335,10 +5336,7 @@ static int bnxt_hwrm_vnic_set_rss_p5(struct bnxt *bp, u16 vnic_id, bool set_rss)
 	if (!set_rss)
 		return hwrm_req_send(bp, req);
 
-	bnxt_fill_hw_rss_tbl(bp, vnic);
-	req->hash_type = cpu_to_le32(bp->rss_hash_cfg);
-	req->hash_mode_flags = VNIC_RSS_CFG_REQ_HASH_MODE_FLAGS_DEFAULT;
-	req->hash_key_tbl_addr = cpu_to_le64(vnic->rss_hash_key_dma_addr);
+	__bnxt_hwrm_vnic_set_rss(bp, req, vnic);
 	ring_tbl_map = vnic->rss_table_dma_addr;
 	nr_ctxs = bnxt_get_nr_rss_ctxs(bp, bp->rx_nr_rings);
 
