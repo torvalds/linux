@@ -221,6 +221,7 @@ config DRM_SII902X
 	select REGMAP_I2C
 	select I2C_MUX
 	select SND_SOC_HDMI_CODEC if (SND_SOC && !ROCKCHIP_MINI_KERNEL)
+	select VIDEOMODE_HELPERS
 	help
 	  Silicon Image sii902x bridge chip driver.
 
