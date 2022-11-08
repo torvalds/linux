@@ -556,11 +556,13 @@
 			compatible = "starfive,jh7110-dma", "snps,axi-dma-1.01a";
 			reg = <0x0 0x16050000 0x0 0x10000>;
 			clocks = <&clkgen JH7110_DMA1P_CLK_AXI>,
-				 <&clkgen JH7110_DMA1P_CLK_AHB>;
-			clock-names = "core-clk", "cfgr-clk";
+				 <&clkgen JH7110_DMA1P_CLK_AHB>,
+				 <&clkgen JH7110_NOC_BUS_CLK_STG_AXI>;
+			clock-names = "core-clk", "cfgr-clk", "stg_clk";
 			resets = <&rstgen RSTN_U0_DW_DMA1P_AXI>,
-				 <&rstgen RSTN_U0_DW_DMA1P_AHB>;
-			reset-names = "rst_axi", "rst_ahb";
+				 <&rstgen RSTN_U0_DW_DMA1P_AHB>,
+				 <&rstgen RSTN_U0_NOC_BUS_STG_AXI_N>;
+			reset-names = "rst_axi", "rst_ahb", "rst_stg";
 			interrupts = <73>;
 			#dma-cells = <2>;
 			dma-channels = <4>;
