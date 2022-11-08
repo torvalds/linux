@@ -4421,7 +4421,7 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 					struct platform_device *pdev)
 {
 	int i, ret = 0;
-	struct resource *res;
+	int num;
 	struct msm_pcie_irq_info_t *irq_info;
 
 	PCIE_DBG(dev, "PCIe: RC%d: entry\n", dev->rc_idx);
@@ -4444,13 +4444,14 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 	for (i = 0; i < MSM_PCIE_MAX_IRQ; i++) {
 		irq_info = &dev->irq[i];
 
-		res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
-							   irq_info->name);
-		if (!res) {
-			PCIE_DBG(dev, "PCIe: RC%d: can't find IRQ # for %s.\n",
-				dev->rc_idx, irq_info->name);
+		num = platform_get_irq_byname(pdev, irq_info->name);
+
+		if (num < 0) {
+			PCIE_DBG(dev,
+			"PCIe: RC%d: can't find IRQ # for %s. ret %d\n",
+					dev->rc_idx, irq_info->name, num);
 		} else {
-			irq_info->num = res->start;
+			irq_info->num = num;
 			PCIE_DBG(dev, "IRQ # for %s is %d.\n", irq_info->name,
 					irq_info->num);
 		}
