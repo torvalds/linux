@@ -652,49 +652,6 @@ static int alloc_private_pages(struct hmm_buffer_object *bo)
 	return 0;
 }
 
-static void free_user_pages(struct hmm_buffer_object *bo,
-			    unsigned int page_nr)
-{
-	int i;
-
-	for (i = 0; i < page_nr; i++)
-		put_page(bo->pages[i]);
-}
-
-/*
- * Convert user space virtual address into pages list
- */
-static int alloc_user_pages(struct hmm_buffer_object *bo,
-			    const void __user *userptr)
-{
-	int page_nr;
-
-	userptr = untagged_addr(userptr);
-
-	/* Handle frame buffer allocated in user space */
-	mutex_unlock(&bo->mutex);
-	page_nr = get_user_pages_fast((unsigned long)userptr, bo->pgnr, 1, bo->pages);
-	mutex_lock(&bo->mutex);
-
-	/* can be written by caller, not forced */
-	if (page_nr != bo->pgnr) {
-		dev_err(atomisp_dev,
-			"get_user_pages err: bo->pgnr = %d, pgnr actually pinned = %d.\n",
-			bo->pgnr, page_nr);
-		if (page_nr < 0)
-			page_nr = 0;
-		goto out_of_mem;
-	}
-
-	return 0;
-
-out_of_mem:
-
-	free_user_pages(bo, page_nr);
-
-	return -ENOMEM;
-}
-
 static int alloc_vmalloc_pages(struct hmm_buffer_object *bo, void *vmalloc_addr)
 {
 	void *vaddr = vmalloc_addr;
@@ -716,16 +673,12 @@ static int alloc_vmalloc_pages(struct hmm_buffer_object *bo, void *vmalloc_addr)
  * allocate/free physical pages for the bo.
  *
  * type indicate where are the pages from. currently we have 3 types
- * of memory: HMM_BO_PRIVATE, HMM_BO_VMALLOC, HMM_BO_USER.
+ * of memory: HMM_BO_PRIVATE, HMM_BO_VMALLOC.
  *
  * vmalloc_addr is only valid when type is HMM_BO_VMALLOC.
- *
- * userptr is only valid when type is HMM_BO_USER, it indicates
- * the start address from user space task.
  */
 int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
 		       enum hmm_bo_type type,
-		       const void __user *userptr,
 		       void *vmalloc_addr)
 {
 	int ret = -EINVAL;
@@ -745,8 +698,6 @@ int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
 		ret = alloc_private_pages(bo);
 	} else if (type == HMM_BO_VMALLOC) {
 		ret = alloc_vmalloc_pages(bo, vmalloc_addr);
-	} else if (type == HMM_BO_USER) {
-		ret = alloc_user_pages(bo, userptr);
 	} else {
 		dev_err(atomisp_dev, "invalid buffer type.\n");
 		ret = -EINVAL;
@@ -792,8 +743,6 @@ void hmm_bo_free_pages(struct hmm_buffer_object *bo)
 		free_private_bo_pages(bo);
 	else if (bo->type == HMM_BO_VMALLOC)
 		; /* No-op, nothing to do */
-	else if (bo->type == HMM_BO_USER)
-		free_user_pages(bo, bo->pgnr);
 	else
 		dev_err(atomisp_dev, "invalid buffer type.\n");
 

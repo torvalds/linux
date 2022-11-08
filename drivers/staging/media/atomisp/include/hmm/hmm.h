@@ -37,7 +37,6 @@ int hmm_init(void);
 void hmm_cleanup(void);
 
 ia_css_ptr hmm_alloc(size_t bytes);
-ia_css_ptr hmm_create_from_userdata(size_t bytes, const void __user *userptr);
 ia_css_ptr hmm_create_from_vmalloc_buf(size_t bytes, void *vmalloc_addr);
 
 void hmm_free(ia_css_ptr ptr);
