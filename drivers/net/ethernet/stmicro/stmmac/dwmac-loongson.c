@@ -97,7 +97,7 @@ static int loongson_dwmac_probe(struct pci_dev *pdev, const struct pci_device_id
 			continue;
 		ret = pcim_iomap_regions(pdev, BIT(0), pci_name(pdev));
 		if (ret)
-			return ret;
+			goto err_disable_device;
 		break;
 	}
 
@@ -108,7 +108,8 @@ static int loongson_dwmac_probe(struct pci_dev *pdev, const struct pci_device_id
 	phy_mode = device_get_phy_mode(&pdev->dev);
 	if (phy_mode < 0) {
 		dev_err(&pdev->dev, "phy_mode not found\n");
-		return phy_mode;
+		ret = phy_mode;
+		goto err_disable_device;
 	}
 
 	plat->phy_interface = phy_mode;
@@ -149,6 +150,8 @@ static int loongson_dwmac_probe(struct pci_dev *pdev, const struct pci_device_id
 
 err_disable_msi:
 	pci_disable_msi(pdev);
+err_disable_device:
+	pci_disable_device(pdev);
 	return ret;
 }
 
