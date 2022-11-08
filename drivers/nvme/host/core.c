@@ -2192,7 +2192,7 @@ const struct pr_ops nvme_pr_ops = {
 };
 
 #ifdef CONFIG_BLK_SED_OPAL
-int nvme_sec_submit(void *data, u16 spsp, u8 secp, void *buffer, size_t len,
+static int nvme_sec_submit(void *data, u16 spsp, u8 secp, void *buffer, size_t len,
 		bool send)
 {
 	struct nvme_ctrl *ctrl = data;
@@ -2209,7 +2209,23 @@ int nvme_sec_submit(void *data, u16 spsp, u8 secp, void *buffer, size_t len,
 	return __nvme_submit_sync_cmd(ctrl->admin_q, &cmd, NULL, buffer, len,
 			NVME_QID_ANY, 1, 0);
 }
-EXPORT_SYMBOL_GPL(nvme_sec_submit);
+
+static void nvme_configure_opal(struct nvme_ctrl *ctrl, bool was_suspended)
+{
+	if (ctrl->oacs & NVME_CTRL_OACS_SEC_SUPP) {
+		if (!ctrl->opal_dev)
+			ctrl->opal_dev = init_opal_dev(ctrl, &nvme_sec_submit);
+		else if (was_suspended)
+			opal_unlock_from_suspend(ctrl->opal_dev);
+	} else {
+		free_opal_dev(ctrl->opal_dev);
+		ctrl->opal_dev = NULL;
+	}
+}
+#else
+static void nvme_configure_opal(struct nvme_ctrl *ctrl, bool was_suspended)
+{
+}
 #endif /* CONFIG_BLK_SED_OPAL */
 
 #ifdef CONFIG_BLK_DEV_ZONED
@@ -3242,7 +3258,7 @@ out_free:
  * register in our nvme_ctrl structure.  This should be called as soon as
  * the admin queue is fully up and running.
  */
-int nvme_init_ctrl_finish(struct nvme_ctrl *ctrl)
+int nvme_init_ctrl_finish(struct nvme_ctrl *ctrl, bool was_suspended)
 {
 	int ret;
 
@@ -3272,6 +3288,8 @@ int nvme_init_ctrl_finish(struct nvme_ctrl *ctrl)
 	ret = nvme_configure_host_options(ctrl);
 	if (ret < 0)
 		return ret;
+
+	nvme_configure_opal(ctrl, was_suspended);
 
 	if (!ctrl->identified && !nvme_discovery_ctrl(ctrl)) {
 		/*
@@ -5007,6 +5025,7 @@ static void nvme_free_ctrl(struct device *dev)
 	nvme_auth_stop(ctrl);
 	nvme_auth_free(ctrl);
 	__free_page(ctrl->discard_page);
+	free_opal_dev(ctrl->opal_dev);
 
 	if (subsys) {
 		mutex_lock(&nvme_subsystems_lock);

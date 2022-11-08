@@ -1949,7 +1949,7 @@ static int nvme_tcp_configure_admin_queue(struct nvme_ctrl *ctrl, bool new)
 
 	nvme_start_admin_queue(ctrl);
 
-	error = nvme_init_ctrl_finish(ctrl);
+	error = nvme_init_ctrl_finish(ctrl, false);
 	if (error)
 		goto out_quiesce_queue;
 

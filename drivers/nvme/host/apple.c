@@ -1102,7 +1102,7 @@ static void apple_nvme_reset_work(struct work_struct *work)
 		goto out;
 	}
 
-	ret = nvme_init_ctrl_finish(&anv->ctrl);
+	ret = nvme_init_ctrl_finish(&anv->ctrl, false);
 	if (ret)
 		goto out;
 

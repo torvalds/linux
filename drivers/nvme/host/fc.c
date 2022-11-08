@@ -3107,7 +3107,7 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 
 	nvme_start_admin_queue(&ctrl->ctrl);
 
-	ret = nvme_init_ctrl_finish(&ctrl->ctrl);
+	ret = nvme_init_ctrl_finish(&ctrl->ctrl, false);
 	if (ret || test_bit(ASSOC_FAILED, &ctrl->flags))
 		goto out_disconnect_admin_queue;
 
