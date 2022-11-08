@@ -333,6 +333,7 @@ int arm_pmu_acpi_probe(armpmu_init_fn init_fn)
 		if (!pmu) {
 			pr_warn("Unable to allocate PMU for CPU%d\n",
 				cpu);
+			return -ENOMEM;
 		}
 
 		cpuid = per_cpu(cpu_data, cpu).reg_midr;
