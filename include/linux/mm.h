@@ -2102,6 +2102,8 @@ static inline bool vma_wants_manual_pte_write_upgrade(struct vm_area_struct *vma
 	return !!(vma->vm_flags & VM_WRITE);
 
 }
+bool can_change_pte_writable(struct vm_area_struct *vma, unsigned long addr,
+			     pte_t pte);
 extern unsigned long change_protection(struct mmu_gather *tlb,
 			      struct vm_area_struct *vma, unsigned long start,
 			      unsigned long end, pgprot_t newprot,
