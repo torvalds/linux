@@ -9,7 +9,6 @@
 
 #include "vehicle_cfg.h"
 #include "vehicle_cif_regs.h"
-#include "../../../media/platform/rockchip/cif/hw.h"
 #include "../../../media/platform/rockchip/cif/dev.h"
 #include <linux/dma-mapping.h>
 

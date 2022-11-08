@@ -37,9 +37,7 @@
 #include "vehicle_cif.h"
 #include "vehicle_gpio.h"
 #include <linux/version.h>
-#include "../../../media/platform/rockchip/cif/hw.h"
 #include "../../../media/platform/rockchip/cif/dev.h"
-// #include "../../../media/platform/rockchip/cif/mipi-csi2.h"
 #include "../../../phy/rockchip/phy-rockchip-csi2-dphy-common.h"
 
 #define DRIVER_VERSION		KERNEL_VERSION(0, 0x03, 0x00)
