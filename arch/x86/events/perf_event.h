@@ -1320,7 +1320,6 @@ void amd_brs_enable_all(void);
 void amd_brs_disable_all(void);
 void amd_brs_drain(void);
 void amd_brs_lopwr_init(void);
-void amd_brs_disable_all(void);
 int amd_brs_hw_config(struct perf_event *event);
 void amd_brs_reset(void);
 
