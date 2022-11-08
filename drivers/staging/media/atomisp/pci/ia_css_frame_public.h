@@ -205,15 +205,6 @@ struct ia_css_frame {
 	.flash_state		= IA_CSS_FRAME_FLASH_STATE_NONE, \
 }
 
-/* @brief Fill a frame with zeros
- *
- * @param	frame		The frame.
- * @return	None
- *
- * Fill a frame with pixel values of zero
- */
-void ia_css_frame_zero(struct ia_css_frame *frame);
-
 /* @brief Allocate a CSS frame structure
  *
  * @param	frame		The allocated frame.
@@ -269,71 +260,6 @@ ia_css_frame_allocate_from_info(struct ia_css_frame **frame,
  */
 void
 ia_css_frame_free(struct ia_css_frame *frame);
-
-/* @brief Allocate a CSS frame structure using a frame info structure.
- *
- * @param	frame	The allocated frame.
- * @param[in]	info	The frame info structure.
- * @return		The error code.
- *
- * Allocate an empty CSS frame with no data buffer using the parameters
- * in the frame info.
- */
-int
-ia_css_frame_create_from_info(struct ia_css_frame **frame,
-			      const struct ia_css_frame_info *info);
-
-/* @brief Set a mapped data buffer to a CSS frame
- *
- * @param[in]	frame       Valid CSS frame pointer
- * @param[in]	mapped_data  Mapped data buffer to be assigned to the CSS frame
- * @param[in]	data_size_bytes  Size of the mapped_data in bytes
- * @return      The error code.
- *
- * Sets a mapped data buffer to this frame. This function can be called multiple
- * times with different buffers or NULL to reset the data pointer. This API
- * would not try free the mapped_data and its the callers responsiblity to
- * free the mapped_data buffer. However if ia_css_frame_free() is called and
- * the frame had a valid data buffer, it would be freed along with the frame.
- */
-int
-ia_css_frame_set_data(struct ia_css_frame *frame,
-		      const ia_css_ptr   mapped_data,
-		      size_t data_size_bytes);
-
-/* @brief Map an existing frame data pointer to a CSS frame.
- *
- * @param	frame		Pointer to the frame to be initialized
- * @param[in]	info		The frame info.
- * @param[in]	data		Pointer to the allocated frame data.
- * @param[in]	attribute	Attributes to be passed to mmgr_mmap.
- * @param[in]	context		Pointer to the a context to be passed to mmgr_mmap.
- * @return			The allocated frame structure.
- *
- * This function maps a pre-allocated pointer into a CSS frame. This can be
- * used when an upper software layer is responsible for allocating the frame
- * data and it wants to share that frame pointer with the CSS code.
- * This function will fill the CSS frame structure just like
- * ia_css_frame_allocate() does, but instead of allocating the memory, it will
- * map the pre-allocated memory into the CSS address space.
- */
-int
-ia_css_frame_map(struct ia_css_frame **frame,
-		 const struct ia_css_frame_info *info,
-		 const void __user *data,
-		 unsigned int pgnr);
-
-/* @brief Unmap a CSS frame structure.
- *
- * @param[in]	frame	Pointer to the CSS frame.
- * @return	None
- *
- * This function unmaps the frame data pointer within a CSS frame and
- * then frees the CSS frame structure. Use this for frame pointers created
- * using ia_css_frame_map().
- */
-void
-ia_css_frame_unmap(struct ia_css_frame *frame);
 
 static inline const struct ia_css_frame_info *
 ia_css_frame_get_info(const struct ia_css_frame *frame)

@@ -88,12 +88,6 @@ ia_css_elems_bytes_from_info(
 **	CSS API functions, exposed by ia_css.h
 **************************************************************************/
 
-void ia_css_frame_zero(struct ia_css_frame *frame)
-{
-	assert(frame);
-	hmm_set(frame->data, 0, frame->data_bytes);
-}
-
 int ia_css_frame_allocate_from_info(struct ia_css_frame **frame,
 	const struct ia_css_frame_info *info)
 {
@@ -139,121 +133,6 @@ int ia_css_frame_allocate(struct ia_css_frame **frame,
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 				    "ia_css_frame_allocate() leave: frame=%p, data(DDR address)=0x%x\n",
 				    (void *)-1, (unsigned int)-1);
-
-	return err;
-}
-
-int ia_css_frame_map(struct ia_css_frame **frame,
-				 const struct ia_css_frame_info *info,
-				 const void __user *data,
-				 unsigned int pgnr)
-{
-	int err = 0;
-	struct ia_css_frame *me;
-
-	assert(frame);
-
-	/* Create the frame structure */
-	err = ia_css_frame_create_from_info(&me, info);
-
-	if (err)
-		return err;
-
-	if (pgnr < ((PAGE_ALIGN(me->data_bytes)) >> PAGE_SHIFT)) {
-		dev_err(atomisp_dev,
-			"user space memory size is less than the expected size..\n");
-		err = -ENOMEM;
-		goto error;
-	} else if (pgnr > ((PAGE_ALIGN(me->data_bytes)) >> PAGE_SHIFT)) {
-		dev_err(atomisp_dev,
-			"user space memory size is large than the expected size..\n");
-		err = -ENOMEM;
-		goto error;
-	}
-
-	me->data = hmm_create_from_userdata(me->data_bytes, data);
-	if (me->data == mmgr_NULL)
-		err = -EINVAL;
-
-error:
-	if (err) {
-		kvfree(me);
-		me = NULL;
-	}
-
-	*frame = me;
-
-	return err;
-}
-
-int ia_css_frame_create_from_info(struct ia_css_frame **frame,
-	const struct ia_css_frame_info *info)
-{
-	int err = 0;
-	struct ia_css_frame *me;
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_frame_create_from_info() enter:\n");
-	if (!frame || !info) {
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				    "ia_css_frame_create_from_info() leave: invalid arguments\n");
-		return -EINVAL;
-	}
-
-	me = frame_create(info->res.width,
-			  info->res.height,
-			  info->format,
-			  info->padded_width,
-			  info->raw_bit_depth,
-			  false);
-	if (!me) {
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				    "ia_css_frame_create_from_info() leave: frame create failed\n");
-		return -ENOMEM;
-	}
-
-	err = ia_css_frame_init_planes(me);
-
-	if (err) {
-		kvfree(me);
-		me = NULL;
-	}
-
-	*frame = me;
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_frame_create_from_info() leave:\n");
-
-	return err;
-}
-
-int ia_css_frame_set_data(struct ia_css_frame *frame,
-				      const ia_css_ptr mapped_data,
-				      size_t data_bytes)
-{
-	int err = 0;
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_frame_set_data() enter:\n");
-	if (!frame) {
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				    "ia_css_frame_set_data() leave: NULL frame\n");
-		return -EINVAL;
-	}
-
-	/* If we are setting a valid data.
-	 * Make sure that there is enough
-	 * room for the expected frame format
-	 */
-	if ((mapped_data != mmgr_NULL) && (frame->data_bytes > data_bytes)) {
-		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-				    "ia_css_frame_set_data() leave: invalid arguments\n");
-		return -EINVAL;
-	}
-
-	frame->data = mapped_data;
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_frame_set_data() leave:\n");
 
 	return err;
 }
