@@ -39,6 +39,18 @@ def define_build_config(
       variant: variant of kernel to build (e.g. "gki")
     """
 
+    # Top-level variables set in build.config
+    native.genrule(
+        name = "{}_top_level_config".format(target),
+        srcs = [],
+        outs = ["build.config.bazel.top.level.{}".format(target)],
+        cmd_bash = """
+          {
+            echo BUILDING_WITH_BAZEL=true
+          } > "$@"
+        """
+    )
+
     # Remove sourcing lines from build config since we're just concatenating fragments below
     native.genrule(
         name = "{}_build_config_common_without_source".format(target),
@@ -93,6 +105,7 @@ EOF
         name = "{}_build_config".format(target),
         srcs = [
             # do not sort
+            ":{}_top_level_config".format(target),
             "build.config.constants",
             ":{}_build_config_common_without_source".format(target),
             "build.config.aarch64",
