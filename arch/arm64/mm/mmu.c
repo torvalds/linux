@@ -1196,7 +1196,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 
 	WARN_ON((start < VMEMMAP_START) || (end > VMEMMAP_END));
 
-	if (!ARM64_KERNEL_USES_PMD_MAPS)
+	if (!IS_ENABLED(CONFIG_ARM64_4K_PAGES))
 		return vmemmap_populate_basepages(start, end, node, altmap);
 
 	do {
