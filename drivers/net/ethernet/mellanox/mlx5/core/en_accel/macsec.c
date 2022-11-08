@@ -602,6 +602,7 @@ static int mlx5e_macsec_upd_txsa(struct macsec_context *ctx)
 	if (tx_sa->active == ctx_tx_sa->active)
 		goto out;
 
+	tx_sa->active = ctx_tx_sa->active;
 	if (tx_sa->assoc_num != tx_sc->encoding_sa)
 		goto out;
 
@@ -617,8 +618,6 @@ static int mlx5e_macsec_upd_txsa(struct macsec_context *ctx)
 
 		mlx5e_macsec_cleanup_sa(macsec, tx_sa, true);
 	}
-
-	tx_sa->active = ctx_tx_sa->active;
 out:
 	mutex_unlock(&macsec->lock);
 
