@@ -14,6 +14,7 @@
 #define TCC_SHIFT 24
 #define TCC_MASK	(0x3fULL<<24)
 #define TCC_PROGRAMMABLE	BIT(30)
+#define TCC_LOCKED		BIT(31)
 
 static struct thermal_cooling_device *tcc_cdev;
 
@@ -107,6 +108,15 @@ static int __init tcc_cooling_init(void)
 
 	if (!(val & TCC_PROGRAMMABLE))
 		return -ENODEV;
+
+	err = rdmsrl_safe(MSR_IA32_TEMPERATURE_TARGET, &val);
+	if (err)
+		return err;
+
+	if (val & TCC_LOCKED) {
+		pr_info("TCC Offset locked\n");
+		return -ENODEV;
+	}
 
 	pr_info("Programmable TCC Offset detected\n");
 
