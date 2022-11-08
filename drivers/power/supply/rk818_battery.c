@@ -1740,7 +1740,7 @@ static void rk818_bat_calc_zero_linek(struct rk818_battery *di)
 				di->zero_linek = 1200;
 			else
 				di->zero_linek = 800;
-				DBG("ZERO-new: zero_linek adjust step6...\n");
+			DBG("ZERO-new: zero_linek adjust step6...\n");
 		}
 	} else {
 		/* xsoc < 0 */
