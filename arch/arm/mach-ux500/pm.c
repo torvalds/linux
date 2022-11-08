@@ -16,8 +16,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
-#include "db8500-regs.h"
-
 /* ARM WFI Standby signal register */
 #define PRCM_ARM_WFI_STANDBY    (prcmu_base + 0x130)
 #define PRCM_ARM_WFI_STANDBY_WFI0		0x08
