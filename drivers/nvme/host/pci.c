@@ -2841,21 +2841,6 @@ static void nvme_reset_work(struct work_struct *work)
 		nvme_start_admin_queue(&dev->ctrl);
 	}
 
-	dma_set_min_align_mask(dev->dev, NVME_CTRL_PAGE_SIZE - 1);
-
-	/*
-	 * Limit the max command size to prevent iod->sg allocations going
-	 * over a single page.
-	 */
-	dev->ctrl.max_hw_sectors = min_t(u32,
-		NVME_MAX_KB_SZ << 1, dma_max_mapping_size(dev->dev) >> 9);
-	dev->ctrl.max_segments = NVME_MAX_SEGS;
-
-	/*
-	 * Don't limit the IOMMU merged segment size.
-	 */
-	dma_set_max_seg_size(dev->dev, 0xffffffff);
-
 	mutex_unlock(&dev->shutdown_lock);
 
 	/*
@@ -2868,12 +2853,6 @@ static void nvme_reset_work(struct work_struct *work)
 		result = -EBUSY;
 		goto out;
 	}
-
-	/*
-	 * We do not support an SGL for metadata (yet), so we are limited to a
-	 * single integrity segment for the separate metadata pointer.
-	 */
-	dev->ctrl.max_integrity_segments = 1;
 
 	result = nvme_init_ctrl_finish(&dev->ctrl, was_suspend);
 	if (result)
@@ -3133,6 +3112,23 @@ static struct nvme_dev *nvme_pci_alloc_dev(struct pci_dev *pdev,
 			     quirks);
 	if (ret)
 		goto out_put_device;
+	
+	dma_set_min_align_mask(&pdev->dev, NVME_CTRL_PAGE_SIZE - 1);
+	dma_set_max_seg_size(&pdev->dev, 0xffffffff);
+
+	/*
+	 * Limit the max command size to prevent iod->sg allocations going
+	 * over a single page.
+	 */
+	dev->ctrl.max_hw_sectors = min_t(u32,
+		NVME_MAX_KB_SZ << 1, dma_max_mapping_size(&pdev->dev) >> 9);
+	dev->ctrl.max_segments = NVME_MAX_SEGS;
+
+	/*
+	 * There is no support for SGLs for metadata (yet), so we are limited to
+	 * a single integrity segment for the separate metadata pointer.
+	 */
+	dev->ctrl.max_integrity_segments = 1;
 	return dev;
 
 out_put_device:
