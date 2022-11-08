@@ -22,6 +22,7 @@
 #include <linux/kthread.h>
 #include <linux/mailbox_client.h>
 #include <linux/suspend.h>
+#include <linux/termios.h>
 #include <linux/ipc_logging.h>
 
 #include "rpmsg_internal.h"
@@ -200,6 +201,9 @@ enum {
  * @intent_req_completed: Status of intent request completion
  * @intent_req_ack: Waitqueue for @intent_req_acked
  * @intent_req_comp: Waitqueue for @intent_req_completed
+ * @local_signals: local side signals
+ * @remote_sigalss: remote side signals
+ * @signals_cb: client callback for notifying signal change
  */
 struct glink_channel {
 	struct rpmsg_endpoint ept;
@@ -235,6 +239,10 @@ struct glink_channel {
 	atomic_t intent_req_completed;
 	wait_queue_head_t intent_req_ack;
 	wait_queue_head_t intent_req_comp;
+
+	unsigned int local_signals;
+	unsigned int remote_signals;
+	int (*signals_cb)(struct rpmsg_device *dev, void *priv, u32 old, u32 new);
 };
 
 #define to_glink_channel(_ept) container_of(_ept, struct glink_channel, ept)
@@ -255,8 +263,14 @@ static const struct rpmsg_endpoint_ops glink_endpoint_ops;
 #define RPM_CMD_TX_DATA_CONT		12
 #define RPM_CMD_READ_NOTIF		13
 #define RPM_CMD_RX_DONE_W_REUSE		14
+#define RPM_CMD_SIGNALS			15
 
 #define GLINK_FEATURE_INTENTLESS	BIT(1)
+
+#define NATIVE_DTR_SIG			BIT(31)
+#define NATIVE_CTS_SIG			BIT(30)
+#define NATIVE_CD_SIG			BIT(29)
+#define NATIVE_RI_SIG			BIT(28)
 
 static void qcom_glink_rx_done_work(struct kthread_work *work);
 
@@ -1183,6 +1197,77 @@ static int qcom_glink_rx_open_ack(struct qcom_glink *glink, unsigned int lcid)
 	return 0;
 }
 
+/**
+ * qcom_glink_send_signals() - convert a signal cmd to wire format and transmit
+ * @glink:	The transport to transmit on.
+ * @channel:	The glink channel
+ * @signals:	The signals to encode.
+ *
+ * Return: 0 on success or standard Linux error code.
+ */
+static int qcom_glink_send_signals(struct qcom_glink *glink,
+				   struct glink_channel *channel,
+				   u32 signals)
+{
+	struct glink_msg msg;
+
+	/* convert signals from TIOCM to NATIVE */
+	signals &= 0x0fff;
+	if (signals & TIOCM_DTR)
+		signals |= NATIVE_DTR_SIG;
+	if (signals & TIOCM_RTS)
+		signals |= NATIVE_CTS_SIG;
+	if (signals & TIOCM_CD)
+		signals |= NATIVE_CD_SIG;
+	if (signals & TIOCM_RI)
+		signals |= NATIVE_RI_SIG;
+
+	msg.cmd = cpu_to_le16(RPM_CMD_SIGNALS);
+	msg.param1 = cpu_to_le16(channel->lcid);
+	msg.param2 = cpu_to_le32(signals);
+
+	GLINK_INFO(glink->ilc, "signals:%d\n", signals);
+	return qcom_glink_tx(glink, &msg, sizeof(msg), NULL, 0, true);
+}
+
+static int qcom_glink_handle_signals(struct qcom_glink *glink,
+				     unsigned int rcid, unsigned int signals)
+{
+	struct glink_channel *channel;
+	unsigned long flags;
+	u32 old;
+
+	spin_lock_irqsave(&glink->idr_lock, flags);
+	channel = idr_find(&glink->rcids, rcid);
+	spin_unlock_irqrestore(&glink->idr_lock, flags);
+	if (!channel) {
+		dev_err(glink->dev, "signal for non-existing channel\n");
+		return -EINVAL;
+	}
+
+	old = channel->remote_signals;
+
+	/* convert signals from NATIVE to TIOCM */
+	if (signals & NATIVE_DTR_SIG)
+		signals |= TIOCM_DSR;
+	if (signals & NATIVE_CTS_SIG)
+		signals |= TIOCM_CTS;
+	if (signals & NATIVE_CD_SIG)
+		signals |= TIOCM_CD;
+	if (signals & NATIVE_RI_SIG)
+		signals |= TIOCM_RI;
+	signals &= 0x0fff;
+
+	channel->remote_signals = signals;
+
+	CH_INFO(channel, "old:%d new:%d\n", old, channel->remote_signals);
+	if (channel->signals_cb)
+		channel->signals_cb(channel->ept.rpdev, channel->ept.priv,
+				    old, channel->remote_signals);
+
+	return 0;
+}
+
 static int qcom_glink_native_rx(struct qcom_glink *glink, int iterations)
 {
 	struct glink_msg msg;
@@ -1261,6 +1346,10 @@ static int qcom_glink_native_rx(struct qcom_glink *glink, int iterations)
 			break;
 		case RPM_CMD_RX_INTENT_REQ_ACK:
 			qcom_glink_handle_intent_req_ack(glink, param1, param2);
+			qcom_glink_rx_advance(glink, ALIGN(sizeof(msg), 8));
+			break;
+		case RPM_CMD_SIGNALS:
+			qcom_glink_handle_signals(glink, param1, param2);
 			qcom_glink_rx_advance(glink, ALIGN(sizeof(msg), 8));
 			break;
 		default:
@@ -1692,6 +1781,70 @@ static int qcom_glink_trysendto(struct rpmsg_endpoint *ept, void *data, int len,
 
 	return __qcom_glink_send(channel, data, len, false);
 }
+
+int qcom_glink_get_signals(struct rpmsg_endpoint *ept)
+{
+	struct glink_channel *channel;
+
+	if (!ept)
+		return 0;
+
+	channel = to_glink_channel(ept);
+
+	return channel->remote_signals;
+}
+EXPORT_SYMBOL(qcom_glink_get_signals);
+
+int qcom_glink_set_signals(struct rpmsg_endpoint *ept, u32 set, u32 clear)
+{
+	struct glink_channel *channel;
+	struct qcom_glink *glink;
+	u32 signals;
+
+	if (!ept)
+		return -EINVAL;
+
+	channel = to_glink_channel(ept);
+	glink = channel->glink;
+	signals = channel->local_signals;
+
+	if (set & TIOCM_DTR)
+		signals |= TIOCM_DTR;
+	if (set & TIOCM_RTS)
+		signals |= TIOCM_RTS;
+	if (set & TIOCM_CD)
+		signals |= TIOCM_CD;
+	if (set & TIOCM_RI)
+		signals |= TIOCM_RI;
+	if (clear & TIOCM_DTR)
+		signals &= ~TIOCM_DTR;
+	if (clear & TIOCM_RTS)
+		signals &= ~TIOCM_RTS;
+	if (clear & TIOCM_CD)
+		signals &= ~TIOCM_CD;
+	if (clear & TIOCM_RI)
+		signals &= ~TIOCM_RI;
+
+	channel->local_signals = signals;
+
+	return qcom_glink_send_signals(glink, channel, signals);
+}
+EXPORT_SYMBOL(qcom_glink_set_signals);
+
+int qcom_glink_register_signals_cb(struct rpmsg_endpoint *ept,
+				   int (*cb)(struct rpmsg_device *, void *, u32, u32))
+{
+	struct glink_channel *channel;
+
+	if (!ept || !cb)
+		return -EINVAL;
+
+	channel = to_glink_channel(ept);
+	channel->signals_cb = cb;
+
+	return 0;
+}
+EXPORT_SYMBOL(qcom_glink_register_signals_cb);
 
 /*
  * Finds the device_node for the glink child interested in this channel.
