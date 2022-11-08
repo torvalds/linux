@@ -11,6 +11,7 @@ spi-nor-objs			+= everspin.o
 spi-nor-objs			+= fmsh.o
 spi-nor-objs			+= fujitsu.o
 spi-nor-objs			+= gigadevice.o
+spi-nor-objs			+= normem.o
 spi-nor-objs			+= intel.o
 spi-nor-objs			+= issi.o
 spi-nor-objs			+= macronix.o

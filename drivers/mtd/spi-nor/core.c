@@ -892,6 +892,45 @@ static int spi_nor_write_16bit_sr_and_check(struct spi_nor *nor, u8 sr1)
 }
 
 /**
+ * spi_nor_write_cr() - Write the Configure Register.
+ * @nor:	pointer to 'struct spi_nor'.
+ * @sr:		pointer to DMA-able buffer to write to the Status Register.
+ * @len:	number of bytes to write to the Status Register.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+static int spi_nor_write_8bit_cr(struct spi_nor *nor, u8 cr)
+{
+	int ret;
+	u8 *sr_cr = nor->bouncebuf;
+
+	ret = spi_nor_write_enable(nor);
+	if (ret)
+		return ret;
+
+	sr_cr[0] = cr;
+
+	if (nor->spimem) {
+		struct spi_mem_op op =
+			SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WRCR, 1),
+				   SPI_MEM_OP_NO_ADDR,
+				   SPI_MEM_OP_NO_DUMMY,
+				   SPI_MEM_OP_DATA_OUT(1, sr_cr, 1));
+
+		ret = spi_mem_exec_op(nor->spimem, &op);
+	} else {
+		ret = nor->controller_ops->write_reg(nor, SPINOR_OP_WRCR, sr_cr, 1);
+	}
+
+	if (ret) {
+		dev_dbg(nor->dev, "error %d writing SR\n", ret);
+		return ret;
+	}
+
+	return spi_nor_wait_till_ready(nor);
+}
+
+/**
  * spi_nor_write_16bit_cr_and_check() - Write the Status Register 1 and the
  * Configuration Register in one shot. Ensure that the byte written in the
  * Configuration Register match the received value, and that the 16-bit Write
@@ -2055,6 +2094,49 @@ int spi_nor_sr2_bit7_quad_enable(struct spi_nor *nor)
 	return 0;
 }
 
+/**
+ * spi_nor_sr2_bit2_quad_enable() - set QE bit in Status Register 2.
+ * @nor:	pointer to a 'struct spi_nor'
+ *
+ * Set the Quad Enable (QE) bit in the Status Register 2.
+ *
+ * Return: 0 on success, -errno otherwise.
+ */
+int spi_nor_sr2_bit2_quad_enable(struct spi_nor *nor)
+{
+	u8 *cr = nor->bouncebuf;
+	int ret;
+	u8 cr_written;
+
+	/* Check current Quad Enable bit value. */
+	ret = spi_nor_read_cr(nor, cr);
+	if (ret)
+		return ret;
+	if (*cr & SR2_QUAD_EN_BIT2)
+		return 0;
+
+	/* Update the Quad Enable bit. */
+	*cr |= SR2_QUAD_EN_BIT2;
+
+	ret = spi_nor_write_8bit_cr(nor, *cr);
+	if (ret)
+		return ret;
+
+	cr_written = *cr;
+
+	/* Read back and check it. */
+	ret = spi_nor_read_cr(nor, cr);
+	if (ret)
+		return ret;
+
+	if (*cr != cr_written) {
+		dev_dbg(nor->dev, "CR: Read back test failed\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static const struct spi_nor_manufacturer *manufacturers[] = {
 	&spi_nor_atmel,
 	&spi_nor_boya,
@@ -2066,6 +2148,7 @@ static const struct spi_nor_manufacturer *manufacturers[] = {
 	&spi_nor_fmsh,
 	&spi_nor_fujitsu,
 	&spi_nor_gigadevice,
+	&spi_nor_normem,
 	&spi_nor_intel,
 	&spi_nor_issi,
 	&spi_nor_macronix,
