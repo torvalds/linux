@@ -7423,7 +7423,6 @@ static int pqi_register_scsi(struct pqi_ctrl_info *ctrl_info)
 	shost->max_channel = PQI_MAX_BUS;
 	shost->max_cmd_len = MAX_COMMAND_SIZE;
 	shost->max_lun = PQI_MAX_LUNS_PER_DEVICE;
-	shost->max_lun = ~0;
 	shost->max_id = ~0;
 	shost->max_sectors = ctrl_info->max_sectors;
 	shost->can_queue = ctrl_info->scsi_ml_can_queue;
