@@ -77,6 +77,9 @@ struct uvc_request {
 	struct usb_request *req;
 	u8 *req_buffer;
 	struct uvc_video *video;
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	struct completion req_done;
+#endif
 };
 
 struct uvc_video {
