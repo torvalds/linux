@@ -1104,9 +1104,11 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip) { return 0; }
 
 int of_gpiochip_add(struct gpio_chip *chip)
 {
+	struct device_node *np;
 	int ret;
 
-	if (!chip->of_node)
+	np = to_of_node(chip->fwnode);
+	if (!np)
 		return 0;
 
 	if (!chip->of_xlate) {
@@ -1123,18 +1125,18 @@ int of_gpiochip_add(struct gpio_chip *chip)
 	if (ret)
 		return ret;
 
-	of_node_get(chip->of_node);
+	fwnode_handle_get(chip->fwnode);
 
 	ret = of_gpiochip_scan_gpios(chip);
 	if (ret)
-		of_node_put(chip->of_node);
+		fwnode_handle_put(chip->fwnode);
 
 	return ret;
 }
 
 void of_gpiochip_remove(struct gpio_chip *chip)
 {
-	of_node_put(chip->of_node);
+	fwnode_handle_put(chip->fwnode);
 }
 
 void of_gpio_dev_init(struct gpio_chip *gc, struct gpio_device *gdev)
