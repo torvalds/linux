@@ -9040,6 +9040,7 @@ static void pqi_pci_remove(struct pci_dev *pci_dev)
 {
 	struct pqi_ctrl_info *ctrl_info;
 	u16 vendor_id;
+	int rc;
 
 	ctrl_info = pci_get_drvdata(pci_dev);
 	if (!ctrl_info)
@@ -9050,6 +9051,13 @@ static void pqi_pci_remove(struct pci_dev *pci_dev)
 		ctrl_info->ctrl_removal_state = PQI_CTRL_SURPRISE_REMOVAL;
 	else
 		ctrl_info->ctrl_removal_state = PQI_CTRL_GRACEFUL_REMOVAL;
+
+	if (ctrl_info->ctrl_removal_state == PQI_CTRL_GRACEFUL_REMOVAL) {
+		rc = pqi_flush_cache(ctrl_info, RESTART);
+		if (rc)
+			dev_err(&pci_dev->dev,
+				"unable to flush controller cache during remove\n");
+	}
 
 	pqi_remove_ctrl(ctrl_info);
 }
