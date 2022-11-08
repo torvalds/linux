@@ -971,8 +971,10 @@ static u32 __rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 	struct rtw89_pci_tx_ring *tx_ring = &rtwpci->tx_rings[txch];
 	struct rtw89_pci_tx_wd_ring *wd_ring = &tx_ring->wd_ring;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u32 bd_cnt, wd_cnt, min_cnt = 0;
 	struct rtw89_pci_rx_ring *rx_ring;
+	enum rtw89_debug_mask debug_mask;
 	u32 cnt;
 
 	rx_ring = &rtwpci->rx_rings[RTW89_RXCH_RPQ];
@@ -996,10 +998,20 @@ static u32 __rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 	bd_cnt = rtw89_pci_get_avail_txbd_num(tx_ring);
 	wd_cnt = wd_ring->curr_num;
 	min_cnt = min(bd_cnt, wd_cnt);
-	if (min_cnt == 0)
-		rtw89_debug(rtwdev, rtwpci->low_power ? RTW89_DBG_TXRX : RTW89_DBG_UNEXP,
+	if (min_cnt == 0) {
+		/* This message can be frequently shown in low power mode or
+		 * high traffic with 8852B, and we have recognized it as normal
+		 * behavior, so print with mask RTW89_DBG_TXRX in these situations.
+		 */
+		if (rtwpci->low_power || chip->chip_id == RTL8852B)
+			debug_mask = RTW89_DBG_TXRX;
+		else
+			debug_mask = RTW89_DBG_UNEXP;
+
+		rtw89_debug(rtwdev, debug_mask,
 			    "still no tx resource after reclaim: wd_cnt=%d bd_cnt=%d\n",
 			    wd_cnt, bd_cnt);
+	}
 
 out_unlock:
 	spin_unlock_bh(&rtwpci->trx_lock);
