@@ -491,6 +491,57 @@ static void __flush_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 	__copy_vcpu_state(hyp_vcpu->host_vcpu, &hyp_vcpu->vcpu);
 }
 
+static void flush_debug_state(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *vcpu = &hyp_vcpu->vcpu;
+	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
+	u64 mdcr_el2 = READ_ONCE(host_vcpu->arch.mdcr_el2);
+
+	/*
+	 * Propagate the monitor debug configuration of the vcpu from host.
+	 * Preserve HPMN, which is set-up by some knowledgeable bootcode.
+	 * Ensure that MDCR_EL2_E2PB_MASK and MDCR_EL2_E2TB_MASK are clear,
+	 * as guests should not be able to access profiling and trace buffers.
+	 * Ensure that RES0 bits are clear.
+	 */
+	mdcr_el2 &= ~(MDCR_EL2_RES0 |
+		      MDCR_EL2_HPMN_MASK |
+		      (MDCR_EL2_E2PB_MASK << MDCR_EL2_E2PB_SHIFT) |
+		      (MDCR_EL2_E2TB_MASK << MDCR_EL2_E2TB_SHIFT));
+	vcpu->arch.mdcr_el2 = read_sysreg(mdcr_el2) & MDCR_EL2_HPMN_MASK;
+	vcpu->arch.mdcr_el2 |= mdcr_el2;
+
+	vcpu->arch.pmu = host_vcpu->arch.pmu;
+	vcpu->guest_debug = READ_ONCE(host_vcpu->guest_debug);
+
+	if (!kvm_vcpu_needs_debug_regs(vcpu))
+		return;
+
+	__vcpu_save_guest_debug_regs(vcpu);
+
+	/* Switch debug_ptr to the external_debug_state if done by the host. */
+	if (kern_hyp_va(READ_ONCE(host_vcpu->arch.debug_ptr)) ==
+	    &host_vcpu->arch.external_debug_state)
+		vcpu->arch.debug_ptr = &host_vcpu->arch.external_debug_state;
+
+	/* Propagate any special handling for single step from host. */
+	vcpu_write_sys_reg(vcpu, vcpu_read_sys_reg(host_vcpu, MDSCR_EL1),
+						   MDSCR_EL1);
+	*vcpu_cpsr(vcpu) = *vcpu_cpsr(host_vcpu);
+}
+
+static void sync_debug_state(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *vcpu = &hyp_vcpu->vcpu;
+	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
+
+	if (!kvm_vcpu_needs_debug_regs(vcpu))
+		return;
+
+	__vcpu_restore_guest_debug_regs(vcpu);
+	vcpu->arch.debug_ptr = &host_vcpu->arch.vcpu_debug_state;
+}
+
 static void flush_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 {
 	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
@@ -510,11 +561,10 @@ static void flush_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 			__flush_hyp_vcpu(hyp_vcpu);
 
 		hyp_vcpu->vcpu.arch.iflags = READ_ONCE(host_vcpu->arch.iflags);
+		flush_debug_state(hyp_vcpu);
+
 		hyp_vcpu->vcpu.arch.hcr_el2 = HCR_GUEST_FLAGS & ~(HCR_RW | HCR_TWI | HCR_TWE);
 		hyp_vcpu->vcpu.arch.hcr_el2 |= READ_ONCE(host_vcpu->arch.hcr_el2);
-
-		hyp_vcpu->vcpu.arch.mdcr_el2 = host_vcpu->arch.mdcr_el2;
-		hyp_vcpu->vcpu.arch.debug_ptr = kern_hyp_va(host_vcpu->arch.debug_ptr);
 	}
 
 	hyp_vcpu->vcpu.arch.vsesr_el2 = host_vcpu->arch.vsesr_el2;
@@ -550,6 +600,9 @@ static void sync_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu, u32 exit_reason)
 	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
 	hyp_entry_exit_handler_fn ec_handler;
 	u8 esr_ec;
+
+	if (!pkvm_hyp_vcpu_is_protected(hyp_vcpu))
+		sync_debug_state(hyp_vcpu);
 
 	/*
 	 * Don't sync the vcpu GPR/sysreg state after a run. Instead,
