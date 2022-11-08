@@ -202,6 +202,7 @@ struct hns_roce_ucontext {
 	struct list_head	page_list;
 	struct mutex		page_mutex;
 	struct hns_user_mmap_entry *db_mmap_entry;
+	u32			config;
 };
 
 struct hns_roce_pd {
@@ -334,6 +335,7 @@ struct hns_roce_wq {
 	u32		head;
 	u32		tail;
 	void __iomem	*db_reg;
+	u32		ext_sge_cnt;
 };
 
 struct hns_roce_sge {
@@ -635,6 +637,7 @@ struct hns_roce_qp {
 	struct list_head	rq_node; /* all recv qps are on a list */
 	struct list_head	sq_node; /* all send qps are on a list */
 	struct hns_user_mmap_entry *dwqe_mmap_entry;
+	u32			config;
 };
 
 struct hns_roce_ib_iboe {
