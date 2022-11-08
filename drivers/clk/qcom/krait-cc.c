@@ -62,7 +62,7 @@ static int krait_notifier_register(struct device *dev, struct clk *clk,
 	int ret = 0;
 
 	mux->clk_nb.notifier_call = krait_notifier_cb;
-	ret = clk_notifier_register(clk, &mux->clk_nb);
+	ret = devm_clk_notifier_register(dev, clk, &mux->clk_nb);
 	if (ret)
 		dev_err(dev, "failed to register clock notifier: %d\n", ret);
 
