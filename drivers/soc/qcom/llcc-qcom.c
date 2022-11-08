@@ -25,6 +25,7 @@
 #define ACT_CTRL_OPCODE_ACTIVATE      BIT(0)
 #define ACT_CTRL_OPCODE_DEACTIVATE    BIT(1)
 #define ACT_CTRL_ACT_TRIG             BIT(0)
+#define LLCC_CFG_SCID_EN(n)           BIT(n)
 #define ACT_CTRL_OPCODE_SHIFT         0x01
 #define ATTR1_PROBE_TARGET_WAYS_SHIFT 0x02
 #define ATTR1_FIXED_SIZE_SHIFT        0x03
@@ -800,6 +801,19 @@ int llcc_notif_staling_inc_counter(struct llcc_slice_desc *desc)
 }
 EXPORT_SYMBOL(llcc_notif_staling_inc_counter);
 
+static u32 llcc_trp_cfg_n(int slice_id, unsigned int offset, u32 val)
+{
+	u32 readval;
+
+	regmap_read(drv_data->bcast_regmap, offset, &readval);
+	if (val)
+		readval |= LLCC_CFG_SCID_EN(slice_id);
+	else
+		readval &= ~(LLCC_CFG_SCID_EN(slice_id));
+
+	return readval;
+}
+
 static int qcom_llcc_cfg_program(struct platform_device *pdev)
 {
 	int i;
@@ -815,6 +829,7 @@ static int qcom_llcc_cfg_program(struct platform_device *pdev)
 	u32 cad = 0;
 	u32 wren = 0;
 	u32 wrcaen = 0;
+	u32 algo = 0;
 	int ret = 0;
 	const struct llcc_slice_config *llcc_table;
 	struct llcc_slice_desc *desc;
@@ -915,53 +930,70 @@ static int qcom_llcc_cfg_program(struct platform_device *pdev)
 		}
 
 		if (drv_data->llcc_ver >= 41) {
-			ret = regmap_write(drv_data->bcast_regmap,
+			algo = llcc_trp_cfg_n(llcc_table[i].slice_id,
 					LLCC_TRP_ALGO_CFG1,
-					(llcc_table[i].stale_en << llcc_table[i].slice_id));
+					llcc_table[i].stale_en);
+			ret = regmap_write(drv_data->bcast_regmap,
+					LLCC_TRP_ALGO_CFG1, algo);
 			if (ret)
 				return ret;
 
-			ret = regmap_write(drv_data->bcast_regmap,
+			algo = llcc_trp_cfg_n(llcc_table[i].slice_id,
 					LLCC_TRP_ALGO_CFG2,
-					(llcc_table[i].stale_cap_en << llcc_table[i].slice_id));
+					llcc_table[i].stale_cap_en);
+			ret = regmap_write(drv_data->bcast_regmap,
+					LLCC_TRP_ALGO_CFG2, algo);
 			if (ret)
 				return ret;
 
-			ret = regmap_write(drv_data->bcast_regmap,
+			algo = llcc_trp_cfg_n(llcc_table[i].slice_id,
 					LLCC_TRP_ALGO_CFG3,
-					(llcc_table[i].mru_uncap_en << llcc_table[i].slice_id));
+					llcc_table[i].mru_uncap_en);
+			ret = regmap_write(drv_data->bcast_regmap,
+					LLCC_TRP_ALGO_CFG3, algo);
 			if (ret)
 				return ret;
 
-			ret = regmap_write(drv_data->bcast_regmap,
+			algo = llcc_trp_cfg_n(llcc_table[i].slice_id,
 					LLCC_TRP_ALGO_CFG4,
-					(llcc_table[i].mru_rollover << llcc_table[i].slice_id));
+					llcc_table[i].mru_rollover);
+			ret = regmap_write(drv_data->bcast_regmap,
+					LLCC_TRP_ALGO_CFG4, algo);
 			if (ret)
 				return ret;
 
-			ret = regmap_write(drv_data->bcast_regmap,
+			algo = llcc_trp_cfg_n(llcc_table[i].slice_id,
 					LLCC_TRP_ALGO_CFG5,
-					(llcc_table[i].alloc_oneway_en << llcc_table[i].slice_id));
+					llcc_table[i].alloc_oneway_en);
+			ret = regmap_write(drv_data->bcast_regmap,
+					LLCC_TRP_ALGO_CFG5, algo);
 			if (ret)
 				return ret;
 
-			ret = regmap_write(drv_data->bcast_regmap,
+			algo = llcc_trp_cfg_n(llcc_table[i].slice_id,
 					LLCC_TRP_ALGO_CFG6,
-					(llcc_table[i].ovcap_en << llcc_table[i].slice_id));
+					llcc_table[i].ovcap_en);
+			ret = regmap_write(drv_data->bcast_regmap,
+					LLCC_TRP_ALGO_CFG6, algo);
 			if (ret)
 				return ret;
 
-			ret = regmap_write(drv_data->bcast_regmap,
+			algo = llcc_trp_cfg_n(llcc_table[i].slice_id,
 					LLCC_TRP_ALGO_CFG7,
-					(llcc_table[i].ovcap_prio << llcc_table[i].slice_id));
+					llcc_table[i].ovcap_prio);
+			ret = regmap_write(drv_data->bcast_regmap,
+					LLCC_TRP_ALGO_CFG7, algo);
 			if (ret)
 				return ret;
 
-			ret = regmap_write(drv_data->bcast_regmap,
+			algo = llcc_trp_cfg_n(llcc_table[i].slice_id,
 					LLCC_TRP_ALGO_CFG8,
-					(llcc_table[i].vict_prio << llcc_table[i].slice_id));
+					llcc_table[i].vict_prio);
+			ret = regmap_write(drv_data->bcast_regmap,
+					LLCC_TRP_ALGO_CFG8, algo);
 			if (ret)
 				return ret;
+
 		}
 
 		if (llcc_table[i].activate_on_init) {
