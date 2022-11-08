@@ -227,8 +227,13 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
+		/* If PSR is supported on an eDP panel that's connected, but that panel is
+		 * not in PSR at the time of trying to enter MALL SS, we have to include it
+		 * in the static screen CAB calculation
+		 */
 		if (!pipe->stream || !pipe->plane_state ||
-				pipe->stream->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED ||
+				(pipe->stream->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED &&
+				pipe->stream->link->psr_settings.psr_allow_active) ||
 				pipe->stream->mall_stream_config.type == SUBVP_PHANTOM)
 			continue;
 
