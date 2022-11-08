@@ -4,6 +4,7 @@
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/seq_file.h>
+#include <linux/version.h>
 #include "dr_types.h"
 
 #define DR_DBG_PTR_TO_ID(p) ((u64)(uintptr_t)(p) & 0xFFFFFFFFULL)
@@ -632,9 +633,15 @@ dr_dump_domain(struct seq_file *file, struct mlx5dr_domain *dmn)
 	u64 domain_id = DR_DBG_PTR_TO_ID(dmn);
 	int ret;
 
-	seq_printf(file, "%d,0x%llx,%d,0%x,%d,%s\n", DR_DUMP_REC_TYPE_DOMAIN,
+	seq_printf(file, "%d,0x%llx,%d,0%x,%d,%u.%u.%u,%s,%d\n",
+		   DR_DUMP_REC_TYPE_DOMAIN,
 		   domain_id, dmn->type, dmn->info.caps.gvmi,
-		   dmn->info.supp_sw_steering, pci_name(dmn->mdev->pdev));
+		   dmn->info.supp_sw_steering,
+		   /* package version */
+		   LINUX_VERSION_MAJOR, LINUX_VERSION_PATCHLEVEL,
+		   LINUX_VERSION_SUBLEVEL,
+		   pci_name(dmn->mdev->pdev),
+		   0); /* domain flags */
 
 	ret = dr_dump_domain_info(file, &dmn->info, domain_id);
 	if (ret < 0)
