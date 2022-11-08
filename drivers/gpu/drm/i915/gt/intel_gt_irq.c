@@ -17,6 +17,9 @@
 
 static void guc_irq_handler(struct intel_guc *guc, u16 iir)
 {
+	if (unlikely(!guc->interrupts.enabled))
+		return;
+
 	if (iir & GUC_INTR_GUC2HOST)
 		intel_guc_to_host_event_handler(guc);
 }
@@ -251,6 +254,7 @@ void gen11_gt_irq_postinstall(struct intel_gt *gt)
 {
 	struct intel_uncore *uncore = gt->uncore;
 	u32 irqs = GT_RENDER_USER_INTERRUPT;
+	u32 guc_mask = intel_uc_wants_guc(&gt->uc) ? GUC_INTR_GUC2HOST : 0;
 	u32 gsc_mask = 0;
 	u32 dmask;
 	u32 smask;
@@ -305,6 +309,19 @@ void gen11_gt_irq_postinstall(struct intel_gt *gt)
 	if (gsc_mask)
 		intel_uncore_write(uncore, GEN11_GUNIT_CSME_INTR_MASK, ~gsc_mask);
 
+	if (guc_mask) {
+		/* the enable bit is common for both GTs but the masks are separate */
+		u32 mask = gt->type == GT_MEDIA ?
+			REG_FIELD_PREP(ENGINE0_MASK, guc_mask) :
+			REG_FIELD_PREP(ENGINE1_MASK, guc_mask);
+
+		intel_uncore_write(uncore, GEN11_GUC_SG_INTR_ENABLE,
+				   REG_FIELD_PREP(ENGINE1_MASK, guc_mask));
+
+		/* we might not be the first GT to write this reg */
+		intel_uncore_rmw(uncore, MTL_GUC_MGUC_INTR_MASK, mask, 0);
+	}
+
 	/*
 	 * RPS interrupts will get enabled/disabled on demand when RPS itself
 	 * is enabled/disabled.
@@ -313,10 +330,6 @@ void gen11_gt_irq_postinstall(struct intel_gt *gt)
 	gt->pm_imr = ~gt->pm_ier;
 	intel_uncore_write(uncore, GEN11_GPM_WGBOXPERF_INTR_ENABLE, 0);
 	intel_uncore_write(uncore, GEN11_GPM_WGBOXPERF_INTR_MASK,  ~0);
-
-	/* Same thing for GuC interrupts */
-	intel_uncore_write(uncore, GEN11_GUC_SG_INTR_ENABLE, 0);
-	intel_uncore_write(uncore, GEN11_GUC_SG_INTR_MASK,  ~0);
 }
 
 void gen5_gt_irq_handler(struct intel_gt *gt, u32 gt_iir)
