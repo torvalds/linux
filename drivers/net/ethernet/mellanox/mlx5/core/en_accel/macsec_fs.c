@@ -1209,6 +1209,7 @@ macsec_fs_rx_add_rule(struct mlx5e_macsec_fs *macsec_fs,
 		rx_rule->rule[1] = rule;
 	}
 
+	kvfree(spec);
 	return macsec_rule;
 
 err:
