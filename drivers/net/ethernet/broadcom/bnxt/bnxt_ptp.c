@@ -14,6 +14,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/timekeeping.h>
 #include <linux/ptp_classify.h>
+#include <linux/clocksource.h>
 #include "bnxt_hsi.h"
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
@@ -210,18 +211,37 @@ static int bnxt_ptp_adjfreq(struct ptp_clock_info *ptp_info, s32 ppb)
 						ptp_info);
 	struct hwrm_port_mac_cfg_input *req;
 	struct bnxt *bp = ptp->bp;
-	int rc;
+	int rc = 0;
 
-	rc = hwrm_req_init(bp, req, HWRM_PORT_MAC_CFG);
-	if (rc)
-		return rc;
+	if (!(ptp->bp->fw_cap & BNXT_FW_CAP_PTP_RTC)) {
+		int neg_adj = 0;
+		u32 diff;
+		u64 adj;
 
-	req->ptp_freq_adj_ppb = cpu_to_le32(ppb);
-	req->enables = cpu_to_le32(PORT_MAC_CFG_REQ_ENABLES_PTP_FREQ_ADJ_PPB);
-	rc = hwrm_req_send(ptp->bp, req);
-	if (rc)
-		netdev_err(ptp->bp->dev,
-			   "ptp adjfreq failed. rc = %d\n", rc);
+		if (ppb < 0) {
+			neg_adj = 1;
+			ppb = -ppb;
+		}
+		adj = ptp->cmult;
+		adj *= ppb;
+		diff = div_u64(adj, 1000000000ULL);
+
+		spin_lock_bh(&ptp->ptp_lock);
+		timecounter_read(&ptp->tc);
+		ptp->cc.mult = neg_adj ? ptp->cmult - diff : ptp->cmult + diff;
+		spin_unlock_bh(&ptp->ptp_lock);
+	} else {
+		rc = hwrm_req_init(bp, req, HWRM_PORT_MAC_CFG);
+		if (rc)
+			return rc;
+
+		req->ptp_freq_adj_ppb = cpu_to_le32(ppb);
+		req->enables = cpu_to_le32(PORT_MAC_CFG_REQ_ENABLES_PTP_FREQ_ADJ_PPB);
+		rc = hwrm_req_send(ptp->bp, req);
+		if (rc)
+			netdev_err(ptp->bp->dev,
+				   "ptp adjfreq failed. rc = %d\n", rc);
+	}
 	return rc;
 }
 
@@ -846,8 +866,9 @@ static void bnxt_ptp_timecounter_init(struct bnxt *bp, bool init_tc)
 		memset(&ptp->cc, 0, sizeof(ptp->cc));
 		ptp->cc.read = bnxt_cc_read;
 		ptp->cc.mask = CYCLECOUNTER_MASK(48);
-		ptp->cc.shift = 0;
-		ptp->cc.mult = 1;
+		ptp->cc.shift = BNXT_CYCLES_SHIFT;
+		ptp->cc.mult = clocksource_khz2mult(BNXT_DEVCLK_FREQ, ptp->cc.shift);
+		ptp->cmult = ptp->cc.mult;
 		ptp->next_overflow_check = jiffies + BNXT_PHC_OVERFLOW_PERIOD;
 	}
 	if (init_tc)
