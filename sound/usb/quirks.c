@@ -376,7 +376,8 @@ static int create_auto_midi_quirk(struct snd_usb_audio *chip,
 
 static int create_autodetect_quirk(struct snd_usb_audio *chip,
 				   struct usb_interface *iface,
-				   struct usb_driver *driver)
+				   struct usb_driver *driver,
+				   const struct snd_usb_audio_quirk *quirk)
 {
 	int err;
 
@@ -384,45 +385,6 @@ static int create_autodetect_quirk(struct snd_usb_audio *chip,
 	if (err == -ENODEV)
 		err = create_auto_midi_quirk(chip, iface, driver);
 	return err;
-}
-
-static int create_autodetect_quirks(struct snd_usb_audio *chip,
-				    struct usb_interface *iface,
-				    struct usb_driver *driver,
-				    const struct snd_usb_audio_quirk *quirk)
-{
-	int probed_ifnum = get_iface_desc(iface->altsetting)->bInterfaceNumber;
-	int ifcount, ifnum, err;
-
-	err = create_autodetect_quirk(chip, iface, driver);
-	if (err < 0)
-		return err;
-
-	/*
-	 * ALSA PCM playback/capture devices cannot be registered in two steps,
-	 * so we have to claim the other corresponding interface here.
-	 */
-	ifcount = chip->dev->actconfig->desc.bNumInterfaces;
-	for (ifnum = 0; ifnum < ifcount; ifnum++) {
-		if (ifnum == probed_ifnum || quirk->ifnum >= 0)
-			continue;
-		iface = usb_ifnum_to_if(chip->dev, ifnum);
-		if (!iface ||
-		    usb_interface_claimed(iface) ||
-		    get_iface_desc(iface->altsetting)->bInterfaceClass !=
-							USB_CLASS_VENDOR_SPEC)
-			continue;
-
-		err = create_autodetect_quirk(chip, iface, driver);
-		if (err >= 0) {
-			err = usb_driver_claim_interface(driver, iface,
-							 USB_AUDIO_IFACE_UNUSED);
-			if (err < 0)
-				return err;
-		}
-	}
-
-	return 0;
 }
 
 /*
@@ -554,7 +516,7 @@ int snd_usb_create_quirk(struct snd_usb_audio *chip,
 	static const quirk_func_t quirk_funcs[] = {
 		[QUIRK_IGNORE_INTERFACE] = ignore_interface_quirk,
 		[QUIRK_COMPOSITE] = create_composite_quirk,
-		[QUIRK_AUTODETECT] = create_autodetect_quirks,
+		[QUIRK_AUTODETECT] = create_autodetect_quirk,
 		[QUIRK_MIDI_STANDARD_INTERFACE] = create_any_midi_quirk,
 		[QUIRK_MIDI_FIXED_ENDPOINT] = create_any_midi_quirk,
 		[QUIRK_MIDI_YAMAHA] = create_any_midi_quirk,
