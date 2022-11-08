@@ -495,19 +495,57 @@ static void dr_ste_v1_set_rx_decap(u8 *hw_ste_p, u8 *s_action)
 	dr_ste_v1_set_reparse(hw_ste_p);
 }
 
-static void dr_ste_v1_set_rewrite_actions(u8 *hw_ste_p,
-					  u8 *s_action,
-					  u16 num_of_actions,
-					  u32 re_write_index)
+static void dr_ste_v1_set_accelerated_rewrite_actions(u8 *hw_ste_p,
+						      u8 *d_action,
+						      u16 num_of_actions,
+						      u32 rewrite_pattern,
+						      u32 rewrite_args)
+{
+	MLX5_SET(ste_double_action_accelerated_modify_action_list_v1, d_action,
+		 action_id, DR_STE_V1_ACTION_ID_ACCELERATED_LIST);
+	MLX5_SET(ste_double_action_accelerated_modify_action_list_v1, d_action,
+		 modify_actions_pattern_pointer, rewrite_pattern);
+	MLX5_SET(ste_double_action_accelerated_modify_action_list_v1, d_action,
+		 number_of_modify_actions, num_of_actions);
+	MLX5_SET(ste_double_action_accelerated_modify_action_list_v1, d_action,
+		 modify_actions_argument_pointer, rewrite_args);
+
+	dr_ste_v1_set_reparse(hw_ste_p);
+}
+
+static void dr_ste_v1_set_basic_rewrite_actions(u8 *hw_ste_p,
+						u8 *s_action,
+						u16 num_of_actions,
+						u32 rewrite_index)
 {
 	MLX5_SET(ste_single_action_modify_list_v1, s_action, action_id,
 		 DR_STE_V1_ACTION_ID_MODIFY_LIST);
 	MLX5_SET(ste_single_action_modify_list_v1, s_action, num_of_modify_actions,
 		 num_of_actions);
 	MLX5_SET(ste_single_action_modify_list_v1, s_action, modify_actions_ptr,
-		 re_write_index);
+		 rewrite_index);
 
 	dr_ste_v1_set_reparse(hw_ste_p);
+}
+
+static void dr_ste_v1_set_rewrite_actions(u8 *hw_ste_p,
+					  u8 *action,
+					  u16 num_of_actions,
+					  u32 rewrite_pattern,
+					  u32 rewrite_args)
+{
+	if (rewrite_pattern != MLX5DR_INVALID_PATTERN_INDEX)
+		return dr_ste_v1_set_accelerated_rewrite_actions(hw_ste_p,
+								 action,
+								 num_of_actions,
+								 rewrite_pattern,
+								 rewrite_args);
+
+	/* fall back to the code that doesn't support accelerated modify header */
+	return dr_ste_v1_set_basic_rewrite_actions(hw_ste_p,
+						   action,
+						   num_of_actions,
+						   rewrite_args);
 }
 
 static void dr_ste_v1_set_aso_flow_meter(u8 *d_action,
@@ -614,6 +652,7 @@ void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 		}
 		dr_ste_v1_set_rewrite_actions(last_ste, action,
 					      attr->modify_actions,
+					      attr->modify_pat_idx,
 					      attr->modify_index);
 		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
 		action += DR_STE_ACTION_DOUBLE_SZ;
@@ -744,6 +783,7 @@ void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 	if (action_type_set[DR_ACTION_TYP_TNL_L3_TO_L2]) {
 		dr_ste_v1_set_rewrite_actions(last_ste, action,
 					      attr->decap_actions,
+					      attr->decap_pat_idx,
 					      attr->decap_index);
 		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
 		action += DR_STE_ACTION_DOUBLE_SZ;
@@ -799,6 +839,7 @@ void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 		}
 		dr_ste_v1_set_rewrite_actions(last_ste, action,
 					      attr->modify_actions,
+					      attr->modify_pat_idx,
 					      attr->modify_index);
 		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
 		action += DR_STE_ACTION_DOUBLE_SZ;
