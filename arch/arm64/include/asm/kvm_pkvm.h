@@ -21,6 +21,7 @@ int pkvm_vm_ioctl_enable_cap(struct kvm *kvm,struct kvm_enable_cap *cap);
 int pkvm_init_host_vm(struct kvm *kvm, unsigned long type);
 int pkvm_create_hyp_vm(struct kvm *kvm);
 void pkvm_destroy_hyp_vm(struct kvm *kvm);
+void pkvm_host_reclaim_page(struct kvm *host_kvm, phys_addr_t ipa);
 
 /*
  * Definitions for features to be allowed or restricted for guest virtual

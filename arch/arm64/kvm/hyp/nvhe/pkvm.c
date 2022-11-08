@@ -1268,6 +1268,54 @@ out_guest_err:
 	return true;
 }
 
+static bool pkvm_meminfo_call(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *vcpu = &hyp_vcpu->vcpu;
+	u64 arg1 = smccc_get_arg1(vcpu);
+	u64 arg2 = smccc_get_arg2(vcpu);
+	u64 arg3 = smccc_get_arg3(vcpu);
+
+	if (arg1 || arg2 || arg3)
+		goto out_guest_err;
+
+	smccc_set_retval(vcpu, PAGE_SIZE, 0, 0, 0);
+	return true;
+
+out_guest_err:
+	smccc_set_retval(vcpu, SMCCC_RET_INVALID_PARAMETER, 0, 0, 0);
+	return true;
+}
+
+static bool pkvm_memrelinquish_call(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *vcpu = &hyp_vcpu->vcpu;
+	u64 ipa = smccc_get_arg1(vcpu);
+	u64 arg2 = smccc_get_arg2(vcpu);
+	u64 arg3 = smccc_get_arg3(vcpu);
+	u64 pa = 0;
+	int ret;
+
+	if (arg2 || arg3)
+		goto out_guest_err;
+
+	ret = __pkvm_guest_relinquish_to_host(hyp_vcpu, ipa, &pa);
+	if (ret)
+		goto out_guest_err;
+
+	if (pa != 0) {
+		/* Now pass to host. */
+		return false;
+	}
+
+	/* This was a NOP as no page was actually mapped at the IPA. */
+	smccc_set_retval(vcpu, 0, 0, 0, 0);
+	return true;
+
+out_guest_err:
+	smccc_set_retval(vcpu, SMCCC_RET_INVALID_PARAMETER, 0, 0, 0);
+	return true;
+}
+
 bool smccc_trng_available;
 
 static bool pkvm_forward_trng(struct kvm_vcpu *vcpu)
@@ -1327,20 +1375,16 @@ bool kvm_handle_pvm_hvc64(struct kvm_vcpu *vcpu, u64 *exit_code)
 		val[0] |= BIT(ARM_SMCCC_KVM_FUNC_HYP_MEMINFO);
 		val[0] |= BIT(ARM_SMCCC_KVM_FUNC_MEM_SHARE);
 		val[0] |= BIT(ARM_SMCCC_KVM_FUNC_MEM_UNSHARE);
+		val[0] |= BIT(ARM_SMCCC_KVM_FUNC_MEM_RELINQUISH);
 		break;
 	case ARM_SMCCC_VENDOR_HYP_KVM_HYP_MEMINFO_FUNC_ID:
-		if (smccc_get_arg1(vcpu) ||
-		    smccc_get_arg2(vcpu) ||
-		    smccc_get_arg3(vcpu)) {
-			val[0] = SMCCC_RET_INVALID_PARAMETER;
-		} else {
-			val[0] = PAGE_SIZE;
-		}
-		break;
+		return pkvm_meminfo_call(hyp_vcpu);
 	case ARM_SMCCC_VENDOR_HYP_KVM_MEM_SHARE_FUNC_ID:
 		return pkvm_memshare_call(hyp_vcpu, exit_code);
 	case ARM_SMCCC_VENDOR_HYP_KVM_MEM_UNSHARE_FUNC_ID:
 		return pkvm_memunshare_call(hyp_vcpu);
+	case ARM_SMCCC_VENDOR_HYP_KVM_MEM_RELINQUISH_FUNC_ID:
+		return pkvm_memrelinquish_call(hyp_vcpu);
 	case ARM_SMCCC_TRNG_VERSION ... ARM_SMCCC_TRNG_RND32:
 	case ARM_SMCCC_TRNG_RND64:
 		if (smccc_trng_available)
@@ -1352,4 +1396,27 @@ bool kvm_handle_pvm_hvc64(struct kvm_vcpu *vcpu, u64 *exit_code)
 
 	smccc_set_retval(vcpu, val[0], val[1], val[2], val[3]);
 	return true;
+}
+
+/*
+ * Handler for non-protected VM HVC calls.
+ *
+ * Returns true if the hypervisor has handled the exit, and control should go
+ * back to the guest, or false if it hasn't.
+ */
+bool kvm_hyp_handle_hvc64(struct kvm_vcpu *vcpu, u64 *exit_code)
+{
+	u32 fn = smccc_get_function(vcpu);
+	struct pkvm_hyp_vcpu *hyp_vcpu;
+
+	hyp_vcpu = container_of(vcpu, struct pkvm_hyp_vcpu, vcpu);
+
+	switch (fn) {
+	case ARM_SMCCC_VENDOR_HYP_KVM_HYP_MEMINFO_FUNC_ID:
+		return pkvm_meminfo_call(hyp_vcpu);
+	case ARM_SMCCC_VENDOR_HYP_KVM_MEM_RELINQUISH_FUNC_ID:
+		return pkvm_memrelinquish_call(hyp_vcpu);
+	}
+
+	return false;
 }

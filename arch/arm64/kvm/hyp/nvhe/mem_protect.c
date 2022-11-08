@@ -265,6 +265,7 @@ static int reclaim_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 {
 	kvm_pte_t pte = *ptep;
 	struct hyp_page *page;
+	u64 *pa = arg;
 
 	if (!kvm_pte_valid(pte))
 		return 0;
@@ -276,6 +277,8 @@ static int reclaim_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 		fallthrough;
 	case PKVM_PAGE_SHARED_BORROWED:
 	case PKVM_PAGE_SHARED_OWNED:
+		if (pa)
+			*pa = kvm_pte_to_phys(pte);
 		page->flags |= HOST_PAGE_PENDING_RECLAIM;
 		break;
 	default:
@@ -313,6 +316,36 @@ void reclaim_guest_pages(struct pkvm_hyp_vm *vm, struct kvm_hyp_memcache *mc)
 		WARN_ON(__pkvm_hyp_donate_host(hyp_virt_to_pfn(addr), 1));
 		addr = hyp_alloc_pages(&vm->pool, 0);
 	}
+}
+
+int __pkvm_guest_relinquish_to_host(struct pkvm_hyp_vcpu *vcpu,
+				    u64 ipa, u64 *ppa)
+{
+	struct kvm_pgtable_walker walker = {
+		.cb     = reclaim_walker,
+		.arg    = ppa,
+		.flags  = KVM_PGTABLE_WALK_LEAF
+	};
+	struct pkvm_hyp_vm *vm = pkvm_hyp_vcpu_to_hyp_vm(vcpu);
+	int ret;
+
+	host_lock_component();
+	guest_lock_component(vm);
+
+	/* Set default pa value to "not found". */
+	*ppa = 0;
+
+	/* If ipa is mapped: sets page flags, and gets the pa. */
+	ret = kvm_pgtable_walk(&vm->pgt, ipa, PAGE_SIZE, &walker);
+
+	/* Zap the guest stage2 pte. */
+	if (!ret)
+		kvm_pgtable_stage2_unmap(&vm->pgt, ipa, PAGE_SIZE);
+
+	guest_unlock_component(vm);
+	host_unlock_component();
+
+	return ret;
 }
 
 int __pkvm_prot_finalize(void)
