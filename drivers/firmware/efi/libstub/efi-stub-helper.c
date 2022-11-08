@@ -483,8 +483,8 @@ static const struct {
 
 /**
  * efi_load_initrd_dev_path() - load the initrd from the Linux initrd device path
- * @load_addr:	pointer to store the address where the initrd was loaded
- * @load_size:	pointer to store the size of the loaded initrd
+ * @initrd:	pointer of struct to store the address where the initrd was loaded
+ *		and the size of the loaded initrd
  * @max:	upper limit for the initrd memory allocation
  *
  * Return:
