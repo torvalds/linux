@@ -435,8 +435,7 @@ static int rzg2l_dt_node_to_map(struct pinctrl_dev *pctldev,
 	ret = -EINVAL;
 
 done:
-	if (ret < 0)
-		rzg2l_dt_free_map(pctldev, *map, *num_maps);
+	rzg2l_dt_free_map(pctldev, *map, *num_maps);
 
 	return ret;
 }
