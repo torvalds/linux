@@ -1437,7 +1437,9 @@ static int ctrl_dumppolicy_start(struct netlink_callback *cb)
 	ctx->op_iter = kmalloc(sizeof(*ctx->op_iter), GFP_KERNEL);
 	if (!ctx->op_iter)
 		return -ENOMEM;
-	ctx->dump_map = genl_op_iter_init(rt, ctx->op_iter);
+
+	genl_op_iter_init(rt, ctx->op_iter);
+	ctx->dump_map = genl_op_iter_next(ctx->op_iter);
 
 	for (genl_op_iter_init(rt, &i); genl_op_iter_next(&i); ) {
 		if (i.doit.policy) {
