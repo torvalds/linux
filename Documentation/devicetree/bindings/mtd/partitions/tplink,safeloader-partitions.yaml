@@ -36,6 +36,10 @@ properties:
     description: Flash offset of partitions table
     $ref: /schemas/types.yaml#/definitions/uint32
 
+patternProperties:
+  "^partition-.*$":
+    $ref: partition.yaml#
+
 required:
   - partitions-table-offset
 
@@ -46,4 +50,8 @@ examples:
     partitions {
         compatible = "tplink,safeloader-partitions";
         partitions-table-offset = <0x100000>;
+
+        partition-file-system {
+                linux,rootfs;
+        };
     };
