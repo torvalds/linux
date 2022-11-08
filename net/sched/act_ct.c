@@ -33,6 +33,7 @@
 #include <net/netfilter/nf_conntrack_acct.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 #include <net/netfilter/nf_conntrack_act_ct.h>
+#include <net/netfilter/nf_conntrack_seqadj.h>
 #include <uapi/linux/netfilter/nf_nat.h>
 
 static struct workqueue_struct *act_ct_wq;
@@ -345,11 +346,9 @@ static void tcf_ct_flow_table_cleanup_work(struct work_struct *work)
 	module_put(THIS_MODULE);
 }
 
-static void tcf_ct_flow_table_put(struct tcf_ct_params *params)
+static void tcf_ct_flow_table_put(struct tcf_ct_flow_table *ct_ft)
 {
-	struct tcf_ct_flow_table *ct_ft = params->ct_ft;
-
-	if (refcount_dec_and_test(&params->ct_ft->ref)) {
+	if (refcount_dec_and_test(&ct_ft->ref)) {
 		rhashtable_remove_fast(&zones_ht, &ct_ft->node, zones_params);
 		INIT_RCU_WORK(&ct_ft->rwork, tcf_ct_flow_table_cleanup_work);
 		queue_rcu_work(act_ct_wq, &ct_ft->rwork);
@@ -657,7 +656,7 @@ struct tc_ct_action_net {
 
 /* Determine whether skb->_nfct is equal to the result of conntrack lookup. */
 static bool tcf_ct_skb_nfct_cached(struct net *net, struct sk_buff *skb,
-				   u16 zone_id, bool force)
+				   struct tcf_ct_params *p)
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
@@ -667,11 +666,19 @@ static bool tcf_ct_skb_nfct_cached(struct net *net, struct sk_buff *skb,
 		return false;
 	if (!net_eq(net, read_pnet(&ct->ct_net)))
 		goto drop_ct;
-	if (nf_ct_zone(ct)->id != zone_id)
+	if (nf_ct_zone(ct)->id != p->zone)
 		goto drop_ct;
+	if (p->helper) {
+		struct nf_conn_help *help;
+
+		help = nf_ct_ext_find(ct, NF_CT_EXT_HELPER);
+		if (help && rcu_access_pointer(help->helper) != p->helper)
+			goto drop_ct;
+	}
 
 	/* Force conntrack entry direction. */
-	if (force && CTINFO2DIR(ctinfo) != IP_CT_DIR_ORIGINAL) {
+	if ((p->ct_action & TCA_CT_ACT_FORCE) &&
+	    CTINFO2DIR(ctinfo) != IP_CT_DIR_ORIGINAL) {
 		if (nf_ct_is_confirmed(ct))
 			nf_ct_kill(ct);
 
@@ -832,16 +839,28 @@ out_free:
 	return err;
 }
 
-static void tcf_ct_params_free(struct rcu_head *head)
+static void tcf_ct_params_free(struct tcf_ct_params *params)
 {
-	struct tcf_ct_params *params = container_of(head,
-						    struct tcf_ct_params, rcu);
-
-	tcf_ct_flow_table_put(params);
-
+	if (params->helper) {
+#if IS_ENABLED(CONFIG_NF_NAT)
+		if (params->ct_action & TCA_CT_ACT_NAT)
+			nf_nat_helper_put(params->helper);
+#endif
+		nf_conntrack_helper_put(params->helper);
+	}
+	if (params->ct_ft)
+		tcf_ct_flow_table_put(params->ct_ft);
 	if (params->tmpl)
 		nf_ct_put(params->tmpl);
 	kfree(params);
+}
+
+static void tcf_ct_params_free_rcu(struct rcu_head *head)
+{
+	struct tcf_ct_params *params;
+
+	params = container_of(head, struct tcf_ct_params, rcu);
+	tcf_ct_params_free(params);
 }
 
 #if IS_ENABLED(CONFIG_NF_NAT)
@@ -1023,13 +1042,14 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 		      struct tcf_result *res)
 {
 	struct net *net = dev_net(skb->dev);
-	bool cached, commit, clear, force;
 	enum ip_conntrack_info ctinfo;
 	struct tcf_ct *c = to_ct(a);
 	struct nf_conn *tmpl = NULL;
 	struct nf_hook_state state;
+	bool cached, commit, clear;
 	int nh_ofs, err, retval;
 	struct tcf_ct_params *p;
+	bool add_helper = false;
 	bool skip_add = false;
 	bool defrag = false;
 	struct nf_conn *ct;
@@ -1040,7 +1060,6 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 	retval = READ_ONCE(c->tcf_action);
 	commit = p->ct_action & TCA_CT_ACT_COMMIT;
 	clear = p->ct_action & TCA_CT_ACT_CLEAR;
-	force = p->ct_action & TCA_CT_ACT_FORCE;
 	tmpl = p->tmpl;
 
 	tcf_lastuse_update(&c->tcf_tm);
@@ -1083,7 +1102,7 @@ static int tcf_ct_act(struct sk_buff *skb, const struct tc_action *a,
 	 * actually run the packet through conntrack twice unless it's for a
 	 * different zone.
 	 */
-	cached = tcf_ct_skb_nfct_cached(net, skb, p->zone, force);
+	cached = tcf_ct_skb_nfct_cached(net, skb, p);
 	if (!cached) {
 		if (tcf_ct_flow_table_lookup(p, skb, family)) {
 			skip_add = true;
@@ -1115,6 +1134,22 @@ do_nat:
 	err = tcf_ct_act_nat(skb, ct, ctinfo, p->ct_action, &p->range, commit);
 	if (err != NF_ACCEPT)
 		goto drop;
+
+	if (!nf_ct_is_confirmed(ct) && commit && p->helper && !nfct_help(ct)) {
+		err = __nf_ct_try_assign_helper(ct, p->tmpl, GFP_ATOMIC);
+		if (err)
+			goto drop;
+		add_helper = true;
+		if (p->ct_action & TCA_CT_ACT_NAT && !nfct_seqadj(ct)) {
+			if (!nfct_seqadj_ext_add(ct))
+				goto drop;
+		}
+	}
+
+	if (nf_ct_is_confirmed(ct) ? ((!cached && !skip_add) || add_helper) : commit) {
+		if (nf_ct_helper(skb, ct, ctinfo, family) != NF_ACCEPT)
+			goto drop;
+	}
 
 	if (commit) {
 		tcf_ct_act_set_mark(ct, p->mark, p->mark_mask);
@@ -1164,6 +1199,9 @@ static const struct nla_policy ct_policy[TCA_CT_MAX + 1] = {
 	[TCA_CT_NAT_IPV6_MAX] = NLA_POLICY_EXACT_LEN(sizeof(struct in6_addr)),
 	[TCA_CT_NAT_PORT_MIN] = { .type = NLA_U16 },
 	[TCA_CT_NAT_PORT_MAX] = { .type = NLA_U16 },
+	[TCA_CT_HELPER_NAME] = { .type = NLA_STRING, .len = NF_CT_HELPER_NAME_LEN },
+	[TCA_CT_HELPER_FAMILY] = { .type = NLA_U8 },
+	[TCA_CT_HELPER_PROTO] = { .type = NLA_U8 },
 };
 
 static int tcf_ct_fill_params_nat(struct tcf_ct_params *p,
@@ -1253,8 +1291,9 @@ static int tcf_ct_fill_params(struct net *net,
 {
 	struct tc_ct_action_net *tn = net_generic(net, act_ct_ops.net_id);
 	struct nf_conntrack_zone zone;
+	int err, family, proto, len;
 	struct nf_conn *tmpl;
-	int err;
+	char *name;
 
 	p->zone = NF_CT_DEFAULT_ZONE_ID;
 
@@ -1315,10 +1354,31 @@ static int tcf_ct_fill_params(struct net *net,
 		NL_SET_ERR_MSG_MOD(extack, "Failed to allocate conntrack template");
 		return -ENOMEM;
 	}
-	__set_bit(IPS_CONFIRMED_BIT, &tmpl->status);
 	p->tmpl = tmpl;
+	if (tb[TCA_CT_HELPER_NAME]) {
+		name = nla_data(tb[TCA_CT_HELPER_NAME]);
+		len = nla_len(tb[TCA_CT_HELPER_NAME]);
+		if (len > 16 || name[len - 1] != '\0') {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to parse helper name.");
+			err = -EINVAL;
+			goto err;
+		}
+		family = tb[TCA_CT_HELPER_FAMILY] ? nla_get_u8(tb[TCA_CT_HELPER_FAMILY]) : AF_INET;
+		proto = tb[TCA_CT_HELPER_PROTO] ? nla_get_u8(tb[TCA_CT_HELPER_PROTO]) : IPPROTO_TCP;
+		err = nf_ct_add_helper(tmpl, name, family, proto,
+				       p->ct_action & TCA_CT_ACT_NAT, &p->helper);
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to add helper");
+			goto err;
+		}
+	}
 
+	__set_bit(IPS_CONFIRMED_BIT, &tmpl->status);
 	return 0;
+err:
+	nf_ct_put(p->tmpl);
+	p->tmpl = NULL;
+	return err;
 }
 
 static int tcf_ct_init(struct net *net, struct nlattr *nla,
@@ -1390,7 +1450,7 @@ static int tcf_ct_init(struct net *net, struct nlattr *nla,
 
 	err = tcf_ct_flow_table_get(net, params);
 	if (err)
-		goto cleanup_params;
+		goto cleanup;
 
 	spin_lock_bh(&c->tcf_lock);
 	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
@@ -1401,17 +1461,15 @@ static int tcf_ct_init(struct net *net, struct nlattr *nla,
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);
 	if (params)
-		call_rcu(&params->rcu, tcf_ct_params_free);
+		call_rcu(&params->rcu, tcf_ct_params_free_rcu);
 
 	return res;
 
-cleanup_params:
-	if (params->tmpl)
-		nf_ct_put(params->tmpl);
 cleanup:
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);
-	kfree(params);
+	if (params)
+		tcf_ct_params_free(params);
 	tcf_idr_release(*a, bind);
 	return err;
 }
@@ -1423,7 +1481,7 @@ static void tcf_ct_cleanup(struct tc_action *a)
 
 	params = rcu_dereference_protected(c->params, 1);
 	if (params)
-		call_rcu(&params->rcu, tcf_ct_params_free);
+		call_rcu(&params->rcu, tcf_ct_params_free_rcu);
 }
 
 static int tcf_ct_dump_key_val(struct sk_buff *skb,
@@ -1489,6 +1547,19 @@ static int tcf_ct_dump_nat(struct sk_buff *skb, struct tcf_ct_params *p)
 	return 0;
 }
 
+static int tcf_ct_dump_helper(struct sk_buff *skb, struct nf_conntrack_helper *helper)
+{
+	if (!helper)
+		return 0;
+
+	if (nla_put_string(skb, TCA_CT_HELPER_NAME, helper->name) ||
+	    nla_put_u8(skb, TCA_CT_HELPER_FAMILY, helper->tuple.src.l3num) ||
+	    nla_put_u8(skb, TCA_CT_HELPER_PROTO, helper->tuple.dst.protonum))
+		return -1;
+
+	return 0;
+}
+
 static inline int tcf_ct_dump(struct sk_buff *skb, struct tc_action *a,
 			      int bind, int ref)
 {
@@ -1539,6 +1610,9 @@ static inline int tcf_ct_dump(struct sk_buff *skb, struct tc_action *a,
 		goto nla_put_failure;
 
 	if (tcf_ct_dump_nat(skb, p))
+		goto nla_put_failure;
+
+	if (tcf_ct_dump_helper(skb, p->helper))
 		goto nla_put_failure;
 
 skip_dump:
