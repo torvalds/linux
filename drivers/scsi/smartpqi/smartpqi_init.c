@@ -8004,7 +8004,7 @@ static int pqi_process_config_table(struct pqi_ctrl_info *ctrl_info)
 	struct pqi_config_table *config_table;
 	struct pqi_config_table_section_header *section;
 	struct pqi_config_table_section_info section_info;
-	struct pqi_config_table_section_info feature_section_info;
+	struct pqi_config_table_section_info feature_section_info = {0};
 
 	table_length = ctrl_info->config_table_length;
 	if (table_length == 0)
