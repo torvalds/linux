@@ -190,7 +190,8 @@ static int child_vmsplice_memcmp_fn(char *mem, size_t size,
 
 typedef int (*child_fn)(char *mem, size_t size, struct comm_pipes *comm_pipes);
 
-static void do_test_cow_in_parent(char *mem, size_t size, child_fn fn)
+static void do_test_cow_in_parent(char *mem, size_t size, bool do_mprotect,
+				  child_fn fn)
 {
 	struct comm_pipes comm_pipes;
 	char buf;
@@ -212,6 +213,22 @@ static void do_test_cow_in_parent(char *mem, size_t size, child_fn fn)
 
 	while (read(comm_pipes.child_ready[0], &buf, 1) != 1)
 		;
+
+	if (do_mprotect) {
+		/*
+		 * mprotect() optimizations might try avoiding
+		 * write-faults by directly mapping pages writable.
+		 */
+		ret = mprotect(mem, size, PROT_READ);
+		ret |= mprotect(mem, size, PROT_READ|PROT_WRITE);
+		if (ret) {
+			ksft_test_result_fail("mprotect() failed\n");
+			write(comm_pipes.parent_ready[1], "0", 1);
+			wait(&ret);
+			goto close_comm_pipes;
+		}
+	}
+
 	/* Modify the page. */
 	memset(mem, 0xff, size);
 	write(comm_pipes.parent_ready[1], "0", 1);
@@ -229,12 +246,22 @@ close_comm_pipes:
 
 static void test_cow_in_parent(char *mem, size_t size)
 {
-	do_test_cow_in_parent(mem, size, child_memcmp_fn);
+	do_test_cow_in_parent(mem, size, false, child_memcmp_fn);
+}
+
+static void test_cow_in_parent_mprotect(char *mem, size_t size)
+{
+	do_test_cow_in_parent(mem, size, true, child_memcmp_fn);
 }
 
 static void test_vmsplice_in_child(char *mem, size_t size)
 {
-	do_test_cow_in_parent(mem, size, child_vmsplice_memcmp_fn);
+	do_test_cow_in_parent(mem, size, false, child_vmsplice_memcmp_fn);
+}
+
+static void test_vmsplice_in_child_mprotect(char *mem, size_t size)
+{
+	do_test_cow_in_parent(mem, size, true, child_vmsplice_memcmp_fn);
 }
 
 static void do_test_vmsplice_in_parent(char *mem, size_t size,
@@ -970,6 +997,14 @@ static const struct test_case test_cases[] = {
 		test_cow_in_parent,
 	},
 	/*
+	 * Basic test, but do an additional mprotect(PROT_READ)+
+	 * mprotect(PROT_READ|PROT_WRITE) in the parent before write access.
+	 */
+	{
+		"Basic COW after fork() with mprotect() optimization",
+		test_cow_in_parent_mprotect,
+	},
+	/*
 	 * vmsplice() [R/O GUP] + unmap in the child; modify in the parent. If
 	 * we miss to break COW, the child observes modifications by the parent.
 	 * This is CVE-2020-29374 reported by Jann Horn.
@@ -977,6 +1012,14 @@ static const struct test_case test_cases[] = {
 	{
 		"vmsplice() + unmap in child",
 		test_vmsplice_in_child
+	},
+	/*
+	 * vmsplice() test, but do an additional mprotect(PROT_READ)+
+	 * mprotect(PROT_READ|PROT_WRITE) in the parent before write access.
+	 */
+	{
+		"vmsplice() + unmap in child with mprotect() optimization",
+		test_vmsplice_in_child_mprotect
 	},
 	/*
 	 * vmsplice() [R/O GUP] in parent before fork(), unmap in parent after
