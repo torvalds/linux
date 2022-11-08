@@ -447,7 +447,7 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	 */
 	rtd = devm_kzalloc(dev,
 			   sizeof(*rtd) +
-			   sizeof(*component) * (dai_link->num_cpus +
+			   sizeof(component) * (dai_link->num_cpus +
 						 dai_link->num_codecs +
 						 dai_link->num_platforms),
 			   GFP_KERNEL);
