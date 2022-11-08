@@ -1206,7 +1206,8 @@ static void ext4_put_super(struct super_block *sb)
 	ext4_unregister_sysfs(sb);
 
 	if (___ratelimit(&ext4_mount_msg_ratelimit, "EXT4-fs unmount"))
-		ext4_msg(sb, KERN_INFO, "unmounting filesystem.");
+		ext4_msg(sb, KERN_INFO, "unmounting filesystem %pU.",
+			 &sb->s_uuid);
 
 	ext4_unregister_li_request(sb);
 	ext4_quota_off_umount(sb);
@@ -5655,8 +5656,9 @@ static int ext4_fill_super(struct super_block *sb, struct fs_context *fc)
 		descr = "out journal";
 
 	if (___ratelimit(&ext4_mount_msg_ratelimit, "EXT4-fs mount"))
-		ext4_msg(sb, KERN_INFO, "mounted filesystem with%s. "
-			 "Quota mode: %s.", descr, ext4_quota_mode(sb));
+		ext4_msg(sb, KERN_INFO, "mounted filesystem %pU with%s. "
+			 "Quota mode: %s.", &sb->s_uuid, descr,
+			 ext4_quota_mode(sb));
 
 	/* Update the s_overhead_clusters if necessary */
 	ext4_update_overhead(sb, false);
@@ -6611,8 +6613,8 @@ static int ext4_reconfigure(struct fs_context *fc)
 	if (ret < 0)
 		return ret;
 
-	ext4_msg(sb, KERN_INFO, "re-mounted. Quota mode: %s.",
-		 ext4_quota_mode(sb));
+	ext4_msg(sb, KERN_INFO, "re-mounted %pU. Quota mode: %s.",
+		 &sb->s_uuid, ext4_quota_mode(sb));
 
 	return 0;
 }
