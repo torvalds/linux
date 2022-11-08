@@ -14,7 +14,6 @@ struct gpio_desc *of_find_gpio(struct device *dev,
 int of_gpiochip_add(struct gpio_chip *gc);
 void of_gpiochip_remove(struct gpio_chip *gc);
 int of_gpio_get_count(struct device *dev, const char *con_id);
-bool of_gpio_need_valid_mask(const struct gpio_chip *gc);
 void of_gpio_dev_init(struct gpio_chip *gc, struct gpio_device *gdev);
 #else
 static inline struct gpio_desc *of_find_gpio(struct device *dev,
@@ -29,10 +28,6 @@ static inline void of_gpiochip_remove(struct gpio_chip *gc) { }
 static inline int of_gpio_get_count(struct device *dev, const char *con_id)
 {
 	return 0;
-}
-static inline bool of_gpio_need_valid_mask(const struct gpio_chip *gc)
-{
-	return false;
 }
 static inline void of_gpio_dev_init(struct gpio_chip *gc,
 				    struct gpio_device *gdev)

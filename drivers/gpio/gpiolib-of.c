@@ -112,24 +112,6 @@ static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
 	return gpiochip_get_desc(chip, ret);
 }
 
-/**
- * of_gpio_need_valid_mask() - figure out if the OF GPIO driver needs
- * to set the .valid_mask
- * @gc: the target gpio_chip
- *
- * Return: true if the valid mask needs to be set
- */
-bool of_gpio_need_valid_mask(const struct gpio_chip *gc)
-{
-	int size;
-	const struct device_node *np = gc->of_node;
-
-	size = of_property_count_u32_elems(np,  "gpio-reserved-ranges");
-	if (size > 0 && size % 2 == 0)
-		return true;
-	return false;
-}
-
 /*
  * Overrides stated polarity of a gpio line and warns when there is a
  * discrepancy.
@@ -989,28 +971,6 @@ void of_mm_gpiochip_remove(struct of_mm_gpio_chip *mm_gc)
 }
 EXPORT_SYMBOL_GPL(of_mm_gpiochip_remove);
 
-static void of_gpiochip_init_valid_mask(struct gpio_chip *chip)
-{
-	int len, i;
-	u32 start, count;
-	struct device_node *np = chip->of_node;
-
-	len = of_property_count_u32_elems(np,  "gpio-reserved-ranges");
-	if (len < 0 || len % 2 != 0)
-		return;
-
-	for (i = 0; i < len; i += 2) {
-		of_property_read_u32_index(np, "gpio-reserved-ranges",
-					   i, &start);
-		of_property_read_u32_index(np, "gpio-reserved-ranges",
-					   i + 1, &count);
-		if (start >= chip->ngpio || start + count > chip->ngpio)
-			continue;
-
-		bitmap_clear(chip->valid_mask, start, count);
-	}
-};
-
 #ifdef CONFIG_PINCTRL
 static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 {
@@ -1118,8 +1078,6 @@ int of_gpiochip_add(struct gpio_chip *chip)
 
 	if (chip->of_gpio_n_cells > MAX_PHANDLE_ARGS)
 		return -EINVAL;
-
-	of_gpiochip_init_valid_mask(chip);
 
 	ret = of_gpiochip_add_pin_range(chip);
 	if (ret)

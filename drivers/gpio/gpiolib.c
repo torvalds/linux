@@ -445,9 +445,21 @@ static unsigned long *gpiochip_allocate_mask(struct gpio_chip *gc)
 	return p;
 }
 
+static unsigned int gpiochip_count_reserved_ranges(struct gpio_chip *gc)
+{
+	int size;
+
+	/* Format is "start, count, ..." */
+	size = fwnode_property_count_u32(gc->fwnode, "gpio-reserved-ranges");
+	if (size > 0 && size % 2 == 0)
+		return size;
+
+	return 0;
+}
+
 static int gpiochip_alloc_valid_mask(struct gpio_chip *gc)
 {
-	if (!(of_gpio_need_valid_mask(gc) || gc->init_valid_mask))
+	if (!(gpiochip_count_reserved_ranges(gc) || gc->init_valid_mask))
 		return 0;
 
 	gc->valid_mask = gpiochip_allocate_mask(gc);
@@ -457,8 +469,48 @@ static int gpiochip_alloc_valid_mask(struct gpio_chip *gc)
 	return 0;
 }
 
+static int gpiochip_apply_reserved_ranges(struct gpio_chip *gc)
+{
+	unsigned int size;
+	u32 *ranges;
+	int ret;
+
+	size = gpiochip_count_reserved_ranges(gc);
+	if (size == 0)
+		return 0;
+
+	ranges = kmalloc_array(size, sizeof(*ranges), GFP_KERNEL);
+	if (!ranges)
+		return -ENOMEM;
+
+	ret = fwnode_property_read_u32_array(gc->fwnode, "gpio-reserved-ranges", ranges, size);
+	if (ret) {
+		kfree(ranges);
+		return ret;
+	}
+
+	while (size) {
+		u32 count = ranges[--size];
+		u32 start = ranges[--size];
+
+		if (start >= gc->ngpio || start + count > gc->ngpio)
+			continue;
+
+		bitmap_clear(gc->valid_mask, start, count);
+	}
+
+	kfree(ranges);
+	return 0;
+}
+
 static int gpiochip_init_valid_mask(struct gpio_chip *gc)
 {
+	int ret;
+
+	ret = gpiochip_apply_reserved_ranges(gc);
+	if (ret)
+		return ret;
+
 	if (gc->init_valid_mask)
 		return gc->init_valid_mask(gc,
 					   gc->valid_mask,
