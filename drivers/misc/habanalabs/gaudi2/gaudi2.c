@@ -10358,10 +10358,9 @@ int gaudi2_send_device_activity(struct hl_device *hdev, bool open)
 {
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
 
-	if (!(gaudi2->hw_cap_initialized & HW_CAP_CPU_Q) || hdev->fw_major_version < 37)
+	if (!(gaudi2->hw_cap_initialized & HW_CAP_CPU_Q))
 		return 0;
 
-	/* TODO: add check for FW version using minor ver once it's known */
 	return hl_fw_send_device_activity(hdev, open);
 }
 
