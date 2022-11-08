@@ -579,10 +579,10 @@ static irqreturn_t rve_irq_thread(int irq, void *data)
 
 	/* if llp mode*/
 	if ((error_flag & RVE_LLP_MODE) &&
-		(!(error_flag & RVE_LLP_DONE))) {
+	    (!(error_flag & RVE_LLP_DONE))) {
 		if (DEBUGGER_EN(INT_FLAG))
 			pr_err("irq: llp mode need to skip rve_job_done");
-			goto skip_job_done;
+		goto skip_job_done;
 	}
 
 	rve_job_done(scheduler, 0);
