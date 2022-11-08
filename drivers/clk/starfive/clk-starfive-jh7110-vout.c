@@ -270,8 +270,8 @@ static int __init clk_starfive_jh7110_vout_probe(struct platform_device *pdev)
 			"u0_dom_vout_top_clk_dom_vout_top_bist_pclk",
 			0, 1, 1);
 	priv->pll[PLL_OFV(JH7110_DISP_APB)] =
-			clk_hw_register_fixed_rate(priv->dev,
-			"disp_apb", NULL, 0, 51200000);
+			devm_clk_hw_register_fixed_factor(priv->dev,
+			"disp_apb", "u0_pclk_mux_func_pclk", 0, 1, 1);
 	priv->pll[PLL_OFV(JH7110_U0_PCLK_MUX_FUNC_PCLK)] =
 			devm_clk_hw_register_fixed_factor(priv->dev,
 			"u0_pclk_mux_func_pclk", "apb", 0, 1, 1);
