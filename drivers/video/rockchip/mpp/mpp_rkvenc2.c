@@ -831,7 +831,7 @@ static void *rkvenc2_prepare(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	core_idle = queue->core_idle;
 	core_id_max = queue->core_id_max;
 
-	for (i = 0; i < core_id_max; i++) {
+	for (i = 0; i <= core_id_max; i++) {
 		struct mpp_dev *mpp = queue->cores[i];
 
 		if (mpp && mpp->disable)
