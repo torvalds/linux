@@ -24,13 +24,13 @@ Linux 内核用户空间API指南
 .. toctree::
    :maxdepth: 2
 
-   ebpf/index
    no_new_privs
+   seccomp_filter
+   ebpf/index
    sysfs-platform_profile
 
 TODOList:
 
-* seccomp_filter
 * landlock
 * unshare
 * spec_ctrl
