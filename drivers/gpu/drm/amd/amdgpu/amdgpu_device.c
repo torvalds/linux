@@ -4593,6 +4593,10 @@ bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev)
 	if (amdgpu_gpu_recovery == 0)
 		goto disabled;
 
+	/* Skip soft reset check in fatal error mode */
+	if (!amdgpu_ras_is_poison_mode_supported(adev))
+		return true;
+
 	if (!amdgpu_device_ip_check_soft_reset(adev)) {
 		dev_info(adev->dev,"Timeout, but no hardware hang detected.\n");
 		return false;
