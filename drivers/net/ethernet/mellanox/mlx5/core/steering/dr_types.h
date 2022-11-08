@@ -1397,6 +1397,7 @@ struct mlx5dr_qp {
 	struct mlx5_wq_ctrl wq_ctrl;
 	u32 qpn;
 	struct {
+		unsigned int head;
 		unsigned int pc;
 		unsigned int cc;
 		unsigned int size;
@@ -1473,6 +1474,8 @@ int mlx5dr_send_postsend_pattern(struct mlx5dr_domain *dmn,
 				 struct mlx5dr_icm_chunk *chunk,
 				 u16 num_of_actions,
 				 u8 *data);
+int mlx5dr_send_postsend_args(struct mlx5dr_domain *dmn, u64 arg_id,
+			      u16 num_of_actions, u8 *actions_data);
 
 int mlx5dr_send_info_pool_create(struct mlx5dr_domain *dmn);
 void mlx5dr_send_info_pool_destroy(struct mlx5dr_domain *dmn);
