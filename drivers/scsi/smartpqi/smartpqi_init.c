@@ -7255,7 +7255,7 @@ static ssize_t pqi_raid_level_show(struct device *dev,
 		return -ENODEV;
 	}
 
-	if (pqi_is_logical_device(device))
+	if (pqi_is_logical_device(device) && device->devtype == TYPE_DISK)
 		raid_level = pqi_raid_level_to_string(device->raid_level);
 	else
 		raid_level = "N/A";
