@@ -131,7 +131,7 @@ struct fiq_debugger_state {
 };
 
 #ifdef CONFIG_FIQ_DEBUGGER_CONSOLE
-struct tty_driver *fiq_tty_driver;
+static struct tty_driver *fiq_tty_driver;
 #endif
 
 #ifdef CONFIG_FIQ_DEBUGGER_NO_SLEEP
@@ -1315,6 +1315,7 @@ static int fiq_debugger_tty_init(void)
 {
 	int ret;
 	struct fiq_debugger_state **states = NULL;
+	struct tty_driver *drv;
 
 	states = kzalloc(sizeof(*states) * MAX_FIQ_DEBUGGER_PORTS, GFP_KERNEL);
 	if (!states) {
@@ -1322,12 +1323,13 @@ static int fiq_debugger_tty_init(void)
 		return -ENOMEM;
 	}
 
-	fiq_tty_driver = alloc_tty_driver(MAX_FIQ_DEBUGGER_PORTS);
-	if (!fiq_tty_driver) {
+	drv = tty_alloc_driver(MAX_FIQ_DEBUGGER_PORTS, TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(drv)) {
 		pr_err("Failed to allocate fiq debugger tty\n");
 		ret = -ENOMEM;
 		goto err_free_state;
 	}
+	fiq_tty_driver = drv;
 
 	fiq_tty_driver->owner		= THIS_MODULE;
 	fiq_tty_driver->driver_name	= "fiq-debugger";
@@ -1335,8 +1337,6 @@ static int fiq_debugger_tty_init(void)
 	fiq_tty_driver->type		= TTY_DRIVER_TYPE_SERIAL;
 	fiq_tty_driver->subtype		= SERIAL_TYPE_NORMAL;
 	fiq_tty_driver->init_termios	= tty_std_termios;
-	fiq_tty_driver->flags		= TTY_DRIVER_REAL_RAW |
-					  TTY_DRIVER_DYNAMIC_DEV;
 	fiq_tty_driver->driver_state	= states;
 
 	fiq_tty_driver->init_termios.c_cflag =
