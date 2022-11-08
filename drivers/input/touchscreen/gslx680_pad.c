@@ -1042,15 +1042,15 @@ static int  gsl_ts_probe(struct i2c_client *client,
     ts->wake_pin=of_get_named_gpio_flags(np, "reset-gpio", 0, &wake_flags);
 
     ret = of_property_read_u32(np, "chip_id", &gsl_chip_id);
-    if(ret)
+    if (ret)
        gsl_chip_id = GSL680;
 
-       dev_info(&ts->client->dev, "[tp-gsl] gsl_chip_id =[%d] \n",gsl_chip_id);
-       for(i=0; i<ARRAY_SIZE(gsl_chip_info); i++) {
-           if (gsl_chip_info[i].chip_id == gsl_chip_id) {
-               ts->gsl_chip_info =  &gsl_chip_info[i];
-               break;
-           }
+    dev_info(&ts->client->dev, "[tp-gsl] gsl_chip_id =[%d] \n",gsl_chip_id);
+    for (i=0; i<ARRAY_SIZE(gsl_chip_info); i++) {
+        if (gsl_chip_info[i].chip_id == gsl_chip_id) {
+            ts->gsl_chip_info =  &gsl_chip_info[i];
+            break;
+        }
     }
 
     if (gpio_is_valid(ts->wake_pin)) {
