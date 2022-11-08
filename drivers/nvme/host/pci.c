@@ -1500,11 +1500,7 @@ static void nvme_disable_admin_queue(struct nvme_dev *dev, bool shutdown)
 {
 	struct nvme_queue *nvmeq = &dev->queues[0];
 
-	if (shutdown)
-		nvme_shutdown_ctrl(&dev->ctrl);
-	else
-		nvme_disable_ctrl(&dev->ctrl);
-
+	nvme_disable_ctrl(&dev->ctrl, shutdown);
 	nvme_poll_irqdisable(nvmeq);
 }
 
@@ -1819,7 +1815,14 @@ static int nvme_pci_configure_admin_queue(struct nvme_dev *dev)
 	    (readl(dev->bar + NVME_REG_CSTS) & NVME_CSTS_NSSRO))
 		writel(NVME_CSTS_NSSRO, dev->bar + NVME_REG_CSTS);
 
-	result = nvme_disable_ctrl(&dev->ctrl);
+	/*
+	 * If the device has been passed off to us in an enabled state, just
+	 * clear the enabled bit.  The spec says we should set the 'shutdown
+	 * notification bits', but doing so may cause the device to complete
+	 * commands to the admin queue ... and we don't know what memory that
+	 * might be pointing at!
+	 */
+	result = nvme_disable_ctrl(&dev->ctrl, false);
 	if (result < 0)
 		return result;
 
