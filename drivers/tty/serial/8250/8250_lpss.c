@@ -177,6 +177,9 @@ static int ehl_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 	 * matching with the registered General Purpose DMA controllers.
 	 */
 	up->dma = dma;
+
+	lpss->dma_maxburst = 16;
+
 	return 0;
 }
 
