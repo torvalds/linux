@@ -9172,15 +9172,10 @@ static int
 lpfc_els_rcv_farpr(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		   struct lpfc_nodelist  *ndlp)
 {
-	struct lpfc_dmabuf *pcmd;
-	uint32_t *lp;
 	uint32_t did;
 
 	did = get_job_els_rsp64_did(vport->phba, cmdiocb);
-	pcmd = cmdiocb->cmd_dmabuf;
-	lp = (uint32_t *)pcmd->virt;
 
-	lp++;
 	/* FARP-RSP received from DID <did> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0600 FARP-RSP received from DID x%x\n", did);
