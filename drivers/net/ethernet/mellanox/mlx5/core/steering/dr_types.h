@@ -72,6 +72,7 @@ enum mlx5dr_icm_type {
 	DR_ICM_TYPE_STE,
 	DR_ICM_TYPE_MODIFY_ACTION,
 	DR_ICM_TYPE_MODIFY_HDR_PTRN,
+	DR_ICM_TYPE_MAX,
 };
 
 static inline enum mlx5dr_icm_chunk_size
@@ -955,6 +956,8 @@ struct mlx5dr_domain {
 	struct list_head dbg_tbl_list;
 	struct mlx5dr_dbg_dump_info dump_info;
 	struct xarray definers_xa;
+	/* memory management statistics */
+	u32 num_buddies[DR_ICM_TYPE_MAX];
 };
 
 struct mlx5dr_table_rx_tx {

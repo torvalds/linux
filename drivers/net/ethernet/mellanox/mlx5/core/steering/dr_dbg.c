@@ -633,7 +633,7 @@ dr_dump_domain(struct seq_file *file, struct mlx5dr_domain *dmn)
 	u64 domain_id = DR_DBG_PTR_TO_ID(dmn);
 	int ret;
 
-	seq_printf(file, "%d,0x%llx,%d,0%x,%d,%u.%u.%u,%s,%d\n",
+	seq_printf(file, "%d,0x%llx,%d,0%x,%d,%u.%u.%u,%s,%d,%u,%u,%u\n",
 		   DR_DUMP_REC_TYPE_DOMAIN,
 		   domain_id, dmn->type, dmn->info.caps.gvmi,
 		   dmn->info.supp_sw_steering,
@@ -641,7 +641,10 @@ dr_dump_domain(struct seq_file *file, struct mlx5dr_domain *dmn)
 		   LINUX_VERSION_MAJOR, LINUX_VERSION_PATCHLEVEL,
 		   LINUX_VERSION_SUBLEVEL,
 		   pci_name(dmn->mdev->pdev),
-		   0); /* domain flags */
+		   0, /* domain flags */
+		   dmn->num_buddies[DR_ICM_TYPE_STE],
+		   dmn->num_buddies[DR_ICM_TYPE_MODIFY_ACTION],
+		   dmn->num_buddies[DR_ICM_TYPE_MODIFY_HDR_PTRN]);
 
 	ret = dr_dump_domain_info(file, &dmn->info, domain_id);
 	if (ret < 0)

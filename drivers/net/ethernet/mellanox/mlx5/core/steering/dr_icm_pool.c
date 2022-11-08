@@ -288,6 +288,8 @@ static int dr_icm_buddy_create(struct mlx5dr_icm_pool *pool)
 	/* add it to the -start- of the list in order to search in it first */
 	list_add(&buddy->list_node, &pool->buddy_mem_list);
 
+	pool->dmn->num_buddies[pool->icm_type]++;
+
 	return 0;
 
 err_cleanup_buddy:
@@ -301,12 +303,16 @@ free_mr:
 
 static void dr_icm_buddy_destroy(struct mlx5dr_icm_buddy_mem *buddy)
 {
+	enum mlx5dr_icm_type icm_type = buddy->pool->icm_type;
+
 	dr_icm_pool_mr_destroy(buddy->icm_mr);
 
 	mlx5dr_buddy_cleanup(buddy);
 
-	if (buddy->pool->icm_type == DR_ICM_TYPE_STE)
+	if (icm_type == DR_ICM_TYPE_STE)
 		dr_icm_buddy_cleanup_ste_cache(buddy);
+
+	buddy->pool->dmn->num_buddies[icm_type]--;
 
 	kvfree(buddy);
 }
