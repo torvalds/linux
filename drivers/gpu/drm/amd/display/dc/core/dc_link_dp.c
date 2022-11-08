@@ -5031,7 +5031,7 @@ static bool dpcd_read_sink_ext_caps(struct dc_link *link)
 	return true;
 }
 
-bool dp_retrieve_lttpr_cap(struct dc_link *link)
+enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link)
 {
 	uint8_t lttpr_dpcd_data[8];
 	enum dc_status status = DC_ERROR_UNEXPECTED;
@@ -5099,7 +5099,7 @@ bool dp_retrieve_lttpr_cap(struct dc_link *link)
 		CONN_DATA_DETECT(link, lttpr_dpcd_data, sizeof(lttpr_dpcd_data), "LTTPR Caps: ");
 
 	DC_LOG_DC("is_lttpr_present = %d\n", is_lttpr_present);
-	return is_lttpr_present;
+	return status;
 }
 
 bool dp_is_lttpr_present(struct dc_link *link)
@@ -5227,122 +5227,11 @@ static void retrieve_cable_id(struct dc_link *link)
 				&link->dpcd_caps.cable_id, &usbc_cable_id);
 }
 
-/* DPRX may take some time to respond to AUX messages after HPD asserted.
- * If AUX read unsuccessful, try to wake unresponsive DPRX by toggling DPCD SET_POWER (0x600).
- */
-static enum dc_status wa_try_to_wake_dprx(struct dc_link *link, uint64_t timeout_ms)
+static enum dc_status wake_up_aux_channel(struct dc_link *link)
 {
 	enum dc_status status = DC_ERROR_UNEXPECTED;
-	uint8_t dpcd_data = 0;
-	uint64_t start_ts = 0;
-	uint64_t current_ts = 0;
-	uint64_t time_taken_ms = 0;
-	enum dc_connection_type type = dc_connection_none;
-	bool lttpr_present;
-	bool vbios_lttpr_interop = link->dc->caps.vbios_lttpr_aware;
-
-	lttpr_present = dp_is_lttpr_present(link) ||
-			(!vbios_lttpr_interop || !link->dc->caps.extended_aux_timeout_support);
-	DC_LOG_DC("lttpr_present = %d.\n", lttpr_present ? 1 : 0);
-
-	/* Issue an AUX read to test DPRX responsiveness. If LTTPR is supported the first read is expected to
-	 * be to determine LTTPR capabilities. Otherwise trying to read power state should be an innocuous AUX read.
-	 */
-	if (lttpr_present)
-		status = core_link_read_dpcd(
-				link,
-				DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV,
-				&dpcd_data,
-				sizeof(dpcd_data));
-	else
-		status = core_link_read_dpcd(
-				link,
-				DP_SET_POWER,
-				&dpcd_data,
-				sizeof(dpcd_data));
-
-	if (status != DC_OK) {
-		DC_LOG_WARNING("%s: Read DPCD LTTPR_CAP failed - try to toggle DPCD SET_POWER for %lld ms.",
-				__func__,
-				timeout_ms);
-		start_ts = dm_get_timestamp(link->ctx);
-
-		do {
-			if (!dc_link_detect_sink(link, &type) || type == dc_connection_none)
-				break;
-
-			dpcd_data = DP_SET_POWER_D3;
-			status = core_link_write_dpcd(
-					link,
-					DP_SET_POWER,
-					&dpcd_data,
-					sizeof(dpcd_data));
-
-			dpcd_data = DP_SET_POWER_D0;
-			status = core_link_write_dpcd(
-					link,
-					DP_SET_POWER,
-					&dpcd_data,
-					sizeof(dpcd_data));
-
-			current_ts = dm_get_timestamp(link->ctx);
-			time_taken_ms = div_u64(dm_get_elapse_time_in_ns(link->ctx, current_ts, start_ts), 1000000);
-		} while (status != DC_OK && time_taken_ms < timeout_ms);
-
-		DC_LOG_WARNING("%s: DPCD SET_POWER %s after %lld ms%s",
-				__func__,
-				(status == DC_OK) ? "succeeded" : "failed",
-				time_taken_ms,
-				(type == dc_connection_none) ? ". Unplugged." : ".");
-	}
-
-	return status;
-}
-
-static bool retrieve_link_cap(struct dc_link *link)
-{
-	/* DP_ADAPTER_CAP - DP_DPCD_REV + 1 == 16 and also DP_DSC_BITS_PER_PIXEL_INC - DP_DSC_SUPPORT + 1 == 16,
-	 * which means size 16 will be good for both of those DPCD register block reads
-	 */
-	uint8_t dpcd_data[16];
-	/*Only need to read 1 byte starting from DP_DPRX_FEATURE_ENUMERATION_LIST.
-	 */
-	uint8_t dpcd_dprx_data = '\0';
-	uint8_t dpcd_power_state = '\0';
-
-	struct dp_device_vendor_id sink_id;
-	union down_stream_port_count down_strm_port_count;
-	union edp_configuration_cap edp_config_cap;
-	union dp_downstream_port_present ds_port = { 0 };
-	enum dc_status status = DC_ERROR_UNEXPECTED;
-	uint32_t read_dpcd_retry_cnt = 3;
 	uint32_t aux_channel_retry_cnt = 0;
-	int i;
-	struct dp_sink_hw_fw_revision dp_hw_fw_revision;
-	const uint32_t post_oui_delay = 30; // 30ms
-	bool is_lttpr_present = false;
-
-	memset(dpcd_data, '\0', sizeof(dpcd_data));
-	memset(&down_strm_port_count,
-		'\0', sizeof(union down_stream_port_count));
-	memset(&edp_config_cap, '\0',
-		sizeof(union edp_configuration_cap));
-
-	/* if extended timeout is supported in hardware,
-	 * default to LTTPR timeout (3.2ms) first as a W/A for DP link layer
-	 * CTS 4.2.1.1 regression introduced by CTS specs requirement update.
-	 */
-	dc_link_aux_try_to_configure_timeout(link->ddc,
-			LINK_AUX_DEFAULT_LTTPR_TIMEOUT_PERIOD);
-
-	/* Try to ensure AUX channel active before proceeding. */
-	if (link->dc->debug.aux_wake_wa.bits.enable_wa) {
-		uint64_t timeout_ms = link->dc->debug.aux_wake_wa.bits.timeout_ms;
-
-		if (link->dc->debug.aux_wake_wa.bits.use_default_timeout)
-			timeout_ms = LINK_AUX_WAKE_TIMEOUT_MS;
-		status = wa_try_to_wake_dprx(link, timeout_ms);
-	}
+	uint8_t dpcd_power_state = '\0';
 
 	while (status != DC_OK && aux_channel_retry_cnt < 10) {
 		status = core_link_read_dpcd(link, DP_SET_POWER,
@@ -5359,7 +5248,6 @@ static bool retrieve_link_cap(struct dc_link *link)
 		}
 	}
 
-	/* If aux channel is not active, return false and trigger another detect*/
 	if (status != DC_OK) {
 		dpcd_power_state = DP_SET_POWER_D0;
 		status = core_link_write_dpcd(
@@ -5374,12 +5262,56 @@ static bool retrieve_link_cap(struct dc_link *link)
 				DP_SET_POWER,
 				&dpcd_power_state,
 				sizeof(dpcd_power_state));
-		return false;
+		return DC_ERROR_UNEXPECTED;
 	}
 
-	is_lttpr_present = dp_retrieve_lttpr_cap(link);
+	return DC_OK;
+}
 
-	if (is_lttpr_present)
+static bool retrieve_link_cap(struct dc_link *link)
+{
+	/* DP_ADAPTER_CAP - DP_DPCD_REV + 1 == 16 and also DP_DSC_BITS_PER_PIXEL_INC - DP_DSC_SUPPORT + 1 == 16,
+	 * which means size 16 will be good for both of those DPCD register block reads
+	 */
+	uint8_t dpcd_data[16];
+	/*Only need to read 1 byte starting from DP_DPRX_FEATURE_ENUMERATION_LIST.
+	 */
+	uint8_t dpcd_dprx_data = '\0';
+
+	struct dp_device_vendor_id sink_id;
+	union down_stream_port_count down_strm_port_count;
+	union edp_configuration_cap edp_config_cap;
+	union dp_downstream_port_present ds_port = { 0 };
+	enum dc_status status = DC_ERROR_UNEXPECTED;
+	uint32_t read_dpcd_retry_cnt = 3;
+	int i;
+	struct dp_sink_hw_fw_revision dp_hw_fw_revision;
+	const uint32_t post_oui_delay = 30; // 30ms
+
+	memset(dpcd_data, '\0', sizeof(dpcd_data));
+	memset(&down_strm_port_count,
+		'\0', sizeof(union down_stream_port_count));
+	memset(&edp_config_cap, '\0',
+		sizeof(union edp_configuration_cap));
+
+	/* if extended timeout is supported in hardware,
+	 * default to LTTPR timeout (3.2ms) first as a W/A for DP link layer
+	 * CTS 4.2.1.1 regression introduced by CTS specs requirement update.
+	 */
+	dc_link_aux_try_to_configure_timeout(link->ddc,
+			LINK_AUX_DEFAULT_LTTPR_TIMEOUT_PERIOD);
+
+	status = dp_retrieve_lttpr_cap(link);
+
+	if (status != DC_OK) {
+		status = wake_up_aux_channel(link);
+		if (status == DC_OK)
+			dp_retrieve_lttpr_cap(link);
+		else
+			return false;
+	}
+
+	if (dp_is_lttpr_present(link))
 		configure_lttpr_mode_transparent(link);
 
 	/* Read DP tunneling information. */
@@ -5406,7 +5338,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 		return false;
 	}
 
-	if (!is_lttpr_present)
+	if (!dp_is_lttpr_present(link))
 		dc_link_aux_try_to_configure_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);
 
 	{
@@ -7339,19 +7271,7 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 			link->dc->hwss.unblank_stream(&pipes[i],
 					link_setting);
 
-			if (pipes[i].stream_res.audio) {
-				/* notify audio driver for
-				 * audio modes of monitor */
-				pipes[i].stream_res.audio->funcs->az_enable(
-						pipes[i].stream_res.audio);
-
-				/* un-mute audio */
-				/* TODO: audio should be per stream rather than
-				 * per link */
-				pipes[i].stream_res.stream_enc->funcs->
-				audio_mute_control(
-					pipes[i].stream_res.stream_enc, false);
-			}
+			link->dc->hwss.enable_audio_stream(&pipes[i]);
 		}
 	}
 }

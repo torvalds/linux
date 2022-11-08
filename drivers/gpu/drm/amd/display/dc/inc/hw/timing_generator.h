@@ -301,6 +301,11 @@ struct timing_generator_funcs {
 	void (*get_dsc_status)(struct timing_generator *optc,
 					uint32_t *dsc_mode);
 	void (*set_odm_bypass)(struct timing_generator *optc, const struct dc_crtc_timing *dc_crtc_timing);
+
+	/**
+	 * @set_odm_combine: Set up the ODM block to read from the correct
+	 * OPP(s) and turn on/off ODM memory.
+	 */
 	void (*set_odm_combine)(struct timing_generator *optc, int *opp_id, int opp_cnt,
 			struct dc_crtc_timing *timing);
 	void (*set_h_timing_div_manual_mode)(struct timing_generator *optc, bool manual_mode);

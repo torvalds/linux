@@ -219,10 +219,12 @@ extern int amdgpu_use_xgmi_p2p;
 extern int sched_policy;
 extern bool debug_evictions;
 extern bool no_system_mem_limit;
+extern int halt_if_hws_hang;
 #else
 static const int __maybe_unused sched_policy = KFD_SCHED_POLICY_HWS;
 static const bool __maybe_unused debug_evictions; /* = false */
 static const bool __maybe_unused no_system_mem_limit;
+static const int __maybe_unused halt_if_hws_hang;
 #endif
 #ifdef CONFIG_HSA_AMD_P2P
 extern bool pcie_p2p;
@@ -675,7 +677,7 @@ enum amd_hw_ip_block_type {
 	MAX_HWIP
 };
 
-#define HWIP_MAX_INSTANCE	11
+#define HWIP_MAX_INSTANCE	28
 
 #define HW_ID_MAX		300
 #define IP_VERSION(mj, mn, rv) (((mj) << 16) | ((mn) << 8) | (rv))

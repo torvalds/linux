@@ -988,6 +988,8 @@ int psp_ta_unload(struct psp_context *psp, struct ta_context *context)
 
 	ret = psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
 
+	context->resp_status = cmd->resp.status;
+
 	release_psp_cmd_buf(psp);
 
 	return ret;
@@ -1067,42 +1069,6 @@ int psp_ta_init_shared_buf(struct psp_context *psp,
 				      &mem_ctx->shared_bo,
 				      &mem_ctx->shared_mc_addr,
 				      &mem_ctx->shared_buf);
-}
-
-static void psp_prep_ta_invoke_indirect_cmd_buf(struct psp_gfx_cmd_resp *cmd,
-				       uint32_t ta_cmd_id,
-				       struct ta_context *context)
-{
-	cmd->cmd_id                         = GFX_CMD_ID_INVOKE_CMD;
-	cmd->cmd.cmd_invoke_cmd.session_id  = context->session_id;
-	cmd->cmd.cmd_invoke_cmd.ta_cmd_id   = ta_cmd_id;
-
-	cmd->cmd.cmd_invoke_cmd.buf.num_desc   = 1;
-	cmd->cmd.cmd_invoke_cmd.buf.total_size = context->mem_context.shared_mem_size;
-	cmd->cmd.cmd_invoke_cmd.buf.buf_desc[0].buf_size = context->mem_context.shared_mem_size;
-	cmd->cmd.cmd_invoke_cmd.buf.buf_desc[0].buf_phy_addr_lo =
-				     lower_32_bits(context->mem_context.shared_mc_addr);
-	cmd->cmd.cmd_invoke_cmd.buf.buf_desc[0].buf_phy_addr_hi =
-				     upper_32_bits(context->mem_context.shared_mc_addr);
-}
-
-int psp_ta_invoke_indirect(struct psp_context *psp,
-		  uint32_t ta_cmd_id,
-		  struct ta_context *context)
-{
-	int ret;
-	struct psp_gfx_cmd_resp *cmd = acquire_psp_cmd_buf(psp);
-
-	psp_prep_ta_invoke_indirect_cmd_buf(cmd, ta_cmd_id, context);
-
-	ret = psp_cmd_submit_buf(psp, NULL, cmd,
-				 psp->fence_buf_mc_addr);
-
-	context->resp_status = cmd->resp.status;
-
-	release_psp_cmd_buf(psp);
-
-	return ret;
 }
 
 static void psp_prep_ta_invoke_cmd_buf(struct psp_gfx_cmd_resp *cmd,
@@ -1547,7 +1513,7 @@ int psp_ras_terminate(struct psp_context *psp)
 	return ret;
 }
 
-static int psp_ras_initialize(struct psp_context *psp)
+int psp_ras_initialize(struct psp_context *psp)
 {
 	int ret;
 	uint32_t boot_cfg = 0xFF;
@@ -1559,6 +1525,11 @@ static int psp_ras_initialize(struct psp_context *psp)
 	 */
 	if (amdgpu_sriov_vf(adev))
 		return 0;
+
+	if (psp->ras_context.context.initialized) {
+		dev_warn(adev->dev, "RAS WARN: TA has already been loaded\n");
+		return 0;
+	}
 
 	if (!adev->psp.ras_context.context.bin_desc.size_bytes ||
 	    !adev->psp.ras_context.context.bin_desc.start_addr) {
@@ -1610,7 +1581,7 @@ static int psp_ras_initialize(struct psp_context *psp)
 	psp->ras_context.context.mem_context.shared_mem_size = PSP_RAS_SHARED_MEM_SIZE;
 	psp->ras_context.context.ta_load_type = GFX_CMD_ID_LOAD_TA;
 
-	if (!psp->ras_context.context.initialized) {
+	if (!psp->ras_context.context.mem_context.shared_buf) {
 		ret = psp_ta_init_shared_buf(psp, &psp->ras_context.context.mem_context);
 		if (ret)
 			return ret;
@@ -1631,7 +1602,6 @@ static int psp_ras_initialize(struct psp_context *psp)
 	else {
 		if (ras_cmd->ras_status)
 			dev_warn(psp->adev->dev, "RAS Init Status: 0x%X\n", ras_cmd->ras_status);
-		amdgpu_ras_fini(psp->adev);
 	}
 
 	return ret;
@@ -1938,10 +1908,15 @@ static int psp_securedisplay_initialize(struct psp_context *psp)
 	} else
 		return ret;
 
+	mutex_lock(&psp->securedisplay_context.mutex);
+
 	psp_prep_securedisplay_cmd_buf(psp, &securedisplay_cmd,
 			TA_SECUREDISPLAY_COMMAND__QUERY_TA);
 
 	ret = psp_securedisplay_invoke(psp, TA_SECUREDISPLAY_COMMAND__QUERY_TA);
+
+	mutex_unlock(&psp->securedisplay_context.mutex);
+
 	if (ret) {
 		psp_securedisplay_terminate(psp);
 		/* free securedisplay shared memory */
@@ -1990,11 +1965,7 @@ int psp_securedisplay_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	    ta_cmd_id != TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC)
 		return -EINVAL;
 
-	mutex_lock(&psp->securedisplay_context.mutex);
-
 	ret = psp_ta_invoke(psp, ta_cmd_id, &psp->securedisplay_context.context);
-
-	mutex_unlock(&psp->securedisplay_context.mutex);
 
 	return ret;
 }

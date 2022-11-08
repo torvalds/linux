@@ -688,16 +688,6 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 		early_control = lane_count;
 
 	tg->funcs->set_early_control(tg, early_control);
-
-	/* enable audio only within mode set */
-	if (pipe_ctx->stream_res.audio != NULL) {
-		if (dc_is_dp_signal(pipe_ctx->stream->signal))
-			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_enable(pipe_ctx->stream_res.stream_enc);
-	}
-
-
-
-
 }
 
 static enum bp_result link_transmitter_control(
@@ -1081,12 +1071,14 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 	struct dc *dc;
 	struct clk_mgr *clk_mgr;
 	unsigned int i, num_audio = 1;
+	const struct link_hwss *link_hwss;
 
 	if (!pipe_ctx->stream)
 		return;
 
 	dc = pipe_ctx->stream->ctx->dc;
 	clk_mgr = dc->clk_mgr;
+	link_hwss = get_link_hwss(pipe_ctx->stream->link, &pipe_ctx->link_res);
 
 	if (pipe_ctx->stream_res.audio && pipe_ctx->stream_res.audio->enabled == true)
 		return;
@@ -1103,55 +1095,34 @@ void dce110_enable_audio_stream(struct pipe_ctx *pipe_ctx)
 		if (num_audio >= 1 && clk_mgr->funcs->enable_pme_wa)
 			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
 			clk_mgr->funcs->enable_pme_wa(clk_mgr);
-		/* un-mute audio */
-		/* TODO: audio should be per stream rather than per link */
-		if (is_dp_128b_132b_signal(pipe_ctx))
-			pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->audio_mute_control(
-					pipe_ctx->stream_res.hpo_dp_stream_enc, false);
-		else
-			pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
-					pipe_ctx->stream_res.stream_enc, false);
+
+		link_hwss->enable_audio_packet(pipe_ctx);
+
 		if (pipe_ctx->stream_res.audio)
 			pipe_ctx->stream_res.audio->enabled = true;
 	}
-
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		dp_source_sequence_trace(pipe_ctx->stream->link, DPCD_SOURCE_SEQ_AFTER_ENABLE_AUDIO_STREAM);
 }
 
 void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct dc *dc;
 	struct clk_mgr *clk_mgr;
+	const struct link_hwss *link_hwss;
 
 	if (!pipe_ctx || !pipe_ctx->stream)
 		return;
 
 	dc = pipe_ctx->stream->ctx->dc;
 	clk_mgr = dc->clk_mgr;
+	link_hwss = get_link_hwss(pipe_ctx->stream->link, &pipe_ctx->link_res);
 
 	if (pipe_ctx->stream_res.audio && pipe_ctx->stream_res.audio->enabled == false)
 		return;
 
-	if (is_dp_128b_132b_signal(pipe_ctx))
-		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->audio_mute_control(
-				pipe_ctx->stream_res.hpo_dp_stream_enc, true);
-	else
-		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
-				pipe_ctx->stream_res.stream_enc, true);
+	link_hwss->disable_audio_packet(pipe_ctx);
+
 	if (pipe_ctx->stream_res.audio) {
 		pipe_ctx->stream_res.audio->enabled = false;
-
-		if (dc_is_dp_signal(pipe_ctx->stream->signal))
-			if (is_dp_128b_132b_signal(pipe_ctx))
-				pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_audio_disable(
-						pipe_ctx->stream_res.hpo_dp_stream_enc);
-			else
-				pipe_ctx->stream_res.stream_enc->funcs->dp_audio_disable(
-						pipe_ctx->stream_res.stream_enc);
-		else
-			pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_disable(
-					pipe_ctx->stream_res.stream_enc);
 
 		if (clk_mgr->funcs->enable_pme_wa)
 			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
@@ -1163,9 +1134,6 @@ void dce110_disable_audio_stream(struct pipe_ctx *pipe_ctx)
 		 * stream->stream_engine_id);
 		 */
 	}
-
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		dp_source_sequence_trace(pipe_ctx->stream->link, DPCD_SOURCE_SEQ_AFTER_DISABLE_AUDIO_STREAM);
 }
 
 void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
@@ -1487,6 +1455,9 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	unsigned int event_triggers = 0;
 	struct pipe_ctx *odm_pipe = pipe_ctx->next_odm_pipe;
 	struct dce_hwseq *hws = dc->hwseq;
+	const struct link_hwss *link_hwss = get_link_hwss(
+			link, &pipe_ctx->link_res);
+
 
 	if (hws->funcs.disable_stream_gating) {
 		hws->funcs.disable_stream_gating(dc, pipe_ctx);
@@ -1497,23 +1468,8 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 		build_audio_output(context, pipe_ctx, &audio_output);
 
-		if (dc_is_dp_signal(pipe_ctx->stream->signal))
-			if (is_dp_128b_132b_signal(pipe_ctx))
-				pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_audio_setup(
-						pipe_ctx->stream_res.hpo_dp_stream_enc,
-						pipe_ctx->stream_res.audio->inst,
-						&pipe_ctx->stream->audio_info);
-			else
-				pipe_ctx->stream_res.stream_enc->funcs->dp_audio_setup(
-						pipe_ctx->stream_res.stream_enc,
-						pipe_ctx->stream_res.audio->inst,
-						&pipe_ctx->stream->audio_info);
-		else
-			pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_setup(
-					pipe_ctx->stream_res.stream_enc,
-					pipe_ctx->stream_res.audio->inst,
-					&pipe_ctx->stream->audio_info,
-					&audio_output.crtc_info);
+		link_hwss->setup_audio_output(pipe_ctx, &audio_output,
+				pipe_ctx->stream_res.audio->inst);
 
 		pipe_ctx->stream_res.audio->funcs->az_configure(
 				pipe_ctx->stream_res.audio,

@@ -115,6 +115,13 @@ struct resource_funcs {
 				int vlevel);
 	void (*update_soc_for_wm_a)(
 				struct dc *dc, struct dc_state *context);
+
+	/**
+	 * @populate_dml_pipes - Populate pipe data struct
+	 *
+	 * Returns:
+	 * Total of pipes available in the specific ASIC.
+	 */
 	int (*populate_dml_pipes)(
 		struct dc *dc,
 		struct dc_state *context,
@@ -413,7 +420,10 @@ struct pipe_ctx {
 
 	struct pll_settings pll_settings;
 
-	/* link config records software decision for what link config should be
+	/**
+	 * @link_config:
+	 *
+	 * link config records software decision for what link config should be
 	 * enabled given current link capability and stream during hw resource
 	 * mapping. This is to decouple the dependency on link capability during
 	 * dc commit or update.
@@ -507,33 +517,62 @@ struct bw_context {
 	union bw_output bw;
 	struct display_mode_lib dml;
 };
+
 /**
- * struct dc_state - The full description of a state requested by a user
- *
- * @streams: Stream properties
- * @stream_status: The planes on a given stream
- * @res_ctx: Persistent state of resources
- * @bw_ctx: The output from bandwidth and watermark calculations and the DML
- * @pp_display_cfg: PowerPlay clocks and settings
- * @dcn_bw_vars: non-stack memory to support bandwidth calculations
- *
+ * struct dc_state - The full description of a state requested by users
  */
 struct dc_state {
+	/**
+	 * @streams: Stream state properties
+	 */
 	struct dc_stream_state *streams[MAX_PIPES];
+
+	/**
+	 * @stream_status: Planes status on a given stream
+	 */
 	struct dc_stream_status stream_status[MAX_PIPES];
+
+	/**
+	 * @stream_count: Total of streams in use
+	 */
 	uint8_t stream_count;
 	uint8_t stream_mask;
 
+	/**
+	 * @res_ctx: Persistent state of resources
+	 */
 	struct resource_context res_ctx;
 
+	/**
+	 * @bw_ctx: The output from bandwidth and watermark calculations and the DML
+	 *
+	 * Each context must have its own instance of VBA, and in order to
+	 * initialize and obtain IP and SOC, the base DML instance from DC is
+	 * initially copied into every context.
+	 */
 	struct bw_context bw_ctx;
 
-	/* Note: these are big structures, do *not* put on stack! */
+	/**
+	 * @pp_display_cfg: PowerPlay clocks and settings
+	 * Note: this is a big struct, do *not* put on stack!
+	 */
 	struct dm_pp_display_configuration pp_display_cfg;
+
+	/**
+	 * @dcn_bw_vars: non-stack memory to support bandwidth calculations
+	 * Note: this is a big struct, do *not* put on stack!
+	 */
 	struct dcn_bw_internal_vars dcn_bw_vars;
 
 	struct clk_mgr *clk_mgr;
 
+	/**
+	 * @refcount: refcount reference
+	 *
+	 * Notice that dc_state is used around the code to capture the current
+	 * context, so we need to pass it everywhere. That's why we want to use
+	 * kref in this struct.
+	 */
 	struct kref refcount;
 
 	struct {

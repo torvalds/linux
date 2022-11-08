@@ -423,25 +423,20 @@ void dc_dmub_srv_get_visual_confirm_color_cmd(struct dc *dc, struct pipe_ctx *pi
 
 #ifdef CONFIG_DRM_AMD_DC_DCN
 /**
- * ***********************************************************************************************
- * populate_subvp_cmd_drr_info: Helper to populate DRR pipe info for the DMCUB subvp command
+ * populate_subvp_cmd_drr_info - Helper to populate DRR pipe info for the DMCUB subvp command
  *
- * Populate the DMCUB SubVP command with DRR pipe info. All the information required for calculating
- * the SubVP + DRR microschedule is populated here.
+ * @dc: [in] current dc state
+ * @subvp_pipe: [in] pipe_ctx for the SubVP pipe
+ * @vblank_pipe: [in] pipe_ctx for the DRR pipe
+ * @pipe_data: [in] Pipe data which stores the VBLANK/DRR info
+ *
+ * Populate the DMCUB SubVP command with DRR pipe info. All the information
+ * required for calculating the SubVP + DRR microschedule is populated here.
  *
  * High level algorithm:
  * 1. Get timing for SubVP pipe, phantom pipe, and DRR pipe
  * 2. Calculate the min and max vtotal which supports SubVP + DRR microschedule
  * 3. Populate the drr_info with the min and max supported vtotal values
- *
- * @param [in] dc: current dc state
- * @param [in] subvp_pipe: pipe_ctx for the SubVP pipe
- * @param [in] vblank_pipe: pipe_ctx for the DRR pipe
- * @param [in] pipe_data: Pipe data which stores the VBLANK/DRR info
- *
- * @return: void
- *
- * ***********************************************************************************************
  */
 static void populate_subvp_cmd_drr_info(struct dc *dc,
 		struct pipe_ctx *subvp_pipe,
@@ -493,22 +488,18 @@ static void populate_subvp_cmd_drr_info(struct dc *dc,
 }
 
 /**
- * ***********************************************************************************************
- * populate_subvp_cmd_vblank_pipe_info: Helper to populate VBLANK pipe info for the DMUB subvp command
+ * populate_subvp_cmd_vblank_pipe_info - Helper to populate VBLANK pipe info for the DMUB subvp command
  *
- * Populate the DMCUB SubVP command with VBLANK pipe info. All the information required to calculate
- * the microschedule for SubVP + VBLANK case is stored in the pipe_data (subvp_data and vblank_data).
- * Also check if the VBLANK pipe is a DRR display -- if it is make a call to populate drr_info.
+ * @dc: [in] current dc state
+ * @context: [in] new dc state
+ * @cmd: [in] DMUB cmd to be populated with SubVP info
+ * @vblank_pipe: [in] pipe_ctx for the VBLANK pipe
+ * @cmd_pipe_index: [in] index for the pipe array in DMCUB SubVP cmd
  *
- * @param [in] dc: current dc state
- * @param [in] context: new dc state
- * @param [in] cmd: DMUB cmd to be populated with SubVP info
- * @param [in] vblank_pipe: pipe_ctx for the VBLANK pipe
- * @param [in] cmd_pipe_index: index for the pipe array in DMCUB SubVP cmd
- *
- * @return: void
- *
- * ***********************************************************************************************
+ * Populate the DMCUB SubVP command with VBLANK pipe info. All the information
+ * required to calculate the microschedule for SubVP + VBLANK case is stored in
+ * the pipe_data (subvp_data and vblank_data).  Also check if the VBLANK pipe
+ * is a DRR display -- if it is make a call to populate drr_info.
  */
 static void populate_subvp_cmd_vblank_pipe_info(struct dc *dc,
 		struct dc_state *context,
@@ -551,22 +542,18 @@ static void populate_subvp_cmd_vblank_pipe_info(struct dc *dc,
 }
 
 /**
- * ***********************************************************************************************
- * update_subvp_prefetch_end_to_mall_start: Helper for SubVP + SubVP case
+ * update_subvp_prefetch_end_to_mall_start - Helper for SubVP + SubVP case
  *
- * For SubVP + SubVP, we use a single vertical interrupt to start the microschedule for both
- * SubVP pipes. In order for this to work correctly, the MALL REGION of both SubVP pipes must
- * start at the same time. This function lengthens the prefetch end to mall start delay of the
- * SubVP pipe that has the shorter prefetch so that both MALL REGION's will start at the same time.
+ * @dc: [in] current dc state
+ * @context: [in] new dc state
+ * @cmd: [in] DMUB cmd to be populated with SubVP info
+ * @subvp_pipes: [in] Array of SubVP pipes (should always be length 2)
  *
- * @param [in] dc: current dc state
- * @param [in] context: new dc state
- * @param [in] cmd: DMUB cmd to be populated with SubVP info
- * @param [in] subvp_pipes: Array of SubVP pipes (should always be length 2)
- *
- * @return: void
- *
- * ***********************************************************************************************
+ * For SubVP + SubVP, we use a single vertical interrupt to start the
+ * microschedule for both SubVP pipes. In order for this to work correctly, the
+ * MALL REGION of both SubVP pipes must start at the same time. This function
+ * lengthens the prefetch end to mall start delay of the SubVP pipe that has
+ * the shorter prefetch so that both MALL REGION's will start at the same time.
  */
 static void update_subvp_prefetch_end_to_mall_start(struct dc *dc,
 		struct dc_state *context,
@@ -608,22 +595,17 @@ static void update_subvp_prefetch_end_to_mall_start(struct dc *dc,
 }
 
 /**
- * ***************************************************************************************
- * setup_subvp_dmub_command: Helper to populate the SubVP pipe info for the DMUB subvp command
+ * populate_subvp_cmd_pipe_info - Helper to populate the SubVP pipe info for the DMUB subvp command
  *
- * Populate the DMCUB SubVP command with SubVP pipe info. All the information required to
- * calculate the microschedule for the SubVP pipe is stored in the pipe_data of the DMCUB
- * SubVP command.
+ * @dc: [in] current dc state
+ * @context: [in] new dc state
+ * @cmd: [in] DMUB cmd to be populated with SubVP info
+ * @subvp_pipe: [in] pipe_ctx for the SubVP pipe
+ * @cmd_pipe_index: [in] index for the pipe array in DMCUB SubVP cmd
  *
- * @param [in] dc: current dc state
- * @param [in] context: new dc state
- * @param [in] cmd: DMUB cmd to be populated with SubVP info
- * @param [in] subvp_pipe: pipe_ctx for the SubVP pipe
- * @param [in] cmd_pipe_index: index for the pipe array in DMCUB SubVP cmd
- *
- * @return: void
- *
- * ***************************************************************************************
+ * Populate the DMCUB SubVP command with SubVP pipe info. All the information
+ * required to calculate the microschedule for the SubVP pipe is stored in the
+ * pipe_data of the DMCUB SubVP command.
  */
 static void populate_subvp_cmd_pipe_info(struct dc *dc,
 		struct dc_state *context,
@@ -703,19 +685,14 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 }
 
 /**
- * ***************************************************************************************
- * dc_dmub_setup_subvp_dmub_command: Populate the DMCUB SubVP command
+ * dc_dmub_setup_subvp_dmub_command - Populate the DMCUB SubVP command
  *
- * This function loops through each pipe and populates the DMUB
- * SubVP CMD info based on the pipe (e.g. SubVP, VBLANK).
+ * @dc: [in] current dc state
+ * @context: [in] new dc state
+ * @cmd: [in] DMUB cmd to be populated with SubVP info
  *
- * @param [in] dc: current dc state
- * @param [in] context: new dc state
- * @param [in] cmd: DMUB cmd to be populated with SubVP info
- *
- * @return: void
- *
- * ***************************************************************************************
+ * This function loops through each pipe and populates the DMUB SubVP CMD info
+ * based on the pipe (e.g. SubVP, VBLANK).
  */
 void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 		struct dc_state *context,
@@ -962,19 +939,14 @@ static void dc_build_cursor_attribute_update_payload1(
 }
 
 /**
- * ***************************************************************************************
- * dc_send_update_cursor_info_to_dmu: Populate the DMCUB Cursor update info command
+ * dc_send_update_cursor_info_to_dmu - Populate the DMCUB Cursor update info command
  *
- * This function would store the cursor related information and pass it into dmub
+ * @pCtx: [in] pipe context
+ * @pipe_idx: [in] pipe index
  *
- * @param [in] pCtx: pipe context
- * @param [in] pipe_idx: pipe index
- *
- * @return: void
- *
- * ***************************************************************************************
+ * This function would store the cursor related information and pass it into
+ * dmub
  */
-
 void dc_send_update_cursor_info_to_dmu(
 		struct pipe_ctx *pCtx, uint8_t pipe_idx)
 {

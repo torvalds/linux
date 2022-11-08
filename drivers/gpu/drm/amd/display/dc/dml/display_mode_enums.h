@@ -105,14 +105,39 @@ enum source_macro_tile_size {
 enum cursor_bpp {
 	dm_cur_2bit = 0, dm_cur_32bit = 1, dm_cur_64bit = 2
 };
+
+/**
+ * @enum clock_change_support - It represents possible reasons to change the DRAM clock.
+ *
+ * DC may change the DRAM clock during its execution, and this enum tracks all
+ * the available methods. Note that every ASIC has their specific way to deal
+ * with these clock switch.
+ */
 enum clock_change_support {
+	/**
+	 * @dm_dram_clock_change_uninitialized: If you see this, we might have
+	 * a code initialization issue
+	 */
 	dm_dram_clock_change_uninitialized = 0,
+
+	/**
+	 * @dm_dram_clock_change_vactive: Support DRAM switch in VActive
+	 */
 	dm_dram_clock_change_vactive,
+
+	/**
+	 * @dm_dram_clock_change_vblank: Support DRAM switch in VBlank
+	 */
 	dm_dram_clock_change_vblank,
+
 	dm_dram_clock_change_vactive_w_mall_full_frame,
 	dm_dram_clock_change_vactive_w_mall_sub_vp,
 	dm_dram_clock_change_vblank_w_mall_full_frame,
 	dm_dram_clock_change_vblank_w_mall_sub_vp,
+
+	/**
+	 * @dm_dram_clock_change_unsupported: Do not support DRAM switch
+	 */
 	dm_dram_clock_change_unsupported
 };
 

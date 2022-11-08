@@ -455,6 +455,9 @@ static void sdma_v6_0_enable(struct amdgpu_device *adev, bool enable)
 		sdma_v6_0_rlc_stop(adev);
 	}
 
+	if (amdgpu_sriov_vf(adev))
+		return;
+
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		f32_cntl = RREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev, i, regSDMA0_F32_CNTL));
 		f32_cntl = REG_SET_FIELD(f32_cntl, SDMA0_F32_CNTL, HALT, enable ? 0 : 1);
@@ -1523,6 +1526,7 @@ static const struct amdgpu_ring_funcs sdma_v6_0_ring_funcs = {
 	.align_mask = 0xf,
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = true,
+	.secure_submission_supported = true,
 	.vmhub = AMDGPU_GFXHUB_0,
 	.get_rptr = sdma_v6_0_ring_get_rptr,
 	.get_wptr = sdma_v6_0_ring_get_wptr,

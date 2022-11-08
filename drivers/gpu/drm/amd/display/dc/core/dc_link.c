@@ -4229,6 +4229,7 @@ static void fpga_dp_hpo_enable_link_and_stream(struct dc_state *state, struct pi
 		link_hwss->ext.set_throttled_vcp_size(pipe_ctx, avg_time_slots_per_mtp);
 
 	dc->hwss.unblank_stream(pipe_ctx, &stream->link->cur_link_settings);
+	dc->hwss.enable_audio_stream(pipe_ctx);
 }
 
 void core_link_enable_stream(
@@ -4308,10 +4309,7 @@ void core_link_enable_stream(
 			/* Still enable stream features & audio on seamless boot for DP external displays */
 			if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT) {
 				enable_stream_features(pipe_ctx);
-				if (pipe_ctx->stream_res.audio != NULL) {
-					pipe_ctx->stream_res.stream_enc->funcs->dp_audio_enable(pipe_ctx->stream_res.stream_enc);
-					dc->hwss.enable_audio_stream(pipe_ctx);
-				}
+				dc->hwss.enable_audio_stream(pipe_ctx);
 			}
 
 #if defined(CONFIG_DRM_AMD_DC_HDCP)

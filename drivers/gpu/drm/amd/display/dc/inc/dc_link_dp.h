@@ -193,7 +193,7 @@ enum dc_status dpcd_configure_lttpr_mode(
 		struct link_training_settings *lt_settings);
 
 enum dp_link_encoding dp_get_link_encoding_format(const struct dc_link_settings *link_settings);
-bool dp_retrieve_lttpr_cap(struct dc_link *link);
+enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link);
 bool dp_is_lttpr_present(struct dc_link *link);
 enum lttpr_mode dp_decide_lttpr_mode(struct dc_link *link, struct dc_link_settings *link_setting);
 void dp_get_lttpr_mode_override(struct dc_link *link, enum lttpr_mode *override);

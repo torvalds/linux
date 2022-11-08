@@ -1561,7 +1561,6 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 {
 	bool poison_stat = false;
 	struct amdgpu_device *adev = obj->adev;
-	struct ras_err_data err_data = {0, 0, 0, NULL};
 	struct amdgpu_ras_block_object *block_obj =
 		amdgpu_ras_get_ras_block(adev, obj->head.block, 0);
 
@@ -1584,7 +1583,7 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 	}
 
 	if (!adev->gmc.xgmi.connected_to_cpu)
-		amdgpu_umc_poison_handler(adev, &err_data, false);
+		amdgpu_umc_poison_handler(adev, false);
 
 	if (block_obj->hw_ops->handle_poison_consumption)
 		poison_stat = block_obj->hw_ops->handle_poison_consumption(adev);
@@ -2848,7 +2847,6 @@ static int amdgpu_bad_page_notifier(struct notifier_block *nb,
 	struct amdgpu_device *adev = NULL;
 	uint32_t gpu_id = 0;
 	uint32_t umc_inst = 0, ch_inst = 0;
-	struct ras_err_data err_data = {0, 0, 0, NULL};
 
 	/*
 	 * If the error was generated in UMC_V2, which belongs to GPU UMCs,
@@ -2887,31 +2885,10 @@ static int amdgpu_bad_page_notifier(struct notifier_block *nb,
 	dev_info(adev->dev, "Uncorrectable error detected in UMC inst: %d, chan_idx: %d",
 			     umc_inst, ch_inst);
 
-	err_data.err_addr =
-		kcalloc(adev->umc.max_ras_err_cnt_per_query,
-			sizeof(struct eeprom_table_record), GFP_KERNEL);
-	if (!err_data.err_addr) {
-		dev_warn(adev->dev,
-			"Failed to alloc memory for umc error record in mca notifier!\n");
+	if (!amdgpu_umc_page_retirement_mca(adev, m->addr, ch_inst, umc_inst))
+		return NOTIFY_OK;
+	else
 		return NOTIFY_DONE;
-	}
-
-	/*
-	 * Translate UMC channel address to Physical address
-	 */
-	if (adev->umc.ras &&
-	    adev->umc.ras->convert_ras_error_address)
-		adev->umc.ras->convert_ras_error_address(adev,
-			&err_data, m->addr, ch_inst, umc_inst);
-
-	if (amdgpu_bad_page_threshold != 0) {
-		amdgpu_ras_add_bad_pages(adev, err_data.err_addr,
-						err_data.err_addr_cnt);
-		amdgpu_ras_save_bad_pages(adev);
-	}
-
-	kfree(err_data.err_addr);
-	return NOTIFY_OK;
 }
 
 static struct notifier_block amdgpu_bad_page_nb = {
