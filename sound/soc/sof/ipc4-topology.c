@@ -280,7 +280,7 @@ static void sof_ipc4_free_audio_fmt(struct sof_ipc4_available_audio_format *avai
 	available_fmt->out_audio_fmt = NULL;
 }
 
-static void sof_ipc4_widget_free_comp(struct snd_sof_widget *swidget)
+static void sof_ipc4_widget_free_comp_pipeline(struct snd_sof_widget *swidget)
 {
 	kfree(swidget->private);
 }
@@ -1884,7 +1884,8 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc4_widget_ops[SND_SOC_DAPM_TY
 				  dai_token_list, ARRAY_SIZE(dai_token_list), NULL,
 				  sof_ipc4_prepare_copier_module,
 				  sof_ipc4_unprepare_copier_module},
-	[snd_soc_dapm_scheduler] = {sof_ipc4_widget_setup_comp_pipeline, sof_ipc4_widget_free_comp,
+	[snd_soc_dapm_scheduler] = {sof_ipc4_widget_setup_comp_pipeline,
+				    sof_ipc4_widget_free_comp_pipeline,
 				    pipeline_token_list, ARRAY_SIZE(pipeline_token_list), NULL,
 				    NULL, NULL},
 	[snd_soc_dapm_pga] = {sof_ipc4_widget_setup_comp_pga, sof_ipc4_widget_free_comp_pga,
