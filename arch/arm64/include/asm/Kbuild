@@ -1,4 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
+syscall-y += syscall_table_32.h
+
+# arm32 syscall table used by lib/compat_audit.c:
+syscall-y += unistd_32.h
+# same constants with prefixes, used by vdso, seccomp and sigreturn:
+syscall-y += unistd_compat_32.h
+
 generic-y += early_ioremap.h
 generic-y += mcs_spinlock.h
 generic-y += qrwlock.h

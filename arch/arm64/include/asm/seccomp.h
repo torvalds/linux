@@ -24,7 +24,7 @@
 #define SECCOMP_ARCH_NATIVE_NAME	"aarch64"
 #ifdef CONFIG_COMPAT
 # define SECCOMP_ARCH_COMPAT		AUDIT_ARCH_ARM
-# define SECCOMP_ARCH_COMPAT_NR	__NR_compat_syscalls
+# define SECCOMP_ARCH_COMPAT_NR		__NR_compat32_syscalls
 # define SECCOMP_ARCH_COMPAT_NAME	"arm"
 #endif
 
