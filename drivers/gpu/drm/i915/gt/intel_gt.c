@@ -54,6 +54,7 @@ void intel_gt_common_init_early(struct intel_gt *gt)
 	seqcount_mutex_init(&gt->tlb.seqno, &gt->tlb.invalidate_lock);
 	intel_gt_pm_init_early(gt);
 
+	intel_wopcm_init_early(&gt->wopcm);
 	intel_uc_init_early(&gt->uc);
 	intel_rps_init_early(&gt->rps);
 }

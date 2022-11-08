@@ -62,7 +62,6 @@
 #include "intel_runtime_pm.h"
 #include "intel_step.h"
 #include "intel_uncore.h"
-#include "intel_wopcm.h"
 
 struct drm_i915_clock_gating_funcs;
 struct drm_i915_gem_object;
@@ -234,8 +233,6 @@ struct drm_i915_private {
 	struct i915_virtual_gpu vgpu;
 
 	struct intel_gvt *gvt;
-
-	struct intel_wopcm wopcm;
 
 	struct pci_dev *bridge_dev;
 
