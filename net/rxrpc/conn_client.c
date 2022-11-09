@@ -363,7 +363,8 @@ static struct rxrpc_bundle *rxrpc_prep_call(struct rxrpc_sock *rx,
 	if (!cp->peer)
 		goto error;
 
-	call->cong_cwnd = cp->peer->cong_cwnd;
+	call->tx_last_sent = ktime_get_real();
+	call->cong_ssthresh = cp->peer->cong_ssthresh;
 	if (call->cong_cwnd >= call->cong_ssthresh)
 		call->cong_mode = RXRPC_CALL_CONGEST_AVOIDANCE;
 	else

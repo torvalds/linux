@@ -24,6 +24,19 @@ static void rxrpc_local_processor(struct work_struct *);
 static void rxrpc_local_rcu(struct rcu_head *);
 
 /*
+ * Handle an ICMP/ICMP6 error turning up at the tunnel.  Push it through the
+ * usual mechanism so that it gets parsed and presented through the UDP
+ * socket's error_report().
+ */
+static void rxrpc_encap_err_rcv(struct sock *sk, struct sk_buff *skb, int err,
+				__be16 port, u32 info, u8 *payload)
+{
+	if (ip_hdr(skb)->version == IPVERSION)
+		return ip_icmp_error(sk, skb, err, port, info, payload);
+	return ipv6_icmp_error(sk, skb, err, port, info, payload);
+}
+
+/*
  * Compare a local to an address.  Return -ve, 0 or +ve to indicate less than,
  * same or greater than.
  *
@@ -84,6 +97,8 @@ static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
 		local->rxnet = rxnet;
 		INIT_HLIST_NODE(&local->link);
 		INIT_WORK(&local->processor, rxrpc_local_processor);
+		INIT_LIST_HEAD(&local->ack_tx_queue);
+		spin_lock_init(&local->ack_tx_lock);
 		init_rwsem(&local->defrag_sem);
 		skb_queue_head_init(&local->reject_queue);
 		skb_queue_head_init(&local->event_queue);
@@ -417,6 +432,11 @@ static void rxrpc_local_processor(struct work_struct *work)
 		if (!__rxrpc_use_local(local)) {
 			rxrpc_local_destroyer(local);
 			break;
+		}
+
+		if (!list_empty(&local->ack_tx_queue)) {
+			rxrpc_transmit_ack_packets(local);
+			again = true;
 		}
 
 		if (!skb_queue_empty(&local->reject_queue)) {

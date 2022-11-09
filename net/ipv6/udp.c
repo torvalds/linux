@@ -632,7 +632,8 @@ int __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	/* Tunnels don't have an application socket: don't pass errors back */
 	if (tunnel) {
 		if (udp_sk(sk)->encap_err_rcv)
-			udp_sk(sk)->encap_err_rcv(sk, skb, offset);
+			udp_sk(sk)->encap_err_rcv(sk, skb, err, uh->dest,
+						  ntohl(info), (u8 *)(uh+1));
 		goto out;
 	}
 
@@ -1639,6 +1640,7 @@ do_confirm:
 	err = 0;
 	goto out;
 }
+EXPORT_SYMBOL(udpv6_sendmsg);
 
 void udpv6_destroy_sock(struct sock *sk)
 {

@@ -30,6 +30,7 @@ rxrpc-y := \
 	sendmsg.o \
 	server_key.o \
 	skbuff.o \
+	txbuf.o \
 	utils.o
 
 rxrpc-$(CONFIG_PROC_FS) += proc.o

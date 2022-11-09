@@ -334,6 +334,7 @@ void ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 	if (sock_queue_err_skb(sk, skb))
 		kfree_skb(skb);
 }
+EXPORT_SYMBOL_GPL(ipv6_icmp_error);
 
 void ipv6_local_error(struct sock *sk, int err, struct flowi6 *fl6, u32 info)
 {

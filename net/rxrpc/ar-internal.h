@@ -29,6 +29,7 @@ struct rxrpc_crypt {
 
 struct key_preparsed_payload;
 struct rxrpc_connection;
+struct rxrpc_txbuf;
 
 /*
  * Mark applied to socket buffers in skb->mark.  skb->priority is used
@@ -93,6 +94,22 @@ struct rxrpc_net {
 	struct list_head	peer_keepalive_new;
 	struct timer_list	peer_keepalive_timer;
 	struct work_struct	peer_keepalive_work;
+
+	atomic_t		stat_tx_data;
+	atomic_t		stat_tx_data_retrans;
+	atomic_t		stat_tx_data_send;
+	atomic_t		stat_tx_data_send_frag;
+	atomic_t		stat_rx_data;
+	atomic_t		stat_rx_data_reqack;
+	atomic_t		stat_rx_data_jumbo;
+
+	atomic_t		stat_tx_ack_fill;
+	atomic_t		stat_tx_ack_send;
+	atomic_t		stat_tx_ack_skip;
+	atomic_t		stat_tx_acks[256];
+	atomic_t		stat_rx_acks[256];
+
+	atomic_t		stat_why_req_ack[8];
 };
 
 /*
@@ -178,20 +195,12 @@ struct rxrpc_host_header {
  * - max 48 bytes (struct sk_buff::cb)
  */
 struct rxrpc_skb_priv {
-	atomic_t	nr_ring_pins;		/* Number of rxtx ring pins */
-	u8		nr_subpackets;		/* Number of subpackets */
-	u8		rx_flags;		/* Received packet flags */
-#define RXRPC_SKB_INCL_LAST	0x01		/* - Includes last packet */
-#define RXRPC_SKB_TX_BUFFER	0x02		/* - Is transmit buffer */
-	union {
-		int		remain;		/* amount of space remaining for next write */
+	u16		offset;		/* Offset of data */
+	u16		len;		/* Length of data */
+	u8		flags;
+#define RXRPC_RX_VERIFIED	0x01
 
-		/* List of requested ACKs on subpackets */
-		unsigned long	rx_req_ack[(RXRPC_MAX_NR_JUMBO + BITS_PER_LONG - 1) /
-					   BITS_PER_LONG];
-	};
-
-	struct rxrpc_host_header hdr;		/* RxRPC packet header from this packet */
+	struct rxrpc_host_header hdr;	/* RxRPC packet header from this packet */
 };
 
 #define rxrpc_skb(__skb) ((struct rxrpc_skb_priv *) &(__skb)->cb)
@@ -233,18 +242,13 @@ struct rxrpc_security {
 			     size_t *, size_t *, size_t *);
 
 	/* impose security on a packet */
-	int (*secure_packet)(struct rxrpc_call *, struct sk_buff *, size_t);
+	int (*secure_packet)(struct rxrpc_call *, struct rxrpc_txbuf *);
 
 	/* verify the security on a received packet */
-	int (*verify_packet)(struct rxrpc_call *, struct sk_buff *,
-			     unsigned int, unsigned int, rxrpc_seq_t, u16);
+	int (*verify_packet)(struct rxrpc_call *, struct sk_buff *);
 
 	/* Free crypto request on a call */
 	void (*free_call_crypto)(struct rxrpc_call *);
-
-	/* Locate the data in a received packet that has been verified. */
-	void (*locate_data)(struct rxrpc_call *, struct sk_buff *,
-			    unsigned int *, unsigned int *);
 
 	/* issue a challenge */
 	int (*issue_challenge)(struct rxrpc_connection *);
@@ -276,6 +280,8 @@ struct rxrpc_local {
 	struct hlist_node	link;
 	struct socket		*socket;	/* my UDP socket */
 	struct work_struct	processor;
+	struct list_head	ack_tx_queue;	/* List of ACKs that need sending */
+	spinlock_t		ack_tx_lock;	/* ACK list lock */
 	struct rxrpc_sock __rcu	*service;	/* Service(s) listening on this endpoint */
 	struct rw_semaphore	defrag_sem;	/* control re-enablement of IP DF bit */
 	struct sk_buff_head	reject_queue;	/* packets awaiting rejection */
@@ -326,7 +332,7 @@ struct rxrpc_peer {
 	u32			rto_j;		/* Retransmission timeout in jiffies */
 	u8			backoff;	/* Backoff timeout */
 
-	u8			cong_cwnd;	/* Congestion window size */
+	u8			cong_ssthresh;	/* Congestion slow-start threshold */
 };
 
 /*
@@ -490,6 +496,7 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_EXPOSED,		/* The call was exposed to the world */
 	RXRPC_CALL_RX_LAST,		/* Received the last packet (at rxtx_top) */
 	RXRPC_CALL_TX_LAST,		/* Last packet in Tx buffer (at rxtx_top) */
+	RXRPC_CALL_TX_ALL_ACKED,	/* Last packet has been hard-acked */
 	RXRPC_CALL_SEND_PING,		/* A ping will need to be sent */
 	RXRPC_CALL_RETRANS_TIMEOUT,	/* Retransmission due to timeout occurred */
 	RXRPC_CALL_BEGAN_RX_TIMER,	/* We began the expect_rx_by timer */
@@ -498,16 +505,16 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_DISCONNECTED,	/* The call has been disconnected */
 	RXRPC_CALL_KERNEL,		/* The call was made by the kernel */
 	RXRPC_CALL_UPGRADE,		/* Service upgrade was requested for the call */
+	RXRPC_CALL_DELAY_ACK_PENDING,	/* DELAY ACK generation is pending */
+	RXRPC_CALL_IDLE_ACK_PENDING,	/* IDLE ACK generation is pending */
 };
 
 /*
  * Events that can be raised on a call.
  */
 enum rxrpc_call_event {
-	RXRPC_CALL_EV_ACK,		/* need to generate ACK */
 	RXRPC_CALL_EV_ABORT,		/* need to generate abort */
 	RXRPC_CALL_EV_RESEND,		/* Tx resend required */
-	RXRPC_CALL_EV_PING,		/* Ping send required */
 	RXRPC_CALL_EV_EXPIRED,		/* Expiry occurred */
 	RXRPC_CALL_EV_ACK_LOST,		/* ACK may be lost, send ping */
 };
@@ -566,7 +573,7 @@ struct rxrpc_call {
 	struct rxrpc_net	*rxnet;		/* Network namespace to which call belongs */
 	const struct rxrpc_security *security;	/* applied security module */
 	struct mutex		user_mutex;	/* User access mutex */
-	unsigned long		ack_at;		/* When deferred ACK needs to happen */
+	unsigned long		delay_ack_at;	/* When DELAY ACK needs to happen */
 	unsigned long		ack_lost_at;	/* When ACK is figured as lost */
 	unsigned long		resend_at;	/* When next resend needs to happen */
 	unsigned long		ping_at;	/* When next to send a ping */
@@ -576,7 +583,6 @@ struct rxrpc_call {
 	unsigned long		expect_term_by;	/* When we expect call termination by */
 	u32			next_rx_timo;	/* Timeout for next Rx packet (jif) */
 	u32			next_req_timo;	/* Timeout for next Rx request packet (jif) */
-	struct skcipher_request	*cipher_req;	/* Packet cipher request buffer */
 	struct timer_list	timer;		/* Combined event timer */
 	struct work_struct	processor;	/* Event processor */
 	rxrpc_notify_rx_t	notify_rx;	/* kernel service Rx notification function */
@@ -587,14 +593,12 @@ struct rxrpc_call {
 	struct list_head	recvmsg_link;	/* Link in rx->recvmsg_q */
 	struct list_head	sock_link;	/* Link in rx->sock_calls */
 	struct rb_node		sock_node;	/* Node in rx->calls */
-	struct sk_buff		*tx_pending;	/* Tx socket buffer being filled */
+	struct rxrpc_txbuf	*tx_pending;	/* Tx buffer being filled */
 	wait_queue_head_t	waitq;		/* Wait queue for channel or Tx */
 	s64			tx_total_len;	/* Total length left to be transmitted (or -1) */
-	__be32			crypto_buf[2];	/* Temporary packet crypto buffer */
 	unsigned long		user_call_ID;	/* user-defined call ID */
 	unsigned long		flags;
 	unsigned long		events;
-	spinlock_t		lock;
 	spinlock_t		notify_lock;	/* Kernel notification lock */
 	rwlock_t		state_lock;	/* lock for state transition */
 	u32			abort_code;	/* Local/remote abort code */
@@ -610,37 +614,27 @@ struct rxrpc_call {
 	int			debug_id;	/* debug ID for printks */
 	unsigned short		rx_pkt_offset;	/* Current recvmsg packet offset */
 	unsigned short		rx_pkt_len;	/* Current recvmsg packet len */
-	bool			rx_pkt_last;	/* Current recvmsg packet is last */
 
-	/* Rx/Tx circular buffer, depending on phase.
-	 *
-	 * In the Rx phase, packets are annotated with 0 or the number of the
-	 * segment of a jumbo packet each buffer refers to.  There can be up to
-	 * 47 segments in a maximum-size UDP packet.
-	 *
-	 * In the Tx phase, packets are annotated with which buffers have been
-	 * acked.
-	 */
-#define RXRPC_RXTX_BUFF_SIZE	64
-#define RXRPC_RXTX_BUFF_MASK	(RXRPC_RXTX_BUFF_SIZE - 1)
-#define RXRPC_INIT_RX_WINDOW_SIZE 63
-	struct sk_buff		**rxtx_buffer;
-	u8			*rxtx_annotations;
-#define RXRPC_TX_ANNO_ACK	0
-#define RXRPC_TX_ANNO_UNACK	1
-#define RXRPC_TX_ANNO_NAK	2
-#define RXRPC_TX_ANNO_RETRANS	3
-#define RXRPC_TX_ANNO_MASK	0x03
-#define RXRPC_TX_ANNO_LAST	0x04
-#define RXRPC_TX_ANNO_RESENT	0x08
-
-#define RXRPC_RX_ANNO_SUBPACKET	0x3f		/* Subpacket number in jumbogram */
-#define RXRPC_RX_ANNO_VERIFIED	0x80		/* Set if verified and decrypted */
-	rxrpc_seq_t		tx_hard_ack;	/* Dead slot in buffer; the first transmitted but
-						 * not hard-ACK'd packet follows this.
-						 */
+	/* Transmitted data tracking. */
+	spinlock_t		tx_lock;	/* Transmit queue lock */
+	struct list_head	tx_buffer;	/* Buffer of transmissible packets */
+	rxrpc_seq_t		tx_bottom;	/* First packet in buffer */
+	rxrpc_seq_t		tx_transmitted;	/* Highest packet transmitted */
 	rxrpc_seq_t		tx_top;		/* Highest Tx slot allocated. */
 	u16			tx_backoff;	/* Delay to insert due to Tx failure */
+	u8			tx_winsize;	/* Maximum size of Tx window */
+#define RXRPC_TX_MAX_WINDOW	128
+	ktime_t			tx_last_sent;	/* Last time a transmission occurred */
+
+	/* Received data tracking */
+	struct sk_buff_head	recvmsg_queue;	/* Queue of packets ready for recvmsg() */
+	struct sk_buff_head	rx_oos_queue;	/* Queue of out of sequence packets */
+
+	rxrpc_seq_t		rx_highest_seq;	/* Higest sequence number received */
+	rxrpc_seq_t		rx_consumed;	/* Highest packet consumed */
+	rxrpc_serial_t		rx_serial;	/* Highest serial received for this call */
+	u8			rx_winsize;	/* Size of Rx window */
+	spinlock_t		input_lock;	/* Lock for packet input to this call */
 
 	/* TCP-style slow-start congestion control [RFC5681].  Since the SMSS
 	 * is fixed, we keep these numbers in terms of segments (ie. DATA
@@ -655,25 +649,17 @@ struct rxrpc_call {
 	u8			cong_cumul_acks; /* Cumulative ACK count */
 	ktime_t			cong_tstamp;	/* Last time cwnd was changed */
 
-	rxrpc_seq_t		rx_hard_ack;	/* Dead slot in buffer; the first received but not
-						 * consumed packet follows this.
-						 */
-	rxrpc_seq_t		rx_top;		/* Highest Rx slot allocated. */
-	rxrpc_seq_t		rx_expect_next;	/* Expected next packet sequence number */
-	rxrpc_serial_t		rx_serial;	/* Highest serial received for this call */
-	u8			rx_winsize;	/* Size of Rx window */
-	u8			tx_winsize;	/* Maximum size of Tx window */
-	bool			tx_phase;	/* T if transmission phase, F if receive phase */
-	u8			nr_jumbo_bad;	/* Number of jumbo dups/exceeds-windows */
-
-	spinlock_t		input_lock;	/* Lock for packet input to this call */
-
 	/* Receive-phase ACK management (ACKs we send). */
 	u8			ackr_reason;	/* reason to ACK */
 	rxrpc_serial_t		ackr_serial;	/* serial of packet being ACK'd */
-	rxrpc_seq_t		ackr_highest_seq; /* Higest sequence number received */
+	atomic64_t		ackr_window;	/* Base (in LSW) and top (in MSW) of SACK window */
 	atomic_t		ackr_nr_unacked; /* Number of unacked packets */
 	atomic_t		ackr_nr_consumed; /* Number of packets needing hard ACK */
+	struct {
+#define RXRPC_SACK_SIZE 256
+		 /* SACK table for soft-acked packets */
+		u8		ackr_sack_table[RXRPC_SACK_SIZE];
+	} __aligned(8);
 
 	/* RTT management */
 	rxrpc_serial_t		rtt_serial[4];	/* Serial number of DATA or PING sent */
@@ -687,21 +673,24 @@ struct rxrpc_call {
 	ktime_t			acks_latest_ts;	/* Timestamp of latest ACK received */
 	rxrpc_seq_t		acks_first_seq;	/* first sequence number received */
 	rxrpc_seq_t		acks_prev_seq;	/* Highest previousPacket received */
+	rxrpc_seq_t		acks_hard_ack;	/* Latest hard-ack point */
 	rxrpc_seq_t		acks_lowest_nak; /* Lowest NACK in the buffer (or ==tx_hard_ack) */
 	rxrpc_seq_t		acks_lost_top;	/* tx_top at the time lost-ack ping sent */
 	rxrpc_serial_t		acks_lost_ping;	/* Serial number of probe ACK */
+	rxrpc_serial_t		acks_highest_serial; /* Highest serial number ACK'd */
+	struct sk_buff		*acks_soft_tbl;	/* The last ACK packet with NAKs in it */
+	spinlock_t		acks_ack_lock;	/* Access to ->acks_last_ack */
 };
 
 /*
  * Summary of a new ACK and the changes it made to the Tx buffer packet states.
  */
 struct rxrpc_ack_summary {
+	u16			nr_acks;		/* Number of ACKs in packet */
+	u16			nr_new_acks;		/* Number of new ACKs in packet */
+	u16			nr_rot_new_acks;	/* Number of rotated new ACKs */
 	u8			ack_reason;
-	u8			nr_acks;		/* Number of ACKs in packet */
-	u8			nr_nacks;		/* Number of NACKs in packet */
-	u8			nr_new_acks;		/* Number of new ACKs in packet */
-	u8			nr_new_nacks;		/* Number of new NACKs in packet */
-	u8			nr_rot_new_acks;	/* Number of rotated new ACKs */
+	bool			saw_nacks;		/* Saw NACKs in packet */
 	bool			new_low_nack;		/* T if new low NACK found */
 	bool			retrans_timeo;		/* T if reTx due to timeout happened */
 	u8			flight_size;		/* Number of unreceived transmissions */
@@ -744,12 +733,58 @@ struct rxrpc_send_params {
 	bool			upgrade;	/* If the connection is upgradeable */
 };
 
+/*
+ * Buffer of data to be output as a packet.
+ */
+struct rxrpc_txbuf {
+	struct rcu_head		rcu;
+	struct list_head	call_link;	/* Link in call->tx_queue */
+	struct list_head	tx_link;	/* Link in live Enc queue or Tx queue */
+	struct rxrpc_call	*call;		/* Call to which belongs */
+	ktime_t			last_sent;	/* Time at which last transmitted */
+	refcount_t		ref;
+	rxrpc_seq_t		seq;		/* Sequence number of this packet */
+	unsigned int		call_debug_id;
+	unsigned int		debug_id;
+	unsigned int		len;		/* Amount of data in buffer */
+	unsigned int		space;		/* Remaining data space */
+	unsigned int		offset;		/* Offset of fill point */
+	unsigned long		flags;
+#define RXRPC_TXBUF_LAST	0		/* Set if last packet in Tx phase */
+#define RXRPC_TXBUF_RESENT	1		/* Set if has been resent */
+	u8 /*enum rxrpc_propose_ack_trace*/ ack_why;	/* If ack, why */
+	struct {
+		/* The packet for encrypting and DMA'ing.  We align it such
+		 * that data[] aligns correctly for any crypto blocksize.
+		 */
+		u8		pad[64 - sizeof(struct rxrpc_wire_header)];
+		struct rxrpc_wire_header wire;	/* Network-ready header */
+		union {
+			u8	data[RXRPC_JUMBO_DATALEN]; /* Data packet */
+			struct {
+				struct rxrpc_ackpacket ack;
+				u8 acks[0];
+			};
+		};
+	} __aligned(64);
+};
+
+static inline bool rxrpc_sending_to_server(const struct rxrpc_txbuf *txb)
+{
+	return txb->wire.flags & RXRPC_CLIENT_INITIATED;
+}
+
+static inline bool rxrpc_sending_to_client(const struct rxrpc_txbuf *txb)
+{
+	return !rxrpc_sending_to_server(txb);
+}
+
 #include <trace/events/rxrpc.h>
 
 /*
  * af_rxrpc.c
  */
-extern atomic_t rxrpc_n_tx_skbs, rxrpc_n_rx_skbs;
+extern atomic_t rxrpc_n_rx_skbs;
 extern struct workqueue_struct *rxrpc_workqueue;
 
 /*
@@ -766,8 +801,12 @@ int rxrpc_user_charge_accept(struct rxrpc_sock *, unsigned long);
 /*
  * call_event.c
  */
-void rxrpc_propose_ACK(struct rxrpc_call *, u8, u32, bool, bool,
-		       enum rxrpc_propose_ack_trace);
+void rxrpc_propose_ping(struct rxrpc_call *call, u32 serial,
+			enum rxrpc_propose_ack_trace why);
+void rxrpc_send_ACK(struct rxrpc_call *, u8, rxrpc_serial_t, enum rxrpc_propose_ack_trace);
+void rxrpc_propose_delay_ACK(struct rxrpc_call *, rxrpc_serial_t,
+			     enum rxrpc_propose_ack_trace);
+void rxrpc_shrink_call_tx_buffer(struct rxrpc_call *);
 void rxrpc_process_call(struct work_struct *);
 
 void rxrpc_reduce_call_timer(struct rxrpc_call *call,
@@ -949,14 +988,11 @@ static inline bool __rxrpc_use_local(struct rxrpc_local *local)
  * misc.c
  */
 extern unsigned int rxrpc_max_backlog __read_mostly;
-extern unsigned long rxrpc_requested_ack_delay;
 extern unsigned long rxrpc_soft_ack_delay;
 extern unsigned long rxrpc_idle_ack_delay;
 extern unsigned int rxrpc_rx_window_size;
 extern unsigned int rxrpc_rx_mtu;
 extern unsigned int rxrpc_rx_jumbo_max;
-
-extern const s8 rxrpc_ack_priority[];
 
 /*
  * net_ns.c
@@ -972,16 +1008,15 @@ static inline struct rxrpc_net *rxrpc_net(struct net *net)
 /*
  * output.c
  */
-int rxrpc_send_ack_packet(struct rxrpc_call *, bool, rxrpc_serial_t *);
+void rxrpc_transmit_ack_packets(struct rxrpc_local *);
 int rxrpc_send_abort_packet(struct rxrpc_call *);
-int rxrpc_send_data_packet(struct rxrpc_call *, struct sk_buff *, bool);
+int rxrpc_send_data_packet(struct rxrpc_call *, struct rxrpc_txbuf *);
 void rxrpc_reject_packets(struct rxrpc_local *);
 void rxrpc_send_keepalive(struct rxrpc_peer *);
 
 /*
  * peer_event.c
  */
-void rxrpc_encap_err_rcv(struct sock *sk, struct sk_buff *skb, unsigned int udp_offset);
 void rxrpc_error_report(struct sock *);
 void rxrpc_peer_keepalive_worker(struct work_struct *);
 
@@ -1092,6 +1127,15 @@ void rxrpc_free_skb(struct sk_buff *, enum rxrpc_skb_trace);
 void rxrpc_purge_queue(struct sk_buff_head *);
 
 /*
+ * stats.c
+ */
+int rxrpc_stats_show(struct seq_file *seq, void *v);
+int rxrpc_stats_clear(struct file *file, char *buf, size_t size);
+
+#define rxrpc_inc_stat(rxnet, s) atomic_inc(&(rxnet)->s)
+#define rxrpc_dec_stat(rxnet, s) atomic_dec(&(rxnet)->s)
+
+/*
  * sysctl.c
  */
 #ifdef CONFIG_SYSCTL
@@ -1101,6 +1145,16 @@ extern void rxrpc_sysctl_exit(void);
 static inline int __init rxrpc_sysctl_init(void) { return 0; }
 static inline void rxrpc_sysctl_exit(void) {}
 #endif
+
+/*
+ * txbuf.c
+ */
+extern atomic_t rxrpc_nr_txbuf;
+struct rxrpc_txbuf *rxrpc_alloc_txbuf(struct rxrpc_call *call, u8 packet_type,
+				      gfp_t gfp);
+void rxrpc_get_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what);
+void rxrpc_see_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what);
+void rxrpc_put_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what);
 
 /*
  * utils.c

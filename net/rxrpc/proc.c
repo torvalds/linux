@@ -54,8 +54,9 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	struct rxrpc_call *call;
 	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
 	unsigned long timeout = 0;
-	rxrpc_seq_t tx_hard_ack, rx_hard_ack;
+	rxrpc_seq_t acks_hard_ack;
 	char lbuff[50], rbuff[50];
+	u64 wtmp;
 
 	if (v == &rxnet->calls) {
 		seq_puts(seq,
@@ -90,8 +91,8 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 		timeout -= jiffies;
 	}
 
-	tx_hard_ack = READ_ONCE(call->tx_hard_ack);
-	rx_hard_ack = READ_ONCE(call->rx_hard_ack);
+	acks_hard_ack = READ_ONCE(call->acks_hard_ack);
+	wtmp   = atomic64_read_acquire(&call->ackr_window);
 	seq_printf(seq,
 		   "UDP   %-47.47s %-47.47s %4x %08x %08x %s %3u"
 		   " %-8.8s %08x %08x %08x %02x %08x %02x %08x %06lx\n",
@@ -105,8 +106,8 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 		   rxrpc_call_states[call->state],
 		   call->abort_code,
 		   call->debug_id,
-		   tx_hard_ack, READ_ONCE(call->tx_top) - tx_hard_ack,
-		   rx_hard_ack, READ_ONCE(call->rx_top) - rx_hard_ack,
+		   acks_hard_ack, READ_ONCE(call->tx_top) - acks_hard_ack,
+		   lower_32_bits(wtmp), upper_32_bits(wtmp) - lower_32_bits(wtmp),
 		   call->rx_serial,
 		   timeout);
 
@@ -216,7 +217,7 @@ static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 		seq_puts(seq,
 			 "Proto Local                                          "
 			 " Remote                                         "
-			 " Use  CW   MTU LastUse      RTT      RTO\n"
+			 " Use SST   MTU LastUse      RTT      RTO\n"
 			 );
 		return 0;
 	}
@@ -234,7 +235,7 @@ static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 		   lbuff,
 		   rbuff,
 		   refcount_read(&peer->ref),
-		   peer->cong_cwnd,
+		   peer->cong_ssthresh,
 		   peer->mtu,
 		   now - peer->last_tx_at,
 		   peer->srtt_us >> 3,
@@ -397,3 +398,98 @@ const struct seq_operations rxrpc_local_seq_ops = {
 	.stop   = rxrpc_local_seq_stop,
 	.show   = rxrpc_local_seq_show,
 };
+
+/*
+ * Display stats in /proc/net/rxrpc/stats
+ */
+int rxrpc_stats_show(struct seq_file *seq, void *v)
+{
+	struct rxrpc_net *rxnet = rxrpc_net(seq_file_single_net(seq));
+
+	seq_printf(seq,
+		   "Data     : send=%u sendf=%u\n",
+		   atomic_read(&rxnet->stat_tx_data_send),
+		   atomic_read(&rxnet->stat_tx_data_send_frag));
+	seq_printf(seq,
+		   "Data-Tx  : nr=%u retrans=%u\n",
+		   atomic_read(&rxnet->stat_tx_data),
+		   atomic_read(&rxnet->stat_tx_data_retrans));
+	seq_printf(seq,
+		   "Data-Rx  : nr=%u reqack=%u jumbo=%u\n",
+		   atomic_read(&rxnet->stat_rx_data),
+		   atomic_read(&rxnet->stat_rx_data_reqack),
+		   atomic_read(&rxnet->stat_rx_data_jumbo));
+	seq_printf(seq,
+		   "Ack      : fill=%u send=%u skip=%u\n",
+		   atomic_read(&rxnet->stat_tx_ack_fill),
+		   atomic_read(&rxnet->stat_tx_ack_send),
+		   atomic_read(&rxnet->stat_tx_ack_skip));
+	seq_printf(seq,
+		   "Ack-Tx   : req=%u dup=%u oos=%u exw=%u nos=%u png=%u prs=%u dly=%u idl=%u\n",
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_REQUESTED]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_DUPLICATE]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_OUT_OF_SEQUENCE]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_EXCEEDS_WINDOW]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_NOSPACE]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_PING]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_PING_RESPONSE]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_DELAY]),
+		   atomic_read(&rxnet->stat_tx_acks[RXRPC_ACK_IDLE]));
+	seq_printf(seq,
+		   "Ack-Rx   : req=%u dup=%u oos=%u exw=%u nos=%u png=%u prs=%u dly=%u idl=%u\n",
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_REQUESTED]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_DUPLICATE]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_OUT_OF_SEQUENCE]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_EXCEEDS_WINDOW]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_NOSPACE]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_PING]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_PING_RESPONSE]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_DELAY]),
+		   atomic_read(&rxnet->stat_rx_acks[RXRPC_ACK_IDLE]));
+	seq_printf(seq,
+		   "Why-Req-A: acklost=%u already=%u mrtt=%u ortt=%u\n",
+		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_ack_lost]),
+		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_already_on]),
+		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_more_rtt]),
+		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_old_rtt]));
+	seq_printf(seq,
+		   "Why-Req-A: nolast=%u retx=%u slows=%u smtxw=%u\n",
+		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_no_srv_last]),
+		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_retrans]),
+		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_slow_start]),
+		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_small_txwin]));
+	seq_printf(seq,
+		   "Buffers  : txb=%u rxb=%u\n",
+		   atomic_read(&rxrpc_nr_txbuf),
+		   atomic_read(&rxrpc_n_rx_skbs));
+	return 0;
+}
+
+/*
+ * Clear stats if /proc/net/rxrpc/stats is written to.
+ */
+int rxrpc_stats_clear(struct file *file, char *buf, size_t size)
+{
+	struct seq_file *m = file->private_data;
+	struct rxrpc_net *rxnet = rxrpc_net(seq_file_single_net(m));
+
+	if (size > 1 || (size == 1 && buf[0] != '\n'))
+		return -EINVAL;
+
+	atomic_set(&rxnet->stat_tx_data, 0);
+	atomic_set(&rxnet->stat_tx_data_retrans, 0);
+	atomic_set(&rxnet->stat_tx_data_send, 0);
+	atomic_set(&rxnet->stat_tx_data_send_frag, 0);
+	atomic_set(&rxnet->stat_rx_data, 0);
+	atomic_set(&rxnet->stat_rx_data_reqack, 0);
+	atomic_set(&rxnet->stat_rx_data_jumbo, 0);
+
+	atomic_set(&rxnet->stat_tx_ack_fill, 0);
+	atomic_set(&rxnet->stat_tx_ack_send, 0);
+	atomic_set(&rxnet->stat_tx_ack_skip, 0);
+	memset(&rxnet->stat_tx_acks, 0, sizeof(rxnet->stat_tx_acks));
+	memset(&rxnet->stat_rx_acks, 0, sizeof(rxnet->stat_rx_acks));
+
+	memset(&rxnet->stat_why_req_ack, 0, sizeof(rxnet->stat_why_req_ack));
+	return size;
+}

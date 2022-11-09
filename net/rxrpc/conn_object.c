@@ -175,7 +175,7 @@ void __rxrpc_disconnect_call(struct rxrpc_connection *conn,
 		trace_rxrpc_disconnect_call(call);
 		switch (call->completion) {
 		case RXRPC_CALL_SUCCEEDED:
-			chan->last_seq = call->rx_hard_ack;
+			chan->last_seq = call->rx_highest_seq;
 			chan->last_type = RXRPC_PACKET_TYPE_ACK;
 			break;
 		case RXRPC_CALL_LOCALLY_ABORTED:
@@ -207,7 +207,7 @@ void rxrpc_disconnect_call(struct rxrpc_call *call)
 {
 	struct rxrpc_connection *conn = call->conn;
 
-	call->peer->cong_cwnd = call->cong_cwnd;
+	call->peer->cong_ssthresh = call->cong_ssthresh;
 
 	if (!hlist_unhashed(&call->error_link)) {
 		spin_lock_bh(&call->peer->lock);
