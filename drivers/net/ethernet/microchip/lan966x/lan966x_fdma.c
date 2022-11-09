@@ -54,6 +54,17 @@ static void lan966x_fdma_rx_free_pages(struct lan966x_rx *rx)
 	}
 }
 
+static void lan966x_fdma_rx_free_page(struct lan966x_rx *rx)
+{
+	struct page *page;
+
+	page = rx->page[rx->dcb_index][rx->db_index];
+	if (unlikely(!page))
+		return;
+
+	__free_pages(page, rx->page_order);
+}
+
 static void lan966x_fdma_rx_add_dcb(struct lan966x_rx *rx,
 				    struct lan966x_rx_dcb *dcb,
 				    u64 nextptr)
@@ -114,6 +125,12 @@ static int lan966x_fdma_rx_alloc(struct lan966x_rx *rx)
 	}
 
 	return 0;
+}
+
+static void lan966x_fdma_rx_advance_dcb(struct lan966x_rx *rx)
+{
+	rx->dcb_index++;
+	rx->dcb_index &= FDMA_DCB_MAX - 1;
 }
 
 static void lan966x_fdma_rx_free(struct lan966x_rx *rx)
@@ -403,37 +420,52 @@ static bool lan966x_fdma_rx_more_frames(struct lan966x_rx *rx)
 	return true;
 }
 
-static struct sk_buff *lan966x_fdma_rx_get_frame(struct lan966x_rx *rx)
+static int lan966x_fdma_rx_check_frame(struct lan966x_rx *rx, u64 *src_port)
 {
 	struct lan966x *lan966x = rx->lan966x;
-	u64 src_port, timestamp;
 	struct lan966x_db *db;
-	struct sk_buff *skb;
 	struct page *page;
 
-	/* Get the received frame and unmap it */
 	db = &rx->dcbs[rx->dcb_index].db[rx->db_index];
 	page = rx->page[rx->dcb_index][rx->db_index];
+	if (unlikely(!page))
+		return FDMA_ERROR;
 
 	dma_sync_single_for_cpu(lan966x->dev, (dma_addr_t)db->dataptr,
 				FDMA_DCB_STATUS_BLOCKL(db->status),
 				DMA_FROM_DEVICE);
 
-	skb = build_skb(page_address(page), PAGE_SIZE << rx->page_order);
-	if (unlikely(!skb))
-		goto unmap_page;
-
-	skb_put(skb, FDMA_DCB_STATUS_BLOCKL(db->status));
-
-	lan966x_ifh_get_src_port(skb->data, &src_port);
-	lan966x_ifh_get_timestamp(skb->data, &timestamp);
-
-	if (WARN_ON(src_port >= lan966x->num_phys_ports))
-		goto free_skb;
-
 	dma_unmap_single_attrs(lan966x->dev, (dma_addr_t)db->dataptr,
 			       PAGE_SIZE << rx->page_order, DMA_FROM_DEVICE,
 			       DMA_ATTR_SKIP_CPU_SYNC);
+
+	lan966x_ifh_get_src_port(page_address(page), src_port);
+	if (WARN_ON(*src_port >= lan966x->num_phys_ports))
+		return FDMA_ERROR;
+
+	return FDMA_PASS;
+}
+
+static struct sk_buff *lan966x_fdma_rx_get_frame(struct lan966x_rx *rx,
+						 u64 src_port)
+{
+	struct lan966x *lan966x = rx->lan966x;
+	struct lan966x_db *db;
+	struct sk_buff *skb;
+	struct page *page;
+	u64 timestamp;
+
+	/* Get the received frame and unmap it */
+	db = &rx->dcbs[rx->dcb_index].db[rx->db_index];
+	page = rx->page[rx->dcb_index][rx->db_index];
+
+	skb = build_skb(page_address(page), PAGE_SIZE << rx->page_order);
+	if (unlikely(!skb))
+		goto free_page;
+
+	skb_put(skb, FDMA_DCB_STATUS_BLOCKL(db->status));
+
+	lan966x_ifh_get_timestamp(skb->data, &timestamp);
 
 	skb->dev = lan966x->ports[src_port]->dev;
 	skb_pull(skb, IFH_LEN_BYTES);
@@ -457,12 +489,7 @@ static struct sk_buff *lan966x_fdma_rx_get_frame(struct lan966x_rx *rx)
 
 	return skb;
 
-free_skb:
-	kfree_skb(skb);
-unmap_page:
-	dma_unmap_single_attrs(lan966x->dev, (dma_addr_t)db->dataptr,
-			       PAGE_SIZE << rx->page_order, DMA_FROM_DEVICE,
-			       DMA_ATTR_SKIP_CPU_SYNC);
+free_page:
 	__free_pages(page, rx->page_order);
 
 	return NULL;
@@ -478,6 +505,7 @@ static int lan966x_fdma_napi_poll(struct napi_struct *napi, int weight)
 	struct sk_buff *skb;
 	struct page *page;
 	int counter = 0;
+	u64 src_port;
 	u64 nextptr;
 
 	lan966x_fdma_tx_clear_buf(lan966x, weight);
@@ -487,19 +515,26 @@ static int lan966x_fdma_napi_poll(struct napi_struct *napi, int weight)
 		if (!lan966x_fdma_rx_more_frames(rx))
 			break;
 
-		skb = lan966x_fdma_rx_get_frame(rx);
+		counter++;
 
-		rx->page[rx->dcb_index][rx->db_index] = NULL;
-		rx->dcb_index++;
-		rx->dcb_index &= FDMA_DCB_MAX - 1;
-
-		if (!skb)
+		switch (lan966x_fdma_rx_check_frame(rx, &src_port)) {
+		case FDMA_PASS:
 			break;
+		case FDMA_ERROR:
+			lan966x_fdma_rx_free_page(rx);
+			lan966x_fdma_rx_advance_dcb(rx);
+			goto allocate_new;
+		}
+
+		skb = lan966x_fdma_rx_get_frame(rx, src_port);
+		lan966x_fdma_rx_advance_dcb(rx);
+		if (!skb)
+			goto allocate_new;
 
 		napi_gro_receive(&lan966x->napi, skb);
-		counter++;
 	}
 
+allocate_new:
 	/* Allocate new pages and map them */
 	while (dcb_reload != rx->dcb_index) {
 		db = &rx->dcbs[dcb_reload].db[rx->db_index];

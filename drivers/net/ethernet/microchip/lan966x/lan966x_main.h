@@ -100,6 +100,15 @@ enum macaccess_entry_type {
 	ENTRYTYPE_MACV6,
 };
 
+/* FDMA return action codes for checking if the frame is valid
+ * FDMA_PASS, frame is valid and can be used
+ * FDMA_ERROR, something went wrong, stop getting more frames
+ */
+enum lan966x_fdma_action {
+	FDMA_PASS = 0,
+	FDMA_ERROR,
+};
+
 struct lan966x_port;
 
 struct lan966x_db {
