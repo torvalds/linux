@@ -862,10 +862,8 @@ static inline int set_breakpoint_8xx(struct arch_hw_breakpoint *brk)
 	return 0;
 }
 
-void __set_breakpoint(int nr, struct arch_hw_breakpoint *brk)
+static void set_hw_breakpoint(int nr, struct arch_hw_breakpoint *brk)
 {
-	memcpy(this_cpu_ptr(&current_brk[nr]), brk, sizeof(*brk));
-
 	if (dawr_enabled())
 		// Power8 or later
 		set_dawr(nr, brk);
@@ -879,6 +877,12 @@ void __set_breakpoint(int nr, struct arch_hw_breakpoint *brk)
 		WARN_ON_ONCE(1);
 }
 
+void __set_breakpoint(int nr, struct arch_hw_breakpoint *brk)
+{
+	memcpy(this_cpu_ptr(&current_brk[nr]), brk, sizeof(*brk));
+	set_hw_breakpoint(nr, brk);
+}
+
 /* Check if we have DAWR or DABR hardware */
 bool ppc_breakpoint_available(void)
 {
@@ -890,6 +894,34 @@ bool ppc_breakpoint_available(void)
 	return true;
 }
 EXPORT_SYMBOL_GPL(ppc_breakpoint_available);
+
+/* Disable the breakpoint in hardware without touching current_brk[] */
+void suspend_breakpoints(void)
+{
+	struct arch_hw_breakpoint brk = {0};
+	int i;
+
+	if (!ppc_breakpoint_available())
+		return;
+
+	for (i = 0; i < nr_wp_slots(); i++)
+		set_hw_breakpoint(i, &brk);
+}
+
+/*
+ * Re-enable breakpoints suspended by suspend_breakpoints() in hardware
+ * from current_brk[]
+ */
+void restore_breakpoints(void)
+{
+	int i;
+
+	if (!ppc_breakpoint_available())
+		return;
+
+	for (i = 0; i < nr_wp_slots(); i++)
+		set_hw_breakpoint(i, this_cpu_ptr(&current_brk[i]));
+}
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 
