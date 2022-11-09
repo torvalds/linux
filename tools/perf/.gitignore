@@ -39,6 +39,7 @@ trace/beauty/generated/
 pmu-events/pmu-events.c
 pmu-events/jevents
 feature/
+libapi/
 libbpf/
 libsubcmd/
 fixdep
