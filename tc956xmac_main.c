@@ -135,6 +135,8 @@
  *  VERSION     : 01-00-54
  *  02 Sep 2022 : 1. 2500Base-X support for line speeds 2.5Gbps, 1Gbps, 100Mbps.
  *  VERSION     : 01-00-55
+ *  09 Nov 2022 : 1. Update of fix for configuring Rx Parser when EEE is enabled
+ *  VERSION     : 01-00-57
  */
 
 #include <linux/clk.h>
@@ -7645,11 +7647,15 @@ int tc956xmac_rx_parser_configuration(struct tc956xmac_priv *priv)
 	struct ethtool_eee edata;
 
 	/* Disable EEE before configuring FRP */
-	if (priv->eee_active) {
-		
-		if (priv->hw->xpcs)
+	if (priv->eee_enabled) {
+
+		if (priv->hw->xpcs) {
 			tc956x_xpcs_ctrl0_lrx(priv, false);
-		else {
+			re_init_eee = 1;
+
+		} else if (priv->dev->phydev && priv->dev->phydev->link) {
+			/* Disable EEE only if PHY link is Up */
+
 			ret_val = phylink_ethtool_get_eee(priv->phylink, &edata);
 			if (ret_val)
 				KPRINT_INFO("Phylink get EEE error \n\r");
@@ -7677,8 +7683,9 @@ int tc956xmac_rx_parser_configuration(struct tc956xmac_priv *priv)
 				}
 			}
 			KPRINT_INFO("AN duration : %d \n\r", dly_cnt*10);
+
+			re_init_eee = 1;
 		}
-		re_init_eee = 1;
 	}
 
 	if (priv->hw->mac->rx_parser_init && priv->plat->rxp_cfg.enable)
