@@ -4,12 +4,17 @@
  */
 
 #include <linux/kprobes.h>
+#include <linux/mmu_context.h>
+#include <linux/random.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/cpuhotplug.h>
 #include <linux/uaccess.h>
 #include <linux/jump_label.h>
 
+#include <asm/debug.h>
+#include <asm/pgalloc.h>
+#include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/page.h>
 #include <asm/code-patching.h>
@@ -42,10 +47,53 @@ int raw_patch_instruction(u32 *addr, ppc_inst_t instr)
 }
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
+
 static DEFINE_PER_CPU(struct vm_struct *, text_poke_area);
+static DEFINE_PER_CPU(struct mm_struct *, cpu_patching_mm);
+static DEFINE_PER_CPU(unsigned long, cpu_patching_addr);
+static DEFINE_PER_CPU(pte_t *, cpu_patching_pte);
 
 static int map_patch_area(void *addr, unsigned long text_poke_addr);
 static void unmap_patch_area(unsigned long addr);
+
+static bool mm_patch_enabled(void)
+{
+	return IS_ENABLED(CONFIG_SMP) && radix_enabled();
+}
+
+/*
+ * The following applies for Radix MMU. Hash MMU has different requirements,
+ * and so is not supported.
+ *
+ * Changing mm requires context synchronising instructions on both sides of
+ * the context switch, as well as a hwsync between the last instruction for
+ * which the address of an associated storage access was translated using
+ * the current context.
+ *
+ * switch_mm_irqs_off() performs an isync after the context switch. It is
+ * the responsibility of the caller to perform the CSI and hwsync before
+ * starting/stopping the temp mm.
+ */
+static struct mm_struct *start_using_temp_mm(struct mm_struct *temp_mm)
+{
+	struct mm_struct *orig_mm = current->active_mm;
+
+	lockdep_assert_irqs_disabled();
+	switch_mm_irqs_off(orig_mm, temp_mm, current);
+
+	WARN_ON(!mm_is_thread_local(temp_mm));
+
+	suspend_breakpoints();
+	return orig_mm;
+}
+
+static void stop_using_temp_mm(struct mm_struct *temp_mm,
+			       struct mm_struct *orig_mm)
+{
+	lockdep_assert_irqs_disabled();
+	switch_mm_irqs_off(temp_mm, orig_mm, current);
+	restore_breakpoints();
+}
 
 static int text_area_cpu_up(unsigned int cpu)
 {
@@ -79,14 +127,86 @@ static int text_area_cpu_down(unsigned int cpu)
 	return 0;
 }
 
+static void put_patching_mm(struct mm_struct *mm, unsigned long patching_addr)
+{
+	struct mmu_gather tlb;
+
+	tlb_gather_mmu(&tlb, mm);
+	free_pgd_range(&tlb, patching_addr, patching_addr + PAGE_SIZE, 0, 0);
+	mmput(mm);
+}
+
+static int text_area_cpu_up_mm(unsigned int cpu)
+{
+	struct mm_struct *mm;
+	unsigned long addr;
+	pte_t *pte;
+	spinlock_t *ptl;
+
+	mm = mm_alloc();
+	if (WARN_ON(!mm))
+		goto fail_no_mm;
+
+	/*
+	 * Choose a random page-aligned address from the interval
+	 * [PAGE_SIZE .. DEFAULT_MAP_WINDOW - PAGE_SIZE].
+	 * The lower address bound is PAGE_SIZE to avoid the zero-page.
+	 */
+	addr = (1 + (get_random_long() % (DEFAULT_MAP_WINDOW / PAGE_SIZE - 2))) << PAGE_SHIFT;
+
+	/*
+	 * PTE allocation uses GFP_KERNEL which means we need to
+	 * pre-allocate the PTE here because we cannot do the
+	 * allocation during patching when IRQs are disabled.
+	 *
+	 * Using get_locked_pte() to avoid open coding, the lock
+	 * is unnecessary.
+	 */
+	pte = get_locked_pte(mm, addr, &ptl);
+	if (!pte)
+		goto fail_no_pte;
+	pte_unmap_unlock(pte, ptl);
+
+	this_cpu_write(cpu_patching_mm, mm);
+	this_cpu_write(cpu_patching_addr, addr);
+	this_cpu_write(cpu_patching_pte, pte);
+
+	return 0;
+
+fail_no_pte:
+	put_patching_mm(mm, addr);
+fail_no_mm:
+	return -ENOMEM;
+}
+
+static int text_area_cpu_down_mm(unsigned int cpu)
+{
+	put_patching_mm(this_cpu_read(cpu_patching_mm),
+			this_cpu_read(cpu_patching_addr));
+
+	this_cpu_write(cpu_patching_mm, NULL);
+	this_cpu_write(cpu_patching_addr, 0);
+	this_cpu_write(cpu_patching_pte, NULL);
+
+	return 0;
+}
+
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(poking_init_done);
 
 void __init poking_init(void)
 {
-	int ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
-				    "powerpc/text_poke:online",
-				    text_area_cpu_up,
-				    text_area_cpu_down);
+	int ret;
+
+	if (mm_patch_enabled())
+		ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
+					"powerpc/text_poke_mm:online",
+					text_area_cpu_up_mm,
+					text_area_cpu_down_mm);
+	else
+		ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
+					"powerpc/text_poke:online",
+					text_area_cpu_up,
+					text_area_cpu_down);
 
 	/* cpuhp_setup_state returns >= 0 on success */
 	if (WARN_ON(ret < 0))
@@ -148,6 +268,50 @@ static void unmap_patch_area(unsigned long addr)
 	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
 }
 
+static int __do_patch_instruction_mm(u32 *addr, ppc_inst_t instr)
+{
+	int err;
+	u32 *patch_addr;
+	unsigned long text_poke_addr;
+	pte_t *pte;
+	unsigned long pfn = get_patch_pfn(addr);
+	struct mm_struct *patching_mm;
+	struct mm_struct *orig_mm;
+
+	patching_mm = __this_cpu_read(cpu_patching_mm);
+	pte = __this_cpu_read(cpu_patching_pte);
+	text_poke_addr = __this_cpu_read(cpu_patching_addr);
+	patch_addr = (u32 *)(text_poke_addr + offset_in_page(addr));
+
+	__set_pte_at(patching_mm, text_poke_addr, pte, pfn_pte(pfn, PAGE_KERNEL), 0);
+
+	/* order PTE update before use, also serves as the hwsync */
+	asm volatile("ptesync": : :"memory");
+
+	/* order context switch after arbitrary prior code */
+	isync();
+
+	orig_mm = start_using_temp_mm(patching_mm);
+
+	err = __patch_instruction(addr, instr, patch_addr);
+
+	/* hwsync performed by __patch_instruction (sync) if successful */
+	if (err)
+		mb();  /* sync */
+
+	/* context synchronisation performed by __patch_instruction (isync or exception) */
+	stop_using_temp_mm(patching_mm, orig_mm);
+
+	pte_clear(patching_mm, text_poke_addr, pte);
+	/*
+	 * ptesync to order PTE update before TLB invalidation done
+	 * by radix__local_flush_tlb_page_psize (in _tlbiel_va)
+	 */
+	local_flush_tlb_page_psize(patching_mm, text_poke_addr, mmu_virtual_psize);
+
+	return err;
+}
+
 static int __do_patch_instruction(u32 *addr, ppc_inst_t instr)
 {
 	int err;
@@ -187,7 +351,10 @@ static int do_patch_instruction(u32 *addr, ppc_inst_t instr)
 		return raw_patch_instruction(addr, instr);
 
 	local_irq_save(flags);
-	err = __do_patch_instruction(addr, instr);
+	if (mm_patch_enabled())
+		err = __do_patch_instruction_mm(addr, instr);
+	else
+		err = __do_patch_instruction(addr, instr);
 	local_irq_restore(flags);
 
 	return err;
