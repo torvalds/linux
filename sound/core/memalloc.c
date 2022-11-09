@@ -20,7 +20,6 @@
 
 #define DEFAULT_GFP \
 	(GFP_KERNEL | \
-	 __GFP_COMP |    /* compound page lets parts be mapped */ \
 	 __GFP_RETRY_MAYFAIL | /* don't trigger OOM-killer */ \
 	 __GFP_NOWARN)   /* no stack trace print - this call is non-critical */
 
@@ -542,7 +541,7 @@ static void *snd_dma_noncontig_alloc(struct snd_dma_buffer *dmab, size_t size)
 	void *p;
 
 	sgt = dma_alloc_noncontiguous(dmab->dev.dev, size, dmab->dev.dir,
-				      DEFAULT_GFP, 0);
+				      DEFAULT_GFP | __GFP_COMP, 0);
 	if (!sgt) {
 #ifdef CONFIG_SND_DMA_SGBUF
 		if (dmab->dev.type == SNDRV_DMA_TYPE_DEV_WC_SG)
@@ -810,7 +809,7 @@ static void *snd_dma_noncoherent_alloc(struct snd_dma_buffer *dmab, size_t size)
 	void *p;
 
 	p = dma_alloc_noncoherent(dmab->dev.dev, size, &dmab->addr,
-				  dmab->dev.dir, DEFAULT_GFP);
+				  dmab->dev.dir, DEFAULT_GFP | __GFP_COMP);
 	if (p)
 		dmab->dev.need_sync = dma_need_sync(dmab->dev.dev, dmab->addr);
 	return p;
