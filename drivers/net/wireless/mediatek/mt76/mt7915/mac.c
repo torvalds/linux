@@ -3,6 +3,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/timekeeping.h>
+#include "coredump.h"
 #include "mt7915.h"
 #include "../dma.h"
 #include "mac.h"
@@ -1620,6 +1621,76 @@ void mt7915_mac_reset_work(struct work_struct *work)
 					     MT7915_WATCHDOG_TIME);
 }
 
+/* firmware coredump */
+void mt7915_mac_dump_work(struct work_struct *work)
+{
+	const struct mt7915_mem_region *mem_region;
+	struct mt7915_crash_data *crash_data;
+	struct mt7915_dev *dev;
+	struct mt7915_mem_hdr *hdr;
+	size_t buf_len;
+	int i;
+	u32 num;
+	u8 *buf;
+
+	dev = container_of(work, struct mt7915_dev, dump_work);
+
+	mutex_lock(&dev->dump_mutex);
+
+	crash_data = mt7915_coredump_new(dev);
+	if (!crash_data) {
+		mutex_unlock(&dev->dump_mutex);
+		goto skip_coredump;
+	}
+
+	mem_region = mt7915_coredump_get_mem_layout(dev, &num);
+	if (!mem_region || !crash_data->memdump_buf_len) {
+		mutex_unlock(&dev->dump_mutex);
+		goto skip_memdump;
+	}
+
+	buf = crash_data->memdump_buf;
+	buf_len = crash_data->memdump_buf_len;
+
+	/* dumping memory content... */
+	memset(buf, 0, buf_len);
+	for (i = 0; i < num; i++) {
+		if (mem_region->len > buf_len) {
+			dev_warn(dev->mt76.dev, "%s len %lu is too large\n",
+				 mem_region->name,
+				 (unsigned long)mem_region->len);
+			break;
+		}
+
+		/* reserve space for the header */
+		hdr = (void *)buf;
+		buf += sizeof(*hdr);
+		buf_len -= sizeof(*hdr);
+
+		mt7915_memcpy_fromio(dev, buf, mem_region->start,
+				     mem_region->len);
+
+		hdr->start = mem_region->start;
+		hdr->len = mem_region->len;
+
+		if (!mem_region->len)
+			/* note: the header remains, just with zero length */
+			break;
+
+		buf += mem_region->len;
+		buf_len -= mem_region->len;
+
+		mem_region++;
+	}
+
+	mutex_unlock(&dev->dump_mutex);
+
+skip_memdump:
+	mt7915_coredump_submit(dev);
+skip_coredump:
+	queue_work(dev->mt76.wq, &dev->reset_work);
+}
+
 void mt7915_reset(struct mt7915_dev *dev)
 {
 	if (!dev->recovery.hw_init_done)
@@ -1636,7 +1707,7 @@ void mt7915_reset(struct mt7915_dev *dev)
 			 wiphy_name(dev->mt76.hw->wiphy));
 
 		mt7915_irq_disable(dev, MT_INT_MCU_CMD);
-		queue_work(dev->mt76.wq, &dev->reset_work);
+		queue_work(dev->mt76.wq, &dev->dump_work);
 		return;
 	}
 

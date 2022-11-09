@@ -8,6 +8,7 @@
 #include "mt7915.h"
 #include "mac.h"
 #include "mcu.h"
+#include "coredump.h"
 #include "eeprom.h"
 
 static const struct ieee80211_iface_limit if_limits[] = {
@@ -1100,6 +1101,8 @@ int mt7915_register_device(struct mt7915_dev *dev)
 
 	init_waitqueue_head(&dev->reset_wait);
 	INIT_WORK(&dev->reset_work, mt7915_mac_reset_work);
+	INIT_WORK(&dev->dump_work, mt7915_mac_dump_work);
+	mutex_init(&dev->dump_mutex);
 
 	dev->dbdc_support = mt7915_band_config(dev);
 
@@ -1142,7 +1145,13 @@ int mt7915_register_device(struct mt7915_dev *dev)
 
 	dev->recovery.hw_init_done = true;
 
-	mt7915_init_debugfs(&dev->phy);
+	ret = mt7915_init_debugfs(&dev->phy);
+	if (ret)
+		goto unreg_thermal;
+
+	ret = mt7915_coredump_register(dev);
+	if (ret)
+		goto unreg_thermal;
 
 	return 0;
 
@@ -1161,6 +1170,7 @@ free_phy2:
 void mt7915_unregister_device(struct mt7915_dev *dev)
 {
 	mt7915_unregister_ext_phy(dev);
+	mt7915_coredump_unregister(dev);
 	mt7915_unregister_thermal(&dev->phy);
 	mt76_unregister_device(&dev->mt76);
 	mt7915_stop_hardware(dev);
