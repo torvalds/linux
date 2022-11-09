@@ -16,7 +16,6 @@
 	.eabi_attribute 26, 2
 	.eabi_attribute 30, 4
 	.eabi_attribute 34, 1
-	.eabi_attribute 18, 4
 	.file	"rk_ftl_arm_v7.c"
 	.syntax unified
 	.text

@@ -17,7 +17,6 @@
 	.eabi_attribute 26, 2
 	.eabi_attribute 30, 4
 	.eabi_attribute 34, 1
-	.eabi_attribute 18, 4
 	.file	"rk_ftlv5_arm_v8.c"
 	.text
 	.align	2
