@@ -2606,8 +2606,7 @@ static enum bp_result update_slot_layout_info(
 
 	for (;;) {
 
-		record_header = (ATOM_COMMON_RECORD_HEADER *)
-			GET_IMAGE(ATOM_COMMON_RECORD_HEADER, record_offset);
+		record_header = GET_IMAGE(ATOM_COMMON_RECORD_HEADER, record_offset);
 		if (record_header == NULL) {
 			result = BP_RESULT_BADBIOSTABLE;
 			break;
@@ -2621,7 +2620,7 @@ static enum bp_result update_slot_layout_info(
 
 		if (record_header->ucRecordType ==
 			ATOM_BRACKET_LAYOUT_RECORD_TYPE &&
-			sizeof(ATOM_BRACKET_LAYOUT_RECORD)
+			struct_size(record, asConnInfo, 1)
 			<= record_header->ucRecordSize) {
 			record = (ATOM_BRACKET_LAYOUT_RECORD *)
 				(record_header);
