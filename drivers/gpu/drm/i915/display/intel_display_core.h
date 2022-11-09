@@ -371,6 +371,16 @@ struct intel_display {
 	} hdcp;
 
 	struct {
+		/*
+		 * HTI (aka HDPORT) state read during initial hw readout. Most
+		 * platforms don't have HTI, so this will just stay 0. Those
+		 * that do will use this later to figure out which PLLs and PHYs
+		 * are unavailable for driver usage.
+		 */
+		u32 state;
+	} hti;
+
+	struct {
 		struct i915_power_domains domains;
 
 		/* Shadow for DISPLAY_PHY_CONTROL which can't be safely read */

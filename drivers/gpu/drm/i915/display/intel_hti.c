@@ -16,23 +16,23 @@ void intel_hti_init(struct drm_i915_private *i915)
 	 * any display resources before we create our display outputs.
 	 */
 	if (INTEL_INFO(i915)->display.has_hti)
-		i915->hti_state = intel_de_read(i915, HDPORT_STATE);
+		i915->display.hti.state = intel_de_read(i915, HDPORT_STATE);
 }
 
 bool intel_hti_uses_phy(struct drm_i915_private *i915, enum phy phy)
 {
-	return i915->hti_state & HDPORT_ENABLED &&
-		i915->hti_state & HDPORT_DDI_USED(phy);
+	return i915->display.hti.state & HDPORT_ENABLED &&
+		i915->display.hti.state & HDPORT_DDI_USED(phy);
 }
 
 u32 intel_hti_dpll_mask(struct drm_i915_private *i915)
 {
-	if (!(i915->hti_state & HDPORT_ENABLED))
+	if (!(i915->display.hti.state & HDPORT_ENABLED))
 		return 0;
 
 	/*
 	 * Note: This is subtle. The values must coincide with what's defined
 	 * for the platform.
 	 */
-	return REG_FIELD_GET(HDPORT_DPLL_USED_MASK, i915->hti_state);
+	return REG_FIELD_GET(HDPORT_DPLL_USED_MASK, i915->display.hti.state);
 }
