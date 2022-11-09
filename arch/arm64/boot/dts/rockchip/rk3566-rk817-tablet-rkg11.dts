@@ -170,6 +170,7 @@
 		pinctrl-0 = <&wifi_host_wake_irq>;
 		WIFI,vbat_gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
 		WIFI,host_wake_irq = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
+		WIFI,poweren_gpio = <&gpio2 RK_PB1 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
