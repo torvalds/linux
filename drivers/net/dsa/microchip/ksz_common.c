@@ -1039,6 +1039,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_statics = 16,
 		.cpu_ports = 0x07,	/* can be configured as cpu port */
 		.port_cnt = 3,		/* total port count */
+		.port_nirqs = 3,
 		.ops = &ksz9477_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1266,6 +1267,31 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.cpu_ports = 0x07,	/* can be configured as cpu port */
 		.port_cnt = 3,		/* total port count */
 		.port_nirqs = 2,
+		.ops = &ksz9477_dev_ops,
+		.mib_names = ksz9477_mib_names,
+		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
+		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.regs = ksz9477_regs,
+		.masks = ksz9477_masks,
+		.shifts = ksz9477_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
+		.xmii_ctrl1 = ksz8795_xmii_ctrl1, /* Same as ksz8795 */
+		.supports_mii = {false, false, true},
+		.supports_rmii = {false, false, true},
+		.supports_rgmii = {false, false, true},
+		.internal_phy = {true, true, false},
+		.gbit_capable = {true, true, true},
+	},
+
+	[KSZ9563] = {
+		.chip_id = KSZ9563_CHIP_ID,
+		.dev_name = "KSZ9563",
+		.num_vlans = 4096,
+		.num_alus = 4096,
+		.num_statics = 16,
+		.cpu_ports = 0x07,	/* can be configured as cpu port */
+		.port_cnt = 3,		/* total port count */
+		.port_nirqs = 3,
 		.ops = &ksz9477_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -2389,7 +2415,8 @@ static enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds,
 
 	if (dev->chip_id == KSZ8830_CHIP_ID ||
 	    dev->chip_id == KSZ8563_CHIP_ID ||
-	    dev->chip_id == KSZ9893_CHIP_ID)
+	    dev->chip_id == KSZ9893_CHIP_ID ||
+	    dev->chip_id == KSZ9563_CHIP_ID)
 		proto = DSA_TAG_PROTO_KSZ9893;
 
 	if (dev->chip_id == KSZ9477_CHIP_ID ||
@@ -2509,7 +2536,8 @@ static void ksz_set_xmii(struct ksz_device *dev, int port,
 		data8 |= bitval[P_RGMII_SEL];
 		/* On KSZ9893, disable RGMII in-band status support */
 		if (dev->chip_id == KSZ9893_CHIP_ID ||
-		    dev->chip_id == KSZ8563_CHIP_ID)
+		    dev->chip_id == KSZ8563_CHIP_ID ||
+		    dev->chip_id == KSZ9563_CHIP_ID)
 			data8 &= ~P_MII_MAC_MODE;
 		break;
 	default:
@@ -2782,6 +2810,8 @@ static int ksz_switch_detect(struct ksz_device *dev)
 
 			if (id4 == SKU_ID_KSZ8563)
 				dev->chip_id = KSZ8563_CHIP_ID;
+			else if (id4 == SKU_ID_KSZ9563)
+				dev->chip_id = KSZ9563_CHIP_ID;
 			else
 				dev->chip_id = KSZ9893_CHIP_ID;
 

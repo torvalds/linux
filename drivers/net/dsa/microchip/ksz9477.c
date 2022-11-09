@@ -195,7 +195,8 @@ int ksz9477_reset_switch(struct ksz_device *dev)
 
 	/* KSZ9893 compatible chips do not support refclk configuration */
 	if (dev->chip_id == KSZ9893_CHIP_ID ||
-	    dev->chip_id == KSZ8563_CHIP_ID)
+	    dev->chip_id == KSZ8563_CHIP_ID ||
+	    dev->chip_id == KSZ9563_CHIP_ID)
 		return 0;
 
 	data8 = SW_ENABLE_REFCLKO;
