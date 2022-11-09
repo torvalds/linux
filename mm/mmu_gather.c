@@ -48,7 +48,7 @@ static void tlb_batch_pages_flush(struct mmu_gather *tlb)
 	struct mmu_gather_batch *batch;
 
 	for (batch = &tlb->local; batch && batch->nr; batch = batch->next) {
-		struct page **pages = batch->pages;
+		struct encoded_page **pages = batch->encoded_pages;
 
 		do {
 			/*
@@ -77,7 +77,7 @@ static void tlb_batch_list_free(struct mmu_gather *tlb)
 	tlb->local.next = NULL;
 }
 
-bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page, int page_size)
+bool __tlb_remove_page_size(struct mmu_gather *tlb, struct encoded_page *page, int page_size)
 {
 	struct mmu_gather_batch *batch;
 
@@ -92,13 +92,13 @@ bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page, int page_
 	 * Add the page and check if we are full. If so
 	 * force a flush.
 	 */
-	batch->pages[batch->nr++] = page;
+	batch->encoded_pages[batch->nr++] = page;
 	if (batch->nr == batch->max) {
 		if (!tlb_next_batch(tlb))
 			return true;
 		batch = tlb->active;
 	}
-	VM_BUG_ON_PAGE(batch->nr > batch->max, page);
+	VM_BUG_ON_PAGE(batch->nr > batch->max, encoded_page_ptr(page));
 
 	return false;
 }
