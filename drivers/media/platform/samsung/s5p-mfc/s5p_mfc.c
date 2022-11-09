@@ -1164,7 +1164,6 @@ static int s5p_mfc_configure_2port_memory(struct s5p_mfc_dev *mfc_dev)
 	bank2_virt = dma_alloc_coherent(mfc_dev->mem_dev[BANK_R_CTX],
 				       align_size, &bank2_dma_addr, GFP_KERNEL);
 	if (!bank2_virt) {
-		mfc_err("Allocating bank2 base failed\n");
 		s5p_mfc_release_firmware(mfc_dev);
 		device_unregister(mfc_dev->mem_dev[BANK_R_CTX]);
 		device_unregister(mfc_dev->mem_dev[BANK_L_CTX]);
