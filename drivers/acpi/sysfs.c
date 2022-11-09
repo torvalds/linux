@@ -198,7 +198,7 @@ static int param_set_trace_method_name(const char *val,
 
 static int param_get_trace_method_name(char *buffer, const struct kernel_param *kp)
 {
-	return scnprintf(buffer, PAGE_SIZE, "%s\n", acpi_gbl_trace_method_name);
+	return sysfs_emit(buffer, "%s\n", acpi_gbl_trace_method_name);
 }
 
 static const struct kernel_param_ops param_ops_trace_method = {
