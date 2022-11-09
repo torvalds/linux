@@ -1035,6 +1035,16 @@ int wm_adsp_early_event(struct snd_soc_dapm_widget *w,
 }
 EXPORT_SYMBOL_GPL(wm_adsp_early_event);
 
+static int wm_adsp_pre_run(struct cs_dsp *cs_dsp)
+{
+	struct wm_adsp *dsp = container_of(cs_dsp, struct wm_adsp, cs_dsp);
+
+	if (!dsp->pre_run)
+		return 0;
+
+	return (*dsp->pre_run)(dsp);
+}
+
 static int wm_adsp_event_post_run(struct cs_dsp *cs_dsp)
 {
 	struct wm_adsp *dsp = container_of(cs_dsp, struct wm_adsp, cs_dsp);
@@ -2043,6 +2053,7 @@ static const struct cs_dsp_client_ops wm_adsp1_client_ops = {
 static const struct cs_dsp_client_ops wm_adsp2_client_ops = {
 	.control_add = wm_adsp_control_add,
 	.control_remove = wm_adsp_control_remove,
+	.pre_run = wm_adsp_pre_run,
 	.post_run = wm_adsp_event_post_run,
 	.post_stop = wm_adsp_event_post_stop,
 	.watchdog_expired = wm_adsp_fatal_error,
