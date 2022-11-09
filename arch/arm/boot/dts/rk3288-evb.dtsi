@@ -209,6 +209,8 @@
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
+	no-sdio;
+	no-sd;
 	disable-wp;
 	non-removable;
 	pinctrl-names = "default";
@@ -225,6 +227,8 @@
 	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
+	no-mmc;
+	no-sdio;
 	card-detect-delay = <200>;
 	disable-wp;			/* wp not hooked up */
 	pinctrl-names = "default";
