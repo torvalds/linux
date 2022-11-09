@@ -92,7 +92,6 @@ struct tegra234_slave_lookup {
 struct tegra234_cbb_fabric {
 	const char *name;
 	phys_addr_t off_mask_erd;
-	bool erd_mask_inband_err;
 	const char * const *master_id;
 	unsigned int notifier_offset;
 	const struct tegra_cbb_error *errors;
@@ -525,14 +524,14 @@ static irqreturn_t tegra234_cbb_isr(int irq, void *data)
 			if (err)
 				goto unlock;
 
-			mstr_id =  FIELD_GET(USRBITS_MSTR_ID, priv->mn_user_bits);
-
 			/*
-			 * If illegal request is from CCPLEX(id:0x1) master then call BUG() to
-			 * crash system.
+			 * If illegal request is from CCPLEX(id:0x1) master then call WARN()
 			 */
-			if ((mstr_id == 0x1) && priv->fabric->off_mask_erd)
-				is_inband_err = 1;
+			if (priv->fabric->off_mask_erd) {
+				mstr_id =  FIELD_GET(USRBITS_MSTR_ID, priv->mn_user_bits);
+				if (mstr_id == 0x1)
+					is_inband_err = 1;
+			}
 		}
 	}
 
