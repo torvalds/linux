@@ -1544,12 +1544,6 @@
 			compatible = "starfive,jh7110-display","verisilicon,display-subsystem";
 			ports = <&dc_out_dpi0>;
 			status = "disabled";
-			clocks = <&clkvout JH7110_U0_HDMI_TX_CLK_SYS>,
-			<&clkvout JH7110_U0_HDMI_TX_CLK_MCLK>,
-			<&clkvout JH7110_U0_HDMI_TX_CLK_BCLK>;
-			clock-names = "hdmi_sysclk","hdmi_mclk","hdmi_bclk";
-			resets = <&rstgen RSTN_U0_HDMI_TX_HDMI>;
-			reset-names = "hdmi_txrst";
 		};
 
 		dssctrl: dssctrl@295B0000 {

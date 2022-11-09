@@ -39,10 +39,6 @@ struct vs_drm_private {
 #endif
 
 	unsigned int pitch_alignment;
-	struct clk *vs_hdmi_sys_clk;
-	struct clk *vs_hdmi_mclk;
-	struct clk *vs_hdmi_bclk;
-	struct reset_control *vs_hdmi_tx_rst;
 };
 
 int vs_drm_iommu_attach_device(struct drm_device *drm_dev,
