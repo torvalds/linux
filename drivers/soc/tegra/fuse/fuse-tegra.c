@@ -35,6 +35,19 @@ static const char *tegra_revision_name[TEGRA_REVISION_MAX] = {
 	[TEGRA_REVISION_A04]     = "A04",
 };
 
+static const char *tegra_platform_name[TEGRA_PLATFORM_MAX] = {
+	[TEGRA_PLATFORM_SILICON]			= "Silicon",
+	[TEGRA_PLATFORM_QT]				= "QT",
+	[TEGRA_PLATFORM_SYSTEM_FPGA]			= "System FPGA",
+	[TEGRA_PLATFORM_UNIT_FPGA]			= "Unit FPGA",
+	[TEGRA_PLATFORM_ASIM_QT]			= "Asim QT",
+	[TEGRA_PLATFORM_ASIM_LINSIM]			= "Asim Linsim",
+	[TEGRA_PLATFORM_DSIM_ASIM_LINSIM]		= "Dsim Asim Linsim",
+	[TEGRA_PLATFORM_VERIFICATION_SIMULATION]	= "Verification Simulation",
+	[TEGRA_PLATFORM_VDK]				= "VDK",
+	[TEGRA_PLATFORM_VSP]				= "VSP",
+};
+
 static const struct of_device_id car_match[] __initconst = {
 	{ .compatible = "nvidia,tegra20-car", },
 	{ .compatible = "nvidia,tegra30-car", },
@@ -370,8 +383,13 @@ struct device * __init tegra_soc_device_register(void)
 		return NULL;
 
 	attr->family = kasprintf(GFP_KERNEL, "Tegra");
-	attr->revision = kasprintf(GFP_KERNEL, "%s",
-		tegra_revision_name[tegra_sku_info.revision]);
+	if (tegra_is_silicon())
+		attr->revision = kasprintf(GFP_KERNEL, "%s %s",
+					   tegra_platform_name[tegra_sku_info.platform],
+					   tegra_revision_name[tegra_sku_info.revision]);
+	else
+		attr->revision = kasprintf(GFP_KERNEL, "%s",
+					   tegra_platform_name[tegra_sku_info.platform]);
 	attr->soc_id = kasprintf(GFP_KERNEL, "%u", tegra_get_chip_id());
 	attr->custom_attr_group = fuse->soc->soc_attr_group;
 
