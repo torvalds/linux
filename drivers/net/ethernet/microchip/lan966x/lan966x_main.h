@@ -103,10 +103,12 @@ enum macaccess_entry_type {
 /* FDMA return action codes for checking if the frame is valid
  * FDMA_PASS, frame is valid and can be used
  * FDMA_ERROR, something went wrong, stop getting more frames
+ * FDMA_DROP, frame is dropped, but continue to get more frames
  */
 enum lan966x_fdma_action {
 	FDMA_PASS = 0,
 	FDMA_ERROR,
+	FDMA_DROP,
 };
 
 struct lan966x_port;
@@ -329,6 +331,9 @@ struct lan966x_port {
 	enum netdev_lag_hash hash_type;
 
 	struct lan966x_port_tc tc;
+
+	struct bpf_prog *xdp_prog;
+	struct xdp_rxq_info xdp_rxq;
 };
 
 extern const struct phylink_mac_ops lan966x_phylink_mac_ops;
@@ -535,6 +540,17 @@ int lan966x_mirror_port_del(struct lan966x_port *port,
 void lan966x_mirror_port_stats(struct lan966x_port *port,
 			       struct flow_stats *stats,
 			       bool ingress);
+
+int lan966x_xdp_port_init(struct lan966x_port *port);
+void lan966x_xdp_port_deinit(struct lan966x_port *port);
+int lan966x_xdp(struct net_device *dev, struct netdev_bpf *xdp);
+int lan966x_xdp_run(struct lan966x_port *port,
+		    struct page *page,
+		    u32 data_len);
+static inline bool lan966x_xdp_port_present(struct lan966x_port *port)
+{
+	return !!port->xdp_prog;
+}
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,

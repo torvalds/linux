@@ -423,6 +423,7 @@ static bool lan966x_fdma_rx_more_frames(struct lan966x_rx *rx)
 static int lan966x_fdma_rx_check_frame(struct lan966x_rx *rx, u64 *src_port)
 {
 	struct lan966x *lan966x = rx->lan966x;
+	struct lan966x_port *port;
 	struct lan966x_db *db;
 	struct page *page;
 
@@ -443,7 +444,11 @@ static int lan966x_fdma_rx_check_frame(struct lan966x_rx *rx, u64 *src_port)
 	if (WARN_ON(*src_port >= lan966x->num_phys_ports))
 		return FDMA_ERROR;
 
-	return FDMA_PASS;
+	port = lan966x->ports[*src_port];
+	if (!lan966x_xdp_port_present(port))
+		return FDMA_PASS;
+
+	return lan966x_xdp_run(port, page, FDMA_DCB_STATUS_BLOCKL(db->status));
 }
 
 static struct sk_buff *lan966x_fdma_rx_get_frame(struct lan966x_rx *rx,
@@ -524,6 +529,10 @@ static int lan966x_fdma_napi_poll(struct napi_struct *napi, int weight)
 			lan966x_fdma_rx_free_page(rx);
 			lan966x_fdma_rx_advance_dcb(rx);
 			goto allocate_new;
+		case FDMA_DROP:
+			lan966x_fdma_rx_free_page(rx);
+			lan966x_fdma_rx_advance_dcb(rx);
+			continue;
 		}
 
 		skb = lan966x_fdma_rx_get_frame(rx, src_port);
