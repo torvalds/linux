@@ -287,10 +287,10 @@ static int send_msg(struct memory_notify *mn, bool online, int count)
 			ret = aop_send_msg(__pfn_to_phys(start), online);
 
 		if (ret) {
-			pr_err("PASR: %s %s request addr:0x%llx failed\n",
+			pr_err("PASR: %s %s request addr:0x%llx failed, ret:%d\n",
 			       is_rpm_controller ? "RPM" : "AOP",
 			       online ? "online" : "offline",
-			       __pfn_to_phys(start));
+			       __pfn_to_phys(start), ret);
 			goto undo;
 		}
 
