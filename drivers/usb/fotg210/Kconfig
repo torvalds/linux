@@ -5,6 +5,7 @@ config USB_FOTG210
 	depends on USB || USB_GADGET
 	depends on HAS_DMA && HAS_IOMEM
 	default ARCH_GEMINI
+	select MFD_SYSCON
 	help
 	  Faraday FOTG210 is a dual-mode USB controller that can act
 	  in both host controller and peripheral controller mode.
