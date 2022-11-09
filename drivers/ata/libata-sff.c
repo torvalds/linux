@@ -184,62 +184,6 @@ void ata_sff_dma_pause(struct ata_port *ap)
 }
 EXPORT_SYMBOL_GPL(ata_sff_dma_pause);
 
-/**
- *	ata_sff_busy_sleep - sleep until BSY clears, or timeout
- *	@ap: port containing status register to be polled
- *	@tmout_pat: impatience timeout in msecs
- *	@tmout: overall timeout in msecs
- *
- *	Sleep until ATA Status register bit BSY clears,
- *	or a timeout occurs.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep).
- *
- *	RETURNS:
- *	0 on success, -errno otherwise.
- */
-int ata_sff_busy_sleep(struct ata_port *ap,
-		       unsigned long tmout_pat, unsigned long tmout)
-{
-	unsigned long timer_start, timeout;
-	u8 status;
-
-	status = ata_sff_busy_wait(ap, ATA_BUSY, 300);
-	timer_start = jiffies;
-	timeout = ata_deadline(timer_start, tmout_pat);
-	while (status != 0xff && (status & ATA_BUSY) &&
-	       time_before(jiffies, timeout)) {
-		ata_msleep(ap, 50);
-		status = ata_sff_busy_wait(ap, ATA_BUSY, 3);
-	}
-
-	if (status != 0xff && (status & ATA_BUSY))
-		ata_port_warn(ap,
-			      "port is slow to respond, please be patient (Status 0x%x)\n",
-			      status);
-
-	timeout = ata_deadline(timer_start, tmout);
-	while (status != 0xff && (status & ATA_BUSY) &&
-	       time_before(jiffies, timeout)) {
-		ata_msleep(ap, 50);
-		status = ap->ops->sff_check_status(ap);
-	}
-
-	if (status == 0xff)
-		return -ENODEV;
-
-	if (status & ATA_BUSY) {
-		ata_port_err(ap,
-			     "port failed to respond (%lu secs, Status 0x%x)\n",
-			     DIV_ROUND_UP(tmout, 1000), status);
-		return -EBUSY;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ata_sff_busy_sleep);
-
 static int ata_sff_check_ready(struct ata_link *link)
 {
 	u8 status = link->ap->ops->sff_check_status(link->ap);
