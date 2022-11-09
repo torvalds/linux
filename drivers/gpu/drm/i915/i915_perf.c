@@ -530,9 +530,9 @@ static bool oa_buffer_check_unlocked(struct i915_perf_stream *stream)
 
 		if (OA_TAKEN(hw_tail, tail) > report_size &&
 		    __ratelimit(&stream->perf->tail_pointer_race))
-			DRM_NOTE("unlanded report(s) head=0x%x "
-				 "tail=0x%x hw_tail=0x%x\n",
-				 head, tail, hw_tail);
+			drm_notice(&stream->uncore->i915->drm,
+				   "unlanded report(s) head=0x%x tail=0x%x hw_tail=0x%x\n",
+				   head, tail, hw_tail);
 
 		stream->oa_buffer.tail = gtt_offset + tail;
 		stream->oa_buffer.aging_tail = gtt_offset + hw_tail;
@@ -1015,7 +1015,8 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 		 */
 		if (report32[0] == 0) {
 			if (__ratelimit(&stream->perf->spurious_report_rs))
-				DRM_NOTE("Skipping spurious, invalid OA report\n");
+				drm_notice(&uncore->i915->drm,
+					   "Skipping spurious, invalid OA report\n");
 			continue;
 		}
 
@@ -1602,8 +1603,9 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 	free_noa_wait(stream);
 
 	if (perf->spurious_report_rs.missed) {
-		DRM_NOTE("%d spurious OA report notices suppressed due to ratelimiting\n",
-			 perf->spurious_report_rs.missed);
+		drm_notice(&gt->i915->drm,
+			   "%d spurious OA report notices suppressed due to ratelimiting\n",
+			   perf->spurious_report_rs.missed);
 	}
 }
 

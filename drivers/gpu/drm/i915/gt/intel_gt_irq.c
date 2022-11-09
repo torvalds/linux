@@ -44,8 +44,9 @@ gen11_gt_engine_identity(struct intel_gt *gt,
 		 !time_after32(local_clock() >> 10, timeout_ts));
 
 	if (unlikely(!(ident & GEN11_INTR_DATA_VALID))) {
-		DRM_ERROR("INTR_IDENTITY_REG%u:%u 0x%08x not valid!\n",
-			  bank, bit, ident);
+		drm_err(&gt->i915->drm,
+			"INTR_IDENTITY_REG%u:%u 0x%08x not valid!\n",
+			bank, bit, ident);
 		return 0;
 	}
 
@@ -364,7 +365,8 @@ void gen6_gt_irq_handler(struct intel_gt *gt, u32 gt_iir)
 	if (gt_iir & (GT_BLT_CS_ERROR_INTERRUPT |
 		      GT_BSD_CS_ERROR_INTERRUPT |
 		      GT_CS_MASTER_ERROR_INTERRUPT))
-		DRM_DEBUG("Command parser error, gt_iir 0x%08x\n", gt_iir);
+		drm_dbg(&gt->i915->drm, "Command parser error, gt_iir 0x%08x\n",
+			gt_iir);
 
 	if (gt_iir & GT_PARITY_ERROR(gt->i915))
 		gen7_parity_error_irq_handler(gt, gt_iir);

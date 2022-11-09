@@ -190,7 +190,7 @@ int intel_gt_init_hw(struct intel_gt *gt)
 
 	ret = i915_ppgtt_init_hw(gt);
 	if (ret) {
-		DRM_ERROR("Enabling PPGTT failed (%d)\n", ret);
+		drm_err(&i915->drm, "Enabling PPGTT failed (%d)\n", ret);
 		goto out;
 	}
 
@@ -262,7 +262,7 @@ intel_gt_clear_error_registers(struct intel_gt *gt,
 		 * some errors might have become stuck,
 		 * mask them.
 		 */
-		DRM_DEBUG_DRIVER("EIR stuck: 0x%08x, masking\n", eir);
+		drm_dbg(&gt->i915->drm, "EIR stuck: 0x%08x, masking\n", eir);
 		rmw_set(uncore, EMR, eir);
 		intel_uncore_write(uncore, GEN2_IIR,
 				   I915_MASTER_ERROR_INTERRUPT);

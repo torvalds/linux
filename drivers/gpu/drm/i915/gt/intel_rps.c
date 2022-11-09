@@ -430,7 +430,8 @@ static int __gen5_rps_set(struct intel_rps *rps, u8 val)
 
 	rgvswctl = intel_uncore_read16(uncore, MEMSWCTL);
 	if (rgvswctl & MEMCTL_CMD_STS) {
-		DRM_DEBUG("gpu busy, RCS change rejected\n");
+		drm_dbg(&rps_to_i915(rps)->drm,
+			"gpu busy, RCS change rejected\n");
 		return -EBUSY; /* still busy with another command */
 	}
 
@@ -1953,7 +1954,8 @@ void gen6_rps_irq_handler(struct intel_rps *rps, u32 pm_iir)
 		intel_engine_cs_irq(gt->engine[VECS0], pm_iir >> 10);
 
 	if (pm_iir & PM_VEBOX_CS_ERROR_INTERRUPT)
-		DRM_DEBUG("Command parser error, pm_iir 0x%08x\n", pm_iir);
+		drm_dbg(&rps_to_i915(rps)->drm,
+			"Command parser error, pm_iir 0x%08x\n", pm_iir);
 }
 
 void gen5_rps_irq_handler(struct intel_rps *rps)

@@ -2148,7 +2148,8 @@ err_skip:
 	return err;
 }
 
-static int i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)
+static int i915_gem_check_execbuffer(struct drm_i915_private *i915,
+				     struct drm_i915_gem_execbuffer2 *exec)
 {
 	if (exec->flags & __I915_EXEC_ILLEGAL_FLAGS)
 		return -EINVAL;
@@ -2161,7 +2162,7 @@ static int i915_gem_check_execbuffer(struct drm_i915_gem_execbuffer2 *exec)
 	}
 
 	if (exec->DR4 == 0xffffffff) {
-		DRM_DEBUG("UXA submitting garbage DR4, fixing up\n");
+		drm_dbg(&i915->drm, "UXA submitting garbage DR4, fixing up\n");
 		exec->DR4 = 0;
 	}
 	if (exec->DR1 || exec->DR4)
@@ -2799,7 +2800,8 @@ add_timeline_fence_array(struct i915_execbuffer *eb,
 
 		syncobj = drm_syncobj_find(eb->file, user_fence.handle);
 		if (!syncobj) {
-			DRM_DEBUG("Invalid syncobj handle provided\n");
+			drm_dbg(&eb->i915->drm,
+				"Invalid syncobj handle provided\n");
 			return -ENOENT;
 		}
 
@@ -2807,7 +2809,8 @@ add_timeline_fence_array(struct i915_execbuffer *eb,
 
 		if (!fence && user_fence.flags &&
 		    !(user_fence.flags & I915_EXEC_FENCE_SIGNAL)) {
-			DRM_DEBUG("Syncobj handle has no fence\n");
+			drm_dbg(&eb->i915->drm,
+				"Syncobj handle has no fence\n");
 			drm_syncobj_put(syncobj);
 			return -EINVAL;
 		}
@@ -2816,7 +2819,9 @@ add_timeline_fence_array(struct i915_execbuffer *eb,
 			err = dma_fence_chain_find_seqno(&fence, point);
 
 		if (err && !(user_fence.flags & I915_EXEC_FENCE_SIGNAL)) {
-			DRM_DEBUG("Syncobj handle missing requested point %llu\n", point);
+			drm_dbg(&eb->i915->drm,
+				"Syncobj handle missing requested point %llu\n",
+				point);
 			dma_fence_put(fence);
 			drm_syncobj_put(syncobj);
 			return err;
@@ -2842,7 +2847,8 @@ add_timeline_fence_array(struct i915_execbuffer *eb,
 			 * 0) would break the timeline.
 			 */
 			if (user_fence.flags & I915_EXEC_FENCE_WAIT) {
-				DRM_DEBUG("Trying to wait & signal the same timeline point.\n");
+				drm_dbg(&eb->i915->drm,
+					"Trying to wait & signal the same timeline point.\n");
 				dma_fence_put(fence);
 				drm_syncobj_put(syncobj);
 				return -EINVAL;
@@ -2913,14 +2919,16 @@ static int add_fence_array(struct i915_execbuffer *eb)
 
 		syncobj = drm_syncobj_find(eb->file, user_fence.handle);
 		if (!syncobj) {
-			DRM_DEBUG("Invalid syncobj handle provided\n");
+			drm_dbg(&eb->i915->drm,
+				"Invalid syncobj handle provided\n");
 			return -ENOENT;
 		}
 
 		if (user_fence.flags & I915_EXEC_FENCE_WAIT) {
 			fence = drm_syncobj_fence_get(syncobj);
 			if (!fence) {
-				DRM_DEBUG("Syncobj handle has no fence\n");
+				drm_dbg(&eb->i915->drm,
+					"Syncobj handle has no fence\n");
 				drm_syncobj_put(syncobj);
 				return -EINVAL;
 			}
@@ -3515,7 +3523,7 @@ i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	err = i915_gem_check_execbuffer(args);
+	err = i915_gem_check_execbuffer(i915, args);
 	if (err)
 		return err;
 

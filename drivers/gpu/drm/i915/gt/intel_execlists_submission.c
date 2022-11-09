@@ -3921,6 +3921,7 @@ static struct intel_context *
 execlists_create_virtual(struct intel_engine_cs **siblings, unsigned int count,
 			 unsigned long flags)
 {
+	struct drm_i915_private *i915 = siblings[0]->i915;
 	struct virtual_engine *ve;
 	unsigned int n;
 	int err;
@@ -3929,7 +3930,7 @@ execlists_create_virtual(struct intel_engine_cs **siblings, unsigned int count,
 	if (!ve)
 		return ERR_PTR(-ENOMEM);
 
-	ve->base.i915 = siblings[0]->i915;
+	ve->base.i915 = i915;
 	ve->base.gt = siblings[0]->gt;
 	ve->base.uncore = siblings[0]->uncore;
 	ve->base.id = -1;
@@ -3988,8 +3989,9 @@ execlists_create_virtual(struct intel_engine_cs **siblings, unsigned int count,
 
 		GEM_BUG_ON(!is_power_of_2(sibling->mask));
 		if (sibling->mask & ve->base.mask) {
-			DRM_DEBUG("duplicate %s entry in load balancer\n",
-				  sibling->name);
+			drm_dbg(&i915->drm,
+				"duplicate %s entry in load balancer\n",
+				sibling->name);
 			err = -EINVAL;
 			goto err_put;
 		}
@@ -4023,8 +4025,9 @@ execlists_create_virtual(struct intel_engine_cs **siblings, unsigned int count,
 		 */
 		if (ve->base.class != OTHER_CLASS) {
 			if (ve->base.class != sibling->class) {
-				DRM_DEBUG("invalid mixing of engine class, sibling %d, already %d\n",
-					  sibling->class, ve->base.class);
+				drm_dbg(&i915->drm,
+					"invalid mixing of engine class, sibling %d, already %d\n",
+					sibling->class, ve->base.class);
 				err = -EINVAL;
 				goto err_put;
 			}

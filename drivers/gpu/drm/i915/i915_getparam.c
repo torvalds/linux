@@ -179,7 +179,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = i915_perf_oa_timestamp_frequency(i915);
 		break;
 	default:
-		DRM_DEBUG("Unknown parameter %d\n", param->param);
+		drm_dbg(&i915->drm, "Unknown parameter %d\n", param->param);
 		return -EINVAL;
 	}
 

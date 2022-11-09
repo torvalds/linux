@@ -55,8 +55,10 @@
  * - Public functions to init or apply the given workaround type.
  */
 
-static void wa_init_start(struct i915_wa_list *wal, const char *name, const char *engine_name)
+static void wa_init_start(struct i915_wa_list *wal, struct intel_gt *gt,
+			  const char *name, const char *engine_name)
 {
+	wal->gt = gt;
 	wal->name = name;
 	wal->engine_name = engine_name;
 }
@@ -80,13 +82,14 @@ static void wa_init_finish(struct i915_wa_list *wal)
 	if (!wal->count)
 		return;
 
-	DRM_DEBUG_DRIVER("Initialized %u %s workarounds on %s\n",
-			 wal->wa_count, wal->name, wal->engine_name);
+	drm_dbg(&wal->gt->i915->drm, "Initialized %u %s workarounds on %s\n",
+		wal->wa_count, wal->name, wal->engine_name);
 }
 
 static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 {
 	unsigned int addr = i915_mmio_reg_offset(wa->reg);
+	struct drm_i915_private *i915 = wal->gt->i915;
 	unsigned int start = 0, end = wal->count;
 	const unsigned int grow = WA_LIST_CHUNK;
 	struct i915_wa *wa_;
@@ -99,7 +102,7 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 		list = kmalloc_array(ALIGN(wal->count + 1, grow), sizeof(*wa),
 				     GFP_KERNEL);
 		if (!list) {
-			DRM_ERROR("No space for workaround init!\n");
+			drm_err(&i915->drm, "No space for workaround init!\n");
 			return;
 		}
 
@@ -122,9 +125,10 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 			wa_ = &wal->list[mid];
 
 			if ((wa->clr | wa_->clr) && !(wa->clr & ~wa_->clr)) {
-				DRM_ERROR("Discarding overwritten w/a for reg %04x (clear: %08x, set: %08x)\n",
-					  i915_mmio_reg_offset(wa_->reg),
-					  wa_->clr, wa_->set);
+				drm_err(&i915->drm,
+					"Discarding overwritten w/a for reg %04x (clear: %08x, set: %08x)\n",
+					i915_mmio_reg_offset(wa_->reg),
+					wa_->clr, wa_->set);
 
 				wa_->set &= ~wa->clr;
 			}
@@ -826,7 +830,7 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 {
 	struct drm_i915_private *i915 = engine->i915;
 
-	wa_init_start(wal, name, engine->name);
+	wa_init_start(wal, engine->gt, name, engine->name);
 
 	/* Applies to all engines */
 	/*
@@ -1676,7 +1680,7 @@ void intel_gt_init_workarounds(struct intel_gt *gt)
 {
 	struct i915_wa_list *wal = &gt->wa_list;
 
-	wa_init_start(wal, "GT", "global");
+	wa_init_start(wal, gt, "GT", "global");
 	gt_init_workarounds(gt, wal);
 	wa_init_finish(wal);
 }
@@ -1698,12 +1702,14 @@ wal_get_fw_for_rmw(struct intel_uncore *uncore, const struct i915_wa_list *wal)
 }
 
 static bool
-wa_verify(const struct i915_wa *wa, u32 cur, const char *name, const char *from)
+wa_verify(struct intel_gt *gt, const struct i915_wa *wa, u32 cur,
+	  const char *name, const char *from)
 {
 	if ((cur ^ wa->set) & wa->read) {
-		DRM_ERROR("%s workaround lost on %s! (reg[%x]=0x%x, relevant bits were 0x%x vs expected 0x%x)\n",
-			  name, from, i915_mmio_reg_offset(wa->reg),
-			  cur, cur & wa->read, wa->set & wa->read);
+		drm_err(&gt->i915->drm,
+			"%s workaround lost on %s! (reg[%x]=0x%x, relevant bits were 0x%x vs expected 0x%x)\n",
+			name, from, i915_mmio_reg_offset(wa->reg),
+			cur, cur & wa->read, wa->set & wa->read);
 
 		return false;
 	}
@@ -1749,7 +1755,7 @@ wa_list_apply(struct intel_gt *gt, const struct i915_wa_list *wal)
 				intel_gt_mcr_read_any_fw(gt, wa->mcr_reg) :
 				intel_uncore_read_fw(uncore, wa->reg);
 
-			wa_verify(wa, val, wal->name, "application");
+			wa_verify(wal->gt, wa, val, wal->name, "application");
 		}
 	}
 
@@ -1779,7 +1785,7 @@ static bool wa_list_verify(struct intel_gt *gt,
 	intel_uncore_forcewake_get__locked(uncore, fw);
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
-		ok &= wa_verify(wa, wa->is_mcr ?
+		ok &= wa_verify(wal->gt, wa, wa->is_mcr ?
 				intel_gt_mcr_read_any_fw(gt, wa->mcr_reg) :
 				intel_uncore_read_fw(uncore, wa->reg),
 				wal->name, from);
@@ -2127,7 +2133,7 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 	struct drm_i915_private *i915 = engine->i915;
 	struct i915_wa_list *w = &engine->whitelist;
 
-	wa_init_start(w, "whitelist", engine->name);
+	wa_init_start(w, engine->gt, "whitelist", engine->name);
 
 	if (IS_PONTEVECCHIO(i915))
 		pvc_whitelist_build(engine);
@@ -3012,7 +3018,7 @@ void intel_engine_init_workarounds(struct intel_engine_cs *engine)
 	if (GRAPHICS_VER(engine->i915) < 4)
 		return;
 
-	wa_init_start(wal, "engine", engine->name);
+	wa_init_start(wal, engine->gt, "engine", engine->name);
 	engine_init_workarounds(engine, wal);
 	wa_init_finish(wal);
 }
@@ -3193,7 +3199,7 @@ retry:
 		if (mcr_range(rq->engine->i915, i915_mmio_reg_offset(wa->reg)))
 			continue;
 
-		if (!wa_verify(wa, results[i], wal->name, from))
+		if (!wa_verify(wal->gt, wa, results[i], wal->name, from))
 			err = -ENXIO;
 	}
 
