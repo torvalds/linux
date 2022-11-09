@@ -19626,6 +19626,11 @@ M:	Ion Badulescu <ionut@badula.org>
 S:	Odd Fixes
 F:	drivers/net/ethernet/adaptec/starfire*
 
+STARFIVE DEVICETREES
+M:	Emil Renner Berthing <kernel@esmil.dk>
+S:	Maintained
+F:	arch/riscv/boot/dts/starfive/
+
 STARFIVE JH7100 CLOCK DRIVERS
 M:	Emil Renner Berthing <kernel@esmil.dk>
 S:	Maintained
