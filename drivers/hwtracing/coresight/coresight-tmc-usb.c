@@ -425,8 +425,10 @@ void tmc_usb_disable(struct tmc_usb_data *usb_data)
 {
 	struct tmc_drvdata *tmcdrvdata = usb_data->tmcdrvdata;
 
-	if (usb_data->usb_mode == TMC_ETR_USB_SW)
+	if (usb_data->usb_mode == TMC_ETR_USB_SW) {
 		usb_bypass_stop(tmcdrvdata->byte_cntr);
+		flush_work(&tmcdrvdata->byte_cntr->read_work);
+	}
 
 	if (usb_data->usbch)
 		usb_qdss_close(usb_data->usbch);
