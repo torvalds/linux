@@ -547,6 +547,7 @@ static int exfat_create(struct mnt_idmap *idmap, struct inode *dir,
 	struct exfat_dir_entry info;
 	loff_t i_pos;
 	int err;
+	loff_t size = i_size_read(dir);
 
 	mutex_lock(&EXFAT_SB(sb)->s_lock);
 	exfat_set_volume_dirty(sb);
@@ -557,7 +558,7 @@ static int exfat_create(struct mnt_idmap *idmap, struct inode *dir,
 
 	inode_inc_iversion(dir);
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
-	if (IS_DIRSYNC(dir))
+	if (IS_DIRSYNC(dir) && size != i_size_read(dir))
 		exfat_sync_inode(dir);
 	else
 		mark_inode_dirty(dir);
@@ -801,10 +802,7 @@ static int exfat_unlink(struct inode *dir, struct dentry *dentry)
 	inode_inc_iversion(dir);
 	simple_inode_init_ts(dir);
 	exfat_truncate_inode_atime(dir);
-	if (IS_DIRSYNC(dir))
-		exfat_sync_inode(dir);
-	else
-		mark_inode_dirty(dir);
+	mark_inode_dirty(dir);
 
 	clear_nlink(inode);
 	simple_inode_init_ts(inode);
@@ -825,6 +823,7 @@ static int exfat_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	struct exfat_chain cdir;
 	loff_t i_pos;
 	int err;
+	loff_t size = i_size_read(dir);
 
 	mutex_lock(&EXFAT_SB(sb)->s_lock);
 	exfat_set_volume_dirty(sb);
@@ -835,7 +834,7 @@ static int exfat_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 
 	inode_inc_iversion(dir);
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
-	if (IS_DIRSYNC(dir))
+	if (IS_DIRSYNC(dir) && size != i_size_read(dir))
 		exfat_sync_inode(dir);
 	else
 		mark_inode_dirty(dir);
@@ -1239,6 +1238,7 @@ static int exfat_rename(struct mnt_idmap *idmap,
 	struct super_block *sb = old_dir->i_sb;
 	loff_t i_pos;
 	int err;
+	loff_t size = i_size_read(new_dir);
 
 	/*
 	 * The VFS already checks for existence, so for local filesystems
@@ -1260,7 +1260,7 @@ static int exfat_rename(struct mnt_idmap *idmap,
 	simple_rename_timestamp(old_dir, old_dentry, new_dir, new_dentry);
 	EXFAT_I(new_dir)->i_crtime = current_time(new_dir);
 	exfat_truncate_inode_atime(new_dir);
-	if (IS_DIRSYNC(new_dir))
+	if (IS_DIRSYNC(new_dir) && size != i_size_read(new_dir))
 		exfat_sync_inode(new_dir);
 	else
 		mark_inode_dirty(new_dir);
@@ -1281,10 +1281,7 @@ static int exfat_rename(struct mnt_idmap *idmap,
 	}
 
 	inode_inc_iversion(old_dir);
-	if (IS_DIRSYNC(old_dir))
-		exfat_sync_inode(old_dir);
-	else
-		mark_inode_dirty(old_dir);
+	mark_inode_dirty(old_dir);
 
 	if (new_inode) {
 		exfat_unhash_inode(new_inode);
