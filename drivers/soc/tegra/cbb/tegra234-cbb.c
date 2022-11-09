@@ -95,7 +95,9 @@ struct tegra234_cbb_fabric {
 	const char * const *master_id;
 	unsigned int notifier_offset;
 	const struct tegra_cbb_error *errors;
+	const int max_errors;
 	const struct tegra234_slave_lookup *slave_map;
+	const int max_slaves;
 };
 
 struct tegra234_cbb {
@@ -270,6 +272,12 @@ static void tegra234_cbb_print_error(struct seq_file *file, struct tegra234_cbb 
 		tegra_cbb_print_err(file, "\t  Multiple type of errors reported\n");
 
 	while (status) {
+		if (type >= cbb->fabric->max_errors) {
+			tegra_cbb_print_err(file, "\t  Wrong type index:%u, status:%u\n",
+					    type, status);
+			return;
+		}
+
 		if (status & 0x1)
 			tegra_cbb_print_err(file, "\t  Error Code\t\t: %s\n",
 					    cbb->fabric->errors[type].code);
@@ -281,6 +289,12 @@ static void tegra234_cbb_print_error(struct seq_file *file, struct tegra234_cbb 
 	type = 0;
 
 	while (overflow) {
+		if (type >= cbb->fabric->max_errors) {
+			tegra_cbb_print_err(file, "\t  Wrong type index:%u, overflow:%u\n",
+					    type, overflow);
+			return;
+		}
+
 		if (overflow & 0x1)
 			tegra_cbb_print_err(file, "\t  Overflow\t\t: Multiple %s\n",
 					    cbb->fabric->errors[type].code);
@@ -333,8 +347,11 @@ static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 	access_type = FIELD_GET(FAB_EM_EL_ACCESSTYPE, cbb->mn_attr0);
 
 	tegra_cbb_print_err(file, "\n");
-	tegra_cbb_print_err(file, "\t  Error Code\t\t: %s\n",
-			    cbb->fabric->errors[cbb->type].code);
+	if (cbb->type < cbb->fabric->max_errors)
+		tegra_cbb_print_err(file, "\t  Error Code\t\t: %s\n",
+				    cbb->fabric->errors[cbb->type].code);
+	else
+		tegra_cbb_print_err(file, "\t  Wrong type index:%u\n", cbb->type);
 
 	tegra_cbb_print_err(file, "\t  MASTER_ID\t\t: %s\n", cbb->fabric->master_id[mstr_id]);
 	tegra_cbb_print_err(file, "\t  Address\t\t: %#llx\n", cbb->access);
@@ -372,6 +389,11 @@ static void print_errlog_err(struct seq_file *file, struct tegra234_cbb *cbb)
 
 	if ((fab_id == PSC_FAB_ID) || (fab_id == FSI_FAB_ID))
 		return;
+
+	if (slave_id >= cbb->fabric->max_slaves) {
+		tegra_cbb_print_err(file, "\t  Invalid slave_id:%d\n", slave_id);
+		return;
+	}
 
 	if (!strcmp(cbb->fabric->errors[cbb->type].code, "TIMEOUT_ERR")) {
 		tegra234_lookup_slave_timeout(file, cbb, slave_id, fab_id);
@@ -639,7 +661,9 @@ static const struct tegra234_cbb_fabric tegra234_aon_fabric = {
 	.name = "aon-fabric",
 	.master_id = tegra234_master_id,
 	.slave_map = tegra234_aon_slave_map,
+	.max_slaves = ARRAY_SIZE(tegra234_aon_slave_map),
 	.errors = tegra234_cbb_errors,
+	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
 	.notifier_offset = 0x17000,
 };
 
@@ -655,7 +679,9 @@ static const struct tegra234_cbb_fabric tegra234_bpmp_fabric = {
 	.name = "bpmp-fabric",
 	.master_id = tegra234_master_id,
 	.slave_map = tegra234_bpmp_slave_map,
+	.max_slaves = ARRAY_SIZE(tegra234_bpmp_slave_map),
 	.errors = tegra234_cbb_errors,
+	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
 	.notifier_offset = 0x19000,
 };
 
@@ -727,7 +753,9 @@ static const struct tegra234_cbb_fabric tegra234_cbb_fabric = {
 	.name = "cbb-fabric",
 	.master_id = tegra234_master_id,
 	.slave_map = tegra234_cbb_slave_map,
+	.max_slaves = ARRAY_SIZE(tegra234_cbb_slave_map),
 	.errors = tegra234_cbb_errors,
+	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
 	.notifier_offset = 0x60000,
 	.off_mask_erd = 0x3a004
 };
@@ -745,7 +773,9 @@ static const struct tegra234_cbb_fabric tegra234_dce_fabric = {
 	.name = "dce-fabric",
 	.master_id = tegra234_master_id,
 	.slave_map = tegra234_common_slave_map,
+	.max_slaves = ARRAY_SIZE(tegra234_common_slave_map),
 	.errors = tegra234_cbb_errors,
+	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
 	.notifier_offset = 0x19000,
 };
 
@@ -753,7 +783,9 @@ static const struct tegra234_cbb_fabric tegra234_rce_fabric = {
 	.name = "rce-fabric",
 	.master_id = tegra234_master_id,
 	.slave_map = tegra234_common_slave_map,
+	.max_slaves = ARRAY_SIZE(tegra234_common_slave_map),
 	.errors = tegra234_cbb_errors,
+	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
 	.notifier_offset = 0x19000,
 };
 
@@ -761,7 +793,9 @@ static const struct tegra234_cbb_fabric tegra234_sce_fabric = {
 	.name = "sce-fabric",
 	.master_id = tegra234_master_id,
 	.slave_map = tegra234_common_slave_map,
+	.max_slaves = ARRAY_SIZE(tegra234_common_slave_map),
 	.errors = tegra234_cbb_errors,
+	.max_errors = ARRAY_SIZE(tegra234_cbb_errors),
 	.notifier_offset = 0x19000,
 };
 
@@ -940,7 +974,9 @@ static const struct tegra234_cbb_fabric tegra241_cbb_fabric = {
 	.name = "cbb-fabric",
 	.master_id = tegra241_master_id,
 	.slave_map = tegra241_cbb_slave_map,
+	.max_slaves = ARRAY_SIZE(tegra241_cbb_slave_map),
 	.errors = tegra241_cbb_errors,
+	.max_errors = ARRAY_SIZE(tegra241_cbb_errors),
 	.notifier_offset = 0x60000,
 	.off_mask_erd = 0x40004,
 };
@@ -960,7 +996,9 @@ static const struct tegra234_cbb_fabric tegra241_bpmp_fabric = {
 	.name = "bpmp-fabric",
 	.master_id = tegra241_master_id,
 	.slave_map = tegra241_bpmp_slave_map,
+	.max_slaves = ARRAY_SIZE(tegra241_bpmp_slave_map),
 	.errors = tegra241_cbb_errors,
+	.max_errors = ARRAY_SIZE(tegra241_cbb_errors),
 	.notifier_offset = 0x19000,
 };
 
