@@ -504,9 +504,10 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 
 	hdev->compute_ctx_in_release = 1;
 
-	if (!hl_hpriv_put(hpriv))
-		dev_notice(hdev->dev,
-			"User process closed FD but device still in use\n");
+	if (!hl_hpriv_put(hpriv)) {
+		dev_notice(hdev->dev, "User process closed FD but device still in use\n");
+		hl_device_reset(hdev, HL_DRV_RESET_HARD);
+	}
 
 	hdev->last_open_session_duration_jif =
 		jiffies - hdev->last_successful_open_jif;
