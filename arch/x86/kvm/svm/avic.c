@@ -1120,7 +1120,7 @@ void avic_vcpu_unblocking(struct kvm_vcpu *vcpu)
  * - Hypervisor can support both xAVIC and x2AVIC in the same guest.
  * - The mode can be switched at run-time.
  */
-bool avic_hardware_setup(struct kvm_x86_ops *x86_ops)
+bool avic_hardware_setup(void)
 {
 	if (!npt_enabled)
 		return false;

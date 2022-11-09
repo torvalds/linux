@@ -5017,7 +5017,7 @@ static __init int svm_hardware_setup(void)
 			nrips = false;
 	}
 
-	enable_apicv = avic = avic && avic_hardware_setup(&svm_x86_ops);
+	enable_apicv = avic = avic && avic_hardware_setup();
 
 	if (!enable_apicv) {
 		svm_x86_ops.vcpu_blocking = NULL;
