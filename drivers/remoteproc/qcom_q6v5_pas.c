@@ -957,14 +957,16 @@ out:
 
 static int setup_mpss_dsm_mem(struct platform_device *pdev)
 {
+	struct qcom_scm_vmperm newvm[1];
 	struct device_node *node;
 	struct resource res;
-	int hlosvm[1] = {VMID_HLOS};
-	int mssvm[1] = {VMID_MSS_MSA};
-	int vmperm[1] = {PERM_READ | PERM_WRITE};
 	phys_addr_t mem_phys;
+	int curr_perm;
 	u64 mem_size;
 	int ret;
+	newvm[0].vmid = QCOM_SCM_VMID_MSS_MSA;
+	newvm[0].perm = QCOM_SCM_PERM_RW;
+	curr_perm = BIT(QCOM_SCM_VMID_HLOS);
 
 	node = of_parse_phandle(pdev->dev.of_node, "mpss_dsm_mem_reg", 0);
 	if (!node) {
@@ -980,7 +982,7 @@ static int setup_mpss_dsm_mem(struct platform_device *pdev)
 
 	mem_phys = res.start;
 	mem_size = resource_size(&res);
-	ret = hyp_assign_phys(mem_phys, mem_size, hlosvm, 1, mssvm, vmperm, 1);
+	ret = qcom_scm_assign_mem(mem_phys, mem_size, &curr_perm, newvm, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "hyp assign for mpss dsm mem failed\n");
 		return ret;
