@@ -354,11 +354,12 @@ out_noalloc:
  * vfs_getxattr_alloc - allocate memory, if necessary, before calling getxattr
  *
  * Allocate memory, if not already allocated, or re-allocate correct size,
- * before retrieving the extended attribute.
+ * before retrieving the extended attribute.  The xattr value buffer should
+ * always be freed by the caller, even on error.
  *
  * Returns the result of alloc, if failed, or the getxattr operation.
  */
-ssize_t
+int
 vfs_getxattr_alloc(struct user_namespace *mnt_userns, struct dentry *dentry,
 		   const char *name, char **xattr_value, size_t xattr_size,
 		   gfp_t flags)

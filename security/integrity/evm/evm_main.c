@@ -519,14 +519,17 @@ static int evm_xattr_change(struct user_namespace *mnt_userns,
 
 	rc = vfs_getxattr_alloc(&init_user_ns, dentry, xattr_name, &xattr_data,
 				0, GFP_NOFS);
-	if (rc < 0)
-		return 1;
+	if (rc < 0) {
+		rc = 1;
+		goto out;
+	}
 
 	if (rc == xattr_value_len)
 		rc = !!memcmp(xattr_value, xattr_data, rc);
 	else
 		rc = 1;
 
+out:
 	kfree(xattr_data);
 	return rc;
 }

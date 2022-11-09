@@ -68,9 +68,9 @@ int __vfs_removexattr_locked(struct user_namespace *, struct dentry *,
 int vfs_removexattr(struct user_namespace *, struct dentry *, const char *);
 
 ssize_t generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size);
-ssize_t vfs_getxattr_alloc(struct user_namespace *mnt_userns,
-			   struct dentry *dentry, const char *name,
-			   char **xattr_value, size_t size, gfp_t flags);
+int vfs_getxattr_alloc(struct user_namespace *mnt_userns,
+		       struct dentry *dentry, const char *name,
+		       char **xattr_value, size_t size, gfp_t flags);
 
 int xattr_supported_namespace(struct inode *inode, const char *prefix);
 
