@@ -4502,8 +4502,11 @@ static int devlink_reload(struct devlink *devlink, struct net *dest_net,
 	if (err)
 		return err;
 
-	if (dest_net && !net_eq(dest_net, curr_net))
+	if (dest_net && !net_eq(dest_net, curr_net)) {
+		move_netdevice_notifier_net(curr_net, dest_net,
+					    &devlink->netdevice_nb);
 		write_pnet(&devlink->_net, dest_net);
+	}
 
 	err = devlink->ops->reload_up(devlink, action, limit, actions_performed, extack);
 	devlink_reload_failed_set(devlink, !!err);
