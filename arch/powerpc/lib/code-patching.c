@@ -81,16 +81,17 @@ static int text_area_cpu_down(unsigned int cpu)
 
 static __ro_after_init DEFINE_STATIC_KEY_FALSE(poking_init_done);
 
-/*
- * Although BUG_ON() is rude, in this case it should only happen if ENOMEM, and
- * we judge it as being preferable to a kernel that will crash later when
- * someone tries to use patch_instruction().
- */
 void __init poking_init(void)
 {
-	BUG_ON(!cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
-		"powerpc/text_poke:online", text_area_cpu_up,
-		text_area_cpu_down));
+	int ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN,
+				    "powerpc/text_poke:online",
+				    text_area_cpu_up,
+				    text_area_cpu_down);
+
+	/* cpuhp_setup_state returns >= 0 on success */
+	if (WARN_ON(ret < 0))
+		return;
+
 	static_branch_enable(&poking_init_done);
 }
 
