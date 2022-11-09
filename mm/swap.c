@@ -981,22 +981,30 @@ void lru_cache_disable(void)
 
 /**
  * release_pages - batched put_page()
- * @pages: array of pages to release
+ * @arg: array of pages to release
  * @nr: number of pages
  *
- * Decrement the reference count on all the pages in @pages.  If it
+ * Decrement the reference count on all the pages in @arg.  If it
  * fell to zero, remove the page from the LRU and free it.
+ *
+ * Note that the argument can be an array of pages, encoded pages,
+ * or folio pointers. We ignore any encoded bits, and turn any of
+ * them into just a folio that gets free'd.
  */
-void release_pages(struct page **pages, int nr)
+void release_pages(release_pages_arg arg, int nr)
 {
 	int i;
+	struct encoded_page **encoded = arg.encoded_pages;
 	LIST_HEAD(pages_to_free);
 	struct lruvec *lruvec = NULL;
 	unsigned long flags = 0;
 	unsigned int lock_batch;
 
 	for (i = 0; i < nr; i++) {
-		struct folio *folio = page_folio(pages[i]);
+		struct folio *folio;
+
+		/* Turn any of the argument types into a folio */
+		folio = page_folio(encoded_page_ptr(encoded[i]));
 
 		/*
 		 * Make sure the IRQ-safe lock-holding time does not get
