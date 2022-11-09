@@ -29,9 +29,18 @@
 struct x86_pmu_capability __read_mostly kvm_pmu_cap;
 EXPORT_SYMBOL_GPL(kvm_pmu_cap);
 
-static const struct x86_cpu_id vmx_icl_pebs_cpu[] = {
+/* Precise Distribution of Instructions Retired (PDIR) */
+static const struct x86_cpu_id vmx_pebs_pdir_cpu[] = {
 	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_D, NULL),
 	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_X, NULL),
+	/* Instruction-Accurate PDIR (PDIR++) */
+	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X, NULL),
+	{}
+};
+
+/* Precise Distribution (PDist) */
+static const struct x86_cpu_id vmx_pebs_pdist_cpu[] = {
+	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X, NULL),
 	{}
 };
 
@@ -156,6 +165,28 @@ static void kvm_perf_overflow(struct perf_event *perf_event,
 	kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
 }
 
+static u64 pmc_get_pebs_precise_level(struct kvm_pmc *pmc)
+{
+	/*
+	 * For some model specific pebs counters with special capabilities
+	 * (PDIR, PDIR++, PDIST), KVM needs to raise the event precise
+	 * level to the maximum value (currently 3, backwards compatible)
+	 * so that the perf subsystem would assign specific hardware counter
+	 * with that capability for vPMC.
+	 */
+	if ((pmc->idx == 0 && x86_match_cpu(vmx_pebs_pdist_cpu)) ||
+	    (pmc->idx == 32 && x86_match_cpu(vmx_pebs_pdir_cpu)))
+		return 3;
+
+	/*
+	 * The non-zero precision level of guest event makes the ordinary
+	 * guest event becomes a guest PEBS event and triggers the host
+	 * PEBS PMI handler to determine whether the PEBS overflow PMI
+	 * comes from the host counters or the guest.
+	 */
+	return 1;
+}
+
 static int pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type, u64 config,
 				 bool exclude_user, bool exclude_kernel,
 				 bool intr)
@@ -187,22 +218,12 @@ static int pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type, u64 config,
 	}
 	if (pebs) {
 		/*
-		 * The non-zero precision level of guest event makes the ordinary
-		 * guest event becomes a guest PEBS event and triggers the host
-		 * PEBS PMI handler to determine whether the PEBS overflow PMI
-		 * comes from the host counters or the guest.
-		 *
 		 * For most PEBS hardware events, the difference in the software
 		 * precision levels of guest and host PEBS events will not affect
 		 * the accuracy of the PEBS profiling result, because the "event IP"
 		 * in the PEBS record is calibrated on the guest side.
-		 *
-		 * On Icelake everything is fine. Other hardware (GLC+, TNT+) that
-		 * could possibly care here is unsupported and needs changes.
 		 */
-		attr.precise_ip = 1;
-		if (x86_match_cpu(vmx_icl_pebs_cpu) && pmc->idx == 32)
-			attr.precise_ip = 3;
+		attr.precise_ip = pmc_get_pebs_precise_level(pmc);
 	}
 
 	event = perf_event_create_kernel_counter(&attr, -1, current,
