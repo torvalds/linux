@@ -464,6 +464,60 @@ static int sparx5_tc_use_dissectors(struct flow_cls_offload *fco,
 	return err;
 }
 
+static int sparx5_tc_flower_action_check(struct vcap_control *vctrl,
+					 struct flow_cls_offload *fco,
+					 struct vcap_admin *admin)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(fco);
+	struct flow_action_entry *actent, *last_actent = NULL;
+	struct flow_action *act = &rule->action;
+	u64 action_mask = 0;
+	int idx;
+
+	if (!flow_action_has_entries(act)) {
+		NL_SET_ERR_MSG_MOD(fco->common.extack, "No actions");
+		return -EINVAL;
+	}
+
+	if (!flow_action_basic_hw_stats_check(act, fco->common.extack))
+		return -EOPNOTSUPP;
+
+	flow_action_for_each(idx, actent, act) {
+		if (action_mask & BIT(actent->id)) {
+			NL_SET_ERR_MSG_MOD(fco->common.extack,
+					   "More actions of the same type");
+			return -EINVAL;
+		}
+		action_mask |= BIT(actent->id);
+		last_actent = actent; /* Save last action for later check */
+	}
+
+	/* Check that last action is a goto */
+	if (last_actent->id != FLOW_ACTION_GOTO) {
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "Last action must be 'goto'");
+		return -EINVAL;
+	}
+
+	/* Check if the goto chain is in the next lookup */
+	if (!vcap_is_next_lookup(vctrl, fco->common.chain_index,
+				 last_actent->chain_index)) {
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "Invalid goto chain");
+		return -EINVAL;
+	}
+
+	/* Catch unsupported combinations of actions */
+	if (action_mask & BIT(FLOW_ACTION_TRAP) &&
+	    action_mask & BIT(FLOW_ACTION_ACCEPT)) {
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "Cannot combine pass and trap action");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static int sparx5_tc_flower_replace(struct net_device *ndev,
 				    struct flow_cls_offload *fco,
 				    struct vcap_admin *admin)
@@ -475,16 +529,12 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 	struct vcap_rule *vrule;
 	int err, idx;
 
-	frule = flow_cls_offload_flow_rule(fco);
-	if (!flow_action_has_entries(&frule->action)) {
-		NL_SET_ERR_MSG_MOD(fco->common.extack, "No actions");
-		return -EINVAL;
-	}
-
-	if (!flow_action_basic_hw_stats_check(&frule->action, fco->common.extack))
-		return -EOPNOTSUPP;
-
 	vctrl = port->sparx5->vcap_ctrl;
+
+	err = sparx5_tc_flower_action_check(vctrl, fco, admin);
+	if (err)
+		return err;
+
 	vrule = vcap_alloc_rule(vctrl, ndev, fco->common.chain_index, VCAP_USER_TC,
 				fco->common.prio, 0);
 	if (IS_ERR(vrule))
@@ -492,6 +542,7 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 
 	vrule->cookie = fco->cookie;
 	sparx5_tc_use_dissectors(fco, admin, vrule);
+	frule = flow_cls_offload_flow_rule(fco);
 	flow_action_for_each(idx, act, &frule->action) {
 		switch (act->id) {
 		case FLOW_ACTION_TRAP:
@@ -520,6 +571,9 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 							  VCAP_AFS_BASE_TYPE);
 			if (err)
 				goto out;
+			break;
+		case FLOW_ACTION_GOTO:
+			/* Links between VCAPs will be added later */
 			break;
 		default:
 			NL_SET_ERR_MSG_MOD(fco->common.extack,

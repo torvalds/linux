@@ -193,6 +193,8 @@ const struct vcap_field *vcap_lookup_keyfield(struct vcap_rule *rule,
 					      enum vcap_key_field key);
 /* Find a rule id with a provided cookie */
 int vcap_lookup_rule_by_cookie(struct vcap_control *vctrl, u64 cookie);
+/* Is the next chain id in the following lookup, possible in another VCAP */
+bool vcap_is_next_lookup(struct vcap_control *vctrl, int cur_cid, int next_cid);
 
 /* Copy to host byte order */
 void vcap_netbytes_copy(u8 *dst, u8 *src, int count);

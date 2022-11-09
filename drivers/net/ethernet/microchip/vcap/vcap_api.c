@@ -677,6 +677,42 @@ struct vcap_admin *vcap_find_admin(struct vcap_control *vctrl, int cid)
 }
 EXPORT_SYMBOL_GPL(vcap_find_admin);
 
+/* Is the next chain id in the following lookup, possible in another VCAP */
+bool vcap_is_next_lookup(struct vcap_control *vctrl, int cur_cid, int next_cid)
+{
+	struct vcap_admin *admin, *next_admin;
+	int lookup, next_lookup;
+
+	/* The offset must be at least one lookup */
+	if (next_cid < cur_cid + VCAP_CID_LOOKUP_SIZE)
+		return false;
+
+	if (vcap_api_check(vctrl))
+		return false;
+
+	admin = vcap_find_admin(vctrl, cur_cid);
+	if (!admin)
+		return false;
+
+	/* If no VCAP contains the next chain, the next chain must be beyond
+	 * the last chain in the current VCAP
+	 */
+	next_admin = vcap_find_admin(vctrl, next_cid);
+	if (!next_admin)
+		return next_cid > admin->last_cid;
+
+	lookup = vcap_chain_id_to_lookup(admin, cur_cid);
+	next_lookup = vcap_chain_id_to_lookup(next_admin, next_cid);
+
+	/* Next lookup must be the following lookup */
+	if (admin == next_admin || admin->vtype == next_admin->vtype)
+		return next_lookup == lookup + 1;
+
+	/* Must be the first lookup in the next VCAP instance */
+	return next_lookup == 0;
+}
+EXPORT_SYMBOL_GPL(vcap_is_next_lookup);
+
 /* Check if there is room for a new rule */
 static int vcap_rule_space(struct vcap_admin *admin, int size)
 {
