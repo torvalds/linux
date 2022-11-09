@@ -293,7 +293,7 @@ struct svm_cpu_data {
 	struct vmcb **sev_vmcbs;
 };
 
-DECLARE_PER_CPU(struct svm_cpu_data *, svm_data);
+DECLARE_PER_CPU(struct svm_cpu_data, svm_data);
 
 void recalc_intercepts(struct vcpu_svm *svm);
 

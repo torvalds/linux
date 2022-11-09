@@ -196,7 +196,7 @@ static void sev_asid_free(struct kvm_sev_info *sev)
 	__set_bit(sev->asid, sev_reclaim_asid_bitmap);
 
 	for_each_possible_cpu(cpu) {
-		sd = per_cpu(svm_data, cpu);
+		sd = per_cpu_ptr(&svm_data, cpu);
 		sd->sev_vmcbs[sev->asid] = NULL;
 	}
 
@@ -2600,7 +2600,7 @@ void sev_es_unmap_ghcb(struct vcpu_svm *svm)
 
 void pre_sev_run(struct vcpu_svm *svm, int cpu)
 {
-	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
+	struct svm_cpu_data *sd = per_cpu_ptr(&svm_data, cpu);
 	int asid = sev_get_asid(svm->vcpu.kvm);
 
 	/* Assign the asid allocated with this SEV guest */

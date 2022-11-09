@@ -245,7 +245,7 @@ struct kvm_ldttss_desc {
 	u32 zero1;
 } __attribute__((packed));
 
-DEFINE_PER_CPU(struct svm_cpu_data *, svm_data);
+DEFINE_PER_CPU(struct svm_cpu_data, svm_data);
 
 /*
  * Only MSR_TSC_AUX is switched via the user return hook.  EFER is switched via
@@ -581,12 +581,7 @@ static int svm_hardware_enable(void)
 		pr_err("%s: err EOPNOTSUPP on %d\n", __func__, me);
 		return -EINVAL;
 	}
-	sd = per_cpu(svm_data, me);
-	if (!sd) {
-		pr_err("%s: svm_data is NULL on %d\n", __func__, me);
-		return -EINVAL;
-	}
-
+	sd = per_cpu_ptr(&svm_data, me);
 	sd->asid_generation = 1;
 	sd->max_asid = cpuid_ebx(SVM_CPUID_FUNC) - 1;
 	sd->next_asid = sd->max_asid + 1;
@@ -646,41 +641,35 @@ static int svm_hardware_enable(void)
 
 static void svm_cpu_uninit(int cpu)
 {
-	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
+	struct svm_cpu_data *sd = per_cpu_ptr(&svm_data, cpu);
 
-	if (!sd)
+	if (!sd->save_area)
 		return;
 
-	per_cpu(svm_data, cpu) = NULL;
 	kfree(sd->sev_vmcbs);
 	__free_page(sd->save_area);
-	kfree(sd);
+	sd->save_area = NULL;
 }
 
 static int svm_cpu_init(int cpu)
 {
-	struct svm_cpu_data *sd;
+	struct svm_cpu_data *sd = per_cpu_ptr(&svm_data, cpu);
 	int ret = -ENOMEM;
 
-	sd = kzalloc(sizeof(struct svm_cpu_data), GFP_KERNEL);
-	if (!sd)
-		return ret;
+	memset(sd, 0, sizeof(struct svm_cpu_data));
 	sd->save_area = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!sd->save_area)
-		goto free_cpu_data;
+		return ret;
 
 	ret = sev_cpu_init(sd);
 	if (ret)
 		goto free_save_area;
 
-	per_cpu(svm_data, cpu) = sd;
-
 	return 0;
 
 free_save_area:
 	__free_page(sd->save_area);
-free_cpu_data:
-	kfree(sd);
+	sd->save_area = NULL;
 	return ret;
 
 }
@@ -1424,7 +1413,7 @@ static void svm_clear_current_vmcb(struct vmcb *vmcb)
 	int i;
 
 	for_each_online_cpu(i)
-		cmpxchg(&per_cpu(svm_data, i)->current_vmcb, vmcb, NULL);
+		cmpxchg(per_cpu_ptr(&svm_data.current_vmcb, i), vmcb, NULL);
 }
 
 static void svm_vcpu_free(struct kvm_vcpu *vcpu)
@@ -1449,7 +1438,7 @@ static void svm_vcpu_free(struct kvm_vcpu *vcpu)
 static void svm_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	struct svm_cpu_data *sd = per_cpu(svm_data, vcpu->cpu);
+	struct svm_cpu_data *sd = per_cpu_ptr(&svm_data, vcpu->cpu);
 
 	if (sev_es_guest(vcpu->kvm))
 		sev_es_unmap_ghcb(svm);
@@ -1486,7 +1475,7 @@ static void svm_prepare_host_switch(struct kvm_vcpu *vcpu)
 static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
+	struct svm_cpu_data *sd = per_cpu_ptr(&svm_data, cpu);
 
 	if (sd->current_vmcb != svm->vmcb) {
 		sd->current_vmcb = svm->vmcb;
@@ -3442,7 +3431,7 @@ static int svm_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 
 static void reload_tss(struct kvm_vcpu *vcpu)
 {
-	struct svm_cpu_data *sd = per_cpu(svm_data, vcpu->cpu);
+	struct svm_cpu_data *sd = per_cpu_ptr(&svm_data, vcpu->cpu);
 
 	sd->tss_desc->type = 9; /* available 32/64-bit TSS */
 	load_TR_desc();
@@ -3450,7 +3439,7 @@ static void reload_tss(struct kvm_vcpu *vcpu)
 
 static void pre_svm_run(struct kvm_vcpu *vcpu)
 {
-	struct svm_cpu_data *sd = per_cpu(svm_data, vcpu->cpu);
+	struct svm_cpu_data *sd = per_cpu_ptr(&svm_data, vcpu->cpu);
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	/*
@@ -3919,7 +3908,7 @@ static noinstr void svm_vcpu_enter_exit(struct kvm_vcpu *vcpu)
 	if (sev_es_guest(vcpu->kvm)) {
 		__svm_sev_es_vcpu_run(svm);
 	} else {
-		struct svm_cpu_data *sd = per_cpu(svm_data, vcpu->cpu);
+		struct svm_cpu_data *sd = per_cpu_ptr(&svm_data, vcpu->cpu);
 
 		/*
 		 * Use a single vmcb (vmcb01 because it's always valid) for
