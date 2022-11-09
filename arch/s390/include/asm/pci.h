@@ -119,6 +119,7 @@ struct zpci_dev {
 	struct list_head entry;		/* list of all zpci_devices, needed for hotplug, etc. */
 	struct list_head iommu_list;
 	struct kref kref;
+	struct rcu_head rcu;
 	struct hotplug_slot hotplug_slot;
 
 	enum zpci_state state;

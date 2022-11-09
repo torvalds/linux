@@ -996,7 +996,7 @@ void zpci_release_device(struct kref *kref)
 		break;
 	}
 	zpci_dbg(3, "rem fid:%x\n", zdev->fid);
-	kfree(zdev);
+	kfree_rcu(zdev, rcu);
 }
 
 int zpci_report_error(struct pci_dev *pdev,
