@@ -2632,7 +2632,7 @@ static unsigned int pkt_check_events(struct gendisk *disk,
 	return attached_disk->fops->check_events(attached_disk, clearing);
 }
 
-static char *pkt_devnode(struct gendisk *disk, umode_t *mode)
+static char *pkt_devnode(const struct gendisk *disk, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "pktcdvd/%s", disk->disk_name);
 }
