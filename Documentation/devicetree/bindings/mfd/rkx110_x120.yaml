@@ -1,0 +1,564 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/rockchip/rockchip-vop.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip SerDes MFD driver
+
+description:
+  Rockchip SerDes MFD driver is a pair chip for long distance transmitting
+  display image.
+
+maintainers:
+  - Zhang Yubing <yubing.zhang@rock-chips.com>
+
+properties:
+  compatible:
+    enum:
+      - "rockchip,rkx110", "rockchip,rkx120"
+
+  interrupts:
+    maxItems: 1
+    description:
+      The Serdes interrupt is shared by RKX110/RKX120.
+
+  clocks:
+    items:
+      - description:
+
+  clock-names:
+    items:
+      - const:
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    items:
+      - const:
+
+  route:
+    type: object
+    description:
+      A route node descriptor serdes topology
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+  - route
+
+additionalProperties: false
+
+# example0:
+# 1 video source input, 1 channel, 1 lane, 1 remote, 1 video output:
+# disp in can select follow interface:
+# dsi0_rx, dsi1_rx, lvds0_rx, lvds1_rx, dual-lvds_rx, rgb_rx
+# disp out can select follow interface:
+# dsi_tx, lvds0_tx, lvds1_tx, dual-lvds_tx, rgb_tx
++-------+          +---------+            +---------+         +--------+
+|       | disp in  |         |   cable0   |         | disp out|        |
+|  soc  |--------->|  RK110  +----------->|  RK120  +-------->| screen |
+|       |          |         |            |         |         |        |
++-------+          +---------+            +---------+         +--------+
+
+examples0:
+  - |
+     #include <dt-bindings/mfd/rockchip-serdes.h>
+    &i2c1 {
+      status = "okay";
+
+      rkx110_x120: rkx110_x120@55 {
+        compatible = "rockchip,rkx110";
+        enable-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+        reset-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
+        status = "okay";
+
+        remote0-addr = <0x35>;
+
+        panel {
+          compatible = "rockchip,serdes_panel";
+          status = "okay";
+
+          local-port0 = <RK_SERDES_LVDS_RX0>;
+          remote0-port0 = <RK_SERDES_LVDS_TX0>;
+
+          backlight0 = <&backlight>;
+          power0-supply = <&vcc3v3_lcd_n>;
+          reset0-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_LOW>;
+          reset0-delay-ms = <20>;
+          enable0-delay-ms = <20>;
+          prepare0-delay-ms = <20>;
+          unprepare0-delay-ms = <20>;
+          disable0-delay-ms = <20>;
+          bus-format0 = <MEDIA_BUS_FMT_RGB888_1X7X4_SPWG>;
+
+          display-timings {
+            native-mode = <&timing0>;
+
+            timing0: timing0 {
+              clock-frequency = <27000000>;
+              hactive = <1024>;
+              vactive = <600>;
+              hback-porch = <160>;
+              hfront-porch = <160>;
+              vback-porch = <20>;
+              vfront-porch = <15>;
+              hsync-len = <6>;
+              vsync-len = <5>;
+              hsync-active = <0>;
+              vsync-active = <0>;
+              de-active = <0>;
+              pixelclk-active = <0>;
+            };
+          };
+        };
+      };
+    };
+
+# example1:
+# 1 video source input, 2 channel, 1 lane, 1 remote, 1 video output:
+# disp in can select follow interface:
+# dsi0_rx, dsi1_rx, lvds0_rx, lvds1_rx, dual-lvds_rx, rgb_rx
+# disp out can select follow interface:
+# dsi_tx, lvds0_tx, lvds1_tx, dual-lvds_tx, rgb_tx
++-------+          +---------+   cable0   +---------+         +--------+
+|       | disp in  |         +----------->|         | disp out|        |
+|  soc  |--------->|  RK110  |   cable1   |  RK120  +-------->| screen |
+|       |          |         +----------->|         |         |        |
++-------+          +---------+            +---------+         +--------+
+
+examples1:
+  - |
+     #include <dt-bindings/mfd/rockchip-serdes.h>
+    &i2c1 {
+      status = "okay";
+
+      rkx110_x120: rkx110_x120@55 {
+        compatible = "rockchip,rkx110";
+        enable-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+        reset-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
+        status = "okay";
+
+        remote0-addr = <0x35>;
+
+        panel {
+          compatible = "rockchip,serdes_panel";
+          status = "okay";
+
+          local-port0 = <RK_SERDES_LVDS_RX0>;
+          remote0-port0 = <RK_SERDES_LVDS_TX0>;
+          num-lanes = <2>;
+
+          backlight0 = <&backlight>;
+          power0-supply = <&vcc3v3_lcd_n>;
+          reset0-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_LOW>;
+          reset0-delay-ms = <20>;
+          enable0-delay-ms = <20>;
+          prepare0-delay-ms = <20>;
+          unprepare0-delay-ms = <20>;
+          disable0-delay-ms = <20>;
+          bus-format0 = <MEDIA_BUS_FMT_RGB888_1X7X4_SPWG>;
+
+          display-timings {
+            native-mode = <&timing0>;
+
+            timing0: timing0 {
+              clock-frequency = <27000000>;
+              hactive = <1024>;
+              vactive = <600>;
+              hback-porch = <160>;
+              hfront-porch = <160>;
+              vback-porch = <20>;
+              vfront-porch = <15>;
+              hsync-len = <6>;
+              vsync-len = <5>;
+              hsync-active = <0>;
+              vsync-active = <0>;
+              de-active = <0>;
+              pixelclk-active = <0>;
+            };
+          };
+        };
+      };
+    };
+
+# example2:
+# 1 video source input, 2 channel, 2 lane, 2 remote, 2 video output:
+# disp in can select follow interface:
+# dsi0_rx, dsi1_rx, lvds0_rx, lvds1_rx, dual-lvds_rx, rgb_rx
+# disp out can select follow interface:
+# dsi_tx, lvds0_tx, lvds1_tx, dual-lvds_tx, rgb_tx
+                                          +---------+         +--------+
+                                  cable0  |         |disp0 out|        |
+                                 +------->|  RK120  +-------->| screen |
+                                 |        |         |         |        |
++-------+          +---------+   |        +---------+         +--------+
+|       | disp in  |         +---+
+|  soc  |--------->|  RK110  |
+|       |          |         +---+
++-------+          +---------+   |        +---------+         +--------+
+                                 |cable1  |         |disp1 out|        |
+                                 +------->|  RK120  +-------->| screen |
+                                          |         |         |        |
+                                          +---------+         +--------+
+
+examples2:
+  - |
+     #include <dt-bindings/mfd/rockchip-serdes.h>
+    &i2c1 {
+      status = "okay";
+
+      rkx110_x120: rkx110_x120@55 {
+        compatible = "rockchip,rkx110";
+        enable-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+        reset-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
+        status = "okay";
+
+        remote0-addr = <0x35>;
+        remote1-addr = <0x36>;
+
+        panel {
+          compatible = "rockchip,serdes_panel";
+          status = "okay";
+
+          local-port0 = <RK_SERDES_LVDS_RX0>;
+          remote0-port0 = <RK_SERDES_LVDS_TX0>;
+          remote1-port0 = <RK_SERDES_LVDS_TX0>;
+
+          backlight0 = <&backlight>;
+          power0-supply = <&vcc3v3_lcd_n>;
+          reset0-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_LOW>;
+          reset0-delay-ms = <20>;
+          enable0-delay-ms = <20>;
+          prepare0-delay-ms = <20>;
+          unprepare0-delay-ms = <20>;
+          disable0-delay-ms = <20>;
+          bus-format0 = <MEDIA_BUS_FMT_RGB888_1X7X4_SPWG>;
+
+          display-timings {
+            native-mode = <&timing0>;
+
+            timing0: timing0 {
+              clock-frequency = <27000000>;
+              hactive = <1024>;
+              vactive = <600>;
+              hback-porch = <160>;
+              hfront-porch = <160>;
+              vback-porch = <20>;
+              vfront-porch = <15>;
+              hsync-len = <6>;
+              vsync-len = <5>;
+              hsync-active = <0>;
+              vsync-active = <0>;
+              de-active = <0>;
+              pixelclk-active = <0>;
+            };
+          };
+        };
+      };
+    };
+
+# example3:
+# 1 video source input, 2 channel, 1 lane, 1 remote, 2 video output:
+# disp in can select follow interface:
+# dsi0_rx, dsi1_rx, lvds0_rx, lvds1_rx, dual-lvds_rx, rgb_rx
+# disp out can select follow interface:
+# lvds0_tx and lvds1_tx
+                                                              +--------+
+                                                     lvds0_tx |        |
+                                                         +--->| screen |
++-------+          +---------+            +---------+    |    |        |
+|       | disp in  |         |   cable0   |         |----+    +--------+
+|  soc  |--------->|  RK110  +----------->|  RK120  |
+|       |          |         |            |         |----+    +--------+
++-------+          +---------+            +---------+    |    |        |
+                                                         +--->| screen |
+                                                     lvds1_tx |        |
+                                                              +--------+
+
+examples3:
+  - |
+     #include <dt-bindings/mfd/rockchip-serdes.h>
+    &i2c1 {
+      status = "okay";
+
+      rkx110_x120: rkx110_x120@55 {
+        compatible = "rockchip,rkx110";
+        enable-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+        reset-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
+        status = "okay";
+
+        remote0-addr = <0x35>;
+
+        panel {
+          compatible = "rockchip,serdes_panel";
+          status = "okay";
+
+          local-port0 = <RK_SERDES_LVDS_RX0>;
+          remote0-port0 = <RK_SERDES_LVDS_TX0>;
+          remote0-port1 = <RK_SERDES_LVDS_TX1>;
+
+          backlight0 = <&backlight>;
+          power0-supply = <&vcc3v3_lcd_n>;
+          reset0-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_LOW>;
+          reset0-delay-ms = <20>;
+          enable0-delay-ms = <20>;
+          prepare0-delay-ms = <20>;
+          unprepare0-delay-ms = <20>;
+          disable0-delay-ms = <20>;
+          bus-format0 = <MEDIA_BUS_FMT_RGB888_1X7X4_SPWG>;
+
+          display-timings {
+            native-mode = <&timing0>;
+
+            timing0: timing0 {
+              clock-frequency = <27000000>;
+              hactive = <1024>;
+              vactive = <600>;
+              hback-porch = <160>;
+              hfront-porch = <160>;
+              vback-porch = <20>;
+              vfront-porch = <15>;
+              hsync-len = <6>;
+              vsync-len = <5>;
+              hsync-active = <0>;
+              vsync-active = <0>;
+              de-active = <0>;
+              pixelclk-active = <0>;
+            };
+          };
+        };
+      };
+    };
+
+# example4:
+# 2 video source input, 2 channel, 1 lane, 1 remote, 2 video output:
+# disp in can select follow interface:
+# dsi0_rx and dsi1_rx, or lvds0_rx and lvds1_rx
+# disp out can select follow interface:
+# lvds0_tx and lvds1_tx
+                                                              +--------+
+                                                     lvds0_tx |        |
+                                                         +--->| screen |
++-------+ disp0_rx +---------+            +---------+    |    |        |
+|       |--------->|         |   cable0   |         |----+    +--------+
+|  soc  | disp1_rx |  RK110  +----------->|  RK120  |
+|       |--------->|         |            |         |----+    +--------+
++-------+          +---------+            +---------+    |    |        |
+                                                         +--->| screen |
+                                                     lvds1_tx |        |
+                                                              +--------+
+
+examples4:
+  - |
+     #include <dt-bindings/mfd/rockchip-serdes.h>
+    &i2c1 {
+      status = "okay";
+
+      rkx110_x120: rkx110_x120@55 {
+        compatible = "rockchip,rkx110";
+        enable-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+        reset-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
+        status = "okay";
+
+        remote0-addr = <0x35>;
+
+        panel {
+          compatible = "rockchip,serdes_panel";
+          status = "okay";
+
+          local-port0 = <RK_SERDES_LVDS_RX0>;
+          local-port1 = <RK_SERDES_LVDS_RX1>;
+          remote0-port0 = <RK_SERDES_LVDS_TX0>;
+          remote0-port1 = <RK_SERDES_LVDS_TX1>;
+
+          backlight0 = <&backlight>;
+          power0-supply = <&vcc3v3_lcd_n>;
+          reset0-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_LOW>;
+          reset0-delay-ms = <20>;
+          enable0-delay-ms = <20>;
+          prepare0-delay-ms = <20>;
+          unprepare0-delay-ms = <20>;
+          disable0-delay-ms = <20>;
+          bus-format0 = <MEDIA_BUS_FMT_RGB888_1X7X4_SPWG>;
+
+          display-timings {
+            native-mode = <&timing0>;
+
+            timing0: timing0 {
+              clock-frequency = <27000000>;
+              hactive = <1024>;
+              vactive = <600>;
+              hback-porch = <160>;
+              hfront-porch = <160>;
+              vback-porch = <20>;
+              vfront-porch = <15>;
+              hsync-len = <6>;
+              vsync-len = <5>;
+              hsync-active = <0>;
+              vsync-active = <0>;
+              de-active = <0>;
+              pixelclk-active = <0>;
+            };
+          };
+        };
+      };
+    };
+
+# example5:
+# 2 video source input, 2 channel, 2 lane, 1 remote, 2 video output:
+# disp in can select follow interface:
+# dsi0_rx and dsi1_rx, or lvds0_rx and lvds1_rx
+# disp out can select follow interface:
+# lvds0_tx and lvds1_tx
+                                                              +--------+
+                                                     lvds0_tx |        |
+                                                         +--->| screen |
++-------+ disp0_rx +---------+   cable0   +---------+    |    |        |
+|       |--------->|         +----------->|         |----+    +--------+
+|  soc  | disp1_rx |  RK110  |   cable1   |  RK120  |
+|       |--------->|         +----------->|         |----+    +--------+
++-------+          +---------+            +---------+    |    |        |
+                                                         +--->| screen |
+                                                     lvds1_tx |        |
+                                                              +--------+
+
+examples5:
+  - |
+     #include <dt-bindings/mfd/rockchip-serdes.h>
+    &i2c1 {
+      status = "okay";
+
+      rkx110_x120: rkx110_x120@55 {
+        compatible = "rockchip,rkx110";
+        enable-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+        reset-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
+        status = "okay";
+
+        remote0-addr = <0x35>;
+
+        panel {
+          compatible = "rockchip,serdes_panel";
+          status = "okay";
+
+          local-port0 = <RK_SERDES_LVDS_RX0>;
+          local-port1 = <RK_SERDES_LVDS_RX1>;
+          remote0-port0 = <RK_SERDES_LVDS_TX0>;
+          remote0-port1 = <RK_SERDES_LVDS_TX1>;
+          num-lanes = <2>;
+
+          backlight0 = <&backlight>;
+          power0-supply = <&vcc3v3_lcd_n>;
+          reset0-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_LOW>;
+          reset0-delay-ms = <20>;
+          enable0-delay-ms = <20>;
+          prepare0-delay-ms = <20>;
+          unprepare0-delay-ms = <20>;
+          disable0-delay-ms = <20>;
+          bus-format0 = <MEDIA_BUS_FMT_RGB888_1X7X4_SPWG>;
+
+          display-timings {
+            native-mode = <&timing0>;
+
+            timing0: timing0 {
+              clock-frequency = <27000000>;
+              hactive = <1024>;
+              vactive = <600>;
+              hback-porch = <160>;
+              hfront-porch = <160>;
+              vback-porch = <20>;
+              vfront-porch = <15>;
+              hsync-len = <6>;
+              vsync-len = <5>;
+              hsync-active = <0>;
+              vsync-active = <0>;
+              de-active = <0>;
+              pixelclk-active = <0>;
+            };
+          };
+        };
+      };
+    };
+
+# example6:
+# 2 video source input, 2 channel, 2 lane, 2 remote, 2 video output:
+# disp in can select follow interface:
+# dsi0_rx and dsi1_rx, or lvds0_rx and lvds1_rx
+# disp out can select follow interface:
+# dsi_tx, lvds0_tx, lvds1_tx, dual-lvds_tx, rgb_tx
+                                          +---------+         +--------+
+                                  cable0  |         |disp0 out|        |
+                                 +------->|  RK120  +-------->| screen |
+                                 |        |         |         |        |
++-------+ disp0_rx +---------+   |        +---------+         +--------+
+|       |--------->|         +---+
+|  soc  | disp1_rx |  RK110  |
+|       |--------->|         +---+
++-------+          +---------+   |        +---------+         +--------+
+                                 |cable1  |         |disp1 out|        |
+                                 +------->|  RK120  +-------->| screen |
+                                          |         |         |        |
+                                          +---------+         +--------+
+
+examples6:
+  - |
+     #include <dt-bindings/mfd/rockchip-serdes.h>
+    &i2c1 {
+      status = "okay";
+
+      rkx110_x120: rkx110_x120@55 {
+        compatible = "rockchip,rkx110";
+        enable-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+        reset-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
+        status = "okay";
+
+        remote0-addr = <0x35>;
+        remote1-addr = <0x36>;
+
+        panel {
+          compatible = "rockchip,serdes_panel";
+          status = "okay";
+
+          local-port0 = <RK_SERDES_LVDS_RX0>;
+          local-port1 = <RK_SERDES_LVDS_RX1>;
+          remote0-port0 = <RK_SERDES_LVDS_TX0>;
+          remote1-port0 = <RK_SERDES_LVDS_TX0>;
+
+          backlight0 = <&backlight>;
+          power0-supply = <&vcc3v3_lcd_n>;
+          reset0-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_LOW>;
+          reset0-delay-ms = <20>;
+          enable0-delay-ms = <20>;
+          prepare0-delay-ms = <20>;
+          unprepare0-delay-ms = <20>;
+          disable0-delay-ms = <20>;
+          bus-format0 = <MEDIA_BUS_FMT_RGB888_1X7X4_SPWG>;
+
+          display-timings {
+            native-mode = <&timing0>;
+
+            timing0: timing0 {
+              clock-frequency = <27000000>;
+              hactive = <1024>;
+              vactive = <600>;
+              hback-porch = <160>;
+              hfront-porch = <160>;
+              vback-porch = <20>;
+              vfront-porch = <15>;
+              hsync-len = <6>;
+              vsync-len = <5>;
+              hsync-active = <0>;
+              vsync-active = <0>;
+              de-active = <0>;
+              pixelclk-active = <0>;
+            };
+          };
+        };
+      };
+    };
