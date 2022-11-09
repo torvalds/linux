@@ -66,28 +66,6 @@ extern void flush_hash_hugepage(unsigned long vsid, unsigned long addr,
 				pmd_t *pmdp, unsigned int psize, int ssize,
 				unsigned long flags);
 
-static inline void hash__local_flush_all_mm(struct mm_struct *mm)
-{
-	/*
-	 * There's no Page Walk Cache for hash, so what is needed is
-	 * the same as flush_tlb_mm(), which doesn't really make sense
-	 * with hash. So the only thing we could do is flush the
-	 * entire LPID! Punt for now, as it's not being used.
-	 */
-	WARN_ON_ONCE(1);
-}
-
-static inline void hash__flush_all_mm(struct mm_struct *mm)
-{
-	/*
-	 * There's no Page Walk Cache for hash, so what is needed is
-	 * the same as flush_tlb_mm(), which doesn't really make sense
-	 * with hash. So the only thing we could do is flush the
-	 * entire LPID! Punt for now, as it's not being used.
-	 */
-	WARN_ON_ONCE(1);
-}
-
 struct mmu_gather;
 extern void hash__tlb_flush(struct mmu_gather *tlb);
 
