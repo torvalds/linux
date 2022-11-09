@@ -547,6 +547,7 @@ static void s390_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 	
 int zpci_dma_init_device(struct zpci_dev *zdev)
 {
+	u8 status;
 	int rc;
 
 	/*
@@ -598,7 +599,7 @@ int zpci_dma_init_device(struct zpci_dev *zdev)
 
 	}
 	if (zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
-			       virt_to_phys(zdev->dma_table))) {
+			       virt_to_phys(zdev->dma_table), &status)) {
 		rc = -EIO;
 		goto free_bitmap;
 	}
