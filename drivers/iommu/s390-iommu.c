@@ -199,14 +199,63 @@ static void s390_iommu_release_device(struct device *dev)
 		__s390_iommu_detach_device(zdev);
 }
 
+static void s390_iommu_flush_iotlb_all(struct iommu_domain *domain)
+{
+	struct s390_domain *s390_domain = to_s390_domain(domain);
+	struct zpci_dev *zdev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&s390_domain->list_lock, flags);
+	list_for_each_entry(zdev, &s390_domain->devices, iommu_list) {
+		zpci_refresh_trans((u64)zdev->fh << 32, zdev->start_dma,
+				   zdev->end_dma - zdev->start_dma + 1);
+	}
+	spin_unlock_irqrestore(&s390_domain->list_lock, flags);
+}
+
+static void s390_iommu_iotlb_sync(struct iommu_domain *domain,
+				  struct iommu_iotlb_gather *gather)
+{
+	struct s390_domain *s390_domain = to_s390_domain(domain);
+	size_t size = gather->end - gather->start + 1;
+	struct zpci_dev *zdev;
+	unsigned long flags;
+
+	/* If gather was never added to there is nothing to flush */
+	if (!gather->end)
+		return;
+
+	spin_lock_irqsave(&s390_domain->list_lock, flags);
+	list_for_each_entry(zdev, &s390_domain->devices, iommu_list) {
+		zpci_refresh_trans((u64)zdev->fh << 32, gather->start,
+				   size);
+	}
+	spin_unlock_irqrestore(&s390_domain->list_lock, flags);
+}
+
+static void s390_iommu_iotlb_sync_map(struct iommu_domain *domain,
+				      unsigned long iova, size_t size)
+{
+	struct s390_domain *s390_domain = to_s390_domain(domain);
+	struct zpci_dev *zdev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&s390_domain->list_lock, flags);
+	list_for_each_entry(zdev, &s390_domain->devices, iommu_list) {
+		if (!zdev->tlb_refresh)
+			continue;
+		zpci_refresh_trans((u64)zdev->fh << 32,
+				   iova, size);
+	}
+	spin_unlock_irqrestore(&s390_domain->list_lock, flags);
+}
+
 static int s390_iommu_update_trans(struct s390_domain *s390_domain,
 				   phys_addr_t pa, dma_addr_t dma_addr,
 				   unsigned long nr_pages, int flags)
 {
 	phys_addr_t page_addr = pa & PAGE_MASK;
-	dma_addr_t start_dma_addr = dma_addr;
 	unsigned long irq_flags, i;
-	struct zpci_dev *zdev;
 	unsigned long *entry;
 	int rc = 0;
 
@@ -224,15 +273,6 @@ static int s390_iommu_update_trans(struct s390_domain *s390_domain,
 		page_addr += PAGE_SIZE;
 		dma_addr += PAGE_SIZE;
 	}
-
-	spin_lock(&s390_domain->list_lock);
-	list_for_each_entry(zdev, &s390_domain->devices, iommu_list) {
-		rc = zpci_refresh_trans((u64)zdev->fh << 32,
-					start_dma_addr, nr_pages * PAGE_SIZE);
-		if (rc)
-			break;
-	}
-	spin_unlock(&s390_domain->list_lock);
 
 undo_cpu_trans:
 	if (rc && ((flags & ZPCI_PTE_VALID_MASK) == ZPCI_PTE_VALID)) {
@@ -340,6 +380,8 @@ static size_t s390_iommu_unmap_pages(struct iommu_domain *domain,
 	if (rc)
 		return 0;
 
+	iommu_iotlb_gather_add_range(gather, iova, size);
+
 	return size;
 }
 
@@ -384,6 +426,9 @@ static const struct iommu_ops s390_iommu_ops = {
 		.detach_dev	= s390_iommu_detach_device,
 		.map_pages	= s390_iommu_map_pages,
 		.unmap_pages	= s390_iommu_unmap_pages,
+		.flush_iotlb_all = s390_iommu_flush_iotlb_all,
+		.iotlb_sync      = s390_iommu_iotlb_sync,
+		.iotlb_sync_map  = s390_iommu_iotlb_sync_map,
 		.iova_to_phys	= s390_iommu_iova_to_phys,
 		.free		= s390_domain_free,
 	}
