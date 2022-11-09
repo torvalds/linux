@@ -209,7 +209,6 @@ struct vcpu_svm {
 	struct vmcb *vmcb;
 	struct kvm_vmcb_info vmcb01;
 	struct kvm_vmcb_info *current_vmcb;
-	struct svm_cpu_data *svm_data;
 	u32 asid;
 	u32 sysenter_esp_hi;
 	u32 sysenter_eip_hi;
