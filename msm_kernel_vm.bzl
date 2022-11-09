@@ -22,6 +22,7 @@ load(
 load(":msm_common.bzl", "define_top_level_config", "gen_config_without_source_lines")
 load(":msm_dtc.bzl", "define_dtc_dist")
 load(":image_opts.bzl", "vm_image_opts")
+load(":uapi_library.bzl", "define_uapi_library")
 load(":target_variants.bzl", "vm_variants")
 
 def _define_build_config(
@@ -254,5 +255,7 @@ def define_msm_vm(
     _define_kernel_dist(target)
 
     define_dtc_dist(target)
+
+    define_uapi_library(target)
 
     define_extras(target, flavor = "vm")

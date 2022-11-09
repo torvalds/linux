@@ -23,8 +23,10 @@ load(":msm_common.bzl", "define_top_level_config", "gen_config_without_source_li
 load(":msm_dtc.bzl", "define_dtc_dist")
 load(":msm_abl.bzl", "define_abl_dist")
 load(":super_image.bzl", "super_image")
+load(":uapi_library.bzl", "define_uapi_library")
 load(":image_opts.bzl", "boot_image_opts")
 load(":target_variants.bzl", "la_variants")
+
 
 def _define_build_config(
         msm_target,
@@ -379,5 +381,7 @@ def define_msm_la(
     define_abl_dist(target)
 
     define_dtc_dist(target)
+
+    define_uapi_library(target)
 
     define_extras(target)
