@@ -498,6 +498,14 @@ void *dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
 
 	WARN_ON_ONCE(!dev->coherent_dma_mask);
 
+	/*
+	 * DMA allocations can never be turned back into a page pointer, so
+	 * requesting compound pages doesn't make sense (and can't even be
+	 * supported at all by various backends).
+	 */
+	if (WARN_ON_ONCE(flag & __GFP_COMP))
+		return NULL;
+
 	if (dma_alloc_from_dev_coherent(dev, size, dma_handle, &cpu_addr))
 		return cpu_addr;
 
