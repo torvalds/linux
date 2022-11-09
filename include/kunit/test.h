@@ -666,13 +666,13 @@ do {									       \
 			    left,					       \
 			    op,						       \
 			    right,					       \
-			    size,					       \
+			    size_,					       \
 			    fmt,					       \
 			    ...)					       \
 do {									       \
 	const void *__left = (left);					       \
 	const void *__right = (right);					       \
-	const size_t __size = (size);					       \
+	const size_t __size = (size_);					       \
 	static const struct kunit_binary_assert_text __text = {		       \
 		.operation = #op,					       \
 		.left_text = #left,					       \
@@ -686,10 +686,10 @@ do {									       \
 		      assert_type,					       \
 		      kunit_mem_assert,					       \
 		      kunit_mem_assert_format,				       \
-		      KUNIT_INIT_MEM_ASSERT_STRUCT(&__text,		       \
-						   __left,		       \
-						   __right,		       \
-						   __size),		       \
+		      KUNIT_INIT_ASSERT(.text = &__text,		       \
+					.left_value = __left,		       \
+					.right_value = __right,		       \
+					.size = __size),		       \
 		      fmt,						       \
 		      ##__VA_ARGS__);					       \
 } while (0)

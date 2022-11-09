@@ -192,13 +192,6 @@ void kunit_binary_str_assert_format(const struct kunit_assert *assert,
 				    const struct va_format *message,
 				    struct string_stream *stream);
 
-#define KUNIT_INIT_MEM_ASSERT_STRUCT(text_, left_val, right_val, size_) {      \
-	.text = text_,							       \
-	.left_value = left_val,						       \
-	.right_value = right_val,				       	       \
-	.size = size_						       	       \
-}
-
 /**
  * struct kunit_mem_assert - An expectation/assertion that compares two
  *	memory blocks.
