@@ -8,6 +8,7 @@
 #include <linux/pwm.h>
 #include <linux/string_helpers.h>
 
+#include "i915_reg.h"
 #include "intel_backlight.h"
 #include "intel_backlight_regs.h"
 #include "intel_connector.h"

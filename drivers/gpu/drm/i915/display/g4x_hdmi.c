@@ -6,6 +6,7 @@
  */
 
 #include "g4x_hdmi.h"
+#include "i915_reg.h"
 #include "intel_audio.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"

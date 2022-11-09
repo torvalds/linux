@@ -30,9 +30,10 @@
 #include "display/intel_cdclk.h"
 #include "display/intel_de.h"
 #include "gt/intel_gt_regs.h"
-#include "intel_device_info.h"
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "i915_utils.h"
+#include "intel_device_info.h"
 
 #define PLATFORM_NAME(x) [INTEL_##x] = #x
 static const char * const platform_names[] = {

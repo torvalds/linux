@@ -10,6 +10,7 @@
 #include <drm/display/drm_dsc_helper.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_types.h"

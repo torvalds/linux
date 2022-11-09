@@ -27,6 +27,7 @@
 #include "display/intel_dp.h"
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
