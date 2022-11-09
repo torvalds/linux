@@ -134,3 +134,7 @@
 		};
 	};
 };
+
+&pmu {
+	compatible = "amlogic,g12a-ddr-pmu";
+};

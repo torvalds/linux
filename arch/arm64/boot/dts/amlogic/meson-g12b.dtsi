@@ -140,3 +140,7 @@
 &mali {
 	dma-coherent;
 };
+
+&pmu {
+	compatible = "amlogic,g12b-ddr-pmu";
+};
