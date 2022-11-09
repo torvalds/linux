@@ -45,6 +45,8 @@ static int cedrus_try_ctrl(struct v4l2_ctrl *ctrl)
 	} else if (ctrl->id == V4L2_CID_STATELESS_HEVC_SPS) {
 		const struct v4l2_ctrl_hevc_sps *sps = ctrl->p_new.p_hevc_sps;
 		struct cedrus_ctx *ctx = container_of(ctrl->handler, struct cedrus_ctx, hdl);
+		unsigned int bit_depth;
+		struct vb2_queue *vq;
 
 		if (sps->chroma_format_idc != 1)
 			/* Only 4:2:0 is supported */
@@ -62,6 +64,24 @@ static int cedrus_try_ctrl(struct v4l2_ctrl *ctrl)
 			if (sps->bit_depth_luma_minus8 != 0)
 				/* Only 8-bit is supported */
 				return -EINVAL;
+		}
+
+		bit_depth = max(sps->bit_depth_luma_minus8,
+				sps->bit_depth_chroma_minus8) + 8;
+
+		vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
+				     V4L2_BUF_TYPE_VIDEO_CAPTURE);
+
+		/*
+		 * Bit depth can't be higher than currently set once
+		 * buffers are allocated.
+		 */
+		if (vb2_is_busy(vq)) {
+			if (ctx->bit_depth < bit_depth)
+				return -EINVAL;
+		} else {
+			ctx->bit_depth = bit_depth;
+			cedrus_reset_cap_format(ctx);
 		}
 	}
 
@@ -354,6 +374,7 @@ static int cedrus_open(struct file *file)
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
 	file->private_data = &ctx->fh;
 	ctx->dev = dev;
+	ctx->bit_depth = 8;
 
 	ctx->fh.m2m_ctx = v4l2_m2m_ctx_init(dev->m2m_dev, ctx,
 					    &cedrus_queue_init);
