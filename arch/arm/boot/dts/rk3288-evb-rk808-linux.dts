@@ -444,7 +444,7 @@
 		mpu-debug = <1>;
 	};
 
-	ak8963:compass@0d{
+	ak8963: compass@d{
 		compatible = "mpu_ak8963";
 		reg = <0x0d>;
 		compass-bus = <0>;
