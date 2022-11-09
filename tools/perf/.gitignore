@@ -40,6 +40,7 @@ pmu-events/pmu-events.c
 pmu-events/jevents
 feature/
 libbpf/
+libsubcmd/
 fixdep
 libtraceevent-dynamic-list
 Documentation/doc.dep
