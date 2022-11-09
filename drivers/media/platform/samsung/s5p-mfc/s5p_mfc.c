@@ -36,7 +36,7 @@
 #define S5P_MFC_ENC_NAME	"s5p-mfc-enc"
 
 int mfc_debug_level;
-module_param_named(debug, mfc_debug_level, int, S_IRUGO | S_IWUSR);
+module_param_named(debug, mfc_debug_level, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level - higher value produces more verbose messages");
 
 static char *mfc_mem_size;
