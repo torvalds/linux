@@ -401,6 +401,87 @@ budget in next setting is user's job.
 If admin wants to measure writeback count in a certain period, they could
 know it via /sys/block/zram0/bd_stat's 3rd column.
 
+recompression
+-------------
+
+With CONFIG_ZRAM_MULTI_COMP, zram can recompress pages using alternative
+(secondary) compression algorithms. The basic idea is that alternative
+compression algorithm can provide better compression ratio at a price of
+(potentially) slower compression/decompression speeds. Alternative compression
+algorithm can, for example, be more successful compressing huge pages (those
+that default algorithm failed to compress). Another application is idle pages
+recompression - pages that are cold and sit in the memory can be recompressed
+using more effective algorithm and, hence, reduce zsmalloc memory usage.
+
+With CONFIG_ZRAM_MULTI_COMP, zram supports up to 4 compression algorithms:
+one primary and up to 3 secondary ones. Primary zram compressor is explained
+in "3) Select compression algorithm", secondary algorithms are configured
+using recomp_algorithm device attribute.
+
+Example:::
+
+	#show supported recompression algorithms
+	cat /sys/block/zramX/recomp_algorithm
+	#1: lzo lzo-rle lz4 lz4hc [zstd]
+	#2: lzo lzo-rle lz4 [lz4hc] zstd
+
+Alternative compression algorithms are sorted by priority. In the example
+above, zstd is used as the first alternative algorithm, which has priority
+of 1, while lz4hc is configured as a compression algorithm with priority 2.
+Alternative compression algorithm's priority is provided during algorithms
+configuration:::
+
+	#select zstd recompression algorithm, priority 1
+	echo "algo=zstd priority=1" > /sys/block/zramX/recomp_algorithm
+
+	#select deflate recompression algorithm, priority 2
+	echo "algo=deflate priority=2" > /sys/block/zramX/recomp_algorithm
+
+Another device attribute that CONFIG_ZRAM_MULTI_COMP enables is recompress,
+which controls recompression.
+
+Examples:::
+
+	#IDLE pages recompression is activated by `idle` mode
+	echo "type=idle" > /sys/block/zramX/recompress
+
+	#HUGE pages recompression is activated by `huge` mode
+	echo "type=huge" > /sys/block/zram0/recompress
+
+	#HUGE_IDLE pages recompression is activated by `huge_idle` mode
+	echo "type=huge_idle" > /sys/block/zramX/recompress
+
+The number of idle pages can be significant, so user-space can pass a size
+threshold (in bytes) to the recompress knob: zram will recompress only pages
+of equal or greater size:::
+
+	#recompress all pages larger than 3000 bytes
+	echo "threshold=3000" > /sys/block/zramX/recompress
+
+	#recompress idle pages larger than 2000 bytes
+	echo "type=idle threshold=2000" > /sys/block/zramX/recompress
+
+Recompression of idle pages requires memory tracking.
+
+During re-compression for every page, that matches re-compression criteria,
+ZRAM iterates the list of registered alternative compression algorithms in
+order of their priorities. ZRAM stops either when re-compression was
+successful (re-compressed object is smaller in size than the original one)
+and matches re-compression criteria (e.g. size threshold) or when there are
+no secondary algorithms left to try. If none of the secondary algorithms can
+successfully re-compressed the page such a page is marked as incompressible,
+so ZRAM will not attempt to re-compress it in the future.
+
+This re-compression behaviour, when it iterates through the list of
+registered compression algorithms, increases our chances of finding the
+algorithm that successfully compresses a particular page. Sometimes, however,
+it is convenient (and sometimes even necessary) to limit recompression to
+only one particular algorithm so that it will not try any other algorithms.
+This can be achieved by providing a algo=NAME parameter:::
+
+	#use zstd algorithm only (if registered)
+	echo "type=huge algo=zstd" > /sys/block/zramX/recompress
+
 memory tracking
 ===============
 
