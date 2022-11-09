@@ -1526,6 +1526,11 @@ void mt7915_mac_reset_work(struct work_struct *work)
 		mt76_clear(dev, MT_WFDMA0_MCU_HOST_INT_ENA,
 			   MT_MCU_CMD_WDT_MASK);
 
+		if (READ_ONCE(dev->recovery.state) & MT_MCU_CMD_WA_WDT)
+			dev->recovery.wa_reset_count++;
+		else
+			dev->recovery.wm_reset_count++;
+
 		mt7915_mac_full_reset(dev);
 
 		/* enable mcu irq */
