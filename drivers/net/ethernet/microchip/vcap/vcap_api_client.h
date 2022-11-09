@@ -143,6 +143,10 @@ enum vcap_bit {
 	VCAP_BIT_1
 };
 
+/* Enable/Disable the VCAP instance lookups. Chain id 0 means disable */
+int vcap_enable_lookups(struct vcap_control *vctrl, struct net_device *ndev,
+			int chain_id, unsigned long cookie, bool enable);
+
 /* VCAP rule operations */
 /* Allocate a rule and fill in the basic information */
 struct vcap_rule *vcap_alloc_rule(struct vcap_control *vctrl,

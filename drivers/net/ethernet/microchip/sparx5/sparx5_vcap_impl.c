@@ -489,6 +489,28 @@ static int sparx5_port_info(struct net_device *ndev, enum vcap_type vtype,
 	return 0;
 }
 
+/* Enable all lookups in the VCAP instance */
+static int sparx5_vcap_enable(struct net_device *ndev,
+			      struct vcap_admin *admin,
+			      bool enable)
+{
+	struct sparx5_port *port = netdev_priv(ndev);
+	struct sparx5 *sparx5;
+	int portno;
+
+	sparx5 = port->sparx5;
+	portno = port->portno;
+
+	/* For now we only consider IS2 */
+	if (enable)
+		spx5_wr(ANA_ACL_VCAP_S2_CFG_SEC_ENA_SET(0xf), sparx5,
+			ANA_ACL_VCAP_S2_CFG(portno));
+	else
+		spx5_wr(ANA_ACL_VCAP_S2_CFG_SEC_ENA_SET(0), sparx5,
+			ANA_ACL_VCAP_S2_CFG(portno));
+	return 0;
+}
+
 /* API callback operations: only IS2 is supported for now */
 static struct vcap_operations sparx5_vcap_ops = {
 	.validate_keyset = sparx5_vcap_validate_keyset,
@@ -500,6 +522,7 @@ static struct vcap_operations sparx5_vcap_ops = {
 	.update = sparx5_vcap_update,
 	.move = sparx5_vcap_move,
 	.port_info = sparx5_port_info,
+	.enable = sparx5_vcap_enable,
 };
 
 /* Enable lookups per port and set the keyset generation: only IS2 for now */
@@ -508,11 +531,6 @@ static void sparx5_vcap_port_key_selection(struct sparx5 *sparx5,
 {
 	int portno, lookup;
 	u32 keysel;
-
-	/* enable all 4 lookups on all ports */
-	for (portno = 0; portno < SPX5_PORTS; ++portno)
-		spx5_wr(ANA_ACL_VCAP_S2_CFG_SEC_ENA_SET(0xf), sparx5,
-			ANA_ACL_VCAP_S2_CFG(portno));
 
 	/* all traffic types generate the MAC_ETYPE keyset for now in all
 	 * lookups on all ports
@@ -566,6 +584,7 @@ sparx5_vcap_admin_alloc(struct sparx5 *sparx5, struct vcap_control *ctrl,
 		return ERR_PTR(-ENOMEM);
 	INIT_LIST_HEAD(&admin->list);
 	INIT_LIST_HEAD(&admin->rules);
+	INIT_LIST_HEAD(&admin->enabled);
 	admin->vtype = cfg->vtype;
 	admin->vinst = cfg->vinst;
 	admin->lookups = cfg->lookups;

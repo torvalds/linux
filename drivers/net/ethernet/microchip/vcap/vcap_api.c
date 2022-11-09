@@ -44,6 +44,13 @@ struct vcap_stream_iter {
 	const struct vcap_typegroup *tg; /* current typegroup */
 };
 
+/* Stores the filter cookie that enabled the port */
+struct vcap_enabled_port {
+	struct list_head list; /* for insertion in enabled ports list */
+	struct net_device *ndev;  /* the enabled port */
+	unsigned long cookie; /* filter that enabled the port */
+};
+
 static void vcap_iter_set(struct vcap_stream_iter *itr, int sw_width,
 			  const struct vcap_typegroup *tg, u32 offset)
 {
@@ -516,7 +523,7 @@ static int vcap_api_check(struct vcap_control *ctrl)
 	    !ctrl->ops->add_default_fields || !ctrl->ops->cache_erase ||
 	    !ctrl->ops->cache_write || !ctrl->ops->cache_read ||
 	    !ctrl->ops->init || !ctrl->ops->update || !ctrl->ops->move ||
-	    !ctrl->ops->port_info) {
+	    !ctrl->ops->port_info || !ctrl->ops->enable) {
 		pr_err("%s:%d: client operations are missing\n",
 		       __func__, __LINE__);
 		return -ENOENT;
@@ -1128,6 +1135,7 @@ EXPORT_SYMBOL_GPL(vcap_del_rule);
 /* Delete all rules in the VCAP instance */
 int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin)
 {
+	struct vcap_enabled_port *eport, *next_eport;
 	struct vcap_rule_internal *ri, *next_ri;
 	int ret = vcap_api_check(vctrl);
 
@@ -1139,6 +1147,13 @@ int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin)
 		kfree(ri);
 	}
 	admin->last_used_addr = admin->last_valid_addr;
+
+	/* Remove list of enabled ports */
+	list_for_each_entry_safe(eport, next_eport, &admin->enabled, list) {
+		list_del(&eport->list);
+		kfree(eport);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vcap_del_rules);
@@ -1458,6 +1473,109 @@ void vcap_set_tc_exterr(struct flow_cls_offload *fco, struct vcap_rule *vrule)
 	}
 }
 EXPORT_SYMBOL_GPL(vcap_set_tc_exterr);
+
+/* Check if this port is already enabled for this VCAP instance */
+static bool vcap_is_enabled(struct vcap_admin *admin, struct net_device *ndev,
+			    unsigned long cookie)
+{
+	struct vcap_enabled_port *eport;
+
+	list_for_each_entry(eport, &admin->enabled, list)
+		if (eport->cookie == cookie || eport->ndev == ndev)
+			return true;
+
+	return false;
+}
+
+/* Enable this port for this VCAP instance */
+static int vcap_enable(struct vcap_admin *admin, struct net_device *ndev,
+		       unsigned long cookie)
+{
+	struct vcap_enabled_port *eport;
+
+	eport = kzalloc(sizeof(*eport), GFP_KERNEL);
+	if (!eport)
+		return -ENOMEM;
+
+	eport->ndev = ndev;
+	eport->cookie = cookie;
+	list_add_tail(&eport->list, &admin->enabled);
+
+	return 0;
+}
+
+/* Disable this port for this VCAP instance */
+static int vcap_disable(struct vcap_admin *admin, struct net_device *ndev,
+			unsigned long cookie)
+{
+	struct vcap_enabled_port *eport;
+
+	list_for_each_entry(eport, &admin->enabled, list) {
+		if (eport->cookie == cookie && eport->ndev == ndev) {
+			list_del(&eport->list);
+			kfree(eport);
+			return 0;
+		}
+	}
+
+	return -ENOENT;
+}
+
+/* Find the VCAP instance that enabled the port using a specific filter */
+static struct vcap_admin *vcap_find_admin_by_cookie(struct vcap_control *vctrl,
+						    unsigned long cookie)
+{
+	struct vcap_enabled_port *eport;
+	struct vcap_admin *admin;
+
+	list_for_each_entry(admin, &vctrl->list, list)
+		list_for_each_entry(eport, &admin->enabled, list)
+			if (eport->cookie == cookie)
+				return admin;
+
+	return NULL;
+}
+
+/* Enable/Disable the VCAP instance lookups. Chain id 0 means disable */
+int vcap_enable_lookups(struct vcap_control *vctrl, struct net_device *ndev,
+			int chain_id, unsigned long cookie, bool enable)
+{
+	struct vcap_admin *admin;
+	int err;
+
+	err = vcap_api_check(vctrl);
+	if (err)
+		return err;
+
+	if (!ndev)
+		return -ENODEV;
+
+	if (chain_id)
+		admin = vcap_find_admin(vctrl, chain_id);
+	else
+		admin = vcap_find_admin_by_cookie(vctrl, cookie);
+	if (!admin)
+		return -ENOENT;
+
+	/* first instance and first chain */
+	if (admin->vinst || chain_id > admin->first_cid)
+		return -EFAULT;
+
+	err = vctrl->ops->enable(ndev, admin, enable);
+	if (err)
+		return err;
+
+	if (chain_id) {
+		if (vcap_is_enabled(admin, ndev, cookie))
+			return -EADDRINUSE;
+		vcap_enable(admin, ndev, cookie);
+	} else {
+		vcap_disable(admin, ndev, cookie);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vcap_enable_lookups);
 
 #ifdef CONFIG_VCAP_KUNIT_TEST
 #include "vcap_api_kunit.c"
