@@ -116,8 +116,8 @@ krait_add_sec_mux(struct device *dev, int id, const char *s,
 	int ret;
 	struct krait_mux_clk *mux;
 	static const char *sec_mux_list[] = {
-		"acpu_aux",
 		"qsb",
+		"acpu_aux",
 	};
 	struct clk_init_data init = {
 		.parent_names = sec_mux_list,
