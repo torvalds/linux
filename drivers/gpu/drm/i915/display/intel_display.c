@@ -8572,7 +8572,7 @@ static void intel_mode_config_init(struct drm_i915_private *i915)
 	struct drm_mode_config *mode_config = &i915->drm.mode_config;
 
 	drm_mode_config_init(&i915->drm);
-	INIT_LIST_HEAD(&i915->global_obj_list);
+	INIT_LIST_HEAD(&i915->display.global.obj_list);
 
 	mode_config->min_width = 0;
 	mode_config->min_height = 0;

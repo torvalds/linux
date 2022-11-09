@@ -292,10 +292,6 @@ struct drm_i915_private {
 
 	struct i915_gem_mm mm;
 
-	/* Kernel Modesetting */
-
-	struct list_head global_obj_list;
-
 	bool mchbar_need_disable;
 
 	struct intel_l3_parity l3_parity;

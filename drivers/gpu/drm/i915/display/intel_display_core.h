@@ -345,6 +345,10 @@ struct intel_display {
 	} fdi;
 
 	struct {
+		struct list_head obj_list;
+	} global;
+
+	struct {
 		/*
 		 * Base address of where the gmbus and gpio blocks are located
 		 * (either on PCH or on SoC for platforms without PCH).
