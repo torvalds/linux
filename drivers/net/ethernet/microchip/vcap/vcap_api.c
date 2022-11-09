@@ -644,6 +644,23 @@ static int vcap_write_rule(struct vcap_rule_internal *ri)
 	return 0;
 }
 
+/* Convert a chain id to a VCAP lookup index */
+int vcap_chain_id_to_lookup(struct vcap_admin *admin, int cur_cid)
+{
+	int lookup_first = admin->vinst * admin->lookups_per_instance;
+	int lookup_last = lookup_first + admin->lookups_per_instance;
+	int cid_next = admin->first_cid + VCAP_CID_LOOKUP_SIZE;
+	int cid = admin->first_cid;
+	int lookup;
+
+	for (lookup = lookup_first; lookup < lookup_last; ++lookup,
+	     cid += VCAP_CID_LOOKUP_SIZE, cid_next += VCAP_CID_LOOKUP_SIZE)
+		if (cur_cid >= cid && cur_cid < cid_next)
+			return lookup;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vcap_chain_id_to_lookup);
+
 /* Lookup a vcap instance using chain id */
 struct vcap_admin *vcap_find_admin(struct vcap_control *vctrl, int cid)
 {
