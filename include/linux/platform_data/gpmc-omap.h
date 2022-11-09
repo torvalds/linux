@@ -137,11 +137,11 @@ struct gpmc_device_timings {
 #define GPMC_MUX_AD			2	/* Addr-Data multiplex */
 
 /* Wait pin polarity values */
-#define GPMC_WAITPINPOLARITY_INVALID -1
+#define GPMC_WAITPINPOLARITY_INVALID UINT_MAX
 #define GPMC_WAITPINPOLARITY_ACTIVE_LOW 0
 #define GPMC_WAITPINPOLARITY_ACTIVE_HIGH 1
 
-#define GPMC_WAITPIN_INVALID -1
+#define GPMC_WAITPIN_INVALID UINT_MAX
 
 struct gpmc_settings {
 	bool burst_wrap;	/* enables wrap bursting */

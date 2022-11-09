@@ -1045,7 +1045,7 @@ EXPORT_SYMBOL(gpmc_cs_free);
 
 static bool gpmc_is_valid_waitpin(u32 waitpin)
 {
-	return waitpin >= 0 && waitpin < gpmc_nr_waitpins;
+	return waitpin < gpmc_nr_waitpins;
 }
 
 static int gpmc_alloc_waitpin(struct gpmc_device *gpmc,
