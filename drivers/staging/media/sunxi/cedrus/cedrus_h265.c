@@ -41,6 +41,19 @@ struct cedrus_h265_sram_pred_weight {
 	__s8	offset;
 } __packed;
 
+static unsigned int cedrus_h265_2bit_size(unsigned int width,
+					  unsigned int height)
+{
+	/*
+	 * Vendor library additionally aligns width and height to 16,
+	 * but all capture formats are already aligned to that anyway,
+	 * so we can skip that here. All formats are also one form of
+	 * YUV 4:2:0 or another, so we can safely assume multiplication
+	 * factor of 1.5.
+	 */
+	return ALIGN(width / 4, 32) * height * 3 / 2;
+}
+
 static enum cedrus_irq_status cedrus_h265_irq_status(struct cedrus_ctx *ctx)
 {
 	struct cedrus_dev *dev = ctx->dev;
@@ -793,6 +806,18 @@ static int cedrus_h265_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 						      VE_DEC_H265_SRAM_OFFSET_PRED_WEIGHT_CHROMA_L1);
 	}
 
+	if (ctx->bit_depth > 8) {
+		unsigned int stride = ALIGN(ctx->dst_fmt.width / 4, 32);
+
+		reg = ctx->dst_fmt.sizeimage -
+		      cedrus_h265_2bit_size(ctx->dst_fmt.width,
+					    ctx->dst_fmt.height);
+		cedrus_write(dev, VE_DEC_H265_OFFSET_ADDR_FIRST_OUT, reg);
+
+		reg = VE_DEC_H265_10BIT_CONFIGURE_FIRST_2BIT_STRIDE(stride);
+		cedrus_write(dev, VE_DEC_H265_10BIT_CONFIGURE, reg);
+	}
+
 	/* Enable appropriate interruptions. */
 	cedrus_write(dev, VE_DEC_H265_CTRL, VE_DEC_H265_CTRL_IRQ_MASK);
 
@@ -858,6 +883,15 @@ static void cedrus_h265_trigger(struct cedrus_ctx *ctx)
 	cedrus_write(dev, VE_DEC_H265_TRIGGER, VE_DEC_H265_TRIGGER_DEC_SLICE);
 }
 
+static unsigned int cedrus_h265_extra_cap_size(struct cedrus_ctx *ctx,
+					       struct v4l2_pix_format *pix_fmt)
+{
+	if (ctx->bit_depth > 8)
+		return cedrus_h265_2bit_size(pix_fmt->width, pix_fmt->height);
+
+	return 0;
+}
+
 struct cedrus_dec_ops cedrus_dec_ops_h265 = {
 	.irq_clear	= cedrus_h265_irq_clear,
 	.irq_disable	= cedrus_h265_irq_disable,
@@ -866,4 +900,5 @@ struct cedrus_dec_ops cedrus_dec_ops_h265 = {
 	.start		= cedrus_h265_start,
 	.stop		= cedrus_h265_stop,
 	.trigger	= cedrus_h265_trigger,
+	.extra_cap_size	= cedrus_h265_extra_cap_size,
 };
