@@ -3,6 +3,8 @@ drivers/net/can/dev/can-dev.ko
 drivers/net/can/slcan/slcan.ko
 drivers/net/can/vcan.ko
 drivers/usb/class/cdc-acm.ko
+drivers/usb/serial/ftdi_sio.ko
+drivers/usb/serial/usbserial.ko
 mm/zsmalloc.ko
 net/can/can-bcm.ko
 net/can/can-gw.ko
