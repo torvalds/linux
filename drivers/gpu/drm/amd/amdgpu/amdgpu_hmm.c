@@ -158,10 +158,9 @@ void amdgpu_hmm_unregister(struct amdgpu_bo *bo)
 }
 
 int amdgpu_hmm_range_get_pages(struct mmu_interval_notifier *notifier,
-			       struct mm_struct *mm, struct page **pages,
-			       uint64_t start, uint64_t npages,
-			       struct hmm_range **phmm_range, bool readonly,
-			       bool mmap_locked, void *owner)
+			       uint64_t start, uint64_t npages, bool readonly,
+			       void *owner, struct page **pages,
+			       struct hmm_range **phmm_range)
 {
 	struct hmm_range *hmm_range;
 	unsigned long timeout;
@@ -194,14 +193,7 @@ int amdgpu_hmm_range_get_pages(struct mmu_interval_notifier *notifier,
 
 retry:
 	hmm_range->notifier_seq = mmu_interval_read_begin(notifier);
-
-	if (likely(!mmap_locked))
-		mmap_read_lock(mm);
-
 	r = hmm_range_fault(hmm_range);
-
-	if (likely(!mmap_locked))
-		mmap_read_unlock(mm);
 	if (unlikely(r)) {
 		/*
 		 * FIXME: This timeout should encompass the retry from
