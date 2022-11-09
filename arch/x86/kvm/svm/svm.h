@@ -280,8 +280,6 @@ struct vcpu_svm {
 };
 
 struct svm_cpu_data {
-	int cpu;
-
 	u64 asid_generation;
 	u32 max_asid;
 	u32 next_asid;

@@ -665,7 +665,6 @@ static int svm_cpu_init(int cpu)
 	sd = kzalloc(sizeof(struct svm_cpu_data), GFP_KERNEL);
 	if (!sd)
 		return ret;
-	sd->cpu = cpu;
 	sd->save_area = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!sd->save_area)
 		goto free_cpu_data;
