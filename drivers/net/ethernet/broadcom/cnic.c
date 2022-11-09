@@ -1027,16 +1027,14 @@ static int __cnic_alloc_uio_rings(struct cnic_uio_dev *udev, int pages)
 
 	udev->l2_ring_size = pages * CNIC_PAGE_SIZE;
 	udev->l2_ring = dma_alloc_coherent(&udev->pdev->dev, udev->l2_ring_size,
-					   &udev->l2_ring_map,
-					   GFP_KERNEL | __GFP_COMP);
+					   &udev->l2_ring_map, GFP_KERNEL);
 	if (!udev->l2_ring)
 		return -ENOMEM;
 
 	udev->l2_buf_size = (cp->l2_rx_ring_size + 1) * cp->l2_single_buf_size;
 	udev->l2_buf_size = CNIC_PAGE_ALIGN(udev->l2_buf_size);
 	udev->l2_buf = dma_alloc_coherent(&udev->pdev->dev, udev->l2_buf_size,
-					  &udev->l2_buf_map,
-					  GFP_KERNEL | __GFP_COMP);
+					  &udev->l2_buf_map, GFP_KERNEL);
 	if (!udev->l2_buf) {
 		__cnic_free_uio_rings(udev);
 		return -ENOMEM;
