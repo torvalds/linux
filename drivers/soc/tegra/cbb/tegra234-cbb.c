@@ -516,7 +516,7 @@ static irqreturn_t tegra234_cbb_isr(int irq, void *data)
 		u32 status = tegra_cbb_get_status(cbb);
 
 		if (status && (irq == priv->sec_irq)) {
-			tegra_cbb_print_err(NULL, "CPU:%d, Error: %s@%llx, irq=%d\n",
+			tegra_cbb_print_err(NULL, "CPU:%d, Error: %s@0x%llx, irq=%d\n",
 					    smp_processor_id(), priv->fabric->name,
 					    priv->res->start, irq);
 
@@ -732,48 +732,35 @@ static const struct tegra234_cbb_fabric tegra234_cbb_fabric = {
 	.off_mask_erd = 0x3a004
 };
 
-static const struct tegra234_slave_lookup tegra234_dce_slave_map[] = {
+static const struct tegra234_slave_lookup tegra234_common_slave_map[] = {
 	{ "AXI2APB", 0x00000 },
 	{ "AST0",    0x15000 },
 	{ "AST1",    0x16000 },
+	{ "CBB",     0x17000 },
+	{ "RSVD",    0x00000 },
 	{ "CPU",     0x18000 },
 };
 
 static const struct tegra234_cbb_fabric tegra234_dce_fabric = {
 	.name = "dce-fabric",
 	.master_id = tegra234_master_id,
-	.slave_map = tegra234_dce_slave_map,
+	.slave_map = tegra234_common_slave_map,
 	.errors = tegra234_cbb_errors,
 	.notifier_offset = 0x19000,
-};
-
-static const struct tegra234_slave_lookup tegra234_rce_slave_map[] = {
-	{ "AXI2APB", 0x00000 },
-	{ "AST0",    0x15000 },
-	{ "AST1",    0x16000 },
-	{ "CPU",     0x18000 },
 };
 
 static const struct tegra234_cbb_fabric tegra234_rce_fabric = {
 	.name = "rce-fabric",
 	.master_id = tegra234_master_id,
-	.slave_map = tegra234_rce_slave_map,
+	.slave_map = tegra234_common_slave_map,
 	.errors = tegra234_cbb_errors,
 	.notifier_offset = 0x19000,
-};
-
-static const struct tegra234_slave_lookup tegra234_sce_slave_map[] = {
-	{ "AXI2APB", 0x00000 },
-	{ "AST0",    0x15000 },
-	{ "AST1",    0x16000 },
-	{ "CBB",     0x17000 },
-	{ "CPU",     0x18000 },
 };
 
 static const struct tegra234_cbb_fabric tegra234_sce_fabric = {
 	.name = "sce-fabric",
 	.master_id = tegra234_master_id,
-	.slave_map = tegra234_sce_slave_map,
+	.slave_map = tegra234_common_slave_map,
 	.errors = tegra234_cbb_errors,
 	.notifier_offset = 0x19000,
 };
@@ -888,7 +875,7 @@ static const struct tegra_cbb_error tegra241_cbb_errors[] = {
 };
 
 static const struct tegra234_slave_lookup tegra241_cbb_slave_map[] = {
-	{ "CCPLEX",     0x50000 },
+	{ "RSVD",       0x00000 },
 	{ "PCIE_C8",    0x51000 },
 	{ "PCIE_C9",    0x52000 },
 	{ "RSVD",       0x00000 },
@@ -941,8 +928,12 @@ static const struct tegra234_slave_lookup tegra241_cbb_slave_map[] = {
 	{ "PCIE_C3",    0x58000 },
 	{ "PCIE_C0",    0x59000 },
 	{ "PCIE_C1",    0x5a000 },
+	{ "CCPLEX",     0x50000 },
 	{ "AXI2APB_29", 0x85000 },
 	{ "AXI2APB_30", 0x86000 },
+	{ "CBB_CENTRAL", 0x00000 },
+	{ "AXI2APB_31", 0x8E000 },
+	{ "AXI2APB_32", 0x8F000 },
 };
 
 static const struct tegra234_cbb_fabric tegra241_cbb_fabric = {
@@ -955,6 +946,7 @@ static const struct tegra234_cbb_fabric tegra241_cbb_fabric = {
 };
 
 static const struct tegra234_slave_lookup tegra241_bpmp_slave_map[] = {
+	{ "RSVD",    0x00000 },
 	{ "RSVD",    0x00000 },
 	{ "RSVD",    0x00000 },
 	{ "CBB",     0x15000 },
