@@ -26,6 +26,7 @@ _common_gki_modules_list = [
     "drivers/net/can/dev/can-dev.ko",
     "drivers/net/can/slcan/slcan.ko",
     "drivers/net/can/vcan.ko",
+    "drivers/usb/class/cdc-acm.ko",
     "mm/zsmalloc.ko",
     "net/can/can-bcm.ko",
     "net/can/can-gw.ko",
