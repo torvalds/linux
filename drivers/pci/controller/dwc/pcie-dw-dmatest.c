@@ -312,6 +312,14 @@ static int dma_test(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn,
 	long long us = 0;
 	struct dma_trx_obj *obj = dmatest_dev->obj;
 
+	/*
+	 * Clean the cache to ensure memory consistency. The CPU writes to the normal memory
+	 * cache before the transmission is initiated, which may cause IO consistency problems,
+	 * such as IO commands.
+	 */
+	if (rd_en)
+		dma_sync_single_for_device(obj->dev, local_paddr, size, DMA_TO_DEVICE);
+
 	start_time = ktime_get();
 	for (i = 0; i < loop; i++) {
 		if (rd_en) {
