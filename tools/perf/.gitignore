@@ -43,6 +43,7 @@ libapi/
 libbpf/
 libperf/
 libsubcmd/
+libsymbol/
 libtraceevent/
 libtraceevent_plugins/
 fixdep

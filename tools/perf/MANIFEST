@@ -13,8 +13,7 @@ tools/lib/ctype.c
 tools/lib/hweight.c
 tools/lib/rbtree.c
 tools/lib/string.c
-tools/lib/symbol/kallsyms.c
-tools/lib/symbol/kallsyms.h
+tools/lib/symbol
 tools/lib/find_bit.c
 tools/lib/bitmap.c
 tools/lib/list_sort.c
