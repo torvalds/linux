@@ -2585,11 +2585,6 @@ union device_attr_group_devres {
 	const struct attribute_group **groups;
 };
 
-static int devm_attr_group_match(struct device *dev, void *res, void *data)
-{
-	return ((union device_attr_group_devres *)res)->group == data;
-}
-
 static void devm_attr_group_remove(struct device *dev, void *res)
 {
 	union device_attr_group_devres *devres = res;
@@ -2639,23 +2634,6 @@ int devm_device_add_group(struct device *dev, const struct attribute_group *grp)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devm_device_add_group);
-
-/**
- * devm_device_remove_group: remove a managed group from a device
- * @dev:	device to remove the group from
- * @grp:	group to remove
- *
- * This function removes a group of attributes from a device. The attributes
- * previously have to have been created for this group, otherwise it will fail.
- */
-void devm_device_remove_group(struct device *dev,
-			      const struct attribute_group *grp)
-{
-	WARN_ON(devres_release(dev, devm_attr_group_remove,
-			       devm_attr_group_match,
-			       /* cast away const */ (void *)grp));
-}
-EXPORT_SYMBOL_GPL(devm_device_remove_group);
 
 /**
  * devm_device_add_groups - create a bunch of managed attribute groups

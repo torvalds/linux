@@ -1064,8 +1064,6 @@ int __must_check devm_device_add_groups(struct device *dev,
 					const struct attribute_group **groups);
 int __must_check devm_device_add_group(struct device *dev,
 				       const struct attribute_group *grp);
-void devm_device_remove_group(struct device *dev,
-			      const struct attribute_group *grp);
 
 /*
  * Platform "fixup" functions - allow the platform to have their say
