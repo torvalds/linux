@@ -45,29 +45,23 @@ static int cedrus_try_ctrl(struct v4l2_ctrl *ctrl)
 	} else if (ctrl->id == V4L2_CID_STATELESS_HEVC_SPS) {
 		const struct v4l2_ctrl_hevc_sps *sps = ctrl->p_new.p_hevc_sps;
 		struct cedrus_ctx *ctx = container_of(ctrl->handler, struct cedrus_ctx, hdl);
-		unsigned int bit_depth;
+		unsigned int bit_depth, max_depth;
 		struct vb2_queue *vq;
 
 		if (sps->chroma_format_idc != 1)
 			/* Only 4:2:0 is supported */
 			return -EINVAL;
 
-		if (sps->bit_depth_luma_minus8 != sps->bit_depth_chroma_minus8)
-			/* Luma and chroma bit depth mismatch */
-			return -EINVAL;
-
-		if (ctx->dev->capabilities & CEDRUS_CAPABILITY_H265_10_DEC) {
-			if (sps->bit_depth_luma_minus8 != 0 && sps->bit_depth_luma_minus8 != 2)
-				/* Only 8-bit and 10-bit are supported */
-				return -EINVAL;
-		} else {
-			if (sps->bit_depth_luma_minus8 != 0)
-				/* Only 8-bit is supported */
-				return -EINVAL;
-		}
-
 		bit_depth = max(sps->bit_depth_luma_minus8,
 				sps->bit_depth_chroma_minus8) + 8;
+
+		if (cedrus_is_capable(ctx, CEDRUS_CAPABILITY_H265_10_DEC))
+			max_depth = 10;
+		else
+			max_depth = 8;
+
+		if (bit_depth > max_depth)
+			return -EINVAL;
 
 		vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx,
 				     V4L2_BUF_TYPE_VIDEO_CAPTURE);
