@@ -822,7 +822,7 @@ static int omap8250_rs485_config(struct uart_port *port,
 	 * of the AM65 TRM:  https://www.ti.com/lit/ug/spruid7e/spruid7e.pdf
 	 */
 	if (priv->quot) {
-		if (priv->mdr1 & UART_OMAP_MDR1_16X_MODE)
+		if (priv->mdr1 == UART_OMAP_MDR1_16X_MODE)
 			baud = port->uartclk / (16 * priv->quot);
 		else
 			baud = port->uartclk / (13 * priv->quot);
