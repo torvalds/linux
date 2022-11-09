@@ -40,7 +40,7 @@ struct pingroup {
 
 /* Convenience macro to define a single named or anonymous pingroup */
 #define PINCTRL_PINGROUP(_name, _pins, _npins)	\
-(struct pingroup){				\
+(struct pingroup) {				\
 	.name = _name,				\
 	.pins = _pins,				\
 	.npins = _npins,			\
