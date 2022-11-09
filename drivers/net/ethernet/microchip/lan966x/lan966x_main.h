@@ -9,6 +9,7 @@
 #include <linux/phy.h>
 #include <linux/phylink.h>
 #include <linux/ptp_clock_kernel.h>
+#include <net/page_pool.h>
 #include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
 #include <net/switchdev.h>
@@ -161,7 +162,14 @@ struct lan966x_rx {
 	 */
 	u8 page_order;
 
+	/* Represents the max size frame that it can receive to the CPU. This
+	 * includes the IFH + VLAN tags + frame + skb_shared_info
+	 */
+	u32 max_mtu;
+
 	u8 channel_id;
+
+	struct page_pool *page_pool;
 };
 
 struct lan966x_tx_dcb_buf {

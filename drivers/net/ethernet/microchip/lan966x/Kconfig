@@ -7,5 +7,6 @@ config LAN966X_SWITCH
 	depends on BRIDGE || BRIDGE=n
 	select PHYLINK
 	select PACKING
+	select PAGE_POOL
 	help
 	  This driver supports the Lan966x network switch device.
