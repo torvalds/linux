@@ -74,12 +74,12 @@
 	};
 
 	reserved-memory {
-		ramoops_mem: ramoops@00000000 {
+		ramoops_mem: ramoops@8000000 {
 			reg = <0x0 0x8000000 0x0 0xF0000>;
 		};
 
 		drm_logo: drm-logo@00000000 {
-		compatible = "rockchip,drm-logo";
+			compatible = "rockchip,drm-logo";
 			reg = <0x0 0x0 0x0 0x0>;
 		};
 	};
@@ -89,8 +89,7 @@
 		interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
 		rockchip,serial-id = <2>;
 		rockchip,wake-irq = <0>;
-		/* If enable uart uses irq instead of fiq */
-		rockchip,irq-mode-enable = <0>;
+		rockchip,irq-mode-enable = <0>; /* If enable uart uses irq instead of fiq */
 		rockchip,baudrate = <115200>;  /* Only 115200 and 1500000 */
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart2_xfer>;
