@@ -515,26 +515,13 @@ static void rga_request_put_current_mm(struct rga_request *request)
 	request->current_mm = NULL;
 }
 
-static int rga_request_alloc_release_fence(struct dma_fence **release_fence)
-{
-	struct dma_fence *fence;
-
-	fence = rga_dma_fence_alloc();
-	if (IS_ERR(fence)) {
-		pr_err("Can not alloc release fence!\n");
-		return IS_ERR(fence);
-	}
-
-	*release_fence = fence;
-
-	return rga_dma_fence_get_fd(fence);
-}
-
-static int rga_request_add_acquire_fence_callback(int acquire_fence_fd, void *private,
+static int rga_request_add_acquire_fence_callback(int acquire_fence_fd,
+						  struct rga_request *request,
 						  dma_fence_func_t cb_func)
 {
 	int ret;
 	struct dma_fence *acquire_fence = NULL;
+	struct rga_pending_request_manager *request_manager = rga_drvdata->pend_request_manager;
 
 	if (DEBUGGER_EN(MSG))
 		pr_info("acquire_fence_fd = %d", acquire_fence_fd);
@@ -549,16 +536,25 @@ static int rga_request_add_acquire_fence_callback(int acquire_fence_fd, void *pr
 	ksys_close(acquire_fence_fd);
 
 	ret = rga_dma_fence_get_status(acquire_fence);
-	if (ret == 0) {
-		ret = rga_dma_fence_add_callback(acquire_fence, cb_func, private);
-		if (ret < 0) {
-			if (ret == -ENOENT)
-				return 1;
+	if (ret != 0)
+		return ret;
 
+	/*
+	 * Ensure that the request will not be free early when
+	 * the callback is called.
+	 */
+	mutex_lock(&request_manager->lock);
+	rga_request_get(request);
+	mutex_unlock(&request_manager->lock);
+
+	ret = rga_dma_fence_add_callback(acquire_fence, cb_func, (void *)request);
+	if (ret < 0) {
+		if (ret != -ENOENT)
 			pr_err("%s: failed to add fence callback\n", __func__);
-			return ret;
-		}
-	} else {
+
+		mutex_lock(&request_manager->lock);
+		rga_request_put(request);
+		mutex_unlock(&request_manager->lock);
 		return ret;
 	}
 
@@ -821,9 +817,15 @@ static void rga_request_acquire_fence_signaled_cb(struct dma_fence *fence,
 						  struct dma_fence_cb *_waiter)
 {
 	struct rga_fence_waiter *waiter = (struct rga_fence_waiter *)_waiter;
+	struct rga_request *request = (struct rga_request *)waiter->private;
+	struct rga_pending_request_manager *request_manager = rga_drvdata->pend_request_manager;
 
-	if (rga_request_commit((struct rga_request *)waiter->private))
+	if (rga_request_commit(request))
 		pr_err("rga request commit failed!\n");
+
+	mutex_lock(&request_manager->lock);
+	rga_request_put(request);
+	mutex_unlock(&request_manager->lock);
 
 	kfree(waiter);
 }
@@ -1024,18 +1026,21 @@ int rga_request_submit(struct rga_request *request)
 {
 	int ret = 0;
 	unsigned long flags;
+	struct dma_fence *release_fence;
 
 	spin_lock_irqsave(&request->lock, flags);
 
 	if (request->is_running) {
-		pr_err("can not re-config when request is running");
 		spin_unlock_irqrestore(&request->lock, flags);
+
+		pr_err("can not re-config when request is running\n");
 		return -EFAULT;
 	}
 
 	if (request->task_list == NULL) {
-		pr_err("can not find task list from id[%d]", request->id);
 		spin_unlock_irqrestore(&request->lock, flags);
+
+		pr_err("can not find task list from id[%d]\n", request->id);
 		return -EINVAL;
 	}
 
@@ -1047,46 +1052,70 @@ int rga_request_submit(struct rga_request *request)
 
 	rga_request_get_current_mm(request);
 
+	/* Unlock after ensuring that the current request will not be resubmitted. */
 	spin_unlock_irqrestore(&request->lock, flags);
 
 	if (request->sync_mode == RGA_BLIT_ASYNC) {
-		ret = rga_request_alloc_release_fence(&request->release_fence);
-		if (ret < 0) {
-			pr_err("Failed to alloc release fence fd!\n");
-			return ret;
+		release_fence = rga_dma_fence_alloc();
+		if (IS_ERR(release_fence)) {
+			pr_err("Can not alloc release fence!\n");
+			ret = IS_ERR(release_fence);
+			goto error_put_current_mm;
 		}
-		request->release_fence_fd = ret;
+		request->release_fence = release_fence;
 
 		if (request->acquire_fence_fd > 0) {
 			ret = rga_request_add_acquire_fence_callback(
-				request->acquire_fence_fd,
-				(void *)request,
+				request->acquire_fence_fd, request,
 				rga_request_acquire_fence_signaled_cb);
 			if (ret == 0) {
-				return ret;
-			} else if (ret == 1) {
+				goto export_release_fence_fd;
+			} else if (ret == -ENOENT) {
+				/* has been signaled */
 				goto request_commit;
 			} else {
 				pr_err("Failed to add callback with acquire fence fd[%d]!\n",
 				       request->acquire_fence_fd);
-				goto error_release_fence_put;
+				goto err_put_release_fence;
 			}
 		}
-
 	}
 
 request_commit:
 	ret = rga_request_commit(request);
 	if (ret < 0) {
 		pr_err("rga request commit failed!\n");
-		goto error_release_fence_put;
+		goto err_put_release_fence;
+	}
+
+export_release_fence_fd:
+	if (request->release_fence != NULL) {
+		ret = rga_dma_fence_get_fd(request->release_fence);
+		if (ret < 0) {
+			pr_err("Failed to alloc release fence fd!\n");
+			rga_request_release_abort(request, ret);
+			return ret;
+		}
+
+		request->release_fence_fd = ret;
 	}
 
 	return 0;
 
-error_release_fence_put:
-	rga_dma_fence_put(request->release_fence);
-	request->release_fence = NULL;
+err_put_release_fence:
+	if (request->release_fence != NULL) {
+		rga_dma_fence_put(request->release_fence);
+		request->release_fence = NULL;
+	}
+
+error_put_current_mm:
+	spin_lock_irqsave(&request->lock, flags);
+
+	rga_request_put_current_mm(request);
+	request->is_running = false;
+
+	spin_unlock_irqrestore(&request->lock, flags);
+
 	return ret;
 }
 
