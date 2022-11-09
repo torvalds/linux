@@ -757,15 +757,115 @@ static int vcap_add_type_keyfield(struct vcap_rule *rule)
 	return 0;
 }
 
+/* Add a keyset to a keyset list */
+bool vcap_keyset_list_add(struct vcap_keyset_list *keysetlist,
+			  enum vcap_keyfield_set keyset)
+{
+	int idx;
+
+	if (keysetlist->cnt < keysetlist->max) {
+		/* Avoid duplicates */
+		for (idx = 0; idx < keysetlist->cnt; ++idx)
+			if (keysetlist->keysets[idx] == keyset)
+				return keysetlist->cnt < keysetlist->max;
+		keysetlist->keysets[keysetlist->cnt++] = keyset;
+	}
+	return keysetlist->cnt < keysetlist->max;
+}
+EXPORT_SYMBOL_GPL(vcap_keyset_list_add);
+
+/* map keyset id to a string with the keyset name */
+const char *vcap_keyset_name(struct vcap_control *vctrl,
+			     enum vcap_keyfield_set keyset)
+{
+	return vctrl->stats->keyfield_set_names[keyset];
+}
+EXPORT_SYMBOL_GPL(vcap_keyset_name);
+
+/* map key field id to a string with the key name */
+const char *vcap_keyfield_name(struct vcap_control *vctrl,
+			       enum vcap_key_field key)
+{
+	return vctrl->stats->keyfield_names[key];
+}
+EXPORT_SYMBOL_GPL(vcap_keyfield_name);
+
+/* Return the keyfield that matches a key in a keyset */
+static const struct vcap_field *
+vcap_find_keyset_keyfield(struct vcap_control *vctrl,
+			  enum vcap_type vtype,
+			  enum vcap_keyfield_set keyset,
+			  enum vcap_key_field key)
+{
+	const struct vcap_field *fields;
+	int idx, count;
+
+	fields = vcap_keyfields(vctrl, vtype, keyset);
+	if (!fields)
+		return NULL;
+
+	/* Iterate the keyfields of the keyset */
+	count = vcap_keyfield_count(vctrl, vtype, keyset);
+	for (idx = 0; idx < count; ++idx) {
+		if (fields[idx].width == 0)
+			continue;
+
+		if (key == idx)
+			return &fields[idx];
+	}
+
+	return NULL;
+}
+
+/* Match a list of keys against the keysets available in a vcap type */
+static bool vcap_rule_find_keysets(struct vcap_rule_internal *ri,
+				   struct vcap_keyset_list *matches)
+{
+	const struct vcap_client_keyfield *ckf;
+	int keyset, found, keycount, map_size;
+	const struct vcap_field **map;
+	enum vcap_type vtype;
+
+	vtype = ri->admin->vtype;
+	map = ri->vctrl->vcaps[vtype].keyfield_set_map;
+	map_size = ri->vctrl->vcaps[vtype].keyfield_set_size;
+
+	/* Get a count of the keyfields we want to match */
+	keycount = 0;
+	list_for_each_entry(ckf, &ri->data.keyfields, ctrl.list)
+		++keycount;
+
+	matches->cnt = 0;
+	/* Iterate the keysets of the VCAP */
+	for (keyset = 0; keyset < map_size; ++keyset) {
+		if (!map[keyset])
+			continue;
+
+		/* Iterate the keys in the rule */
+		found = 0;
+		list_for_each_entry(ckf, &ri->data.keyfields, ctrl.list)
+			if (vcap_find_keyset_keyfield(ri->vctrl, vtype,
+						      keyset, ckf->ctrl.key))
+				++found;
+
+		/* Save the keyset if all keyfields were found */
+		if (found == keycount)
+			if (!vcap_keyset_list_add(matches, keyset))
+				/* bail out when the quota is filled */
+				break;
+	}
+
+	return matches->cnt > 0;
+}
+
 /* Validate a rule with respect to available port keys */
 int vcap_val_rule(struct vcap_rule *rule, u16 l3_proto)
 {
 	struct vcap_rule_internal *ri = to_intrule(rule);
+	struct vcap_keyset_list matches = {};
 	enum vcap_keyfield_set keysets[10];
-	struct vcap_keyset_list kslist;
 	int ret;
 
-	/* This validation will be much expanded later */
 	ret = vcap_api_check(ri->vctrl);
 	if (ret)
 		return ret;
@@ -777,24 +877,41 @@ int vcap_val_rule(struct vcap_rule *rule, u16 l3_proto)
 		ri->data.exterr = VCAP_ERR_NO_NETDEV;
 		return -EINVAL;
 	}
+
+	matches.keysets = keysets;
+	matches.max = ARRAY_SIZE(keysets);
 	if (ri->data.keyset == VCAP_KFS_NO_VALUE) {
-		ri->data.exterr = VCAP_ERR_NO_KEYSET_MATCH;
-		return -EINVAL;
+		/* Iterate over rule keyfields and select keysets that fits */
+		if (!vcap_rule_find_keysets(ri, &matches)) {
+			ri->data.exterr = VCAP_ERR_NO_KEYSET_MATCH;
+			return -EINVAL;
+		}
+	} else {
+		/* prepare for keyset validation */
+		keysets[0] = ri->data.keyset;
+		matches.cnt = 1;
 	}
-	/* prepare for keyset validation */
-	keysets[0] = ri->data.keyset;
-	kslist.keysets = keysets;
-	kslist.cnt = 1;
+
 	/* Pick a keyset that is supported in the port lookups */
-	ret = ri->vctrl->ops->validate_keyset(ri->ndev, ri->admin, rule, &kslist,
-					      l3_proto);
+	ret = ri->vctrl->ops->validate_keyset(ri->ndev, ri->admin, rule,
+					      &matches, l3_proto);
 	if (ret < 0) {
 		pr_err("%s:%d: keyset validation failed: %d\n",
 		       __func__, __LINE__, ret);
 		ri->data.exterr = VCAP_ERR_NO_PORT_KEYSET_MATCH;
 		return ret;
 	}
+	/* use the keyset that is supported in the port lookups */
+	ret = vcap_set_rule_set_keyset(rule, ret);
+	if (ret < 0) {
+		pr_err("%s:%d: keyset was not updated: %d\n",
+		       __func__, __LINE__, ret);
+		return ret;
+	}
 	if (ri->data.actionset == VCAP_AFS_NO_VALUE) {
+		/* Later also actionsets will be matched against actions in
+		 * the rule, and the type will be set accordingly
+		 */
 		ri->data.exterr = VCAP_ERR_NO_ACTIONSET_MATCH;
 		return -EINVAL;
 	}

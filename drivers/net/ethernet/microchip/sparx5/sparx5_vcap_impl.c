@@ -160,7 +160,7 @@ static const char *sparx5_vcap_keyset_name(struct net_device *ndev,
 {
 	struct sparx5_port *port = netdev_priv(ndev);
 
-	return port->sparx5->vcap_ctrl->stats->keyfield_set_names[keyset];
+	return vcap_keyset_name(port->sparx5->vcap_ctrl, keyset);
 }
 
 /* Check if this is the first lookup of IS2 */
@@ -204,6 +204,127 @@ static void sparx5_vcap_add_wide_port_mask(struct vcap_rule *rule,
 	vcap_rule_add_key_u72(rule, VCAP_KF_IF_IGR_PORT_MASK, &port_mask);
 }
 
+/* Convert chain id to vcap lookup id */
+static int sparx5_vcap_cid_to_lookup(int cid)
+{
+	int lookup = 0;
+
+	/* For now only handle IS2 */
+	if (cid >= SPARX5_VCAP_CID_IS2_L1 && cid < SPARX5_VCAP_CID_IS2_L2)
+		lookup = 1;
+	else if (cid >= SPARX5_VCAP_CID_IS2_L2 && cid < SPARX5_VCAP_CID_IS2_L3)
+		lookup = 2;
+	else if (cid >= SPARX5_VCAP_CID_IS2_L3 && cid < SPARX5_VCAP_CID_IS2_MAX)
+		lookup = 3;
+
+	return lookup;
+}
+
+/* Return the list of keysets for the vcap port configuration */
+static int sparx5_vcap_is2_get_port_keysets(struct net_device *ndev,
+					    int lookup,
+					    struct vcap_keyset_list *keysetlist,
+					    u16 l3_proto)
+{
+	struct sparx5_port *port = netdev_priv(ndev);
+	struct sparx5 *sparx5 = port->sparx5;
+	int portno = port->portno;
+	u32 value;
+
+	/* Check if the port keyset selection is enabled */
+	value = spx5_rd(sparx5, ANA_ACL_VCAP_S2_KEY_SEL(portno, lookup));
+	if (!ANA_ACL_VCAP_S2_KEY_SEL_KEY_SEL_ENA_GET(value))
+		return -ENOENT;
+
+	/* Collect all keysets for the port in a list */
+	if (l3_proto == ETH_P_ALL || l3_proto == ETH_P_ARP) {
+		switch (ANA_ACL_VCAP_S2_KEY_SEL_ARP_KEY_SEL_GET(value)) {
+		case VCAP_IS2_PS_ARP_MAC_ETYPE:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_MAC_ETYPE);
+			break;
+		case VCAP_IS2_PS_ARP_ARP:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_ARP);
+			break;
+		}
+	}
+
+	if (l3_proto == ETH_P_ALL || l3_proto == ETH_P_IP) {
+		switch (ANA_ACL_VCAP_S2_KEY_SEL_IP4_UC_KEY_SEL_GET(value)) {
+		case VCAP_IS2_PS_IPV4_UC_MAC_ETYPE:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_MAC_ETYPE);
+			break;
+		case VCAP_IS2_PS_IPV4_UC_IP4_TCP_UDP_OTHER:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP4_TCP_UDP);
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP4_OTHER);
+			break;
+		case VCAP_IS2_PS_IPV4_UC_IP_7TUPLE:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP_7TUPLE);
+			break;
+		}
+
+		switch (ANA_ACL_VCAP_S2_KEY_SEL_IP4_MC_KEY_SEL_GET(value)) {
+		case VCAP_IS2_PS_IPV4_MC_MAC_ETYPE:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_MAC_ETYPE);
+			break;
+		case VCAP_IS2_PS_IPV4_MC_IP4_TCP_UDP_OTHER:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP4_TCP_UDP);
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP4_OTHER);
+			break;
+		case VCAP_IS2_PS_IPV4_MC_IP_7TUPLE:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP_7TUPLE);
+			break;
+		}
+	}
+
+	if (l3_proto == ETH_P_ALL || l3_proto == ETH_P_IPV6) {
+		switch (ANA_ACL_VCAP_S2_KEY_SEL_IP6_UC_KEY_SEL_GET(value)) {
+		case VCAP_IS2_PS_IPV6_UC_MAC_ETYPE:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_MAC_ETYPE);
+			break;
+		case VCAP_IS2_PS_IPV6_UC_IP_7TUPLE:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP_7TUPLE);
+			break;
+		case VCAP_IS2_PS_IPV6_UC_IP6_STD:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP6_STD);
+			break;
+		case VCAP_IS2_PS_IPV6_UC_IP4_TCP_UDP_OTHER:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP4_TCP_UDP);
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP4_OTHER);
+			break;
+		}
+
+		switch (ANA_ACL_VCAP_S2_KEY_SEL_IP6_MC_KEY_SEL_GET(value)) {
+		case VCAP_IS2_PS_IPV6_MC_MAC_ETYPE:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_MAC_ETYPE);
+			break;
+		case VCAP_IS2_PS_IPV6_MC_IP_7TUPLE:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP_7TUPLE);
+			break;
+		case VCAP_IS2_PS_IPV6_MC_IP6_STD:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP6_STD);
+			break;
+		case VCAP_IS2_PS_IPV6_MC_IP4_TCP_UDP_OTHER:
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP4_TCP_UDP);
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_IP4_OTHER);
+			break;
+		case VCAP_IS2_PS_IPV6_MC_IP6_VID:
+			/* Not used */
+			break;
+		}
+	}
+
+	if (l3_proto != ETH_P_ARP && l3_proto != ETH_P_IP &&
+	    l3_proto != ETH_P_IPV6) {
+		switch (ANA_ACL_VCAP_S2_KEY_SEL_NON_ETH_KEY_SEL_GET(value)) {
+		case VCAP_IS2_PS_NONETH_MAC_ETYPE:
+			/* IS2 non-classified frames generate MAC_ETYPE */
+			vcap_keyset_list_add(keysetlist, VCAP_KFS_MAC_ETYPE);
+			break;
+		}
+	}
+	return 0;
+}
+
 /* API callback used for validating a field keyset (check the port keysets) */
 static enum vcap_keyfield_set
 sparx5_vcap_validate_keyset(struct net_device *ndev,
@@ -212,10 +333,30 @@ sparx5_vcap_validate_keyset(struct net_device *ndev,
 			    struct vcap_keyset_list *kslist,
 			    u16 l3_proto)
 {
+	struct vcap_keyset_list keysetlist = {};
+	enum vcap_keyfield_set keysets[10] = {};
+	int idx, jdx, lookup;
+
 	if (!kslist || kslist->cnt == 0)
 		return VCAP_KFS_NO_VALUE;
-	/* for now just return whatever the API suggests */
-	return kslist->keysets[0];
+
+	/* Get a list of currently configured keysets in the lookups */
+	lookup = sparx5_vcap_cid_to_lookup(rule->vcap_chain_id);
+	keysetlist.max = ARRAY_SIZE(keysets);
+	keysetlist.keysets = keysets;
+	sparx5_vcap_is2_get_port_keysets(ndev, lookup, &keysetlist, l3_proto);
+
+	/* Check if there is a match and return the match */
+	for (idx = 0; idx < kslist->cnt; ++idx)
+		for (jdx = 0; jdx < keysetlist.cnt; ++jdx)
+			if (kslist->keysets[idx] == keysets[jdx])
+				return kslist->keysets[idx];
+
+	pr_err("%s:%d: %s not supported in port key selection\n",
+	       __func__, __LINE__,
+	       sparx5_vcap_keyset_name(ndev, kslist->keysets[0]));
+
+	return -ENOENT;
 }
 
 /* API callback used for adding default fields to a rule */

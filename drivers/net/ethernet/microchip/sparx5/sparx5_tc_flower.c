@@ -443,11 +443,13 @@ static int (*sparx5_tc_flower_usage_handlers[])(struct sparx5_tc_flower_parse_us
 
 static int sparx5_tc_use_dissectors(struct flow_cls_offload *fco,
 				    struct vcap_admin *admin,
-				    struct vcap_rule *vrule)
+				    struct vcap_rule *vrule,
+				    u16 *l3_proto)
 {
 	struct sparx5_tc_flower_parse_usage state = {
 		.fco = fco,
 		.vrule = vrule,
+		.l3_proto = ETH_P_ALL,
 	};
 	int idx, err = 0;
 
@@ -461,6 +463,15 @@ static int sparx5_tc_use_dissectors(struct flow_cls_offload *fco,
 		if (err)
 			return err;
 	}
+
+	if (state.frule->match.dissector->used_keys ^ state.used_keys) {
+		NL_SET_ERR_MSG_MOD(fco->common.extack,
+				   "Unsupported match item");
+		return -ENOENT;
+	}
+
+	if (l3_proto)
+		*l3_proto = state.l3_proto;
 	return err;
 }
 
@@ -527,6 +538,7 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 	struct vcap_control *vctrl;
 	struct flow_rule *frule;
 	struct vcap_rule *vrule;
+	u16 l3_proto;
 	int err, idx;
 
 	vctrl = port->sparx5->vcap_ctrl;
@@ -541,7 +553,7 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 		return PTR_ERR(vrule);
 
 	vrule->cookie = fco->cookie;
-	sparx5_tc_use_dissectors(fco, admin, vrule);
+	sparx5_tc_use_dissectors(fco, admin, vrule, &l3_proto);
 	frule = flow_cls_offload_flow_rule(fco);
 	flow_action_for_each(idx, act, &frule->action) {
 		switch (act->id) {
@@ -582,14 +594,8 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 			goto out;
 		}
 	}
-	/* For now the keyset is hardcoded */
-	err = vcap_set_rule_set_keyset(vrule, VCAP_KFS_MAC_ETYPE);
-	if (err) {
-		NL_SET_ERR_MSG_MOD(fco->common.extack,
-				   "No matching port keyset for filter protocol and keys");
-		goto out;
-	}
-	err = vcap_val_rule(vrule, ETH_P_ALL);
+	/* provide the l3 protocol to guide the keyset selection */
+	err = vcap_val_rule(vrule, l3_proto);
 	if (err) {
 		vcap_set_tc_exterr(fco, vrule);
 		goto out;

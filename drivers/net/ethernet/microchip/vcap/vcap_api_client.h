@@ -205,4 +205,15 @@ void vcap_set_tc_exterr(struct flow_cls_offload *fco, struct vcap_rule *vrule);
 /* Cleanup a VCAP instance */
 int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin);
 
+/* Add a keyset to a keyset list */
+bool vcap_keyset_list_add(struct vcap_keyset_list *keysetlist,
+			  enum vcap_keyfield_set keyset);
+
+/* map keyset id to a string with the keyset name */
+const char *vcap_keyset_name(struct vcap_control *vctrl,
+			     enum vcap_keyfield_set keyset);
+/* map key field id to a string with the key name */
+const char *vcap_keyfield_name(struct vcap_control *vctrl,
+			       enum vcap_key_field key);
+
 #endif /* __VCAP_API_CLIENT__ */
