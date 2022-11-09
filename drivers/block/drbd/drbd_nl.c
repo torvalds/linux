@@ -1256,6 +1256,18 @@ static void fixup_write_zeroes(struct drbd_device *device, struct request_queue 
 		q->limits.max_write_zeroes_sectors = 0;
 }
 
+static void fixup_discard_support(struct drbd_device *device, struct request_queue *q)
+{
+	unsigned int max_discard = device->rq_queue->limits.max_discard_sectors;
+	unsigned int discard_granularity =
+		device->rq_queue->limits.discard_granularity >> SECTOR_SHIFT;
+
+	if (discard_granularity > max_discard) {
+		blk_queue_discard_granularity(q, 0);
+		blk_queue_max_discard_sectors(q, 0);
+	}
+}
+
 static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backing_dev *bdev,
 				   unsigned int max_bio_size, struct o_qlim *o)
 {
@@ -1288,6 +1300,7 @@ static void drbd_setup_queue_param(struct drbd_device *device, struct drbd_backi
 		disk_update_readahead(device->vdisk);
 	}
 	fixup_write_zeroes(device, q);
+	fixup_discard_support(device, q);
 }
 
 void drbd_reconsider_queue_parameters(struct drbd_device *device, struct drbd_backing_dev *bdev, struct o_qlim *o)
