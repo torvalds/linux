@@ -1899,7 +1899,6 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
 
 	for (i = 0; i < nr_pages; i++) {
 		unsigned long addr = (unsigned long)(*pages);
-		unsigned int foll_flags = FOLL_DUMP;
 		struct vm_area_struct *vma;
 		struct page *page;
 		int err = -EFAULT;
@@ -1908,12 +1907,8 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
 		if (!vma)
 			goto set_status;
 
-		/* Not all huge page follow APIs support 'FOLL_GET' */
-		if (!is_vm_hugetlb_page(vma))
-			foll_flags |= FOLL_GET;
-
 		/* FOLL_DUMP to ignore special (like zero) pages */
-		page = follow_page(vma, addr, foll_flags);
+		page = follow_page(vma, addr, FOLL_GET | FOLL_DUMP);
 
 		err = PTR_ERR(page);
 		if (IS_ERR(page))
@@ -1926,8 +1921,7 @@ static void do_pages_stat_array(struct mm_struct *mm, unsigned long nr_pages,
 		if (!is_zone_device_page(page))
 			err = page_to_nid(page);
 
-		if (foll_flags & FOLL_GET)
-			put_page(page);
+		put_page(page);
 set_status:
 		*status = err;
 
