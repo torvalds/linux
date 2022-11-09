@@ -217,6 +217,26 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 	output_json_format(out, false, 3, "]");
 
+	if (sample->raw_data) {
+		int i;
+		struct tep_format_field **fields;
+
+		fields = tep_event_fields(evsel->tp_format);
+		if (fields) {
+			i = 0;
+			while (fields[i]) {
+				struct trace_seq s;
+
+				trace_seq_init(&s);
+				tep_print_field(&s, sample->raw_data, fields[i]);
+				output_json_key_string(out, true, 3, fields[i]->name, s.buffer);
+
+				i++;
+			}
+			free(fields);
+		}
+	}
+
 	output_json_format(out, false, 2, "}");
 	return 0;
 }
