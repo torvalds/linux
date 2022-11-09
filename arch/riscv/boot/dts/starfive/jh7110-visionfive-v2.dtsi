@@ -406,9 +406,9 @@
 		};
 	};
 
-	panel_radxa@22 {
+	panel_radxa@19 {
 		compatible ="starfive_jadard";
-		reg = <0x22>;
+		reg = <0x19>;
 		reset-gpio = <&gpio 23 0>;
 		enable-gpio = <&gpio 22 0>;
 
