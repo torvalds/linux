@@ -47,8 +47,7 @@ static inline void flush_pmd_tlb_range(struct vm_area_struct *vma,
 				       unsigned long start, unsigned long end)
 {
 	if (radix_enabled())
-		return radix__flush_pmd_tlb_range(vma, start, end);
-	return hash__flush_tlb_range(vma, start, end);
+		radix__flush_pmd_tlb_range(vma, start, end);
 }
 
 #define __HAVE_ARCH_FLUSH_HUGETLB_TLB_RANGE
@@ -57,39 +56,34 @@ static inline void flush_hugetlb_tlb_range(struct vm_area_struct *vma,
 					   unsigned long end)
 {
 	if (radix_enabled())
-		return radix__flush_hugetlb_tlb_range(vma, start, end);
-	return hash__flush_tlb_range(vma, start, end);
+		radix__flush_hugetlb_tlb_range(vma, start, end);
 }
 
 static inline void flush_tlb_range(struct vm_area_struct *vma,
 				   unsigned long start, unsigned long end)
 {
 	if (radix_enabled())
-		return radix__flush_tlb_range(vma, start, end);
-	return hash__flush_tlb_range(vma, start, end);
+		radix__flush_tlb_range(vma, start, end);
 }
 
 static inline void flush_tlb_kernel_range(unsigned long start,
 					  unsigned long end)
 {
 	if (radix_enabled())
-		return radix__flush_tlb_kernel_range(start, end);
-	return hash__flush_tlb_kernel_range(start, end);
+		radix__flush_tlb_kernel_range(start, end);
 }
 
 static inline void local_flush_tlb_mm(struct mm_struct *mm)
 {
 	if (radix_enabled())
-		return radix__local_flush_tlb_mm(mm);
-	return hash__local_flush_tlb_mm(mm);
+		radix__local_flush_tlb_mm(mm);
 }
 
 static inline void local_flush_tlb_page(struct vm_area_struct *vma,
 					unsigned long vmaddr)
 {
 	if (radix_enabled())
-		return radix__local_flush_tlb_page(vma, vmaddr);
-	return hash__local_flush_tlb_page(vma, vmaddr);
+		radix__local_flush_tlb_page(vma, vmaddr);
 }
 
 static inline void local_flush_all_mm(struct mm_struct *mm)
@@ -102,24 +96,21 @@ static inline void local_flush_all_mm(struct mm_struct *mm)
 static inline void tlb_flush(struct mmu_gather *tlb)
 {
 	if (radix_enabled())
-		return radix__tlb_flush(tlb);
-	return hash__tlb_flush(tlb);
+		radix__tlb_flush(tlb);
 }
 
 #ifdef CONFIG_SMP
 static inline void flush_tlb_mm(struct mm_struct *mm)
 {
 	if (radix_enabled())
-		return radix__flush_tlb_mm(mm);
-	return hash__flush_tlb_mm(mm);
+		radix__flush_tlb_mm(mm);
 }
 
 static inline void flush_tlb_page(struct vm_area_struct *vma,
 				  unsigned long vmaddr)
 {
 	if (radix_enabled())
-		return radix__flush_tlb_page(vma, vmaddr);
-	return hash__flush_tlb_page(vma, vmaddr);
+		radix__flush_tlb_page(vma, vmaddr);
 }
 
 static inline void flush_all_mm(struct mm_struct *mm)

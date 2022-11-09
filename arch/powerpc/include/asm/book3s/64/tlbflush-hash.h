@@ -65,13 +65,6 @@ extern void flush_hash_range(unsigned long number, int local);
 extern void flush_hash_hugepage(unsigned long vsid, unsigned long addr,
 				pmd_t *pmdp, unsigned int psize, int ssize,
 				unsigned long flags);
-static inline void hash__local_flush_tlb_mm(struct mm_struct *mm)
-{
-}
-
-static inline void hash__flush_tlb_mm(struct mm_struct *mm)
-{
-}
 
 static inline void hash__local_flush_all_mm(struct mm_struct *mm)
 {
@@ -94,27 +87,6 @@ static inline void hash__flush_all_mm(struct mm_struct *mm)
 	 */
 	WARN_ON_ONCE(1);
 }
-
-static inline void hash__local_flush_tlb_page(struct vm_area_struct *vma,
-					  unsigned long vmaddr)
-{
-}
-
-static inline void hash__flush_tlb_page(struct vm_area_struct *vma,
-				    unsigned long vmaddr)
-{
-}
-
-static inline void hash__flush_tlb_range(struct vm_area_struct *vma,
-				     unsigned long start, unsigned long end)
-{
-}
-
-static inline void hash__flush_tlb_kernel_range(unsigned long start,
-					    unsigned long end)
-{
-}
-
 
 struct mmu_gather;
 extern void hash__tlb_flush(struct mmu_gather *tlb);
