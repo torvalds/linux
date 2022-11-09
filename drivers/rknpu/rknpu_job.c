@@ -166,10 +166,10 @@ static inline int rknpu_job_wait(struct rknpu_job *job)
 	subcore_data = &rknpu_dev->subcore_datas[core_index];
 
 	do {
-		ret = wait_event_interruptible_timeout(
-			subcore_data->job_done_wq,
-			job->flags & RKNPU_JOB_DONE || rknpu_dev->soft_reseting,
-			msecs_to_jiffies(args->timeout));
+		ret = wait_event_timeout(subcore_data->job_done_wq,
+					 job->flags & RKNPU_JOB_DONE ||
+						 rknpu_dev->soft_reseting,
+					 msecs_to_jiffies(args->timeout));
 		if (++wait_count >= 3)
 			break;
 	} while (ret == 0 && job->in_queue[core_index]);
