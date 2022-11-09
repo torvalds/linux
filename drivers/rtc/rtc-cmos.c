@@ -798,6 +798,14 @@ static void acpi_rtc_event_setup(struct device *dev)
 	acpi_disable_event(ACPI_EVENT_RTC, 0);
 }
 
+static void acpi_rtc_event_cleanup(void)
+{
+	if (acpi_disabled)
+		return;
+
+	acpi_remove_fixed_event_handler(ACPI_EVENT_RTC, rtc_handler);
+}
+
 static void rtc_wake_on(struct device *dev)
 {
 	acpi_clear_event(ACPI_EVENT_RTC);
@@ -881,6 +889,10 @@ static void cmos_check_acpi_rtc_status(struct device *dev,
 #else /* !CONFIG_ACPI */
 
 static inline void acpi_rtc_event_setup(struct device *dev)
+{
+}
+
+static inline void acpi_rtc_event_cleanup(void)
 {
 }
 
@@ -1137,6 +1149,9 @@ static void cmos_do_remove(struct device *dev)
 		if (use_hpet_alarm())
 			hpet_unregister_irq_handler(cmos_interrupt);
 	}
+
+	if (!dev_get_platdata(dev))
+		acpi_rtc_event_cleanup();
 
 	cmos->rtc = NULL;
 
