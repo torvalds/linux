@@ -497,10 +497,11 @@ pages of the process with*pagemap.
 If you enable the feature, you could see block state via
 /sys/kernel/debug/zram/zram0/block_state". The output is as follows::
 
-	  300    75.033841 .wh..
-	  301    63.806904 s....
-	  302    63.806919 ..hi.
-	  303    62.801919 ....r
+	  300    75.033841 .wh...
+	  301    63.806904 s.....
+	  302    63.806919 ..hi..
+	  303    62.801919 ....r.
+	  304   146.781902 ..hi.n
 
 First column
 	zram's block index.
@@ -519,6 +520,8 @@ Third column
 		idle page
 	r:
 		recompressed page (secondary compression algorithm)
+	n:
+		none (including secondary) of algorithms could compress it
 
 First line of above example says 300th block is accessed at 75.033841sec
 and the block's state is huge so it is written back to the backing
