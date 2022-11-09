@@ -114,15 +114,15 @@ void ioremap_phys_range_hook(phys_addr_t phys_addr, size_t size, pgprot_t prot)
 	if (!static_branch_unlikely(&ioremap_guard_key))
 		return;
 
-	if (pfn_valid(__phys_to_pfn(phys_addr)))
-		return;
-
 	mutex_lock(&ioremap_guard_lock);
 
 	while (size) {
 		u64 pfn = phys_addr >> PAGE_SHIFT;
 		struct ioremap_guard_ref *ref;
 		struct arm_smccc_res res;
+
+		if (pfn_valid(__phys_to_pfn(phys_addr)))
+			goto next;
 
 		ref = xa_load(&ioremap_guard_array, pfn);
 		if (ref) {
