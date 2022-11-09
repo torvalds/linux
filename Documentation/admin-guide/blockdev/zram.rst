@@ -348,8 +348,13 @@ this can be accomplished with::
 
         echo huge_idle > /sys/block/zramX/writeback
 
+If a user chooses to writeback only incompressible pages (pages that none of
+algorithms can compress) this can be accomplished with::
+
+	echo incompressible > /sys/block/zramX/writeback
+
 If an admin wants to write a specific page in zram device to the backing device,
-they could write a page index into the interface.
+they could write a page index into the interface::
 
 	echo "page_index=1251" > /sys/block/zramX/writeback
 
