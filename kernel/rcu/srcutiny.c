@@ -197,6 +197,16 @@ void synchronize_srcu(struct srcu_struct *ssp)
 {
 	struct rcu_synchronize rs;
 
+	RCU_LOCKDEP_WARN(lockdep_is_held(ssp) ||
+			lock_is_held(&rcu_bh_lock_map) ||
+			lock_is_held(&rcu_lock_map) ||
+			lock_is_held(&rcu_sched_lock_map),
+			"Illegal synchronize_srcu() in same-type SRCU (or in RCU) read-side critical section");
+
+	if (rcu_scheduler_active == RCU_SCHEDULER_INACTIVE)
+		return;
+
+	might_sleep();
 	init_rcu_head_on_stack(&rs.head);
 	init_completion(&rs.completion);
 	call_srcu(ssp, &rs.head, wakeme_after_rcu);
