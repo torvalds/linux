@@ -41,6 +41,7 @@ pmu-events/jevents
 feature/
 libapi/
 libbpf/
+libperf/
 libsubcmd/
 fixdep
 libtraceevent-dynamic-list
