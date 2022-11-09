@@ -86,6 +86,13 @@ static inline void local_flush_tlb_page(struct vm_area_struct *vma,
 		radix__local_flush_tlb_page(vma, vmaddr);
 }
 
+static inline void local_flush_tlb_page_psize(struct mm_struct *mm,
+					      unsigned long vmaddr, int psize)
+{
+	if (radix_enabled())
+		radix__local_flush_tlb_page_psize(mm, vmaddr, psize);
+}
+
 static inline void tlb_flush(struct mmu_gather *tlb)
 {
 	if (radix_enabled())
