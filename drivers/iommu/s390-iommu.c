@@ -20,7 +20,6 @@ struct s390_domain {
 	struct iommu_domain	domain;
 	struct list_head	devices;
 	unsigned long		*dma_table;
-	spinlock_t		dma_table_lock;
 	spinlock_t		list_lock;
 	struct rcu_head		rcu;
 };
@@ -62,7 +61,6 @@ static struct iommu_domain *s390_domain_alloc(unsigned domain_type)
 	s390_domain->domain.geometry.aperture_start = 0;
 	s390_domain->domain.geometry.aperture_end = ZPCI_TABLE_SIZE_RT - 1;
 
-	spin_lock_init(&s390_domain->dma_table_lock);
 	spin_lock_init(&s390_domain->list_lock);
 	INIT_LIST_HEAD_RCU(&s390_domain->devices);
 
@@ -265,14 +263,10 @@ static int s390_iommu_validate_trans(struct s390_domain *s390_domain,
 				     unsigned long nr_pages, int flags)
 {
 	phys_addr_t page_addr = pa & PAGE_MASK;
-	unsigned long irq_flags, i;
 	unsigned long *entry;
+	unsigned long i;
 	int rc;
 
-	if (!nr_pages)
-		return 0;
-
-	spin_lock_irqsave(&s390_domain->dma_table_lock, irq_flags);
 	for (i = 0; i < nr_pages; i++) {
 		entry = dma_walk_cpu_trans(s390_domain->dma_table, dma_addr);
 		if (unlikely(!entry)) {
@@ -283,7 +277,6 @@ static int s390_iommu_validate_trans(struct s390_domain *s390_domain,
 		page_addr += PAGE_SIZE;
 		dma_addr += PAGE_SIZE;
 	}
-	spin_unlock_irqrestore(&s390_domain->dma_table_lock, irq_flags);
 
 	return 0;
 
@@ -296,7 +289,6 @@ undo_cpu_trans:
 			break;
 		dma_update_cpu_trans(entry, 0, ZPCI_PTE_INVALID);
 	}
-	spin_unlock_irqrestore(&s390_domain->dma_table_lock, irq_flags);
 
 	return rc;
 }
@@ -304,14 +296,10 @@ undo_cpu_trans:
 static int s390_iommu_invalidate_trans(struct s390_domain *s390_domain,
 				       dma_addr_t dma_addr, unsigned long nr_pages)
 {
-	unsigned long irq_flags, i;
 	unsigned long *entry;
+	unsigned long i;
 	int rc = 0;
 
-	if (!nr_pages)
-		return 0;
-
-	spin_lock_irqsave(&s390_domain->dma_table_lock, irq_flags);
 	for (i = 0; i < nr_pages; i++) {
 		entry = dma_walk_cpu_trans(s390_domain->dma_table, dma_addr);
 		if (unlikely(!entry)) {
@@ -321,7 +309,6 @@ static int s390_iommu_invalidate_trans(struct s390_domain *s390_domain,
 		dma_update_cpu_trans(entry, 0, ZPCI_PTE_INVALID);
 		dma_addr += PAGE_SIZE;
 	}
-	spin_unlock_irqrestore(&s390_domain->dma_table_lock, irq_flags);
 
 	return rc;
 }
@@ -363,7 +350,8 @@ static phys_addr_t s390_iommu_iova_to_phys(struct iommu_domain *domain,
 					   dma_addr_t iova)
 {
 	struct s390_domain *s390_domain = to_s390_domain(domain);
-	unsigned long *sto, *pto, *rto, flags;
+	unsigned long *rto, *sto, *pto;
+	unsigned long ste, pte, rte;
 	unsigned int rtx, sx, px;
 	phys_addr_t phys = 0;
 
@@ -376,16 +364,17 @@ static phys_addr_t s390_iommu_iova_to_phys(struct iommu_domain *domain,
 	px = calc_px(iova);
 	rto = s390_domain->dma_table;
 
-	spin_lock_irqsave(&s390_domain->dma_table_lock, flags);
-	if (rto && reg_entry_isvalid(rto[rtx])) {
-		sto = get_rt_sto(rto[rtx]);
-		if (sto && reg_entry_isvalid(sto[sx])) {
-			pto = get_st_pto(sto[sx]);
-			if (pto && pt_entry_isvalid(pto[px]))
-				phys = pto[px] & ZPCI_PTE_ADDR_MASK;
+	rte = READ_ONCE(rto[rtx]);
+	if (reg_entry_isvalid(rte)) {
+		sto = get_rt_sto(rte);
+		ste = READ_ONCE(sto[sx]);
+		if (reg_entry_isvalid(ste)) {
+			pto = get_st_pto(ste);
+			pte = READ_ONCE(pto[px]);
+			if (pt_entry_isvalid(pte))
+				phys = pte & ZPCI_PTE_ADDR_MASK;
 		}
 	}
-	spin_unlock_irqrestore(&s390_domain->dma_table_lock, flags);
 
 	return phys;
 }

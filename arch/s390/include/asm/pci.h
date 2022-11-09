@@ -157,7 +157,6 @@ struct zpci_dev {
 
 	/* DMA stuff */
 	unsigned long	*dma_table;
-	spinlock_t	dma_table_lock;
 	int		tlb_refresh;
 
 	spinlock_t	iommu_bitmap_lock;
