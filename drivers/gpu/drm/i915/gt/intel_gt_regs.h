@@ -7,6 +7,7 @@
 #define __INTEL_GT_REGS__
 
 #include "i915_reg_defs.h"
+#include "display/intel_display_reg_defs.h"	/* VLV_DISPLAY_BASE */
 
 /* RPM unit config (Gen8+) */
 #define RPM_CONFIG0				_MMIO(0xd00)
