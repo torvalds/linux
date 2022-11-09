@@ -17725,7 +17725,7 @@ F:	arch/riscv/
 N:	riscv
 K:	riscv
 
-RISC-V/MICROCHIP POLARFIRE SOC SUPPORT
+RISC-V MICROCHIP FPGA SUPPORT
 M:	Conor Dooley <conor.dooley@microchip.com>
 M:	Daire McNamara <daire.mcnamara@microchip.com>
 L:	linux-riscv@lists.infradead.org
