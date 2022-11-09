@@ -2693,23 +2693,6 @@ int devm_device_add_groups(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_device_add_groups);
 
-/**
- * devm_device_remove_groups - remove a list of managed groups
- *
- * @dev:	The device for the groups to be removed from
- * @groups:	NULL terminated list of groups to be removed
- *
- * If groups is not NULL, remove the specified groups from the device.
- */
-void devm_device_remove_groups(struct device *dev,
-			       const struct attribute_group **groups)
-{
-	WARN_ON(devres_release(dev, devm_attr_groups_remove,
-			       devm_attr_group_match,
-			       /* cast away const */ (void *)groups));
-}
-EXPORT_SYMBOL_GPL(devm_device_remove_groups);
-
 static int device_add_attrs(struct device *dev)
 {
 	struct class *class = dev->class;
