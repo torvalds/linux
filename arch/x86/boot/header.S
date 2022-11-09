@@ -80,10 +80,11 @@ bs_die:
 	ljmp	$0xf000,$0xfff0
 
 #ifdef CONFIG_EFI_STUB
-	.org	0x3c
+	.org	0x38
 	#
 	# Offset to the PE header.
 	#
+	.long	LINUX_PE_MAGIC
 	.long	pe_header
 #endif /* CONFIG_EFI_STUB */
 

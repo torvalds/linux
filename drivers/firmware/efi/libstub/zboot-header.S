@@ -20,7 +20,8 @@ __efistub_efi_zboot_header:
 	.long		__efistub__gzdata_size - 12		// payload size
 	.long		0, 0					// reserved
 	.asciz		COMP_TYPE				// compression type
-	.org		.Ldoshdr + 0x3c
+	.org		.Ldoshdr + 0x38
+	.long		LINUX_PE_MAGIC
 	.long		.Lpehdr - .Ldoshdr			// PE header offset
 
 .Lpehdr:
