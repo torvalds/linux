@@ -519,9 +519,8 @@ static int parse_elf(struct elf_info *info, const char *filename)
 		int nobits = sechdrs[i].sh_type == SHT_NOBITS;
 
 		if (!nobits && sechdrs[i].sh_offset > info->size) {
-			fatal("%s is truncated. sechdrs[i].sh_offset=%lu > "
-			      "sizeof(*hrd)=%zu\n", filename,
-			      (unsigned long)sechdrs[i].sh_offset,
+			fatal("%s is truncated. sechdrs[i].sh_offset=%lu > sizeof(*hrd)=%zu\n",
+			      filename, (unsigned long)sechdrs[i].sh_offset,
 			      sizeof(*hdr));
 			return 0;
 		}
@@ -1355,8 +1354,7 @@ static void report_extable_warnings(const char* modname, struct elf_info* elf,
 	get_pretty_name(is_function(tosym),
 			&to_pretty_name, &to_pretty_name_p);
 
-	warn("%s(%s+0x%lx): Section mismatch in reference"
-	     " from the %s %s%s to the %s %s:%s%s\n",
+	warn("%s(%s+0x%lx): Section mismatch in reference from the %s %s%s to the %s %s:%s%s\n",
 	     modname, fromsec, (long)r->r_offset, from_pretty_name,
 	     fromsym_name, from_pretty_name_p,
 	     to_pretty_name, tosec, tosym_name, to_pretty_name_p);
