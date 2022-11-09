@@ -335,6 +335,7 @@ static const struct regval SC301IOT_linear_10_2048x1536_regs[] = {
 	{0x3650, 0x33},
 	{0x3651, 0x7f},
 
+	{0x3028, 0x05},
 	{REG_NULL, 0x00},
 };
 
@@ -498,6 +499,7 @@ static const struct regval SC301IOT_hdr_10_2048x1536_regs[] = {
 	{0x3650, 0x33},
 	{0x3651, 0x7f},
 
+	{0x3028, 0x05},
 	{REG_NULL, 0x00},
 };
 
@@ -653,6 +655,7 @@ static const struct regval SC301IOT_linear_10_1536x1536_regs[] = {
 	{0x3650, 0x33},
 	{0x3651, 0x7f},
 
+	{0x3028, 0x05},
 	{REG_NULL, 0x00},
 };
 
@@ -817,6 +820,7 @@ static const struct regval SC301IOT_hdr_10_1536x1536_regs[] = {
 	{0x3650, 0x33},
 	{0x3651, 0x7f},
 
+	{0x3028, 0x05},
 	{REG_NULL, 0x00},
 };
 
@@ -1717,7 +1721,7 @@ static int __SC301IOT_power_on(struct SC301IOT *SC301IOT)
 	ret = clk_prepare_enable(SC301IOT->xvclk);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable xvclk\n");
-		return ret;
+		goto disable_clk;
 	}
 	if (!IS_ERR(SC301IOT->reset_gpio))
 		gpiod_set_value_cansleep(SC301IOT->reset_gpio, 0);
@@ -1737,17 +1741,6 @@ static int __SC301IOT_power_on(struct SC301IOT *SC301IOT)
 	if (!IS_ERR(SC301IOT->pwdn_gpio))
 		gpiod_set_value_cansleep(SC301IOT->pwdn_gpio, 1);
 	usleep_range(4500, 5000);
-
-	ret = clk_set_rate(SC301IOT->xvclk, SC301IOT_XVCLK_FREQ);
-	if (ret < 0)
-		dev_warn(dev, "Failed to set xvclk rate (24MHz)\n");
-	if (clk_get_rate(SC301IOT->xvclk) != SC301IOT_XVCLK_FREQ)
-		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
-	ret = clk_prepare_enable(SC301IOT->xvclk);
-	if (ret < 0) {
-		dev_err(dev, "Failed to enable regulators\n");
-		goto disable_clk;
-	}
 
 	if (!IS_ERR(SC301IOT->reset_gpio))
 		usleep_range(6000, 8000);
