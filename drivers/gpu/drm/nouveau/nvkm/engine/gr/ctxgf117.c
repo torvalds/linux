@@ -241,38 +241,34 @@ gf117_grctx_generate_rop_mapping(struct gf100_gr *gr)
 }
 
 void
-gf117_grctx_generate_attrib(struct gf100_grctx *info)
+gf117_grctx_generate_attrib(struct gf100_gr_chan *chan)
 {
-	struct gf100_gr *gr = info->gr;
+	struct gf100_gr *gr = chan->gr;
 	const struct gf100_grctx_func *grctx = gr->func->grctx;
 	const u32  alpha = grctx->alpha_nr;
 	const u32   beta = grctx->attrib_nr;
-	const u32   size = 0x20 * (grctx->attrib_nr_max + grctx->alpha_nr_max);
-	const int s = 12;
-	const int b = mmio_vram(info, size * gr->tpc_total, (1 << s), false);
 	const int timeslice_mode = 1;
 	const int max_batches = 0xffff;
 	u32 bo = 0;
 	u32 ao = bo + grctx->attrib_nr_max * gr->tpc_total;
 	int gpc, ppc;
 
-	mmio_refn(info, 0x418810, 0x80000000, s, b);
-	mmio_refn(info, 0x419848, 0x10000000, s, b);
-	mmio_wr32(info, 0x405830, (beta << 16) | alpha);
-	mmio_wr32(info, 0x4064c4, ((alpha / 4) << 16) | max_batches);
+	gf100_grctx_patch_wr32(chan, 0x405830, (beta << 16) | alpha);
+	gf100_grctx_patch_wr32(chan, 0x4064c4, ((alpha / 4) << 16) | max_batches);
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		for (ppc = 0; ppc < gr->ppc_nr[gpc]; ppc++) {
+		for (ppc = 0; ppc < gr->func->ppc_nr; ppc++) {
 			const u32 a = alpha * gr->ppc_tpc_nr[gpc][ppc];
 			const u32 b =  beta * gr->ppc_tpc_nr[gpc][ppc];
 			const u32 t = timeslice_mode;
 			const u32 o = PPC_UNIT(gpc, ppc, 0);
+
 			if (!(gr->ppc_mask[gpc] & (1 << ppc)))
 				continue;
-			mmio_skip(info, o + 0xc0, (t << 28) | (b << 16) | ++bo);
-			mmio_wr32(info, o + 0xc0, (t << 28) | (b << 16) | --bo);
+
+			gf100_grctx_patch_wr32(chan, o + 0xc0, (t << 28) | (b << 16) | bo);
 			bo += grctx->attrib_nr_max * gr->ppc_tpc_nr[gpc][ppc];
-			mmio_wr32(info, o + 0xe4, (a << 16) | ao);
+			gf100_grctx_patch_wr32(chan, o + 0xe4, (a << 16) | ao);
 			ao += grctx->alpha_nr_max * gr->ppc_tpc_nr[gpc][ppc];
 		}
 	}
@@ -294,6 +290,8 @@ gf117_grctx = {
 	.bundle_size = 0x1800,
 	.pagepool = gf100_grctx_generate_pagepool,
 	.pagepool_size = 0x8000,
+	.attrib_cb_size = gf100_grctx_generate_attrib_cb_size,
+	.attrib_cb = gf100_grctx_generate_attrib_cb,
 	.attrib = gf117_grctx_generate_attrib,
 	.attrib_nr_max = 0x324,
 	.attrib_nr = 0x218,

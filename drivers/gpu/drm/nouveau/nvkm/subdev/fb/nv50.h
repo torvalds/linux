@@ -7,8 +7,6 @@
 struct nv50_fb {
 	const struct nv50_fb_func *func;
 	struct nvkm_fb base;
-	struct page *r100c08_page;
-	dma_addr_t r100c08;
 };
 
 struct nv50_fb_func {
