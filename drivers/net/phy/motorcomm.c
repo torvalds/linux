@@ -817,10 +817,13 @@ static struct device_node *ytphy_get_of_node(struct phy_device *phydev)
 	return of_node->child;
 }
 
-static int ytphy_inverted(struct phy_device *phydev)
+static void ytphy_link_change_notify(struct phy_device *phydev)
 {
 	u32 val;
 	struct ytphy_priv_t *ytphy_priv = phydev->priv;
+
+	if (phydev->speed < 0)
+		return;
 
 	val = ytphy_read_ext(phydev, YTPHY_EXTREG_RGMII_CONFIG1);
 	switch (phydev->speed) {
@@ -842,10 +845,8 @@ static int ytphy_inverted(struct phy_device *phydev)
 	default:
 		break;
 	}
-
-	return ytphy_write_ext(phydev, YTPHY_EXTREG_RGMII_CONFIG1, val);
+	ytphy_write_ext(phydev, YTPHY_EXTREG_RGMII_CONFIG1, val);
 }
-
 
 static int ytphy_of_config(struct phy_device *phydev)
 {
@@ -987,8 +988,6 @@ static int yt8521_adjust_status(struct phy_device *phydev, int val, int is_utp)
 
 	phydev->speed = speed;
 	phydev->duplex = duplex;
-
-	ytphy_inverted(phydev);
 
 	return 0;
 }
@@ -1181,17 +1180,6 @@ static int yt8531S_config_init(struct phy_device *phydev)
 	ret = yt8521_config_init(phydev);
 
 	return ret;
-}
-
-static int yt8531_read_status(struct phy_device *phydev)
-{
-	int ret;
-
-	ret = genphy_read_status(phydev);
-	if (ret)
-		return ret;
-
-	return ytphy_inverted(phydev);
 }
 
 static int ytphy_probe(struct phy_device *phydev)
@@ -2169,6 +2157,7 @@ static struct phy_driver ytphy_drvs[] = {
 		.read_status    = yt8521_read_status,
 		.suspend        = yt8521_suspend,
 		.resume         = yt8521_resume,
+		.link_change_notify = ytphy_link_change_notify,
 #if (YTPHY_WOL_FEATURE_ENABLE)
 		.get_wol        = &ytphy_wol_feature_get,
 		.set_wol        = &ytphy_wol_feature_set,
@@ -2201,9 +2190,10 @@ static struct phy_driver ytphy_drvs[] = {
 		.probe         = ytphy_probe,
 		.config_aneg   = genphy_config_aneg,
 		.config_init   = yt8531_config_init,
-		.read_status   = yt8531_read_status,
+		.read_status   = genphy_read_status,
 		.suspend       = genphy_suspend,
 		.resume        = genphy_resume,
+		.link_change_notify = ytphy_link_change_notify,
 #if (YTPHY_WOL_FEATURE_ENABLE)
 		.get_wol       = &ytphy_wol_feature_get,
 		.set_wol       = &ytphy_wol_feature_set,
