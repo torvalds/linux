@@ -1079,11 +1079,6 @@
 #define MBUS_JOIN_PIPE_SELECT(pipe)	REG_FIELD_PREP(MBUS_JOIN_PIPE_SELECT_MASK, pipe)
 #define MBUS_JOIN_PIPE_SELECT_NONE	MBUS_JOIN_PIPE_SELECT(7)
 
-#define HDPORT_STATE			_MMIO(0x45050)
-#define   HDPORT_DPLL_USED_MASK		REG_GENMASK(15, 12)
-#define   HDPORT_DDI_USED(phy)		REG_BIT(2 * (phy) + 1)
-#define   HDPORT_ENABLED		REG_BIT(0)
-
 /* Make render/texture TLB fetches lower priorty than associated data
  *   fetches. This is not turned on by default
  */

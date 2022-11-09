@@ -57,6 +57,7 @@
 #include "intel_hdcp.h"
 #include "intel_hdmi.h"
 #include "intel_hotplug.h"
+#include "intel_hti.h"
 #include "intel_lspcon.h"
 #include "intel_mg_phy_regs.h"
 #include "intel_pps.h"
@@ -4114,12 +4115,6 @@ intel_ddi_max_lanes(struct intel_digital_port *dig_port)
 	return max_lanes;
 }
 
-static bool hti_uses_phy(struct drm_i915_private *i915, enum phy phy)
-{
-	return i915->hti_state & HDPORT_ENABLED &&
-	       i915->hti_state & HDPORT_DDI_USED(phy);
-}
-
 static enum hpd_pin xelpd_hpd_pin(struct drm_i915_private *dev_priv,
 				  enum port port)
 {
@@ -4248,7 +4243,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	 * driver.  In that case we should skip initializing the corresponding
 	 * outputs.
 	 */
-	if (hti_uses_phy(dev_priv, phy)) {
+	if (intel_hti_uses_phy(dev_priv, phy)) {
 		drm_dbg_kms(&dev_priv->drm, "PORT %c / PHY %c reserved by HTI\n",
 			    port_name(port), phy_name(phy));
 		return;

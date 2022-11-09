@@ -247,6 +247,7 @@ i915-y += \
 	display/intel_global_state.o \
 	display/intel_hdcp.o \
 	display/intel_hotplug.o \
+	display/intel_hti.o \
 	display/intel_lpe_audio.o \
 	display/intel_modeset_verify.o \
 	display/intel_modeset_setup.o \

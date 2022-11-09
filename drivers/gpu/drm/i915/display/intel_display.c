@@ -101,6 +101,7 @@
 #include "intel_frontbuffer.h"
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"
+#include "intel_hti.h"
 #include "intel_modeset_verify.h"
 #include "intel_modeset_setup.h"
 #include "intel_overlay.h"
@@ -8736,12 +8737,7 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 	if (i915->display.cdclk.max_cdclk_freq == 0)
 		intel_update_max_cdclk(i915);
 
-	/*
-	 * If the platform has HTI, we need to find out whether it has reserved
-	 * any display resources before we create our display outputs.
-	 */
-	if (INTEL_INFO(i915)->display.has_hti)
-		i915->hti_state = intel_de_read(i915, HDPORT_STATE);
+	intel_hti_init(i915);
 
 	/* Just disable it once at startup */
 	intel_vga_disable(i915);
