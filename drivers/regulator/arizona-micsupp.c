@@ -262,7 +262,6 @@ static int arizona_micsupp_common_init(struct platform_device *pdev,
 	INIT_WORK(&micsupp->check_cp_work, arizona_micsupp_check_cp);
 
 	micsupp->init_data.consumer_supplies = &micsupp->supply;
-	micsupp->supply.supply = "MICVDD";
 	micsupp->supply.dev_name = dev_name(micsupp->dev);
 	micsupp->desc = desc;
 
@@ -319,6 +318,8 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 	micsupp->dapm = &arizona->dapm;
 	micsupp->dev = arizona->dev;
 
+	micsupp->supply.supply = "MICVDD";
+
 	/*
 	 * Since the chip usually supplies itself we provide some
 	 * default init_data for it.  This will be overridden with
@@ -353,6 +354,8 @@ static int madera_micsupp_probe(struct platform_device *pdev)
 	micsupp->dapm = &madera->dapm;
 	micsupp->dev = madera->dev;
 	micsupp->init_data = arizona_micsupp_ext_default;
+
+	micsupp->supply.supply = "MICVDD";
 
 	return arizona_micsupp_common_init(pdev, micsupp, &madera_micsupp,
 					   &madera->pdata.micvdd);
