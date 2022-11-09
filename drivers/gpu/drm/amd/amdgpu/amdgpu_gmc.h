@@ -251,6 +251,7 @@ struct amdgpu_gmc {
 	uint64_t		last_fault:AMDGPU_GMC_FAULT_RING_ORDER;
 
 	bool tmz_enabled;
+	bool is_app_apu;
 
 	const struct amdgpu_gmc_funcs	*gmc_funcs;
 

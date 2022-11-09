@@ -1442,6 +1442,20 @@ static int gmc_v9_0_early_init(void *handle)
 			adev->smuio.funcs->is_host_gpu_xgmi_supported(adev);
 	}
 
+	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3)) {
+		enum amdgpu_pkg_type pkg_type =
+			adev->smuio.funcs->get_pkg_type(adev);
+		/* On GFXIP 9.4.3. APU, there is no physical VRAM domain present
+		 * and the APU, can be in used two possible modes:
+		 *  - carveout mode
+		 *  - native APU mode
+		 * "is_app_apu" can be used to identify the APU in the native
+		 * mode.
+		 */
+		adev->gmc.is_app_apu = (pkg_type == AMDGPU_PKG_TYPE_APU &&
+					!pci_resource_len(adev->pdev, 0));
+	}
+
 	gmc_v9_0_set_gmc_funcs(adev);
 	gmc_v9_0_set_irq_funcs(adev);
 	gmc_v9_0_set_umc_funcs(adev);
