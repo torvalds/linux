@@ -530,7 +530,7 @@ static int rockchip_pcie_ep_set_bar(struct rockchip_pcie *rockchip)
 	bar = BAR_0;
 	cpu_addr = rockchip->ib_target_address;
 
-	ret = dw_pcie_prog_inbound_atu(pci, free_win, bar, cpu_addr, as_type);
+	ret = dw_pcie_prog_inbound_atu(pci, 0, free_win, bar, cpu_addr, as_type);
 	if (ret < 0) {
 		dev_err(pci->dev, "Failed to program IB window\n");
 		return ret;
