@@ -28,6 +28,7 @@
 #include "util.h"
 #include <asm/bug.h>
 #include "cgroup.h"
+#include "util/hashmap.h"
 
 struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 					 struct evsel *evsel,

@@ -27,11 +27,7 @@
 #include "util.h"
 #include "llvm-utils.h"
 #include "c++/clang-c.h"
-#ifdef HAVE_LIBBPF_SUPPORT
-#include <bpf/hashmap.h>
-#else
 #include "util/hashmap.h"
-#endif
 #include "asm/bug.h"
 
 #include <internal/xyarray.h>

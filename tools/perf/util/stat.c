@@ -14,11 +14,7 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"
-#ifdef HAVE_LIBBPF_SUPPORT
-#include <bpf/hashmap.h>
-#else
 #include "util/hashmap.h"
-#endif
 #include <linux/zalloc.h>
 
 void update_stats(struct stats *stats, u64 val)

@@ -12,6 +12,7 @@
 #include <perf/evlist.h>
 #include "util/evlist.h"
 #include "util/expr.h"
+#include "util/hashmap.h"
 #include "util/parse-events.h"
 #include "metricgroup.h"
 #include "stat.h"
