@@ -80,6 +80,7 @@ krait_add_div(struct device *dev, int id, const char *s, unsigned int offset)
 	};
 	const char *p_names[1];
 	struct clk *clk;
+	int cpu;
 
 	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
 	if (!div)
@@ -103,6 +104,17 @@ krait_add_div(struct device *dev, int id, const char *s, unsigned int offset)
 	}
 
 	clk = devm_clk_register(dev, &div->hw);
+	if (IS_ERR(clk))
+		goto err;
+
+	/* clk-krait ignore any rate change if mux is not flagged as enabled */
+	if (id < 0)
+		for_each_online_cpu(cpu)
+			clk_prepare_enable(div->hw.clk);
+	else
+		clk_prepare_enable(div->hw.clk);
+
+err:
 	kfree(p_names[0]);
 	kfree(init.name);
 
@@ -113,7 +125,7 @@ static int
 krait_add_sec_mux(struct device *dev, int id, const char *s,
 		  unsigned int offset, bool unique_aux)
 {
-	int ret;
+	int cpu, ret;
 	struct krait_mux_clk *mux;
 	static const char *sec_mux_list[] = {
 		"qsb",
@@ -164,6 +176,13 @@ krait_add_sec_mux(struct device *dev, int id, const char *s,
 	ret = krait_notifier_register(dev, clk, mux);
 	if (ret)
 		goto unique_aux;
+
+	/* clk-krait ignore any rate change if mux is not flagged as enabled */
+	if (id < 0)
+		for_each_online_cpu(cpu)
+			clk_prepare_enable(mux->hw.clk);
+	else
+		clk_prepare_enable(mux->hw.clk);
 
 unique_aux:
 	if (unique_aux)
