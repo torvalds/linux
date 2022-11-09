@@ -458,6 +458,11 @@ static bool mlx5e_macsec_secy_features_validate(struct macsec_context *ctx)
 		return false;
 	}
 
+	if (!ctx->secy->tx_sc.encrypt) {
+		netdev_err(netdev, "MACsec offload: encrypt off isn't supported\n");
+		return false;
+	}
+
 	return true;
 }
 
