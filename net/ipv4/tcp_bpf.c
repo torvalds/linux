@@ -607,7 +607,7 @@ int tcp_bpf_update_proto(struct sock *sk, struct sk_psock *psock, bool restore)
 		} else {
 			sk->sk_write_space = psock->saved_write_space;
 			/* Pairs with lockless read in sk_clone_lock() */
-			WRITE_ONCE(sk->sk_prot, psock->sk_proto);
+			sock_replace_proto(sk, psock->sk_proto);
 		}
 		return 0;
 	}
@@ -620,7 +620,7 @@ int tcp_bpf_update_proto(struct sock *sk, struct sk_psock *psock, bool restore)
 	}
 
 	/* Pairs with lockless read in sk_clone_lock() */
-	WRITE_ONCE(sk->sk_prot, &tcp_bpf_prots[family][config]);
+	sock_replace_proto(sk, &tcp_bpf_prots[family][config]);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tcp_bpf_update_proto);
