@@ -141,6 +141,7 @@ int sof_sdw_rt1316_init(struct snd_soc_card *card,
 			struct snd_soc_dai_link *dai_links,
 			struct sof_sdw_codec_info *info,
 			bool playback);
+int sof_sdw_rt1316_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
 
 /* RT715 support */
 int sof_sdw_rt715_init(struct snd_soc_card *card,
