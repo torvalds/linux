@@ -1146,6 +1146,9 @@ static int tdp_mmu_link_sp(struct kvm *kvm, struct tdp_iter *iter,
 	return 0;
 }
 
+static int tdp_mmu_split_huge_page(struct kvm *kvm, struct tdp_iter *iter,
+				   struct kvm_mmu_page *sp, bool shared);
+
 /*
  * Handle a TDP page fault (NPT/EPT violation/misconfiguration) by installing
  * page tables and SPTEs to translate the faulting guest physical address.
@@ -1171,49 +1174,42 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		if (iter.level == fault->goal_level)
 			break;
 
-		/*
-		 * If there is an SPTE mapping a large page at a higher level
-		 * than the target, that SPTE must be cleared and replaced
-		 * with a non-leaf SPTE.
-		 */
+		/* Step down into the lower level page table if it exists. */
 		if (is_shadow_present_pte(iter.old_spte) &&
-		    is_large_pte(iter.old_spte)) {
-			if (tdp_mmu_zap_spte_atomic(vcpu->kvm, &iter))
-				break;
+		    !is_large_pte(iter.old_spte))
+			continue;
 
-			/*
-			 * The iter must explicitly re-read the spte here
-			 * because the new value informs the !present
-			 * path below.
-			 */
-			iter.old_spte = kvm_tdp_mmu_read_spte(iter.sptep);
+		/*
+		 * If SPTE has been frozen by another thread, just give up and
+		 * retry, avoiding unnecessary page table allocation and free.
+		 */
+		if (is_removed_spte(iter.old_spte))
+			break;
+
+		/*
+		 * The SPTE is either non-present or points to a huge page that
+		 * needs to be split.
+		 */
+		sp = tdp_mmu_alloc_sp(vcpu);
+		tdp_mmu_init_child_sp(sp, &iter);
+
+		sp->nx_huge_page_disallowed = fault->huge_page_disallowed;
+
+		if (is_shadow_present_pte(iter.old_spte))
+			ret = tdp_mmu_split_huge_page(kvm, &iter, sp, true);
+		else
+			ret = tdp_mmu_link_sp(kvm, &iter, sp, true);
+
+		if (ret) {
+			tdp_mmu_free_sp(sp);
+			break;
 		}
 
-		if (!is_shadow_present_pte(iter.old_spte)) {
-			/*
-			 * If SPTE has been frozen by another thread, just
-			 * give up and retry, avoiding unnecessary page table
-			 * allocation and free.
-			 */
-			if (is_removed_spte(iter.old_spte))
-				break;
-
-			sp = tdp_mmu_alloc_sp(vcpu);
-			tdp_mmu_init_child_sp(sp, &iter);
-
-			sp->nx_huge_page_disallowed = fault->huge_page_disallowed;
-
-			if (tdp_mmu_link_sp(kvm, &iter, sp, true)) {
-				tdp_mmu_free_sp(sp);
-				break;
-			}
-
-			if (fault->huge_page_disallowed &&
-			    fault->req_level >= iter.level) {
-				spin_lock(&kvm->arch.tdp_mmu_pages_lock);
-				track_possible_nx_huge_page(kvm, sp);
-				spin_unlock(&kvm->arch.tdp_mmu_pages_lock);
-			}
+		if (fault->huge_page_disallowed &&
+		    fault->req_level >= iter.level) {
+			spin_lock(&kvm->arch.tdp_mmu_pages_lock);
+			track_possible_nx_huge_page(kvm, sp);
+			spin_unlock(&kvm->arch.tdp_mmu_pages_lock);
 		}
 	}
 
@@ -1477,14 +1473,13 @@ static struct kvm_mmu_page *tdp_mmu_alloc_sp_for_split(struct kvm *kvm,
 	return sp;
 }
 
+/* Note, the caller is responsible for initializing @sp. */
 static int tdp_mmu_split_huge_page(struct kvm *kvm, struct tdp_iter *iter,
 				   struct kvm_mmu_page *sp, bool shared)
 {
 	const u64 huge_spte = iter->old_spte;
 	const int level = iter->level;
 	int ret, i;
-
-	tdp_mmu_init_child_sp(sp, iter);
 
 	/*
 	 * No need for atomics when writing to sp->spt since the page table has
@@ -1560,6 +1555,8 @@ retry:
 			if (iter.yielded)
 				continue;
 		}
+
+		tdp_mmu_init_child_sp(sp, &iter);
 
 		if (tdp_mmu_split_huge_page(kvm, &iter, sp, shared))
 			goto retry;
