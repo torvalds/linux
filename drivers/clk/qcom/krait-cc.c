@@ -79,8 +79,7 @@ krait_add_div(struct device *dev, int id, const char *s, unsigned int offset)
 		.flags = CLK_SET_RATE_PARENT,
 	};
 	const char *p_names[1];
-	struct clk *clk;
-	int cpu;
+	int cpu, ret;
 
 	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
 	if (!div)
@@ -103,8 +102,8 @@ krait_add_div(struct device *dev, int id, const char *s, unsigned int offset)
 		return -ENOMEM;
 	}
 
-	clk = devm_clk_register(dev, &div->hw);
-	if (IS_ERR(clk))
+	ret = devm_clk_hw_register(dev, &div->hw);
+	if (ret)
 		goto err;
 
 	/* clk-krait ignore any rate change if mux is not flagged as enabled */
@@ -118,7 +117,7 @@ err:
 	kfree(p_names[0]);
 	kfree(init.name);
 
-	return PTR_ERR_OR_ZERO(clk);
+	return ret;
 }
 
 static int
@@ -137,7 +136,6 @@ krait_add_sec_mux(struct device *dev, int id, const char *s,
 		.ops = &krait_mux_clk_ops,
 		.flags = CLK_SET_RATE_PARENT,
 	};
-	struct clk *clk;
 
 	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)
@@ -166,14 +164,16 @@ krait_add_sec_mux(struct device *dev, int id, const char *s,
 	if (unique_aux) {
 		sec_mux_list[0] = kasprintf(GFP_KERNEL, "acpu%s_aux", s);
 		if (!sec_mux_list[0]) {
-			clk = ERR_PTR(-ENOMEM);
+			ret = -ENOMEM;
 			goto err_aux;
 		}
 	}
 
-	clk = devm_clk_register(dev, &mux->hw);
+	ret = devm_clk_hw_register(dev, &mux->hw);
+	if (ret)
+		goto unique_aux;
 
-	ret = krait_notifier_register(dev, clk, mux);
+	ret = krait_notifier_register(dev, mux->hw.clk, mux);
 	if (ret)
 		goto unique_aux;
 
@@ -189,7 +189,7 @@ unique_aux:
 		kfree(sec_mux_list[0]);
 err_aux:
 	kfree(init.name);
-	return PTR_ERR_OR_ZERO(clk);
+	return ret;
 }
 
 static struct clk *
@@ -241,11 +241,18 @@ krait_add_pri_mux(struct device *dev, int id, const char *s,
 		goto err_p2;
 	}
 
-	clk = devm_clk_register(dev, &mux->hw);
+	ret = devm_clk_hw_register(dev, &mux->hw);
+	if (ret) {
+		clk = ERR_PTR(ret);
+		goto err_p3;
+	}
+
+	clk = mux->hw.clk;
 
 	ret = krait_notifier_register(dev, clk, mux);
 	if (ret)
-		goto err_p3;
+		clk = ERR_PTR(ret);
+
 err_p3:
 	kfree(p_names[2]);
 err_p2:
