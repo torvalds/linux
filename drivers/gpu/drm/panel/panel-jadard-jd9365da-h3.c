@@ -86,6 +86,49 @@ static inline struct jadard *panel_to_jadard(struct drm_panel *panel)
 	return container_of(panel, struct jadard, panel);
 }
 
+static int jadard_i2c_write(struct i2c_client *client, u8 reg, u8 val)
+{
+	struct i2c_msg msg;
+	u8 buf[2];
+	int ret;
+
+	buf[0] = reg;
+	buf[1] = val;
+	msg.addr = client->addr;
+	msg.flags = 0;
+	msg.buf = buf;
+	msg.len = 2;
+
+	ret = i2c_transfer(client->adapter, &msg, 1);
+	if (ret >= 0)
+		return 0;
+
+	return ret;
+}
+
+static int jadard_i2c_read(struct i2c_client *client, u8 reg, u8 *val)
+{
+	struct i2c_msg msg[2];
+	u8 buf[2];
+	int ret;
+
+	buf[0] = reg;
+	msg[0].addr = client->addr;
+	msg[0].flags = 0;
+	msg[0].buf = buf;
+	msg[0].len = 1;
+	msg[1].addr = client->addr;
+	msg[1].flags = I2C_M_RD;
+	msg[1].buf = val;
+	msg[1].len = 1;
+	ret = i2c_transfer(client->adapter, msg, 2);
+
+	if (ret >= 0)
+		return 0;
+
+	return ret;
+}
+
 static int jadard_enable(struct drm_panel *panel)
 {
 	struct device *dev = panel->dev;
@@ -468,12 +511,18 @@ static int panel_probe(struct i2c_client *client, const struct i2c_device_id *id
 	struct device_node *endpoint, *dsi_host_node;
 	struct mipi_dsi_host *host;
 	struct device *dev = &client->dev;
-
+	int ret = 0;
 	struct mipi_dsi_device_info info = {
 		.type = DSI_DRIVER_NAME,
 		.channel = 1, //0,
 		.node = NULL,
 	};
+
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+		dev_warn(&client->dev,
+			 "I2C adapter doesn't support I2C_FUNC_SMBUS_BYTE\n");
+		return -EIO;
+	}
 
 	jd_panel = devm_kzalloc(&client->dev, sizeof(struct jadard), GFP_KERNEL);
 	if (!jd_panel )
@@ -496,6 +545,11 @@ static int panel_probe(struct i2c_client *client, const struct i2c_device_id *id
 		DRM_DEV_ERROR(dev, "failed to get our enable GPIO\n");
 		return PTR_ERR(jd_panel->enable);
 	}
+
+	/*use i2c read to detect whether the panel has connected */
+	ret = jadard_i2c_read(client, 0x00, &reg_value);
+	if (ret < 0)
+		return -ENODEV;
 
 	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (!endpoint)
