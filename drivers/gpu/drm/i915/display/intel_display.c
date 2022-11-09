@@ -891,7 +891,7 @@ static bool gpu_reset_clobbers_display(struct drm_i915_private *dev_priv)
 
 void intel_display_prepare_reset(struct drm_i915_private *dev_priv)
 {
-	struct drm_modeset_acquire_ctx *ctx = &dev_priv->reset_ctx;
+	struct drm_modeset_acquire_ctx *ctx = &dev_priv->display.restore.reset_ctx;
 	struct drm_atomic_state *state;
 	int ret;
 
@@ -947,13 +947,13 @@ void intel_display_prepare_reset(struct drm_i915_private *dev_priv)
 		return;
 	}
 
-	dev_priv->modeset_restore_state = state;
+	dev_priv->display.restore.modeset_state = state;
 	state->acquire_ctx = ctx;
 }
 
 void intel_display_finish_reset(struct drm_i915_private *i915)
 {
-	struct drm_modeset_acquire_ctx *ctx = &i915->reset_ctx;
+	struct drm_modeset_acquire_ctx *ctx = &i915->display.restore.reset_ctx;
 	struct drm_atomic_state *state;
 	int ret;
 
@@ -964,7 +964,7 @@ void intel_display_finish_reset(struct drm_i915_private *i915)
 	if (!test_bit(I915_RESET_MODESET, &to_gt(i915)->reset.flags))
 		return;
 
-	state = fetch_and_zero(&i915->modeset_restore_state);
+	state = fetch_and_zero(&i915->display.restore.modeset_state);
 	if (!state)
 		goto unlock;
 
@@ -2444,7 +2444,7 @@ int intel_display_suspend(struct drm_device *dev)
 		drm_err(&dev_priv->drm, "Suspending crtc's failed with %i\n",
 			ret);
 	else
-		dev_priv->modeset_restore_state = state;
+		dev_priv->display.restore.modeset_state = state;
 	return ret;
 }
 
@@ -8900,14 +8900,14 @@ void i830_disable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
 void intel_display_resume(struct drm_device *dev)
 {
 	struct drm_i915_private *i915 = to_i915(dev);
-	struct drm_atomic_state *state = i915->modeset_restore_state;
+	struct drm_atomic_state *state = i915->display.restore.modeset_state;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
 	if (!HAS_DISPLAY(i915))
 		return;
 
-	i915->modeset_restore_state = NULL;
+	i915->display.restore.modeset_state = NULL;
 	if (state)
 		state->acquire_ctx = &ctx;
 

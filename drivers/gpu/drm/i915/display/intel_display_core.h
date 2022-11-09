@@ -14,6 +14,7 @@
 #include <linux/workqueue.h>
 
 #include <drm/drm_connector.h>
+#include <drm/drm_modeset_lock.h>
 
 #include "intel_cdclk.h"
 #include "intel_display.h"
@@ -409,6 +410,12 @@ struct intel_display {
 	struct {
 		unsigned long mask;
 	} quirks;
+
+	struct {
+		/* restore state for suspend/resume and display reset */
+		struct drm_atomic_state *modeset_state;
+		struct drm_modeset_acquire_ctx reset_ctx;
+	} restore;
 
 	struct {
 		enum {

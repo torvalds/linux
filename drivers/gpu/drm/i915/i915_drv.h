@@ -287,9 +287,6 @@ struct drm_i915_private {
 
 	unsigned long gem_quirks;
 
-	struct drm_atomic_state *modeset_restore_state;
-	struct drm_modeset_acquire_ctx reset_ctx;
-
 	struct i915_gem_mm mm;
 
 	bool mchbar_need_disable;
