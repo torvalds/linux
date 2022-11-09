@@ -9,6 +9,7 @@
 #include <linux/rcupdate.h>
 #include <linux/smp.h>
 #include <linux/swap.h>
+#include <linux/rmap.h>
 
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
@@ -18,6 +19,10 @@
 static bool tlb_next_batch(struct mmu_gather *tlb)
 {
 	struct mmu_gather_batch *batch;
+
+	/* No more batching if we have delayed rmaps pending */
+	if (tlb->delayed_rmap)
+		return false;
 
 	batch = tlb->active;
 	if (batch->next) {
@@ -42,6 +47,33 @@ static bool tlb_next_batch(struct mmu_gather *tlb)
 
 	return true;
 }
+
+#ifdef CONFIG_SMP
+/**
+ * tlb_flush_rmaps - do pending rmap removals after we have flushed the TLB
+ * @tlb: the current mmu_gather
+ *
+ * Note that because of how tlb_next_batch() above works, we will
+ * never start new batches with pending delayed rmaps, so we only
+ * need to walk through the current active batch.
+ */
+void tlb_flush_rmaps(struct mmu_gather *tlb, struct vm_area_struct *vma)
+{
+	struct mmu_gather_batch *batch;
+
+	batch = tlb->active;
+	for (int i = 0; i < batch->nr; i++) {
+		struct encoded_page *enc = batch->encoded_pages[i];
+
+		if (encoded_page_flags(enc)) {
+			struct page *page = encoded_page_ptr(enc);
+			page_remove_rmap(page, vma, false);
+		}
+	}
+
+	tlb->delayed_rmap = 0;
+}
+#endif
 
 static void tlb_batch_pages_flush(struct mmu_gather *tlb)
 {
@@ -284,6 +316,7 @@ static void __tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
 	tlb->active     = &tlb->local;
 	tlb->batch_count = 0;
 #endif
+	tlb->delayed_rmap = 0;
 
 	tlb_table_init(tlb);
 #ifdef CONFIG_MMU_GATHER_PAGE_SIZE
