@@ -166,6 +166,8 @@ struct rt1308_sdw_priv {
 	int rx_mask;
 	int slots;
 	int hw_ver;
+	unsigned char *bq_params;
+	unsigned int bq_params_cnt;
 };
 
 struct sdw_stream_data {

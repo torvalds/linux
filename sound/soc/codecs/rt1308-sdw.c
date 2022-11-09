@@ -197,6 +197,17 @@ static void rt1308_apply_calib_params(struct rt1308_sdw_priv *rt1308)
 		efuse_c_btl_l, efuse_c_btl_r);
 }
 
+static void rt1308_apply_bq_params(struct rt1308_sdw_priv *rt1308)
+{
+	unsigned int i, reg, data;
+
+	for (i = 0; i < rt1308->bq_params_cnt; i += 3) {
+		reg = rt1308->bq_params[i] | (rt1308->bq_params[i + 1] << 8);
+		data = rt1308->bq_params[i + 2];
+		regmap_write(rt1308->regmap, reg, data);
+	}
+}
+
 static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 {
 	struct rt1308_sdw_priv *rt1308 = dev_get_drvdata(dev);
@@ -619,13 +630,41 @@ static const struct sdw_slave_ops rt1308_slave_ops = {
 	.bus_config = rt1308_bus_config,
 };
 
+static int rt1308_sdw_parse_dt(struct rt1308_sdw_priv *rt1308, struct device *dev)
+{
+	int ret = 0;
+
+	device_property_read_u32(dev, "realtek,bq-params-cnt", &rt1308->bq_params_cnt);
+	if (rt1308->bq_params_cnt) {
+		rt1308->bq_params = devm_kzalloc(dev, rt1308->bq_params_cnt, GFP_KERNEL);
+		if (!rt1308->bq_params) {
+			dev_err(dev, "Could not allocate bq_params memory\n");
+			ret = -ENOMEM;
+		} else {
+			ret = device_property_read_u8_array(dev, "realtek,bq-params", rt1308->bq_params, rt1308->bq_params_cnt);
+			if (ret < 0)
+				dev_err(dev, "Could not read list of realtek,bq-params\n");
+		}
+	}
+
+	dev_dbg(dev, "bq_params_cnt=%d\n", rt1308->bq_params_cnt);
+	return ret;
+}
+
 static int rt1308_sdw_component_probe(struct snd_soc_component *component)
 {
+	struct rt1308_sdw_priv *rt1308 = snd_soc_component_get_drvdata(component);
 	int ret;
+
+	rt1308->component = component;
+	rt1308_sdw_parse_dt(rt1308, &rt1308->sdw_slave->dev);
 
 	ret = pm_runtime_resume(component->dev);
 	if (ret < 0 && ret != -EACCES)
 		return ret;
+
+	/* apply BQ params */
+	rt1308_apply_bq_params(rt1308);
 
 	return 0;
 }
