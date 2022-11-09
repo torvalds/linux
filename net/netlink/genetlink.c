@@ -282,6 +282,7 @@ genl_cmd_full_to_split(struct genl_split_ops *op,
 	return 0;
 }
 
+/* Must make sure that op is initialized to 0 on failure */
 static int
 genl_get_cmd(u32 cmd, u8 flags, const struct genl_family *family,
 	     struct genl_split_ops *op)
@@ -300,6 +301,21 @@ genl_get_cmd(u32 cmd, u8 flags, const struct genl_family *family,
 	if (err)
 		memset(op, 0, sizeof(*op));
 	return err;
+}
+
+/* For policy dumping only, get ops of both do and dump.
+ * Fail if both are missing, genl_get_cmd() will zero-init in case of failure.
+ */
+static int
+genl_get_cmd_both(u32 cmd, const struct genl_family *family,
+		  struct genl_split_ops *doit, struct genl_split_ops *dumpit)
+{
+	int err1, err2;
+
+	err1 = genl_get_cmd(cmd, GENL_CMD_CAP_DO, family, doit);
+	err2 = genl_get_cmd(cmd, GENL_CMD_CAP_DUMP, family, dumpit);
+
+	return err1 && err2 ? -ENOENT : 0;
 }
 
 static bool
@@ -1406,10 +1422,10 @@ static int ctrl_dumppolicy_start(struct netlink_callback *cb)
 		ctx->single_op = true;
 		ctx->op = nla_get_u32(tb[CTRL_ATTR_OP]);
 
-		if (genl_get_cmd(ctx->op, GENL_CMD_CAP_DO, rt, &doit) &&
-		    genl_get_cmd(ctx->op, GENL_CMD_CAP_DUMP, rt, &dump)) {
+		err = genl_get_cmd_both(ctx->op, rt, &doit, &dump);
+		if (err) {
 			NL_SET_BAD_ATTR(cb->extack, tb[CTRL_ATTR_OP]);
-			return -ENOENT;
+			return err;
 		}
 
 		if (doit.policy) {
@@ -1551,13 +1567,9 @@ static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
 		if (ctx->single_op) {
 			struct genl_split_ops doit, dumpit;
 
-			if (genl_get_cmd(ctx->op, GENL_CMD_CAP_DO,
-					 ctx->rt, &doit) &&
-			    genl_get_cmd(ctx->op, GENL_CMD_CAP_DUMP,
-					 ctx->rt, &dumpit)) {
-				WARN_ON(1);
+			if (WARN_ON(genl_get_cmd_both(ctx->op, ctx->rt,
+						      &doit, &dumpit)))
 				return -ENOENT;
-			}
 
 			if (ctrl_dumppolicy_put_op(skb, cb, &doit, &dumpit))
 				return skb->len;
