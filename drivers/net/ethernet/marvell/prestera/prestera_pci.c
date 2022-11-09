@@ -184,6 +184,10 @@ struct prestera_fw_regs {
 #define PRESTERA_FW_CMD_DEFAULT_WAIT_MS	30000
 #define PRESTERA_FW_READY_WAIT_MS	20000
 
+#define PRESTERA_DEV_ID_AC3X_98DX_55	0xC804
+#define PRESTERA_DEV_ID_AC3X_98DX_65	0xC80C
+#define PRESTERA_DEV_ID_ALDRIN2		0xCC1E
+
 struct prestera_fw_evtq {
 	u8 __iomem *addr;
 	size_t len;
@@ -870,9 +874,9 @@ static void prestera_pci_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id prestera_pci_devices[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0xC804) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0xC80C) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0xCC1E) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, PRESTERA_DEV_ID_AC3X_98DX_55) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, PRESTERA_DEV_ID_AC3X_98DX_65) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, PRESTERA_DEV_ID_ALDRIN2) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, prestera_pci_devices);
