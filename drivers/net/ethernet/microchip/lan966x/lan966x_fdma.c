@@ -436,7 +436,7 @@ static struct sk_buff *lan966x_fdma_rx_get_frame(struct lan966x_rx *rx)
 			       DMA_ATTR_SKIP_CPU_SYNC);
 
 	skb->dev = lan966x->ports[src_port]->dev;
-	skb_pull(skb, IFH_LEN * sizeof(u32));
+	skb_pull(skb, IFH_LEN_BYTES);
 
 	if (likely(!(skb->dev->features & NETIF_F_RXFCS)))
 		skb_trim(skb, skb->len - ETH_FCS_LEN);
@@ -592,7 +592,7 @@ int lan966x_fdma_xmit(struct sk_buff *skb, __be32 *ifh, struct net_device *dev)
 	}
 
 	/* skb processing */
-	needed_headroom = max_t(int, IFH_LEN * sizeof(u32) - skb_headroom(skb), 0);
+	needed_headroom = max_t(int, IFH_LEN_BYTES - skb_headroom(skb), 0);
 	needed_tailroom = max_t(int, ETH_FCS_LEN - skb_tailroom(skb), 0);
 	if (needed_headroom || needed_tailroom || skb_header_cloned(skb)) {
 		err = pskb_expand_head(skb, needed_headroom, needed_tailroom,
@@ -605,8 +605,8 @@ int lan966x_fdma_xmit(struct sk_buff *skb, __be32 *ifh, struct net_device *dev)
 	}
 
 	skb_tx_timestamp(skb);
-	skb_push(skb, IFH_LEN * sizeof(u32));
-	memcpy(skb->data, ifh, IFH_LEN * sizeof(u32));
+	skb_push(skb, IFH_LEN_BYTES);
+	memcpy(skb->data, ifh, IFH_LEN_BYTES);
 	skb_put(skb, 4);
 
 	dma_addr = dma_map_single(lan966x->dev, skb->data, skb->len,
@@ -740,7 +740,7 @@ int lan966x_fdma_change_mtu(struct lan966x *lan966x)
 	u32 val;
 
 	max_mtu = lan966x_fdma_get_max_mtu(lan966x);
-	max_mtu += IFH_LEN * sizeof(u32);
+	max_mtu += IFH_LEN_BYTES;
 	max_mtu += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 	max_mtu += VLAN_HLEN * 2;
 
