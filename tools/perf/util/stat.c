@@ -278,15 +278,14 @@ void evlist__save_aggr_prev_raw_counts(struct evlist *evlist)
 	}
 }
 
-static size_t pkg_id_hash(const void *__key, void *ctx __maybe_unused)
+static size_t pkg_id_hash(long __key, void *ctx __maybe_unused)
 {
 	uint64_t *key = (uint64_t *) __key;
 
 	return *key & 0xffffffff;
 }
 
-static bool pkg_id_equal(const void *__key1, const void *__key2,
-			 void *ctx __maybe_unused)
+static bool pkg_id_equal(long __key1, long __key2, void *ctx __maybe_unused)
 {
 	uint64_t *key1 = (uint64_t *) __key1;
 	uint64_t *key2 = (uint64_t *) __key2;
@@ -347,11 +346,11 @@ static int check_per_pkg(struct evsel *counter, struct perf_counts_values *vals,
 		return -ENOMEM;
 
 	*key = (uint64_t)d << 32 | s;
-	if (hashmap__find(mask, (void *)key, NULL)) {
+	if (hashmap__find(mask, key, NULL)) {
 		*skip = true;
 		free(key);
 	} else
-		ret = hashmap__add(mask, (void *)key, (void *)1);
+		ret = hashmap__add(mask, key, 1);
 
 	return ret;
 }

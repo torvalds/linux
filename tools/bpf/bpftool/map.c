@@ -518,9 +518,8 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 
 		jsonw_name(json_wtr, "pinned");
 		jsonw_start_array(json_wtr);
-		hashmap__for_each_key_entry(map_table, entry,
-					    u32_as_hash_field(info->id))
-			jsonw_string(json_wtr, entry->value);
+		hashmap__for_each_key_entry(map_table, entry, info->id)
+			jsonw_string(json_wtr, entry->pvalue);
 		jsonw_end_array(json_wtr);
 	}
 
@@ -595,9 +594,8 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 	if (!hashmap__empty(map_table)) {
 		struct hashmap_entry *entry;
 
-		hashmap__for_each_key_entry(map_table, entry,
-					    u32_as_hash_field(info->id))
-			printf("\n\tpinned %s", (char *)entry->value);
+		hashmap__for_each_key_entry(map_table, entry, info->id)
+			printf("\n\tpinned %s", (char *)entry->pvalue);
 	}
 
 	if (frozen_str) {
