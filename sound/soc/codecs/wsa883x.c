@@ -1415,6 +1415,7 @@ static int wsa883x_probe(struct sdw_slave *pdev,
 
 	wsa883x->regmap = devm_regmap_init_sdw(pdev, &wsa883x_regmap_config);
 	if (IS_ERR(wsa883x->regmap)) {
+		gpiod_direction_output(wsa883x->sd_n, 1);
 		dev_err(&pdev->dev, "regmap_init failed\n");
 		ret = PTR_ERR(wsa883x->regmap);
 		goto err;
