@@ -441,7 +441,18 @@ static_assert(PAGE_SHIFT <= 20);
 #endif /* !CONFIG_SLOB */
 
 void *__kmalloc(size_t size, gfp_t flags) __assume_kmalloc_alignment __alloc_size(1);
-void *kmem_cache_alloc(struct kmem_cache *s, gfp_t flags) __assume_slab_alignment __malloc;
+
+/**
+ * kmem_cache_alloc - Allocate an object
+ * @cachep: The cache to allocate from.
+ * @flags: See kmalloc().
+ *
+ * Allocate an object from this cache.
+ * See kmem_cache_zalloc() for a shortcut of adding __GFP_ZERO to flags.
+ *
+ * Return: pointer to the new object or %NULL in case of error
+ */
+void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags) __assume_slab_alignment __malloc;
 void *kmem_cache_alloc_lru(struct kmem_cache *s, struct list_lru *lru,
 			   gfp_t gfpflags) __assume_slab_alignment __malloc;
 void kmem_cache_free(struct kmem_cache *s, void *objp);
@@ -506,9 +517,9 @@ void *kmalloc_large_node(size_t size, gfp_t flags, int node) __assume_page_align
 							     __alloc_size(1);
 
 /**
- * kmalloc - allocate memory
+ * kmalloc - allocate kernel memory
  * @size: how many bytes of memory are required.
- * @flags: the type of memory to allocate.
+ * @flags: describe the allocation context
  *
  * kmalloc is the normal method of allocating memory
  * for objects smaller than page size in the kernel.
@@ -535,11 +546,11 @@ void *kmalloc_large_node(size_t size, gfp_t flags, int node) __assume_page_align
  * %GFP_ATOMIC
  *	Allocation will not sleep.  May use emergency pools.
  *
- * %GFP_HIGHUSER
- *	Allocate memory from high memory on behalf of user.
- *
  * Also it is possible to set different flags by OR'ing
  * in one or more of the following additional @flags:
+ *
+ * %__GFP_ZERO
+ *	Zero the allocated memory before returning. Also see kzalloc().
  *
  * %__GFP_HIGH
  *	This allocation has high priority and may use emergency pools.
