@@ -4,7 +4,14 @@
 //!
 //! C header: [`include/uapi/asm-generic/errno-base.h`](../../../include/uapi/asm-generic/errno-base.h)
 
-use alloc::collections::TryReserveError;
+use alloc::{
+    alloc::{AllocError, LayoutError},
+    collections::TryReserveError,
+};
+
+use core::convert::From;
+use core::num::TryFromIntError;
+use core::str::Utf8Error;
 
 /// Contains the C-compatible error codes.
 pub mod code {
@@ -71,9 +78,45 @@ impl Error {
     }
 }
 
+impl From<AllocError> for Error {
+    fn from(_: AllocError) -> Error {
+        code::ENOMEM
+    }
+}
+
+impl From<TryFromIntError> for Error {
+    fn from(_: TryFromIntError) -> Error {
+        code::EINVAL
+    }
+}
+
+impl From<Utf8Error> for Error {
+    fn from(_: Utf8Error) -> Error {
+        code::EINVAL
+    }
+}
+
 impl From<TryReserveError> for Error {
     fn from(_: TryReserveError) -> Error {
         code::ENOMEM
+    }
+}
+
+impl From<LayoutError> for Error {
+    fn from(_: LayoutError) -> Error {
+        code::ENOMEM
+    }
+}
+
+impl From<core::fmt::Error> for Error {
+    fn from(_: core::fmt::Error) -> Error {
+        code::EINVAL
+    }
+}
+
+impl From<core::convert::Infallible> for Error {
+    fn from(e: core::convert::Infallible) -> Error {
+        match e {}
     }
 }
 

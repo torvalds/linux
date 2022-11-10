@@ -12,6 +12,7 @@
 //! do so first instead of bypassing this crate.
 
 #![no_std]
+#![feature(allocator_api)]
 #![feature(core_ffi_c)]
 
 // Ensure conditional compilation based on the kernel configuration works;
