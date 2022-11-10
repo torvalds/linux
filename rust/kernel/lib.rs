@@ -26,6 +26,7 @@ mod allocator;
 pub mod error;
 pub mod prelude;
 pub mod print;
+mod static_assert;
 #[doc(hidden)]
 pub mod std_vendor;
 pub mod str;
