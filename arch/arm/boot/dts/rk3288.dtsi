@@ -1491,17 +1491,31 @@
 	};
 
 	gpu: gpu@ffa30000 {
-		compatible = "rockchip,rk3288-mali", "arm,mali-t760";
+		compatible = "rockchip,rk3288-mali", "arm,mali-t760",
+			     "arm,malit764", "arm,malit76x", "arm,malit7xx",
+			     "arm,mali-midgard";
 		reg = <0x0 0xffa30000 0x0 0x10000>;
 		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "job", "mmu", "gpu";
 		clocks = <&cru ACLK_GPU>;
+		clock-names = "clk_mali";
 		operating-points-v2 = <&gpu_opp_table>;
 		#cooling-cells = <2>; /* min followed by max */
 		power-domains = <&power RK3288_PD_GPU>;
 		status = "disabled";
+
+		upthreshold = <75>;
+		downdifferential = <10>;
+
+		gpu_power_model: power_model {
+			compatible = "arm,mali-simple-power-model";
+			static-coefficient = <411000>;
+			dynamic-coefficient = <733>;
+			ts = <32000 4700 (-80) 2>;
+			thermal-zone = "gpu-thermal";
+		};
 	};
 
 	gpu_opp_table: gpu-opp-table {
