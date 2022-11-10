@@ -403,8 +403,8 @@ static void thermal_zone_device_init(struct thermal_zone_device *tz)
 		pos->initialized = false;
 }
 
-static void __thermal_zone_device_update(struct thermal_zone_device *tz,
-					 enum thermal_notify_event event)
+void __thermal_zone_device_update(struct thermal_zone_device *tz,
+				  enum thermal_notify_event event)
 {
 	int count;
 

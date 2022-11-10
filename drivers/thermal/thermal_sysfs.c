@@ -92,7 +92,14 @@ trip_point_type_show(struct device *dev, struct device_attribute *attr,
 	if (sscanf(attr->attr.name, "trip_point_%d_type", &trip) != 1)
 		return -EINVAL;
 
-	result = tz->ops->get_trip_type(tz, trip, &type);
+	mutex_lock(&tz->lock);
+
+	if (device_is_registered(dev))
+		result = tz->ops->get_trip_type(tz, trip, &type);
+	else
+		result = -ENODEV;
+
+	mutex_unlock(&tz->lock);
 	if (result)
 		return result;
 
@@ -128,10 +135,17 @@ trip_point_temp_store(struct device *dev, struct device_attribute *attr,
 	if (kstrtoint(buf, 10, &temperature))
 		return -EINVAL;
 
+	mutex_lock(&tz->lock);
+
+	if (!device_is_registered(dev)) {
+		ret = -ENODEV;
+		goto unlock;
+	}
+
 	if (tz->ops->set_trip_temp) {
 		ret = tz->ops->set_trip_temp(tz, trip, temperature);
 		if (ret)
-			return ret;
+			goto unlock;
 	}
 
 	if (tz->trips)
@@ -140,16 +154,22 @@ trip_point_temp_store(struct device *dev, struct device_attribute *attr,
 	if (tz->ops->get_trip_hyst) {
 		ret = tz->ops->get_trip_hyst(tz, trip, &hyst);
 		if (ret)
-			return ret;
+			goto unlock;
 	}
 
 	ret = tz->ops->get_trip_type(tz, trip, &type);
 	if (ret)
-		return ret;
+		goto unlock;
 
 	thermal_notify_tz_trip_change(tz->id, trip, type, temperature, hyst);
 
-	thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
+	__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
+
+unlock:
+	mutex_unlock(&tz->lock);
+
+	if (ret)
+		return ret;
 
 	return count;
 }
@@ -168,7 +188,14 @@ trip_point_temp_show(struct device *dev, struct device_attribute *attr,
 	if (sscanf(attr->attr.name, "trip_point_%d_temp", &trip) != 1)
 		return -EINVAL;
 
-	ret = tz->ops->get_trip_temp(tz, trip, &temperature);
+	mutex_lock(&tz->lock);
+
+	if (device_is_registered(dev))
+		ret = tz->ops->get_trip_temp(tz, trip, &temperature);
+	else
+		ret = -ENODEV;
+
+	mutex_unlock(&tz->lock);
 
 	if (ret)
 		return ret;
@@ -193,6 +220,13 @@ trip_point_hyst_store(struct device *dev, struct device_attribute *attr,
 	if (kstrtoint(buf, 10, &temperature))
 		return -EINVAL;
 
+	mutex_lock(&tz->lock);
+
+	if (!device_is_registered(dev)) {
+		ret = -ENODEV;
+		goto unlock;
+	}
+
 	/*
 	 * We are not doing any check on the 'temperature' value
 	 * here. The driver implementing 'set_trip_hyst' has to
@@ -201,7 +235,10 @@ trip_point_hyst_store(struct device *dev, struct device_attribute *attr,
 	ret = tz->ops->set_trip_hyst(tz, trip, temperature);
 
 	if (!ret)
-		thermal_zone_set_trips(tz);
+		__thermal_zone_set_trips(tz);
+
+unlock:
+	mutex_unlock(&tz->lock);
 
 	return ret ? ret : count;
 }
@@ -220,7 +257,14 @@ trip_point_hyst_show(struct device *dev, struct device_attribute *attr,
 	if (sscanf(attr->attr.name, "trip_point_%d_hyst", &trip) != 1)
 		return -EINVAL;
 
-	ret = tz->ops->get_trip_hyst(tz, trip, &temperature);
+	mutex_lock(&tz->lock);
+
+	if (device_is_registered(dev))
+		ret = tz->ops->get_trip_hyst(tz, trip, &temperature);
+	else
+		ret = -ENODEV;
+
+	mutex_unlock(&tz->lock);
 
 	return ret ? ret : sprintf(buf, "%d\n", temperature);
 }
@@ -269,16 +313,23 @@ emul_temp_store(struct device *dev, struct device_attribute *attr,
 	if (kstrtoint(buf, 10, &temperature))
 		return -EINVAL;
 
-	if (!tz->ops->set_emul_temp) {
-		mutex_lock(&tz->lock);
-		tz->emul_temperature = temperature;
-		mutex_unlock(&tz->lock);
-	} else {
-		ret = tz->ops->set_emul_temp(tz, temperature);
+	mutex_lock(&tz->lock);
+
+	if (!device_is_registered(dev)) {
+		ret = -ENODEV;
+		goto unlock;
 	}
 
+	if (!tz->ops->set_emul_temp)
+		tz->emul_temperature = temperature;
+	else
+		ret = tz->ops->set_emul_temp(tz, temperature);
+
 	if (!ret)
-		thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
+		__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
+
+unlock:
+	mutex_unlock(&tz->lock);
 
 	return ret ? ret : count;
 }
