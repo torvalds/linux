@@ -430,9 +430,6 @@ int intel_guc_init(struct intel_guc *guc)
 	/* now that everything is perma-pinned, initialize the parameters */
 	guc_init_params(guc);
 
-	/* We need to notify the guc whenever we change the GGTT */
-	i915_ggtt_enable_guc(gt->ggtt);
-
 	intel_uc_fw_change_status(&guc->fw, INTEL_UC_FIRMWARE_LOADABLE);
 
 	return 0;
@@ -457,12 +454,8 @@ out:
 
 void intel_guc_fini(struct intel_guc *guc)
 {
-	struct intel_gt *gt = guc_to_gt(guc);
-
 	if (!intel_uc_fw_is_loadable(&guc->fw))
 		return;
-
-	i915_ggtt_disable_guc(gt->ggtt);
 
 	if (intel_guc_slpc_is_used(guc))
 		intel_guc_slpc_fini(&guc->slpc);

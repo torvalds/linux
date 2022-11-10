@@ -988,7 +988,10 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 			I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND;
 	}
 
-	ggtt->invalidate = gen8_ggtt_invalidate;
+	if (intel_uc_wants_guc(&ggtt->vm.gt->uc))
+		ggtt->invalidate = guc_ggtt_invalidate;
+	else
+		ggtt->invalidate = gen8_ggtt_invalidate;
 
 	ggtt->vm.vma_ops.bind_vma    = intel_ggtt_bind_vma;
 	ggtt->vm.vma_ops.unbind_vma  = intel_ggtt_unbind_vma;
@@ -1241,29 +1244,6 @@ int i915_ggtt_enable_hw(struct drm_i915_private *i915)
 		return intel_ggtt_gmch_enable_hw(i915);
 
 	return 0;
-}
-
-void i915_ggtt_enable_guc(struct i915_ggtt *ggtt)
-{
-	GEM_BUG_ON(ggtt->invalidate != gen8_ggtt_invalidate);
-
-	ggtt->invalidate = guc_ggtt_invalidate;
-
-	ggtt->invalidate(ggtt);
-}
-
-void i915_ggtt_disable_guc(struct i915_ggtt *ggtt)
-{
-	/* XXX Temporary pardon for error unload */
-	if (ggtt->invalidate == gen8_ggtt_invalidate)
-		return;
-
-	/* We should only be called after i915_ggtt_enable_guc() */
-	GEM_BUG_ON(ggtt->invalidate != guc_ggtt_invalidate);
-
-	ggtt->invalidate = gen8_ggtt_invalidate;
-
-	ggtt->invalidate(ggtt);
 }
 
 /**
