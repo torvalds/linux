@@ -684,6 +684,7 @@ out:
 
 static void ufs_qcom_force_mem_config(struct ufs_hba *hba)
 {
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	struct ufs_clk_info *clki;
 
 	/*
@@ -703,7 +704,9 @@ static void ufs_qcom_force_mem_config(struct ufs_hba *hba)
 			continue;
 
 		if (!strcmp(clki->name, "core_clk_ice") ||
-			!strcmp(clki->name, "core_clk_ice_hw_ctl"))
+		    !strcmp(clki->name, "core_clk_ice_hw_ctl") ||
+		    (host->hw_ver.major > 0x05 &&
+		     !strcmp(clki->name, "core_clk")))
 			qcom_clk_set_flags(clki->clk, CLKFLAG_RETAIN_MEM);
 		else
 			qcom_clk_set_flags(clki->clk, CLKFLAG_NORETAIN_MEM);
