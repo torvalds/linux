@@ -11,14 +11,6 @@
 		stdout-path = "serial1:115200n8";
 	};
 
-	leds {
-		/delete-node/ led-act;
-
-		led-pwr {
-			gpios = <&gpio 42 GPIO_ACTIVE_HIGH>;
-		};
-	};
-
 	gpio-poweroff {
 		compatible = "gpio-poweroff";
 		gpios = <&expgpio 5 GPIO_ACTIVE_HIGH>;
@@ -38,6 +30,14 @@
 
 &genet_mdio {
 	clock-frequency = <1950000>;
+};
+
+&led_pwr {
+	gpios = <&gpio 42 GPIO_ACTIVE_HIGH>;
+};
+
+&leds {
+	/delete-node/ led_act;
 };
 
 &pm {

@@ -2,6 +2,7 @@
 /dts-v1/;
 #include "bcm2711.dtsi"
 #include "bcm2711-rpi.dtsi"
+#include "bcm283x-rpi-led-deprecated.dtsi"
 #include "bcm283x-rpi-usb-peripheral.dtsi"
 #include "bcm283x-rpi-wifi-bt.dtsi"
 
@@ -12,19 +13,6 @@
 	chosen {
 		/* 8250 auxiliary UART instead of pl011 */
 		stdout-path = "serial1:115200n8";
-	};
-
-	leds {
-		led-act {
-			gpios = <&gpio 42 GPIO_ACTIVE_HIGH>;
-		};
-
-		led-pwr {
-			label = "PWR";
-			gpios = <&expgpio 2 GPIO_ACTIVE_LOW>;
-			default-state = "keep";
-			linux,default-trigger = "default-on";
-		};
 	};
 
 	sd_io_1v8_reg: regulator-sd-io-1v8 {
@@ -154,6 +142,19 @@
 
 &hdmi1 {
 	status = "okay";
+};
+
+&led_act {
+	gpios = <&gpio 42 GPIO_ACTIVE_HIGH>;
+};
+
+&leds {
+	led_pwr: led-pwr {
+		label = "PWR";
+		gpios = <&expgpio 2 GPIO_ACTIVE_LOW>;
+		default-state = "keep";
+		linux,default-trigger = "default-on";
+	};
 };
 
 &pixelvalve0 {

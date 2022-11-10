@@ -3,6 +3,7 @@
 #include "bcm2835.dtsi"
 #include "bcm2835-rpi.dtsi"
 #include "bcm2835-rpi-common.dtsi"
+#include "bcm283x-rpi-led-deprecated.dtsi"
 
 / {
 	leds {
@@ -31,6 +32,10 @@
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
 	};
+};
+
+&led_act {
+	gpios = <&gpio 47 GPIO_ACTIVE_LOW>;
 };
 
 &sdhost {
