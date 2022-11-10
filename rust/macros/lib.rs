@@ -2,6 +2,7 @@
 
 //! Crate for all kernel procedural macros.
 
+mod concat_idents;
 mod helpers;
 mod module;
 
@@ -69,4 +70,47 @@ use proc_macro::TokenStream;
 #[proc_macro]
 pub fn module(ts: TokenStream) -> TokenStream {
     module::module(ts)
+}
+
+/// Concatenate two identifiers.
+///
+/// This is useful in macros that need to declare or reference items with names
+/// starting with a fixed prefix and ending in a user specified name. The resulting
+/// identifier has the span of the second argument.
+///
+/// # Examples
+///
+/// ```ignore
+/// use kernel::macro::concat_idents;
+///
+/// macro_rules! pub_no_prefix {
+///     ($prefix:ident, $($newname:ident),+) => {
+///         $(pub(crate) const $newname: u32 = kernel::macros::concat_idents!($prefix, $newname);)+
+///     };
+/// }
+///
+/// pub_no_prefix!(
+///     binder_driver_return_protocol_,
+///     BR_OK,
+///     BR_ERROR,
+///     BR_TRANSACTION,
+///     BR_REPLY,
+///     BR_DEAD_REPLY,
+///     BR_TRANSACTION_COMPLETE,
+///     BR_INCREFS,
+///     BR_ACQUIRE,
+///     BR_RELEASE,
+///     BR_DECREFS,
+///     BR_NOOP,
+///     BR_SPAWN_LOOPER,
+///     BR_DEAD_BINDER,
+///     BR_CLEAR_DEATH_NOTIFICATION_DONE,
+///     BR_FAILED_REPLY
+/// );
+///
+/// assert_eq!(BR_OK, binder_driver_return_protocol_BR_OK);
+/// ```
+#[proc_macro]
+pub fn concat_idents(ts: TokenStream) -> TokenStream {
+    concat_idents::concat_idents(ts)
 }
