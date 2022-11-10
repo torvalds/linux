@@ -14,6 +14,7 @@
 #include <sys/time.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <stdlib.h>
 
@@ -29,6 +30,27 @@ static const char * const bench_syscall_usage[] = {
 	"perf bench syscall <options>",
 	NULL
 };
+
+static void test_execve(void)
+{
+	const char *pathname = "/bin/true";
+	char *const argv[] = { (char *)pathname, NULL };
+	pid_t pid = fork();
+
+	if (pid < 0) {
+		fprintf(stderr, "fork failed\n");
+		exit(1);
+	} else if (pid == 0) {
+		execve(pathname, argv, NULL);
+		fprintf(stderr, "execve /bin/true failed\n");
+		exit(1);
+	} else {
+		if (waitpid(pid, NULL, 0) < 0) {
+			fprintf(stderr, "waitpid failed\n");
+			exit(1);
+		}
+	}
+}
 
 static int bench_syscall_common(int argc, const char **argv, int syscall)
 {
@@ -49,6 +71,12 @@ static int bench_syscall_common(int argc, const char **argv, int syscall)
 		case __NR_getpgid:
 			getpgid(0);
 			break;
+		case __NR_execve:
+			test_execve();
+			/* Only loop 10000 times to save time */
+			if (i == 10000)
+				loops = 10000;
+			break;
 		default:
 			break;
 		}
@@ -63,6 +91,9 @@ static int bench_syscall_common(int argc, const char **argv, int syscall)
 		break;
 	case __NR_getpgid:
 		name = "getpgid()";
+		break;
+	case __NR_execve:
+		name = "execve()";
 		break;
 	default:
 		break;
@@ -110,4 +141,9 @@ int bench_syscall_basic(int argc, const char **argv)
 int bench_syscall_getpgid(int argc, const char **argv)
 {
 	return bench_syscall_common(argc, argv, __NR_getpgid);
+}
+
+int bench_syscall_execve(int argc, const char **argv)
+{
+	return bench_syscall_common(argc, argv, __NR_execve);
 }
