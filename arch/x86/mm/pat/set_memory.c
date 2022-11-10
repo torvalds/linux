@@ -219,6 +219,23 @@ within_inclusive(unsigned long addr, unsigned long start, unsigned long end)
 
 #ifdef CONFIG_X86_64
 
+/*
+ * The kernel image is mapped into two places in the virtual address space
+ * (addresses without KASLR, of course):
+ *
+ * 1. The kernel direct map (0xffff880000000000)
+ * 2. The "high kernel map" (0xffffffff81000000)
+ *
+ * We actually execute out of #2. If we get the address of a kernel symbol, it
+ * points to #2, but almost all physical-to-virtual translations point to #1.
+ *
+ * This is so that we can have both a directmap of all physical memory *and*
+ * take full advantage of the the limited (s32) immediate addressing range (2G)
+ * of x86_64.
+ *
+ * See Documentation/x86/x86_64/mm.rst for more detail.
+ */
+
 static inline unsigned long highmap_start_pfn(void)
 {
 	return __pa_symbol(_text) >> PAGE_SHIFT;
@@ -1626,6 +1643,9 @@ repeat:
 
 static int __change_page_attr_set_clr(struct cpa_data *cpa, int checkalias);
 
+/*
+ * Check the directmap and "high kernel map" 'aliases'.
+ */
 static int cpa_process_alias(struct cpa_data *cpa)
 {
 	struct cpa_data alias_cpa;
