@@ -14,6 +14,7 @@
 #include <nvhe/early_alloc.h>
 #include <nvhe/gfp.h>
 #include <nvhe/memory.h>
+#include <nvhe/mem_protect.h>
 #include <nvhe/mm.h>
 #include <nvhe/spinlock.h>
 
@@ -24,6 +25,12 @@ struct memblock_region hyp_memory[HYP_MEMBLOCK_REGIONS];
 unsigned int hyp_memblock_nr;
 
 static u64 __io_map_base;
+
+struct hyp_fixmap_slot {
+	u64 addr;
+	kvm_pte_t *ptep;
+};
+static DEFINE_PER_CPU(struct hyp_fixmap_slot, fixmap_slots);
 
 static int __pkvm_create_mappings(unsigned long start, unsigned long size,
 				  unsigned long phys, enum kvm_pgtable_prot prot)
@@ -208,6 +215,103 @@ int hyp_map_vectors(void)
 		return ret;
 
 	__hyp_bp_vect_base = (void *)bp_base;
+
+	return 0;
+}
+
+void *hyp_fixmap_map(phys_addr_t phys)
+{
+	struct hyp_fixmap_slot *slot = this_cpu_ptr(&fixmap_slots);
+	kvm_pte_t pte, *ptep = slot->ptep;
+
+	pte = *ptep;
+	pte &= ~kvm_phys_to_pte(KVM_PHYS_INVALID);
+	pte |= kvm_phys_to_pte(phys) | KVM_PTE_VALID;
+	WRITE_ONCE(*ptep, pte);
+	dsb(ishst);
+
+	return (void *)slot->addr;
+}
+
+static void fixmap_clear_slot(struct hyp_fixmap_slot *slot)
+{
+	kvm_pte_t *ptep = slot->ptep;
+	u64 addr = slot->addr;
+
+	WRITE_ONCE(*ptep, *ptep & ~KVM_PTE_VALID);
+
+	/*
+	 * Irritatingly, the architecture requires that we use inner-shareable
+	 * broadcast TLB invalidation here in case another CPU speculates
+	 * through our fixmap and decides to create an "amalagamation of the
+	 * values held in the TLB" due to the apparent lack of a
+	 * break-before-make sequence.
+	 *
+	 * https://lore.kernel.org/kvm/20221017115209.2099-1-will@kernel.org/T/#mf10dfbaf1eaef9274c581b81c53758918c1d0f03
+	 */
+	dsb(ishst);
+	__tlbi_level(vale2is, __TLBI_VADDR(addr, 0), (KVM_PGTABLE_MAX_LEVELS - 1));
+	dsb(ish);
+	isb();
+}
+
+void hyp_fixmap_unmap(void)
+{
+	fixmap_clear_slot(this_cpu_ptr(&fixmap_slots));
+}
+
+static int __create_fixmap_slot_cb(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
+				   enum kvm_pgtable_walk_flags flag,
+				   void * const arg)
+{
+	struct hyp_fixmap_slot *slot = per_cpu_ptr(&fixmap_slots, (u64)arg);
+
+	if (!kvm_pte_valid(*ptep) || level != KVM_PGTABLE_MAX_LEVELS - 1)
+		return -EINVAL;
+
+	slot->addr = addr;
+	slot->ptep = ptep;
+
+	/*
+	 * Clear the PTE, but keep the page-table page refcount elevated to
+	 * prevent it from ever being freed. This lets us manipulate the PTEs
+	 * by hand safely without ever needing to allocate memory.
+	 */
+	fixmap_clear_slot(slot);
+
+	return 0;
+}
+
+static int create_fixmap_slot(u64 addr, u64 cpu)
+{
+	struct kvm_pgtable_walker walker = {
+		.cb	= __create_fixmap_slot_cb,
+		.flags	= KVM_PGTABLE_WALK_LEAF,
+		.arg = (void *)cpu,
+	};
+
+	return kvm_pgtable_walk(&pkvm_pgtable, addr, PAGE_SIZE, &walker);
+}
+
+int hyp_create_pcpu_fixmap(void)
+{
+	unsigned long addr, i;
+	int ret;
+
+	for (i = 0; i < hyp_nr_cpus; i++) {
+		ret = pkvm_alloc_private_va_range(PAGE_SIZE, &addr);
+		if (ret)
+			return ret;
+
+		ret = kvm_pgtable_hyp_map(&pkvm_pgtable, addr, PAGE_SIZE,
+					  __hyp_pa(__hyp_bss_start), PAGE_HYP);
+		if (ret)
+			return ret;
+
+		ret = create_fixmap_slot(addr, i);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
