@@ -135,7 +135,6 @@ impl<T, A: Allocator> RawVec<T, A> {
 
     /// Like `try_with_capacity`, but parameterized over the choice of
     /// allocator for the returned `RawVec`.
-    #[allow(dead_code)]
     #[inline]
     pub fn try_with_capacity_in(capacity: usize, alloc: A) -> Result<Self, TryReserveError> {
         Self::try_allocate_in(capacity, AllocInit::Uninitialized, alloc)
