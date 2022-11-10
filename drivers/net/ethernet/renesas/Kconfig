@@ -45,6 +45,7 @@ config RAVB
 config RENESAS_ETHER_SWITCH
 	tristate "Renesas Ethernet Switch support"
 	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select CRC32
 	select MII
 	select PHYLINK
