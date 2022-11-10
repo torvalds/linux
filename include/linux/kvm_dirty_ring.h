@@ -49,7 +49,7 @@ static inline int kvm_dirty_ring_reset(struct kvm *kvm,
 	return 0;
 }
 
-static inline void kvm_dirty_ring_push(struct kvm_dirty_ring *ring,
+static inline void kvm_dirty_ring_push(struct kvm_vcpu *vcpu,
 				       u32 slot, u64 offset)
 {
 }
@@ -62,11 +62,6 @@ static inline struct page *kvm_dirty_ring_get_page(struct kvm_dirty_ring *ring,
 
 static inline void kvm_dirty_ring_free(struct kvm_dirty_ring *ring)
 {
-}
-
-static inline bool kvm_dirty_ring_soft_full(struct kvm_dirty_ring *ring)
-{
-	return true;
 }
 
 #else /* CONFIG_HAVE_KVM_DIRTY_RING */
@@ -84,13 +79,14 @@ int kvm_dirty_ring_reset(struct kvm *kvm, struct kvm_dirty_ring *ring);
  * returns =0: successfully pushed
  *         <0: unable to push, need to wait
  */
-void kvm_dirty_ring_push(struct kvm_dirty_ring *ring, u32 slot, u64 offset);
+void kvm_dirty_ring_push(struct kvm_vcpu *vcpu, u32 slot, u64 offset);
+
+bool kvm_dirty_ring_check_request(struct kvm_vcpu *vcpu);
 
 /* for use in vm_operations_struct */
 struct page *kvm_dirty_ring_get_page(struct kvm_dirty_ring *ring, u32 offset);
 
 void kvm_dirty_ring_free(struct kvm_dirty_ring *ring);
-bool kvm_dirty_ring_soft_full(struct kvm_dirty_ring *ring);
 
 #endif /* CONFIG_HAVE_KVM_DIRTY_RING */
 
