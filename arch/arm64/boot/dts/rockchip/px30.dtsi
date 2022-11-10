@@ -1580,6 +1580,7 @@
 		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
 		clock-names = "aclk", "iface";
 		power-domains = <&power PX30_PD_VPU>;
+		rockchip,shootdown-entire;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
@@ -1630,6 +1631,7 @@
 		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
 		clock-names = "aclk", "iface";
 		power-domains = <&power PX30_PD_VPU>;
+		rockchip,shootdown-entire;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
