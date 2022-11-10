@@ -26,6 +26,8 @@ mod allocator;
 pub mod error;
 pub mod prelude;
 pub mod print;
+#[doc(hidden)]
+pub mod std_vendor;
 pub mod str;
 
 #[doc(hidden)]
