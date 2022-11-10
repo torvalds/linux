@@ -203,6 +203,9 @@ int thermal_zone_device_set_policy(struct thermal_zone_device *tz,
 	mutex_lock(&thermal_governor_lock);
 	mutex_lock(&tz->lock);
 
+	if (!device_is_registered(&tz->device))
+		goto exit;
+
 	gov = __find_governor(strim(policy));
 	if (!gov)
 		goto exit;
@@ -445,6 +448,12 @@ static int thermal_zone_device_set_mode(struct thermal_zone_device *tz,
 		return ret;
 	}
 
+	if (!device_is_registered(&tz->device)) {
+		mutex_unlock(&tz->lock);
+
+		return -ENODEV;
+	}
+
 	if (tz->ops->change_mode)
 		ret = tz->ops->change_mode(tz, mode);
 
@@ -486,7 +495,8 @@ void thermal_zone_device_update(struct thermal_zone_device *tz,
 				enum thermal_notify_event event)
 {
 	mutex_lock(&tz->lock);
-	__thermal_zone_device_update(tz, event);
+	if (device_is_registered(&tz->device))
+		__thermal_zone_device_update(tz, event);
 	mutex_unlock(&tz->lock);
 }
 EXPORT_SYMBOL_GPL(thermal_zone_device_update);
