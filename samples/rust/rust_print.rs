@@ -7,10 +7,10 @@ use kernel::prelude::*;
 
 module! {
     type: RustPrint,
-    name: b"rust_print",
-    author: b"Rust for Linux Contributors",
-    description: b"Rust printing macros sample",
-    license: b"GPL",
+    name: "rust_print",
+    author: "Rust for Linux Contributors",
+    description: "Rust printing macros sample",
+    license: "GPL",
 }
 
 struct RustPrint;
