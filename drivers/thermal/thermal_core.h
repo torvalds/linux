@@ -113,7 +113,6 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 				  enum thermal_notify_event event);
 
 /* Helpers */
-void thermal_zone_set_trips(struct thermal_zone_device *tz);
 void __thermal_zone_set_trips(struct thermal_zone_device *tz);
 int __thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp);
 
