@@ -23,7 +23,7 @@ properties:
     maxItems: 1
 
   powerdown-gpios:
-    description: GPIO spec for Powerdown/Shutdown line to use
+    description: GPIO spec for Powerdown/Shutdown line to use (pin SD_N)
     maxItems: 1
 
   vdd-supply:
@@ -47,6 +47,8 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
+
     soundwire-controller@3250000 {
         #address-cells = <2>;
         #size-cells = <0>;
@@ -55,7 +57,7 @@ examples:
         speaker@0,1 {
             compatible = "sdw10217020200";
             reg = <0 1>;
-            powerdown-gpios = <&tlmm 1 0>;
+            powerdown-gpios = <&tlmm 1 GPIO_ACTIVE_LOW>;
             vdd-supply = <&vreg_s10b_1p8>;
             #thermal-sensor-cells = <0>;
             #sound-dai-cells = <0>;
@@ -64,7 +66,7 @@ examples:
         speaker@0,2 {
             compatible = "sdw10217020200";
             reg = <0 2>;
-            powerdown-gpios = <&tlmm 89 0>;
+            powerdown-gpios = <&tlmm 89 GPIO_ACTIVE_LOW>;
             vdd-supply = <&vreg_s10b_1p8>;
             #thermal-sensor-cells = <0>;
             #sound-dai-cells = <0>;
