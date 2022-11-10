@@ -345,16 +345,13 @@ bool intel_dsc_source_support(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
-	if (!RUNTIME_INFO(i915)->has_dsc)
+	if (!HAS_DSC(i915))
 		return false;
 
-	if (DISPLAY_VER(i915) >= 12)
-		return true;
+	if (DISPLAY_VER(i915) == 11 && cpu_transcoder == TRANSCODER_A)
+		return false;
 
-	if (DISPLAY_VER(i915) >= 11 && cpu_transcoder != TRANSCODER_A)
-		return true;
-
-	return false;
+	return true;
 }
 
 static bool is_pipe_dsc(struct intel_crtc *crtc, enum transcoder cpu_transcoder)
