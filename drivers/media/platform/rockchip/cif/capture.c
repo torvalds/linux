@@ -7628,9 +7628,11 @@ static void rkcif_line_wake_up_rdbk(struct rkcif_stream *stream, int mipi_id)
 	if (mode) {
 		if (stream->curr_buf_toisp)
 			active_buf = stream->curr_buf_toisp;
+		stream->frame_phase = CIF_CSI_FRAME0_READY;
 	} else {
 		if (stream->next_buf_toisp)
 			active_buf = stream->next_buf_toisp;
+		stream->frame_phase = CIF_CSI_FRAME1_READY;
 	}
 
 	if (!active_buf) {
