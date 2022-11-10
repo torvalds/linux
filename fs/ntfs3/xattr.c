@@ -410,7 +410,7 @@ static noinline int ntfs_set_ea(struct inode *inode, const char *name,
 
 	/*
 	 * 1. Check ea_info.size_pack for overflow.
-	 * 2. New attibute size must fit value from $AttrDef
+	 * 2. New attribute size must fit value from $AttrDef
 	 */
 	if (new_pack > 0xffff || size > sbi->ea_max_size) {
 		ntfs_inode_warn(
