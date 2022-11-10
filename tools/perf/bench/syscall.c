@@ -46,6 +46,9 @@ static int bench_syscall_common(int argc, const char **argv, int syscall)
 		case __NR_getppid:
 			getppid();
 			break;
+		case __NR_getpgid:
+			getpgid(0);
+			break;
 		default:
 			break;
 		}
@@ -57,6 +60,9 @@ static int bench_syscall_common(int argc, const char **argv, int syscall)
 	switch (syscall) {
 	case __NR_getppid:
 		name = "getppid()";
+		break;
+	case __NR_getpgid:
+		name = "getpgid()";
 		break;
 	default:
 		break;
@@ -99,4 +105,9 @@ static int bench_syscall_common(int argc, const char **argv, int syscall)
 int bench_syscall_basic(int argc, const char **argv)
 {
 	return bench_syscall_common(argc, argv, __NR_getppid);
+}
+
+int bench_syscall_getpgid(int argc, const char **argv)
+{
+	return bench_syscall_common(argc, argv, __NR_getpgid);
 }

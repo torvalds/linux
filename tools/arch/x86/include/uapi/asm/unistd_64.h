@@ -2,6 +2,9 @@
 #ifndef __NR_getppid
 #define __NR_getppid 110
 #endif
+#ifndef __NR_getpgid
+#define __NR_getpgid 121
+#endif
 #ifndef __NR_gettid
 #define __NR_gettid 186
 #endif
