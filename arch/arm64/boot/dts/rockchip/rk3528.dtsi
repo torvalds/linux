@@ -366,9 +366,20 @@
 
 	dmc: dmc {
 		compatible = "rockchip,rk3528-dmc";
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "complete";
+		devfreq-events = <&dfi>;
 		clocks = <&scmi_clk SCMI_CLK_DDR>;
 		clock-names = "dmc_clk";
 		operating-points-v2 = <&dmc_opp_table>;
+		upthreshold = <40>;
+		downdifferential = <20>;
+		system-status-level = <
+			/* system status	freq level */
+			SYS_STATUS_NORMAL	DMC_FREQ_LEVEL_HIGH
+		>;
+		auto-min-freq = <324000>;
+		auto-freq-en = <0>;
 		status = "disabled";
 	};
 
@@ -1542,6 +1553,13 @@
 				};
 			};
 		};
+	};
+
+	dfi: dfi@ff930000 {
+		reg = <0x0 0xff930000 0x0 0x400>;
+		compatible = "rockchip,rk3528-dfi";
+		rockchip,grf = <&grf>;
+		status = "disabled";
 	};
 
 	spi0: spi@ff9c0000 {
