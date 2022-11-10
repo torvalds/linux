@@ -8,6 +8,21 @@ Required properties:
 
 - reg : The I2C address of the device.
 
+- AVDD-supply: phandle to the regulator supplying analog power through the
+  AVDD pin
+
+- MICVDD-supply: phandle to the regulator supplying power for the microphone
+  bias through the MICVDD pin. Either MICVDD or VBAT should be present.
+
+- VBAT-supply: phandle to the regulator supplying battery power through the
+  VBAT pin. Either MICVDD or VBAT should be present.
+
+- DBVDD-supply: phandle to the regulator supplying I/O power through the DBVDD
+  pin.
+
+- LDO1-IN-supply: phandle to the regulator supplying power to the digital core
+  and charge pump through the LDO1_IN pin.
+
 Optional properties:
 
 - interrupts : The CODEC's interrupt output.
@@ -75,4 +90,9 @@ rt5682 {
 
 	clocks = <&osc>;
 	clock-names = "mclk";
+
+	AVDD-supply = <&avdd_reg>;
+	MICVDD-supply = <&micvdd_reg>;
+	DBVDD-supply = <&dbvdd_reg>;
+	LDO1-IN-supply = <&ldo1_in_reg>;
 };
