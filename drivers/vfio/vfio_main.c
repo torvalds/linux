@@ -801,8 +801,9 @@ static struct file *vfio_device_open(struct vfio_device *device)
 err_close_device:
 	mutex_lock(&device->dev_set->lock);
 	mutex_lock(&device->group->group_lock);
-	if (device->open_count == 1 && device->ops->close_device) {
-		device->ops->close_device(device);
+	if (device->open_count == 1) {
+		if (device->ops->close_device)
+			device->ops->close_device(device);
 
 		vfio_device_container_unregister(device);
 	}
@@ -1017,10 +1018,12 @@ static int vfio_device_fops_release(struct inode *inode, struct file *filep)
 	mutex_lock(&device->dev_set->lock);
 	vfio_assert_device_open(device);
 	mutex_lock(&device->group->group_lock);
-	if (device->open_count == 1 && device->ops->close_device)
-		device->ops->close_device(device);
+	if (device->open_count == 1) {
+		if (device->ops->close_device)
+			device->ops->close_device(device);
 
-	vfio_device_container_unregister(device);
+		vfio_device_container_unregister(device);
+	}
 	mutex_unlock(&device->group->group_lock);
 	device->open_count--;
 	if (device->open_count == 0)
