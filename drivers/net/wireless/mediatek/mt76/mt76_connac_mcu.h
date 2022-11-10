@@ -1753,7 +1753,8 @@ int mt76_connac_mcu_uni_set_chctx(struct mt76_phy *phy,
 int mt76_connac_mcu_uni_add_bss(struct mt76_phy *phy,
 				struct ieee80211_vif *vif,
 				struct mt76_wcid *wcid,
-				bool enable);
+				bool enable,
+				struct ieee80211_chanctx_conf *ctx);
 int mt76_connac_mcu_sta_cmd(struct mt76_phy *phy,
 			    struct mt76_sta_cmd_info *info);
 void mt76_connac_mcu_beacon_loss_iter(void *priv, u8 *mac,
