@@ -1038,7 +1038,6 @@ static struct dma_chan *imxdma_xlate(struct of_phandle_args *dma_spec,
 static int __init imxdma_probe(struct platform_device *pdev)
 {
 	struct imxdma_engine *imxdma;
-	struct resource *res;
 	int ret, i;
 	int irq, irq_err;
 
@@ -1049,8 +1048,7 @@ static int __init imxdma_probe(struct platform_device *pdev)
 	imxdma->dev = &pdev->dev;
 	imxdma->devtype = (uintptr_t)of_device_get_match_data(&pdev->dev);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	imxdma->base = devm_ioremap_resource(&pdev->dev, res);
+	imxdma->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(imxdma->base))
 		return PTR_ERR(imxdma->base);
 

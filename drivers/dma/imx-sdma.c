@@ -2189,7 +2189,6 @@ static int sdma_probe(struct platform_device *pdev)
 	const char *fw_name;
 	int ret;
 	int irq;
-	struct resource *iores;
 	struct resource spba_res;
 	int i;
 	struct sdma_engine *sdma;
@@ -2212,8 +2211,7 @@ static int sdma_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sdma->regs = devm_ioremap_resource(&pdev->dev, iores);
+	sdma->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sdma->regs))
 		return PTR_ERR(sdma->regs);
 

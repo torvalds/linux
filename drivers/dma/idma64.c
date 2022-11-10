@@ -627,7 +627,6 @@ static int idma64_platform_probe(struct platform_device *pdev)
 	struct idma64_chip *chip;
 	struct device *dev = &pdev->dev;
 	struct device *sysdev = dev->parent;
-	struct resource *mem;
 	int ret;
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
@@ -638,8 +637,7 @@ static int idma64_platform_probe(struct platform_device *pdev)
 	if (chip->irq < 0)
 		return chip->irq;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	chip->regs = devm_ioremap_resource(dev, mem);
+	chip->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(chip->regs))
 		return PTR_ERR(chip->regs);
 
