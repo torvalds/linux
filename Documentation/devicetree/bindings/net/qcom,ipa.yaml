@@ -162,16 +162,6 @@ oneOf:
   - required:
       - memory-region
 
-# If memory-region is present, firmware-name may optionally be present.
-# But if modem-init is present, firmware-name must not be present.
-if:
-  required:
-    - modem-init
-then:
-  not:
-    required:
-      - firmware-name
-
 additionalProperties: false
 
 examples:
