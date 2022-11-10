@@ -885,7 +885,7 @@ static int vgxy61_apply_gpiox_strobe_mode(struct vgxy61_dev *sensor,
 					  unsigned int idx)
 {
 	static const u8 index2val[] = {0x0, 0x1, 0x3};
-	u16 reg;
+	int reg;
 
 	reg = vgxy61_read_reg(sensor, VGXY61_REG_SIGNALS_CTRL);
 	if (reg < 0)
@@ -988,7 +988,7 @@ static int vgxy61_update_exposure(struct vgxy61_dev *sensor, u16 new_expo_long,
 	u16 new_expo_short = 0;
 	u16 expo_short_max = 0;
 	u16 expo_long_min = VGXY61_MIN_EXPOSURE;
-	u16 expo_long_max;
+	u16 expo_long_max = 0;
 
 	/* Compute short exposure according to hdr mode and long exposure */
 	switch (hdr) {
@@ -1173,6 +1173,9 @@ static int vgxy61_stream_enable(struct vgxy61_dev *sensor)
 		pm_runtime_put_autosuspend(&client->dev);
 		return ret;
 	}
+
+	/* pm_runtime_get_sync() can return 1 as a valid return code */
+	ret = 0;
 
 	vgxy61_write_reg(sensor, VGXY61_REG_FORMAT_CTRL,
 			 get_bpp_by_code(sensor->fmt.code), &ret);
@@ -1565,7 +1568,7 @@ static int vgxy61_configure(struct vgxy61_dev *sensor)
 {
 	u32 sensor_freq;
 	u8 prediv, mult;
-	u16 line_length;
+	int line_length;
 	int ret = 0;
 
 	compute_pll_parameters_by_freq(sensor->clk_freq, &prediv, &mult);
@@ -1606,8 +1609,7 @@ static int vgxy61_configure(struct vgxy61_dev *sensor)
 static int vgxy61_patch(struct vgxy61_dev *sensor)
 {
 	struct i2c_client *client = sensor->i2c_client;
-	u16 patch;
-	int ret;
+	int patch, ret;
 
 	ret = vgxy61_write_array(sensor, VGXY61_REG_FWPATCH_START_ADDR,
 				 sizeof(patch_array), patch_array);
@@ -1645,7 +1647,7 @@ static int vgxy61_patch(struct vgxy61_dev *sensor)
 static int vgxy61_detect_cut_version(struct vgxy61_dev *sensor)
 {
 	struct i2c_client *client = sensor->i2c_client;
-	u16 device_rev;
+	int device_rev;
 
 	device_rev = vgxy61_read_reg(sensor, VGXY61_REG_REVISION);
 	if (device_rev < 0)
@@ -1671,9 +1673,8 @@ static int vgxy61_detect_cut_version(struct vgxy61_dev *sensor)
 static int vgxy61_detect(struct vgxy61_dev *sensor)
 {
 	struct i2c_client *client = sensor->i2c_client;
-	u16 id = 0;
-	int ret;
-	u8 st;
+	int id = 0;
+	int ret, st;
 
 	id = vgxy61_read_reg(sensor, VGXY61_REG_MODEL_ID);
 	if (id < 0)
