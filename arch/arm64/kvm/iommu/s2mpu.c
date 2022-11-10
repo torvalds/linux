@@ -6,6 +6,11 @@
 
 #include <linux/kvm_host.h>
 #include <asm/kvm_s2mpu.h>
+#include <asm/kvm_host.h>
+#include <asm/kvm_asm.h>
+
+/* For an nvhe symbol get the kernel linear address of it. */
+#define ksym_ref_addr_nvhe(x)			kvm_ksym_ref(&kvm_nvhe_sym(x))
 
 static int init_s2mpu_driver(void)
 {
@@ -49,7 +54,8 @@ static int init_s2mpu_driver(void)
 		goto out_free;
 
 	/* Hypercall to initialize EL2 driver. */
-	ret = pkvm_iommu_driver_init(PKVM_IOMMU_DRIVER_S2MPU, mpt, sizeof(*mpt));
+	ret = pkvm_iommu_driver_init(ksym_ref_addr_nvhe(pkvm_s2mpu_driver),
+				     mpt, sizeof(*mpt));
 	if (ret)
 		goto out_unshare;
 
@@ -80,7 +86,7 @@ int pkvm_iommu_s2mpu_register(struct device *dev, phys_addr_t addr)
 	if (ret)
 		return ret;
 
-	return pkvm_iommu_register(dev, PKVM_IOMMU_DRIVER_S2MPU,
+	return pkvm_iommu_register(dev, ksym_ref_addr_nvhe(pkvm_s2mpu_driver),
 				   addr, S2MPU_MMIO_SIZE, NULL);
 }
 EXPORT_SYMBOL_GPL(pkvm_iommu_s2mpu_register);
@@ -94,7 +100,8 @@ static int init_sysmmu_sync_driver(void)
 
 	mutex_lock(&lock);
 	if (!init_done) {
-		ret = pkvm_iommu_driver_init(PKVM_IOMMU_DRIVER_SYSMMU_SYNC, NULL, 0);
+		ret = pkvm_iommu_driver_init(ksym_ref_addr_nvhe(pkvm_sysmmu_sync_driver),
+					     NULL, 0);
 		init_done = !ret;
 	}
 	mutex_unlock(&lock);
@@ -113,7 +120,7 @@ int pkvm_iommu_sysmmu_sync_register(struct device *dev, phys_addr_t addr,
 	if (ret)
 		return ret;
 
-	return pkvm_iommu_register(dev, PKVM_IOMMU_DRIVER_SYSMMU_SYNC,
+	return pkvm_iommu_register(dev, ksym_ref_addr_nvhe(pkvm_sysmmu_sync_driver),
 				   addr + SYSMMU_SYNC_S2_OFFSET,
 				   SYSMMU_SYNC_S2_MMIO_SIZE, parent);
 }

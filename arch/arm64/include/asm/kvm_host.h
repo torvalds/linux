@@ -379,19 +379,24 @@ extern s64 kvm_nvhe_sym(hyp_physvirt_offset);
 extern u64 kvm_nvhe_sym(hyp_cpu_logical_map)[NR_CPUS];
 #define hyp_cpu_logical_map CHOOSE_NVHE_SYM(hyp_cpu_logical_map)
 
-enum pkvm_iommu_driver_id {
-	PKVM_IOMMU_DRIVER_S2MPU,
-	PKVM_IOMMU_DRIVER_SYSMMU_SYNC,
-	PKVM_IOMMU_NR_DRIVERS,
-};
-
 enum pkvm_iommu_pm_event {
 	PKVM_IOMMU_PM_SUSPEND,
 	PKVM_IOMMU_PM_RESUME,
 };
 
-int pkvm_iommu_driver_init(enum pkvm_iommu_driver_id drv_id, void *data, size_t size);
-int pkvm_iommu_register(struct device *dev, enum pkvm_iommu_driver_id drv_id,
+struct pkvm_iommu_ops;
+
+struct pkvm_iommu_driver {
+	const struct pkvm_iommu_ops *ops;
+	struct list_head list;
+	atomic_t state;
+};
+
+extern struct pkvm_iommu_driver kvm_nvhe_sym(pkvm_s2mpu_driver);
+extern struct pkvm_iommu_driver kvm_nvhe_sym(pkvm_sysmmu_sync_driver);
+
+int pkvm_iommu_driver_init(struct pkvm_iommu_driver *drv, void *data, size_t size);
+int pkvm_iommu_register(struct device *dev, struct pkvm_iommu_driver *drv,
 			phys_addr_t pa, size_t size, struct device *parent);
 int pkvm_iommu_suspend(struct device *dev);
 int pkvm_iommu_resume(struct device *dev);

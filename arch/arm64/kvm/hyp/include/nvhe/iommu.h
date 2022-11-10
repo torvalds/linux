@@ -84,9 +84,8 @@ struct pkvm_iommu {
 	char data[];
 };
 
-int __pkvm_iommu_driver_init(enum pkvm_iommu_driver_id id, void *data, size_t size);
-int __pkvm_iommu_register(unsigned long dev_id,
-			  enum pkvm_iommu_driver_id drv_id,
+int __pkvm_iommu_driver_init(struct pkvm_iommu_driver *drv, void *data, size_t size);
+int __pkvm_iommu_register(unsigned long dev_id, unsigned long drv_id,
 			  phys_addr_t dev_pa, size_t dev_size,
 			  unsigned long parent_id,
 			  void *kern_mem_va, size_t mem_size);
@@ -99,8 +98,5 @@ bool pkvm_iommu_host_dabt_handler(struct kvm_cpu_context *host_ctxt, u32 esr,
 				  phys_addr_t fault_pa);
 void pkvm_iommu_host_stage2_idmap(phys_addr_t start, phys_addr_t end,
 				  enum kvm_pgtable_prot prot);
-
-extern const struct pkvm_iommu_ops pkvm_s2mpu_ops;
-extern const struct pkvm_iommu_ops pkvm_sysmmu_sync_ops;
 
 #endif	/* __ARM64_KVM_NVHE_IOMMU_H__ */

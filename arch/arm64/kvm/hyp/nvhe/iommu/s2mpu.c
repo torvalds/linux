@@ -42,6 +42,9 @@ struct s2mpu_drv_data {
 
 static struct mpt host_mpt;
 
+const struct pkvm_iommu_ops pkvm_s2mpu_ops;
+const struct pkvm_iommu_ops pkvm_sysmmu_sync_ops;
+
 static inline enum mpt_prot prot_to_mpt(enum kvm_pgtable_prot prot)
 {
 	return ((prot & KVM_PGTABLE_PROT_R) ? MPT_PROT_R : 0) |
@@ -619,4 +622,10 @@ const struct pkvm_iommu_ops pkvm_s2mpu_ops = (struct pkvm_iommu_ops){
 
 const struct pkvm_iommu_ops pkvm_sysmmu_sync_ops = (struct pkvm_iommu_ops){
 	.validate = sysmmu_sync_validate,
+};
+struct pkvm_iommu_driver pkvm_s2mpu_driver = (struct pkvm_iommu_driver){
+	.ops = &pkvm_s2mpu_ops,
+};
+struct pkvm_iommu_driver pkvm_sysmmu_sync_driver = (struct pkvm_iommu_driver){
+	.ops = &pkvm_sysmmu_sync_ops,
 };
