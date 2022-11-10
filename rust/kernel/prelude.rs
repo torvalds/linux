@@ -17,7 +17,7 @@ pub use alloc::{boxed::Box, vec::Vec};
 
 pub use macros::module;
 
-pub use super::{pr_emerg, pr_info};
+pub use super::{pr_alert, pr_crit, pr_debug, pr_emerg, pr_err, pr_info, pr_notice, pr_warn};
 
 pub use super::error::{Error, Result};
 
