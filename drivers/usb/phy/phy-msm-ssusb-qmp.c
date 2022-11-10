@@ -105,7 +105,6 @@ enum qmp_phy_type {
 struct qmp_reg_val {
 	u32 offset;
 	u32 val;
-	u32 delay;
 };
 
 struct msm_ssphy_qmp {
@@ -363,16 +362,15 @@ static int configure_phy_regs(struct usb_phy *uphy,
 {
 	struct msm_ssphy_qmp *phy = container_of(uphy, struct msm_ssphy_qmp,
 					phy);
+	int i;
 
 	if (!reg) {
 		dev_err(uphy->dev, "NULL PHY configuration\n");
 		return -EINVAL;
 	}
 
-	while (reg->offset != -1) {
+	for (i = 0; i < phy->init_seq_len/2; i++) {
 		writel_relaxed(reg->val, phy->base + reg->offset);
-		if (reg->delay)
-			usleep_range(reg->delay, reg->delay + 10);
 		reg++;
 	}
 	return 0;
