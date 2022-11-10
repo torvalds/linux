@@ -3786,16 +3786,16 @@ void rtl8xxxu_init_burst(struct rtl8xxxu_priv *priv)
 	 * For USB high speed set 512B packets
 	 */
 	val8 = rtl8xxxu_read8(priv, REG_RXDMA_PRO_8723B);
-	val8 &= ~(BIT(4) | BIT(5));
-	val8 |= BIT(4);
-	val8 |= BIT(1) | BIT(2) | BIT(3);
+	u8p_replace_bits(&val8, 1, RXDMA_PRO_DMA_BURST_SIZE);
+	u8p_replace_bits(&val8, 3, RXDMA_PRO_DMA_BURST_CNT);
+	val8 |= RXDMA_PRO_DMA_MODE;
 	rtl8xxxu_write8(priv, REG_RXDMA_PRO_8723B, val8);
 
 	/*
 	 * Enable single packet AMPDU
 	 */
 	val8 = rtl8xxxu_read8(priv, REG_HT_SINGLE_AMPDU_8723B);
-	val8 |= BIT(7);
+	val8 |= HT_SINGLE_AMPDU_ENABLE;
 	rtl8xxxu_write8(priv, REG_HT_SINGLE_AMPDU_8723B, val8);
 
 	rtl8xxxu_write16(priv, REG_MAX_AGGR_NUM, 0x0c14);
@@ -3820,7 +3820,7 @@ void rtl8xxxu_init_burst(struct rtl8xxxu_priv *priv)
 
 	/* to prevent mac is reseted by bus. */
 	val8 = rtl8xxxu_read8(priv, REG_RSV_CTRL);
-	val8 |= BIT(5) | BIT(6);
+	val8 |= RSV_CTRL_WLOCK_1C | RSV_CTRL_DIS_PRST;
 	rtl8xxxu_write8(priv, REG_RSV_CTRL, val8);
 }
 
