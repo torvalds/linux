@@ -388,6 +388,13 @@ static int vepu_run(struct mpp_dev *mpp,
 	return 0;
 }
 
+static int vepu_px30_run(struct mpp_dev *mpp,
+		    struct mpp_task *mpp_task)
+{
+	mpp_iommu_flush_tlb(mpp->iommu_info);
+	return vepu_run(mpp, mpp_task);
+}
+
 static int vepu_irq(struct mpp_dev *mpp)
 {
 	mpp->irq_status = mpp_read(mpp, VEPU2_REG_INT);
@@ -902,6 +909,20 @@ static struct mpp_dev_ops vepu_v2_dev_ops = {
 	.dump_session = vepu_dump_session,
 };
 
+static struct mpp_dev_ops vepu_px30_dev_ops = {
+	.alloc_task = vepu_alloc_task,
+	.run = vepu_px30_run,
+	.irq = vepu_irq,
+	.isr = vepu_isr,
+	.finish = vepu_finish,
+	.result = vepu_result,
+	.free_task = vepu_free_task,
+	.ioctl = vepu_control,
+	.init_session = vepu_init_session,
+	.free_session = vepu_free_session,
+	.dump_session = vepu_dump_session,
+};
+
 static struct mpp_dev_ops vepu_ccu_dev_ops = {
 	.alloc_task = vepu_alloc_task,
 	.prepare = vepu_prepare,
@@ -931,7 +952,7 @@ static const struct mpp_dev_var vepu_px30_data = {
 	.hw_info = &vepu_v2_hw_info,
 	.trans_info = trans_rk_vepu2,
 	.hw_ops = &vepu_px30_hw_ops,
-	.dev_ops = &vepu_v2_dev_ops,
+	.dev_ops = &vepu_px30_dev_ops,
 };
 
 static const struct mpp_dev_var vepu_ccu_data = {

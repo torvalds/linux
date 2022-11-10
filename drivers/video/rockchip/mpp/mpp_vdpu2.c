@@ -375,6 +375,13 @@ static int vdpu_run(struct mpp_dev *mpp,
 	return 0;
 }
 
+static int vdpu_px30_run(struct mpp_dev *mpp,
+		    struct mpp_task *mpp_task)
+{
+	mpp_iommu_flush_tlb(mpp->iommu_info);
+	return vdpu_run(mpp, mpp_task);
+}
+
 static int vdpu_finish(struct mpp_dev *mpp,
 		       struct mpp_task *mpp_task)
 {
@@ -658,6 +665,16 @@ static struct mpp_dev_ops vdpu_v2_dev_ops = {
 	.free_task = vdpu_free_task,
 };
 
+static struct mpp_dev_ops vdpu_px30_dev_ops = {
+	.alloc_task = vdpu_alloc_task,
+	.run = vdpu_px30_run,
+	.irq = vdpu_irq,
+	.isr = vdpu_isr,
+	.finish = vdpu_finish,
+	.result = vdpu_result,
+	.free_task = vdpu_free_task,
+};
+
 static const struct mpp_dev_var vdpu_v2_data = {
 	.device_type = MPP_DEVICE_VDPU2,
 	.hw_info = &vdpu_v2_hw_info,
@@ -671,7 +688,7 @@ static const struct mpp_dev_var vdpu_px30_data = {
 	.hw_info = &vdpu_v2_hw_info,
 	.trans_info = vdpu_v2_trans,
 	.hw_ops = &vdpu_px30_hw_ops,
-	.dev_ops = &vdpu_v2_dev_ops,
+	.dev_ops = &vdpu_px30_dev_ops,
 };
 
 static const struct of_device_id mpp_vdpu2_dt_match[] = {

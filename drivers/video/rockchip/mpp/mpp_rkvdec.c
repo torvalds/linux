@@ -976,6 +976,13 @@ static int rkvdec_1126_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	return rkvdec_run(mpp, mpp_task);
 }
 
+static int rkvdec_px30_run(struct mpp_dev *mpp,
+		    struct mpp_task *mpp_task)
+{
+	mpp_iommu_flush_tlb(mpp->iommu_info);
+	return rkvdec_run(mpp, mpp_task);
+}
+
 static int rkvdec_irq(struct mpp_dev *mpp)
 {
 	mpp->irq_status = mpp_read(mpp, RKVDEC_REG_INT_EN);
@@ -1728,6 +1735,16 @@ static struct mpp_dev_ops rkvdec_v1_dev_ops = {
 	.free_task = rkvdec_free_task,
 };
 
+static struct mpp_dev_ops rkvdec_px30_dev_ops = {
+	.alloc_task = rkvdec_alloc_task,
+	.run = rkvdec_px30_run,
+	.irq = rkvdec_irq,
+	.isr = rkvdec_isr,
+	.finish = rkvdec_finish,
+	.result = rkvdec_result,
+	.free_task = rkvdec_free_task,
+};
+
 static struct mpp_hw_ops rkvdec_3328_hw_ops = {
 	.init = rkvdec_3328_init,
 	.exit = rkvdec_3328_exit,
@@ -1790,7 +1807,7 @@ static const struct mpp_dev_var rk_hevcdec_px30_data = {
 	.hw_info = &rk_hevcdec_hw_info,
 	.trans_info = rk_hevcdec_trans,
 	.hw_ops = &rkvdec_px30_hw_ops,
-	.dev_ops = &rkvdec_v1_dev_ops,
+	.dev_ops = &rkvdec_px30_dev_ops,
 };
 
 static const struct mpp_dev_var rkvdec_v1_data = {
