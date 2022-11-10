@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#ifndef __NR_getppid
+#define __NR_getppid 64
+#endif
 #ifndef __NR_gettid
 #define __NR_gettid 224
 #endif
