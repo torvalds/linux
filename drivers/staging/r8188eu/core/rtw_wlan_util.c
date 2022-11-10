@@ -331,7 +331,7 @@ u16 get_beacon_interval(struct wlan_bssid_ex *bss)
 	return le16_to_cpu(val);
 }
 
-bool is_client_associated_to_ap(struct adapter *padapter)
+bool r8188eu_is_client_associated_to_ap(struct adapter *padapter)
 {
 	struct mlme_ext_priv	*pmlmeext;
 	struct mlme_ext_info	*pmlmeinfo;
@@ -348,7 +348,7 @@ bool is_client_associated_to_ap(struct adapter *padapter)
 	return false;
 }
 
-bool is_client_associated_to_ibss(struct adapter *padapter)
+bool r8188eu_is_client_associated_to_ibss(struct adapter *padapter)
 {
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
@@ -359,7 +359,7 @@ bool is_client_associated_to_ibss(struct adapter *padapter)
 	return false;
 }
 
-bool is_IBSS_empty(struct adapter *padapter)
+bool r8188eu_is_ibss_empty(struct adapter *padapter)
 {
 	unsigned int i;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
@@ -893,7 +893,7 @@ int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len)
 	unsigned short	ht_cap_info;
 	unsigned char	ht_info_infos_0;
 
-	if (!is_client_associated_to_ap(Adapter))
+	if (!r8188eu_is_client_associated_to_ap(Adapter))
 		return true;
 
 	len = packet_len - sizeof(struct ieee80211_hdr_3addr);

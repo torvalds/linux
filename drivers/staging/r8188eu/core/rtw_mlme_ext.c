@@ -5831,7 +5831,7 @@ void rtw_mlme_site_survey_done(struct adapter *adapter)
 	int res;
 	u8 reg;
 
-	if ((is_client_associated_to_ap(adapter)) ||
+	if ((r8188eu_is_client_associated_to_ap(adapter)) ||
 	    ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE)) {
 		/* enable to rx data frame */
 		rtw_write16(adapter, REG_RXFLTMAP2, 0xFFFF);
@@ -5982,7 +5982,7 @@ void site_survey(struct adapter *padapter)
 			Restore_DM_Func_Flag(padapter);
 			/* Switch_DM_Func(padapter, DYNAMIC_ALL_FUNC_ENABLE, true); */
 
-			if (is_client_associated_to_ap(padapter))
+			if (r8188eu_is_client_associated_to_ap(padapter))
 				issue_nulldata(padapter, NULL, 0, 3, 500);
 
 			rtw_mlme_site_survey_done(padapter);
@@ -6952,7 +6952,7 @@ void mlmeext_sta_del_event_callback(struct adapter *padapter)
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 
-	if (is_client_associated_to_ap(padapter) || is_IBSS_empty(padapter)) {
+	if (r8188eu_is_client_associated_to_ap(padapter) || r8188eu_is_ibss_empty(padapter)) {
 		mlme_disconnect(padapter);
 		rtw_set_bssid(padapter, null_addr);
 
@@ -7025,7 +7025,7 @@ void linked_status_chk(struct adapter *padapter)
 
 	rtl8188e_sreset_linked_status_check(padapter);
 
-	if (is_client_associated_to_ap(padapter)) {
+	if (r8188eu_is_client_associated_to_ap(padapter)) {
 		/* linked infrastructure client mode */
 
 		int tx_chk = _SUCCESS, rx_chk = _SUCCESS;
@@ -7097,7 +7097,7 @@ void linked_status_chk(struct adapter *padapter)
 				pmlmeinfo->link_count = 0;
 			}
 		} /* end of if ((psta = rtw_get_stainfo(pstapriv, passoc_res->network.MacAddress)) != NULL) */
-	} else if (is_client_associated_to_ibss(padapter)) {
+	} else if (r8188eu_is_client_associated_to_ibss(padapter)) {
 		/* linked IBSS mode */
 		/* for each assoc list entry to check the rx pkt counter */
 		for (i = IBSS_START_MAC_ID; i < NUM_STA; i++) {
@@ -7415,7 +7415,7 @@ u8 disconnect_hdl(struct adapter *padapter, unsigned char *pbuf)
 	u8 val8;
 	int res;
 
-	if (is_client_associated_to_ap(padapter))
+	if (r8188eu_is_client_associated_to_ap(padapter))
 		issue_deauth_ex(padapter, pnetwork->MacAddress, WLAN_REASON_DEAUTH_LEAVING, param->deauth_timeout_ms / 100, 100);
 
 	mlme_disconnect(padapter);
@@ -7527,7 +7527,7 @@ u8 sitesurvey_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 		pmlmeext->sitesurvey_res.scan_mode = pparm->scan_mode;
 
 		/* issue null data if associating to the AP */
-		if (is_client_associated_to_ap(padapter)) {
+		if (r8188eu_is_client_associated_to_ap(padapter)) {
 			pmlmeext->sitesurvey_res.state = SCAN_TXNULL;
 
 			issue_nulldata(padapter, NULL, 1, 3, 500);
