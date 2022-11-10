@@ -1717,9 +1717,9 @@ wa_verify(struct intel_gt *gt, const struct i915_wa *wa, u32 cur,
 	return true;
 }
 
-static void
-wa_list_apply(struct intel_gt *gt, const struct i915_wa_list *wal)
+static void wa_list_apply(const struct i915_wa_list *wal)
 {
+	struct intel_gt *gt = wal->gt;
 	struct intel_uncore *uncore = gt->uncore;
 	enum forcewake_domains fw;
 	unsigned long flags;
@@ -1755,7 +1755,7 @@ wa_list_apply(struct intel_gt *gt, const struct i915_wa_list *wal)
 				intel_gt_mcr_read_any_fw(gt, wa->mcr_reg) :
 				intel_uncore_read_fw(uncore, wa->reg);
 
-			wa_verify(wal->gt, wa, val, wal->name, "application");
+			wa_verify(gt, wa, val, wal->name, "application");
 		}
 	}
 
@@ -1765,7 +1765,7 @@ wa_list_apply(struct intel_gt *gt, const struct i915_wa_list *wal)
 
 void intel_gt_apply_workarounds(struct intel_gt *gt)
 {
-	wa_list_apply(gt, &gt->wa_list);
+	wa_list_apply(&gt->wa_list);
 }
 
 static bool wa_list_verify(struct intel_gt *gt,
@@ -3025,7 +3025,7 @@ void intel_engine_init_workarounds(struct intel_engine_cs *engine)
 
 void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
 {
-	wa_list_apply(engine->gt, &engine->wa_list);
+	wa_list_apply(&engine->wa_list);
 }
 
 static const struct i915_range mcr_ranges_gen8[] = {
