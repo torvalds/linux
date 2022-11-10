@@ -994,7 +994,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 	blk_queue_max_segments(q, sg_elems);
 
 	/* No real sector limit. */
-	blk_queue_max_hw_sectors(q, -1U);
+	blk_queue_max_hw_sectors(q, UINT_MAX);
 
 	max_size = virtio_max_dma_size(vdev);
 
