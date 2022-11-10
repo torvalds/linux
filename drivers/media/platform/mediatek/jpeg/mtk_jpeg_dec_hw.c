@@ -580,6 +580,11 @@ static int mtk_jpegdec_hw_init_irq(struct mtk_jpegdec_comp_dev *dev)
 	return 0;
 }
 
+static void mtk_jpegdec_destroy_workqueue(void *data)
+{
+	destroy_workqueue(data);
+}
+
 static int mtk_jpegdec_hw_probe(struct platform_device *pdev)
 {
 	struct mtk_jpegdec_clk *jpegdec_clk;
@@ -614,6 +619,11 @@ static int mtk_jpegdec_hw_probe(struct platform_device *pdev)
 								| WQ_FREEZABLE);
 		if (!master_dev->workqueue)
 			return -EINVAL;
+
+		ret = devm_add_action_or_reset(&pdev->dev, mtk_jpegdec_destroy_workqueue,
+					       master_dev->workqueue);
+		if (ret)
+			return ret;
 	}
 
 	atomic_set(&master_dev->dechw_rdy, MTK_JPEGDEC_HW_MAX);
