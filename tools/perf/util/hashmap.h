@@ -123,7 +123,8 @@ enum hashmap_insert_strategy {
 };
 
 #define hashmap_cast_ptr(p) ({								\
-	_Static_assert((p) == NULL || sizeof(*(p)) == sizeof(long),			\
+	_Static_assert((__builtin_constant_p((p)) ? (p) == NULL : 0) ||			\
+				sizeof(*(p)) == sizeof(long),				\
 		       #p " pointee should be a long-sized integer or a pointer");	\
 	(long *)(p);									\
 })
