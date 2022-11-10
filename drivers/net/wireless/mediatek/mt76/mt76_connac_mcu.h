@@ -1747,6 +1747,9 @@ int mt76_connac_mcu_uni_add_dev(struct mt76_phy *phy,
 int mt76_connac_mcu_sta_ba(struct mt76_dev *dev, struct mt76_vif *mvif,
 			   struct ieee80211_ampdu_params *params,
 			   int cmd, bool enable, bool tx);
+int mt76_connac_mcu_uni_set_chctx(struct mt76_phy *phy,
+				  struct mt76_vif *vif,
+				  struct ieee80211_chanctx_conf *ctx);
 int mt76_connac_mcu_uni_add_bss(struct mt76_phy *phy,
 				struct ieee80211_vif *vif,
 				struct mt76_wcid *wcid,
