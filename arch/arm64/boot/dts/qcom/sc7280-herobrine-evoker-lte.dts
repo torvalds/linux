@@ -5,7 +5,9 @@
  * Copyright 2022 Google LLC.
  */
 
-#include "sc7280-herobrine-evoker.dts"
+/dts-v1/;
+
+#include "sc7280-herobrine-evoker.dtsi"
 #include "sc7280-herobrine-lte-sku.dtsi"
 
 / {

@@ -6,6 +6,7 @@
  */
 
 #include "sc7280-herobrine.dtsi"
+#include "sc7280-herobrine-audio-rt5682-3mic.dtsi"
 
 /*
  * ADDITIONS TO FIXED REGULATORS DEFINED IN PARENT DEVICE TREE FILES

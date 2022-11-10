@@ -8,7 +8,7 @@
 /dts-v1/;
 
 #include "sc7280-herobrine-evoker.dtsi"
-#include "sc7280-herobrine-audio-rt5682-3mic.dtsi"
+#include "sc7280-herobrine-wifi-sku.dtsi"
 
 / {
 	model = "Google Evoker";
