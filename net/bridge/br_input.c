@@ -121,7 +121,7 @@ int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb
 			   test_bit(BR_FDB_LOCAL, &fdb_src->flags)) {
 			/* FDB mismatch. Drop the packet without roaming. */
 			goto drop;
-		} else if test_bit(BR_FDB_LOCKED, &fdb_src->flags) {
+		} else if (test_bit(BR_FDB_LOCKED, &fdb_src->flags)) {
 			/* FDB match, but entry is locked. Refresh it and drop
 			 * the packet.
 			 */
