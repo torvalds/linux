@@ -279,6 +279,16 @@ static void ibmvnic_set_affinity(struct ibmvnic_adapter *adapter)
 						stride);
 		if (rc)
 			goto out;
+
+		if (!queue)
+			continue;
+
+		rc = __netif_set_xps_queue(adapter->netdev,
+					   cpumask_bits(queue->affinity_mask),
+					   i, XPS_CPUS);
+		if (rc)
+			netdev_warn(adapter->netdev, "%s: Set XPS on queue %d failed, rc = %d.\n",
+				    __func__, i, rc);
 	}
 
 	for (i = 0; i < num_rxqs; i++) {
