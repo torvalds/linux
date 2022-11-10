@@ -984,6 +984,10 @@ struct ibmvnic_adapter {
 	int reset_done_rc;
 	bool wait_for_reset;
 
+	/* CPU hotplug instances for online & dead */
+	struct hlist_node node;
+	struct hlist_node node_dead;
+
 	/* partner capabilities */
 	u64 min_tx_queues;
 	u64 min_rx_queues;

@@ -298,6 +298,57 @@ out:
 	}
 }
 
+static int ibmvnic_cpu_online(unsigned int cpu, struct hlist_node *node)
+{
+	struct ibmvnic_adapter *adapter;
+
+	adapter = hlist_entry_safe(node, struct ibmvnic_adapter, node);
+	ibmvnic_set_affinity(adapter);
+	return 0;
+}
+
+static int ibmvnic_cpu_dead(unsigned int cpu, struct hlist_node *node)
+{
+	struct ibmvnic_adapter *adapter;
+
+	adapter = hlist_entry_safe(node, struct ibmvnic_adapter, node_dead);
+	ibmvnic_set_affinity(adapter);
+	return 0;
+}
+
+static int ibmvnic_cpu_down_prep(unsigned int cpu, struct hlist_node *node)
+{
+	struct ibmvnic_adapter *adapter;
+
+	adapter = hlist_entry_safe(node, struct ibmvnic_adapter, node);
+	ibmvnic_clean_affinity(adapter);
+	return 0;
+}
+
+static enum cpuhp_state ibmvnic_online;
+
+static int ibmvnic_cpu_notif_add(struct ibmvnic_adapter *adapter)
+{
+	int ret;
+
+	ret = cpuhp_state_add_instance_nocalls(ibmvnic_online, &adapter->node);
+	if (ret)
+		return ret;
+	ret = cpuhp_state_add_instance_nocalls(CPUHP_IBMVNIC_DEAD,
+					       &adapter->node_dead);
+	if (!ret)
+		return ret;
+	cpuhp_state_remove_instance_nocalls(ibmvnic_online, &adapter->node);
+	return ret;
+}
+
+static void ibmvnic_cpu_notif_remove(struct ibmvnic_adapter *adapter)
+{
+	cpuhp_state_remove_instance_nocalls(ibmvnic_online, &adapter->node);
+	cpuhp_state_remove_instance_nocalls(CPUHP_IBMVNIC_DEAD,
+					    &adapter->node_dead);
+}
+
 static long h_reg_sub_crq(unsigned long unit_address, unsigned long token,
 			  unsigned long length, unsigned long *number,
 			  unsigned long *irq)
@@ -6292,9 +6343,18 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	}
 	dev_info(&dev->dev, "ibmvnic registered\n");
 
+	rc = ibmvnic_cpu_notif_add(adapter);
+	if (rc) {
+		netdev_err(netdev, "Registering cpu notifier failed\n");
+		goto cpu_notif_add_failed;
+	}
+
 	complete(&adapter->probe_done);
 
 	return 0;
+
+cpu_notif_add_failed:
+	unregister_netdev(netdev);
 
 ibmvnic_register_fail:
 	device_remove_file(&dev->dev, &dev_attr_failover);
@@ -6345,6 +6405,8 @@ static void ibmvnic_remove(struct vio_dev *dev)
 	spin_unlock(&adapter->rwi_lock);
 
 	spin_unlock_irqrestore(&adapter->state_lock, flags);
+
+	ibmvnic_cpu_notif_remove(adapter);
 
 	flush_work(&adapter->ibmvnic_reset);
 	flush_delayed_work(&adapter->ibmvnic_delayed_reset);
@@ -6476,15 +6538,40 @@ static struct vio_driver ibmvnic_driver = {
 /* module functions */
 static int __init ibmvnic_module_init(void)
 {
+	int ret;
+
+	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN, "net/ibmvnic:online",
+				      ibmvnic_cpu_online,
+				      ibmvnic_cpu_down_prep);
+	if (ret < 0)
+		goto out;
+	ibmvnic_online = ret;
+	ret = cpuhp_setup_state_multi(CPUHP_IBMVNIC_DEAD, "net/ibmvnic:dead",
+				      NULL, ibmvnic_cpu_dead);
+	if (ret)
+		goto err_dead;
+
+	ret = vio_register_driver(&ibmvnic_driver);
+	if (ret)
+		goto err_vio_register;
+
 	pr_info("%s: %s %s\n", ibmvnic_driver_name, ibmvnic_driver_string,
 		IBMVNIC_DRIVER_VERSION);
 
-	return vio_register_driver(&ibmvnic_driver);
+	return 0;
+err_vio_register:
+	cpuhp_remove_multi_state(CPUHP_IBMVNIC_DEAD);
+err_dead:
+	cpuhp_remove_multi_state(ibmvnic_online);
+out:
+	return ret;
 }
 
 static void __exit ibmvnic_module_exit(void)
 {
 	vio_unregister_driver(&ibmvnic_driver);
+	cpuhp_remove_multi_state(CPUHP_IBMVNIC_DEAD);
+	cpuhp_remove_multi_state(ibmvnic_online);
 }
 
 module_init(ibmvnic_module_init);
