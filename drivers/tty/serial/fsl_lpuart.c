@@ -19,6 +19,7 @@
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pm_runtime.h>
 #include <linux/serial_core.h>
 #include <linux/slab.h>
 #include <linux/tty_flip.h>
@@ -233,6 +234,7 @@
 
 /* Rx DMA timeout in ms, which is used to calculate Rx ring buffer size */
 #define DMA_RX_TIMEOUT		(10)
+#define UART_AUTOSUSPEND_TIMEOUT	3000
 
 #define DRIVER_NAME	"fsl-lpuart"
 #define DEV_NAME	"ttyLP"
@@ -790,6 +792,20 @@ static void lpuart32_start_tx(struct uart_port *port)
 
 		if (lpuart32_read(port, UARTSTAT) & UARTSTAT_TDRE)
 			lpuart32_transmit_buffer(sport);
+	}
+}
+
+static void
+lpuart_uart_pm(struct uart_port *port, unsigned int state, unsigned int oldstate)
+{
+	switch (state) {
+	case UART_PM_STATE_OFF:
+		pm_runtime_mark_last_busy(port->dev);
+		pm_runtime_put_autosuspend(port->dev);
+		break;
+	default:
+		pm_runtime_get_sync(port->dev);
+		break;
 	}
 }
 
@@ -2229,6 +2245,7 @@ static const struct uart_ops lpuart_pops = {
 	.startup	= lpuart_startup,
 	.shutdown	= lpuart_shutdown,
 	.set_termios	= lpuart_set_termios,
+	.pm		= lpuart_uart_pm,
 	.type		= lpuart_type,
 	.request_port	= lpuart_request_port,
 	.release_port	= lpuart_release_port,
@@ -2253,6 +2270,7 @@ static const struct uart_ops lpuart32_pops = {
 	.startup	= lpuart32_startup,
 	.shutdown	= lpuart32_shutdown,
 	.set_termios	= lpuart32_set_termios,
+	.pm		= lpuart_uart_pm,
 	.type		= lpuart_type,
 	.request_port	= lpuart_request_port,
 	.release_port	= lpuart_release_port,
@@ -2733,6 +2751,11 @@ static int lpuart_probe(struct platform_device *pdev)
 		handler = lpuart_int;
 	}
 
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, UART_AUTOSUSPEND_TIMEOUT);
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
 	ret = lpuart_global_reset(sport);
 	if (ret)
 		goto failed_reset;
@@ -2757,6 +2780,9 @@ failed_irq_request:
 failed_attach_port:
 failed_get_rs485:
 failed_reset:
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	lpuart_disable_clks(sport);
 	return ret;
 }
@@ -2775,8 +2801,29 @@ static int lpuart_remove(struct platform_device *pdev)
 	if (sport->dma_rx_chan)
 		dma_release_channel(sport->dma_rx_chan);
 
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	return 0;
 }
+
+static int __maybe_unused lpuart_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct lpuart_port *sport = platform_get_drvdata(pdev);
+
+	lpuart_disable_clks(sport);
+
+	return 0;
+};
+
+static int __maybe_unused lpuart_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct lpuart_port *sport = platform_get_drvdata(pdev);
+
+	return lpuart_enable_clks(sport);
+};
 
 static void serial_lpuart_enable_wakeup(struct lpuart_port *sport, bool on)
 {
@@ -2923,6 +2970,10 @@ static int __maybe_unused lpuart_suspend(struct device *dev)
 			sport->dma_tx_in_progress = false;
 			dmaengine_terminate_all(sport->dma_tx_chan);
 		}
+	} else if (pm_runtime_active(sport->port.dev)) {
+		lpuart_disable_clks(sport);
+		pm_runtime_disable(sport->port.dev);
+		pm_runtime_set_suspended(sport->port.dev);
 	}
 
 	return 0;
@@ -2957,12 +3008,19 @@ static void lpuart_console_fixup(struct lpuart_port *sport)
 static int __maybe_unused lpuart_resume(struct device *dev)
 {
 	struct lpuart_port *sport = dev_get_drvdata(dev);
+	int ret;
 
 	if (lpuart_uport_is_active(sport)) {
 		if (lpuart_is_32(sport))
 			lpuart32_hw_setup(sport);
 		else
 			lpuart_hw_setup(sport);
+	} else if (pm_runtime_active(sport->port.dev)) {
+		ret = lpuart_enable_clks(sport);
+		if (ret)
+			return ret;
+		pm_runtime_set_active(sport->port.dev);
+		pm_runtime_enable(sport->port.dev);
 	}
 
 	lpuart_console_fixup(sport);
@@ -2972,6 +3030,8 @@ static int __maybe_unused lpuart_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops lpuart_pm_ops = {
+	SET_RUNTIME_PM_OPS(lpuart_runtime_suspend,
+			   lpuart_runtime_resume, NULL)
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(lpuart_suspend_noirq,
 				      lpuart_resume_noirq)
 	SET_SYSTEM_SLEEP_PM_OPS(lpuart_suspend, lpuart_resume)
