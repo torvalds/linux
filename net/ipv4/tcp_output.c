@@ -1139,6 +1139,8 @@ void tcp_wfree(struct sk_buff *skb)
 	struct sock *sk = skb->sk;
 	struct tcp_sock *tp = tcp_sk(sk);
 	unsigned long flags, nval, oval;
+	struct tsq_tasklet *tsq;
+	bool empty;
 
 	/* Keep one reference on sk_wmem_alloc.
 	 * Will be released by sk_free() from here or tcp_tasklet_func()
@@ -1155,28 +1157,23 @@ void tcp_wfree(struct sk_buff *skb)
 	if (refcount_read(&sk->sk_wmem_alloc) >= SKB_TRUESIZE(1) && this_cpu_ksoftirqd() == current)
 		goto out;
 
-	for (oval = READ_ONCE(sk->sk_tsq_flags);; oval = nval) {
-		struct tsq_tasklet *tsq;
-		bool empty;
-
+	oval = smp_load_acquire(&sk->sk_tsq_flags);
+	do {
 		if (!(oval & TSQF_THROTTLED) || (oval & TSQF_QUEUED))
 			goto out;
 
 		nval = (oval & ~TSQF_THROTTLED) | TSQF_QUEUED;
-		nval = cmpxchg(&sk->sk_tsq_flags, oval, nval);
-		if (nval != oval)
-			continue;
+	} while (!try_cmpxchg(&sk->sk_tsq_flags, &oval, nval));
 
-		/* queue this socket to tasklet queue */
-		local_irq_save(flags);
-		tsq = this_cpu_ptr(&tsq_tasklet);
-		empty = list_empty(&tsq->head);
-		list_add(&tp->tsq_node, &tsq->head);
-		if (empty)
-			tasklet_schedule(&tsq->tasklet);
-		local_irq_restore(flags);
-		return;
-	}
+	/* queue this socket to tasklet queue */
+	local_irq_save(flags);
+	tsq = this_cpu_ptr(&tsq_tasklet);
+	empty = list_empty(&tsq->head);
+	list_add(&tp->tsq_node, &tsq->head);
+	if (empty)
+		tasklet_schedule(&tsq->tasklet);
+	local_irq_restore(flags);
+	return;
 out:
 	sk_free(sk);
 }
