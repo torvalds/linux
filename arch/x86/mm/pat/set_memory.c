@@ -1669,6 +1669,12 @@ static int cpa_process_alias(struct cpa_data *cpa)
 		alias_cpa.flags &= ~(CPA_PAGES_ARRAY | CPA_ARRAY);
 		alias_cpa.curpage = 0;
 
+		/* Directmap always has NX set, do not modify. */
+		if (__supported_pte_mask & _PAGE_NX) {
+			alias_cpa.mask_clr.pgprot &= ~_PAGE_NX;
+			alias_cpa.mask_set.pgprot &= ~_PAGE_NX;
+		}
+
 		cpa->force_flush_all = 1;
 
 		ret = __change_page_attr_set_clr(&alias_cpa, 0);
@@ -1691,6 +1697,15 @@ static int cpa_process_alias(struct cpa_data *cpa)
 		alias_cpa.flags &= ~(CPA_PAGES_ARRAY | CPA_ARRAY);
 		alias_cpa.curpage = 0;
 
+		/*
+		 * [_text, _brk_end) also covers data, do not modify NX except
+		 * in cases where the highmap is the primary target.
+		 */
+		if (__supported_pte_mask & _PAGE_NX) {
+			alias_cpa.mask_clr.pgprot &= ~_PAGE_NX;
+			alias_cpa.mask_set.pgprot &= ~_PAGE_NX;
+		}
+
 		cpa->force_flush_all = 1;
 		/*
 		 * The high mapping range is imprecise, so ignore the
@@ -1708,6 +1723,12 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int checkalias)
 	unsigned long numpages = cpa->numpages;
 	unsigned long rempages = numpages;
 	int ret = 0;
+
+	/*
+	 * No changes, easy!
+	 */
+	if (!(pgprot_val(cpa->mask_set) | pgprot_val(cpa->mask_clr)))
+		return ret;
 
 	while (rempages) {
 		/*
@@ -1755,7 +1776,7 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 				    struct page **pages)
 {
 	struct cpa_data cpa;
-	int ret, cache, checkalias;
+	int ret, cache;
 
 	memset(&cpa, 0, sizeof(cpa));
 
@@ -1805,10 +1826,7 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 	cpa.curpage = 0;
 	cpa.force_split = force_split;
 
-	/* No alias checking for _NX bit modifications */
-	checkalias = (pgprot_val(mask_set) | pgprot_val(mask_clr)) != _PAGE_NX;
-
-	ret = __change_page_attr_set_clr(&cpa, checkalias);
+	ret = __change_page_attr_set_clr(&cpa, 1);
 
 	/*
 	 * Check whether we really changed something:
