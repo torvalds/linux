@@ -816,14 +816,13 @@ out_err:
 /**
  * cp_get_orb() - get the orb of the channel program
  * @cp: channel_program on which to perform the operation
- * @intparm: new intparm for the returned orb
- * @lpm: candidate value of the logical-path mask for the returned orb
+ * @sch: subchannel the operation will be performed against
  *
  * This function returns the address of the updated orb of the channel
  * program. Channel I/O device drivers could use this orb to issue a
  * ssch.
  */
-union orb *cp_get_orb(struct channel_program *cp, u32 intparm, u8 lpm)
+union orb *cp_get_orb(struct channel_program *cp, struct subchannel *sch)
 {
 	union orb *orb;
 	struct ccwchain *chain;
@@ -835,12 +834,12 @@ union orb *cp_get_orb(struct channel_program *cp, u32 intparm, u8 lpm)
 
 	orb = &cp->orb;
 
-	orb->cmd.intparm = intparm;
+	orb->cmd.intparm = (u32)virt_to_phys(sch);
 	orb->cmd.fmt = 1;
 	orb->cmd.key = PAGE_DEFAULT_KEY >> 4;
 
 	if (orb->cmd.lpm == 0)
-		orb->cmd.lpm = lpm;
+		orb->cmd.lpm = sch->lpm;
 
 	chain = list_first_entry(&cp->ccwchain_list, struct ccwchain, next);
 	cpa = chain->ch_ccw;
