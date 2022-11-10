@@ -14,6 +14,7 @@
 #include "isp_params_v21.h"
 #include "isp_params_v3x.h"
 #include "isp_params_v32.h"
+#include "regs.h"
 
 #define PARAMS_NAME DRIVER_NAME "-input-params"
 #define RKISP_ISP_PARAMS_REQ_BUFS_MIN	2
@@ -372,6 +373,8 @@ void rkisp_params_first_cfg(struct rkisp_isp_params_vdev *params_vdev,
 			    struct ispsd_in_fmt *in_fmt,
 			    enum v4l2_quantization quantization)
 {
+	struct rkisp_device *dev = params_vdev->dev;
+
 	if (!params_vdev->is_first_cfg)
 		return;
 	params_vdev->is_first_cfg = false;
@@ -379,6 +382,20 @@ void rkisp_params_first_cfg(struct rkisp_isp_params_vdev *params_vdev,
 	params_vdev->raw_type = in_fmt->bayer_pat;
 	params_vdev->in_mbus_code = in_fmt->mbus_code;
 	params_vdev->ops->first_cfg(params_vdev);
+	/* update selfpath range if it output rgb format */
+	if (params_vdev->quantization != quantization) {
+		struct rkisp_stream *stream = &dev->cap_dev.stream[RKISP_STREAM_SP];
+		u32 mask = CIF_MI_SP_Y_FULL_YUV2RGB | CIF_MI_SP_CBCR_FULL_YUV2RGB;
+
+		quantization = params_vdev->quantization;
+		if (stream->streaming &&
+		    stream->out_isp_fmt.fmt_type == FMT_RGB)
+			rkisp_unite_set_bits(dev, ISP3X_MI_WR_CTRL, mask,
+					     quantization == V4L2_QUANTIZATION_FULL_RANGE ?
+					     mask : 0,
+					     false, dev->hw_dev->is_unite);
+		dev->isp_sdev.quantization = quantization;
+	}
 }
 
 /* Not called when the camera active, thus not isr protection. */

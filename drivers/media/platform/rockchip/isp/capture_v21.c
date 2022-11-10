@@ -946,8 +946,15 @@ static void mp_enable_mi(struct rkisp_stream *stream)
 
 static void sp_enable_mi(struct rkisp_stream *stream)
 {
-	rkisp_set_bits(stream->ispdev, CIF_MI_CTRL, 0,
-			CIF_MI_CTRL_SP_ENABLE, false);
+	struct rkisp_device *dev = stream->ispdev;
+	struct capture_fmt *fmt = &stream->out_isp_fmt;
+	u32 val = CIF_MI_CTRL_SP_ENABLE;
+	u32 mask = CIF_MI_SP_Y_FULL_YUV2RGB | CIF_MI_SP_CBCR_FULL_YUV2RGB;
+
+	if (fmt->fmt_type == FMT_RGB &&
+	    dev->isp_sdev.quantization == V4L2_QUANTIZATION_FULL_RANGE)
+		val |= mask;
+	rkisp_set_bits(stream->ispdev, CIF_MI_CTRL, mask, val, false);
 }
 
 static void dmatx_enable_mi(struct rkisp_stream *stream)
