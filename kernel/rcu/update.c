@@ -586,6 +586,7 @@ static int rcu_verify_early_boot_tests(void)
 		early_boot_test_counter++;
 		srcu_barrier(&early_srcu);
 		WARN_ON_ONCE(!poll_state_synchronize_srcu(&early_srcu, early_srcu_cookie));
+		cleanup_srcu_struct(&early_srcu);
 	}
 	if (rcu_self_test_counter != early_boot_test_counter) {
 		WARN_ON(1);
