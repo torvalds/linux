@@ -521,7 +521,63 @@ out_err:
 	return err;
 }
 
-static int get_create_ext(struct fuse_args *args, struct dentry *dentry,
+static void *extend_arg(struct fuse_in_arg *buf, u32 bytes)
+{
+	void *p;
+	u32 newlen = buf->size + bytes;
+
+	p = krealloc(buf->value, newlen, GFP_KERNEL);
+	if (!p) {
+		kfree(buf->value);
+		buf->size = 0;
+		buf->value = NULL;
+		return NULL;
+	}
+
+	memset(p + buf->size, 0, bytes);
+	buf->value = p;
+	buf->size = newlen;
+
+	return p + newlen - bytes;
+}
+
+static u32 fuse_ext_size(size_t size)
+{
+	return FUSE_REC_ALIGN(sizeof(struct fuse_ext_header) + size);
+}
+
+/*
+ * This adds just a single supplementary group that matches the parent's group.
+ */
+static int get_create_supp_group(struct inode *dir, struct fuse_in_arg *ext)
+{
+	struct fuse_conn *fc = get_fuse_conn(dir);
+	struct fuse_ext_header *xh;
+	struct fuse_supp_groups *sg;
+	kgid_t kgid = dir->i_gid;
+	gid_t parent_gid = from_kgid(fc->user_ns, kgid);
+	u32 sg_len = fuse_ext_size(sizeof(*sg) + sizeof(sg->groups[0]));
+
+	if (parent_gid == (gid_t) -1 || gid_eq(kgid, current_fsgid()) ||
+	    !in_group_p(kgid))
+		return 0;
+
+	xh = extend_arg(ext, sg_len);
+	if (!xh)
+		return -ENOMEM;
+
+	xh->size = sg_len;
+	xh->type = FUSE_EXT_GROUPS;
+
+	sg = (struct fuse_supp_groups *) &xh[1];
+	sg->nr_groups = 1;
+	sg->groups[0] = parent_gid;
+
+	return 0;
+}
+
+static int get_create_ext(struct fuse_args *args,
+			  struct inode *dir, struct dentry *dentry,
 			  umode_t mode)
 {
 	struct fuse_conn *fc = get_fuse_conn_super(dentry->d_sb);
@@ -530,6 +586,8 @@ static int get_create_ext(struct fuse_args *args, struct dentry *dentry,
 
 	if (fc->init_security)
 		err = get_security_context(dentry, mode, &ext);
+	if (!err && fc->create_supp_group)
+		err = get_create_supp_group(dir, &ext);
 
 	if (!err && ext.size) {
 		WARN_ON(args->in_numargs >= ARRAY_SIZE(args->in_args));
@@ -612,7 +670,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	args.out_args[1].size = sizeof(outopen);
 	args.out_args[1].value = &outopen;
 
-	err = get_create_ext(&args, entry, mode);
+	err = get_create_ext(&args, dir, entry, mode);
 	if (err)
 		goto out_put_forget_req;
 
@@ -739,7 +797,7 @@ static int create_new_entry(struct fuse_mount *fm, struct fuse_args *args,
 	args->out_args[0].value = &outarg;
 
 	if (args->opcode != FUSE_LINK) {
-		err = get_create_ext(args, entry, mode);
+		err = get_create_ext(args, dir, entry, mode);
 		if (err)
 			goto out_put_forget_req;
 	}
