@@ -80,6 +80,22 @@
 		regulator-boot-on;
 		regulator-always-on;
 	};
+
+	vreg_wwan: regulator-wwan {
+		compatible = "regulator-fixed";
+
+		regulator-name = "VCC3B_WAN";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&pmc8280_2_gpios 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&wwan_sw_en>;
+
+		regulator-boot-on;
+	};
 };
 
 &apps_rsc {
@@ -205,6 +221,25 @@
 };
 
 &pcie2a_phy {
+	vdda-phy-supply = <&vreg_l6d>;
+	vdda-pll-supply = <&vreg_l4d>;
+
+	status = "okay";
+};
+
+&pcie3a {
+	perst-gpios = <&tlmm 151 GPIO_ACTIVE_LOW>;
+	wake-gpios = <&tlmm 148 GPIO_ACTIVE_LOW>;
+
+	vddpe-3v3-supply = <&vreg_wwan>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie3a_default>;
+
+	status = "okay";
+};
+
+&pcie3a_phy {
 	vdda-phy-supply = <&vreg_l6d>;
 	vdda-pll-supply = <&vreg_l4d>;
 
@@ -396,6 +431,13 @@
 	};
 };
 
+&pmc8280_2_gpios {
+	wwan_sw_en: wwan-sw-en-state {
+		pins = "gpio1";
+		function = "normal";
+	};
+};
+
 &pmc8280c_gpios {
 	edp_bl_pwm: edp-bl-pwm-state {
 		pins = "gpio8";
@@ -454,6 +496,29 @@
 		       drive-strength = <2>;
 		       bias-pull-up;
 	       };
+	};
+
+	pcie3a_default: pcie3a-default-state {
+		clkreq-n-pins {
+			pins = "gpio150";
+			function = "pcie3a_clkreq";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		perst-n-pins {
+			pins = "gpio151";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+
+		wake-n-pins {
+			pins = "gpio148";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
 	};
 
 	qup0_i2c4_default: qup0-i2c4-default-state {
