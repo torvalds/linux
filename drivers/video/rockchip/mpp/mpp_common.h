@@ -681,6 +681,7 @@ int mpp_task_dump_hw_reg(struct mpp_dev *mpp);
 void mpp_task_dump_timing(struct mpp_task *task, s64 time_diff);
 
 void mpp_reg_show(struct mpp_dev *mpp, u32 offset);
+void mpp_reg_show_range(struct mpp_dev *mpp, u32 start, u32 end);
 void mpp_free_task(struct kref *ref);
 
 void mpp_session_deinit(struct mpp_session *session);

@@ -2057,6 +2057,17 @@ void mpp_reg_show(struct mpp_dev *mpp, u32 offset)
 		offset >> 2, offset, mpp_read_relaxed(mpp, offset));
 }
 
+void mpp_reg_show_range(struct mpp_dev *mpp, u32 start, u32 end)
+{
+	u32 offset;
+
+	if (!mpp)
+		return;
+
+	for (offset = start; offset < end; offset += sizeof(u32))
+		mpp_reg_show(mpp, offset);
+}
+
 /* The device will do more probing work after this */
 int mpp_dev_probe(struct mpp_dev *mpp,
 		  struct platform_device *pdev)
