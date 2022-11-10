@@ -532,6 +532,7 @@
   _find_first_bit
   _find_first_zero_bit
   _find_next_bit
+  find_vma
   find_vpid
   finish_wait
   firmware_request_nowarn
