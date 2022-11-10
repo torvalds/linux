@@ -64,6 +64,20 @@ get_thermal_instance(struct thermal_zone_device *tz,
 }
 EXPORT_SYMBOL(get_thermal_instance);
 
+/**
+ * __thermal_zone_get_temp() - returns the temperature of a thermal zone
+ * @tz: a valid pointer to a struct thermal_zone_device
+ * @temp: a valid pointer to where to store the resulting temperature.
+ *
+ * When a valid thermal zone reference is passed, it will fetch its
+ * temperature and fill @temp.
+ *
+ * Both tz and tz->ops must be valid pointers when calling this function,
+ * and the tz->ops->get_temp callback must be provided.
+ * The function must be called under tz->lock.
+ *
+ * Return: On success returns 0, an error code otherwise
+ */
 int __thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 {
 	int ret = -EINVAL;
@@ -72,9 +86,6 @@ int __thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 	enum thermal_trip_type type;
 
 	lockdep_assert_held(&tz->lock);
-
-	if (!tz || IS_ERR(tz) || !tz->ops->get_temp)
-		return -EINVAL;
 
 	ret = tz->ops->get_temp(tz, temp);
 
@@ -114,13 +125,22 @@ int thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 {
 	int ret;
 
+	if (IS_ERR_OR_NULL(tz))
+		return -EINVAL;
+
 	mutex_lock(&tz->lock);
+
+	if (!tz->ops->get_temp) {
+		ret = -EINVAL;
+		goto unlock;
+	}
 
 	if (device_is_registered(&tz->device))
 		ret = __thermal_zone_get_temp(tz, temp);
 	else
 		ret = -ENODEV;
 
+unlock:
 	mutex_unlock(&tz->lock);
 
 	return ret;
