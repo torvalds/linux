@@ -854,11 +854,11 @@ static unsigned long tc358746_find_pll_settings(struct tc358746 *tc358746,
 			m_best = mul;
 			min_delta = delta;
 			best_freq = tmp;
-		};
+		}
 
 		if (delta == 0)
 			break;
-	};
+	}
 
 	if (!best_freq) {
 		dev_err(dev, "Failed find PLL frequency\n");
