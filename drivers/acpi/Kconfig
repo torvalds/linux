@@ -564,6 +564,16 @@ config ACPI_PCC
 	  Enable this feature if you want to set up and install the PCC Address
 	  Space handler to handle PCC OpRegion in the firmware.
 
+config ACPI_FFH
+	bool "ACPI FFH Address Space"
+	default n
+	help
+	  The FFH(Fixed Function Hardware) Address Space also referred as FFH
+	  Operation Region allows to define platform specific opregion.
+
+	  Enable this feature if you want to set up and install the FFH Address
+	  Space handler to handle FFH OpRegion in the firmware.
+
 source "drivers/acpi/pmic/Kconfig"
 
 config ACPI_VIOT
