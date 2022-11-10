@@ -2807,7 +2807,7 @@ static int lpuart_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused lpuart_runtime_suspend(struct device *dev)
+static int lpuart_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct lpuart_port *sport = platform_get_drvdata(pdev);
@@ -2817,7 +2817,7 @@ static int __maybe_unused lpuart_runtime_suspend(struct device *dev)
 	return 0;
 };
 
-static int __maybe_unused lpuart_runtime_resume(struct device *dev)
+static int lpuart_runtime_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct lpuart_port *sport = platform_get_drvdata(pdev);
@@ -2876,7 +2876,7 @@ static bool lpuart_uport_is_active(struct lpuart_port *sport)
 	return false;
 }
 
-static int __maybe_unused lpuart_suspend_noirq(struct device *dev)
+static int lpuart_suspend_noirq(struct device *dev)
 {
 	struct lpuart_port *sport = dev_get_drvdata(dev);
 	bool irq_wake = irqd_is_wakeup_set(irq_get_irq_data(sport->port.irq));
@@ -2889,7 +2889,7 @@ static int __maybe_unused lpuart_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused lpuart_resume_noirq(struct device *dev)
+static int lpuart_resume_noirq(struct device *dev)
 {
 	struct lpuart_port *sport = dev_get_drvdata(dev);
 	unsigned int val;
@@ -2909,7 +2909,7 @@ static int __maybe_unused lpuart_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused lpuart_suspend(struct device *dev)
+static int lpuart_suspend(struct device *dev)
 {
 	struct lpuart_port *sport = dev_get_drvdata(dev);
 	unsigned long temp, flags;
@@ -3005,7 +3005,7 @@ static void lpuart_console_fixup(struct lpuart_port *sport)
 	}
 }
 
-static int __maybe_unused lpuart_resume(struct device *dev)
+static int lpuart_resume(struct device *dev)
 {
 	struct lpuart_port *sport = dev_get_drvdata(dev);
 	int ret;
@@ -3030,11 +3030,11 @@ static int __maybe_unused lpuart_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops lpuart_pm_ops = {
-	SET_RUNTIME_PM_OPS(lpuart_runtime_suspend,
+	RUNTIME_PM_OPS(lpuart_runtime_suspend,
 			   lpuart_runtime_resume, NULL)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(lpuart_suspend_noirq,
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(lpuart_suspend_noirq,
 				      lpuart_resume_noirq)
-	SET_SYSTEM_SLEEP_PM_OPS(lpuart_suspend, lpuart_resume)
+	SYSTEM_SLEEP_PM_OPS(lpuart_suspend, lpuart_resume)
 };
 
 static struct platform_driver lpuart_driver = {
@@ -3043,7 +3043,7 @@ static struct platform_driver lpuart_driver = {
 	.driver		= {
 		.name	= "fsl-lpuart",
 		.of_match_table = lpuart_dt_ids,
-		.pm	= &lpuart_pm_ops,
+		.pm	= pm_ptr(&lpuart_pm_ops),
 	},
 };
 
