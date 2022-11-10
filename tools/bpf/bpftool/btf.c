@@ -815,8 +815,7 @@ build_btf_type_table(struct hashmap *tab, enum bpf_obj_type type,
 		if (!btf_id)
 			continue;
 
-		err = hashmap__append(tab, u32_as_hash_field(btf_id),
-				      u32_as_hash_field(id));
+		err = hashmap__append(tab, btf_id, id);
 		if (err) {
 			p_err("failed to append entry to hashmap for BTF ID %u, object ID %u: %s",
 			      btf_id, id, strerror(-err));
@@ -875,17 +874,13 @@ show_btf_plain(struct bpf_btf_info *info, int fd,
 	printf("size %uB", info->btf_size);
 
 	n = 0;
-	hashmap__for_each_key_entry(btf_prog_table, entry,
-				    u32_as_hash_field(info->id)) {
-		printf("%s%u", n++ == 0 ? "  prog_ids " : ",",
-		       hash_field_as_u32(entry->value));
+	hashmap__for_each_key_entry(btf_prog_table, entry, info->id) {
+		printf("%s%lu", n++ == 0 ? "  prog_ids " : ",", entry->value);
 	}
 
 	n = 0;
-	hashmap__for_each_key_entry(btf_map_table, entry,
-				    u32_as_hash_field(info->id)) {
-		printf("%s%u", n++ == 0 ? "  map_ids " : ",",
-		       hash_field_as_u32(entry->value));
+	hashmap__for_each_key_entry(btf_map_table, entry, info->id) {
+		printf("%s%lu", n++ == 0 ? "  map_ids " : ",", entry->value);
 	}
 
 	emit_obj_refs_plain(refs_table, info->id, "\n\tpids ");
@@ -907,17 +902,15 @@ show_btf_json(struct bpf_btf_info *info, int fd,
 
 	jsonw_name(json_wtr, "prog_ids");
 	jsonw_start_array(json_wtr);	/* prog_ids */
-	hashmap__for_each_key_entry(btf_prog_table, entry,
-				    u32_as_hash_field(info->id)) {
-		jsonw_uint(json_wtr, hash_field_as_u32(entry->value));
+	hashmap__for_each_key_entry(btf_prog_table, entry, info->id) {
+		jsonw_uint(json_wtr, entry->value);
 	}
 	jsonw_end_array(json_wtr);	/* prog_ids */
 
 	jsonw_name(json_wtr, "map_ids");
 	jsonw_start_array(json_wtr);	/* map_ids */
-	hashmap__for_each_key_entry(btf_map_table, entry,
-				    u32_as_hash_field(info->id)) {
-		jsonw_uint(json_wtr, hash_field_as_u32(entry->value));
+	hashmap__for_each_key_entry(btf_map_table, entry, info->id) {
+		jsonw_uint(json_wtr, entry->value);
 	}
 	jsonw_end_array(json_wtr);	/* map_ids */
 

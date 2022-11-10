@@ -117,14 +117,14 @@ struct btf_dump {
 	struct btf_dump_data *typed_dump;
 };
 
-static size_t str_hash_fn(const void *key, void *ctx)
+static size_t str_hash_fn(long key, void *ctx)
 {
-	return str_hash(key);
+	return str_hash((void *)key);
 }
 
-static bool str_equal_fn(const void *a, const void *b, void *ctx)
+static bool str_equal_fn(long a, long b, void *ctx)
 {
-	return strcmp(a, b) == 0;
+	return strcmp((void *)a, (void *)b) == 0;
 }
 
 static const char *btf_name_of(const struct btf_dump *d, __u32 name_off)
@@ -225,7 +225,7 @@ static void btf_dump_free_names(struct hashmap *map)
 	struct hashmap_entry *cur;
 
 	hashmap__for_each_entry(map, cur, bkt)
-		free((void *)cur->key);
+		free((void *)cur->pkey);
 
 	hashmap__free(map);
 }
@@ -1543,11 +1543,10 @@ static size_t btf_dump_name_dups(struct btf_dump *d, struct hashmap *name_map,
 	if (!new_name)
 		return 1;
 
-	hashmap__find(name_map, orig_name, (void **)&dup_cnt);
+	hashmap__find(name_map, orig_name, &dup_cnt);
 	dup_cnt++;
 
-	err = hashmap__set(name_map, new_name, (void *)dup_cnt,
-			   (const void **)&old_name, NULL);
+	err = hashmap__set(name_map, new_name, dup_cnt, &old_name, NULL);
 	if (err)
 		free(new_name);
 

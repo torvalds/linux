@@ -288,7 +288,7 @@ static int setup_metric_events(struct hashmap *ids,
 		 * combined or shared groups, this metric may not care
 		 * about this event.
 		 */
-		if (hashmap__find(ids, metric_id, (void **)&val_ptr)) {
+		if (hashmap__find(ids, metric_id, &val_ptr)) {
 			metric_events[matched_events++] = ev;
 
 			if (matched_events >= ids_size)
@@ -764,7 +764,7 @@ static int metricgroup__build_event_string(struct strbuf *events,
 #define RETURN_IF_NON_ZERO(x) do { if (x) return x; } while (0)
 
 	hashmap__for_each_entry(ctx->ids, cur, bkt) {
-		const char *sep, *rsep, *id = cur->key;
+		const char *sep, *rsep, *id = cur->pkey;
 		enum perf_tool_event ev;
 
 		pr_debug("found event %s\n", id);
@@ -945,14 +945,14 @@ static int resolve_metric(struct list_head *metric_list,
 	hashmap__for_each_entry(root_metric->pctx->ids, cur, bkt) {
 		struct pmu_event pe;
 
-		if (metricgroup__find_metric(cur->key, table, &pe)) {
+		if (metricgroup__find_metric(cur->pkey, table, &pe)) {
 			pending = realloc(pending,
 					(pending_cnt + 1) * sizeof(struct to_resolve));
 			if (!pending)
 				return -ENOMEM;
 
 			memcpy(&pending[pending_cnt].pe, &pe, sizeof(pe));
-			pending[pending_cnt].key = cur->key;
+			pending[pending_cnt].key = cur->pkey;
 			pending_cnt++;
 		}
 	}
@@ -1433,7 +1433,7 @@ static int build_combined_expr_ctx(const struct list_head *metric_list,
 	list_for_each_entry(m, metric_list, nd) {
 		if (m->has_constraint && !m->modifier) {
 			hashmap__for_each_entry(m->pctx->ids, cur, bkt) {
-				dup = strdup(cur->key);
+				dup = strdup(cur->pkey);
 				if (!dup) {
 					ret = -ENOMEM;
 					goto err_out;

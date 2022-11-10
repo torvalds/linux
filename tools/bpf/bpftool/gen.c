@@ -1660,19 +1660,14 @@ struct btfgen_info {
 	struct btf *marked_btf; /* btf structure used to mark used types */
 };
 
-static size_t btfgen_hash_fn(const void *key, void *ctx)
+static size_t btfgen_hash_fn(long key, void *ctx)
 {
-	return (size_t)key;
+	return key;
 }
 
-static bool btfgen_equal_fn(const void *k1, const void *k2, void *ctx)
+static bool btfgen_equal_fn(long k1, long k2, void *ctx)
 {
 	return k1 == k2;
-}
-
-static void *u32_as_hash_key(__u32 x)
-{
-	return (void *)(uintptr_t)x;
 }
 
 static void btfgen_free_info(struct btfgen_info *info)
@@ -2086,18 +2081,18 @@ static int btfgen_record_obj(struct btfgen_info *info, const char *obj_path)
 			struct bpf_core_spec specs_scratch[3] = {};
 			struct bpf_core_relo_res targ_res = {};
 			struct bpf_core_cand_list *cands = NULL;
-			const void *type_key = u32_as_hash_key(relo->type_id);
 			const char *sec_name = btf__name_by_offset(btf, sec->sec_name_off);
 
 			if (relo->kind != BPF_CORE_TYPE_ID_LOCAL &&
-			    !hashmap__find(cand_cache, type_key, (void **)&cands)) {
+			    !hashmap__find(cand_cache, relo->type_id, &cands)) {
 				cands = btfgen_find_cands(btf, info->src_btf, relo->type_id);
 				if (!cands) {
 					err = -errno;
 					goto out;
 				}
 
-				err = hashmap__set(cand_cache, type_key, cands, NULL, NULL);
+				err = hashmap__set(cand_cache, relo->type_id, cands,
+						   NULL, NULL);
 				if (err)
 					goto out;
 			}
@@ -2120,7 +2115,7 @@ out:
 
 	if (!IS_ERR_OR_NULL(cand_cache)) {
 		hashmap__for_each_entry(cand_cache, entry, i) {
-			bpf_core_free_cands(entry->value);
+			bpf_core_free_cands(entry->pvalue);
 		}
 		hashmap__free(cand_cache);
 	}
