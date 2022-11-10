@@ -315,7 +315,6 @@
 #define  SYS_CFG_SPS_SEL		BIT(24) /*  1:LDO regulator mode;
 						    0:Switching regulator mode*/
 #define  SYS_CFG_CHIP_VERSION_MASK	0xf000	/* Bit 12 - 15 */
-#define  SYS_CFG_CHIP_VERSION_SHIFT	12
 
 #define REG_GPIO_OUTSTS			0x00f4	/*  For RTL8723 only. */
 #define  GPIO_EFS_HCI_SEL		(BIT(0) | BIT(1))

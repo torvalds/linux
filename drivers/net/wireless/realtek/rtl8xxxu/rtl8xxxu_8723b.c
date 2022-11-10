@@ -311,8 +311,7 @@ static int rtl8723bu_identify_chip(struct rtl8xxxu_priv *priv)
 	int ret = 0;
 
 	sys_cfg = rtl8xxxu_read32(priv, REG_SYS_CFG);
-	priv->chip_cut = (sys_cfg & SYS_CFG_CHIP_VERSION_MASK) >>
-		SYS_CFG_CHIP_VERSION_SHIFT;
+	priv->chip_cut = u32_get_bits(sys_cfg, SYS_CFG_CHIP_VERSION_MASK);
 	if (sys_cfg & SYS_CFG_TRP_VAUX_EN) {
 		dev_info(dev, "Unsupported test chip\n");
 		ret = -ENOTSUPP;
@@ -338,7 +337,7 @@ static int rtl8723bu_identify_chip(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_identify_vendor_2bits(priv, vendor);
 
 	val32 = rtl8xxxu_read32(priv, REG_GPIO_OUTSTS);
-	priv->rom_rev = (val32 & GPIO_RF_RL_ID) >> 28;
+	priv->rom_rev = u32_get_bits(val32, GPIO_RF_RL_ID);
 
 	rtl8xxxu_config_endpoints_sie(priv);
 
