@@ -1281,7 +1281,8 @@ static int exfat_rename(struct mnt_idmap *idmap,
 	}
 
 	inode_inc_iversion(old_dir);
-	mark_inode_dirty(old_dir);
+	if (new_dir != old_dir)
+		mark_inode_dirty(old_dir);
 
 	if (new_inode) {
 		exfat_unhash_inode(new_inode);
