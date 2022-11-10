@@ -5,6 +5,7 @@
 mod concat_idents;
 mod helpers;
 mod module;
+mod vtable;
 
 use proc_macro::TokenStream;
 
@@ -70,6 +71,57 @@ use proc_macro::TokenStream;
 #[proc_macro]
 pub fn module(ts: TokenStream) -> TokenStream {
     module::module(ts)
+}
+
+/// Declares or implements a vtable trait.
+///
+/// Linux's use of pure vtables is very close to Rust traits, but they differ
+/// in how unimplemented functions are represented. In Rust, traits can provide
+/// default implementation for all non-required methods (and the default
+/// implementation could just return `Error::EINVAL`); Linux typically use C
+/// `NULL` pointers to represent these functions.
+///
+/// This attribute is intended to close the gap. Traits can be declared and
+/// implemented with the `#[vtable]` attribute, and a `HAS_*` associated constant
+/// will be generated for each method in the trait, indicating if the implementor
+/// has overridden a method.
+///
+/// This attribute is not needed if all methods are required.
+///
+/// # Examples
+///
+/// ```ignore
+/// use kernel::prelude::*;
+///
+/// // Declares a `#[vtable]` trait
+/// #[vtable]
+/// pub trait Operations: Send + Sync + Sized {
+///     fn foo(&self) -> Result<()> {
+///         Err(EINVAL)
+///     }
+///
+///     fn bar(&self) -> Result<()> {
+///         Err(EINVAL)
+///     }
+/// }
+///
+/// struct Foo;
+///
+/// // Implements the `#[vtable]` trait
+/// #[vtable]
+/// impl Operations for Foo {
+///     fn foo(&self) -> Result<()> {
+/// #        Err(EINVAL)
+///         // ...
+///     }
+/// }
+///
+/// assert_eq!(<Foo as Operations>::HAS_FOO, true);
+/// assert_eq!(<Foo as Operations>::HAS_BAR, false);
+/// ```
+#[proc_macro_attribute]
+pub fn vtable(attr: TokenStream, ts: TokenStream) -> TokenStream {
+    vtable::vtable(attr, ts)
 }
 
 /// Concatenate two identifiers.
