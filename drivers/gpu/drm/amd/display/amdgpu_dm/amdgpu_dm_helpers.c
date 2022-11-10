@@ -844,9 +844,8 @@ int dm_helper_dmub_aux_transfer_sync(
 		struct aux_payload *payload,
 		enum aux_return_code_type *operation_result)
 {
-	return amdgpu_dm_process_dmub_aux_transfer_sync(true, ctx,
-			link->link_index, (void *)payload,
-			(void *)operation_result);
+	return amdgpu_dm_process_dmub_aux_transfer_sync(ctx, link->link_index, payload,
+			operation_result);
 }
 
 int dm_helpers_dmub_set_config_sync(struct dc_context *ctx,
@@ -854,9 +853,8 @@ int dm_helpers_dmub_set_config_sync(struct dc_context *ctx,
 		struct set_config_cmd_payload *payload,
 		enum set_config_status *operation_result)
 {
-	return amdgpu_dm_process_dmub_aux_transfer_sync(false, ctx,
-			link->link_index, (void *)payload,
-			(void *)operation_result);
+	return amdgpu_dm_process_dmub_set_config_sync(ctx, link->link_index, payload,
+			operation_result);
 }
 
 void dm_set_dcn_clocks(struct dc_context *ctx, struct dc_clocks *clks)
