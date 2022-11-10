@@ -496,11 +496,11 @@ static int rtl8192eu_identify_chip(struct rtl8xxxu_priv *priv)
 	bonding = rtl8xxxu_read32(priv, REG_HPON_FSM);
 	bonding &= HPON_FSM_BONDING_MASK;
 	if (bonding == HPON_FSM_BONDING_1T2R) {
-		sprintf(priv->chip_name, "8191EU");
+		strscpy(priv->chip_name, "8191EU", sizeof(priv->chip_name));
 		priv->tx_paths = 1;
 		priv->rtl_chip = RTL8191E;
 	} else {
-		sprintf(priv->chip_name, "8192EU");
+		strscpy(priv->chip_name, "8192EU", sizeof(priv->chip_name));
 		priv->tx_paths = 2;
 		priv->rtl_chip = RTL8192E;
 	}

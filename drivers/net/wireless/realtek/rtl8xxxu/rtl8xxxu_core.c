@@ -1592,10 +1592,10 @@ static void rtl8xxxu_print_chipinfo(struct rtl8xxxu_priv *priv)
 void rtl8xxxu_identify_vendor_1bit(struct rtl8xxxu_priv *priv, u32 vendor)
 {
 	if (vendor) {
-		sprintf(priv->chip_vendor, "UMC");
+		strscpy(priv->chip_vendor, "UMC", sizeof(priv->chip_vendor));
 		priv->vendor_umc = 1;
 	} else {
-		sprintf(priv->chip_vendor, "TSMC");
+		strscpy(priv->chip_vendor, "TSMC", sizeof(priv->chip_vendor));
 	}
 }
 
@@ -1603,18 +1603,18 @@ void rtl8xxxu_identify_vendor_2bits(struct rtl8xxxu_priv *priv, u32 vendor)
 {
 	switch (vendor) {
 	case SYS_CFG_VENDOR_ID_TSMC:
-		sprintf(priv->chip_vendor, "TSMC");
+		strscpy(priv->chip_vendor, "TSMC", sizeof(priv->chip_vendor));
 		break;
 	case SYS_CFG_VENDOR_ID_SMIC:
-		sprintf(priv->chip_vendor, "SMIC");
+		strscpy(priv->chip_vendor, "SMIC", sizeof(priv->chip_vendor));
 		priv->vendor_smic = 1;
 		break;
 	case SYS_CFG_VENDOR_ID_UMC:
-		sprintf(priv->chip_vendor, "UMC");
+		strscpy(priv->chip_vendor, "UMC", sizeof(priv->chip_vendor));
 		priv->vendor_umc = 1;
 		break;
 	default:
-		sprintf(priv->chip_vendor, "unknown");
+		strscpy(priv->chip_vendor, "unknown", sizeof(priv->chip_vendor));
 	}
 }
 

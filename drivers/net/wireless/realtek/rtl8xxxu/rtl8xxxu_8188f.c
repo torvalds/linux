@@ -327,7 +327,7 @@ static int rtl8188fu_identify_chip(struct rtl8xxxu_priv *priv)
 	u32 sys_cfg, vendor;
 	int ret = 0;
 
-	sprintf(priv->chip_name, "8188FU");
+	strscpy(priv->chip_name, "8188FU", sizeof(priv->chip_name));
 	priv->rtl_chip = RTL8188F;
 	priv->rf_paths = 1;
 	priv->rx_paths = 1;

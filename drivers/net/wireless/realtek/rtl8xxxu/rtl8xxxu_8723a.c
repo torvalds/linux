@@ -144,7 +144,7 @@ static int rtl8723au_identify_chip(struct rtl8xxxu_priv *priv)
 		goto out;
 	}
 
-	sprintf(priv->chip_name, "8723AU");
+	strscpy(priv->chip_name, "8723AU", sizeof(priv->chip_name));
 	priv->usb_interrupts = 1;
 	priv->rtl_chip = RTL8723A;
 

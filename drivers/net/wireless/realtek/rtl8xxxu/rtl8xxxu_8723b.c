@@ -319,7 +319,7 @@ static int rtl8723bu_identify_chip(struct rtl8xxxu_priv *priv)
 		goto out;
 	}
 
-	sprintf(priv->chip_name, "8723BU");
+	strscpy(priv->chip_name, "8723BU", sizeof(priv->chip_name));
 	priv->rtl_chip = RTL8723B;
 	priv->rf_paths = 1;
 	priv->rx_paths = 1;
