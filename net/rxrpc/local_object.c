@@ -33,7 +33,8 @@ static void rxrpc_encap_err_rcv(struct sock *sk, struct sk_buff *skb, int err,
 {
 	if (ip_hdr(skb)->version == IPVERSION)
 		return ip_icmp_error(sk, skb, err, port, info, payload);
-	return ipv6_icmp_error(sk, skb, err, port, info, payload);
+	if (IS_ENABLED(CONFIG_AF_RXRPC_IPV6))
+		return ipv6_icmp_error(sk, skb, err, port, info, payload);
 }
 
 /*
