@@ -23,6 +23,7 @@ compile_error!("Missing kernel configuration for conditional compilation");
 #[cfg(not(test))]
 #[cfg(not(testlib))]
 mod allocator;
+mod build_assert;
 pub mod error;
 pub mod prelude;
 pub mod print;
@@ -34,6 +35,9 @@ pub mod str;
 #[doc(hidden)]
 pub use bindings;
 pub use macros;
+
+#[doc(hidden)]
+pub use build_error::build_error;
 
 /// Prefix to appear before log messages printed from within the `kernel` crate.
 const __LOG_PREFIX: &[u8] = b"rust_kernel\0";
