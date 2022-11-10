@@ -1641,7 +1641,7 @@ repeat:
 	return err;
 }
 
-static int __change_page_attr_set_clr(struct cpa_data *cpa, int checkalias);
+static int __change_page_attr_set_clr(struct cpa_data *cpa, int primary);
 
 /*
  * Check the directmap and "high kernel map" 'aliases'.
@@ -1718,7 +1718,7 @@ static int cpa_process_alias(struct cpa_data *cpa)
 	return 0;
 }
 
-static int __change_page_attr_set_clr(struct cpa_data *cpa, int checkalias)
+static int __change_page_attr_set_clr(struct cpa_data *cpa, int primary)
 {
 	unsigned long numpages = cpa->numpages;
 	unsigned long rempages = numpages;
@@ -1742,13 +1742,13 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int checkalias)
 
 		if (!debug_pagealloc_enabled())
 			spin_lock(&cpa_lock);
-		ret = __change_page_attr(cpa, checkalias);
+		ret = __change_page_attr(cpa, primary);
 		if (!debug_pagealloc_enabled())
 			spin_unlock(&cpa_lock);
 		if (ret)
 			goto out;
 
-		if (checkalias && !(cpa->flags & CPA_NO_CHECK_ALIAS)) {
+		if (primary && !(cpa->flags & CPA_NO_CHECK_ALIAS)) {
 			ret = cpa_process_alias(cpa);
 			if (ret)
 				goto out;
