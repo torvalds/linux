@@ -807,6 +807,7 @@ static int vfio_device_first_open(struct vfio_device *device)
 		ret = vfio_group_use_container(device->group);
 		if (ret)
 			goto err_module_put;
+		vfio_device_container_register(device);
 	} else if (device->group->iommufd) {
 		ret = vfio_iommufd_bind(device, device->group->iommufd);
 		if (ret)
@@ -819,17 +820,17 @@ static int vfio_device_first_open(struct vfio_device *device)
 		if (ret)
 			goto err_container;
 	}
-	if (device->group->container)
-		vfio_device_container_register(device);
 	mutex_unlock(&device->group->group_lock);
 	return 0;
 
 err_container:
 	device->kvm = NULL;
-	if (device->group->container)
+	if (device->group->container) {
+		vfio_device_container_unregister(device);
 		vfio_group_unuse_container(device->group);
-	else if (device->group->iommufd)
+	} else if (device->group->iommufd) {
 		vfio_iommufd_unbind(device);
+	}
 err_module_put:
 	mutex_unlock(&device->group->group_lock);
 	module_put(device->dev->driver->owner);
@@ -841,15 +842,15 @@ static void vfio_device_last_close(struct vfio_device *device)
 	lockdep_assert_held(&device->dev_set->lock);
 
 	mutex_lock(&device->group->group_lock);
-	if (device->group->container)
-		vfio_device_container_unregister(device);
 	if (device->ops->close_device)
 		device->ops->close_device(device);
 	device->kvm = NULL;
-	if (device->group->container)
+	if (device->group->container) {
+		vfio_device_container_unregister(device);
 		vfio_group_unuse_container(device->group);
-	else if (device->group->iommufd)
+	} else if (device->group->iommufd) {
 		vfio_iommufd_unbind(device);
+	}
 	mutex_unlock(&device->group->group_lock);
 	module_put(device->dev->driver->owner);
 }
