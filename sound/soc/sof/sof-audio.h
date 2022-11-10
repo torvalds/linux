@@ -23,6 +23,17 @@
 
 #define SOF_AUDIO_PCM_DRV_NAME	"sof-audio-component"
 
+/*
+ * The ipc4 firmware only supports up to 8 sink or source pins
+ * per widget, because only 3 bits are used for queue(pin) ID
+ * in ipc4 protocol.
+ */
+#define SOF_WIDGET_MAX_NUM_PINS	8
+
+/* The type of a widget pin is either sink or source */
+#define SOF_PIN_TYPE_SINK	0
+#define SOF_PIN_TYPE_SOURCE	1
+
 /* max number of FE PCMs before BEs */
 #define SOF_BE_PCM_BASE		16
 
@@ -387,6 +398,33 @@ struct snd_sof_widget {
 	int num_tuples;
 	struct snd_sof_tuple *tuples;
 
+	/*
+	 * The allowed range for num_sink/source_pins is [0, SOF_WIDGET_MAX_NUM_PINS].
+	 * Widgets may have zero sink or source pins, for example the tone widget has
+	 * zero sink pins.
+	 */
+	u32 num_sink_pins;
+	u32 num_source_pins;
+
+	/*
+	 * The sink/source pin binding array, it takes the form of
+	 * [widget_name_connected_to_pin0, widget_name_connected_to_pin1, ...],
+	 * with the index as the queue ID.
+	 *
+	 * The array is used for special pin binding. Note that even if there
+	 * is only one sink/source pin requires special pin binding, pin binding
+	 * should be defined for all sink/source pins in topology, for pin(s) that
+	 * are not used, give the value "NotConnected".
+	 *
+	 * If pin binding is not defined in topology, nothing to parse in the kernel,
+	 * sink_pin_binding and src_pin_binding shall be NULL.
+	 */
+	char **sink_pin_binding;
+	char **src_pin_binding;
+
+	struct ida src_queue_ida;
+	struct ida sink_queue_ida;
+
 	void *private;		/* core does not touch this */
 };
 
@@ -399,6 +437,9 @@ struct snd_sof_route {
 	struct snd_sof_widget *src_widget;
 	struct snd_sof_widget *sink_widget;
 	bool setup;
+
+	int src_queue_id;
+	int dst_queue_id;
 
 	void *private;
 };
@@ -531,6 +572,7 @@ int get_token_u16(void *elem, void *object, u32 offset);
 int get_token_comp_format(void *elem, void *object, u32 offset);
 int get_token_dai_type(void *elem, void *object, u32 offset);
 int get_token_uuid(void *elem, void *object, u32 offset);
+int get_token_string(void *elem, void *object, u32 offset);
 int sof_update_ipc_object(struct snd_soc_component *scomp, void *object, enum sof_tokens token_id,
 			  struct snd_sof_tuple *tuples, int num_tuples,
 			  size_t object_size, int token_instance_num);

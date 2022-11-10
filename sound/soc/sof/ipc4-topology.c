@@ -1594,6 +1594,88 @@ static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget 
 	return ret;
 }
 
+static int sof_ipc4_get_queue_id(struct snd_sof_widget *src_widget,
+				 struct snd_sof_widget *sink_widget, bool pin_type)
+{
+	struct snd_sof_widget *current_swidget;
+	struct snd_soc_component *scomp;
+	struct ida *queue_ida;
+	const char *buddy_name;
+	char **pin_binding;
+	u32 num_pins;
+	int i;
+
+	if (pin_type == SOF_PIN_TYPE_SOURCE) {
+		current_swidget = src_widget;
+		pin_binding = src_widget->src_pin_binding;
+		queue_ida = &src_widget->src_queue_ida;
+		num_pins = src_widget->num_source_pins;
+		buddy_name = sink_widget->widget->name;
+	} else {
+		current_swidget = sink_widget;
+		pin_binding = sink_widget->sink_pin_binding;
+		queue_ida = &sink_widget->sink_queue_ida;
+		num_pins = sink_widget->num_sink_pins;
+		buddy_name = src_widget->widget->name;
+	}
+
+	scomp = current_swidget->scomp;
+
+	if (num_pins < 1) {
+		dev_err(scomp->dev, "invalid %s num_pins: %d for queue allocation for %s\n",
+			(pin_type == SOF_PIN_TYPE_SOURCE ? "source" : "sink"),
+			num_pins, current_swidget->widget->name);
+		return -EINVAL;
+	}
+
+	/* If there is only one sink/source pin, queue id must be 0 */
+	if (num_pins == 1)
+		return 0;
+
+	/* Allocate queue ID from pin binding array if it is defined in topology. */
+	if (pin_binding) {
+		for (i = 0; i < num_pins; i++) {
+			if (!strcmp(pin_binding[i], buddy_name))
+				return i;
+		}
+		/*
+		 * Fail if no queue ID found from pin binding array, so that we don't
+		 * mixed use pin binding array and ida for queue ID allocation.
+		 */
+		dev_err(scomp->dev, "no %s queue id found from pin binding array for %s\n",
+			(pin_type == SOF_PIN_TYPE_SOURCE ? "source" : "sink"),
+			current_swidget->widget->name);
+		return -EINVAL;
+	}
+
+	/* If no pin binding array specified in topology, use ida to allocate one */
+	return ida_alloc_max(queue_ida, num_pins, GFP_KERNEL);
+}
+
+static void sof_ipc4_put_queue_id(struct snd_sof_widget *swidget, int queue_id,
+				  bool pin_type)
+{
+	struct ida *queue_ida;
+	char **pin_binding;
+	int num_pins;
+
+	if (pin_type == SOF_PIN_TYPE_SOURCE) {
+		pin_binding = swidget->src_pin_binding;
+		queue_ida = &swidget->src_queue_ida;
+		num_pins = swidget->num_source_pins;
+	} else {
+		pin_binding = swidget->sink_pin_binding;
+		queue_ida = &swidget->sink_queue_ida;
+		num_pins = swidget->num_sink_pins;
+	}
+
+	/* Nothing to free if queue ID is not allocated with ida. */
+	if (num_pins == 1 || pin_binding)
+		return;
+
+	ida_free(queue_ida, queue_id);
+}
+
 static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *sroute)
 {
 	struct snd_sof_widget *src_widget = sroute->src_widget;
@@ -1602,12 +1684,29 @@ static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *
 	struct sof_ipc4_fw_module *sink_fw_module = sink_widget->module_info;
 	struct sof_ipc4_msg msg = {{ 0 }};
 	u32 header, extension;
-	int src_queue = 0;
-	int dst_queue = 0;
 	int ret;
 
-	dev_dbg(sdev->dev, "bind %s -> %s\n",
-		src_widget->widget->name, sink_widget->widget->name);
+	sroute->src_queue_id = sof_ipc4_get_queue_id(src_widget, sink_widget,
+						     SOF_PIN_TYPE_SOURCE);
+	if (sroute->src_queue_id < 0) {
+		dev_err(sdev->dev, "failed to get queue ID for source widget: %s\n",
+			src_widget->widget->name);
+		return sroute->src_queue_id;
+	}
+
+	sroute->dst_queue_id = sof_ipc4_get_queue_id(src_widget, sink_widget,
+						     SOF_PIN_TYPE_SINK);
+	if (sroute->dst_queue_id < 0) {
+		dev_err(sdev->dev, "failed to get queue ID for sink widget: %s\n",
+			sink_widget->widget->name);
+		sof_ipc4_put_queue_id(src_widget, sroute->src_queue_id,
+				      SOF_PIN_TYPE_SOURCE);
+		return sroute->dst_queue_id;
+	}
+
+	dev_dbg(sdev->dev, "bind %s:%d -> %s:%d\n",
+		src_widget->widget->name, sroute->src_queue_id,
+		sink_widget->widget->name, sroute->dst_queue_id);
 
 	header = src_fw_module->man4_module_entry.id;
 	header |= SOF_IPC4_MOD_INSTANCE(src_widget->instance_id);
@@ -1617,16 +1716,22 @@ static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *
 
 	extension = sink_fw_module->man4_module_entry.id;
 	extension |= SOF_IPC4_MOD_EXT_DST_MOD_INSTANCE(sink_widget->instance_id);
-	extension |= SOF_IPC4_MOD_EXT_DST_MOD_QUEUE_ID(dst_queue);
-	extension |= SOF_IPC4_MOD_EXT_SRC_MOD_QUEUE_ID(src_queue);
+	extension |= SOF_IPC4_MOD_EXT_DST_MOD_QUEUE_ID(sroute->dst_queue_id);
+	extension |= SOF_IPC4_MOD_EXT_SRC_MOD_QUEUE_ID(sroute->src_queue_id);
 
 	msg.primary = header;
 	msg.extension = extension;
 
 	ret = sof_ipc_tx_message(sdev->ipc, &msg, 0, NULL, 0);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(sdev->dev, "%s: failed to bind modules %s -> %s\n",
 			__func__, src_widget->widget->name, sink_widget->widget->name);
+
+		sof_ipc4_put_queue_id(src_widget, sroute->src_queue_id,
+				      SOF_PIN_TYPE_SOURCE);
+		sof_ipc4_put_queue_id(sink_widget, sroute->dst_queue_id,
+				      SOF_PIN_TYPE_SINK);
+	}
 
 	return ret;
 }
@@ -1639,12 +1744,11 @@ static int sof_ipc4_route_free(struct snd_sof_dev *sdev, struct snd_sof_route *s
 	struct sof_ipc4_fw_module *sink_fw_module = sink_widget->module_info;
 	struct sof_ipc4_msg msg = {{ 0 }};
 	u32 header, extension;
-	int src_queue = 0;
-	int dst_queue = 0;
 	int ret;
 
-	dev_dbg(sdev->dev, "unbind modules %s -> %s\n",
-		src_widget->widget->name, sink_widget->widget->name);
+	dev_dbg(sdev->dev, "unbind modules %s:%d -> %s:%d\n",
+		src_widget->widget->name, sroute->src_queue_id,
+		sink_widget->widget->name, sroute->dst_queue_id);
 
 	header = src_fw_module->man4_module_entry.id;
 	header |= SOF_IPC4_MOD_INSTANCE(src_widget->instance_id);
@@ -1654,8 +1758,8 @@ static int sof_ipc4_route_free(struct snd_sof_dev *sdev, struct snd_sof_route *s
 
 	extension = sink_fw_module->man4_module_entry.id;
 	extension |= SOF_IPC4_MOD_EXT_DST_MOD_INSTANCE(sink_widget->instance_id);
-	extension |= SOF_IPC4_MOD_EXT_DST_MOD_QUEUE_ID(dst_queue);
-	extension |= SOF_IPC4_MOD_EXT_SRC_MOD_QUEUE_ID(src_queue);
+	extension |= SOF_IPC4_MOD_EXT_DST_MOD_QUEUE_ID(sroute->dst_queue_id);
+	extension |= SOF_IPC4_MOD_EXT_SRC_MOD_QUEUE_ID(sroute->src_queue_id);
 
 	msg.primary = header;
 	msg.extension = extension;
@@ -1664,6 +1768,9 @@ static int sof_ipc4_route_free(struct snd_sof_dev *sdev, struct snd_sof_route *s
 	if (ret < 0)
 		dev_err(sdev->dev, "failed to unbind modules %s -> %s\n",
 			src_widget->widget->name, sink_widget->widget->name);
+
+	sof_ipc4_put_queue_id(sink_widget, sroute->dst_queue_id, SOF_PIN_TYPE_SINK);
+	sof_ipc4_put_queue_id(src_widget, sroute->src_queue_id, SOF_PIN_TYPE_SOURCE);
 
 	return ret;
 }
