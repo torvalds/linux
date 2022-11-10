@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2022, Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/acpi.h>
@@ -481,7 +482,7 @@ static void ufs_qcom_select_unipro_mode(struct ufs_qcom_host *host)
 		   ufs_qcom_cap_qunipro(host) ? QUNIPRO_SEL : 0,
 		   REG_UFS_CFG1);
 
-	if (host->hw_ver.major == 0x05)
+	if (host->hw_ver.major >= 0x05)
 		ufshcd_rmwl(host->hba, QUNIPRO_G4_SEL, 0, REG_UFS_CFG0);
 
 	/* make sure above configuration is applied before we return */
@@ -645,7 +646,7 @@ static int ufs_qcom_enable_hw_clk_gating(struct ufs_hba *hba)
 		ufshcd_readl(hba, REG_UFS_CFG2) | REG_UFS_CFG2_CGC_EN_ALL,
 		REG_UFS_CFG2);
 
-	if (host->hw_ver.major == 0x05)
+	if (host->hw_ver.major >= 0x05)
 		/* Ensure unused Unipro block's clock is gated */
 		ufshcd_rmwl(host->hba, UNUSED_UNIPRO_CLK_GATED,
 			UNUSED_UNIPRO_CLK_GATED, UFS_AH8_CFG);
@@ -3850,6 +3851,8 @@ static void ufs_qcom_dump_dbg_regs(struct ufs_hba *hba)
 static void ufs_qcom_parse_limits(struct ufs_qcom_host *host)
 {
 	struct device_node *np = host->hba->dev->of_node;
+	u32 dev_major = 0, dev_minor = 0;
+	u32 val;
 
 	if (!np)
 		return;
@@ -3860,6 +3863,31 @@ static void ufs_qcom_parse_limits(struct ufs_qcom_host *host)
 	host->limit_rx_pwm_gear = UFS_QCOM_LIMIT_PWMGEAR_RX;
 	host->limit_rate = UFS_QCOM_LIMIT_HS_RATE;
 	host->limit_phy_submode = UFS_QCOM_LIMIT_PHY_SUBMODE;
+
+	/*
+	 * The bootloader passes the on board device
+	 * information to the HLOS using the UFS host controller register's
+	 * UFS_MEM_DEBUG_SPARE_CFG Bit[0:3] = device's minor revision
+	 * UFS_MEM_DEBUG_SPARE_CFG Bit[4:7] = device's major revision
+	 * For example, UFS 3.1 devices would have a 0x31, and UFS 4.0 devices
+	 * would have a 0x40 as the content of the mentioned register.
+	 * If the bootloader does not support this feature, the default
+	 * hardcoded setting would be used. The DT settings can be used to
+	 * override any other gear's and Rate's settings.
+	 */
+	if (host->hw_ver.major >= 0x5) {
+		val = ufshcd_readl(host->hba, REG_UFS_DEBUG_SPARE_CFG);
+		dev_major = FIELD_GET(GENMASK(7, 4), val);
+		dev_minor = FIELD_GET(GENMASK(3, 0), val);
+	}
+
+	if (host->hw_ver.major == 0x5 && dev_major >= 0x4 && dev_minor >= 0) {
+		host->limit_rate = PA_HS_MODE_A;
+		host->limit_phy_submode = UFS_QCOM_PHY_SUBMODE_G5;
+	} else if (host->hw_ver.major >= 0x6 && dev_major >= 0x4 && dev_minor >= 0) {
+		host->limit_rate = PA_HS_MODE_B;
+		host->limit_phy_submode = UFS_QCOM_PHY_SUBMODE_G5;
+	}
 
 	of_property_read_u32(np, "limit-tx-hs-gear", &host->limit_tx_hs_gear);
 	of_property_read_u32(np, "limit-rx-hs-gear", &host->limit_rx_hs_gear);

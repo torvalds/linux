@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2013-2022, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef UFS_QCOM_H_
@@ -85,6 +86,7 @@ enum {
 	 */
 	UFS_AH8_CFG				= 0xFC,
 	UFS_MEM_ICE				= 0x2600,
+	REG_UFS_DEBUG_SPARE_CFG			= 0x284C,
 };
 
 /* QCOM UFS host controller vendor specific debug registers */
