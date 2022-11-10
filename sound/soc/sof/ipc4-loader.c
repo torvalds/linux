@@ -383,6 +383,17 @@ int sof_ipc4_query_fw_configuration(struct snd_sof_dev *sdev)
 			if (!ipc4_data->max_libs_count)
 				ipc4_data->max_libs_count = 1;
 			break;
+		case SOF_IPC4_FW_CFG_MAX_PPL_COUNT:
+			ipc4_data->max_num_pipelines = *tuple->value;
+			trace_sof_ipc4_fw_config(sdev, "Max PPL count %d",
+						 ipc4_data->max_num_pipelines);
+			if (ipc4_data->max_num_pipelines <= 0) {
+				dev_err(sdev->dev, "Invalid max_num_pipelines %d",
+					ipc4_data->max_num_pipelines);
+				ret = -EINVAL;
+				goto out;
+			}
+			break;
 		default:
 			break;
 		}

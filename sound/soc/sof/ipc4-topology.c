@@ -20,6 +20,7 @@
 #define SOF_IPC4_TPLG_ABI_SIZE 6
 
 static DEFINE_IDA(alh_group_ida);
+static DEFINE_IDA(pipeline_ida);
 
 static const struct sof_topology_token ipc4_sched_tokens[] = {
 	{SOF_TKN_SCHED_LP_MODE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
@@ -280,7 +281,7 @@ static void sof_ipc4_free_audio_fmt(struct sof_ipc4_available_audio_format *avai
 	available_fmt->out_audio_fmt = NULL;
 }
 
-static void sof_ipc4_widget_free_comp(struct snd_sof_widget *swidget)
+static void sof_ipc4_widget_free_comp_pipeline(struct snd_sof_widget *swidget)
 {
 	kfree(swidget->private);
 }
@@ -317,8 +318,7 @@ static int sof_ipc4_widget_setup_msg(struct snd_sof_widget *swidget, struct sof_
 	msg->primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
 	msg->primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
 
-	msg->extension = SOF_IPC4_MOD_EXT_PPL_ID(swidget->pipeline_id);
-	msg->extension |= SOF_IPC4_MOD_EXT_CORE_ID(swidget->core);
+	msg->extension = SOF_IPC4_MOD_EXT_CORE_ID(swidget->core);
 
 	type = (fw_module->man4_module_entry.type & SOF_IPC4_MODULE_DP) ? 1 : 0;
 	msg->extension |= SOF_IPC4_MOD_EXT_DOMAIN(type);
@@ -625,7 +625,6 @@ static int sof_ipc4_widget_setup_comp_pipeline(struct snd_sof_widget *swidget)
 	swidget->private = pipeline;
 
 	pipeline->msg.primary = SOF_IPC4_GLB_PIPE_PRIORITY(pipeline->priority);
-	pipeline->msg.primary |= SOF_IPC4_GLB_PIPE_INSTANCE_ID(swidget->pipeline_id);
 	pipeline->msg.primary |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_CREATE_PIPELINE);
 	pipeline->msg.primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
 	pipeline->msg.primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_FW_GEN_MSG);
@@ -1436,6 +1435,8 @@ static int sof_ipc4_control_setup(struct snd_sof_dev *sdev, struct snd_sof_contr
 
 static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
+	struct snd_sof_widget *pipe_widget = swidget->pipe_widget;
+	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	struct sof_ipc4_pipeline *pipeline;
 	struct sof_ipc4_msg *msg;
 	void *ipc_data = NULL;
@@ -1451,6 +1452,16 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 
 		msg = &pipeline->msg;
 		msg->primary |= pipeline->mem_usage;
+
+		swidget->instance_id = ida_alloc_max(&pipeline_ida, ipc4_data->max_num_pipelines,
+						     GFP_KERNEL);
+		if (swidget->instance_id < 0) {
+			dev_err(sdev->dev, "failed to assign pipeline id for %s: %d\n",
+				swidget->widget->name, swidget->instance_id);
+			return swidget->instance_id;
+		}
+		msg->primary &= ~SOF_IPC4_GLB_PIPE_INSTANCE_MASK;
+		msg->primary |= SOF_IPC4_GLB_PIPE_INSTANCE_ID(swidget->instance_id);
 		break;
 	case snd_soc_dapm_aif_in:
 	case snd_soc_dapm_aif_out:
@@ -1524,6 +1535,9 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 
 		msg->extension &= ~SOF_IPC4_MOD_EXT_PARAM_SIZE_MASK;
 		msg->extension |= ipc_size >> 2;
+
+		msg->extension &= ~SOF_IPC4_MOD_EXT_PPL_ID_MASK;
+		msg->extension |= SOF_IPC4_MOD_EXT_PPL_ID(pipe_widget->instance_id);
 	}
 	dev_dbg(sdev->dev, "Create widget %s instance %d - pipe %d - core %d\n",
 		swidget->widget->name, swidget->instance_id, swidget->pipeline_id, swidget->core);
@@ -1539,6 +1553,8 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 			struct sof_ipc4_fw_module *fw_module = swidget->module_info;
 
 			ida_free(&fw_module->m_ida, swidget->instance_id);
+		} else {
+			ida_free(&pipeline_ida, swidget->instance_id);
 		}
 	}
 
@@ -1556,7 +1572,7 @@ static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget 
 		struct sof_ipc4_msg msg = {{ 0 }};
 		u32 header;
 
-		header = SOF_IPC4_GLB_PIPE_INSTANCE_ID(swidget->pipeline_id);
+		header = SOF_IPC4_GLB_PIPE_INSTANCE_ID(swidget->instance_id);
 		header |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_DELETE_PIPELINE);
 		header |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
 		header |= SOF_IPC4_MSG_TARGET(SOF_IPC4_FW_GEN_MSG);
@@ -1570,6 +1586,7 @@ static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget 
 
 		pipeline->mem_usage = 0;
 		pipeline->state = SOF_IPC4_PIPE_UNINITIALIZED;
+		ida_free(&pipeline_ida, swidget->instance_id);
 	} else {
 		ida_free(&fw_module->m_ida, swidget->instance_id);
 	}
@@ -1917,7 +1934,8 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc4_widget_ops[SND_SOC_DAPM_TY
 				  dai_token_list, ARRAY_SIZE(dai_token_list), NULL,
 				  sof_ipc4_prepare_copier_module,
 				  sof_ipc4_unprepare_copier_module},
-	[snd_soc_dapm_scheduler] = {sof_ipc4_widget_setup_comp_pipeline, sof_ipc4_widget_free_comp,
+	[snd_soc_dapm_scheduler] = {sof_ipc4_widget_setup_comp_pipeline,
+				    sof_ipc4_widget_free_comp_pipeline,
 				    pipeline_token_list, ARRAY_SIZE(pipeline_token_list), NULL,
 				    NULL, NULL},
 	[snd_soc_dapm_pga] = {sof_ipc4_widget_setup_comp_pga, sof_ipc4_widget_free_comp_pga,
