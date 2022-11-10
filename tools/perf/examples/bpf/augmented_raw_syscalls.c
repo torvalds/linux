@@ -21,6 +21,13 @@
 // FIXME: These should come from system headers
 typedef char bool;
 typedef int pid_t;
+typedef long long int __s64;
+typedef __s64 time64_t;
+
+struct timespec64 {
+	time64_t	tv_sec;
+	long int	tv_nsec;
+};
 
 /* bpf-output associated map */
 struct __augmented_syscalls__ {
@@ -331,6 +338,27 @@ int sys_enter_perf_event_open(struct syscall_enter_args *args)
 	// Now that we read attr->size and tested it against the size limits, read it completely
 	if (bpf_probe_read(&augmented_args->__data, size, attr) < 0)
 		goto failure;
+
+	return augmented__output(args, augmented_args, len + size);
+failure:
+	return 1; /* Failure: don't filter */
+}
+
+SEC("!syscalls:sys_enter_clock_nanosleep")
+int sys_enter_clock_nanosleep(struct syscall_enter_args *args)
+{
+	struct augmented_args_payload *augmented_args = augmented_args_payload();
+	const void *rqtp_arg = (const void *)args->args[2];
+	unsigned int len = sizeof(augmented_args->args);
+	__u32 size = sizeof(struct timespec64);
+
+        if (augmented_args == NULL)
+		goto failure;
+
+	if (size > sizeof(augmented_args->__data))
+                goto failure;
+
+	bpf_probe_read(&augmented_args->__data, size, rqtp_arg);
 
 	return augmented__output(args, augmented_args, len + size);
 failure:
