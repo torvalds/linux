@@ -50,9 +50,14 @@ struct hl_fpriv;
 #define HL_MMAP_OFFSET_VALUE_MASK	(0x1FFFFFFFFFFFull >> PAGE_SHIFT)
 #define HL_MMAP_OFFSET_VALUE_GET(off)	(off & HL_MMAP_OFFSET_VALUE_MASK)
 
-#define HL_PENDING_RESET_PER_SEC	10
-#define HL_PENDING_RESET_MAX_TRIALS	60 /* 10 minutes */
-#define HL_PENDING_RESET_LONG_SEC	60
+#define HL_PENDING_RESET_PER_SEC		10
+#define HL_PENDING_RESET_MAX_TRIALS		60 /* 10 minutes */
+#define HL_PENDING_RESET_LONG_SEC		60
+/*
+ * In device fini, wait 10 minutes for user processes to be terminated after we kill them.
+ * This is needed to prevent situation of clearing resources while user processes are still alive.
+ */
+#define HL_WAIT_PROCESS_KILL_ON_DEVICE_FINI	600
 
 #define HL_HARD_RESET_MAX_TIMEOUT	120
 #define HL_PLDM_HARD_RESET_MAX_TIMEOUT	(HL_HARD_RESET_MAX_TIMEOUT * 3)

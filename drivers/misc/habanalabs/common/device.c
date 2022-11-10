@@ -2300,14 +2300,16 @@ void hl_device_fini(struct hl_device *hdev)
 	 */
 	dev_info(hdev->dev,
 		"Waiting for all processes to exit (timeout of %u seconds)",
-		HL_PENDING_RESET_LONG_SEC);
+		HL_WAIT_PROCESS_KILL_ON_DEVICE_FINI);
 
-	rc = device_kill_open_processes(hdev, HL_PENDING_RESET_LONG_SEC, false);
+	hdev->process_kill_trial_cnt = 0;
+	rc = device_kill_open_processes(hdev, HL_WAIT_PROCESS_KILL_ON_DEVICE_FINI, false);
 	if (rc) {
 		dev_crit(hdev->dev, "Failed to kill all open processes\n");
 		device_disable_open_processes(hdev, false);
 	}
 
+	hdev->process_kill_trial_cnt = 0;
 	rc = device_kill_open_processes(hdev, 0, true);
 	if (rc) {
 		dev_crit(hdev->dev, "Failed to kill all control device open processes\n");
