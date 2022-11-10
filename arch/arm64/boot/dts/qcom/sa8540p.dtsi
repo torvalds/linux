@@ -128,6 +128,65 @@
 	};
 };
 
+&pcie2a {
+	compatible = "qcom,pcie-sa8540p";
+
+	linux,pci-domain = <0>;
+
+	interrupts = <GIC_SPI 440 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "msi";
+};
+
+&pcie2b {
+	compatible = "qcom,pcie-sa8540p";
+
+	linux,pci-domain = <1>;
+
+	interrupts = <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "msi";
+};
+
+&pcie3a {
+	compatible = "qcom,pcie-sa8540p";
+	reg = <0x0 0x01c10000 0x0 0x3000>,
+	      <0x0 0x40000000 0x0 0xf1d>,
+	      <0x0 0x40000f20 0x0 0xa8>,
+	      <0x0 0x40001000 0x0 0x1000>,
+	      <0x0 0x40100000 0x0 0x100000>;
+	reg-names = "parf", "dbi", "elbi", "atu", "config";
+
+	ranges = <0x01000000 0x0 0x40200000 0x0 0x40200000 0x0 0x100000>,
+		 <0x02000000 0x0 0x40300000 0x0 0x40300000 0x0 0x1d00000>;
+
+	linux,pci-domain = <2>;
+
+	interrupts =  <GIC_SPI 567 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "msi";
+
+	interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 541 IRQ_TYPE_LEVEL_HIGH>,
+			<0 0 0 2 &intc 0 0 GIC_SPI 542 IRQ_TYPE_LEVEL_HIGH>,
+			<0 0 0 3 &intc 0 0 GIC_SPI 543 IRQ_TYPE_LEVEL_HIGH>,
+			<0 0 0 4 &intc 0 0 GIC_SPI 544 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&pcie3b {
+	compatible = "qcom,pcie-sa8540p";
+
+	linux,pci-domain = <3>;
+
+	interrupts = <GIC_SPI 565 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "msi";
+};
+
+&pcie4 {
+	compatible = "qcom,pcie-sa8540p";
+
+	linux,pci-domain = <4>;
+
+	interrupts = <GIC_SPI 518 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "msi";
+};
+
 &rpmhpd {
 	compatible = "qcom,sa8540p-rpmhpd";
 };

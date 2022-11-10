@@ -729,11 +729,11 @@
 				 <0>,
 				 <0>,
 				 <0>,
-				 <0>,
-				 <0>,
-				 <0>,
-				 <0>,
-				 <0>,
+				 <&pcie2a_phy>,
+				 <&pcie2b_phy>,
+				 <&pcie3a_phy>,
+				 <&pcie3b_phy>,
+				 <&pcie4_phy>,
 				 <0>,
 				 <0>;
 			power-domains = <&rpmhpd SC8280XP_CX>;
@@ -835,6 +835,489 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
+
+			status = "disabled";
+		};
+
+		pcie4: pcie@1c00000 {
+			device_type = "pci";
+			compatible = "qcom,pcie-sc8280xp";
+			reg = <0x0 0x01c00000 0x0 0x3000>,
+			      <0x0 0x30000000 0x0 0xf1d>,
+			      <0x0 0x30000f20 0x0 0xa8>,
+			      <0x0 0x30001000 0x0 0x1000>,
+			      <0x0 0x30100000 0x0 0x100000>;
+			reg-names = "parf", "dbi", "elbi", "atu", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x01000000 0x0 0x30200000 0x0 0x30200000 0x0 0x100000>,
+				 <0x02000000 0x0 0x30300000 0x0 0x30300000 0x0 0x1d00000>;
+			bus-range = <0x00 0xff>;
+
+			linux,pci-domain = <6>;
+			num-lanes = <1>;
+
+			interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi0", "msi1", "msi2", "msi3";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc 0 0 GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc 0 0 GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc 0 0 GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&gcc GCC_PCIE_4_AUX_CLK>,
+				 <&gcc GCC_PCIE_4_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_4_MSTR_AXI_CLK>,
+				 <&gcc GCC_PCIE_4_SLV_AXI_CLK>,
+				 <&gcc GCC_PCIE_4_SLV_Q2A_AXI_CLK>,
+				 <&gcc GCC_DDRSS_PCIE_SF_TBU_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_4_AXI_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_SOUTH_SF_AXI_CLK>,
+				 <&gcc GCC_CNOC_PCIE4_QX_CLK>;
+			clock-names = "aux",
+				      "cfg",
+				      "bus_master",
+				      "bus_slave",
+				      "slave_q2a",
+				      "ddrss_sf_tbu",
+				      "noc_aggr_4",
+				      "noc_aggr_south_sf",
+				      "cnoc_qx";
+
+			assigned-clocks = <&gcc GCC_PCIE_4_AUX_CLK>;
+			assigned-clock-rates = <19200000>;
+
+			interconnects = <&aggre2_noc MASTER_PCIE_4 0 &mc_virt SLAVE_EBI1 0>,
+					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_PCIE_4 0>;
+			interconnect-names = "pcie-mem", "cpu-pcie";
+
+			resets = <&gcc GCC_PCIE_4_BCR>;
+			reset-names = "pci";
+
+			power-domains = <&gcc PCIE_4_GDSC>;
+
+			phys = <&pcie4_phy>;
+			phy-names = "pciephy";
+
+			status = "disabled";
+		};
+
+		pcie4_phy: phy@1c06000 {
+			compatible = "qcom,sc8280xp-qmp-gen3x1-pcie-phy";
+			reg = <0x0 0x01c06000 0x0 0x2000>;
+
+			clocks = <&gcc GCC_PCIE_4_AUX_CLK>,
+				 <&gcc GCC_PCIE_4_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_4_CLKREF_CLK>,
+				 <&gcc GCC_PCIE4_PHY_RCHNG_CLK>,
+				 <&gcc GCC_PCIE_4_PIPE_CLK>,
+				 <&gcc GCC_PCIE_4_PIPEDIV2_CLK>;
+			clock-names = "aux", "cfg_ahb", "ref", "rchng",
+				      "pipe", "pipediv2";
+
+			assigned-clocks = <&gcc GCC_PCIE4_PHY_RCHNG_CLK>;
+			assigned-clock-rates = <100000000>;
+
+			power-domains = <&gcc PCIE_4_GDSC>;
+
+			resets = <&gcc GCC_PCIE_4_PHY_BCR>;
+			reset-names = "phy";
+
+			#clock-cells = <0>;
+			clock-output-names = "pcie_4_pipe_clk";
+
+			#phy-cells = <0>;
+
+			status = "disabled";
+		};
+
+		pcie3b: pcie@1c08000 {
+			device_type = "pci";
+			compatible = "qcom,pcie-sc8280xp";
+			reg = <0x0 0x01c08000 0x0 0x3000>,
+			      <0x0 0x32000000 0x0 0xf1d>,
+			      <0x0 0x32000f20 0x0 0xa8>,
+			      <0x0 0x32001000 0x0 0x1000>,
+			      <0x0 0x32100000 0x0 0x100000>;
+			reg-names = "parf", "dbi", "elbi", "atu", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x01000000 0x0 0x32200000 0x0 0x32200000 0x0 0x100000>,
+				 <0x02000000 0x0 0x32300000 0x0 0x32300000 0x0 0x1d00000>;
+			bus-range = <0x00 0xff>;
+
+			linux,pci-domain = <5>;
+			num-lanes = <2>;
+
+			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi0", "msi1", "msi2", "msi3";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 526 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc 0 0 GIC_SPI 527 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc 0 0 GIC_SPI 528 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc 0 0 GIC_SPI 529 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&gcc GCC_PCIE_3B_AUX_CLK>,
+				 <&gcc GCC_PCIE_3B_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_3B_MSTR_AXI_CLK>,
+				 <&gcc GCC_PCIE_3B_SLV_AXI_CLK>,
+				 <&gcc GCC_PCIE_3B_SLV_Q2A_AXI_CLK>,
+				 <&gcc GCC_DDRSS_PCIE_SF_TBU_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_4_AXI_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_SOUTH_SF_AXI_CLK>;
+			clock-names = "aux",
+				      "cfg",
+				      "bus_master",
+				      "bus_slave",
+				      "slave_q2a",
+				      "ddrss_sf_tbu",
+				      "noc_aggr_4",
+				      "noc_aggr_south_sf";
+
+			assigned-clocks = <&gcc GCC_PCIE_3B_AUX_CLK>;
+			assigned-clock-rates = <19200000>;
+
+			interconnects = <&aggre2_noc MASTER_PCIE_3B 0 &mc_virt SLAVE_EBI1 0>,
+					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_PCIE_3B 0>;
+			interconnect-names = "pcie-mem", "cpu-pcie";
+
+			resets = <&gcc GCC_PCIE_3B_BCR>;
+			reset-names = "pci";
+
+			power-domains = <&gcc PCIE_3B_GDSC>;
+
+			phys = <&pcie3b_phy>;
+			phy-names = "pciephy";
+
+			status = "disabled";
+		};
+
+		pcie3b_phy: phy@1c0e000 {
+			compatible = "qcom,sc8280xp-qmp-gen3x2-pcie-phy";
+			reg = <0x0 0x01c0e000 0x0 0x2000>;
+
+			clocks = <&gcc GCC_PCIE_3B_AUX_CLK>,
+				 <&gcc GCC_PCIE_3B_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_3A3B_CLKREF_CLK>,
+				 <&gcc GCC_PCIE3B_PHY_RCHNG_CLK>,
+				 <&gcc GCC_PCIE_3B_PIPE_CLK>,
+				 <&gcc GCC_PCIE_3B_PIPEDIV2_CLK>;
+			clock-names = "aux", "cfg_ahb", "ref", "rchng",
+				      "pipe", "pipediv2";
+
+			assigned-clocks = <&gcc GCC_PCIE3B_PHY_RCHNG_CLK>;
+			assigned-clock-rates = <100000000>;
+
+			power-domains = <&gcc PCIE_3B_GDSC>;
+
+			resets = <&gcc GCC_PCIE_3B_PHY_BCR>;
+			reset-names = "phy";
+
+			#clock-cells = <0>;
+			clock-output-names = "pcie_3b_pipe_clk";
+
+			#phy-cells = <0>;
+
+			status = "disabled";
+		};
+
+		pcie3a: pcie@1c10000 {
+			device_type = "pci";
+			compatible = "qcom,pcie-sc8280xp";
+			reg = <0x0 0x01c10000 0x0 0x3000>,
+			      <0x0 0x34000000 0x0 0xf1d>,
+			      <0x0 0x34000f20 0x0 0xa8>,
+			      <0x0 0x34001000 0x0 0x1000>,
+			      <0x0 0x34100000 0x0 0x100000>;
+			reg-names = "parf", "dbi", "elbi", "atu", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x01000000 0x0 0x34200000 0x0 0x34200000 0x0 0x100000>,
+				 <0x02000000 0x0 0x34300000 0x0 0x34300000 0x0 0x1d00000>;
+			bus-range = <0x00 0xff>;
+
+			linux,pci-domain = <4>;
+			num-lanes = <4>;
+
+			interrupts = <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 314 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi0", "msi1", "msi2", "msi3";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 499 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc 0 0 GIC_SPI 542 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc 0 0 GIC_SPI 543 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc 0 0 GIC_SPI 544 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&gcc GCC_PCIE_3A_AUX_CLK>,
+				 <&gcc GCC_PCIE_3A_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_3A_MSTR_AXI_CLK>,
+				 <&gcc GCC_PCIE_3A_SLV_AXI_CLK>,
+				 <&gcc GCC_PCIE_3A_SLV_Q2A_AXI_CLK>,
+				 <&gcc GCC_DDRSS_PCIE_SF_TBU_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_4_AXI_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_SOUTH_SF_AXI_CLK>;
+			clock-names = "aux",
+				      "cfg",
+				      "bus_master",
+				      "bus_slave",
+				      "slave_q2a",
+				      "ddrss_sf_tbu",
+				      "noc_aggr_4",
+				      "noc_aggr_south_sf";
+
+			assigned-clocks = <&gcc GCC_PCIE_3A_AUX_CLK>;
+			assigned-clock-rates = <19200000>;
+
+			interconnects = <&aggre2_noc MASTER_PCIE_3A 0 &mc_virt SLAVE_EBI1 0>,
+					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_PCIE_3A 0>;
+			interconnect-names = "pcie-mem", "cpu-pcie";
+
+			resets = <&gcc GCC_PCIE_3A_BCR>;
+			reset-names = "pci";
+
+			power-domains = <&gcc PCIE_3A_GDSC>;
+
+			phys = <&pcie3a_phy>;
+			phy-names = "pciephy";
+
+			status = "disabled";
+		};
+
+		pcie3a_phy: phy@1c14000 {
+			compatible = "qcom,sc8280xp-qmp-gen3x4-pcie-phy";
+			reg = <0x0 0x01c14000 0x0 0x2000>,
+			      <0x0 0x01c16000 0x0 0x2000>;
+
+			clocks = <&gcc GCC_PCIE_3A_AUX_CLK>,
+				 <&gcc GCC_PCIE_3A_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_3A3B_CLKREF_CLK>,
+				 <&gcc GCC_PCIE3A_PHY_RCHNG_CLK>,
+				 <&gcc GCC_PCIE_3A_PIPE_CLK>,
+				 <&gcc GCC_PCIE_3A_PIPEDIV2_CLK>;
+			clock-names = "aux", "cfg_ahb", "ref", "rchng",
+				      "pipe", "pipediv2";
+
+			assigned-clocks = <&gcc GCC_PCIE3A_PHY_RCHNG_CLK>;
+			assigned-clock-rates = <100000000>;
+
+			power-domains = <&gcc PCIE_3A_GDSC>;
+
+			resets = <&gcc GCC_PCIE_3A_PHY_BCR>;
+			reset-names = "phy";
+
+			qcom,4ln-config-sel = <&tcsr 0xa044 1>;
+
+			#clock-cells = <0>;
+			clock-output-names = "pcie_3a_pipe_clk";
+
+			#phy-cells = <0>;
+
+			status = "disabled";
+		};
+
+		pcie2b: pcie@1c18000 {
+			device_type = "pci";
+			compatible = "qcom,pcie-sc8280xp";
+			reg = <0x0 0x01c18000 0x0 0x3000>,
+			      <0x0 0x38000000 0x0 0xf1d>,
+			      <0x0 0x38000f20 0x0 0xa8>,
+			      <0x0 0x38001000 0x0 0x1000>,
+			      <0x0 0x38100000 0x0 0x100000>;
+			reg-names = "parf", "dbi", "elbi", "atu", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x01000000 0x0 0x38200000 0x0 0x38200000 0x0 0x100000>,
+				 <0x02000000 0x0 0x38300000 0x0 0x38300000 0x0 0x1d00000>;
+			bus-range = <0x00 0xff>;
+
+			linux,pci-domain = <3>;
+			num-lanes = <2>;
+
+			interrupts = <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 308 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi0", "msi1", "msi2", "msi3";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc 0 0 GIC_SPI 434 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc 0 0 GIC_SPI 435 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc 0 0 GIC_SPI 438 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&gcc GCC_PCIE_2B_AUX_CLK>,
+				 <&gcc GCC_PCIE_2B_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_2B_MSTR_AXI_CLK>,
+				 <&gcc GCC_PCIE_2B_SLV_AXI_CLK>,
+				 <&gcc GCC_PCIE_2B_SLV_Q2A_AXI_CLK>,
+				 <&gcc GCC_DDRSS_PCIE_SF_TBU_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_4_AXI_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_SOUTH_SF_AXI_CLK>;
+			clock-names = "aux",
+				      "cfg",
+				      "bus_master",
+				      "bus_slave",
+				      "slave_q2a",
+				      "ddrss_sf_tbu",
+				      "noc_aggr_4",
+				      "noc_aggr_south_sf";
+
+			assigned-clocks = <&gcc GCC_PCIE_2B_AUX_CLK>;
+			assigned-clock-rates = <19200000>;
+
+			interconnects = <&aggre2_noc MASTER_PCIE_2B 0 &mc_virt SLAVE_EBI1 0>,
+					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_PCIE_2B 0>;
+			interconnect-names = "pcie-mem", "cpu-pcie";
+
+			resets = <&gcc GCC_PCIE_2B_BCR>;
+			reset-names = "pci";
+
+			power-domains = <&gcc PCIE_2B_GDSC>;
+
+			phys = <&pcie2b_phy>;
+			phy-names = "pciephy";
+
+			status = "disabled";
+		};
+
+		pcie2b_phy: phy@1c1e000 {
+			compatible = "qcom,sc8280xp-qmp-gen3x2-pcie-phy";
+			reg = <0x0 0x01c1e000 0x0 0x2000>;
+
+			clocks = <&gcc GCC_PCIE_2B_AUX_CLK>,
+				 <&gcc GCC_PCIE_2B_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_2A2B_CLKREF_CLK>,
+				 <&gcc GCC_PCIE2B_PHY_RCHNG_CLK>,
+				 <&gcc GCC_PCIE_2B_PIPE_CLK>,
+				 <&gcc GCC_PCIE_2B_PIPEDIV2_CLK>;
+			clock-names = "aux", "cfg_ahb", "ref", "rchng",
+				      "pipe", "pipediv2";
+
+			assigned-clocks = <&gcc GCC_PCIE2B_PHY_RCHNG_CLK>;
+			assigned-clock-rates = <100000000>;
+
+			power-domains = <&gcc PCIE_2B_GDSC>;
+
+			resets = <&gcc GCC_PCIE_2B_PHY_BCR>;
+			reset-names = "phy";
+
+			#clock-cells = <0>;
+			clock-output-names = "pcie_2b_pipe_clk";
+
+			#phy-cells = <0>;
+
+			status = "disabled";
+		};
+
+		pcie2a: pcie@1c20000 {
+			device_type = "pci";
+			compatible = "qcom,pcie-sc8280xp";
+			reg = <0x0 0x01c20000 0x0 0x3000>,
+			      <0x0 0x3c000000 0x0 0xf1d>,
+			      <0x0 0x3c000f20 0x0 0xa8>,
+			      <0x0 0x3c001000 0x0 0x1000>,
+			      <0x0 0x3c100000 0x0 0x100000>;
+			reg-names = "parf", "dbi", "elbi", "atu", "config";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges = <0x01000000 0x0 0x3c200000 0x0 0x3c200000 0x0 0x100000>,
+				 <0x02000000 0x0 0x3c300000 0x0 0x3c300000 0x0 0x1d00000>;
+			bus-range = <0x00 0xff>;
+
+			linux,pci-domain = <2>;
+			num-lanes = <4>;
+
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 523 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 524 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 525 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi0", "msi1", "msi2", "msi3";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 530 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 2 &intc 0 0 GIC_SPI 531 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 3 &intc 0 0 GIC_SPI 532 IRQ_TYPE_LEVEL_HIGH>,
+					<0 0 0 4 &intc 0 0 GIC_SPI 533 IRQ_TYPE_LEVEL_HIGH>;
+
+			clocks = <&gcc GCC_PCIE_2A_AUX_CLK>,
+				 <&gcc GCC_PCIE_2A_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_2A_MSTR_AXI_CLK>,
+				 <&gcc GCC_PCIE_2A_SLV_AXI_CLK>,
+				 <&gcc GCC_PCIE_2A_SLV_Q2A_AXI_CLK>,
+				 <&gcc GCC_DDRSS_PCIE_SF_TBU_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_4_AXI_CLK>,
+				 <&gcc GCC_AGGRE_NOC_PCIE_SOUTH_SF_AXI_CLK>;
+			clock-names = "aux",
+				      "cfg",
+				      "bus_master",
+				      "bus_slave",
+				      "slave_q2a",
+				      "ddrss_sf_tbu",
+				      "noc_aggr_4",
+				      "noc_aggr_south_sf";
+
+			assigned-clocks = <&gcc GCC_PCIE_2A_AUX_CLK>;
+			assigned-clock-rates = <19200000>;
+
+			interconnects = <&aggre2_noc MASTER_PCIE_2A 0 &mc_virt SLAVE_EBI1 0>,
+					<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_PCIE_2A 0>;
+			interconnect-names = "pcie-mem", "cpu-pcie";
+
+			resets = <&gcc GCC_PCIE_2A_BCR>;
+			reset-names = "pci";
+
+			power-domains = <&gcc PCIE_2A_GDSC>;
+
+			phys = <&pcie2a_phy>;
+			phy-names = "pciephy";
+
+			status = "disabled";
+		};
+
+		pcie2a_phy: phy@1c24000 {
+			compatible = "qcom,sc8280xp-qmp-gen3x4-pcie-phy";
+			reg = <0x0 0x01c24000 0x0 0x2000>,
+			      <0x0 0x01c26000 0x0 0x2000>;
+
+			clocks = <&gcc GCC_PCIE_2A_AUX_CLK>,
+				 <&gcc GCC_PCIE_2A_CFG_AHB_CLK>,
+				 <&gcc GCC_PCIE_2A2B_CLKREF_CLK>,
+				 <&gcc GCC_PCIE2A_PHY_RCHNG_CLK>,
+				 <&gcc GCC_PCIE_2A_PIPE_CLK>,
+				 <&gcc GCC_PCIE_2A_PIPEDIV2_CLK>;
+			clock-names = "aux", "cfg_ahb", "ref", "rchng",
+				      "pipe", "pipediv2";
+
+			assigned-clocks = <&gcc GCC_PCIE2A_PHY_RCHNG_CLK>;
+			assigned-clock-rates = <100000000>;
+
+			power-domains = <&gcc PCIE_2A_GDSC>;
+
+			resets = <&gcc GCC_PCIE_2A_PHY_BCR>;
+			reset-names = "phy";
+
+			qcom,4ln-config-sel = <&tcsr 0xa044 0>;
+
+			#clock-cells = <0>;
+			clock-output-names = "pcie_2a_pipe_clk";
+
+			#phy-cells = <0>;
 
 			status = "disabled";
 		};
