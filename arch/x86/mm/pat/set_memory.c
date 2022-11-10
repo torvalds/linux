@@ -1727,7 +1727,7 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int checkalias)
 		if (ret)
 			goto out;
 
-		if (checkalias) {
+		if (checkalias && !(cpa->flags & CPA_NO_CHECK_ALIAS)) {
 			ret = cpa_process_alias(cpa);
 			if (ret)
 				goto out;
@@ -1801,18 +1801,12 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 	cpa.numpages = numpages;
 	cpa.mask_set = mask_set;
 	cpa.mask_clr = mask_clr;
-	cpa.flags = 0;
+	cpa.flags = in_flag;
 	cpa.curpage = 0;
 	cpa.force_split = force_split;
 
-	if (in_flag & (CPA_ARRAY | CPA_PAGES_ARRAY))
-		cpa.flags |= in_flag;
-
 	/* No alias checking for _NX bit modifications */
 	checkalias = (pgprot_val(mask_set) | pgprot_val(mask_clr)) != _PAGE_NX;
-	/* Has caller explicitly disabled alias checking? */
-	if (in_flag & CPA_NO_CHECK_ALIAS)
-		checkalias = 0;
 
 	ret = __change_page_attr_set_clr(&cpa, checkalias);
 
@@ -2067,11 +2061,9 @@ int set_memory_np(unsigned long addr, int numpages)
 
 int set_memory_np_noalias(unsigned long addr, int numpages)
 {
-	int cpa_flags = CPA_NO_CHECK_ALIAS;
-
 	return change_page_attr_set_clr(&addr, numpages, __pgprot(0),
 					__pgprot(_PAGE_PRESENT), 0,
-					cpa_flags, NULL);
+					CPA_NO_CHECK_ALIAS, NULL);
 }
 
 int set_memory_4k(unsigned long addr, int numpages)
@@ -2288,7 +2280,7 @@ static int __set_pages_p(struct page *page, int numpages)
 				.numpages = numpages,
 				.mask_set = __pgprot(_PAGE_PRESENT | _PAGE_RW),
 				.mask_clr = __pgprot(0),
-				.flags = 0};
+				.flags = CPA_NO_CHECK_ALIAS };
 
 	/*
 	 * No alias checking needed for setting present flag. otherwise,
@@ -2296,7 +2288,7 @@ static int __set_pages_p(struct page *page, int numpages)
 	 * mappings (this adds to complexity if we want to do this from
 	 * atomic context especially). Let's keep it simple!
 	 */
-	return __change_page_attr_set_clr(&cpa, 0);
+	return __change_page_attr_set_clr(&cpa, 1);
 }
 
 static int __set_pages_np(struct page *page, int numpages)
@@ -2307,7 +2299,7 @@ static int __set_pages_np(struct page *page, int numpages)
 				.numpages = numpages,
 				.mask_set = __pgprot(0),
 				.mask_clr = __pgprot(_PAGE_PRESENT | _PAGE_RW),
-				.flags = 0};
+				.flags = CPA_NO_CHECK_ALIAS };
 
 	/*
 	 * No alias checking needed for setting not present flag. otherwise,
@@ -2315,7 +2307,7 @@ static int __set_pages_np(struct page *page, int numpages)
 	 * mappings (this adds to complexity if we want to do this from
 	 * atomic context especially). Let's keep it simple!
 	 */
-	return __change_page_attr_set_clr(&cpa, 0);
+	return __change_page_attr_set_clr(&cpa, 1);
 }
 
 int set_direct_map_invalid_noflush(struct page *page)
@@ -2386,7 +2378,7 @@ int __init kernel_map_pages_in_pgd(pgd_t *pgd, u64 pfn, unsigned long address,
 		.numpages = numpages,
 		.mask_set = __pgprot(0),
 		.mask_clr = __pgprot(~page_flags & (_PAGE_NX|_PAGE_RW)),
-		.flags = 0,
+		.flags = CPA_NO_CHECK_ALIAS,
 	};
 
 	WARN_ONCE(num_online_cpus() > 1, "Don't call after initializing SMP");
@@ -2399,7 +2391,7 @@ int __init kernel_map_pages_in_pgd(pgd_t *pgd, u64 pfn, unsigned long address,
 
 	cpa.mask_set = __pgprot(_PAGE_PRESENT | page_flags);
 
-	retval = __change_page_attr_set_clr(&cpa, 0);
+	retval = __change_page_attr_set_clr(&cpa, 1);
 	__flush_tlb_all();
 
 out:
@@ -2429,12 +2421,12 @@ int __init kernel_unmap_pages_in_pgd(pgd_t *pgd, unsigned long address,
 		.numpages	= numpages,
 		.mask_set	= __pgprot(0),
 		.mask_clr	= __pgprot(_PAGE_PRESENT | _PAGE_RW),
-		.flags		= 0,
+		.flags		= CPA_NO_CHECK_ALIAS,
 	};
 
 	WARN_ONCE(num_online_cpus() > 1, "Don't call after initializing SMP");
 
-	retval = __change_page_attr_set_clr(&cpa, 0);
+	retval = __change_page_attr_set_clr(&cpa, 1);
 	__flush_tlb_all();
 
 	return retval;
