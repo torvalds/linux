@@ -750,9 +750,8 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s,
  * The slab lists for all objects.
  */
 struct kmem_cache_node {
-	spinlock_t list_lock;
-
 #ifdef CONFIG_SLAB
+	raw_spinlock_t list_lock;
 	struct list_head slabs_partial;	/* partial list first, better asm code */
 	struct list_head slabs_full;
 	struct list_head slabs_free;
@@ -768,6 +767,7 @@ struct kmem_cache_node {
 #endif
 
 #ifdef CONFIG_SLUB
+	spinlock_t list_lock;
 	unsigned long nr_partial;
 	struct list_head partial;
 #ifdef CONFIG_SLUB_DEBUG
