@@ -1737,18 +1737,19 @@ kill_processes:
 		 * the device will be operational although it shouldn't be
 		 */
 		hdev->asic_funcs->enable_events_from_fw(hdev);
-	} else if (!reset_upon_device_release) {
-		hdev->reset_info.compute_reset_cnt++;
-	}
+	} else {
+		if (!reset_upon_device_release)
+			hdev->reset_info.compute_reset_cnt++;
 
-	if (schedule_hard_reset) {
-		dev_info(hdev->dev, "Performing hard reset scheduled during compute reset\n");
-		flags = hdev->reset_info.hard_reset_schedule_flags;
-		hdev->reset_info.hard_reset_schedule_flags = 0;
-		hdev->disabled = true;
-		hard_reset = true;
-		handle_reset_trigger(hdev, flags);
-		goto again;
+		if (schedule_hard_reset) {
+			dev_info(hdev->dev, "Performing hard reset scheduled during compute reset\n");
+			flags = hdev->reset_info.hard_reset_schedule_flags;
+			hdev->reset_info.hard_reset_schedule_flags = 0;
+			hdev->disabled = true;
+			hard_reset = true;
+			handle_reset_trigger(hdev, flags);
+			goto again;
+		}
 	}
 
 	return 0;
