@@ -1548,10 +1548,10 @@ static int set_dma_sg(struct scatterlist *sg, u64 bar_address, u64 chunk_size,
 }
 
 static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 *pages, u64 npages,
-						u64 page_size, struct device *dev,
-						enum dma_data_direction dir)
+						u64 page_size, u64 exported_size,
+						struct device *dev, enum dma_data_direction dir)
 {
-	u64 chunk_size, bar_address, dma_max_seg_size;
+	u64 chunk_size, bar_address, dma_max_seg_size, cur_size_to_export, cur_npages;
 	struct asic_fixed_properties *prop;
 	int rc, i, j, nents, cur_page;
 	struct scatterlist *sg;
@@ -1577,16 +1577,23 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 	if (!sgt)
 		return ERR_PTR(-ENOMEM);
 
+	/* remove export size restrictions in case not explicitly defined */
+	cur_size_to_export = exported_size ? exported_size : (npages * page_size);
+
 	/* If the size of each page is larger than the dma max segment size,
 	 * then we can't combine pages and the number of entries in the SGL
 	 * will just be the
 	 * <number of pages> * <chunks of max segment size in each page>
 	 */
-	if (page_size > dma_max_seg_size)
-		nents = npages * DIV_ROUND_UP_ULL(page_size, dma_max_seg_size);
-	else
+	if (page_size > dma_max_seg_size) {
+		/* we should limit number of pages according to the exported size */
+		cur_npages = DIV_ROUND_UP_SECTOR_T(cur_size_to_export, page_size);
+		nents = cur_npages * DIV_ROUND_UP_SECTOR_T(page_size, dma_max_seg_size);
+	} else {
+		cur_npages = npages;
+
 		/* Get number of non-contiguous chunks */
-		for (i = 1, nents = 1, chunk_size = page_size ; i < npages ; i++) {
+		for (i = 1, nents = 1, chunk_size = page_size ; i < cur_npages ; i++) {
 			if (pages[i - 1] + page_size != pages[i] ||
 					chunk_size + page_size > dma_max_seg_size) {
 				nents++;
@@ -1596,6 +1603,7 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 
 			chunk_size += page_size;
 		}
+	}
 
 	rc = sg_alloc_table(sgt, nents, GFP_KERNEL | __GFP_ZERO);
 	if (rc)
@@ -1618,13 +1626,16 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 			else
 				cur_device_address += dma_max_seg_size;
 
-			chunk_size = min(size_left, dma_max_seg_size);
+			/* make sure not to export over exported size */
+			chunk_size = min3(size_left, dma_max_seg_size, cur_size_to_export);
 
 			bar_address = hdev->dram_pci_bar_start + cur_device_address;
 
 			rc = set_dma_sg(sg, bar_address, chunk_size, dev, dir);
 			if (rc)
 				goto error_unmap;
+
+			cur_size_to_export -= chunk_size;
 
 			if (size_left > dma_max_seg_size) {
 				size_left -= dma_max_seg_size;
@@ -1637,7 +1648,7 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 		/* Merge pages and put them into the scatterlist */
 		for_each_sgtable_dma_sg(sgt, sg, i) {
 			chunk_size = page_size;
-			for (j = cur_page + 1 ; j < npages ; j++) {
+			for (j = cur_page + 1 ; j < cur_npages ; j++) {
 				if (pages[j - 1] + page_size != pages[j] ||
 						chunk_size + page_size > dma_max_seg_size)
 					break;
@@ -1648,10 +1659,13 @@ static struct sg_table *alloc_sgt_from_device_pages(struct hl_device *hdev, u64 
 			bar_address = hdev->dram_pci_bar_start +
 					(pages[cur_page] - prop->dram_base_address);
 
+			/* make sure not to export over exported size */
+			chunk_size = min(chunk_size, cur_size_to_export);
 			rc = set_dma_sg(sg, bar_address, chunk_size, dev, dir);
 			if (rc)
 				goto error_unmap;
 
+			cur_size_to_export -= chunk_size;
 			cur_page = j;
 		}
 	}
@@ -1722,6 +1736,7 @@ static struct sg_table *hl_map_dmabuf(struct dma_buf_attachment *attachment,
 						phys_pg_pack->pages,
 						phys_pg_pack->npages,
 						phys_pg_pack->page_size,
+						phys_pg_pack->exported_size,
 						attachment->dev,
 						dir);
 	else
@@ -1729,6 +1744,7 @@ static struct sg_table *hl_map_dmabuf(struct dma_buf_attachment *attachment,
 						&hl_dmabuf->device_address,
 						1,
 						hl_dmabuf->dmabuf->size,
+						0,
 						attachment->dev,
 						dir);
 
@@ -2033,6 +2049,7 @@ static int export_dmabuf_from_addr(struct hl_ctx *ctx, u64 addr, u64 size, u64 o
 		if (rc)
 			goto dec_memhash_export_cnt;
 
+		phys_pg_pack->exported_size = size;
 		hl_dmabuf->phys_pg_pack = phys_pg_pack;
 		hl_dmabuf->memhash_hnode = hnode;
 	} else {

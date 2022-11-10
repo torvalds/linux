@@ -2120,6 +2120,7 @@ struct hl_vm_hw_block_list_node {
  * @pages: the physical page array.
  * @npages: num physical pages in the pack.
  * @total_size: total size of all the pages in this list.
+ * @exported_size: buffer exported size.
  * @node: used to attach to deletion list that is used when all the allocations are cleared
  *        at the teardown of the context.
  * @mapping_cnt: number of shared mappings.
@@ -2136,6 +2137,7 @@ struct hl_vm_phys_pg_pack {
 	u64			*pages;
 	u64			npages;
 	u64			total_size;
+	u64			exported_size;
 	struct list_head	node;
 	atomic_t		mapping_cnt;
 	u32			asid;
