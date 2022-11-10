@@ -61,4 +61,8 @@ int __pkvm_init_vcpu(pkvm_handle_t handle, struct kvm_vcpu *host_vcpu,
 		     unsigned long vcpu_hva);
 int __pkvm_teardown_vm(pkvm_handle_t handle);
 
+struct pkvm_hyp_vcpu *pkvm_load_hyp_vcpu(pkvm_handle_t handle,
+					 unsigned int vcpu_idx);
+void pkvm_put_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu);
+
 #endif /* __ARM64_KVM_NVHE_PKVM_H__ */
