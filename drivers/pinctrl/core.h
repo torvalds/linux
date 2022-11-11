@@ -252,8 +252,8 @@ extern int pinctrl_force_default(struct pinctrl_dev *pctldev);
 extern struct mutex pinctrl_maps_mutex;
 extern struct list_head pinctrl_maps;
 
-#define for_each_maps(_maps_node_, _i_, _map_) \
-	list_for_each_entry(_maps_node_, &pinctrl_maps, node) \
-		for (_i_ = 0, _map_ = &_maps_node_->maps[_i_]; \
-			_i_ < _maps_node_->num_maps; \
-			_i_++, _map_ = &_maps_node_->maps[_i_])
+#define for_each_pin_map(_maps_node_, _map_)						\
+	list_for_each_entry(_maps_node_, &pinctrl_maps, node)				\
+		for (unsigned int __i = 0;						\
+		     __i < _maps_node_->num_maps && (_map_ = &_maps_node_->maps[__i]);	\
+		     __i++)

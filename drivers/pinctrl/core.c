@@ -1029,7 +1029,6 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 	struct pinctrl *p;
 	const char *devname;
 	struct pinctrl_maps *maps_node;
-	int i;
 	const struct pinctrl_map *map;
 	int ret;
 
@@ -1055,7 +1054,7 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 
 	mutex_lock(&pinctrl_maps_mutex);
 	/* Iterate over the pin control maps to locate the right ones */
-	for_each_maps(maps_node, i, map) {
+	for_each_pin_map(maps_node, map) {
 		/* Map must be for this device */
 		if (strcmp(map->dev_name, devname))
 			continue;
@@ -1806,13 +1805,12 @@ static inline const char *map_type(enum pinctrl_map_type type)
 static int pinctrl_maps_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_maps *maps_node;
-	int i;
 	const struct pinctrl_map *map;
 
 	seq_puts(s, "Pinctrl maps:\n");
 
 	mutex_lock(&pinctrl_maps_mutex);
-	for_each_maps(maps_node, i, map) {
+	for_each_pin_map(maps_node, map) {
 		seq_printf(s, "device %s\nstate %s\ntype %s (%d)\n",
 			   map->dev_name, map->name, map_type(map->type),
 			   map->type);
