@@ -97,6 +97,15 @@ int __pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries, int
 void __pci_restore_msi_state(struct pci_dev *dev);
 void __pci_restore_msix_state(struct pci_dev *dev);
 
+/* irq_domain related functionality */
+
+enum support_mode {
+	ALLOW_LEGACY,
+	DENY_LEGACY,
+};
+
+bool pci_msi_domain_supports(struct pci_dev *dev, unsigned int feature_mask, enum support_mode mode);
+
 /* Legacy (!IRQDOMAIN) fallbacks */
 
 #ifdef CONFIG_PCI_MSI_ARCH_FALLBACKS

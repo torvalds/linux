@@ -347,6 +347,10 @@ static int msi_capability_init(struct pci_dev *dev, int nvec,
 	struct msi_desc *entry;
 	int ret;
 
+	/* Reject multi-MSI early on irq domain enabled architectures */
+	if (nvec > 1 && !pci_msi_domain_supports(dev, MSI_FLAG_MULTI_PCI_MSI, ALLOW_LEGACY))
+		return 1;
+
 	/*
 	 * Disable MSI during setup in the hardware, but mark it enabled
 	 * so that setup code can evaluate it.
