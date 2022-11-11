@@ -199,7 +199,7 @@ bool __weak arch_restore_msi_irqs(struct pci_dev *dev)
 	return true;
 }
 
-static void __pci_restore_msi_state(struct pci_dev *dev)
+void __pci_restore_msi_state(struct pci_dev *dev)
 {
 	struct msi_desc *entry;
 	u16 control;
@@ -231,7 +231,7 @@ static void pci_msix_clear_and_set_ctrl(struct pci_dev *dev, u16 clear, u16 set)
 	pci_write_config_word(dev, dev->msix_cap + PCI_MSIX_FLAGS, ctrl);
 }
 
-static void __pci_restore_msix_state(struct pci_dev *dev)
+void __pci_restore_msix_state(struct pci_dev *dev)
 {
 	struct msi_desc *entry;
 	bool write_msg;
@@ -256,13 +256,6 @@ static void __pci_restore_msix_state(struct pci_dev *dev)
 
 	pci_msix_clear_and_set_ctrl(dev, PCI_MSIX_FLAGS_MASKALL, 0);
 }
-
-void pci_restore_msi_state(struct pci_dev *dev)
-{
-	__pci_restore_msi_state(dev);
-	__pci_restore_msix_state(dev);
-}
-EXPORT_SYMBOL_GPL(pci_restore_msi_state);
 
 static void pcim_msi_release(void *pcidev)
 {

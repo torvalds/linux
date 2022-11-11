@@ -94,6 +94,8 @@ void pci_free_msi_irqs(struct pci_dev *dev);
 int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec, struct irq_affinity *affd);
 int __pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries, int minvec,
 			    int maxvec,  struct irq_affinity *affd, int flags);
+void __pci_restore_msi_state(struct pci_dev *dev);
+void __pci_restore_msix_state(struct pci_dev *dev);
 
 /* Legacy (!IRQDOMAIN) fallbacks */
 

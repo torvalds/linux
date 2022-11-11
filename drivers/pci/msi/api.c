@@ -309,6 +309,21 @@ void pci_free_irq_vectors(struct pci_dev *dev)
 EXPORT_SYMBOL(pci_free_irq_vectors);
 
 /**
+ * pci_restore_msi_state() - Restore cached MSI(-X) state on device
+ * @dev: the PCI device to operate on
+ *
+ * Write the Linux-cached MSI(-X) state back on device. This is
+ * typically useful upon system resume, or after an error-recovery PCI
+ * adapter reset.
+ */
+void pci_restore_msi_state(struct pci_dev *dev)
+{
+	__pci_restore_msi_state(dev);
+	__pci_restore_msix_state(dev);
+}
+EXPORT_SYMBOL_GPL(pci_restore_msi_state);
+
+/**
  * pci_msi_enabled() - Are MSI(-X) interrupts enabled system-wide?
  *
  * Return: true if MSI has not been globally disabled through ACPI FADT,
