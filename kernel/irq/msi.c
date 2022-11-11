@@ -462,6 +462,8 @@ static inline void msi_sysfs_remove_desc(struct device *dev, struct msi_desc *de
 #endif /* !CONFIG_SYSFS */
 
 #ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
+static int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev, int nvec);
+
 static inline void irq_chip_write_msi_msg(struct irq_data *data,
 					  struct msi_msg *msg)
 {
@@ -852,8 +854,8 @@ static int msi_init_virq(struct irq_domain *domain, int virq, unsigned int vflag
 	return 0;
 }
 
-int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
-			    int nvec)
+static int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev,
+				   int nvec)
 {
 	struct msi_domain_info *info = domain->host_data;
 	struct msi_domain_ops *ops = info->ops;
