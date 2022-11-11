@@ -745,10 +745,10 @@ static int intel_free_stream(struct sdw_intel *sdw,
  * bank switch routines
  */
 
-static int intel_pre_bank_switch(struct sdw_bus *bus)
+static int intel_pre_bank_switch(struct sdw_intel *sdw)
 {
-	struct sdw_cdns *cdns = bus_to_cdns(bus);
-	struct sdw_intel *sdw = cdns_to_intel(cdns);
+	struct sdw_cdns *cdns = &sdw->cdns;
+	struct sdw_bus *bus = &cdns->bus;
 
 	/* Write to register only for multi-link */
 	if (!bus->multi_link)
@@ -759,10 +759,10 @@ static int intel_pre_bank_switch(struct sdw_bus *bus)
 	return 0;
 }
 
-static int intel_post_bank_switch(struct sdw_bus *bus)
+static int intel_post_bank_switch(struct sdw_intel *sdw)
 {
-	struct sdw_cdns *cdns = bus_to_cdns(bus);
-	struct sdw_intel *sdw = cdns_to_intel(cdns);
+	struct sdw_cdns *cdns = &sdw->cdns;
+	struct sdw_bus *bus = &cdns->bus;
 	void __iomem *shim = sdw->link_res->shim;
 	int sync_reg, ret;
 
@@ -1422,6 +1422,28 @@ static int intel_stop_bus(struct sdw_intel *sdw, bool clock_stop)
 	return 0;
 }
 
+const struct sdw_intel_hw_ops sdw_intel_cnl_hw_ops = {
+	.pre_bank_switch = intel_pre_bank_switch,
+	.post_bank_switch = intel_post_bank_switch,
+};
+EXPORT_SYMBOL_NS(sdw_intel_cnl_hw_ops, SOUNDWIRE_INTEL);
+
+static int generic_pre_bank_switch(struct sdw_bus *bus)
+{
+	struct sdw_cdns *cdns = bus_to_cdns(bus);
+	struct sdw_intel *sdw = cdns_to_intel(cdns);
+
+	return sdw->link_res->hw_ops->pre_bank_switch(sdw);
+}
+
+static int generic_post_bank_switch(struct sdw_bus *bus)
+{
+	struct sdw_cdns *cdns = bus_to_cdns(bus);
+	struct sdw_intel *sdw = cdns_to_intel(cdns);
+
+	return sdw->link_res->hw_ops->post_bank_switch(sdw);
+}
+
 static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 {
 	struct sdw_master_prop *prop = &bus->prop;
@@ -1477,8 +1499,8 @@ static struct sdw_master_ops sdw_intel_ops = {
 	.xfer_msg_defer = cdns_xfer_msg_defer,
 	.reset_page_addr = cdns_reset_page_addr,
 	.set_bus_conf = cdns_bus_conf,
-	.pre_bank_switch = intel_pre_bank_switch,
-	.post_bank_switch = intel_post_bank_switch,
+	.pre_bank_switch = generic_pre_bank_switch,
+	.post_bank_switch = generic_post_bank_switch,
 	.read_ping_status = cdns_read_ping_status,
 };
 
