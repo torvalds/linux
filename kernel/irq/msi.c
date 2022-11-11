@@ -1026,6 +1026,8 @@ void msi_domain_free_irqs_descs_locked(struct irq_domain *domain, struct device 
 	lockdep_assert_held(&dev->msi.data->mutex);
 
 	ops->domain_free_irqs(domain, dev);
+	if (ops->msi_post_free)
+		ops->msi_post_free(domain, dev);
 	msi_domain_free_msi_descs(info, dev);
 }
 
