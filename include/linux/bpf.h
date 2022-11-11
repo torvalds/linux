@@ -315,7 +315,7 @@ static inline void __copy_map_value(struct bpf_map *map, void *dst, void *src, b
 		u32 next_off = map->off_arr->field_off[i];
 
 		memcpy(dst + curr_off, src + curr_off, next_off - curr_off);
-		curr_off += map->off_arr->field_sz[i];
+		curr_off = next_off + map->off_arr->field_sz[i];
 	}
 	memcpy(dst + curr_off, src + curr_off, map->value_size - curr_off);
 }
@@ -344,7 +344,7 @@ static inline void zero_map_value(struct bpf_map *map, void *dst)
 		u32 next_off = map->off_arr->field_off[i];
 
 		memset(dst + curr_off, 0, next_off - curr_off);
-		curr_off += map->off_arr->field_sz[i];
+		curr_off = next_off + map->off_arr->field_sz[i];
 	}
 	memset(dst + curr_off, 0, map->value_size - curr_off);
 }
