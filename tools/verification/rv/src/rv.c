@@ -12,6 +12,7 @@
 
 #include <trace.h>
 #include <utils.h>
+#include <in_kernel.h>
 
 static int stop_session;
 
@@ -63,6 +64,7 @@ static void rv_list(int argc, char **argv)
 			exit(1);
 	}
 
+	ikm_list_monitors();
 	exit(0);
 }
 
@@ -109,6 +111,7 @@ static void rv_mon(int argc, char **argv)
 	 * Call all possible monitor implementations, looking
 	 * for the [monitor].
 	 */
+	run += ikm_run_monitor(monitor_name, argc-1, &argv[1]);
 
 	if (!run)
 		err_msg("rv: monitor %s does not exist\n", monitor_name);
