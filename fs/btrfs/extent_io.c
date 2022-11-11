@@ -3698,6 +3698,7 @@ static int fiemap_search_slot(struct btrfs_inode *inode, struct btrfs_path *path
 static int fiemap_process_hole(struct btrfs_inode *inode,
 			       struct fiemap_extent_info *fieinfo,
 			       struct fiemap_cache *cache,
+			       struct extent_state **delalloc_cached_state,
 			       struct btrfs_backref_share_check_ctx *backref_ctx,
 			       u64 disk_bytenr, u64 extent_offset,
 			       u64 extent_gen,
@@ -3722,6 +3723,7 @@ static int fiemap_process_hole(struct btrfs_inode *inode,
 		bool delalloc;
 
 		delalloc = btrfs_find_delalloc_in_range(inode, cur_offset, end,
+							delalloc_cached_state,
 							&delalloc_start,
 							&delalloc_end);
 		if (!delalloc)
@@ -3892,6 +3894,7 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 {
 	const u64 ino = btrfs_ino(inode);
 	struct extent_state *cached_state = NULL;
+	struct extent_state *delalloc_cached_state = NULL;
 	struct btrfs_path *path;
 	struct fiemap_cache cache = { 0 };
 	struct btrfs_backref_share_check_ctx *backref_ctx;
@@ -3966,6 +3969,7 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 			const u64 range_end = min(key.offset, lockend) - 1;
 
 			ret = fiemap_process_hole(inode, fieinfo, &cache,
+						  &delalloc_cached_state,
 						  backref_ctx, 0, 0, 0,
 						  prev_extent_end, range_end);
 			if (ret < 0) {
@@ -4006,6 +4010,7 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 						 extent_len, flags);
 		} else if (extent_type == BTRFS_FILE_EXTENT_PREALLOC) {
 			ret = fiemap_process_hole(inode, fieinfo, &cache,
+						  &delalloc_cached_state,
 						  backref_ctx,
 						  disk_bytenr, extent_offset,
 						  extent_gen, key.offset,
@@ -4013,6 +4018,7 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 		} else if (disk_bytenr == 0) {
 			/* We have an explicit hole. */
 			ret = fiemap_process_hole(inode, fieinfo, &cache,
+						  &delalloc_cached_state,
 						  backref_ctx, 0, 0, 0,
 						  key.offset, extent_end - 1);
 		} else {
@@ -4070,7 +4076,8 @@ check_eof_delalloc:
 	path = NULL;
 
 	if (!stopped && prev_extent_end < lockend) {
-		ret = fiemap_process_hole(inode, fieinfo, &cache, backref_ctx,
+		ret = fiemap_process_hole(inode, fieinfo, &cache,
+					  &delalloc_cached_state, backref_ctx,
 					  0, 0, 0, prev_extent_end, lockend - 1);
 		if (ret < 0)
 			goto out_unlock;
@@ -4088,6 +4095,7 @@ check_eof_delalloc:
 			delalloc = btrfs_find_delalloc_in_range(inode,
 								prev_extent_end,
 								i_size - 1,
+								&delalloc_cached_state,
 								&delalloc_start,
 								&delalloc_end);
 			if (!delalloc)
@@ -4102,6 +4110,7 @@ check_eof_delalloc:
 out_unlock:
 	unlock_extent(&inode->io_tree, lockstart, lockend, &cached_state);
 out:
+	free_extent_state(delalloc_cached_state);
 	btrfs_free_backref_share_ctx(backref_ctx);
 	btrfs_free_path(path);
 	return ret;

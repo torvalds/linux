@@ -3214,6 +3214,7 @@ out:
  * looping while it gets adjacent subranges, and merging them together.
  */
 static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end,
+				   struct extent_state **cached_state,
 				   bool *search_io_tree,
 				   u64 *delalloc_start_ret, u64 *delalloc_end_ret)
 {
@@ -3236,7 +3237,7 @@ static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end
 			delalloc_len = count_range_bits(&inode->io_tree,
 							delalloc_start_ret, end,
 							len, EXTENT_DELALLOC, 1,
-							NULL);
+							cached_state);
 		} else {
 			spin_unlock(&inode->lock);
 		}
@@ -3324,6 +3325,8 @@ static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end
  *                       sector size aligned.
  * @end:                 The end offset (inclusive value) of the search range.
  *                       It does not need to be sector size aligned.
+ * @cached_state:        Extent state record used for speeding up delalloc
+ *                       searches in the inode's io_tree. Can be NULL.
  * @delalloc_start_ret:  Output argument, set to the start offset of the
  *                       subrange found with delalloc (may not be sector size
  *                       aligned).
@@ -3335,6 +3338,7 @@ static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end
  * end offsets of the subrange.
  */
 bool btrfs_find_delalloc_in_range(struct btrfs_inode *inode, u64 start, u64 end,
+				  struct extent_state **cached_state,
 				  u64 *delalloc_start_ret, u64 *delalloc_end_ret)
 {
 	u64 cur_offset = round_down(start, inode->root->fs_info->sectorsize);
@@ -3348,7 +3352,7 @@ bool btrfs_find_delalloc_in_range(struct btrfs_inode *inode, u64 start, u64 end,
 		bool delalloc;
 
 		delalloc = find_delalloc_subrange(inode, cur_offset, end,
-						  &search_io_tree,
+						  cached_state, &search_io_tree,
 						  &delalloc_start,
 						  &delalloc_end);
 		if (!delalloc)
@@ -3400,7 +3404,7 @@ static bool find_desired_extent_in_hole(struct btrfs_inode *inode, int whence,
 	u64 delalloc_end;
 	bool delalloc;
 
-	delalloc = btrfs_find_delalloc_in_range(inode, start, end,
+	delalloc = btrfs_find_delalloc_in_range(inode, start, end, NULL,
 						&delalloc_start, &delalloc_end);
 	if (delalloc && whence == SEEK_DATA) {
 		*start_ret = delalloc_start;
