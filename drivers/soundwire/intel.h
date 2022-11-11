@@ -132,4 +132,17 @@ static inline int sdw_intel_link_power_down(struct sdw_intel *sdw)
 	return -ENOTSUPP;
 }
 
+static inline int sdw_intel_shim_check_wake(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, shim_check_wake))
+		return SDW_INTEL_OPS(sdw, shim_check_wake)(sdw);
+	return -ENOTSUPP;
+}
+
+static inline void sdw_intel_shim_wake(struct sdw_intel *sdw, bool wake_enable)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, shim_wake))
+		SDW_INTEL_OPS(sdw, shim_wake)(sdw, wake_enable);
+}
+
 #endif /* __SDW_INTEL_LOCAL_H */

@@ -307,6 +307,8 @@ struct sdw_intel;
  * @stop_bus: stop all bus
  * @link_power_up: power-up using chip-specific helpers
  * @link_power_down: power-down with chip-specific helpers
+ * @shim_check_wake: check if a wake was received
+ * @shim_wake: enable/disable in-band wake management
  * @pre_bank_switch: helper for bus management
  * @post_bank_switch: helper for bus management
  */
@@ -324,6 +326,9 @@ struct sdw_intel_hw_ops {
 
 	int (*link_power_up)(struct sdw_intel *sdw);
 	int (*link_power_down)(struct sdw_intel *sdw);
+
+	int  (*shim_check_wake)(struct sdw_intel *sdw);
+	void (*shim_wake)(struct sdw_intel *sdw, bool wake_enable);
 
 	int (*pre_bank_switch)(struct sdw_intel *sdw);
 	int (*post_bank_switch)(struct sdw_intel *sdw);

@@ -1437,6 +1437,9 @@ const struct sdw_intel_hw_ops sdw_intel_cnl_hw_ops = {
 	.link_power_up = intel_link_power_up,
 	.link_power_down = intel_link_power_down,
 
+	.shim_check_wake = intel_shim_check_wake,
+	.shim_wake = intel_shim_wake,
+
 	.pre_bank_switch = intel_pre_bank_switch,
 	.post_bank_switch = intel_post_bank_switch,
 };
@@ -1720,11 +1723,11 @@ int intel_link_process_wakeen_event(struct auxiliary_device *auxdev)
 		return 0;
 	}
 
-	if (!intel_shim_check_wake(sdw))
+	if (!sdw_intel_shim_check_wake(sdw))
 		return 0;
 
 	/* disable WAKEEN interrupt ASAP to prevent interrupt flood */
-	intel_shim_wake(sdw, false);
+	sdw_intel_shim_wake(sdw, false);
 
 	/*
 	 * resume the Master, which will generate a bus reset and result in
@@ -1852,7 +1855,7 @@ static int __maybe_unused intel_suspend(struct device *dev)
 				 */
 				dev_err(dev, "%s: invalid config: parent is suspended\n", __func__);
 			} else {
-				intel_shim_wake(sdw, false);
+				sdw_intel_shim_wake(sdw, false);
 			}
 		}
 
@@ -1987,7 +1990,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 	}
 
 	/* unconditionally disable WAKEEN interrupt */
-	intel_shim_wake(sdw, false);
+	sdw_intel_shim_wake(sdw, false);
 
 	clock_stop_quirks = sdw->link_res->clock_stop_quirks;
 
