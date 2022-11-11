@@ -617,17 +617,9 @@ static int msi_domain_ops_init(struct irq_domain *domain,
 	return 0;
 }
 
-static int msi_domain_ops_check(struct irq_domain *domain,
-				struct msi_domain_info *info,
-				struct device *dev)
-{
-	return 0;
-}
-
 static struct msi_domain_ops msi_domain_ops_default = {
 	.get_hwirq		= msi_domain_ops_get_hwirq,
 	.msi_init		= msi_domain_ops_init,
-	.msi_check		= msi_domain_ops_check,
 	.msi_prepare		= msi_domain_ops_prepare,
 	.set_desc		= msi_domain_ops_set_desc,
 	.domain_alloc_irqs	= __msi_domain_alloc_irqs,
@@ -655,8 +647,6 @@ static void msi_domain_update_dom_ops(struct msi_domain_info *info)
 		ops->get_hwirq = msi_domain_ops_default.get_hwirq;
 	if (ops->msi_init == NULL)
 		ops->msi_init = msi_domain_ops_default.msi_init;
-	if (ops->msi_check == NULL)
-		ops->msi_check = msi_domain_ops_default.msi_check;
 	if (ops->msi_prepare == NULL)
 		ops->msi_prepare = msi_domain_ops_default.msi_prepare;
 	if (ops->set_desc == NULL)
@@ -707,13 +697,8 @@ int msi_domain_prepare_irqs(struct irq_domain *domain, struct device *dev,
 {
 	struct msi_domain_info *info = domain->host_data;
 	struct msi_domain_ops *ops = info->ops;
-	int ret;
 
-	ret = ops->msi_check(domain, info, dev);
-	if (ret == 0)
-		ret = ops->msi_prepare(domain, dev, nvec, arg);
-
-	return ret;
+	return ops->msi_prepare(domain, dev, nvec, arg);
 }
 
 int msi_domain_populate_irqs(struct irq_domain *domain, struct device *dev,
