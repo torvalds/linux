@@ -15,6 +15,7 @@
 #include <asm/fcx.h>
 #include <asm/irq.h>
 #include <asm/schid.h>
+#include <linux/mutex.h>
 
 /* structs from asm/cio.h */
 struct irb;
@@ -87,6 +88,7 @@ struct ccw_device {
 	spinlock_t *ccwlock;
 /* private: */
 	struct ccw_device_private *private;	/* cio private information */
+	struct mutex reg_mutex;
 /* public: */
 	struct ccw_device_id id;
 	struct ccw_driver *drv;
