@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mmc/fujitsu,sdhci-fujitsu.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Fujitsu SDHCI controller (F_SDH30)
+title: Fujitsu/Socionext SDHCI controller (F_SDH30)
 
 maintainers:
   - Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
@@ -14,7 +14,9 @@ allOf:
 
 properties:
   compatible:
-    const: fujitsu,mb86s70-sdhci-3.0
+    enum:
+      - fujitsu,mb86s70-sdhci-3.0
+      - socionext,f-sdh30-e51-mmc
 
   reg:
     maxItems: 1
