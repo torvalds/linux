@@ -181,6 +181,23 @@
 	};
 };
 
+&flexspi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_flexspi0>;
+	nxp,fspi-dll-slvdly = <4>;
+	status = "okay";
+
+	mt35xu512aba0: flash@0 {
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		spi-max-frequency = <133000000>;
+		spi-tx-bus-width = <8>;
+		spi-rx-bus-width = <8>;
+	};
+};
+
 &i2c2 {
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -383,6 +400,25 @@
 			IMX8DXL_ENET1_RGMII_TXD2_CONN_EQOS_RGMII_TXD2		0x06000020
 			IMX8DXL_ENET1_RGMII_TXD3_CONN_EQOS_RGMII_TXD3		0x06000020
 			IMX8DXL_ENET1_RGMII_TX_CTL_CONN_EQOS_RGMII_TX_CTL	0x06000020
+		>;
+	};
+
+	pinctrl_flexspi0: flexspi0grp {
+		fsl,pins = <
+			IMX8DXL_QSPI0A_DATA0_LSIO_QSPI0A_DATA0     0x06000021
+			IMX8DXL_QSPI0A_DATA1_LSIO_QSPI0A_DATA1     0x06000021
+			IMX8DXL_QSPI0A_DATA2_LSIO_QSPI0A_DATA2     0x06000021
+			IMX8DXL_QSPI0A_DATA3_LSIO_QSPI0A_DATA3     0x06000021
+			IMX8DXL_QSPI0A_DQS_LSIO_QSPI0A_DQS         0x06000021
+			IMX8DXL_QSPI0A_SS0_B_LSIO_QSPI0A_SS0_B     0x06000021
+			IMX8DXL_QSPI0A_SCLK_LSIO_QSPI0A_SCLK       0x06000021
+			IMX8DXL_QSPI0B_SCLK_LSIO_QSPI0B_SCLK       0x06000021
+			IMX8DXL_QSPI0B_DATA0_LSIO_QSPI0B_DATA0     0x06000021
+			IMX8DXL_QSPI0B_DATA1_LSIO_QSPI0B_DATA1     0x06000021
+			IMX8DXL_QSPI0B_DATA2_LSIO_QSPI0B_DATA2     0x06000021
+			IMX8DXL_QSPI0B_DATA3_LSIO_QSPI0B_DATA3     0x06000021
+			IMX8DXL_QSPI0B_DQS_LSIO_QSPI0B_DQS         0x06000021
+			IMX8DXL_QSPI0B_SS0_B_LSIO_QSPI0B_SS0_B     0x06000021
 		>;
 	};
 
