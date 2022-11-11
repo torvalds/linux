@@ -120,7 +120,7 @@ static int msi_add_simple_msi_descs(struct device *dev, unsigned int index, unsi
 fail_mem:
 	ret = -ENOMEM;
 fail:
-	msi_free_msi_descs_range(dev, MSI_DESC_ALL, index, last);
+	msi_free_msi_descs_range(dev, index, last);
 	return ret;
 }
 
@@ -141,12 +141,11 @@ static bool msi_desc_match(struct msi_desc *desc, enum msi_desc_filter filter)
 /**
  * msi_free_msi_descs_range - Free MSI descriptors of a device
  * @dev:		Device to free the descriptors
- * @filter:		Descriptor state filter
  * @first_index:	Index to start freeing from
  * @last_index:		Last index to be freed
  */
-void msi_free_msi_descs_range(struct device *dev, enum msi_desc_filter filter,
-			      unsigned int first_index, unsigned int last_index)
+void msi_free_msi_descs_range(struct device *dev, unsigned int first_index,
+			      unsigned int last_index)
 {
 	struct xarray *xa = &dev->msi.data->__store;
 	struct msi_desc *desc;
@@ -155,10 +154,12 @@ void msi_free_msi_descs_range(struct device *dev, enum msi_desc_filter filter,
 	lockdep_assert_held(&dev->msi.data->mutex);
 
 	xa_for_each_range(xa, idx, desc, first_index, last_index) {
-		if (msi_desc_match(desc, filter)) {
-			xa_erase(xa, idx);
-			msi_free_desc(desc);
-		}
+		xa_erase(xa, idx);
+
+		/* Leak the descriptor when it is still referenced */
+		if (WARN_ON_ONCE(msi_desc_match(desc, MSI_DESC_ASSOCIATED)))
+			continue;
+		msi_free_desc(desc);
 	}
 }
 
@@ -739,7 +740,7 @@ int msi_domain_populate_irqs(struct irq_domain *domain, struct device *dev,
 fail:
 	for (--virq; virq >= virq_base; virq--)
 		irq_domain_free_irqs_common(domain, virq, 1);
-	msi_free_msi_descs_range(dev, MSI_DESC_ALL, virq_base, virq_base + nvec - 1);
+	msi_free_msi_descs_range(dev, virq_base, virq_base + nvec - 1);
 unlock:
 	msi_unlock_descs(dev);
 	return ret;
