@@ -721,47 +721,31 @@ out_disable:
 	return ret;
 }
 
-static int __pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries,
-			     int nvec, struct irq_affinity *affd, int flags)
+static bool pci_msix_validate_entries(struct msix_entry *entries, int nvec, int hwsize)
 {
-	int nr_entries;
 	int i, j;
 
-	if (!pci_msi_supported(dev, nvec) || dev->current_state != PCI_D0)
-		return -EINVAL;
+	if (!entries)
+		return true;
 
-	nr_entries = pci_msix_vec_count(dev);
-	if (nr_entries < 0)
-		return nr_entries;
-	if (nvec > nr_entries && !(flags & PCI_IRQ_VIRTUAL))
-		return nr_entries;
+	for (i = 0; i < nvec; i++) {
+		/* Entry within hardware limit? */
+		if (entries[i].entry >= hwsize)
+			return false;
 
-	if (entries) {
-		/* Check for any invalid entries */
-		for (i = 0; i < nvec; i++) {
-			if (entries[i].entry >= nr_entries)
-				return -EINVAL;		/* invalid entry */
-			for (j = i + 1; j < nvec; j++) {
-				if (entries[i].entry == entries[j].entry)
-					return -EINVAL;	/* duplicate entry */
-			}
+		/* Check for duplicate entries */
+		for (j = i + 1; j < nvec; j++) {
+			if (entries[i].entry == entries[j].entry)
+				return false;
 		}
 	}
-
-	/* Check whether driver already requested for MSI IRQ */
-	if (dev->msi_enabled) {
-		pci_info(dev, "can't enable MSI-X (MSI IRQ already assigned)\n");
-		return -EINVAL;
-	}
-	return msix_capability_init(dev, entries, nvec, affd);
+	return true;
 }
 
-int __pci_enable_msix_range(struct pci_dev *dev,
-			    struct msix_entry *entries, int minvec,
-			    int maxvec, struct irq_affinity *affd,
-			    int flags)
+int __pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries, int minvec,
+			    int maxvec, struct irq_affinity *affd, int flags)
 {
-	int rc, nvec = maxvec;
+	int hwsize, rc, nvec = maxvec;
 
 	if (maxvec < minvec)
 		return -ERANGE;
@@ -774,6 +758,23 @@ int __pci_enable_msix_range(struct pci_dev *dev,
 	if (WARN_ON_ONCE(dev->msix_enabled))
 		return -EINVAL;
 
+	if (!pci_msi_supported(dev, nvec) || dev->current_state != PCI_D0)
+		return -EINVAL;
+
+	hwsize = pci_msix_vec_count(dev);
+	if (hwsize < 0)
+		return hwsize;
+
+	if (!pci_msix_validate_entries(entries, nvec, hwsize))
+		return -EINVAL;
+
+	/* PCI_IRQ_VIRTUAL is a horrible hack! */
+	if (nvec > hwsize && !(flags & PCI_IRQ_VIRTUAL))
+		nvec = hwsize;
+
+	if (nvec < minvec)
+		return -ENOSPC;
+
 	rc = pci_setup_msi_context(dev);
 	if (rc)
 		return rc;
@@ -785,7 +786,7 @@ int __pci_enable_msix_range(struct pci_dev *dev,
 				return -ENOSPC;
 		}
 
-		rc = __pci_enable_msix(dev, entries, nvec, affd, flags);
+		rc = msix_capability_init(dev, entries, nvec, affd);
 		if (rc == 0)
 			return nvec;
 
