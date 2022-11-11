@@ -3633,8 +3633,7 @@ int mpi3mr_setup_resources(struct mpi3mr_ioc *mrioc)
 	int i, retval = 0, capb = 0;
 	u16 message_control;
 	u64 dma_mask = mrioc->dma_mask ? mrioc->dma_mask :
-	    (((dma_get_required_mask(&pdev->dev) > DMA_BIT_MASK(32)) &&
-	    (sizeof(dma_addr_t) > 4)) ? DMA_BIT_MASK(64) : DMA_BIT_MASK(32));
+	    ((sizeof(dma_addr_t) > 4) ? DMA_BIT_MASK(64) : DMA_BIT_MASK(32));
 
 	if (pci_enable_device_mem(pdev)) {
 		ioc_err(mrioc, "pci_enable_device_mem: failed\n");
