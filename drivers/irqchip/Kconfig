@@ -38,7 +38,7 @@ config ARM_GIC_V3
 
 config ARM_GIC_V3_ITS
 	bool
-	select GENERIC_MSI_IRQ_DOMAIN
+	select GENERIC_MSI_IRQ
 	default ARM_GIC_V3
 
 config ARM_GIC_V3_ITS_PCI
@@ -375,7 +375,7 @@ config MVEBU_ICU
 
 config MVEBU_ODMI
 	bool
-	select GENERIC_MSI_IRQ_DOMAIN
+	select GENERIC_MSI_IRQ
 
 config MVEBU_PIC
 	bool
@@ -488,7 +488,7 @@ config IMX_MU_MSI
 	default m if ARCH_MXC
 	select IRQ_DOMAIN
 	select IRQ_DOMAIN_HIERARCHY
-	select GENERIC_MSI_IRQ_DOMAIN
+	select GENERIC_MSI_IRQ
 	help
 	  Provide a driver for the i.MX Messaging Unit block used as a
 	  CPU-to-CPU MSI controller. This requires a specially crafted DT

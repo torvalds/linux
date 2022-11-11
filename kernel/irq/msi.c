@@ -461,7 +461,6 @@ static inline int msi_sysfs_populate_desc(struct device *dev, struct msi_desc *d
 static inline void msi_sysfs_remove_desc(struct device *dev, struct msi_desc *desc) { }
 #endif /* !CONFIG_SYSFS */
 
-#ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
 static int __msi_domain_alloc_irqs(struct irq_domain *domain, struct device *dev, int nvec);
 static void __msi_domain_free_irqs(struct irq_domain *domain, struct device *dev);
 
@@ -1058,5 +1057,3 @@ struct msi_domain_info *msi_get_domain_info(struct irq_domain *domain)
 {
 	return (struct msi_domain_info *)domain->host_data;
 }
-
-#endif /* CONFIG_GENERIC_MSI_IRQ_DOMAIN */

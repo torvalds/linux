@@ -27,7 +27,7 @@ struct gpio_chip;
 
 union gpio_irq_fwspec {
 	struct irq_fwspec	fwspec;
-#ifdef CONFIG_GENERIC_MSI_IRQ_DOMAIN
+#ifdef CONFIG_GENERIC_MSI_IRQ
 	msi_alloc_info_t	msiinfo;
 #endif
 };
