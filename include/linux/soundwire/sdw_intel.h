@@ -297,10 +297,15 @@ irqreturn_t sdw_intel_thread(int irq, void *dev_id);
 struct sdw_intel;
 
 /* struct intel_sdw_hw_ops - SoundWire ops for Intel platforms.
+ * @debugfs_init: initialize all debugfs capabilities
+ * @debugfs_exit: close and cleanup debugfs capabilities
  * @pre_bank_switch: helper for bus management
  * @post_bank_switch: helper for bus management
  */
 struct sdw_intel_hw_ops {
+	void (*debugfs_init)(struct sdw_intel *sdw);
+	void (*debugfs_exit)(struct sdw_intel *sdw);
+
 	int (*pre_bank_switch)(struct sdw_intel *sdw);
 	int (*post_bank_switch)(struct sdw_intel *sdw);
 };

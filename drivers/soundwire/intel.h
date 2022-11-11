@@ -61,4 +61,20 @@ struct sdw_intel_link_dev {
 #define auxiliary_dev_to_sdw_intel_link_dev(auxiliary_dev) \
 	container_of(auxiliary_dev, struct sdw_intel_link_dev, auxdev)
 
+#define SDW_INTEL_CHECK_OPS(sdw, cb)	((sdw) && (sdw)->link_res && (sdw)->link_res->hw_ops && \
+					 (sdw)->link_res->hw_ops->cb)
+#define SDW_INTEL_OPS(sdw, cb)		((sdw)->link_res->hw_ops->cb)
+
+static inline void sdw_intel_debugfs_init(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, debugfs_init))
+		SDW_INTEL_OPS(sdw, debugfs_init)(sdw);
+}
+
+static inline void sdw_intel_debugfs_exit(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, debugfs_exit))
+		SDW_INTEL_OPS(sdw, debugfs_exit)(sdw);
+}
+
 #endif /* __SDW_INTEL_LOCAL_H */

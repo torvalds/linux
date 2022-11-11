@@ -1423,6 +1423,9 @@ static int intel_stop_bus(struct sdw_intel *sdw, bool clock_stop)
 }
 
 const struct sdw_intel_hw_ops sdw_intel_cnl_hw_ops = {
+	.debugfs_init = intel_debugfs_init,
+	.debugfs_exit = intel_debugfs_exit,
+
 	.pre_bank_switch = intel_pre_bank_switch,
 	.post_bank_switch = intel_post_bank_switch,
 };
@@ -1614,7 +1617,7 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 		goto err_power_up;
 	}
 
-	intel_debugfs_init(sdw);
+	sdw_intel_debugfs_init(sdw);
 
 	/* start bus */
 	ret = intel_start_bus(sdw);
@@ -1685,7 +1688,7 @@ static void intel_link_remove(struct auxiliary_device *auxdev)
 	 * SDW_INTEL_CLK_STOP_NOT_ALLOWED
 	 */
 	if (!bus->prop.hw_disabled) {
-		intel_debugfs_exit(sdw);
+		sdw_intel_debugfs_exit(sdw);
 		sdw_cdns_enable_interrupt(cdns, false);
 	}
 	sdw_bus_master_delete(bus);
