@@ -367,7 +367,13 @@ static bool should_process_file_prog(const char *filename, const char *prog_name
 		if (f->any_glob) {
 			if (glob_matches(filename, f->any_glob))
 				return true;
-			if (prog_name && glob_matches(prog_name, f->any_glob))
+			/* If we don't know program name yet, any_glob filter
+			 * has to assume that current BPF object file might be
+			 * relevant; we'll check again later on after opening
+			 * BPF object file, at which point program name will
+			 * be known finally.
+			 */
+			if (!prog_name || glob_matches(prog_name, f->any_glob))
 				return true;
 		} else {
 			if (f->file_glob && !glob_matches(filename, f->file_glob))
