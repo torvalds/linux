@@ -585,6 +585,9 @@ void dcn32_set_phantom_stream_timing(struct dc *dc,
 	num_dpp = vba->NoOfDPP[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]];
 	phantom_vactive += num_dpp > 1 ? vba->meta_row_height[vba->pipe_plane[pipe_idx]] : 0;
 
+	/* dc->debug.subvp_extra_lines 0 by default*/
+	phantom_vactive += dc->debug.subvp_extra_lines;
+
 	// For backporch of phantom pipe, use vstartup of the main pipe
 	phantom_bp = get_vstartup(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
 
