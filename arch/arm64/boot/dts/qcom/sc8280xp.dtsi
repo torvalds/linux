@@ -1587,12 +1587,10 @@
 			reg = <0 0x088ef000 0 0x2000>;
 
 			clocks = <&gcc GCC_USB3_MP_PHY_AUX_CLK>,
-				 <&rpmhcc RPMH_CXO_CLK>,
 				 <&gcc GCC_USB3_MP0_CLKREF_CLK>,
 				 <&gcc GCC_USB3_MP_PHY_COM_AUX_CLK>,
 				 <&gcc GCC_USB3_MP_PHY_PIPE_0_CLK>;
-			clock-names = "aux", "ref_clk_src", "ref", "com_aux",
-				      "pipe";
+			clock-names = "aux", "ref", "com_aux", "pipe";
 
 			resets = <&gcc GCC_USB3_UNIPHY_MP0_BCR>,
 				 <&gcc GCC_USB3UNIPHY_PHY_MP0_BCR>;
@@ -1613,12 +1611,10 @@
 			reg = <0 0x088f1000 0 0x2000>;
 
 			clocks = <&gcc GCC_USB3_MP_PHY_AUX_CLK>,
-				 <&rpmhcc RPMH_CXO_CLK>,
 				 <&gcc GCC_USB3_MP1_CLKREF_CLK>,
 				 <&gcc GCC_USB3_MP_PHY_COM_AUX_CLK>,
 				 <&gcc GCC_USB3_MP_PHY_PIPE_1_CLK>;
-			clock-names = "aux", "ref_clk_src", "ref", "com_aux",
-				      "pipe";
+			clock-names = "aux", "ref", "com_aux", "pipe";
 
 			resets = <&gcc GCC_USB3_UNIPHY_MP1_BCR>,
 				 <&gcc GCC_USB3UNIPHY_PHY_MP1_BCR>;
