@@ -22,12 +22,11 @@ properties:
     maxItems: 1
 
   clocks:
-    maxItems: 5
+    maxItems: 4
 
   clock-names:
     items:
       - const: aux
-      - const: ref_clk_src
       - const: ref
       - const: com_aux
       - const: pipe
@@ -82,12 +81,10 @@ examples:
       reg = <0x088ef000 0x2000>;
 
       clocks = <&gcc GCC_USB3_MP_PHY_AUX_CLK>,
-               <&rpmhcc RPMH_CXO_CLK>,
                <&gcc GCC_USB3_MP0_CLKREF_CLK>,
                <&gcc GCC_USB3_MP_PHY_COM_AUX_CLK>,
                <&gcc GCC_USB3_MP_PHY_PIPE_0_CLK>;
-      clock-names = "aux", "ref_clk_src", "ref", "com_aux",
-                    "pipe";
+      clock-names = "aux", "ref", "com_aux", "pipe";
 
       power-domains = <&gcc USB30_MP_GDSC>;
 
