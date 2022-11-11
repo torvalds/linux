@@ -2480,7 +2480,6 @@ static void *tcp_seek_last_pos(struct seq_file *seq)
 	case TCP_SEQ_STATE_LISTENING:
 		if (st->bucket > hinfo->lhash2_mask)
 			break;
-		st->state = TCP_SEQ_STATE_LISTENING;
 		rc = listening_get_first(seq);
 		while (offset-- && rc && bucket == st->bucket)
 			rc = listening_get_next(seq, rc);
