@@ -10,6 +10,7 @@
 #include <linux/netdevice.h>
 
 struct mtk_eth;
+struct mtk_wed_wo;
 
 struct mtk_wed_hw {
 	struct device_node *node;
@@ -22,6 +23,7 @@ struct mtk_wed_hw {
 	struct regmap *mirror;
 	struct dentry *debugfs_dir;
 	struct mtk_wed_device *wed_dev;
+	struct mtk_wed_wo *wed_wo;
 	u32 debugfs_reg;
 	u32 num_flows;
 	u8 version;
@@ -85,6 +87,24 @@ wpdma_tx_w32(struct mtk_wed_device *dev, int ring, u32 reg, u32 val)
 }
 
 static inline u32
+wpdma_rx_r32(struct mtk_wed_device *dev, int ring, u32 reg)
+{
+	if (!dev->rx_ring[ring].wpdma)
+		return 0;
+
+	return readl(dev->rx_ring[ring].wpdma + reg);
+}
+
+static inline void
+wpdma_rx_w32(struct mtk_wed_device *dev, int ring, u32 reg, u32 val)
+{
+	if (!dev->rx_ring[ring].wpdma)
+		return;
+
+	writel(val, dev->rx_ring[ring].wpdma + reg);
+}
+
+static inline u32
 wpdma_txfree_r32(struct mtk_wed_device *dev, u32 reg)
 {
 	if (!dev->txfree_ring.wpdma)
@@ -126,6 +146,7 @@ static inline int mtk_wed_flow_add(int index)
 static inline void mtk_wed_flow_remove(int index)
 {
 }
+
 #endif
 
 #ifdef CONFIG_DEBUG_FS
