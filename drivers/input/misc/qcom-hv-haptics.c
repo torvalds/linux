@@ -4148,13 +4148,6 @@ static int haptics_parse_per_effect_dt(struct haptics_chip *chip,
 	if (!effect)
 		return -EINVAL;
 
-	rc = of_property_read_u32(node, "qcom,effect-id", &effect->id);
-	if (rc < 0) {
-		dev_err(chip->dev, "read qcom,effect-id failed, rc=%d\n",
-				rc);
-		return rc;
-	}
-
 	effect->vmax_mv = config->vmax_mv;
 	rc = of_property_read_u32(node, "qcom,wf-vmax-mv", &tmp);
 	if (rc < 0)
