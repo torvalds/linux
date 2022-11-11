@@ -598,6 +598,9 @@ struct dwc3_msm {
 	bool			cached_dis_u2_entry_quirk;
 	int			refcnt_dp_usb;
 	enum dp_lane		dp_state;
+
+	int			orientation_gpio;
+	bool			has_orientation_gpio;
 };
 
 #define USB_HSPHY_3P3_VOL_MIN		3050000 /* uV */
@@ -3630,6 +3633,28 @@ static void dwc3_set_phy_speed_flags(struct dwc3_msm *mdwc)
 	}
 }
 
+static void dwc3_msm_orientation_gpio_init(struct dwc3_msm *mdwc)
+{
+	struct device *dev = mdwc->dev;
+	int rc;
+
+	mdwc->orientation_gpio = of_get_gpio(dev->of_node, 0);
+	if (!gpio_is_valid(mdwc->orientation_gpio)) {
+		dev_err(dev, "Failed to get gpio\n");
+		return;
+	}
+
+	rc = devm_gpio_request_one(dev, mdwc->orientation_gpio,
+				   GPIOF_IN, "dwc3-msm-orientation");
+	if (rc < 0) {
+		dev_err(dev, "Failed to request gpio\n");
+		mdwc->orientation_gpio = -EINVAL;
+		return;
+	}
+
+	mdwc->has_orientation_gpio = true;
+}
+
 static void dwc3_set_ssphy_orientation_flag(struct dwc3_msm *mdwc)
 {
 	union extcon_property_value val;
@@ -3641,9 +3666,9 @@ static void dwc3_set_ssphy_orientation_flag(struct dwc3_msm *mdwc)
 
 	if (mdwc->orientation_override) {
 		mdwc->ss_phy->flags |= mdwc->orientation_override;
-	} else if (usb_redriver_has_orientation(mdwc->redriver)) {
-		orientation = usb_redriver_get_orientation(mdwc->redriver);
-		if (orientation == ORIENTATION_CC1)
+	} else if (mdwc->has_orientation_gpio) {
+		orientation = gpio_get_value(mdwc->orientation_gpio);
+		if (orientation == 0)
 			mdwc->ss_phy->flags |= PHY_LANE_A;
 		else
 			mdwc->ss_phy->flags |= PHY_LANE_B;
@@ -5719,6 +5744,8 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		mdwc->redriver = NULL;
 		goto err;
 	}
+
+	dwc3_msm_orientation_gpio_init(mdwc);
 
 	/* Get all clks and gdsc reference */
 	ret = dwc3_msm_get_clk_gdsc(mdwc);

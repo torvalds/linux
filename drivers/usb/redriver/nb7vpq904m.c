@@ -96,7 +96,6 @@ struct nb7vpq904m_redriver {
 	struct i2c_client	*client;
 	struct regulator	*vdd;
 
-	int orientation_gpio;
 	int typec_orientation;
 	enum operation_mode op_mode;
 
@@ -466,17 +465,6 @@ err:
 	return ret;
 }
 
-static int nb7vpq904m_get_orientation(struct usb_redriver *r)
-{
-	struct nb7vpq904m_redriver *redriver =
-		container_of(r, struct nb7vpq904m_redriver, r);
-
-	dev_dbg(redriver->dev, "%s: mode %s\n", __func__,
-		OPMODESTR(redriver->op_mode));
-
-	return gpio_get_value(redriver->orientation_gpio);
-}
-
 static inline void orientation_set(struct nb7vpq904m_redriver *redriver, int ort)
 {
 	redriver->typec_orientation = ort;
@@ -647,28 +635,6 @@ static int nb7vpq904m_host_powercycle(struct usb_redriver *r)
 	return 0;
 }
 
-static void nb7vpq904m_orientation_gpio_init(
-		struct nb7vpq904m_redriver *redriver)
-{
-	struct device *dev = redriver->dev;
-	int rc;
-
-	redriver->orientation_gpio = of_get_gpio(dev->of_node, 0);
-	if (!gpio_is_valid(redriver->orientation_gpio)) {
-		dev_err(dev, "Failed to get gpio\n");
-		return;
-	}
-
-	rc = devm_gpio_request_one(dev, redriver->orientation_gpio, GPIOF_IN, "redriver");
-	if (rc < 0) {
-		dev_err(dev, "Failed to request gpio\n");
-		redriver->orientation_gpio = -EINVAL;
-		return;
-	}
-
-	redriver->r.has_orientation = true;
-}
-
 static const struct regmap_config redriver_regmap = {
 	.max_register = REDRIVER_REG_MAX,
 	.reg_bits = 8,
@@ -738,15 +704,12 @@ static int nb7vpq904m_probe(struct i2c_client *client,
 	 */
 	nb7vpq904m_vdd_enable(redriver, false);
 
-	nb7vpq904m_orientation_gpio_init(redriver);
-
 	nb7vpq904m_debugfs_entries(redriver);
 
 	redriver->r.of_node = redriver->dev->of_node;
 	redriver->r.release_usb_lanes = nb7vpq904m_release_usb_lanes;
 	redriver->r.notify_connect = nb7vpq904m_notify_connect;
 	redriver->r.notify_disconnect = nb7vpq904m_notify_disconnect;
-	redriver->r.get_orientation = nb7vpq904m_get_orientation;
 	redriver->r.gadget_pullup_enter = nb7vpq904m_gadget_pullup_enter;
 	redriver->r.gadget_pullup_exit = nb7vpq904m_gadget_pullup_exit;
 	redriver->r.host_powercycle = nb7vpq904m_host_powercycle;
@@ -1007,19 +970,6 @@ static const struct file_operations loss_match_ops = {
 	.write	= loss_match_write,
 };
 
-static int orientation_gpio_read(void *data, u64 *val)
-{
-	struct nb7vpq904m_redriver *redriver = data;
-
-	*val = nb7vpq904m_get_orientation(&redriver->r);
-
-	dev_dbg(redriver->dev, "orientation %llu\n", *val);
-
-	return 0;
-}
-DEFINE_DEBUGFS_ATTRIBUTE(orientation_gpio_ops,
-	orientation_gpio_read, NULL, "%llu\n");
-
 static void nb7vpq904m_debugfs_entries(
 		struct nb7vpq904m_redriver *redriver)
 {
@@ -1040,9 +990,6 @@ static void nb7vpq904m_debugfs_entries(
 
 	debugfs_create_file("loss_match", 0600,
 			redriver->debug_root, redriver, &loss_match_ops);
-
-	debugfs_create_file("orientation-gpio", 0444,
-			redriver->debug_root, redriver, &orientation_gpio_ops);
 
 	debugfs_create_bool("lane-channel-swap", 0644,
 			redriver->debug_root,  &redriver->lane_channel_swap);

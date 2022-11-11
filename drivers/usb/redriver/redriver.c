@@ -24,8 +24,7 @@ int usb_add_redriver(struct usb_redriver *redriver)
 {
 	struct usb_redriver *iter;
 
-	if (!redriver->of_node ||  redriver->bounded ||
-	    (redriver->has_orientation && !redriver->get_orientation))
+	if (!redriver->of_node ||  redriver->bounded)
 		return -EINVAL;
 
 	spin_lock(&usb_rediver_lock);
@@ -167,15 +166,6 @@ void usb_redriver_notify_disconnect(struct usb_redriver *ur)
 		ur->notify_disconnect(ur);
 }
 EXPORT_SYMBOL(usb_redriver_notify_disconnect);
-
-int usb_redriver_get_orientation(struct usb_redriver *ur)
-{
-	if (ur && ur->has_orientation)
-		return ur->get_orientation(ur);
-
-	return -EOPNOTSUPP;
-}
-EXPORT_SYMBOL(usb_redriver_get_orientation);
 
 void usb_redriver_gadget_pullup_enter(struct usb_redriver *ur,
 					int is_on)

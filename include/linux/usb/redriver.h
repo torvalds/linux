@@ -40,12 +40,10 @@
  * @release_usb_lanes: put redriver into 2/4 lanes display mode
  * @notify_connect: cable connect
  * @notify_disconnect: cable disconnect
- * @get_orientation: report orientation to user if orientation source shared
  * @gadget_pullup_enter: operation when enter gadget pullup function
  * @gadget_pullup_exit: operation when exit gadget pullup function
  * @host_powercycle: workaround for host otg case
  * @unbind, change to default state when user unbind it
- * @has_orientation,  provide orientation from chip driver or not
  * @bounded,  bound to user or not
  */
 struct usb_redriver {
@@ -55,13 +53,11 @@ struct usb_redriver {
 	int (*release_usb_lanes)(struct usb_redriver *ur, int ort, int num);
 	int (*notify_connect)(struct usb_redriver *ur, int ort);
 	int (*notify_disconnect)(struct usb_redriver *ur);
-	int (*get_orientation)(struct usb_redriver *ur);
 	int (*gadget_pullup_enter)(struct usb_redriver *ur, int is_on);
 	int (*gadget_pullup_exit)(struct usb_redriver *ur, int is_on);
 	int (*host_powercycle)(struct usb_redriver *ur);
 	void (*unbind)(struct usb_redriver *ur);
 
-	bool has_orientation;
 	bool bounded;
 };
 
@@ -76,7 +72,6 @@ void usb_put_redriver(struct usb_redriver *ur);
 void usb_redriver_release_lanes(struct usb_redriver *ur, int ort, int num);
 void usb_redriver_notify_connect(struct usb_redriver *ur, int ort);
 void usb_redriver_notify_disconnect(struct usb_redriver *ur);
-int usb_redriver_get_orientation(struct usb_redriver *ur);
 void usb_redriver_gadget_pullup_enter(struct usb_redriver *ur, int is_on);
 void usb_redriver_gadget_pullup_exit(struct usb_redriver *ur, int is_on);
 void usb_redriver_host_powercycle(struct usb_redriver *ur);
@@ -100,11 +95,6 @@ static inline int usb_remove_redriver(struct usb_redriver *ur)
 	return 0;
 }
 
-static inline int usb_redriver_get_orientation(struct usb_redriver *ur)
-{
-	return -EOPNOTSUPP;
-}
-
 #define usb_put_redriver(ur) do {} while (0)
 
 #define usb_redriver_release_lanes(ur, ort, num) do {} while (0)
@@ -115,13 +105,5 @@ static inline int usb_redriver_get_orientation(struct usb_redriver *ur)
 #define usb_redriver_host_powercycle(ur) do {} while (0)
 
 #endif
-
-static inline bool usb_redriver_has_orientation(struct usb_redriver *ur)
-{
-	if (ur && ur->has_orientation)
-		return true;
-
-	return false;
-}
 
 #endif /*__LINUX_USB_REDRIVER_H */
