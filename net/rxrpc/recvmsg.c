@@ -228,7 +228,6 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 
 	_enter("%d", call->debug_id);
 
-further_rotation:
 	skb = skb_dequeue(&call->recvmsg_queue);
 	rxrpc_see_skb(skb, rxrpc_skb_rotated);
 
@@ -248,17 +247,6 @@ further_rotation:
 	if (last) {
 		rxrpc_end_rx_phase(call, serial);
 		return;
-	}
-
-	/* The next packet on the queue might entirely overlap with the one we
-	 * just consumed; if so, rotate that away also.
-	 */
-	skb = skb_peek(&call->recvmsg_queue);
-	if (skb) {
-		sp = rxrpc_skb(skb);
-		if (sp->hdr.seq != call->rx_consumed &&
-		    after_eq(call->rx_consumed, sp->hdr.seq))
-			goto further_rotation;
 	}
 
 	/* Check to see if there's an ACK that needs sending. */
@@ -318,11 +306,6 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		sp = rxrpc_skb(skb);
 		seq = sp->hdr.seq;
 
-		if (after_eq(call->rx_consumed, seq)) {
-			kdebug("obsolete %x %x", call->rx_consumed, seq);
-			goto skip_obsolete;
-		}
-
 		if (!(flags & MSG_PEEK))
 			trace_rxrpc_receive(call, rxrpc_receive_front,
 					    sp->hdr.serial, seq);
@@ -373,7 +356,6 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 			break;
 		}
 
-	skip_obsolete:
 		/* The whole packet has been transferred. */
 		if (sp->hdr.flags & RXRPC_LAST_PACKET)
 			ret = 1;
