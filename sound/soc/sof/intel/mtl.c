@@ -134,112 +134,72 @@ static void mtl_disable_ipc_interrupts(struct snd_sof_dev *sdev)
 				MTL_DSP_REG_HFIPCXCTL_BUSY | MTL_DSP_REG_HFIPCXCTL_DONE, 0);
 }
 
-static int mtl_enable_interrupts(struct snd_sof_dev *sdev)
+static int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
 {
 	u32 hfintipptr;
 	u32 irqinten;
-	u32 host_ipc;
 	u32 hipcie;
+	u32 mask;
+	u32 val;
 	int ret;
 
 	/* read Interrupt IP Pointer */
 	hfintipptr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_HFINTIPPTR) & MTL_HFINTIPPTR_PTR_MASK;
 
-	/* Enable Host IPC and SOUNDWIRE */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, hfintipptr,
-				MTL_IRQ_INTEN_L_HOST_IPC_MASK | MTL_IRQ_INTEN_L_SOUNDWIRE_MASK,
-				MTL_IRQ_INTEN_L_HOST_IPC_MASK | MTL_IRQ_INTEN_L_SOUNDWIRE_MASK);
+	/* Enable/Disable Host IPC and SOUNDWIRE */
+	mask = MTL_IRQ_INTEN_L_HOST_IPC_MASK | MTL_IRQ_INTEN_L_SOUNDWIRE_MASK;
+	if (enable)
+		val = mask;
+	else
+		val = 0;
+
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, hfintipptr, mask, val);
 
 	/* check if operation was successful */
-	host_ipc = MTL_IRQ_INTEN_L_HOST_IPC_MASK | MTL_IRQ_INTEN_L_SOUNDWIRE_MASK;
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, hfintipptr, irqinten,
-					    (irqinten & host_ipc) == host_ipc,
+					    (irqinten & mask) == val,
 					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
 	if (ret < 0) {
-		dev_err(sdev->dev, "failed to enable Host IPC and/or SOUNDWIRE\n");
+		dev_err(sdev->dev, "failed to %s Host IPC and/or SOUNDWIRE\n",
+			enable ? "enable" : "disable");
 		return ret;
 	}
 
-	/* Set Host IPC interrupt enable */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfHIPCIE,
-				MTL_DSP_REG_HfHIPCIE_IE_MASK, MTL_DSP_REG_HfHIPCIE_IE_MASK);
+	/* Enable/Disable Host IPC interrupt*/
+	mask = MTL_DSP_REG_HfHIPCIE_IE_MASK;
+	if (enable)
+		val = mask;
+	else
+		val = 0;
+
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfHIPCIE, mask, val);
 
 	/* check if operation was successful */
-	host_ipc = MTL_DSP_REG_HfHIPCIE_IE_MASK;
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfHIPCIE, hipcie,
-					    (hipcie & host_ipc) == host_ipc,
+					    (hipcie & mask) == val,
 					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
 	if (ret < 0) {
-		dev_err(sdev->dev, "failed to set Host IPC interrupt enable\n");
+		dev_err(sdev->dev, "failed to set Host IPC interrupt %s\n",
+			enable ? "enable" : "disable");
 		return ret;
 	}
 
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE,
-				MTL_DSP_REG_HfSNDWIE_IE_MASK, MTL_DSP_REG_HfSNDWIE_IE_MASK);
-	host_ipc = MTL_DSP_REG_HfSNDWIE_IE_MASK;
+	/* Enable/Disable SoundWire interrupt */
+	mask = MTL_DSP_REG_HfSNDWIE_IE_MASK;
+	if (enable)
+		val = mask;
+	else
+		val = 0;
+
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE, mask, val);
+
+	/* check if operation was successful */
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE, hipcie,
-					    (hipcie & host_ipc) == host_ipc,
+					    (hipcie & mask) == val,
 					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
 	if (ret < 0)
-		dev_err(sdev->dev, "failed to set SoundWire IPC interrupt enable\n");
-
-	return ret;
-}
-
-static int mtl_disable_interrupts(struct snd_sof_dev *sdev)
-{
-	u32 hfintipptr;
-	u32 irqinten;
-	u32 host_ipc;
-	u32 hipcie;
-	int ret1;
-	int ret;
-
-	/* read Interrupt IP Pointer */
-	hfintipptr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_HFINTIPPTR) & MTL_HFINTIPPTR_PTR_MASK;
-
-	/* Disable Host IPC and SOUNDWIRE */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, hfintipptr,
-				MTL_IRQ_INTEN_L_HOST_IPC_MASK | MTL_IRQ_INTEN_L_SOUNDWIRE_MASK, 0);
-
-	/* check if operation was successful */
-	host_ipc = MTL_IRQ_INTEN_L_HOST_IPC_MASK | MTL_IRQ_INTEN_L_SOUNDWIRE_MASK;
-	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, hfintipptr, irqinten,
-					    (irqinten & host_ipc) == 0,
-					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
-	/* Continue to disable other interrupts when error happens */
-	if (ret < 0)
-		dev_err(sdev->dev, "failed to disable Host IPC and SoundWire\n");
-
-	/* Set Host IPC interrupt disable */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfHIPCIE,
-				MTL_DSP_REG_HfHIPCIE_IE_MASK, 0);
-
-	/* check if operation was successful */
-	host_ipc = MTL_DSP_REG_HfHIPCIE_IE_MASK;
-	ret1 = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfHIPCIE, hipcie,
-					     (hipcie & host_ipc) == 0,
-					     HDA_DSP_REG_POLL_INTERVAL_US,
-					     HDA_DSP_RESET_TIMEOUT_US);
-	if (ret1 < 0) {
-		dev_err(sdev->dev, "failed to set Host IPC interrupt disable\n");
-		if (!ret)
-			ret = ret1;
-	}
-
-	/* Set SoundWire IPC interrupt disable */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE,
-				MTL_DSP_REG_HfSNDWIE_IE_MASK, 0);
-	host_ipc = MTL_DSP_REG_HfSNDWIE_IE_MASK;
-	ret1 = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE, hipcie,
-					     (hipcie & host_ipc) == 0,
-					     HDA_DSP_REG_POLL_INTERVAL_US,
-					     HDA_DSP_RESET_TIMEOUT_US);
-	if (ret1 < 0) {
-		dev_err(sdev->dev, "failed to set SoundWire IPC interrupt disable\n");
-		if (!ret)
-			ret = ret1;
-	}
+		dev_err(sdev->dev, "failed to set SoundWire IPC interrupt %s\n",
+			enable ? "enable" : "disable");
 
 	return ret;
 }
@@ -473,7 +433,7 @@ static int mtl_dsp_cl_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_bo
 				       chip->ipc_ack_mask);
 
 	/* step 4: enable interrupts */
-	ret = mtl_enable_interrupts(sdev);
+	ret = mtl_enable_interrupts(sdev, true);
 	if (ret < 0) {
 		if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
 			dev_err(sdev->dev, "%s: failed to enable interrupts\n", __func__);
@@ -609,7 +569,7 @@ static void mtl_ipc_dump(struct snd_sof_dev *sdev)
 static int mtl_dsp_disable_interrupts(struct snd_sof_dev *sdev)
 {
 	mtl_disable_ipc_interrupts(sdev);
-	return mtl_disable_interrupts(sdev);
+	return mtl_enable_interrupts(sdev, false);
 }
 
 /* Meteorlake ops */
