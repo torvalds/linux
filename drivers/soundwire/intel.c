@@ -1426,6 +1426,8 @@ const struct sdw_intel_hw_ops sdw_intel_cnl_hw_ops = {
 	.debugfs_init = intel_debugfs_init,
 	.debugfs_exit = intel_debugfs_exit,
 
+	.register_dai = intel_register_dai,
+
 	.pre_bank_switch = intel_pre_bank_switch,
 	.post_bank_switch = intel_post_bank_switch,
 };
@@ -1611,7 +1613,7 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 		goto err_init;
 
 	/* Register DAIs */
-	ret = intel_register_dai(sdw);
+	ret = sdw_intel_register_dai(sdw);
 	if (ret) {
 		dev_err(dev, "DAI registration failed: %d\n", ret);
 		goto err_power_up;
