@@ -1696,10 +1696,12 @@ int btrfs_release_file(struct inode *inode, struct file *filp)
 {
 	struct btrfs_file_private *private = filp->private_data;
 
-	if (private && private->filldir_buf)
+	if (private) {
 		kfree(private->filldir_buf);
-	kfree(private);
-	filp->private_data = NULL;
+		free_extent_state(private->llseek_cached_state);
+		kfree(private);
+		filp->private_data = NULL;
+	}
 
 	/*
 	 * Set by setattr when we are about to truncate a file from a non-zero
@@ -3398,13 +3400,14 @@ bool btrfs_find_delalloc_in_range(struct btrfs_inode *inode, u64 start, u64 end,
  * is found, it updates @start_ret with the start of the subrange.
  */
 static bool find_desired_extent_in_hole(struct btrfs_inode *inode, int whence,
+					struct extent_state **cached_state,
 					u64 start, u64 end, u64 *start_ret)
 {
 	u64 delalloc_start;
 	u64 delalloc_end;
 	bool delalloc;
 
-	delalloc = btrfs_find_delalloc_in_range(inode, start, end, NULL,
+	delalloc = btrfs_find_delalloc_in_range(inode, start, end, cached_state,
 						&delalloc_start, &delalloc_end);
 	if (delalloc && whence == SEEK_DATA) {
 		*start_ret = delalloc_start;
@@ -3447,11 +3450,13 @@ static bool find_desired_extent_in_hole(struct btrfs_inode *inode, int whence,
 	return false;
 }
 
-static loff_t find_desired_extent(struct btrfs_inode *inode, loff_t offset,
-				  int whence)
+static loff_t find_desired_extent(struct file *file, loff_t offset, int whence)
 {
+	struct btrfs_inode *inode = BTRFS_I(file->f_mapping->host);
+	struct btrfs_file_private *private = file->private_data;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct extent_state *cached_state = NULL;
+	struct extent_state **delalloc_cached_state;
 	const loff_t i_size = i_size_read(&inode->vfs_inode);
 	const u64 ino = btrfs_ino(inode);
 	struct btrfs_root *root = inode->root;
@@ -3475,6 +3480,22 @@ static loff_t find_desired_extent(struct btrfs_inode *inode, loff_t offset,
 	    !(inode->flags & BTRFS_INODE_PREALLOC) &&
 	    inode_get_bytes(&inode->vfs_inode) == i_size)
 		return i_size;
+
+	if (!private) {
+		private = kzalloc(sizeof(*private), GFP_KERNEL);
+		/*
+		 * No worries if memory allocation failed.
+		 * The private structure is used only for speeding up multiple
+		 * lseek SEEK_HOLE/DATA calls to a file when there's delalloc,
+		 * so everything will still be correct.
+		 */
+		file->private_data = private;
+	}
+
+	if (private)
+		delalloc_cached_state = &private->llseek_cached_state;
+	else
+		delalloc_cached_state = NULL;
 
 	/*
 	 * offset can be negative, in this case we start finding DATA/HOLE from
@@ -3553,6 +3574,7 @@ static loff_t find_desired_extent(struct btrfs_inode *inode, loff_t offset,
 				search_start = offset;
 
 			found = find_desired_extent_in_hole(inode, whence,
+							    delalloc_cached_state,
 							    search_start,
 							    key.offset - 1,
 							    &found_start);
@@ -3587,6 +3609,7 @@ static loff_t find_desired_extent(struct btrfs_inode *inode, loff_t offset,
 				search_start = offset;
 
 			found = find_desired_extent_in_hole(inode, whence,
+							    delalloc_cached_state,
 							    search_start,
 							    extent_end - 1,
 							    &found_start);
@@ -3628,7 +3651,8 @@ static loff_t find_desired_extent(struct btrfs_inode *inode, loff_t offset,
 
 	/* We have an implicit hole from the last extent found up to i_size. */
 	if (!found && start < i_size) {
-		found = find_desired_extent_in_hole(inode, whence, start,
+		found = find_desired_extent_in_hole(inode, whence,
+						    delalloc_cached_state, start,
 						    i_size - 1, &start);
 		if (!found)
 			start = i_size;
@@ -3657,7 +3681,7 @@ static loff_t btrfs_file_llseek(struct file *file, loff_t offset, int whence)
 	case SEEK_DATA:
 	case SEEK_HOLE:
 		btrfs_inode_lock(BTRFS_I(inode), BTRFS_ILOCK_SHARED);
-		offset = find_desired_extent(BTRFS_I(inode), offset, whence);
+		offset = find_desired_extent(file, offset, whence);
 		btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_SHARED);
 		break;
 	}
