@@ -14,6 +14,7 @@
 #include <linux/of.h>
 #include <linux/property.h>
 #include <linux/clk.h>
+#include <linux/reset.h>
 
 #include "sdhci-pltfm.h"
 #include "sdhci_f_sdh30.h"
@@ -21,6 +22,7 @@
 struct f_sdhost_priv {
 	struct clk *clk_iface;
 	struct clk *clk;
+	struct reset_control *rst;
 	u32 vendor_hs200;
 	struct device *dev;
 	bool enable_cmd_dat_delay;
@@ -150,6 +152,16 @@ static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 		ret = clk_prepare_enable(priv->clk);
 		if (ret)
 			goto err_clk;
+
+		priv->rst = devm_reset_control_get_optional_shared(dev, NULL);
+		if (IS_ERR(priv->rst)) {
+			ret = PTR_ERR(priv->rst);
+			goto err_rst;
+		}
+
+		ret = reset_control_deassert(priv->rst);
+		if (ret)
+			goto err_rst;
 	}
 
 	/* init vendor specific regs */
@@ -175,6 +187,8 @@ static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_host:
+	reset_control_assert(priv->rst);
+err_rst:
 	clk_disable_unprepare(priv->clk);
 err_clk:
 	clk_disable_unprepare(priv->clk_iface);
@@ -191,8 +205,9 @@ static int sdhci_f_sdh30_remove(struct platform_device *pdev)
 	sdhci_remove_host(host, readl(host->ioaddr + SDHCI_INT_STATUS) ==
 			  0xffffffff);
 
-	clk_disable_unprepare(priv->clk_iface);
+	reset_control_assert(priv->rst);
 	clk_disable_unprepare(priv->clk);
+	clk_disable_unprepare(priv->clk_iface);
 
 	sdhci_free_host(host);
 	platform_set_drvdata(pdev, NULL);
