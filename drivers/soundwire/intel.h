@@ -118,4 +118,18 @@ static inline int sdw_intel_stop_bus(struct sdw_intel *sdw, bool clock_stop)
 	return -ENOTSUPP;
 }
 
+static inline int sdw_intel_link_power_up(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, link_power_up))
+		return SDW_INTEL_OPS(sdw, link_power_up)(sdw);
+	return -ENOTSUPP;
+}
+
+static inline int sdw_intel_link_power_down(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, link_power_down))
+		return SDW_INTEL_OPS(sdw, link_power_down)(sdw);
+	return -ENOTSUPP;
+}
+
 #endif /* __SDW_INTEL_LOCAL_H */

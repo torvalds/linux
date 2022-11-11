@@ -305,6 +305,8 @@ struct sdw_intel;
  * @start_bus_after_reset: start after reset
  * @start_bus_after_clock_stop: start after mode0 clock stop
  * @stop_bus: stop all bus
+ * @link_power_up: power-up using chip-specific helpers
+ * @link_power_down: power-down with chip-specific helpers
  * @pre_bank_switch: helper for bus management
  * @post_bank_switch: helper for bus management
  */
@@ -319,6 +321,9 @@ struct sdw_intel_hw_ops {
 	int (*start_bus_after_reset)(struct sdw_intel *sdw);
 	int (*start_bus_after_clock_stop)(struct sdw_intel *sdw);
 	int (*stop_bus)(struct sdw_intel *sdw, bool clock_stop);
+
+	int (*link_power_up)(struct sdw_intel *sdw);
+	int (*link_power_down)(struct sdw_intel *sdw);
 
 	int (*pre_bank_switch)(struct sdw_intel *sdw);
 	int (*post_bank_switch)(struct sdw_intel *sdw);

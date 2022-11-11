@@ -1434,6 +1434,9 @@ const struct sdw_intel_hw_ops sdw_intel_cnl_hw_ops = {
 	.start_bus_after_clock_stop = intel_start_bus_after_clock_stop,
 	.stop_bus = intel_stop_bus,
 
+	.link_power_up = intel_link_power_up,
+	.link_power_down = intel_link_power_down,
+
 	.pre_bank_switch = intel_pre_bank_switch,
 	.post_bank_switch = intel_post_bank_switch,
 };
@@ -1614,7 +1617,7 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 	bus->multi_link = multi_link;
 
 	/* Initialize shim, controller */
-	ret = intel_link_power_up(sdw);
+	ret = sdw_intel_link_power_up(sdw);
 	if (ret)
 		goto err_init;
 
@@ -1679,7 +1682,7 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 	return 0;
 
 err_power_up:
-	intel_link_power_down(sdw);
+	sdw_intel_link_power_down(sdw);
 err_init:
 	return ret;
 }
@@ -1935,7 +1938,7 @@ static int __maybe_unused intel_resume(struct device *dev)
 			pm_runtime_idle(dev);
 	}
 
-	ret = intel_link_power_up(sdw);
+	ret = sdw_intel_link_power_up(sdw);
 	if (ret) {
 		dev_err(dev, "%s failed: %d\n", __func__, ret);
 		return ret;
@@ -1950,7 +1953,7 @@ static int __maybe_unused intel_resume(struct device *dev)
 	ret = sdw_intel_start_bus(sdw);
 	if (ret < 0) {
 		dev_err(dev, "cannot start bus during resume\n");
-		intel_link_power_down(sdw);
+		sdw_intel_link_power_down(sdw);
 		return ret;
 	}
 
@@ -1989,7 +1992,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 	clock_stop_quirks = sdw->link_res->clock_stop_quirks;
 
 	if (clock_stop_quirks & SDW_INTEL_CLK_STOP_TEARDOWN) {
-		ret = intel_link_power_up(sdw);
+		ret = sdw_intel_link_power_up(sdw);
 		if (ret) {
 			dev_err(dev, "%s: power_up failed after teardown: %d\n", __func__, ret);
 			return ret;
@@ -2004,13 +2007,13 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 		ret = sdw_intel_start_bus(sdw);
 		if (ret < 0) {
 			dev_err(dev, "%s: cannot start bus after teardown: %d\n", __func__, ret);
-			intel_link_power_down(sdw);
+			sdw_intel_link_power_down(sdw);
 			return ret;
 		}
 
 
 	} else if (clock_stop_quirks & SDW_INTEL_CLK_STOP_BUS_RESET) {
-		ret = intel_link_power_up(sdw);
+		ret = sdw_intel_link_power_up(sdw);
 		if (ret) {
 			dev_err(dev, "%s: power_up failed after bus reset: %d\n", __func__, ret);
 			return ret;
@@ -2019,14 +2022,14 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 		ret = sdw_intel_start_bus_after_reset(sdw);
 		if (ret < 0) {
 			dev_err(dev, "%s: cannot start bus after reset: %d\n", __func__, ret);
-			intel_link_power_down(sdw);
+			sdw_intel_link_power_down(sdw);
 			return ret;
 		}
 	} else if (!clock_stop_quirks) {
 
 		sdw_intel_check_clock_stop(sdw);
 
-		ret = intel_link_power_up(sdw);
+		ret = sdw_intel_link_power_up(sdw);
 		if (ret) {
 			dev_err(dev, "%s: power_up failed: %d\n", __func__, ret);
 			return ret;
@@ -2035,7 +2038,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 		ret = sdw_intel_start_bus_after_clock_stop(sdw);
 		if (ret < 0) {
 			dev_err(dev, "%s: cannot start bus after clock stop: %d\n", __func__, ret);
-			intel_link_power_down(sdw);
+			sdw_intel_link_power_down(sdw);
 			return ret;
 		}
 	} else {
