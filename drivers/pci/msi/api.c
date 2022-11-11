@@ -60,6 +60,26 @@ void pci_disable_msi(struct pci_dev *dev)
 EXPORT_SYMBOL(pci_disable_msi);
 
 /**
+ * pci_msix_vec_count() - Get number of MSI-X interrupt vectors on device
+ * @dev: the PCI device to operate on
+ *
+ * Return: number of MSI-X interrupt vectors available on this device
+ * (i.e., the device's MSI-X capability structure "table size"), -EINVAL
+ * if the device is not MSI-X capable, other errnos otherwise.
+ */
+int pci_msix_vec_count(struct pci_dev *dev)
+{
+	u16 control;
+
+	if (!dev->msix_cap)
+		return -EINVAL;
+
+	pci_read_config_word(dev, dev->msix_cap + PCI_MSIX_FLAGS, &control);
+	return msix_table_size(control);
+}
+EXPORT_SYMBOL(pci_msix_vec_count);
+
+/**
  * pci_enable_msix_range() - Enable MSI-X interrupt mode on device
  * @dev:     the PCI device to operate on
  * @entries: input/output parameter, array of MSI-X configuration entries
