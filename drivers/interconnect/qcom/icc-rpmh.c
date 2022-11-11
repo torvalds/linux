@@ -544,6 +544,8 @@ void qcom_icc_rpmh_sync_state(struct device *dev)
 	}
 
 	mutex_unlock(&probe_list_lock);
+
+	dev_info(dev, "sync-state\n");
 }
 EXPORT_SYMBOL(qcom_icc_rpmh_sync_state);
 
