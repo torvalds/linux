@@ -125,30 +125,6 @@ static int sdw_intel_cleanup(struct sdw_intel_ctx *ctx)
 	return 0;
 }
 
-#define HDA_DSP_REG_ADSPIC2             (0x10)
-#define HDA_DSP_REG_ADSPIS2             (0x14)
-#define HDA_DSP_REG_ADSPIC2_SNDW        BIT(5)
-
-/**
- * sdw_intel_enable_irq() - enable/disable Intel SoundWire IRQ
- * @mmio_base: The mmio base of the control register
- * @enable: true if enable
- */
-void sdw_intel_enable_irq(void __iomem *mmio_base, bool enable)
-{
-	u32 val;
-
-	val = readl(mmio_base + HDA_DSP_REG_ADSPIC2);
-
-	if (enable)
-		val |= HDA_DSP_REG_ADSPIC2_SNDW;
-	else
-		val &= ~HDA_DSP_REG_ADSPIC2_SNDW;
-
-	writel(val, mmio_base + HDA_DSP_REG_ADSPIC2);
-}
-EXPORT_SYMBOL_NS(sdw_intel_enable_irq, SOUNDWIRE_INTEL_INIT);
-
 irqreturn_t sdw_intel_thread(int irq, void *dev_id)
 {
 	struct sdw_intel_ctx *ctx = dev_id;
