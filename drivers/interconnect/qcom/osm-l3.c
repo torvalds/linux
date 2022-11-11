@@ -104,7 +104,7 @@ static const struct qcom_osm_l3_node * const epss_l3_nodes[] = {
 	[SLAVE_EPSS_L3_SHARED] = &epss_l3_slave,
 };
 
-static const struct qcom_osm_l3_desc sdm845_icc_osm_l3 = {
+static const struct qcom_osm_l3_desc osm_l3 = {
 	.nodes = osm_l3_nodes,
 	.num_nodes = ARRAY_SIZE(osm_l3_nodes),
 	.lut_row_size = OSM_LUT_ROW_SIZE,
@@ -112,39 +112,7 @@ static const struct qcom_osm_l3_desc sdm845_icc_osm_l3 = {
 	.reg_perf_state = OSM_REG_PERF_STATE,
 };
 
-static const struct qcom_osm_l3_desc sc7180_icc_osm_l3 = {
-	.nodes = osm_l3_nodes,
-	.num_nodes = ARRAY_SIZE(osm_l3_nodes),
-	.lut_row_size = OSM_LUT_ROW_SIZE,
-	.reg_freq_lut = OSM_REG_FREQ_LUT,
-	.reg_perf_state = OSM_REG_PERF_STATE,
-};
-
-static const struct qcom_osm_l3_desc sc7280_icc_epss_l3 = {
-	.nodes = epss_l3_nodes,
-	.num_nodes = ARRAY_SIZE(epss_l3_nodes),
-	.lut_row_size = EPSS_LUT_ROW_SIZE,
-	.reg_freq_lut = EPSS_REG_FREQ_LUT,
-	.reg_perf_state = EPSS_REG_PERF_STATE,
-};
-
-static const struct qcom_osm_l3_desc sc8180x_icc_osm_l3 = {
-	.nodes = osm_l3_nodes,
-	.num_nodes = ARRAY_SIZE(osm_l3_nodes),
-	.lut_row_size = OSM_LUT_ROW_SIZE,
-	.reg_freq_lut = OSM_REG_FREQ_LUT,
-	.reg_perf_state = OSM_REG_PERF_STATE,
-};
-
-static const struct qcom_osm_l3_desc sm8150_icc_osm_l3 = {
-	.nodes = osm_l3_nodes,
-	.num_nodes = ARRAY_SIZE(osm_l3_nodes),
-	.lut_row_size = OSM_LUT_ROW_SIZE,
-	.reg_freq_lut = OSM_REG_FREQ_LUT,
-	.reg_perf_state = OSM_REG_PERF_STATE,
-};
-
-static const struct qcom_osm_l3_desc sm8250_icc_epss_l3 = {
+static const struct qcom_osm_l3_desc epss_l3 = {
 	.nodes = epss_l3_nodes,
 	.num_nodes = ARRAY_SIZE(epss_l3_nodes),
 	.lut_row_size = EPSS_LUT_ROW_SIZE,
@@ -317,12 +285,12 @@ err:
 }
 
 static const struct of_device_id osm_l3_of_match[] = {
-	{ .compatible = "qcom,sc7180-osm-l3", .data = &sc7180_icc_osm_l3 },
-	{ .compatible = "qcom,sc7280-epss-l3", .data = &sc7280_icc_epss_l3 },
-	{ .compatible = "qcom,sdm845-osm-l3", .data = &sdm845_icc_osm_l3 },
-	{ .compatible = "qcom,sm8150-osm-l3", .data = &sm8150_icc_osm_l3 },
-	{ .compatible = "qcom,sc8180x-osm-l3", .data = &sc8180x_icc_osm_l3 },
-	{ .compatible = "qcom,sm8250-epss-l3", .data = &sm8250_icc_epss_l3 },
+	{ .compatible = "qcom,sc7180-osm-l3", .data = &osm_l3 },
+	{ .compatible = "qcom,sc7280-epss-l3", .data = &epss_l3 },
+	{ .compatible = "qcom,sdm845-osm-l3", .data = &osm_l3 },
+	{ .compatible = "qcom,sm8150-osm-l3", .data = &osm_l3 },
+	{ .compatible = "qcom,sc8180x-osm-l3", .data = &osm_l3 },
+	{ .compatible = "qcom,sm8250-epss-l3", .data = &epss_l3 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, osm_l3_of_match);
