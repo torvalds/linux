@@ -24,10 +24,6 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
 				 unsigned int idx,
 				 enum gpiod_flags *dflags,
 				 unsigned long *lookupflags);
-struct gpio_desc *acpi_node_get_gpiod(struct fwnode_handle *fwnode,
-				      const char *propname, int index,
-				      unsigned long *lflags,
-				      enum gpiod_flags *dflags);
 
 int acpi_gpio_count(struct device *dev, const char *con_id);
 #else
@@ -48,12 +44,6 @@ acpi_find_gpio(struct fwnode_handle *fwnode, const char *con_id,
 	       unsigned long *lookupflags)
 {
 	return ERR_PTR(-ENOENT);
-}
-static inline struct gpio_desc *
-acpi_node_get_gpiod(struct fwnode_handle *fwnode, const char *propname,
-		    int index, unsigned long *lflags, enum gpiod_flags *dflags)
-{
-	return ERR_PTR(-ENXIO);
 }
 static inline int acpi_gpio_count(struct device *dev, const char *con_id)
 {

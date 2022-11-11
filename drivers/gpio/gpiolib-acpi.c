@@ -1025,45 +1025,6 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
 }
 
 /**
- * acpi_node_get_gpiod() - get a GPIO descriptor from ACPI resources
- * @fwnode: pointer to an ACPI firmware node to get the GPIO information from
- * @propname: Property name of the GPIO
- * @index: index of GpioIo/GpioInt resource (starting from %0)
- * @lflags: bitmask of gpio_lookup_flags GPIO_* values
- * @dflags: gpiod initialization flags
- *
- * If @fwnode is an ACPI device object, call acpi_get_gpiod_by_index() for it.
- * Otherwise (i.e. it is a data-only non-device object), use the property-based
- * GPIO lookup to get to the GPIO resource with the relevant information and use
- * that to obtain the GPIO descriptor to return.
- *
- * If the GPIO cannot be translated or there is an error an ERR_PTR is
- * returned.
- */
-struct gpio_desc *acpi_node_get_gpiod(struct fwnode_handle *fwnode,
-				      const char *propname, int index,
-				      unsigned long *lflags,
-				      enum gpiod_flags *dflags)
-{
-	struct acpi_gpio_info info;
-	struct acpi_device *adev;
-	struct gpio_desc *desc;
-
-	adev = to_acpi_device_node(fwnode);
-	if (adev)
-		desc = acpi_get_gpiod_by_index(adev, propname, index, &info);
-	else
-		desc = acpi_get_gpiod_from_data(fwnode, propname, index, &info);
-
-	if (!IS_ERR(desc)) {
-		acpi_gpio_update_gpiod_flags(dflags, &info);
-		acpi_gpio_update_gpiod_lookup_flags(lflags, &info);
-	}
-
-	return desc;
-}
-
-/**
  * acpi_dev_gpio_irq_wake_get_by() - Find GpioInt and translate it to Linux IRQ number
  * @adev: pointer to a ACPI device to get IRQ from
  * @name: optional name of GpioInt resource
