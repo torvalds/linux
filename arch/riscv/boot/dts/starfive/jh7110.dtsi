@@ -57,7 +57,6 @@
 			i-tlb-sets = <1>;
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
-			cpu-idle-states = <&CPU_NONRET_0_0>;
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imac";
 			tlb-split;
@@ -85,7 +84,6 @@
 			i-tlb-sets = <1>;
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
-			cpu-idle-states = <&CPU_NONRET_0_0>;
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imafdc";
 			tlb-split;
@@ -114,7 +112,6 @@
 			i-tlb-sets = <1>;
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
-			cpu-idle-states = <&CPU_NONRET_0_0>;
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imafdc";
 			tlb-split;
@@ -143,7 +140,6 @@
 			i-tlb-sets = <1>;
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
-			cpu-idle-states = <&CPU_NONRET_0_0>;
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imafdc";
 			tlb-split;
@@ -172,7 +168,6 @@
 			i-tlb-sets = <1>;
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
-			cpu-idle-states = <&CPU_NONRET_0_0>;
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imafdc";
 			tlb-split;
@@ -184,17 +179,6 @@
 				compatible = "riscv,cpu-intc";
 				interrupt-controller;
 			};
-		};
-	};
-
-	idle-states {
-		CPU_NONRET_0_0: cpu-nonretentive-0-0 {
-			compatible = "riscv,idle-state";
-			riscv,sbi-suspend-param = <0x80000000>;
-			entry-latency-us = <600>;
-			exit-latency-us = <1100>;
-			min-residency-us = <2700>;
-			wakeup-latency-us = <1500>;
 		};
 	};
 
