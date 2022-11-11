@@ -120,7 +120,7 @@ static int msi_add_simple_msi_descs(struct device *dev, unsigned int index, unsi
 fail_mem:
 	ret = -ENOMEM;
 fail:
-	msi_free_msi_descs_range(dev, MSI_DESC_NOTASSOCIATED, index, last);
+	msi_free_msi_descs_range(dev, MSI_DESC_ALL, index, last);
 	return ret;
 }
 
