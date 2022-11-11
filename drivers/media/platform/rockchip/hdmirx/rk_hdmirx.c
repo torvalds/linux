@@ -2877,9 +2877,9 @@ static int hdmirx_audio_startup(struct device *dev, void *data)
 {
 	struct rk_hdmirx_dev *hdmirx_dev = dev_get_drvdata(dev);
 
-	if (tx_5v_power_present(hdmirx_dev))
+	if (tx_5v_power_present(hdmirx_dev) && hdmirx_dev->audio_present)
 		return 0;
-	dev_err(dev, "%s: device is no connected\n", __func__);
+	dev_err(dev, "%s: device is no connected or audio is off\n", __func__);
 	return -ENODEV;
 }
 
@@ -3051,6 +3051,7 @@ static void hdmirx_delayed_work_audio(struct work_struct *work)
 	if (cur_state != 0) {
 		if (!hdmirx_dev->audio_present) {
 			dev_info(hdmirx_dev->dev, "audio on");
+			hdmirx_audio_handle_plugged_change(hdmirx_dev, 1);
 			hdmirx_dev->audio_present = true;
 		}
 		if (cur_state - init_state > 16 && cur_state - pre_state > 0)
@@ -3060,6 +3061,7 @@ static void hdmirx_delayed_work_audio(struct work_struct *work)
 	} else {
 		if (hdmirx_dev->audio_present) {
 			dev_info(hdmirx_dev->dev, "audio off");
+			hdmirx_audio_handle_plugged_change(hdmirx_dev, 0);
 			hdmirx_dev->audio_present = false;
 		}
 	}
