@@ -26,8 +26,22 @@ struct sparx5_tc_flower_parse_usage {
  */
 static u16 sparx5_tc_known_etypes[] = {
 	ETH_P_ALL,
+	ETH_P_ARP,
 	ETH_P_IP,
 	ETH_P_IPV6,
+};
+
+enum sparx5_is2_arp_opcode {
+	SPX5_IS2_ARP_REQUEST,
+	SPX5_IS2_ARP_REPLY,
+	SPX5_IS2_RARP_REQUEST,
+	SPX5_IS2_RARP_REPLY,
+};
+
+enum tc_arp_opcode {
+	TC_ARP_OP_RESERVED,
+	TC_ARP_OP_REQUEST,
+	TC_ARP_OP_REPLY,
 };
 
 static bool sparx5_tc_is_known_etype(u16 etype)
@@ -405,6 +419,67 @@ out:
 }
 
 static int
+sparx5_tc_flower_handler_arp_usage(struct sparx5_tc_flower_parse_usage *st)
+{
+	struct flow_match_arp mt;
+	u16 value, mask;
+	u32 ipval, ipmsk;
+	int err;
+
+	flow_rule_match_arp(st->frule, &mt);
+
+	if (mt.mask->op) {
+		mask = 0x3;
+		if (st->l3_proto == ETH_P_ARP) {
+			value = mt.key->op == TC_ARP_OP_REQUEST ?
+					SPX5_IS2_ARP_REQUEST :
+					SPX5_IS2_ARP_REPLY;
+		} else { /* RARP */
+			value = mt.key->op == TC_ARP_OP_REQUEST ?
+					SPX5_IS2_RARP_REQUEST :
+					SPX5_IS2_RARP_REPLY;
+		}
+		err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_ARP_OPCODE,
+					    value, mask);
+		if (err)
+			goto out;
+	}
+
+	/* The IS2 ARP keyset does not support ARP hardware addresses */
+	if (!is_zero_ether_addr(mt.mask->sha) ||
+	    !is_zero_ether_addr(mt.mask->tha))
+		goto out;
+
+	if (mt.mask->sip) {
+		ipval = be32_to_cpu((__force __be32)mt.key->sip);
+		ipmsk = be32_to_cpu((__force __be32)mt.mask->sip);
+
+		err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_L3_IP4_SIP,
+					    ipval, ipmsk);
+		if (err)
+			goto out;
+	}
+
+	if (mt.mask->tip) {
+		ipval = be32_to_cpu((__force __be32)mt.key->tip);
+		ipmsk = be32_to_cpu((__force __be32)mt.mask->tip);
+
+		err = vcap_rule_add_key_u32(st->vrule, VCAP_KF_L3_IP4_DIP,
+					    ipval, ipmsk);
+		if (err)
+			goto out;
+	}
+
+	st->used_keys |= BIT(FLOW_DISSECTOR_KEY_ARP);
+
+	return err;
+
+out:
+	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "arp parse error");
+	return err;
+}
+
+static int
 sparx5_tc_flower_handler_ip_usage(struct sparx5_tc_flower_parse_usage *st)
 {
 	struct flow_match_ip mt;
@@ -438,6 +513,7 @@ static int (*sparx5_tc_flower_usage_handlers[])(struct sparx5_tc_flower_parse_us
 	[FLOW_DISSECTOR_KEY_BASIC] = sparx5_tc_flower_handler_basic_usage,
 	[FLOW_DISSECTOR_KEY_VLAN] = sparx5_tc_flower_handler_vlan_usage,
 	[FLOW_DISSECTOR_KEY_TCP] = sparx5_tc_flower_handler_tcp_usage,
+	[FLOW_DISSECTOR_KEY_ARP] = sparx5_tc_flower_handler_arp_usage,
 	[FLOW_DISSECTOR_KEY_IP] = sparx5_tc_flower_handler_ip_usage,
 };
 

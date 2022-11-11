@@ -540,7 +540,7 @@ static void sparx5_vcap_port_key_selection(struct sparx5 *sparx5,
 				 VCAP_IS2_PS_IPV4_UC_IP4_TCP_UDP_OTHER,
 				 VCAP_IS2_PS_IPV6_MC_IP_7TUPLE,
 				 VCAP_IS2_PS_IPV6_UC_IP_7TUPLE,
-				 VCAP_IS2_PS_ARP_MAC_ETYPE);
+				 VCAP_IS2_PS_ARP_ARP);
 	for (lookup = 0; lookup < admin->lookups; ++lookup) {
 		for (portno = 0; portno < SPX5_PORTS; ++portno) {
 			spx5_wr(keysel, sparx5,
