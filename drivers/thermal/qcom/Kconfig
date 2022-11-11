@@ -140,3 +140,22 @@ config QTI_USERSPACE_CDEV
 	   socket, so that userspace cooling device can perform a mitigation
 	   action.
 
+config QTI_THERMAL_LIMITS_DCVS
+	tristate "QTI LMH DCVS Driver"
+	depends on THERMAL && CPU_THERMAL
+	help
+	  This enables the driver for Limits Management Hardware - DCVS block
+	  for the application processors. The h/w block that is available for
+	  each cluster can be used to perform quick thermal mitigations by
+	  tracking temperatures of the CPUs and taking thermal action in the
+	  hardware without s/w intervention.
+
+config QTI_SDPM_CLOCK_MONITOR
+	tristate "QTI SDPM Clock Monitor"
+	depends on COMMON_CLK && CPU_FREQ
+	help
+	    This enables the QTI SDPM Clock Monitor. This driver can register
+	    for different clock rate change notifications and write the clock
+	    rate into the SDPM CSR register. This driver will receive the clock
+	    list and the CSR details from devicetree.
+
