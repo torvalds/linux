@@ -90,3 +90,36 @@ int pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
 	return __pci_enable_msix_range(dev, entries, minvec, maxvec, NULL, 0);
 }
 EXPORT_SYMBOL(pci_enable_msix_range);
+
+/**
+ * pci_alloc_irq_vectors() - Allocate multiple device interrupt vectors
+ * @dev:      the PCI device to operate on
+ * @min_vecs: minimum required number of vectors (must be >= 1)
+ * @max_vecs: maximum desired number of vectors
+ * @flags:    One or more of:
+ *            %PCI_IRQ_MSIX      Allow trying MSI-X vector allocations
+ *            %PCI_IRQ_MSI       Allow trying MSI vector allocations
+ *            %PCI_IRQ_LEGACY    Allow trying legacy INTx interrupts, if
+ *                               and only if @min_vecs == 1
+ *            %PCI_IRQ_AFFINITY  Auto-manage IRQs affinity by spreading
+ *                               the vectors around available CPUs
+ *
+ * Allocate up to @max_vecs interrupt vectors on device. MSI-X irq
+ * vector allocation has a higher precedence over plain MSI, which has a
+ * higher precedence over legacy INTx emulation.
+ *
+ * Upon a successful allocation, the caller should use pci_irq_vector()
+ * to get the Linux IRQ number to be passed to request_threaded_irq().
+ * The driver must call pci_free_irq_vectors() on cleanup.
+ *
+ * Return: number of allocated vectors (which might be smaller than
+ * @max_vecs), -ENOSPC if less than @min_vecs interrupt vectors are
+ * available, other errnos otherwise.
+ */
+int pci_alloc_irq_vectors(struct pci_dev *dev, unsigned int min_vecs,
+			  unsigned int max_vecs, unsigned int flags)
+{
+	return pci_alloc_irq_vectors_affinity(dev, min_vecs, max_vecs,
+					      flags, NULL);
+}
+EXPORT_SYMBOL(pci_alloc_irq_vectors);
