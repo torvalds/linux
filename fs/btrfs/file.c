@@ -3216,7 +3216,7 @@ out:
 static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end,
 				   u64 *delalloc_start_ret, u64 *delalloc_end_ret)
 {
-	const u64 len = end + 1 - start;
+	u64 len = end + 1 - start;
 	struct extent_map_tree *em_tree = &inode->extent_tree;
 	struct extent_map *em;
 	u64 em_end;
@@ -3242,12 +3242,22 @@ static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end
 		delalloc_len = 0;
 	}
 
-	/*
-	 * If delalloc was found then *delalloc_start_ret has a sector size
-	 * aligned value (rounded down).
-	 */
-	if (delalloc_len > 0)
+	if (delalloc_len > 0) {
+		/*
+		 * If delalloc was found then *delalloc_start_ret has a sector size
+		 * aligned value (rounded down).
+		 */
 		*delalloc_end_ret = *delalloc_start_ret + delalloc_len - 1;
+
+		if (*delalloc_start_ret == start) {
+			/* Delalloc for the whole range, nothing more to do. */
+			if (*delalloc_end_ret == end)
+				return true;
+			/* Else trim our search range for extent maps. */
+			start = *delalloc_end_ret + 1;
+			len = end + 1 - start;
+		}
+	}
 
 	/*
 	 * No outstanding extents means we don't have any delalloc that is
