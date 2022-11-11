@@ -272,23 +272,11 @@ sdw_intel_startup_controller(struct sdw_intel_ctx *ctx)
 {
 	struct acpi_device *adev = acpi_fetch_acpi_dev(ctx->handle);
 	struct sdw_intel_link_dev *ldev;
-	u32 caps;
 	u32 link_mask;
 	int i;
 
 	if (!adev)
 		return -EINVAL;
-
-	/* Check SNDWLCAP.LCOUNT */
-	caps = ioread32(ctx->mmio_base + ctx->shim_base + SDW_SHIM_LCAP);
-	caps &= SDW_SHIM_LCAP_LCOUNT_MASK;
-
-	/* Check HW supported vs property value */
-	if (caps < ctx->count) {
-		dev_err(&adev->dev,
-			"BIOS master count is larger than hardware capabilities\n");
-		return -EINVAL;
-	}
 
 	if (!ctx->ldev)
 		return -EINVAL;
