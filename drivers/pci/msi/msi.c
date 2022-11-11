@@ -725,12 +725,16 @@ out_disable:
 	return ret;
 }
 
-static bool pci_msix_validate_entries(struct msix_entry *entries, int nvec, int hwsize)
+static bool pci_msix_validate_entries(struct pci_dev *dev, struct msix_entry *entries,
+				      int nvec, int hwsize)
 {
+	bool nogap;
 	int i, j;
 
 	if (!entries)
 		return true;
+
+	nogap = pci_msi_domain_supports(dev, MSI_FLAG_MSIX_CONTIGUOUS, DENY_LEGACY);
 
 	for (i = 0; i < nvec; i++) {
 		/* Entry within hardware limit? */
@@ -742,6 +746,9 @@ static bool pci_msix_validate_entries(struct msix_entry *entries, int nvec, int 
 			if (entries[i].entry == entries[j].entry)
 				return false;
 		}
+		/* Check for unsupported gaps */
+		if (nogap && entries[i].entry != i)
+			return false;
 	}
 	return true;
 }
@@ -773,7 +780,7 @@ int __pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries, int
 	if (hwsize < 0)
 		return hwsize;
 
-	if (!pci_msix_validate_entries(entries, nvec, hwsize))
+	if (!pci_msix_validate_entries(dev, entries, nvec, hwsize))
 		return -EINVAL;
 
 	/* PCI_IRQ_VIRTUAL is a horrible hack! */
