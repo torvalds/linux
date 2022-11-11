@@ -58,3 +58,35 @@ void pci_disable_msi(struct pci_dev *dev)
 	msi_unlock_descs(&dev->dev);
 }
 EXPORT_SYMBOL(pci_disable_msi);
+
+/**
+ * pci_enable_msix_range() - Enable MSI-X interrupt mode on device
+ * @dev:     the PCI device to operate on
+ * @entries: input/output parameter, array of MSI-X configuration entries
+ * @minvec:  minimum required number of MSI-X vectors
+ * @maxvec:  maximum desired number of MSI-X vectors
+ *
+ * Legacy device driver API to enable MSI-X interrupt mode on device and
+ * configure its MSI-X capability structure as appropriate.  The passed
+ * @entries array must have each of its members "entry" field set to a
+ * desired (valid) MSI-X vector number, where the range of valid MSI-X
+ * vector numbers can be queried through pci_msix_vec_count().  If
+ * successful, the driver must invoke pci_disable_msix() on cleanup.
+ *
+ * NOTE: The newer pci_alloc_irq_vectors() / pci_free_irq_vectors() API
+ * pair should, in general, be used instead.
+ *
+ * Return: number of MSI-X vectors allocated (which might be smaller
+ * than @maxvecs), where Linux IRQ numbers for such allocated vectors
+ * are saved back in the @entries array elements' "vector" field. Return
+ * -ENOSPC if less than @minvecs interrupt vectors are available.
+ * Return -EINVAL if one of the passed @entries members "entry" field
+ * was invalid or a duplicate, or if plain MSI interrupts mode was
+ * earlier enabled on device. Return other errnos otherwise.
+ */
+int pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
+			  int minvec, int maxvec)
+{
+	return __pci_enable_msix_range(dev, entries, minvec, maxvec, NULL, 0);
+}
+EXPORT_SYMBOL(pci_enable_msix_range);
