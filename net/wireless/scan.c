@@ -1289,7 +1289,8 @@ static int cmp_bss(struct cfg80211_bss *a,
 	int i, r;
 
 	if (a->channel != b->channel)
-		return b->channel->center_freq - a->channel->center_freq;
+		return (b->channel->center_freq * 1000 + b->channel->freq_offset) -
+		       (a->channel->center_freq * 1000 + a->channel->freq_offset);
 
 	a_ies = rcu_access_pointer(a->ies);
 	if (!a_ies)
