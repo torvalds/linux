@@ -1629,7 +1629,9 @@ int st_lsm6dsvx_probe(struct device *dev, int irq, int hw_id,
 	if (err < 0)
 		return err;
 
-	if (hw->settings->st_qvar_probe) {
+	if (hw->settings->st_qvar_probe &&
+	    (!dev_fwnode(dev) ||
+	     device_property_read_bool(dev, "enable-qvar"))) {
 		err = st_lsm6dsvx_qvar_probe(hw);
 		if (err)
 			return err;
@@ -1676,12 +1678,11 @@ EXPORT_SYMBOL(st_lsm6dsvx_probe);
 int st_lsm6dsvx_remove(struct device *dev)
 {
 	struct st_lsm6dsvx_hw *hw = dev_get_drvdata(dev);
-	int ret = 0;
 
-	if (hw->settings->st_qvar_probe)
-		ret = st_lsm6dsvx_qvar_remove(dev);
+	if (!hw->iio_devs[ST_LSM6DSVX_ID_QVAR])
+		return 0;
 
-	return ret;
+	return st_lsm6dsvx_qvar_remove(dev);
 }
 EXPORT_SYMBOL(st_lsm6dsvx_remove);
 

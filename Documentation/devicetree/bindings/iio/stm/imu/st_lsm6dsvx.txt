@@ -42,6 +42,8 @@ Optional properties for all bus drivers:
                      Refer to interrupt-controller/interrupts.txt for generic interrupt
                      client node bindings.
 
+- enable-qvar:       enable QVAR sensor feature. Default is disabled.
+
 Example for an spi device node:
 
 lsm6dsvx-imu@0 {
