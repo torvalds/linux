@@ -307,3 +307,15 @@ void pci_free_irq_vectors(struct pci_dev *dev)
 	pci_disable_msi(dev);
 }
 EXPORT_SYMBOL(pci_free_irq_vectors);
+
+/**
+ * pci_msi_enabled() - Are MSI(-X) interrupts enabled system-wide?
+ *
+ * Return: true if MSI has not been globally disabled through ACPI FADT,
+ * PCI bridge quirks, or the "pci=nomsi" kernel command-line option.
+ */
+int pci_msi_enabled(void)
+{
+	return pci_msi_enable;
+}
+EXPORT_SYMBOL(pci_msi_enabled);

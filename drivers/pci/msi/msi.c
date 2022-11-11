@@ -13,7 +13,7 @@
 #include "../pci.h"
 #include "msi.h"
 
-static int pci_msi_enable = 1;
+int pci_msi_enable = 1;
 int pci_msi_ignore_mask;
 
 void pci_msi_update_mask(struct msi_desc *desc, u32 clear, u32 set)
@@ -864,15 +864,3 @@ void pci_no_msi(void)
 {
 	pci_msi_enable = 0;
 }
-
-/**
- * pci_msi_enabled - is MSI enabled?
- *
- * Returns true if MSI has not been disabled by the command-line option
- * pci=nomsi.
- **/
-int pci_msi_enabled(void)
-{
-	return pci_msi_enable;
-}
-EXPORT_SYMBOL(pci_msi_enabled);
