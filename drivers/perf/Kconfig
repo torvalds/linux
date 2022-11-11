@@ -199,4 +199,6 @@ config MARVELL_CN10K_DDR_PMU
 	  Enable perf support for Marvell DDR Performance monitoring
 	  event on CN10K platform.
 
+source "drivers/perf/arm_cspmu/Kconfig"
+
 endmenu
