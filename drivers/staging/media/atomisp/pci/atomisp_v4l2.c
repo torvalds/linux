@@ -724,18 +724,6 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 	return -EBUSY;
 }
 
-/* Workaround for pmu_nc_set_power_state not ready in MRFLD */
-static int atomisp_mrfld_power_down(struct atomisp_device *isp)
-{
-	return atomisp_mrfld_power(isp, false);
-}
-
-/* Workaround for pmu_nc_set_power_state not ready in MRFLD */
-static int atomisp_mrfld_power_up(struct atomisp_device *isp)
-{
-	return atomisp_mrfld_power(isp, true);
-}
-
 int atomisp_runtime_suspend(struct device *dev)
 {
 	struct atomisp_device *isp = (struct atomisp_device *)
@@ -751,7 +739,7 @@ int atomisp_runtime_suspend(struct device *dev)
 	if (ret)
 		return ret;
 	cpu_latency_qos_update_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
-	return atomisp_mrfld_power_down(isp);
+	return atomisp_mrfld_power(isp, false);
 }
 
 int atomisp_runtime_resume(struct device *dev)
@@ -760,7 +748,7 @@ int atomisp_runtime_resume(struct device *dev)
 				     dev_get_drvdata(dev);
 	int ret;
 
-	ret = atomisp_mrfld_power_up(isp);
+	ret = atomisp_mrfld_power(isp, true);
 	if (ret)
 		return ret;
 
@@ -817,7 +805,7 @@ static int __maybe_unused atomisp_suspend(struct device *dev)
 		return ret;
 	}
 	cpu_latency_qos_update_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
-	return atomisp_mrfld_power_down(isp);
+	return atomisp_mrfld_power(isp, false);
 }
 
 static int __maybe_unused atomisp_resume(struct device *dev)
@@ -826,7 +814,7 @@ static int __maybe_unused atomisp_resume(struct device *dev)
 				     dev_get_drvdata(dev);
 	int ret;
 
-	ret = atomisp_mrfld_power_up(isp);
+	ret = atomisp_mrfld_power(isp, true);
 	if (ret)
 		return ret;
 
@@ -1726,7 +1714,7 @@ load_fw_fail:
 	atomisp_ospm_dphy_down(isp);
 
 	/* Address later when we worry about the ...field chips */
-	if (IS_ENABLED(CONFIG_PM) && atomisp_mrfld_power_down(isp))
+	if (IS_ENABLED(CONFIG_PM) && atomisp_mrfld_power(isp, false))
 		dev_err(&pdev->dev, "Failed to switch off ISP\n");
 
 atomisp_dev_alloc_fail:
