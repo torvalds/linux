@@ -944,6 +944,8 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
+	hda_bus_ml_get_capabilities(bus);
+
 	/* scan SoundWire capabilities exposed by DSDT */
 	ret = hda_sdw_acpi_scan(sdev);
 	if (ret < 0) {
@@ -971,8 +973,6 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	}
 
 skip_soundwire:
-
-	hda_bus_ml_get_capabilities(bus);
 
 	/* create codec instances */
 	hda_codec_probe_bus(sdev);
