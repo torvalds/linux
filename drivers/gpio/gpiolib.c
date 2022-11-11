@@ -26,6 +26,7 @@
 #include "gpiolib.h"
 #include "gpiolib-of.h"
 #include "gpiolib-acpi.h"
+#include "gpiolib-swnode.h"
 #include "gpiolib-cdev.h"
 #include "gpiolib-sysfs.h"
 
@@ -3870,6 +3871,10 @@ static struct gpio_desc *gpiod_find_by_fwnode(struct fwnode_handle *fwnode,
 		dev_dbg(consumer, "using ACPI '%pfw' for '%s' GPIO lookup\n",
 			fwnode, con_id);
 		desc = acpi_find_gpio(fwnode, con_id, idx, flags, lookupflags);
+	} else if (is_software_node(fwnode)) {
+		dev_dbg(consumer, "using swnode '%pfw' for '%s' GPIO lookup\n",
+			fwnode, con_id);
+		desc = swnode_find_gpio(fwnode, con_id, idx, lookupflags);
 	}
 
 	return desc;
@@ -3987,6 +3992,8 @@ int gpiod_count(struct device *dev, const char *con_id)
 		count = of_gpio_get_count(dev, con_id);
 	else if (is_acpi_node(fwnode))
 		count = acpi_gpio_count(dev, con_id);
+	else if (is_software_node(fwnode))
+		count = swnode_gpio_count(fwnode, con_id);
 
 	if (count < 0)
 		count = platform_gpio_count(dev, con_id);
