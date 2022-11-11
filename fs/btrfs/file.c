@@ -3218,29 +3218,27 @@ static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end
 				   u64 *delalloc_start_ret, u64 *delalloc_end_ret)
 {
 	u64 len = end + 1 - start;
-	struct extent_map_tree *em_tree = &inode->extent_tree;
-	struct extent_map *em;
-	u64 em_end;
-	u64 delalloc_len;
-	unsigned int outstanding_extents;
+	u64 delalloc_len = 0;
+	struct btrfs_ordered_extent *oe;
+	u64 oe_start;
+	u64 oe_end;
 
 	/*
 	 * Search the io tree first for EXTENT_DELALLOC. If we find any, it
 	 * means we have delalloc (dirty pages) for which writeback has not
 	 * started yet.
 	 */
-	spin_lock(&inode->lock);
-	outstanding_extents = inode->outstanding_extents;
-
-	if (*search_io_tree && inode->delalloc_bytes > 0) {
-		spin_unlock(&inode->lock);
-		*delalloc_start_ret = start;
-		delalloc_len = count_range_bits(&inode->io_tree,
-						delalloc_start_ret, end,
-						len, EXTENT_DELALLOC, 1);
-	} else {
-		spin_unlock(&inode->lock);
-		delalloc_len = 0;
+	if (*search_io_tree) {
+		spin_lock(&inode->lock);
+		if (inode->delalloc_bytes > 0) {
+			spin_unlock(&inode->lock);
+			*delalloc_start_ret = start;
+			delalloc_len = count_range_bits(&inode->io_tree,
+							delalloc_start_ret, end,
+							len, EXTENT_DELALLOC, 1);
+		} else {
+			spin_unlock(&inode->lock);
+		}
 	}
 
 	if (delalloc_len > 0) {
@@ -3254,7 +3252,7 @@ static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end
 			/* Delalloc for the whole range, nothing more to do. */
 			if (*delalloc_end_ret == end)
 				return true;
-			/* Else trim our search range for extent maps. */
+			/* Else trim our search range for ordered extents. */
 			start = *delalloc_end_ret + 1;
 			len = end + 1 - start;
 		}
@@ -3264,110 +3262,56 @@ static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end
 	}
 
 	/*
-	 * No outstanding extents means we don't have any delalloc that is
-	 * flushing, so return the unflushed range found in the io tree (if any).
-	 */
-	if (outstanding_extents == 0)
-		return (delalloc_len > 0);
-
-	/*
-	 * Now also check if there's any extent map in the range that does not
-	 * map to a hole or prealloc extent. We do this because:
+	 * Now also check if there's any ordered extent in the range.
+	 * We do this because:
 	 *
 	 * 1) When delalloc is flushed, the file range is locked, we clear the
-	 *    EXTENT_DELALLOC bit from the io tree and create an extent map for
-	 *    an allocated extent. So we might just have been called after
-	 *    delalloc is flushed and before the ordered extent completes and
-	 *    inserts the new file extent item in the subvolume's btree;
+	 *    EXTENT_DELALLOC bit from the io tree and create an extent map and
+	 *    an ordered extent for the write. So we might just have been called
+	 *    after delalloc is flushed and before the ordered extent completes
+	 *    and inserts the new file extent item in the subvolume's btree;
 	 *
-	 * 2) We may have an extent map created by flushing delalloc for a
+	 * 2) We may have an ordered extent created by flushing delalloc for a
 	 *    subrange that starts before the subrange we found marked with
 	 *    EXTENT_DELALLOC in the io tree.
+	 *
+	 * We could also use the extent map tree to find such delalloc that is
+	 * being flushed, but using the ordered extents tree is more efficient
+	 * because it's usually much smaller as ordered extents are removed from
+	 * the tree once they complete. With the extent maps, we mau have them
+	 * in the extent map tree for a very long time, and they were either
+	 * created by previous writes or loaded by read operations.
 	 */
-	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, start, len);
-	if (!em) {
-		read_unlock(&em_tree->lock);
+	oe = btrfs_lookup_first_ordered_range(inode, start, len);
+	if (!oe)
 		return (delalloc_len > 0);
-	}
 
-	/* extent_map_end() returns a non-inclusive end offset. */
-	em_end = extent_map_end(em);
+	/* The ordered extent may span beyond our search range. */
+	oe_start = max(oe->file_offset, start);
+	oe_end = min(oe->file_offset + oe->num_bytes - 1, end);
 
-	/*
-	 * If we have a hole/prealloc extent map, check the next one if this one
-	 * ends before our range's end.
-	 */
-	if ((em->block_start == EXTENT_MAP_HOLE ||
-	     test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) && em_end < end) {
-		struct extent_map *next_em;
+	btrfs_put_ordered_extent(oe);
 
-		next_em = btrfs_next_extent_map(em_tree, em);
-		free_extent_map(em);
-
-		/*
-		 * There's no next extent map or the next one starts beyond our
-		 * range, return the range found in the io tree (if any).
-		 */
-		if (!next_em || next_em->start > end) {
-			read_unlock(&em_tree->lock);
-			free_extent_map(next_em);
-			return (delalloc_len > 0);
-		}
-
-		em_end = extent_map_end(next_em);
-		em = next_em;
-	}
-
-	read_unlock(&em_tree->lock);
-
-	/*
-	 * We have a hole or prealloc extent that ends at or beyond our range's
-	 * end, return the range found in the io tree (if any).
-	 */
-	if (em->block_start == EXTENT_MAP_HOLE ||
-	    test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
-		free_extent_map(em);
-		return (delalloc_len > 0);
-	}
-
-	/*
-	 * We don't have any range as EXTENT_DELALLOC in the io tree, so the
-	 * extent map is the only subrange representing delalloc.
-	 */
+	/* Don't have unflushed delalloc, return the ordered extent range. */
 	if (delalloc_len == 0) {
-		*delalloc_start_ret = em->start;
-		*delalloc_end_ret = min(end, em_end - 1);
-		free_extent_map(em);
+		*delalloc_start_ret = oe_start;
+		*delalloc_end_ret = oe_end;
 		return true;
 	}
 
 	/*
-	 * The extent map represents a delalloc range that starts before the
-	 * delalloc range we found in the io tree.
+	 * We have both unflushed delalloc (io_tree) and an ordered extent.
+	 * If the ranges are adjacent returned a combined range, otherwise
+	 * return the leftmost range.
 	 */
-	if (em->start < *delalloc_start_ret) {
-		*delalloc_start_ret = em->start;
-		/*
-		 * If the ranges are adjacent, return a combined range.
-		 * Otherwise return the extent map's range.
-		 */
-		if (em_end < *delalloc_start_ret)
-			*delalloc_end_ret = min(end, em_end - 1);
-
-		free_extent_map(em);
-		return true;
+	if (oe_start < *delalloc_start_ret) {
+		if (oe_end < *delalloc_start_ret)
+			*delalloc_end_ret = oe_end;
+		*delalloc_start_ret = oe_start;
+	} else if (*delalloc_end_ret + 1 == oe_start) {
+		*delalloc_end_ret = oe_end;
 	}
 
-	/*
-	 * The extent map starts after the delalloc range we found in the io
-	 * tree. If it's adjacent, return a combined range, otherwise return
-	 * the range found in the io tree.
-	 */
-	if (*delalloc_end_ret + 1 == em->start)
-		*delalloc_end_ret = min(end, em_end - 1);
-
-	free_extent_map(em);
 	return true;
 }
 
