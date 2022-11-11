@@ -1938,6 +1938,11 @@ int vfio_set_irqs_validate_and_prepare(struct vfio_irq_set *hdr, int num_irqs,
 }
 EXPORT_SYMBOL(vfio_set_irqs_validate_and_prepare);
 
+static bool vfio_device_has_container(struct vfio_device *device)
+{
+	return device->group->container;
+}
+
 /*
  * Pin contiguous user pages and return their associated host pages for local
  * domain only.
@@ -1950,7 +1955,7 @@ EXPORT_SYMBOL(vfio_set_irqs_validate_and_prepare);
  * Return error or number of pages pinned.
  *
  * A driver may only call this function if the vfio_device was created
- * by vfio_register_emulated_iommu_dev() due to vfio_container_pin_pages().
+ * by vfio_register_emulated_iommu_dev() due to vfio_device_container_pin_pages().
  */
 int vfio_pin_pages(struct vfio_device *device, dma_addr_t iova,
 		   int npage, int prot, struct page **pages)
@@ -1958,10 +1963,9 @@ int vfio_pin_pages(struct vfio_device *device, dma_addr_t iova,
 	/* group->container cannot change while a vfio device is open */
 	if (!pages || !npage || WARN_ON(!vfio_assert_device_open(device)))
 		return -EINVAL;
-	if (device->group->container)
-		return vfio_container_pin_pages(device->group->container,
-						device->group->iommu_group,
-						iova, npage, prot, pages);
+	if (vfio_device_has_container(device))
+		return vfio_device_container_pin_pages(device, iova,
+						       npage, prot, pages);
 	if (device->iommufd_access) {
 		int ret;
 
@@ -1997,9 +2001,8 @@ void vfio_unpin_pages(struct vfio_device *device, dma_addr_t iova, int npage)
 	if (WARN_ON(!vfio_assert_device_open(device)))
 		return;
 
-	if (device->group->container) {
-		vfio_container_unpin_pages(device->group->container, iova,
-					   npage);
+	if (vfio_device_has_container(device)) {
+		vfio_device_container_unpin_pages(device, iova, npage);
 		return;
 	}
 	if (device->iommufd_access) {
@@ -2036,9 +2039,9 @@ int vfio_dma_rw(struct vfio_device *device, dma_addr_t iova, void *data,
 	if (!data || len <= 0 || !vfio_assert_device_open(device))
 		return -EINVAL;
 
-	if (device->group->container)
-		return vfio_container_dma_rw(device->group->container, iova,
-					     data, len, write);
+	if (vfio_device_has_container(device))
+		return vfio_device_container_dma_rw(device, iova,
+						    data, len, write);
 
 	if (device->iommufd_access) {
 		unsigned int flags = 0;

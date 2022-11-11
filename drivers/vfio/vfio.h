@@ -122,13 +122,14 @@ int vfio_container_attach_group(struct vfio_container *container,
 void vfio_group_detach_container(struct vfio_group *group);
 void vfio_device_container_register(struct vfio_device *device);
 void vfio_device_container_unregister(struct vfio_device *device);
-int vfio_container_pin_pages(struct vfio_container *container,
-			     struct iommu_group *iommu_group, dma_addr_t iova,
-			     int npage, int prot, struct page **pages);
-void vfio_container_unpin_pages(struct vfio_container *container,
-				dma_addr_t iova, int npage);
-int vfio_container_dma_rw(struct vfio_container *container, dma_addr_t iova,
-			  void *data, size_t len, bool write);
+int vfio_device_container_pin_pages(struct vfio_device *device,
+				    dma_addr_t iova, int npage,
+				    int prot, struct page **pages);
+void vfio_device_container_unpin_pages(struct vfio_device *device,
+				       dma_addr_t iova, int npage);
+int vfio_device_container_dma_rw(struct vfio_device *device,
+				 dma_addr_t iova, void *data,
+				 size_t len, bool write);
 
 int __init vfio_container_init(void);
 void vfio_container_cleanup(void);
@@ -166,22 +167,21 @@ static inline void vfio_device_container_unregister(struct vfio_device *device)
 {
 }
 
-static inline int vfio_container_pin_pages(struct vfio_container *container,
-					   struct iommu_group *iommu_group,
-					   dma_addr_t iova, int npage, int prot,
-					   struct page **pages)
+static inline int vfio_device_container_pin_pages(struct vfio_device *device,
+						  dma_addr_t iova, int npage,
+						  int prot, struct page **pages)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline void vfio_container_unpin_pages(struct vfio_container *container,
-					      dma_addr_t iova, int npage)
+static inline void vfio_device_container_unpin_pages(struct vfio_device *device,
+						     dma_addr_t iova, int npage)
 {
 }
 
-static inline int vfio_container_dma_rw(struct vfio_container *container,
-					dma_addr_t iova, void *data, size_t len,
-					bool write)
+static inline int vfio_device_container_dma_rw(struct vfio_device *device,
+					       dma_addr_t iova, void *data,
+					       size_t len, bool write)
 {
 	return -EOPNOTSUPP;
 }
