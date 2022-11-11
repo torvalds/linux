@@ -91,6 +91,13 @@
 		off-on-delay-us = <3480>;
 	};
 
+	reg_vref_1v8: regulator-adc-vref {
+		compatible = "regulator-fixed";
+		regulator-name = "vref_1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
 	mii_select: regulator-4 {
 		compatible = "regulator-fixed";
 		regulator-name = "mii-select";
@@ -100,6 +107,11 @@
 		enable-active-high;
 		regulator-always-on;
 	};
+};
+
+&adc0 {
+	vref-supply = <&reg_vref_1v8>;
+	status = "okay";
 };
 
 &eqos {
