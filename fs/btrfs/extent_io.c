@@ -901,14 +901,9 @@ static void end_sector_io(struct page *page, u64 offset, bool uptodate)
 {
 	struct btrfs_inode *inode = BTRFS_I(page->mapping->host);
 	const u32 sectorsize = inode->root->fs_info->sectorsize;
-	struct extent_state *cached = NULL;
 
 	end_page_read(page, uptodate, offset, sectorsize);
-	if (uptodate)
-		set_extent_uptodate(&inode->io_tree, offset,
-				    offset + sectorsize - 1, &cached, GFP_NOFS);
-	unlock_extent(&inode->io_tree, offset, offset + sectorsize - 1,
-		      &cached);
+	unlock_extent(&inode->io_tree, offset, offset + sectorsize - 1, NULL);
 }
 
 static void submit_data_read_repair(struct inode *inode,
@@ -1781,13 +1776,9 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 
 		ASSERT(IS_ALIGNED(cur, fs_info->sectorsize));
 		if (cur >= last_byte) {
-			struct extent_state *cached = NULL;
-
 			iosize = PAGE_SIZE - pg_offset;
 			memzero_page(page, pg_offset, iosize);
-			set_extent_uptodate(tree, cur, cur + iosize - 1,
-					    &cached, GFP_NOFS);
-			unlock_extent(tree, cur, cur + iosize - 1, &cached);
+			unlock_extent(tree, cur, cur + iosize - 1, NULL);
 			end_page_read(page, true, cur, iosize);
 			break;
 		}
@@ -1863,13 +1854,9 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 
 		/* we've found a hole, just zero and go on */
 		if (block_start == EXTENT_MAP_HOLE) {
-			struct extent_state *cached = NULL;
-
 			memzero_page(page, pg_offset, iosize);
 
-			set_extent_uptodate(tree, cur, cur + iosize - 1,
-					    &cached, GFP_NOFS);
-			unlock_extent(tree, cur, cur + iosize - 1, &cached);
+			unlock_extent(tree, cur, cur + iosize - 1, NULL);
 			end_page_read(page, true, cur, iosize);
 			cur = cur + iosize;
 			pg_offset += iosize;
