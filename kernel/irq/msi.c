@@ -282,6 +282,7 @@ EXPORT_SYMBOL_GPL(msi_first_desc);
 /**
  * msi_next_desc - Get the next MSI descriptor of a device
  * @dev:	Device to operate on
+ * @filter:	Descriptor state filter
  *
  * The first invocation of msi_next_desc() has to be preceeded by a
  * successful invocation of __msi_first_desc(). Consecutive invocations are
