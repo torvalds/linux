@@ -694,8 +694,11 @@ struct irq_domain *msi_create_irq_domain(struct fwnode_handle *fwnode,
 	domain = irq_domain_create_hierarchy(parent, IRQ_DOMAIN_FLAG_MSI, 0,
 					     fwnode, &msi_domain_ops, info);
 
-	if (domain && !domain->name && info->chip)
-		domain->name = info->chip->name;
+	if (domain) {
+		if (!domain->name && info->chip)
+			domain->name = info->chip->name;
+		irq_domain_update_bus_token(domain, info->bus_token);
+	}
 
 	return domain;
 }
