@@ -50,16 +50,9 @@ struct sdw_intel {
 #endif
 };
 
-int intel_link_startup(struct auxiliary_device *auxdev);
-int intel_link_process_wakeen_event(struct auxiliary_device *auxdev);
+#define cdns_to_intel(_cdns) container_of(_cdns, struct sdw_intel, cdns)
 
-struct sdw_intel_link_dev {
-	struct auxiliary_device auxdev;
-	struct sdw_intel_link_res link_res;
-};
-
-#define auxiliary_dev_to_sdw_intel_link_dev(auxiliary_dev) \
-	container_of(auxiliary_dev, struct sdw_intel_link_dev, auxdev)
+#define INTEL_MASTER_RESET_ITERATIONS	10
 
 #define SDW_INTEL_CHECK_OPS(sdw, cb)	((sdw) && (sdw)->link_res && (sdw)->link_res->hw_ops && \
 					 (sdw)->link_res->hw_ops->cb)

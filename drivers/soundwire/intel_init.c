@@ -17,6 +17,7 @@
 #include <linux/soundwire/sdw_intel.h>
 #include "cadence_master.h"
 #include "intel.h"
+#include "intel_auxdevice.h"
 
 static void intel_link_dev_release(struct device *dev)
 {
