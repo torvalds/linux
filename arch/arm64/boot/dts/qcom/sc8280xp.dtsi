@@ -1765,6 +1765,97 @@
 			};
 		};
 
+		pmu@9091000 {
+			compatible = "qcom,sc8280xp-llcc-bwmon", "qcom,sc7280-llcc-bwmon";
+			reg = <0 0x9091000 0 0x1000>;
+
+			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+
+			interconnects = <&mc_virt MASTER_LLCC 3 &mc_virt SLAVE_EBI1 3>;
+
+			operating-points-v2 = <&llcc_bwmon_opp_table>;
+
+			llcc_bwmon_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-0 {
+					opp-peak-kBps = <762000>;
+				};
+				opp-1 {
+					opp-peak-kBps = <1720000>;
+				};
+				opp-2 {
+					opp-peak-kBps = <2086000>;
+				};
+				opp-3 {
+					opp-peak-kBps = <2597000>;
+				};
+				opp-4 {
+					opp-peak-kBps = <2929000>;
+				};
+				opp-5 {
+					opp-peak-kBps = <3879000>;
+				};
+				opp-6 {
+					opp-peak-kBps = <5161000>;
+				};
+				opp-7 {
+					opp-peak-kBps = <5931000>;
+				};
+				opp-8 {
+					opp-peak-kBps = <6515000>;
+				};
+				opp-9 {
+					opp-peak-kBps = <7980000>;
+				};
+				opp-10 {
+					opp-peak-kBps = <8136000>;
+				};
+				opp-11 {
+					opp-peak-kBps = <10437000>;
+				};
+				opp-12 {
+					opp-peak-kBps = <12191000>;
+				};
+			};
+		};
+
+		pmu@90b6400 {
+			compatible = "qcom,sc8280xp-cpu-bwmon", "qcom,msm8998-bwmon";
+			reg = <0 0x090b6400 0 0x600>;
+
+			interrupts = <GIC_SPI 581 IRQ_TYPE_LEVEL_HIGH>;
+
+			interconnects = <&gem_noc MASTER_APPSS_PROC 3 &gem_noc SLAVE_LLCC 3>;
+			operating-points-v2 = <&cpu_bwmon_opp_table>;
+
+			cpu_bwmon_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-0 {
+					opp-peak-kBps = <2288000>;
+				};
+				opp-1 {
+					opp-peak-kBps = <4577000>;
+				};
+				opp-2 {
+					opp-peak-kBps = <7110000>;
+				};
+				opp-3 {
+					opp-peak-kBps = <9155000>;
+				};
+				opp-4 {
+					opp-peak-kBps = <12298000>;
+				};
+				opp-5 {
+					opp-peak-kBps = <14236000>;
+				};
+				opp-6 {
+					opp-peak-kBps = <15258001>;
+				};
+			};
+		};
+
 		system-cache-controller@9200000 {
 			compatible = "qcom,sc8280xp-llcc";
 			reg = <0 0x09200000 0 0x58000>, <0 0x09600000 0 0x58000>;
