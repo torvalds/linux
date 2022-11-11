@@ -427,6 +427,13 @@ void rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 
 	rxrpc_transmit_some_data(call);
 
+	if (skb) {
+		struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+
+		if (sp->hdr.type == RXRPC_PACKET_TYPE_ACK)
+			rxrpc_congestion_degrade(call);
+	}
+
 	if (test_and_clear_bit(RXRPC_CALL_EV_INITIAL_PING, &call->events))
 		rxrpc_send_initial_ping(call);
 

@@ -61,7 +61,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 			 "Proto Local                                          "
 			 " Remote                                         "
 			 " SvID ConnID   CallID   End Use State    Abort   "
-			 " DebugId  TxSeq    TW RxSeq    RW RxSerial RxTimo\n");
+			 " DebugId  TxSeq    TW RxSeq    RW RxSerial CW RxTimo\n");
 		return 0;
 	}
 
@@ -84,7 +84,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	wtmp   = atomic64_read_acquire(&call->ackr_window);
 	seq_printf(seq,
 		   "UDP   %-47.47s %-47.47s %4x %08x %08x %s %3u"
-		   " %-8.8s %08x %08x %08x %02x %08x %02x %08x %06lx\n",
+		   " %-8.8s %08x %08x %08x %02x %08x %02x %08x %02x %06lx\n",
 		   lbuff,
 		   rbuff,
 		   call->dest_srx.srx_service,
@@ -98,6 +98,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 		   acks_hard_ack, READ_ONCE(call->tx_top) - acks_hard_ack,
 		   lower_32_bits(wtmp), upper_32_bits(wtmp) - lower_32_bits(wtmp),
 		   call->rx_serial,
+		   call->cong_cwnd,
 		   timeout);
 
 	return 0;
