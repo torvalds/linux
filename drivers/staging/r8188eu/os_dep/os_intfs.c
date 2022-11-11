@@ -480,7 +480,7 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 
 	init_mlme_ext_priv(padapter);
 
-	if (_rtw_init_xmit_priv(&padapter->xmitpriv, padapter) == _FAIL) {
+	if (_rtw_init_xmit_priv(&padapter->xmitpriv, padapter)) {
 		dev_err(dvobj_to_dev(padapter->dvobj), "_rtw_init_xmit_priv failed\n");
 		goto free_mlme_ext;
 	}
