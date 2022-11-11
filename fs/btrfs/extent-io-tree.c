@@ -1515,9 +1515,29 @@ out:
 }
 
 /*
- * Count the number of bytes in the tree that have a given bit(s) set.  This
- * can be fairly slow, except for EXTENT_DIRTY which is cached.  The total
- * number found is returned.
+ * Count the number of bytes in the tree that have a given bit(s) set for a
+ * given range.
+ *
+ * @tree:         The io tree to search.
+ * @start:        The start offset of the range. This value is updated to the
+ *                offset of the first byte found with the given bit(s), so it
+ *                can end up being bigger than the initial value.
+ * @search_end:   The end offset (inclusive value) of the search range.
+ * @max_bytes:    The maximum byte count we are interested. The search stops
+ *                once it reaches this count.
+ * @bits:         The bits the range must have in order to be accounted for.
+ *                If multiple bits are set, then only subranges that have all
+ *                the bits set are accounted for.
+ * @contig:       Indicate if we should ignore holes in the range or not. If
+ *                this is true, then stop once we find a hole.
+ * @cached_state: A cached state to be used across multiple calls to this
+ *                function in order to speedup searches. Use NULL if this is
+ *                called only once or if each call does not start where the
+ *                previous one ended.
+ *
+ * Returns the total number of bytes found within the given range that have
+ * all given bits set. If the returned number of bytes is greater than zero
+ * then @start is updated with the offset of the first byte with the bits set.
  */
 u64 count_range_bits(struct extent_io_tree *tree,
 		     u64 *start, u64 search_end, u64 max_bytes,
