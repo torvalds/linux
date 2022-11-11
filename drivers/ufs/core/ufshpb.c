@@ -233,11 +233,6 @@ next_srgn:
 	rgn = hpb->rgn_tbl + rgn_idx;
 	srgn = rgn->srgn_tbl + srgn_idx;
 
-	if (likely(!srgn->is_last))
-		bitmap_len = hpb->entries_per_srgn;
-	else
-		bitmap_len = hpb->last_srgn_entries;
-
 	if (!ufshpb_is_valid_srgn(rgn, srgn))
 		return true;
 
@@ -252,6 +247,11 @@ next_srgn:
 			srgn->rgn_idx, srgn->srgn_idx);
 		return true;
 	}
+
+	if (likely(!srgn->is_last))
+		bitmap_len = hpb->entries_per_srgn;
+	else
+		bitmap_len = hpb->last_srgn_entries;
 
 	if ((srgn_offset + cnt) > bitmap_len)
 		bit_len = bitmap_len - srgn_offset;
