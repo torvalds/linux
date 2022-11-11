@@ -782,7 +782,7 @@ def parse_run_tests(kernel_output: Iterable[str]) -> Test:
 	test = Test()
 	if not lines:
 		test.name = '<missing>'
-		test.add_error('could not find any KTAP output!')
+		test.add_error('Could not find any KTAP output. Did any KUnit tests run?')
 		test.status = TestStatus.FAILURE_TO_PARSE_TESTS
 	else:
 		test = parse_test(lines, 0, [])
