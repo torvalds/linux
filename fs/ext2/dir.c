@@ -413,7 +413,7 @@ found:
 	return de;
 }
 
-/**
+/*
  * Return the '..' directory entry and the page in which the entry was found
  * (as a parameter - p).
  *
