@@ -1373,7 +1373,6 @@ static void
 __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 {
 	struct lpfc_sglq *sglq;
-	size_t start_clean = offsetof(struct lpfc_iocbq, wqe);
 	unsigned long iflag = 0;
 	struct lpfc_sli_ring *pring;
 
@@ -1430,7 +1429,7 @@ out:
 	/*
 	 * Clean all volatile data fields, preserve iotag and node struct.
 	 */
-	memset((char *)iocbq + start_clean, 0, sizeof(*iocbq) - start_clean);
+	memset_startat(iocbq, 0, wqe);
 	iocbq->sli4_lxritag = NO_XRI;
 	iocbq->sli4_xritag = NO_XRI;
 	iocbq->cmd_flag &= ~(LPFC_IO_NVME | LPFC_IO_NVMET | LPFC_IO_CMF |
@@ -1453,12 +1452,11 @@ out:
 static void
 __lpfc_sli_release_iocbq_s3(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 {
-	size_t start_clean = offsetof(struct lpfc_iocbq, iocb);
 
 	/*
 	 * Clean all volatile data fields, preserve iotag and node struct.
 	 */
-	memset((char*)iocbq + start_clean, 0, sizeof(*iocbq) - start_clean);
+	memset_startat(iocbq, 0, iocb);
 	iocbq->sli4_xritag = NO_XRI;
 	list_add_tail(&iocbq->list, &phba->lpfc_iocb_list);
 }
