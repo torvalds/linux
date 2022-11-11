@@ -3214,6 +3214,7 @@ out:
  * looping while it gets adjacent subranges, and merging them together.
  */
 static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end,
+				   bool *search_io_tree,
 				   u64 *delalloc_start_ret, u64 *delalloc_end_ret)
 {
 	u64 len = end + 1 - start;
@@ -3231,7 +3232,7 @@ static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end
 	spin_lock(&inode->lock);
 	outstanding_extents = inode->outstanding_extents;
 
-	if (inode->delalloc_bytes > 0) {
+	if (*search_io_tree && inode->delalloc_bytes > 0) {
 		spin_unlock(&inode->lock);
 		*delalloc_start_ret = start;
 		delalloc_len = count_range_bits(&inode->io_tree,
@@ -3257,6 +3258,9 @@ static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end
 			start = *delalloc_end_ret + 1;
 			len = end + 1 - start;
 		}
+	} else {
+		/* No delalloc, future calls don't need to search again. */
+		*search_io_tree = false;
 	}
 
 	/*
@@ -3390,6 +3394,7 @@ bool btrfs_find_delalloc_in_range(struct btrfs_inode *inode, u64 start, u64 end,
 {
 	u64 cur_offset = round_down(start, inode->root->fs_info->sectorsize);
 	u64 prev_delalloc_end = 0;
+	bool search_io_tree = true;
 	bool ret = false;
 
 	while (cur_offset < end) {
@@ -3398,6 +3403,7 @@ bool btrfs_find_delalloc_in_range(struct btrfs_inode *inode, u64 start, u64 end,
 		bool delalloc;
 
 		delalloc = find_delalloc_subrange(inode, cur_offset, end,
+						  &search_io_tree,
 						  &delalloc_start,
 						  &delalloc_end);
 		if (!delalloc)
