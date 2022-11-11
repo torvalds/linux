@@ -38,5 +38,6 @@
 #define VCODEC_VIDEO_CC_MVS1_BCR				4
 #define VIDEO_CC_MVS1C_CLK_ARES					5
 #define VCODEC_VIDEO_CC_MVS1C_BCR				6
+#define VIDEO_CC_XO_CLK_ARES					7
 
 #endif
