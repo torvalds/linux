@@ -956,7 +956,7 @@ int octep_device_setup(struct octep_device *oct)
 	ret = octep_ctrl_mbox_init(ctrl_mbox);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize control mbox\n");
-		return -1;
+		goto unsupported_dev;
 	}
 	oct->ctrl_mbox_ifstats_offset = OCTEP_CTRL_MBOX_SZ(ctrl_mbox->h2fq.elem_sz,
 							   ctrl_mbox->h2fq.elem_cnt,
@@ -966,6 +966,10 @@ int octep_device_setup(struct octep_device *oct)
 	return 0;
 
 unsupported_dev:
+	for (i = 0; i < OCTEP_MMIO_REGIONS; i++)
+		iounmap(oct->mmio[i].hw_addr);
+
+	kfree(oct->conf);
 	return -1;
 }
 
