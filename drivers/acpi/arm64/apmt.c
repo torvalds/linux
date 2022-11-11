@@ -24,7 +24,7 @@
 static struct acpi_table_header *apmt_table;
 
 static int __init apmt_init_resources(struct resource *res,
-					      struct acpi_apmt_node *node)
+				      struct acpi_apmt_node *node)
 {
 	int irq, trigger;
 	int num_res = 0;
@@ -66,11 +66,12 @@ static int __init apmt_init_resources(struct resource *res,
 /**
  * apmt_add_platform_device() - Allocate a platform device for APMT node
  * @node: Pointer to device ACPI APMT node
+ * @fwnode: fwnode associated with the APMT node
  *
  * Returns: 0 on success, <0 failure
  */
 static int __init apmt_add_platform_device(struct acpi_apmt_node *node,
-							struct fwnode_handle *fwnode)
+					   struct fwnode_handle *fwnode)
 {
 	struct platform_device *pdev;
 	int ret, count;
