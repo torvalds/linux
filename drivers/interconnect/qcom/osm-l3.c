@@ -134,22 +134,14 @@ static int qcom_osm_l3_set(struct icc_node *src, struct icc_node *dst)
 	struct qcom_osm_l3_icc_provider *qp;
 	struct icc_provider *provider;
 	const struct qcom_osm_l3_node *qn;
-	struct icc_node *n;
 	unsigned int index;
-	u32 agg_peak = 0;
-	u32 agg_avg = 0;
 	u64 rate;
 
 	qn = src->data;
 	provider = src->provider;
 	qp = to_osm_l3_provider(provider);
 
-	list_for_each_entry(n, &provider->nodes, node_list)
-		provider->aggregate(n, 0, n->avg_bw, n->peak_bw,
-				    &agg_avg, &agg_peak);
-
-	rate = max(agg_avg, agg_peak);
-	rate = icc_units_to_bps(rate);
+	rate = icc_units_to_bps(dst->peak_bw);
 	do_div(rate, qn->buswidth);
 
 	for (index = 0; index < qp->max_state - 1; index++) {
