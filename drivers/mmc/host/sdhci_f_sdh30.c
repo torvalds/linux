@@ -77,6 +77,13 @@ static void sdhci_f_sdh30_reset(struct sdhci_host *host, u8 mask)
 		ctl |= F_SDH30_CMD_DAT_DELAY;
 		sdhci_writel(host, ctl, F_SDH30_ESD_CONTROL);
 	}
+
+	if ((host->mmc->caps & MMC_CAP_NONREMOVABLE) &&
+	    !(sdhci_readl(host, SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT)) {
+		ctl = sdhci_readl(host, F_SDH30_TEST);
+		ctl |= F_SDH30_FORCE_CARD_INSERT;
+		sdhci_writel(host, ctl, F_SDH30_TEST);
+	}
 }
 
 static const struct sdhci_ops sdhci_f_sdh30_ops = {
