@@ -182,3 +182,26 @@ int pci_alloc_irq_vectors_affinity(struct pci_dev *dev, unsigned int min_vecs,
 	return nvecs;
 }
 EXPORT_SYMBOL(pci_alloc_irq_vectors_affinity);
+
+/**
+ * pci_irq_vector() - Get Linux IRQ number of a device interrupt vector
+ * @dev: the PCI device to operate on
+ * @nr:  device-relative interrupt vector index (0-based); has different
+ *       meanings, depending on interrupt mode
+ *         MSI-X        the index in the MSI-X vector table
+ *         MSI          the index of the enabled MSI vectors
+ *         INTx         must be 0
+ *
+ * Return: the Linux IRQ number, or -EINVAL if @nr is out of range
+ */
+int pci_irq_vector(struct pci_dev *dev, unsigned int nr)
+{
+	unsigned int irq;
+
+	if (!dev->msi_enabled && !dev->msix_enabled)
+		return !nr ? dev->irq : -EINVAL;
+
+	irq = msi_get_virq(&dev->dev, nr);
+	return irq ? irq : -EINVAL;
+}
+EXPORT_SYMBOL(pci_irq_vector);
