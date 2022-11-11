@@ -51,6 +51,7 @@
 #define MT7663_FIRMWARE_N9		"mediatek/mt7663_n9_rebb.bin"
 
 #define MT7615_EEPROM_SIZE		1024
+#define MT7663_EEPROM_SIZE		1536
 #define MT7615_TOKEN_SIZE		4096
 
 #define MT_FRAC_SCALE		12
