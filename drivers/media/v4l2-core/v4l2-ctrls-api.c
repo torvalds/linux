@@ -89,7 +89,7 @@ static int req_to_user(struct v4l2_ext_control *c,
 /* Helper function: copy the initial control value back to the caller */
 static int def_to_user(struct v4l2_ext_control *c, struct v4l2_ctrl *ctrl)
 {
-	ctrl->type_ops->init(ctrl, 0, ctrl->elems, ctrl->p_new);
+	ctrl->type_ops->init(ctrl, 0, ctrl->p_new);
 
 	return ptr_to_user(c, ctrl, ctrl->p_new);
 }
@@ -126,7 +126,7 @@ static int user_to_new(struct v4l2_ext_control *c, struct v4l2_ctrl *ctrl)
 		if (ctrl->is_dyn_array)
 			ctrl->new_elems = elems;
 		else if (ctrl->is_array)
-			ctrl->type_ops->init(ctrl, elems, ctrl->elems, ctrl->p_new);
+			ctrl->type_ops->init(ctrl, elems, ctrl->p_new);
 		return 0;
 	}
 
@@ -494,7 +494,7 @@ EXPORT_SYMBOL(v4l2_g_ext_ctrls);
 /* Validate a new control */
 static int validate_new(const struct v4l2_ctrl *ctrl, union v4l2_ctrl_ptr p_new)
 {
-	return ctrl->type_ops->validate(ctrl, ctrl->new_elems, p_new);
+	return ctrl->type_ops->validate(ctrl, p_new);
 }
 
 /* Validate controls. */
@@ -1007,7 +1007,7 @@ int __v4l2_ctrl_modify_dimensions(struct v4l2_ctrl *ctrl,
 	ctrl->p_cur.p = p_array + elems * ctrl->elem_size;
 	for (i = 0; i < ctrl->nr_of_dims; i++)
 		ctrl->dims[i] = dims[i];
-	ctrl->type_ops->init(ctrl, 0, elems, ctrl->p_cur);
+	ctrl->type_ops->init(ctrl, 0, ctrl->p_cur);
 	cur_to_new(ctrl);
 	send_event(NULL, ctrl, V4L2_EVENT_CTRL_CH_VALUE |
 			       V4L2_EVENT_CTRL_CH_DIMENSIONS);

@@ -377,7 +377,8 @@ static const enum counter_signal_polarity ecap_cnt_pol_avail[] = {
 	COUNTER_SIGNAL_POLARITY_NEGATIVE,
 };
 
-static DEFINE_COUNTER_ARRAY_POLARITY(ecap_cnt_pol_array, ecap_cnt_pol_avail, ECAP_NB_CEVT);
+static DEFINE_COUNTER_AVAILABLE(ecap_cnt_pol_available, ecap_cnt_pol_avail);
+static DEFINE_COUNTER_ARRAY_POLARITY(ecap_cnt_pol_array, ecap_cnt_pol_available, ECAP_NB_CEVT);
 
 static struct counter_comp ecap_cnt_signal_ext[] = {
 	COUNTER_COMP_ARRAY_POLARITY(ecap_cnt_pol_read, ecap_cnt_pol_write, ecap_cnt_pol_array),
@@ -479,8 +480,8 @@ static int ecap_cnt_probe(struct platform_device *pdev)
 	int ret;
 
 	counter_dev = devm_counter_alloc(dev, sizeof(*ecap_dev));
-	if (IS_ERR(counter_dev))
-		return PTR_ERR(counter_dev);
+	if (!counter_dev)
+		return -ENOMEM;
 
 	counter_dev->name = ECAP_DRV_NAME;
 	counter_dev->parent = dev;

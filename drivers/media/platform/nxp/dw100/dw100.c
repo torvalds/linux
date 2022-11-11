@@ -373,7 +373,7 @@ static const struct v4l2_ctrl_ops dw100_ctrl_ops = {
  * The coordinates are saved in UQ12.4 fixed point format.
  */
 static void dw100_ctrl_dewarping_map_init(const struct v4l2_ctrl *ctrl,
-					  u32 from_idx, u32 elems,
+					  u32 from_idx,
 					  union v4l2_ctrl_ptr ptr)
 {
 	struct dw100_ctx *ctx =
@@ -398,7 +398,7 @@ static void dw100_ctrl_dewarping_map_init(const struct v4l2_ctrl *ctrl,
 	ctx->map_height = mh;
 	ctx->map_size = mh * mw * sizeof(u32);
 
-	for (idx = from_idx; idx < elems; idx++) {
+	for (idx = from_idx; idx < ctrl->elems; idx++) {
 		qy = min_t(u32, (idx / mw) * qdy, qsh);
 		qx = min_t(u32, (idx % mw) * qdx, qsw);
 		map[idx] = dw100_map_format_coordinates(qx, qy);

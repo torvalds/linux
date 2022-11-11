@@ -302,7 +302,7 @@ static bool xen_amd_pmu_emulate(unsigned int msr, u64 *val, bool is_read)
 static bool pmu_msr_chk_emulated(unsigned int msr, uint64_t *val, bool is_read,
 				 bool *emul)
 {
-	int type, index;
+	int type, index = 0;
 
 	if (is_amd_pmu_msr(msr))
 		*emul = xen_amd_pmu_emulate(msr, val, is_read);

@@ -32,6 +32,11 @@ static inline void arch_enter_lazy_mmu_mode(void)
 
 	if (radix_enabled())
 		return;
+	/*
+	 * apply_to_page_range can call us this preempt enabled when
+	 * operating on kernel page tables.
+	 */
+	preempt_disable();
 	batch = this_cpu_ptr(&ppc64_tlb_batch);
 	batch->active = 1;
 }
@@ -47,6 +52,7 @@ static inline void arch_leave_lazy_mmu_mode(void)
 	if (batch->index)
 		__flush_tlb_pending(batch);
 	batch->active = 0;
+	preempt_enable();
 }
 
 #define arch_flush_lazy_mmu_mode()      do {} while (0)

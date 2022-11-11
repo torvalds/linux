@@ -279,6 +279,7 @@ static void emit_atomic(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	const u8 t1 = LOONGARCH_GPR_T1;
 	const u8 t2 = LOONGARCH_GPR_T2;
 	const u8 t3 = LOONGARCH_GPR_T3;
+	const u8 r0 = regmap[BPF_REG_0];
 	const u8 src = regmap[insn->src_reg];
 	const u8 dst = regmap[insn->dst_reg];
 	const s16 off = insn->off;
@@ -359,8 +360,6 @@ static void emit_atomic(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		break;
 	/* r0 = atomic_cmpxchg(dst + off, r0, src); */
 	case BPF_CMPXCHG:
-		u8 r0 = regmap[BPF_REG_0];
-
 		move_reg(ctx, t2, r0);
 		if (isdw) {
 			emit_insn(ctx, lld, r0, t1, 0);
@@ -390,8 +389,11 @@ static bool is_signed_bpf_cond(u8 cond)
 
 static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool extra_pass)
 {
-	const bool is32 = BPF_CLASS(insn->code) == BPF_ALU ||
-			  BPF_CLASS(insn->code) == BPF_JMP32;
+	u8 tm = -1;
+	u64 func_addr;
+	bool func_addr_fixed;
+	int i = insn - ctx->prog->insnsi;
+	int ret, jmp_offset;
 	const u8 code = insn->code;
 	const u8 cond = BPF_OP(code);
 	const u8 t1 = LOONGARCH_GPR_T1;
@@ -400,8 +402,8 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 	const u8 dst = regmap[insn->dst_reg];
 	const s16 off = insn->off;
 	const s32 imm = insn->imm;
-	int jmp_offset;
-	int i = insn - ctx->prog->insnsi;
+	const u64 imm64 = (u64)(insn + 1)->imm << 32 | (u32)insn->imm;
+	const bool is32 = BPF_CLASS(insn->code) == BPF_ALU || BPF_CLASS(insn->code) == BPF_JMP32;
 
 	switch (code) {
 	/* dst = src */
@@ -724,24 +726,23 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 	case BPF_JMP32 | BPF_JSGE | BPF_K:
 	case BPF_JMP32 | BPF_JSLT | BPF_K:
 	case BPF_JMP32 | BPF_JSLE | BPF_K:
-		u8 t7 = -1;
 		jmp_offset = bpf2la_offset(i, off, ctx);
 		if (imm) {
 			move_imm(ctx, t1, imm, false);
-			t7 = t1;
+			tm = t1;
 		} else {
 			/* If imm is 0, simply use zero register. */
-			t7 = LOONGARCH_GPR_ZERO;
+			tm = LOONGARCH_GPR_ZERO;
 		}
 		move_reg(ctx, t2, dst);
 		if (is_signed_bpf_cond(BPF_OP(code))) {
-			emit_sext_32(ctx, t7, is32);
+			emit_sext_32(ctx, tm, is32);
 			emit_sext_32(ctx, t2, is32);
 		} else {
-			emit_zext_32(ctx, t7, is32);
+			emit_zext_32(ctx, tm, is32);
 			emit_zext_32(ctx, t2, is32);
 		}
-		if (emit_cond_jmp(ctx, cond, t2, t7, jmp_offset) < 0)
+		if (emit_cond_jmp(ctx, cond, t2, tm, jmp_offset) < 0)
 			goto toofar;
 		break;
 
@@ -775,10 +776,6 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 
 	/* function call */
 	case BPF_JMP | BPF_CALL:
-		int ret;
-		u64 func_addr;
-		bool func_addr_fixed;
-
 		mark_call(ctx);
 		ret = bpf_jit_get_func_addr(ctx->prog, insn, extra_pass,
 					    &func_addr, &func_addr_fixed);
@@ -811,8 +808,6 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 
 	/* dst = imm64 */
 	case BPF_LD | BPF_IMM | BPF_DW:
-		u64 imm64 = (u64)(insn + 1)->imm << 32 | (u32)insn->imm;
-
 		move_imm(ctx, dst, imm64, is32);
 		return 1;
 

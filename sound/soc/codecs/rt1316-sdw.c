@@ -254,6 +254,17 @@ static int rt1316_read_prop(struct sdw_slave *slave)
 	return 0;
 }
 
+static void rt1316_apply_bq_params(struct rt1316_sdw_priv *rt1316)
+{
+	unsigned int i, reg, data;
+
+	for (i = 0; i < rt1316->bq_params_cnt; i += 3) {
+		reg = rt1316->bq_params[i] | (rt1316->bq_params[i + 1] << 8);
+		data = rt1316->bq_params[i + 2];
+		regmap_write(rt1316->regmap, reg, data);
+	}
+}
+
 static int rt1316_io_init(struct device *dev, struct sdw_slave *slave)
 {
 	struct rt1316_sdw_priv *rt1316 = dev_get_drvdata(dev);
@@ -590,13 +601,41 @@ static struct sdw_slave_ops rt1316_slave_ops = {
 	.update_status = rt1316_update_status,
 };
 
+static int rt1316_sdw_parse_dt(struct rt1316_sdw_priv *rt1316, struct device *dev)
+{
+	int ret = 0;
+
+	device_property_read_u32(dev, "realtek,bq-params-cnt", &rt1316->bq_params_cnt);
+	if (rt1316->bq_params_cnt) {
+		rt1316->bq_params = devm_kzalloc(dev, rt1316->bq_params_cnt, GFP_KERNEL);
+		if (!rt1316->bq_params) {
+			dev_err(dev, "Could not allocate bq_params memory\n");
+			ret = -ENOMEM;
+		} else {
+			ret = device_property_read_u8_array(dev, "realtek,bq-params", rt1316->bq_params, rt1316->bq_params_cnt);
+			if (ret < 0)
+				dev_err(dev, "Could not read list of realtek,bq-params\n");
+		}
+	}
+
+	dev_dbg(dev, "bq_params_cnt=%d\n", rt1316->bq_params_cnt);
+	return ret;
+}
+
 static int rt1316_sdw_component_probe(struct snd_soc_component *component)
 {
+	struct rt1316_sdw_priv *rt1316 = snd_soc_component_get_drvdata(component);
 	int ret;
+
+	rt1316->component = component;
+	rt1316_sdw_parse_dt(rt1316, &rt1316->sdw_slave->dev);
 
 	ret = pm_runtime_resume(component->dev);
 	if (ret < 0 && ret != -EACCES)
 		return ret;
+
+	/* apply BQ params */
+	rt1316_apply_bq_params(rt1316);
 
 	return 0;
 }

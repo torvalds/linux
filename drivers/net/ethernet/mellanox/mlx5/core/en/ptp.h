@@ -6,6 +6,7 @@
 
 #include "en.h"
 #include "en_stats.h"
+#include "en/txrx.h"
 #include <linux/ptp_classify.h>
 
 #define MLX5E_PTP_CHANNEL_IX 0
@@ -66,6 +67,14 @@ static inline bool mlx5e_use_ptpsq(struct sk_buff *skb)
 
 	return (fk.basic.ip_proto == IPPROTO_UDP &&
 		fk.ports.dst == htons(PTP_EV_PORT));
+}
+
+static inline bool mlx5e_ptpsq_fifo_has_room(struct mlx5e_txqsq *sq)
+{
+	if (!sq->ptpsq)
+		return true;
+
+	return mlx5e_skb_fifo_has_room(&sq->ptpsq->skb_fifo);
 }
 
 int mlx5e_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
