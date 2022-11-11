@@ -511,10 +511,11 @@ static int rk_aead_init_tfm(struct crypto_aead *tfm)
 				"Load fallback driver %s err: %ld.\n",
 				alg_name, PTR_ERR(ctx->fallback_aead));
 			ctx->fallback_aead = NULL;
+			crypto_aead_set_reqsize(tfm, sizeof(struct aead_request));
+		} else {
+			crypto_aead_set_reqsize(tfm, sizeof(struct aead_request) +
+						crypto_aead_reqsize(ctx->fallback_aead));
 		}
-
-		crypto_aead_set_reqsize(tfm, sizeof(struct aead_request) +
-					crypto_aead_reqsize(ctx->fallback_aead));
 	}
 
 	return 0;
