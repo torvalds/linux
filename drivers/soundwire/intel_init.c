@@ -157,7 +157,6 @@ irqreturn_t sdw_intel_thread(int irq, void *dev_id)
 	list_for_each_entry(link, &ctx->link_list, list)
 		sdw_cdns_irq(irq, link->cdns);
 
-	sdw_intel_enable_irq(ctx->mmio_base, true);
 	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL_NS(sdw_intel_thread, SOUNDWIRE_INTEL_INIT);
