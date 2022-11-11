@@ -1465,6 +1465,7 @@
   release_sock
   remap_pfn_range
   remove_cpu
+  remove_memory
   remove_wait_queue
   report_iommu_fault
   request_firmware
