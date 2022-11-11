@@ -156,6 +156,34 @@ dma_subsys: bus@5a000000 {
 		status = "disabled";
 	};
 
+	adc0: adc@5a880000 {
+		compatible = "nxp,imx8qxp-adc";
+		reg = <0x5a880000 0x10000>;
+		interrupts = <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gic>;
+		clocks = <&adc0_lpcg 0>,
+			 <&adc0_lpcg 1>;
+		clock-names = "per", "ipg";
+		assigned-clocks = <&clk IMX_SC_R_ADC_0 IMX_SC_PM_CLK_PER>;
+		assigned-clock-rates = <24000000>;
+		power-domains = <&pd IMX_SC_R_ADC_0>;
+		status = "disabled";
+	 };
+
+	adc1: adc@5a890000 {
+		compatible = "nxp,imx8qxp-adc";
+		reg = <0x5a890000 0x10000>;
+		interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gic>;
+		clocks = <&adc1_lpcg 0>,
+			 <&adc1_lpcg 1>;
+		clock-names = "per", "ipg";
+		assigned-clocks = <&clk IMX_SC_R_ADC_1 IMX_SC_PM_CLK_PER>;
+		assigned-clock-rates = <24000000>;
+		power-domains = <&pd IMX_SC_R_ADC_1>;
+		status = "disabled";
+	};
+
 	i2c0_lpcg: clock-controller@5ac00000 {
 		compatible = "fsl,imx8qxp-lpcg";
 		reg = <0x5ac00000 0x10000>;
@@ -202,5 +230,29 @@ dma_subsys: bus@5a000000 {
 		clock-output-names = "i2c3_lpcg_clk",
 				     "i2c3_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_I2C_3>;
+	};
+
+	adc0_lpcg: clock-controller@5ac80000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5ac80000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_ADC_0 IMX_SC_PM_CLK_PER>,
+			 <&dma_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "adc0_lpcg_clk",
+				     "adc0_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_ADC_0>;
+	};
+
+	adc1_lpcg: clock-controller@5ac90000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5ac90000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_ADC_1 IMX_SC_PM_CLK_PER>,
+			 <&dma_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "adc1_lpcg_clk",
+				     "adc1_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_ADC_1>;
 	};
 };
