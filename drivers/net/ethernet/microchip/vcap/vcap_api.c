@@ -1729,6 +1729,31 @@ void vcap_rule_set_counter_id(struct vcap_rule *rule, u32 counter_id)
 }
 EXPORT_SYMBOL_GPL(vcap_rule_set_counter_id);
 
+/* Provide all rules via a callback interface */
+int vcap_rule_iter(struct vcap_control *vctrl,
+		   int (*callback)(void *, struct vcap_rule *), void *arg)
+{
+	struct vcap_rule_internal *ri;
+	struct vcap_admin *admin;
+	int ret;
+
+	ret = vcap_api_check(vctrl);
+	if (ret)
+		return ret;
+
+	/* Iterate all rules in each VCAP instance */
+	list_for_each_entry(admin, &vctrl->list, list) {
+		list_for_each_entry(ri, &admin->rules, list) {
+			ret = callback(arg, &ri->data);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vcap_rule_iter);
+
 int vcap_rule_set_counter(struct vcap_rule *rule, struct vcap_counter *ctr)
 {
 	struct vcap_rule_internal *ri = to_intrule(rule);

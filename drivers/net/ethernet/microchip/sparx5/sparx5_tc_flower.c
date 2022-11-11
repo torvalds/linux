@@ -21,6 +21,11 @@ struct sparx5_tc_flower_parse_usage {
 	unsigned int used_keys;
 };
 
+struct sparx5_tc_rule_pkt_cnt {
+	u64 cookie;
+	u32 pkts;
+};
+
 /* These protocols have dedicated keysets in IS2 and a TC dissector
  * ETH_P_ARP does not have a TC dissector
  */
@@ -605,6 +610,20 @@ static int sparx5_tc_flower_action_check(struct vcap_control *vctrl,
 	return 0;
 }
 
+/* Add a rule counter action - only IS2 is considered for now */
+static int sparx5_tc_add_rule_counter(struct vcap_admin *admin,
+				      struct vcap_rule *vrule)
+{
+	int err;
+
+	err = vcap_rule_add_action_u32(vrule, VCAP_AF_CNT_ID, vrule->id);
+	if (err)
+		return err;
+
+	vcap_rule_set_counter_id(vrule, vrule->id);
+	return err;
+}
+
 static int sparx5_tc_flower_replace(struct net_device *ndev,
 				    struct flow_cls_offload *fco,
 				    struct vcap_admin *admin)
@@ -630,6 +649,11 @@ static int sparx5_tc_flower_replace(struct net_device *ndev,
 
 	vrule->cookie = fco->cookie;
 	sparx5_tc_use_dissectors(fco, admin, vrule, &l3_proto);
+
+	err = sparx5_tc_add_rule_counter(admin, vrule);
+	if (err)
+		goto out;
+
 	frule = flow_cls_offload_flow_rule(fco);
 	flow_action_for_each(idx, act, &frule->action) {
 		switch (act->id) {
@@ -708,6 +732,48 @@ static int sparx5_tc_flower_destroy(struct net_device *ndev,
 	return err;
 }
 
+/* Collect packet counts from all rules with the same cookie */
+static int sparx5_tc_rule_counter_cb(void *arg, struct vcap_rule *rule)
+{
+	struct sparx5_tc_rule_pkt_cnt *rinfo = arg;
+	struct vcap_counter counter;
+	int err = 0;
+
+	if (rule->cookie == rinfo->cookie) {
+		err = vcap_rule_get_counter(rule, &counter);
+		if (err)
+			return err;
+		rinfo->pkts += counter.value;
+		/* Reset the rule counter */
+		counter.value = 0;
+		vcap_rule_set_counter(rule, &counter);
+	}
+	return err;
+}
+
+static int sparx5_tc_flower_stats(struct net_device *ndev,
+				  struct flow_cls_offload *fco,
+				  struct vcap_admin *admin)
+{
+	struct sparx5_port *port = netdev_priv(ndev);
+	struct sparx5_tc_rule_pkt_cnt rinfo = {};
+	struct vcap_control *vctrl;
+	ulong lastused = 0;
+	u64 drops = 0;
+	u32 pkts = 0;
+	int err;
+
+	rinfo.cookie = fco->cookie;
+	vctrl = port->sparx5->vcap_ctrl;
+	err = vcap_rule_iter(vctrl, sparx5_tc_rule_counter_cb, &rinfo);
+	if (err)
+		return err;
+	pkts = rinfo.pkts;
+	flow_stats_update(&fco->stats, 0x0, pkts, drops, lastused,
+			  FLOW_ACTION_HW_STATS_IMMEDIATE);
+	return err;
+}
+
 int sparx5_tc_flower(struct net_device *ndev, struct flow_cls_offload *fco,
 		     bool ingress)
 {
@@ -729,6 +795,8 @@ int sparx5_tc_flower(struct net_device *ndev, struct flow_cls_offload *fco,
 		return sparx5_tc_flower_replace(ndev, fco, admin);
 	case FLOW_CLS_DESTROY:
 		return sparx5_tc_flower_destroy(ndev, fco, admin);
+	case FLOW_CLS_STATS:
+		return sparx5_tc_flower_stats(ndev, fco, admin);
 	default:
 		return -EOPNOTSUPP;
 	}
