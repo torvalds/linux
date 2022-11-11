@@ -116,6 +116,8 @@ static void io_poll_req_insert_locked(struct io_kiocb *req)
 	struct io_hash_table *table = &req->ctx->cancel_table_locked;
 	u32 index = hash_long(req->cqe.user_data, table->hash_bits);
 
+	lockdep_assert_held(&req->ctx->uring_lock);
+
 	hlist_add_head(&req->hash_node, &table->hbs[index].list);
 }
 
