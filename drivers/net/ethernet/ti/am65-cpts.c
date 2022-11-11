@@ -391,9 +391,10 @@ static irqreturn_t am65_cpts_interrupt(int irq, void *dev_id)
 }
 
 /* PTP clock operations */
-static int am65_cpts_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
+static int am65_cpts_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct am65_cpts *cpts = container_of(ptp, struct am65_cpts, ptp_info);
+	s32 ppb = scaled_ppm_to_ppb(scaled_ppm);
 	int neg_adj = 0;
 	u64 adj_period;
 	u32 val;
@@ -625,7 +626,7 @@ static long am65_cpts_ts_work(struct ptp_clock_info *ptp);
 static struct ptp_clock_info am65_ptp_info = {
 	.owner		= THIS_MODULE,
 	.name		= "CTPS timer",
-	.adjfreq	= am65_cpts_ptp_adjfreq,
+	.adjfine	= am65_cpts_ptp_adjfine,
 	.adjtime	= am65_cpts_ptp_adjtime,
 	.gettimex64	= am65_cpts_ptp_gettimex,
 	.settime64	= am65_cpts_ptp_settime,

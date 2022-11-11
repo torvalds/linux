@@ -336,24 +336,13 @@ static irqreturn_t isr(int irq, void *priv)
  * PTP clock operations
  */
 
-static int ptp_pch_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
+static int ptp_pch_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
-	u64 adj;
-	u32 diff, addend;
-	int neg_adj = 0;
+	u32 addend;
 	struct pch_dev *pch_dev = container_of(ptp, struct pch_dev, caps);
 	struct pch_ts_regs __iomem *regs = pch_dev->regs;
 
-	if (ppb < 0) {
-		neg_adj = 1;
-		ppb = -ppb;
-	}
-	addend = DEFAULT_ADDEND;
-	adj = addend;
-	adj *= ppb;
-	diff = div_u64(adj, 1000000000ULL);
-
-	addend = neg_adj ? addend - diff : addend + diff;
+	addend = adjust_by_scaled_ppm(DEFAULT_ADDEND, scaled_ppm);
 
 	iowrite32(addend, &regs->addend);
 
@@ -440,7 +429,7 @@ static const struct ptp_clock_info ptp_pch_caps = {
 	.n_ext_ts	= N_EXT_TS,
 	.n_pins		= 0,
 	.pps		= 0,
-	.adjfreq	= ptp_pch_adjfreq,
+	.adjfine	= ptp_pch_adjfine,
 	.adjtime	= ptp_pch_adjtime,
 	.gettime64	= ptp_pch_gettime,
 	.settime64	= ptp_pch_settime,

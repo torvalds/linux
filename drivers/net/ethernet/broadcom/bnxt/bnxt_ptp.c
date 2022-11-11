@@ -205,7 +205,7 @@ static int bnxt_ptp_adjtime(struct ptp_clock_info *ptp_info, s64 delta)
 	return 0;
 }
 
-static int bnxt_ptp_adjfreq(struct ptp_clock_info *ptp_info, s32 ppb)
+static int bnxt_ptp_adjfine(struct ptp_clock_info *ptp_info, long scaled_ppm)
 {
 	struct bnxt_ptp_cfg *ptp = container_of(ptp_info, struct bnxt_ptp_cfg,
 						ptp_info);
@@ -214,23 +214,13 @@ static int bnxt_ptp_adjfreq(struct ptp_clock_info *ptp_info, s32 ppb)
 	int rc = 0;
 
 	if (!(ptp->bp->fw_cap & BNXT_FW_CAP_PTP_RTC)) {
-		int neg_adj = 0;
-		u32 diff;
-		u64 adj;
-
-		if (ppb < 0) {
-			neg_adj = 1;
-			ppb = -ppb;
-		}
-		adj = ptp->cmult;
-		adj *= ppb;
-		diff = div_u64(adj, 1000000000ULL);
-
 		spin_lock_bh(&ptp->ptp_lock);
 		timecounter_read(&ptp->tc);
-		ptp->cc.mult = neg_adj ? ptp->cmult - diff : ptp->cmult + diff;
+		ptp->cc.mult = adjust_by_scaled_ppm(ptp->cmult, scaled_ppm);
 		spin_unlock_bh(&ptp->ptp_lock);
 	} else {
+		s32 ppb = scaled_ppm_to_ppb(scaled_ppm);
+
 		rc = hwrm_req_init(bp, req, HWRM_PORT_MAC_CFG);
 		if (rc)
 			return rc;
@@ -240,7 +230,7 @@ static int bnxt_ptp_adjfreq(struct ptp_clock_info *ptp_info, s32 ppb)
 		rc = hwrm_req_send(ptp->bp, req);
 		if (rc)
 			netdev_err(ptp->bp->dev,
-				   "ptp adjfreq failed. rc = %d\n", rc);
+				   "ptp adjfine failed. rc = %d\n", rc);
 	}
 	return rc;
 }
@@ -769,7 +759,7 @@ static const struct ptp_clock_info bnxt_ptp_caps = {
 	.n_per_out	= 0,
 	.n_pins		= 0,
 	.pps		= 0,
-	.adjfreq	= bnxt_ptp_adjfreq,
+	.adjfine	= bnxt_ptp_adjfine,
 	.adjtime	= bnxt_ptp_adjtime,
 	.do_aux_work	= bnxt_ptp_ts_aux_work,
 	.gettimex64	= bnxt_ptp_gettimex,
