@@ -25,6 +25,8 @@ struct vcap_rule_internal {
 	int actionset_sw_regs;  /* registers in a subword in an actionset */
 	int size; /* the size of the rule: max(entry, action) */
 	u32 addr; /* address in the VCAP at insertion */
+	u32 counter_id; /* counter id (if a dedicated counter is available) */
+	struct vcap_counter counter; /* last read counter value */
 };
 
 /* Moving a rule in the VCAP address space */
@@ -648,6 +650,20 @@ static int vcap_write_rule(struct vcap_rule_internal *ri)
 		ent_idx += ri->keyset_sw_regs;
 		act_idx += ri->actionset_sw_regs;
 	}
+	return 0;
+}
+
+static int vcap_write_counter(struct vcap_rule_internal *ri,
+			      struct vcap_counter *ctr)
+{
+	struct vcap_admin *admin = ri->admin;
+
+	admin->cache.counter = ctr->value;
+	admin->cache.sticky = ctr->sticky;
+	ri->vctrl->ops->cache_write(ri->ndev, admin, VCAP_SEL_COUNTER,
+				    ri->counter_id, 0);
+	ri->vctrl->ops->update(ri->ndev, admin, VCAP_CMD_WRITE,
+			       VCAP_SEL_COUNTER, ri->addr);
 	return 0;
 }
 
@@ -1547,6 +1563,20 @@ int vcap_rule_add_action_u32(struct vcap_rule *rule,
 }
 EXPORT_SYMBOL_GPL(vcap_rule_add_action_u32);
 
+static int vcap_read_counter(struct vcap_rule_internal *ri,
+			     struct vcap_counter *ctr)
+{
+	struct vcap_admin *admin = ri->admin;
+
+	ri->vctrl->ops->update(ri->ndev, admin, VCAP_CMD_READ, VCAP_SEL_COUNTER,
+			       ri->addr);
+	ri->vctrl->ops->cache_read(ri->ndev, admin, VCAP_SEL_COUNTER,
+				   ri->counter_id, 0);
+	ctr->value = admin->cache.counter;
+	ctr->sticky = admin->cache.sticky;
+	return 0;
+}
+
 /* Copy to host byte order */
 void vcap_netbytes_copy(u8 *dst, u8 *src, int count)
 {
@@ -1689,6 +1719,47 @@ int vcap_enable_lookups(struct vcap_control *vctrl, struct net_device *ndev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vcap_enable_lookups);
+
+/* Set a rule counter id (for certain vcaps only) */
+void vcap_rule_set_counter_id(struct vcap_rule *rule, u32 counter_id)
+{
+	struct vcap_rule_internal *ri = to_intrule(rule);
+
+	ri->counter_id = counter_id;
+}
+EXPORT_SYMBOL_GPL(vcap_rule_set_counter_id);
+
+int vcap_rule_set_counter(struct vcap_rule *rule, struct vcap_counter *ctr)
+{
+	struct vcap_rule_internal *ri = to_intrule(rule);
+	int err;
+
+	err = vcap_api_check(ri->vctrl);
+	if (err)
+		return err;
+	if (!ctr) {
+		pr_err("%s:%d: counter is missing\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+	return vcap_write_counter(ri, ctr);
+}
+EXPORT_SYMBOL_GPL(vcap_rule_set_counter);
+
+int vcap_rule_get_counter(struct vcap_rule *rule, struct vcap_counter *ctr)
+{
+	struct vcap_rule_internal *ri = to_intrule(rule);
+	int err;
+
+	err = vcap_api_check(ri->vctrl);
+	if (err)
+		return err;
+	if (!ctr) {
+		pr_err("%s:%d: counter is missing\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+	return vcap_read_counter(ri, ctr);
+}
+EXPORT_SYMBOL_GPL(vcap_rule_get_counter);
 
 #ifdef CONFIG_VCAP_KUNIT_TEST
 #include "vcap_api_kunit.c"

@@ -428,15 +428,58 @@ static void sparx5_vcap_cache_write(struct net_device *ndev,
 	default:
 		break;
 	}
+	if (sel & VCAP_SEL_COUNTER) {
+		start = start & 0xfff; /* counter limit */
+		if (admin->vinst == 0)
+			spx5_wr(admin->cache.counter, sparx5,
+				ANA_ACL_CNT_A(start));
+		else
+			spx5_wr(admin->cache.counter, sparx5,
+				ANA_ACL_CNT_B(start));
+		spx5_wr(admin->cache.sticky, sparx5,
+			VCAP_SUPER_VCAP_CNT_DAT(0));
+	}
 }
 
 /* API callback used for reading from the VCAP into the VCAP cache */
 static void sparx5_vcap_cache_read(struct net_device *ndev,
 				   struct vcap_admin *admin,
-				   enum vcap_selection sel, u32 start,
+				   enum vcap_selection sel,
+				   u32 start,
 				   u32 count)
 {
-	/* this will be added later */
+	struct sparx5_port *port = netdev_priv(ndev);
+	struct sparx5 *sparx5 = port->sparx5;
+	u32 *keystr, *mskstr, *actstr;
+	int idx;
+
+	keystr = &admin->cache.keystream[start];
+	mskstr = &admin->cache.maskstream[start];
+	actstr = &admin->cache.actionstream[start];
+	if (sel & VCAP_SEL_ENTRY) {
+		for (idx = 0; idx < count; ++idx) {
+			keystr[idx] = spx5_rd(sparx5,
+					      VCAP_SUPER_VCAP_ENTRY_DAT(idx));
+			mskstr[idx] = ~spx5_rd(sparx5,
+					       VCAP_SUPER_VCAP_MASK_DAT(idx));
+		}
+	}
+	if (sel & VCAP_SEL_ACTION) {
+		for (idx = 0; idx < count; ++idx)
+			actstr[idx] = spx5_rd(sparx5,
+					      VCAP_SUPER_VCAP_ACTION_DAT(idx));
+	}
+	if (sel & VCAP_SEL_COUNTER) {
+		start = start & 0xfff; /* counter limit */
+		if (admin->vinst == 0)
+			admin->cache.counter =
+				spx5_rd(sparx5, ANA_ACL_CNT_A(start));
+		else
+			admin->cache.counter =
+				spx5_rd(sparx5, ANA_ACL_CNT_B(start));
+		admin->cache.sticky =
+			spx5_rd(sparx5, VCAP_SUPER_VCAP_CNT_DAT(0));
+	}
 }
 
 /* API callback used for initializing a VCAP address range */
