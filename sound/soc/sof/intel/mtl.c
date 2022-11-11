@@ -134,6 +134,31 @@ static void mtl_disable_ipc_interrupts(struct snd_sof_dev *sdev)
 				MTL_DSP_REG_HFIPCXCTL_BUSY | MTL_DSP_REG_HFIPCXCTL_DONE, 0);
 }
 
+static void mtl_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable)
+{
+	u32 hipcie;
+	u32 mask;
+	u32 val;
+	int ret;
+
+	/* Enable/Disable SoundWire interrupt */
+	mask = MTL_DSP_REG_HfSNDWIE_IE_MASK;
+	if (enable)
+		val = mask;
+	else
+		val = 0;
+
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE, mask, val);
+
+	/* check if operation was successful */
+	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE, hipcie,
+					    (hipcie & mask) == val,
+					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
+	if (ret < 0)
+		dev_err(sdev->dev, "failed to set SoundWire IPC interrupt %s\n",
+			enable ? "enable" : "disable");
+}
+
 static int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
 {
 	u32 hfintipptr;
@@ -183,23 +208,6 @@ static int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
 			enable ? "enable" : "disable");
 		return ret;
 	}
-
-	/* Enable/Disable SoundWire interrupt */
-	mask = MTL_DSP_REG_HfSNDWIE_IE_MASK;
-	if (enable)
-		val = mask;
-	else
-		val = 0;
-
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE, mask, val);
-
-	/* check if operation was successful */
-	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE, hipcie,
-					    (hipcie & mask) == val,
-					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
-	if (ret < 0)
-		dev_err(sdev->dev, "failed to set SoundWire IPC interrupt %s\n",
-			enable ? "enable" : "disable");
 
 	return ret;
 }
@@ -568,6 +576,7 @@ static void mtl_ipc_dump(struct snd_sof_dev *sdev)
 
 static int mtl_dsp_disable_interrupts(struct snd_sof_dev *sdev)
 {
+	mtl_enable_sdw_irq(sdev, false);
 	mtl_disable_ipc_interrupts(sdev);
 	return mtl_enable_interrupts(sdev, false);
 }
@@ -645,6 +654,7 @@ const struct sof_intel_dsp_desc mtl_chip_info = {
 	.sdw_shim_base = SDW_SHIM_BASE_ACE,
 	.sdw_alh_base = SDW_ALH_BASE_ACE,
 	.d0i3_offset = MTL_HDA_VS_D0I3C,
+	.enable_sdw_irq = mtl_enable_sdw_irq,
 	.check_sdw_irq = mtl_dsp_check_sdw_irq,
 	.check_ipc_irq = mtl_dsp_check_ipc_irq,
 	.cl_init = mtl_dsp_cl_init,
