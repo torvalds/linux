@@ -13,6 +13,29 @@
 #include "msi.h"
 
 /**
+ * pci_enable_msi() - Enable MSI interrupt mode on device
+ * @dev: the PCI device to operate on
+ *
+ * Legacy device driver API to enable MSI interrupts mode on device and
+ * allocate a single interrupt vector. On success, the allocated vector
+ * Linux IRQ will be saved at @dev->irq. The driver must invoke
+ * pci_disable_msi() on cleanup.
+ *
+ * NOTE: The newer pci_alloc_irq_vectors() / pci_free_irq_vectors() API
+ * pair should, in general, be used instead.
+ *
+ * Return: 0 on success, errno otherwise
+ */
+int pci_enable_msi(struct pci_dev *dev)
+{
+	int rc = __pci_enable_msi_range(dev, 1, 1, NULL);
+	if (rc < 0)
+		return rc;
+	return 0;
+}
+EXPORT_SYMBOL(pci_enable_msi);
+
+/**
  * pci_disable_msi() - Disable MSI interrupt mode on device
  * @dev: the PCI device to operate on
  *
