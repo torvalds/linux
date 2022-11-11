@@ -5,6 +5,7 @@
  * Copyright (C) 2013 - 2015 Fujitsu Semiconductor, Ltd
  *              Vincent Yang <vincent.yang@tw.fujitsu.com>
  * Copyright (C) 2015 Linaro Ltd  Andy Green <andy.green@linaro.org>
+ * Copyright (C) 2019 Socionext Inc.
  */
 
 #include <linux/acpi.h>
@@ -218,6 +219,7 @@ static int sdhci_f_sdh30_remove(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static const struct of_device_id f_sdh30_dt_ids[] = {
 	{ .compatible = "fujitsu,mb86s70-sdhci-3.0" },
+	{ .compatible = "socionext,f-sdh30-e51-mmc" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, f_sdh30_dt_ids);
@@ -247,5 +249,5 @@ module_platform_driver(sdhci_f_sdh30_driver);
 
 MODULE_DESCRIPTION("F_SDH30 SD Card Controller driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("FUJITSU SEMICONDUCTOR LTD.");
+MODULE_AUTHOR("FUJITSU SEMICONDUCTOR LTD., Socionext Inc.");
 MODULE_ALIAS("platform:f_sdh30");
