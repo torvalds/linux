@@ -725,13 +725,13 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 }
 
 /* Workaround for pmu_nc_set_power_state not ready in MRFLD */
-int atomisp_mrfld_power_down(struct atomisp_device *isp)
+static int atomisp_mrfld_power_down(struct atomisp_device *isp)
 {
 	return atomisp_mrfld_power(isp, false);
 }
 
 /* Workaround for pmu_nc_set_power_state not ready in MRFLD */
-int atomisp_mrfld_power_up(struct atomisp_device *isp)
+static int atomisp_mrfld_power_up(struct atomisp_device *isp)
 {
 	return atomisp_mrfld_power(isp, true);
 }

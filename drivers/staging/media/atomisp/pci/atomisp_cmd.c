@@ -311,17 +311,11 @@ int atomisp_reset(struct atomisp_device *isp)
 	ret = atomisp_runtime_suspend(isp->dev);
 	if (ret < 0)
 		dev_err(isp->dev, "atomisp_runtime_suspend failed, %d\n", ret);
-	ret = atomisp_mrfld_power_down(isp);
-	if (ret < 0) {
-		dev_err(isp->dev, "can not disable ISP power\n");
-	} else {
-		ret = atomisp_mrfld_power_up(isp);
-		if (ret < 0)
-			dev_err(isp->dev, "can not enable ISP power\n");
-		ret = atomisp_runtime_resume(isp->dev);
-		if (ret < 0)
-			dev_err(isp->dev, "atomisp_runtime_resume failed, %d\n", ret);
-	}
+
+	ret = atomisp_runtime_resume(isp->dev);
+	if (ret < 0)
+		dev_err(isp->dev, "atomisp_runtime_resume failed, %d\n", ret);
+
 	ret = atomisp_css_resume(isp);
 	if (ret)
 		isp->isp_fatal_error = true;
