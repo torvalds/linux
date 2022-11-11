@@ -82,6 +82,8 @@ struct tme_key_policy {
 #define TME_KL_3072  (UINT32_C(0x0A) << TME_KL_Shift)
 /**< 4096 bits - RSA */
 #define TME_KL_4096  (UINT32_C(0x0B) << TME_KL_Shift)
+/**< 456 bits - Ed448 */
+#define TME_KL_456  (UINT32_C(0x0C) << TME_KL_Shift)
 
 /**
  * Key Profile: Only applicable at present
@@ -116,7 +118,11 @@ struct tme_key_policy {
 /**< If Key Type is #TME_KT_Symmetric */
 #define TME_KOP_Decryption        (UINT32_C(0x02) << TME_KOP_Shift)
 /**< If Key Type is #TME_KT_Symmetric */
-#define TME_KOP_MAC               (UINT32_C(0x04) << TME_KOP_Shift)
+#define TME_KOP_Digest            (UINT32_C(0x04) << TME_KOP_Shift)
+/**< If Key Type is #TME_KT_Symmetric */
+#define TME_KOP_CMAC_Sign         (UINT32_C(0x0D) << TME_KOP_Shift)
+/**< If Key Type is #TME_KT_Symmetric */
+#define TME_KOP_CMAC_Verify       (UINT32_C(0x0E) << TME_KOP_Shift)
 /**< If Key Type is #TME_KT_Symmetric */
 #define TME_KOP_NISTDerive        (UINT32_C(0x04) << TME_KOP_Shift)
 /**< If Key Type is #TME_KT_Symmetric */
@@ -126,9 +132,7 @@ struct tme_key_policy {
 /**< If Key Type is #TME_KT_Asymmetric_ECC */
 #define TME_KOP_ECDSASign         (UINT32_C(0x01) << TME_KOP_Shift)
 /**< If Key Type is #TME_KT_Asymmetric_ECC */
-#define TME_KOP_ECDSAVerify       (UINT32_C(0x02) << TME_KOP_Shift)
-/**< If Key Type is #TME_KT_Asymmetric_ECC */
-#define TME_KOP_ECDHSharedSecret  (UINT32_C(0x04) << TME_KOP_Shift)
+#define TME_KOP_ECDHSharedSecret  (UINT32_C(0x02) << TME_KOP_Shift)
 /**< If Key Type is #TME_KT_Asymmetric_RSA */
 #define TME_KOP_RSAASign          (UINT32_C(0x01) << TME_KOP_Shift)
 /**< If Key Type is #TME_KT_Asymmetric_RSA */
@@ -137,6 +141,10 @@ struct tme_key_policy {
 #define TME_KOP_RSAEnc            (UINT32_C(0x04) << TME_KOP_Shift)
 /**< If Key Type is #TME_KT_Asymmetric_RSA */
 #define TME_KOP_RSADec            (UINT32_C(0x08) << TME_KOP_Shift)
+/**< If Key Type is #TME_KT_Asymmetric */
+#define TME_KOP_SM2Enc            (UINT32_C(0x04) << TME_KOP_Shift)
+/**< If Key Type is #TME_KT_Asymmetric */
+#define TME_KOP_SM2Dec            (UINT32_C(0x08) << TME_KOP_Shift)
 
 /** Key Algorithm */
 /**< Position of Key Algorithm bits */
@@ -178,14 +186,26 @@ struct tme_key_policy {
 #define TME_KAL_TDES_2KEY_ECB     (UINT32_C(0x1F) << TME_KAL_Shift)
 #define TME_KAL_KDF_NIST          (UINT32_C(0x20) << TME_KAL_Shift)
 #define TME_KAL_KDF_HKDF          (UINT32_C(0x21) << TME_KAL_Shift)
+#define TME_KAL_SHA3224_HMAC      (UINT32_C(0x28) << TME_KAL_Shift)
+#define TME_KAL_SHA3256_HMAC      (UINT32_C(0x29) << TME_KAL_Shift)
+#define TME_KAL_SHA3384_HMAC      (UINT32_C(0x2A) << TME_KAL_Shift)
+#define TME_KAL_SHA3512_HMAC      (UINT32_C(0x2B) << TME_KAL_Shift)
 /**< If Key Type is #TME_KT_Asymmetric, Key Subtype is ECC */
 #define TME_KAL_ECC_ALGO_ECDSA    (UINT32_C(0x00) << TME_KAL_Shift)
 /**< If Key Type is #TME_KT_Asymmetric, Key Subtype is ECC */
 #define TME_KAL_ECC_ALGO_ECDH     (UINT32_C(0x01) << TME_KAL_Shift)
 /**< If Key Type is #TME_KT_Asymmetric, Key Subtype is ECC */
+#define TME_KAL_ECC_ALGO_EdDSA    (UINT32_C(0x02) << TME_KAL_Shift)
+/**< If Key Type is #TME_KT_Asymmetric, Key Subtype is ECC */
+#define TME_KAL_ECC_ALGO_SM2DSA   (UINT32_C(0x04) << TME_KAL_Shift)
+/**< If Key Type is #TME_KT_Asymmetric, Key Subtype is ECC */
 #define TME_KAL_ECC_CURVE_NIST    (UINT32_C(0x00) << TME_KAL_Shift)
 /**< If Key Type is #TME_KT_Asymmetric, Key Subtype is ECC */
 #define TME_KAL_ECC_CURVE_BPOOL   (UINT32_C(0x08) << TME_KAL_Shift)
+/**< If Key Type is #TME_KT_Asymmetric, Key Subtype is ECC */
+#define TME_KAL_ECC_CURVE_SM2     (UINT32_C(0x10) << TME_KAL_Shift)
+/**< If Key Type is #TME_KT_Asymmetric, Key Subtype is ECC */
+#define TME_KAL_ECC_CURVE_Ed25519 (UINT32_C(0x18) << TME_KAL_Shift)
 /**< If Key Type is #TME_KT_Asymmetric, Key Subtype is RSA */
 #define TME_KAL_DSA               (UINT32_C(0x00) << TME_KAL_Shift)
 /**< If Key Type is #TME_KT_Asymmetric, Key Subtype is RSA */
@@ -199,23 +219,23 @@ struct tme_key_policy {
 /**< Software Key */
 #define TME_KSL_SWKey             (UINT32_C(0x00) << TME_KSL_Shift)
 /**< Hardware Managed Key */
-#define TME_KSL_HWManagedKey      (UINT32_C(0x01) << TME_KSL_Shift)
+#define TME_KSL_ImportKey         (UINT32_C(0x01) << TME_KSL_Shift)
 /**< Hardware Key */
 #define TME_KSL_HWKey             (UINT32_C(0x02) << TME_KSL_Shift)
 
 /** Key Destination */
 /**< Position of Key Destination bits */
-#define TME_KD_Shift              22
+#define TME_KD_Shift_V3           22
 /**< Mask for Key Destination bits */
-#define TME_KD_Mask               (UINT32_C(0x0F) << TME_KD_Shift)
+#define TME_KD_Mask_V3            (UINT32_C(0x0F) << TME_KD_Shift_V3)
 /**< Master */
-#define TME_KD_TME_HW             (UINT32_C(0x01) << TME_KD_Shift)
+#define TME_KD_TME_HW_V3          (UINT32_C(0x01) << TME_KD_Shift_V3)
 /**< ICE Slave */
-#define TME_KD_ICE                (UINT32_C(0x02) << TME_KD_Shift)
+#define TME_KD_ICE_V3             (UINT32_C(0x02) << TME_KD_Shift_V3)
 /**< GPCE Slave */
-#define TME_KD_GPCE               (UINT32_C(0x04) << TME_KD_Shift)
+#define TME_KD_GPCE_V3            (UINT32_C(0x04) << TME_KD_Shift_V3)
 /**< Modem CE Slave */
-#define TME_KD_MDM_CE             (UINT32_C(0x08) << TME_KD_Shift)
+#define TME_KD_MDM_CE_V3          (UINT32_C(0x08) << TME_KD_Shift_V3)
 
 /** Key Owner */
 /**< Position of Key Owner bits */
@@ -232,8 +252,8 @@ struct tme_key_policy {
 #define TME_KO_HLOS_HYP           (UINT32_C(0x03) << TME_KO_Shift)
 /**< Modem */
 #define TME_KO_MDM                (UINT32_C(0x04) << TME_KO_Shift)
-/**< SPU */
-#define TME_KO_SPU                (UINT32_C(0x0F) << TME_KO_Shift)
+/**< QSM */
+#define TME_KO_QSM                (UINT32_C(0x05) << TME_KO_Shift)
 
 /** Key Lineage */
 /**< Position of Key Lineage bits */
@@ -252,12 +272,6 @@ struct tme_key_policy {
 /**
  * Fields in Key Policy high word *
  */
-
-/** Reserved Bits, Group 1 */
-/**< Position of Reserved bits */
-#define TME_KR1_Shift             (32 - TME_KPHALFBITS)
-/**< Mask for Reserved bits */
-#define TME_KR1_Mask              (UINT32_C(0x01) << TME_KR1_Shift)
 
 /** Key Wrapping Constraints */
 /**< Position of Key Attribute bits */
@@ -281,11 +295,23 @@ struct tme_key_policy {
 /**< Throttling enabled */
 #define TME_KTH_Enabled           (UINT32_C(0x01) << TME_KTH_Shift)
 
-/** Reserved Bits, Group 2 */
-/**< Position of Reserved bits */
-#define TME_KR2_Shift             (38 - TME_KPHALFBITS)
-/**< Mask for Reserved bits */
-#define TME_KR2_Mask              (UINT32_C(0x3F) << TME_KR2_Shift)
+/** Key Destination */
+/**< Position of Key Destination bits */
+#define TME_KD_Shift_V4           (38 - TME_KPHALFBITS)
+/**< Mask for Key Destination bits */
+#define TME_KD_Mask_V4            (UINT32_C(0x3F) << TME_KD_Shift_V4)
+/**< Master */
+#define TME_KD_TME_HW_V4          (UINT32_C(0x01) << TME_KD_Shift_V4)
+/**< ICE Slave */
+#define TME_KD_ICE_V4             (UINT32_C(0x02) << TME_KD_Shift_V4)
+/**< GPCE Slave */
+#define TME_KD_GPCE_V4            (UINT32_C(0x04) << TME_KD_Shift_V4)
+/**< Modem CE Slave */
+#define TME_KD_MDM_CE_V4          (UINT32_C(0x08) << TME_KD_Shift_V4)
+/**< TICE Slave */
+#define TME_KD_TICE_V4            (UINT32_C(0x10) << TME_KD_Shift_V4)
+/**< PCIE Slave */
+#define TME_KD_PCIE_V4            (UINT32_C(0x20) << TME_KD_Shift_V4)
 
 /** Key Policy Version */
 /**< Position of Key Policy Version bits */
@@ -299,7 +325,7 @@ struct tme_key_policy {
 /**< Position of Authorised User bits */
 #define TME_KAU_Shift             (48 - TME_KPHALFBITS)
 /**< Mask for Authorised User bits */
-#define TME_KAU_Mask              (UINT32_C(0xFF) << TME_KAU_Shift)
+#define TME_KAU_Mask              (UINT32_C(0xFFF) << TME_KAU_Shift)
 /**< Key usable by TME Hardware */
 #define TME_KAU_TME_HW            (UINT32_C(0x01) << TME_KAU_Shift)
 /**< Key usable by TME Firmware */
@@ -310,8 +336,16 @@ struct tme_key_policy {
 #define TME_KAU_HLOS_HYP          (UINT32_C(0x08) << TME_KAU_Shift)
 /**< Key usable by Modem */
 #define TME_KAU_MDM               (UINT32_C(0x10) << TME_KAU_Shift)
-/**< Key usable by SPU */
-#define TME_KAU_SPU               (UINT32_C(0x20) << TME_KAU_Shift)
+/**< Key usable by QSM */
+#define TME_KAU_QSM               (UINT32_C(0x40) << TME_KAU_Shift)
+/**< Key usable by APPS_NS_VM1 */
+#define TME_KAU_APPS_NS_VM1       (UINT32_C(0x108) << TME_KAU_Shift)
+/**< Key usable by APPS_NS_VM2 */
+#define TME_KAU_APPS_NS_VM2       (UINT32_C(0x208) << TME_KAU_Shift)
+/**< Key usable by APPS_NS_VM3 */
+#define TME_KAU_APPS_NS_VM3       (UINT32_C(0x408) << TME_KAU_Shift)
+/**< Key usable by APPS_NS_VM4 */
+#define TME_KAU_APPS_NS_VM4       (UINT32_C(0x808) << TME_KAU_Shift)
 /**< Key usable by all EEs */
 #define TME_KAU_ALL               TME_KAU_Mask
 
