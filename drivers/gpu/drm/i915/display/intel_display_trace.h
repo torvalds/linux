@@ -553,8 +553,9 @@ TRACE_EVENT(intel_pipe_update_end,
 );
 
 TRACE_EVENT(intel_frontbuffer_invalidate,
-	    TP_PROTO(unsigned int frontbuffer_bits, unsigned int origin),
-	    TP_ARGS(frontbuffer_bits, origin),
+	    TP_PROTO(struct drm_i915_private *i915,
+		     unsigned int frontbuffer_bits, unsigned int origin),
+	    TP_ARGS(i915, frontbuffer_bits, origin),
 
 	    TP_STRUCT__entry(
 			     __field(unsigned int, frontbuffer_bits)
@@ -571,8 +572,9 @@ TRACE_EVENT(intel_frontbuffer_invalidate,
 );
 
 TRACE_EVENT(intel_frontbuffer_flush,
-	    TP_PROTO(unsigned int frontbuffer_bits, unsigned int origin),
-	    TP_ARGS(frontbuffer_bits, origin),
+	    TP_PROTO(struct drm_i915_private *i915,
+		     unsigned int frontbuffer_bits, unsigned int origin),
+	    TP_ARGS(i915, frontbuffer_bits, origin),
 
 	    TP_STRUCT__entry(
 			     __field(unsigned int, frontbuffer_bits)
