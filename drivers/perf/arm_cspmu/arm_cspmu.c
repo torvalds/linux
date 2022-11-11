@@ -31,6 +31,7 @@
 #include <acpi/processor.h>
 
 #include "arm_cspmu.h"
+#include "nvidia_cspmu.h"
 
 #define PMUNAME "arm_cspmu"
 #define DRVNAME "arm-cs-arch-pmu"
@@ -115,6 +116,9 @@
  * Maximum poll count for reading counter value using high-low-high sequence.
  */
 #define HILOHI_MAX_POLL	1000
+
+/* JEDEC-assigned JEP106 identification code */
+#define ARM_CSPMU_IMPL_ID_NVIDIA		0x36B
 
 static unsigned long arm_cspmu_cpuhp_state;
 
@@ -382,6 +386,11 @@ struct impl_match {
 };
 
 static const struct impl_match impl_match[] = {
+	{
+	  .pmiidr = ARM_CSPMU_IMPL_ID_NVIDIA,
+	  .mask = ARM_CSPMU_PMIIDR_IMPLEMENTER,
+	  .impl_init_ops = nv_cspmu_init_ops
+	},
 	{}
 };
 
