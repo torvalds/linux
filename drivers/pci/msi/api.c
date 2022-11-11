@@ -205,3 +205,18 @@ int pci_irq_vector(struct pci_dev *dev, unsigned int nr)
 	return irq ? irq : -EINVAL;
 }
 EXPORT_SYMBOL(pci_irq_vector);
+
+/**
+ * pci_free_irq_vectors() - Free previously allocated IRQs for a device
+ * @dev: the PCI device to operate on
+ *
+ * Undo the interrupt vector allocations and possible device MSI/MSI-X
+ * enablement earlier done through pci_alloc_irq_vectors_affinity() or
+ * pci_alloc_irq_vectors().
+ */
+void pci_free_irq_vectors(struct pci_dev *dev)
+{
+	pci_disable_msix(dev);
+	pci_disable_msi(dev);
+}
+EXPORT_SYMBOL(pci_free_irq_vectors);
