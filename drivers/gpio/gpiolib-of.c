@@ -1063,7 +1063,7 @@ int of_gpiochip_add(struct gpio_chip *chip)
 	struct device_node *np;
 	int ret;
 
-	np = to_of_node(chip->fwnode);
+	np = to_of_node(dev_fwnode(&chip->gpiodev->dev));
 	if (!np)
 		return 0;
 
