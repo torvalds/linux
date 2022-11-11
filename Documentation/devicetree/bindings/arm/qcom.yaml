@@ -35,7 +35,9 @@ description: |
         mdm9615
         msm8226
         msm8916
+        msm8956
         msm8974
+        msm8976
         msm8992
         msm8994
         msm8996
@@ -155,6 +157,12 @@ properties:
           - enum:
               - samsung,s3ve3g
           - const: qcom,msm8226
+
+      - items:
+          - enum:
+              - sony,kugo-row
+              - sony,suzu-row
+          - const: qcom,msm8956
 
       - items:
           - enum:
