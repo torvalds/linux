@@ -4480,7 +4480,7 @@ static int ufshcd_complete_dev_init(struct ufs_hba *hba)
 		QUERY_FLAG_IDN_FDEVICEINIT, 0, NULL);
 	if (err) {
 		dev_err(hba->dev,
-			"%s setting fDeviceInit flag failed with error %d\n",
+			"%s: setting fDeviceInit flag failed with error %d\n",
 			__func__, err);
 		goto out;
 	}
@@ -4497,11 +4497,11 @@ static int ufshcd_complete_dev_init(struct ufs_hba *hba)
 
 	if (err) {
 		dev_err(hba->dev,
-				"%s reading fDeviceInit flag failed with error %d\n",
+				"%s: reading fDeviceInit flag failed with error %d\n",
 				__func__, err);
 	} else if (flag_res) {
 		dev_err(hba->dev,
-				"%s fDeviceInit was not cleared by the device\n",
+				"%s: fDeviceInit was not cleared by the device\n",
 				__func__);
 		err = -EBUSY;
 	}
