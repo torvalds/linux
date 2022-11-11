@@ -6,6 +6,7 @@
 
 #include <dt-bindings/clock/qcom,gcc-sc8280xp.h>
 #include <dt-bindings/clock/qcom,rpmh.h>
+#include <dt-bindings/interconnect/qcom,osm-l3.h>
 #include <dt-bindings/interconnect/qcom,sc8280xp.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/mailbox/qcom-ipcc.h>
@@ -38,66 +39,87 @@
 
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
+			opp-peak-kBps = <(300000 * 32)>;
 		};
 		opp-403200000 {
 			opp-hz = /bits/ 64 <403200000>;
+			opp-peak-kBps = <(384000 * 32)>;
 		};
 		opp-499200000 {
 			opp-hz = /bits/ 64 <499200000>;
+			opp-peak-kBps = <(480000 * 32)>;
 		};
 		opp-595200000 {
 			opp-hz = /bits/ 64 <595200000>;
+			opp-peak-kBps = <(576000 * 32)>;
 		};
 		opp-691200000 {
 			opp-hz = /bits/ 64 <691200000>;
+			opp-peak-kBps = <(672000 * 32)>;
 		};
 		opp-806400000 {
 			opp-hz = /bits/ 64 <806400000>;
+			opp-peak-kBps = <(768000 * 32)>;
 		};
 		opp-902400000 {
 			opp-hz = /bits/ 64 <902400000>;
+			opp-peak-kBps = <(864000 * 32)>;
 		};
 		opp-1017600000 {
 			opp-hz = /bits/ 64 <1017600000>;
+			opp-peak-kBps = <(960000 * 32)>;
 		};
 		opp-1113600000 {
 			opp-hz = /bits/ 64 <1113600000>;
+			opp-peak-kBps = <(1075200 * 32)>;
 		};
 		opp-1209600000 {
 			opp-hz = /bits/ 64 <1209600000>;
+			opp-peak-kBps = <(1171200 * 32)>;
 		};
 		opp-1324800000 {
 			opp-hz = /bits/ 64 <1324800000>;
+			opp-peak-kBps = <(1267200 * 32)>;
 		};
 		opp-1440000000 {
 			opp-hz = /bits/ 64 <1440000000>;
+			opp-peak-kBps = <(1363200 * 32)>;
 		};
 		opp-1555200000 {
 			opp-hz = /bits/ 64 <1555200000>;
+			opp-peak-kBps = <(1536000 * 32)>;
 		};
 		opp-1670400000 {
 			opp-hz = /bits/ 64 <1670400000>;
+			opp-peak-kBps = <(1612800 * 32)>;
 		};
 		opp-1785600000 {
 			opp-hz = /bits/ 64 <1785600000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-1881600000 {
 			opp-hz = /bits/ 64 <1881600000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-1996800000 {
 			opp-hz = /bits/ 64 <1996800000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2112000000 {
 			opp-hz = /bits/ 64 <2112000000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2227200000 {
 			opp-hz = /bits/ 64 <2227200000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2342400000 {
 			opp-hz = /bits/ 64 <2342400000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2438400000 {
 			opp-hz = /bits/ 64 <2438400000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 	};
 
@@ -107,66 +129,87 @@
 
 		opp-825600000 {
 			opp-hz = /bits/ 64 <825600000>;
+			opp-peak-kBps = <(768000 * 32)>;
 		};
 		opp-940800000 {
 			opp-hz = /bits/ 64 <940800000>;
+			opp-peak-kBps = <(864000 * 32)>;
 		};
 		opp-1056000000 {
 			opp-hz = /bits/ 64 <1056000000>;
+			opp-peak-kBps = <(960000 * 32)>;
 		};
 		opp-1171200000 {
 			opp-hz = /bits/ 64 <1171200000>;
+			opp-peak-kBps = <(1171200 * 32)>;
 		};
 		opp-1286400000 {
 			opp-hz = /bits/ 64 <1286400000>;
+			opp-peak-kBps = <(1267200 * 32)>;
 		};
 		opp-1401600000 {
 			opp-hz = /bits/ 64 <1401600000>;
+			opp-peak-kBps = <(1363200 * 32)>;
 		};
 		opp-1516800000 {
 			opp-hz = /bits/ 64 <1516800000>;
+			opp-peak-kBps = <(1459200 * 32)>;
 		};
 		opp-1632000000 {
 			opp-hz = /bits/ 64 <1632000000>;
+			opp-peak-kBps = <(1612800 * 32)>;
 		};
 		opp-1747200000 {
 			opp-hz = /bits/ 64 <1747200000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-1862400000 {
 			opp-hz = /bits/ 64 <1862400000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-1977600000 {
 			opp-hz = /bits/ 64 <1977600000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2073600000 {
 			opp-hz = /bits/ 64 <2073600000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2169600000 {
 			opp-hz = /bits/ 64 <2169600000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2284800000 {
 			opp-hz = /bits/ 64 <2284800000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2400000000 {
 			opp-hz = /bits/ 64 <2400000000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2496000000 {
 			opp-hz = /bits/ 64 <2496000000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2592000000 {
 			opp-hz = /bits/ 64 <2592000000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2688000000 {
 			opp-hz = /bits/ 64 <2688000000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2803200000 {
 			opp-hz = /bits/ 64 <2803200000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2899200000 {
 			opp-hz = /bits/ 64 <2899200000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 		opp-2995200000 {
 			opp-hz = /bits/ 64 <2995200000>;
+			opp-peak-kBps = <(1689600 * 32)>;
 		};
 	};
 
@@ -185,6 +228,7 @@
 			power-domain-names = "psci";
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			interconnects = <&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			#cooling-cells = <2>;
 			L2_0: l2-cache {
 				compatible = "cache";
@@ -206,6 +250,7 @@
 			power-domain-names = "psci";
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			interconnects = <&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			#cooling-cells = <2>;
 			L2_100: l2-cache {
 				compatible = "cache";
@@ -224,6 +269,7 @@
 			power-domain-names = "psci";
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			interconnects = <&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			#cooling-cells = <2>;
 			L2_200: l2-cache {
 				compatible = "cache";
@@ -242,6 +288,7 @@
 			power-domain-names = "psci";
 			qcom,freq-domain = <&cpufreq_hw 0>;
 			operating-points-v2 = <&cpu0_opp_table>;
+			interconnects = <&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			#cooling-cells = <2>;
 			L2_300: l2-cache {
 				compatible = "cache";
@@ -260,6 +307,7 @@
 			power-domain-names = "psci";
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu4_opp_table>;
+			interconnects = <&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			#cooling-cells = <2>;
 			L2_400: l2-cache {
 				compatible = "cache";
@@ -278,6 +326,7 @@
 			power-domain-names = "psci";
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu4_opp_table>;
+			interconnects = <&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			#cooling-cells = <2>;
 			L2_500: l2-cache {
 				compatible = "cache";
@@ -296,6 +345,7 @@
 			power-domain-names = "psci";
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu4_opp_table>;
+			interconnects = <&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			#cooling-cells = <2>;
 			L2_600: l2-cache {
 				compatible = "cache";
@@ -314,6 +364,7 @@
 			power-domain-names = "psci";
 			qcom,freq-domain = <&cpufreq_hw 1>;
 			operating-points-v2 = <&cpu4_opp_table>;
+			interconnects = <&epss_l3 MASTER_EPSS_L3_APPS &epss_l3 SLAVE_EPSS_L3_SHARED>;
 			#cooling-cells = <2>;
 			L2_700: l2-cache {
 				compatible = "cache";
