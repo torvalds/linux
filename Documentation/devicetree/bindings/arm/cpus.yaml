@@ -178,6 +178,7 @@ properties:
       - qcom,kryo250
       - qcom,kryo260
       - qcom,kryo280
+      - qcom,kryo360
       - qcom,kryo385
       - qcom,kryo468
       - qcom,kryo485
