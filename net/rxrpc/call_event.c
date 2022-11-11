@@ -251,6 +251,50 @@ out:
 	_leave("");
 }
 
+/*
+ * Start transmitting the reply to a service.  This cancels the need to ACK the
+ * request if we haven't yet done so.
+ */
+static void rxrpc_begin_service_reply(struct rxrpc_call *call)
+{
+	unsigned long now;
+
+	write_lock(&call->state_lock);
+
+	if (call->state == RXRPC_CALL_SERVER_ACK_REQUEST) {
+		now = jiffies;
+		call->state = RXRPC_CALL_SERVER_SEND_REPLY;
+		WRITE_ONCE(call->delay_ack_at, now + MAX_JIFFY_OFFSET);
+		if (call->ackr_reason == RXRPC_ACK_DELAY)
+			call->ackr_reason = 0;
+		trace_rxrpc_timer(call, rxrpc_timer_init_for_send_reply, now);
+	}
+
+	write_unlock(&call->state_lock);
+}
+
+/*
+ * Close the transmission phase.  After this point there is no more data to be
+ * transmitted in the call.
+ */
+static void rxrpc_close_tx_phase(struct rxrpc_call *call)
+{
+	_debug("________awaiting reply/ACK__________");
+
+	write_lock(&call->state_lock);
+	switch (call->state) {
+	case RXRPC_CALL_CLIENT_SEND_REQUEST:
+		call->state = RXRPC_CALL_CLIENT_AWAIT_REPLY;
+		break;
+	case RXRPC_CALL_SERVER_SEND_REPLY:
+		call->state = RXRPC_CALL_SERVER_AWAIT_ACK;
+		break;
+	default:
+		break;
+	}
+	write_unlock(&call->state_lock);
+}
+
 static bool rxrpc_tx_window_has_space(struct rxrpc_call *call)
 {
 	unsigned int winsize = min_t(unsigned int, call->tx_winsize,
@@ -285,6 +329,9 @@ static void rxrpc_decant_prepared_tx(struct rxrpc_call *call)
 		call->tx_top = txb->seq;
 		list_add_tail(&txb->call_link, &call->tx_buffer);
 
+		if (txb->wire.flags & RXRPC_LAST_PACKET)
+			rxrpc_close_tx_phase(call);
+
 		rxrpc_transmit_one(call, txb);
 
 		if (!rxrpc_tx_window_has_space(call))
@@ -298,12 +345,11 @@ static void rxrpc_transmit_some_data(struct rxrpc_call *call)
 	case RXRPC_CALL_SERVER_ACK_REQUEST:
 		if (list_empty(&call->tx_sendmsg))
 			return;
+		rxrpc_begin_service_reply(call);
 		fallthrough;
 
 	case RXRPC_CALL_SERVER_SEND_REPLY:
-	case RXRPC_CALL_SERVER_AWAIT_ACK:
 	case RXRPC_CALL_CLIENT_SEND_REQUEST:
-	case RXRPC_CALL_CLIENT_AWAIT_REPLY:
 		if (!rxrpc_tx_window_has_space(call))
 			return;
 		if (list_empty(&call->tx_sendmsg)) {
