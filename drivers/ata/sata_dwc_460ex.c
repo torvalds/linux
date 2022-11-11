@@ -42,10 +42,6 @@
 #define sata_dwc_writel(a, v)	writel_relaxed(v, a)
 #define sata_dwc_readl(a)	readl_relaxed(a)
 
-#ifndef NO_IRQ
-#define NO_IRQ		0
-#endif
-
 #define AHB_DMA_BRST_DFLT	64	/* 16 data items burst length */
 
 enum {
@@ -242,7 +238,7 @@ static int sata_dwc_dma_init_old(struct platform_device *pdev,
 
 	/* Get SATA DMA interrupt number */
 	hsdev->dma->irq = irq_of_parse_and_map(np, 1);
-	if (hsdev->dma->irq == NO_IRQ) {
+	if (!hsdev->dma->irq) {
 		dev_err(dev, "no SATA DMA irq\n");
 		return -ENODEV;
 	}
@@ -1178,7 +1174,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 
 	/* Get SATA interrupt number */
 	irq = irq_of_parse_and_map(np, 0);
-	if (irq == NO_IRQ) {
+	if (!irq) {
 		dev_err(dev, "no SATA DMA irq\n");
 		return -ENODEV;
 	}
