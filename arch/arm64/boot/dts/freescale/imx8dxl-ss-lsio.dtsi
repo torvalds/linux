@@ -3,6 +3,11 @@
  * Copyright 2019~2020, 2022 NXP
  */
 
+&flexspi0 {
+	compatible = "nxp,imx8dxl-fspi";
+	interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+};
+
 &lsio_gpio0 {
 	compatible = "fsl,imx8dxl-gpio", "fsl,imx35-gpio";
 	interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
