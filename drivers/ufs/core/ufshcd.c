@@ -8869,7 +8869,7 @@ static int ufshcd_set_dev_pwr_mode(struct ufs_hba *hba,
 
 static int ufshcd_link_state_transition(struct ufs_hba *hba,
 					enum uic_link_state req_link_state,
-					int check_for_bkops)
+					bool check_for_bkops)
 {
 	int ret = 0;
 
@@ -9020,7 +9020,7 @@ static void ufshcd_hba_vreg_set_hpm(struct ufs_hba *hba)
 static int __ufshcd_wl_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 {
 	int ret = 0;
-	int check_for_bkops;
+	bool check_for_bkops;
 	enum ufs_pm_level pm_lvl;
 	enum ufs_dev_pwr_mode req_dev_pwr_mode;
 	enum uic_link_state req_link_state;
