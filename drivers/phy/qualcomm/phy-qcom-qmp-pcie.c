@@ -23,8 +23,6 @@
 #include <linux/reset.h>
 #include <linux/slab.h>
 
-#include <dt-bindings/phy/phy.h>
-
 #include "phy-qcom-qmp.h"
 
 /* QPHY_SW_RESET bit */
