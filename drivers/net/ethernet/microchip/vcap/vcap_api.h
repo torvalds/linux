@@ -166,6 +166,7 @@ enum vcap_rule_error {
 struct vcap_admin {
 	struct list_head list; /* for insertion in vcap_control */
 	struct list_head rules; /* list of rules */
+	struct list_head enabled; /* list of enabled ports */
 	enum vcap_type vtype;  /* type of vcap */
 	int vinst; /* instance number within the same type */
 	int first_cid; /* first chain id in this vcap */
@@ -255,6 +256,11 @@ struct vcap_operations {
 		 int (*pf)(void *out, int arg, const char *fmt, ...),
 		 void *out,
 		 int arg);
+	/* enable/disable the lookups in a vcap instance */
+	int (*enable)
+		(struct net_device *ndev,
+		 struct vcap_admin *admin,
+		 bool enable);
 };
 
 /* VCAP API Client control interface */

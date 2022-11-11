@@ -44,6 +44,13 @@ struct vcap_stream_iter {
 	const struct vcap_typegroup *tg; /* current typegroup */
 };
 
+/* Stores the filter cookie that enabled the port */
+struct vcap_enabled_port {
+	struct list_head list; /* for insertion in enabled ports list */
+	struct net_device *ndev;  /* the enabled port */
+	unsigned long cookie; /* filter that enabled the port */
+};
+
 static void vcap_iter_set(struct vcap_stream_iter *itr, int sw_width,
 			  const struct vcap_typegroup *tg, u32 offset)
 {
@@ -516,7 +523,7 @@ static int vcap_api_check(struct vcap_control *ctrl)
 	    !ctrl->ops->add_default_fields || !ctrl->ops->cache_erase ||
 	    !ctrl->ops->cache_write || !ctrl->ops->cache_read ||
 	    !ctrl->ops->init || !ctrl->ops->update || !ctrl->ops->move ||
-	    !ctrl->ops->port_info) {
+	    !ctrl->ops->port_info || !ctrl->ops->enable) {
 		pr_err("%s:%d: client operations are missing\n",
 		       __func__, __LINE__);
 		return -ENOENT;
@@ -644,6 +651,23 @@ static int vcap_write_rule(struct vcap_rule_internal *ri)
 	return 0;
 }
 
+/* Convert a chain id to a VCAP lookup index */
+int vcap_chain_id_to_lookup(struct vcap_admin *admin, int cur_cid)
+{
+	int lookup_first = admin->vinst * admin->lookups_per_instance;
+	int lookup_last = lookup_first + admin->lookups_per_instance;
+	int cid_next = admin->first_cid + VCAP_CID_LOOKUP_SIZE;
+	int cid = admin->first_cid;
+	int lookup;
+
+	for (lookup = lookup_first; lookup < lookup_last; ++lookup,
+	     cid += VCAP_CID_LOOKUP_SIZE, cid_next += VCAP_CID_LOOKUP_SIZE)
+		if (cur_cid >= cid && cur_cid < cid_next)
+			return lookup;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vcap_chain_id_to_lookup);
+
 /* Lookup a vcap instance using chain id */
 struct vcap_admin *vcap_find_admin(struct vcap_control *vctrl, int cid)
 {
@@ -659,6 +683,42 @@ struct vcap_admin *vcap_find_admin(struct vcap_control *vctrl, int cid)
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(vcap_find_admin);
+
+/* Is the next chain id in the following lookup, possible in another VCAP */
+bool vcap_is_next_lookup(struct vcap_control *vctrl, int cur_cid, int next_cid)
+{
+	struct vcap_admin *admin, *next_admin;
+	int lookup, next_lookup;
+
+	/* The offset must be at least one lookup */
+	if (next_cid < cur_cid + VCAP_CID_LOOKUP_SIZE)
+		return false;
+
+	if (vcap_api_check(vctrl))
+		return false;
+
+	admin = vcap_find_admin(vctrl, cur_cid);
+	if (!admin)
+		return false;
+
+	/* If no VCAP contains the next chain, the next chain must be beyond
+	 * the last chain in the current VCAP
+	 */
+	next_admin = vcap_find_admin(vctrl, next_cid);
+	if (!next_admin)
+		return next_cid > admin->last_cid;
+
+	lookup = vcap_chain_id_to_lookup(admin, cur_cid);
+	next_lookup = vcap_chain_id_to_lookup(next_admin, next_cid);
+
+	/* Next lookup must be the following lookup */
+	if (admin == next_admin || admin->vtype == next_admin->vtype)
+		return next_lookup == lookup + 1;
+
+	/* Must be the first lookup in the next VCAP instance */
+	return next_lookup == 0;
+}
+EXPORT_SYMBOL_GPL(vcap_is_next_lookup);
 
 /* Check if there is room for a new rule */
 static int vcap_rule_space(struct vcap_admin *admin, int size)
@@ -704,15 +764,122 @@ static int vcap_add_type_keyfield(struct vcap_rule *rule)
 	return 0;
 }
 
+/* Add a keyset to a keyset list */
+bool vcap_keyset_list_add(struct vcap_keyset_list *keysetlist,
+			  enum vcap_keyfield_set keyset)
+{
+	int idx;
+
+	if (keysetlist->cnt < keysetlist->max) {
+		/* Avoid duplicates */
+		for (idx = 0; idx < keysetlist->cnt; ++idx)
+			if (keysetlist->keysets[idx] == keyset)
+				return keysetlist->cnt < keysetlist->max;
+		keysetlist->keysets[keysetlist->cnt++] = keyset;
+	}
+	return keysetlist->cnt < keysetlist->max;
+}
+EXPORT_SYMBOL_GPL(vcap_keyset_list_add);
+
+/* map keyset id to a string with the keyset name */
+const char *vcap_keyset_name(struct vcap_control *vctrl,
+			     enum vcap_keyfield_set keyset)
+{
+	return vctrl->stats->keyfield_set_names[keyset];
+}
+EXPORT_SYMBOL_GPL(vcap_keyset_name);
+
+/* map key field id to a string with the key name */
+const char *vcap_keyfield_name(struct vcap_control *vctrl,
+			       enum vcap_key_field key)
+{
+	return vctrl->stats->keyfield_names[key];
+}
+EXPORT_SYMBOL_GPL(vcap_keyfield_name);
+
+/* map action field id to a string with the action name */
+static const char *vcap_actionfield_name(struct vcap_control *vctrl,
+					 enum vcap_action_field action)
+{
+	return vctrl->stats->actionfield_names[action];
+}
+
+/* Return the keyfield that matches a key in a keyset */
+static const struct vcap_field *
+vcap_find_keyset_keyfield(struct vcap_control *vctrl,
+			  enum vcap_type vtype,
+			  enum vcap_keyfield_set keyset,
+			  enum vcap_key_field key)
+{
+	const struct vcap_field *fields;
+	int idx, count;
+
+	fields = vcap_keyfields(vctrl, vtype, keyset);
+	if (!fields)
+		return NULL;
+
+	/* Iterate the keyfields of the keyset */
+	count = vcap_keyfield_count(vctrl, vtype, keyset);
+	for (idx = 0; idx < count; ++idx) {
+		if (fields[idx].width == 0)
+			continue;
+
+		if (key == idx)
+			return &fields[idx];
+	}
+
+	return NULL;
+}
+
+/* Match a list of keys against the keysets available in a vcap type */
+static bool vcap_rule_find_keysets(struct vcap_rule_internal *ri,
+				   struct vcap_keyset_list *matches)
+{
+	const struct vcap_client_keyfield *ckf;
+	int keyset, found, keycount, map_size;
+	const struct vcap_field **map;
+	enum vcap_type vtype;
+
+	vtype = ri->admin->vtype;
+	map = ri->vctrl->vcaps[vtype].keyfield_set_map;
+	map_size = ri->vctrl->vcaps[vtype].keyfield_set_size;
+
+	/* Get a count of the keyfields we want to match */
+	keycount = 0;
+	list_for_each_entry(ckf, &ri->data.keyfields, ctrl.list)
+		++keycount;
+
+	matches->cnt = 0;
+	/* Iterate the keysets of the VCAP */
+	for (keyset = 0; keyset < map_size; ++keyset) {
+		if (!map[keyset])
+			continue;
+
+		/* Iterate the keys in the rule */
+		found = 0;
+		list_for_each_entry(ckf, &ri->data.keyfields, ctrl.list)
+			if (vcap_find_keyset_keyfield(ri->vctrl, vtype,
+						      keyset, ckf->ctrl.key))
+				++found;
+
+		/* Save the keyset if all keyfields were found */
+		if (found == keycount)
+			if (!vcap_keyset_list_add(matches, keyset))
+				/* bail out when the quota is filled */
+				break;
+	}
+
+	return matches->cnt > 0;
+}
+
 /* Validate a rule with respect to available port keys */
 int vcap_val_rule(struct vcap_rule *rule, u16 l3_proto)
 {
 	struct vcap_rule_internal *ri = to_intrule(rule);
+	struct vcap_keyset_list matches = {};
 	enum vcap_keyfield_set keysets[10];
-	struct vcap_keyset_list kslist;
 	int ret;
 
-	/* This validation will be much expanded later */
 	ret = vcap_api_check(ri->vctrl);
 	if (ret)
 		return ret;
@@ -724,24 +891,41 @@ int vcap_val_rule(struct vcap_rule *rule, u16 l3_proto)
 		ri->data.exterr = VCAP_ERR_NO_NETDEV;
 		return -EINVAL;
 	}
+
+	matches.keysets = keysets;
+	matches.max = ARRAY_SIZE(keysets);
 	if (ri->data.keyset == VCAP_KFS_NO_VALUE) {
-		ri->data.exterr = VCAP_ERR_NO_KEYSET_MATCH;
-		return -EINVAL;
+		/* Iterate over rule keyfields and select keysets that fits */
+		if (!vcap_rule_find_keysets(ri, &matches)) {
+			ri->data.exterr = VCAP_ERR_NO_KEYSET_MATCH;
+			return -EINVAL;
+		}
+	} else {
+		/* prepare for keyset validation */
+		keysets[0] = ri->data.keyset;
+		matches.cnt = 1;
 	}
-	/* prepare for keyset validation */
-	keysets[0] = ri->data.keyset;
-	kslist.keysets = keysets;
-	kslist.cnt = 1;
+
 	/* Pick a keyset that is supported in the port lookups */
-	ret = ri->vctrl->ops->validate_keyset(ri->ndev, ri->admin, rule, &kslist,
-					      l3_proto);
+	ret = ri->vctrl->ops->validate_keyset(ri->ndev, ri->admin, rule,
+					      &matches, l3_proto);
 	if (ret < 0) {
 		pr_err("%s:%d: keyset validation failed: %d\n",
 		       __func__, __LINE__, ret);
 		ri->data.exterr = VCAP_ERR_NO_PORT_KEYSET_MATCH;
 		return ret;
 	}
+	/* use the keyset that is supported in the port lookups */
+	ret = vcap_set_rule_set_keyset(rule, ret);
+	if (ret < 0) {
+		pr_err("%s:%d: keyset was not updated: %d\n",
+		       __func__, __LINE__, ret);
+		return ret;
+	}
 	if (ri->data.actionset == VCAP_AFS_NO_VALUE) {
+		/* Later also actionsets will be matched against actions in
+		 * the rule, and the type will be set accordingly
+		 */
 		ri->data.exterr = VCAP_ERR_NO_ACTIONSET_MATCH;
 		return -EINVAL;
 	}
@@ -951,6 +1135,7 @@ EXPORT_SYMBOL_GPL(vcap_del_rule);
 /* Delete all rules in the VCAP instance */
 int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin)
 {
+	struct vcap_enabled_port *eport, *next_eport;
 	struct vcap_rule_internal *ri, *next_ri;
 	int ret = vcap_api_check(vctrl);
 
@@ -962,6 +1147,13 @@ int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin)
 		kfree(ri);
 	}
 	admin->last_used_addr = admin->last_valid_addr;
+
+	/* Remove list of enabled ports */
+	list_for_each_entry_safe(eport, next_eport, &admin->enabled, list) {
+		list_del(&eport->list);
+		kfree(eport);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vcap_del_rules);
@@ -992,14 +1184,60 @@ static void vcap_copy_from_client_keyfield(struct vcap_rule *rule,
 	memcpy(&field->data, data, sizeof(field->data));
 }
 
+/* Check if the keyfield is already in the rule */
+static bool vcap_keyfield_unique(struct vcap_rule *rule,
+				 enum vcap_key_field key)
+{
+	struct vcap_rule_internal *ri = to_intrule(rule);
+	const struct vcap_client_keyfield *ckf;
+
+	list_for_each_entry(ckf, &ri->data.keyfields, ctrl.list)
+		if (ckf->ctrl.key == key)
+			return false;
+	return true;
+}
+
+/* Check if the keyfield is in the keyset */
+static bool vcap_keyfield_match_keyset(struct vcap_rule *rule,
+				       enum vcap_key_field key)
+{
+	struct vcap_rule_internal *ri = to_intrule(rule);
+	enum vcap_keyfield_set keyset = rule->keyset;
+	enum vcap_type vt = ri->admin->vtype;
+	const struct vcap_field *fields;
+
+	/* the field is accepted if the rule has no keyset yet */
+	if (keyset == VCAP_KFS_NO_VALUE)
+		return true;
+	fields = vcap_keyfields(ri->vctrl, vt, keyset);
+	if (!fields)
+		return false;
+	/* if there is a width there is a way */
+	return fields[key].width > 0;
+}
+
 static int vcap_rule_add_key(struct vcap_rule *rule,
 			     enum vcap_key_field key,
 			     enum vcap_field_type ftype,
 			     struct vcap_client_keyfield_data *data)
 {
+	struct vcap_rule_internal *ri = to_intrule(rule);
 	struct vcap_client_keyfield *field;
 
-	/* More validation will be added here later */
+	if (!vcap_keyfield_unique(rule, key)) {
+		pr_warn("%s:%d: keyfield %s is already in the rule\n",
+			__func__, __LINE__,
+			vcap_keyfield_name(ri->vctrl, key));
+		return -EINVAL;
+	}
+
+	if (!vcap_keyfield_match_keyset(rule, key)) {
+		pr_err("%s:%d: keyfield %s does not belong in the rule keyset\n",
+		       __func__, __LINE__,
+		       vcap_keyfield_name(ri->vctrl, key));
+		return -EINVAL;
+	}
+
 	field = kzalloc(sizeof(*field), GFP_KERNEL);
 	if (!field)
 		return -ENOMEM;
@@ -1073,6 +1311,17 @@ int vcap_rule_add_key_u72(struct vcap_rule *rule, enum vcap_key_field key,
 }
 EXPORT_SYMBOL_GPL(vcap_rule_add_key_u72);
 
+/* Add a 128 bit key with value and mask to the rule */
+int vcap_rule_add_key_u128(struct vcap_rule *rule, enum vcap_key_field key,
+			   struct vcap_u128_key *fieldval)
+{
+	struct vcap_client_keyfield_data data;
+
+	memcpy(&data.u128, fieldval, sizeof(data.u128));
+	return vcap_rule_add_key(rule, key, VCAP_FIELD_U128, &data);
+}
+EXPORT_SYMBOL_GPL(vcap_rule_add_key_u128);
+
 static void vcap_copy_from_client_actionfield(struct vcap_rule *rule,
 					      struct vcap_client_actionfield *field,
 					      struct vcap_client_actionfield_data *data)
@@ -1081,14 +1330,60 @@ static void vcap_copy_from_client_actionfield(struct vcap_rule *rule,
 	memcpy(&field->data, data, sizeof(field->data));
 }
 
+/* Check if the actionfield is already in the rule */
+static bool vcap_actionfield_unique(struct vcap_rule *rule,
+				    enum vcap_action_field act)
+{
+	struct vcap_rule_internal *ri = to_intrule(rule);
+	const struct vcap_client_actionfield *caf;
+
+	list_for_each_entry(caf, &ri->data.actionfields, ctrl.list)
+		if (caf->ctrl.action == act)
+			return false;
+	return true;
+}
+
+/* Check if the actionfield is in the actionset */
+static bool vcap_actionfield_match_actionset(struct vcap_rule *rule,
+					     enum vcap_action_field action)
+{
+	enum vcap_actionfield_set actionset = rule->actionset;
+	struct vcap_rule_internal *ri = to_intrule(rule);
+	enum vcap_type vt = ri->admin->vtype;
+	const struct vcap_field *fields;
+
+	/* the field is accepted if the rule has no actionset yet */
+	if (actionset == VCAP_AFS_NO_VALUE)
+		return true;
+	fields = vcap_actionfields(ri->vctrl, vt, actionset);
+	if (!fields)
+		return false;
+	/* if there is a width there is a way */
+	return fields[action].width > 0;
+}
+
 static int vcap_rule_add_action(struct vcap_rule *rule,
 				enum vcap_action_field action,
 				enum vcap_field_type ftype,
 				struct vcap_client_actionfield_data *data)
 {
+	struct vcap_rule_internal *ri = to_intrule(rule);
 	struct vcap_client_actionfield *field;
 
-	/* More validation will be added here later */
+	if (!vcap_actionfield_unique(rule, action)) {
+		pr_warn("%s:%d: actionfield %s is already in the rule\n",
+			__func__, __LINE__,
+			vcap_actionfield_name(ri->vctrl, action));
+		return -EINVAL;
+	}
+
+	if (!vcap_actionfield_match_actionset(rule, action)) {
+		pr_err("%s:%d: actionfield %s does not belong in the rule actionset\n",
+		       __func__, __LINE__,
+		       vcap_actionfield_name(ri->vctrl, action));
+		return -EINVAL;
+	}
+
 	field = kzalloc(sizeof(*field), GFP_KERNEL);
 	if (!field)
 		return -ENOMEM;
@@ -1178,6 +1473,109 @@ void vcap_set_tc_exterr(struct flow_cls_offload *fco, struct vcap_rule *vrule)
 	}
 }
 EXPORT_SYMBOL_GPL(vcap_set_tc_exterr);
+
+/* Check if this port is already enabled for this VCAP instance */
+static bool vcap_is_enabled(struct vcap_admin *admin, struct net_device *ndev,
+			    unsigned long cookie)
+{
+	struct vcap_enabled_port *eport;
+
+	list_for_each_entry(eport, &admin->enabled, list)
+		if (eport->cookie == cookie || eport->ndev == ndev)
+			return true;
+
+	return false;
+}
+
+/* Enable this port for this VCAP instance */
+static int vcap_enable(struct vcap_admin *admin, struct net_device *ndev,
+		       unsigned long cookie)
+{
+	struct vcap_enabled_port *eport;
+
+	eport = kzalloc(sizeof(*eport), GFP_KERNEL);
+	if (!eport)
+		return -ENOMEM;
+
+	eport->ndev = ndev;
+	eport->cookie = cookie;
+	list_add_tail(&eport->list, &admin->enabled);
+
+	return 0;
+}
+
+/* Disable this port for this VCAP instance */
+static int vcap_disable(struct vcap_admin *admin, struct net_device *ndev,
+			unsigned long cookie)
+{
+	struct vcap_enabled_port *eport;
+
+	list_for_each_entry(eport, &admin->enabled, list) {
+		if (eport->cookie == cookie && eport->ndev == ndev) {
+			list_del(&eport->list);
+			kfree(eport);
+			return 0;
+		}
+	}
+
+	return -ENOENT;
+}
+
+/* Find the VCAP instance that enabled the port using a specific filter */
+static struct vcap_admin *vcap_find_admin_by_cookie(struct vcap_control *vctrl,
+						    unsigned long cookie)
+{
+	struct vcap_enabled_port *eport;
+	struct vcap_admin *admin;
+
+	list_for_each_entry(admin, &vctrl->list, list)
+		list_for_each_entry(eport, &admin->enabled, list)
+			if (eport->cookie == cookie)
+				return admin;
+
+	return NULL;
+}
+
+/* Enable/Disable the VCAP instance lookups. Chain id 0 means disable */
+int vcap_enable_lookups(struct vcap_control *vctrl, struct net_device *ndev,
+			int chain_id, unsigned long cookie, bool enable)
+{
+	struct vcap_admin *admin;
+	int err;
+
+	err = vcap_api_check(vctrl);
+	if (err)
+		return err;
+
+	if (!ndev)
+		return -ENODEV;
+
+	if (chain_id)
+		admin = vcap_find_admin(vctrl, chain_id);
+	else
+		admin = vcap_find_admin_by_cookie(vctrl, cookie);
+	if (!admin)
+		return -ENOENT;
+
+	/* first instance and first chain */
+	if (admin->vinst || chain_id > admin->first_cid)
+		return -EFAULT;
+
+	err = vctrl->ops->enable(ndev, admin, enable);
+	if (err)
+		return err;
+
+	if (chain_id) {
+		if (vcap_is_enabled(admin, ndev, cookie))
+			return -EADDRINUSE;
+		vcap_enable(admin, ndev, cookie);
+	} else {
+		vcap_disable(admin, ndev, cookie);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(vcap_enable_lookups);
 
 #ifdef CONFIG_VCAP_KUNIT_TEST
 #include "vcap_api_kunit.c"

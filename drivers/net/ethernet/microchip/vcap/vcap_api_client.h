@@ -143,6 +143,10 @@ enum vcap_bit {
 	VCAP_BIT_1
 };
 
+/* Enable/Disable the VCAP instance lookups. Chain id 0 means disable */
+int vcap_enable_lookups(struct vcap_control *vctrl, struct net_device *ndev,
+			int chain_id, unsigned long cookie, bool enable);
+
 /* VCAP rule operations */
 /* Allocate a rule and fill in the basic information */
 struct vcap_rule *vcap_alloc_rule(struct vcap_control *vctrl,
@@ -176,12 +180,16 @@ int vcap_rule_add_key_u48(struct vcap_rule *rule, enum vcap_key_field key,
 			  struct vcap_u48_key *fieldval);
 int vcap_rule_add_key_u72(struct vcap_rule *rule, enum vcap_key_field key,
 			  struct vcap_u72_key *fieldval);
+int vcap_rule_add_key_u128(struct vcap_rule *rule, enum vcap_key_field key,
+			   struct vcap_u128_key *fieldval);
 int vcap_rule_add_action_bit(struct vcap_rule *rule,
 			     enum vcap_action_field action, enum vcap_bit val);
 int vcap_rule_add_action_u32(struct vcap_rule *rule,
 			     enum vcap_action_field action, u32 value);
 
 /* VCAP lookup operations */
+/* Convert a chain id to a VCAP lookup index */
+int vcap_chain_id_to_lookup(struct vcap_admin *admin, int cur_cid);
 /* Lookup a vcap instance using chain id */
 struct vcap_admin *vcap_find_admin(struct vcap_control *vctrl, int cid);
 /* Find information on a key field in a rule */
@@ -189,6 +197,8 @@ const struct vcap_field *vcap_lookup_keyfield(struct vcap_rule *rule,
 					      enum vcap_key_field key);
 /* Find a rule id with a provided cookie */
 int vcap_lookup_rule_by_cookie(struct vcap_control *vctrl, u64 cookie);
+/* Is the next chain id in the following lookup, possible in another VCAP */
+bool vcap_is_next_lookup(struct vcap_control *vctrl, int cur_cid, int next_cid);
 
 /* Copy to host byte order */
 void vcap_netbytes_copy(u8 *dst, u8 *src, int count);
@@ -198,5 +208,16 @@ void vcap_set_tc_exterr(struct flow_cls_offload *fco, struct vcap_rule *vrule);
 
 /* Cleanup a VCAP instance */
 int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin);
+
+/* Add a keyset to a keyset list */
+bool vcap_keyset_list_add(struct vcap_keyset_list *keysetlist,
+			  enum vcap_keyfield_set keyset);
+
+/* map keyset id to a string with the keyset name */
+const char *vcap_keyset_name(struct vcap_control *vctrl,
+			     enum vcap_keyfield_set keyset);
+/* map key field id to a string with the key name */
+const char *vcap_keyfield_name(struct vcap_control *vctrl,
+			       enum vcap_key_field key);
 
 #endif /* __VCAP_API_CLIENT__ */

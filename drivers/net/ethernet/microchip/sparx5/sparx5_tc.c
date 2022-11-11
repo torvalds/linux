@@ -19,9 +19,14 @@ static int sparx5_tc_block_cb(enum tc_setup_type type,
 {
 	struct net_device *ndev = cb_priv;
 
-	if (type == TC_SETUP_CLSFLOWER)
+	switch (type) {
+	case TC_SETUP_CLSMATCHALL:
+		return sparx5_tc_matchall(ndev, type_data, ingress);
+	case TC_SETUP_CLSFLOWER:
 		return sparx5_tc_flower(ndev, type_data, ingress);
-	return -EOPNOTSUPP;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int sparx5_tc_block_cb_ingress(enum tc_setup_type type,
