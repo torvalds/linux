@@ -1428,6 +1428,12 @@ const struct sdw_intel_hw_ops sdw_intel_cnl_hw_ops = {
 
 	.register_dai = intel_register_dai,
 
+	.check_clock_stop = intel_check_clock_stop,
+	.start_bus = intel_start_bus,
+	.start_bus_after_reset = intel_start_bus_after_reset,
+	.start_bus_after_clock_stop = intel_start_bus_after_clock_stop,
+	.stop_bus = intel_stop_bus,
+
 	.pre_bank_switch = intel_pre_bank_switch,
 	.post_bank_switch = intel_post_bank_switch,
 };
@@ -1622,7 +1628,7 @@ int intel_link_startup(struct auxiliary_device *auxdev)
 	sdw_intel_debugfs_init(sdw);
 
 	/* start bus */
-	ret = intel_start_bus(sdw);
+	ret = sdw_intel_start_bus(sdw);
 	if (ret) {
 		dev_err(dev, "bus start failed: %d\n", ret);
 		goto err_power_up;
@@ -1850,7 +1856,7 @@ static int __maybe_unused intel_suspend(struct device *dev)
 		return 0;
 	}
 
-	ret = intel_stop_bus(sdw, false);
+	ret = sdw_intel_stop_bus(sdw, false);
 	if (ret < 0) {
 		dev_err(dev, "%s: cannot stop bus: %d\n", __func__, ret);
 		return ret;
@@ -1876,14 +1882,14 @@ static int __maybe_unused intel_suspend_runtime(struct device *dev)
 	clock_stop_quirks = sdw->link_res->clock_stop_quirks;
 
 	if (clock_stop_quirks & SDW_INTEL_CLK_STOP_TEARDOWN) {
-		ret = intel_stop_bus(sdw, false);
+		ret = sdw_intel_stop_bus(sdw, false);
 		if (ret < 0) {
 			dev_err(dev, "%s: cannot stop bus during teardown: %d\n",
 				__func__, ret);
 			return ret;
 		}
 	} else if (clock_stop_quirks & SDW_INTEL_CLK_STOP_BUS_RESET || !clock_stop_quirks) {
-		ret = intel_stop_bus(sdw, true);
+		ret = sdw_intel_stop_bus(sdw, true);
 		if (ret < 0) {
 			dev_err(dev, "%s: cannot stop bus during clock_stop: %d\n",
 				__func__, ret);
@@ -1941,7 +1947,7 @@ static int __maybe_unused intel_resume(struct device *dev)
 	 */
 	sdw_clear_slave_status(bus, SDW_UNATTACH_REQUEST_MASTER_RESET);
 
-	ret = intel_start_bus(sdw);
+	ret = sdw_intel_start_bus(sdw);
 	if (ret < 0) {
 		dev_err(dev, "cannot start bus during resume\n");
 		intel_link_power_down(sdw);
@@ -1995,7 +2001,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 		 */
 		sdw_clear_slave_status(bus, SDW_UNATTACH_REQUEST_MASTER_RESET);
 
-		ret = intel_start_bus(sdw);
+		ret = sdw_intel_start_bus(sdw);
 		if (ret < 0) {
 			dev_err(dev, "%s: cannot start bus after teardown: %d\n", __func__, ret);
 			intel_link_power_down(sdw);
@@ -2010,7 +2016,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 			return ret;
 		}
 
-		ret = intel_start_bus_after_reset(sdw);
+		ret = sdw_intel_start_bus_after_reset(sdw);
 		if (ret < 0) {
 			dev_err(dev, "%s: cannot start bus after reset: %d\n", __func__, ret);
 			intel_link_power_down(sdw);
@@ -2018,7 +2024,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 		}
 	} else if (!clock_stop_quirks) {
 
-		intel_check_clock_stop(sdw);
+		sdw_intel_check_clock_stop(sdw);
 
 		ret = intel_link_power_up(sdw);
 		if (ret) {
@@ -2026,7 +2032,7 @@ static int __maybe_unused intel_resume_runtime(struct device *dev)
 			return ret;
 		}
 
-		ret = intel_start_bus_after_clock_stop(sdw);
+		ret = sdw_intel_start_bus_after_clock_stop(sdw);
 		if (ret < 0) {
 			dev_err(dev, "%s: cannot start bus after clock stop: %d\n", __func__, ret);
 			intel_link_power_down(sdw);

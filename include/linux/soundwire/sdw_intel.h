@@ -300,6 +300,11 @@ struct sdw_intel;
  * @debugfs_init: initialize all debugfs capabilities
  * @debugfs_exit: close and cleanup debugfs capabilities
  * @register_dai: read all PDI information and register DAIs
+ * @check_clock_stop: throw error message if clock is not stopped.
+ * @start_bus: normal start
+ * @start_bus_after_reset: start after reset
+ * @start_bus_after_clock_stop: start after mode0 clock stop
+ * @stop_bus: stop all bus
  * @pre_bank_switch: helper for bus management
  * @post_bank_switch: helper for bus management
  */
@@ -308,6 +313,12 @@ struct sdw_intel_hw_ops {
 	void (*debugfs_exit)(struct sdw_intel *sdw);
 
 	int (*register_dai)(struct sdw_intel *sdw);
+
+	void (*check_clock_stop)(struct sdw_intel *sdw);
+	int (*start_bus)(struct sdw_intel *sdw);
+	int (*start_bus_after_reset)(struct sdw_intel *sdw);
+	int (*start_bus_after_clock_stop)(struct sdw_intel *sdw);
+	int (*stop_bus)(struct sdw_intel *sdw, bool clock_stop);
 
 	int (*pre_bank_switch)(struct sdw_intel *sdw);
 	int (*post_bank_switch)(struct sdw_intel *sdw);

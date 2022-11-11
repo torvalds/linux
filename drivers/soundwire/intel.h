@@ -84,4 +84,38 @@ static inline int sdw_intel_register_dai(struct sdw_intel *sdw)
 	return -ENOTSUPP;
 }
 
+static inline void sdw_intel_check_clock_stop(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, check_clock_stop))
+		SDW_INTEL_OPS(sdw, check_clock_stop)(sdw);
+}
+
+static inline int sdw_intel_start_bus(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, start_bus))
+		return SDW_INTEL_OPS(sdw, start_bus)(sdw);
+	return -ENOTSUPP;
+}
+
+static inline int sdw_intel_start_bus_after_reset(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, start_bus_after_reset))
+		return SDW_INTEL_OPS(sdw, start_bus_after_reset)(sdw);
+	return -ENOTSUPP;
+}
+
+static inline int sdw_intel_start_bus_after_clock_stop(struct sdw_intel *sdw)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, start_bus_after_clock_stop))
+		return SDW_INTEL_OPS(sdw, start_bus_after_clock_stop)(sdw);
+	return -ENOTSUPP;
+}
+
+static inline int sdw_intel_stop_bus(struct sdw_intel *sdw, bool clock_stop)
+{
+	if (SDW_INTEL_CHECK_OPS(sdw, stop_bus))
+		return SDW_INTEL_OPS(sdw, stop_bus)(sdw, clock_stop);
+	return -ENOTSUPP;
+}
+
 #endif /* __SDW_INTEL_LOCAL_H */
