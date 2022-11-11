@@ -84,10 +84,9 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 
 	la.pcrel	tp, init_thread_union
 	/* Set the SP after an empty pt_regs.  */
-	PTR_LI		sp, (_THREAD_SIZE - 32 - PT_SIZE)
+	PTR_LI		sp, (_THREAD_SIZE - PT_SIZE)
 	PTR_ADD		sp, sp, tp
 	set_saved_sp	sp, t0, t1
-	PTR_ADDI	sp, sp, -4 * SZREG	# init stack pointer
 
 	bl		start_kernel
 	ASM_BUG()

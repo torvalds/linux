@@ -309,6 +309,7 @@ static void lan966x_fdma_tx_disable(struct lan966x_tx *tx)
 		lan966x, FDMA_CH_DB_DISCARD);
 
 	tx->activated = false;
+	tx->last_in_use = -1;
 }
 
 static void lan966x_fdma_tx_reload(struct lan966x_tx *tx)
@@ -687,17 +688,14 @@ static int lan966x_qsys_sw_status(struct lan966x *lan966x)
 
 static int lan966x_fdma_reload(struct lan966x *lan966x, int new_mtu)
 {
-	void *rx_dcbs, *tx_dcbs, *tx_dcbs_buf;
-	dma_addr_t rx_dma, tx_dma;
+	dma_addr_t rx_dma;
+	void *rx_dcbs;
 	u32 size;
 	int err;
 
 	/* Store these for later to free them */
 	rx_dma = lan966x->rx.dma;
-	tx_dma = lan966x->tx.dma;
 	rx_dcbs = lan966x->rx.dcbs;
-	tx_dcbs = lan966x->tx.dcbs;
-	tx_dcbs_buf = lan966x->tx.dcbs_buf;
 
 	napi_synchronize(&lan966x->napi);
 	napi_disable(&lan966x->napi);
@@ -715,17 +713,6 @@ static int lan966x_fdma_reload(struct lan966x *lan966x, int new_mtu)
 	size = ALIGN(size, PAGE_SIZE);
 	dma_free_coherent(lan966x->dev, size, rx_dcbs, rx_dma);
 
-	lan966x_fdma_tx_disable(&lan966x->tx);
-	err = lan966x_fdma_tx_alloc(&lan966x->tx);
-	if (err)
-		goto restore_tx;
-
-	size = sizeof(struct lan966x_tx_dcb) * FDMA_DCB_MAX;
-	size = ALIGN(size, PAGE_SIZE);
-	dma_free_coherent(lan966x->dev, size, tx_dcbs, tx_dma);
-
-	kfree(tx_dcbs_buf);
-
 	lan966x_fdma_wakeup_netdev(lan966x);
 	napi_enable(&lan966x->napi);
 
@@ -734,11 +721,6 @@ restore:
 	lan966x->rx.dma = rx_dma;
 	lan966x->rx.dcbs = rx_dcbs;
 	lan966x_fdma_rx_start(&lan966x->rx);
-
-restore_tx:
-	lan966x->tx.dma = tx_dma;
-	lan966x->tx.dcbs = tx_dcbs;
-	lan966x->tx.dcbs_buf = tx_dcbs_buf;
 
 	return err;
 }

@@ -524,7 +524,7 @@ static int fimc_capture_release(struct file *file)
 	mutex_lock(&fimc->lock);
 
 	if (close && vc->streaming) {
-		media_pipeline_stop(&vc->ve.vdev.entity);
+		video_device_pipeline_stop(&vc->ve.vdev);
 		vc->streaming = false;
 	}
 
@@ -1176,7 +1176,6 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 {
 	struct fimc_dev *fimc = video_drvdata(file);
 	struct fimc_vid_cap *vc = &fimc->vid_cap;
-	struct media_entity *entity = &vc->ve.vdev.entity;
 	struct fimc_source_info *si = NULL;
 	struct v4l2_subdev *sd;
 	int ret;
@@ -1184,7 +1183,7 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 	if (fimc_capture_active(fimc))
 		return -EBUSY;
 
-	ret = media_pipeline_start(entity, &vc->ve.pipe->mp);
+	ret = video_device_pipeline_start(&vc->ve.vdev, &vc->ve.pipe->mp);
 	if (ret < 0)
 		return ret;
 
@@ -1218,7 +1217,7 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 	}
 
 err_p_stop:
-	media_pipeline_stop(entity);
+	video_device_pipeline_stop(&vc->ve.vdev);
 	return ret;
 }
 
@@ -1234,7 +1233,7 @@ static int fimc_cap_streamoff(struct file *file, void *priv,
 		return ret;
 
 	if (vc->streaming) {
-		media_pipeline_stop(&vc->ve.vdev.entity);
+		video_device_pipeline_stop(&vc->ve.vdev);
 		vc->streaming = false;
 	}
 

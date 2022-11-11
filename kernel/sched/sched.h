@@ -938,6 +938,12 @@ struct uclamp_rq {
 DECLARE_STATIC_KEY_FALSE(sched_uclamp_used);
 #endif /* CONFIG_UCLAMP_TASK */
 
+struct rq;
+struct balance_callback {
+	struct balance_callback *next;
+	void (*func)(struct rq *rq);
+};
+
 /*
  * This is the main, per-CPU runqueue data structure.
  *
@@ -1036,7 +1042,7 @@ struct rq {
 	unsigned long		cpu_capacity;
 	unsigned long		cpu_capacity_orig;
 
-	struct callback_head	*balance_callback;
+	struct balance_callback *balance_callback;
 
 	unsigned char		nohz_idle_balance;
 	unsigned char		idle_balance;
@@ -1182,6 +1188,14 @@ static inline bool is_migration_disabled(struct task_struct *p)
 #endif
 }
 
+DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
+
+#define cpu_rq(cpu)		(&per_cpu(runqueues, (cpu)))
+#define this_rq()		this_cpu_ptr(&runqueues)
+#define task_rq(p)		cpu_rq(task_cpu(p))
+#define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
+#define raw_rq()		raw_cpu_ptr(&runqueues)
+
 struct sched_group;
 #ifdef CONFIG_SCHED_CORE
 static inline struct cpumask *sched_group_span(struct sched_group *sg);
@@ -1269,7 +1283,7 @@ static inline bool sched_group_cookie_match(struct rq *rq,
 		return true;
 
 	for_each_cpu_and(cpu, sched_group_span(group), p->cpus_ptr) {
-		if (sched_core_cookie_match(rq, p))
+		if (sched_core_cookie_match(cpu_rq(cpu), p))
 			return true;
 	}
 	return false;
@@ -1383,14 +1397,6 @@ static inline void update_idle_core(struct rq *rq)
 #else
 static inline void update_idle_core(struct rq *rq) { }
 #endif
-
-DECLARE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
-
-#define cpu_rq(cpu)		(&per_cpu(runqueues, (cpu)))
-#define this_rq()		this_cpu_ptr(&runqueues)
-#define task_rq(p)		cpu_rq(task_cpu(p))
-#define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
-#define raw_rq()		raw_cpu_ptr(&runqueues)
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 static inline struct task_struct *task_of(struct sched_entity *se)
@@ -1544,7 +1550,7 @@ struct rq_flags {
 #endif
 };
 
-extern struct callback_head balance_push_callback;
+extern struct balance_callback balance_push_callback;
 
 /*
  * Lockdep annotation that avoids accidental unlocks; it's like a
@@ -1724,7 +1730,7 @@ init_numa_balancing(unsigned long clone_flags, struct task_struct *p)
 
 static inline void
 queue_balance_callback(struct rq *rq,
-		       struct callback_head *head,
+		       struct balance_callback *head,
 		       void (*func)(struct rq *rq))
 {
 	lockdep_assert_rq_held(rq);
@@ -1737,7 +1743,7 @@ queue_balance_callback(struct rq *rq,
 	if (unlikely(head->next || rq->balance_callback == &balance_push_callback))
 		return;
 
-	head->func = (void (*)(struct callback_head *))func;
+	head->func = func;
 	head->next = rq->balance_callback;
 	rq->balance_callback = head;
 }

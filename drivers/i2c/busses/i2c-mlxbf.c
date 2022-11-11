@@ -2247,7 +2247,6 @@ static struct i2c_adapter_quirks mlxbf_i2c_quirks = {
 	.max_write_len = MLXBF_I2C_MASTER_DATA_W_LENGTH,
 };
 
-#ifdef CONFIG_ACPI
 static const struct acpi_device_id mlxbf_i2c_acpi_ids[] = {
 	{ "MLNXBF03", (kernel_ulong_t)&mlxbf_i2c_chip[MLXBF_I2C_CHIP_TYPE_1] },
 	{ "MLNXBF23", (kernel_ulong_t)&mlxbf_i2c_chip[MLXBF_I2C_CHIP_TYPE_2] },
@@ -2282,12 +2281,6 @@ static int mlxbf_i2c_acpi_probe(struct device *dev, struct mlxbf_i2c_priv *priv)
 
 	return 0;
 }
-#else
-static int mlxbf_i2c_acpi_probe(struct device *dev, struct mlxbf_i2c_priv *priv)
-{
-	return -ENOENT;
-}
-#endif /* CONFIG_ACPI */
 
 static int mlxbf_i2c_probe(struct platform_device *pdev)
 {
@@ -2490,9 +2483,7 @@ static struct platform_driver mlxbf_i2c_driver = {
 	.remove = mlxbf_i2c_remove,
 	.driver = {
 		.name = "i2c-mlxbf",
-#ifdef CONFIG_ACPI
 		.acpi_match_table = ACPI_PTR(mlxbf_i2c_acpi_ids),
-#endif /* CONFIG_ACPI  */
 	},
 };
 

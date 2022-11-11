@@ -8,7 +8,7 @@
 #include <linux/bpf_trace.h>
 #include <net/xdp.h>
 
-#include "mana.h"
+#include <net/mana/mana.h>
 
 void mana_xdp_tx(struct sk_buff *skb, struct net_device *ndev)
 {

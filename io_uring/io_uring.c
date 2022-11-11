@@ -1173,7 +1173,7 @@ static void __cold io_move_task_work_from_local(struct io_ring_ctx *ctx)
 	}
 }
 
-int __io_run_local_work(struct io_ring_ctx *ctx, bool locked)
+int __io_run_local_work(struct io_ring_ctx *ctx, bool *locked)
 {
 	struct llist_node *node;
 	struct llist_node fake;
@@ -1192,7 +1192,7 @@ again:
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    io_task_work.node);
 		prefetch(container_of(next, struct io_kiocb, io_task_work.node));
-		req->io_task_work.func(req, &locked);
+		req->io_task_work.func(req, locked);
 		ret++;
 		node = next;
 	}
@@ -1208,7 +1208,7 @@ again:
 		goto again;
 	}
 
-	if (locked)
+	if (*locked)
 		io_submit_flush_completions(ctx);
 	trace_io_uring_local_work_run(ctx, ret, loops);
 	return ret;
@@ -1225,7 +1225,7 @@ int io_run_local_work(struct io_ring_ctx *ctx)
 
 	__set_current_state(TASK_RUNNING);
 	locked = mutex_trylock(&ctx->uring_lock);
-	ret = __io_run_local_work(ctx, locked);
+	ret = __io_run_local_work(ctx, &locked);
 	if (locked)
 		mutex_unlock(&ctx->uring_lock);
 
@@ -1446,8 +1446,7 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 		    io_task_work_pending(ctx)) {
 			u32 tail = ctx->cached_cq_tail;
 
-			if (!llist_empty(&ctx->work_llist))
-				__io_run_local_work(ctx, true);
+			(void) io_run_local_work_locked(ctx);
 
 			if (task_work_pending(current) ||
 			    wq_list_empty(&ctx->iopoll_list)) {
@@ -1587,8 +1586,6 @@ unsigned int io_file_get_flags(struct file *file)
 		res |= FFS_ISREG;
 	if (__io_file_supports_nowait(file, mode))
 		res |= FFS_NOWAIT;
-	if (io_file_need_scm(file))
-		res |= FFS_SCM;
 	return res;
 }
 
@@ -1860,7 +1857,6 @@ inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 	/* mask in overlapping REQ_F and FFS bits */
 	req->flags |= (file_ptr << REQ_F_SUPPORT_NOWAIT_BIT);
 	io_req_set_rsrc_node(req, ctx, 0);
-	WARN_ON_ONCE(file && !test_bit(fd, ctx->file_table.bitmap));
 out:
 	io_ring_submit_unlock(ctx, issue_flags);
 	return file;
@@ -2563,18 +2559,14 @@ static int io_eventfd_unregister(struct io_ring_ctx *ctx)
 
 static void io_req_caches_free(struct io_ring_ctx *ctx)
 {
-	struct io_submit_state *state = &ctx->submit_state;
 	int nr = 0;
 
 	mutex_lock(&ctx->uring_lock);
-	io_flush_cached_locked_reqs(ctx, state);
+	io_flush_cached_locked_reqs(ctx, &ctx->submit_state);
 
 	while (!io_req_cache_empty(ctx)) {
-		struct io_wq_work_node *node;
-		struct io_kiocb *req;
+		struct io_kiocb *req = io_alloc_req(ctx);
 
-		node = wq_stack_extract(&state->free_list);
-		req = container_of(node, struct io_kiocb, comp_list);
 		kmem_cache_free(req_cachep, req);
 		nr++;
 	}
@@ -2811,15 +2803,12 @@ static __cold void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 		io_poll_remove_all(ctx, NULL, true);
 	mutex_unlock(&ctx->uring_lock);
 
-	/* failed during ring init, it couldn't have issued any requests */
-	if (ctx->rings) {
+	/*
+	 * If we failed setting up the ctx, we might not have any rings
+	 * and therefore did not submit any requests
+	 */
+	if (ctx->rings)
 		io_kill_timeouts(ctx, NULL, true);
-		/* if we failed setting up the ctx, we might not have any rings */
-		io_iopoll_try_reap_events(ctx);
-		/* drop cached put refs after potentially doing completions */
-		if (current->io_uring)
-			io_uring_drop_tctx_refs(current);
-	}
 
 	INIT_WORK(&ctx->exit_work, io_ring_exit_work);
 	/*

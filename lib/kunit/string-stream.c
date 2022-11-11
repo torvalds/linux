@@ -56,8 +56,8 @@ int string_stream_vadd(struct string_stream *stream,
 	frag_container = alloc_string_stream_fragment(stream->test,
 						      len,
 						      stream->gfp);
-	if (!frag_container)
-		return -ENOMEM;
+	if (IS_ERR(frag_container))
+		return PTR_ERR(frag_container);
 
 	len = vsnprintf(frag_container->fragment, len, fmt, args);
 	spin_lock(&stream->lock);

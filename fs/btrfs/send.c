@@ -348,6 +348,7 @@ static bool proto_cmd_ok(const struct send_ctx *sctx, int cmd)
 	switch (sctx->proto) {
 	case 1:	 return cmd <= BTRFS_SEND_C_MAX_V1;
 	case 2:	 return cmd <= BTRFS_SEND_C_MAX_V2;
+	case 3:	 return cmd <= BTRFS_SEND_C_MAX_V3;
 	default: return false;
 	}
 }
@@ -6469,7 +6470,9 @@ static int finish_inode_if_needed(struct send_ctx *sctx, int at_end)
 		if (ret < 0)
 			goto out;
 	}
-	if (sctx->cur_inode_needs_verity) {
+
+	if (proto_cmd_ok(sctx, BTRFS_SEND_C_ENABLE_VERITY)
+	    && sctx->cur_inode_needs_verity) {
 		ret = process_verity(sctx);
 		if (ret < 0)
 			goto out;
