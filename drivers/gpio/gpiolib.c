@@ -4133,7 +4133,8 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 				    con_id, idx, &lookupflags);
 	} else if (is_acpi_node(fwnode)) {
 		dev_dbg(dev, "using ACPI for GPIO lookup\n");
-		desc = acpi_find_gpio(dev, con_id, idx, &flags, &lookupflags);
+		desc = acpi_find_gpio(fwnode,
+				      con_id, idx, &flags, &lookupflags);
 	}
 
 	/*
