@@ -20,6 +20,7 @@ properties:
           - qcom,apq8064-imem
           - qcom,msm8226-imem
           - qcom,msm8974-imem
+          - qcom,msm8976-imem
           - qcom,qcs404-imem
           - qcom,qcs8300-imem
           - qcom,qdu1000-imem
