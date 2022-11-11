@@ -58,8 +58,7 @@
 			 <&cru SCLK_VICAP_M1>, <&cru PCLK_VICAP_VEPU>,
 			 <&cru PCLK_CSIHOST0>, <&cru CLK_RXBYTECLKHS_0>,
 			 <&cru PCLK_CSIHOST1>, <&cru CLK_RXBYTECLKHS_1>,
-			 <&cru CLK_I2C4>, <&cru PCLK_I2C4>,
-			 <&cru MCLK_REF_MIPI0>;
+			 <&cru CLK_I2C4>, <&cru PCLK_I2C4>;
 		clock-names = "aclk_isp", "hclk_isp",
 			      "clk_isp_core", "clk_isp_core_vicap",
 			      "aclk_cif","hclk_cif",
@@ -70,7 +69,7 @@
 			      "sclk_m1_cif", "pclk_vepu_cif",
 			      "pclk_csi2host0", "clk_rxbyte_hs0",
 			      "pclk_csi2host1", "clk_rxbyte_hs1",
-			      "i2c", "pclk", "xvclk";
+			      "i2c", "pclk";
 		status = "okay";
 	};
 
