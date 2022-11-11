@@ -11,6 +11,27 @@
 
 #define INL_HDR_START_SZ (sizeof(((struct mlx5_wqe_eth_seg *)NULL)->inline_hdr.start))
 
+/* IPSEC inline data includes:
+ * 1. ESP trailer: up to 255 bytes of padding, 1 byte for pad length, 1 byte for
+ *    next header.
+ * 2. ESP authentication data: 16 bytes for ICV.
+ */
+#define MLX5E_MAX_TX_IPSEC_DS DIV_ROUND_UP(sizeof(struct mlx5_wqe_inline_seg) + \
+					   255 + 1 + 1 + 16, MLX5_SEND_WQE_DS)
+
+/* 366 should be big enough to cover all L2, L3 and L4 headers with possible
+ * encapsulations.
+ */
+#define MLX5E_MAX_TX_INLINE_DS DIV_ROUND_UP(366 - INL_HDR_START_SZ + VLAN_HLEN, \
+					    MLX5_SEND_WQE_DS)
+
+/* Sync the calculation with mlx5e_sq_calc_wqe_attr. */
+#define MLX5E_MAX_TX_WQEBBS DIV_ROUND_UP(MLX5E_TX_WQE_EMPTY_DS_COUNT + \
+					 MLX5E_MAX_TX_INLINE_DS + \
+					 MLX5E_MAX_TX_IPSEC_DS + \
+					 MAX_SKB_FRAGS + 1, \
+					 MLX5_SEND_WQEBB_NUM_DS)
+
 #define MLX5E_RX_ERR_CQE(cqe) (get_cqe_opcode(cqe) != MLX5_CQE_RESP_SEND)
 
 static inline
@@ -424,6 +445,8 @@ mlx5e_set_eseg_swp(struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg,
 
 static inline u16 mlx5e_stop_room_for_wqe(struct mlx5_core_dev *mdev, u16 wqe_size)
 {
+	WARN_ON_ONCE(PAGE_SIZE / MLX5_SEND_WQE_BB < mlx5e_get_max_sq_wqebbs(mdev));
+
 	/* A WQE must not cross the page boundary, hence two conditions:
 	 * 1. Its size must not exceed the page size.
 	 * 2. If the WQE size is X, and the space remaining in a page is less
@@ -435,7 +458,6 @@ static inline u16 mlx5e_stop_room_for_wqe(struct mlx5_core_dev *mdev, u16 wqe_si
 	WARN_ONCE(wqe_size > mlx5e_get_max_sq_wqebbs(mdev),
 		  "wqe_size %u is greater than max SQ WQEBBs %u",
 		  wqe_size, mlx5e_get_max_sq_wqebbs(mdev));
-
 
 	return MLX5E_STOP_ROOM(wqe_size);
 }

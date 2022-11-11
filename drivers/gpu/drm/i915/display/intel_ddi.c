@@ -43,6 +43,7 @@
 #include "intel_de.h"
 #include "intel_display_power.h"
 #include "intel_display_types.h"
+#include "intel_dkl_phy.h"
 #include "intel_dp.h"
 #include "intel_dp_link_training.h"
 #include "intel_dp_mst.h"
@@ -1262,33 +1263,30 @@ static void tgl_dkl_phy_set_signal_levels(struct intel_encoder *encoder,
 	for (ln = 0; ln < 2; ln++) {
 		int level;
 
-		intel_de_write(dev_priv, HIP_INDEX_REG(tc_port),
-			       HIP_INDEX_VAL(tc_port, ln));
-
-		intel_de_write(dev_priv, DKL_TX_PMD_LANE_SUS(tc_port), 0);
+		intel_dkl_phy_write(dev_priv, DKL_TX_PMD_LANE_SUS(tc_port), ln, 0);
 
 		level = intel_ddi_level(encoder, crtc_state, 2*ln+0);
 
-		intel_de_rmw(dev_priv, DKL_TX_DPCNTL0(tc_port),
-			     DKL_TX_PRESHOOT_COEFF_MASK |
-			     DKL_TX_DE_EMPAHSIS_COEFF_MASK |
-			     DKL_TX_VSWING_CONTROL_MASK,
-			     DKL_TX_PRESHOOT_COEFF(trans->entries[level].dkl.preshoot) |
-			     DKL_TX_DE_EMPHASIS_COEFF(trans->entries[level].dkl.de_emphasis) |
-			     DKL_TX_VSWING_CONTROL(trans->entries[level].dkl.vswing));
+		intel_dkl_phy_rmw(dev_priv, DKL_TX_DPCNTL0(tc_port), ln,
+				  DKL_TX_PRESHOOT_COEFF_MASK |
+				  DKL_TX_DE_EMPAHSIS_COEFF_MASK |
+				  DKL_TX_VSWING_CONTROL_MASK,
+				  DKL_TX_PRESHOOT_COEFF(trans->entries[level].dkl.preshoot) |
+				  DKL_TX_DE_EMPHASIS_COEFF(trans->entries[level].dkl.de_emphasis) |
+				  DKL_TX_VSWING_CONTROL(trans->entries[level].dkl.vswing));
 
 		level = intel_ddi_level(encoder, crtc_state, 2*ln+1);
 
-		intel_de_rmw(dev_priv, DKL_TX_DPCNTL1(tc_port),
-			     DKL_TX_PRESHOOT_COEFF_MASK |
-			     DKL_TX_DE_EMPAHSIS_COEFF_MASK |
-			     DKL_TX_VSWING_CONTROL_MASK,
-			     DKL_TX_PRESHOOT_COEFF(trans->entries[level].dkl.preshoot) |
-			     DKL_TX_DE_EMPHASIS_COEFF(trans->entries[level].dkl.de_emphasis) |
-			     DKL_TX_VSWING_CONTROL(trans->entries[level].dkl.vswing));
+		intel_dkl_phy_rmw(dev_priv, DKL_TX_DPCNTL1(tc_port), ln,
+				  DKL_TX_PRESHOOT_COEFF_MASK |
+				  DKL_TX_DE_EMPAHSIS_COEFF_MASK |
+				  DKL_TX_VSWING_CONTROL_MASK,
+				  DKL_TX_PRESHOOT_COEFF(trans->entries[level].dkl.preshoot) |
+				  DKL_TX_DE_EMPHASIS_COEFF(trans->entries[level].dkl.de_emphasis) |
+				  DKL_TX_VSWING_CONTROL(trans->entries[level].dkl.vswing));
 
-		intel_de_rmw(dev_priv, DKL_TX_DPCNTL2(tc_port),
-			     DKL_TX_DP20BITMODE, 0);
+		intel_dkl_phy_rmw(dev_priv, DKL_TX_DPCNTL2(tc_port), ln,
+				  DKL_TX_DP20BITMODE, 0);
 
 		if (IS_ALDERLAKE_P(dev_priv)) {
 			u32 val;
@@ -1306,10 +1304,10 @@ static void tgl_dkl_phy_set_signal_levels(struct intel_encoder *encoder,
 				val |= DKL_TX_DPCNTL2_CFG_LOADGENSELECT_TX2(0);
 			}
 
-			intel_de_rmw(dev_priv, DKL_TX_DPCNTL2(tc_port),
-				     DKL_TX_DPCNTL2_CFG_LOADGENSELECT_TX1_MASK |
-				     DKL_TX_DPCNTL2_CFG_LOADGENSELECT_TX2_MASK,
-				     val);
+			intel_dkl_phy_rmw(dev_priv, DKL_TX_DPCNTL2(tc_port), ln,
+					  DKL_TX_DPCNTL2_CFG_LOADGENSELECT_TX1_MASK |
+					  DKL_TX_DPCNTL2_CFG_LOADGENSELECT_TX2_MASK,
+					  val);
 		}
 	}
 }
@@ -2019,12 +2017,8 @@ icl_program_mg_dp_mode(struct intel_digital_port *dig_port,
 		return;
 
 	if (DISPLAY_VER(dev_priv) >= 12) {
-		intel_de_write(dev_priv, HIP_INDEX_REG(tc_port),
-			       HIP_INDEX_VAL(tc_port, 0x0));
-		ln0 = intel_de_read(dev_priv, DKL_DP_MODE(tc_port));
-		intel_de_write(dev_priv, HIP_INDEX_REG(tc_port),
-			       HIP_INDEX_VAL(tc_port, 0x1));
-		ln1 = intel_de_read(dev_priv, DKL_DP_MODE(tc_port));
+		ln0 = intel_dkl_phy_read(dev_priv, DKL_DP_MODE(tc_port), 0);
+		ln1 = intel_dkl_phy_read(dev_priv, DKL_DP_MODE(tc_port), 1);
 	} else {
 		ln0 = intel_de_read(dev_priv, MG_DP_MODE(0, tc_port));
 		ln1 = intel_de_read(dev_priv, MG_DP_MODE(1, tc_port));
@@ -2085,12 +2079,8 @@ icl_program_mg_dp_mode(struct intel_digital_port *dig_port,
 	}
 
 	if (DISPLAY_VER(dev_priv) >= 12) {
-		intel_de_write(dev_priv, HIP_INDEX_REG(tc_port),
-			       HIP_INDEX_VAL(tc_port, 0x0));
-		intel_de_write(dev_priv, DKL_DP_MODE(tc_port), ln0);
-		intel_de_write(dev_priv, HIP_INDEX_REG(tc_port),
-			       HIP_INDEX_VAL(tc_port, 0x1));
-		intel_de_write(dev_priv, DKL_DP_MODE(tc_port), ln1);
+		intel_dkl_phy_write(dev_priv, DKL_DP_MODE(tc_port), 0, ln0);
+		intel_dkl_phy_write(dev_priv, DKL_DP_MODE(tc_port), 1, ln1);
 	} else {
 		intel_de_write(dev_priv, MG_DP_MODE(0, tc_port), ln0);
 		intel_de_write(dev_priv, MG_DP_MODE(1, tc_port), ln1);
@@ -3094,10 +3084,8 @@ static void adlp_tbt_to_dp_alt_switch_wa(struct intel_encoder *encoder)
 	enum tc_port tc_port = intel_port_to_tc(i915, encoder->port);
 	int ln;
 
-	for (ln = 0; ln < 2; ln++) {
-		intel_de_write(i915, HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, ln));
-		intel_de_rmw(i915, DKL_PCS_DW5(tc_port), DKL_PCS_DW5_CORE_SOFTRESET, 0);
-	}
+	for (ln = 0; ln < 2; ln++)
+		intel_dkl_phy_rmw(i915, DKL_PCS_DW5(tc_port), ln, DKL_PCS_DW5_CORE_SOFTRESET, 0);
 }
 
 static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp,

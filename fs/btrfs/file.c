@@ -1598,14 +1598,19 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 						write_bytes);
 			else
 				btrfs_check_nocow_unlock(BTRFS_I(inode));
+
+			if (nowait && ret == -ENOSPC)
+				ret = -EAGAIN;
 			break;
 		}
 
 		release_bytes = reserve_bytes;
 again:
 		ret = balance_dirty_pages_ratelimited_flags(inode->i_mapping, bdp_flags);
-		if (ret)
+		if (ret) {
+			btrfs_delalloc_release_extents(BTRFS_I(inode), reserve_bytes);
 			break;
+		}
 
 		/*
 		 * This is going to setup the pages array with the number of
@@ -1765,6 +1770,7 @@ static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 	loff_t endbyte;
 	ssize_t err;
 	unsigned int ilock_flags = 0;
+	struct iomap_dio *dio;
 
 	if (iocb->ki_flags & IOCB_NOWAIT)
 		ilock_flags |= BTRFS_ILOCK_TRY;
@@ -1825,10 +1831,21 @@ relock:
 	 * So here we disable page faults in the iov_iter and then retry if we
 	 * got -EFAULT, faulting in the pages before the retry.
 	 */
-again:
 	from->nofault = true;
-	err = btrfs_dio_rw(iocb, from, written);
+	dio = btrfs_dio_write(iocb, from, written);
 	from->nofault = false;
+
+	/*
+	 * iomap_dio_complete() will call btrfs_sync_file() if we have a dsync
+	 * iocb, and that needs to lock the inode. So unlock it before calling
+	 * iomap_dio_complete() to avoid a deadlock.
+	 */
+	btrfs_inode_unlock(inode, ilock_flags);
+
+	if (IS_ERR_OR_NULL(dio))
+		err = PTR_ERR_OR_ZERO(dio);
+	else
+		err = iomap_dio_complete(dio);
 
 	/* No increment (+=) because iomap returns a cumulative value. */
 	if (err > 0)
@@ -1855,11 +1872,9 @@ again:
 		} else {
 			fault_in_iov_iter_readable(from, left);
 			prev_left = left;
-			goto again;
+			goto relock;
 		}
 	}
-
-	btrfs_inode_unlock(inode, ilock_flags);
 
 	/*
 	 * If 'err' is -ENOTBLK or we have not written all data, then it means
@@ -4035,7 +4050,7 @@ again:
 	 */
 	pagefault_disable();
 	to->nofault = true;
-	ret = btrfs_dio_rw(iocb, to, read);
+	ret = btrfs_dio_read(iocb, to, read);
 	to->nofault = false;
 	pagefault_enable();
 
