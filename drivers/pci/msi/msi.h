@@ -84,6 +84,10 @@ static inline __attribute_const__ u32 msi_multi_mask(struct msi_desc *desc)
 	return (1 << (1 << desc->pci.msi_attrib.multi_cap)) - 1;
 }
 
+/* MSI internal functions invoked from the public APIs */
+void pci_msi_shutdown(struct pci_dev *dev);
+void pci_free_msi_irqs(struct pci_dev *dev);
+
 /* Legacy (!IRQDOMAIN) fallbacks */
 #ifdef CONFIG_PCI_MSI_ARCH_FALLBACKS
 int pci_msi_legacy_setup_msi_irqs(struct pci_dev *dev, int nvec, int type);

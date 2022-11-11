@@ -163,7 +163,7 @@ void pci_write_msi_msg(unsigned int irq, struct msi_msg *msg)
 }
 EXPORT_SYMBOL_GPL(pci_write_msi_msg);
 
-static void free_msi_irqs(struct pci_dev *dev)
+void pci_free_msi_irqs(struct pci_dev *dev)
 {
 	pci_msi_teardown_msi_irqs(dev);
 
@@ -413,7 +413,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec,
 
 err:
 	pci_msi_unmask(entry, msi_multi_mask(entry));
-	free_msi_irqs(dev);
+	pci_free_msi_irqs(dev);
 fail:
 	dev->msi_enabled = 0;
 unlock:
@@ -531,7 +531,7 @@ static int msix_setup_interrupts(struct pci_dev *dev, void __iomem *base,
 	goto out_unlock;
 
 out_free:
-	free_msi_irqs(dev);
+	pci_free_msi_irqs(dev);
 out_unlock:
 	msi_unlock_descs(&dev->dev);
 	kfree(masks);
@@ -680,7 +680,7 @@ int pci_msi_vec_count(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pci_msi_vec_count);
 
-static void pci_msi_shutdown(struct pci_dev *dev)
+void pci_msi_shutdown(struct pci_dev *dev)
 {
 	struct msi_desc *desc;
 
@@ -700,18 +700,6 @@ static void pci_msi_shutdown(struct pci_dev *dev)
 	dev->irq = desc->pci.msi_attrib.default_irq;
 	pcibios_alloc_irq(dev);
 }
-
-void pci_disable_msi(struct pci_dev *dev)
-{
-	if (!pci_msi_enable || !dev || !dev->msi_enabled)
-		return;
-
-	msi_lock_descs(&dev->dev);
-	pci_msi_shutdown(dev);
-	free_msi_irqs(dev);
-	msi_unlock_descs(&dev->dev);
-}
-EXPORT_SYMBOL(pci_disable_msi);
 
 /**
  * pci_msix_vec_count - return the number of device's MSI-X table entries
@@ -797,7 +785,7 @@ void pci_disable_msix(struct pci_dev *dev)
 
 	msi_lock_descs(&dev->dev);
 	pci_msix_shutdown(dev);
-	free_msi_irqs(dev);
+	pci_free_msi_irqs(dev);
 	msi_unlock_descs(&dev->dev);
 }
 EXPORT_SYMBOL(pci_disable_msix);
