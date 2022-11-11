@@ -329,13 +329,15 @@ out:
 
 void intel_huc_fini(struct intel_huc *huc)
 {
-	if (!intel_uc_fw_is_loadable(&huc->fw))
-		return;
-
+	/*
+	 * the fence is initialized in init_early, so we need to clean it up
+	 * even if HuC loading is off.
+	 */
 	delayed_huc_load_complete(huc);
-
 	i915_sw_fence_fini(&huc->delayed_load.fence);
-	intel_uc_fw_fini(&huc->fw);
+
+	if (intel_uc_fw_is_loadable(&huc->fw))
+		intel_uc_fw_fini(&huc->fw);
 }
 
 void intel_huc_suspend(struct intel_huc *huc)
