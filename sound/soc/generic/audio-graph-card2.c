@@ -1272,9 +1272,6 @@ err:
 	if (ret < 0)
 		dev_err_probe(dev, ret, "parse error\n");
 
-	if (ret == 0)
-		dev_warn(dev, "Audio Graph Card2 is still under Experimental stage\n");
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(audio_graph2_parse_of);
