@@ -73,8 +73,7 @@ static int mana_ib_gd_create_mr(struct mana_ib_dev *dev, struct mana_ib_mr *mr,
 	return 0;
 }
 
-static int mana_ib_gd_destroy_mr(struct mana_ib_dev *dev,
-				 gdma_obj_handle_t mr_handle)
+static int mana_ib_gd_destroy_mr(struct mana_ib_dev *dev, u64 mr_handle)
 {
 	struct gdma_destroy_mr_response resp = {};
 	struct gdma_destroy_mr_request req = {};
@@ -108,9 +107,9 @@ struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	struct mana_ib_pd *pd = container_of(ibpd, struct mana_ib_pd, ibpd);
 	struct gdma_create_mr_params mr_params = {};
 	struct ib_device *ibdev = ibpd->device;
-	gdma_obj_handle_t dma_region_handle;
 	struct mana_ib_dev *dev;
 	struct mana_ib_mr *mr;
+	u64 dma_region_handle;
 	int err;
 
 	dev = container_of(ibdev, struct mana_ib_dev, ib_dev);
