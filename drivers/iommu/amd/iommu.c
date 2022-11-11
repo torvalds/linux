@@ -3297,13 +3297,6 @@ static int irq_remapping_alloc(struct irq_domain *domain, unsigned int virq,
 	if (nr_irqs > 1 && info->type != X86_IRQ_ALLOC_TYPE_PCI_MSI)
 		return -EINVAL;
 
-	/*
-	 * With IRQ remapping enabled, don't need contiguous CPU vectors
-	 * to support multiple MSI interrupts.
-	 */
-	if (info->type == X86_IRQ_ALLOC_TYPE_PCI_MSI)
-		info->flags &= ~X86_IRQ_ALLOC_CONTIGUOUS_VECTORS;
-
 	sbdf = get_devid(info);
 	if (sbdf < 0)
 		return -EINVAL;

@@ -161,12 +161,10 @@ int pci_msi_prepare(struct irq_domain *domain, struct device *dev, int nvec,
 		    msi_alloc_info_t *arg)
 {
 	init_irq_alloc_info(arg, NULL);
-	if (to_pci_dev(dev)->msix_enabled) {
+	if (to_pci_dev(dev)->msix_enabled)
 		arg->type = X86_IRQ_ALLOC_TYPE_PCI_MSIX;
-	} else {
+	else
 		arg->type = X86_IRQ_ALLOC_TYPE_PCI_MSI;
-		arg->flags |= X86_IRQ_ALLOC_CONTIGUOUS_VECTORS;
-	}
 
 	return 0;
 }
