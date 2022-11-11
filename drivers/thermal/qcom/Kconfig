@@ -62,3 +62,81 @@ config QTI_BCL_PMIC5
 	  voltage sensors with the thermal core framework and can take
 	  threshold input and notify the thermal core when the threshold is
 	  reached.
+
+config QTI_BCL_SOC_DRIVER
+	tristate "QTI Battery state of charge sensor driver"
+	depends on THERMAL && POWER_SUPPLY
+	help
+	  This driver registers battery state of charge as a sensor with
+	  thermal framework. This sensor can monitor for state of charge
+	  thresholds and notify the thermal framework when the thresholds
+	  are reached and cleared. This will help to monitor and apply any
+	  mitigation when state of charge goes below a certain threshold.
+
+config QTI_POLICY_ENGINE_SENSOR
+	tristate "QTI Policy Engine Sensor device"
+	depends on THERMAL
+	help
+	    This enables the QTI Policy Engine sensor device. This driver will
+	    register the policy engine recommendation with thermal framework as
+	    a sensor. This will enable to provide configuration to mitigate
+	    cooling devices when a recommendation is sent from hardware.
+
+config QTI_QMI_COOLING_DEVICE
+	tristate "QTI QMI cooling devices"
+	depends on QCOM_QMI_HELPERS && THERMAL
+	help
+	   This enables the QTI remote subsystem cooling devices. These cooling
+	   devices will be used by QTI chipset to place various remote
+	   subsystem mitigations like remote processor passive mitigation,
+	   remote subsystem voltage restriction at low temperatures etc.
+	   The QMI cooling device will interface with remote subsystem
+	   using QTI QMI interface.
+
+config QTI_QMI_SENSOR_V2
+	tristate "QTI QMI TS V2 sensor driver"
+	depends on THERMAL_OF
+	select QCOM_QMI_HELPERS
+	help
+	   This enables to list the QTI remote subsystem temperature sensors
+	   with QMI TS V2 interface. This driver can read the temperature of
+	   the remote sensor. These sensors can take thresholds and notify the
+	   thermal framework when the threshold is reached.
+
+config QTI_CPU_VOLTAGE_COOLING_DEVICE
+	tristate "QTI CPU VOLTAGE cooling devices"
+	depends on CPU_FREQ && THERMAL
+	help
+	    This enables the QTI CPU Voltage cooling devices. This cooling
+	    device will allow the CPUs with different frequency plan in a
+	    cluster to be mitigated together based on the voltages. This will
+	    decrease or increase the voltages in a cluster based on thermal
+	    conditions.
+
+config QTI_CPU_HOTPLUG_COOLING_DEVICE
+	tristate "QTI CPU Hotplug cooling devices"
+	depends on THERMAL && HOTPLUG_CPU
+	help
+	   This enables the QTI CPU Hotplug cooling devices. These cooling
+	   devices will be used by QTI chipset to hotplug a CPU to achieve
+	   thermal cooling. CPU Hotplug will be done after core isolation,
+	   to prevent any process from waking the mitigated CPU.
+
+config QTI_DDR_COOLING_DEVICE
+	tristate "QTI DDR cooling devices"
+	depends on THERMAL && INTERCONNECT
+	help
+	   This enables the QTI DDR cooling devices. These cooling
+	   devices will be used by QTI chipset to place a DDR state request
+	   to meet the performance requirement under thermally constrained
+	   conditions.
+
+config QTI_USERSPACE_CDEV
+	tristate "QTI Userspace cooling device"
+	depends on THERMAL_OF
+	help
+	   This enables the QTI userspace cooling device, which will help
+	   send the mitigation notification via thermal framework netlink
+	   socket, so that userspace cooling device can perform a mitigation
+	   action.
+

@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/ipc_logging.h>
+#include "thermal_zone_internal.h"
 
 #define BCL_DRIVER_NAME       "bcl_pmic5"
 #define BCL_MONITOR_EN        0x46
@@ -799,6 +800,7 @@ static void bcl_lvl_init(struct platform_device *pdev,
 		return;
 	}
 	thermal_zone_device_update(lbat->tz_dev, THERMAL_DEVICE_UP);
+	qti_update_tz_ops(lbat->tz_dev, true);
 }
 
 static void bcl_probe_lvls(struct platform_device *pdev,
@@ -856,6 +858,7 @@ static int bcl_remove(struct platform_device *pdev)
 			continue;
 		thermal_zone_of_sensor_unregister(&pdev->dev,
 				bcl_perph->param[i].tz_dev);
+		qti_update_tz_ops(bcl_perph->param[i].tz_dev, false);
 	}
 
 	return 0;
