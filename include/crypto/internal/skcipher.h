@@ -14,6 +14,14 @@
 #include <linux/list.h>
 #include <linux/types.h>
 
+/*
+ * Set this if your algorithm is sync but needs a reqsize larger
+ * than MAX_SYNC_SKCIPHER_REQSIZE.
+ *
+ * Reuse bit that is specific to hash algorithms.
+ */
+#define CRYPTO_ALG_SKCIPHER_REQSIZE_LARGE CRYPTO_ALG_OPTIONAL_KEY
+
 struct aead_request;
 struct rtattr;
 
