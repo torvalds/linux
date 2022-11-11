@@ -238,15 +238,6 @@ static inline void msi_desc_set_iommu_cookie(struct msi_desc *desc,
 }
 #endif
 
-#ifdef CONFIG_PCI_MSI
-struct pci_dev *msi_desc_to_pci_dev(struct msi_desc *desc);
-void pci_write_msi_msg(unsigned int irq, struct msi_msg *msg);
-#else /* CONFIG_PCI_MSI */
-static inline void pci_write_msi_msg(unsigned int irq, struct msi_msg *msg)
-{
-}
-#endif /* CONFIG_PCI_MSI */
-
 int msi_add_msi_desc(struct device *dev, struct msi_desc *init_desc);
 void msi_free_msi_descs_range(struct device *dev, unsigned int first_index, unsigned int last_index);
 
@@ -258,12 +249,6 @@ static inline void msi_free_msi_descs(struct device *dev)
 {
 	msi_free_msi_descs_range(dev, 0, MSI_MAX_INDEX);
 }
-
-void __pci_read_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
-void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
-
-void pci_msi_mask_irq(struct irq_data *data);
-void pci_msi_unmask_irq(struct irq_data *data);
 
 /*
  * The arch hooks to setup up msi irqs. Default functions are implemented
@@ -468,18 +453,26 @@ void platform_msi_device_domain_free(struct irq_domain *domain, unsigned int vir
 void *platform_msi_get_host_data(struct irq_domain *domain);
 #endif /* CONFIG_GENERIC_MSI_IRQ_DOMAIN */
 
-#ifdef CONFIG_PCI_MSI_IRQ_DOMAIN
+/* PCI specific interfaces */
+#ifdef CONFIG_PCI_MSI
+struct pci_dev *msi_desc_to_pci_dev(struct msi_desc *desc);
+void pci_write_msi_msg(unsigned int irq, struct msi_msg *msg);
+void __pci_read_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
+void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
+void pci_msi_mask_irq(struct irq_data *data);
+void pci_msi_unmask_irq(struct irq_data *data);
 struct irq_domain *pci_msi_create_irq_domain(struct fwnode_handle *fwnode,
 					     struct msi_domain_info *info,
 					     struct irq_domain *parent);
 u32 pci_msi_domain_get_msi_rid(struct irq_domain *domain, struct pci_dev *pdev);
 struct irq_domain *pci_msi_get_device_domain(struct pci_dev *pdev);
 bool pci_dev_has_special_msi_domain(struct pci_dev *pdev);
-#else
+#else /* CONFIG_PCI_MSI */
 static inline struct irq_domain *pci_msi_get_device_domain(struct pci_dev *pdev)
 {
 	return NULL;
 }
-#endif /* CONFIG_PCI_MSI_IRQ_DOMAIN */
+static inline void pci_write_msi_msg(unsigned int irq, struct msi_msg *msg) { }
+#endif /* !CONFIG_PCI_MSI */
 
 #endif /* LINUX_MSI_H */
