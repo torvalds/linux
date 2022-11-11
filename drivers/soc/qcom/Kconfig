@@ -631,6 +631,17 @@ config QCOM_CPU_VENDOR_HOOKS
           having scope to upstream.
           If unsure, say N.
 
+config QCOM_MEM_OFFLINE
+	tristate "Dynamic Memory Region Offline driver"
+	depends on MEMORY_HOTPLUG
+	help
+	  Add support for DDR Self-Refresh power management through the dynamic
+	  memory offline framework. This driver interfaces between the memory
+	  hotplug subsystem and AOP which hot adds or removes memory blocks and
+	  controls the start/stop of self-refresh of these DDR regions. This
+	  helps reduce power consumption during idle mode of the system.
+	  If unsure, say N
+
 config QCOM_HUNG_TASK_ENH
         tristate "QTI Hung Task Enhancement"
         depends on ARCH_QCOM
