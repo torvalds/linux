@@ -27,6 +27,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 	enum rxrpc_congest_change change = rxrpc_cong_no_change;
 	unsigned int cumulative_acks = call->cong_cumul_acks;
 	unsigned int cwnd = call->cong_cwnd;
+	ktime_t now;
 	bool resend = false;
 
 	summary->flight_size =
@@ -59,13 +60,15 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 	/* If we haven't transmitted anything for >1RTT, we should reset the
 	 * congestion management state.
 	 */
+	now = ktime_get_real();
 	if ((call->cong_mode == RXRPC_CALL_SLOW_START ||
 	     call->cong_mode == RXRPC_CALL_CONGEST_AVOIDANCE) &&
 	    ktime_before(ktime_add_us(call->tx_last_sent,
-				      call->peer->srtt_us >> 3),
-			 ktime_get_real())
+				      call->peer->srtt_us >> 3), now)
 	    ) {
+		trace_rxrpc_reset_cwnd(call, now);
 		change = rxrpc_cong_idle_reset;
+		rxrpc_inc_stat(call->rxnet, stat_tx_data_cwnd_reset);
 		summary->mode = RXRPC_CALL_SLOW_START;
 		if (RXRPC_TX_SMSS > 2190)
 			summary->cwnd = 2;

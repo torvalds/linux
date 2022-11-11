@@ -317,8 +317,10 @@ static void rxrpc_transmit_some_data(struct rxrpc_call *call)
 	case RXRPC_CALL_CLIENT_AWAIT_REPLY:
 		if (!rxrpc_tx_window_has_space(call))
 			return;
-		if (list_empty(&call->tx_sendmsg))
+		if (list_empty(&call->tx_sendmsg)) {
+			rxrpc_inc_stat(call->rxnet, stat_tx_data_underflow);
 			return;
+		}
 		rxrpc_decant_prepared_tx(call);
 		break;
 	default:

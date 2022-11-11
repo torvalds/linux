@@ -1446,6 +1446,44 @@ TRACE_EVENT(rxrpc_congest,
 		      __entry->sum.retrans_timeo ? " rTxTo" : "")
 	    );
 
+TRACE_EVENT(rxrpc_reset_cwnd,
+	    TP_PROTO(struct rxrpc_call *call, ktime_t now),
+
+	    TP_ARGS(call, now),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,			call		)
+		    __field(enum rxrpc_congest_mode,		mode		)
+		    __field(unsigned short,			cwnd		)
+		    __field(unsigned short,			extra		)
+		    __field(rxrpc_seq_t,			hard_ack	)
+		    __field(rxrpc_seq_t,			prepared	)
+		    __field(ktime_t,				since_last_tx	)
+		    __field(bool,				has_data	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call	= call->debug_id;
+		    __entry->mode	= call->cong_mode;
+		    __entry->cwnd	= call->cong_cwnd;
+		    __entry->extra	= call->cong_extra;
+		    __entry->hard_ack	= call->acks_hard_ack;
+		    __entry->prepared	= call->tx_prepared - call->tx_bottom;
+		    __entry->since_last_tx = ktime_sub(now, call->tx_last_sent);
+		    __entry->has_data	= !list_empty(&call->tx_sendmsg);
+			   ),
+
+	    TP_printk("c=%08x q=%08x %s cw=%u+%u pr=%u tm=%llu d=%u",
+		      __entry->call,
+		      __entry->hard_ack,
+		      __print_symbolic(__entry->mode, rxrpc_congest_modes),
+		      __entry->cwnd,
+		      __entry->extra,
+		      __entry->prepared,
+		      ktime_to_ns(__entry->since_last_tx),
+		      __entry->has_data)
+	    );
+
 TRACE_EVENT(rxrpc_disconnect_call,
 	    TP_PROTO(struct rxrpc_call *call),
 

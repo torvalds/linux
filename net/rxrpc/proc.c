@@ -398,13 +398,16 @@ int rxrpc_stats_show(struct seq_file *seq, void *v)
 	struct rxrpc_net *rxnet = rxrpc_net(seq_file_single_net(seq));
 
 	seq_printf(seq,
-		   "Data     : send=%u sendf=%u\n",
+		   "Data     : send=%u sendf=%u fail=%u\n",
 		   atomic_read(&rxnet->stat_tx_data_send),
-		   atomic_read(&rxnet->stat_tx_data_send_frag));
+		   atomic_read(&rxnet->stat_tx_data_send_frag),
+		   atomic_read(&rxnet->stat_tx_data_send_fail));
 	seq_printf(seq,
-		   "Data-Tx  : nr=%u retrans=%u\n",
+		   "Data-Tx  : nr=%u retrans=%u uf=%u cwr=%u\n",
 		   atomic_read(&rxnet->stat_tx_data),
-		   atomic_read(&rxnet->stat_tx_data_retrans));
+		   atomic_read(&rxnet->stat_tx_data_retrans),
+		   atomic_read(&rxnet->stat_tx_data_underflow),
+		   atomic_read(&rxnet->stat_tx_data_cwnd_reset));
 	seq_printf(seq,
 		   "Data-Rx  : nr=%u reqack=%u jumbo=%u\n",
 		   atomic_read(&rxnet->stat_rx_data),
@@ -472,8 +475,11 @@ int rxrpc_stats_clear(struct file *file, char *buf, size_t size)
 
 	atomic_set(&rxnet->stat_tx_data, 0);
 	atomic_set(&rxnet->stat_tx_data_retrans, 0);
+	atomic_set(&rxnet->stat_tx_data_underflow, 0);
+	atomic_set(&rxnet->stat_tx_data_cwnd_reset, 0);
 	atomic_set(&rxnet->stat_tx_data_send, 0);
 	atomic_set(&rxnet->stat_tx_data_send_frag, 0);
+	atomic_set(&rxnet->stat_tx_data_send_fail, 0);
 	atomic_set(&rxnet->stat_rx_data, 0);
 	atomic_set(&rxnet->stat_rx_data_reqack, 0);
 	atomic_set(&rxnet->stat_rx_data_jumbo, 0);
