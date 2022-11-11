@@ -470,35 +470,12 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node) __assume_kmalloc_alignm
 void *kmem_cache_alloc_node(struct kmem_cache *s, gfp_t flags, int node) __assume_slab_alignment
 									 __malloc;
 
-#ifdef CONFIG_TRACING
 void *kmalloc_trace(struct kmem_cache *s, gfp_t flags, size_t size)
 		    __assume_kmalloc_alignment __alloc_size(3);
 
 void *kmalloc_node_trace(struct kmem_cache *s, gfp_t gfpflags,
 			 int node, size_t size) __assume_kmalloc_alignment
 						__alloc_size(4);
-#else /* CONFIG_TRACING */
-/* Save a function call when CONFIG_TRACING=n */
-static __always_inline __alloc_size(3)
-void *kmalloc_trace(struct kmem_cache *s, gfp_t flags, size_t size)
-{
-	void *ret = kmem_cache_alloc(s, flags);
-
-	ret = kasan_kmalloc(s, ret, size, flags);
-	return ret;
-}
-
-static __always_inline __alloc_size(4)
-void *kmalloc_node_trace(struct kmem_cache *s, gfp_t gfpflags,
-			 int node, size_t size)
-{
-	void *ret = kmem_cache_alloc_node(s, gfpflags, node);
-
-	ret = kasan_kmalloc(s, ret, size, gfpflags);
-	return ret;
-}
-#endif /* CONFIG_TRACING */
-
 void *kmalloc_large(size_t size, gfp_t flags) __assume_page_alignment
 					      __alloc_size(1);
 
