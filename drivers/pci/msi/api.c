@@ -9,6 +9,7 @@
  */
 
 #include <linux/export.h>
+#include <linux/irq.h>
 
 #include "msi.h"
 
@@ -249,6 +250,48 @@ int pci_irq_vector(struct pci_dev *dev, unsigned int nr)
 	return irq ? irq : -EINVAL;
 }
 EXPORT_SYMBOL(pci_irq_vector);
+
+/**
+ * pci_irq_get_affinity() - Get a device interrupt vector affinity
+ * @dev: the PCI device to operate on
+ * @nr:  device-relative interrupt vector index (0-based); has different
+ *       meanings, depending on interrupt mode
+ *         MSI-X        the index in the MSI-X vector table
+ *         MSI          the index of the enabled MSI vectors
+ *         INTx         must be 0
+ *
+ * Return: MSI/MSI-X vector affinity, NULL if @nr is out of range or if
+ * the MSI(-X) vector was allocated without explicit affinity
+ * requirements (e.g., by pci_enable_msi(), pci_enable_msix_range(), or
+ * pci_alloc_irq_vectors() without the %PCI_IRQ_AFFINITY flag). Return a
+ * generic set of CPU IDs representing all possible CPUs available
+ * during system boot if the device is in legacy INTx mode.
+ */
+const struct cpumask *pci_irq_get_affinity(struct pci_dev *dev, int nr)
+{
+	int idx, irq = pci_irq_vector(dev, nr);
+	struct msi_desc *desc;
+
+	if (WARN_ON_ONCE(irq <= 0))
+		return NULL;
+
+	desc = irq_get_msi_desc(irq);
+	/* Non-MSI does not have the information handy */
+	if (!desc)
+		return cpu_possible_mask;
+
+	/* MSI[X] interrupts can be allocated without affinity descriptor */
+	if (!desc->affinity)
+		return NULL;
+
+	/*
+	 * MSI has a mask array in the descriptor.
+	 * MSI-X has a single mask.
+	 */
+	idx = dev->msi_enabled ? nr : 0;
+	return &desc->affinity[idx].mask;
+}
+EXPORT_SYMBOL(pci_irq_get_affinity);
 
 /**
  * pci_free_irq_vectors() - Free previously allocated IRQs for a device
