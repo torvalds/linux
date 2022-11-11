@@ -941,6 +941,16 @@ int vcap_val_rule(struct vcap_rule *rule, u16 l3_proto)
 }
 EXPORT_SYMBOL_GPL(vcap_val_rule);
 
+/* Entries are sorted with increasing values of sort_key.
+ * I.e. Lowest numerical sort_key is first in list.
+ * In order to locate largest keys first in list we negate the key size with
+ * (max_size - size).
+ */
+static u32 vcap_sort_key(u32 max_size, u32 size, u8 user, u16 prio)
+{
+	return ((max_size - size) << 24) | (user << 16) | prio;
+}
+
 /* calculate the address of the next rule after this (lower address and prio) */
 static u32 vcap_next_rule_addr(u32 addr, struct vcap_rule_internal *ri)
 {
@@ -970,17 +980,67 @@ static u32 vcap_set_rule_id(struct vcap_rule_internal *ri)
 static int vcap_insert_rule(struct vcap_rule_internal *ri,
 			    struct vcap_rule_move *move)
 {
+	int sw_count = ri->vctrl->vcaps[ri->admin->vtype].sw_count;
+	struct vcap_rule_internal *duprule, *iter, *elem = NULL;
 	struct vcap_admin *admin = ri->admin;
-	struct vcap_rule_internal *duprule;
+	u32 addr;
 
-	/* Only support appending rules for now */
-	ri->addr = vcap_next_rule_addr(admin->last_used_addr, ri);
-	admin->last_used_addr = ri->addr;
+	ri->sort_key = vcap_sort_key(sw_count, ri->size, ri->data.user,
+				     ri->data.priority);
+
+	/* Insert the new rule in the list of rule based on the sort key
+	 * If the rule needs to be  inserted between existing rules then move
+	 * these rules to make room for the new rule and update their start
+	 * address.
+	 */
+	list_for_each_entry(iter, &admin->rules, list) {
+		if (ri->sort_key < iter->sort_key) {
+			elem = iter;
+			break;
+		}
+	}
+
+	if (!elem) {
+		ri->addr = vcap_next_rule_addr(admin->last_used_addr, ri);
+		admin->last_used_addr = ri->addr;
+
+		/* Add a shallow copy of the rule to the VCAP list */
+		duprule = vcap_dup_rule(ri);
+		if (IS_ERR(duprule))
+			return PTR_ERR(duprule);
+
+		list_add_tail(&duprule->list, &admin->rules);
+		return 0;
+	}
+
+	/* Reuse the space of the current rule */
+	addr = elem->addr + elem->size;
+	ri->addr = vcap_next_rule_addr(addr, ri);
+	addr = ri->addr;
+
 	/* Add a shallow copy of the rule to the VCAP list */
 	duprule = vcap_dup_rule(ri);
 	if (IS_ERR(duprule))
 		return PTR_ERR(duprule);
-	list_add_tail(&duprule->list, &admin->rules);
+
+	/* Add before the current entry */
+	list_add_tail(&duprule->list, &elem->list);
+
+	/* Update the current rule */
+	elem->addr = vcap_next_rule_addr(addr, elem);
+	addr = elem->addr;
+
+	/* Update the address in the remaining rules in the list */
+	list_for_each_entry_continue(elem, &admin->rules, list) {
+		elem->addr = vcap_next_rule_addr(addr, elem);
+		addr = elem->addr;
+	}
+
+	/* Update the move info */
+	move->addr = admin->last_used_addr;
+	move->count = ri->addr - addr;
+	move->offset = admin->last_used_addr - addr;
+	admin->last_used_addr = addr;
 	return 0;
 }
 
@@ -1032,8 +1092,11 @@ struct vcap_rule *vcap_alloc_rule(struct vcap_control *vctrl,
 {
 	struct vcap_rule_internal *ri;
 	struct vcap_admin *admin;
-	int maxsize;
+	int err, maxsize;
 
+	err = vcap_api_check(vctrl);
+	if (err)
+		return ERR_PTR(err);
 	if (!ndev)
 		return ERR_PTR(-ENODEV);
 	/* Get the VCAP instance */
@@ -1098,12 +1161,57 @@ void vcap_free_rule(struct vcap_rule *rule)
 }
 EXPORT_SYMBOL_GPL(vcap_free_rule);
 
+/* Return the alignment offset for a new rule address */
+static int vcap_valid_rule_move(struct vcap_rule_internal *el, int offset)
+{
+	return (el->addr + offset) % el->size;
+}
+
+/* Update the rule address with an offset */
+static void vcap_adjust_rule_addr(struct vcap_rule_internal *el, int offset)
+{
+	el->addr += offset;
+}
+
+/* Rules needs to be moved to fill the gap of the deleted rule */
+static int vcap_fill_rule_gap(struct vcap_rule_internal *ri)
+{
+	struct vcap_admin *admin = ri->admin;
+	struct vcap_rule_internal *elem;
+	struct vcap_rule_move move;
+	int gap = 0, offset = 0;
+
+	/* If the first rule is deleted: Move other rules to the top */
+	if (list_is_first(&ri->list, &admin->rules))
+		offset = admin->last_valid_addr + 1 - ri->addr - ri->size;
+
+	/* Locate gaps between odd size rules and adjust the move */
+	elem = ri;
+	list_for_each_entry_continue(elem, &admin->rules, list)
+		gap += vcap_valid_rule_move(elem, ri->size);
+
+	/* Update the address in the remaining rules in the list */
+	elem = ri;
+	list_for_each_entry_continue(elem, &admin->rules, list)
+		vcap_adjust_rule_addr(elem, ri->size + gap + offset);
+
+	/* Update the move info */
+	move.addr = admin->last_used_addr;
+	move.count = ri->addr - admin->last_used_addr - gap;
+	move.offset = -(ri->size + gap + offset);
+
+	/* Do the actual move operation */
+	vcap_move_rules(ri, &move);
+
+	return gap + offset;
+}
+
 /* Delete rule in a VCAP instance */
 int vcap_del_rule(struct vcap_control *vctrl, struct net_device *ndev, u32 id)
 {
 	struct vcap_rule_internal *ri, *elem;
 	struct vcap_admin *admin;
-	int err;
+	int gap = 0, err;
 
 	/* This will later also handle rule moving */
 	if (!ndev)
@@ -1116,18 +1224,23 @@ int vcap_del_rule(struct vcap_control *vctrl, struct net_device *ndev, u32 id)
 	if (!ri)
 		return -EINVAL;
 	admin = ri->admin;
-	list_del(&ri->list);
 
-	/* delete the rule in the cache */
-	vctrl->ops->init(ndev, admin, ri->addr, ri->size);
+	if (ri->addr > admin->last_used_addr)
+		gap = vcap_fill_rule_gap(ri);
+
+	/* Delete the rule from the list of rules and the cache */
+	list_del(&ri->list);
+	vctrl->ops->init(ndev, admin, admin->last_used_addr, ri->size + gap);
+	kfree(ri);
+
+	/* Update the last used address */
 	if (list_empty(&admin->rules)) {
 		admin->last_used_addr = admin->last_valid_addr;
 	} else {
-		/* update the address range end marker from the last rule in the list */
-		elem = list_last_entry(&admin->rules, struct vcap_rule_internal, list);
+		elem = list_last_entry(&admin->rules, struct vcap_rule_internal,
+				       list);
 		admin->last_used_addr = elem->addr;
 	}
-	kfree(ri);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vcap_del_rule);

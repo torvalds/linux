@@ -477,7 +477,32 @@ static void sparx5_vcap_update(struct net_device *ndev,
 static void sparx5_vcap_move(struct net_device *ndev, struct vcap_admin *admin,
 			     u32 addr, int offset, int count)
 {
-	/* this will be added later */
+	struct sparx5_port *port = netdev_priv(ndev);
+	struct sparx5 *sparx5 = port->sparx5;
+	enum vcap_command cmd;
+	u16 mv_num_pos;
+	u16 mv_size;
+
+	mv_size = count - 1;
+	if (offset > 0) {
+		mv_num_pos = offset - 1;
+		cmd = VCAP_CMD_MOVE_DOWN;
+	} else {
+		mv_num_pos = -offset - 1;
+		cmd = VCAP_CMD_MOVE_UP;
+	}
+	spx5_wr(VCAP_SUPER_CFG_MV_NUM_POS_SET(mv_num_pos) |
+		VCAP_SUPER_CFG_MV_SIZE_SET(mv_size),
+		sparx5, VCAP_SUPER_CFG);
+	spx5_wr(VCAP_SUPER_CTRL_UPDATE_CMD_SET(cmd) |
+		VCAP_SUPER_CTRL_UPDATE_ENTRY_DIS_SET(0) |
+		VCAP_SUPER_CTRL_UPDATE_ACTION_DIS_SET(0) |
+		VCAP_SUPER_CTRL_UPDATE_CNT_DIS_SET(0) |
+		VCAP_SUPER_CTRL_UPDATE_ADDR_SET(addr) |
+		VCAP_SUPER_CTRL_CLEAR_CACHE_SET(false) |
+		VCAP_SUPER_CTRL_UPDATE_SHOT_SET(true),
+		sparx5, VCAP_SUPER_CTRL);
+	sparx5_vcap_wait_super_update(sparx5);
 }
 
 /* Provide port information via a callback interface */
