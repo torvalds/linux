@@ -112,6 +112,30 @@ int pci_enable_msix_range(struct pci_dev *dev, struct msix_entry *entries,
 EXPORT_SYMBOL(pci_enable_msix_range);
 
 /**
+ * pci_disable_msix() - Disable MSI-X interrupt mode on device
+ * @dev: the PCI device to operate on
+ *
+ * Legacy device driver API to disable MSI-X interrupt mode on device,
+ * free earlier-allocated interrupt vectors, and restore INTx.
+ * The PCI device Linux IRQ (@dev->irq) is restored to its default pin
+ * assertion IRQ. This is the cleanup pair of pci_enable_msix_range().
+ *
+ * NOTE: The newer pci_alloc_irq_vectors() / pci_free_irq_vectors() API
+ * pair should, in general, be used instead.
+ */
+void pci_disable_msix(struct pci_dev *dev)
+{
+	if (!pci_msi_enabled() || !dev || !dev->msix_enabled)
+		return;
+
+	msi_lock_descs(&dev->dev);
+	pci_msix_shutdown(dev);
+	pci_free_msi_irqs(dev);
+	msi_unlock_descs(&dev->dev);
+}
+EXPORT_SYMBOL(pci_disable_msix);
+
+/**
  * pci_alloc_irq_vectors() - Allocate multiple device interrupt vectors
  * @dev:      the PCI device to operate on
  * @min_vecs: minimum required number of vectors (must be >= 1)
