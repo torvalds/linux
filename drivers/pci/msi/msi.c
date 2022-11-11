@@ -935,6 +935,11 @@ static int __pci_enable_msix_range(struct pci_dev *dev,
 	if (maxvec < minvec)
 		return -ERANGE;
 
+	if (dev->msi_enabled) {
+		pci_info(dev, "can't enable MSI-X (MSI already enabled)\n");
+		return -EINVAL;
+	}
+
 	if (WARN_ON_ONCE(dev->msix_enabled))
 		return -EINVAL;
 
