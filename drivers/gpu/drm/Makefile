@@ -72,7 +72,6 @@ drm-$(CONFIG_DRM_PRIVACY_SCREEN) += \
 	drm_privacy_screen_x86.o
 obj-$(CONFIG_DRM)	+= drm.o
 
-obj-$(CONFIG_DRM_NOMODESET) += drm_nomodeset.o
 obj-$(CONFIG_DRM_PANEL_ORIENTATION_QUIRKS) += drm_panel_orientation_quirks.o
 
 #
