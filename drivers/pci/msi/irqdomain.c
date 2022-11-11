@@ -64,51 +64,6 @@ static irq_hw_number_t pci_msi_domain_calc_hwirq(struct msi_desc *desc)
 		(pci_domain_nr(dev->bus) & 0xFFFFFFFF) << 27;
 }
 
-static inline bool pci_msi_desc_is_multi_msi(struct msi_desc *desc)
-{
-	return !desc->pci.msi_attrib.is_msix && desc->nvec_used > 1;
-}
-
-/**
- * pci_msi_domain_check_cap - Verify that @domain supports the capabilities
- *			      for @dev
- * @domain:	The interrupt domain to check
- * @info:	The domain info for verification
- * @dev:	The device to check
- *
- * Returns:
- *  0 if the functionality is supported
- *  1 if Multi MSI is requested, but the domain does not support it
- *  -ENOTSUPP otherwise
- */
-static int pci_msi_domain_check_cap(struct irq_domain *domain,
-				    struct msi_domain_info *info,
-				    struct device *dev)
-{
-	struct msi_desc *desc = msi_first_desc(dev, MSI_DESC_ALL);
-
-	/* Special handling to support __pci_enable_msi_range() */
-	if (pci_msi_desc_is_multi_msi(desc) &&
-	    !(info->flags & MSI_FLAG_MULTI_PCI_MSI))
-		return 1;
-
-	if (desc->pci.msi_attrib.is_msix) {
-		if (!(info->flags & MSI_FLAG_PCI_MSIX))
-			return -ENOTSUPP;
-
-		if (info->flags & MSI_FLAG_MSIX_CONTIGUOUS) {
-			unsigned int idx = 0;
-
-			/* Check for gaps in the entry indices */
-			msi_for_each_desc(desc, dev, MSI_DESC_ALL) {
-				if (desc->msi_index != idx++)
-					return -ENOTSUPP;
-			}
-		}
-	}
-	return 0;
-}
-
 static void pci_msi_domain_set_desc(msi_alloc_info_t *arg,
 				    struct msi_desc *desc)
 {
@@ -118,7 +73,6 @@ static void pci_msi_domain_set_desc(msi_alloc_info_t *arg,
 
 static struct msi_domain_ops pci_msi_domain_ops_default = {
 	.set_desc	= pci_msi_domain_set_desc,
-	.msi_check	= pci_msi_domain_check_cap,
 };
 
 static void pci_msi_domain_update_dom_ops(struct msi_domain_info *info)
@@ -130,8 +84,6 @@ static void pci_msi_domain_update_dom_ops(struct msi_domain_info *info)
 	} else {
 		if (ops->set_desc == NULL)
 			ops->set_desc = pci_msi_domain_set_desc;
-		if (ops->msi_check == NULL)
-			ops->msi_check = pci_msi_domain_check_cap;
 	}
 }
 
