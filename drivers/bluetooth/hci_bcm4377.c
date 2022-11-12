@@ -2306,7 +2306,7 @@ static int bcm4377_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	msleep(100);
 
-	ret = pci_enable_device(pdev);
+	ret = pcim_enable_device(pdev);
 	if (ret)
 		return ret;
 	pci_set_master(pdev);
