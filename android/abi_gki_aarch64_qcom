@@ -908,7 +908,9 @@
   kstrndup
   kstrtobool
   kstrtoint
+  kstrtoint_from_user
   kstrtoll
+  kstrtos8_from_user
   kstrtou16
   kstrtou16_from_user
   kstrtou8
@@ -999,6 +1001,7 @@
   module_layout
   module_put
   __msecs_to_jiffies
+  msi_get_virq
   msleep
   msleep_interruptible
   __mutex_init
@@ -1255,6 +1258,8 @@
   platform_get_resource_byname
   platform_irqchip_probe
   platform_irq_count
+  platform_msi_domain_alloc_irqs
+  platform_msi_domain_free_irqs
   pm_clk_add
   pm_clk_create
   pm_clk_destroy
