@@ -27,7 +27,7 @@
 #include <linux/bpfptr.h>
 #include <linux/btf.h>
 #include <linux/rcupdate_trace.h>
-#include <linux/init.h>
+#include <linux/static_call.h>
 
 struct bpf_verifier_env;
 struct bpf_verifier_log;
@@ -315,7 +315,7 @@ static inline void __copy_map_value(struct bpf_map *map, void *dst, void *src, b
 		u32 next_off = map->off_arr->field_off[i];
 
 		memcpy(dst + curr_off, src + curr_off, next_off - curr_off);
-		curr_off += map->off_arr->field_sz[i];
+		curr_off = next_off + map->off_arr->field_sz[i];
 	}
 	memcpy(dst + curr_off, src + curr_off, map->value_size - curr_off);
 }
@@ -344,7 +344,7 @@ static inline void zero_map_value(struct bpf_map *map, void *dst)
 		u32 next_off = map->off_arr->field_off[i];
 
 		memset(dst + curr_off, 0, next_off - curr_off);
-		curr_off += map->off_arr->field_sz[i];
+		curr_off = next_off + map->off_arr->field_sz[i];
 	}
 	memset(dst + curr_off, 0, map->value_size - curr_off);
 }
@@ -954,6 +954,10 @@ struct bpf_dispatcher {
 	void *rw_image;
 	u32 image_off;
 	struct bpf_ksym ksym;
+#ifdef CONFIG_HAVE_STATIC_CALL
+	struct static_call_key *sc_key;
+	void *sc_tramp;
+#endif
 };
 
 static __always_inline __nocfi unsigned int bpf_dispatcher_nop_func(
@@ -971,7 +975,33 @@ struct bpf_trampoline *bpf_trampoline_get(u64 key,
 					  struct bpf_attach_target_info *tgt_info);
 void bpf_trampoline_put(struct bpf_trampoline *tr);
 int arch_prepare_bpf_dispatcher(void *image, void *buf, s64 *funcs, int num_funcs);
-int __init bpf_arch_init_dispatcher_early(void *ip);
+
+/*
+ * When the architecture supports STATIC_CALL replace the bpf_dispatcher_fn
+ * indirection with a direct call to the bpf program. If the architecture does
+ * not have STATIC_CALL, avoid a double-indirection.
+ */
+#ifdef CONFIG_HAVE_STATIC_CALL
+
+#define __BPF_DISPATCHER_SC_INIT(_name)				\
+	.sc_key = &STATIC_CALL_KEY(_name),			\
+	.sc_tramp = STATIC_CALL_TRAMP_ADDR(_name),
+
+#define __BPF_DISPATCHER_SC(name)				\
+	DEFINE_STATIC_CALL(bpf_dispatcher_##name##_call, bpf_dispatcher_nop_func)
+
+#define __BPF_DISPATCHER_CALL(name)				\
+	static_call(bpf_dispatcher_##name##_call)(ctx, insnsi, bpf_func)
+
+#define __BPF_DISPATCHER_UPDATE(_d, _new)			\
+	__static_call_update((_d)->sc_key, (_d)->sc_tramp, (_new))
+
+#else
+#define __BPF_DISPATCHER_SC_INIT(name)
+#define __BPF_DISPATCHER_SC(name)
+#define __BPF_DISPATCHER_CALL(name)		bpf_func(ctx, insnsi)
+#define __BPF_DISPATCHER_UPDATE(_d, _new)
+#endif
 
 #define BPF_DISPATCHER_INIT(_name) {				\
 	.mutex = __MUTEX_INITIALIZER(_name.mutex),		\
@@ -984,34 +1014,21 @@ int __init bpf_arch_init_dispatcher_early(void *ip);
 		.name  = #_name,				\
 		.lnode = LIST_HEAD_INIT(_name.ksym.lnode),	\
 	},							\
+	__BPF_DISPATCHER_SC_INIT(_name##_call)			\
 }
 
-#define BPF_DISPATCHER_INIT_CALL(_name)					\
-	static int __init _name##_init(void)				\
-	{								\
-		return bpf_arch_init_dispatcher_early(_name##_func);	\
-	}								\
-	early_initcall(_name##_init)
-
-#ifdef CONFIG_X86_64
-#define BPF_DISPATCHER_ATTRIBUTES __attribute__((patchable_function_entry(5)))
-#else
-#define BPF_DISPATCHER_ATTRIBUTES
-#endif
-
 #define DEFINE_BPF_DISPATCHER(name)					\
-	notrace BPF_DISPATCHER_ATTRIBUTES				\
+	__BPF_DISPATCHER_SC(name);					\
 	noinline __nocfi unsigned int bpf_dispatcher_##name##_func(	\
 		const void *ctx,					\
 		const struct bpf_insn *insnsi,				\
 		bpf_func_t bpf_func)					\
 	{								\
-		return bpf_func(ctx, insnsi);				\
+		return __BPF_DISPATCHER_CALL(name);			\
 	}								\
 	EXPORT_SYMBOL(bpf_dispatcher_##name##_func);			\
 	struct bpf_dispatcher bpf_dispatcher_##name =			\
-		BPF_DISPATCHER_INIT(bpf_dispatcher_##name);		\
-	BPF_DISPATCHER_INIT_CALL(bpf_dispatcher_##name);
+		BPF_DISPATCHER_INIT(bpf_dispatcher_##name);
 
 #define DECLARE_BPF_DISPATCHER(name)					\
 	unsigned int bpf_dispatcher_##name##_func(			\
@@ -1019,6 +1036,7 @@ int __init bpf_arch_init_dispatcher_early(void *ip);
 		const struct bpf_insn *insnsi,				\
 		bpf_func_t bpf_func);					\
 	extern struct bpf_dispatcher bpf_dispatcher_##name;
+
 #define BPF_DISPATCHER_FUNC(name) bpf_dispatcher_##name##_func
 #define BPF_DISPATCHER_PTR(name) (&bpf_dispatcher_##name)
 void bpf_dispatcher_change_prog(struct bpf_dispatcher *d, struct bpf_prog *from,
