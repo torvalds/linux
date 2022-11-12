@@ -954,6 +954,14 @@ static int kvm_xen_hypercall_complete_userspace(struct kvm_vcpu *vcpu)
 	return kvm_xen_hypercall_set_result(vcpu, run->xen.u.hcall.result);
 }
 
+static inline int max_evtchn_port(struct kvm *kvm)
+{
+	if (IS_ENABLED(CONFIG_64BIT) && kvm->arch.xen.long_mode)
+		return EVTCHN_2L_NR_CHANNELS;
+	else
+		return COMPAT_EVTCHN_2L_NR_CHANNELS;
+}
+
 static bool wait_pending_event(struct kvm_vcpu *vcpu, int nr_ports,
 			       evtchn_port_t *ports)
 {
@@ -1040,6 +1048,10 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 		if (!gpa || kvm_vcpu_read_guest(vcpu, gpa,
 						&ports[i], sizeof(port))) {
 			*r = -EFAULT;
+			goto out;
+		}
+		if (ports[i] >= max_evtchn_port(vcpu->kvm)) {
+			*r = -EINVAL;
 			goto out;
 		}
 	}
@@ -1295,14 +1307,6 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 		kvm_xen_hypercall_complete_userspace;
 
 	return 0;
-}
-
-static inline int max_evtchn_port(struct kvm *kvm)
-{
-	if (IS_ENABLED(CONFIG_64BIT) && kvm->arch.xen.long_mode)
-		return EVTCHN_2L_NR_CHANNELS;
-	else
-		return COMPAT_EVTCHN_2L_NR_CHANNELS;
 }
 
 static void kvm_xen_check_poller(struct kvm_vcpu *vcpu, int port)
