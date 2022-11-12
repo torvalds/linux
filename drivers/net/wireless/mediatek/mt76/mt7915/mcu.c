@@ -1685,6 +1685,24 @@ out:
 				     MCU_EXT_CMD(STA_REC_UPDATE), true);
 }
 
+int mt7915_mcu_wed_enable_rx_stats(struct mt7915_dev *dev)
+{
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
+	struct {
+		__le32 args[2];
+	} req = {
+		.args[0] = cpu_to_le32(1),
+		.args[1] = cpu_to_le32(6),
+	};
+
+	return mtk_wed_device_update_msg(wed, MTK_WED_WO_CMD_RXCNT_CTRL,
+					 &req, sizeof(req));
+#else
+	return 0;
+#endif
+}
+
 int mt7915_mcu_add_dev_info(struct mt7915_phy *phy,
 			    struct ieee80211_vif *vif, bool enable)
 {

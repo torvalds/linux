@@ -1037,6 +1037,14 @@ static void mt7915_sta_statistics(struct ieee80211_hw *hw,
 
 		sinfo->tx_retries = msta->wcid.stats.tx_retries;
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_RETRIES);
+
+		if (mtk_wed_get_rx_capa(&phy->dev->mt76.mmio.wed)) {
+			sinfo->rx_bytes = msta->wcid.stats.rx_bytes;
+			sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_BYTES64);
+
+			sinfo->rx_packets = msta->wcid.stats.rx_packets;
+			sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_PACKETS);
+		}
 	}
 
 	sinfo->ack_signal = (s8)msta->ack_signal;

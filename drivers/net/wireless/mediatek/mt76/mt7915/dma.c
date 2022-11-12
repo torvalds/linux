@@ -361,12 +361,18 @@ static int mt7915_dma_enable(struct mt7915_dev *dev)
 
 	if (mtk_wed_device_active(&dev->mt76.mmio.wed)) {
 		u32 wed_irq_mask = irq_mask;
+		int ret;
 
 		wed_irq_mask |= MT_INT_TX_DONE_BAND0 | MT_INT_TX_DONE_BAND1;
 		if (!is_mt7986(&dev->mt76))
 			mt76_wr(dev, MT_INT_WED_MASK_CSR, wed_irq_mask);
 		else
 			mt76_wr(dev, MT_INT_MASK_CSR, wed_irq_mask);
+
+		ret = mt7915_mcu_wed_enable_rx_stats(dev);
+		if (ret)
+			return ret;
+
 		mtk_wed_device_start(&dev->mt76.mmio.wed, wed_irq_mask);
 	}
 

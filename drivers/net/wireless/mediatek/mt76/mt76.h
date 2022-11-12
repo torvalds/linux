@@ -273,9 +273,15 @@ struct mt76_sta_stats {
 	u64 tx_nss[4];		/* 1, 2, 3, 4 */
 	u64 tx_mcs[16];		/* mcs idx */
 	u64 tx_bytes;
+	/* WED TX */
 	u32 tx_packets;
 	u32 tx_retries;
 	u32 tx_failed;
+	/* WED RX */
+	u64 rx_bytes;
+	u32 rx_packets;
+	u32 rx_errors;
+	u32 rx_drops;
 };
 
 enum mt76_wcid_flags {

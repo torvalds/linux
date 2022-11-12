@@ -663,6 +663,31 @@ unmap:
 	mt7915_wed_release_rx_buf(wed);
 	return -ENOMEM;
 }
+
+static void mt7915_mmio_wed_update_rx_stats(struct mtk_wed_device *wed,
+					    struct mtk_wed_wo_rx_stats *stats)
+{
+	int idx = le16_to_cpu(stats->wlan_idx);
+	struct mt7915_dev *dev;
+	struct mt76_wcid *wcid;
+
+	dev = container_of(wed, struct mt7915_dev, mt76.mmio.wed);
+
+	if (idx >= mt7915_wtbl_size(dev))
+		return;
+
+	rcu_read_lock();
+
+	wcid = rcu_dereference(dev->mt76.wcid[idx]);
+	if (wcid) {
+		wcid->stats.rx_bytes += le32_to_cpu(stats->rx_byte_cnt);
+		wcid->stats.rx_packets += le32_to_cpu(stats->rx_pkt_cnt);
+		wcid->stats.rx_errors += le32_to_cpu(stats->rx_err_cnt);
+		wcid->stats.rx_drops += le32_to_cpu(stats->rx_drop_cnt);
+	}
+
+	rcu_read_unlock();
+}
 #endif
 
 int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
@@ -744,6 +769,7 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
 	wed->wlan.offload_disable = mt7915_mmio_wed_offload_disable;
 	wed->wlan.init_rx_buf = mt7915_wed_init_rx_buf;
 	wed->wlan.release_rx_buf = mt7915_wed_release_rx_buf;
+	wed->wlan.update_wo_rx_stats = mt7915_mmio_wed_update_rx_stats;
 
 	dev->mt76.rx_token_size = wed->wlan.rx_npkt;
 
