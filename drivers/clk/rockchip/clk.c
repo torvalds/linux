@@ -21,7 +21,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/reboot.h>
-#include <linux/rational.h>
 
 #include "../clk-fractional-divider.h"
 #include "clk.h"
