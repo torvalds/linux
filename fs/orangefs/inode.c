@@ -1131,7 +1131,7 @@ struct inode *orangefs_new_inode(struct super_block *sb, struct inode *dir,
 	orangefs_set_inode(inode, ref);
 	inode->i_ino = hash;	/* needed for stat etc */
 
-	error = __orangefs_inode_getattr(inode, mode, ORANGEFS_GETATTR_NEW);
+	error = orangefs_inode_getattr(inode, ORANGEFS_GETATTR_NEW);
 	if (error)
 		goto out_iput;
 
@@ -1158,6 +1158,15 @@ struct inode *orangefs_new_inode(struct super_block *sb, struct inode *dir,
 	gossip_debug(GOSSIP_INODE_DEBUG,
 		     "Initializing ACL's for inode %pU\n",
 		     get_khandle_from_ino(inode));
+	if (mode != inode->i_mode) {
+		struct iattr iattr = {
+			.ia_mode = mode,
+			.ia_valid = ATTR_MODE,
+		};
+		inode->i_mode = mode;
+		__orangefs_setattr(inode, &iattr);
+		__posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+	}
 	posix_acl_release(acl);
 	posix_acl_release(default_acl);
 	return inode;
