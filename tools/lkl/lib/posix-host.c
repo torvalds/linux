@@ -370,6 +370,7 @@ struct lkl_host_operations lkl_host_ops = {
 	.jmp_buf_set = jmp_buf_set,
 	.jmp_buf_longjmp = jmp_buf_longjmp,
 	.memcpy = memcpy,
+	.memset = memset,
 #ifdef LKL_HOST_CONFIG_VFIO_PCI
 	.pci_ops = &vfio_pci_ops,
 #endif

@@ -119,6 +119,8 @@ struct lkl_dev_pci_ops {
  * @jmp_buf_longjmp - perform a jump back to the saved jump buffer
  *
  * @memcpy - copy memory
+ * @memset - set memory
+ *
  * @pci_ops - pointer to PCI host operations
  */
 struct lkl_host_operations {
@@ -170,6 +172,8 @@ struct lkl_host_operations {
 	void (*jmp_buf_longjmp)(struct lkl_jmp_buf *jmpb, int val);
 
 	void* (*memcpy)(void *dest, const void *src, unsigned long count);
+	void* (*memset)(void *s, int c, unsigned long count);
+
 	struct lkl_dev_pci_ops *pci_ops;
 };
 
