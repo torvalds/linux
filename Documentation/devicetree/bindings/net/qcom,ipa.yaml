@@ -155,22 +155,15 @@ required:
   - interconnects
   - qcom,smem-states
 
-# Either modem-init is present, or memory-region must be present.
-oneOf:
-  - required:
-      - modem-init
-  - required:
-      - memory-region
-
-# If memory-region is present, firmware-name may optionally be present.
-# But if modem-init is present, firmware-name must not be present.
+# If modem-init is not present, the AP loads GSI firmware, and
+# memory-region must be specified
 if:
-  required:
-    - modem-init
-then:
   not:
     required:
-      - firmware-name
+      - modem-init
+then:
+  required:
+    - memory-region
 
 additionalProperties: false
 
