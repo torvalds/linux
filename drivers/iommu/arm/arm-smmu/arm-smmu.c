@@ -221,7 +221,7 @@ static void arm_smmu_interrupt_selftest(struct arm_smmu_device *smmu)
 		u32 reg_orig;
 		int irq_cnt;
 
-		irq = smmu->irqs[smmu->num_global_irqs + cb];
+		irq = smmu->irqs[cb];
 		cb_data->cbndx = cb;
 
 		ret = request_threaded_irq(irq, NULL, arm_smmu_cf_selftest,
