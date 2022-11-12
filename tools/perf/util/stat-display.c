@@ -828,8 +828,8 @@ static int aggr_header_lens[] = {
 
 static const char *aggr_header_csv[] = {
 	[AGGR_CORE] 	= 	"core,cpus,",
-	[AGGR_DIE] 	= 	"die,cpus",
-	[AGGR_SOCKET] 	= 	"socket,cpus",
+	[AGGR_DIE] 	= 	"die,cpus,",
+	[AGGR_SOCKET] 	= 	"socket,cpus,",
 	[AGGR_NONE] 	= 	"cpu,",
 	[AGGR_THREAD] 	= 	"comm-pid,",
 	[AGGR_NODE] 	= 	"node,",
