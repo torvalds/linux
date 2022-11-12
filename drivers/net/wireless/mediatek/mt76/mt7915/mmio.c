@@ -9,107 +9,111 @@
 #include "mt7915.h"
 #include "mac.h"
 #include "../trace.h"
+#include "../dma.h"
 
 static bool wed_enable;
 module_param(wed_enable, bool, 0644);
 
 static const u32 mt7915_reg[] = {
-	[INT_SOURCE_CSR]	= 0xd7010,
-	[INT_MASK_CSR]		= 0xd7014,
-	[INT1_SOURCE_CSR]	= 0xd7088,
-	[INT1_MASK_CSR]		= 0xd708c,
-	[INT_MCU_CMD_SOURCE]	= 0xd51f0,
-	[INT_MCU_CMD_EVENT]	= 0x3108,
-	[WFDMA0_ADDR]		= 0xd4000,
-	[WFDMA0_PCIE1_ADDR]	= 0xd8000,
-	[WFDMA_EXT_CSR_ADDR]	= 0xd7000,
-	[CBTOP1_PHY_END]	= 0x77ffffff,
-	[INFRA_MCU_ADDR_END]	= 0x7c3fffff,
-	[FW_ASSERT_STAT_ADDR]	= 0x219848,
-	[FW_EXCEPT_TYPE_ADDR]	= 0x21987c,
-	[FW_EXCEPT_COUNT_ADDR]	= 0x219848,
-	[FW_CIRQ_COUNT_ADDR]	= 0x216f94,
-	[FW_CIRQ_IDX_ADDR]	= 0x216ef8,
-	[FW_CIRQ_LISR_ADDR]	= 0x2170ac,
-	[FW_TASK_ID_ADDR]	= 0x216f90,
-	[FW_TASK_IDX_ADDR]	= 0x216f9c,
-	[FW_TASK_QID1_ADDR]	= 0x219680,
-	[FW_TASK_QID2_ADDR]	= 0x219760,
-	[FW_TASK_START_ADDR]	= 0x219558,
-	[FW_TASK_END_ADDR]	= 0x219554,
-	[FW_TASK_SIZE_ADDR]	= 0x219560,
-	[FW_LAST_MSG_ID_ADDR]	= 0x216f70,
-	[FW_EINT_INFO_ADDR]	= 0x219818,
-	[FW_SCHED_INFO_ADDR]	= 0x219828,
-	[SWDEF_BASE_ADDR]	= 0x41f200,
-	[TXQ_WED_RING_BASE]	= 0xd7300,
-	[RXQ_WED_RING_BASE]	= 0xd7410,
+	[INT_SOURCE_CSR]		= 0xd7010,
+	[INT_MASK_CSR]			= 0xd7014,
+	[INT1_SOURCE_CSR]		= 0xd7088,
+	[INT1_MASK_CSR]			= 0xd708c,
+	[INT_MCU_CMD_SOURCE]		= 0xd51f0,
+	[INT_MCU_CMD_EVENT]		= 0x3108,
+	[WFDMA0_ADDR]			= 0xd4000,
+	[WFDMA0_PCIE1_ADDR]		= 0xd8000,
+	[WFDMA_EXT_CSR_ADDR]		= 0xd7000,
+	[CBTOP1_PHY_END]		= 0x77ffffff,
+	[INFRA_MCU_ADDR_END]		= 0x7c3fffff,
+	[FW_ASSERT_STAT_ADDR]		= 0x219848,
+	[FW_EXCEPT_TYPE_ADDR]		= 0x21987c,
+	[FW_EXCEPT_COUNT_ADDR]		= 0x219848,
+	[FW_CIRQ_COUNT_ADDR]		= 0x216f94,
+	[FW_CIRQ_IDX_ADDR]		= 0x216ef8,
+	[FW_CIRQ_LISR_ADDR]		= 0x2170ac,
+	[FW_TASK_ID_ADDR]		= 0x216f90,
+	[FW_TASK_IDX_ADDR]		= 0x216f9c,
+	[FW_TASK_QID1_ADDR]		= 0x219680,
+	[FW_TASK_QID2_ADDR]		= 0x219760,
+	[FW_TASK_START_ADDR]		= 0x219558,
+	[FW_TASK_END_ADDR]		= 0x219554,
+	[FW_TASK_SIZE_ADDR]		= 0x219560,
+	[FW_LAST_MSG_ID_ADDR]		= 0x216f70,
+	[FW_EINT_INFO_ADDR]		= 0x219818,
+	[FW_SCHED_INFO_ADDR]		= 0x219828,
+	[SWDEF_BASE_ADDR]		= 0x41f200,
+	[TXQ_WED_RING_BASE]		= 0xd7300,
+	[RXQ_WED_RING_BASE]		= 0xd7410,
+	[RXQ_WED_DATA_RING_BASE]	= 0xd4500,
 };
 
 static const u32 mt7916_reg[] = {
-	[INT_SOURCE_CSR]	= 0xd4200,
-	[INT_MASK_CSR]		= 0xd4204,
-	[INT1_SOURCE_CSR]	= 0xd8200,
-	[INT1_MASK_CSR]		= 0xd8204,
-	[INT_MCU_CMD_SOURCE]	= 0xd41f0,
-	[INT_MCU_CMD_EVENT]	= 0x2108,
-	[WFDMA0_ADDR]		= 0xd4000,
-	[WFDMA0_PCIE1_ADDR]	= 0xd8000,
-	[WFDMA_EXT_CSR_ADDR]	= 0xd7000,
-	[CBTOP1_PHY_END]	= 0x7fffffff,
-	[INFRA_MCU_ADDR_END]	= 0x7c085fff,
-	[FW_ASSERT_STAT_ADDR]	= 0x02204c14,
-	[FW_EXCEPT_TYPE_ADDR]	= 0x022051a4,
-	[FW_EXCEPT_COUNT_ADDR]	= 0x022050bc,
-	[FW_CIRQ_COUNT_ADDR]	= 0x022001ac,
-	[FW_CIRQ_IDX_ADDR]	= 0x02204f84,
-	[FW_CIRQ_LISR_ADDR]	= 0x022050d0,
-	[FW_TASK_ID_ADDR]	= 0x0220406c,
-	[FW_TASK_IDX_ADDR]	= 0x0220500c,
-	[FW_TASK_QID1_ADDR]	= 0x022028c8,
-	[FW_TASK_QID2_ADDR]	= 0x02202a38,
-	[FW_TASK_START_ADDR]	= 0x0220286c,
-	[FW_TASK_END_ADDR]	= 0x02202870,
-	[FW_TASK_SIZE_ADDR]	= 0x02202878,
-	[FW_LAST_MSG_ID_ADDR]	= 0x02204fe8,
-	[FW_EINT_INFO_ADDR]	= 0x0220525c,
-	[FW_SCHED_INFO_ADDR]	= 0x0220516c,
-	[SWDEF_BASE_ADDR]	= 0x411400,
-	[TXQ_WED_RING_BASE]	= 0xd7300,
-	[RXQ_WED_RING_BASE]	= 0xd7410,
+	[INT_SOURCE_CSR]		= 0xd4200,
+	[INT_MASK_CSR]			= 0xd4204,
+	[INT1_SOURCE_CSR]		= 0xd8200,
+	[INT1_MASK_CSR]			= 0xd8204,
+	[INT_MCU_CMD_SOURCE]		= 0xd41f0,
+	[INT_MCU_CMD_EVENT]		= 0x2108,
+	[WFDMA0_ADDR]			= 0xd4000,
+	[WFDMA0_PCIE1_ADDR]		= 0xd8000,
+	[WFDMA_EXT_CSR_ADDR]		= 0xd7000,
+	[CBTOP1_PHY_END]		= 0x7fffffff,
+	[INFRA_MCU_ADDR_END]		= 0x7c085fff,
+	[FW_ASSERT_STAT_ADDR]		= 0x02204c14,
+	[FW_EXCEPT_TYPE_ADDR]		= 0x022051a4,
+	[FW_EXCEPT_COUNT_ADDR]		= 0x022050bc,
+	[FW_CIRQ_COUNT_ADDR]		= 0x022001ac,
+	[FW_CIRQ_IDX_ADDR]		= 0x02204f84,
+	[FW_CIRQ_LISR_ADDR]		= 0x022050d0,
+	[FW_TASK_ID_ADDR]		= 0x0220406c,
+	[FW_TASK_IDX_ADDR]		= 0x0220500c,
+	[FW_TASK_QID1_ADDR]		= 0x022028c8,
+	[FW_TASK_QID2_ADDR]		= 0x02202a38,
+	[FW_TASK_START_ADDR]		= 0x0220286c,
+	[FW_TASK_END_ADDR]		= 0x02202870,
+	[FW_TASK_SIZE_ADDR]		= 0x02202878,
+	[FW_LAST_MSG_ID_ADDR]		= 0x02204fe8,
+	[FW_EINT_INFO_ADDR]		= 0x0220525c,
+	[FW_SCHED_INFO_ADDR]		= 0x0220516c,
+	[SWDEF_BASE_ADDR]		= 0x411400,
+	[TXQ_WED_RING_BASE]		= 0xd7300,
+	[RXQ_WED_RING_BASE]		= 0xd7410,
+	[RXQ_WED_DATA_RING_BASE]	= 0xd4540,
 };
 
 static const u32 mt7986_reg[] = {
-	[INT_SOURCE_CSR]	= 0x24200,
-	[INT_MASK_CSR]		= 0x24204,
-	[INT1_SOURCE_CSR]	= 0x28200,
-	[INT1_MASK_CSR]		= 0x28204,
-	[INT_MCU_CMD_SOURCE]	= 0x241f0,
-	[INT_MCU_CMD_EVENT]	= 0x54000108,
-	[WFDMA0_ADDR]		= 0x24000,
-	[WFDMA0_PCIE1_ADDR]	= 0x28000,
-	[WFDMA_EXT_CSR_ADDR]	= 0x27000,
-	[CBTOP1_PHY_END]	= 0x7fffffff,
-	[INFRA_MCU_ADDR_END]	= 0x7c085fff,
-	[FW_ASSERT_STAT_ADDR]	= 0x02204b54,
-	[FW_EXCEPT_TYPE_ADDR]	= 0x022050dc,
-	[FW_EXCEPT_COUNT_ADDR]	= 0x02204ffc,
-	[FW_CIRQ_COUNT_ADDR]	= 0x022001ac,
-	[FW_CIRQ_IDX_ADDR]	= 0x02204ec4,
-	[FW_CIRQ_LISR_ADDR]	= 0x02205010,
-	[FW_TASK_ID_ADDR]	= 0x02204fac,
-	[FW_TASK_IDX_ADDR]	= 0x02204f4c,
-	[FW_TASK_QID1_ADDR]	= 0x02202814,
-	[FW_TASK_QID2_ADDR]	= 0x02202984,
-	[FW_TASK_START_ADDR]	= 0x022027b8,
-	[FW_TASK_END_ADDR]	= 0x022027bc,
-	[FW_TASK_SIZE_ADDR]	= 0x022027c4,
-	[FW_LAST_MSG_ID_ADDR]	= 0x02204f28,
-	[FW_EINT_INFO_ADDR]	= 0x02205194,
-	[FW_SCHED_INFO_ADDR]	= 0x022051a4,
-	[SWDEF_BASE_ADDR]	= 0x411400,
-	[TXQ_WED_RING_BASE]	= 0x24420,
-	[RXQ_WED_RING_BASE]	= 0x24520,
+	[INT_SOURCE_CSR]		= 0x24200,
+	[INT_MASK_CSR]			= 0x24204,
+	[INT1_SOURCE_CSR]		= 0x28200,
+	[INT1_MASK_CSR]			= 0x28204,
+	[INT_MCU_CMD_SOURCE]		= 0x241f0,
+	[INT_MCU_CMD_EVENT]		= 0x54000108,
+	[WFDMA0_ADDR]			= 0x24000,
+	[WFDMA0_PCIE1_ADDR]		= 0x28000,
+	[WFDMA_EXT_CSR_ADDR]		= 0x27000,
+	[CBTOP1_PHY_END]		= 0x7fffffff,
+	[INFRA_MCU_ADDR_END]		= 0x7c085fff,
+	[FW_ASSERT_STAT_ADDR]		= 0x02204b54,
+	[FW_EXCEPT_TYPE_ADDR]		= 0x022050dc,
+	[FW_EXCEPT_COUNT_ADDR]		= 0x02204ffc,
+	[FW_CIRQ_COUNT_ADDR]		= 0x022001ac,
+	[FW_CIRQ_IDX_ADDR]		= 0x02204ec4,
+	[FW_CIRQ_LISR_ADDR]		= 0x02205010,
+	[FW_TASK_ID_ADDR]		= 0x02204fac,
+	[FW_TASK_IDX_ADDR]		= 0x02204f4c,
+	[FW_TASK_QID1_ADDR]		= 0x02202814,
+	[FW_TASK_QID2_ADDR]		= 0x02202984,
+	[FW_TASK_START_ADDR]		= 0x022027b8,
+	[FW_TASK_END_ADDR]		= 0x022027bc,
+	[FW_TASK_SIZE_ADDR]		= 0x022027c4,
+	[FW_LAST_MSG_ID_ADDR]		= 0x02204f28,
+	[FW_EINT_INFO_ADDR]		= 0x02205194,
+	[FW_SCHED_INFO_ADDR]		= 0x022051a4,
+	[SWDEF_BASE_ADDR]		= 0x411400,
+	[TXQ_WED_RING_BASE]		= 0x24420,
+	[RXQ_WED_RING_BASE]		= 0x24520,
+	[RXQ_WED_DATA_RING_BASE]	= 0x24540,
 };
 
 static const u32 mt7915_offs[] = {
@@ -585,6 +589,80 @@ static void mt7915_mmio_wed_offload_disable(struct mtk_wed_device *wed)
 		mt76_clear(dev, MT_AGG_ACR4(phy->band_idx),
 			   MT_AGG_ACR_PPDU_TXS2H);
 }
+
+static void mt7915_wed_release_rx_buf(struct mtk_wed_device *wed)
+{
+	struct mt7915_dev *dev;
+	struct page *page;
+	int i;
+
+	dev = container_of(wed, struct mt7915_dev, mt76.mmio.wed);
+	for (i = 0; i < dev->mt76.rx_token_size; i++) {
+		struct mt76_txwi_cache *t;
+
+		t = mt76_rx_token_release(&dev->mt76, i);
+		if (!t || !t->ptr)
+			continue;
+
+		dma_unmap_single(dev->mt76.dma_dev, t->dma_addr,
+				 wed->wlan.rx_size, DMA_FROM_DEVICE);
+		skb_free_frag(t->ptr);
+		t->ptr = NULL;
+
+		mt76_put_rxwi(&dev->mt76, t);
+	}
+
+	if (!wed->rx_buf_ring.rx_page.va)
+		return;
+
+	page = virt_to_page(wed->rx_buf_ring.rx_page.va);
+	__page_frag_cache_drain(page, wed->rx_buf_ring.rx_page.pagecnt_bias);
+	memset(&wed->rx_buf_ring.rx_page, 0, sizeof(wed->rx_buf_ring.rx_page));
+}
+
+static u32 mt7915_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
+{
+	struct mtk_rxbm_desc *desc = wed->rx_buf_ring.desc;
+	struct mt7915_dev *dev;
+	u32 length;
+	int i;
+
+	dev = container_of(wed, struct mt7915_dev, mt76.mmio.wed);
+	length = SKB_DATA_ALIGN(NET_SKB_PAD + wed->wlan.rx_size +
+				sizeof(struct skb_shared_info));
+
+	for (i = 0; i < size; i++) {
+		struct mt76_txwi_cache *t = mt76_get_rxwi(&dev->mt76);
+		dma_addr_t phy_addr;
+		int token;
+		void *ptr;
+
+		ptr = page_frag_alloc(&wed->rx_buf_ring.rx_page, length,
+				      GFP_KERNEL);
+		if (!ptr)
+			goto unmap;
+
+		phy_addr = dma_map_single(dev->mt76.dma_dev, ptr,
+					  wed->wlan.rx_size,
+					  DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(dev->mt76.dev, phy_addr))) {
+			skb_free_frag(ptr);
+			goto unmap;
+		}
+
+		desc->buf0 = cpu_to_le32(phy_addr);
+		token = mt76_rx_token_consume(&dev->mt76, ptr, t, phy_addr);
+		desc->token |= cpu_to_le32(FIELD_PREP(MT_DMA_CTL_TOKEN,
+						      token));
+		desc++;
+	}
+
+	return 0;
+
+unmap:
+	mt7915_wed_release_rx_buf(wed);
+	return -ENOMEM;
+}
 #endif
 
 int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
@@ -602,6 +680,10 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
 
 		wed->wlan.pci_dev = pci_dev;
 		wed->wlan.bus_type = MTK_WED_BUS_PCIE;
+		wed->wlan.base = devm_ioremap(dev->mt76.dev,
+					      pci_resource_start(pci_dev, 0),
+					      pci_resource_len(pci_dev, 0));
+		wed->wlan.phy_base = pci_resource_start(pci_dev, 0);
 		wed->wlan.wpdma_int = pci_resource_start(pci_dev, 0) +
 				      MT_INT_WED_SOURCE_CSR;
 		wed->wlan.wpdma_mask = pci_resource_start(pci_dev, 0) +
@@ -612,6 +694,10 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
 				     MT_TXQ_WED_RING_BASE;
 		wed->wlan.wpdma_txfree = pci_resource_start(pci_dev, 0) +
 					 MT_RXQ_WED_RING_BASE;
+		wed->wlan.wpdma_rx_glo = pci_resource_start(pci_dev, 0) +
+					 MT_WPDMA_GLO_CFG;
+		wed->wlan.wpdma_rx = pci_resource_start(pci_dev, 0) +
+				     MT_RXQ_WED_DATA_RING_BASE;
 	} else {
 		struct platform_device *plat_dev = pdev_ptr;
 		struct resource *res;
@@ -622,19 +708,44 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
 
 		wed->wlan.platform_dev = plat_dev;
 		wed->wlan.bus_type = MTK_WED_BUS_AXI;
+		wed->wlan.base = devm_ioremap(dev->mt76.dev, res->start,
+					      resource_size(res));
+		wed->wlan.phy_base = res->start;
 		wed->wlan.wpdma_int = res->start + MT_INT_SOURCE_CSR;
 		wed->wlan.wpdma_mask = res->start + MT_INT_MASK_CSR;
 		wed->wlan.wpdma_tx = res->start + MT_TXQ_WED_RING_BASE;
 		wed->wlan.wpdma_txfree = res->start + MT_RXQ_WED_RING_BASE;
+		wed->wlan.wpdma_rx_glo = res->start + MT_WPDMA_GLO_CFG;
+		wed->wlan.wpdma_rx = res->start + MT_RXQ_WED_DATA_RING_BASE;
 	}
 	wed->wlan.nbuf = 4096;
 	wed->wlan.tx_tbit[0] = is_mt7915(&dev->mt76) ? 4 : 30;
 	wed->wlan.tx_tbit[1] = is_mt7915(&dev->mt76) ? 5 : 31;
-	wed->wlan.txfree_tbit = is_mt7915(&dev->mt76) ? 1 : 2;
+	wed->wlan.txfree_tbit = is_mt7986(&dev->mt76) ? 2 : 1;
 	wed->wlan.token_start = MT7915_TOKEN_SIZE - wed->wlan.nbuf;
+	wed->wlan.wcid_512 = !is_mt7915(&dev->mt76);
+
+	wed->wlan.rx_nbuf = 65536;
+	wed->wlan.rx_npkt = MT7915_WED_RX_TOKEN_SIZE;
+	wed->wlan.rx_size = SKB_WITH_OVERHEAD(MT_RX_BUF_SIZE);
+	if (is_mt7915(&dev->mt76)) {
+		wed->wlan.rx_tbit[0] = 16;
+		wed->wlan.rx_tbit[1] = 17;
+	} else if (is_mt7986(&dev->mt76)) {
+		wed->wlan.rx_tbit[0] = 22;
+		wed->wlan.rx_tbit[1] = 23;
+	} else {
+		wed->wlan.rx_tbit[0] = 18;
+		wed->wlan.rx_tbit[1] = 19;
+	}
+
 	wed->wlan.init_buf = mt7915_wed_init_buf;
 	wed->wlan.offload_enable = mt7915_mmio_wed_offload_enable;
 	wed->wlan.offload_disable = mt7915_mmio_wed_offload_disable;
+	wed->wlan.init_rx_buf = mt7915_wed_init_rx_buf;
+	wed->wlan.release_rx_buf = mt7915_wed_release_rx_buf;
+
+	dev->mt76.rx_token_size = wed->wlan.rx_npkt;
 
 	if (mtk_wed_device_attach(wed))
 		return 0;
