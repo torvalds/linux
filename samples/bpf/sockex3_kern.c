@@ -17,47 +17,10 @@
 #define IP_MF		0x2000
 #define IP_OFFSET	0x1FFF
 
-#define PROG(F) SEC("socket/"__stringify(F)) int bpf_func_##F
-
-struct {
-	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
-	__uint(key_size, sizeof(u32));
-	__uint(value_size, sizeof(u32));
-	__uint(max_entries, 8);
-} jmp_table SEC(".maps");
-
 #define PARSE_VLAN 1
 #define PARSE_MPLS 2
 #define PARSE_IP 3
 #define PARSE_IPV6 4
-
-/* Protocol dispatch routine. It tail-calls next BPF program depending
- * on eth proto. Note, we could have used ...
- *
- *   bpf_tail_call(skb, &jmp_table, proto);
- *
- * ... but it would need large prog_array and cannot be optimised given
- * the map key is not static.
- */
-static inline void parse_eth_proto(struct __sk_buff *skb, u32 proto)
-{
-	switch (proto) {
-	case ETH_P_8021Q:
-	case ETH_P_8021AD:
-		bpf_tail_call(skb, &jmp_table, PARSE_VLAN);
-		break;
-	case ETH_P_MPLS_UC:
-	case ETH_P_MPLS_MC:
-		bpf_tail_call(skb, &jmp_table, PARSE_MPLS);
-		break;
-	case ETH_P_IP:
-		bpf_tail_call(skb, &jmp_table, PARSE_IP);
-		break;
-	case ETH_P_IPV6:
-		bpf_tail_call(skb, &jmp_table, PARSE_IPV6);
-		break;
-	}
-}
 
 struct vlan_hdr {
 	__be16 h_vlan_TCI;
@@ -73,6 +36,8 @@ struct flow_key_record {
 	};
 	__u32 ip_proto;
 };
+
+static inline void parse_eth_proto(struct __sk_buff *skb, u32 proto);
 
 static inline int ip_is_fragment(struct __sk_buff *ctx, __u64 nhoff)
 {
@@ -189,7 +154,8 @@ static __always_inline void parse_ip_proto(struct __sk_buff *skb,
 	}
 }
 
-PROG(PARSE_IP)(struct __sk_buff *skb)
+SEC("socket")
+int bpf_func_ip(struct __sk_buff *skb)
 {
 	struct globals *g = this_cpu_globals();
 	__u32 nhoff, verlen, ip_proto;
@@ -217,7 +183,8 @@ PROG(PARSE_IP)(struct __sk_buff *skb)
 	return 0;
 }
 
-PROG(PARSE_IPV6)(struct __sk_buff *skb)
+SEC("socket")
+int bpf_func_ipv6(struct __sk_buff *skb)
 {
 	struct globals *g = this_cpu_globals();
 	__u32 nhoff, ip_proto;
@@ -240,7 +207,8 @@ PROG(PARSE_IPV6)(struct __sk_buff *skb)
 	return 0;
 }
 
-PROG(PARSE_VLAN)(struct __sk_buff *skb)
+SEC("socket")
+int bpf_func_vlan(struct __sk_buff *skb)
 {
 	__u32 nhoff, proto;
 
@@ -256,7 +224,8 @@ PROG(PARSE_VLAN)(struct __sk_buff *skb)
 	return 0;
 }
 
-PROG(PARSE_MPLS)(struct __sk_buff *skb)
+SEC("socket")
+int bpf_func_mpls(struct __sk_buff *skb)
 {
 	__u32 nhoff, label;
 
@@ -279,7 +248,49 @@ PROG(PARSE_MPLS)(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("socket/0")
+struct {
+	__uint(type, BPF_MAP_TYPE_PROG_ARRAY);
+	__uint(key_size, sizeof(u32));
+	__uint(max_entries, 8);
+	__array(values, u32 (void *));
+} prog_array_init SEC(".maps") = {
+	.values = {
+		[PARSE_VLAN] = (void *)&bpf_func_vlan,
+		[PARSE_IP]   = (void *)&bpf_func_ip,
+		[PARSE_IPV6] = (void *)&bpf_func_ipv6,
+		[PARSE_MPLS] = (void *)&bpf_func_mpls,
+	},
+};
+
+/* Protocol dispatch routine. It tail-calls next BPF program depending
+ * on eth proto. Note, we could have used ...
+ *
+ *   bpf_tail_call(skb, &prog_array_init, proto);
+ *
+ * ... but it would need large prog_array and cannot be optimised given
+ * the map key is not static.
+ */
+static inline void parse_eth_proto(struct __sk_buff *skb, u32 proto)
+{
+	switch (proto) {
+	case ETH_P_8021Q:
+	case ETH_P_8021AD:
+		bpf_tail_call(skb, &prog_array_init, PARSE_VLAN);
+		break;
+	case ETH_P_MPLS_UC:
+	case ETH_P_MPLS_MC:
+		bpf_tail_call(skb, &prog_array_init, PARSE_MPLS);
+		break;
+	case ETH_P_IP:
+		bpf_tail_call(skb, &prog_array_init, PARSE_IP);
+		break;
+	case ETH_P_IPV6:
+		bpf_tail_call(skb, &prog_array_init, PARSE_IPV6);
+		break;
+	}
+}
+
+SEC("socket")
 int main_prog(struct __sk_buff *skb)
 {
 	__u32 nhoff = ETH_HLEN;

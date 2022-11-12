@@ -29,7 +29,7 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 		return ERR_PTR(-ENOTSUPP);
 	}
 
-	if (map_value_has_spin_lock(inner_map)) {
+	if (btf_record_has_field(inner_map->record, BPF_SPIN_LOCK)) {
 		fdput(f);
 		return ERR_PTR(-ENOTSUPP);
 	}
@@ -50,9 +50,15 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 	inner_map_meta->value_size = inner_map->value_size;
 	inner_map_meta->map_flags = inner_map->map_flags;
 	inner_map_meta->max_entries = inner_map->max_entries;
-	inner_map_meta->spin_lock_off = inner_map->spin_lock_off;
-	inner_map_meta->timer_off = inner_map->timer_off;
-	inner_map_meta->kptr_off_tab = bpf_map_copy_kptr_off_tab(inner_map);
+	inner_map_meta->record = btf_record_dup(inner_map->record);
+	if (IS_ERR(inner_map_meta->record)) {
+		/* btf_record_dup returns NULL or valid pointer in case of
+		 * invalid/empty/valid, but ERR_PTR in case of errors. During
+		 * equality NULL or IS_ERR is equivalent.
+		 */
+		fdput(f);
+		return ERR_CAST(inner_map_meta->record);
+	}
 	if (inner_map->btf) {
 		btf_get(inner_map->btf);
 		inner_map_meta->btf = inner_map->btf;
@@ -72,7 +78,7 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 
 void bpf_map_meta_free(struct bpf_map *map_meta)
 {
-	bpf_map_free_kptr_off_tab(map_meta);
+	bpf_map_free_record(map_meta);
 	btf_put(map_meta->btf);
 	kfree(map_meta);
 }
@@ -84,9 +90,8 @@ bool bpf_map_meta_equal(const struct bpf_map *meta0,
 	return meta0->map_type == meta1->map_type &&
 		meta0->key_size == meta1->key_size &&
 		meta0->value_size == meta1->value_size &&
-		meta0->timer_off == meta1->timer_off &&
 		meta0->map_flags == meta1->map_flags &&
-		bpf_map_equal_kptr_off_tab(meta0, meta1);
+		btf_record_equal(meta0->record, meta1->record);
 }
 
 void *bpf_map_fd_get_ptr(struct bpf_map *map,

@@ -497,7 +497,7 @@ static int do_build_table_cb(const char *fpath, const struct stat *sb,
 		goto out_close;
 	}
 
-	err = hashmap__append(build_fn_table, u32_as_hash_field(pinned_info.id), path);
+	err = hashmap__append(build_fn_table, pinned_info.id, path);
 	if (err) {
 		p_err("failed to append entry to hashmap for ID %u, path '%s': %s",
 		      pinned_info.id, path, strerror(errno));
@@ -548,7 +548,7 @@ void delete_pinned_obj_table(struct hashmap *map)
 		return;
 
 	hashmap__for_each_entry(map, entry, bkt)
-		free(entry->value);
+		free(entry->pvalue);
 
 	hashmap__free(map);
 }
@@ -1044,12 +1044,12 @@ int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len)
 	return fd;
 }
 
-size_t hash_fn_for_key_as_id(const void *key, void *ctx)
+size_t hash_fn_for_key_as_id(long key, void *ctx)
 {
-	return (size_t)key;
+	return key;
 }
 
-bool equal_fn_for_key_as_id(const void *k1, const void *k2, void *ctx)
+bool equal_fn_for_key_as_id(long k1, long k2, void *ctx)
 {
 	return k1 == k2;
 }

@@ -13,6 +13,7 @@
 #include <ftw.h>
 
 #include "cgroup_helpers.h"
+#include "bpf_util.h"
 
 /*
  * To avoid relying on the system setup, when setup_cgroup_env is called
@@ -77,7 +78,7 @@ static int __enable_controllers(const char *cgroup_path, const char *controllers
 		enable[len] = 0;
 		close(fd);
 	} else {
-		strncpy(enable, controllers, sizeof(enable));
+		bpf_strlcpy(enable, controllers, sizeof(enable));
 	}
 
 	snprintf(path, sizeof(path), "%s/cgroup.subtree_control", cgroup_path);

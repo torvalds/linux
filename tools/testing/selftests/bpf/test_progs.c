@@ -222,24 +222,32 @@ static char *test_result(bool failed, bool skipped)
 	return failed ? "FAIL" : (skipped ? "SKIP" : "OK");
 }
 
+#define TEST_NUM_WIDTH 7
+
+static void print_test_result(const struct prog_test_def *test, const struct test_state *test_state)
+{
+	int skipped_cnt = test_state->skip_cnt;
+	int subtests_cnt = test_state->subtest_num;
+
+	fprintf(env.stdout, "#%-*d %s:", TEST_NUM_WIDTH, test->test_num, test->test_name);
+	if (test_state->error_cnt)
+		fprintf(env.stdout, "FAIL");
+	else if (!skipped_cnt)
+		fprintf(env.stdout, "OK");
+	else if (skipped_cnt == subtests_cnt || !subtests_cnt)
+		fprintf(env.stdout, "SKIP");
+	else
+		fprintf(env.stdout, "OK (SKIP: %d/%d)", skipped_cnt, subtests_cnt);
+
+	fprintf(env.stdout, "\n");
+}
+
 static void print_test_log(char *log_buf, size_t log_cnt)
 {
 	log_buf[log_cnt] = '\0';
 	fprintf(env.stdout, "%s", log_buf);
 	if (log_buf[log_cnt - 1] != '\n')
 		fprintf(env.stdout, "\n");
-}
-
-#define TEST_NUM_WIDTH 7
-
-static void print_test_name(int test_num, const char *test_name, char *result)
-{
-	fprintf(env.stdout, "#%-*d %s", TEST_NUM_WIDTH, test_num, test_name);
-
-	if (result)
-		fprintf(env.stdout, ":%s", result);
-
-	fprintf(env.stdout, "\n");
 }
 
 static void print_subtest_name(int test_num, int subtest_num,
@@ -307,8 +315,7 @@ static void dump_test_log(const struct prog_test_def *test,
 					       subtest_state->skipped));
 	}
 
-	print_test_name(test->test_num, test->test_name,
-			test_result(test_failed, test_state->skip_cnt));
+	print_test_result(test, test_state);
 }
 
 static void stdio_restore(void);
@@ -1070,8 +1077,7 @@ static void run_one_test(int test_num)
 	state->tested = true;
 
 	if (verbose() && env.worker_id == -1)
-		print_test_name(test_num + 1, test->test_name,
-				test_result(state->error_cnt, state->skip_cnt));
+		print_test_result(test, state);
 
 	reset_affinity();
 	restore_netns();

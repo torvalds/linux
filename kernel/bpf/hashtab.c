@@ -222,7 +222,7 @@ static void htab_free_prealloced_timers(struct bpf_htab *htab)
 	u32 num_entries = htab->map.max_entries;
 	int i;
 
-	if (!map_value_has_timer(&htab->map))
+	if (!btf_record_has_field(htab->map.record, BPF_TIMER))
 		return;
 	if (htab_has_extra_elems(htab))
 		num_entries += num_possible_cpus();
@@ -231,28 +231,25 @@ static void htab_free_prealloced_timers(struct bpf_htab *htab)
 		struct htab_elem *elem;
 
 		elem = get_htab_elem(htab, i);
-		bpf_timer_cancel_and_free(elem->key +
-					  round_up(htab->map.key_size, 8) +
-					  htab->map.timer_off);
+		bpf_obj_free_timer(htab->map.record, elem->key + round_up(htab->map.key_size, 8));
 		cond_resched();
 	}
 }
 
-static void htab_free_prealloced_kptrs(struct bpf_htab *htab)
+static void htab_free_prealloced_fields(struct bpf_htab *htab)
 {
 	u32 num_entries = htab->map.max_entries;
 	int i;
 
-	if (!map_value_has_kptrs(&htab->map))
+	if (IS_ERR_OR_NULL(htab->map.record))
 		return;
 	if (htab_has_extra_elems(htab))
 		num_entries += num_possible_cpus();
-
 	for (i = 0; i < num_entries; i++) {
 		struct htab_elem *elem;
 
 		elem = get_htab_elem(htab, i);
-		bpf_map_free_kptrs(&htab->map, elem->key + round_up(htab->map.key_size, 8));
+		bpf_obj_free_fields(htab->map.record, elem->key + round_up(htab->map.key_size, 8));
 		cond_resched();
 	}
 }
@@ -764,10 +761,7 @@ static void check_and_free_fields(struct bpf_htab *htab,
 {
 	void *map_value = elem->key + round_up(htab->map.key_size, 8);
 
-	if (map_value_has_timer(&htab->map))
-		bpf_timer_cancel_and_free(map_value + htab->map.timer_off);
-	if (map_value_has_kptrs(&htab->map))
-		bpf_map_free_kptrs(&htab->map, map_value);
+	bpf_obj_free_fields(htab->map.record, map_value);
 }
 
 /* It is called from the bpf_lru_list when the LRU needs to delete
@@ -1091,7 +1085,7 @@ static int htab_map_update_elem(struct bpf_map *map, void *key, void *value,
 	head = &b->head;
 
 	if (unlikely(map_flags & BPF_F_LOCK)) {
-		if (unlikely(!map_value_has_spin_lock(map)))
+		if (unlikely(!btf_record_has_field(map->record, BPF_SPIN_LOCK)))
 			return -EINVAL;
 		/* find an element without taking the bucket lock */
 		l_old = lookup_nulls_elem_raw(head, hash, key, key_size,
@@ -1474,12 +1468,8 @@ static void htab_free_malloced_timers(struct bpf_htab *htab)
 		struct htab_elem *l;
 
 		hlist_nulls_for_each_entry(l, n, head, hash_node) {
-			/* We don't reset or free kptr on uref dropping to zero,
-			 * hence just free timer.
-			 */
-			bpf_timer_cancel_and_free(l->key +
-						  round_up(htab->map.key_size, 8) +
-						  htab->map.timer_off);
+			/* We only free timer on uref dropping to zero */
+			bpf_obj_free_timer(htab->map.record, l->key + round_up(htab->map.key_size, 8));
 		}
 		cond_resched_rcu();
 	}
@@ -1490,8 +1480,8 @@ static void htab_map_free_timers(struct bpf_map *map)
 {
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
 
-	/* We don't reset or free kptr on uref dropping to zero. */
-	if (!map_value_has_timer(&htab->map))
+	/* We only free timer on uref dropping to zero */
+	if (!btf_record_has_field(htab->map.record, BPF_TIMER))
 		return;
 	if (!htab_is_prealloc(htab))
 		htab_free_malloced_timers(htab);
@@ -1517,11 +1507,11 @@ static void htab_map_free(struct bpf_map *map)
 	if (!htab_is_prealloc(htab)) {
 		delete_all_elements(htab);
 	} else {
-		htab_free_prealloced_kptrs(htab);
+		htab_free_prealloced_fields(htab);
 		prealloc_destroy(htab);
 	}
 
-	bpf_map_free_kptr_off_tab(map);
+	bpf_map_free_record(map);
 	free_percpu(htab->extra_elems);
 	bpf_map_area_free(htab->buckets);
 	bpf_mem_alloc_destroy(&htab->pcpu_ma);
@@ -1675,7 +1665,7 @@ __htab_map_lookup_and_delete_batch(struct bpf_map *map,
 
 	elem_map_flags = attr->batch.elem_flags;
 	if ((elem_map_flags & ~BPF_F_LOCK) ||
-	    ((elem_map_flags & BPF_F_LOCK) && !map_value_has_spin_lock(map)))
+	    ((elem_map_flags & BPF_F_LOCK) && !btf_record_has_field(map->record, BPF_SPIN_LOCK)))
 		return -EINVAL;
 
 	map_flags = attr->batch.flags;

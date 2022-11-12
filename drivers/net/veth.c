@@ -1125,7 +1125,7 @@ static int veth_enable_xdp(struct net_device *dev)
 	int err, i;
 
 	rq = &priv->rq[0];
-	napi_already_on = (dev->flags & IFF_UP) && rcu_access_pointer(rq->napi);
+	napi_already_on = rcu_access_pointer(rq->napi);
 
 	if (!xdp_rxq_info_is_reg(&priv->rq[0].xdp_rxq)) {
 		err = veth_enable_xdp_range(dev, 0, dev->real_num_rx_queues, napi_already_on);

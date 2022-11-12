@@ -147,7 +147,7 @@ bpf_sk_storage_clone_elem(struct sock *newsk,
 	if (!copy_selem)
 		return NULL;
 
-	if (map_value_has_spin_lock(&smap->map))
+	if (btf_record_has_field(smap->map.record, BPF_SPIN_LOCK))
 		copy_map_value_locked(&smap->map, SDATA(copy_selem)->data,
 				      SDATA(selem)->data, true);
 	else
@@ -566,7 +566,7 @@ static int diag_get(struct bpf_local_storage_data *sdata, struct sk_buff *skb)
 	if (!nla_value)
 		goto errout;
 
-	if (map_value_has_spin_lock(&smap->map))
+	if (btf_record_has_field(smap->map.record, BPF_SPIN_LOCK))
 		copy_map_value_locked(&smap->map, nla_data(nla_value),
 				      sdata->data, true);
 	else

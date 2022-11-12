@@ -240,8 +240,8 @@ int do_filter_dump(struct tcmsg *ifinfo, struct nlattr **tb, const char *kind,
 int print_all_levels(__maybe_unused enum libbpf_print_level level,
 		     const char *format, va_list args);
 
-size_t hash_fn_for_key_as_id(const void *key, void *ctx);
-bool equal_fn_for_key_as_id(const void *k1, const void *k2, void *ctx);
+size_t hash_fn_for_key_as_id(long key, void *ctx);
+bool equal_fn_for_key_as_id(long k1, long k2, void *ctx);
 
 /* bpf_attach_type_input_str - convert the provided attach type value into a
  * textual representation that we accept for input purposes.
@@ -256,16 +256,6 @@ bool equal_fn_for_key_as_id(const void *k1, const void *k2, void *ctx);
  * returned for unknown bpf_attach_type values.
  */
 const char *bpf_attach_type_input_str(enum bpf_attach_type t);
-
-static inline void *u32_as_hash_field(__u32 x)
-{
-	return (void *)(uintptr_t)x;
-}
-
-static inline __u32 hash_field_as_u32(const void *x)
-{
-	return (__u32)(uintptr_t)x;
-}
 
 static inline bool hashmap__empty(struct hashmap *map)
 {
