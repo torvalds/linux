@@ -52,9 +52,6 @@ struct etr_perf_buffer {
 /* Lower limit for ETR hardware buffer */
 #define TMC_ETR_PERF_MIN_BUF_SIZE	SZ_1M
 
-/* SW USB reserved memory size */
-#define TMC_ETR_SW_USB_BUF_SIZE SZ_64M
-
 /*
  * The TMC ETR SG has a page size of 4K. The SG table contains pointers
  * to 4KB buffers. However, the OS may use a PAGE_SIZE different from
