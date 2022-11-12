@@ -40,6 +40,7 @@
   atomic_notifier_chain_unregister
   autoremove_wake_function
   available_idle_cpu
+  __balance_callbacks
   balance_push_callback
   bdev_end_io_acct
   bdev_start_io_acct
@@ -70,6 +71,7 @@
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
   bpf_trace_run1
+  bpf_trace_run10
   bpf_trace_run11
   bpf_trace_run12
   bpf_trace_run2
@@ -981,6 +983,7 @@
   memstart_addr
   memunmap
   migrate_swap
+  __migrate_task
   misc_deregister
   misc_register
   mmc_cqe_request_done
@@ -1224,6 +1227,7 @@
   phy_trigger_machine
   phy_write_mmd
   pick_highest_pushable_task
+  pick_migrate_task
   pinconf_generic_dt_node_to_map
   pinctrl_dev_get_drvdata
   pinctrl_force_default
@@ -1399,6 +1403,7 @@
   rcuwait_wake_up
   rdev_get_drvdata
   reboot_mode
+  rebuild_sched_domains
   refcount_dec_and_lock
   refcount_dec_and_mutex_lock
   refcount_dec_not_one
@@ -1479,6 +1484,7 @@
   reset_control_assert
   reset_control_deassert
   reset_control_reset
+  return_address
   root_task_group
   round_jiffies_relative
   rpmsg_poll
@@ -1549,6 +1555,7 @@
   sdhci_set_power_noreg
   __sdhci_set_timeout
   sdhci_setup_host
+  select_fallback_rq
   seq_buf_printf
   seq_lseek
   seq_printf
@@ -1671,6 +1678,7 @@
   start_poll_synchronize_srcu
   static_key_disable
   stop_machine
+  stop_one_cpu
   stop_one_cpu_nowait
   strcmp
   strcpy
@@ -1730,6 +1738,7 @@
   sysfs_remove_link_from_group
   sysfs_streq
   sysrq_mask
+  system_32bit_el0_cpumask
   system_freezable_wq
   system_highpri_wq
   system_state
@@ -1748,6 +1757,7 @@
   thermal_cooling_device_register
   thermal_cooling_device_unregister
   thermal_of_cooling_device_register
+  thermal_pressure
   thermal_zone_device_enable
   thermal_zone_device_register
   thermal_zone_device_unregister
@@ -1758,6 +1768,7 @@
   time64_to_tm
   timer_unstable_counter_workaround
   topology_clear_scale_freq_source
+  topology_update_done
   topology_update_thermal_pressure
   _totalram_pages
   __trace_bprintk
@@ -1770,24 +1781,48 @@
   trace_event_reg
   trace_get_event_file
   trace_handle_return
+  __tracepoint_android_rvh_account_irq
   __tracepoint_android_rvh_after_dequeue_task
   __tracepoint_android_rvh_after_enqueue_task
+  __tracepoint_android_rvh_build_perf_domains
   __tracepoint_android_rvh_can_migrate_task
   __tracepoint_android_rvh_check_preempt_wakeup
   __tracepoint_android_rvh_cpu_cgroup_attach
   __tracepoint_android_rvh_cpu_cgroup_online
+  __tracepoint_android_rvh_do_sched_yield
   __tracepoint_android_rvh_find_busiest_queue
   __tracepoint_android_rvh_find_lowest_rq
+  __tracepoint_android_rvh_flush_task
+  __tracepoint_android_rvh_get_nohz_timer_target
+  __tracepoint_android_rvh_is_cpu_allowed
   __tracepoint_android_rvh_migrate_queued_task
+  __tracepoint_android_rvh_new_task_stats
   __tracepoint_android_rvh_replace_next_task_fair
+  __tracepoint_android_rvh_rto_next_cpu
+  __tracepoint_android_rvh_sched_cpu_dying
+  __tracepoint_android_rvh_sched_cpu_starting
+  __tracepoint_android_rvh_sched_exec
+  __tracepoint_android_rvh_sched_fork_init
+  __tracepoint_android_rvh_sched_getaffinity
   __tracepoint_android_rvh_sched_newidle_balance
   __tracepoint_android_rvh_sched_nohz_balancer_kick
   __tracepoint_android_rvh_sched_setaffinity
+  __tracepoint_android_rvh_schedule
   __tracepoint_android_rvh_select_task_rq_fair
   __tracepoint_android_rvh_select_task_rq_rt
   __tracepoint_android_rvh_set_balance_anon_file_reclaim
+  __tracepoint_android_rvh_set_cpus_allowed_by_task
+  __tracepoint_android_rvh_set_task_cpu
   __tracepoint_android_rvh_show_max_freq
+  __tracepoint_android_rvh_tick_entry
+  __tracepoint_android_rvh_try_to_wake_up
+  __tracepoint_android_rvh_try_to_wake_up_success
+  __tracepoint_android_rvh_ttwu_cond
+  __tracepoint_android_rvh_update_cpu_capacity
   __tracepoint_android_rvh_update_cpus_allowed
+  __tracepoint_android_rvh_update_misfit_status
+  __tracepoint_android_rvh_update_thermal_stats
+  __tracepoint_android_rvh_wake_up_new_task
   __tracepoint_android_vh_binder_restore_priority
   __tracepoint_android_vh_binder_set_priority
   __tracepoint_android_vh_binder_wakeup_ilocked
@@ -1814,6 +1849,7 @@
   __tracepoint_android_vh_ufs_send_command
   __tracepoint_android_vh_ufs_send_tm_command
   __tracepoint_android_vh_ufs_send_uic_command
+  __tracepoint_android_vh_update_topology_flags_workfn
   __tracepoint_binder_transaction_received
   __tracepoint_cpu_frequency_limits
   __tracepoint_cpu_idle
