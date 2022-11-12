@@ -178,6 +178,10 @@
 	};
 };
 
+&hdmi_sound {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -444,6 +448,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4m1_xfer>;
 	status = "disabled";
+};
+
+&i2s0_8ch {
+	status = "okay";
 };
 
 /*
