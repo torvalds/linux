@@ -515,19 +515,19 @@ static void mmhub_v1_8_init(struct amdgpu_device *adev)
 	for (i = 0; i < adev->num_aid; i++) {
 		hub = &adev->vmhub[AMDGPU_MMHUB0(i)];
 
-		hub->ctx0_ptb_addr_lo32 = SOC15_REG_OFFSET(MMHUB, 0,
+		hub->ctx0_ptb_addr_lo32 = SOC15_REG_OFFSET(MMHUB, i,
 			regVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_LO32);
-		hub->ctx0_ptb_addr_hi32 = SOC15_REG_OFFSET(MMHUB, 0,
+		hub->ctx0_ptb_addr_hi32 = SOC15_REG_OFFSET(MMHUB, i,
 			regVM_CONTEXT0_PAGE_TABLE_BASE_ADDR_HI32);
 		hub->vm_inv_eng0_req =
-			SOC15_REG_OFFSET(MMHUB, 0, regVM_INVALIDATE_ENG0_REQ);
+			SOC15_REG_OFFSET(MMHUB, i, regVM_INVALIDATE_ENG0_REQ);
 		hub->vm_inv_eng0_ack =
-			SOC15_REG_OFFSET(MMHUB, 0, regVM_INVALIDATE_ENG0_ACK);
+			SOC15_REG_OFFSET(MMHUB, i, regVM_INVALIDATE_ENG0_ACK);
 		hub->vm_context0_cntl =
-			SOC15_REG_OFFSET(MMHUB, 0, regVM_CONTEXT0_CNTL);
-		hub->vm_l2_pro_fault_status = SOC15_REG_OFFSET(MMHUB, 0,
+			SOC15_REG_OFFSET(MMHUB, i, regVM_CONTEXT0_CNTL);
+		hub->vm_l2_pro_fault_status = SOC15_REG_OFFSET(MMHUB, i,
 			regVM_L2_PROTECTION_FAULT_STATUS);
-		hub->vm_l2_pro_fault_cntl = SOC15_REG_OFFSET(MMHUB, 0,
+		hub->vm_l2_pro_fault_cntl = SOC15_REG_OFFSET(MMHUB, i,
 			regVM_L2_PROTECTION_FAULT_CNTL);
 
 		hub->ctx_distance = regVM_CONTEXT1_CNTL - regVM_CONTEXT0_CNTL;
