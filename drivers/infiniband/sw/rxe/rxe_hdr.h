@@ -742,7 +742,6 @@ enum aeth_syndrome {
 	AETH_NAK_INVALID_REQ	= 0x61,
 	AETH_NAK_REM_ACC_ERR	= 0x62,
 	AETH_NAK_REM_OP_ERR	= 0x63,
-	AETH_NAK_INV_RD_REQ	= 0x64,
 };
 
 static inline u8 __aeth_syn(void *arg)
