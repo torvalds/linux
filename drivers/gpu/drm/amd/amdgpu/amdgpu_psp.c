@@ -329,6 +329,9 @@ static bool psp_get_runtime_db_entry(struct amdgpu_device *adev,
 	bool ret = false;
 	int i;
 
+	if (adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 6))
+		return false;
+
 	db_header_pos = adev->gmc.mc_vram_size - PSP_RUNTIME_DB_OFFSET;
 	db_dir_pos = db_header_pos + sizeof(struct psp_runtime_data_header);
 
