@@ -174,16 +174,29 @@ struct lkl_host_operations {
 };
 
 /**
- * lkl_start_kernel - registers the host operations and starts the kernel
+ * lkl_init - initializes LKL
  *
- * The function returns only after the kernel is shutdown with lkl_sys_halt.
+ * This function needs to be called this before any other LKL function.
  *
  * @lkl_ops - pointer to host operations
+ */
+int lkl_init(struct lkl_host_operations *lkl_ops);
+
+/**
+ * lkl_start_kernel - starts the kernel
+ *
  * @cmd_line - format for command line string that is going to be used to
  * generate the Linux kernel command line
  */
-int lkl_start_kernel(struct lkl_host_operations *lkl_ops,
-		    const char *cmd_line, ...);
+int lkl_start_kernel(const char *cmd_line, ...);
+
+/**
+ * lkl_cleanup - cleanup LKL
+ *
+ * To be called after lkl_sys_shutdown. Once this function is called no more LKL
+ * calls can be made unless @lkl_init is called again.
+ */
+void lkl_cleanup(void);
 
 /**
  * lkl_is_running - returns 1 if the kernel is currently running

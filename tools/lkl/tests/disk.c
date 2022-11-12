@@ -158,8 +158,7 @@ static int lkl_test_readdir(void)
 
 LKL_TEST_CALL(closedir, lkl_closedir, 0, dir);
 LKL_TEST_CALL(chdir_mnt_point, lkl_sys_chdir, 0, mnt_point);
-LKL_TEST_CALL(start_kernel, lkl_start_kernel, 0, &lkl_host_ops,
-	     "mem=16M loglevel=8");
+LKL_TEST_CALL(start_kernel, lkl_start_kernel, 0, "mem=16M loglevel=8");
 LKL_TEST_CALL(stop_kernel, lkl_sys_halt, 0);
 
 struct lkl_test tests[] = {
@@ -178,11 +177,19 @@ struct lkl_test tests[] = {
 
 int main(int argc, const char **argv)
 {
+	int ret;
+
 	if (parse_args(argc, argv, args) < 0)
 		return -1;
 
 	lkl_host_ops.print = lkl_test_log;
 
-	return lkl_test_run(tests, sizeof(tests)/sizeof(struct lkl_test),
-			    "disk %s", cla.fstype);
+	lkl_init(&lkl_host_ops);
+
+	ret = lkl_test_run(tests, sizeof(tests)/sizeof(struct lkl_test),
+			"disk %s", cla.fstype);
+
+	lkl_cleanup();
+
+	return ret;
 }

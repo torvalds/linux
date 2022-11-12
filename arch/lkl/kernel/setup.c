@@ -48,20 +48,17 @@ static void __init lkl_run_kernel(void *arg)
 	start_kernel();
 }
 
-int __init lkl_start_kernel(struct lkl_host_operations *ops,
-			const char *fmt, ...)
+int __init lkl_start_kernel(const char *fmt, ...)
 {
 	va_list ap;
 	int ret;
-
-	lkl_ops = ops;
 
 	va_start(ap, fmt);
 	ret = vsnprintf(boot_command_line, COMMAND_LINE_SIZE, fmt, ap);
 	va_end(ap);
 
-	if (ops->virtio_devices)
-		strscpy(boot_command_line + ret, ops->virtio_devices,
+	if (lkl_ops->virtio_devices)
+		strscpy(boot_command_line + ret, lkl_ops->virtio_devices,
 			COMMAND_LINE_SIZE - ret);
 
 	memcpy(cmd_line, boot_command_line, COMMAND_LINE_SIZE);
@@ -139,7 +136,6 @@ long lkl_sys_halt(void)
 
 	return 0;
 }
-
 
 static int lkl_run_init(struct linux_binprm *bprm);
 

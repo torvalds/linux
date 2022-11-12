@@ -497,8 +497,7 @@ static int lkl_test_join(void)
 	}
 }
 
-LKL_TEST_CALL(start_kernel, lkl_start_kernel, 0, &lkl_host_ops,
-	     "mem=16M loglevel=8");
+LKL_TEST_CALL(start_kernel, lkl_start_kernel, 0, "mem=16M loglevel=8");
 LKL_TEST_CALL(stop_kernel, lkl_sys_halt, 0);
 
 struct lkl_test tests[] = {
@@ -550,8 +549,16 @@ struct lkl_test tests[] = {
 
 int main(int argc, const char **argv)
 {
+	int ret;
+
 	lkl_host_ops.print = lkl_test_log;
 
-	return lkl_test_run(tests, sizeof(tests)/sizeof(struct lkl_test),
-			    "boot");
+	lkl_init(&lkl_host_ops);
+
+	ret = lkl_test_run(tests, sizeof(tests)/sizeof(struct lkl_test),
+			"boot");
+
+	lkl_cleanup();
+
+	return ret;
 }

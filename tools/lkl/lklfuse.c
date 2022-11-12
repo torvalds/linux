@@ -510,10 +510,9 @@ const struct fuse_operations lklfuse_ops = {
 static int start_lkl(void)
 {
 	long ret;
-	char mpoint[32], cmdline[16];
+	char mpoint[32];
 
-	snprintf(cmdline, sizeof(cmdline), "mem=%dM", lklfuse.mb);
-	ret = lkl_start_kernel(&lkl_host_ops, cmdline);
+	ret = lkl_start_kernel("mem=%dM", lklfuse.mb);
 	if (ret) {
 		fprintf(stderr, "can't start kernel: %s\n", lkl_strerror(ret));
 		goto out;
@@ -595,10 +594,16 @@ int main(int argc, char **argv)
 
 	lklfuse.disk.fd = ret;
 
+	ret = lkl_init(&lkl_host_ops);
+	if (ret < 0) {
+		fprintf(stderr, "lkl init failed: %s\n", lkl_strerror(ret));
+		goto out_close_disk;
+	}
+
 	ret = lkl_disk_add(&lklfuse.disk);
 	if (ret < 0) {
 		fprintf(stderr, "can't add disk: %s\n", lkl_strerror(ret));
-		goto out_close_disk;
+		goto out_lkl_cleanup;
 	}
 
 	lklfuse.disk_id = ret;
@@ -646,6 +651,9 @@ out_fuse_unmount:
 out_fuse_destroy:
 	if (fuse)
 		fuse_destroy(fuse);
+
+out_lkl_cleanup:
+	lkl_cleanup();
 
 out_close_disk:
 	close(lklfuse.disk.fd);
