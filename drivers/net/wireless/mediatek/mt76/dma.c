@@ -60,6 +60,19 @@ mt76_alloc_txwi(struct mt76_dev *dev)
 }
 
 static struct mt76_txwi_cache *
+mt76_alloc_rxwi(struct mt76_dev *dev)
+{
+	struct mt76_txwi_cache *t;
+
+	t = kzalloc(L1_CACHE_ALIGN(sizeof(*t)), GFP_ATOMIC);
+	if (!t)
+		return NULL;
+
+	t->ptr = NULL;
+	return t;
+}
+
+static struct mt76_txwi_cache *
 __mt76_get_txwi(struct mt76_dev *dev)
 {
 	struct mt76_txwi_cache *t = NULL;
@@ -76,6 +89,22 @@ __mt76_get_txwi(struct mt76_dev *dev)
 }
 
 static struct mt76_txwi_cache *
+__mt76_get_rxwi(struct mt76_dev *dev)
+{
+	struct mt76_txwi_cache *t = NULL;
+
+	spin_lock(&dev->wed_lock);
+	if (!list_empty(&dev->rxwi_cache)) {
+		t = list_first_entry(&dev->rxwi_cache, struct mt76_txwi_cache,
+				     list);
+		list_del(&t->list);
+	}
+	spin_unlock(&dev->wed_lock);
+
+	return t;
+}
+
+static struct mt76_txwi_cache *
 mt76_get_txwi(struct mt76_dev *dev)
 {
 	struct mt76_txwi_cache *t = __mt76_get_txwi(dev);
@@ -85,6 +114,18 @@ mt76_get_txwi(struct mt76_dev *dev)
 
 	return mt76_alloc_txwi(dev);
 }
+
+struct mt76_txwi_cache *
+mt76_get_rxwi(struct mt76_dev *dev)
+{
+	struct mt76_txwi_cache *t = __mt76_get_rxwi(dev);
+
+	if (t)
+		return t;
+
+	return mt76_alloc_rxwi(dev);
+}
+EXPORT_SYMBOL_GPL(mt76_get_rxwi);
 
 void
 mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t)
@@ -98,6 +139,18 @@ mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t)
 }
 EXPORT_SYMBOL_GPL(mt76_put_txwi);
 
+void
+mt76_put_rxwi(struct mt76_dev *dev, struct mt76_txwi_cache *t)
+{
+	if (!t)
+		return;
+
+	spin_lock(&dev->wed_lock);
+	list_add(&t->list, &dev->rxwi_cache);
+	spin_unlock(&dev->wed_lock);
+}
+EXPORT_SYMBOL_GPL(mt76_put_rxwi);
+
 static void
 mt76_free_pending_txwi(struct mt76_dev *dev)
 {
@@ -108,6 +161,20 @@ mt76_free_pending_txwi(struct mt76_dev *dev)
 		dma_unmap_single(dev->dma_dev, t->dma_addr, dev->drv->txwi_size,
 				 DMA_TO_DEVICE);
 		kfree(mt76_get_txwi_ptr(dev, t));
+	}
+	local_bh_enable();
+}
+
+static void
+mt76_free_pending_rxwi(struct mt76_dev *dev)
+{
+	struct mt76_txwi_cache *t;
+
+	local_bh_disable();
+	while ((t = __mt76_get_rxwi(dev)) != NULL) {
+		if (t->ptr)
+			skb_free_frag(t->ptr);
+		kfree(t);
 	}
 	local_bh_enable();
 }
@@ -808,6 +875,7 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
 	}
 
 	mt76_free_pending_txwi(dev);
+	mt76_free_pending_rxwi(dev);
 
 	if (mtk_wed_device_active(&dev->mmio.wed))
 		mtk_wed_device_detach(&dev->mmio.wed);
