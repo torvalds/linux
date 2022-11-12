@@ -549,7 +549,7 @@ static void printout(struct perf_stat_config *config, struct aggr_cpu_id id, int
 	}
 
 	if (!config->no_csv_summary && config->csv_output &&
-	    config->summary && !config->interval) {
+	    config->summary && !config->interval && !config->metric_only) {
 		fprintf(config->output, "%16s%s", "summary", config->csv_sep);
 	}
 
@@ -732,8 +732,13 @@ static void print_aggr(struct perf_stat_config *config,
 	 * Without each counter has its own line.
 	 */
 	for (s = 0; s < config->aggr_map->nr; s++) {
-		if (prefix && metric_only)
-			fprintf(output, "%s", prefix);
+		if (metric_only) {
+			if (prefix)
+				fprintf(output, "%s", prefix);
+			else if (config->summary && !config->no_csv_summary &&
+				 config->csv_output && !config->interval)
+				fprintf(output, "%16s%s", "summary", config->csv_sep);
+		}
 
 		first = true;
 		evlist__for_each_entry(evlist, counter) {
