@@ -1722,8 +1722,21 @@ static int qm_regs_show(struct seq_file *s, void *unused)
 
 DEFINE_SHOW_ATTRIBUTE(qm_regs);
 
+static void dfx_regs_uninit(struct hisi_qm *qm,
+		struct dfx_diff_registers *dregs, int reg_len)
+{
+	int i;
+
+	/* Setting the pointer is NULL to prevent double free */
+	for (i = 0; i < reg_len; i++) {
+		kfree(dregs[i].regs);
+		dregs[i].regs = NULL;
+	}
+	kfree(dregs);
+}
+
 static struct dfx_diff_registers *dfx_regs_init(struct hisi_qm *qm,
-	const struct dfx_diff_registers *cregs, int reg_len)
+	const struct dfx_diff_registers *cregs, u32 reg_len)
 {
 	struct dfx_diff_registers *diff_regs;
 	u32 j, base_offset;
@@ -1762,64 +1775,107 @@ alloc_error:
 	return ERR_PTR(-ENOMEM);
 }
 
-static void dfx_regs_uninit(struct hisi_qm *qm,
-		struct dfx_diff_registers *dregs, int reg_len)
+static int qm_diff_regs_init(struct hisi_qm *qm,
+		struct dfx_diff_registers *dregs, u32 reg_len)
 {
-	int i;
-
-	/* Setting the pointer is NULL to prevent double free */
-	for (i = 0; i < reg_len; i++) {
-		kfree(dregs[i].regs);
-		dregs[i].regs = NULL;
-	}
-	kfree(dregs);
-}
-
-/**
- * hisi_qm_diff_regs_init() - Allocate memory for registers.
- * @qm: device qm handle.
- * @dregs: diff registers handle.
- * @reg_len: diff registers region length.
- */
-int hisi_qm_diff_regs_init(struct hisi_qm *qm,
-		struct dfx_diff_registers *dregs, int reg_len)
-{
-	if (!qm || !dregs || reg_len <= 0)
-		return -EINVAL;
-
-	if (qm->fun_type != QM_HW_PF)
-		return 0;
-
-	qm->debug.qm_diff_regs = dfx_regs_init(qm, qm_diff_regs,
-						ARRAY_SIZE(qm_diff_regs));
+	qm->debug.qm_diff_regs = dfx_regs_init(qm, qm_diff_regs, ARRAY_SIZE(qm_diff_regs));
 	if (IS_ERR(qm->debug.qm_diff_regs))
 		return PTR_ERR(qm->debug.qm_diff_regs);
 
 	qm->debug.acc_diff_regs = dfx_regs_init(qm, dregs, reg_len);
 	if (IS_ERR(qm->debug.acc_diff_regs)) {
-		dfx_regs_uninit(qm, qm->debug.qm_diff_regs,
-				ARRAY_SIZE(qm_diff_regs));
+		dfx_regs_uninit(qm, qm->debug.qm_diff_regs, ARRAY_SIZE(qm_diff_regs));
 		return PTR_ERR(qm->debug.acc_diff_regs);
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(hisi_qm_diff_regs_init);
 
-/**
- * hisi_qm_diff_regs_uninit() - Free memory for registers.
- * @qm: device qm handle.
- * @reg_len: diff registers region length.
- */
-void hisi_qm_diff_regs_uninit(struct hisi_qm *qm, int reg_len)
+static void qm_last_regs_uninit(struct hisi_qm *qm)
 {
-	if (!qm  || reg_len <= 0 || qm->fun_type != QM_HW_PF)
+	struct qm_debug *debug = &qm->debug;
+
+	if (qm->fun_type == QM_HW_VF || !debug->qm_last_words)
 		return;
 
+	kfree(debug->qm_last_words);
+	debug->qm_last_words = NULL;
+}
+
+static int qm_last_regs_init(struct hisi_qm *qm)
+{
+	int dfx_regs_num = ARRAY_SIZE(qm_dfx_regs);
+	struct qm_debug *debug = &qm->debug;
+	int i;
+
+	if (qm->fun_type == QM_HW_VF)
+		return 0;
+
+	debug->qm_last_words = kcalloc(dfx_regs_num, sizeof(unsigned int), GFP_KERNEL);
+	if (!debug->qm_last_words)
+		return -ENOMEM;
+
+	for (i = 0; i < dfx_regs_num; i++) {
+		debug->qm_last_words[i] = readl_relaxed(qm->io_base +
+			qm_dfx_regs[i].offset);
+	}
+
+	return 0;
+}
+
+static void qm_diff_regs_uninit(struct hisi_qm *qm, u32 reg_len)
+{
 	dfx_regs_uninit(qm, qm->debug.acc_diff_regs, reg_len);
 	dfx_regs_uninit(qm, qm->debug.qm_diff_regs, ARRAY_SIZE(qm_diff_regs));
 }
-EXPORT_SYMBOL_GPL(hisi_qm_diff_regs_uninit);
+
+/**
+ * hisi_qm_regs_debugfs_init() - Allocate memory for registers.
+ * @qm: device qm handle.
+ * @dregs: diff registers handle.
+ * @reg_len: diff registers region length.
+ */
+int hisi_qm_regs_debugfs_init(struct hisi_qm *qm,
+		struct dfx_diff_registers *dregs, u32 reg_len)
+{
+	int ret;
+
+	if (!qm || !dregs)
+		return -EINVAL;
+
+	if (qm->fun_type != QM_HW_PF)
+		return 0;
+
+	ret = qm_last_regs_init(qm);
+	if (ret) {
+		dev_info(&qm->pdev->dev, "failed to init qm words memory!\n");
+		return ret;
+	}
+
+	ret = qm_diff_regs_init(qm, dregs, reg_len);
+	if (ret) {
+		qm_last_regs_uninit(qm);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hisi_qm_regs_debugfs_init);
+
+/**
+ * hisi_qm_regs_debugfs_uninit() - Free memory for registers.
+ * @qm: device qm handle.
+ * @reg_len: diff registers region length.
+ */
+void hisi_qm_regs_debugfs_uninit(struct hisi_qm *qm, u32 reg_len)
+{
+	if (!qm || qm->fun_type != QM_HW_PF)
+		return;
+
+	qm_diff_regs_uninit(qm, reg_len);
+	qm_last_regs_uninit(qm);
+}
+EXPORT_SYMBOL_GPL(hisi_qm_regs_debugfs_uninit);
 
 /**
  * hisi_qm_acc_diff_regs_dump() - Dump registers's value.
@@ -1829,12 +1885,12 @@ EXPORT_SYMBOL_GPL(hisi_qm_diff_regs_uninit);
  * @regs_len: diff registers region length.
  */
 void hisi_qm_acc_diff_regs_dump(struct hisi_qm *qm, struct seq_file *s,
-	struct dfx_diff_registers *dregs, int regs_len)
+	struct dfx_diff_registers *dregs, u32 regs_len)
 {
 	u32 j, val, base_offset;
 	int i, ret;
 
-	if (!qm || !s || !dregs || regs_len <= 0)
+	if (!qm || !s || !dregs)
 		return;
 
 	ret = hisi_qm_get_dfx_access(qm);
@@ -3719,17 +3775,6 @@ static void hisi_qm_set_state(struct hisi_qm *qm, u8 state)
 		writel(state, qm->io_base + QM_VF_STATE);
 }
 
-static void qm_last_regs_uninit(struct hisi_qm *qm)
-{
-	struct qm_debug *debug = &qm->debug;
-
-	if (qm->fun_type == QM_HW_VF || !debug->qm_last_words)
-		return;
-
-	kfree(debug->qm_last_words);
-	debug->qm_last_words = NULL;
-}
-
 static void hisi_qm_unint_work(struct hisi_qm *qm)
 {
 	destroy_workqueue(qm->wq);
@@ -3760,8 +3805,6 @@ static void hisi_qm_memory_uninit(struct hisi_qm *qm)
  */
 void hisi_qm_uninit(struct hisi_qm *qm)
 {
-	qm_last_regs_uninit(qm);
-
 	qm_cmd_uninit(qm);
 	hisi_qm_unint_work(qm);
 	down_write(&qm->qps_lock);
@@ -6357,26 +6400,6 @@ err_destroy_idr:
 	return ret;
 }
 
-static void qm_last_regs_init(struct hisi_qm *qm)
-{
-	int dfx_regs_num = ARRAY_SIZE(qm_dfx_regs);
-	struct qm_debug *debug = &qm->debug;
-	int i;
-
-	if (qm->fun_type == QM_HW_VF)
-		return;
-
-	debug->qm_last_words = kcalloc(dfx_regs_num, sizeof(unsigned int),
-								GFP_KERNEL);
-	if (!debug->qm_last_words)
-		return;
-
-	for (i = 0; i < dfx_regs_num; i++) {
-		debug->qm_last_words[i] = readl_relaxed(qm->io_base +
-			qm_dfx_regs[i].offset);
-	}
-}
-
 /**
  * hisi_qm_init() - Initialize configures about qm.
  * @qm: The qm needing init.
@@ -6424,8 +6447,6 @@ int hisi_qm_init(struct hisi_qm *qm)
 
 	qm_cmd_init(qm);
 	atomic_set(&qm->status.flags, QM_INIT);
-
-	qm_last_regs_init(qm);
 
 	return 0;
 
