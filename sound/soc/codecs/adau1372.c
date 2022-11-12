@@ -8,7 +8,6 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/gcd.h>
 #include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/module.h>
