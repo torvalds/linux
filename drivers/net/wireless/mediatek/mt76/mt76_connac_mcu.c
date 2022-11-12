@@ -1219,6 +1219,16 @@ void mt76_connac_mcu_sta_ba_tlv(struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_sta_ba_tlv);
 
+int mt76_connac_mcu_sta_wed_update(struct mt76_dev *dev, struct sk_buff *skb)
+{
+	if (!mtk_wed_device_active(&dev->mmio.wed))
+		return 0;
+
+	return mtk_wed_device_update_msg(&dev->mmio.wed, WED_WO_STA_REC,
+					 skb->data, skb->len);
+}
+EXPORT_SYMBOL_GPL(mt76_connac_mcu_sta_wed_update);
+
 int mt76_connac_mcu_sta_ba(struct mt76_dev *dev, struct mt76_vif *mvif,
 			   struct ieee80211_ampdu_params *params,
 			   int cmd, bool enable, bool tx)
@@ -1244,6 +1254,10 @@ int mt76_connac_mcu_sta_ba(struct mt76_dev *dev, struct mt76_vif *mvif,
 	mt76_connac_mcu_wtbl_ba_tlv(dev, skb, params, enable, tx, sta_wtbl,
 				    wtbl_hdr);
 
+	ret = mt76_connac_mcu_sta_wed_update(dev, skb);
+	if (ret)
+		return ret;
+
 	ret = mt76_mcu_skb_send_msg(dev, skb, cmd, true);
 	if (ret)
 		return ret;
@@ -1253,6 +1267,10 @@ int mt76_connac_mcu_sta_ba(struct mt76_dev *dev, struct mt76_vif *mvif,
 		return PTR_ERR(skb);
 
 	mt76_connac_mcu_sta_ba_tlv(skb, params, enable, tx);
+
+	ret = mt76_connac_mcu_sta_wed_update(dev, skb);
+	if (ret)
+		return ret;
 
 	return mt76_mcu_skb_send_msg(dev, skb, cmd, true);
 }
@@ -2693,6 +2711,10 @@ int mt76_connac_mcu_add_key(struct mt76_dev *dev, struct ieee80211_vif *vif,
 		return PTR_ERR(skb);
 
 	ret = mt76_connac_mcu_sta_key_tlv(sta_key_conf, skb, key, cmd);
+	if (ret)
+		return ret;
+
+	ret = mt76_connac_mcu_sta_wed_update(dev, skb);
 	if (ret)
 		return ret;
 
