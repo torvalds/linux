@@ -1666,7 +1666,7 @@ bool mt7615_rx_check(struct mt76_dev *mdev, void *data, int len)
 EXPORT_SYMBOL_GPL(mt7615_rx_check);
 
 void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
-			 struct sk_buff *skb)
+			 struct sk_buff *skb, u32 *info)
 {
 	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
 	__le32 *rxd = (__le32 *)skb->data;

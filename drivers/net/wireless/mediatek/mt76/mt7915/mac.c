@@ -165,9 +165,9 @@ static void mt7915_mac_sta_poll(struct mt7915_dev *dev)
 		sta = container_of((void *)msta, struct ieee80211_sta,
 				   drv_priv);
 		for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-			u8 q = mt76_connac_lmac_mapping(i);
-			u32 tx_cur = tx_time[q];
-			u32 rx_cur = rx_time[q];
+			u8 queue = mt76_connac_lmac_mapping(i);
+			u32 tx_cur = tx_time[queue];
+			u32 rx_cur = rx_time[queue];
 			u8 tid = ac_to_tid[i];
 
 			if (!tx_cur && !rx_cur)
@@ -245,8 +245,37 @@ void mt7915_mac_enable_rtscts(struct mt7915_dev *dev,
 		mt76_clear(dev, addr, BIT(5));
 }
 
+static void
+mt7915_wed_check_ppe(struct mt7915_dev *dev, struct mt76_queue *q,
+		     struct mt7915_sta *msta, struct sk_buff *skb,
+		     u32 info)
+{
+	struct ieee80211_vif *vif;
+	struct wireless_dev *wdev;
+
+	if (!msta || !msta->vif)
+		return;
+
+	if (!(q->flags & MT_QFLAG_WED) ||
+	    FIELD_GET(MT_QFLAG_WED_TYPE, q->flags) != MT76_WED_Q_RX)
+		return;
+
+	if (!(info & MT_DMA_INFO_PPE_VLD))
+		return;
+
+	vif = container_of((void *)msta->vif, struct ieee80211_vif,
+			   drv_priv);
+	wdev = ieee80211_vif_to_wdev(vif);
+	skb->dev = wdev->netdev;
+
+	mtk_wed_device_ppe_check(&dev->mt76.mmio.wed, skb,
+				 FIELD_GET(MT_DMA_PPE_CPU_REASON, info),
+				 FIELD_GET(MT_DMA_PPE_ENTRY, info));
+}
+
 static int
-mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
+mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb,
+		   enum mt76_rxq_id q, u32 *info)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	struct mt76_phy *mphy = &dev->mt76.phy;
@@ -513,6 +542,8 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 		}
 	} else {
 		status->flag |= RX_FLAG_8023;
+		mt7915_wed_check_ppe(dev, &dev->mt76.q_rx[q], msta, skb,
+				     *info);
 	}
 
 	if (rxv && mode >= MT_PHY_TYPE_HE_SU && !(status->flag & RX_FLAG_8023))
@@ -1096,7 +1127,7 @@ bool mt7915_rx_check(struct mt76_dev *mdev, void *data, int len)
 }
 
 void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
-			 struct sk_buff *skb)
+			 struct sk_buff *skb, u32 *info)
 {
 	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
 	__le32 *rxd = (__le32 *)skb->data;
@@ -1130,7 +1161,7 @@ void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 		dev_kfree_skb(skb);
 		break;
 	case PKT_TYPE_NORMAL:
-		if (!mt7915_mac_fill_rx(dev, skb)) {
+		if (!mt7915_mac_fill_rx(dev, skb, q, info)) {
 			mt76_rx(&dev->mt76, q, skb);
 			return;
 		}

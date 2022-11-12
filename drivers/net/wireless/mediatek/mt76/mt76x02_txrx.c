@@ -33,7 +33,7 @@ void mt76x02_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 EXPORT_SYMBOL_GPL(mt76x02_tx);
 
 void mt76x02_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
-			  struct sk_buff *skb)
+			  struct sk_buff *skb, u32 *info)
 {
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	void *rxwi = skb->data;

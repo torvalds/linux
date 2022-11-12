@@ -547,7 +547,7 @@ mt76u_process_rx_entry(struct mt76_dev *dev, struct urb *urb,
 		len -= data_len;
 		nsgs++;
 	}
-	dev->drv->rx_skb(dev, MT_RXQ_MAIN, skb);
+	dev->drv->rx_skb(dev, MT_RXQ_MAIN, skb, NULL);
 
 	return nsgs;
 }
