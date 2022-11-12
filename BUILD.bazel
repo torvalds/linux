@@ -324,6 +324,42 @@ copy_to_dist_dir(
     flat = True,
 )
 
+# allmodconfig build tests.
+# These are build tests only, so:
+# - outs are intentionally set to empty to not copy anything to DIST_DIR
+# - --allow-undeclared-modules must be used so modules are not declared or copied.
+# - No dist target because these are build tests. We don't care about the artifacts.
+
+# tools/bazel build --allow_undeclared_modules //common:allmodconfig_aarch64
+kernel_build(
+    name = "allmodconfig_aarch64",
+    # Hack to actually check the build.
+    # Otherwise, Bazel thinks that there are no output files, and skip building.
+    outs = [".config"],
+    build_config = "build.config.allmodconfig.aarch64",
+    visibility = ["//visibility:private"],
+)
+
+# tools/bazel build --allow_undeclared_modules //common:allmodconfig_x86_64
+kernel_build(
+    name = "allmodconfig_x86_64",
+    # Hack to actually check the build.
+    # Otherwise, Bazel thinks that there are no output files, and skip building.
+    outs = [".config"],
+    build_config = "build.config.allmodconfig.x86_64",
+    visibility = ["//visibility:private"],
+)
+
+# tools/bazel build --allow_undeclared_modules //common:allmodconfig_arm
+kernel_build(
+    name = "allmodconfig_arm",
+    # Hack to actually check the build.
+    # Otherwise, Bazel thinks that there are no output files, and skip building.
+    outs = [".config"],
+    build_config = "build.config.allmodconfig.arm",
+    visibility = ["//visibility:private"],
+)
+
 # DDK Headers
 # All headers. These are the public targets for DDK modules to use.
 alias(
