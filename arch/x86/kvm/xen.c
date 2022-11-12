@@ -1227,6 +1227,7 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 	bool longmode;
 	u64 input, params[6], r = -ENOSYS;
 	bool handled = false;
+	u8 cpl;
 
 	input = (u64)kvm_register_read(vcpu, VCPU_REGS_RAX);
 
@@ -1254,8 +1255,16 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 		params[5] = (u64)kvm_r9_read(vcpu);
 	}
 #endif
+	cpl = static_call(kvm_x86_get_cpl)(vcpu);
 	trace_kvm_xen_hypercall(input, params[0], params[1], params[2],
 				params[3], params[4], params[5]);
+
+	/*
+	 * Only allow hypercall acceleration for CPL0. The rare hypercalls that
+	 * are permitted in guest userspace can be handled by the VMM.
+	 */
+	if (unlikely(cpl > 0))
+		goto handle_in_userspace;
 
 	switch (input) {
 	case __HYPERVISOR_xen_version:
@@ -1291,10 +1300,11 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 	if (handled)
 		return kvm_xen_hypercall_set_result(vcpu, r);
 
+handle_in_userspace:
 	vcpu->run->exit_reason = KVM_EXIT_XEN;
 	vcpu->run->xen.type = KVM_EXIT_XEN_HCALL;
 	vcpu->run->xen.u.hcall.longmode = longmode;
-	vcpu->run->xen.u.hcall.cpl = static_call(kvm_x86_get_cpl)(vcpu);
+	vcpu->run->xen.u.hcall.cpl = cpl;
 	vcpu->run->xen.u.hcall.input = input;
 	vcpu->run->xen.u.hcall.params[0] = params[0];
 	vcpu->run->xen.u.hcall.params[1] = params[1];
