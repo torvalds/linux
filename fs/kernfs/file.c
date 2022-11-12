@@ -33,7 +33,7 @@ struct kernfs_open_node {
  * pending queue is implemented as a singly linked list of kernfs_nodes.
  * The list is terminated with the self pointer so that whether a
  * kernfs_node is on the list or not can be determined by testing the next
- * pointer for NULL.
+ * pointer for %NULL.
  */
 #define KERNFS_NOTIFY_EOL			((void *)&kernfs_notify_list)
 
@@ -59,8 +59,10 @@ static inline struct mutex *kernfs_open_file_mutex_lock(struct kernfs_node *kn)
 }
 
 /**
- * of_on - Return the kernfs_open_node of the specified kernfs_open_file
- * @of: taret kernfs_open_file
+ * of_on - Get the kernfs_open_node of the specified kernfs_open_file
+ * @of: target kernfs_open_file
+ *
+ * Return: the kernfs_open_node of the kernfs_open_file
  */
 static struct kernfs_open_node *of_on(struct kernfs_open_file *of)
 {
@@ -82,6 +84,8 @@ static struct kernfs_open_node *of_on(struct kernfs_open_file *of)
  * outside RCU read-side critical section.
  *
  * The caller needs to make sure that kernfs_open_file_mutex is held.
+ *
+ * Return: @kn->attr.open when kernfs_open_file_mutex is held.
  */
 static struct kernfs_open_node *
 kernfs_deref_open_node_locked(struct kernfs_node *kn)
@@ -548,11 +552,11 @@ out_unlock:
  *	If @kn->attr.open exists, increment its reference count; otherwise,
  *	create one.  @of is chained to the files list.
  *
- *	LOCKING:
+ *	Locking:
  *	Kernel thread context (may sleep).
  *
- *	RETURNS:
- *	0 on success, -errno on failure.
+ *	Return:
+ *	%0 on success, -errno on failure.
  */
 static int kernfs_get_open_node(struct kernfs_node *kn,
 				struct kernfs_open_file *of)
@@ -1024,7 +1028,7 @@ const struct file_operations kernfs_file_fops = {
  * @ns: optional namespace tag of the file
  * @key: lockdep key for the file's active_ref, %NULL to disable lockdep
  *
- * Returns the created node on success, ERR_PTR() value on error.
+ * Return: the created node on success, ERR_PTR() value on error.
  */
 struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 					 const char *name,
