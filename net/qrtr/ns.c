@@ -105,7 +105,7 @@ int qrtr_get_service_id(unsigned int node_id, unsigned int port_id)
 	struct qrtr_node *node;
 	unsigned long index;
 
-	node = node_get(node_id);
+	node = xa_load(&nodes, node_id);
 	if (!node)
 		return -EINVAL;
 
@@ -228,24 +228,26 @@ static int announce_servers(struct sockaddr_qrtr *sq)
 	struct qrtr_server *srv;
 	struct qrtr_node *node;
 	unsigned long index;
+	unsigned long node_idx;
 	int ret;
 
-	node = node_get(qrtr_ns.local_node);
-	if (!node)
-		return 0;
-
 	/* Announce the list of servers registered in this node */
-	xa_for_each(&node->servers, index, srv) {
-		ret = service_announce_new(sq, srv);
-		if (ret < 0) {
-			if (ret == -ENODEV)
-				continue;
+	xa_for_each(&nodes, node_idx, node) {
+		if (node->id == sq->sq_node) {
+			pr_info("Avoiding duplicate announce for NODE ID %u\n", node->id);
+			continue;
+		}
+		xa_for_each(&node->servers, index, srv) {
+			ret = service_announce_new(sq, srv);
+			if (ret < 0) {
+				if (ret == -ENODEV)
+					continue;
 
-			pr_err("failed to announce new service %d\n", ret);
-			return ret;
+				pr_err("failed to announce new service %d\n", ret);
+				return ret;
+			}
 		}
 	}
-
 	return 0;
 }
 

@@ -1593,6 +1593,7 @@
   sk_alloc
   skb_clone
   skb_copy_bits
+  skb_copy_datagram_from_iter
   skb_copy_datagram_iter
   skb_dequeue
   skb_free_datagram
