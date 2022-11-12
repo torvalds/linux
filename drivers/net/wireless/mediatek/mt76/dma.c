@@ -647,6 +647,11 @@ mt76_dma_wed_setup(struct mt76_dev *dev, struct mt76_queue *q)
 		if (!ret)
 			q->wed_regs = wed->txfree_ring.reg_base;
 		break;
+	case MT76_WED_Q_RX:
+		ret = mtk_wed_device_rx_ring_setup(wed, ring, q->regs);
+		if (!ret)
+			q->wed_regs = wed->rx_ring[ring].reg_base;
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -938,8 +943,11 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
 		mt76_dma_tx_cleanup(dev, dev->q_mcu[i], true);
 
 	mt76_for_each_q_rx(dev, i) {
+		struct mt76_queue *q = &dev->q_rx[i];
+
 		netif_napi_del(&dev->napi[i]);
-		mt76_dma_rx_cleanup(dev, &dev->q_rx[i]);
+		if (FIELD_GET(MT_QFLAG_WED_TYPE, q->flags))
+			mt76_dma_rx_cleanup(dev, q);
 	}
 
 	mt76_free_pending_txwi(dev);
