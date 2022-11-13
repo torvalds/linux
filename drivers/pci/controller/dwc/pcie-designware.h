@@ -46,6 +46,7 @@
 
 /* DWC PCIe controller capabilities */
 #define DW_PCIE_CAP_IATU_UNROLL		1
+#define DW_PCIE_CAP_CDM_CHECK		2
 
 #define dw_pcie_cap_is(_pci, _cap) \
 	test_bit(DW_PCIE_CAP_ ## _cap, &(_pci)->caps)
@@ -337,6 +338,8 @@ struct dw_pcie {
 
 #define to_dw_pcie_from_ep(endpoint)   \
 		container_of((endpoint), struct dw_pcie, ep)
+
+int dw_pcie_get_resources(struct dw_pcie *pci);
 
 void dw_pcie_version_detect(struct dw_pcie *pci);
 

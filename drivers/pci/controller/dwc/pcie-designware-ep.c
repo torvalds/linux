@@ -13,8 +13,6 @@
 #include <linux/pci-epc.h>
 #include <linux/pci-epf.h>
 
-#include "../../pci.h"
-
 void dw_pcie_ep_linkup(struct dw_pcie_ep *ep)
 {
 	struct pci_epc *epc = ep->epc;
@@ -711,23 +709,9 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 
 	INIT_LIST_HEAD(&ep->func_list);
 
-	if (!pci->dbi_base) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-		pci->dbi_base = devm_pci_remap_cfg_resource(dev, res);
-		if (IS_ERR(pci->dbi_base))
-			return PTR_ERR(pci->dbi_base);
-	}
-
-	if (!pci->dbi_base2) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi2");
-		if (!res) {
-			pci->dbi_base2 = pci->dbi_base + SZ_4K;
-		} else {
-			pci->dbi_base2 = devm_pci_remap_cfg_resource(dev, res);
-			if (IS_ERR(pci->dbi_base2))
-				return PTR_ERR(pci->dbi_base2);
-		}
-	}
+	ret = dw_pcie_get_resources(pci);
+	if (ret)
+		return ret;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "addr_space");
 	if (!res)
@@ -755,9 +739,6 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 	if (!addr)
 		return -ENOMEM;
 	ep->outbound_addr = addr;
-
-	if (pci->link_gen < 1)
-		pci->link_gen = of_pci_get_max_link_speed(np);
 
 	epc = devm_pci_epc_create(dev, &epc_ops);
 	if (IS_ERR(epc)) {
