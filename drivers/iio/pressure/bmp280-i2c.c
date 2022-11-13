@@ -5,11 +5,11 @@
 
 #include "bmp280.h"
 
-static int bmp280_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int bmp280_i2c_probe(struct i2c_client *client)
 {
 	struct regmap *regmap;
 	const struct regmap_config *regmap_config;
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 
 	switch (id->driver_data) {
 	case BMP180_CHIP_ID:
@@ -65,7 +65,7 @@ static struct i2c_driver bmp280_i2c_driver = {
 		.of_match_table = bmp280_of_i2c_match,
 		.pm = pm_ptr(&bmp280_dev_pm_ops),
 	},
-	.probe		= bmp280_i2c_probe,
+	.probe_new	= bmp280_i2c_probe,
 	.id_table	= bmp280_i2c_id,
 };
 module_i2c_driver(bmp280_i2c_driver);
