@@ -251,7 +251,7 @@ static int _rtl92e_wx_set_mode(struct net_device *dev,
 	rt_state = priv->rtllib->rf_power_state;
 	mutex_lock(&priv->wx_mutex);
 	if (wrqu->mode == IW_MODE_ADHOC || wrqu->mode == IW_MODE_MONITOR ||
-	    ieee->bNetPromiscuousMode) {
+	    ieee->net_promiscuous_md) {
 		if (rt_state == rf_off) {
 			if (priv->rtllib->rf_off_reason >
 			    RF_CHANGE_BY_IPS) {
@@ -1014,28 +1014,28 @@ static int _rtl92e_wx_set_promisc_mode(struct net_device *dev,
 	u32 info_buf[3];
 
 	u32 oid;
-	u32 bPromiscuousOn;
+	u32 promiscuous_on;
 	u32 bFilterSourceStationFrame;
 
 	if (copy_from_user(info_buf, wrqu->data.pointer, sizeof(info_buf)))
 		return -EFAULT;
 
 	oid = info_buf[0];
-	bPromiscuousOn = info_buf[1];
+	promiscuous_on = info_buf[1];
 	bFilterSourceStationFrame = info_buf[2];
 
 	if (oid == OID_RT_INTEL_PROMISCUOUS_MODE) {
-		ieee->IntelPromiscuousModeInfo.bPromiscuousOn =
-					(bPromiscuousOn) ? (true) : (false);
-		ieee->IntelPromiscuousModeInfo.bFilterSourceStationFrame =
+		ieee->intel_promiscuous_md_info.promiscuous_on =
+					(promiscuous_on) ? (true) : (false);
+		ieee->intel_promiscuous_md_info.bFilterSourceStationFrame =
 			(bFilterSourceStationFrame) ? (true) : (false);
-		(bPromiscuousOn) ?
+		(promiscuous_on) ?
 		(rtllib_EnableIntelPromiscuousMode(dev, false)) :
 		(rtllib_DisableIntelPromiscuousMode(dev, false));
 
 		netdev_info(dev,
 			    "=======>%s(), on = %d, filter src sta = %d\n",
-			    __func__, bPromiscuousOn,
+			    __func__, promiscuous_on,
 			    bFilterSourceStationFrame);
 	} else {
 		return -1;
@@ -1054,8 +1054,8 @@ static int _rtl92e_wx_get_promisc_mode(struct net_device *dev,
 	mutex_lock(&priv->wx_mutex);
 
 	snprintf(extra, 45, "PromiscuousMode:%d, FilterSrcSTAFrame:%d",
-		 ieee->IntelPromiscuousModeInfo.bPromiscuousOn,
-		 ieee->IntelPromiscuousModeInfo.bFilterSourceStationFrame);
+		 ieee->intel_promiscuous_md_info.promiscuous_on,
+		 ieee->intel_promiscuous_md_info.bFilterSourceStationFrame);
 	wrqu->data.length = strlen(extra) + 1;
 
 	mutex_unlock(&priv->wx_mutex);

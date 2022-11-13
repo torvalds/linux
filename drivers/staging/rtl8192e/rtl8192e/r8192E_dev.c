@@ -859,7 +859,7 @@ void rtl92e_link_change(struct net_device *dev)
 
 		reg = rtl92e_readl(dev, RCR);
 		if (priv->rtllib->state == RTLLIB_LINKED) {
-			if (ieee->IntelPromiscuousModeInfo.bPromiscuousOn)
+			if (ieee->intel_promiscuous_md_info.promiscuous_on)
 				;
 			else
 				priv->ReceiveConfig = reg |= RCR_CBSSID;

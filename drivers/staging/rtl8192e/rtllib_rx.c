@@ -999,8 +999,8 @@ static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
 	}
 
 	/* Filter packets sent by an STA that will be forwarded by AP */
-	if (ieee->IntelPromiscuousModeInfo.bPromiscuousOn  &&
-		ieee->IntelPromiscuousModeInfo.bFilterSourceStationFrame) {
+	if (ieee->intel_promiscuous_md_info.promiscuous_on  &&
+		ieee->intel_promiscuous_md_info.bFilterSourceStationFrame) {
 		if ((fc & RTLLIB_FCTL_TODS) && !(fc & RTLLIB_FCTL_FROMDS) &&
 		    !ether_addr_equal(dst, ieee->current_network.bssid) &&
 		    ether_addr_equal(bssid, ieee->current_network.bssid)) {
@@ -1011,7 +1011,7 @@ static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
 	/* Nullfunc frames may have PS-bit set, so they must be passed to
 	 * hostap_handle_sta_rx() before being dropped here.
 	 */
-	if (!ieee->IntelPromiscuousModeInfo.bPromiscuousOn) {
+	if (!ieee->intel_promiscuous_md_info.promiscuous_on) {
 		if (stype != RTLLIB_STYPE_DATA &&
 		    stype != RTLLIB_STYPE_DATA_CFACK &&
 		    stype != RTLLIB_STYPE_DATA_CFPOLL &&
@@ -1317,7 +1317,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	multicast = is_multicast_ether_addr(hdr->addr1);
 	unicast = !multicast;
 	if (unicast && !ether_addr_equal(dev->dev_addr, hdr->addr1)) {
-		if (ieee->bNetPromiscuousMode)
+		if (ieee->net_promiscuous_md)
 			bToOtherSTA = true;
 		else
 			goto rx_dropped;

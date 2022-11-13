@@ -445,7 +445,7 @@ void rtllib_EnableIntelPromiscuousMode(struct net_device *dev,
 	ieee->SetHwRegHandler(dev, HW_VAR_CECHK_BSSID,
 			     (u8 *)&bFilterOutNonAssociatedBSSID);
 
-	ieee->bNetPromiscuousMode = true;
+	ieee->net_promiscuous_md = true;
 }
 EXPORT_SYMBOL(rtllib_EnableIntelPromiscuousMode);
 
@@ -466,7 +466,7 @@ void rtllib_DisableIntelPromiscuousMode(struct net_device *dev,
 	ieee->SetHwRegHandler(dev, HW_VAR_CECHK_BSSID,
 			     (u8 *)&bFilterOutNonAssociatedBSSID);
 
-	ieee->bNetPromiscuousMode = false;
+	ieee->net_promiscuous_md = false;
 }
 EXPORT_SYMBOL(rtllib_DisableIntelPromiscuousMode);
 

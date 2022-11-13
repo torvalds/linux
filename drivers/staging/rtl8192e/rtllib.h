@@ -1384,7 +1384,7 @@ struct rt_pmkid_list {
 };
 
 struct rt_intel_promisc_mode {
-	bool bPromiscuousOn;
+	bool promiscuous_on;
 	bool bFilterSourceStationFrame;
 };
 
@@ -1470,8 +1470,8 @@ struct rtllib_device {
 	int scan_age;
 
 	int iw_mode; /* operating mode (IW_MODE_*) */
-	bool bNetPromiscuousMode;
-	struct rt_intel_promisc_mode IntelPromiscuousModeInfo;
+	bool net_promiscuous_md;
+	struct rt_intel_promisc_mode intel_promiscuous_md_info;
 
 	spinlock_t lock;
 	spinlock_t wpax_suitlist_lock;

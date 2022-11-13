@@ -848,9 +848,9 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->reg_chnl_plan = 0xf;
 	priv->rtllib->mode = WIRELESS_MODE_AUTO;
 	priv->rtllib->iw_mode = IW_MODE_INFRA;
-	priv->rtllib->bNetPromiscuousMode = false;
-	priv->rtllib->IntelPromiscuousModeInfo.bPromiscuousOn = false;
-	priv->rtllib->IntelPromiscuousModeInfo.bFilterSourceStationFrame =
+	priv->rtllib->net_promiscuous_md = false;
+	priv->rtllib->intel_promiscuous_md_info.promiscuous_on = false;
+	priv->rtllib->intel_promiscuous_md_info.bFilterSourceStationFrame =
 								 false;
 	priv->rtllib->ieee_up = 0;
 	priv->retry_rts = DEFAULT_RETRY_RTS;
@@ -1297,13 +1297,13 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 		     (!ieee->proto_stoppping) && !ieee->wx_set_enc) {
 			if ((ieee->pwr_save_ctrl.ReturnPoint ==
 			     IPS_CALLBACK_NONE) &&
-			     (!ieee->bNetPromiscuousMode)) {
+			     (!ieee->net_promiscuous_md)) {
 				rtl92e_ips_enter(dev);
 			}
 		}
 	}
 	if ((ieee->state == RTLLIB_LINKED) && (ieee->iw_mode ==
-	     IW_MODE_INFRA) && (!ieee->bNetPromiscuousMode)) {
+	     IW_MODE_INFRA) && (!ieee->net_promiscuous_md)) {
 		if (ieee->link_detect_info.NumRxOkInPeriod > 100 ||
 		ieee->link_detect_info.NumTxOkInPeriod > 100)
 			bBusyTraffic = true;
