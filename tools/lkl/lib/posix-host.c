@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
+#define _GNU_SOURCE
 #include <pthread.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -330,6 +332,52 @@ static void page_free(void *addr, unsigned long size)
 	munmap((void *)addr, size);
 }
 
+static inline int get_prot(enum lkl_prot lkl_prot)
+{
+	int prot = PROT_NONE;
+
+	if (lkl_prot & LKL_PROT_READ)
+		prot |= PROT_READ;
+	if (lkl_prot & LKL_PROT_WRITE)
+		prot |= PROT_WRITE;
+	if (lkl_prot & LKL_PROT_EXEC)
+		prot |= PROT_EXEC;
+
+	return prot;
+}
+
+
+#if defined(__FreeBSD__)
+#define MAP_FIXED_NOREPLACE (MAP_FIXED | MAP_EXCL)
+#ifndef MAP_NORESERVE
+#define MAP_NORESERVE 0
+#endif
+#elif defined(__linux__)
+#ifndef MAP_FIXED_NOREPLACE
+#define MAP_FIXED_NOREPLACE 0
+#endif
+#endif
+
+static void *lkl_mmap(void *addr, unsigned long size, enum lkl_prot prot)
+{
+	void *ret;
+	int fl = MAP_ANON | MAP_PRIVATE | MAP_FIXED_NOREPLACE | MAP_NORESERVE;
+
+	ret = mmap(addr, size, get_prot(prot), fl, -1, 0);
+	if (ret != addr) {
+		if (ret != NULL)
+			munmap(addr, size);
+		return NULL;
+	}
+
+	return ret;
+}
+
+static int lkl_munmap(void *addr, unsigned long size)
+{
+	return munmap(addr, size);
+}
+
 #ifdef LKL_HOST_CONFIG_VFIO_PCI
 extern struct lkl_dev_pci_ops vfio_pci_ops;
 #endif
@@ -371,6 +419,8 @@ struct lkl_host_operations lkl_host_ops = {
 	.jmp_buf_longjmp = jmp_buf_longjmp,
 	.memcpy = memcpy,
 	.memset = memset,
+	.mmap = lkl_mmap,
+	.munmap = lkl_munmap,
 #ifdef LKL_HOST_CONFIG_VFIO_PCI
 	.pci_ops = &vfio_pci_ops,
 #endif

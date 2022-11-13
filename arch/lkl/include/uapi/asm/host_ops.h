@@ -44,6 +44,13 @@ struct lkl_dev_pci_ops {
 			   unsigned long long dma_handle, unsigned long size);
 };
 
+enum lkl_prot {
+	LKL_PROT_NONE = 0,
+	LKL_PROT_READ = 1,
+	LKL_PROT_WRITE = 2,
+	LKL_PROT_EXEC = 4,
+};
+
 /**
  * lkl_host_operations - host operations used by the Linux kernel
  *
@@ -95,8 +102,6 @@ struct lkl_dev_pci_ops {
  * fires.
  * @timer_free - disarms and free the timer
  * @timer_set_oneshot - arm the timer to fire once, after delta ns.
- * @timer_set_periodic - arm the timer to fire periodically, with a period of
- * delta ns.
  *
  * @ioremap - searches for an I/O memory region identified by addr and size and
  * returns a pointer to the start of the address range that can be used by
@@ -120,6 +125,10 @@ struct lkl_dev_pci_ops {
  *
  * @memcpy - copy memory
  * @memset - set memory
+ *
+ * @mmap - map anonymous memory at the given address with the given size and
+ * protection
+ * @munmap - unmap previously mapped memory
  *
  * @pci_ops - pointer to PCI host operations
  */
@@ -173,6 +182,9 @@ struct lkl_host_operations {
 
 	void* (*memcpy)(void *dest, const void *src, unsigned long count);
 	void* (*memset)(void *s, int c, unsigned long count);
+
+	void* (*mmap)(void *addr, unsigned long size, enum lkl_prot prot);
+	int (*munmap)(void *addr, unsigned long size);
 
 	struct lkl_dev_pci_ops *pci_ops;
 };
