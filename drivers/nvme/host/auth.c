@@ -200,12 +200,6 @@ static int nvme_auth_process_dhchap_challenge(struct nvme_ctrl *ctrl,
 		return NVME_SC_AUTH_REQUIRED;
 	}
 
-	/* Reset host response if the hash had been changed */
-	if (chap->hash_id != data->hashid) {
-		kfree(chap->host_response);
-		chap->host_response = NULL;
-	}
-
 	chap->hash_id = data->hashid;
 	chap->hash_len = data->hl;
 	dev_dbg(ctrl->device, "qid %d: selected hash %s\n",
@@ -221,14 +215,6 @@ select_kpp:
 		/* Leave previous dh_tfm intact */
 		return NVME_SC_AUTH_REQUIRED;
 	}
-
-	/* Clear host and controller key to avoid accidental reuse */
-	kfree_sensitive(chap->host_key);
-	chap->host_key = NULL;
-	chap->host_key_len = 0;
-	kfree_sensitive(chap->ctrl_key);
-	chap->ctrl_key = NULL;
-	chap->ctrl_key_len = 0;
 
 	if (chap->dhgroup_id == data->dhgid &&
 	    (data->dhgid == NVME_AUTH_DHGROUP_NULL || chap->dh_tfm)) {
@@ -624,9 +610,6 @@ static int nvme_auth_dhchap_exponential(struct nvme_ctrl *ctrl,
 	if (ret) {
 		dev_dbg(ctrl->device,
 			"failed to generate public key, error %d\n", ret);
-		kfree(chap->host_key);
-		chap->host_key = NULL;
-		chap->host_key_len = 0;
 		chap->status = NVME_AUTH_DHCHAP_FAILURE_INCORRECT_PAYLOAD;
 		return ret;
 	}
@@ -646,9 +629,6 @@ gen_sesskey:
 	if (ret) {
 		dev_dbg(ctrl->device,
 			"failed to generate shared secret, error %d\n", ret);
-		kfree_sensitive(chap->sess_key);
-		chap->sess_key = NULL;
-		chap->sess_key_len = 0;
 		chap->status = NVME_AUTH_DHCHAP_FAILURE_INCORRECT_PAYLOAD;
 		return ret;
 	}
