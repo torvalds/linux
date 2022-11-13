@@ -182,11 +182,6 @@ static void udf_write_failed(struct address_space *mapping, loff_t to)
 	}
 }
 
-static int udf_writepage(struct page *page, struct writeback_control *wbc)
-{
-	return block_write_full_page(page, udf_get_block, wbc);
-}
-
 static int udf_writepages(struct address_space *mapping,
 			struct writeback_control *wbc)
 {
@@ -239,12 +234,12 @@ const struct address_space_operations udf_aops = {
 	.invalidate_folio = block_invalidate_folio,
 	.read_folio	= udf_read_folio,
 	.readahead	= udf_readahead,
-	.writepage	= udf_writepage,
 	.writepages	= udf_writepages,
 	.write_begin	= udf_write_begin,
 	.write_end	= generic_write_end,
 	.direct_IO	= udf_direct_IO,
 	.bmap		= udf_bmap,
+	.migrate_folio	= buffer_migrate_folio,
 };
 
 /*
