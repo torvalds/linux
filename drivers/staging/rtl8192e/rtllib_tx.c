@@ -477,13 +477,13 @@ NO_PROTECTION:
 static void rtllib_txrate_selectmode(struct rtllib_device *ieee,
 				     struct cb_desc *tcb_desc)
 {
-	if (ieee->bTxDisableRateFallBack)
-		tcb_desc->bTxDisableRateFallBack = true;
+	if (ieee->tx_dis_rate_fallback)
+		tcb_desc->tx_dis_rate_fallback = true;
 
-	if (ieee->bTxUseDriverAssingedRate)
-		tcb_desc->bTxUseDriverAssingedRate = true;
-	if (!tcb_desc->bTxDisableRateFallBack ||
-	    !tcb_desc->bTxUseDriverAssingedRate) {
+	if (ieee->tx_use_drv_assinged_rate)
+		tcb_desc->tx_use_drv_assinged_rate = true;
+	if (!tcb_desc->tx_dis_rate_fallback ||
+	    !tcb_desc->tx_use_drv_assinged_rate) {
 		if (ieee->iw_mode == IW_MODE_INFRA ||
 		    ieee->iw_mode == IW_MODE_ADHOC)
 			tcb_desc->RATRIndex = 0;
@@ -886,14 +886,14 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			    HT_IOT_ACT_WA_IOT_Broadcom) {
 				tcb_desc->data_rate =
 					 MgntQuery_TxRateExcludeCCKRates(ieee);
-				tcb_desc->bTxDisableRateFallBack = false;
+				tcb_desc->tx_dis_rate_fallback = false;
 			} else {
 				tcb_desc->data_rate = ieee->basic_rate;
-				tcb_desc->bTxDisableRateFallBack = 1;
+				tcb_desc->tx_dis_rate_fallback = 1;
 			}
 
 			tcb_desc->RATRIndex = 7;
-			tcb_desc->bTxUseDriverAssingedRate = 1;
+			tcb_desc->tx_use_drv_assinged_rate = 1;
 		} else {
 			if (is_multicast_ether_addr(header.addr1))
 				tcb_desc->bMulticast = 1;
@@ -910,14 +910,14 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 				    HT_IOT_ACT_WA_IOT_Broadcom) {
 					tcb_desc->data_rate =
 					   MgntQuery_TxRateExcludeCCKRates(ieee);
-					tcb_desc->bTxDisableRateFallBack = false;
+					tcb_desc->tx_dis_rate_fallback = false;
 				} else {
 					tcb_desc->data_rate = MGN_1M;
-					tcb_desc->bTxDisableRateFallBack = 1;
+					tcb_desc->tx_dis_rate_fallback = 1;
 				}
 
 				tcb_desc->RATRIndex = 7;
-				tcb_desc->bTxUseDriverAssingedRate = 1;
+				tcb_desc->tx_use_drv_assinged_rate = 1;
 				tcb_desc->bdhcp = 1;
 			}
 

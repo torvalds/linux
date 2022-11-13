@@ -220,8 +220,8 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee)
 
 	tcb_desc->data_rate = MgntQuery_MgntFrameTxRate(ieee);
 	tcb_desc->RATRIndex = 7;
-	tcb_desc->bTxDisableRateFallBack = 1;
-	tcb_desc->bTxUseDriverAssingedRate = 1;
+	tcb_desc->tx_dis_rate_fallback = 1;
+	tcb_desc->tx_use_drv_assinged_rate = 1;
 	if (single) {
 		if (ieee->queue_stop) {
 			enqueue_mgmt(ieee, skb);
@@ -298,8 +298,8 @@ softmac_ps_mgmt_xmit(struct sk_buff *skb,
 
 	tcb_desc->data_rate = MgntQuery_MgntFrameTxRate(ieee);
 	tcb_desc->RATRIndex = 7;
-	tcb_desc->bTxDisableRateFallBack = 1;
-	tcb_desc->bTxUseDriverAssingedRate = 1;
+	tcb_desc->tx_dis_rate_fallback = 1;
+	tcb_desc->tx_use_drv_assinged_rate = 1;
 	if (single) {
 		if (type != RTLLIB_FTYPE_CTL) {
 			header->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
@@ -1996,12 +1996,12 @@ static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 
 			if (pPSC->LPSAwakeIntvl == 0)
 				pPSC->LPSAwakeIntvl = 1;
-			if (pPSC->RegMaxLPSAwakeIntvl == 0)
+			if (pPSC->reg_max_lps_awake_intvl == 0)
 				MaxPeriod = 1;
-			else if (pPSC->RegMaxLPSAwakeIntvl == 0xFF)
+			else if (pPSC->reg_max_lps_awake_intvl == 0xFF)
 				MaxPeriod = ieee->current_network.dtim_period;
 			else
-				MaxPeriod = pPSC->RegMaxLPSAwakeIntvl;
+				MaxPeriod = pPSC->reg_max_lps_awake_intvl;
 			pPSC->LPSAwakeIntvl = (pPSC->LPSAwakeIntvl >=
 					       MaxPeriod) ? MaxPeriod :
 					       (pPSC->LPSAwakeIntvl + 1);

@@ -1136,8 +1136,8 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 							  cb_desc->priority);
 	pdesc->TxFWInfoSize = sizeof(struct tx_fwinfo_8190pci);
 
-	pdesc->DISFB = cb_desc->bTxDisableRateFallBack;
-	pdesc->USERATE = cb_desc->bTxUseDriverAssingedRate;
+	pdesc->DISFB = cb_desc->tx_dis_rate_fallback;
+	pdesc->USERATE = cb_desc->tx_use_drv_assinged_rate;
 
 	pdesc->FirstSeg = 1;
 	pdesc->LastSeg = 1;

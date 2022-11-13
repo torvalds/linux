@@ -126,8 +126,8 @@ struct cb_desc {
 	u8 bFirstSeg:1;
 	u8 bLastSeg:1;
 	u8 bEncrypt:1;
-	u8 bTxDisableRateFallBack:1;
-	u8 bTxUseDriverAssingedRate:1;
+	u8 tx_dis_rate_fallback:1;
+	u8 tx_use_drv_assinged_rate:1;
 	u8 bHwSec:1;
 
 	u8 nStuckCount;
@@ -1256,7 +1256,7 @@ struct rt_pwr_save_ctrl {
 
 	bool				bLeisurePs;
 	u8				LpsIdleCount;
-	u8				RegMaxLPSAwakeIntvl;
+	u8				reg_max_lps_awake_intvl;
 	u8				LPSAwakeIntvl;
 
 	u32				CurPsLevel;
@@ -1441,8 +1441,8 @@ struct rtllib_device {
 	u8	RegHTSuppRateSet[16];
 	u8	HTCurrentOperaRate;
 	u8	HTHighestOperaRate;
-	u8	bTxDisableRateFallBack;
-	u8	bTxUseDriverAssingedRate;
+	u8	tx_dis_rate_fallback;
+	u8	tx_use_drv_assinged_rate;
 	u8	bTxEnableFwCalcDur;
 	atomic_t	atm_swbw;
 

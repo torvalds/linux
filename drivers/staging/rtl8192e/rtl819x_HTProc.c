@@ -91,8 +91,8 @@ void HTUpdateDefaultSetting(struct rtllib_device *ieee)
 	pHTInfo->self_mimo_ps = 3;
 	if (pHTInfo->self_mimo_ps == 2)
 		pHTInfo->self_mimo_ps = 3;
-	ieee->bTxDisableRateFallBack = 0;
-	ieee->bTxUseDriverAssingedRate = 0;
+	ieee->tx_dis_rate_fallback = 0;
+	ieee->tx_use_drv_assinged_rate = 0;
 
 	ieee->bTxEnableFwCalcDur = 1;
 

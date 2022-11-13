@@ -196,7 +196,7 @@ static int _rtl92e_wx_set_lps_awake_interval(struct net_device *dev,
 	netdev_info(dev, "%s(): set lps awake interval ! extra is %d\n",
 		    __func__, *extra);
 
-	pPSC->RegMaxLPSAwakeIntvl = *extra;
+	pPSC->reg_max_lps_awake_intvl = *extra;
 	mutex_unlock(&priv->wx_mutex);
 	return 0;
 }
