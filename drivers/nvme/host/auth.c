@@ -13,6 +13,8 @@
 #include "fabrics.h"
 #include <linux/nvme-auth.h>
 
+#define CHAP_BUF_SIZE 4096
+
 struct nvme_dhchap_queue_context {
 	struct list_head entry;
 	struct work_struct auth_work;
@@ -20,7 +22,6 @@ struct nvme_dhchap_queue_context {
 	struct crypto_shash *shash_tfm;
 	struct crypto_kpp *dh_tfm;
 	void *buf;
-	size_t buf_size;
 	int qid;
 	int error;
 	u32 s1;
@@ -112,7 +113,7 @@ static int nvme_auth_set_dhchap_negotiate_data(struct nvme_ctrl *ctrl,
 	struct nvmf_auth_dhchap_negotiate_data *data = chap->buf;
 	size_t size = sizeof(*data) + sizeof(union nvmf_auth_protocol);
 
-	if (chap->buf_size < size) {
+	if (size > CHAP_BUF_SIZE) {
 		chap->status = NVME_AUTH_DHCHAP_FAILURE_INCORRECT_PAYLOAD;
 		return -EINVAL;
 	}
@@ -147,7 +148,7 @@ static int nvme_auth_process_dhchap_challenge(struct nvme_ctrl *ctrl,
 	const char *gid_name = nvme_auth_dhgroup_name(data->dhgid);
 	const char *hmac_name, *kpp_name;
 
-	if (chap->buf_size < size) {
+	if (size > CHAP_BUF_SIZE) {
 		chap->status = NVME_AUTH_DHCHAP_FAILURE_INCORRECT_PAYLOAD;
 		return NVME_SC_INVALID_FIELD;
 	}
@@ -302,7 +303,7 @@ static int nvme_auth_set_dhchap_reply_data(struct nvme_ctrl *ctrl,
 	if (chap->host_key_len)
 		size += chap->host_key_len;
 
-	if (chap->buf_size < size) {
+	if (size > CHAP_BUF_SIZE) {
 		chap->status = NVME_AUTH_DHCHAP_FAILURE_INCORRECT_PAYLOAD;
 		return -EINVAL;
 	}
@@ -347,7 +348,7 @@ static int nvme_auth_process_dhchap_success1(struct nvme_ctrl *ctrl,
 	if (ctrl->ctrl_key)
 		size += chap->hash_len;
 
-	if (chap->buf_size < size) {
+	if (size > CHAP_BUF_SIZE) {
 		chap->status = NVME_AUTH_DHCHAP_FAILURE_INCORRECT_PAYLOAD;
 		return NVME_SC_INVALID_FIELD;
 	}
@@ -674,6 +675,8 @@ static void nvme_auth_reset_dhchap(struct nvme_dhchap_queue_context *chap)
 	chap->transaction = 0;
 	memset(chap->c1, 0, sizeof(chap->c1));
 	memset(chap->c2, 0, sizeof(chap->c2));
+	kfree(chap->buf);
+	chap->buf = NULL;
 }
 
 static void nvme_auth_free_dhchap(struct nvme_dhchap_queue_context *chap)
@@ -683,7 +686,6 @@ static void nvme_auth_free_dhchap(struct nvme_dhchap_queue_context *chap)
 		crypto_free_shash(chap->shash_tfm);
 	if (chap->dh_tfm)
 		crypto_free_kpp(chap->dh_tfm);
-	kfree(chap->buf);
 	kfree(chap);
 }
 
@@ -694,6 +696,16 @@ static void nvme_queue_auth_work(struct work_struct *work)
 	struct nvme_ctrl *ctrl = chap->ctrl;
 	size_t tl;
 	int ret = 0;
+
+	/*
+	 * Allocate a large enough buffer for the entire negotiation:
+	 * 4k is enough to ffdhe8192.
+	 */
+	chap->buf = kmalloc(CHAP_BUF_SIZE, GFP_KERNEL);
+	if (!chap->buf) {
+		chap->error = -ENOMEM;
+		return;
+	}
 
 	chap->transaction = ctrl->transaction++;
 
@@ -716,8 +728,9 @@ static void nvme_queue_auth_work(struct work_struct *work)
 	dev_dbg(ctrl->device, "%s: qid %d receive challenge\n",
 		__func__, chap->qid);
 
-	memset(chap->buf, 0, chap->buf_size);
-	ret = nvme_auth_submit(ctrl, chap->qid, chap->buf, chap->buf_size, false);
+	memset(chap->buf, 0, CHAP_BUF_SIZE);
+	ret = nvme_auth_submit(ctrl, chap->qid, chap->buf, CHAP_BUF_SIZE,
+			       false);
 	if (ret) {
 		dev_warn(ctrl->device,
 			 "qid %d failed to receive challenge, %s %d\n",
@@ -779,8 +792,9 @@ static void nvme_queue_auth_work(struct work_struct *work)
 	dev_dbg(ctrl->device, "%s: qid %d receive success1\n",
 		__func__, chap->qid);
 
-	memset(chap->buf, 0, chap->buf_size);
-	ret = nvme_auth_submit(ctrl, chap->qid, chap->buf, chap->buf_size, false);
+	memset(chap->buf, 0, CHAP_BUF_SIZE);
+	ret = nvme_auth_submit(ctrl, chap->qid, chap->buf, CHAP_BUF_SIZE,
+			       false);
 	if (ret) {
 		dev_warn(ctrl->device,
 			 "qid %d failed to receive success1, %s %d\n",
@@ -876,19 +890,6 @@ int nvme_auth_negotiate(struct nvme_ctrl *ctrl, int qid)
 	}
 	chap->qid = qid;
 	chap->ctrl = ctrl;
-
-	/*
-	 * Allocate a large enough buffer for the entire negotiation:
-	 * 4k should be enough to ffdhe8192.
-	 */
-	chap->buf_size = 4096;
-	chap->buf = kzalloc(chap->buf_size, GFP_KERNEL);
-	if (!chap->buf) {
-		mutex_unlock(&ctrl->dhchap_auth_mutex);
-		kfree(chap);
-		return -ENOMEM;
-	}
-
 	INIT_WORK(&chap->auth_work, nvme_queue_auth_work);
 	list_add(&chap->entry, &ctrl->dhchap_auth_list);
 	mutex_unlock(&ctrl->dhchap_auth_mutex);
