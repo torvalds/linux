@@ -926,6 +926,12 @@ static void nvme_ctrl_auth_work(struct work_struct *work)
 	 * Failure is a soft-state; credentials remain valid until
 	 * the controller terminates the connection.
 	 */
+	for (q = 1; q < ctrl->queue_count; q++) {
+		ret = nvme_auth_wait(ctrl, q);
+		if (ret)
+			dev_warn(ctrl->device,
+				 "qid %d: authentication failed\n", q);
+	}
 }
 
 int nvme_auth_init_ctrl(struct nvme_ctrl *ctrl)
@@ -976,14 +982,7 @@ EXPORT_SYMBOL_GPL(nvme_auth_init_ctrl);
 
 void nvme_auth_stop(struct nvme_ctrl *ctrl)
 {
-	struct nvme_dhchap_queue_context *chap;
-	int i;
-
 	cancel_work_sync(&ctrl->dhchap_auth_work);
-	for (i = 0; i < ctrl_max_dhchaps(ctrl); i++) {
-		chap = &ctrl->dhchap_ctxs[i];
-		cancel_work_sync(&chap->auth_work);
-	}
 }
 EXPORT_SYMBOL_GPL(nvme_auth_stop);
 
