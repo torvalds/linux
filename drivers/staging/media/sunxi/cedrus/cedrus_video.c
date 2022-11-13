@@ -562,7 +562,7 @@ static void cedrus_buf_request_complete(struct vb2_buffer *vb)
 	v4l2_ctrl_request_complete(vb->req_obj.req, &ctx->hdl);
 }
 
-static struct vb2_ops cedrus_qops = {
+static const struct vb2_ops cedrus_qops = {
 	.queue_setup		= cedrus_queue_setup,
 	.buf_prepare		= cedrus_buf_prepare,
 	.buf_queue		= cedrus_buf_queue,
