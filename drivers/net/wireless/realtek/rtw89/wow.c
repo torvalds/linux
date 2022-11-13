@@ -744,13 +744,13 @@ static int rtw89_wow_enable(struct rtw89_dev *rtwdev)
 		goto out;
 	}
 
-	rtw89_wow_swap_fw(rtwdev, true);
+	ret = rtw89_wow_swap_fw(rtwdev, true);
 	if (ret) {
 		rtw89_err(rtwdev, "wow: failed to swap to wow fw\n");
 		goto out;
 	}
 
-	rtw89_wow_fw_start(rtwdev);
+	ret = rtw89_wow_fw_start(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "wow: failed to let wow fw start\n");
 		goto out;
@@ -758,7 +758,7 @@ static int rtw89_wow_enable(struct rtw89_dev *rtwdev)
 
 	rtw89_wow_enter_lps(rtwdev);
 
-	rtw89_wow_enable_trx_post(rtwdev);
+	ret = rtw89_wow_enable_trx_post(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "wow: failed to enable trx_post\n");
 		goto out;
