@@ -2837,15 +2837,7 @@ static void nvme_reset_work(struct work_struct *work)
 	result = nvme_pci_enable(dev);
 	if (result)
 		goto out_unlock;
-
-	if (!dev->ctrl.admin_q) {
-		result = nvme_pci_alloc_admin_tag_set(dev);
-		if (result)
-			goto out_unlock;
-	} else {
-		nvme_start_admin_queue(&dev->ctrl);
-	}
-
+	nvme_start_admin_queue(&dev->ctrl);
 	mutex_unlock(&dev->shutdown_lock);
 
 	/*
@@ -2873,37 +2865,23 @@ static void nvme_reset_work(struct work_struct *work)
 	if (result)
 		goto out;
 
-	if (dev->ctrl.tagset) {
-		/*
-		 * This is a controller reset and we already have a tagset.
-		 * Freeze and update the number of I/O queues as thos might have
-		 * changed.  If there are no I/O queues left after this reset,
-		 * keep the controller around but remove all namespaces.
-		 */
-		if (dev->online_queues > 1) {
-			nvme_start_queues(&dev->ctrl);
-			nvme_wait_freeze(&dev->ctrl);
-			nvme_pci_update_nr_queues(dev);
-			nvme_dbbuf_set(dev);
-			nvme_unfreeze(&dev->ctrl);
-		} else {
-			dev_warn(dev->ctrl.device, "IO queues lost\n");
-			nvme_mark_namespaces_dead(&dev->ctrl);
-			nvme_start_queues(&dev->ctrl);
-			nvme_remove_namespaces(&dev->ctrl);
-			nvme_free_tagset(dev);
-		}
+	/*
+	 * Freeze and update the number of I/O queues as thos might have
+	 * changed.  If there are no I/O queues left after this reset, keep the
+	 * controller around but remove all namespaces.
+	 */
+	if (dev->online_queues > 1) {
+		nvme_start_queues(&dev->ctrl);
+		nvme_wait_freeze(&dev->ctrl);
+		nvme_pci_update_nr_queues(dev);
+		nvme_dbbuf_set(dev);
+		nvme_unfreeze(&dev->ctrl);
 	} else {
-		/*
-		 * First probe.  Still allow the controller to show up even if
-		 * there are no namespaces.
-		 */
-		if (dev->online_queues > 1) {
-			nvme_pci_alloc_tag_set(dev);
-			nvme_dbbuf_set(dev);
-		} else {
-			dev_warn(dev->ctrl.device, "IO queues not created\n");
-		}
+		dev_warn(dev->ctrl.device, "IO queues lost\n");
+		nvme_mark_namespaces_dead(&dev->ctrl);
+		nvme_start_queues(&dev->ctrl);
+		nvme_remove_namespaces(&dev->ctrl);
+		nvme_free_tagset(dev);
 	}
 
 	/*
@@ -3059,15 +3037,6 @@ static unsigned long check_vendor_combination_bug(struct pci_dev *pdev)
 	return 0;
 }
 
-static void nvme_async_probe(void *data, async_cookie_t cookie)
-{
-	struct nvme_dev *dev = data;
-
-	flush_work(&dev->ctrl.reset_work);
-	flush_work(&dev->ctrl.scan_work);
-	nvme_put_ctrl(&dev->ctrl);
-}
-
 static struct nvme_dev *nvme_pci_alloc_dev(struct pci_dev *pdev,
 		const struct pci_device_id *id)
 {
@@ -3159,12 +3128,69 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_release_prp_pools;
 
 	dev_info(dev->ctrl.device, "pci function %s\n", dev_name(&pdev->dev));
+
+	result = nvme_pci_enable(dev);
+	if (result)
+		goto out_release_iod_mempool;
+
+	result = nvme_pci_alloc_admin_tag_set(dev);
+	if (result)
+		goto out_disable;
+
+	/*
+	 * Mark the controller as connecting before sending admin commands to
+	 * allow the timeout handler to do the right thing.
+	 */
+	if (!nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_CONNECTING)) {
+		dev_warn(dev->ctrl.device,
+			"failed to mark controller CONNECTING\n");
+		result = -EBUSY;
+		goto out_disable;
+	}
+
+	result = nvme_init_ctrl_finish(&dev->ctrl, false);
+	if (result)
+		goto out_disable;
+
+	nvme_dbbuf_dma_alloc(dev);
+
+	result = nvme_setup_host_mem(dev);
+	if (result < 0)
+		goto out_disable;
+
+	result = nvme_setup_io_queues(dev);
+	if (result)
+		goto out_disable;
+
+	if (dev->online_queues > 1) {
+		nvme_pci_alloc_tag_set(dev);
+		nvme_dbbuf_set(dev);
+	} else {
+		dev_warn(dev->ctrl.device, "IO queues not created\n");
+	}
+
+	if (!nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_LIVE)) {
+		dev_warn(dev->ctrl.device,
+			"failed to mark controller live state\n");
+		result = -ENODEV;
+		goto out_disable;
+	}
+
 	pci_set_drvdata(pdev, dev);
 
-	nvme_reset_ctrl(&dev->ctrl);
-	async_schedule(nvme_async_probe, dev);
+	nvme_start_ctrl(&dev->ctrl);
+	nvme_put_ctrl(&dev->ctrl);
 	return 0;
 
+out_disable:
+	nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_DELETING);
+	nvme_dev_disable(dev, true);
+	nvme_free_host_mem(dev);
+	nvme_dev_remove_admin(dev);
+	nvme_dbbuf_dma_free(dev);
+	nvme_free_queues(dev, 0);
+out_release_iod_mempool:
+	mempool_destroy(dev->iod_mempool);
 out_release_prp_pools:
 	nvme_release_prp_pools(dev);
 out_dev_unmap:
@@ -3560,11 +3586,12 @@ static struct pci_driver nvme_driver = {
 	.probe		= nvme_probe,
 	.remove		= nvme_remove,
 	.shutdown	= nvme_shutdown,
-#ifdef CONFIG_PM_SLEEP
 	.driver		= {
-		.pm	= &nvme_dev_pm_ops,
-	},
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
+#ifdef CONFIG_PM_SLEEP
+		.pm		= &nvme_dev_pm_ops,
 #endif
+	},
 	.sriov_configure = pci_sriov_configure_simple,
 	.err_handler	= &nvme_err_handler,
 };
