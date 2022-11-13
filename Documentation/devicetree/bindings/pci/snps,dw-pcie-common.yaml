@@ -58,6 +58,126 @@ properties:
     minItems: 1
     maxItems: 26
 
+  clocks:
+    description:
+      DWC PCIe reference manual explicitly defines a set of the clocks required
+      to get the controller working correctly. In general all of them can
+      be divided into two groups':' application and core clocks. Note the
+      platforms may have some of the clock sources unspecified in case if the
+      corresponding domains are fed up from a common clock source.
+    minItems: 1
+    maxItems: 7
+
+  clock-names:
+    minItems: 1
+    maxItems: 7
+    items:
+      oneOf:
+        - description:
+            Data Bus Interface (DBI) clock. Clock signal for the AXI-bus
+            interface of the Configuration-Dependent Module, which is
+            basically the set of the controller CSRs.
+          const: dbi
+        - description:
+            Application AXI-bus Master interface clock. Basically this is
+            a clock for the controller DMA interface (PCI-to-CPU).
+          const: mstr
+        - description:
+            Application AXI-bus Slave interface clock. This is a clock for
+            the CPU-to-PCI memory IO interface.
+          const: slv
+        - description:
+            Controller Core-PCS PIPE interface clock. It's normally
+            supplied by an external PCS-PHY.
+          const: pipe
+        - description:
+            Controller Primary clock. It's assumed that all controller input
+            signals (except resets) are synchronous to this clock.
+          const: core
+        - description:
+            Auxiliary clock for the controller PMC domain. The controller
+            partitioning implies having some parts to operate with this
+            clock in some power management states.
+          const: aux
+        - description:
+            Generic reference clock. In case if there are several
+            interfaces fed up with a common clock source it's advisable to
+            define it with this name (for instance pipe, core and aux can
+            be connected to a single source of the periodic signal).
+          const: ref
+        - description:
+            Clock for the PHY registers interface. Originally this is
+            a PHY-viewport-based interface, but some platform may have
+            specifically designed one.
+          const: phy_reg
+        - description:
+            Vendor-specific clock names. Consider using the generic names
+            above for new bindings.
+          oneOf:
+            - description: See native 'dbi' clock for details
+              enum: [ pcie, pcie_apb_sys, aclk_dbi ]
+            - description: See native 'mstr/slv' clock for details
+              enum: [ pcie_bus, pcie_inbound_axi, pcie_aclk, aclk_mst, aclk_slv ]
+            - description: See native 'pipe' clock for details
+              enum: [ pcie_phy, pcie_phy_ref, link ]
+            - description: See native 'aux' clock for details
+              enum: [ pcie_aux ]
+            - description: See native 'ref' clock for details.
+              enum: [ gio ]
+            - description: See nativs 'phy_reg' clock for details
+              enum: [ pcie_apb_phy, pclk ]
+
+  resets:
+    description:
+      DWC PCIe reference manual explicitly defines a set of the reset
+      signals required to be de-asserted to properly activate the controller
+      sub-parts. All of these signals can be divided into two sub-groups':'
+      application and core resets with respect to the main sub-domains they
+      are supposed to reset. Note the platforms may have some of these signals
+      unspecified in case if they are automatically handled or aggregated into
+      a comprehensive control module.
+    minItems: 1
+    maxItems: 10
+
+  reset-names:
+    minItems: 1
+    maxItems: 10
+    items:
+      oneOf:
+        - description: Data Bus Interface (DBI) domain reset
+          const: dbi
+        - description: AXI-bus Master interface reset
+          const: mstr
+        - description: AXI-bus Slave interface reset
+          const: slv
+        - description: Application-dependent interface reset
+          const: app
+        - description: Controller Non-sticky CSR flags reset
+          const: non-sticky
+        - description: Controller sticky CSR flags reset
+          const: sticky
+        - description: PIPE-interface (Core-PCS) logic reset
+          const: pipe
+        - description:
+            Controller primary reset (resets everything except PMC module)
+          const: core
+        - description: PCS/PHY block reset
+          const: phy
+        - description: PMC hot reset signal
+          const: hot
+        - description: Cold reset signal
+          const: pwr
+        - description:
+            Vendor-specific reset names. Consider using the generic names
+            above for new bindings.
+          oneOf:
+            - description: See native 'app' reset for details
+              enum: [ apps, gio, apb ]
+            - description: See native 'phy' reset for details
+              enum: [ pciephy, link ]
+            - description: See native 'pwr' reset for details
+              enum: [ turnoff ]
+
   phys:
     description:
       There can be up to the number of possible lanes PHYs specified placed in

@@ -195,8 +195,6 @@ properties:
       - contains:
           const: msi
 
-  clocks: true
-
 additionalProperties: true
 
 required:

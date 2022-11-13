@@ -180,6 +180,12 @@ examples:
       interrupts = <23>, <24>;
       interrupt-names = "dma0", "dma1";
 
+      clocks = <&sys_clk 12>, <&sys_clk 24>;
+      clock-names = "dbi", "ref";
+
+      resets = <&sys_rst 12>, <&sys_rst 24>;
+      reset-names = "dbi", "phy";
+
       phys = <&pcie_phy0>, <&pcie_phy1>, <&pcie_phy2>, <&pcie_phy3>;
       phy-names = "pcie0", "pcie1", "pcie2", "pcie3";
 
