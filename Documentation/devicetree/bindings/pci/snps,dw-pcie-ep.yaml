@@ -15,6 +15,7 @@ description: |
 
 allOf:
   - $ref: /schemas/pci/pci-ep.yaml#
+  - $ref: /schemas/pci/snps,dw-pcie-common.yaml#
 
 properties:
   compatible:
@@ -35,36 +36,6 @@ properties:
     maxItems: 4
     items:
       enum: [dbi, dbi2, config, atu, addr_space, link, atu_dma, appl]
-
-  reset-gpio:
-    description: GPIO pin number of PERST# signal
-    maxItems: 1
-    deprecated: true
-
-  reset-gpios:
-    description: GPIO controlled connection to PERST# signal
-    maxItems: 1
-
-  snps,enable-cdm-check:
-    type: boolean
-    description: |
-      This is a boolean property and if present enables
-      automatic checking of CDM (Configuration Dependent Module) registers
-      for data corruption. CDM registers include standard PCIe configuration
-      space registers, Port Logic registers, DMA and iATU (internal Address
-      Translation Unit) registers.
-
-  num-ib-windows:
-    $ref: /schemas/types.yaml#/definitions/uint32
-    maximum: 256
-    description: number of inbound address translation windows
-    deprecated: true
-
-  num-ob-windows:
-    $ref: /schemas/types.yaml#/definitions/uint32
-    maximum: 256
-    description: number of outbound address translation windows
-    deprecated: true
 
 required:
   - reg
