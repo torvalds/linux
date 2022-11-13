@@ -3787,8 +3787,6 @@ static ssize_t nvme_ctrl_dhchap_secret_store(struct device *dev,
 		host_key = ctrl->host_key;
 		ctrl->host_key = key;
 		nvme_auth_free_key(host_key);
-		/* Key has changed; re-authentication with new key */
-		nvme_auth_reset(ctrl);
 	}
 	/* Start re-authentication */
 	dev_info(ctrl->device, "re-authenticating controller\n");
@@ -3841,8 +3839,6 @@ static ssize_t nvme_ctrl_dhchap_ctrl_secret_store(struct device *dev,
 		ctrl_key = ctrl->ctrl_key;
 		ctrl->ctrl_key = key;
 		nvme_auth_free_key(ctrl_key);
-		/* Key has changed; re-authentication with new key */
-		nvme_auth_reset(ctrl);
 	}
 	/* Start re-authentication */
 	dev_info(ctrl->device, "re-authenticating controller\n");
