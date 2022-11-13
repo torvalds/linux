@@ -13,16 +13,20 @@ maintainers:
 description: |
   Synopsys DesignWare PCIe host controller
 
+# Please create a separate DT-schema for your DWC PCIe Root Port controller
+# and make sure it's assigned with the vendor-specific compatible string.
+select:
+  properties:
+    compatible:
+      const: snps,dw-pcie
+  required:
+    - compatible
+
 allOf:
   - $ref: /schemas/pci/pci-bus.yaml#
   - $ref: /schemas/pci/snps,dw-pcie-common.yaml#
 
 properties:
-  compatible:
-    anyOf:
-      - {}
-      - const: snps,dw-pcie
-
   reg:
     description: |
       It should contain Data Bus Interface (dbi) and config registers for all
@@ -47,9 +51,9 @@ properties:
 additionalProperties: true
 
 required:
+  - compatible
   - reg
   - reg-names
-  - compatible
 
 examples:
   - |

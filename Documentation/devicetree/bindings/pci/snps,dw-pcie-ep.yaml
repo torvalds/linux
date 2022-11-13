@@ -13,16 +13,20 @@ maintainers:
 description: |
   Synopsys DesignWare PCIe host controller endpoint
 
+# Please create a separate DT-schema for your DWC PCIe Endpoint controller
+# and make sure it's assigned with the vendor-specific compatible string.
+select:
+  properties:
+    compatible:
+      const: snps,dw-pcie-ep
+  required:
+    - compatible
+
 allOf:
   - $ref: /schemas/pci/pci-ep.yaml#
   - $ref: /schemas/pci/snps,dw-pcie-common.yaml#
 
 properties:
-  compatible:
-    anyOf:
-      - {}
-      - const: snps,dw-pcie-ep
-
   reg:
     description: |
       It should contain Data Bus Interface (dbi) and config registers for all
@@ -38,9 +42,9 @@ properties:
       enum: [dbi, dbi2, config, atu, addr_space, link, atu_dma, appl]
 
 required:
+  - compatible
   - reg
   - reg-names
-  - compatible
 
 additionalProperties: true
 
