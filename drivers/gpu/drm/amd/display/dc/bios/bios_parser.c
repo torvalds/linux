@@ -665,8 +665,9 @@ static enum bp_result get_ss_info_v3_1(
 	if (!DATA_TABLES(ASIC_InternalSS_Info))
 		return BP_RESULT_UNSUPPORTED;
 
-	ss_table_header_include = GET_IMAGE(ATOM_ASIC_INTERNAL_SS_INFO_V3,
-		DATA_TABLES(ASIC_InternalSS_Info));
+	ss_table_header_include = ((ATOM_ASIC_INTERNAL_SS_INFO_V3 *) bios_get_image(&bp->base,
+				DATA_TABLES(ASIC_InternalSS_Info),
+				struct_size(ss_table_header_include, asSpreadSpectrum, 1)));
 	table_size =
 		(le16_to_cpu(ss_table_header_include->sHeader.usStructureSize)
 				- sizeof(ATOM_COMMON_TABLE_HEADER))
@@ -1032,8 +1033,10 @@ static enum bp_result get_ss_info_from_internal_ss_info_tbl_V2_1(
 	if (!DATA_TABLES(ASIC_InternalSS_Info))
 		return result;
 
-	header = GET_IMAGE(ATOM_ASIC_INTERNAL_SS_INFO_V2,
-		DATA_TABLES(ASIC_InternalSS_Info));
+	header = ((ATOM_ASIC_INTERNAL_SS_INFO_V2 *) bios_get_image(
+				&bp->base,
+				DATA_TABLES(ASIC_InternalSS_Info),
+				struct_size(header, asSpreadSpectrum, 1)));
 
 	memset(info, 0, sizeof(struct spread_spectrum_info));
 
@@ -1712,8 +1715,10 @@ static uint32_t get_ss_entry_number_from_internal_ss_info_tbl_v2_1(
 	if (!DATA_TABLES(ASIC_InternalSS_Info))
 		return 0;
 
-	header_include = GET_IMAGE(ATOM_ASIC_INTERNAL_SS_INFO_V2,
-			DATA_TABLES(ASIC_InternalSS_Info));
+	header_include = ((ATOM_ASIC_INTERNAL_SS_INFO_V2 *) bios_get_image(
+				&bp->base,
+				DATA_TABLES(ASIC_InternalSS_Info),
+				struct_size(header_include, asSpreadSpectrum, 1)));
 
 	size = (le16_to_cpu(header_include->sHeader.usStructureSize)
 			- sizeof(ATOM_COMMON_TABLE_HEADER))
@@ -1749,8 +1754,9 @@ static uint32_t get_ss_entry_number_from_internal_ss_info_tbl_V3_1(
 	if (!DATA_TABLES(ASIC_InternalSS_Info))
 		return number;
 
-	header_include = GET_IMAGE(ATOM_ASIC_INTERNAL_SS_INFO_V3,
-			DATA_TABLES(ASIC_InternalSS_Info));
+	header_include = ((ATOM_ASIC_INTERNAL_SS_INFO_V3 *) bios_get_image(&bp->base,
+				DATA_TABLES(ASIC_InternalSS_Info),
+				struct_size(header_include, asSpreadSpectrum, 1)));
 	size = (le16_to_cpu(header_include->sHeader.usStructureSize) -
 			sizeof(ATOM_COMMON_TABLE_HEADER)) /
 					sizeof(ATOM_ASIC_SS_ASSIGNMENT_V3);
