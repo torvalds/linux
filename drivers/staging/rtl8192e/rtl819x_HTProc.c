@@ -323,7 +323,7 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 		pCapELE->MPDUDensity	= 0;
 	}
 
-	memcpy(pCapELE->MCS, ieee->Regdot11HTOperationalRateSet, 16);
+	memcpy(pCapELE->MCS, ieee->reg_dot11ht_oper_rate_set, 16);
 	memset(&pCapELE->ExtHTCapInfo, 0, 2);
 	memset(pCapELE->TxBFCap, 0, 4);
 

@@ -1435,7 +1435,7 @@ struct rtllib_device {
 	struct rt_hi_throughput *pHTInfo;
 
 	spinlock_t reorder_spinlock;
-	u8	Regdot11HTOperationalRateSet[16];
+	u8	reg_dot11ht_oper_rate_set[16];
 	u8	Regdot11TxHTOperationalRateSet[16];
 	u8	dot11HTOperationalRateSet[16];
 	u8	RegHTSuppRateSet[16];
@@ -1645,7 +1645,7 @@ struct rtllib_device {
 
 	struct rt_link_detect LinkDetectInfo;
 	bool bIsAggregateFrame;
-	struct rt_pwr_save_ctrl PowerSaveControl;
+	struct rt_pwr_save_ctrl pwr_save_ctrl;
 
 	/* used if IEEE_SOFTMAC_TX_QUEUE is set */
 	struct tx_pending tx_pending;

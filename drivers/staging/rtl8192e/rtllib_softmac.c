@@ -1504,7 +1504,7 @@ static void rtllib_associate_complete_wq(void *data)
 				     container_of_work_rsl(data,
 				     struct rtllib_device,
 				     associate_complete_wq);
-	struct rt_pwr_save_ctrl *pPSC = &(ieee->PowerSaveControl);
+	struct rt_pwr_save_ctrl *pPSC = &ieee->pwr_save_ctrl;
 
 	netdev_info(ieee->dev, "Associated successfully with %pM\n",
 		    ieee->current_network.bssid);
@@ -1960,7 +1960,7 @@ static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 {
 	int timeout;
 	u8 dtim;
-	struct rt_pwr_save_ctrl *pPSC = &(ieee->PowerSaveControl);
+	struct rt_pwr_save_ctrl *pPSC = &ieee->pwr_save_ctrl;
 
 	if (ieee->LPSDelayCnt) {
 		ieee->LPSDelayCnt--;
@@ -2984,9 +2984,9 @@ int rtllib_softmac_init(struct rtllib_device *ieee)
 	ieee->ps = RTLLIB_PS_DISABLED;
 	ieee->sta_sleep = LPS_IS_WAKE;
 
-	ieee->Regdot11HTOperationalRateSet[0] = 0xff;
-	ieee->Regdot11HTOperationalRateSet[1] = 0xff;
-	ieee->Regdot11HTOperationalRateSet[4] = 0x01;
+	ieee->reg_dot11ht_oper_rate_set[0] = 0xff;
+	ieee->reg_dot11ht_oper_rate_set[1] = 0xff;
+	ieee->reg_dot11ht_oper_rate_set[4] = 0x01;
 
 	ieee->Regdot11TxHTOperationalRateSet[0] = 0xff;
 	ieee->Regdot11TxHTOperationalRateSet[1] = 0xff;

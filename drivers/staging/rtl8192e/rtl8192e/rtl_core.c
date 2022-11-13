@@ -607,13 +607,13 @@ static void _rtl92e_refresh_support_rate(struct r8192_priv *priv)
 
 	if (ieee->mode == WIRELESS_MODE_N_24G ||
 	    ieee->mode == WIRELESS_MODE_N_5G) {
-		memcpy(ieee->Regdot11HTOperationalRateSet,
+		memcpy(ieee->reg_dot11ht_oper_rate_set,
 		       ieee->RegHTSuppRateSet, 16);
 		memcpy(ieee->Regdot11TxHTOperationalRateSet,
 		       ieee->RegHTSuppRateSet, 16);
 
 	} else {
-		memset(ieee->Regdot11HTOperationalRateSet, 0, 16);
+		memset(ieee->reg_dot11ht_oper_rate_set, 0, 16);
 	}
 }
 
@@ -642,19 +642,19 @@ static u8 _rtl92e_get_supported_wireless_mode(struct net_device *dev)
 void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	u8 bSupportMode = _rtl92e_get_supported_wireless_mode(dev);
+	u8 support_mode = _rtl92e_get_supported_wireless_mode(dev);
 
 	if ((wireless_mode == WIRELESS_MODE_AUTO) ||
-	    ((wireless_mode & bSupportMode) == 0)) {
-		if (bSupportMode & WIRELESS_MODE_N_24G) {
+	    ((wireless_mode & support_mode) == 0)) {
+		if (support_mode & WIRELESS_MODE_N_24G) {
 			wireless_mode = WIRELESS_MODE_N_24G;
-		} else if (bSupportMode & WIRELESS_MODE_N_5G) {
+		} else if (support_mode & WIRELESS_MODE_N_5G) {
 			wireless_mode = WIRELESS_MODE_N_5G;
-		} else if ((bSupportMode & WIRELESS_MODE_A)) {
+		} else if ((support_mode & WIRELESS_MODE_A)) {
 			wireless_mode = WIRELESS_MODE_A;
-		} else if ((bSupportMode & WIRELESS_MODE_G)) {
+		} else if ((support_mode & WIRELESS_MODE_G)) {
 			wireless_mode = WIRELESS_MODE_G;
-		} else if ((bSupportMode & WIRELESS_MODE_B)) {
+		} else if ((support_mode & WIRELESS_MODE_B)) {
 			wireless_mode = WIRELESS_MODE_B;
 		} else {
 			netdev_info(dev,
@@ -683,7 +683,7 @@ static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
-					(&priv->rtllib->PowerSaveControl);
+					(&priv->rtllib->pwr_save_ctrl);
 	bool init_status;
 
 	priv->bdisable_nic = false;
@@ -820,7 +820,7 @@ static void _rtl92e_init_priv_constant(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
-					&priv->rtllib->PowerSaveControl;
+					&priv->rtllib->pwr_save_ctrl;
 
 	pPSC->reg_max_lps_awake_intvl = 5;
 }
@@ -877,7 +877,7 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->rf_change_in_progress = false;
 	priv->bHwRfOffAction = 0;
 	priv->SetRFPowerStateInProgress = false;
-	priv->rtllib->PowerSaveControl.bLeisurePs = true;
+	priv->rtllib->pwr_save_ctrl.bLeisurePs = true;
 	priv->rtllib->LPSDelayCnt = 0;
 	priv->rtllib->sta_sleep = LPS_IS_WAKE;
 	priv->rtllib->rf_power_state = rf_on;
@@ -1272,7 +1272,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	static u8 check_reset_cnt;
 	unsigned long flags;
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
-					(&priv->rtllib->PowerSaveControl);
+					(&priv->rtllib->pwr_save_ctrl);
 	bool bBusyTraffic = false;
 	bool	bHigherBusyTraffic = false;
 	bool	bHigherBusyRxTraffic = false;
@@ -1295,7 +1295,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 		     RTLLIB_NOLINK) &&
 		     (ieee->rf_power_state == rf_on) && !ieee->is_set_key &&
 		     (!ieee->proto_stoppping) && !ieee->wx_set_enc) {
-			if ((ieee->PowerSaveControl.ReturnPoint ==
+			if ((ieee->pwr_save_ctrl.ReturnPoint ==
 			     IPS_CALLBACK_NONE) &&
 			     (!ieee->bNetPromiscuousMode)) {
 				rtl92e_ips_enter(dev);
@@ -2422,7 +2422,7 @@ bool rtl92e_enable_nic(struct net_device *dev)
 	bool init_status = true;
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
-					(&priv->rtllib->PowerSaveControl);
+					(&priv->rtllib->pwr_save_ctrl);
 
 	if (!priv->up) {
 		netdev_warn(dev, "%s(): Driver is already down!\n", __func__);

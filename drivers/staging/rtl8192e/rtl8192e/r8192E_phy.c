@@ -1304,7 +1304,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
-					(&(priv->rtllib->PowerSaveControl));
+					(&priv->rtllib->pwr_save_ctrl);
 	bool bResult = true;
 	u8	i = 0, QueueID = 0;
 	struct rtl8192_tx_ring  *ring = NULL;
