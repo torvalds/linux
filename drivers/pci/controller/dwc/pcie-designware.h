@@ -13,10 +13,13 @@
 
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
+#include <linux/clk.h>
 #include <linux/dma-mapping.h>
+#include <linux/gpio/consumer.h>
 #include <linux/irq.h>
 #include <linux/msi.h>
 #include <linux/pci.h>
+#include <linux/reset.h>
 
 #include <linux/pci-epc.h>
 #include <linux/pci-epf.h>
@@ -45,6 +48,7 @@
 	 __dw_pcie_ver_cmp(_pci, TYPE_ ## _type, >=))
 
 /* DWC PCIe controller capabilities */
+#define DW_PCIE_CAP_REQ_RES		0
 #define DW_PCIE_CAP_IATU_UNROLL		1
 #define DW_PCIE_CAP_CDM_CHECK		2
 
@@ -233,6 +237,39 @@ enum dw_pcie_device_mode {
 	DW_PCIE_RC_TYPE,
 };
 
+enum dw_pcie_app_clk {
+	DW_PCIE_DBI_CLK,
+	DW_PCIE_MSTR_CLK,
+	DW_PCIE_SLV_CLK,
+	DW_PCIE_NUM_APP_CLKS
+};
+
+enum dw_pcie_core_clk {
+	DW_PCIE_PIPE_CLK,
+	DW_PCIE_CORE_CLK,
+	DW_PCIE_AUX_CLK,
+	DW_PCIE_REF_CLK,
+	DW_PCIE_NUM_CORE_CLKS
+};
+
+enum dw_pcie_app_rst {
+	DW_PCIE_DBI_RST,
+	DW_PCIE_MSTR_RST,
+	DW_PCIE_SLV_RST,
+	DW_PCIE_NUM_APP_RSTS
+};
+
+enum dw_pcie_core_rst {
+	DW_PCIE_NON_STICKY_RST,
+	DW_PCIE_STICKY_RST,
+	DW_PCIE_CORE_RST,
+	DW_PCIE_PIPE_RST,
+	DW_PCIE_PHY_RST,
+	DW_PCIE_HOT_RST,
+	DW_PCIE_PWR_RST,
+	DW_PCIE_NUM_CORE_RSTS
+};
+
 struct dw_pcie_host_ops {
 	int (*host_init)(struct dw_pcie_rp *pp);
 	void (*host_deinit)(struct dw_pcie_rp *pp);
@@ -332,6 +369,11 @@ struct dw_pcie {
 	int			num_lanes;
 	int			link_gen;
 	u8			n_fts[2];
+	struct clk_bulk_data	app_clks[DW_PCIE_NUM_APP_CLKS];
+	struct clk_bulk_data	core_clks[DW_PCIE_NUM_CORE_CLKS];
+	struct reset_control_bulk_data	app_rsts[DW_PCIE_NUM_APP_RSTS];
+	struct reset_control_bulk_data	core_rsts[DW_PCIE_NUM_CORE_RSTS];
+	struct gpio_desc		*pe_rst;
 };
 
 #define to_dw_pcie_from_pp(port) container_of((port), struct dw_pcie, pp)

@@ -10,7 +10,9 @@
 
 #include <linux/align.h>
 #include <linux/bitops.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/ioport.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -20,11 +22,89 @@
 #include "../../pci.h"
 #include "pcie-designware.h"
 
+static const char * const dw_pcie_app_clks[DW_PCIE_NUM_APP_CLKS] = {
+	[DW_PCIE_DBI_CLK] = "dbi",
+	[DW_PCIE_MSTR_CLK] = "mstr",
+	[DW_PCIE_SLV_CLK] = "slv",
+};
+
+static const char * const dw_pcie_core_clks[DW_PCIE_NUM_CORE_CLKS] = {
+	[DW_PCIE_PIPE_CLK] = "pipe",
+	[DW_PCIE_CORE_CLK] = "core",
+	[DW_PCIE_AUX_CLK] = "aux",
+	[DW_PCIE_REF_CLK] = "ref",
+};
+
+static const char * const dw_pcie_app_rsts[DW_PCIE_NUM_APP_RSTS] = {
+	[DW_PCIE_DBI_RST] = "dbi",
+	[DW_PCIE_MSTR_RST] = "mstr",
+	[DW_PCIE_SLV_RST] = "slv",
+};
+
+static const char * const dw_pcie_core_rsts[DW_PCIE_NUM_CORE_RSTS] = {
+	[DW_PCIE_NON_STICKY_RST] = "non-sticky",
+	[DW_PCIE_STICKY_RST] = "sticky",
+	[DW_PCIE_CORE_RST] = "core",
+	[DW_PCIE_PIPE_RST] = "pipe",
+	[DW_PCIE_PHY_RST] = "phy",
+	[DW_PCIE_HOT_RST] = "hot",
+	[DW_PCIE_PWR_RST] = "pwr",
+};
+
+static int dw_pcie_get_clocks(struct dw_pcie *pci)
+{
+	int i, ret;
+
+	for (i = 0; i < DW_PCIE_NUM_APP_CLKS; i++)
+		pci->app_clks[i].id = dw_pcie_app_clks[i];
+
+	for (i = 0; i < DW_PCIE_NUM_CORE_CLKS; i++)
+		pci->core_clks[i].id = dw_pcie_core_clks[i];
+
+	ret = devm_clk_bulk_get_optional(pci->dev, DW_PCIE_NUM_APP_CLKS,
+					 pci->app_clks);
+	if (ret)
+		return ret;
+
+	return devm_clk_bulk_get_optional(pci->dev, DW_PCIE_NUM_CORE_CLKS,
+					  pci->core_clks);
+}
+
+static int dw_pcie_get_resets(struct dw_pcie *pci)
+{
+	int i, ret;
+
+	for (i = 0; i < DW_PCIE_NUM_APP_RSTS; i++)
+		pci->app_rsts[i].id = dw_pcie_app_rsts[i];
+
+	for (i = 0; i < DW_PCIE_NUM_CORE_RSTS; i++)
+		pci->core_rsts[i].id = dw_pcie_core_rsts[i];
+
+	ret = devm_reset_control_bulk_get_optional_shared(pci->dev,
+							  DW_PCIE_NUM_APP_RSTS,
+							  pci->app_rsts);
+	if (ret)
+		return ret;
+
+	ret = devm_reset_control_bulk_get_optional_exclusive(pci->dev,
+							     DW_PCIE_NUM_CORE_RSTS,
+							     pci->core_rsts);
+	if (ret)
+		return ret;
+
+	pci->pe_rst = devm_gpiod_get_optional(pci->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(pci->pe_rst))
+		return PTR_ERR(pci->pe_rst);
+
+	return 0;
+}
+
 int dw_pcie_get_resources(struct dw_pcie *pci)
 {
 	struct platform_device *pdev = to_platform_device(pci->dev);
 	struct device_node *np = dev_of_node(pci->dev);
 	struct resource *res;
+	int ret;
 
 	if (!pci->dbi_base) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
@@ -61,6 +141,17 @@ int dw_pcie_get_resources(struct dw_pcie *pci)
 	/* Set a default value suitable for at most 8 in and 8 out windows */
 	if (!pci->atu_size)
 		pci->atu_size = SZ_4K;
+
+	/* LLDD is supposed to manually switch the clocks and resets state */
+	if (dw_pcie_cap_is(pci, REQ_RES)) {
+		ret = dw_pcie_get_clocks(pci);
+		if (ret)
+			return ret;
+
+		ret = dw_pcie_get_resets(pci);
+		if (ret)
+			return ret;
+	}
 
 	if (pci->link_gen < 1)
 		pci->link_gen = of_pci_get_max_link_speed(np);
