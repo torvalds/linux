@@ -3157,6 +3157,8 @@ struct hl_reset_info {
  * @edma_binning: contains mask of edma engines that is received from the f/w which
  *                   indicates which edma engines are binned-out
  * @device_release_watchdog_timeout_sec: device release watchdog timeout value in seconds.
+ * @rotator_binning: contains mask of rotators engines that is received from the f/w
+ *			which indicates which rotator engines are binned-out(Gaudi3 and above).
  * @id: device minor.
  * @id_control: minor of the control device.
  * @cdev_idx: char device index. Used for setting its name.
@@ -3214,6 +3216,7 @@ struct hl_reset_info {
  * @heartbeat: Controls if we want to enable the heartbeat mechanism vs. the f/w, which verifies
  *             that the f/w is always alive. Used only for testing.
  * @supports_ctx_switch: true if a ctx switch is required upon first submission.
+ * @support_preboot_binning: true if we support read binning info from preboot.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -3322,6 +3325,7 @@ struct hl_device {
 	u32				decoder_binning;
 	u32				edma_binning;
 	u32				device_release_watchdog_timeout_sec;
+	u32				rotator_binning;
 	u16				id;
 	u16				id_control;
 	u16				cdev_idx;
@@ -3355,6 +3359,7 @@ struct hl_device {
 	u8				supports_mmu_prefetch;
 	u8				reset_upon_device_release;
 	u8				supports_ctx_switch;
+	u8				support_preboot_binning;
 
 	/* Parameters for bring-up */
 	u64				nic_ports_mask;

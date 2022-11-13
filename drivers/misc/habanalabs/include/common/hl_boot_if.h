@@ -439,7 +439,7 @@ struct cpu_dyn_regs {
 /* TODO: remove the desc magic after the code is updated to use message */
 /* HCDM - Habana Communications Descriptor Magic */
 #define HL_COMMS_DESC_MAGIC	0x4843444D
-#define HL_COMMS_DESC_VER	1
+#define HL_COMMS_DESC_VER	3
 
 /* HCMv - Habana Communications Message + header version */
 #define HL_COMMS_MSG_MAGIC_VALUE	0x48434D00
@@ -450,8 +450,10 @@ struct cpu_dyn_regs {
 					((ver) & HL_COMMS_MSG_MAGIC_VER_MASK))
 #define HL_COMMS_MSG_MAGIC_V0		HL_COMMS_DESC_MAGIC
 #define HL_COMMS_MSG_MAGIC_V1		HL_COMMS_MSG_MAGIC_VER(1)
+#define HL_COMMS_MSG_MAGIC_V2		HL_COMMS_MSG_MAGIC_VER(2)
+#define HL_COMMS_MSG_MAGIC_V3		HL_COMMS_MSG_MAGIC_VER(3)
 
-#define HL_COMMS_MSG_MAGIC		HL_COMMS_MSG_MAGIC_V1
+#define HL_COMMS_MSG_MAGIC		HL_COMMS_MSG_MAGIC_V3
 
 #define HL_COMMS_MSG_MAGIC_VALIDATE_MAGIC(magic)			\
 		(((magic) & HL_COMMS_MSG_MAGIC_MASK) ==			\
@@ -474,22 +476,31 @@ enum comms_msg_type {
 
 /*
  * Binning information shared between LKD and FW
- * @tpc_mask - TPC binning information
+ * @tpc_mask_l - TPC binning information lower 64 bit
  * @dec_mask - Decoder binning information
- * @hbm_mask - HBM binning information
+ * @dram_mask - DRAM binning information
  * @edma_mask - EDMA binning information
  * @mme_mask_l - MME binning information lower 32
  * @mme_mask_h - MME binning information upper 32
- * @reserved - reserved field for 64 bit alignment
+ * @rot_mask - Rotator binning information
+ * @xbar_mask - xBAR binning information
+ * @reserved - reserved field for future binning info w/o ABI change
+ * @tpc_mask_h - TPC binning information upper 64 bit
+ * @nic_mask - NIC binning information
  */
 struct lkd_fw_binning_info {
-	__le64 tpc_mask;
+	__le64 tpc_mask_l;
 	__le32 dec_mask;
-	__le32 hbm_mask;
+	__le32 dram_mask;
 	__le32 edma_mask;
 	__le32 mme_mask_l;
 	__le32 mme_mask_h;
-	__le32 reserved;
+	__le32 rot_mask;
+	__le32 xbar_mask;
+	__le32 reserved0;
+	__le64 tpc_mask_h;
+	__le64 nic_mask;
+	__le32 reserved1[8];
 };
 
 /* TODO: remove this struct after the code is updated to use message */
@@ -521,6 +532,7 @@ struct lkd_fw_comms_desc {
 	/* can be used for 1 more version w/o ABI change */
 	char reserved0[VERSION_MAX_LEN];
 	__le64 img_addr;	/* address for next FW component load */
+	struct lkd_fw_binning_info binning_info;
 };
 
 enum comms_reset_cause {
@@ -545,6 +557,7 @@ struct lkd_fw_comms_msg {
 			char reserved0[VERSION_MAX_LEN];
 			/* address for next FW component load */
 			__le64 img_addr;
+			struct lkd_fw_binning_info binning_info;
 		};
 		struct {
 			__u8 reset_cause;
@@ -552,7 +565,7 @@ struct lkd_fw_comms_msg {
 		struct {
 			__u8 fw_cfg_skip; /* 1 - skip, 0 - don't skip */
 		};
-		struct lkd_fw_binning_info binning_info;
+		struct lkd_fw_binning_info binning_conf;
 	};
 };
 

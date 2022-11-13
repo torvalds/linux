@@ -2560,13 +2560,35 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	}
 
 	if (!(hdev->fw_components & FW_TYPE_BOOT_CPU)) {
+		struct lkd_fw_binning_info *binning_info;
+
 		rc = hl_fw_dynamic_request_descriptor(hdev, fw_loader, 0);
 		if (rc)
 			goto protocol_err;
 
 		/* read preboot version */
-		return hl_fw_dynamic_read_device_fw_version(hdev, FW_COMP_PREBOOT,
+		rc = hl_fw_dynamic_read_device_fw_version(hdev, FW_COMP_PREBOOT,
 				fw_loader->dynamic_loader.comm_desc.cur_fw_ver);
+
+		if (rc)
+			goto out;
+
+		/* read binning info from preboot */
+		if (hdev->support_preboot_binning) {
+			binning_info = &fw_loader->dynamic_loader.comm_desc.binning_info;
+			hdev->tpc_binning = le64_to_cpu(binning_info->tpc_mask_l);
+			hdev->dram_binning = le32_to_cpu(binning_info->dram_mask);
+			hdev->edma_binning = le32_to_cpu(binning_info->edma_mask);
+			hdev->decoder_binning = le32_to_cpu(binning_info->dec_mask);
+			hdev->rotator_binning = le32_to_cpu(binning_info->rot_mask);
+
+			dev_dbg(hdev->dev,
+				"Read binning masks: tpc: 0x%llx, dram: 0x%llx, edma: 0x%x, dec: 0x%x, rot:0x%x\n",
+				hdev->tpc_binning, hdev->dram_binning, hdev->edma_binning,
+				hdev->decoder_binning, hdev->rotator_binning);
+		}
+out:
+		return rc;
 	}
 
 	/* load boot fit to FW */
