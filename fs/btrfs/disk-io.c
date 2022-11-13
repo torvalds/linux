@@ -3944,7 +3944,7 @@ static void btrfs_end_super_write(struct bio *bio)
 		if (bio->bi_status) {
 			btrfs_warn_rl_in_rcu(device->fs_info,
 				"lost page write due to IO error on %s (%d)",
-				rcu_str_deref(device->name),
+				btrfs_dev_name(device),
 				blk_status_to_errno(bio->bi_status));
 			ClearPageUptodate(page);
 			SetPageError(page);

@@ -6048,7 +6048,7 @@ static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 			btrfs_warn_in_rcu(fs_info,
 "ignoring attempt to trim beyond device size: offset %llu length %llu device %s device size %llu",
 					  start, end - start + 1,
-					  rcu_str_deref(device->name),
+					  btrfs_dev_name(device),
 					  device->total_bytes);
 			mutex_unlock(&fs_info->chunk_mutex);
 			ret = 0;

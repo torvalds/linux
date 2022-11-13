@@ -941,7 +941,7 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 			}
 			btrfs_info_in_rcu(NULL,
 	"devid %llu device path %s changed to %s scanned by %s (%d)",
-					  devid, rcu_str_deref(device->name),
+					  devid, btrfs_dev_name(device),
 					  path, current->comm,
 					  task_pid_nr(current));
 		}
@@ -2101,7 +2101,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 	if (btrfs_pinned_by_swapfile(fs_info, device)) {
 		btrfs_warn_in_rcu(fs_info,
 		  "cannot remove device %s (devid %llu) due to active swapfile",
-				  rcu_str_deref(device->name), device->devid);
+				  btrfs_dev_name(device), device->devid);
 		return -ETXTBSY;
 	}
 
@@ -6827,7 +6827,7 @@ static void btrfs_submit_dev_bio(struct btrfs_device *dev, struct bio *bio)
 	btrfs_debug_in_rcu(dev->fs_info,
 	"%s: rw %d 0x%x, sector=%llu, dev=%lu (%s id %llu), size=%u",
 		__func__, bio_op(bio), bio->bi_opf, bio->bi_iter.bi_sector,
-		(unsigned long)dev->bdev->bd_dev, rcu_str_deref(dev->name),
+		(unsigned long)dev->bdev->bd_dev, btrfs_dev_name(dev),
 		dev->devid, bio->bi_iter.bi_size);
 
 	btrfsic_check_bio(bio);
@@ -7908,7 +7908,7 @@ static int update_dev_stat_item(struct btrfs_trans_handle *trans,
 	if (ret < 0) {
 		btrfs_warn_in_rcu(fs_info,
 			"error %d while searching for dev_stats item for device %s",
-			      ret, rcu_str_deref(device->name));
+				  ret, btrfs_dev_name(device));
 		goto out;
 	}
 
@@ -7919,7 +7919,7 @@ static int update_dev_stat_item(struct btrfs_trans_handle *trans,
 		if (ret != 0) {
 			btrfs_warn_in_rcu(fs_info,
 				"delete too small dev_stats item for device %s failed %d",
-				      rcu_str_deref(device->name), ret);
+					  btrfs_dev_name(device), ret);
 			goto out;
 		}
 		ret = 1;
@@ -7933,7 +7933,7 @@ static int update_dev_stat_item(struct btrfs_trans_handle *trans,
 		if (ret < 0) {
 			btrfs_warn_in_rcu(fs_info,
 				"insert dev_stats item for device %s failed %d",
-				rcu_str_deref(device->name), ret);
+				btrfs_dev_name(device), ret);
 			goto out;
 		}
 	}
@@ -7998,7 +7998,7 @@ void btrfs_dev_stat_inc_and_print(struct btrfs_device *dev, int index)
 		return;
 	btrfs_err_rl_in_rcu(dev->fs_info,
 		"bdev %s errs: wr %u, rd %u, flush %u, corrupt %u, gen %u",
-			   rcu_str_deref(dev->name),
+			   btrfs_dev_name(dev),
 			   btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_WRITE_ERRS),
 			   btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_READ_ERRS),
 			   btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_FLUSH_ERRS),
@@ -8018,7 +8018,7 @@ static void btrfs_dev_stat_print_on_load(struct btrfs_device *dev)
 
 	btrfs_info_in_rcu(dev->fs_info,
 		"bdev %s errs: wr %u, rd %u, flush %u, corrupt %u, gen %u",
-	       rcu_str_deref(dev->name),
+	       btrfs_dev_name(dev),
 	       btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_WRITE_ERRS),
 	       btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_READ_ERRS),
 	       btrfs_dev_stat_read(dev, BTRFS_DEV_STAT_FLUSH_ERRS),

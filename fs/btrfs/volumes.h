@@ -12,6 +12,7 @@
 #include "async-thread.h"
 #include "messages.h"
 #include "disk-io.h"
+#include "rcu-string.h"
 
 #define BTRFS_MAX_DATA_CHUNK_SIZE	(10ULL * SZ_1G)
 
@@ -768,6 +769,14 @@ static inline void btrfs_dev_stat_set(struct btrfs_device *dev,
 	 */
 	smp_mb__before_atomic();
 	atomic_inc(&dev->dev_stats_ccnt);
+}
+
+static inline const char *btrfs_dev_name(const struct btrfs_device *device)
+{
+	if (!device || test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state))
+		return "<missing disk>";
+	else
+		return rcu_str_deref(device->name);
 }
 
 void btrfs_commit_device_sizes(struct btrfs_transaction *trans);

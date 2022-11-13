@@ -18,7 +18,6 @@
 #include "volumes.h"
 #include "async-thread.h"
 #include "check-integrity.h"
-#include "rcu-string.h"
 #include "dev-replace.h"
 #include "sysfs.h"
 #include "zoned.h"
@@ -451,14 +450,6 @@ out:
 	return ret;
 }
 
-static char* btrfs_dev_name(struct btrfs_device *device)
-{
-	if (!device || test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state))
-		return "<missing disk>";
-	else
-		return rcu_str_deref(device->name);
-}
-
 static int mark_block_group_to_copy(struct btrfs_fs_info *fs_info,
 				    struct btrfs_device *src_dev)
 {
@@ -674,7 +665,7 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 		      "dev_replace from %s (devid %llu) to %s started",
 		      btrfs_dev_name(src_device),
 		      src_device->devid,
-		      rcu_str_deref(tgt_device->name));
+		      btrfs_dev_name(tgt_device));
 
 	/*
 	 * from now on, the writes to the srcdev are all duplicated to
@@ -933,7 +924,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 				 "btrfs_scrub_dev(%s, %llu, %s) failed %d",
 				 btrfs_dev_name(src_device),
 				 src_device->devid,
-				 rcu_str_deref(tgt_device->name), scrub_ret);
+				 btrfs_dev_name(tgt_device), scrub_ret);
 error:
 		up_write(&dev_replace->rwsem);
 		mutex_unlock(&fs_info->chunk_mutex);
@@ -951,7 +942,7 @@ error:
 			  "dev_replace from %s (devid %llu) to %s finished",
 			  btrfs_dev_name(src_device),
 			  src_device->devid,
-			  rcu_str_deref(tgt_device->name));
+			  btrfs_dev_name(tgt_device));
 	clear_bit(BTRFS_DEV_STATE_REPLACE_TGT, &tgt_device->dev_state);
 	tgt_device->devid = src_device->devid;
 	src_device->devid = BTRFS_DEV_REPLACE_DEVID;

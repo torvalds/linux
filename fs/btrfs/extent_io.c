@@ -611,8 +611,7 @@ static int repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 
 	btrfs_info_rl_in_rcu(fs_info,
 		"read error corrected: ino %llu off %llu (dev %s sector %llu)",
-				  ino, start,
-				  rcu_str_deref(dev->name), sector);
+			     ino, start, btrfs_dev_name(dev), sector);
 	ret = 0;
 
 out_bio_uninit:
