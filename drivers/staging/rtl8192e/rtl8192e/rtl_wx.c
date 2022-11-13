@@ -1015,20 +1015,20 @@ static int _rtl92e_wx_set_promisc_mode(struct net_device *dev,
 
 	u32 oid;
 	u32 promiscuous_on;
-	u32 bFilterSourceStationFrame;
+	u32 fltr_src_sta_frame;
 
 	if (copy_from_user(info_buf, wrqu->data.pointer, sizeof(info_buf)))
 		return -EFAULT;
 
 	oid = info_buf[0];
 	promiscuous_on = info_buf[1];
-	bFilterSourceStationFrame = info_buf[2];
+	fltr_src_sta_frame = info_buf[2];
 
 	if (oid == OID_RT_INTEL_PROMISCUOUS_MODE) {
 		ieee->intel_promiscuous_md_info.promiscuous_on =
 					(promiscuous_on) ? (true) : (false);
-		ieee->intel_promiscuous_md_info.bFilterSourceStationFrame =
-			(bFilterSourceStationFrame) ? (true) : (false);
+		ieee->intel_promiscuous_md_info.fltr_src_sta_frame =
+			(fltr_src_sta_frame) ? (true) : (false);
 		(promiscuous_on) ?
 		(rtllib_EnableIntelPromiscuousMode(dev, false)) :
 		(rtllib_DisableIntelPromiscuousMode(dev, false));
@@ -1036,7 +1036,7 @@ static int _rtl92e_wx_set_promisc_mode(struct net_device *dev,
 		netdev_info(dev,
 			    "=======>%s(), on = %d, filter src sta = %d\n",
 			    __func__, promiscuous_on,
-			    bFilterSourceStationFrame);
+			    fltr_src_sta_frame);
 	} else {
 		return -1;
 	}
@@ -1055,7 +1055,7 @@ static int _rtl92e_wx_get_promisc_mode(struct net_device *dev,
 
 	snprintf(extra, 45, "PromiscuousMode:%d, FilterSrcSTAFrame:%d",
 		 ieee->intel_promiscuous_md_info.promiscuous_on,
-		 ieee->intel_promiscuous_md_info.bFilterSourceStationFrame);
+		 ieee->intel_promiscuous_md_info.fltr_src_sta_frame);
 	wrqu->data.length = strlen(extra) + 1;
 
 	mutex_unlock(&priv->wx_mutex);

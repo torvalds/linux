@@ -617,7 +617,7 @@ bool rtl92e_start_adapter(struct net_device *dev)
 start:
 	rtl92e_reset_desc_ring(dev);
 	priv->Rf_Mode = RF_OP_By_SW_3wire;
-	if (priv->ResetProgress == RESET_TYPE_NORESET) {
+	if (priv->rst_progress == RESET_TYPE_NORESET) {
 		rtl92e_writeb(dev, ANAPAR, 0x37);
 		mdelay(500);
 	}
@@ -650,7 +650,7 @@ start:
 	}
 
 	priv->LoopbackMode = RTL819X_NO_LOOPBACK;
-	if (priv->ResetProgress == RESET_TYPE_NORESET) {
+	if (priv->rst_progress == RESET_TYPE_NORESET) {
 		ulRegRead = rtl92e_readl(dev, CPU_GEN);
 		if (priv->LoopbackMode == RTL819X_NO_LOOPBACK)
 			ulRegRead = (ulRegRead & CPU_GEN_NO_LOOPBACK_MSK) |
@@ -699,7 +699,7 @@ start:
 
 	rtl92e_writeb(dev, ACK_TIMEOUT, 0x30);
 
-	if (priv->ResetProgress == RESET_TYPE_NORESET)
+	if (priv->rst_progress == RESET_TYPE_NORESET)
 		rtl92e_set_wireless_mode(dev, priv->rtllib->mode);
 	rtl92e_cam_reset(dev);
 	{
@@ -739,7 +739,7 @@ start:
 		}
 	}
 
-	if (priv->ResetProgress == RESET_TYPE_NORESET) {
+	if (priv->rst_progress == RESET_TYPE_NORESET) {
 		rtStatus = rtl92e_config_phy(dev);
 		if (!rtStatus) {
 			netdev_info(dev, "RF Config failed\n");
@@ -766,7 +766,7 @@ start:
 	else
 		priv->Rf_Mode = RF_OP_By_SW_3wire;
 
-	if (priv->ResetProgress == RESET_TYPE_NORESET) {
+	if (priv->rst_progress == RESET_TYPE_NORESET) {
 		rtl92e_dm_init_txpower_tracking(dev);
 
 		if (priv->IC_Cut >= IC_VersionCut_D) {
@@ -795,7 +795,7 @@ start:
 			}
 			priv->CCKPresentAttentuation_40Mdefault = 0;
 			priv->CCKPresentAttentuation_difference = 0;
-			priv->CCKPresentAttentuation =
+			priv->cck_present_attn =
 				  priv->CCKPresentAttentuation_20Mdefault;
 			priv->btxpower_tracking = false;
 		}

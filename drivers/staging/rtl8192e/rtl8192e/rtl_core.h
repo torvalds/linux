@@ -483,7 +483,7 @@ struct r8192_priv {
 	u8 CCKPresentAttentuation_20Mdefault;
 	u8 CCKPresentAttentuation_40Mdefault;
 	s8 CCKPresentAttentuation_difference;
-	s8 CCKPresentAttentuation;
+	s8 cck_present_attn;
 	long undecorated_smoothed_pwdb;
 
 	u32 MCSTxPowerLevelOriginalOffset[6];
@@ -536,7 +536,7 @@ struct r8192_priv {
 
 	u32		reset_count;
 
-	enum reset_type ResetProgress;
+	enum reset_type rst_progress;
 	u16		TxCounter;
 	u16		RxCounter;
 	bool		bResetInProgress;

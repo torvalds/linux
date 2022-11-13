@@ -267,7 +267,7 @@ static void _rtl92e_dm_check_ac_dc_power(struct net_device *dev)
 			"PATH=/usr/bin:/bin",
 			 NULL};
 
-	if (priv->ResetProgress == RESET_TYPE_SILENT)
+	if (priv->rst_progress == RESET_TYPE_SILENT)
 		return;
 	if (priv->rtllib->state != RTLLIB_LINKED)
 		return;
@@ -716,21 +716,21 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 			}
 
 			if (priv->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
-				priv->CCKPresentAttentuation =
+				priv->cck_present_attn =
 					 priv->CCKPresentAttentuation_20Mdefault +
 					 priv->CCKPresentAttentuation_difference;
 			else
-				priv->CCKPresentAttentuation =
+				priv->cck_present_attn =
 					 priv->CCKPresentAttentuation_40Mdefault +
 					 priv->CCKPresentAttentuation_difference;
 
-			if (priv->CCKPresentAttentuation > (CCKTxBBGainTableLength-1))
-				priv->CCKPresentAttentuation = CCKTxBBGainTableLength-1;
-			if (priv->CCKPresentAttentuation < 0)
-				priv->CCKPresentAttentuation = 0;
+			if (priv->cck_present_attn > (CCKTxBBGainTableLength-1))
+				priv->cck_present_attn = CCKTxBBGainTableLength-1;
+			if (priv->cck_present_attn < 0)
+				priv->cck_present_attn = 0;
 
-			if (priv->CCKPresentAttentuation > -1 &&
-			    priv->CCKPresentAttentuation < CCKTxBBGainTableLength) {
+			if (priv->cck_present_attn > -1 &&
+			    priv->cck_present_attn < CCKTxBBGainTableLength) {
 				if (priv->rtllib->current_network.channel == 14 &&
 				    !priv->bcck_in_ch14) {
 					priv->bcck_in_ch14 = true;
@@ -963,7 +963,7 @@ static void _rtl92e_dm_cck_tx_power_adjust_tssi(struct net_device *dev,
 {
 	u32 TempVal;
 	struct r8192_priv *priv = rtllib_priv(dev);
-	u8 attenuation = priv->CCKPresentAttentuation;
+	u8 attenuation = priv->cck_present_attn;
 
 	TempVal = 0;
 	if (!bInCH14) {

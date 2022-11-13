@@ -1000,7 +1000,7 @@ static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
 
 	/* Filter packets sent by an STA that will be forwarded by AP */
 	if (ieee->intel_promiscuous_md_info.promiscuous_on  &&
-		ieee->intel_promiscuous_md_info.bFilterSourceStationFrame) {
+		ieee->intel_promiscuous_md_info.fltr_src_sta_frame) {
 		if ((fc & RTLLIB_FCTL_TODS) && !(fc & RTLLIB_FCTL_FROMDS) &&
 		    !ether_addr_equal(dst, ieee->current_network.bssid) &&
 		    ether_addr_equal(bssid, ieee->current_network.bssid)) {

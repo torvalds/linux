@@ -850,7 +850,7 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->rtllib->iw_mode = IW_MODE_INFRA;
 	priv->rtllib->net_promiscuous_md = false;
 	priv->rtllib->intel_promiscuous_md_info.promiscuous_on = false;
-	priv->rtllib->intel_promiscuous_md_info.bFilterSourceStationFrame =
+	priv->rtllib->intel_promiscuous_md_info.fltr_src_sta_frame =
 								 false;
 	priv->rtllib->ieee_up = 0;
 	priv->retry_rts = DEFAULT_RETRY_RTS;
@@ -861,11 +861,11 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->promisc = (dev->flags & IFF_PROMISC) ? 1 : 0;
 	priv->bcck_in_ch14 = false;
 	priv->bfsync_processing  = false;
-	priv->CCKPresentAttentuation = 0;
+	priv->cck_present_attn = 0;
 	priv->rfa_txpowertrackingindex = 0;
 	priv->rfc_txpowertrackingindex = 0;
 	priv->CckPwEnl = 6;
-	priv->ResetProgress = RESET_TYPE_NORESET;
+	priv->rst_progress = RESET_TYPE_NORESET;
 	priv->force_reset = false;
 	memset(priv->rtllib->swcamtable, 0, sizeof(struct sw_cam_table) * 32);
 
@@ -1135,8 +1135,8 @@ static void _rtl92e_if_silent_reset(struct net_device *dev)
 	struct rtllib_device *ieee = priv->rtllib;
 	unsigned long flag;
 
-	if (priv->ResetProgress == RESET_TYPE_NORESET) {
-		priv->ResetProgress = RESET_TYPE_SILENT;
+	if (priv->rst_progress == RESET_TYPE_NORESET) {
+		priv->rst_progress = RESET_TYPE_SILENT;
 
 		spin_lock_irqsave(&priv->rf_ps_lock, flag);
 		if (priv->rf_change_in_progress) {
@@ -1233,7 +1233,7 @@ RESET_START:
 		rtl92e_cam_restore(dev);
 		rtl92e_dm_restore_state(dev);
 END:
-		priv->ResetProgress = RESET_TYPE_NORESET;
+		priv->rst_progress = RESET_TYPE_NORESET;
 		priv->reset_count++;
 		priv->bResetInProgress = false;
 
@@ -1396,7 +1396,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
 	if (ResetType == RESET_TYPE_NORMAL) {
-		priv->ResetProgress = RESET_TYPE_NORMAL;
+		priv->rst_progress = RESET_TYPE_NORMAL;
 		return;
 	}
 

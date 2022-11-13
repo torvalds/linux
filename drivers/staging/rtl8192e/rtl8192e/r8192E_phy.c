@@ -1008,16 +1008,16 @@ static void _rtl92e_cck_tx_power_track_bw_switch_tssi(struct net_device *dev)
 
 	switch (priv->CurrentChannelBW) {
 	case HT_CHANNEL_WIDTH_20:
-		priv->CCKPresentAttentuation =
+		priv->cck_present_attn =
 			priv->CCKPresentAttentuation_20Mdefault +
 			    priv->CCKPresentAttentuation_difference;
 
-		if (priv->CCKPresentAttentuation >
+		if (priv->cck_present_attn >
 		    (CCKTxBBGainTableLength-1))
-			priv->CCKPresentAttentuation =
+			priv->cck_present_attn =
 					 CCKTxBBGainTableLength-1;
-		if (priv->CCKPresentAttentuation < 0)
-			priv->CCKPresentAttentuation = 0;
+		if (priv->cck_present_attn < 0)
+			priv->cck_present_attn = 0;
 
 		if (priv->rtllib->current_network.channel == 14 &&
 		    !priv->bcck_in_ch14) {
@@ -1033,16 +1033,16 @@ static void _rtl92e_cck_tx_power_track_bw_switch_tssi(struct net_device *dev)
 		break;
 
 	case HT_CHANNEL_WIDTH_20_40:
-		priv->CCKPresentAttentuation =
+		priv->cck_present_attn =
 			priv->CCKPresentAttentuation_40Mdefault +
 			priv->CCKPresentAttentuation_difference;
 
-		if (priv->CCKPresentAttentuation >
+		if (priv->cck_present_attn >
 		    (CCKTxBBGainTableLength - 1))
-			priv->CCKPresentAttentuation =
+			priv->cck_present_attn =
 					 CCKTxBBGainTableLength-1;
-		if (priv->CCKPresentAttentuation < 0)
-			priv->CCKPresentAttentuation = 0;
+		if (priv->cck_present_attn < 0)
+			priv->cck_present_attn = 0;
 
 		if (priv->rtllib->current_network.channel == 14 &&
 		    !priv->bcck_in_ch14) {
