@@ -1211,9 +1211,9 @@ static void rtllib_rx_check_leave_lps(struct rtllib_device *ieee, u8 unicast,
 	if (unicast) {
 
 		if (ieee->state == RTLLIB_LINKED) {
-			if (((ieee->LinkDetectInfo.NumRxUnicastOkInPeriod +
-			    ieee->LinkDetectInfo.NumTxOkInPeriod) > 8) ||
-			    (ieee->LinkDetectInfo.NumRxUnicastOkInPeriod > 2)) {
+			if (((ieee->link_detect_info.NumRxUnicastOkInPeriod +
+			    ieee->link_detect_info.NumTxOkInPeriod) > 8) ||
+			    (ieee->link_detect_info.NumRxUnicastOkInPeriod > 2)) {
 				if (ieee->LeisurePSLeave)
 					ieee->LeisurePSLeave(ieee->dev);
 			}
@@ -1355,8 +1355,8 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 
 	/* Update statstics for AP roaming */
 	if (!bToOtherSTA) {
-		ieee->LinkDetectInfo.NumRecvDataInPeriod++;
-		ieee->LinkDetectInfo.NumRxOkInPeriod++;
+		ieee->link_detect_info.NumRecvDataInPeriod++;
+		ieee->link_detect_info.NumRxOkInPeriod++;
 	}
 
 	/* Data frame - extract src/dst addresses */
@@ -1437,7 +1437,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 		else
 			nr_subframes = 1;
 		if (unicast)
-			ieee->LinkDetectInfo.NumRxUnicastOkInPeriod += nr_subframes;
+			ieee->link_detect_info.NumRxUnicastOkInPeriod += nr_subframes;
 		rtllib_rx_check_leave_lps(ieee, unicast, nr_subframes);
 	}
 
@@ -2620,7 +2620,7 @@ static inline void rtllib_process_probe_response(
 		}
 		if (is_beacon(frame_ctl)) {
 			if (ieee->state >= RTLLIB_LINKED)
-				ieee->LinkDetectInfo.NumRecvBcnInPeriod++;
+				ieee->link_detect_info.NumRecvBcnInPeriod++;
 		}
 	}
 	list_for_each_entry(target, &ieee->network_list, list) {

@@ -391,10 +391,10 @@ void rtllib_wx_sync_scan_wq(void *data)
 	/* Notify AP that I wake up again */
 	rtllib_sta_ps_send_null_frame(ieee, 0);
 
-	if (ieee->LinkDetectInfo.NumRecvBcnInPeriod == 0 ||
-	    ieee->LinkDetectInfo.NumRecvDataInPeriod == 0) {
-		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 1;
-		ieee->LinkDetectInfo.NumRecvDataInPeriod = 1;
+	if (ieee->link_detect_info.NumRecvBcnInPeriod == 0 ||
+	    ieee->link_detect_info.NumRecvDataInPeriod == 0) {
+		ieee->link_detect_info.NumRecvBcnInPeriod = 1;
+		ieee->link_detect_info.NumRecvDataInPeriod = 1;
 	}
 
 	if (ieee->data_hard_resume)

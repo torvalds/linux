@@ -1250,15 +1250,15 @@ static void _rtl92e_update_rxcounts(struct r8192_priv *priv, u32 *TotalRxBcnNum,
 	*TotalRxBcnNum = 0;
 	*TotalRxDataNum = 0;
 
-	SlotIndex = (priv->rtllib->LinkDetectInfo.SlotIndex++) %
-			(priv->rtllib->LinkDetectInfo.SlotNum);
-	priv->rtllib->LinkDetectInfo.RxBcnNum[SlotIndex] =
-			priv->rtllib->LinkDetectInfo.NumRecvBcnInPeriod;
-	priv->rtllib->LinkDetectInfo.RxDataNum[SlotIndex] =
-			priv->rtllib->LinkDetectInfo.NumRecvDataInPeriod;
-	for (i = 0; i < priv->rtllib->LinkDetectInfo.SlotNum; i++) {
-		*TotalRxBcnNum += priv->rtllib->LinkDetectInfo.RxBcnNum[i];
-		*TotalRxDataNum += priv->rtllib->LinkDetectInfo.RxDataNum[i];
+	SlotIndex = (priv->rtllib->link_detect_info.SlotIndex++) %
+			(priv->rtllib->link_detect_info.SlotNum);
+	priv->rtllib->link_detect_info.RxBcnNum[SlotIndex] =
+			priv->rtllib->link_detect_info.NumRecvBcnInPeriod;
+	priv->rtllib->link_detect_info.RxDataNum[SlotIndex] =
+			priv->rtllib->link_detect_info.NumRecvDataInPeriod;
+	for (i = 0; i < priv->rtllib->link_detect_info.SlotNum; i++) {
+		*TotalRxBcnNum += priv->rtllib->link_detect_info.RxBcnNum[i];
+		*TotalRxDataNum += priv->rtllib->link_detect_info.RxDataNum[i];
 	}
 }
 
@@ -1304,22 +1304,22 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	}
 	if ((ieee->state == RTLLIB_LINKED) && (ieee->iw_mode ==
 	     IW_MODE_INFRA) && (!ieee->bNetPromiscuousMode)) {
-		if (ieee->LinkDetectInfo.NumRxOkInPeriod > 100 ||
-		ieee->LinkDetectInfo.NumTxOkInPeriod > 100)
+		if (ieee->link_detect_info.NumRxOkInPeriod > 100 ||
+		ieee->link_detect_info.NumTxOkInPeriod > 100)
 			bBusyTraffic = true;
 
-		if (ieee->LinkDetectInfo.NumRxOkInPeriod > 4000 ||
-		    ieee->LinkDetectInfo.NumTxOkInPeriod > 4000) {
+		if (ieee->link_detect_info.NumRxOkInPeriod > 4000 ||
+		    ieee->link_detect_info.NumTxOkInPeriod > 4000) {
 			bHigherBusyTraffic = true;
-			if (ieee->LinkDetectInfo.NumRxOkInPeriod > 5000)
+			if (ieee->link_detect_info.NumRxOkInPeriod > 5000)
 				bHigherBusyRxTraffic = true;
 			else
 				bHigherBusyRxTraffic = false;
 		}
 
-		if (((ieee->LinkDetectInfo.NumRxUnicastOkInPeriod +
-		    ieee->LinkDetectInfo.NumTxOkInPeriod) > 8) ||
-		    (ieee->LinkDetectInfo.NumRxUnicastOkInPeriod > 2))
+		if (((ieee->link_detect_info.NumRxUnicastOkInPeriod +
+		    ieee->link_detect_info.NumTxOkInPeriod) > 8) ||
+		    (ieee->link_detect_info.NumRxUnicastOkInPeriod > 2))
 			bEnterPS = false;
 		else
 			bEnterPS = true;
@@ -1336,13 +1336,13 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 		rtl92e_leisure_ps_leave(dev);
 	}
 
-	ieee->LinkDetectInfo.NumRxOkInPeriod = 0;
-	ieee->LinkDetectInfo.NumTxOkInPeriod = 0;
-	ieee->LinkDetectInfo.NumRxUnicastOkInPeriod = 0;
-	ieee->LinkDetectInfo.bBusyTraffic = bBusyTraffic;
+	ieee->link_detect_info.NumRxOkInPeriod = 0;
+	ieee->link_detect_info.NumTxOkInPeriod = 0;
+	ieee->link_detect_info.NumRxUnicastOkInPeriod = 0;
+	ieee->link_detect_info.bBusyTraffic = bBusyTraffic;
 
-	ieee->LinkDetectInfo.bHigherBusyTraffic = bHigherBusyTraffic;
-	ieee->LinkDetectInfo.bHigherBusyRxTraffic = bHigherBusyRxTraffic;
+	ieee->link_detect_info.bHigherBusyTraffic = bHigherBusyTraffic;
+	ieee->link_detect_info.bHigherBusyRxTraffic = bHigherBusyRxTraffic;
 
 	if (ieee->state == RTLLIB_LINKED && ieee->iw_mode == IW_MODE_INFRA) {
 		u32	TotalRxBcnNum = 0;
@@ -1383,8 +1383,8 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 
 			priv->check_roaming_cnt = 0;
 		}
-		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 0;
-		ieee->LinkDetectInfo.NumRecvDataInPeriod = 0;
+		ieee->link_detect_info.NumRecvBcnInPeriod = 0;
+		ieee->link_detect_info.NumRecvDataInPeriod = 0;
 	}
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
@@ -2213,25 +2213,25 @@ static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 
 	if (inta & IMR_BKDOK) {
 		priv->stats.txbkokint++;
-		priv->rtllib->LinkDetectInfo.NumTxOkInPeriod++;
+		priv->rtllib->link_detect_info.NumTxOkInPeriod++;
 		_rtl92e_tx_isr(dev, BK_QUEUE);
 	}
 
 	if (inta & IMR_BEDOK) {
 		priv->stats.txbeokint++;
-		priv->rtllib->LinkDetectInfo.NumTxOkInPeriod++;
+		priv->rtllib->link_detect_info.NumTxOkInPeriod++;
 		_rtl92e_tx_isr(dev, BE_QUEUE);
 	}
 
 	if (inta & IMR_VIDOK) {
 		priv->stats.txviokint++;
-		priv->rtllib->LinkDetectInfo.NumTxOkInPeriod++;
+		priv->rtllib->link_detect_info.NumTxOkInPeriod++;
 		_rtl92e_tx_isr(dev, VI_QUEUE);
 	}
 
 	if (inta & IMR_VODOK) {
 		priv->stats.txvookint++;
-		priv->rtllib->LinkDetectInfo.NumTxOkInPeriod++;
+		priv->rtllib->link_detect_info.NumTxOkInPeriod++;
 		_rtl92e_tx_isr(dev, VO_QUEUE);
 	}
 

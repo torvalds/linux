@@ -1643,7 +1643,7 @@ struct rtllib_device {
 	struct bandwidth_autoswitch bandwidth_auto_switch;
 	bool FwRWRF;
 
-	struct rt_link_detect LinkDetectInfo;
+	struct rt_link_detect link_detect_info;
 	bool bIsAggregateFrame;
 	struct rt_pwr_save_ctrl pwr_save_ctrl;
 

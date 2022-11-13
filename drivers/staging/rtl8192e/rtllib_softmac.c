@@ -1534,13 +1534,13 @@ static void rtllib_associate_complete_wq(void *data)
 			    ieee->pHTInfo->enable_ht);
 		memset(ieee->dot11ht_oper_rate_set, 0, 16);
 	}
-	ieee->LinkDetectInfo.SlotNum = 2 * (1 +
+	ieee->link_detect_info.SlotNum = 2 * (1 +
 				       ieee->current_network.beacon_interval /
 				       500);
-	if (ieee->LinkDetectInfo.NumRecvBcnInPeriod == 0 ||
-	    ieee->LinkDetectInfo.NumRecvDataInPeriod == 0) {
-		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 1;
-		ieee->LinkDetectInfo.NumRecvDataInPeriod = 1;
+	if (ieee->link_detect_info.NumRecvBcnInPeriod == 0 ||
+	    ieee->link_detect_info.NumRecvDataInPeriod == 0) {
+		ieee->link_detect_info.NumRecvBcnInPeriod = 1;
+		ieee->link_detect_info.NumRecvDataInPeriod = 1;
 	}
 	psc->LpsIdleCount = 0;
 	ieee->link_change(ieee->dev);
@@ -2369,7 +2369,7 @@ rtllib_rx_deauth(struct rtllib_device *ieee, struct sk_buff *skb)
 		ieee->state = RTLLIB_ASSOCIATING;
 		ieee->softmac_stats.reassoc++;
 		ieee->is_roaming = true;
-		ieee->LinkDetectInfo.bBusyTraffic = false;
+		ieee->link_detect_info.bBusyTraffic = false;
 		rtllib_disassociate(ieee);
 		RemovePeerTS(ieee, header->addr2);
 		if (ieee->LedControlHandler != NULL)
@@ -2963,13 +2963,13 @@ int rtllib_softmac_init(struct rtllib_device *ieee)
 	if (!ieee->dot11d_info)
 		return -ENOMEM;
 
-	ieee->LinkDetectInfo.SlotIndex = 0;
-	ieee->LinkDetectInfo.SlotNum = 2;
-	ieee->LinkDetectInfo.NumRecvBcnInPeriod = 0;
-	ieee->LinkDetectInfo.NumRecvDataInPeriod = 0;
-	ieee->LinkDetectInfo.NumTxOkInPeriod = 0;
-	ieee->LinkDetectInfo.NumRxOkInPeriod = 0;
-	ieee->LinkDetectInfo.NumRxUnicastOkInPeriod = 0;
+	ieee->link_detect_info.SlotIndex = 0;
+	ieee->link_detect_info.SlotNum = 2;
+	ieee->link_detect_info.NumRecvBcnInPeriod = 0;
+	ieee->link_detect_info.NumRecvDataInPeriod = 0;
+	ieee->link_detect_info.NumTxOkInPeriod = 0;
+	ieee->link_detect_info.NumRxOkInPeriod = 0;
+	ieee->link_detect_info.NumRxUnicastOkInPeriod = 0;
 	ieee->bIsAggregateFrame = false;
 	ieee->assoc_id = 0;
 	ieee->queue_stop = 0;
