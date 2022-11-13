@@ -93,84 +93,6 @@ struct platform_data {
 	struct device_attribute name_attr;
 };
 
-/* Keep track of how many zone pointers we allocated in init() */
-static int max_zones __read_mostly;
-/* Array of zone pointers. Serialized by cpu hotplug lock */
-static struct platform_device **zone_devices;
-
-static ssize_t show_label(struct device *dev,
-				struct device_attribute *devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct platform_data *pdata = dev_get_drvdata(dev);
-	struct temp_data *tdata = pdata->core_data[attr->index];
-
-	if (tdata->is_pkg_data)
-		return sprintf(buf, "Package id %u\n", pdata->pkg_id);
-
-	return sprintf(buf, "Core %u\n", tdata->cpu_core_id);
-}
-
-static ssize_t show_crit_alarm(struct device *dev,
-				struct device_attribute *devattr, char *buf)
-{
-	u32 eax, edx;
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct platform_data *pdata = dev_get_drvdata(dev);
-	struct temp_data *tdata = pdata->core_data[attr->index];
-
-	mutex_lock(&tdata->update_lock);
-	rdmsr_on_cpu(tdata->cpu, tdata->status_reg, &eax, &edx);
-	mutex_unlock(&tdata->update_lock);
-
-	return sprintf(buf, "%d\n", (eax >> 5) & 1);
-}
-
-static ssize_t show_tjmax(struct device *dev,
-			struct device_attribute *devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct platform_data *pdata = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%d\n", pdata->core_data[attr->index]->tjmax);
-}
-
-static ssize_t show_ttarget(struct device *dev,
-				struct device_attribute *devattr, char *buf)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct platform_data *pdata = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%d\n", pdata->core_data[attr->index]->ttarget);
-}
-
-static ssize_t show_temp(struct device *dev,
-			struct device_attribute *devattr, char *buf)
-{
-	u32 eax, edx;
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
-	struct platform_data *pdata = dev_get_drvdata(dev);
-	struct temp_data *tdata = pdata->core_data[attr->index];
-
-	mutex_lock(&tdata->update_lock);
-
-	/* Check whether the time interval has elapsed */
-	if (time_after(jiffies, tdata->last_updated + HZ)) {
-		rdmsr_on_cpu(tdata->cpu, tdata->status_reg, &eax, &edx);
-		/*
-		 * Ignore the valid bit. In all observed cases the register
-		 * value is either low or zero if the valid bit is 0.
-		 * Return it instead of reporting an error which doesn't
-		 * really help at all.
-		 */
-		tdata->temp = tdata->tjmax - ((eax >> 16) & 0x7f) * 1000;
-		tdata->last_updated = jiffies;
-	}
-
-	mutex_unlock(&tdata->update_lock);
-	return sprintf(buf, "%d\n", tdata->temp);
-}
-
 struct tjmax_pci {
 	unsigned int device;
 	int tjmax;
@@ -374,6 +296,84 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 	 * NOTE: the calculated value may not be correct.
 	 */
 	return adjust_tjmax(c, id, dev);
+}
+
+/* Keep track of how many zone pointers we allocated in init() */
+static int max_zones __read_mostly;
+/* Array of zone pointers. Serialized by cpu hotplug lock */
+static struct platform_device **zone_devices;
+
+static ssize_t show_label(struct device *dev,
+				struct device_attribute *devattr, char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct platform_data *pdata = dev_get_drvdata(dev);
+	struct temp_data *tdata = pdata->core_data[attr->index];
+
+	if (tdata->is_pkg_data)
+		return sprintf(buf, "Package id %u\n", pdata->pkg_id);
+
+	return sprintf(buf, "Core %u\n", tdata->cpu_core_id);
+}
+
+static ssize_t show_crit_alarm(struct device *dev,
+				struct device_attribute *devattr, char *buf)
+{
+	u32 eax, edx;
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct platform_data *pdata = dev_get_drvdata(dev);
+	struct temp_data *tdata = pdata->core_data[attr->index];
+
+	mutex_lock(&tdata->update_lock);
+	rdmsr_on_cpu(tdata->cpu, tdata->status_reg, &eax, &edx);
+	mutex_unlock(&tdata->update_lock);
+
+	return sprintf(buf, "%d\n", (eax >> 5) & 1);
+}
+
+static ssize_t show_tjmax(struct device *dev,
+			struct device_attribute *devattr, char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct platform_data *pdata = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", pdata->core_data[attr->index]->tjmax);
+}
+
+static ssize_t show_ttarget(struct device *dev,
+				struct device_attribute *devattr, char *buf)
+{
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct platform_data *pdata = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", pdata->core_data[attr->index]->ttarget);
+}
+
+static ssize_t show_temp(struct device *dev,
+			struct device_attribute *devattr, char *buf)
+{
+	u32 eax, edx;
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	struct platform_data *pdata = dev_get_drvdata(dev);
+	struct temp_data *tdata = pdata->core_data[attr->index];
+
+	mutex_lock(&tdata->update_lock);
+
+	/* Check whether the time interval has elapsed */
+	if (time_after(jiffies, tdata->last_updated + HZ)) {
+		rdmsr_on_cpu(tdata->cpu, tdata->status_reg, &eax, &edx);
+		/*
+		 * Ignore the valid bit. In all observed cases the register
+		 * value is either low or zero if the valid bit is 0.
+		 * Return it instead of reporting an error which doesn't
+		 * really help at all.
+		 */
+		tdata->temp = tdata->tjmax - ((eax >> 16) & 0x7f) * 1000;
+		tdata->last_updated = jiffies;
+	}
+
+	mutex_unlock(&tdata->update_lock);
+	return sprintf(buf, "%d\n", tdata->temp);
 }
 
 static int create_core_attrs(struct temp_data *tdata, struct device *dev,
