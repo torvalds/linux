@@ -74,6 +74,9 @@ int bch2_sum_sector_overwrites(struct btree_trans *, struct btree_iter *,
 int bch2_extent_update(struct btree_trans *, subvol_inum,
 		       struct btree_iter *, struct bkey_i *,
 		       struct disk_reservation *, u64, s64 *, bool);
+int bch2_extent_fallocate(struct btree_trans *, subvol_inum, struct btree_iter *,
+			  unsigned, struct bch_io_opts, s64 *,
+			  struct write_point_specifier);
 
 int bch2_fpunch_at(struct btree_trans *, struct btree_iter *,
 		   subvol_inum, u64, s64 *);
