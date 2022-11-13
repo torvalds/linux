@@ -1504,7 +1504,7 @@ static void rtllib_associate_complete_wq(void *data)
 				     container_of_work_rsl(data,
 				     struct rtllib_device,
 				     associate_complete_wq);
-	struct rt_pwr_save_ctrl *pPSC = &ieee->pwr_save_ctrl;
+	struct rt_pwr_save_ctrl *psc = &ieee->pwr_save_ctrl;
 
 	netdev_info(ieee->dev, "Associated successfully with %pM\n",
 		    ieee->current_network.bssid);
@@ -1542,7 +1542,7 @@ static void rtllib_associate_complete_wq(void *data)
 		ieee->LinkDetectInfo.NumRecvBcnInPeriod = 1;
 		ieee->LinkDetectInfo.NumRecvDataInPeriod = 1;
 	}
-	pPSC->LpsIdleCount = 0;
+	psc->LpsIdleCount = 0;
 	ieee->link_change(ieee->dev);
 
 	if (ieee->is_silent_reset) {
@@ -1960,7 +1960,7 @@ static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 {
 	int timeout;
 	u8 dtim;
-	struct rt_pwr_save_ctrl *pPSC = &ieee->pwr_save_ctrl;
+	struct rt_pwr_save_ctrl *psc = &ieee->pwr_save_ctrl;
 
 	if (ieee->LPSDelayCnt) {
 		ieee->LPSDelayCnt--;
@@ -1990,21 +1990,21 @@ static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 
 	if (time) {
 		if (ieee->bAwakePktSent) {
-			pPSC->LPSAwakeIntvl = 1;
+			psc->LPSAwakeIntvl = 1;
 		} else {
 			u8 MaxPeriod = 1;
 
-			if (pPSC->LPSAwakeIntvl == 0)
-				pPSC->LPSAwakeIntvl = 1;
-			if (pPSC->reg_max_lps_awake_intvl == 0)
+			if (psc->LPSAwakeIntvl == 0)
+				psc->LPSAwakeIntvl = 1;
+			if (psc->reg_max_lps_awake_intvl == 0)
 				MaxPeriod = 1;
-			else if (pPSC->reg_max_lps_awake_intvl == 0xFF)
+			else if (psc->reg_max_lps_awake_intvl == 0xFF)
 				MaxPeriod = ieee->current_network.dtim_period;
 			else
-				MaxPeriod = pPSC->reg_max_lps_awake_intvl;
-			pPSC->LPSAwakeIntvl = (pPSC->LPSAwakeIntvl >=
+				MaxPeriod = psc->reg_max_lps_awake_intvl;
+			psc->LPSAwakeIntvl = (psc->LPSAwakeIntvl >=
 					       MaxPeriod) ? MaxPeriod :
-					       (pPSC->LPSAwakeIntvl + 1);
+					       (psc->LPSAwakeIntvl + 1);
 		}
 		{
 			u8 LPSAwakeIntvl_tmp = 0;
@@ -2012,23 +2012,23 @@ static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 			u8 count = ieee->current_network.tim.tim_count;
 
 			if (count == 0) {
-				if (pPSC->LPSAwakeIntvl > period)
+				if (psc->LPSAwakeIntvl > period)
 					LPSAwakeIntvl_tmp = period +
-						 (pPSC->LPSAwakeIntvl -
+						 (psc->LPSAwakeIntvl -
 						 period) -
-						 ((pPSC->LPSAwakeIntvl-period) %
+						 ((psc->LPSAwakeIntvl-period) %
 						 period);
 				else
-					LPSAwakeIntvl_tmp = pPSC->LPSAwakeIntvl;
+					LPSAwakeIntvl_tmp = psc->LPSAwakeIntvl;
 
 			} else {
-				if (pPSC->LPSAwakeIntvl >
+				if (psc->LPSAwakeIntvl >
 				    ieee->current_network.tim.tim_count)
 					LPSAwakeIntvl_tmp = count +
-					(pPSC->LPSAwakeIntvl - count) -
-					((pPSC->LPSAwakeIntvl-count)%period);
+					(psc->LPSAwakeIntvl - count) -
+					((psc->LPSAwakeIntvl-count)%period);
 				else
-					LPSAwakeIntvl_tmp = pPSC->LPSAwakeIntvl;
+					LPSAwakeIntvl_tmp = psc->LPSAwakeIntvl;
 			}
 
 		*time = ieee->current_network.last_dtim_sta_time

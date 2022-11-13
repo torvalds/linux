@@ -111,11 +111,11 @@ static inline void *netdev_priv_rsl(struct net_device *dev)
 #define SUPPORT_CKIP_MIC			0x08
 #define SUPPORT_CKIP_PK			0x10
 #define	RT_RF_OFF_LEVL_HALT_NIC		BIT3
-#define	RT_IN_PS_LEVEL(pPSC, _PS_FLAG)		\
-	((pPSC->CurPsLevel & _PS_FLAG) ? true : false)
-#define	RT_CLEAR_PS_LEVEL(pPSC, _PS_FLAG)	\
-	(pPSC->CurPsLevel &= (~(_PS_FLAG)))
-#define	RT_SET_PS_LEVEL(pPSC, _PS_FLAG)	(pPSC->CurPsLevel |= _PS_FLAG)
+#define	RT_IN_PS_LEVEL(psc, _PS_FLAG)		\
+	((psc->CurPsLevel & _PS_FLAG) ? true : false)
+#define	RT_CLEAR_PS_LEVEL(psc, _PS_FLAG)	\
+	(psc->CurPsLevel &= (~(_PS_FLAG)))
+#define	RT_SET_PS_LEVEL(psc, _PS_FLAG)	(psc->CurPsLevel |= _PS_FLAG)
 
 /* defined for skb cb field */
 /* At most 28 byte */

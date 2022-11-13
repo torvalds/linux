@@ -159,7 +159,7 @@ static int _rtl92e_wx_adapter_power_status(struct net_device *dev,
 					   union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
+	struct rt_pwr_save_ctrl *psc = (struct rt_pwr_save_ctrl *)
 					(&priv->rtllib->pwr_save_ctrl);
 	struct rtllib_device *ieee = priv->rtllib;
 
@@ -167,13 +167,13 @@ static int _rtl92e_wx_adapter_power_status(struct net_device *dev,
 
 	if (*extra || priv->force_lps) {
 		priv->ps_force = false;
-		pPSC->bLeisurePs = true;
+		psc->bLeisurePs = true;
 	} else {
 		if (priv->rtllib->state == RTLLIB_LINKED)
 			rtl92e_leisure_ps_leave(dev);
 
 		priv->ps_force = true;
-		pPSC->bLeisurePs = false;
+		psc->bLeisurePs = false;
 		ieee->ps = *extra;
 	}
 
@@ -188,7 +188,7 @@ static int _rtl92e_wx_set_lps_awake_interval(struct net_device *dev,
 					     char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
+	struct rt_pwr_save_ctrl *psc = (struct rt_pwr_save_ctrl *)
 					(&priv->rtllib->pwr_save_ctrl);
 
 	mutex_lock(&priv->wx_mutex);
@@ -196,7 +196,7 @@ static int _rtl92e_wx_set_lps_awake_interval(struct net_device *dev,
 	netdev_info(dev, "%s(): set lps awake interval ! extra is %d\n",
 		    __func__, *extra);
 
-	pPSC->reg_max_lps_awake_intvl = *extra;
+	psc->reg_max_lps_awake_intvl = *extra;
 	mutex_unlock(&priv->wx_mutex);
 	return 0;
 }

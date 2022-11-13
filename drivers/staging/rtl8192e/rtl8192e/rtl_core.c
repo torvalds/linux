@@ -682,7 +682,7 @@ void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode)
 static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
+	struct rt_pwr_save_ctrl *psc = (struct rt_pwr_save_ctrl *)
 					(&priv->rtllib->pwr_save_ctrl);
 	bool init_status;
 
@@ -700,7 +700,7 @@ static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
 		return -1;
 	}
 
-	RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
+	RT_CLEAR_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC);
 	priv->bfirst_init = false;
 
 	if (priv->polling_timer_on == 0)
@@ -819,10 +819,10 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 static void _rtl92e_init_priv_constant(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
+	struct rt_pwr_save_ctrl *psc = (struct rt_pwr_save_ctrl *)
 					&priv->rtllib->pwr_save_ctrl;
 
-	pPSC->reg_max_lps_awake_intvl = 5;
+	psc->reg_max_lps_awake_intvl = 5;
 }
 
 static void _rtl92e_init_priv_variable(struct net_device *dev)
@@ -1271,7 +1271,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	enum reset_type ResetType = RESET_TYPE_NORESET;
 	static u8 check_reset_cnt;
 	unsigned long flags;
-	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
+	struct rt_pwr_save_ctrl *psc = (struct rt_pwr_save_ctrl *)
 					(&priv->rtllib->pwr_save_ctrl);
 	bool bBusyTraffic = false;
 	bool	bHigherBusyTraffic = false;
@@ -1389,7 +1389,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
 	if ((check_reset_cnt++ >= 3) && (!ieee->is_roaming) &&
-	    (!priv->rf_change_in_progress) && (!pPSC->bSwRfProcessing)) {
+	    (!priv->rf_change_in_progress) && (!psc->bSwRfProcessing)) {
 		ResetType = _rtl92e_if_check_reset(dev);
 		check_reset_cnt = 3;
 	}
@@ -2421,7 +2421,7 @@ bool rtl92e_enable_nic(struct net_device *dev)
 {
 	bool init_status = true;
 	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
+	struct rt_pwr_save_ctrl *psc = (struct rt_pwr_save_ctrl *)
 					(&priv->rtllib->pwr_save_ctrl);
 
 	if (!priv->up) {
@@ -2437,7 +2437,7 @@ bool rtl92e_enable_nic(struct net_device *dev)
 		priv->bdisable_nic = false;
 		return false;
 	}
-	RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
+	RT_CLEAR_PS_LEVEL(psc, RT_RF_OFF_LEVL_HALT_NIC);
 	priv->bfirst_init = false;
 
 	rtl92e_irq_enable(dev);
