@@ -69,7 +69,6 @@ MODULE_PARM_DESC(tjmax, "TjMax value in degrees Celsius");
  */
 struct temp_data {
 	int temp;
-	int ttarget;
 	int tjmax;
 	unsigned long last_updated;
 	unsigned int cpu;
@@ -306,6 +305,30 @@ static int get_tjmax(struct temp_data *tdata, struct device *dev)
 	return tdata->tjmax;
 }
 
+static int get_ttarget(struct temp_data *tdata, struct device *dev)
+{
+	u32 eax, edx;
+	int tjmax, ttarget_offset, ret;
+
+	/*
+	 * ttarget is valid only if tjmax can be retrieved from
+	 * MSR_IA32_TEMPERATURE_TARGET
+	 */
+	if (tdata->tjmax)
+		return -ENODEV;
+
+	ret = rdmsr_safe_on_cpu(tdata->cpu, MSR_IA32_TEMPERATURE_TARGET, &eax, &edx);
+	if (ret)
+		return ret;
+
+	tjmax = (eax >> 16) & 0xff;
+
+	/* Read the still undocumented bits 8:15 of IA32_TEMPERATURE_TARGET. */
+	ttarget_offset = (eax >> 8) & 0xff;
+
+	return (tjmax - ttarget_offset) * 1000;
+}
+
 /* Keep track of how many zone pointers we allocated in init() */
 static int max_zones __read_mostly;
 /* Array of zone pointers. Serialized by cpu hotplug lock */
@@ -359,8 +382,16 @@ static ssize_t show_ttarget(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct platform_data *pdata = dev_get_drvdata(dev);
+	struct temp_data *tdata = pdata->core_data[attr->index];
+	int ttarget;
 
-	return sprintf(buf, "%d\n", pdata->core_data[attr->index]->ttarget);
+	mutex_lock(&tdata->update_lock);
+	ttarget = get_ttarget(tdata, dev);
+	mutex_unlock(&tdata->update_lock);
+
+	if (ttarget < 0)
+		return ttarget;
+	return sprintf(buf, "%d\n", ttarget);
 }
 
 static ssize_t show_temp(struct device *dev,
@@ -469,7 +500,7 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 	struct platform_data *pdata = platform_get_drvdata(pdev);
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	u32 eax, edx;
-	int err, index, attr_no, tjmax;
+	int err, index, attr_no;
 
 	/*
 	 * Find attr number for sysfs:
@@ -503,23 +534,17 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 	if (err)
 		goto exit_free;
 
-	/* We can access status register. Get Critical Temperature */
-	tjmax = get_tjmax(tdata, &pdev->dev);
+	/* Make sure tdata->tjmax is a valid indicator for dynamic/static tjmax */
+	get_tjmax(tdata, &pdev->dev);
 
 	/*
-	 * Read the still undocumented bits 8:15 of IA32_TEMPERATURE_TARGET.
-	 * The target temperature is available on older CPUs but not in this
-	 * register. Atoms don't have the register at all.
+	 * The target temperature is available on older CPUs but not in the
+	 * MSR_IA32_TEMPERATURE_TARGET register. Atoms don't have the register
+	 * at all.
 	 */
-	if (c->x86_model > 0xe && c->x86_model != 0x1c) {
-		err = rdmsr_safe_on_cpu(cpu, MSR_IA32_TEMPERATURE_TARGET,
-					&eax, &edx);
-		if (!err) {
-			tdata->ttarget
-			  = tjmax - ((eax >> 8) & 0xff) * 1000;
+	if (c->x86_model > 0xe && c->x86_model != 0x1c)
+		if (get_ttarget(tdata, &pdev->dev) >= 0)
 			tdata->attr_size++;
-		}
-	}
 
 	pdata->core_data[attr_no] = tdata;
 
