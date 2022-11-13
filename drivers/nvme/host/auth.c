@@ -691,7 +691,7 @@ static void nvme_auth_free_dhchap(struct nvme_dhchap_queue_context *chap)
 	kfree(chap);
 }
 
-static void __nvme_auth_work(struct work_struct *work)
+static void nvme_queue_auth_work(struct work_struct *work)
 {
 	struct nvme_dhchap_queue_context *chap =
 		container_of(work, struct nvme_dhchap_queue_context, auth_work);
@@ -893,7 +893,7 @@ int nvme_auth_negotiate(struct nvme_ctrl *ctrl, int qid)
 		return -ENOMEM;
 	}
 
-	INIT_WORK(&chap->auth_work, __nvme_auth_work);
+	INIT_WORK(&chap->auth_work, nvme_queue_auth_work);
 	list_add(&chap->entry, &ctrl->dhchap_auth_list);
 	mutex_unlock(&ctrl->dhchap_auth_mutex);
 	queue_work(nvme_wq, &chap->auth_work);
@@ -934,7 +934,7 @@ void nvme_auth_reset(struct nvme_ctrl *ctrl)
 }
 EXPORT_SYMBOL_GPL(nvme_auth_reset);
 
-static void nvme_dhchap_auth_work(struct work_struct *work)
+static void nvme_ctrl_auth_work(struct work_struct *work)
 {
 	struct nvme_ctrl *ctrl =
 		container_of(work, struct nvme_ctrl, dhchap_auth_work);
@@ -973,7 +973,7 @@ static void nvme_dhchap_auth_work(struct work_struct *work)
 void nvme_auth_init_ctrl(struct nvme_ctrl *ctrl)
 {
 	INIT_LIST_HEAD(&ctrl->dhchap_auth_list);
-	INIT_WORK(&ctrl->dhchap_auth_work, nvme_dhchap_auth_work);
+	INIT_WORK(&ctrl->dhchap_auth_work, nvme_ctrl_auth_work);
 	mutex_init(&ctrl->dhchap_auth_mutex);
 	if (!ctrl->opts)
 		return;
