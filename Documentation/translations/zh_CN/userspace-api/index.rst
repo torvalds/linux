@@ -26,6 +26,7 @@ Linux 内核用户空间API指南
 
    no_new_privs
    seccomp_filter
+   accelerators/ocxl
    ebpf/index
    sysfs-platform_profile
    futex2
@@ -35,7 +36,6 @@ TODOList:
 * landlock
 * unshare
 * spec_ctrl
-* accelerators/ocxl
 * ioctl/index
 * iommu
 * media/index
