@@ -683,10 +683,6 @@ static void nvme_auth_free_dhchap(struct nvme_dhchap_queue_context *chap)
 		crypto_free_shash(chap->shash_tfm);
 	if (chap->dh_tfm)
 		crypto_free_kpp(chap->dh_tfm);
-	kfree_sensitive(chap->ctrl_key);
-	kfree_sensitive(chap->host_key);
-	kfree_sensitive(chap->sess_key);
-	kfree_sensitive(chap->host_response);
 	kfree(chap->buf);
 	kfree(chap);
 }
