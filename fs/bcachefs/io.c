@@ -1481,6 +1481,9 @@ static inline bool should_promote(struct bch_fs *c, struct bkey_s_c k,
 	if (bch2_bkey_has_target(c, k, opts.promote_target))
 		return false;
 
+	if (bkey_extent_is_unwritten(k))
+		return false;
+
 	if (bch2_target_congested(c, opts.promote_target)) {
 		/* XXX trace this */
 		return false;

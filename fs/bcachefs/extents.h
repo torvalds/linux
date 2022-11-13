@@ -510,6 +510,23 @@ static inline bool bkey_extent_is_allocation(const struct bkey *k)
 	}
 }
 
+static inline bool bkey_extent_is_unwritten(struct bkey_s_c k)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const struct bch_extent_ptr *ptr;
+
+	bkey_for_each_ptr(ptrs, ptr)
+		if (ptr->unwritten)
+			return true;
+	return false;
+}
+
+static inline bool bkey_extent_is_reservation(struct bkey_s_c k)
+{
+	return k.k->type == KEY_TYPE_reservation ||
+		bkey_extent_is_unwritten(k);
+}
+
 static inline struct bch_devs_list bch2_bkey_devs(struct bkey_s_c k)
 {
 	struct bch_devs_list ret = (struct bch_devs_list) { 0 };

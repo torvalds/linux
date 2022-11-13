@@ -582,7 +582,7 @@ struct bch_extent_ptr {
 	__u64			type:1,
 				cached:1,
 				unused:1,
-				reservation:1,
+				unwritten:1,
 				offset:44, /* 8 petabytes */
 				dev:8,
 				gen:8;
@@ -590,7 +590,7 @@ struct bch_extent_ptr {
 	__u64			gen:8,
 				dev:8,
 				offset:44,
-				reservation:1,
+				unwritten:1,
 				unused:1,
 				cached:1,
 				type:1;

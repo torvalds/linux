@@ -341,11 +341,11 @@ static struct bch_page_state *bch2_page_state_create(struct page *page,
 	return bch2_page_state(page) ?: __bch2_page_state_create(page, gfp);
 }
 
-static unsigned bkey_to_sector_state(const struct bkey *k)
+static unsigned bkey_to_sector_state(struct bkey_s_c k)
 {
-	if (k->type == KEY_TYPE_reservation)
+	if (bkey_extent_is_reservation(k))
 		return SECTOR_RESERVED;
-	if (bkey_extent_is_allocation(k))
+	if (bkey_extent_is_allocation(k.k))
 		return SECTOR_ALLOCATED;
 	return SECTOR_UNALLOCATED;
 }
@@ -396,7 +396,7 @@ retry:
 			   SPOS(inum.inum, offset, snapshot),
 			   BTREE_ITER_SLOTS, k, ret) {
 		unsigned nr_ptrs = bch2_bkey_nr_ptrs_fully_allocated(k);
-		unsigned state = bkey_to_sector_state(k.k);
+		unsigned state = bkey_to_sector_state(k);
 
 		while (pg_idx < nr_pages) {
 			struct page *page = pages[pg_idx];
@@ -436,7 +436,7 @@ static void bch2_bio_page_state_set(struct bio *bio, struct bkey_s_c k)
 	struct bio_vec bv;
 	unsigned nr_ptrs = k.k->type == KEY_TYPE_reflink_v
 		? 0 : bch2_bkey_nr_ptrs_fully_allocated(k);
-	unsigned state = bkey_to_sector_state(k.k);
+	unsigned state = bkey_to_sector_state(k);
 
 	bio_for_each_segment(bv, bio, iter)
 		__bch2_page_state_set(bv.bv_page, bv.bv_offset >> 9,
@@ -3093,8 +3093,8 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 			goto bkey_err;
 
 		/* already reserved */
-		if (k.k->type == KEY_TYPE_reservation &&
-		    bkey_s_c_to_reservation(k).v->nr_replicas >= opts.data_replicas) {
+		if (bkey_extent_is_reservation(k) &&
+		    bch2_bkey_nr_ptrs_fully_allocated(k) >= opts.data_replicas) {
 			bch2_btree_iter_advance(&iter);
 			continue;
 		}

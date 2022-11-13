@@ -811,6 +811,9 @@ static int bch2_fill_extent(struct bch_fs *c,
 			int flags2 = 0;
 			u64 offset = p.ptr.offset;
 
+			if (p.ptr.unwritten)
+				flags2 |= FIEMAP_EXTENT_UNWRITTEN;
+
 			if (p.crc.compression_type)
 				flags2 |= FIEMAP_EXTENT_ENCODED;
 			else
