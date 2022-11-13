@@ -17,6 +17,30 @@ description:
 select: false
 
 properties:
+  phys:
+    description:
+      There can be up to the number of possible lanes PHYs specified placed in
+      the phandle array in the line-based order. Obviously each the specified
+      PHYs are supposed to be able to work in the PCIe mode with a speed
+      implied by the DWC PCIe controller they are attached to.
+    minItems: 1
+    maxItems: 16
+
+  phy-names:
+    minItems: 1
+    maxItems: 16
+    oneOf:
+      - description: Generic PHY names
+        items:
+          pattern: '^pcie[0-9]+$'
+      - description:
+          Vendor-specific PHY names. Consider using the generic
+          names above for new bindings.
+        items:
+          oneOf:
+            - pattern: '^pcie(-?phy[0-9]*)?$'
+            - pattern: '^p2u-[0-7]$'
+
   reset-gpio:
     deprecated: true
     description:
