@@ -405,11 +405,8 @@ void kvm_pmu_sync_hwstate(struct kvm_vcpu *vcpu)
 static void kvm_pmu_perf_overflow_notify_vcpu(struct irq_work *work)
 {
 	struct kvm_vcpu *vcpu;
-	struct kvm_pmu *pmu;
 
-	pmu = container_of(work, struct kvm_pmu, overflow_work);
-	vcpu = kvm_pmc_to_vcpu(pmu->pmc);
-
+	vcpu = container_of(work, struct kvm_vcpu, arch.pmu.overflow_work);
 	kvm_vcpu_kick(vcpu);
 }
 
