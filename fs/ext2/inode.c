@@ -869,11 +869,6 @@ int ext2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	return ret;
 }
 
-static int ext2_writepage(struct page *page, struct writeback_control *wbc)
-{
-	return block_write_full_page(page, ext2_get_block, wbc);
-}
-
 static int ext2_read_folio(struct file *file, struct folio *folio)
 {
 	return mpage_read_folio(folio, ext2_get_block);
@@ -948,7 +943,6 @@ const struct address_space_operations ext2_aops = {
 	.invalidate_folio	= block_invalidate_folio,
 	.read_folio		= ext2_read_folio,
 	.readahead		= ext2_readahead,
-	.writepage		= ext2_writepage,
 	.write_begin		= ext2_write_begin,
 	.write_end		= ext2_write_end,
 	.bmap			= ext2_bmap,
