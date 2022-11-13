@@ -972,15 +972,26 @@ static void nvme_ctrl_auth_work(struct work_struct *work)
 	 */
 }
 
-void nvme_auth_init_ctrl(struct nvme_ctrl *ctrl)
+int nvme_auth_init_ctrl(struct nvme_ctrl *ctrl)
 {
+	int ret;
+
 	INIT_LIST_HEAD(&ctrl->dhchap_auth_list);
 	INIT_WORK(&ctrl->dhchap_auth_work, nvme_ctrl_auth_work);
 	mutex_init(&ctrl->dhchap_auth_mutex);
 	if (!ctrl->opts)
-		return;
-	nvme_auth_generate_key(ctrl->opts->dhchap_secret, &ctrl->host_key);
-	nvme_auth_generate_key(ctrl->opts->dhchap_ctrl_secret, &ctrl->ctrl_key);
+		return 0;
+	ret = nvme_auth_generate_key(ctrl->opts->dhchap_secret,
+			&ctrl->host_key);
+	if (ret)
+		return ret;
+	ret = nvme_auth_generate_key(ctrl->opts->dhchap_ctrl_secret,
+			&ctrl->ctrl_key);
+	if (ret) {
+		nvme_auth_free_key(ctrl->host_key);
+		ctrl->host_key = NULL;
+	}
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nvme_auth_init_ctrl);
 
