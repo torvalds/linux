@@ -337,8 +337,8 @@ struct nvme_ctrl {
 
 #ifdef CONFIG_NVME_AUTH
 	struct work_struct dhchap_auth_work;
-	struct list_head dhchap_auth_list;
 	struct mutex dhchap_auth_mutex;
+	struct nvme_dhchap_queue_context *dhchap_ctxs;
 	struct nvme_dhchap_key *host_key;
 	struct nvme_dhchap_key *ctrl_key;
 	u16 transaction;

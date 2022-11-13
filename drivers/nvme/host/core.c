@@ -3785,7 +3785,9 @@ static ssize_t nvme_ctrl_dhchap_secret_store(struct device *dev,
 		kfree(opts->dhchap_secret);
 		opts->dhchap_secret = dhchap_secret;
 		host_key = ctrl->host_key;
+		mutex_lock(&ctrl->dhchap_auth_mutex);
 		ctrl->host_key = key;
+		mutex_unlock(&ctrl->dhchap_auth_mutex);
 		nvme_auth_free_key(host_key);
 	}
 	/* Start re-authentication */
@@ -3837,7 +3839,9 @@ static ssize_t nvme_ctrl_dhchap_ctrl_secret_store(struct device *dev,
 		kfree(opts->dhchap_ctrl_secret);
 		opts->dhchap_ctrl_secret = dhchap_secret;
 		ctrl_key = ctrl->ctrl_key;
+		mutex_lock(&ctrl->dhchap_auth_mutex);
 		ctrl->ctrl_key = key;
+		mutex_unlock(&ctrl->dhchap_auth_mutex);
 		nvme_auth_free_key(ctrl_key);
 	}
 	/* Start re-authentication */
