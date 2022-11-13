@@ -489,7 +489,7 @@ static u8 HTFilterMCSRate(struct rtllib_device *ieee, u8 *pSupportMCS,
 	u8 i;
 
 	for (i = 0; i <= 15; i++)
-		pOperateMCS[i] = ieee->Regdot11TxHTOperationalRateSet[i] &
+		pOperateMCS[i] = ieee->reg_dot11tx_ht_oper_rate_set[i] &
 				 pSupportMCS[i];
 
 	HT_PickMCSRate(ieee, pOperateMCS);
@@ -604,7 +604,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 
 	HTIOTActDetermineRaFunc(ieee, ((pPeerHTCap->MCS[1]) != 0));
 
-	HTFilterMCSRate(ieee, pPeerHTCap->MCS, ieee->dot11HTOperationalRateSet);
+	HTFilterMCSRate(ieee, pPeerHTCap->MCS, ieee->dot11ht_oper_rate_set);
 
 	pHTInfo->peer_mimo_ps = pPeerHTCap->MimoPwrSave;
 	if (pHTInfo->peer_mimo_ps == MIMO_PS_STATIC)
@@ -612,7 +612,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	else
 		pMcsFilter = MCS_FILTER_ALL;
 	ieee->HTHighestOperaRate = HTGetHighestMCSRate(ieee,
-						       ieee->dot11HTOperationalRateSet,
+						       ieee->dot11ht_oper_rate_set,
 						       pMcsFilter);
 	ieee->HTCurrentOperaRate = ieee->HTHighestOperaRate;
 
@@ -661,7 +661,7 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 	pHTInfo->iot_ra_func = 0;
 
 	{
-		u8 *RegHTSuppRateSets = &ieee->RegHTSuppRateSet[0];
+		u8 *RegHTSuppRateSets = &ieee->reg_ht_supp_rate_set[0];
 
 		RegHTSuppRateSets[0] = 0xFF;
 		RegHTSuppRateSets[1] = 0xFF;
@@ -796,10 +796,10 @@ void HTUseDefaultSetting(struct rtllib_device *ieee)
 
 		pHTInfo->current_mpdu_density = pHTInfo->current_mpdu_density;
 
-		HTFilterMCSRate(ieee, ieee->Regdot11TxHTOperationalRateSet,
-				ieee->dot11HTOperationalRateSet);
+		HTFilterMCSRate(ieee, ieee->reg_dot11tx_ht_oper_rate_set,
+				ieee->dot11ht_oper_rate_set);
 		ieee->HTHighestOperaRate = HTGetHighestMCSRate(ieee,
-							       ieee->dot11HTOperationalRateSet,
+							       ieee->dot11ht_oper_rate_set,
 							       MCS_FILTER_ALL);
 		ieee->HTCurrentOperaRate = ieee->HTHighestOperaRate;
 

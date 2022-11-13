@@ -1958,7 +1958,7 @@ void rtl92e_update_ratr_table(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
-	u8 *pMcsRate = ieee->dot11HTOperationalRateSet;
+	u8 *pMcsRate = ieee->dot11ht_oper_rate_set;
 	u32 ratr_value = 0;
 	u16 rate_config = 0;
 	u8 rate_index = 0;

@@ -1436,9 +1436,9 @@ struct rtllib_device {
 
 	spinlock_t reorder_spinlock;
 	u8	reg_dot11ht_oper_rate_set[16];
-	u8	Regdot11TxHTOperationalRateSet[16];
-	u8	dot11HTOperationalRateSet[16];
-	u8	RegHTSuppRateSet[16];
+	u8	reg_dot11tx_ht_oper_rate_set[16];
+	u8	dot11ht_oper_rate_set[16];
+	u8	reg_ht_supp_rate_set[16];
 	u8	HTCurrentOperaRate;
 	u8	HTHighestOperaRate;
 	u8	tx_dis_rate_fallback;

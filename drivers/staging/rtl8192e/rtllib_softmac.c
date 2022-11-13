@@ -1532,7 +1532,7 @@ static void rtllib_associate_complete_wq(void *data)
 			    "Successfully associated, ht not enabled(%d, %d)\n",
 			    ieee->pHTInfo->bCurrentHTSupport,
 			    ieee->pHTInfo->bEnableHT);
-		memset(ieee->dot11HTOperationalRateSet, 0, 16);
+		memset(ieee->dot11ht_oper_rate_set, 0, 16);
 	}
 	ieee->LinkDetectInfo.SlotNum = 2 * (1 +
 				       ieee->current_network.beacon_interval /
@@ -1728,7 +1728,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 					netdev_info(ieee->dev,
 						    "Using B rates\n");
 				}
-				memset(ieee->dot11HTOperationalRateSet, 0, 16);
+				memset(ieee->dot11ht_oper_rate_set, 0, 16);
 				ieee->state = RTLLIB_LINKED;
 			}
 		}
@@ -2988,9 +2988,9 @@ int rtllib_softmac_init(struct rtllib_device *ieee)
 	ieee->reg_dot11ht_oper_rate_set[1] = 0xff;
 	ieee->reg_dot11ht_oper_rate_set[4] = 0x01;
 
-	ieee->Regdot11TxHTOperationalRateSet[0] = 0xff;
-	ieee->Regdot11TxHTOperationalRateSet[1] = 0xff;
-	ieee->Regdot11TxHTOperationalRateSet[4] = 0x01;
+	ieee->reg_dot11tx_ht_oper_rate_set[0] = 0xff;
+	ieee->reg_dot11tx_ht_oper_rate_set[1] = 0xff;
+	ieee->reg_dot11tx_ht_oper_rate_set[4] = 0x01;
 
 	ieee->FirstIe_InScan = false;
 	ieee->actscanning = false;
