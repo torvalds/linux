@@ -874,7 +874,7 @@ int nvme_auth_negotiate(struct nvme_ctrl *ctrl, int qid)
 		mutex_unlock(&ctrl->dhchap_auth_mutex);
 		return -ENOMEM;
 	}
-	chap->qid = (qid == NVME_QID_ANY) ? 0 : qid;
+	chap->qid = qid;
 	chap->ctrl = ctrl;
 
 	/*
