@@ -1799,6 +1799,7 @@
   __tracepoint_android_rvh_find_lowest_rq
   __tracepoint_android_rvh_flush_task
   __tracepoint_android_rvh_get_nohz_timer_target
+  __tracepoint_android_rvh_iommu_setup_dma_ops
   __tracepoint_android_rvh_is_cpu_allowed
   __tracepoint_android_rvh_migrate_queued_task
   __tracepoint_android_rvh_new_task_stats
