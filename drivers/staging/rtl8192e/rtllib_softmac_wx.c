@@ -359,11 +359,11 @@ void rtllib_wx_sync_scan_wq(void *data)
 	if (ieee->ScanOperationBackupHandler)
 		ieee->ScanOperationBackupHandler(ieee->dev, SCAN_OPT_BACKUP);
 
-	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->enable_ht &&
-	    ieee->pHTInfo->bCurBW40MHz) {
+	if (ieee->ht_info->bCurrentHTSupport && ieee->ht_info->enable_ht &&
+	    ieee->ht_info->bCurBW40MHz) {
 		b40M = 1;
-		chan_offset = ieee->pHTInfo->CurSTAExtChnlOffset;
-		bandwidth = (enum ht_channel_width)ieee->pHTInfo->bCurBW40MHz;
+		chan_offset = ieee->ht_info->CurSTAExtChnlOffset;
+		bandwidth = (enum ht_channel_width)ieee->ht_info->bCurBW40MHz;
 		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20,
 				       HT_EXTCHNL_OFFSET_NO_EXT);
 	}

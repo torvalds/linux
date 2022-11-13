@@ -176,10 +176,10 @@ u8 MgntQuery_TxRateExcludeCCKRates(struct rtllib_device *ieee)
 
 static u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee)
 {
-	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *ht_info = ieee->ht_info;
 	u8 rate;
 
-	if (pHTInfo->iot_action & HT_IOT_ACT_MGNT_USE_CCK_6M)
+	if (ht_info->iot_action & HT_IOT_ACT_MGNT_USE_CCK_6M)
 		rate = 0x0c;
 	else
 		rate = ieee->basic_rate & 0x7f;
@@ -187,7 +187,7 @@ static u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee)
 	if (rate == 0) {
 		if (ieee->mode == IEEE_A ||
 		   ieee->mode == IEEE_N_5G ||
-		   (ieee->mode == IEEE_N_24G && !pHTInfo->bCurSuppCCK))
+		   (ieee->mode == IEEE_N_24G && !ht_info->bCurSuppCCK))
 			rate = 0x0c;
 		else
 			rate = 0x02;
@@ -829,7 +829,7 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee,
 	u8 tmp_ht_cap_len = 0;
 	u8 *tmp_ht_info_buf = NULL;
 	u8 tmp_ht_info_len = 0;
-	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *ht_info = ieee->ht_info;
 	u8 *tmp_generic_ie_buf = NULL;
 	u8 tmp_generic_ie_len = 0;
 
@@ -843,7 +843,7 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee,
 
 	if ((ieee->current_network.mode == IEEE_G) ||
 	   (ieee->current_network.mode == IEEE_N_24G &&
-	   ieee->pHTInfo->bCurSuppCCK)) {
+	   ieee->ht_info->bCurSuppCCK)) {
 		erp_len = 3;
 		erpinfo_content = 0;
 		if (ieee->current_network.buseprotection)
@@ -854,20 +854,20 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee,
 	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 	encrypt = ieee->host_encrypt && crypt && crypt->ops &&
 		((strcmp(crypt->ops->name, "R-WEP") == 0 || wpa_ie_len));
-	if (ieee->pHTInfo->bCurrentHTSupport) {
-		tmp_ht_cap_buf = (u8 *)&(ieee->pHTInfo->SelfHTCap);
-		tmp_ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
-		tmp_ht_info_buf = (u8 *)&(ieee->pHTInfo->SelfHTInfo);
-		tmp_ht_info_len = sizeof(ieee->pHTInfo->SelfHTInfo);
+	if (ieee->ht_info->bCurrentHTSupport) {
+		tmp_ht_cap_buf = (u8 *)&(ieee->ht_info->SelfHTCap);
+		tmp_ht_cap_len = sizeof(ieee->ht_info->SelfHTCap);
+		tmp_ht_info_buf = (u8 *)&(ieee->ht_info->SelfHTInfo);
+		tmp_ht_info_len = sizeof(ieee->ht_info->SelfHTInfo);
 		HTConstructCapabilityElement(ieee, tmp_ht_cap_buf,
 					     &tmp_ht_cap_len, encrypt, false);
 		HTConstructInfoElement(ieee, tmp_ht_info_buf, &tmp_ht_info_len,
 				       encrypt);
 
-		if (pHTInfo->reg_rt2rt_aggregation) {
-			tmp_generic_ie_buf = ieee->pHTInfo->sz_rt2rt_agg_buf;
+		if (ht_info->reg_rt2rt_aggregation) {
+			tmp_generic_ie_buf = ieee->ht_info->sz_rt2rt_agg_buf;
 			tmp_generic_ie_len =
-				 sizeof(ieee->pHTInfo->sz_rt2rt_agg_buf);
+				 sizeof(ieee->ht_info->sz_rt2rt_agg_buf);
 			HTConstructRT2RTAggElement(ieee, tmp_generic_ie_buf,
 						   &tmp_generic_ie_len);
 		}
@@ -1179,19 +1179,19 @@ rtllib_association_req(struct rtllib_network *beacon,
 	if ((ieee->rtllib_ap_sec_type &&
 	    (ieee->rtllib_ap_sec_type(ieee) & SEC_ALG_TKIP)) ||
 	    ieee->bForcedBgMode) {
-		ieee->pHTInfo->enable_ht = 0;
+		ieee->ht_info->enable_ht = 0;
 		ieee->mode = WIRELESS_MODE_G;
 	}
 
-	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->enable_ht) {
-		ht_cap_buf = (u8 *)&(ieee->pHTInfo->SelfHTCap);
-		ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
+	if (ieee->ht_info->bCurrentHTSupport && ieee->ht_info->enable_ht) {
+		ht_cap_buf = (u8 *)&(ieee->ht_info->SelfHTCap);
+		ht_cap_len = sizeof(ieee->ht_info->SelfHTCap);
 		HTConstructCapabilityElement(ieee, ht_cap_buf, &ht_cap_len,
 					     encrypt, true);
-		if (ieee->pHTInfo->current_rt2rt_aggregation) {
-			realtek_ie_buf = ieee->pHTInfo->sz_rt2rt_agg_buf;
+		if (ieee->ht_info->current_rt2rt_aggregation) {
+			realtek_ie_buf = ieee->ht_info->sz_rt2rt_agg_buf;
 			realtek_ie_len =
-				 sizeof(ieee->pHTInfo->sz_rt2rt_agg_buf);
+				 sizeof(ieee->ht_info->sz_rt2rt_agg_buf);
 			HTConstructRT2RTAggElement(ieee, realtek_ie_buf,
 						   &realtek_ie_len);
 		}
@@ -1324,8 +1324,8 @@ rtllib_association_req(struct rtllib_network *beacon,
 		memcpy(tag, osCcxVerNum.Octet, osCcxVerNum.Length);
 		tag += osCcxVerNum.Length;
 	}
-	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->enable_ht) {
-		if (ieee->pHTInfo->ePeerHTSpecVer != HT_SPEC_VER_EWC) {
+	if (ieee->ht_info->bCurrentHTSupport && ieee->ht_info->enable_ht) {
+		if (ieee->ht_info->ePeerHTSpecVer != HT_SPEC_VER_EWC) {
 			tag = skb_put(skb, ht_cap_len);
 			*tag++ = MFIE_TYPE_HT_CAP;
 			*tag++ = ht_cap_len - 2;
@@ -1358,8 +1358,8 @@ rtllib_association_req(struct rtllib_network *beacon,
 		rtllib_TURBO_Info(ieee, &tag);
 	}
 
-	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->enable_ht) {
-		if (ieee->pHTInfo->ePeerHTSpecVer == HT_SPEC_VER_EWC) {
+	if (ieee->ht_info->bCurrentHTSupport && ieee->ht_info->enable_ht) {
+		if (ieee->ht_info->ePeerHTSpecVer == HT_SPEC_VER_EWC) {
 			tag = skb_put(skb, ht_cap_len);
 			*tag++ = MFIE_TYPE_GENERIC;
 			*tag++ = ht_cap_len - 2;
@@ -1367,7 +1367,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 			tag += ht_cap_len - 2;
 		}
 
-		if (ieee->pHTInfo->current_rt2rt_aggregation) {
+		if (ieee->ht_info->current_rt2rt_aggregation) {
 			tag = skb_put(skb, realtek_ie_len);
 			*tag++ = MFIE_TYPE_GENERIC;
 			*tag++ = realtek_ie_len - 2;
@@ -1524,14 +1524,14 @@ static void rtllib_associate_complete_wq(void *data)
 		ieee->SetWirelessMode(ieee->dev, IEEE_B);
 		netdev_info(ieee->dev, "Using B rates:%d\n", ieee->rate);
 	}
-	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->enable_ht) {
+	if (ieee->ht_info->bCurrentHTSupport && ieee->ht_info->enable_ht) {
 		netdev_info(ieee->dev, "Successfully associated, ht enabled\n");
 		HTOnAssocRsp(ieee);
 	} else {
 		netdev_info(ieee->dev,
 			    "Successfully associated, ht not enabled(%d, %d)\n",
-			    ieee->pHTInfo->bCurrentHTSupport,
-			    ieee->pHTInfo->enable_ht);
+			    ieee->ht_info->bCurrentHTSupport,
+			    ieee->ht_info->enable_ht);
 		memset(ieee->dot11ht_oper_rate_set, 0, 16);
 	}
 	ieee->link_detect_info.SlotNum = 2 * (1 +
@@ -1684,7 +1684,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 				    ieee->current_network.ssid,
 				    ieee->current_network.channel,
 				    ieee->current_network.qos_data.supported,
-				    ieee->pHTInfo->enable_ht,
+				    ieee->ht_info->enable_ht,
 				    ieee->current_network.bssht.bd_support_ht,
 				    ieee->current_network.mode,
 				    ieee->current_network.flags);
@@ -1693,7 +1693,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 			   !(ieee->softmac_features & IEEE_SOFTMAC_SCAN))
 				rtllib_stop_scan_syncro(ieee);
 
-			HTResetIOTSetting(ieee->pHTInfo);
+			HTResetIOTSetting(ieee->ht_info);
 			ieee->wmm_acm = 0;
 			if (ieee->iw_mode == IW_MODE_INFRA) {
 				/* Join the network for the first time */
@@ -1703,7 +1703,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 					HTResetSelfAndSavePeerSetting(ieee,
 						 &(ieee->current_network));
 				else
-					ieee->pHTInfo->bCurrentHTSupport =
+					ieee->ht_info->bCurrentHTSupport =
 								 false;
 
 				ieee->state = RTLLIB_ASSOCIATING;
@@ -1893,7 +1893,7 @@ static inline u16 assoc_parse(struct rtllib_device *ieee, struct sk_buff *skb,
 	   ((ieee->mode == IEEE_G) &&
 	   (ieee->current_network.mode == IEEE_N_24G) &&
 	   (ieee->AsocRetryCount++ < (RT_ASOC_RETRY_LIMIT-1)))) {
-		ieee->pHTInfo->iot_action |= HT_IOT_ACT_PURE_N_MODE;
+		ieee->ht_info->iot_action |= HT_IOT_ACT_PURE_N_MODE;
 	} else {
 		ieee->AsocRetryCount = 0;
 	}
@@ -2100,7 +2100,7 @@ static void rtllib_sta_wakeup(struct rtllib_device *ieee, short nl)
 {
 	if (ieee->sta_sleep == LPS_IS_WAKE) {
 		if (nl) {
-			if (ieee->pHTInfo->iot_action &
+			if (ieee->ht_info->iot_action &
 			    HT_IOT_ACT_NULL_DATA_POWER_SAVING) {
 				ieee->ack_tx_to_ieee = 1;
 				rtllib_sta_ps_send_null_frame(ieee, 0);
@@ -2116,7 +2116,7 @@ static void rtllib_sta_wakeup(struct rtllib_device *ieee, short nl)
 	if (ieee->sta_sleep == LPS_IS_SLEEP)
 		ieee->sta_wake_up(ieee->dev);
 	if (nl) {
-		if (ieee->pHTInfo->iot_action &
+		if (ieee->ht_info->iot_action &
 		    HT_IOT_ACT_NULL_DATA_POWER_SAVING) {
 			ieee->ack_tx_to_ieee = 1;
 			rtllib_sta_ps_send_null_frame(ieee, 0);
@@ -2151,7 +2151,7 @@ void rtllib_ps_tx_ack(struct rtllib_device *ieee, short success)
 
 		if ((ieee->sta_sleep == LPS_IS_WAKE) && !success) {
 			spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
-			if (ieee->pHTInfo->iot_action &
+			if (ieee->ht_info->iot_action &
 			    HT_IOT_ACT_NULL_DATA_POWER_SAVING)
 				rtllib_sta_ps_send_null_frame(ieee, 0);
 			else
@@ -2235,10 +2235,10 @@ rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
 					kfree(network);
 					return 1;
 				}
-				memcpy(ieee->pHTInfo->PeerHTCapBuf,
+				memcpy(ieee->ht_info->PeerHTCapBuf,
 				       network->bssht.bd_ht_cap_buf,
 				       network->bssht.bd_ht_cap_len);
-				memcpy(ieee->pHTInfo->PeerHTInfoBuf,
+				memcpy(ieee->ht_info->PeerHTInfoBuf,
 				       network->bssht.bd_ht_info_buf,
 				       network->bssht.bd_ht_info_len);
 				if (ieee->handle_assoc_response != NULL)
@@ -2295,7 +2295,7 @@ static void rtllib_rx_auth_resp(struct rtllib_device *ieee, struct sk_buff *skb)
 	if (ieee->open_wep || !challenge) {
 		ieee->state = RTLLIB_ASSOCIATING_AUTHENTICATED;
 		ieee->softmac_stats.rx_auth_rs_ok++;
-		if (!(ieee->pHTInfo->iot_action & HT_IOT_ACT_PURE_N_MODE)) {
+		if (!(ieee->ht_info->iot_action & HT_IOT_ACT_PURE_N_MODE)) {
 			if (!ieee->GetNmodeSupportBySecCfg(ieee->dev)) {
 				if (IsHTHalfNmodeAPs(ieee)) {
 					bSupportNmode = true;
@@ -2669,7 +2669,7 @@ static void rtllib_start_ibss_wq(void *data)
 	if ((ieee->mode == IEEE_N_24G) || (ieee->mode == IEEE_N_5G))
 		HTUseDefaultSetting(ieee);
 	else
-		ieee->pHTInfo->bCurrentHTSupport = false;
+		ieee->ht_info->bCurrentHTSupport = false;
 
 	ieee->SetHwRegHandler(ieee->dev, HW_VAR_MEDIA_STATUS,
 			      (u8 *)(&ieee->state));

@@ -1978,7 +1978,7 @@ void rtl92e_update_ratr_table(struct net_device *dev)
 		break;
 	case IEEE_N_24G:
 	case IEEE_N_5G:
-		if (ieee->pHTInfo->peer_mimo_ps == 0) {
+		if (ieee->ht_info->peer_mimo_ps == 0) {
 			ratr_value &= 0x0007F007;
 		} else {
 			if (priv->rf_type == RF_1T2R)
@@ -1991,11 +1991,11 @@ void rtl92e_update_ratr_table(struct net_device *dev)
 		break;
 	}
 	ratr_value &= 0x0FFFFFFF;
-	if (ieee->pHTInfo->cur_tx_bw40mhz &&
-	    ieee->pHTInfo->bCurShortGI40MHz)
+	if (ieee->ht_info->cur_tx_bw40mhz &&
+	    ieee->ht_info->bCurShortGI40MHz)
 		ratr_value |= 0x80000000;
-	else if (!ieee->pHTInfo->cur_tx_bw40mhz &&
-		  ieee->pHTInfo->bCurShortGI20MHz)
+	else if (!ieee->ht_info->cur_tx_bw40mhz &&
+		  ieee->ht_info->bCurShortGI20MHz)
 		ratr_value |= 0x80000000;
 	rtl92e_writel(dev, RATR0+rate_index*4, ratr_value);
 	rtl92e_writeb(dev, UFWP, 1);

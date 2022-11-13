@@ -307,7 +307,7 @@ static void _rtl92e_update_cap(struct net_device *dev, u16 cap)
 		u8	cur_slot_time = priv->slot_time;
 
 		if ((cap & WLAN_CAPABILITY_SHORT_SLOT_TIME) &&
-		   (!priv->rtllib->pHTInfo->current_rt2rt_long_slot_time)) {
+		   (!priv->rtllib->ht_info->current_rt2rt_long_slot_time)) {
 			if (cur_slot_time != SHORT_SLOT_TIME) {
 				slot_time_val = SHORT_SLOT_TIME;
 				priv->rtllib->SetHwRegHandler(dev,
@@ -339,10 +339,10 @@ static void _rtl92e_update_beacon(void *data)
 	struct rtllib_device *ieee = priv->rtllib;
 	struct rtllib_network *net = &ieee->current_network;
 
-	if (ieee->pHTInfo->bCurrentHTSupport)
+	if (ieee->ht_info->bCurrentHTSupport)
 		HT_update_self_and_peer_setting(ieee, net);
-	ieee->pHTInfo->current_rt2rt_long_slot_time = net->bssht.bd_rt2rt_long_slot_time;
-	ieee->pHTInfo->RT2RT_HT_Mode = net->bssht.rt2rt_ht_mode;
+	ieee->ht_info->current_rt2rt_long_slot_time = net->bssht.bd_rt2rt_long_slot_time;
+	ieee->ht_info->RT2RT_HT_Mode = net->bssht.rt2rt_ht_mode;
 	_rtl92e_update_cap(dev, net->capability);
 }
 
@@ -672,9 +672,9 @@ void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode)
 
 	if ((wireless_mode == WIRELESS_MODE_N_24G) ||
 	    (wireless_mode == WIRELESS_MODE_N_5G)) {
-		priv->rtllib->pHTInfo->enable_ht = 1;
+		priv->rtllib->ht_info->enable_ht = 1;
 	} else {
-		priv->rtllib->pHTInfo->enable_ht = 0;
+		priv->rtllib->ht_info->enable_ht = 0;
 	}
 	_rtl92e_refresh_support_rate(priv);
 }

@@ -244,13 +244,13 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	pBaStartSeqCtrl = (union sequence_control *)(req + 7);
 
 	if (!ieee->current_network.qos_data.active ||
-	    !ieee->pHTInfo->bCurrentHTSupport ||
-	    (ieee->pHTInfo->iot_action & HT_IOT_ACT_REJECT_ADDBA_REQ)) {
+	    !ieee->ht_info->bCurrentHTSupport ||
+	    (ieee->ht_info->iot_action & HT_IOT_ACT_REJECT_ADDBA_REQ)) {
 		rc = ADDBA_STATUS_REFUSED;
 		netdev_warn(ieee->dev,
 			    "Failed to reply on ADDBA_REQ as some capability is not ready(%d, %d)\n",
 			    ieee->current_network.qos_data.active,
-			    ieee->pHTInfo->bCurrentHTSupport);
+			    ieee->ht_info->bCurrentHTSupport);
 		goto OnADDBAReq_Fail;
 	}
 	if (!GetTs(ieee, (struct ts_common_info **)&pTS, dst,
@@ -277,7 +277,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	pBA->ba_start_seq_ctrl = *pBaStartSeqCtrl;
 
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev) ||
-	   (ieee->pHTInfo->iot_action & HT_IOT_ACT_ALLOW_PEER_AGG_ONE_PKT))
+	   (ieee->ht_info->iot_action & HT_IOT_ACT_ALLOW_PEER_AGG_ONE_PKT))
 		pBA->ba_param_set.field.buffer_size = 1;
 	else
 		pBA->ba_param_set.field.buffer_size = 32;
@@ -326,13 +326,13 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	pBaTimeoutVal = (u16 *)(tag + 7);
 
 	if (!ieee->current_network.qos_data.active ||
-	    !ieee->pHTInfo->bCurrentHTSupport ||
-	    !ieee->pHTInfo->bCurrentAMPDUEnable) {
+	    !ieee->ht_info->bCurrentHTSupport ||
+	    !ieee->ht_info->bCurrentAMPDUEnable) {
 		netdev_warn(ieee->dev,
 			    "reject to ADDBA_RSP as some capability is not ready(%d, %d, %d)\n",
 			    ieee->current_network.qos_data.active,
-			    ieee->pHTInfo->bCurrentHTSupport,
-			    ieee->pHTInfo->bCurrentAMPDUEnable);
+			    ieee->ht_info->bCurrentHTSupport,
+			    ieee->ht_info->bCurrentAMPDUEnable);
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
 	}
@@ -413,11 +413,11 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 	}
 
 	if (!ieee->current_network.qos_data.active ||
-	    !ieee->pHTInfo->bCurrentHTSupport) {
+	    !ieee->ht_info->bCurrentHTSupport) {
 		netdev_warn(ieee->dev,
 			    "received DELBA while QOS or HT is not supported(%d, %d)\n",
 			    ieee->current_network. qos_data.active,
-			    ieee->pHTInfo->bCurrentHTSupport);
+			    ieee->ht_info->bCurrentHTSupport);
 		return -1;
 	}
 
