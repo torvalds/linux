@@ -939,6 +939,13 @@ static void nvme_ctrl_auth_work(struct work_struct *work)
 		container_of(work, struct nvme_ctrl, dhchap_auth_work);
 	int ret, q;
 
+	/*
+	 * If the ctrl is no connected, bail as reconnect will handle
+	 * authentication.
+	 */
+	if (ctrl->state != NVME_CTRL_LIVE)
+		return;
+
 	/* Authenticate admin queue first */
 	ret = nvme_auth_negotiate(ctrl, 0);
 	if (ret) {
