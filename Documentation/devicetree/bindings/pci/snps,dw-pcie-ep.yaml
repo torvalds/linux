@@ -41,6 +41,55 @@ properties:
     items:
       enum: [dbi, dbi2, config, atu, addr_space, link, atu_dma, appl]
 
+  interrupts:
+    description:
+      There is no mandatory IRQ signals for the normal controller functioning,
+      but in addition to the native set the platforms may have a link- or
+      PM-related IRQs specified.
+    minItems: 1
+    maxItems: 20
+
+  interrupt-names:
+    minItems: 1
+    maxItems: 20
+    items:
+      oneOf:
+        - description:
+            Controller request to read or write virtual product data
+            from/to the VPD capability registers.
+          const: vpd
+        - description:
+            Link Equalization Request flag is set in the Link Status 2
+            register (applicable if the corresponding IRQ is enabled in
+            the Link Control 3 register).
+          const: l_eq
+        - description:
+            Indicates that the eDMA Tx/Rx transfer is complete or that an
+            error has occurred on the corresponding channel. eDMA can have
+            eight Tx (Write) and Rx (Read) eDMA channels thus supporting up
+            to 16 IRQ signals all together. Write eDMA channels shall go
+            first in the ordered row as per default edma_int[*] bus setup.
+          pattern: '^dma([0-9]|1[0-5])?$'
+        - description:
+            PCIe protocol correctable error or a Data Path protection
+            correctable error is detected by the automotive/safety
+            feature.
+          const: sft_ce
+        - description:
+            Indicates that the internal safety mechanism has detected an
+            uncorrectable error.
+          const: sft_ue
+        - description:
+            Application-specific IRQ raised depending on the vendor-specific
+            events basis.
+          const: app
+        - description:
+            Vendor-specific IRQ names. Consider using the generic names above
+            for new bindings.
+          oneOf:
+            - description: See native "app" IRQ for details
+              enum: [ intr ]
+
   max-functions:
     maximum: 32
 
@@ -59,6 +108,9 @@ examples:
             <0xdfc01000 0x0001000>, /* IP registers 2 */
             <0xd0000000 0x2000000>; /* Configuration space */
       reg-names = "dbi", "dbi2", "addr_space";
+
+      interrupts = <23>, <24>;
+      interrupt-names = "dma0", "dma1";
 
       phys = <&pcie_phy0>, <&pcie_phy1>, <&pcie_phy2>, <&pcie_phy3>;
       phy-names = "pcie0", "pcie1", "pcie2", "pcie3";

@@ -42,9 +42,92 @@ properties:
       enum: [ dbi, dbi2, config, atu, atu_dma, app, appl, elbi, mgmt, ctrl,
               parf, cfg, link, ulreg, smu, mpu, apb, phy ]
 
-  interrupts: true
+  interrupts:
+    description:
+      DWC PCIe Root Port/Complex specific IRQ signals. At least MSI interrupt
+      signal is supposed to be specified for the host controller.
+    minItems: 1
+    maxItems: 26
 
-  interrupt-names: true
+  interrupt-names:
+    minItems: 1
+    maxItems: 26
+    items:
+      oneOf:
+        - description:
+            Controller request to read or write virtual product data
+            from/to the VPD capability registers.
+          const: vpd
+        - description:
+            Link Equalization Request flag is set in the Link Status 2
+            register (applicable if the corresponding IRQ is enabled in
+            the Link Control 3 register).
+          const: l_eq
+        - description:
+            Indicates that the eDMA Tx/Rx transfer is complete or that an
+            error has occurred on the corresponding channel. eDMA can have
+            eight Tx (Write) and Rx (Read) eDMA channels thus supporting up
+            to 16 IRQ signals all together. Write eDMA channels shall go
+            first in the ordered row as per default edma_int[*] bus setup.
+          pattern: '^dma([0-9]|1[0-5])?$'
+        - description:
+            PCIe protocol correctable error or a Data Path protection
+            correctable error is detected by the automotive/safety
+            feature.
+          const: sft_ce
+        - description:
+            Indicates that the internal safety mechanism has detected an
+            uncorrectable error.
+          const: sft_ue
+        - description:
+            Application-specific IRQ raised depending on the vendor-specific
+            events basis.
+          const: app
+        - description:
+            DSP AXI MSI Interrupt detected. It gets de-asserted when there is
+            no more MSI interrupt pending. The interrupt is relevant to the
+            iMSI-RX - Integrated MSI Receiver (AXI bridge).
+          const: msi
+        - description:
+            Legacy A/B/C/D interrupt signal. Basically it's triggered by
+            receiving a Assert_INT{A,B,C,D}/Desassert_INT{A,B,C,D} message
+            from the downstream device.
+          pattern: "^int(a|b|c|d)$"
+        - description:
+            Error condition detected and a flag is set in the Root Error Status
+            register of the AER capability. It's asserted when the RC
+            internally generated an error or an error message is received by
+            the RC.
+          const: aer
+        - description:
+            PME message is received by the port. That means having the PME
+            status bit set in the Root Status register (the event is
+            supposed to be unmasked in the Root Control register).
+          const: pme
+        - description:
+            Hot-plug event is detected. That is a bit has been set in the
+            Slot Status register and the corresponding event is enabled in
+            the Slot Control register.
+          const: hp
+        - description:
+            Link Autonomous Bandwidth Status flag has been set in the Link
+            Status register (the event is supposed to be unmasked in the
+            Link Control register).
+          const: bw_au
+        - description:
+            Bandwidth Management Status flag has been set in the Link
+            Status register (the event is supposed to be unmasked in the
+            Link Control register).
+          const: bw_mg
+        - description:
+            Vendor-specific IRQ names. Consider using the generic names above
+            for new bindings.
+          oneOf:
+            - description: See native "app" IRQ for details
+              enum: [ intr ]
+    allOf:
+      - contains:
+          const: msi
 
   clocks: true
 
@@ -70,6 +153,7 @@ examples:
       bus-range = <0x0 0xff>;
 
       interrupts = <25>, <24>;
+      interrupt-names = "msi", "hp";
       #interrupt-cells = <1>;
 
       reset-gpios = <&port0 0 1>;
