@@ -989,15 +989,11 @@ EXPORT_SYMBOL_GPL(nvme_auth_stop);
 
 void nvme_auth_free(struct nvme_ctrl *ctrl)
 {
-	struct nvme_dhchap_queue_context *chap;
 	int i;
 
 	if (ctrl->dhchap_ctxs) {
-		for (i = 0; i < ctrl_max_dhchaps(ctrl); i++) {
-			chap = &ctrl->dhchap_ctxs[i];
-			flush_work(&chap->auth_work);
-			nvme_auth_free_dhchap(chap);
-		}
+		for (i = 0; i < ctrl_max_dhchaps(ctrl); i++)
+			nvme_auth_free_dhchap(&ctrl->dhchap_ctxs[i]);
 		kfree(ctrl->dhchap_ctxs);
 	}
 	if (ctrl->host_key) {
