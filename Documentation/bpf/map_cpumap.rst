@@ -48,8 +48,7 @@ Userspace
     program will result in the program failing to load and a verifier warning.
 
 .. c:function::
-    int bpf_map_update_elem(int fd, const void *key, const void *value,
-                   __u64 flags);
+    int bpf_map_update_elem(int fd, const void *key, const void *value, __u64 flags);
 
  CPU entries can be added or updated using the ``bpf_map_update_elem()``
  helper. This helper replaces existing elements atomically. The ``value`` parameter
