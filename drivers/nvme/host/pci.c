@@ -2102,6 +2102,9 @@ static int nvme_setup_host_mem(struct nvme_dev *dev)
 	u32 enable_bits = NVME_HOST_MEM_ENABLE;
 	int ret;
 
+	if (!dev->ctrl.hmpre)
+		return 0;
+
 	preferred = min(preferred, max);
 	if (min > max) {
 		dev_warn(dev->ctrl.device,
@@ -2862,11 +2865,9 @@ static void nvme_reset_work(struct work_struct *work)
 
 	nvme_dbbuf_dma_alloc(dev);
 
-	if (dev->ctrl.hmpre) {
-		result = nvme_setup_host_mem(dev);
-		if (result < 0)
-			goto out;
-	}
+	result = nvme_setup_host_mem(dev);
+	if (result < 0)
+		goto out;
 
 	result = nvme_setup_io_queues(dev);
 	if (result)
