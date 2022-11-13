@@ -474,10 +474,10 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 
 	priv->rf_chip = RF_8256;
 
-	if (priv->RegChannelPlan == 0xf)
+	if (priv->reg_chnl_plan == 0xf)
 		priv->ChannelPlan = priv->eeprom_ChannelPlan;
 	else
-		priv->ChannelPlan = priv->RegChannelPlan;
+		priv->ChannelPlan = priv->reg_chnl_plan;
 
 	if (priv->eeprom_vid == 0x1186 &&  priv->eeprom_did == 0x3304)
 		priv->CustomerID =  RT_CID_DLINK;

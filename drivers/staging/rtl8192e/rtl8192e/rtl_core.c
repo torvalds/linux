@@ -672,9 +672,9 @@ void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode)
 
 	if ((wireless_mode == WIRELESS_MODE_N_24G) ||
 	    (wireless_mode == WIRELESS_MODE_N_5G)) {
-		priv->rtllib->pHTInfo->bEnableHT = 1;
+		priv->rtllib->pHTInfo->enable_ht = 1;
 	} else {
-		priv->rtllib->pHTInfo->bEnableHT = 0;
+		priv->rtllib->pHTInfo->enable_ht = 0;
 	}
 	_rtl92e_refresh_support_rate(priv);
 }
@@ -723,7 +723,7 @@ static int _rtl92e_sta_down(struct net_device *dev, bool shutdownrf)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned long flags = 0;
-	u8 RFInProgressTimeOut = 0;
+	u8 rf_in_progress_timeout = 0;
 
 	if (priv->up == 0)
 		return -1;
@@ -755,12 +755,12 @@ static int _rtl92e_sta_down(struct net_device *dev, bool shutdownrf)
 	spin_lock_irqsave(&priv->rf_ps_lock, flags);
 	while (priv->rf_change_in_progress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
-		if (RFInProgressTimeOut > 100) {
+		if (rf_in_progress_timeout > 100) {
 			spin_lock_irqsave(&priv->rf_ps_lock, flags);
 			break;
 		}
 		mdelay(1);
-		RFInProgressTimeOut++;
+		rf_in_progress_timeout++;
 		spin_lock_irqsave(&priv->rf_ps_lock, flags);
 	}
 	priv->rf_change_in_progress = true;
@@ -845,7 +845,7 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->rxringcount = MAX_RX_COUNT;
 	priv->irq_enabled = 0;
 	priv->chan = 1;
-	priv->RegChannelPlan = 0xf;
+	priv->reg_chnl_plan = 0xf;
 	priv->rtllib->mode = WIRELESS_MODE_AUTO;
 	priv->rtllib->iw_mode = IW_MODE_INFRA;
 	priv->rtllib->bNetPromiscuousMode = false;

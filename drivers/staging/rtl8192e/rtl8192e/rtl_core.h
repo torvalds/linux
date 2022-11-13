@@ -467,7 +467,7 @@ struct r8192_priv {
 
 	bool bTXPowerDataReadFromEEPORM;
 
-	u16 RegChannelPlan;
+	u16 reg_chnl_plan;
 	u16 ChannelPlan;
 	u8 bHwRfOffAction;
 
