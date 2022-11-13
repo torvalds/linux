@@ -55,6 +55,8 @@ MODULE_PARM_DESC(tjmax, "TjMax value in degrees Celsius");
 
 /*
  * Per-Core Temperature Data
+ * @tjmax: The static tjmax value when tjmax cannot be retrieved from
+ *		IA32_TEMPERATURE_TARGET MSR.
  * @last_updated: The time when the current temperature value was updated
  *		earlier (in jiffies).
  * @cpu_core_id: The CPU Core from which temperature values should be read
@@ -259,20 +261,25 @@ static bool cpu_has_tjmax(struct cpuinfo_x86 *c)
 	       model != 0x36;
 }
 
-static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
+static int get_tjmax(struct temp_data *tdata, struct device *dev)
 {
+	struct cpuinfo_x86 *c = &cpu_data(tdata->cpu);
 	int err;
 	u32 eax, edx;
 	u32 val;
+
+	/* use static tjmax once it is set */
+	if (tdata->tjmax)
+		return tdata->tjmax;
 
 	/*
 	 * A new feature of current Intel(R) processors, the
 	 * IA32_TEMPERATURE_TARGET contains the TjMax value
 	 */
-	err = rdmsr_safe_on_cpu(id, MSR_IA32_TEMPERATURE_TARGET, &eax, &edx);
+	err = rdmsr_safe_on_cpu(tdata->cpu, MSR_IA32_TEMPERATURE_TARGET, &eax, &edx);
 	if (err) {
 		if (cpu_has_tjmax(c))
-			dev_warn(dev, "Unable to read TjMax from CPU %u\n", id);
+			dev_warn(dev, "Unable to read TjMax from CPU %u\n", tdata->cpu);
 	} else {
 		val = (eax >> 16) & 0xff;
 		/*
@@ -288,14 +295,15 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 	if (force_tjmax) {
 		dev_notice(dev, "TjMax forced to %d degrees C by user\n",
 			   force_tjmax);
-		return force_tjmax * 1000;
+		tdata->tjmax = force_tjmax * 1000;
+	} else {
+		/*
+		 * An assumption is made for early CPUs and unreadable MSR.
+		 * NOTE: the calculated value may not be correct.
+		 */
+		tdata->tjmax = adjust_tjmax(c, tdata->cpu, dev);
 	}
-
-	/*
-	 * An assumption is made for early CPUs and unreadable MSR.
-	 * NOTE: the calculated value may not be correct.
-	 */
-	return adjust_tjmax(c, id, dev);
+	return tdata->tjmax;
 }
 
 /* Keep track of how many zone pointers we allocated in init() */
@@ -336,8 +344,14 @@ static ssize_t show_tjmax(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct platform_data *pdata = dev_get_drvdata(dev);
+	struct temp_data *tdata = pdata->core_data[attr->index];
+	int tjmax;
 
-	return sprintf(buf, "%d\n", pdata->core_data[attr->index]->tjmax);
+	mutex_lock(&tdata->update_lock);
+	tjmax = get_tjmax(tdata, dev);
+	mutex_unlock(&tdata->update_lock);
+
+	return sprintf(buf, "%d\n", tjmax);
 }
 
 static ssize_t show_ttarget(struct device *dev,
@@ -356,9 +370,11 @@ static ssize_t show_temp(struct device *dev,
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct platform_data *pdata = dev_get_drvdata(dev);
 	struct temp_data *tdata = pdata->core_data[attr->index];
+	int tjmax;
 
 	mutex_lock(&tdata->update_lock);
 
+	tjmax = get_tjmax(tdata, dev);
 	/* Check whether the time interval has elapsed */
 	if (time_after(jiffies, tdata->last_updated + HZ)) {
 		rdmsr_on_cpu(tdata->cpu, tdata->status_reg, &eax, &edx);
@@ -368,7 +384,7 @@ static ssize_t show_temp(struct device *dev,
 		 * Return it instead of reporting an error which doesn't
 		 * really help at all.
 		 */
-		tdata->temp = tdata->tjmax - ((eax >> 16) & 0x7f) * 1000;
+		tdata->temp = tjmax - ((eax >> 16) & 0x7f) * 1000;
 		tdata->last_updated = jiffies;
 	}
 
@@ -453,7 +469,7 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 	struct platform_data *pdata = platform_get_drvdata(pdev);
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	u32 eax, edx;
-	int err, index, attr_no;
+	int err, index, attr_no, tjmax;
 
 	/*
 	 * Find attr number for sysfs:
@@ -488,7 +504,7 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 		goto exit_free;
 
 	/* We can access status register. Get Critical Temperature */
-	tdata->tjmax = get_tjmax(c, cpu, &pdev->dev);
+	tjmax = get_tjmax(tdata, &pdev->dev);
 
 	/*
 	 * Read the still undocumented bits 8:15 of IA32_TEMPERATURE_TARGET.
@@ -500,7 +516,7 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 					&eax, &edx);
 		if (!err) {
 			tdata->ttarget
-			  = tdata->tjmax - ((eax >> 8) & 0xff) * 1000;
+			  = tjmax - ((eax >> 8) & 0xff) * 1000;
 			tdata->attr_size++;
 		}
 	}
