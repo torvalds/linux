@@ -10,7 +10,6 @@
 #include <linux/module.h>
 
 #include <linux/interrupt.h>
-#include <linux/msi.h>
 #include <linux/kthread.h>
 #include <linux/workqueue.h>
 #include <linux/iommu.h>
