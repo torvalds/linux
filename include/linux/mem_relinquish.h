@@ -7,14 +7,14 @@
 #ifndef __MEM_RELINQUISH_H__
 #define __MEM_RELINQUISH_H__
 
-#ifdef CONFIG_ARCH_HAS_MEM_RELINQUISH
+#ifdef CONFIG_MEMORY_RELINQUISH
 
 #include <asm/mem_relinquish.h>
 
-#else	/* !CONFIG_ARCH_HAS_MEM_RELINQUISH */
+#else	/* !CONFIG_MEMORY_RELINQUISH */
 
 static inline void page_relinquish(struct page *page) { }
 
-#endif	/* CONFIG_ARCH_HAS_MEM_RELINQUISH */
+#endif	/* CONFIG_MEMORY_RELINQUISH */
 
 #endif	/* __MEM_RELINQUISH_H__ */

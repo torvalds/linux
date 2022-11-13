@@ -542,6 +542,13 @@ config MEMORY_BALLOON
 	bool
 
 #
+# support for memory relinquish
+config MEMORY_RELINQUISH
+	def_bool y
+	depends on ARCH_HAS_MEM_RELINQUISH
+	depends on MEMORY_BALLOON || PAGE_REPORTING
+
+#
 # support for memory balloon compaction
 config BALLOON_COMPACTION
 	bool "Allow for balloon memory compaction/migration"
