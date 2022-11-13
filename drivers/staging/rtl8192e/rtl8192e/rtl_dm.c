@@ -1693,7 +1693,7 @@ static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
 
 	if (bActuallySet) {
 		mdelay(1000);
-		priv->bHwRfOffAction = 1;
+		priv->hw_rf_off_action = 1;
 		rtl92e_set_rf_state(dev, rf_power_state_to_set, RF_CHANGE_BY_HW);
 		if (priv->hw_radio_off)
 			argv[1] = "RFOFF";

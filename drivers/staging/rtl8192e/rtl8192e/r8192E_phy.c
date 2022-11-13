@@ -1342,7 +1342,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 				mdelay(1);
 				rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1,
 						 0x4, 0x1);
-				priv->bHwRfOffAction = 0;
+				priv->hw_rf_off_action = 0;
 
 				rtl92e_set_bb_reg(dev, rFPGA0_XA_RFInterfaceOE,
 						  BIT4, 0x1);
@@ -1450,7 +1450,7 @@ bool rtl92e_set_rf_power_state(struct net_device *dev,
 	bool bResult = false;
 
 	if (rf_power_state == priv->rtllib->rf_power_state &&
-	    priv->bHwRfOffAction == 0) {
+	    priv->hw_rf_off_action == 0) {
 		return bResult;
 	}
 

@@ -1928,7 +1928,7 @@ void rtl92e_stop_adapter(struct net_device *dev, bool reset)
 	if (!reset) {
 		mdelay(150);
 
-		priv->bHwRfOffAction = 2;
+		priv->hw_rf_off_action = 2;
 
 		if (!priv->rtllib->bSupportRemoteWakeUp) {
 			rtl92e_set_rf_off(dev);
@@ -2129,7 +2129,7 @@ bool rtl92e_is_rx_stuck(struct net_device *dev)
 
 	SlotIndex = (priv->SilentResetRxSlotIndex++)%SilentResetRxSoltNum;
 
-	if (priv->RxCounter == RegRxCounter) {
+	if (priv->rx_ctr == RegRxCounter) {
 		priv->SilentResetRxStuckEvent[SlotIndex] = 1;
 
 		for (i = 0; i < SilentResetRxSoltNum; i++)
@@ -2147,7 +2147,7 @@ bool rtl92e_is_rx_stuck(struct net_device *dev)
 		priv->SilentResetRxStuckEvent[SlotIndex] = 0;
 	}
 
-	priv->RxCounter = RegRxCounter;
+	priv->rx_ctr = RegRxCounter;
 
 	return bStuck;
 }

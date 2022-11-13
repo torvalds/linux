@@ -330,7 +330,7 @@ struct r8192_priv {
 
 	struct work_struct				reset_wq;
 
-	struct log_int_8190 InterruptLog;
+	struct log_int_8190 int_log;
 
 	enum rt_customer_id CustomerID;
 
@@ -469,7 +469,7 @@ struct r8192_priv {
 
 	u16 reg_chnl_plan;
 	u16 ChannelPlan;
-	u8 bHwRfOffAction;
+	u8 hw_rf_off_action;
 
 	bool rf_change_in_progress;
 	bool SetRFPowerStateInProgress;
@@ -538,7 +538,7 @@ struct r8192_priv {
 
 	enum reset_type rst_progress;
 	u16		TxCounter;
-	u16		RxCounter;
+	u16		rx_ctr;
 	bool		bResetInProgress;
 	bool		force_reset;
 	bool		force_lps;
