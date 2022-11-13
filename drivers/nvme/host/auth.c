@@ -912,6 +912,8 @@ int nvme_auth_wait(struct nvme_ctrl *ctrl, int qid)
 		mutex_unlock(&ctrl->dhchap_auth_mutex);
 		flush_work(&chap->auth_work);
 		ret = chap->error;
+		/* clear sensitive info */
+		nvme_auth_reset_dhchap(chap);
 		return ret;
 	}
 	mutex_unlock(&ctrl->dhchap_auth_mutex);
