@@ -50,7 +50,7 @@ static int imxrt1050_clocks_probe(struct platform_device *pdev)
 	clk_hw_data->num = IMXRT1050_CLK_END;
 	hws = clk_hw_data->hws;
 
-	hws[IMXRT1050_CLK_OSC] = imx_obtain_fixed_clk_hw(np, "osc");
+	hws[IMXRT1050_CLK_OSC] = imx_get_clk_hw_by_name(np, "osc");
 
 	anp = of_find_compatible_node(NULL, NULL, "fsl,imxrt-anatop");
 	pll_base = of_iomap(anp, 0);

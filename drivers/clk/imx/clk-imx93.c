@@ -271,9 +271,9 @@ static int imx93_clocks_probe(struct platform_device *pdev)
 	clks = clk_hw_data->hws;
 
 	clks[IMX93_CLK_DUMMY] = imx_clk_hw_fixed("dummy", 0);
-	clks[IMX93_CLK_24M] = imx_obtain_fixed_clk_hw(np, "osc_24m");
-	clks[IMX93_CLK_32K] = imx_obtain_fixed_clk_hw(np, "osc_32k");
-	clks[IMX93_CLK_EXT1] = imx_obtain_fixed_clk_hw(np, "clk_ext1");
+	clks[IMX93_CLK_24M] = imx_get_clk_hw_by_name(np, "osc_24m");
+	clks[IMX93_CLK_32K] = imx_get_clk_hw_by_name(np, "osc_32k");
+	clks[IMX93_CLK_EXT1] = imx_get_clk_hw_by_name(np, "clk_ext1");
 
 	clks[IMX93_CLK_SYS_PLL_PFD0] = imx_clk_hw_fixed("sys_pll_pfd0", 1000000000);
 	clks[IMX93_CLK_SYS_PLL_PFD0_DIV2] = imx_clk_hw_fixed_factor("sys_pll_pfd0_div2",
