@@ -418,11 +418,11 @@ failed_sensitivity:
 	return error;
 }
 
-static int cmpc_accel_remove_v4(struct acpi_device *acpi)
+static void cmpc_accel_remove_v4(struct acpi_device *acpi)
 {
 	device_remove_file(&acpi->dev, &cmpc_accel_sensitivity_attr_v4);
 	device_remove_file(&acpi->dev, &cmpc_accel_g_select_attr_v4);
-	return cmpc_remove_acpi_notify_device(acpi);
+	cmpc_remove_acpi_notify_device(acpi);
 }
 
 static SIMPLE_DEV_PM_OPS(cmpc_accel_pm, cmpc_accel_suspend_v4,
@@ -648,10 +648,10 @@ failed_file:
 	return error;
 }
 
-static int cmpc_accel_remove(struct acpi_device *acpi)
+static void cmpc_accel_remove(struct acpi_device *acpi)
 {
 	device_remove_file(&acpi->dev, &cmpc_accel_sensitivity_attr);
-	return cmpc_remove_acpi_notify_device(acpi);
+	cmpc_remove_acpi_notify_device(acpi);
 }
 
 static const struct acpi_device_id cmpc_accel_device_ids[] = {
@@ -727,9 +727,9 @@ static int cmpc_tablet_add(struct acpi_device *acpi)
 					   cmpc_tablet_idev_init);
 }
 
-static int cmpc_tablet_remove(struct acpi_device *acpi)
+static void cmpc_tablet_remove(struct acpi_device *acpi)
 {
-	return cmpc_remove_acpi_notify_device(acpi);
+	cmpc_remove_acpi_notify_device(acpi);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -974,7 +974,7 @@ out_bd:
 	return retval;
 }
 
-static int cmpc_ipml_remove(struct acpi_device *acpi)
+static void cmpc_ipml_remove(struct acpi_device *acpi)
 {
 	struct ipml200_dev *ipml;
 
@@ -988,8 +988,6 @@ static int cmpc_ipml_remove(struct acpi_device *acpi)
 	}
 
 	kfree(ipml);
-
-	return 0;
 }
 
 static const struct acpi_device_id cmpc_ipml_device_ids[] = {
@@ -1055,9 +1053,9 @@ static int cmpc_keys_add(struct acpi_device *acpi)
 					   cmpc_keys_idev_init);
 }
 
-static int cmpc_keys_remove(struct acpi_device *acpi)
+static void cmpc_keys_remove(struct acpi_device *acpi)
 {
-	return cmpc_remove_acpi_notify_device(acpi);
+	cmpc_remove_acpi_notify_device(acpi);
 }
 
 static const struct acpi_device_id cmpc_keys_device_ids[] = {
