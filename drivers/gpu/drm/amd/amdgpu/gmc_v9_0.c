@@ -557,7 +557,9 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	u64 addr;
 	uint32_t cam_index = 0;
 	int ret;
-	uint32_t node_id = 0;
+	uint32_t node_id;
+
+	node_id = (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3)) ? entry->node_id : 0;
 
 	addr = (u64)entry->src_data[0] << 12;
 	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
@@ -570,8 +572,6 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 		hub = &adev->vmhub[AMDGPU_MMHUB1(0)];
 	} else {
 		hub_name = "gfxhub0";
-		node_id = (adev->ip_versions[GC_HWIP][0] ==
-			   IP_VERSION(9, 4, 3)) ? entry->node_id : 0;
 		hub = &adev->vmhub[node_id/2];
 	}
 
@@ -633,6 +633,11 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	dev_err(adev->dev, "  in page starting at address 0x%016llx from IH client 0x%x (%s)\n",
 		addr, entry->client_id,
 		soc15_ih_clientid_name[entry->client_id]);
+
+	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3))
+		dev_err(adev->dev, "  cookie node_id %d fault from die %s%d%s\n",
+			node_id, node_id % 4 == 3 ? "RSV" : "AID", node_id / 4,
+			node_id % 4 == 1 ? ".XCD0" : node_id % 4 == 2 ? ".XCD1" : "");
 
 	if (amdgpu_sriov_vf(adev))
 		return 0;
