@@ -177,6 +177,7 @@
   contig_page_data
   _copy_from_iter
   copy_from_kernel_nofault
+  __copy_overflow
   __cpu_active_mask
   cpu_bit_bitmap
   cpufreq_cpu_get
@@ -1708,6 +1709,8 @@
   __sw_hweight64
   __sw_hweight8
   sync_blockdev
+  sync_file_create
+  sync_file_get_fence
   synchronize_irq
   synchronize_rcu
   synchronize_rcu_expedited
