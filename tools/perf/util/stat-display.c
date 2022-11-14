@@ -106,15 +106,32 @@ static void print_noise(struct perf_stat_config *config,
 	print_noise_pct(config, stddev_stats(&ps->res_stats), avg);
 }
 
+static void print_cgroup_std(struct perf_stat_config *config, const char *cgrp_name)
+{
+	fprintf(config->output, " %s", cgrp_name);
+}
+
+static void print_cgroup_csv(struct perf_stat_config *config, const char *cgrp_name)
+{
+	fprintf(config->output, "%s%s", config->csv_sep, cgrp_name);
+}
+
+static void print_cgroup_json(struct perf_stat_config *config, const char *cgrp_name)
+{
+	fprintf(config->output, "\"cgroup\" : \"%s\", ", cgrp_name);
+}
+
 static void print_cgroup(struct perf_stat_config *config, struct evsel *evsel)
 {
 	if (nr_cgroups) {
 		const char *cgrp_name = evsel->cgrp ? evsel->cgrp->name  : "";
 
 		if (config->json_output)
-			fprintf(config->output, "\"cgroup\" : \"%s\", ", cgrp_name);
+			print_cgroup_json(config, cgrp_name);
+		if (config->csv_output)
+			print_cgroup_csv(config, cgrp_name);
 		else
-			fprintf(config->output, "%s%s", config->csv_sep, cgrp_name);
+			print_cgroup_std(config, cgrp_name);
 	}
 }
 
