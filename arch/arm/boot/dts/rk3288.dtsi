@@ -896,11 +896,13 @@
 		assigned-clocks = <&cru PLL_GPLL>, <&cru PLL_NPLL>,
 				  <&cru ACLK_CPU>, <&cru HCLK_CPU>,
 				  <&cru PCLK_CPU>, <&cru ACLK_PERI>,
-				  <&cru HCLK_PERI>, <&cru PCLK_PERI>;
+				  <&cru HCLK_PERI>, <&cru PCLK_PERI>,
+				  <&cru ACLK_VIO0>, <&cru ACLK_VIO1>;
 		assigned-clock-rates = <594000000>, <500000000>,
 				       <300000000>, <150000000>,
 				       <75000000>, <300000000>,
-				       <150000000>, <75000000>;
+				       <150000000>, <75000000>,
+				       <594000000>, <297000000>;
 	};
 
 	grf: syscon@ff770000 {
