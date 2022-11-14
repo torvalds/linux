@@ -2176,19 +2176,19 @@ static struct drm_property_blob *ilk_read_lut_10(struct intel_crtc *crtc)
 static void ilk_read_luts(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_property_blob **blob =
+		ilk_has_post_csc_lut(crtc_state) ?
+		&crtc_state->post_csc_lut : &crtc_state->pre_csc_lut;
 
 	if (!crtc_state->gamma_enable)
 		return;
 
-	if ((crtc_state->csc_mode & CSC_POSITION_BEFORE_GAMMA) == 0)
-		return;
-
 	switch (crtc_state->gamma_mode) {
 	case GAMMA_MODE_MODE_8BIT:
-		crtc_state->post_csc_lut = ilk_read_lut_8(crtc);
+		*blob = ilk_read_lut_8(crtc);
 		break;
 	case GAMMA_MODE_MODE_10BIT:
-		crtc_state->post_csc_lut = ilk_read_lut_10(crtc);
+		*blob = ilk_read_lut_10(crtc);
 		break;
 	default:
 		MISSING_CASE(crtc_state->gamma_mode);
