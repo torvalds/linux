@@ -602,9 +602,10 @@ static void dr_fill_write_icm_segs(struct mlx5dr_domain *dmn,
 
 	send_ring->pending_wqe++;
 	send_info->read.length = send_info->write.length;
-	/* Read into the same write area */
-	send_info->read.addr = (uintptr_t)send_info->write.addr;
-	send_info->read.lkey = send_ring->mr->mkey;
+
+	/* Read into dedicated sync buffer */
+	send_info->read.addr = (uintptr_t)send_ring->sync_mr->dma_addr;
+	send_info->read.lkey = send_ring->sync_mr->mkey;
 
 	if (send_ring->pending_wqe % send_ring->signal_th == 0)
 		send_info->read.send_flags = IB_SEND_SIGNALED;
@@ -1288,16 +1289,25 @@ int mlx5dr_send_ring_alloc(struct mlx5dr_domain *dmn)
 		goto free_mem;
 	}
 
-	dmn->send_ring->sync_mr = dr_reg_mr(dmn->mdev,
-					    dmn->pdn, dmn->send_ring->sync_buff,
-					    MIN_READ_SYNC);
-	if (!dmn->send_ring->sync_mr) {
+	dmn->send_ring->sync_buff = kzalloc(dmn->send_ring->max_post_send_size,
+					    GFP_KERNEL);
+	if (!dmn->send_ring->sync_buff) {
 		ret = -ENOMEM;
 		goto clean_mr;
 	}
 
+	dmn->send_ring->sync_mr = dr_reg_mr(dmn->mdev,
+					    dmn->pdn, dmn->send_ring->sync_buff,
+					    dmn->send_ring->max_post_send_size);
+	if (!dmn->send_ring->sync_mr) {
+		ret = -ENOMEM;
+		goto free_sync_mem;
+	}
+
 	return 0;
 
+free_sync_mem:
+	kfree(dmn->send_ring->sync_buff);
 clean_mr:
 	dr_dereg_mr(dmn->mdev, dmn->send_ring->mr);
 free_mem:
@@ -1320,6 +1330,7 @@ void mlx5dr_send_ring_free(struct mlx5dr_domain *dmn,
 	dr_dereg_mr(dmn->mdev, send_ring->sync_mr);
 	dr_dereg_mr(dmn->mdev, send_ring->mr);
 	kfree(send_ring->buf);
+	kfree(send_ring->sync_buff);
 	kfree(send_ring);
 }
 

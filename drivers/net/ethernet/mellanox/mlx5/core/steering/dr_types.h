@@ -1429,9 +1429,6 @@ struct mlx5dr_mr {
 	size_t size;
 };
 
-#define MAX_SEND_CQE		64
-#define MIN_READ_SYNC		64
-
 struct mlx5dr_send_ring {
 	struct mlx5dr_cq *cq;
 	struct mlx5dr_qp *qp;
@@ -1446,7 +1443,7 @@ struct mlx5dr_send_ring {
 	u32 tx_head;
 	void *buf;
 	u32 buf_size;
-	u8 sync_buff[MIN_READ_SYNC];
+	u8 *sync_buff;
 	struct mlx5dr_mr *sync_mr;
 	spinlock_t lock; /* Protect the data path of the send ring */
 	bool err_state; /* send_ring is not usable in err state */
