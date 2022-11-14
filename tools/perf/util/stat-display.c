@@ -135,123 +135,41 @@ static void print_cgroup(struct perf_stat_config *config, struct evsel *evsel)
 	}
 }
 
-
-static void aggr_printout(struct perf_stat_config *config,
-			  struct evsel *evsel, struct aggr_cpu_id id, int nr)
+static void print_aggr_id_std(struct perf_stat_config *config,
+			      struct evsel *evsel, struct aggr_cpu_id id, int nr)
 {
-
-
-	if (config->json_output && !config->interval)
-		fprintf(config->output, "{");
+	FILE *output = config->output;
 
 	switch (config->aggr_mode) {
 	case AGGR_CORE:
-		if (config->json_output) {
-			fprintf(config->output,
-				"\"core\" : \"S%d-D%d-C%d\", \"aggregate-number\" : %d, ",
-				id.socket,
-				id.die,
-				id.core,
-				nr);
-		} else {
-			fprintf(config->output, "S%d-D%d-C%*d%s%*d%s",
-				id.socket,
-				id.die,
-				config->csv_output ? 0 : -8,
-				id.core,
-				config->csv_sep,
-				config->csv_output ? 0 : 4,
-				nr,
-				config->csv_sep);
-		}
+		fprintf(output, "S%d-D%d-C%*d %*d ",
+			id.socket, id.die, -8, id.core, 4, nr);
 		break;
 	case AGGR_DIE:
-		if (config->json_output) {
-			fprintf(config->output,
-				"\"die\" : \"S%d-D%d\", \"aggregate-number\" : %d, ",
-				id.socket,
-				id.die,
-				nr);
-		} else {
-			fprintf(config->output, "S%d-D%*d%s%*d%s",
-				id.socket,
-				config->csv_output ? 0 : -8,
-				id.die,
-				config->csv_sep,
-				config->csv_output ? 0 : 4,
-				nr,
-				config->csv_sep);
-		}
+		fprintf(output, "S%d-D%*d %*d ",
+			id.socket, -8, id.die, 4, nr);
 		break;
 	case AGGR_SOCKET:
-		if (config->json_output) {
-			fprintf(config->output,
-				"\"socket\" : \"S%d\", \"aggregate-number\" : %d, ",
-				id.socket,
-				nr);
-		} else {
-			fprintf(config->output, "S%*d%s%*d%s",
-				config->csv_output ? 0 : -5,
-				id.socket,
-				config->csv_sep,
-				config->csv_output ? 0 : 4,
-				nr,
-				config->csv_sep);
-		}
+		fprintf(output, "S%*d %*d ",
+			-5, id.socket, 4, nr);
 		break;
 	case AGGR_NODE:
-		if (config->json_output) {
-			fprintf(config->output, "\"node\" : \"N%d\", \"aggregate-number\" : %d, ",
-				id.node,
-				nr);
-		} else {
-			fprintf(config->output, "N%*d%s%*d%s",
-				config->csv_output ? 0 : -5,
-				id.node,
-				config->csv_sep,
-				config->csv_output ? 0 : 4,
-				nr,
-				config->csv_sep);
-		}
+		fprintf(output, "N%*d %*d ",
+			-5, id.node, 4, nr);
 		break;
 	case AGGR_NONE:
-		if (config->json_output) {
-			if (evsel->percore && !config->percore_show_thread) {
-				fprintf(config->output, "\"core\" : \"S%d-D%d-C%d\"",
-					id.socket,
-					id.die,
-					id.core);
-			} else if (id.cpu.cpu > -1) {
-				fprintf(config->output, "\"cpu\" : \"%d\", ",
-					id.cpu.cpu);
-			}
-		} else {
-			if (evsel->percore && !config->percore_show_thread) {
-				fprintf(config->output, "S%d-D%d-C%*d%s",
-					id.socket,
-					id.die,
-					config->csv_output ? 0 : -3,
-					id.core, config->csv_sep);
-			} else if (id.cpu.cpu > -1) {
-				fprintf(config->output, "CPU%*d%s",
-					config->csv_output ? 0 : -7,
-					id.cpu.cpu, config->csv_sep);
-			}
+		if (evsel->percore && !config->percore_show_thread) {
+			fprintf(output, "S%d-D%d-C%*d ",
+				id.socket, id.die, -3, id.core);
+		} else if (id.cpu.cpu > -1) {
+			fprintf(output, "CPU%*d ",
+				-7, id.cpu.cpu);
 		}
 		break;
 	case AGGR_THREAD:
-		if (config->json_output) {
-			fprintf(config->output, "\"thread\" : \"%s-%d\", ",
-				perf_thread_map__comm(evsel->core.threads, id.thread_idx),
-				perf_thread_map__pid(evsel->core.threads, id.thread_idx));
-		} else {
-			fprintf(config->output, "%*s-%*d%s",
-				config->csv_output ? 0 : 16,
-				perf_thread_map__comm(evsel->core.threads, id.thread_idx),
-				config->csv_output ? 0 : -8,
-				perf_thread_map__pid(evsel->core.threads, id.thread_idx),
-				config->csv_sep);
-		}
+		fprintf(output, "%*s-%*d ",
+			16, perf_thread_map__comm(evsel->core.threads, id.thread_idx),
+			-8, perf_thread_map__pid(evsel->core.threads, id.thread_idx));
 		break;
 	case AGGR_GLOBAL:
 	case AGGR_UNSET:
@@ -259,6 +177,110 @@ static void aggr_printout(struct perf_stat_config *config,
 	default:
 		break;
 	}
+}
+
+static void print_aggr_id_csv(struct perf_stat_config *config,
+			      struct evsel *evsel, struct aggr_cpu_id id, int nr)
+{
+	FILE *output = config->output;
+	const char *sep = config->csv_sep;
+
+	switch (config->aggr_mode) {
+	case AGGR_CORE:
+		fprintf(output, "S%d-D%d-C%d%s%d%s",
+			id.socket, id.die, id.core, sep, nr, sep);
+		break;
+	case AGGR_DIE:
+		fprintf(output, "S%d-D%d%s%d%s",
+			id.socket, id.die, sep, nr, sep);
+		break;
+	case AGGR_SOCKET:
+		fprintf(output, "S%d%s%d%s",
+			id.socket, sep, nr, sep);
+		break;
+	case AGGR_NODE:
+		fprintf(output, "N%d%s%d%s",
+			id.node, sep, nr, sep);
+		break;
+	case AGGR_NONE:
+		if (evsel->percore && !config->percore_show_thread) {
+			fprintf(output, "S%d-D%d-C%d%s",
+				id.socket, id.die, id.core, sep);
+		} else if (id.cpu.cpu > -1) {
+			fprintf(output, "CPU%d%s",
+				id.cpu.cpu, sep);
+		}
+		break;
+	case AGGR_THREAD:
+		fprintf(output, "%s-%d%s",
+			perf_thread_map__comm(evsel->core.threads, id.thread_idx),
+			perf_thread_map__pid(evsel->core.threads, id.thread_idx),
+			sep);
+		break;
+	case AGGR_GLOBAL:
+	case AGGR_UNSET:
+	case AGGR_MAX:
+	default:
+		break;
+	}
+}
+
+static void print_aggr_id_json(struct perf_stat_config *config,
+			       struct evsel *evsel, struct aggr_cpu_id id, int nr)
+{
+	FILE *output = config->output;
+
+	if (!config->interval)
+		fputc('{', output);
+
+	switch (config->aggr_mode) {
+	case AGGR_CORE:
+		fprintf(output, "\"core\" : \"S%d-D%d-C%d\", \"aggregate-number\" : %d, ",
+			id.socket, id.die, id.core, nr);
+		break;
+	case AGGR_DIE:
+		fprintf(output, "\"die\" : \"S%d-D%d\", \"aggregate-number\" : %d, ",
+			id.socket, id.die, nr);
+		break;
+	case AGGR_SOCKET:
+		fprintf(output, "\"socket\" : \"S%d\", \"aggregate-number\" : %d, ",
+			id.socket, nr);
+		break;
+	case AGGR_NODE:
+		fprintf(output, "\"node\" : \"N%d\", \"aggregate-number\" : %d, ",
+			id.node, nr);
+		break;
+	case AGGR_NONE:
+		if (evsel->percore && !config->percore_show_thread) {
+			fprintf(output, "\"core\" : \"S%d-D%d-C%d\"",
+				id.socket, id.die, id.core);
+		} else if (id.cpu.cpu > -1) {
+			fprintf(output, "\"cpu\" : \"%d\", ",
+				id.cpu.cpu);
+		}
+		break;
+	case AGGR_THREAD:
+		fprintf(output, "\"thread\" : \"%s-%d\", ",
+			perf_thread_map__comm(evsel->core.threads, id.thread_idx),
+			perf_thread_map__pid(evsel->core.threads, id.thread_idx));
+		break;
+	case AGGR_GLOBAL:
+	case AGGR_UNSET:
+	case AGGR_MAX:
+	default:
+		break;
+	}
+}
+
+static void aggr_printout(struct perf_stat_config *config,
+			  struct evsel *evsel, struct aggr_cpu_id id, int nr)
+{
+	if (config->json_output)
+		print_aggr_id_json(config, evsel, id, nr);
+	else if (config->csv_output)
+		print_aggr_id_csv(config, evsel, id, nr);
+	else
+		print_aggr_id_std(config, evsel, id, nr);
 }
 
 struct outstate {
