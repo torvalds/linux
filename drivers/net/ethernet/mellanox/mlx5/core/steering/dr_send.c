@@ -267,7 +267,7 @@ static struct mlx5dr_qp *dr_create_rc_qp(struct mlx5_core_dev *mdev,
 
 	dr_qp->rq.pc = 0;
 	dr_qp->rq.cc = 0;
-	dr_qp->rq.wqe_cnt = 4;
+	dr_qp->rq.wqe_cnt = 256;
 	dr_qp->sq.pc = 0;
 	dr_qp->sq.cc = 0;
 	dr_qp->sq.head = 0;
