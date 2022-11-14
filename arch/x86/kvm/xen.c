@@ -1256,7 +1256,7 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 	}
 #endif
 	cpl = static_call(kvm_x86_get_cpl)(vcpu);
-	trace_kvm_xen_hypercall(input, params[0], params[1], params[2],
+	trace_kvm_xen_hypercall(cpl, input, params[0], params[1], params[2],
 				params[3], params[4], params[5]);
 
 	/*
