@@ -213,7 +213,7 @@ static int bch2_copygc(struct bch_fs *c)
 	size_t heap_size = 0;
 	int ret;
 
-	bch_move_stats_init(&move_stats, "copygc");
+	bch2_move_stats_init(&move_stats, "copygc");
 
 	/*
 	 * Find buckets with lowest sector counts, skipping completely

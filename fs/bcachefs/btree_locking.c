@@ -179,10 +179,9 @@ static noinline int break_cycle(struct lock_graph *g, struct printbuf *cycle)
 	}
 
 	if (unlikely(!best)) {
-		struct bch_fs *c = g->g->trans->c;
 		struct printbuf buf = PRINTBUF;
 
-		bch_err(c, "cycle of nofail locks");
+		prt_printf(&buf, bch2_fmt(g->g->trans->c, "cycle of nofail locks"));
 
 		for (i = g->g; i < g->g + g->nr; i++) {
 			struct btree_trans *trans = i->trans;

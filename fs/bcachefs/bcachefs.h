@@ -226,6 +226,10 @@ do {									\
 	 dynamic_fault("bcachefs:meta:write:" name)
 
 #ifdef __KERNEL__
+#define BCACHEFS_LOG_PREFIX
+#endif
+
+#ifdef BCACHEFS_LOG_PREFIX
 #define bch2_log_msg(_c, fmt)		"bcachefs (%s): " fmt, ((_c)->name)
 #define bch2_fmt(_c, fmt)		bch2_log_msg(_c, fmt "\n")
 #define bch2_fmt_inum(_c, _inum, fmt)	"bcachefs (%s inum %llu): " fmt "\n", ((_c)->name), (_inum)

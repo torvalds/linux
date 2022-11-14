@@ -50,8 +50,7 @@ int bch2_data_job(struct bch_fs *,
 		  struct bch_move_stats *,
 		  struct bch_ioctl_data);
 
-inline void bch_move_stats_init(struct bch_move_stats *stats,
-				char *name);
+void bch2_move_stats_init(struct bch_move_stats *stats, char *name);
 
 
 #endif /* _BCACHEFS_MOVE_H */

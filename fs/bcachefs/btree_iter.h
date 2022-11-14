@@ -177,13 +177,12 @@ int __must_check bch2_btree_path_traverse(struct btree_trans *,
 					  struct btree_path *, unsigned);
 struct btree_path *bch2_path_get(struct btree_trans *, enum btree_id, struct bpos,
 				 unsigned, unsigned, unsigned);
-inline struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *, struct bkey *);
+struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *, struct bkey *);
 
 struct bkey_i *bch2_btree_journal_peek_slot(struct btree_trans *,
 					struct btree_iter *, struct bpos);
 
-inline void bch2_btree_path_level_init(struct btree_trans *,
-				       struct btree_path *, struct btree *);
+void bch2_btree_path_level_init(struct btree_trans *, struct btree_path *, struct btree *);
 
 #ifdef CONFIG_BCACHEFS_DEBUG
 void bch2_trans_verify_paths(struct btree_trans *);

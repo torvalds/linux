@@ -125,8 +125,10 @@ int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 		s->nr++;
 	}
 
+#ifdef BCACHEFS_LOG_PREFIX
 	if (!strncmp(fmt, "bcachefs:", 9))
 		prt_printf(out, bch2_log_msg(c, ""));
+#endif
 
 	va_start(args, fmt);
 	prt_vprintf(out, fmt, args);

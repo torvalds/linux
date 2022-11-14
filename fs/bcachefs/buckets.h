@@ -255,6 +255,7 @@ int __bch2_disk_reservation_add(struct bch_fs *,
 static inline int bch2_disk_reservation_add(struct bch_fs *c, struct disk_reservation *res,
 					    u64 sectors, int flags)
 {
+#ifdef __KERNEL__
 	u64 old, new;
 
 	do {
@@ -268,6 +269,9 @@ static inline int bch2_disk_reservation_add(struct bch_fs *c, struct disk_reserv
 	this_cpu_add(*c->online_reserved, sectors);
 	res->sectors			+= sectors;
 	return 0;
+#else
+	return __bch2_disk_reservation_add(c, res, sectors, flags);
+#endif
 }
 
 static inline struct disk_reservation

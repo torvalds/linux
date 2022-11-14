@@ -189,7 +189,7 @@ static int bch2_rebalance_thread(void *arg)
 	prev_start	= jiffies;
 	prev_cputime	= curr_cputime();
 
-	bch_move_stats_init(&move_stats, "rebalance");
+	bch2_move_stats_init(&move_stats, "rebalance");
 	while (!kthread_wait_freezable(r->enabled)) {
 		cond_resched();
 

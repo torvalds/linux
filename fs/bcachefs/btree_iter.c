@@ -636,9 +636,9 @@ static inline void __btree_path_level_init(struct btree_path *path,
 		bch2_btree_node_iter_peek(&l->iter, l->b);
 }
 
-inline void bch2_btree_path_level_init(struct btree_trans *trans,
-				       struct btree_path *path,
-				       struct btree *b)
+void bch2_btree_path_level_init(struct btree_trans *trans,
+				struct btree_path *path,
+				struct btree *b)
 {
 	BUG_ON(path->cached);
 
@@ -1554,7 +1554,7 @@ struct btree_path *bch2_path_get(struct btree_trans *trans,
 	return path;
 }
 
-inline struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *path, struct bkey *u)
+struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *path, struct bkey *u)
 {
 
 	struct btree_path_level *l = path_l(path);

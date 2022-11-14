@@ -1376,7 +1376,7 @@ use_clean:
 	    le16_to_cpu(c->sb.version_min) < bcachefs_metadata_version_btree_ptr_sectors_written) {
 		struct bch_move_stats stats;
 
-		bch_move_stats_init(&stats, "recovery");
+		bch2_move_stats_init(&stats, "recovery");
 
 		bch_info(c, "scanning for old btree nodes");
 		ret = bch2_fs_read_write(c);

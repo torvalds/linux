@@ -177,7 +177,7 @@ void bch2_moving_ctxt_init(struct moving_context *ctxt,
 	}
 }
 
-void bch_move_stats_init(struct bch_move_stats *stats, char *name)
+void bch2_move_stats_init(struct bch_move_stats *stats, char *name)
 {
 	memset(stats, 0, sizeof(*stats));
 	scnprintf(stats->name, sizeof(stats->name), "%s", name);
@@ -755,7 +755,7 @@ int bch2_data_job(struct bch_fs *c,
 
 	switch (op.op) {
 	case BCH_DATA_OP_REREPLICATE:
-		bch_move_stats_init(stats, "rereplicate");
+		bch2_move_stats_init(stats, "rereplicate");
 		stats->data_type = BCH_DATA_journal;
 		ret = bch2_journal_flush_device_pins(&c->journal, -1);
 
@@ -779,7 +779,7 @@ int bch2_data_job(struct bch_fs *c,
 		if (op.migrate.dev >= c->sb.nr_devices)
 			return -EINVAL;
 
-		bch_move_stats_init(stats, "migrate");
+		bch2_move_stats_init(stats, "migrate");
 		stats->data_type = BCH_DATA_journal;
 		ret = bch2_journal_flush_device_pins(&c->journal, op.migrate.dev);
 
@@ -800,7 +800,7 @@ int bch2_data_job(struct bch_fs *c,
 		ret = bch2_replicas_gc2(c) ?: ret;
 		break;
 	case BCH_DATA_OP_REWRITE_OLD_NODES:
-		bch_move_stats_init(stats, "rewrite_old_nodes");
+		bch2_move_stats_init(stats, "rewrite_old_nodes");
 		ret = bch2_scan_old_btree_nodes(c, stats);
 		break;
 	default:
