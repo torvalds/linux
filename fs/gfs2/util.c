@@ -93,13 +93,13 @@ out_unlock:
 }
 
 /**
- * gfs2_freeze_lock - hold the freeze glock
+ * gfs2_freeze_lock_shared - hold the freeze glock
  * @sdp: the superblock
  * @freeze_gh: pointer to the requested holder
  * @caller_flags: any additional flags needed by the caller
  */
-int gfs2_freeze_lock(struct gfs2_sbd *sdp, struct gfs2_holder *freeze_gh,
-		     int caller_flags)
+int gfs2_freeze_lock_shared(struct gfs2_sbd *sdp, struct gfs2_holder *freeze_gh,
+			    int caller_flags)
 {
 	int flags = LM_FLAG_NOEXP | GL_EXACT | caller_flags;
 	int error;
@@ -157,8 +157,8 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 		gfs2_holder_mark_uninitialized(&freeze_gh);
 		if (sdp->sd_freeze_gl &&
 		    !gfs2_glock_is_locked_by_me(sdp->sd_freeze_gl)) {
-			ret = gfs2_freeze_lock(sdp, &freeze_gh,
-				       log_write_allowed ? 0 : LM_FLAG_TRY);
+			ret = gfs2_freeze_lock_shared(sdp, &freeze_gh,
+					log_write_allowed ? 0 : LM_FLAG_TRY);
 			if (ret == GLR_TRYFAILED)
 				ret = 0;
 		}
