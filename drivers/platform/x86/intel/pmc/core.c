@@ -901,7 +901,11 @@ static void pmc_core_get_low_power_modes(struct platform_device *pdev)
 		return;
 
 	lpm_en = pmc_core_reg_read(pmcdev, pmcdev->map->lpm_en_offset);
-	pmcdev->num_lpm_modes = hweight32(lpm_en);
+	/* For MTL, BIT 31 is not an lpm mode but a enable bit.
+	 * Lower byte is enough to cover the number of lpm modes for all
+	 * platforms and hence mask the upper 3 bytes.
+	 */
+	pmcdev->num_lpm_modes = hweight32(lpm_en & 0xFF);
 
 	/* Read 32 bit LPM_PRI register */
 	lpm_pri = pmc_core_reg_read(pmcdev, pmcdev->map->lpm_priority_offset);
@@ -1024,6 +1028,7 @@ static const struct x86_cpu_id intel_pmc_core_ids[] = {
 	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_P,        tgl_core_init),
 	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE,		adl_core_init),
 	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_S,	adl_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(METEORLAKE,          mtl_core_init),
 	{}
 };
 

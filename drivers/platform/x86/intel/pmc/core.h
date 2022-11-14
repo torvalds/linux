@@ -238,6 +238,16 @@ enum ppfear_regs {
 #define ADL_LPM_STATUS_LATCH_EN_OFFSET		0x1704
 #define ADL_LPM_LIVE_STATUS_OFFSET		0x1764
 
+/* Meteor Lake Power Management Controller register offsets */
+#define MTL_LPM_EN_OFFSET			0x1798
+#define MTL_LPM_RESIDENCY_OFFSET		0x17A0
+
+/* Meteor Lake Low Power Mode debug registers */
+#define MTL_LPM_PRI_OFFSET			0x179C
+#define MTL_LPM_STATUS_LATCH_EN_OFFSET		0x16F8
+#define MTL_LPM_STATUS_OFFSET			0x1700
+#define MTL_LPM_LIVE_STATUS_OFFSET		0x175C
+
 extern const char *pmc_lpm_modes[];
 
 struct pmc_bit_map {
@@ -383,6 +393,7 @@ extern const struct pmc_bit_map adl_vnn_req_status_3_map[];
 extern const struct pmc_bit_map adl_vnn_misc_status_map[];
 extern const struct pmc_bit_map *adl_lpm_maps[];
 extern const struct pmc_reg_map adl_reg_map;
+extern const struct pmc_reg_map mtl_reg_map;
 
 extern void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev);
 extern int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value);
@@ -392,8 +403,10 @@ void cnp_core_init(struct pmc_dev *pmcdev);
 void icl_core_init(struct pmc_dev *pmcdev);
 void tgl_core_init(struct pmc_dev *pmcdev);
 void adl_core_init(struct pmc_dev *pmcdev);
+void mtl_core_init(struct pmc_dev *pmcdev);
 void tgl_core_configure(struct pmc_dev *pmcdev);
 void adl_core_configure(struct pmc_dev *pmcdev);
+void mtl_core_configure(struct pmc_dev *pmcdev);
 
 #define pmc_for_each_mode(i, mode, pmcdev)		\
 	for (i = 0, mode = pmcdev->lpm_en_modes[i];	\
