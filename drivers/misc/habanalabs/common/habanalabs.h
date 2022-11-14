@@ -1744,6 +1744,9 @@ struct hl_cs_counters_atomic {
  * struct hl_dmabuf_priv - a dma-buf private object.
  * @dmabuf: pointer to dma-buf object.
  * @ctx: pointer to the dma-buf owner's context.
+ * @phys_pg_pack: pointer to physical page pack if the dma-buf was exported
+ *                where virtual memory is supported.
+ * @memhash_hnode: pointer to the memhash node. this object holds the export count.
  * @device_address: physical address of the device's memory. Relevant only
  *                  if phys_pg_pack is NULL (dma-buf was exported from address).
  *                  The total size can be taken from the dmabuf object.
@@ -1751,6 +1754,8 @@ struct hl_cs_counters_atomic {
 struct hl_dmabuf_priv {
 	struct dma_buf			*dmabuf;
 	struct hl_ctx			*ctx;
+	struct hl_vm_phys_pg_pack	*phys_pg_pack;
+	struct hl_vm_hash_node		*memhash_hnode;
 	uint64_t			device_address;
 };
 
@@ -2078,12 +2083,16 @@ struct hl_cs_parser {
  *				hl_userptr).
  * @node: node to hang on the hash table in context object.
  * @vaddr: key virtual address.
+ * @handle: memory handle for device memory allocation.
  * @ptr: value pointer (hl_vm_phys_pg_list or hl_userptr).
+ * @export_cnt: number of exports from within the VA block.
  */
 struct hl_vm_hash_node {
 	struct hlist_node	node;
 	u64			vaddr;
+	u64			handle;
 	void			*ptr;
+	int			export_cnt;
 };
 
 /**
