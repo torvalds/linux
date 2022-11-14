@@ -20,30 +20,6 @@
 #define AARCH64_INSN_N_BIT	BIT(22)
 #define AARCH64_INSN_LSL_12	BIT(22)
 
-static const int aarch64_insn_encoding_class[] = {
-	AARCH64_INSN_CLS_UNKNOWN,
-	AARCH64_INSN_CLS_UNKNOWN,
-	AARCH64_INSN_CLS_SVE,
-	AARCH64_INSN_CLS_UNKNOWN,
-	AARCH64_INSN_CLS_LDST,
-	AARCH64_INSN_CLS_DP_REG,
-	AARCH64_INSN_CLS_LDST,
-	AARCH64_INSN_CLS_DP_FPSIMD,
-	AARCH64_INSN_CLS_DP_IMM,
-	AARCH64_INSN_CLS_DP_IMM,
-	AARCH64_INSN_CLS_BR_SYS,
-	AARCH64_INSN_CLS_BR_SYS,
-	AARCH64_INSN_CLS_LDST,
-	AARCH64_INSN_CLS_DP_REG,
-	AARCH64_INSN_CLS_LDST,
-	AARCH64_INSN_CLS_DP_FPSIMD,
-};
-
-enum aarch64_insn_encoding_class __kprobes aarch64_get_insn_class(u32 insn)
-{
-	return aarch64_insn_encoding_class[(insn >> 25) & 0xf];
-}
-
 static int __kprobes aarch64_get_imm_shift_mask(enum aarch64_insn_imm_type type,
 						u32 *maskp, int *shiftp)
 {
