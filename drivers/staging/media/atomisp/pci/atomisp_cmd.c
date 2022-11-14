@@ -5492,40 +5492,6 @@ out:
 	return ret;
 }
 
-/*Turn off ISP dphy */
-int atomisp_ospm_dphy_down(struct atomisp_device *isp)
-{
-	struct pci_dev *pdev = to_pci_dev(isp->dev);
-	u32 reg;
-
-	dev_dbg(isp->dev, "%s\n", __func__);
-
-	/* if ISP timeout, we can force powerdown */
-	if (isp->isp_timeout)
-		goto done;
-
-	if (!atomisp_dev_users(isp))
-		goto done;
-
-done:
-	/*
-	 * MRFLD IUNIT DPHY is located in an always-power-on island
-	 * MRFLD HW design need all CSI ports are disabled before
-	 * powering down the IUNIT.
-	 */
-	pci_read_config_dword(pdev, MRFLD_PCI_CSI_CONTROL, &reg);
-	reg |= MRFLD_ALL_CSI_PORTS_OFF_MASK;
-	pci_write_config_dword(pdev, MRFLD_PCI_CSI_CONTROL, reg);
-	return 0;
-}
-
-/*Turn on ISP dphy */
-int atomisp_ospm_dphy_up(struct atomisp_device *isp)
-{
-	dev_dbg(isp->dev, "%s\n", __func__);
-	return 0;
-}
-
 int atomisp_exif_makernote(struct atomisp_sub_device *asd,
 			   struct atomisp_makernote_info *config)
 {

@@ -273,8 +273,6 @@ int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 int atomisp_offline_capture_configure(struct atomisp_sub_device *asd,
 				      struct atomisp_cont_capture_conf *cvf_config);
 
-int atomisp_ospm_dphy_down(struct atomisp_device *isp);
-int atomisp_ospm_dphy_up(struct atomisp_device *isp);
 int atomisp_exif_makernote(struct atomisp_sub_device *asd,
 			   struct atomisp_makernote_info *config);
 

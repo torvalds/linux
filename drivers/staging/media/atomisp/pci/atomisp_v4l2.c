@@ -722,9 +722,10 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 
 int atomisp_power_off(struct device *dev)
 {
-	struct atomisp_device *isp = (struct atomisp_device *)
-				     dev_get_drvdata(dev);
+	struct atomisp_device *isp = dev_get_drvdata(dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	int ret;
+	u32 reg;
 
 	atomisp_css_uninit(isp);
 
@@ -732,10 +733,15 @@ int atomisp_power_off(struct device *dev)
 	if (ret)
 		return ret;
 
-	/*Turn off the ISP d-phy*/
-	ret = atomisp_ospm_dphy_down(isp);
-	if (ret)
-		return ret;
+	/*
+	 * MRFLD IUNIT DPHY is located in an always-power-on island
+	 * MRFLD HW design need all CSI ports are disabled before
+	 * powering down the IUNIT.
+	 */
+	pci_read_config_dword(pdev, MRFLD_PCI_CSI_CONTROL, &reg);
+	reg |= MRFLD_ALL_CSI_PORTS_OFF_MASK;
+	pci_write_config_dword(pdev, MRFLD_PCI_CSI_CONTROL, reg);
+
 	cpu_latency_qos_update_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
 	return atomisp_mrfld_power(isp, false);
 }
@@ -751,12 +757,6 @@ int atomisp_power_on(struct device *dev)
 		return ret;
 
 	cpu_latency_qos_update_request(&isp->pm_qos, isp->max_isr_latency);
-	/*Turn on ISP d-phy */
-	ret = atomisp_ospm_dphy_up(isp);
-	if (ret) {
-		dev_err(isp->dev, "Failed to power up ISP!.\n");
-		return -EINVAL;
-	}
 
 	/*restore register values for iUnit and iUnitPHY registers*/
 	if (isp->saved_regs.pcicmdsts)
