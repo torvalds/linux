@@ -41,7 +41,6 @@
 /dts-v1/;
 #include "rk3288-evb.dtsi"
 #include "rk3288-linux.dtsi"
-#include "rk3288-rkisp1.dtsi"
 
 / {
 	compatible = "rockchip,rk3288-evb-rk808-linux", "rockchip,rk3288";
@@ -429,29 +428,48 @@
 
 	ov13850: ov13850@10 {
 		compatible = "ovti,ov13850";
-		status = "okay";
 		reg = <0x10>;
 		clocks = <&cru SCLK_VIP_OUT>;
 		clock-names = "xvclk";
-
-		reset-gpios = <&gpio7 21 GPIO_ACTIVE_HIGH>;
-		pwdn-gpios = <&gpio2 15 GPIO_ACTIVE_HIGH>;
-
+		/* avdd-supply = <>; */
+		/* dvdd-supply = <>; */
+		/* dovdd-supply = <>; */
+		/* reset-gpios = <>; */
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&isp_mipi>;
+		power-gpio = <&gpio7 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-CT0116";
+		rockchip,camera-module-lens-name = "Largan-50013A1";
 		port {
-			cam_out: endpoint {
-				remote-endpoint = <&mipi_in_cam>;
+			ov13850_out: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
 				data-lanes = <1 2>;
 			};
 		};
 	};
-};
 
-&isp {
-	status = "okay";
-
-	port {
-		isp_mipi_in: endpoint {
-			remote-endpoint = <&dphy_rx0_out>;
+	gc8034: gc8034@37 {
+		compatible = "galaxycore,gc8034";
+		status = "okay";
+		reg = <0x37>;
+		clocks = <&cru SCLK_VIP_OUT>;
+		clock-names = "xvclk";
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&isp_mipi>;
+		reset-gpios = <&gpio7 RK_PC5 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio2 RK_PB7 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "LH-RK-8034-v1.0";
+		rockchip,camera-module-lens-name = "CK8401";
+		port {
+			gc8034_out: endpoint {
+				remote-endpoint = <&mipi_in_gc8034>;
+				data-lanes = <1 2 3 4>;
+			};
 		};
 	};
 };
@@ -469,20 +487,45 @@
 
 		port@0 {
 			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
-			mipi_in_cam: endpoint {
-				remote-endpoint = <&cam_out>;
+			mipi_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ov13850_out>;
 				data-lanes = <1 2>;
+			};
+			mipi_in_gc8034: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&gc8034_out>;
+				data-lanes = <1 2 3 4>;
 			};
 		};
 
 		port@1 {
 			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 
-			dphy_rx0_out: endpoint {
+			dphy_rx_out: endpoint@0 {
+				reg = <0>;
 				remote-endpoint = <&isp_mipi_in>;
 			};
 		};
+	};
+};
+
+&rkisp1 {
+	status = "okay";
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_mipi_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy_rx_out>;
+		};
+
 	};
 };
 
