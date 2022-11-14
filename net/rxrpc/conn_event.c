@@ -282,8 +282,6 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 			       u32 *_abort_code)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	__be32 wtmp;
-	u32 abort_code;
 	int loop, ret;
 
 	if (conn->state >= RXRPC_CONN_REMOTELY_ABORTED) {
@@ -305,16 +303,8 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		return 0;
 
 	case RXRPC_PACKET_TYPE_ABORT:
-		if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
-				  &wtmp, sizeof(wtmp)) < 0) {
-			trace_rxrpc_rx_eproto(NULL, sp->hdr.serial,
-					      tracepoint_string("bad_abort"));
-			return -EPROTO;
-		}
-		abort_code = ntohl(wtmp);
-
 		conn->error = -ECONNABORTED;
-		conn->abort_code = abort_code;
+		conn->abort_code = skb->priority;
 		conn->state = RXRPC_CONN_REMOTELY_ABORTED;
 		set_bit(RXRPC_CONN_DONT_REUSE, &conn->flags);
 		rxrpc_abort_calls(conn, RXRPC_CALL_REMOTELY_ABORTED, sp->hdr.serial);

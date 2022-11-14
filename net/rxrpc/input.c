@@ -1019,20 +1019,11 @@ static void rxrpc_input_ackall(struct rxrpc_call *call, struct sk_buff *skb)
 static void rxrpc_input_abort(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	__be32 wtmp;
-	u32 abort_code = RX_CALL_DEAD;
 
-	_enter("");
-
-	if (skb->len >= 4 &&
-	    skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
-			  &wtmp, sizeof(wtmp)) >= 0)
-		abort_code = ntohl(wtmp);
-
-	trace_rxrpc_rx_abort(call, sp->hdr.serial, abort_code);
+	trace_rxrpc_rx_abort(call, sp->hdr.serial, skb->priority);
 
 	rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
-				  abort_code, -ECONNABORTED);
+				  skb->priority, -ECONNABORTED);
 }
 
 /*
@@ -1194,6 +1185,20 @@ int rxrpc_extract_header(struct rxrpc_skb_priv *sp, struct sk_buff *skb)
 }
 
 /*
+ * Extract the abort code from an ABORT packet and stash it in skb->priority.
+ */
+static bool rxrpc_extract_abort(struct sk_buff *skb)
+{
+	__be32 wtmp;
+
+	if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
+			  &wtmp, sizeof(wtmp)) < 0)
+		return false;
+	skb->priority = ntohl(wtmp);
+	return true;
+}
+
+/*
  * handle data received on the local endpoint
  * - may be called in interrupt context
  *
@@ -1264,8 +1269,10 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 	case RXRPC_PACKET_TYPE_ACKALL:
 		if (sp->hdr.callNumber == 0)
 			goto bad_message;
-		fallthrough;
+		break;
 	case RXRPC_PACKET_TYPE_ABORT:
+		if (!rxrpc_extract_abort(skb))
+			return true; /* Just discard if malformed */
 		break;
 
 	case RXRPC_PACKET_TYPE_DATA:
