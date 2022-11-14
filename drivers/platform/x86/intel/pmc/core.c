@@ -19,7 +19,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/uaccess.h>
@@ -1895,27 +1894,73 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 	}
 }
 
+void spt_core_init(struct pmc_dev *pmcdev)
+{
+	pmcdev->map = &spt_reg_map;
+}
+
+void cnp_core_init(struct pmc_dev *pmcdev)
+{
+	pmcdev->map = &cnp_reg_map;
+}
+
+void icl_core_init(struct pmc_dev *pmcdev)
+{
+	pmcdev->map = &icl_reg_map;
+}
+
+void tgl_core_configure(struct pmc_dev *pmcdev)
+{
+	pmc_core_get_tgl_lpm_reqs(pmcdev->pdev);
+	/* Due to a hardware limitation, the GBE LTR blocks PC10
+	 * when a cable is attached. Tell the PMC to ignore it.
+	 */
+	dev_dbg(&pmcdev->pdev->dev, "ignoring GBE LTR\n");
+	pmc_core_send_ltr_ignore(pmcdev, 3);
+}
+
+void tgl_core_init(struct pmc_dev *pmcdev)
+{
+	pmcdev->map = &tgl_reg_map;
+	pmcdev->core_configure = tgl_core_configure;
+}
+
+void adl_core_configure(struct pmc_dev *pmcdev)
+{
+	/* Due to a hardware limitation, the GBE LTR blocks PC10
+	 * when a cable is attached. Tell the PMC to ignore it.
+	 */
+	dev_dbg(&pmcdev->pdev->dev, "ignoring GBE LTR\n");
+	pmc_core_send_ltr_ignore(pmcdev, 3);
+}
+
+void adl_core_init(struct pmc_dev *pmcdev)
+{
+	pmcdev->map = &adl_reg_map;
+	pmcdev->core_configure = adl_core_configure;
+}
+
 static const struct x86_cpu_id intel_pmc_core_ids[] = {
-	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_L,		&spt_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE,		&spt_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE_L,		&spt_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE,		&spt_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(CANNONLAKE_L,	&cnp_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_L,		&icl_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_NNPI,	&icl_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE,		&cnp_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE_L,		&cnp_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(TIGERLAKE_L,		&tgl_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(TIGERLAKE,		&tgl_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT,	&tgl_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT_L,	&icl_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(ROCKETLAKE,		&tgl_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L,		&tgl_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_N,		&tgl_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE,		&adl_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_P,        &tgl_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE,		&adl_reg_map),
-	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_S,	&adl_reg_map),
+	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_L,		spt_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE,		spt_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE_L,		spt_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(KABYLAKE,		spt_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(CANNONLAKE_L,	cnp_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_L,		icl_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_NNPI,	icl_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE,		cnp_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE_L,		cnp_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(TIGERLAKE_L,		tgl_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(TIGERLAKE,		tgl_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT,	tgl_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT_L,	icl_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(ROCKETLAKE,		tgl_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L,		tgl_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_N,		tgl_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE,		adl_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_P,        tgl_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE,		adl_core_init),
+	X86_MATCH_INTEL_FAM6_MODEL(RAPTORLAKE_S,	adl_core_init),
 	{}
 };
 
@@ -1975,6 +2020,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 	static bool device_initialized;
 	struct pmc_dev *pmcdev;
 	const struct x86_cpu_id *cpu_id;
+	void (*core_init)(struct pmc_dev *pmcdev);
 	u64 slp_s0_addr;
 
 	if (device_initialized)
@@ -1985,20 +2031,25 @@ static int pmc_core_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, pmcdev);
+	pmcdev->pdev = pdev;
 
 	cpu_id = x86_match_cpu(intel_pmc_core_ids);
 	if (!cpu_id)
 		return -ENODEV;
 
-	pmcdev->map = (struct pmc_reg_map *)cpu_id->driver_data;
+	core_init = (void  (*)(struct pmc_dev *))cpu_id->driver_data;
 
 	/*
 	 * Coffee Lake has CPU ID of Kaby Lake and Cannon Lake PCH. So here
 	 * Sunrisepoint PCH regmap can't be used. Use Cannon Lake PCH regmap
 	 * in this case.
 	 */
-	if (pmcdev->map == &spt_reg_map && !pci_dev_present(pmc_pci_ids))
-		pmcdev->map = &cnp_reg_map;
+	if (core_init == spt_core_init && !pci_dev_present(pmc_pci_ids))
+		core_init = cnp_core_init;
+
+	mutex_init(&pmcdev->lock);
+	core_init(pmcdev);
+
 
 	if (lpit_read_residency_count_address(&slp_s0_addr)) {
 		pmcdev->base_addr = PMC_BASE_ADDR_DEFAULT;
@@ -2014,23 +2065,12 @@ static int pmc_core_probe(struct platform_device *pdev)
 	if (!pmcdev->regbase)
 		return -ENOMEM;
 
-	mutex_init(&pmcdev->lock);
+	if (pmcdev->core_configure)
+		pmcdev->core_configure(pmcdev);
 
 	pmcdev->pmc_xram_read_bit = pmc_core_check_read_lock_bit(pmcdev);
 	pmc_core_get_low_power_modes(pdev);
 	pmc_core_do_dmi_quirks(pmcdev);
-
-	if (pmcdev->map == &tgl_reg_map)
-		pmc_core_get_tgl_lpm_reqs(pdev);
-
-	/*
-	 * On TGL and ADL, due to a hardware limitation, the GBE LTR blocks PC10
-	 * when a cable is attached. Tell the PMC to ignore it.
-	 */
-	if (pmcdev->map == &tgl_reg_map || pmcdev->map == &adl_reg_map) {
-		dev_dbg(&pdev->dev, "ignoring GBE LTR\n");
-		pmc_core_send_ltr_ignore(pmcdev, 3);
-	}
 
 	pmc_core_dbgfs_register(pmcdev);
 

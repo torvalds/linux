@@ -13,6 +13,7 @@
 #define PMC_CORE_H
 
 #include <linux/bits.h>
+#include <linux/platform_device.h>
 
 #define PMC_BASE_ADDR_DEFAULT			0xFE000000
 
@@ -312,6 +313,7 @@ struct pmc_reg_map {
  * @regbase:		pointer to io-remapped memory location
  * @map:		pointer to pmc_reg_map struct that contains platform
  *			specific attributes
+ * @pdev:		pointer to platform_device struct
  * @dbgfs_dir:		path to debugfs interface
  * @pmc_xram_read_bit:	flag to indicate whether PMC XRAM shadow registers
  *			used to read MPHY PG and PLL status are available
@@ -322,6 +324,7 @@ struct pmc_reg_map {
  * @num_lpm_modes:	Count of enabled modes
  * @lpm_en_modes:	Array of enabled modes from lowest to highest priority
  * @lpm_req_regs:	List of substate requirements
+ * @core_configure:	Function pointer to configure the platform
  *
  * pmc_dev contains info about power management controller device.
  */
@@ -330,6 +333,7 @@ struct pmc_dev {
 	void __iomem *regbase;
 	const struct pmc_reg_map *map;
 	struct dentry *dbgfs_dir;
+	struct platform_device *pdev;
 	int pmc_xram_read_bit;
 	struct mutex lock; /* generic mutex lock for PMC Core */
 
@@ -339,7 +343,16 @@ struct pmc_dev {
 	int num_lpm_modes;
 	int lpm_en_modes[LPM_MAX_NUM_MODES];
 	u32 *lpm_req_regs;
+	void (*core_configure)(struct pmc_dev *pmcdev);
 };
+
+void spt_core_init(struct pmc_dev *pmcdev);
+void cnp_core_init(struct pmc_dev *pmcdev);
+void icl_core_init(struct pmc_dev *pmcdev);
+void tgl_core_init(struct pmc_dev *pmcdev);
+void adl_core_init(struct pmc_dev *pmcdev);
+void tgl_core_configure(struct pmc_dev *pmcdev);
+void adl_core_configure(struct pmc_dev *pmcdev);
 
 #define pmc_for_each_mode(i, mode, pmcdev)		\
 	for (i = 0, mode = pmcdev->lpm_en_modes[i];	\
