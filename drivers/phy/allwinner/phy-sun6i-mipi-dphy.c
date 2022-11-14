@@ -114,7 +114,10 @@ enum sun6i_dphy_direction {
 	SUN6I_DPHY_DIRECTION_RX,
 };
 
+struct sun6i_dphy;
+
 struct sun6i_dphy_variant {
+	void	(*tx_power_on)(struct sun6i_dphy *dphy);
 	bool	rx_supported;
 };
 
@@ -156,32 +159,9 @@ static int sun6i_dphy_configure(struct phy *phy, union phy_configure_opts *opts)
 	return 0;
 }
 
-static int sun6i_dphy_tx_power_on(struct sun6i_dphy *dphy)
+static void sun6i_a31_mipi_dphy_tx_power_on(struct sun6i_dphy *dphy)
 {
 	u8 lanes_mask = GENMASK(dphy->config.lanes - 1, 0);
-
-	regmap_write(dphy->regs, SUN6I_DPHY_TX_CTL_REG,
-		     SUN6I_DPHY_TX_CTL_HS_TX_CLK_CONT);
-
-	regmap_write(dphy->regs, SUN6I_DPHY_TX_TIME0_REG,
-		     SUN6I_DPHY_TX_TIME0_LP_CLK_DIV(14) |
-		     SUN6I_DPHY_TX_TIME0_HS_PREPARE(6) |
-		     SUN6I_DPHY_TX_TIME0_HS_TRAIL(10));
-
-	regmap_write(dphy->regs, SUN6I_DPHY_TX_TIME1_REG,
-		     SUN6I_DPHY_TX_TIME1_CLK_PREPARE(7) |
-		     SUN6I_DPHY_TX_TIME1_CLK_ZERO(50) |
-		     SUN6I_DPHY_TX_TIME1_CLK_PRE(3) |
-		     SUN6I_DPHY_TX_TIME1_CLK_POST(10));
-
-	regmap_write(dphy->regs, SUN6I_DPHY_TX_TIME2_REG,
-		     SUN6I_DPHY_TX_TIME2_CLK_TRAIL(30));
-
-	regmap_write(dphy->regs, SUN6I_DPHY_TX_TIME3_REG, 0);
-
-	regmap_write(dphy->regs, SUN6I_DPHY_TX_TIME4_REG,
-		     SUN6I_DPHY_TX_TIME4_HS_TX_ANA0(3) |
-		     SUN6I_DPHY_TX_TIME4_HS_TX_ANA1(3));
 
 	regmap_write(dphy->regs, SUN6I_DPHY_ANA0_REG,
 		     SUN6I_DPHY_ANA0_REG_PWS |
@@ -214,6 +194,36 @@ static int sun6i_dphy_tx_power_on(struct sun6i_dphy *dphy)
 		     SUN6I_DPHY_ANA3_EN_LDOC |
 		     SUN6I_DPHY_ANA3_EN_LDOD);
 	udelay(1);
+}
+
+static int sun6i_dphy_tx_power_on(struct sun6i_dphy *dphy)
+{
+	u8 lanes_mask = GENMASK(dphy->config.lanes - 1, 0);
+
+	regmap_write(dphy->regs, SUN6I_DPHY_TX_CTL_REG,
+		     SUN6I_DPHY_TX_CTL_HS_TX_CLK_CONT);
+
+	regmap_write(dphy->regs, SUN6I_DPHY_TX_TIME0_REG,
+		     SUN6I_DPHY_TX_TIME0_LP_CLK_DIV(14) |
+		     SUN6I_DPHY_TX_TIME0_HS_PREPARE(6) |
+		     SUN6I_DPHY_TX_TIME0_HS_TRAIL(10));
+
+	regmap_write(dphy->regs, SUN6I_DPHY_TX_TIME1_REG,
+		     SUN6I_DPHY_TX_TIME1_CLK_PREPARE(7) |
+		     SUN6I_DPHY_TX_TIME1_CLK_ZERO(50) |
+		     SUN6I_DPHY_TX_TIME1_CLK_PRE(3) |
+		     SUN6I_DPHY_TX_TIME1_CLK_POST(10));
+
+	regmap_write(dphy->regs, SUN6I_DPHY_TX_TIME2_REG,
+		     SUN6I_DPHY_TX_TIME2_CLK_TRAIL(30));
+
+	regmap_write(dphy->regs, SUN6I_DPHY_TX_TIME3_REG, 0);
+
+	regmap_write(dphy->regs, SUN6I_DPHY_TX_TIME4_REG,
+		     SUN6I_DPHY_TX_TIME4_HS_TX_ANA0(3) |
+		     SUN6I_DPHY_TX_TIME4_HS_TX_ANA1(3));
+
+	dphy->variant->tx_power_on(dphy);
 
 	regmap_update_bits(dphy->regs, SUN6I_DPHY_ANA3_REG,
 			   SUN6I_DPHY_ANA3_EN_VTTC |
@@ -470,6 +480,7 @@ static int sun6i_dphy_probe(struct platform_device *pdev)
 }
 
 static const struct sun6i_dphy_variant sun6i_a31_mipi_dphy_variant = {
+	.tx_power_on	= sun6i_a31_mipi_dphy_tx_power_on,
 	.rx_supported	= true,
 };
 
