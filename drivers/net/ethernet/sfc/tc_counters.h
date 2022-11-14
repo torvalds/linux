@@ -26,7 +26,11 @@ struct efx_tc_counter {
 	u32 fw_id; /* index in firmware counter table */
 	enum efx_tc_counter_type type;
 	struct rhash_head linkage; /* efx->tc->counter_ht */
+	spinlock_t lock; /* Serialises updates to counter values */
 	u32 gen; /* Generation count at which this counter is current */
+	u64 packets, bytes;
+	/* jiffies of the last time we saw packets increase */
+	unsigned long touched;
 };
 
 struct efx_tc_counter_index {

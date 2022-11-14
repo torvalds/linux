@@ -86,6 +86,8 @@ static struct efx_tc_counter *efx_tc_flower_allocate_counter(struct efx_nic *efx
 	if (!cnt)
 		return ERR_PTR(-ENOMEM);
 
+	spin_lock_init(&cnt->lock);
+	cnt->touched = jiffies;
 	cnt->type = type;
 
 	rc = efx_mae_allocate_counter(efx, cnt);
@@ -131,7 +133,20 @@ static void efx_tc_flower_release_counter(struct efx_nic *efx,
 	 * is handled by the generation count.
 	 */
 	synchronize_rcu();
+	EFX_WARN_ON_PARANOID(spin_is_locked(&cnt->lock));
 	kfree(cnt);
+}
+
+static struct efx_tc_counter *efx_tc_flower_find_counter_by_fw_id(
+				struct efx_nic *efx, int type, u32 fw_id)
+{
+	struct efx_tc_counter key = {};
+
+	key.fw_id = fw_id;
+	key.type = type;
+
+	return rhashtable_lookup_fast(&efx->tc->counter_ht, &key,
+				      efx_tc_counter_ht_params);
 }
 
 /* TC cookie to counter mapping */
@@ -241,7 +256,44 @@ static void efx_tc_counter_update(struct efx_nic *efx,
 				  u32 counter_idx, u64 packets, u64 bytes,
 				  u32 mark)
 {
-	/* Software counter objects do not exist yet, for now we ignore this */
+	struct efx_tc_counter *cnt;
+
+	rcu_read_lock(); /* Protect against deletion of 'cnt' */
+	cnt = efx_tc_flower_find_counter_by_fw_id(efx, counter_type, counter_idx);
+	if (!cnt) {
+		/* This can legitimately happen when a counter is removed,
+		 * with updates for the counter still in-flight; however this
+		 * should be an infrequent occurrence.
+		 */
+		if (net_ratelimit())
+			netif_dbg(efx, drv, efx->net_dev,
+				  "Got update for unwanted MAE counter %u type %u\n",
+				  counter_idx, counter_type);
+		goto out;
+	}
+
+	spin_lock_bh(&cnt->lock);
+	if ((s32)mark - (s32)cnt->gen < 0) {
+		/* This counter update packet is from before the counter was
+		 * allocated; thus it must be for a previous counter with
+		 * the same ID that has since been freed, and it should be
+		 * ignored.
+		 */
+	} else {
+		/* Update latest seen generation count.  This ensures that
+		 * even a long-lived counter won't start getting ignored if
+		 * the generation count wraps around, unless it somehow
+		 * manages to go 1<<31 generations without an update.
+		 */
+		cnt->gen = mark;
+		/* update counter values */
+		cnt->packets += packets;
+		cnt->bytes += bytes;
+		cnt->touched = jiffies;
+	}
+	spin_unlock_bh(&cnt->lock);
+out:
+	rcu_read_unlock();
 }
 
 static void efx_tc_rx_version_1(struct efx_nic *efx, const u8 *data, u32 mark)
