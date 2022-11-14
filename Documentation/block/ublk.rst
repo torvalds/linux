@@ -144,6 +144,42 @@ managing and controlling ublk devices with help of several control commands:
   For retrieving device info via ``ublksrv_ctrl_dev_info``. It is the server's
   responsibility to save IO target specific info in userspace.
 
+- ``UBLK_CMD_START_USER_RECOVERY``
+
+  This command is valid if ``UBLK_F_USER_RECOVERY`` feature is enabled. This
+  command is accepted after the old process has exited, ublk device is quiesced
+  and ``/dev/ublkc*`` is released. User should send this command before he starts
+  a new process which re-opens ``/dev/ublkc*``. When this command returns, the
+  ublk device is ready for the new process.
+
+- ``UBLK_CMD_END_USER_RECOVERY``
+
+  This command is valid if ``UBLK_F_USER_RECOVERY`` feature is enabled. This
+  command is accepted after ublk device is quiesced and a new process has
+  opened ``/dev/ublkc*`` and get all ublk queues be ready. When this command
+  returns, ublk device is unquiesced and new I/O requests are passed to the
+  new process.
+
+- user recovery feature description
+
+  Two new features are added for user recovery: ``UBLK_F_USER_RECOVERY`` and
+  ``UBLK_F_USER_RECOVERY_REISSUE``.
+
+  With ``UBLK_F_USER_RECOVERY`` set, after one ubq_daemon(ublk server's io
+  handler) is dying, ublk does not delete ``/dev/ublkb*`` during the whole
+  recovery stage and ublk device ID is kept. It is ublk server's
+  responsibility to recover the device context by its own knowledge.
+  Requests which have not been issued to userspace are requeued. Requests
+  which have been issued to userspace are aborted.
+
+  With ``UBLK_F_USER_RECOVERY_REISSUE`` set, after one ubq_daemon(ublk
+  server's io handler) is dying, contrary to ``UBLK_F_USER_RECOVERY``,
+  requests which have been issued to userspace are requeued and will be
+  re-issued to the new process after handling ``UBLK_CMD_END_USER_RECOVERY``.
+  ``UBLK_F_USER_RECOVERY_REISSUE`` is designed for backends who tolerate
+  double-write since the driver may issue the same I/O request twice. It
+  might be useful to a read-only FS or a VM backend.
+
 Data plane
 ----------
 

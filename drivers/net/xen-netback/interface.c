@@ -591,8 +591,8 @@ int xenvif_init_queue(struct xenvif_queue *queue)
 	}
 
 	for (i = 0; i < MAX_PENDING_REQS; i++) {
-		queue->pending_tx_info[i].callback_struct = (struct ubuf_info)
-			{ .callback = xenvif_zerocopy_callback,
+		queue->pending_tx_info[i].callback_struct = (struct ubuf_info_msgzc)
+			{ { .callback = xenvif_zerocopy_callback },
 			  { { .ctx = NULL,
 			      .desc = i } } };
 		queue->grant_tx_handle[i] = NETBACK_INVALID_HANDLE;
@@ -723,8 +723,7 @@ int xenvif_connect_data(struct xenvif_queue *queue,
 	init_waitqueue_head(&queue->dealloc_wq);
 	atomic_set(&queue->inflight_packets, 0);
 
-	netif_napi_add(queue->vif->dev, &queue->napi, xenvif_poll,
-			NAPI_POLL_WEIGHT);
+	netif_napi_add(queue->vif->dev, &queue->napi, xenvif_poll);
 
 	queue->stalled = true;
 

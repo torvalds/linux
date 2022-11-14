@@ -862,7 +862,7 @@ static void get_bvec_at(struct ceph_msg_data_cursor *cursor,
 		ceph_msg_data_advance(cursor, 0);
 
 	/* get a piece of data, cursor isn't advanced */
-	page = ceph_msg_data_next(cursor, &off, &len, NULL);
+	page = ceph_msg_data_next(cursor, &off, &len);
 
 	bv->bv_page = page;
 	bv->bv_offset = off;

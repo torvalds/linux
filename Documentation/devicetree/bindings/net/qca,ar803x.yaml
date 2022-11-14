@@ -40,6 +40,14 @@ properties:
       Only supported on the AR8031.
     type: boolean
 
+  qca,disable-hibernation-mode:
+    description: |
+      Disable Atheros AR803X PHYs hibernation mode. If present, indicates
+      that the hardware of PHY will not enter power saving mode when the
+      cable is disconnected. And the RX_CLK always keeps outputting a
+      valid clock.
+    type: boolean
+
   qca,smarteee-tw-us-100m:
     description: EEE Tw parameter for 100M links.
     $ref: /schemas/types.yaml#/definitions/uint32

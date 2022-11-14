@@ -159,7 +159,6 @@ extern void xics_setup_cpu(void);
 extern void xics_update_irq_servers(void);
 extern void xics_set_cpu_giq(unsigned int gserver, unsigned int join);
 extern void xics_mask_unknown_vec(unsigned int vec);
-extern irqreturn_t xics_ipi_dispatch(int cpu);
 extern void xics_smp_probe(void);
 extern void xics_register_ics(struct ics *ics);
 extern void xics_teardown_cpu(void);

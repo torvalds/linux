@@ -1071,7 +1071,7 @@ static int isp_video_check_external_subdevs(struct isp_video *video,
  * processing might be possible but requires more testing.
  *
  * Stream start must be delayed until buffers are available at both the input
- * and output. The pipeline must be started in the videobuf queue callback with
+ * and output. The pipeline must be started in the vb2 queue callback with
  * the buffers queue spinlock held. The modules subdev set stream operation must
  * not sleep.
  */
@@ -1093,8 +1093,7 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	/* Start streaming on the pipeline. No link touching an entity in the
 	 * pipeline can be activated or deactivated once streaming is started.
 	 */
-	pipe = video->video.entity.pipe
-	     ? to_isp_pipeline(&video->video.entity) : &video->pipe;
+	pipe = to_isp_pipeline(&video->video.entity) ? : &video->pipe;
 
 	ret = media_entity_enum_init(&pipe->ent_enum, &video->isp->media_dev);
 	if (ret)
@@ -1104,7 +1103,7 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	pipe->l3_ick = clk_get_rate(video->isp->clock[ISP_CLK_L3_ICK]);
 	pipe->max_rate = pipe->l3_ick;
 
-	ret = media_pipeline_start(&video->video.entity, &pipe->pipe);
+	ret = video_device_pipeline_start(&video->video, &pipe->pipe);
 	if (ret < 0)
 		goto err_pipeline_start;
 
@@ -1161,7 +1160,7 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	return 0;
 
 err_check_format:
-	media_pipeline_stop(&video->video.entity);
+	video_device_pipeline_stop(&video->video);
 err_pipeline_start:
 	/* TODO: Implement PM QoS */
 	/* The DMA queue must be emptied here, otherwise CCDC interrupts that
@@ -1228,7 +1227,7 @@ isp_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	video->error = false;
 
 	/* TODO: Implement PM QoS */
-	media_pipeline_stop(&video->video.entity);
+	video_device_pipeline_stop(&video->video);
 
 	media_entity_enum_cleanup(&pipe->ent_enum);
 

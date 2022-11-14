@@ -62,8 +62,6 @@ struct ohci_at91_priv {
 
 #define DRIVER_DESC "OHCI Atmel driver"
 
-static const char hcd_name[] = "ohci-atmel";
-
 static struct hc_driver __read_mostly ohci_at91_hc_driver;
 
 static const struct ohci_driver_overrides ohci_at91_drv_overrides __initconst = {
@@ -699,7 +697,6 @@ static int __init ohci_at91_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 	ohci_init_driver(&ohci_at91_hc_driver, &ohci_at91_drv_overrides);
 
 	/*

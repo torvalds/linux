@@ -5,7 +5,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
-#include <dt-bindings/clk/versaclock.h>
+#include <dt-bindings/clock/versaclock.h>
 
 / {
 	backlight_lvds: backlight-lvds {

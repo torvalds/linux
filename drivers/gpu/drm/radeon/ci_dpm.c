@@ -2056,7 +2056,7 @@ static void ci_clear_vc(struct radeon_device *rdev)
 static int ci_upload_firmware(struct radeon_device *rdev)
 {
 	struct ci_power_info *pi = ci_get_pi(rdev);
-	int i, ret;
+	int i;
 
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		if (RREG32_SMC(RCU_UC_EVENTS) & BOOT_SEQ_DONE)
@@ -2067,9 +2067,7 @@ static int ci_upload_firmware(struct radeon_device *rdev)
 	ci_stop_smc_clock(rdev);
 	ci_reset_smc(rdev);
 
-	ret = ci_load_smc_ucode(rdev, pi->sram_end);
-
-	return ret;
+	return ci_load_smc_ucode(rdev, pi->sram_end);
 
 }
 

@@ -19,7 +19,6 @@
 #define pr_fmt(fmt) "ACPI: VIOT: " fmt
 
 #include <linux/acpi_viot.h>
-#include <linux/dma-iommu.h>
 #include <linux/fwnode.h>
 #include <linux/iommu.h>
 #include <linux/list.h>

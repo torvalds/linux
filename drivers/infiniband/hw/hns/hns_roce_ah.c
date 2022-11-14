@@ -41,9 +41,8 @@ static inline u16 get_ah_udp_sport(const struct rdma_ah_attr *ah_attr)
 	u16 sport;
 
 	if (!fl)
-		sport = get_random_u32() %
-			(IB_ROCE_UDP_ENCAP_VALID_PORT_MAX + 1 -
-			 IB_ROCE_UDP_ENCAP_VALID_PORT_MIN) +
+		sport = prandom_u32_max(IB_ROCE_UDP_ENCAP_VALID_PORT_MAX + 1 -
+					IB_ROCE_UDP_ENCAP_VALID_PORT_MIN) +
 			IB_ROCE_UDP_ENCAP_VALID_PORT_MIN;
 	else
 		sport = rdma_flow_label_to_udp_sport(fl);

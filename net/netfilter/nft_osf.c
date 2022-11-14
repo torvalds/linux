@@ -51,7 +51,7 @@ static void nft_osf_eval(const struct nft_expr *expr, struct nft_regs *regs,
 			snprintf(os_match, NFT_OSF_MAXGENRELEN, "%s:%s",
 				 data.genre, data.version);
 		else
-			strlcpy(os_match, data.genre, NFT_OSF_MAXGENRELEN);
+			strscpy(os_match, data.genre, NFT_OSF_MAXGENRELEN);
 
 		strncpy((char *)dest, os_match, NFT_OSF_MAXGENRELEN);
 	}

@@ -967,7 +967,7 @@ qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
 		hwinfo->total_rx_chain, hwinfo->total_tx_chain,
 		hwinfo->fw_ver);
 
-	strlcpy(hwinfo->fw_version, bld_label, sizeof(hwinfo->fw_version));
+	strscpy(hwinfo->fw_version, bld_label, sizeof(hwinfo->fw_version));
 	hwinfo->hw_version = hw_ver;
 
 	return 0;

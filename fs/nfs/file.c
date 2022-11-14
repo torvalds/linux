@@ -567,7 +567,8 @@ static vm_fault_t nfs_vm_page_mkwrite(struct vm_fault *vmf)
 	}
 
 	wait_on_bit_action(&NFS_I(inode)->flags, NFS_INO_INVALIDATING,
-			nfs_wait_bit_killable, TASK_KILLABLE);
+			   nfs_wait_bit_killable,
+			   TASK_KILLABLE|TASK_FREEZABLE_UNSAFE);
 
 	lock_page(page);
 	mapping = page_file_mapping(page);
@@ -655,9 +656,9 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 			goto out;
 	}
 	if (mntflags & NFS_MOUNT_WRITE_WAIT) {
-		result = filemap_fdatawait_range(file->f_mapping,
-						 iocb->ki_pos - written,
-						 iocb->ki_pos - 1);
+		filemap_fdatawait_range(file->f_mapping,
+					iocb->ki_pos - written,
+					iocb->ki_pos - 1);
 	}
 	result = generic_write_sync(iocb, written);
 	if (result < 0)

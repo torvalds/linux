@@ -960,8 +960,6 @@ static void hinic_refresh_nic_cfg(struct hinic_dev *nic_dev)
  * @in_size: input size
  * @buf_out: output buffer
  * @out_size: returned output size
- *
- * Return 0 - Success, negative - Failure
  **/
 static void link_status_event_handler(void *handle, void *buf_in, u16 in_size,
 				      void *buf_out, u16 *out_size)
@@ -1381,8 +1379,6 @@ err_pci_regions:
 	pci_disable_device(pdev);
 	return err;
 }
-
-#define HINIC_WAIT_SRIOV_CFG_TIMEOUT	15000
 
 static void wait_sriov_cfg_complete(struct hinic_dev *nic_dev)
 {

@@ -1856,10 +1856,8 @@ static int pxa2xx_spi_runtime_suspend(struct device *dev)
 static int pxa2xx_spi_runtime_resume(struct device *dev)
 {
 	struct driver_data *drv_data = dev_get_drvdata(dev);
-	int status;
 
-	status = clk_prepare_enable(drv_data->ssp->clk);
-	return status;
+	return clk_prepare_enable(drv_data->ssp->clk);
 }
 #endif
 

@@ -323,7 +323,7 @@ static int mtdswap_read_markers(struct mtdswap_dev *d, struct swap_eb *eb)
 	struct mtdswap_oobdata *data, *data2;
 	int ret;
 	loff_t offset;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 
 	offset = mtdswap_eb_offset(d, eb);
 
@@ -370,7 +370,7 @@ static int mtdswap_write_marker(struct mtdswap_dev *d, struct swap_eb *eb,
 	struct mtdswap_oobdata n;
 	int ret;
 	loff_t offset;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 
 	ops.ooboffs = 0;
 	ops.oobbuf = (uint8_t *)&n;
@@ -878,7 +878,7 @@ static unsigned int mtdswap_eblk_passes(struct mtdswap_dev *d,
 	loff_t base, pos;
 	unsigned int *p1 = (unsigned int *)d->page_buf;
 	unsigned char *p2 = (unsigned char *)d->oob_buf;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int ret;
 
 	ops.mode = MTD_OPS_AUTO_OOB;

@@ -140,11 +140,12 @@ static struct device_node *ti_find_clock_provider(struct device_node *from,
 			break;
 		}
 	}
-	of_node_put(from);
 	kfree(tmp);
 
-	if (found)
+	if (found) {
+		of_node_put(from);
 		return np;
+	}
 
 	/* Fall back to using old node name base provider name */
 	return of_find_node_by_name(from, name);

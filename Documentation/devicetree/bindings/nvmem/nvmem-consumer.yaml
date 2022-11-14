@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/nvmem/nvmem-consumer.yaml#
 $schema: http://devicetree.org/meta-schemas/base.yaml#
 
-title: NVMEM (Non Volatile Memory) Consumer Device Tree Bindings
+title: NVMEM (Non Volatile Memory) Consumer
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>

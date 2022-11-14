@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010-2013 Felix Fietkau <nbd@openwrt.org>
- * Copyright (C) 2019-2021 Intel Corporation
+ * Copyright (C) 2019-2022 Intel Corporation
  */
 #include <linux/netdevice.h>
 #include <linux/types.h>
@@ -1479,7 +1479,7 @@ minstrel_ht_set_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	 *  - for fallback rates, to increase chances of getting through
 	 */
 	if (offset > 0 ||
-	    (mi->sta->smps_mode == IEEE80211_SMPS_DYNAMIC &&
+	    (mi->sta->deflink.smps_mode == IEEE80211_SMPS_DYNAMIC &&
 	     group->streams > 1)) {
 		ratetbl->rate[offset].count = ratetbl->rate[offset].count_rts;
 		flags |= IEEE80211_TX_RC_USE_RTS_CTS;
@@ -1570,7 +1570,8 @@ minstrel_ht_update_rates(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	if (i < IEEE80211_TX_RATE_TABLE_SIZE)
 		rates->rate[i].idx = -1;
 
-	mi->sta->max_rc_amsdu_len = minstrel_ht_get_max_amsdu_len(mi);
+	mi->sta->deflink.agg.max_rc_amsdu_len = minstrel_ht_get_max_amsdu_len(mi);
+	ieee80211_sta_recalc_aggregates(mi->sta);
 	rate_control_set_rates(mp->hw, mi->sta, rates);
 }
 
@@ -1781,7 +1782,7 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 		nss = minstrel_mcs_groups[i].streams;
 
 		/* Mark MCS > 7 as unsupported if STA is in static SMPS mode */
-		if (sta->smps_mode == IEEE80211_SMPS_STATIC && nss > 1)
+		if (sta->deflink.smps_mode == IEEE80211_SMPS_STATIC && nss > 1)
 			continue;
 
 		/* HT rate */
@@ -2035,7 +2036,7 @@ static void __init init_sample_table(void)
 
 	memset(sample_table, 0xff, sizeof(sample_table));
 	for (col = 0; col < SAMPLE_COLUMNS; col++) {
-		prandom_bytes(rnd, sizeof(rnd));
+		get_random_bytes(rnd, sizeof(rnd));
 		for (i = 0; i < MCS_GROUP_RATES; i++) {
 			new_idx = (i + rnd[i]) % MCS_GROUP_RATES;
 			while (sample_table[col][new_idx] != 0xff)

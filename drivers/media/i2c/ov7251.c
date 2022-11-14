@@ -1767,7 +1767,7 @@ destroy_mutex:
 	return ret;
 }
 
-static int ov7251_remove(struct i2c_client *client)
+static void ov7251_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov7251 *ov7251 = to_ov7251(sd);
@@ -1781,8 +1781,6 @@ static int ov7251_remove(struct i2c_client *client)
 	if (!pm_runtime_status_suspended(ov7251->dev))
 		ov7251_set_power_off(ov7251->dev);
 	pm_runtime_set_suspended(ov7251->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops ov7251_pm_ops = {

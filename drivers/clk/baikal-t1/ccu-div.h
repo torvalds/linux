@@ -14,14 +14,25 @@
 #include <linux/of.h>
 
 /*
+ * CCU Divider private clock IDs
+ * @CCU_SYS_SATA_CLK: CCU SATA internal clock
+ * @CCU_SYS_XGMAC_CLK: CCU XGMAC internal clock
+ */
+#define CCU_SYS_SATA_CLK		-1
+#define CCU_SYS_XGMAC_CLK		-2
+
+/*
  * CCU Divider private flags
+ * @CCU_DIV_BASIC: Basic divider clock required by the kernel as early as
+ *		   possible.
  * @CCU_DIV_SKIP_ONE: Due to some reason divider can't be set to 1.
  *		      It can be 0 though, which is functionally the same.
  * @CCU_DIV_SKIP_ONE_TO_THREE: For some reason divider can't be within [1,3].
  *			       It can be either 0 or greater than 3.
  * @CCU_DIV_LOCK_SHIFTED: Find lock-bit at non-standard position.
- * @CCU_DIV_RESET_DOMAIN: Provide reset clock domain method.
+ * @CCU_DIV_RESET_DOMAIN: There is a clock domain reset handle.
  */
+#define CCU_DIV_BASIC			BIT(0)
 #define CCU_DIV_SKIP_ONE		BIT(1)
 #define CCU_DIV_SKIP_ONE_TO_THREE	BIT(2)
 #define CCU_DIV_LOCK_SHIFTED		BIT(3)
@@ -31,11 +42,13 @@
  * enum ccu_div_type - CCU Divider types
  * @CCU_DIV_VAR: Clocks gate with variable divider.
  * @CCU_DIV_GATE: Clocks gate with fixed divider.
+ * @CCU_DIV_BUF: Clock gate with no divider.
  * @CCU_DIV_FIXED: Ungateable clock with fixed divider.
  */
 enum ccu_div_type {
 	CCU_DIV_VAR,
 	CCU_DIV_GATE,
+	CCU_DIV_BUF,
 	CCU_DIV_FIXED
 };
 
@@ -104,7 +117,5 @@ static inline struct clk_hw *ccu_div_get_clk_hw(struct ccu_div *div)
 struct ccu_div *ccu_div_hw_register(const struct ccu_div_init_data *init);
 
 void ccu_div_hw_unregister(struct ccu_div *div);
-
-int ccu_div_reset_domain(struct ccu_div *div);
 
 #endif /* __CLK_BT1_CCU_DIV_H__ */

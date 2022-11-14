@@ -1120,11 +1120,6 @@ check_burst32:
 	return IRQ_HANDLED;
 }
 
-static void adis16475_disable_clk(void *data)
-{
-	clk_disable_unprepare((struct clk *)data);
-}
-
 static int adis16475_config_sync_mode(struct adis16475 *st)
 {
 	int ret;
@@ -1150,18 +1145,10 @@ static int adis16475_config_sync_mode(struct adis16475 *st)
 
 	/* All the other modes require external input signal */
 	if (sync->sync_mode != ADIS16475_SYNC_OUTPUT) {
-		struct clk *clk = devm_clk_get(dev, NULL);
+		struct clk *clk = devm_clk_get_enabled(dev, NULL);
 
 		if (IS_ERR(clk))
 			return PTR_ERR(clk);
-
-		ret = clk_prepare_enable(clk);
-		if (ret)
-			return ret;
-
-		ret = devm_add_action_or_reset(dev, adis16475_disable_clk, clk);
-		if (ret)
-			return ret;
 
 		st->clk_freq = clk_get_rate(clk);
 		if (st->clk_freq < sync->min_rate ||

@@ -131,51 +131,40 @@ struct rt_hi_throughput {
 	u8				AMPDU_Factor;
 	u8				CurrentAMPDUFactor;
 	u8				MPDU_Density;
-	u8				CurrentMPDUDensity;
+	u8 current_mpdu_density;
 
 	enum ht_aggre_mode ForcedAMPDUMode;
-	u8				ForcedAMPDUFactor;
-	u8				ForcedMPDUDensity;
+	u8 forced_ampdu_factor;
+	u8 forced_mpdu_density;
 
 	enum ht_aggre_mode ForcedAMSDUMode;
-	u16				ForcedAMSDUMaxSize;
+	u8 forced_short_gi;
 
-	u8				bForcedShortGI;
+	u8 current_op_mode;
 
-	u8				CurrentOpMode;
-
-	u8				SelfMimoPs;
-	u8				PeerMimoPs;
+	u8 self_mimo_ps;
+	u8 peer_mimo_ps;
 
 	enum ht_extchnl_offset CurSTAExtChnlOffset;
-	u8				bCurTxBW40MHz;
-	u8				PeerBandwidth;
-
-	u8				bSwBwInProgress;
-	u8				SwBwStep;
-
-	u8				bRegRT2RTAggregation;
+	u8 cur_tx_bw40mhz;
+	u8 sw_bw_in_progress;
+	u8 reg_rt2rt_aggregation;
 	u8				RT2RT_HT_Mode;
-	u8				bCurrentRT2RTAggregation;
-	u8				bCurrentRT2RTLongSlotTime;
-	u8				szRT2RTAggBuffer[10];
+	u8 current_rt2rt_aggregation;
+	u8 current_rt2rt_long_slot_time;
+	u8 sz_rt2rt_agg_buf[10];
 
-	u8				bRegRxReorderEnable;
-	u8				bCurRxReorderEnable;
-	u8				RxReorderWinSize;
-	u8				RxReorderPendingTime;
-	u16				RxReorderDropCounter;
-
-	u8				bIsPeerBcm;
-
+	u8 reg_rx_reorder_enable;
+	u8 cur_rx_reorder_enable;
+	u8 rx_reorder_win_size;
+	u8 rx_reorder_pending_time;
+	u16 rx_reorder_drop_counter;
 	u8				IOTPeer;
-	u32				IOTAction;
-	u8				IOTRaFunc;
+	u32 iot_action;
+	u8 iot_ra_func;
 
 	u8	bWAIotBroadcom;
 	u8	WAIotTH;
-
-	u8				bAcceptAddbaReq;
 } __packed;
 
 struct bss_ht {

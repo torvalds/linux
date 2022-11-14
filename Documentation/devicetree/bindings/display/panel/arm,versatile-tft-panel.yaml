@@ -37,9 +37,6 @@ examples:
         compatible = "arm,versatile-sysreg", "syscon", "simple-mfd";
         reg = <0x00000 0x1000>;
 
-        #address-cells = <1>;
-        #size-cells = <0>;
-
         panel {
             compatible = "arm,versatile-tft-panel";
 

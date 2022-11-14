@@ -17,6 +17,7 @@
  */
 
 #include <linux/apple-mailbox.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gfp.h>
 #include <linux/interrupt.h>
@@ -25,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/spinlock.h>
 #include <linux/types.h>
 
 #define APPLE_ASC_MBOX_CONTROL_FULL  BIT(16)
@@ -100,6 +102,7 @@ struct apple_mbox {
 
 	struct device *dev;
 	struct mbox_controller controller;
+	spinlock_t rx_lock;
 };
 
 static const struct of_device_id apple_mbox_of_match[];
@@ -110,6 +113,14 @@ static bool apple_mbox_hw_can_send(struct apple_mbox *apple_mbox)
 		readl_relaxed(apple_mbox->regs + apple_mbox->hw->a2i_control);
 
 	return !(mbox_ctrl & apple_mbox->hw->control_full);
+}
+
+static bool apple_mbox_hw_send_empty(struct apple_mbox *apple_mbox)
+{
+	u32 mbox_ctrl =
+		readl_relaxed(apple_mbox->regs + apple_mbox->hw->a2i_control);
+
+	return mbox_ctrl & apple_mbox->hw->control_empty;
 }
 
 static int apple_mbox_hw_send(struct apple_mbox *apple_mbox,
@@ -195,13 +206,15 @@ static irqreturn_t apple_mbox_send_empty_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t apple_mbox_recv_irq(int irq, void *data)
+static int apple_mbox_poll(struct apple_mbox *apple_mbox)
 {
-	struct apple_mbox *apple_mbox = data;
 	struct apple_mbox_msg msg;
+	int ret = 0;
 
-	while (apple_mbox_hw_recv(apple_mbox, &msg) == 0)
+	while (apple_mbox_hw_recv(apple_mbox, &msg) == 0) {
 		mbox_chan_received_data(&apple_mbox->chan, (void *)&msg);
+		ret++;
+	}
 
 	/*
 	 * The interrupt will keep firing even if there are no more messages
@@ -216,7 +229,48 @@ static irqreturn_t apple_mbox_recv_irq(int irq, void *data)
 			       apple_mbox->regs + apple_mbox->hw->irq_ack);
 	}
 
+	return ret;
+}
+
+static irqreturn_t apple_mbox_recv_irq(int irq, void *data)
+{
+	struct apple_mbox *apple_mbox = data;
+
+	spin_lock(&apple_mbox->rx_lock);
+	apple_mbox_poll(apple_mbox);
+	spin_unlock(&apple_mbox->rx_lock);
+
 	return IRQ_HANDLED;
+}
+
+static bool apple_mbox_chan_peek_data(struct mbox_chan *chan)
+{
+	struct apple_mbox *apple_mbox = chan->con_priv;
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&apple_mbox->rx_lock, flags);
+	ret = apple_mbox_poll(apple_mbox);
+	spin_unlock_irqrestore(&apple_mbox->rx_lock, flags);
+
+	return ret > 0;
+}
+
+static int apple_mbox_chan_flush(struct mbox_chan *chan, unsigned long timeout)
+{
+	struct apple_mbox *apple_mbox = chan->con_priv;
+	unsigned long deadline = jiffies + msecs_to_jiffies(timeout);
+
+	while (time_before(jiffies, deadline)) {
+		if (apple_mbox_hw_send_empty(apple_mbox)) {
+			mbox_chan_txdone(&apple_mbox->chan, 0);
+			return 0;
+		}
+
+		udelay(1);
+	}
+
+	return -ETIME;
 }
 
 static int apple_mbox_chan_startup(struct mbox_chan *chan)
@@ -250,6 +304,8 @@ static void apple_mbox_chan_shutdown(struct mbox_chan *chan)
 
 static const struct mbox_chan_ops apple_mbox_ops = {
 	.send_data = apple_mbox_chan_send_data,
+	.peek_data = apple_mbox_chan_peek_data,
+	.flush = apple_mbox_chan_flush,
 	.startup = apple_mbox_chan_startup,
 	.shutdown = apple_mbox_chan_shutdown,
 };
@@ -304,6 +360,7 @@ static int apple_mbox_probe(struct platform_device *pdev)
 	mbox->controller.txdone_irq = true;
 	mbox->controller.of_xlate = apple_mbox_of_xlate;
 	mbox->chan.con_priv = mbox;
+	spin_lock_init(&mbox->rx_lock);
 
 	irqname = devm_kasprintf(dev, GFP_KERNEL, "%s-recv", dev_name(dev));
 	if (!irqname)

@@ -8,7 +8,6 @@ title: Analog Devices AD7923 and similars with 4 and 8 Channel ADCs.
 
 maintainers:
   - Michael Hennerich <michael.hennerich@analog.com>
-  - Patrick Vasseur <patrick.vasseur@c-s.fr>
 
 description: |
   Analog Devices AD7904, AD7914, AD7923, AD7924 4 Channel ADCs, and AD7908,
@@ -37,19 +36,24 @@ properties:
     description: |
       The regulator supply for ADC reference voltage.
 
+  adi,range-double:
+    description: Sets the analog input range from 0 to 2xVREF.
+    type: boolean
+
   '#address-cells':
     const: 1
 
   '#size-cells':
     const: 0
 
-  spi-max-frequency: true
-
 required:
   - compatible
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

@@ -30,7 +30,7 @@
 #define ENOTSUPP 524
 #endif
 
-static int skips;
+int skips;
 
 static struct bpf_map_create_opts map_opts = { .sz = sizeof(map_opts) };
 
@@ -264,10 +264,11 @@ static void test_hashmap_percpu(unsigned int task, void *data)
 	close(fd);
 }
 
+#define VALUE_SIZE 3
 static int helper_fill_hashmap(int max_entries)
 {
 	int i, fd, ret;
-	long long key, value;
+	long long key, value[VALUE_SIZE] = {};
 
 	fd = bpf_map_create(BPF_MAP_TYPE_HASH, NULL, sizeof(key), sizeof(value),
 			    max_entries, &map_opts);
@@ -276,8 +277,8 @@ static int helper_fill_hashmap(int max_entries)
 	      "err: %s, flags: 0x%x\n", strerror(errno), map_opts.map_flags);
 
 	for (i = 0; i < max_entries; i++) {
-		key = i; value = key;
-		ret = bpf_map_update_elem(fd, &key, &value, BPF_NOEXIST);
+		key = i; value[0] = key;
+		ret = bpf_map_update_elem(fd, &key, value, BPF_NOEXIST);
 		CHECK(ret != 0,
 		      "can't update hashmap",
 		      "err: %s\n", strerror(ret));
@@ -288,8 +289,8 @@ static int helper_fill_hashmap(int max_entries)
 
 static void test_hashmap_walk(unsigned int task, void *data)
 {
-	int fd, i, max_entries = 1000;
-	long long key, value, next_key;
+	int fd, i, max_entries = 10000;
+	long long key, value[VALUE_SIZE], next_key;
 	bool next_key_valid = true;
 
 	fd = helper_fill_hashmap(max_entries);
@@ -297,7 +298,7 @@ static void test_hashmap_walk(unsigned int task, void *data)
 	for (i = 0; bpf_map_get_next_key(fd, !i ? NULL : &key,
 					 &next_key) == 0; i++) {
 		key = next_key;
-		assert(bpf_map_lookup_elem(fd, &key, &value) == 0);
+		assert(bpf_map_lookup_elem(fd, &key, value) == 0);
 	}
 
 	assert(i == max_entries);
@@ -305,9 +306,9 @@ static void test_hashmap_walk(unsigned int task, void *data)
 	assert(bpf_map_get_next_key(fd, NULL, &key) == 0);
 	for (i = 0; next_key_valid; i++) {
 		next_key_valid = bpf_map_get_next_key(fd, &key, &next_key) == 0;
-		assert(bpf_map_lookup_elem(fd, &key, &value) == 0);
-		value++;
-		assert(bpf_map_update_elem(fd, &key, &value, BPF_EXIST) == 0);
+		assert(bpf_map_lookup_elem(fd, &key, value) == 0);
+		value[0]++;
+		assert(bpf_map_update_elem(fd, &key, value, BPF_EXIST) == 0);
 		key = next_key;
 	}
 
@@ -316,8 +317,8 @@ static void test_hashmap_walk(unsigned int task, void *data)
 	for (i = 0; bpf_map_get_next_key(fd, !i ? NULL : &key,
 					 &next_key) == 0; i++) {
 		key = next_key;
-		assert(bpf_map_lookup_elem(fd, &key, &value) == 0);
-		assert(value - 1 == key);
+		assert(bpf_map_lookup_elem(fd, &key, value) == 0);
+		assert(value[0] - 1 == key);
 	}
 
 	assert(i == max_entries);
@@ -651,20 +652,20 @@ static void test_stackmap(unsigned int task, void *data)
 #include <arpa/inet.h>
 #include <sys/select.h>
 #include <linux/err.h>
-#define SOCKMAP_PARSE_PROG "./sockmap_parse_prog.o"
-#define SOCKMAP_VERDICT_PROG "./sockmap_verdict_prog.o"
-#define SOCKMAP_TCP_MSG_PROG "./sockmap_tcp_msg_prog.o"
+#define SOCKMAP_PARSE_PROG "./sockmap_parse_prog.bpf.o"
+#define SOCKMAP_VERDICT_PROG "./sockmap_verdict_prog.bpf.o"
+#define SOCKMAP_TCP_MSG_PROG "./sockmap_tcp_msg_prog.bpf.o"
 static void test_sockmap(unsigned int tasks, void *data)
 {
 	struct bpf_map *bpf_map_rx, *bpf_map_tx, *bpf_map_msg, *bpf_map_break;
 	int map_fd_msg = 0, map_fd_rx = 0, map_fd_tx = 0, map_fd_break;
+	struct bpf_object *parse_obj, *verdict_obj, *msg_obj;
 	int ports[] = {50200, 50201, 50202, 50204};
 	int err, i, fd, udp, sfd[6] = {0xdeadbeef};
 	u8 buf[20] = {0x0, 0x5, 0x3, 0x2, 0x1, 0x0};
 	int parse_prog, verdict_prog, msg_prog;
 	struct sockaddr_in addr;
 	int one = 1, s, sc, rc;
-	struct bpf_object *obj;
 	struct timeval to;
 	__u32 key, value;
 	pid_t pid[tasks];
@@ -760,6 +761,7 @@ static void test_sockmap(unsigned int tasks, void *data)
 		       i, udp);
 		goto out_sockmap;
 	}
+	close(udp);
 
 	/* Test update without programs */
 	for (i = 0; i < 6; i++) {
@@ -822,27 +824,27 @@ static void test_sockmap(unsigned int tasks, void *data)
 
 	/* Load SK_SKB program and Attach */
 	err = bpf_prog_test_load(SOCKMAP_PARSE_PROG,
-			    BPF_PROG_TYPE_SK_SKB, &obj, &parse_prog);
+			    BPF_PROG_TYPE_SK_SKB, &parse_obj, &parse_prog);
 	if (err) {
 		printf("Failed to load SK_SKB parse prog\n");
 		goto out_sockmap;
 	}
 
 	err = bpf_prog_test_load(SOCKMAP_TCP_MSG_PROG,
-			    BPF_PROG_TYPE_SK_MSG, &obj, &msg_prog);
+			    BPF_PROG_TYPE_SK_MSG, &msg_obj, &msg_prog);
 	if (err) {
 		printf("Failed to load SK_SKB msg prog\n");
 		goto out_sockmap;
 	}
 
 	err = bpf_prog_test_load(SOCKMAP_VERDICT_PROG,
-			    BPF_PROG_TYPE_SK_SKB, &obj, &verdict_prog);
+			    BPF_PROG_TYPE_SK_SKB, &verdict_obj, &verdict_prog);
 	if (err) {
 		printf("Failed to load SK_SKB verdict prog\n");
 		goto out_sockmap;
 	}
 
-	bpf_map_rx = bpf_object__find_map_by_name(obj, "sock_map_rx");
+	bpf_map_rx = bpf_object__find_map_by_name(verdict_obj, "sock_map_rx");
 	if (!bpf_map_rx) {
 		printf("Failed to load map rx from verdict prog\n");
 		goto out_sockmap;
@@ -854,7 +856,7 @@ static void test_sockmap(unsigned int tasks, void *data)
 		goto out_sockmap;
 	}
 
-	bpf_map_tx = bpf_object__find_map_by_name(obj, "sock_map_tx");
+	bpf_map_tx = bpf_object__find_map_by_name(verdict_obj, "sock_map_tx");
 	if (!bpf_map_tx) {
 		printf("Failed to load map tx from verdict prog\n");
 		goto out_sockmap;
@@ -866,7 +868,7 @@ static void test_sockmap(unsigned int tasks, void *data)
 		goto out_sockmap;
 	}
 
-	bpf_map_msg = bpf_object__find_map_by_name(obj, "sock_map_msg");
+	bpf_map_msg = bpf_object__find_map_by_name(verdict_obj, "sock_map_msg");
 	if (!bpf_map_msg) {
 		printf("Failed to load map msg from msg_verdict prog\n");
 		goto out_sockmap;
@@ -878,7 +880,7 @@ static void test_sockmap(unsigned int tasks, void *data)
 		goto out_sockmap;
 	}
 
-	bpf_map_break = bpf_object__find_map_by_name(obj, "sock_map_break");
+	bpf_map_break = bpf_object__find_map_by_name(verdict_obj, "sock_map_break");
 	if (!bpf_map_break) {
 		printf("Failed to load map tx from verdict prog\n");
 		goto out_sockmap;
@@ -1124,7 +1126,9 @@ static void test_sockmap(unsigned int tasks, void *data)
 	}
 	close(fd);
 	close(map_fd_rx);
-	bpf_object__close(obj);
+	bpf_object__close(parse_obj);
+	bpf_object__close(msg_obj);
+	bpf_object__close(verdict_obj);
 	return;
 out:
 	for (i = 0; i < 6; i++)
@@ -1143,8 +1147,8 @@ out_sockmap:
 	exit(1);
 }
 
-#define MAPINMAP_PROG "./test_map_in_map.o"
-#define MAPINMAP_INVALID_PROG "./test_map_in_map_invalid.o"
+#define MAPINMAP_PROG "./test_map_in_map.bpf.o"
+#define MAPINMAP_INVALID_PROG "./test_map_in_map_invalid.bpf.o"
 static void test_map_in_map(void)
 {
 	struct bpf_object *obj;
@@ -1282,8 +1286,11 @@ static void test_map_in_map(void)
 			printf("Inner map mim.inner was not destroyed\n");
 			goto out_map_in_map;
 		}
+
+		close(fd);
 	}
 
+	bpf_object__close(obj);
 	return;
 
 out_map_in_map:
@@ -1371,16 +1378,16 @@ static void __run_parallel(unsigned int tasks,
 
 static void test_map_stress(void)
 {
+	run_parallel(100, test_hashmap_walk, NULL);
 	run_parallel(100, test_hashmap, NULL);
 	run_parallel(100, test_hashmap_percpu, NULL);
 	run_parallel(100, test_hashmap_sizes, NULL);
-	run_parallel(100, test_hashmap_walk, NULL);
 
 	run_parallel(100, test_arraymap, NULL);
 	run_parallel(100, test_arraymap_percpu, NULL);
 }
 
-#define TASKS 1024
+#define TASKS 100
 
 #define DO_UPDATE 1
 #define DO_DELETE 0
@@ -1432,6 +1439,8 @@ static void test_update_delete(unsigned int fn, void *data)
 	int fd = ((int *)data)[0];
 	int i, key, value, err;
 
+	if (fn & 1)
+		test_hashmap_walk(fn, NULL);
 	for (i = fn; i < MAP_SIZE; i += TASKS) {
 		key = value = i;
 
@@ -1455,7 +1464,7 @@ static void test_update_delete(unsigned int fn, void *data)
 
 static void test_map_parallel(void)
 {
-	int i, fd, key = 0, value = 0;
+	int i, fd, key = 0, value = 0, j = 0;
 	int data[2];
 
 	fd = bpf_map_create(BPF_MAP_TYPE_HASH, NULL, sizeof(key), sizeof(value),
@@ -1466,6 +1475,7 @@ static void test_map_parallel(void)
 		exit(1);
 	}
 
+again:
 	/* Use the same fd in children to add elements to this map:
 	 * child_0 adds key=0, key=1024, key=2048, ...
 	 * child_1 adds key=1, key=1025, key=2049, ...
@@ -1502,6 +1512,12 @@ static void test_map_parallel(void)
 	key = -1;
 	assert(bpf_map_get_next_key(fd, NULL, &key) < 0 && errno == ENOENT);
 	assert(bpf_map_get_next_key(fd, &key, &key) < 0 && errno == ENOENT);
+
+	key = 0;
+	bpf_map_delete_elem(fd, &key);
+	if (j++ < 5)
+		goto again;
+	close(fd);
 }
 
 static void test_map_rdonly(void)

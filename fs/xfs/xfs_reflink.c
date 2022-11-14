@@ -200,7 +200,9 @@ xfs_reflink_trim_around_shared(
 	if (fbno == NULLAGBLOCK) {
 		/* No shared blocks at all. */
 		return 0;
-	} else if (fbno == agbno) {
+	}
+
+	if (fbno == agbno) {
 		/*
 		 * The start of this extent is shared.  Truncate the
 		 * mapping at the end of the shared region so that a
@@ -210,16 +212,16 @@ xfs_reflink_trim_around_shared(
 		irec->br_blockcount = flen;
 		*shared = true;
 		return 0;
-	} else {
-		/*
-		 * There's a shared extent midway through this extent.
-		 * Truncate the mapping at the start of the shared
-		 * extent so that a subsequent iteration starts at the
-		 * start of the shared region.
-		 */
-		irec->br_blockcount = fbno - agbno;
-		return 0;
 	}
+
+	/*
+	 * There's a shared extent midway through this extent.
+	 * Truncate the mapping at the start of the shared
+	 * extent so that a subsequent iteration starts at the
+	 * start of the shared region.
+	 */
+	irec->br_blockcount = fbno - agbno;
+	return 0;
 }
 
 int

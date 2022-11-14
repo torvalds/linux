@@ -7,13 +7,14 @@
 #include <linux/bpf.h>
 #include <linux/in.h>
 #include <linux/in6.h>
-#include <sys/socket.h>
-#include <netinet/tcp.h>
+#include <linux/tcp.h>
 #include <linux/if.h>
 #include <errno.h>
 
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
+
+#include "bpf_tcp_helpers.h"
 
 #define SRC_REWRITE_IP4		0x7f000004U
 #define DST_REWRITE_IP4		0x7f000001U

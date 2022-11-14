@@ -49,8 +49,6 @@ properties:
     default: 4096000
 
 
-  spi-max-frequency: true
-
   '#io-channel-cells':
     const: 1
 
@@ -64,7 +62,10 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

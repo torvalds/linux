@@ -45,6 +45,8 @@ static int sanitycheck(void *arg)
 	if (!f)
 		return -ENOMEM;
 
+	dma_fence_enable_sw_signaling(f);
+
 	dma_fence_signal(f);
 	dma_fence_put(f);
 
@@ -68,6 +70,8 @@ static int test_signaling(void *arg)
 	f = alloc_fence();
 	if (!f)
 		return -ENOMEM;
+
+	dma_fence_enable_sw_signaling(f);
 
 	dma_resv_init(&resv);
 	r = dma_resv_lock(&resv, NULL);
@@ -113,6 +117,8 @@ static int test_for_each(void *arg)
 	f = alloc_fence();
 	if (!f)
 		return -ENOMEM;
+
+	dma_fence_enable_sw_signaling(f);
 
 	dma_resv_init(&resv);
 	r = dma_resv_lock(&resv, NULL);
@@ -172,6 +178,8 @@ static int test_for_each_unlocked(void *arg)
 	f = alloc_fence();
 	if (!f)
 		return -ENOMEM;
+
+	dma_fence_enable_sw_signaling(f);
 
 	dma_resv_init(&resv);
 	r = dma_resv_lock(&resv, NULL);
@@ -243,6 +251,8 @@ static int test_get_fences(void *arg)
 	f = alloc_fence();
 	if (!f)
 		return -ENOMEM;
+
+	dma_fence_enable_sw_signaling(f);
 
 	dma_resv_init(&resv);
 	r = dma_resv_lock(&resv, NULL);

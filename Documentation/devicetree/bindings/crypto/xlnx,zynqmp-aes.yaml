@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/crypto/xlnx,zynqmp-aes.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Xilinx ZynqMP AES-GCM Hardware Accelerator Device Tree Bindings
+title: Xilinx ZynqMP AES-GCM Hardware Accelerator
 
 maintainers:
   - Kalyani Akula <kalyani.akula@xilinx.com>

@@ -1467,8 +1467,7 @@ static int m_can_dev_setup(struct m_can_classdev *cdev)
 	}
 
 	if (!cdev->is_peripheral)
-		netif_napi_add(dev, &cdev->napi,
-			       m_can_poll, NAPI_POLL_WEIGHT);
+		netif_napi_add(dev, &cdev->napi, m_can_poll);
 
 	/* Shared properties of all M_CAN versions */
 	cdev->version = m_can_version;
@@ -1722,7 +1721,7 @@ static netdev_tx_t m_can_start_xmit(struct sk_buff *skb,
 {
 	struct m_can_classdev *cdev = netdev_priv(dev);
 
-	if (can_dropped_invalid_skb(dev, skb))
+	if (can_dev_dropped_skb(dev, skb))
 		return NETDEV_TX_OK;
 
 	if (cdev->is_peripheral) {

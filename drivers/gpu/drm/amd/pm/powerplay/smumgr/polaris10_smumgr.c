@@ -2567,15 +2567,13 @@ static uint8_t polaris10_get_memory_modile_index(struct pp_hwmgr *hwmgr)
 
 static int polaris10_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 {
-	int result;
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 	pp_atomctrl_mc_reg_table *mc_reg_table = &smu_data->mc_reg_table;
 	uint8_t module_index = polaris10_get_memory_modile_index(hwmgr);
 
 	memset(mc_reg_table, 0, sizeof(pp_atomctrl_mc_reg_table));
-	result = atomctrl_initialize_mc_reg_table_v2_2(hwmgr, module_index, mc_reg_table);
 
-	return result;
+	return atomctrl_initialize_mc_reg_table_v2_2(hwmgr, module_index, mc_reg_table);
 }
 
 static bool polaris10_is_dpm_running(struct pp_hwmgr *hwmgr)

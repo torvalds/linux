@@ -611,8 +611,8 @@ mwifiex_fw_dump_info_event(struct mwifiex_private *priv,
 		 * transmission event get lost, in this cornel case,
 		 * user would still get partial of the dump.
 		 */
-		mod_timer(&adapter->devdump_timer,
-			  jiffies + msecs_to_jiffies(MWIFIEX_TIMER_10S));
+		schedule_delayed_work(&adapter->devdump_work,
+				      msecs_to_jiffies(MWIFIEX_TIMER_10S));
 	}
 
 	/* Overflow check */
@@ -623,7 +623,7 @@ mwifiex_fw_dump_info_event(struct mwifiex_private *priv,
 		adapter->event_skb->data, event_skb->len);
 	adapter->devdump_len += event_skb->len;
 
-	if (le16_to_cpu(fw_dump_hdr->type == FW_DUMP_INFO_ENDED)) {
+	if (le16_to_cpu(fw_dump_hdr->type) == FW_DUMP_INFO_ENDED) {
 		mwifiex_dbg(adapter, MSG,
 			    "receive end of transmission flag event!\n");
 		goto upload_dump;
@@ -631,7 +631,7 @@ mwifiex_fw_dump_info_event(struct mwifiex_private *priv,
 	return;
 
 upload_dump:
-	del_timer_sync(&adapter->devdump_timer);
+	cancel_delayed_work_sync(&adapter->devdump_work);
 	mwifiex_upload_device_dump(adapter);
 }
 

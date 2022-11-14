@@ -18,9 +18,7 @@ static inline void swap_read_unplug(struct swap_iocb *plug)
 }
 void swap_write_unplug(struct swap_iocb *sio);
 int swap_writepage(struct page *page, struct writeback_control *wbc);
-void end_swap_bio_write(struct bio *bio);
-int __swap_writepage(struct page *page, struct writeback_control *wbc,
-		     bio_end_io_t end_write_func);
+int __swap_writepage(struct page *page, struct writeback_control *wbc);
 
 /* linux/mm/swap_state.c */
 /* One swap address space for each 64M swap space */
@@ -34,16 +32,15 @@ extern struct address_space *swapper_spaces[];
 void show_swap_cache_info(void);
 bool add_to_swap(struct folio *folio);
 void *get_shadow_from_swap_cache(swp_entry_t entry);
-int add_to_swap_cache(struct page *page, swp_entry_t entry,
+int add_to_swap_cache(struct folio *folio, swp_entry_t entry,
 		      gfp_t gfp, void **shadowp);
 void __delete_from_swap_cache(struct folio *folio,
 			      swp_entry_t entry, void *shadow);
 void delete_from_swap_cache(struct folio *folio);
 void clear_shadow_from_swap_cache(int type, unsigned long begin,
 				  unsigned long end);
-struct page *lookup_swap_cache(swp_entry_t entry,
-			       struct vm_area_struct *vma,
-			       unsigned long addr);
+struct folio *swap_cache_get_folio(swp_entry_t entry,
+		struct vm_area_struct *vma, unsigned long addr);
 struct page *find_get_incore_page(struct address_space *mapping, pgoff_t index);
 
 struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
@@ -101,9 +98,8 @@ static inline int swap_writepage(struct page *p, struct writeback_control *wbc)
 	return 0;
 }
 
-static inline struct page *lookup_swap_cache(swp_entry_t swp,
-					     struct vm_area_struct *vma,
-					     unsigned long addr)
+static inline struct folio *swap_cache_get_folio(swp_entry_t entry,
+		struct vm_area_struct *vma, unsigned long addr)
 {
 	return NULL;
 }
@@ -124,7 +120,7 @@ static inline void *get_shadow_from_swap_cache(swp_entry_t entry)
 	return NULL;
 }
 
-static inline int add_to_swap_cache(struct page *page, swp_entry_t entry,
+static inline int add_to_swap_cache(struct folio *folio, swp_entry_t entry,
 					gfp_t gfp_mask, void **shadowp)
 {
 	return -1;

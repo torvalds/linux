@@ -30,8 +30,6 @@ properties:
 
   spi-cpha: true
 
-  spi-max-frequency: true
-
   '#address-cells':
     const: 1
 
@@ -65,7 +63,10 @@ patternProperties:
 
     additionalProperties: true
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

@@ -619,6 +619,7 @@ static struct genl_family ioam6_genl_family __ro_after_init = {
 	.parallel_ops	= true,
 	.ops		= ioam6_genl_ops,
 	.n_ops		= ARRAY_SIZE(ioam6_genl_ops),
+	.resv_start_op	= IOAM6_CMD_NS_SET_SCHEMA + 1,
 	.module		= THIS_MODULE,
 };
 

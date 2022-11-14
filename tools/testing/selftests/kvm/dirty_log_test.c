@@ -17,6 +17,7 @@
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/atomic.h>
+#include <asm/barrier.h>
 
 #include "kvm_util.h"
 #include "test_util.h"
@@ -264,7 +265,8 @@ static void default_after_vcpu_run(struct kvm_vcpu *vcpu, int ret, int err)
 
 static bool dirty_ring_supported(void)
 {
-	return kvm_has_cap(KVM_CAP_DIRTY_LOG_RING);
+	return (kvm_has_cap(KVM_CAP_DIRTY_LOG_RING) ||
+		kvm_has_cap(KVM_CAP_DIRTY_LOG_RING_ACQ_REL));
 }
 
 static void dirty_ring_create_vm_done(struct kvm_vm *vm)
@@ -279,12 +281,12 @@ static void dirty_ring_create_vm_done(struct kvm_vm *vm)
 
 static inline bool dirty_gfn_is_dirtied(struct kvm_dirty_gfn *gfn)
 {
-	return gfn->flags == KVM_DIRTY_GFN_F_DIRTY;
+	return smp_load_acquire(&gfn->flags) == KVM_DIRTY_GFN_F_DIRTY;
 }
 
 static inline void dirty_gfn_set_collected(struct kvm_dirty_gfn *gfn)
 {
-	gfn->flags = KVM_DIRTY_GFN_F_RESET;
+	smp_store_release(&gfn->flags, KVM_DIRTY_GFN_F_RESET);
 }
 
 static uint32_t dirty_ring_collect_one(struct kvm_dirty_gfn *dirty_gfns,

@@ -27,25 +27,22 @@ properties:
     const: 1
 
   power-domains:
-    minItems: 4
     maxItems: 4
 
   power-domain-names:
-    items:
-      - const: bus
-      - const: g1
-      - const: g2
-      - const: h1
+    maxItems: 4
 
   clocks:
-    minItems: 3
     maxItems: 3
 
   clock-names:
-    items:
-      - const: g1
-      - const: g2
-      - const: h1
+    maxItems: 3
+
+  interconnects:
+    maxItems: 3
+
+  interconnect-names:
+    maxItems: 3
 
 required:
   - compatible
@@ -54,6 +51,97 @@ required:
   - power-domain-names
   - clocks
   - clock-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx8mm-vpu-blk-ctrl
+    then:
+      properties:
+        power-domains:
+          items:
+            - description: bus power domain
+            - description: G1 decoder power domain
+            - description: G2 decoder power domain
+            - description: H1 encoder power domain
+
+        power-domain-names:
+          items:
+            - const: bus
+            - const: g1
+            - const: g2
+            - const: h1
+
+        clocks:
+          items:
+            - description: G1 decoder clk
+            - description: G2 decoder clk
+            - description: H1 encoder clk
+
+        clock-names:
+          items:
+            - const: g1
+            - const: g2
+            - const: h1
+
+        interconnects:
+          items:
+            - description: G1 decoder interconnect
+            - description: G2 decoder interconnect
+            - description: H1 encoder power domain
+
+        interconnect-names:
+          items:
+            - const: g1
+            - const: g2
+            - const: h1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx8mp-vpu-blk-ctrl
+    then:
+      properties:
+        power-domains:
+          items:
+            - description: bus power domain
+            - description: G1 decoder power domain
+            - description: G2 decoder power domain
+            - description: VC8000E encoder power domain
+
+        power-domain-names:
+          items:
+            - const: bus
+            - const: g1
+            - const: g2
+            - const: vc8000e
+
+        clocks:
+          items:
+            - description: G1 decoder clk
+            - description: G2 decoder clk
+            - description: VC8000E encoder clk
+
+        clock-names:
+          items:
+            - const: g1
+            - const: g2
+            - const: vc8000e
+
+        interconnects:
+          items:
+            - description: G1 decoder interconnect
+            - description: G2 decoder interconnect
+            - description: VC8000E encoder interconnect
+
+        interconnect-names:
+          items:
+            - const: g1
+            - const: g2
+            - const: vc8000e
 
 additionalProperties: false
 

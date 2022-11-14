@@ -181,7 +181,7 @@ int wfx_send_pds(struct wfx_dev *wdev, u8 *buf, size_t len)
 	while (len > 0) {
 		chunk_type = get_unaligned_le16(buf + 0);
 		chunk_len = get_unaligned_le16(buf + 2);
-		if (chunk_len > len) {
+		if (chunk_len < 4 || chunk_len > len) {
 			dev_err(wdev->dev, "PDS:%d: corrupted file\n", chunk_num);
 			return -EINVAL;
 		}

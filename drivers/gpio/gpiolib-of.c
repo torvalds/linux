@@ -289,6 +289,36 @@ int of_get_named_gpio_flags(const struct device_node *np, const char *list_name,
 }
 EXPORT_SYMBOL_GPL(of_get_named_gpio_flags);
 
+/* Converts gpio_lookup_flags into bitmask of GPIO_* values */
+static unsigned long of_convert_gpio_flags(enum of_gpio_flags flags)
+{
+	unsigned long lflags = GPIO_LOOKUP_FLAGS_DEFAULT;
+
+	if (flags & OF_GPIO_ACTIVE_LOW)
+		lflags |= GPIO_ACTIVE_LOW;
+
+	if (flags & OF_GPIO_SINGLE_ENDED) {
+		if (flags & OF_GPIO_OPEN_DRAIN)
+			lflags |= GPIO_OPEN_DRAIN;
+		else
+			lflags |= GPIO_OPEN_SOURCE;
+	}
+
+	if (flags & OF_GPIO_TRANSITORY)
+		lflags |= GPIO_TRANSITORY;
+
+	if (flags & OF_GPIO_PULL_UP)
+		lflags |= GPIO_PULL_UP;
+
+	if (flags & OF_GPIO_PULL_DOWN)
+		lflags |= GPIO_PULL_DOWN;
+
+	if (flags & OF_GPIO_PULL_DISABLE)
+		lflags |= GPIO_PULL_DISABLE;
+
+	return lflags;
+}
+
 /**
  * gpiod_get_from_of_node() - obtain a GPIO from an OF node
  * @node:	handle of the OF node
@@ -308,26 +338,14 @@ struct gpio_desc *gpiod_get_from_of_node(const struct device_node *node,
 					 enum gpiod_flags dflags,
 					 const char *label)
 {
-	unsigned long lflags = GPIO_LOOKUP_FLAGS_DEFAULT;
+	unsigned long lflags;
 	struct gpio_desc *desc;
-	enum of_gpio_flags flags;
-	bool active_low = false;
-	bool single_ended = false;
-	bool open_drain = false;
-	bool transitory = false;
+	enum of_gpio_flags of_flags;
 	int ret;
 
-	desc = of_get_named_gpiod_flags(node, propname,
-					index, &flags);
-
-	if (!desc || IS_ERR(desc)) {
+	desc = of_get_named_gpiod_flags(node, propname, index, &of_flags);
+	if (!desc || IS_ERR(desc))
 		return desc;
-	}
-
-	active_low = flags & OF_GPIO_ACTIVE_LOW;
-	single_ended = flags & OF_GPIO_SINGLE_ENDED;
-	open_drain = flags & OF_GPIO_OPEN_DRAIN;
-	transitory = flags & OF_GPIO_TRANSITORY;
 
 	ret = gpiod_request(desc, label);
 	if (ret == -EBUSY && (dflags & GPIOD_FLAGS_BIT_NONEXCLUSIVE))
@@ -335,27 +353,7 @@ struct gpio_desc *gpiod_get_from_of_node(const struct device_node *node,
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (active_low)
-		lflags |= GPIO_ACTIVE_LOW;
-
-	if (single_ended) {
-		if (open_drain)
-			lflags |= GPIO_OPEN_DRAIN;
-		else
-			lflags |= GPIO_OPEN_SOURCE;
-	}
-
-	if (transitory)
-		lflags |= GPIO_TRANSITORY;
-
-	if (flags & OF_GPIO_PULL_UP)
-		lflags |= GPIO_PULL_UP;
-
-	if (flags & OF_GPIO_PULL_DOWN)
-		lflags |= GPIO_PULL_DOWN;
-
-	if (flags & OF_GPIO_PULL_DISABLE)
-		lflags |= GPIO_PULL_DISABLE;
+	lflags = of_convert_gpio_flags(of_flags);
 
 	ret = gpiod_configure_flags(desc, propname, lflags, dflags);
 	if (ret < 0) {
@@ -372,12 +370,12 @@ EXPORT_SYMBOL_GPL(gpiod_get_from_of_node);
  * properties should be named "foo-gpios" so we have this special kludge for
  * them.
  */
-static struct gpio_desc *of_find_spi_gpio(struct device *dev, const char *con_id,
+static struct gpio_desc *of_find_spi_gpio(struct device_node *np,
+					  const char *con_id,
+					  unsigned int idx,
 					  enum of_gpio_flags *of_flags)
 {
 	char prop_name[32]; /* 32 is max size of property name */
-	const struct device_node *np = dev->of_node;
-	struct gpio_desc *desc;
 
 	/*
 	 * Hopefully the compiler stubs the rest of the function if this
@@ -393,8 +391,7 @@ static struct gpio_desc *of_find_spi_gpio(struct device *dev, const char *con_id
 	/* Will be "gpio-sck", "gpio-mosi" or "gpio-miso" */
 	snprintf(prop_name, sizeof(prop_name), "%s-%s", "gpio", con_id);
 
-	desc = of_get_named_gpiod_flags(np, prop_name, 0, of_flags);
-	return desc;
+	return of_get_named_gpiod_flags(np, prop_name, idx, of_flags);
 }
 
 /*
@@ -402,13 +399,11 @@ static struct gpio_desc *of_find_spi_gpio(struct device *dev, const char *con_id
  * lines rather than "cs-gpios" like all other SPI hardware. Account for this
  * with a special quirk.
  */
-static struct gpio_desc *of_find_spi_cs_gpio(struct device *dev,
+static struct gpio_desc *of_find_spi_cs_gpio(struct device_node *np,
 					     const char *con_id,
 					     unsigned int idx,
-					     unsigned long *flags)
+					     enum of_gpio_flags *of_flags)
 {
-	const struct device_node *np = dev->of_node;
-
 	if (!IS_ENABLED(CONFIG_SPI_MASTER))
 		return ERR_PTR(-ENOENT);
 
@@ -426,7 +421,7 @@ static struct gpio_desc *of_find_spi_cs_gpio(struct device *dev,
 	 * uses just "gpios" so translate to that when "cs-gpios" is
 	 * requested.
 	 */
-	return of_find_gpio(dev, NULL, idx, flags);
+	return of_get_named_gpiod_flags(np, "gpios", idx, of_flags);
 }
 
 /*
@@ -434,7 +429,9 @@ static struct gpio_desc *of_find_spi_cs_gpio(struct device *dev,
  * properties should be named "foo-gpios" so we have this special kludge for
  * them.
  */
-static struct gpio_desc *of_find_regulator_gpio(struct device *dev, const char *con_id,
+static struct gpio_desc *of_find_regulator_gpio(struct device_node *np,
+						const char *con_id,
+						unsigned int idx,
 						enum of_gpio_flags *of_flags)
 {
 	/* These are the connection IDs we accept as legacy GPIO phandles */
@@ -443,8 +440,6 @@ static struct gpio_desc *of_find_regulator_gpio(struct device *dev, const char *
 		"wlf,ldo1ena", /* WM8994 */
 		"wlf,ldo2ena", /* WM8994 */
 	};
-	const struct device_node *np = dev->of_node;
-	struct gpio_desc *desc;
 	int i;
 
 	if (!IS_ENABLED(CONFIG_REGULATOR))
@@ -457,12 +452,12 @@ static struct gpio_desc *of_find_regulator_gpio(struct device *dev, const char *
 	if (i < 0)
 		return ERR_PTR(-ENOENT);
 
-	desc = of_get_named_gpiod_flags(np, con_id, 0, of_flags);
-	return desc;
+	return of_get_named_gpiod_flags(np, con_id, idx, of_flags);
 }
 
-static struct gpio_desc *of_find_arizona_gpio(struct device *dev,
+static struct gpio_desc *of_find_arizona_gpio(struct device_node *np,
 					      const char *con_id,
+					      unsigned int idx,
 					      enum of_gpio_flags *of_flags)
 {
 	if (!IS_ENABLED(CONFIG_MFD_ARIZONA))
@@ -471,17 +466,18 @@ static struct gpio_desc *of_find_arizona_gpio(struct device *dev,
 	if (!con_id || strcmp(con_id, "wlf,reset"))
 		return ERR_PTR(-ENOENT);
 
-	return of_get_named_gpiod_flags(dev->of_node, con_id, 0, of_flags);
+	return of_get_named_gpiod_flags(np, con_id, idx, of_flags);
 }
 
-static struct gpio_desc *of_find_usb_gpio(struct device *dev,
+static struct gpio_desc *of_find_usb_gpio(struct device_node *np,
 					  const char *con_id,
+					  unsigned int idx,
 					  enum of_gpio_flags *of_flags)
 {
 	/*
-	 * Currently this USB quirk is only for the Fairchild FUSB302 host which is using
-	 * an undocumented DT GPIO line named "fcs,int_n" without the compulsory "-gpios"
-	 * suffix.
+	 * Currently this USB quirk is only for the Fairchild FUSB302 host
+	 * which is using an undocumented DT GPIO line named "fcs,int_n"
+	 * without the compulsory "-gpios" suffix.
 	 */
 	if (!IS_ENABLED(CONFIG_TYPEC_FUSB302))
 		return ERR_PTR(-ENOENT);
@@ -489,14 +485,28 @@ static struct gpio_desc *of_find_usb_gpio(struct device *dev,
 	if (!con_id || strcmp(con_id, "fcs,int_n"))
 		return ERR_PTR(-ENOENT);
 
-	return of_get_named_gpiod_flags(dev->of_node, con_id, 0, of_flags);
+	return of_get_named_gpiod_flags(np, con_id, idx, of_flags);
 }
+
+typedef struct gpio_desc *(*of_find_gpio_quirk)(struct device_node *np,
+						const char *con_id,
+						unsigned int idx,
+						enum of_gpio_flags *of_flags);
+static const of_find_gpio_quirk of_find_gpio_quirks[] = {
+	of_find_spi_gpio,
+	of_find_spi_cs_gpio,
+	of_find_regulator_gpio,
+	of_find_arizona_gpio,
+	of_find_usb_gpio,
+	NULL
+};
 
 struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 			       unsigned int idx, unsigned long *flags)
 {
 	char prop_name[32]; /* 32 is max size of property name */
 	enum of_gpio_flags of_flags;
+	const of_find_gpio_quirk *q;
 	struct gpio_desc *desc;
 	unsigned int i;
 
@@ -516,51 +526,14 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 			break;
 	}
 
-	if (gpiod_not_found(desc)) {
-		/* Special handling for SPI GPIOs if used */
-		desc = of_find_spi_gpio(dev, con_id, &of_flags);
-	}
-
-	if (gpiod_not_found(desc)) {
-		/* This quirk looks up flags and all */
-		desc = of_find_spi_cs_gpio(dev, con_id, idx, flags);
-		if (!IS_ERR(desc))
-			return desc;
-	}
-
-	if (gpiod_not_found(desc)) {
-		/* Special handling for regulator GPIOs if used */
-		desc = of_find_regulator_gpio(dev, con_id, &of_flags);
-	}
-
-	if (gpiod_not_found(desc))
-		desc = of_find_arizona_gpio(dev, con_id, &of_flags);
-
-	if (gpiod_not_found(desc))
-		desc = of_find_usb_gpio(dev, con_id, &of_flags);
+	/* Properly named GPIO was not found, try workarounds */
+	for (q = of_find_gpio_quirks; gpiod_not_found(desc) && *q; q++)
+		desc = (*q)(dev->of_node, con_id, idx, &of_flags);
 
 	if (IS_ERR(desc))
 		return desc;
 
-	if (of_flags & OF_GPIO_ACTIVE_LOW)
-		*flags |= GPIO_ACTIVE_LOW;
-
-	if (of_flags & OF_GPIO_SINGLE_ENDED) {
-		if (of_flags & OF_GPIO_OPEN_DRAIN)
-			*flags |= GPIO_OPEN_DRAIN;
-		else
-			*flags |= GPIO_OPEN_SOURCE;
-	}
-
-	if (of_flags & OF_GPIO_TRANSITORY)
-		*flags |= GPIO_TRANSITORY;
-
-	if (of_flags & OF_GPIO_PULL_UP)
-		*flags |= GPIO_PULL_UP;
-	if (of_flags & OF_GPIO_PULL_DOWN)
-		*flags |= GPIO_PULL_DOWN;
-	if (of_flags & OF_GPIO_PULL_DISABLE)
-		*flags |= GPIO_PULL_DISABLE;
+	*flags = of_convert_gpio_flags(of_flags);
 
 	return desc;
 }
@@ -618,16 +591,7 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 	if (IS_ERR(desc))
 		return desc;
 
-	if (xlate_flags & OF_GPIO_ACTIVE_LOW)
-		*lflags |= GPIO_ACTIVE_LOW;
-	if (xlate_flags & OF_GPIO_TRANSITORY)
-		*lflags |= GPIO_TRANSITORY;
-	if (xlate_flags & OF_GPIO_PULL_UP)
-		*lflags |= GPIO_PULL_UP;
-	if (xlate_flags & OF_GPIO_PULL_DOWN)
-		*lflags |= GPIO_PULL_DOWN;
-	if (xlate_flags & OF_GPIO_PULL_DISABLE)
-		*lflags |= GPIO_PULL_DISABLE;
+	*lflags = of_convert_gpio_flags(xlate_flags);
 
 	if (of_property_read_bool(np, "input"))
 		*dflags |= GPIOD_IN;

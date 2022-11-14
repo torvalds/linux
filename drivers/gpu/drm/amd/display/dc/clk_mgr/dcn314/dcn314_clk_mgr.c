@@ -51,6 +51,13 @@
 #include "dc_link_dp.h"
 #include "dcn314_smu.h"
 
+
+#include "logger_types.h"
+#undef DC_LOGGER
+#define DC_LOGGER \
+	clk_mgr->base.base.ctx->logger
+
+
 #define MAX_INSTANCE                                        7
 #define MAX_SEGMENT                                         8
 
@@ -356,32 +363,32 @@ static struct wm_table ddr5_wm_table = {
 			.wm_inst = WM_A,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 9,
-			.sr_enter_plus_exit_time_us = 11,
+			.sr_exit_time_us = 12.5,
+			.sr_enter_plus_exit_time_us = 14.5,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_B,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 9,
-			.sr_enter_plus_exit_time_us = 11,
+			.sr_exit_time_us = 12.5,
+			.sr_enter_plus_exit_time_us = 14.5,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_C,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 9,
-			.sr_enter_plus_exit_time_us = 11,
+			.sr_exit_time_us = 12.5,
+			.sr_enter_plus_exit_time_us = 14.5,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_D,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.72,
-			.sr_exit_time_us = 9,
-			.sr_enter_plus_exit_time_us = 11,
+			.sr_exit_time_us = 12.5,
+			.sr_enter_plus_exit_time_us = 14.5,
 			.valid = true,
 		},
 	}
@@ -393,32 +400,32 @@ static struct wm_table lpddr5_wm_table = {
 			.wm_inst = WM_A,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 11.5,
-			.sr_enter_plus_exit_time_us = 14.5,
+			.sr_exit_time_us = 16.5,
+			.sr_enter_plus_exit_time_us = 18.5,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_B,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 11.5,
-			.sr_enter_plus_exit_time_us = 14.5,
+			.sr_exit_time_us = 16.5,
+			.sr_enter_plus_exit_time_us = 18.5,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_C,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 11.5,
-			.sr_enter_plus_exit_time_us = 14.5,
+			.sr_exit_time_us = 16.5,
+			.sr_enter_plus_exit_time_us = 18.5,
 			.valid = true,
 		},
 		{
 			.wm_inst = WM_D,
 			.wm_type = WM_TYPE_PSTATE_CHG,
 			.pstate_latency_us = 11.65333,
-			.sr_exit_time_us = 11.5,
-			.sr_enter_plus_exit_time_us = 14.5,
+			.sr_exit_time_us = 16.5,
+			.sr_enter_plus_exit_time_us = 18.5,
 			.valid = true,
 		},
 	}
@@ -623,7 +630,7 @@ static void dcn314_clk_mgr_helper_populate_bw_params(struct clk_mgr_internal *cl
 		bw_params->clk_table.entries[i].dppclk_mhz = max_dppclk;
 		bw_params->clk_table.entries[i].wck_ratio = convert_wck_ratio(
 			clock_table->DfPstateTable[min_pstate].WckRatio);
-	};
+	}
 
 	/* Make sure to include at least one entry at highest pstate */
 	if (max_pstate != min_pstate || i == 0) {
@@ -786,7 +793,48 @@ void dcn314_clk_mgr_construct(
 	clk_mgr->base.base.bw_params = &dcn314_bw_params;
 
 	if (clk_mgr->base.base.ctx->dc->debug.pstate_enabled) {
+		int i;
+
 		dcn314_get_dpm_table_from_smu(&clk_mgr->base, &smu_dpm_clks);
+		DC_LOG_SMU("NumDcfClkLevelsEnabled: %d\n"
+				   "NumDispClkLevelsEnabled: %d\n"
+				   "NumSocClkLevelsEnabled: %d\n"
+				   "VcnClkLevelsEnabled: %d\n"
+				   "NumDfPst atesEnabled: %d\n"
+				   "MinGfxClk: %d\n"
+				   "MaxGfxClk: %d\n",
+				   smu_dpm_clks.dpm_clks->NumDcfClkLevelsEnabled,
+				   smu_dpm_clks.dpm_clks->NumDispClkLevelsEnabled,
+				   smu_dpm_clks.dpm_clks->NumSocClkLevelsEnabled,
+				   smu_dpm_clks.dpm_clks->VcnClkLevelsEnabled,
+				   smu_dpm_clks.dpm_clks->NumDfPstatesEnabled,
+				   smu_dpm_clks.dpm_clks->MinGfxClk,
+				   smu_dpm_clks.dpm_clks->MaxGfxClk);
+		for (i = 0; i < smu_dpm_clks.dpm_clks->NumDcfClkLevelsEnabled; i++) {
+			DC_LOG_SMU("smu_dpm_clks.dpm_clks->DcfClocks[%d] = %d\n",
+					   i,
+					   smu_dpm_clks.dpm_clks->DcfClocks[i]);
+		}
+		for (i = 0; i < smu_dpm_clks.dpm_clks->NumDispClkLevelsEnabled; i++) {
+			DC_LOG_SMU("smu_dpm_clks.dpm_clks->DispClocks[%d] = %d\n",
+					   i, smu_dpm_clks.dpm_clks->DispClocks[i]);
+		}
+		for (i = 0; i < smu_dpm_clks.dpm_clks->NumSocClkLevelsEnabled; i++) {
+			DC_LOG_SMU("smu_dpm_clks.dpm_clks->SocClocks[%d] = %d\n",
+					   i, smu_dpm_clks.dpm_clks->SocClocks[i]);
+		}
+		for (i = 0; i < NUM_SOC_VOLTAGE_LEVELS; i++)
+			DC_LOG_SMU("smu_dpm_clks.dpm_clks->SocVoltage[%d] = %d\n",
+					   i, smu_dpm_clks.dpm_clks->SocVoltage[i]);
+
+		for (i = 0; i < NUM_DF_PSTATE_LEVELS; i++) {
+			DC_LOG_SMU("smu_dpm_clks.dpm_clks.DfPstateTable[%d].FClk = %d\n"
+					   "smu_dpm_clks.dpm_clks->DfPstateTable[%d].MemClk= %d\n"
+					   "smu_dpm_clks.dpm_clks->DfPstateTable[%d].Voltage = %d\n",
+					   i, smu_dpm_clks.dpm_clks->DfPstateTable[i].FClk,
+					   i, smu_dpm_clks.dpm_clks->DfPstateTable[i].MemClk,
+					   i, smu_dpm_clks.dpm_clks->DfPstateTable[i].Voltage);
+		}
 
 		if (ctx->dc_bios && ctx->dc_bios->integrated_info && ctx->dc->config.use_default_clock_table == false) {
 			dcn314_clk_mgr_helper_populate_bw_params(

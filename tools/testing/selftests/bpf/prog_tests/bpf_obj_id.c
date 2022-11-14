@@ -7,7 +7,7 @@ void serial_test_bpf_obj_id(void)
 {
 	const __u64 array_magic_value = 0xfaceb00c;
 	const __u32 array_key = 0;
-	const char *file = "./test_obj_id.o";
+	const char *file = "./test_obj_id.bpf.o";
 	const char *expected_prog_name = "test_obj_id";
 	const char *expected_map_name = "test_map_id";
 	const __u64 nsec_per_sec = 1000000000;

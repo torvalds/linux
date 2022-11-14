@@ -24,8 +24,6 @@
 };
 
 &pm6150_adc {
-	status = "disabled";
-
 	/delete-node/ skin-temp-thermistor@4e;
 	/delete-node/ charger-thermistor@4f;
 };

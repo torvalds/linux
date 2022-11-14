@@ -26,17 +26,13 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 
-#include "./local_config.h"
-#ifdef LOCAL_CONFIG_HAVE_LIBHUGETLBFS
-#include <hugetlbfs.h>
-#endif
 
 /*
  * This is a private UAPI to the kernel test module so it isn't exported
  * in the usual include/uapi/... directory.
  */
-#include "../../../../lib/test_hmm_uapi.h"
-#include "../../../../mm/gup_test.h"
+#include <lib/test_hmm_uapi.h>
+#include <mm/gup_test.h>
 
 struct hmm_buffer {
 	void		*ptr;
@@ -733,7 +729,54 @@ TEST_F(hmm, anon_write_huge)
 	hmm_buffer_free(buffer);
 }
 
-#ifdef LOCAL_CONFIG_HAVE_LIBHUGETLBFS
+/*
+ * Read numeric data from raw and tagged kernel status files.  Used to read
+ * /proc and /sys data (without a tag) and from /proc/meminfo (with a tag).
+ */
+static long file_read_ulong(char *file, const char *tag)
+{
+	int fd;
+	char buf[2048];
+	int len;
+	char *p, *q;
+	long val;
+
+	fd = open(file, O_RDONLY);
+	if (fd < 0) {
+		/* Error opening the file */
+		return -1;
+	}
+
+	len = read(fd, buf, sizeof(buf));
+	close(fd);
+	if (len < 0) {
+		/* Error in reading the file */
+		return -1;
+	}
+	if (len == sizeof(buf)) {
+		/* Error file is too large */
+		return -1;
+	}
+	buf[len] = '\0';
+
+	/* Search for a tag if provided */
+	if (tag) {
+		p = strstr(buf, tag);
+		if (!p)
+			return -1; /* looks like the line we want isn't there */
+		p += strlen(tag);
+	} else
+		p = buf;
+
+	val = strtol(p, &q, 0);
+	if (*q != ' ') {
+		/* Error parsing the file */
+		return -1;
+	}
+
+	return val;
+}
+
 /*
  * Write huge TLBFS page.
  */
@@ -742,29 +785,27 @@ TEST_F(hmm, anon_write_hugetlbfs)
 	struct hmm_buffer *buffer;
 	unsigned long npages;
 	unsigned long size;
+	unsigned long default_hsize;
 	unsigned long i;
 	int *ptr;
 	int ret;
-	long pagesizes[4];
-	int n, idx;
 
-	/* Skip test if we can't allocate a hugetlbfs page. */
-
-	n = gethugepagesizes(pagesizes, 4);
-	if (n <= 0)
+	default_hsize = file_read_ulong("/proc/meminfo", "Hugepagesize:");
+	if (default_hsize < 0 || default_hsize*1024 < default_hsize)
 		SKIP(return, "Huge page size could not be determined");
-	for (idx = 0; --n > 0; ) {
-		if (pagesizes[n] < pagesizes[idx])
-			idx = n;
-	}
-	size = ALIGN(TWOMEG, pagesizes[idx]);
+	default_hsize = default_hsize*1024; /* KB to B */
+
+	size = ALIGN(TWOMEG, default_hsize);
 	npages = size >> self->page_shift;
 
 	buffer = malloc(sizeof(*buffer));
 	ASSERT_NE(buffer, NULL);
 
-	buffer->ptr = get_hugepage_region(size, GHR_STRICT);
-	if (buffer->ptr == NULL) {
+	buffer->ptr = mmap(NULL, size,
+				   PROT_READ | PROT_WRITE,
+				   MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
+				   -1, 0);
+	if (buffer->ptr == MAP_FAILED) {
 		free(buffer);
 		SKIP(return, "Huge page could not be allocated");
 	}
@@ -788,11 +829,10 @@ TEST_F(hmm, anon_write_hugetlbfs)
 	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
 		ASSERT_EQ(ptr[i], i);
 
-	free_hugepage_region(buffer->ptr);
+	munmap(buffer->ptr, buffer->size);
 	buffer->ptr = NULL;
 	hmm_buffer_free(buffer);
 }
-#endif /* LOCAL_CONFIG_HAVE_LIBHUGETLBFS */
 
 /*
  * Read mmap'ed file memory.
@@ -1009,6 +1049,55 @@ TEST_F(hmm, migrate_fault)
 
 	/* Check what the device read. */
 	for (i = 0, ptr = buffer->mirror; i < size / sizeof(*ptr); ++i)
+		ASSERT_EQ(ptr[i], i);
+
+	hmm_buffer_free(buffer);
+}
+
+TEST_F(hmm, migrate_release)
+{
+	struct hmm_buffer *buffer;
+	unsigned long npages;
+	unsigned long size;
+	unsigned long i;
+	int *ptr;
+	int ret;
+
+	npages = ALIGN(HMM_BUFFER_SIZE, self->page_size) >> self->page_shift;
+	ASSERT_NE(npages, 0);
+	size = npages << self->page_shift;
+
+	buffer = malloc(sizeof(*buffer));
+	ASSERT_NE(buffer, NULL);
+
+	buffer->fd = -1;
+	buffer->size = size;
+	buffer->mirror = malloc(size);
+	ASSERT_NE(buffer->mirror, NULL);
+
+	buffer->ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
+			   MAP_PRIVATE | MAP_ANONYMOUS, buffer->fd, 0);
+	ASSERT_NE(buffer->ptr, MAP_FAILED);
+
+	/* Initialize buffer in system memory. */
+	for (i = 0, ptr = buffer->ptr; i < size / sizeof(*ptr); ++i)
+		ptr[i] = i;
+
+	/* Migrate memory to device. */
+	ret = hmm_migrate_sys_to_dev(self->fd, buffer, npages);
+	ASSERT_EQ(ret, 0);
+	ASSERT_EQ(buffer->cpages, npages);
+
+	/* Check what the device read. */
+	for (i = 0, ptr = buffer->mirror; i < size / sizeof(*ptr); ++i)
+		ASSERT_EQ(ptr[i], i);
+
+	/* Release device memory. */
+	ret = hmm_dmirror_cmd(self->fd, HMM_DMIRROR_RELEASE, buffer, npages);
+	ASSERT_EQ(ret, 0);
+
+	/* Fault pages back to system memory and check them. */
+	for (i = 0, ptr = buffer->ptr; i < size / (2 * sizeof(*ptr)); ++i)
 		ASSERT_EQ(ptr[i], i);
 
 	hmm_buffer_free(buffer);
@@ -1467,7 +1556,6 @@ TEST_F(hmm2, snapshot)
 	hmm_buffer_free(buffer);
 }
 
-#ifdef LOCAL_CONFIG_HAVE_LIBHUGETLBFS
 /*
  * Test the hmm_range_fault() HMM_PFN_PMD flag for large pages that
  * should be mapped by a large page table entry.
@@ -1477,30 +1565,30 @@ TEST_F(hmm, compound)
 	struct hmm_buffer *buffer;
 	unsigned long npages;
 	unsigned long size;
+	unsigned long default_hsize;
 	int *ptr;
 	unsigned char *m;
 	int ret;
-	long pagesizes[4];
-	int n, idx;
 	unsigned long i;
 
 	/* Skip test if we can't allocate a hugetlbfs page. */
 
-	n = gethugepagesizes(pagesizes, 4);
-	if (n <= 0)
-		return;
-	for (idx = 0; --n > 0; ) {
-		if (pagesizes[n] < pagesizes[idx])
-			idx = n;
-	}
-	size = ALIGN(TWOMEG, pagesizes[idx]);
+	default_hsize = file_read_ulong("/proc/meminfo", "Hugepagesize:");
+	if (default_hsize < 0 || default_hsize*1024 < default_hsize)
+		SKIP(return, "Huge page size could not be determined");
+	default_hsize = default_hsize*1024; /* KB to B */
+
+	size = ALIGN(TWOMEG, default_hsize);
 	npages = size >> self->page_shift;
 
 	buffer = malloc(sizeof(*buffer));
 	ASSERT_NE(buffer, NULL);
 
-	buffer->ptr = get_hugepage_region(size, GHR_STRICT);
-	if (buffer->ptr == NULL) {
+	buffer->ptr = mmap(NULL, size,
+				   PROT_READ | PROT_WRITE,
+				   MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
+				   -1, 0);
+	if (buffer->ptr == MAP_FAILED) {
 		free(buffer);
 		return;
 	}
@@ -1539,11 +1627,10 @@ TEST_F(hmm, compound)
 		ASSERT_EQ(m[i], HMM_DMIRROR_PROT_READ |
 				HMM_DMIRROR_PROT_PMD);
 
-	free_hugepage_region(buffer->ptr);
+	munmap(buffer->ptr, buffer->size);
 	buffer->ptr = NULL;
 	hmm_buffer_free(buffer);
 }
-#endif /* LOCAL_CONFIG_HAVE_LIBHUGETLBFS */
 
 /*
  * Test two devices reading the same memory (double mapped).

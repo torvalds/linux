@@ -360,10 +360,6 @@ wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 #define KHz(x) (1000 * (x))
 #define MHz(x) KHz(1000 * (x))
 
-#define KBps(x) (1000 * (x))
-#define MBps(x) KBps(1000 * (x))
-#define GBps(x) ((u64)1000 * MBps((x)))
-
 void add_taint_for_CI(struct drm_i915_private *i915, unsigned int taint);
 static inline void __add_taint_for_CI(unsigned int taint)
 {

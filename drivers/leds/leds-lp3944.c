@@ -397,7 +397,7 @@ static int lp3944_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int lp3944_remove(struct i2c_client *client)
+static void lp3944_remove(struct i2c_client *client)
 {
 	struct lp3944_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct lp3944_data *data = i2c_get_clientdata(client);
@@ -414,8 +414,6 @@ static int lp3944_remove(struct i2c_client *client)
 		default:
 			break;
 		}
-
-	return 0;
 }
 
 /* lp3944 i2c driver struct */

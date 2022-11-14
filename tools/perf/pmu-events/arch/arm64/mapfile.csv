@@ -17,7 +17,8 @@
 0x00000000420f1000,v1,arm/cortex-a53,core
 0x00000000410fd040,v1,arm/cortex-a35,core
 0x00000000410fd050,v1,arm/cortex-a55,core
-0x00000000410fd060,v1,arm/cortex-a65,core
+0x00000000410fd060,v1,arm/cortex-a65-e1,core
+0x00000000410fd4a0,v1,arm/cortex-a65-e1,core
 0x00000000410fd070,v1,arm/cortex-a57-a72,core
 0x00000000410fd080,v1,arm/cortex-a57-a72,core
 0x00000000410fd090,v1,arm/cortex-a73,core
@@ -34,7 +35,6 @@
 0x00000000410fd470,v1,arm/cortex-a710,core
 0x00000000410fd480,v1,arm/cortex-x2,core
 0x00000000410fd490,v1,arm/neoverse-n2,core
-0x00000000410fd4a0,v1,arm/neoverse-e1,core
 0x00000000420f5160,v1,cavium/thunderx2,core
 0x00000000430f0af0,v1,cavium/thunderx2,core
 0x00000000460f0010,v1,fujitsu/a64fx,core

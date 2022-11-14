@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/sitronix,st7735r.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Sitronix ST7735R Display Panels Device Tree Bindings
+title: Sitronix ST7735R Display Panels
 
 maintainers:
   - David Lechner <david@lechnology.com>

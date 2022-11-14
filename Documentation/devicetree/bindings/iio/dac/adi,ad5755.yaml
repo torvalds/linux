@@ -25,8 +25,6 @@ properties:
     description: Either this or spi-cpol but not both.
   spi-cpol: true
 
-  spi-max-frequency: true
-
   adi,ext-dc-dc-compenstation-resistor:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
@@ -66,8 +64,6 @@ properties:
 required:
   - compatible
   - reg
-
-additionalProperties: false
 
 patternProperties:
   "^channel@[0-7]$":
@@ -122,6 +118,11 @@ oneOf:
       - spi-cpha
   - required:
       - spi-cpol
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

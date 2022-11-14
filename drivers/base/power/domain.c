@@ -2085,8 +2085,10 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 
 	/* Always-on domains must be powered on at initialization. */
 	if ((genpd_is_always_on(genpd) || genpd_is_rpm_always_on(genpd)) &&
-			!genpd_status_on(genpd))
+			!genpd_status_on(genpd)) {
+		pr_err("always-on PM domain %s is not on\n", genpd->name);
 		return -EINVAL;
+	}
 
 	/* Multiple states but no governor doesn't make sense. */
 	if (!gov && genpd->state_count > 1)
@@ -2950,6 +2952,10 @@ static int genpd_iterate_idle_states(struct device_node *dn,
 		np = it.node;
 		if (!of_match_node(idle_state_match, np))
 			continue;
+
+		if (!of_device_is_available(np))
+			continue;
+
 		if (states) {
 			ret = genpd_parse_state(&states[i], np);
 			if (ret) {

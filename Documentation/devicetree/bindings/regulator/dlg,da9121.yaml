@@ -83,6 +83,7 @@ properties:
 
   regulators:
     type: object
+    additionalProperties: false
     description: |
       List of regulators provided by the device
 

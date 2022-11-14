@@ -18,31 +18,45 @@ package(
 )
 
 load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define_db845c")
+load("//build/kernel/kleaf:kernel.bzl", "ddk_headers")
+
+_common_gki_modules_list = [
+    # keep sorted
+    "drivers/block/zram/zram.ko",
+    "drivers/net/can/dev/can-dev.ko",
+    "drivers/net/can/slcan/slcan.ko",
+    "drivers/net/can/vcan.ko",
+    "drivers/usb/class/cdc-acm.ko",
+    "drivers/usb/serial/ftdi_sio.ko",
+    "drivers/usb/serial/usbserial.ko",
+    "mm/zsmalloc.ko",
+    "net/can/can-bcm.ko",
+    "net/can/can-gw.ko",
+    "net/can/can-raw.ko",
+    "net/mac80211/mac80211.ko",
+    "net/wireless/cfg80211.ko",
+]
 
 define_common_kernels(target_configs = {
     "kernel_aarch64": {
-        "module_implicit_outs": [
-            "drivers/block/zram/zram.ko",
-            "mm/zsmalloc.ko",
-        ],
+        "module_implicit_outs": _common_gki_modules_list,
     },
-    # Sync with build.config.gki.aarch64.16k
     "kernel_aarch64_16k": {
-        "module_implicit_outs": [
-            "drivers/block/zram/zram.ko",
-            "mm/zsmalloc.ko",
-        ],
+        "module_implicit_outs": _common_gki_modules_list,
     },
-    # Sync with build.config.gki-debug.aarch64
     "kernel_aarch64_debug": {
-        "module_implicit_outs": [
-            "drivers/block/zram/zram.ko",
-            "mm/zsmalloc.ko",
-        ],
+        "module_implicit_outs": _common_gki_modules_list,
+    },
+    "kernel_x86_64": {
+        "kmi_symbol_list_strict_mode": False,
+        "module_implicit_outs": _common_gki_modules_list,
+    },
+    "kernel_x86_64_debug": {
+        "kmi_symbol_list_strict_mode": False,
+        "module_implicit_outs": _common_gki_modules_list,
     },
 })
 
-# Sync with build.config.db845c
 define_db845c(
     name = "db845c",
     outs = [
@@ -72,6 +86,7 @@ define_db845c(
         "drivers/cpufreq/qcom-cpufreq-hw.ko",
         "drivers/dma-buf/heaps/system_heap.ko",
         "drivers/dma/qcom/bam_dma.ko",
+        "drivers/dma/qcom/gpi.ko",
         "drivers/extcon/extcon-usb-gpio.ko",
         "drivers/firmware/qcom-scm.ko",
         "drivers/gpio/gpio-wcd934x.ko",
@@ -238,3 +253,115 @@ define_db845c(
 load(":consolidate.bzl", "define_consolidate")
 
 define_consolidate()
+
+# DDK Headers
+# All headers. These are the public targets for DDK modules to use.
+alias(
+    name = "all_headers",
+    actual = "all_headers_aarch64",
+    visibility = ["//visibility:public"],
+)
+
+ddk_headers(
+    name = "all_headers_aarch64",
+    hdrs = [":all_headers_allowlist_aarch64"] + select({
+        "//build/kernel/kleaf:allow_ddk_unsafe_headers_set": [":all_headers_unsafe"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)
+
+ddk_headers(
+    name = "all_headers_x86_64",
+    hdrs = [":all_headers_allowlist_x86_64"] + select({
+        "//build/kernel/kleaf:allow_ddk_unsafe_headers_set": [":all_headers_unsafe"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)
+
+# Implementation details for DDK headers. The targets below cannot be directly
+# depended on by DDK modules.
+
+# DDK headers allowlist. This is the list of all headers and include
+# directories that are safe to use in DDK modules.
+ddk_headers(
+    name = "all_headers_allowlist_aarch64",
+    hdrs = [
+        ":all_headers_allowlist_aarch64_globs",
+        ":all_headers_allowlist_common_globs",
+    ],
+    # The list of include directories where source files can #include headers
+    # from. In other words, these are the `-I` option to the C compiler.
+    # These are prepended to LINUXINCLUDE.
+    linux_includes = [
+        "arch/arm64/include",
+        "arch/arm64/include/uapi",
+        "include",
+        "include/uapi",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+ddk_headers(
+    name = "all_headers_allowlist_x86_64",
+    hdrs = [
+        ":all_headers_allowlist_common_globs",
+        ":all_headers_allowlist_x86_64_globs",
+    ],
+    # The list of include directories where source files can #include headers
+    # from. In other words, these are the `-I` option to the C compiler.
+    # These are prepended to LINUXINCLUDE.
+    linux_includes = [
+        "arch/x86/include",
+        "arch/x86/include/uapi",
+        "include",
+        "include/uapi",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+# List of DDK headers allowlist that are glob()-ed to avoid changes of BUILD
+# file when the list of files changes. All headers in these directories
+# are safe to use.
+# These are separate filegroup targets so the all_headers_allowlist_* are
+# more friendly to batch BUILD file update tools like buildozer.
+
+# globs() for arm64 only
+filegroup(
+    name = "all_headers_allowlist_aarch64_globs",
+    srcs = glob(["arch/arm64/include/**/*.h"]),
+    visibility = ["//visibility:private"],
+)
+
+# globs() for x86 only
+filegroup(
+    name = "all_headers_allowlist_x86_64_globs",
+    srcs = glob(["arch/x86/include/**/*.h"]),
+    visibility = ["//visibility:private"],
+)
+
+# globs() for all architectures
+filegroup(
+    name = "all_headers_allowlist_common_globs",
+    srcs = glob(["include/**/*.h"]),
+    visibility = ["//visibility:private"],
+)
+
+# DDK headers unsafe list. This is the list of all headers and include
+# directories that may be used during migration from kernel_module's, but
+# should be avoided in general.
+# Use with caution; items may:
+# - be removed without notice
+# - be moved into all_headers
+ddk_headers(
+    name = "all_headers_unsafe",
+    hdrs = [
+        "drivers/gpu/drm/virtio/virtgpu_trace.h",
+    ],
+    # The list of include directories where source files can #include headers
+    # from. In other words, these are the `-I` option to the C compiler.
+    # Unsafe include directories are appended to ccflags-y.
+    includes = [],
+    visibility = ["//visibility:private"],
+)

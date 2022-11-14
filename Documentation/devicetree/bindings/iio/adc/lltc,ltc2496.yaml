@@ -22,15 +22,15 @@ properties:
   reg:
     maxItems: 1
 
-  spi-max-frequency:
-    description: maximal spi bus frequency supported
-
 required:
   - compatible
   - vref-supply
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

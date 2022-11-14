@@ -861,25 +861,6 @@ bool eqNByte(u8 *str1, u8 *str2, u32 num)
 
 /*  */
 /* 	Description: */
-/* 		Return true if chTmp is represent for hex digit and */
-/* 		false otherwise. */
-/*  */
-/*  */
-bool IsHexDigit(char chTmp)
-{
-	if (
-		(chTmp >= '0' && chTmp <= '9') ||
-		(chTmp >= 'a' && chTmp <= 'f') ||
-		(chTmp >= 'A' && chTmp <= 'F')
-	)
-		return true;
-	else
-		return false;
-}
-
-
-/*  */
-/* 	Description: */
 /* 		Translate a character to hex digit. */
 /*  */
 u32 MapCharToHexDigit(char chTmp)
@@ -892,106 +873,6 @@ u32 MapCharToHexDigit(char chTmp)
 		return 10 + (chTmp - 'A');
 	else
 		return 0;
-}
-
-
-
-/* 	Description: */
-/* 		Parse hex number from the string pucStr. */
-bool GetHexValueFromString(char *szStr, u32 *pu4bVal, u32 *pu4bMove)
-{
-	char *szScan = szStr;
-
-	/*  Check input parameter. */
-	if (!szStr || !pu4bVal || !pu4bMove)
-		return false;
-
-	/*  Initialize output. */
-	*pu4bMove = 0;
-	*pu4bVal = 0;
-
-	/*  Skip leading space. */
-	while (*szScan != '\0' && (*szScan == ' ' || *szScan == '\t')) {
-		szScan++;
-		(*pu4bMove)++;
-	}
-
-	/*  Skip leading '0x' or '0X'. */
-	if (*szScan == '0' && (*(szScan+1) == 'x' || *(szScan+1) == 'X')) {
-		szScan += 2;
-		(*pu4bMove) += 2;
-	}
-
-	/*  Check if szScan is now pointer to a character for hex digit, */
-	/*  if not, it means this is not a valid hex number. */
-	if (!IsHexDigit(*szScan))
-		return false;
-
-	/*  Parse each digit. */
-	do {
-		(*pu4bVal) <<= 4;
-		*pu4bVal += MapCharToHexDigit(*szScan);
-
-		szScan++;
-		(*pu4bMove)++;
-	} while (IsHexDigit(*szScan));
-
-	return true;
-}
-
-bool GetFractionValueFromString(
-	char *szStr, u8 *pInteger, u8 *pFraction, u32 *pu4bMove
-)
-{
-	char *szScan = szStr;
-
-	/*  Initialize output. */
-	*pu4bMove = 0;
-	*pInteger = 0;
-	*pFraction = 0;
-
-	/*  Skip leading space. */
-	while (*szScan != '\0' &&	(*szScan == ' ' || *szScan == '\t')) {
-		++szScan;
-		++(*pu4bMove);
-	}
-
-	/*  Parse each digit. */
-	do {
-		(*pInteger) *= 10;
-		*pInteger += (*szScan - '0');
-
-		++szScan;
-		++(*pu4bMove);
-
-		if (*szScan == '.') {
-			++szScan;
-			++(*pu4bMove);
-
-			if (*szScan < '0' || *szScan > '9')
-				return false;
-			else {
-				*pFraction = *szScan - '0';
-				++szScan;
-				++(*pu4bMove);
-				return true;
-			}
-		}
-	} while (*szScan >= '0' && *szScan <= '9');
-
-	return true;
-}
-
-/*  */
-/* 	Description: */
-/* 		Return true if szStr is comment out with leading "//". */
-/*  */
-bool IsCommentString(char *szStr)
-{
-	if (*szStr == '/' && *(szStr+1) == '/')
-		return true;
-	else
-		return false;
 }
 
 bool GetU1ByteIntegerFromStringInDecimal(char *Str, u8 *pInt)

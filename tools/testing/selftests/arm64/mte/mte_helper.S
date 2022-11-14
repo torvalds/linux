@@ -3,6 +3,8 @@
 
 #include "mte_def.h"
 
+.arch	armv8.5-a+memtag
+
 #define ENTRY(name) \
 	.globl name ;\
 	.p2align 2;\

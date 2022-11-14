@@ -50,8 +50,6 @@ properties:
   reset-gpios:
     maxItems: 1
 
-  spi-max-frequency: true
-
   spi-cpol: true
 
   spi-cpha: true
@@ -88,7 +86,10 @@ patternProperties:
       - reg
     additionalProperties: false
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

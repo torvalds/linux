@@ -51,6 +51,7 @@ struct genl_family cifs_genl_family = {
 	.policy		= cifs_genl_policy,
 	.ops		= cifs_genl_ops,
 	.n_ops		= ARRAY_SIZE(cifs_genl_ops),
+	.resv_start_op	= CIFS_GENL_CMD_SWN_NOTIFY + 1,
 	.mcgrps		= cifs_genl_mcgrps,
 	.n_mcgrps	= ARRAY_SIZE(cifs_genl_mcgrps),
 };

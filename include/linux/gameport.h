@@ -110,7 +110,7 @@ static inline void gameport_free_port(struct gameport *gameport)
 
 static inline void gameport_set_name(struct gameport *gameport, const char *name)
 {
-	strlcpy(gameport->name, name, sizeof(gameport->name));
+	strscpy(gameport->name, name, sizeof(gameport->name));
 }
 
 /*

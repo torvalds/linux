@@ -42,6 +42,10 @@ static void j1939_can_recv(struct sk_buff *iskb, void *data)
 	struct j1939_sk_buff_cb *skcb, *iskcb;
 	struct can_frame *cf;
 
+	/* make sure we only get Classical CAN frames */
+	if (!can_is_can_skb(iskb))
+		return;
+
 	/* create a copy of the skb
 	 * j1939 only delivers the real data bytes,
 	 * the header goes into sockaddr.
@@ -331,6 +335,9 @@ int j1939_send_one(struct j1939_priv *priv, struct sk_buff *skb)
 
 	/* re-claim the CAN_HDR from the SKB */
 	cf = skb_push(skb, J1939_CAN_HDR);
+
+	/* initialize header structure */
+	memset(cf, 0, J1939_CAN_HDR);
 
 	/* make it a full can frame again */
 	skb_put(skb, J1939_CAN_FTR + (8 - dlc));

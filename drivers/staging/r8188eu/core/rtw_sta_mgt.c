@@ -5,9 +5,6 @@
 
 #include "../include/osdep_service.h"
 #include "../include/drv_types.h"
-#include "../include/recv_osdep.h"
-#include "../include/xmit_osdep.h"
-#include "../include/mlme_osdep.h"
 #include "../include/sta_info.h"
 
 static void _rtw_init_stainfo(struct sta_info *psta)
@@ -139,6 +136,31 @@ void _rtw_free_sta_priv(struct	sta_priv *pstapriv)
 
 		vfree(pstapriv->pallocated_stainfo_buf);
 	}
+}
+
+static void _rtw_reordering_ctrl_timeout_handler(struct timer_list *t)
+{
+	struct recv_reorder_ctrl *preorder_ctrl;
+
+	preorder_ctrl = from_timer(preorder_ctrl, t, reordering_ctrl_timer);
+	rtw_reordering_ctrl_timeout_handler(preorder_ctrl);
+}
+
+static void rtw_init_recv_timer(struct recv_reorder_ctrl *preorder_ctrl)
+{
+	timer_setup(&preorder_ctrl->reordering_ctrl_timer, _rtw_reordering_ctrl_timeout_handler, 0);
+}
+
+static void _addba_timer_hdl(struct timer_list *t)
+{
+	struct sta_info *psta = from_timer(psta, t, addba_retry_timer);
+
+	addba_timer_hdl(psta);
+}
+
+static void init_addba_retry_timer(struct adapter *padapter, struct sta_info *psta)
+{
+	timer_setup(&psta->addba_retry_timer, _addba_timer_hdl, 0);
 }
 
 struct	sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)

@@ -3,6 +3,7 @@
  *
  * Copyright 2022 Google LLC
  */
+#include <linux/sched/cputime.h>
 #include "sched.h"
 #include "pelt.h"
 #include "smp.h"
@@ -34,7 +35,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_find_busiest_queue);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_migrate_queued_task);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_cpu_overutilized);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_setaffinity);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_update_cpus_allowed);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_build_sched_domains);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_check_preempt_tick);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_check_preempt_wakeup_ignore);
@@ -52,7 +52,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_dequeue_entity);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_entity_tick);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_enqueue_task_fair);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_dequeue_task_fair);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_post_init_entity_util_avg);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_util_est_update);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_setscheduler_uclamp);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_task_cpu);

@@ -1075,7 +1075,7 @@ static const struct i2c_device_id *idt_ee_match_id(struct fwnode_handle *fwnode)
 		return NULL;
 
 	p = strchr(compatible, ',');
-	strlcpy(devname, p ? p + 1 : compatible, sizeof(devname));
+	strscpy(devname, p ? p + 1 : compatible, sizeof(devname));
 	/* Search through the device name */
 	while (id->name[0]) {
 		if (strcmp(devname, id->name) == 0)
@@ -1405,7 +1405,7 @@ err_free_pdev:
 /*
  * idt_remove() - IDT 89HPESx driver remove() callback method
  */
-static int idt_remove(struct i2c_client *client)
+static void idt_remove(struct i2c_client *client)
 {
 	struct idt_89hpesx_dev *pdev = i2c_get_clientdata(client);
 
@@ -1417,8 +1417,6 @@ static int idt_remove(struct i2c_client *client)
 
 	/* Discard driver data structure */
 	idt_free_pdev(pdev);
-
-	return 0;
 }
 
 /*

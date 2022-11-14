@@ -440,15 +440,16 @@ static int lm3601x_probe(struct i2c_client *client)
 	return lm3601x_register_leds(led, fwnode);
 }
 
-static int lm3601x_remove(struct i2c_client *client)
+static void lm3601x_remove(struct i2c_client *client)
 {
 	struct lm3601x_led *led = i2c_get_clientdata(client);
+	int ret;
 
-	mutex_destroy(&led->lock);
-
-	return regmap_update_bits(led->regmap, LM3601X_ENABLE_REG,
-			   LM3601X_ENABLE_MASK,
-			   LM3601X_MODE_STANDBY);
+	ret = regmap_update_bits(led->regmap, LM3601X_ENABLE_REG,
+				 LM3601X_ENABLE_MASK, LM3601X_MODE_STANDBY);
+	if (ret)
+		dev_warn(&client->dev,
+			 "Failed to put into standby (%pe)\n", ERR_PTR(ret));
 }
 
 static const struct i2c_device_id lm3601x_id[] = {

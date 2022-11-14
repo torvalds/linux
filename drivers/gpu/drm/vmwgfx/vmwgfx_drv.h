@@ -877,7 +877,6 @@ static inline void vmw_user_resource_noref_release(void)
 /**
  * Buffer object helper functions - vmwgfx_bo.c
  */
-extern bool vmw_bo_is_vmw_bo(struct ttm_buffer_object *bo);
 extern int vmw_bo_pin_in_placement(struct vmw_private *vmw_priv,
 				   struct vmw_buffer_object *bo,
 				   struct ttm_placement *placement,

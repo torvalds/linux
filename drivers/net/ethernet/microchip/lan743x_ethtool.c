@@ -579,8 +579,8 @@ static void lan743x_ethtool_get_drvinfo(struct net_device *netdev,
 {
 	struct lan743x_adapter *adapter = netdev_priv(netdev);
 
-	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
-	strlcpy(info->bus_info,
+	strscpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+	strscpy(info->bus_info,
 		pci_name(adapter->pdev), sizeof(info->bus_info));
 }
 

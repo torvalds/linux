@@ -13,13 +13,13 @@
 
 #include <linux/module.h>
 
+#include <linux/aperture.h>
 #include <linux/compat.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/major.h>
 #include <linux/slab.h>
-#include <linux/sysfb.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/vt.h>
@@ -40,6 +40,7 @@
 
 #include <asm/fb.h>
 
+#include <video/vga.h>
 
     /*
      *  Frame buffer device initialization and setup routines
@@ -50,10 +51,10 @@
 static DEFINE_MUTEX(registration_lock);
 
 struct fb_info *registered_fb[FB_MAX] __read_mostly;
-EXPORT_SYMBOL(registered_fb);
-
 int num_registered_fb __read_mostly;
-EXPORT_SYMBOL(num_registered_fb);
+#define for_each_registered_fb(i)		\
+	for (i = 0; i < FB_MAX; i++)		\
+		if (!registered_fb[i]) {} else
 
 bool fb_center_logo __read_mostly;
 
@@ -1525,103 +1526,6 @@ static int fb_check_foreignness(struct fb_info *fi)
 	return 0;
 }
 
-static bool apertures_overlap(struct aperture *gen, struct aperture *hw)
-{
-	/* is the generic aperture base the same as the HW one */
-	if (gen->base == hw->base)
-		return true;
-	/* is the generic aperture base inside the hw base->hw base+size */
-	if (gen->base > hw->base && gen->base < hw->base + hw->size)
-		return true;
-	return false;
-}
-
-static bool fb_do_apertures_overlap(struct apertures_struct *gena,
-				    struct apertures_struct *hwa)
-{
-	int i, j;
-	if (!hwa || !gena)
-		return false;
-
-	for (i = 0; i < hwa->count; ++i) {
-		struct aperture *h = &hwa->ranges[i];
-		for (j = 0; j < gena->count; ++j) {
-			struct aperture *g = &gena->ranges[j];
-			printk(KERN_DEBUG "checking generic (%llx %llx) vs hw (%llx %llx)\n",
-				(unsigned long long)g->base,
-				(unsigned long long)g->size,
-				(unsigned long long)h->base,
-				(unsigned long long)h->size);
-			if (apertures_overlap(g, h))
-				return true;
-		}
-	}
-
-	return false;
-}
-
-static void do_unregister_framebuffer(struct fb_info *fb_info);
-
-#define VGA_FB_PHYS 0xA0000
-static void do_remove_conflicting_framebuffers(struct apertures_struct *a,
-					       const char *name, bool primary)
-{
-	int i;
-
-restart_removal:
-	/* check all firmware fbs and kick off if the base addr overlaps */
-	for_each_registered_fb(i) {
-		struct apertures_struct *gen_aper;
-		struct device *device;
-
-		if (!(registered_fb[i]->flags & FBINFO_MISC_FIRMWARE))
-			continue;
-
-		gen_aper = registered_fb[i]->apertures;
-		device = registered_fb[i]->device;
-		if (fb_do_apertures_overlap(gen_aper, a) ||
-			(primary && gen_aper && gen_aper->count &&
-			 gen_aper->ranges[0].base == VGA_FB_PHYS)) {
-
-			printk(KERN_INFO "fb%d: switching to %s from %s\n",
-			       i, name, registered_fb[i]->fix.id);
-
-			/*
-			 * If we kick-out a firmware driver, we also want to remove
-			 * the underlying platform device, such as simple-framebuffer,
-			 * VESA, EFI, etc. A native driver will then be able to
-			 * allocate the memory range.
-			 *
-			 * If it's not a platform device, at least print a warning. A
-			 * fix would add code to remove the device from the system. For
-			 * framebuffers without any Linux device, print a warning as
-			 * well.
-			 */
-			if (!device) {
-				pr_warn("fb%d: no device set\n", i);
-				do_unregister_framebuffer(registered_fb[i]);
-			} else if (dev_is_platform(device)) {
-				/*
-				 * Drop the lock because if the device is unregistered, its
-				 * driver will call to unregister_framebuffer(), that takes
-				 * this lock.
-				 */
-				mutex_unlock(&registration_lock);
-				platform_device_unregister(to_platform_device(device));
-				mutex_lock(&registration_lock);
-			} else {
-				pr_warn("fb%d: cannot remove device\n", i);
-				do_unregister_framebuffer(registered_fb[i]);
-			}
-			/*
-			 * Restart the removal loop now that the device has been
-			 * unregistered and its associated framebuffer gone.
-			 */
-			goto restart_removal;
-		}
-	}
-}
-
 static int do_register_framebuffer(struct fb_info *fb_info)
 {
 	int i;
@@ -1629,10 +1533,6 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 
 	if (fb_check_foreignness(fb_info))
 		return -ENOSYS;
-
-	do_remove_conflicting_framebuffers(fb_info->apertures,
-					   fb_info->fix.id,
-					   fb_is_primary_device(fb_info));
 
 	if (num_registered_fb == FB_MAX)
 		return -ENXIO;
@@ -1752,100 +1652,31 @@ static void do_unregister_framebuffer(struct fb_info *fb_info)
 	put_fb_info(fb_info);
 }
 
-/**
- * remove_conflicting_framebuffers - remove firmware-configured framebuffers
- * @a: memory range, users of which are to be removed
- * @name: requesting driver name
- * @primary: also kick vga16fb if present
- *
- * This function removes framebuffer devices (initialized by firmware/bootloader)
- * which use memory range described by @a. If @a is NULL all such devices are
- * removed.
- */
-int remove_conflicting_framebuffers(struct apertures_struct *a,
-				    const char *name, bool primary)
+static int fb_aperture_acquire_for_platform_device(struct fb_info *fb_info)
 {
-	bool do_free = false;
+	struct apertures_struct *ap = fb_info->apertures;
+	struct device *dev = fb_info->device;
+	struct platform_device *pdev;
+	unsigned int i;
+	int ret;
 
-	if (!a) {
-		a = alloc_apertures(1);
-		if (!a)
-			return -ENOMEM;
-
-		a->ranges[0].base = 0;
-		a->ranges[0].size = ~0;
-		do_free = true;
-	}
-
-	/*
-	 * If a driver asked to unregister a platform device registered by
-	 * sysfb, then can be assumed that this is a driver for a display
-	 * that is set up by the system firmware and has a generic driver.
-	 *
-	 * Drivers for devices that don't have a generic driver will never
-	 * ask for this, so let's assume that a real driver for the display
-	 * was already probed and prevent sysfb to register devices later.
-	 */
-	sysfb_disable();
-
-	mutex_lock(&registration_lock);
-	do_remove_conflicting_framebuffers(a, name, primary);
-	mutex_unlock(&registration_lock);
-
-	if (do_free)
-		kfree(a);
-
-	return 0;
-}
-EXPORT_SYMBOL(remove_conflicting_framebuffers);
-
-/**
- * remove_conflicting_pci_framebuffers - remove firmware-configured framebuffers for PCI devices
- * @pdev: PCI device
- * @name: requesting driver name
- *
- * This function removes framebuffer devices (eg. initialized by firmware)
- * using memory range configured for any of @pdev's memory bars.
- *
- * The function assumes that PCI device with shadowed ROM drives a primary
- * display and so kicks out vga16fb.
- */
-int remove_conflicting_pci_framebuffers(struct pci_dev *pdev, const char *name)
-{
-	struct apertures_struct *ap;
-	bool primary = false;
-	int err, idx, bar;
-
-	for (idx = 0, bar = 0; bar < PCI_STD_NUM_BARS; bar++) {
-		if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM))
-			continue;
-		idx++;
-	}
-
-	ap = alloc_apertures(idx);
 	if (!ap)
-		return -ENOMEM;
+		return 0;
 
-	for (idx = 0, bar = 0; bar < PCI_STD_NUM_BARS; bar++) {
-		if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM))
-			continue;
-		ap->ranges[idx].base = pci_resource_start(pdev, bar);
-		ap->ranges[idx].size = pci_resource_len(pdev, bar);
-		pci_dbg(pdev, "%s: bar %d: 0x%lx -> 0x%lx\n", __func__, bar,
-			(unsigned long)pci_resource_start(pdev, bar),
-			(unsigned long)pci_resource_end(pdev, bar));
-		idx++;
+	if (!dev_is_platform(dev))
+		return 0;
+
+	pdev = to_platform_device(dev);
+
+	for (ret = 0, i = 0; i < ap->count; ++i) {
+		ret = devm_aperture_acquire_for_platform_device(pdev, ap->ranges[i].base,
+								ap->ranges[i].size);
+		if (ret)
+			break;
 	}
 
-#ifdef CONFIG_X86
-	primary = pdev->resource[PCI_ROM_RESOURCE].flags &
-					IORESOURCE_ROM_SHADOW;
-#endif
-	err = remove_conflicting_framebuffers(ap, name, primary);
-	kfree(ap);
-	return err;
+	return ret;
 }
-EXPORT_SYMBOL(remove_conflicting_pci_framebuffers);
 
 /**
  *	register_framebuffer - registers a frame buffer device
@@ -1860,6 +1691,12 @@ int
 register_framebuffer(struct fb_info *fb_info)
 {
 	int ret;
+
+	if (fb_info->flags & FBINFO_MISC_FIRMWARE) {
+		ret = fb_aperture_acquire_for_platform_device(fb_info);
+		if (ret)
+			return ret;
+	}
 
 	mutex_lock(&registration_lock);
 	ret = do_register_framebuffer(fb_info);

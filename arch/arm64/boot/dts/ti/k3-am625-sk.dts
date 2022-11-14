@@ -502,3 +502,15 @@
 &main_mcan0 {
 	status = "disabled";
 };
+
+&epwm0 {
+	status = "disabled";
+};
+
+&epwm1 {
+	status = "disabled";
+};
+
+&epwm2 {
+	status = "disabled";
+};

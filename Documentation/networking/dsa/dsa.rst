@@ -303,6 +303,20 @@ These frames are then queued for transmission using the master network device
 Ethernet switch will be able to process these incoming frames from the
 management interface and deliver them to the physical switch port.
 
+When using multiple CPU ports, it is possible to stack a LAG (bonding/team)
+device between the DSA slave devices and the physical DSA masters. The LAG
+device is thus also a DSA master, but the LAG slave devices continue to be DSA
+masters as well (just with no user port assigned to them; this is needed for
+recovery in case the LAG DSA master disappears). Thus, the data path of the LAG
+DSA master is used asymmetrically. On RX, the ``ETH_P_XDSA`` handler, which
+calls ``dsa_switch_rcv()``, is invoked early (on the physical DSA master;
+LAG slave). Therefore, the RX data path of the LAG DSA master is not used.
+On the other hand, TX takes place linearly: ``dsa_slave_xmit`` calls
+``dsa_enqueue_skb``, which calls ``dev_queue_xmit`` towards the LAG DSA master.
+The latter calls ``dev_queue_xmit`` towards one physical DSA master or the
+other, and in both cases, the packet exits the system through a hardware path
+towards the switch.
+
 Graphical representation
 ------------------------
 
@@ -628,6 +642,24 @@ Switch configuration
   probing only to be torn down immediately afterwards, for example in case its
   PHY cannot be found. In this case, probing of the DSA switch continues
   without that particular port.
+
+- ``port_change_master``: method through which the affinity (association used
+  for traffic termination purposes) between a user port and a CPU port can be
+  changed. By default all user ports from a tree are assigned to the first
+  available CPU port that makes sense for them (most of the times this means
+  the user ports of a tree are all assigned to the same CPU port, except for H
+  topologies as described in commit 2c0b03258b8b). The ``port`` argument
+  represents the index of the user port, and the ``master`` argument represents
+  the new DSA master ``net_device``. The CPU port associated with the new
+  master can be retrieved by looking at ``struct dsa_port *cpu_dp =
+  master->dsa_ptr``. Additionally, the master can also be a LAG device where
+  all the slave devices are physical DSA masters. LAG DSA masters also have a
+  valid ``master->dsa_ptr`` pointer, however this is not unique, but rather a
+  duplicate of the first physical DSA master's (LAG slave) ``dsa_ptr``. In case
+  of a LAG DSA master, a further call to ``port_lag_join`` will be emitted
+  separately for the physical CPU ports associated with the physical DSA
+  masters, requesting them to create a hardware LAG associated with the LAG
+  interface.
 
 PHY devices and link management
 -------------------------------
@@ -1095,9 +1127,3 @@ capable hardware, but does not enforce a strict switch device driver model. On
 the other DSA enforces a fairly strict device driver model, and deals with most
 of the switch specific. At some point we should envision a merger between these
 two subsystems and get the best of both worlds.
-
-Other hanging fruits
---------------------
-
-- allowing more than one CPU/management interface:
-  http://comments.gmane.org/gmane.linux.network/365657

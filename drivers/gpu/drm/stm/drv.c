@@ -18,9 +18,8 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
@@ -37,7 +36,7 @@ static const struct drm_mode_config_funcs drv_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-static int stm_gem_cma_dumb_create(struct drm_file *file,
+static int stm_gem_dma_dumb_create(struct drm_file *file,
 				   struct drm_device *dev,
 				   struct drm_mode_create_dumb *args)
 {
@@ -50,10 +49,10 @@ static int stm_gem_cma_dumb_create(struct drm_file *file,
 	args->pitch = roundup(min_pitch, 128);
 	args->height = roundup(args->height, 4);
 
-	return drm_gem_cma_dumb_create_internal(file, dev, args);
+	return drm_gem_dma_dumb_create_internal(file, dev, args);
 }
 
-DEFINE_DRM_GEM_CMA_FOPS(drv_driver_fops);
+DEFINE_DRM_GEM_DMA_FOPS(drv_driver_fops);
 
 static const struct drm_driver drv_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
@@ -64,7 +63,7 @@ static const struct drm_driver drv_driver = {
 	.minor = 0,
 	.patchlevel = 0,
 	.fops = &drv_driver_fops,
-	DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE(stm_gem_cma_dumb_create),
+	DRM_GEM_DMA_DRIVER_OPS_WITH_DUMB_CREATE(stm_gem_dma_dumb_create),
 };
 
 static int drv_load(struct drm_device *ddev)

@@ -796,6 +796,17 @@ static int zynqmp_dma_device_terminate_all(struct dma_chan *dchan)
 }
 
 /**
+ * zynqmp_dma_synchronize - Synchronizes the termination of a transfers to the current context.
+ * @dchan: DMA channel pointer
+ */
+static void zynqmp_dma_synchronize(struct dma_chan *dchan)
+{
+	struct zynqmp_dma_chan *chan = to_chan(dchan);
+
+	tasklet_kill(&chan->tasklet);
+}
+
+/**
  * zynqmp_dma_prep_memcpy - prepare descriptors for memcpy transaction
  * @dchan: DMA channel
  * @dma_dst: Destination buffer address
@@ -1057,6 +1068,7 @@ static int zynqmp_dma_probe(struct platform_device *pdev)
 	p = &zdev->common;
 	p->device_prep_dma_memcpy = zynqmp_dma_prep_memcpy;
 	p->device_terminate_all = zynqmp_dma_device_terminate_all;
+	p->device_synchronize = zynqmp_dma_synchronize;
 	p->device_issue_pending = zynqmp_dma_issue_pending;
 	p->device_alloc_chan_resources = zynqmp_dma_alloc_chan_resources;
 	p->device_free_chan_resources = zynqmp_dma_free_chan_resources;

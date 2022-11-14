@@ -52,7 +52,7 @@ struct pca9532_data {
 
 static int pca9532_probe(struct i2c_client *client,
 	const struct i2c_device_id *id);
-static int pca9532_remove(struct i2c_client *client);
+static void pca9532_remove(struct i2c_client *client);
 
 enum {
 	pca9530,
@@ -546,13 +546,11 @@ static int pca9532_probe(struct i2c_client *client,
 	return pca9532_configure(client, data, pca9532_pdata);
 }
 
-static int pca9532_remove(struct i2c_client *client)
+static void pca9532_remove(struct i2c_client *client)
 {
 	struct pca9532_data *data = i2c_get_clientdata(client);
 
 	pca9532_destroy_devices(data, data->chip_info->num_leds);
-
-	return 0;
 }
 
 module_i2c_driver(pca9532_driver);

@@ -1,17 +1,16 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Copyright 2021 Google LLC
+# Copyright 2022 Google LLC
 # Author: ramjiyani@google.com (Ramji Jiyani)
 #
 
 #
-# Generates hearder files for GKI modules symbol and export protections
+# Generates header file with list of unprotected symbols
 #
 # Called By: KERNEL_SRC/kernel/Makefile if CONFIG_MODULE_SIG_PROTECT=y
 #
-# gki_module_exported.h: Symbols protected from _export_ by unsigned modules
-# gki_module_protected.h: Symbols protected from _access_ by unsigned modules
+# gki_module_unprotected.h: Symbols allowed to _access_ by unsigned modules
 #
 # If valid symbol file doesn't exists then still generates valid C header files for
 # compilation to proceed with no symbols to protect
@@ -37,7 +36,7 @@ esac
 # generate_header():
 # Args: $1 = Name of the header file
 #       $2 = Input symbol list
-#       $3 = Symbol type (protected/exported)
+#       $3 = Symbol type ("unprotected")
 #
 generate_header() {
 	local header_file=$1
@@ -68,7 +67,7 @@ generate_header() {
 	/*
 	 * DO NOT EDIT
 	 *
-	 * Build generated header file with GKI module symbols/exports
+	 * Build generated header file with unprotected symbols/exports
 	 */
 
 	#define NO_OF_$(printf ${symbol_type} | tr [:lower:] [:upper:])_SYMBOLS \\
@@ -81,21 +80,15 @@ generate_header() {
 
 	# If a valid symbol_file present add symbols in an array except the 1st line
 	if [  -s "${symbol_file}" ]; then
-		sed -e 1d -e 's/^[ \t]*/\t"/;s/[ \t]*$/",/' "${symbol_file}" >> "${header_file}"
+		sed -e 's/^[ \t]*/\t"/;s/[ \t]*$/",/' "${symbol_file}" >> "${header_file}"
 	fi
 
 	# Terminate the file
 	echo "};" >> "${header_file}"
 }
 
-if [ "$(basename "${TARGET}")" = "gki_module_protected.h" ]; then
-	# Sorted list of protected symbols
-	GKI_PROTECTED_SYMBOLS="${SRCTREE}/android/abi_gki_modules_protected"
+# Sorted list of vendor symbols
+GKI_VENDOR_SYMBOLS="${OUT_DIR}/abi_symbollist.raw"
 
-	generate_header "${TARGET}" "${GKI_PROTECTED_SYMBOLS}" "protected"
-else
-	# Sorted list of exported symbols
-	GKI_EXPORTED_SYMBOLS="${SRCTREE}/android/abi_gki_modules_exports"
+generate_header "${TARGET}" "${GKI_VENDOR_SYMBOLS}" "unprotected"
 
-	generate_header "${TARGET}" "${GKI_EXPORTED_SYMBOLS}" "exported"
-fi

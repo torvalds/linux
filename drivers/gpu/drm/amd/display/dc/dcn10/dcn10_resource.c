@@ -1336,6 +1336,21 @@ static noinline void dcn10_resource_construct_fp(
 	}
 }
 
+static bool verify_clock_values(struct dm_pp_clock_levels_with_voltage *clks)
+{
+	int i;
+
+	if (clks->num_levels == 0)
+		return false;
+
+	for (i = 0; i < clks->num_levels; i++)
+		/* Ensure that the result is sane */
+		if (clks->data[i].clocks_in_khz == 0)
+			return false;
+
+	return true;
+}
+
 static bool dcn10_resource_construct(
 	uint8_t num_virtual_links,
 	struct dc *dc,
@@ -1345,6 +1360,9 @@ static bool dcn10_resource_construct(
 	int j;
 	struct dc_context *ctx = dc->ctx;
 	uint32_t pipe_fuses = read_pipe_fuses(ctx);
+	struct dm_pp_clock_levels_with_voltage fclks = {0}, dcfclks = {0};
+	int min_fclk_khz, min_dcfclk_khz, socclk_khz;
+	bool res;
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -1495,6 +1513,24 @@ static bool dcn10_resource_construct(
 	/* Other architectures we build for build this with soft-float */
 	dcn10_resource_construct_fp(dc);
 
+	if (!dc->config.is_vmin_only_asic)
+		if (ASICREV_IS_RAVEN2(dc->ctx->asic_id.hw_internal_rev))
+			switch (dc->ctx->asic_id.pci_revision_id) {
+			case PRID_DALI_DE:
+			case PRID_DALI_DF:
+			case PRID_DALI_E3:
+			case PRID_DALI_E4:
+			case PRID_POLLOCK_94:
+			case PRID_POLLOCK_95:
+			case PRID_POLLOCK_E9:
+			case PRID_POLLOCK_EA:
+			case PRID_POLLOCK_EB:
+				dc->config.is_vmin_only_asic = true;
+				break;
+			default:
+				break;
+			}
+
 	pool->base.pp_smu = dcn10_pp_smu_create(ctx);
 
 	/*
@@ -1505,15 +1541,53 @@ static bool dcn10_resource_construct(
 			&& pool->base.pp_smu->rv_funcs.set_pme_wa_enable != NULL)
 		dc->debug.az_endpoint_mute_only = false;
 
-	DC_FP_START();
-	if (!dc->debug.disable_pplib_clock_request)
-		dcn_bw_update_from_pplib(dc);
+
+	if (!dc->debug.disable_pplib_clock_request) {
+		/*
+		 * TODO: This is not the proper way to obtain
+		 * fabric_and_dram_bandwidth, should be min(fclk, memclk).
+		 */
+		res = dm_pp_get_clock_levels_by_type_with_voltage(
+				ctx, DM_PP_CLOCK_TYPE_FCLK, &fclks);
+
+		DC_FP_START();
+
+		if (res)
+			res = verify_clock_values(&fclks);
+
+		if (res)
+			dcn_bw_update_from_pplib_fclks(dc, &fclks);
+		else
+			BREAK_TO_DEBUGGER();
+
+		DC_FP_END();
+
+		res = dm_pp_get_clock_levels_by_type_with_voltage(
+			ctx, DM_PP_CLOCK_TYPE_DCFCLK, &dcfclks);
+
+		DC_FP_START();
+
+		if (res)
+			res = verify_clock_values(&dcfclks);
+
+		if (res)
+			dcn_bw_update_from_pplib_dcfclks(dc, &dcfclks);
+		else
+			BREAK_TO_DEBUGGER();
+
+		DC_FP_END();
+	}
+
 	dcn_bw_sync_calcs_and_dml(dc);
 	if (!dc->debug.disable_pplib_wm_range) {
 		dc->res_pool = &pool->base;
-		dcn_bw_notify_pplib_of_wm_ranges(dc);
+		DC_FP_START();
+		dcn_get_soc_clks(
+			dc, &min_fclk_khz, &min_dcfclk_khz, &socclk_khz);
+		DC_FP_END();
+		dcn_bw_notify_pplib_of_wm_ranges(
+			dc, min_fclk_khz, min_dcfclk_khz, socclk_khz);
 	}
-	DC_FP_END();
 
 	{
 		struct irq_service_init_data init_data;

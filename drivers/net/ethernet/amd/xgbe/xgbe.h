@@ -611,6 +611,31 @@ enum xgbe_mdio_mode {
 	XGBE_MDIO_MODE_CL45,
 };
 
+enum xgbe_mb_cmd {
+	XGBE_MB_CMD_POWER_OFF = 0,
+	XGBE_MB_CMD_SET_1G,
+	XGBE_MB_CMD_SET_2_5G,
+	XGBE_MB_CMD_SET_10G_SFI,
+	XGBE_MB_CMD_SET_10G_KR,
+	XGBE_MB_CMD_RRC
+};
+
+enum xgbe_mb_subcmd {
+	XGBE_MB_SUBCMD_NONE = 0,
+
+	/* 10GbE SFP subcommands */
+	XGBE_MB_SUBCMD_ACTIVE = 0,
+	XGBE_MB_SUBCMD_PASSIVE_1M,
+	XGBE_MB_SUBCMD_PASSIVE_3M,
+	XGBE_MB_SUBCMD_PASSIVE_OTHER,
+
+	/* 1GbE Mode subcommands */
+	XGBE_MB_SUBCMD_10MBITS = 0,
+	XGBE_MB_SUBCMD_100MBITS,
+	XGBE_MB_SUBCMD_1G_SGMII,
+	XGBE_MB_SUBCMD_1G_KX
+};
+
 struct xgbe_phy {
 	struct ethtool_link_ksettings lks;
 
@@ -1013,6 +1038,7 @@ struct xgbe_version_data {
 	unsigned int tx_desc_prefetch;
 	unsigned int rx_desc_prefetch;
 	unsigned int an_cdr_workaround;
+	unsigned int enable_rrc;
 };
 
 struct xgbe_prv_data {

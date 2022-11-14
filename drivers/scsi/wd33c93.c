@@ -162,65 +162,6 @@ module_param(setup_strings, charp, 0);
 
 static void wd33c93_execute(struct Scsi_Host *instance);
 
-#ifdef CONFIG_WD33C93_PIO
-static inline uchar
-read_wd33c93(const wd33c93_regs regs, uchar reg_num)
-{
-	uchar data;
-
-	outb(reg_num, regs.SASR);
-	data = inb(regs.SCMD);
-	return data;
-}
-
-static inline unsigned long
-read_wd33c93_count(const wd33c93_regs regs)
-{
-	unsigned long value;
-
-	outb(WD_TRANSFER_COUNT_MSB, regs.SASR);
-	value = inb(regs.SCMD) << 16;
-	value |= inb(regs.SCMD) << 8;
-	value |= inb(regs.SCMD);
-	return value;
-}
-
-static inline uchar
-read_aux_stat(const wd33c93_regs regs)
-{
-	return inb(regs.SASR);
-}
-
-static inline void
-write_wd33c93(const wd33c93_regs regs, uchar reg_num, uchar value)
-{
-      outb(reg_num, regs.SASR);
-      outb(value, regs.SCMD);
-}
-
-static inline void
-write_wd33c93_count(const wd33c93_regs regs, unsigned long value)
-{
-	outb(WD_TRANSFER_COUNT_MSB, regs.SASR);
-	outb((value >> 16) & 0xff, regs.SCMD);
-	outb((value >> 8) & 0xff, regs.SCMD);
-	outb( value & 0xff, regs.SCMD);
-}
-
-#define write_wd33c93_cmd(regs, cmd) \
-	write_wd33c93((regs), WD_COMMAND, (cmd))
-
-static inline void
-write_wd33c93_cdb(const wd33c93_regs regs, uint len, uchar cmnd[])
-{
-	int i;
-
-	outb(WD_CDB_1, regs.SASR);
-	for (i=0; i<len; i++)
-		outb(cmnd[i], regs.SCMD);
-}
-
-#else /* CONFIG_WD33C93_PIO */
 static inline uchar
 read_wd33c93(const wd33c93_regs regs, uchar reg_num)
 {
@@ -287,7 +228,6 @@ write_wd33c93_cdb(const wd33c93_regs regs, uint len, uchar cmnd[])
 	for (i = 0; i < len; i++)
 		*regs.SCMD = cmnd[i];
 }
-#endif /* CONFIG_WD33C93_PIO */
 
 static inline uchar
 read_1_byte(const wd33c93_regs regs)

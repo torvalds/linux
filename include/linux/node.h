@@ -2,15 +2,15 @@
 /*
  * include/linux/node.h - generic node definition
  *
- * This is mainly for topological representation. We define the 
- * basic 'struct node' here, which can be embedded in per-arch 
+ * This is mainly for topological representation. We define the
+ * basic 'struct node' here, which can be embedded in per-arch
  * definitions of processors.
  *
  * Basic handling of the devices is done in drivers/base/node.c
- * and system devices are handled in drivers/base/sys.c. 
+ * and system devices are handled in drivers/base/sys.c.
  *
  * Nodes are exported via driverfs in the class/node/devices/
- * directory. 
+ * directory.
  */
 #ifndef _LINUX_NODE_H_
 #define _LINUX_NODE_H_
@@ -18,7 +18,6 @@
 #include <linux/device.h>
 #include <linux/cpumask.h>
 #include <linux/list.h>
-#include <linux/workqueue.h>
 
 /**
  * struct node_hmem_attrs - heterogeneous memory performance attributes
@@ -84,10 +83,6 @@ static inline void node_set_perf_attrs(unsigned int nid,
 struct node {
 	struct device	dev;
 	struct list_head access_list;
-
-#if defined(CONFIG_MEMORY_HOTPLUG) && defined(CONFIG_HUGETLBFS)
-	struct work_struct	node_work;
-#endif
 #ifdef CONFIG_HMEM_REPORTING
 	struct list_head cache_attrs;
 	struct device *cache_dev;
@@ -96,7 +91,6 @@ struct node {
 
 struct memory_block;
 extern struct node *node_devices[];
-typedef  void (*node_registration_func_t)(struct node *);
 
 #if defined(CONFIG_MEMORY_HOTPLUG) && defined(CONFIG_NUMA)
 void register_memory_blocks_under_node(int nid, unsigned long start_pfn,
@@ -144,11 +138,6 @@ extern void unregister_memory_block_under_nodes(struct memory_block *mem_blk);
 extern int register_memory_node_under_compute_node(unsigned int mem_nid,
 						   unsigned int cpu_nid,
 						   unsigned access);
-
-#ifdef CONFIG_HUGETLBFS
-extern void register_hugetlbfs_with_node(node_registration_func_t doregister,
-					 node_registration_func_t unregister);
-#endif
 #else
 static inline void node_dev_init(void)
 {
@@ -176,18 +165,8 @@ static inline int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
 static inline void unregister_memory_block_under_nodes(struct memory_block *mem_blk)
 {
 }
-
-static inline void register_hugetlbfs_with_node(node_registration_func_t reg,
-						node_registration_func_t unreg)
-{
-}
 #endif
 
 #define to_node(device) container_of(device, struct node, dev)
-
-static inline bool node_is_toptier(int node)
-{
-	return node_state(node, N_CPU);
-}
 
 #endif /* _LINUX_NODE_H_ */

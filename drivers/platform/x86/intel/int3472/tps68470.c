@@ -128,14 +128,14 @@ skl_int3472_fill_clk_pdata(struct device *dev, struct tps68470_clk_platform_data
 	for_each_acpi_consumer_dev(adev, consumer) {
 		sensor_name = devm_kasprintf(dev, GFP_KERNEL, I2C_DEV_NAME_FORMAT,
 					     acpi_dev_name(consumer));
-		if (!sensor_name)
+		if (!sensor_name) {
+			acpi_dev_put(consumer);
 			return -ENOMEM;
+		}
 
 		(*clk_pdata)->consumers[i].consumer_dev_name = sensor_name;
 		i++;
 	}
-
-	acpi_dev_put(consumer);
 
 	return n_consumers;
 }
@@ -227,7 +227,7 @@ static int skl_int3472_tps68470_probe(struct i2c_client *client)
 	return ret;
 }
 
-static int skl_int3472_tps68470_remove(struct i2c_client *client)
+static void skl_int3472_tps68470_remove(struct i2c_client *client)
 {
 	const struct int3472_tps68470_board_data *board_data;
 	int i;
@@ -237,8 +237,6 @@ static int skl_int3472_tps68470_remove(struct i2c_client *client)
 		for (i = 0; i < board_data->n_gpiod_lookups; i++)
 			gpiod_remove_lookup_table(board_data->tps68470_gpio_lookup_tables[i]);
 	}
-
-	return 0;
 }
 
 static const struct acpi_device_id int3472_device_id[] = {

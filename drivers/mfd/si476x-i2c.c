@@ -835,7 +835,7 @@ free_gpio:
 	return rval;
 }
 
-static int si476x_core_remove(struct i2c_client *client)
+static void si476x_core_remove(struct i2c_client *client)
 {
 	struct si476x_core *core = i2c_get_clientdata(client);
 
@@ -851,8 +851,6 @@ static int si476x_core_remove(struct i2c_client *client)
 
 	if (gpio_is_valid(core->gpio_reset))
 		gpio_free(core->gpio_reset);
-
-	return 0;
 }
 
 

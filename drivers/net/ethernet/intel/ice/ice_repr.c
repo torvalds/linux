@@ -377,10 +377,10 @@ static void ice_repr_rem(struct ice_vf *vf)
 	if (!vf->repr)
 		return;
 
-	ice_devlink_destroy_vf_port(vf);
 	kfree(vf->repr->q_vector);
 	vf->repr->q_vector = NULL;
 	unregister_netdev(vf->repr->netdev);
+	ice_devlink_destroy_vf_port(vf);
 	free_netdev(vf->repr->netdev);
 	vf->repr->netdev = NULL;
 #ifdef CONFIG_ICE_SWITCHDEV

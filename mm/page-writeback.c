@@ -1933,6 +1933,7 @@ int balance_dirty_pages_ratelimited_flags(struct address_space *mapping,
 	wb_put(wb);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(balance_dirty_pages_ratelimited_flags);
 
 /**
  * balance_dirty_pages_ratelimited - balance dirty memory state.

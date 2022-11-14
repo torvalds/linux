@@ -64,9 +64,9 @@ properties:
   interrupt-controller: true
 
   "#address-cells":
-    enum: [ 0, 1 ]
+    enum: [ 0, 1, 2 ]
   "#size-cells":
-    const: 1
+    enum: [ 1, 2 ]
 
   "#interrupt-cells":
     const: 3

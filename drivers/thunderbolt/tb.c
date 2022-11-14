@@ -105,6 +105,32 @@ static void tb_remove_dp_resources(struct tb_switch *sw)
 	}
 }
 
+static void tb_discover_dp_resource(struct tb *tb, struct tb_port *port)
+{
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_port *p;
+
+	list_for_each_entry(p, &tcm->dp_resources, list) {
+		if (p == port)
+			return;
+	}
+
+	tb_port_dbg(port, "DP %s resource available discovered\n",
+		    tb_port_is_dpin(port) ? "IN" : "OUT");
+	list_add_tail(&port->list, &tcm->dp_resources);
+}
+
+static void tb_discover_dp_resources(struct tb *tb)
+{
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_tunnel *tunnel;
+
+	list_for_each_entry(tunnel, &tcm->tunnel_list, list) {
+		if (tb_tunnel_is_dp(tunnel))
+			tb_discover_dp_resource(tb, tunnel->dst_port);
+	}
+}
+
 static void tb_switch_discover_tunnels(struct tb_switch *sw,
 				       struct list_head *list,
 				       bool alloc_hopids)
@@ -174,10 +200,10 @@ static void tb_discover_tunnels(struct tb *tb)
 	}
 }
 
-static int tb_port_configure_xdomain(struct tb_port *port)
+static int tb_port_configure_xdomain(struct tb_port *port, struct tb_xdomain *xd)
 {
 	if (tb_switch_is_usb4(port->sw))
-		return usb4_port_configure_xdomain(port);
+		return usb4_port_configure_xdomain(port, xd);
 	return tb_lc_configure_xdomain(port);
 }
 
@@ -212,7 +238,7 @@ static void tb_scan_xdomain(struct tb_port *port)
 			      NULL);
 	if (xd) {
 		tb_port_at(route, sw)->xdomain = xd;
-		tb_port_configure_xdomain(port);
+		tb_port_configure_xdomain(port, xd);
 		tb_xdomain_add(xd);
 	}
 }
@@ -1416,8 +1442,11 @@ static int tb_start(struct tb *tb)
 	 * ICM firmware upgrade needs running firmware and in native
 	 * mode that is not available so disable firmware upgrade of the
 	 * root switch.
+	 *
+	 * However, USB4 routers support NVM firmware upgrade if they
+	 * implement the necessary router operations.
 	 */
-	tb->root_switch->no_nvm_upgrade = true;
+	tb->root_switch->no_nvm_upgrade = !tb_switch_is_usb4(tb->root_switch);
 	/* All USB4 routers support runtime PM */
 	tb->root_switch->rpm = tb_switch_is_usb4(tb->root_switch);
 
@@ -1446,6 +1475,8 @@ static int tb_start(struct tb *tb)
 	tb_scan_switch(tb->root_switch);
 	/* Find out tunnels created by the boot firmware */
 	tb_discover_tunnels(tb);
+	/* Add DP resources from the DP tunnels created by the boot firmware */
+	tb_discover_dp_resources(tb);
 	/*
 	 * If the boot firmware did not create USB 3.x tunnels create them
 	 * now for the whole topology.
@@ -1516,7 +1547,7 @@ static void tb_restore_children(struct tb_switch *sw)
 
 			tb_restore_children(port->remote->sw);
 		} else if (port->xdomain) {
-			tb_port_configure_xdomain(port);
+			tb_port_configure_xdomain(port, port->xdomain);
 		}
 	}
 }

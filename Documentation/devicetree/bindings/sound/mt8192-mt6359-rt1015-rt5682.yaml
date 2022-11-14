@@ -30,6 +30,8 @@ properties:
 
   headset-codec:
     type: object
+    additionalProperties: false
+
     properties:
       sound-dai:
         $ref: /schemas/types.yaml#/definitions/phandle
@@ -38,6 +40,8 @@ properties:
 
   speaker-codecs:
     type: object
+    additionalProperties: false
+
     properties:
       sound-dai:
         minItems: 1

@@ -791,7 +791,7 @@ static int at24_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int at24_remove(struct i2c_client *client)
+static void at24_remove(struct i2c_client *client)
 {
 	struct at24_data *at24 = i2c_get_clientdata(client);
 
@@ -801,8 +801,6 @@ static int at24_remove(struct i2c_client *client)
 			regulator_disable(at24->vcc_reg);
 		pm_runtime_set_suspended(&client->dev);
 	}
-
-	return 0;
 }
 
 static int __maybe_unused at24_suspend(struct device *dev)

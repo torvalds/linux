@@ -163,6 +163,62 @@ static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
 	 */
 }
 
+static inline bool __pte_flags_need_flush(unsigned long oldval,
+					  unsigned long newval)
+{
+	unsigned long delta = oldval ^ newval;
+
+	/*
+	 * The return value of this function doesn't matter for hash,
+	 * ptep_modify_prot_start() does a pte_update() which does or schedules
+	 * any necessary hash table update and flush.
+	 */
+	if (!radix_enabled())
+		return true;
+
+	/*
+	 * We do not expect kernel mappings or non-PTEs or not-present PTEs.
+	 */
+	VM_WARN_ON_ONCE(oldval & _PAGE_PRIVILEGED);
+	VM_WARN_ON_ONCE(newval & _PAGE_PRIVILEGED);
+	VM_WARN_ON_ONCE(!(oldval & _PAGE_PTE));
+	VM_WARN_ON_ONCE(!(newval & _PAGE_PTE));
+	VM_WARN_ON_ONCE(!(oldval & _PAGE_PRESENT));
+	VM_WARN_ON_ONCE(!(newval & _PAGE_PRESENT));
+
+	/*
+	*  Must flush on any change except READ, WRITE, EXEC, DIRTY, ACCESSED.
+	*
+	 * In theory, some changed software bits could be tolerated, in
+	 * practice those should rarely if ever matter.
+	 */
+
+	if (delta & ~(_PAGE_RWX | _PAGE_DIRTY | _PAGE_ACCESSED))
+		return true;
+
+	/*
+	 * If any of the above was present in old but cleared in new, flush.
+	 * With the exception of _PAGE_ACCESSED, don't worry about flushing
+	 * if that was cleared (see the comment in ptep_clear_flush_young()).
+	 */
+	if ((delta & ~_PAGE_ACCESSED) & oldval)
+		return true;
+
+	return false;
+}
+
+static inline bool pte_needs_flush(pte_t oldpte, pte_t newpte)
+{
+	return __pte_flags_need_flush(pte_val(oldpte), pte_val(newpte));
+}
+#define pte_needs_flush pte_needs_flush
+
+static inline bool huge_pmd_needs_flush(pmd_t oldpmd, pmd_t newpmd)
+{
+	return __pte_flags_need_flush(pmd_val(oldpmd), pmd_val(newpmd));
+}
+#define huge_pmd_needs_flush huge_pmd_needs_flush
+
 extern bool tlbie_capable;
 extern bool tlbie_enabled;
 

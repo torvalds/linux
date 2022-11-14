@@ -32,7 +32,7 @@ extern struct platform_driver ipu_drm_driver;
 
 void imx_drm_mode_config_init(struct drm_device *drm);
 
-struct drm_gem_cma_object *imx_drm_fb_get_obj(struct drm_framebuffer *fb);
+struct drm_gem_dma_object *imx_drm_fb_get_obj(struct drm_framebuffer *fb);
 
 int imx_drm_encoder_parse_of(struct drm_device *drm,
 	struct drm_encoder *encoder, struct device_node *np);

@@ -95,15 +95,12 @@ properties:
   vrefD-supply: true
   vref-supply: true
 
-  spi-max-frequency: true
-
-additionalProperties: false
-
 required:
   - compatible
   - reg
 
 allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
   - # Shared external vref, no internal reference
     if:
       properties:
@@ -231,6 +228,8 @@ allOf:
       required:
         - vrefA-supply
         - vrefB-supply
+
+unevaluatedProperties: false
 
 examples:
   - |

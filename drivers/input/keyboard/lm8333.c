@@ -4,13 +4,13 @@
  * Copyright (C) 2012 Wolfram Sang, Pengutronix <kernel@pengutronix.de>
  */
 
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/irq.h>
 #include <linux/i2c.h>
-#include <linux/interrupt.h>
+#include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/input/lm8333.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/slab.h>
 
 #define LM8333_FIFO_READ		0x20
 #define LM8333_DEBOUNCE			0x22
@@ -200,15 +200,13 @@ static int lm8333_probe(struct i2c_client *client,
 	return err;
 }
 
-static int lm8333_remove(struct i2c_client *client)
+static void lm8333_remove(struct i2c_client *client)
 {
 	struct lm8333 *lm8333 = i2c_get_clientdata(client);
 
 	free_irq(client->irq, lm8333);
 	input_unregister_device(lm8333->input);
 	kfree(lm8333);
-
-	return 0;
 }
 
 static const struct i2c_device_id lm8333_id[] = {

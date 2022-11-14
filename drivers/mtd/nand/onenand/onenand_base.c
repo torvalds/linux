@@ -1440,6 +1440,7 @@ static int onenand_read_oob(struct mtd_info *mtd, loff_t from,
 			    struct mtd_oob_ops *ops)
 {
 	struct onenand_chip *this = mtd->priv;
+	struct mtd_ecc_stats old_stats;
 	int ret;
 
 	switch (ops->mode) {
@@ -1453,12 +1454,23 @@ static int onenand_read_oob(struct mtd_info *mtd, loff_t from,
 	}
 
 	onenand_get_device(mtd, FL_READING);
+
+	old_stats = mtd->ecc_stats;
+
 	if (ops->datbuf)
 		ret = ONENAND_IS_4KB_PAGE(this) ?
 			onenand_mlc_read_ops_nolock(mtd, from, ops) :
 			onenand_read_ops_nolock(mtd, from, ops);
 	else
 		ret = onenand_read_oob_nolock(mtd, from, ops);
+
+	if (ops->stats) {
+		ops->stats->uncorrectable_errors +=
+			mtd->ecc_stats.failed - old_stats.failed;
+		ops->stats->corrected_bitflips +=
+			mtd->ecc_stats.corrected - old_stats.corrected;
+	}
+
 	onenand_release_device(mtd);
 
 	return ret;
@@ -2935,7 +2947,7 @@ static int do_otp_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct onenand_chip *this = mtd->priv;
 	unsigned char *pbuf = buf;
 	int ret;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 
 	/* Force buffer page aligned */
 	if (len < mtd->writesize) {
@@ -2977,7 +2989,7 @@ static int do_otp_lock(struct mtd_info *mtd, loff_t from, size_t len,
 		size_t *retlen, u_char *buf)
 {
 	struct onenand_chip *this = mtd->priv;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int ret;
 
 	if (FLEXONENAND(this)) {

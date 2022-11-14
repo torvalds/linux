@@ -419,7 +419,6 @@ void brcmf_flowring_configure_addr_mode(struct brcmf_flowring *flow, int ifidx,
 				flowid = flow->hash[i].flowid;
 				if (flow->rings[flowid]->status != RING_OPEN)
 					continue;
-				flow->rings[flowid]->status = RING_CLOSING;
 				brcmf_msgbuf_delete_flowring(drvr, flowid);
 			}
 		}
@@ -458,10 +457,8 @@ void brcmf_flowring_delete_peer(struct brcmf_flowring *flow, int ifidx,
 		if ((sta || (memcmp(hash[i].mac, peer, ETH_ALEN) == 0)) &&
 		    (hash[i].ifidx == ifidx)) {
 			flowid = flow->hash[i].flowid;
-			if (flow->rings[flowid]->status == RING_OPEN) {
-				flow->rings[flowid]->status = RING_CLOSING;
+			if (flow->rings[flowid]->status == RING_OPEN)
 				brcmf_msgbuf_delete_flowring(drvr, flowid);
-			}
 		}
 	}
 

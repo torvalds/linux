@@ -1044,7 +1044,7 @@ error:
  * Reset the TVP7002 device
  * Returns zero.
  */
-static int tvp7002_remove(struct i2c_client *c)
+static void tvp7002_remove(struct i2c_client *c)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(c);
 	struct tvp7002 *device = to_tvp7002(sd);
@@ -1056,7 +1056,6 @@ static int tvp7002_remove(struct i2c_client *c)
 	media_entity_cleanup(&device->sd.entity);
 #endif
 	v4l2_ctrl_handler_free(&device->hdl);
-	return 0;
 }
 
 /* I2C Device ID table */

@@ -327,7 +327,7 @@
 		};
 	};
 
-	spi2 {
+	spi-2 {
 		compatible = "spi-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi2_pins_cfa10049>;
@@ -351,7 +351,7 @@
 		};
 	};
 
-	spi3 {
+	spi-3 {
 		compatible = "spi-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi3_pins_cfa10049>;
@@ -388,12 +388,12 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&rotary_btn_pins_cfa10049>;
 
-		rotary_button {
+		rotary-button {
 			label = "rotary_button";
 			gpios = <&gpio3 26 1>;
 			debounce-interval = <10>;

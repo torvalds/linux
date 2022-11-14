@@ -54,7 +54,7 @@ static int fake_sigreturn_ssve_change_vl(struct tdescr *td,
 	struct sve_context *sve;
 
 	/* Get a signal context with a SME ZA frame in it */
-	if (!get_current_context(td, &sf.uc))
+	if (!get_current_context(td, &sf.uc, sizeof(sf.uc)))
 		return 1;
 
 	resv_sz = GET_SF_RESV_SIZE(sf);

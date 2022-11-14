@@ -3,7 +3,7 @@ config DRM_TIDSS
 	depends on DRM && OF
 	depends on ARM || ARM64 || COMPILE_TEST
 	select DRM_KMS_HELPER
-	select DRM_GEM_CMA_HELPER
+	select DRM_GEM_DMA_HELPER
 	help
 	  The TI Keystone family SoCs introduced a new generation of
 	  Display SubSystem. There is currently three Keystone family

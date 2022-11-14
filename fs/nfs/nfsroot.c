@@ -139,7 +139,7 @@ static int __init nfs_root_setup(char *line)
 	ROOT_DEV = Root_NFS;
 
 	if (line[0] == '/' || line[0] == ',' || (line[0] >= '0' && line[0] <= '9')) {
-		strlcpy(nfs_root_parms, line, sizeof(nfs_root_parms));
+		strscpy(nfs_root_parms, line, sizeof(nfs_root_parms));
 	} else {
 		size_t n = strlen(line) + sizeof(NFS_ROOT) - 1;
 		if (n >= sizeof(nfs_root_parms))

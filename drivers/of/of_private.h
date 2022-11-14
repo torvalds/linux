@@ -155,11 +155,16 @@ struct bus_dma_region;
 #if defined(CONFIG_OF_ADDRESS) && defined(CONFIG_HAS_DMA)
 int of_dma_get_range(struct device_node *np,
 		const struct bus_dma_region **map);
+struct device_node *__of_get_dma_parent(const struct device_node *np);
 #else
 static inline int of_dma_get_range(struct device_node *np,
 		const struct bus_dma_region **map)
 {
 	return -ENODEV;
+}
+static inline struct device_node *__of_get_dma_parent(const struct device_node *np)
+{
+	return of_get_parent(np);
 }
 #endif
 

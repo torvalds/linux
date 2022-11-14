@@ -123,7 +123,7 @@ static inline void mlx5_wq_cyc_push(struct mlx5_wq_cyc *wq)
 	wq->cur_sz++;
 }
 
-static inline void mlx5_wq_cyc_push_n(struct mlx5_wq_cyc *wq, u8 n)
+static inline void mlx5_wq_cyc_push_n(struct mlx5_wq_cyc *wq, u16 n)
 {
 	wq->wqe_ctr += n;
 	wq->cur_sz += n;

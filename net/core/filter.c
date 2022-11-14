@@ -18,6 +18,7 @@
  */
 
 #include <linux/atomic.h>
+#include <linux/bpf_verifier.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/mm.h>
@@ -3010,7 +3011,7 @@ BPF_CALL_0(bpf_get_cgroup_classid_curr)
 	return __task_get_classid(current);
 }
 
-static const struct bpf_func_proto bpf_get_cgroup_classid_curr_proto = {
+const struct bpf_func_proto bpf_get_cgroup_classid_curr_proto = {
 	.func		= bpf_get_cgroup_classid_curr,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
@@ -4489,7 +4490,8 @@ BPF_CALL_4(bpf_skb_get_tunnel_key, struct sk_buff *, skb, struct bpf_tunnel_key 
 	void *to_orig = to;
 	int err;
 
-	if (unlikely(!info || (flags & ~(BPF_F_TUNINFO_IPV6)))) {
+	if (unlikely(!info || (flags & ~(BPF_F_TUNINFO_IPV6 |
+					 BPF_F_TUNINFO_FLAGS)))) {
 		err = -EINVAL;
 		goto err_clear;
 	}
@@ -4521,7 +4523,10 @@ set_compat:
 	to->tunnel_id = be64_to_cpu(info->key.tun_id);
 	to->tunnel_tos = info->key.tos;
 	to->tunnel_ttl = info->key.ttl;
-	to->tunnel_ext = 0;
+	if (flags & BPF_F_TUNINFO_FLAGS)
+		to->tunnel_flags = info->key.tun_flags;
+	else
+		to->tunnel_ext = 0;
 
 	if (flags & BPF_F_TUNINFO_IPV6) {
 		memcpy(to->remote_ipv6, &info->key.u.ipv6.src,
@@ -5014,251 +5019,266 @@ static const struct bpf_func_proto bpf_get_socket_uid_proto = {
 	.arg1_type      = ARG_PTR_TO_CTX,
 };
 
+static int sol_socket_sockopt(struct sock *sk, int optname,
+			      char *optval, int *optlen,
+			      bool getopt)
+{
+	switch (optname) {
+	case SO_REUSEADDR:
+	case SO_SNDBUF:
+	case SO_RCVBUF:
+	case SO_KEEPALIVE:
+	case SO_PRIORITY:
+	case SO_REUSEPORT:
+	case SO_RCVLOWAT:
+	case SO_MARK:
+	case SO_MAX_PACING_RATE:
+	case SO_BINDTOIFINDEX:
+	case SO_TXREHASH:
+		if (*optlen != sizeof(int))
+			return -EINVAL;
+		break;
+	case SO_BINDTODEVICE:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (getopt) {
+		if (optname == SO_BINDTODEVICE)
+			return -EINVAL;
+		return sk_getsockopt(sk, SOL_SOCKET, optname,
+				     KERNEL_SOCKPTR(optval),
+				     KERNEL_SOCKPTR(optlen));
+	}
+
+	return sk_setsockopt(sk, SOL_SOCKET, optname,
+			     KERNEL_SOCKPTR(optval), *optlen);
+}
+
+static int bpf_sol_tcp_setsockopt(struct sock *sk, int optname,
+				  char *optval, int optlen)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	unsigned long timeout;
+	int val;
+
+	if (optlen != sizeof(int))
+		return -EINVAL;
+
+	val = *(int *)optval;
+
+	/* Only some options are supported */
+	switch (optname) {
+	case TCP_BPF_IW:
+		if (val <= 0 || tp->data_segs_out > tp->syn_data)
+			return -EINVAL;
+		tcp_snd_cwnd_set(tp, val);
+		break;
+	case TCP_BPF_SNDCWND_CLAMP:
+		if (val <= 0)
+			return -EINVAL;
+		tp->snd_cwnd_clamp = val;
+		tp->snd_ssthresh = val;
+		break;
+	case TCP_BPF_DELACK_MAX:
+		timeout = usecs_to_jiffies(val);
+		if (timeout > TCP_DELACK_MAX ||
+		    timeout < TCP_TIMEOUT_MIN)
+			return -EINVAL;
+		inet_csk(sk)->icsk_delack_max = timeout;
+		break;
+	case TCP_BPF_RTO_MIN:
+		timeout = usecs_to_jiffies(val);
+		if (timeout > TCP_RTO_MIN ||
+		    timeout < TCP_TIMEOUT_MIN)
+			return -EINVAL;
+		inet_csk(sk)->icsk_rto_min = timeout;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int sol_tcp_sockopt_congestion(struct sock *sk, char *optval,
+				      int *optlen, bool getopt)
+{
+	struct tcp_sock *tp;
+	int ret;
+
+	if (*optlen < 2)
+		return -EINVAL;
+
+	if (getopt) {
+		if (!inet_csk(sk)->icsk_ca_ops)
+			return -EINVAL;
+		/* BPF expects NULL-terminated tcp-cc string */
+		optval[--(*optlen)] = '\0';
+		return do_tcp_getsockopt(sk, SOL_TCP, TCP_CONGESTION,
+					 KERNEL_SOCKPTR(optval),
+					 KERNEL_SOCKPTR(optlen));
+	}
+
+	/* "cdg" is the only cc that alloc a ptr
+	 * in inet_csk_ca area.  The bpf-tcp-cc may
+	 * overwrite this ptr after switching to cdg.
+	 */
+	if (*optlen >= sizeof("cdg") - 1 && !strncmp("cdg", optval, *optlen))
+		return -ENOTSUPP;
+
+	/* It stops this looping
+	 *
+	 * .init => bpf_setsockopt(tcp_cc) => .init =>
+	 * bpf_setsockopt(tcp_cc)" => .init => ....
+	 *
+	 * The second bpf_setsockopt(tcp_cc) is not allowed
+	 * in order to break the loop when both .init
+	 * are the same bpf prog.
+	 *
+	 * This applies even the second bpf_setsockopt(tcp_cc)
+	 * does not cause a loop.  This limits only the first
+	 * '.init' can call bpf_setsockopt(TCP_CONGESTION) to
+	 * pick a fallback cc (eg. peer does not support ECN)
+	 * and the second '.init' cannot fallback to
+	 * another.
+	 */
+	tp = tcp_sk(sk);
+	if (tp->bpf_chg_cc_inprogress)
+		return -EBUSY;
+
+	tp->bpf_chg_cc_inprogress = 1;
+	ret = do_tcp_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
+				KERNEL_SOCKPTR(optval), *optlen);
+	tp->bpf_chg_cc_inprogress = 0;
+	return ret;
+}
+
+static int sol_tcp_sockopt(struct sock *sk, int optname,
+			   char *optval, int *optlen,
+			   bool getopt)
+{
+	if (sk->sk_prot->setsockopt != tcp_setsockopt)
+		return -EINVAL;
+
+	switch (optname) {
+	case TCP_NODELAY:
+	case TCP_MAXSEG:
+	case TCP_KEEPIDLE:
+	case TCP_KEEPINTVL:
+	case TCP_KEEPCNT:
+	case TCP_SYNCNT:
+	case TCP_WINDOW_CLAMP:
+	case TCP_THIN_LINEAR_TIMEOUTS:
+	case TCP_USER_TIMEOUT:
+	case TCP_NOTSENT_LOWAT:
+	case TCP_SAVE_SYN:
+		if (*optlen != sizeof(int))
+			return -EINVAL;
+		break;
+	case TCP_CONGESTION:
+		return sol_tcp_sockopt_congestion(sk, optval, optlen, getopt);
+	case TCP_SAVED_SYN:
+		if (*optlen < 1)
+			return -EINVAL;
+		break;
+	default:
+		if (getopt)
+			return -EINVAL;
+		return bpf_sol_tcp_setsockopt(sk, optname, optval, *optlen);
+	}
+
+	if (getopt) {
+		if (optname == TCP_SAVED_SYN) {
+			struct tcp_sock *tp = tcp_sk(sk);
+
+			if (!tp->saved_syn ||
+			    *optlen > tcp_saved_syn_len(tp->saved_syn))
+				return -EINVAL;
+			memcpy(optval, tp->saved_syn->data, *optlen);
+			/* It cannot free tp->saved_syn here because it
+			 * does not know if the user space still needs it.
+			 */
+			return 0;
+		}
+
+		return do_tcp_getsockopt(sk, SOL_TCP, optname,
+					 KERNEL_SOCKPTR(optval),
+					 KERNEL_SOCKPTR(optlen));
+	}
+
+	return do_tcp_setsockopt(sk, SOL_TCP, optname,
+				 KERNEL_SOCKPTR(optval), *optlen);
+}
+
+static int sol_ip_sockopt(struct sock *sk, int optname,
+			  char *optval, int *optlen,
+			  bool getopt)
+{
+	if (sk->sk_family != AF_INET)
+		return -EINVAL;
+
+	switch (optname) {
+	case IP_TOS:
+		if (*optlen != sizeof(int))
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (getopt)
+		return do_ip_getsockopt(sk, SOL_IP, optname,
+					KERNEL_SOCKPTR(optval),
+					KERNEL_SOCKPTR(optlen));
+
+	return do_ip_setsockopt(sk, SOL_IP, optname,
+				KERNEL_SOCKPTR(optval), *optlen);
+}
+
+static int sol_ipv6_sockopt(struct sock *sk, int optname,
+			    char *optval, int *optlen,
+			    bool getopt)
+{
+	if (sk->sk_family != AF_INET6)
+		return -EINVAL;
+
+	switch (optname) {
+	case IPV6_TCLASS:
+	case IPV6_AUTOFLOWLABEL:
+		if (*optlen != sizeof(int))
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (getopt)
+		return ipv6_bpf_stub->ipv6_getsockopt(sk, SOL_IPV6, optname,
+						      KERNEL_SOCKPTR(optval),
+						      KERNEL_SOCKPTR(optlen));
+
+	return ipv6_bpf_stub->ipv6_setsockopt(sk, SOL_IPV6, optname,
+					      KERNEL_SOCKPTR(optval), *optlen);
+}
+
 static int __bpf_setsockopt(struct sock *sk, int level, int optname,
 			    char *optval, int optlen)
 {
-	char devname[IFNAMSIZ];
-	int val, valbool;
-	struct net *net;
-	int ifindex;
-	int ret = 0;
-
 	if (!sk_fullsock(sk))
 		return -EINVAL;
 
-	if (level == SOL_SOCKET) {
-		if (optlen != sizeof(int) && optname != SO_BINDTODEVICE)
-			return -EINVAL;
-		val = *((int *)optval);
-		valbool = val ? 1 : 0;
+	if (level == SOL_SOCKET)
+		return sol_socket_sockopt(sk, optname, optval, &optlen, false);
+	else if (IS_ENABLED(CONFIG_INET) && level == SOL_IP)
+		return sol_ip_sockopt(sk, optname, optval, &optlen, false);
+	else if (IS_ENABLED(CONFIG_IPV6) && level == SOL_IPV6)
+		return sol_ipv6_sockopt(sk, optname, optval, &optlen, false);
+	else if (IS_ENABLED(CONFIG_INET) && level == SOL_TCP)
+		return sol_tcp_sockopt(sk, optname, optval, &optlen, false);
 
-		/* Only some socketops are supported */
-		switch (optname) {
-		case SO_RCVBUF:
-			val = min_t(u32, val, READ_ONCE(sysctl_rmem_max));
-			val = min_t(int, val, INT_MAX / 2);
-			sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
-			WRITE_ONCE(sk->sk_rcvbuf,
-				   max_t(int, val * 2, SOCK_MIN_RCVBUF));
-			break;
-		case SO_SNDBUF:
-			val = min_t(u32, val, READ_ONCE(sysctl_wmem_max));
-			val = min_t(int, val, INT_MAX / 2);
-			sk->sk_userlocks |= SOCK_SNDBUF_LOCK;
-			WRITE_ONCE(sk->sk_sndbuf,
-				   max_t(int, val * 2, SOCK_MIN_SNDBUF));
-			break;
-		case SO_MAX_PACING_RATE: /* 32bit version */
-			if (val != ~0U)
-				cmpxchg(&sk->sk_pacing_status,
-					SK_PACING_NONE,
-					SK_PACING_NEEDED);
-			sk->sk_max_pacing_rate = (val == ~0U) ?
-						 ~0UL : (unsigned int)val;
-			sk->sk_pacing_rate = min(sk->sk_pacing_rate,
-						 sk->sk_max_pacing_rate);
-			break;
-		case SO_PRIORITY:
-			sk->sk_priority = val;
-			break;
-		case SO_RCVLOWAT:
-			if (val < 0)
-				val = INT_MAX;
-			if (sk->sk_socket && sk->sk_socket->ops->set_rcvlowat)
-				ret = sk->sk_socket->ops->set_rcvlowat(sk, val);
-			else
-				WRITE_ONCE(sk->sk_rcvlowat, val ? : 1);
-			break;
-		case SO_MARK:
-			if (sk->sk_mark != val) {
-				sk->sk_mark = val;
-				sk_dst_reset(sk);
-			}
-			break;
-		case SO_BINDTODEVICE:
-			optlen = min_t(long, optlen, IFNAMSIZ - 1);
-			strncpy(devname, optval, optlen);
-			devname[optlen] = 0;
-
-			ifindex = 0;
-			if (devname[0] != '\0') {
-				struct net_device *dev;
-
-				ret = -ENODEV;
-
-				net = sock_net(sk);
-				dev = dev_get_by_name(net, devname);
-				if (!dev)
-					break;
-				ifindex = dev->ifindex;
-				dev_put(dev);
-			}
-			fallthrough;
-		case SO_BINDTOIFINDEX:
-			if (optname == SO_BINDTOIFINDEX)
-				ifindex = val;
-			ret = sock_bindtoindex(sk, ifindex, false);
-			break;
-		case SO_KEEPALIVE:
-			if (sk->sk_prot->keepalive)
-				sk->sk_prot->keepalive(sk, valbool);
-			sock_valbool_flag(sk, SOCK_KEEPOPEN, valbool);
-			break;
-		case SO_REUSEPORT:
-			sk->sk_reuseport = valbool;
-			break;
-		case SO_TXREHASH:
-			if (val < -1 || val > 1) {
-				ret = -EINVAL;
-				break;
-			}
-			sk->sk_txrehash = (u8)val;
-			break;
-		default:
-			ret = -EINVAL;
-		}
-#ifdef CONFIG_INET
-	} else if (level == SOL_IP) {
-		if (optlen != sizeof(int) || sk->sk_family != AF_INET)
-			return -EINVAL;
-
-		val = *((int *)optval);
-		/* Only some options are supported */
-		switch (optname) {
-		case IP_TOS:
-			if (val < -1 || val > 0xff) {
-				ret = -EINVAL;
-			} else {
-				struct inet_sock *inet = inet_sk(sk);
-
-				if (val == -1)
-					val = 0;
-				inet->tos = val;
-			}
-			break;
-		default:
-			ret = -EINVAL;
-		}
-#if IS_ENABLED(CONFIG_IPV6)
-	} else if (level == SOL_IPV6) {
-		if (optlen != sizeof(int) || sk->sk_family != AF_INET6)
-			return -EINVAL;
-
-		val = *((int *)optval);
-		/* Only some options are supported */
-		switch (optname) {
-		case IPV6_TCLASS:
-			if (val < -1 || val > 0xff) {
-				ret = -EINVAL;
-			} else {
-				struct ipv6_pinfo *np = inet6_sk(sk);
-
-				if (val == -1)
-					val = 0;
-				np->tclass = val;
-			}
-			break;
-		default:
-			ret = -EINVAL;
-		}
-#endif
-	} else if (level == SOL_TCP &&
-		   sk->sk_prot->setsockopt == tcp_setsockopt) {
-		if (optname == TCP_CONGESTION) {
-			char name[TCP_CA_NAME_MAX];
-
-			strncpy(name, optval, min_t(long, optlen,
-						    TCP_CA_NAME_MAX-1));
-			name[TCP_CA_NAME_MAX-1] = 0;
-			ret = tcp_set_congestion_control(sk, name, false, true);
-		} else {
-			struct inet_connection_sock *icsk = inet_csk(sk);
-			struct tcp_sock *tp = tcp_sk(sk);
-			unsigned long timeout;
-
-			if (optlen != sizeof(int))
-				return -EINVAL;
-
-			val = *((int *)optval);
-			/* Only some options are supported */
-			switch (optname) {
-			case TCP_BPF_IW:
-				if (val <= 0 || tp->data_segs_out > tp->syn_data)
-					ret = -EINVAL;
-				else
-					tcp_snd_cwnd_set(tp, val);
-				break;
-			case TCP_BPF_SNDCWND_CLAMP:
-				if (val <= 0) {
-					ret = -EINVAL;
-				} else {
-					tp->snd_cwnd_clamp = val;
-					tp->snd_ssthresh = val;
-				}
-				break;
-			case TCP_BPF_DELACK_MAX:
-				timeout = usecs_to_jiffies(val);
-				if (timeout > TCP_DELACK_MAX ||
-				    timeout < TCP_TIMEOUT_MIN)
-					return -EINVAL;
-				inet_csk(sk)->icsk_delack_max = timeout;
-				break;
-			case TCP_BPF_RTO_MIN:
-				timeout = usecs_to_jiffies(val);
-				if (timeout > TCP_RTO_MIN ||
-				    timeout < TCP_TIMEOUT_MIN)
-					return -EINVAL;
-				inet_csk(sk)->icsk_rto_min = timeout;
-				break;
-			case TCP_SAVE_SYN:
-				if (val < 0 || val > 1)
-					ret = -EINVAL;
-				else
-					tp->save_syn = val;
-				break;
-			case TCP_KEEPIDLE:
-				ret = tcp_sock_set_keepidle_locked(sk, val);
-				break;
-			case TCP_KEEPINTVL:
-				if (val < 1 || val > MAX_TCP_KEEPINTVL)
-					ret = -EINVAL;
-				else
-					tp->keepalive_intvl = val * HZ;
-				break;
-			case TCP_KEEPCNT:
-				if (val < 1 || val > MAX_TCP_KEEPCNT)
-					ret = -EINVAL;
-				else
-					tp->keepalive_probes = val;
-				break;
-			case TCP_SYNCNT:
-				if (val < 1 || val > MAX_TCP_SYNCNT)
-					ret = -EINVAL;
-				else
-					icsk->icsk_syn_retries = val;
-				break;
-			case TCP_USER_TIMEOUT:
-				if (val < 0)
-					ret = -EINVAL;
-				else
-					icsk->icsk_user_timeout = val;
-				break;
-			case TCP_NOTSENT_LOWAT:
-				tp->notsent_lowat = val;
-				sk->sk_write_space(sk);
-				break;
-			case TCP_WINDOW_CLAMP:
-				ret = tcp_set_window_clamp(sk, val);
-				break;
-			default:
-				ret = -EINVAL;
-			}
-		}
-#endif
-	} else {
-		ret = -EINVAL;
-	}
-	return ret;
+	return -EINVAL;
 }
 
 static int _bpf_setsockopt(struct sock *sk, int level, int optname,
@@ -5272,101 +5292,30 @@ static int _bpf_setsockopt(struct sock *sk, int level, int optname,
 static int __bpf_getsockopt(struct sock *sk, int level, int optname,
 			    char *optval, int optlen)
 {
-	if (!sk_fullsock(sk))
-		goto err_clear;
+	int err, saved_optlen = optlen;
 
-	if (level == SOL_SOCKET) {
-		if (optlen != sizeof(int))
-			goto err_clear;
-
-		switch (optname) {
-		case SO_RCVBUF:
-			*((int *)optval) = sk->sk_rcvbuf;
-			break;
-		case SO_SNDBUF:
-			*((int *)optval) = sk->sk_sndbuf;
-			break;
-		case SO_MARK:
-			*((int *)optval) = sk->sk_mark;
-			break;
-		case SO_PRIORITY:
-			*((int *)optval) = sk->sk_priority;
-			break;
-		case SO_BINDTOIFINDEX:
-			*((int *)optval) = sk->sk_bound_dev_if;
-			break;
-		case SO_REUSEPORT:
-			*((int *)optval) = sk->sk_reuseport;
-			break;
-		case SO_TXREHASH:
-			*((int *)optval) = sk->sk_txrehash;
-			break;
-		default:
-			goto err_clear;
-		}
-#ifdef CONFIG_INET
-	} else if (level == SOL_TCP && sk->sk_prot->getsockopt == tcp_getsockopt) {
-		struct inet_connection_sock *icsk;
-		struct tcp_sock *tp;
-
-		switch (optname) {
-		case TCP_CONGESTION:
-			icsk = inet_csk(sk);
-
-			if (!icsk->icsk_ca_ops || optlen <= 1)
-				goto err_clear;
-			strncpy(optval, icsk->icsk_ca_ops->name, optlen);
-			optval[optlen - 1] = 0;
-			break;
-		case TCP_SAVED_SYN:
-			tp = tcp_sk(sk);
-
-			if (optlen <= 0 || !tp->saved_syn ||
-			    optlen > tcp_saved_syn_len(tp->saved_syn))
-				goto err_clear;
-			memcpy(optval, tp->saved_syn->data, optlen);
-			break;
-		default:
-			goto err_clear;
-		}
-	} else if (level == SOL_IP) {
-		struct inet_sock *inet = inet_sk(sk);
-
-		if (optlen != sizeof(int) || sk->sk_family != AF_INET)
-			goto err_clear;
-
-		/* Only some options are supported */
-		switch (optname) {
-		case IP_TOS:
-			*((int *)optval) = (int)inet->tos;
-			break;
-		default:
-			goto err_clear;
-		}
-#if IS_ENABLED(CONFIG_IPV6)
-	} else if (level == SOL_IPV6) {
-		struct ipv6_pinfo *np = inet6_sk(sk);
-
-		if (optlen != sizeof(int) || sk->sk_family != AF_INET6)
-			goto err_clear;
-
-		/* Only some options are supported */
-		switch (optname) {
-		case IPV6_TCLASS:
-			*((int *)optval) = (int)np->tclass;
-			break;
-		default:
-			goto err_clear;
-		}
-#endif
-#endif
-	} else {
-		goto err_clear;
+	if (!sk_fullsock(sk)) {
+		err = -EINVAL;
+		goto done;
 	}
-	return 0;
-err_clear:
-	memset(optval, 0, optlen);
-	return -EINVAL;
+
+	if (level == SOL_SOCKET)
+		err = sol_socket_sockopt(sk, optname, optval, &optlen, true);
+	else if (IS_ENABLED(CONFIG_INET) && level == SOL_TCP)
+		err = sol_tcp_sockopt(sk, optname, optval, &optlen, true);
+	else if (IS_ENABLED(CONFIG_INET) && level == SOL_IP)
+		err = sol_ip_sockopt(sk, optname, optval, &optlen, true);
+	else if (IS_ENABLED(CONFIG_IPV6) && level == SOL_IPV6)
+		err = sol_ipv6_sockopt(sk, optname, optval, &optlen, true);
+	else
+		err = -EINVAL;
+
+done:
+	if (err)
+		optlen = 0;
+	if (optlen < saved_optlen)
+		memset(optval + optlen, 0, saved_optlen - optlen);
+	return err;
 }
 
 static int _bpf_getsockopt(struct sock *sk, int level, int optname,
@@ -5380,12 +5329,6 @@ static int _bpf_getsockopt(struct sock *sk, int level, int optname,
 BPF_CALL_5(bpf_sk_setsockopt, struct sock *, sk, int, level,
 	   int, optname, char *, optval, int, optlen)
 {
-	if (level == SOL_TCP && optname == TCP_CONGESTION) {
-		if (optlen >= sizeof("cdg") - 1 &&
-		    !strncmp("cdg", optval, optlen))
-			return -ENOTSUPP;
-	}
-
 	return _bpf_setsockopt(sk, level, optname, optval, optlen);
 }
 
@@ -6469,6 +6412,7 @@ static const struct bpf_func_proto bpf_lwt_seg6_adjust_srh_proto = {
 static struct sock *sk_lookup(struct net *net, struct bpf_sock_tuple *tuple,
 			      int dif, int sdif, u8 family, u8 proto)
 {
+	struct inet_hashinfo *hinfo = net->ipv4.tcp_death_row.hashinfo;
 	bool refcounted = false;
 	struct sock *sk = NULL;
 
@@ -6477,7 +6421,7 @@ static struct sock *sk_lookup(struct net *net, struct bpf_sock_tuple *tuple,
 		__be32 dst4 = tuple->ipv4.daddr;
 
 		if (proto == IPPROTO_TCP)
-			sk = __inet_lookup(net, &tcp_hashinfo, NULL, 0,
+			sk = __inet_lookup(net, hinfo, NULL, 0,
 					   src4, tuple->ipv4.sport,
 					   dst4, tuple->ipv4.dport,
 					   dif, sdif, &refcounted);
@@ -6491,7 +6435,7 @@ static struct sock *sk_lookup(struct net *net, struct bpf_sock_tuple *tuple,
 		struct in6_addr *dst6 = (struct in6_addr *)&tuple->ipv6.daddr;
 
 		if (proto == IPPROTO_TCP)
-			sk = __inet6_lookup(net, &tcp_hashinfo, NULL, 0,
+			sk = __inet6_lookup(net, hinfo, NULL, 0,
 					    src6, tuple->ipv6.sport,
 					    dst6, ntohs(tuple->ipv6.dport),
 					    dif, sdif, &refcounted);
@@ -7667,34 +7611,23 @@ const struct bpf_func_proto bpf_sk_storage_get_cg_sock_proto __weak;
 static const struct bpf_func_proto *
 sock_filter_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
+	const struct bpf_func_proto *func_proto;
+
+	func_proto = cgroup_common_func_proto(func_id, prog);
+	if (func_proto)
+		return func_proto;
+
+	func_proto = cgroup_current_func_proto(func_id, prog);
+	if (func_proto)
+		return func_proto;
+
 	switch (func_id) {
-	/* inet and inet6 sockets are created in a process
-	 * context so there is always a valid uid/gid
-	 */
-	case BPF_FUNC_get_current_uid_gid:
-		return &bpf_get_current_uid_gid_proto;
-	case BPF_FUNC_get_local_storage:
-		return &bpf_get_local_storage_proto;
 	case BPF_FUNC_get_socket_cookie:
 		return &bpf_get_socket_cookie_sock_proto;
 	case BPF_FUNC_get_netns_cookie:
 		return &bpf_get_netns_cookie_sock_proto;
 	case BPF_FUNC_perf_event_output:
 		return &bpf_event_output_data_proto;
-	case BPF_FUNC_get_current_pid_tgid:
-		return &bpf_get_current_pid_tgid_proto;
-	case BPF_FUNC_get_current_comm:
-		return &bpf_get_current_comm_proto;
-#ifdef CONFIG_CGROUPS
-	case BPF_FUNC_get_current_cgroup_id:
-		return &bpf_get_current_cgroup_id_proto;
-	case BPF_FUNC_get_current_ancestor_cgroup_id:
-		return &bpf_get_current_ancestor_cgroup_id_proto;
-#endif
-#ifdef CONFIG_CGROUP_NET_CLASSID
-	case BPF_FUNC_get_cgroup_classid:
-		return &bpf_get_cgroup_classid_curr_proto;
-#endif
 	case BPF_FUNC_sk_storage_get:
 		return &bpf_sk_storage_get_cg_sock_proto;
 	case BPF_FUNC_ktime_get_coarse_ns:
@@ -7707,12 +7640,17 @@ sock_filter_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 static const struct bpf_func_proto *
 sock_addr_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
+	const struct bpf_func_proto *func_proto;
+
+	func_proto = cgroup_common_func_proto(func_id, prog);
+	if (func_proto)
+		return func_proto;
+
+	func_proto = cgroup_current_func_proto(func_id, prog);
+	if (func_proto)
+		return func_proto;
+
 	switch (func_id) {
-	/* inet and inet6 sockets are created in a process
-	 * context so there is always a valid uid/gid
-	 */
-	case BPF_FUNC_get_current_uid_gid:
-		return &bpf_get_current_uid_gid_proto;
 	case BPF_FUNC_bind:
 		switch (prog->expected_attach_type) {
 		case BPF_CGROUP_INET4_CONNECT:
@@ -7725,24 +7663,8 @@ sock_addr_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_get_socket_cookie_sock_addr_proto;
 	case BPF_FUNC_get_netns_cookie:
 		return &bpf_get_netns_cookie_sock_addr_proto;
-	case BPF_FUNC_get_local_storage:
-		return &bpf_get_local_storage_proto;
 	case BPF_FUNC_perf_event_output:
 		return &bpf_event_output_data_proto;
-	case BPF_FUNC_get_current_pid_tgid:
-		return &bpf_get_current_pid_tgid_proto;
-	case BPF_FUNC_get_current_comm:
-		return &bpf_get_current_comm_proto;
-#ifdef CONFIG_CGROUPS
-	case BPF_FUNC_get_current_cgroup_id:
-		return &bpf_get_current_cgroup_id_proto;
-	case BPF_FUNC_get_current_ancestor_cgroup_id:
-		return &bpf_get_current_ancestor_cgroup_id_proto;
-#endif
-#ifdef CONFIG_CGROUP_NET_CLASSID
-	case BPF_FUNC_get_cgroup_classid:
-		return &bpf_get_cgroup_classid_curr_proto;
-#endif
 #ifdef CONFIG_INET
 	case BPF_FUNC_sk_lookup_tcp:
 		return &bpf_sock_addr_sk_lookup_tcp_proto;
@@ -7823,9 +7745,13 @@ const struct bpf_func_proto bpf_sk_storage_delete_proto __weak;
 static const struct bpf_func_proto *
 cg_skb_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
+	const struct bpf_func_proto *func_proto;
+
+	func_proto = cgroup_common_func_proto(func_id, prog);
+	if (func_proto)
+		return func_proto;
+
 	switch (func_id) {
-	case BPF_FUNC_get_local_storage:
-		return &bpf_get_local_storage_proto;
 	case BPF_FUNC_sk_fullsock:
 		return &bpf_sk_fullsock_proto;
 	case BPF_FUNC_sk_storage_get:
@@ -8065,6 +7991,12 @@ const struct bpf_func_proto bpf_sock_hash_update_proto __weak;
 static const struct bpf_func_proto *
 sock_ops_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
+	const struct bpf_func_proto *func_proto;
+
+	func_proto = cgroup_common_func_proto(func_id, prog);
+	if (func_proto)
+		return func_proto;
+
 	switch (func_id) {
 	case BPF_FUNC_setsockopt:
 		return &bpf_sock_ops_setsockopt_proto;
@@ -8078,8 +8010,6 @@ sock_ops_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_sock_hash_update_proto;
 	case BPF_FUNC_get_socket_cookie:
 		return &bpf_get_socket_cookie_sock_ops_proto;
-	case BPF_FUNC_get_local_storage:
-		return &bpf_get_local_storage_proto;
 	case BPF_FUNC_perf_event_output:
 		return &bpf_event_output_data_proto;
 	case BPF_FUNC_sk_storage_get:
@@ -8714,6 +8644,36 @@ static bool tc_cls_act_is_valid_access(int off, int size,
 	return bpf_skb_is_valid_access(off, size, type, prog, info);
 }
 
+DEFINE_MUTEX(nf_conn_btf_access_lock);
+EXPORT_SYMBOL_GPL(nf_conn_btf_access_lock);
+
+int (*nfct_btf_struct_access)(struct bpf_verifier_log *log, const struct btf *btf,
+			      const struct btf_type *t, int off, int size,
+			      enum bpf_access_type atype, u32 *next_btf_id,
+			      enum bpf_type_flag *flag);
+EXPORT_SYMBOL_GPL(nfct_btf_struct_access);
+
+static int tc_cls_act_btf_struct_access(struct bpf_verifier_log *log,
+					const struct btf *btf,
+					const struct btf_type *t, int off,
+					int size, enum bpf_access_type atype,
+					u32 *next_btf_id,
+					enum bpf_type_flag *flag)
+{
+	int ret = -EACCES;
+
+	if (atype == BPF_READ)
+		return btf_struct_access(log, btf, t, off, size, atype, next_btf_id,
+					 flag);
+
+	mutex_lock(&nf_conn_btf_access_lock);
+	if (nfct_btf_struct_access)
+		ret = nfct_btf_struct_access(log, btf, t, off, size, atype, next_btf_id, flag);
+	mutex_unlock(&nf_conn_btf_access_lock);
+
+	return ret;
+}
+
 static bool __is_valid_xdp_access(int off, int size)
 {
 	if (off < 0 || off >= sizeof(struct xdp_md))
@@ -8772,6 +8732,27 @@ void bpf_warn_invalid_xdp_action(struct net_device *dev, struct bpf_prog *prog, 
 		     act, prog->aux->name, prog->aux->id, dev ? dev->name : "N/A");
 }
 EXPORT_SYMBOL_GPL(bpf_warn_invalid_xdp_action);
+
+static int xdp_btf_struct_access(struct bpf_verifier_log *log,
+				 const struct btf *btf,
+				 const struct btf_type *t, int off,
+				 int size, enum bpf_access_type atype,
+				 u32 *next_btf_id,
+				 enum bpf_type_flag *flag)
+{
+	int ret = -EACCES;
+
+	if (atype == BPF_READ)
+		return btf_struct_access(log, btf, t, off, size, atype, next_btf_id,
+					 flag);
+
+	mutex_lock(&nf_conn_btf_access_lock);
+	if (nfct_btf_struct_access)
+		ret = nfct_btf_struct_access(log, btf, t, off, size, atype, next_btf_id, flag);
+	mutex_unlock(&nf_conn_btf_access_lock);
+
+	return ret;
+}
 
 static bool sock_addr_is_valid_access(int off, int size,
 				      enum bpf_access_type type,
@@ -10667,6 +10648,7 @@ const struct bpf_verifier_ops tc_cls_act_verifier_ops = {
 	.convert_ctx_access	= tc_cls_act_convert_ctx_access,
 	.gen_prologue		= tc_cls_act_prologue,
 	.gen_ld_abs		= bpf_gen_ld_abs,
+	.btf_struct_access	= tc_cls_act_btf_struct_access,
 };
 
 const struct bpf_prog_ops tc_cls_act_prog_ops = {
@@ -10678,6 +10660,7 @@ const struct bpf_verifier_ops xdp_verifier_ops = {
 	.is_valid_access	= xdp_is_valid_access,
 	.convert_ctx_access	= xdp_convert_ctx_access,
 	.gen_prologue		= bpf_noop_prologue,
+	.btf_struct_access	= xdp_btf_struct_access,
 };
 
 const struct bpf_prog_ops xdp_prog_ops = {
@@ -10812,14 +10795,13 @@ int sk_detach_filter(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(sk_detach_filter);
 
-int sk_get_filter(struct sock *sk, struct sock_filter __user *ubuf,
-		  unsigned int len)
+int sk_get_filter(struct sock *sk, sockptr_t optval, unsigned int len)
 {
 	struct sock_fprog_kern *fprog;
 	struct sk_filter *filter;
 	int ret = 0;
 
-	lock_sock(sk);
+	sockopt_lock_sock(sk);
 	filter = rcu_dereference_protected(sk->sk_filter,
 					   lockdep_sock_is_held(sk));
 	if (!filter)
@@ -10844,7 +10826,7 @@ int sk_get_filter(struct sock *sk, struct sock_filter __user *ubuf,
 		goto out;
 
 	ret = -EFAULT;
-	if (copy_to_user(ubuf, fprog->filter, bpf_classic_proglen(fprog)))
+	if (copy_to_sockptr(optval, fprog->filter, bpf_classic_proglen(fprog)))
 		goto out;
 
 	/* Instead of bytes, the API requests to return the number
@@ -10852,7 +10834,7 @@ int sk_get_filter(struct sock *sk, struct sock_filter __user *ubuf,
 	 */
 	ret = fprog->len;
 out:
-	release_sock(sk);
+	sockopt_release_sock(sk);
 	return ret;
 }
 

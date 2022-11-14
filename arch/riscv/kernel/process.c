@@ -105,7 +105,7 @@ static int __init compat_mode_detect(void)
 	csr_write(CSR_STATUS, tmp);
 
 	pr_info("riscv: ELF compat mode %s",
-			compat_mode_supported ? "supported" : "failed");
+			compat_mode_supported ? "supported" : "unsupported");
 
 	return 0;
 }
@@ -163,6 +163,8 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	unsigned long usp = args->stack;
 	unsigned long tls = args->tls;
 	struct pt_regs *childregs = task_pt_regs(p);
+
+	memset(&p->thread.s, 0, sizeof(p->thread.s));
 
 	/* p->thread holds context to be restored by __switch_to() */
 	if (unlikely(args->fn)) {

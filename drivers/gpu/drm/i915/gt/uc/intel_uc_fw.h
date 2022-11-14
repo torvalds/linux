@@ -65,6 +65,18 @@ enum intel_uc_fw_type {
 #define INTEL_UC_FW_NUM_TYPES 2
 
 /*
+ * The firmware build process will generate a version header file with major and
+ * minor version defined. The versions are built into CSS header of firmware.
+ * i915 kernel driver set the minimal firmware version required per platform.
+ */
+struct intel_uc_fw_file {
+	const char *path;
+	u16 major_ver;
+	u16 minor_ver;
+	u16 patch_ver;
+};
+
+/*
  * This structure encapsulates all the data needed during the process
  * of fetching, caching, and loading the firmware image into the uC.
  */
@@ -74,11 +86,12 @@ struct intel_uc_fw {
 		const enum intel_uc_fw_status status;
 		enum intel_uc_fw_status __status; /* no accidental overwrites */
 	};
-	const char *wanted_path;
-	const char *path;
+	struct intel_uc_fw_file file_wanted;
+	struct intel_uc_fw_file file_selected;
 	bool user_overridden;
 	size_t size;
 	struct drm_i915_gem_object *obj;
+
 	/**
 	 * @dummy: A vma used in binding the uc fw to ggtt. We can't define this
 	 * vma on the stack as it can lead to a stack overflow, so we define it
@@ -89,29 +102,17 @@ struct intel_uc_fw {
 	struct i915_vma_resource dummy;
 	struct i915_vma *rsa_data;
 
-	/*
-	 * The firmware build process will generate a version header file with major and
-	 * minor version defined. The versions are built into CSS header of firmware.
-	 * i915 kernel driver set the minimal firmware version required per platform.
-	 */
-	u16 major_ver_wanted;
-	u16 minor_ver_wanted;
-	u16 major_ver_found;
-	u16 minor_ver_found;
-
-	struct {
-		const char *path;
-		u16 major_ver;
-		u16 minor_ver;
-	} fallback;
-
 	u32 rsa_size;
 	u32 ucode_size;
-
 	u32 private_data_size;
 
 	bool loaded_via_gsc;
 };
+
+#define MAKE_UC_VER(maj, min, pat)	((pat) | ((min) << 8) | ((maj) << 16))
+#define GET_UC_VER(uc)			(MAKE_UC_VER((uc)->fw.file_selected.major_ver, \
+						     (uc)->fw.file_selected.minor_ver, \
+						     (uc)->fw.file_selected.patch_ver))
 
 #ifdef CONFIG_DRM_I915_DEBUG_GUC
 void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,

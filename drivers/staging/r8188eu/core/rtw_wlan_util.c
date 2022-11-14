@@ -222,46 +222,6 @@ void get_rate_set(struct adapter *padapter, unsigned char *pbssrate, int *bssrat
 	memcpy(pbssrate, supportedrates, *bssrate_len);
 }
 
-void UpdateBrateTbl(struct adapter *Adapter, u8 *mbrate)
-{
-	u8	i;
-	u8	rate;
-
-	/*  1M, 2M, 5.5M, 11M, 6M, 12M, 24M are mandatory. */
-	for (i = 0; i < NDIS_802_11_LENGTH_RATES_EX; i++) {
-		rate = mbrate[i] & 0x7f;
-		switch (rate) {
-		case IEEE80211_CCK_RATE_1MB:
-		case IEEE80211_CCK_RATE_2MB:
-		case IEEE80211_CCK_RATE_5MB:
-		case IEEE80211_CCK_RATE_11MB:
-		case IEEE80211_OFDM_RATE_6MB:
-		case IEEE80211_OFDM_RATE_12MB:
-		case IEEE80211_OFDM_RATE_24MB:
-			mbrate[i] |= IEEE80211_BASIC_RATE_MASK;
-			break;
-		}
-	}
-}
-
-void UpdateBrateTblForSoftAP(u8 *bssrateset, u32 bssratelen)
-{
-	u8	i;
-	u8	rate;
-
-	for (i = 0; i < bssratelen; i++) {
-		rate = bssrateset[i] & 0x7f;
-		switch (rate) {
-		case IEEE80211_CCK_RATE_1MB:
-		case IEEE80211_CCK_RATE_2MB:
-		case IEEE80211_CCK_RATE_5MB:
-		case IEEE80211_CCK_RATE_11MB:
-			bssrateset[i] |= IEEE80211_BASIC_RATE_MASK;
-			break;
-		}
-	}
-}
-
 void Save_DM_Func_Flag(struct adapter *padapter)
 {
 	struct hal_data_8188e *haldata = &padapter->haldata;
@@ -1578,10 +1538,8 @@ void beacon_timing_control(struct adapter *padapter)
 
 static struct adapter *pbuddy_padapter;
 
-int rtw_handle_dualmac(struct adapter *adapter, bool init)
+void rtw_handle_dualmac(struct adapter *adapter, bool init)
 {
-	int status = _SUCCESS;
-
 	if (init) {
 		if (!pbuddy_padapter) {
 			pbuddy_padapter = adapter;
@@ -1594,5 +1552,4 @@ int rtw_handle_dualmac(struct adapter *adapter, bool init)
 	} else {
 		pbuddy_padapter = NULL;
 	}
-	return status;
 }

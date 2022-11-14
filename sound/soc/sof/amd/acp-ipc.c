@@ -30,30 +30,36 @@ EXPORT_SYMBOL_NS(acp_mailbox_read, SND_SOC_SOF_AMD_COMMON);
 static void acpbus_trigger_host_to_dsp_swintr(struct acp_dev_data *adata)
 {
 	struct snd_sof_dev *sdev = adata->dev;
+	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	u32 swintr_trigger;
 
-	swintr_trigger = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_SW_INTR_TRIG);
+	swintr_trigger = snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->dsp_intr_base +
+						DSP_SW_INTR_TRIG_OFFSET);
 	swintr_trigger |= 0x01;
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SW_INTR_TRIG, swintr_trigger);
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->dsp_intr_base + DSP_SW_INTR_TRIG_OFFSET,
+			  swintr_trigger);
 }
 
 static void acp_ipc_host_msg_set(struct snd_sof_dev *sdev)
 {
-	unsigned int host_msg = offsetof(struct scratch_ipc_conf, sof_host_msg_write);
+	unsigned int host_msg = sdev->debug_box.offset +
+				offsetof(struct scratch_ipc_conf, sof_host_msg_write);
 
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SCRATCH_REG_0 + host_msg, 1);
 }
 
 static void acp_dsp_ipc_host_done(struct snd_sof_dev *sdev)
 {
-	unsigned int dsp_msg = offsetof(struct scratch_ipc_conf, sof_dsp_msg_write);
+	unsigned int dsp_msg = sdev->debug_box.offset +
+			       offsetof(struct scratch_ipc_conf, sof_dsp_msg_write);
 
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SCRATCH_REG_0 + dsp_msg, 0);
 }
 
 static void acp_dsp_ipc_dsp_done(struct snd_sof_dev *sdev)
 {
-	unsigned int dsp_ack = offsetof(struct scratch_ipc_conf, sof_dsp_ack_write);
+	unsigned int dsp_ack = sdev->debug_box.offset +
+			       offsetof(struct scratch_ipc_conf, sof_dsp_ack_write);
 
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SCRATCH_REG_0 + dsp_ack, 0);
 }
@@ -61,10 +67,11 @@ static void acp_dsp_ipc_dsp_done(struct snd_sof_dev *sdev)
 int acp_sof_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
 	struct acp_dev_data *adata = sdev->pdata->hw_pdata;
-	unsigned int offset = offsetof(struct scratch_ipc_conf, sof_in_box);
+	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
+	unsigned int offset = sdev->host_box.offset;
 	unsigned int count = ACP_HW_SEM_RETRY_COUNT;
 
-	while (snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_AXI2DAGB_SEM_0)) {
+	while (snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->hw_semaphore_offset)) {
 		/* Wait until acquired HW Semaphore Lock or timeout*/
 		count--;
 		if (!count) {
@@ -80,7 +87,7 @@ int acp_sof_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 	acpbus_trigger_host_to_dsp_swintr(adata);
 
 	/* Unlock or Release HW Semaphore */
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_AXI2DAGB_SEM_0, 0x0);
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->hw_semaphore_offset, 0x0);
 
 	return 0;
 }
@@ -91,7 +98,7 @@ static void acp_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 	struct snd_sof_ipc_msg *msg = sdev->msg;
 	struct sof_ipc_reply reply;
 	struct sof_ipc_cmd_hdr *hdr;
-	unsigned int offset = offsetof(struct scratch_ipc_conf, sof_in_box);
+	unsigned int offset = sdev->host_box.offset;
 	int ret = 0;
 
        /*
@@ -141,10 +148,18 @@ out:
 irqreturn_t acp_sof_ipc_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = context;
-	unsigned int dsp_msg_write = offsetof(struct scratch_ipc_conf, sof_dsp_msg_write);
-	unsigned int dsp_ack_write = offsetof(struct scratch_ipc_conf, sof_dsp_ack_write);
+	unsigned int dsp_msg_write = sdev->debug_box.offset +
+				     offsetof(struct scratch_ipc_conf, sof_dsp_msg_write);
+	unsigned int dsp_ack_write = sdev->debug_box.offset +
+				     offsetof(struct scratch_ipc_conf, sof_dsp_ack_write);
 	bool ipc_irq = false;
 	int dsp_msg, dsp_ack;
+
+	if (sdev->first_boot && sdev->fw_state != SOF_FW_BOOT_COMPLETE) {
+		snd_sof_ipc_msgs_rx(sdev);
+		acp_dsp_ipc_host_done(sdev);
+		return IRQ_HANDLED;
+	}
 
 	dsp_msg = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_SCRATCH_REG_0 + dsp_msg_write);
 	if (dsp_msg) {
@@ -175,7 +190,7 @@ EXPORT_SYMBOL_NS(acp_sof_ipc_irq_thread, SND_SOC_SOF_AMD_COMMON);
 int acp_sof_ipc_msg_data(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream,
 			 void *p, size_t sz)
 {
-	unsigned int offset = offsetof(struct scratch_ipc_conf, sof_out_box);
+	unsigned int offset = sdev->dsp_box.offset;
 
 	if (!substream || !sdev->stream_box.size)
 		acp_mailbox_read(sdev, offset, p, sz);
@@ -186,8 +201,16 @@ EXPORT_SYMBOL_NS(acp_sof_ipc_msg_data, SND_SOC_SOF_AMD_COMMON);
 
 int acp_sof_ipc_get_mailbox_offset(struct snd_sof_dev *sdev)
 {
-	return ACP_SCRATCH_MEMORY_ADDRESS;
+	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
+
+	return desc->sram_pte_offset;
 }
 EXPORT_SYMBOL_NS(acp_sof_ipc_get_mailbox_offset, SND_SOC_SOF_AMD_COMMON);
+
+int acp_sof_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id)
+{
+	return 0;
+}
+EXPORT_SYMBOL_NS(acp_sof_ipc_get_window_offset, SND_SOC_SOF_AMD_COMMON);
 
 MODULE_DESCRIPTION("AMD ACP sof-ipc driver");

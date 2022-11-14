@@ -377,7 +377,7 @@ void hdlcdrv_arbitrate(struct net_device *dev, struct hdlcdrv_state *s)
 	if ((--s->hdlctx.slotcnt) > 0)
 		return;
 	s->hdlctx.slotcnt = s->ch_params.slottime;
-	if ((prandom_u32() % 256) > s->ch_params.ppersist)
+	if (get_random_u8() > s->ch_params.ppersist)
 		return;
 	start_tx(dev, s);
 }
@@ -600,7 +600,7 @@ static int hdlcdrv_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
 
 	case HDLCDRVCTL_DRIVERNAME:
 		if (s->ops && s->ops->drvname) {
-			strlcpy(bi.data.drivername, s->ops->drvname,
+			strscpy(bi.data.drivername, s->ops->drvname,
 				sizeof(bi.data.drivername));
 			break;
 		}
