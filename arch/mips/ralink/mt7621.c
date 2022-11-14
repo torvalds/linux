@@ -25,6 +25,7 @@
 #define MT7621_MEM_TEST_PATTERN         0xaa5555aa
 
 static u32 detect_magic __initdata;
+static struct ralink_soc_info *soc_info_ptr;
 
 int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
@@ -147,27 +148,30 @@ static const char __init *mt7621_get_soc_revision(void)
 		return "E1";
 }
 
-static void soc_dev_init(struct ralink_soc_info *soc_info)
+static int __init mt7621_soc_dev_init(void)
 {
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
-		return;
+		return -ENOMEM;
 
 	soc_dev_attr->soc_id = "mt7621";
 	soc_dev_attr->family = "Ralink";
 	soc_dev_attr->revision = mt7621_get_soc_revision();
 
-	soc_dev_attr->data = soc_info;
+	soc_dev_attr->data = soc_info_ptr;
 
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {
 		kfree(soc_dev_attr);
-		return;
+		return PTR_ERR(soc_dev);
 	}
+
+	return 0;
 }
+device_initcall(mt7621_soc_dev_init);
 
 void __init prom_soc_init(struct ralink_soc_info *soc_info)
 {
@@ -209,7 +213,7 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 
 	soc_info->mem_detect = mt7621_memory_detect;
 
-	soc_dev_init(soc_info);
+	soc_info_ptr = soc_info;
 
 	if (!register_cps_smp_ops())
 		return;
