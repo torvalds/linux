@@ -175,11 +175,7 @@ static int cryptomgr_test(void *data)
 {
 	struct crypto_test_param *param = data;
 	u32 type = param->type;
-	int err = 0;
-
-#ifdef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
-	goto skiptest;
-#endif
+	int err;
 
 	err = alg_test(param->driver, param->alg, type, CRYPTO_ALG_TESTED);
 
@@ -193,6 +189,9 @@ static int cryptomgr_schedule_test(struct crypto_alg *alg)
 {
 	struct task_struct *thread;
 	struct crypto_test_param *param;
+
+	if (IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS))
+		return NOTIFY_DONE;
 
 	if (!try_module_get(THIS_MODULE))
 		goto err;
