@@ -1815,12 +1815,15 @@ static int i9xx_post_csc_lut_precision(const struct intel_crtc_state *crtc_state
 	}
 }
 
+static bool ilk_has_post_csc_lut(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->gamma_enable &&
+		(crtc_state->csc_mode & CSC_POSITION_BEFORE_GAMMA) != 0;
+}
+
 static int ilk_post_csc_lut_precision(const struct intel_crtc_state *crtc_state)
 {
-	if (!crtc_state->gamma_enable)
-		return 0;
-
-	if ((crtc_state->csc_mode & CSC_POSITION_BEFORE_GAMMA) == 0)
+	if (!ilk_has_post_csc_lut(crtc_state))
 		return 0;
 
 	switch (crtc_state->gamma_mode) {
@@ -2198,13 +2201,10 @@ static struct drm_property_blob *bdw_read_lut_10(struct intel_crtc *crtc,
 						 u32 prec_index)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	int i, hw_lut_size = ivb_lut_10_size(prec_index);
-	int lut_size = INTEL_INFO(i915)->display.color.gamma_lut_size;
+	int i, lut_size = ivb_lut_10_size(prec_index);
 	enum pipe pipe = crtc->pipe;
 	struct drm_property_blob *blob;
 	struct drm_color_lut *lut;
-
-	drm_WARN_ON(&i915->drm, lut_size != hw_lut_size);
 
 	blob = drm_property_create_blob(&i915->drm,
 					sizeof(lut[0]) * lut_size,
@@ -2226,6 +2226,37 @@ static struct drm_property_blob *bdw_read_lut_10(struct intel_crtc *crtc,
 	intel_de_write_fw(i915, PREC_PAL_INDEX(pipe), 0);
 
 	return blob;
+}
+
+static void bdw_read_luts(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_property_blob **blob =
+		ilk_has_post_csc_lut(crtc_state) ?
+		&crtc_state->post_csc_lut : &crtc_state->pre_csc_lut;
+
+	if (!crtc_state->gamma_enable)
+		return;
+
+	switch (crtc_state->gamma_mode) {
+	case GAMMA_MODE_MODE_8BIT:
+		*blob = ilk_read_lut_8(crtc);
+		break;
+	case GAMMA_MODE_MODE_SPLIT:
+		crtc_state->pre_csc_lut =
+			bdw_read_lut_10(crtc, PAL_PREC_SPLIT_MODE |
+					PAL_PREC_INDEX_VALUE(0));
+		crtc_state->post_csc_lut =
+			bdw_read_lut_10(crtc, PAL_PREC_SPLIT_MODE |
+					PAL_PREC_INDEX_VALUE(512));
+		break;
+	case GAMMA_MODE_MODE_10BIT:
+		*blob = bdw_read_lut_10(crtc, PAL_PREC_INDEX_VALUE(0));
+		break;
+	default:
+		MISSING_CASE(crtc_state->gamma_mode);
+		break;
+	}
 }
 
 static struct drm_property_blob *glk_read_degamma_lut(struct intel_crtc *crtc)
@@ -2395,7 +2426,7 @@ static const struct intel_color_funcs skl_color_funcs = {
 	.color_commit_noarm = ilk_color_commit_noarm,
 	.color_commit_arm = skl_color_commit_arm,
 	.load_luts = bdw_load_luts,
-	.read_luts = NULL,
+	.read_luts = bdw_read_luts,
 };
 
 static const struct intel_color_funcs bdw_color_funcs = {
@@ -2403,7 +2434,7 @@ static const struct intel_color_funcs bdw_color_funcs = {
 	.color_commit_noarm = ilk_color_commit_noarm,
 	.color_commit_arm = hsw_color_commit_arm,
 	.load_luts = bdw_load_luts,
-	.read_luts = NULL,
+	.read_luts = bdw_read_luts,
 };
 
 static const struct intel_color_funcs hsw_color_funcs = {
