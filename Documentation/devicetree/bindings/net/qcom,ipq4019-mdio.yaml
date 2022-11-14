@@ -14,9 +14,15 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - qcom,ipq4019-mdio
-      - qcom,ipq5018-mdio
+    oneOf:
+      - enum:
+          - qcom,ipq4019-mdio
+          - qcom,ipq5018-mdio
+
+      - items:
+          - enum:
+              - qcom,ipq6018-mdio
+          - const: qcom,ipq4019-mdio
 
   "#address-cells":
     const: 1
