@@ -900,6 +900,42 @@ static void print_aggr(struct perf_stat_config *config,
 	}
 }
 
+static void print_aggr_cgroup(struct perf_stat_config *config,
+			      struct evlist *evlist,
+			      char *prefix)
+{
+	bool metric_only = config->metric_only;
+	struct evsel *counter, *evsel;
+	struct cgroup *cgrp = NULL;
+	int s;
+
+	if (!config->aggr_map || !config->aggr_get_id)
+		return;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (cgrp == evsel->cgrp)
+			continue;
+
+		cgrp = evsel->cgrp;
+
+		for (s = 0; s < config->aggr_map->nr; s++) {
+			print_metric_begin(config, evlist, prefix, s, cgrp);
+
+			evlist__for_each_entry(evlist, counter) {
+				if (counter->merged_stat)
+					continue;
+
+				if (counter->cgrp != cgrp)
+					continue;
+
+				print_counter_aggrdata(config, counter, s, prefix,
+						       metric_only);
+			}
+			print_metric_end(config);
+		}
+	}
+}
+
 static void print_counter(struct perf_stat_config *config,
 			  struct evsel *counter, char *prefix)
 {
@@ -1361,7 +1397,10 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 	case AGGR_DIE:
 	case AGGR_SOCKET:
 	case AGGR_NODE:
-		print_aggr(config, evlist, prefix);
+		if (config->cgroup_list)
+			print_aggr_cgroup(config, evlist, prefix);
+		else
+			print_aggr(config, evlist, prefix);
 		break;
 	case AGGR_THREAD:
 	case AGGR_GLOBAL:
