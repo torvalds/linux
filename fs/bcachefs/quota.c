@@ -364,16 +364,16 @@ int bch2_quota_acct(struct bch_fs *c, struct bch_qid qid,
 
 	memset(&msgs, 0, sizeof(msgs));
 
+	for_each_set_qtype(c, i, q, qtypes) {
+		mq[i] = genradix_ptr_alloc(&q->table, qid.q[i], GFP_KERNEL);
+		if (!mq[i])
+			return -ENOMEM;
+	}
+
 	for_each_set_qtype(c, i, q, qtypes)
 		mutex_lock_nested(&q->lock, i);
 
 	for_each_set_qtype(c, i, q, qtypes) {
-		mq[i] = genradix_ptr_alloc(&q->table, qid.q[i], GFP_NOFS);
-		if (!mq[i]) {
-			ret = -ENOMEM;
-			goto err;
-		}
-
 		ret = bch2_quota_check_limit(c, i, mq[i], &msgs, counter, v, mode);
 		if (ret)
 			goto err;
@@ -416,18 +416,17 @@ int bch2_quota_transfer(struct bch_fs *c, unsigned qtypes,
 
 	memset(&msgs, 0, sizeof(msgs));
 
+	for_each_set_qtype(c, i, q, qtypes) {
+		src_q[i] = genradix_ptr_alloc(&q->table, src.q[i], GFP_KERNEL);
+		dst_q[i] = genradix_ptr_alloc(&q->table, dst.q[i], GFP_KERNEL);
+		if (!src_q[i] || !dst_q[i])
+			return -ENOMEM;
+	}
+
 	for_each_set_qtype(c, i, q, qtypes)
 		mutex_lock_nested(&q->lock, i);
 
 	for_each_set_qtype(c, i, q, qtypes) {
-		src_q[i] = genradix_ptr_alloc(&q->table, src.q[i], GFP_NOFS);
-		dst_q[i] = genradix_ptr_alloc(&q->table, dst.q[i], GFP_NOFS);
-
-		if (!src_q[i] || !dst_q[i]) {
-			ret = -ENOMEM;
-			goto err;
-		}
-
 		ret = bch2_quota_check_limit(c, i, dst_q[i], &msgs, Q_SPC,
 					     dst_q[i]->c[Q_SPC].v + space,
 					     mode);
