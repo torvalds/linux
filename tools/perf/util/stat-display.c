@@ -52,14 +52,18 @@ static void print_running_json(struct perf_stat_config *config, u64 run, u64 ena
 }
 
 static void print_running(struct perf_stat_config *config,
-			  u64 run, u64 ena)
+			  u64 run, u64 ena, bool before_metric)
 {
-	if (config->json_output)
-		print_running_json(config, run, ena);
-	else if (config->csv_output)
-		print_running_csv(config, run, ena);
-	else
-		print_running_std(config, run, ena);
+	if (config->json_output) {
+		if (before_metric)
+			print_running_json(config, run, ena);
+	} else if (config->csv_output) {
+		if (before_metric)
+			print_running_csv(config, run, ena);
+	} else {
+		if (!before_metric)
+			print_running_std(config, run, ena);
+	}
 }
 
 static void print_noise_pct_std(struct perf_stat_config *config,
@@ -82,20 +86,24 @@ static void print_noise_pct_json(struct perf_stat_config *config,
 }
 
 static void print_noise_pct(struct perf_stat_config *config,
-			    double total, double avg)
+			    double total, double avg, bool before_metric)
 {
 	double pct = rel_stddev_stats(total, avg);
 
-	if (config->json_output)
-		print_noise_pct_json(config, pct);
-	else if (config->csv_output)
-		print_noise_pct_csv(config, pct);
-	else
-		print_noise_pct_std(config, pct);
+	if (config->json_output) {
+		if (before_metric)
+			print_noise_pct_json(config, pct);
+	} else if (config->csv_output) {
+		if (before_metric)
+			print_noise_pct_csv(config, pct);
+	} else {
+		if (!before_metric)
+			print_noise_pct_std(config, pct);
+	}
 }
 
 static void print_noise(struct perf_stat_config *config,
-			struct evsel *evsel, double avg)
+			struct evsel *evsel, double avg, bool before_metric)
 {
 	struct perf_stat_evsel *ps;
 
@@ -103,7 +111,7 @@ static void print_noise(struct perf_stat_config *config,
 		return;
 
 	ps = evsel->stats;
-	print_noise_pct(config, stddev_stats(&ps->res_stats), avg);
+	print_noise_pct(config, stddev_stats(&ps->res_stats), avg, before_metric);
 }
 
 static void print_cgroup_std(struct perf_stat_config *config, const char *cgrp_name)
@@ -637,6 +645,7 @@ static void printout(struct perf_stat_config *config, struct aggr_cpu_id id, int
 	};
 	print_metric_t pm;
 	new_line_t nl;
+	bool ok = true;
 
 	if (config->csv_output) {
 		static const int aggr_fields[AGGR_MAX] = {
@@ -672,7 +681,7 @@ static void printout(struct perf_stat_config *config, struct aggr_cpu_id id, int
 			return;
 		}
 
-		abs_printout(config, id, nr, counter, uval, /*ok=*/false);
+		ok = false;
 
 		if (counter->supported) {
 			if (!evlist__has_hybrid(counter->evlist)) {
@@ -681,37 +690,30 @@ static void printout(struct perf_stat_config *config, struct aggr_cpu_id id, int
 					config->print_mixed_hw_group_error = 1;
 			}
 		}
-
-		if (!config->csv_output && !config->json_output)
-			pm(config, &os, NULL, NULL, "", 0);
-		print_noise(config, counter, noise);
-		print_running(config, run, ena);
-		if (config->csv_output || config->json_output)
-			pm(config, &os, NULL, NULL, "", 0);
-		return;
 	}
-
-	if (!config->metric_only)
-		abs_printout(config, id, nr, counter, uval, /*ok=*/true);
 
 	out.print_metric = pm;
 	out.new_line = nl;
 	out.ctx = &os;
 	out.force_header = false;
 
-	if (config->csv_output && !config->metric_only) {
-		print_noise(config, counter, noise);
-		print_running(config, run, ena);
-	} else if (config->json_output && !config->metric_only) {
-		print_noise(config, counter, noise);
-		print_running(config, run, ena);
+	if (!config->metric_only) {
+		abs_printout(config, id, nr, counter, uval, ok);
+
+		print_noise(config, counter, noise, /*before_metric=*/true);
+		print_running(config, run, ena, /*before_metric=*/true);
 	}
 
-	perf_stat__print_shadow_stats(config, counter, uval, map_idx,
-				&out, &config->metric_events, st);
-	if (!config->csv_output && !config->metric_only && !config->json_output) {
-		print_noise(config, counter, noise);
-		print_running(config, run, ena);
+	if (ok) {
+		perf_stat__print_shadow_stats(config, counter, uval, map_idx,
+					      &out, &config->metric_events, st);
+	} else {
+		pm(config, &os, /*color=*/NULL, /*format=*/NULL, /*unit=*/"", /*val=*/0);
+	}
+
+	if (!config->metric_only) {
+		print_noise(config, counter, noise, /*before_metric=*/false);
+		print_running(config, run, ena, /*before_metric=*/false);
 	}
 }
 
@@ -1151,7 +1153,7 @@ static void print_footer(struct perf_stat_config *config)
 		fprintf(output, " %17.*f +- %.*f seconds time elapsed",
 			precision, avg, precision, sd);
 
-		print_noise_pct(config, sd, avg);
+		print_noise_pct(config, sd, avg, /*before_metric=*/false);
 	}
 	fprintf(output, "\n\n");
 
