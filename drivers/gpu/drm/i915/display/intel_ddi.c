@@ -869,8 +869,9 @@ intel_ddi_main_link_aux_domain(struct intel_digital_port *dig_port,
 	 */
 	if (intel_encoder_can_psr(&dig_port->base))
 		return intel_display_power_aux_io_domain(i915, dig_port->aux_ch);
-	else if (intel_crtc_has_dp_encoder(crtc_state) ||
-		 intel_phy_is_tc(i915, phy))
+	else if (DISPLAY_VER(i915) < 14 &&
+		 (intel_crtc_has_dp_encoder(crtc_state) ||
+		  intel_phy_is_tc(i915, phy)))
 		return intel_aux_power_domain(dig_port);
 	else
 		return POWER_DOMAIN_INVALID;
