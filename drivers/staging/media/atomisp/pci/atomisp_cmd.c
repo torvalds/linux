@@ -307,7 +307,7 @@ int atomisp_reset(struct atomisp_device *isp)
 	int ret = 0;
 
 	dev_dbg(isp->dev, "%s\n", __func__);
-	atomisp_css_suspend(isp);
+	atomisp_css_uninit(isp);
 	ret = atomisp_runtime_suspend(isp->dev);
 	if (ret < 0)
 		dev_err(isp->dev, "atomisp_runtime_suspend failed, %d\n", ret);
@@ -316,7 +316,7 @@ int atomisp_reset(struct atomisp_device *isp)
 	if (ret < 0)
 		dev_err(isp->dev, "atomisp_runtime_resume failed, %d\n", ret);
 
-	ret = atomisp_css_resume(isp);
+	ret = atomisp_css_init(isp);
 	if (ret)
 		isp->isp_fatal_error = true;
 

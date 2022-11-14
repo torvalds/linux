@@ -41,10 +41,6 @@ int atomisp_css_init(struct atomisp_device *isp);
 
 void atomisp_css_uninit(struct atomisp_device *isp);
 
-void atomisp_css_suspend(struct atomisp_device *isp);
-
-int atomisp_css_resume(struct atomisp_device *isp);
-
 void atomisp_css_init_struct(struct atomisp_sub_device *asd);
 
 int atomisp_css_irq_translate(struct atomisp_device *isp,
