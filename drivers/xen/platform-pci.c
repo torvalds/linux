@@ -54,7 +54,8 @@ static uint64_t get_callback_via(struct pci_dev *pdev)
 	pin = pdev->pin;
 
 	/* We don't know the GSI. Specify the PCI INTx line instead. */
-	return ((uint64_t)0x01 << HVM_CALLBACK_VIA_TYPE_SHIFT) | /* PCI INTx identifier */
+	return ((uint64_t)HVM_PARAM_CALLBACK_TYPE_PCI_INTX <<
+			  HVM_CALLBACK_VIA_TYPE_SHIFT) |
 		((uint64_t)pci_domain_nr(pdev->bus) << 32) |
 		((uint64_t)pdev->bus->number << 16) |
 		((uint64_t)(pdev->devfn & 0xff) << 8) |
