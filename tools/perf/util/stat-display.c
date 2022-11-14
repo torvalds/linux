@@ -993,9 +993,25 @@ static void print_metric_headers(struct perf_stat_config *config,
 	fputc('\n', config->output);
 }
 
+static void prepare_interval(struct perf_stat_config *config,
+			     char *prefix, struct timespec *ts)
+{
+	if (config->iostat_run)
+		return;
+
+	if (!config->json_output)
+		sprintf(prefix, "%6lu.%09lu%s", (unsigned long) ts->tv_sec,
+				 ts->tv_nsec, config->csv_sep);
+	else if (!config->metric_only)
+		sprintf(prefix, "{\"interval\" : %lu.%09lu, ", (unsigned long)
+				 ts->tv_sec, ts->tv_nsec);
+	else
+		sprintf(prefix, "{\"interval\" : %lu.%09lu}", (unsigned long)
+				 ts->tv_sec, ts->tv_nsec);
+}
+
 static void print_interval(struct perf_stat_config *config,
-			   struct evlist *evlist,
-			   char *prefix, struct timespec *ts)
+			   struct evlist *evlist)
 {
 	bool metric_only = config->metric_only;
 	unsigned int unit_width = config->unit_width;
@@ -1004,16 +1020,6 @@ static void print_interval(struct perf_stat_config *config,
 
 	if (config->interval_clear && isatty(fileno(output)))
 		puts(CONSOLE_CLEAR);
-
-	if (!config->iostat_run && !config->json_output)
-		sprintf(prefix, "%6lu.%09lu%s", (unsigned long) ts->tv_sec,
-				 ts->tv_nsec, config->csv_sep);
-	if (!config->iostat_run && config->json_output && !config->metric_only)
-		sprintf(prefix, "{\"interval\" : %lu.%09lu, ", (unsigned long)
-				 ts->tv_sec, ts->tv_nsec);
-	if (!config->iostat_run && config->json_output && config->metric_only)
-		sprintf(prefix, "{\"interval\" : %lu.%09lu}", (unsigned long)
-				 ts->tv_sec, ts->tv_nsec);
 
 	if ((num_print_interval == 0 || config->interval_clear) &&
 			!config->csv_output && !config->json_output) {
@@ -1252,10 +1258,13 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 	if (config->iostat_run)
 		evlist->selected = evlist__first(evlist);
 
-	if (interval)
-		print_interval(config, evlist, prefix = buf, ts);
-	else
+	if (interval) {
+		prefix = buf;
+		prepare_interval(config, prefix, ts);
+		print_interval(config, evlist);
+	} else {
 		print_header(config, _target, argc, argv);
+	}
 
 	if (metric_only) {
 		static int num_print_iv;
