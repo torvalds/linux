@@ -48,7 +48,7 @@
 			cd-gpios = <&gpio0 28 GPIO_ACTIVE_HIGH>;
 			/* No WP GPIO */
 		};
-       };
+	};
 };
 
 &nand {
@@ -126,7 +126,7 @@
 };
 
 &pciec {
-        status = "okay";
+	status = "okay";
 };
 
 &pcie0 {
