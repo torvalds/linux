@@ -30,6 +30,9 @@ properties:
   partitions:
     $ref: /schemas/mtd/partitions/partitions.yaml
 
+    required:
+      - compatible
+
 patternProperties:
   "@[0-9a-f]+$":
     $ref: partitions/partition.yaml

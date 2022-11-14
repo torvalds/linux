@@ -13,6 +13,15 @@ description: |
 maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>
 
+oneOf:
+  - $ref: arm,arm-firmware-suite.yaml
+  - $ref: brcm,bcm4908-partitions.yaml
+  - $ref: brcm,bcm947xx-cfe-partitions.yaml
+  - $ref: fixed-partitions.yaml
+  - $ref: linksys,ns-partitions.yaml
+  - $ref: qcom,smem-part.yaml
+  - $ref: redboot-fis.yaml
+
 properties:
   compatible: true
 
@@ -29,5 +38,4 @@ patternProperties:
 required:
   - compatible
 
-# Temporary value, should be set to false when constraining the parsers list
-additionalProperties: true
+unevaluatedProperties: false
