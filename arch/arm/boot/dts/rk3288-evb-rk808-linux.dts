@@ -498,10 +498,6 @@
 	status = "okay";
 };
 
-&sound {
-	status = "okay";
-};
-
 &uart2 {
 	status = "disabled";
 };
