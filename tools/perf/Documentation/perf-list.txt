@@ -39,9 +39,9 @@ any extra expressions computed by perf stat.
 --deprecated::
 Print deprecated events. By default the deprecated events are hidden.
 
---cputype::
-Print events applying cpu with this type for hybrid platform
-(e.g. --cputype core or --cputype atom)
+--unit::
+Print PMU events and metrics limited to the specific PMU name.
+(e.g. --unit cpu, --unit msr, --unit cpu_core, --unit cpu_atom)
 
 [[EVENT_MODIFIERS]]
 EVENT MODIFIERS

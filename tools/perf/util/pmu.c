@@ -1695,10 +1695,8 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 	pmu = NULL;
 	j = 0;
 	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
-		if (pmu_name && perf_pmu__is_hybrid(pmu->name) &&
-		    strcmp(pmu_name, pmu->name)) {
+		if (pmu_name && pmu->name && strcmp(pmu_name, pmu->name))
 			continue;
-		}
 
 		list_for_each_entry(alias, &pmu->aliases, list) {
 			char *name = alias->desc ? alias->name :

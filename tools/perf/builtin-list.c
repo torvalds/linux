@@ -21,7 +21,6 @@
 
 static bool desc_flag = true;
 static bool details_flag;
-static const char *hybrid_type;
 
 int cmd_list(int argc, const char **argv)
 {
@@ -30,6 +29,8 @@ int cmd_list(int argc, const char **argv)
 	bool long_desc_flag = false;
 	bool deprecated = false;
 	char *pmu_name = NULL;
+	const char *hybrid_name = NULL;
+	const char *unit_name = NULL;
 	struct option list_options[] = {
 		OPT_BOOLEAN(0, "raw-dump", &raw_dump, "Dump raw events"),
 		OPT_BOOLEAN('d', "desc", &desc_flag,
@@ -40,9 +41,10 @@ int cmd_list(int argc, const char **argv)
 			    "Print information on the perf event names and expressions used internally by events."),
 		OPT_BOOLEAN(0, "deprecated", &deprecated,
 			    "Print deprecated events."),
-		OPT_STRING(0, "cputype", &hybrid_type, "hybrid cpu type",
-			   "Print events applying cpu with this type for hybrid platform "
-			   "(e.g. core or atom)"),
+		OPT_STRING(0, "cputype", &hybrid_name, "hybrid cpu type",
+			   "Limit PMU or metric printing to the given hybrid PMU (e.g. core or atom)."),
+		OPT_STRING(0, "unit", &unit_name, "PMU name",
+			   "Limit PMU or metric printing to the specified PMU."),
 		OPT_INCR(0, "debug", &verbose,
 			     "Enable debugging output"),
 		OPT_END()
@@ -53,6 +55,8 @@ int cmd_list(int argc, const char **argv)
 	};
 
 	set_option_flag(list_options, 0, "raw-dump", PARSE_OPT_HIDDEN);
+	/* Hide hybrid flag for the more generic 'unit' flag. */
+	set_option_flag(list_options, 0, "cputype", PARSE_OPT_HIDDEN);
 
 	argc = parse_options(argc, argv, list_options, list_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
@@ -62,8 +66,10 @@ int cmd_list(int argc, const char **argv)
 	if (!raw_dump && pager_in_use())
 		printf("\nList of pre-defined events (to be used in -e or -M):\n\n");
 
-	if (hybrid_type) {
-		pmu_name = perf_pmu__hybrid_type_to_pmu(hybrid_type);
+	if (unit_name)
+		pmu_name = strdup(unit_name);
+	else if (hybrid_name) {
+		pmu_name = perf_pmu__hybrid_type_to_pmu(hybrid_name);
 		if (!pmu_name)
 			pr_warning("WARNING: hybrid cputype is not supported!\n");
 	}

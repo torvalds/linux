@@ -556,11 +556,12 @@ static int metricgroup__print_callback(const struct pmu_event *pe,
 				       void *vdata)
 {
 	struct metricgroup_print_data *data = vdata;
+	const char *pmu = pe->pmu ?: "cpu";
 
 	if (!pe->metric_expr)
 		return 0;
 
-	if (data->pmu_name && perf_pmu__is_hybrid(pe->pmu) && strcmp(data->pmu_name, pe->pmu))
+	if (data->pmu_name && strcmp(data->pmu_name, pmu))
 		return 0;
 
 	return metricgroup__print_pmu_event(pe, data->metricgroups, data->filter,
