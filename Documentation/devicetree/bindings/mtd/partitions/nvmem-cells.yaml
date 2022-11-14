@@ -84,7 +84,6 @@ examples:
             compatible = "nvmem-cells";
             label = "calibration";
             reg = <0xf00000 0x100000>;
-            ranges = <0 0xf00000 0x100000>;
             #address-cells = <1>;
             #size-cells = <1>;
 
