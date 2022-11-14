@@ -1091,6 +1091,7 @@ int fotg210_udc_probe(struct platform_device *pdev)
 	struct resource *res, *ires;
 	struct fotg210_udc *fotg210 = NULL;
 	struct fotg210_ep *_ep[FOTG210_MAX_NUM_EP];
+	struct device *dev = &pdev->dev;
 	int ret = 0;
 	int i;
 
@@ -1122,7 +1123,7 @@ int fotg210_udc_probe(struct platform_device *pdev)
 
 	fotg210->reg = ioremap(res->start, resource_size(res));
 	if (fotg210->reg == NULL) {
-		pr_err("ioremap error.\n");
+		dev_err(dev, "ioremap error\n");
 		goto err_alloc;
 	}
 
@@ -1133,8 +1134,8 @@ int fotg210_udc_probe(struct platform_device *pdev)
 	fotg210->gadget.ops = &fotg210_gadget_ops;
 
 	fotg210->gadget.max_speed = USB_SPEED_HIGH;
-	fotg210->gadget.dev.parent = &pdev->dev;
-	fotg210->gadget.dev.dma_mask = pdev->dev.dma_mask;
+	fotg210->gadget.dev.parent = dev;
+	fotg210->gadget.dev.dma_mask = dev->dma_mask;
 	fotg210->gadget.name = udc_name;
 
 	INIT_LIST_HEAD(&fotg210->gadget.ep_list);
@@ -1180,15 +1181,15 @@ int fotg210_udc_probe(struct platform_device *pdev)
 	ret = request_irq(ires->start, fotg210_irq, IRQF_SHARED,
 			  udc_name, fotg210);
 	if (ret < 0) {
-		pr_err("request_irq error (%d)\n", ret);
+		dev_err(dev, "request_irq error (%d)\n", ret);
 		goto err_req;
 	}
 
-	ret = usb_add_gadget_udc(&pdev->dev, &fotg210->gadget);
+	ret = usb_add_gadget_udc(dev, &fotg210->gadget);
 	if (ret)
 		goto err_add_udc;
 
-	dev_info(&pdev->dev, "version %s\n", DRIVER_VERSION);
+	dev_info(dev, "version %s\n", DRIVER_VERSION);
 
 	return 0;
 
