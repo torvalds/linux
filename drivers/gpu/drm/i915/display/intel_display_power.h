@@ -79,6 +79,11 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_AUDIO_PLAYBACK,
 
 	POWER_DOMAIN_AUX_IO_A,
+	POWER_DOMAIN_AUX_IO_B,
+	POWER_DOMAIN_AUX_IO_C,
+	POWER_DOMAIN_AUX_IO_D,
+	POWER_DOMAIN_AUX_IO_E,
+	POWER_DOMAIN_AUX_IO_F,
 
 	POWER_DOMAIN_AUX_A,
 	POWER_DOMAIN_AUX_B,
@@ -250,6 +255,8 @@ enum intel_display_power_domain
 intel_display_power_ddi_lanes_domain(struct drm_i915_private *i915, enum port port);
 enum intel_display_power_domain
 intel_display_power_ddi_io_domain(struct drm_i915_private *i915, enum port port);
+enum intel_display_power_domain
+intel_display_power_aux_io_domain(struct drm_i915_private *i915, enum aux_ch aux_ch);
 enum intel_display_power_domain
 intel_display_power_legacy_aux_domain(struct drm_i915_private *i915, enum aux_ch aux_ch);
 enum intel_display_power_domain

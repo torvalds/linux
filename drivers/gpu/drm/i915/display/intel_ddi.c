@@ -850,6 +850,8 @@ bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
 static enum intel_display_power_domain
 intel_ddi_main_link_aux_domain(struct intel_digital_port *dig_port)
 {
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+
 	/* ICL+ HW requires corresponding AUX IOs to be powered up for PSR with
 	 * DC states enabled at the same time, while for driver initiated AUX
 	 * transfers we need the same AUX IOs to be powered but with DC states
@@ -862,8 +864,8 @@ intel_ddi_main_link_aux_domain(struct intel_digital_port *dig_port)
 	 * Note that PSR is enabled only on Port A even though this function
 	 * returns the correct domain for other ports too.
 	 */
-	if (dig_port->aux_ch == AUX_CH_A && intel_encoder_can_psr(&dig_port->base))
-		return POWER_DOMAIN_AUX_IO_A;
+	if (intel_encoder_can_psr(&dig_port->base))
+		return intel_display_power_aux_io_domain(i915, dig_port->aux_ch);
 	else
 		return intel_aux_power_domain(dig_port);
 }
