@@ -22,6 +22,7 @@ properties:
       - items:
           - enum:
               - qcom,ipq6018-mdio
+              - qcom,ipq8074-mdio
           - const: qcom,ipq4019-mdio
 
   "#address-cells":
