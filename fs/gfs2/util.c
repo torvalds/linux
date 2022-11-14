@@ -124,7 +124,6 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	struct gfs2_inode *ip;
 	struct gfs2_glock *i_gl;
 	u64 no_formal_ino;
-	int log_write_allowed = test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 	int ret = 0;
 	int tries;
 
@@ -152,24 +151,18 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	 */
 	clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
 	if (!sb_rdonly(sdp->sd_vfs)) {
-		struct gfs2_holder freeze_gh;
+		bool locked = mutex_trylock(&sdp->sd_freeze_mutex);
 
-		gfs2_holder_mark_uninitialized(&freeze_gh);
-		if (sdp->sd_freeze_gl &&
-		    !gfs2_glock_is_locked_by_me(sdp->sd_freeze_gl)) {
-			ret = gfs2_freeze_lock_shared(sdp, &freeze_gh,
-					log_write_allowed ? 0 : LM_FLAG_TRY);
-			if (ret == GLR_TRYFAILED)
-				ret = 0;
-		}
-		if (!ret)
-			gfs2_make_fs_ro(sdp);
+		gfs2_make_fs_ro(sdp);
+
+		if (locked)
+			mutex_unlock(&sdp->sd_freeze_mutex);
+
 		/*
 		 * Dequeue any pending non-system glock holders that can no
 		 * longer be granted because the file system is withdrawn.
 		 */
 		gfs2_gl_dq_holders(sdp);
-		gfs2_freeze_unlock(&freeze_gh);
 	}
 
 	if (sdp->sd_lockstruct.ls_ops->lm_lock == NULL) { /* lock_nolock */
@@ -187,15 +180,8 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	}
 	sdp->sd_jinode_gh.gh_flags |= GL_NOCACHE;
 	gfs2_glock_dq(&sdp->sd_jinode_gh);
-	if (test_bit(SDF_FREEZE_INITIATOR, &sdp->sd_flags)) {
-		/* Make sure gfs2_thaw_super works if partially-frozen */
-		flush_work(&sdp->sd_freeze_work);
-		atomic_set(&sdp->sd_freeze_state, SFS_FROZEN);
-		thaw_super(sdp->sd_vfs);
-	} else {
-		wait_on_bit(&i_gl->gl_flags, GLF_DEMOTE,
-			    TASK_UNINTERRUPTIBLE);
-	}
+	gfs2_thaw_freeze_initiator(sdp->sd_vfs);
+	wait_on_bit(&i_gl->gl_flags, GLF_DEMOTE, TASK_UNINTERRUPTIBLE);
 
 	/*
 	 * holder_uninit to force glock_put, to force dlm to let go
