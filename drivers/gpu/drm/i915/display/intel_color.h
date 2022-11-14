@@ -21,10 +21,10 @@ void intel_color_commit_noarm(const struct intel_crtc_state *crtc_state);
 void intel_color_commit_arm(const struct intel_crtc_state *crtc_state);
 void intel_color_load_luts(const struct intel_crtc_state *crtc_state);
 void intel_color_get_config(struct intel_crtc_state *crtc_state);
-int intel_color_get_gamma_bit_precision(const struct intel_crtc_state *crtc_state);
-bool intel_color_lut_equal(struct drm_property_blob *blob1,
-			   struct drm_property_blob *blob2,
-			   u32 gamma_mode, u32 bit_precision);
+bool intel_color_lut_equal(const struct intel_crtc_state *crtc_state,
+			   const struct drm_property_blob *blob1,
+			   const struct drm_property_blob *blob2,
+			   bool is_pre_csc_lut);
 void intel_color_assert_luts(const struct intel_crtc_state *crtc_state);
 
 #endif /* __INTEL_COLOR_H__ */
