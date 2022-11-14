@@ -1049,7 +1049,7 @@ struct brcmf_gscan_config {
 	u8 count_of_channel_buckets;
 	u8 retry_threshold;
 	__le16  lost_ap_window;
-	struct brcmf_gscan_bucket_config bucket[1];
+	struct brcmf_gscan_bucket_config bucket[];
 };
 
 /**
