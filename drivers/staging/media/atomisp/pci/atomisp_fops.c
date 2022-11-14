@@ -808,13 +808,6 @@ static int atomisp_open(struct file *file)
 		goto error;
 	}
 
-	/* Init ISP */
-	if (atomisp_css_init(isp)) {
-		ret = -EINVAL;
-		/* Need to clean up CSS init if it fails. */
-		goto css_error;
-	}
-
 	atomisp_dev_init_struct(isp);
 
 	ret = v4l2_subdev_call(isp->flash, core, s_power, 1);
@@ -839,7 +832,6 @@ done:
 	return 0;
 
 css_error:
-	atomisp_css_uninit(isp);
 	pm_runtime_put(vdev->v4l2_dev->dev);
 error:
 	mutex_unlock(&isp->mutex);
@@ -908,7 +900,6 @@ static int atomisp_release(struct file *file)
 		goto done;
 
 	atomisp_destroy_pipes_stream_force(asd);
-	atomisp_css_uninit(isp);
 
 	if (defer_fw_load) {
 		ia_css_unload_firmware();

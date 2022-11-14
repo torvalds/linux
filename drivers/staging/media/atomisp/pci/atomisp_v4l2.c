@@ -726,6 +726,8 @@ int atomisp_power_off(struct device *dev)
 				     dev_get_drvdata(dev);
 	int ret;
 
+	atomisp_css_uninit(isp);
+
 	ret = atomisp_mrfld_pre_power_down(isp);
 	if (ret)
 		return ret;
@@ -761,7 +763,8 @@ int atomisp_power_on(struct device *dev)
 		atomisp_restore_iunit_reg(isp);
 
 	atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_LOW, true);
-	return 0;
+
+	return atomisp_css_init(isp);
 }
 
 static int __maybe_unused atomisp_suspend(struct device *dev)
