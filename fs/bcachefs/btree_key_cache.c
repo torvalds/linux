@@ -190,7 +190,8 @@ static void bkey_cached_free_fast(struct btree_key_cache *bc,
 }
 
 static struct bkey_cached *
-bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path)
+bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path,
+		  bool *was_new)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_key_cache *bc = &c->btree_key_cache;
@@ -275,6 +276,7 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path)
 		ck->c.cached = true;
 		BUG_ON(!six_trylock_intent(&ck->c.lock));
 		BUG_ON(!six_trylock_write(&ck->c.lock));
+		*was_new = true;
 		return ck;
 	}
 
@@ -313,9 +315,9 @@ btree_key_cache_create(struct btree_trans *trans, struct btree_path *path)
 	struct bch_fs *c = trans->c;
 	struct btree_key_cache *bc = &c->btree_key_cache;
 	struct bkey_cached *ck;
-	bool was_new = true;
+	bool was_new = false;
 
-	ck = bkey_cached_alloc(trans, path);
+	ck = bkey_cached_alloc(trans, path, &was_new);
 	if (IS_ERR(ck))
 		return ck;
 
@@ -328,7 +330,6 @@ btree_key_cache_create(struct btree_trans *trans, struct btree_path *path)
 		}
 
 		mark_btree_node_locked(trans, path, 0, SIX_LOCK_intent);
-		was_new = false;
 	} else {
 		if (path->btree_id == BTREE_ID_subvolumes)
 			six_lock_pcpu_alloc(&ck->c.lock);
