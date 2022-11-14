@@ -10,6 +10,7 @@
 #include <dt-bindings/reset/mt7986-resets.h>
 
 / {
+	compatible = "mediatek,mt7986a";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;

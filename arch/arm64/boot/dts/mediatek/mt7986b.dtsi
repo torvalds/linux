@@ -5,6 +5,9 @@
  */
 
 #include "mt7986a.dtsi"
+/ {
+	compatible = "mediatek,mt7986b";
+};
 
 &pio {
 	compatible = "mediatek,mt7986b-pinctrl";

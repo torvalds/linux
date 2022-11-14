@@ -9,7 +9,7 @@
 
 / {
 	model = "MediaTek MT7986a RFB";
-	compatible = "mediatek,mt7986a-rfb";
+	compatible = "mediatek,mt7986a-rfb", "mediatek,mt7986a";
 
 	aliases {
 		serial0 = &uart0;
