@@ -428,15 +428,58 @@ static void sparx5_vcap_cache_write(struct net_device *ndev,
 	default:
 		break;
 	}
+	if (sel & VCAP_SEL_COUNTER) {
+		start = start & 0xfff; /* counter limit */
+		if (admin->vinst == 0)
+			spx5_wr(admin->cache.counter, sparx5,
+				ANA_ACL_CNT_A(start));
+		else
+			spx5_wr(admin->cache.counter, sparx5,
+				ANA_ACL_CNT_B(start));
+		spx5_wr(admin->cache.sticky, sparx5,
+			VCAP_SUPER_VCAP_CNT_DAT(0));
+	}
 }
 
 /* API callback used for reading from the VCAP into the VCAP cache */
 static void sparx5_vcap_cache_read(struct net_device *ndev,
 				   struct vcap_admin *admin,
-				   enum vcap_selection sel, u32 start,
+				   enum vcap_selection sel,
+				   u32 start,
 				   u32 count)
 {
-	/* this will be added later */
+	struct sparx5_port *port = netdev_priv(ndev);
+	struct sparx5 *sparx5 = port->sparx5;
+	u32 *keystr, *mskstr, *actstr;
+	int idx;
+
+	keystr = &admin->cache.keystream[start];
+	mskstr = &admin->cache.maskstream[start];
+	actstr = &admin->cache.actionstream[start];
+	if (sel & VCAP_SEL_ENTRY) {
+		for (idx = 0; idx < count; ++idx) {
+			keystr[idx] = spx5_rd(sparx5,
+					      VCAP_SUPER_VCAP_ENTRY_DAT(idx));
+			mskstr[idx] = ~spx5_rd(sparx5,
+					       VCAP_SUPER_VCAP_MASK_DAT(idx));
+		}
+	}
+	if (sel & VCAP_SEL_ACTION) {
+		for (idx = 0; idx < count; ++idx)
+			actstr[idx] = spx5_rd(sparx5,
+					      VCAP_SUPER_VCAP_ACTION_DAT(idx));
+	}
+	if (sel & VCAP_SEL_COUNTER) {
+		start = start & 0xfff; /* counter limit */
+		if (admin->vinst == 0)
+			admin->cache.counter =
+				spx5_rd(sparx5, ANA_ACL_CNT_A(start));
+		else
+			admin->cache.counter =
+				spx5_rd(sparx5, ANA_ACL_CNT_B(start));
+		admin->cache.sticky =
+			spx5_rd(sparx5, VCAP_SUPER_VCAP_CNT_DAT(0));
+	}
 }
 
 /* API callback used for initializing a VCAP address range */
@@ -477,7 +520,32 @@ static void sparx5_vcap_update(struct net_device *ndev,
 static void sparx5_vcap_move(struct net_device *ndev, struct vcap_admin *admin,
 			     u32 addr, int offset, int count)
 {
-	/* this will be added later */
+	struct sparx5_port *port = netdev_priv(ndev);
+	struct sparx5 *sparx5 = port->sparx5;
+	enum vcap_command cmd;
+	u16 mv_num_pos;
+	u16 mv_size;
+
+	mv_size = count - 1;
+	if (offset > 0) {
+		mv_num_pos = offset - 1;
+		cmd = VCAP_CMD_MOVE_DOWN;
+	} else {
+		mv_num_pos = -offset - 1;
+		cmd = VCAP_CMD_MOVE_UP;
+	}
+	spx5_wr(VCAP_SUPER_CFG_MV_NUM_POS_SET(mv_num_pos) |
+		VCAP_SUPER_CFG_MV_SIZE_SET(mv_size),
+		sparx5, VCAP_SUPER_CFG);
+	spx5_wr(VCAP_SUPER_CTRL_UPDATE_CMD_SET(cmd) |
+		VCAP_SUPER_CTRL_UPDATE_ENTRY_DIS_SET(0) |
+		VCAP_SUPER_CTRL_UPDATE_ACTION_DIS_SET(0) |
+		VCAP_SUPER_CTRL_UPDATE_CNT_DIS_SET(0) |
+		VCAP_SUPER_CTRL_UPDATE_ADDR_SET(addr) |
+		VCAP_SUPER_CTRL_CLEAR_CACHE_SET(false) |
+		VCAP_SUPER_CTRL_UPDATE_SHOT_SET(true),
+		sparx5, VCAP_SUPER_CTRL);
+	sparx5_vcap_wait_super_update(sparx5);
 }
 
 /* Provide port information via a callback interface */
@@ -540,7 +608,7 @@ static void sparx5_vcap_port_key_selection(struct sparx5 *sparx5,
 				 VCAP_IS2_PS_IPV4_UC_IP4_TCP_UDP_OTHER,
 				 VCAP_IS2_PS_IPV6_MC_IP_7TUPLE,
 				 VCAP_IS2_PS_IPV6_UC_IP_7TUPLE,
-				 VCAP_IS2_PS_ARP_MAC_ETYPE);
+				 VCAP_IS2_PS_ARP_ARP);
 	for (lookup = 0; lookup < admin->lookups; ++lookup) {
 		for (portno = 0; portno < SPX5_PORTS; ++portno) {
 			spx5_wr(keysel, sparx5,
