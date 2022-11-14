@@ -240,6 +240,19 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 	},
 
 	/*
+	 * Models which should use the vendor backlight interface,
+	 * because of broken native backlight control.
+	 */
+	{
+	 .callback = video_detect_force_vendor,
+	 /* Sony Vaio PCG-FRV35 */
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "PCG-FRV35"),
+		},
+	},
+
+	/*
 	 * Toshiba models with Transflective display, these need to use
 	 * the toshiba_acpi vendor driver for proper Transflective handling.
 	 */
