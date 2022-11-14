@@ -126,12 +126,26 @@ int btrfs_inode_clear_file_extent_range(struct btrfs_inode *inode, u64 start,
 				start + len - 1, EXTENT_DIRTY, NULL);
 }
 
-static inline u32 max_ordered_sum_bytes(struct btrfs_fs_info *fs_info,
-					u16 csum_size)
+static size_t bytes_to_csum_size(const struct btrfs_fs_info *fs_info, u32 bytes)
 {
-	u32 ncsums = (PAGE_SIZE - sizeof(struct btrfs_ordered_sum)) / csum_size;
+	ASSERT(IS_ALIGNED(bytes, fs_info->sectorsize));
 
-	return ncsums * fs_info->sectorsize;
+	return (bytes >> fs_info->sectorsize_bits) * fs_info->csum_size;
+}
+
+static size_t csum_size_to_bytes(const struct btrfs_fs_info *fs_info, u32 csum_size)
+{
+	ASSERT(IS_ALIGNED(csum_size, fs_info->csum_size));
+
+	return (csum_size / fs_info->csum_size) << fs_info->sectorsize_bits;
+}
+
+static inline u32 max_ordered_sum_bytes(const struct btrfs_fs_info *fs_info)
+{
+	u32 max_csum_size = round_down(PAGE_SIZE - sizeof(struct btrfs_ordered_sum),
+				       fs_info->csum_size);
+
+	return csum_size_to_bytes(fs_info, max_csum_size);
 }
 
 /*
@@ -140,9 +154,7 @@ static inline u32 max_ordered_sum_bytes(struct btrfs_fs_info *fs_info,
  */
 static int btrfs_ordered_sum_size(struct btrfs_fs_info *fs_info, unsigned long bytes)
 {
-	int num_sectors = (int)DIV_ROUND_UP(bytes, fs_info->sectorsize);
-
-	return sizeof(struct btrfs_ordered_sum) + num_sectors * fs_info->csum_size;
+	return sizeof(struct btrfs_ordered_sum) + bytes_to_csum_size(fs_info, bytes);
 }
 
 int btrfs_insert_hole_extent(struct btrfs_trans_handle *trans,
@@ -526,11 +538,7 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 	struct btrfs_ordered_sum *sums;
 	struct btrfs_csum_item *item;
 	LIST_HEAD(tmplist);
-	unsigned long offset;
 	int ret;
-	size_t size;
-	u64 csum_end;
-	const u32 csum_size = fs_info->csum_size;
 
 	ASSERT(IS_ALIGNED(start, fs_info->sectorsize) &&
 	       IS_ALIGNED(end + 1, fs_info->sectorsize));
@@ -556,16 +564,33 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 	if (ret > 0 && path->slots[0] > 0) {
 		leaf = path->nodes[0];
 		btrfs_item_key_to_cpu(leaf, &key, path->slots[0] - 1);
+
+		/*
+		 * There are two cases we can hit here for the previous csum
+		 * item:
+		 *
+		 *		|<- search range ->|
+		 *	|<- csum item ->|
+		 *
+		 * Or
+		 *				|<- search range ->|
+		 *	|<- csum item ->|
+		 *
+		 * Check if the previous csum item covers the leading part of
+		 * the search range.  If so we have to start from previous csum
+		 * item.
+		 */
 		if (key.objectid == BTRFS_EXTENT_CSUM_OBJECTID &&
 		    key.type == BTRFS_EXTENT_CSUM_KEY) {
-			offset = (start - key.offset) >> fs_info->sectorsize_bits;
-			if (offset * csum_size <
+			if (bytes_to_csum_size(fs_info, start - key.offset) <
 			    btrfs_item_size(leaf, path->slots[0] - 1))
 				path->slots[0]--;
 		}
 	}
 
 	while (start <= end) {
+		u64 csum_end;
+
 		leaf = path->nodes[0];
 		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
 			ret = btrfs_next_leaf(root, path);
@@ -585,8 +610,8 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 		if (key.offset > start)
 			start = key.offset;
 
-		size = btrfs_item_size(leaf, path->slots[0]);
-		csum_end = key.offset + (size / csum_size) * fs_info->sectorsize;
+		csum_end = key.offset + csum_size_to_bytes(fs_info,
+					btrfs_item_size(leaf, path->slots[0]));
 		if (csum_end <= start) {
 			path->slots[0]++;
 			continue;
@@ -596,8 +621,11 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 		item = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				      struct btrfs_csum_item);
 		while (start < csum_end) {
+			unsigned long offset;
+			size_t size;
+
 			size = min_t(size_t, csum_end - start,
-				     max_ordered_sum_bytes(fs_info, csum_size));
+				     max_ordered_sum_bytes(fs_info));
 			sums = kzalloc(btrfs_ordered_sum_size(fs_info, size),
 				       GFP_NOFS);
 			if (!sums) {
@@ -608,16 +636,14 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 			sums->bytenr = start;
 			sums->len = (int)size;
 
-			offset = (start - key.offset) >> fs_info->sectorsize_bits;
-			offset *= csum_size;
-			size >>= fs_info->sectorsize_bits;
+			offset = bytes_to_csum_size(fs_info, start - key.offset);
 
 			read_extent_buffer(path->nodes[0],
 					   sums->sums,
 					   ((unsigned long)item) + offset,
-					   csum_size * size);
+					   bytes_to_csum_size(fs_info, size));
 
-			start += fs_info->sectorsize * size;
+			start += size;
 			list_add_tail(&sums->list, &tmplist);
 		}
 		path->slots[0]++;
