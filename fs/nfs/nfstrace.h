@@ -11,9 +11,9 @@
 #include <linux/tracepoint.h>
 #include <linux/iversion.h>
 
-#include <trace/events/fs.h>
-#include <trace/events/nfs.h>
-#include <trace/events/sunrpc_base.h>
+#include <trace/misc/fs.h>
+#include <trace/misc/nfs.h>
+#include <trace/misc/sunrpc.h>
 
 #define nfs_show_cache_validity(v) \
 	__print_flags(v, "|", \
