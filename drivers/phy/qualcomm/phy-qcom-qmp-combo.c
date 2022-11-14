@@ -2132,7 +2132,6 @@ static const struct phy_ops qmp_combo_dp_phy_ops = {
 	.calibrate	= qcom_qmp_dp_phy_calibrate,
 	.power_off	= qmp_combo_power_off,
 	.exit		= qmp_combo_exit,
-	.set_mode	= qmp_combo_set_mode,
 	.owner		= THIS_MODULE,
 };
 
