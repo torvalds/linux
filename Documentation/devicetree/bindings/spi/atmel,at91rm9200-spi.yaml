@@ -34,6 +34,16 @@ properties:
   clocks:
     maxItems: 1
 
+  dmas:
+    items:
+      - description: TX DMA Channel
+      - description: RX DMA Channel
+
+  dma-names:
+    items:
+      - const: tx
+      - const: rx
+
   atmel,fifo-size:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |

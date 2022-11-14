@@ -180,15 +180,13 @@ fail:
 	return ret;
 }
 
-static int veml6070_remove(struct i2c_client *client)
+static void veml6070_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct veml6070_data *data = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	i2c_unregister_device(data->client2);
-
-	return 0;
 }
 
 static const struct i2c_device_id veml6070_id[] = {

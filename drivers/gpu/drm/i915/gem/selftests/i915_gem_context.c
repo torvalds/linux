@@ -179,97 +179,108 @@ out_file:
 }
 
 struct parallel_switch {
-	struct task_struct *tsk;
+	struct kthread_worker *worker;
+	struct kthread_work work;
 	struct intel_context *ce[2];
+	int result;
 };
 
-static int __live_parallel_switch1(void *data)
+static void __live_parallel_switch1(struct kthread_work *work)
 {
-	struct parallel_switch *arg = data;
+	struct parallel_switch *arg =
+		container_of(work, typeof(*arg), work);
 	IGT_TIMEOUT(end_time);
 	unsigned long count;
 
 	count = 0;
+	arg->result = 0;
 	do {
 		struct i915_request *rq = NULL;
-		int err, n;
+		int n;
 
-		err = 0;
-		for (n = 0; !err && n < ARRAY_SIZE(arg->ce); n++) {
+		for (n = 0; !arg->result && n < ARRAY_SIZE(arg->ce); n++) {
 			struct i915_request *prev = rq;
 
 			rq = i915_request_create(arg->ce[n]);
 			if (IS_ERR(rq)) {
 				i915_request_put(prev);
-				return PTR_ERR(rq);
+				arg->result = PTR_ERR(rq);
+				break;
 			}
 
 			i915_request_get(rq);
 			if (prev) {
-				err = i915_request_await_dma_fence(rq, &prev->fence);
+				arg->result =
+					i915_request_await_dma_fence(rq,
+								     &prev->fence);
 				i915_request_put(prev);
 			}
 
 			i915_request_add(rq);
 		}
+
+		if (IS_ERR_OR_NULL(rq))
+			break;
+
 		if (i915_request_wait(rq, 0, HZ) < 0)
-			err = -ETIME;
+			arg->result = -ETIME;
+
 		i915_request_put(rq);
-		if (err)
-			return err;
 
 		count++;
-	} while (!__igt_timeout(end_time, NULL));
+	} while (!arg->result && !__igt_timeout(end_time, NULL));
 
-	pr_info("%s: %lu switches (sync)\n", arg->ce[0]->engine->name, count);
-	return 0;
+	pr_info("%s: %lu switches (sync) <%d>\n",
+		arg->ce[0]->engine->name, count, arg->result);
 }
 
-static int __live_parallel_switchN(void *data)
+static void __live_parallel_switchN(struct kthread_work *work)
 {
-	struct parallel_switch *arg = data;
+	struct parallel_switch *arg =
+		container_of(work, typeof(*arg), work);
 	struct i915_request *rq = NULL;
 	IGT_TIMEOUT(end_time);
 	unsigned long count;
 	int n;
 
 	count = 0;
+	arg->result = 0;
 	do {
-		for (n = 0; n < ARRAY_SIZE(arg->ce); n++) {
+		for (n = 0; !arg->result && n < ARRAY_SIZE(arg->ce); n++) {
 			struct i915_request *prev = rq;
-			int err = 0;
 
 			rq = i915_request_create(arg->ce[n]);
 			if (IS_ERR(rq)) {
 				i915_request_put(prev);
-				return PTR_ERR(rq);
+				arg->result = PTR_ERR(rq);
+				break;
 			}
 
 			i915_request_get(rq);
 			if (prev) {
-				err = i915_request_await_dma_fence(rq, &prev->fence);
+				arg->result =
+					i915_request_await_dma_fence(rq,
+								     &prev->fence);
 				i915_request_put(prev);
 			}
 
 			i915_request_add(rq);
-			if (err) {
-				i915_request_put(rq);
-				return err;
-			}
 		}
 
 		count++;
-	} while (!__igt_timeout(end_time, NULL));
-	i915_request_put(rq);
+	} while (!arg->result && !__igt_timeout(end_time, NULL));
 
-	pr_info("%s: %lu switches (many)\n", arg->ce[0]->engine->name, count);
-	return 0;
+	if (!IS_ERR_OR_NULL(rq))
+		i915_request_put(rq);
+
+	pr_info("%s: %lu switches (many) <%d>\n",
+		arg->ce[0]->engine->name, count, arg->result);
 }
 
 static int live_parallel_switch(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	static int (* const func[])(void *arg) = {
+	static void (* const func[])(struct kthread_work *) = {
 		__live_parallel_switch1,
 		__live_parallel_switchN,
 		NULL,
@@ -277,7 +288,7 @@ static int live_parallel_switch(void *arg)
 	struct parallel_switch *data = NULL;
 	struct i915_gem_engines *engines;
 	struct i915_gem_engines_iter it;
-	int (* const *fn)(void *arg);
+	void (* const *fn)(struct kthread_work *);
 	struct i915_gem_context *ctx;
 	struct intel_context *ce;
 	struct file *file;
@@ -348,9 +359,22 @@ static int live_parallel_switch(void *arg)
 		}
 	}
 
+	for (n = 0; n < count; n++) {
+		struct kthread_worker *worker;
+
+		if (!data[n].ce[0])
+			continue;
+
+		worker = kthread_create_worker(0, "igt/parallel:%s",
+					       data[n].ce[0]->engine->name);
+		if (IS_ERR(worker))
+			goto out;
+
+		data[n].worker = worker;
+	}
+
 	for (fn = func; !err && *fn; fn++) {
 		struct igt_live_test t;
-		int n;
 
 		err = igt_live_test_begin(&t, i915, __func__, "");
 		if (err)
@@ -360,30 +384,17 @@ static int live_parallel_switch(void *arg)
 			if (!data[n].ce[0])
 				continue;
 
-			data[n].tsk = kthread_run(*fn, &data[n],
-						  "igt/parallel:%s",
-						  data[n].ce[0]->engine->name);
-			if (IS_ERR(data[n].tsk)) {
-				err = PTR_ERR(data[n].tsk);
-				break;
-			}
-			get_task_struct(data[n].tsk);
+			data[n].result = 0;
+			kthread_init_work(&data[n].work, *fn);
+			kthread_queue_work(data[n].worker, &data[n].work);
 		}
 
-		yield(); /* start all threads before we kthread_stop() */
-
 		for (n = 0; n < count; n++) {
-			int status;
-
-			if (IS_ERR_OR_NULL(data[n].tsk))
-				continue;
-
-			status = kthread_stop(data[n].tsk);
-			if (status && !err)
-				err = status;
-
-			put_task_struct(data[n].tsk);
-			data[n].tsk = NULL;
+			if (data[n].ce[0]) {
+				kthread_flush_work(&data[n].work);
+				if (data[n].result && !err)
+					err = data[n].result;
+			}
 		}
 
 		if (igt_live_test_end(&t))
@@ -399,6 +410,9 @@ out:
 			intel_context_unpin(data[n].ce[m]);
 			intel_context_put(data[n].ce[m]);
 		}
+
+		if (data[n].worker)
+			kthread_destroy_worker(data[n].worker);
 	}
 	kfree(data);
 out_file:

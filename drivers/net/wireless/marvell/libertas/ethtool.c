@@ -20,8 +20,8 @@ static void lbs_ethtool_get_drvinfo(struct net_device *dev,
 		priv->fwrelease >> 16 & 0xff,
 		priv->fwrelease >>  8 & 0xff,
 		priv->fwrelease       & 0xff);
-	strlcpy(info->driver, "libertas", sizeof(info->driver));
-	strlcpy(info->version, lbs_driver_version, sizeof(info->version));
+	strscpy(info->driver, "libertas", sizeof(info->driver));
+	strscpy(info->version, lbs_driver_version, sizeof(info->version));
 }
 
 /*

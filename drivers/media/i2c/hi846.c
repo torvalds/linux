@@ -2143,7 +2143,7 @@ err_mutex:
 	return ret;
 }
 
-static int hi846_remove(struct i2c_client *client)
+static void hi846_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct hi846 *hi846 = to_hi846(sd);
@@ -2158,8 +2158,6 @@ static int hi846_remove(struct i2c_client *client)
 	pm_runtime_set_suspended(&client->dev);
 
 	mutex_destroy(&hi846->mutex);
-
-	return 0;
 }
 
 static const struct dev_pm_ops hi846_pm_ops = {

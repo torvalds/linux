@@ -159,12 +159,10 @@ static int cptvf_send_msg_to_pf_timeout(struct otx_cptvf *cptvf,
 int otx_cptvf_check_pf_ready(struct otx_cptvf *cptvf)
 {
 	struct otx_cpt_mbox mbx = {};
-	int ret;
 
 	mbx.msg = OTX_CPT_MSG_READY;
-	ret = cptvf_send_msg_to_pf_timeout(cptvf, &mbx);
 
-	return ret;
+	return cptvf_send_msg_to_pf_timeout(cptvf, &mbx);
 }
 
 /*
@@ -174,13 +172,11 @@ int otx_cptvf_check_pf_ready(struct otx_cptvf *cptvf)
 int otx_cptvf_send_vq_size_msg(struct otx_cptvf *cptvf)
 {
 	struct otx_cpt_mbox mbx = {};
-	int ret;
 
 	mbx.msg = OTX_CPT_MSG_QLEN;
 	mbx.data = cptvf->qsize;
-	ret = cptvf_send_msg_to_pf_timeout(cptvf, &mbx);
 
-	return ret;
+	return cptvf_send_msg_to_pf_timeout(cptvf, &mbx);
 }
 
 /*
@@ -208,14 +204,12 @@ int otx_cptvf_send_vf_to_grp_msg(struct otx_cptvf *cptvf, int group)
 int otx_cptvf_send_vf_priority_msg(struct otx_cptvf *cptvf)
 {
 	struct otx_cpt_mbox mbx = {};
-	int ret;
 
 	mbx.msg = OTX_CPT_MSG_VQ_PRIORITY;
 	/* Convey group of the VF */
 	mbx.data = cptvf->priority;
-	ret = cptvf_send_msg_to_pf_timeout(cptvf, &mbx);
 
-	return ret;
+	return cptvf_send_msg_to_pf_timeout(cptvf, &mbx);
 }
 
 /*
@@ -224,12 +218,10 @@ int otx_cptvf_send_vf_priority_msg(struct otx_cptvf *cptvf)
 int otx_cptvf_send_vf_up(struct otx_cptvf *cptvf)
 {
 	struct otx_cpt_mbox mbx = {};
-	int ret;
 
 	mbx.msg = OTX_CPT_MSG_VF_UP;
-	ret = cptvf_send_msg_to_pf_timeout(cptvf, &mbx);
 
-	return ret;
+	return cptvf_send_msg_to_pf_timeout(cptvf, &mbx);
 }
 
 /*
@@ -238,10 +230,8 @@ int otx_cptvf_send_vf_up(struct otx_cptvf *cptvf)
 int otx_cptvf_send_vf_down(struct otx_cptvf *cptvf)
 {
 	struct otx_cpt_mbox mbx = {};
-	int ret;
 
 	mbx.msg = OTX_CPT_MSG_VF_DOWN;
-	ret = cptvf_send_msg_to_pf_timeout(cptvf, &mbx);
 
-	return ret;
+	return cptvf_send_msg_to_pf_timeout(cptvf, &mbx);
 }

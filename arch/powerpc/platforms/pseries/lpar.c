@@ -660,6 +660,17 @@ static int __init vcpudispatch_stats_procfs_init(void)
 }
 
 machine_device_initcall(pseries, vcpudispatch_stats_procfs_init);
+
+#ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
+u64 pseries_paravirt_steal_clock(int cpu)
+{
+	struct lppaca *lppaca = &lppaca_of(cpu);
+
+	return be64_to_cpu(READ_ONCE(lppaca->enqueue_dispatch_tb)) +
+		be64_to_cpu(READ_ONCE(lppaca->ready_enqueue_tb));
+}
+#endif
+
 #endif /* CONFIG_PPC_SPLPAR */
 
 void vpa_init(int cpu)

@@ -467,13 +467,11 @@ err_chip_exit:
 	return ret;
 }
 
-static int stmfx_remove(struct i2c_client *client)
+static void stmfx_remove(struct i2c_client *client)
 {
 	stmfx_irq_exit(client);
 
 	stmfx_chip_exit(client);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

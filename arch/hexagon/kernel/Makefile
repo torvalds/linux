@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
-extra-y := head.o vmlinux.lds
+extra-y := vmlinux.lds
 
+obj-y += head.o
 obj-$(CONFIG_SMP) += smp.o
 
 obj-y += setup.o irq_cpu.o traps.o syscalltab.o signal.o time.o

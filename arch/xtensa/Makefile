@@ -55,8 +55,6 @@ KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(vardirs) $(plfdirs))
 
 KBUILD_DEFCONFIG := iss_defconfig
 
-head-y		:= arch/xtensa/kernel/head.o
-
 libs-y		+= arch/xtensa/lib/
 
 boot		:= arch/xtensa/boot

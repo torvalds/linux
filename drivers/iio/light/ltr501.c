@@ -1600,15 +1600,13 @@ powerdown_on_error:
 	return ret;
 }
 
-static int ltr501_remove(struct i2c_client *client)
+static void ltr501_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	ltr501_powerdown(iio_priv(indio_dev));
-
-	return 0;
 }
 
 static int ltr501_suspend(struct device *dev)

@@ -806,6 +806,10 @@
  *	security attributes, e.g. for /proc/pid inodes.
  *	@p contains the task_struct for the task.
  *	@inode contains the inode structure for the inode.
+ * @userns_create:
+ *	Check permission prior to creating a new user namespace.
+ *	@cred points to prepared creds.
+ *	Return 0 if successful, otherwise < 0 error code.
  *
  * Security hooks for Netlink messaging.
  *
@@ -1581,6 +1585,9 @@
  * @uring_sqpoll:
  *      Check whether the current task is allowed to spawn a io_uring polling
  *      thread (IORING_SETUP_SQPOLL).
+ *
+ * @uring_cmd:
+ *      Check whether the file_operations uring_cmd is allowed to run.
  *
  */
 union security_list_options {

@@ -334,13 +334,11 @@ exit:
 	return err;
 }
 
-static int an30259a_remove(struct i2c_client *client)
+static void an30259a_remove(struct i2c_client *client)
 {
 	struct an30259a *chip = i2c_get_clientdata(client);
 
 	mutex_destroy(&chip->mutex);
-
-	return 0;
 }
 
 static const struct of_device_id an30259a_match_table[] = {

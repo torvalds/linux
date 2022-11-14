@@ -252,9 +252,10 @@ int shmob_drm_plane_create(struct shmob_drm_device *sdev, unsigned int index)
 	splane->index = index;
 	splane->alpha = 255;
 
-	ret = drm_plane_init(sdev->ddev, &splane->plane, 1,
-			     &shmob_drm_plane_funcs, formats,
-			     ARRAY_SIZE(formats), false);
+	ret = drm_universal_plane_init(sdev->ddev, &splane->plane, 1,
+				       &shmob_drm_plane_funcs,
+				       formats, ARRAY_SIZE(formats), NULL,
+				       DRM_PLANE_TYPE_OVERLAY, NULL);
 
 	return ret;
 }

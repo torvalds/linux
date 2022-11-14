@@ -59,4 +59,15 @@ config KUNIT_ALL_TESTS
 
 	  If unsure, say N.
 
+config KUNIT_DEFAULT_ENABLED
+	bool "Default value of kunit.enable"
+	default y
+	help
+	  Sets the default value of kunit.enable. If set to N then KUnit
+	  tests will not execute unless kunit.enable=1 is passed to the
+	  kernel command line.
+
+	  In most cases this should be left as Y. Only if additional opt-in
+	  behavior is needed should this be set to N.
+
 endif # KUNIT

@@ -10,8 +10,17 @@
 #include <linux/btf_ids.h>
 #include "mmap_unlock_work.h"
 
+static const char * const iter_task_type_names[] = {
+	"ALL",
+	"TID",
+	"PID",
+};
+
 struct bpf_iter_seq_task_common {
 	struct pid_namespace *ns;
+	enum bpf_iter_task_type	type;
+	u32 pid;
+	u32 pid_visiting;
 };
 
 struct bpf_iter_seq_task_info {
@@ -22,18 +31,115 @@ struct bpf_iter_seq_task_info {
 	u32 tid;
 };
 
-static struct task_struct *task_seq_get_next(struct pid_namespace *ns,
+static struct task_struct *task_group_seq_get_next(struct bpf_iter_seq_task_common *common,
+						   u32 *tid,
+						   bool skip_if_dup_files)
+{
+	struct task_struct *task, *next_task;
+	struct pid *pid;
+	u32 saved_tid;
+
+	if (!*tid) {
+		/* The first time, the iterator calls this function. */
+		pid = find_pid_ns(common->pid, common->ns);
+		if (!pid)
+			return NULL;
+
+		task = get_pid_task(pid, PIDTYPE_TGID);
+		if (!task)
+			return NULL;
+
+		*tid = common->pid;
+		common->pid_visiting = common->pid;
+
+		return task;
+	}
+
+	/* If the control returns to user space and comes back to the
+	 * kernel again, *tid and common->pid_visiting should be the
+	 * same for task_seq_start() to pick up the correct task.
+	 */
+	if (*tid == common->pid_visiting) {
+		pid = find_pid_ns(common->pid_visiting, common->ns);
+		task = get_pid_task(pid, PIDTYPE_PID);
+
+		return task;
+	}
+
+	pid = find_pid_ns(common->pid_visiting, common->ns);
+	if (!pid)
+		return NULL;
+
+	task = get_pid_task(pid, PIDTYPE_PID);
+	if (!task)
+		return NULL;
+
+retry:
+	if (!pid_alive(task)) {
+		put_task_struct(task);
+		return NULL;
+	}
+
+	next_task = next_thread(task);
+	put_task_struct(task);
+	if (!next_task)
+		return NULL;
+
+	saved_tid = *tid;
+	*tid = __task_pid_nr_ns(next_task, PIDTYPE_PID, common->ns);
+	if (!*tid || *tid == common->pid) {
+		/* Run out of tasks of a process.  The tasks of a
+		 * thread_group are linked as circular linked list.
+		 */
+		*tid = saved_tid;
+		return NULL;
+	}
+
+	get_task_struct(next_task);
+	common->pid_visiting = *tid;
+
+	if (skip_if_dup_files && task->files == task->group_leader->files) {
+		task = next_task;
+		goto retry;
+	}
+
+	return next_task;
+}
+
+static struct task_struct *task_seq_get_next(struct bpf_iter_seq_task_common *common,
 					     u32 *tid,
 					     bool skip_if_dup_files)
 {
 	struct task_struct *task = NULL;
 	struct pid *pid;
 
+	if (common->type == BPF_TASK_ITER_TID) {
+		if (*tid && *tid != common->pid)
+			return NULL;
+		rcu_read_lock();
+		pid = find_pid_ns(common->pid, common->ns);
+		if (pid) {
+			task = get_pid_task(pid, PIDTYPE_TGID);
+			*tid = common->pid;
+		}
+		rcu_read_unlock();
+
+		return task;
+	}
+
+	if (common->type == BPF_TASK_ITER_TGID) {
+		rcu_read_lock();
+		task = task_group_seq_get_next(common, tid, skip_if_dup_files);
+		rcu_read_unlock();
+
+		return task;
+	}
+
 	rcu_read_lock();
 retry:
-	pid = find_ge_pid(*tid, ns);
+	pid = find_ge_pid(*tid, common->ns);
 	if (pid) {
-		*tid = pid_nr_ns(pid, ns);
+		*tid = pid_nr_ns(pid, common->ns);
 		task = get_pid_task(pid, PIDTYPE_PID);
 		if (!task) {
 			++*tid;
@@ -56,7 +162,7 @@ static void *task_seq_start(struct seq_file *seq, loff_t *pos)
 	struct bpf_iter_seq_task_info *info = seq->private;
 	struct task_struct *task;
 
-	task = task_seq_get_next(info->common.ns, &info->tid, false);
+	task = task_seq_get_next(&info->common, &info->tid, false);
 	if (!task)
 		return NULL;
 
@@ -73,7 +179,7 @@ static void *task_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	++*pos;
 	++info->tid;
 	put_task_struct((struct task_struct *)v);
-	task = task_seq_get_next(info->common.ns, &info->tid, false);
+	task = task_seq_get_next(&info->common, &info->tid, false);
 	if (!task)
 		return NULL;
 
@@ -117,6 +223,41 @@ static void task_seq_stop(struct seq_file *seq, void *v)
 		put_task_struct((struct task_struct *)v);
 }
 
+static int bpf_iter_attach_task(struct bpf_prog *prog,
+				union bpf_iter_link_info *linfo,
+				struct bpf_iter_aux_info *aux)
+{
+	unsigned int flags;
+	struct pid *pid;
+	pid_t tgid;
+
+	if ((!!linfo->task.tid + !!linfo->task.pid + !!linfo->task.pid_fd) > 1)
+		return -EINVAL;
+
+	aux->task.type = BPF_TASK_ITER_ALL;
+	if (linfo->task.tid != 0) {
+		aux->task.type = BPF_TASK_ITER_TID;
+		aux->task.pid = linfo->task.tid;
+	}
+	if (linfo->task.pid != 0) {
+		aux->task.type = BPF_TASK_ITER_TGID;
+		aux->task.pid = linfo->task.pid;
+	}
+	if (linfo->task.pid_fd != 0) {
+		aux->task.type = BPF_TASK_ITER_TGID;
+
+		pid = pidfd_get_pid(linfo->task.pid_fd, &flags);
+		if (IS_ERR(pid))
+			return PTR_ERR(pid);
+
+		tgid = pid_nr_ns(pid, task_active_pid_ns(current));
+		aux->task.pid = tgid;
+		put_pid(pid);
+	}
+
+	return 0;
+}
+
 static const struct seq_operations task_seq_ops = {
 	.start	= task_seq_start,
 	.next	= task_seq_next,
@@ -137,8 +278,7 @@ struct bpf_iter_seq_task_file_info {
 static struct file *
 task_file_seq_get_next(struct bpf_iter_seq_task_file_info *info)
 {
-	struct pid_namespace *ns = info->common.ns;
-	u32 curr_tid = info->tid;
+	u32 saved_tid = info->tid;
 	struct task_struct *curr_task;
 	unsigned int curr_fd = info->fd;
 
@@ -151,21 +291,18 @@ again:
 		curr_task = info->task;
 		curr_fd = info->fd;
 	} else {
-                curr_task = task_seq_get_next(ns, &curr_tid, true);
+		curr_task = task_seq_get_next(&info->common, &info->tid, true);
                 if (!curr_task) {
                         info->task = NULL;
-                        info->tid = curr_tid;
                         return NULL;
                 }
 
-                /* set info->task and info->tid */
+		/* set info->task */
 		info->task = curr_task;
-		if (curr_tid == info->tid) {
+		if (saved_tid == info->tid)
 			curr_fd = info->fd;
-		} else {
-			info->tid = curr_tid;
+		else
 			curr_fd = 0;
-		}
 	}
 
 	rcu_read_lock();
@@ -186,9 +323,15 @@ again:
 	/* the current task is done, go to the next task */
 	rcu_read_unlock();
 	put_task_struct(curr_task);
+
+	if (info->common.type == BPF_TASK_ITER_TID) {
+		info->task = NULL;
+		return NULL;
+	}
+
 	info->task = NULL;
 	info->fd = 0;
-	curr_tid = ++(info->tid);
+	saved_tid = ++(info->tid);
 	goto again;
 }
 
@@ -269,6 +412,9 @@ static int init_seq_pidns(void *priv_data, struct bpf_iter_aux_info *aux)
 	struct bpf_iter_seq_task_common *common = priv_data;
 
 	common->ns = get_pid_ns(task_active_pid_ns(current));
+	common->type = aux->task.type;
+	common->pid = aux->task.pid;
+
 	return 0;
 }
 
@@ -299,19 +445,18 @@ struct bpf_iter_seq_task_vma_info {
 };
 
 enum bpf_task_vma_iter_find_op {
-	task_vma_iter_first_vma,   /* use mm->mmap */
-	task_vma_iter_next_vma,    /* use curr_vma->vm_next */
+	task_vma_iter_first_vma,   /* use find_vma() with addr 0 */
+	task_vma_iter_next_vma,    /* use vma_next() with curr_vma */
 	task_vma_iter_find_vma,    /* use find_vma() to find next vma */
 };
 
 static struct vm_area_struct *
 task_vma_seq_get_next(struct bpf_iter_seq_task_vma_info *info)
 {
-	struct pid_namespace *ns = info->common.ns;
 	enum bpf_task_vma_iter_find_op op;
 	struct vm_area_struct *curr_vma;
 	struct task_struct *curr_task;
-	u32 curr_tid = info->tid;
+	u32 saved_tid = info->tid;
 
 	/* If this function returns a non-NULL vma, it holds a reference to
 	 * the task_struct, and holds read lock on vma->mm->mmap_lock.
@@ -371,14 +516,13 @@ task_vma_seq_get_next(struct bpf_iter_seq_task_vma_info *info)
 		}
 	} else {
 again:
-		curr_task = task_seq_get_next(ns, &curr_tid, true);
+		curr_task = task_seq_get_next(&info->common, &info->tid, true);
 		if (!curr_task) {
-			info->tid = curr_tid + 1;
+			info->tid++;
 			goto finish;
 		}
 
-		if (curr_tid != info->tid) {
-			info->tid = curr_tid;
+		if (saved_tid != info->tid) {
 			/* new task, process the first vma */
 			op = task_vma_iter_first_vma;
 		} else {
@@ -400,10 +544,10 @@ again:
 
 	switch (op) {
 	case task_vma_iter_first_vma:
-		curr_vma = curr_task->mm->mmap;
+		curr_vma = find_vma(curr_task->mm, 0);
 		break;
 	case task_vma_iter_next_vma:
-		curr_vma = curr_vma->vm_next;
+		curr_vma = find_vma(curr_task->mm, curr_vma->vm_end);
 		break;
 	case task_vma_iter_find_vma:
 		/* We dropped mmap_lock so it is necessary to use find_vma
@@ -417,7 +561,7 @@ again:
 		if (curr_vma &&
 		    curr_vma->vm_start == info->prev_vm_start &&
 		    curr_vma->vm_end == info->prev_vm_end)
-			curr_vma = curr_vma->vm_next;
+			curr_vma = find_vma(curr_task->mm, curr_vma->vm_end);
 		break;
 	}
 	if (!curr_vma) {
@@ -430,9 +574,12 @@ again:
 	return curr_vma;
 
 next_task:
+	if (info->common.type == BPF_TASK_ITER_TID)
+		goto finish;
+
 	put_task_struct(curr_task);
 	info->task = NULL;
-	curr_tid++;
+	info->tid++;
 	goto again;
 
 finish:
@@ -531,8 +678,33 @@ static const struct bpf_iter_seq_info task_seq_info = {
 	.seq_priv_size		= sizeof(struct bpf_iter_seq_task_info),
 };
 
+static int bpf_iter_fill_link_info(const struct bpf_iter_aux_info *aux, struct bpf_link_info *info)
+{
+	switch (aux->task.type) {
+	case BPF_TASK_ITER_TID:
+		info->iter.task.tid = aux->task.pid;
+		break;
+	case BPF_TASK_ITER_TGID:
+		info->iter.task.pid = aux->task.pid;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static void bpf_iter_task_show_fdinfo(const struct bpf_iter_aux_info *aux, struct seq_file *seq)
+{
+	seq_printf(seq, "task_type:\t%s\n", iter_task_type_names[aux->task.type]);
+	if (aux->task.type == BPF_TASK_ITER_TID)
+		seq_printf(seq, "tid:\t%u\n", aux->task.pid);
+	else if (aux->task.type == BPF_TASK_ITER_TGID)
+		seq_printf(seq, "pid:\t%u\n", aux->task.pid);
+}
+
 static struct bpf_iter_reg task_reg_info = {
 	.target			= "task",
+	.attach_target		= bpf_iter_attach_task,
 	.feature		= BPF_ITER_RESCHED,
 	.ctx_arg_info_size	= 1,
 	.ctx_arg_info		= {
@@ -540,6 +712,8 @@ static struct bpf_iter_reg task_reg_info = {
 		  PTR_TO_BTF_ID_OR_NULL },
 	},
 	.seq_info		= &task_seq_info,
+	.fill_link_info		= bpf_iter_fill_link_info,
+	.show_fdinfo		= bpf_iter_task_show_fdinfo,
 };
 
 static const struct bpf_iter_seq_info task_file_seq_info = {
@@ -551,6 +725,7 @@ static const struct bpf_iter_seq_info task_file_seq_info = {
 
 static struct bpf_iter_reg task_file_reg_info = {
 	.target			= "task_file",
+	.attach_target		= bpf_iter_attach_task,
 	.feature		= BPF_ITER_RESCHED,
 	.ctx_arg_info_size	= 2,
 	.ctx_arg_info		= {
@@ -560,6 +735,8 @@ static struct bpf_iter_reg task_file_reg_info = {
 		  PTR_TO_BTF_ID_OR_NULL },
 	},
 	.seq_info		= &task_file_seq_info,
+	.fill_link_info		= bpf_iter_fill_link_info,
+	.show_fdinfo		= bpf_iter_task_show_fdinfo,
 };
 
 static const struct bpf_iter_seq_info task_vma_seq_info = {
@@ -571,6 +748,7 @@ static const struct bpf_iter_seq_info task_vma_seq_info = {
 
 static struct bpf_iter_reg task_vma_reg_info = {
 	.target			= "task_vma",
+	.attach_target		= bpf_iter_attach_task,
 	.feature		= BPF_ITER_RESCHED,
 	.ctx_arg_info_size	= 2,
 	.ctx_arg_info		= {
@@ -580,6 +758,8 @@ static struct bpf_iter_reg task_vma_reg_info = {
 		  PTR_TO_BTF_ID_OR_NULL },
 	},
 	.seq_info		= &task_vma_seq_info,
+	.fill_link_info		= bpf_iter_fill_link_info,
+	.show_fdinfo		= bpf_iter_task_show_fdinfo,
 };
 
 BPF_CALL_5(bpf_find_vma, struct task_struct *, task, u64, start,

@@ -7,14 +7,14 @@ ret     = 1
 fd=1
 group_fd=-1
 sample_type=327
-read_format=4
+read_format=4|20
 
 [event-2:base-record]
 fd=2
 group_fd=1
 config=1
 sample_type=327
-read_format=4
+read_format=4|20
 mmap=0
 comm=0
 task=0

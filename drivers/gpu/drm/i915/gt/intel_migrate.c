@@ -10,6 +10,7 @@
 #include "intel_gtt.h"
 #include "intel_migrate.h"
 #include "intel_ring.h"
+#include "gem/i915_gem_lmem.h"
 
 struct insert_pte_data {
 	u64 offset;

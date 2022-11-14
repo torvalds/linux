@@ -37,8 +37,24 @@
 
 # readprofile starts reading symbols when _stext is found, and
 # continue until it finds a symbol which is not either of 'T', 't',
-# 'W' or 'w'. __crc_ are 'A' and placed in the middle
-# so we just ignore them to let readprofile continue to work.
-# (At least sparc64 has __crc_ in the middle).
+# 'W' or 'w'.
+#
+# Ignored prefixes:
+#  $                    - local symbols for ARM, MIPS, etc.
+#  .L                   - local labels, .LBB,.Ltmpxxx,.L__unnamed_xx,.LASANPC, etc.
+#  __crc_               - modversions
+#  __kstrtab_           - EXPORT_SYMBOL (symbol name)
+#  __kstrtabns_         - EXPORT_SYMBOL (namespace)
+#
+# Ignored symbols:
+#  L0                   - for LoongArch?
 
-$NM -n $1 | grep -v '\( [aNUw] \)\|\(__crc_\)\|\( \$[adt]\)\|\( \.L\)' > $2
+$NM -n $1 | grep -v		\
+	-e ' [aNUw] '		\
+	-e ' \$'		\
+	-e ' \.L'		\
+	-e ' __crc_'		\
+	-e ' __kstrtab_'	\
+	-e ' __kstrtabns_'	\
+	-e ' L0$'		\
+> $2

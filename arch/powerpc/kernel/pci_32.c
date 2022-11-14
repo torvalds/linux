@@ -245,6 +245,15 @@ static int __init pcibios_init(void)
 
 	printk(KERN_INFO "PCI: Probing PCI hardware\n");
 
+#ifdef CONFIG_PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
+	/*
+	 * Enable PCI domains in /proc when PCI bus numbers are not unique
+	 * across all PCI domains to prevent conflicts. And keep PCI domain 0
+	 * backward compatible in /proc for video cards.
+	 */
+	pci_add_flags(PCI_ENABLE_PROC_DOMAINS | PCI_COMPAT_DOMAIN_0);
+#endif
+
 	if (pci_has_flag(PCI_REASSIGN_ALL_BUS))
 		pci_assign_all_buses = 1;
 

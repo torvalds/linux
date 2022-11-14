@@ -263,7 +263,7 @@ static int bh1750_probe(struct i2c_client *client,
 	return iio_device_register(indio_dev);
 }
 
-static int bh1750_remove(struct i2c_client *client)
+static void bh1750_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct bh1750_data *data = iio_priv(indio_dev);
@@ -273,8 +273,6 @@ static int bh1750_remove(struct i2c_client *client)
 	mutex_lock(&data->lock);
 	i2c_smbus_write_byte(client, BH1750_POWER_DOWN);
 	mutex_unlock(&data->lock);
-
-	return 0;
 }
 
 static int bh1750_suspend(struct device *dev)

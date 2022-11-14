@@ -1819,7 +1819,7 @@ void mlxsw_sp_ipip_entry_demote_tunnel(struct mlxsw_sp *mlxsw_sp,
 /* The configuration where several tunnels have the same local address in the
  * same underlay table needs special treatment in the HW. That is currently not
  * implemented in the driver. This function finds and demotes the first tunnel
- * with a given source address, except the one passed in in the argument
+ * with a given source address, except the one passed in the argument
  * `except'.
  */
 bool

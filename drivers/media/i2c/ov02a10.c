@@ -975,7 +975,7 @@ err_destroy_mutex:
 	return ret;
 }
 
-static int ov02a10_remove(struct i2c_client *client)
+static void ov02a10_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov02a10 *ov02a10 = to_ov02a10(sd);
@@ -988,8 +988,6 @@ static int ov02a10_remove(struct i2c_client *client)
 		ov02a10_power_off(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 	mutex_destroy(&ov02a10->mutex);
-
-	return 0;
 }
 
 static const struct of_device_id ov02a10_of_match[] = {

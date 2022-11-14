@@ -427,11 +427,11 @@ static int adp5061_get_chg_type(struct adp5061_state *st,
 	if (ret < 0)
 		return ret;
 
-	chg_type = adp5061_chg_type[ADP5061_CHG_STATUS_1_CHG_STATUS(status1)];
-	if (chg_type > ADP5061_CHG_FAST_CV)
+	chg_type = ADP5061_CHG_STATUS_1_CHG_STATUS(status1);
+	if (chg_type >= ARRAY_SIZE(adp5061_chg_type))
 		val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
 	else
-		val->intval = chg_type;
+		val->intval = adp5061_chg_type[chg_type];
 
 	return ret;
 }
@@ -492,6 +492,9 @@ static int adp5061_get_battery_status(struct adp5061_state *st,
 		break;
 	case 0x4: /* VBAT_SNS > VWEAK */
 		val->intval = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
+		break;
+	default:
+		val->intval = POWER_SUPPLY_CAPACITY_LEVEL_UNKNOWN;
 		break;
 	}
 

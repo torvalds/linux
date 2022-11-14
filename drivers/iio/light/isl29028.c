@@ -636,7 +636,7 @@ static int isl29028_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int isl29028_remove(struct i2c_client *client)
+static void isl29028_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct isl29028_chip *chip = iio_priv(indio_dev);
@@ -647,8 +647,6 @@ static int isl29028_remove(struct i2c_client *client)
 	pm_runtime_set_suspended(&client->dev);
 
 	isl29028_clear_configure_reg(chip);
-
-	return 0;
 }
 
 static int isl29028_suspend(struct device *dev)

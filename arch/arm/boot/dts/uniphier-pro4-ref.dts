@@ -39,11 +39,11 @@
 };
 
 &ethsc {
-	interrupts = <2 8>;
+	interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 };
 
 &serialsc {
-	interrupts = <2 8>;
+	interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 };
 
 &serial0 {
@@ -59,7 +59,7 @@
 };
 
 &gpio {
-	xirq2 {
+	xirq2-hog {
 		gpio-hog;
 		gpios = <UNIPHIER_GPIO_IRQ(2) 0>;
 		input;
@@ -107,4 +107,12 @@
 	nand@0 {
 		reg = <0>;
 	};
+};
+
+&ahci0 {
+	status = "okay";
+};
+
+&ahci1 {
+	status = "okay";
 };

@@ -17,6 +17,16 @@
 #define WCID_START	33
 #define WCID_END	222
 #define STA_IDS_SIZE	(WCID_END - WCID_START + 2)
+#define CHAIN_0		0x0
+#define CHAIN_1		0x1
+#define RF_ALC_NUM	6
+#define CHAIN_NUM	2
+
+struct rf_reg_pair {
+	u8 bank;
+	u8 reg;
+	u8 value;
+};
 
 /* RT2800 driver data structure */
 struct rt2800_drv_data {

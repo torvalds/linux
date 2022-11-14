@@ -29,6 +29,7 @@
 #include "rcar_du_regs.h"
 #include "rcar_du_vsp.h"
 #include "rcar_lvds.h"
+#include "rcar_mipi_dsi.h"
 
 static u32 rcar_du_crtc_read(struct rcar_du_crtc *rcrtc, u32 reg)
 {
@@ -744,7 +745,19 @@ static void rcar_du_crtc_atomic_enable(struct drm_crtc *crtc,
 		const struct drm_display_mode *mode =
 			&crtc->state->adjusted_mode;
 
-		rcar_lvds_clk_enable(bridge, mode->clock * 1000);
+		rcar_lvds_pclk_enable(bridge, mode->clock * 1000);
+	}
+
+	/*
+	 * Similarly to LVDS, on V3U the dot clock is provided by the DSI
+	 * encoder, and we need to enable the DSI clocks before enabling the CRTC.
+	 */
+	if ((rcdu->info->dsi_clk_mask & BIT(rcrtc->index)) &&
+	    (rstate->outputs &
+	     (BIT(RCAR_DU_OUTPUT_DSI0) | BIT(RCAR_DU_OUTPUT_DSI1)))) {
+		struct drm_bridge *bridge = rcdu->dsi[rcrtc->index];
+
+		rcar_mipi_dsi_pclk_enable(bridge, state);
 	}
 
 	rcar_du_crtc_start(rcrtc);
@@ -777,7 +790,20 @@ static void rcar_du_crtc_atomic_disable(struct drm_crtc *crtc,
 		 * Disable the LVDS clock output, see
 		 * rcar_du_crtc_atomic_enable().
 		 */
-		rcar_lvds_clk_disable(bridge);
+		rcar_lvds_pclk_disable(bridge);
+	}
+
+	if ((rcdu->info->dsi_clk_mask & BIT(rcrtc->index)) &&
+	    (rstate->outputs &
+	     (BIT(RCAR_DU_OUTPUT_DSI0) | BIT(RCAR_DU_OUTPUT_DSI1)))) {
+		struct drm_bridge *bridge = rcdu->dsi[rcrtc->index];
+
+		/*
+		 * Disable the DSI clock output, see
+		 * rcar_du_crtc_atomic_enable().
+		 */
+
+		rcar_mipi_dsi_pclk_disable(bridge);
 	}
 
 	spin_lock_irq(&crtc->dev->event_lock);

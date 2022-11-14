@@ -210,10 +210,10 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	struct snd_soc_dai_link *links;
 	int i, id = 0;
 
-	links = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link) *
-					sof_ssp_amp_card.num_links, GFP_KERNEL);
-	cpus = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component) *
-					sof_ssp_amp_card.num_links, GFP_KERNEL);
+	links = devm_kcalloc(dev, sof_ssp_amp_card.num_links,
+					sizeof(struct snd_soc_dai_link), GFP_KERNEL);
+	cpus = devm_kcalloc(dev, sof_ssp_amp_card.num_links,
+					sizeof(struct snd_soc_dai_link_component), GFP_KERNEL);
 	if (!links || !cpus)
 		return NULL;
 
@@ -306,9 +306,10 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	if (sof_ssp_amp_quirk & SOF_HDMI_PLAYBACK_PRESENT) {
 		/* HDMI */
 		if (hdmi_num > 0) {
-			idisp_components = devm_kzalloc(dev,
-					   sizeof(struct snd_soc_dai_link_component) *
-					   hdmi_num, GFP_KERNEL);
+			idisp_components = devm_kcalloc(dev,
+					   hdmi_num,
+					   sizeof(struct snd_soc_dai_link_component),
+					   GFP_KERNEL);
 			if (!idisp_components)
 				goto devm_err;
 		}

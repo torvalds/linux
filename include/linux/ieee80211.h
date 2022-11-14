@@ -310,9 +310,11 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
 struct ieee80211_hdr {
 	__le16 frame_control;
 	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
+	struct_group(addrs,
+		u8 addr1[ETH_ALEN];
+		u8 addr2[ETH_ALEN];
+		u8 addr3[ETH_ALEN];
+	);
 	__le16 seq_ctrl;
 	u8 addr4[ETH_ALEN];
 } __packed __aligned(2);
@@ -2886,7 +2888,8 @@ ieee80211_he_spr_size(const u8 *he_spr_ie)
 /* Calculate 802.11be EHT capabilities IE Tx/Rx EHT MCS NSS Support Field size */
 static inline u8
 ieee80211_eht_mcs_nss_size(const struct ieee80211_he_cap_elem *he_cap,
-			   const struct ieee80211_eht_cap_elem_fixed *eht_cap)
+			   const struct ieee80211_eht_cap_elem_fixed *eht_cap,
+			   bool from_ap)
 {
 	u8 count = 0;
 
@@ -2907,7 +2910,10 @@ ieee80211_eht_mcs_nss_size(const struct ieee80211_he_cap_elem *he_cap,
 	if (eht_cap->phy_cap_info[0] & IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ)
 		count += 3;
 
-	return count ? count : 4;
+	if (count)
+		return count;
+
+	return from_ap ? 3 : 4;
 }
 
 /* 802.11be EHT PPE Thresholds */
@@ -2943,7 +2949,8 @@ ieee80211_eht_ppe_size(u16 ppe_thres_hdr, const u8 *phy_cap_info)
 }
 
 static inline bool
-ieee80211_eht_capa_size_ok(const u8 *he_capa, const u8 *data, u8 len)
+ieee80211_eht_capa_size_ok(const u8 *he_capa, const u8 *data, u8 len,
+			   bool from_ap)
 {
 	const struct ieee80211_eht_cap_elem_fixed *elem = (const void *)data;
 	u8 needed = sizeof(struct ieee80211_eht_cap_elem_fixed);
@@ -2952,7 +2959,8 @@ ieee80211_eht_capa_size_ok(const u8 *he_capa, const u8 *data, u8 len)
 		return false;
 
 	needed += ieee80211_eht_mcs_nss_size((const void *)he_capa,
-					     (const void *)data);
+					     (const void *)data,
+					     from_ap);
 	if (len < needed)
 		return false;
 

@@ -592,6 +592,9 @@ void __init of_irq_init(const struct of_device_id *matches)
 			ret = desc->irq_init_cb(desc->dev,
 						desc->interrupt_parent);
 			if (ret) {
+				pr_err("%s: Failed to init %pOF (%p), parent %p\n",
+				       __func__, desc->dev, desc->dev,
+				       desc->interrupt_parent);
 				of_node_clear_flag(desc->dev, OF_POPULATED);
 				kfree(desc);
 				continue;

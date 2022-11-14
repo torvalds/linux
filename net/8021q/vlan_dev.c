@@ -674,9 +674,9 @@ static int vlan_ethtool_get_link_ksettings(struct net_device *dev,
 static void vlan_ethtool_get_drvinfo(struct net_device *dev,
 				     struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, vlan_fullname, sizeof(info->driver));
-	strlcpy(info->version, vlan_version, sizeof(info->version));
-	strlcpy(info->fw_version, "N/A", sizeof(info->fw_version));
+	strscpy(info->driver, vlan_fullname, sizeof(info->driver));
+	strscpy(info->version, vlan_version, sizeof(info->version));
+	strscpy(info->fw_version, "N/A", sizeof(info->fw_version));
 }
 
 static int vlan_ethtool_get_ts_info(struct net_device *dev,

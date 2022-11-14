@@ -290,7 +290,7 @@ static inline bool is_posix_acl_xattr(const char *name)
 
 int
 vfs_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
-	     const char *name, void *value, size_t size, int flags)
+	     const char *name, const void *value, size_t size, int flags)
 {
 	struct inode *inode = dentry->d_inode;
 	struct inode *delegated_inode = NULL;
@@ -298,15 +298,11 @@ vfs_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	int error;
 
 	if (size && strcmp(name, XATTR_NAME_CAPS) == 0) {
-		error = cap_convert_nscap(mnt_userns, dentry,
-					  (const void **)&value, size);
+		error = cap_convert_nscap(mnt_userns, dentry, &value, size);
 		if (error < 0)
 			return error;
 		size = error;
 	}
-
-	if (size && is_posix_acl_xattr(name))
-		posix_acl_setxattr_idmapped_mnt(mnt_userns, inode, value, size);
 
 retry_deleg:
 	inode_lock(inode);
@@ -587,9 +583,7 @@ int setxattr_copy(const char __user *name, struct xattr_ctx *ctx)
 static void setxattr_convert(struct user_namespace *mnt_userns,
 			     struct dentry *d, struct xattr_ctx *ctx)
 {
-	if (ctx->size &&
-		((strcmp(ctx->kname->name, XATTR_NAME_POSIX_ACL_ACCESS) == 0) ||
-		(strcmp(ctx->kname->name, XATTR_NAME_POSIX_ACL_DEFAULT) == 0)))
+	if (ctx->size && is_posix_acl_xattr(ctx->kname->name))
 		posix_acl_fix_xattr_from_user(ctx->kvalue, ctx->size);
 }
 
@@ -705,8 +699,7 @@ do_getxattr(struct user_namespace *mnt_userns, struct dentry *d,
 
 	error = vfs_getxattr(mnt_userns, d, kname, ctx->kvalue, ctx->size);
 	if (error > 0) {
-		if ((strcmp(kname, XATTR_NAME_POSIX_ACL_ACCESS) == 0) ||
-		    (strcmp(kname, XATTR_NAME_POSIX_ACL_DEFAULT) == 0))
+		if (is_posix_acl_xattr(kname))
 			posix_acl_fix_xattr_to_user(ctx->kvalue, error);
 		if (ctx->size && copy_to_user(ctx->value, ctx->kvalue, error))
 			error = -EFAULT;

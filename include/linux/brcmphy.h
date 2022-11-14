@@ -293,6 +293,7 @@
 #define MII_BRCM_FET_SHDW_MC_FAME	0x4000	/* Force Auto MDIX enable */
 
 #define MII_BRCM_FET_SHDW_AUXMODE4	0x1a	/* Auxiliary mode 4 */
+#define MII_BRCM_FET_SHDW_AM4_STANDBY	0x0008	/* Standby enable */
 #define MII_BRCM_FET_SHDW_AM4_LED_MASK	0x0003
 #define MII_BRCM_FET_SHDW_AM4_LED_MODE1 0x0001
 

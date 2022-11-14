@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/interrupt-controller/idt,32434-pic.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: IDT 79RC32434 Interrupt Controller Device Tree Bindings
+title: IDT 79RC32434 Interrupt Controller
 
 maintainers:
   - Thomas Bogendoerfer <tsbogend@alpha.franken.de>

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /*
  * Copyright 2012 Advanced Micro Devices, Inc.
  *
@@ -849,6 +850,7 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 		if (amdgpu_device_has_dc_support(adev)) {
 #if defined(CONFIG_DRM_AMD_DC)
 			struct amdgpu_display_manager *dm = &adev->dm;
+
 			if (dm->backlight_dev[0])
 				atif->bd = dm->backlight_dev[0];
 #endif
@@ -863,6 +865,7 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 				if ((enc->devices & (ATOM_DEVICE_LCD_SUPPORT)) &&
 				    enc->enc_priv) {
 					struct amdgpu_encoder_atom_dig *dig = enc->enc_priv;
+
 					if (dig->bl_dev) {
 						atif->bd = dig->bl_dev;
 						break;
@@ -919,9 +922,9 @@ static bool amdgpu_atif_pci_probe_handle(struct pci_dev *pdev)
 		return false;
 
 	status = acpi_get_handle(dhandle, "ATIF", &atif_handle);
-	if (ACPI_FAILURE(status)) {
+	if (ACPI_FAILURE(status))
 		return false;
-	}
+
 	amdgpu_acpi_priv.atif.handle = atif_handle;
 	acpi_get_name(amdgpu_acpi_priv.atif.handle, ACPI_FULL_PATHNAME, &buffer);
 	DRM_DEBUG_DRIVER("Found ATIF handle %s\n", acpi_method_name);
@@ -954,9 +957,9 @@ static bool amdgpu_atcs_pci_probe_handle(struct pci_dev *pdev)
 		return false;
 
 	status = acpi_get_handle(dhandle, "ATCS", &atcs_handle);
-	if (ACPI_FAILURE(status)) {
+	if (ACPI_FAILURE(status))
 		return false;
-	}
+
 	amdgpu_acpi_priv.atcs.handle = atcs_handle;
 	acpi_get_name(amdgpu_acpi_priv.atcs.handle, ACPI_FULL_PATHNAME, &buffer);
 	DRM_DEBUG_DRIVER("Found ATCS handle %s\n", acpi_method_name);
@@ -1050,6 +1053,10 @@ bool amdgpu_acpi_should_gpu_reset(struct amdgpu_device *adev)
 {
 	if (adev->flags & AMD_IS_APU)
 		return false;
+
+	if (amdgpu_sriov_vf(adev))
+		return false;
+
 	return pm_suspend_target_state != PM_SUSPEND_TO_IDLE;
 }
 
@@ -1066,6 +1073,12 @@ bool amdgpu_acpi_is_s0ix_active(struct amdgpu_device *adev)
 	    (pm_suspend_target_state != PM_SUSPEND_TO_IDLE))
 		return false;
 
+	/*
+	 * If ACPI_FADT_LOW_POWER_S0 is not set in the FADT, it is generally
+	 * risky to do any special firmware-related preparations for entering
+	 * S0ix even though the system is suspending to idle, so return false
+	 * in that case.
+	 */
 	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0)) {
 		dev_warn_once(adev->dev,
 			      "Power consumption will be higher as BIOS has not been configured for suspend-to-idle.\n"

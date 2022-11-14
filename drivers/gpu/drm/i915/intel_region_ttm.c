@@ -244,7 +244,7 @@ void intel_region_ttm_resource_free(struct intel_memory_region *mem,
 	struct ttm_resource_manager *man = mem->region_private;
 	struct ttm_buffer_object mock_bo = {};
 
-	mock_bo.base.size = res->num_pages << PAGE_SHIFT;
+	mock_bo.base.size = res->size;
 	mock_bo.bdev = &mem->i915->bdev;
 	res->bo = &mock_bo;
 

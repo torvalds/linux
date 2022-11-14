@@ -18,11 +18,13 @@ struct mtk_wed_hw {
 	struct regmap *hifsys;
 	struct device *dev;
 	void __iomem *wdma;
+	phys_addr_t wdma_phy;
 	struct regmap *mirror;
 	struct dentry *debugfs_dir;
 	struct mtk_wed_device *wed_dev;
 	u32 debugfs_reg;
 	u32 num_flows;
+	u8 version;
 	char dirname[5];
 	int irq;
 	int index;
@@ -101,14 +103,16 @@ wpdma_txfree_w32(struct mtk_wed_device *dev, u32 reg, u32 val)
 }
 
 void mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
-		    void __iomem *wdma, int index);
+		    void __iomem *wdma, phys_addr_t wdma_phy,
+		    int index);
 void mtk_wed_exit(void);
 int mtk_wed_flow_add(int index);
 void mtk_wed_flow_remove(int index);
 #else
 static inline void
 mtk_wed_add_hw(struct device_node *np, struct mtk_eth *eth,
-	       void __iomem *wdma, int index)
+	       void __iomem *wdma, phys_addr_t wdma_phy,
+	       int index)
 {
 }
 static inline void

@@ -29,7 +29,9 @@
 #include "modules/color/color_gamma.h"
 #include "basics/conversion.h"
 
-/*
+/**
+ * DOC: overview
+ *
  * The DC interface to HW gives us the following color management blocks
  * per pipe (surface):
  *
@@ -71,8 +73,8 @@
 
 #define MAX_DRM_LUT_VALUE 0xFFFF
 
-/*
- * Initialize the color module.
+/**
+ * amdgpu_dm_init_color_mod - Initialize the color module.
  *
  * We're not using the full color module, only certain components.
  * Only call setup functions for components that we need.
@@ -82,7 +84,14 @@ void amdgpu_dm_init_color_mod(void)
 	setup_x_points_distribution();
 }
 
-/* Extracts the DRM lut and lut size from a blob. */
+/**
+ * __extract_blob_lut - Extracts the DRM lut and lut size from a blob.
+ * @blob: DRM color mgmt property blob
+ * @size: lut size
+ *
+ * Returns:
+ * DRM LUT or NULL
+ */
 static const struct drm_color_lut *
 __extract_blob_lut(const struct drm_property_blob *blob, uint32_t *size)
 {
@@ -90,13 +99,18 @@ __extract_blob_lut(const struct drm_property_blob *blob, uint32_t *size)
 	return blob ? (struct drm_color_lut *)blob->data : NULL;
 }
 
-/*
- * Return true if the given lut is a linear mapping of values, i.e. it acts
- * like a bypass LUT.
+/**
+ * __is_lut_linear - check if the given lut is a linear mapping of values
+ * @lut: given lut to check values
+ * @size: lut size
  *
  * It is considered linear if the lut represents:
- * f(a) = (0xFF00/MAX_COLOR_LUT_ENTRIES-1)a; for integer a in
- *                                           [0, MAX_COLOR_LUT_ENTRIES)
+ * f(a) = (0xFF00/MAX_COLOR_LUT_ENTRIES-1)a; for integer a in [0,
+ * MAX_COLOR_LUT_ENTRIES)
+ *
+ * Returns:
+ * True if the given lut is a linear mapping of values, i.e. it acts like a
+ * bypass LUT. Otherwise, false.
  */
 static bool __is_lut_linear(const struct drm_color_lut *lut, uint32_t size)
 {
@@ -119,9 +133,13 @@ static bool __is_lut_linear(const struct drm_color_lut *lut, uint32_t size)
 	return true;
 }
 
-/*
- * Convert the drm_color_lut to dc_gamma. The conversion depends on the size
- * of the lut - whether or not it's legacy.
+/**
+ * __drm_lut_to_dc_gamma - convert the drm_color_lut to dc_gamma.
+ * @lut: DRM lookup table for color conversion
+ * @gamma: DC gamma to set entries
+ * @is_legacy: legacy or atomic gamma
+ *
+ * The conversion depends on the size of the lut - whether or not it's legacy.
  */
 static void __drm_lut_to_dc_gamma(const struct drm_color_lut *lut,
 				  struct dc_gamma *gamma, bool is_legacy)
@@ -154,8 +172,11 @@ static void __drm_lut_to_dc_gamma(const struct drm_color_lut *lut,
 	}
 }
 
-/*
- * Converts a DRM CTM to a DC CSC float matrix.
+/**
+ * __drm_ctm_to_dc_matrix - converts a DRM CTM to a DC CSC float matrix
+ * @ctm: DRM color transformation matrix
+ * @matrix: DC CSC float matrix
+ *
  * The matrix needs to be a 3x4 (12 entry) matrix.
  */
 static void __drm_ctm_to_dc_matrix(const struct drm_color_ctm *ctm,
@@ -189,7 +210,18 @@ static void __drm_ctm_to_dc_matrix(const struct drm_color_ctm *ctm,
 	}
 }
 
-/* Calculates the legacy transfer function - only for sRGB input space. */
+/**
+ * __set_legacy_tf - Calculates the legacy transfer function
+ * @func: transfer function
+ * @lut: lookup table that defines the color space
+ * @lut_size: size of respective lut
+ * @has_rom: if ROM can be used for hardcoded curve
+ *
+ * Only for sRGB input space
+ *
+ * Returns:
+ * 0 in case of success, -ENOMEM if fails
+ */
 static int __set_legacy_tf(struct dc_transfer_func *func,
 			   const struct drm_color_lut *lut, uint32_t lut_size,
 			   bool has_rom)
@@ -218,7 +250,16 @@ static int __set_legacy_tf(struct dc_transfer_func *func,
 	return res ? 0 : -ENOMEM;
 }
 
-/* Calculates the output transfer function based on expected input space. */
+/**
+ * __set_output_tf - calculates the output transfer function based on expected input space.
+ * @func: transfer function
+ * @lut: lookup table that defines the color space
+ * @lut_size: size of respective lut
+ * @has_rom: if ROM can be used for hardcoded curve
+ *
+ * Returns:
+ * 0 in case of success. -ENOMEM if fails.
+ */
 static int __set_output_tf(struct dc_transfer_func *func,
 			   const struct drm_color_lut *lut, uint32_t lut_size,
 			   bool has_rom)
@@ -262,7 +303,16 @@ static int __set_output_tf(struct dc_transfer_func *func,
 	return res ? 0 : -ENOMEM;
 }
 
-/* Caculates the input transfer function based on expected input space. */
+/**
+ * __set_input_tf - calculates the input transfer function based on expected
+ * input space.
+ * @func: transfer function
+ * @lut: lookup table that defines the color space
+ * @lut_size: size of respective lut.
+ *
+ * Returns:
+ * 0 in case of success. -ENOMEM if fails.
+ */
 static int __set_input_tf(struct dc_transfer_func *func,
 			  const struct drm_color_lut *lut, uint32_t lut_size)
 {
@@ -285,13 +335,14 @@ static int __set_input_tf(struct dc_transfer_func *func,
 }
 
 /**
- * amdgpu_dm_verify_lut_sizes
+ * amdgpu_dm_verify_lut_sizes - verifies if DRM luts match the hw supported sizes
  * @crtc_state: the DRM CRTC state
  *
- * Verifies that the Degamma and Gamma LUTs attached to the |crtc_state| are of
- * the expected size.
+ * Verifies that the Degamma and Gamma LUTs attached to the &crtc_state
+ * are of the expected size.
  *
- * Returns 0 on success.
+ * Returns:
+ * 0 on success. -EINVAL if any lut sizes are invalid.
  */
 int amdgpu_dm_verify_lut_sizes(const struct drm_crtc_state *crtc_state)
 {
@@ -327,9 +378,9 @@ int amdgpu_dm_verify_lut_sizes(const struct drm_crtc_state *crtc_state)
  * of the HW blocks as long as the CRTC CTM always comes before the
  * CRTC RGM and after the CRTC DGM.
  *
- * The CRTC RGM block will be placed in the RGM LUT block if it is non-linear.
- * The CRTC DGM block will be placed in the DGM LUT block if it is non-linear.
- * The CRTC CTM will be placed in the gamut remap block if it is non-linear.
+ * - The CRTC RGM block will be placed in the RGM LUT block if it is non-linear.
+ * - The CRTC DGM block will be placed in the DGM LUT block if it is non-linear.
+ * - The CRTC CTM will be placed in the gamut remap block if it is non-linear.
  *
  * The RGM block is typically more fully featured and accurate across
  * all ASICs - DCE can't support a custom non-linear CRTC DGM.
@@ -338,7 +389,8 @@ int amdgpu_dm_verify_lut_sizes(const struct drm_crtc_state *crtc_state)
  * management at once we have to either restrict the usage of CRTC properties
  * or blend adjustments together.
  *
- * Returns 0 on success.
+ * Returns:
+ * 0 on success. Error code if setup fails.
  */
 int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc)
 {
@@ -393,7 +445,7 @@ int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc)
 		if (r)
 			return r;
 	} else if (has_regamma) {
-		/* CRTC RGM goes into RGM LUT. */
+		/* If atomic regamma, CRTC RGM goes into RGM LUT. */
 		stream->out_transfer_func->type = TF_TYPE_DISTRIBUTED_POINTS;
 		stream->out_transfer_func->tf = TRANSFER_FUNCTION_LINEAR;
 
@@ -450,9 +502,10 @@ int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc)
  *
  * Update the underlying dc_stream_state's input transfer function (ITF) in
  * preparation for hardware commit. The transfer function used depends on
- * the prepartion done on the stream for color management.
+ * the preparation done on the stream for color management.
  *
- * Returns 0 on success.
+ * Returns:
+ * 0 on success. -ENOMEM if mem allocation fails.
  */
 int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 				      struct dc_plane_state *dc_plane_state)

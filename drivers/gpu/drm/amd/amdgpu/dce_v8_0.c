@@ -2701,8 +2701,6 @@ static int dce_v8_0_sw_init(void *handle)
 
 	adev_to_drm(adev)->mode_config.fb_modifiers_not_supported = true;
 
-	adev_to_drm(adev)->mode_config.fb_base = adev->gmc.aper_base;
-
 	r = amdgpu_display_modeset_create_props(adev);
 	if (r)
 		return r;

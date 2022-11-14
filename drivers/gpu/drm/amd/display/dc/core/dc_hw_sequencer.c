@@ -366,6 +366,7 @@ void get_hdr_visual_confirm_color(
 		struct tg_color *color)
 {
 	uint32_t color_value = MAX_TG_COLOR_VALUE;
+	bool is_sdr = false;
 
 	/* Determine the overscan color based on the top-most (desktop) plane's context */
 	struct pipe_ctx *top_pipe_ctx  = pipe_ctx;
@@ -382,7 +383,8 @@ void get_hdr_visual_confirm_color(
 			/* FreeSync 2 ARGB2101010 - set border color to pink */
 			color->color_r_cr = color_value;
 			color->color_b_cb = color_value;
-		}
+		} else
+			is_sdr = true;
 		break;
 	case PIXEL_FORMAT_FP16:
 		if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
@@ -391,14 +393,57 @@ void get_hdr_visual_confirm_color(
 		} else if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22) {
 			/* FreeSync 2 HDR - set border color to green */
 			color->color_g_y = color_value;
-		}
+		} else
+			is_sdr = true;
 		break;
 	default:
+		is_sdr = true;
+		break;
+	}
+
+	if (is_sdr) {
 		/* SDR - set border color to Gray */
 		color->color_r_cr = color_value/2;
 		color->color_b_cb = color_value/2;
 		color->color_g_y = color_value/2;
-		break;
+	}
+}
+
+void get_subvp_visual_confirm_color(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color)
+{
+	uint32_t color_value = MAX_TG_COLOR_VALUE;
+	bool enable_subvp = false;
+	int i;
+
+	if (!dc->ctx || !dc->ctx->dmub_srv || !pipe_ctx)
+		return;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream && pipe->stream->mall_stream_config.paired_stream &&
+		    pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+			/* SubVP enable - red */
+			color->color_r_cr = color_value;
+			enable_subvp = true;
+
+			if (pipe_ctx->stream == pipe->stream)
+				return;
+			break;
+		}
+	}
+
+	if (enable_subvp && pipe_ctx->stream->mall_stream_config.type == SUBVP_NONE) {
+		color->color_r_cr = 0;
+		if (pipe_ctx->stream->ignore_msa_timing_param == 1)
+			/* SubVP enable and DRR on - green */
+			color->color_g_y = color_value;
+		else
+			/* SubVP enable and No DRR - blue */
+			color->color_b_cb = color_value;
 	}
 }
 

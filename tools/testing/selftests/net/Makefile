@@ -37,11 +37,14 @@ TEST_PROGS += srv6_end_dt4_l3vpn_test.sh
 TEST_PROGS += srv6_end_dt6_l3vpn_test.sh
 TEST_PROGS += srv6_hencap_red_l3vpn_test.sh
 TEST_PROGS += srv6_hl2encap_red_l2vpn_test.sh
+TEST_PROGS += srv6_end_next_csid_l3vpn_test.sh
 TEST_PROGS += vrf_strict_mode_test.sh
 TEST_PROGS += arp_ndisc_evict_nocarrier.sh
 TEST_PROGS += ndisc_unsolicited_na_test.sh
 TEST_PROGS += arp_ndisc_untracked_subnets.sh
 TEST_PROGS += stress_reuseport_listen.sh
+TEST_PROGS += l2_tos_ttl_inherit.sh
+TEST_PROGS += bind_bhash.sh
 TEST_PROGS_EXTENDED := in_netns.sh setup_loopback.sh setup_veth.sh
 TEST_PROGS_EXTENDED += toeplitz_client.sh toeplitz.sh
 TEST_GEN_FILES =  socket nettest
@@ -63,6 +66,11 @@ TEST_GEN_FILES += cmsg_sender
 TEST_GEN_FILES += stress_reuseport_listen
 TEST_PROGS += test_vxlan_vnifiltering.sh
 TEST_GEN_FILES += io_uring_zerocopy_tx
+TEST_PROGS += io_uring_zerocopy_tx.sh
+TEST_GEN_FILES += bind_bhash
+TEST_GEN_PROGS += sk_bind_sendto_listen
+TEST_GEN_PROGS += sk_connect_zero_addr
+TEST_PROGS += test_ingress_egress_chaining.sh
 
 TEST_FILES := settings
 
@@ -73,3 +81,4 @@ include bpf/Makefile
 $(OUTPUT)/reuseport_bpf_numa: LDLIBS += -lnuma
 $(OUTPUT)/tcp_mmap: LDLIBS += -lpthread
 $(OUTPUT)/tcp_inq: LDLIBS += -lpthread
+$(OUTPUT)/bind_bhash: LDLIBS += -lpthread

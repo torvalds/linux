@@ -421,7 +421,7 @@ static inline void coda9_jpeg_write_huff_values(struct coda_dev *dev, u8 *bits,
 		coda_write(dev, (s32)values[i], CODA9_REG_JPEG_HUFF_DATA);
 }
 
-static int coda9_jpeg_dec_huff_setup(struct coda_ctx *ctx)
+static void coda9_jpeg_dec_huff_setup(struct coda_ctx *ctx)
 {
 	struct coda_huff_tab *huff_tab = ctx->params.jpeg_huff_tab;
 	struct coda_dev *dev = ctx->dev;
@@ -455,7 +455,6 @@ static int coda9_jpeg_dec_huff_setup(struct coda_ctx *ctx)
 	coda9_jpeg_write_huff_values(dev, huff_tab->luma_ac, 162);
 	coda9_jpeg_write_huff_values(dev, huff_tab->chroma_ac, 162);
 	coda_write(dev, 0x000, CODA9_REG_JPEG_HUFF_CTRL);
-	return 0;
 }
 
 static inline void coda9_jpeg_write_qmat_tab(struct coda_dev *dev,
@@ -1394,14 +1393,8 @@ static int coda9_jpeg_prepare_decode(struct coda_ctx *ctx)
 	coda_write(dev, ctx->params.jpeg_restart_interval,
 			CODA9_REG_JPEG_RST_INTVAL);
 
-	if (ctx->params.jpeg_huff_tab) {
-		ret = coda9_jpeg_dec_huff_setup(ctx);
-		if (ret < 0) {
-			v4l2_err(&dev->v4l2_dev,
-				 "failed to set up Huffman tables: %d\n", ret);
-			return ret;
-		}
-	}
+	if (ctx->params.jpeg_huff_tab)
+		coda9_jpeg_dec_huff_setup(ctx);
 
 	coda9_jpeg_qmat_setup(ctx);
 

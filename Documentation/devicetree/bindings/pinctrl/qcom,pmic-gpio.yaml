@@ -24,6 +24,7 @@ properties:
           - qcom,pm6150-gpio
           - qcom,pm6150l-gpio
           - qcom,pm6350-gpio
+          - qcom,pm7250b-gpio
           - qcom,pm7325-gpio
           - qcom,pm8005-gpio
           - qcom,pm8008-gpio
@@ -231,6 +232,7 @@ allOf:
             enum:
               - qcom,pm660l-gpio
               - qcom,pm6150l-gpio
+              - qcom,pm7250b-gpio
               - qcom,pm8038-gpio
               - qcom,pm8150b-gpio
               - qcom,pm8150l-gpio
@@ -392,6 +394,7 @@ $defs:
                  - gpio1-gpio10 for pm6150
                  - gpio1-gpio12 for pm6150l
                  - gpio1-gpio9 for pm6350
+                 - gpio1-gpio12 for pm7250b
                  - gpio1-gpio10 for pm7325
                  - gpio1-gpio4 for pm8005
                  - gpio1-gpio2 for pm8008
@@ -407,6 +410,7 @@ $defs:
                  - gpio1-gpio10 for pm8350
                  - gpio1-gpio8 for pm8350b
                  - gpio1-gpio9 for pm8350c
+                 - gpio1-gpio4 for pm8450
                  - gpio1-gpio38 for pm8917
                  - gpio1-gpio44 for pm8921
                  - gpio1-gpio36 for pm8941

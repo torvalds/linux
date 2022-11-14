@@ -100,8 +100,7 @@ EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);
  * This is the minimal list of formats that seem to be safe for modeset use
  * with all current DRM drivers.  Most hardware can actually support more
  * formats than this and drivers may specify a more accurate list when
- * creating the primary plane.  However drivers that still call
- * drm_plane_init() will use this minimal format list as the default.
+ * creating the primary plane.
  */
 static const uint32_t safe_modeset_formats[] = {
 	DRM_FORMAT_XRGB8888,
@@ -109,42 +108,8 @@ static const uint32_t safe_modeset_formats[] = {
 };
 
 static const struct drm_plane_funcs primary_plane_funcs = {
-	.update_plane = drm_plane_helper_update_primary,
-	.disable_plane = drm_plane_helper_disable_primary,
-	.destroy = drm_plane_helper_destroy,
+	DRM_PLANE_NON_ATOMIC_FUNCS,
 };
-
-static struct drm_plane *create_primary_plane(struct drm_device *dev)
-{
-	struct drm_plane *primary;
-	int ret;
-
-	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
-	if (primary == NULL) {
-		DRM_DEBUG_KMS("Failed to allocate primary plane\n");
-		return NULL;
-	}
-
-	/*
-	 * Remove the format_default field from drm_plane when dropping
-	 * this helper.
-	 */
-	primary->format_default = true;
-
-	/* possible_crtc's will be filled in later by crtc_init */
-	ret = drm_universal_plane_init(dev, primary, 0,
-				       &primary_plane_funcs,
-				       safe_modeset_formats,
-				       ARRAY_SIZE(safe_modeset_formats),
-				       NULL,
-				       DRM_PLANE_TYPE_PRIMARY, NULL);
-	if (ret) {
-		kfree(primary);
-		primary = NULL;
-	}
-
-	return primary;
-}
 
 /**
  * drm_crtc_init - Legacy CRTC initialization function
@@ -177,10 +142,33 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 		  const struct drm_crtc_funcs *funcs)
 {
 	struct drm_plane *primary;
+	int ret;
 
-	primary = create_primary_plane(dev);
-	return drm_crtc_init_with_planes(dev, crtc, primary, NULL, funcs,
-					 NULL);
+	/* possible_crtc's will be filled in later by crtc_init */
+	primary = __drm_universal_plane_alloc(dev, sizeof(*primary), 0, 0,
+					      &primary_plane_funcs,
+					      safe_modeset_formats,
+					      ARRAY_SIZE(safe_modeset_formats),
+					      NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (IS_ERR(primary))
+		return PTR_ERR(primary);
+
+	/*
+	 * Remove the format_default field from drm_plane when dropping
+	 * this helper.
+	 */
+	primary->format_default = true;
+
+	ret = drm_crtc_init_with_planes(dev, crtc, primary, NULL, funcs, NULL);
+	if (ret)
+		goto err_drm_plane_cleanup;
+
+	return 0;
+
+err_drm_plane_cleanup:
+	drm_plane_cleanup(primary);
+	kfree(primary);
+	return ret;
 }
 EXPORT_SYMBOL(drm_crtc_init);
 

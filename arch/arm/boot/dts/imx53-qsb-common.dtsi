@@ -45,20 +45,20 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		power {
+		key-power {
 			label = "Power Button";
 			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 		};
 
-		volume-up {
+		key-volume-up {
 			label = "Volume Up";
 			gpios = <&gpio2 14 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 			wakeup-source;
 		};
 
-		volume-down {
+		key-volume-down {
 			label = "Volume Down";
 			gpios = <&gpio2 15 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;
@@ -71,7 +71,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pin_gpio7_7>;
 
-		user {
+		led-user {
 			label = "Heartbeat";
 			gpios = <&gpio7 7 0>;
 			linux,default-trigger = "heartbeat";

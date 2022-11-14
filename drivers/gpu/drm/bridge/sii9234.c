@@ -936,14 +936,12 @@ static int sii9234_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int sii9234_remove(struct i2c_client *client)
+static void sii9234_remove(struct i2c_client *client)
 {
 	struct sii9234 *ctx = i2c_get_clientdata(client);
 
 	sii9234_cable_out(ctx);
 	drm_bridge_remove(&ctx->bridge);
-
-	return 0;
 }
 
 static const struct of_device_id sii9234_dt_match[] = {

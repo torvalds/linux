@@ -35,6 +35,13 @@
  ******************************************************************************/
 
 #define MAX_AUDIOS 7
+
+/**
+ * @MAX_PIPES:
+ *
+ * Every ASIC support a fixed number of pipes; MAX_PIPES defines a large number
+ * to be used inside loops and for determining array sizes.
+ */
 #define MAX_PIPES 6
 #define MAX_DIG_LINK_ENCODERS 7
 #define MAX_DWB_PIPES	1
@@ -266,6 +273,20 @@ enum dc_lut_mode {
 	LUT_BYPASS,
 	LUT_RAM_A,
 	LUT_RAM_B
+};
+
+enum symclk_state {
+	SYMCLK_OFF_TX_OFF,
+	SYMCLK_ON_TX_ON,
+	SYMCLK_ON_TX_OFF,
+};
+
+struct phy_state {
+	struct {
+		uint8_t otg		: 1;
+		uint8_t reserved	: 7;
+	} symclk_ref_cnts;
+	enum symclk_state symclk_state;
 };
 
 /**

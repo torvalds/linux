@@ -541,13 +541,13 @@
 
 			phy0: ethernet-phy@1 {
 				reg = <1>;
-				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
 
 			phy1: ethernet-phy@2 {
 				reg = <2>;
-				interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
 		};

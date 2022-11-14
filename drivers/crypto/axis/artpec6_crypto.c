@@ -1712,7 +1712,7 @@ static int artpec6_crypto_prepare_crypto(struct skcipher_request *areq)
 		cipher_len = regk_crypto_key_256;
 		break;
 	default:
-		pr_err("%s: Invalid key length %d!\n",
+		pr_err("%s: Invalid key length %zu!\n",
 			MODULE_NAME, ctx->key_length);
 		return -EINVAL;
 	}
@@ -2091,7 +2091,7 @@ static void artpec6_crypto_task(unsigned long data)
 		return;
 	}
 
-	spin_lock_bh(&ac->queue_lock);
+	spin_lock(&ac->queue_lock);
 
 	list_for_each_entry_safe(req, n, &ac->pending, list) {
 		struct artpec6_crypto_dma_descriptors *dma = req->dma;
@@ -2128,7 +2128,7 @@ static void artpec6_crypto_task(unsigned long data)
 
 	artpec6_crypto_process_queue(ac, &complete_in_progress);
 
-	spin_unlock_bh(&ac->queue_lock);
+	spin_unlock(&ac->queue_lock);
 
 	/* Perform the completion callbacks without holding the queue lock
 	 * to allow new request submissions from the callbacks.

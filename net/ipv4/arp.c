@@ -1129,7 +1129,7 @@ static int arp_req_get(struct arpreq *r, struct net_device *dev)
 			r->arp_flags = arp_state_to_flags(neigh);
 			read_unlock_bh(&neigh->lock);
 			r->arp_ha.sa_family = dev->type;
-			strlcpy(r->arp_dev, dev->name, sizeof(r->arp_dev));
+			strscpy(r->arp_dev, dev->name, sizeof(r->arp_dev));
 			err = 0;
 		}
 		neigh_release(neigh);

@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
+#include <dt-bindings/interconnect/qcom,icc.h>
 
 /* UART specific GENI registers */
 #define SE_UART_LOOPBACK_CFG		0x22c
@@ -1005,7 +1006,8 @@ static unsigned long get_clk_div_rate(struct clk *clk, unsigned int baud,
 }
 
 static void qcom_geni_serial_set_termios(struct uart_port *uport,
-				struct ktermios *termios, struct ktermios *old)
+					 struct ktermios *termios,
+					 const struct ktermios *old)
 {
 	unsigned int baud;
 	u32 bits_per_char;
@@ -1524,7 +1526,7 @@ static int __maybe_unused qcom_geni_serial_sys_suspend(struct device *dev)
 	 * even with no_console_suspend
 	 */
 	if (uart_console(uport)) {
-		geni_icc_set_tag(&port->se, 0x3);
+		geni_icc_set_tag(&port->se, QCOM_ICC_TAG_ACTIVE_ONLY);
 		geni_icc_set_bw(&port->se);
 	}
 	return uart_suspend_port(private_data->drv, uport);
@@ -1539,7 +1541,7 @@ static int __maybe_unused qcom_geni_serial_sys_resume(struct device *dev)
 
 	ret = uart_resume_port(private_data->drv, uport);
 	if (uart_console(uport)) {
-		geni_icc_set_tag(&port->se, 0x7);
+		geni_icc_set_tag(&port->se, QCOM_ICC_TAG_ALWAYS);
 		geni_icc_set_bw(&port->se);
 	}
 	return ret;

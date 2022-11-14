@@ -552,15 +552,13 @@ static int bu21013_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int bu21013_remove(struct i2c_client *client)
+static void bu21013_remove(struct i2c_client *client)
 {
 	struct bu21013_ts *ts = i2c_get_clientdata(client);
 
 	/* Make sure IRQ will exit quickly even if there is contact */
 	ts->touch_stopped = true;
 	/* The resources will be freed by devm */
-
-	return 0;
 }
 
 static int __maybe_unused bu21013_suspend(struct device *dev)

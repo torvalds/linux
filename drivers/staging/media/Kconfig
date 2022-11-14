@@ -22,10 +22,6 @@ if STAGING_MEDIA && MEDIA_SUPPORT
 # Please keep them in alphabetic order
 source "drivers/staging/media/atomisp/Kconfig"
 
-source "drivers/staging/media/av7110/Kconfig"
-
-source "drivers/staging/media/hantro/Kconfig"
-
 source "drivers/staging/media/imx/Kconfig"
 
 source "drivers/staging/media/ipu3/Kconfig"
@@ -38,12 +34,31 @@ source "drivers/staging/media/omap4iss/Kconfig"
 
 source "drivers/staging/media/rkvdec/Kconfig"
 
-source "drivers/staging/media/stkwebcam/Kconfig"
-
 source "drivers/staging/media/sunxi/Kconfig"
 
 source "drivers/staging/media/tegra-video/Kconfig"
 
-source "drivers/staging/media/zoran/Kconfig"
+menuconfig STAGING_MEDIA_DEPRECATED
+	bool "Media staging drivers (DEPRECATED)"
+	default n
+	help
+	  This option enables deprecated media drivers that are
+	  scheduled for future removal from the kernel.
+
+	  If you wish to work on these drivers to prevent their removal,
+	  then contact the linux-media@vger.kernel.org mailing list.
+
+	  If in doubt, say N here.
+
+if STAGING_MEDIA_DEPRECATED
+source "drivers/staging/media/deprecated/cpia2/Kconfig"
+source "drivers/staging/media/deprecated/fsl-viu/Kconfig"
+source "drivers/staging/media/deprecated/meye/Kconfig"
+source "drivers/staging/media/deprecated/saa7146/Kconfig"
+source "drivers/staging/media/deprecated/stkwebcam/Kconfig"
+source "drivers/staging/media/deprecated/tm6000/Kconfig"
+source "drivers/staging/media/deprecated/vpfe_capture/Kconfig"
+source "drivers/staging/media/deprecated/zr364xx/Kconfig"
+endif
 
 endif

@@ -664,6 +664,7 @@ static int cfdiag_push_sample(struct perf_event *event,
 		raw.frag.data = cpuhw->stop;
 		raw.size = raw.frag.size;
 		data.raw = &raw;
+		data.sample_flags |= PERF_SAMPLE_RAW;
 	}
 
 	overflow = perf_event_overflow(event, &data, &regs);

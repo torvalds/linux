@@ -369,11 +369,7 @@ struct bfq_queue {
 	unsigned long split_time; /* time of last split */
 
 	unsigned long first_IO_time; /* time of first I/O for this queue */
-
 	unsigned long creation_time; /* when this queue is created */
-
-	/* max service rate measured so far */
-	u32 max_service_rate;
 
 	/*
 	 * Pointer to the waker queue for this queue, i.e., to the
@@ -993,19 +989,22 @@ void bfq_put_async_queues(struct bfq_data *bfqd, struct bfq_group *bfqg);
 /* ---------------- cgroups-support interface ---------------- */
 
 void bfqg_stats_update_legacy_io(struct request_queue *q, struct request *rq);
-void bfqg_stats_update_io_add(struct bfq_group *bfqg, struct bfq_queue *bfqq,
-			      blk_opf_t opf);
 void bfqg_stats_update_io_remove(struct bfq_group *bfqg, blk_opf_t opf);
 void bfqg_stats_update_io_merged(struct bfq_group *bfqg, blk_opf_t opf);
 void bfqg_stats_update_completion(struct bfq_group *bfqg, u64 start_time_ns,
 				  u64 io_start_time_ns, blk_opf_t opf);
 void bfqg_stats_update_dequeue(struct bfq_group *bfqg);
-void bfqg_stats_set_start_empty_time(struct bfq_group *bfqg);
-void bfqg_stats_update_idle_time(struct bfq_group *bfqg);
 void bfqg_stats_set_start_idle_time(struct bfq_group *bfqg);
-void bfqg_stats_update_avg_queue_size(struct bfq_group *bfqg);
 void bfq_bfqq_move(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		   struct bfq_group *bfqg);
+
+#ifdef CONFIG_BFQ_CGROUP_DEBUG
+void bfqg_stats_update_io_add(struct bfq_group *bfqg, struct bfq_queue *bfqq,
+			      blk_opf_t opf);
+void bfqg_stats_set_start_empty_time(struct bfq_group *bfqg);
+void bfqg_stats_update_idle_time(struct bfq_group *bfqg);
+void bfqg_stats_update_avg_queue_size(struct bfq_group *bfqg);
+#endif
 
 void bfq_init_entity(struct bfq_entity *entity, struct bfq_group *bfqg);
 void bfq_bic_update_cgroup(struct bfq_io_cq *bic, struct bio *bio);
@@ -1077,9 +1076,8 @@ void bfq_deactivate_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 void bfq_activate_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq);
 void bfq_requeue_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		      bool expiration);
-void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
-		       bool expiration);
-void bfq_add_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq);
+void bfq_del_bfqq_busy(struct bfq_queue *bfqq, bool expiration);
+void bfq_add_bfqq_busy(struct bfq_queue *bfqq);
 
 /* --------------- end of interface of B-WF2Q+ ---------------- */
 

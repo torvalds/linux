@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/rtc/allwinner,sun6i-a31-rtc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A31 RTC Device Tree Bindings
+title: Allwinner A31 RTC
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

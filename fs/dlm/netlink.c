@@ -75,6 +75,7 @@ static struct genl_family family __ro_after_init = {
 	.version	= DLM_GENL_VERSION,
 	.small_ops	= dlm_nl_ops,
 	.n_small_ops	= ARRAY_SIZE(dlm_nl_ops),
+	.resv_start_op	= DLM_CMD_HELLO + 1,
 	.module		= THIS_MODULE,
 };
 

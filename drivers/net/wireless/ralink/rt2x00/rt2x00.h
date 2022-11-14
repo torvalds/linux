@@ -1309,8 +1309,11 @@ void rt2x00queue_unmap_skb(struct queue_entry *entry);
  */
 static inline struct data_queue *
 rt2x00queue_get_tx_queue(struct rt2x00_dev *rt2x00dev,
-			 const enum data_queue_qid queue)
+			 enum data_queue_qid queue)
 {
+	if (queue >= rt2x00dev->ops->tx_queues && queue < IEEE80211_NUM_ACS)
+		queue = rt2x00dev->ops->tx_queues - 1;
+
 	if (queue < rt2x00dev->ops->tx_queues && rt2x00dev->tx)
 		return &rt2x00dev->tx[queue];
 

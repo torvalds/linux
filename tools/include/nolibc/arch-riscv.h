@@ -190,7 +190,7 @@ __asm__ (".section .text\n"
     ".option norelax\n"
     "lla   gp, __global_pointer$\n"
     ".option pop\n"
-    "ld    a0, 0(sp)\n"          // argc (a0) was in the stack
+    "lw    a0, 0(sp)\n"          // argc (a0) was in the stack
     "add   a1, sp, "SZREG"\n"    // argv (a1) = sp
     "slli  a2, a0, "PTRLOG"\n"   // envp (a2) = SZREG*argc ...
     "add   a2, a2, "SZREG"\n"    //             + SZREG (skip null)

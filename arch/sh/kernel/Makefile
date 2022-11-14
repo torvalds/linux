@@ -3,7 +3,7 @@
 # Makefile for the Linux/SuperH kernel.
 #
 
-extra-y	:= head_32.o vmlinux.lds
+extra-y	:= vmlinux.lds
 
 ifdef CONFIG_FUNCTION_TRACER
 # Do not profile debug and lowlevel utilities
@@ -12,7 +12,7 @@ endif
 
 CFLAGS_REMOVE_return_address.o = -pg
 
-obj-y	:= debugtraps.o dumpstack.o 		\
+obj-y	:= head_32.o debugtraps.o dumpstack.o				\
 	   idle.o io.o irq.o irq_32.o kdebugfs.o			\
 	   machvec.o nmi_debug.o process.o				\
 	   process_32.o ptrace.o ptrace_32.o				\

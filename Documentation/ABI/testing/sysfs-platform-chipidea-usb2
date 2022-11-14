@@ -2,8 +2,8 @@ What:		/sys/bus/platform/devices/ci_hdrc.0/role
 Date:		Mar 2017
 Contact:	Peter Chen <peter.chen@nxp.com>
 Description:
-		It returns string "gadget" or "host" when read it, it indicates
-		current controller role.
+		When read, it returns string "gadget" or "host", indicating
+		the current controller role.
 
-		It will do role switch when write "gadget" or "host" to it.
+		It will do role switch when "gadget" or "host" is written to it.
 		Only controller at dual-role configuration supports writing.

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/sunxi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner platforms device tree bindings
+title: Allwinner platforms
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

@@ -41,5 +41,18 @@ int drm_plane_helper_update_primary(struct drm_plane *plane, struct drm_crtc *cr
 int drm_plane_helper_disable_primary(struct drm_plane *plane,
 				     struct drm_modeset_acquire_ctx *ctx);
 void drm_plane_helper_destroy(struct drm_plane *plane);
+int drm_plane_helper_atomic_check(struct drm_plane *plane, struct drm_atomic_state *state);
+
+/**
+ * DRM_PLANE_NON_ATOMIC_FUNCS - Default plane functions for non-atomic drivers
+ *
+ * This macro initializes plane functions for non-atomic drivers to default
+ * values. Non-atomic interfaces are deprecated and should not be used in new
+ * drivers.
+ */
+#define DRM_PLANE_NON_ATOMIC_FUNCS \
+	.update_plane = drm_plane_helper_update_primary, \
+	.disable_plane = drm_plane_helper_disable_primary, \
+	.destroy = drm_plane_helper_destroy
 
 #endif

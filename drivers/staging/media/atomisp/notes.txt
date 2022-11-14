@@ -28,3 +28,22 @@ Since getting a picture requires multiple processing steps,
 this means that unlike in fixed pipelines the soft pipelines
 on the ISP can do multiple processing steps in a single pipeline
 element (in a single binary).
+
+###
+
+The sensor drivers use of v4l2_get_subdev_hostdata(), which returns
+a camera_mipi_info struct. This struct is allocated/managed by
+the core atomisp code. The most important parts of the struct
+are filled by the atomisp core itself, like e.g. the port number.
+
+The sensor drivers on a set_fmt call do fill in camera_mipi_info.data
+which is a atomisp_sensor_mode_data struct. This gets filled from
+a function called <sensor_name>_get_intg_factor(). This struct is not
+used by the atomisp code at all. It is returned to userspace by
+a ATOMISP_IOC_G_SENSOR_MODE_DATA and the Android userspace does use this.
+
+Other members of camera_mipi_info which are set by some drivers are:
+-metadata_width, metadata_height, metadata_effective_width, set by
+ the ov5693 driver (and used by the atomisp core)
+-raw_bayer_order, adjusted by the ov2680 driver when flipping since
+ flipping can change the bayer order

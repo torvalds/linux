@@ -8,6 +8,7 @@ struct lan966x_fdb_event_work {
 	struct work_struct work;
 	struct switchdev_notifier_fdb_info fdb_info;
 	struct net_device *dev;
+	struct net_device *orig_dev;
 	struct lan966x *lan966x;
 	unsigned long event;
 };
@@ -127,75 +128,119 @@ void lan966x_fdb_deinit(struct lan966x *lan966x)
 	lan966x_fdb_purge_entries(lan966x);
 }
 
+void lan966x_fdb_flush_workqueue(struct lan966x *lan966x)
+{
+	flush_workqueue(lan966x->fdb_work);
+}
+
+static void lan966x_fdb_port_event_work(struct lan966x_fdb_event_work *fdb_work)
+{
+	struct switchdev_notifier_fdb_info *fdb_info;
+	struct lan966x_port *port;
+	struct lan966x *lan966x;
+
+	lan966x = fdb_work->lan966x;
+	port = netdev_priv(fdb_work->orig_dev);
+	fdb_info = &fdb_work->fdb_info;
+
+	switch (fdb_work->event) {
+	case SWITCHDEV_FDB_ADD_TO_DEVICE:
+		if (!fdb_info->added_by_user)
+			break;
+		lan966x_mac_add_entry(lan966x, port, fdb_info->addr,
+				      fdb_info->vid);
+		break;
+	case SWITCHDEV_FDB_DEL_TO_DEVICE:
+		if (!fdb_info->added_by_user)
+			break;
+		lan966x_mac_del_entry(lan966x, fdb_info->addr,
+				      fdb_info->vid);
+		break;
+	}
+}
+
+static void lan966x_fdb_bridge_event_work(struct lan966x_fdb_event_work *fdb_work)
+{
+	struct switchdev_notifier_fdb_info *fdb_info;
+	struct lan966x *lan966x;
+	int ret;
+
+	lan966x = fdb_work->lan966x;
+	fdb_info = &fdb_work->fdb_info;
+
+	/* In case the bridge is called */
+	switch (fdb_work->event) {
+	case SWITCHDEV_FDB_ADD_TO_DEVICE:
+		/* If there is no front port in this vlan, there is no
+		 * point to copy the frame to CPU because it would be
+		 * just dropped at later point. So add it only if
+		 * there is a port but it is required to store the fdb
+		 * entry for later point when a port actually gets in
+		 * the vlan.
+		 */
+		lan966x_fdb_add_entry(lan966x, fdb_info);
+		if (!lan966x_vlan_cpu_member_cpu_vlan_mask(lan966x,
+							   fdb_info->vid))
+			break;
+
+		lan966x_mac_cpu_learn(lan966x, fdb_info->addr,
+				      fdb_info->vid);
+		break;
+	case SWITCHDEV_FDB_DEL_TO_DEVICE:
+		ret = lan966x_fdb_del_entry(lan966x, fdb_info);
+		if (!lan966x_vlan_cpu_member_cpu_vlan_mask(lan966x,
+							   fdb_info->vid))
+			break;
+
+		if (ret)
+			lan966x_mac_cpu_forget(lan966x, fdb_info->addr,
+					       fdb_info->vid);
+		break;
+	}
+}
+
+static void lan966x_fdb_lag_event_work(struct lan966x_fdb_event_work *fdb_work)
+{
+	struct switchdev_notifier_fdb_info *fdb_info;
+	struct lan966x_port *port;
+	struct lan966x *lan966x;
+
+	if (!lan966x_lag_first_port(fdb_work->orig_dev, fdb_work->dev))
+		return;
+
+	lan966x = fdb_work->lan966x;
+	port = netdev_priv(fdb_work->dev);
+	fdb_info = &fdb_work->fdb_info;
+
+	switch (fdb_work->event) {
+	case SWITCHDEV_FDB_ADD_TO_DEVICE:
+		if (!fdb_info->added_by_user)
+			break;
+		lan966x_mac_add_entry(lan966x, port, fdb_info->addr,
+				      fdb_info->vid);
+		break;
+	case SWITCHDEV_FDB_DEL_TO_DEVICE:
+		if (!fdb_info->added_by_user)
+			break;
+		lan966x_mac_del_entry(lan966x, fdb_info->addr, fdb_info->vid);
+		break;
+	}
+}
+
 static void lan966x_fdb_event_work(struct work_struct *work)
 {
 	struct lan966x_fdb_event_work *fdb_work =
 		container_of(work, struct lan966x_fdb_event_work, work);
-	struct switchdev_notifier_fdb_info *fdb_info;
-	struct net_device *dev = fdb_work->dev;
-	struct lan966x_port *port;
-	struct lan966x *lan966x;
-	int ret;
 
-	fdb_info = &fdb_work->fdb_info;
-	lan966x = fdb_work->lan966x;
+	if (lan966x_netdevice_check(fdb_work->orig_dev))
+		lan966x_fdb_port_event_work(fdb_work);
+	else if (netif_is_bridge_master(fdb_work->orig_dev))
+		lan966x_fdb_bridge_event_work(fdb_work);
+	else if (netif_is_lag_master(fdb_work->orig_dev))
+		lan966x_fdb_lag_event_work(fdb_work);
 
-	if (lan966x_netdevice_check(dev)) {
-		port = netdev_priv(dev);
-
-		switch (fdb_work->event) {
-		case SWITCHDEV_FDB_ADD_TO_DEVICE:
-			if (!fdb_info->added_by_user)
-				break;
-			lan966x_mac_add_entry(lan966x, port, fdb_info->addr,
-					      fdb_info->vid);
-			break;
-		case SWITCHDEV_FDB_DEL_TO_DEVICE:
-			if (!fdb_info->added_by_user)
-				break;
-			lan966x_mac_del_entry(lan966x, fdb_info->addr,
-					      fdb_info->vid);
-			break;
-		}
-	} else {
-		if (!netif_is_bridge_master(dev))
-			goto out;
-
-		/* In case the bridge is called */
-		switch (fdb_work->event) {
-		case SWITCHDEV_FDB_ADD_TO_DEVICE:
-			/* If there is no front port in this vlan, there is no
-			 * point to copy the frame to CPU because it would be
-			 * just dropped at later point. So add it only if
-			 * there is a port but it is required to store the fdb
-			 * entry for later point when a port actually gets in
-			 * the vlan.
-			 */
-			lan966x_fdb_add_entry(lan966x, fdb_info);
-			if (!lan966x_vlan_cpu_member_cpu_vlan_mask(lan966x,
-								   fdb_info->vid))
-				break;
-
-			lan966x_mac_cpu_learn(lan966x, fdb_info->addr,
-					      fdb_info->vid);
-			break;
-		case SWITCHDEV_FDB_DEL_TO_DEVICE:
-			ret = lan966x_fdb_del_entry(lan966x, fdb_info);
-			if (!lan966x_vlan_cpu_member_cpu_vlan_mask(lan966x,
-								   fdb_info->vid))
-				break;
-
-			if (ret)
-				lan966x_mac_cpu_forget(lan966x, fdb_info->addr,
-						       fdb_info->vid);
-			break;
-		}
-	}
-
-out:
 	kfree(fdb_work->fdb_info.addr);
 	kfree(fdb_work);
-	dev_put(dev);
 }
 
 int lan966x_handle_fdb(struct net_device *dev,
@@ -221,7 +266,8 @@ int lan966x_handle_fdb(struct net_device *dev,
 		if (!fdb_work)
 			return -ENOMEM;
 
-		fdb_work->dev = orig_dev;
+		fdb_work->dev = dev;
+		fdb_work->orig_dev = orig_dev;
 		fdb_work->lan966x = lan966x;
 		fdb_work->event = event;
 		INIT_WORK(&fdb_work->work, lan966x_fdb_event_work);
@@ -231,7 +277,6 @@ int lan966x_handle_fdb(struct net_device *dev,
 			goto err_addr_alloc;
 
 		ether_addr_copy((u8 *)fdb_work->fdb_info.addr, fdb_info->addr);
-		dev_hold(orig_dev);
 
 		queue_work(lan966x->fdb_work, &fdb_work->work);
 		break;

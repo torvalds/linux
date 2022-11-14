@@ -113,6 +113,7 @@ static const struct regmap_bus *regmap_get_spi_bus(struct spi_device *spi,
 						   const struct regmap_config *config)
 {
 	size_t max_size = spi_max_transfer_size(spi);
+	size_t max_msg_size, reg_reserve_size;
 	struct regmap_bus *bus;
 
 	if (max_size != SIZE_MAX) {
@@ -120,9 +121,16 @@ static const struct regmap_bus *regmap_get_spi_bus(struct spi_device *spi,
 		if (!bus)
 			return ERR_PTR(-ENOMEM);
 
+		max_msg_size = spi_max_message_size(spi);
+		reg_reserve_size = config->reg_bits / BITS_PER_BYTE
+				 + config->pad_bits / BITS_PER_BYTE;
+		if (max_size + reg_reserve_size > max_msg_size)
+			max_size -= reg_reserve_size;
+
 		bus->free_on_exit = true;
 		bus->max_raw_read = max_size;
 		bus->max_raw_write = max_size;
+
 		return bus;
 	}
 

@@ -33,6 +33,7 @@
 #include <drm/ttm/ttm_placement.h>
 
 #include "vmwgfx_drv.h"
+#include "vmwgfx_mksstat.h"
 #include "vmwgfx_resource_priv.h"
 #include "vmwgfx_so.h"
 
@@ -72,12 +73,24 @@ struct vmw_cotable_info {
 			    bool);
 };
 
+
+/*
+ * Getting the initial size right is difficult because it all depends
+ * on what the userspace is doing. The sizes will be aligned up to
+ * a PAGE_SIZE so we just want to make sure that for majority of apps
+ * the initial number of entries doesn't require an immediate resize.
+ * For all cotables except SVGACOTableDXElementLayoutEntry and
+ * SVGACOTableDXBlendStateEntry the initial number of entries fits
+ * within the PAGE_SIZE. For SVGACOTableDXElementLayoutEntry and
+ * SVGACOTableDXBlendStateEntry we want to reserve two pages,
+ * because that's what all apps will require initially.
+ */
 static const struct vmw_cotable_info co_info[] = {
 	{1, sizeof(SVGACOTableDXRTViewEntry), &vmw_view_cotable_list_destroy},
 	{1, sizeof(SVGACOTableDXDSViewEntry), &vmw_view_cotable_list_destroy},
 	{1, sizeof(SVGACOTableDXSRViewEntry), &vmw_view_cotable_list_destroy},
-	{1, sizeof(SVGACOTableDXElementLayoutEntry), NULL},
-	{1, sizeof(SVGACOTableDXBlendStateEntry), NULL},
+	{PAGE_SIZE/sizeof(SVGACOTableDXElementLayoutEntry) + 1, sizeof(SVGACOTableDXElementLayoutEntry), NULL},
+	{PAGE_SIZE/sizeof(SVGACOTableDXBlendStateEntry) + 1, sizeof(SVGACOTableDXBlendStateEntry), NULL},
 	{1, sizeof(SVGACOTableDXDepthStencilEntry), NULL},
 	{1, sizeof(SVGACOTableDXRasterizerStateEntry), NULL},
 	{1, sizeof(SVGACOTableDXSamplerEntry), NULL},
@@ -395,9 +408,12 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	int ret;
 	size_t i;
 
+	MKS_STAT_TIME_DECL(MKSSTAT_KERN_COTABLE_RESIZE);
+	MKS_STAT_TIME_PUSH(MKSSTAT_KERN_COTABLE_RESIZE);
+
 	ret = vmw_cotable_readback(res);
 	if (ret)
-		return ret;
+		goto out_done;
 
 	cur_size_read_back = vcotbl->size_read_back;
 	vcotbl->size_read_back = old_size_read_back;
@@ -411,7 +427,7 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 			    true, true, vmw_bo_bo_free, &buf);
 	if (ret) {
 		DRM_ERROR("Failed initializing new cotable MOB.\n");
-		return ret;
+		goto out_done;
 	}
 
 	bo = &buf->base;
@@ -427,7 +443,7 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	 * Do a page by page copy of COTables. This eliminates slow vmap()s.
 	 * This should really be a TTM utility.
 	 */
-	for (i = 0; i < old_bo->resource->num_pages; ++i) {
+	for (i = 0; i < PFN_UP(old_bo->resource->size); ++i) {
 		bool dummy;
 
 		ret = ttm_bo_kmap(old_bo, i, 1, &old_map);
@@ -485,6 +501,8 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	/* Release the pin acquired in vmw_bo_init */
 	ttm_bo_unpin(bo);
 
+	MKS_STAT_TIME_POP(MKSSTAT_KERN_COTABLE_RESIZE);
+
 	return 0;
 
 out_map_new:
@@ -493,6 +511,9 @@ out_wait:
 	ttm_bo_unpin(bo);
 	ttm_bo_unreserve(bo);
 	vmw_bo_unreference(&buf);
+
+out_done:
+	MKS_STAT_TIME_POP(MKSSTAT_KERN_COTABLE_RESIZE);
 
 	return ret;
 }

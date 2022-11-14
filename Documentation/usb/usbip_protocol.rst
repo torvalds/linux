@@ -340,13 +340,12 @@ USBIP_CMD_SUBMIT:
 | 0         | 20     | usbip_header_basic, 'command' shall be 0x00000001 |
 +-----------+--------+---------------------------------------------------+
 | 0x14      | 4      | transfer_flags: possible values depend on the     |
-|           |        | URB transfer_flags (refer to URB doc in           |
-|           |        | Documentation/driver-api/usb/URB.rst)             |
-|           |        | but with URB_NO_TRANSFER_DMA_MAP masked. Refer to |
-|           |        | function usbip_pack_cmd_submit and function       |
-|           |        | tweak_transfer_flags in drivers/usb/usbip/        |
-|           |        | usbip_common.c. The following fields may also ref |
-|           |        | to function usbip_pack_cmd_submit and URB doc     |
+|           |        | USBIP_URB transfer_flags.                         |
+|           |        | Refer to include/uapi/linux/usbip.h and           |
+|           |        | Documentation/driver-api/usb/URB.rst.             |
+|           |        | Refer to usbip_pack_cmd_submit() and              |
+|           |        | tweak_transfer_flags() in drivers/usb/usbip/      |
+|           |        | usbip_common.c.                                   |
 +-----------+--------+---------------------------------------------------+
 | 0x18      | 4      | transfer_buffer_length:                           |
 |           |        | use URB transfer_buffer_length                    |

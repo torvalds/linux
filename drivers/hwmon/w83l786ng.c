@@ -687,7 +687,7 @@ w83l786ng_detect(struct i2c_client *client, struct i2c_board_info *info)
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, "w83l786ng", I2C_NAME_SIZE);
+	strscpy(info->type, "w83l786ng", I2C_NAME_SIZE);
 
 	return 0;
 }

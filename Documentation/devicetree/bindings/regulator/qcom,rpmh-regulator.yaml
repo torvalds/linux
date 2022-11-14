@@ -37,6 +37,8 @@ description: |
       For PM6150, smps1 - smps5, ldo1 - ldo19
       For PM6150L, smps1 - smps8, ldo1 - ldo11, bob
       For PM6350, smps1 - smps5, ldo1 - ldo22
+      For PM660, smps1 - smps6, ldo1 - ldo3, ldo5 - ldo19
+      For PM660L, smps1 - smps3, smps5, ldo1 - ldo8, bob
       For PM7325, smps1 - smps8, ldo1 - ldo19
       For PM8005, smps1 - smps4
       For PM8009, smps1 - smps2, ldo1 - ldo7
@@ -57,6 +59,8 @@ properties:
       - qcom,pm6150-rpmh-regulators
       - qcom,pm6150l-rpmh-regulators
       - qcom,pm6350-rpmh-regulators
+      - qcom,pm660-rpmh-regulators
+      - qcom,pm660l-rpmh-regulators
       - qcom,pm7325-rpmh-regulators
       - qcom,pm8005-rpmh-regulators
       - qcom,pm8009-rpmh-regulators
@@ -99,12 +103,16 @@ properties:
     type: object
     $ref: "regulator.yaml#"
     description: BOB regulator node.
+    dependencies:
+      regulator-allow-set-load: ["regulator-allowed-modes"]
 
 patternProperties:
   "^(smps|ldo|lvs)[0-9]+$":
     type: object
     $ref: "regulator.yaml#"
     description: smps/ldo regulator nodes(s).
+    dependencies:
+      regulator-allow-set-load: ["regulator-allowed-modes"]
 
 required:
   - compatible
@@ -143,6 +151,38 @@ allOf:
         vdd-l9-l10-supply: true
       patternProperties:
         "^vdd-s[1-8]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm660-rpmh-regulators
+    then:
+      properties:
+        vdd-l1-l6-l7-supply: true
+        vdd-l2-l3-supply: true
+        vdd-l5-supply: true
+        vdd-l8-l9-l10-l11-l12-l13-l14-supply: true
+        vdd-l15-l16-l17-l18-l19-supply: true
+      patternProperties:
+        "^vdd-s[1-6]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm660l-rpmh-regulators
+    then:
+      properties:
+        vdd-bob-supply:
+          description: BOB regulator parent supply phandle.
+        vdd-l1-l9-l10-supply: true
+        vdd-l2-supply: true
+        vdd-l3-l5-l7-l8-supply: true
+        vdd-l4-l6-supply: true
+        vdd-s3-s4-supply: true
+      patternProperties:
+        "^vdd-s[125]-supply$": true
 
   - if:
       properties:

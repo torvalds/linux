@@ -198,22 +198,16 @@ static int zip_decompress(const u8 *src, unsigned int slen,
 /* Legacy Compress framework start */
 int zip_alloc_comp_ctx_deflate(struct crypto_tfm *tfm)
 {
-	int ret;
 	struct zip_kernel_ctx *zip_ctx = crypto_tfm_ctx(tfm);
 
-	ret = zip_ctx_init(zip_ctx, 0);
-
-	return ret;
+	return zip_ctx_init(zip_ctx, 0);
 }
 
 int zip_alloc_comp_ctx_lzs(struct crypto_tfm *tfm)
 {
-	int ret;
 	struct zip_kernel_ctx *zip_ctx = crypto_tfm_ctx(tfm);
 
-	ret = zip_ctx_init(zip_ctx, 1);
-
-	return ret;
+	return zip_ctx_init(zip_ctx, 1);
 }
 
 void zip_free_comp_ctx(struct crypto_tfm *tfm)
@@ -227,24 +221,18 @@ int  zip_comp_compress(struct crypto_tfm *tfm,
 		       const u8 *src, unsigned int slen,
 		       u8 *dst, unsigned int *dlen)
 {
-	int ret;
 	struct zip_kernel_ctx *zip_ctx = crypto_tfm_ctx(tfm);
 
-	ret = zip_compress(src, slen, dst, dlen, zip_ctx);
-
-	return ret;
+	return zip_compress(src, slen, dst, dlen, zip_ctx);
 }
 
 int  zip_comp_decompress(struct crypto_tfm *tfm,
 			 const u8 *src, unsigned int slen,
 			 u8 *dst, unsigned int *dlen)
 {
-	int ret;
 	struct zip_kernel_ctx *zip_ctx = crypto_tfm_ctx(tfm);
 
-	ret = zip_decompress(src, slen, dst, dlen, zip_ctx);
-
-	return ret;
+	return zip_decompress(src, slen, dst, dlen, zip_ctx);
 } /* Legacy compress framework end */
 
 /* SCOMP framework start */
@@ -298,22 +286,16 @@ int zip_scomp_compress(struct crypto_scomp *tfm,
 		       const u8 *src, unsigned int slen,
 		       u8 *dst, unsigned int *dlen, void *ctx)
 {
-	int ret;
 	struct zip_kernel_ctx *zip_ctx  = ctx;
 
-	ret = zip_compress(src, slen, dst, dlen, zip_ctx);
-
-	return ret;
+	return zip_compress(src, slen, dst, dlen, zip_ctx);
 }
 
 int zip_scomp_decompress(struct crypto_scomp *tfm,
 			 const u8 *src, unsigned int slen,
 			 u8 *dst, unsigned int *dlen, void *ctx)
 {
-	int ret;
 	struct zip_kernel_ctx *zip_ctx = ctx;
 
-	ret = zip_decompress(src, slen, dst, dlen, zip_ctx);
-
-	return ret;
+	return zip_decompress(src, slen, dst, dlen, zip_ctx);
 } /* SCOMP framework end */

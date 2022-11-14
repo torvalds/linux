@@ -139,7 +139,7 @@ nv04_gart_manager_new(struct ttm_resource_manager *man,
 	mem = nouveau_mem(*res);
 	ttm_resource_init(bo, place, *res);
 	ret = nvif_vmm_get(&mem->cli->vmm.vmm, PTES, false, 12, 0,
-			   (long)(*res)->num_pages << PAGE_SHIFT, &mem->vma[0]);
+			   (long)(*res)->size, &mem->vma[0]);
 	if (ret) {
 		nouveau_mem_del(man, *res);
 		return ret;

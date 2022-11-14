@@ -973,7 +973,7 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 	priv->ndev = ndev;
 	priv->base = addr;
 
-	netif_napi_add(ndev, &priv->napi, ifi_canfd_poll, 64);
+	netif_napi_add(ndev, &priv->napi, ifi_canfd_poll);
 
 	priv->can.state = CAN_STATE_STOPPED;
 

@@ -344,6 +344,91 @@ static unsigned int tweak_transfer_flags(unsigned int flags)
 	return flags;
 }
 
+/*
+ * USBIP driver packs URB transfer flags in PDUs that are exchanged
+ * between Server (usbip_host) and Client (vhci_hcd). URB_* flags
+ * are internal to kernel and could change. Where as USBIP URB flags
+ * exchanged in PDUs are USBIP user API must not change.
+ *
+ * USBIP_URB* flags are exported as explicit API and client and server
+ * do mapping from kernel flags to USBIP_URB*. Details as follows:
+ *
+ * Client tx path (USBIP_CMD_SUBMIT):
+ * - Maps URB_* to USBIP_URB_* when it sends USBIP_CMD_SUBMIT packet.
+ *
+ * Server rx path (USBIP_CMD_SUBMIT):
+ * - Maps USBIP_URB_* to URB_* when it receives USBIP_CMD_SUBMIT packet.
+ *
+ * Flags aren't included in USBIP_CMD_UNLINK and USBIP_RET_SUBMIT packets
+ * and no special handling is needed for them in the following cases:
+ * - Server rx path (USBIP_CMD_UNLINK)
+ * - Client rx path & Server tx path (USBIP_RET_SUBMIT)
+ *
+ * Code paths:
+ * usbip_pack_pdu() is the common routine that handles packing pdu from
+ * urb and unpack pdu to an urb.
+ *
+ * usbip_pack_cmd_submit() and usbip_pack_ret_submit() handle
+ * USBIP_CMD_SUBMIT and USBIP_RET_SUBMIT respectively.
+ *
+ * usbip_map_urb_to_usbip() and usbip_map_usbip_to_urb() are used
+ * by usbip_pack_cmd_submit() and usbip_pack_ret_submit() to map
+ * flags.
+ */
+
+struct urb_to_usbip_flags {
+	u32 urb_flag;
+	u32 usbip_flag;
+};
+
+#define NUM_USBIP_FLAGS	17
+
+static const struct urb_to_usbip_flags flag_map[NUM_USBIP_FLAGS] = {
+	{URB_SHORT_NOT_OK, USBIP_URB_SHORT_NOT_OK},
+	{URB_ISO_ASAP, USBIP_URB_ISO_ASAP},
+	{URB_NO_TRANSFER_DMA_MAP, USBIP_URB_NO_TRANSFER_DMA_MAP},
+	{URB_ZERO_PACKET, USBIP_URB_ZERO_PACKET},
+	{URB_NO_INTERRUPT, USBIP_URB_NO_INTERRUPT},
+	{URB_FREE_BUFFER, USBIP_URB_FREE_BUFFER},
+	{URB_DIR_IN, USBIP_URB_DIR_IN},
+	{URB_DIR_OUT, USBIP_URB_DIR_OUT},
+	{URB_DIR_MASK, USBIP_URB_DIR_MASK},
+	{URB_DMA_MAP_SINGLE, USBIP_URB_DMA_MAP_SINGLE},
+	{URB_DMA_MAP_PAGE, USBIP_URB_DMA_MAP_PAGE},
+	{URB_DMA_MAP_SG, USBIP_URB_DMA_MAP_SG},
+	{URB_MAP_LOCAL, USBIP_URB_MAP_LOCAL},
+	{URB_SETUP_MAP_SINGLE, USBIP_URB_SETUP_MAP_SINGLE},
+	{URB_SETUP_MAP_LOCAL, USBIP_URB_SETUP_MAP_LOCAL},
+	{URB_DMA_SG_COMBINED, USBIP_URB_DMA_SG_COMBINED},
+	{URB_ALIGNED_TEMP_BUFFER, USBIP_URB_ALIGNED_TEMP_BUFFER},
+};
+
+static unsigned int urb_to_usbip(unsigned int flags)
+{
+	unsigned int map_flags = 0;
+	int loop;
+
+	for (loop = 0; loop < NUM_USBIP_FLAGS; loop++) {
+		if (flags & flag_map[loop].urb_flag)
+			map_flags |= flag_map[loop].usbip_flag;
+	}
+
+	return map_flags;
+}
+
+static unsigned int usbip_to_urb(unsigned int flags)
+{
+	unsigned int map_flags = 0;
+	int loop;
+
+	for (loop = 0; loop < NUM_USBIP_FLAGS; loop++) {
+		if (flags & flag_map[loop].usbip_flag)
+			map_flags |= flag_map[loop].urb_flag;
+	}
+
+	return map_flags;
+}
+
 static void usbip_pack_cmd_submit(struct usbip_header *pdu, struct urb *urb,
 				  int pack)
 {
@@ -354,14 +439,14 @@ static void usbip_pack_cmd_submit(struct usbip_header *pdu, struct urb *urb,
 	 * will be discussed when usbip is ported to other operating systems.
 	 */
 	if (pack) {
-		spdu->transfer_flags =
-			tweak_transfer_flags(urb->transfer_flags);
+		/* map after tweaking the urb flags */
+		spdu->transfer_flags = urb_to_usbip(tweak_transfer_flags(urb->transfer_flags));
 		spdu->transfer_buffer_length	= urb->transfer_buffer_length;
 		spdu->start_frame		= urb->start_frame;
 		spdu->number_of_packets		= urb->number_of_packets;
 		spdu->interval			= urb->interval;
 	} else  {
-		urb->transfer_flags         = spdu->transfer_flags;
+		urb->transfer_flags         = usbip_to_urb(spdu->transfer_flags);
 		urb->transfer_buffer_length = spdu->transfer_buffer_length;
 		urb->start_frame            = spdu->start_frame;
 		urb->number_of_packets      = spdu->number_of_packets;

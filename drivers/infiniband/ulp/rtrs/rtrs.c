@@ -175,7 +175,7 @@ int rtrs_iu_post_rdma_write_imm(struct rtrs_con *con, struct rtrs_iu *iu,
 	 * length error
 	 */
 	for (i = 0; i < num_sge; i++)
-		if (WARN_ON(sge[i].length == 0))
+		if (WARN_ONCE(sge[i].length == 0, "sg %d is zero length\n", i))
 			return -EINVAL;
 
 	return rtrs_post_send(con->qp, head, &wr.wr, tail);

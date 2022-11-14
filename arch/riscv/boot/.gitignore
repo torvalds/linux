@@ -4,4 +4,5 @@ Image.*
 loader
 loader.lds
 loader.bin
+vmlinuz*
 xipImage

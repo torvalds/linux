@@ -4,7 +4,7 @@
 
 void test_pkt_md_access(void)
 {
-	const char *file = "./test_pkt_md_access.o";
+	const char *file = "./test_pkt_md_access.bpf.o";
 	struct bpf_object *obj;
 	int err, prog_fd;
 	LIBBPF_OPTS(bpf_test_run_opts, topts,

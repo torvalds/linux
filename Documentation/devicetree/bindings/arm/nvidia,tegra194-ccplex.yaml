@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/arm/nvidia,tegra194-ccplex.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: NVIDIA Tegra194 CPU Complex device tree bindings
+title: NVIDIA Tegra194 CPU Complex
 
 maintainers:
   - Thierry Reding <thierry.reding@gmail.com>

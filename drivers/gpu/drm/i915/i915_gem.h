@@ -36,7 +36,7 @@ struct drm_file;
 struct drm_i915_gem_object;
 struct drm_i915_private;
 struct i915_gem_ww_ctx;
-struct i915_ggtt_view;
+struct i915_gtt_view;
 struct i915_vma;
 
 void i915_gem_init_early(struct drm_i915_private *i915);
@@ -48,12 +48,12 @@ void i915_gem_drain_workqueue(struct drm_i915_private *i915);
 struct i915_vma * __must_check
 i915_gem_object_ggtt_pin_ww(struct drm_i915_gem_object *obj,
 			    struct i915_gem_ww_ctx *ww,
-			    const struct i915_ggtt_view *view,
+			    const struct i915_gtt_view *view,
 			    u64 size, u64 alignment, u64 flags);
 
 struct i915_vma * __must_check
 i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
-			 const struct i915_ggtt_view *view,
+			 const struct i915_gtt_view *view,
 			 u64 size, u64 alignment, u64 flags);
 
 int i915_gem_object_unbind(struct drm_i915_gem_object *obj,

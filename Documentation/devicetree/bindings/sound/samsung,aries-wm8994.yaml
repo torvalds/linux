@@ -23,6 +23,7 @@ properties:
 
   cpu:
     type: object
+    additionalProperties: false
     properties:
       sound-dai:
         minItems: 2
@@ -34,6 +35,7 @@ properties:
       - sound-dai
 
   codec:
+    additionalProperties: false
     type: object
     properties:
       sound-dai:

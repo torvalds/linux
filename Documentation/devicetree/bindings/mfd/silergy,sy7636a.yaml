@@ -42,6 +42,7 @@ properties:
       vcom:
         type: object
         $ref: /schemas/regulator/regulator.yaml#
+        unevaluatedProperties: false
         description:
           The regulator for the compenstation voltage. Enabling/disabling this
           enables/disables the entire device.

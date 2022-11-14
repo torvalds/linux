@@ -89,8 +89,6 @@ struct btrfs_raid_bio {
 	 */
 	int bio_list_bytes;
 
-	int generic_bio_cnt;
-
 	refcount_t refs;
 
 	atomic_t stripes_pending;
@@ -166,7 +164,7 @@ static inline int nr_data_stripes(const struct map_lookup *map)
 struct btrfs_device;
 
 void raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
-			   int mirror_num, bool generic_io);
+			   int mirror_num);
 void raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc);
 
 void raid56_add_scrub_pages(struct btrfs_raid_bio *rbio, struct page *page,

@@ -972,12 +972,12 @@ void test_sockopt(void)
 	int cgroup_fd, i;
 
 	cgroup_fd = test__join_cgroup("/sockopt");
-	if (CHECK_FAIL(cgroup_fd < 0))
+	if (!ASSERT_GE(cgroup_fd, 0, "join_cgroup"))
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		test__start_subtest(tests[i].descr);
-		CHECK_FAIL(run_test(cgroup_fd, &tests[i]));
+		ASSERT_OK(run_test(cgroup_fd, &tests[i]), tests[i].descr);
 	}
 
 	close(cgroup_fd);

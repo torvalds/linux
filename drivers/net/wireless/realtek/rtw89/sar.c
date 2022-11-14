@@ -81,9 +81,9 @@ static const struct rtw89_sar_span rtw89_sar_overlapping_6ghz[] = {
 static int rtw89_query_sar_config_common(struct rtw89_dev *rtwdev, s32 *cfg)
 {
 	struct rtw89_sar_cfg_common *rtwsar = &rtwdev->sar.cfg_common;
-	struct rtw89_hal *hal = &rtwdev->hal;
-	enum rtw89_band band = hal->current_band_type;
-	u32 center_freq = hal->current_freq;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	enum rtw89_band band = chan->band_type;
+	u32 center_freq = chan->freq;
 	const struct rtw89_sar_span *span = NULL;
 	enum rtw89_sar_subband subband_l, subband_h;
 	int idx;
@@ -228,7 +228,7 @@ static int rtw89_apply_sar_common(struct rtw89_dev *rtwdev,
 	}
 
 	rtw89_sar_set_src(rtwdev, RTW89_SAR_SOURCE_COMMON, cfg_common, sar);
-	rtw89_chip_set_txpwr(rtwdev);
+	rtw89_core_set_chip_txpwr(rtwdev);
 
 exit:
 	mutex_unlock(&rtwdev->mutex);

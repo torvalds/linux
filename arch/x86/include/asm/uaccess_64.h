@@ -79,4 +79,49 @@ __copy_from_user_flushcache(void *dst, const void __user *src, unsigned size)
 	kasan_check_write(dst, size);
 	return __copy_user_flushcache(dst, src, size);
 }
+
+/*
+ * Zero Userspace.
+ */
+
+__must_check unsigned long
+clear_user_original(void __user *addr, unsigned long len);
+__must_check unsigned long
+clear_user_rep_good(void __user *addr, unsigned long len);
+__must_check unsigned long
+clear_user_erms(void __user *addr, unsigned long len);
+
+static __always_inline __must_check unsigned long __clear_user(void __user *addr, unsigned long size)
+{
+	might_fault();
+	stac();
+
+	/*
+	 * No memory constraint because it doesn't change any memory gcc
+	 * knows about.
+	 */
+	asm volatile(
+		"1:\n\t"
+		ALTERNATIVE_3("rep stosb",
+			      "call clear_user_erms",	  ALT_NOT(X86_FEATURE_FSRM),
+			      "call clear_user_rep_good", ALT_NOT(X86_FEATURE_ERMS),
+			      "call clear_user_original", ALT_NOT(X86_FEATURE_REP_GOOD))
+		"2:\n"
+	       _ASM_EXTABLE_UA(1b, 2b)
+	       : "+c" (size), "+D" (addr), ASM_CALL_CONSTRAINT
+	       : "a" (0)
+		/* rep_good clobbers %rdx */
+	       : "rdx");
+
+	clac();
+
+	return size;
+}
+
+static __always_inline unsigned long clear_user(void __user *to, unsigned long n)
+{
+	if (access_ok(to, n))
+		return __clear_user(to, n);
+	return n;
+}
 #endif /* _ASM_X86_UACCESS_64_H */

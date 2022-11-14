@@ -153,13 +153,12 @@ static int i2c_slave_testunit_probe(struct i2c_client *client)
 	return i2c_slave_register(client, i2c_slave_testunit_slave_cb);
 };
 
-static int i2c_slave_testunit_remove(struct i2c_client *client)
+static void i2c_slave_testunit_remove(struct i2c_client *client)
 {
 	struct testunit_data *tu = i2c_get_clientdata(client);
 
 	cancel_delayed_work_sync(&tu->worker);
 	i2c_slave_unregister(client);
-	return 0;
 }
 
 static const struct i2c_device_id i2c_slave_testunit_id[] = {

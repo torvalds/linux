@@ -138,6 +138,9 @@ static struct cmn2asic_msg_mapping vangogh_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(SetSlowPPTLimit,                    PPSMC_MSG_SetSlowPPTLimit,						0),
 	MSG_MAP(GetFastPPTLimit,                    PPSMC_MSG_GetFastPPTLimit,						0),
 	MSG_MAP(GetSlowPPTLimit,                    PPSMC_MSG_GetSlowPPTLimit,						0),
+	MSG_MAP(GetGfxOffStatus,		    PPSMC_MSG_GetGfxOffStatus,						0),
+	MSG_MAP(GetGfxOffEntryCount,		    PPSMC_MSG_GetGfxOffEntryCount,					0),
+	MSG_MAP(LogGfxOffResidency,		    PPSMC_MSG_LogGfxOffResidency,					0),
 };
 
 static struct cmn2asic_mapping vangogh_feature_mask_map[SMU_FEATURE_COUNT] = {
@@ -220,14 +223,13 @@ static int vangogh_tables_init(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
-	struct amdgpu_device *adev = smu->adev;
 	uint32_t if_version;
+	uint32_t smu_version;
 	uint32_t ret = 0;
 
-	ret = smu_cmn_get_smc_version(smu, &if_version, NULL);
+	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
 	if (ret) {
-		dev_err(adev->dev, "Failed to get smu if version!\n");
-		goto err0_out;
+		return ret;
 	}
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_WATERMARKS, sizeof(Watermarks_t),
@@ -252,7 +254,10 @@ static int vangogh_tables_init(struct smu_context *smu)
 		goto err0_out;
 	smu_table->metrics_time = 0;
 
-	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v2_2);
+	if (smu_version >= 0x043F3E00)
+		smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v2_3);
+	else
+		smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v2_2);
 	smu_table->gpu_metrics_table = kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
 	if (!smu_table->gpu_metrics_table)
 		goto err1_out;
@@ -1645,6 +1650,63 @@ static int vangogh_set_watermarks_table(struct smu_context *smu,
 	return 0;
 }
 
+static ssize_t vangogh_get_legacy_gpu_metrics_v2_3(struct smu_context *smu,
+				      void **table)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct gpu_metrics_v2_3 *gpu_metrics =
+		(struct gpu_metrics_v2_3 *)smu_table->gpu_metrics_table;
+	SmuMetrics_legacy_t metrics;
+	int ret = 0;
+
+	ret = smu_cmn_get_metrics_table(smu, &metrics, true);
+	if (ret)
+		return ret;
+
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 2, 3);
+
+	gpu_metrics->temperature_gfx = metrics.GfxTemperature;
+	gpu_metrics->temperature_soc = metrics.SocTemperature;
+	memcpy(&gpu_metrics->temperature_core[0],
+		&metrics.CoreTemperature[0],
+		sizeof(uint16_t) * 4);
+	gpu_metrics->temperature_l3[0] = metrics.L3Temperature[0];
+
+	gpu_metrics->average_gfx_activity = metrics.GfxActivity;
+	gpu_metrics->average_mm_activity = metrics.UvdActivity;
+
+	gpu_metrics->average_socket_power = metrics.CurrentSocketPower;
+	gpu_metrics->average_cpu_power = metrics.Power[0];
+	gpu_metrics->average_soc_power = metrics.Power[1];
+	gpu_metrics->average_gfx_power = metrics.Power[2];
+	memcpy(&gpu_metrics->average_core_power[0],
+		&metrics.CorePower[0],
+		sizeof(uint16_t) * 4);
+
+	gpu_metrics->average_gfxclk_frequency = metrics.GfxclkFrequency;
+	gpu_metrics->average_socclk_frequency = metrics.SocclkFrequency;
+	gpu_metrics->average_uclk_frequency = metrics.MemclkFrequency;
+	gpu_metrics->average_fclk_frequency = metrics.MemclkFrequency;
+	gpu_metrics->average_vclk_frequency = metrics.VclkFrequency;
+	gpu_metrics->average_dclk_frequency = metrics.DclkFrequency;
+
+	memcpy(&gpu_metrics->current_coreclk[0],
+		&metrics.CoreFrequency[0],
+		sizeof(uint16_t) * 4);
+	gpu_metrics->current_l3clk[0] = metrics.L3Frequency[0];
+
+	gpu_metrics->throttle_status = metrics.ThrottlerStatus;
+	gpu_metrics->indep_throttle_status =
+			smu_cmn_get_indep_throttler_status(metrics.ThrottlerStatus,
+							   vangogh_throttler_map);
+
+	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
+
+	*table = (void *)gpu_metrics;
+
+	return sizeof(struct gpu_metrics_v2_3);
+}
+
 static ssize_t vangogh_get_legacy_gpu_metrics(struct smu_context *smu,
 				      void **table)
 {
@@ -1700,6 +1762,77 @@ static ssize_t vangogh_get_legacy_gpu_metrics(struct smu_context *smu,
 	*table = (void *)gpu_metrics;
 
 	return sizeof(struct gpu_metrics_v2_2);
+}
+
+static ssize_t vangogh_get_gpu_metrics_v2_3(struct smu_context *smu,
+				      void **table)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct gpu_metrics_v2_3 *gpu_metrics =
+		(struct gpu_metrics_v2_3 *)smu_table->gpu_metrics_table;
+	SmuMetrics_t metrics;
+	int ret = 0;
+
+	ret = smu_cmn_get_metrics_table(smu, &metrics, true);
+	if (ret)
+		return ret;
+
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 2, 3);
+
+	gpu_metrics->temperature_gfx = metrics.Current.GfxTemperature;
+	gpu_metrics->temperature_soc = metrics.Current.SocTemperature;
+	memcpy(&gpu_metrics->temperature_core[0],
+		&metrics.Current.CoreTemperature[0],
+		sizeof(uint16_t) * 4);
+	gpu_metrics->temperature_l3[0] = metrics.Current.L3Temperature[0];
+
+	gpu_metrics->average_temperature_gfx = metrics.Average.GfxTemperature;
+	gpu_metrics->average_temperature_soc = metrics.Average.SocTemperature;
+	memcpy(&gpu_metrics->average_temperature_core[0],
+		&metrics.Average.CoreTemperature[0],
+		sizeof(uint16_t) * 4);
+	gpu_metrics->average_temperature_l3[0] = metrics.Average.L3Temperature[0];
+
+	gpu_metrics->average_gfx_activity = metrics.Current.GfxActivity;
+	gpu_metrics->average_mm_activity = metrics.Current.UvdActivity;
+
+	gpu_metrics->average_socket_power = metrics.Current.CurrentSocketPower;
+	gpu_metrics->average_cpu_power = metrics.Current.Power[0];
+	gpu_metrics->average_soc_power = metrics.Current.Power[1];
+	gpu_metrics->average_gfx_power = metrics.Current.Power[2];
+	memcpy(&gpu_metrics->average_core_power[0],
+		&metrics.Average.CorePower[0],
+		sizeof(uint16_t) * 4);
+
+	gpu_metrics->average_gfxclk_frequency = metrics.Average.GfxclkFrequency;
+	gpu_metrics->average_socclk_frequency = metrics.Average.SocclkFrequency;
+	gpu_metrics->average_uclk_frequency = metrics.Average.MemclkFrequency;
+	gpu_metrics->average_fclk_frequency = metrics.Average.MemclkFrequency;
+	gpu_metrics->average_vclk_frequency = metrics.Average.VclkFrequency;
+	gpu_metrics->average_dclk_frequency = metrics.Average.DclkFrequency;
+
+	gpu_metrics->current_gfxclk = metrics.Current.GfxclkFrequency;
+	gpu_metrics->current_socclk = metrics.Current.SocclkFrequency;
+	gpu_metrics->current_uclk = metrics.Current.MemclkFrequency;
+	gpu_metrics->current_fclk = metrics.Current.MemclkFrequency;
+	gpu_metrics->current_vclk = metrics.Current.VclkFrequency;
+	gpu_metrics->current_dclk = metrics.Current.DclkFrequency;
+
+	memcpy(&gpu_metrics->current_coreclk[0],
+		&metrics.Current.CoreFrequency[0],
+		sizeof(uint16_t) * 4);
+	gpu_metrics->current_l3clk[0] = metrics.Current.L3Frequency[0];
+
+	gpu_metrics->throttle_status = metrics.Current.ThrottlerStatus;
+	gpu_metrics->indep_throttle_status =
+			smu_cmn_get_indep_throttler_status(metrics.Current.ThrottlerStatus,
+							   vangogh_throttler_map);
+
+	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
+
+	*table = (void *)gpu_metrics;
+
+	return sizeof(struct gpu_metrics_v2_3);
 }
 
 static ssize_t vangogh_get_gpu_metrics(struct smu_context *smu,
@@ -1769,20 +1902,26 @@ static ssize_t vangogh_get_gpu_metrics(struct smu_context *smu,
 static ssize_t vangogh_common_get_gpu_metrics(struct smu_context *smu,
 				      void **table)
 {
-	struct amdgpu_device *adev = smu->adev;
 	uint32_t if_version;
+	uint32_t smu_version;
 	int ret = 0;
 
-	ret = smu_cmn_get_smc_version(smu, &if_version, NULL);
+	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
 	if (ret) {
-		dev_err(adev->dev, "Failed to get smu if version!\n");
 		return ret;
 	}
 
-	if (if_version < 0x3)
-		ret = vangogh_get_legacy_gpu_metrics(smu, table);
-	else
-		ret = vangogh_get_gpu_metrics(smu, table);
+	if (smu_version >= 0x043F3E00) {
+		if (if_version < 0x3)
+			ret = vangogh_get_legacy_gpu_metrics_v2_3(smu, table);
+		else
+			ret = vangogh_get_gpu_metrics_v2_3(smu, table);
+	} else {
+		if (if_version < 0x3)
+			ret = vangogh_get_legacy_gpu_metrics(smu, table);
+		else
+			ret = vangogh_get_gpu_metrics(smu, table);
+	}
 
 	return ret;
 }
@@ -2200,6 +2339,76 @@ static int vangogh_set_power_limit(struct smu_context *smu,
 	return ret;
 }
 
+/**
+ * vangogh_set_gfxoff_residency
+ *
+ * @smu: amdgpu_device pointer
+ * @start: start/stop residency log
+ *
+ * This function will be used to log gfxoff residency
+ *
+ *
+ * Returns standard response codes.
+ */
+static u32 vangogh_set_gfxoff_residency(struct smu_context *smu, bool start)
+{
+	int ret = 0;
+	u32 residency;
+	struct amdgpu_device *adev = smu->adev;
+
+	if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
+		return 0;
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_LogGfxOffResidency,
+					      start, &residency);
+
+	if (!start)
+		adev->gfx.gfx_off_residency = residency;
+
+	return ret;
+}
+
+/**
+ * vangogh_get_gfxoff_residency
+ *
+ * @smu: amdgpu_device pointer
+ *
+ * This function will be used to get gfxoff residency.
+ *
+ * Returns standard response codes.
+ */
+static u32 vangogh_get_gfxoff_residency(struct smu_context *smu, uint32_t *residency)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	*residency = adev->gfx.gfx_off_residency;
+
+	return 0;
+}
+
+/**
+ * vangogh_get_gfxoff_entrycount - get gfxoff entry count
+ *
+ * @smu: amdgpu_device pointer
+ *
+ * This function will be used to get gfxoff entry count
+ *
+ * Returns standard response codes.
+ */
+static u32 vangogh_get_gfxoff_entrycount(struct smu_context *smu, uint64_t *entrycount)
+{
+	int ret = 0, value = 0;
+	struct amdgpu_device *adev = smu->adev;
+
+	if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
+		return 0;
+
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetGfxOffEntryCount, &value);
+	*entrycount = value + adev->gfx.gfx_off_entrycount;
+
+	return ret;
+}
+
 static const struct pptable_funcs vangogh_ppt_funcs = {
 
 	.check_fw_status = smu_v11_0_check_fw_status,
@@ -2237,6 +2446,9 @@ static const struct pptable_funcs vangogh_ppt_funcs = {
 	.mode2_reset = vangogh_mode2_reset,
 	.gfx_off_control = smu_v11_0_gfx_off_control,
 	.get_gfx_off_status = vangogh_get_gfxoff_status,
+	.get_gfx_off_entrycount = vangogh_get_gfxoff_entrycount,
+	.get_gfx_off_residency = vangogh_get_gfxoff_residency,
+	.set_gfx_off_residency = vangogh_set_gfxoff_residency,
 	.get_ppt_limit = vangogh_get_ppt_limit,
 	.get_power_limit = vangogh_get_power_limit,
 	.set_power_limit = vangogh_set_power_limit,

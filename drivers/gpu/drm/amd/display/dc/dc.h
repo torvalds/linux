@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.198"
+#define DC_VER "3.2.210"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -56,9 +56,7 @@ struct dmub_notification;
 #define MIN_VIEWPORT_SIZE 12
 #define MAX_NUM_EDP 2
 
-/*******************************************************************************
- * Display Core Interfaces
- ******************************************************************************/
+/* Display Core Interfaces */
 struct dc_versions {
 	const char *dc_ver;
 	struct dmcu_version dmcu_version;
@@ -118,7 +116,26 @@ struct dc_plane_cap {
 	uint32_t min_height;
 };
 
-// Color management caps (DPP and MPC)
+/**
+ * DOC: color-management-caps
+ *
+ * **Color management caps (DPP and MPC)**
+ *
+ * Modules/color calculates various color operations which are translated to
+ * abstracted HW. DCE 5-12 had almost no important changes, but starting with
+ * DCN1, every new generation comes with fairly major differences in color
+ * pipeline. Therefore, we abstract color pipe capabilities so modules/DM can
+ * decide mapping to HW block based on logical capabilities.
+ */
+
+/**
+ * struct rom_curve_caps - predefined transfer function caps for degamma and regamma
+ * @srgb: RGB color space transfer func
+ * @bt2020: BT.2020 transfer func
+ * @gamma2_2: standard gamma
+ * @pq: perceptual quantizer transfer function
+ * @hlg: hybrid log–gamma transfer function
+ */
 struct rom_curve_caps {
 	uint16_t srgb : 1;
 	uint16_t bt2020 : 1;
@@ -127,36 +144,68 @@ struct rom_curve_caps {
 	uint16_t hlg : 1;
 };
 
+/**
+ * struct dpp_color_caps - color pipeline capabilities for display pipe and
+ * plane blocks
+ *
+ * @dcn_arch: all DCE generations treated the same
+ * @input_lut_shared: shared with DGAM. Input LUT is different than most LUTs,
+ * just plain 256-entry lookup
+ * @icsc: input color space conversion
+ * @dgam_ram: programmable degamma LUT
+ * @post_csc: post color space conversion, before gamut remap
+ * @gamma_corr: degamma correction
+ * @hw_3d_lut: 3D LUT support. It implies a shaper LUT before. It may be shared
+ * with MPC by setting mpc:shared_3d_lut flag
+ * @ogam_ram: programmable out/blend gamma LUT
+ * @ocsc: output color space conversion
+ * @dgam_rom_for_yuv: pre-defined degamma LUT for YUV planes
+ * @dgam_rom_caps: pre-definied curve caps for degamma 1D LUT
+ * @ogam_rom_caps: pre-definied curve caps for regamma 1D LUT
+ *
+ * Note: hdr_mult and gamut remap (CTM) are always available in DPP (in that order)
+ */
 struct dpp_color_caps {
-	uint16_t dcn_arch : 1; // all DCE generations treated the same
-	// input lut is different than most LUTs, just plain 256-entry lookup
-	uint16_t input_lut_shared : 1; // shared with DGAM
+	uint16_t dcn_arch : 1;
+	uint16_t input_lut_shared : 1;
 	uint16_t icsc : 1;
 	uint16_t dgam_ram : 1;
-	uint16_t post_csc : 1; // before gamut remap
+	uint16_t post_csc : 1;
 	uint16_t gamma_corr : 1;
-
-	// hdr_mult and gamut remap always available in DPP (in that order)
-	// 3d lut implies shaper LUT,
-	// it may be shared with MPC - check MPC:shared_3d_lut flag
 	uint16_t hw_3d_lut : 1;
-	uint16_t ogam_ram : 1; // blnd gam
+	uint16_t ogam_ram : 1;
 	uint16_t ocsc : 1;
 	uint16_t dgam_rom_for_yuv : 1;
 	struct rom_curve_caps dgam_rom_caps;
 	struct rom_curve_caps ogam_rom_caps;
 };
 
+/**
+ * struct mpc_color_caps - color pipeline capabilities for multiple pipe and
+ * plane combined blocks
+ *
+ * @gamut_remap: color transformation matrix
+ * @ogam_ram: programmable out gamma LUT
+ * @ocsc: output color space conversion matrix
+ * @num_3dluts: MPC 3D LUT; always assumes a preceding shaper LUT
+ * @shared_3d_lut: shared 3D LUT flag. Can be either DPP or MPC, but single
+ * instance
+ * @ogam_rom_caps: pre-definied curve caps for regamma 1D LUT
+ */
 struct mpc_color_caps {
 	uint16_t gamut_remap : 1;
 	uint16_t ogam_ram : 1;
 	uint16_t ocsc : 1;
-	uint16_t num_3dluts : 3; //3d lut always assumes a preceding shaper LUT
-	uint16_t shared_3d_lut:1; //can be in either DPP or MPC, but single instance
-
+	uint16_t num_3dluts : 3;
+	uint16_t shared_3d_lut:1;
 	struct rom_curve_caps ogam_rom_caps;
 };
 
+/**
+ * struct dc_color_caps - color pipes capabilities for DPP and MPC hw blocks
+ * @dpp: color pipes caps for DPP
+ * @mpc: color pipes caps for MPC
+ */
 struct dc_color_caps {
 	struct dpp_color_caps dpp;
 	struct mpc_color_caps mpc;
@@ -344,16 +393,21 @@ struct dc_config {
 	bool disable_dmcu;
 	bool enable_4to1MPC;
 	bool enable_windowed_mpo_odm;
+	bool forceHBR2CP2520; // Used for switching between test patterns TPS4 and CP2520
 	uint32_t allow_edp_hotplug_detection;
 	bool clamp_min_dcfclk;
 	uint64_t vblank_alignment_dto_params;
 	uint8_t  vblank_alignment_max_frame_time_diff;
 	bool is_asymmetric_memory;
 	bool is_single_rank_dimm;
+	bool is_vmin_only_asic;
 	bool use_pipe_ctx_sync_logic;
 	bool ignore_dpref_ss;
 	bool enable_mipi_converter_optimization;
 	bool use_default_clock_table;
+	bool force_bios_enable_lttpr;
+	uint8_t force_bios_fixed_vs;
+
 };
 
 enum visual_confirm {
@@ -365,6 +419,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_SWAPCHAIN = 6,
 	VISUAL_CONFIRM_FAMS = 7,
 	VISUAL_CONFIRM_SWIZZLE = 9,
+	VISUAL_CONFIRM_SUBVP = 14,
 };
 
 enum dc_psr_power_opts {
@@ -386,9 +441,31 @@ enum dcc_option {
 	DCC_HALF_REQ_DISALBE = 2,
 };
 
+/**
+ * enum pipe_split_policy - Pipe split strategy supported by DCN
+ *
+ * This enum is used to define the pipe split policy supported by DCN. By
+ * default, DC favors MPC_SPLIT_DYNAMIC.
+ */
 enum pipe_split_policy {
+	/**
+	 * @MPC_SPLIT_DYNAMIC: DC will automatically decide how to split the
+	 * pipe in order to bring the best trade-off between performance and
+	 * power consumption. This is the recommended option.
+	 */
 	MPC_SPLIT_DYNAMIC = 0,
+
+	/**
+	 * @MPC_SPLIT_DYNAMIC: Avoid pipe split, which means that DC will not
+	 * try any sort of split optimization.
+	 */
 	MPC_SPLIT_AVOID = 1,
+
+	/**
+	 * @MPC_SPLIT_DYNAMIC: With this option, DC will only try to optimize
+	 * the pipe utilization when using a single display; if the user
+	 * connects to a second display, DC will avoid pipe split.
+	 */
 	MPC_SPLIT_AVOID_MULT_DISP = 2,
 };
 
@@ -416,9 +493,12 @@ enum dcn_zstate_support_state {
 	DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY,
 	DCN_ZSTATE_SUPPORT_DISALLOW,
 };
-/*
- * For any clocks that may differ per pipe
- * only the max is stored in this structure
+
+/**
+ * dc_clocks - DC pipe clocks
+ *
+ * For any clocks that may differ per pipe only the max is stored in this
+ * structure
  */
 struct dc_clocks {
 	int dispclk_khz;
@@ -445,6 +525,16 @@ struct dc_clocks {
 	bool prev_p_state_change_support;
 	bool fclk_prev_p_state_change_support;
 	int num_ways;
+
+	/**
+	 * @fw_based_mclk_switching
+	 *
+	 * DC has a mechanism that leverage the variable refresh rate to switch
+	 * memory clock in cases that we have a large latency to achieve the
+	 * memory clock change and a short vblank window. DC has some
+	 * requirements to enable this feature, and this field describes if the
+	 * system support or not such a feature.
+	 */
 	bool fw_based_mclk_switching;
 	bool fw_based_mclk_switching_shut_down;
 	int prev_num_ways;
@@ -623,6 +713,14 @@ struct dc_state;
 struct resource_pool;
 struct dce_hwseq;
 
+/**
+ * struct dc_debug_options - DC debug struct
+ *
+ * This struct provides a simple mechanism for developers to change some
+ * configurations, enable/disable features, and activate extra debug options.
+ * This can be very handy to narrow down whether some specific feature is
+ * causing an issue or not.
+ */
 struct dc_debug_options {
 	bool native422_support;
 	bool disable_dsc;
@@ -642,6 +740,11 @@ struct dc_debug_options {
 	bool disable_stutter;
 	bool use_max_lb;
 	enum dcc_option disable_dcc;
+
+	/**
+	 * @pipe_split_policy: Define which pipe split policy is used by the
+	 * display core.
+	 */
 	enum pipe_split_policy pipe_split_policy;
 	bool force_single_disp_pipe_split;
 	bool voltage_align_fclk;
@@ -673,7 +776,6 @@ struct dc_debug_options {
 	bool disable_mem_low_power;
 	bool pstate_enabled;
 	bool disable_dmcu;
-	bool disable_psr;
 	bool force_abm_enable;
 	bool disable_stereo_support;
 	bool vsr_support;
@@ -715,8 +817,6 @@ struct dc_debug_options {
 	bool validate_dml_output;
 	bool enable_dmcub_surface_flip;
 	bool usbc_combo_phy_reset_wa;
-	bool disable_dsc_edp;
-	unsigned int  force_dsc_edp_policy;
 	bool enable_dram_clock_change_one_display_vactive;
 	/* TODO - remove once tested */
 	bool legacy_dp2_lt;
@@ -732,7 +832,6 @@ struct dc_debug_options {
 	/* Enable dmub aux for legacy ddc */
 	bool enable_dmub_aux_for_legacy_ddc;
 	bool disable_fams;
-	bool optimize_edp_link_rate; /* eDP ILR */
 	/* FEC/PSR1 sequence enable delay in 100us */
 	uint8_t fec_enable_delay_in100us;
 	bool enable_driver_sequence_debug;
@@ -740,11 +839,14 @@ struct dc_debug_options {
 	int crb_alloc_policy_min_disp_count;
 	bool disable_z10;
 	bool enable_z9_disable_interface;
-	bool enable_sw_cntl_psr;
 	union dpia_debug_options dpia_debug;
 	bool disable_fixed_vs_aux_timeout_wa;
 	bool force_disable_subvp;
 	bool force_subvp_mclk_switch;
+	bool allow_sw_cursor_fallback;
+	unsigned int force_subvp_num_ways;
+	unsigned int force_mall_ss_num_ways;
+	bool alloc_extra_way_for_cursor;
 	bool force_usr_allow;
 	/* uses value at boot and disables switch */
 	bool disable_dtb_ref_clk_switch;
@@ -758,7 +860,10 @@ struct dc_debug_options {
 	bool use_legacy_soc_bb_mechanism;
 	bool exit_idle_opt_for_cursor_updates;
 	bool enable_single_display_2to1_odm_policy;
+	bool enable_double_buffered_dsc_pg_support;
 	bool enable_dp_dig_pixel_rate_div_policy;
+	enum lttpr_mode lttpr_mode_override;
+	unsigned int dsc_delay_factor_wa_x1000;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -814,6 +919,17 @@ struct dc {
 
 	uint32_t *dcn_reg_offsets;
 	uint32_t *nbio_reg_offsets;
+
+	/* Scratch memory */
+	struct {
+		struct {
+			/*
+			 * For matching clock_limits table in driver with table
+			 * from PMFW.
+			 */
+			struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
+		} update_bw_bounding_box;
+	} scratch;
 };
 
 enum frame_buffer_mode {
@@ -884,9 +1000,7 @@ void dc_init_callbacks(struct dc *dc,
 void dc_deinit_callbacks(struct dc *dc);
 void dc_destroy(struct dc **dc);
 
-/*******************************************************************************
- * Surface Interfaces
- ******************************************************************************/
+/* Surface Interfaces */
 
 enum {
 	TRANSFER_FUNC_POINTS = 1025
@@ -1017,6 +1131,7 @@ union surface_update_flags {
 		uint32_t clock_change:1;
 		uint32_t stereo_format_change:1;
 		uint32_t lut_3d:1;
+		uint32_t tmz_changed:1;
 		uint32_t full_update:1;
 	} bits;
 
@@ -1085,6 +1200,9 @@ struct dc_plane_state {
 	/* private to dc_surface.c */
 	enum dc_irq_source irq_source;
 	struct kref refcount;
+	struct tg_color visual_confirm_color;
+
+	bool is_statically_allocated;
 };
 
 struct dc_plane_info {
@@ -1161,12 +1279,23 @@ void dc_post_update_surfaces_to_stream(
 
 #include "dc_stream.h"
 
-/*
- * Structure to store surface/stream associations for validation
+/**
+ * struct dc_validation_set - Struct to store surface/stream associations for validation
  */
 struct dc_validation_set {
+	/**
+	 * @stream: Stream state properties
+	 */
 	struct dc_stream_state *stream;
+
+	/**
+	 * @plane_state: Surface state
+	 */
 	struct dc_plane_state *plane_states[MAX_SURFACES];
+
+	/**
+	 * @plane_count: Total of active planes
+	 */
 	uint8_t plane_count;
 };
 
@@ -1177,6 +1306,12 @@ bool dc_validate_boot_timing(const struct dc *dc,
 enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
 
 void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info);
+
+enum dc_status dc_validate_with_context(struct dc *dc,
+					const struct dc_validation_set set[],
+					int set_count,
+					struct dc_state *context,
+					bool fast_validate);
 
 bool dc_set_generic_gpio_for_stereo(bool enable,
 		struct gpio_service *gpio_service);
@@ -1213,15 +1348,12 @@ void dc_resource_state_destruct(struct dc_state *context);
 
 bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
 
-/*
- * TODO update to make it about validation sets
- * Set up streams and links associated to drive sinks
- * The streams parameter is an absolute set of all active streams.
- *
- * After this call:
- *   Phy, Encoder, Timing Generator are programmed and enabled.
- *   New streams are enabled with blank stream; no memory read.
- */
+enum dc_status dc_commit_streams(struct dc *dc,
+				 struct dc_stream_state *streams[],
+				 uint8_t stream_count);
+
+/* TODO: When the transition to the new commit sequence is done, remove this
+ * function in favor of dc_commit_streams. */
 bool dc_commit_state(struct dc *dc, struct dc_state *context);
 
 struct dc_state *dc_create_state(struct dc *dc);
@@ -1229,9 +1361,7 @@ struct dc_state *dc_copy_state(struct dc_state *src_ctx);
 void dc_retain_state(struct dc_state *context);
 void dc_release_state(struct dc_state *context);
 
-/*******************************************************************************
- * Link Interfaces
- ******************************************************************************/
+/* Link Interfaces */
 
 struct dpcd_caps {
 	union dpcd_rev dpcd_rev;
@@ -1333,9 +1463,7 @@ struct hdcp_caps {
 
 uint32_t dc_get_opp_for_plane(struct dc *dc, struct dc_plane_state *plane);
 
-/*******************************************************************************
- * Sink Interfaces - A sink corresponds to a display output device
- ******************************************************************************/
+/* Sink Interfaces - A sink corresponds to a display output device */
 
 struct dc_container_id {
 	// 128bit GUID in binary form
@@ -1418,9 +1546,7 @@ struct dc_cursor {
 };
 
 
-/*******************************************************************************
- * Interrupt interfaces
- ******************************************************************************/
+/* Interrupt interfaces */
 enum dc_irq_source dc_interrupt_to_irq_source(
 		struct dc *dc,
 		uint32_t src_id,
@@ -1432,9 +1558,7 @@ enum dc_irq_source dc_get_hpd_irq_source_at_index(
 
 void dc_notify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bool enable);
 
-/*******************************************************************************
- * Power Interfaces
- ******************************************************************************/
+/* Power Interfaces */
 
 void dc_set_power_state(
 		struct dc *dc,
@@ -1504,14 +1628,13 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 				uint8_t mst_alloc_slots,
 				uint8_t *mst_slots_in_use);
 
-/*******************************************************************************
- * DSC Interfaces
- ******************************************************************************/
+void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
+				uint32_t hpd_int_enable);
+
+/* DSC Interfaces */
 #include "dc_dsc.h"
 
-/*******************************************************************************
- * Disable acc mode Interfaces
- ******************************************************************************/
+/* Disable acc mode Interfaces */
 void dc_disable_accelerated_mode(struct dc *dc);
 
 #endif /* DC_INTERFACE_H_ */

@@ -32,10 +32,16 @@
 #define NVIF_CLASS_VMM_GM200                         /* ifb00d.h */  0x8000b00d
 #define NVIF_CLASS_VMM_GP100                         /* ifc00d.h */  0x8000c00d
 
+#define NVIF_CLASS_EVENT                             /* if000e.h */  0x8000000e
+
 #define NVIF_CLASS_DISP                              /* if0010.h */  0x80000010
 #define NVIF_CLASS_CONN                              /* if0011.h */  0x80000011
 #define NVIF_CLASS_OUTP                              /* if0012.h */  0x80000012
+#define NVIF_CLASS_HEAD                              /* if0013.h */  0x80000013
 #define NVIF_CLASS_DISP_CHAN                         /* if0014.h */  0x80000014
+
+#define NVIF_CLASS_CHAN                              /* if0020.h */  0x80000020
+#define NVIF_CLASS_CGRP                              /* if0021.h */  0x80000021
 
 /* the below match nvidia-assigned (either in hw, or sw) class numbers */
 #define NV_NULL_CLASS                                                0x00000030
@@ -58,25 +64,30 @@
 #define NV04_DISP                                     /* cl0046.h */ 0x00000046
 
 #define VOLTA_USERMODE_A                                             0x0000c361
+#define TURING_USERMODE_A                                            0x0000c461
+#define AMPERE_USERMODE_A                                            0x0000c561
 
 #define MAXWELL_FAULT_BUFFER_A                        /* clb069.h */ 0x0000b069
 #define VOLTA_FAULT_BUFFER_A                          /* clb069.h */ 0x0000c369
 
-#define NV03_CHANNEL_DMA                              /* cl506b.h */ 0x0000006b
-#define NV10_CHANNEL_DMA                              /* cl506b.h */ 0x0000006e
-#define NV17_CHANNEL_DMA                              /* cl506b.h */ 0x0000176e
-#define NV40_CHANNEL_DMA                              /* cl506b.h */ 0x0000406e
+#define NV03_CHANNEL_DMA                              /* if0020.h */ 0x0000006b
+#define NV10_CHANNEL_DMA                              /* if0020.h */ 0x0000006e
+#define NV17_CHANNEL_DMA                              /* if0020.h */ 0x0000176e
+#define NV40_CHANNEL_DMA                              /* if0020.h */ 0x0000406e
 
-#define NV50_CHANNEL_GPFIFO                           /* cl506f.h */ 0x0000506f
-#define G82_CHANNEL_GPFIFO                            /* cl826f.h */ 0x0000826f
-#define FERMI_CHANNEL_GPFIFO                          /* cl906f.h */ 0x0000906f
-#define KEPLER_CHANNEL_GPFIFO_A                       /* cla06f.h */ 0x0000a06f
-#define KEPLER_CHANNEL_GPFIFO_B                       /* cla06f.h */ 0x0000a16f
-#define MAXWELL_CHANNEL_GPFIFO_A                      /* cla06f.h */ 0x0000b06f
-#define PASCAL_CHANNEL_GPFIFO_A                       /* cla06f.h */ 0x0000c06f
-#define VOLTA_CHANNEL_GPFIFO_A                        /* clc36f.h */ 0x0000c36f
-#define TURING_CHANNEL_GPFIFO_A                       /* clc36f.h */ 0x0000c46f
-#define AMPERE_CHANNEL_GPFIFO_B                       /* clc36f.h */ 0x0000c76f
+#define KEPLER_CHANNEL_GROUP_A                        /* if0021.h */ 0x0000a06c
+
+#define NV50_CHANNEL_GPFIFO                           /* if0020.h */ 0x0000506f
+#define G82_CHANNEL_GPFIFO                            /* if0020.h */ 0x0000826f
+#define FERMI_CHANNEL_GPFIFO                          /* if0020.h */ 0x0000906f
+#define KEPLER_CHANNEL_GPFIFO_A                       /* if0020.h */ 0x0000a06f
+#define KEPLER_CHANNEL_GPFIFO_B                       /* if0020.h */ 0x0000a16f
+#define MAXWELL_CHANNEL_GPFIFO_A                      /* if0020.h */ 0x0000b06f
+#define PASCAL_CHANNEL_GPFIFO_A                       /* if0020.h */ 0x0000c06f
+#define VOLTA_CHANNEL_GPFIFO_A                        /* if0020.h */ 0x0000c36f
+#define TURING_CHANNEL_GPFIFO_A                       /* if0020.h */ 0x0000c46f
+#define AMPERE_CHANNEL_GPFIFO_A                       /* if0020.h */ 0x0000c56f
+#define AMPERE_CHANNEL_GPFIFO_B                       /* if0020.h */ 0x0000c76f
 
 #define NV50_DISP                                     /* if0010.h */ 0x00005070
 #define G82_DISP                                      /* if0010.h */ 0x00008270
@@ -179,6 +190,8 @@
 
 #define TURING_A                                      /* cl9097.h */ 0x0000c597
 
+#define AMPERE_B                                      /* cl9097.h */ 0x0000c797
+
 #define NV74_BSP                                                     0x000074b0
 
 #define GT212_MSVLD                                                  0x000085b1
@@ -206,6 +219,7 @@
 #define PASCAL_DMA_COPY_B                                            0x0000c1b5
 #define VOLTA_DMA_COPY_A                                             0x0000c3b5
 #define TURING_DMA_COPY_A                                            0x0000c5b5
+#define AMPERE_DMA_COPY_A                                            0x0000c6b5
 #define AMPERE_DMA_COPY_B                                            0x0000c7b5
 
 #define FERMI_DECOMPRESS                                             0x000090b8
@@ -222,6 +236,7 @@
 #define PASCAL_COMPUTE_B                                             0x0000c1c0
 #define VOLTA_COMPUTE_A                                              0x0000c3c0
 #define TURING_COMPUTE_A                                             0x0000c5c0
+#define AMPERE_COMPUTE_B                                             0x0000c7c0
 
 #define NV74_CIPHER                                                  0x000074c1
 #endif

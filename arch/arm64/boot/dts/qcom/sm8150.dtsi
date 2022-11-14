@@ -585,12 +585,6 @@
 		};
 	};
 
-	tcsr_mutex: hwlock {
-		compatible = "qcom,tcsr-mutex";
-		syscon = <&tcsr_mutex_regs 0 0x1000>;
-		#hwlock-cells = <1>;
-	};
-
 	memory@80000000 {
 		device_type = "memory";
 		/* We expect the bootloader to fill in the size */
@@ -2054,9 +2048,15 @@
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
-		tcsr_mutex_regs: syscon@1f40000 {
-			compatible = "syscon";
-			reg = <0x0 0x01f40000 0x0 0x40000>;
+		tcsr_mutex: hwlock@1f40000 {
+			compatible = "qcom,tcsr-mutex";
+			reg = <0x0 0x01f40000 0x0 0x20000>;
+			#hwlock-cells = <1>;
+		};
+
+		tcsr_regs_1: syscon@1f60000 {
+			compatible = "qcom,sm8150-tcsr", "syscon";
+			reg = <0x0 0x01f60000 0x0 0x20000>;
 		};
 
 		remoteproc_slpi: remoteproc@2400000 {
@@ -3394,57 +3394,49 @@
 					compute-cb@1 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <1>;
-						iommus = <&apps_smmu 0x1401 0x2040>,
-							 <&apps_smmu 0x1421 0x0>,
-							 <&apps_smmu 0x2001 0x420>,
-							 <&apps_smmu 0x2041 0x0>;
+						iommus = <&apps_smmu 0x1001 0x0460>;
 					};
 
 					compute-cb@2 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <2>;
-						iommus = <&apps_smmu 0x2 0x3440>,
-							 <&apps_smmu 0x22 0x3400>;
+						iommus = <&apps_smmu 0x1002 0x0460>;
 					};
 
 					compute-cb@3 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <3>;
-						iommus = <&apps_smmu 0x3 0x3440>,
-							 <&apps_smmu 0x1423 0x0>,
-							 <&apps_smmu 0x2023 0x0>;
+						iommus = <&apps_smmu 0x1003 0x0460>;
 					};
 
 					compute-cb@4 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <4>;
-						iommus = <&apps_smmu 0x4 0x3440>,
-							 <&apps_smmu 0x24 0x3400>;
+						iommus = <&apps_smmu 0x1004 0x0460>;
 					};
 
 					compute-cb@5 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <5>;
-						iommus = <&apps_smmu 0x5 0x3440>,
-							 <&apps_smmu 0x25 0x3400>;
+						iommus = <&apps_smmu 0x1005 0x0460>;
 					};
 
 					compute-cb@6 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <6>;
-						iommus = <&apps_smmu 0x6 0x3460>;
+						iommus = <&apps_smmu 0x1006 0x0460>;
 					};
 
 					compute-cb@7 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <7>;
-						iommus = <&apps_smmu 0x7 0x3460>;
+						iommus = <&apps_smmu 0x1007 0x0460>;
 					};
 
 					compute-cb@8 {
 						compatible = "qcom,fastrpc-compute-cb";
 						reg = <8>;
-						iommus = <&apps_smmu 0x8 0x3460>;
+						iommus = <&apps_smmu 0x1008 0x0460>;
 					};
 
 					/* note: secure cb9 in downstream */

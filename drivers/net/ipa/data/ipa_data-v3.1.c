@@ -526,7 +526,7 @@ static const struct ipa_power_data ipa_power_data = {
 /* Configuration data for an SoC having IPA v3.1 */
 const struct ipa_data ipa_data_v3_1 = {
 	.version	= IPA_VERSION_3_1,
-	.backward_compat = BCR_CMDQ_L_LACK_ONE_ENTRY_FMASK,
+	.backward_compat = BIT(BCR_CMDQ_L_LACK_ONE_ENTRY),
 	.qsb_count	= ARRAY_SIZE(ipa_qsb_data),
 	.qsb_data	= ipa_qsb_data,
 	.endpoint_count	= ARRAY_SIZE(ipa_gsi_endpoint_data),

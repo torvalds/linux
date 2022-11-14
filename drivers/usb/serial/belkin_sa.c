@@ -44,7 +44,8 @@ static void belkin_sa_close(struct usb_serial_port *port);
 static void belkin_sa_read_int_callback(struct urb *urb);
 static void belkin_sa_process_read_urb(struct urb *urb);
 static void belkin_sa_set_termios(struct tty_struct *tty,
-			struct usb_serial_port *port, struct ktermios * old);
+				  struct usb_serial_port *port,
+				  const struct ktermios *old_termios);
 static void belkin_sa_break_ctl(struct tty_struct *tty, int break_state);
 static int  belkin_sa_tiocmget(struct tty_struct *tty);
 static int  belkin_sa_tiocmset(struct tty_struct *tty,
@@ -273,7 +274,8 @@ static void belkin_sa_process_read_urb(struct urb *urb)
 }
 
 static void belkin_sa_set_termios(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ktermios *old_termios)
+				  struct usb_serial_port *port,
+				  const struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	struct belkin_sa_private *priv = usb_get_serial_port_data(port);

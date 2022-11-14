@@ -2,13 +2,19 @@
 /* Copyright (C) 2020 MediaTek Inc. */
 
 #include <linux/fs.h>
+#include <linux/firmware.h>
 #include "mt7921.h"
 #include "mt7921_trace.h"
+#include "eeprom.h"
 #include "mcu.h"
 #include "mac.h"
 
 #define MT_STA_BFER			BIT(0)
 #define MT_STA_BFEE			BIT(1)
+
+static bool mt7921_disable_clc;
+module_param_named(disable_clc, mt7921_disable_clc, bool, 0644);
+MODULE_PARM_DESC(disable_clc, "disable CLC support");
 
 static int
 mt7921_mcu_parse_eeprom(struct mt76_dev *dev, struct sk_buff *skb)
@@ -83,6 +89,27 @@ int mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mt7921_mcu_parse_response);
+
+static int mt7921_mcu_read_eeprom(struct mt7921_dev *dev, u32 offset, u8 *val)
+{
+	struct mt7921_mcu_eeprom_info *res, req = {
+		.addr = cpu_to_le32(round_down(offset,
+				    MT7921_EEPROM_BLOCK_SIZE)),
+	};
+	struct sk_buff *skb;
+	int ret;
+
+	ret = mt76_mcu_send_and_get_msg(&dev->mt76, MCU_EXT_QUERY(EFUSE_ACCESS),
+					&req, sizeof(req), true, &skb);
+	if (ret)
+		return ret;
+
+	res = (struct mt7921_mcu_eeprom_info *)skb->data;
+	*val = res->data[offset % MT7921_EEPROM_BLOCK_SIZE];
+	dev_kfree_skb(skb);
+
+	return 0;
+}
 
 #ifdef CONFIG_PM
 
@@ -354,6 +381,90 @@ static char *mt7921_ram_name(struct mt7921_dev *dev)
 	return ret;
 }
 
+static int mt7921_load_clc(struct mt7921_dev *dev, const char *fw_name)
+{
+	const struct mt76_connac2_fw_trailer *hdr;
+	const struct mt76_connac2_fw_region *region;
+	const struct mt7921_clc *clc;
+	struct mt76_dev *mdev = &dev->mt76;
+	struct mt7921_phy *phy = &dev->phy;
+	const struct firmware *fw;
+	int ret, i, len, offset = 0;
+	u8 *clc_base = NULL, hw_encap = 0;
+
+	if (mt7921_disable_clc ||
+	    mt76_is_usb(&dev->mt76))
+		return 0;
+
+	if (mt76_is_mmio(&dev->mt76)) {
+		ret = mt7921_mcu_read_eeprom(dev, MT_EE_HW_TYPE, &hw_encap);
+		if (ret)
+			return ret;
+		hw_encap = u8_get_bits(hw_encap, MT_EE_HW_TYPE_ENCAP);
+	}
+
+	ret = request_firmware(&fw, fw_name, mdev->dev);
+	if (ret)
+		return ret;
+
+	if (!fw || !fw->data || fw->size < sizeof(*hdr)) {
+		dev_err(mdev->dev, "Invalid firmware\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	hdr = (const void *)(fw->data + fw->size - sizeof(*hdr));
+	for (i = 0; i < hdr->n_region; i++) {
+		region = (const void *)((const u8 *)hdr -
+					(hdr->n_region - i) * sizeof(*region));
+		len = le32_to_cpu(region->len);
+
+		/* check if we have valid buffer size */
+		if (offset + len > fw->size) {
+			dev_err(mdev->dev, "Invalid firmware region\n");
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if ((region->feature_set & FW_FEATURE_NON_DL) &&
+		    region->type == FW_TYPE_CLC) {
+			clc_base = (u8 *)(fw->data + offset);
+			break;
+		}
+		offset += len;
+	}
+
+	if (!clc_base)
+		goto out;
+
+	for (offset = 0; offset < len; offset += le32_to_cpu(clc->len)) {
+		clc = (const struct mt7921_clc *)(clc_base + offset);
+
+		/* do not init buf again if chip reset triggered */
+		if (phy->clc[clc->idx])
+			continue;
+
+		/* header content sanity */
+		if (clc->idx == MT7921_CLC_POWER &&
+		    u8_get_bits(clc->type, MT_EE_HW_TYPE_ENCAP) != hw_encap)
+			continue;
+
+		phy->clc[clc->idx] = devm_kmemdup(mdev->dev, clc,
+						  le32_to_cpu(clc->len),
+						  GFP_KERNEL);
+
+		if (!phy->clc[clc->idx]) {
+			ret = -ENOMEM;
+			goto out;
+		}
+	}
+	ret = mt7921_mcu_set_clc(dev, "00", ENVIRON_INDOOR);
+out:
+	release_firmware(fw);
+
+	return ret;
+}
+
 static int mt7921_load_firmware(struct mt7921_dev *dev)
 {
 	int ret;
@@ -423,6 +534,10 @@ int mt7921_run_firmware(struct mt7921_dev *dev)
 		return err;
 
 	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
+	err = mt7921_load_clc(dev, mt7921_ram_name(dev));
+	if (err)
+		return err;
+
 	return mt7921_mcu_fw_log_2_host(dev, 1);
 }
 EXPORT_SYMBOL_GPL(mt7921_run_firmware);
@@ -929,4 +1044,87 @@ mt7921_mcu_uni_add_beacon_offload(struct mt7921_dev *dev,
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_UNI_CMD(BSS_INFO_UPDATE),
 				 &req, sizeof(req), true);
+}
+
+static
+int __mt7921_mcu_set_clc(struct mt7921_dev *dev, u8 *alpha2,
+			 enum environment_cap env_cap,
+			 struct mt7921_clc *clc,
+			 u8 idx)
+{
+	struct sk_buff *skb;
+	struct {
+		u8 ver;
+		u8 pad0;
+		__le16 len;
+		u8 idx;
+		u8 env;
+		u8 pad1[2];
+		u8 alpha2[2];
+		u8 type[2];
+		u8 rsvd[64];
+	} __packed req = {
+		.idx = idx,
+		.env = env_cap,
+	};
+	int ret, valid_cnt = 0;
+	u8 i, *pos;
+
+	if (!clc)
+		return 0;
+
+	pos = clc->data;
+	for (i = 0; i < clc->nr_country; i++) {
+		struct mt7921_clc_rule *rule = (struct mt7921_clc_rule *)pos;
+		u16 len = le16_to_cpu(rule->len);
+
+		pos += len + sizeof(*rule);
+		if (rule->alpha2[0] != alpha2[0] ||
+		    rule->alpha2[1] != alpha2[1])
+			continue;
+
+		memcpy(req.alpha2, rule->alpha2, 2);
+		memcpy(req.type, rule->type, 2);
+
+		req.len = cpu_to_le16(sizeof(req) + len);
+		skb = __mt76_mcu_msg_alloc(&dev->mt76, &req,
+					   le16_to_cpu(req.len),
+					   sizeof(req), GFP_KERNEL);
+		if (!skb)
+			return -ENOMEM;
+		skb_put_data(skb, rule->data, len);
+
+		ret = mt76_mcu_skb_send_msg(&dev->mt76, skb,
+					    MCU_CE_CMD(SET_CLC), false);
+		if (ret < 0)
+			return ret;
+		valid_cnt++;
+	}
+
+	if (!valid_cnt)
+		return -ENOENT;
+
+	return 0;
+}
+
+int mt7921_mcu_set_clc(struct mt7921_dev *dev, u8 *alpha2,
+		       enum environment_cap env_cap)
+{
+	struct mt7921_phy *phy = (struct mt7921_phy *)&dev->phy;
+	int i, ret;
+
+	/* submit all clc config */
+	for (i = 0; i < ARRAY_SIZE(phy->clc); i++) {
+		ret = __mt7921_mcu_set_clc(dev, alpha2, env_cap,
+					   phy->clc[i], i);
+
+		/* If no country found, set "00" as default */
+		if (ret == -ENOENT)
+			ret = __mt7921_mcu_set_clc(dev, "00",
+						   ENVIRON_INDOOR,
+						   phy->clc[i], i);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
 }

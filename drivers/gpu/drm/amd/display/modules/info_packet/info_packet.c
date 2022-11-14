@@ -132,7 +132,8 @@ enum ColorimetryYCCDP {
 
 void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 		struct dc_info_packet *info_packet,
-		enum dc_color_space cs)
+		enum dc_color_space cs,
+		enum color_transfer_func tf)
 {
 	unsigned int vsc_packet_revision = vsc_packet_undefined;
 	unsigned int i;
@@ -382,6 +383,9 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 				colorimetryFormat = ColorimetryYCC_DP_AdobeYCC;
 			else if (cs == COLOR_SPACE_2020_YCBCR)
 				colorimetryFormat = ColorimetryYCC_DP_ITU2020YCbCr;
+
+			if (cs == COLOR_SPACE_2020_YCBCR && tf == TRANSFER_FUNC_GAMMA_22)
+				colorimetryFormat = ColorimetryYCC_DP_ITU709;
 			break;
 
 		default:

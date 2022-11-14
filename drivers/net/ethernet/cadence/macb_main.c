@@ -38,6 +38,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/ptp_classify.h>
 #include <linux/reset.h>
+#include <linux/firmware/xlnx-zynqmp.h>
 #include "macb.h"
 
 /* This structure is only used for MACB on SiFive FU540 devices */
@@ -3977,8 +3978,8 @@ static int macb_init(struct platform_device *pdev)
 		queue = &bp->queues[q];
 		queue->bp = bp;
 		spin_lock_init(&queue->tx_ptr_lock);
-		netif_napi_add(dev, &queue->napi_rx, macb_rx_poll, NAPI_POLL_WEIGHT);
-		netif_napi_add(dev, &queue->napi_tx, macb_tx_poll, NAPI_POLL_WEIGHT);
+		netif_napi_add(dev, &queue->napi_rx, macb_rx_poll);
+		netif_napi_add(dev, &queue->napi_tx, macb_tx_poll);
 		if (hw_q) {
 			queue->ISR  = GEM_ISR(hw_q - 1);
 			queue->IER  = GEM_IER(hw_q - 1);
@@ -4621,6 +4622,25 @@ static int init_reset_optional(struct platform_device *pdev)
 					     "failed to init SGMII PHY\n");
 	}
 
+	ret = zynqmp_pm_is_function_supported(PM_IOCTL, IOCTL_SET_GEM_CONFIG);
+	if (!ret) {
+		u32 pm_info[2];
+
+		ret = of_property_read_u32_array(pdev->dev.of_node, "power-domains",
+						 pm_info, ARRAY_SIZE(pm_info));
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to read power management information\n");
+			goto err_out_phy_exit;
+		}
+		ret = zynqmp_pm_set_gem_config(pm_info[1], GEM_CONFIG_FIXED, 0);
+		if (ret)
+			goto err_out_phy_exit;
+
+		ret = zynqmp_pm_set_gem_config(pm_info[1], GEM_CONFIG_SGMII_MODE, 1);
+		if (ret)
+			goto err_out_phy_exit;
+	}
+
 	/* Fully reset controller at hardware level if mapped in device tree */
 	ret = device_reset_optional(&pdev->dev);
 	if (ret) {
@@ -4629,6 +4649,8 @@ static int init_reset_optional(struct platform_device *pdev)
 	}
 
 	ret = macb_init(pdev);
+
+err_out_phy_exit:
 	if (ret)
 		phy_exit(bp->sgmii_phy);
 
@@ -5109,6 +5131,7 @@ static int __maybe_unused macb_suspend(struct device *dev)
 	if (!(bp->wol & MACB_WOL_ENABLED)) {
 		rtnl_lock();
 		phylink_stop(bp->phylink);
+		phy_exit(bp->sgmii_phy);
 		rtnl_unlock();
 		spin_lock_irqsave(&bp->lock, flags);
 		macb_reset_hw(bp);
@@ -5198,6 +5221,9 @@ static int __maybe_unused macb_resume(struct device *dev)
 	macb_set_rx_mode(netdev);
 	macb_restore_features(bp);
 	rtnl_lock();
+	if (!device_may_wakeup(&bp->dev->dev))
+		phy_init(bp->sgmii_phy);
+
 	phylink_start(bp->phylink);
 	rtnl_unlock();
 

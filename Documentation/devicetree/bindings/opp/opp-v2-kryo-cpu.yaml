@@ -40,6 +40,7 @@ properties:
 patternProperties:
   '^opp-?[0-9]+$':
     type: object
+    additionalProperties: false
 
     properties:
       opp-hz: true

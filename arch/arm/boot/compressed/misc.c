@@ -23,7 +23,9 @@ unsigned int __machine_arch_type;
 #include <linux/types.h>
 #include <linux/linkage.h>
 #include "misc.h"
+#ifdef CONFIG_ARCH_EP93XX
 #include "misc-ep93xx.h"
+#endif
 
 static void putstr(const char *ptr);
 

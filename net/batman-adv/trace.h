@@ -9,8 +9,6 @@
 
 #include "main.h"
 
-#include <linux/bug.h>
-#include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/percpu.h>
 #include <linux/printk.h>

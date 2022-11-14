@@ -1249,14 +1249,12 @@ static int rt286_i2c_probe(struct i2c_client *i2c)
 	return ret;
 }
 
-static int rt286_i2c_remove(struct i2c_client *i2c)
+static void rt286_i2c_remove(struct i2c_client *i2c)
 {
 	struct rt286_priv *rt286 = i2c_get_clientdata(i2c);
 
 	if (i2c->irq)
 		free_irq(i2c->irq, rt286);
-
-	return 0;
 }
 
 

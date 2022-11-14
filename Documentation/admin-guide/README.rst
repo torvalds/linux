@@ -1,9 +1,9 @@
 .. _readme:
 
-Linux kernel release 5.x <http://kernel.org/>
+Linux kernel release 6.x <http://kernel.org/>
 =============================================
 
-These are the release notes for Linux version 5.  Read them carefully,
+These are the release notes for Linux version 6.  Read them carefully,
 as they tell you what this is all about, explain how to install the
 kernel, and what to do if something goes wrong.
 
@@ -63,7 +63,7 @@ Installing the kernel source
    directory where you have permissions (e.g. your home directory) and
    unpack it::
 
-     xz -cd linux-5.x.tar.xz | tar xvf -
+     xz -cd linux-6.x.tar.xz | tar xvf -
 
    Replace "X" with the version number of the latest kernel.
 
@@ -72,12 +72,12 @@ Installing the kernel source
    files.  They should match the library, and not get messed up by
    whatever the kernel-du-jour happens to be.
 
- - You can also upgrade between 5.x releases by patching.  Patches are
+ - You can also upgrade between 6.x releases by patching.  Patches are
    distributed in the xz format.  To install by patching, get all the
    newer patch files, enter the top level directory of the kernel source
-   (linux-5.x) and execute::
+   (linux-6.x) and execute::
 
-     xz -cd ../patch-5.x.xz | patch -p1
+     xz -cd ../patch-6.x.xz | patch -p1
 
    Replace "x" for all versions bigger than the version "x" of your current
    source tree, **in_order**, and you should be ok.  You may want to remove
@@ -85,13 +85,13 @@ Installing the kernel source
    that there are no failed patches (some-file-name# or some-file-name.rej).
    If there are, either you or I have made a mistake.
 
-   Unlike patches for the 5.x kernels, patches for the 5.x.y kernels
+   Unlike patches for the 6.x kernels, patches for the 6.x.y kernels
    (also known as the -stable kernels) are not incremental but instead apply
-   directly to the base 5.x kernel.  For example, if your base kernel is 5.0
-   and you want to apply the 5.0.3 patch, you must not first apply the 5.0.1
-   and 5.0.2 patches. Similarly, if you are running kernel version 5.0.2 and
-   want to jump to 5.0.3, you must first reverse the 5.0.2 patch (that is,
-   patch -R) **before** applying the 5.0.3 patch. You can read more on this in
+   directly to the base 6.x kernel.  For example, if your base kernel is 6.0
+   and you want to apply the 6.0.3 patch, you must not first apply the 6.0.1
+   and 6.0.2 patches. Similarly, if you are running kernel version 6.0.2 and
+   want to jump to 6.0.3, you must first reverse the 6.0.2 patch (that is,
+   patch -R) **before** applying the 6.0.3 patch. You can read more on this in
    :ref:`Documentation/process/applying-patches.rst <applying_patches>`.
 
    Alternatively, the script patch-kernel can be used to automate this
@@ -114,7 +114,7 @@ Installing the kernel source
 Software requirements
 ---------------------
 
-   Compiling and running the 5.x kernels requires up-to-date
+   Compiling and running the 6.x kernels requires up-to-date
    versions of various software packages.  Consult
    :ref:`Documentation/process/changes.rst <changes>` for the minimum version numbers
    required and how to get updates for these packages.  Beware that using
@@ -132,12 +132,12 @@ Build directory for the kernel
    place for the output files (including .config).
    Example::
 
-     kernel source code: /usr/src/linux-5.x
+     kernel source code: /usr/src/linux-6.x
      build directory:    /home/name/build/kernel
 
    To configure and build the kernel, use::
 
-     cd /usr/src/linux-5.x
+     cd /usr/src/linux-6.x
      make O=/home/name/build/kernel menuconfig
      make O=/home/name/build/kernel
      sudo make O=/home/name/build/kernel modules_install install
@@ -262,8 +262,6 @@ Compiling the kernel
  - Make sure you have at least gcc 5.1 available.
    For more information, refer to :ref:`Documentation/process/changes.rst <changes>`.
 
-   Please note that you can still run a.out user programs with this kernel.
-
  - Do a ``make`` to create a compressed kernel image. It is also
    possible to do ``make install`` if you have lilo installed to suit the
    kernel makefiles, but you may want to check your particular lilo setup first.
@@ -332,85 +330,10 @@ Compiling the kernel
 If something goes wrong
 -----------------------
 
- - If you have problems that seem to be due to kernel bugs, please check
-   the file MAINTAINERS to see if there is a particular person associated
-   with the part of the kernel that you are having trouble with. If there
-   isn't anyone listed there, then the second best thing is to mail
-   them to me (torvalds@linux-foundation.org), and possibly to any other
-   relevant mailing-list or to the newsgroup.
+If you have problems that seem to be due to kernel bugs, please follow the
+instructions at 'Documentation/admin-guide/reporting-issues.rst'.
 
- - In all bug-reports, *please* tell what kernel you are talking about,
-   how to duplicate the problem, and what your setup is (use your common
-   sense).  If the problem is new, tell me so, and if the problem is
-   old, please try to tell me when you first noticed it.
-
- - If the bug results in a message like::
-
-     unable to handle kernel paging request at address C0000010
-     Oops: 0002
-     EIP:   0010:XXXXXXXX
-     eax: xxxxxxxx   ebx: xxxxxxxx   ecx: xxxxxxxx   edx: xxxxxxxx
-     esi: xxxxxxxx   edi: xxxxxxxx   ebp: xxxxxxxx
-     ds: xxxx  es: xxxx  fs: xxxx  gs: xxxx
-     Pid: xx, process nr: xx
-     xx xx xx xx xx xx xx xx xx xx
-
-   or similar kernel debugging information on your screen or in your
-   system log, please duplicate it *exactly*.  The dump may look
-   incomprehensible to you, but it does contain information that may
-   help debugging the problem.  The text above the dump is also
-   important: it tells something about why the kernel dumped code (in
-   the above example, it's due to a bad kernel pointer). More information
-   on making sense of the dump is in Documentation/admin-guide/bug-hunting.rst
-
- - If you compiled the kernel with CONFIG_KALLSYMS you can send the dump
-   as is, otherwise you will have to use the ``ksymoops`` program to make
-   sense of the dump (but compiling with CONFIG_KALLSYMS is usually preferred).
-   This utility can be downloaded from
-   https://www.kernel.org/pub/linux/utils/kernel/ksymoops/ .
-   Alternatively, you can do the dump lookup by hand:
-
- - In debugging dumps like the above, it helps enormously if you can
-   look up what the EIP value means.  The hex value as such doesn't help
-   me or anybody else very much: it will depend on your particular
-   kernel setup.  What you should do is take the hex value from the EIP
-   line (ignore the ``0010:``), and look it up in the kernel namelist to
-   see which kernel function contains the offending address.
-
-   To find out the kernel function name, you'll need to find the system
-   binary associated with the kernel that exhibited the symptom.  This is
-   the file 'linux/vmlinux'.  To extract the namelist and match it against
-   the EIP from the kernel crash, do::
-
-     nm vmlinux | sort | less
-
-   This will give you a list of kernel addresses sorted in ascending
-   order, from which it is simple to find the function that contains the
-   offending address.  Note that the address given by the kernel
-   debugging messages will not necessarily match exactly with the
-   function addresses (in fact, that is very unlikely), so you can't
-   just 'grep' the list: the list will, however, give you the starting
-   point of each kernel function, so by looking for the function that
-   has a starting address lower than the one you are searching for but
-   is followed by a function with a higher address you will find the one
-   you want.  In fact, it may be a good idea to include a bit of
-   "context" in your problem report, giving a few lines around the
-   interesting one.
-
-   If you for some reason cannot do the above (you have a pre-compiled
-   kernel image or similar), telling me as much about your setup as
-   possible will help.  Please read
-   'Documentation/admin-guide/reporting-issues.rst' for details.
-
- - Alternatively, you can use gdb on a running kernel. (read-only; i.e. you
-   cannot change values or set break points.) To do this, first compile the
-   kernel with -g; edit arch/x86/Makefile appropriately, then do a ``make
-   clean``. You'll also need to enable CONFIG_PROC_FS (via ``make config``).
-
-   After you've rebooted with the new kernel, do ``gdb vmlinux /proc/kcore``.
-   You can now use all the usual gdb commands. The command to look up the
-   point where your system crashed is ``l *0xXXXXXXXX``. (Replace the XXXes
-   with the EIP value.)
-
-   gdb'ing a non-running kernel currently fails because ``gdb`` (wrongly)
-   disregards the starting offset for which the kernel is compiled.
+Hints on understanding kernel bug reports are in
+'Documentation/admin-guide/bug-hunting.rst'. More on debugging the kernel
+with gdb is in 'Documentation/dev-tools/gdb-kernel-debugging.rst' and
+'Documentation/dev-tools/kgdb.rst'.

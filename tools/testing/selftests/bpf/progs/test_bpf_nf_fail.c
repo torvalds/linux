@@ -70,6 +70,20 @@ int lookup_insert(struct __sk_buff *ctx)
 }
 
 SEC("?tc")
+int write_not_allowlisted_field(struct __sk_buff *ctx)
+{
+	struct bpf_ct_opts___local opts = {};
+	struct bpf_sock_tuple tup = {};
+	struct nf_conn *ct;
+
+	ct = bpf_skb_ct_lookup(ctx, &tup, sizeof(tup.ipv4), &opts, sizeof(opts));
+	if (!ct)
+		return 0;
+	ct->status = 0xF00;
+	return 0;
+}
+
+SEC("?tc")
 int set_timeout_after_insert(struct __sk_buff *ctx)
 {
 	struct bpf_ct_opts___local opts = {};

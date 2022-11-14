@@ -796,7 +796,7 @@ static void mptcp_pm_nl_rm_addr_or_subflow(struct mptcp_sock *msk,
 		u8 rm_id = rm_list->ids[i];
 		bool removed = false;
 
-		list_for_each_entry_safe(subflow, tmp, &msk->conn_list, node) {
+		mptcp_for_each_subflow_safe(msk, subflow, tmp) {
 			struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
 			int how = RCV_SHUTDOWN | SEND_SHUTDOWN;
 			u8 id = subflow->local_id;
@@ -1327,7 +1327,7 @@ static int mptcp_nl_cmd_add_addr(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 	}
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL_ACCOUNT);
 	if (!entry) {
 		GENL_SET_ERR_MSG(info, "can't allocate addr");
 		return -ENOMEM;
@@ -2218,17 +2218,17 @@ static const struct genl_small_ops mptcp_pm_ops[] = {
 	{
 		.cmd    = MPTCP_PM_CMD_ADD_ADDR,
 		.doit   = mptcp_nl_cmd_add_addr,
-		.flags  = GENL_ADMIN_PERM,
+		.flags  = GENL_UNS_ADMIN_PERM,
 	},
 	{
 		.cmd    = MPTCP_PM_CMD_DEL_ADDR,
 		.doit   = mptcp_nl_cmd_del_addr,
-		.flags  = GENL_ADMIN_PERM,
+		.flags  = GENL_UNS_ADMIN_PERM,
 	},
 	{
 		.cmd    = MPTCP_PM_CMD_FLUSH_ADDRS,
 		.doit   = mptcp_nl_cmd_flush_addrs,
-		.flags  = GENL_ADMIN_PERM,
+		.flags  = GENL_UNS_ADMIN_PERM,
 	},
 	{
 		.cmd    = MPTCP_PM_CMD_GET_ADDR,
@@ -2238,7 +2238,7 @@ static const struct genl_small_ops mptcp_pm_ops[] = {
 	{
 		.cmd    = MPTCP_PM_CMD_SET_LIMITS,
 		.doit   = mptcp_nl_cmd_set_limits,
-		.flags  = GENL_ADMIN_PERM,
+		.flags  = GENL_UNS_ADMIN_PERM,
 	},
 	{
 		.cmd    = MPTCP_PM_CMD_GET_LIMITS,
@@ -2247,27 +2247,27 @@ static const struct genl_small_ops mptcp_pm_ops[] = {
 	{
 		.cmd    = MPTCP_PM_CMD_SET_FLAGS,
 		.doit   = mptcp_nl_cmd_set_flags,
-		.flags  = GENL_ADMIN_PERM,
+		.flags  = GENL_UNS_ADMIN_PERM,
 	},
 	{
 		.cmd    = MPTCP_PM_CMD_ANNOUNCE,
 		.doit   = mptcp_nl_cmd_announce,
-		.flags  = GENL_ADMIN_PERM,
+		.flags  = GENL_UNS_ADMIN_PERM,
 	},
 	{
 		.cmd    = MPTCP_PM_CMD_REMOVE,
 		.doit   = mptcp_nl_cmd_remove,
-		.flags  = GENL_ADMIN_PERM,
+		.flags  = GENL_UNS_ADMIN_PERM,
 	},
 	{
 		.cmd    = MPTCP_PM_CMD_SUBFLOW_CREATE,
 		.doit   = mptcp_nl_cmd_sf_create,
-		.flags  = GENL_ADMIN_PERM,
+		.flags  = GENL_UNS_ADMIN_PERM,
 	},
 	{
 		.cmd    = MPTCP_PM_CMD_SUBFLOW_DESTROY,
 		.doit   = mptcp_nl_cmd_sf_destroy,
-		.flags  = GENL_ADMIN_PERM,
+		.flags  = GENL_UNS_ADMIN_PERM,
 	},
 };
 
@@ -2280,6 +2280,7 @@ static struct genl_family mptcp_genl_family __ro_after_init = {
 	.module		= THIS_MODULE,
 	.small_ops	= mptcp_pm_ops,
 	.n_small_ops	= ARRAY_SIZE(mptcp_pm_ops),
+	.resv_start_op	= MPTCP_PM_CMD_SUBFLOW_DESTROY + 1,
 	.mcgrps		= mptcp_pm_mcgrps,
 	.n_mcgrps	= ARRAY_SIZE(mptcp_pm_mcgrps),
 };

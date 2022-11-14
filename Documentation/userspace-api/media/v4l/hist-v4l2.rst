@@ -316,7 +316,7 @@ This unnamed version was finally merged into Linux 2.5.46.
     There are new fields to identify the driver, a new RDS device
     function ``V4L2_CAP_RDS_CAPTURE``, the ``V4L2_CAP_AUDIO`` flag
     indicates if the device has any audio connectors, another I/O
-    capability ``V4L2_CAP_ASYNCIO`` can be flagged. In response to these
+    capability V4L2_CAP_ASYNCIO can be flagged. In response to these
     changes the ``type`` field became a bit set and was merged into the
     ``flags`` field. ``V4L2_FLAG_TUNER`` was renamed to
     ``V4L2_CAP_TUNER``, ``V4L2_CAP_VIDEO_OVERLAY`` replaced

@@ -991,7 +991,7 @@ static bool pardon_reg(struct drm_i915_private *i915, i915_reg_t reg)
 	/* Alas, we must pardon some whitelists. Mistakes already made */
 	static const struct regmask pardon[] = {
 		{ GEN9_CTX_PREEMPT_REG, 9 },
-		{ GEN8_L3SQCREG4, 9 },
+		{ _MMIO(0xb118), 9 }, /* GEN8_L3SQCREG4 */
 	};
 
 	return find_reg(i915, reg, pardon, ARRAY_SIZE(pardon));
