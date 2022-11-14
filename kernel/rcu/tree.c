@@ -2057,7 +2057,7 @@ static void rcu_do_batch(struct rcu_data *rdp)
 	 */
 	rcu_nocb_lock_irqsave(rdp, flags);
 	WARN_ON_ONCE(cpu_is_offline(smp_processor_id()));
-	pending = rcu_segcblist_n_cbs(&rdp->cblist);
+	pending = rcu_segcblist_get_seglen(&rdp->cblist, RCU_DONE_TAIL);
 	div = READ_ONCE(rcu_divisor);
 	div = div < 0 ? 7 : div > sizeof(long) * 8 - 2 ? sizeof(long) * 8 - 2 : div;
 	bl = max(rdp->blimit, pending >> div);
