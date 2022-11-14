@@ -208,6 +208,8 @@ struct netns_ipv4 {
 
 	atomic_t dev_addr_genid;
 
+	unsigned int sysctl_udp_child_hash_entries;
+
 #ifdef CONFIG_SYSCTL
 	unsigned long *sysctl_local_reserved_ports;
 	int sysctl_ip_prot_sock;

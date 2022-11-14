@@ -129,7 +129,7 @@ DEFINE_PER_CPU(int, udp_memory_per_cpu_fw_alloc);
 EXPORT_PER_CPU_SYMBOL_GPL(udp_memory_per_cpu_fw_alloc);
 
 #define MAX_UDP_PORTS 65536
-#define PORTS_PER_CHAIN (MAX_UDP_PORTS / UDP_HTABLE_SIZE_MIN)
+#define PORTS_PER_CHAIN (MAX_UDP_PORTS / UDP_HTABLE_SIZE_MIN_PERNET)
 
 static struct udp_table *udp_get_table_prot(struct sock *sk)
 {
@@ -3277,7 +3277,7 @@ void __init udp_table_init(struct udp_table *table, const char *name)
 					      &table->log,
 					      &table->mask,
 					      UDP_HTABLE_SIZE_MIN,
-					      64 * 1024);
+					      UDP_HTABLE_SIZE_MAX);
 
 	table->hash2 = table->hash + (table->mask + 1);
 	for (i = 0; i <= table->mask; i++) {
@@ -3302,22 +3302,111 @@ u32 udp_flow_hashrnd(void)
 }
 EXPORT_SYMBOL(udp_flow_hashrnd);
 
-static int __net_init udp_sysctl_init(struct net *net)
+static void __net_init udp_sysctl_init(struct net *net)
 {
-	net->ipv4.udp_table = &udp_table;
-
 	net->ipv4.sysctl_udp_rmem_min = PAGE_SIZE;
 	net->ipv4.sysctl_udp_wmem_min = PAGE_SIZE;
 
 #ifdef CONFIG_NET_L3_MASTER_DEV
 	net->ipv4.sysctl_udp_l3mdev_accept = 0;
 #endif
+}
+
+static struct udp_table __net_init *udp_pernet_table_alloc(unsigned int hash_entries)
+{
+	struct udp_table *udptable;
+	int i;
+
+	udptable = kmalloc(sizeof(*udptable), GFP_KERNEL);
+	if (!udptable)
+		goto out;
+
+	udptable->hash = vmalloc_huge(hash_entries * 2 * sizeof(struct udp_hslot),
+				      GFP_KERNEL_ACCOUNT);
+	if (!udptable->hash)
+		goto free_table;
+
+	udptable->hash2 = udptable->hash + hash_entries;
+	udptable->mask = hash_entries - 1;
+	udptable->log = ilog2(hash_entries);
+
+	for (i = 0; i < hash_entries; i++) {
+		INIT_HLIST_HEAD(&udptable->hash[i].head);
+		udptable->hash[i].count = 0;
+		spin_lock_init(&udptable->hash[i].lock);
+
+		INIT_HLIST_HEAD(&udptable->hash2[i].head);
+		udptable->hash2[i].count = 0;
+		spin_lock_init(&udptable->hash2[i].lock);
+	}
+
+	return udptable;
+
+free_table:
+	kfree(udptable);
+out:
+	return NULL;
+}
+
+static void __net_exit udp_pernet_table_free(struct net *net)
+{
+	struct udp_table *udptable = net->ipv4.udp_table;
+
+	if (udptable == &udp_table)
+		return;
+
+	kvfree(udptable->hash);
+	kfree(udptable);
+}
+
+static void __net_init udp_set_table(struct net *net)
+{
+	struct udp_table *udptable;
+	unsigned int hash_entries;
+	struct net *old_net;
+
+	if (net_eq(net, &init_net))
+		goto fallback;
+
+	old_net = current->nsproxy->net_ns;
+	hash_entries = READ_ONCE(old_net->ipv4.sysctl_udp_child_hash_entries);
+	if (!hash_entries)
+		goto fallback;
+
+	/* Set min to keep the bitmap on stack in udp_lib_get_port() */
+	if (hash_entries < UDP_HTABLE_SIZE_MIN_PERNET)
+		hash_entries = UDP_HTABLE_SIZE_MIN_PERNET;
+	else
+		hash_entries = roundup_pow_of_two(hash_entries);
+
+	udptable = udp_pernet_table_alloc(hash_entries);
+	if (udptable) {
+		net->ipv4.udp_table = udptable;
+	} else {
+		pr_warn("Failed to allocate UDP hash table (entries: %u) "
+			"for a netns, fallback to the global one\n",
+			hash_entries);
+fallback:
+		net->ipv4.udp_table = &udp_table;
+	}
+}
+
+static int __net_init udp_pernet_init(struct net *net)
+{
+	udp_sysctl_init(net);
+	udp_set_table(net);
 
 	return 0;
 }
 
+static void __net_exit udp_pernet_exit(struct net *net)
+{
+	udp_pernet_table_free(net);
+}
+
 static struct pernet_operations __net_initdata udp_sysctl_ops = {
-	.init	= udp_sysctl_init,
+	.init	= udp_pernet_init,
+	.exit	= udp_pernet_exit,
 };
 
 #if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
