@@ -24,6 +24,7 @@ config AD_SIGMA_DELTA
 config AD4130
 	tristate "Analog Device AD4130 ADC Driver"
 	depends on SPI
+	depends on GPIOLIB
 	select IIO_BUFFER
 	select IIO_KFIFO_BUF
 	select REGMAP_SPI
