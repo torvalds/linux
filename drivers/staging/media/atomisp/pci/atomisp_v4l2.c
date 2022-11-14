@@ -720,7 +720,7 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 	return -EBUSY;
 }
 
-int atomisp_runtime_suspend(struct device *dev)
+int atomisp_power_off(struct device *dev)
 {
 	struct atomisp_device *isp = (struct atomisp_device *)
 				     dev_get_drvdata(dev);
@@ -738,7 +738,7 @@ int atomisp_runtime_suspend(struct device *dev)
 	return atomisp_mrfld_power(isp, false);
 }
 
-int atomisp_runtime_resume(struct device *dev)
+int atomisp_power_on(struct device *dev)
 {
 	struct atomisp_device *isp = (struct atomisp_device *)
 				     dev_get_drvdata(dev);
@@ -771,7 +771,6 @@ static int __maybe_unused atomisp_suspend(struct device *dev)
 	/* FIXME: only has one isp_subdev at present */
 	struct atomisp_sub_device *asd = &isp->asd[0];
 	unsigned long flags;
-	int ret;
 
 	/*
 	 * FIXME: Suspend is not supported by sensors. Abort if any video
@@ -788,45 +787,12 @@ static int __maybe_unused atomisp_suspend(struct device *dev)
 	}
 	spin_unlock_irqrestore(&isp->lock, flags);
 
-	ret = atomisp_mrfld_pre_power_down(isp);
-	if (ret)
-		return ret;
-
-	/*Turn off the ISP d-phy */
-	ret = atomisp_ospm_dphy_down(isp);
-	if (ret) {
-		dev_err(isp->dev, "fail to power off ISP\n");
-		return ret;
-	}
-	cpu_latency_qos_update_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
-	return atomisp_mrfld_power(isp, false);
+	return atomisp_power_off(dev);
 }
 
 static int __maybe_unused atomisp_resume(struct device *dev)
 {
-	struct atomisp_device *isp = (struct atomisp_device *)
-				     dev_get_drvdata(dev);
-	int ret;
-
-	ret = atomisp_mrfld_power(isp, true);
-	if (ret)
-		return ret;
-
-	cpu_latency_qos_update_request(&isp->pm_qos, isp->max_isr_latency);
-
-	/*Turn on ISP d-phy */
-	ret = atomisp_ospm_dphy_up(isp);
-	if (ret) {
-		dev_err(isp->dev, "Failed to power up ISP!.\n");
-		return -EINVAL;
-	}
-
-	/*restore register values for iUnit and iUnitPHY registers*/
-	if (isp->saved_regs.pcicmdsts)
-		atomisp_restore_iunit_reg(isp);
-
-	atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_LOW, true);
-	return 0;
+	return atomisp_power_on(dev);
 }
 
 int atomisp_csi_lane_config(struct atomisp_device *isp)
@@ -1755,8 +1721,8 @@ static const struct pci_device_id atomisp_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, atomisp_pci_tbl);
 
 static const struct dev_pm_ops atomisp_pm_ops = {
-	.runtime_suspend = atomisp_runtime_suspend,
-	.runtime_resume = atomisp_runtime_resume,
+	.runtime_suspend = atomisp_power_off,
+	.runtime_resume = atomisp_power_on,
 	.suspend = atomisp_suspend,
 	.resume = atomisp_resume,
 };

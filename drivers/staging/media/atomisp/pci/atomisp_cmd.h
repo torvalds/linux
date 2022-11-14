@@ -341,6 +341,6 @@ int atomisp_inject_a_fake_event(struct atomisp_sub_device *asd, int *event);
 int atomisp_get_invalid_frame_num(struct video_device *vdev,
 				  int *invalid_frame_num);
 
-int atomisp_runtime_suspend(struct device *dev);
-int atomisp_runtime_resume(struct device *dev);
+int atomisp_power_off(struct device *dev);
+int atomisp_power_on(struct device *dev);
 #endif /* __ATOMISP_CMD_H__ */

@@ -303,13 +303,13 @@ int atomisp_reset(struct atomisp_device *isp)
 
 	dev_dbg(isp->dev, "%s\n", __func__);
 	atomisp_css_uninit(isp);
-	ret = atomisp_runtime_suspend(isp->dev);
+	ret = atomisp_power_off(isp->dev);
 	if (ret < 0)
-		dev_err(isp->dev, "atomisp_runtime_suspend failed, %d\n", ret);
+		dev_err(isp->dev, "atomisp_power_off failed, %d\n", ret);
 
-	ret = atomisp_runtime_resume(isp->dev);
+	ret = atomisp_power_on(isp->dev);
 	if (ret < 0)
-		dev_err(isp->dev, "atomisp_runtime_resume failed, %d\n", ret);
+		dev_err(isp->dev, "atomisp_power_on failed, %d\n", ret);
 
 	ret = atomisp_css_init(isp);
 	if (ret)
