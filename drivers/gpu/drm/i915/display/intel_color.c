@@ -486,25 +486,27 @@ static void ilk_lut_10_pack(struct drm_color_lut *entry, u32 val)
 /* ilk+ "12.4" interpolated format (high 10 bits) */
 static u32 ilk_lut_12p4_udw(const struct drm_color_lut *color)
 {
-	return (color->red >> 6) << 20 | (color->green >> 6) << 10 |
-		(color->blue >> 6);
+	return REG_FIELD_PREP(PREC_PALETTE_12P4_RED_UDW_MASK, color->red >> 6) |
+		REG_FIELD_PREP(PREC_PALETTE_12P4_GREEN_UDW_MASK, color->green >> 6) |
+		REG_FIELD_PREP(PREC_PALETTE_12P4_BLUE_UDW_MASK, color->blue >> 6);
 }
 
 /* ilk+ "12.4" interpolated format (low 6 bits) */
 static u32 ilk_lut_12p4_ldw(const struct drm_color_lut *color)
 {
-	return (color->red & 0x3f) << 24 | (color->green & 0x3f) << 14 |
-		(color->blue & 0x3f) << 4;
+	return REG_FIELD_PREP(PREC_PALETTE_12P4_RED_LDW_MASK, color->red & 0x3f) |
+		REG_FIELD_PREP(PREC_PALETTE_12P4_GREEN_LDW_MASK, color->green & 0x3f) |
+		REG_FIELD_PREP(PREC_PALETTE_12P4_BLUE_LDW_MASK, color->blue & 0x3f);
 }
 
 static void ilk_lut_12p4_pack(struct drm_color_lut *entry, u32 ldw, u32 udw)
 {
-	entry->red = REG_FIELD_GET(PAL_PREC_MULTI_SEG_RED_UDW_MASK, udw) << 6 |
-		REG_FIELD_GET(PAL_PREC_MULTI_SEG_RED_LDW_MASK, ldw);
-	entry->green = REG_FIELD_GET(PAL_PREC_MULTI_SEG_GREEN_UDW_MASK, udw) << 6 |
-		REG_FIELD_GET(PAL_PREC_MULTI_SEG_GREEN_LDW_MASK, ldw);
-	entry->blue = REG_FIELD_GET(PAL_PREC_MULTI_SEG_BLUE_UDW_MASK, udw) << 6 |
-		REG_FIELD_GET(PAL_PREC_MULTI_SEG_BLUE_LDW_MASK, ldw);
+	entry->red = REG_FIELD_GET(PREC_PALETTE_12P4_RED_UDW_MASK, udw) << 6 |
+		REG_FIELD_GET(PREC_PALETTE_12P4_RED_LDW_MASK, ldw);
+	entry->green = REG_FIELD_GET(PREC_PALETTE_12P4_GREEN_UDW_MASK, udw) << 6 |
+		REG_FIELD_GET(PREC_PALETTE_12P4_GREEN_LDW_MASK, ldw);
+	entry->blue = REG_FIELD_GET(PREC_PALETTE_12P4_BLUE_UDW_MASK, udw) << 6 |
+		REG_FIELD_GET(PREC_PALETTE_12P4_BLUE_LDW_MASK, ldw);
 }
 
 static void icl_color_commit_noarm(const struct intel_crtc_state *crtc_state)
