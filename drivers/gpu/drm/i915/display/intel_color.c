@@ -1851,9 +1851,19 @@ static int glk_post_csc_lut_precision(const struct intel_crtc_state *crtc_state)
 	}
 }
 
+static bool icl_has_post_csc_lut(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->gamma_mode & POST_CSC_GAMMA_ENABLE;
+}
+
+static bool icl_has_pre_csc_lut(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->gamma_mode & PRE_CSC_GAMMA_ENABLE;
+}
+
 static int icl_post_csc_lut_precision(const struct intel_crtc_state *crtc_state)
 {
-	if ((crtc_state->gamma_mode & POST_CSC_GAMMA_ENABLE) == 0)
+	if (!icl_has_post_csc_lut(crtc_state))
 		return 0;
 
 	switch (crtc_state->gamma_mode & GAMMA_MODE_MODE_MASK) {
@@ -2182,9 +2192,50 @@ static struct drm_property_blob *bdw_read_lut_10(struct intel_crtc *crtc,
 	return blob;
 }
 
+static struct drm_property_blob *glk_read_degamma_lut(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	int i, lut_size = INTEL_INFO(dev_priv)->display.color.degamma_lut_size;
+	enum pipe pipe = crtc->pipe;
+	struct drm_property_blob *blob;
+	struct drm_color_lut *lut;
+
+	blob = drm_property_create_blob(&dev_priv->drm,
+					sizeof(lut[0]) * lut_size,
+					NULL);
+	if (IS_ERR(blob))
+		return NULL;
+
+	lut = blob->data;
+
+	/*
+	 * When setting the auto-increment bit, the hardware seems to
+	 * ignore the index bits, so we need to reset it to index 0
+	 * separately.
+	 */
+	intel_de_write_fw(dev_priv, PRE_CSC_GAMC_INDEX(pipe), 0);
+	intel_de_write_fw(dev_priv, PRE_CSC_GAMC_INDEX(pipe),
+			  PRE_CSC_GAMC_AUTO_INCREMENT);
+
+	for (i = 0; i < lut_size; i++) {
+		u32 val = intel_de_read_fw(dev_priv, PRE_CSC_GAMC_DATA(pipe));
+
+		lut[i].red = val;
+		lut[i].green = val;
+		lut[i].blue = val;
+	}
+
+	intel_de_write_fw(dev_priv, PRE_CSC_GAMC_INDEX(pipe), 0);
+
+	return blob;
+}
+
 static void glk_read_luts(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	if (crtc_state->csc_enable)
+		crtc_state->pre_csc_lut = glk_read_degamma_lut(crtc);
 
 	if (!crtc_state->gamma_enable)
 		return;
@@ -2244,7 +2295,10 @@ static void icl_read_luts(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	if ((crtc_state->gamma_mode & POST_CSC_GAMMA_ENABLE) == 0)
+	if (icl_has_pre_csc_lut(crtc_state))
+		crtc_state->pre_csc_lut = glk_read_degamma_lut(crtc);
+
+	if (!icl_has_post_csc_lut(crtc_state))
 		return;
 
 	switch (crtc_state->gamma_mode & GAMMA_MODE_MODE_MASK) {
