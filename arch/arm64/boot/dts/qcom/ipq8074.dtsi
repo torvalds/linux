@@ -254,7 +254,7 @@
 		};
 
 		mdio: mdio@90000 {
-			compatible = "qcom,ipq4019-mdio";
+			compatible = "qcom,ipq8074-mdio", "qcom,ipq4019-mdio";
 			reg = <0x00090000 0x64>;
 			#address-cells = <1>;
 			#size-cells = <0>;
