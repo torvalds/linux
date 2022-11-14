@@ -1060,11 +1060,50 @@ nla_put_failure:
 	return err;
 }
 
+static int dcbnl_getapptrust(struct net_device *netdev, struct sk_buff *skb)
+{
+	const struct dcbnl_rtnl_ops *ops = netdev->dcbnl_ops;
+	enum ieee_attrs_app type;
+	struct nlattr *apptrust;
+	int nselectors, err, i;
+	u8 *selectors;
+
+	selectors = kzalloc(IEEE_8021QAZ_APP_SEL_MAX + 1, GFP_KERNEL);
+	if (!selectors)
+		return -ENOMEM;
+
+	err = ops->dcbnl_getapptrust(netdev, selectors, &nselectors);
+	if (err) {
+		err = 0;
+		goto out;
+	}
+
+	apptrust = nla_nest_start(skb, DCB_ATTR_DCB_APP_TRUST_TABLE);
+	if (!apptrust) {
+		err = -EMSGSIZE;
+		goto out;
+	}
+
+	for (i = 0; i < nselectors; i++) {
+		type = dcbnl_app_attr_type_get(selectors[i]);
+		err = nla_put_u8(skb, type, selectors[i]);
+		if (err) {
+			nla_nest_cancel(skb, apptrust);
+			goto out;
+		}
+	}
+	nla_nest_end(skb, apptrust);
+
+out:
+	kfree(selectors);
+	return err;
+}
+
 /* Handle IEEE 802.1Qaz/802.1Qau/802.1Qbb GET commands. */
 static int dcbnl_ieee_fill(struct sk_buff *skb, struct net_device *netdev)
 {
 	const struct dcbnl_rtnl_ops *ops = netdev->dcbnl_ops;
-	struct nlattr *ieee, *app, *apptrust;
+	struct nlattr *ieee, *app;
 	struct dcb_app_type *itr;
 	int dcbx;
 	int err;
@@ -1168,27 +1207,9 @@ static int dcbnl_ieee_fill(struct sk_buff *skb, struct net_device *netdev)
 	nla_nest_end(skb, app);
 
 	if (ops->dcbnl_getapptrust) {
-		u8 selectors[IEEE_8021QAZ_APP_SEL_MAX + 1] = {0};
-		int nselectors, i;
-
-		apptrust = nla_nest_start(skb, DCB_ATTR_DCB_APP_TRUST_TABLE);
-		if (!apptrust)
-			return -EMSGSIZE;
-
-		err = ops->dcbnl_getapptrust(netdev, selectors, &nselectors);
-		if (!err) {
-			for (i = 0; i < nselectors; i++) {
-				enum ieee_attrs_app type =
-					dcbnl_app_attr_type_get(selectors[i]);
-				err = nla_put_u8(skb, type, selectors[i]);
-				if (err) {
-					nla_nest_cancel(skb, apptrust);
-					return err;
-				}
-			}
-		}
-
-		nla_nest_end(skb, apptrust);
+		err = dcbnl_getapptrust(netdev, skb);
+		if (err)
+			return err;
 	}
 
 	/* get peer info if available */
