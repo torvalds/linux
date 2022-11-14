@@ -1345,3 +1345,10 @@ int amdgpu_gfx_sysfs_init(struct amdgpu_device *adev)
 
 	return 0;
 }
+
+void amdgpu_gfx_sysfs_fini(struct amdgpu_device *adev)
+{
+	device_remove_file(adev->dev, &dev_attr_current_compute_partition);
+	device_remove_file(adev->dev, &dev_attr_available_compute_partition);
+	device_remove_file(adev->dev, &dev_attr_current_memory_partition);
+}

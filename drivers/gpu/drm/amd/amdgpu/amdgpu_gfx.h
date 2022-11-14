@@ -502,4 +502,5 @@ int amdgpu_gfx_poison_consumption_handler(struct amdgpu_device *adev,
 
 bool amdgpu_gfx_is_master_xcc(struct amdgpu_device *adev, int xcc_id);
 int amdgpu_gfx_sysfs_init(struct amdgpu_device *adev);
+void amdgpu_gfx_sysfs_fini(struct amdgpu_device *adev);
 #endif
