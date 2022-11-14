@@ -515,6 +515,7 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	struct se_device *dev = cmd->se_dev;
 	u32 mtl = 0;
 	int have_tp = 0, opt, min;
+	u32 io_max_blocks;
 
 	/*
 	 * Following spc3r22 section 6.5.3 Block Limits VPD page, when
@@ -553,7 +554,10 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 		mtl = (cmd->se_tfo->max_data_sg_nents * PAGE_SIZE) /
 		       dev->dev_attrib.block_size;
 	}
-	put_unaligned_be32(min_not_zero(mtl, dev->dev_attrib.hw_max_sectors), &buf[8]);
+	io_max_blocks = mult_frac(dev->dev_attrib.hw_max_sectors,
+			dev->dev_attrib.hw_block_size,
+			dev->dev_attrib.block_size);
+	put_unaligned_be32(min_not_zero(mtl, io_max_blocks), &buf[8]);
 
 	/*
 	 * Set OPTIMAL TRANSFER LENGTH

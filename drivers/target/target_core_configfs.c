@@ -1102,8 +1102,6 @@ static ssize_t block_size_store(struct config_item *item,
 	}
 
 	da->block_size = val;
-	if (da->max_bytes_per_io)
-		da->hw_max_sectors = da->max_bytes_per_io / val;
 
 	pr_debug("dev[%p]: SE Device block_size changed to %u\n",
 			da->da_dev, val);
