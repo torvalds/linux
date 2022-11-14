@@ -1476,6 +1476,33 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 		}
 	}
 
+	ata_qc_for_each_raw(ap, qc, tag) {
+		if (!(qc->flags & ATA_QCFLAG_FAILED) ||
+		    ata_dev_phys_link(qc->dev) != link)
+			continue;
+
+		/* Skip the single QC which caused the NCQ error. */
+		if (qc->err_mask)
+			continue;
+
+		/*
+		 * For SATA, the STATUS and ERROR fields are shared for all NCQ
+		 * commands that were completed with the same SDB FIS.
+		 * Therefore, we have to clear the ATA_ERR bit for all QCs
+		 * except the one that caused the NCQ error.
+		 */
+		qc->result_tf.status &= ~ATA_ERR;
+		qc->result_tf.error = 0;
+
+		/*
+		 * If we get a NCQ error, that means that a single command was
+		 * aborted. All other failed commands for our link should be
+		 * retried and has no business of going though further scrutiny
+		 * by ata_eh_link_autopsy().
+		 */
+		qc->flags |= ATA_QCFLAG_RETRY;
+	}
+
 	ehc->i.err_mask &= ~AC_ERR_DEV;
 }
 EXPORT_SYMBOL_GPL(ata_eh_analyze_ncq_error);
