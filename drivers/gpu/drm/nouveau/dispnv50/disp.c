@@ -739,14 +739,14 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
 	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct drm_hdmi_info *hdmi = &nv_connector->base.display_info.hdmi;
-	union hdmi_infoframe infoframe;
+	union hdmi_infoframe infoframe = { 0 };
 	const u8 rekey = 56; /* binary driver, and tegra, constant */
-	u8 config, scdc = 0;
+	u8 scdc = 0;
 	u32 max_ac_packet;
 	struct {
 		struct nvif_outp_infoframe_v0 infoframe;
 		u8 data[17];
-	} args;
+	} args = { 0 };
 	int ret, size;
 
 	max_ac_packet  = mode->htotal - mode->hdisplay;
@@ -757,27 +757,22 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
 	if (hdmi->scdc.scrambling.supported) {
 		const bool high_tmds_clock_ratio = mode->clock > 340000;
 
-		ret = drm_scdc_readb(nv_encoder->i2c, SCDC_TMDS_CONFIG, &config);
+		ret = drm_scdc_readb(nv_encoder->i2c, SCDC_TMDS_CONFIG, &scdc);
 		if (ret < 0) {
 			NV_ERROR(drm, "Failure to read SCDC_TMDS_CONFIG: %d\n", ret);
 			return;
 		}
 
-		config &= ~(SCDC_TMDS_BIT_CLOCK_RATIO_BY_40 | SCDC_SCRAMBLING_ENABLE);
+		scdc &= ~(SCDC_TMDS_BIT_CLOCK_RATIO_BY_40 | SCDC_SCRAMBLING_ENABLE);
 		if (high_tmds_clock_ratio || hdmi->scdc.scrambling.low_rates)
-			config |= SCDC_SCRAMBLING_ENABLE;
+			scdc |= SCDC_SCRAMBLING_ENABLE;
 		if (high_tmds_clock_ratio)
-			config |= SCDC_TMDS_BIT_CLOCK_RATIO_BY_40;
+			scdc |= SCDC_TMDS_BIT_CLOCK_RATIO_BY_40;
 
-		ret = drm_scdc_writeb(nv_encoder->i2c, SCDC_TMDS_CONFIG, config);
+		ret = drm_scdc_writeb(nv_encoder->i2c, SCDC_TMDS_CONFIG, scdc);
 		if (ret < 0)
 			NV_ERROR(drm, "Failure to write SCDC_TMDS_CONFIG = 0x%02x: %d\n",
-				 config, ret);
-
-		if (high_tmds_clock_ratio || hdmi->scdc.scrambling.low_rates)
-			scdc |= NVIF_OUTP_ACQUIRE_V0_TMDS_HDMI_SCDC_SCRAMBLE;
-		if (high_tmds_clock_ratio)
-			scdc |= NVIF_OUTP_ACQUIRE_V0_TMDS_HDMI_SCDC_DIV_BY_4;
+				 scdc, ret);
 	}
 
 	ret = nvif_outp_acquire_tmds(&nv_encoder->outp, nv_crtc->index, true,
@@ -793,7 +788,7 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
 		drm_hdmi_avi_infoframe_quant_range(&infoframe.avi, &nv_connector->base, mode,
 						   HDMI_QUANTIZATION_RANGE_FULL);
 
-		size = hdmi_infoframe_pack(&infoframe, args.data, 17);
+		size = hdmi_infoframe_pack(&infoframe, args.data, ARRAY_SIZE(args.data));
 	} else {
 		size = 0;
 	}
@@ -801,9 +796,10 @@ nv50_hdmi_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
 	nvif_outp_infoframe(&nv_encoder->outp, NVIF_OUTP_INFOFRAME_V0_AVI, &args.infoframe, size);
 
 	/* Vendor InfoFrame. */
+	memset(&args.data, 0, sizeof(args.data));
 	if (!drm_hdmi_vendor_infoframe_from_display_mode(&infoframe.vendor.hdmi,
 							 &nv_connector->base, mode))
-		size = hdmi_infoframe_pack(&infoframe, args.data, 17);
+		size = hdmi_infoframe_pack(&infoframe, args.data, ARRAY_SIZE(args.data));
 	else
 		size = 0;
 

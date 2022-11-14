@@ -104,6 +104,7 @@ nvkm_uoutp_mthd_infoframe(struct nvkm_outp *outp, void *argv, u32 argc)
 {
 	struct nvkm_ior *ior = outp->ior;
 	union nvif_outp_infoframe_args *args = argv;
+	ssize_t size = argc - sizeof(*args);
 
 	if (argc < sizeof(args->v0) || args->v0.version != 0)
 		return -ENOSYS;
@@ -112,10 +113,10 @@ nvkm_uoutp_mthd_infoframe(struct nvkm_outp *outp, void *argv, u32 argc)
 
 	switch (ior->func->hdmi ? args->v0.type : 0xff) {
 	case NVIF_OUTP_INFOFRAME_V0_AVI:
-		ior->func->hdmi->infoframe_avi(ior, args->v0.head, argv, argc);
+		ior->func->hdmi->infoframe_avi(ior, args->v0.head, &args->v0.data, size);
 		return 0;
 	case NVIF_OUTP_INFOFRAME_V0_VSI:
-		ior->func->hdmi->infoframe_vsi(ior, args->v0.head, argv, argc);
+		ior->func->hdmi->infoframe_vsi(ior, args->v0.head, &args->v0.data, size);
 		return 0;
 	default:
 		break;
