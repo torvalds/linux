@@ -2084,7 +2084,7 @@ static int qmp_combo_exit(struct phy *phy)
 	return 0;
 }
 
-static int qmp_combo_enable(struct phy *phy)
+static int qmp_combo_usb_init(struct phy *phy)
 {
 	int ret;
 
@@ -2099,7 +2099,7 @@ static int qmp_combo_enable(struct phy *phy)
 	return ret;
 }
 
-static int qmp_combo_disable(struct phy *phy)
+static int qmp_combo_usb_exit(struct phy *phy)
 {
 	int ret;
 
@@ -2109,7 +2109,7 @@ static int qmp_combo_disable(struct phy *phy)
 	return qmp_combo_exit(phy);
 }
 
-static int qmp_combo_set_mode(struct phy *phy, enum phy_mode mode, int submode)
+static int qmp_combo_usb_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 {
 	struct qmp_phy *qphy = phy_get_drvdata(phy);
 
@@ -2119,9 +2119,9 @@ static int qmp_combo_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 }
 
 static const struct phy_ops qmp_combo_usb_phy_ops = {
-	.init		= qmp_combo_enable,
-	.exit		= qmp_combo_disable,
-	.set_mode	= qmp_combo_set_mode,
+	.init		= qmp_combo_usb_init,
+	.exit		= qmp_combo_usb_exit,
+	.set_mode	= qmp_combo_usb_set_mode,
 	.owner		= THIS_MODULE,
 };
 
