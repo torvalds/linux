@@ -1048,19 +1048,12 @@ static void felix_phylink_get_caps(struct dsa_switch *ds, int port,
 	 */
 	config->legacy_pre_march2020 = false;
 
+	config->mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
+				   MAC_10 | MAC_100 | MAC_1000FD |
+				   MAC_2500FD;
+
 	__set_bit(ocelot->ports[port]->phy_mode,
 		  config->supported_interfaces);
-}
-
-static void felix_phylink_validate(struct dsa_switch *ds, int port,
-				   unsigned long *supported,
-				   struct phylink_link_state *state)
-{
-	struct ocelot *ocelot = ds->priv;
-	struct felix *felix = ocelot_to_felix(ocelot);
-
-	if (felix->info->phylink_validate)
-		felix->info->phylink_validate(ocelot, port, supported, state);
 }
 
 static struct phylink_pcs *felix_phylink_mac_select_pcs(struct dsa_switch *ds,
@@ -2050,7 +2043,6 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.get_sset_count			= felix_get_sset_count,
 	.get_ts_info			= felix_get_ts_info,
 	.phylink_get_caps		= felix_phylink_get_caps,
-	.phylink_validate		= felix_phylink_validate,
 	.phylink_mac_select_pcs		= felix_phylink_mac_select_pcs,
 	.phylink_mac_link_down		= felix_phylink_mac_link_down,
 	.phylink_mac_link_up		= felix_phylink_mac_link_up,
