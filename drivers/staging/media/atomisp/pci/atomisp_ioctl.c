@@ -1461,10 +1461,11 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	struct video_device *vdev = &pipe->vdev;
 	struct atomisp_device *isp = asd->isp;
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
+	bool recreate_streams[MAX_STREAM_NUM] = {0};
 	enum ia_css_pipe_id css_pipe_id;
-	int ret;
-	unsigned long flags;
 	bool first_streamoff = false;
+	unsigned long flags;
+	int i, ret;
 
 	mutex_lock(&isp->mutex);
 
@@ -1563,49 +1564,43 @@ stopsensor:
 	 * ISP work around, need to reset isp
 	 * Is it correct time to reset ISP when first node does streamoff?
 	 */
-	if (isp->sw_contex.power_state == ATOM_ISP_POWER_UP) {
-		unsigned int i;
-		bool recreate_streams[MAX_STREAM_NUM] = {0};
-
-		if (isp->isp_timeout)
-			dev_err(isp->dev, "%s: Resetting with WA activated",
-				__func__);
-		/*
-		 * It is possible that the other asd stream is in the stage
-		 * that v4l2_setfmt is just get called on it, which will
-		 * create css stream on that stream. But at this point, there
-		 * is no way to destroy the css stream created on that stream.
-		 *
-		 * So force stream destroy here.
-		 */
-		for (i = 0; i < isp->num_of_streams; i++) {
-			if (isp->asd[i].stream_prepared) {
-				atomisp_destroy_pipes_stream_force(&isp->
-								   asd[i]);
-				recreate_streams[i] = true;
-			}
+	if (isp->isp_timeout)
+		dev_err(isp->dev, "%s: Resetting with WA activated",
+			__func__);
+	/*
+	 * It is possible that the other asd stream is in the stage
+	 * that v4l2_setfmt is just get called on it, which will
+	 * create css stream on that stream. But at this point, there
+	 * is no way to destroy the css stream created on that stream.
+	 *
+	 * So force stream destroy here.
+	 */
+	for (i = 0; i < isp->num_of_streams; i++) {
+		if (isp->asd[i].stream_prepared) {
+			atomisp_destroy_pipes_stream_force(&isp->asd[i]);
+			recreate_streams[i] = true;
 		}
-
-		/* disable  PUNIT/ISP acknowlede/handshake - SRSE=3 */
-		pci_write_config_dword(pdev, PCI_I_CONTROL,
-				       isp->saved_regs.i_control | MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
-		dev_err(isp->dev, "atomisp_reset");
-		atomisp_reset(isp);
-		for (i = 0; i < isp->num_of_streams; i++) {
-			if (recreate_streams[i]) {
-				int ret2;
-
-				ret2 = atomisp_create_pipes_stream(&isp->asd[i]);
-				if (ret2) {
-					dev_err(isp->dev, "%s error re-creating streams: %d\n",
-						__func__, ret2);
-					if (!ret)
-						ret = ret2;
-				}
-			}
-		}
-		isp->isp_timeout = false;
 	}
+
+	/* disable  PUNIT/ISP acknowlede/handshake - SRSE=3 */
+	pci_write_config_dword(pdev, PCI_I_CONTROL,
+			       isp->saved_regs.i_control | MRFLD_PCI_I_CONTROL_SRSE_RESET_MASK);
+	dev_err(isp->dev, "atomisp_reset");
+	atomisp_reset(isp);
+	for (i = 0; i < isp->num_of_streams; i++) {
+		if (recreate_streams[i]) {
+			int ret2;
+
+			ret2 = atomisp_create_pipes_stream(&isp->asd[i]);
+			if (ret2) {
+				dev_err(isp->dev, "%s error re-creating streams: %d\n",
+					__func__, ret2);
+				if (!ret)
+					ret = ret2;
+			}
+		}
+	}
+	isp->isp_timeout = false;
 out_unlock:
 	mutex_unlock(&isp->mutex);
 }

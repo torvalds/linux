@@ -207,11 +207,6 @@ int atomisp_freq_scaling(struct atomisp_device *isp,
 	int i, ret;
 	unsigned short fps = 0;
 
-	if (isp->sw_contex.power_state != ATOM_ISP_POWER_UP) {
-		dev_err(isp->dev, "DFS cannot proceed due to no power.\n");
-		return -EINVAL;
-	}
-
 	if ((pdev->device & ATOMISP_PCI_DEVICE_SOC_MASK) ==
 	    ATOMISP_PCI_DEVICE_SOC_CHT && ATOMISP_USE_YUVPP(asd))
 		isp->dfs = &dfs_config_cht_soc;
@@ -511,8 +506,8 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 	int err;
 
 	spin_lock_irqsave(&isp->lock, flags);
-	if (isp->sw_contex.power_state != ATOM_ISP_POWER_UP ||
-	    !isp->css_initialized) {
+
+	if (!isp->css_initialized) {
 		spin_unlock_irqrestore(&isp->lock, flags);
 		return IRQ_HANDLED;
 	}
@@ -5503,7 +5498,6 @@ out:
 int atomisp_ospm_dphy_down(struct atomisp_device *isp)
 {
 	struct pci_dev *pdev = to_pci_dev(isp->dev);
-	unsigned long flags;
 	u32 reg;
 
 	dev_dbg(isp->dev, "%s\n", __func__);
@@ -5515,9 +5509,6 @@ int atomisp_ospm_dphy_down(struct atomisp_device *isp)
 	if (!atomisp_dev_users(isp))
 		goto done;
 
-	spin_lock_irqsave(&isp->lock, flags);
-	isp->sw_contex.power_state = ATOM_ISP_POWER_DOWN;
-	spin_unlock_irqrestore(&isp->lock, flags);
 done:
 	/*
 	 * MRFLD IUNIT DPHY is located in an always-power-on island
@@ -5533,14 +5524,7 @@ done:
 /*Turn on ISP dphy */
 int atomisp_ospm_dphy_up(struct atomisp_device *isp)
 {
-	unsigned long flags;
-
 	dev_dbg(isp->dev, "%s\n", __func__);
-
-	spin_lock_irqsave(&isp->lock, flags);
-	isp->sw_contex.power_state = ATOM_ISP_POWER_UP;
-	spin_unlock_irqrestore(&isp->lock, flags);
-
 	return 0;
 }
 

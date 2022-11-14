@@ -573,11 +573,7 @@ static int atomisp_mrfld_pre_power_down(struct atomisp_device *isp)
 	unsigned long flags;
 
 	spin_lock_irqsave(&isp->lock, flags);
-	if (isp->sw_contex.power_state == ATOM_ISP_POWER_DOWN) {
-		spin_unlock_irqrestore(&isp->lock, flags);
-		dev_dbg(isp->dev, "<%s %d.\n", __func__, __LINE__);
-		return 0;
-	}
+
 	/*
 	 * MRFLD HAS requirement: cannot power off i-unit if
 	 * ISP has IRQ not serviced.
@@ -753,13 +749,11 @@ int atomisp_runtime_resume(struct device *dev)
 		return ret;
 
 	cpu_latency_qos_update_request(&isp->pm_qos, isp->max_isr_latency);
-	if (isp->sw_contex.power_state == ATOM_ISP_POWER_DOWN) {
-		/*Turn on ISP d-phy */
-		ret = atomisp_ospm_dphy_up(isp);
-		if (ret) {
-			dev_err(isp->dev, "Failed to power up ISP!.\n");
-			return -EINVAL;
-		}
+	/*Turn on ISP d-phy */
+	ret = atomisp_ospm_dphy_up(isp);
+	if (ret) {
+		dev_err(isp->dev, "Failed to power up ISP!.\n");
+		return -EINVAL;
 	}
 
 	/*restore register values for iUnit and iUnitPHY registers*/
@@ -1447,7 +1441,6 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	isp->dev = &pdev->dev;
 	isp->base = pcim_iomap_table(pdev)[ATOM_ISP_PCI_BAR];
-	isp->sw_contex.power_state = ATOM_ISP_POWER_UP;
 	isp->saved_regs.ispmmadr = start;
 
 	dev_dbg(&pdev->dev, "atomisp mmio base: %p\n", isp->base);
