@@ -62,17 +62,36 @@ static void print_running(struct perf_stat_config *config,
 		print_running_std(config, run, ena);
 }
 
+static void print_noise_pct_std(struct perf_stat_config *config,
+				double pct)
+{
+	if (pct)
+		fprintf(config->output, "  ( +-%6.2f%% )", pct);
+}
+
+static void print_noise_pct_csv(struct perf_stat_config *config,
+				double pct)
+{
+	fprintf(config->output, "%s%.2f%%", config->csv_sep, pct);
+}
+
+static void print_noise_pct_json(struct perf_stat_config *config,
+				 double pct)
+{
+	fprintf(config->output, "\"variance\" : %.2f, ", pct);
+}
+
 static void print_noise_pct(struct perf_stat_config *config,
 			    double total, double avg)
 {
 	double pct = rel_stddev_stats(total, avg);
 
 	if (config->json_output)
-		fprintf(config->output, "\"variance\" : %.2f, ", pct);
+		print_noise_pct_json(config, pct);
 	else if (config->csv_output)
-		fprintf(config->output, "%s%.2f%%", config->csv_sep, pct);
-	else if (pct)
-		fprintf(config->output, "  ( +-%6.2f%% )", pct);
+		print_noise_pct_csv(config, pct);
+	else
+		print_noise_pct_std(config, pct);
 }
 
 static void print_noise(struct perf_stat_config *config,
