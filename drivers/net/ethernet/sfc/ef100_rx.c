@@ -21,7 +21,7 @@
 /* Get the value of a field in the RX prefix */
 #define PREFIX_OFFSET_W(_f)	(ESF_GZ_RX_PREFIX_ ## _f ## _LBN / 32)
 #define PREFIX_OFFSET_B(_f)	(ESF_GZ_RX_PREFIX_ ## _f ## _LBN % 32)
-#define PREFIX_WIDTH_MASK(_f)	((1UL << ESF_GZ_RX_PREFIX_ ## _f ## _WIDTH) - 1)
+#define PREFIX_WIDTH_MASK(_f)	((1ULL << ESF_GZ_RX_PREFIX_ ## _f ## _WIDTH) - 1)
 #define PREFIX_WORD(_p, _f)	le32_to_cpu((__force __le32)(_p)[PREFIX_OFFSET_W(_f)])
 #define PREFIX_FIELD(_p, _f)	((PREFIX_WORD(_p, _f) >> PREFIX_OFFSET_B(_f)) & \
 				 PREFIX_WIDTH_MASK(_f))
