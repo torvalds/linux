@@ -12,6 +12,7 @@
 #ifndef PMC_CORE_H
 #define PMC_CORE_H
 
+#include <linux/acpi.h>
 #include <linux/bits.h>
 #include <linux/platform_device.h>
 
@@ -354,6 +355,19 @@ extern const struct pmc_reg_map cnp_reg_map;
 extern const struct pmc_bit_map icl_pfear_map[];
 extern const struct pmc_bit_map *ext_icl_pfear_map[];
 extern const struct pmc_reg_map icl_reg_map;
+extern const struct pmc_bit_map tgl_pfear_map[];
+extern const struct pmc_bit_map *ext_tgl_pfear_map[];
+extern const struct pmc_bit_map tgl_clocksource_status_map[];
+extern const struct pmc_bit_map tgl_power_gating_status_map[];
+extern const struct pmc_bit_map tgl_d3_status_map[];
+extern const struct pmc_bit_map tgl_vnn_req_status_map[];
+extern const struct pmc_bit_map tgl_vnn_misc_status_map[];
+extern const struct pmc_bit_map tgl_signal_status_map[];
+extern const struct pmc_bit_map *tgl_lpm_maps[];
+extern const struct pmc_reg_map tgl_reg_map;
+
+extern void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev);
+extern int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value);
 
 void spt_core_init(struct pmc_dev *pmcdev);
 void cnp_core_init(struct pmc_dev *pmcdev);
