@@ -638,6 +638,12 @@ static inline void mt_set_in_rcu(struct maple_tree *mt)
 	}
 }
 
+static inline unsigned int mt_height(const struct maple_tree *mt)
+
+{
+	return (mt->ma_flags & MT_FLAGS_HEIGHT_MASK) >> MT_FLAGS_HEIGHT_OFFSET;
+}
+
 void *mt_find(struct maple_tree *mt, unsigned long *index, unsigned long max);
 void *mt_find_after(struct maple_tree *mt, unsigned long *index,
 		    unsigned long max);
@@ -664,6 +670,7 @@ extern atomic_t maple_tree_tests_passed;
 
 void mt_dump(const struct maple_tree *mt);
 void mt_validate(struct maple_tree *mt);
+void mt_cache_shrink(void);
 #define MT_BUG_ON(__tree, __x) do {					\
 	atomic_inc(&maple_tree_tests_run);				\
 	if (__x) {							\

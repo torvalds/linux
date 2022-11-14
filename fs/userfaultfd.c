@@ -1630,17 +1630,20 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 				 NULL_VM_UFFD_CTX, anon_vma_name(vma));
 		if (prev) {
 			vma = prev;
+			mas_pause(&mas);
 			goto next;
 		}
 		if (vma->vm_start < start) {
 			ret = split_vma(mm, vma, start, 1);
 			if (ret)
 				break;
+			mas_pause(&mas);
 		}
 		if (vma->vm_end > end) {
 			ret = split_vma(mm, vma, end, 0);
 			if (ret)
 				break;
+			mas_pause(&mas);
 		}
 	next:
 		/*
