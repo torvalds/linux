@@ -25,6 +25,45 @@
 #define CNTR_NOT_SUPPORTED	"<not supported>"
 #define CNTR_NOT_COUNTED	"<not counted>"
 
+#define METRIC_LEN   38
+#define EVNAME_LEN   32
+#define COUNTS_LEN   18
+#define INTERVAL_LEN 16
+#define CGROUP_LEN   16
+#define COMM_LEN     16
+#define PID_LEN       7
+#define CPUS_LEN      4
+
+static int aggr_header_lens[] = {
+	[AGGR_CORE] 	= 18,
+	[AGGR_DIE] 	= 12,
+	[AGGR_SOCKET] 	= 6,
+	[AGGR_NODE] 	= 6,
+	[AGGR_NONE] 	= 6,
+	[AGGR_THREAD] 	= 16,
+	[AGGR_GLOBAL] 	= 0,
+};
+
+static const char *aggr_header_csv[] = {
+	[AGGR_CORE] 	= 	"core,cpus,",
+	[AGGR_DIE] 	= 	"die,cpus,",
+	[AGGR_SOCKET] 	= 	"socket,cpus,",
+	[AGGR_NONE] 	= 	"cpu,",
+	[AGGR_THREAD] 	= 	"comm-pid,",
+	[AGGR_NODE] 	= 	"node,",
+	[AGGR_GLOBAL] 	=	""
+};
+
+static const char *aggr_header_std[] = {
+	[AGGR_CORE] 	= 	"core",
+	[AGGR_DIE] 	= 	"die",
+	[AGGR_SOCKET] 	= 	"socket",
+	[AGGR_NONE] 	= 	"cpu",
+	[AGGR_THREAD] 	= 	"comm-pid",
+	[AGGR_NODE] 	= 	"node",
+	[AGGR_GLOBAL] 	=	""
+};
+
 static void print_running_std(struct perf_stat_config *config, u64 run, u64 ena)
 {
 	if (run != ena)
@@ -116,7 +155,7 @@ static void print_noise(struct perf_stat_config *config,
 
 static void print_cgroup_std(struct perf_stat_config *config, const char *cgrp_name)
 {
-	fprintf(config->output, " %-16s", cgrp_name);
+	fprintf(config->output, " %-*s", CGROUP_LEN, cgrp_name);
 }
 
 static void print_cgroup_csv(struct perf_stat_config *config, const char *cgrp_name)
@@ -147,44 +186,46 @@ static void print_aggr_id_std(struct perf_stat_config *config,
 			      struct evsel *evsel, struct aggr_cpu_id id, int nr)
 {
 	FILE *output = config->output;
+	int idx = config->aggr_mode;
+	char buf[128];
 
 	switch (config->aggr_mode) {
 	case AGGR_CORE:
-		fprintf(output, "S%d-D%d-C%*d %*d ",
-			id.socket, id.die, -8, id.core, 4, nr);
+		snprintf(buf, sizeof(buf), "S%d-D%d-C%d", id.socket, id.die, id.core);
 		break;
 	case AGGR_DIE:
-		fprintf(output, "S%d-D%*d %*d ",
-			id.socket, -8, id.die, 4, nr);
+		snprintf(buf, sizeof(buf), "S%d-D%d", id.socket, id.die);
 		break;
 	case AGGR_SOCKET:
-		fprintf(output, "S%*d %*d ",
-			-5, id.socket, 4, nr);
+		snprintf(buf, sizeof(buf), "S%d", id.socket);
 		break;
 	case AGGR_NODE:
-		fprintf(output, "N%*d %*d ",
-			-5, id.node, 4, nr);
+		snprintf(buf, sizeof(buf), "N%d", id.node);
 		break;
 	case AGGR_NONE:
 		if (evsel->percore && !config->percore_show_thread) {
-			fprintf(output, "S%d-D%d-C%*d ",
-				id.socket, id.die, -3, id.core);
+			snprintf(buf, sizeof(buf), "S%d-D%d-C%d ",
+				id.socket, id.die, id.core);
+			fprintf(output, "%-*s ",
+				aggr_header_lens[AGGR_CORE], buf);
 		} else if (id.cpu.cpu > -1) {
-			fprintf(output, "CPU%*d ",
-				-7, id.cpu.cpu);
+			fprintf(output, "CPU%-*d ",
+				aggr_header_lens[AGGR_NONE] - 3, id.cpu.cpu);
 		}
-		break;
+		return;
 	case AGGR_THREAD:
-		fprintf(output, "%*s-%*d ",
-			16, perf_thread_map__comm(evsel->core.threads, id.thread_idx),
-			-8, perf_thread_map__pid(evsel->core.threads, id.thread_idx));
-		break;
+		fprintf(output, "%*s-%-*d ",
+			COMM_LEN, perf_thread_map__comm(evsel->core.threads, id.thread_idx),
+			PID_LEN, perf_thread_map__pid(evsel->core.threads, id.thread_idx));
+		return;
 	case AGGR_GLOBAL:
 	case AGGR_UNSET:
 	case AGGR_MAX:
 	default:
-		break;
+		return;
 	}
+
+	fprintf(output, "%-*s %*d ", aggr_header_lens[idx], buf, 4, nr);
 }
 
 static void print_aggr_id_csv(struct perf_stat_config *config,
@@ -300,8 +341,6 @@ struct outstate {
 	struct aggr_cpu_id id;
 	struct evsel *evsel;
 };
-
-#define METRIC_LEN  38
 
 static void new_line_std(struct perf_stat_config *config __maybe_unused,
 			 void *ctx)
@@ -534,19 +573,19 @@ static void print_counter_value_std(struct perf_stat_config *config,
 	const char *bad_count = evsel->supported ? CNTR_NOT_COUNTED : CNTR_NOT_SUPPORTED;
 
 	if (config->big_num)
-		fmt = floor(sc) != sc ? "%'18.2f " : "%'18.0f ";
+		fmt = floor(sc) != sc ? "%'*.2f " : "%'*.0f ";
 	else
-		fmt = floor(sc) != sc ? "%18.2f " : "%18.0f ";
+		fmt = floor(sc) != sc ? "%*.2f " : "%*.0f ";
 
 	if (ok)
-		fprintf(output, fmt, avg);
+		fprintf(output, fmt, COUNTS_LEN, avg);
 	else
-		fprintf(output, "%18s ", bad_count);
+		fprintf(output, "%*s ", COUNTS_LEN, bad_count);
 
 	if (evsel->unit)
 		fprintf(output, "%-*s ", config->unit_width, evsel->unit);
 
-	fprintf(output, "%-*s", 32, evsel__name(evsel));
+	fprintf(output, "%-*s", EVNAME_LEN, evsel__name(evsel));
 }
 
 static void print_counter_value_csv(struct perf_stat_config *config,
@@ -904,34 +943,19 @@ static void print_no_aggr_metric(struct perf_stat_config *config,
 	}
 }
 
-static int aggr_header_lens[] = {
-	[AGGR_CORE] = 24,
-	[AGGR_DIE] = 18,
-	[AGGR_SOCKET] = 12,
-	[AGGR_NONE] = 6,
-	[AGGR_THREAD] = 24,
-	[AGGR_NODE] = 6,
-	[AGGR_GLOBAL] = 0,
-};
-
-static const char *aggr_header_csv[] = {
-	[AGGR_CORE] 	= 	"core,cpus,",
-	[AGGR_DIE] 	= 	"die,cpus,",
-	[AGGR_SOCKET] 	= 	"socket,cpus,",
-	[AGGR_NONE] 	= 	"cpu,",
-	[AGGR_THREAD] 	= 	"comm-pid,",
-	[AGGR_NODE] 	= 	"node,",
-	[AGGR_GLOBAL] 	=	""
-};
-
 static void print_metric_headers_std(struct perf_stat_config *config,
 				     const char *prefix, bool no_indent)
 {
 	if (prefix)
 		fprintf(config->output, "%s", prefix);
+
 	if (!no_indent) {
-		fprintf(config->output, "%*s",
-			aggr_header_lens[config->aggr_mode], "");
+		int len = aggr_header_lens[config->aggr_mode];
+
+		if (nr_cgroups)
+			len += CGROUP_LEN + 1;
+
+		fprintf(config->output, "%*s", len, "");
 	}
 }
 
@@ -1025,45 +1049,38 @@ static void print_interval(struct perf_stat_config *config,
 			!config->csv_output && !config->json_output) {
 		switch (config->aggr_mode) {
 		case AGGR_NODE:
-			fprintf(output, "#           time node   cpus");
-			if (!metric_only)
-				fprintf(output, "             counts %*s events\n", unit_width, "unit");
-			break;
 		case AGGR_SOCKET:
-			fprintf(output, "#           time socket cpus");
-			if (!metric_only)
-				fprintf(output, "             counts %*s events\n", unit_width, "unit");
-			break;
 		case AGGR_DIE:
-			fprintf(output, "#           time die          cpus");
-			if (!metric_only)
-				fprintf(output, "             counts %*s events\n", unit_width, "unit");
-			break;
 		case AGGR_CORE:
-			fprintf(output, "#           time core            cpus");
-			if (!metric_only)
-				fprintf(output, "             counts %*s events\n", unit_width, "unit");
+			fprintf(output, "#%*s %-*s cpus",
+				INTERVAL_LEN - 1, "time",
+				aggr_header_lens[config->aggr_mode],
+				aggr_header_std[config->aggr_mode]);
 			break;
 		case AGGR_NONE:
-			fprintf(output, "#           time CPU    ");
-			if (!metric_only)
-				fprintf(output, "                counts %*s events\n", unit_width, "unit");
+			fprintf(output, "#%*s %-*s",
+				INTERVAL_LEN - 1, "time",
+				aggr_header_lens[config->aggr_mode],
+				aggr_header_std[config->aggr_mode]);
 			break;
 		case AGGR_THREAD:
-			fprintf(output, "#           time             comm-pid");
-			if (!metric_only)
-				fprintf(output, "                  counts %*s events\n", unit_width, "unit");
+			fprintf(output, "#%*s %*s-%-*s",
+				INTERVAL_LEN - 1, "time",
+				COMM_LEN, "comm", PID_LEN, "pid");
 			break;
 		case AGGR_GLOBAL:
 		default:
-			if (!config->iostat_run) {
-				fprintf(output, "#           time");
-				if (!metric_only)
-					fprintf(output, "             counts %*s events\n", unit_width, "unit");
-			}
+			if (!config->iostat_run)
+				fprintf(output, "#%*s",
+					INTERVAL_LEN - 1, "time");
 		case AGGR_UNSET:
 		case AGGR_MAX:
 			break;
+		}
+
+		if (!metric_only) {
+			fprintf(output, " %*s %*s events\n",
+				COUNTS_LEN, "counts", unit_width, "unit");
 		}
 	}
 
