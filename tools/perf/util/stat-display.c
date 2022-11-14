@@ -924,6 +924,37 @@ static const char *aggr_header_csv[] = {
 	[AGGR_GLOBAL] 	=	""
 };
 
+static void print_metric_headers_std(struct perf_stat_config *config,
+				     const char *prefix, bool no_indent)
+{
+	if (prefix)
+		fprintf(config->output, "%s", prefix);
+	if (!no_indent) {
+		fprintf(config->output, "%*s",
+			aggr_header_lens[config->aggr_mode], "");
+	}
+}
+
+static void print_metric_headers_csv(struct perf_stat_config *config,
+				     const char *prefix,
+				     bool no_indent __maybe_unused)
+{
+	if (prefix)
+		fprintf(config->output, "%s", prefix);
+	if (config->interval)
+		fputs("time,", config->output);
+	if (!config->iostat_run)
+		fputs(aggr_header_csv[config->aggr_mode], config->output);
+}
+
+static void print_metric_headers_json(struct perf_stat_config *config,
+				      const char *prefix __maybe_unused,
+				      bool no_indent __maybe_unused)
+{
+	if (config->interval)
+		fputs("{\"unit\" : \"sec\"}", config->output);
+}
+
 static void print_metric_headers(struct perf_stat_config *config,
 				 struct evlist *evlist,
 				 const char *prefix, bool no_indent)
@@ -939,22 +970,13 @@ static void print_metric_headers(struct perf_stat_config *config,
 		.force_header = true,
 	};
 
-	if (prefix && !config->json_output)
-		fprintf(config->output, "%s", prefix);
+	if (config->json_output)
+		print_metric_headers_json(config, prefix, no_indent);
+	else if (config->csv_output)
+		print_metric_headers_csv(config, prefix, no_indent);
+	else
+		print_metric_headers_std(config, prefix, no_indent);
 
-	if (!config->csv_output && !config->json_output && !no_indent)
-		fprintf(config->output, "%*s",
-			aggr_header_lens[config->aggr_mode], "");
-	if (config->csv_output) {
-		if (config->interval)
-			fputs("time,", config->output);
-		if (!config->iostat_run)
-			fputs(aggr_header_csv[config->aggr_mode], config->output);
-	}
-	if (config->json_output) {
-		if (config->interval)
-			fputs("{\"unit\" : \"sec\"}", config->output);
-	}
 	if (config->iostat_run)
 		iostat_print_header_prefix(config);
 
