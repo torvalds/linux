@@ -948,7 +948,7 @@ static const struct intel_device_info adl_s_info = {
 #define XE_LPD_FEATURES \
 	.display.abox_mask = GENMASK(1, 0),					\
 	.display.color = {							\
-		.degamma_lut_size = 128, .gamma_lut_size = 1024,		\
+		.degamma_lut_size = 129, .gamma_lut_size = 1024,		\
 		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING |		\
 				     DRM_COLOR_LUT_EQUAL_CHANNELS,		\
 	},									\
