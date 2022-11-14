@@ -8,12 +8,13 @@
  * Copyright (C) 2011 Google, Inc.
  */
 
-#include <linux/freezer.h>
+#include "page_pool.h"
+
 #include <linux/list.h>
-#include <linux/slab.h>
+#include <linux/shrinker.h>
+#include <linux/spinlock.h>
 #include <linux/swap.h>
 #include <linux/sched/signal.h>
-#include "page_pool.h"
 
 static LIST_HEAD(pool_list);
 static DEFINE_MUTEX(pool_list_lock);

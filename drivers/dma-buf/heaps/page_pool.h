@@ -10,11 +10,8 @@
 #ifndef _DMABUF_PAGE_POOL_H
 #define _DMABUF_PAGE_POOL_H
 
-#include <linux/device.h>
-#include <linux/kref.h>
 #include <linux/mm_types.h>
-#include <linux/spinlock.h>
-#include <linux/shrinker.h>
+#include <linux/spinlock_types.h>
 #include <linux/types.h>
 
 /* page types we track in the pool */
@@ -29,7 +26,7 @@ enum {
  * struct dmabuf_page_pool - pagepool struct
  * @count[]:		array of number of pages of that type in the pool
  * @items[]:		array of list of pages of the specific type
- * @mutex:		lock protecting this struct and especially the count
+ * @lock:		lock protecting this struct and especially the count
  *			item list
  * @gfp_mask:		gfp_mask to use from alloc
  * @order:		order of pages in the pool
