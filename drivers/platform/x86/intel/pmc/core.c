@@ -35,8 +35,21 @@
 #define ACPI_S0IX_DSM_UUID		"57a6512e-3979-4e9d-9708-ff13b2508972"
 #define ACPI_GET_LOW_MODE_REGISTERS	1
 
+/* Maximum number of modes supported by platfoms that has low power mode capability */
+const char *pmc_lpm_modes[] = {
+	"S0i2.0",
+	"S0i2.1",
+	"S0i2.2",
+	"S0i3.0",
+	"S0i3.1",
+	"S0i3.2",
+	"S0i3.3",
+	"S0i3.4",
+	NULL
+};
+
 /* PKGC MSRs are common across Intel Core SoCs */
-static const struct pmc_bit_map msr_map[] = {
+const struct pmc_bit_map msr_map[] = {
 	{"Package C2",                  MSR_PKG_C2_RESIDENCY},
 	{"Package C3",                  MSR_PKG_C3_RESIDENCY},
 	{"Package C6",                  MSR_PKG_C6_RESIDENCY},

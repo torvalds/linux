@@ -237,17 +237,7 @@ enum ppfear_regs {
 #define ADL_LPM_STATUS_LATCH_EN_OFFSET		0x1704
 #define ADL_LPM_LIVE_STATUS_OFFSET		0x1764
 
-static const char *pmc_lpm_modes[] = {
-	"S0i2.0",
-	"S0i2.1",
-	"S0i2.2",
-	"S0i3.0",
-	"S0i3.1",
-	"S0i3.2",
-	"S0i3.3",
-	"S0i3.4",
-	NULL
-};
+extern const char *pmc_lpm_modes[];
 
 struct pmc_bit_map {
 	const char *name;
@@ -346,6 +336,7 @@ struct pmc_dev {
 	void (*core_configure)(struct pmc_dev *pmcdev);
 };
 
+extern const struct pmc_bit_map msr_map[];
 void spt_core_init(struct pmc_dev *pmcdev);
 void cnp_core_init(struct pmc_dev *pmcdev);
 void icl_core_init(struct pmc_dev *pmcdev);
