@@ -47,7 +47,7 @@ properties:
     const: rxtx
 
 patternProperties:
-  "^nand@[a-f0-9]+$":
+  "^nand@[a-f0-9]$":
     type: object
     properties:
       reg:
