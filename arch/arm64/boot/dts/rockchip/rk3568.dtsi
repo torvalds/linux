@@ -583,6 +583,7 @@
 			snps,dis-tx-ipgap-linecheck-quirk;
 			snps,dis_rxdet_inp3_quirk;
 			snps,xhci-trb-ent-quirk;
+			quirk-skip-phy-init;
 			status = "disabled";
 		};
 	};
