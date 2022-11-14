@@ -2394,7 +2394,8 @@ static void restore_channels_info(struct mlx5_vdpa_net *ndev)
 	}
 }
 
-static int mlx5_vdpa_change_map(struct mlx5_vdpa_dev *mvdev, struct vhost_iotlb *iotlb)
+static int mlx5_vdpa_change_map(struct mlx5_vdpa_dev *mvdev,
+				struct vhost_iotlb *iotlb, unsigned int asid)
 {
 	struct mlx5_vdpa_net *ndev = to_mlx5_vdpa_ndev(mvdev);
 	int err;
@@ -2406,7 +2407,7 @@ static int mlx5_vdpa_change_map(struct mlx5_vdpa_dev *mvdev, struct vhost_iotlb 
 
 	teardown_driver(ndev);
 	mlx5_vdpa_destroy_mr(mvdev);
-	err = mlx5_vdpa_create_mr(mvdev, iotlb);
+	err = mlx5_vdpa_create_mr(mvdev, iotlb, asid);
 	if (err)
 		goto err_mr;
 
@@ -2587,7 +2588,7 @@ static int mlx5_vdpa_reset(struct vdpa_device *vdev)
 	++mvdev->generation;
 
 	if (MLX5_CAP_GEN(mvdev->mdev, umem_uid_0)) {
-		if (mlx5_vdpa_create_mr(mvdev, NULL))
+		if (mlx5_vdpa_create_mr(mvdev, NULL, 0))
 			mlx5_vdpa_warn(mvdev, "create MR failed\n");
 	}
 	up_write(&ndev->reslock);
@@ -2623,41 +2624,20 @@ static u32 mlx5_vdpa_get_generation(struct vdpa_device *vdev)
 	return mvdev->generation;
 }
 
-static int set_map_control(struct mlx5_vdpa_dev *mvdev, struct vhost_iotlb *iotlb)
-{
-	u64 start = 0ULL, last = 0ULL - 1;
-	struct vhost_iotlb_map *map;
-	int err = 0;
-
-	spin_lock(&mvdev->cvq.iommu_lock);
-	vhost_iotlb_reset(mvdev->cvq.iotlb);
-
-	for (map = vhost_iotlb_itree_first(iotlb, start, last); map;
-	     map = vhost_iotlb_itree_next(map, start, last)) {
-		err = vhost_iotlb_add_range(mvdev->cvq.iotlb, map->start,
-					    map->last, map->addr, map->perm);
-		if (err)
-			goto out;
-	}
-
-out:
-	spin_unlock(&mvdev->cvq.iommu_lock);
-	return err;
-}
-
-static int set_map_data(struct mlx5_vdpa_dev *mvdev, struct vhost_iotlb *iotlb)
+static int set_map_data(struct mlx5_vdpa_dev *mvdev, struct vhost_iotlb *iotlb,
+			unsigned int asid)
 {
 	bool change_map;
 	int err;
 
-	err = mlx5_vdpa_handle_set_map(mvdev, iotlb, &change_map);
+	err = mlx5_vdpa_handle_set_map(mvdev, iotlb, &change_map, asid);
 	if (err) {
 		mlx5_vdpa_warn(mvdev, "set map failed(%d)\n", err);
 		return err;
 	}
 
 	if (change_map)
-		err = mlx5_vdpa_change_map(mvdev, iotlb);
+		err = mlx5_vdpa_change_map(mvdev, iotlb, asid);
 
 	return err;
 }
@@ -2670,16 +2650,7 @@ static int mlx5_vdpa_set_map(struct vdpa_device *vdev, unsigned int asid,
 	int err = -EINVAL;
 
 	down_write(&ndev->reslock);
-	if (mvdev->group2asid[MLX5_VDPA_DATAVQ_GROUP] == asid) {
-		err = set_map_data(mvdev, iotlb);
-		if (err)
-			goto out;
-	}
-
-	if (mvdev->group2asid[MLX5_VDPA_CVQ_GROUP] == asid)
-		err = set_map_control(mvdev, iotlb);
-
-out:
+	err = set_map_data(mvdev, iotlb, asid);
 	up_write(&ndev->reslock);
 	return err;
 }
@@ -3182,7 +3153,7 @@ static int mlx5_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
 		goto err_mpfs;
 
 	if (MLX5_CAP_GEN(mvdev->mdev, umem_uid_0)) {
-		err = mlx5_vdpa_create_mr(mvdev, NULL);
+		err = mlx5_vdpa_create_mr(mvdev, NULL, 0);
 		if (err)
 			goto err_res;
 	}
