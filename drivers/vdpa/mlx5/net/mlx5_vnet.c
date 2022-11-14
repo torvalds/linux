@@ -2845,8 +2845,8 @@ static int mlx5_vdpa_suspend(struct vdpa_device *vdev)
 	int i;
 
 	down_write(&ndev->reslock);
-	mlx5_notifier_unregister(mvdev->mdev, &ndev->nb);
 	ndev->nb_registered = false;
+	mlx5_notifier_unregister(mvdev->mdev, &ndev->nb);
 	flush_workqueue(ndev->mvdev.wq);
 	for (i = 0; i < ndev->cur_num_vqs; i++) {
 		mvq = &ndev->vqs[i];
@@ -3024,7 +3024,7 @@ static void update_carrier(struct work_struct *work)
 	else
 		ndev->config.status &= cpu_to_mlx5vdpa16(mvdev, ~VIRTIO_NET_S_LINK_UP);
 
-	if (ndev->config_cb.callback)
+	if (ndev->nb_registered && ndev->config_cb.callback)
 		ndev->config_cb.callback(ndev->config_cb.private);
 
 	kfree(wqent);
@@ -3041,21 +3041,13 @@ static int event_handler(struct notifier_block *nb, unsigned long event, void *p
 		switch (eqe->sub_type) {
 		case MLX5_PORT_CHANGE_SUBTYPE_DOWN:
 		case MLX5_PORT_CHANGE_SUBTYPE_ACTIVE:
-			down_read(&ndev->reslock);
-			if (!ndev->nb_registered) {
-				up_read(&ndev->reslock);
-				return NOTIFY_DONE;
-			}
 			wqent = kzalloc(sizeof(*wqent), GFP_ATOMIC);
-			if (!wqent) {
-				up_read(&ndev->reslock);
+			if (!wqent)
 				return NOTIFY_DONE;
-			}
 
 			wqent->mvdev = &ndev->mvdev;
 			INIT_WORK(&wqent->work, update_carrier);
 			queue_work(ndev->mvdev.wq, &wqent->work);
-			up_read(&ndev->reslock);
 			ret = NOTIFY_OK;
 			break;
 		default:
@@ -3242,8 +3234,8 @@ static void mlx5_vdpa_dev_del(struct vdpa_mgmt_dev *v_mdev, struct vdpa_device *
 	struct workqueue_struct *wq;
 
 	if (ndev->nb_registered) {
-		mlx5_notifier_unregister(mvdev->mdev, &ndev->nb);
 		ndev->nb_registered = false;
+		mlx5_notifier_unregister(mvdev->mdev, &ndev->nb);
 	}
 	wq = mvdev->wq;
 	mvdev->wq = NULL;
