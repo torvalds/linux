@@ -295,7 +295,7 @@ static int bch2_move_extent(struct btree_trans *trans,
 
 	ret = bch2_data_update_init(c, &io->write, ctxt->wp, io_opts,
 				    data_opts, btree_id, k);
-	if (ret)
+	if (ret && ret != -BCH_ERR_unwritten_extent_update)
 		goto err_free_pages;
 
 	io->write.ctxt = ctxt;
@@ -303,6 +303,15 @@ static int bch2_move_extent(struct btree_trans *trans,
 
 	atomic64_inc(&ctxt->stats->keys_moved);
 	atomic64_add(k.k->size, &ctxt->stats->sectors_moved);
+
+	if (ret == -BCH_ERR_unwritten_extent_update) {
+		bch2_update_unwritten_extent(trans, &io->write);
+		move_free(io);
+		return 0;
+	}
+
+	BUG_ON(ret);
+
 	this_cpu_add(c->counters[BCH_COUNTER_io_move], k.k->size);
 	this_cpu_add(c->counters[BCH_COUNTER_move_extent_read], k.k->size);
 	trace_move_extent_read(k.k);
