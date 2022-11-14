@@ -864,15 +864,6 @@ int atomisp_css_load_firmware(struct atomisp_device *isp)
 
 void atomisp_css_uninit(struct atomisp_device *isp)
 {
-	struct atomisp_sub_device *asd;
-	unsigned int i;
-
-	for (i = 0; i < isp->num_of_streams; i++) {
-		asd = &isp->asd[i];
-		memset(&asd->params.config, 0, sizeof(asd->params.config));
-		asd->params.css_update_params_needed = false;
-	}
-
 	isp->css_initialized = false;
 	ia_css_uninit();
 }
