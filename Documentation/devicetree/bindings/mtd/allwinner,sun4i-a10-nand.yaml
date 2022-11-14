@@ -86,4 +86,27 @@ required:
 
 unevaluatedProperties: false
 
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/sun6i-rtc.h>
+    #include <dt-bindings/clock/sun8i-a23-a33-ccu.h>
+    #include <dt-bindings/reset/sun8i-a23-a33-ccu.h>
+
+    nand-controller@1c03000 {
+        compatible = "allwinner,sun8i-a23-nand-controller";
+        reg = <0x01c03000 0x1000>;
+        interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&ccu CLK_BUS_NAND>, <&ccu CLK_NAND>;
+        clock-names = "ahb", "mod";
+        resets = <&ccu RST_BUS_NAND>;
+        reset-names = "ahb";
+        dmas = <&dma 5>;
+        dma-names = "rxtx";
+        pinctrl-names = "default";
+        pinctrl-0 = <&nand_pins &nand_cs0_pin &nand_rb0_pin>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+    };
+
 ...
