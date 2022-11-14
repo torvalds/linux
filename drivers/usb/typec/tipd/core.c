@@ -826,7 +826,7 @@ static int tps6598x_probe(struct i2c_client *client)
 		ret = tps6598x_read16(tps, TPS_REG_POWER_STATUS, &tps->pwr_status);
 		if (ret < 0) {
 			dev_err(tps->dev, "failed to read power status: %d\n", ret);
-			goto err_role_put;
+			goto err_unregister_port;
 		}
 		ret = tps6598x_connect(tps, status);
 		if (ret)
@@ -839,8 +839,7 @@ static int tps6598x_probe(struct i2c_client *client)
 					dev_name(&client->dev), tps);
 	if (ret) {
 		tps6598x_disconnect(tps, 0);
-		typec_unregister_port(tps->port);
-		goto err_role_put;
+		goto err_unregister_port;
 	}
 
 	i2c_set_clientdata(client, tps);
@@ -848,6 +847,8 @@ static int tps6598x_probe(struct i2c_client *client)
 
 	return 0;
 
+err_unregister_port:
+	typec_unregister_port(tps->port);
 err_role_put:
 	usb_role_switch_put(tps->role_sw);
 err_fwnode_put:
