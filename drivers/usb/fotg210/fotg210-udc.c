@@ -1146,7 +1146,6 @@ int fotg210_udc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct fotg210_udc *fotg210 = NULL;
-	struct fotg210_ep *_ep[FOTG210_MAX_NUM_EP];
 	struct device *dev = &pdev->dev;
 	int irq;
 	int ret = 0;
@@ -1205,10 +1204,9 @@ int fotg210_udc_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < FOTG210_MAX_NUM_EP; i++) {
-		_ep[i] = kzalloc(sizeof(struct fotg210_ep), GFP_KERNEL);
-		if (_ep[i] == NULL)
+		fotg210->ep[i] = kzalloc(sizeof(struct fotg210_ep), GFP_KERNEL);
+		if (!fotg210->ep[i])
 			goto err_alloc;
-		fotg210->ep[i] = _ep[i];
 	}
 
 	fotg210->reg = ioremap(res->start, resource_size(res));
