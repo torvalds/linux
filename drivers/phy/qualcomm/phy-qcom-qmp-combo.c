@@ -2148,9 +2148,10 @@ static const struct dev_pm_ops qmp_combo_pm_ops = {
 			   qmp_combo_runtime_resume, NULL)
 };
 
-static int qmp_combo_vreg_init(struct device *dev, const struct qmp_phy_cfg *cfg)
+static int qmp_combo_vreg_init(struct qmp_combo *qmp)
 {
-	struct qmp_combo *qmp = dev_get_drvdata(dev);
+	const struct qmp_phy_cfg *cfg = qmp->cfg;
+	struct device *dev = qmp->dev;
 	int num = cfg->num_vregs;
 	int ret, i;
 
@@ -2180,9 +2181,10 @@ static int qmp_combo_vreg_init(struct device *dev, const struct qmp_phy_cfg *cfg
 	return 0;
 }
 
-static int qmp_combo_reset_init(struct device *dev, const struct qmp_phy_cfg *cfg)
+static int qmp_combo_reset_init(struct qmp_combo *qmp)
 {
-	struct qmp_combo *qmp = dev_get_drvdata(dev);
+	const struct qmp_phy_cfg *cfg = qmp->cfg;
+	struct device *dev = qmp->dev;
 	int i;
 	int ret;
 
@@ -2201,9 +2203,10 @@ static int qmp_combo_reset_init(struct device *dev, const struct qmp_phy_cfg *cf
 	return 0;
 }
 
-static int qmp_combo_clk_init(struct device *dev, const struct qmp_phy_cfg *cfg)
+static int qmp_combo_clk_init(struct qmp_combo *qmp)
 {
-	struct qmp_combo *qmp = dev_get_drvdata(dev);
+	const struct qmp_phy_cfg *cfg = qmp->cfg;
+	struct device *dev = qmp->dev;
 	int num = cfg->num_clks;
 	int i;
 
@@ -2468,15 +2471,12 @@ static int phy_dp_clks_register(struct qmp_combo *qmp, struct device_node *np)
 	return devm_add_action_or_reset(qmp->dev, phy_clk_release_provider, np);
 }
 
-static int qmp_combo_create_dp(struct device *dev, struct device_node *np,
-			void __iomem *serdes, const struct qmp_phy_cfg *cfg)
+static int qmp_combo_create_dp(struct qmp_combo *qmp, struct device_node *np)
 {
-	struct qmp_combo *qmp = dev_get_drvdata(dev);
+	struct device *dev = qmp->dev;
 	struct phy *generic_phy;
 	int ret;
 
-	qmp->cfg = cfg;
-	qmp->dp_serdes = serdes;
 	/*
 	 * Get memory resources from the DP child node:
 	 * Resources are indexed as: tx -> 0; rx -> 1; pcs -> 2;
@@ -2509,15 +2509,13 @@ static int qmp_combo_create_dp(struct device *dev, struct device_node *np,
 	return 0;
 }
 
-static int qmp_combo_create_usb(struct device *dev, struct device_node *np,
-			void __iomem *serdes, const struct qmp_phy_cfg *cfg)
+static int qmp_combo_create_usb(struct qmp_combo *qmp, struct device_node *np)
 {
-	struct qmp_combo *qmp = dev_get_drvdata(dev);
+	const struct qmp_phy_cfg *cfg = qmp->cfg;
+	struct device *dev = qmp->dev;
 	struct phy *generic_phy;
 	int ret;
 
-	qmp->cfg = cfg;
-	qmp->serdes = serdes;
 	/*
 	 * Get memory resources from the USB child node:
 	 * Resources are indexed as: tx -> 0; rx -> 1; pcs -> 2;
@@ -2577,10 +2575,6 @@ static int qmp_combo_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *dp_np, *usb_np;
 	struct phy_provider *phy_provider;
-	void __iomem *serdes;
-	void __iomem *usb_serdes;
-	void __iomem *dp_serdes = NULL;
-	const struct qmp_phy_cfg *cfg = NULL;
 	int ret;
 
 	qmp = devm_kzalloc(dev, sizeof(*qmp), GFP_KERNEL);
@@ -2588,35 +2582,34 @@ static int qmp_combo_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	qmp->dev = dev;
-	dev_set_drvdata(dev, qmp);
 
-	cfg = of_device_get_match_data(dev);
-	if (!cfg)
+	qmp->cfg = of_device_get_match_data(dev);
+	if (!qmp->cfg)
 		return -EINVAL;
 
-	usb_serdes = serdes = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(serdes))
-		return PTR_ERR(serdes);
+	qmp->serdes = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(qmp->serdes))
+		return PTR_ERR(qmp->serdes);
 
 	qmp->dp_com = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(qmp->dp_com))
 		return PTR_ERR(qmp->dp_com);
 
-	dp_serdes = devm_platform_ioremap_resource(pdev, 2);
-	if (IS_ERR(dp_serdes))
-		return PTR_ERR(dp_serdes);
+	qmp->dp_serdes = devm_platform_ioremap_resource(pdev, 2);
+	if (IS_ERR(qmp->dp_serdes))
+		return PTR_ERR(qmp->dp_serdes);
 
 	mutex_init(&qmp->phy_mutex);
 
-	ret = qmp_combo_clk_init(dev, cfg);
+	ret = qmp_combo_clk_init(qmp);
 	if (ret)
 		return ret;
 
-	ret = qmp_combo_reset_init(dev, cfg);
+	ret = qmp_combo_reset_init(qmp);
 	if (ret)
 		return ret;
 
-	ret = qmp_combo_vreg_init(dev, cfg);
+	ret = qmp_combo_vreg_init(qmp);
 	if (ret)
 		return ret;
 
@@ -2640,7 +2633,7 @@ static int qmp_combo_probe(struct platform_device *pdev)
 	 */
 	pm_runtime_forbid(dev);
 
-	ret = qmp_combo_create_usb(dev, usb_np, usb_serdes, cfg);
+	ret = qmp_combo_create_usb(qmp, usb_np);
 	if (ret)
 		goto err_node_put;
 
@@ -2648,7 +2641,7 @@ static int qmp_combo_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_node_put;
 
-	ret = qmp_combo_create_dp(dev, dp_np, dp_serdes, cfg);
+	ret = qmp_combo_create_dp(qmp, dp_np);
 	if (ret)
 		goto err_node_put;
 
