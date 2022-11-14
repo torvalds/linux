@@ -249,17 +249,44 @@ static void icl_update_output_csc(struct intel_crtc *crtc,
 	intel_de_write_fw(i915, PIPE_CSC_OUTPUT_POSTOFF_LO(pipe), postoff[2]);
 }
 
-static bool ilk_csc_limited_range(const struct intel_crtc_state *crtc_state)
+static bool ilk_limited_range(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
-	/*
-	 * FIXME if there's a gamma LUT after the CSC, we should
-	 * do the range compression using the gamma LUT instead.
-	 */
-	return crtc_state->limited_color_range &&
-		(IS_HASWELL(i915) || IS_BROADWELL(i915) ||
-		 IS_DISPLAY_VER(i915, 9, 10));
+	/* icl+ have dedicated output CSC */
+	if (DISPLAY_VER(i915) >= 11)
+		return false;
+
+	/* pre-hsw have PIPECONF_COLOR_RANGE_SELECT */
+	if (DISPLAY_VER(i915) < 7 || IS_IVYBRIDGE(i915))
+		return false;
+
+	return crtc_state->limited_color_range;
+}
+
+static bool ilk_lut_limited_range(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	if (!ilk_limited_range(crtc_state))
+		return false;
+
+	if (crtc_state->c8_planes)
+		return false;
+
+	if (DISPLAY_VER(i915) == 10)
+		return crtc_state->hw.gamma_lut;
+	else
+		return crtc_state->hw.gamma_lut &&
+			(crtc_state->hw.degamma_lut || crtc_state->hw.ctm);
+}
+
+static bool ilk_csc_limited_range(const struct intel_crtc_state *crtc_state)
+{
+	if (!ilk_limited_range(crtc_state))
+		return false;
+
+	return !ilk_lut_limited_range(crtc_state);
 }
 
 static void ilk_csc_convert_ctm(const struct intel_crtc_state *crtc_state,
@@ -603,9 +630,18 @@ create_linear_lut(struct drm_i915_private *i915, int lut_size)
 	return blob;
 }
 
+static u16 lut_limited_range(unsigned int value)
+{
+	unsigned int min = 16 << 8;
+	unsigned int max = 235 << 8;
+
+	return value * (max - min) / 0xffff + min;
+}
+
 static struct drm_property_blob *
 create_resized_lut(struct drm_i915_private *i915,
-		   const struct drm_property_blob *blob_in, int lut_out_size)
+		   const struct drm_property_blob *blob_in, int lut_out_size,
+		   bool limited_color_range)
 {
 	int i, lut_in_size = drm_color_lut_size(blob_in);
 	struct drm_property_blob *blob_out;
@@ -621,8 +657,18 @@ create_resized_lut(struct drm_i915_private *i915,
 	lut_in = blob_in->data;
 	lut_out = blob_out->data;
 
-	for (i = 0; i < lut_out_size; i++)
-		lut_out[i] = lut_in[i * (lut_in_size - 1) / (lut_out_size - 1)];
+	for (i = 0; i < lut_out_size; i++) {
+		const struct drm_color_lut *entry =
+			&lut_in[i * (lut_in_size - 1) / (lut_out_size - 1)];
+
+		if (limited_color_range) {
+			lut_out[i].red = lut_limited_range(entry->red);
+			lut_out[i].green = lut_limited_range(entry->green);
+			lut_out[i].blue = lut_limited_range(entry->blue);
+		} else {
+			lut_out[i] = *entry;
+		}
+	}
 
 	return blob_out;
 }
@@ -1423,6 +1469,7 @@ void intel_color_assert_luts(const struct intel_crtc_state *crtc_state)
 			    crtc_state->pre_csc_lut != crtc_state->hw.degamma_lut &&
 			    crtc_state->pre_csc_lut != i915->display.color.glk_linear_degamma_lut);
 		drm_WARN_ON(&i915->drm,
+			    !ilk_lut_limited_range(crtc_state) &&
 			    crtc_state->post_csc_lut != NULL &&
 			    crtc_state->post_csc_lut != crtc_state->hw.gamma_lut);
 	} else if (crtc_state->gamma_mode != GAMMA_MODE_MODE_SPLIT) {
@@ -1430,6 +1477,7 @@ void intel_color_assert_luts(const struct intel_crtc_state *crtc_state)
 			    crtc_state->pre_csc_lut != crtc_state->hw.degamma_lut &&
 			    crtc_state->pre_csc_lut != crtc_state->hw.gamma_lut);
 		drm_WARN_ON(&i915->drm,
+			    !ilk_lut_limited_range(crtc_state) &&
 			    crtc_state->post_csc_lut != crtc_state->hw.degamma_lut &&
 			    crtc_state->post_csc_lut != crtc_state->hw.gamma_lut);
 	}
@@ -1563,8 +1611,28 @@ static u32 ilk_csc_mode(const struct intel_crtc_state *crtc_state)
 		CSC_POSITION_BEFORE_GAMMA;
 }
 
-static void ilk_assign_luts(struct intel_crtc_state *crtc_state)
+static int ilk_assign_luts(struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	if (ilk_lut_limited_range(crtc_state)) {
+		struct drm_property_blob *gamma_lut;
+
+		gamma_lut = create_resized_lut(i915, crtc_state->hw.gamma_lut,
+					       drm_color_lut_size(crtc_state->hw.gamma_lut),
+					       true);
+		if (IS_ERR(gamma_lut))
+			return PTR_ERR(gamma_lut);
+
+		drm_property_replace_blob(&crtc_state->post_csc_lut, gamma_lut);
+
+		drm_property_blob_put(gamma_lut);
+
+		drm_property_replace_blob(&crtc_state->pre_csc_lut, crtc_state->hw.degamma_lut);
+
+		return 0;
+	}
+
 	if (crtc_state->hw.degamma_lut ||
 	    crtc_state->csc_mode & CSC_POSITION_BEFORE_GAMMA) {
 		drm_property_replace_blob(&crtc_state->pre_csc_lut,
@@ -1577,6 +1645,8 @@ static void ilk_assign_luts(struct intel_crtc_state *crtc_state)
 		drm_property_replace_blob(&crtc_state->post_csc_lut,
 					  NULL);
 	}
+
+	return 0;
 }
 
 static int ilk_color_check(struct intel_crtc_state *crtc_state)
@@ -1613,7 +1683,9 @@ static int ilk_color_check(struct intel_crtc_state *crtc_state)
 	if (ret)
 		return ret;
 
-	ilk_assign_luts(crtc_state);
+	ret = ilk_assign_luts(crtc_state);
+	if (ret)
+		return ret;
 
 	crtc_state->preload_luts = intel_can_preload_luts(crtc_state);
 
@@ -1649,19 +1721,19 @@ static int ivb_assign_luts(struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 	struct drm_property_blob *degamma_lut, *gamma_lut;
 
-	if (crtc_state->gamma_mode != GAMMA_MODE_MODE_SPLIT) {
-		ilk_assign_luts(crtc_state);
-		return 0;
-	}
+	if (crtc_state->gamma_mode != GAMMA_MODE_MODE_SPLIT)
+		return ilk_assign_luts(crtc_state);
 
 	drm_WARN_ON(&i915->drm, drm_color_lut_size(crtc_state->hw.degamma_lut) != 1024);
 	drm_WARN_ON(&i915->drm, drm_color_lut_size(crtc_state->hw.gamma_lut) != 1024);
 
-	degamma_lut = create_resized_lut(i915, crtc_state->hw.degamma_lut, 512);
+	degamma_lut = create_resized_lut(i915, crtc_state->hw.degamma_lut, 512,
+					 false);
 	if (IS_ERR(degamma_lut))
 		return PTR_ERR(degamma_lut);
 
-	gamma_lut = create_resized_lut(i915, crtc_state->hw.gamma_lut, 512);
+	gamma_lut = create_resized_lut(i915, crtc_state->hw.gamma_lut, 512,
+				       ilk_lut_limited_range(crtc_state));
 	if (IS_ERR(gamma_lut)) {
 		drm_property_blob_put(degamma_lut);
 		return PTR_ERR(gamma_lut);
@@ -1750,7 +1822,8 @@ static int glk_assign_luts(struct intel_crtc_state *crtc_state)
 		struct drm_property_blob *gamma_lut;
 
 		gamma_lut = create_resized_lut(i915, crtc_state->hw.gamma_lut,
-					       INTEL_INFO(i915)->display.color.degamma_lut_size);
+					       INTEL_INFO(i915)->display.color.degamma_lut_size,
+					       false);
 		if (IS_ERR(gamma_lut))
 			return PTR_ERR(gamma_lut);
 
@@ -1762,7 +1835,23 @@ static int glk_assign_luts(struct intel_crtc_state *crtc_state)
 		return 0;
 	}
 
-	intel_assign_luts(crtc_state);
+	if (ilk_lut_limited_range(crtc_state)) {
+		struct drm_property_blob *gamma_lut;
+
+		gamma_lut = create_resized_lut(i915, crtc_state->hw.gamma_lut,
+					       drm_color_lut_size(crtc_state->hw.gamma_lut),
+					       true);
+		if (IS_ERR(gamma_lut))
+			return PTR_ERR(gamma_lut);
+
+		drm_property_replace_blob(&crtc_state->post_csc_lut, gamma_lut);
+
+		drm_property_blob_put(gamma_lut);
+	} else {
+		drm_property_replace_blob(&crtc_state->post_csc_lut, crtc_state->hw.gamma_lut);
+	}
+
+	drm_property_replace_blob(&crtc_state->pre_csc_lut, crtc_state->hw.degamma_lut);
 
 	/*
 	 * On GLK+ both pipe CSC and degamma LUT are controlled
@@ -1821,7 +1910,7 @@ static int glk_color_check(struct intel_crtc_state *crtc_state)
 		glk_use_pre_csc_lut_for_gamma(crtc_state) ||
 		crtc_state->hw.degamma_lut ||
 		crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB ||
-		crtc_state->hw.ctm || crtc_state->limited_color_range;
+		crtc_state->hw.ctm || ilk_csc_limited_range(crtc_state);
 
 	crtc_state->gamma_mode = glk_gamma_mode(crtc_state);
 
