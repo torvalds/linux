@@ -47,7 +47,25 @@ extern struct list_head crypto_alg_list;
 extern struct rw_semaphore crypto_alg_sem;
 extern struct blocking_notifier_head crypto_chain;
 
-DECLARE_STATIC_KEY_FALSE(crypto_boot_test_finished);
+#ifdef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
+static inline bool crypto_boot_test_finished(void)
+{
+	return true;
+}
+static inline void set_crypto_boot_test_finished(void)
+{
+}
+#else
+DECLARE_STATIC_KEY_FALSE(__crypto_boot_test_finished);
+static inline bool crypto_boot_test_finished(void)
+{
+	return static_branch_likely(&__crypto_boot_test_finished);
+}
+static inline void set_crypto_boot_test_finished(void)
+{
+	static_branch_enable(&__crypto_boot_test_finished);
+}
+#endif /* !CONFIG_CRYPTO_MANAGER_DISABLE_TESTS */
 
 #ifdef CONFIG_PROC_FS
 void __init crypto_init_proc(void);
