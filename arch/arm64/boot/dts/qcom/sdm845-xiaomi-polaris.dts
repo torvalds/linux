@@ -456,9 +456,6 @@
 
 &i2c14 {
 	clock-frequency = <400000>;
-	dmas = <&gpi_dma1 0 6 QCOM_GPI_I2C>,
-		   <&gpi_dma1 1 6 QCOM_GPI_I2C>;
-	dma-names = "tx", "rx";
 	status = "okay";
 
 	touchscreen@20 {
