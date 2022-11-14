@@ -23,7 +23,7 @@ properties:
 
 patternProperties:
   "^partition-[0-9a-z]+$":
-    $ref: partition.yaml#
+    $ref: nvmem-cells.yaml
 
 required:
   - compatible
