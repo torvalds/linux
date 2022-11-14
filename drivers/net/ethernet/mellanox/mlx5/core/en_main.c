@@ -1205,6 +1205,13 @@ int mlx5e_open_rq(struct mlx5e_params *params, struct mlx5e_rq_param *param,
 	    MLX5_CAP_GEN(mdev, mini_cqe_resp_stride_index))
 		__set_bit(MLX5E_RQ_STATE_MINI_CQE_HW_STRIDX, &rq->state);
 
+	/* For enhanced CQE compression packet processing. decompress
+	 * session according to the enhanced layout.
+	 */
+	if (MLX5E_GET_PFLAG(params, MLX5E_PFLAG_RX_CQE_COMPRESS) &&
+	    MLX5_CAP_GEN(mdev, enhanced_cqe_compression))
+		__set_bit(MLX5E_RQ_STATE_MINI_CQE_ENHANCED, &rq->state);
+
 	return 0;
 
 err_destroy_rq:
@@ -1895,6 +1902,7 @@ static int mlx5e_alloc_cq_common(struct mlx5e_priv *priv,
 		struct mlx5_cqe64 *cqe = mlx5_cqwq_get_wqe(&cq->wq, i);
 
 		cqe->op_own = 0xf1;
+		cqe->validity_iteration_count = 0xff;
 	}
 
 	cq->mdev = mdev;
@@ -3061,7 +3069,10 @@ int mlx5e_open_locked(struct net_device *netdev)
 	if (err)
 		goto err_clear_state_opened_flag;
 
-	priv->profile->update_rx(priv);
+	err = priv->profile->update_rx(priv);
+	if (err)
+		goto err_close_channels;
+
 	mlx5e_selq_apply(&priv->selq);
 	mlx5e_activate_priv_channels(priv);
 	mlx5e_apply_traps(priv, true);
@@ -3071,6 +3082,8 @@ int mlx5e_open_locked(struct net_device *netdev)
 	mlx5e_queue_update_stats(priv);
 	return 0;
 
+err_close_channels:
+	mlx5e_close_channels(&priv->channels);
 err_clear_state_opened_flag:
 	clear_bit(MLX5E_STATE_OPENED, &priv->state);
 	mlx5e_selq_cancel(&priv->selq);
@@ -5947,6 +5960,7 @@ static int mlx5e_probe(struct auxiliary_device *adev,
 
 	mlx5e_dcbnl_init_app(priv);
 	mlx5_uplink_netdev_set(mdev, netdev);
+	mlx5e_params_print_info(mdev, &priv->channels.params);
 	return 0;
 
 err_resume:

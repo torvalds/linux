@@ -1060,12 +1060,9 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 		 hash_hairpin_info(peer_id, match_prio));
 	mutex_unlock(&tc->hairpin_tbl_lock);
 
-	params.log_data_size = 16;
-	params.log_data_size = min_t(u8, params.log_data_size,
-				     MLX5_CAP_GEN(priv->mdev, log_max_hairpin_wq_data_sz));
-	params.log_data_size = max_t(u8, params.log_data_size,
-				     MLX5_CAP_GEN(priv->mdev, log_min_hairpin_wq_data_sz));
-
+	params.log_data_size = clamp_t(u8, 16,
+				       MLX5_CAP_GEN(priv->mdev, log_min_hairpin_wq_data_sz),
+				       MLX5_CAP_GEN(priv->mdev, log_max_hairpin_wq_data_sz));
 	params.log_num_packets = params.log_data_size -
 				 MLX5_MPWRQ_MIN_LOG_STRIDE_SZ(priv->mdev);
 	params.log_num_packets = min_t(u8, params.log_num_packets,

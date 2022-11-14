@@ -344,6 +344,7 @@ enum {
 	MLX5E_RQ_STATE_CSUM_FULL, /* cqe_csum_full hw bit is set */
 	MLX5E_RQ_STATE_MINI_CQE_HW_STRIDX, /* set when mini_cqe_resp_stride_index cap is used */
 	MLX5E_RQ_STATE_SHAMPO, /* set when SHAMPO cap is used */
+	MLX5E_RQ_STATE_MINI_CQE_ENHANCED,  /* set when enhanced mini_cqe_cap is used */
 };
 
 struct mlx5e_cq {
@@ -370,6 +371,7 @@ struct mlx5e_cq_decomp {
 	u8                         mini_arr_idx;
 	u16                        left;
 	u16                        wqe_counter;
+	bool                       last_cqe_title;
 } ____cacheline_aligned_in_smp;
 
 enum mlx5e_dma_map_type {
