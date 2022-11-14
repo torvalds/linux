@@ -580,10 +580,6 @@ u32 aarch64_insn_gen_extr(enum aarch64_insn_variant variant,
 			  enum aarch64_insn_register Rn,
 			  enum aarch64_insn_register Rd,
 			  u8 lsb);
-u32 aarch64_insn_gen_prefetch(enum aarch64_insn_register base,
-			      enum aarch64_insn_prfm_type type,
-			      enum aarch64_insn_prfm_target target,
-			      enum aarch64_insn_prfm_policy policy);
 #ifdef CONFIG_ARM64_LSE_ATOMICS
 u32 aarch64_insn_gen_atomic_ld_op(enum aarch64_insn_register result,
 				  enum aarch64_insn_register address,
