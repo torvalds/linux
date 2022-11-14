@@ -148,13 +148,13 @@ static u64 __get_rc6(struct intel_gt *gt)
 	struct drm_i915_private *i915 = gt->i915;
 	u64 val;
 
-	val = intel_rc6_residency_ns(&gt->rc6, GEN6_GT_GFX_RC6);
+	val = intel_rc6_residency_ns(&gt->rc6, INTEL_RC6_RES_RC6);
 
 	if (HAS_RC6p(i915))
-		val += intel_rc6_residency_ns(&gt->rc6, GEN6_GT_GFX_RC6p);
+		val += intel_rc6_residency_ns(&gt->rc6, INTEL_RC6_RES_RC6p);
 
 	if (HAS_RC6pp(i915))
-		val += intel_rc6_residency_ns(&gt->rc6, GEN6_GT_GFX_RC6pp);
+		val += intel_rc6_residency_ns(&gt->rc6, INTEL_RC6_RES_RC6pp);
 
 	return val;
 }
