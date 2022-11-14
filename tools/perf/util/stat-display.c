@@ -1205,6 +1205,9 @@ static void print_footer(struct perf_stat_config *config)
 	double avg = avg_stats(config->walltime_nsecs_stats) / NSEC_PER_SEC;
 	FILE *output = config->output;
 
+	if (config->interval || config->csv_output || config->json_output)
+		return;
+
 	if (!config->null_run)
 		fprintf(output, "\n");
 
@@ -1359,8 +1362,7 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 		break;
 	}
 
-	if (!interval && !config->csv_output && !config->json_output)
-		print_footer(config);
+	print_footer(config);
 
 	fflush(config->output);
 }
