@@ -1792,7 +1792,7 @@ static int icl_color_check(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
-static int i9xx_gamma_precision(const struct intel_crtc_state *crtc_state)
+static int i9xx_post_csc_lut_precision(const struct intel_crtc_state *crtc_state)
 {
 	if (!crtc_state->gamma_enable)
 		return 0;
@@ -1808,7 +1808,7 @@ static int i9xx_gamma_precision(const struct intel_crtc_state *crtc_state)
 	}
 }
 
-static int ilk_gamma_precision(const struct intel_crtc_state *crtc_state)
+static int ilk_post_csc_lut_precision(const struct intel_crtc_state *crtc_state)
 {
 	if (!crtc_state->gamma_enable)
 		return 0;
@@ -1827,15 +1827,15 @@ static int ilk_gamma_precision(const struct intel_crtc_state *crtc_state)
 	}
 }
 
-static int chv_gamma_precision(const struct intel_crtc_state *crtc_state)
+static int chv_post_csc_lut_precision(const struct intel_crtc_state *crtc_state)
 {
 	if (crtc_state->cgm_mode & CGM_PIPE_MODE_GAMMA)
 		return 10;
 	else
-		return i9xx_gamma_precision(crtc_state);
+		return i9xx_post_csc_lut_precision(crtc_state);
 }
 
-static int glk_gamma_precision(const struct intel_crtc_state *crtc_state)
+static int glk_post_csc_lut_precision(const struct intel_crtc_state *crtc_state)
 {
 	if (!crtc_state->gamma_enable)
 		return 0;
@@ -1851,7 +1851,7 @@ static int glk_gamma_precision(const struct intel_crtc_state *crtc_state)
 	}
 }
 
-static int icl_gamma_precision(const struct intel_crtc_state *crtc_state)
+static int icl_post_csc_lut_precision(const struct intel_crtc_state *crtc_state)
 {
 	if ((crtc_state->gamma_mode & POST_CSC_GAMMA_ENABLE) == 0)
 		return 0;
@@ -1876,16 +1876,16 @@ int intel_color_get_gamma_bit_precision(const struct intel_crtc_state *crtc_stat
 
 	if (HAS_GMCH(i915)) {
 		if (IS_CHERRYVIEW(i915))
-			return chv_gamma_precision(crtc_state);
+			return chv_post_csc_lut_precision(crtc_state);
 		else
-			return i9xx_gamma_precision(crtc_state);
+			return i9xx_post_csc_lut_precision(crtc_state);
 	} else {
 		if (DISPLAY_VER(i915) >= 11)
-			return icl_gamma_precision(crtc_state);
+			return icl_post_csc_lut_precision(crtc_state);
 		else if (DISPLAY_VER(i915) == 10)
-			return glk_gamma_precision(crtc_state);
+			return glk_post_csc_lut_precision(crtc_state);
 		else if (IS_IRONLAKE(i915))
-			return ilk_gamma_precision(crtc_state);
+			return ilk_post_csc_lut_precision(crtc_state);
 	}
 
 	return 0;
