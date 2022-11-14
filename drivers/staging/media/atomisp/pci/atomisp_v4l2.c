@@ -1673,8 +1673,6 @@ load_fw_fail:
 
 	atomisp_msi_irq_uninit(isp);
 
-	atomisp_ospm_dphy_down(isp);
-
 	/* Address later when we worry about the ...field chips */
 	if (IS_ENABLED(CONFIG_PM) && atomisp_mrfld_power(isp, false))
 		dev_err(&pdev->dev, "Failed to switch off ISP\n");
