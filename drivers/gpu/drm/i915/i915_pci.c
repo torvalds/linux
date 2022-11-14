@@ -132,9 +132,9 @@
 		[PIPE_D] = TGL_CURSOR_D_OFFSET, \
 	}
 
-#define I9XX_COLORS \
+#define I845_COLORS \
 	.display.color = { .gamma_lut_size = 256 }
-#define I965_COLORS \
+#define I9XX_COLORS \
 	.display.color = { .gamma_lut_size = 129, \
 		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
 	}
@@ -210,7 +210,7 @@
 	.dma_mask_size = 32, \
 	I845_PIPE_OFFSETS, \
 	I845_CURSOR_OFFSETS, \
-	I9XX_COLORS, \
+	I845_COLORS, \
 	GEN_DEFAULT_PAGE_SIZES, \
 	GEN_DEFAULT_REGIONS
 
@@ -341,7 +341,7 @@ static const struct intel_device_info pnv_m_info = {
 	.dma_mask_size = 36, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
-	I965_COLORS, \
+	I9XX_COLORS, \
 	GEN_DEFAULT_PAGE_SIZES, \
 	GEN_DEFAULT_REGIONS
 
@@ -547,7 +547,7 @@ static const struct intel_device_info vlv_info = {
 	.display.mmio_offset = VLV_DISPLAY_BASE,
 	I9XX_PIPE_OFFSETS,
 	I9XX_CURSOR_OFFSETS,
-	I965_COLORS,
+	I9XX_COLORS,
 	GEN_DEFAULT_PAGE_SIZES,
 	GEN_DEFAULT_REGIONS,
 };

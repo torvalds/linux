@@ -467,6 +467,79 @@ static void i9xx_lut_8_pack(struct drm_color_lut *entry, u32 val)
 	entry->blue = intel_color_lut_pack(REG_FIELD_GET(PALETTE_BLUE_MASK, val), 8);
 }
 
+/* i8xx/i9xx+ 10bit slope format "even DW" (low 8 bits) */
+static u32 _i9xx_lut_10_ldw(u16 a)
+{
+	return drm_color_lut_extract(a, 10) & 0xff;
+}
+
+static u32 i9xx_lut_10_ldw(const struct drm_color_lut *color)
+{
+	return REG_FIELD_PREP(PALETTE_RED_MASK, _i9xx_lut_10_ldw(color[0].red)) |
+		REG_FIELD_PREP(PALETTE_GREEN_MASK, _i9xx_lut_10_ldw(color[0].green)) |
+		REG_FIELD_PREP(PALETTE_BLUE_MASK, _i9xx_lut_10_ldw(color[0].blue));
+}
+
+/* i8xx/i9xx+ 10bit slope format "odd DW" (high 2 bits + slope) */
+static u32 _i9xx_lut_10_udw(u16 a, u16 b)
+{
+	unsigned int mantissa, exponent;
+
+	a = drm_color_lut_extract(a, 10);
+	b = drm_color_lut_extract(b, 10);
+
+	/* b = a + 8 * m * 2 ^ -e */
+	mantissa = clamp(b - a, 0, 0x7f);
+	exponent = 3;
+	while (mantissa > 0xf) {
+		mantissa >>= 1;
+		exponent--;
+	}
+
+	return (exponent << 6) |
+		(mantissa << 2) |
+		(a >> 8);
+}
+
+static u32 i9xx_lut_10_udw(const struct drm_color_lut *color)
+{
+	return REG_FIELD_PREP(PALETTE_RED_MASK, _i9xx_lut_10_udw(color[0].red, color[1].red)) |
+		REG_FIELD_PREP(PALETTE_GREEN_MASK, _i9xx_lut_10_udw(color[0].green, color[1].green)) |
+		REG_FIELD_PREP(PALETTE_BLUE_MASK, _i9xx_lut_10_udw(color[0].blue, color[1].blue));
+}
+
+static void i9xx_lut_10_pack(struct drm_color_lut *color,
+			     u32 ldw, u32 udw)
+{
+	u16 red = REG_FIELD_GET(PALETTE_10BIT_RED_LDW_MASK, ldw) |
+		REG_FIELD_GET(PALETTE_10BIT_RED_UDW_MASK, udw) << 8;
+	u16 green = REG_FIELD_GET(PALETTE_10BIT_GREEN_LDW_MASK, ldw) |
+		REG_FIELD_GET(PALETTE_10BIT_GREEN_UDW_MASK, udw) << 8;
+	u16 blue = REG_FIELD_GET(PALETTE_10BIT_BLUE_LDW_MASK, ldw) |
+		REG_FIELD_GET(PALETTE_10BIT_BLUE_UDW_MASK, udw) << 8;
+
+	color->red = intel_color_lut_pack(red, 10);
+	color->green = intel_color_lut_pack(green, 10);
+	color->blue = intel_color_lut_pack(blue, 10);
+}
+
+static void i9xx_lut_10_pack_slope(struct drm_color_lut *color,
+				   u32 ldw, u32 udw)
+{
+	int r_exp = REG_FIELD_GET(PALETTE_10BIT_RED_EXP_MASK, udw);
+	int r_mant = REG_FIELD_GET(PALETTE_10BIT_RED_MANT_MASK, udw);
+	int g_exp = REG_FIELD_GET(PALETTE_10BIT_GREEN_EXP_MASK, udw);
+	int g_mant = REG_FIELD_GET(PALETTE_10BIT_GREEN_MANT_MASK, udw);
+	int b_exp = REG_FIELD_GET(PALETTE_10BIT_BLUE_EXP_MASK, udw);
+	int b_mant = REG_FIELD_GET(PALETTE_10BIT_BLUE_MANT_MASK, udw);
+
+	i9xx_lut_10_pack(color, ldw, udw);
+
+	color->red += r_mant << (3 - r_exp);
+	color->green += g_mant << (3 - g_exp);
+	color->blue += b_mant << (3 - b_exp);
+}
+
 /* i965+ "10.6" bit interpolated format "even DW" (low 8 bits) */
 static u32 i965_lut_10p6_ldw(const struct drm_color_lut *color)
 {
@@ -691,12 +764,38 @@ static void i9xx_load_lut_8(struct intel_crtc *crtc,
 				  i9xx_lut_8(&lut[i]));
 }
 
+static void i9xx_load_lut_10(struct intel_crtc *crtc,
+			     const struct drm_property_blob *blob)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct drm_color_lut *lut = blob->data;
+	int i, lut_size = drm_color_lut_size(blob);
+	enum pipe pipe = crtc->pipe;
+
+	for (i = 0; i < lut_size - 1; i++) {
+		intel_de_write_fw(dev_priv, PALETTE(pipe, 2 * i + 0),
+				  i9xx_lut_10_ldw(&lut[i]));
+		intel_de_write_fw(dev_priv, PALETTE(pipe, 2 * i + 1),
+				  i9xx_lut_10_udw(&lut[i]));
+	}
+}
+
 static void i9xx_load_luts(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	const struct drm_property_blob *post_csc_lut = crtc_state->post_csc_lut;
 
-	i9xx_load_lut_8(crtc, post_csc_lut);
+	switch (crtc_state->gamma_mode) {
+	case GAMMA_MODE_MODE_8BIT:
+		i9xx_load_lut_8(crtc, post_csc_lut);
+		break;
+	case GAMMA_MODE_MODE_10BIT:
+		i9xx_load_lut_10(crtc, post_csc_lut);
+		break;
+	default:
+		MISSING_CASE(crtc_state->gamma_mode);
+		break;
+	}
 }
 
 static void i965_load_lut_10p6(struct intel_crtc *crtc,
@@ -724,10 +823,17 @@ static void i965_load_luts(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	const struct drm_property_blob *post_csc_lut = crtc_state->post_csc_lut;
 
-	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
+	switch (crtc_state->gamma_mode) {
+	case GAMMA_MODE_MODE_8BIT:
 		i9xx_load_lut_8(crtc, post_csc_lut);
-	else
+		break;
+	case GAMMA_MODE_MODE_10BIT:
 		i965_load_lut_10p6(crtc, post_csc_lut);
+		break;
+	default:
+		MISSING_CASE(crtc_state->gamma_mode);
+		break;
+	}
 }
 
 static void ilk_load_lut_8(struct intel_crtc *crtc,
@@ -1450,7 +1556,31 @@ static u32 i9xx_gamma_mode(struct intel_crtc_state *crtc_state)
 	    lut_is_legacy(crtc_state->hw.gamma_lut))
 		return GAMMA_MODE_MODE_8BIT;
 	else
-		return GAMMA_MODE_MODE_10BIT; /* i965+ only */
+		return GAMMA_MODE_MODE_10BIT;
+}
+
+static int i9xx_lut_10_diff(u16 a, u16 b)
+{
+	return drm_color_lut_extract(a, 10) -
+		drm_color_lut_extract(b, 10);
+}
+
+static int i9xx_check_lut_10(struct drm_i915_private *dev_priv,
+			     const struct drm_property_blob *blob)
+{
+	const struct drm_color_lut *lut = blob->data;
+	int lut_size = drm_color_lut_size(blob);
+	const struct drm_color_lut *a = &lut[lut_size - 2];
+	const struct drm_color_lut *b = &lut[lut_size - 1];
+
+	if (i9xx_lut_10_diff(b->red, a->red) > 0x7f ||
+	    i9xx_lut_10_diff(b->green, a->green) > 0x7f ||
+	    i9xx_lut_10_diff(b->blue, a->blue) > 0x7f) {
+		drm_dbg_kms(&dev_priv->drm, "Last gamma LUT entry exceeds max slope\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 void intel_color_assert_luts(const struct intel_crtc_state *crtc_state)
@@ -1493,6 +1623,7 @@ static void intel_assign_luts(struct intel_crtc_state *crtc_state)
 
 static int i9xx_color_check(struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 	int ret;
 
 	ret = check_luts(crtc_state);
@@ -1504,6 +1635,13 @@ static int i9xx_color_check(struct intel_crtc_state *crtc_state)
 		!crtc_state->c8_planes;
 
 	crtc_state->gamma_mode = i9xx_gamma_mode(crtc_state);
+
+	if (DISPLAY_VER(i915) < 4 &&
+	    crtc_state->gamma_mode == GAMMA_MODE_MODE_10BIT) {
+		ret = i9xx_check_lut_10(i915, crtc_state->hw.gamma_lut);
+		if (ret)
+			return ret;
+	}
 
 	ret = intel_color_add_affected_planes(crtc_state);
 	if (ret)
@@ -2000,7 +2138,7 @@ static int i9xx_post_csc_lut_precision(const struct intel_crtc_state *crtc_state
 	case GAMMA_MODE_MODE_8BIT:
 		return 8;
 	case GAMMA_MODE_MODE_10BIT:
-		return 16;
+		return 10;
 	default:
 		MISSING_CASE(crtc_state->gamma_mode);
 		return 0;
@@ -2010,6 +2148,22 @@ static int i9xx_post_csc_lut_precision(const struct intel_crtc_state *crtc_state
 static int i9xx_pre_csc_lut_precision(const struct intel_crtc_state *crtc_state)
 {
 	return 0;
+}
+
+static int i965_post_csc_lut_precision(const struct intel_crtc_state *crtc_state)
+{
+	if (!crtc_state->gamma_enable && !crtc_state->c8_planes)
+		return 0;
+
+	switch (crtc_state->gamma_mode) {
+	case GAMMA_MODE_MODE_8BIT:
+		return 8;
+	case GAMMA_MODE_MODE_10BIT:
+		return 16;
+	default:
+		MISSING_CASE(crtc_state->gamma_mode);
+		return 0;
+	}
 }
 
 static int ilk_gamma_mode_precision(u32 gamma_mode)
@@ -2079,7 +2233,7 @@ static int chv_post_csc_lut_precision(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->cgm_mode & CGM_PIPE_MODE_GAMMA)
 		return 10;
 
-	return i9xx_post_csc_lut_precision(crtc_state);
+	return i965_post_csc_lut_precision(crtc_state);
 }
 
 static int chv_pre_csc_lut_precision(const struct intel_crtc_state *crtc_state)
@@ -2190,6 +2344,9 @@ static bool intel_lut_equal(const struct drm_property_blob *blob1,
 	if (lut_size1 != lut_size2)
 		return false;
 
+	if (check_size > lut_size1)
+		return false;
+
 	lut1 = blob1->data;
 	lut2 = blob2->data;
 
@@ -2206,12 +2363,31 @@ static bool i9xx_lut_equal(const struct intel_crtc_state *crtc_state,
 			   const struct drm_property_blob *blob2,
 			   bool is_pre_csc_lut)
 {
+	int check_size = 0;
+
+	if (is_pre_csc_lut)
+		return intel_lut_equal(blob1, blob2, 0,
+				       i9xx_pre_csc_lut_precision(crtc_state));
+
+	/* 10bit mode last entry is implicit, just skip it */
+	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_10BIT)
+		check_size = 128;
+
+	return intel_lut_equal(blob1, blob2, check_size,
+			       i9xx_post_csc_lut_precision(crtc_state));
+}
+
+static bool i965_lut_equal(const struct intel_crtc_state *crtc_state,
+			   const struct drm_property_blob *blob1,
+			   const struct drm_property_blob *blob2,
+			   bool is_pre_csc_lut)
+{
 	if (is_pre_csc_lut)
 		return intel_lut_equal(blob1, blob2, 0,
 				       i9xx_pre_csc_lut_precision(crtc_state));
 	else
 		return intel_lut_equal(blob1, blob2, 0,
-				       i9xx_post_csc_lut_precision(crtc_state));
+				       i965_post_csc_lut_precision(crtc_state));
 }
 
 static bool chv_lut_equal(const struct intel_crtc_state *crtc_state,
@@ -2311,6 +2487,35 @@ static struct drm_property_blob *i9xx_read_lut_8(struct intel_crtc *crtc)
 	return blob;
 }
 
+static struct drm_property_blob *i9xx_read_lut_10(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 lut_size = INTEL_INFO(dev_priv)->display.color.gamma_lut_size;
+	enum pipe pipe = crtc->pipe;
+	struct drm_property_blob *blob;
+	struct drm_color_lut *lut;
+	u32 ldw, udw;
+	int i;
+
+	blob = drm_property_create_blob(&dev_priv->drm,
+					lut_size * sizeof(lut[0]), NULL);
+	if (IS_ERR(blob))
+		return NULL;
+
+	lut = blob->data;
+
+	for (i = 0; i < lut_size - 1; i++) {
+		ldw = intel_de_read_fw(dev_priv, PALETTE(pipe, 2 * i + 0));
+		udw = intel_de_read_fw(dev_priv, PALETTE(pipe, 2 * i + 1));
+
+		i9xx_lut_10_pack(&lut[i], ldw, udw);
+	}
+
+	i9xx_lut_10_pack_slope(&lut[i], ldw, udw);
+
+	return blob;
+}
+
 static void i9xx_read_luts(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -2318,7 +2523,17 @@ static void i9xx_read_luts(struct intel_crtc_state *crtc_state)
 	if (!crtc_state->gamma_enable && !crtc_state->c8_planes)
 		return;
 
-	crtc_state->post_csc_lut = i9xx_read_lut_8(crtc);
+	switch (crtc_state->gamma_mode) {
+	case GAMMA_MODE_MODE_8BIT:
+		crtc_state->post_csc_lut = i9xx_read_lut_8(crtc);
+		break;
+	case GAMMA_MODE_MODE_10BIT:
+		crtc_state->post_csc_lut = i9xx_read_lut_10(crtc);
+		break;
+	default:
+		MISSING_CASE(crtc_state->gamma_mode);
+		break;
+	}
 }
 
 static struct drm_property_blob *i965_read_lut_10p6(struct intel_crtc *crtc)
@@ -2358,10 +2573,17 @@ static void i965_read_luts(struct intel_crtc_state *crtc_state)
 	if (!crtc_state->gamma_enable && !crtc_state->c8_planes)
 		return;
 
-	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
+	switch (crtc_state->gamma_mode) {
+	case GAMMA_MODE_MODE_8BIT:
 		crtc_state->post_csc_lut = i9xx_read_lut_8(crtc);
-	else
+		break;
+	case GAMMA_MODE_MODE_10BIT:
 		crtc_state->post_csc_lut = i965_read_lut_10p6(crtc);
+		break;
+	default:
+		MISSING_CASE(crtc_state->gamma_mode);
+		break;
+	}
 }
 
 static struct drm_property_blob *chv_read_cgm_degamma(struct intel_crtc *crtc)
@@ -2771,7 +2993,7 @@ static const struct intel_color_funcs i965_color_funcs = {
 	.color_commit_arm = i9xx_color_commit_arm,
 	.load_luts = i965_load_luts,
 	.read_luts = i965_read_luts,
-	.lut_equal = i9xx_lut_equal,
+	.lut_equal = i965_lut_equal,
 };
 
 static const struct intel_color_funcs i9xx_color_funcs = {
@@ -2848,14 +3070,28 @@ static const struct intel_color_funcs ilk_color_funcs = {
 void intel_color_crtc_init(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	bool has_ctm = INTEL_INFO(i915)->display.color.degamma_lut_size != 0;
+	int degamma_lut_size, gamma_lut_size;
+	bool has_ctm;
 
 	drm_mode_crtc_set_gamma_size(&crtc->base, 256);
 
-	drm_crtc_enable_color_mgmt(&crtc->base,
-				   INTEL_INFO(i915)->display.color.degamma_lut_size,
-				   has_ctm,
-				   INTEL_INFO(i915)->display.color.gamma_lut_size);
+	gamma_lut_size = INTEL_INFO(i915)->display.color.gamma_lut_size;
+	degamma_lut_size = INTEL_INFO(i915)->display.color.degamma_lut_size;
+	has_ctm = degamma_lut_size != 0;
+
+	/*
+	 * "DPALETTE_A: NOTE: The 8-bit (non-10-bit) mode is the
+	 *  only mode supported by Alviso and Grantsdale."
+	 *
+	 * Actually looks like this affects all of gen3.
+	 * Confirmed on alv,cst,pnv. Mobile gen2 parts (alm,mgm)
+	 * are confirmed not to suffer from this restriction.
+	 */
+	if (DISPLAY_VER(i915) == 3 && crtc->pipe == PIPE_A)
+		gamma_lut_size = 256;
+
+	drm_crtc_enable_color_mgmt(&crtc->base, degamma_lut_size,
+				   has_ctm, gamma_lut_size);
 }
 
 int intel_color_init(struct drm_i915_private *i915)
