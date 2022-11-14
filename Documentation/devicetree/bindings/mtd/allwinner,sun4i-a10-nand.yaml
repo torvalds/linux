@@ -14,9 +14,6 @@ maintainers:
   - Maxime Ripard <mripard@kernel.org>
 
 properties:
-  "#address-cells": true
-  "#size-cells": true
-
   compatible:
     enum:
       - allwinner,sun4i-a10-nand
@@ -49,11 +46,7 @@ properties:
   dma-names:
     const: rxtx
 
-  pinctrl-names: true
-
 patternProperties:
-  "^pinctrl-[0-9]+$": true
-
   "^nand@[a-f0-9]+$":
     type: object
     properties:
@@ -91,6 +84,6 @@ required:
   - clocks
   - clock-names
 
-additionalProperties: false
+unevaluatedProperties: false
 
 ...
