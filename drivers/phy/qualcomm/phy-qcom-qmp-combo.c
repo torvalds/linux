@@ -1964,7 +1964,7 @@ static int qmp_combo_com_exit(struct qmp_phy *qphy)
 	return 0;
 }
 
-static int qmp_combo_init(struct phy *phy)
+static int qmp_combo_dp_init(struct phy *phy)
 {
 	struct qmp_phy *qphy = phy_get_drvdata(phy);
 	const struct qmp_phy_cfg *cfg = qphy->cfg;
@@ -1974,8 +1974,16 @@ static int qmp_combo_init(struct phy *phy)
 	if (ret)
 		return ret;
 
-	if (cfg->type == PHY_TYPE_DP)
-		cfg->dp_aux_init(qphy);
+	cfg->dp_aux_init(qphy);
+
+	return 0;
+}
+
+static int qmp_combo_dp_exit(struct phy *phy)
+{
+	struct qmp_phy *qphy = phy_get_drvdata(phy);
+
+	qmp_combo_com_exit(qphy);
 
 	return 0;
 }
@@ -2073,38 +2081,32 @@ static int qmp_combo_power_off(struct phy *phy)
 	return 0;
 }
 
-static int qmp_combo_exit(struct phy *phy)
-{
-	struct qmp_phy *qphy = phy_get_drvdata(phy);
-
-	qmp_combo_com_exit(qphy);
-
-	return 0;
-}
-
 static int qmp_combo_usb_init(struct phy *phy)
 {
+	struct qmp_phy *qphy = phy_get_drvdata(phy);
 	int ret;
 
-	ret = qmp_combo_init(phy);
+	ret = qmp_combo_com_init(qphy);
 	if (ret)
 		return ret;
 
 	ret = qmp_combo_power_on(phy);
 	if (ret)
-		qmp_combo_exit(phy);
+		qmp_combo_com_exit(qphy);
 
 	return ret;
 }
 
 static int qmp_combo_usb_exit(struct phy *phy)
 {
+	struct qmp_phy *qphy = phy_get_drvdata(phy);
 	int ret;
 
 	ret = qmp_combo_power_off(phy);
 	if (ret)
 		return ret;
-	return qmp_combo_exit(phy);
+
+	return qmp_combo_com_exit(qphy);
 }
 
 static int qmp_combo_usb_set_mode(struct phy *phy, enum phy_mode mode, int submode)
@@ -2124,12 +2126,12 @@ static const struct phy_ops qmp_combo_usb_phy_ops = {
 };
 
 static const struct phy_ops qmp_combo_dp_phy_ops = {
-	.init		= qmp_combo_init,
+	.init		= qmp_combo_dp_init,
 	.configure	= qcom_qmp_dp_phy_configure,
 	.power_on	= qmp_combo_power_on,
 	.calibrate	= qcom_qmp_dp_phy_calibrate,
 	.power_off	= qmp_combo_power_off,
-	.exit		= qmp_combo_exit,
+	.exit		= qmp_combo_dp_exit,
 	.owner		= THIS_MODULE,
 };
 
