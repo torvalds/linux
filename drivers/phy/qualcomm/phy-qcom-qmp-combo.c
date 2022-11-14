@@ -2575,13 +2575,12 @@ static int qmp_combo_probe(struct platform_device *pdev)
 {
 	struct qmp_combo *qmp;
 	struct device *dev = &pdev->dev;
-	struct device_node *child;
+	struct device_node *dp_np, *usb_np;
 	struct phy_provider *phy_provider;
 	void __iomem *serdes;
 	void __iomem *usb_serdes;
 	void __iomem *dp_serdes = NULL;
 	const struct qmp_phy_cfg *cfg = NULL;
-	int num, id, expected_phys;
 	int ret;
 
 	qmp = devm_kzalloc(dev, sizeof(*qmp), GFP_KERNEL);
@@ -2607,8 +2606,6 @@ static int qmp_combo_probe(struct platform_device *pdev)
 	if (IS_ERR(dp_serdes))
 		return PTR_ERR(dp_serdes);
 
-	expected_phys = 2;
-
 	mutex_init(&qmp->phy_mutex);
 
 	ret = qmp_combo_clk_init(dev, cfg);
@@ -2623,75 +2620,52 @@ static int qmp_combo_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	num = of_get_available_child_count(dev->of_node);
-	/* do we have a rogue child node ? */
-	if (num > expected_phys)
+	usb_np = of_get_child_by_name(dev->of_node, "usb3-phy");
+	if (!usb_np)
 		return -EINVAL;
+
+	dp_np = of_get_child_by_name(dev->of_node, "dp-phy");
+	if (!dp_np) {
+		of_node_put(usb_np);
+		return -EINVAL;
+	}
 
 	pm_runtime_set_active(dev);
 	ret = devm_pm_runtime_enable(dev);
 	if (ret)
-		return ret;
+		goto err_node_put;
 	/*
 	 * Prevent runtime pm from being ON by default. Users can enable
 	 * it using power/control in sysfs.
 	 */
 	pm_runtime_forbid(dev);
 
-	id = 0;
-	for_each_available_child_of_node(dev->of_node, child) {
-		if (of_node_name_eq(child, "dp-phy")) {
-			serdes = dp_serdes;
+	ret = qmp_combo_create_usb(dev, usb_np, usb_serdes, cfg);
+	if (ret)
+		goto err_node_put;
 
-			/* Create per-lane phy */
-			ret = qmp_combo_create_dp(dev, child, serdes, cfg);
-			if (ret) {
-				dev_err(dev, "failed to create lane%d phy, %d\n",
-					id, ret);
-				goto err_node_put;
-			}
+	ret = phy_pipe_clk_register(qmp, usb_np);
+	if (ret)
+		goto err_node_put;
 
-			ret = phy_dp_clks_register(qmp, child);
-			if (ret) {
-				dev_err(qmp->dev,
-					"failed to register DP clock source\n");
-				goto err_node_put;
-			}
-		} else if (of_node_name_eq(child, "usb3-phy")) {
-			serdes = usb_serdes;
+	ret = qmp_combo_create_dp(dev, dp_np, dp_serdes, cfg);
+	if (ret)
+		goto err_node_put;
 
-			/* Create per-lane phy */
-			ret = qmp_combo_create_usb(dev, child, serdes, cfg);
-			if (ret) {
-				dev_err(dev, "failed to create lane%d phy, %d\n",
-					id, ret);
-				goto err_node_put;
-			}
-
-			/*
-			 * Register the pipe clock provided by phy.
-			 * See function description to see details of this pipe clock.
-			 */
-			ret = phy_pipe_clk_register(qmp, child);
-			if (ret) {
-				dev_err(qmp->dev,
-					"failed to register pipe clock source\n");
-				goto err_node_put;
-			}
-		}
-
-		id++;
-	}
-
-	if (!qmp->usb_phy)
-		return -EINVAL;
+	ret = phy_dp_clks_register(qmp, dp_np);
+	if (ret)
+		goto err_node_put;
 
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
+
+	of_node_put(usb_np);
+	of_node_put(dp_np);
 
 	return PTR_ERR_OR_ZERO(phy_provider);
 
 err_node_put:
-	of_node_put(child);
+	of_node_put(usb_np);
+	of_node_put(dp_np);
 	return ret;
 }
 
