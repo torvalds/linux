@@ -517,46 +517,71 @@ static void print_metric_header(struct perf_stat_config *config,
 		fprintf(os->fh, "%*s ", config->metric_only_len, unit);
 }
 
-static void abs_printout(struct perf_stat_config *config,
-			 struct aggr_cpu_id id, int nr, struct evsel *evsel, double avg)
+static void print_counter_value_std(struct perf_stat_config *config,
+				    struct evsel *evsel, double avg)
 {
 	FILE *output = config->output;
 	double sc =  evsel->scale;
 	const char *fmt;
 
-	if (config->csv_output) {
-		fmt = floor(sc) != sc ?  "%.2f%s" : "%.0f%s";
-	} else {
-		if (config->big_num)
-			fmt = floor(sc) != sc ? "%'18.2f%s" : "%'18.0f%s";
-		else
-			fmt = floor(sc) != sc ? "%18.2f%s" : "%18.0f%s";
-	}
+	if (config->big_num)
+		fmt = floor(sc) != sc ? "%'18.2f " : "%'18.0f ";
+	else
+		fmt = floor(sc) != sc ? "%18.2f " : "%18.0f ";
 
+	fprintf(output, fmt, avg);
+
+	if (evsel->unit)
+		fprintf(output, "%-*s ", config->unit_width, evsel->unit);
+
+	fprintf(output, "%-*s", 32, evsel__name(evsel));
+}
+
+static void print_counter_value_csv(struct perf_stat_config *config,
+				    struct evsel *evsel, double avg)
+{
+	FILE *output = config->output;
+	double sc =  evsel->scale;
+	const char *sep = config->csv_sep;
+	const char *fmt = floor(sc) != sc ? "%.2f%s" : "%.0f%s";
+
+	fprintf(output, fmt, avg, sep);
+
+	if (evsel->unit)
+		fprintf(output, "%s%s", evsel->unit, sep);
+
+	fprintf(output, "%s", evsel__name(evsel));
+}
+
+static void print_counter_value_json(struct perf_stat_config *config,
+				     struct evsel *evsel, double avg)
+{
+	FILE *output = config->output;
+
+	fprintf(output, "\"counter-value\" : \"%f\", ", avg);
+
+	if (evsel->unit)
+		fprintf(output, "\"unit\" : \"%s\", ", evsel->unit);
+
+	fprintf(output, "\"event\" : \"%s\", ", evsel__name(evsel));
+}
+
+static void print_counter_value(struct perf_stat_config *config,
+				struct evsel *evsel, double avg)
+{
+	if (config->json_output)
+		print_counter_value_json(config, evsel, avg);
+	else if (config->csv_output)
+		print_counter_value_csv(config, evsel, avg);
+	else
+		print_counter_value_std(config, evsel, avg);
+}
+
+static void abs_printout(struct perf_stat_config *config,
+			 struct aggr_cpu_id id, int nr, struct evsel *evsel, double avg)
+{
 	aggr_printout(config, evsel, id, nr);
-
-	if (config->json_output)
-		fprintf(output, "\"counter-value\" : \"%f\", ", avg);
-	else
-		fprintf(output, fmt, avg, config->csv_sep);
-
-	if (config->json_output) {
-		if (evsel->unit) {
-			fprintf(output, "\"unit\" : \"%s\", ",
-				evsel->unit);
-		}
-	} else {
-		if (evsel->unit)
-			fprintf(output, "%-*s%s",
-				config->csv_output ? 0 : config->unit_width,
-				evsel->unit, config->csv_sep);
-	}
-
-	if (config->json_output)
-		fprintf(output, "\"event\" : \"%s\", ", evsel__name(evsel));
-	else
-		fprintf(output, "%-*s", config->csv_output ? 0 : 32, evsel__name(evsel));
-
+	print_counter_value(config, evsel, avg);
 	print_cgroup(config, evsel);
 }
 
