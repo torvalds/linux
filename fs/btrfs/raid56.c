@@ -20,6 +20,7 @@
 #include "volumes.h"
 #include "raid56.h"
 #include "async-thread.h"
+#include "file-item.h"
 
 /* set when additional merges to this rbio are not allowed */
 #define RBIO_RMW_LOCKED_BIT	1
@@ -834,6 +835,11 @@ static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, blk_status_t err)
 {
 	struct bio *cur = bio_list_get(&rbio->bio_list);
 	struct bio *extra;
+
+	kfree(rbio->csum_buf);
+	bitmap_free(rbio->csum_bitmap);
+	rbio->csum_buf = NULL;
+	rbio->csum_bitmap = NULL;
 
 	/*
 	 * Clear the data bitmap, as the rbio may be cached for later usage.
@@ -2048,6 +2054,67 @@ void raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
 	start_async_work(rbio, recover_rbio_work);
 }
 
+static void fill_data_csums(struct btrfs_raid_bio *rbio)
+{
+	struct btrfs_fs_info *fs_info = rbio->bioc->fs_info;
+	struct btrfs_root *csum_root = btrfs_csum_root(fs_info,
+						       rbio->bioc->raid_map[0]);
+	const u64 start = rbio->bioc->raid_map[0];
+	const u32 len = (rbio->nr_data * rbio->stripe_nsectors) <<
+			fs_info->sectorsize_bits;
+	int ret;
+
+	/* The rbio should not have its csum buffer initialized. */
+	ASSERT(!rbio->csum_buf && !rbio->csum_bitmap);
+
+	/*
+	 * Skip the csum search if:
+	 *
+	 * - The rbio doesn't belong to data block groups
+	 *   Then we are doing IO for tree blocks, no need to search csums.
+	 *
+	 * - The rbio belongs to mixed block groups
+	 *   This is to avoid deadlock, as we're already holding the full
+	 *   stripe lock, if we trigger a metadata read, and it needs to do
+	 *   raid56 recovery, we will deadlock.
+	 */
+	if (!(rbio->bioc->map_type & BTRFS_BLOCK_GROUP_DATA) ||
+	    rbio->bioc->map_type & BTRFS_BLOCK_GROUP_METADATA)
+		return;
+
+	rbio->csum_buf = kzalloc(rbio->nr_data * rbio->stripe_nsectors *
+				 fs_info->csum_size, GFP_NOFS);
+	rbio->csum_bitmap = bitmap_zalloc(rbio->nr_data * rbio->stripe_nsectors,
+					  GFP_NOFS);
+	if (!rbio->csum_buf || !rbio->csum_bitmap) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	ret = btrfs_lookup_csums_bitmap(csum_root, start, start + len - 1,
+					rbio->csum_buf, rbio->csum_bitmap);
+	if (ret < 0)
+		goto error;
+	if (bitmap_empty(rbio->csum_bitmap, len >> fs_info->sectorsize_bits))
+		goto no_csum;
+	return;
+
+error:
+	/*
+	 * We failed to allocate memory or grab the csum, but it's not fatal,
+	 * we can still continue.  But better to warn users that RMW is no
+	 * longer safe for this particular sub-stripe write.
+	 */
+	btrfs_warn_rl(fs_info,
+"sub-stripe write for full stripe %llu is not safe, failed to get csum: %d",
+			rbio->bioc->raid_map[0], ret);
+no_csum:
+	kfree(rbio->csum_buf);
+	bitmap_free(rbio->csum_bitmap);
+	rbio->csum_buf = NULL;
+	rbio->csum_bitmap = NULL;
+}
+
 static int rmw_read_and_wait(struct btrfs_raid_bio *rbio)
 {
 	struct bio_list bio_list;
@@ -2055,6 +2122,13 @@ static int rmw_read_and_wait(struct btrfs_raid_bio *rbio)
 	int ret;
 
 	bio_list_init(&bio_list);
+
+	/*
+	 * Fill the data csums we need for data verification.  We need to fill
+	 * the csum_bitmap/csum_buf first, as our endio function will try to
+	 * verify the data sectors.
+	 */
+	fill_data_csums(rbio);
 
 	ret = rmw_assemble_read_bios(rbio, &bio_list);
 	if (ret < 0)

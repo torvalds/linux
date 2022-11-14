@@ -129,6 +129,18 @@ struct btrfs_raid_bio {
 	 * Thus making it much harder to iterate.
 	 */
 	unsigned long *error_bitmap;
+
+	/*
+	 * Checksum buffer if the rbio is for data.  The buffer should cover
+	 * all data sectors (exlcuding P/Q sectors).
+	 */
+	u8 *csum_buf;
+
+	/*
+	 * Each bit represents if the corresponding sector has data csum found.
+	 * Should only cover data sectors (excluding P/Q sectors).
+	 */
+	unsigned long *csum_bitmap;
 };
 
 /*
