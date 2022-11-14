@@ -77,6 +77,7 @@ struct dio_write {
 	struct bch_inode_info		*inode;
 	struct mm_struct		*mm;
 	unsigned			loop:1,
+					extending:1,
 					sync:1,
 					flush:1,
 					free_iov:1;
@@ -131,22 +132,27 @@ static noinline int write_invalidate_inode_pages_range(struct address_space *map
 
 #ifdef CONFIG_BCACHEFS_QUOTA
 
-static void bch2_quota_reservation_put(struct bch_fs *c,
-				       struct bch_inode_info *inode,
-				       struct quota_res *res)
+static void __bch2_quota_reservation_put(struct bch_fs *c,
+					 struct bch_inode_info *inode,
+					 struct quota_res *res)
 {
-	if (!res->sectors)
-		return;
-
-	mutex_lock(&inode->ei_quota_lock);
 	BUG_ON(res->sectors > inode->ei_quota_reserved);
 
 	bch2_quota_acct(c, inode->ei_qid, Q_SPC,
 			-((s64) res->sectors), KEY_TYPE_QUOTA_PREALLOC);
 	inode->ei_quota_reserved -= res->sectors;
-	mutex_unlock(&inode->ei_quota_lock);
-
 	res->sectors = 0;
+}
+
+static void bch2_quota_reservation_put(struct bch_fs *c,
+				       struct bch_inode_info *inode,
+				       struct quota_res *res)
+{
+	if (res->sectors) {
+		mutex_lock(&inode->ei_quota_lock);
+		__bch2_quota_reservation_put(c, inode, res);
+		mutex_unlock(&inode->ei_quota_lock);
+	}
 }
 
 static int bch2_quota_reservation_add(struct bch_fs *c,
@@ -171,11 +177,13 @@ static int bch2_quota_reservation_add(struct bch_fs *c,
 
 #else
 
+static void __bch2_quota_reservation_put(struct bch_fs *c,
+					 struct bch_inode_info *inode,
+					 struct quota_res *res) {}
+
 static void bch2_quota_reservation_put(struct bch_fs *c,
 				       struct bch_inode_info *inode,
-				       struct quota_res *res)
-{
-}
+				       struct quota_res *res) {}
 
 static int bch2_quota_reservation_add(struct bch_fs *c,
 				      struct bch_inode_info *inode,
@@ -226,13 +234,9 @@ int __must_check bch2_write_inode_size(struct bch_fs *c,
 	return bch2_write_inode(c, inode, inode_set_size, &s, fields);
 }
 
-static void i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
+static void __i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
 			   struct quota_res *quota_res, s64 sectors)
 {
-	if (!sectors)
-		return;
-
-	mutex_lock(&inode->ei_quota_lock);
 	bch2_fs_inconsistent_on((s64) inode->v.i_blocks + sectors < 0, c,
 				"inode %lu i_blocks underflow: %llu + %lli < 0 (ondisk %lli)",
 				inode->v.i_ino, (u64) inode->v.i_blocks, sectors,
@@ -250,7 +254,16 @@ static void i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
 		bch2_quota_acct(c, inode->ei_qid, Q_SPC, sectors, KEY_TYPE_QUOTA_WARN);
 	}
 #endif
-	mutex_unlock(&inode->ei_quota_lock);
+}
+
+static void i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
+			   struct quota_res *quota_res, s64 sectors)
+{
+	if (sectors) {
+		mutex_lock(&inode->ei_quota_lock);
+		__i_sectors_acct(c, inode, quota_res, sectors);
+		mutex_unlock(&inode->ei_quota_lock);
+	}
 }
 
 /* page state: */
@@ -2137,7 +2150,6 @@ static noinline void bch2_dio_write_flush(struct dio_write *dio)
 
 static __always_inline long bch2_dio_write_done(struct dio_write *dio)
 {
-	struct bch_fs *c = dio->op.c;
 	struct kiocb *req = dio->req;
 	struct bch_inode_info *inode = dio->inode;
 	bool sync = dio->sync;
@@ -2150,7 +2162,6 @@ static __always_inline long bch2_dio_write_done(struct dio_write *dio)
 	}
 
 	bch2_pagecache_block_put(inode);
-	bch2_quota_reservation_put(c, inode, &dio->quota_res);
 
 	if (dio->free_iov)
 		kfree(dio->iter.__iov);
@@ -2178,14 +2189,22 @@ static __always_inline void bch2_dio_write_end(struct dio_write *dio)
 	struct bch_inode_info *inode = dio->inode;
 	struct bio *bio = &dio->op.wbio.bio;
 
-	i_sectors_acct(c, inode, &dio->quota_res, dio->op.i_sectors_delta);
-	req->ki_pos += (u64) dio->op.written << 9;
-	dio->written += dio->op.written;
+	req->ki_pos	+= (u64) dio->op.written << 9;
+	dio->written	+= dio->op.written;
 
-	spin_lock(&inode->v.i_lock);
-	if (req->ki_pos > inode->v.i_size)
-		i_size_write(&inode->v, req->ki_pos);
-	spin_unlock(&inode->v.i_lock);
+	if (dio->extending) {
+		spin_lock(&inode->v.i_lock);
+		if (req->ki_pos > inode->v.i_size)
+			i_size_write(&inode->v, req->ki_pos);
+		spin_unlock(&inode->v.i_lock);
+	}
+
+	if (dio->op.i_sectors_delta || dio->quota_res.sectors) {
+		mutex_lock(&inode->ei_quota_lock);
+		__i_sectors_acct(c, inode, &dio->quota_res, dio->op.i_sectors_delta);
+		__bch2_quota_reservation_put(c, inode, &dio->quota_res);
+		mutex_unlock(&inode->ei_quota_lock);
+	}
 
 	bio_release_pages(bio, false);
 
@@ -2265,6 +2284,11 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 			dio->op.flags |= BCH_WRITE_SYNC;
 		dio->op.flags |= BCH_WRITE_CHECK_ENOSPC;
 
+		ret = bch2_quota_reservation_add(c, inode, &dio->quota_res,
+						 bio_sectors(bio), true);
+		if (unlikely(ret))
+			goto err;
+
 		ret = bch2_disk_reservation_get(c, &dio->op.res, bio_sectors(bio),
 						dio->op.opts.data_replicas, 0);
 		if (unlikely(ret) &&
@@ -2298,6 +2322,8 @@ err:
 	dio->op.error = ret;
 
 	bio_release_pages(bio, false);
+
+	bch2_quota_reservation_put(c, inode, &dio->quota_res);
 	goto out;
 }
 
@@ -2376,6 +2402,7 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	dio->inode		= inode;
 	dio->mm			= current->mm;
 	dio->loop		= false;
+	dio->extending		= extending;
 	dio->sync		= is_sync_kiocb(req) || extending;
 	dio->flush		= iocb_is_dsync(req) && !c->opts.journal_flush_disabled;
 	dio->free_iov		= false;
@@ -2383,11 +2410,6 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	dio->written		= 0;
 	dio->iter		= *iter;
 	dio->op.c		= c;
-
-	ret = bch2_quota_reservation_add(c, inode, &dio->quota_res,
-					 iter->count >> 9, true);
-	if (unlikely(ret))
-		goto err_put_bio;
 
 	if (unlikely(mapping->nrpages)) {
 		ret = write_invalidate_inode_pages_range(mapping,
@@ -2404,7 +2426,6 @@ err:
 	return ret;
 err_put_bio:
 	bch2_pagecache_block_put(inode);
-	bch2_quota_reservation_put(c, inode, &dio->quota_res);
 	bio_put(bio);
 	inode_dio_end(&inode->v);
 	goto err;
