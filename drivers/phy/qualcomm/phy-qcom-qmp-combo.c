@@ -1967,10 +1967,8 @@ static int qmp_combo_com_exit(struct qmp_phy *qphy)
 static int qmp_combo_init(struct phy *phy)
 {
 	struct qmp_phy *qphy = phy_get_drvdata(phy);
-	struct qcom_qmp *qmp = qphy->qmp;
 	const struct qmp_phy_cfg *cfg = qphy->cfg;
 	int ret;
-	dev_vdbg(qmp->dev, "Initializing QMP phy\n");
 
 	ret = qmp_combo_com_init(qphy);
 	if (ret)
