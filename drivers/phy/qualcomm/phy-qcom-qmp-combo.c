@@ -1228,7 +1228,7 @@ static const struct qmp_phy_cfg sc8280xp_usb43dp_dp_cfg = {
 	.calibrate_dp_phy	= qcom_qmp_v4_dp_phy_calibrate,
 };
 
-static const struct qmp_phy_combo_cfg sc8280xp_usb43dpphy_combo_cfg = {
+static const struct qmp_phy_combo_cfg sc8280xp_usb43dpphy_cfg = {
 	.usb_cfg		= &sc8280xp_usb43dp_usb_cfg,
 	.dp_cfg			= &sc8280xp_usb43dp_dp_cfg,
 };
@@ -2857,7 +2857,7 @@ static const struct of_device_id qmp_combo_of_match_table[] = {
 	},
 	{
 		.compatible = "qcom,sc8280xp-qmp-usb43dp-phy",
-		.data = &sc8280xp_usb43dpphy_combo_cfg,
+		.data = &sc8280xp_usb43dpphy_cfg,
 	},
 	{
 		.compatible = "qcom,sdm845-qmp-usb3-dp-phy",
