@@ -1144,10 +1144,11 @@ int fotg210_udc_remove(struct platform_device *pdev)
 
 int fotg210_udc_probe(struct platform_device *pdev)
 {
-	struct resource *res, *ires;
+	struct resource *res;
 	struct fotg210_udc *fotg210 = NULL;
 	struct fotg210_ep *_ep[FOTG210_MAX_NUM_EP];
 	struct device *dev = &pdev->dev;
+	int irq;
 	int ret = 0;
 	int i;
 
@@ -1157,9 +1158,9 @@ int fotg210_udc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ires = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!ires) {
-		pr_err("platform_get_resource IORESOURCE_IRQ error.\n");
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		pr_err("could not get irq\n");
 		return -ENODEV;
 	}
 
@@ -1189,7 +1190,7 @@ int fotg210_udc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	fotg210->phy = devm_usb_get_phy_by_phandle(dev->parent, "usb-phy", 0);
+	fotg210->phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 0);
 	if (IS_ERR(fotg210->phy)) {
 		ret = PTR_ERR(fotg210->phy);
 		if (ret == -EPROBE_DEFER)
@@ -1267,7 +1268,7 @@ int fotg210_udc_probe(struct platform_device *pdev)
 
 	fotg210_disable_unplug(fotg210);
 
-	ret = request_irq(ires->start, fotg210_irq, IRQF_SHARED,
+	ret = request_irq(irq, fotg210_irq, IRQF_SHARED,
 			  udc_name, fotg210);
 	if (ret < 0) {
 		dev_err(dev, "request_irq error (%d)\n", ret);
@@ -1288,7 +1289,7 @@ int fotg210_udc_probe(struct platform_device *pdev)
 err_add_udc:
 	if (!IS_ERR_OR_NULL(fotg210->phy))
 		usb_unregister_notifier(fotg210->phy, &fotg210_phy_notifier);
-	free_irq(ires->start, fotg210);
+	free_irq(irq, fotg210);
 
 err_req:
 	fotg210_ep_free_request(&fotg210->ep[0]->ep, fotg210->ep0_req);
