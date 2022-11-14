@@ -75,7 +75,7 @@ config MTD_OF_PARTS
 	  This provides a open firmware device tree partition parser
 	  which derives the partition map from the children of the
 	  flash memory node, as described in
-	  Documentation/devicetree/bindings/mtd/partition.txt.
+	  Documentation/devicetree/bindings/mtd/mtd.yaml.
 
 config MTD_OF_PARTS_BCM4908
 	bool "BCM4908 partitioning support"

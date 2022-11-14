@@ -34,7 +34,6 @@ properties:
     type: object
     description:
       Node containing description of fixed partitions.
-      See Documentation/devicetree/bindings/mtd/partition.txt
 
 patternProperties:
   "^nand@[a-f0-9]$":
