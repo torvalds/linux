@@ -585,6 +585,8 @@ struct efx_msi_context {
  * struct efx_channel_type - distinguishes traffic and extra channels
  * @handle_no_channel: Handle failure to allocate an extra channel
  * @pre_probe: Set up extra state prior to initialisation
+ * @start: called early in efx_start_channels()
+ * @stop: called early in efx_stop_channels()
  * @post_remove: Tear down extra state after finalisation, if allocated.
  *	May be called on channels that have not been probed.
  * @get_name: Generate the channel's name (used for its IRQ handler)
@@ -601,6 +603,8 @@ struct efx_msi_context {
 struct efx_channel_type {
 	void (*handle_no_channel)(struct efx_nic *);
 	int (*pre_probe)(struct efx_channel *);
+	int (*start)(struct efx_channel *);
+	void (*stop)(struct efx_channel *);
 	void (*post_remove)(struct efx_channel *);
 	void (*get_name)(struct efx_channel *, char *buf, size_t len);
 	struct efx_channel *(*copy)(const struct efx_channel *);
