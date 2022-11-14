@@ -17,6 +17,7 @@ maintainers:
   - Ansuel Smith <ansuelsmth@gmail.com>
 
 allOf:
+  - $ref: /schemas/mtd/partitions/partition.yaml#
   - $ref: /schemas/nvmem/nvmem.yaml#
 
 properties:
@@ -26,7 +27,7 @@ properties:
 required:
   - compatible
 
-additionalProperties: true
+unevaluatedProperties: false
 
 examples:
   - |
