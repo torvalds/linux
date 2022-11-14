@@ -116,7 +116,7 @@ static void print_noise(struct perf_stat_config *config,
 
 static void print_cgroup_std(struct perf_stat_config *config, const char *cgrp_name)
 {
-	fprintf(config->output, " %s", cgrp_name);
+	fprintf(config->output, " %-16s", cgrp_name);
 }
 
 static void print_cgroup_csv(struct perf_stat_config *config, const char *cgrp_name)
