@@ -431,58 +431,122 @@ __AARCH64_INSN_FUNCS(pssbb,	0xFFFFFFFF, 0xD503349F)
 
 #undef	__AARCH64_INSN_FUNCS
 
-bool aarch64_insn_is_steppable_hint(u32 insn);
-bool aarch64_insn_is_branch_imm(u32 insn);
-
-static inline bool aarch64_insn_is_adr_adrp(u32 insn)
+static __always_inline bool aarch64_insn_is_steppable_hint(u32 insn)
 {
-	return aarch64_insn_is_adr(insn) || aarch64_insn_is_adrp(insn);
+	if (!aarch64_insn_is_hint(insn))
+		return false;
+
+	switch (insn & 0xFE0) {
+	case AARCH64_INSN_HINT_XPACLRI:
+	case AARCH64_INSN_HINT_PACIA_1716:
+	case AARCH64_INSN_HINT_PACIB_1716:
+	case AARCH64_INSN_HINT_PACIAZ:
+	case AARCH64_INSN_HINT_PACIASP:
+	case AARCH64_INSN_HINT_PACIBZ:
+	case AARCH64_INSN_HINT_PACIBSP:
+	case AARCH64_INSN_HINT_BTI:
+	case AARCH64_INSN_HINT_BTIC:
+	case AARCH64_INSN_HINT_BTIJ:
+	case AARCH64_INSN_HINT_BTIJC:
+	case AARCH64_INSN_HINT_NOP:
+		return true;
+	default:
+		return false;
+	}
 }
 
-static inline bool aarch64_insn_is_dsb(u32 insn)
+static __always_inline bool aarch64_insn_is_branch(u32 insn)
 {
-	return aarch64_insn_is_dsb_base(insn) || aarch64_insn_is_dsb_nxs(insn);
+	/* b, bl, cb*, tb*, ret*, b.cond, br*, blr* */
+
+	return aarch64_insn_is_b(insn) ||
+	       aarch64_insn_is_bl(insn) ||
+	       aarch64_insn_is_cbz(insn) ||
+	       aarch64_insn_is_cbnz(insn) ||
+	       aarch64_insn_is_tbz(insn) ||
+	       aarch64_insn_is_tbnz(insn) ||
+	       aarch64_insn_is_ret(insn) ||
+	       aarch64_insn_is_ret_auth(insn) ||
+	       aarch64_insn_is_br(insn) ||
+	       aarch64_insn_is_br_auth(insn) ||
+	       aarch64_insn_is_blr(insn) ||
+	       aarch64_insn_is_blr_auth(insn) ||
+	       aarch64_insn_is_bcond(insn);
 }
 
-static inline bool aarch64_insn_is_barrier(u32 insn)
+static __always_inline bool aarch64_insn_is_branch_imm(u32 insn)
 {
-	return aarch64_insn_is_dmb(insn) || aarch64_insn_is_dsb(insn) ||
-	       aarch64_insn_is_isb(insn) || aarch64_insn_is_sb(insn) ||
-	       aarch64_insn_is_clrex(insn) || aarch64_insn_is_ssbb(insn) ||
+	return aarch64_insn_is_b(insn) ||
+	       aarch64_insn_is_bl(insn) ||
+	       aarch64_insn_is_tbz(insn) ||
+	       aarch64_insn_is_tbnz(insn) ||
+	       aarch64_insn_is_cbz(insn) ||
+	       aarch64_insn_is_cbnz(insn) ||
+	       aarch64_insn_is_bcond(insn);
+}
+
+static __always_inline bool aarch64_insn_is_adr_adrp(u32 insn)
+{
+	return aarch64_insn_is_adr(insn) ||
+	       aarch64_insn_is_adrp(insn);
+}
+
+static __always_inline bool aarch64_insn_is_dsb(u32 insn)
+{
+	return aarch64_insn_is_dsb_base(insn) ||
+	       aarch64_insn_is_dsb_nxs(insn);
+}
+
+static __always_inline bool aarch64_insn_is_barrier(u32 insn)
+{
+	return aarch64_insn_is_dmb(insn) ||
+	       aarch64_insn_is_dsb(insn) ||
+	       aarch64_insn_is_isb(insn) ||
+	       aarch64_insn_is_sb(insn) ||
+	       aarch64_insn_is_clrex(insn) ||
+	       aarch64_insn_is_ssbb(insn) ||
 	       aarch64_insn_is_pssbb(insn);
 }
 
-static inline bool aarch64_insn_is_store_single(u32 insn)
+static __always_inline bool aarch64_insn_is_store_single(u32 insn)
 {
 	return aarch64_insn_is_store_imm(insn) ||
 	       aarch64_insn_is_store_pre(insn) ||
 	       aarch64_insn_is_store_post(insn);
 }
 
-static inline bool aarch64_insn_is_store_pair(u32 insn)
+static __always_inline bool aarch64_insn_is_store_pair(u32 insn)
 {
 	return aarch64_insn_is_stp(insn) ||
 	       aarch64_insn_is_stp_pre(insn) ||
 	       aarch64_insn_is_stp_post(insn);
 }
 
-static inline bool aarch64_insn_is_load_single(u32 insn)
+static __always_inline bool aarch64_insn_is_load_single(u32 insn)
 {
 	return aarch64_insn_is_load_imm(insn) ||
 	       aarch64_insn_is_load_pre(insn) ||
 	       aarch64_insn_is_load_post(insn);
 }
 
-static inline bool aarch64_insn_is_load_pair(u32 insn)
+static __always_inline bool aarch64_insn_is_load_pair(u32 insn)
 {
 	return aarch64_insn_is_ldp(insn) ||
 	       aarch64_insn_is_ldp_pre(insn) ||
 	       aarch64_insn_is_ldp_post(insn);
 }
 
+static __always_inline bool aarch64_insn_uses_literal(u32 insn)
+{
+	/* ldr/ldrsw (literal), prfm */
+
+	return aarch64_insn_is_ldr_lit(insn) ||
+	       aarch64_insn_is_ldrsw_lit(insn) ||
+	       aarch64_insn_is_adr_adrp(insn) ||
+	       aarch64_insn_is_prfm_lit(insn);
+}
+
 enum aarch64_insn_encoding_class aarch64_get_insn_class(u32 insn);
-bool aarch64_insn_uses_literal(u32 insn);
-bool aarch64_insn_is_branch(u32 insn);
 u64 aarch64_insn_decode_immediate(enum aarch64_insn_imm_type type, u32 insn);
 u32 aarch64_insn_encode_immediate(enum aarch64_insn_imm_type type,
 				  u32 insn, u64 imm);
