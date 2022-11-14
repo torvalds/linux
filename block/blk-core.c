@@ -59,12 +59,12 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(block_split);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_unplug);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_rq_insert);
 
-DEFINE_IDA(blk_queue_ida);
+static DEFINE_IDA(blk_queue_ida);
 
 /*
  * For queue allocation
  */
-struct kmem_cache *blk_requestq_cachep;
+static struct kmem_cache *blk_requestq_cachep;
 
 /*
  * Controlling structure to kblockd
@@ -252,19 +252,46 @@ void blk_clear_pm_only(struct request_queue *q)
 }
 EXPORT_SYMBOL_GPL(blk_clear_pm_only);
 
+static void blk_free_queue_rcu(struct rcu_head *rcu_head)
+{
+	kmem_cache_free(blk_requestq_cachep,
+			container_of(rcu_head, struct request_queue, rcu_head));
+}
+
+static void blk_free_queue(struct request_queue *q)
+{
+	might_sleep();
+
+	percpu_ref_exit(&q->q_usage_counter);
+
+	if (q->poll_stat)
+		blk_stat_remove_callback(q, q->poll_cb);
+	blk_stat_free_callback(q->poll_cb);
+
+	blk_free_queue_stats(q->stats);
+	kfree(q->poll_stat);
+
+	if (queue_is_mq(q))
+		blk_mq_release(q);
+
+	ida_free(&blk_queue_ida, q->id);
+	call_rcu(&q->rcu_head, blk_free_queue_rcu);
+}
+
 /**
  * blk_put_queue - decrement the request_queue refcount
  * @q: the request_queue structure to decrement the refcount for
  *
- * Decrements the refcount of the request_queue kobject. When this reaches 0
- * we'll have blk_release_queue() called.
+ * Decrements the refcount of the request_queue and free it when the refcount
+ * reaches 0.
  *
  * Context: Any context, but the last reference must not be dropped from
  *          atomic context.
  */
 void blk_put_queue(struct request_queue *q)
 {
-	kobject_put(&q->kobj);
+	if (refcount_dec_and_test(&q->refs))
+		blk_free_queue(q);
 }
 EXPORT_SYMBOL(blk_put_queue);
 
@@ -399,8 +426,7 @@ struct request_queue *blk_alloc_queue(int node_id)
 	INIT_WORK(&q->timeout_work, blk_timeout_work);
 	INIT_LIST_HEAD(&q->icq_list);
 
-	kobject_init(&q->kobj, &blk_queue_ktype);
-
+	refcount_set(&q->refs, 1);
 	mutex_init(&q->debugfs_mutex);
 	mutex_init(&q->sysfs_lock);
 	mutex_init(&q->sysfs_dir_lock);
@@ -445,7 +471,7 @@ bool blk_get_queue(struct request_queue *q)
 {
 	if (unlikely(blk_queue_dying(q)))
 		return false;
-	kobject_get(&q->kobj);
+	refcount_inc(&q->refs);
 	return true;
 }
 EXPORT_SYMBOL(blk_get_queue);

@@ -26,10 +26,6 @@ struct blk_flush_queue {
 	spinlock_t		mq_flush_lock;
 };
 
-extern struct kmem_cache *blk_requestq_cachep;
-extern struct kobj_type blk_queue_ktype;
-extern struct ida blk_queue_ida;
-
 bool is_flush_rq(struct request *req);
 
 struct blk_flush_queue *blk_alloc_flush_queue(int node, int cmd_size,

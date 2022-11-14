@@ -140,8 +140,8 @@ int blk_crypto_sysfs_register(struct gendisk *disk)
 		return -ENOMEM;
 	obj->profile = q->crypto_profile;
 
-	err = kobject_init_and_add(&obj->kobj, &blk_crypto_ktype, &q->kobj,
-				   "crypto");
+	err = kobject_init_and_add(&obj->kobj, &blk_crypto_ktype,
+				   &disk->queue_kobj, "crypto");
 	if (err) {
 		kobject_put(&obj->kobj);
 		return err;
