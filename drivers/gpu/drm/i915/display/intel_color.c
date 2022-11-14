@@ -1801,7 +1801,7 @@ static int icl_color_check(struct intel_crtc_state *crtc_state)
 
 static int i9xx_post_csc_lut_precision(const struct intel_crtc_state *crtc_state)
 {
-	if (!crtc_state->gamma_enable)
+	if (!crtc_state->gamma_enable && !crtc_state->c8_planes)
 		return 0;
 
 	switch (crtc_state->gamma_mode) {
@@ -1817,6 +1817,9 @@ static int i9xx_post_csc_lut_precision(const struct intel_crtc_state *crtc_state
 
 static bool ilk_has_post_csc_lut(const struct intel_crtc_state *crtc_state)
 {
+	if (crtc_state->c8_planes)
+		return true;
+
 	return crtc_state->gamma_enable &&
 		(crtc_state->csc_mode & CSC_POSITION_BEFORE_GAMMA) != 0;
 }
@@ -1847,7 +1850,7 @@ static int chv_post_csc_lut_precision(const struct intel_crtc_state *crtc_state)
 
 static int glk_post_csc_lut_precision(const struct intel_crtc_state *crtc_state)
 {
-	if (!crtc_state->gamma_enable)
+	if (!crtc_state->gamma_enable && !crtc_state->c8_planes)
 		return 0;
 
 	switch (crtc_state->gamma_mode) {
@@ -1863,6 +1866,9 @@ static int glk_post_csc_lut_precision(const struct intel_crtc_state *crtc_state)
 
 static bool icl_has_post_csc_lut(const struct intel_crtc_state *crtc_state)
 {
+	if (crtc_state->c8_planes)
+		return true;
+
 	return crtc_state->gamma_mode & POST_CSC_GAMMA_ENABLE;
 }
 
@@ -2009,7 +2015,7 @@ static void i9xx_read_luts(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	if (!crtc_state->gamma_enable)
+	if (!crtc_state->gamma_enable && !crtc_state->c8_planes)
 		return;
 
 	crtc_state->post_csc_lut = i9xx_read_lut_8(crtc);
@@ -2049,7 +2055,7 @@ static void i965_read_luts(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 
-	if (!crtc_state->gamma_enable)
+	if (!crtc_state->gamma_enable && !crtc_state->c8_planes)
 		return;
 
 	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
@@ -2180,7 +2186,7 @@ static void ilk_read_luts(struct intel_crtc_state *crtc_state)
 		ilk_has_post_csc_lut(crtc_state) ?
 		&crtc_state->post_csc_lut : &crtc_state->pre_csc_lut;
 
-	if (!crtc_state->gamma_enable)
+	if (!crtc_state->gamma_enable && !crtc_state->c8_planes)
 		return;
 
 	switch (crtc_state->gamma_mode) {
@@ -2240,7 +2246,7 @@ static void ivb_read_luts(struct intel_crtc_state *crtc_state)
 		ilk_has_post_csc_lut(crtc_state) ?
 		&crtc_state->post_csc_lut : &crtc_state->pre_csc_lut;
 
-	if (!crtc_state->gamma_enable)
+	if (!crtc_state->gamma_enable && !crtc_state->c8_planes)
 		return;
 
 	switch (crtc_state->gamma_mode) {
@@ -2303,7 +2309,7 @@ static void bdw_read_luts(struct intel_crtc_state *crtc_state)
 		ilk_has_post_csc_lut(crtc_state) ?
 		&crtc_state->post_csc_lut : &crtc_state->pre_csc_lut;
 
-	if (!crtc_state->gamma_enable)
+	if (!crtc_state->gamma_enable && !crtc_state->c8_planes)
 		return;
 
 	switch (crtc_state->gamma_mode) {
@@ -2372,7 +2378,7 @@ static void glk_read_luts(struct intel_crtc_state *crtc_state)
 	if (crtc_state->csc_enable)
 		crtc_state->pre_csc_lut = glk_read_degamma_lut(crtc);
 
-	if (!crtc_state->gamma_enable)
+	if (!crtc_state->gamma_enable && !crtc_state->c8_planes)
 		return;
 
 	switch (crtc_state->gamma_mode) {
