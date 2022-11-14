@@ -294,6 +294,7 @@ config PCI_MESON
 	default m if ARCH_MESON
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
+	select REGMAP_MMIO
 	help
 	  Say Y here if you want to enable PCI controller support on Amlogic
 	  SoCs. The PCI controller on Amlogic is based on DesignWare hardware
