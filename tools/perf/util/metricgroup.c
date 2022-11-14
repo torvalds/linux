@@ -12,6 +12,7 @@
 #include "strbuf.h"
 #include "pmu.h"
 #include "pmu-hybrid.h"
+#include "print-events.h"
 #include "expr.h"
 #include "rblist.h"
 #include <string.h>
@@ -353,56 +354,41 @@ static bool match_pe_metric(const struct pmu_event *pe, const char *metric)
 	       match_metric(pe->metric_name, metric);
 }
 
+/** struct mep - RB-tree node for building printing information. */
 struct mep {
+	/** nd - RB-tree element. */
 	struct rb_node nd;
-	const char *name;
-	struct strlist *metrics;
+	/** @metric_group: Owned metric group name, separated others with ';'. */
+	char *metric_group;
+	const char *metric_name;
+	const char *metric_desc;
+	const char *metric_long_desc;
+	const char *metric_expr;
+	const char *metric_unit;
 };
 
 static int mep_cmp(struct rb_node *rb_node, const void *entry)
 {
 	struct mep *a = container_of(rb_node, struct mep, nd);
 	struct mep *b = (struct mep *)entry;
+	int ret;
 
-	return strcmp(a->name, b->name);
+	ret = strcmp(a->metric_group, b->metric_group);
+	if (ret)
+		return ret;
+
+	return strcmp(a->metric_name, b->metric_name);
 }
 
-static struct rb_node *mep_new(struct rblist *rl __maybe_unused,
-					const void *entry)
+static struct rb_node *mep_new(struct rblist *rl __maybe_unused, const void *entry)
 {
 	struct mep *me = malloc(sizeof(struct mep));
 
 	if (!me)
 		return NULL;
-	memcpy(me, entry, sizeof(struct mep));
-	me->name = strdup(me->name);
-	if (!me->name)
-		goto out_me;
-	me->metrics = strlist__new(NULL, NULL);
-	if (!me->metrics)
-		goto out_name;
-	return &me->nd;
-out_name:
-	zfree(&me->name);
-out_me:
-	free(me);
-	return NULL;
-}
 
-static struct mep *mep_lookup(struct rblist *groups, const char *name)
-{
-	struct rb_node *nd;
-	struct mep me = {
-		.name = name
-	};
-	nd = rblist__find(groups, &me);
-	if (nd)
-		return container_of(nd, struct mep, nd);
-	rblist__add_node(groups, &me);
-	nd = rblist__find(groups, &me);
-	if (nd)
-		return container_of(nd, struct mep, nd);
-	return NULL;
+	memcpy(me, entry, sizeof(struct mep));
+	return &me->nd;
 }
 
 static void mep_delete(struct rblist *rl __maybe_unused,
@@ -410,101 +396,60 @@ static void mep_delete(struct rblist *rl __maybe_unused,
 {
 	struct mep *me = container_of(nd, struct mep, nd);
 
-	strlist__delete(me->metrics);
-	zfree(&me->name);
+	zfree(&me->metric_group);
 	free(me);
 }
 
-static void metricgroup__print_strlist(struct strlist *metrics, bool raw)
+static struct mep *mep_lookup(struct rblist *groups, const char *metric_group,
+			      const char *metric_name)
 {
-	struct str_node *sn;
-	int n = 0;
-
-	strlist__for_each_entry (sn, metrics) {
-		if (raw)
-			printf("%s%s", n > 0 ? " " : "", sn->s);
-		else
-			printf("  %s\n", sn->s);
-		n++;
+	struct rb_node *nd;
+	struct mep me = {
+		.metric_group = strdup(metric_group),
+		.metric_name = metric_name,
+	};
+	nd = rblist__find(groups, &me);
+	if (nd) {
+		free(me.metric_group);
+		return container_of(nd, struct mep, nd);
 	}
-	if (raw)
-		putchar('\n');
+	rblist__add_node(groups, &me);
+	nd = rblist__find(groups, &me);
+	if (nd)
+		return container_of(nd, struct mep, nd);
+	return NULL;
 }
 
-static int metricgroup__print_pmu_event(const struct pmu_event *pe,
-					bool metricgroups, char *filter,
-					bool raw, bool details,
-					struct rblist *groups,
-					struct strlist *metriclist)
+static int metricgroup__add_to_mep_groups(const struct pmu_event *pe,
+					struct rblist *groups)
 {
 	const char *g;
 	char *omg, *mg;
 
-	g = pe->metric_group;
-	if (!g && pe->metric_name) {
-		if (pe->name)
-			return 0;
-		g = "No_group";
-	}
-
-	if (!g)
-		return 0;
-
-	mg = strdup(g);
-
+	mg = strdup(pe->metric_group ?: "No_group");
 	if (!mg)
 		return -ENOMEM;
 	omg = mg;
 	while ((g = strsep(&mg, ";")) != NULL) {
 		struct mep *me;
-		char *s;
 
 		g = skip_spaces(g);
-		if (*g == 0)
-			g = "No_group";
-		if (filter && !strstr(g, filter))
-			continue;
-		if (raw)
-			s = (char *)pe->metric_name;
-		else {
-			if (asprintf(&s, "%s\n%*s%s]",
-				     pe->metric_name, 8, "[", pe->desc) < 0)
-				return -1;
-			if (details) {
-				if (asprintf(&s, "%s\n%*s%s]",
-					     s, 8, "[", pe->metric_expr) < 0)
-					return -1;
-			}
+		if (strlen(g))
+			me = mep_lookup(groups, g, pe->metric_name);
+		else
+			me = mep_lookup(groups, "No_group", pe->metric_name);
+
+		if (me) {
+			me->metric_desc = pe->desc;
+			me->metric_long_desc = pe->long_desc;
+			me->metric_expr = pe->metric_expr;
+			me->metric_unit = pe->unit;
 		}
-
-		if (!s)
-			continue;
-
-		if (!metricgroups) {
-			strlist__add(metriclist, s);
-		} else {
-			me = mep_lookup(groups, g);
-			if (!me)
-				continue;
-			strlist__add(me->metrics, s);
-		}
-
-		if (!raw)
-			free(s);
 	}
 	free(omg);
 
 	return 0;
 }
-
-struct metricgroup_print_sys_idata {
-	struct strlist *metriclist;
-	char *filter;
-	struct rblist *groups;
-	bool metricgroups;
-	bool raw;
-	bool details;
-};
 
 struct metricgroup_iter_data {
 	pmu_event_iter_fn fn;
@@ -528,61 +473,26 @@ static int metricgroup__sys_event_iter(const struct pmu_event *pe,
 
 		return d->fn(pe, table, d->data);
 	}
-
 	return 0;
 }
 
-static int metricgroup__print_sys_event_iter(const struct pmu_event *pe,
-					     const struct pmu_events_table *table __maybe_unused,
-					     void *data)
+static int metricgroup__add_to_mep_groups_callback(const struct pmu_event *pe,
+						const struct pmu_events_table *table __maybe_unused,
+						void *vdata)
 {
-	struct metricgroup_print_sys_idata *d = data;
+	struct rblist *groups = vdata;
 
-	return metricgroup__print_pmu_event(pe, d->metricgroups, d->filter, d->raw,
-				     d->details, d->groups, d->metriclist);
-}
-
-struct metricgroup_print_data {
-	const char *pmu_name;
-	struct strlist *metriclist;
-	char *filter;
-	struct rblist *groups;
-	bool metricgroups;
-	bool raw;
-	bool details;
-};
-
-static int metricgroup__print_callback(const struct pmu_event *pe,
-				       const struct pmu_events_table *table __maybe_unused,
-				       void *vdata)
-{
-	struct metricgroup_print_data *data = vdata;
-	const char *pmu = pe->pmu ?: "cpu";
-
-	if (!pe->metric_expr)
+	if (!pe->metric_name)
 		return 0;
 
-	if (data->pmu_name && strcmp(data->pmu_name, pmu))
-		return 0;
-
-	return metricgroup__print_pmu_event(pe, data->metricgroups, data->filter,
-					    data->raw, data->details, data->groups,
-					    data->metriclist);
+	return metricgroup__add_to_mep_groups(pe, groups);
 }
 
-void metricgroup__print(bool metrics, bool metricgroups, char *filter,
-			bool raw, bool details, const char *pmu_name)
+void metricgroup__print(const struct print_callbacks *print_cb, void *print_state)
 {
 	struct rblist groups;
-	struct rb_node *node, *next;
-	struct strlist *metriclist = NULL;
 	const struct pmu_events_table *table;
-
-	if (!metricgroups) {
-		metriclist = strlist__new(NULL, NULL);
-		if (!metriclist)
-			return;
-	}
+	struct rb_node *node, *next;
 
 	rblist__init(&groups);
 	groups.node_new = mep_new;
@@ -590,56 +500,31 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 	groups.node_delete = mep_delete;
 	table = pmu_events_table__find();
 	if (table) {
-		struct metricgroup_print_data data = {
-			.pmu_name = pmu_name,
-			.metriclist = metriclist,
-			.metricgroups = metricgroups,
-			.filter = filter,
-			.raw = raw,
-			.details = details,
-			.groups = &groups,
-		};
-
 		pmu_events_table_for_each_event(table,
-						metricgroup__print_callback,
-						&data);
+						metricgroup__add_to_mep_groups_callback,
+						&groups);
 	}
 	{
 		struct metricgroup_iter_data data = {
-			.fn = metricgroup__print_sys_event_iter,
-			.data = (void *) &(struct metricgroup_print_sys_idata){
-				.metriclist = metriclist,
-				.metricgroups = metricgroups,
-				.filter = filter,
-				.raw = raw,
-				.details = details,
-				.groups = &groups,
-			},
+			.fn = metricgroup__add_to_mep_groups_callback,
+			.data = &groups,
 		};
-
 		pmu_for_each_sys_event(metricgroup__sys_event_iter, &data);
-	}
-
-	if (!filter || !rblist__empty(&groups)) {
-		if (metricgroups && !raw)
-			printf("\nMetric Groups:\n\n");
-		else if (metrics && !raw)
-			printf("\nMetrics:\n\n");
 	}
 
 	for (node = rb_first_cached(&groups.entries); node; node = next) {
 		struct mep *me = container_of(node, struct mep, nd);
 
-		if (metricgroups)
-			printf("%s%s%s", me->name, metrics && !raw ? ":" : "", raw ? " " : "\n");
-		if (metrics)
-			metricgroup__print_strlist(me->metrics, raw);
+		print_cb->print_metric(print_state,
+				me->metric_group,
+				me->metric_name,
+				me->metric_desc,
+				me->metric_long_desc,
+				me->metric_expr,
+				me->metric_unit);
 		next = rb_next(node);
 		rblist__remove_node(&groups, node);
 	}
-	if (!metricgroups)
-		metricgroup__print_strlist(metriclist, raw);
-	strlist__delete(metriclist);
 }
 
 static const char *code_characters = ",-=@";

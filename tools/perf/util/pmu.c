@@ -23,6 +23,7 @@
 #include "evsel.h"
 #include "pmu.h"
 #include "parse-events.h"
+#include "print-events.h"
 #include "header.h"
 #include "string2.h"
 #include "strbuf.h"
@@ -1579,13 +1580,6 @@ static char *format_alias(char *buf, int len, const struct perf_pmu *pmu,
 	return buf;
 }
 
-static char *format_alias_or(char *buf, int len, const struct perf_pmu *pmu,
-			     const struct perf_pmu_alias *alias)
-{
-	snprintf(buf, len, "%s OR %s/%s/", alias->name, pmu->name, alias->name);
-	return buf;
-}
-
 /** Struct for ordering events as output in perf list. */
 struct sevent {
 	/** PMU for event. */
@@ -1629,7 +1623,7 @@ static int cmp_sevent(const void *a, const void *b)
 
 	/* Order CPU core events to be first */
 	if (as->is_cpu != bs->is_cpu)
-		return bs->is_cpu - as->is_cpu;
+		return as->is_cpu ? -1 : 1;
 
 	/* Order by PMU name. */
 	a_pmu_name = as->pmu->name ?: "";
@@ -1640,27 +1634,6 @@ static int cmp_sevent(const void *a, const void *b)
 
 	/* Order by event name. */
 	return strcmp(a_name, b_name);
-}
-
-static void wordwrap(char *s, int start, int max, int corr)
-{
-	int column = start;
-	int n;
-
-	while (*s) {
-		int wlen = strcspn(s, " \t");
-
-		if (column + wlen >= max && column > start) {
-			printf("\n%*s", start, "");
-			column = start + corr;
-		}
-		n = printf("%s%.*s", column > start ? " " : "", wlen, s);
-		if (n <= 0)
-			break;
-		s += wlen;
-		column += n;
-		s = skip_spaces(s);
-	}
 }
 
 bool is_pmu_core(const char *name)
@@ -1685,24 +1658,19 @@ static bool pmu_alias_is_duplicate(struct sevent *alias_a,
 	return strcmp(a_pmu_name, b_pmu_name) == 0;
 }
 
-void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
-			bool long_desc, bool details_flag, bool deprecated,
-			const char *pmu_name)
+void print_pmu_events(const struct print_callbacks *print_cb, void *print_state)
 {
 	struct perf_pmu *pmu;
-	struct perf_pmu_alias *alias;
+	struct perf_pmu_alias *event;
 	char buf[1024];
 	int printed = 0;
 	int len, j;
 	struct sevent *aliases;
-	int numdesc = 0;
-	int columns = pager_get_columns();
-	char *topic = NULL;
 
 	pmu = NULL;
 	len = 0;
 	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
-		list_for_each_entry(alias, &pmu->aliases, list)
+		list_for_each_entry(event, &pmu->aliases, list)
 			len++;
 		if (pmu->selectable)
 			len++;
@@ -1715,32 +1683,15 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 	pmu = NULL;
 	j = 0;
 	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
-		bool is_cpu;
+		bool is_cpu = is_pmu_core(pmu->name) || perf_pmu__is_hybrid(pmu->name);
 
-		if (pmu_name && pmu->name && strcmp(pmu_name, pmu->name))
-			continue;
-
-		is_cpu = is_pmu_core(pmu->name) || perf_pmu__is_hybrid(pmu->name);
-
-		list_for_each_entry(alias, &pmu->aliases, list) {
-			if (alias->deprecated && !deprecated)
-				continue;
-
-			if (event_glob != NULL &&
-			    !(strglobmatch_nocase(alias->name, event_glob) ||
-			      (!is_cpu &&
-			       strglobmatch_nocase(alias->name, event_glob)) ||
-			      (alias->topic &&
-			       strglobmatch_nocase(alias->topic, event_glob))))
-				continue;
-
-			aliases[j].event = alias;
+		list_for_each_entry(event, &pmu->aliases, list) {
+			aliases[j].event = event;
 			aliases[j].pmu = pmu;
 			aliases[j].is_cpu = is_cpu;
 			j++;
 		}
-		if (pmu->selectable &&
-		    (event_glob == NULL || strglobmatch(pmu->name, event_glob))) {
+		if (pmu->selectable) {
 			aliases[j].event = NULL;
 			aliases[j].pmu = pmu;
 			aliases[j].is_cpu = is_cpu;
@@ -1750,7 +1701,12 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 	len = j;
 	qsort(aliases, len, sizeof(struct sevent), cmp_sevent);
 	for (j = 0; j < len; j++) {
-		char *name, *desc;
+		const char *name, *alias = NULL, *scale_unit = NULL,
+			*desc = NULL, *long_desc = NULL,
+			*encoding_desc = NULL, *topic = NULL,
+			*metric_name = NULL, *metric_expr = NULL;
+		bool deprecated = false;
+		size_t buf_used;
 
 		/* Skip duplicates */
 		if (j > 0 && pmu_alias_is_duplicate(&aliases[j], &aliases[j - 1]))
@@ -1758,48 +1714,51 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 
 		if (!aliases[j].event) {
 			/* A selectable event. */
-			snprintf(buf, sizeof(buf), "%s//", aliases[j].pmu->name);
+			buf_used = snprintf(buf, sizeof(buf), "%s//", aliases[j].pmu->name) + 1;
 			name = buf;
-		} else if (aliases[j].event->desc) {
-			name = aliases[j].event->name;
 		} else {
-			if (!name_only && aliases[j].is_cpu) {
-				name = format_alias_or(buf, sizeof(buf), aliases[j].pmu,
-						       aliases[j].event);
+			if (aliases[j].event->desc) {
+				name = aliases[j].event->name;
+				buf_used = 0;
 			} else {
 				name = format_alias(buf, sizeof(buf), aliases[j].pmu,
 						    aliases[j].event);
+				if (aliases[j].is_cpu) {
+					alias = name;
+					name = aliases[j].event->name;
+				}
+				buf_used = strlen(buf) + 1;
 			}
-		}
-		if (name_only) {
-			printf("%s ", name);
-			continue;
-		}
-		printed++;
-		if (!aliases[j].event || !aliases[j].event->desc || quiet_flag) {
-			printf("  %-50s [Kernel PMU event]\n", name);
-			continue;
-		}
-		if (numdesc++ == 0)
-			printf("\n");
-		if (aliases[j].event->topic && (!topic ||
-						strcmp(topic, aliases[j].event->topic))) {
-			printf("%s%s:\n", topic ? "\n" : "", aliases[j].event->topic);
+			if (strlen(aliases[j].event->unit) || aliases[j].event->scale != 1.0) {
+				scale_unit = buf + buf_used;
+				buf_used += snprintf(buf + buf_used, sizeof(buf) - buf_used,
+						"%G%s", aliases[j].event->scale,
+						aliases[j].event->unit) + 1;
+			}
+			desc = aliases[j].event->desc;
+			long_desc = aliases[j].event->long_desc;
 			topic = aliases[j].event->topic;
+			encoding_desc = buf + buf_used;
+			buf_used += snprintf(buf + buf_used, sizeof(buf) - buf_used,
+					"%s/%s/", aliases[j].pmu->name,
+					aliases[j].event->str) + 1;
+			metric_name = aliases[j].event->metric_name;
+			metric_expr = aliases[j].event->metric_expr;
+			deprecated = aliases[j].event->deprecated;
 		}
-		printf("  %-50s\n", name);
-		printf("%*s", 8, "[");
-		desc = long_desc ? aliases[j].event->long_desc : aliases[j].event->desc;
-		wordwrap(desc, 8, columns, 0);
-		printf("]\n");
-		if (details_flag) {
-			printf("%*s%s/%s/ ", 8, "", aliases[j].pmu->name, aliases[j].event->str);
-			if (aliases[j].event->metric_name)
-				printf(" MetricName: %s", aliases[j].event->metric_name);
-			if (aliases[j].event->metric_expr)
-				printf(" MetricExpr: %s", aliases[j].event->metric_expr);
-			putchar('\n');
-		}
+		print_cb->print_event(print_state,
+				aliases[j].pmu->name,
+				topic,
+				name,
+				alias,
+				scale_unit,
+				deprecated,
+				"Kernel PMU event",
+				desc,
+				long_desc,
+				encoding_desc,
+				metric_name,
+				metric_expr);
 	}
 	if (printed && pager_in_use())
 		printf("\n");

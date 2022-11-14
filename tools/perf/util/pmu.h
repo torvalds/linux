@@ -12,6 +12,7 @@
 
 struct evsel_config_term;
 struct perf_cpu_map;
+struct print_callbacks;
 
 enum {
 	PERF_PMU_FORMAT_VALUE_CONFIG,
@@ -225,9 +226,7 @@ void perf_pmu__del_formats(struct list_head *formats);
 struct perf_pmu *perf_pmu__scan(struct perf_pmu *pmu);
 
 bool is_pmu_core(const char *name);
-void print_pmu_events(const char *event_glob, bool name_only, bool quiet,
-		      bool long_desc, bool details_flag,
-		      bool deprecated, const char *pmu_name);
+void print_pmu_events(const struct print_callbacks *print_cb, void *print_state);
 bool pmu_have_event(const char *pname, const char *name);
 
 int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt, ...) __scanf(3, 4);
