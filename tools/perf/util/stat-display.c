@@ -1034,94 +1034,129 @@ static void prepare_interval(struct perf_stat_config *config,
 				 ts->tv_sec, ts->tv_nsec);
 }
 
-static void print_interval(struct perf_stat_config *config,
-			   struct evlist *evlist)
+static void print_header_interval_std(struct perf_stat_config *config,
+				      struct target *_target __maybe_unused,
+				      struct evlist *evlist,
+				      int argc __maybe_unused,
+				      const char **argv __maybe_unused)
 {
-	bool metric_only = config->metric_only;
-	unsigned int unit_width = config->unit_width;
 	FILE *output = config->output;
-	static int num_print_interval;
 
-	if (config->interval_clear && isatty(fileno(output)))
-		puts(CONSOLE_CLEAR);
-
-	if ((num_print_interval == 0 || config->interval_clear) &&
-			!config->csv_output && !config->json_output) {
-		switch (config->aggr_mode) {
-		case AGGR_NODE:
-		case AGGR_SOCKET:
-		case AGGR_DIE:
-		case AGGR_CORE:
-			fprintf(output, "#%*s %-*s cpus",
-				INTERVAL_LEN - 1, "time",
-				aggr_header_lens[config->aggr_mode],
-				aggr_header_std[config->aggr_mode]);
-			break;
-		case AGGR_NONE:
-			fprintf(output, "#%*s %-*s",
-				INTERVAL_LEN - 1, "time",
-				aggr_header_lens[config->aggr_mode],
-				aggr_header_std[config->aggr_mode]);
-			break;
-		case AGGR_THREAD:
-			fprintf(output, "#%*s %*s-%-*s",
-				INTERVAL_LEN - 1, "time",
-				COMM_LEN, "comm", PID_LEN, "pid");
-			break;
-		case AGGR_GLOBAL:
-		default:
-			if (!config->iostat_run)
-				fprintf(output, "#%*s",
-					INTERVAL_LEN - 1, "time");
-		case AGGR_UNSET:
-		case AGGR_MAX:
-			break;
-		}
-
-		if (!metric_only) {
-			fprintf(output, " %*s %*s events\n",
-				COUNTS_LEN, "counts", unit_width, "unit");
-		}
+	switch (config->aggr_mode) {
+	case AGGR_NODE:
+	case AGGR_SOCKET:
+	case AGGR_DIE:
+	case AGGR_CORE:
+		fprintf(output, "#%*s %-*s cpus",
+			INTERVAL_LEN - 1, "time",
+			aggr_header_lens[config->aggr_mode],
+			aggr_header_std[config->aggr_mode]);
+		break;
+	case AGGR_NONE:
+		fprintf(output, "#%*s %-*s",
+			INTERVAL_LEN - 1, "time",
+			aggr_header_lens[config->aggr_mode],
+			aggr_header_std[config->aggr_mode]);
+		break;
+	case AGGR_THREAD:
+		fprintf(output, "#%*s %*s-%-*s",
+			INTERVAL_LEN - 1, "time",
+			COMM_LEN, "comm", PID_LEN, "pid");
+		break;
+	case AGGR_GLOBAL:
+	default:
+		if (!config->iostat_run)
+			fprintf(output, "#%*s",
+				INTERVAL_LEN - 1, "time");
+	case AGGR_UNSET:
+	case AGGR_MAX:
+		break;
 	}
 
-	if ((num_print_interval == 0 || config->interval_clear) && metric_only)
+	if (config->metric_only)
 		print_metric_headers(config, evlist, " ", true);
-	if (++num_print_interval == 25)
-		num_print_interval = 0;
+	else
+		fprintf(output, " %*s %*s events\n",
+			COUNTS_LEN, "counts", config->unit_width, "unit");
 }
 
-static void print_header(struct perf_stat_config *config,
-			 struct target *_target,
-			 int argc, const char **argv)
+static void print_header_std(struct perf_stat_config *config,
+			     struct target *_target, struct evlist *evlist,
+			     int argc, const char **argv)
 {
 	FILE *output = config->output;
 	int i;
 
+	fprintf(output, "\n");
+	fprintf(output, " Performance counter stats for ");
+	if (_target->bpf_str)
+		fprintf(output, "\'BPF program(s) %s", _target->bpf_str);
+	else if (_target->system_wide)
+		fprintf(output, "\'system wide");
+	else if (_target->cpu_list)
+		fprintf(output, "\'CPU(s) %s", _target->cpu_list);
+	else if (!target__has_task(_target)) {
+		fprintf(output, "\'%s", argv ? argv[0] : "pipe");
+		for (i = 1; argv && (i < argc); i++)
+			fprintf(output, " %s", argv[i]);
+	} else if (_target->pid)
+		fprintf(output, "process id \'%s", _target->pid);
+	else
+		fprintf(output, "thread id \'%s", _target->tid);
+
+	fprintf(output, "\'");
+	if (config->run_count > 1)
+		fprintf(output, " (%d runs)", config->run_count);
+	fprintf(output, ":\n\n");
+
+	if (config->metric_only)
+		print_metric_headers(config, evlist, " ", false);
+}
+
+static void print_header_csv(struct perf_stat_config *config,
+			     struct target *_target __maybe_unused,
+			     struct evlist *evlist,
+			     int argc __maybe_unused,
+			     const char **argv __maybe_unused)
+{
+	if (config->metric_only)
+		print_metric_headers(config, evlist, " ", true);
+}
+static void print_header_json(struct perf_stat_config *config,
+			      struct target *_target __maybe_unused,
+			      struct evlist *evlist,
+			      int argc __maybe_unused,
+			      const char **argv __maybe_unused)
+{
+	if (config->metric_only)
+		print_metric_headers(config, evlist, " ", true);
+}
+
+static void print_header(struct perf_stat_config *config,
+			 struct target *_target,
+			 struct evlist *evlist,
+			 int argc, const char **argv)
+{
+	static int num_print_iv;
+
 	fflush(stdout);
 
-	if (!config->csv_output && !config->json_output) {
-		fprintf(output, "\n");
-		fprintf(output, " Performance counter stats for ");
-		if (_target->bpf_str)
-			fprintf(output, "\'BPF program(s) %s", _target->bpf_str);
-		else if (_target->system_wide)
-			fprintf(output, "\'system wide");
-		else if (_target->cpu_list)
-			fprintf(output, "\'CPU(s) %s", _target->cpu_list);
-		else if (!target__has_task(_target)) {
-			fprintf(output, "\'%s", argv ? argv[0] : "pipe");
-			for (i = 1; argv && (i < argc); i++)
-				fprintf(output, " %s", argv[i]);
-		} else if (_target->pid)
-			fprintf(output, "process id \'%s", _target->pid);
-		else
-			fprintf(output, "thread id \'%s", _target->tid);
+	if (config->interval_clear)
+		puts(CONSOLE_CLEAR);
 
-		fprintf(output, "\'");
-		if (config->run_count > 1)
-			fprintf(output, " (%d runs)", config->run_count);
-		fprintf(output, ":\n\n");
+	if (num_print_iv == 0 || config->interval_clear) {
+		if (config->json_output)
+			print_header_json(config, _target, evlist, argc, argv);
+		else if (config->csv_output)
+			print_header_csv(config, _target, evlist, argc, argv);
+		else if (config->interval)
+			print_header_interval_std(config, _target, evlist, argc, argv);
+		else
+			print_header_std(config, _target, evlist, argc, argv);
 	}
+
+	if (num_print_iv++ == 25)
+		num_print_iv = 0;
 }
 
 static int get_precision(double num)
@@ -1278,18 +1313,10 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 	if (interval) {
 		prefix = buf;
 		prepare_interval(config, prefix, ts);
-		print_interval(config, evlist);
-	} else {
-		print_header(config, _target, argc, argv);
 	}
 
+	print_header(config, _target, evlist, argc, argv);
 	if (metric_only) {
-		static int num_print_iv;
-
-		if (num_print_iv == 0 && !interval)
-			print_metric_headers(config, evlist, prefix, false);
-		if (num_print_iv++ == 25)
-			num_print_iv = 0;
 		if (config->aggr_mode == AGGR_GLOBAL && prefix && !config->iostat_run)
 			fprintf(config->output, "%s", prefix);
 	}
