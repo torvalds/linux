@@ -65,7 +65,7 @@ enum amd_spi_speed {
 	F_16_66MHz,
 	F_100MHz,
 	F_800KHz,
-	SPI_SPD7,
+	SPI_SPD7 = 0x7,
 	F_50MHz = 0x4,
 	F_4MHz = 0x32,
 	F_3_17MHz = 0x3F
