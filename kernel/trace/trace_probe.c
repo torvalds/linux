@@ -100,9 +100,14 @@ static const struct fetch_type probe_fetch_types[] = {
 	ASSIGN_FETCH_TYPE_END
 };
 
-static const struct fetch_type *find_fetch_type(const char *type)
+static const struct fetch_type *find_fetch_type(const char *type, unsigned long flags)
 {
 	int i;
+
+	/* Reject the symbol/symstr for uprobes */
+	if (type && (flags & TPARG_FL_USER) &&
+	    (!strcmp(type, "symbol") || !strcmp(type, "symstr")))
+		return NULL;
 
 	if (!type)
 		type = DEFAULT_FETCH_TYPE_STR;
@@ -121,13 +126,13 @@ static const struct fetch_type *find_fetch_type(const char *type)
 
 		switch (bs) {
 		case 8:
-			return find_fetch_type("u8");
+			return find_fetch_type("u8", flags);
 		case 16:
-			return find_fetch_type("u16");
+			return find_fetch_type("u16", flags);
 		case 32:
-			return find_fetch_type("u32");
+			return find_fetch_type("u32", flags);
 		case 64:
-			return find_fetch_type("u64");
+			return find_fetch_type("u64", flags);
 		default:
 			goto fail;
 		}
@@ -480,7 +485,7 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 					    DEREF_OPEN_BRACE);
 			return -EINVAL;
 		} else {
-			const struct fetch_type *t2 = find_fetch_type(NULL);
+			const struct fetch_type *t2 = find_fetch_type(NULL, flags);
 
 			*tmp = '\0';
 			ret = parse_probe_arg(arg, t2, &code, end, flags, offs);
@@ -632,9 +637,9 @@ static int traceprobe_parse_probe_arg_body(const char *argv, ssize_t *size,
 		/* The type of $comm must be "string", and not an array. */
 		if (parg->count || (t && strcmp(t, "string")))
 			goto out;
-		parg->type = find_fetch_type("string");
+		parg->type = find_fetch_type("string", flags);
 	} else
-		parg->type = find_fetch_type(t);
+		parg->type = find_fetch_type(t, flags);
 	if (!parg->type) {
 		trace_probe_log_err(offset + (t ? (t - arg) : 0), BAD_TYPE);
 		goto out;

@@ -358,7 +358,8 @@ int trace_probe_create(const char *raw_command, int (*createfn)(int, const char 
 #define TPARG_FL_KERNEL BIT(1)
 #define TPARG_FL_FENTRY BIT(2)
 #define TPARG_FL_TPOINT BIT(3)
-#define TPARG_FL_MASK	GENMASK(3, 0)
+#define TPARG_FL_USER   BIT(4)
+#define TPARG_FL_MASK	GENMASK(4, 0)
 
 extern int traceprobe_parse_probe_arg(struct trace_probe *tp, int i,
 				const char *argv, unsigned int flags);
