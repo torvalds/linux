@@ -140,7 +140,7 @@ static int __init crypto_kdf108_init(void)
 		WARN(1,
 		     "alg: self-tests for CTR-KDF (hmac(sha256)) failed (rc=%d)\n",
 		     ret);
-	} else {
+	} else if (fips_enabled) {
 		pr_info("alg: self-tests for CTR-KDF (hmac(sha256)) passed\n");
 	}
 
