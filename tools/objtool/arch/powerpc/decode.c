@@ -9,6 +9,11 @@
 #include <objtool/builtin.h>
 #include <objtool/endianness.h>
 
+int arch_ftrace_match(char *name)
+{
+	return !strcmp(name, "_mcount");
+}
+
 unsigned long arch_dest_reloc_offset(int addend)
 {
 	return addend;
@@ -49,6 +54,17 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 	opcode = insn >> 26;
 	typ = INSN_OTHER;
 	imm = 0;
+
+	switch (opcode) {
+	case 18: /* b[l][a] */
+		if ((insn & 3) == 1) /* bl */
+			typ = INSN_CALL;
+
+		imm = insn & 0x3fffffc;
+		if (imm & 0x2000000)
+			imm -= 0x4000000;
+		break;
+	}
 
 	if (opcode == 1)
 		*len = 8;
