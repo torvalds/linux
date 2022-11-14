@@ -1706,6 +1706,38 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 	}
 }
 
+void bpf_list_head_free(const struct btf_field *field, void *list_head,
+			struct bpf_spin_lock *spin_lock)
+{
+	struct list_head *head = list_head, *orig_head = list_head;
+
+	BUILD_BUG_ON(sizeof(struct list_head) > sizeof(struct bpf_list_head));
+	BUILD_BUG_ON(__alignof__(struct list_head) > __alignof__(struct bpf_list_head));
+
+	/* Do the actual list draining outside the lock to not hold the lock for
+	 * too long, and also prevent deadlocks if tracing programs end up
+	 * executing on entry/exit of functions called inside the critical
+	 * section, and end up doing map ops that call bpf_list_head_free for
+	 * the same map value again.
+	 */
+	__bpf_spin_lock_irqsave(spin_lock);
+	if (!head->next || list_empty(head))
+		goto unlock;
+	head = head->next;
+unlock:
+	INIT_LIST_HEAD(orig_head);
+	__bpf_spin_unlock_irqrestore(spin_lock);
+
+	while (head != orig_head) {
+		void *obj = head;
+
+		obj -= field->list_head.node_offset;
+		head = head->next;
+		/* TODO: Rework later */
+		kfree(obj);
+	}
+}
+
 BTF_SET8_START(tracing_btf_ids)
 #ifdef CONFIG_KEXEC_CORE
 BTF_ID_FLAGS(func, crash_kexec, KF_DESTRUCTIVE)
