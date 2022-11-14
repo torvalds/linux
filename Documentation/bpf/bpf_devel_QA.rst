@@ -44,6 +44,30 @@ is a guarantee that the reported issue will be overlooked.**
 Submitting patches
 ==================
 
+Q: How do I run BPF CI on my changes before sending them out for review?
+------------------------------------------------------------------------
+A: BPF CI is GitHub based and hosted at https://github.com/kernel-patches/bpf.
+While GitHub also provides a CLI that can be used to accomplish the same
+results, here we focus on the UI based workflow.
+
+The following steps lay out how to start a CI run for your patches:
+- Create a fork of the aforementioned repository in your own account (one time
+  action)
+- Clone the fork locally, check out a new branch tracking either the bpf-next
+  or bpf branch, and apply your to-be-tested patches on top of it
+- Push the local branch to your fork and create a pull request against
+  kernel-patches/bpf's bpf-next_base or bpf_base branch, respectively
+
+Shortly after the pull request has been created, the CI workflow will run. Note
+that capacity is shared with patches submitted upstream being checked and so
+depending on utilization the run can take a while to finish.
+
+Note furthermore that both base branches (bpf-next_base and bpf_base) will be
+updated as patches are pushed to the respective upstream branches they track. As
+such, your patch set will automatically (be attempted to) be rebased as well.
+This behavior can result in a CI run being aborted and restarted with the new
+base line.
+
 Q: To which mailing list do I need to submit my BPF patches?
 ------------------------------------------------------------
 A: Please submit your BPF patches to the bpf kernel mailing list:
