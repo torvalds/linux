@@ -454,7 +454,7 @@ int crypto_register_alg(struct crypto_alg *alg)
 	down_write(&crypto_alg_sem);
 	larval = __crypto_register_alg(alg, &algs_to_put);
 	if (!IS_ERR_OR_NULL(larval)) {
-		test_started = static_key_enabled(&crypto_boot_test_finished);
+		test_started = crypto_boot_test_finished();
 		larval->test_started = test_started;
 	}
 	up_write(&crypto_alg_sem);
@@ -1253,6 +1253,9 @@ EXPORT_SYMBOL_GPL(crypto_stats_skcipher_decrypt);
 
 static void __init crypto_start_tests(void)
 {
+	if (IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS))
+		return;
+
 	for (;;) {
 		struct crypto_larval *larval = NULL;
 		struct crypto_alg *q;
@@ -1286,7 +1289,7 @@ static void __init crypto_start_tests(void)
 		crypto_wait_for_test(larval);
 	}
 
-	static_branch_enable(&crypto_boot_test_finished);
+	set_crypto_boot_test_finished();
 }
 
 static int __init crypto_algapi_init(void)
