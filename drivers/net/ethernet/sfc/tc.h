@@ -14,14 +14,7 @@
 #include <net/flow_offload.h>
 #include <linux/rhashtable.h>
 #include "net_driver.h"
-#include "mcdi_pcol.h" /* for MAE_COUNTER_TYPE_* */
-
-enum efx_tc_counter_type {
-	EFX_TC_COUNTER_TYPE_AR = MAE_COUNTER_TYPE_AR,
-	EFX_TC_COUNTER_TYPE_CT = MAE_COUNTER_TYPE_CT,
-	EFX_TC_COUNTER_TYPE_OR = MAE_COUNTER_TYPE_OR,
-	EFX_TC_COUNTER_TYPE_MAX
-};
+#include "tc_counters.h"
 
 #define IS_ALL_ONES(v)	(!(typeof (v))~(v))
 

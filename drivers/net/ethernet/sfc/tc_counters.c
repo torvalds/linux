@@ -1,0 +1,269 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/****************************************************************************
+ * Driver for Solarflare network controllers and boards
+ * Copyright 2022 Advanced Micro Devices, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 as published
+ * by the Free Software Foundation, incorporated herein by reference.
+ */
+
+#include "tc_counters.h"
+#include "mae_counter_format.h"
+#include "mae.h"
+#include "rx_common.h"
+
+/* TC Channel.  Counter updates are delivered on this channel's RXQ. */
+
+static void efx_tc_handle_no_channel(struct efx_nic *efx)
+{
+	netif_warn(efx, drv, efx->net_dev,
+		   "MAE counters require MSI-X and 1 additional interrupt vector.\n");
+}
+
+static int efx_tc_probe_channel(struct efx_channel *channel)
+{
+	struct efx_rx_queue *rx_queue = &channel->rx_queue;
+
+	channel->irq_moderation_us = 0;
+	rx_queue->core_index = 0;
+
+	INIT_WORK(&rx_queue->grant_work, efx_mae_counters_grant_credits);
+
+	return 0;
+}
+
+static int efx_tc_start_channel(struct efx_channel *channel)
+{
+	struct efx_rx_queue *rx_queue = efx_channel_get_rx_queue(channel);
+	struct efx_nic *efx = channel->efx;
+
+	return efx_mae_start_counters(efx, rx_queue);
+}
+
+static void efx_tc_stop_channel(struct efx_channel *channel)
+{
+	struct efx_rx_queue *rx_queue = efx_channel_get_rx_queue(channel);
+	struct efx_nic *efx = channel->efx;
+	int rc;
+
+	rc = efx_mae_stop_counters(efx, rx_queue);
+	if (rc)
+		netif_warn(efx, drv, efx->net_dev,
+			   "Failed to stop MAE counters streaming, rc=%d.\n",
+			   rc);
+	rx_queue->grant_credits = false;
+	flush_work(&rx_queue->grant_work);
+}
+
+static void efx_tc_remove_channel(struct efx_channel *channel)
+{
+}
+
+static void efx_tc_get_channel_name(struct efx_channel *channel,
+				    char *buf, size_t len)
+{
+	snprintf(buf, len, "%s-mae", channel->efx->name);
+}
+
+static void efx_tc_counter_update(struct efx_nic *efx,
+				  enum efx_tc_counter_type counter_type,
+				  u32 counter_idx, u64 packets, u64 bytes,
+				  u32 mark)
+{
+	/* Software counter objects do not exist yet, for now we ignore this */
+}
+
+static void efx_tc_rx_version_1(struct efx_nic *efx, const u8 *data, u32 mark)
+{
+	u16 n_counters, i;
+
+	/* Header format:
+	 * + |   0    |   1    |   2    |   3    |
+	 * 0 |version |         reserved         |
+	 * 4 |    seq_index    |   n_counters    |
+	 */
+
+	n_counters = le16_to_cpu(*(const __le16 *)(data + 6));
+
+	/* Counter update entry format:
+	 * | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | a | b | c | d | e | f |
+	 * |  counter_idx  |     packet_count      |      byte_count       |
+	 */
+	for (i = 0; i < n_counters; i++) {
+		const void *entry = data + 8 + 16 * i;
+		u64 packet_count, byte_count;
+		u32 counter_idx;
+
+		counter_idx = le32_to_cpu(*(const __le32 *)entry);
+		packet_count = le32_to_cpu(*(const __le32 *)(entry + 4)) |
+			       ((u64)le16_to_cpu(*(const __le16 *)(entry + 8)) << 32);
+		byte_count = le16_to_cpu(*(const __le16 *)(entry + 10)) |
+			     ((u64)le32_to_cpu(*(const __le32 *)(entry + 12)) << 16);
+		efx_tc_counter_update(efx, EFX_TC_COUNTER_TYPE_AR, counter_idx,
+				      packet_count, byte_count, mark);
+	}
+}
+
+#define TCV2_HDR_PTR(pkt, field)						\
+	((void)BUILD_BUG_ON_ZERO(ERF_SC_PACKETISER_HEADER_##field##_LBN & 7),	\
+	 (pkt) + ERF_SC_PACKETISER_HEADER_##field##_LBN / 8)
+#define TCV2_HDR_BYTE(pkt, field)						\
+	((void)BUILD_BUG_ON_ZERO(ERF_SC_PACKETISER_HEADER_##field##_WIDTH != 8),\
+	 *TCV2_HDR_PTR(pkt, field))
+#define TCV2_HDR_WORD(pkt, field)						\
+	((void)BUILD_BUG_ON_ZERO(ERF_SC_PACKETISER_HEADER_##field##_WIDTH != 16),\
+	 (void)BUILD_BUG_ON_ZERO(ERF_SC_PACKETISER_HEADER_##field##_LBN & 15),	\
+	 *(__force const __le16 *)TCV2_HDR_PTR(pkt, field))
+#define TCV2_PKT_PTR(pkt, poff, i, field)					\
+	((void)BUILD_BUG_ON_ZERO(ERF_SC_PACKETISER_PAYLOAD_##field##_LBN & 7),	\
+	 (pkt) + ERF_SC_PACKETISER_PAYLOAD_##field##_LBN/8 + poff +		\
+	 i * ER_RX_SL_PACKETISER_PAYLOAD_WORD_SIZE)
+
+/* Read a little-endian 48-bit field with 16-bit alignment */
+static u64 efx_tc_read48(const __le16 *field)
+{
+	u64 out = 0;
+	int i;
+
+	for (i = 0; i < 3; i++)
+		out |= (u64)le16_to_cpu(field[i]) << (i * 16);
+	return out;
+}
+
+static enum efx_tc_counter_type efx_tc_rx_version_2(struct efx_nic *efx,
+						    const u8 *data, u32 mark)
+{
+	u8 payload_offset, header_offset, ident;
+	enum efx_tc_counter_type type;
+	u16 n_counters, i;
+
+	ident = TCV2_HDR_BYTE(data, IDENTIFIER);
+	switch (ident) {
+	case ERF_SC_PACKETISER_HEADER_IDENTIFIER_AR:
+		type = EFX_TC_COUNTER_TYPE_AR;
+		break;
+	case ERF_SC_PACKETISER_HEADER_IDENTIFIER_CT:
+		type = EFX_TC_COUNTER_TYPE_CT;
+		break;
+	case ERF_SC_PACKETISER_HEADER_IDENTIFIER_OR:
+		type = EFX_TC_COUNTER_TYPE_OR;
+		break;
+	default:
+		if (net_ratelimit())
+			netif_err(efx, drv, efx->net_dev,
+				  "ignored v2 MAE counter packet (bad identifier %u"
+				  "), counters may be inaccurate\n", ident);
+		return EFX_TC_COUNTER_TYPE_MAX;
+	}
+	header_offset = TCV2_HDR_BYTE(data, HEADER_OFFSET);
+	/* mae_counter_format.h implies that this offset is fixed, since it
+	 * carries on with SOP-based LBNs for the fields in this header
+	 */
+	if (header_offset != ERF_SC_PACKETISER_HEADER_HEADER_OFFSET_DEFAULT) {
+		if (net_ratelimit())
+			netif_err(efx, drv, efx->net_dev,
+				  "choked on v2 MAE counter packet (bad header_offset %u"
+				  "), counters may be inaccurate\n", header_offset);
+		return EFX_TC_COUNTER_TYPE_MAX;
+	}
+	payload_offset = TCV2_HDR_BYTE(data, PAYLOAD_OFFSET);
+	n_counters = le16_to_cpu(TCV2_HDR_WORD(data, COUNT));
+
+	for (i = 0; i < n_counters; i++) {
+		const void *counter_idx_p, *packet_count_p, *byte_count_p;
+		u64 packet_count, byte_count;
+		u32 counter_idx;
+
+		/* 24-bit field with 32-bit alignment */
+		counter_idx_p = TCV2_PKT_PTR(data, payload_offset, i, COUNTER_INDEX);
+		BUILD_BUG_ON(ERF_SC_PACKETISER_PAYLOAD_COUNTER_INDEX_WIDTH != 24);
+		BUILD_BUG_ON(ERF_SC_PACKETISER_PAYLOAD_COUNTER_INDEX_LBN & 31);
+		counter_idx = le32_to_cpu(*(const __le32 *)counter_idx_p) & 0xffffff;
+		/* 48-bit field with 16-bit alignment */
+		packet_count_p = TCV2_PKT_PTR(data, payload_offset, i, PACKET_COUNT);
+		BUILD_BUG_ON(ERF_SC_PACKETISER_PAYLOAD_PACKET_COUNT_WIDTH != 48);
+		BUILD_BUG_ON(ERF_SC_PACKETISER_PAYLOAD_PACKET_COUNT_LBN & 15);
+		packet_count = efx_tc_read48((const __le16 *)packet_count_p);
+		/* 48-bit field with 16-bit alignment */
+		byte_count_p = TCV2_PKT_PTR(data, payload_offset, i, BYTE_COUNT);
+		BUILD_BUG_ON(ERF_SC_PACKETISER_PAYLOAD_BYTE_COUNT_WIDTH != 48);
+		BUILD_BUG_ON(ERF_SC_PACKETISER_PAYLOAD_BYTE_COUNT_LBN & 15);
+		byte_count = efx_tc_read48((const __le16 *)byte_count_p);
+
+		if (type == EFX_TC_COUNTER_TYPE_CT) {
+			/* CT counters are 1-bit saturating counters to update
+			 * the lastuse time in CT stats. A received CT counter
+			 * should have packet counter to 0 and only LSB bit on
+			 * in byte counter.
+			 */
+			if (packet_count || byte_count != 1)
+				netdev_warn_once(efx->net_dev,
+						 "CT counter with inconsistent state (%llu, %llu)\n",
+						 packet_count, byte_count);
+			/* Do not increment the driver's byte counter */
+			byte_count = 0;
+		}
+
+		efx_tc_counter_update(efx, type, counter_idx, packet_count,
+				      byte_count, mark);
+	}
+	return type;
+}
+
+/* We always swallow the packet, whether successful or not, since it's not
+ * a network packet and shouldn't ever be forwarded to the stack.
+ * @mark is the generation count for counter allocations.
+ */
+static bool efx_tc_rx(struct efx_rx_queue *rx_queue, u32 mark)
+{
+	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
+	struct efx_rx_buffer *rx_buf = efx_rx_buffer(rx_queue,
+						     channel->rx_pkt_index);
+	const u8 *data = efx_rx_buf_va(rx_buf);
+	struct efx_nic *efx = rx_queue->efx;
+	enum efx_tc_counter_type type;
+	u8 version;
+
+	/* version is always first byte of packet */
+	version = *data;
+	switch (version) {
+	case 1:
+		type = EFX_TC_COUNTER_TYPE_AR;
+		efx_tc_rx_version_1(efx, data, mark);
+		break;
+	case ERF_SC_PACKETISER_HEADER_VERSION_VALUE: // 2
+		type = efx_tc_rx_version_2(efx, data, mark);
+		break;
+	default:
+		if (net_ratelimit())
+			netif_err(efx, drv, efx->net_dev,
+				  "choked on MAE counter packet (bad version %u"
+				  "); counters may be inaccurate\n",
+				  version);
+		goto out;
+	}
+
+	/* Update seen_gen unconditionally, to avoid a missed wakeup if
+	 * we race with efx_mae_stop_counters().
+	 */
+	efx->tc->seen_gen[type] = mark;
+	if (efx->tc->flush_counters &&
+	    (s32)(efx->tc->flush_gen[type] - mark) <= 0)
+		wake_up(&efx->tc->flush_wq);
+out:
+	efx_free_rx_buffers(rx_queue, rx_buf, 1);
+	channel->rx_pkt_n_frags = 0;
+	return true;
+}
+
+const struct efx_channel_type efx_tc_channel_type = {
+	.handle_no_channel	= efx_tc_handle_no_channel,
+	.pre_probe		= efx_tc_probe_channel,
+	.start			= efx_tc_start_channel,
+	.stop			= efx_tc_stop_channel,
+	.post_remove		= efx_tc_remove_channel,
+	.get_name		= efx_tc_get_channel_name,
+	.receive_raw		= efx_tc_rx,
+	.keep_eventq		= true,
+};
