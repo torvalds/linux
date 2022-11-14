@@ -696,10 +696,22 @@ static void device_hard_reset_pending(struct work_struct *work)
 	flags = device_reset_work->flags | HL_DRV_RESET_FROM_RESET_THR;
 
 	rc = hl_device_reset(hdev, flags);
+
 	if ((rc == -EBUSY) && !hdev->device_fini_pending) {
-		dev_info(hdev->dev,
-			"Could not reset device. will try again in %u seconds",
-			HL_PENDING_RESET_PER_SEC);
+		struct hl_ctx *ctx = hl_get_compute_ctx(hdev);
+
+		if (ctx) {
+			/* The read refcount value should subtracted by one, because the read is
+			 * protected with hl_get_compute_ctx().
+			 */
+			dev_info(hdev->dev,
+				"Could not reset device (compute_ctx refcount %u). will try again in %u seconds",
+				kref_read(&ctx->refcount) - 1, HL_PENDING_RESET_PER_SEC);
+			hl_ctx_put(ctx);
+		} else {
+			dev_info(hdev->dev, "Could not reset device. will try again in %u seconds",
+				HL_PENDING_RESET_PER_SEC);
+		}
 
 		queue_delayed_work(hdev->reset_wq, &device_reset_work->reset_work,
 					msecs_to_jiffies(HL_PENDING_RESET_PER_SEC * 1000));
