@@ -25,24 +25,41 @@
 #define CNTR_NOT_SUPPORTED	"<not supported>"
 #define CNTR_NOT_COUNTED	"<not counted>"
 
-static void print_running(struct perf_stat_config *config,
-			  u64 run, u64 ena)
+static void print_running_std(struct perf_stat_config *config, u64 run, u64 ena)
 {
+	if (run != ena)
+		fprintf(config->output, "  (%.2f%%)", 100.0 * run / ena);
+}
 
+static void print_running_csv(struct perf_stat_config *config, u64 run, u64 ena)
+{
 	double enabled_percent = 100;
 
 	if (run != ena)
 		enabled_percent = 100 * run / ena;
+	fprintf(config->output, "%s%" PRIu64 "%s%.2f",
+		config->csv_sep, run, config->csv_sep, enabled_percent);
+}
+
+static void print_running_json(struct perf_stat_config *config, u64 run, u64 ena)
+{
+	double enabled_percent = 100;
+
+	if (run != ena)
+		enabled_percent = 100 * run / ena;
+	fprintf(config->output, "\"event-runtime\" : %" PRIu64 ", \"pcnt-running\" : %.2f, ",
+		run, enabled_percent);
+}
+
+static void print_running(struct perf_stat_config *config,
+			  u64 run, u64 ena)
+{
 	if (config->json_output)
-		fprintf(config->output,
-			"\"event-runtime\" : %" PRIu64 ", \"pcnt-running\" : %.2f, ",
-			run, enabled_percent);
+		print_running_json(config, run, ena);
 	else if (config->csv_output)
-		fprintf(config->output,
-			"%s%" PRIu64 "%s%.2f", config->csv_sep,
-			run, config->csv_sep, enabled_percent);
-	else if (run != ena)
-		fprintf(config->output, "  (%.2f%%)", 100.0 * run / ena);
+		print_running_csv(config, run, ena);
+	else
+		print_running_std(config, run, ena);
 }
 
 static void print_noise_pct(struct perf_stat_config *config,
