@@ -552,8 +552,18 @@ u32 aarch64_insn_gen_comp_branch_imm(unsigned long pc, unsigned long addr,
 				     enum aarch64_insn_branch_type type);
 u32 aarch64_insn_gen_cond_branch_imm(unsigned long pc, unsigned long addr,
 				     enum aarch64_insn_condition cond);
-u32 aarch64_insn_gen_hint(enum aarch64_insn_hint_cr_op op);
-u32 aarch64_insn_gen_nop(void);
+
+static __always_inline u32
+aarch64_insn_gen_hint(enum aarch64_insn_hint_cr_op op)
+{
+	return aarch64_insn_get_hint_value() | op;
+}
+
+static __always_inline u32 aarch64_insn_gen_nop(void)
+{
+	return aarch64_insn_gen_hint(AARCH64_INSN_HINT_NOP);
+}
+
 u32 aarch64_insn_gen_branch_reg(enum aarch64_insn_register reg,
 				enum aarch64_insn_branch_type type);
 u32 aarch64_insn_gen_load_store_reg(enum aarch64_insn_register reg,

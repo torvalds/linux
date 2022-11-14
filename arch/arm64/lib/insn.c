@@ -350,16 +350,6 @@ u32 aarch64_insn_gen_cond_branch_imm(unsigned long pc, unsigned long addr,
 					     offset >> 2);
 }
 
-u32 __kprobes aarch64_insn_gen_hint(enum aarch64_insn_hint_cr_op op)
-{
-	return aarch64_insn_get_hint_value() | op;
-}
-
-u32 __kprobes aarch64_insn_gen_nop(void)
-{
-	return aarch64_insn_gen_hint(AARCH64_INSN_HINT_NOP);
-}
-
 u32 aarch64_insn_gen_branch_reg(enum aarch64_insn_register reg,
 				enum aarch64_insn_branch_type type)
 {
