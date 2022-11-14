@@ -1292,9 +1292,6 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 			num_print_iv = 0;
 		if (config->aggr_mode == AGGR_GLOBAL && prefix && !config->iostat_run)
 			fprintf(config->output, "%s", prefix);
-
-		if (config->json_output && !config->metric_only)
-			fprintf(config->output, "}");
 	}
 
 	switch (config->aggr_mode) {
