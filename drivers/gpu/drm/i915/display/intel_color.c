@@ -154,15 +154,7 @@ static const u16 ilk_csc_postoff_rgb_to_ycbcr[3] = {
 
 static bool lut_is_legacy(const struct drm_property_blob *lut)
 {
-	return drm_color_lut_size(lut) == LEGACY_LUT_LENGTH;
-}
-
-static bool crtc_state_is_legacy_gamma(const struct intel_crtc_state *crtc_state)
-{
-	return !crtc_state->hw.degamma_lut &&
-		!crtc_state->hw.ctm &&
-		crtc_state->hw.gamma_lut &&
-		lut_is_legacy(crtc_state->hw.gamma_lut);
+	return lut && drm_color_lut_size(lut) == LEGACY_LUT_LENGTH;
 }
 
 /*
@@ -1317,6 +1309,42 @@ intel_color_add_affected_planes(struct intel_crtc_state *new_crtc_state)
 	return 0;
 }
 
+static u32 intel_gamma_lut_tests(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	const struct drm_property_blob *gamma_lut = crtc_state->hw.gamma_lut;
+
+	if (lut_is_legacy(gamma_lut))
+		return 0;
+
+	return INTEL_INFO(i915)->display.color.gamma_lut_tests;
+}
+
+static u32 intel_degamma_lut_tests(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	return INTEL_INFO(i915)->display.color.degamma_lut_tests;
+}
+
+static int intel_gamma_lut_size(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	const struct drm_property_blob *gamma_lut = crtc_state->hw.gamma_lut;
+
+	if (lut_is_legacy(gamma_lut))
+		return LEGACY_LUT_LENGTH;
+
+	return INTEL_INFO(i915)->display.color.gamma_lut_size;
+}
+
+static u32 intel_degamma_lut_size(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	return INTEL_INFO(i915)->display.color.degamma_lut_size;
+}
+
 static int check_lut_size(const struct drm_property_blob *lut, int expected)
 {
 	int len;
@@ -1342,21 +1370,17 @@ static int check_luts(const struct intel_crtc_state *crtc_state)
 	int gamma_length, degamma_length;
 	u32 gamma_tests, degamma_tests;
 
-	/* Always allow legacy gamma LUT with no further checking. */
-	if (crtc_state_is_legacy_gamma(crtc_state))
-		return 0;
-
 	/* C8 relies on its palette being stored in the legacy LUT */
-	if (crtc_state->c8_planes) {
+	if (crtc_state->c8_planes && !lut_is_legacy(crtc_state->hw.gamma_lut)) {
 		drm_dbg_kms(&i915->drm,
 			    "C8 pixelformat requires the legacy LUT\n");
 		return -EINVAL;
 	}
 
-	degamma_length = INTEL_INFO(i915)->display.color.degamma_lut_size;
-	gamma_length = INTEL_INFO(i915)->display.color.gamma_lut_size;
-	degamma_tests = INTEL_INFO(i915)->display.color.degamma_lut_tests;
-	gamma_tests = INTEL_INFO(i915)->display.color.gamma_lut_tests;
+	degamma_length = intel_degamma_lut_size(crtc_state);
+	gamma_length = intel_gamma_lut_size(crtc_state);
+	degamma_tests = intel_degamma_lut_tests(crtc_state);
+	gamma_tests = intel_gamma_lut_tests(crtc_state);
 
 	if (check_lut_size(degamma_lut, degamma_length) ||
 	    check_lut_size(gamma_lut, gamma_length))
@@ -1372,7 +1396,7 @@ static int check_luts(const struct intel_crtc_state *crtc_state)
 static u32 i9xx_gamma_mode(struct intel_crtc_state *crtc_state)
 {
 	if (!crtc_state->gamma_enable ||
-	    crtc_state_is_legacy_gamma(crtc_state))
+	    lut_is_legacy(crtc_state->hw.gamma_lut))
 		return GAMMA_MODE_MODE_8BIT;
 	else
 		return GAMMA_MODE_MODE_10BIT; /* i965+ only */
@@ -1441,14 +1465,12 @@ static u32 chv_cgm_mode(const struct intel_crtc_state *crtc_state)
 {
 	u32 cgm_mode = 0;
 
-	if (crtc_state_is_legacy_gamma(crtc_state))
-		return 0;
-
 	if (crtc_state->hw.degamma_lut)
 		cgm_mode |= CGM_PIPE_MODE_DEGAMMA;
 	if (crtc_state->hw.ctm)
 		cgm_mode |= CGM_PIPE_MODE_CSC;
-	if (crtc_state->hw.gamma_lut)
+	if (crtc_state->hw.gamma_lut &&
+	    !lut_is_legacy(crtc_state->hw.gamma_lut))
 		cgm_mode |= CGM_PIPE_MODE_GAMMA;
 
 	return cgm_mode;
@@ -1475,7 +1497,7 @@ static int chv_color_check(struct intel_crtc_state *crtc_state)
 	 * Otherwise we bypass it and use the CGM gamma instead.
 	 */
 	crtc_state->gamma_enable =
-		crtc_state_is_legacy_gamma(crtc_state) &&
+		lut_is_legacy(crtc_state->hw.gamma_lut) &&
 		!crtc_state->c8_planes;
 
 	crtc_state->gamma_mode = GAMMA_MODE_MODE_8BIT;
@@ -1510,7 +1532,7 @@ static bool ilk_csc_enable(const struct intel_crtc_state *crtc_state)
 static u32 ilk_gamma_mode(const struct intel_crtc_state *crtc_state)
 {
 	if (!crtc_state->gamma_enable ||
-	    crtc_state_is_legacy_gamma(crtc_state))
+	    lut_is_legacy(crtc_state->hw.gamma_lut))
 		return GAMMA_MODE_MODE_8BIT;
 	else
 		return GAMMA_MODE_MODE_10BIT;
@@ -1656,6 +1678,12 @@ static int ivb_color_check(struct intel_crtc_state *crtc_state)
 	if (ret)
 		return ret;
 
+	if (crtc_state->c8_planes && crtc_state->hw.degamma_lut) {
+		drm_dbg_kms(&i915->drm,
+			    "C8 pixelformat and degamma together are not possible\n");
+		return -EINVAL;
+	}
+
 	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB &&
 	    crtc_state->hw.ctm) {
 		drm_dbg_kms(&i915->drm,
@@ -1694,7 +1722,7 @@ static int ivb_color_check(struct intel_crtc_state *crtc_state)
 static u32 glk_gamma_mode(const struct intel_crtc_state *crtc_state)
 {
 	if (!crtc_state->gamma_enable ||
-	    crtc_state_is_legacy_gamma(crtc_state))
+	    lut_is_legacy(crtc_state->hw.gamma_lut))
 		return GAMMA_MODE_MODE_8BIT;
 	else
 		return GAMMA_MODE_MODE_10BIT;
@@ -1779,7 +1807,7 @@ static u32 icl_gamma_mode(const struct intel_crtc_state *crtc_state)
 		gamma_mode |= POST_CSC_GAMMA_ENABLE;
 
 	if (!crtc_state->hw.gamma_lut ||
-	    crtc_state_is_legacy_gamma(crtc_state))
+	    lut_is_legacy(crtc_state->hw.gamma_lut))
 		gamma_mode |= GAMMA_MODE_MODE_8BIT;
 	/*
 	 * Enable 10bit gamma for D13
