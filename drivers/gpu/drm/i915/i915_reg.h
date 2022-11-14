@@ -1708,9 +1708,10 @@
 #define _PALETTE_A		0xa000
 #define _PALETTE_B		0xa800
 #define _CHV_PALETTE_C		0xc000
-#define PALETTE_RED_MASK        REG_GENMASK(23, 16)
-#define PALETTE_GREEN_MASK      REG_GENMASK(15, 8)
-#define PALETTE_BLUE_MASK       REG_GENMASK(7, 0)
+/* 8bit mode / i965+ 10.6 interpolated mode ldw/udw */
+#define   PALETTE_RED_MASK		REG_GENMASK(23, 16)
+#define   PALETTE_GREEN_MASK		REG_GENMASK(15, 8)
+#define   PALETTE_BLUE_MASK		REG_GENMASK(7, 0)
 #define PALETTE(pipe, i)	_MMIO(DISPLAY_MMIO_BASE(dev_priv) + \
 				      _PICK((pipe), _PALETTE_A,		\
 					    _PALETTE_B, _CHV_PALETTE_C) + \
@@ -5306,9 +5307,7 @@
 /* legacy palette */
 #define _LGC_PALETTE_A           0x4a000
 #define _LGC_PALETTE_B           0x4a800
-#define LGC_PALETTE_RED_MASK     REG_GENMASK(23, 16)
-#define LGC_PALETTE_GREEN_MASK   REG_GENMASK(15, 8)
-#define LGC_PALETTE_BLUE_MASK    REG_GENMASK(7, 0)
+/* see PALETTE_* for the bits */
 #define LGC_PALETTE(pipe, i) _MMIO(_PIPE(pipe, _LGC_PALETTE_A, _LGC_PALETTE_B) + (i) * 4)
 
 /* ilk/snb precision palette */

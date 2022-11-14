@@ -425,32 +425,32 @@ static u32 intel_color_lut_pack(u32 val, int bit_precision)
 
 static u32 i9xx_lut_8(const struct drm_color_lut *color)
 {
-	return drm_color_lut_extract(color->red, 8) << 16 |
-		drm_color_lut_extract(color->green, 8) << 8 |
-		drm_color_lut_extract(color->blue, 8);
+	return REG_FIELD_PREP(PALETTE_RED_MASK, drm_color_lut_extract(color->red, 8)) |
+		REG_FIELD_PREP(PALETTE_GREEN_MASK, drm_color_lut_extract(color->green, 8)) |
+		REG_FIELD_PREP(PALETTE_BLUE_MASK, drm_color_lut_extract(color->blue, 8));
 }
 
 static void i9xx_lut_8_pack(struct drm_color_lut *entry, u32 val)
 {
-	entry->red = intel_color_lut_pack(REG_FIELD_GET(LGC_PALETTE_RED_MASK, val), 8);
-	entry->green = intel_color_lut_pack(REG_FIELD_GET(LGC_PALETTE_GREEN_MASK, val), 8);
-	entry->blue = intel_color_lut_pack(REG_FIELD_GET(LGC_PALETTE_BLUE_MASK, val), 8);
+	entry->red = intel_color_lut_pack(REG_FIELD_GET(PALETTE_RED_MASK, val), 8);
+	entry->green = intel_color_lut_pack(REG_FIELD_GET(PALETTE_GREEN_MASK, val), 8);
+	entry->blue = intel_color_lut_pack(REG_FIELD_GET(PALETTE_BLUE_MASK, val), 8);
 }
 
 /* i965+ "10.6" bit interpolated format "even DW" (low 8 bits) */
 static u32 i965_lut_10p6_ldw(const struct drm_color_lut *color)
 {
-	return (color->red & 0xff) << 16 |
-		(color->green & 0xff) << 8 |
-		(color->blue & 0xff);
+	return REG_FIELD_PREP(PALETTE_RED_MASK, color->red & 0xff) |
+		REG_FIELD_PREP(PALETTE_GREEN_MASK, color->green & 0xff) |
+		REG_FIELD_PREP(PALETTE_BLUE_MASK, color->blue & 0xff);
 }
 
 /* i965+ "10.6" interpolated format "odd DW" (high 8 bits) */
 static u32 i965_lut_10p6_udw(const struct drm_color_lut *color)
 {
-	return (color->red >> 8) << 16 |
-		(color->green >> 8) << 8 |
-		(color->blue >> 8);
+	return REG_FIELD_PREP(PALETTE_RED_MASK, color->red >> 8) |
+		REG_FIELD_PREP(PALETTE_GREEN_MASK, color->green >> 8) |
+		REG_FIELD_PREP(PALETTE_BLUE_MASK, color->blue >> 8);
 }
 
 static void i965_lut_10p6_pack(struct drm_color_lut *entry, u32 ldw, u32 udw)
