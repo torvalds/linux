@@ -337,6 +337,13 @@ struct pmc_dev {
 };
 
 extern const struct pmc_bit_map msr_map[];
+extern const struct pmc_bit_map spt_pll_map[];
+extern const struct pmc_bit_map spt_mphy_map[];
+extern const struct pmc_bit_map spt_pfear_map[];
+extern const struct pmc_bit_map *ext_spt_pfear_map[];
+extern const struct pmc_bit_map spt_ltr_show_map[];
+extern const struct pmc_reg_map spt_reg_map;
+
 void spt_core_init(struct pmc_dev *pmcdev);
 void cnp_core_init(struct pmc_dev *pmcdev);
 void icl_core_init(struct pmc_dev *pmcdev);
