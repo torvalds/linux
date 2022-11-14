@@ -9,10 +9,10 @@
 #define _TRACE_NFS4_H
 
 #include <linux/tracepoint.h>
-#include <trace/events/sunrpc_base.h>
+#include <trace/misc/sunrpc.h>
 
-#include <trace/events/fs.h>
-#include <trace/events/nfs.h>
+#include <trace/misc/fs.h>
+#include <trace/misc/nfs.h>
 
 #define show_nfs_fattr_flags(valid) \
 	__print_flags((unsigned long)valid, "|", \

@@ -13,7 +13,7 @@
 
 #include <linux/tracepoint.h>
 
-#include <trace/events/sunrpc_base.h>
+#include <trace/misc/sunrpc.h>
 
 /**
  ** GSS-API related trace events
