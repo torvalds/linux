@@ -585,25 +585,25 @@
 &ufs_mem_hc { status = "disabled"; };
 &ufs_mem_phy { status = "disabled"; };
 
-/* TODO: Make USB3 work (perhaps needs regulators for higher-current operation?) */
 &usb_1 {
 	status = "okay";
-
-	qcom,select-utmi-as-pipe-clk;
 };
 
 &usb_1_dwc3 {
 	dr_mode = "peripheral";
-
-	maximum-speed = "high-speed";
-	phys = <&usb_1_hsphy>;
-	phy-names = "usb2-phy";
 };
 
 &usb_1_hsphy {
 	status = "okay";
+
+	vdda-pll-supply = <&pm8350_l5>;
+	vdda18-supply = <&pm8350c_l1>;
+	vdda33-supply = <&pm8350_l2>;
 };
 
 &usb_1_qmpphy {
 	status = "okay";
+
+	vdda-phy-supply = <&pm8350_l6>;
+	vdda-pll-supply = <&pm8350_l1>;
 };
