@@ -471,16 +471,16 @@ static u16 i965_lut_11p6_max_pack(u32 val)
 
 static u32 ilk_lut_10(const struct drm_color_lut *color)
 {
-	return drm_color_lut_extract(color->red, 10) << 20 |
-		drm_color_lut_extract(color->green, 10) << 10 |
-		drm_color_lut_extract(color->blue, 10);
+	return REG_FIELD_PREP(PREC_PALETTE_10_RED_MASK, drm_color_lut_extract(color->red, 10)) |
+		REG_FIELD_PREP(PREC_PALETTE_10_GREEN_MASK, drm_color_lut_extract(color->green, 10)) |
+		REG_FIELD_PREP(PREC_PALETTE_10_BLUE_MASK, drm_color_lut_extract(color->blue, 10));
 }
 
 static void ilk_lut_10_pack(struct drm_color_lut *entry, u32 val)
 {
-	entry->red = intel_color_lut_pack(REG_FIELD_GET(PREC_PALETTE_RED_MASK, val), 10);
-	entry->green = intel_color_lut_pack(REG_FIELD_GET(PREC_PALETTE_GREEN_MASK, val), 10);
-	entry->blue = intel_color_lut_pack(REG_FIELD_GET(PREC_PALETTE_BLUE_MASK, val), 10);
+	entry->red = intel_color_lut_pack(REG_FIELD_GET(PREC_PALETTE_10_RED_MASK, val), 10);
+	entry->green = intel_color_lut_pack(REG_FIELD_GET(PREC_PALETTE_10_GREEN_MASK, val), 10);
+	entry->blue = intel_color_lut_pack(REG_FIELD_GET(PREC_PALETTE_10_BLUE_MASK, val), 10);
 }
 
 /* ilk+ "12.4" interpolated format (high 10 bits) */
