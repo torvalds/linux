@@ -3584,7 +3584,7 @@ struct btf_field_offs *btf_parse_field_offs(struct btf_record *rec)
 	u8 *sz;
 
 	BUILD_BUG_ON(ARRAY_SIZE(foffs->field_off) != ARRAY_SIZE(foffs->field_sz));
-	if (IS_ERR_OR_NULL(rec) || WARN_ON_ONCE(rec->cnt > sizeof(foffs->field_off)))
+	if (IS_ERR_OR_NULL(rec))
 		return NULL;
 
 	foffs = kzalloc(sizeof(*foffs), GFP_KERNEL | __GFP_NOWARN);

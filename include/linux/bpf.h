@@ -165,9 +165,8 @@ struct bpf_map_ops {
 };
 
 enum {
-	/* Support at most 8 pointers in a BTF type */
-	BTF_FIELDS_MAX	      = 10,
-	BPF_MAP_OFF_ARR_MAX   = BTF_FIELDS_MAX,
+	/* Support at most 10 fields in a BTF type */
+	BTF_FIELDS_MAX	   = 10,
 };
 
 enum btf_field_type {
@@ -203,8 +202,8 @@ struct btf_record {
 
 struct btf_field_offs {
 	u32 cnt;
-	u32 field_off[BPF_MAP_OFF_ARR_MAX];
-	u8 field_sz[BPF_MAP_OFF_ARR_MAX];
+	u32 field_off[BTF_FIELDS_MAX];
+	u8 field_sz[BTF_FIELDS_MAX];
 };
 
 struct bpf_map {
