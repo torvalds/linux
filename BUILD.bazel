@@ -30,6 +30,7 @@ _common_gki_modules_list = [
     "drivers/usb/serial/ftdi_sio.ko",
     "drivers/usb/serial/usbserial.ko",
     "mm/zsmalloc.ko",
+    "net/8021q/8021q.ko",
     "net/can/can-bcm.ko",
     "net/can/can-gw.ko",
     "net/can/can-raw.ko",
