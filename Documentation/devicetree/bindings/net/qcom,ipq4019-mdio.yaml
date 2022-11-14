@@ -9,9 +9,6 @@ title: Qualcomm IPQ40xx MDIO Controller
 maintainers:
   - Robert Marko <robert.marko@sartura.hr>
 
-allOf:
-  - $ref: "mdio.yaml#"
-
 properties:
   compatible:
     oneOf:
@@ -40,16 +37,32 @@ properties:
       address range is only required by the platform IPQ50xx.
 
   clocks:
-    maxItems: 1
-    description: |
-      MDIO clock source frequency fixed to 100MHZ, this clock should be specified
-      by the platform IPQ807x, IPQ60xx and IPQ50xx.
+    items:
+      - description: MDIO clock source frequency fixed to 100MHZ
 
 required:
   - compatible
   - reg
   - "#address-cells"
   - "#size-cells"
+
+allOf:
+  - $ref: "mdio.yaml#"
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,ipq5018-mdio
+              - qcom,ipq6018-mdio
+              - qcom,ipq8074-mdio
+    then:
+      required:
+        - clocks
+    else:
+      properties:
+        clocks: false
 
 unevaluatedProperties: false
 
