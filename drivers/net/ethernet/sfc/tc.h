@@ -14,6 +14,14 @@
 #include <net/flow_offload.h>
 #include <linux/rhashtable.h>
 #include "net_driver.h"
+#include "mcdi_pcol.h" /* for MAE_COUNTER_TYPE_* */
+
+enum efx_tc_counter_type {
+	EFX_TC_COUNTER_TYPE_AR = MAE_COUNTER_TYPE_AR,
+	EFX_TC_COUNTER_TYPE_CT = MAE_COUNTER_TYPE_CT,
+	EFX_TC_COUNTER_TYPE_OR = MAE_COUNTER_TYPE_OR,
+	EFX_TC_COUNTER_TYPE_MAX
+};
 
 #define IS_ALL_ONES(v)	(!(typeof (v))~(v))
 
@@ -79,6 +87,12 @@ enum efx_tc_rule_prios {
  * @reps_filter_uc: VNIC filter for representor unicast RX (promisc)
  * @reps_filter_mc: VNIC filter for representor multicast RX (allmulti)
  * @reps_mport_vport_id: vport_id for representor RX filters
+ * @flush_counters: counters have been stopped, waiting for drain
+ * @flush_gen: final generation count per type array as reported by
+ *             MC_CMD_MAE_COUNTERS_STREAM_STOP
+ * @seen_gen: most recent generation count per type as seen by efx_tc_rx()
+ * @flush_wq: wait queue used by efx_mae_stop_counters() to wait for
+ *	MAE counters RXQ to finish draining
  * @dflt: Match-action rules for default switching; at priority
  *	%EFX_TC_PRIO_DFLT.  Named by *ingress* port
  * @dflt.pf: rule for traffic ingressing from PF (egresses to wire)
@@ -92,6 +106,10 @@ struct efx_tc_state {
 	struct rhashtable match_action_ht;
 	u32 reps_mport_id, reps_mport_vport_id;
 	s32 reps_filter_uc, reps_filter_mc;
+	bool flush_counters;
+	u32 flush_gen[EFX_TC_COUNTER_TYPE_MAX];
+	u32 seen_gen[EFX_TC_COUNTER_TYPE_MAX];
+	wait_queue_head_t flush_wq;
 	struct {
 		struct efx_tc_flow_rule pf;
 		struct efx_tc_flow_rule wire;

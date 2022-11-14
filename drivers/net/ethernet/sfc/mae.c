@@ -112,6 +112,117 @@ int efx_mae_lookup_mport(struct efx_nic *efx, u32 selector, u32 *id)
 	return 0;
 }
 
+int efx_mae_start_counters(struct efx_nic *efx, struct efx_rx_queue *rx_queue)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_COUNTERS_STREAM_START_V2_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_COUNTERS_STREAM_START_OUT_LEN);
+	u32 out_flags;
+	size_t outlen;
+	int rc;
+
+	MCDI_SET_WORD(inbuf, MAE_COUNTERS_STREAM_START_V2_IN_QID,
+		      efx_rx_queue_index(rx_queue));
+	MCDI_SET_WORD(inbuf, MAE_COUNTERS_STREAM_START_V2_IN_PACKET_SIZE,
+		      efx->net_dev->mtu);
+	MCDI_SET_DWORD(inbuf, MAE_COUNTERS_STREAM_START_V2_IN_COUNTER_TYPES_MASK,
+		       BIT(MAE_COUNTER_TYPE_AR) | BIT(MAE_COUNTER_TYPE_CT) |
+		       BIT(MAE_COUNTER_TYPE_OR));
+	rc = efx_mcdi_rpc(efx, MC_CMD_MAE_COUNTERS_STREAM_START,
+			  inbuf, sizeof(inbuf), outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+	out_flags = MCDI_DWORD(outbuf, MAE_COUNTERS_STREAM_START_OUT_FLAGS);
+	if (out_flags & BIT(MC_CMD_MAE_COUNTERS_STREAM_START_OUT_USES_CREDITS_OFST)) {
+		netif_dbg(efx, drv, efx->net_dev,
+			  "MAE counter stream uses credits\n");
+		rx_queue->grant_credits = true;
+		out_flags &= ~BIT(MC_CMD_MAE_COUNTERS_STREAM_START_OUT_USES_CREDITS_OFST);
+	}
+	if (out_flags) {
+		netif_err(efx, drv, efx->net_dev,
+			  "MAE counter stream start: unrecognised flags %x\n",
+			  out_flags);
+		goto out_stop;
+	}
+	return 0;
+out_stop:
+	efx_mae_stop_counters(efx, rx_queue);
+	return -EOPNOTSUPP;
+}
+
+static bool efx_mae_counters_flushed(u32 *flush_gen, u32 *seen_gen)
+{
+	int i;
+
+	for (i = 0; i < EFX_TC_COUNTER_TYPE_MAX; i++)
+		if ((s32)(flush_gen[i] - seen_gen[i]) > 0)
+			return false;
+	return true;
+}
+
+int efx_mae_stop_counters(struct efx_nic *efx, struct efx_rx_queue *rx_queue)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_COUNTERS_STREAM_STOP_V2_OUT_LENMAX);
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_COUNTERS_STREAM_STOP_IN_LEN);
+	size_t outlen;
+	int rc, i;
+
+	MCDI_SET_WORD(inbuf, MAE_COUNTERS_STREAM_STOP_IN_QID,
+		      efx_rx_queue_index(rx_queue));
+	rc = efx_mcdi_rpc(efx, MC_CMD_MAE_COUNTERS_STREAM_STOP,
+			  inbuf, sizeof(inbuf), outbuf, sizeof(outbuf), &outlen);
+
+	if (rc)
+		return rc;
+
+	netif_dbg(efx, drv, efx->net_dev, "Draining counters:\n");
+	/* Only process received generation counts */
+	for (i = 0; (i < (outlen / 4)) && (i < EFX_TC_COUNTER_TYPE_MAX); i++) {
+		efx->tc->flush_gen[i] = MCDI_ARRAY_DWORD(outbuf,
+							 MAE_COUNTERS_STREAM_STOP_V2_OUT_GENERATION_COUNT,
+							 i);
+		netif_dbg(efx, drv, efx->net_dev,
+			  "\ttype %u, awaiting gen %u\n", i,
+			  efx->tc->flush_gen[i]);
+	}
+
+	efx->tc->flush_counters = true;
+
+	/* Drain can take up to 2 seconds owing to FWRIVERHD-2884; whatever
+	 * timeout we use, that delay is added to unload on nonresponsive
+	 * hardware, so 2500ms seems like a reasonable compromise.
+	 */
+	if (!wait_event_timeout(efx->tc->flush_wq,
+				efx_mae_counters_flushed(efx->tc->flush_gen,
+							 efx->tc->seen_gen),
+				msecs_to_jiffies(2500)))
+		netif_warn(efx, drv, efx->net_dev,
+			   "Failed to drain counters RXQ, FW may be unhappy\n");
+
+	efx->tc->flush_counters = false;
+
+	return rc;
+}
+
+void efx_mae_counters_grant_credits(struct work_struct *work)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_COUNTERS_STREAM_GIVE_CREDITS_IN_LEN);
+	struct efx_rx_queue *rx_queue = container_of(work, struct efx_rx_queue,
+						     grant_work);
+	struct efx_nic *efx = rx_queue->efx;
+	unsigned int credits;
+
+	BUILD_BUG_ON(MC_CMD_MAE_COUNTERS_STREAM_GIVE_CREDITS_OUT_LEN);
+	credits = READ_ONCE(rx_queue->notified_count) - rx_queue->granted_count;
+	MCDI_SET_DWORD(inbuf, MAE_COUNTERS_STREAM_GIVE_CREDITS_IN_NUM_CREDITS,
+		       credits);
+	if (!efx_mcdi_rpc(efx, MC_CMD_MAE_COUNTERS_STREAM_GIVE_CREDITS,
+			  inbuf, sizeof(inbuf), NULL, 0, NULL))
+		rx_queue->granted_count += credits;
+}
+
 static int efx_mae_get_basic_caps(struct efx_nic *efx, struct mae_caps *caps)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_GET_CAPS_OUT_LEN);
