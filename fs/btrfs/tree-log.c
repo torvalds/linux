@@ -826,7 +826,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 					btrfs_file_extent_num_bytes(eb, item);
 			}
 
-			ret = btrfs_lookup_csums_range(root->log_root,
+			ret = btrfs_lookup_csums_list(root->log_root,
 						csum_start, csum_end - 1,
 						&ordered_sums, 0, false);
 			if (ret)
@@ -4443,9 +4443,9 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 
 		csum_root = btrfs_csum_root(trans->fs_info, disk_bytenr);
 		disk_bytenr += extent_offset;
-		ret = btrfs_lookup_csums_range(csum_root, disk_bytenr,
-					       disk_bytenr + extent_num_bytes - 1,
-					       &ordered_sums, 0, false);
+		ret = btrfs_lookup_csums_list(csum_root, disk_bytenr,
+					      disk_bytenr + extent_num_bytes - 1,
+					      &ordered_sums, 0, false);
 		if (ret)
 			goto out;
 
@@ -4638,10 +4638,9 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 
 	/* block start is already adjusted for the file extent offset. */
 	csum_root = btrfs_csum_root(trans->fs_info, em->block_start);
-	ret = btrfs_lookup_csums_range(csum_root,
-				       em->block_start + csum_offset,
-				       em->block_start + csum_offset +
-				       csum_len - 1, &ordered_sums, 0, false);
+	ret = btrfs_lookup_csums_list(csum_root, em->block_start + csum_offset,
+				      em->block_start + csum_offset +
+				      csum_len - 1, &ordered_sums, 0, false);
 	if (ret)
 		return ret;
 

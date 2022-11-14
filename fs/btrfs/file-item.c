@@ -527,9 +527,9 @@ blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio, u8 *dst
 	return ret;
 }
 
-int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
-			     struct list_head *list, int search_commit,
-			     bool nowait)
+int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
+			    struct list_head *list, int search_commit,
+			    bool nowait)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_key key;
@@ -657,6 +657,127 @@ fail:
 	}
 	list_splice_tail(&tmplist, list);
 
+	btrfs_free_path(path);
+	return ret;
+}
+
+/*
+ * Do the same work as btrfs_lookup_csums_list(), the difference is in how
+ * we return the result.
+ *
+ * This version will set the corresponding bits in @csum_bitmap to represent
+ * that there is a csum found.
+ * Each bit represents a sector. Thus caller should ensure @csum_buf passed
+ * in is large enough to contain all csums.
+ */
+int btrfs_lookup_csums_bitmap(struct btrfs_root *root, u64 start, u64 end,
+			      u8 *csum_buf, unsigned long *csum_bitmap)
+{
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_key key;
+	struct btrfs_path *path;
+	struct extent_buffer *leaf;
+	struct btrfs_csum_item *item;
+	const u64 orig_start = start;
+	int ret;
+
+	ASSERT(IS_ALIGNED(start, fs_info->sectorsize) &&
+	       IS_ALIGNED(end + 1, fs_info->sectorsize));
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
+	key.type = BTRFS_EXTENT_CSUM_KEY;
+	key.offset = start;
+
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		goto fail;
+	if (ret > 0 && path->slots[0] > 0) {
+		leaf = path->nodes[0];
+		btrfs_item_key_to_cpu(leaf, &key, path->slots[0] - 1);
+
+		/*
+		 * There are two cases we can hit here for the previous csum
+		 * item:
+		 *
+		 *		|<- search range ->|
+		 *	|<- csum item ->|
+		 *
+		 * Or
+		 *				|<- search range ->|
+		 *	|<- csum item ->|
+		 *
+		 * Check if the previous csum item covers the leading part of
+		 * the search range.  If so we have to start from previous csum
+		 * item.
+		 */
+		if (key.objectid == BTRFS_EXTENT_CSUM_OBJECTID &&
+		    key.type == BTRFS_EXTENT_CSUM_KEY) {
+			if (bytes_to_csum_size(fs_info, start - key.offset) <
+			    btrfs_item_size(leaf, path->slots[0] - 1))
+				path->slots[0]--;
+		}
+	}
+
+	while (start <= end) {
+		u64 csum_end;
+
+		leaf = path->nodes[0];
+		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
+			ret = btrfs_next_leaf(root, path);
+			if (ret < 0)
+				goto fail;
+			if (ret > 0)
+				break;
+			leaf = path->nodes[0];
+		}
+
+		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
+		if (key.objectid != BTRFS_EXTENT_CSUM_OBJECTID ||
+		    key.type != BTRFS_EXTENT_CSUM_KEY ||
+		    key.offset > end)
+			break;
+
+		if (key.offset > start)
+			start = key.offset;
+
+		csum_end = key.offset + csum_size_to_bytes(fs_info,
+					btrfs_item_size(leaf, path->slots[0]));
+		if (csum_end <= start) {
+			path->slots[0]++;
+			continue;
+		}
+
+		csum_end = min(csum_end, end + 1);
+		item = btrfs_item_ptr(path->nodes[0], path->slots[0],
+				      struct btrfs_csum_item);
+		while (start < csum_end) {
+			unsigned long offset;
+			size_t size;
+			u8 *csum_dest = csum_buf + bytes_to_csum_size(fs_info,
+						start - orig_start);
+
+			size = min_t(size_t, csum_end - start, end + 1 - start);
+
+			offset = bytes_to_csum_size(fs_info, start - key.offset);
+
+			read_extent_buffer(path->nodes[0], csum_dest,
+					   ((unsigned long)item) + offset,
+					   bytes_to_csum_size(fs_info, size));
+
+			bitmap_set(csum_bitmap,
+				(start - orig_start) >> fs_info->sectorsize_bits,
+				size >> fs_info->sectorsize_bits);
+
+			start += size;
+		}
+		path->slots[0]++;
+	}
+	ret = 0;
+fail:
 	btrfs_free_path(path);
 	return ret;
 }

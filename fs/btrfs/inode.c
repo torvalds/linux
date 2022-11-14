@@ -1709,9 +1709,8 @@ static noinline int csum_exist_in_range(struct btrfs_fs_info *fs_info,
 	int ret;
 	LIST_HEAD(list);
 
-	ret = btrfs_lookup_csums_range(csum_root, bytenr,
-				       bytenr + num_bytes - 1, &list, 0,
-				       nowait);
+	ret = btrfs_lookup_csums_list(csum_root, bytenr, bytenr + num_bytes - 1,
+				      &list, 0, nowait);
 	if (ret == 0 && list_empty(&list))
 		return 0;
 
