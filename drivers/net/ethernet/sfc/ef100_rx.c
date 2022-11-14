@@ -67,6 +67,13 @@ void __ef100_rx_packet(struct efx_channel *channel)
 
 	prefix = (u32 *)(eh - ESE_GZ_RX_PKT_PREFIX_LEN);
 
+	if (channel->type->receive_raw) {
+		u32 mark = PREFIX_FIELD(prefix, USER_MARK);
+
+		if (channel->type->receive_raw(rx_queue, mark))
+			return; /* packet was consumed */
+	}
+
 	if (ef100_has_fcs_error(channel, prefix) &&
 	    unlikely(!(efx->net_dev->features & NETIF_F_RXALL)))
 		goto out;
