@@ -33,8 +33,9 @@ static int iova_used_show(struct seq_file *s, void *v)
 {
 	struct iova_domain *iovad = s->private;
 	struct iova *iova, *t;
-	unsigned long flags, cpu;
+	unsigned long flags;
 	unsigned long used_pfn = 0;
+	unsigned int cpu;
 	int i = 0;
 
 	for_each_online_cpu(cpu)
