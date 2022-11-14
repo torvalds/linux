@@ -184,51 +184,51 @@ required:
 examples:
   - |
     nand-controller@f0442800 {
-            compatible = "brcm,brcmnand-v7.0", "brcm,brcmnand";
-            reg = <0xf0442800 0x600>,
-                  <0xf0443000 0x100>;
-            reg-names = "nand", "flash-dma";
-            interrupt-parent = <&hif_intr2_intc>;
-            interrupts = <24>, <4>;
+        compatible = "brcm,brcmnand-v7.0", "brcm,brcmnand";
+        reg = <0xf0442800 0x600>,
+              <0xf0443000 0x100>;
+        reg-names = "nand", "flash-dma";
+        interrupt-parent = <&hif_intr2_intc>;
+        interrupts = <24>, <4>;
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        nand@1 {
+            compatible = "brcm,nandcs";
+            reg = <1>; // Chip select 1
+            nand-on-flash-bbt;
+            nand-ecc-strength = <12>;
+            nand-ecc-step-size = <512>;
 
             #address-cells = <1>;
-            #size-cells = <0>;
-
-            nand@1 {
-                    compatible = "brcm,nandcs";
-                    reg = <1>; // Chip select 1
-                    nand-on-flash-bbt;
-                    nand-ecc-strength = <12>;
-                    nand-ecc-step-size = <512>;
-
-                    #address-cells = <1>;
-                    #size-cells = <1>;
-            };
+            #size-cells = <1>;
+        };
     };
   - |
     nand-controller@10000200 {
-            compatible = "brcm,nand-bcm63168", "brcm,nand-bcm6368",
-                         "brcm,brcmnand-v4.0", "brcm,brcmnand";
-            reg = <0x10000200 0x180>,
-                  <0x100000b0 0x10>,
-                  <0x10000600 0x200>;
-            reg-names = "nand", "nand-int-base", "nand-cache";
-            interrupt-parent = <&periph_intc>;
-            interrupts = <50>;
-            clocks = <&periph_clk 20>;
-            clock-names = "nand";
+        compatible = "brcm,nand-bcm63168", "brcm,nand-bcm6368",
+                     "brcm,brcmnand-v4.0", "brcm,brcmnand";
+        reg = <0x10000200 0x180>,
+              <0x100000b0 0x10>,
+              <0x10000600 0x200>;
+        reg-names = "nand", "nand-int-base", "nand-cache";
+        interrupt-parent = <&periph_intc>;
+        interrupts = <50>;
+        clocks = <&periph_clk 20>;
+        clock-names = "nand";
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        nand@0 {
+            compatible = "brcm,nandcs";
+            reg = <0>;
+            nand-on-flash-bbt;
+            nand-ecc-strength = <1>;
+            nand-ecc-step-size = <512>;
 
             #address-cells = <1>;
-            #size-cells = <0>;
-
-            nand@0 {
-                    compatible = "brcm,nandcs";
-                    reg = <0>;
-                    nand-on-flash-bbt;
-                    nand-ecc-strength = <1>;
-                    nand-ecc-step-size = <512>;
-
-                    #address-cells = <1>;
-                    #size-cells = <1>;
-            };
+            #size-cells = <1>;
+        };
     };
