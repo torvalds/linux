@@ -595,6 +595,42 @@ static int efx_tc_flower_destroy(struct efx_nic *efx,
 	return 0;
 }
 
+static int efx_tc_flower_stats(struct efx_nic *efx, struct net_device *net_dev,
+			       struct flow_cls_offload *tc)
+{
+	struct netlink_ext_ack *extack = tc->common.extack;
+	struct efx_tc_counter_index *ctr;
+	struct efx_tc_counter *cnt;
+	u64 packets, bytes;
+
+	ctr = efx_tc_flower_find_counter_index(efx, tc->cookie);
+	if (!ctr) {
+		/* See comment in efx_tc_flower_destroy() */
+		if (!IS_ERR(efx_tc_flower_lookup_efv(efx, net_dev)))
+			if (net_ratelimit())
+				netif_warn(efx, drv, efx->net_dev,
+					   "Filter %lx not found for stats\n",
+					   tc->cookie);
+		NL_SET_ERR_MSG_MOD(extack, "Flow cookie not found in offloaded rules");
+		return -ENOENT;
+	}
+	if (WARN_ON(!ctr->cnt)) /* can't happen */
+		return -EIO;
+	cnt = ctr->cnt;
+
+	spin_lock_bh(&cnt->lock);
+	/* Report only new pkts/bytes since last time TC asked */
+	packets = cnt->packets;
+	bytes = cnt->bytes;
+	flow_stats_update(&tc->stats, bytes - cnt->old_bytes,
+			  packets - cnt->old_packets, 0, cnt->touched,
+			  FLOW_ACTION_HW_STATS_DELAYED);
+	cnt->old_packets = packets;
+	cnt->old_bytes = bytes;
+	spin_unlock_bh(&cnt->lock);
+	return 0;
+}
+
 int efx_tc_flower(struct efx_nic *efx, struct net_device *net_dev,
 		  struct flow_cls_offload *tc, struct efx_rep *efv)
 {
@@ -610,6 +646,9 @@ int efx_tc_flower(struct efx_nic *efx, struct net_device *net_dev,
 		break;
 	case FLOW_CLS_DESTROY:
 		rc = efx_tc_flower_destroy(efx, net_dev, tc);
+		break;
+	case FLOW_CLS_STATS:
+		rc = efx_tc_flower_stats(efx, net_dev, tc);
 		break;
 	default:
 		rc = -EOPNOTSUPP;

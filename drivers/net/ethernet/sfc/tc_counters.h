@@ -29,6 +29,7 @@ struct efx_tc_counter {
 	spinlock_t lock; /* Serialises updates to counter values */
 	u32 gen; /* Generation count at which this counter is current */
 	u64 packets, bytes;
+	u64 old_packets, old_bytes; /* Values last time passed to userspace */
 	/* jiffies of the last time we saw packets increase */
 	unsigned long touched;
 };
@@ -50,6 +51,8 @@ struct efx_tc_counter_index *efx_tc_flower_get_counter_index(
 				enum efx_tc_counter_type type);
 void efx_tc_flower_put_counter_index(struct efx_nic *efx,
 				     struct efx_tc_counter_index *ctr);
+struct efx_tc_counter_index *efx_tc_flower_find_counter_index(
+				struct efx_nic *efx, unsigned long cookie);
 
 extern const struct efx_channel_type efx_tc_channel_type;
 

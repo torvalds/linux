@@ -198,6 +198,16 @@ struct efx_tc_counter_index *efx_tc_flower_get_counter_index(
 	return ctr;
 }
 
+struct efx_tc_counter_index *efx_tc_flower_find_counter_index(
+				struct efx_nic *efx, unsigned long cookie)
+{
+	struct efx_tc_counter_index key = {};
+
+	key.cookie = cookie;
+	return rhashtable_lookup_fast(&efx->tc->counter_id_ht, &key,
+				      efx_tc_counter_id_ht_params);
+}
+
 /* TC Channel.  Counter updates are delivered on this channel's RXQ. */
 
 static void efx_tc_handle_no_channel(struct efx_nic *efx)
