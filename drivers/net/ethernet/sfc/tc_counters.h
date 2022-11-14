@@ -10,6 +10,7 @@
 
 #ifndef EFX_TC_COUNTERS_H
 #define EFX_TC_COUNTERS_H
+#include <linux/refcount.h>
 #include "net_driver.h"
 
 #include "mcdi_pcol.h" /* for MAE_COUNTER_TYPE_* */
@@ -20,6 +21,24 @@ enum efx_tc_counter_type {
 	EFX_TC_COUNTER_TYPE_OR = MAE_COUNTER_TYPE_OR,
 	EFX_TC_COUNTER_TYPE_MAX
 };
+
+struct efx_tc_counter {
+	u32 fw_id; /* index in firmware counter table */
+	enum efx_tc_counter_type type;
+	struct rhash_head linkage; /* efx->tc->counter_ht */
+};
+
+struct efx_tc_counter_index {
+	unsigned long cookie;
+	struct rhash_head linkage; /* efx->tc->counter_id_ht */
+	refcount_t ref;
+	struct efx_tc_counter *cnt;
+};
+
+/* create/uncreate/teardown hashtables */
+int efx_tc_init_counters(struct efx_nic *efx);
+void efx_tc_destroy_counters(struct efx_nic *efx);
+void efx_tc_fini_counters(struct efx_nic *efx);
 
 extern const struct efx_channel_type efx_tc_channel_type;
 

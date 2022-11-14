@@ -13,6 +13,67 @@
 #include "mae.h"
 #include "rx_common.h"
 
+/* Counter-management hashtables */
+
+static const struct rhashtable_params efx_tc_counter_id_ht_params = {
+	.key_len	= offsetof(struct efx_tc_counter_index, linkage),
+	.key_offset	= 0,
+	.head_offset	= offsetof(struct efx_tc_counter_index, linkage),
+};
+
+static const struct rhashtable_params efx_tc_counter_ht_params = {
+	.key_len	= offsetof(struct efx_tc_counter, linkage),
+	.key_offset	= 0,
+	.head_offset	= offsetof(struct efx_tc_counter, linkage),
+};
+
+static void efx_tc_counter_free(void *ptr, void *__unused)
+{
+	struct efx_tc_counter *cnt = ptr;
+
+	kfree(cnt);
+}
+
+static void efx_tc_counter_id_free(void *ptr, void *__unused)
+{
+	struct efx_tc_counter_index *ctr = ptr;
+
+	WARN_ON(refcount_read(&ctr->ref));
+	kfree(ctr);
+}
+
+int efx_tc_init_counters(struct efx_nic *efx)
+{
+	int rc;
+
+	rc = rhashtable_init(&efx->tc->counter_id_ht, &efx_tc_counter_id_ht_params);
+	if (rc < 0)
+		goto fail_counter_id_ht;
+	rc = rhashtable_init(&efx->tc->counter_ht, &efx_tc_counter_ht_params);
+	if (rc < 0)
+		goto fail_counter_ht;
+	return 0;
+fail_counter_ht:
+	rhashtable_destroy(&efx->tc->counter_id_ht);
+fail_counter_id_ht:
+	return rc;
+}
+
+/* Only call this in init failure teardown.
+ * Normal exit should fini instead as there may be entries in the table.
+ */
+void efx_tc_destroy_counters(struct efx_nic *efx)
+{
+	rhashtable_destroy(&efx->tc->counter_ht);
+	rhashtable_destroy(&efx->tc->counter_id_ht);
+}
+
+void efx_tc_fini_counters(struct efx_nic *efx)
+{
+	rhashtable_free_and_destroy(&efx->tc->counter_id_ht, efx_tc_counter_id_free, NULL);
+	rhashtable_free_and_destroy(&efx->tc->counter_ht, efx_tc_counter_free, NULL);
+}
+
 /* TC Channel.  Counter updates are delivered on this channel's RXQ. */
 
 static void efx_tc_handle_no_channel(struct efx_nic *efx)

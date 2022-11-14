@@ -75,6 +75,8 @@ enum efx_tc_rule_prios {
  * @caps: MAE capabilities reported by MCDI
  * @block_list: List of &struct efx_tc_block_binding
  * @mutex: Used to serialise operations on TC hashtables
+ * @counter_ht: Hashtable of TC counters (FW IDs and counter values)
+ * @counter_id_ht: Hashtable mapping TC counter cookies to counters
  * @match_action_ht: Hashtable of TC match-action rules
  * @reps_mport_id: MAE port allocated for representor RX
  * @reps_filter_uc: VNIC filter for representor unicast RX (promisc)
@@ -96,6 +98,8 @@ struct efx_tc_state {
 	struct mae_caps *caps;
 	struct list_head block_list;
 	struct mutex mutex;
+	struct rhashtable counter_ht;
+	struct rhashtable counter_id_ht;
 	struct rhashtable match_action_ht;
 	u32 reps_mport_id, reps_mport_vport_id;
 	s32 reps_filter_uc, reps_filter_mc;
