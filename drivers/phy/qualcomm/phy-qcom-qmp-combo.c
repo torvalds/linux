@@ -903,17 +903,17 @@ struct qmp_combo {
 	struct qmp_phy_dp_clks *dp_clks;
 };
 
-static void qcom_qmp_v3_phy_dp_aux_init(struct qmp_combo *qmp);
-static void qcom_qmp_v3_phy_configure_dp_tx(struct qmp_combo *qmp);
-static int qcom_qmp_v3_phy_configure_dp_phy(struct qmp_combo *qmp);
-static int qcom_qmp_v3_dp_phy_calibrate(struct qmp_combo *qmp);
+static void qmp_v3_dp_aux_init(struct qmp_combo *qmp);
+static void qmp_v3_configure_dp_tx(struct qmp_combo *qmp);
+static int qmp_v3_configure_dp_phy(struct qmp_combo *qmp);
+static int qmp_v3_calibrate_dp_phy(struct qmp_combo *qmp);
 
-static void qcom_qmp_v4_phy_dp_aux_init(struct qmp_combo *qmp);
-static void qcom_qmp_v4_phy_configure_dp_tx(struct qmp_combo *qmp);
-static int qcom_qmp_v4_phy_configure_dp_phy(struct qmp_combo *qmp);
-static int qcom_qmp_v4_dp_phy_calibrate(struct qmp_combo *qmp);
+static void qmp_v4_dp_aux_init(struct qmp_combo *qmp);
+static void qmp_v4_configure_dp_tx(struct qmp_combo *qmp);
+static int qmp_v4_configure_dp_phy(struct qmp_combo *qmp);
+static int qmp_v4_calibrate_dp_phy(struct qmp_combo *qmp);
 
-static int qcom_qmp_v5_phy_configure_dp_phy(struct qmp_combo *qmp);
+static int qmp_v5_configure_dp_phy(struct qmp_combo *qmp);
 
 static inline void qphy_setbits(void __iomem *base, u32 offset, u32 val)
 {
@@ -991,10 +991,10 @@ static const struct qmp_phy_cfg sc7180_usb3dpphy_cfg = {
 	.swing_hbr3_hbr2	= &qmp_dp_v3_voltage_swing_hbr3_hbr2,
 	.pre_emphasis_hbr3_hbr2 = &qmp_dp_v3_pre_emphasis_hbr3_hbr2,
 
-	.dp_aux_init		= qcom_qmp_v3_phy_dp_aux_init,
-	.configure_dp_tx	= qcom_qmp_v3_phy_configure_dp_tx,
-	.configure_dp_phy	= qcom_qmp_v3_phy_configure_dp_phy,
-	.calibrate_dp_phy	= qcom_qmp_v3_dp_phy_calibrate,
+	.dp_aux_init		= qmp_v3_dp_aux_init,
+	.configure_dp_tx	= qmp_v3_configure_dp_tx,
+	.configure_dp_phy	= qmp_v3_configure_dp_phy,
+	.calibrate_dp_phy	= qmp_v3_calibrate_dp_phy,
 
 	.clk_list		= qmp_v3_phy_clk_l,
 	.num_clks		= ARRAY_SIZE(qmp_v3_phy_clk_l),
@@ -1036,10 +1036,10 @@ static const struct qmp_phy_cfg sdm845_usb3dpphy_cfg = {
 	.swing_hbr3_hbr2	= &qmp_dp_v3_voltage_swing_hbr3_hbr2,
 	.pre_emphasis_hbr3_hbr2 = &qmp_dp_v3_pre_emphasis_hbr3_hbr2,
 
-	.dp_aux_init		= qcom_qmp_v3_phy_dp_aux_init,
-	.configure_dp_tx	= qcom_qmp_v3_phy_configure_dp_tx,
-	.configure_dp_phy	= qcom_qmp_v3_phy_configure_dp_phy,
-	.calibrate_dp_phy	= qcom_qmp_v3_dp_phy_calibrate,
+	.dp_aux_init		= qmp_v3_dp_aux_init,
+	.configure_dp_tx	= qmp_v3_configure_dp_tx,
+	.configure_dp_phy	= qmp_v3_configure_dp_phy,
+	.calibrate_dp_phy	= qmp_v3_calibrate_dp_phy,
 
 	.clk_list		= qmp_v3_phy_clk_l,
 	.num_clks		= ARRAY_SIZE(qmp_v3_phy_clk_l),
@@ -1083,10 +1083,10 @@ static const struct qmp_phy_cfg sc8180x_usb3dpphy_cfg = {
 	.swing_hbr3_hbr2	= &qmp_dp_v3_voltage_swing_hbr3_hbr2,
 	.pre_emphasis_hbr3_hbr2 = &qmp_dp_v3_pre_emphasis_hbr3_hbr2,
 
-	.dp_aux_init		= qcom_qmp_v4_phy_dp_aux_init,
-	.configure_dp_tx	= qcom_qmp_v4_phy_configure_dp_tx,
-	.configure_dp_phy	= qcom_qmp_v4_phy_configure_dp_phy,
-	.calibrate_dp_phy	= qcom_qmp_v4_dp_phy_calibrate,
+	.dp_aux_init		= qmp_v4_dp_aux_init,
+	.configure_dp_tx	= qmp_v4_configure_dp_tx,
+	.configure_dp_phy	= qmp_v4_configure_dp_phy,
+	.calibrate_dp_phy	= qmp_v4_calibrate_dp_phy,
 
 	.clk_list		= qmp_v4_phy_clk_l,
 	.num_clks		= ARRAY_SIZE(qmp_v4_phy_clk_l),
@@ -1129,10 +1129,10 @@ static const struct qmp_phy_cfg sc8280xp_usb43dpphy_cfg = {
 	.swing_hbr3_hbr2	= &qmp_dp_v5_voltage_swing_hbr3_hbr2,
 	.pre_emphasis_hbr3_hbr2 = &qmp_dp_v5_pre_emphasis_hbr3_hbr2,
 
-	.dp_aux_init		= qcom_qmp_v4_phy_dp_aux_init,
-	.configure_dp_tx	= qcom_qmp_v4_phy_configure_dp_tx,
-	.configure_dp_phy	= qcom_qmp_v5_phy_configure_dp_phy,
-	.calibrate_dp_phy	= qcom_qmp_v4_dp_phy_calibrate,
+	.dp_aux_init		= qmp_v4_dp_aux_init,
+	.configure_dp_tx	= qmp_v4_configure_dp_tx,
+	.configure_dp_phy	= qmp_v5_configure_dp_phy,
+	.calibrate_dp_phy	= qmp_v4_calibrate_dp_phy,
 
 	.clk_list		= qmp_v4_phy_clk_l,
 	.num_clks		= ARRAY_SIZE(qmp_v4_phy_clk_l),
@@ -1175,10 +1175,10 @@ static const struct qmp_phy_cfg sm8250_usb3dpphy_cfg = {
 	.swing_hbr3_hbr2	= &qmp_dp_v3_voltage_swing_hbr3_hbr2,
 	.pre_emphasis_hbr3_hbr2 = &qmp_dp_v3_pre_emphasis_hbr3_hbr2,
 
-	.dp_aux_init		= qcom_qmp_v4_phy_dp_aux_init,
-	.configure_dp_tx	= qcom_qmp_v4_phy_configure_dp_tx,
-	.configure_dp_phy	= qcom_qmp_v4_phy_configure_dp_phy,
-	.calibrate_dp_phy	= qcom_qmp_v4_dp_phy_calibrate,
+	.dp_aux_init		= qmp_v4_dp_aux_init,
+	.configure_dp_tx	= qmp_v4_configure_dp_tx,
+	.configure_dp_phy	= qmp_v4_configure_dp_phy,
+	.calibrate_dp_phy	= qmp_v4_calibrate_dp_phy,
 
 	.clk_list		= qmp_v4_sm8250_usbphy_clk_l,
 	.num_clks		= ARRAY_SIZE(qmp_v4_sm8250_usbphy_clk_l),
@@ -1251,7 +1251,7 @@ static int qmp_combo_dp_serdes_init(struct qmp_combo *qmp)
 	return 0;
 }
 
-static void qcom_qmp_v3_phy_dp_aux_init(struct qmp_combo *qmp)
+static void qmp_v3_dp_aux_init(struct qmp_combo *qmp)
 {
 	writel(DP_PHY_PD_CTL_PWRDN | DP_PHY_PD_CTL_AUX_PWRDN |
 	       DP_PHY_PD_CTL_PLL_PWRDN | DP_PHY_PD_CTL_DP_CLAMP_EN,
@@ -1332,7 +1332,7 @@ static int qmp_combo_configure_dp_swing(struct qmp_combo *qmp,
 	return 0;
 }
 
-static void qcom_qmp_v3_phy_configure_dp_tx(struct qmp_combo *qmp)
+static void qmp_v3_configure_dp_tx(struct qmp_combo *qmp)
 {
 	const struct phy_configure_opts_dp *dp_opts = &qmp->dp_opts;
 	u32 bias_en, drvr_en;
@@ -1385,7 +1385,7 @@ static bool qmp_combo_configure_dp_mode(struct qmp_combo *qmp)
 	return reverse;
 }
 
-static int qcom_qmp_v3_phy_configure_dp_phy(struct qmp_combo *qmp)
+static int qmp_v3_configure_dp_phy(struct qmp_combo *qmp)
 {
 	const struct qmp_phy_dp_clks *dp_clks = qmp->dp_clks;
 	const struct phy_configure_opts_dp *dp_opts = &qmp->dp_opts;
@@ -1462,7 +1462,7 @@ static int qcom_qmp_v3_phy_configure_dp_phy(struct qmp_combo *qmp)
  * We need to calibrate the aux setting here as many times
  * as the caller tries
  */
-static int qcom_qmp_v3_dp_phy_calibrate(struct qmp_combo *qmp)
+static int qmp_v3_calibrate_dp_phy(struct qmp_combo *qmp)
 {
 	static const u8 cfg1_settings[] = { 0x13, 0x23, 0x1d };
 	u8 val;
@@ -1476,7 +1476,7 @@ static int qcom_qmp_v3_dp_phy_calibrate(struct qmp_combo *qmp)
 	return 0;
 }
 
-static void qcom_qmp_v4_phy_dp_aux_init(struct qmp_combo *qmp)
+static void qmp_v4_dp_aux_init(struct qmp_combo *qmp)
 {
 	writel(DP_PHY_PD_CTL_PWRDN | DP_PHY_PD_CTL_PSR_PWRDN | DP_PHY_PD_CTL_AUX_PWRDN |
 	       DP_PHY_PD_CTL_PLL_PWRDN | DP_PHY_PD_CTL_DP_CLAMP_EN,
@@ -1503,7 +1503,7 @@ static void qcom_qmp_v4_phy_dp_aux_init(struct qmp_combo *qmp)
 	       qmp->dp_pcs + QSERDES_V4_DP_PHY_AUX_INTERRUPT_MASK);
 }
 
-static void qcom_qmp_v4_phy_configure_dp_tx(struct qmp_combo *qmp)
+static void qmp_v4_configure_dp_tx(struct qmp_combo *qmp)
 {
 	/* Program default values before writing proper values */
 	writel(0x27, qmp->dp_tx + QSERDES_V4_TX_TX_DRV_LVL);
@@ -1516,7 +1516,7 @@ static void qcom_qmp_v4_phy_configure_dp_tx(struct qmp_combo *qmp)
 			QSERDES_V4_TX_TX_EMP_POST1_LVL);
 }
 
-static int qcom_qmp_v45_phy_configure_dp_phy(struct qmp_combo *qmp)
+static int qmp_v45_configure_dp_phy(struct qmp_combo *qmp)
 {
 	const struct qmp_phy_dp_clks *dp_clks = qmp->dp_clks;
 	const struct phy_configure_opts_dp *dp_opts = &qmp->dp_opts;
@@ -1606,7 +1606,7 @@ static int qcom_qmp_v45_phy_configure_dp_phy(struct qmp_combo *qmp)
 	return 0;
 }
 
-static int qcom_qmp_v4_phy_configure_dp_phy(struct qmp_combo *qmp)
+static int qmp_v4_configure_dp_phy(struct qmp_combo *qmp)
 {
 	const struct phy_configure_opts_dp *dp_opts = &qmp->dp_opts;
 	u32 bias0_en, drvr0_en, bias1_en, drvr1_en;
@@ -1614,7 +1614,7 @@ static int qcom_qmp_v4_phy_configure_dp_phy(struct qmp_combo *qmp)
 	u32 status;
 	int ret;
 
-	ret = qcom_qmp_v45_phy_configure_dp_phy(qmp);
+	ret = qmp_v45_configure_dp_phy(qmp);
 	if (ret < 0)
 		return ret;
 
@@ -1668,7 +1668,7 @@ static int qcom_qmp_v4_phy_configure_dp_phy(struct qmp_combo *qmp)
 	return 0;
 }
 
-static int qcom_qmp_v5_phy_configure_dp_phy(struct qmp_combo *qmp)
+static int qmp_v5_configure_dp_phy(struct qmp_combo *qmp)
 {
 	const struct phy_configure_opts_dp *dp_opts = &qmp->dp_opts;
 	u32 bias0_en, drvr0_en, bias1_en, drvr1_en;
@@ -1676,7 +1676,7 @@ static int qcom_qmp_v5_phy_configure_dp_phy(struct qmp_combo *qmp)
 	u32 status;
 	int ret;
 
-	ret = qcom_qmp_v45_phy_configure_dp_phy(qmp);
+	ret = qmp_v45_configure_dp_phy(qmp);
 	if (ret < 0)
 		return ret;
 
@@ -1729,7 +1729,7 @@ static int qcom_qmp_v5_phy_configure_dp_phy(struct qmp_combo *qmp)
  * We need to calibrate the aux setting here as many times
  * as the caller tries
  */
-static int qcom_qmp_v4_dp_phy_calibrate(struct qmp_combo *qmp)
+static int qmp_v4_calibrate_dp_phy(struct qmp_combo *qmp)
 {
 	static const u8 cfg1_settings[] = { 0x20, 0x13, 0x23, 0x1d };
 	u8 val;
