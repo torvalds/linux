@@ -26,6 +26,7 @@ struct efx_tc_counter {
 	u32 fw_id; /* index in firmware counter table */
 	enum efx_tc_counter_type type;
 	struct rhash_head linkage; /* efx->tc->counter_ht */
+	u32 gen; /* Generation count at which this counter is current */
 };
 
 struct efx_tc_counter_index {
@@ -39,6 +40,12 @@ struct efx_tc_counter_index {
 int efx_tc_init_counters(struct efx_nic *efx);
 void efx_tc_destroy_counters(struct efx_nic *efx);
 void efx_tc_fini_counters(struct efx_nic *efx);
+
+struct efx_tc_counter_index *efx_tc_flower_get_counter_index(
+				struct efx_nic *efx, unsigned long cookie,
+				enum efx_tc_counter_type type);
+void efx_tc_flower_put_counter_index(struct efx_nic *efx,
+				     struct efx_tc_counter_index *ctr);
 
 extern const struct efx_channel_type efx_tc_channel_type;
 

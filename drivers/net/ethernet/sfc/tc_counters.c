@@ -74,6 +74,115 @@ void efx_tc_fini_counters(struct efx_nic *efx)
 	rhashtable_free_and_destroy(&efx->tc->counter_ht, efx_tc_counter_free, NULL);
 }
 
+/* Counter allocation */
+
+static struct efx_tc_counter *efx_tc_flower_allocate_counter(struct efx_nic *efx,
+							     int type)
+{
+	struct efx_tc_counter *cnt;
+	int rc, rc2;
+
+	cnt = kzalloc(sizeof(*cnt), GFP_USER);
+	if (!cnt)
+		return ERR_PTR(-ENOMEM);
+
+	cnt->type = type;
+
+	rc = efx_mae_allocate_counter(efx, cnt);
+	if (rc)
+		goto fail1;
+	rc = rhashtable_insert_fast(&efx->tc->counter_ht, &cnt->linkage,
+				    efx_tc_counter_ht_params);
+	if (rc)
+		goto fail2;
+	return cnt;
+fail2:
+	/* If we get here, it implies that we couldn't insert into the table,
+	 * which in turn probably means that the fw_id was already taken.
+	 * In that case, it's unclear whether we really 'own' the fw_id; but
+	 * the firmware seemed to think we did, so it's proper to free it.
+	 */
+	rc2 = efx_mae_free_counter(efx, cnt);
+	if (rc2)
+		netif_warn(efx, hw, efx->net_dev,
+			   "Failed to free MAE counter %u, rc %d\n",
+			   cnt->fw_id, rc2);
+fail1:
+	kfree(cnt);
+	return ERR_PTR(rc > 0 ? -EIO : rc);
+}
+
+static void efx_tc_flower_release_counter(struct efx_nic *efx,
+					  struct efx_tc_counter *cnt)
+{
+	int rc;
+
+	rhashtable_remove_fast(&efx->tc->counter_ht, &cnt->linkage,
+			       efx_tc_counter_ht_params);
+	rc = efx_mae_free_counter(efx, cnt);
+	if (rc)
+		netif_warn(efx, hw, efx->net_dev,
+			   "Failed to free MAE counter %u, rc %d\n",
+			   cnt->fw_id, rc);
+	/* This doesn't protect counter updates coming in arbitrarily long
+	 * after we deleted the counter.  The RCU just ensures that we won't
+	 * free the counter while another thread has a pointer to it.
+	 * Ensuring we don't update the wrong counter if the ID gets re-used
+	 * is handled by the generation count.
+	 */
+	synchronize_rcu();
+	kfree(cnt);
+}
+
+/* TC cookie to counter mapping */
+
+void efx_tc_flower_put_counter_index(struct efx_nic *efx,
+				     struct efx_tc_counter_index *ctr)
+{
+	if (!refcount_dec_and_test(&ctr->ref))
+		return; /* still in use */
+	rhashtable_remove_fast(&efx->tc->counter_id_ht, &ctr->linkage,
+			       efx_tc_counter_id_ht_params);
+	efx_tc_flower_release_counter(efx, ctr->cnt);
+	kfree(ctr);
+}
+
+struct efx_tc_counter_index *efx_tc_flower_get_counter_index(
+				struct efx_nic *efx, unsigned long cookie,
+				enum efx_tc_counter_type type)
+{
+	struct efx_tc_counter_index *ctr, *old;
+	struct efx_tc_counter *cnt;
+
+	ctr = kzalloc(sizeof(*ctr), GFP_USER);
+	if (!ctr)
+		return ERR_PTR(-ENOMEM);
+	ctr->cookie = cookie;
+	old = rhashtable_lookup_get_insert_fast(&efx->tc->counter_id_ht,
+						&ctr->linkage,
+						efx_tc_counter_id_ht_params);
+	if (old) {
+		/* don't need our new entry */
+		kfree(ctr);
+		if (!refcount_inc_not_zero(&old->ref))
+			return ERR_PTR(-EAGAIN);
+		/* existing entry found */
+		ctr = old;
+	} else {
+		cnt = efx_tc_flower_allocate_counter(efx, type);
+		if (IS_ERR(cnt)) {
+			rhashtable_remove_fast(&efx->tc->counter_id_ht,
+					       &ctr->linkage,
+					       efx_tc_counter_id_ht_params);
+			kfree(ctr);
+			return (void *)cnt; /* it's an ERR_PTR */
+		}
+		ctr->cnt = cnt;
+		refcount_set(&ctr->ref, 1);
+	}
+	return ctr;
+}
+
 /* TC Channel.  Counter updates are delivered on this channel's RXQ. */
 
 static void efx_tc_handle_no_channel(struct efx_nic *efx)
