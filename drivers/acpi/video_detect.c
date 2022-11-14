@@ -795,10 +795,10 @@ static enum acpi_backlight_type __acpi_video_get_backlight_type(bool native)
 		return acpi_backlight_video;
 
 	/* Use native if available */
-	if (native_available && prefer_native_over_acpi_video())
+	if (native_available)
 		return acpi_backlight_native;
 
-	/* No ACPI video (old hw), use vendor specific fw methods. */
+	/* No ACPI video/native (old hw), use vendor specific fw methods. */
 	return acpi_backlight_vendor;
 }
 
@@ -810,18 +810,6 @@ EXPORT_SYMBOL(acpi_video_get_backlight_type);
 
 bool acpi_video_backlight_use_native(void)
 {
-	/*
-	 * Call __acpi_video_get_backlight_type() to let it know that
-	 * a native backlight is available.
-	 */
-	__acpi_video_get_backlight_type(true);
-
-	/*
-	 * For now just always return true. There is a whole bunch of laptop
-	 * models where (video_caps & ACPI_VIDEO_BACKLIGHT) is false causing
-	 * __acpi_video_get_backlight_type() to return vendor, while these
-	 * models only have a native backlight control.
-	 */
-	return true;
+	return __acpi_video_get_backlight_type(true) == acpi_backlight_native;
 }
 EXPORT_SYMBOL(acpi_video_backlight_use_native);
