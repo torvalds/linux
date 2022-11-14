@@ -360,7 +360,7 @@ static inline void bpf_obj_memcpy(struct btf_field_offs *foffs,
 		u32 sz = next_off - curr_off;
 
 		memcpy(dst + curr_off, src + curr_off, sz);
-		curr_off += foffs->field_sz[i];
+		curr_off += foffs->field_sz[i] + sz;
 	}
 	memcpy(dst + curr_off, src + curr_off, size - curr_off);
 }
@@ -390,7 +390,7 @@ static inline void bpf_obj_memzero(struct btf_field_offs *foffs, void *dst, u32 
 		u32 sz = next_off - curr_off;
 
 		memset(dst + curr_off, 0, sz);
-		curr_off += foffs->field_sz[i];
+		curr_off += foffs->field_sz[i] + sz;
 	}
 	memset(dst + curr_off, 0, size - curr_off);
 }
