@@ -15,6 +15,8 @@
 #include <linux/platform_device.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/otg.h>
+#include <linux/usb/phy.h>
 
 #include "fotg210.h"
 #include "fotg210-udc.h"
@@ -1008,10 +1010,18 @@ static int fotg210_udc_start(struct usb_gadget *g,
 {
 	struct fotg210_udc *fotg210 = gadget_to_fotg210(g);
 	u32 value;
+	int ret;
 
 	/* hook up the driver */
 	driver->driver.bus = NULL;
 	fotg210->driver = driver;
+
+	if (!IS_ERR_OR_NULL(fotg210->phy)) {
+		ret = otg_set_peripheral(fotg210->phy->otg,
+					 &fotg210->gadget);
+		if (ret)
+			dev_err(fotg210->dev, "can't bind to phy\n");
+	}
 
 	/* enable device global interrupt */
 	value = ioread32(fotg210->reg + FOTG210_DMCR);
@@ -1054,6 +1064,9 @@ static int fotg210_udc_stop(struct usb_gadget *g)
 	struct fotg210_udc *fotg210 = gadget_to_fotg210(g);
 	unsigned long	flags;
 
+	if (!IS_ERR_OR_NULL(fotg210->phy))
+		return otg_set_peripheral(fotg210->phy->otg, NULL);
+
 	spin_lock_irqsave(&fotg210->lock, flags);
 
 	fotg210_init(fotg210);
@@ -1069,12 +1082,50 @@ static const struct usb_gadget_ops fotg210_gadget_ops = {
 	.udc_stop		= fotg210_udc_stop,
 };
 
+/**
+ * fotg210_phy_event - Called by phy upon VBus event
+ * @nb: notifier block
+ * @action: phy action, is vbus connect or disconnect
+ * @data: the usb_gadget structure in fotg210
+ *
+ * Called by the USB Phy when a cable connect or disconnect is sensed.
+ *
+ * Returns NOTIFY_OK or NOTIFY_DONE
+ */
+static int fotg210_phy_event(struct notifier_block *nb, unsigned long action,
+			     void *data)
+{
+	struct usb_gadget *gadget = data;
+
+	if (!gadget)
+		return NOTIFY_DONE;
+
+	switch (action) {
+	case USB_EVENT_VBUS:
+		usb_gadget_vbus_connect(gadget);
+		return NOTIFY_OK;
+	case USB_EVENT_NONE:
+		usb_gadget_vbus_disconnect(gadget);
+		return NOTIFY_OK;
+	default:
+		return NOTIFY_DONE;
+	}
+}
+
+static struct notifier_block fotg210_phy_notifier = {
+	.notifier_call = fotg210_phy_event,
+};
+
 int fotg210_udc_remove(struct platform_device *pdev)
 {
 	struct fotg210_udc *fotg210 = platform_get_drvdata(pdev);
 	int i;
 
 	usb_del_gadget_udc(&fotg210->gadget);
+	if (!IS_ERR_OR_NULL(fotg210->phy)) {
+		usb_unregister_notifier(fotg210->phy, &fotg210_phy_notifier);
+		usb_put_phy(fotg210->phy);
+	}
 	iounmap(fotg210->reg);
 	free_irq(platform_get_irq(pdev, 0), fotg210);
 
@@ -1113,6 +1164,22 @@ int fotg210_udc_probe(struct platform_device *pdev)
 	fotg210 = kzalloc(sizeof(struct fotg210_udc), GFP_KERNEL);
 	if (fotg210 == NULL)
 		goto err;
+
+	fotg210->dev = dev;
+
+	fotg210->phy = devm_usb_get_phy_by_phandle(dev->parent, "usb-phy", 0);
+	if (IS_ERR(fotg210->phy)) {
+		ret = PTR_ERR(fotg210->phy);
+		if (ret == -EPROBE_DEFER)
+			goto err;
+		dev_info(dev, "no PHY found\n");
+		fotg210->phy = NULL;
+	} else {
+		ret = usb_phy_init(fotg210->phy);
+		if (ret)
+			goto err;
+		dev_info(dev, "found and initialized PHY\n");
+	}
 
 	for (i = 0; i < FOTG210_MAX_NUM_EP; i++) {
 		_ep[i] = kzalloc(sizeof(struct fotg210_ep), GFP_KERNEL);
@@ -1185,6 +1252,9 @@ int fotg210_udc_probe(struct platform_device *pdev)
 		goto err_req;
 	}
 
+	if (!IS_ERR_OR_NULL(fotg210->phy))
+		usb_register_notifier(fotg210->phy, &fotg210_phy_notifier);
+
 	ret = usb_add_gadget_udc(dev, &fotg210->gadget);
 	if (ret)
 		goto err_add_udc;
@@ -1194,6 +1264,8 @@ int fotg210_udc_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_udc:
+	if (!IS_ERR_OR_NULL(fotg210->phy))
+		usb_unregister_notifier(fotg210->phy, &fotg210_phy_notifier);
 	free_irq(ires->start, fotg210);
 
 err_req:

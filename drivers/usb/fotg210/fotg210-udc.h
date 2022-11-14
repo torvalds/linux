@@ -234,6 +234,8 @@ struct fotg210_udc {
 
 	unsigned long		irq_trigger;
 
+	struct device			*dev;
+	struct usb_phy			*phy;
 	struct usb_gadget		gadget;
 	struct usb_gadget_driver	*driver;
 
