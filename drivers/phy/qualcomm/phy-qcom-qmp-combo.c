@@ -1049,10 +1049,10 @@ static const struct qmp_phy_cfg sc7180_dpphy_cfg = {
 	.swing_hbr3_hbr2	= &qmp_dp_v3_voltage_swing_hbr3_hbr2,
 	.pre_emphasis_hbr3_hbr2 = &qmp_dp_v3_pre_emphasis_hbr3_hbr2,
 
-	.dp_aux_init = qcom_qmp_v3_phy_dp_aux_init,
-	.configure_dp_tx = qcom_qmp_v3_phy_configure_dp_tx,
-	.configure_dp_phy = qcom_qmp_v3_phy_configure_dp_phy,
-	.calibrate_dp_phy = qcom_qmp_v3_dp_phy_calibrate,
+	.dp_aux_init		= qcom_qmp_v3_phy_dp_aux_init,
+	.configure_dp_tx	= qcom_qmp_v3_phy_configure_dp_tx,
+	.configure_dp_phy	= qcom_qmp_v3_phy_configure_dp_phy,
+	.calibrate_dp_phy	= qcom_qmp_v3_dp_phy_calibrate,
 };
 
 static const struct qmp_phy_combo_cfg sc7180_usb3dpphy_cfg = {
@@ -1106,10 +1106,10 @@ static const struct qmp_phy_cfg sdm845_dpphy_cfg = {
 	.swing_hbr3_hbr2	= &qmp_dp_v3_voltage_swing_hbr3_hbr2,
 	.pre_emphasis_hbr3_hbr2 = &qmp_dp_v3_pre_emphasis_hbr3_hbr2,
 
-	.dp_aux_init = qcom_qmp_v3_phy_dp_aux_init,
-	.configure_dp_tx = qcom_qmp_v3_phy_configure_dp_tx,
-	.configure_dp_phy = qcom_qmp_v3_phy_configure_dp_phy,
-	.calibrate_dp_phy = qcom_qmp_v3_dp_phy_calibrate,
+	.dp_aux_init		= qcom_qmp_v3_phy_dp_aux_init,
+	.configure_dp_tx	= qcom_qmp_v3_phy_configure_dp_tx,
+	.configure_dp_phy	= qcom_qmp_v3_phy_configure_dp_phy,
+	.calibrate_dp_phy	= qcom_qmp_v3_dp_phy_calibrate,
 };
 
 static const struct qmp_phy_combo_cfg sdm845_usb3dpphy_cfg = {
@@ -1166,10 +1166,10 @@ static const struct qmp_phy_cfg sc8180x_dpphy_cfg = {
 	.swing_hbr3_hbr2	= &qmp_dp_v3_voltage_swing_hbr3_hbr2,
 	.pre_emphasis_hbr3_hbr2 = &qmp_dp_v3_pre_emphasis_hbr3_hbr2,
 
-	.dp_aux_init = qcom_qmp_v4_phy_dp_aux_init,
-	.configure_dp_tx = qcom_qmp_v4_phy_configure_dp_tx,
-	.configure_dp_phy = qcom_qmp_v4_phy_configure_dp_phy,
-	.calibrate_dp_phy = qcom_qmp_v4_dp_phy_calibrate,
+	.dp_aux_init		= qcom_qmp_v4_phy_dp_aux_init,
+	.configure_dp_tx	= qcom_qmp_v4_phy_configure_dp_tx,
+	.configure_dp_phy	= qcom_qmp_v4_phy_configure_dp_phy,
+	.calibrate_dp_phy	= qcom_qmp_v4_dp_phy_calibrate,
 };
 
 static const struct qmp_phy_combo_cfg sc8180x_usb3dpphy_cfg = {
@@ -1222,10 +1222,10 @@ static const struct qmp_phy_cfg sc8280xp_usb43dp_dp_cfg = {
 	.swing_hbr3_hbr2	= &qmp_dp_v5_voltage_swing_hbr3_hbr2,
 	.pre_emphasis_hbr3_hbr2 = &qmp_dp_v5_pre_emphasis_hbr3_hbr2,
 
-	.dp_aux_init = qcom_qmp_v4_phy_dp_aux_init,
-	.configure_dp_tx = qcom_qmp_v4_phy_configure_dp_tx,
-	.configure_dp_phy = qcom_qmp_v5_phy_configure_dp_phy,
-	.calibrate_dp_phy = qcom_qmp_v4_dp_phy_calibrate,
+	.dp_aux_init		= qcom_qmp_v4_phy_dp_aux_init,
+	.configure_dp_tx	= qcom_qmp_v4_phy_configure_dp_tx,
+	.configure_dp_phy	= qcom_qmp_v5_phy_configure_dp_phy,
+	.calibrate_dp_phy	= qcom_qmp_v4_dp_phy_calibrate,
 };
 
 static const struct qmp_phy_combo_cfg sc8280xp_usb43dpphy_combo_cfg = {
@@ -1282,10 +1282,10 @@ static const struct qmp_phy_cfg sm8250_dpphy_cfg = {
 	.swing_hbr3_hbr2	= &qmp_dp_v3_voltage_swing_hbr3_hbr2,
 	.pre_emphasis_hbr3_hbr2 = &qmp_dp_v3_pre_emphasis_hbr3_hbr2,
 
-	.dp_aux_init = qcom_qmp_v4_phy_dp_aux_init,
-	.configure_dp_tx = qcom_qmp_v4_phy_configure_dp_tx,
-	.configure_dp_phy = qcom_qmp_v4_phy_configure_dp_phy,
-	.calibrate_dp_phy = qcom_qmp_v4_dp_phy_calibrate,
+	.dp_aux_init		= qcom_qmp_v4_phy_dp_aux_init,
+	.configure_dp_tx	= qcom_qmp_v4_phy_configure_dp_tx,
+	.configure_dp_phy	= qcom_qmp_v4_phy_configure_dp_phy,
+	.calibrate_dp_phy	= qcom_qmp_v4_dp_phy_calibrate,
 };
 
 static const struct qmp_phy_combo_cfg sm8250_usb3dpphy_cfg = {
