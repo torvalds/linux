@@ -40,7 +40,6 @@ struct perf_pmu {
 	__u32 type;
 	bool selectable;
 	bool is_uncore;
-	bool is_hybrid;
 	bool auxtrace;
 	int max_precise;
 	struct perf_event_attr *default_config;

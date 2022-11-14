@@ -3124,11 +3124,8 @@ void evsel__zero_per_pkg(struct evsel *evsel)
 	}
 }
 
-bool evsel__is_hybrid(struct evsel *evsel)
+bool evsel__is_hybrid(const struct evsel *evsel)
 {
-	if (evsel->pmu)
-		return evsel->pmu->is_hybrid;
-
 	return evsel->pmu_name && perf_pmu__is_hybrid(evsel->pmu_name);
 }
 

@@ -604,15 +604,10 @@ static void evsel__merge_aliases(struct evsel *evsel)
 	}
 }
 
-static bool evsel__should_merge_hybrid(struct evsel *evsel, struct perf_stat_config *config)
+static bool evsel__should_merge_hybrid(const struct evsel *evsel,
+				       const struct perf_stat_config *config)
 {
-	struct perf_pmu *pmu;
-
-	if (!config->hybrid_merge)
-		return false;
-
-	pmu = evsel__find_pmu(evsel);
-	return pmu && pmu->is_hybrid;
+	return config->hybrid_merge && evsel__is_hybrid(evsel);
 }
 
 static void evsel__merge_stats(struct evsel *evsel, struct perf_stat_config *config)
