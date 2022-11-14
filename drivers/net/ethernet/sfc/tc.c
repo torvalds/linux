@@ -77,6 +77,8 @@ static void efx_tc_free_action_set(struct efx_nic *efx,
 		 */
 		list_del(&act->list);
 	}
+	if (act->count)
+		efx_tc_flower_put_counter_index(efx, act->count);
 	kfree(act);
 }
 
@@ -376,6 +378,28 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 			goto release;
 		}
 
+		if ((fa->id == FLOW_ACTION_REDIRECT ||
+		     fa->id == FLOW_ACTION_MIRRED ||
+		     fa->id == FLOW_ACTION_DROP) && fa->hw_stats) {
+			struct efx_tc_counter_index *ctr;
+
+			if (!(fa->hw_stats & FLOW_ACTION_HW_STATS_DELAYED)) {
+				NL_SET_ERR_MSG_FMT_MOD(extack, "hw_stats_type %u not supported (only 'delayed')",
+						       fa->hw_stats);
+				rc = -EOPNOTSUPP;
+				goto release;
+			}
+
+			ctr = efx_tc_flower_get_counter_index(efx, tc->cookie,
+							      EFX_TC_COUNTER_TYPE_AR);
+			if (IS_ERR(ctr)) {
+				rc = PTR_ERR(ctr);
+				NL_SET_ERR_MSG_MOD(extack, "Failed to obtain a counter");
+				goto release;
+			}
+			act->count = ctr;
+		}
+
 		switch (fa->id) {
 		case FLOW_ACTION_DROP:
 			rc = efx_mae_alloc_action_set(efx, act);
@@ -412,6 +436,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 			if (fa->id == FLOW_ACTION_REDIRECT)
 				break; /* end of the line */
 			/* Mirror, so continue on with saved act */
+			save.count = NULL;
 			act = kzalloc(sizeof(*act), GFP_USER);
 			if (!act) {
 				rc = -ENOMEM;
