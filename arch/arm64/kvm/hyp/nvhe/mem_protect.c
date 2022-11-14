@@ -30,6 +30,18 @@ static struct hyp_pool host_s2_pool;
 static DEFINE_PER_CPU(struct pkvm_hyp_vm *, __current_vm);
 #define current_vm (*this_cpu_ptr(&__current_vm))
 
+static struct kvm_pgtable_pte_ops host_s2_pte_ops;
+static bool host_stage2_force_pte(u64 addr, u64 end, enum kvm_pgtable_prot prot);
+static bool host_stage2_pte_is_counted(kvm_pte_t pte, u32 level);
+static bool guest_stage2_force_pte_cb(u64 addr, u64 end,
+				      enum kvm_pgtable_prot prot);
+static bool guest_stage2_pte_is_counted(kvm_pte_t pte, u32 level);
+
+static struct kvm_pgtable_pte_ops guest_s2_pte_ops = {
+	.force_pte_cb = guest_stage2_force_pte_cb,
+	.pte_is_counted_cb = guest_stage2_pte_is_counted
+};
+
 static void guest_lock_component(struct pkvm_hyp_vm *vm)
 {
 	hyp_spin_lock(&vm->lock);
@@ -129,8 +141,6 @@ static void prepare_host_vtcr(void)
 					  id_aa64mmfr1_el1_sys_val, phys_shift);
 }
 
-static bool host_stage2_force_pte_cb(u64 addr, u64 end, enum kvm_pgtable_prot prot);
-
 int kvm_host_prepare_stage2(void *pgt_pool_base)
 {
 	struct kvm_s2_mmu *mmu = &host_mmu.arch.mmu;
@@ -144,9 +154,12 @@ int kvm_host_prepare_stage2(void *pgt_pool_base)
 	if (ret)
 		return ret;
 
+	host_s2_pte_ops.force_pte_cb = host_stage2_force_pte;
+	host_s2_pte_ops.pte_is_counted_cb = host_stage2_pte_is_counted;
+
 	ret = __kvm_pgtable_stage2_init(&host_mmu.pgt, mmu,
 					&host_mmu.mm_ops, KVM_HOST_S2_FLAGS,
-					host_stage2_force_pte_cb);
+					&host_s2_pte_ops);
 	if (ret)
 		return ret;
 
@@ -161,6 +174,11 @@ static bool guest_stage2_force_pte_cb(u64 addr, u64 end,
 				      enum kvm_pgtable_prot prot)
 {
 	return true;
+}
+
+static bool guest_stage2_pte_is_counted(kvm_pte_t pte, u32 level)
+{
+	return host_stage2_pte_is_counted(pte, level);
 }
 
 static void *guest_s2_zalloc_pages_exact(size_t size)
@@ -252,7 +270,7 @@ int kvm_guest_prepare_stage2(struct pkvm_hyp_vm *vm, void *pgd)
 
 	guest_lock_component(vm);
 	ret = __kvm_pgtable_stage2_init(mmu->pgt, mmu, &vm->mm_ops, 0,
-					guest_stage2_force_pte_cb);
+					&guest_s2_pte_ops);
 	guest_unlock_component(vm);
 	if (ret)
 		return ret;
@@ -618,7 +636,7 @@ int host_stage2_set_owner_locked(phys_addr_t addr, u64 size, enum pkvm_component
 	return 0;
 }
 
-static bool host_stage2_force_pte_cb(u64 addr, u64 end, enum kvm_pgtable_prot prot)
+static bool host_stage2_force_pte(u64 addr, u64 end, enum kvm_pgtable_prot prot)
 {
 	/*
 	 * Block mappings must be used with care in the host stage-2 as a
@@ -638,6 +656,16 @@ static bool host_stage2_force_pte_cb(u64 addr, u64 end, enum kvm_pgtable_prot pr
 		return prot != PKVM_HOST_MEM_PROT;
 	else
 		return prot != PKVM_HOST_MMIO_PROT;
+}
+
+static bool host_stage2_pte_is_counted(kvm_pte_t pte, u32 level)
+{
+	/*
+	 * The refcount tracks valid entries as well as invalid entries if they
+	 * encode ownership of a page to another entity than the page-table
+	 * owner, whose id is 0.
+	 */
+	return !!pte;
 }
 
 static int host_stage2_idmap(u64 addr)
