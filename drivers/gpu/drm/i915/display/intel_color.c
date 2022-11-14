@@ -1078,13 +1078,13 @@ static void icl_load_luts(const struct intel_crtc_state *crtc_state)
 
 static u32 chv_cgm_degamma_ldw(const struct drm_color_lut *color)
 {
-	return drm_color_lut_extract(color->green, 14) << 16 |
-		drm_color_lut_extract(color->blue, 14);
+	return REG_FIELD_PREP(CGM_PIPE_DEGAMMA_GREEN_LDW_MASK, drm_color_lut_extract(color->green, 14)) |
+		REG_FIELD_PREP(CGM_PIPE_DEGAMMA_BLUE_LDW_MASK, drm_color_lut_extract(color->blue, 14));
 }
 
 static u32 chv_cgm_degamma_udw(const struct drm_color_lut *color)
 {
-	return drm_color_lut_extract(color->red, 14);
+	return REG_FIELD_PREP(CGM_PIPE_DEGAMMA_RED_UDW_MASK, drm_color_lut_extract(color->red, 14));
 }
 
 static void chv_load_cgm_degamma(struct intel_crtc *crtc,
@@ -1105,20 +1105,20 @@ static void chv_load_cgm_degamma(struct intel_crtc *crtc,
 
 static u32 chv_cgm_gamma_ldw(const struct drm_color_lut *color)
 {
-	return drm_color_lut_extract(color->green, 10) << 16 |
-		drm_color_lut_extract(color->blue, 10);
+	return REG_FIELD_PREP(CGM_PIPE_GAMMA_GREEN_LDW_MASK, drm_color_lut_extract(color->green, 10)) |
+		REG_FIELD_PREP(CGM_PIPE_GAMMA_BLUE_LDW_MASK, drm_color_lut_extract(color->blue, 10));
 }
 
 static u32 chv_cgm_gamma_udw(const struct drm_color_lut *color)
 {
-	return drm_color_lut_extract(color->red, 10);
+	return REG_FIELD_PREP(CGM_PIPE_GAMMA_RED_UDW_MASK, drm_color_lut_extract(color->red, 10));
 }
 
 static void chv_cgm_gamma_pack(struct drm_color_lut *entry, u32 ldw, u32 udw)
 {
-	entry->green = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_GAMMA_GREEN_MASK, ldw), 10);
-	entry->blue = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_GAMMA_BLUE_MASK, ldw), 10);
-	entry->red = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_GAMMA_RED_MASK, udw), 10);
+	entry->green = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_GAMMA_GREEN_LDW_MASK, ldw), 10);
+	entry->blue = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_GAMMA_BLUE_LDW_MASK, ldw), 10);
+	entry->red = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_GAMMA_RED_UDW_MASK, udw), 10);
 }
 
 static void chv_load_cgm_gamma(struct intel_crtc *crtc,
