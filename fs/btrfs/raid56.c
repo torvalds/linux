@@ -21,6 +21,7 @@
 #include "raid56.h"
 #include "async-thread.h"
 #include "file-item.h"
+#include "btrfs_inode.h"
 
 /* set when additional merges to this rbio are not allowed */
 #define RBIO_RMW_LOCKED_BIT	1
@@ -1433,14 +1434,56 @@ static void rbio_update_error_bitmap(struct btrfs_raid_bio *rbio, struct bio *bi
 		   bio_size >> rbio->bioc->fs_info->sectorsize_bits);
 }
 
+/* Verify the data sectors at read time. */
+static void verify_bio_data_sectors(struct btrfs_raid_bio *rbio,
+				    struct bio *bio)
+{
+	struct btrfs_fs_info *fs_info = rbio->bioc->fs_info;
+	int total_sector_nr = get_bio_sector_nr(rbio, bio);
+	struct bio_vec *bvec;
+	struct bvec_iter_all iter_all;
+
+	/* No data csum for the whole stripe, no need to verify. */
+	if (!rbio->csum_bitmap || !rbio->csum_buf)
+		return;
+
+	/* P/Q stripes, they have no data csum to verify against. */
+	if (total_sector_nr >= rbio->nr_data * rbio->stripe_nsectors)
+		return;
+
+	bio_for_each_segment_all(bvec, bio, iter_all) {
+		int bv_offset;
+
+		for (bv_offset = bvec->bv_offset;
+		     bv_offset < bvec->bv_offset + bvec->bv_len;
+		     bv_offset += fs_info->sectorsize, total_sector_nr++) {
+			u8 csum_buf[BTRFS_CSUM_SIZE];
+			u8 *expected_csum = rbio->csum_buf +
+					    total_sector_nr * fs_info->csum_size;
+			int ret;
+
+			/* No csum for this sector, skip to the next sector. */
+			if (!test_bit(total_sector_nr, rbio->csum_bitmap))
+				continue;
+
+			ret = btrfs_check_sector_csum(fs_info, bvec->bv_page,
+				bv_offset, csum_buf, expected_csum);
+			if (ret < 0)
+				set_bit(total_sector_nr, rbio->error_bitmap);
+		}
+	}
+}
+
 static void raid_wait_read_end_io(struct bio *bio)
 {
 	struct btrfs_raid_bio *rbio = bio->bi_private;
 
-	if (bio->bi_status)
+	if (bio->bi_status) {
 		rbio_update_error_bitmap(rbio, bio);
-	else
+	} else {
 		set_bio_pages_uptodate(rbio, bio);
+		verify_bio_data_sectors(rbio, bio);
+	}
 
 	bio_put(bio);
 	if (atomic_dec_and_test(&rbio->stripes_pending))
@@ -1469,37 +1512,25 @@ static void submit_read_bios(struct btrfs_raid_bio *rbio,
 static int rmw_assemble_read_bios(struct btrfs_raid_bio *rbio,
 				  struct bio_list *bio_list)
 {
-	const int nr_data_sectors = rbio->stripe_nsectors * rbio->nr_data;
 	struct bio *bio;
 	int total_sector_nr;
 	int ret = 0;
 
 	ASSERT(bio_list_size(bio_list) == 0);
 
-	/* Build a list of bios to read all the missing data sectors. */
-	for (total_sector_nr = 0; total_sector_nr < nr_data_sectors;
+	/*
+	 * Build a list of bios to read all sectors (including data and P/Q).
+	 *
+	 * This behaviro is to compensate the later csum verification and
+	 * recovery.
+	 */
+	for (total_sector_nr = 0; total_sector_nr < rbio->nr_sectors;
 	     total_sector_nr++) {
 		struct sector_ptr *sector;
 		int stripe = total_sector_nr / rbio->stripe_nsectors;
 		int sectornr = total_sector_nr % rbio->stripe_nsectors;
 
-		/*
-		 * We want to find all the sectors missing from the rbio and
-		 * read them from the disk.  If sector_in_rbio() finds a page
-		 * in the bio list we don't need to read it off the stripe.
-		 */
-		sector = sector_in_rbio(rbio, stripe, sectornr, 1);
-		if (sector)
-			continue;
-
 		sector = rbio_stripe_sector(rbio, stripe, sectornr);
-		/*
-		 * The bio cache may have handed us an uptodate page.  If so,
-		 * use it.
-		 */
-		if (sector->uptodate)
-			continue;
-
 		ret = rbio_add_io_sector(rbio, bio_list, sector,
 			       stripe, sectornr, REQ_OP_READ);
 		if (ret)
@@ -1670,6 +1701,42 @@ fail:
 	bio_endio(bio);
 }
 
+static int verify_one_sector(struct btrfs_raid_bio *rbio,
+			     int stripe_nr, int sector_nr)
+{
+	struct btrfs_fs_info *fs_info = rbio->bioc->fs_info;
+	struct sector_ptr *sector;
+	u8 csum_buf[BTRFS_CSUM_SIZE];
+	u8 *csum_expected;
+	int ret;
+
+	if (!rbio->csum_bitmap || !rbio->csum_buf)
+		return 0;
+
+	/* No way to verify P/Q as they are not covered by data csum. */
+	if (stripe_nr >= rbio->nr_data)
+		return 0;
+	/*
+	 * If we're rebuilding a read, we have to use pages from the
+	 * bio list if possible.
+	 */
+	if ((rbio->operation == BTRFS_RBIO_READ_REBUILD ||
+	     rbio->operation == BTRFS_RBIO_REBUILD_MISSING)) {
+		sector = sector_in_rbio(rbio, stripe_nr, sector_nr, 0);
+	} else {
+		sector = rbio_stripe_sector(rbio, stripe_nr, sector_nr);
+	}
+
+	ASSERT(sector->page);
+
+	csum_expected = rbio->csum_buf +
+			(stripe_nr * rbio->stripe_nsectors + sector_nr) *
+			fs_info->csum_size;
+	ret = btrfs_check_sector_csum(fs_info, sector->page, sector->pgoff,
+				      csum_buf, csum_expected);
+	return ret;
+}
+
 /*
  * Recover a vertical stripe specified by @sector_nr.
  * @*pointers are the pre-allocated pointers by the caller, so we don't
@@ -1685,6 +1752,7 @@ static int recover_vertical(struct btrfs_raid_bio *rbio, int sector_nr,
 	int faila;
 	int failb;
 	int stripe_nr;
+	int ret = 0;
 
 	/*
 	 * Now we just use bitmap to mark the horizontal stripes in
@@ -1805,12 +1873,23 @@ pstripe:
 	 * uptodate.
 	 * Especially if we determine to cache the rbio, we need to
 	 * have at least all data sectors uptodate.
+	 *
+	 * If possible, also check if the repaired sector matches its data
+	 * checksum.
 	 */
 	if (faila >= 0) {
+		ret = verify_one_sector(rbio, faila, sector_nr);
+		if (ret < 0)
+			goto cleanup;
+
 		sector = rbio_stripe_sector(rbio, faila, sector_nr);
 		sector->uptodate = 1;
 	}
 	if (failb >= 0) {
+		ret = verify_one_sector(rbio, faila, sector_nr);
+		if (ret < 0)
+			goto cleanup;
+
 		sector = rbio_stripe_sector(rbio, failb, sector_nr);
 		sector->uptodate = 1;
 	}
@@ -1818,7 +1897,7 @@ pstripe:
 cleanup:
 	for (stripe_nr = rbio->real_stripes - 1; stripe_nr >= 0; stripe_nr--)
 		kunmap_local(unmap_array[stripe_nr]);
-	return 0;
+	return ret;
 }
 
 static int recover_sectors(struct btrfs_raid_bio *rbio)
@@ -2115,7 +2194,7 @@ no_csum:
 	rbio->csum_bitmap = NULL;
 }
 
-static int rmw_read_and_wait(struct btrfs_raid_bio *rbio)
+static int rmw_read_wait_recover(struct btrfs_raid_bio *rbio)
 {
 	struct bio_list bio_list;
 	struct bio *bio;
@@ -2136,6 +2215,12 @@ static int rmw_read_and_wait(struct btrfs_raid_bio *rbio)
 
 	submit_read_bios(rbio, &bio_list);
 	wait_event(rbio->io_wait, atomic_read(&rbio->stripes_pending) == 0);
+
+	/*
+	 * We may or may not have any corrupted sectors (including missing dev
+	 * and csum mismatch), just let recover_sectors() to handle them all.
+	 */
+	ret = recover_sectors(rbio);
 	return ret;
 out:
 	while ((bio = bio_list_pop(&bio_list)))
@@ -2175,6 +2260,28 @@ static void submit_write_bios(struct btrfs_raid_bio *rbio,
 	}
 }
 
+/*
+ * To determine if we need to read any sector from the disk.
+ * Should only be utilized in RMW path, to skip cached rbio.
+ */
+static bool need_read_stripe_sectors(struct btrfs_raid_bio *rbio)
+{
+	int i;
+
+	for (i = 0; i < rbio->nr_data * rbio->stripe_nsectors; i++) {
+		struct sector_ptr *sector = &rbio->stripe_sectors[i];
+
+		/*
+		 * We have a sector which doesn't have page nor uptodate,
+		 * thus this rbio can not be cached one, as cached one must
+		 * have all its data sectors present and uptodate.
+		 */
+		if (!sector->page || !sector->uptodate)
+			return true;
+	}
+	return false;
+}
+
 static int rmw_rbio(struct btrfs_raid_bio *rbio)
 {
 	struct bio_list bio_list;
@@ -2189,9 +2296,13 @@ static int rmw_rbio(struct btrfs_raid_bio *rbio)
 	if (ret < 0)
 		return ret;
 
-	/* Full stripe write, can write the full stripe right now. */
-	if (rbio_is_full(rbio))
+	/*
+	 * Either full stripe write, or we have every data sector already
+	 * cached, can go to write path immediately.
+	 */
+	if (rbio_is_full(rbio) || !need_read_stripe_sectors(rbio))
 		goto write;
+
 	/*
 	 * Now we're doing sub-stripe write, also need all data stripes to do
 	 * the full RMW.
@@ -2202,16 +2313,10 @@ static int rmw_rbio(struct btrfs_raid_bio *rbio)
 
 	index_rbio_pages(rbio);
 
-	ret = rmw_read_and_wait(rbio);
+	ret = rmw_read_wait_recover(rbio);
 	if (ret < 0)
 		return ret;
 
-	/* We have read errors, try recovery path. */
-	if (!bitmap_empty(rbio->error_bitmap, rbio->nr_sectors)) {
-		ret = recover_rbio(rbio);
-		if (ret < 0)
-			return ret;
-	}
 write:
 	/*
 	 * At this stage we're not allowed to add any new bios to the
