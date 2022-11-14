@@ -252,8 +252,6 @@ config ARCH_REALTEK
 
 config ARCH_RENESAS
 	bool "Renesas SoC Platforms"
-	select GPIOLIB
-	select PINCTRL
 	help
 	  This enables support for the ARMv8 based Renesas SoCs.
 
