@@ -1917,6 +1917,9 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 	} else {
 		hdmi_modb(hdmi, HDCP2_BYPASS, HDCP2_BYPASS, HDCP2LOGIC_CONFIG0);
 		hdmi_modb(hdmi, OPMODE_DVI, OPMODE_DVI, LINK_CONFIG0);
+		hdmi_writel(hdmi, 2, PKTSCHED_PKT_CONTROL0);
+		hdmi_modb(hdmi, PKTSCHED_GCP_TX_EN, PKTSCHED_GCP_TX_EN, PKTSCHED_PKT_EN);
+		hdmi->phy.ops->init(hdmi, hdmi->phy.data, &hdmi->previous_mode);
 		dev_info(hdmi->dev, "%s DVI mode\n", __func__);
 	}
 
