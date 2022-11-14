@@ -2196,6 +2196,74 @@ static void ilk_read_luts(struct intel_crtc_state *crtc_state)
 	}
 }
 
+/*
+ * IVB/HSW Bspec / PAL_PREC_INDEX:
+ * "Restriction : Index auto increment mode is not
+ *  supported and must not be enabled."
+ */
+static struct drm_property_blob *ivb_read_lut_10(struct intel_crtc *crtc,
+						 u32 prec_index)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	int i, lut_size = ivb_lut_10_size(prec_index);
+	enum pipe pipe = crtc->pipe;
+	struct drm_property_blob *blob;
+	struct drm_color_lut *lut;
+
+	blob = drm_property_create_blob(&dev_priv->drm,
+					sizeof(lut[0]) * lut_size,
+					NULL);
+	if (IS_ERR(blob))
+		return NULL;
+
+	lut = blob->data;
+
+	for (i = 0; i < lut_size; i++) {
+		u32 val;
+
+		intel_de_write_fw(dev_priv, PREC_PAL_INDEX(pipe),
+				  prec_index + i);
+		val = intel_de_read_fw(dev_priv, PREC_PAL_DATA(pipe));
+
+		ilk_lut_10_pack(&lut[i], val);
+	}
+
+	intel_de_write_fw(dev_priv, PREC_PAL_INDEX(pipe), 0);
+
+	return blob;
+}
+
+static void ivb_read_luts(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_property_blob **blob =
+		ilk_has_post_csc_lut(crtc_state) ?
+		&crtc_state->post_csc_lut : &crtc_state->pre_csc_lut;
+
+	if (!crtc_state->gamma_enable)
+		return;
+
+	switch (crtc_state->gamma_mode) {
+	case GAMMA_MODE_MODE_8BIT:
+		*blob = ilk_read_lut_8(crtc);
+		break;
+	case GAMMA_MODE_MODE_SPLIT:
+		crtc_state->pre_csc_lut =
+			ivb_read_lut_10(crtc, PAL_PREC_SPLIT_MODE |
+					PAL_PREC_INDEX_VALUE(0));
+		crtc_state->post_csc_lut =
+			ivb_read_lut_10(crtc, PAL_PREC_SPLIT_MODE |
+					PAL_PREC_INDEX_VALUE(512));
+		break;
+	case GAMMA_MODE_MODE_10BIT:
+		*blob = ivb_read_lut_10(crtc, PAL_PREC_INDEX_VALUE(0));
+		break;
+	default:
+		MISSING_CASE(crtc_state->gamma_mode);
+		break;
+	}
+}
+
 /* On BDW+ the index auto increment mode actually works */
 static struct drm_property_blob *bdw_read_lut_10(struct intel_crtc *crtc,
 						 u32 prec_index)
@@ -2442,7 +2510,7 @@ static const struct intel_color_funcs hsw_color_funcs = {
 	.color_commit_noarm = ilk_color_commit_noarm,
 	.color_commit_arm = hsw_color_commit_arm,
 	.load_luts = ivb_load_luts,
-	.read_luts = NULL,
+	.read_luts = ivb_read_luts,
 };
 
 static const struct intel_color_funcs ivb_color_funcs = {
@@ -2450,7 +2518,7 @@ static const struct intel_color_funcs ivb_color_funcs = {
 	.color_commit_noarm = ilk_color_commit_noarm,
 	.color_commit_arm = ilk_color_commit_arm,
 	.load_luts = ivb_load_luts,
-	.read_luts = NULL,
+	.read_luts = ivb_read_luts,
 };
 
 static const struct intel_color_funcs ilk_color_funcs = {
