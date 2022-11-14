@@ -347,7 +347,8 @@ enum sec_def_flags {
 	SEC_ATTACHABLE = 2,
 	SEC_ATTACHABLE_OPT = SEC_ATTACHABLE | SEC_EXP_ATTACH_OPT,
 	/* attachment target is specified through BTF ID in either kernel or
-	 * other BPF program's BTF object */
+	 * other BPF program's BTF object
+	 */
 	SEC_ATTACH_BTF = 4,
 	/* BPF program type allows sleeping/blocking in kernel */
 	SEC_SLEEPABLE = 8,
@@ -488,7 +489,7 @@ struct bpf_map {
 	char *name;
 	/* real_name is defined for special internal maps (.rodata*,
 	 * .data*, .bss, .kconfig) and preserves their original ELF section
-	 * name. This is important to be be able to find corresponding BTF
+	 * name. This is important to be able to find corresponding BTF
 	 * DATASEC information.
 	 */
 	char *real_name;
@@ -1863,12 +1864,20 @@ static int set_kcfg_value_num(struct extern_desc *ext, void *ext_val,
 		return -ERANGE;
 	}
 	switch (ext->kcfg.sz) {
-		case 1: *(__u8 *)ext_val = value; break;
-		case 2: *(__u16 *)ext_val = value; break;
-		case 4: *(__u32 *)ext_val = value; break;
-		case 8: *(__u64 *)ext_val = value; break;
-		default:
-			return -EINVAL;
+	case 1:
+		*(__u8 *)ext_val = value;
+		break;
+	case 2:
+		*(__u16 *)ext_val = value;
+		break;
+	case 4:
+		*(__u32 *)ext_val = value;
+		break;
+	case 8:
+		*(__u64 *)ext_val = value;
+		break;
+	default:
+		return -EINVAL;
 	}
 	ext->is_set = true;
 	return 0;
@@ -2770,7 +2779,7 @@ static int bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
 				m->type = enum64_placeholder_id;
 				m->offset = 0;
 			}
-                }
+		}
 	}
 
 	return 0;
@@ -3518,7 +3527,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 	}
 
 	/* sort BPF programs by section name and in-section instruction offset
-	 * for faster search */
+	 * for faster search
+	 */
 	if (obj->nr_programs)
 		qsort(obj->programs, obj->nr_programs, sizeof(*obj->programs), cmp_progs);
 
@@ -3817,7 +3827,7 @@ static int bpf_object__collect_externs(struct bpf_object *obj)
 				return -EINVAL;
 			}
 			ext->kcfg.type = find_kcfg_type(obj->btf, t->type,
-						        &ext->kcfg.is_signed);
+							&ext->kcfg.is_signed);
 			if (ext->kcfg.type == KCFG_UNKNOWN) {
 				pr_warn("extern (kcfg) '%s': type is unsupported\n", ext_name);
 				return -ENOTSUP;
@@ -4965,9 +4975,9 @@ bpf_object__reuse_map(struct bpf_map *map)
 
 	err = bpf_map__reuse_fd(map, pin_fd);
 	close(pin_fd);
-	if (err) {
+	if (err)
 		return err;
-	}
+
 	map->pinned = true;
 	pr_debug("reused pinned map at '%s'\n", map->pin_path);
 
@@ -5485,7 +5495,7 @@ static int load_module_btfs(struct bpf_object *obj)
 		}
 
 		err = libbpf_ensure_mem((void **)&obj->btf_modules, &obj->btf_module_cap,
-				        sizeof(*obj->btf_modules), obj->btf_module_cnt + 1);
+					sizeof(*obj->btf_modules), obj->btf_module_cnt + 1);
 		if (err)
 			goto err_out;
 
@@ -6237,7 +6247,8 @@ bpf_object__reloc_code(struct bpf_object *obj, struct bpf_program *main_prog,
 		 * prog; each main prog can have a different set of
 		 * subprograms appended (potentially in different order as
 		 * well), so position of any subprog can be different for
-		 * different main programs */
+		 * different main programs
+		 */
 		insn->imm = subprog->sub_insn_off - (prog->sub_insn_off + insn_idx) - 1;
 
 		pr_debug("prog '%s': insn #%zu relocated, imm %d points to subprog '%s' (now at %zu offset)\n",
@@ -10995,7 +11006,7 @@ struct bpf_link *bpf_program__attach_usdt(const struct bpf_program *prog,
 
 	usdt_cookie = OPTS_GET(opts, usdt_cookie, 0);
 	link = usdt_manager_attach_usdt(obj->usdt_man, prog, pid, binary_path,
-				        usdt_provider, usdt_name, usdt_cookie);
+					usdt_provider, usdt_name, usdt_cookie);
 	err = libbpf_get_error(link);
 	if (err)
 		return libbpf_err_ptr(err);
@@ -12304,7 +12315,7 @@ int bpf_object__open_subskeleton(struct bpf_object_subskeleton *s)
 	btf = bpf_object__btf(s->obj);
 	if (!btf) {
 		pr_warn("subskeletons require BTF at runtime (object %s)\n",
-		        bpf_object__name(s->obj));
+			bpf_object__name(s->obj));
 		return libbpf_err(-errno);
 	}
 

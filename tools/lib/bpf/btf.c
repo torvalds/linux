@@ -1724,7 +1724,8 @@ err_out:
 	memset(btf->strs_data + old_strs_len, 0, btf->hdr->str_len - old_strs_len);
 
 	/* and now restore original strings section size; types data size
-	 * wasn't modified, so doesn't need restoring, see big comment above */
+	 * wasn't modified, so doesn't need restoring, see big comment above
+	 */
 	btf->hdr->str_len = old_strs_len;
 
 	hashmap__free(p.str_off_map);
@@ -2329,7 +2330,7 @@ int btf__add_restrict(struct btf *btf, int ref_type_id)
  */
 int btf__add_type_tag(struct btf *btf, const char *value, int ref_type_id)
 {
-	if (!value|| !value[0])
+	if (!value || !value[0])
 		return libbpf_err(-EINVAL);
 
 	return btf_add_ref_kind(btf, BTF_KIND_TYPE_TAG, value, ref_type_id);
