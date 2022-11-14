@@ -181,12 +181,8 @@ static int cryptomgr_test(void *data)
 	goto skiptest;
 #endif
 
-	if (type & CRYPTO_ALG_TESTED)
-		goto skiptest;
-
 	err = alg_test(param->driver, param->alg, type, CRYPTO_ALG_TESTED);
 
-skiptest:
 	crypto_alg_tested(param->driver, err);
 
 	kfree(param);
@@ -197,7 +193,6 @@ static int cryptomgr_schedule_test(struct crypto_alg *alg)
 {
 	struct task_struct *thread;
 	struct crypto_test_param *param;
-	u32 type;
 
 	if (!try_module_get(THIS_MODULE))
 		goto err;
@@ -208,13 +203,7 @@ static int cryptomgr_schedule_test(struct crypto_alg *alg)
 
 	memcpy(param->driver, alg->cra_driver_name, sizeof(param->driver));
 	memcpy(param->alg, alg->cra_name, sizeof(param->alg));
-	type = alg->cra_flags;
-
-	/* Do not test internal algorithms. */
-	if (type & CRYPTO_ALG_INTERNAL)
-		type |= CRYPTO_ALG_TESTED;
-
-	param->type = type;
+	param->type = alg->cra_flags;
 
 	thread = kthread_run(cryptomgr_test, param, "cryptomgr_test");
 	if (IS_ERR(thread))
