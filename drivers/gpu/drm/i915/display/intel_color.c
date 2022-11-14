@@ -1231,8 +1231,7 @@ void intel_color_get_config(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 
-	if (i915->display.funcs.color->read_luts)
-		i915->display.funcs.color->read_luts(crtc_state);
+	i915->display.funcs.color->read_luts(crtc_state);
 }
 
 static bool need_plane_update(struct intel_plane *plane,
