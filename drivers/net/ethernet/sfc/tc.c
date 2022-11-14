@@ -284,6 +284,29 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 	return 0;
 }
 
+/* For details of action order constraints refer to SF-123102-TC-1§12.6.1 */
+enum efx_tc_action_order {
+	EFX_TC_AO_COUNT,
+	EFX_TC_AO_DELIVER
+};
+/* Determine whether we can add @new action without violating order */
+static bool efx_tc_flower_action_order_ok(const struct efx_tc_action_set *act,
+					  enum efx_tc_action_order new)
+{
+	switch (new) {
+	case EFX_TC_AO_COUNT:
+		if (act->count)
+			return false;
+		fallthrough;
+	case EFX_TC_AO_DELIVER:
+		return !act->deliver;
+	default:
+		/* Bad caller.  Whatever they wanted to do, say they can't. */
+		WARN_ON_ONCE(1);
+		return false;
+	}
+}
+
 static int efx_tc_flower_replace(struct efx_nic *efx,
 				 struct net_device *net_dev,
 				 struct flow_cls_offload *tc,
@@ -383,6 +406,25 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		     fa->id == FLOW_ACTION_DROP) && fa->hw_stats) {
 			struct efx_tc_counter_index *ctr;
 
+			/* Currently the only actions that want stats are
+			 * mirred and gact (ok, shot, trap, goto-chain), which
+			 * means we want stats just before delivery.  Also,
+			 * note that tunnel_key set shouldn't change the length
+			 * — it's only the subsequent mirred that does that,
+			 * and the stats are taken _before_ the mirred action
+			 * happens.
+			 */
+			if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_COUNT)) {
+				/* All supported actions that count either steal
+				 * (gact shot, mirred redirect) or clone act
+				 * (mirred mirror), so we should never get two
+				 * count actions on one action_set.
+				 */
+				NL_SET_ERR_MSG_MOD(extack, "Count-action conflict (can't happen)");
+				rc = -EOPNOTSUPP;
+				goto release;
+			}
+
 			if (!(fa->hw_stats & FLOW_ACTION_HW_STATS_DELAYED)) {
 				NL_SET_ERR_MSG_FMT_MOD(extack, "hw_stats_type %u not supported (only 'delayed')",
 						       fa->hw_stats);
@@ -413,6 +455,14 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		case FLOW_ACTION_REDIRECT:
 		case FLOW_ACTION_MIRRED:
 			save = *act;
+
+			if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_DELIVER)) {
+				/* can't happen */
+				rc = -EOPNOTSUPP;
+				NL_SET_ERR_MSG_MOD(extack, "Deliver action violates action order (can't happen)");
+				goto release;
+			}
+
 			to_efv = efx_tc_flower_lookup_efv(efx, fa->dev);
 			if (IS_ERR(to_efv)) {
 				NL_SET_ERR_MSG_MOD(extack, "Mirred egress device not on switch");
