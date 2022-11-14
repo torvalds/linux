@@ -1087,6 +1087,13 @@ static u32 chv_cgm_degamma_udw(const struct drm_color_lut *color)
 	return REG_FIELD_PREP(CGM_PIPE_DEGAMMA_RED_UDW_MASK, drm_color_lut_extract(color->red, 14));
 }
 
+static void chv_cgm_degamma_pack(struct drm_color_lut *entry, u32 ldw, u32 udw)
+{
+	entry->green = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_DEGAMMA_GREEN_LDW_MASK, ldw), 14);
+	entry->blue = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_DEGAMMA_BLUE_LDW_MASK, ldw), 14);
+	entry->red = intel_color_lut_pack(REG_FIELD_GET(CGM_PIPE_DEGAMMA_RED_UDW_MASK, udw), 14);
+}
+
 static void chv_load_cgm_degamma(struct intel_crtc *crtc,
 				 const struct drm_property_blob *blob)
 {
@@ -2048,6 +2055,32 @@ static void i965_read_luts(struct intel_crtc_state *crtc_state)
 		crtc_state->post_csc_lut = i965_read_lut_10p6(crtc);
 }
 
+static struct drm_property_blob *chv_read_cgm_degamma(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	int i, lut_size = INTEL_INFO(dev_priv)->display.color.degamma_lut_size;
+	enum pipe pipe = crtc->pipe;
+	struct drm_property_blob *blob;
+	struct drm_color_lut *lut;
+
+	blob = drm_property_create_blob(&dev_priv->drm,
+					sizeof(lut[0]) * lut_size,
+					NULL);
+	if (IS_ERR(blob))
+		return NULL;
+
+	lut = blob->data;
+
+	for (i = 0; i < lut_size; i++) {
+		u32 ldw = intel_de_read_fw(dev_priv, CGM_PIPE_DEGAMMA(pipe, i, 0));
+		u32 udw = intel_de_read_fw(dev_priv, CGM_PIPE_DEGAMMA(pipe, i, 1));
+
+		chv_cgm_degamma_pack(&lut[i], ldw, udw);
+	}
+
+	return blob;
+}
+
 static struct drm_property_blob *chv_read_cgm_gamma(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
@@ -2077,6 +2110,9 @@ static struct drm_property_blob *chv_read_cgm_gamma(struct intel_crtc *crtc)
 static void chv_read_luts(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	if (crtc_state->cgm_mode & CGM_PIPE_MODE_DEGAMMA)
+		crtc_state->pre_csc_lut = chv_read_cgm_degamma(crtc);
 
 	if (crtc_state->cgm_mode & CGM_PIPE_MODE_GAMMA)
 		crtc_state->post_csc_lut = chv_read_cgm_gamma(crtc);
