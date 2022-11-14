@@ -343,6 +343,14 @@ extern const struct pmc_bit_map spt_pfear_map[];
 extern const struct pmc_bit_map *ext_spt_pfear_map[];
 extern const struct pmc_bit_map spt_ltr_show_map[];
 extern const struct pmc_reg_map spt_reg_map;
+extern const struct pmc_bit_map cnp_pfear_map[];
+extern const struct pmc_bit_map *ext_cnp_pfear_map[];
+extern const struct pmc_bit_map cnp_slps0_dbg0_map[];
+extern const struct pmc_bit_map cnp_slps0_dbg1_map[];
+extern const struct pmc_bit_map cnp_slps0_dbg2_map[];
+extern const struct pmc_bit_map *cnp_slps0_dbg_maps[];
+extern const struct pmc_bit_map cnp_ltr_show_map[];
+extern const struct pmc_reg_map cnp_reg_map;
 
 void spt_core_init(struct pmc_dev *pmcdev);
 void cnp_core_init(struct pmc_dev *pmcdev);
