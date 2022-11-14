@@ -837,16 +837,16 @@ static int tps6598x_probe(struct i2c_client *client)
 					irq_handler,
 					IRQF_SHARED | IRQF_ONESHOT,
 					dev_name(&client->dev), tps);
-	if (ret) {
-		tps6598x_disconnect(tps, 0);
-		goto err_unregister_port;
-	}
+	if (ret)
+		goto err_disconnect;
 
 	i2c_set_clientdata(client, tps);
 	fwnode_handle_put(fwnode);
 
 	return 0;
 
+err_disconnect:
+	tps6598x_disconnect(tps, 0);
 err_unregister_port:
 	typec_unregister_port(tps->port);
 err_role_put:
