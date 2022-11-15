@@ -65,6 +65,9 @@ int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk)
 	if (WARN_ON_ONCE(!disk->slave_dir))
 		return -EINVAL;
 
+	if (bdev->bd_disk == disk)
+		return -EINVAL;
+
 	/*
 	 * del_gendisk drops the initial reference to bd_holder_dir, so we
 	 * need to keep our own here to allow for cleanup past that point.
