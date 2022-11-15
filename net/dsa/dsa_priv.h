@@ -17,8 +17,12 @@
 
 #define DSA_MAX_NUM_OFFLOADING_BRIDGES		BITS_PER_LONG
 
+/* Create 2 modaliases per tagging protocol, one to auto-load the module
+ * given the ID reported by get_tag_protocol(), and the other by name.
+ */
 #define DSA_TAG_DRIVER_ALIAS "dsa_tag:"
-#define MODULE_ALIAS_DSA_TAG_DRIVER(__proto) \
+#define MODULE_ALIAS_DSA_TAG_DRIVER(__proto, __name) \
+	MODULE_ALIAS(DSA_TAG_DRIVER_ALIAS __name); \
 	MODULE_ALIAS(DSA_TAG_DRIVER_ALIAS "id-" \
 		     __stringify(__proto##_VALUE))
 
