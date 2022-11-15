@@ -118,18 +118,8 @@
  *   returned from the 2nd syscall yet, TIF_FOREIGN_FPSTATE is still set so
  *   whatever is in the FPSIMD registers is not saved to memory, but discarded.
  */
-struct fpsimd_last_state_struct {
-	struct user_fpsimd_state *st;
-	void *sve_state;
-	void *za_state;
-	u64 *svcr;
-	unsigned int sve_vl;
-	unsigned int sme_vl;
-	enum fp_type *fp_type;
-	enum fp_type to_save;
-};
 
-static DEFINE_PER_CPU(struct fpsimd_last_state_struct, fpsimd_last_state);
+static DEFINE_PER_CPU(struct cpu_fp_state, fpsimd_last_state);
 
 __ro_after_init struct vl_info vl_info[ARM64_VEC_MAX] = {
 #ifdef CONFIG_ARM64_SVE
@@ -468,7 +458,7 @@ static void task_fpsimd_load(void)
  */
 static void fpsimd_save(void)
 {
-	struct fpsimd_last_state_struct const *last =
+	struct cpu_fp_state const *last =
 		this_cpu_ptr(&fpsimd_last_state);
 	/* set by fpsimd_bind_task_to_cpu() or fpsimd_bind_state_to_cpu() */
 	bool save_sve_regs = false;
@@ -1716,8 +1706,7 @@ void fpsimd_kvm_prepare(void)
  */
 static void fpsimd_bind_task_to_cpu(void)
 {
-	struct fpsimd_last_state_struct *last =
-		this_cpu_ptr(&fpsimd_last_state);
+	struct cpu_fp_state *last = this_cpu_ptr(&fpsimd_last_state);
 
 	WARN_ON(!system_supports_fpsimd());
 	last->st = &current->thread.uw.fpsimd_state;
@@ -1749,25 +1738,14 @@ static void fpsimd_bind_task_to_cpu(void)
 	}
 }
 
-void fpsimd_bind_state_to_cpu(struct user_fpsimd_state *st, void *sve_state,
-			      unsigned int sve_vl, void *za_state,
-			      unsigned int sme_vl, u64 *svcr,
-			      enum fp_type *type, enum fp_type to_save)
+void fpsimd_bind_state_to_cpu(struct cpu_fp_state *state)
 {
-	struct fpsimd_last_state_struct *last =
-		this_cpu_ptr(&fpsimd_last_state);
+	struct cpu_fp_state *last = this_cpu_ptr(&fpsimd_last_state);
 
 	WARN_ON(!system_supports_fpsimd());
 	WARN_ON(!in_softirq() && !irqs_disabled());
 
-	last->st = st;
-	last->svcr = svcr;
-	last->sve_state = sve_state;
-	last->za_state = za_state;
-	last->sve_vl = sve_vl;
-	last->sme_vl = sme_vl;
-	last->fp_type = type;
-	last->to_save = to_save;
+	*last = *state;
 }
 
 /*
