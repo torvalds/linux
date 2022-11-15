@@ -9,8 +9,6 @@ struct btrfs_map_token {
 	unsigned long offset;
 };
 
-#define BTRFS_LEAF_DATA_OFFSET		offsetof(struct btrfs_leaf, items)
-
 void btrfs_init_map_token(struct btrfs_map_token *token, struct extent_buffer *eb);
 
 /*
@@ -1028,9 +1026,9 @@ BTRFS_SETGET_STACK_FUNCS(stack_verity_descriptor_size,
 
 /* Cast into the data area of the leaf. */
 #define btrfs_item_ptr(leaf, slot, type)				\
-	((type *)(BTRFS_LEAF_DATA_OFFSET + btrfs_item_offset(leaf, slot)))
+	((type *)(btrfs_item_nr_offset(leaf, 0) + btrfs_item_offset(leaf, slot)))
 
 #define btrfs_item_ptr_offset(leaf, slot)				\
-	((unsigned long)(BTRFS_LEAF_DATA_OFFSET + btrfs_item_offset(leaf, slot)))
+	((unsigned long)(btrfs_item_nr_offset(leaf, 0) + btrfs_item_offset(leaf, slot)))
 
 #endif

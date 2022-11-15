@@ -2537,7 +2537,7 @@ static void prepare_eb_write(struct extent_buffer *eb)
 		 * header 0 1 2 .. N ... data_N .. data_2 data_1 data_0
 		 */
 		start = btrfs_item_nr_offset(eb, nritems);
-		end = BTRFS_LEAF_DATA_OFFSET;
+		end = btrfs_item_nr_offset(eb, 0);
 		if (nritems == 0)
 			end += BTRFS_LEAF_DATA_SIZE(eb->fs_info);
 		else
