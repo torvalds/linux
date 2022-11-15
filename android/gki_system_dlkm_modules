@@ -11,6 +11,7 @@ net/can/can-bcm.ko
 net/can/can-gw.ko
 net/can/can-raw.ko
 net/mac80211/mac80211.ko
+net/nfc/nfc.ko
 net/tipc/diag.ko
 net/tipc/tipc.ko
 net/wireless/cfg80211.ko
