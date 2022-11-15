@@ -299,12 +299,23 @@ static ssize_t tagging_store(struct device *d, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
 	const struct dsa_device_ops *new_tag_ops, *old_tag_ops;
+	const char *end = strchrnul(buf, '\n'), *name;
 	struct net_device *dev = to_net_dev(d);
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
+	size_t len = end - buf;
 	int err;
 
+	/* Empty string passed */
+	if (!len)
+		return -ENOPROTOOPT;
+
+	name = kstrndup(buf, len, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+
 	old_tag_ops = cpu_dp->tag_ops;
-	new_tag_ops = dsa_find_tagger_by_name(buf);
+	new_tag_ops = dsa_find_tagger_by_name(name);
+	kfree(name);
 	/* Bad tagger name, or module is not loaded? */
 	if (IS_ERR(new_tag_ops))
 		return PTR_ERR(new_tag_ops);
