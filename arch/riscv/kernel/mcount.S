@@ -29,6 +29,7 @@
 	REG_S	s0, 2*SZREG(sp)
 	REG_S	ra, 3*SZREG(sp)
 	REG_S	a0, 1*SZREG(sp)
+	REG_S	a1, 0*SZREG(sp)
 	addi	s0, sp, 4*SZREG
 	.endm
 
@@ -42,6 +43,7 @@
 	REG_L	ra, 3*SZREG(sp)
 	REG_L	s0, 2*SZREG(sp)
 	REG_L	a0, 1*SZREG(sp)
+	REG_L	a1, 0*SZREG(sp)
 	addi	sp, sp, 4*SZREG
 	.endm
 
@@ -71,9 +73,9 @@ ENTRY(return_to_handler)
 	mv	a0, t6
 #endif
 	call	ftrace_return_to_handler
-	mv	a1, a0
+	mv	a2, a0
 	RESTORE_RET_ABI_STATE
-	jalr	a1
+	jalr	a2
 ENDPROC(return_to_handler)
 #endif
 
