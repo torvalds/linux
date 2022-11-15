@@ -4085,7 +4085,7 @@ static void f2fs_tuning_parameters(struct f2fs_sb_info *sbi)
 					1 << F2FS_IPU_HONOR_OPU_WRITE;
 	}
 
-	sbi->readdir_ra = 1;
+	sbi->readdir_ra = true;
 }
 
 static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
