@@ -337,11 +337,11 @@ static int do_batch(int argc, char **argv)
 	if (argc < 2) {
 		p_err("too few parameters for batch");
 		return -1;
-	} else if (!is_prefix(*argv, "file")) {
-		p_err("expected 'file', got: %s", *argv);
-		return -1;
 	} else if (argc > 2) {
 		p_err("too many parameters for batch");
+		return -1;
+	} else if (!is_prefix(*argv, "file")) {
+		p_err("expected 'file', got: %s", *argv);
 		return -1;
 	}
 	NEXT_ARG();
