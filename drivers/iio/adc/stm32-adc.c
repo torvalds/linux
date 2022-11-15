@@ -119,16 +119,12 @@ struct stm32_adc_trig_info {
 
 /**
  * struct stm32_adc_calib - optional adc calibration data
- * @calfact_s: Calibration offset for single ended channels
- * @calfact_d: Calibration offset in differential
  * @lincalfact: Linearity calibration factor
- * @calibrated: Indicates calibration status
+ * @lincal_saved: Indicates that linear calibration factors are saved
  */
 struct stm32_adc_calib {
-	u32			calfact_s;
-	u32			calfact_d;
 	u32			lincalfact[STM32H7_LINCALFACT_NUM];
-	bool			calibrated;
+	bool			lincal_saved;
 };
 
 /**
@@ -165,8 +161,6 @@ struct stm32_adc_vrefint {
  * @extsel:		trigger selection register & bitfield
  * @res:		resolution selection register & bitfield
  * @difsel:		differential mode selection register & bitfield
- * @calfact_s:		single-ended calibration factors register & bitfield
- * @calfact_d:		differential calibration factors register & bitfield
  * @smpr:		smpr1 & smpr2 registers offset array
  * @smp_bits:		smpr1 & smpr2 index and bitfields
  * @or_vddcore:		option register & vddcore bitfield
@@ -186,8 +180,6 @@ struct stm32_adc_regspec {
 	const struct stm32_adc_regs extsel;
 	const struct stm32_adc_regs res;
 	const struct stm32_adc_regs difsel;
-	const struct stm32_adc_regs calfact_s;
-	const struct stm32_adc_regs calfact_d;
 	const u32 smpr[2];
 	const struct stm32_adc_regs *smp_bits;
 	const struct stm32_adc_regs or_vddcore;
@@ -525,10 +517,6 @@ static const struct stm32_adc_regspec stm32h7_adc_regspec = {
 		    STM32H7_EXTSEL_SHIFT },
 	.res = { STM32H7_ADC_CFGR, STM32H7_RES_MASK, STM32H7_RES_SHIFT },
 	.difsel = { STM32H7_ADC_DIFSEL, STM32H7_DIFSEL_MASK},
-	.calfact_s = { STM32H7_ADC_CALFACT, STM32H7_CALFACT_S_MASK,
-		       STM32H7_CALFACT_S_SHIFT },
-	.calfact_d = { STM32H7_ADC_CALFACT, STM32H7_CALFACT_D_MASK,
-		       STM32H7_CALFACT_D_SHIFT },
 	.smpr = { STM32H7_ADC_SMPR1, STM32H7_ADC_SMPR2 },
 	.smp_bits = stm32h7_smp_bits,
 };
@@ -550,10 +538,6 @@ static const struct stm32_adc_regspec stm32mp13_adc_regspec = {
 		    STM32H7_EXTSEL_SHIFT },
 	.res = { STM32H7_ADC_CFGR, STM32MP13_RES_MASK, STM32MP13_RES_SHIFT },
 	.difsel = { STM32MP13_ADC_DIFSEL, STM32MP13_DIFSEL_MASK},
-	.calfact_s = { STM32MP13_ADC_CALFACT, STM32MP13_CALFACT_S_MASK,
-		       STM32MP13_CALFACT_S_SHIFT },
-	.calfact_d = { STM32MP13_ADC_CALFACT, STM32MP13_CALFACT_D_MASK,
-		       STM32MP13_CALFACT_D_SHIFT },
 	.smpr = { STM32H7_ADC_SMPR1, STM32H7_ADC_SMPR2 },
 	.smp_bits = stm32h7_smp_bits,
 	.or_vddcore = { STM32MP13_ADC2_OR, STM32MP13_OP0 },
@@ -575,10 +559,6 @@ static const struct stm32_adc_regspec stm32mp1_adc_regspec = {
 		    STM32H7_EXTSEL_SHIFT },
 	.res = { STM32H7_ADC_CFGR, STM32H7_RES_MASK, STM32H7_RES_SHIFT },
 	.difsel = { STM32H7_ADC_DIFSEL, STM32H7_DIFSEL_MASK},
-	.calfact_s = { STM32H7_ADC_CALFACT, STM32H7_CALFACT_S_MASK,
-		       STM32H7_CALFACT_S_SHIFT },
-	.calfact_d = { STM32H7_ADC_CALFACT, STM32H7_CALFACT_D_MASK,
-		       STM32H7_CALFACT_D_SHIFT },
 	.smpr = { STM32H7_ADC_SMPR1, STM32H7_ADC_SMPR2 },
 	.smp_bits = stm32h7_smp_bits,
 	.or_vddcore = { STM32MP1_ADC2_OR, STM32MP1_VDDCOREEN },
@@ -1000,9 +980,6 @@ static int stm32h7_adc_read_selfcalib(struct iio_dev *indio_dev)
 	int i, ret;
 	u32 lincalrdyw_mask, val;
 
-	if (!adc->cfg->has_linearcal)
-		goto skip_linearcal;
-
 	/* Read linearity calibration */
 	lincalrdyw_mask = STM32H7_LINCALRDYW6;
 	for (i = STM32H7_LINCALFACT_NUM - 1; i >= 0; i--) {
@@ -1024,15 +1001,7 @@ static int stm32h7_adc_read_selfcalib(struct iio_dev *indio_dev)
 
 		lincalrdyw_mask >>= 1;
 	}
-
-skip_linearcal:
-	/* Read offset calibration */
-	val = stm32_adc_readl(adc, adc->cfg->regs->calfact_s.reg);
-	adc->cal.calfact_s = (val & adc->cfg->regs->calfact_s.mask);
-	adc->cal.calfact_s >>= adc->cfg->regs->calfact_s.shift;
-	adc->cal.calfact_d = (val & adc->cfg->regs->calfact_d.mask);
-	adc->cal.calfact_d >>= adc->cfg->regs->calfact_d.shift;
-	adc->cal.calibrated = true;
+	adc->cal.lincal_saved = true;
 
 	return 0;
 }
@@ -1047,13 +1016,6 @@ static int stm32h7_adc_restore_selfcalib(struct iio_dev *indio_dev)
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	int i, ret;
 	u32 lincalrdyw_mask, val;
-
-	val = (adc->cal.calfact_s << adc->cfg->regs->calfact_s.shift) |
-		(adc->cal.calfact_d << adc->cfg->regs->calfact_d.shift);
-	stm32_adc_writel(adc, adc->cfg->regs->calfact_s.reg, val);
-
-	if (!adc->cfg->has_linearcal)
-		return 0;
 
 	lincalrdyw_mask = STM32H7_LINCALRDYW6;
 	for (i = STM32H7_LINCALFACT_NUM - 1; i >= 0; i--) {
@@ -1116,19 +1078,20 @@ static int stm32h7_adc_restore_selfcalib(struct iio_dev *indio_dev)
 /**
  * stm32h7_adc_selfcalib() - Procedure to calibrate ADC
  * @indio_dev: IIO device instance
+ * @do_lincal: linear calibration request flag
  * Note: Must be called once ADC is out of power down.
+ *
+ * Run offset calibration unconditionally.
+ * Run linear calibration if requested & supported.
  */
-static int stm32h7_adc_selfcalib(struct iio_dev *indio_dev)
+static int stm32h7_adc_selfcalib(struct iio_dev *indio_dev, int do_lincal)
 {
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	int ret;
 	u32 msk = STM32H7_ADCALDIF;
 	u32 val;
 
-	if (adc->cal.calibrated)
-		return true;
-
-	if (adc->cfg->has_linearcal)
+	if (adc->cfg->has_linearcal && do_lincal)
 		msk |= STM32H7_ADCALLIN;
 	/* ADC must be disabled for calibration */
 	stm32h7_adc_disable(indio_dev);
@@ -1173,6 +1136,33 @@ out:
 }
 
 /**
+ * stm32h7_adc_check_selfcalib() - Check linear calibration status
+ * @indio_dev: IIO device instance
+ *
+ * Used to check if linear calibration has been done.
+ * Return true if linear calibration factors are already saved in private data
+ * or if a linear calibration has been done at boot stage.
+ */
+static int stm32h7_adc_check_selfcalib(struct iio_dev *indio_dev)
+{
+	struct stm32_adc *adc = iio_priv(indio_dev);
+	u32 val;
+
+	if (adc->cal.lincal_saved)
+		return true;
+
+	/*
+	 * Check if linear calibration factors are available in ADC registers,
+	 * by checking that all LINCALRDYWx bits are set.
+	 */
+	val = stm32_adc_readl(adc, STM32H7_ADC_CR) & STM32H7_LINCALRDYW_MASK;
+	if (val == STM32H7_LINCALRDYW_MASK)
+		return true;
+
+	return false;
+}
+
+/**
  * stm32h7_adc_prepare() - Leave power down mode to enable ADC.
  * @indio_dev: IIO device instance
  * Leave power down mode.
@@ -1186,16 +1176,20 @@ out:
 static int stm32h7_adc_prepare(struct iio_dev *indio_dev)
 {
 	struct stm32_adc *adc = iio_priv(indio_dev);
-	int calib, ret;
+	int lincal_done = false;
+	int ret;
 
 	ret = stm32h7_adc_exit_pwr_down(indio_dev);
 	if (ret)
 		return ret;
 
-	ret = stm32h7_adc_selfcalib(indio_dev);
+	if (adc->cfg->has_linearcal)
+		lincal_done = stm32h7_adc_check_selfcalib(indio_dev);
+
+	/* Always run offset calibration. Run linear calibration only once */
+	ret = stm32h7_adc_selfcalib(indio_dev, !lincal_done);
 	if (ret < 0)
 		goto pwr_dwn;
-	calib = ret;
 
 	stm32_adc_int_ch_enable(indio_dev);
 
@@ -1205,13 +1199,15 @@ static int stm32h7_adc_prepare(struct iio_dev *indio_dev)
 	if (ret)
 		goto ch_disable;
 
-	/* Either restore or read calibration result for future reference */
-	if (calib)
-		ret = stm32h7_adc_restore_selfcalib(indio_dev);
-	else
-		ret = stm32h7_adc_read_selfcalib(indio_dev);
-	if (ret)
-		goto disable;
+	if (adc->cfg->has_linearcal) {
+		if (!adc->cal.lincal_saved)
+			ret = stm32h7_adc_read_selfcalib(indio_dev);
+		else
+			ret = stm32h7_adc_restore_selfcalib(indio_dev);
+
+		if (ret)
+			goto disable;
+	}
 
 	if (adc->cfg->has_presel)
 		stm32_adc_writel(adc, STM32H7_ADC_PCSEL, adc->pcsel);
