@@ -106,8 +106,8 @@ static int cbmem_entry_probe(struct coreboot_device *dev)
 	entry->mem_file_buf = devm_memremap(&dev->dev, dev->cbmem_entry.address,
 					    dev->cbmem_entry.entry_size,
 					    MEMREMAP_WB);
-	if (!entry->mem_file_buf)
-		return -ENOMEM;
+	if (IS_ERR(entry->mem_file_buf))
+		return PTR_ERR(entry->mem_file_buf);
 
 	entry->size = dev->cbmem_entry.entry_size;
 
