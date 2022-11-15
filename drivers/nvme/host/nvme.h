@@ -1018,6 +1018,8 @@ static inline bool nvme_ctrl_sgl_supported(struct nvme_ctrl *ctrl)
 }
 
 #ifdef CONFIG_NVME_AUTH
+int __init nvme_init_auth(void);
+void __exit nvme_exit_auth(void);
 int nvme_auth_init_ctrl(struct nvme_ctrl *ctrl);
 void nvme_auth_stop(struct nvme_ctrl *ctrl);
 int nvme_auth_negotiate(struct nvme_ctrl *ctrl, int qid);
@@ -1028,6 +1030,13 @@ void nvme_auth_free(struct nvme_ctrl *ctrl);
 static inline int nvme_auth_init_ctrl(struct nvme_ctrl *ctrl)
 {
 	return 0;
+}
+static inline int __init nvme_init_auth(void)
+{
+	return 0;
+}
+static inline void __exit nvme_exit_auth(void)
+{
 }
 static inline void nvme_auth_stop(struct nvme_ctrl *ctrl) {};
 static inline int nvme_auth_negotiate(struct nvme_ctrl *ctrl, int qid)

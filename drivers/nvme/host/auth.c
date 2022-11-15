@@ -14,6 +14,8 @@
 #include <linux/nvme-auth.h>
 
 #define CHAP_BUF_SIZE 4096
+static struct kmem_cache *nvme_chap_buf_cache;
+static mempool_t *nvme_chap_buf_pool;
 
 struct nvme_dhchap_queue_context {
 	struct list_head entry;
@@ -675,7 +677,7 @@ static void nvme_auth_reset_dhchap(struct nvme_dhchap_queue_context *chap)
 	chap->transaction = 0;
 	memset(chap->c1, 0, sizeof(chap->c1));
 	memset(chap->c2, 0, sizeof(chap->c2));
-	kfree(chap->buf);
+	mempool_free(chap->buf, nvme_chap_buf_pool);
 	chap->buf = NULL;
 }
 
@@ -701,7 +703,7 @@ static void nvme_queue_auth_work(struct work_struct *work)
 	 * Allocate a large enough buffer for the entire negotiation:
 	 * 4k is enough to ffdhe8192.
 	 */
-	chap->buf = kmalloc(CHAP_BUF_SIZE, GFP_KERNEL);
+	chap->buf = mempool_alloc(nvme_chap_buf_pool, GFP_KERNEL);
 	if (!chap->buf) {
 		chap->error = -ENOMEM;
 		return;
@@ -1029,3 +1031,27 @@ void nvme_auth_free(struct nvme_ctrl *ctrl)
 	}
 }
 EXPORT_SYMBOL_GPL(nvme_auth_free);
+
+int __init nvme_init_auth(void)
+{
+	nvme_chap_buf_cache = kmem_cache_create("nvme-chap-buf-cache",
+				CHAP_BUF_SIZE, 0, SLAB_HWCACHE_ALIGN, NULL);
+	if (!nvme_chap_buf_cache)
+		return -ENOMEM;
+
+	nvme_chap_buf_pool = mempool_create(16, mempool_alloc_slab,
+			mempool_free_slab, nvme_chap_buf_cache);
+	if (!nvme_chap_buf_pool)
+		goto err_destroy_chap_buf_cache;
+
+	return 0;
+err_destroy_chap_buf_cache:
+	kmem_cache_destroy(nvme_chap_buf_cache);
+	return -ENOMEM;
+}
+
+void __exit nvme_exit_auth(void)
+{
+	mempool_destroy(nvme_chap_buf_pool);
+	kmem_cache_destroy(nvme_chap_buf_cache);
+}

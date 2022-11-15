@@ -5347,8 +5347,13 @@ static int __init nvme_core_init(void)
 		goto unregister_generic_ns;
 	}
 
+	result = nvme_init_auth();
+	if (result)
+		goto destroy_ns_chr;
 	return 0;
 
+destroy_ns_chr:
+	class_destroy(nvme_ns_chr_class);
 unregister_generic_ns:
 	unregister_chrdev_region(nvme_ns_chr_devt, NVME_MINORS);
 destroy_subsys_class:
@@ -5369,6 +5374,7 @@ out:
 
 static void __exit nvme_core_exit(void)
 {
+	nvme_exit_auth();
 	class_destroy(nvme_ns_chr_class);
 	class_destroy(nvme_subsys_class);
 	class_destroy(nvme_class);
