@@ -1021,31 +1021,34 @@ out:
 	return freed;
 }
 
-static void drop_slab_node(int nid)
+static unsigned long drop_slab_node(int nid)
 {
-	unsigned long freed;
-	int shift = 0;
+	unsigned long freed = 0;
+	struct mem_cgroup *memcg = NULL;
 
+	memcg = mem_cgroup_iter(NULL, NULL, NULL);
 	do {
-		struct mem_cgroup *memcg = NULL;
+		freed += shrink_slab(GFP_KERNEL, nid, memcg, 0);
+	} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
 
-		if (fatal_signal_pending(current))
-			return;
-
-		freed = 0;
-		memcg = mem_cgroup_iter(NULL, NULL, NULL);
-		do {
-			freed += shrink_slab(GFP_KERNEL, nid, memcg, 0);
-		} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
-	} while ((freed >> shift++) > 1);
+	return freed;
 }
 
 void drop_slab(void)
 {
 	int nid;
+	int shift = 0;
+	unsigned long freed;
 
-	for_each_online_node(nid)
-		drop_slab_node(nid);
+	do {
+		freed = 0;
+		for_each_online_node(nid) {
+			if (fatal_signal_pending(current))
+				return;
+
+			freed += drop_slab_node(nid);
+		}
+	} while ((freed >> shift++) > 1);
 }
 
 static int reclaimer_offset(void)
