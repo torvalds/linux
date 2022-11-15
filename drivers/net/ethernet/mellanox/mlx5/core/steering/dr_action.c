@@ -1428,23 +1428,12 @@ dr_action_create_reformat_action(struct mlx5dr_domain *dmn,
 			return ret;
 		}
 
-		action->rewrite->chunk = mlx5dr_icm_alloc_chunk(dmn->action_icm_pool,
-								DR_CHUNK_SIZE_8);
-		if (!action->rewrite->chunk) {
-			mlx5dr_dbg(dmn, "Failed allocating modify header chunk\n");
-			return -ENOMEM;
-		}
+		action->rewrite->data = hw_actions;
+		action->rewrite->dmn = dmn;
 
-		action->rewrite->data = (void *)hw_actions;
-		action->rewrite->index = (mlx5dr_icm_pool_get_chunk_icm_addr
-					  (action->rewrite->chunk) -
-					 dmn->info.caps.hdr_modify_icm_addr) /
-					 DR_ACTION_CACHE_LINE_SIZE;
-
-		ret = mlx5dr_send_postsend_action(dmn, action);
+		ret = mlx5dr_ste_alloc_modify_hdr(action);
 		if (ret) {
-			mlx5dr_dbg(dmn, "Writing decap l3 actions to ICM failed\n");
-			mlx5dr_icm_free_chunk(action->rewrite->chunk);
+			mlx5dr_dbg(dmn, "Failed preparing reformat data\n");
 			return ret;
 		}
 		return 0;
@@ -2161,7 +2150,7 @@ int mlx5dr_action_destroy(struct mlx5dr_action *action)
 		refcount_dec(&action->reformat->dmn->refcount);
 		break;
 	case DR_ACTION_TYP_TNL_L3_TO_L2:
-		mlx5dr_icm_free_chunk(action->rewrite->chunk);
+		mlx5dr_ste_free_modify_hdr(action);
 		refcount_dec(&action->rewrite->dmn->refcount);
 		break;
 	case DR_ACTION_TYP_L2_TO_TNL_L2:
