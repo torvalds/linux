@@ -31,7 +31,6 @@ FIXTURE(rtc) {
 
 FIXTURE_SETUP(rtc) {
 	self->fd = open(rtc_file, O_RDONLY);
-	ASSERT_NE(-1, self->fd);
 }
 
 FIXTURE_TEARDOWN(rtc) {
@@ -41,6 +40,10 @@ FIXTURE_TEARDOWN(rtc) {
 TEST_F(rtc, date_read) {
 	int rc;
 	struct rtc_time rtc_tm;
+
+	if (self->fd == -1 && errno == ENOENT)
+		SKIP(return, "Skipping test since %s does not exist", rtc_file);
+	ASSERT_NE(-1, self->fd);
 
 	/* Read the RTC time/date */
 	rc = ioctl(self->fd, RTC_RD_TIME, &rtc_tm);
@@ -85,6 +88,10 @@ TEST_F_TIMEOUT(rtc, date_read_loop, READ_LOOP_DURATION_SEC + 2) {
 	struct rtc_time rtc_tm;
 	time_t start_rtc_read, prev_rtc_read;
 
+	if (self->fd == -1 && errno == ENOENT)
+		SKIP(return, "Skipping test since %s does not exist", rtc_file);
+	ASSERT_NE(-1, self->fd);
+
 	TH_LOG("Continuously reading RTC time for %ds (with %dms breaks after every read).",
 	       READ_LOOP_DURATION_SEC, READ_LOOP_SLEEP_MS);
 
@@ -119,6 +126,10 @@ TEST_F_TIMEOUT(rtc, uie_read, NUM_UIE + 2) {
 	int i, rc, irq = 0;
 	unsigned long data;
 
+	if (self->fd == -1 && errno == ENOENT)
+		SKIP(return, "Skipping test since %s does not exist", rtc_file);
+	ASSERT_NE(-1, self->fd);
+
 	/* Turn on update interrupts */
 	rc = ioctl(self->fd, RTC_UIE_ON, 0);
 	if (rc == -1) {
@@ -143,6 +154,10 @@ TEST_F_TIMEOUT(rtc, uie_read, NUM_UIE + 2) {
 TEST_F(rtc, uie_select) {
 	int i, rc, irq = 0;
 	unsigned long data;
+
+	if (self->fd == -1 && errno == ENOENT)
+		SKIP(return, "Skipping test since %s does not exist", rtc_file);
+	ASSERT_NE(-1, self->fd);
 
 	/* Turn on update interrupts */
 	rc = ioctl(self->fd, RTC_UIE_ON, 0);
@@ -182,6 +197,10 @@ TEST_F(rtc, alarm_alm_set) {
 	fd_set readfds;
 	time_t secs, new;
 	int rc;
+
+	if (self->fd == -1 && errno == ENOENT)
+		SKIP(return, "Skipping test since %s does not exist", rtc_file);
+	ASSERT_NE(-1, self->fd);
 
 	rc = ioctl(self->fd, RTC_RD_TIME, &tm);
 	ASSERT_NE(-1, rc);
@@ -237,6 +256,10 @@ TEST_F(rtc, alarm_wkalm_set) {
 	time_t secs, new;
 	int rc;
 
+	if (self->fd == -1 && errno == ENOENT)
+		SKIP(return, "Skipping test since %s does not exist", rtc_file);
+	ASSERT_NE(-1, self->fd);
+
 	rc = ioctl(self->fd, RTC_RD_TIME, &alarm.time);
 	ASSERT_NE(-1, rc);
 
@@ -284,6 +307,10 @@ TEST_F_TIMEOUT(rtc, alarm_alm_set_minute, 65) {
 	fd_set readfds;
 	time_t secs, new;
 	int rc;
+
+	if (self->fd == -1 && errno == ENOENT)
+		SKIP(return, "Skipping test since %s does not exist", rtc_file);
+	ASSERT_NE(-1, self->fd);
 
 	rc = ioctl(self->fd, RTC_RD_TIME, &tm);
 	ASSERT_NE(-1, rc);
@@ -338,6 +365,10 @@ TEST_F_TIMEOUT(rtc, alarm_wkalm_set_minute, 65) {
 	fd_set readfds;
 	time_t secs, new;
 	int rc;
+
+	if (self->fd == -1 && errno == ENOENT)
+		SKIP(return, "Skipping test since %s does not exist", rtc_file);
+	ASSERT_NE(-1, self->fd);
 
 	rc = ioctl(self->fd, RTC_RD_TIME, &alarm.time);
 	ASSERT_NE(-1, rc);
