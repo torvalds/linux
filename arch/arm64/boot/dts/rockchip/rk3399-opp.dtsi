@@ -11,7 +11,7 @@
 		opp-shared;
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <0>;
+		rockchip,low-temp = <10000>;
 		rockchip,low-temp-min-volt = <900000>;
 
 		nvmem-cells = <&cpul_leakage>, <&specification_serial_number>,
@@ -104,7 +104,7 @@
 		opp-shared;
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <0>;
+		rockchip,low-temp = <10000>;
 		rockchip,low-temp-min-volt = <900000>;
 
 		nvmem-cells = <&cpub_leakage>, <&specification_serial_number>,
@@ -224,7 +224,7 @@
 
 		rockchip,thermal-zone = "soc-thermal";
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <0>;
+		rockchip,low-temp = <10000>;
 		rockchip,low-temp-min-volt = <900000>;
 
 		nvmem-cells = <&gpu_leakage>;
