@@ -506,11 +506,9 @@ static void madvise_cold_page_range(struct mmu_gather *tlb,
 		.tlb = tlb,
 	};
 
-	vm_write_begin(vma);
 	tlb_start_vma(tlb, vma);
 	walk_page_range(vma->vm_mm, addr, end, &cold_walk_ops, &walk_private);
 	tlb_end_vma(tlb, vma);
-	vm_write_end(vma);
 }
 
 static long madvise_cold(struct vm_area_struct *vma,
@@ -543,11 +541,9 @@ static void madvise_pageout_page_range(struct mmu_gather *tlb,
 		.can_pageout_file = can_pageout_file,
 	};
 
-	vm_write_begin(vma);
 	tlb_start_vma(tlb, vma);
 	walk_page_range(vma->vm_mm, addr, end, &cold_walk_ops, &walk_private);
 	tlb_end_vma(tlb, vma);
-	vm_write_end(vma);
 }
 
 static inline bool can_do_file_pageout(struct vm_area_struct *vma)
@@ -754,12 +750,10 @@ static int madvise_free_single_vma(struct vm_area_struct *vma,
 	update_hiwater_rss(mm);
 
 	mmu_notifier_invalidate_range_start(&range);
-	vm_write_begin(vma);
 	tlb_start_vma(&tlb, vma);
 	walk_page_range(vma->vm_mm, range.start, range.end,
 			&madvise_free_walk_ops, &tlb);
 	tlb_end_vma(&tlb, vma);
-	vm_write_end(vma);
 	mmu_notifier_invalidate_range_end(&range);
 	tlb_finish_mmu(&tlb, range.start, range.end);
 
