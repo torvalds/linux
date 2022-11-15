@@ -243,6 +243,60 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 	return ret;
 }
 
+static inline int bch2_extent_update_i_size_sectors(struct btree_trans *trans,
+						    struct btree_iter *extent_iter,
+						    u64 new_i_size,
+						    s64 i_sectors_delta)
+{
+	struct btree_iter iter;
+	struct bkey_i *k;
+	struct bkey_i_inode_v3 *inode;
+	unsigned inode_update_flags = BTREE_UPDATE_NOJOURNAL;
+	int ret;
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_inodes,
+			     SPOS(0,
+				  extent_iter->pos.inode,
+				  extent_iter->snapshot),
+			     BTREE_ITER_INTENT|BTREE_ITER_CACHED);
+	k = bch2_bkey_get_mut(trans, &iter);
+	ret = PTR_ERR_OR_ZERO(k);
+	if (unlikely(ret))
+		goto err;
+
+	if (unlikely(k->k.type != KEY_TYPE_inode_v3)) {
+		k = bch2_inode_to_v3(trans, k);
+		ret = PTR_ERR_OR_ZERO(k);
+		if (unlikely(ret))
+			goto err;
+	}
+
+	inode = bkey_i_to_inode_v3(k);
+
+	if (!(le64_to_cpu(inode->v.bi_flags) & BCH_INODE_I_SIZE_DIRTY) &&
+	    new_i_size > le64_to_cpu(inode->v.bi_size)) {
+		inode->v.bi_size = cpu_to_le64(new_i_size);
+		inode_update_flags = 0;
+	}
+
+	if (i_sectors_delta) {
+		le64_add_cpu(&inode->v.bi_sectors, i_sectors_delta);
+		inode_update_flags = 0;
+	}
+
+	if (inode->k.p.snapshot != iter.snapshot) {
+		inode->k.p.snapshot = iter.snapshot;
+		inode_update_flags = 0;
+	}
+
+	ret = bch2_trans_update(trans, &iter, &inode->k_i,
+				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
+				inode_update_flags);
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
 int bch2_extent_update(struct btree_trans *trans,
 		       subvol_inum inum,
 		       struct btree_iter *iter,
@@ -252,13 +306,8 @@ int bch2_extent_update(struct btree_trans *trans,
 		       s64 *i_sectors_delta_total,
 		       bool check_enospc)
 {
-	struct btree_iter inode_iter = { NULL };
-	struct bkey_s_c inode_k;
-	struct bkey_s_c_inode_v3 inode;
-	struct bkey_i_inode_v3 *new_inode;
 	struct bpos next_pos;
 	bool usage_increasing;
-	unsigned inode_update_flags = BTREE_UPDATE_NOJOURNAL;
 	s64 i_sectors_delta = 0, disk_sectors_delta = 0;
 	int ret;
 
@@ -276,7 +325,6 @@ int bch2_extent_update(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	new_i_size = min(k->k.p.offset << 9, new_i_size);
 	next_pos = k->k.p;
 
 	ret = bch2_sum_sector_overwrites(trans, iter, k,
@@ -296,68 +344,26 @@ int bch2_extent_update(struct btree_trans *trans,
 			return ret;
 	}
 
-	bch2_trans_iter_init(trans, &inode_iter, BTREE_ID_inodes,
-			     SPOS(0, inum.inum, iter->snapshot),
-			     BTREE_ITER_INTENT|BTREE_ITER_CACHED);
-	inode_k = bch2_btree_iter_peek_slot(&inode_iter);
-	ret = bkey_err(inode_k);
-	if (unlikely(ret))
-		goto err;
-
-	ret = bkey_is_inode(inode_k.k) ? 0 : -ENOENT;
-	if (unlikely(ret))
-		goto err;
-
-	if (unlikely(inode_k.k->type != KEY_TYPE_inode_v3)) {
-		inode_k = bch2_inode_to_v3(trans, inode_k);
-		ret = bkey_err(inode_k);
-		if (unlikely(ret))
-			goto err;
-	}
-
-	inode = bkey_s_c_to_inode_v3(inode_k);
-
-	new_inode = bch2_trans_kmalloc(trans, bkey_bytes(inode_k.k));
-	ret = PTR_ERR_OR_ZERO(new_inode);
-	if (unlikely(ret))
-		goto err;
-
-	bkey_reassemble(&new_inode->k_i, inode.s_c);
-
-	if (!(le64_to_cpu(inode.v->bi_flags) & BCH_INODE_I_SIZE_DIRTY) &&
-	    new_i_size > le64_to_cpu(inode.v->bi_size)) {
-		new_inode->v.bi_size = cpu_to_le64(new_i_size);
-		inode_update_flags = 0;
-	}
-
-	if (i_sectors_delta) {
-		le64_add_cpu(&new_inode->v.bi_sectors, i_sectors_delta);
-		inode_update_flags = 0;
-	}
-
-	new_inode->k.p.snapshot = iter->snapshot;
-
 	/*
 	 * Note:
-	 * We always have to do an inode updated - even when i_size/i_sectors
+	 * We always have to do an inode update - even when i_size/i_sectors
 	 * aren't changing - for fsync to work properly; fsync relies on
 	 * inode->bi_journal_seq which is updated by the trigger code:
 	 */
-	ret =   bch2_trans_update(trans, &inode_iter, &new_inode->k_i,
-				  inode_update_flags) ?:
+	ret =   bch2_extent_update_i_size_sectors(trans, iter,
+						  min(k->k.p.offset << 9, new_i_size),
+						  i_sectors_delta) ?:
 		bch2_trans_update(trans, iter, k, 0) ?:
 		bch2_trans_commit(trans, disk_res, NULL,
 				BTREE_INSERT_NOCHECK_RW|
 				BTREE_INSERT_NOFAIL);
 	if (unlikely(ret))
-		goto err;
+		return ret;
 
 	if (i_sectors_delta_total)
 		*i_sectors_delta_total += i_sectors_delta;
 	bch2_btree_iter_set_pos(iter, next_pos);
-err:
-	bch2_trans_iter_exit(trans, &inode_iter);
-	return ret;
+	return 0;
 }
 
 /* Overwrites whatever was present with zeroes: */
