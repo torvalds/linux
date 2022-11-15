@@ -1100,8 +1100,10 @@ static int user_event_create(const char *raw_command)
 
 	group = current_user_event_group();
 
-	if (!group)
+	if (!group) {
+		kfree(name);
 		return -ENOENT;
+	}
 
 	mutex_lock(&group->reg_mutex);
 
