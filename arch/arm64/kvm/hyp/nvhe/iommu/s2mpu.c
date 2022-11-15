@@ -36,12 +36,20 @@
 #define for_each_child(child, dev) \
 	list_for_each_entry((child), &(dev)->children, siblings)
 
+/* HW version-specific operations. */
+struct s2mpu_reg_ops {
+	int (*init)(struct pkvm_iommu *dev);
+	void (*set_control_regs)(struct pkvm_iommu *dev);
+	u32 (*host_mmio_reg_access_mask)(size_t off, bool is_write);
+};
+
 struct s2mpu_drv_data {
 	u32 version;
 	u32 context_cfg_valid_vid;
 };
 
 static const struct s2mpu_mpt_ops *mpt_ops;
+static const struct s2mpu_reg_ops *reg_ops;
 static struct mpt host_mpt;
 
 const struct pkvm_iommu_ops pkvm_s2mpu_ops;
@@ -274,7 +282,7 @@ static int initialize_with_prot(struct pkvm_iommu *dev, enum mpt_prot prot)
 {
 	int ret;
 
-	ret = __initialize(dev);
+	ret = reg_ops->init(dev);
 	if (ret)
 		return ret;
 
@@ -282,7 +290,7 @@ static int initialize_with_prot(struct pkvm_iommu *dev, enum mpt_prot prot)
 	__all_invalidation(dev);
 
 	/* Set control registers, enable the S2MPU. */
-	__set_control_regs(dev);
+	reg_ops->set_control_regs(dev);
 	return 0;
 }
 
@@ -294,7 +302,7 @@ static int initialize_with_mpt(struct pkvm_iommu *dev, struct mpt *mpt)
 {
 	int ret;
 
-	ret = __initialize(dev);
+	ret = reg_ops->init(dev);
 	if (ret)
 		return ret;
 
@@ -302,7 +310,7 @@ static int initialize_with_mpt(struct pkvm_iommu *dev, struct mpt *mpt)
 	__all_invalidation(dev);
 
 	/* Set control registers, enable the S2MPU. */
-	__set_control_regs(dev);
+	reg_ops->set_control_regs(dev);
 	return 0;
 }
 
@@ -393,13 +401,12 @@ static int s2mpu_suspend(struct pkvm_iommu *dev)
 	return initialize_with_prot(dev, MPT_PROT_NONE);
 }
 
-static u32 host_mmio_reg_access_mask(size_t off, bool is_write)
+static u32 host_mmio_reg_access_mask_v8_v9(size_t off, bool is_write)
 {
-	const u32 no_access  = 0;
+	const u32 no_access = 0;
 	const u32 read_write = (u32)(-1);
-	const u32 read_only  = is_write ? no_access  : read_write;
+	const u32 read_only = is_write ? no_access : read_write;
 	const u32 write_only = is_write ? read_write : no_access;
-	u32 masked_off;
 
 	switch (off) {
 	/* Allow reading control registers for debugging. */
@@ -407,19 +414,7 @@ static u32 host_mmio_reg_access_mask(size_t off, bool is_write)
 		return read_only & CTRL0_MASK;
 	case REG_NS_CTRL1:
 		return read_only & CTRL1_MASK;
-	case REG_NS_CFG:
-		return read_only & CFG_MASK;
-	/* Allow EL1 IRQ handler to clear interrupts. */
-	case REG_NS_INTERRUPT_CLEAR:
-		return write_only & ALL_VIDS_BITMAP;
-	/* Allow reading number of sets used by MPTC. */
-	case REG_NS_INFO:
-		return read_only & INFO_NUM_SET_MASK;
-	/* Allow EL1 IRQ handler to read bitmap of pending interrupts. */
-	case REG_NS_FAULT_STATUS:
-		return read_only & ALL_VIDS_BITMAP;
-	/*
-	 * Allow reading MPTC entries for debugging. That involves:
+	/* Allow reading MPTC entries for debugging. That involves:
 	 *   - writing (set,way) to READ_MPTC
 	 *   - reading READ_MPTC_*
 	 */
@@ -431,6 +426,30 @@ static u32 host_mmio_reg_access_mask(size_t off, bool is_write)
 		return read_only & READ_MPTC_TAG_OTHERS_MASK;
 	case REG_NS_READ_MPTC_DATA:
 		return read_only;
+	};
+	return no_access;
+}
+
+static u32 host_mmio_reg_access_mask(size_t off, bool is_write)
+{
+	const u32 no_access  = 0;
+	const u32 read_write = (u32)(-1);
+	const u32 read_only  = is_write ? no_access  : read_write;
+	const u32 write_only = is_write ? read_write : no_access;
+	u32 masked_off;
+
+	switch (off) {
+	case REG_NS_CFG:
+		return read_only & CFG_MASK;
+	/* Allow EL1 IRQ handler to clear interrupts. */
+	case REG_NS_INTERRUPT_CLEAR:
+		return write_only & ALL_VIDS_BITMAP;
+	/* Allow reading number of sets used by MPTC. */
+	case REG_NS_INFO:
+		return read_only & INFO_NUM_SET_MASK;
+	/* Allow EL1 IRQ handler to read bitmap of pending interrupts. */
+	case REG_NS_FAULT_STATUS:
+		return read_only & ALL_VIDS_BITMAP;
 	}
 
 	/* Allow reading L1ENTRY registers for debugging. */
@@ -445,7 +464,8 @@ static u32 host_mmio_reg_access_mask(size_t off, bool is_write)
 	    (masked_off == REG_NS_FAULT_INFO(0)))
 		return read_only;
 
-	return no_access;
+	/* Check version-specific registers. */
+	return reg_ops->host_mmio_reg_access_mask(off, is_write);
 }
 
 static bool s2mpu_host_dabt_handler(struct pkvm_iommu *dev,
@@ -472,6 +492,12 @@ static bool s2mpu_host_dabt_handler(struct pkvm_iommu *dev,
 	return true;
 }
 
+const struct s2mpu_reg_ops ops_v8_v9 = {
+	.init = __initialize,
+	.host_mmio_reg_access_mask = host_mmio_reg_access_mask_v8_v9,
+	.set_control_regs = __set_control_regs,
+};
+
 static int s2mpu_init(void *data, size_t size)
 {
 	struct mpt in_mpt;
@@ -488,6 +514,11 @@ static int s2mpu_init(void *data, size_t size)
 	memcpy(&in_mpt, data, sizeof(in_mpt));
 
 	cfg.version = in_mpt.version;
+	if ((in_mpt.version == S2MPU_VERSION_8) || (in_mpt.version == S2MPU_VERSION_9))
+		reg_ops = &ops_v8_v9;
+	else
+		return -ENODEV;
+
 	/* Get page table operations for this version. */
 	mpt_ops = s2mpu_get_mpt_ops(cfg);
 	/* If version is wrong return. */
