@@ -576,8 +576,8 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 }
 EXPORT_SYMBOL(drm_fb_helper_fini);
 
-static void drm_fb_helper_damage(struct drm_fb_helper *helper, u32 x, u32 y,
-				 u32 width, u32 height)
+static void drm_fb_helper_add_damage_clip(struct drm_fb_helper *helper, u32 x, u32 y,
+					  u32 width, u32 height)
 {
 	struct drm_clip_rect *clip = &helper->damage_clip;
 	unsigned long flags;
@@ -588,6 +588,12 @@ static void drm_fb_helper_damage(struct drm_fb_helper *helper, u32 x, u32 y,
 	clip->x2 = max_t(u32, clip->x2, x + width);
 	clip->y2 = max_t(u32, clip->y2, y + height);
 	spin_unlock_irqrestore(&helper->damage_lock, flags);
+}
+
+static void drm_fb_helper_damage(struct drm_fb_helper *helper, u32 x, u32 y,
+				 u32 width, u32 height)
+{
+	drm_fb_helper_add_damage_clip(helper, x, y, width, height);
 
 	schedule_work(&helper->damage_work);
 }
