@@ -857,4 +857,11 @@ static inline int __vm_disable_nx_huge_pages(struct kvm_vm *vm)
 	return __vm_enable_cap(vm, KVM_CAP_VM_DISABLE_NX_HUGE_PAGES, 0);
 }
 
+/*
+ * Arch hook that is invoked via a constructor, i.e. before exeucting main(),
+ * to allow for arch-specific setup that is common to all tests, e.g. computing
+ * the default guest "mode".
+ */
+void kvm_selftest_arch_init(void);
+
 #endif /* SELFTEST_KVM_UTIL_BASE_H */
