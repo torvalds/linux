@@ -51,6 +51,19 @@ static const struct btrfs_csums {
 				     .driver = "blake2b-256" },
 };
 
+/*
+ * The leaf data grows from end-to-front in the node.  this returns the address
+ * of the start of the last item, which is the stop of the leaf data stack.
+ */
+static unsigned int leaf_data_end(const struct extent_buffer *leaf)
+{
+	u32 nr = btrfs_header_nritems(leaf);
+
+	if (nr == 0)
+		return BTRFS_LEAF_DATA_SIZE(leaf->fs_info);
+	return btrfs_item_offset(leaf, nr - 1);
+}
+
 int btrfs_super_csum_size(const struct btrfs_super_block *s)
 {
 	u16 t = btrfs_super_csum_type(s);
