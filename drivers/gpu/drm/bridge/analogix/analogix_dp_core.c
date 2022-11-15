@@ -37,6 +37,11 @@
 
 static const bool verify_fast_training;
 
+#ifdef CONFIG_NO_GKI
+#undef EXTCON_DISP_DP
+#define EXTCON_DISP_DP	EXTCON_DISP_EDP
+#endif
+
 static const unsigned int analogix_dp_cable[] = {
 	EXTCON_DISP_DP,
 	EXTCON_NONE,
