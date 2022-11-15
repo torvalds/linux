@@ -815,8 +815,7 @@ void fpsimd_sync_to_sve(struct task_struct *task)
  */
 void sve_sync_to_fpsimd(struct task_struct *task)
 {
-	if (test_tsk_thread_flag(task, TIF_SVE) ||
-	    thread_sm_enabled(&task->thread))
+	if (task->thread.fp_type == FP_STATE_SVE)
 		sve_to_fpsimd(task);
 }
 
