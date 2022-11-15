@@ -1784,10 +1784,10 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 
 		/* Also check if the item pointer overlaps with btrfs item. */
 		if (unlikely(btrfs_item_ptr_offset(leaf, slot) <
-			     btrfs_item_nr_offset(slot) + sizeof(struct btrfs_item))) {
+			     btrfs_item_nr_offset(leaf, slot) + sizeof(struct btrfs_item))) {
 			generic_err(leaf, slot,
 		"slot overlaps with its data, item end %lu data start %lu",
-				btrfs_item_nr_offset(slot) +
+				btrfs_item_nr_offset(leaf, slot) +
 				sizeof(struct btrfs_item),
 				btrfs_item_ptr_offset(leaf, slot));
 			return -EUCLEAN;

@@ -417,37 +417,37 @@ BTRFS_SETGET_FUNCS(raw_item_size, struct btrfs_item, size, 32);
 BTRFS_SETGET_STACK_FUNCS(stack_item_offset, struct btrfs_item, offset, 32);
 BTRFS_SETGET_STACK_FUNCS(stack_item_size, struct btrfs_item, size, 32);
 
-static inline unsigned long btrfs_item_nr_offset(int nr)
+static inline unsigned long btrfs_item_nr_offset(const struct extent_buffer *eb, int nr)
 {
 	return offsetof(struct btrfs_leaf, items) +
 		sizeof(struct btrfs_item) * nr;
 }
 
-static inline struct btrfs_item *btrfs_item_nr(int nr)
+static inline struct btrfs_item *btrfs_item_nr(const struct extent_buffer *eb, int nr)
 {
-	return (struct btrfs_item *)btrfs_item_nr_offset(nr);
+	return (struct btrfs_item *)btrfs_item_nr_offset(eb, nr);
 }
 
 #define BTRFS_ITEM_SETGET_FUNCS(member)						\
 static inline u32 btrfs_item_##member(const struct extent_buffer *eb, int slot)	\
 {										\
-	return btrfs_raw_item_##member(eb, btrfs_item_nr(slot));		\
+	return btrfs_raw_item_##member(eb, btrfs_item_nr(eb, slot));		\
 }										\
 static inline void btrfs_set_item_##member(const struct extent_buffer *eb,	\
 					   int slot, u32 val)			\
 {										\
-	btrfs_set_raw_item_##member(eb, btrfs_item_nr(slot), val);		\
+	btrfs_set_raw_item_##member(eb, btrfs_item_nr(eb, slot), val);		\
 }										\
 static inline u32 btrfs_token_item_##member(struct btrfs_map_token *token,	\
 					    int slot)				\
 {										\
-	struct btrfs_item *item = btrfs_item_nr(slot);				\
+	struct btrfs_item *item = btrfs_item_nr(token->eb, slot);		\
 	return btrfs_token_raw_item_##member(token, item);			\
 }										\
 static inline void btrfs_set_token_item_##member(struct btrfs_map_token *token,	\
 						 int slot, u32 val)		\
 {										\
-	struct btrfs_item *item = btrfs_item_nr(slot);				\
+	struct btrfs_item *item = btrfs_item_nr(token->eb, slot);		\
 	btrfs_set_token_raw_item_##member(token, item, val);			\
 }
 
@@ -462,7 +462,7 @@ static inline u32 btrfs_item_data_end(const struct extent_buffer *eb, int nr)
 static inline void btrfs_item_key(const struct extent_buffer *eb,
 			   struct btrfs_disk_key *disk_key, int nr)
 {
-	struct btrfs_item *item = btrfs_item_nr(nr);
+	struct btrfs_item *item = btrfs_item_nr(eb, nr);
 
 	read_eb_member(eb, item, struct btrfs_item, key, disk_key);
 }
@@ -470,7 +470,7 @@ static inline void btrfs_item_key(const struct extent_buffer *eb,
 static inline void btrfs_set_item_key(struct extent_buffer *eb,
 				      struct btrfs_disk_key *disk_key, int nr)
 {
-	struct btrfs_item *item = btrfs_item_nr(nr);
+	struct btrfs_item *item = btrfs_item_nr(eb, nr);
 
 	write_eb_member(eb, item, struct btrfs_item, key, disk_key);
 }
