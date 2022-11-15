@@ -286,32 +286,6 @@ static void drm_sched_job_done_cb(struct dma_fence *f, struct dma_fence_cb *cb)
 }
 
 /**
- * drm_sched_dependency_optimized - test if the dependency can be optimized
- *
- * @fence: the dependency fence
- * @entity: the entity which depends on the above fence
- *
- * Returns true if the dependency can be optimized and false otherwise
- */
-bool drm_sched_dependency_optimized(struct dma_fence* fence,
-				    struct drm_sched_entity *entity)
-{
-	struct drm_gpu_scheduler *sched = entity->rq->sched;
-	struct drm_sched_fence *s_fence;
-
-	if (!fence || dma_fence_is_signaled(fence))
-		return false;
-	if (fence->context == entity->fence_context)
-		return true;
-	s_fence = to_drm_sched_fence(fence);
-	if (s_fence && s_fence->sched == sched)
-		return true;
-
-	return false;
-}
-EXPORT_SYMBOL(drm_sched_dependency_optimized);
-
-/**
  * drm_sched_start_timeout - start timeout for reset worker
  *
  * @sched: scheduler instance to start the worker for
@@ -773,6 +747,41 @@ int drm_sched_job_add_dependency(struct drm_sched_job *job,
 EXPORT_SYMBOL(drm_sched_job_add_dependency);
 
 /**
+ * drm_sched_job_add_resv_dependencies - add all fences from the resv to the job
+ * @job: scheduler job to add the dependencies to
+ * @resv: the dma_resv object to get the fences from
+ * @usage: the dma_resv_usage to use to filter the fences
+ *
+ * This adds all fences matching the given usage from @resv to @job.
+ * Must be called with the @resv lock held.
+ *
+ * Returns:
+ * 0 on success, or an error on failing to expand the array.
+ */
+int drm_sched_job_add_resv_dependencies(struct drm_sched_job *job,
+					struct dma_resv *resv,
+					enum dma_resv_usage usage)
+{
+	struct dma_resv_iter cursor;
+	struct dma_fence *fence;
+	int ret;
+
+	dma_resv_assert_held(resv);
+
+	dma_resv_for_each_fence(&cursor, resv, usage, fence) {
+		/* Make sure to grab an additional ref on the added fence */
+		dma_fence_get(fence);
+		ret = drm_sched_job_add_dependency(job, fence);
+		if (ret) {
+			dma_fence_put(fence);
+			return ret;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL(drm_sched_job_add_resv_dependencies);
+
+/**
  * drm_sched_job_add_implicit_dependencies - adds implicit dependencies as job
  *   dependencies
  * @job: scheduler job to add the dependencies to
@@ -791,26 +800,10 @@ int drm_sched_job_add_implicit_dependencies(struct drm_sched_job *job,
 					    struct drm_gem_object *obj,
 					    bool write)
 {
-	struct dma_resv_iter cursor;
-	struct dma_fence *fence;
-	int ret;
-
-	dma_resv_assert_held(obj->resv);
-
-	dma_resv_for_each_fence(&cursor, obj->resv, dma_resv_usage_rw(write),
-				fence) {
-		/* Make sure to grab an additional ref on the added fence */
-		dma_fence_get(fence);
-		ret = drm_sched_job_add_dependency(job, fence);
-		if (ret) {
-			dma_fence_put(fence);
-			return ret;
-		}
-	}
-	return 0;
+	return drm_sched_job_add_resv_dependencies(job, obj->resv,
+						   dma_resv_usage_rw(write));
 }
 EXPORT_SYMBOL(drm_sched_job_add_implicit_dependencies);
-
 
 /**
  * drm_sched_job_cleanup - clean up scheduler job resources

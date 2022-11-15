@@ -1184,11 +1184,20 @@ struct drm_plane_helper_funcs {
 	 * can call drm_gem_plane_helper_prepare_fb() from their @prepare_fb
 	 * hook.
 	 *
+	 * The resources acquired in @prepare_fb persist after the end of
+	 * the atomic commit. Resources that can be release at the commit's end
+	 * should be acquired in @begin_fb_access and released in @end_fb_access.
+	 * For example, a GEM buffer's pin operation belongs into @prepare_fb to
+	 * keep the buffer pinned after the commit. But a vmap operation for
+	 * shadow-plane helpers belongs into @begin_fb_access, so that atomic
+	 * helpers remove the mapping at the end of the commit.
+	 *
 	 * The helpers will call @cleanup_fb with matching arguments for every
 	 * successful call to this hook.
 	 *
 	 * This callback is used by the atomic modeset helpers and by the
-	 * transitional plane helpers, but it is optional.
+	 * transitional plane helpers, but it is optional. See @begin_fb_access
+	 * for preparing per-commit resources.
 	 *
 	 * RETURNS:
 	 *
@@ -1210,6 +1219,36 @@ struct drm_plane_helper_funcs {
 	 */
 	void (*cleanup_fb)(struct drm_plane *plane,
 			   struct drm_plane_state *old_state);
+
+	/**
+	 * @begin_fb_access:
+	 *
+	 * This hook prepares the plane for access during an atomic commit.
+	 * In contrast to @prepare_fb, resources acquired in @begin_fb_access,
+	 * are released at the end of the atomic commit in @end_fb_access.
+	 *
+	 * For example, with shadow-plane helpers, the GEM buffer's vmap
+	 * operation belongs into @begin_fb_access, so that the buffer's
+	 * memory will be unmapped at the end of the commit in @end_fb_access.
+	 * But a GEM buffer's pin operation belongs into @prepare_fb
+	 * to keep the buffer pinned after the commit.
+	 *
+	 * The callback is used by the atomic modeset helpers, but it is optional.
+	 * See @end_fb_cleanup for undoing the effects of @begin_fb_access and
+	 * @prepare_fb for acquiring resources until the next pageflip.
+	 *
+	 * Returns:
+	 * 0 on success, or a negative errno code otherwise.
+	 */
+	int (*begin_fb_access)(struct drm_plane *plane, struct drm_plane_state *new_plane_state);
+
+	/**
+	 * @end_fb_access:
+	 *
+	 * This hook cleans up resources allocated by @begin_fb_access. It it called
+	 * at the end of a commit for the new plane state.
+	 */
+	void (*end_fb_access)(struct drm_plane *plane, struct drm_plane_state *new_plane_state);
 
 	/**
 	 * @atomic_check:

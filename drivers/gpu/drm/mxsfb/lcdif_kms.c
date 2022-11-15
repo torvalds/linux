@@ -5,6 +5,7 @@
  * This code is based on drivers/gpu/drm/mxsfb/mxsfb*
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -332,6 +333,18 @@ static void lcdif_enable_controller(struct lcdif_drm_private *lcdif)
 {
 	u32 reg;
 
+	/* Set FIFO Panic watermarks, low 1/3, high 2/3 . */
+	writel(FIELD_PREP(PANIC0_THRES_LOW_MASK, 1 * PANIC0_THRES_MAX / 3) |
+	       FIELD_PREP(PANIC0_THRES_HIGH_MASK, 2 * PANIC0_THRES_MAX / 3),
+	       lcdif->base + LCDC_V8_PANIC0_THRES);
+
+	/*
+	 * Enable FIFO Panic, this does not generate interrupt, but
+	 * boosts NoC priority based on FIFO Panic watermarks.
+	 */
+	writel(INT_ENABLE_D1_PLANE_PANIC_EN,
+	       lcdif->base + LCDC_V8_INT_ENABLE_D1);
+
 	reg = readl(lcdif->base + LCDC_V8_DISP_PARA);
 	reg |= DISP_PARA_DISP_ON;
 	writel(reg, lcdif->base + LCDC_V8_DISP_PARA);
@@ -359,6 +372,9 @@ static void lcdif_disable_controller(struct lcdif_drm_private *lcdif)
 	reg = readl(lcdif->base + LCDC_V8_DISP_PARA);
 	reg &= ~DISP_PARA_DISP_ON;
 	writel(reg, lcdif->base + LCDC_V8_DISP_PARA);
+
+	/* Disable FIFO Panic NoC priority booster. */
+	writel(0, lcdif->base + LCDC_V8_INT_ENABLE_D1);
 }
 
 static void lcdif_reset_block(struct lcdif_drm_private *lcdif)

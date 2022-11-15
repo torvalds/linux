@@ -189,7 +189,6 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 	struct amdgpu_device *adev = ring->adev;
 	unsigned offset, num_pages, num_dw, num_bytes;
 	uint64_t src_addr, dst_addr;
-	struct dma_fence *fence;
 	struct amdgpu_job *job;
 	void *cpu_addr;
 	uint64_t flags;
@@ -229,7 +228,9 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 	num_dw = ALIGN(adev->mman.buffer_funcs->copy_num_dw, 8);
 	num_bytes = num_pages * 8 * AMDGPU_GPU_PAGES_IN_CPU_PAGE;
 
-	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4 + num_bytes,
+	r = amdgpu_job_alloc_with_ib(adev, &adev->mman.entity,
+				     AMDGPU_FENCE_OWNER_UNDEFINED,
+				     num_dw * 4 + num_bytes,
 				     AMDGPU_IB_POOL_DELAYED, &job);
 	if (r)
 		return r;
@@ -269,18 +270,8 @@ static int amdgpu_ttm_map_buffer(struct ttm_buffer_object *bo,
 		}
 	}
 
-	r = amdgpu_job_submit(job, &adev->mman.entity,
-			      AMDGPU_FENCE_OWNER_UNDEFINED, &fence);
-	if (r)
-		goto error_free;
-
-	dma_fence_put(fence);
-
-	return r;
-
-error_free:
-	amdgpu_job_free(job);
-	return r;
+	dma_fence_put(amdgpu_job_submit(job));
+	return 0;
 }
 
 /**
@@ -1417,7 +1408,8 @@ static void amdgpu_ttm_vram_mm_access(struct amdgpu_device *adev, loff_t pos,
 }
 
 static int amdgpu_ttm_access_memory_sdma(struct ttm_buffer_object *bo,
-					unsigned long offset, void *buf, int len, int write)
+					unsigned long offset, void *buf,
+					int len, int write)
 {
 	struct amdgpu_bo *abo = ttm_to_amdgpu_bo(bo);
 	struct amdgpu_device *adev = amdgpu_ttm_adev(abo->tbo.bdev);
@@ -1441,26 +1433,27 @@ static int amdgpu_ttm_access_memory_sdma(struct ttm_buffer_object *bo,
 		memcpy(adev->mman.sdma_access_ptr, buf, len);
 
 	num_dw = ALIGN(adev->mman.buffer_funcs->copy_num_dw, 8);
-	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4, AMDGPU_IB_POOL_DELAYED, &job);
+	r = amdgpu_job_alloc_with_ib(adev, &adev->mman.entity,
+				     AMDGPU_FENCE_OWNER_UNDEFINED,
+				     num_dw * 4, AMDGPU_IB_POOL_DELAYED,
+				     &job);
 	if (r)
 		goto out;
 
 	amdgpu_res_first(abo->tbo.resource, offset, len, &src_mm);
-	src_addr = amdgpu_ttm_domain_start(adev, bo->resource->mem_type) + src_mm.start;
+	src_addr = amdgpu_ttm_domain_start(adev, bo->resource->mem_type) +
+		src_mm.start;
 	dst_addr = amdgpu_bo_gpu_offset(adev->mman.sdma_access_bo);
 	if (write)
 		swap(src_addr, dst_addr);
 
-	amdgpu_emit_copy_buffer(adev, &job->ibs[0], src_addr, dst_addr, PAGE_SIZE, false);
+	amdgpu_emit_copy_buffer(adev, &job->ibs[0], src_addr, dst_addr,
+				PAGE_SIZE, false);
 
 	amdgpu_ring_pad_ib(adev->mman.buffer_funcs_ring, &job->ibs[0]);
 	WARN_ON(job->ibs[0].length_dw > num_dw);
 
-	r = amdgpu_job_submit(job, &adev->mman.entity, AMDGPU_FENCE_OWNER_UNDEFINED, &fence);
-	if (r) {
-		amdgpu_job_free(job);
-		goto out;
-	}
+	fence = amdgpu_job_submit(job);
 
 	if (!dma_fence_wait_timeout(fence, false, adev->sdma_timeout))
 		r = -ETIMEDOUT;
@@ -1959,7 +1952,9 @@ static int amdgpu_ttm_prepare_job(struct amdgpu_device *adev,
 		AMDGPU_IB_POOL_DELAYED;
 	int r;
 
-	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4, pool, job);
+	r = amdgpu_job_alloc_with_ib(adev, &adev->mman.entity,
+				     AMDGPU_FENCE_OWNER_UNDEFINED,
+				     num_dw * 4, pool, job);
 	if (r)
 		return r;
 
@@ -1969,17 +1964,11 @@ static int amdgpu_ttm_prepare_job(struct amdgpu_device *adev,
 							adev->gart.bo);
 		(*job)->vm_needs_flush = true;
 	}
-	if (resv) {
-		r = amdgpu_sync_resv(adev, &(*job)->sync, resv,
-				     AMDGPU_SYNC_ALWAYS,
-				     AMDGPU_FENCE_OWNER_UNDEFINED);
-		if (r) {
-			DRM_ERROR("sync failed (%d).\n", r);
-			amdgpu_job_free(*job);
-			return r;
-		}
-	}
-	return 0;
+	if (!resv)
+		return 0;
+
+	return drm_sched_job_add_resv_dependencies(&(*job)->base, resv,
+						   DMA_RESV_USAGE_BOOKKEEP);
 }
 
 int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
@@ -2024,8 +2013,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 	if (direct_submit)
 		r = amdgpu_job_submit_direct(job, ring, fence);
 	else
-		r = amdgpu_job_submit(job, &adev->mman.entity,
-				      AMDGPU_FENCE_OWNER_UNDEFINED, fence);
+		*fence = amdgpu_job_submit(job);
 	if (r)
 		goto error_free;
 
@@ -2070,16 +2058,8 @@ static int amdgpu_ttm_fill_mem(struct amdgpu_ring *ring, uint32_t src_data,
 
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 	WARN_ON(job->ibs[0].length_dw > num_dw);
-	r = amdgpu_job_submit(job, &adev->mman.entity,
-			      AMDGPU_FENCE_OWNER_UNDEFINED, fence);
-	if (r)
-		goto error_free;
-
+	*fence = amdgpu_job_submit(job);
 	return 0;
-
-error_free:
-	amdgpu_job_free(job);
-	return r;
 }
 
 int amdgpu_fill_buffer(struct amdgpu_bo *bo,
