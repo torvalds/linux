@@ -752,25 +752,25 @@
 
 		pwm0 {
 			pwm0_pin: pwm0-pin {
-				rockchip,pins = <0 RK_PA0 2 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PA0 2 &pcfg_pull_default>;
 			};
 		};
 
 		pwm1 {
 			pwm1_pin: pwm1-pin {
-				rockchip,pins = <0 RK_PA1 2 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PA1 2 &pcfg_pull_default>;
 			};
 		};
 
 		pwm2 {
 			pwm2_pin: pwm2-pin {
-				rockchip,pins = <0 RK_PA1 2 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PA1 2 &pcfg_pull_default>;
 			};
 		};
 
 		pwm3 {
 			pwm3_pin: pwm3-pin {
-				rockchip,pins = <0 RK_PD3 1 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PD3 1 &pcfg_pull_default>;
 			};
 		};
 
