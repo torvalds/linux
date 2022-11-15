@@ -29,9 +29,10 @@
 #include "amdgpu_fru_eeprom.h"
 #include "amdgpu_eeprom.h"
 
-#define FRU_EEPROM_MADDR        0x60000
+#define FRU_EEPROM_MADDR_6      0x60000
+#define FRU_EEPROM_MADDR_8      0x80000
 
-static bool is_fru_eeprom_supported(struct amdgpu_device *adev)
+static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 {
 	/* Only server cards have the FRU EEPROM
 	 * TODO: See if we can figure this out dynamically instead of
@@ -45,6 +46,11 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		return false;
 
+	/* The default I2C EEPROM address of the FRU.
+	 */
+	if (fru_addr)
+		*fru_addr = FRU_EEPROM_MADDR_8;
+
 	/* VBIOS is of the format ###-DXXXYYYY-##. For SKU identification,
 	 * we can use just the "DXXX" portion. If there were more models, we
 	 * could convert the 3 characters to a hex integer and use a switch
@@ -57,21 +63,29 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev)
 		if (strnstr(atom_ctx->vbios_version, "D161",
 			    sizeof(atom_ctx->vbios_version)) ||
 		    strnstr(atom_ctx->vbios_version, "D163",
-			    sizeof(atom_ctx->vbios_version)))
+			    sizeof(atom_ctx->vbios_version))) {
+			*fru_addr = FRU_EEPROM_MADDR_6;
 			return true;
-		else
+		} else {
 			return false;
+		}
 	case CHIP_ALDEBARAN:
-		/* All Aldebaran SKUs have the FRU */
+		/* All Aldebaran SKUs have an FRU */
+		if (!strnstr(atom_ctx->vbios_version, "D673",
+			     sizeof(atom_ctx->vbios_version)))
+			if (fru_addr)
+				*fru_addr = FRU_EEPROM_MADDR_6;
 		return true;
 	case CHIP_SIENNA_CICHLID:
 		if (strnstr(atom_ctx->vbios_version, "D603",
-		    sizeof(atom_ctx->vbios_version))) {
+			    sizeof(atom_ctx->vbios_version))) {
 			if (strnstr(atom_ctx->vbios_version, "D603GLXE",
-			    sizeof(atom_ctx->vbios_version)))
+				    sizeof(atom_ctx->vbios_version))) {
 				return false;
-			else
+			} else {
+				*fru_addr = FRU_EEPROM_MADDR_6;
 				return true;
+			}
 		} else {
 			return false;
 		}
@@ -111,10 +125,10 @@ static int amdgpu_fru_read_eeprom(struct amdgpu_device *adev, uint32_t addrptr,
 int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 {
 	unsigned char buf[AMDGPU_PRODUCT_NAME_LEN];
-	u32 addrptr;
+	u32 addrptr, fru_addr;
 	int size, len;
 
-	if (!is_fru_eeprom_supported(adev))
+	if (!is_fru_eeprom_supported(adev, &fru_addr))
 		return 0;
 
 	/* If algo exists, it means that the i2c_adapter's initialized */
@@ -135,7 +149,7 @@ int amdgpu_fru_get_product_info(struct amdgpu_device *adev)
 	 * Bytes 8-a are all 1-byte and refer to the size of the entire struct,
 	 * and the language field, so just start from 0xb, manufacturer size
 	 */
-	addrptr = FRU_EEPROM_MADDR + 0xb;
+	addrptr = fru_addr + 0xb;
 	size = amdgpu_fru_read_eeprom(adev, addrptr, buf, sizeof(buf));
 	if (size < 1) {
 		DRM_ERROR("Failed to read FRU Manufacturer, ret:%d", size);
