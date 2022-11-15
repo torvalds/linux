@@ -19,51 +19,25 @@ package(
 
 load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define_db845c")
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers")
-
-_common_gki_modules_list = [
-    # keep sorted
-    "drivers/block/zram/zram.ko",
-    "drivers/bluetooth/btbcm.ko",
-    "drivers/bluetooth/btqca.ko",
-    "drivers/bluetooth/btsdio.ko",
-    "drivers/bluetooth/hci_uart.ko",
-    "drivers/net/can/dev/can-dev.ko",
-    "drivers/net/can/slcan/slcan.ko",
-    "drivers/net/can/vcan.ko",
-    "drivers/usb/class/cdc-acm.ko",
-    "drivers/usb/serial/ftdi_sio.ko",
-    "drivers/usb/serial/usbserial.ko",
-    "mm/zsmalloc.ko",
-    "net/8021q/8021q.ko",
-    "net/bluetooth/hidp/hidp.ko",
-    "net/bluetooth/rfcomm/rfcomm.ko",
-    "net/can/can-bcm.ko",
-    "net/can/can-gw.ko",
-    "net/can/can-raw.ko",
-    "net/mac80211/mac80211.ko",
-    "net/nfc/nfc.ko",
-    "net/tipc/diag.ko",
-    "net/tipc/tipc.ko",
-    "net/wireless/cfg80211.ko",
-]
+load(":modules.bzl", "COMMON_GKI_MODULES_LIST")
 
 define_common_kernels(target_configs = {
     "kernel_aarch64": {
-        "module_implicit_outs": _common_gki_modules_list,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
     },
     "kernel_aarch64_16k": {
-        "module_implicit_outs": _common_gki_modules_list,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
     },
     "kernel_aarch64_debug": {
-        "module_implicit_outs": _common_gki_modules_list,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
     },
     "kernel_x86_64": {
         "kmi_symbol_list_strict_mode": False,
-        "module_implicit_outs": _common_gki_modules_list,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
     },
     "kernel_x86_64_debug": {
         "kmi_symbol_list_strict_mode": False,
-        "module_implicit_outs": _common_gki_modules_list,
+        "module_implicit_outs": COMMON_GKI_MODULES_LIST,
     },
 })
 
