@@ -126,18 +126,17 @@ static void altera_jtaguart_set_termios(struct uart_port *port,
 static void altera_jtaguart_rx_chars(struct altera_jtaguart *pp)
 {
 	struct uart_port *port = &pp->port;
-	unsigned char ch, flag;
+	unsigned char ch;
 	unsigned long status;
 
 	while ((status = readl(port->membase + ALTERA_JTAGUART_DATA_REG)) &
 	       ALTERA_JTAGUART_DATA_RVALID_MSK) {
 		ch = status & ALTERA_JTAGUART_DATA_DATA_MSK;
-		flag = TTY_NORMAL;
 		port->icount.rx++;
 
 		if (uart_handle_sysrq_char(port, ch))
 			continue;
-		uart_insert_char(port, 0, 0, ch, flag);
+		uart_insert_char(port, 0, 0, ch, TTY_NORMAL);
 	}
 
 	tty_flip_buffer_push(&port->state->port);
