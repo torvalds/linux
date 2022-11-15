@@ -119,7 +119,7 @@ This example BPF program shows how to access an array element.
             index = ip.protocol;
             value = bpf_map_lookup_elem(&my_map, &index);
             if (value)
-                    __sync_fetch_and_add(&value, skb->len);
+                    __sync_fetch_and_add(value, skb->len);
 
             return 0;
     }
