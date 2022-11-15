@@ -15,11 +15,13 @@ struct s2mpu_mpt_cfg {
 };
 
 struct s2mpu_mpt_ops {
+	u32 (*smpt_size)(void);
 	void (*init_with_prot)(void *dev_va, enum mpt_prot prot);
 	void (*init_with_mpt)(void *dev_va, struct mpt *mpt);
 	void (*apply_range)(void *dev_va, struct mpt *mpt, u32 first_gb, u32 last_gb);
 	void (*prepare_range)(struct mpt *mpt, phys_addr_t first_byte,
 			      phys_addr_t last_byte, enum mpt_prot prot);
+	int (*pte_from_addr_smpt)(u32 *smpt, u64 addr);
 };
 
 const struct s2mpu_mpt_ops *s2mpu_get_mpt_ops(struct s2mpu_mpt_cfg cfg);
