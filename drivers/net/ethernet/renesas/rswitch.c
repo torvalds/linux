@@ -920,7 +920,7 @@ static void rswitch_etha_write_mac_address(struct rswitch_etha *etha, const u8 *
 		  etha->addr + MRMAC1);
 }
 
-static bool rswitch_etha_wait_link_verification(struct rswitch_etha *etha)
+static int rswitch_etha_wait_link_verification(struct rswitch_etha *etha)
 {
 	iowrite32(MLVC_PLV, etha->addr + MLVC);
 
