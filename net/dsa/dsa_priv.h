@@ -17,9 +17,10 @@
 
 #define DSA_MAX_NUM_OFFLOADING_BRIDGES		BITS_PER_LONG
 
-#define DSA_TAG_DRIVER_ALIAS "dsa_tag-"
-#define MODULE_ALIAS_DSA_TAG_DRIVER(__proto)				\
-	MODULE_ALIAS(DSA_TAG_DRIVER_ALIAS __stringify(__proto##_VALUE))
+#define DSA_TAG_DRIVER_ALIAS "dsa_tag:"
+#define MODULE_ALIAS_DSA_TAG_DRIVER(__proto) \
+	MODULE_ALIAS(DSA_TAG_DRIVER_ALIAS "id-" \
+		     __stringify(__proto##_VALUE))
 
 struct dsa_tag_driver {
 	const struct dsa_device_ops *ops;

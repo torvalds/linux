@@ -108,7 +108,7 @@ const struct dsa_device_ops *dsa_tag_driver_get(int tag_protocol)
 	const struct dsa_device_ops *ops;
 	bool found = false;
 
-	request_module("%s%d", DSA_TAG_DRIVER_ALIAS, tag_protocol);
+	request_module("%sid-%d", DSA_TAG_DRIVER_ALIAS, tag_protocol);
 
 	mutex_lock(&dsa_tag_drivers_lock);
 	list_for_each_entry(dsa_tag_driver, &dsa_tag_drivers_list, list) {
