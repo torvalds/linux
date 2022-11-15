@@ -52,14 +52,17 @@ static const struct mtk_eint_regs mtk_generic_eint_regs = {
 const unsigned int debounce_time_mt2701[] = {
 	500, 1000, 16000, 32000, 64000, 128000, 256000, 0
 };
+EXPORT_SYMBOL_GPL(debounce_time_mt2701);
 
 const unsigned int debounce_time_mt6765[] = {
 	125, 250, 500, 1000, 16000, 32000, 64000, 128000, 256000, 512000, 0
 };
+EXPORT_SYMBOL_GPL(debounce_time_mt6765);
 
 const unsigned int debounce_time_mt6795[] = {
 	500, 1000, 16000, 32000, 64000, 128000, 256000, 512000, 0
 };
+EXPORT_SYMBOL_GPL(debounce_time_mt6795);
 
 static void __iomem *mtk_eint_get_offset(struct mtk_eint *eint,
 					 unsigned int eint_num,
