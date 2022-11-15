@@ -1109,7 +1109,7 @@ static int stm32h7_adc_selfcalib(struct iio_dev *indio_dev, int do_lincal)
 					   !(val & STM32H7_ADCAL), 100,
 					   STM32H7_ADC_CALIB_TIMEOUT_US);
 	if (ret) {
-		dev_err(&indio_dev->dev, "calibration failed\n");
+		dev_err(&indio_dev->dev, "calibration (single-ended) error %d\n", ret);
 		goto out;
 	}
 
@@ -1125,7 +1125,8 @@ static int stm32h7_adc_selfcalib(struct iio_dev *indio_dev, int do_lincal)
 					   !(val & STM32H7_ADCAL), 100,
 					   STM32H7_ADC_CALIB_TIMEOUT_US);
 	if (ret) {
-		dev_err(&indio_dev->dev, "calibration failed\n");
+		dev_err(&indio_dev->dev, "calibration (diff%s) error %d\n",
+			(msk & STM32H7_ADCALLIN) ? "+linear" : "", ret);
 		goto out;
 	}
 
