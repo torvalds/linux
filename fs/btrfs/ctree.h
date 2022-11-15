@@ -335,6 +335,23 @@ struct btrfs_root {
 #endif
 };
 
+static inline bool btrfs_root_readonly(const struct btrfs_root *root)
+{
+	/* Byte-swap the constant at compile time, root_item::flags is LE */
+	return (root->root_item.flags & cpu_to_le64(BTRFS_ROOT_SUBVOL_RDONLY)) != 0;
+}
+
+static inline bool btrfs_root_dead(const struct btrfs_root *root)
+{
+	/* Byte-swap the constant at compile time, root_item::flags is LE */
+	return (root->root_item.flags & cpu_to_le64(BTRFS_ROOT_SUBVOL_DEAD)) != 0;
+}
+
+static inline u64 btrfs_root_id(const struct btrfs_root *root)
+{
+	return root->root_key.objectid;
+}
+
 /*
  * Structure that conveys information about an extent that is going to replace
  * all the extents in a file range.
