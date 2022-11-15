@@ -586,6 +586,11 @@ void __vm_xsave_require_permission(int bit, const char *name)
 		    bitmask);
 }
 
+void kvm_arch_vm_post_create(struct kvm_vm *vm)
+{
+	vm_create_irqchip(vm);
+}
+
 struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
 				  void *guest_code)
 {

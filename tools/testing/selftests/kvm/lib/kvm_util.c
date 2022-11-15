@@ -351,9 +351,7 @@ struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint32_t nr_runnable_vcpus,
 	slot0 = memslot2region(vm, 0);
 	ucall_init(vm, slot0->region.guest_phys_addr + slot0->region.memory_size);
 
-#ifdef __x86_64__
-	vm_create_irqchip(vm);
-#endif
+	kvm_arch_vm_post_create(vm);
 
 	return vm;
 }
@@ -2085,6 +2083,10 @@ void __vm_get_stat(struct kvm_vm *vm, const char *stat_name, uint64_t *data,
 
 		break;
 	}
+}
+
+__weak void kvm_arch_vm_post_create(struct kvm_vm *vm)
+{
 }
 
 __weak void kvm_selftest_arch_init(void)
