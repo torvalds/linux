@@ -13644,7 +13644,7 @@ MICROCHIP USB251XB DRIVER
 M:	Richard Leitner <richard.leitner@skidata.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/usb/usb251xb.txt
+F:	Documentation/devicetree/bindings/usb/usb251xb.yaml
 F:	drivers/usb/misc/usb251xb.c
 
 MICROCHIP USBA UDC DRIVER
