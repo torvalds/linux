@@ -102,7 +102,7 @@ const struct dsa_device_ops *dsa_find_tagger_by_name(const char *name)
 	return ops;
 }
 
-const struct dsa_device_ops *dsa_tag_driver_get(int tag_protocol)
+const struct dsa_device_ops *dsa_tag_driver_get_by_id(int tag_protocol)
 {
 	struct dsa_tag_driver *dsa_tag_driver;
 	const struct dsa_device_ops *ops;

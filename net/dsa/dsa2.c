@@ -1441,7 +1441,7 @@ static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master,
 	}
 
 	if (!tag_ops)
-		tag_ops = dsa_tag_driver_get(default_proto);
+		tag_ops = dsa_tag_driver_get_by_id(default_proto);
 
 	if (IS_ERR(tag_ops)) {
 		if (PTR_ERR(tag_ops) == -ENOPROTOOPT)
