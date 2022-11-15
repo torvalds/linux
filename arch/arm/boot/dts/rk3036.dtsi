@@ -386,6 +386,8 @@
 		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 		resets = <&cru SRST_MMC0>;
 		reset-names = "reset";
+		no-mmc;
+		no-sdio;
 		status = "disabled";
 	};
 
@@ -400,6 +402,8 @@
 		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
 		resets = <&cru SRST_SDIO>;
 		reset-names = "reset";
+		no-mmc;
+		no-sd;
 		status = "disabled";
 	};
 
@@ -420,6 +424,8 @@
 		dma-names = "rx-tx";
 		fifo-depth = <0x100>;
 		non-removable;
+		no-sdio;
+		no-sd;
 		pinctrl-names = "default";
 		pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 		resets = <&cru SRST_EMMC>;
