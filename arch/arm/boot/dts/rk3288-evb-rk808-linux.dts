@@ -46,39 +46,6 @@
 / {
 	compatible = "rockchip,rk3288-evb-rk808-linux", "rockchip,rk3288";
 
-	panel {
-		compatible = "simple-panel";
-		backlight = <&backlight>;
-		enable-gpios = <&gpio7 RK_PA4 GPIO_ACTIVE_HIGH>;
-		prepare-delay-ms = <120>;
-
-		display-timings {
-			native-mode = <&timing0>;
-
-			timing0: timing0 {
-				clock-frequency = <200000000>;
-				hactive = <1536>;
-				vactive = <2048>;
-				hfront-porch = <12>;
-				hsync-len = <16>;
-				hback-porch = <48>;
-				vfront-porch = <8>;
-				vsync-len = <4>;
-				vback-porch = <8>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <0>;
-				pixelclk-active = <0>;
-			};
-		};
-
-		port {
-			panel_in_edp: endpoint {
-				remote-endpoint = <&edp_out_panel>;
-			};
-		};
-	};
-
 	adc-keys {
 		compatible = "adc-keys";
 		io-channels = <&saradc 1>;
@@ -189,21 +156,6 @@
 &dmc {
 	center-supply = <&vdd_log>;
 	status = "okay";
-};
-
-&edp {
-	force-hpd;
-	status = "okay";
-
-	ports {
-		port@1 {
-			reg = <1>;
-
-			edp_out_panel: endpoint {
-				remote-endpoint = <&panel_in_edp>;
-			};
-		};
-	};
 };
 
 &edp_in_vopb {

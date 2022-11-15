@@ -97,10 +97,28 @@
 	};
 
 	panel: panel {
-		compatible = "lg,lp079qx1-sp0v";
+		compatible = "simple-panel";
 		backlight = <&backlight>;
 		enable-gpios = <&gpio7 RK_PA4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
 		pinctrl-0 = <&lcd_cs>;
+		prepare-delay-ms = <120>;
+
+		panel-timing {
+			clock-frequency = <200000000>;
+			hactive = <1536>;
+			hfront-porch = <12>;
+			hback-porch = <48>;
+			hsync-len = <16>;
+			vactive = <2048>;
+			vfront-porch = <8>;
+			vback-porch = <8>;
+			vsync-len = <4>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			de-active = <0>;
+			pixelclk-active = <0>;
+		};
 
 		ports {
 			panel_in: port {
