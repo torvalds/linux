@@ -1,4 +1,8 @@
 drivers/block/zram/zram.ko
+drivers/bluetooth/btbcm.ko
+drivers/bluetooth/btqca.ko
+drivers/bluetooth/btsdio.ko
+drivers/bluetooth/hci_uart.ko
 drivers/net/can/dev/can-dev.ko
 drivers/net/can/slcan/slcan.ko
 drivers/net/can/vcan.ko
