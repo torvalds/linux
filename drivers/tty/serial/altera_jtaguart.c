@@ -55,7 +55,6 @@
  */
 struct altera_jtaguart {
 	struct uart_port port;
-	unsigned int sigs;	/* Local copy of line sigs */
 	unsigned long imr;	/* Local IMR mirror */
 };
 
