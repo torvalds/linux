@@ -168,7 +168,7 @@ DEFINE_BTRFS_SETGET_BITS(64)
 void btrfs_node_key(const struct extent_buffer *eb,
 		    struct btrfs_disk_key *disk_key, int nr)
 {
-	unsigned long ptr = btrfs_node_key_ptr_offset(nr);
+	unsigned long ptr = btrfs_node_key_ptr_offset(eb, nr);
 	read_eb_member(eb, (struct btrfs_key_ptr *)ptr,
 		       struct btrfs_key_ptr, key, disk_key);
 }

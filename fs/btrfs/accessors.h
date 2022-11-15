@@ -392,7 +392,7 @@ static inline void btrfs_set_node_ptr_generation(const struct extent_buffer *eb,
 	btrfs_set_key_generation(eb, (struct btrfs_key_ptr *)ptr, val);
 }
 
-static inline unsigned long btrfs_node_key_ptr_offset(int nr)
+static inline unsigned long btrfs_node_key_ptr_offset(const struct extent_buffer *eb, int nr)
 {
 	return offsetof(struct btrfs_node, ptrs) +
 		sizeof(struct btrfs_key_ptr) * nr;
@@ -406,7 +406,7 @@ static inline void btrfs_set_node_key(const struct extent_buffer *eb,
 {
 	unsigned long ptr;
 
-	ptr = btrfs_node_key_ptr_offset(nr);
+	ptr = btrfs_node_key_ptr_offset(eb, nr);
 	write_eb_member(eb, (struct btrfs_key_ptr *)ptr,
 		        struct btrfs_key_ptr, key, disk_key);
 }

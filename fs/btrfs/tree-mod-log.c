@@ -697,8 +697,8 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 			n--;
 			break;
 		case BTRFS_MOD_LOG_MOVE_KEYS:
-			o_dst = btrfs_node_key_ptr_offset(tm->slot);
-			o_src = btrfs_node_key_ptr_offset(tm->move.dst_slot);
+			o_dst = btrfs_node_key_ptr_offset(eb, tm->slot);
+			o_src = btrfs_node_key_ptr_offset(eb, tm->move.dst_slot);
 			memmove_extent_buffer(eb, o_dst, o_src,
 					      tm->move.nr_items * p_size);
 			break;
