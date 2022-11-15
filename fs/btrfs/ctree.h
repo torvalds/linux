@@ -700,6 +700,11 @@ static inline bool btrfs_is_data_reloc_root(const struct btrfs_root *root)
 	return root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID;
 }
 
+int btrfs_super_csum_size(const struct btrfs_super_block *s);
+const char *btrfs_super_csum_name(u16 csum_type);
+const char *btrfs_super_csum_driver(u16 csum_type);
+size_t __attribute_const__ btrfs_get_num_csums(void);
+
 /*
  * We use page status Private2 to indicate there is an ordered extent with
  * unfinished IO.
