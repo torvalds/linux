@@ -42,6 +42,7 @@
 #define ISTATUS_MSI			0x194
 #define CFG_SPACE			0x1000
 #define GEN_SETTINGS			0x80
+#define PCIE_PCI_IDS			0x9C
 #define PCIE_WINROM			0xFC
 #define PMSG_SUPPORT_RX			0x3F0
 
@@ -52,6 +53,10 @@
 
 #define PLDA_LINK_UP			1
 #define PLDA_LINK_DOWN			0
+
+#define IDS_REVISION_ID			0x02
+#define IDS_PCI_TO_PCI_BRIDGE		0x060400
+#define IDS_CLASS_CODE_SHIFT		8
 
 #define PLDA_DATA_LINK_ACTIVE		BIT(5)
 #define PREF_MEM_WIN_64_SUPPORT		BIT(3)
@@ -807,6 +812,10 @@ static void plda_pcie_hw_init(struct plda_pcie *pcie)
 	value = readl(pcie->reg_base + GEN_SETTINGS);
 	value |= PLDA_RP_ENABLE;
 	writel(value, pcie->reg_base + GEN_SETTINGS);
+
+	/* PCIe PCI Standard Configuration Identification Settings. */
+	value = (IDS_PCI_TO_PCI_BRIDGE << IDS_CLASS_CODE_SHIFT) | IDS_REVISION_ID;
+	writel(value, pcie->reg_base + PCIE_PCI_IDS);
 
 	/* The LTR message forwarding of PCIe Message Reception was set by core
 	 * as default, but the forward id & addr are also need to be reset.
