@@ -2413,6 +2413,26 @@ void tb_switch_unconfigure_link(struct tb_switch *sw)
 		tb_lc_unconfigure_port(down);
 }
 
+static int tb_switch_port_hotplug_enable(struct tb_switch *sw)
+{
+	struct tb_port *port;
+
+	if (tb_switch_is_icm(sw))
+		return 0;
+
+	tb_switch_for_each_port(sw, port) {
+		int res;
+
+		if (!port->cap_usb4)
+			continue;
+
+		res = usb4_port_hotplug_enable(port);
+		if (res)
+			return res;
+	}
+	return 0;
+}
+
 /**
  * tb_switch_add() - Add a switch to the domain
  * @sw: Switch to add
@@ -2479,6 +2499,10 @@ int tb_switch_add(struct tb_switch *sw)
 		if (ret)
 			return ret;
 	}
+
+	ret = tb_switch_port_hotplug_enable(sw);
+	if (ret)
+		return ret;
 
 	ret = device_add(&sw->dev);
 	if (ret) {
