@@ -889,10 +889,13 @@ int pkvm_load_pvmfw_pages(struct pkvm_hyp_vm *vm, u64 ipa, phys_addr_t phys,
 
 void pkvm_poison_pvmfw_pages(void)
 {
-	void *addr = hyp_phys_to_virt(pvmfw_base);
+	u64 npages = pvmfw_size >> PAGE_SHIFT;
+	phys_addr_t addr = pvmfw_base;
 
-	memset(addr, 0, pvmfw_size);
-	kvm_flush_dcache_to_poc(addr, pvmfw_size);
+	while (npages--) {
+		hyp_poison_page(addr);
+		addr += PAGE_SIZE;
+	}
 }
 
 /*
