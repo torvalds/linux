@@ -244,8 +244,8 @@ struct dsa_slave_priv {
 
 /* dsa.c */
 const struct dsa_device_ops *dsa_tag_driver_get_by_id(int tag_protocol);
+const struct dsa_device_ops *dsa_tag_driver_get_by_name(const char *name);
 void dsa_tag_driver_put(const struct dsa_device_ops *ops);
-const struct dsa_device_ops *dsa_find_tagger_by_name(const char *name);
 
 bool dsa_db_equal(const struct dsa_db *a, const struct dsa_db *b);
 

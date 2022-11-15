@@ -1431,7 +1431,7 @@ static int dsa_port_parse_cpu(struct dsa_port *dp, struct net_device *master,
 			return -EINVAL;
 		}
 
-		tag_ops = dsa_find_tagger_by_name(user_protocol);
+		tag_ops = dsa_tag_driver_get_by_name(user_protocol);
 		if (IS_ERR(tag_ops)) {
 			dev_warn(ds->dev,
 				 "Failed to find a tagging driver for protocol %s, using default\n",

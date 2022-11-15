@@ -314,9 +314,9 @@ static ssize_t tagging_store(struct device *d, struct device_attribute *attr,
 		return -ENOMEM;
 
 	old_tag_ops = cpu_dp->tag_ops;
-	new_tag_ops = dsa_find_tagger_by_name(name);
+	new_tag_ops = dsa_tag_driver_get_by_name(name);
 	kfree(name);
-	/* Bad tagger name, or module is not loaded? */
+	/* Bad tagger name? */
 	if (IS_ERR(new_tag_ops))
 		return PTR_ERR(new_tag_ops);
 

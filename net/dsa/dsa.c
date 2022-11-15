@@ -79,10 +79,12 @@ const char *dsa_tag_protocol_to_str(const struct dsa_device_ops *ops)
 /* Function takes a reference on the module owning the tagger,
  * so dsa_tag_driver_put must be called afterwards.
  */
-const struct dsa_device_ops *dsa_find_tagger_by_name(const char *name)
+const struct dsa_device_ops *dsa_tag_driver_get_by_name(const char *name)
 {
 	const struct dsa_device_ops *ops = ERR_PTR(-ENOPROTOOPT);
 	struct dsa_tag_driver *dsa_tag_driver;
+
+	request_module("%s%s", DSA_TAG_DRIVER_ALIAS, name);
 
 	mutex_lock(&dsa_tag_drivers_lock);
 	list_for_each_entry(dsa_tag_driver, &dsa_tag_drivers_list, list) {
