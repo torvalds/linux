@@ -65,12 +65,24 @@ int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk)
 	if (WARN_ON_ONCE(!disk->slave_dir))
 		return -EINVAL;
 
-	mutex_lock(&disk->open_mutex);
+	/*
+	 * del_gendisk drops the initial reference to bd_holder_dir, so we
+	 * need to keep our own here to allow for cleanup past that point.
+	 */
+	mutex_lock(&bdev->bd_disk->open_mutex);
+	if (!disk_live(bdev->bd_disk)) {
+		mutex_unlock(&bdev->bd_disk->open_mutex);
+		return -ENODEV;
+	}
+	kobject_get(bdev->bd_holder_dir);
+	mutex_unlock(&bdev->bd_disk->open_mutex);
 
+	mutex_lock(&disk->open_mutex);
 	WARN_ON_ONCE(!bdev->bd_holder);
 
 	holder = bd_find_holder_disk(bdev, disk);
 	if (holder) {
+		kobject_put(bdev->bd_holder_dir);
 		holder->refcnt++;
 		goto out_unlock;
 	}
@@ -92,11 +104,6 @@ int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk)
 		goto out_del_symlink;
 	list_add(&holder->list, &disk->slave_bdevs);
 
-	/*
-	 * del_gendisk drops the initial reference to bd_holder_dir, so we need
-	 * to keep our own here to allow for cleanup past that point.
-	 */
-	kobject_get(bdev->bd_holder_dir);
 	mutex_unlock(&disk->open_mutex);
 	return 0;
 
@@ -106,6 +113,8 @@ out_free_holder:
 	kfree(holder);
 out_unlock:
 	mutex_unlock(&disk->open_mutex);
+	if (ret)
+		kobject_put(bdev->bd_holder_dir);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(bd_link_disk_holder);
