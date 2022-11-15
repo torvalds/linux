@@ -1442,9 +1442,13 @@ do_io:
 				     sectors << 9, offset << 9));
 
 		/* Check for writing past i_size: */
-		WARN_ON_ONCE((bio_end_sector(&w->io->op.wbio.bio) << 9) >
-			     round_up(i_size, block_bytes(c)) &&
-			     !test_bit(BCH_FS_EMERGENCY_RO, &c->flags));
+		WARN_ONCE((bio_end_sector(&w->io->op.wbio.bio) << 9) >
+			  round_up(i_size, block_bytes(c)) &&
+			  !test_bit(BCH_FS_EMERGENCY_RO, &c->flags),
+			  "writing past i_size: %llu > %llu (unrounded %llu)\n",
+			  bio_end_sector(&w->io->op.wbio.bio) << 9,
+			  round_up(i_size, block_bytes(c)),
+			  i_size);
 
 		w->io->op.res.sectors += reserved_sectors;
 		w->io->op.i_sectors_delta -= dirty_sectors;
@@ -2740,8 +2744,10 @@ int bch2_truncate(struct mnt_idmap *idmap,
 	if (ret)
 		goto err;
 
-	WARN_ON(!test_bit(EI_INODE_ERROR, &inode->ei_flags) &&
-		inode->v.i_size < inode_u.bi_size);
+	WARN_ONCE(!test_bit(EI_INODE_ERROR, &inode->ei_flags) &&
+		  inode->v.i_size < inode_u.bi_size,
+		  "truncate spotted in mem i_size < btree i_size: %llu < %llu\n",
+		  (u64) inode->v.i_size, inode_u.bi_size);
 
 	if (iattr->ia_size > inode->v.i_size) {
 		ret = bch2_extend(idmap, inode, &inode_u, iattr);
