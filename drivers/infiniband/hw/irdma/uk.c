@@ -1049,11 +1049,10 @@ int irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 	__le64 *cqe;
 	struct irdma_qp_uk *qp;
 	struct irdma_ring *pring = NULL;
-	u32 wqe_idx, q_type;
+	u32 wqe_idx;
 	int ret_code;
 	bool move_cq_head = true;
 	u8 polarity;
-	u8 op_type;
 	bool ext_valid;
 	__le64 *ext_cqe;
 
@@ -1121,7 +1120,7 @@ int irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 		info->ud_vlan_valid = false;
 	}
 
-	q_type = (u8)FIELD_GET(IRDMA_CQ_SQ, qword3);
+	info->q_type = (u8)FIELD_GET(IRDMA_CQ_SQ, qword3);
 	info->error = (bool)FIELD_GET(IRDMA_CQ_ERROR, qword3);
 	info->push_dropped = (bool)FIELD_GET(IRDMACQ_PSHDROP, qword3);
 	info->ipv4 = (bool)FIELD_GET(IRDMACQ_IPV4, qword3);
@@ -1160,8 +1159,9 @@ int irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 	}
 	wqe_idx = (u32)FIELD_GET(IRDMA_CQ_WQEIDX, qword3);
 	info->qp_handle = (irdma_qp_handle)(unsigned long)qp;
+	info->op_type = (u8)FIELD_GET(IRDMA_CQ_SQ, qword3);
 
-	if (q_type == IRDMA_CQE_QTYPE_RQ) {
+	if (info->q_type == IRDMA_CQE_QTYPE_RQ) {
 		u32 array_idx;
 
 		array_idx = wqe_idx / qp->rq_wqe_size_multiplier;
@@ -1181,10 +1181,6 @@ int irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 
 		info->bytes_xfered = (u32)FIELD_GET(IRDMACQ_PAYLDLEN, qword0);
 
-		if (info->imm_valid)
-			info->op_type = IRDMA_OP_TYPE_REC_IMM;
-		else
-			info->op_type = IRDMA_OP_TYPE_REC;
 		if (qword3 & IRDMACQ_STAG) {
 			info->stag_invalid_set = true;
 			info->inv_stag = (u32)FIELD_GET(IRDMACQ_INVSTAG, qword2);
@@ -1242,17 +1238,18 @@ int irdma_uk_cq_poll_cmpl(struct irdma_cq_uk *cq,
 				sw_wqe = qp->sq_base[tail].elem;
 				get_64bit_val(sw_wqe, 24,
 					      &wqe_qword);
-				op_type = (u8)FIELD_GET(IRDMAQPSQ_OPCODE, wqe_qword);
-				info->op_type = op_type;
+				info->op_type = (u8)FIELD_GET(IRDMAQPSQ_OPCODE,
+							      wqe_qword);
 				IRDMA_RING_SET_TAIL(qp->sq_ring,
 						    tail + qp->sq_wrtrk_array[tail].quanta);
-				if (op_type != IRDMAQP_OP_NOP) {
+				if (info->op_type != IRDMAQP_OP_NOP) {
 					info->wr_id = qp->sq_wrtrk_array[tail].wrid;
 					info->bytes_xfered = qp->sq_wrtrk_array[tail].wr_len;
 					break;
 				}
 			} while (1);
-			if (op_type == IRDMA_OP_TYPE_BIND_MW && info->minor_err == FLUSH_PROT_ERR)
+			if (info->op_type == IRDMA_OP_TYPE_BIND_MW &&
+			    info->minor_err == FLUSH_PROT_ERR)
 				info->minor_err = FLUSH_MW_BIND_ERR;
 			qp->sq_flush_seen = true;
 			if (!IRDMA_RING_MORE_WORK(qp->sq_ring))
