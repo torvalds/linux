@@ -10,13 +10,10 @@
 
 static void gd25q256_default_init(struct spi_nor *nor)
 {
-	/*
-	 * Some manufacturer like GigaDevice may use different
-	 * bit to set QE on different memories, so the MFR can't
-	 * indicate the quad_enable method for this case, we need
-	 * to set it in the default_init fixup hook.
-	 */
-	nor->params->quad_enable = spi_nor_sr1_bit6_quad_enable;
+	/* use Quad page program */
+	nor->params->hwcaps.mask |= SNOR_HWCAPS_PP_1_1_4;
+	spi_nor_set_pp_settings(&nor->params->page_programs[SNOR_CMD_PP_1_1_4],
+				SPINOR_OP_PP_1_1_4, SNOR_PROTO_1_1_4);
 }
 
 static struct spi_nor_fixups gd25q256_fixups = {
@@ -40,7 +37,7 @@ static const struct flash_info gigadevice_parts[] = {
 			    SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
 			    SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB) },
 	{ "gd25lq128d", INFO(0xc86018, 0, 64 * 1024, 256,
-			     SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
+			     SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ | SPI_NOR_SKIP_SFDP |
 			     SPI_NOR_HAS_LOCK | SPI_NOR_HAS_TB) },
 	{ "gd25q128", INFO(0xc84018, 0, 64 * 1024, 256,
 			   SECT_4K | SPI_NOR_DUAL_READ | SPI_NOR_QUAD_READ |
@@ -56,4 +53,5 @@ const struct spi_nor_manufacturer spi_nor_gigadevice = {
 	.name = "gigadevice",
 	.parts = gigadevice_parts,
 	.nparts = ARRAY_SIZE(gigadevice_parts),
+	.fixups = &gd25q256_fixups,
 };

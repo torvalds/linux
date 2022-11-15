@@ -337,24 +337,43 @@
 			#size-cells = <0>;
 			reg = <0x0 0x13010000 0x0 0x10000
 				0x0 0x21000000 0x0 0x400000>;
-			clocks = <&clkgen JH7110_QSPI_CLK_REF>;
-			clock-names = "clk_ref";
+			interrupts = <25>;
+			clocks = <&clkgen JH7110_QSPI_CLK_REF>,
+				 <&clkgen JH7110_QSPI_CLK_APB>,
+				 <&clkgen JH7110_AHB1>,
+				 <&clkgen JH7110_QSPI_CLK_AHB>;
+			clock-names = "clk_ref",
+				      "clk_apb",
+				      "ahb1",
+				      "clk_ahb";
 			resets = <&rstgen RSTN_U0_CDNS_QSPI_APB>,
 				 <&rstgen RSTN_U0_CDNS_QSPI_AHB>,
 				 <&rstgen RSTN_U0_CDNS_QSPI_REF>;
 			resets-names = "rst_apb", "rst_ahb", "rst_ref";
 			cdns,fifo-depth = <256>;
 			cdns,fifo-width = <4>;
+			cdns,trigger-address = <0x0>;
 			spi-max-frequency = <250000000>;
 
 			nor_flash: nor-flash@0 {
 				compatible = "jedec,spi-nor";
 				reg=<0>;
+				cdns,read-delay = <5>;
 				spi-max-frequency = <100000000>;
 				cdns,tshsl-ns = <1>;
 				cdns,tsd2d-ns = <1>;
 				cdns,tchsh-ns = <1>;
 				cdns,tslch-ns = <1>;
+
+				partitions {
+					compatible = "fixed-partitions";
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					data@f00000 {
+						reg = <0xf00000 0x100000>;
+					};
+				};
 			};
 		};
 
