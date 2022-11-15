@@ -711,7 +711,8 @@ static void mtk_iommu_detach_device(struct iommu_domain *domain,
 }
 
 static int mtk_iommu_map(struct iommu_domain *domain, unsigned long iova,
-			 phys_addr_t paddr, size_t size, int prot, gfp_t gfp)
+			 phys_addr_t paddr, size_t pgsize, size_t pgcount,
+			 int prot, gfp_t gfp, size_t *mapped)
 {
 	struct mtk_iommu_domain *dom = to_mtk_domain(domain);
 
@@ -720,17 +721,17 @@ static int mtk_iommu_map(struct iommu_domain *domain, unsigned long iova,
 		paddr |= BIT_ULL(32);
 
 	/* Synchronize with the tlb_lock */
-	return dom->iop->map(dom->iop, iova, paddr, size, prot, gfp);
+	return dom->iop->map_pages(dom->iop, iova, paddr, pgsize, pgcount, prot, gfp, mapped);
 }
 
 static size_t mtk_iommu_unmap(struct iommu_domain *domain,
-			      unsigned long iova, size_t size,
+			      unsigned long iova, size_t pgsize, size_t pgcount,
 			      struct iommu_iotlb_gather *gather)
 {
 	struct mtk_iommu_domain *dom = to_mtk_domain(domain);
 
-	iommu_iotlb_gather_add_range(gather, iova, size);
-	return dom->iop->unmap(dom->iop, iova, size, gather);
+	iommu_iotlb_gather_add_range(gather, iova, pgsize * pgcount);
+	return dom->iop->unmap_pages(dom->iop, iova, pgsize, pgcount, gather);
 }
 
 static void mtk_iommu_flush_iotlb_all(struct iommu_domain *domain)
@@ -938,8 +939,8 @@ static const struct iommu_ops mtk_iommu_ops = {
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= mtk_iommu_attach_device,
 		.detach_dev	= mtk_iommu_detach_device,
-		.map		= mtk_iommu_map,
-		.unmap		= mtk_iommu_unmap,
+		.map_pages	= mtk_iommu_map,
+		.unmap_pages	= mtk_iommu_unmap,
 		.flush_iotlb_all = mtk_iommu_flush_iotlb_all,
 		.iotlb_sync	= mtk_iommu_iotlb_sync,
 		.iotlb_sync_map	= mtk_iommu_sync_map,
