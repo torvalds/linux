@@ -686,39 +686,6 @@ static inline int btrfs_next_item(struct btrfs_root *root, struct btrfs_path *p)
 }
 int btrfs_leaf_free_space(struct extent_buffer *leaf);
 
-/*
- * Get the correct offset inside the page of extent buffer.
- *
- * @eb:		target extent buffer
- * @start:	offset inside the extent buffer
- *
- * Will handle both sectorsize == PAGE_SIZE and sectorsize < PAGE_SIZE cases.
- */
-static inline size_t get_eb_offset_in_page(const struct extent_buffer *eb,
-					   unsigned long offset)
-{
-	/*
-	 * For sectorsize == PAGE_SIZE case, eb->start will always be aligned
-	 * to PAGE_SIZE, thus adding it won't cause any difference.
-	 *
-	 * For sectorsize < PAGE_SIZE, we must only read the data that belongs
-	 * to the eb, thus we have to take the eb->start into consideration.
-	 */
-	return offset_in_page(offset + eb->start);
-}
-
-static inline unsigned long get_eb_page_index(unsigned long offset)
-{
-	/*
-	 * For sectorsize == PAGE_SIZE case, plain >> PAGE_SHIFT is enough.
-	 *
-	 * For sectorsize < PAGE_SIZE case, we only support 64K PAGE_SIZE,
-	 * and have ensured that all tree blocks are contained in one page,
-	 * thus we always get index == 0.
-	 */
-	return offset >> PAGE_SHIFT;
-}
-
 static inline int is_fstree(u64 rootid)
 {
 	if (rootid == BTRFS_FS_TREE_OBJECTID ||
