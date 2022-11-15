@@ -35,14 +35,6 @@
 #define CEDRUS_CAPABILITY_VP8_DEC	BIT(4)
 #define CEDRUS_CAPABILITY_H265_10_DEC	BIT(5)
 
-enum cedrus_codec {
-	CEDRUS_CODEC_MPEG2,
-	CEDRUS_CODEC_H264,
-	CEDRUS_CODEC_H265,
-	CEDRUS_CODEC_VP8,
-	CEDRUS_CODEC_LAST,
-};
-
 enum cedrus_irq_status {
 	CEDRUS_IRQ_NONE,
 	CEDRUS_IRQ_ERROR,
@@ -57,7 +49,7 @@ enum cedrus_h264_pic_type {
 
 struct cedrus_control {
 	struct v4l2_ctrl_config cfg;
-	enum cedrus_codec	codec;
+	unsigned int		capabilities;
 };
 
 struct cedrus_h264_run {
@@ -118,7 +110,7 @@ struct cedrus_ctx {
 
 	struct v4l2_pix_format		src_fmt;
 	struct v4l2_pix_format		dst_fmt;
-	enum cedrus_codec		current_codec;
+	struct cedrus_dec_ops		*current_codec;
 
 	struct v4l2_ctrl_handler	hdl;
 	struct v4l2_ctrl		**ctrls;
@@ -185,7 +177,6 @@ struct cedrus_dev {
 	struct platform_device	*pdev;
 	struct device		*dev;
 	struct v4l2_m2m_dev	*m2m_dev;
-	struct cedrus_dec_ops	*dec_ops[CEDRUS_CODEC_LAST];
 
 	/* Device file mutex */
 	struct mutex		dev_mutex;
@@ -266,6 +257,12 @@ static inline struct cedrus_buffer *
 vb2_to_cedrus_buffer(const struct vb2_buffer *p)
 {
 	return vb2_v4l2_to_cedrus_buffer(to_vb2_v4l2_buffer(p));
+}
+
+static inline bool
+cedrus_is_capable(struct cedrus_ctx *ctx, unsigned int capabilities)
+{
+	return (ctx->dev->capabilities & capabilities) == capabilities;
 }
 
 void *cedrus_find_control_data(struct cedrus_ctx *ctx, u32 id);
