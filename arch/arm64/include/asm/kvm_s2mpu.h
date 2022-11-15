@@ -217,6 +217,7 @@ struct fmpt {
 
 struct mpt {
 	struct fmpt fmpt[NR_GIGABYTES];
+	enum s2mpu_version version;
 };
 
 #endif /* __ARM64_KVM_S2MPU_H__ */

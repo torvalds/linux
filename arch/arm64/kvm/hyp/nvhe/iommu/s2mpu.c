@@ -487,12 +487,7 @@ static int s2mpu_init(void *data, size_t size)
 	/* The host can concurrently modify 'data'. Copy it to avoid TOCTOU. */
 	memcpy(&in_mpt, data, sizeof(in_mpt));
 
-	/*
-	 * Only v8/v9 are supported at this point so hardcode the version
-	 * as there is not way to get the version required from the kernel yet,
-	 * v8/v9 are compatible so using any of them will work.
-	 */
-	cfg.version = S2MPU_VERSION_8;
+	cfg.version = in_mpt.version;
 	/* Get page table operations for this version. */
 	mpt_ops = s2mpu_get_mpt_ops(cfg);
 	/* If version is wrong return. */

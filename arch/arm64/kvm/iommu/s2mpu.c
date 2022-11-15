@@ -12,7 +12,7 @@
 /* For an nvhe symbol get the kernel linear address of it. */
 #define ksym_ref_addr_nvhe(x)			kvm_ksym_ref(&kvm_nvhe_sym(x))
 
-static int init_s2mpu_driver(void)
+static int init_s2mpu_driver(u32 version)
 {
 	static DEFINE_MUTEX(lock);
 	static bool init_done;
@@ -46,6 +46,7 @@ static int init_s2mpu_driver(void)
 		}
 		mpt->fmpt[gb].smpt = (u32 *)addr;
 	}
+	mpt->version = version;
 
 	/* Share MPT descriptor with hyp. */
 	pfn = __pa(mpt) >> PAGE_SHIFT;
@@ -74,17 +75,19 @@ out:
 	mutex_unlock(&lock);
 	return ret;
 }
-
-int pkvm_iommu_s2mpu_register(struct device *dev, phys_addr_t addr)
+int pkvm_iommu_s2mpu_init(u32 version)
 {
-	int ret;
-
 	if (!is_protected_kvm_enabled())
 		return -ENODEV;
 
-	ret = init_s2mpu_driver();
-	if (ret)
-		return ret;
+	return init_s2mpu_driver(version);
+}
+EXPORT_SYMBOL_GPL(pkvm_iommu_s2mpu_init);
+
+int pkvm_iommu_s2mpu_register(struct device *dev, phys_addr_t addr)
+{
+	if (!is_protected_kvm_enabled())
+		return -ENODEV;
 
 	return pkvm_iommu_register(dev, ksym_ref_addr_nvhe(pkvm_s2mpu_driver),
 				   addr, S2MPU_MMIO_SIZE, NULL);
