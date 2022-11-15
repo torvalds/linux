@@ -19,8 +19,6 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		status = "okay";
-
 		dai-link@0 {
 			link-name = "MAX98360";
 			reg = <0>;
@@ -95,6 +93,8 @@ hp_i2c: &i2c2 {
 		qcom,playback-sd-lines = <0>;
 	};
 };
+
+/* PINCTRL - ADDITIONS TO NODES IN PARENT DEVICE TREE FILES */
 
 &mi2s0_data0 {
 	drive-strength = <6>;
