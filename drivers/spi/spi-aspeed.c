@@ -80,6 +80,8 @@ enum aspeed_spi_ctl_reg_value {
 #define MAX_READ_SZ_ONCE	0x3000 /* 12KB */
 #define FIXED_REMAPPED_MEM_SZ	0x1000
 
+static spinlock_t g_lock;
+
 struct aspeed_spi_controller;
 struct aspeed_spi_chip;
 
@@ -540,7 +542,7 @@ aspeed_spi_decode_range_config(struct aspeed_spi_controller *ast_ctrl,
 
 static const struct aspeed_spi_info ast2600_fmc_info = {
 	.max_data_bus_width = 4,
-	.cmd_io_ctrl_mask = 0xf0ff40c3,
+	.cmd_io_ctrl_mask = 0xf0ff40c7,
 	/* for ast2600, the minimum decode size for each CE is 2MB */
 	.min_decode_sz = 0x200000,
 	.set_4byte = aspeed_spi_chip_set_4byte,
@@ -587,7 +589,7 @@ void aspeed_2600_spi_fill_safs_cmd(struct aspeed_spi_controller *ast_ctrl,
 
 static const struct aspeed_spi_info ast2600_spi_info = {
 	.max_data_bus_width = 4,
-	.cmd_io_ctrl_mask = 0xf0ff40c3,
+	.cmd_io_ctrl_mask = 0xf0ff40c7,
 	/* for ast2600, the minimum decode size for each CE is 2MB */
 	.min_decode_sz = 0x200000,
 	.set_4byte = aspeed_spi_chip_set_4byte,
@@ -634,6 +636,7 @@ static int aspeed_spi_exec_op_cmd_mode(
 	const void *data_buf;
 	uint32_t data_byte = 0;
 	uint32_t dummy_data = 0;
+	unsigned long flags;
 
 	dev_dbg(dev, "cmd:%x(%d),addr:%llx(%d),dummy:%d(%d),data_len:%x(%d)\n",
 		op->cmd.opcode, op->cmd.buswidth, op->addr.val,
@@ -673,10 +676,18 @@ static int aspeed_spi_exec_op_cmd_mode(
 	if (op->data.nbytes != 0) {
 		addr_data_mask &= 0xF0;
 		data_byte = op->data.nbytes;
-		if (op->data.dir == SPI_MEM_DATA_OUT)
-			data_buf = op->data.buf.out;
-		else
+		if (op->data.dir == SPI_MEM_DATA_OUT) {
+			if (data_byte % 4 != 0) {
+				memset(ast_ctrl->op_buf, 0xff, ((data_byte / 4) + 1) * 4);
+				memcpy(ast_ctrl->op_buf, op->data.buf.out, data_byte);
+				data_buf = ast_ctrl->op_buf;
+				data_byte = ((data_byte / 4) + 1) * 4;
+			} else {
+				data_buf = op->data.buf.out;
+			}
+		} else {
 			data_buf = op->data.buf.in;
+		}
 
 		if (op->data.buswidth)
 			ctrl_val |= aspeed_spi_get_io_mode(op->data.buswidth);
@@ -702,10 +713,14 @@ static int aspeed_spi_exec_op_cmd_mode(
 		ctrl_val, addr_mode_reg, addr_data_mask, (uint32_t)op_addr);
 
 	/* trigger spi transmission or reception sequence */
+	spin_lock_irqsave(&g_lock, flags);
+
 	if (op->data.dir == SPI_MEM_DATA_OUT)
 		memcpy_toio(op_addr, data_buf, data_byte);
 	else
 		memcpy_fromio((void *)data_buf, op_addr, data_byte);
+
+	spin_unlock_irqrestore(&g_lock, flags);
 
 	/* restore controller setting */
 	writel(chip->ctrl_val[ASPEED_SPI_READ],
