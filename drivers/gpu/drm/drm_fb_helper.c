@@ -666,10 +666,16 @@ void drm_fb_helper_deferred_io(struct fb_info *info, struct list_head *pagerefli
 
 	if (min_off < max_off) {
 		drm_fb_helper_memory_range_to_clip(info, min_off, max_off - min_off, &damage_area);
-		drm_fb_helper_damage(helper, damage_area.x1, damage_area.y1,
-				     drm_rect_width(&damage_area),
-				     drm_rect_height(&damage_area));
+		drm_fb_helper_add_damage_clip(helper, damage_area.x1, damage_area.y1,
+					      drm_rect_width(&damage_area),
+					      drm_rect_height(&damage_area));
 	}
+
+	/*
+	 * Flushes all dirty pages from mmap's pageref list and the
+	 * areas that have been written by struct fb_ops callbacks.
+	 */
+	drm_fb_helper_fb_dirty(helper);
 }
 EXPORT_SYMBOL(drm_fb_helper_deferred_io);
 
