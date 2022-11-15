@@ -7,25 +7,6 @@
 
 #include <arm64/renesas/rzg2ul-smarc.dtsi>
 
-/ {
-	aliases {
-		/delete-property/ i2c0;
-		/delete-property/ i2c1;
-	};
-};
-
-&canfd {
-	status = "disabled";
-
-	channel0 {
-		status = "disabled";
-	};
-
-	channel1 {
-		status = "disabled";
-	};
-};
-
 &ehci0 {
 	status = "disabled";
 };
@@ -35,14 +16,6 @@
 };
 
 &hsusb {
-	status = "disabled";
-};
-
-&i2c0 {
-	status = "disabled";
-};
-
-&i2c1 {
 	status = "disabled";
 };
 
