@@ -396,3 +396,5 @@ int nv_cspmu_init_ops(struct arm_cspmu *cspmu)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nv_cspmu_init_ops);
+
+MODULE_LICENSE("GPL v2");
