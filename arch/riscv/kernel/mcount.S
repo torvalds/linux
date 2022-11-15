@@ -15,8 +15,8 @@
 
 	.macro SAVE_ABI_STATE
 	addi	sp, sp, -16
-	REG_S	s0, 0(sp)
-	REG_S	ra, 8(sp)
+	REG_S	s0, 0*SZREG(sp)
+	REG_S	ra, 1*SZREG(sp)
 	addi	s0, sp, 16
 	.endm
 
@@ -25,24 +25,24 @@
 	 * register if a0 was not saved.
 	 */
 	.macro SAVE_RET_ABI_STATE
-	addi	sp, sp, -32
-	REG_S	s0, 16(sp)
-	REG_S	ra, 24(sp)
-	REG_S	a0, 8(sp)
-	addi	s0, sp, 32
+	addi	sp, sp, -4*SZREG
+	REG_S	s0, 2*SZREG(sp)
+	REG_S	ra, 3*SZREG(sp)
+	REG_S	a0, 1*SZREG(sp)
+	addi	s0, sp, 4*SZREG
 	.endm
 
 	.macro RESTORE_ABI_STATE
-	REG_L	ra, 8(sp)
-	REG_L	s0, 0(sp)
+	REG_L	ra, 1*SZREG(sp)
+	REG_L	s0, 0*SZREG(sp)
 	addi	sp, sp, 16
 	.endm
 
 	.macro RESTORE_RET_ABI_STATE
-	REG_L	ra, 24(sp)
-	REG_L	s0, 16(sp)
-	REG_L	a0, 8(sp)
-	addi	sp, sp, 32
+	REG_L	ra, 3*SZREG(sp)
+	REG_L	s0, 2*SZREG(sp)
+	REG_L	a0, 1*SZREG(sp)
+	addi	sp, sp, 4*SZREG
 	.endm
 
 ENTRY(ftrace_stub)
@@ -101,10 +101,10 @@ ENTRY(MCOUNT_NAME)
  * prepare_to_return(&ra_to_caller_of_caller, ra_to_caller)
  */
 do_ftrace_graph_caller:
-	addi	a0, s0, -8
+	addi	a0, s0, -SZREG
 	mv	a1, ra
 #ifdef HAVE_FUNCTION_GRAPH_FP_TEST
-	REG_L	a2, -16(s0)
+	REG_L	a2, -2*SZREG(s0)
 #endif
 	SAVE_ABI_STATE
 	call	prepare_ftrace_return
@@ -117,7 +117,7 @@ do_ftrace_graph_caller:
  * (*ftrace_trace_function)(ra_to_caller, ra_to_caller_of_caller)
  */
 do_trace:
-	REG_L	a1, -8(s0)
+	REG_L	a1, -SZREG(s0)
 	mv	a0, ra
 
 	SAVE_ABI_STATE
