@@ -31,6 +31,7 @@ _common_gki_modules_list = [
     "drivers/usb/serial/usbserial.ko",
     "mm/zsmalloc.ko",
     "net/8021q/8021q.ko",
+    "net/bluetooth/hidp/hidp.ko",
     "net/bluetooth/rfcomm/rfcomm.ko",
     "net/can/can-bcm.ko",
     "net/can/can-gw.ko",
