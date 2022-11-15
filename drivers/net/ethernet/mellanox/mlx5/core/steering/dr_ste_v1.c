@@ -499,16 +499,21 @@ static void dr_ste_v1_set_accelerated_rewrite_actions(u8 *hw_ste_p,
 						      u8 *d_action,
 						      u16 num_of_actions,
 						      u32 rewrite_pattern,
-						      u32 rewrite_args)
+						      u32 rewrite_args,
+						      u8 *action_data)
 {
-	MLX5_SET(ste_double_action_accelerated_modify_action_list_v1, d_action,
-		 action_id, DR_STE_V1_ACTION_ID_ACCELERATED_LIST);
-	MLX5_SET(ste_double_action_accelerated_modify_action_list_v1, d_action,
-		 modify_actions_pattern_pointer, rewrite_pattern);
-	MLX5_SET(ste_double_action_accelerated_modify_action_list_v1, d_action,
-		 number_of_modify_actions, num_of_actions);
-	MLX5_SET(ste_double_action_accelerated_modify_action_list_v1, d_action,
-		 modify_actions_argument_pointer, rewrite_args);
+	if (action_data) {
+		memcpy(d_action, action_data, DR_MODIFY_ACTION_SIZE);
+	} else {
+		MLX5_SET(ste_double_action_accelerated_modify_action_list_v1, d_action,
+			 action_id, DR_STE_V1_ACTION_ID_ACCELERATED_LIST);
+		MLX5_SET(ste_double_action_accelerated_modify_action_list_v1, d_action,
+			 modify_actions_pattern_pointer, rewrite_pattern);
+		MLX5_SET(ste_double_action_accelerated_modify_action_list_v1, d_action,
+			 number_of_modify_actions, num_of_actions);
+		MLX5_SET(ste_double_action_accelerated_modify_action_list_v1, d_action,
+			 modify_actions_argument_pointer, rewrite_args);
+	}
 
 	dr_ste_v1_set_reparse(hw_ste_p);
 }
@@ -532,14 +537,16 @@ static void dr_ste_v1_set_rewrite_actions(u8 *hw_ste_p,
 					  u8 *action,
 					  u16 num_of_actions,
 					  u32 rewrite_pattern,
-					  u32 rewrite_args)
+					  u32 rewrite_args,
+					  u8 *action_data)
 {
 	if (rewrite_pattern != MLX5DR_INVALID_PATTERN_INDEX)
 		return dr_ste_v1_set_accelerated_rewrite_actions(hw_ste_p,
 								 action,
 								 num_of_actions,
 								 rewrite_pattern,
-								 rewrite_args);
+								 rewrite_args,
+								 action_data);
 
 	/* fall back to the code that doesn't support accelerated modify header */
 	return dr_ste_v1_set_basic_rewrite_actions(hw_ste_p,
@@ -653,7 +660,8 @@ void dr_ste_v1_set_actions_tx(struct mlx5dr_domain *dmn,
 		dr_ste_v1_set_rewrite_actions(last_ste, action,
 					      attr->modify_actions,
 					      attr->modify_pat_idx,
-					      attr->modify_index);
+					      attr->modify_index,
+					      attr->single_modify_action);
 		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
 		action += DR_STE_ACTION_DOUBLE_SZ;
 		allow_encap = false;
@@ -784,7 +792,8 @@ void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 		dr_ste_v1_set_rewrite_actions(last_ste, action,
 					      attr->decap_actions,
 					      attr->decap_pat_idx,
-					      attr->decap_index);
+					      attr->decap_index,
+					      NULL);
 		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
 		action += DR_STE_ACTION_DOUBLE_SZ;
 		allow_modify_hdr = false;
@@ -840,7 +849,8 @@ void dr_ste_v1_set_actions_rx(struct mlx5dr_domain *dmn,
 		dr_ste_v1_set_rewrite_actions(last_ste, action,
 					      attr->modify_actions,
 					      attr->modify_pat_idx,
-					      attr->modify_index);
+					      attr->modify_index,
+					      attr->single_modify_action);
 		action_sz -= DR_STE_ACTION_DOUBLE_SZ;
 		action += DR_STE_ACTION_DOUBLE_SZ;
 	}

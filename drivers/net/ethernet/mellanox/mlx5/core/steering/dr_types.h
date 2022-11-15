@@ -267,6 +267,7 @@ struct mlx5dr_ste_actions_attr {
 	u32	modify_index;
 	u32	modify_pat_idx;
 	u16	modify_actions;
+	u8	*single_modify_action;
 	u32	decap_index;
 	u32	decap_pat_idx;
 	u16	decap_actions;
@@ -1035,6 +1036,7 @@ struct mlx5dr_action_rewrite {
 	u8 *data;
 	u16 num_of_actions;
 	u32 index;
+	u8 single_action_opt:1;
 	u8 allow_rx:1;
 	u8 allow_tx:1;
 	u8 modify_ttl:1;

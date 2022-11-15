@@ -832,14 +832,20 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 			}
 			break;
 		case DR_ACTION_TYP_MODIFY_HDR:
-			if (action->rewrite->ptrn && action->rewrite->arg) {
-				attr.modify_index = mlx5dr_arg_get_obj_id(action->rewrite->arg);
-				attr.modify_actions = action->rewrite->ptrn->num_of_actions;
-				attr.modify_pat_idx = action->rewrite->ptrn->index;
-			} else {
-				attr.modify_index = action->rewrite->index;
+			if (action->rewrite->single_action_opt) {
 				attr.modify_actions = action->rewrite->num_of_actions;
-				attr.modify_pat_idx = MLX5DR_INVALID_PATTERN_INDEX;
+				attr.single_modify_action = action->rewrite->data;
+			} else {
+				if (action->rewrite->ptrn && action->rewrite->arg) {
+					attr.modify_index =
+						mlx5dr_arg_get_obj_id(action->rewrite->arg);
+					attr.modify_actions = action->rewrite->ptrn->num_of_actions;
+					attr.modify_pat_idx = action->rewrite->ptrn->index;
+				} else {
+					attr.modify_index = action->rewrite->index;
+					attr.modify_actions = action->rewrite->num_of_actions;
+					attr.modify_pat_idx = MLX5DR_INVALID_PATTERN_INDEX;
+				}
 			}
 			if (action->rewrite->modify_ttl)
 				dr_action_modify_ttl_adjust(dmn, &attr, rx_rule,
@@ -1998,9 +2004,15 @@ static int dr_action_create_modify_action(struct mlx5dr_domain *dmn,
 	action->rewrite->data = (u8 *)hw_actions;
 	action->rewrite->num_of_actions = num_hw_actions;
 
-	ret = mlx5dr_ste_alloc_modify_hdr(action);
-	if (ret)
-		goto free_hw_actions;
+	if (num_hw_actions == 1 &&
+	    dmn->info.caps.sw_format_ver >= MLX5_STEERING_FORMAT_CONNECTX_6DX) {
+		action->rewrite->single_action_opt = true;
+	} else {
+		action->rewrite->single_action_opt = false;
+		ret = mlx5dr_ste_alloc_modify_hdr(action);
+		if (ret)
+			goto free_hw_actions;
+	}
 
 	return 0;
 
@@ -2151,6 +2163,7 @@ int mlx5dr_action_destroy(struct mlx5dr_action *action)
 		break;
 	case DR_ACTION_TYP_TNL_L3_TO_L2:
 		mlx5dr_ste_free_modify_hdr(action);
+		kfree(action->rewrite->data);
 		refcount_dec(&action->rewrite->dmn->refcount);
 		break;
 	case DR_ACTION_TYP_L2_TO_TNL_L2:
@@ -2161,7 +2174,9 @@ int mlx5dr_action_destroy(struct mlx5dr_action *action)
 		refcount_dec(&action->reformat->dmn->refcount);
 		break;
 	case DR_ACTION_TYP_MODIFY_HDR:
-		mlx5dr_ste_free_modify_hdr(action);
+		if (!action->rewrite->single_action_opt)
+			mlx5dr_ste_free_modify_hdr(action);
+		kfree(action->rewrite->data);
 		refcount_dec(&action->rewrite->dmn->refcount);
 		break;
 	case DR_ACTION_TYP_SAMPLER:
