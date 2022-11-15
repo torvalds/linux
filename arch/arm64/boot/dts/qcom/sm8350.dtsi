@@ -2222,7 +2222,7 @@
 
 		cdsp: remoteproc@98900000 {
 			compatible = "qcom,sm8350-cdsp-pas";
-			reg = <0 0x098900000 0 0x1400000>;
+			reg = <0 0x98900000 0 0x1400000>;
 
 			interrupts-extended = <&intc GIC_SPI 578 IRQ_TYPE_LEVEL_HIGH>,
 					      <&smp2p_cdsp_in 0 IRQ_TYPE_EDGE_RISING>,
