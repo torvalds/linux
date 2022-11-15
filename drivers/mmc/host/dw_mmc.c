@@ -3618,9 +3618,7 @@ int dw_mci_runtime_resume(struct device *dev)
 	mci_writel(host, TMOUT, 0xFFFFFFFF);
 
 	mci_writel(host, RINTSTS, 0xFFFFFFFF);
-	mci_writel(host, INTMASK, SDMMC_INT_CMD_DONE | SDMMC_INT_DATA_OVER |
-		   SDMMC_INT_TXDR | SDMMC_INT_RXDR |
-		   DW_MCI_ERROR_FLAGS);
+	mci_writel(host, INTMASK, SDMMC_INT_CMD_DONE | SDMMC_INT_DATA_OVER | DW_MCI_ERROR_FLAGS);
 	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE);
 
 	if (host->is_rv1106_sd) {
