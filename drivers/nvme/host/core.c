@@ -4460,9 +4460,6 @@ static int nvme_scan_ns_list(struct nvme_ctrl *ctrl)
 	u32 prev = 0;
 	int ret = 0, i;
 
-	if (nvme_ctrl_limited_cns(ctrl))
-		return -EOPNOTSUPP;
-
 	ns_list = kzalloc(NVME_IDENTIFY_DATA_SIZE, GFP_KERNEL);
 	if (!ns_list)
 		return -ENOMEM;
@@ -4570,8 +4567,18 @@ static void nvme_scan_work(struct work_struct *work)
 	}
 
 	mutex_lock(&ctrl->scan_lock);
-	if (nvme_scan_ns_list(ctrl) != 0)
+	if (nvme_ctrl_limited_cns(ctrl)) {
 		nvme_scan_ns_sequential(ctrl);
+	} else {
+		/*
+		 * Fall back to sequential scan if DNR is set to handle broken
+		 * devices which should support Identify NS List (as per the VS
+		 * they report) but don't actually support it.
+		 */
+		ret = nvme_scan_ns_list(ctrl);
+		if (ret > 0 && ret & NVME_SC_DNR)
+			nvme_scan_ns_sequential(ctrl);
+	}
 	mutex_unlock(&ctrl->scan_lock);
 }
 
