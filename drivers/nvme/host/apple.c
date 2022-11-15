@@ -821,7 +821,7 @@ static void apple_nvme_disable(struct apple_nvme *anv, bool shutdown)
 	if (!dead && shutdown && freeze)
 		nvme_wait_freeze_timeout(&anv->ctrl, NVME_IO_TIMEOUT);
 
-	nvme_stop_queues(&anv->ctrl);
+	nvme_quiesce_io_queues(&anv->ctrl);
 
 	if (!dead) {
 		if (READ_ONCE(anv->ioq.enabled)) {
@@ -837,7 +837,7 @@ static void apple_nvme_disable(struct apple_nvme *anv, bool shutdown)
 	WRITE_ONCE(anv->ioq.enabled, false);
 	WRITE_ONCE(anv->adminq.enabled, false);
 	mb(); /* ensure that nvme_queue_rq() sees that enabled is cleared */
-	nvme_stop_admin_queue(&anv->ctrl);
+	nvme_quiesce_admin_queue(&anv->ctrl);
 
 	/* last chance to complete any requests before nvme_cancel_request */
 	spin_lock_irqsave(&anv->lock, flags);
@@ -854,8 +854,8 @@ static void apple_nvme_disable(struct apple_nvme *anv, bool shutdown)
 	 * deadlocking blk-mq hot-cpu notifier.
 	 */
 	if (shutdown) {
-		nvme_start_queues(&anv->ctrl);
-		nvme_start_admin_queue(&anv->ctrl);
+		nvme_unquiesce_io_queues(&anv->ctrl);
+		nvme_unquiesce_admin_queue(&anv->ctrl);
 	}
 }
 
@@ -1093,7 +1093,7 @@ static void apple_nvme_reset_work(struct work_struct *work)
 
 	dev_dbg(anv->dev, "Starting admin queue");
 	apple_nvme_init_queue(&anv->adminq);
-	nvme_start_admin_queue(&anv->ctrl);
+	nvme_unquiesce_admin_queue(&anv->ctrl);
 
 	if (!nvme_change_ctrl_state(&anv->ctrl, NVME_CTRL_CONNECTING)) {
 		dev_warn(anv->ctrl.device,
@@ -1127,7 +1127,7 @@ static void apple_nvme_reset_work(struct work_struct *work)
 
 	anv->ctrl.queue_count = nr_io_queues + 1;
 
-	nvme_start_queues(&anv->ctrl);
+	nvme_unquiesce_io_queues(&anv->ctrl);
 	nvme_wait_freeze(&anv->ctrl);
 	blk_mq_update_nr_hw_queues(&anv->tagset, 1);
 	nvme_unfreeze(&anv->ctrl);

@@ -1481,7 +1481,7 @@ static int nvme_suspend_queue(struct nvme_queue *nvmeq)
 
 	nvmeq->dev->online_queues--;
 	if (!nvmeq->qid && nvmeq->dev->ctrl.admin_q)
-		nvme_stop_admin_queue(&nvmeq->dev->ctrl);
+		nvme_quiesce_admin_queue(&nvmeq->dev->ctrl);
 	if (!test_and_clear_bit(NVMEQ_POLLED, &nvmeq->flags))
 		pci_free_irq(to_pci_dev(nvmeq->dev->dev), nvmeq->cq_vector, nvmeq);
 	return 0;
@@ -1741,7 +1741,7 @@ static void nvme_dev_remove_admin(struct nvme_dev *dev)
 		 * user requests may be waiting on a stopped queue. Start the
 		 * queue to flush these to completion.
 		 */
-		nvme_start_admin_queue(&dev->ctrl);
+		nvme_unquiesce_admin_queue(&dev->ctrl);
 		blk_mq_destroy_queue(dev->ctrl.admin_q);
 		blk_put_queue(dev->ctrl.admin_q);
 		blk_mq_free_tag_set(&dev->admin_tagset);
@@ -2703,7 +2703,7 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 	if (!dead && shutdown && freeze)
 		nvme_wait_freeze_timeout(&dev->ctrl, NVME_IO_TIMEOUT);
 
-	nvme_stop_queues(&dev->ctrl);
+	nvme_quiesce_io_queues(&dev->ctrl);
 
 	if (!dead && dev->ctrl.queue_count > 0) {
 		nvme_disable_io_queues(dev);
@@ -2723,9 +2723,9 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 	 * deadlocking blk-mq hot-cpu notifier.
 	 */
 	if (shutdown) {
-		nvme_start_queues(&dev->ctrl);
+		nvme_unquiesce_io_queues(&dev->ctrl);
 		if (dev->ctrl.admin_q && !blk_queue_dying(dev->ctrl.admin_q))
-			nvme_start_admin_queue(&dev->ctrl);
+			nvme_unquiesce_admin_queue(&dev->ctrl);
 	}
 	mutex_unlock(&dev->shutdown_lock);
 }
@@ -2822,7 +2822,7 @@ static void nvme_reset_work(struct work_struct *work)
 	result = nvme_pci_enable(dev);
 	if (result)
 		goto out_unlock;
-	nvme_start_admin_queue(&dev->ctrl);
+	nvme_unquiesce_admin_queue(&dev->ctrl);
 	mutex_unlock(&dev->shutdown_lock);
 
 	/*
@@ -2856,7 +2856,7 @@ static void nvme_reset_work(struct work_struct *work)
 	 * controller around but remove all namespaces.
 	 */
 	if (dev->online_queues > 1) {
-		nvme_start_queues(&dev->ctrl);
+		nvme_unquiesce_io_queues(&dev->ctrl);
 		nvme_wait_freeze(&dev->ctrl);
 		nvme_pci_update_nr_queues(dev);
 		nvme_dbbuf_set(dev);
@@ -2864,7 +2864,7 @@ static void nvme_reset_work(struct work_struct *work)
 	} else {
 		dev_warn(dev->ctrl.device, "IO queues lost\n");
 		nvme_mark_namespaces_dead(&dev->ctrl);
-		nvme_start_queues(&dev->ctrl);
+		nvme_unquiesce_io_queues(&dev->ctrl);
 		nvme_remove_namespaces(&dev->ctrl);
 		nvme_free_tagset(dev);
 	}

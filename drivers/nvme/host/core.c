@@ -4610,7 +4610,7 @@ void nvme_remove_namespaces(struct nvme_ctrl *ctrl)
 	 */
 	if (ctrl->state == NVME_CTRL_DEAD) {
 		nvme_mark_namespaces_dead(ctrl);
-		nvme_start_queues(ctrl);
+		nvme_unquiesce_io_queues(ctrl);
 	}
 
 	/* this is a no-op when called from the controller reset handler */
@@ -4737,7 +4737,7 @@ static void nvme_fw_act_work(struct work_struct *work)
 		fw_act_timeout = jiffies +
 				msecs_to_jiffies(admin_timeout * 1000);
 
-	nvme_stop_queues(ctrl);
+	nvme_quiesce_io_queues(ctrl);
 	while (nvme_ctrl_pp_status(ctrl)) {
 		if (time_after(jiffies, fw_act_timeout)) {
 			dev_warn(ctrl->device,
@@ -4751,7 +4751,7 @@ static void nvme_fw_act_work(struct work_struct *work)
 	if (!nvme_change_ctrl_state(ctrl, NVME_CTRL_LIVE))
 		return;
 
-	nvme_start_queues(ctrl);
+	nvme_unquiesce_io_queues(ctrl);
 	/* read FW slot information to clear the AER */
 	nvme_get_fw_slot_info(ctrl);
 
@@ -4996,7 +4996,7 @@ void nvme_start_ctrl(struct nvme_ctrl *ctrl)
 
 	if (ctrl->queue_count > 1) {
 		nvme_queue_scan(ctrl);
-		nvme_start_queues(ctrl);
+		nvme_unquiesce_io_queues(ctrl);
 		nvme_mpath_update(ctrl);
 	}
 
@@ -5213,37 +5213,37 @@ void nvme_start_freeze(struct nvme_ctrl *ctrl)
 }
 EXPORT_SYMBOL_GPL(nvme_start_freeze);
 
-void nvme_stop_queues(struct nvme_ctrl *ctrl)
+void nvme_quiesce_io_queues(struct nvme_ctrl *ctrl)
 {
 	if (!test_and_set_bit(NVME_CTRL_STOPPED, &ctrl->flags))
 		blk_mq_quiesce_tagset(ctrl->tagset);
 	else
 		blk_mq_wait_quiesce_done(ctrl->tagset);
 }
-EXPORT_SYMBOL_GPL(nvme_stop_queues);
+EXPORT_SYMBOL_GPL(nvme_quiesce_io_queues);
 
-void nvme_start_queues(struct nvme_ctrl *ctrl)
+void nvme_unquiesce_io_queues(struct nvme_ctrl *ctrl)
 {
 	if (test_and_clear_bit(NVME_CTRL_STOPPED, &ctrl->flags))
 		blk_mq_unquiesce_tagset(ctrl->tagset);
 }
-EXPORT_SYMBOL_GPL(nvme_start_queues);
+EXPORT_SYMBOL_GPL(nvme_unquiesce_io_queues);
 
-void nvme_stop_admin_queue(struct nvme_ctrl *ctrl)
+void nvme_quiesce_admin_queue(struct nvme_ctrl *ctrl)
 {
 	if (!test_and_set_bit(NVME_CTRL_ADMIN_Q_STOPPED, &ctrl->flags))
 		blk_mq_quiesce_queue(ctrl->admin_q);
 	else
 		blk_mq_wait_quiesce_done(ctrl->admin_q->tag_set);
 }
-EXPORT_SYMBOL_GPL(nvme_stop_admin_queue);
+EXPORT_SYMBOL_GPL(nvme_quiesce_admin_queue);
 
-void nvme_start_admin_queue(struct nvme_ctrl *ctrl)
+void nvme_unquiesce_admin_queue(struct nvme_ctrl *ctrl)
 {
 	if (test_and_clear_bit(NVME_CTRL_ADMIN_Q_STOPPED, &ctrl->flags))
 		blk_mq_unquiesce_queue(ctrl->admin_q);
 }
-EXPORT_SYMBOL_GPL(nvme_start_admin_queue);
+EXPORT_SYMBOL_GPL(nvme_unquiesce_admin_queue);
 
 void nvme_sync_io_queues(struct nvme_ctrl *ctrl)
 {

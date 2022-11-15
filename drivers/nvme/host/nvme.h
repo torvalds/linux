@@ -752,10 +752,10 @@ void nvme_remove_namespaces(struct nvme_ctrl *ctrl);
 void nvme_complete_async_event(struct nvme_ctrl *ctrl, __le16 status,
 		volatile union nvme_result *res);
 
-void nvme_stop_queues(struct nvme_ctrl *ctrl);
-void nvme_start_queues(struct nvme_ctrl *ctrl);
-void nvme_stop_admin_queue(struct nvme_ctrl *ctrl);
-void nvme_start_admin_queue(struct nvme_ctrl *ctrl);
+void nvme_quiesce_io_queues(struct nvme_ctrl *ctrl);
+void nvme_unquiesce_io_queues(struct nvme_ctrl *ctrl);
+void nvme_quiesce_admin_queue(struct nvme_ctrl *ctrl);
+void nvme_unquiesce_admin_queue(struct nvme_ctrl *ctrl);
 void nvme_mark_namespaces_dead(struct nvme_ctrl *ctrl);
 void nvme_sync_queues(struct nvme_ctrl *ctrl);
 void nvme_sync_io_queues(struct nvme_ctrl *ctrl);
