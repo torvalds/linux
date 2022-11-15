@@ -817,9 +817,6 @@ int main(int argc, char **argv)
 	int opt;
 	bool eoi_split = false;
 
-	/* Tell stdout not to buffer its content */
-	setbuf(stdout, NULL);
-
 	while ((opt = getopt(argc, argv, "hn:e:l:")) != -1) {
 		switch (opt) {
 		case 'n':

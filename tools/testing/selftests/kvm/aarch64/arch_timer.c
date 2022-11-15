@@ -446,9 +446,6 @@ int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
 
-	/* Tell stdout not to buffer its content */
-	setbuf(stdout, NULL);
-
 	if (!parse_args(argc, argv))
 		exit(KSFT_SKIP);
 

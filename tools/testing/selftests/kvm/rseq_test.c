@@ -205,9 +205,6 @@ int main(int argc, char *argv[])
 	struct kvm_vcpu *vcpu;
 	u32 cpu, rseq_cpu;
 
-	/* Tell stdout not to buffer its content */
-	setbuf(stdout, NULL);
-
 	r = sched_getaffinity(0, sizeof(possible_mask), &possible_mask);
 	TEST_ASSERT(!r, "sched_getaffinity failed, errno = %d (%s)", errno,
 		    strerror(errno));

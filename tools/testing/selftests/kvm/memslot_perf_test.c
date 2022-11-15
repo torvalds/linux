@@ -994,9 +994,6 @@ int main(int argc, char *argv[])
 	struct test_result rbestslottime;
 	int tctr;
 
-	/* Tell stdout not to buffer its content */
-	setbuf(stdout, NULL);
-
 	if (!parse_args(argc, argv, &targs))
 		return -1;
 
