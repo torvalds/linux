@@ -246,7 +246,9 @@ config FPGA_MGR_VERSAL_FPGA
 
 config FPGA_M10_BMC_SEC_UPDATE
 	tristate "Intel MAX10 BMC Secure Update driver"
-	depends on MFD_INTEL_M10_BMC && FW_UPLOAD
+	depends on MFD_INTEL_M10_BMC
+	select FW_LOADER
+	select FW_UPLOAD
 	help
 	  Secure update support for the Intel MAX10 board management
 	  controller.
