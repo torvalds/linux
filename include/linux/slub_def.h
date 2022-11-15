@@ -41,6 +41,7 @@ enum stat_item {
 	CPU_PARTIAL_DRAIN,	/* Drain cpu partial to node partial */
 	NR_SLUB_STAT_ITEMS };
 
+#ifndef CONFIG_SLUB_TINY
 /*
  * When changing the layout, make sure freelist and tid are still compatible
  * with this_cpu_cmpxchg_double() alignment requirements.
@@ -57,6 +58,7 @@ struct kmem_cache_cpu {
 	unsigned stat[NR_SLUB_STAT_ITEMS];
 #endif
 };
+#endif /* CONFIG_SLUB_TINY */
 
 #ifdef CONFIG_SLUB_CPU_PARTIAL
 #define slub_percpu_partial(c)		((c)->partial)
@@ -88,7 +90,9 @@ struct kmem_cache_order_objects {
  * Slab cache management.
  */
 struct kmem_cache {
+#ifndef CONFIG_SLUB_TINY
 	struct kmem_cache_cpu __percpu *cpu_slab;
+#endif
 	/* Used for retrieving partial slabs, etc. */
 	slab_flags_t flags;
 	unsigned long min_partial;
