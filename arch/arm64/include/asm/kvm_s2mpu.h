@@ -49,8 +49,8 @@
 
 #define CTRL0_ENABLE				BIT(0)
 #define CTRL0_INTERRUPT_ENABLE			BIT(1)
-#define CTRL0_FAULT_RESP_TYPE_SLVERR		BIT(2) /* for v8 */
-#define CTRL0_FAULT_RESP_TYPE_DECERR		BIT(2) /* for v9 */
+#define CTRL0_FAULT_RESP_TYPE_SLVERR		BIT(2) /* for v1 */
+#define CTRL0_FAULT_RESP_TYPE_DECERR		BIT(2) /* for v2 */
 #define CTRL0_MASK				(CTRL0_ENABLE | \
 						 CTRL0_INTERRUPT_ENABLE | \
 						 CTRL0_FAULT_RESP_TYPE_SLVERR | \
@@ -109,7 +109,7 @@
 #define NR_FAULT_INFO_REGS			8
 #define FAULT_INFO_VID_MASK			GENMASK(26, 24)
 #define FAULT_INFO_TYPE_MASK			GENMASK(23, 21)
-#define FAULT_INFO_TYPE_CONTEXT			0x4 /* v9 only */
+#define FAULT_INFO_TYPE_CONTEXT			0x4 /* v2 only */
 #define FAULT_INFO_TYPE_AP			0x2
 #define FAULT_INFO_TYPE_MPTW			0x1
 #define FAULT_INFO_RW_BIT			BIT(20)
@@ -191,8 +191,8 @@ static_assert(SMPT_GRAN <= PAGE_SIZE);
 #define for_each_gb_and_vid(gb, vid)	for_each_vid((vid)) for_each_gb((gb))
 
 enum s2mpu_version {
-	S2MPU_VERSION_8 = 0x11000000,
-	S2MPU_VERSION_9 = 0x20000000,
+	S2MPU_VERSION_1 = 0x11000000,
+	S2MPU_VERSION_2 = 0x20000000,
 };
 
 enum mpt_prot {

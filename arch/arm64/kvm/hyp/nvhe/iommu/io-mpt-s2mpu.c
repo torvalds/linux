@@ -231,7 +231,7 @@ static const struct s2mpu_mpt_ops this_ops = {
 
 const struct s2mpu_mpt_ops *s2mpu_get_mpt_ops(struct s2mpu_mpt_cfg cfg)
 {
-	if ((cfg.version == S2MPU_VERSION_8) || (cfg.version == S2MPU_VERSION_9))
+	if ((cfg.version == S2MPU_VERSION_1) || (cfg.version == S2MPU_VERSION_2))
 		return &this_ops;
 
 	return NULL;

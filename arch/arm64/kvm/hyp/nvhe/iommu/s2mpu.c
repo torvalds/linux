@@ -106,7 +106,7 @@ static u32 __context_cfg_valid_vid(struct pkvm_iommu *dev, u32 vid_bmap)
 	return res;
 }
 
-static int __initialize_v9(struct pkvm_iommu *dev)
+static int __initialize_v2(struct pkvm_iommu *dev)
 {
 	u32 ssmt_valid_vid_bmap, ctx_cfg;
 
@@ -119,7 +119,7 @@ static int __initialize_v9(struct pkvm_iommu *dev)
 	/*
 	 * Write CONTEXT_CFG_VALID_VID configuration before touching L1ENTRY*
 	 * registers. Writes to those registers are ignored unless there is
-	 * a context ID allocated to the corresponding VID (v9 only).
+	 * a context ID allocated to the corresponding VID (v2 only).
 	 */
 	writel_relaxed(ctx_cfg, dev->va + REG_NS_CONTEXT_CFG_VALID_VID);
 	return 0;
@@ -133,10 +133,10 @@ static int __initialize(struct pkvm_iommu *dev)
 		data->version = readl_relaxed(dev->va + REG_NS_VERSION);
 
 	switch (data->version & VERSION_CHECK_MASK) {
-	case S2MPU_VERSION_8:
+	case S2MPU_VERSION_1:
 		return 0;
-	case S2MPU_VERSION_9:
-		return __initialize_v9(dev);
+	case S2MPU_VERSION_2:
+		return __initialize_v2(dev);
 	default:
 		return -EINVAL;
 	}
@@ -166,7 +166,7 @@ static void __set_control_regs(struct pkvm_iommu *dev)
 	irq_vids = ALL_VIDS_BITMAP;
 
 	/* Return SLVERR/DECERR to device on permission fault. */
-	ctrl0 |= is_version(dev, S2MPU_VERSION_9) ? CTRL0_FAULT_RESP_TYPE_DECERR
+	ctrl0 |= is_version(dev, S2MPU_VERSION_2) ? CTRL0_FAULT_RESP_TYPE_DECERR
 						  : CTRL0_FAULT_RESP_TYPE_SLVERR;
 
 	writel_relaxed(irq_vids, dev->va + REG_NS_INTERRUPT_ENABLE_PER_VID_SET);
@@ -248,8 +248,8 @@ static void __invalidation_barrier_complete(struct pkvm_iommu *dev)
 			__invalidation_barrier_slow(sync);
 	}
 
-	/* Must not access SFRs while S2MPU is busy invalidating (v9 only). */
-	if (is_version(dev, S2MPU_VERSION_9)) {
+	/* Must not access SFRs while S2MPU is busy invalidating (v2 only). */
+	if (is_version(dev, S2MPU_VERSION_2)) {
 		__wait_while(dev->va + REG_NS_STATUS,
 			     STATUS_BUSY | STATUS_ON_INVALIDATING);
 	}
@@ -401,7 +401,7 @@ static int s2mpu_suspend(struct pkvm_iommu *dev)
 	return initialize_with_prot(dev, MPT_PROT_NONE);
 }
 
-static u32 host_mmio_reg_access_mask_v8_v9(size_t off, bool is_write)
+static u32 host_mmio_reg_access_mask_v1_v2(size_t off, bool is_write)
 {
 	const u32 no_access = 0;
 	const u32 read_write = (u32)(-1);
@@ -492,9 +492,9 @@ static bool s2mpu_host_dabt_handler(struct pkvm_iommu *dev,
 	return true;
 }
 
-const struct s2mpu_reg_ops ops_v8_v9 = {
+const struct  s2mpu_reg_ops ops_v1_v2 = {
 	.init = __initialize,
-	.host_mmio_reg_access_mask = host_mmio_reg_access_mask_v8_v9,
+	.host_mmio_reg_access_mask = host_mmio_reg_access_mask_v1_v2,
 	.set_control_regs = __set_control_regs,
 };
 
@@ -514,8 +514,8 @@ static int s2mpu_init(void *data, size_t size)
 	memcpy(&in_mpt, data, sizeof(in_mpt));
 
 	cfg.version = in_mpt.version;
-	if ((in_mpt.version == S2MPU_VERSION_8) || (in_mpt.version == S2MPU_VERSION_9))
-		reg_ops = &ops_v8_v9;
+	if ((cfg.version == S2MPU_VERSION_1) || (cfg.version == S2MPU_VERSION_2))
+		reg_ops = &ops_v1_v2;
 	else
 		return -ENODEV;
 
