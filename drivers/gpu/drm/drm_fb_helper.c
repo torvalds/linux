@@ -656,17 +656,15 @@ void drm_fb_helper_deferred_io(struct fb_info *info, struct list_head *pagerefli
 		min_off = min(min_off, start);
 		max_off = max(max_off, end);
 	}
-	if (min_off >= max_off)
-		return;
 
-	if (helper->funcs->fb_dirty) {
-		/*
-		 * As we can only track pages, we might reach beyond the end
-		 * of the screen and account for non-existing scanlines. Hence,
-		 * keep the covered memory area within the screen buffer.
-		 */
-		max_off = min(max_off, info->screen_size);
+	/*
+	 * As we can only track pages, we might reach beyond the end
+	 * of the screen and account for non-existing scanlines. Hence,
+	 * keep the covered memory area within the screen buffer.
+	 */
+	max_off = min(max_off, info->screen_size);
 
+	if (min_off < max_off) {
 		drm_fb_helper_memory_range_to_clip(info, min_off, max_off - min_off, &damage_area);
 		drm_fb_helper_damage(helper, damage_area.x1, damage_area.y1,
 				     drm_rect_width(&damage_area),
