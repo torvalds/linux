@@ -26,10 +26,17 @@
 #include "vdd-level.h"
 
 static DEFINE_VDD_REGULATORS(vdd_cx, VDD_HIGH + 1, 1, vdd_corner);
+static DEFINE_VDD_REGULATORS(vdd_cx_ao, VDD_HIGH + 1, 1, vdd_corner);
 static DEFINE_VDD_REGULATORS(vdd_mxa, VDD_HIGH + 1, 1, vdd_corner);
 
 static struct clk_vdd_class *gcc_pineapple_regulators[] = {
 	&vdd_cx,
+	&vdd_mxa,
+};
+
+static struct clk_vdd_class *gcc_pineapple_regulators_all[] = {
+	&vdd_cx,
+	&vdd_cx_ao,
 	&vdd_mxa,
 };
 
@@ -80,6 +87,33 @@ static struct clk_alpha_pll gcc_gpll0 = {
 	},
 };
 
+static struct clk_alpha_pll gcc_gpll0_ao = {
+	.offset = 0x0,
+	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_LUCID_OLE],
+	.clkr = {
+		.enable_reg = 0x57020,
+		.enable_mask = BIT(0),
+		.hw.init = &(const struct clk_init_data){
+			.name = "gcc_gpll0_ao",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "bi_tcxo_ao",
+			},
+			.num_parents = 1,
+			.ops = &clk_alpha_pll_fixed_lucid_ole_ops,
+		},
+		.vdd_data = {
+			.vdd_class = &vdd_cx_ao,
+			.num_rate_max = VDD_NUM,
+			.rate_max = (unsigned long[VDD_NUM]) {
+				[VDD_LOWER_D1] = 615000000,
+				[VDD_LOW] = 1100000000,
+				[VDD_LOW_L1] = 1600000000,
+				[VDD_NOMINAL] = 2000000000,
+				[VDD_HIGH_L1] = 2100000000},
+		},
+	},
+};
+
 static const struct clk_div_table post_div_table_gcc_gpll0_out_even[] = {
 	{ 0x1, 2 },
 	{ }
@@ -102,6 +136,23 @@ static struct clk_alpha_pll_postdiv gcc_gpll0_out_even = {
 	},
 };
 
+static struct clk_alpha_pll_postdiv gcc_gpll0_out_even_ao = {
+	.offset = 0x0,
+	.post_div_shift = 10,
+	.post_div_table = post_div_table_gcc_gpll0_out_even,
+	.num_post_div = ARRAY_SIZE(post_div_table_gcc_gpll0_out_even),
+	.width = 4,
+	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_LUCID_OLE],
+	.clkr.hw.init = &(const struct clk_init_data){
+		.name = "gcc_gpll0_out_even_ao",
+		.parent_hws = (const struct clk_hw*[]){
+			&gcc_gpll0_ao.clkr.hw,
+		},
+		.num_parents = 1,
+		.ops = &clk_alpha_pll_postdiv_lucid_ole_ops,
+	},
+};
+
 static struct clk_alpha_pll gcc_gpll1 = {
 	.offset = 0x1000,
 	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_LUCID_OLE],
@@ -118,6 +169,33 @@ static struct clk_alpha_pll gcc_gpll1 = {
 		},
 		.vdd_data = {
 			.vdd_class = &vdd_cx,
+			.num_rate_max = VDD_NUM,
+			.rate_max = (unsigned long[VDD_NUM]) {
+				[VDD_LOWER_D1] = 615000000,
+				[VDD_LOW] = 1100000000,
+				[VDD_LOW_L1] = 1600000000,
+				[VDD_NOMINAL] = 2000000000,
+				[VDD_HIGH_L1] = 2100000000},
+		},
+	},
+};
+
+static struct clk_alpha_pll gcc_gpll1_ao = {
+	.offset = 0x1000,
+	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_LUCID_OLE],
+	.clkr = {
+		.enable_reg = 0x57020,
+		.enable_mask = BIT(1),
+		.hw.init = &(const struct clk_init_data){
+			.name = "gcc_gpll1_ao",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "bi_tcxo_ao",
+			},
+			.num_parents = 1,
+			.ops = &clk_alpha_pll_fixed_lucid_ole_ops,
+		},
+		.vdd_data = {
+			.vdd_class = &vdd_cx_ao,
 			.num_rate_max = VDD_NUM,
 			.rate_max = (unsigned long[VDD_NUM]) {
 				[VDD_LOWER_D1] = 615000000,
@@ -156,6 +234,33 @@ static struct clk_alpha_pll gcc_gpll3 = {
 	},
 };
 
+static struct clk_alpha_pll gcc_gpll3_ao = {
+	.offset = 0x3000,
+	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_LUCID_OLE],
+	.clkr = {
+		.enable_reg = 0x57020,
+		.enable_mask = BIT(3),
+		.hw.init = &(const struct clk_init_data){
+			.name = "gcc_gpll3_ao",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "bi_tcxo_ao",
+			},
+			.num_parents = 1,
+			.ops = &clk_alpha_pll_fixed_lucid_ole_ops,
+		},
+		.vdd_data = {
+			.vdd_class = &vdd_cx_ao,
+			.num_rate_max = VDD_NUM,
+			.rate_max = (unsigned long[VDD_NUM]) {
+				[VDD_LOWER_D1] = 615000000,
+				[VDD_LOW] = 1100000000,
+				[VDD_LOW_L1] = 1600000000,
+				[VDD_NOMINAL] = 2000000000,
+				[VDD_HIGH_L1] = 2100000000},
+		},
+	},
+};
+
 static struct clk_alpha_pll gcc_gpll4 = {
 	.offset = 0x4000,
 	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_LUCID_OLE],
@@ -183,6 +288,33 @@ static struct clk_alpha_pll gcc_gpll4 = {
 	},
 };
 
+static struct clk_alpha_pll gcc_gpll4_ao = {
+	.offset = 0x4000,
+	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_LUCID_OLE],
+	.clkr = {
+		.enable_reg = 0x57020,
+		.enable_mask = BIT(4),
+		.hw.init = &(const struct clk_init_data){
+			.name = "gcc_gpll4_ao",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "bi_tcxo_ao",
+			},
+			.num_parents = 1,
+			.ops = &clk_alpha_pll_fixed_lucid_ole_ops,
+		},
+		.vdd_data = {
+			.vdd_class = &vdd_cx_ao,
+			.num_rate_max = VDD_NUM,
+			.rate_max = (unsigned long[VDD_NUM]) {
+				[VDD_LOWER_D1] = 615000000,
+				[VDD_LOW] = 1100000000,
+				[VDD_LOW_L1] = 1600000000,
+				[VDD_NOMINAL] = 2000000000,
+				[VDD_HIGH_L1] = 2100000000},
+		},
+	},
+};
+
 static struct clk_alpha_pll gcc_gpll6 = {
 	.offset = 0x6000,
 	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_LUCID_OLE],
@@ -199,6 +331,33 @@ static struct clk_alpha_pll gcc_gpll6 = {
 		},
 		.vdd_data = {
 			.vdd_class = &vdd_cx,
+			.num_rate_max = VDD_NUM,
+			.rate_max = (unsigned long[VDD_NUM]) {
+				[VDD_LOWER_D1] = 615000000,
+				[VDD_LOW] = 1100000000,
+				[VDD_LOW_L1] = 1600000000,
+				[VDD_NOMINAL] = 2000000000,
+				[VDD_HIGH_L1] = 2100000000},
+		},
+	},
+};
+
+static struct clk_alpha_pll gcc_gpll6_ao = {
+	.offset = 0x6000,
+	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_LUCID_OLE],
+	.clkr = {
+		.enable_reg = 0x57020,
+		.enable_mask = BIT(6),
+		.hw.init = &(const struct clk_init_data){
+			.name = "gcc_gpll6_ao",
+			.parent_data = &(const struct clk_parent_data){
+				.fw_name = "bi_tcxo_ao",
+			},
+			.num_parents = 1,
+			.ops = &clk_alpha_pll_fixed_lucid_ole_ops,
+		},
+		.vdd_data = {
+			.vdd_class = &vdd_cx_ao,
 			.num_rate_max = VDD_NUM,
 			.rate_max = (unsigned long[VDD_NUM]) {
 				[VDD_LOWER_D1] = 615000000,
@@ -348,14 +507,14 @@ static const struct parent_map gcc_parent_map_6[] = {
 	{ P_GCC_GPLL0_OUT_EVEN, 6 },
 };
 
-static const struct clk_parent_data gcc_parent_data_6[] = {
-	{ .fw_name = "bi_tcxo" },
-	{ .hw = &gcc_gpll0.clkr.hw },
-	{ .hw = &gcc_gpll6.clkr.hw },
-	{ .hw = &gcc_gpll3.clkr.hw },
-	{ .hw = &gcc_gpll1.clkr.hw },
-	{ .hw = &gcc_gpll4.clkr.hw },
-	{ .hw = &gcc_gpll0_out_even.clkr.hw },
+static const struct clk_parent_data gcc_parent_data_6_ao[] = {
+	{ .fw_name = "bi_tcxo_ao" },
+	{ .hw = &gcc_gpll0_ao.clkr.hw },
+	{ .hw = &gcc_gpll6_ao.clkr.hw },
+	{ .hw = &gcc_gpll3_ao.clkr.hw },
+	{ .hw = &gcc_gpll1_ao.clkr.hw },
+	{ .hw = &gcc_gpll4_ao.clkr.hw },
+	{ .hw = &gcc_gpll0_out_even_ao.clkr.hw },
 };
 
 static const struct parent_map gcc_parent_map_7[] = {
@@ -581,13 +740,13 @@ static struct clk_rcg2 gcc_cpuss_ubwcp_clk_src = {
 	.flags = HW_CLK_CTRL_MODE,
 	.clkr.hw.init = &(const struct clk_init_data){
 		.name = "gcc_cpuss_ubwcp_clk_src",
-		.parent_data = gcc_parent_data_6,
-		.num_parents = ARRAY_SIZE(gcc_parent_data_6),
+		.parent_data = gcc_parent_data_6_ao,
+		.num_parents = ARRAY_SIZE(gcc_parent_data_6_ao),
 		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_rcg2_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_cx,
+		.vdd_class = &vdd_cx_ao,
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER] = 300000000,
@@ -4114,6 +4273,12 @@ static struct clk_regmap *gcc_pineapple_clocks[] = {
 	[GCC_USB3_PRIM_PHY_PIPE_CLK_SRC] = &gcc_usb3_prim_phy_pipe_clk_src.clkr,
 	[GCC_VIDEO_AXI0_CLK] = &gcc_video_axi0_clk.clkr,
 	[GCC_VIDEO_AXI1_CLK] = &gcc_video_axi1_clk.clkr,
+	[GCC_GPLL0_AO] = &gcc_gpll0_ao.clkr,
+	[GCC_GPLL0_OUT_EVEN_AO] = &gcc_gpll0_out_even_ao.clkr,
+	[GCC_GPLL1_AO] = &gcc_gpll1_ao.clkr,
+	[GCC_GPLL3_AO] = &gcc_gpll3_ao.clkr,
+	[GCC_GPLL4_AO] = &gcc_gpll4_ao.clkr,
+	[GCC_GPLL6_AO] = &gcc_gpll6_ao.clkr,
 };
 
 static const struct qcom_reset_map gcc_pineapple_resets[] = {
@@ -4190,8 +4355,8 @@ static const struct qcom_cc_desc gcc_pineapple_desc = {
 	.num_clks = ARRAY_SIZE(gcc_pineapple_clocks),
 	.resets = gcc_pineapple_resets,
 	.num_resets = ARRAY_SIZE(gcc_pineapple_resets),
-	.clk_regulators = gcc_pineapple_regulators,
-	.num_clk_regulators = ARRAY_SIZE(gcc_pineapple_regulators),
+	.clk_regulators = gcc_pineapple_regulators_all,
+	.num_clk_regulators = ARRAY_SIZE(gcc_pineapple_regulators_all),
 };
 
 static const struct of_device_id gcc_pineapple_match_table[] = {
