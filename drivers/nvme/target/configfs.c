@@ -1259,6 +1259,54 @@ static ssize_t nvmet_subsys_attr_model_store(struct config_item *item,
 }
 CONFIGFS_ATTR(nvmet_subsys_, attr_model);
 
+static ssize_t nvmet_subsys_attr_ieee_oui_show(struct config_item *item,
+					    char *page)
+{
+	struct nvmet_subsys *subsys = to_subsys(item);
+
+	return sysfs_emit(page, "0x%06x\n", subsys->ieee_oui);
+}
+
+static ssize_t nvmet_subsys_attr_ieee_oui_store_locked(struct nvmet_subsys *subsys,
+		const char *page, size_t count)
+{
+	uint32_t val = 0;
+	int ret;
+
+	if (subsys->subsys_discovered) {
+		pr_err("Can't set IEEE OUI. 0x%06x is already assigned\n",
+		      subsys->ieee_oui);
+		return -EINVAL;
+	}
+
+	ret = kstrtou32(page, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	if (val >= 0x1000000)
+		return -EINVAL;
+
+	subsys->ieee_oui = val;
+
+	return count;
+}
+
+static ssize_t nvmet_subsys_attr_ieee_oui_store(struct config_item *item,
+					     const char *page, size_t count)
+{
+	struct nvmet_subsys *subsys = to_subsys(item);
+	ssize_t ret;
+
+	down_write(&nvmet_config_sem);
+	mutex_lock(&subsys->lock);
+	ret = nvmet_subsys_attr_ieee_oui_store_locked(subsys, page, count);
+	mutex_unlock(&subsys->lock);
+	up_write(&nvmet_config_sem);
+
+	return ret;
+}
+CONFIGFS_ATTR(nvmet_subsys_, attr_ieee_oui);
+
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 static ssize_t nvmet_subsys_attr_pi_enable_show(struct config_item *item,
 						char *page)
@@ -1320,6 +1368,7 @@ static struct configfs_attribute *nvmet_subsys_attrs[] = {
 	&nvmet_subsys_attr_attr_cntlid_max,
 	&nvmet_subsys_attr_attr_model,
 	&nvmet_subsys_attr_attr_qid_max,
+	&nvmet_subsys_attr_attr_ieee_oui,
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 	&nvmet_subsys_attr_attr_pi_enable,
 #endif

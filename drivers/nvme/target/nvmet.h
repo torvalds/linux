@@ -263,6 +263,7 @@ struct nvmet_subsys {
 	struct config_group	allowed_hosts_group;
 
 	char			*model_number;
+	u32			ieee_oui;
 
 #ifdef CONFIG_NVME_TARGET_PASSTHRU
 	struct nvme_ctrl	*passthru_ctrl;

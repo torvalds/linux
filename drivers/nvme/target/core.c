@@ -1561,6 +1561,8 @@ struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 		goto free_subsys;
 	}
 
+	subsys->ieee_oui = 0;
+
 	switch (type) {
 	case NVME_NQN_NVME:
 		subsys->max_qid = NVMET_NR_QUEUES;
