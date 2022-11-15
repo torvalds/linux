@@ -142,31 +142,35 @@ examples:
     apr {
         compatible = "qcom,apr-v2";
         qcom,domain = <APR_DOMAIN_ADSP>;
+        qcom,glink-channels = "apr_audio_svc";
+        qcom,intents = <512 20>;
         #address-cells = <1>;
         #size-cells = <0>;
 
         q6core: service@3 {
-          compatible = "qcom,q6core";
-          reg = <APR_SVC_ADSP_CORE>;
-          qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
+            compatible = "qcom,q6core";
+            reg = <APR_SVC_ADSP_CORE>;
+            qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
         };
 
-        q6afe: service@4 {
-          compatible = "qcom,q6afe";
-          reg = <APR_SVC_AFE>;
-          qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
-        };
+        service@4 {
+            compatible = "qcom,q6afe";
+            reg = <APR_SVC_AFE>;
+            qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
 
-        q6asm: service@7 {
-          compatible = "qcom,q6asm";
-          reg = <APR_SVC_ASM>;
-          qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
-        };
+            clock-controller {
+                compatible = "qcom,q6afe-clocks";
+                #clock-cells = <2>;
+            };
 
-        q6adm: service@8 {
-          compatible = "qcom,q6adm";
-          reg = <APR_SVC_ADM>;
-          qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
+            dais {
+                compatible = "qcom,q6afe-dais";
+                #address-cells = <1>;
+                #size-cells = <0>;
+                #sound-dai-cells = <1>;
+                /* ... */
+            };
+            /* ... */
         };
     };
 
@@ -175,12 +179,25 @@ examples:
     gpr {
         compatible = "qcom,gpr";
         qcom,domain = <GPR_DOMAIN_ID_ADSP>;
+        qcom,glink-channels = "adsp_apps";
+        qcom,intents = <512 20>;
         #address-cells = <1>;
         #size-cells = <0>;
 
         service@1 {
-          compatible = "qcom,q6apm";
-          reg = <GPR_APM_MODULE_IID>;
-          qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
+            compatible = "qcom,q6apm";
+            reg = <GPR_APM_MODULE_IID>;
+            #sound-dai-cells = <0>;
+            qcom,protection-domain = "avs/audio", "msm/adsp/audio_pd";
+
+            dais {
+                compatible = "qcom,q6apm-dais";
+                iommus = <&apps_smmu 0x1801 0x0>;
+            };
+
+            bedais {
+                compatible = "qcom,q6apm-lpass-dais";
+                #sound-dai-cells = <1>;
+            };
         };
     };
