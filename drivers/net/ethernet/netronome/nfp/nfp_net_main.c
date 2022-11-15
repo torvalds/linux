@@ -16,7 +16,6 @@
 #include <linux/lockdep.h>
 #include <linux/pci.h>
 #include <linux/pci_regs.h>
-#include <linux/msi.h>
 #include <linux/random.h>
 #include <linux/rtnetlink.h>
 
