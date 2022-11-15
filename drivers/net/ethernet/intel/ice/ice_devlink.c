@@ -8,6 +8,7 @@
 #include "ice_devlink.h"
 #include "ice_eswitch.h"
 #include "ice_fw_update.h"
+#include "ice_dcb_lib.h"
 
 static int ice_active_port_option = -1;
 
@@ -714,6 +715,63 @@ ice_devlink_port_unsplit(struct devlink *devlink, struct devlink_port *port,
 }
 
 /**
+ * ice_tear_down_devlink_rate_tree - removes devlink-rate exported tree
+ * @pf: pf struct
+ *
+ * This function tears down tree exported during VF's creation.
+ */
+void ice_tear_down_devlink_rate_tree(struct ice_pf *pf)
+{
+	struct devlink *devlink;
+	struct ice_vf *vf;
+	unsigned int bkt;
+
+	devlink = priv_to_devlink(pf);
+
+	devl_lock(devlink);
+	mutex_lock(&pf->vfs.table_lock);
+	ice_for_each_vf(pf, bkt, vf) {
+		if (vf->devlink_port.devlink_rate)
+			devl_rate_leaf_destroy(&vf->devlink_port);
+	}
+	mutex_unlock(&pf->vfs.table_lock);
+
+	devl_rate_nodes_destroy(devlink);
+	devl_unlock(devlink);
+}
+
+/**
+ * ice_enable_custom_tx - try to enable custom Tx feature
+ * @pf: pf struct
+ *
+ * This function tries to enable custom Tx feature,
+ * it's not possible to enable it, if DCB or ADQ is active.
+ */
+static bool ice_enable_custom_tx(struct ice_pf *pf)
+{
+	struct ice_port_info *pi = ice_get_main_vsi(pf)->port_info;
+	struct device *dev = ice_pf_to_dev(pf);
+
+	if (pi->is_custom_tx_enabled)
+		/* already enabled, return true */
+		return true;
+
+	if (ice_is_adq_active(pf)) {
+		dev_err(dev, "ADQ active, can't modify Tx scheduler tree\n");
+		return false;
+	}
+
+	if (ice_is_dcb_active(pf)) {
+		dev_err(dev, "DCB active, can't modify Tx scheduler tree\n");
+		return false;
+	}
+
+	pi->is_custom_tx_enabled = true;
+
+	return true;
+}
+
+/**
  * ice_traverse_tx_tree - traverse Tx scheduler tree
  * @devlink: devlink struct
  * @node: current node, used for recursion
@@ -914,6 +972,9 @@ static int ice_devlink_rate_node_new(struct devlink_rate *rate_node, void **priv
 
 	pi = ice_get_pi_from_dev_rate(rate_node);
 
+	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+		return -EBUSY;
+
 	/* preallocate memory for ice_sched_node */
 	node = devm_kzalloc(ice_hw_to_dev(pi->hw), sizeof(*node), GFP_KERNEL);
 	*priv = node;
@@ -934,6 +995,9 @@ static int ice_devlink_rate_node_del(struct devlink_rate *rate_node, void *priv,
 	if (!rate_node->parent || !node || tc_node == node || !extack)
 		return 0;
 
+	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+		return -EBUSY;
+
 	/* can't allow to delete a node with children */
 	if (node->num_children)
 		return -EINVAL;
@@ -950,6 +1014,9 @@ static int ice_devlink_rate_leaf_tx_max_set(struct devlink_rate *rate_leaf, void
 {
 	struct ice_sched_node *node = priv;
 
+	if (!ice_enable_custom_tx(devlink_priv(rate_leaf->devlink)))
+		return -EBUSY;
+
 	if (!node)
 		return 0;
 
@@ -961,6 +1028,9 @@ static int ice_devlink_rate_leaf_tx_share_set(struct devlink_rate *rate_leaf, vo
 					      u64 tx_share, struct netlink_ext_ack *extack)
 {
 	struct ice_sched_node *node = priv;
+
+	if (!ice_enable_custom_tx(devlink_priv(rate_leaf->devlink)))
+		return -EBUSY;
 
 	if (!node)
 		return 0;
@@ -974,6 +1044,9 @@ static int ice_devlink_rate_leaf_tx_priority_set(struct devlink_rate *rate_leaf,
 {
 	struct ice_sched_node *node = priv;
 
+	if (!ice_enable_custom_tx(devlink_priv(rate_leaf->devlink)))
+		return -EBUSY;
+
 	if (!node)
 		return 0;
 
@@ -985,6 +1058,9 @@ static int ice_devlink_rate_leaf_tx_weight_set(struct devlink_rate *rate_leaf, v
 					       u32 tx_weight, struct netlink_ext_ack *extack)
 {
 	struct ice_sched_node *node = priv;
+
+	if (!ice_enable_custom_tx(devlink_priv(rate_leaf->devlink)))
+		return -EBUSY;
 
 	if (!node)
 		return 0;
@@ -998,6 +1074,9 @@ static int ice_devlink_rate_node_tx_max_set(struct devlink_rate *rate_node, void
 {
 	struct ice_sched_node *node = priv;
 
+	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+		return -EBUSY;
+
 	if (!node)
 		return 0;
 
@@ -1009,6 +1088,9 @@ static int ice_devlink_rate_node_tx_share_set(struct devlink_rate *rate_node, vo
 					      u64 tx_share, struct netlink_ext_ack *extack)
 {
 	struct ice_sched_node *node = priv;
+
+	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+		return -EBUSY;
 
 	if (!node)
 		return 0;
@@ -1022,6 +1104,9 @@ static int ice_devlink_rate_node_tx_priority_set(struct devlink_rate *rate_node,
 {
 	struct ice_sched_node *node = priv;
 
+	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+		return -EBUSY;
+
 	if (!node)
 		return 0;
 
@@ -1033,6 +1118,9 @@ static int ice_devlink_rate_node_tx_weight_set(struct devlink_rate *rate_node, v
 					       u32 tx_weight, struct netlink_ext_ack *extack)
 {
 	struct ice_sched_node *node = priv;
+
+	if (!ice_enable_custom_tx(devlink_priv(rate_node->devlink)))
+		return -EBUSY;
 
 	if (!node)
 		return 0;
@@ -1058,6 +1146,9 @@ static int ice_devlink_set_parent(struct devlink_rate *devlink_rate,
 
 	if (!extack)
 		return 0;
+
+	if (!ice_enable_custom_tx(devlink_priv(devlink_rate->devlink)))
+		return -EBUSY;
 
 	if (!parent) {
 		if (!node || tc_node == node || node->num_children)
