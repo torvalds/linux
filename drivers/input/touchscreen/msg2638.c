@@ -26,6 +26,7 @@
 
 #define MODE_DATA_RAW			0x5A
 
+#define MSG2138_MAX_FINGERS		2
 #define MSG2638_MAX_FINGERS		5
 
 #define CHIP_ON_DELAY_MS		15
@@ -36,6 +37,18 @@
 struct msg_chip_data {
 	irq_handler_t irq_handler;
 	unsigned int max_fingers;
+};
+
+struct msg2138_packet {
+	u8	xy_hi; /* higher bits of x and y coordinates */
+	u8	x_low;
+	u8	y_low;
+};
+
+struct msg2138_touch_event {
+	u8	magic;
+	struct	msg2138_packet pkt[MSG2138_MAX_FINGERS];
+	u8	checksum;
 };
 
 struct msg2638_packet {
@@ -70,6 +83,80 @@ static u8 msg2638_checksum(u8 *data, u32 length)
 		sum += data[i];
 
 	return (u8)((-sum) & 0xFF);
+}
+
+static irqreturn_t msg2138_ts_irq_handler(int irq, void *msg2638_handler)
+{
+	struct msg2638_ts_data *msg2638 = msg2638_handler;
+	struct i2c_client *client = msg2638->client;
+	struct input_dev *input = msg2638->input_dev;
+	struct msg2138_touch_event touch_event;
+	u32 len = sizeof(touch_event);
+	struct i2c_msg msg[] = {
+		{
+			.addr	= client->addr,
+			.flags	= I2C_M_RD,
+			.len	= sizeof(touch_event),
+			.buf	= (u8 *)&touch_event,
+		},
+	};
+	struct msg2138_packet *p0, *p1;
+	u16 x, y, delta_x, delta_y;
+	int ret;
+
+	ret = i2c_transfer(client->adapter, msg, ARRAY_SIZE(msg));
+	if (ret != ARRAY_SIZE(msg)) {
+		dev_err(&client->dev,
+			"Failed I2C transfer in irq handler: %d\n",
+			ret < 0 ? ret : -EIO);
+		goto out;
+	}
+
+	if (msg2638_checksum((u8 *)&touch_event, len - 1) !=
+						touch_event.checksum) {
+		dev_err(&client->dev, "Failed checksum!\n");
+		goto out;
+	}
+
+	p0 = &touch_event.pkt[0];
+	p1 = &touch_event.pkt[1];
+
+	/* Ignore non-pressed finger data */
+	if (p0->xy_hi == 0xFF && p0->x_low == 0xFF && p0->y_low == 0xFF)
+		goto report;
+
+	x = ((p0->xy_hi & 0xF0) << 4) | p0->x_low;
+	y = ((p0->xy_hi & 0x0F) << 8) | p0->y_low;
+
+	input_mt_slot(input, 0);
+	input_mt_report_slot_state(input, MT_TOOL_FINGER, true);
+	touchscreen_report_pos(input, &msg2638->prop, x, y, true);
+
+	/* Ignore non-pressed finger data */
+	if (p1->xy_hi == 0xFF && p1->x_low == 0xFF && p1->y_low == 0xFF)
+		goto report;
+
+	/* Second finger is reported as a delta position */
+	delta_x = ((p1->xy_hi & 0xF0) << 4) | p1->x_low;
+	delta_y = ((p1->xy_hi & 0x0F) << 8) | p1->y_low;
+
+	/* Ignore second finger if both deltas equal 0 */
+	if (delta_x == 0 && delta_y == 0)
+		goto report;
+
+	x += delta_x;
+	y += delta_y;
+
+	input_mt_slot(input, 1);
+	input_mt_report_slot_state(input, MT_TOOL_FINGER, true);
+	touchscreen_report_pos(input, &msg2638->prop, x, y, true);
+
+report:
+	input_mt_sync_frame(msg2638->input_dev);
+	input_sync(msg2638->input_dev);
+
+out:
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t msg2638_ts_irq_handler(int irq, void *msg2638_handler)
@@ -331,12 +418,18 @@ static int __maybe_unused msg2638_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(msg2638_pm_ops, msg2638_suspend, msg2638_resume);
 
+static const struct msg_chip_data msg2138_data = {
+	.irq_handler = msg2138_ts_irq_handler,
+	.max_fingers = MSG2138_MAX_FINGERS,
+};
+
 static const struct msg_chip_data msg2638_data = {
 	.irq_handler = msg2638_ts_irq_handler,
 	.max_fingers = MSG2638_MAX_FINGERS,
 };
 
 static const struct of_device_id msg2638_of_match[] = {
+	{ .compatible = "mstar,msg2138", .data = &msg2138_data },
 	{ .compatible = "mstar,msg2638", .data = &msg2638_data },
 	{ }
 };
