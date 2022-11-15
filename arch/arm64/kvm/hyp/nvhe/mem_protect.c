@@ -1796,16 +1796,11 @@ int __pkvm_host_donate_guest(u64 pfn, u64 gfn, struct pkvm_hyp_vcpu *vcpu)
 	return ret;
 }
 
-static int hyp_zero_page(phys_addr_t phys)
+static void hyp_zero_page(phys_addr_t phys)
 {
-	void *addr;
-
-	addr = hyp_fixmap_map(phys);
-	if (!addr)
-		return -EINVAL;
+	void *addr = hyp_fixmap_map(phys);
 
 	memset(addr, 0, PAGE_SIZE);
-
 	/*
 	 * Prefer kvm_flush_dcache_to_poc() over __clean_dcache_guest_page()
 	 * here as the latter may elide the CMO under the assumption that FWB
@@ -1815,7 +1810,6 @@ static int hyp_zero_page(phys_addr_t phys)
 	 */
 	kvm_flush_dcache_to_poc(addr, PAGE_SIZE);
 	hyp_fixmap_unmap();
-	return 0;
 }
 
 int __pkvm_host_reclaim_page(u64 pfn)
@@ -1841,9 +1835,7 @@ int __pkvm_host_reclaim_page(u64 pfn)
 	}
 
 	if (page->flags & HOST_PAGE_NEED_POISONING) {
-		ret = hyp_zero_page(addr);
-		if (ret)
-			goto unlock;
+		hyp_zero_page(addr);
 		page->flags &= ~HOST_PAGE_NEED_POISONING;
 	}
 
