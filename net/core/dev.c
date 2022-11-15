@@ -5979,10 +5979,9 @@ EXPORT_SYMBOL(__napi_schedule);
  */
 bool napi_schedule_prep(struct napi_struct *n)
 {
-	unsigned long val, new;
+	unsigned long new, val = READ_ONCE(n->state);
 
 	do {
-		val = READ_ONCE(n->state);
 		if (unlikely(val & NAPIF_STATE_DISABLE))
 			return false;
 		new = val | NAPIF_STATE_SCHED;
@@ -5995,7 +5994,7 @@ bool napi_schedule_prep(struct napi_struct *n)
 		 */
 		new |= (val & NAPIF_STATE_SCHED) / NAPIF_STATE_SCHED *
 						   NAPIF_STATE_MISSED;
-	} while (cmpxchg(&n->state, val, new) != val);
+	} while (!try_cmpxchg(&n->state, &val, new));
 
 	return !(val & NAPIF_STATE_SCHED);
 }
@@ -6063,9 +6062,8 @@ bool napi_complete_done(struct napi_struct *n, int work_done)
 		local_irq_restore(flags);
 	}
 
+	val = READ_ONCE(n->state);
 	do {
-		val = READ_ONCE(n->state);
-
 		WARN_ON_ONCE(!(val & NAPIF_STATE_SCHED));
 
 		new = val & ~(NAPIF_STATE_MISSED | NAPIF_STATE_SCHED |
@@ -6078,7 +6076,7 @@ bool napi_complete_done(struct napi_struct *n, int work_done)
 		 */
 		new |= (val & NAPIF_STATE_MISSED) / NAPIF_STATE_MISSED *
 						    NAPIF_STATE_SCHED;
-	} while (cmpxchg(&n->state, val, new) != val);
+	} while (!try_cmpxchg(&n->state, &val, new));
 
 	if (unlikely(val & NAPIF_STATE_MISSED)) {
 		__napi_schedule(n);
