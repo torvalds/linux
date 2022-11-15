@@ -89,6 +89,30 @@ struct acpi_gpio_chip {
 	struct list_head deferred_req_irqs_list_entry;
 };
 
+/**
+ * struct acpi_gpio_info - ACPI GPIO specific information
+ * @adev: reference to ACPI device which consumes GPIO resource
+ * @flags: GPIO initialization flags
+ * @gpioint: if %true this GPIO is of type GpioInt otherwise type is GpioIo
+ * @pin_config: pin bias as provided by ACPI
+ * @polarity: interrupt polarity as provided by ACPI
+ * @triggering: triggering type as provided by ACPI
+ * @wake_capable: wake capability as provided by ACPI
+ * @debounce: debounce timeout as provided by ACPI
+ * @quirks: Linux specific quirks as provided by struct acpi_gpio_mapping
+ */
+struct acpi_gpio_info {
+	struct acpi_device *adev;
+	enum gpiod_flags flags;
+	bool gpioint;
+	int pin_config;
+	int polarity;
+	int triggering;
+	bool wake_capable;
+	unsigned int debounce;
+	unsigned int quirks;
+};
+
 /*
  * For GPIO chips which call acpi_gpiochip_request_interrupts() before late_init
  * (so builtin drivers) we register the ACPI GpioInt IRQ handlers from a
@@ -670,8 +694,8 @@ __acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, enum gpiod_flags update)
 	return ret;
 }
 
-int
-acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, struct acpi_gpio_info *info)
+static int acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags,
+				        struct acpi_gpio_info *info)
 {
 	struct device *dev = &info->adev->dev;
 	enum gpiod_flags old = *flags;
@@ -690,8 +714,8 @@ acpi_gpio_update_gpiod_flags(enum gpiod_flags *flags, struct acpi_gpio_info *inf
 	return ret;
 }
 
-int acpi_gpio_update_gpiod_lookup_flags(unsigned long *lookupflags,
-					struct acpi_gpio_info *info)
+static int acpi_gpio_update_gpiod_lookup_flags(unsigned long *lookupflags,
+					       struct acpi_gpio_info *info)
 {
 	switch (info->pin_config) {
 	case ACPI_PIN_CONFIG_PULLUP:
@@ -1005,7 +1029,8 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
  * @fwnode: pointer to an ACPI firmware node to get the GPIO information from
  * @propname: Property name of the GPIO
  * @index: index of GpioIo/GpioInt resource (starting from %0)
- * @info: info pointer to fill in (optional)
+ * @lflags: bitmask of gpio_lookup_flags GPIO_* values
+ * @dflags: gpiod initialization flags
  *
  * If @fwnode is an ACPI device object, call acpi_get_gpiod_by_index() for it.
  * Otherwise (i.e. it is a data-only non-device object), use the property-based
@@ -1017,15 +1042,25 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
  */
 struct gpio_desc *acpi_node_get_gpiod(struct fwnode_handle *fwnode,
 				      const char *propname, int index,
-				      struct acpi_gpio_info *info)
+				      unsigned long *lflags,
+				      enum gpiod_flags *dflags)
 {
+	struct acpi_gpio_info info;
 	struct acpi_device *adev;
+	struct gpio_desc *desc;
 
 	adev = to_acpi_device_node(fwnode);
 	if (adev)
-		return acpi_get_gpiod_by_index(adev, propname, index, info);
+		desc = acpi_get_gpiod_by_index(adev, propname, index, &info);
+	else
+		desc = acpi_get_gpiod_from_data(fwnode, propname, index, &info);
 
-	return acpi_get_gpiod_from_data(fwnode, propname, index, info);
+	if (!IS_ERR(desc)) {
+		acpi_gpio_update_gpiod_flags(dflags, &info);
+		acpi_gpio_update_gpiod_lookup_flags(lflags, &info);
+	}
+
+	return desc;
 }
 
 /**

@@ -3890,14 +3890,10 @@ static struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 					      label);
 		return desc;
 	} else if (is_acpi_node(fwnode)) {
-		struct acpi_gpio_info info;
-
-		desc = acpi_node_get_gpiod(fwnode, propname, index, &info);
+		desc = acpi_node_get_gpiod(fwnode, propname, index,
+					   &lflags, &dflags);
 		if (IS_ERR(desc))
 			return desc;
-
-		acpi_gpio_update_gpiod_flags(&dflags, &info);
-		acpi_gpio_update_gpiod_lookup_flags(&lflags, &info);
 	} else {
 		return ERR_PTR(-EINVAL);
 	}
