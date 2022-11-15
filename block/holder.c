@@ -4,7 +4,7 @@
 
 struct bd_holder_disk {
 	struct list_head	list;
-	struct block_device	*bdev;
+	struct kobject		*holder_dir;
 	int			refcnt;
 };
 
@@ -14,7 +14,7 @@ static struct bd_holder_disk *bd_find_holder_disk(struct block_device *bdev,
 	struct bd_holder_disk *holder;
 
 	list_for_each_entry(holder, &disk->slave_bdevs, list)
-		if (holder->bdev == bdev)
+		if (holder->holder_dir == bdev->bd_holder_dir)
 			return holder;
 	return NULL;
 }
@@ -94,8 +94,9 @@ int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk)
 	}
 
 	INIT_LIST_HEAD(&holder->list);
-	holder->bdev = bdev;
 	holder->refcnt = 1;
+	holder->holder_dir = bdev->bd_holder_dir;
+
 	ret = add_symlink(disk->slave_dir, bdev_kobj(bdev));
 	if (ret)
 		goto out_free_holder;
@@ -140,8 +141,8 @@ void bd_unlink_disk_holder(struct block_device *bdev, struct gendisk *disk)
 	holder = bd_find_holder_disk(bdev, disk);
 	if (!WARN_ON_ONCE(holder == NULL) && !--holder->refcnt) {
 		del_symlink(disk->slave_dir, bdev_kobj(bdev));
-		del_symlink(bdev->bd_holder_dir, &disk_to_dev(disk)->kobj);
-		kobject_put(bdev->bd_holder_dir);
+		del_symlink(holder->holder_dir, &disk_to_dev(disk)->kobj);
+		kobject_put(holder->holder_dir);
 		list_del_init(&holder->list);
 		kfree(holder);
 	}
