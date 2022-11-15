@@ -5,6 +5,7 @@
 #include "disk-io.h"
 #include "fs.h"
 #include "accessors.h"
+#include "tree-checker.h"
 
 struct tree_mod_root {
 	u64 logical;

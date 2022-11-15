@@ -6,8 +6,39 @@
 #ifndef BTRFS_TREE_CHECKER_H
 #define BTRFS_TREE_CHECKER_H
 
-#include "ctree.h"
-#include "extent_io.h"
+#include <uapi/linux/btrfs_tree.h>
+
+struct extent_buffer;
+struct btrfs_chunk;
+
+/* All the extra info needed to verify the parentness of a tree block. */
+struct btrfs_tree_parent_check {
+	/*
+	 * The owner check against the tree block.
+	 *
+	 * Can be 0 to skip the owner check.
+	 */
+	u64 owner_root;
+
+	/*
+	 * Expected transid, can be 0 to skip the check, but such skip
+	 * should only be utlized for backref walk related code.
+	 */
+	u64 transid;
+
+	/*
+	 * The expected first key.
+	 *
+	 * This check can be skipped if @has_first_key is false, such skip
+	 * can happen for case where we don't have the parent node key,
+	 * e.g. reading the tree root, doing backref walk.
+	 */
+	struct btrfs_key first_key;
+	bool has_first_key;
+
+	/* The expected level. Should always be set. */
+	u8 level;
+};
 
 /*
  * Comprehensive leaf checker.

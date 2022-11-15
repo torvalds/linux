@@ -11,7 +11,7 @@
 #include <linux/btrfs.h>
 #include "async-thread.h"
 #include "messages.h"
-#include "disk-io.h"
+#include "tree-checker.h"
 #include "rcu-string.h"
 
 #define BTRFS_MAX_DATA_CHUNK_SIZE	(10ULL * SZ_1G)
