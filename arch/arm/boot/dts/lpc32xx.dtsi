@@ -315,7 +315,7 @@
 			/* System Control Block */
 			scb {
 				compatible = "simple-bus";
-				ranges = <0x0 0x040004000 0x00001000>;
+				ranges = <0x0 0x40004000 0x00001000>;
 				#address-cells = <1>;
 				#size-cells = <1>;
 
