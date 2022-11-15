@@ -16,13 +16,6 @@
 	chosen {
 		bootargs = "ignore_loglevel";
 	};
-
-	/delete-node/opp-table-0;
-	/delete-node/thermal-zones;
-};
-
-&adc {
-	status = "disabled";
 };
 
 &dmac {
@@ -46,10 +39,6 @@
 };
 
 &sdhi0 {
-	status = "disabled";
-};
-
-&tsu {
 	status = "disabled";
 };
 
