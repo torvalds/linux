@@ -102,6 +102,8 @@ static struct kobject *sysfs_kobject;
 bool qcom_device_shutdown_in_progress;
 EXPORT_SYMBOL(qcom_device_shutdown_in_progress);
 
+static bool qcom_collect_both_coredumps;
+
 static LIST_HEAD(qcom_ssr_subsystem_list);
 static DEFINE_MUTEX(qcom_ssr_subsys_lock);
 
@@ -123,6 +125,23 @@ static ssize_t qcom_rproc_shutdown_request_store(struct kobject *kobj, struct ko
 }
 static struct kobj_attribute shutdown_requested_attr = __ATTR(shutdown_in_progress, 0220, NULL,
 							  qcom_rproc_shutdown_request_store);
+
+static ssize_t qcom_collect_both_coredumps_store(struct kobject *kobj, struct kobj_attribute *attr,
+						 const char *buf, size_t count)
+{
+	bool val;
+	int ret;
+
+	ret = kstrtobool(buf, &val);
+	if (ret)
+		return ret;
+
+	qcom_collect_both_coredumps = val;
+	pr_info("qcom rproc: Collect both coredumps: %s\n", val ? "true" : "false");
+	return count;
+}
+static struct kobj_attribute both_coredumps_attr = __ATTR(collect_both_coredumps, 0644, NULL,
+							  qcom_collect_both_coredumps_store);
 
 static void qcom_minidump_cleanup(struct rproc *rproc)
 {
@@ -280,8 +299,8 @@ static void qcom_rproc_minidump(struct rproc *rproc, struct device *md_dev)
 	dev_coredumpv(md_dev, data, data_size, GFP_KERNEL);
 }
 
-void qcom_minidump(struct rproc *rproc, struct device *md_dev,
-				unsigned int minidump_id, rproc_dumpfn_t dumpfn)
+void qcom_minidump(struct rproc *rproc, struct device *md_dev, unsigned int minidump_id,
+		   rproc_dumpfn_t dumpfn, bool both_dumps)
 {
 	int ret;
 	struct minidump_subsystem *subsystem;
@@ -308,6 +327,11 @@ void qcom_minidump(struct rproc *rproc, struct device *md_dev,
 	    le32_to_cpu(subsystem->enabled) != MD_SS_ENABLED) {
 		return rproc_coredump(rproc);
 	}
+
+
+	if (both_dumps && IS_ENABLED(CONFIG_QCOM_RPROC_BOTH_DUMPS) &&
+	    qcom_collect_both_coredumps)
+		rproc_coredump(rproc);
 
 	if (le32_to_cpu(subsystem->encryption_status) != MD_SS_ENCR_DONE) {
 		dev_err(&rproc->dev, "Minidump not ready, skipping\n");
@@ -813,10 +837,16 @@ static int __init qcom_common_init(void)
 		goto remove_kobject;
 	}
 
+	ret = sysfs_create_file(sysfs_kobject, &both_coredumps_attr.attr);
+	if (ret) {
+		pr_err("qcom rproc: failed to create both_coredumps sysfs file\n");
+		goto remove_shutdown_sysfs;
+	}
+
 	ret = register_trace_android_vh_rproc_recovery(qcom_check_ssr_status, NULL);
 	if (ret) {
 		pr_err("qcom rproc: failed to register trace hooks\n");
-		goto remove_sysfs;
+		goto remove_coredump_sysfs;
 	}
 
 	ret = register_trace_android_vh_rproc_recovery_set(rproc_recovery_notifier, NULL);
@@ -829,7 +859,9 @@ static int __init qcom_common_init(void)
 
 unregister_rproc_recovery_vh:
 	unregister_trace_android_vh_rproc_recovery(qcom_check_ssr_status, NULL);
-remove_sysfs:
+remove_coredump_sysfs:
+	sysfs_remove_file(sysfs_kobject, &both_coredumps_attr.attr);
+remove_shutdown_sysfs:
 	sysfs_remove_file(sysfs_kobject, &shutdown_requested_attr.attr);
 remove_kobject:
 	kobject_put(sysfs_kobject);
@@ -841,6 +873,7 @@ module_init(qcom_common_init);
 static void __exit qcom_common_exit(void)
 {
 	unregister_trace_android_vh_rproc_recovery_set(rproc_recovery_notifier, NULL);
+	sysfs_remove_file(sysfs_kobject, &both_coredumps_attr.attr);
 	sysfs_remove_file(sysfs_kobject, &shutdown_requested_attr.attr);
 	kobject_put(sysfs_kobject);
 	unregister_trace_android_vh_rproc_recovery(qcom_check_ssr_status, NULL);

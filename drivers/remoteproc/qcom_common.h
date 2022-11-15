@@ -62,7 +62,7 @@ typedef void (*rproc_dumpfn_t)(struct rproc *rproc, struct rproc_dump_segment *s
 			       void *dest, size_t offset, size_t size);
 
 void qcom_minidump(struct rproc *rproc, struct device *md_dev,
-			unsigned int minidump_id, rproc_dumpfn_t dumpfn);
+			unsigned int minidump_id, rproc_dumpfn_t dumpfn, bool both_dumps);
 
 void qcom_add_glink_subdev(struct rproc *rproc, struct qcom_rproc_glink *glink,
 			   const char *ssr_name);
