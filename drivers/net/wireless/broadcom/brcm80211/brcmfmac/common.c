@@ -299,6 +299,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 			 err);
 		goto done;
 	}
+	buf[sizeof(buf) - 1] = '\0';
 	ptr = (char *)buf;
 	strsep(&ptr, "\n");
 
