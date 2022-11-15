@@ -7,6 +7,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
@@ -1879,6 +1880,23 @@ static const struct iio_chan_spec_ext_info stm32_adc_ext_info[] = {
 	{},
 };
 
+static void stm32_adc_debugfs_init(struct iio_dev *indio_dev)
+{
+	struct stm32_adc *adc = iio_priv(indio_dev);
+	struct dentry *d = iio_get_debugfs_dentry(indio_dev);
+	struct stm32_adc_calib *cal = &adc->cal;
+	char buf[16];
+	unsigned int i;
+
+	if (!adc->cfg->has_linearcal)
+		return;
+
+	for (i = 0; i < STM32H7_LINCALFACT_NUM; i++) {
+		snprintf(buf, sizeof(buf), "lincalfact%d", i + 1);
+		debugfs_create_u32(buf, 0444, d, &cal->lincalfact[i]);
+	}
+}
+
 static int stm32_adc_fw_get_resolution(struct iio_dev *indio_dev)
 {
 	struct device *dev = &indio_dev->dev;
@@ -2465,6 +2483,9 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		stm32_adc_debugfs_init(indio_dev);
+
 	return 0;
 
 err_hw_stop:
@@ -2493,6 +2514,7 @@ static int stm32_adc_remove(struct platform_device *pdev)
 	struct stm32_adc *adc = iio_priv(indio_dev);
 
 	pm_runtime_get_sync(&pdev->dev);
+	/* iio_device_unregister() also removes debugfs entries */
 	iio_device_unregister(indio_dev);
 	stm32_adc_hw_stop(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
