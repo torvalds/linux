@@ -50,13 +50,6 @@
 #define ALTERA_JTAGUART_CONTROL_AC_MSK		0x00000400
 #define ALTERA_JTAGUART_CONTROL_WSPACE_MSK	0xFFFF0000
 
-/*
- * Local per-uart structure.
- */
-struct altera_jtaguart {
-	struct uart_port port;
-};
-
 static unsigned int altera_jtaguart_tx_space(struct uart_port *port, u32 *ctlp)
 {
 	u32 ctl = readl(port->membase + ALTERA_JTAGUART_CONTROL_REG);
@@ -115,9 +108,8 @@ static void altera_jtaguart_set_termios(struct uart_port *port,
 		tty_termios_copy_hw(termios, old);
 }
 
-static void altera_jtaguart_rx_chars(struct altera_jtaguart *pp)
+static void altera_jtaguart_rx_chars(struct uart_port *port)
 {
-	struct uart_port *port = &pp->port;
 	unsigned char ch;
 	unsigned long status;
 
@@ -134,9 +126,8 @@ static void altera_jtaguart_rx_chars(struct altera_jtaguart *pp)
 	tty_flip_buffer_push(&port->state->port);
 }
 
-static void altera_jtaguart_tx_chars(struct altera_jtaguart *pp)
+static void altera_jtaguart_tx_chars(struct uart_port *port)
 {
-	struct uart_port *port = &pp->port;
 	unsigned int count;
 	u8 ch;
 
@@ -151,8 +142,6 @@ static void altera_jtaguart_tx_chars(struct altera_jtaguart *pp)
 static irqreturn_t altera_jtaguart_interrupt(int irq, void *data)
 {
 	struct uart_port *port = data;
-	struct altera_jtaguart *pp =
-	    container_of(port, struct altera_jtaguart, port);
 	unsigned int isr;
 
 	isr = (readl(port->membase + ALTERA_JTAGUART_CONTROL_REG) >>
@@ -161,9 +150,9 @@ static irqreturn_t altera_jtaguart_interrupt(int irq, void *data)
 	spin_lock(&port->lock);
 
 	if (isr & ALTERA_JTAGUART_CONTROL_RE_MSK)
-		altera_jtaguart_rx_chars(pp);
+		altera_jtaguart_rx_chars(port);
 	if (isr & ALTERA_JTAGUART_CONTROL_WE_MSK)
-		altera_jtaguart_tx_chars(pp);
+		altera_jtaguart_tx_chars(port);
 
 	spin_unlock(&port->lock);
 
@@ -265,7 +254,7 @@ static const struct uart_ops altera_jtaguart_ops = {
 };
 
 #define ALTERA_JTAGUART_MAXPORTS 1
-static struct altera_jtaguart altera_jtaguart_ports[ALTERA_JTAGUART_MAXPORTS];
+static struct uart_port altera_jtaguart_ports[ALTERA_JTAGUART_MAXPORTS];
 
 #if defined(CONFIG_SERIAL_ALTERA_JTAGUART_CONSOLE)
 
@@ -308,7 +297,7 @@ static void altera_jtaguart_console_putc(struct uart_port *port, unsigned char c
 static void altera_jtaguart_console_write(struct console *co, const char *s,
 					  unsigned int count)
 {
-	struct uart_port *port = &(altera_jtaguart_ports + co->index)->port;
+	struct uart_port *port = &altera_jtaguart_ports[co->index];
 
 	uart_console_write(port, s, count, altera_jtaguart_console_putc);
 }
@@ -320,7 +309,7 @@ static int __init altera_jtaguart_console_setup(struct console *co,
 
 	if (co->index < 0 || co->index >= ALTERA_JTAGUART_MAXPORTS)
 		return -EINVAL;
-	port = &altera_jtaguart_ports[co->index].port;
+	port = &altera_jtaguart_ports[co->index];
 	if (port->membase == NULL)
 		return -ENODEV;
 	return 0;
@@ -400,7 +389,7 @@ static int altera_jtaguart_probe(struct platform_device *pdev)
 	if (i >= ALTERA_JTAGUART_MAXPORTS)
 		return -EINVAL;
 
-	port = &altera_jtaguart_ports[i].port;
+	port = &altera_jtaguart_ports[i];
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res_mem)
@@ -444,7 +433,7 @@ static int altera_jtaguart_remove(struct platform_device *pdev)
 	if (i == -1)
 		i = 0;
 
-	port = &altera_jtaguart_ports[i].port;
+	port = &altera_jtaguart_ports[i];
 	uart_remove_one_port(&altera_jtaguart_driver, port);
 	iounmap(port->membase);
 
