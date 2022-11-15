@@ -55,7 +55,6 @@
  */
 struct altera_jtaguart {
 	struct uart_port port;
-	unsigned long imr;	/* Local IMR mirror */
 };
 
 static unsigned int altera_jtaguart_tx_space(struct uart_port *port, u32 *ctlp)
@@ -84,29 +83,23 @@ static void altera_jtaguart_set_mctrl(struct uart_port *port, unsigned int sigs)
 
 static void altera_jtaguart_start_tx(struct uart_port *port)
 {
-	struct altera_jtaguart *pp =
-	    container_of(port, struct altera_jtaguart, port);
-
-	pp->imr |= ALTERA_JTAGUART_CONTROL_WE_MSK;
-	writel(pp->imr, port->membase + ALTERA_JTAGUART_CONTROL_REG);
+	port->read_status_mask |= ALTERA_JTAGUART_CONTROL_WE_MSK;
+	writel(port->read_status_mask,
+			port->membase + ALTERA_JTAGUART_CONTROL_REG);
 }
 
 static void altera_jtaguart_stop_tx(struct uart_port *port)
 {
-	struct altera_jtaguart *pp =
-	    container_of(port, struct altera_jtaguart, port);
-
-	pp->imr &= ~ALTERA_JTAGUART_CONTROL_WE_MSK;
-	writel(pp->imr, port->membase + ALTERA_JTAGUART_CONTROL_REG);
+	port->read_status_mask &= ~ALTERA_JTAGUART_CONTROL_WE_MSK;
+	writel(port->read_status_mask,
+			port->membase + ALTERA_JTAGUART_CONTROL_REG);
 }
 
 static void altera_jtaguart_stop_rx(struct uart_port *port)
 {
-	struct altera_jtaguart *pp =
-	    container_of(port, struct altera_jtaguart, port);
-
-	pp->imr &= ~ALTERA_JTAGUART_CONTROL_RE_MSK;
-	writel(pp->imr, port->membase + ALTERA_JTAGUART_CONTROL_REG);
+	port->read_status_mask &= ~ALTERA_JTAGUART_CONTROL_RE_MSK;
+	writel(port->read_status_mask,
+			port->membase + ALTERA_JTAGUART_CONTROL_REG);
 }
 
 static void altera_jtaguart_break_ctl(struct uart_port *port, int break_state)
@@ -163,7 +156,7 @@ static irqreturn_t altera_jtaguart_interrupt(int irq, void *data)
 	unsigned int isr;
 
 	isr = (readl(port->membase + ALTERA_JTAGUART_CONTROL_REG) >>
-	       ALTERA_JTAGUART_CONTROL_RI_OFF) & pp->imr;
+	       ALTERA_JTAGUART_CONTROL_RI_OFF) & port->read_status_mask;
 
 	spin_lock(&port->lock);
 
@@ -187,8 +180,6 @@ static void altera_jtaguart_config_port(struct uart_port *port, int flags)
 
 static int altera_jtaguart_startup(struct uart_port *port)
 {
-	struct altera_jtaguart *pp =
-	    container_of(port, struct altera_jtaguart, port);
 	unsigned long flags;
 	int ret;
 
@@ -203,8 +194,9 @@ static int altera_jtaguart_startup(struct uart_port *port)
 	spin_lock_irqsave(&port->lock, flags);
 
 	/* Enable RX interrupts now */
-	pp->imr = ALTERA_JTAGUART_CONTROL_RE_MSK;
-	writel(pp->imr, port->membase + ALTERA_JTAGUART_CONTROL_REG);
+	port->read_status_mask = ALTERA_JTAGUART_CONTROL_RE_MSK;
+	writel(port->read_status_mask,
+			port->membase + ALTERA_JTAGUART_CONTROL_REG);
 
 	spin_unlock_irqrestore(&port->lock, flags);
 
@@ -213,15 +205,14 @@ static int altera_jtaguart_startup(struct uart_port *port)
 
 static void altera_jtaguart_shutdown(struct uart_port *port)
 {
-	struct altera_jtaguart *pp =
-	    container_of(port, struct altera_jtaguart, port);
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
 
 	/* Disable all interrupts now */
-	pp->imr = 0;
-	writel(pp->imr, port->membase + ALTERA_JTAGUART_CONTROL_REG);
+	port->read_status_mask = 0;
+	writel(port->read_status_mask,
+			port->membase + ALTERA_JTAGUART_CONTROL_REG);
 
 	spin_unlock_irqrestore(&port->lock, flags);
 
