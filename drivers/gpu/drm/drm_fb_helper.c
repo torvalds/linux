@@ -599,9 +599,16 @@ static void drm_fb_helper_add_damage_clip(struct drm_fb_helper *helper, u32 x, u
 static void drm_fb_helper_damage(struct drm_fb_helper *helper, u32 x, u32 y,
 				 u32 width, u32 height)
 {
+	struct fb_info *info = helper->info;
+
 	drm_fb_helper_add_damage_clip(helper, x, y, width, height);
 
-	schedule_work(&helper->damage_work);
+	/*
+	 * The current fbdev emulation only flushes buffers if a damage
+	 * update is necessary. And we can assume that deferred I/O has
+	 * been enabled as damage updates require deferred I/O for mmap.
+	 */
+	fb_deferred_io_schedule_flush(info);
 }
 
 /*
