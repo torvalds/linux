@@ -35,6 +35,7 @@
 #include "file-item.h"
 #include "relocation.h"
 #include "super.h"
+#include "tree-checker.h"
 
 /*
  * Relocation overview

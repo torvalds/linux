@@ -14,7 +14,7 @@
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
-#include "volumes.h"
+#include "bio.h"
 #include "print-tree.h"
 #include "compression.h"
 #include "fs.h"

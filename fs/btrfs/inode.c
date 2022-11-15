@@ -43,7 +43,7 @@
 #include "ordered-data.h"
 #include "xattr.h"
 #include "tree-log.h"
-#include "volumes.h"
+#include "bio.h"
 #include "compression.h"
 #include "locking.h"
 #include "free-space-cache.h"

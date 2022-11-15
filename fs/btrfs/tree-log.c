@@ -29,6 +29,7 @@
 #include "file-item.h"
 #include "file.h"
 #include "orphan.h"
+#include "tree-checker.h"
 
 #define MAX_CONFLICT_INODES 10
 

@@ -23,7 +23,7 @@
 #include "disk-io.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
-#include "volumes.h"
+#include "bio.h"
 #include "print-tree.h"
 #include "locking.h"
 #include "tree-log.h"

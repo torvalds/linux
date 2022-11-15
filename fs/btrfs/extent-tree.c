@@ -42,6 +42,7 @@
 #include "root-tree.h"
 #include "file-item.h"
 #include "orphan.h"
+#include "tree-checker.h"
 
 #undef SCRAMBLE_DELAYED_REFS
 

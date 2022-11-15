@@ -20,7 +20,7 @@
 #include "extent_map.h"
 #include "ctree.h"
 #include "btrfs_inode.h"
-#include "volumes.h"
+#include "bio.h"
 #include "check-integrity.h"
 #include "locking.h"
 #include "rcu-string.h"
