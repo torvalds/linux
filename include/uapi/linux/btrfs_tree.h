@@ -688,8 +688,9 @@ struct btrfs_super_block {
 	/* The UUID written into btree blocks */
 	__u8 metadata_uuid[BTRFS_FSID_SIZE];
 
+	__u64 nr_global_roots;
+
 	/* Future expansion */
-	__u8 reserved8[8];
 	__le64 reserved[27];
 	__u8 sys_chunk_array[BTRFS_SYSTEM_CHUNK_ARRAY_SIZE];
 	struct btrfs_root_backup super_roots[BTRFS_NUM_BACKUP_ROOTS];
