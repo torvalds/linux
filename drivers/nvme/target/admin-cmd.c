@@ -370,7 +370,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	memcpy_and_pad(id->mn, sizeof(id->mn), subsys->model_number,
 		       strlen(subsys->model_number), ' ');
 	memcpy_and_pad(id->fr, sizeof(id->fr),
-		       UTS_RELEASE, strlen(UTS_RELEASE), ' ');
+		       subsys->firmware_rev, strlen(subsys->firmware_rev), ' ');
 
 	put_unaligned_le24(subsys->ieee_oui, id->ieee);
 
