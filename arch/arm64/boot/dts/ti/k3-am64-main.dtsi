@@ -1369,8 +1369,8 @@
 		power-domains = <&k3_pds 80 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 80 0>;
 		clock-names = "fck";
-		reg = <0x00 0x03b000000 0x00 0x400>,
-		      <0x00 0x050000000 0x00 0x8000000>;
+		reg = <0x00 0x3b000000 0x00 0x400>,
+		      <0x00 0x50000000 0x00 0x8000000>;
 		reg-names = "cfg", "data";
 		interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
 		gpmc,num-cs = <3>;
