@@ -592,7 +592,6 @@ failed_alloc_pages:
 failed_prepare_map:
 	mali_mem_backend_struct_destory(&mem_backend, mali_allocation->backend_handle);
 failed_alloc_backend:
-
 	mali_vma_offset_remove(&session->allocation_mgr, &mali_allocation->mali_vma_node);
 	mali_mem_allocation_struct_destory(mali_allocation);
 
