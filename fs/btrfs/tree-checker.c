@@ -28,6 +28,7 @@
 #include "btrfs_inode.h"
 #include "fs.h"
 #include "accessors.h"
+#include "file-item.h"
 
 /*
  * Error message should follow the following format:

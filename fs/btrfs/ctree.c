@@ -22,6 +22,7 @@
 #include "accessors.h"
 #include "extent-tree.h"
 #include "relocation.h"
+#include "file-item.h"
 
 static struct kmem_cache *btrfs_path_cachep;
 
