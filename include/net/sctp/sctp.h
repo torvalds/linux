@@ -67,11 +67,6 @@
 #define SCTP_PROTOSW_FLAG INET_PROTOSW_PERMANENT
 #endif
 
-/* Round an int up to the next multiple of 4.  */
-#define SCTP_PAD4(s) (((s)+3)&~3)
-/* Truncate to the previous multiple of 4.  */
-#define SCTP_TRUNC4(s) ((s)&~3)
-
 /*
  * Function declarations.
  */

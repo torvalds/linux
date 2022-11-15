@@ -13,7 +13,6 @@
 #include <linux/sctp.h>
 #include <net/netfilter/nf_tables_core.h>
 #include <net/netfilter/nf_tables.h>
-#include <net/sctp/sctp.h>
 #include <net/tcp.h>
 
 struct nft_exthdr {
