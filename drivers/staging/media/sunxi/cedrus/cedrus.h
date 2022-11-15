@@ -100,7 +100,15 @@ struct cedrus_buffer {
 		struct {
 			unsigned int			position;
 			enum cedrus_h264_pic_type	pic_type;
+			void				*mv_col_buf;
+			dma_addr_t			mv_col_buf_dma;
+			ssize_t				mv_col_buf_size;
 		} h264;
+		struct {
+			void		*mv_col_buf;
+			dma_addr_t	mv_col_buf_dma;
+			ssize_t		mv_col_buf_size;
+		} h265;
 	} codec;
 };
 
@@ -117,10 +125,6 @@ struct cedrus_ctx {
 
 	union {
 		struct {
-			void		*mv_col_buf;
-			dma_addr_t	mv_col_buf_dma;
-			ssize_t		mv_col_buf_field_size;
-			ssize_t		mv_col_buf_size;
 			void		*pic_info_buf;
 			dma_addr_t	pic_info_buf_dma;
 			ssize_t		pic_info_buf_size;
@@ -134,10 +138,6 @@ struct cedrus_ctx {
 			ssize_t		intra_pred_buf_size;
 		} h264;
 		struct {
-			void		*mv_col_buf;
-			dma_addr_t	mv_col_buf_addr;
-			ssize_t		mv_col_buf_size;
-			ssize_t		mv_col_buf_unit_size;
 			void		*neighbor_info_buf;
 			dma_addr_t	neighbor_info_buf_addr;
 			void		*entry_points_buf;

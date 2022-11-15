@@ -3288,7 +3288,7 @@ int atomisp_css_cp_dvs2_coefs(struct atomisp_sub_device *asd,
 	if (!IS_ISP2401) {
 		if (sizeof(*cur) != sizeof(coefs->grid) ||
 		    memcmp(&coefs->grid, cur, sizeof(coefs->grid))) {
-			dev_err(asd->isp->dev, "dvs grid mis-match!\n");
+			dev_err(asd->isp->dev, "dvs grid mismatch!\n");
 			/* If the grid info in the argument differs from the current
 			grid info, we tell the caller to reset the grid size and
 			try again. */
@@ -3344,7 +3344,7 @@ int atomisp_css_cp_dvs2_coefs(struct atomisp_sub_device *asd,
 
 		if (sizeof(*cur) != sizeof(dvs2_coefs.grid) ||
 		    memcmp(&dvs2_coefs.grid, cur, sizeof(dvs2_coefs.grid))) {
-			dev_err(asd->isp->dev, "dvs grid mis-match!\n");
+			dev_err(asd->isp->dev, "dvs grid mismatch!\n");
 			/* If the grid info in the argument differs from the current
 			grid info, we tell the caller to reset the grid size and
 			try again. */
@@ -3692,13 +3692,13 @@ void atomisp_handle_parameter_and_buffer(struct atomisp_video_pipe *pipe)
 	unsigned long irqflags;
 	bool need_to_enqueue_buffer = false;
 
-	lockdep_assert_held(&asd->isp->mutex);
-
 	if (!asd) {
 		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
 			__func__, pipe->vdev.name);
 		return;
 	}
+
+	lockdep_assert_held(&asd->isp->mutex);
 
 	if (atomisp_is_vf_pipe(pipe))
 		return;
@@ -3774,13 +3774,13 @@ int atomisp_set_parameters(struct video_device *vdev,
 	struct atomisp_css_params *css_param = &asd->params.css_param;
 	int ret;
 
-	lockdep_assert_held(&asd->isp->mutex);
-
 	if (!asd) {
 		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
 			__func__, vdev->name);
 		return -EINVAL;
 	}
+
+	lockdep_assert_held(&asd->isp->mutex);
 
 	if (!asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream) {
 		dev_err(asd->isp->dev, "%s: internal error!\n", __func__);

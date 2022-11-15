@@ -1997,10 +1997,8 @@ static int dcmi_probe(struct platform_device *pdev)
 	}
 
 	dcmi->regs = devm_ioremap_resource(&pdev->dev, dcmi->res);
-	if (IS_ERR(dcmi->regs)) {
-		dev_err(&pdev->dev, "Could not map registers\n");
+	if (IS_ERR(dcmi->regs))
 		return PTR_ERR(dcmi->regs);
-	}
 
 	mclk = devm_clk_get(&pdev->dev, "mclk");
 	if (IS_ERR(mclk)) {

@@ -3180,7 +3180,7 @@ static int atomisp_compare_dvs_grid(struct atomisp_sub_device *asd,
 	}
 
 	if (sizeof(*cur) != sizeof(*atomgrid)) {
-		dev_err(asd->isp->dev, "dvs grid mis-match!\n");
+		dev_err(asd->isp->dev, "dvs grid mismatch!\n");
 		return -EINVAL;
 	}
 

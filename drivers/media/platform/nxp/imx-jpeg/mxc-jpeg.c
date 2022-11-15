@@ -2431,6 +2431,8 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 	unsigned int slot;
 
 	of_id = of_match_node(mxc_jpeg_match, dev->of_node);
+	if (!of_id)
+		return -ENODEV;
 	mode = *(const int *)of_id->data;
 
 	jpeg = devm_kzalloc(dev, sizeof(struct mxc_jpeg_dev), GFP_KERNEL);
