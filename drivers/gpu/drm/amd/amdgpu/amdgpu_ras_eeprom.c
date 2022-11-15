@@ -157,6 +157,7 @@ static bool __get_eeprom_i2c_addr_ip_discovery(struct amdgpu_device *adev,
 static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 				  struct amdgpu_ras_eeprom_control *control)
 {
+	struct atom_context *atom_ctx = adev->mode_info.atom_context;
 	u8 i2c_addr;
 
 	if (!control)
@@ -190,7 +191,11 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 		break;
 
 	case CHIP_ALDEBARAN:
-		control->i2c_address = EEPROM_I2C_MADDR_0;
+		if (strnstr(atom_ctx->vbios_version, "D673",
+			    sizeof(atom_ctx->vbios_version)))
+			control->i2c_address = EEPROM_I2C_MADDR_4;
+		else
+			control->i2c_address = EEPROM_I2C_MADDR_0;
 		break;
 
 	case CHIP_IP_DISCOVERY:
