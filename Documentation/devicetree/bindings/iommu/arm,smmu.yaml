@@ -201,7 +201,8 @@ properties:
     maxItems: 7
 
   power-domains:
-    maxItems: 1
+    minItems: 1
+    maxItems: 3
 
   nvidia,memory-controller:
     description: |
@@ -365,6 +366,26 @@ allOf:
                 the smmu ptw
             - description: interface clock required to access smmu's registers
                 through the TCU's programming interface.
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,sm6375-smmu-500
+    then:
+      properties:
+        power-domains:
+          items:
+            - description: SNoC MMU TBU RT GDSC
+            - description: SNoC MMU TBU NRT GDSC
+            - description: SNoC TURING MMU TBU0 GDSC
+
+      required:
+        - power-domains
+    else:
+      properties:
+        power-domains:
+          maxItems: 1
 
 examples:
   - |+
