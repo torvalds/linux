@@ -221,11 +221,11 @@ static int __sgx_encl_add_page(struct sgx_encl *encl,
 	pginfo.secs = (unsigned long)sgx_get_epc_virt_addr(encl->secs.epc_page);
 	pginfo.addr = encl_page->desc & PAGE_MASK;
 	pginfo.metadata = (unsigned long)secinfo;
-	pginfo.contents = (unsigned long)kmap_atomic(src_page);
+	pginfo.contents = (unsigned long)kmap_local_page(src_page);
 
 	ret = __eadd(&pginfo, sgx_get_epc_virt_addr(epc_page));
 
-	kunmap_atomic((void *)pginfo.contents);
+	kunmap_local((void *)pginfo.contents);
 	put_page(src_page);
 
 	return ret ? -EIO : 0;

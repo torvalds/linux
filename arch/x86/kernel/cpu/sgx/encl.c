@@ -160,8 +160,8 @@ static int __sgx_encl_eldu(struct sgx_encl_page *encl_page,
 		return ret;
 
 	pginfo.addr = encl_page->desc & PAGE_MASK;
-	pginfo.contents = (unsigned long)kmap_atomic(b.contents);
-	pcmd_page = kmap_atomic(b.pcmd);
+	pginfo.contents = (unsigned long)kmap_local_page(b.contents);
+	pcmd_page = kmap_local_page(b.pcmd);
 	pginfo.metadata = (unsigned long)pcmd_page + b.pcmd_offset;
 
 	if (secs_page)
@@ -187,8 +187,8 @@ static int __sgx_encl_eldu(struct sgx_encl_page *encl_page,
 	 */
 	pcmd_page_empty = !memchr_inv(pcmd_page, 0, PAGE_SIZE);
 
-	kunmap_atomic(pcmd_page);
-	kunmap_atomic((void *)(unsigned long)pginfo.contents);
+	kunmap_local(pcmd_page);
+	kunmap_local((void *)(unsigned long)pginfo.contents);
 
 	get_page(b.pcmd);
 	sgx_encl_put_backing(&b);
@@ -197,10 +197,10 @@ static int __sgx_encl_eldu(struct sgx_encl_page *encl_page,
 
 	if (pcmd_page_empty && !reclaimer_writing_to_pcmd(encl, pcmd_first_page)) {
 		sgx_encl_truncate_backing_page(encl, PFN_DOWN(page_pcmd_off));
-		pcmd_page = kmap_atomic(b.pcmd);
+		pcmd_page = kmap_local_page(b.pcmd);
 		if (memchr_inv(pcmd_page, 0, PAGE_SIZE))
 			pr_warn("PCMD page not empty after truncate.\n");
-		kunmap_atomic(pcmd_page);
+		kunmap_local(pcmd_page);
 	}
 
 	put_page(b.pcmd);
