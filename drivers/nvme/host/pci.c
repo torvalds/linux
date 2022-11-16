@@ -1496,14 +1496,6 @@ static void nvme_suspend_io_queues(struct nvme_dev *dev)
 		nvme_suspend_queue(&dev->queues[i]);
 }
 
-static void nvme_disable_admin_queue(struct nvme_dev *dev, bool shutdown)
-{
-	struct nvme_queue *nvmeq = &dev->queues[0];
-
-	nvme_disable_ctrl(&dev->ctrl, shutdown);
-	nvme_poll_irqdisable(nvmeq);
-}
-
 /*
  * Called only on a device that has been disabled and after all other threads
  * that can check this device's completion queues have synced, except
@@ -2711,7 +2703,8 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 
 	if (!dead && dev->ctrl.queue_count > 0) {
 		nvme_disable_io_queues(dev);
-		nvme_disable_admin_queue(dev, shutdown);
+		nvme_disable_ctrl(&dev->ctrl, shutdown);
+		nvme_poll_irqdisable(&dev->queues[0]);
 	}
 	nvme_suspend_io_queues(dev);
 	nvme_suspend_queue(&dev->queues[0]);
