@@ -680,9 +680,11 @@ static int sctp_v6_is_any(const union sctp_addr *addr)
 /* Should this be available for binding?   */
 static int sctp_v6_available(union sctp_addr *addr, struct sctp_sock *sp)
 {
-	int type;
-	struct net *net = sock_net(&sp->inet.sk);
 	const struct in6_addr *in6 = (const struct in6_addr *)&addr->v6.sin6_addr;
+	struct sock *sk = &sp->inet.sk;
+	struct net *net = sock_net(sk);
+	struct net_device *dev = NULL;
+	int type;
 
 	type = ipv6_addr_type(in6);
 	if (IPV6_ADDR_ANY == type)
@@ -696,8 +698,14 @@ static int sctp_v6_available(union sctp_addr *addr, struct sctp_sock *sp)
 	if (!(type & IPV6_ADDR_UNICAST))
 		return 0;
 
+	if (sk->sk_bound_dev_if) {
+		dev = dev_get_by_index_rcu(net, sk->sk_bound_dev_if);
+		if (!dev)
+			return 0;
+	}
+
 	return ipv6_can_nonlocal_bind(net, &sp->inet) ||
-	       ipv6_chk_addr(net, in6, NULL, 0);
+	       ipv6_chk_addr(net, in6, dev, 0);
 }
 
 /* This function checks if the address is a valid address to be used for
