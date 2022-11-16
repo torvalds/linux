@@ -39,7 +39,6 @@ static void hl_encaps_handle_do_release_sob(struct kref *ref)
 	idr_remove(&mgr->handles, handle->id);
 	spin_unlock(&mgr->lock);
 
-	hl_ctx_put(handle->ctx);
 	kfree(handle);
 }
 
