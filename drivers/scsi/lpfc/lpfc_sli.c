@@ -1846,6 +1846,12 @@ lpfc_cmf_sync_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				  phba->cmf_link_byte_count);
 		bwpcent = div64_u64(bw * 100 + slop,
 				    phba->cmf_link_byte_count);
+		/* Because of bytes adjustment due to shorter timer in
+		 * lpfc_cmf_timer() the cmf_link_byte_count can be shorter and
+		 * may seem like BW is above 100%.
+		 */
+		if (bwpcent > 100)
+			bwpcent = 100;
 
 		if (phba->cmf_max_bytes_per_interval < bw &&
 		    bwpcent > 95)
