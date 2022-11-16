@@ -1358,13 +1358,13 @@ static void __update_discard_tree_range(struct f2fs_sb_info *sbi,
 	}
 }
 
-static int __queue_discard_cmd(struct f2fs_sb_info *sbi,
+static void __queue_discard_cmd(struct f2fs_sb_info *sbi,
 		struct block_device *bdev, block_t blkstart, block_t blklen)
 {
 	block_t lblkstart = blkstart;
 
 	if (!f2fs_bdev_support_discard(bdev))
-		return 0;
+		return;
 
 	trace_f2fs_queue_discard(bdev, blkstart, blklen);
 
@@ -1376,7 +1376,6 @@ static int __queue_discard_cmd(struct f2fs_sb_info *sbi,
 	mutex_lock(&SM_I(sbi)->dcc_info->cmd_lock);
 	__update_discard_tree_range(sbi, bdev, lblkstart, blkstart, blklen);
 	mutex_unlock(&SM_I(sbi)->dcc_info->cmd_lock);
-	return 0;
 }
 
 static unsigned int __issue_discard_cmd_orderly(struct f2fs_sb_info *sbi,
@@ -1776,7 +1775,8 @@ static int __f2fs_issue_discard_zone(struct f2fs_sb_info *sbi,
 	}
 
 	/* For conventional zones, use regular discard if supported */
-	return __queue_discard_cmd(sbi, bdev, lblkstart, blklen);
+	__queue_discard_cmd(sbi, bdev, lblkstart, blklen);
+	return 0;
 }
 #endif
 
@@ -1787,7 +1787,8 @@ static int __issue_discard_async(struct f2fs_sb_info *sbi,
 	if (f2fs_sb_has_blkzoned(sbi) && bdev_is_zoned(bdev))
 		return __f2fs_issue_discard_zone(sbi, bdev, blkstart, blklen);
 #endif
-	return __queue_discard_cmd(sbi, bdev, blkstart, blklen);
+	__queue_discard_cmd(sbi, bdev, blkstart, blklen);
+	return 0;
 }
 
 static int f2fs_issue_discard(struct f2fs_sb_info *sbi,
