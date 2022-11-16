@@ -224,15 +224,16 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 	list_for_each_entry(flow, flow_list, tmp_list) {
 		if (!mlx5e_is_offloaded_flow(flow) || flow_flag_test(flow, SLOW))
 			continue;
-		spec = &flow->attr->parse_attr->spec;
-
-		/* update from encap rule to slow path rule */
-		rule = mlx5e_tc_offload_to_slow_path(esw, flow, spec);
 
 		attr = mlx5e_tc_get_encap_attr(flow);
 		esw_attr = attr->esw_attr;
 		/* mark the flow's encap dest as non-valid */
 		esw_attr->dests[flow->tmp_entry_index].flags &= ~MLX5_ESW_DEST_ENCAP_VALID;
+		esw_attr->dests[flow->tmp_entry_index].pkt_reformat = NULL;
+
+		/* update from encap rule to slow path rule */
+		spec = &flow->attr->parse_attr->spec;
+		rule = mlx5e_tc_offload_to_slow_path(esw, flow, spec);
 
 		if (IS_ERR(rule)) {
 			err = PTR_ERR(rule);
@@ -251,6 +252,7 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 	/* we know that the encap is valid */
 	e->flags &= ~MLX5_ENCAP_ENTRY_VALID;
 	mlx5_packet_reformat_dealloc(priv->mdev, e->pkt_reformat);
+	e->pkt_reformat = NULL;
 }
 
 static void mlx5e_take_tmp_flow(struct mlx5e_tc_flow *flow,
