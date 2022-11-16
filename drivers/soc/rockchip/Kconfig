@@ -28,6 +28,12 @@ config ROCKCHIP_AMP
 	  Say y here to enable Rockchip AMP support.
 	  This option protects resources used by AMP.
 
+config ROCKCHIP_ARM64_ALIGN_FAULT_FIX
+	bool "Rockchip align fault fix support"
+	depends on ARM64 && NO_GKI
+	help
+	  Say y here to enable Rockchip align fault fix support.
+
 config ROCKCHIP_CPUINFO
 	tristate "Rockchip cpuinfo support"
 	depends on (ROCKCHIP_EFUSE || ROCKCHIP_OTP) && (ARM64 || ARM)

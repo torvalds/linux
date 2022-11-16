@@ -13,3 +13,5 @@ KASAN_SANITIZE_physaddr.o	+= n
 
 obj-$(CONFIG_KASAN)		+= kasan_init.o
 KASAN_SANITIZE_kasan_init.o	:= n
+
+obj-$(CONFIG_ROCKCHIP_ARM64_ALIGN_FAULT_FIX) += fixup_fault.o
