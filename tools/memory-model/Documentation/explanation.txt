@@ -1007,6 +1007,36 @@ order.  Equivalently,
 where the rmw relation links the read and write events making up each
 atomic update.  This is what the LKMM's "atomic" axiom says.
 
+Atomic rmw updates play one more role in the LKMM: They can form "rmw
+sequences".  An rmw sequence is simply a bunch of atomic updates where
+each update reads from the previous one.  Written using events, it
+looks like this:
+
+	Z0 ->rf Y1 ->rmw Z1 ->rf ... ->rf Yn ->rmw Zn,
+
+where Z0 is some store event and n can be any number (even 0, in the
+degenerate case).  We write this relation as: Z0 ->rmw-sequence Zn.
+Note that this implies Z0 and Zn are stores to the same variable.
+
+Rmw sequences have a special property in the LKMM: They can extend the
+cumul-fence relation.  That is, if we have:
+
+	U ->cumul-fence X -> rmw-sequence Y
+
+then also U ->cumul-fence Y.  Thinking about this in terms of the
+operational model, U ->cumul-fence X says that the store U propagates
+to each CPU before the store X does.  Then the fact that X and Y are
+linked by an rmw sequence means that U also propagates to each CPU
+before Y does.  In an analogous way, rmw sequences can also extend
+the w-post-bounded relation defined below in the PLAIN ACCESSES AND
+DATA RACES section.
+
+(The notion of rmw sequences in the LKMM is similar to, but not quite
+the same as, that of release sequences in the C11 memory model.  They
+were added to the LKMM to fix an obscure bug; without them, atomic
+updates with full-barrier semantics did not always guarantee ordering
+at least as strong as atomic updates with release-barrier semantics.)
+
 
 THE PRESERVED PROGRAM ORDER RELATION: ppo
 -----------------------------------------
