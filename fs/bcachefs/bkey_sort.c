@@ -144,6 +144,8 @@ bch2_sort_repack(struct bset *dst, struct btree *src,
 		else
 			bch2_bkey_unpack(src, (void *) out, in);
 
+		out->needs_whiteout = false;
+
 		btree_keys_account_key_add(&nr, 0, out);
 		out = bkey_next(out);
 	}

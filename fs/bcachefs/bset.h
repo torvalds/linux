@@ -447,6 +447,11 @@ struct bkey_s_c bch2_btree_node_iter_peek_unpack(struct btree_node_iter *,
 						struct btree *,
 						struct bkey *);
 
+#define for_each_btree_node_key(b, k, iter)				\
+	for (bch2_btree_node_iter_init_from_start((iter), (b));		\
+	     (k = bch2_btree_node_iter_peek((iter), (b)));		\
+	     bch2_btree_node_iter_advance(iter, b))
+
 #define for_each_btree_node_key_unpack(b, k, iter, unpacked)		\
 	for (bch2_btree_node_iter_init_from_start((iter), (b));		\
 	     (k = bch2_btree_node_iter_peek_unpack((iter), (b), (unpacked))).k;\
