@@ -24,6 +24,7 @@ COMMON_GKI_MODULES_LIST = [
     "net/bluetooth/bluetooth.ko",
     "net/bluetooth/hidp/hidp.ko",
     "net/bluetooth/rfcomm/rfcomm.ko",
+    "net/can/can.ko",
     "net/can/can-bcm.ko",
     "net/can/can-gw.ko",
     "net/can/can-raw.ko",
