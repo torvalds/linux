@@ -21,6 +21,8 @@
 
 #define ACTIVATE                      BIT(0)
 #define DEACTIVATE                    BIT(1)
+#define ACT_CLEAR                     BIT(0)
+#define ACT_COMPLETE                  BIT(4)
 #define ACT_CTRL_OPCODE_ACTIVATE      BIT(0)
 #define ACT_CTRL_OPCODE_DEACTIVATE    BIT(1)
 #define ACT_CTRL_ACT_TRIG             BIT(0)
@@ -41,19 +43,30 @@
 
 #define MAX_CAP_TO_BYTES(n)           (n * SZ_1K)
 #define LLCC_TRP_ACT_CTRLn(n)         (n * SZ_4K)
+#define LLCC_TRP_ACT_CLEARn(n)        (8 + n * SZ_4K)
 #define LLCC_TRP_STATUSn(n)           (4 + n * SZ_4K)
 #define LLCC_TRP_ATTR0_CFGn(n)        (0x21000 + SZ_8 * n)
 #define LLCC_TRP_ATTR1_CFGn(n)        (0x21004 + SZ_8 * n)
+#define LLCC_TRP_ATTR2_CFGn(n)        (0x21100 + SZ_8 * n)
 
 #define LLCC_TRP_SCID_DIS_CAP_ALLOC   0x21f00
 #define LLCC_TRP_PCB_ACT              0x21f04
+#define LLCC_TRP_ALGO_CFG1	      0x21f0c
+#define LLCC_TRP_ALGO_CFG2	      0x21f10
+#define LLCC_TRP_ALGO_CFG3	      0x21f14
+#define LLCC_TRP_ALGO_CFG4	      0x21f18
+#define LLCC_TRP_ALGO_CFG5	      0x21f1c
 #define LLCC_TRP_WRSC_EN              0x21f20
+#define LLCC_TRP_ALGO_CFG6	      0x21f24
+#define LLCC_TRP_ALGO_CFG7	      0x21f28
 #define LLCC_TRP_WRSC_CACHEABLE_EN    0x21f2c
+#define LLCC_TRP_ALGO_CFG8	      0x21f30
 
 #define BANK_OFFSET_STRIDE	      0x80000
 
 #define LLCC_VERSION_2_0_0_0          0x02000000
 #define LLCC_VERSION_2_1_0_0          0x02010000
+#define LLCC_VERSION_4_1_0_0          0x04010000
 
 /**
  * struct llcc_slice_config - Data associated with the llcc slice
@@ -97,6 +110,14 @@ struct llcc_slice_config {
 	bool activate_on_init;
 	bool write_scid_en;
 	bool write_scid_cacheable_en;
+	bool stale_en;
+	bool stale_cap_en;
+	bool mru_uncap_en;
+	bool mru_rollover;
+	bool alloc_oneway_en;
+	bool ovcap_en;
+	bool ovcap_prio;
+	bool vict_prio;
 };
 
 struct qcom_llcc_config {
@@ -497,6 +518,7 @@ static int llcc_update_act_ctrl(u32 sid,
 				u32 act_ctrl_reg_val, u32 status)
 {
 	u32 act_ctrl_reg;
+	u32 act_clear_reg;
 	u32 status_reg;
 	u32 slice_status;
 	int ret;
@@ -505,6 +527,7 @@ static int llcc_update_act_ctrl(u32 sid,
 		return PTR_ERR(drv_data);
 
 	act_ctrl_reg = LLCC_TRP_ACT_CTRLn(sid);
+	act_clear_reg = LLCC_TRP_ACT_CLEARn(sid);
 	status_reg = LLCC_TRP_STATUSn(sid);
 
 	/* Set the ACTIVE trigger */
@@ -521,9 +544,22 @@ static int llcc_update_act_ctrl(u32 sid,
 	if (ret)
 		return ret;
 
+	if (drv_data->version >= LLCC_VERSION_4_1_0_0) {
+		ret = regmap_read_poll_timeout(drv_data->bcast_regmap, status_reg,
+				      slice_status, (slice_status & ACT_COMPLETE),
+				      0, LLCC_STATUS_READ_DELAY);
+		if (ret)
+			return ret;
+	}
+
 	ret = regmap_read_poll_timeout(drv_data->bcast_regmap, status_reg,
 				      slice_status, !(slice_status & status),
 				      0, LLCC_STATUS_READ_DELAY);
+
+	if (drv_data->version >= LLCC_VERSION_4_1_0_0)
+		ret = regmap_write(drv_data->bcast_regmap, act_clear_reg,
+					ACT_CLEAR);
+
 	return ret;
 }
 
@@ -636,8 +672,10 @@ static int _qcom_llcc_cfg_program(const struct llcc_slice_config *config,
 				  const struct qcom_llcc_config *cfg)
 {
 	int ret;
+	u32 attr2_cfg;
 	u32 attr1_cfg;
 	u32 attr0_cfg;
+	u32 attr2_val;
 	u32 attr1_val;
 	u32 attr0_val;
 	u32 max_cap_cacheline;
@@ -667,14 +705,26 @@ static int _qcom_llcc_cfg_program(const struct llcc_slice_config *config,
 	if (ret)
 		return ret;
 
-	attr0_val = config->res_ways & ATTR0_RES_WAYS_MASK;
-	attr0_val |= config->bonus_ways << ATTR0_BONUS_WAYS_SHIFT;
+	if (drv_data->version >= LLCC_VERSION_4_1_0_0) {
+		attr2_cfg = LLCC_TRP_ATTR2_CFGn(config->slice_id);
+		attr0_val = config->res_ways;
+		attr2_val = config->bonus_ways;
+	} else {
+		attr0_val = config->res_ways & ATTR0_RES_WAYS_MASK;
+		attr0_val |= config->bonus_ways << ATTR0_BONUS_WAYS_SHIFT;
+	}
 
 	attr0_cfg = LLCC_TRP_ATTR0_CFGn(config->slice_id);
 
 	ret = regmap_write(drv_data->bcast_regmap, attr0_cfg, attr0_val);
 	if (ret)
 		return ret;
+
+	if (drv_data->version >= LLCC_VERSION_4_1_0_0) {
+		ret = regmap_write(drv_data->bcast_regmap, attr2_cfg, attr2_val);
+		if (ret)
+			return ret;
+	}
 
 	if (cfg->need_llcc_cfg) {
 		u32 disable_cap_alloc, retain_pc;
@@ -685,11 +735,13 @@ static int _qcom_llcc_cfg_program(const struct llcc_slice_config *config,
 		if (ret)
 			return ret;
 
-		retain_pc = config->retain_on_pc << config->slice_id;
-		ret = regmap_write(drv_data->bcast_regmap,
-				LLCC_TRP_PCB_ACT, retain_pc);
-		if (ret)
-			return ret;
+		if (drv_data->version < LLCC_VERSION_4_1_0_0) {
+			retain_pc = config->retain_on_pc << config->slice_id;
+			ret = regmap_write(drv_data->bcast_regmap,
+					LLCC_TRP_PCB_ACT, retain_pc);
+			if (ret)
+				return ret;
+		}
 	}
 
 	if (drv_data->version >= LLCC_VERSION_2_0_0_0) {
@@ -708,6 +760,65 @@ static int _qcom_llcc_cfg_program(const struct llcc_slice_config *config,
 		wr_cache_en = config->write_scid_cacheable_en << config->slice_id;
 		ret = regmap_update_bits(drv_data->bcast_regmap, LLCC_TRP_WRSC_CACHEABLE_EN,
 					 BIT(config->slice_id), wr_cache_en);
+		if (ret)
+			return ret;
+	}
+
+	if (drv_data->version >= LLCC_VERSION_4_1_0_0) {
+		u32 stale_en;
+		u32 stale_cap_en;
+		u32 mru_uncap_en;
+		u32 mru_rollover;
+		u32 alloc_oneway_en;
+		u32 ovcap_en;
+		u32 ovcap_prio;
+		u32 vict_prio;
+
+		stale_en = config->stale_en << config->slice_id;
+		ret = regmap_update_bits(drv_data->bcast_regmap, LLCC_TRP_ALGO_CFG1,
+					 BIT(config->slice_id), stale_en);
+		if (ret)
+			return ret;
+
+		stale_cap_en = config->stale_cap_en << config->slice_id;
+		ret = regmap_update_bits(drv_data->bcast_regmap, LLCC_TRP_ALGO_CFG2,
+					 BIT(config->slice_id), stale_cap_en);
+		if (ret)
+			return ret;
+
+		mru_uncap_en = config->mru_uncap_en << config->slice_id;
+		ret = regmap_update_bits(drv_data->bcast_regmap, LLCC_TRP_ALGO_CFG3,
+					 BIT(config->slice_id), mru_uncap_en);
+		if (ret)
+			return ret;
+
+		mru_rollover = config->mru_rollover << config->slice_id;
+		ret = regmap_update_bits(drv_data->bcast_regmap, LLCC_TRP_ALGO_CFG4,
+					 BIT(config->slice_id), mru_rollover);
+		if (ret)
+			return ret;
+
+		alloc_oneway_en = config->alloc_oneway_en << config->slice_id;
+		ret = regmap_update_bits(drv_data->bcast_regmap, LLCC_TRP_ALGO_CFG5,
+					 BIT(config->slice_id), alloc_oneway_en);
+		if (ret)
+			return ret;
+
+		ovcap_en = config->ovcap_en << config->slice_id;
+		ret = regmap_update_bits(drv_data->bcast_regmap, LLCC_TRP_ALGO_CFG6,
+					 BIT(config->slice_id), ovcap_en);
+		if (ret)
+			return ret;
+
+		ovcap_prio = config->ovcap_prio << config->slice_id;
+		ret = regmap_update_bits(drv_data->bcast_regmap, LLCC_TRP_ALGO_CFG7,
+					 BIT(config->slice_id), ovcap_prio);
+		if (ret)
+			return ret;
+
+		vict_prio = config->vict_prio << config->slice_id;
+		ret = regmap_update_bits(drv_data->bcast_regmap, LLCC_TRP_ALGO_CFG8,
+					 BIT(config->slice_id), vict_prio);
 		if (ret)
 			return ret;
 	}
