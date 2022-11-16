@@ -2,3 +2,4 @@ boot-y += boot.o test.o
 disk-y += disk.o cla.o test.o
 disk-vfio-pci-y += disk-vfio-pci.o cla.o test.o
 net-test-y += net-test.o cla.o test.o
+config-y += config.o test.o
