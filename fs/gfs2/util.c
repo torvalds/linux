@@ -107,7 +107,7 @@ int gfs2_freeze_lock(struct gfs2_sbd *sdp, struct gfs2_holder *freeze_gh,
 	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED, flags,
 				   freeze_gh);
 	if (error && error != GLR_TRYFAILED)
-		fs_err(sdp, "can't lock the freeze lock: %d\n", error);
+		fs_err(sdp, "can't lock the freeze glock: %d\n", error);
 	return error;
 }
 

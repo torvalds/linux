@@ -434,7 +434,7 @@ static int init_locking(struct gfs2_sbd *sdp, struct gfs2_holder *mount_gh,
 	error = gfs2_glock_get(sdp, GFS2_FREEZE_LOCK, &gfs2_freeze_glops,
 			       CREATE, &sdp->sd_freeze_gl);
 	if (error) {
-		fs_err(sdp, "can't create transaction glock: %d\n", error);
+		fs_err(sdp, "can't create freeze glock: %d\n", error);
 		goto fail_rename;
 	}
 

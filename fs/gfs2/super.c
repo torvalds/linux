@@ -463,7 +463,7 @@ static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
  * @flags: The type of dirty
  *
  * Unfortunately it can be called under any combination of inode
- * glock and transaction lock, so we have to check carefully.
+ * glock and freeze glock, so we have to check carefully.
  *
  * At the moment this deals only with atime - it should be possible
  * to expand that role in future, once a review of the locking has
