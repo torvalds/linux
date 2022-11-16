@@ -17,13 +17,22 @@ static void kmsg_dumper_stdout(struct kmsg_dumper *dumper,
 	unsigned long flags;
 	size_t len = 0;
 
-	/* only dump kmsg when no console is available */
+	/*
+	 * If no consoles are available to output crash information, dump
+	 * the kmsg buffer to stdout.
+	 */
+
 	if (!console_trylock())
 		return;
 
 	for_each_console(con) {
-		if(strcmp(con->name, "tty") == 0 &&
-		   (con->flags & (CON_ENABLED | CON_CONSDEV)) != 0) {
+		/*
+		 * The ttynull console and disabled consoles are ignored
+		 * since they cannot output. All other consoles are
+		 * expected to output the crash information.
+		 */
+		if (strcmp(con->name, "ttynull") != 0 &&
+		    (con->flags & CON_ENABLED)) {
 			break;
 		}
 	}
