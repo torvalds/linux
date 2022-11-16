@@ -2461,7 +2461,7 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 	ds4->output_worker_initialized = true;
 	hid_set_drvdata(hdev, ds4);
 
-	max_output_report_size = sizeof(struct dualshock4_output_report_usb);
+	max_output_report_size = sizeof(struct dualshock4_output_report_bt);
 	ds4->output_report_dmabuf = devm_kzalloc(&hdev->dev, max_output_report_size, GFP_KERNEL);
 	if (!ds4->output_report_dmabuf)
 		return ERR_PTR(-ENOMEM);
