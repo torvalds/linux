@@ -203,5 +203,6 @@ struct test_workload workload__##work = {	\
 DECLARE_WORKLOAD(noploop);
 DECLARE_WORKLOAD(thloop);
 DECLARE_WORKLOAD(leafloop);
+DECLARE_WORKLOAD(sqrtloop);
 
 #endif /* TESTS_H */
