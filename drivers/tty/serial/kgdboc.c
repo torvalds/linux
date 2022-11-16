@@ -189,12 +189,20 @@ static int configure_kgdboc(void)
 	if (kgdboc_register_kbd(&cptr))
 		goto do_register;
 
-	p = tty_find_polling_driver(cptr, &tty_line);
-	if (!p)
-		goto noconfig;
-
-	/* For safe traversal of the console list. */
+	/*
+	 * tty_find_polling_driver() can call uart_set_options()
+	 * (via poll_init) to configure the uart. Take the console_list_lock
+	 * in order to synchronize against register_console(), which can also
+	 * configure the uart via uart_set_options(). This also allows safe
+	 * traversal of the console list.
+	 */
 	console_list_lock();
+
+	p = tty_find_polling_driver(cptr, &tty_line);
+	if (!p) {
+		console_list_unlock();
+		goto noconfig;
+	}
 
 	/*
 	 * Take console_lock to serialize device() callback with
