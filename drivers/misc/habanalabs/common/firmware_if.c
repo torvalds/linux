@@ -1783,6 +1783,8 @@ int hl_fw_dynamic_send_protocol_cmd(struct hl_device *hdev,
 
 	/* first send clear command to clean former commands */
 	rc = hl_fw_dynamic_send_clear_cmd(hdev, fw_loader);
+	if (rc)
+		return rc;
 
 	/* send the actual command */
 	hl_fw_dynamic_send_cmd(hdev, fw_loader, cmd, size);
