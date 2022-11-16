@@ -842,7 +842,12 @@ static int sctp_v6_addr_to_user(struct sctp_sock *sp, union sctp_addr *addr)
 /* Where did this skb come from?  */
 static int sctp_v6_skb_iif(const struct sk_buff *skb)
 {
-	return IP6CB(skb)->iif;
+	return inet6_iif(skb);
+}
+
+static int sctp_v6_skb_sdif(const struct sk_buff *skb)
+{
+	return inet6_sdif(skb);
 }
 
 /* Was this packet marked by Explicit Congestion Notification? */
@@ -1142,6 +1147,7 @@ static struct sctp_af sctp_af_inet6 = {
 	.is_any		   = sctp_v6_is_any,
 	.available	   = sctp_v6_available,
 	.skb_iif	   = sctp_v6_skb_iif,
+	.skb_sdif	   = sctp_v6_skb_sdif,
 	.is_ce		   = sctp_v6_is_ce,
 	.seq_dump_addr	   = sctp_v6_seq_dump_addr,
 	.ecn_capable	   = sctp_v6_ecn_capable,
