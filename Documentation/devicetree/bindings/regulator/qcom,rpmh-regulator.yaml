@@ -412,9 +412,8 @@ examples:
             regulator-min-microvolt = <1800000>;
             regulator-max-microvolt = <1800000>;
             regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-            regulator-allowed-modes =
-                <RPMH_REGULATOR_MODE_LPM
-                 RPMH_REGULATOR_MODE_HPM>;
+            regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
+                                       RPMH_REGULATOR_MODE_HPM>;
             regulator-allow-set-load;
         };
 
@@ -431,9 +430,8 @@ examples:
         bob {
             regulator-min-microvolt = <3312000>;
             regulator-max-microvolt = <3600000>;
-            regulator-allowed-modes =
-                <RPMH_REGULATOR_MODE_AUTO
-                 RPMH_REGULATOR_MODE_HPM>;
+            regulator-allowed-modes = <RPMH_REGULATOR_MODE_AUTO
+                                       RPMH_REGULATOR_MODE_HPM>;
             regulator-initial-mode = <RPMH_REGULATOR_MODE_AUTO>;
         };
     };
