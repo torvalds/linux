@@ -17,13 +17,6 @@
 
 #include "acp63.h"
 
-struct acp63_dev_data {
-	void __iomem *acp63_base;
-	struct resource *res;
-	bool acp63_audio_mode;
-	struct platform_device *pdev[ACP63_DEVS];
-};
-
 static int acp63_power_on(void __iomem *acp_base)
 {
 	u32 val;
