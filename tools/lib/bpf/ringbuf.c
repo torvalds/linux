@@ -352,6 +352,7 @@ static int user_ringbuf_map(struct user_ring_buffer *rb, int map_fd)
 {
 	struct bpf_map_info info;
 	__u32 len = sizeof(info);
+	__u64 mmap_sz;
 	void *tmp;
 	struct epoll_event *rb_epoll;
 	int err;
@@ -388,8 +389,13 @@ static int user_ringbuf_map(struct user_ring_buffer *rb, int map_fd)
 	 * simple reading and writing of samples that wrap around the end of
 	 * the buffer.  See the kernel implementation for details.
 	 */
-	tmp = mmap(NULL, rb->page_size + 2 * info.max_entries,
-		   PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, rb->page_size);
+	mmap_sz = rb->page_size + 2 * (__u64)info.max_entries;
+	if (mmap_sz != (__u64)(size_t)mmap_sz) {
+		pr_warn("user ringbuf: ring buf size (%u) is too big\n", info.max_entries);
+		return -E2BIG;
+	}
+	tmp = mmap(NULL, (size_t)mmap_sz, PROT_READ | PROT_WRITE, MAP_SHARED,
+		   map_fd, rb->page_size);
 	if (tmp == MAP_FAILED) {
 		err = -errno;
 		pr_warn("user ringbuf: failed to mmap data pages for map fd=%d: %d\n",
