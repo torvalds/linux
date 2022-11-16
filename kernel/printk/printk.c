@@ -1894,13 +1894,13 @@ static void console_lock_spinning_enable(void)
  * safe to start busy waiting for the lock. Second, it checks if
  * there is a busy waiter and passes the lock rights to her.
  *
- * Important: Callers lose the lock if there was a busy waiter.
- *	They must not touch items synchronized by console_lock
- *	in this case.
+ * Important: Callers lose both the console_lock and the SRCU read lock if
+ *	there was a busy waiter. They must not touch items synchronized by
+ *	console_lock or SRCU read lock in this case.
  *
  * Return: 1 if the lock rights were passed, 0 otherwise.
  */
-static int console_lock_spinning_disable_and_check(void)
+static int console_lock_spinning_disable_and_check(int cookie)
 {
 	int waiter;
 
@@ -1918,6 +1918,12 @@ static int console_lock_spinning_disable_and_check(void)
 	WRITE_ONCE(console_waiter, false);
 
 	spin_release(&console_owner_dep_map, _THIS_IP_);
+
+	/*
+	 * Preserve lockdep lock ordering. Release the SRCU read lock before
+	 * releasing the console_lock.
+	 */
+	console_srcu_read_unlock(cookie);
 
 	/*
 	 * Hand off console_lock to waiter. The waiter will perform
@@ -2402,7 +2408,7 @@ static ssize_t msg_print_ext_body(char *buf, size_t size,
 				  char *text, size_t text_len,
 				  struct dev_printk_info *dev_info) { return 0; }
 static void console_lock_spinning_enable(void) { }
-static int console_lock_spinning_disable_and_check(void) { return 0; }
+static int console_lock_spinning_disable_and_check(int cookie) { return 0; }
 static void call_console_driver(struct console *con, const char *text, size_t len,
 				char *dropped_text)
 {
@@ -2744,16 +2750,18 @@ static void __console_unlock(void)
  * DROPPED_TEXT_MAX. Otherwise @dropped_text must be NULL.
  *
  * @handover will be set to true if a printk waiter has taken over the
- * console_lock, in which case the caller is no longer holding the
- * console_lock. Otherwise it is set to false.
+ * console_lock, in which case the caller is no longer holding both the
+ * console_lock and the SRCU read lock. Otherwise it is set to false.
+ *
+ * @cookie is the cookie from the SRCU read lock.
  *
  * Returns false if the given console has no next record to print, otherwise
  * true.
  *
- * Requires the console_lock.
+ * Requires the console_lock and the SRCU read lock.
  */
 static bool console_emit_next_record(struct console *con, char *text, char *ext_text,
-				     char *dropped_text, bool *handover)
+				     char *dropped_text, bool *handover, int cookie)
 {
 	static int panic_console_dropped;
 	struct printk_info info;
@@ -2813,7 +2821,7 @@ static bool console_emit_next_record(struct console *con, char *text, char *ext_
 
 	con->seq++;
 
-	*handover = console_lock_spinning_disable_and_check();
+	*handover = console_lock_spinning_disable_and_check(cookie);
 	printk_safe_exit_irqrestore(flags);
 skip:
 	return true;
@@ -2850,6 +2858,7 @@ static bool console_flush_all(bool do_cond_resched, u64 *next_seq, bool *handove
 	bool any_usable = false;
 	struct console *con;
 	bool any_progress;
+	int cookie;
 
 	*next_seq = 0;
 	*handover = false;
@@ -2857,23 +2866,29 @@ static bool console_flush_all(bool do_cond_resched, u64 *next_seq, bool *handove
 	do {
 		any_progress = false;
 
-		for_each_console(con) {
+		cookie = console_srcu_read_lock();
+		for_each_console_srcu(con) {
 			bool progress;
 
 			if (!console_is_usable(con))
 				continue;
 			any_usable = true;
 
-			if (con->flags & CON_EXTENDED) {
+			if (console_srcu_read_flags(con) & CON_EXTENDED) {
 				/* Extended consoles do not print "dropped messages". */
 				progress = console_emit_next_record(con, &text[0],
 								    &ext_text[0], NULL,
-								    handover);
+								    handover, cookie);
 			} else {
 				progress = console_emit_next_record(con, &text[0],
 								    NULL, &dropped_text[0],
-								    handover);
+								    handover, cookie);
 			}
+
+			/*
+			 * If a handover has occurred, the SRCU read lock
+			 * is already released.
+			 */
 			if (*handover)
 				return false;
 
@@ -2887,14 +2902,19 @@ static bool console_flush_all(bool do_cond_resched, u64 *next_seq, bool *handove
 
 			/* Allow panic_cpu to take over the consoles safely. */
 			if (abandon_console_lock_in_panic())
-				return false;
+				goto abandon;
 
 			if (do_cond_resched)
 				cond_resched();
 		}
+		console_srcu_read_unlock(cookie);
 	} while (any_progress);
 
 	return any_usable;
+
+abandon:
+	console_srcu_read_unlock(cookie);
+	return false;
 }
 
 /**
