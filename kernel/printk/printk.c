@@ -3069,7 +3069,7 @@ void console_stop(struct console *console)
 	__pr_flush(console, 1000, true);
 	console_list_lock();
 	console_lock();
-	console->flags &= ~CON_ENABLED;
+	console_srcu_write_flags(console, console->flags & ~CON_ENABLED);
 	console_unlock();
 	console_list_unlock();
 
@@ -3087,7 +3087,7 @@ void console_start(struct console *console)
 {
 	console_list_lock();
 	console_lock();
-	console->flags |= CON_ENABLED;
+	console_srcu_write_flags(console, console->flags | CON_ENABLED);
 	console_unlock();
 	console_list_unlock();
 	__pr_flush(console, 1000, true);
@@ -3343,7 +3343,7 @@ void register_console(struct console *newcon)
 
 	} else if (newcon->flags & CON_CONSDEV) {
 		/* Only the new head can have CON_CONSDEV set. */
-		console_first()->flags &= ~CON_CONSDEV;
+		console_srcu_write_flags(console_first(), console_first()->flags & ~CON_CONSDEV);
 		hlist_add_head_rcu(&newcon->node, &console_list);
 
 	} else {
@@ -3400,7 +3400,7 @@ static int unregister_console_locked(struct console *console)
 	console_lock();
 
 	/* Disable it unconditionally */
-	console->flags &= ~CON_ENABLED;
+	console_srcu_write_flags(console, console->flags & ~CON_ENABLED);
 
 	if (hlist_unhashed(&console->node)) {
 		console_unlock();
@@ -3419,7 +3419,7 @@ static int unregister_console_locked(struct console *console)
 	 * console has any device attached. Oh well....
 	 */
 	if (!hlist_empty(&console_list) && console->flags & CON_CONSDEV)
-		console_first()->flags |= CON_CONSDEV;
+		console_srcu_write_flags(console_first(), console_first()->flags | CON_CONSDEV);
 
 	console_unlock();
 
