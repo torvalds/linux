@@ -165,6 +165,16 @@ struct drm_gem_object_funcs {
 	int (*mmap)(struct drm_gem_object *obj, struct vm_area_struct *vma);
 
 	/**
+	 * @evict:
+	 *
+	 * Evicts gem object out from memory. Used by the drm_gem_object_evict()
+	 * helper. Returns 0 on success, -errno otherwise.
+	 *
+	 * This callback is optional.
+	 */
+	int (*evict)(struct drm_gem_object *obj);
+
+	/**
 	 * @vm_ops:
 	 *
 	 * Virtual memory operations used with mmap.
@@ -478,5 +488,7 @@ void drm_gem_lru_remove(struct drm_gem_object *obj);
 void drm_gem_lru_move_tail(struct drm_gem_lru *lru, struct drm_gem_object *obj);
 unsigned long drm_gem_lru_scan(struct drm_gem_lru *lru, unsigned nr_to_scan,
 			       bool (*shrink)(struct drm_gem_object *obj));
+
+int drm_gem_evict(struct drm_gem_object *obj);
 
 #endif /* __DRM_GEM_H__ */
