@@ -11,6 +11,8 @@ struct perf_cpu {
 	int cpu;
 };
 
+struct perf_cpu_map;
+
 LIBPERF_API struct perf_cpu_map *perf_cpu_map__dummy_new(void);
 LIBPERF_API struct perf_cpu_map *perf_cpu_map__default_new(void);
 LIBPERF_API struct perf_cpu_map *perf_cpu_map__new(const char *cpu_list);
