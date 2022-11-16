@@ -1491,6 +1491,10 @@ static inline void acpi_init_pcc(void) { }
 
 #ifdef CONFIG_ACPI_FFH
 void acpi_init_ffh(void);
+extern int acpi_ffh_address_space_arch_setup(void *handler_ctxt,
+					     void **region_ctxt);
+extern int acpi_ffh_address_space_arch_handler(acpi_integer *value,
+					       void *region_context);
 #else
 static inline void acpi_init_ffh(void) { }
 #endif
