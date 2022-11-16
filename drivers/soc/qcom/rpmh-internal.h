@@ -59,7 +59,6 @@ struct tcs_group {
  * @cmd: the payload that will be part of the @msg
  * @completion: triggered when request is done
  * @dev: the device making the request
- * @err: err return from the controller
  * @needs_free: check to free dynamically allocated request object
  */
 struct rpmh_request {
@@ -67,7 +66,6 @@ struct rpmh_request {
 	struct tcs_cmd cmd[MAX_RPMH_PAYLOAD];
 	struct completion *completion;
 	const struct device *dev;
-	int err;
 	bool needs_free;
 };
 
@@ -144,7 +142,7 @@ int rpmh_rsc_write_ctrl_data(struct rsc_drv *drv,
 void rpmh_rsc_invalidate(struct rsc_drv *drv);
 void rpmh_rsc_write_next_wakeup(struct rsc_drv *drv);
 
-void rpmh_tx_done(const struct tcs_request *msg, int r);
+void rpmh_tx_done(const struct tcs_request *msg);
 int rpmh_flush(struct rpmh_ctrlr *ctrlr);
 
 #endif /* __RPM_INTERNAL_H__ */
