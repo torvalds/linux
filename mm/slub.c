@@ -5502,11 +5502,13 @@ static ssize_t cache_dma_show(struct kmem_cache *s, char *buf)
 SLAB_ATTR_RO(cache_dma);
 #endif
 
+#ifdef CONFIG_HARDENED_USERCOPY
 static ssize_t usersize_show(struct kmem_cache *s, char *buf)
 {
 	return sysfs_emit(buf, "%u\n", s->usersize);
 }
 SLAB_ATTR_RO(usersize);
+#endif
 
 static ssize_t destroy_by_rcu_show(struct kmem_cache *s, char *buf)
 {
@@ -5803,7 +5805,9 @@ static struct attribute *slab_attrs[] = {
 #ifdef CONFIG_FAILSLAB
 	&failslab_attr.attr,
 #endif
+#ifdef CONFIG_HARDENED_USERCOPY
 	&usersize_attr.attr,
+#endif
 #ifdef CONFIG_KFENCE
 	&skip_kfence_attr.attr,
 #endif

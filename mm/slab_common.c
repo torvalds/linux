@@ -143,8 +143,10 @@ int slab_unmergeable(struct kmem_cache *s)
 	if (s->ctor)
 		return 1;
 
+#ifdef CONFIG_HARDENED_USERCOPY
 	if (s->usersize)
 		return 1;
+#endif
 
 	/*
 	 * We may have set a slab to be unmergeable during bootstrap.
@@ -223,8 +225,10 @@ static struct kmem_cache *create_cache(const char *name,
 	s->size = s->object_size = object_size;
 	s->align = align;
 	s->ctor = ctor;
+#ifdef CONFIG_HARDENED_USERCOPY
 	s->useroffset = useroffset;
 	s->usersize = usersize;
+#endif
 
 	err = __kmem_cache_create(s, flags);
 	if (err)
@@ -317,7 +321,8 @@ kmem_cache_create_usercopy(const char *name,
 	flags &= CACHE_CREATE_MASK;
 
 	/* Fail closed on bad usersize of useroffset values. */
-	if (WARN_ON(!usersize && useroffset) ||
+	if (!IS_ENABLED(CONFIG_HARDENED_USERCOPY) ||
+	    WARN_ON(!usersize && useroffset) ||
 	    WARN_ON(size < usersize || size - usersize < useroffset))
 		usersize = useroffset = 0;
 
@@ -595,8 +600,8 @@ void kmem_dump_obj(void *object)
 		ptroffset = ((char *)object - (char *)kp.kp_objp) - kp.kp_data_offset;
 		pr_cont(" pointer offset %lu", ptroffset);
 	}
-	if (kp.kp_slab_cache && kp.kp_slab_cache->usersize)
-		pr_cont(" size %u", kp.kp_slab_cache->usersize);
+	if (kp.kp_slab_cache && kp.kp_slab_cache->object_size)
+		pr_cont(" size %u", kp.kp_slab_cache->object_size);
 	if (kp.kp_ret)
 		pr_cont(" allocated at %pS\n", kp.kp_ret);
 	else
@@ -640,8 +645,10 @@ void __init create_boot_cache(struct kmem_cache *s, const char *name,
 		align = max(align, size);
 	s->align = calculate_alignment(flags, align, size);
 
+#ifdef CONFIG_HARDENED_USERCOPY
 	s->useroffset = useroffset;
 	s->usersize = usersize;
+#endif
 
 	err = __kmem_cache_create(s, flags);
 
