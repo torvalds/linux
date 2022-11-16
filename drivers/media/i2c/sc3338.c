@@ -855,8 +855,10 @@ static int __sc3338_start_stream(struct sc3338 *sc3338)
 static int __sc3338_stop_stream(struct sc3338 *sc3338)
 {
 	sc3338->has_init_exp = false;
-	if (sc3338->is_thunderboot)
+	if (sc3338->is_thunderboot) {
 		sc3338->is_first_streamoff = true;
+		pm_runtime_put(&sc3338->client->dev);
+	}
 	return sc3338_write_reg(sc3338->client, SC3338_REG_CTRL_MODE,
 				 SC3338_REG_VALUE_08BIT, SC3338_MODE_SW_STANDBY);
 }
@@ -1470,7 +1472,10 @@ static int sc3338_probe(struct i2c_client *client,
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	pm_runtime_idle(dev);
+	if (sc3338->is_thunderboot)
+		pm_runtime_get_sync(dev);
+	else
+		pm_runtime_idle(dev);
 
 	return 0;
 
