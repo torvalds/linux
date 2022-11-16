@@ -53,7 +53,6 @@ static int drm_client_modeset_test_init(struct kunit *test)
 	drm_connector_helper_add(&priv->connector, &drm_client_modeset_connector_helper_funcs);
 
 	return 0;
-
 }
 
 static void drm_test_pick_cmdline_res_1920_1080_60(struct kunit *test)
@@ -84,7 +83,6 @@ static void drm_test_pick_cmdline_res_1920_1080_60(struct kunit *test)
 
 	KUNIT_EXPECT_TRUE(test, drm_mode_equal(expected_mode, mode));
 }
-
 
 static struct kunit_case drm_test_pick_cmdline_tests[] = {
 	KUNIT_CASE(drm_test_pick_cmdline_res_1920_1080_60),
