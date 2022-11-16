@@ -2377,7 +2377,7 @@ int dsa_slave_create(struct dsa_port *port)
 
 	if (port->name) {
 		name = port->name;
-		assign_type = NET_NAME_UNKNOWN;
+		assign_type = NET_NAME_PREDICTABLE;
 	} else {
 		name = "eth%d";
 		assign_type = NET_NAME_UNKNOWN;
