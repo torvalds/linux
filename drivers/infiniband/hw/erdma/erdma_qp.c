@@ -120,6 +120,7 @@ static int erdma_modify_qp_state_to_stop(struct erdma_qp *qp,
 int erdma_modify_qp_internal(struct erdma_qp *qp, struct erdma_qp_attrs *attrs,
 			     enum erdma_qp_attr_mask mask)
 {
+	bool need_reflush = false;
 	int drop_conn, ret = 0;
 
 	if (!mask)
@@ -135,6 +136,7 @@ int erdma_modify_qp_internal(struct erdma_qp *qp, struct erdma_qp_attrs *attrs,
 			ret = erdma_modify_qp_state_to_rts(qp, attrs, mask);
 		} else if (attrs->state == ERDMA_QP_STATE_ERROR) {
 			qp->attrs.state = ERDMA_QP_STATE_ERROR;
+			need_reflush = true;
 			if (qp->cep) {
 				erdma_cep_put(qp->cep);
 				qp->cep = NULL;
@@ -145,17 +147,12 @@ int erdma_modify_qp_internal(struct erdma_qp *qp, struct erdma_qp_attrs *attrs,
 	case ERDMA_QP_STATE_RTS:
 		drop_conn = 0;
 
-		if (attrs->state == ERDMA_QP_STATE_CLOSING) {
+		if (attrs->state == ERDMA_QP_STATE_CLOSING ||
+		    attrs->state == ERDMA_QP_STATE_TERMINATE ||
+		    attrs->state == ERDMA_QP_STATE_ERROR) {
 			ret = erdma_modify_qp_state_to_stop(qp, attrs, mask);
 			drop_conn = 1;
-		} else if (attrs->state == ERDMA_QP_STATE_TERMINATE) {
-			qp->attrs.state = ERDMA_QP_STATE_TERMINATE;
-			ret = erdma_modify_qp_state_to_stop(qp, attrs, mask);
-			drop_conn = 1;
-		} else if (attrs->state == ERDMA_QP_STATE_ERROR) {
-			ret = erdma_modify_qp_state_to_stop(qp, attrs, mask);
-			qp->attrs.state = ERDMA_QP_STATE_ERROR;
-			drop_conn = 1;
+			need_reflush = true;
 		}
 
 		if (drop_conn)
@@ -178,6 +175,12 @@ int erdma_modify_qp_internal(struct erdma_qp *qp, struct erdma_qp_attrs *attrs,
 		break;
 	default:
 		break;
+	}
+
+	if (need_reflush && !ret && rdma_is_kernel_res(&qp->ibqp.res)) {
+		qp->flags |= ERDMA_QP_IN_FLUSHING;
+		mod_delayed_work(qp->dev->reflush_wq, &qp->reflush_dwork,
+				 usecs_to_jiffies(100));
 	}
 
 	return ret;
@@ -527,6 +530,10 @@ int erdma_post_send(struct ib_qp *ibqp, const struct ib_send_wr *send_wr,
 	}
 	spin_unlock_irqrestore(&qp->lock, flags);
 
+	if (unlikely(qp->flags & ERDMA_QP_IN_FLUSHING))
+		mod_delayed_work(qp->dev->reflush_wq, &qp->reflush_dwork,
+				 usecs_to_jiffies(100));
+
 	return ret;
 }
 
@@ -580,5 +587,10 @@ int erdma_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *recv_wr,
 	}
 
 	spin_unlock_irqrestore(&qp->lock, flags);
+
+	if (unlikely(qp->flags & ERDMA_QP_IN_FLUSHING))
+		mod_delayed_work(qp->dev->reflush_wq, &qp->reflush_dwork,
+				 usecs_to_jiffies(100));
+
 	return ret;
 }
