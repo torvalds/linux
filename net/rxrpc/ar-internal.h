@@ -1002,18 +1002,6 @@ void rxrpc_unuse_local(struct rxrpc_local *, enum rxrpc_local_trace);
 void rxrpc_destroy_local(struct rxrpc_local *local);
 void rxrpc_destroy_all_locals(struct rxrpc_net *);
 
-static inline bool __rxrpc_unuse_local(struct rxrpc_local *local,
-				       enum rxrpc_local_trace why)
-{
-	unsigned int debug_id = local->debug_id;
-	int r, u;
-
-	r = refcount_read(&local->ref);
-	u = atomic_dec_return(&local->active_users);
-	trace_rxrpc_local(debug_id, why, r, u);
-	return u == 0;
-}
-
 static inline bool __rxrpc_use_local(struct rxrpc_local *local,
 				     enum rxrpc_local_trace why)
 {

@@ -359,8 +359,16 @@ struct rxrpc_local *rxrpc_use_local(struct rxrpc_local *local,
  */
 void rxrpc_unuse_local(struct rxrpc_local *local, enum rxrpc_local_trace why)
 {
-	if (local && __rxrpc_unuse_local(local, why))
-		kthread_stop(local->io_thread);
+	unsigned int debug_id = local->debug_id;
+	int r, u;
+
+	if (local) {
+		r = refcount_read(&local->ref);
+		u = atomic_dec_return(&local->active_users);
+		trace_rxrpc_local(debug_id, why, r, u);
+		if (u == 0)
+			kthread_stop(local->io_thread);
+	}
 }
 
 /*
