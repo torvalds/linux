@@ -51,10 +51,13 @@ While GitHub also provides a CLI that can be used to accomplish the same
 results, here we focus on the UI based workflow.
 
 The following steps lay out how to start a CI run for your patches:
+
 - Create a fork of the aforementioned repository in your own account (one time
   action)
+
 - Clone the fork locally, check out a new branch tracking either the bpf-next
   or bpf branch, and apply your to-be-tested patches on top of it
+
 - Push the local branch to your fork and create a pull request against
   kernel-patches/bpf's bpf-next_base or bpf_base branch, respectively
 
