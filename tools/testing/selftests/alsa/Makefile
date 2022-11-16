@@ -7,6 +7,8 @@ ifeq ($(LDLIBS),)
 LDLIBS += -lasound
 endif
 
-TEST_GEN_PROGS := mixer-test
+TEST_GEN_PROGS := mixer-test pcm-test
+
+pcm-test: pcm-test.c conf.c
 
 include ../lib.mk
