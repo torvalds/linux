@@ -1267,13 +1267,12 @@ int mm_account_pinned_pages(struct mmpin *mmp, size_t size)
 	max_pg = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
 	user = mmp->user ? : current_user();
 
+	old_pg = atomic_long_read(&user->locked_vm);
 	do {
-		old_pg = atomic_long_read(&user->locked_vm);
 		new_pg = old_pg + num_pg;
 		if (new_pg > max_pg)
 			return -ENOBUFS;
-	} while (atomic_long_cmpxchg(&user->locked_vm, old_pg, new_pg) !=
-		 old_pg);
+	} while (!atomic_long_try_cmpxchg(&user->locked_vm, &old_pg, new_pg));
 
 	if (!mmp->user) {
 		mmp->user = get_uid(user);
