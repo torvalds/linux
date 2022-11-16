@@ -593,6 +593,7 @@ properties:
       - description: Pine64 SoQuartz SoM
         items:
           - enum:
+              - pine64,soquartz-blade
               - pine64,soquartz-cm4io
           - const: pine64,soquartz
           - const: rockchip,rk3566
