@@ -85,6 +85,7 @@ EXPORT_SYMBOL(oops_in_progress);
 static DEFINE_SEMAPHORE(console_sem);
 HLIST_HEAD(console_list);
 EXPORT_SYMBOL_GPL(console_list);
+DEFINE_STATIC_SRCU(console_srcu);
 
 /*
  * System may need to suppress printk message under certain
@@ -102,6 +103,13 @@ static int __read_mostly suppress_panic_printk;
 static struct lockdep_map console_lock_dep_map = {
 	.name = "console_lock"
 };
+#endif
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+bool console_srcu_read_lock_is_held(void)
+{
+	return srcu_read_lock_held(&console_srcu);
+}
 #endif
 
 enum devkmsg_log_bits {
@@ -218,6 +226,32 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 	return 0;
 }
 #endif /* CONFIG_PRINTK && CONFIG_SYSCTL */
+
+/**
+ * console_srcu_read_lock - Register a new reader for the
+ *	SRCU-protected console list
+ *
+ * Use for_each_console_srcu() to iterate the console list
+ *
+ * Context: Any context.
+ */
+int console_srcu_read_lock(void)
+{
+	return srcu_read_lock_nmisafe(&console_srcu);
+}
+EXPORT_SYMBOL(console_srcu_read_lock);
+
+/**
+ * console_srcu_read_unlock - Unregister an old reader from
+ *	the SRCU-protected console list
+ *
+ * Counterpart to console_srcu_read_lock()
+ */
+void console_srcu_read_unlock(int cookie)
+{
+	srcu_read_unlock_nmisafe(&console_srcu, cookie);
+}
+EXPORT_SYMBOL(console_srcu_read_unlock);
 
 /*
  * Helper macros to handle lockdep when locking/unlocking console_sem. We use
@@ -2989,6 +3023,14 @@ void console_stop(struct console *console)
 	console_lock();
 	console->flags &= ~CON_ENABLED;
 	console_unlock();
+
+	/*
+	 * Ensure that all SRCU list walks have completed. All contexts must
+	 * be able to see that this console is disabled so that (for example)
+	 * the caller can suspend the port without risk of another context
+	 * using the port.
+	 */
+	synchronize_srcu(&console_srcu);
 }
 EXPORT_SYMBOL(console_stop);
 
@@ -3179,25 +3221,6 @@ void register_console(struct console *newcon)
 		newcon->flags &= ~CON_PRINTBUFFER;
 	}
 
-	/*
-	 * Put this console in the list - keep the
-	 * preferred driver at the head of the list.
-	 */
-	console_lock();
-	if (hlist_empty(&console_list)) {
-		/* Ensure CON_CONSDEV is always set for the head. */
-		newcon->flags |= CON_CONSDEV;
-		hlist_add_head(&newcon->node, &console_list);
-
-	} else if (newcon->flags & CON_CONSDEV) {
-		/* Only the new head can have CON_CONSDEV set. */
-		console_first()->flags &= ~CON_CONSDEV;
-		hlist_add_head(&newcon->node, &console_list);
-
-	} else {
-		hlist_add_behind(&newcon->node, console_list.first);
-	}
-
 	newcon->dropped = 0;
 	if (newcon->flags & CON_PRINTBUFFER) {
 		/* Get a consistent copy of @syslog_seq. */
@@ -3208,7 +3231,33 @@ void register_console(struct console *newcon)
 		/* Begin with next message. */
 		newcon->seq = prb_next_seq(prb);
 	}
+
+	/*
+	 * Put this console in the list - keep the
+	 * preferred driver at the head of the list.
+	 */
+	console_lock();
+	if (hlist_empty(&console_list)) {
+		/* Ensure CON_CONSDEV is always set for the head. */
+		newcon->flags |= CON_CONSDEV;
+		hlist_add_head_rcu(&newcon->node, &console_list);
+
+	} else if (newcon->flags & CON_CONSDEV) {
+		/* Only the new head can have CON_CONSDEV set. */
+		console_first()->flags &= ~CON_CONSDEV;
+		hlist_add_head_rcu(&newcon->node, &console_list);
+
+	} else {
+		hlist_add_behind_rcu(&newcon->node, console_list.first);
+	}
 	console_unlock();
+
+	/*
+	 * No need to synchronize SRCU here! The caller does not rely
+	 * on all contexts being able to see the new console before
+	 * register_console() completes.
+	 */
+
 	console_sysfs_notify();
 
 	/*
@@ -3254,7 +3303,7 @@ int unregister_console(struct console *console)
 		return -ENODEV;
 	}
 
-	hlist_del_init(&console->node);
+	hlist_del_init_rcu(&console->node);
 
 	/*
 	 * <HISTORICAL>
@@ -3269,6 +3318,14 @@ int unregister_console(struct console *console)
 		console_first()->flags |= CON_CONSDEV;
 
 	console_unlock();
+
+	/*
+	 * Ensure that all SRCU list walks have completed. All contexts
+	 * must not be able to see this console in the list so that any
+	 * exit/cleanup routines can be performed safely.
+	 */
+	synchronize_srcu(&console_srcu);
+
 	console_sysfs_notify();
 
 	if (console->exit)
