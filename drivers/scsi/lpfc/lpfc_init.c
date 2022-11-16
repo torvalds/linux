@@ -10092,17 +10092,15 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		qmin = phba->sli4_hba.max_cfg_param.max_wq;
 		if (phba->sli4_hba.max_cfg_param.max_cq < qmin)
 			qmin = phba->sli4_hba.max_cfg_param.max_cq;
-		if (phba->sli4_hba.max_cfg_param.max_eq < qmin)
-			qmin = phba->sli4_hba.max_cfg_param.max_eq;
 		/*
-		 * Whats left after this can go toward NVME / FCP.
-		 * The minus 4 accounts for ELS, NVME LS, MBOX
-		 * plus one extra. When configured for
-		 * NVMET, FCP io channel WQs are not created.
+		 * Reserve 4 (ELS, NVME LS, MBOX, plus one extra) and
+		 * the remainder can be used for NVME / FCP.
 		 */
 		qmin -= 4;
+		if (phba->sli4_hba.max_cfg_param.max_eq < qmin)
+			qmin = phba->sli4_hba.max_cfg_param.max_eq;
 
-		/* Check to see if there is enough for NVME */
+		/* Check to see if there is enough for default cfg */
 		if ((phba->cfg_irq_chann > qmin) ||
 		    (phba->cfg_hdw_queue > qmin)) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
