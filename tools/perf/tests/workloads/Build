@@ -5,7 +5,9 @@ perf-y += thloop.o
 perf-y += leafloop.o
 perf-y += sqrtloop.o
 perf-y += brstack.o
+perf-y += datasym.o
 
 CFLAGS_sqrtloop.o         = -g -O0 -fno-inline -U_FORTIFY_SOURCE
 CFLAGS_leafloop.o         = -g -O0 -fno-inline -fno-omit-frame-pointer -U_FORTIFY_SOURCE
 CFLAGS_brstack.o          = -g -O0 -fno-inline -U_FORTIFY_SOURCE
+CFLAGS_datasym.o          = -g -O0 -fno-inline -U_FORTIFY_SOURCE

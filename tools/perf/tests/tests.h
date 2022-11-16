@@ -205,5 +205,6 @@ DECLARE_WORKLOAD(thloop);
 DECLARE_WORKLOAD(leafloop);
 DECLARE_WORKLOAD(sqrtloop);
 DECLARE_WORKLOAD(brstack);
+DECLARE_WORKLOAD(datasym);
 
 #endif /* TESTS_H */
