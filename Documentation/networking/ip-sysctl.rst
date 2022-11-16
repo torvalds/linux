@@ -1177,6 +1177,33 @@ udp_rmem_min - INTEGER
 udp_wmem_min - INTEGER
 	UDP does not have tx memory accounting and this tunable has no effect.
 
+udp_hash_entries - INTEGER
+	Show the number of hash buckets for UDP sockets in the current
+	networking namespace.
+
+	A negative value means the networking namespace does not own its
+	hash buckets and shares the initial networking namespace's one.
+
+udp_child_ehash_entries - INTEGER
+	Control the number of hash buckets for UDP sockets in the child
+	networking namespace, which must be set before clone() or unshare().
+
+	If the value is not 0, the kernel uses a value rounded up to 2^n
+	as the actual hash bucket size.  0 is a special value, meaning
+	the child networking namespace will share the initial networking
+	namespace's hash buckets.
+
+	Note that the child will use the global one in case the kernel
+	fails to allocate enough memory.  In addition, the global hash
+	buckets are spread over available NUMA nodes, but the allocation
+	of the child hash table depends on the current process's NUMA
+	policy, which could result in performance differences.
+
+	Possible values: 0, 2^n (n: 7 (128) - 16 (64K))
+
+	Default: 0
+
+
 RAW variables
 =============
 

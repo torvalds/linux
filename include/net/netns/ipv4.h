@@ -43,6 +43,7 @@ struct tcp_fastopen_context;
 
 struct netns_ipv4 {
 	struct inet_timewait_death_row tcp_death_row;
+	struct udp_table *udp_table;
 
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*forw_hdr;
@@ -206,6 +207,8 @@ struct netns_ipv4 {
 	struct ping_group_range ping_group_range;
 
 	atomic_t dev_addr_genid;
+
+	unsigned int sysctl_udp_child_hash_entries;
 
 #ifdef CONFIG_SYSCTL
 	unsigned long *sysctl_local_reserved_ports;
