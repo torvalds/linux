@@ -1851,7 +1851,7 @@ static int __dwc3_stop_active_transfer(struct dwc3_ep *dep, bool force, bool int
 
 	if (!interrupt)
 		dep->flags &= ~DWC3_EP_TRANSFER_STARTED;
-	else if (!ret)
+	else
 		dep->flags |= DWC3_EP_END_TRANSFER_PENDING;
 
 	return ret;
@@ -2032,8 +2032,11 @@ static int __dwc3_gadget_start_isoc(struct dwc3_ep *dep)
 	 * status, issue END_TRANSFER command and retry on the next XferNotReady
 	 * event.
 	 */
-	if (ret == -EAGAIN)
+	if (ret == -EAGAIN) {
 		ret = __dwc3_stop_active_transfer(dep, false, true);
+		if (ret)
+			dep->flags &= ~DWC3_EP_END_TRANSFER_PENDING;
+	}
 
 	return ret;
 }
