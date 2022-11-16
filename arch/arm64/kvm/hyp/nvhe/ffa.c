@@ -31,6 +31,12 @@
 #include <nvhe/ffa.h>
 #include <nvhe/trap_handler.h>
 
+/*
+ * "ID value 0 must be returned at the Non-secure physical FF-A instance"
+ * We share this ID with the host.
+ */
+#define HOST_FFA_ID	0
+
 static void ffa_to_smccc_error(struct arm_smccc_res *res, u64 ffa_errno)
 {
 	*res = (struct arm_smccc_res) {
@@ -110,4 +116,28 @@ bool kvm_host_ffa_handler(struct kvm_cpu_context *host_ctxt)
 	ffa_to_smccc_error(&res, FFA_RET_NOT_SUPPORTED);
 	ffa_set_retval(host_ctxt, &res);
 	return true;
+}
+
+int hyp_ffa_init(void)
+{
+	struct arm_smccc_res res;
+
+	if (kvm_host_psci_config.smccc_version < ARM_SMCCC_VERSION_1_2)
+		return 0;
+
+	arm_smccc_1_1_smc(FFA_VERSION, FFA_VERSION_1_0, 0, 0, 0, 0, 0, 0, &res);
+	if (res.a0 == FFA_RET_NOT_SUPPORTED)
+		return 0;
+
+	if (res.a0 != FFA_VERSION_1_0)
+		return -EOPNOTSUPP;
+
+	arm_smccc_1_1_smc(FFA_ID_GET, 0, 0, 0, 0, 0, 0, 0, &res);
+	if (res.a0 != FFA_SUCCESS)
+		return -EOPNOTSUPP;
+
+	if (res.a2 != HOST_FFA_ID)
+		return -EINVAL;
+
+	return 0;
 }
