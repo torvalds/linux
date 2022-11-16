@@ -77,6 +77,8 @@ static void efx_tc_free_action_set(struct efx_nic *efx,
 		 */
 		list_del(&act->list);
 	}
+	if (act->count)
+		efx_tc_flower_put_counter_index(efx, act->count);
 	kfree(act);
 }
 
@@ -282,6 +284,29 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 	return 0;
 }
 
+/* For details of action order constraints refer to SF-123102-TC-1§12.6.1 */
+enum efx_tc_action_order {
+	EFX_TC_AO_COUNT,
+	EFX_TC_AO_DELIVER
+};
+/* Determine whether we can add @new action without violating order */
+static bool efx_tc_flower_action_order_ok(const struct efx_tc_action_set *act,
+					  enum efx_tc_action_order new)
+{
+	switch (new) {
+	case EFX_TC_AO_COUNT:
+		if (act->count)
+			return false;
+		fallthrough;
+	case EFX_TC_AO_DELIVER:
+		return !act->deliver;
+	default:
+		/* Bad caller.  Whatever they wanted to do, say they can't. */
+		WARN_ON_ONCE(1);
+		return false;
+	}
+}
+
 static int efx_tc_flower_replace(struct efx_nic *efx,
 				 struct net_device *net_dev,
 				 struct flow_cls_offload *tc,
@@ -376,6 +401,47 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 			goto release;
 		}
 
+		if ((fa->id == FLOW_ACTION_REDIRECT ||
+		     fa->id == FLOW_ACTION_MIRRED ||
+		     fa->id == FLOW_ACTION_DROP) && fa->hw_stats) {
+			struct efx_tc_counter_index *ctr;
+
+			/* Currently the only actions that want stats are
+			 * mirred and gact (ok, shot, trap, goto-chain), which
+			 * means we want stats just before delivery.  Also,
+			 * note that tunnel_key set shouldn't change the length
+			 * — it's only the subsequent mirred that does that,
+			 * and the stats are taken _before_ the mirred action
+			 * happens.
+			 */
+			if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_COUNT)) {
+				/* All supported actions that count either steal
+				 * (gact shot, mirred redirect) or clone act
+				 * (mirred mirror), so we should never get two
+				 * count actions on one action_set.
+				 */
+				NL_SET_ERR_MSG_MOD(extack, "Count-action conflict (can't happen)");
+				rc = -EOPNOTSUPP;
+				goto release;
+			}
+
+			if (!(fa->hw_stats & FLOW_ACTION_HW_STATS_DELAYED)) {
+				NL_SET_ERR_MSG_FMT_MOD(extack, "hw_stats_type %u not supported (only 'delayed')",
+						       fa->hw_stats);
+				rc = -EOPNOTSUPP;
+				goto release;
+			}
+
+			ctr = efx_tc_flower_get_counter_index(efx, tc->cookie,
+							      EFX_TC_COUNTER_TYPE_AR);
+			if (IS_ERR(ctr)) {
+				rc = PTR_ERR(ctr);
+				NL_SET_ERR_MSG_MOD(extack, "Failed to obtain a counter");
+				goto release;
+			}
+			act->count = ctr;
+		}
+
 		switch (fa->id) {
 		case FLOW_ACTION_DROP:
 			rc = efx_mae_alloc_action_set(efx, act);
@@ -389,6 +455,14 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		case FLOW_ACTION_REDIRECT:
 		case FLOW_ACTION_MIRRED:
 			save = *act;
+
+			if (!efx_tc_flower_action_order_ok(act, EFX_TC_AO_DELIVER)) {
+				/* can't happen */
+				rc = -EOPNOTSUPP;
+				NL_SET_ERR_MSG_MOD(extack, "Deliver action violates action order (can't happen)");
+				goto release;
+			}
+
 			to_efv = efx_tc_flower_lookup_efv(efx, fa->dev);
 			if (IS_ERR(to_efv)) {
 				NL_SET_ERR_MSG_MOD(extack, "Mirred egress device not on switch");
@@ -412,6 +486,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 			if (fa->id == FLOW_ACTION_REDIRECT)
 				break; /* end of the line */
 			/* Mirror, so continue on with saved act */
+			save.count = NULL;
 			act = kzalloc(sizeof(*act), GFP_USER);
 			if (!act) {
 				rc = -ENOMEM;
@@ -520,6 +595,42 @@ static int efx_tc_flower_destroy(struct efx_nic *efx,
 	return 0;
 }
 
+static int efx_tc_flower_stats(struct efx_nic *efx, struct net_device *net_dev,
+			       struct flow_cls_offload *tc)
+{
+	struct netlink_ext_ack *extack = tc->common.extack;
+	struct efx_tc_counter_index *ctr;
+	struct efx_tc_counter *cnt;
+	u64 packets, bytes;
+
+	ctr = efx_tc_flower_find_counter_index(efx, tc->cookie);
+	if (!ctr) {
+		/* See comment in efx_tc_flower_destroy() */
+		if (!IS_ERR(efx_tc_flower_lookup_efv(efx, net_dev)))
+			if (net_ratelimit())
+				netif_warn(efx, drv, efx->net_dev,
+					   "Filter %lx not found for stats\n",
+					   tc->cookie);
+		NL_SET_ERR_MSG_MOD(extack, "Flow cookie not found in offloaded rules");
+		return -ENOENT;
+	}
+	if (WARN_ON(!ctr->cnt)) /* can't happen */
+		return -EIO;
+	cnt = ctr->cnt;
+
+	spin_lock_bh(&cnt->lock);
+	/* Report only new pkts/bytes since last time TC asked */
+	packets = cnt->packets;
+	bytes = cnt->bytes;
+	flow_stats_update(&tc->stats, bytes - cnt->old_bytes,
+			  packets - cnt->old_packets, 0, cnt->touched,
+			  FLOW_ACTION_HW_STATS_DELAYED);
+	cnt->old_packets = packets;
+	cnt->old_bytes = bytes;
+	spin_unlock_bh(&cnt->lock);
+	return 0;
+}
+
 int efx_tc_flower(struct efx_nic *efx, struct net_device *net_dev,
 		  struct flow_cls_offload *tc, struct efx_rep *efv)
 {
@@ -535,6 +646,9 @@ int efx_tc_flower(struct efx_nic *efx, struct net_device *net_dev,
 		break;
 	case FLOW_CLS_DESTROY:
 		rc = efx_tc_flower_destroy(efx, net_dev, tc);
+		break;
+	case FLOW_CLS_STATS:
+		rc = efx_tc_flower_stats(efx, net_dev, tc);
 		break;
 	default:
 		rc = -EOPNOTSUPP;
@@ -751,6 +865,10 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	INIT_LIST_HEAD(&efx->tc->block_list);
 
 	mutex_init(&efx->tc->mutex);
+	init_waitqueue_head(&efx->tc->flush_wq);
+	rc = efx_tc_init_counters(efx);
+	if (rc < 0)
+		goto fail_counters;
 	rc = rhashtable_init(&efx->tc->match_action_ht, &efx_tc_match_action_ht_params);
 	if (rc < 0)
 		goto fail_match_action_ht;
@@ -760,8 +878,11 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	efx->tc->dflt.pf.fw_id = MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL;
 	INIT_LIST_HEAD(&efx->tc->dflt.wire.acts.list);
 	efx->tc->dflt.wire.fw_id = MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL;
+	efx->extra_channel_type[EFX_EXTRA_CHANNEL_TC] = &efx_tc_channel_type;
 	return 0;
 fail_match_action_ht:
+	efx_tc_destroy_counters(efx);
+fail_counters:
 	mutex_destroy(&efx->tc->mutex);
 	kfree(efx->tc->caps);
 fail_alloc_caps:
@@ -782,6 +903,7 @@ void efx_fini_struct_tc(struct efx_nic *efx)
 			     MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL);
 	rhashtable_free_and_destroy(&efx->tc->match_action_ht, efx_tc_flow_free,
 				    efx);
+	efx_tc_fini_counters(efx);
 	mutex_unlock(&efx->tc->mutex);
 	mutex_destroy(&efx->tc->mutex);
 	kfree(efx->tc->caps);
