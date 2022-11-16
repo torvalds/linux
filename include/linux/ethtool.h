@@ -473,10 +473,10 @@ struct ethtool_module_power_mode_params {
  *	parameter.
  * @supported_coalesce_params: supported types of interrupt coalescing.
  * @supported_ring_params: supported ring params.
- * @get_drvinfo: Report driver/device information.  Should only set the
- *	@driver, @version, @fw_version and @bus_info fields.  If not
- *	implemented, the @driver and @bus_info fields will be filled in
- *	according to the netdev's parent device.
+ * @get_drvinfo: Report driver/device information. Modern drivers no
+ *	longer have to implement this callback. Most fields are
+ *	correctly filled in by the core using system information, or
+ *	populated using other driver operations.
  * @get_regs_len: Get buffer length required for @get_regs
  * @get_regs: Get device registers
  * @get_wol: Report whether Wake-on-Lan is enabled
