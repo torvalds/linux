@@ -490,11 +490,11 @@ __bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
 									\
 	while (1) {							\
 		u32 _restart_count = bch2_trans_begin(_trans);		\
+									\
+		_ret = 0;						\
 		(_k) = bch2_btree_iter_peek_type(&(_iter), (_flags));	\
-		if (!(_k).k) {						\
-			_ret = 0;					\
+		if (!(_k).k)						\
 			break;						\
-		}							\
 									\
 		_ret = bkey_err(_k) ?: (_do);				\
 		if (bch2_err_matches(_ret, BCH_ERR_transaction_restart))\
