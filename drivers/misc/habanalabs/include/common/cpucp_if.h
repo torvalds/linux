@@ -643,6 +643,10 @@ enum pq_init_status {
  *       data corruption in case of mismatched driver/FW versions.
  *       Relevant only to Gaudi.
  *
+ * * CPUCP_PACKET_GENERIC_PASSTHROUGH -
+ *      Generic opcode for all firmware info that is only passed to host
+ *      through the LKD, without getting parsed there.
+ *
  * CPUCP_PACKET_ACTIVE_STATUS_SET -
  *       LKD sends FW indication whether device is free or in use, this indication is reported
  *       also to the BMC.
@@ -704,9 +708,12 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_RESERVED5,			/* not used */
 	CPUCP_PACKET_RESERVED6,			/* not used */
 	CPUCP_PACKET_RESERVED7,			/* not used */
+	CPUCP_PACKET_GENERIC_PASSTHROUGH,	/* IOCTL */
 	CPUCP_PACKET_RESERVED8,			/* not used */
-	CPUCP_PACKET_RESERVED9,			/* not used */
 	CPUCP_PACKET_ACTIVE_STATUS_SET,		/* internal */
+	CPUCP_PACKET_RESERVED9,			/* not used */
+	CPUCP_PACKET_RESERVED10,		/* not used */
+	CPUCP_PACKET_RESERVED11,		/* not used */
 	CPUCP_PACKET_ID_MAX			/* must be last */
 };
 
@@ -805,8 +812,13 @@ struct cpucp_packet {
 		__le32 nonce;
 	};
 
-	/* For NIC requests */
-	__le32 port_index;
+	union {
+		/* For NIC requests */
+		__le32 port_index;
+
+		/* For Generic packet sub index */
+		__le32 pkt_subidx;
+	};
 };
 
 struct cpucp_unmask_irq_arr_packet {
@@ -976,6 +988,11 @@ enum pll_index {
 	IC_PLL = 16,
 	MC_PLL = 17,
 	EMMC_PLL = 18,
+	D2D_PLL = 19,
+	CS_PLL = 20,
+	C2C_PLL = 21,
+	NCH_PLL = 22,
+	C2M_PLL = 23,
 	PLL_MAX
 };
 
@@ -1135,8 +1152,9 @@ enum cpucp_serdes_type {
 	HLS1_SERDES_TYPE,
 	HLS1H_SERDES_TYPE,
 	HLS2_SERDES_TYPE,
-	UNKNOWN_SERDES_TYPE,
-	MAX_NUM_SERDES_TYPE = UNKNOWN_SERDES_TYPE
+	HLS2_TYPE_1_SERDES_TYPE,
+	MAX_NUM_SERDES_TYPE,		/* number of types */
+	UNKNOWN_SERDES_TYPE = 0xFFFF	/* serdes_type is u16 */
 };
 
 struct cpucp_nic_info {
@@ -1158,6 +1176,21 @@ struct page_discard_info {
 	__u8 num_entries;
 	__u8 reserved[7];
 	__le32 mmu_page_idx[PAGE_DISCARD_MAX];
+};
+
+/*
+ * struct frac_val - fracture value represented by "integer.frac".
+ * @integer: the integer part of the fracture value;
+ * @frac: the fracture part of the fracture value.
+ */
+struct frac_val {
+	union {
+		struct {
+			__le16 integer;
+			__le16 frac;
+		};
+		__le32 val;
+	};
 };
 
 /*
@@ -1183,8 +1216,12 @@ struct ser_val {
  * @pcs_link: has PCS link.
  * @phy_ready: is PHY ready.
  * @auto_neg: is Autoneg enabled.
- * @timeout_retransmission_cnt: timeout retransmission events
- * @high_ber_cnt: high ber events
+ * @timeout_retransmission_cnt: timeout retransmission events.
+ * @high_ber_cnt: high ber events.
+ * @pre_fec_ser: pre FEC SER value.
+ * @post_fec_ser: post FEC SER value.
+ * @throughput: measured throughput.
+ * @latency: measured latency.
  */
 struct cpucp_nic_status {
 	__le32 port;
@@ -1200,6 +1237,10 @@ struct cpucp_nic_status {
 	__u8 auto_neg;
 	__le32 timeout_retransmission_cnt;
 	__le32 high_ber_cnt;
+	struct ser_val pre_fec_ser;
+	struct ser_val post_fec_ser;
+	struct frac_val bandwidth;
+	struct frac_val lat;
 };
 
 enum cpucp_hbm_row_replace_cause {
@@ -1315,6 +1356,16 @@ struct cpucp_monitor_dump {
 	struct dcore_monitor_regs_data sync_mngr_e_s;
 	struct dcore_monitor_regs_data sync_mngr_w_n;
 	struct dcore_monitor_regs_data sync_mngr_e_n;
+};
+
+/*
+ * The Type of the generic request (and other input arguments) will be fetched from user by reading
+ * from "pkt_subidx" field in struct cpucp_packet.
+ *
+ * HL_PASSTHROUGHT_VERSIONS	- Fetch all firmware versions.
+ */
+enum hl_passthrough_type {
+	HL_PASSTHROUGH_VERSIONS,
 };
 
 #endif /* CPUCP_IF_H */

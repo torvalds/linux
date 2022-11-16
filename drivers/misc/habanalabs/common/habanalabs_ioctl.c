@@ -820,6 +820,54 @@ static int user_mappings_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 				? -EFAULT : 0;
 }
 
+static int send_fw_generic_request(struct hl_device *hdev, struct hl_info_args *info_args)
+{
+	void __user *buff = (void __user *) (uintptr_t) info_args->return_pointer;
+	u32 size = info_args->return_size;
+	dma_addr_t dma_handle;
+	bool need_input_buff;
+	void *fw_buff;
+	int rc = 0;
+
+	switch (info_args->fw_sub_opcode) {
+	case HL_PASSTHROUGH_VERSIONS:
+		need_input_buff = false;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (size > SZ_1M) {
+		dev_err(hdev->dev, "buffer size cannot exceed 1MB\n");
+		return -EINVAL;
+	}
+
+	fw_buff = hl_cpu_accessible_dma_pool_alloc(hdev, size, &dma_handle);
+	if (!fw_buff)
+		return -ENOMEM;
+
+
+	if (need_input_buff && copy_from_user(fw_buff, buff, size)) {
+		dev_dbg(hdev->dev, "Failed to copy from user FW buff\n");
+		rc = -EFAULT;
+		goto free_buff;
+	}
+
+	rc = hl_fw_send_generic_request(hdev, info_args->fw_sub_opcode, dma_handle, &size);
+	if (rc)
+		goto free_buff;
+
+	if (copy_to_user(buff, fw_buff, min(size, info_args->return_size))) {
+		dev_dbg(hdev->dev, "Failed to copy to user FW generic req output\n");
+		rc = -EFAULT;
+	}
+
+free_buff:
+	hl_cpu_accessible_dma_pool_free(hdev, info_args->return_size, fw_buff);
+
+	return rc;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -946,6 +994,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_ENGINE_STATUS:
 		return engine_status_info(hpriv, args);
+
+	case HL_INFO_FW_GENERIC_REQ:
+		return send_fw_generic_request(hdev, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);

@@ -789,6 +789,7 @@ enum hl_server_type {
  * HL_INFO_ENGINE_STATUS - Retrieve the status of all the h/w engines in the asic.
  * HL_INFO_PAGE_FAULT_EVENT - Retrieve parameters of captured page fault.
  * HL_INFO_USER_MAPPINGS - Retrieve user mappings, captured after page fault event.
+ * HL_INFO_FW_GENERIC_REQ - Send generic request to FW.
  */
 #define HL_INFO_HW_IP_INFO			0
 #define HL_INFO_HW_EVENTS			1
@@ -822,6 +823,7 @@ enum hl_server_type {
 #define HL_INFO_ENGINE_STATUS			32
 #define HL_INFO_PAGE_FAULT_EVENT		33
 #define HL_INFO_USER_MAPPINGS			34
+#define HL_INFO_FW_GENERIC_REQ			35
 
 #define HL_INFO_VERSION_MAX_LEN			128
 #define HL_INFO_CARD_NAME_MAX_LEN		16
@@ -1258,6 +1260,7 @@ enum gaudi_dcores {
  * @sec_attest_nonce: Nonce number used for attestation report.
  * @array_size: Number of array members copied to user buffer.
  *              Relevant for HL_INFO_USER_MAPPINGS info ioctl.
+ * @fw_sub_opcode: generic requests sub opcodes.
  * @pad: Padding to 64 bit.
  */
 struct hl_info_args {
@@ -1274,6 +1277,7 @@ struct hl_info_args {
 		__u32 user_buffer_actual_size;
 		__u32 sec_attest_nonce;
 		__u32 array_size;
+		__u32 fw_sub_opcode;
 	};
 
 	__u32 pad;

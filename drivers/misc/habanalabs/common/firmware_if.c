@@ -3145,3 +3145,27 @@ int hl_fw_get_sec_attest_info(struct hl_device *hdev, struct cpucp_sec_attest_in
 					sizeof(struct cpucp_sec_attest_info), nonce,
 					HL_CPUCP_SEC_ATTEST_INFO_TINEOUT_USEC);
 }
+
+int hl_fw_send_generic_request(struct hl_device *hdev, enum hl_passthrough_type sub_opcode,
+						dma_addr_t buff, u32 *size)
+{
+	struct cpucp_packet pkt = {0};
+	u64 result;
+	int rc = 0;
+
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_GENERIC_PASSTHROUGH << CPUCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.addr = cpu_to_le64(buff);
+	pkt.data_max_size = cpu_to_le32(*size);
+	pkt.pkt_subidx = cpu_to_le32(sub_opcode);
+
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *)&pkt, sizeof(pkt),
+						HL_CPUCP_INFO_TIMEOUT_USEC, &result);
+	if (rc)
+		dev_err(hdev->dev, "failed to send CPUCP data of generic fw pkt\n");
+	else
+		dev_dbg(hdev->dev, "generic pkt was successful, result: 0x%llx\n", result);
+
+	*size = (u32)result;
+
+	return rc;
+}
