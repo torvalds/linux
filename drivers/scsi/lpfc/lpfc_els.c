@@ -952,6 +952,7 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	uint16_t fcf_index;
 	int rc;
 	u32 ulp_status, ulp_word4, tmo;
+	bool flogi_in_retry = false;
 
 	/* Check to see if link went down during discovery */
 	if (lpfc_els_chk_latt(vport)) {
@@ -1022,8 +1023,23 @@ stop_rr_fcf_flogi:
 					 phba->hba_flag, phba->fcf.fcf_flag);
 
 		/* Check for retry */
-		if (lpfc_els_retry(phba, cmdiocb, rspiocb))
+		if (lpfc_els_retry(phba, cmdiocb, rspiocb)) {
+			/* Address a timing race with dev_loss.  If dev_loss
+			 * is active on this FPort node, put the initial ref
+			 * count back to stop premature node release actions.
+			 */
+			lpfc_check_nlp_post_devloss(vport, ndlp);
+			flogi_in_retry = true;
 			goto out;
+		}
+
+		/* The FLOGI will not be retried.  If the FPort node is not
+		 * registered with the SCSI transport, remove the initial
+		 * reference to trigger node release.
+		 */
+		if (!(ndlp->nlp_flag & NLP_IN_DEV_LOSS) &&
+		    !(ndlp->fc4_xpt_flags & SCSI_XPT_REGD))
+			lpfc_nlp_put(ndlp);
 
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_TRACE_EVENT,
 				 "0150 FLOGI failure Status:x%x/x%x "
@@ -1086,7 +1102,7 @@ stop_rr_fcf_flogi:
 	spin_unlock_irq(shost->host_lock);
 
 	/*
-	 * The FLogI succeeded.  Sync the data for the CPU before
+	 * The FLOGI succeeded.  Sync the data for the CPU before
 	 * accessing it.
 	 */
 	prsp = list_get_first(&pcmd->list, struct lpfc_dmabuf, list);
@@ -1108,6 +1124,12 @@ stop_rr_fcf_flogi:
 		vport->phba->pport->vmid_flag |= (LPFC_VMID_ISSUE_QFPA |
 						  LPFC_VMID_TYPE_PRIO);
 
+	/*
+	 * Address a timing race with dev_loss.  If dev_loss is active on
+	 * this FPort node, put the initial ref count back to stop premature
+	 * node release actions.
+	 */
+	lpfc_check_nlp_post_devloss(vport, ndlp);
 	if (vport->port_state == LPFC_FLOGI) {
 		/*
 		 * If Common Service Parameters indicate Nport
@@ -1198,7 +1220,9 @@ flogifail:
 		lpfc_issue_clear_la(phba, vport);
 	}
 out:
-	phba->hba_flag &= ~HBA_FLOGI_OUTSTANDING;
+	if (!flogi_in_retry)
+		phba->hba_flag &= ~HBA_FLOGI_OUTSTANDING;
+
 	lpfc_els_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(ndlp);
 }
@@ -1365,14 +1389,16 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		return 1;
 	}
 
+	/* Avoid race with FLOGI completion and hba_flags. */
+	phba->hba_flag |= (HBA_FLOGI_ISSUED | HBA_FLOGI_OUTSTANDING);
+
 	rc = lpfc_issue_fabric_iocb(phba, elsiocb);
 	if (rc == IOCB_ERROR) {
+		phba->hba_flag &= ~(HBA_FLOGI_ISSUED | HBA_FLOGI_OUTSTANDING);
 		lpfc_els_free_iocb(phba, elsiocb);
 		lpfc_nlp_put(ndlp);
 		return 1;
 	}
-
-	phba->hba_flag |= (HBA_FLOGI_ISSUED | HBA_FLOGI_OUTSTANDING);
 
 	/* Clear external loopback plug detected flag */
 	phba->link_flag &= ~LS_EXTERNAL_LOOPBACK;
