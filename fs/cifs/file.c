@@ -2646,6 +2646,21 @@ wdata_send_pages(struct cifs_writedata *wdata, unsigned int nr_pages,
 	return rc;
 }
 
+static int
+cifs_writepage_locked(struct page *page, struct writeback_control *wbc);
+
+static int cifs_write_one_page(struct page *page, struct writeback_control *wbc,
+		void *data)
+{
+	struct address_space *mapping = data;
+	int ret;
+
+	ret = cifs_writepage_locked(page, wbc);
+	unlock_page(page);
+	mapping_set_error(mapping, ret);
+	return ret;
+}
+
 static int cifs_writepages(struct address_space *mapping,
 			   struct writeback_control *wbc)
 {
@@ -2662,10 +2677,11 @@ static int cifs_writepages(struct address_space *mapping,
 
 	/*
 	 * If wsize is smaller than the page cache size, default to writing
-	 * one page at a time via cifs_writepage
+	 * one page at a time.
 	 */
 	if (cifs_sb->ctx->wsize < PAGE_SIZE)
-		return generic_writepages(mapping, wbc);
+		return write_cache_pages(mapping, wbc, cifs_write_one_page,
+				mapping);
 
 	xid = get_xid();
 	if (wbc->range_cyclic) {
