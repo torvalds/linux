@@ -372,7 +372,7 @@ int __pkvm_guest_relinquish_to_host(struct pkvm_hyp_vcpu *vcpu,
 	ret = kvm_pgtable_walk(&vm->pgt, ipa, PAGE_SIZE, &walker);
 
 	/* Zap the guest stage2 pte. */
-	if (!ret)
+	if (!ret && data.pa)
 		kvm_pgtable_stage2_unmap(&vm->pgt, ipa, PAGE_SIZE);
 
 	guest_unlock_component(vm);
