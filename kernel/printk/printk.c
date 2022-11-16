@@ -2709,11 +2709,13 @@ static bool abandon_console_lock_in_panic(void)
  * Check if the given console is currently capable and allowed to print
  * records.
  *
- * Requires the console_lock.
+ * Requires the console_srcu_read_lock.
  */
 static inline bool console_is_usable(struct console *con)
 {
-	if (!(con->flags & CON_ENABLED))
+	short flags = console_srcu_read_flags(con);
+
+	if (!(flags & CON_ENABLED))
 		return false;
 
 	if (!con->write)
@@ -2724,8 +2726,7 @@ static inline bool console_is_usable(struct console *con)
 	 * allocated. So unless they're explicitly marked as being able to
 	 * cope (CON_ANYTIME) don't call them until this CPU is officially up.
 	 */
-	if (!cpu_online(raw_smp_processor_id()) &&
-	    !(con->flags & CON_ANYTIME))
+	if (!cpu_online(raw_smp_processor_id()) && !(flags & CON_ANYTIME))
 		return false;
 
 	return true;
