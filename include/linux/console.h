@@ -228,6 +228,34 @@ static inline void console_srcu_write_flags(struct console *con, short flags)
 	WRITE_ONCE(con->flags, flags);
 }
 
+/* Variant of console_is_registered() when the console_list_lock is held. */
+static inline bool console_is_registered_locked(const struct console *con)
+{
+	lockdep_assert_console_list_lock_held();
+	return !hlist_unhashed(&con->node);
+}
+
+/*
+ * console_is_registered - Check if the console is registered
+ * @con:	struct console pointer of console to check
+ *
+ * Context: Process context. May sleep while acquiring console list lock.
+ * Return: true if the console is in the console list, otherwise false.
+ *
+ * If false is returned for a console that was previously registered, it
+ * can be assumed that the console's unregistration is fully completed,
+ * including the exit() callback after console list removal.
+ */
+static inline bool console_is_registered(const struct console *con)
+{
+	bool ret;
+
+	console_list_lock();
+	ret = console_is_registered_locked(con);
+	console_list_unlock();
+	return ret;
+}
+
 /**
  * for_each_console_srcu() - Iterator over registered consoles
  * @con:	struct console pointer used as loop cursor

@@ -3443,7 +3443,7 @@ static int unregister_console_locked(struct console *console)
 	/* Disable it unconditionally */
 	console_srcu_write_flags(console, console->flags & ~CON_ENABLED);
 
-	if (hlist_unhashed(&console->node)) {
+	if (!console_is_registered_locked(console)) {
 		console_unlock();
 		return -ENODEV;
 	}
