@@ -3131,6 +3131,19 @@ static void try_enable_default_console(struct console *newcon)
 	       (con->flags & CON_BOOT) ? "boot" : "",	\
 	       con->name, con->index, ##__VA_ARGS__)
 
+static void console_init_seq(struct console *newcon)
+{
+	if (newcon->flags & CON_PRINTBUFFER) {
+		/* Get a consistent copy of @syslog_seq. */
+		mutex_lock(&syslog_lock);
+		newcon->seq = syslog_seq;
+		mutex_unlock(&syslog_lock);
+	} else {
+		/* Begin with next message. */
+		newcon->seq = prb_next_seq(prb);
+	}
+}
+
 #define console_first()				\
 	hlist_entry(console_list.first, struct console, node)
 
@@ -3222,15 +3235,7 @@ void register_console(struct console *newcon)
 	}
 
 	newcon->dropped = 0;
-	if (newcon->flags & CON_PRINTBUFFER) {
-		/* Get a consistent copy of @syslog_seq. */
-		mutex_lock(&syslog_lock);
-		newcon->seq = syslog_seq;
-		mutex_unlock(&syslog_lock);
-	} else {
-		/* Begin with next message. */
-		newcon->seq = prb_next_seq(prb);
-	}
+	console_init_seq(newcon);
 
 	/*
 	 * Put this console in the list - keep the
