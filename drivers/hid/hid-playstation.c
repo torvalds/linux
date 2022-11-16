@@ -2131,9 +2131,10 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 	} else if (hdev->bus == BUS_BLUETOOTH && report->id == DS4_INPUT_REPORT_BT &&
 			size == DS4_INPUT_REPORT_BT_SIZE) {
 		struct dualshock4_input_report_bt *bt = (struct dualshock4_input_report_bt *)data;
+		uint32_t report_crc = get_unaligned_le32(&bt->crc32);
 
 		/* Last 4 bytes of input report contains CRC. */
-		if (!ps_check_crc32(PS_INPUT_CRC32_SEED, data, size - 4, bt->crc32)) {
+		if (!ps_check_crc32(PS_INPUT_CRC32_SEED, data, size - 4, report_crc)) {
 			hid_err(hdev, "DualShock4 input CRC's check failed\n");
 			return -EILSEQ;
 		}
