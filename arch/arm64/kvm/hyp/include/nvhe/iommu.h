@@ -48,6 +48,12 @@ struct pkvm_iommu_ops {
 	void (*host_stage2_idmap_apply)(struct pkvm_iommu *dev,
 					phys_addr_t start, phys_addr_t end);
 
+	/*
+	 * Callback to finish a host stage-2 mapping change at device level.
+	 * Called after 'host_stage2_idmap_apply' with host lock held.
+	 */
+	void (*host_stage2_idmap_complete)(struct pkvm_iommu *dev);
+
 	/* Power management callbacks. Called with host lock held. */
 	int (*suspend)(struct pkvm_iommu *dev);
 	int (*resume)(struct pkvm_iommu *dev);

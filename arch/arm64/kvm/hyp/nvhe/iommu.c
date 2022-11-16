@@ -545,4 +545,9 @@ void pkvm_iommu_host_stage2_idmap(phys_addr_t start, phys_addr_t end,
 		if (dev->powered && dev->ops->host_stage2_idmap_apply)
 			dev->ops->host_stage2_idmap_apply(dev, start, end);
 	}
+
+	list_for_each_entry(dev, &iommu_list, list) {
+		if (dev->powered && dev->ops->host_stage2_idmap_complete)
+			dev->ops->host_stage2_idmap_complete(dev);
+	}
 }
