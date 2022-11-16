@@ -11,13 +11,7 @@ skip_if_no_mem_event() {
 
 skip_if_no_mem_event || exit 2
 
-# skip if there's no compiler
-if ! [ -x "$(command -v cc)" ]; then
-	echo "skip: no compiler, install gcc"
-	exit 2
-fi
-
-TEST_PROGRAM=$(mktemp /tmp/__perf_test.program.XXXXX)
+TEST_PROGRAM="perf test -w datasym"
 PERF_DATA=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 
 check_result() {
@@ -45,30 +39,9 @@ cleanup_files()
 {
 	echo "Cleaning up files..."
 	rm -f ${PERF_DATA}
-	rm -f ${TEST_PROGRAM}
 }
 
 trap cleanup_files exit term int
-
-# compile test program
-echo "Compiling test program..."
-cat << EOF | cc -o ${TEST_PROGRAM} -x c -
-typedef struct _buf {
-	char data1;
-	char reserved[55];
-	char data2;
-} buf __attribute__((aligned(64)));
-
-static buf buf1;
-
-int main(void) {
-	for (;;) {
-		buf1.data1++;
-		buf1.data2 += buf1.data1;
-	}
-	return 0;
-}
-EOF
 
 echo "Recording workload..."
 
