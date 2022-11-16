@@ -993,9 +993,8 @@ isert_rx_login_req(struct isert_conn *isert_conn)
 		 * login request PDU.
 		 */
 		login->leading_connection = (!login_req->tsih) ? 1 : 0;
-		login->current_stage =
-			(login_req->flags & ISCSI_FLAG_LOGIN_CURRENT_STAGE_MASK)
-			 >> 2;
+		login->current_stage = ISCSI_LOGIN_CURRENT_STAGE(
+				login_req->flags);
 		login->version_min	= login_req->min_version;
 		login->version_max	= login_req->max_version;
 		memcpy(login->isid, login_req->isid, 6);
