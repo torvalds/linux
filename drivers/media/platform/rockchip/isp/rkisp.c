@@ -2722,10 +2722,10 @@ static void rkisp_global_update_mi(struct rkisp_device *dev)
 	struct rkisp_stream *stream;
 	int i;
 
+	rkisp_stats_first_ddr_config(&dev->stats_vdev);
 	if (dev->hw_dev->is_mi_update)
 		return;
 
-	rkisp_stats_first_ddr_config(&dev->stats_vdev);
 	rkisp_config_dmatx_valid_buf(dev);
 
 	force_cfg_update(dev);
