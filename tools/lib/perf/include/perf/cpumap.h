@@ -3,7 +3,6 @@
 #define __LIBPERF_CPUMAP_H
 
 #include <perf/core.h>
-#include <perf/cpumap.h>
 #include <stdio.h>
 #include <stdbool.h>
 
