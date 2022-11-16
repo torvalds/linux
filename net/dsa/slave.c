@@ -2380,7 +2380,7 @@ int dsa_slave_create(struct dsa_port *port)
 		assign_type = NET_NAME_PREDICTABLE;
 	} else {
 		name = "eth%d";
-		assign_type = NET_NAME_UNKNOWN;
+		assign_type = NET_NAME_ENUM;
 	}
 
 	slave_dev = alloc_netdev_mqs(sizeof(struct dsa_slave_priv), name,
