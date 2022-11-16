@@ -3050,21 +3050,22 @@ void console_flush_on_panic(enum con_flush_mode mode)
 	console_may_schedule = 0;
 
 	if (mode == CONSOLE_REPLAY_ALL) {
-		struct hlist_node *tmp;
 		struct console *c;
+		int cookie;
 		u64 seq;
 
 		seq = prb_first_valid_seq(prb);
-		/*
-		 * This cannot use for_each_console() because it's not established
-		 * that the current context has console locked and neither there is
-		 * a guarantee that there is no concurrency in that case.
-		 *
-		 * Open code it for documentation purposes and pretend that
-		 * it works.
-		 */
-		hlist_for_each_entry_safe(c, tmp, &console_list, node)
+
+		cookie = console_srcu_read_lock();
+		for_each_console_srcu(c) {
+			/*
+			 * If the above console_trylock() failed, this is an
+			 * unsynchronized assignment. But in that case, the
+			 * kernel is in "hope and pray" mode anyway.
+			 */
 			c->seq = seq;
+		}
+		console_srcu_read_unlock(cookie);
 	}
 	console_unlock();
 }
