@@ -2657,18 +2657,6 @@ static void nvme_dev_unmap(struct nvme_dev *dev)
 	pci_release_mem_regions(to_pci_dev(dev->dev));
 }
 
-static void nvme_pci_disable(struct nvme_dev *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
-
-	pci_free_irq_vectors(pdev);
-
-	if (pci_is_enabled(pdev)) {
-		pci_disable_pcie_error_reporting(pdev);
-		pci_disable_device(pdev);
-	}
-}
-
 static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 {
 	bool dead = true, freeze = false;
@@ -2708,7 +2696,11 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 	}
 	nvme_suspend_io_queues(dev);
 	nvme_suspend_queue(&dev->queues[0]);
-	nvme_pci_disable(dev);
+	pci_free_irq_vectors(pdev);
+	if (pci_is_enabled(pdev)) {
+		pci_disable_pcie_error_reporting(pdev);
+		pci_disable_device(pdev);
+	}
 	nvme_reap_pending_cqes(dev);
 
 	nvme_cancel_tagset(&dev->ctrl);
