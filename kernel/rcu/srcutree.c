@@ -154,7 +154,7 @@ static void init_srcu_struct_data(struct srcu_struct *ssp)
  */
 static inline bool srcu_invl_snp_seq(unsigned long s)
 {
-	return rcu_seq_state(s) == SRCU_SNP_INIT_SEQ;
+	return s == SRCU_SNP_INIT_SEQ;
 }
 
 /*
