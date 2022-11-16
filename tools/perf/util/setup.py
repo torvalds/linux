@@ -77,7 +77,8 @@ perf = Extension('perf',
 		  include_dirs = ['util/include'],
 		  libraries = extra_libraries,
 		  extra_compile_args = cflags,
-		  extra_objects = [libtraceevent, libapikfs, libperf],
+		  extra_objects = [ x for x in [libtraceevent, libapikfs, libperf]
+                                    if x is not None],
                  )
 
 setup(name='perf',
