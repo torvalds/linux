@@ -10,6 +10,14 @@ drivers/usb/class/cdc-acm.ko
 drivers/usb/serial/ftdi_sio.ko
 drivers/usb/serial/usbserial.ko
 mm/zsmalloc.ko
+net/6lowpan/6lowpan.ko
+net/6lowpan/nhc_dest.ko
+net/6lowpan/nhc_fragment.ko
+net/6lowpan/nhc_hop.ko
+net/6lowpan/nhc_ipv6.ko
+net/6lowpan/nhc_mobility.ko
+net/6lowpan/nhc_routing.ko
+net/6lowpan/nhc_udp.ko
 net/8021q/8021q.ko
 net/bluetooth/bluetooth.ko
 net/bluetooth/hidp/hidp.ko
@@ -17,6 +25,7 @@ net/bluetooth/rfcomm/rfcomm.ko
 net/can/can-bcm.ko
 net/can/can-gw.ko
 net/can/can-raw.ko
+net/ieee802154/6lowpan/ieee802154_6lowpan.ko
 net/mac80211/mac80211.ko
 net/nfc/nfc.ko
 net/rfkill/rfkill.ko
