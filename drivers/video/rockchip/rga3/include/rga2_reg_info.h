@@ -4,8 +4,6 @@
 
 #include "rga_drv.h"
 
-#define RGA2_USE_MASTER_MODE 1
-
 #define RGA2_SYS_REG_BASE			0x000
 #define RGA2_CSC_REG_BASE			0x060
 #define RGA2_CMD_REG_BASE			0x100

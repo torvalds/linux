@@ -167,10 +167,6 @@ static void RGA2_set_mode_ctrl(u8 *base, struct rga2_req *msg)
 	if (msg->render_mode == 4)
 		render_mode = 3;
 
-	/* In slave mode, the current frame completion interrupt must be enabled. */
-	if (!RGA2_USE_MASTER_MODE)
-		msg->CMD_fin_int_enable = 1;
-
 	reg =
 		((reg & (~m_RGA2_MODE_CTRL_SW_RENDER_MODE)) |
 		 (s_RGA2_MODE_CTRL_SW_RENDER_MODE(render_mode)));
@@ -2268,6 +2264,10 @@ static int rga2_init_reg(struct rga_job *job)
 		}
 	}
 
+	/* In slave mode, the current frame completion interrupt must be enabled. */
+	if (scheduler->data->mmu == RGA_IOMMU)
+		req.CMD_fin_int_enable = 1;
+
 	if (rga2_gen_reg_info((uint8_t *)job->cmd_reg, &req) == -1) {
 		pr_err("gen reg info error\n");
 		return -EINVAL;
@@ -2411,8 +2411,18 @@ static void rga2_set_reg_full_csc(struct rga_job *job, struct rga_scheduler_t *s
 static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	int i;
+	bool master_mode_en;
 	uint32_t sys_ctrl;
 	ktime_t now = ktime_get();
+
+	/*
+	 * Currently there is no iova allocated for storing cmd for the IOMMU device,
+	 * so the iommu device needs to use the slave mode.
+	 */
+	if (scheduler->data->mmu != RGA_IOMMU)
+		master_mode_en = true;
+	else
+		master_mode_en = false;
 
 	if (job->pre_intr_info.enable)
 		rga2_set_pre_intr_reg(job, scheduler);
@@ -2444,7 +2454,7 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		   m_RGA2_SYS_CTRL_RST_PROTECT_P | m_RGA2_SYS_CTRL_DST_WR_OPT_DIS |
 		   m_RGA2_SYS_CTRL_SRC0YUV420SP_RD_OPT_DIS;
 
-	if (RGA2_USE_MASTER_MODE) {
+	if (master_mode_en) {
 		/* master mode */
 		sys_ctrl |= s_RGA2_SYS_CTRL_CMD_MODE(1);
 

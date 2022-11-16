@@ -8,6 +8,7 @@
 #define pr_fmt(fmt) "rga3_reg: " fmt
 
 #include "rga3_reg_info.h"
+#include "rga_dma_buf.h"
 #include "rga_common.h"
 #include "rga_debugger.h"
 #include "rga_hw_config.h"
@@ -1899,8 +1900,18 @@ static void rga3_dump_read_back_reg(struct rga_scheduler_t *scheduler)
 static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	int i;
+	bool master_mode_en;
 	uint32_t sys_ctrl;
 	ktime_t now = ktime_get();
+
+	/*
+	 * Currently there is no iova allocated for storing cmd for the IOMMU device,
+	 * so the iommu device needs to use the slave mode.
+	 */
+	if (scheduler->data->mmu != RGA_IOMMU)
+		master_mode_en = true;
+	else
+		master_mode_en = false;
 
 	if (DEBUGGER_EN(REG)) {
 		uint32_t *p;
@@ -1917,24 +1928,25 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	rga_write(m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH | m_RGA3_INT_ERROR_MASK,
 		  RGA3_INT_EN, scheduler);
 
-#if 0
-	/* master mode */
-	sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(1);
+	if (master_mode_en) {
+		/* master mode */
+		sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(1);
 
-	rga_dma_flush_range(&job->cmd_reg[0], &job->cmd_reg[50], scheduler);
+		/* cmd buffer flush cache to ddr */
+		rga_dma_sync_flush_range(&job->cmd_reg[0], &job->cmd_reg[50], scheduler);
 
-	rga_write(virt_to_phys(job->cmd_reg), RGA3_CMD_ADDR, scheduler);
-	rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
-	rga_write(m_RGA3_CMD_CTRL_CMD_LINE_ST_P, RGA3_CMD_CTRL, scheduler);
-#else
-	/* slave mode */
-	sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(0) | m_RGA3_SYS_CTRL_RGA_SART;
+		rga_write(virt_to_phys(job->cmd_reg), RGA3_CMD_ADDR, scheduler);
+		rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
+		rga_write(m_RGA3_CMD_CTRL_CMD_LINE_ST_P, RGA3_CMD_CTRL, scheduler);
+	} else {
+		/* slave mode */
+		sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(0) | m_RGA3_SYS_CTRL_RGA_SART;
 
-	for (i = 0; i <= 50; i++)
-		rga_write(job->cmd_reg[i], 0x100 + i * 4, scheduler);
+		for (i = 0; i <= 50; i++)
+			rga_write(job->cmd_reg[i], 0x100 + i * 4, scheduler);
 
-	rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
-#endif
+		rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
+	}
 
 	if (DEBUGGER_EN(REG)) {
 		pr_info("sys_ctrl = 0x%x, int_en = 0x%x, int_raw = 0x%x\n",
