@@ -1079,7 +1079,7 @@ static int btree_path_traverse_one(struct btree_trans *trans,
 				   unsigned long trace_ip)
 {
 	unsigned depth_want = path->level;
-	int ret = trans->restarted;
+	int ret = -((int) trans->restarted);
 
 	if (unlikely(ret))
 		goto out;

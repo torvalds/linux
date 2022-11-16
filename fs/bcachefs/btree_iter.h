@@ -359,6 +359,11 @@ __btree_iter_peek_node_and_restart(struct btree_trans *trans, struct btree_iter 
 	return b;
 }
 
+/*
+ * XXX
+ * this does not handle transaction restarts from bch2_btree_iter_next_node()
+ * correctly
+ */
 #define __for_each_btree_node(_trans, _iter, _btree_id, _start,		\
 			      _locks_want, _depth, _flags, _b, _ret)	\
 	for (bch2_trans_node_iter_init((_trans), &(_iter), (_btree_id),	\
