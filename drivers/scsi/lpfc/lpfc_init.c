@@ -699,6 +699,8 @@ lpfc_sli4_refresh_params(struct lpfc_hba *phba)
 		return rc;
 	}
 	mbx_sli4_parameters = &mqe->un.get_sli4_parameters.sli4_parameters;
+	phba->sli4_hba.pc_sli4_params.mi_cap =
+		bf_get(cfg_mi_ver, mbx_sli4_parameters);
 
 	/* Are we forcing MI off via module parameter? */
 	if (phba->cfg_enable_mi)
@@ -13839,6 +13841,7 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 					   mbx_sli4_parameters);
 	phba->sli4_hba.extents_in_use = bf_get(cfg_ext, mbx_sli4_parameters);
 	phba->sli4_hba.rpi_hdrs_in_use = bf_get(cfg_hdrr, mbx_sli4_parameters);
+	sli4_params->mi_cap = bf_get(cfg_mi_ver, mbx_sli4_parameters);
 
 	/* Check for Extended Pre-Registered SGL support */
 	phba->cfg_xpsgl = bf_get(cfg_xpsgl, mbx_sli4_parameters);
