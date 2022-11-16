@@ -420,10 +420,10 @@ void gfs2_recover_func(struct work_struct *work)
 	if (sdp->sd_args.ar_spectator)
 		goto fail;
 	if (jd->jd_jid != sdp->sd_lockstruct.ls_jid) {
-		fs_info(sdp, "jid=%u: Trying to acquire journal lock...\n",
+		fs_info(sdp, "jid=%u: Trying to acquire journal glock...\n",
 			jd->jd_jid);
 		jlocked = 1;
-		/* Acquire the journal lock so we can do recovery */
+		/* Acquire the journal glock so we can do recovery */
 
 		error = gfs2_glock_nq_num(sdp, jd->jd_jid, &gfs2_journal_glops,
 					  LM_ST_EXCLUSIVE,
@@ -465,10 +465,10 @@ void gfs2_recover_func(struct work_struct *work)
 		ktime_ms_delta(t_jhd, t_jlck));
 
 	if (!(head.lh_flags & GFS2_LOG_HEAD_UNMOUNT)) {
-		fs_info(sdp, "jid=%u: Acquiring the transaction lock...\n",
+		fs_info(sdp, "jid=%u: Acquiring the freeze glock...\n",
 			jd->jd_jid);
 
-		/* Acquire a shared hold on the freeze lock */
+		/* Acquire a shared hold on the freeze glock */
 
 		error = gfs2_freeze_lock(sdp, &thaw_gh, LM_FLAG_PRIORITY);
 		if (error)
