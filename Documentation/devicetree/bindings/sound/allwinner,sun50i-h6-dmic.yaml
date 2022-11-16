@@ -11,7 +11,12 @@ maintainers:
 
 properties:
   compatible:
-    const: allwinner,sun50i-h6-dmic
+    oneOf:
+      - items:
+          - enum:
+              - allwinner,sun20i-d1-dmic
+          - const: allwinner,sun50i-h6-dmic
+      - const: allwinner,sun50i-h6-dmic
 
   "#sound-dai-cells":
     const: 0
