@@ -243,8 +243,6 @@ static int psp_v12_0_ring_init(struct psp_context *psp,
 	struct psp_ring *ring;
 	struct amdgpu_device *adev = psp->adev;
 
-	psp_v12_0_reroute_ih(psp);
-
 	ring = &psp->km_ring;
 
 	ring->ring_type = ring_type;
@@ -271,6 +269,8 @@ static int psp_v12_0_ring_create(struct psp_context *psp,
 	unsigned int psp_ring_reg = 0;
 	struct psp_ring *ring = &psp->km_ring;
 	struct amdgpu_device *adev = psp->adev;
+
+	psp_v12_0_reroute_ih(psp);
 
 	if (amdgpu_sriov_vf(psp->adev)) {
 		/* Write low address of the ring to C2PMSG_102 */
