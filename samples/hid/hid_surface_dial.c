@@ -4,7 +4,7 @@
  * This program will morph the Microsoft Surface Dial into a mouse,
  * and depending on the chosen resolution enable or not the haptic feedback:
  * - a resolution (-r) of 3600 will report 3600 "ticks" in one full rotation
- *   wihout haptic feedback
+ *   without haptic feedback
  * - any other resolution will report N "ticks" in a full rotation with haptic
  *   feedback
  *
@@ -57,7 +57,7 @@ static void usage(const char *prog)
 		"This program will morph the Microsoft Surface Dial into a mouse,\n"
 		"and depending on the chosen resolution enable or not the haptic feedback:\n"
 		"- a resolution (-r) of 3600 will report 3600 'ticks' in one full rotation\n"
-		"  wihout haptic feedback\n"
+		"  without haptic feedback\n"
 		"- any other resolution will report N 'ticks' in a full rotation with haptic\n"
 		"  feedback\n"
 		"\n"
