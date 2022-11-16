@@ -492,6 +492,7 @@ static const struct of_device_id rockchip_busfreq_of_match[] = {
 	{ .compatible = "rockchip,rk3368-bus", },
 	{ .compatible = "rockchip,rk3399-bus", },
 	{ .compatible = "rockchip,rk3568-bus", },
+	{ .compatible = "rockchip,rk3588-bus", },
 	{ .compatible = "rockchip,rv1126-bus", },
 	{ },
 };
