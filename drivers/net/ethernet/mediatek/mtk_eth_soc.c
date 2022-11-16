@@ -3546,11 +3546,8 @@ static void mtk_pending_work(struct work_struct *work)
 	rtnl_lock();
 
 	dev_dbg(eth->dev, "[%s][%d] reset\n", __func__, __LINE__);
+	set_bit(MTK_RESETTING, &eth->state);
 
-	while (test_and_set_bit_lock(MTK_RESETTING, &eth->state))
-		cpu_relax();
-
-	dev_dbg(eth->dev, "[%s][%d] mtk_stop starts\n", __func__, __LINE__);
 	/* stop all devices to make sure that dma is properly shut down */
 	for (i = 0; i < MTK_MAC_COUNT; i++) {
 		if (!eth->netdev[i])
@@ -3584,7 +3581,7 @@ static void mtk_pending_work(struct work_struct *work)
 
 	dev_dbg(eth->dev, "[%s][%d] reset done\n", __func__, __LINE__);
 
-	clear_bit_unlock(MTK_RESETTING, &eth->state);
+	clear_bit(MTK_RESETTING, &eth->state);
 
 	rtnl_unlock();
 }
