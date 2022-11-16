@@ -85,7 +85,8 @@ struct bpf_map_ops {
 	int (*map_lookup_and_delete_batch)(struct bpf_map *map,
 					   const union bpf_attr *attr,
 					   union bpf_attr __user *uattr);
-	int (*map_update_batch)(struct bpf_map *map, const union bpf_attr *attr,
+	int (*map_update_batch)(struct bpf_map *map, struct file *map_file,
+				const union bpf_attr *attr,
 				union bpf_attr __user *uattr);
 	int (*map_delete_batch)(struct bpf_map *map, const union bpf_attr *attr,
 				union bpf_attr __user *uattr);
@@ -1789,7 +1790,7 @@ void bpf_map_init_from_attr(struct bpf_map *map, union bpf_attr *attr);
 int  generic_map_lookup_batch(struct bpf_map *map,
 			      const union bpf_attr *attr,
 			      union bpf_attr __user *uattr);
-int  generic_map_update_batch(struct bpf_map *map,
+int  generic_map_update_batch(struct bpf_map *map, struct file *map_file,
 			      const union bpf_attr *attr,
 			      union bpf_attr __user *uattr);
 int  generic_map_delete_batch(struct bpf_map *map,
