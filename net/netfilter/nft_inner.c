@@ -72,7 +72,7 @@ static int nft_inner_parse_l2l3(const struct nft_inner *priv,
 			break;
 		case htons(ETH_P_8021Q):
 			veth = skb_header_pointer(pkt->skb, off, sizeof(_veth), &_veth);
-			if (!eth)
+			if (!veth)
 				return -1;
 
 			outer_llproto = veth->h_vlan_encapsulated_proto;
@@ -347,7 +347,8 @@ static int nft_inner_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
-static int nft_inner_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_inner_dump(struct sk_buff *skb,
+			  const struct nft_expr *expr, bool reset)
 {
 	const struct nft_inner *priv = nft_expr_priv(expr);
 
@@ -358,7 +359,7 @@ static int nft_inner_dump(struct sk_buff *skb, const struct nft_expr *expr)
 		goto nla_put_failure;
 
 	if (nft_expr_dump(skb, NFTA_INNER_EXPR,
-			  (struct nft_expr *)&priv->expr) < 0)
+			  (struct nft_expr *)&priv->expr, reset) < 0)
 		goto nla_put_failure;
 
 	return 0;
