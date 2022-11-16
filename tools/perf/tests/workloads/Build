@@ -2,3 +2,6 @@
 
 perf-y += noploop.o
 perf-y += thloop.o
+perf-y += leafloop.o
+
+CFLAGS_leafloop.o         = -g -O0 -fno-inline -fno-omit-frame-pointer -U_FORTIFY_SOURCE
