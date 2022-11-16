@@ -2376,10 +2376,10 @@ static int gaudi2_config_bmon(struct hl_device *hdev, struct hl_debug_params *pa
 		WREG32(base_reg + mmBMON_ADDRH_S2_OFFSET, upper_32_bits(input->start_addr2));
 		WREG32(base_reg + mmBMON_ADDRL_E2_OFFSET, lower_32_bits(input->end_addr2));
 		WREG32(base_reg + mmBMON_ADDRH_E2_OFFSET, upper_32_bits(input->end_addr2));
-		WREG32(base_reg + mmBMON_ADDRL_S3_OFFSET, lower_32_bits(input->start_addr2));
-		WREG32(base_reg + mmBMON_ADDRH_S3_OFFSET, upper_32_bits(input->start_addr2));
-		WREG32(base_reg + mmBMON_ADDRL_E3_OFFSET, lower_32_bits(input->end_addr2));
-		WREG32(base_reg + mmBMON_ADDRH_E3_OFFSET, upper_32_bits(input->end_addr2));
+		WREG32(base_reg + mmBMON_ADDRL_S3_OFFSET, lower_32_bits(input->start_addr3));
+		WREG32(base_reg + mmBMON_ADDRH_S3_OFFSET, upper_32_bits(input->start_addr3));
+		WREG32(base_reg + mmBMON_ADDRL_E3_OFFSET, lower_32_bits(input->end_addr3));
+		WREG32(base_reg + mmBMON_ADDRH_E3_OFFSET, upper_32_bits(input->end_addr3));
 
 		WREG32(base_reg + mmBMON_IDL_OFFSET, 0x0);
 		WREG32(base_reg + mmBMON_IDH_OFFSET, 0x0);
