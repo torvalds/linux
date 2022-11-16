@@ -4,7 +4,7 @@
 
 config ARM_CORESIGHT_PMU_ARCH_SYSTEM_PMU
 	tristate "ARM Coresight Architecture PMU"
-	depends on ACPI
+	depends on ARM64 && ACPI
 	depends on ACPI_APMT || COMPILE_TEST
 	help
 	  Provides support for performance monitoring unit (PMU) devices
