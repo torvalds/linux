@@ -3131,16 +3131,56 @@ static void try_enable_default_console(struct console *newcon)
 	       (con->flags & CON_BOOT) ? "boot" : "",	\
 	       con->name, con->index, ##__VA_ARGS__)
 
-static void console_init_seq(struct console *newcon)
+static void console_init_seq(struct console *newcon, bool bootcon_registered)
 {
-	if (newcon->flags & CON_PRINTBUFFER) {
+	struct console *con;
+	bool handover;
+
+	if (newcon->flags & (CON_PRINTBUFFER | CON_BOOT)) {
 		/* Get a consistent copy of @syslog_seq. */
 		mutex_lock(&syslog_lock);
 		newcon->seq = syslog_seq;
 		mutex_unlock(&syslog_lock);
 	} else {
-		/* Begin with next message. */
+		/* Begin with next message added to ringbuffer. */
 		newcon->seq = prb_next_seq(prb);
+
+		/*
+		 * If any enabled boot consoles are due to be unregistered
+		 * shortly, some may not be caught up and may be the same
+		 * device as @newcon. Since it is not known which boot console
+		 * is the same device, flush all consoles and, if necessary,
+		 * start with the message of the enabled boot console that is
+		 * the furthest behind.
+		 */
+		if (bootcon_registered && !keep_bootcon) {
+			/*
+			 * Flush all consoles and set the console to start at
+			 * the next unprinted sequence number.
+			 */
+			if (!console_flush_all(true, &newcon->seq, &handover)) {
+				/*
+				 * Flushing failed. Just choose the lowest
+				 * sequence of the enabled boot consoles.
+				 */
+
+				/*
+				 * If there was a handover, this context no
+				 * longer holds the console_lock.
+				 */
+				if (handover)
+					console_lock();
+
+				newcon->seq = prb_next_seq(prb);
+				for_each_console(con) {
+					if ((con->flags & CON_BOOT) &&
+					    (con->flags & CON_ENABLED) &&
+					    con->seq < newcon->seq) {
+						newcon->seq = con->seq;
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -3235,13 +3275,13 @@ void register_console(struct console *newcon)
 	}
 
 	newcon->dropped = 0;
-	console_init_seq(newcon);
+	console_lock();
+	console_init_seq(newcon, bootcon_registered);
 
 	/*
 	 * Put this console in the list - keep the
 	 * preferred driver at the head of the list.
 	 */
-	console_lock();
 	if (hlist_empty(&console_list)) {
 		/* Ensure CON_CONSDEV is always set for the head. */
 		newcon->flags |= CON_CONSDEV;
