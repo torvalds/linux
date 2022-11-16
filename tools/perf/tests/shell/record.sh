@@ -9,16 +9,12 @@ shelldir=$(dirname "$0")
 
 err=0
 perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
-testprog=$(mktemp /tmp/__perf_test.prog.XXXXXX)
+testprog="perf test -w thloop"
 testsym="test_loop"
 
 cleanup() {
   rm -rf "${perfdata}"
   rm -rf "${perfdata}".old
-
-  if [ "${testprog}" != "true" ]; then
-    rm -f "${testprog}"
-  fi
 
   trap - EXIT TERM INT
 }
@@ -28,53 +24,6 @@ trap_cleanup() {
   exit 1
 }
 trap trap_cleanup EXIT TERM INT
-
-build_test_program() {
-  if ! [ -x "$(command -v cc)" ]; then
-    # No CC found. Fall back to 'true'
-    testprog=true
-    testsym=true
-    return
-  fi
-
-  echo "Build a test program"
-  cat <<EOF | cc -o ${testprog} -xc - -pthread
-#include <stdio.h>
-#include <stdlib.h>
-#include <pthread.h>
-
-void test_loop(void) {
-  volatile int count = 1000000;
-
-  while (count--)
-    continue;
-}
-
-void *thfunc(void *arg) {
-  int forever = *(int *)arg;
-
-  do {
-    test_loop();
-  } while (forever);
-
-  return NULL;
-}
-
-int main(int argc, char *argv[]) {
-  pthread_t th;
-  int forever = 0;
-
-  if (argc > 1)
-    forever = atoi(argv[1]);
-
-  pthread_create(&th, NULL, thfunc, &forever);
-  test_loop();
-  pthread_join(th, NULL);
-
-  return 0;
-}
-EOF
-}
 
 test_per_thread() {
   echo "Basic --per-thread mode test"
@@ -96,8 +45,8 @@ test_per_thread() {
     return
   fi
 
-  # run the test program in background (forever)
-  ${testprog} 1 &
+  # run the test program in background (for 30 seconds)
+  ${testprog} 30 &
   TESTPID=$!
 
   rm -f "${perfdata}"
@@ -204,8 +153,6 @@ test_workload() {
   fi
   echo "Basic target workload test [Success]"
 }
-
-build_test_program
 
 test_per_thread
 test_register_capture
