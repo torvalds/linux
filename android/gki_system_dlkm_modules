@@ -27,7 +27,10 @@ net/can/can-bcm.ko
 net/can/can-gw.ko
 net/can/can-raw.ko
 net/ieee802154/6lowpan/ieee802154_6lowpan.ko
+net/ieee802154/ieee802154.ko
+net/ieee802154/ieee802154_socket.ko
 net/mac80211/mac80211.ko
+net/mac802154/mac802154.ko
 net/nfc/nfc.ko
 net/rfkill/rfkill.ko
 net/tipc/diag.ko
