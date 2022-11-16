@@ -3156,8 +3156,8 @@ static void try_enable_default_console(struct console *newcon)
 void register_console(struct console *newcon)
 {
 	struct console *con;
-	bool bootcon_enabled = false;
-	bool realcon_enabled = false;
+	bool bootcon_registered = false;
+	bool realcon_registered = false;
 	int err;
 
 	for_each_console(con) {
@@ -3168,13 +3168,13 @@ void register_console(struct console *newcon)
 
 	for_each_console(con) {
 		if (con->flags & CON_BOOT)
-			bootcon_enabled = true;
+			bootcon_registered = true;
 		else
-			realcon_enabled = true;
+			realcon_registered = true;
 	}
 
 	/* Do not register boot consoles when there already is a real one. */
-	if (newcon->flags & CON_BOOT && realcon_enabled) {
+	if ((newcon->flags & CON_BOOT) && realcon_registered) {
 		pr_info("Too late to register bootconsole %s%d\n",
 			newcon->name, newcon->index);
 		return;
@@ -3216,7 +3216,7 @@ void register_console(struct console *newcon)
 	 * the real console are the same physical device, it's annoying to
 	 * see the beginning boot messages twice
 	 */
-	if (bootcon_enabled &&
+	if (bootcon_registered &&
 	    ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV)) {
 		newcon->flags &= ~CON_PRINTBUFFER;
 	}
@@ -3268,7 +3268,7 @@ void register_console(struct console *newcon)
 	 * went to the bootconsole (that they do not see on the real console)
 	 */
 	con_printk(KERN_INFO, newcon, "enabled\n");
-	if (bootcon_enabled &&
+	if (bootcon_registered &&
 	    ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV) &&
 	    !keep_bootcon) {
 		struct hlist_node *tmp;
