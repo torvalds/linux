@@ -400,74 +400,82 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 
 	switch (size) {
 	case 1: {
-		unsigned int prev, tmp, shift;
+		unsigned int prev, shift, mask, _old, _new;
 
 		shift = (3 ^ (address & 3)) << 3;
 		address ^= address & 3;
+		_old = (old & 0xff) << shift;
+		_new = (new & 0xff) << shift;
+		mask = ~(0xff << shift);
 		asm volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
 			"0:	l	%[prev],%[address]\n"
 			"1:	nr	%[prev],%[mask]\n"
-			"	lr	%[tmp],%[prev]\n"
-			"	or	%[prev],%[old]\n"
-			"	or	%[tmp],%[new]\n"
-			"2:	cs	%[prev],%[tmp],%[address]\n"
-			"3:	jnl	4f\n"
+			"	xilf	%[mask],0xffffffff\n"
+			"	or	%[new],%[prev]\n"
+			"	or	%[prev],%[tmp]\n"
+			"2:	lr	%[tmp],%[prev]\n"
+			"3:	cs	%[prev],%[new],%[address]\n"
+			"4:	jnl	5f\n"
 			"	xr	%[tmp],%[prev]\n"
+			"	xr	%[new],%[tmp]\n"
 			"	nr	%[tmp],%[mask]\n"
-			"	jnz	1b\n"
-			"4:	sacf	768\n"
+			"	jz	2b\n"
+			"5:	sacf	768\n"
 			"	spka	%[default_key]\n"
-			EX_TABLE_UA_LOAD_REG(0b, 4b, %[rc], %[prev])
-			EX_TABLE_UA_LOAD_REG(1b, 4b, %[rc], %[prev])
-			EX_TABLE_UA_LOAD_REG(2b, 4b, %[rc], %[prev])
-			EX_TABLE_UA_LOAD_REG(3b, 4b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REG(0b, 5b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REG(1b, 5b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REG(3b, 5b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REG(4b, 5b, %[rc], %[prev])
 			: [rc] "+&d" (rc),
 			  [prev] "=&d" (prev),
-			  [tmp] "=&d" (tmp),
-			  [address] "+Q" (*(int *)address)
-			: [old] "d" (((unsigned int)old & 0xff) << shift),
-			  [new] "d" (((unsigned int)new & 0xff) << shift),
-			  [mask] "d" (~(0xff << shift)),
-			  [key] "a" (key << 4),
+			  [address] "+Q" (*(int *)address),
+			  [tmp] "+&d" (_old),
+			  [new] "+&d" (_new),
+			  [mask] "+&d" (mask)
+			: [key] "a" (key << 4),
 			  [default_key] "J" (PAGE_DEFAULT_KEY)
 			: "memory", "cc");
 		*(unsigned char *)uval = prev >> shift;
 		return rc;
 	}
 	case 2: {
-		unsigned int prev, tmp, shift;
+		unsigned int prev, shift, mask, _old, _new;
 
 		shift = (2 ^ (address & 2)) << 3;
 		address ^= address & 2;
+		_old = (old & 0xffff) << shift;
+		_new = (new & 0xffff) << shift;
+		mask = ~(0xffff << shift);
 		asm volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
 			"0:	l	%[prev],%[address]\n"
 			"1:	nr	%[prev],%[mask]\n"
-			"	lr	%[tmp],%[prev]\n"
-			"	or	%[prev],%[old]\n"
-			"	or	%[tmp],%[new]\n"
-			"2:	cs	%[prev],%[tmp],%[address]\n"
-			"3:	jnl	4f\n"
+			"	xilf	%[mask],0xffffffff\n"
+			"	or	%[new],%[prev]\n"
+			"	or	%[prev],%[tmp]\n"
+			"2:	lr	%[tmp],%[prev]\n"
+			"3:	cs	%[prev],%[new],%[address]\n"
+			"4:	jnl	5f\n"
 			"	xr	%[tmp],%[prev]\n"
+			"	xr	%[new],%[tmp]\n"
 			"	nr	%[tmp],%[mask]\n"
-			"	jnz	1b\n"
-			"4:	sacf	768\n"
+			"	jz	2b\n"
+			"5:	sacf	768\n"
 			"	spka	%[default_key]\n"
-			EX_TABLE_UA_LOAD_REG(0b, 4b, %[rc], %[prev])
-			EX_TABLE_UA_LOAD_REG(1b, 4b, %[rc], %[prev])
-			EX_TABLE_UA_LOAD_REG(2b, 4b, %[rc], %[prev])
-			EX_TABLE_UA_LOAD_REG(3b, 4b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REG(0b, 5b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REG(1b, 5b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REG(3b, 5b, %[rc], %[prev])
+			EX_TABLE_UA_LOAD_REG(4b, 5b, %[rc], %[prev])
 			: [rc] "+&d" (rc),
 			  [prev] "=&d" (prev),
-			  [tmp] "=&d" (tmp),
-			  [address] "+Q" (*(int *)address)
-			: [old] "d" (((unsigned int)old & 0xffff) << shift),
-			  [new] "d" (((unsigned int)new & 0xffff) << shift),
-			  [mask] "d" (~(0xffff << shift)),
-			  [key] "a" (key << 4),
+			  [address] "+Q" (*(int *)address),
+			  [tmp] "+&d" (_old),
+			  [new] "+&d" (_new),
+			  [mask] "+&d" (mask)
+			: [key] "a" (key << 4),
 			  [default_key] "J" (PAGE_DEFAULT_KEY)
 			: "memory", "cc");
 		*(unsigned short *)uval = prev >> shift;

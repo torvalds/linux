@@ -90,55 +90,63 @@ static __always_inline unsigned long __cmpxchg(unsigned long address,
 {
 	switch (size) {
 	case 1: {
-		unsigned int prev, tmp, shift;
+		unsigned int prev, shift, mask;
 
 		shift = (3 ^ (address & 3)) << 3;
 		address ^= address & 3;
+		old = (old & 0xff) << shift;
+		new = (new & 0xff) << shift;
+		mask = ~(0xff << shift);
 		asm volatile(
 			"	l	%[prev],%[address]\n"
-			"0:	nr	%[prev],%[mask]\n"
-			"	lr	%[tmp],%[prev]\n"
-			"	or	%[prev],%[old]\n"
-			"	or	%[tmp],%[new]\n"
-			"	cs	%[prev],%[tmp],%[address]\n"
+			"	nr	%[prev],%[mask]\n"
+			"	xilf	%[mask],0xffffffff\n"
+			"	or	%[new],%[prev]\n"
+			"	or	%[prev],%[tmp]\n"
+			"0:	lr	%[tmp],%[prev]\n"
+			"	cs	%[prev],%[new],%[address]\n"
 			"	jnl	1f\n"
 			"	xr	%[tmp],%[prev]\n"
+			"	xr	%[new],%[tmp]\n"
 			"	nr	%[tmp],%[mask]\n"
-			"	jnz	0b\n"
+			"	jz	0b\n"
 			"1:"
 			: [prev] "=&d" (prev),
-			  [tmp] "=&d" (tmp),
-			  [address] "+Q" (*(int *)address)
-			: [old] "d" ((old & 0xff) << shift),
-			  [new] "d" ((new & 0xff) << shift),
-			  [mask] "d" (~(0xff << shift))
-			: "memory", "cc");
+			  [address] "+Q" (*(int *)address),
+			  [tmp] "+&d" (old),
+			  [new] "+&d" (new),
+			  [mask] "+&d" (mask)
+			:: "memory", "cc");
 		return prev >> shift;
 	}
 	case 2: {
-		unsigned int prev, tmp, shift;
+		unsigned int prev, shift, mask;
 
 		shift = (2 ^ (address & 2)) << 3;
 		address ^= address & 2;
+		old = (old & 0xffff) << shift;
+		new = (new & 0xffff) << shift;
+		mask = ~(0xffff << shift);
 		asm volatile(
 			"	l	%[prev],%[address]\n"
-			"0:	nr	%[prev],%[mask]\n"
-			"	lr	%[tmp],%[prev]\n"
-			"	or	%[prev],%[old]\n"
-			"	or	%[tmp],%[new]\n"
-			"	cs	%[prev],%[tmp],%[address]\n"
+			"	nr	%[prev],%[mask]\n"
+			"	xilf	%[mask],0xffffffff\n"
+			"	or	%[new],%[prev]\n"
+			"	or	%[prev],%[tmp]\n"
+			"0:	lr	%[tmp],%[prev]\n"
+			"	cs	%[prev],%[new],%[address]\n"
 			"	jnl	1f\n"
 			"	xr	%[tmp],%[prev]\n"
+			"	xr	%[new],%[tmp]\n"
 			"	nr	%[tmp],%[mask]\n"
-			"	jnz	0b\n"
+			"	jz	0b\n"
 			"1:"
 			: [prev] "=&d" (prev),
-			  [tmp] "=&d" (tmp),
-			  [address] "+Q" (*(int *)address)
-			: [old] "d" ((old & 0xffff) << shift),
-			  [new] "d" ((new & 0xffff) << shift),
-			  [mask] "d" (~(0xffff << shift))
-			: "memory", "cc");
+			  [address] "+Q" (*(int *)address),
+			  [tmp] "+&d" (old),
+			  [new] "+&d" (new),
+			  [mask] "+&d" (mask)
+			:: "memory", "cc");
 		return prev >> shift;
 	}
 	case 4: {
