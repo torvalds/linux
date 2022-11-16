@@ -1100,7 +1100,13 @@ bool intel_pps_have_panel_power_or_vdd(struct intel_dp *intel_dp)
 
 static void pps_init_timestamps(struct intel_dp *intel_dp)
 {
-	intel_dp->pps.panel_power_off_time = ktime_get_boottime();
+	/*
+	 * Initialize panel power off time to 0, assuming panel power could have
+	 * been toggled between kernel boot and now only by a previously loaded
+	 * and removed i915, which has already ensured sufficient power off
+	 * delay at module remove.
+	 */
+	intel_dp->pps.panel_power_off_time = 0;
 	intel_dp->pps.last_power_on = jiffies;
 	intel_dp->pps.last_backlight_off = jiffies;
 }
