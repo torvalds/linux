@@ -145,6 +145,7 @@ enum CMDQ_RDMA_OPCODE {
 	CMDQ_OPCODE_MODIFY_QP = 3,
 	CMDQ_OPCODE_CREATE_CQ = 4,
 	CMDQ_OPCODE_DESTROY_CQ = 5,
+	CMDQ_OPCODE_REFLUSH = 6,
 	CMDQ_OPCODE_REG_MR = 8,
 	CMDQ_OPCODE_DEREG_MR = 9
 };
@@ -299,6 +300,13 @@ struct erdma_cmdq_create_qp_req {
 struct erdma_cmdq_destroy_qp_req {
 	u64 hdr;
 	u32 qpn;
+};
+
+struct erdma_cmdq_reflush_req {
+	u64 hdr;
+	u32 qpn;
+	u32 sq_pi;
+	u32 rq_pi;
 };
 
 /* cap qword 0 definition */

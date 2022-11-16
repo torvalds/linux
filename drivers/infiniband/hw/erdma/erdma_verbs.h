@@ -197,6 +197,8 @@ struct erdma_qp {
 	struct erdma_cep *cep;
 	struct rw_semaphore state_lock;
 
+	struct delayed_work reflush_dwork;
+
 	union {
 		struct erdma_kqp kern_qp;
 		struct erdma_uqp user_qp;

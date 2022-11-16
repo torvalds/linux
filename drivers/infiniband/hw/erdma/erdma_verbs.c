@@ -379,6 +379,21 @@ int erdma_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	return 0;
 }
 
+static void erdma_flush_worker(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct erdma_qp *qp =
+		container_of(dwork, struct erdma_qp, reflush_dwork);
+	struct erdma_cmdq_reflush_req req;
+
+	erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_RDMA,
+				CMDQ_OPCODE_REFLUSH);
+	req.qpn = QP_ID(qp);
+	req.sq_pi = qp->kern_qp.sq_pi;
+	req.rq_pi = qp->kern_qp.rq_pi;
+	erdma_post_cmd_wait(&qp->dev->cmdq, &req, sizeof(req), NULL, NULL);
+}
+
 static int erdma_qp_validate_cap(struct erdma_dev *dev,
 				 struct ib_qp_init_attr *attrs)
 {
@@ -735,6 +750,7 @@ int erdma_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 	qp->attrs.max_send_sge = attrs->cap.max_send_sge;
 	qp->attrs.max_recv_sge = attrs->cap.max_recv_sge;
 	qp->attrs.state = ERDMA_QP_STATE_IDLE;
+	INIT_DELAYED_WORK(&qp->reflush_dwork, erdma_flush_worker);
 
 	ret = create_qp_cmd(dev, qp);
 	if (ret)
@@ -1027,6 +1043,8 @@ int erdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	qp_attrs.state = ERDMA_QP_STATE_ERROR;
 	erdma_modify_qp_internal(qp, &qp_attrs, ERDMA_QP_ATTR_STATE);
 	up_write(&qp->state_lock);
+
+	cancel_delayed_work_sync(&qp->reflush_dwork);
 
 	erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_RDMA,
 				CMDQ_OPCODE_DESTROY_QP);
