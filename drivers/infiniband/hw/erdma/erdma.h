@@ -190,6 +190,7 @@ struct erdma_dev {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 	struct notifier_block netdev_nb;
+	struct workqueue_struct *reflush_wq;
 
 	resource_size_t func_bar_addr;
 	resource_size_t func_bar_len;

@@ -521,13 +521,22 @@ static int erdma_ib_device_add(struct pci_dev *pdev)
 
 	u64_to_ether_addr(mac, dev->attrs.peer_addr);
 
+	dev->reflush_wq = alloc_workqueue("erdma-reflush-wq", WQ_UNBOUND,
+					  WQ_UNBOUND_MAX_ACTIVE);
+	if (!dev->reflush_wq) {
+		ret = -ENOMEM;
+		goto err_alloc_workqueue;
+	}
+
 	ret = erdma_device_register(dev);
 	if (ret)
-		goto err_out;
+		goto err_register;
 
 	return 0;
 
-err_out:
+err_register:
+	destroy_workqueue(dev->reflush_wq);
+err_alloc_workqueue:
 	xa_destroy(&dev->qp_xa);
 	xa_destroy(&dev->cq_xa);
 
@@ -543,6 +552,7 @@ static void erdma_ib_device_remove(struct pci_dev *pdev)
 	unregister_netdevice_notifier(&dev->netdev_nb);
 	ib_unregister_device(&dev->ibdev);
 
+	destroy_workqueue(dev->reflush_wq);
 	erdma_res_cb_free(dev);
 	xa_destroy(&dev->qp_xa);
 	xa_destroy(&dev->cq_xa);
