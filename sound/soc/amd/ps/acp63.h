@@ -8,10 +8,10 @@
 #include <sound/acp63_chip_offset_byte.h>
 
 #define ACP_DEVICE_ID 0x15E2
-#define ACP6x_REG_START		0x1240000
-#define ACP6x_REG_END		0x1250200
-#define ACP6x_DEVS		3
-#define ACP6x_PDM_MODE		1
+#define ACP63_REG_START		0x1240000
+#define ACP63_REG_END		0x1250200
+#define ACP63_DEVS		3
+#define ACP63_PDM_MODE		1
 
 #define ACP_SOFT_RESET_SOFTRESET_AUDDONE_MASK	0x00010001
 #define ACP_PGFSM_CNTL_POWER_ON_MASK	1
