@@ -25,6 +25,11 @@ set_cfgjson()
 
 run_hijack_cfg()
 {
+    if [ -z "$LKL_HOST_CONFIG_JSMN" ]; then
+        echo "no json support"
+        exit $TEST_SKIP
+    fi
+
     lkl_test_cmd LKL_HIJACK_CONFIG_FILE=$cfgjson $hijack $@
 }
 
@@ -70,7 +75,7 @@ test_mount_and_dump()
     }
 EOF
 
-    ans=$(run_hijack_cfg $(lkl_test_cmd which true))
+    ans=$(run_hijack_cfg $(QUIET=1 lkl_test_cmd which true))
     echo "$ans"
     echo "$ans" | grep "^65536" # lo's MTU
     echo "$ans" | grep "0x0" # lo's dev_id
@@ -87,7 +92,7 @@ test_boot_cmdline()
     }
 EOF
 
-    ans=$(run_hijack_cfg $(lkl_test_cmd which true))
+    ans=$(run_hijack_cfg $(QUIET=1 lkl_test_cmd which true))
     echo "$ans"
     [ $(echo "$ans" | wc -l) = 1 ]
 }
@@ -145,7 +150,7 @@ test_pipe_ping()
     }
 EOF
 
-    run_hijack_cfg $(lkl_test_cmd which sleep) 10 &
+    run_hijack_cfg $(QUIET=1 lkl_test_cmd which sleep) 10 &
 
     set_cfgjson 2 << EOF
     {
@@ -236,10 +241,16 @@ test_tap_ping_lkl()
     set -e
 
     # start LKL and wait a bit so the host can ping
-    run_hijack_cfg $(lkl_test_cmd which sleep) 3 &
+    run_hijack_cfg $(QUIET=1 lkl_test_cmd which sleep) 3 &
 
     # wait for LKL to boot
     sleep 2
+
+    # check if LKL is alive
+    if ! kill -0 $!; then
+      wait $!
+      exit $?
+    fi
 
     # Now let's check that the host can see LKL.
     lkl_test_cmd sudo ping -i 0.01 -c 65 $(ip_lkl)
@@ -724,6 +735,9 @@ tap_prepare
 if ! lkl_test_cmd test -c /dev/net/tun &>/dev/null; then
     lkl_test_plan 0 "hijack tap backend tests"
     echo "missing /dev/net/tun"
+elif [ -z "$LKL_HOST_CONFIG_JSMN" ]; then
+    lkl_test_plan 0 "hijack tap backend tests"
+    echo "no json support"
 else
     lkl_test_plan 23 "hijack tap backend tests"
     lkl_test_run 1 test_tap_setup

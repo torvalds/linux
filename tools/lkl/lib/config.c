@@ -12,7 +12,8 @@
 #include <lkl_host.h>
 #include <lkl_config.h>
 
-#include "../../perf/pmu-events/jsmn.h"
+#ifdef LKL_HOST_CONFIG_JSMN
+#include "jsmn.h"
 
 static int jsoneq(const char *json, jsmntok_t *tok, const char *s)
 {
@@ -24,22 +25,7 @@ static int jsoneq(const char *json, jsmntok_t *tok, const char *s)
 	return -1;
 }
 
-static int cfgcpy(char **to, char *from)
-{
-	if (!from)
-		return 0;
-	if (*to)
-		free(*to);
-	*to = (char *)malloc((strlen(from) + 1) * sizeof(char));
-	if (*to == NULL) {
-		lkl_printf("malloc failed\n");
-		return -1;
-	}
-	strcpy(*to, from);
-	return 0;
-}
-
-static int cfgncpy(char **to, char *from, int len)
+static int cfgncpy(char **to, const char *from, int len)
 {
 	if (!from)
 		return 0;
@@ -56,7 +42,7 @@ static int cfgncpy(char **to, char *from, int len)
 }
 
 static int parse_ifarr(struct lkl_config *cfg,
-		jsmntok_t *toks, char *jstr, int startpos)
+		jsmntok_t *toks, const char *jstr, int startpos)
 {
 	int ifidx, pos, posend, ret;
 	char **cfgptr;
@@ -81,7 +67,7 @@ static int parse_ifarr(struct lkl_config *cfg,
 			return -1;
 		}
 
-		posend = pos + toks[pos].size;
+		posend = pos + toks[pos].size * 2;
 		pos++;
 		iface = malloc(sizeof(struct lkl_config_iface));
 		memset(iface, 0, sizeof(struct lkl_config_iface));
@@ -141,9 +127,10 @@ static int parse_ifarr(struct lkl_config *cfg,
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-int lkl_load_config_json(struct lkl_config *cfg, char *jstr)
+int lkl_load_config_json(struct lkl_config *cfg, const char *jstr)
 {
-	int pos, ret;
+	int ret;
+	unsigned int pos;
 	char **cfgptr;
 	jsmn_parser jp;
 	jsmntok_t toks[LKL_CONFIG_JSON_TOKEN_MAX];
@@ -152,7 +139,7 @@ int lkl_load_config_json(struct lkl_config *cfg, char *jstr)
 		return -1;
 	jsmn_init(&jp);
 	ret = jsmn_parse(&jp, jstr, strlen(jstr), toks, ARRAY_SIZE(toks));
-	if (ret != JSMN_SUCCESS) {
+	if (ret < 0) {
 		lkl_printf("failed to parse json\n");
 		return -1;
 	}
@@ -203,6 +190,22 @@ int lkl_load_config_json(struct lkl_config *cfg, char *jstr)
 		if (ret < 0)
 			return ret;
 	}
+	return 0;
+}
+#endif
+
+static int cfgcpy(char **to, const char *from)
+{
+	if (!from)
+		return 0;
+	if (*to)
+		free(*to);
+	*to = (char *)malloc((strlen(from) + 1) * sizeof(char));
+	if (*to == NULL) {
+		lkl_printf("malloc failed\n");
+		return -1;
+	}
+	strcpy(*to, from);
 	return 0;
 }
 
