@@ -244,11 +244,11 @@ struct ffa_mem_region_attributes {
 	 */
 #define FFA_MEM_RETRIEVE_SELF_BORROWER	BIT(0)
 	u8 flag;
-	u32 composite_off;
 	/*
 	 * Offset in bytes from the start of the outer `ffa_memory_region` to
 	 * an `struct ffa_mem_region_addr_range`.
 	 */
+	u32 composite_off;
 	u64 reserved;
 };
 
