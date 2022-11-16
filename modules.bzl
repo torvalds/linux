@@ -21,6 +21,7 @@ COMMON_GKI_MODULES_LIST = [
     "net/can/can-raw.ko",
     "net/mac80211/mac80211.ko",
     "net/nfc/nfc.ko",
+    "net/rfkill/rfkill.ko",
     "net/tipc/diag.ko",
     "net/tipc/tipc.ko",
     "net/wireless/cfg80211.ko",
