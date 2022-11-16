@@ -5,6 +5,8 @@
 
 #include <linux/device.h>
 
+#include "drm_kunit_helpers.h"
+
 struct kunit_dev {
 	struct drm_device base;
 };
