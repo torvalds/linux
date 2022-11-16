@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include <dt-bindings/display/rockchip_vop.h>
+#include "rk3568m-serdes-evb-lp4x-v10.dtsi"
+#include "rk3568-android.dtsi"
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <10000>;
+};
+
+&lvds {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			lvds_out_rkx110_x120: endpoint {
+				remote-endpoint = <&rkx110_x120_in_lvds>;
+			};
+		};
+	};
+};
+
+&lvds_in_vp2 {
+	status = "okay";
+};
+
+&rkx110_x120 {
+		enable-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rkx110_reset_gpio>;
+};
+
+&serdes_timing0 {
+	clock-frequency = <50000000>;
+	hactive = <1024>;
+	vactive = <600>;
+	hfront-porch = <160>;
+	hsync-len = <20>;
+	hback-porch = <140>;
+	vfront-porch = <12>;
+	vsync-len = <3>;
+	vback-porch = <20>;
+	hsync-active = <0>;
+	vsync-active = <0>;
+	de-active = <0>;
+	pixelclk-active = <1>;
+};
+
+&serdes_panel {
+	local-port0 = <RK_SERDES_LVDS_RX1>;
+	remote0-port0 = <RK_SERDES_RGB_TX>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			rkx110_x120_in_lvds: endpoint {
+				remote-endpoint = <&lvds_out_rkx110_x120>;
+			};
+		};
+	};
+};
+
+&video_phy0 {
+	status = "okay";
+};
+
+/* vp0 for HDMI, vp2 for rgb */
+&vp0 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER0 | 1 << ROCKCHIP_VOP2_ESMART0 |
+				1 << ROCKCHIP_VOP2_SMART0)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART0>;
+};
+
+&vp2 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER1 | 1 << ROCKCHIP_VOP2_ESMART1 |
+				1 << ROCKCHIP_VOP2_SMART1)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART1>;
+};
+
+&rkx110_reset_gpio {
+	rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+};
+

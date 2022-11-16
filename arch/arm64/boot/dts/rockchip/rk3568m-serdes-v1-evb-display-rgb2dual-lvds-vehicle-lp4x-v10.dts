@@ -1,0 +1,113 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include <dt-bindings/display/rockchip_vop.h>
+#include "rk3568m-serdes-v1-evb-lp4x-v10.dtsi"
+#include "rk3568-android.dtsi"
+
+&backlight {
+	pwms = <&pwm10 0 25000 0>;
+	status = "okay";
+};
+
+&i2c1 {
+	status = "disabled";
+};
+
+&i2c4 {
+	status = "okay";
+	clock-frequency = <10000>;
+};
+
+&pwm10 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm10m1_pins>;
+	status = "okay";
+};
+
+&rgb {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			rgb_out_rkx110_x120: endpoint {
+				remote-endpoint = <&rkx110_x120_in_rgb>;
+			};
+		};
+	};
+};
+
+&rgb_in_vp2 {
+	status = "okay";
+};
+
+&rkx110_x120_1 {
+	pt-config {
+		rk-serdes,pt = <RK_SERDES_CHIP_LOCAL RK_SERDES_CHIP_REMOTE0
+				RK_SERDES_PASSTHROUGH_GPI_GPO_1>,
+			       <RK_SERDES_CHIP_LOCAL RK_SERDES_CHIP_REMOTE0
+				RK_SERDES_PASSTHROUGH_GPI_GPO_3>,
+			       <RK_SERDES_CHIP_LOCAL RK_SERDES_CHIP_REMOTE0
+				RK_SERDES_PASSTHROUGH_GPI_GPO_5>;
+	};
+};
+
+&serdes_timing1 {
+	clock-frequency = <66000000>;
+	hactive = <1920>;
+	vactive = <720>;
+	hfront-porch = <28>;
+	hsync-len = <20>;
+	hback-porch = <20>;
+	vfront-porch = <7>;
+	vsync-len = <6>;
+	vback-porch = <8>;
+	hsync-active = <0>;
+	vsync-active = <0>;
+	de-active = <0>;
+	pixelclk-active = <0>;
+};
+
+&serdes_panel1 {
+	local-port0 = <RK_SERDES_RGB_RX>;
+	remote0-port0 = <RK_SERDES_DUAL_LVDS_TX>;
+
+	backlight = <&backlight>;
+	enable-gpios = <&gpio2 RK_PA0 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&panel_reset_ser1_gpio &panel_enable_ser1_gpio>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			rkx110_x120_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_rkx110_x120>;
+			};
+		};
+	};
+};
+
+/* vp0 for HDMI, vp2 for rgb */
+&vp0 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER0 | 1 << ROCKCHIP_VOP2_ESMART0 |
+				1 << ROCKCHIP_VOP2_SMART0)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART0>;
+};
+
+&vp2 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER1 | 1 << ROCKCHIP_VOP2_ESMART1 |
+				1 << ROCKCHIP_VOP2_SMART1)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART1>;
+};
+

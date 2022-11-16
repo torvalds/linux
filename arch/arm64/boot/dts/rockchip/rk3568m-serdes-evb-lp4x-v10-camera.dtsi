@@ -1,0 +1,195 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/mfd/rockchip-serdes.h>
+#include "rk3568.dtsi"
+#include "rk3568-evb.dtsi"
+
+/ {
+	model = "Rockchip RK3568M SERDES EVB LP4X V10 Board";
+	compatible = "rockchip,rk3568m-serdes-evb-lp4x-v10", "rockchip,rk3568";
+
+	vcc2v5_sys: vcc2v5-ddr {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc2v5-sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
+	vcc3v3_bu: vcc3v3-bu {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_bu";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+};
+
+/*
+ * pin conflict with i2c2 for serdes-debug
+ */
+&gt1x {
+	status = "disabled";
+};
+
+&combphy0_us {
+	status = "okay";
+};
+
+&combphy2_psq {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+
+	gs_mxc6655xa: gs_mxc6655xa@15 {
+		status = "okay";
+		compatible = "gs_mxc6655xa";
+		pinctrl-names = "default";
+		pinctrl-0 = <&mxc6655xa_irq_gpio>;
+		reg = <0x15>;
+		irq-gpio = <&gpio0 RK_PA4 IRQ_TYPE_LEVEL_LOW>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		type = <SENSOR_TYPE_ACCEL>;
+		power-off-in-suspend = <1>;
+		layout = <1>;
+	};
+};
+
+&i2c3 {
+	status = "okay";
+	clock-frequency = <100000>;
+
+	rkx120_x110: rkx120_x110@54 {
+		compatible = "rockchip,rkx120";
+		reg = <0x54>;
+		remote0-addr = <0x55>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		serdes_camera: serdes-camera {
+			compatible = "rockchip,serdes-camera";
+			reg = <0>;
+			status = "okay";
+		};
+	};
+};
+
+&i2c5 {
+	status = "disabled";
+};
+
+&pinctrl {
+	mxc6655xa {
+		mxc6655xa_irq_gpio: mxc6655xa_irq_gpio {
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	serdes {
+		rkx120_reset_gpio: rkx120-reset-gpio {
+			rockchip,pins = <2 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&pmu_io_domains {
+	vccio6-supply = <&vcc_3v3>;
+};
+
+&pwm7 {
+	status = "disabled";
+};
+
+&rk809_codec {
+	status = "disabled";
+};
+
+&sdmmc0 {
+	status = "disabled";
+};
+
+&sdmmc2 {
+	status = "disabled";
+};
+
+&uart1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1m0_xfer &uart1m0_ctsn>;
+};
+
+&wireless_wlan {
+	status = "disabled";
+};
+
+&wireless_bluetooth {
+	status = "disabled";
+};
+
+/* OTG0 */
+&combphy0_us {
+	rockchip,dis-u3otg0-port;
+	/* OTG and SATA0 not use combphy0_us, then disabled */
+	status = "disabled";
+};
+
+&u2phy0_otg {
+	vbus-supply = <&vcc5v0_otg>;
+	status = "okay";
+};
+
+&usb2phy0 {
+	status = "okay";
+};
+
+&usbdrd_dwc3 {
+	dr_mode = "otg";
+	phys = <&u2phy0_otg>;
+	phy-names = "usb2-phy";
+	extcon = <&usb2phy0>;
+	maximum-speed = "high-speed";
+	snps,dis_u2_susphy_quirk;
+	status = "okay";
+};
+
+&usbdrd30 {
+	status = "okay";
+};
+
+/* HOST1 */
+&combphy1_usq {
+	status = "okay";
+};
+
+&u2phy0_host {
+	phy-supply = <&vcc5v0_host>;
+	status = "okay";
+};
+
+&usb2phy0 {
+	status = "okay";
+};
+
+&usbhost_dwc3 {
+	status = "okay";
+};
+
+&usbhost30 {
+	status = "okay";
+};

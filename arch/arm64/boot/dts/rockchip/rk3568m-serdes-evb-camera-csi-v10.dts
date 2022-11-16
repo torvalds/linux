@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3568m-serdes-evb-lp4x-v10-camera.dtsi"
+#include "rk3568-android.dtsi"
+
+&rkx120_x110 {
+	enable-gpios = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio2 RK_PB0 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&rkx120_reset_gpio>;
+};
+
+&serdes_camera {
+	local-port0 = <RK_SERDES_CSI_TX0>;
+	remote0-port0 = <RK_SERDES_CSI_RX0>;
+};
+
+&i2c3 {
+	status = "okay";
+	clock-frequency = <10000>;
+};

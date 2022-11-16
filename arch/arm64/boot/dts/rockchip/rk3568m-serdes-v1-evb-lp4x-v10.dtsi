@@ -1,0 +1,294 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/mfd/rockchip-serdes.h>
+#include "rk3568.dtsi"
+#include "rk3568-evb.dtsi"
+
+/ {
+	model = "Rockchip RK3568M SERDES EVB LP4X V10 Board";
+	compatible = "rockchip,rk3568m-serdes-evb-lp4x-v10", "rockchip,rk3568";
+
+	vcc2v5_sys: vcc2v5-ddr {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc2v5-sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
+	vcc3v3_bu: vcc3v3-bu {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_bu";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+};
+
+&combphy0_us {
+	status = "okay";
+};
+
+&combphy2_psq {
+	status = "okay";
+};
+
+&gt1x {
+	status = "disabled";
+};
+
+&i2c0 {
+	status = "okay";
+
+	gs_mxc6655xa: gs_mxc6655xa@15 {
+		status = "okay";
+		compatible = "gs_mxc6655xa";
+		pinctrl-names = "default";
+		pinctrl-0 = <&mxc6655xa_irq_gpio>;
+		reg = <0x15>;
+		irq-gpio = <&gpio0 RK_PA4 IRQ_TYPE_LEVEL_LOW>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		type = <SENSOR_TYPE_ACCEL>;
+		power-off-in-suspend = <1>;
+		layout = <1>;
+	};
+};
+
+&i2c5 {
+	status = "disabled";
+};
+
+&pinctrl {
+	mxc6655xa {
+		mxc6655xa_irq_gpio: mxc6655xa_irq_gpio {
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	serdes {
+		serdes_reset_ser0_gpio: serdes_reset_ser0_gpio {
+			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		serdes_reset_ser1_gpio: serdes_reset_ser1_gpio {
+			rockchip,pins = <2 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		serdes_enable_ser0_gpio: serdes_enable_ser0_gpio {
+			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		serdes_enable_ser1_gpio: serdes_enable_ser1_gpio {
+			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		serdes_irq_ser0_gpio: serdes_irq_ser0_gpio {
+			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		serdes_irq_ser1_gpio: serdes_irq_ser1_gpio {
+			rockchip,pins = <1 RK_PD7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	serdes_panel {
+		panel_reset_ser0_gpio: panel-reset-ser0-gpio {
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		panel_enable_ser0_gpio: panel-enable-ser0-gpio {
+			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		panel_reset_ser1_gpio: panel-reset-ser1-gpio {
+			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		panel_enable_ser1_gpio: panel-enable-ser1-gpio {
+			rockchip,pins = <2 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&pmu_io_domains {
+	vccio6-supply = <&vcc_3v3>;
+};
+
+&pwm7 {
+	status = "disabled";
+};
+
+&rk809_codec {
+	status = "disabled";
+};
+
+&sdmmc0 {
+	status = "disabled";
+};
+
+&sdmmc2 {
+	status = "disabled";
+};
+
+&uart1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1m0_xfer &uart1m0_ctsn>;
+};
+
+&wireless_wlan {
+	status = "disabled";
+};
+
+&wireless_bluetooth {
+	status = "disabled";
+};
+
+/* OTG0 */
+&combphy0_us {
+	rockchip,dis-u3otg0-port;
+	/* OTG and SATA0 not use combphy0_us, then disabled */
+	status = "disabled";
+};
+
+&i2c1 {
+	status = "disabled";
+	clock-frequency = <100000>;
+
+	rkx110_x120: rkx110-x120@57 {
+		compatible = "rockchip,rkx110";
+		reg = <0x57>;
+		remote0-addr = <0x54>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		enable-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
+		irq-gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&serdes_reset_ser0_gpio &serdes_enable_ser0_gpio
+			     &serdes_irq_ser0_gpio>;
+
+		serdes_panel: serdes-panel {
+			compatible = "rockchip,serdes-panel";
+			reg = <0>;
+			status = "okay";
+
+			display_timings0: display-timings {
+				native-mode = <&serdes_timing0>;
+				serdes_timing0: timing0 {
+					clock-frequency = <132000000>;
+					hactive = <1080>;
+					vactive = <1920>;
+					hfront-porch = <15>;
+					hsync-len = <2>;
+					hback-porch = <30>;
+					vfront-porch = <15>;
+					vsync-len = <2>;
+					vback-porch = <15>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					de-active = <0>;
+					pixelclk-active = <1>;
+				};
+			};
+		};
+	};
+};
+
+&i2c4 {
+	status = "disabled";
+	clock-frequency = <100000>;
+
+	rkx110_x120_1: rkx110-x120@57 {
+		compatible = "rockchip,rkx110";
+		reg = <0x57>;
+		remote0-addr = <0x54>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		enable-gpios = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio2 RK_PA2 GPIO_ACTIVE_LOW>;
+		irq-gpios = <&gpio1 RK_PD7 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&serdes_reset_ser1_gpio &serdes_enable_ser1_gpio
+			     &serdes_irq_ser1_gpio>;
+
+		serdes_panel1: serdes-panel {
+			compatible = "rockchip,serdes-panel";
+			reg = <0>;
+			status = "okay";
+
+			display_timings1: display-timings {
+				native-mode = <&serdes_timing0>;
+				serdes_timing1: timing0 {
+					clock-frequency = <132000000>;
+					hactive = <1080>;
+					vactive = <1920>;
+					hfront-porch = <15>;
+					hsync-len = <2>;
+					hback-porch = <30>;
+					vfront-porch = <15>;
+					vsync-len = <2>;
+					vback-porch = <15>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					de-active = <0>;
+					pixelclk-active = <1>;
+				};
+			};
+		};
+	};
+};
+
+&u2phy0_otg {
+	vbus-supply = <&vcc5v0_otg>;
+	status = "okay";
+};
+
+&usb2phy0 {
+	status = "okay";
+};
+
+&usbdrd_dwc3 {
+	dr_mode = "otg";
+	phys = <&u2phy0_otg>;
+	phy-names = "usb2-phy";
+	extcon = <&usb2phy0>;
+	maximum-speed = "high-speed";
+	snps,dis_u2_susphy_quirk;
+	status = "okay";
+};
+
+&usbdrd30 {
+	status = "okay";
+};
+
+/* HOST1 */
+&combphy1_usq {
+	status = "okay";
+};
+
+&u2phy0_host {
+	phy-supply = <&vcc5v0_host>;
+	status = "okay";
+};
+
+&usb2phy0 {
+	status = "okay";
+};
+
+&usbhost_dwc3 {
+	status = "okay";
+};
+
+&usbhost30 {
+	status = "okay";
+};

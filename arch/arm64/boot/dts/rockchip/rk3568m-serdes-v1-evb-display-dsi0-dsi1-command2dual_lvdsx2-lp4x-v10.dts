@@ -1,0 +1,165 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include <dt-bindings/display/rockchip_vop.h>
+#include "rk3568m-serdes-v1-evb-lp4x-v10.dtsi"
+#include "rk3568-android.dtsi"
+
+&backlight {
+	pwms = <&pwm4 0 25000 0>;
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <10000>;
+};
+
+&dsi1 {
+	status = "okay";
+};
+
+&dsi0_in_vp0 {
+	status = "okay";
+};
+
+&dsi0_in_vp1 {
+	status = "disabled";
+};
+
+&dsi1_in_vp0 {
+	status = "disabled";
+};
+
+&dsi1_in_vp1 {
+	status = "okay";
+};
+
+&route_dsi1 {
+	status = "disabled";
+	connect = <&vp1_out_dsi1>;
+};
+
+/delete-node/ &dsi0_panel;
+
+&dsi1_panel {
+	dsi,flags = <(MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
+	panel-init-sequence = [];
+	panel-exit-sequence = [];
+};
+
+&disp_timings1 {
+	native-mode = <&dsi1_timing0>;
+	dsi1_timing0: timing0 {
+		clock-frequency = <148500000>;
+		hactive = <1920>;
+		vactive = <1080>;
+		hfront-porch = <140>;
+		hsync-len = <40>;
+		hback-porch = <100>;
+		vfront-porch = <15>;
+		vsync-len = <20>;
+		vback-porch = <10>;
+		hsync-active = <0>;
+		vsync-active = <0>;
+		de-active = <0>;
+		pixelclk-active = <1>;
+	};
+};
+
+
+&pwm4 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm4_pins>;
+	status = "okay";
+};
+
+&video_phy0 {
+	status = "okay";
+};
+
+&video_phy1 {
+	status = "okay";
+};
+
+&dsi0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			dsi0_out_rkx110_x120: endpoint {
+				remote-endpoint = <&rkx110_x120_in_dsi0>;
+			};
+		};
+	};
+};
+
+&rkx110_x120 {
+	remote1-addr = <0x54>;
+};
+
+&serdes_timing0 {
+	clock-frequency = <148500000>;
+	hactive = <1920>;
+	vactive = <1080>;
+	hfront-porch = <140>;
+	hsync-len = <40>;
+	hback-porch = <100>;
+	vfront-porch = <15>;
+	vsync-len = <20>;
+	vback-porch = <10>;
+	hsync-active = <0>;
+	vsync-active = <0>;
+	de-active = <0>;
+	pixelclk-active = <1>;
+};
+
+&serdes_panel {
+	local-port0 = <RK_SERDES_DSI_RX0>;
+	local-port1 = <RK_SERDES_DSI_RX1>;
+	remote0-port0 = <RK_SERDES_DUAL_LVDS_TX>;
+	remote1-port0 = <RK_SERDES_DUAL_LVDS_TX>;
+
+	backlight = <&backlight>;
+	enable-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&panel_reset_ser0_gpio &panel_enable_ser0_gpio>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			rkx110_x120_in_dsi0: endpoint {
+				remote-endpoint = <&dsi0_out_rkx110_x120>;
+			};
+		};
+	};
+};
+
+/* vp0 for HDMI, vp2 for rgb */
+&vp0 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER1 | 1 << ROCKCHIP_VOP2_SMART1)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_SMART1>;
+};
+
+&vp1 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER0 | 1 << ROCKCHIP_VOP2_ESMART0 |
+				1 << ROCKCHIP_VOP2_SMART0)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_SMART0>;
+};
+
+&vp2 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_ESMART1)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_ESMART1>;
+};
+
