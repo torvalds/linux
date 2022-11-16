@@ -230,14 +230,26 @@ do {									\
 #endif
 
 #ifdef BCACHEFS_LOG_PREFIX
-#define bch2_log_msg(_c, fmt)		"bcachefs (%s): " fmt, ((_c)->name)
-#define bch2_fmt(_c, fmt)		bch2_log_msg(_c, fmt "\n")
-#define bch2_fmt_inum(_c, _inum, fmt)	"bcachefs (%s inum %llu): " fmt "\n", ((_c)->name), (_inum)
+
+#define bch2_log_msg(_c, fmt)			"bcachefs (%s): " fmt, ((_c)->name)
+#define bch2_fmt_dev(_ca, fmt)			"bcachefs (%s): " fmt "\n", ((_ca)->name)
+#define bch2_fmt_dev_offset(_ca, _offset, fmt)	"bcachefs (%s sector %llu): " fmt "\n", ((_ca)->name), (_offset)
+#define bch2_fmt_inum(_c, _inum, fmt)		"bcachefs (%s inum %llu): " fmt "\n", ((_c)->name), (_inum)
+#define bch2_fmt_inum_offset(_c, _inum, _offset, fmt)			\
+	 "bcachefs (%s inum %llu offset %llu): " fmt "\n", ((_c)->name), (_inum), (_offset)
+
 #else
-#define bch2_log_msg(_c, fmt)		fmt
-#define bch2_fmt(_c, fmt)		fmt "\n"
-#define bch2_fmt_inum(_c, _inum, fmt)	"inum %llu: " fmt "\n", (_inum)
+
+#define bch2_log_msg(_c, fmt)			fmt
+#define bch2_fmt_dev(_ca, fmt)			"%s: " fmt "\n", ((_ca)->name)
+#define bch2_fmt_dev_offset(_ca, _offset, fmt)	"%s sector %llu: " fmt "\n", ((_ca)->name), (_offset)
+#define bch2_fmt_inum(_c, _inum, fmt)		"inum %llu: " fmt "\n", (_inum)
+#define bch2_fmt_inum_offset(_c, _inum, _offset, fmt)				\
+	 "inum %llu offset %llu: " fmt "\n", (_inum), (_offset)
+
 #endif
+
+#define bch2_fmt(_c, fmt)		bch2_log_msg(_c, fmt "\n")
 
 #define bch_info(c, fmt, ...) \
 	printk(KERN_INFO bch2_fmt(c, fmt), ##__VA_ARGS__)
@@ -247,13 +259,28 @@ do {									\
 	printk(KERN_WARNING bch2_fmt(c, fmt), ##__VA_ARGS__)
 #define bch_warn_ratelimited(c, fmt, ...) \
 	printk_ratelimited(KERN_WARNING bch2_fmt(c, fmt), ##__VA_ARGS__)
+
 #define bch_err(c, fmt, ...) \
 	printk(KERN_ERR bch2_fmt(c, fmt), ##__VA_ARGS__)
+#define bch_err_dev(ca, fmt, ...) \
+	printk(KERN_ERR bch2_fmt_dev(ca, fmt), ##__VA_ARGS__)
+#define bch_err_dev_offset(ca, _offset, fmt, ...) \
+	printk(KERN_ERR bch2_fmt_dev_offset(ca, _offset, fmt), ##__VA_ARGS__)
+#define bch_err_inum(c, _inum, fmt, ...) \
+	printk(KERN_ERR bch2_fmt_inum(c, _inum, fmt), ##__VA_ARGS__)
+#define bch_err_inum_offset(c, _inum, _offset, fmt, ...) \
+	printk(KERN_ERR bch2_fmt_inum_offset(c, _inum, _offset, fmt), ##__VA_ARGS__)
 
 #define bch_err_ratelimited(c, fmt, ...) \
 	printk_ratelimited(KERN_ERR bch2_fmt(c, fmt), ##__VA_ARGS__)
+#define bch_err_dev_ratelimited(ca, fmt, ...) \
+	printk_ratelimited(KERN_ERR bch2_fmt_dev(ca, fmt), ##__VA_ARGS__)
+#define bch_err_dev_offset_ratelimited(ca, _offset, fmt, ...) \
+	printk_ratelimited(KERN_ERR bch2_fmt_dev_offset(ca, _offset, fmt), ##__VA_ARGS__)
 #define bch_err_inum_ratelimited(c, _inum, fmt, ...) \
 	printk_ratelimited(KERN_ERR bch2_fmt_inum(c, _inum, fmt), ##__VA_ARGS__)
+#define bch_err_inum_offset_ratelimited(c, _inum, _offset, fmt, ...) \
+	printk_ratelimited(KERN_ERR bch2_fmt_inum_offset(c, _inum, _offset, fmt), ##__VA_ARGS__)
 
 #define bch_verbose(c, fmt, ...)					\
 do {									\

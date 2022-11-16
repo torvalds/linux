@@ -88,6 +88,7 @@ struct bch_write_bio {
 	struct bch_write_bio	*parent;
 
 	u64			submit_time;
+	u64			inode_offset;
 
 	struct bch_devs_list	failed;
 	u8			dev;

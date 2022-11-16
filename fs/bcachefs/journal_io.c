@@ -1268,10 +1268,10 @@ int bch2_journal_read(struct bch_fs *c, u64 *blacklist_seq, u64 *start_seq)
 			struct bch_dev *ca = bch_dev_bkey_exists(c, i->ptrs[ptr].dev);
 
 			if (!i->ptrs[ptr].csum_good)
-				printk(KERN_ERR "bcachefs (%s) sector %llu: invalid journal checksum, seq %llu%s\n",
-				       ca->name, i->ptrs[ptr].sector,
-				       le64_to_cpu(i->j.seq),
-				       i->csum_good ? " (had good copy on another device)" : "");
+				bch_err_dev_offset(ca, i->ptrs[ptr].sector,
+						   "invalid journal checksum, seq %llu%s",
+						   le64_to_cpu(i->j.seq),
+						   i->csum_good ? " (had good copy on another device)" : "");
 		}
 
 		ret = jset_validate(c,

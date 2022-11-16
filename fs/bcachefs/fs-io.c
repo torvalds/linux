@@ -1087,7 +1087,9 @@ err:
 		goto retry;
 
 	if (ret) {
-		bch_err_inum_ratelimited(c, inum.inum,
+		bch_err_inum_offset_ratelimited(c,
+				iter.pos.inode,
+				iter.pos.offset << 9,
 				"read error %i from btree lookup", ret);
 		rbio->bio.bi_status = BLK_STS_IOERR;
 		bio_endio(&rbio->bio);

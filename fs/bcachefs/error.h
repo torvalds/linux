@@ -186,36 +186,25 @@ void bch2_io_error_work(struct work_struct *);
 /* Does the error handling without logging a message */
 void bch2_io_error(struct bch_dev *);
 
-/* Logs message and handles the error: */
-#define bch2_dev_io_error(ca, fmt, ...)					\
-do {									\
-	printk_ratelimited(KERN_ERR "bcachefs (%s): " fmt,		\
-		(ca)->name, ##__VA_ARGS__);				\
-	bch2_io_error(ca);						\
-} while (0)
-
-#define bch2_dev_inum_io_error(ca, _inum, _offset, fmt, ...)		\
-do {									\
-	printk_ratelimited(KERN_ERR "bcachefs (%s inum %llu offset %llu): " fmt,\
-		(ca)->name, (_inum), (_offset), ##__VA_ARGS__);		\
-	bch2_io_error(ca);						\
-} while (0)
-
 #define bch2_dev_io_err_on(cond, ca, ...)				\
 ({									\
 	bool _ret = (cond);						\
 									\
-	if (_ret)							\
-		bch2_dev_io_error(ca, __VA_ARGS__);			\
+	if (_ret) {							\
+		bch_err_dev_ratelimited(ca, __VA_ARGS__);		\
+		bch2_io_error(ca);					\
+	}								\
 	_ret;								\
 })
 
-#define bch2_dev_inum_io_err_on(cond, ca, _inum, _offset, ...)		\
+#define bch2_dev_inum_io_err_on(cond, ca, ...)				\
 ({									\
 	bool _ret = (cond);						\
 									\
-	if (_ret)							\
-		bch2_dev_inum_io_error(ca, _inum, _offset, __VA_ARGS__);\
+	if (_ret) {							\
+		bch_err_inum_offset_ratelimited(ca, __VA_ARGS__);	\
+		bch2_io_error(ca);					\
+	}								\
 	_ret;								\
 })
 
