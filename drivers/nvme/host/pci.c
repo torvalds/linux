@@ -2654,35 +2654,38 @@ static void nvme_dev_unmap(struct nvme_dev *dev)
 	pci_release_mem_regions(to_pci_dev(dev->dev));
 }
 
+static bool nvme_pci_ctrl_is_dead(struct nvme_dev *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	u32 csts;
+
+	if (!pci_is_enabled(pdev) || !pci_device_is_present(pdev))
+		return true;
+	if (pdev->error_state != pci_channel_io_normal)
+		return true;
+
+	csts = readl(dev->bar + NVME_REG_CSTS);
+	return (csts & NVME_CSTS_CFS) || !(csts & NVME_CSTS_RDY);
+}
+
 static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 {
-	bool dead = true, freeze = false;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	bool dead;
 
 	mutex_lock(&dev->shutdown_lock);
-	if (pci_is_enabled(pdev)) {
-		u32 csts;
-
-		if (pci_device_is_present(pdev))
-			csts = readl(dev->bar + NVME_REG_CSTS);
-		else
-			csts = ~0;
-
-		if (dev->ctrl.state == NVME_CTRL_LIVE ||
-		    dev->ctrl.state == NVME_CTRL_RESETTING) {
-			freeze = true;
+	dead = nvme_pci_ctrl_is_dead(dev);
+	if (dev->ctrl.state == NVME_CTRL_LIVE ||
+	    dev->ctrl.state == NVME_CTRL_RESETTING) {
+		if (pci_is_enabled(pdev))
 			nvme_start_freeze(&dev->ctrl);
-		}
-		dead = !!((csts & NVME_CSTS_CFS) || !(csts & NVME_CSTS_RDY) ||
-			pdev->error_state  != pci_channel_io_normal);
+		/*
+		 * Give the controller a chance to complete all entered requests
+		 * if doing a safe shutdown.
+		 */
+		if (!dead && shutdown)
+			nvme_wait_freeze_timeout(&dev->ctrl, NVME_IO_TIMEOUT);
 	}
-
-	/*
-	 * Give the controller a chance to complete all entered requests if
-	 * doing a safe shutdown.
-	 */
-	if (!dead && shutdown && freeze)
-		nvme_wait_freeze_timeout(&dev->ctrl, NVME_IO_TIMEOUT);
 
 	nvme_quiesce_io_queues(&dev->ctrl);
 
