@@ -2048,7 +2048,7 @@ static int imx577_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE:
 		/* 4 least significant bits of expsoure are fractional part */
 		if (imx577->cur_mode->hdr_mode != NO_HDR)
-			return ret;
+			goto ctrl_end;
 		ret = imx577_write_reg(imx577->client,
 				       IMX577_REG_EXPOSURE_H,
 				       IMX577_REG_VALUE_08BIT,
@@ -2067,7 +2067,7 @@ static int imx577_set_ctrl(struct v4l2_ctrl *ctrl)
 		 * gain_reg = 1024 - 1024 * 16 / (gain_ana * 16)
 		 */
 		if (imx577->cur_mode->hdr_mode != NO_HDR)
-			return ret;
+			goto ctrl_end;
 		if (ctrl->val > 0x1600)
 			ctrl->val = 0x1600;
 		if (ctrl->val < 0x10)
@@ -2138,6 +2138,7 @@ static int imx577_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
+ctrl_end:
 	pm_runtime_put(&client->dev);
 
 	return ret;

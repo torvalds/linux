@@ -674,7 +674,7 @@ static const struct os05a20_mode supported_modes[] = {
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
 		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
-		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2 //Á½Õë¹Ì¶¨¶ÌÖ¡
+		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
 	},
 };
 
@@ -1565,7 +1565,7 @@ static int os05a20_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		if (os05a20->cur_mode->hdr_mode != NO_HDR)
-			return 0;
+			goto ctrl_end;
 		ret = os05a20_write_reg(os05a20->client,
 					OS05A20_REG_EXP_LONG_H,
 					OS05A20_REG_VALUE_16BIT,
@@ -1575,7 +1575,7 @@ static int os05a20_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
 		if (os05a20->cur_mode->hdr_mode != NO_HDR)
-			return 0;
+			goto ctrl_end;
 		if (ctrl->val > 1984) {// >15.5x
 			dgain = ctrl->val * 10 / 155;
 			again = 1984;
@@ -1634,6 +1634,7 @@ static int os05a20_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
+ctrl_end:
 	pm_runtime_put(&client->dev);
 
 	return ret;

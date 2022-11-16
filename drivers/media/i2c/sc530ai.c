@@ -1668,7 +1668,7 @@ static int sc530ai_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		if (sc530ai->cur_mode->hdr_mode != NO_HDR)
-			return ret;
+			goto ctrl_end;
 		val = ctrl->val << 1;
 		ret = sc530ai_write_reg(sc530ai->client,
 					SC530AI_REG_EXPOSURE_H,
@@ -1687,7 +1687,7 @@ static int sc530ai_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
 		if (sc530ai->cur_mode->hdr_mode != NO_HDR)
-			return ret;
+			goto ctrl_end;
 
 		sc530ai_get_gain_reg(ctrl->val, &again, &dgain, &dgain_fine);
 		ret = sc530ai_write_reg(sc530ai->client,
@@ -1756,6 +1756,7 @@ static int sc530ai_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
+ctrl_end:
 	pm_runtime_put(&client->dev);
 
 	return ret;

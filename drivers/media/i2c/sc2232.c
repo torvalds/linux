@@ -1192,7 +1192,7 @@ static int sc2232_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		if (sc2232->cur_mode->hdr_mode != NO_HDR)
-			return ret;
+			goto ctrl_end;
 		val = ctrl->val << 1;
 		ret = sc2232_write_reg(sc2232->client,
 					SC2232_REG_EXP_LONG_L,
@@ -1210,7 +1210,7 @@ static int sc2232_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
 		if (sc2232->cur_mode->hdr_mode != NO_HDR)
-			return ret;
+			goto ctrl_end;
 		ret = sc2232_set_gain(sc2232, ctrl->val);
 		break;
 	case V4L2_CID_VBLANK:
@@ -1256,6 +1256,7 @@ static int sc2232_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
+ctrl_end:
 	pm_runtime_put(&client->dev);
 	return ret;
 }

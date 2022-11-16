@@ -2761,7 +2761,7 @@ static int ov12d2q_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		if (ov12d2q->cur_mode->hdr_mode != NO_HDR)
-			return 0;
+			goto ctrl_end;
 		ret = ov12d2q_write_reg(ov12d2q->client,
 					OV12D2Q_REG_EXP_L_H,
 					OV12D2Q_REG_VALUE_16BIT,
@@ -2771,7 +2771,7 @@ static int ov12d2q_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
 		if (ov12d2q->cur_mode->hdr_mode != NO_HDR)
-			return 0;
+			goto ctrl_end;
 		if (ctrl->val > 1984) {// >15.5x
 			dgain = ctrl->val * 10 / 155;
 			again = 1984;
@@ -2888,6 +2888,7 @@ static int ov12d2q_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
+ctrl_end:
 	pm_runtime_put(&client->dev);
 
 	return ret;
