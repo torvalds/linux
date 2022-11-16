@@ -366,7 +366,7 @@ config VIDEO_OV08D10
 
 config VIDEO_OV08X40
 	tristate "OmniVision OV08X40 sensor support"
-	depends on VIDEO_V4L2 && I2C
+	depends on VIDEO_DEV && I2C
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
