@@ -5240,10 +5240,10 @@ const struct address_space_operations cifs_addr_ops = {
 	.direct_IO = cifs_direct_io,
 	.invalidate_folio = cifs_invalidate_folio,
 	.launder_folio = cifs_launder_folio,
+	.migrate_folio = filemap_migrate_folio,
 	/*
-	 * TODO: investigate and if useful we could add an cifs_migratePage
-	 * helper (under an CONFIG_MIGRATION) in the future, and also
-	 * investigate and add an is_dirty_writeback helper if needed
+	 * TODO: investigate and if useful we could add an is_dirty_writeback
+	 * helper if needed
 	 */
 	.swap_activate = cifs_swap_activate,
 	.swap_deactivate = cifs_swap_deactivate,
@@ -5264,4 +5264,5 @@ const struct address_space_operations cifs_addr_ops_smallbuf = {
 	.release_folio = cifs_release_folio,
 	.invalidate_folio = cifs_invalidate_folio,
 	.launder_folio = cifs_launder_folio,
+	.migrate_folio = filemap_migrate_folio,
 };
