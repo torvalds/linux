@@ -559,7 +559,7 @@ bool kvm_cpu_has_ept(void)
 void prepare_eptp(struct vmx_pages *vmx, struct kvm_vm *vm,
 		  uint32_t eptp_memslot)
 {
-	TEST_REQUIRE(kvm_cpu_has_ept());
+	TEST_ASSERT(kvm_cpu_has_ept(), "KVM doesn't support nested EPT");
 
 	vmx->eptp = (void *)vm_vaddr_alloc_page(vm);
 	vmx->eptp_hva = addr_gva2hva(vm, (uintptr_t)vmx->eptp);
