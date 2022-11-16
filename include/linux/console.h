@@ -15,6 +15,7 @@
 #define _LINUX_CONSOLE_H_ 1
 
 #include <linux/atomic.h>
+#include <linux/list.h>
 #include <linux/types.h>
 
 struct vc_data;
@@ -154,14 +155,16 @@ struct console {
 	u64	seq;
 	unsigned long dropped;
 	void	*data;
-	struct	 console *next;
+	struct hlist_node node;
 };
+
+extern struct hlist_head console_list;
 
 /*
  * for_each_console() allows you to iterate on each console
  */
 #define for_each_console(con) \
-	for (con = console_drivers; con != NULL; con = con->next)
+	hlist_for_each_entry(con, &console_list, node)
 
 extern int console_set_on_cmdline;
 extern struct console *early_console;
@@ -174,7 +177,6 @@ enum con_flush_mode {
 extern int add_preferred_console(char *name, int idx, char *options);
 extern void register_console(struct console *);
 extern int unregister_console(struct console *);
-extern struct console *console_drivers;
 extern void console_lock(void);
 extern int console_trylock(void);
 extern void console_unlock(void);

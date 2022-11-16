@@ -79,13 +79,12 @@ int oops_in_progress;
 EXPORT_SYMBOL(oops_in_progress);
 
 /*
- * console_sem protects the console_drivers list, and also
- * provides serialisation for access to the entire console
- * driver system.
+ * console_sem protects console_list and console->flags updates, and also
+ * provides serialization for access to the entire console driver system.
  */
 static DEFINE_SEMAPHORE(console_sem);
-struct console *console_drivers;
-EXPORT_SYMBOL_GPL(console_drivers);
+HLIST_HEAD(console_list);
+EXPORT_SYMBOL_GPL(console_list);
 
 /*
  * System may need to suppress printk message under certain
@@ -2556,7 +2555,7 @@ static int console_cpu_notify(unsigned int cpu)
  * console_lock - lock the console system for exclusive use.
  *
  * Acquires a lock which guarantees that the caller has
- * exclusive access to the console system and the console_drivers list.
+ * exclusive access to the console system and console_list.
  *
  * Can sleep, returns nothing.
  */
@@ -2576,7 +2575,7 @@ EXPORT_SYMBOL(console_lock);
  * console_trylock - try to lock the console system for exclusive use.
  *
  * Try to acquire a lock which guarantees that the caller has exclusive
- * access to the console system and the console_drivers list.
+ * access to the console system and console_list.
  *
  * returns 1 on success, and 0 on failure to acquire the lock.
  */
@@ -2940,11 +2939,20 @@ void console_flush_on_panic(enum con_flush_mode mode)
 	console_may_schedule = 0;
 
 	if (mode == CONSOLE_REPLAY_ALL) {
+		struct hlist_node *tmp;
 		struct console *c;
 		u64 seq;
 
 		seq = prb_first_valid_seq(prb);
-		for_each_console(c)
+		/*
+		 * This cannot use for_each_console() because it's not established
+		 * that the current context has console locked and neither there is
+		 * a guarantee that there is no concurrency in that case.
+		 *
+		 * Open code it for documentation purposes and pretend that
+		 * it works.
+		 */
+		hlist_for_each_entry_safe(c, tmp, &console_list, node)
 			c->seq = seq;
 	}
 	console_unlock();
@@ -3081,6 +3089,9 @@ static void try_enable_default_console(struct console *newcon)
 	       (con->flags & CON_BOOT) ? "boot" : "",	\
 	       con->name, con->index, ##__VA_ARGS__)
 
+#define console_first()				\
+	hlist_entry(console_list.first, struct console, node)
+
 /*
  * The console driver calls this routine during kernel initialization
  * to register the console printing procedure with printk() and to
@@ -3140,8 +3151,8 @@ void register_console(struct console *newcon)
 	 * flag set and will be first in the list.
 	 */
 	if (preferred_console < 0) {
-		if (!console_drivers || !console_drivers->device ||
-		    console_drivers->flags & CON_BOOT) {
+		if (hlist_empty(&console_list) || !console_first()->device ||
+		    console_first()->flags & CON_BOOT) {
 			try_enable_default_console(newcon);
 		}
 	}
@@ -3169,20 +3180,22 @@ void register_console(struct console *newcon)
 	}
 
 	/*
-	 *	Put this console in the list - keep the
-	 *	preferred driver at the head of the list.
+	 * Put this console in the list - keep the
+	 * preferred driver at the head of the list.
 	 */
 	console_lock();
-	if ((newcon->flags & CON_CONSDEV) || console_drivers == NULL) {
-		newcon->next = console_drivers;
-		console_drivers = newcon;
-		if (newcon->next)
-			newcon->next->flags &= ~CON_CONSDEV;
-		/* Ensure this flag is always set for the head of the list */
+	if (hlist_empty(&console_list)) {
+		/* Ensure CON_CONSDEV is always set for the head. */
 		newcon->flags |= CON_CONSDEV;
+		hlist_add_head(&newcon->node, &console_list);
+
+	} else if (newcon->flags & CON_CONSDEV) {
+		/* Only the new head can have CON_CONSDEV set. */
+		console_first()->flags &= ~CON_CONSDEV;
+		hlist_add_head(&newcon->node, &console_list);
+
 	} else {
-		newcon->next = console_drivers->next;
-		console_drivers->next = newcon;
+		hlist_add_behind(&newcon->node, console_list.first);
 	}
 
 	newcon->dropped = 0;
@@ -3209,16 +3222,18 @@ void register_console(struct console *newcon)
 	if (bootcon_enabled &&
 	    ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV) &&
 	    !keep_bootcon) {
-		for_each_console(con)
+		struct hlist_node *tmp;
+
+		hlist_for_each_entry_safe(con, tmp, &console_list, node) {
 			if (con->flags & CON_BOOT)
 				unregister_console(con);
+		}
 	}
 }
 EXPORT_SYMBOL(register_console);
 
 int unregister_console(struct console *console)
 {
-	struct console *con;
 	int res;
 
 	con_printk(KERN_INFO, console, "disabled\n");
@@ -3229,43 +3244,35 @@ int unregister_console(struct console *console)
 	if (res > 0)
 		return 0;
 
-	res = -ENODEV;
 	console_lock();
-	if (console_drivers == console) {
-		console_drivers=console->next;
-		res = 0;
-	} else {
-		for_each_console(con) {
-			if (con->next == console) {
-				con->next = console->next;
-				res = 0;
-				break;
-			}
-		}
+
+	/* Disable it unconditionally */
+	console->flags &= ~CON_ENABLED;
+
+	if (hlist_unhashed(&console->node)) {
+		console_unlock();
+		return -ENODEV;
 	}
 
-	if (res)
-		goto out_disable_unlock;
+	hlist_del_init(&console->node);
 
 	/*
+	 * <HISTORICAL>
 	 * If this isn't the last console and it has CON_CONSDEV set, we
 	 * need to set it on the next preferred console.
+	 * </HISTORICAL>
+	 *
+	 * The above makes no sense as there is no guarantee that the next
+	 * console has any device attached. Oh well....
 	 */
-	if (console_drivers != NULL && console->flags & CON_CONSDEV)
-		console_drivers->flags |= CON_CONSDEV;
+	if (!hlist_empty(&console_list) && console->flags & CON_CONSDEV)
+		console_first()->flags |= CON_CONSDEV;
 
-	console->flags &= ~CON_ENABLED;
 	console_unlock();
 	console_sysfs_notify();
 
 	if (console->exit)
 		res = console->exit(console);
-
-	return res;
-
-out_disable_unlock:
-	console->flags &= ~CON_ENABLED;
-	console_unlock();
 
 	return res;
 }
@@ -3317,10 +3324,11 @@ void __init console_init(void)
  */
 static int __init printk_late_init(void)
 {
+	struct hlist_node *tmp;
 	struct console *con;
 	int ret;
 
-	for_each_console(con) {
+	hlist_for_each_entry_safe(con, tmp, &console_list, node) {
 		if (!(con->flags & CON_BOOT))
 			continue;
 
@@ -3340,6 +3348,7 @@ static int __init printk_late_init(void)
 			unregister_console(con);
 		}
 	}
+
 	ret = cpuhp_setup_state_nocalls(CPUHP_PRINTK_DEAD, "printk:dead", NULL,
 					console_cpu_notify);
 	WARN_ON(ret < 0);
