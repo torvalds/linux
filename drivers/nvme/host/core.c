@@ -5215,6 +5215,8 @@ EXPORT_SYMBOL_GPL(nvme_start_freeze);
 
 void nvme_quiesce_io_queues(struct nvme_ctrl *ctrl)
 {
+	if (!ctrl->tagset)
+		return;
 	if (!test_and_set_bit(NVME_CTRL_STOPPED, &ctrl->flags))
 		blk_mq_quiesce_tagset(ctrl->tagset);
 	else
@@ -5224,6 +5226,8 @@ EXPORT_SYMBOL_GPL(nvme_quiesce_io_queues);
 
 void nvme_unquiesce_io_queues(struct nvme_ctrl *ctrl)
 {
+	if (!ctrl->tagset)
+		return;
 	if (test_and_clear_bit(NVME_CTRL_STOPPED, &ctrl->flags))
 		blk_mq_unquiesce_tagset(ctrl->tagset);
 }
