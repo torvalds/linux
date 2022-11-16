@@ -86,6 +86,11 @@ struct rpmh_ctrlr {
 	struct list_head batch_cache;
 };
 
+struct rsc_ver {
+	u32 major;
+	u32 minor;
+};
+
 /**
  * struct rsc_drv: the Direct Resource Voter (DRV) of the
  * Resource State Coordinator controller (RSC)
@@ -129,6 +134,8 @@ struct rsc_drv {
 	wait_queue_head_t tcs_wait;
 	struct rpmh_ctrlr client;
 	struct device *dev;
+	struct rsc_ver ver;
+	u32 *regs;
 };
 
 int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg);
