@@ -64,3 +64,6 @@ struct drm_device *drm_kunit_device_init(struct kunit *test, u32 features, char 
 
 	return drm;
 }
+
+MODULE_AUTHOR("Maxime Ripard <maxime@cerno.tech>");
+MODULE_LICENSE("GPL");
