@@ -47,22 +47,39 @@ static inline enum zonefs_ztype zonefs_zone_type(struct blk_zone *zone)
 #define ZONEFS_ZONE_CNV		(1U << 31)
 
 /*
+ * In-memory per-file inode zone data.
+ */
+struct zonefs_zone {
+	/* Zone state flags */
+	unsigned int		z_flags;
+
+	/* Zone start sector (512B unit) */
+	sector_t		z_sector;
+
+	/* Zone size (bytes) */
+	loff_t			z_size;
+
+	/* Zone capacity (file maximum size, bytes) */
+	loff_t			z_capacity;
+
+	/* Write pointer offset in the zone (sequential zones only, bytes) */
+	loff_t			z_wpoffset;
+};
+
+/*
+ * In memory zone group information: all zones of a group are exposed
+ * as files, one file per zone.
+ */
+struct zonefs_zone_group {
+	unsigned int		g_nr_zones;
+	struct zonefs_zone	*g_zones;
+};
+
+/*
  * In-memory inode data.
  */
 struct zonefs_inode_info {
 	struct inode		i_vnode;
-
-	/* File zone start sector (512B unit) */
-	sector_t		i_zsector;
-
-	/* File zone write pointer position (sequential zones only) */
-	loff_t			i_wpoffset;
-
-	/* File maximum size */
-	loff_t			i_max_size;
-
-	/* File zone size */
-	loff_t			i_zone_size;
 
 	/*
 	 * To serialise fully against both syscall and mmap based IO and
@@ -81,7 +98,6 @@ struct zonefs_inode_info {
 
 	/* guarded by i_truncate_mutex */
 	unsigned int		i_wr_refcnt;
-	unsigned int		i_flags;
 };
 
 static inline struct zonefs_inode_info *ZONEFS_I(struct inode *inode)
@@ -89,24 +105,29 @@ static inline struct zonefs_inode_info *ZONEFS_I(struct inode *inode)
 	return container_of(inode, struct zonefs_inode_info, i_vnode);
 }
 
-static inline bool zonefs_zone_is_cnv(struct zonefs_inode_info *zi)
+static inline bool zonefs_zone_is_cnv(struct zonefs_zone *z)
 {
-	return zi->i_flags & ZONEFS_ZONE_CNV;
+	return z->z_flags & ZONEFS_ZONE_CNV;
 }
 
-static inline bool zonefs_zone_is_seq(struct zonefs_inode_info *zi)
+static inline bool zonefs_zone_is_seq(struct zonefs_zone *z)
 {
-	return !zonefs_zone_is_cnv(zi);
+	return !zonefs_zone_is_cnv(z);
+}
+
+static inline struct zonefs_zone *zonefs_inode_zone(struct inode *inode)
+{
+	return inode->i_private;
 }
 
 static inline bool zonefs_inode_is_cnv(struct inode *inode)
 {
-	return zonefs_zone_is_cnv(ZONEFS_I(inode));
+	return zonefs_zone_is_cnv(zonefs_inode_zone(inode));
 }
 
 static inline bool zonefs_inode_is_seq(struct inode *inode)
 {
-	return zonefs_zone_is_seq(ZONEFS_I(inode));
+	return zonefs_zone_is_seq(zonefs_inode_zone(inode));
 }
 
 /*
@@ -200,7 +221,7 @@ struct zonefs_sb_info {
 	uuid_t			s_uuid;
 	unsigned int		s_zone_sectors_shift;
 
-	unsigned int		s_nr_files[ZONEFS_ZTYPE_MAX];
+	struct zonefs_zone_group s_zgroup[ZONEFS_ZTYPE_MAX];
 
 	loff_t			s_blocks;
 	loff_t			s_used_blocks;
@@ -229,8 +250,8 @@ static inline struct zonefs_sb_info *ZONEFS_SB(struct super_block *sb)
 	pr_warn("zonefs (%s) WARNING: " format, sb->s_id, ## args)
 
 /* In super.c */
-void zonefs_account_active(struct inode *inode);
-int zonefs_zone_mgmt(struct inode *inode, enum req_op op);
+void zonefs_inode_account_active(struct inode *inode);
+int zonefs_inode_zone_mgmt(struct inode *inode, enum req_op op);
 void zonefs_i_size_write(struct inode *inode, loff_t isize);
 void zonefs_update_stats(struct inode *inode, loff_t new_isize);
 void __zonefs_io_error(struct inode *inode, bool write);
