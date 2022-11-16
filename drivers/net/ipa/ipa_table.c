@@ -382,6 +382,7 @@ static void ipa_table_init_add(struct gsi_trans *trans, bool filter, bool ipv6)
 	const struct ipa_mem *mem;
 	dma_addr_t hash_addr;
 	dma_addr_t addr;
+	u32 hash_offset;
 	u32 zero_offset;
 	u16 hash_count;
 	u32 zero_size;
@@ -394,8 +395,10 @@ static void ipa_table_init_add(struct gsi_trans *trans, bool filter, bool ipv6)
 			: ipv6 ? IPA_CMD_IP_V6_ROUTING_INIT
 			       : IPA_CMD_IP_V4_ROUTING_INIT;
 
+	/* The non-hashed region will exist (see ipa_table_mem_valid()) */
 	mem = ipa_table_mem(ipa, filter, false, ipv6);
 	hash_mem = ipa_table_mem(ipa, filter, true, ipv6);
+	hash_offset = hash_mem ? hash_mem->offset : 0;
 
 	/* Compute the number of table entries to initialize */
 	if (filter) {
@@ -411,7 +414,7 @@ static void ipa_table_init_add(struct gsi_trans *trans, bool filter, bool ipv6)
 		 * of entries it has.
 		 */
 		count = mem->size / sizeof(__le64);
-		hash_count = hash_mem && hash_mem->size / sizeof(__le64);
+		hash_count = hash_mem ? hash_mem->size / sizeof(__le64) : 0;
 	}
 	size = count * sizeof(__le64);
 	hash_size = hash_count * sizeof(__le64);
@@ -420,7 +423,7 @@ static void ipa_table_init_add(struct gsi_trans *trans, bool filter, bool ipv6)
 	hash_addr = ipa_table_addr(ipa, filter, hash_count);
 
 	ipa_cmd_table_init_add(trans, opcode, size, mem->offset, addr,
-			       hash_size, hash_mem->offset, hash_addr);
+			       hash_size, hash_offset, hash_addr);
 	if (!filter)
 		return;
 
@@ -433,7 +436,7 @@ static void ipa_table_init_add(struct gsi_trans *trans, bool filter, bool ipv6)
 		return;
 
 	/* Zero the unused space in the hashed filter table */
-	zero_offset = hash_mem->offset + hash_size;
+	zero_offset = hash_offset + hash_size;
 	zero_size = hash_mem->size - hash_size;
 	ipa_cmd_dma_shared_mem_add(trans, zero_offset, zero_size,
 				   ipa->zero_addr, true);
