@@ -61,6 +61,9 @@ void tlb_flush_rmaps(struct mmu_gather *tlb, struct vm_area_struct *vma)
 {
 	struct mmu_gather_batch *batch;
 
+	if (!tlb->delayed_rmap)
+		return;
+
 	batch = tlb->active;
 	for (int i = 0; i < batch->nr; i++) {
 		struct encoded_page *enc = batch->encoded_pages[i];

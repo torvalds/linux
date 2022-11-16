@@ -1465,8 +1465,7 @@ again:
 	/* Do the actual TLB flush before dropping ptl */
 	if (force_flush) {
 		tlb_flush_mmu_tlbonly(tlb);
-		if (tlb->delayed_rmap)
-			tlb_flush_rmaps(tlb, vma);
+		tlb_flush_rmaps(tlb, vma);
 	}
 	pte_unmap_unlock(start_pte, ptl);
 
