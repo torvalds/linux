@@ -86,8 +86,8 @@ EXPORT_SYMBOL(oops_in_progress);
 static DEFINE_MUTEX(console_mutex);
 
 /*
- * console_sem protects console_list and console->flags updates, and also
- * provides serialization for access to the entire console driver system.
+ * console_sem protects updates to console->seq and console_suspended,
+ * and also provides serialization for console printing.
  */
 static DEFINE_SEMAPHORE(console_sem);
 HLIST_HEAD(console_list);
@@ -2640,10 +2640,10 @@ static int console_cpu_notify(unsigned int cpu)
 }
 
 /**
- * console_lock - lock the console system for exclusive use.
+ * console_lock - block the console subsystem from printing
  *
- * Acquires a lock which guarantees that the caller has
- * exclusive access to the console system and console_list.
+ * Acquires a lock which guarantees that no consoles will
+ * be in or enter their write() callback.
  *
  * Can sleep, returns nothing.
  */
@@ -2660,10 +2660,10 @@ void console_lock(void)
 EXPORT_SYMBOL(console_lock);
 
 /**
- * console_trylock - try to lock the console system for exclusive use.
+ * console_trylock - try to block the console subsystem from printing
  *
- * Try to acquire a lock which guarantees that the caller has exclusive
- * access to the console system and console_list.
+ * Try to acquire a lock which guarantees that no consoles will
+ * be in or enter their write() callback.
  *
  * returns 1 on success, and 0 on failure to acquire the lock.
  */
@@ -2920,10 +2920,10 @@ abandon:
 }
 
 /**
- * console_unlock - unlock the console system
+ * console_unlock - unblock the console subsystem from printing
  *
- * Releases the console_lock which the caller holds on the console system
- * and the console driver list.
+ * Releases the console_lock which the caller holds to block printing of
+ * the console subsystem.
  *
  * While the console_lock was held, console output may have been buffered
  * by printk().  If this is the case, console_unlock(); emits
@@ -3110,9 +3110,7 @@ void console_stop(struct console *console)
 {
 	__pr_flush(console, 1000, true);
 	console_list_lock();
-	console_lock();
 	console_srcu_write_flags(console, console->flags & ~CON_ENABLED);
-	console_unlock();
 	console_list_unlock();
 
 	/*
@@ -3128,9 +3126,7 @@ EXPORT_SYMBOL(console_stop);
 void console_start(struct console *console)
 {
 	console_list_lock();
-	console_lock();
 	console_srcu_write_flags(console, console->flags | CON_ENABLED);
-	console_unlock();
 	console_list_unlock();
 	__pr_flush(console, 1000, true);
 }
@@ -3248,6 +3244,12 @@ static void console_init_seq(struct console *newcon, bool bootcon_registered)
 		 */
 		if (bootcon_registered && !keep_bootcon) {
 			/*
+			 * Hold the console_lock to stop console printing and
+			 * guarantee safe access to console->seq.
+			 */
+			console_lock();
+
+			/*
 			 * Flush all consoles and set the console to start at
 			 * the next unprinted sequence number.
 			 */
@@ -3273,6 +3275,8 @@ static void console_init_seq(struct console *newcon, bool bootcon_registered)
 					}
 				}
 			}
+
+			console_unlock();
 		}
 	}
 }
@@ -3371,7 +3375,6 @@ void register_console(struct console *newcon)
 	}
 
 	newcon->dropped = 0;
-	console_lock();
 	console_init_seq(newcon, bootcon_registered);
 
 	/*
@@ -3391,7 +3394,6 @@ void register_console(struct console *newcon)
 	} else {
 		hlist_add_behind_rcu(&newcon->node, console_list.first);
 	}
-	console_unlock();
 
 	/*
 	 * No need to synchronize SRCU here! The caller does not rely
@@ -3439,15 +3441,11 @@ static int unregister_console_locked(struct console *console)
 	if (res > 0)
 		return 0;
 
-	console_lock();
-
 	/* Disable it unconditionally */
 	console_srcu_write_flags(console, console->flags & ~CON_ENABLED);
 
-	if (!console_is_registered_locked(console)) {
-		console_unlock();
+	if (!console_is_registered_locked(console))
 		return -ENODEV;
-	}
 
 	hlist_del_init_rcu(&console->node);
 
@@ -3462,8 +3460,6 @@ static int unregister_console_locked(struct console *console)
 	 */
 	if (!hlist_empty(&console_list) && console->flags & CON_CONSDEV)
 		console_srcu_write_flags(console_first(), console_first()->flags | CON_CONSDEV);
-
-	console_unlock();
 
 	/*
 	 * Ensure that all SRCU list walks have completed. All contexts
