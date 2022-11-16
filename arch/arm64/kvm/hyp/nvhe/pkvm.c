@@ -467,8 +467,8 @@ static void init_pkvm_hyp_vm(struct kvm *host_kvm, struct pkvm_hyp_vm *hyp_vm,
 		pvmfw_load_addr = READ_ONCE(host_kvm->arch.pkvm.pvmfw_load_addr);
 	hyp_vm->kvm.arch.pkvm.pvmfw_load_addr = pvmfw_load_addr;
 
-	hyp_vm->kvm.arch.mmu.last_vcpu_ran = last_ran;
-	memset(hyp_vm->kvm.arch.mmu.last_vcpu_ran, -1, pkvm_get_last_ran_size());
+	hyp_vm->kvm.arch.mmu.last_vcpu_ran = (int __percpu *)last_ran;
+	memset(last_ran, -1, pkvm_get_last_ran_size());
 }
 
 static int init_pkvm_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu,
@@ -669,7 +669,7 @@ int __pkvm_init_vm(struct kvm *host_kvm, unsigned long vm_hva,
 		   unsigned long pgd_hva, unsigned long last_ran_hva)
 {
 	struct pkvm_hyp_vm *hyp_vm = NULL;
-	void *last_ran = NULL;
+	int *last_ran = NULL;
 	size_t vm_size, pgd_size, last_ran_size;
 	unsigned int nr_vcpus;
 	void *pgd = NULL;
@@ -799,6 +799,7 @@ teardown_donated_memory(struct kvm_hyp_memcache *mc, void *addr, size_t size)
 int __pkvm_teardown_vm(pkvm_handle_t handle)
 {
 	size_t vm_size, last_ran_size;
+	int __percpu *last_vcpu_ran;
 	struct kvm_hyp_memcache *mc;
 	struct pkvm_hyp_vm *hyp_vm;
 	unsigned int idx;
@@ -844,8 +845,9 @@ int __pkvm_teardown_vm(pkvm_handle_t handle)
 		teardown_donated_memory(mc, hyp_vcpu, sizeof(*hyp_vcpu));
 	}
 
+	last_vcpu_ran = hyp_vm->kvm.arch.mmu.last_vcpu_ran;
 	last_ran_size = pkvm_get_last_ran_size();
-	teardown_donated_memory(mc, hyp_vm->kvm.arch.mmu.last_vcpu_ran,
+	teardown_donated_memory(mc, (__force void *)last_vcpu_ran,
 				last_ran_size);
 
 	vm_size = pkvm_get_hyp_vm_size(hyp_vm->kvm.created_vcpus);

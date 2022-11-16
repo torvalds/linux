@@ -694,6 +694,7 @@ static void handle___pkvm_vcpu_load(struct kvm_cpu_context *host_ctxt)
 	DECLARE_REG(unsigned int, vcpu_idx, host_ctxt, 2);
 	DECLARE_REG(u64, hcr_el2, host_ctxt, 3);
 	struct pkvm_hyp_vcpu *hyp_vcpu;
+	int __percpu *last_vcpu_ran;
 	int *last_ran;
 
 	if (!is_protected_kvm_enabled())
@@ -708,7 +709,8 @@ static void handle___pkvm_vcpu_load(struct kvm_cpu_context *host_ctxt)
 	 * vcpu from the same VM has previously run on the same physical CPU,
 	 * nuke the relevant contexts.
 	 */
-	last_ran = &hyp_vcpu->vcpu.arch.hw_mmu->last_vcpu_ran[hyp_smp_processor_id()];
+	last_vcpu_ran = hyp_vcpu->vcpu.arch.hw_mmu->last_vcpu_ran;
+	last_ran = (__force int *) &last_vcpu_ran[hyp_smp_processor_id()];
 	if (*last_ran != hyp_vcpu->vcpu.vcpu_id) {
 		__kvm_flush_cpu_context(hyp_vcpu->vcpu.arch.hw_mmu);
 		*last_ran = hyp_vcpu->vcpu.vcpu_id;
