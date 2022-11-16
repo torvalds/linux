@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
@@ -28,6 +29,8 @@
 
 #define MSG2138_MAX_FINGERS		2
 #define MSG2638_MAX_FINGERS		5
+
+#define MAX_BUTTONS			4
 
 #define CHIP_ON_DELAY_MS		15
 #define FIRMWARE_ON_DELAY_MS		50
@@ -72,6 +75,8 @@ struct msg2638_ts_data {
 	struct regulator_bulk_data supplies[2];
 	struct gpio_desc *reset_gpiod;
 	int max_fingers;
+	u32 keycodes[MAX_BUTTONS];
+	int num_keycodes;
 };
 
 static u8 msg2638_checksum(u8 *data, u32 length)
@@ -83,6 +88,19 @@ static u8 msg2638_checksum(u8 *data, u32 length)
 		sum += data[i];
 
 	return (u8)((-sum) & 0xFF);
+}
+
+static void msg2138_report_keys(struct msg2638_ts_data *msg2638, u8 keys)
+{
+	int i;
+
+	/* keys can be 0x00 or 0xff when all keys have been released */
+	if (keys == 0xff)
+		keys = 0;
+
+	for (i = 0; i < msg2638->num_keycodes; ++i)
+		input_report_key(msg2638->input_dev, msg2638->keycodes[i],
+				 keys & BIT(i));
 }
 
 static irqreturn_t msg2138_ts_irq_handler(int irq, void *msg2638_handler)
@@ -121,9 +139,12 @@ static irqreturn_t msg2138_ts_irq_handler(int irq, void *msg2638_handler)
 	p0 = &touch_event.pkt[0];
 	p1 = &touch_event.pkt[1];
 
-	/* Ignore non-pressed finger data */
-	if (p0->xy_hi == 0xFF && p0->x_low == 0xFF && p0->y_low == 0xFF)
+	/* Ignore non-pressed finger data, but check for key code */
+	if (p0->xy_hi == 0xFF && p0->x_low == 0xFF && p0->y_low == 0xFF) {
+		if (p1->xy_hi == 0xFF && p1->y_low == 0xFF)
+			msg2138_report_keys(msg2638, p1->x_low);
 		goto report;
+	}
 
 	x = ((p0->xy_hi & 0xF0) << 4) | p0->x_low;
 	y = ((p0->xy_hi & 0x0F) << 8) | p0->y_low;
@@ -283,6 +304,7 @@ static int msg2638_init_input_dev(struct msg2638_ts_data *msg2638)
 	struct device *dev = &msg2638->client->dev;
 	struct input_dev *input_dev;
 	int error;
+	int i;
 
 	input_dev = devm_input_allocate_device(dev);
 	if (!input_dev) {
@@ -298,6 +320,15 @@ static int msg2638_init_input_dev(struct msg2638_ts_data *msg2638)
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->open = msg2638_input_open;
 	input_dev->close = msg2638_input_close;
+
+	if (msg2638->num_keycodes) {
+		input_dev->keycode = msg2638->keycodes;
+		input_dev->keycodemax = msg2638->num_keycodes;
+		input_dev->keycodesize = sizeof(msg2638->keycodes[0]);
+		for (i = 0; i < msg2638->num_keycodes; i++)
+			input_set_capability(input_dev,
+					     EV_KEY, msg2638->keycodes[i]);
+	}
 
 	input_set_capability(input_dev, EV_ABS, ABS_MT_POSITION_X);
 	input_set_capability(input_dev, EV_ABS, ABS_MT_POSITION_Y);
@@ -367,9 +398,26 @@ static int msg2638_ts_probe(struct i2c_client *client)
 		return error;
 	}
 
-	error = msg2638_init_input_dev(msg2638);
+	msg2638->num_keycodes = device_property_count_u32(dev,
+							  "linux,keycodes");
+	if (msg2638->num_keycodes == -EINVAL) {
+		msg2638->num_keycodes = 0;
+	} else if (msg2638->num_keycodes < 0) {
+		dev_err(dev, "Unable to parse linux,keycodes property: %d\n",
+			msg2638->num_keycodes);
+		return msg2638->num_keycodes;
+	} else if (msg2638->num_keycodes > ARRAY_SIZE(msg2638->keycodes)) {
+		dev_warn(dev, "Found %d linux,keycodes but max is %zd, ignoring the rest\n",
+			 msg2638->num_keycodes, ARRAY_SIZE(msg2638->keycodes));
+		msg2638->num_keycodes = ARRAY_SIZE(msg2638->keycodes);
+	}
+
+	error = device_property_read_u32_array(dev, "linux,keycodes",
+					       msg2638->keycodes,
+					       msg2638->num_keycodes);
 	if (error) {
-		dev_err(dev, "Failed to initialize input device: %d\n", error);
+		dev_err(dev, "Unable to read linux,keycodes values: %d\n",
+			error);
 		return error;
 	}
 
@@ -379,6 +427,12 @@ static int msg2638_ts_probe(struct i2c_client *client)
 					  client->name, msg2638);
 	if (error) {
 		dev_err(dev, "Failed to request IRQ: %d\n", error);
+		return error;
+	}
+
+	error = msg2638_init_input_dev(msg2638);
+	if (error) {
+		dev_err(dev, "Failed to initialize input device: %d\n", error);
 		return error;
 	}
 
