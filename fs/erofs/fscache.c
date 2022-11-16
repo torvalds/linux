@@ -75,10 +75,14 @@ static void erofs_fscache_rreq_unlock_folios(struct netfs_io_request *rreq)
 
 	rcu_read_lock();
 	xas_for_each(&xas, folio, last_page) {
-		unsigned int pgpos =
-			(folio_index(folio) - start_page) * PAGE_SIZE;
-		unsigned int pgend = pgpos + folio_size(folio);
+		unsigned int pgpos, pgend;
 		bool pg_failed = false;
+
+		if (xas_retry(&xas, folio))
+			continue;
+
+		pgpos = (folio_index(folio) - start_page) * PAGE_SIZE;
+		pgend = pgpos + folio_size(folio);
 
 		for (;;) {
 			if (!subreq) {
@@ -287,21 +291,24 @@ static int erofs_fscache_data_read(struct address_space *mapping,
 			return PTR_ERR(src);
 
 		iov_iter_xarray(&iter, READ, &mapping->i_pages, pos, PAGE_SIZE);
-		if (copy_to_iter(src + offset, size, &iter) != size)
+		if (copy_to_iter(src + offset, size, &iter) != size) {
+			erofs_put_metabuf(&buf);
 			return -EFAULT;
+		}
 		iov_iter_zero(PAGE_SIZE - size, &iter);
 		erofs_put_metabuf(&buf);
 		return PAGE_SIZE;
 	}
 
-	count = min_t(size_t, map.m_llen - (pos - map.m_la), len);
-	DBG_BUGON(!count || count % PAGE_SIZE);
-
 	if (!(map.m_flags & EROFS_MAP_MAPPED)) {
+		count = len;
 		iov_iter_xarray(&iter, READ, &mapping->i_pages, pos, count);
 		iov_iter_zero(count, &iter);
 		return count;
 	}
+
+	count = min_t(size_t, map.m_llen - (pos - map.m_la), len);
+	DBG_BUGON(!count || count % PAGE_SIZE);
 
 	mdev = (struct erofs_map_dev) {
 		.m_deviceid = map.m_deviceid,
@@ -403,13 +410,13 @@ static void erofs_fscache_domain_put(struct erofs_domain *domain)
 static int erofs_fscache_register_volume(struct super_block *sb)
 {
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
-	char *domain_id = sbi->opt.domain_id;
+	char *domain_id = sbi->domain_id;
 	struct fscache_volume *volume;
 	char *name;
 	int ret = 0;
 
 	name = kasprintf(GFP_KERNEL, "erofs,%s",
-			 domain_id ? domain_id : sbi->opt.fsid);
+			 domain_id ? domain_id : sbi->fsid);
 	if (!name)
 		return -ENOMEM;
 
@@ -435,7 +442,7 @@ static int erofs_fscache_init_domain(struct super_block *sb)
 	if (!domain)
 		return -ENOMEM;
 
-	domain->domain_id = kstrdup(sbi->opt.domain_id, GFP_KERNEL);
+	domain->domain_id = kstrdup(sbi->domain_id, GFP_KERNEL);
 	if (!domain->domain_id) {
 		kfree(domain);
 		return -ENOMEM;
@@ -472,7 +479,7 @@ static int erofs_fscache_register_domain(struct super_block *sb)
 
 	mutex_lock(&erofs_domain_list_lock);
 	list_for_each_entry(domain, &erofs_domain_list, list) {
-		if (!strcmp(domain->domain_id, sbi->opt.domain_id)) {
+		if (!strcmp(domain->domain_id, sbi->domain_id)) {
 			sbi->domain = domain;
 			sbi->volume = domain->volume;
 			refcount_inc(&domain->ref);
@@ -609,7 +616,7 @@ struct erofs_fscache *erofs_domain_register_cookie(struct super_block *sb,
 struct erofs_fscache *erofs_fscache_register_cookie(struct super_block *sb,
 						    char *name, bool need_inode)
 {
-	if (EROFS_SB(sb)->opt.domain_id)
+	if (EROFS_SB(sb)->domain_id)
 		return erofs_domain_register_cookie(sb, name, need_inode);
 	return erofs_fscache_acquire_cookie(sb, name, need_inode);
 }
@@ -641,7 +648,7 @@ int erofs_fscache_register_fs(struct super_block *sb)
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
 	struct erofs_fscache *fscache;
 
-	if (sbi->opt.domain_id)
+	if (sbi->domain_id)
 		ret = erofs_fscache_register_domain(sb);
 	else
 		ret = erofs_fscache_register_volume(sb);
@@ -649,7 +656,7 @@ int erofs_fscache_register_fs(struct super_block *sb)
 		return ret;
 
 	/* acquired domain/volume will be relinquished in kill_sb() on error */
-	fscache = erofs_fscache_register_cookie(sb, sbi->opt.fsid, true);
+	fscache = erofs_fscache_register_cookie(sb, sbi->fsid, true);
 	if (IS_ERR(fscache))
 		return PTR_ERR(fscache);
 
