@@ -25,6 +25,7 @@
 #define MTK_MAX_DSA_PORTS	7
 #define MTK_DSA_PORT_MASK	GENMASK(2, 0)
 
+#define MTK_QDMA_NUM_QUEUES	16
 #define MTK_QDMA_PAGE_SIZE	2048
 #define MTK_MAX_RX_LENGTH	1536
 #define MTK_MAX_RX_LENGTH_2K	2048
@@ -210,7 +211,25 @@
 #define MTK_RING_MAX_AGG_CNT_H		((MTK_HW_LRO_MAX_AGG_CNT >> 6) & 0x3)
 
 /* QDMA TX Queue Configuration Registers */
+#define MTK_QTX_OFFSET		0x10
 #define QDMA_RES_THRES		4
+
+/* QDMA Tx Queue Scheduler Configuration Registers */
+#define MTK_QTX_SCH_TX_SEL		BIT(31)
+#define MTK_QTX_SCH_TX_SEL_V2		GENMASK(31, 30)
+
+#define MTK_QTX_SCH_LEAKY_BUCKET_EN	BIT(30)
+#define MTK_QTX_SCH_LEAKY_BUCKET_SIZE	GENMASK(29, 28)
+#define MTK_QTX_SCH_MIN_RATE_EN		BIT(27)
+#define MTK_QTX_SCH_MIN_RATE_MAN	GENMASK(26, 20)
+#define MTK_QTX_SCH_MIN_RATE_EXP	GENMASK(19, 16)
+#define MTK_QTX_SCH_MAX_RATE_WEIGHT	GENMASK(15, 12)
+#define MTK_QTX_SCH_MAX_RATE_EN		BIT(11)
+#define MTK_QTX_SCH_MAX_RATE_MAN	GENMASK(10, 4)
+#define MTK_QTX_SCH_MAX_RATE_EXP	GENMASK(3, 0)
+
+/* QDMA TX Scheduler Rate Control Register */
+#define MTK_QDMA_TX_SCH_MAX_WFQ		BIT(15)
 
 /* QDMA Global Configuration Register */
 #define MTK_RX_2B_OFFSET	BIT(31)
@@ -230,6 +249,7 @@
 #define MTK_WCOMP_EN		BIT(24)
 #define MTK_RESV_BUF		(0x40 << 16)
 #define MTK_MUTLI_CNT		(0x4 << 12)
+#define MTK_LEAKY_BUCKET_EN	BIT(11)
 
 /* QDMA Flow Control Register */
 #define FC_THRES_DROP_MODE	BIT(20)
@@ -258,8 +278,6 @@
 #define MTK_STAT_OFFSET		0x40
 
 /* QDMA TX NUM */
-#define MTK_QDMA_TX_NUM		16
-#define MTK_QDMA_TX_MASK	(MTK_QDMA_TX_NUM - 1)
 #define QID_BITS_V2(x)		(((x) & 0x3f) << 16)
 #define MTK_QDMA_GMAC2_QID	8
 
@@ -289,6 +307,7 @@
 #define TX_DMA_PLEN0(x)		(((x) & eth->soc->txrx.dma_max_len) << eth->soc->txrx.dma_len_offset)
 #define TX_DMA_PLEN1(x)		((x) & eth->soc->txrx.dma_max_len)
 #define TX_DMA_SWC		BIT(14)
+#define TX_DMA_PQID		GENMASK(3, 0)
 
 /* PDMA on MT7628 */
 #define TX_DMA_DONE		BIT(31)
@@ -947,6 +966,7 @@ struct mtk_reg_map {
 	} pdma;
 	struct {
 		u32	qtx_cfg;	/* tx queue configuration */
+		u32	qtx_sch;	/* tx queue scheduler configuration */
 		u32	rx_ptr;		/* rx base pointer */
 		u32	rx_cnt_cfg;	/* rx max count configuration */
 		u32	qcrx_ptr;	/* rx cpu pointer */
@@ -964,6 +984,7 @@ struct mtk_reg_map {
 		u32	fq_tail;	/* fq tail pointer */
 		u32	fq_count;	/* fq free page count */
 		u32	fq_blen;	/* fq free page buffer length */
+		u32	tx_sch_rate;	/* tx scheduler rate control registers */
 	} qdma;
 	u32	gdm1_cnt;
 	u32	gdma_to_ppe;
@@ -1157,6 +1178,7 @@ struct mtk_mac {
 	__be32				hwlro_ip[MTK_MAX_LRO_IP_CNT];
 	int				hwlro_ip_cnt;
 	unsigned int			syscfg0;
+	struct notifier_block		device_notifier;
 };
 
 /* the struct describing the SoC. these are declared in the soc_xyz.c files */
