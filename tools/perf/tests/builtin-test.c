@@ -122,6 +122,7 @@ static struct test_workload *workloads[] = {
 	&workload__noploop,
 	&workload__thloop,
 	&workload__leafloop,
+	&workload__sqrtloop,
 };
 
 static int num_subtests(const struct test_suite *t)
