@@ -2483,17 +2483,7 @@
 				function = "dmic1_clk";
 			};
 
-			lpass_dmic01_clk_sleep: dmic01-clk-sleep-state {
-				pins = "gpio6";
-				function = "dmic1_clk";
-			};
-
 			lpass_dmic01_data: dmic01-data-state {
-				pins = "gpio7";
-				function = "dmic1_data";
-			};
-
-			lpass_dmic01_data_sleep: dmic01-data-sleep-state {
 				pins = "gpio7";
 				function = "dmic1_data";
 			};
@@ -2503,17 +2493,7 @@
 				function = "dmic2_clk";
 			};
 
-			lpass_dmic23_clk_sleep: dmic23-clk-sleep-state {
-				pins = "gpio8";
-				function = "dmic2_clk";
-			};
-
 			lpass_dmic23_data: dmic23-data-state {
-				pins = "gpio9";
-				function = "dmic2_data";
-			};
-
-			lpass_dmic23_data_sleep: dmic23-data-sleep-state {
 				pins = "gpio9";
 				function = "dmic2_data";
 			};
@@ -2523,17 +2503,7 @@
 				function = "swr_rx_clk";
 			};
 
-			lpass_rx_swr_clk_sleep: rx-swr-clk-sleep-state {
-				pins = "gpio3";
-				function = "swr_rx_clk";
-			};
-
 			lpass_rx_swr_data: rx-swr-data-state {
-				pins = "gpio4", "gpio5";
-				function = "swr_rx_data";
-			};
-
-			lpass_rx_swr_data_sleep: rx-swr-data-sleep-state {
 				pins = "gpio4", "gpio5";
 				function = "swr_rx_data";
 			};
@@ -2543,17 +2513,7 @@
 				function = "swr_tx_clk";
 			};
 
-			lpass_tx_swr_clk_sleep: tx-swr-clk-sleep-state {
-				pins = "gpio0";
-				function = "swr_tx_clk";
-			};
-
 			lpass_tx_swr_data: tx-swr-data-state {
-				pins = "gpio1", "gpio2", "gpio14";
-				function = "swr_tx_data";
-			};
-
-			lpass_tx_swr_data_sleep: tx-swr-data-sleep-state {
 				pins = "gpio1", "gpio2", "gpio14";
 				function = "swr_tx_data";
 			};

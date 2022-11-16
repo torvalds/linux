@@ -148,10 +148,6 @@ hp_i2c: &i2c2 {
 	bias-disable;
 };
 
-&lpass_dmic01_clk_sleep {
-	drive-strength = <2>;
-};
-
 &lpass_dmic01_data {
 	bias-pull-down;
 };
@@ -159,10 +155,6 @@ hp_i2c: &i2c2 {
 &lpass_dmic23_clk {
 	drive-strength = <8>;
 	bias-disable;
-};
-
-&lpass_dmic23_clk_sleep {
-	drive-strength = <2>;
 };
 
 &lpass_dmic23_data {
