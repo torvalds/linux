@@ -13,6 +13,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/clock/at91.h>
+#include <dt-bindings/mfd/at91-usart.h>
 
 / {
 	#address-cells = <1>;
@@ -675,6 +676,7 @@
 
 			dbgu: serial@ffffee00 {
 				compatible = "atmel,at91sam9260-dbgu", "atmel,at91sam9260-usart";
+				atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 				reg = <0xffffee00 0x200>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;
 				pinctrl-names = "default";
@@ -687,6 +689,7 @@
 			usart0: serial@fff8c000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfff8c000 0x200>;
+				atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 				interrupts = <7 IRQ_TYPE_LEVEL_HIGH 5>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
@@ -700,6 +703,7 @@
 			usart1: serial@fff90000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfff90000 0x200>;
+				atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 				interrupts = <8 IRQ_TYPE_LEVEL_HIGH 5>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
@@ -713,6 +717,7 @@
 			usart2: serial@fff94000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfff94000 0x200>;
+				atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 				interrupts = <9 IRQ_TYPE_LEVEL_HIGH 5>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
@@ -726,6 +731,7 @@
 			usart3: serial@fff98000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfff98000 0x200>;
+				atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
 				interrupts = <10 IRQ_TYPE_LEVEL_HIGH 5>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;

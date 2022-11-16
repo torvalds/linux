@@ -31,7 +31,7 @@ MODULE_PARM_DESC(passthrough,
 	"   frontend (for example, a device at 06:01.b will still appear at\n"\
 	"   06:01.b to the frontend). This is similar to how Xen 2.0.x\n"\
 	"   exposed PCI devices to its driver domains. This may be required\n"\
-	"   for drivers which depend on finding their hardward in certain\n"\
+	"   for drivers which depend on finding their hardware in certain\n"\
 	"   bus/slot locations.");
 
 static struct xen_pcibk_device *alloc_pdev(struct xenbus_device *xdev)

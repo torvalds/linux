@@ -208,7 +208,7 @@ static inline int hyperv_sendpacket(struct hv_device *hdev, struct synthvid_msg 
 			       VM_PKT_DATA_INBAND, 0);
 
 	if (ret)
-		drm_err(&hv->dev, "Unable to send packet via vmbus\n");
+		drm_err_ratelimited(&hv->dev, "Unable to send packet via vmbus; error %d\n", ret);
 
 	return ret;
 }

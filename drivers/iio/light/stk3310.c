@@ -649,14 +649,12 @@ err_standby:
 	return ret;
 }
 
-static int stk3310_remove(struct i2c_client *client)
+static void stk3310_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
 	iio_device_unregister(indio_dev);
 	stk3310_set_state(iio_priv(indio_dev), STK3310_STATE_STANDBY);
-
-	return 0;
 }
 
 static int stk3310_suspend(struct device *dev)

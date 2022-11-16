@@ -1137,6 +1137,9 @@ int ef100_probe_netdev_pf(struct efx_nic *efx)
 		 */
 		netif_warn(efx, probe, net_dev, "Failed to probe MAE rc %d\n",
 			   rc);
+	} else {
+		net_dev->features |= NETIF_F_HW_TC;
+		efx->fixed_features |= NETIF_F_HW_TC;
 	}
 #endif
 	return 0;

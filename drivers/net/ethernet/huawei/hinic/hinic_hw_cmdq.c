@@ -82,11 +82,6 @@
 						     struct hinic_func_to_io, \
 						     cmdqs)
 
-enum cmdq_wqe_type {
-	WQE_LCMD_TYPE = 0,
-	WQE_SCMD_TYPE = 1,
-};
-
 enum completion_format {
 	COMPLETE_DIRECT = 0,
 	COMPLETE_SGE    = 1,
@@ -509,8 +504,8 @@ int hinic_cmdq_direct_resp(struct hinic_cmdqs *cmdqs,
  *
  * Return 0 - Success, negative - Failure
  **/
-int hinic_set_arm_bit(struct hinic_cmdqs *cmdqs,
-		      enum hinic_set_arm_qtype q_type, u32 q_id)
+static int hinic_set_arm_bit(struct hinic_cmdqs *cmdqs,
+			     enum hinic_set_arm_qtype q_type, u32 q_id)
 {
 	struct hinic_cmdq *cmdq = &cmdqs->cmdq[HINIC_CMDQ_SYNC];
 	struct hinic_hwif *hwif = cmdqs->hwif;
@@ -929,7 +924,7 @@ int hinic_init_cmdqs(struct hinic_cmdqs *cmdqs, struct hinic_hwif *hwif,
 
 err_set_cmdq_depth:
 	hinic_ceq_unregister_cb(&func_to_io->ceqs, HINIC_CEQ_CMDQ);
-
+	free_cmdq(&cmdqs->cmdq[HINIC_CMDQ_SYNC]);
 err_cmdq_ctxt:
 	hinic_wqs_cmdq_free(&cmdqs->cmdq_pages, cmdqs->saved_wqs,
 			    HINIC_MAX_CMDQ_TYPES);

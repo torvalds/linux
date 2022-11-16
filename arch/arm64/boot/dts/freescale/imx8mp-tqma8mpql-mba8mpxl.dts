@@ -139,6 +139,13 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	reg_vcc_5v0: regulator-5v0 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_5V0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -447,6 +454,38 @@
 	status = "okay";
 };
 
+&usb3_0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb0>;
+	fsl,over-current-active-low;
+	status = "okay";
+};
+
+&usb3_phy0 {
+	vbus-supply = <&reg_vcc_5v0>;
+	status = "okay";
+};
+
+&usb_dwc3_0 {
+	/* dual role is implemented, but not a full featured OTG */
+	hnp-disable;
+	srp-disable;
+	adp-disable;
+	dr_mode = "otg";
+	usb-role-switch;
+	role-switch-default-mode = "peripheral";
+	status = "okay";
+
+	connector {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		type = "micro";
+		label = "X29";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbcon0>;
+		id-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+	};
+};
+
 &usdhc2 {
 	pinctrl-names = "default", "state_100mhz", "state_200mhz";
 	pinctrl-0 = <&pinctrl_usdhc2>, <&pinctrl_usdhc2_gpio>;
@@ -670,6 +709,15 @@
 	pinctrl_uart4: uart4grp {
 		fsl,pins = <MX8MP_IOMUXC_UART4_RXD__UART4_DCE_RX	0x140>,
 			   <MX8MP_IOMUXC_UART4_TXD__UART4_DCE_TX	0x140>;
+	};
+
+	pinctrl_usb0: usb0grp {
+		fsl,pins = <MX8MP_IOMUXC_GPIO1_IO13__USB1_OTG_OC	0x1c0>,
+			   <MX8MP_IOMUXC_GPIO1_IO12__USB1_OTG_PWR	0x1c0>;
+	};
+
+	pinctrl_usbcon0: usb0congrp {
+		fsl,pins = <MX8MP_IOMUXC_GPIO1_IO10__GPIO1_IO10		0x1c0>;
 	};
 
 	pinctrl_usdhc2: usdhc2grp {

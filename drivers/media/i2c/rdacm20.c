@@ -646,7 +646,7 @@ error:
 	return ret;
 }
 
-static int rdacm20_remove(struct i2c_client *client)
+static void rdacm20_remove(struct i2c_client *client)
 {
 	struct rdacm20_device *dev = i2c_to_rdacm20(client);
 
@@ -655,8 +655,6 @@ static int rdacm20_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&dev->ctrls);
 	media_entity_cleanup(&dev->sd.entity);
 	i2c_unregister_device(dev->sensor);
-
-	return 0;
 }
 
 static void rdacm20_shutdown(struct i2c_client *client)

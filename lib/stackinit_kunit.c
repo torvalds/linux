@@ -3,7 +3,7 @@
  * Test cases for compiler-based stack variable zeroing via
  * -ftrivial-auto-var-init={zero,pattern} or CONFIG_GCC_PLUGIN_STRUCTLEAK*.
  * For example, see:
- * https://www.kernel.org/doc/html/latest/dev-tools/kunit/kunit-tool.html#configuring-building-and-running-tests
+ * "Running tests with kunit_tool" at Documentation/dev-tools/kunit/start.rst
  *	./tools/testing/kunit/kunit.py run stackinit [--raw_output] \
  *		--make_option LLVM=1 \
  *		--kconfig_add CONFIG_INIT_STACK_ALL_ZERO=y

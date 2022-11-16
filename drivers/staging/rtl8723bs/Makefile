@@ -10,7 +10,6 @@ r8723bs-y = \
 		core/rtw_ieee80211.o \
 		core/rtw_mlme.o \
 		core/rtw_mlme_ext.o \
-		core/rtw_odm.o \
 		core/rtw_pwrctrl.o \
 		core/rtw_recv.o \
 		core/rtw_rf.o \
@@ -33,7 +32,6 @@ r8723bs-y = \
 		hal/odm_DynamicTxPower.o \
 		hal/odm_EdcaTurboCheck.o \
 		hal/odm_HWConfig.o \
-		hal/odm_NoiseMonitor.o \
 		hal/odm_RegConfig8723B.o \
 		hal/rtl8723b_cmd.o \
 		hal/rtl8723b_dm.o \

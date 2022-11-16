@@ -81,8 +81,9 @@ unsigned long _copy_from_user_key(void *to, const void __user *from,
 
 	might_fault();
 	if (!should_fail_usercopy()) {
-		instrument_copy_from_user(to, from, n);
+		instrument_copy_from_user_before(to, from, n);
 		res = raw_copy_from_user_key(to, from, n, key);
+		instrument_copy_from_user_after(to, from, n, res);
 	}
 	if (unlikely(res))
 		memset(to + (n - res), 0, res);
@@ -156,7 +157,7 @@ unsigned long __clear_user(void __user *to, unsigned long size)
 	asm volatile(
 		"   lr	  0,%[spec]\n"
 		"0: mvcos 0(%1),0(%4),%0\n"
-		"   jz	  4f\n"
+		"6: jz	  4f\n"
 		"1: algr  %0,%2\n"
 		"   slgr  %1,%2\n"
 		"   j	  0b\n"
@@ -166,11 +167,11 @@ unsigned long __clear_user(void __user *to, unsigned long size)
 		"   clgr  %0,%3\n"	/* copy crosses next page boundary? */
 		"   jnh	  5f\n"
 		"3: mvcos 0(%1),0(%4),%3\n"
-		"   slgr  %0,%3\n"
+		"7: slgr  %0,%3\n"
 		"   j	  5f\n"
 		"4: slgr  %0,%0\n"
 		"5:\n"
-		EX_TABLE(0b,2b) EX_TABLE(3b,5b)
+		EX_TABLE(0b,2b) EX_TABLE(6b,2b) EX_TABLE(3b,5b) EX_TABLE(7b,5b)
 		: "+a" (size), "+a" (to), "+a" (tmp1), "=a" (tmp2)
 		: "a" (empty_zero_page), [spec] "d" (spec.val)
 		: "cc", "memory", "0");

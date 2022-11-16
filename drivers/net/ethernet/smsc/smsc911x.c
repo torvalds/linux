@@ -1955,9 +1955,9 @@ static int smsc911x_set_mac_address(struct net_device *dev, void *p)
 static void smsc911x_ethtool_getdrvinfo(struct net_device *dev,
 					struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, SMSC_CHIPNAME, sizeof(info->driver));
-	strlcpy(info->version, SMSC_DRV_VERSION, sizeof(info->version));
-	strlcpy(info->bus_info, dev_name(dev->dev.parent),
+	strscpy(info->driver, SMSC_CHIPNAME, sizeof(info->driver));
+	strscpy(info->version, SMSC_DRV_VERSION, sizeof(info->version));
+	strscpy(info->bus_info, dev_name(dev->dev.parent),
 		sizeof(info->bus_info));
 }
 

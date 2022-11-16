@@ -54,3 +54,25 @@ Description:
 		this feature.
 
 		Output will be in the format: "0x%08x\n".
+
+What:		/sys/kernel/debug/<cros-ec-device>/suspend_timeout_ms
+Date:		August 2022
+KernelVersion:	6.1
+Description:
+		Some ECs have a feature where they will track transitions of
+		a hardware-controlled sleep line, such as Intel's SLP_S0 line,
+		in order to detect cases where a system failed to go into deep
+		sleep states. The suspend_timeout_ms file controls the amount of
+		time in milliseconds the EC will wait before declaring a sleep
+		timeout event and attempting to wake the system.
+
+		Supply 0 to use the default value coded into EC firmware. Supply
+		65535 (EC_HOST_SLEEP_TIMEOUT_INFINITE) to disable the EC sleep
+		failure detection mechanism. Values in between 0 and 65535
+		indicate the number of milliseconds the EC should wait after a
+		sleep transition before declaring a timeout. This includes both
+		the duration after a sleep command was received but before the
+		hardware line changed, as well as the duration between when the
+		hardware line changed and the kernel sent an EC resume command.
+
+		Output will be in the format: "%u\n".

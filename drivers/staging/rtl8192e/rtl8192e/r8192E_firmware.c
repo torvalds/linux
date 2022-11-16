@@ -77,10 +77,6 @@ static bool _rtl92e_fw_check_ready(struct net_device *dev,
 		rt_status = _rtl92e_wait_for_fw(dev, CPU_GEN_FIRM_RDY, 20);
 		if (rt_status)
 			pfirmware->status = FW_STATUS_5_READY;
-		else
-			RT_TRACE(COMP_FIRMWARE,
-				 "_rtl92e_is_fw_ready fail(%d)!\n",
-				 rt_status);
 		break;
 	default:
 		rt_status = false;
@@ -149,9 +145,6 @@ bool rtl92e_init_fw(struct net_device *dev)
 	} else if (pfirmware->status == FW_STATUS_5_READY) {
 		rst_opt = OPT_FIRMWARE_RESET;
 		starting_state = FW_INIT_STEP2_DATA;
-	} else {
-		RT_TRACE(COMP_FIRMWARE,
-			 "PlatformInitFirmware: undefined firmware state\n");
 	}
 
 	for (i = starting_state; i <= FW_INIT_STEP2_DATA; i++) {

@@ -1064,7 +1064,7 @@ static int kxcjk1013_write_event_config(struct iio_dev *indio_dev,
 
 	/*
 	 * We will expect the enable and disable to do operation in
-	 * in reverse order. This will happen here anyway as our
+	 * reverse order. This will happen here anyway as our
 	 * resume operation uses sync mode runtime pm calls, the
 	 * suspend operation will be delayed by autosuspend delay
 	 * So the disable operation will still happen in reverse of
@@ -1611,7 +1611,7 @@ err_poweroff:
 	return ret;
 }
 
-static int kxcjk1013_remove(struct i2c_client *client)
+static void kxcjk1013_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct kxcjk1013_data *data = iio_priv(indio_dev);
@@ -1630,8 +1630,6 @@ static int kxcjk1013_remove(struct i2c_client *client)
 	mutex_lock(&data->mutex);
 	kxcjk1013_set_mode(data, STANDBY);
 	mutex_unlock(&data->mutex);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

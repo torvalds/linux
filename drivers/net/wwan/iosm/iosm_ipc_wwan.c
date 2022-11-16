@@ -40,13 +40,11 @@ struct iosm_netdev_priv {
  * @ipc_imem:		Pointer to imem data-struct
  * @sub_netlist:	List of active netdevs
  * @dev:		Pointer device structure
- * @if_mutex:		Mutex used for add and remove interface id
  */
 struct iosm_wwan {
 	struct iosm_imem *ipc_imem;
 	struct iosm_netdev_priv __rcu *sub_netlist[IP_MUX_SESSION_END + 1];
 	struct device *dev;
-	struct mutex if_mutex; /* Mutex used for add and remove interface id */
 };
 
 /* Bring-up the wwan net link */
@@ -55,13 +53,10 @@ static int ipc_wwan_link_open(struct net_device *netdev)
 	struct iosm_netdev_priv *priv = wwan_netdev_drvpriv(netdev);
 	struct iosm_wwan *ipc_wwan = priv->ipc_wwan;
 	int if_id = priv->if_id;
-	int ret;
 
 	if (if_id < IP_MUX_SESSION_START ||
 	    if_id >= ARRAY_SIZE(ipc_wwan->sub_netlist))
 		return -EINVAL;
-
-	mutex_lock(&ipc_wwan->if_mutex);
 
 	/* get channel id */
 	priv->ch_id = ipc_imem_sys_wwan_open(ipc_wwan->ipc_imem, if_id);
@@ -70,8 +65,7 @@ static int ipc_wwan_link_open(struct net_device *netdev)
 		dev_err(ipc_wwan->dev,
 			"cannot connect wwan0 & id %d to the IPC mem layer",
 			if_id);
-		ret = -ENODEV;
-		goto out;
+		return -ENODEV;
 	}
 
 	/* enable tx path, DL data may follow */
@@ -80,10 +74,7 @@ static int ipc_wwan_link_open(struct net_device *netdev)
 	dev_dbg(ipc_wwan->dev, "Channel id %d allocated to if_id %d",
 		priv->ch_id, priv->if_id);
 
-	ret = 0;
-out:
-	mutex_unlock(&ipc_wwan->if_mutex);
-	return ret;
+	return 0;
 }
 
 /* Bring-down the wwan net link */
@@ -93,18 +84,16 @@ static int ipc_wwan_link_stop(struct net_device *netdev)
 
 	netif_stop_queue(netdev);
 
-	mutex_lock(&priv->ipc_wwan->if_mutex);
 	ipc_imem_sys_wwan_close(priv->ipc_wwan->ipc_imem, priv->if_id,
 				priv->ch_id);
 	priv->ch_id = -1;
-	mutex_unlock(&priv->ipc_wwan->if_mutex);
 
 	return 0;
 }
 
 /* Transmit a packet */
-static int ipc_wwan_link_transmit(struct sk_buff *skb,
-				  struct net_device *netdev)
+static netdev_tx_t ipc_wwan_link_transmit(struct sk_buff *skb,
+					  struct net_device *netdev)
 {
 	struct iosm_netdev_priv *priv = wwan_netdev_drvpriv(netdev);
 	struct iosm_wwan *ipc_wwan = priv->ipc_wwan;
@@ -168,6 +157,7 @@ static void ipc_wwan_setup(struct net_device *iosm_dev)
 	iosm_dev->max_mtu = ETH_MAX_MTU;
 
 	iosm_dev->flags = IFF_POINTOPOINT | IFF_NOARP;
+	iosm_dev->needs_free_netdev = true;
 
 	iosm_dev->netdev_ops = &ipc_inm_ops;
 }
@@ -189,26 +179,17 @@ static int ipc_wwan_newlink(void *ctxt, struct net_device *dev,
 	priv->netdev = dev;
 	priv->ipc_wwan = ipc_wwan;
 
-	mutex_lock(&ipc_wwan->if_mutex);
-	if (rcu_access_pointer(ipc_wwan->sub_netlist[if_id])) {
-		err = -EBUSY;
-		goto out_unlock;
-	}
+	if (rcu_access_pointer(ipc_wwan->sub_netlist[if_id]))
+		return -EBUSY;
 
 	err = register_netdevice(dev);
 	if (err)
-		goto out_unlock;
+		return err;
 
 	rcu_assign_pointer(ipc_wwan->sub_netlist[if_id], priv);
-	mutex_unlock(&ipc_wwan->if_mutex);
-
 	netif_device_attach(dev);
 
 	return 0;
-
-out_unlock:
-	mutex_unlock(&ipc_wwan->if_mutex);
-	return err;
 }
 
 static void ipc_wwan_dellink(void *ctxt, struct net_device *dev,
@@ -222,17 +203,12 @@ static void ipc_wwan_dellink(void *ctxt, struct net_device *dev,
 		    if_id >= ARRAY_SIZE(ipc_wwan->sub_netlist)))
 		return;
 
-	mutex_lock(&ipc_wwan->if_mutex);
-
 	if (WARN_ON(rcu_access_pointer(ipc_wwan->sub_netlist[if_id]) != priv))
-		goto unlock;
+		return;
 
 	RCU_INIT_POINTER(ipc_wwan->sub_netlist[if_id], NULL);
 	/* unregistering includes synchronize_net() */
 	unregister_netdevice_queue(dev, head);
-
-unlock:
-	mutex_unlock(&ipc_wwan->if_mutex);
 }
 
 static const struct wwan_ops iosm_wwan_ops = {
@@ -330,8 +306,6 @@ struct iosm_wwan *ipc_wwan_init(struct iosm_imem *ipc_imem, struct device *dev)
 		return NULL;
 	}
 
-	mutex_init(&ipc_wwan->if_mutex);
-
 	return ipc_wwan;
 }
 
@@ -339,8 +313,6 @@ void ipc_wwan_deinit(struct iosm_wwan *ipc_wwan)
 {
 	/* This call will remove all child netdev(s) */
 	wwan_unregister_ops(ipc_wwan->dev);
-
-	mutex_destroy(&ipc_wwan->if_mutex);
 
 	kfree(ipc_wwan);
 }

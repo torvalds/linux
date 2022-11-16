@@ -1148,7 +1148,7 @@ out_poweroff:
 	return ret;
 }
 
-static int mma9553_remove(struct i2c_client *client)
+static void mma9553_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct mma9553_data *data = iio_priv(indio_dev);
@@ -1161,8 +1161,6 @@ static int mma9553_remove(struct i2c_client *client)
 	mutex_lock(&data->mutex);
 	mma9551_set_device_state(data->client, false);
 	mutex_unlock(&data->mutex);
-
-	return 0;
 }
 
 static int mma9553_runtime_suspend(struct device *dev)

@@ -4093,333 +4093,6 @@ lpfc_static_vport_show(struct device *dev, struct device_attribute *attr,
  */
 static DEVICE_ATTR_RO(lpfc_static_vport);
 
-/**
- * lpfc_stat_data_ctrl_store - write call back for lpfc_stat_data_ctrl sysfs file
- * @dev: Pointer to class device.
- * @attr: Unused.
- * @buf: Data buffer.
- * @count: Size of the data buffer.
- *
- * This function get called when a user write to the lpfc_stat_data_ctrl
- * sysfs file. This function parse the command written to the sysfs file
- * and take appropriate action. These commands are used for controlling
- * driver statistical data collection.
- * Following are the command this function handles.
- *
- *    setbucket <bucket_type> <base> <step>
- *			       = Set the latency buckets.
- *    destroybucket            = destroy all the buckets.
- *    start                    = start data collection
- *    stop                     = stop data collection
- *    reset                    = reset the collected data
- **/
-static ssize_t
-lpfc_stat_data_ctrl_store(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
-{
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-#define LPFC_MAX_DATA_CTRL_LEN 1024
-	static char bucket_data[LPFC_MAX_DATA_CTRL_LEN];
-	unsigned long i;
-	char *str_ptr, *token;
-	struct lpfc_vport **vports;
-	struct Scsi_Host *v_shost;
-	char *bucket_type_str, *base_str, *step_str;
-	unsigned long base, step, bucket_type;
-
-	if (!strncmp(buf, "setbucket", strlen("setbucket"))) {
-		if (strlen(buf) > (LPFC_MAX_DATA_CTRL_LEN - 1))
-			return -EINVAL;
-
-		strncpy(bucket_data, buf, LPFC_MAX_DATA_CTRL_LEN);
-		str_ptr = &bucket_data[0];
-		/* Ignore this token - this is command token */
-		token = strsep(&str_ptr, "\t ");
-		if (!token)
-			return -EINVAL;
-
-		bucket_type_str = strsep(&str_ptr, "\t ");
-		if (!bucket_type_str)
-			return -EINVAL;
-
-		if (!strncmp(bucket_type_str, "linear", strlen("linear")))
-			bucket_type = LPFC_LINEAR_BUCKET;
-		else if (!strncmp(bucket_type_str, "power2", strlen("power2")))
-			bucket_type = LPFC_POWER2_BUCKET;
-		else
-			return -EINVAL;
-
-		base_str = strsep(&str_ptr, "\t ");
-		if (!base_str)
-			return -EINVAL;
-		base = simple_strtoul(base_str, NULL, 0);
-
-		step_str = strsep(&str_ptr, "\t ");
-		if (!step_str)
-			return -EINVAL;
-		step = simple_strtoul(step_str, NULL, 0);
-		if (!step)
-			return -EINVAL;
-
-		/* Block the data collection for every vport */
-		vports = lpfc_create_vport_work_array(phba);
-		if (vports == NULL)
-			return -ENOMEM;
-
-		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			v_shost = lpfc_shost_from_vport(vports[i]);
-			spin_lock_irq(v_shost->host_lock);
-			/* Block and reset data collection */
-			vports[i]->stat_data_blocked = 1;
-			if (vports[i]->stat_data_enabled)
-				lpfc_vport_reset_stat_data(vports[i]);
-			spin_unlock_irq(v_shost->host_lock);
-		}
-
-		/* Set the bucket attributes */
-		phba->bucket_type = bucket_type;
-		phba->bucket_base = base;
-		phba->bucket_step = step;
-
-		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			v_shost = lpfc_shost_from_vport(vports[i]);
-
-			/* Unblock data collection */
-			spin_lock_irq(v_shost->host_lock);
-			vports[i]->stat_data_blocked = 0;
-			spin_unlock_irq(v_shost->host_lock);
-		}
-		lpfc_destroy_vport_work_array(phba, vports);
-		return strlen(buf);
-	}
-
-	if (!strncmp(buf, "destroybucket", strlen("destroybucket"))) {
-		vports = lpfc_create_vport_work_array(phba);
-		if (vports == NULL)
-			return -ENOMEM;
-
-		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			v_shost = lpfc_shost_from_vport(vports[i]);
-			spin_lock_irq(shost->host_lock);
-			vports[i]->stat_data_blocked = 1;
-			lpfc_free_bucket(vport);
-			vport->stat_data_enabled = 0;
-			vports[i]->stat_data_blocked = 0;
-			spin_unlock_irq(shost->host_lock);
-		}
-		lpfc_destroy_vport_work_array(phba, vports);
-		phba->bucket_type = LPFC_NO_BUCKET;
-		phba->bucket_base = 0;
-		phba->bucket_step = 0;
-		return strlen(buf);
-	}
-
-	if (!strncmp(buf, "start", strlen("start"))) {
-		/* If no buckets configured return error */
-		if (phba->bucket_type == LPFC_NO_BUCKET)
-			return -EINVAL;
-		spin_lock_irq(shost->host_lock);
-		if (vport->stat_data_enabled) {
-			spin_unlock_irq(shost->host_lock);
-			return strlen(buf);
-		}
-		lpfc_alloc_bucket(vport);
-		vport->stat_data_enabled = 1;
-		spin_unlock_irq(shost->host_lock);
-		return strlen(buf);
-	}
-
-	if (!strncmp(buf, "stop", strlen("stop"))) {
-		spin_lock_irq(shost->host_lock);
-		if (vport->stat_data_enabled == 0) {
-			spin_unlock_irq(shost->host_lock);
-			return strlen(buf);
-		}
-		lpfc_free_bucket(vport);
-		vport->stat_data_enabled = 0;
-		spin_unlock_irq(shost->host_lock);
-		return strlen(buf);
-	}
-
-	if (!strncmp(buf, "reset", strlen("reset"))) {
-		if ((phba->bucket_type == LPFC_NO_BUCKET)
-			|| !vport->stat_data_enabled)
-			return strlen(buf);
-		spin_lock_irq(shost->host_lock);
-		vport->stat_data_blocked = 1;
-		lpfc_vport_reset_stat_data(vport);
-		vport->stat_data_blocked = 0;
-		spin_unlock_irq(shost->host_lock);
-		return strlen(buf);
-	}
-	return -EINVAL;
-}
-
-
-/**
- * lpfc_stat_data_ctrl_show - Read function for lpfc_stat_data_ctrl sysfs file
- * @dev: Pointer to class device.
- * @attr: Unused.
- * @buf: Data buffer.
- *
- * This function is the read call back function for
- * lpfc_stat_data_ctrl sysfs file. This function report the
- * current statistical data collection state.
- **/
-static ssize_t
-lpfc_stat_data_ctrl_show(struct device *dev, struct device_attribute *attr,
-			 char *buf)
-{
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-	int index = 0;
-	int i;
-	char *bucket_type;
-	unsigned long bucket_value;
-
-	switch (phba->bucket_type) {
-	case LPFC_LINEAR_BUCKET:
-		bucket_type = "linear";
-		break;
-	case LPFC_POWER2_BUCKET:
-		bucket_type = "power2";
-		break;
-	default:
-		bucket_type = "No Bucket";
-		break;
-	}
-
-	sprintf(&buf[index], "Statistical Data enabled :%d, "
-		"blocked :%d, Bucket type :%s, Bucket base :%d,"
-		" Bucket step :%d\nLatency Ranges :",
-		vport->stat_data_enabled, vport->stat_data_blocked,
-		bucket_type, phba->bucket_base, phba->bucket_step);
-	index = strlen(buf);
-	if (phba->bucket_type != LPFC_NO_BUCKET) {
-		for (i = 0; i < LPFC_MAX_BUCKET_COUNT; i++) {
-			if (phba->bucket_type == LPFC_LINEAR_BUCKET)
-				bucket_value = phba->bucket_base +
-					phba->bucket_step * i;
-			else
-				bucket_value = phba->bucket_base +
-				(1 << i) * phba->bucket_step;
-
-			if (index + 10 > PAGE_SIZE)
-				break;
-			sprintf(&buf[index], "%08ld ", bucket_value);
-			index = strlen(buf);
-		}
-	}
-	sprintf(&buf[index], "\n");
-	return strlen(buf);
-}
-
-/*
- * Sysfs attribute to control the statistical data collection.
- */
-static DEVICE_ATTR_RW(lpfc_stat_data_ctrl);
-
-/*
- * lpfc_drvr_stat_data: sysfs attr to get driver statistical data.
- */
-
-/*
- * Each Bucket takes 11 characters and 1 new line + 17 bytes WWN
- * for each target.
- */
-#define STAT_DATA_SIZE_PER_TARGET(NUM_BUCKETS) ((NUM_BUCKETS) * 11 + 18)
-#define MAX_STAT_DATA_SIZE_PER_TARGET \
-	STAT_DATA_SIZE_PER_TARGET(LPFC_MAX_BUCKET_COUNT)
-
-
-/**
- * sysfs_drvr_stat_data_read - Read function for lpfc_drvr_stat_data attribute
- * @filp: sysfs file
- * @kobj: Pointer to the kernel object
- * @bin_attr: Attribute object
- * @buf: Buffer pointer
- * @off: File offset
- * @count: Buffer size
- *
- * This function is the read call back function for lpfc_drvr_stat_data
- * sysfs file. This function export the statistical data to user
- * applications.
- **/
-static ssize_t
-sysfs_drvr_stat_data_read(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *bin_attr,
-		char *buf, loff_t off, size_t count)
-{
-	struct device *dev = container_of(kobj, struct device,
-		kobj);
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-	int i = 0, index = 0;
-	unsigned long nport_index;
-	struct lpfc_nodelist *ndlp = NULL;
-	nport_index = (unsigned long)off /
-		MAX_STAT_DATA_SIZE_PER_TARGET;
-
-	if (!vport->stat_data_enabled || vport->stat_data_blocked
-		|| (phba->bucket_type == LPFC_NO_BUCKET))
-		return 0;
-
-	spin_lock_irq(shost->host_lock);
-	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!ndlp->lat_data)
-			continue;
-
-		if (nport_index > 0) {
-			nport_index--;
-			continue;
-		}
-
-		if ((index + MAX_STAT_DATA_SIZE_PER_TARGET)
-			> count)
-			break;
-
-		if (!ndlp->lat_data)
-			continue;
-
-		/* Print the WWN */
-		sprintf(&buf[index], "%02x%02x%02x%02x%02x%02x%02x%02x:",
-			ndlp->nlp_portname.u.wwn[0],
-			ndlp->nlp_portname.u.wwn[1],
-			ndlp->nlp_portname.u.wwn[2],
-			ndlp->nlp_portname.u.wwn[3],
-			ndlp->nlp_portname.u.wwn[4],
-			ndlp->nlp_portname.u.wwn[5],
-			ndlp->nlp_portname.u.wwn[6],
-			ndlp->nlp_portname.u.wwn[7]);
-
-		index = strlen(buf);
-
-		for (i = 0; i < LPFC_MAX_BUCKET_COUNT; i++) {
-			sprintf(&buf[index], "%010u,",
-				ndlp->lat_data[i].cmd_count);
-			index = strlen(buf);
-		}
-		sprintf(&buf[index], "\n");
-		index = strlen(buf);
-	}
-	spin_unlock_irq(shost->host_lock);
-	return index;
-}
-
-static struct bin_attribute sysfs_drvr_stat_data_attr = {
-	.attr = {
-		.name = "lpfc_drvr_stat_data",
-		.mode = S_IRUSR,
-	},
-	.size = LPFC_MAX_TARGET * MAX_STAT_DATA_SIZE_PER_TARGET,
-	.read = sysfs_drvr_stat_data_read,
-	.write = NULL,
-};
-
 /*
 # lpfc_link_speed: Link speed selection for initializing the Fibre Channel
 # connection.
@@ -6273,7 +5946,6 @@ static struct attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_xlane_priority.attr,
 	&dev_attr_lpfc_sg_seg_cnt.attr,
 	&dev_attr_lpfc_max_scsicmpl_time.attr,
-	&dev_attr_lpfc_stat_data_ctrl.attr,
 	&dev_attr_lpfc_aer_support.attr,
 	&dev_attr_lpfc_aer_state_cleanup.attr,
 	&dev_attr_lpfc_sriov_nr_virtfn.attr,
@@ -6332,7 +6004,6 @@ static struct attribute *lpfc_vport_attrs[] = {
 	&dev_attr_npiv_info.attr,
 	&dev_attr_lpfc_enable_da_id.attr,
 	&dev_attr_lpfc_max_scsicmpl_time.attr,
-	&dev_attr_lpfc_stat_data_ctrl.attr,
 	&dev_attr_lpfc_static_vport.attr,
 	&dev_attr_cmf_info.attr,
 	NULL,
@@ -6545,17 +6216,14 @@ lpfc_alloc_sysfs_attr(struct lpfc_vport *vport)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	int error;
 
-	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
-				      &sysfs_drvr_stat_data_attr);
-
 	/* Virtual ports do not need ctrl_reg and mbox */
-	if (error || vport->port_type == LPFC_NPIV_PORT)
-		goto out;
+	if (vport->port_type == LPFC_NPIV_PORT)
+		return 0;
 
 	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
 				      &sysfs_ctlreg_attr);
 	if (error)
-		goto out_remove_stat_attr;
+		goto out;
 
 	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
 				      &sysfs_mbox_attr);
@@ -6565,9 +6233,6 @@ lpfc_alloc_sysfs_attr(struct lpfc_vport *vport)
 	return 0;
 out_remove_ctlreg_attr:
 	sysfs_remove_bin_file(&shost->shost_dev.kobj, &sysfs_ctlreg_attr);
-out_remove_stat_attr:
-	sysfs_remove_bin_file(&shost->shost_dev.kobj,
-			&sysfs_drvr_stat_data_attr);
 out:
 	return error;
 }
@@ -6580,8 +6245,7 @@ void
 lpfc_free_sysfs_attr(struct lpfc_vport *vport)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	sysfs_remove_bin_file(&shost->shost_dev.kobj,
-		&sysfs_drvr_stat_data_attr);
+
 	/* Virtual ports do not need ctrl_reg and mbox */
 	if (vport->port_type == LPFC_NPIV_PORT)
 		return;

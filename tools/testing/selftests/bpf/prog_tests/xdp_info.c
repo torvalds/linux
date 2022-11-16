@@ -7,7 +7,7 @@
 void serial_test_xdp_info(void)
 {
 	__u32 len = sizeof(struct bpf_prog_info), duration = 0, prog_id;
-	const char *file = "./xdp_dummy.o";
+	const char *file = "./xdp_dummy.bpf.o";
 	struct bpf_prog_info info = {};
 	struct bpf_object *obj;
 	int err, prog_fd;

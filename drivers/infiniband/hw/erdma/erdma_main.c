@@ -4,21 +4,12 @@
 /*          Kai Shen <kaishen@linux.alibaba.com> */
 /* Copyright (c) 2020-2022, Alibaba Group. */
 
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/list.h>
 #include <linux/module.h>
-#include <linux/netdevice.h>
-#include <linux/pci.h>
 #include <net/addrconf.h>
 #include <rdma/erdma-abi.h>
-#include <rdma/ib_verbs.h>
-#include <rdma/ib_user_verbs.h>
 
 #include "erdma.h"
 #include "erdma_cm.h"
-#include "erdma_hw.h"
 #include "erdma_verbs.h"
 
 MODULE_AUTHOR("Cheng Xu <chengyou@linux.alibaba.com>");
@@ -43,10 +34,15 @@ static int erdma_netdev_event(struct notifier_block *nb, unsigned long event,
 		dev->state = IB_PORT_DOWN;
 		erdma_port_event(dev, IB_EVENT_PORT_ERR);
 		break;
+	case NETDEV_CHANGEMTU:
+		if (dev->mtu != netdev->mtu) {
+			erdma_set_mtu(dev, netdev->mtu);
+			dev->mtu = netdev->mtu;
+		}
+		break;
 	case NETDEV_REGISTER:
 	case NETDEV_UNREGISTER:
 	case NETDEV_CHANGEADDR:
-	case NETDEV_CHANGEMTU:
 	case NETDEV_GOING_DOWN:
 	case NETDEV_CHANGE:
 	default:
@@ -104,6 +100,7 @@ static int erdma_device_register(struct erdma_dev *dev)
 	if (ret)
 		return ret;
 
+	dev->mtu = dev->netdev->mtu;
 	addrconf_addr_eui48((u8 *)&ibdev->node_guid, dev->netdev->dev_addr);
 
 	ret = ib_register_device(ibdev, "erdma_%d", &dev->pdev->dev);

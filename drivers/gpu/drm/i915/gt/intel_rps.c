@@ -194,9 +194,9 @@ static void rps_enable_interrupts(struct intel_rps *rps)
 
 	rps_reset_ei(rps);
 
-	spin_lock_irq(&gt->irq_lock);
+	spin_lock_irq(gt->irq_lock);
 	gen6_gt_pm_enable_irq(gt, rps->pm_events);
-	spin_unlock_irq(&gt->irq_lock);
+	spin_unlock_irq(gt->irq_lock);
 
 	intel_uncore_write(gt->uncore,
 			   GEN6_PMINTRMSK, rps_pm_mask(rps, rps->last_freq));
@@ -217,14 +217,14 @@ static void rps_reset_interrupts(struct intel_rps *rps)
 {
 	struct intel_gt *gt = rps_to_gt(rps);
 
-	spin_lock_irq(&gt->irq_lock);
+	spin_lock_irq(gt->irq_lock);
 	if (GRAPHICS_VER(gt->i915) >= 11)
 		gen11_rps_reset_interrupts(rps);
 	else
 		gen6_rps_reset_interrupts(rps);
 
 	rps->pm_iir = 0;
-	spin_unlock_irq(&gt->irq_lock);
+	spin_unlock_irq(gt->irq_lock);
 }
 
 static void rps_disable_interrupts(struct intel_rps *rps)
@@ -234,9 +234,9 @@ static void rps_disable_interrupts(struct intel_rps *rps)
 	intel_uncore_write(gt->uncore,
 			   GEN6_PMINTRMSK, rps_pm_sanitize_mask(rps, ~0u));
 
-	spin_lock_irq(&gt->irq_lock);
+	spin_lock_irq(gt->irq_lock);
 	gen6_gt_pm_disable_irq(gt, GEN6_PM_RPS_EVENTS);
-	spin_unlock_irq(&gt->irq_lock);
+	spin_unlock_irq(gt->irq_lock);
 
 	intel_synchronize_irq(gt->i915);
 
@@ -1107,7 +1107,12 @@ void gen6_rps_get_freq_caps(struct intel_rps *rps, struct intel_rps_freq_caps *c
 		caps->min_freq = (rp_state_cap >>  0) & 0xff;
 	} else {
 		caps->rp0_freq = (rp_state_cap >>  0) & 0xff;
-		caps->rp1_freq = (rp_state_cap >>  8) & 0xff;
+		if (GRAPHICS_VER(i915) >= 10)
+			caps->rp1_freq = REG_FIELD_GET(RPE_MASK,
+						       intel_uncore_read(to_gt(i915)->uncore,
+						       GEN10_FREQ_INFO_REC));
+		else
+			caps->rp1_freq = (rp_state_cap >>  8) & 0xff;
 		caps->min_freq = (rp_state_cap >> 16) & 0xff;
 	}
 
@@ -1546,6 +1551,9 @@ void intel_rps_disable(struct intel_rps *rps)
 {
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 
+	if (!intel_rps_is_enabled(rps))
+		return;
+
 	intel_rps_clear_enabled(rps);
 	intel_rps_clear_interrupts(rps);
 	intel_rps_clear_timer(rps);
@@ -1789,10 +1797,10 @@ static void rps_work(struct work_struct *work)
 	int new_freq, adj, min, max;
 	u32 pm_iir = 0;
 
-	spin_lock_irq(&gt->irq_lock);
+	spin_lock_irq(gt->irq_lock);
 	pm_iir = fetch_and_zero(&rps->pm_iir) & rps->pm_events;
 	client_boost = atomic_read(&rps->num_waiters);
-	spin_unlock_irq(&gt->irq_lock);
+	spin_unlock_irq(gt->irq_lock);
 
 	/* Make sure we didn't queue anything we're not going to process. */
 	if (!pm_iir && !client_boost)
@@ -1865,9 +1873,9 @@ static void rps_work(struct work_struct *work)
 	mutex_unlock(&rps->lock);
 
 out:
-	spin_lock_irq(&gt->irq_lock);
+	spin_lock_irq(gt->irq_lock);
 	gen6_gt_pm_unmask_irq(gt, rps->pm_events);
-	spin_unlock_irq(&gt->irq_lock);
+	spin_unlock_irq(gt->irq_lock);
 }
 
 void gen11_rps_irq_handler(struct intel_rps *rps, u32 pm_iir)
@@ -1875,7 +1883,7 @@ void gen11_rps_irq_handler(struct intel_rps *rps, u32 pm_iir)
 	struct intel_gt *gt = rps_to_gt(rps);
 	const u32 events = rps->pm_events & pm_iir;
 
-	lockdep_assert_held(&gt->irq_lock);
+	lockdep_assert_held(gt->irq_lock);
 
 	if (unlikely(!events))
 		return;
@@ -1895,7 +1903,7 @@ void gen6_rps_irq_handler(struct intel_rps *rps, u32 pm_iir)
 
 	events = pm_iir & rps->pm_events;
 	if (events) {
-		spin_lock(&gt->irq_lock);
+		spin_lock(gt->irq_lock);
 
 		GT_TRACE(gt, "irq events:%x\n", events);
 
@@ -1903,7 +1911,7 @@ void gen6_rps_irq_handler(struct intel_rps *rps, u32 pm_iir)
 		rps->pm_iir |= events;
 
 		schedule_work(&rps->work);
-		spin_unlock(&gt->irq_lock);
+		spin_unlock(gt->irq_lock);
 	}
 
 	if (GRAPHICS_VER(gt->i915) >= 8)
@@ -1979,7 +1987,9 @@ void intel_rps_init(struct intel_rps *rps)
 
 	/* Derive initial user preferences/limits from the hardware limits */
 	rps->max_freq_softlimit = rps->max_freq;
+	rps_to_gt(rps)->defaults.max_freq = rps->max_freq_softlimit;
 	rps->min_freq_softlimit = rps->min_freq;
+	rps_to_gt(rps)->defaults.min_freq = rps->min_freq_softlimit;
 
 	/* After setting max-softlimit, find the overclock max freq */
 	if (GRAPHICS_VER(i915) == 6 || IS_IVYBRIDGE(i915) || IS_HASWELL(i915)) {

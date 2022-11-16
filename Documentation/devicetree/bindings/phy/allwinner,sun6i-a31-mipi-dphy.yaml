@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/allwinner,sun6i-a31-mipi-dphy.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A31 MIPI D-PHY Controller Device Tree Bindings
+title: Allwinner A31 MIPI D-PHY Controller
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

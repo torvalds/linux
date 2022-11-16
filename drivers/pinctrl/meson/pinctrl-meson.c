@@ -608,6 +608,7 @@ static int meson_gpiolib_register(struct meson_pinctrl *pc)
 
 	pc->chip.label = pc->data->name;
 	pc->chip.parent = pc->dev;
+	pc->chip.fwnode = pc->fwnode;
 	pc->chip.request = gpiochip_generic_request;
 	pc->chip.free = gpiochip_generic_free;
 	pc->chip.set_config = gpiochip_generic_config;
@@ -619,8 +620,6 @@ static int meson_gpiolib_register(struct meson_pinctrl *pc)
 	pc->chip.base = -1;
 	pc->chip.ngpio = pc->data->num_pins;
 	pc->chip.can_sleep = false;
-	pc->chip.of_node = pc->of_node;
-	pc->chip.of_gpio_n_cells = 2;
 
 	ret = gpiochip_add_data(&pc->chip, pc);
 	if (ret) {
@@ -678,8 +677,8 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc)
 		return -EINVAL;
 	}
 
-	gpio_np = to_of_node(gpiochip_node_get_first(pc->dev));
-	pc->of_node = gpio_np;
+	pc->fwnode = gpiochip_node_get_first(pc->dev);
+	gpio_np = to_of_node(pc->fwnode);
 
 	pc->reg_mux = meson_map_resource(pc, gpio_np, "mux");
 	if (IS_ERR_OR_NULL(pc->reg_mux)) {

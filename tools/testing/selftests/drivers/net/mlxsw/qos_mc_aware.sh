@@ -129,9 +129,10 @@ switch_create()
 	vlan_create $swp2 111
 	vlan_create $swp3 111
 
-	ethtool -s $swp3 speed 1000 autoneg off
-	tc qdisc replace dev $swp3 root handle 3: \
-	   prio bands 8 priomap 7 7 7 7 7 7 7 7
+	tc qdisc replace dev $swp3 root handle 3: tbf rate 1gbit \
+		burst 128K limit 1G
+	tc qdisc replace dev $swp3 parent 3:3 handle 33: \
+		prio bands 8 priomap 7 7 7 7 7 7 7 7
 
 	ip link add name br1 type bridge vlan_filtering 0
 	ip link set dev br1 up
@@ -172,8 +173,8 @@ switch_destroy()
 	ip link del dev br111
 	ip link del dev br1
 
+	tc qdisc del dev $swp3 parent 3:3 handle 33:
 	tc qdisc del dev $swp3 root handle 3:
-	ethtool -s $swp3 autoneg on
 
 	vlan_destroy $swp3 111
 	vlan_destroy $swp2 111

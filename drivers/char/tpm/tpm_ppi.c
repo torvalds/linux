@@ -380,7 +380,7 @@ void tpm_add_ppi(struct tpm_chip *chip)
 				      TPM_PPI_FN_VERSION,
 				      NULL, ACPI_TYPE_STRING);
 	if (obj) {
-		strlcpy(chip->ppi_version, obj->string.pointer,
+		strscpy(chip->ppi_version, obj->string.pointer,
 			sizeof(chip->ppi_version));
 		ACPI_FREE(obj);
 	}

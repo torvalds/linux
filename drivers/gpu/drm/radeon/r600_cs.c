@@ -34,8 +34,6 @@
 #include "r600_reg_safe.h"
 
 static int r600_nomm;
-extern void r600_cs_legacy_get_tiling_conf(struct drm_device *dev, u32 *npipes, u32 *nbanks, u32 *group_size);
-
 
 struct r600_cs_track {
 	/* configuration we mirror so that we use same code btw kms/ums */

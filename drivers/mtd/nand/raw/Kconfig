@@ -200,27 +200,7 @@ config MTD_NAND_TMIO
 	  Support for NAND flash connected to a Toshiba Mobile IO
 	  Controller in some PDAs, including the Sharp SL6000x.
 
-config MTD_NAND_BRCMNAND
-	tristate "Broadcom STB NAND controller"
-	depends on ARM || ARM64 || MIPS || COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  Enables the Broadcom NAND controller driver. The controller was
-	  originally designed for Set-Top Box but is used on various BCM7xxx,
-	  BCM3xxx, BCM63xxx, iProc/Cygnus and more.
-
-if MTD_NAND_BRCMNAND
-
-config MTD_NAND_BRCMNAND_BCMA
-	tristate "Broadcom BCMA NAND controller"
-	depends on BCMA_NFLASH
-	depends on BCMA
-	help
-	  Enables the BRCMNAND controller over BCMA on BCM47186/BCM5358 SoCs.
-	  The glue driver will take care of performing the low-level I/O
-	  operations to interface the BRCMNAND controller over the BCMA bus.
-
-endif # MTD_NAND_BRCMNAND
+source "drivers/mtd/nand/raw/brcmnand/Kconfig"
 
 config MTD_NAND_BCM47XXNFLASH
 	tristate "BCM4706 BCMA NAND controller"
@@ -410,7 +390,7 @@ config MTD_NAND_STM32_FMC2
 
 config MTD_NAND_MESON
 	tristate "Support for NAND controller on Amlogic's Meson SoCs"
-	depends on ARCH_MESON || COMPILE_TEST
+	depends on COMMON_CLK && (ARCH_MESON || COMPILE_TEST)
 	select MFD_SYSCON
 	help
 	  Enables support for NAND controller on Amlogic's Meson SoCs.

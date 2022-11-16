@@ -21,6 +21,18 @@ static inline bool is_shared_processor(void)
 	return static_branch_unlikely(&shared_processor);
 }
 
+#ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
+extern struct static_key paravirt_steal_enabled;
+extern struct static_key paravirt_steal_rq_enabled;
+
+u64 pseries_paravirt_steal_clock(int cpu);
+
+static inline u64 paravirt_steal_clock(int cpu)
+{
+	return pseries_paravirt_steal_clock(cpu);
+}
+#endif
+
 /* If bit 0 is set, the cpu has been ceded, conferred, or preempted */
 static inline u32 yield_count_of(int cpu)
 {

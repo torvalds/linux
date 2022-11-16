@@ -771,9 +771,8 @@ static void sprd_shutdown(struct uart_port *port)
 	devm_free_irq(port->dev, port->irq, port);
 }
 
-static void sprd_set_termios(struct uart_port *port,
-			     struct ktermios *termios,
-			     struct ktermios *old)
+static void sprd_set_termios(struct uart_port *port, struct ktermios *termios,
+		             const struct ktermios *old)
 {
 	unsigned int baud, quot;
 	unsigned int lcr = 0, fc;

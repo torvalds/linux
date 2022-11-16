@@ -17,9 +17,8 @@
 #include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_module.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
@@ -38,10 +37,10 @@ static int drm_sun4i_gem_dumb_create(struct drm_file *file_priv,
 	/* The hardware only allows even pitches for YUV buffers. */
 	args->pitch = ALIGN(DIV_ROUND_UP(args->width * args->bpp, 8), 2);
 
-	return drm_gem_cma_dumb_create_internal(file_priv, drm, args);
+	return drm_gem_dma_dumb_create_internal(file_priv, drm, args);
 }
 
-DEFINE_DRM_GEM_CMA_FOPS(sun4i_drv_fops);
+DEFINE_DRM_GEM_DMA_FOPS(sun4i_drv_fops);
 
 static const struct drm_driver sun4i_drv_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
@@ -55,7 +54,7 @@ static const struct drm_driver sun4i_drv_driver = {
 	.minor			= 0,
 
 	/* GEM Operations */
-	DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE(drm_sun4i_gem_dumb_create),
+	DRM_GEM_DMA_DRIVER_OPS_WITH_DUMB_CREATE(drm_sun4i_gem_dumb_create),
 };
 
 static int sun4i_drv_bind(struct device *dev)

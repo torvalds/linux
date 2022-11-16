@@ -208,7 +208,7 @@ enum btf_kfunc_hook {
 };
 
 enum {
-	BTF_KFUNC_SET_MAX_CNT = 32,
+	BTF_KFUNC_SET_MAX_CNT = 256,
 	BTF_DTOR_KFUNC_MAX_CNT = 256,
 };
 
@@ -818,6 +818,7 @@ const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id)
 		return NULL;
 	return btf->types[type_id];
 }
+EXPORT_SYMBOL_GPL(btf_type_by_id);
 
 /*
  * Regular int is not a bit field and it must be either
@@ -1396,7 +1397,6 @@ __printf(4, 5) static void __btf_verifier_log_type(struct btf_verifier_env *env,
 						   const char *fmt, ...)
 {
 	struct bpf_verifier_log *log = &env->log;
-	u8 kind = BTF_INFO_KIND(t->info);
 	struct btf *btf = env->btf;
 	va_list args;
 
@@ -1412,7 +1412,7 @@ __printf(4, 5) static void __btf_verifier_log_type(struct btf_verifier_env *env,
 
 	__btf_verifier_log(log, "[%u] %s %s%s",
 			   env->log_type_id,
-			   btf_kind_str[kind],
+			   btf_type_str(t),
 			   __btf_name_by_offset(btf, t->name_off),
 			   log_details ? " " : "");
 
@@ -3128,7 +3128,7 @@ static int btf_struct_resolve(struct btf_verifier_env *env,
 	if (v->next_member) {
 		const struct btf_type *last_member_type;
 		const struct btf_member *last_member;
-		u16 last_member_type_id;
+		u32 last_member_type_id;
 
 		last_member = btf_type_member(v->t) + v->next_member - 1;
 		last_member_type_id = last_member->type;
@@ -4436,6 +4436,11 @@ static int btf_func_proto_check(struct btf_verifier_env *env,
 			return -EINVAL;
 		}
 
+		if (btf_type_is_resolve_source_only(ret_type)) {
+			btf_verifier_log_type(env, t, "Invalid return type");
+			return -EINVAL;
+		}
+
 		if (btf_type_needs_resolve(ret_type) &&
 		    !env_type_is_resolved(env, ret_type_id)) {
 			err = btf_resolve(env, ret_type, ret_type_id);
@@ -4854,7 +4859,6 @@ static int btf_parse_hdr(struct btf_verifier_env *env)
 	u32 hdr_len, hdr_copy, btf_data_size;
 	const struct btf_header *hdr;
 	struct btf *btf;
-	int err;
 
 	btf = env->btf;
 	btf_data_size = btf->data_size;
@@ -4911,11 +4915,7 @@ static int btf_parse_hdr(struct btf_verifier_env *env)
 		return -EINVAL;
 	}
 
-	err = btf_check_sec_info(env, btf_data_size);
-	if (err)
-		return err;
-
-	return 0;
+	return btf_check_sec_info(env, btf_data_size);
 }
 
 static int btf_check_type_tags(struct btf_verifier_env *env,
@@ -5328,6 +5328,34 @@ static bool is_int_ptr(struct btf *btf, const struct btf_type *t)
 	return btf_type_is_int(t);
 }
 
+static u32 get_ctx_arg_idx(struct btf *btf, const struct btf_type *func_proto,
+			   int off)
+{
+	const struct btf_param *args;
+	const struct btf_type *t;
+	u32 offset = 0, nr_args;
+	int i;
+
+	if (!func_proto)
+		return off / 8;
+
+	nr_args = btf_type_vlen(func_proto);
+	args = (const struct btf_param *)(func_proto + 1);
+	for (i = 0; i < nr_args; i++) {
+		t = btf_type_skip_modifiers(btf, args[i].type, NULL);
+		offset += btf_type_is_ptr(t) ? 8 : roundup(t->size, 8);
+		if (off < offset)
+			return i;
+	}
+
+	t = btf_type_skip_modifiers(btf, func_proto->type, NULL);
+	offset += btf_type_is_ptr(t) ? 8 : roundup(t->size, 8);
+	if (off < offset)
+		return nr_args;
+
+	return nr_args + 1;
+}
+
 bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		    const struct bpf_prog *prog,
 		    struct bpf_insn_access_aux *info)
@@ -5347,7 +5375,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 			tname, off);
 		return false;
 	}
-	arg = off / 8;
+	arg = get_ctx_arg_idx(btf, t, off);
 	args = (const struct btf_param *)(t + 1);
 	/* if (t == NULL) Fall back to default BPF prog with
 	 * MAX_BPF_FUNC_REG_ARGS u64 arguments.
@@ -5398,7 +5426,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 			if (!btf_type_is_small_int(t)) {
 				bpf_log(log,
 					"ret type %s not allowed for fmod_ret\n",
-					btf_kind_str[BTF_INFO_KIND(t->info)]);
+					btf_type_str(t));
 				return false;
 			}
 			break;
@@ -5417,7 +5445,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	/* skip modifiers */
 	while (btf_type_is_modifier(t))
 		t = btf_type_by_id(btf, t->type);
-	if (btf_type_is_small_int(t) || btf_is_any_enum(t))
+	if (btf_type_is_small_int(t) || btf_is_any_enum(t) || __btf_type_is_struct(t))
 		/* accessing a scalar */
 		return true;
 	if (!btf_type_is_ptr(t)) {
@@ -5425,7 +5453,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 			"func '%s' arg%d '%s' has type %s. Only pointer access is allowed\n",
 			tname, arg,
 			__btf_name_by_offset(btf, t->name_off),
-			btf_kind_str[BTF_INFO_KIND(t->info)]);
+			btf_type_str(t));
 		return false;
 	}
 
@@ -5509,11 +5537,11 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	if (!btf_type_is_struct(t)) {
 		bpf_log(log,
 			"func '%s' arg%d type %s is not a struct\n",
-			tname, arg, btf_kind_str[BTF_INFO_KIND(t->info)]);
+			tname, arg, btf_type_str(t));
 		return false;
 	}
 	bpf_log(log, "func '%s' arg%d has btf_id %d type %s '%s'\n",
-		tname, arg, info->btf_id, btf_kind_str[BTF_INFO_KIND(t->info)],
+		tname, arg, info->btf_id, btf_type_str(t),
 		__btf_name_by_offset(btf, t->name_off));
 	return true;
 }
@@ -5864,26 +5892,25 @@ again:
 }
 
 static int __get_type_size(struct btf *btf, u32 btf_id,
-			   const struct btf_type **bad_type)
+			   const struct btf_type **ret_type)
 {
 	const struct btf_type *t;
 
+	*ret_type = btf_type_by_id(btf, 0);
 	if (!btf_id)
 		/* void */
 		return 0;
 	t = btf_type_by_id(btf, btf_id);
 	while (t && btf_type_is_modifier(t))
 		t = btf_type_by_id(btf, t->type);
-	if (!t) {
-		*bad_type = btf_type_by_id(btf, 0);
+	if (!t)
 		return -EINVAL;
-	}
+	*ret_type = t;
 	if (btf_type_is_ptr(t))
 		/* kernel size of pointer. Not BPF's size of pointer*/
 		return sizeof(void *);
-	if (btf_type_is_int(t) || btf_is_any_enum(t))
+	if (btf_type_is_int(t) || btf_is_any_enum(t) || __btf_type_is_struct(t))
 		return t->size;
-	*bad_type = t;
 	return -EINVAL;
 }
 
@@ -5902,8 +5929,10 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 		/* BTF function prototype doesn't match the verifier types.
 		 * Fall back to MAX_BPF_FUNC_REG_ARGS u64 args.
 		 */
-		for (i = 0; i < MAX_BPF_FUNC_REG_ARGS; i++)
+		for (i = 0; i < MAX_BPF_FUNC_REG_ARGS; i++) {
 			m->arg_size[i] = 8;
+			m->arg_flags[i] = 0;
+		}
 		m->ret_size = 8;
 		m->nr_args = MAX_BPF_FUNC_REG_ARGS;
 		return 0;
@@ -5917,10 +5946,10 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 		return -EINVAL;
 	}
 	ret = __get_type_size(btf, func->type, &t);
-	if (ret < 0) {
+	if (ret < 0 || __btf_type_is_struct(t)) {
 		bpf_log(log,
 			"The function %s return type %s is unsupported.\n",
-			tname, btf_kind_str[BTF_INFO_KIND(t->info)]);
+			tname, btf_type_str(t));
 		return -EINVAL;
 	}
 	m->ret_size = ret;
@@ -5933,10 +5962,12 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 			return -EINVAL;
 		}
 		ret = __get_type_size(btf, args[i].type, &t);
-		if (ret < 0) {
+
+		/* No support of struct argument size greater than 16 bytes */
+		if (ret < 0 || ret > 16) {
 			bpf_log(log,
 				"The function %s arg%d type %s is unsupported.\n",
-				tname, i, btf_kind_str[BTF_INFO_KIND(t->info)]);
+				tname, i, btf_type_str(t));
 			return -EINVAL;
 		}
 		if (ret == 0) {
@@ -5946,6 +5977,7 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 			return -EINVAL;
 		}
 		m->arg_size[i] = ret;
+		m->arg_flags[i] = __btf_type_is_struct(t) ? BTF_FMODEL_STRUCT_ARG : 0;
 	}
 	m->nr_args = nargs;
 	return 0;
@@ -6167,14 +6199,41 @@ static bool is_kfunc_arg_mem_size(const struct btf *btf,
 	return true;
 }
 
+static bool btf_is_kfunc_arg_mem_size(const struct btf *btf,
+				      const struct btf_param *arg,
+				      const struct bpf_reg_state *reg,
+				      const char *name)
+{
+	int len, target_len = strlen(name);
+	const struct btf_type *t;
+	const char *param_name;
+
+	t = btf_type_skip_modifiers(btf, arg->type, NULL);
+	if (!btf_type_is_scalar(t) || reg->type != SCALAR_VALUE)
+		return false;
+
+	param_name = btf_name_by_offset(btf, arg->name_off);
+	if (str_is_empty(param_name))
+		return false;
+	len = strlen(param_name);
+	if (len != target_len)
+		return false;
+	if (strcmp(param_name, name))
+		return false;
+
+	return true;
+}
+
 static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 				    const struct btf *btf, u32 func_id,
 				    struct bpf_reg_state *regs,
 				    bool ptr_to_mem_ok,
-				    u32 kfunc_flags)
+				    struct bpf_kfunc_arg_meta *kfunc_meta,
+				    bool processing_call)
 {
 	enum bpf_prog_type prog_type = resolve_prog_type(env->prog);
-	bool rel = false, kptr_get = false, trusted_arg = false;
+	bool rel = false, kptr_get = false, trusted_args = false;
+	bool sleepable = false;
 	struct bpf_verifier_log *log = &env->log;
 	u32 i, nargs, ref_id, ref_obj_id = 0;
 	bool is_kfunc = btf_is_kernel(btf);
@@ -6207,11 +6266,12 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 		return -EINVAL;
 	}
 
-	if (is_kfunc) {
+	if (is_kfunc && kfunc_meta) {
 		/* Only kfunc can be release func */
-		rel = kfunc_flags & KF_RELEASE;
-		kptr_get = kfunc_flags & KF_KPTR_GET;
-		trusted_arg = kfunc_flags & KF_TRUSTED_ARGS;
+		rel = kfunc_meta->flags & KF_RELEASE;
+		kptr_get = kfunc_meta->flags & KF_KPTR_GET;
+		trusted_args = kfunc_meta->flags & KF_TRUSTED_ARGS;
+		sleepable = kfunc_meta->flags & KF_SLEEPABLE;
 	}
 
 	/* check that BTF function arguments match actual types that the
@@ -6221,9 +6281,42 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 		enum bpf_arg_type arg_type = ARG_DONTCARE;
 		u32 regno = i + 1;
 		struct bpf_reg_state *reg = &regs[regno];
+		bool obj_ptr = false;
 
 		t = btf_type_skip_modifiers(btf, args[i].type, NULL);
 		if (btf_type_is_scalar(t)) {
+			if (is_kfunc && kfunc_meta) {
+				bool is_buf_size = false;
+
+				/* check for any const scalar parameter of name "rdonly_buf_size"
+				 * or "rdwr_buf_size"
+				 */
+				if (btf_is_kfunc_arg_mem_size(btf, &args[i], reg,
+							      "rdonly_buf_size")) {
+					kfunc_meta->r0_rdonly = true;
+					is_buf_size = true;
+				} else if (btf_is_kfunc_arg_mem_size(btf, &args[i], reg,
+								     "rdwr_buf_size"))
+					is_buf_size = true;
+
+				if (is_buf_size) {
+					if (kfunc_meta->r0_size) {
+						bpf_log(log, "2 or more rdonly/rdwr_buf_size parameters for kfunc");
+						return -EINVAL;
+					}
+
+					if (!tnum_is_const(reg->var_off)) {
+						bpf_log(log, "R%d is not a const\n", regno);
+						return -EINVAL;
+					}
+
+					kfunc_meta->r0_size = reg->var_off.value;
+					ret = mark_chain_precision(env, regno);
+					if (ret)
+						return ret;
+				}
+			}
+
 			if (reg->type == SCALAR_VALUE)
 				continue;
 			bpf_log(log, "R%d is not a scalar\n", regno);
@@ -6236,10 +6329,17 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 			return -EINVAL;
 		}
 
+		/* These register types have special constraints wrt ref_obj_id
+		 * and offset checks. The rest of trusted args don't.
+		 */
+		obj_ptr = reg->type == PTR_TO_CTX || reg->type == PTR_TO_BTF_ID ||
+			  reg2btf_ids[base_type(reg->type)];
+
 		/* Check if argument must be a referenced pointer, args + i has
 		 * been verified to be a pointer (after skipping modifiers).
+		 * PTR_TO_CTX is ok without having non-zero ref_obj_id.
 		 */
-		if (is_kfunc && trusted_arg && !reg->ref_obj_id) {
+		if (is_kfunc && trusted_args && (obj_ptr && reg->type != PTR_TO_CTX) && !reg->ref_obj_id) {
 			bpf_log(log, "R%d must be referenced\n", regno);
 			return -EINVAL;
 		}
@@ -6248,11 +6348,22 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 		ref_tname = btf_name_by_offset(btf, ref_t->name_off);
 
 		/* Trusted args have the same offset checks as release arguments */
-		if (trusted_arg || (rel && reg->ref_obj_id))
+		if ((trusted_args && obj_ptr) || (rel && reg->ref_obj_id))
 			arg_type |= OBJ_RELEASE;
 		ret = check_func_arg_reg_off(env, reg, regno, arg_type);
 		if (ret < 0)
 			return ret;
+
+		if (is_kfunc && reg->ref_obj_id) {
+			/* Ensure only one argument is referenced PTR_TO_BTF_ID */
+			if (ref_obj_id) {
+				bpf_log(log, "verifier internal error: more than one arg with ref_obj_id R%d %u %u\n",
+					regno, reg->ref_obj_id, ref_obj_id);
+				return -EFAULT;
+			}
+			ref_regno = regno;
+			ref_obj_id = reg->ref_obj_id;
+		}
 
 		/* kptr_get is only true for kfunc */
 		if (i == 0 && kptr_get) {
@@ -6326,16 +6437,6 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 			if (reg->type == PTR_TO_BTF_ID) {
 				reg_btf = reg->btf;
 				reg_ref_id = reg->btf_id;
-				/* Ensure only one argument is referenced PTR_TO_BTF_ID */
-				if (reg->ref_obj_id) {
-					if (ref_obj_id) {
-						bpf_log(log, "verifier internal error: more than one arg with ref_obj_id R%d %u %u\n",
-							regno, reg->ref_obj_id, ref_obj_id);
-						return -EFAULT;
-					}
-					ref_regno = regno;
-					ref_obj_id = reg->ref_obj_id;
-				}
 			} else {
 				reg_btf = btf_vmlinux;
 				reg_ref_id = *reg2btf_ids[base_type(reg->type)];
@@ -6347,7 +6448,7 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 							   reg_ref_t->name_off);
 			if (!btf_struct_ids_match(log, reg_btf, reg_ref_id,
 						  reg->off, btf, ref_id,
-						  trusted_arg || (rel && reg->ref_obj_id))) {
+						  trusted_args || (rel && reg->ref_obj_id))) {
 				bpf_log(log, "kernel function %s args#%d expected pointer to %s %s but R%d has a pointer to %s %s\n",
 					func_name, i,
 					btf_type_str(ref_t), ref_tname,
@@ -6355,26 +6456,59 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 					reg_ref_tname);
 				return -EINVAL;
 			}
-		} else if (ptr_to_mem_ok) {
+		} else if (ptr_to_mem_ok && processing_call) {
 			const struct btf_type *resolve_ret;
 			u32 type_size;
 
 			if (is_kfunc) {
 				bool arg_mem_size = i + 1 < nargs && is_kfunc_arg_mem_size(btf, &args[i + 1], &regs[regno + 1]);
+				bool arg_dynptr = btf_type_is_struct(ref_t) &&
+						  !strcmp(ref_tname,
+							  stringify_struct(bpf_dynptr_kern));
 
 				/* Permit pointer to mem, but only when argument
 				 * type is pointer to scalar, or struct composed
 				 * (recursively) of scalars.
 				 * When arg_mem_size is true, the pointer can be
 				 * void *.
+				 * Also permit initialized local dynamic pointers.
 				 */
 				if (!btf_type_is_scalar(ref_t) &&
 				    !__btf_type_is_scalar_struct(log, btf, ref_t, 0) &&
+				    !arg_dynptr &&
 				    (arg_mem_size ? !btf_type_is_void(ref_t) : 1)) {
 					bpf_log(log,
 						"arg#%d pointer type %s %s must point to %sscalar, or struct with scalar\n",
 						i, btf_type_str(ref_t), ref_tname, arg_mem_size ? "void, " : "");
 					return -EINVAL;
+				}
+
+				if (arg_dynptr) {
+					if (reg->type != PTR_TO_STACK) {
+						bpf_log(log, "arg#%d pointer type %s %s not to stack\n",
+							i, btf_type_str(ref_t),
+							ref_tname);
+						return -EINVAL;
+					}
+
+					if (!is_dynptr_reg_valid_init(env, reg)) {
+						bpf_log(log,
+							"arg#%d pointer type %s %s must be valid and initialized\n",
+							i, btf_type_str(ref_t),
+							ref_tname);
+						return -EINVAL;
+					}
+
+					if (!is_dynptr_type_expected(env, reg,
+							ARG_PTR_TO_DYNPTR | DYNPTR_TYPE_LOCAL)) {
+						bpf_log(log,
+							"arg#%d pointer type %s %s points to unsupported dynamic pointer type\n",
+							i, btf_type_str(ref_t),
+							ref_tname);
+						return -EINVAL;
+					}
+
+					continue;
 				}
 
 				/* Check for mem, len pair */
@@ -6419,11 +6553,21 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 			func_name);
 		return -EINVAL;
 	}
+
+	if (sleepable && !env->prog->aux->sleepable) {
+		bpf_log(log, "kernel function %s is sleepable but the program is not\n",
+			func_name);
+		return -EINVAL;
+	}
+
+	if (kfunc_meta && ref_obj_id)
+		kfunc_meta->ref_obj_id = ref_obj_id;
+
 	/* returns argument register number > 0 in case of reference release kfunc */
 	return rel ? ref_regno : 0;
 }
 
-/* Compare BTF of a function with given bpf_reg_state.
+/* Compare BTF of a function declaration with given bpf_reg_state.
  * Returns:
  * EFAULT - there is a verifier bug. Abort verification.
  * EINVAL - there is a type mismatch or BTF is not available.
@@ -6450,7 +6594,50 @@ int btf_check_subprog_arg_match(struct bpf_verifier_env *env, int subprog,
 		return -EINVAL;
 
 	is_global = prog->aux->func_info_aux[subprog].linkage == BTF_FUNC_GLOBAL;
-	err = btf_check_func_arg_match(env, btf, btf_id, regs, is_global, 0);
+	err = btf_check_func_arg_match(env, btf, btf_id, regs, is_global, NULL, false);
+
+	/* Compiler optimizations can remove arguments from static functions
+	 * or mismatched type can be passed into a global function.
+	 * In such cases mark the function as unreliable from BTF point of view.
+	 */
+	if (err)
+		prog->aux->func_info_aux[subprog].unreliable = true;
+	return err;
+}
+
+/* Compare BTF of a function call with given bpf_reg_state.
+ * Returns:
+ * EFAULT - there is a verifier bug. Abort verification.
+ * EINVAL - there is a type mismatch or BTF is not available.
+ * 0 - BTF matches with what bpf_reg_state expects.
+ * Only PTR_TO_CTX and SCALAR_VALUE states are recognized.
+ *
+ * NOTE: the code is duplicated from btf_check_subprog_arg_match()
+ * because btf_check_func_arg_match() is still doing both. Once that
+ * function is split in 2, we can call from here btf_check_subprog_arg_match()
+ * first, and then treat the calling part in a new code path.
+ */
+int btf_check_subprog_call(struct bpf_verifier_env *env, int subprog,
+			   struct bpf_reg_state *regs)
+{
+	struct bpf_prog *prog = env->prog;
+	struct btf *btf = prog->aux->btf;
+	bool is_global;
+	u32 btf_id;
+	int err;
+
+	if (!prog->aux->func_info)
+		return -EINVAL;
+
+	btf_id = prog->aux->func_info[subprog].type_id;
+	if (!btf_id)
+		return -EFAULT;
+
+	if (prog->aux->func_info_aux[subprog].unreliable)
+		return -EINVAL;
+
+	is_global = prog->aux->func_info_aux[subprog].linkage == BTF_FUNC_GLOBAL;
+	err = btf_check_func_arg_match(env, btf, btf_id, regs, is_global, NULL, true);
 
 	/* Compiler optimizations can remove arguments from static functions
 	 * or mismatched type can be passed into a global function.
@@ -6464,9 +6651,9 @@ int btf_check_subprog_arg_match(struct bpf_verifier_env *env, int subprog,
 int btf_check_kfunc_arg_match(struct bpf_verifier_env *env,
 			      const struct btf *btf, u32 func_id,
 			      struct bpf_reg_state *regs,
-			      u32 kfunc_flags)
+			      struct bpf_kfunc_arg_meta *meta)
 {
-	return btf_check_func_arg_match(env, btf, func_id, regs, true, kfunc_flags);
+	return btf_check_func_arg_match(env, btf, func_id, regs, true, meta, true);
 }
 
 /* Convert BTF of a function into bpf_reg_state if possible
@@ -6580,7 +6767,7 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 			continue;
 		}
 		bpf_log(log, "Arg#%d type %s in %s() is not supported yet.\n",
-			i, btf_kind_str[BTF_INFO_KIND(t->info)], tname);
+			i, btf_type_str(t), tname);
 		return -EINVAL;
 	}
 	return 0;
@@ -7235,6 +7422,7 @@ static int bpf_prog_type_to_kfunc_hook(enum bpf_prog_type prog_type)
 	case BPF_PROG_TYPE_STRUCT_OPS:
 		return BTF_KFUNC_HOOK_STRUCT_OPS;
 	case BPF_PROG_TYPE_TRACING:
+	case BPF_PROG_TYPE_LSM:
 		return BTF_KFUNC_HOOK_TRACING;
 	case BPF_PROG_TYPE_SYSCALL:
 		return BTF_KFUNC_HOOK_SYSCALL;

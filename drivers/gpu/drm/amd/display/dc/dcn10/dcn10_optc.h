@@ -583,6 +583,8 @@ struct dcn_otg_state {
 	uint32_t underflow_occurred_status;
 	uint32_t otg_enabled;
 	uint32_t blank_enabled;
+	uint32_t vertical_interrupt1_en;
+	uint32_t vertical_interrupt1_line;
 	uint32_t vertical_interrupt2_en;
 	uint32_t vertical_interrupt2_line;
 };
@@ -652,7 +654,6 @@ void optc1_set_blank(struct timing_generator *optc,
 		bool enable_blanking);
 
 bool optc1_is_blanked(struct timing_generator *optc);
-bool optc1_is_locked(struct timing_generator *optc);
 
 void optc1_program_blank_color(
 		struct timing_generator *optc,

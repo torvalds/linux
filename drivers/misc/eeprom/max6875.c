@@ -173,7 +173,7 @@ exit_kfree:
 	return err;
 }
 
-static int max6875_remove(struct i2c_client *client)
+static void max6875_remove(struct i2c_client *client)
 {
 	struct max6875_data *data = i2c_get_clientdata(client);
 
@@ -181,8 +181,6 @@ static int max6875_remove(struct i2c_client *client)
 
 	sysfs_remove_bin_file(&client->dev.kobj, &user_eeprom_attr);
 	kfree(data);
-
-	return 0;
 }
 
 static const struct i2c_device_id max6875_id[] = {

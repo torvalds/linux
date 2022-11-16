@@ -83,8 +83,10 @@ struct uc_css_header {
 } __packed;
 static_assert(sizeof(struct uc_css_header) == 128);
 
-#define HUC_GSC_VERSION_DW		44
-#define   HUC_GSC_MAJOR_VER_MASK	(0xFF << 0)
-#define   HUC_GSC_MINOR_VER_MASK	(0xFF << 16)
+#define HUC_GSC_VERSION_HI_DW		44
+#define   HUC_GSC_MAJOR_VER_HI_MASK	(0xFF << 0)
+#define   HUC_GSC_MINOR_VER_HI_MASK	(0xFF << 16)
+#define HUC_GSC_VERSION_LO_DW		45
+#define   HUC_GSC_PATCH_VER_LO_MASK	(0xFF << 0)
 
 #endif /* _INTEL_UC_FW_ABI_H */

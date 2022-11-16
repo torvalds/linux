@@ -11,6 +11,7 @@
 #include <linux/idr.h>
 #include <linux/pci.h>
 #include <linux/ioasid.h>
+#include <linux/bitmap.h>
 #include <linux/perf_event.h>
 #include <uapi/linux/idxd.h>
 #include "registers.h"
@@ -95,6 +96,8 @@ struct idxd_group {
 	u8 rdbufs_reserved;
 	int tc_a;
 	int tc_b;
+	int desc_progress_limit;
+	int batch_progress_limit;
 };
 
 struct idxd_pmu {
@@ -132,6 +135,7 @@ enum idxd_wq_state {
 enum idxd_wq_flag {
 	WQ_FLAG_DEDICATED = 0,
 	WQ_FLAG_BLOCK_ON_FAULT,
+	WQ_FLAG_ATS_DISABLE,
 };
 
 enum idxd_wq_type {
@@ -194,6 +198,8 @@ struct idxd_wq {
 	enum idxd_wq_state state;
 	unsigned long flags;
 	union wqcfg *wqcfg;
+	unsigned long *opcap_bmap;
+
 	struct dsa_hw_desc **hw_descs;
 	int num_descs;
 	union {
@@ -208,7 +214,6 @@ struct idxd_wq {
 	char name[WQ_NAME_SIZE + 1];
 	u64 max_xfer_bytes;
 	u32 max_batch_size;
-	bool ats_dis;
 };
 
 struct idxd_engine {
@@ -299,6 +304,7 @@ struct idxd_device {
 	int rdbuf_limit;
 	int nr_rdbufs;		/* non-reserved read buffers */
 	unsigned int wqcfg_size;
+	unsigned long *wq_enable_map;
 
 	union sw_err_reg sw_err;
 	wait_queue_head_t cmd_waitq;
@@ -308,6 +314,8 @@ struct idxd_device {
 	struct work_struct work;
 
 	struct idxd_pmu *idxd_pmu;
+
+	unsigned long *opcap_bmap;
 };
 
 /* IDXD software descriptor */
@@ -539,6 +547,38 @@ static inline int idxd_wq_refcount(struct idxd_wq *wq)
 {
 	return wq->client_count;
 };
+
+/*
+ * Intel IAA does not support batch processing.
+ * The max batch size of device, max batch size of wq and
+ * max batch shift of wqcfg should be always 0 on IAA.
+ */
+static inline void idxd_set_max_batch_size(int idxd_type, struct idxd_device *idxd,
+					   u32 max_batch_size)
+{
+	if (idxd_type == IDXD_TYPE_IAX)
+		idxd->max_batch_size = 0;
+	else
+		idxd->max_batch_size = max_batch_size;
+}
+
+static inline void idxd_wq_set_max_batch_size(int idxd_type, struct idxd_wq *wq,
+					      u32 max_batch_size)
+{
+	if (idxd_type == IDXD_TYPE_IAX)
+		wq->max_batch_size = 0;
+	else
+		wq->max_batch_size = max_batch_size;
+}
+
+static inline void idxd_wqcfg_set_max_batch_shift(int idxd_type, union wqcfg *wqcfg,
+						  u32 max_batch_shift)
+{
+	if (idxd_type == IDXD_TYPE_IAX)
+		wqcfg->max_batch_shift = 0;
+	else
+		wqcfg->max_batch_shift = max_batch_shift;
+}
 
 int __must_check __idxd_driver_register(struct idxd_device_driver *idxd_drv,
 					struct module *module, const char *mod_name);

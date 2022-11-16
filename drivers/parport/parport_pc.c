@@ -2604,6 +2604,7 @@ enum parport_pc_pci_cards {
 	oxsemi_pcie_pport,
 	aks_0100,
 	mobility_pp,
+	netmos_9900,
 	netmos_9705,
 	netmos_9715,
 	netmos_9755,
@@ -2665,6 +2666,7 @@ static struct parport_pc_pci {
 	/* oxsemi_pcie_pport */		{ 1, { { 0, 1 }, } },
 	/* aks_0100 */                  { 1, { { 0, -1 }, } },
 	/* mobility_pp */		{ 1, { { 0, 1 }, } },
+	/* netmos_9900 */		{ 1, { { 0, -1 }, } },
 
 	/* The netmos entries below are untested */
 	/* netmos_9705 */               { 1, { { 0, -1 }, } },
@@ -2746,6 +2748,8 @@ static const struct pci_device_id parport_pc_pci_tbl[] = {
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, aks_0100 },
 	{ 0x14f2, 0x0121, PCI_ANY_ID, PCI_ANY_ID, 0, 0, mobility_pp },
 	/* NetMos communication controllers */
+	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9900,
+	  0xA000, 0x2000, 0, 0, netmos_9900 },
 	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9705,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, netmos_9705 },
 	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9715,

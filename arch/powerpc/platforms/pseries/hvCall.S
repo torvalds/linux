@@ -16,7 +16,7 @@
 #ifdef CONFIG_TRACEPOINTS
 
 #ifndef CONFIG_JUMP_LABEL
-	.section	".toc","aw"
+	.data
 
 	.globl hcall_tracepoint_refcount
 hcall_tracepoint_refcount:
@@ -88,7 +88,7 @@ hcall_tracepoint_refcount:
 BEGIN_FTR_SECTION;						\
 	b	1f;						\
 END_FTR_SECTION(0, 1);						\
-	ld	r12,hcall_tracepoint_refcount@toc(r2);		\
+	LOAD_REG_ADDR(r12, hcall_tracepoint_refcount) ;		\
 	std	r12,32(r1);					\
 	cmpdi	r12,0;						\
 	bne-	LABEL;						\

@@ -138,6 +138,7 @@ struct share_check {
 	u64 root_objectid;
 	u64 inum;
 	int share_count;
+	bool have_delayed_delete_refs;
 };
 
 static inline int extent_is_shared(struct share_check *sc)
@@ -288,8 +289,10 @@ static void prelim_release(struct preftree *preftree)
 	struct prelim_ref *ref, *next_ref;
 
 	rbtree_postorder_for_each_entry_safe(ref, next_ref,
-					     &preftree->root.rb_root, rbnode)
+					     &preftree->root.rb_root, rbnode) {
+		free_inode_elem_list(ref->inode_list);
 		free_pref(ref);
+	}
 
 	preftree->root = RB_ROOT_CACHED;
 	preftree->count = 0;
@@ -647,6 +650,18 @@ unode_aux_to_inode_list(struct ulist_node *node)
 	return (struct extent_inode_elem *)(uintptr_t)node->aux;
 }
 
+static void free_leaf_list(struct ulist *ulist)
+{
+	struct ulist_node *node;
+	struct ulist_iterator uiter;
+
+	ULIST_ITER_INIT(&uiter);
+	while ((node = ulist_next(ulist, &uiter)))
+		free_inode_elem_list(unode_aux_to_inode_list(node));
+
+	ulist_free(ulist);
+}
+
 /*
  * We maintain three separate rbtrees: one for direct refs, one for
  * indirect refs which have a key, and one for indirect refs which do not
@@ -761,7 +776,11 @@ static int resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 		cond_resched();
 	}
 out:
-	ulist_free(parents);
+	/*
+	 * We may have inode lists attached to refs in the parents ulist, so we
+	 * must free them before freeing the ulist and its refs.
+	 */
+	free_leaf_list(parents);
 	return ret;
 }
 
@@ -820,15 +839,10 @@ static int add_delayed_refs(const struct btrfs_fs_info *fs_info,
 			    struct preftrees *preftrees, struct share_check *sc)
 {
 	struct btrfs_delayed_ref_node *node;
-	struct btrfs_delayed_extent_op *extent_op = head->extent_op;
 	struct btrfs_key key;
-	struct btrfs_key tmp_op_key;
 	struct rb_node *n;
 	int count;
 	int ret = 0;
-
-	if (extent_op && extent_op->update_key)
-		btrfs_disk_key_to_cpu(&tmp_op_key, &extent_op->key);
 
 	spin_lock(&head->lock);
 	for (n = rb_first_cached(&head->ref_tree); n; n = rb_next(n)) {
@@ -855,10 +869,16 @@ static int add_delayed_refs(const struct btrfs_fs_info *fs_info,
 		case BTRFS_TREE_BLOCK_REF_KEY: {
 			/* NORMAL INDIRECT METADATA backref */
 			struct btrfs_delayed_tree_ref *ref;
+			struct btrfs_key *key_ptr = NULL;
+
+			if (head->extent_op && head->extent_op->update_key) {
+				btrfs_disk_key_to_cpu(&key, &head->extent_op->key);
+				key_ptr = &key;
+			}
 
 			ref = btrfs_delayed_node_to_tree_ref(node);
 			ret = add_indirect_ref(fs_info, preftrees, ref->root,
-					       &tmp_op_key, ref->level + 1,
+					       key_ptr, ref->level + 1,
 					       node->bytenr, count, sc,
 					       GFP_ATOMIC);
 			break;
@@ -884,13 +904,22 @@ static int add_delayed_refs(const struct btrfs_fs_info *fs_info,
 			key.offset = ref->offset;
 
 			/*
-			 * Found a inum that doesn't match our known inum, we
-			 * know it's shared.
+			 * If we have a share check context and a reference for
+			 * another inode, we can't exit immediately. This is
+			 * because even if this is a BTRFS_ADD_DELAYED_REF
+			 * reference we may find next a BTRFS_DROP_DELAYED_REF
+			 * which cancels out this ADD reference.
+			 *
+			 * If this is a DROP reference and there was no previous
+			 * ADD reference, then we need to signal that when we
+			 * process references from the extent tree (through
+			 * add_inline_refs() and add_keyed_refs()), we should
+			 * not exit early if we find a reference for another
+			 * inode, because one of the delayed DROP references
+			 * may cancel that reference in the extent tree.
 			 */
-			if (sc && sc->inum && ref->objectid != sc->inum) {
-				ret = BACKREF_FOUND_SHARED;
-				goto out;
-			}
+			if (sc && count < 0)
+				sc->have_delayed_delete_refs = true;
 
 			ret = add_indirect_ref(fs_info, preftrees, ref->root,
 					       &key, 0, node->bytenr, count, sc,
@@ -920,7 +949,7 @@ static int add_delayed_refs(const struct btrfs_fs_info *fs_info,
 	}
 	if (!ret)
 		ret = extent_is_shared(sc);
-out:
+
 	spin_unlock(&head->lock);
 	return ret;
 }
@@ -1023,7 +1052,8 @@ static int add_inline_refs(const struct btrfs_fs_info *fs_info,
 			key.type = BTRFS_EXTENT_DATA_KEY;
 			key.offset = btrfs_extent_data_ref_offset(leaf, dref);
 
-			if (sc && sc->inum && key.objectid != sc->inum) {
+			if (sc && sc->inum && key.objectid != sc->inum &&
+			    !sc->have_delayed_delete_refs) {
 				ret = BACKREF_FOUND_SHARED;
 				break;
 			}
@@ -1033,6 +1063,7 @@ static int add_inline_refs(const struct btrfs_fs_info *fs_info,
 			ret = add_indirect_ref(fs_info, preftrees, root,
 					       &key, 0, bytenr, count,
 					       sc, GFP_NOFS);
+
 			break;
 		}
 		default:
@@ -1122,7 +1153,8 @@ static int add_keyed_refs(struct btrfs_root *extent_root,
 			key.type = BTRFS_EXTENT_DATA_KEY;
 			key.offset = btrfs_extent_data_ref_offset(leaf, dref);
 
-			if (sc && sc->inum && key.objectid != sc->inum) {
+			if (sc && sc->inum && key.objectid != sc->inum &&
+			    !sc->have_delayed_delete_refs) {
 				ret = BACKREF_FOUND_SHARED;
 				break;
 			}
@@ -1354,6 +1386,12 @@ again:
 				if (ret < 0)
 					goto out;
 				ref->inode_list = eie;
+				/*
+				 * We transferred the list ownership to the ref,
+				 * so set to NULL to avoid a double free in case
+				 * an error happens after this.
+				 */
+				eie = NULL;
 			}
 			ret = ulist_add_merge_ptr(refs, ref->parent,
 						  ref->inode_list,
@@ -1379,6 +1417,14 @@ again:
 				eie->next = ref->inode_list;
 			}
 			eie = NULL;
+			/*
+			 * We have transferred the inode list ownership from
+			 * this ref to the ref we added to the 'refs' ulist.
+			 * So set this ref's inode list to NULL to avoid
+			 * use-after-free when our caller uses it or double
+			 * frees in case an error happens before we return.
+			 */
+			ref->inode_list = NULL;
 		}
 		cond_resched();
 	}
@@ -1393,24 +1439,6 @@ out:
 	if (ret < 0)
 		free_inode_elem_list(eie);
 	return ret;
-}
-
-static void free_leaf_list(struct ulist *blocks)
-{
-	struct ulist_node *node = NULL;
-	struct extent_inode_elem *eie;
-	struct ulist_iterator uiter;
-
-	ULIST_ITER_INIT(&uiter);
-	while ((node = ulist_next(blocks, &uiter))) {
-		if (!node->aux)
-			continue;
-		eie = unode_aux_to_inode_list(node);
-		free_inode_elem_list(eie);
-		node->aux = 0;
-	}
-
-	ulist_free(blocks);
 }
 
 /*
@@ -1511,16 +1539,137 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-/**
- * Check if an extent is shared or not
+/*
+ * The caller has joined a transaction or is holding a read lock on the
+ * fs_info->commit_root_sem semaphore, so no need to worry about the root's last
+ * snapshot field changing while updating or checking the cache.
+ */
+static bool lookup_backref_shared_cache(struct btrfs_backref_shared_cache *cache,
+					struct btrfs_root *root,
+					u64 bytenr, int level, bool *is_shared)
+{
+	struct btrfs_backref_shared_cache_entry *entry;
+
+	if (!cache->use_cache)
+		return false;
+
+	if (WARN_ON_ONCE(level >= BTRFS_MAX_LEVEL))
+		return false;
+
+	/*
+	 * Level -1 is used for the data extent, which is not reliable to cache
+	 * because its reference count can increase or decrease without us
+	 * realizing. We cache results only for extent buffers that lead from
+	 * the root node down to the leaf with the file extent item.
+	 */
+	ASSERT(level >= 0);
+
+	entry = &cache->entries[level];
+
+	/* Unused cache entry or being used for some other extent buffer. */
+	if (entry->bytenr != bytenr)
+		return false;
+
+	/*
+	 * We cached a false result, but the last snapshot generation of the
+	 * root changed, so we now have a snapshot. Don't trust the result.
+	 */
+	if (!entry->is_shared &&
+	    entry->gen != btrfs_root_last_snapshot(&root->root_item))
+		return false;
+
+	/*
+	 * If we cached a true result and the last generation used for dropping
+	 * a root changed, we can not trust the result, because the dropped root
+	 * could be a snapshot sharing this extent buffer.
+	 */
+	if (entry->is_shared &&
+	    entry->gen != btrfs_get_last_root_drop_gen(root->fs_info))
+		return false;
+
+	*is_shared = entry->is_shared;
+	/*
+	 * If the node at this level is shared, than all nodes below are also
+	 * shared. Currently some of the nodes below may be marked as not shared
+	 * because we have just switched from one leaf to another, and switched
+	 * also other nodes above the leaf and below the current level, so mark
+	 * them as shared.
+	 */
+	if (*is_shared) {
+		for (int i = 0; i < level; i++) {
+			cache->entries[i].is_shared = true;
+			cache->entries[i].gen = entry->gen;
+		}
+	}
+
+	return true;
+}
+
+/*
+ * The caller has joined a transaction or is holding a read lock on the
+ * fs_info->commit_root_sem semaphore, so no need to worry about the root's last
+ * snapshot field changing while updating or checking the cache.
+ */
+static void store_backref_shared_cache(struct btrfs_backref_shared_cache *cache,
+				       struct btrfs_root *root,
+				       u64 bytenr, int level, bool is_shared)
+{
+	struct btrfs_backref_shared_cache_entry *entry;
+	u64 gen;
+
+	if (!cache->use_cache)
+		return;
+
+	if (WARN_ON_ONCE(level >= BTRFS_MAX_LEVEL))
+		return;
+
+	/*
+	 * Level -1 is used for the data extent, which is not reliable to cache
+	 * because its reference count can increase or decrease without us
+	 * realizing. We cache results only for extent buffers that lead from
+	 * the root node down to the leaf with the file extent item.
+	 */
+	ASSERT(level >= 0);
+
+	if (is_shared)
+		gen = btrfs_get_last_root_drop_gen(root->fs_info);
+	else
+		gen = btrfs_root_last_snapshot(&root->root_item);
+
+	entry = &cache->entries[level];
+	entry->bytenr = bytenr;
+	entry->is_shared = is_shared;
+	entry->gen = gen;
+
+	/*
+	 * If we found an extent buffer is shared, set the cache result for all
+	 * extent buffers below it to true. As nodes in the path are COWed,
+	 * their sharedness is moved to their children, and if a leaf is COWed,
+	 * then the sharedness of a data extent becomes direct, the refcount of
+	 * data extent is increased in the extent item at the extent tree.
+	 */
+	if (is_shared) {
+		for (int i = 0; i < level; i++) {
+			entry = &cache->entries[i];
+			entry->is_shared = is_shared;
+			entry->gen = gen;
+		}
+	}
+}
+
+/*
+ * Check if a data extent is shared or not.
  *
- * @root:   root inode belongs to
- * @inum:   inode number of the inode whose extent we are checking
- * @bytenr: logical bytenr of the extent we are checking
- * @roots:  list of roots this extent is shared among
- * @tmp:    temporary list used for iteration
+ * @root:        The root the inode belongs to.
+ * @inum:        Number of the inode whose extent we are checking.
+ * @bytenr:      Logical bytenr of the extent we are checking.
+ * @extent_gen:  Generation of the extent (file extent item) or 0 if it is
+ *               not known.
+ * @roots:       List of roots this extent is shared among.
+ * @tmp:         Temporary list used for iteration.
+ * @cache:       A backref lookup result cache.
  *
- * btrfs_check_shared uses the backref walking code but will short
+ * btrfs_is_data_extent_shared uses the backref walking code but will short
  * circuit as soon as it finds a root or inode that doesn't match the
  * one passed in. This provides a significant performance benefit for
  * callers (such as fiemap) which want to know whether the extent is
@@ -1531,8 +1680,10 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
  *
  * Return: 0 if extent is not shared, 1 if it is shared, < 0 on error.
  */
-int btrfs_check_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
-		struct ulist *roots, struct ulist *tmp)
+int btrfs_is_data_extent_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
+				u64 extent_gen,
+				struct ulist *roots, struct ulist *tmp,
+				struct btrfs_backref_shared_cache *cache)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_trans_handle *trans;
@@ -1544,7 +1695,9 @@ int btrfs_check_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
 		.root_objectid = root->root_key.objectid,
 		.inum = inum,
 		.share_count = 0,
+		.have_delayed_delete_refs = false,
 	};
+	int level;
 
 	ulist_init(roots);
 	ulist_init(tmp);
@@ -1561,23 +1714,73 @@ int btrfs_check_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
 		btrfs_get_tree_mod_seq(fs_info, &elem);
 	}
 
+	/* -1 means we are in the bytenr of the data extent. */
+	level = -1;
 	ULIST_ITER_INIT(&uiter);
+	cache->use_cache = true;
 	while (1) {
+		bool is_shared;
+		bool cached;
+
 		ret = find_parent_nodes(trans, fs_info, bytenr, elem.seq, tmp,
 					roots, NULL, &shared, false);
 		if (ret == BACKREF_FOUND_SHARED) {
 			/* this is the only condition under which we return 1 */
 			ret = 1;
+			if (level >= 0)
+				store_backref_shared_cache(cache, root, bytenr,
+							   level, true);
 			break;
 		}
 		if (ret < 0 && ret != -ENOENT)
 			break;
 		ret = 0;
+		/*
+		 * If our data extent is not shared through reflinks and it was
+		 * created in a generation after the last one used to create a
+		 * snapshot of the inode's root, then it can not be shared
+		 * indirectly through subtrees, as that can only happen with
+		 * snapshots. In this case bail out, no need to check for the
+		 * sharedness of extent buffers.
+		 */
+		if (level == -1 &&
+		    extent_gen > btrfs_root_last_snapshot(&root->root_item))
+			break;
+
+		/*
+		 * If our data extent was not directly shared (without multiple
+		 * reference items), than it might have a single reference item
+		 * with a count > 1 for the same offset, which means there are 2
+		 * (or more) file extent items that point to the data extent -
+		 * this happens when a file extent item needs to be split and
+		 * then one item gets moved to another leaf due to a b+tree leaf
+		 * split when inserting some item. In this case the file extent
+		 * items may be located in different leaves and therefore some
+		 * of the leaves may be referenced through shared subtrees while
+		 * others are not. Since our extent buffer cache only works for
+		 * a single path (by far the most common case and simpler to
+		 * deal with), we can not use it if we have multiple leaves
+		 * (which implies multiple paths).
+		 */
+		if (level == -1 && tmp->nnodes > 1)
+			cache->use_cache = false;
+
+		if (level >= 0)
+			store_backref_shared_cache(cache, root, bytenr,
+						   level, false);
 		node = ulist_next(tmp, &uiter);
 		if (!node)
 			break;
 		bytenr = node->val;
+		level++;
+		cached = lookup_backref_shared_cache(cache, root, bytenr, level,
+						     &is_shared);
+		if (cached) {
+			ret = (is_shared ? 1 : 0);
+			break;
+		}
 		shared.share_count = 0;
+		shared.have_delayed_delete_refs = false;
 		cond_resched();
 	}
 

@@ -158,7 +158,7 @@ static unsigned long __init __mmu_mapin_ram(unsigned long base, unsigned long to
 unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 {
 	unsigned long done;
-	unsigned long border = (unsigned long)__init_begin - PAGE_OFFSET;
+	unsigned long border = (unsigned long)__srwx_boundary - PAGE_OFFSET;
 	unsigned long size;
 
 	size = roundup_pow_of_two((unsigned long)_einittext - PAGE_OFFSET);
@@ -240,7 +240,7 @@ void mmu_mark_rodata_ro(void)
 	for (i = 0; i < nb; i++) {
 		struct ppc_bat *bat = BATS[i];
 
-		if (bat_addrs[i].start < (unsigned long)__init_begin)
+		if (bat_addrs[i].start < (unsigned long)__end_rodata)
 			bat[1].batl = (bat[1].batl & ~BPP_RW) | BPP_RX;
 	}
 
@@ -314,11 +314,9 @@ static void hash_preload(struct mm_struct *mm, unsigned long ea)
  *
  * This must always be called with the pte lock held.
  */
-void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
+void __update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 		      pte_t *ptep)
 {
-	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE))
-		return;
 	/*
 	 * We don't need to worry about _PAGE_PRESENT here because we are
 	 * called with either mm->page_table_lock held or ptl lock held

@@ -283,7 +283,8 @@ static void spcp8x5_init_termios(struct tty_struct *tty)
 }
 
 static void spcp8x5_set_termios(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ktermios *old_termios)
+				struct usb_serial_port *port,
+				const struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	struct spcp8x5_private *priv = usb_get_serial_port_data(port);

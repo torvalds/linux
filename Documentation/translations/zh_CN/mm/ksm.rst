@@ -30,7 +30,7 @@ KSM的用户空间的接口在Documentation/translations/zh_CN/admin-guide/mm/ks
 KSM维护着稳定树中的KSM页的逆映射信息。
 
 当KSM页面的共享数小于 ``max_page_sharing`` 的虚拟内存区域(VMAs)时，则代表了
-KSM页的稳定树其中的节点指向了一个rmap_item结构体类型的列表。同时，这个KSM页
+KSM页的稳定树其中的节点指向了一个ksm_rmap_item结构体类型的列表。同时，这个KSM页
 的 ``page->mapping`` 指向了该稳定树节点。
 
 如果共享数超过了阈值，KSM将给稳定树添加第二个维度。稳定树就变成链接一个或多

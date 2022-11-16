@@ -18,7 +18,6 @@
 #include <linux/tc_act/tc_defact.h>
 #include <net/tc_act/tc_defact.h>
 
-static unsigned int simp_net_id;
 static struct tc_action_ops act_simp_ops;
 
 #define SIMP_MAX_DATA	32
@@ -89,7 +88,7 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 			 struct tcf_proto *tp, u32 flags,
 			 struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, simp_net_id);
+	struct tc_action_net *tn = net_generic(net, act_simp_ops.net_id);
 	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_DEF_MAX + 1];
 	struct tcf_chain *goto_ch = NULL;
@@ -198,23 +197,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_simp_walker(struct net *net, struct sk_buff *skb,
-			   struct netlink_callback *cb, int type,
-			   const struct tc_action_ops *ops,
-			   struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, simp_net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_simp_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, simp_net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static struct tc_action_ops act_simp_ops = {
 	.kind		=	"simple",
 	.id		=	TCA_ID_SIMP,
@@ -223,27 +205,25 @@ static struct tc_action_ops act_simp_ops = {
 	.dump		=	tcf_simp_dump,
 	.cleanup	=	tcf_simp_release,
 	.init		=	tcf_simp_init,
-	.walk		=	tcf_simp_walker,
-	.lookup		=	tcf_simp_search,
 	.size		=	sizeof(struct tcf_defact),
 };
 
 static __net_init int simp_init_net(struct net *net)
 {
-	struct tc_action_net *tn = net_generic(net, simp_net_id);
+	struct tc_action_net *tn = net_generic(net, act_simp_ops.net_id);
 
 	return tc_action_net_init(net, tn, &act_simp_ops);
 }
 
 static void __net_exit simp_exit_net(struct list_head *net_list)
 {
-	tc_action_net_exit(net_list, simp_net_id);
+	tc_action_net_exit(net_list, act_simp_ops.net_id);
 }
 
 static struct pernet_operations simp_net_ops = {
 	.init = simp_init_net,
 	.exit_batch = simp_exit_net,
-	.id   = &simp_net_id,
+	.id   = &act_simp_ops.net_id,
 	.size = sizeof(struct tc_action_net),
 };
 

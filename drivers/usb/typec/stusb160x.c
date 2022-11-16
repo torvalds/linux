@@ -750,11 +750,8 @@ static int stusb160x_probe(struct i2c_client *client)
 	if (client->irq) {
 		chip->role_sw = fwnode_usb_role_switch_get(fwnode);
 		if (IS_ERR(chip->role_sw)) {
-			ret = PTR_ERR(chip->role_sw);
-			if (ret != -EPROBE_DEFER)
-				dev_err(chip->dev,
-					"Failed to get usb role switch: %d\n",
-					ret);
+			ret = dev_err_probe(chip->dev, PTR_ERR(chip->role_sw),
+					    "Failed to get usb role switch\n");
 			goto port_unregister;
 		}
 
@@ -801,7 +798,7 @@ fwnode_put:
 	return ret;
 }
 
-static int stusb160x_remove(struct i2c_client *client)
+static void stusb160x_remove(struct i2c_client *client)
 {
 	struct stusb160x *chip = i2c_get_clientdata(client);
 
@@ -823,8 +820,6 @@ static int stusb160x_remove(struct i2c_client *client)
 
 	if (chip->main_supply)
 		regulator_disable(chip->main_supply);
-
-	return 0;
 }
 
 static int __maybe_unused stusb160x_suspend(struct device *dev)

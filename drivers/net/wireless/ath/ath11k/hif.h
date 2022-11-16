@@ -11,6 +11,7 @@
 struct ath11k_hif_ops {
 	u32 (*read32)(struct ath11k_base *sc, u32 address);
 	void (*write32)(struct ath11k_base *sc, u32 address, u32 data);
+	int (*read)(struct ath11k_base *ab, void *buf, u32 start, u32 end);
 	void (*irq_enable)(struct ath11k_base *sc);
 	void (*irq_disable)(struct ath11k_base *sc);
 	int (*start)(struct ath11k_base *sc);
@@ -99,6 +100,15 @@ static inline void ath11k_hif_write32(struct ath11k_base *sc, u32 address, u32 d
 	sc->hif.ops->write32(sc, address, data);
 }
 
+static inline int ath11k_hif_read(struct ath11k_base *ab, void *buf,
+				  u32 start, u32 end)
+{
+	if (!ab->hif.ops->read)
+		return -EOPNOTSUPP;
+
+	return ab->hif.ops->read(ab, buf, start, end);
+}
+
 static inline int ath11k_hif_map_service_to_pipe(struct ath11k_base *sc, u16 service_id,
 						 u8 *ul_pipe, u8 *dl_pipe)
 {
@@ -134,4 +144,5 @@ static inline void ath11k_get_ce_msi_idx(struct ath11k_base *ab, u32 ce_id,
 	else
 		*msi_data_idx = ce_id;
 }
+
 #endif /* _HIF_H_ */

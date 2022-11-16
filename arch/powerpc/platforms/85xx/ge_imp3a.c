@@ -89,8 +89,10 @@ static void __init ge_imp3a_pci_assign_primary(void)
 		    of_device_is_compatible(np, "fsl,mpc8548-pcie") ||
 		    of_device_is_compatible(np, "fsl,p2020-pcie")) {
 			of_address_to_resource(np, 0, &rsrc);
-			if ((rsrc.start & 0xfffff) == 0x9000)
-				fsl_pci_primary = np;
+			if ((rsrc.start & 0xfffff) == 0x9000) {
+				of_node_put(fsl_pci_primary);
+				fsl_pci_primary = of_node_get(np);
+			}
 		}
 	}
 #endif

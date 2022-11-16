@@ -340,6 +340,14 @@ Before jumping into the kernel, the following conditions must be met:
     - SMCR_EL2.LEN must be initialised to the same value for all CPUs the
       kernel will execute on.
 
+    - HWFGRTR_EL2.nTPIDR2_EL0 (bit 55) must be initialised to 0b01.
+
+    - HWFGWTR_EL2.nTPIDR2_EL0 (bit 55) must be initialised to 0b01.
+
+    - HWFGRTR_EL2.nSMPRI_EL1 (bit 54) must be initialised to 0b01.
+
+    - HWFGWTR_EL2.nSMPRI_EL1 (bit 54) must be initialised to 0b01.
+
   For CPUs with the Scalable Matrix Extension FA64 feature (FEAT_SME_FA64)
 
   - If EL3 is present:

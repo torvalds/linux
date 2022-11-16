@@ -141,6 +141,10 @@ root_hash_sig_key_desc <key_description>
     also gain new certificates at run time if they are signed by a certificate
     already in the secondary trusted keyring.
 
+try_verify_in_tasklet
+    If verity hashes are in cache, verify data blocks in kernel tasklet instead
+    of workqueue. This option can reduce IO latency.
+
 Theory of operation
 ===================
 

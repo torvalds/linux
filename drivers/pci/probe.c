@@ -1297,7 +1297,7 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 
 	if ((secondary || subordinate) && !pcibios_assign_all_busses() &&
 	    !is_cardbus && !broken) {
-		unsigned int cmax;
+		unsigned int cmax, buses;
 
 		/*
 		 * Bus already configured by firmware, process it in the
@@ -1322,7 +1322,8 @@ static int pci_scan_bridge_extend(struct pci_bus *bus, struct pci_dev *dev,
 			child->bridge_ctl = bctl;
 		}
 
-		cmax = pci_scan_child_bus(child);
+		buses = subordinate - secondary;
+		cmax = pci_scan_child_bus_extend(child, buses);
 		if (cmax > subordinate)
 			pci_warn(dev, "bridge has subordinate %02x but max busn %02x\n",
 				 subordinate, cmax);
@@ -2920,8 +2921,8 @@ static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
 		 * hotplug bridges too much during the second scan below.
 		 */
 		used_buses++;
-		if (cmax - max > 1)
-			used_buses += cmax - max - 1;
+		if (max - cmax > 1)
+			used_buses += max - cmax - 1;
 	}
 
 	/* Scan bridges that need to be reconfigured */
@@ -2929,7 +2930,6 @@ static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
 		unsigned int buses = 0;
 
 		if (!hotplug_bridges && normal_bridges == 1) {
-
 			/*
 			 * There is only one bridge on the bus (upstream
 			 * port) so it gets all available buses which it
@@ -2938,7 +2938,6 @@ static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
 			 */
 			buses = available_buses;
 		} else if (dev->is_hotplug_bridge) {
-
 			/*
 			 * Distribute the extra buses between hotplug
 			 * bridges if any.
@@ -2957,7 +2956,7 @@ static unsigned int pci_scan_child_bus_extend(struct pci_bus *bus,
 	/*
 	 * Make sure a hotplug bridge has at least the minimum requested
 	 * number of buses but allow it to grow up to the maximum available
-	 * bus number of there is room.
+	 * bus number if there is room.
 	 */
 	if (bus->self && bus->self->is_hotplug_bridge) {
 		used_buses = max_t(unsigned int, available_buses,

@@ -6,6 +6,7 @@
  * Copyright (C) 2006 Paul Mackerras, IBM Corp. <paulus@samba.org>
  */
 
+#include <linux/aperture.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fb.h>
@@ -620,6 +621,10 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct fb_info *info;
 	struct fb_var_screeninfo var;
 	enum gxt_cards cardtype;
+
+	err = aperture_remove_conflicting_pci_devices(pdev, "gxt4500fb");
+	if (err)
+		return err;
 
 	err = pci_enable_device(pdev);
 	if (err) {

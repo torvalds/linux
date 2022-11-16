@@ -29,7 +29,8 @@ struct msm_dsi_phy_ops {
 };
 
 struct msm_dsi_phy_cfg {
-	struct dsi_reg_config reg_cfg;
+	const struct regulator_bulk_data *regulator_data;
+	int num_regulators;
 	struct msm_dsi_phy_ops ops;
 
 	unsigned long	min_pll_rate;
@@ -98,7 +99,7 @@ struct msm_dsi_phy {
 	int id;
 
 	struct clk *ahb_clk;
-	struct regulator_bulk_data supplies[DSI_DEV_REGULATOR_MAX];
+	struct regulator_bulk_data *supplies;
 
 	struct msm_dsi_dphy_timing timing;
 	const struct msm_dsi_phy_cfg *cfg;

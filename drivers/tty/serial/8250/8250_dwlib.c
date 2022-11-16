@@ -92,7 +92,8 @@ static void dw8250_set_divisor(struct uart_port *p, unsigned int baud,
 	serial8250_do_set_divisor(p, baud, quot, quot_frac);
 }
 
-void dw8250_do_set_termios(struct uart_port *p, struct ktermios *termios, struct ktermios *old)
+void dw8250_do_set_termios(struct uart_port *p, struct ktermios *termios,
+			   const struct ktermios *old)
 {
 	p->status &= ~UPSTAT_AUTOCTS;
 	if (termios->c_cflag & CRTSCTS)

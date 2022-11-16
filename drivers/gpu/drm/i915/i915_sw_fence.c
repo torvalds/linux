@@ -241,8 +241,6 @@ void __i915_sw_fence_init(struct i915_sw_fence *fence,
 			  const char *name,
 			  struct lock_class_key *key)
 {
-	BUG_ON(!fn);
-
 	__init_waitqueue_head(&fence->wait, name, key);
 	fence->fn = fn;
 #ifdef CONFIG_DRM_I915_SW_FENCE_CHECK_DAG

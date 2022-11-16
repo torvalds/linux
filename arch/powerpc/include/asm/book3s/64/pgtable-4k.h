@@ -26,16 +26,6 @@ static inline int pud_huge(pud_t pud)
 	return 0;
 }
 
-static inline int pgd_huge(pgd_t pgd)
-{
-	/*
-	 * leaf pte for huge page
-	 */
-	if (radix_enabled())
-		return !!(pgd_raw(pgd) & cpu_to_be64(_PAGE_PTE));
-	return 0;
-}
-#define pgd_huge pgd_huge
 /*
  * With radix , we have hugepage ptes in the pud and pmd entries. We don't
  * need to setup hugepage directory for them. Our pte and page directory format

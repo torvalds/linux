@@ -4,6 +4,7 @@
  */
 
 #include <linux/pagemap.h>
+#include <linux/pagevec.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/sizes.h>
@@ -20,39 +21,40 @@ static noinline int process_page_range(struct inode *inode, u64 start, u64 end,
 				       unsigned long flags)
 {
 	int ret;
-	struct page *pages[16];
+	struct folio_batch fbatch;
 	unsigned long index = start >> PAGE_SHIFT;
 	unsigned long end_index = end >> PAGE_SHIFT;
-	unsigned long nr_pages = end_index - index + 1;
 	int i;
 	int count = 0;
 	int loops = 0;
 
-	while (nr_pages > 0) {
-		ret = find_get_pages_contig(inode->i_mapping, index,
-				     min_t(unsigned long, nr_pages,
-				     ARRAY_SIZE(pages)), pages);
+	folio_batch_init(&fbatch);
+
+	while (index <= end_index) {
+		ret = filemap_get_folios_contig(inode->i_mapping, &index,
+				end_index, &fbatch);
 		for (i = 0; i < ret; i++) {
+			struct folio *folio = fbatch.folios[i];
+
 			if (flags & PROCESS_TEST_LOCKED &&
-			    !PageLocked(pages[i]))
+			    !folio_test_locked(folio))
 				count++;
-			if (flags & PROCESS_UNLOCK && PageLocked(pages[i]))
-				unlock_page(pages[i]);
-			put_page(pages[i]);
+			if (flags & PROCESS_UNLOCK && folio_test_locked(folio))
+				folio_unlock(folio);
 			if (flags & PROCESS_RELEASE)
-				put_page(pages[i]);
+				folio_put(folio);
 		}
-		nr_pages -= ret;
-		index += ret;
+		folio_batch_release(&fbatch);
 		cond_resched();
 		loops++;
 		if (loops > 100000) {
 			printk(KERN_ERR
-		"stuck in a loop, start %llu, end %llu, nr_pages %lu, ret %d\n",
-				start, end, nr_pages, ret);
+		"stuck in a loop, start %llu, end %llu, ret %d\n",
+				start, end, ret);
 			break;
 		}
 	}
+
 	return count;
 }
 
@@ -80,7 +82,6 @@ static void extent_flag_to_str(const struct extent_state *state, char *dest)
 	PRINT_ONE_FLAG(state, dest, cur, NODATASUM);
 	PRINT_ONE_FLAG(state, dest, cur, CLEAR_META_RESV);
 	PRINT_ONE_FLAG(state, dest, cur, NEED_WAIT);
-	PRINT_ONE_FLAG(state, dest, cur, DAMAGED);
 	PRINT_ONE_FLAG(state, dest, cur, NORESERVE);
 	PRINT_ONE_FLAG(state, dest, cur, QGROUP_RESERVED);
 	PRINT_ONE_FLAG(state, dest, cur, CLEAR_DATA_RESV);
@@ -172,7 +173,7 @@ static int test_find_delalloc(u32 sectorsize)
 			sectorsize - 1, start, end);
 		goto out_bits;
 	}
-	unlock_extent(tmp, start, end);
+	unlock_extent(tmp, start, end, NULL);
 	unlock_page(locked_page);
 	put_page(locked_page);
 
@@ -208,7 +209,7 @@ static int test_find_delalloc(u32 sectorsize)
 		test_err("there were unlocked pages in the range");
 		goto out_bits;
 	}
-	unlock_extent(tmp, start, end);
+	unlock_extent(tmp, start, end, NULL);
 	/* locked_page was unlocked above */
 	put_page(locked_page);
 
@@ -263,7 +264,7 @@ static int test_find_delalloc(u32 sectorsize)
 		test_err("pages in range were not all locked");
 		goto out_bits;
 	}
-	unlock_extent(tmp, start, end);
+	unlock_extent(tmp, start, end, NULL);
 
 	/*
 	 * Now to test where we run into a page that is no longer dirty in the

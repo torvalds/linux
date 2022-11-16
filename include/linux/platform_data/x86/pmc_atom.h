@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Intel Atom SOC Power Management Controller Header File
- * Copyright (c) 2014, Intel Corporation.
+ * Intel Atom SoC Power Management Controller Header File
+ * Copyright (c) 2014-2015,2022 Intel Corporation.
  */
 
 #ifndef PMC_ATOM_H

@@ -2557,7 +2557,7 @@ error_print:
 	return ret;
 }
 
-static int ov5670_remove(struct i2c_client *client)
+static void ov5670_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov5670 *ov5670 = to_ov5670(sd);
@@ -2568,8 +2568,6 @@ static int ov5670_remove(struct i2c_client *client)
 	mutex_destroy(&ov5670->mutex);
 
 	pm_runtime_disable(&client->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops ov5670_pm_ops = {

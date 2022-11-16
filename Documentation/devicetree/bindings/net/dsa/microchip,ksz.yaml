@@ -107,8 +107,9 @@ examples:
                 };
                 port@5 {
                     reg = <5>;
-                    label = "cpu";
                     ethernet = <&eth0>;
+                    phy-mode = "rgmii";
+
                     fixed-link {
                         speed = <1000>;
                         full-duplex;
@@ -144,8 +145,9 @@ examples:
                 };
                 port@6 {
                     reg = <6>;
-                    label = "cpu";
                     ethernet = <&eth0>;
+                    phy-mode = "rgmii";
+
                     fixed-link {
                         speed = <1000>;
                         full-duplex;

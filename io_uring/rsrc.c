@@ -341,7 +341,7 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 		flush_delayed_work(&ctx->rsrc_put_work);
 		reinit_completion(&data->done);
 
-		ret = io_run_task_work_sig();
+		ret = io_run_task_work_sig(ctx);
 		mutex_lock(&ctx->uring_lock);
 	} while (ret >= 0);
 	data->quiesce = false;
@@ -757,20 +757,17 @@ int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
 
 void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
 {
-#if !defined(IO_URING_SCM_ALL)
 	int i;
 
 	for (i = 0; i < ctx->nr_user_files; i++) {
 		struct file *file = io_file_from_index(&ctx->file_table, i);
 
-		if (!file)
-			continue;
-		if (io_fixed_file_slot(&ctx->file_table, i)->file_ptr & FFS_SCM)
+		/* skip scm accounted files, they'll be freed by ->ring_sock */
+		if (!file || io_file_need_scm(file))
 			continue;
 		io_file_bitmap_clear(&ctx->file_table, i);
 		fput(file);
 	}
-#endif
 
 #if defined(CONFIG_UNIX)
 	if (ctx->ring_sock) {
@@ -855,6 +852,7 @@ int __io_scm_file_account(struct io_ring_ctx *ctx, struct file *file)
 
 		UNIXCB(skb).fp = fpl;
 		skb->sk = sk;
+		skb->scm_io_uring = 1;
 		skb->destructor = unix_destruct_scm;
 		refcount_add(skb->truesize, &sk->sk_wmem_alloc);
 	}

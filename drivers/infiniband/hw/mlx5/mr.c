@@ -39,9 +39,7 @@
 #include <linux/delay.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-resv.h>
-#include <rdma/ib_umem.h>
 #include <rdma/ib_umem_odp.h>
-#include <rdma/ib_verbs.h>
 #include "dm.h"
 #include "mlx5_ib.h"
 #include "umr.h"
@@ -937,7 +935,8 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 	 * cache then synchronously create an uncached one.
 	 */
 	if (!ent || ent->limit == 0 ||
-	    !mlx5r_umr_can_reconfig(dev, 0, access_flags)) {
+	    !mlx5r_umr_can_reconfig(dev, 0, access_flags) ||
+	    mlx5_umem_needs_ats(dev, umem, access_flags)) {
 		mutex_lock(&dev->slow_path_mutex);
 		mr = reg_create(pd, umem, iova, access_flags, page_size, false);
 		mutex_unlock(&dev->slow_path_mutex);
@@ -1018,6 +1017,8 @@ static struct mlx5_ib_mr *reg_create(struct ib_pd *pd, struct ib_umem *umem,
 	MLX5_SET(mkc, mkc, translations_octword_size,
 		 get_octo_len(iova, umem->length, mr->page_shift));
 	MLX5_SET(mkc, mkc, log_page_size, mr->page_shift);
+	if (mlx5_umem_needs_ats(dev, umem, access_flags))
+		MLX5_SET(mkc, mkc, ma_translation_mode, 1);
 	if (populate) {
 		MLX5_SET(create_mkey_in, in, translations_octword_actual_size,
 			 get_octo_len(iova, umem->length, mr->page_shift));
@@ -1402,7 +1403,6 @@ static int umr_rereg_pas(struct mlx5_ib_mr *mr, struct ib_pd *pd,
 		upd_flags |= MLX5_IB_UPD_XLT_ACCESS;
 	}
 
-	mr->ibmr.length = new_umem->length;
 	mr->ibmr.iova = iova;
 	mr->ibmr.length = new_umem->length;
 	mr->page_shift = order_base_2(page_size);

@@ -646,7 +646,7 @@ static int sifive_serial_clk_notifier(struct notifier_block *nb,
 
 static void sifive_serial_set_termios(struct uart_port *port,
 				      struct ktermios *termios,
-				      struct ktermios *old)
+				      const struct ktermios *old)
 {
 	struct sifive_serial_port *ssp = port_to_sifive_serial_port(port);
 	unsigned long flags;

@@ -202,7 +202,7 @@ bool hsw_crtc_state_ips_capable(const struct intel_crtc_state *crtc_state)
 	 * Should measure whether using a lower cdclk w/o IPS
 	 */
 	if (IS_BROADWELL(i915) &&
-	    crtc_state->pixel_rate > i915->max_cdclk_freq * 95 / 100)
+	    crtc_state->pixel_rate > i915->display.cdclk.max_cdclk_freq * 95 / 100)
 		return false;
 
 	return true;

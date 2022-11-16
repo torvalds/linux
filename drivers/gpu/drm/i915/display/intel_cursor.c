@@ -8,7 +8,6 @@
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_blend.h>
 #include <drm/drm_damage_helper.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_fourcc.h>
 
 #include "intel_atomic.h"
@@ -20,9 +19,9 @@
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
 #include "intel_frontbuffer.h"
-#include "intel_pm.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
+#include "skl_watermark.h"
 
 /* Cursor formats */
 static const u32 intel_cursor_formats[] = {
@@ -144,8 +143,8 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 	}
 
 	ret = intel_atomic_plane_check_clipping(plane_state, crtc_state,
-						DRM_PLANE_HELPER_NO_SCALING,
-						DRM_PLANE_HELPER_NO_SCALING,
+						DRM_PLANE_NO_SCALING,
+						DRM_PLANE_NO_SCALING,
 						true);
 	if (ret)
 		return ret;

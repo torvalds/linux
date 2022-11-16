@@ -711,6 +711,7 @@ static void __init smp_core99_setup(int ncpus)
 			printk(KERN_INFO "Processor timebase sync using"
 			       " platform function\n");
 		}
+		of_node_put(cpus);
 	}
 
 #else /* CONFIG_PPC64 */

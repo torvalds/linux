@@ -15,9 +15,11 @@ Supported devices:
 
   Corsair HX850i
 
-  Corsair HX1000i
+  Corsair HX1000i (revision 1 and 2)
 
   Corsair HX1200i
+
+  Corsair HX1500i
 
   Corsair RM550i
 
@@ -86,8 +88,9 @@ Debugfs entries
 ---------------
 
 =======================	========================================================
-uptime			Current uptime of the psu
+ocpmode                 Single or multi rail mode of the PCIe power connectors
+product                 Product name of the psu
+uptime			Session uptime of the psu
 uptime_total		Total uptime of the psu
 vendor			Vendor name of the psu
-product			Product name of the psu
 =======================	========================================================

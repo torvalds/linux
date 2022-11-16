@@ -713,12 +713,9 @@ static struct sk_buff *vxlan_gro_receive(struct sock *sk,
 
 	off_vx = skb_gro_offset(skb);
 	hlen = off_vx + sizeof(*vh);
-	vh   = skb_gro_header_fast(skb, off_vx);
-	if (skb_gro_header_hard(skb, hlen)) {
-		vh = skb_gro_header_slow(skb, hlen, off_vx);
-		if (unlikely(!vh))
-			goto out;
-	}
+	vh = skb_gro_header(skb, hlen, off_vx);
+	if (unlikely(!vh))
+		goto out;
 
 	skb_gro_postpull_rcsum(skb, vh, sizeof(struct vxlanhdr));
 
@@ -3313,8 +3310,8 @@ static int vxlan_validate(struct nlattr *tb[], struct nlattr *data[],
 static void vxlan_get_drvinfo(struct net_device *netdev,
 			      struct ethtool_drvinfo *drvinfo)
 {
-	strlcpy(drvinfo->version, VXLAN_VERSION, sizeof(drvinfo->version));
-	strlcpy(drvinfo->driver, "vxlan", sizeof(drvinfo->driver));
+	strscpy(drvinfo->version, VXLAN_VERSION, sizeof(drvinfo->version));
+	strscpy(drvinfo->driver, "vxlan", sizeof(drvinfo->driver));
 }
 
 static int vxlan_get_link_ksettings(struct net_device *dev,

@@ -312,6 +312,7 @@ struct vba_vars_st {
 	unsigned int ActiveDPPs;
 	unsigned int LBLatencyHidingSourceLinesY;
 	unsigned int LBLatencyHidingSourceLinesC;
+	double ActiveDRAMClockChangeLatencyMarginPerState[DC__VOLTAGE_STATES][2][DC__NUM_DPP__MAX];// DML doesn't save active margin per state
 	double ActiveDRAMClockChangeLatencyMargin[DC__NUM_DPP__MAX];
 	double CachedActiveDRAMClockChangeLatencyMargin[DC__NUM_DPP__MAX]; // Cache in dml_get_voltage_level for debug purposes only
 	double MinActiveDRAMClockChangeMargin;

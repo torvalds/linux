@@ -25,8 +25,8 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/of_gpio.h>
 #include <linux/slab.h>
+#include <linux/gpio/consumer.h>
 #include <soc/fsl/qe/qe.h>
 #include <asm/fsl_gtm.h>
 #include "fhci.h"
@@ -150,15 +150,15 @@ int fhci_ioports_check_bus_state(struct fhci_hcd *fhci)
 	u8 bits = 0;
 
 	/* check USBOE,if transmitting,exit */
-	if (!gpio_get_value(fhci->gpios[GPIO_USBOE]))
+	if (!gpiod_get_value(fhci->gpiods[GPIO_USBOE]))
 		return -1;
 
 	/* check USBRP */
-	if (gpio_get_value(fhci->gpios[GPIO_USBRP]))
+	if (gpiod_get_value(fhci->gpiods[GPIO_USBRP]))
 		bits |= 0x2;
 
 	/* check USBRN */
-	if (gpio_get_value(fhci->gpios[GPIO_USBRN]))
+	if (gpiod_get_value(fhci->gpiods[GPIO_USBRN]))
 		bits |= 0x1;
 
 	return bits;
@@ -630,40 +630,23 @@ static int of_fhci_probe(struct platform_device *ofdev)
 
 	/* GPIOs and pins */
 	for (i = 0; i < NUM_GPIOS; i++) {
-		int gpio;
-		enum of_gpio_flags flags;
+		if (i < GPIO_SPEED)
+			fhci->gpiods[i] = devm_gpiod_get_index(dev,
+					NULL, i, GPIOD_IN);
 
-		gpio = of_get_gpio_flags(node, i, &flags);
-		fhci->gpios[i] = gpio;
-		fhci->alow_gpios[i] = flags & OF_GPIO_ACTIVE_LOW;
+		else
+			fhci->gpiods[i] = devm_gpiod_get_index_optional(dev,
+					NULL, i, GPIOD_OUT_LOW);
 
-		if (!gpio_is_valid(gpio)) {
-			if (i < GPIO_SPEED) {
-				dev_err(dev, "incorrect GPIO%d: %d\n",
-					i, gpio);
-				goto err_gpios;
-			} else {
-				dev_info(dev, "assuming board doesn't have "
-					"%s gpio\n", i == GPIO_SPEED ?
-					"speed" : "power");
-				continue;
-			}
-		}
-
-		ret = gpio_request(gpio, dev_name(dev));
-		if (ret) {
-			dev_err(dev, "failed to request gpio %d", i);
+		if (IS_ERR(fhci->gpiods[i])) {
+			dev_err(dev, "incorrect GPIO%d: %ld\n",
+				i, PTR_ERR(fhci->gpiods[i]));
 			goto err_gpios;
 		}
-
-		if (i >= GPIO_SPEED) {
-			ret = gpio_direction_output(gpio, 0);
-			if (ret) {
-				dev_err(dev, "failed to set gpio %d as "
-					"an output\n", i);
-				i++;
-				goto err_gpios;
-			}
+		if (!fhci->gpiods[i]) {
+			dev_info(dev, "assuming board doesn't have "
+				 "%s gpio\n", i == GPIO_SPEED ?
+				 "speed" : "power");
 		}
 	}
 
@@ -766,10 +749,6 @@ err_pins:
 	while (--j >= 0)
 		qe_pin_free(fhci->pins[j]);
 err_gpios:
-	while (--i >= 0) {
-		if (gpio_is_valid(fhci->gpios[i]))
-			gpio_free(fhci->gpios[i]);
-	}
 	cpm_muram_free(pram_addr);
 err_pram:
 	iounmap(hcd->regs);
@@ -782,18 +761,12 @@ static int fhci_remove(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct fhci_hcd *fhci = hcd_to_fhci(hcd);
-	int i;
 	int j;
 
 	usb_remove_hcd(hcd);
 	free_irq(fhci->timer->irq, hcd);
 	gtm_put_timer16(fhci->timer);
 	cpm_muram_free(cpm_muram_offset(fhci->pram));
-	for (i = 0; i < NUM_GPIOS; i++) {
-		if (!gpio_is_valid(fhci->gpios[i]))
-			continue;
-		gpio_free(fhci->gpios[i]);
-	}
 	for (j = 0; j < NUM_PINS; j++)
 		qe_pin_free(fhci->pins[j]);
 	fhci_dfs_destroy(fhci);

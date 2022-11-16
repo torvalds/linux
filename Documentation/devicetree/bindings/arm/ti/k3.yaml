@@ -19,32 +19,11 @@ properties:
   compatible:
     oneOf:
 
-      - description: K3 AM654 SoC
+      - description: K3 AM62A7 SoC
         items:
           - enum:
-              - ti,am654-evm
-              - siemens,iot2050-basic
-              - siemens,iot2050-basic-pg2
-              - siemens,iot2050-advanced
-              - siemens,iot2050-advanced-pg2
-          - const: ti,am654
-
-      - description: K3 J721E SoC
-        oneOf:
-          - const: ti,j721e
-          - items:
-              - enum:
-                  - ti,j721e-evm
-                  - ti,j721e-sk
-              - const: ti,j721e
-
-      - description: K3 J7200 SoC
-        oneOf:
-          - const: ti,j7200
-          - items:
-              - enum:
-                  - ti,j7200-evm
-              - const: ti,j7200
+              - ti,am62a7-sk
+          - const: ti,am62a7
 
       - description: K3 AM625 SoC
         items:
@@ -58,6 +37,33 @@ properties:
               - ti,am642-evm
               - ti,am642-sk
           - const: ti,am642
+
+      - description: K3 AM654 SoC
+        items:
+          - enum:
+              - siemens,iot2050-advanced
+              - siemens,iot2050-advanced-pg2
+              - siemens,iot2050-basic
+              - siemens,iot2050-basic-pg2
+              - ti,am654-evm
+          - const: ti,am654
+
+      - description: K3 J7200 SoC
+        oneOf:
+          - const: ti,j7200
+          - items:
+              - enum:
+                  - ti,j7200-evm
+              - const: ti,j7200
+
+      - description: K3 J721E SoC
+        oneOf:
+          - const: ti,j721e
+          - items:
+              - enum:
+                  - ti,j721e-evm
+                  - ti,j721e-sk
+              - const: ti,j721e
 
       - description: K3 J721s2 SoC
         items:

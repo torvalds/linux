@@ -308,7 +308,7 @@ static int hdc2010_probe(struct i2c_client *client,
 	return iio_device_register(indio_dev);
 }
 
-static int hdc2010_remove(struct i2c_client *client)
+static void hdc2010_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct hdc2010_data *data = iio_priv(indio_dev);
@@ -318,8 +318,6 @@ static int hdc2010_remove(struct i2c_client *client)
 	/* Disable Automatic Measurement Mode */
 	if (hdc2010_update_drdy_config(data, HDC2010_AMM, 0))
 		dev_warn(&client->dev, "Unable to restore default AMM\n");
-
-	return 0;
 }
 
 static const struct i2c_device_id hdc2010_id[] = {

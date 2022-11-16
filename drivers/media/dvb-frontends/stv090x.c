@@ -5032,12 +5032,11 @@ error:
 	return ret;
 }
 
-static int stv090x_remove(struct i2c_client *client)
+static void stv090x_remove(struct i2c_client *client)
 {
 	struct stv090x_state *state = i2c_get_clientdata(client);
 
 	stv090x_release(&state->frontend);
-	return 0;
 }
 
 struct dvb_frontend *stv090x_attach(struct stv090x_config *config,

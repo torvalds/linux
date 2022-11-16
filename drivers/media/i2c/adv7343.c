@@ -492,15 +492,13 @@ done:
 	return err;
 }
 
-static int adv7343_remove(struct i2c_client *client)
+static void adv7343_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct adv7343_state *state = to_state(sd);
 
 	v4l2_async_unregister_subdev(&state->sd);
 	v4l2_ctrl_handler_free(&state->hdl);
-
-	return 0;
 }
 
 static const struct i2c_device_id adv7343_id[] = {

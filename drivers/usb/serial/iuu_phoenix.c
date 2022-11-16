@@ -879,7 +879,8 @@ static int iuu_uart_baud(struct usb_serial_port *port, u32 baud_base,
 }
 
 static void iuu_set_termios(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ktermios *old_termios)
+			    struct usb_serial_port *port,
+			    const struct ktermios *old_termios)
 {
 	const u32 supported_mask = CMSPAR|PARENB|PARODD;
 	struct iuu_private *priv = usb_get_serial_port_data(port);

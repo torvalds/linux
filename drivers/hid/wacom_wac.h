@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/*
- * drivers/input/tablet/wacom_wac.h
- */
+
 #ifndef WACOM_WAC_H
 #define WACOM_WAC_H
 

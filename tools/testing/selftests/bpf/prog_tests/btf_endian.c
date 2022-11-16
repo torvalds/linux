@@ -23,7 +23,7 @@ void test_btf_endian() {
 	int var_id;
 
 	/* Load BTF in native endianness */
-	btf = btf__parse_elf("btf_dump_test_case_syntax.o", NULL);
+	btf = btf__parse_elf("btf_dump_test_case_syntax.bpf.o", NULL);
 	if (!ASSERT_OK_PTR(btf, "parse_native_btf"))
 		goto err_out;
 

@@ -630,6 +630,7 @@ static struct genl_family hwsim_genl_family __ro_after_init = {
 	.module = THIS_MODULE,
 	.small_ops = hwsim_nl_ops,
 	.n_small_ops = ARRAY_SIZE(hwsim_nl_ops),
+	.resv_start_op = MAC802154_HWSIM_CMD_NEW_EDGE + 1,
 	.mcgrps = hwsim_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(hwsim_mcgrps),
 };

@@ -710,7 +710,7 @@ struct ath_spec_scan {
 /**
  * struct ath_hw_ops - callbacks used by hardware code and driver code
  *
- * This structure contains callbacks designed to to be used internally by
+ * This structure contains callbacks designed to be used internally by
  * hardware code and also by the lower level driver.
  *
  * @config_pci_powersave:

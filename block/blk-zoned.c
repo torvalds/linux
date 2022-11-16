@@ -63,13 +63,10 @@ bool blk_req_needs_zone_write_lock(struct request *rq)
 	if (!rq->q->disk->seq_zones_wlock)
 		return false;
 
-	switch (req_op(rq)) {
-	case REQ_OP_WRITE_ZEROES:
-	case REQ_OP_WRITE:
+	if (bdev_op_is_zoned_write(rq->q->disk->part0, req_op(rq)))
 		return blk_rq_zone_is_seq(rq);
-	default:
-		return false;
-	}
+
+	return false;
 }
 EXPORT_SYMBOL_GPL(blk_req_needs_zone_write_lock);
 

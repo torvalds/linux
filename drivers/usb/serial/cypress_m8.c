@@ -125,7 +125,8 @@ static void cypress_send(struct usb_serial_port *port);
 static unsigned int cypress_write_room(struct tty_struct *tty);
 static void cypress_earthmate_init_termios(struct tty_struct *tty);
 static void cypress_set_termios(struct tty_struct *tty,
-			struct usb_serial_port *port, struct ktermios *old);
+				struct usb_serial_port *port,
+				const struct ktermios *old_termios);
 static int  cypress_tiocmget(struct tty_struct *tty);
 static int  cypress_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
@@ -859,7 +860,8 @@ static void cypress_earthmate_init_termios(struct tty_struct *tty)
 }
 
 static void cypress_set_termios(struct tty_struct *tty,
-	struct usb_serial_port *port, struct ktermios *old_termios)
+				struct usb_serial_port *port,
+				const struct ktermios *old_termios)
 {
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	struct device *dev = &port->dev;

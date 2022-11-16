@@ -89,26 +89,23 @@ static const struct mtk_gate audio_clks[] = {
 		    "audio_h_sel", 31),
 };
 
-static const struct of_device_id of_match_clk_mt6779_aud[] = {
-	{ .compatible = "mediatek,mt6779-audio", },
-	{}
+static const struct mtk_clk_desc audio_desc = {
+	.clks = audio_clks,
+	.num_clks = ARRAY_SIZE(audio_clks),
 };
 
-static int clk_mt6779_aud_probe(struct platform_device *pdev)
-{
-	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
-
-	clk_data = mtk_alloc_clk_data(CLK_AUD_NR_CLK);
-
-	mtk_clk_register_gates(node, audio_clks, ARRAY_SIZE(audio_clks),
-			       clk_data);
-
-	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-}
+static const struct of_device_id of_match_clk_mt6779_aud[] = {
+	{
+		.compatible = "mediatek,mt6779-audio",
+		.data = &audio_desc,
+	}, {
+		/* sentinel */
+	}
+};
 
 static struct platform_driver clk_mt6779_aud_drv = {
-	.probe = clk_mt6779_aud_probe,
+	.probe = mtk_clk_simple_probe,
+	.remove = mtk_clk_simple_remove,
 	.driver = {
 		.name = "clk-mt6779-aud",
 		.of_match_table = of_match_clk_mt6779_aud,

@@ -321,7 +321,7 @@ static int tm5p5_nt35596_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static int tm5p5_nt35596_remove(struct mipi_dsi_device *dsi)
+static void tm5p5_nt35596_remove(struct mipi_dsi_device *dsi)
 {
 	struct tm5p5_nt35596 *ctx = mipi_dsi_get_drvdata(dsi);
 	int ret;
@@ -332,8 +332,6 @@ static int tm5p5_nt35596_remove(struct mipi_dsi_device *dsi)
 			"Failed to detach from DSI host: %d\n", ret);
 
 	drm_panel_remove(&ctx->panel);
-
-	return 0;
 }
 
 static const struct of_device_id tm5p5_nt35596_of_match[] = {

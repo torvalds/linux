@@ -24,9 +24,9 @@ FLOATFUNC(mtfsf);
 FLOATFUNC(mtfsfi);
 
 #ifdef CONFIG_MATH_EMULATION_HW_UNIMPLEMENTED
-#undef FLOATFUNC(x)
+#undef FLOATFUNC
 #define FLOATFUNC(x)	static inline int x(void *op1, void *op2, void *op3, \
-						 void *op4) { }
+						 void *op4) { return 0; }
 #endif
 
 FLOATFUNC(fadd);
@@ -396,28 +396,28 @@ do_mathemu(struct pt_regs *regs)
 
 	case XCR:
 		op0 = (void *)&regs->ccr;
-		op1 = (void *)((insn >> 23) & 0x7);
+		op1 = (void *)(long)((insn >> 23) & 0x7);
 		op2 = (void *)&current->thread.TS_FPR((insn >> 16) & 0x1f);
 		op3 = (void *)&current->thread.TS_FPR((insn >> 11) & 0x1f);
 		break;
 
 	case XCRL:
 		op0 = (void *)&regs->ccr;
-		op1 = (void *)((insn >> 23) & 0x7);
-		op2 = (void *)((insn >> 18) & 0x7);
+		op1 = (void *)(long)((insn >> 23) & 0x7);
+		op2 = (void *)(long)((insn >> 18) & 0x7);
 		break;
 
 	case XCRB:
-		op0 = (void *)((insn >> 21) & 0x1f);
+		op0 = (void *)(long)((insn >> 21) & 0x1f);
 		break;
 
 	case XCRI:
-		op0 = (void *)((insn >> 23) & 0x7);
-		op1 = (void *)((insn >> 12) & 0xf);
+		op0 = (void *)(long)((insn >> 23) & 0x7);
+		op1 = (void *)(long)((insn >> 12) & 0xf);
 		break;
 
 	case XFLB:
-		op0 = (void *)((insn >> 17) & 0xff);
+		op0 = (void *)(long)((insn >> 17) & 0xff);
 		op1 = (void *)&current->thread.TS_FPR((insn >> 11) & 0x1f);
 		break;
 

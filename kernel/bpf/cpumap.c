@@ -97,7 +97,7 @@ static struct bpf_map *cpu_map_alloc(union bpf_attr *attr)
 	    attr->map_flags & ~BPF_F_NUMA_NODE)
 		return ERR_PTR(-EINVAL);
 
-	cmap = kzalloc(sizeof(*cmap), GFP_USER | __GFP_ACCOUNT);
+	cmap = bpf_map_area_alloc(sizeof(*cmap), NUMA_NO_NODE);
 	if (!cmap)
 		return ERR_PTR(-ENOMEM);
 
@@ -118,7 +118,7 @@ static struct bpf_map *cpu_map_alloc(union bpf_attr *attr)
 
 	return &cmap->map;
 free_cmap:
-	kfree(cmap);
+	bpf_map_area_free(cmap);
 	return ERR_PTR(err);
 }
 
@@ -623,7 +623,7 @@ static void cpu_map_free(struct bpf_map *map)
 		__cpu_map_entry_replace(cmap, i, NULL); /* call_rcu */
 	}
 	bpf_map_area_free(cmap->cpu_map);
-	kfree(cmap);
+	bpf_map_area_free(cmap);
 }
 
 /* Elements are kept alive by RCU; either by rcu_read_lock() (from syscall) or

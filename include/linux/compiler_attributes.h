@@ -35,7 +35,8 @@
 
 /*
  * Note: do not use this directly. Instead, use __alloc_size() since it is conditionally
- * available and includes other attributes.
+ * available and includes other attributes. For GCC < 9.1, __alloc_size__ gets undefined
+ * in compiler-gcc.h, due to misbehaviors.
  *
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-alloc_005fsize-function-attribute
  * clang: https://clang.llvm.org/docs/AttributeReference.html#alloc-size
@@ -370,5 +371,12 @@
  *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html#index-weak-variable-attribute
  */
 #define __weak                          __attribute__((__weak__))
+
+/*
+ * Used by functions that use '__builtin_return_address'. These function
+ * don't want to be splited or made inline, which can make
+ * the '__builtin_return_address' get unexpected address.
+ */
+#define __fix_address noinline __noclone
 
 #endif /* __LINUX_COMPILER_ATTRIBUTES_H */

@@ -22,6 +22,7 @@ enum st_press_type {
 	LPS33HW,
 	LPS35HW,
 	LPS22HH,
+	LPS22DF,
 	ST_PRESS_MAX,
 };
 
@@ -32,6 +33,7 @@ enum st_press_type {
 #define LPS33HW_PRESS_DEV_NAME		"lps33hw"
 #define LPS35HW_PRESS_DEV_NAME		"lps35hw"
 #define LPS22HH_PRESS_DEV_NAME		"lps22hh"
+#define LPS22DF_PRESS_DEV_NAME		"lps22df"
 
 /**
  * struct st_sensors_platform_data - default press platform data

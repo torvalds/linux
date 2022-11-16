@@ -1350,10 +1350,10 @@ static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 				  capability, 0, true);
 }
 
-static unsigned ibss_setup_channels(struct wiphy *wiphy,
-				    struct ieee80211_channel **channels,
-				    unsigned int channels_max,
-				    u32 center_freq, u32 width)
+static unsigned int ibss_setup_channels(struct wiphy *wiphy,
+					struct ieee80211_channel **channels,
+					unsigned int channels_max,
+					u32 center_freq, u32 width)
 {
 	struct ieee80211_channel *chan = NULL;
 	unsigned int n_chan = 0;

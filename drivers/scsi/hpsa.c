@@ -6233,8 +6233,7 @@ static struct CommandList *cmd_alloc(struct ctlr_info *h)
 			offset = (i + 1) % HPSA_NRESERVED_CMDS;
 			continue;
 		}
-		set_bit(i & (BITS_PER_LONG - 1),
-			h->cmd_pool_bits + (i / BITS_PER_LONG));
+		set_bit(i, h->cmd_pool_bits);
 		break; /* it's ours now. */
 	}
 	hpsa_cmd_partial_init(h, i, c);
@@ -6261,8 +6260,7 @@ static void cmd_free(struct ctlr_info *h, struct CommandList *c)
 		int i;
 
 		i = c - h->cmd_pool;
-		clear_bit(i & (BITS_PER_LONG - 1),
-			  h->cmd_pool_bits + (i / BITS_PER_LONG));
+		clear_bit(i, h->cmd_pool_bits);
 	}
 }
 
@@ -8030,7 +8028,7 @@ out_disable:
 
 static void hpsa_free_cmd_pool(struct ctlr_info *h)
 {
-	kfree(h->cmd_pool_bits);
+	bitmap_free(h->cmd_pool_bits);
 	h->cmd_pool_bits = NULL;
 	if (h->cmd_pool) {
 		dma_free_coherent(&h->pdev->dev,
@@ -8052,9 +8050,7 @@ static void hpsa_free_cmd_pool(struct ctlr_info *h)
 
 static int hpsa_alloc_cmd_pool(struct ctlr_info *h)
 {
-	h->cmd_pool_bits = kcalloc(DIV_ROUND_UP(h->nr_cmds, BITS_PER_LONG),
-				   sizeof(unsigned long),
-				   GFP_KERNEL);
+	h->cmd_pool_bits = bitmap_zalloc(h->nr_cmds, GFP_KERNEL);
 	h->cmd_pool = dma_alloc_coherent(&h->pdev->dev,
 		    h->nr_cmds * sizeof(*h->cmd_pool),
 		    &h->cmd_pool_dhandle, GFP_KERNEL);

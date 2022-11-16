@@ -151,18 +151,8 @@ int rxe_icrc_check(struct sk_buff *skb, struct rxe_pkt_info *pkt)
 				payload_size(pkt) + bth_pad(pkt));
 	icrc = ~icrc;
 
-	if (unlikely(icrc != pkt_icrc)) {
-		if (skb->protocol == htons(ETH_P_IPV6))
-			pr_warn_ratelimited("bad ICRC from %pI6c\n",
-					    &ipv6_hdr(skb)->saddr);
-		else if (skb->protocol == htons(ETH_P_IP))
-			pr_warn_ratelimited("bad ICRC from %pI4\n",
-					    &ip_hdr(skb)->saddr);
-		else
-			pr_warn_ratelimited("bad ICRC from unknown\n");
-
+	if (unlikely(icrc != pkt_icrc))
 		return -EINVAL;
-	}
 
 	return 0;
 }

@@ -294,6 +294,7 @@ static struct genl_family ZZZ_genl_family __ro_after_init = {
 	.ops = ZZZ_genl_ops,
 	.n_ops = ARRAY_SIZE(ZZZ_genl_ops),
 	.mcgrps = ZZZ_genl_mcgrps,
+	.resv_start_op = 42, /* drbd is currently the only user */
 	.n_mcgrps = ARRAY_SIZE(ZZZ_genl_mcgrps),
 	.module = THIS_MODULE,
 };

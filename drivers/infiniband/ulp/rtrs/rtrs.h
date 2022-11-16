@@ -139,7 +139,6 @@ struct rtrs_srv_ops {
 
 	 *	@priv:		Private data set by rtrs_srv_set_sess_priv()
 	 *	@id:		internal RTRS operation id
-	 *	@dir:		READ/WRITE
 	 *	@data:		Pointer to (bidirectional) rdma memory area:
 	 *			- in case of %RTRS_SRV_RDMA_EV_RECV contains
 	 *			data sent by the client
@@ -151,7 +150,7 @@ struct rtrs_srv_ops {
 	 *	@usrlen:	Size of the user message
 	 */
 	int (*rdma_ev)(void *priv,
-		       struct rtrs_srv_op *id, int dir,
+		       struct rtrs_srv_op *id,
 		       void *data, size_t datalen, const void *usr,
 		       size_t usrlen);
 	/**

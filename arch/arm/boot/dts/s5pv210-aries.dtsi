@@ -738,7 +738,7 @@
 		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
 	};
 
-	magnetometer_i2c_pins: yas529-i2c-pins-pins {
+	magnetometer_i2c_pins: yas529-i2c-pins {
 		samsung,pins = "gpj0-0", "gpj0-1";
 		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
@@ -788,7 +788,7 @@
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
-	pmic_i2c_pins: pmic-i2c-pins-pins {
+	pmic_i2c_pins: pmic-i2c-pins {
 		samsung,pins = "gpj4-0", "gpj4-3";
 		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
 		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;

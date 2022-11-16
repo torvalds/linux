@@ -331,7 +331,7 @@ static int sof_ipc4_widget_setup_msg(struct snd_sof_widget *swidget, struct sof_
 	msg->extension = SOF_IPC4_MOD_EXT_PPL_ID(swidget->pipeline_id);
 	msg->extension |= SOF_IPC4_MOD_EXT_CORE_ID(swidget->core);
 
-	type = fw_module->man4_module_entry.type & SOF_IPC4_MODULE_DP ? 1 : 0;
+	type = (fw_module->man4_module_entry.type & SOF_IPC4_MODULE_DP) ? 1 : 0;
 	msg->extension |= SOF_IPC4_MOD_EXT_DOMAIN(type);
 
 	return 0;
@@ -1447,7 +1447,6 @@ static int sof_ipc4_control_setup(struct snd_sof_dev *sdev, struct snd_sof_contr
 
 static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
-	struct snd_sof_widget *pipe_widget = swidget->pipe_widget;
 	struct sof_ipc4_pipeline *pipeline;
 	struct sof_ipc4_msg *msg;
 	void *ipc_data = NULL;
@@ -1530,7 +1529,7 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 				swidget->widget->name);
 			return ret;
 		}
-		pipeline = pipe_widget->private;
+
 		msg->primary &= ~SOF_IPC4_MOD_INSTANCE_MASK;
 		msg->primary |= SOF_IPC4_MOD_INSTANCE(swidget->instance_id);
 
@@ -1544,8 +1543,15 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 	msg->data_ptr = ipc_data;
 
 	ret = sof_ipc_tx_message(sdev->ipc, msg, ipc_size, NULL, 0);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(sdev->dev, "failed to create module %s\n", swidget->widget->name);
+
+		if (swidget->id != snd_soc_dapm_scheduler) {
+			struct sof_ipc4_fw_module *fw_module = swidget->module_info;
+
+			ida_free(&fw_module->m_ida, swidget->instance_id);
+		}
+	}
 
 	return ret;
 }

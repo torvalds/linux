@@ -63,6 +63,13 @@ static int ehci_ci_portpower(struct usb_hcd *hcd, int portnum, bool enable)
 		priv->enabled = enable;
 	}
 
+	if (ci->platdata->flags & CI_HDRC_PHY_VBUS_CONTROL) {
+		if (enable)
+			usb_phy_vbus_on(ci->usb_phy);
+		else
+			usb_phy_vbus_off(ci->usb_phy);
+	}
+
 	if (enable && (ci->platdata->phy_mode == USBPHY_INTERFACE_MODE_HSIC)) {
 		/*
 		 * Marvell 28nm HSIC PHY requires forcing the port to HS mode.

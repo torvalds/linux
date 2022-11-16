@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/mscc,vsc7514-serdes.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microsemi Ocelot SerDes muxing
+
+maintainers:
+  - Alexandre Belloni <alexandre.belloni@bootlin.com>
+  - UNGLinuxDriver@microchip.com
+
+description: |
+  On Microsemi Ocelot, there is a handful of registers in HSIO address
+  space for setting up the SerDes to switch port muxing.
+
+  A SerDes X can be "muxed" to work with switch port Y or Z for example.
+  One specific SerDes can also be used as a PCIe interface.
+
+  Hence, a SerDes represents an interface, be it an Ethernet or a PCIe one.
+
+  There are two kinds of SerDes: SERDES1G supports 10/100Mbps in
+  half/full-duplex and 1000Mbps in full-duplex mode while SERDES6G supports
+  10/100Mbps in half/full-duplex and 1000/2500Mbps in full-duplex mode.
+
+  Also, SERDES6G number (aka "macro") 0 is the only interface supporting
+  QSGMII.
+
+  This is a child of the HSIO syscon ("mscc,ocelot-hsio", see
+  Documentation/devicetree/bindings/mips/mscc.txt) on the Microsemi Ocelot.
+
+properties:
+  compatible:
+    enum:
+      - mscc,vsc7514-serdes
+
+  "#phy-cells":
+    const: 2
+    description: |
+      The first number defines the input port to use for a given SerDes macro.
+      The second defines the macro to use. They are defined in
+      dt-bindings/phy/phy-ocelot-serdes.h
+
+required:
+  - compatible
+  - "#phy-cells"
+
+additionalProperties:
+  false
+
+examples:
+  - |
+    serdes: serdes {
+      compatible = "mscc,vsc7514-serdes";
+      #phy-cells = <2>;
+    };

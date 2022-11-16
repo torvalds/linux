@@ -11,7 +11,7 @@
 #include <asm/synch.h>
 #include <linux/bitops.h>
 #include <asm/cputable.h>
-#include <asm/cpu_setup_power.h>
+#include <asm/cpu_setup.h>
 
 /* Disable CPU_FTR_HVMODE and return false if MSR:HV is not set */
 static bool init_hvmode_206(struct cpu_spec *t)

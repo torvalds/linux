@@ -985,7 +985,7 @@ static int adm1031_detect(struct i2c_client *client,
 		return -ENODEV;
 	name = (id == 0x30) ? "adm1030" : "adm1031";
 
-	strlcpy(info->type, name, I2C_NAME_SIZE);
+	strscpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;
 }

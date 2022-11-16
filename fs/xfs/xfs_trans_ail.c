@@ -602,9 +602,9 @@ xfsaild(
 
 	while (1) {
 		if (tout && tout <= 20)
-			set_current_state(TASK_KILLABLE);
+			set_current_state(TASK_KILLABLE|TASK_FREEZABLE);
 		else
-			set_current_state(TASK_INTERRUPTIBLE);
+			set_current_state(TASK_INTERRUPTIBLE|TASK_FREEZABLE);
 
 		/*
 		 * Check kthread_should_stop() after we set the task state to
@@ -653,14 +653,14 @@ xfsaild(
 		    ailp->ail_target == ailp->ail_target_prev &&
 		    list_empty(&ailp->ail_buf_list)) {
 			spin_unlock(&ailp->ail_lock);
-			freezable_schedule();
+			schedule();
 			tout = 0;
 			continue;
 		}
 		spin_unlock(&ailp->ail_lock);
 
 		if (tout)
-			freezable_schedule_timeout(msecs_to_jiffies(tout));
+			schedule_timeout(msecs_to_jiffies(tout));
 
 		__set_current_state(TASK_RUNNING);
 
@@ -730,11 +730,10 @@ void
 xfs_ail_push_all_sync(
 	struct xfs_ail  *ailp)
 {
-	struct xfs_log_item	*lip;
 	DEFINE_WAIT(wait);
 
 	spin_lock(&ailp->ail_lock);
-	while ((lip = xfs_ail_max(ailp)) != NULL) {
+	while (xfs_ail_max(ailp) != NULL) {
 		prepare_to_wait(&ailp->ail_empty, &wait, TASK_UNINTERRUPTIBLE);
 		wake_up_process(ailp->ail_task);
 		spin_unlock(&ailp->ail_lock);

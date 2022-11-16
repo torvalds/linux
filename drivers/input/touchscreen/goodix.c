@@ -1383,14 +1383,12 @@ reset:
 	return 0;
 }
 
-static int goodix_ts_remove(struct i2c_client *client)
+static void goodix_ts_remove(struct i2c_client *client)
 {
 	struct goodix_ts_data *ts = i2c_get_clientdata(client);
 
 	if (ts->load_cfg_from_disk)
 		wait_for_completion(&ts->firmware_loading_complete);
-
-	return 0;
 }
 
 static int __maybe_unused goodix_suspend(struct device *dev)

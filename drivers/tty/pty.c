@@ -240,7 +240,7 @@ out:
 }
 
 static void pty_set_termios(struct tty_struct *tty,
-					struct ktermios *old_termios)
+			    const struct ktermios *old_termios)
 {
 	/* See if packet mode change of state. */
 	if (tty->link && tty->link->ctrl.packet) {

@@ -99,7 +99,7 @@ static int write_page(int log)
 static int rewrite_page(int log)
 {
 	int err = 0;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 
 	if (log)
 		pr_info("rewrite page\n");

@@ -15,6 +15,7 @@
 #include <linux/debugfs.h>
 #include "vpu.h"
 #include "vpu_defs.h"
+#include "vpu_core.h"
 #include "vpu_helpers.h"
 #include "vpu_cmds.h"
 #include "vpu_rpc.h"
@@ -233,6 +234,10 @@ static int vpu_dbg_core(struct seq_file *s, void *data)
 	if (seq_write(s, str, num))
 		return 0;
 
+	num = scnprintf(str, sizeof(str), "power %s\n",
+			vpu_iface_get_power_state(core) ? "on" : "off");
+	if (seq_write(s, str, num))
+		return 0;
 	num = scnprintf(str, sizeof(str), "state = %d\n", core->state);
 	if (seq_write(s, str, num))
 		return 0;
@@ -346,10 +351,10 @@ static ssize_t vpu_dbg_core_write(struct file *file,
 
 	pm_runtime_resume_and_get(core->dev);
 	mutex_lock(&core->lock);
-	if (core->state != VPU_CORE_DEINIT && !core->instance_mask) {
+	if (vpu_iface_get_power_state(core) && !core->request_count) {
 		dev_info(core->dev, "reset\n");
 		if (!vpu_core_sw_reset(core)) {
-			core->state = VPU_CORE_ACTIVE;
+			vpu_core_set_state(core, VPU_CORE_ACTIVE);
 			core->hang_mask = 0;
 		}
 	}

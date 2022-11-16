@@ -261,7 +261,7 @@ xfs_dir_createname(
 {
 	struct xfs_da_args	*args;
 	int			rval;
-	int			v;		/* type-checking value */
+	bool			v;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 
@@ -357,7 +357,7 @@ xfs_dir_lookup(
 {
 	struct xfs_da_args	*args;
 	int			rval;
-	int			v;	  /* type-checking value */
+	bool			v;
 	int			lock_mode;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
@@ -435,7 +435,7 @@ xfs_dir_removename(
 {
 	struct xfs_da_args	*args;
 	int			rval;
-	int			v;		/* type-checking value */
+	bool			v;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	XFS_STATS_INC(dp->i_mount, xs_dir_remove);
@@ -493,7 +493,7 @@ xfs_dir_replace(
 {
 	struct xfs_da_args	*args;
 	int			rval;
-	int			v;		/* type-checking value */
+	bool			v;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 
@@ -610,19 +610,23 @@ xfs_dir2_grow_inode(
 int
 xfs_dir2_isblock(
 	struct xfs_da_args	*args,
-	int			*vp)	/* out: 1 is block, 0 is not block */
+	bool			*isblock)
 {
-	xfs_fileoff_t		last;	/* last file offset */
-	int			rval;
+	struct xfs_mount	*mp = args->dp->i_mount;
+	xfs_fileoff_t		eof;
+	int			error;
 
-	if ((rval = xfs_bmap_last_offset(args->dp, &last, XFS_DATA_FORK)))
-		return rval;
-	rval = XFS_FSB_TO_B(args->dp->i_mount, last) == args->geo->blksize;
-	if (XFS_IS_CORRUPT(args->dp->i_mount,
-			   rval != 0 &&
-			   args->dp->i_disk_size != args->geo->blksize))
+	error = xfs_bmap_last_offset(args->dp, &eof, XFS_DATA_FORK);
+	if (error)
+		return error;
+
+	*isblock = false;
+	if (XFS_FSB_TO_B(mp, eof) != args->geo->blksize)
+		return 0;
+
+	*isblock = true;
+	if (XFS_IS_CORRUPT(mp, args->dp->i_disk_size != args->geo->blksize))
 		return -EFSCORRUPTED;
-	*vp = rval;
 	return 0;
 }
 
@@ -632,14 +636,20 @@ xfs_dir2_isblock(
 int
 xfs_dir2_isleaf(
 	struct xfs_da_args	*args,
-	int			*vp)	/* out: 1 is block, 0 is not block */
+	bool			*isleaf)
 {
-	xfs_fileoff_t		last;	/* last file offset */
-	int			rval;
+	xfs_fileoff_t		eof;
+	int			error;
 
-	if ((rval = xfs_bmap_last_offset(args->dp, &last, XFS_DATA_FORK)))
-		return rval;
-	*vp = last == args->geo->leafblk + args->geo->fsbcount;
+	error = xfs_bmap_last_offset(args->dp, &eof, XFS_DATA_FORK);
+	if (error)
+		return error;
+
+	*isleaf = false;
+	if (eof != args->geo->leafblk + args->geo->fsbcount)
+		return 0;
+
+	*isleaf = true;
 	return 0;
 }
 

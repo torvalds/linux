@@ -2614,7 +2614,7 @@ static inline unsigned int ocfs2_cow_align_length(struct super_block *sb,
 }
 
 /*
- * Calculate out the start and number of virtual clusters we need to to CoW.
+ * Calculate out the start and number of virtual clusters we need to CoW.
  *
  * cpos is vitual start cluster position we want to do CoW in a
  * file and write_len is the cluster length.

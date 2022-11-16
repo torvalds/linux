@@ -539,7 +539,7 @@ static void __init map_mem(pgd_t *pgdp)
 	 */
 	BUILD_BUG_ON(pgd_index(direct_map_end - 1) == pgd_index(direct_map_end));
 
-	if (can_set_direct_map() || IS_ENABLED(CONFIG_KFENCE))
+	if (can_set_direct_map())
 		flags |= NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
 
 	/*
@@ -690,7 +690,7 @@ static bool arm64_early_this_cpu_has_bti(void)
 
 	pfr1 = __read_sysreg_by_encoding(SYS_ID_AA64PFR1_EL1);
 	return cpuid_feature_extract_unsigned_field(pfr1,
-						    ID_AA64PFR1_BT_SHIFT);
+						    ID_AA64PFR1_EL1_BT_SHIFT);
 }
 
 /*
@@ -1184,14 +1184,6 @@ static void free_empty_tables(unsigned long addr, unsigned long end,
 }
 #endif
 
-#if !ARM64_KERNEL_USES_PMD_MAPS
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
-		struct vmem_altmap *altmap)
-{
-	WARN_ON((start < VMEMMAP_START) || (end > VMEMMAP_END));
-	return vmemmap_populate_basepages(start, end, node, altmap);
-}
-#else	/* !ARM64_KERNEL_USES_PMD_MAPS */
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		struct vmem_altmap *altmap)
 {
@@ -1203,6 +1195,10 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 	pmd_t *pmdp;
 
 	WARN_ON((start < VMEMMAP_START) || (end > VMEMMAP_END));
+
+	if (!ARM64_KERNEL_USES_PMD_MAPS)
+		return vmemmap_populate_basepages(start, end, node, altmap);
+
 	do {
 		next = pmd_addr_end(addr, end);
 
@@ -1236,7 +1232,6 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 
 	return 0;
 }
-#endif	/* !ARM64_KERNEL_USES_PMD_MAPS */
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 void vmemmap_free(unsigned long start, unsigned long end,
@@ -1551,11 +1546,7 @@ int arch_add_memory(int nid, u64 start, u64 size,
 
 	VM_BUG_ON(!mhp_range_allowed(start, size, true));
 
-	/*
-	 * KFENCE requires linear map to be mapped at page granularity, so that
-	 * it is possible to protect/unprotect single pages in the KFENCE pool.
-	 */
-	if (can_set_direct_map() || IS_ENABLED(CONFIG_KFENCE))
+	if (can_set_direct_map())
 		flags |= NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
 
 	__create_pgd_mapping(swapper_pg_dir, start, __phys_to_virt(start),

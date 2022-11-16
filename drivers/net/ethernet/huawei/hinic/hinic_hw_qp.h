@@ -175,9 +175,8 @@ void hinic_set_tso_inner_l4(struct hinic_sq_task *task,
 			    u32 l4_len,
 			    u32 offset, u32 ip_ident, u32 mss);
 
-void hinic_sq_prepare_wqe(struct hinic_sq *sq, u16 prod_idx,
-			  struct hinic_sq_wqe *wqe, struct hinic_sge *sges,
-			  int nr_sges);
+void hinic_sq_prepare_wqe(struct hinic_sq *sq, struct hinic_sq_wqe *wqe,
+			  struct hinic_sge *sges, int nr_sges);
 
 void hinic_sq_write_db(struct hinic_sq *sq, u16 prod_idx, unsigned int wqe_size,
 		       unsigned int cos);

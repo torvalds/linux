@@ -29,6 +29,7 @@ properties:
       - items:
           - enum:
               - rockchip,rk3036-i2c
+              - rockchip,rk3128-i2c
               - rockchip,rk3368-i2c
           - const: rockchip,rk3288-i2c
       - items:

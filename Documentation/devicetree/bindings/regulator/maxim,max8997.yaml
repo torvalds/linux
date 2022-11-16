@@ -111,6 +111,7 @@ properties:
 
   regulators:
     type: object
+    additionalProperties: false
     description:
       List of child nodes that specify the regulators.
 

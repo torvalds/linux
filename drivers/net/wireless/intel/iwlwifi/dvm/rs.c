@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2019 - 2020 Intel Corporation
+ * Copyright (C) 2019 - 2020, 2022 Intel Corporation
  *****************************************************************************/
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
@@ -1242,7 +1242,7 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
 	if (!conf_is_ht(conf) || !sta->deflink.ht_cap.ht_supported)
 		return -1;
 
-	if (sta->smps_mode == IEEE80211_SMPS_STATIC)
+	if (sta->deflink.smps_mode == IEEE80211_SMPS_STATIC)
 		return -1;
 
 	/* Need both Tx chains/antennas to support MIMO */
@@ -1297,7 +1297,7 @@ static int rs_switch_to_mimo3(struct iwl_priv *priv,
 	if (!conf_is_ht(conf) || !sta->deflink.ht_cap.ht_supported)
 		return -1;
 
-	if (sta->smps_mode == IEEE80211_SMPS_STATIC)
+	if (sta->deflink.smps_mode == IEEE80211_SMPS_STATIC)
 		return -1;
 
 	/* Need both Tx chains/antennas to support MIMO */

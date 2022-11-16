@@ -30,6 +30,7 @@ patternProperties:
 
   "^gpio@[0-7]$":
     type: object
+    additionalProperties: false
 
     description:
       Eight GPIO banks (gpio@0 to gpio@7), that each contain between 14 and 18
