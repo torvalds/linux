@@ -901,7 +901,7 @@ static const struct of_device_id v3_pci_of_match[] = {
 static struct platform_driver v3_pci_driver = {
 	.driver = {
 		.name = "pci-v3-semi",
-		.of_match_table = of_match_ptr(v3_pci_of_match),
+		.of_match_table = v3_pci_of_match,
 		.suppress_bind_attrs = true,
 	},
 	.probe  = v3_pci_probe,
