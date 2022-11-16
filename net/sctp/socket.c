@@ -5315,14 +5315,14 @@ EXPORT_SYMBOL_GPL(sctp_for_each_endpoint);
 
 int sctp_transport_lookup_process(sctp_callback_t cb, struct net *net,
 				  const union sctp_addr *laddr,
-				  const union sctp_addr *paddr, void *p)
+				  const union sctp_addr *paddr, void *p, int dif)
 {
 	struct sctp_transport *transport;
 	struct sctp_endpoint *ep;
 	int err = -ENOENT;
 
 	rcu_read_lock();
-	transport = sctp_addrs_lookup_transport(net, laddr, paddr);
+	transport = sctp_addrs_lookup_transport(net, laddr, paddr, dif, dif);
 	if (!transport) {
 		rcu_read_unlock();
 		return err;

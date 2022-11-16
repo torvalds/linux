@@ -1394,6 +1394,10 @@ static int __net_init sctp_defaults_init(struct net *net)
 	/* Initialize maximum autoclose timeout. */
 	net->sctp.max_autoclose		= INT_MAX / HZ;
 
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	net->sctp.l3mdev_accept = 1;
+#endif
+
 	status = sctp_sysctl_net_register(net);
 	if (status)
 		goto err_sysctl_register;
