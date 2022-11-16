@@ -1467,6 +1467,20 @@ int qcom_scm_kgsl_set_smmu_lpac_aperture(unsigned int num_context_bank)
 }
 EXPORT_SYMBOL(qcom_scm_kgsl_set_smmu_lpac_aperture);
 
+int qcom_scm_kgsl_init_regs(u32 gpu_req)
+{
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_GPU,
+		.cmd = QCOM_SCM_SVC_GPU_INIT_REGS,
+		.owner = ARM_SMCCC_OWNER_SIP,
+		.args[0] = gpu_req,
+		.arginfo = QCOM_SCM_ARGS(1),
+	};
+
+	return qcom_scm_call(__scm->dev, &desc, NULL);
+}
+EXPORT_SYMBOL(qcom_scm_kgsl_init_regs);
+
 int qcom_scm_enable_shm_bridge(void)
 {
 	int ret;
