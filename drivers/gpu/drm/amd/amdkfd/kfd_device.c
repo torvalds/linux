@@ -34,6 +34,7 @@
 #include "kfd_smi_events.h"
 #include "kfd_migrate.h"
 #include "amdgpu.h"
+#include "amdgpu_xcp.h"
 
 #define MQD_SIZE_ALIGNED 768
 
@@ -592,7 +593,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	struct kfd_node *node;
 	uint32_t first_vmid_kfd, last_vmid_kfd, vmid_num_kfd;
 	unsigned int max_proc_per_quantum;
-	int num_xcd;
+	int num_xcd, partition_mode;
 
 	kfd->mec_fw_version = amdgpu_amdkfd_get_fw_version(kfd->adev,
 			KGD_ENGINE_MEC1);
@@ -644,8 +645,9 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 * If the VMID range changes for GFX9.4.3, then this code MUST be
 	 * revisited.
 	 */
+	partition_mode = amdgpu_xcp_query_partition_mode(kfd->adev->xcp_mgr);
 	if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) &&
-	    kfd->adev->gfx.partition_mode == AMDGPU_CPX_PARTITION_MODE &&
+	    partition_mode == AMDGPU_CPX_PARTITION_MODE &&
 	    kfd->num_nodes != 1) {
 		vmid_num_kfd /= 2;
 		first_vmid_kfd = last_vmid_kfd + 1 - vmid_num_kfd*2;
@@ -761,7 +763,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		node->start_xcc_id = node->num_xcc_per_node * i;
 
 		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) &&
-		    kfd->adev->gfx.partition_mode == AMDGPU_CPX_PARTITION_MODE &&
+		    partition_mode == AMDGPU_CPX_PARTITION_MODE &&
 		    kfd->num_nodes != 1) {
 			/* For GFX9.4.3 and CPX mode, first XCD gets VMID range
 			 * 4-9 and second XCD gets VMID range 10-15.

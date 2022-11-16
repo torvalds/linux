@@ -28,6 +28,7 @@
 #include "amdgpu_gfx.h"
 #include "amdgpu_rlc.h"
 #include "amdgpu_ras.h"
+#include "amdgpu_xcp.h"
 
 /* delay 0.1 second to enable gfx off feature */
 #define GFX_OFF_DELAY_ENABLE         msecs_to_jiffies(100)
@@ -1170,10 +1171,10 @@ static ssize_t amdgpu_gfx_get_current_compute_partition(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	enum amdgpu_gfx_partition mode;
+	int mode;
 	char *partition_mode;
 
-	mode = adev->gfx.funcs->query_partition_mode(adev);
+	mode = amdgpu_xcp_query_partition_mode(adev->xcp_mgr);
 
 	switch (mode) {
 	case AMDGPU_SPX_PARTITION_MODE:
@@ -1254,31 +1255,7 @@ static ssize_t amdgpu_gfx_set_compute_partition(struct device *dev,
 		return -EINVAL;
 	}
 
-	if (!adev->kfd.init_complete)
-		return -EPERM;
-
-	mutex_lock(&adev->gfx.partition_mutex);
-
-	if (mode == adev->gfx.funcs->query_partition_mode(adev))
-		goto out;
-
-	ret = amdgpu_amdkfd_check_and_lock_kfd(adev);
-	if (ret)
-		goto out;
-
-	amdgpu_amdkfd_device_fini_sw(adev);
-
-	adev->gfx.funcs->switch_partition_mode(adev, mode);
-
-	amdgpu_amdkfd_device_probe(adev);
-	amdgpu_amdkfd_device_init(adev);
-	/* If KFD init failed, return failure */
-	if (!adev->kfd.init_complete)
-		ret = -EIO;
-
-	amdgpu_amdkfd_unlock_kfd(adev);
-out:
-	mutex_unlock(&adev->gfx.partition_mutex);
+	ret = amdgpu_xcp_switch_partition_mode(adev->xcp_mgr, mode);
 
 	if (ret)
 		return ret;

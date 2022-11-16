@@ -307,8 +307,8 @@ static int aqua_vanjaram_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 		goto unlock;
 
 	num_xcc_per_xcp = __aqua_vanjaram_get_xcc_per_xcp(xcp_mgr, mode);
-	if (adev->gfx.funcs->switch_gfx_partition_mode)
-		adev->gfx.funcs->switch_gfx_partition_mode(xcp_mgr->adev,
+	if (adev->gfx.funcs->switch_partition_mode)
+		adev->gfx.funcs->switch_partition_mode(xcp_mgr->adev,
 						       num_xcc_per_xcp);
 
 	if (adev->nbio.funcs->set_compute_partition_mode)

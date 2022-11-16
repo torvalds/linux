@@ -38,6 +38,7 @@
 #include "gc/gc_9_4_3_sh_mask.h"
 
 #include "gfx_v9_4_3.h"
+#include "amdgpu_xcp.h"
 
 MODULE_FIRMWARE("amdgpu/gc_9_4_3_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_9_4_3_rlc.bin");
@@ -614,61 +615,23 @@ gfx_v9_4_3_query_memory_partition(struct amdgpu_device *adev)
 	return mode;
 }
 
-static enum amdgpu_gfx_partition
-gfx_v9_4_3_query_compute_partition(struct amdgpu_device *adev)
-{
-	enum amdgpu_gfx_partition mode = adev->gfx.partition_mode;
-
-	if (adev->nbio.funcs->get_compute_partition_mode)
-		mode = adev->nbio.funcs->get_compute_partition_mode(adev);
-
-	return mode;
-}
-
 static int gfx_v9_4_3_switch_compute_partition(struct amdgpu_device *adev,
-						enum amdgpu_gfx_partition mode)
+						int num_xccs_per_xcp)
 {
+	int i, num_xcc;
 	u32 tmp = 0;
-	int num_xcc_per_partition, i, num_xcc;
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	switch (mode) {
-	case AMDGPU_SPX_PARTITION_MODE:
-		num_xcc_per_partition = num_xcc;
-		break;
-	case AMDGPU_DPX_PARTITION_MODE:
-		num_xcc_per_partition = num_xcc / 2;
-		break;
-	case AMDGPU_TPX_PARTITION_MODE:
-		num_xcc_per_partition = num_xcc / 3;
-		break;
-	case AMDGPU_QPX_PARTITION_MODE:
-		num_xcc_per_partition = num_xcc / 4;
-		break;
-	case AMDGPU_CPX_PARTITION_MODE:
-		num_xcc_per_partition = 1;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/* TODO:
-	 * Stop user queues and threads, and make sure GPU is empty of work.
-	 */
 
 	for (i = 0; i < num_xcc; i++) {
 		tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, NUM_XCC_IN_XCP,
-				    num_xcc_per_partition);
+				    num_xccs_per_xcp);
 		tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, VIRTUAL_XCC_ID,
-				    i % num_xcc_per_partition);
+				    i % num_xccs_per_xcp);
 		WREG32_SOC15(GC, GET_INST(GC, i), regCP_HYP_XCP_CTL, tmp);
 	}
 
-	if (adev->nbio.funcs->set_compute_partition_mode)
-		adev->nbio.funcs->set_compute_partition_mode(adev, mode);
-
-	adev->gfx.num_xcc_per_xcp = num_xcc_per_partition;
-	adev->gfx.partition_mode = mode;
+	adev->gfx.num_xcc_per_xcp = num_xccs_per_xcp;
 
 	return 0;
 }
@@ -680,7 +643,6 @@ static const struct amdgpu_gfx_funcs gfx_v9_4_3_gfx_funcs = {
 	.read_wave_sgprs = &gfx_v9_4_3_read_wave_sgprs,
 	.read_wave_vgprs = &gfx_v9_4_3_read_wave_vgprs,
 	.select_me_pipe_q = &gfx_v9_4_3_select_me_pipe_q,
-	.query_partition_mode = &gfx_v9_4_3_query_compute_partition,
 	.switch_partition_mode = &gfx_v9_4_3_switch_compute_partition,
 	.query_mem_partition_mode = &gfx_v9_4_3_query_memory_partition,
 };
@@ -1899,10 +1861,6 @@ static int gfx_v9_4_3_xcc_cp_resume(struct amdgpu_device *adev, int xcc_id)
 			return r;
 	}
 
-	if (adev->gfx.partition_mode == AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE)
-		gfx_v9_4_3_switch_compute_partition(adev,
-						    amdgpu_user_partt_mode);
-
 	/* set the virtual and physical id based on partition_mode */
 	gfx_v9_4_3_xcc_program_xcc_id(adev, xcc_id);
 
@@ -1930,6 +1888,9 @@ static int gfx_v9_4_3_xcc_cp_resume(struct amdgpu_device *adev, int xcc_id)
 static int gfx_v9_4_3_cp_resume(struct amdgpu_device *adev)
 {
 	int r, i, num_xcc;
+
+	if (amdgpu_xcp_query_partition_mode(adev->xcp_mgr) == AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE)
+		amdgpu_xcp_switch_partition_mode(adev->xcp_mgr, amdgpu_user_partt_mode);
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	for (i = 0; i < num_xcc; i++) {
@@ -2145,8 +2106,6 @@ static int gfx_v9_4_3_early_init(void *handle)
 	int num_xcc;
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-
-	adev->gfx.partition_mode = AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE;
 
 	adev->gfx.num_compute_rings = min(amdgpu_gfx_get_num_kcq(adev),
 					  AMDGPU_MAX_COMPUTE_RINGS);

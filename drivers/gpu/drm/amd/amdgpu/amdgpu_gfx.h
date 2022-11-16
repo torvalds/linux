@@ -278,11 +278,7 @@ struct amdgpu_gfx_funcs {
 			(*query_partition_mode)(struct amdgpu_device *adev);
 	enum amdgpu_memory_partition
 			(*query_mem_partition_mode)(struct amdgpu_device *adev);
-
 	int (*switch_partition_mode)(struct amdgpu_device *adev,
-				     enum amdgpu_gfx_partition mode);
-
-	int (*switch_gfx_partition_mode)(struct amdgpu_device *adev,
 				     int num_xccs_per_xcp);
 };
 
@@ -416,7 +412,6 @@ struct amdgpu_gfx {
 
 	bool				cp_gfx_shadow; /* for gfx11 */
 
-	enum amdgpu_gfx_partition	partition_mode;
 	uint16_t 			xcc_mask;
 	enum amdgpu_memory_partition	mem_partition_mode;
 	uint32_t			num_xcc_per_xcp;
