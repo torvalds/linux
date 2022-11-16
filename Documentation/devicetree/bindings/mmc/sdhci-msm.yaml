@@ -51,6 +51,7 @@ properties:
               - qcom,sm8250-sdhci
               - qcom,sm8350-sdhci
               - qcom,sm8450-sdhci
+              - qcom,sm8550-sdhci
           - const: qcom,sdhci-msm-v5 # for sdcc version 5.0
 
   reg:
