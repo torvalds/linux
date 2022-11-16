@@ -42,9 +42,7 @@
 
 #include "../thermal_core.h"
 #include "intel_hfi.h"
-
-#define THERM_STATUS_CLEAR_PKG_MASK (BIT(1) | BIT(3) | BIT(5) | BIT(7) | \
-				     BIT(9) | BIT(11) | BIT(26))
+#include "thermal_interrupt.h"
 
 /* Hardware Feedback Interface MSR configuration bits */
 #define HW_FEEDBACK_PTR_VALID_BIT		BIT(0)
@@ -304,9 +302,7 @@ void intel_hfi_process_event(__u64 pkg_therm_status_msr_val)
 	 * Let hardware know that we are done reading the HFI table and it is
 	 * free to update it again.
 	 */
-	pkg_therm_status_msr_val &= THERM_STATUS_CLEAR_PKG_MASK &
-				    ~PACKAGE_THERM_STATUS_HFI_UPDATED;
-	wrmsrl(MSR_IA32_PACKAGE_THERM_STATUS, pkg_therm_status_msr_val);
+	thermal_clear_package_intr_status(PACKAGE_LEVEL, PACKAGE_THERM_STATUS_HFI_UPDATED);
 
 	queue_delayed_work(hfi_updates_wq, &hfi_instance->update_work,
 			   HFI_UPDATE_INTERVAL);
