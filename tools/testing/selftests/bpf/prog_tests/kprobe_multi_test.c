@@ -358,9 +358,11 @@ static int get_syms(char ***symsp, size_t *cntp)
 		 * We attach to almost all kernel functions and some of them
 		 * will cause 'suspicious RCU usage' when fprobe is attached
 		 * to them. Filter out the current culprits - arch_cpu_idle
-		 * and rcu_* functions.
+		 * default_idle and rcu_* functions.
 		 */
 		if (!strcmp(name, "arch_cpu_idle"))
+			continue;
+		if (!strcmp(name, "default_idle"))
 			continue;
 		if (!strncmp(name, "rcu_", 4))
 			continue;
