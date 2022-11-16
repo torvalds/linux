@@ -486,6 +486,10 @@ void *user_ring_buffer__reserve(struct user_ring_buffer *rb, __u32 size)
 	__u64 cons_pos, prod_pos;
 	struct ringbuf_hdr *hdr;
 
+	/* The top two bits are used as special flags */
+	if (size & (BPF_RINGBUF_BUSY_BIT | BPF_RINGBUF_DISCARD_BIT))
+		return errno = E2BIG, NULL;
+
 	/* Synchronizes with smp_store_release() in __bpf_user_ringbuf_peek() in
 	 * the kernel.
 	 */
