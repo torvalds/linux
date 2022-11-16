@@ -203,8 +203,6 @@ int wx_host_interface_command(struct wx_hw *wxhw, u32 *buffer,
 
 	status = read_poll_timeout(rd32, hicr, hicr & WX_MNG_MBOX_CTL_FWRDY, 1000,
 				   timeout * 1000, false, wxhw, WX_MNG_MBOX_CTL);
-	if (status)
-		goto rel_out;
 
 	/* Check command completion */
 	if (status) {
