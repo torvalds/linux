@@ -17,8 +17,9 @@ package(
     ],
 )
 
+load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
 load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define_db845c")
-load("//build/kernel/kleaf:kernel.bzl", "ddk_headers")
+load("//build/kernel/kleaf:kernel.bzl", "ddk_headers", "kernel_build", "kernel_images", "kernel_modules_install")
 load(":modules.bzl", "COMMON_GKI_MODULES_LIST")
 
 define_common_kernels(target_configs = {
@@ -232,6 +233,95 @@ define_db845c(
         "sound/soc/qcom/snd-soc-sdm845.ko",
         "sound/soc/qcom/snd-soc-sm8250.ko",
     ],
+)
+
+# TODO(b/258259749): Convert rockpi4 to mixed build
+kernel_build(
+    name = "rockpi4",
+    outs = [
+        "Image",
+        "System.map",
+        "modules.builtin",
+        "modules.builtin.modinfo",
+        "rk3399-rock-pi-4b.dtb",
+        "vmlinux",
+        "vmlinux.symvers",
+    ],
+    build_config = "build.config.rockpi4",
+    dtstree = "//common-modules/virtual-device:rockpi4_dts",
+    module_outs = COMMON_GKI_MODULES_LIST + [
+        # keep sorted
+        "drivers/block/virtio_blk.ko",
+        "drivers/char/hw_random/virtio-rng.ko",
+        "drivers/clk/clk-rk808.ko",
+        "drivers/cpufreq/cpufreq-dt.ko",
+        "drivers/dma/pl330.ko",
+        "drivers/gpu/drm/bridge/analogix/analogix_dp.ko",
+        "drivers/gpu/drm/bridge/synopsys/dw-hdmi.ko",
+        "drivers/gpu/drm/bridge/synopsys/dw-mipi-dsi.ko",
+        "drivers/gpu/drm/display/drm_display_helper.ko",
+        "drivers/gpu/drm/drm_dma_helper.ko",
+        "drivers/gpu/drm/rockchip/rockchipdrm.ko",
+        "drivers/i2c/busses/i2c-rk3x.ko",
+        "drivers/iio/adc/rockchip_saradc.ko",
+        "drivers/iio/buffer/industrialio-triggered-buffer.ko",
+        "drivers/iio/buffer/kfifo_buf.ko",
+        "drivers/mfd/rk808.ko",
+        "drivers/mmc/core/pwrseq_simple.ko",
+        "drivers/mmc/host/cqhci.ko",
+        "drivers/mmc/host/dw_mmc.ko",
+        "drivers/mmc/host/dw_mmc-pltfm.ko",
+        "drivers/mmc/host/dw_mmc-rockchip.ko",
+        "drivers/mmc/host/sdhci-of-arasan.ko",
+        "drivers/net/ethernet/stmicro/stmmac/dwmac-rk.ko",
+        "drivers/net/ethernet/stmicro/stmmac/stmmac.ko",
+        "drivers/net/ethernet/stmicro/stmmac/stmmac-platform.ko",
+        "drivers/net/net_failover.ko",
+        "drivers/net/pcs/pcs_xpcs.ko",
+        "drivers/net/virtio_net.ko",
+        "drivers/pci/controller/pcie-rockchip-host.ko",
+        "drivers/phy/rockchip/phy-rockchip-emmc.ko",
+        "drivers/phy/rockchip/phy-rockchip-inno-usb2.ko",
+        "drivers/phy/rockchip/phy-rockchip-pcie.ko",
+        "drivers/phy/rockchip/phy-rockchip-typec.ko",
+        "drivers/pwm/pwm-rockchip.ko",
+        "drivers/regulator/fan53555.ko",
+        "drivers/regulator/pwm-regulator.ko",
+        "drivers/regulator/rk808-regulator.ko",
+        "drivers/rtc/rtc-rk808.ko",
+        "drivers/soc/rockchip/io-domain.ko",
+        "drivers/thermal/rockchip_thermal.ko",
+        "drivers/usb/host/ohci-hcd.ko",
+        "drivers/usb/host/ohci-platform.ko",
+        "drivers/virtio/virtio_pci.ko",
+        "drivers/virtio/virtio_pci_legacy_dev.ko",
+        "drivers/virtio/virtio_pci_modern_dev.ko",
+        "drivers/watchdog/dw_wdt.ko",
+        "net/core/failover.ko",
+    ],
+)
+
+kernel_modules_install(
+    name = "rockpi4_modules_install",
+    kernel_build = "//common:rockpi4",
+)
+
+kernel_images(
+    name = "rockpi4_images",
+    build_initramfs = True,
+    kernel_build = "//common:rockpi4",
+    kernel_modules_install = "//common:rockpi4_modules_install",
+)
+
+copy_to_dist_dir(
+    name = "rockpi4_dist",
+    data = [
+        ":rockpi4",
+        ":rockpi4_images",
+        ":rockpi4_modules_install",
+    ],
+    dist_dir = "out/rockpi4/dist",
+    flat = True,
 )
 
 # DDK Headers
