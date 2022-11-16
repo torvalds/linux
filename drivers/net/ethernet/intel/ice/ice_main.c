@@ -3780,13 +3780,11 @@ static int ice_setup_pf_sw(struct ice_pf *pf)
 unroll_napi_add:
 	ice_tc_indir_block_unregister(vsi);
 unroll_cfg_netdev:
-	if (vsi) {
-		ice_napi_del(vsi);
-		if (vsi->netdev) {
-			clear_bit(ICE_VSI_NETDEV_ALLOCD, vsi->state);
-			free_netdev(vsi->netdev);
-			vsi->netdev = NULL;
-		}
+	ice_napi_del(vsi);
+	if (vsi->netdev) {
+		clear_bit(ICE_VSI_NETDEV_ALLOCD, vsi->state);
+		free_netdev(vsi->netdev);
+		vsi->netdev = NULL;
 	}
 
 unroll_vsi_setup:
