@@ -9,8 +9,9 @@
  * V0.0X01.0X02 fix gain and exposure setting.
  * V0.0X01.0X03
  *  1.support 10bit HDR DOL2.
- *  2.4032*3040 @ 25fps
+ *  2.4056*3040 @ 25fps
  * V0.0X01.0X04 add dgain ctrl
+ * V0.0X01.0X05 fix 4056*3040 HDRx2 30fps
  *
  */
 
@@ -38,7 +39,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x05)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -707,8 +708,8 @@ static __maybe_unused const struct regval imx577_hdr2_10bit_4056x3040_30fps_regs
 	{0x0114, 0x03},
 	{0x0342, 0x11},
 	{0x0343, 0xA0},
-	{0x0340, 0x0E},
-	{0x0341, 0x8A},
+	{0x0340, 0x0C},
+	{0x0341, 0x1E},
 	{0x3210, 0x00},
 	{0x0344, 0x00},
 	{0x0345, 0x00},
@@ -968,11 +969,11 @@ static const struct imx577_mode supported_modes[] = {
 		.height = 3040,
 		.max_fps = {
 			.numerator = 10000,
-			.denominator = 250000,
+			.denominator = 300000,
 		},
 		.exp_def = 0x0c10,
 		.hts_def = 0x11a0,
-		.vts_def = 0x0e8a,
+		.vts_def = 0x0c1e,
 		.bpp = 10,
 		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
 		.reg_list = imx577_hdr2_10bit_4056x3040_30fps_regs,
