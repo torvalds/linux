@@ -82,6 +82,19 @@
 #define IPA_XO_CLOCK_DIVIDER	192	/* 1 is subtracted where used */
 
 /**
+ * enum ipa_firmware_loader: How GSI firmware gets loaded
+ *
+ * @IPA_LOADER_DEFER:		System not ready; try again later
+ * @IPA_LOADER_SELF:		AP loads GSI firmware
+ * @IPA_LOADER_MODEM:		Modem loads GSI firmware, signals when done
+ */
+enum ipa_firmware_loader {
+	IPA_LOADER_DEFER,
+	IPA_LOADER_SELF,
+	IPA_LOADER_MODEM,
+};
+
+/**
  * ipa_setup() - Set up IPA hardware
  * @ipa:	IPA pointer
  *
@@ -696,6 +709,18 @@ static void ipa_validate_build(void)
 	BUILD_BUG_ON(!ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY));
 }
 
+static enum ipa_firmware_loader ipa_firmware_loader(struct device *dev)
+{
+	if (of_property_read_bool(dev->of_node, "modem-init"))
+		return IPA_LOADER_MODEM;
+
+	/* We need Trust Zone to load firmware; make sure it's available */
+	if (qcom_scm_is_available())
+		return IPA_LOADER_SELF;
+
+	return IPA_LOADER_DEFER;
+}
+
 /**
  * ipa_probe() - IPA platform driver probe function
  * @pdev:	Platform device pointer
@@ -722,9 +747,9 @@ static void ipa_validate_build(void)
 static int ipa_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	enum ipa_firmware_loader loader;
 	const struct ipa_data *data;
 	struct ipa_power *power;
-	bool modem_init;
 	struct ipa *ipa;
 	int ret;
 
@@ -747,11 +772,9 @@ static int ipa_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	/* If we need Trust Zone, make sure it's available */
-	modem_init = of_property_read_bool(dev->of_node, "modem-init");
-	if (!modem_init)
-		if (!qcom_scm_is_available())
-			return -EPROBE_DEFER;
+	loader = ipa_firmware_loader(dev);
+	if (loader == IPA_LOADER_DEFER)
+		return -EPROBE_DEFER;
 
 	/* The clock and interconnects might not be ready when we're
 	 * probed, so might return -EPROBE_DEFER.
@@ -796,7 +819,7 @@ static int ipa_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_endpoint_exit;
 
-	ret = ipa_smp2p_init(ipa, modem_init);
+	ret = ipa_smp2p_init(ipa, loader == IPA_LOADER_MODEM);
 	if (ret)
 		goto err_table_exit;
 
@@ -815,7 +838,7 @@ static int ipa_probe(struct platform_device *pdev)
 	 * call to ipa_setup() when it has finished.  In that case we're
 	 * done here.
 	 */
-	if (modem_init)
+	if (loader == IPA_LOADER_MODEM)
 		goto done;
 
 	/* Otherwise we need to load the firmware and have Trust Zone validate
