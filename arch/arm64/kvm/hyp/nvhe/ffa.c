@@ -28,14 +28,30 @@
 
 #include <linux/arm-smccc.h>
 #include <linux/arm_ffa.h>
+#include <asm/kvm_pkvm.h>
+
 #include <nvhe/ffa.h>
 #include <nvhe/trap_handler.h>
+#include <nvhe/spinlock.h>
 
 /*
  * "ID value 0 must be returned at the Non-secure physical FF-A instance"
  * We share this ID with the host.
  */
 #define HOST_FFA_ID	0
+
+struct kvm_ffa_buffers {
+	hyp_spinlock_t lock;
+	void *tx;
+	void *rx;
+};
+
+/*
+ * Note that we don't currently lock these buffers explicitly, instead
+ * relying on the locking of the host FFA buffers as we only have one
+ * client.
+ */
+static struct kvm_ffa_buffers hyp_buffers;
 
 static void ffa_to_smccc_error(struct arm_smccc_res *res, u64 ffa_errno)
 {
@@ -162,7 +178,7 @@ out_handled:
 	return true;
 }
 
-int hyp_ffa_init(void)
+int hyp_ffa_init(void *pages)
 {
 	struct arm_smccc_res res;
 
@@ -182,6 +198,12 @@ int hyp_ffa_init(void)
 
 	if (res.a2 != HOST_FFA_ID)
 		return -EINVAL;
+
+	hyp_buffers = (struct kvm_ffa_buffers) {
+		.lock	= __HYP_SPIN_LOCK_UNLOCKED,
+		.tx	= pages,
+		.rx	= pages + (KVM_FFA_MBOX_NR_PAGES * PAGE_SIZE),
+	};
 
 	return 0;
 }
