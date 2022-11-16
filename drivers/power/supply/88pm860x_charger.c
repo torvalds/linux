@@ -690,8 +690,7 @@ static int pm860x_charger_probe(struct platform_device *pdev)
 	    (chip->id == CHIP_PM8607) ? chip->companion : chip->client;
 	if (!info->i2c_8606) {
 		dev_err(&pdev->dev, "Missed I2C address of 88PM8606!\n");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 	info->dev = &pdev->dev;
 
@@ -704,43 +703,25 @@ static int pm860x_charger_probe(struct platform_device *pdev)
 	psy_cfg.drv_data = info;
 	psy_cfg.supplied_to = pm860x_supplied_to;
 	psy_cfg.num_supplicants = ARRAY_SIZE(pm860x_supplied_to);
-	info->usb = power_supply_register(&pdev->dev, &pm860x_charger_desc,
-					  &psy_cfg);
+	info->usb = devm_power_supply_register(&pdev->dev, &pm860x_charger_desc,
+					       &psy_cfg);
 	if (IS_ERR(info->usb)) {
-		ret = PTR_ERR(info->usb);
-		goto out;
+		return PTR_ERR(info->usb);
 	}
 
 	pm860x_init_charger(info);
 
 	for (i = 0; i < ARRAY_SIZE(info->irq); i++) {
-		ret = request_threaded_irq(info->irq[i], NULL,
-			pm860x_irq_descs[i].handler,
-			IRQF_ONESHOT, pm860x_irq_descs[i].name, info);
+		ret = devm_request_threaded_irq(&pdev->dev, info->irq[i], NULL,
+						pm860x_irq_descs[i].handler,
+						IRQF_ONESHOT,
+						pm860x_irq_descs[i].name, info);
 		if (ret < 0) {
 			dev_err(chip->dev, "Failed to request IRQ: #%d: %d\n",
 				info->irq[i], ret);
-			goto out_irq;
+			return ret;
 		}
 	}
-	return 0;
-
-out_irq:
-	power_supply_unregister(info->usb);
-	while (--i >= 0)
-		free_irq(info->irq[i], info);
-out:
-	return ret;
-}
-
-static int pm860x_charger_remove(struct platform_device *pdev)
-{
-	struct pm860x_charger_info *info = platform_get_drvdata(pdev);
-	int i;
-
-	power_supply_unregister(info->usb);
-	for (i = 0; i < info->irq_nums; i++)
-		free_irq(info->irq[i], info);
 	return 0;
 }
 
@@ -749,7 +730,6 @@ static struct platform_driver pm860x_charger_driver = {
 		   .name = "88pm860x-charger",
 	},
 	.probe = pm860x_charger_probe,
-	.remove = pm860x_charger_remove,
 };
 module_platform_driver(pm860x_charger_driver);
 
