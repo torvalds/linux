@@ -324,14 +324,6 @@ static void p9_read_work(struct work_struct *work)
 			goto error;
 		}
 
-		if (m->rc.size >= m->client->msize) {
-			p9_debug(P9_DEBUG_ERROR,
-				 "requested packet size too big: %d\n",
-				 m->rc.size);
-			err = -EIO;
-			goto error;
-		}
-
 		p9_debug(P9_DEBUG_TRANS,
 			 "mux %p pkt: size: %d bytes tag: %d\n",
 			 m, m->rc.size, m->rc.tag);
@@ -340,6 +332,14 @@ static void p9_read_work(struct work_struct *work)
 		if (!m->rreq || (m->rreq->status != REQ_STATUS_SENT)) {
 			p9_debug(P9_DEBUG_ERROR, "Unexpected packet tag %d\n",
 				 m->rc.tag);
+			err = -EIO;
+			goto error;
+		}
+
+		if (m->rc.size > m->rreq->rc.capacity) {
+			p9_debug(P9_DEBUG_ERROR,
+				 "requested packet size too big: %d for tag %d with capacity %zd\n",
+				 m->rc.size, m->rc.tag, m->rreq->rc.capacity);
 			err = -EIO;
 			goto error;
 		}
