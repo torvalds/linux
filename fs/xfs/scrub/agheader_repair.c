@@ -685,7 +685,7 @@ xrep_agfl_init_header(
 		if (br->len)
 			break;
 		list_del(&br->list);
-		kmem_free(br);
+		kfree(br);
 	}
 
 	/* Write new AGFL to disk. */

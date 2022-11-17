@@ -8,6 +8,15 @@
 
 struct xfs_scrub;
 
+/*
+ * Standard flags for allocating memory within scrub.  NOFS context is
+ * configured by the process allocation scope.  Scrub and repair must be able
+ * to back out gracefully if there isn't enough memory.  Force-cast to avoid
+ * complaints from static checkers.
+ */
+#define XCHK_GFP_FLAGS	((__force gfp_t)(GFP_KERNEL | __GFP_NOWARN | \
+					 __GFP_RETRY_MAYFAIL))
+
 /* Type info and names for the scrub types. */
 enum xchk_type {
 	ST_NONE = 1,	/* disabled */
