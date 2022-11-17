@@ -43,6 +43,10 @@ Print deprecated events. By default the deprecated events are hidden.
 Print PMU events and metrics limited to the specific PMU name.
 (e.g. --unit cpu, --unit msr, --unit cpu_core, --unit cpu_atom)
 
+-j::
+--json::
+Output in JSON format.
+
 [[EVENT_MODIFIERS]]
 EVENT MODIFIERS
 ---------------

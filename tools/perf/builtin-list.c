@@ -19,6 +19,8 @@
 #include "util/strlist.h"
 #include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
+#include <linux/zalloc.h>
+#include <stdarg.h>
 #include <stdio.h>
 
 /**
@@ -228,10 +230,176 @@ static void default_print_metric(void *ps,
 	}
 }
 
+struct json_print_state {
+	/** Should a separator be printed prior to the next item? */
+	bool need_sep;
+};
+
+static void json_print_start(void *print_state __maybe_unused)
+{
+	printf("[\n");
+}
+
+static void json_print_end(void *ps)
+{
+	struct json_print_state *print_state = ps;
+
+	printf("%s]\n", print_state->need_sep ? "\n" : "");
+}
+
+static void fix_escape_printf(const char *fmt, ...)
+{
+	va_list args;
+	char buf[2048];
+	size_t buf_pos = 0;
+
+	va_start(args, fmt);
+	for (size_t fmt_pos = 0; fmt_pos < strlen(fmt); fmt_pos++) {
+		switch (fmt[fmt_pos]) {
+		case '%': {
+			const char *s = va_arg(args, const char*);
+
+			fmt_pos++;
+			assert(fmt[fmt_pos] == 's');
+			for (size_t s_pos = 0; s_pos < strlen(s); s_pos++) {
+				switch (s[s_pos]) {
+				case '\\':
+					__fallthrough;
+				case '\"':
+					buf[buf_pos++] = '\\';
+					assert(buf_pos < sizeof(buf));
+					__fallthrough;
+				default:
+					buf[buf_pos++] = s[s_pos];
+					assert(buf_pos < sizeof(buf));
+					break;
+				}
+			}
+			break;
+		}
+		default:
+			buf[buf_pos++] = fmt[fmt_pos];
+			assert(buf_pos < sizeof(buf));
+			break;
+		}
+	}
+	va_end(args);
+	buf[buf_pos] = '\0';
+	fputs(buf, stdout);
+}
+
+static void json_print_event(void *ps, const char *pmu_name, const char *topic,
+			     const char *event_name, const char *event_alias,
+			     const char *scale_unit,
+			     bool deprecated, const char *event_type_desc,
+			     const char *desc, const char *long_desc,
+			     const char *encoding_desc,
+			     const char *metric_name, const char *metric_expr)
+{
+	struct json_print_state *print_state = ps;
+	bool need_sep = false;
+
+	printf("%s{\n", print_state->need_sep ? ",\n" : "");
+	print_state->need_sep = true;
+	if (pmu_name) {
+		fix_escape_printf("\t\"Unit\": \"%s\"", pmu_name);
+		need_sep = true;
+	}
+	if (topic) {
+		fix_escape_printf("%s\t\"Topic\": \"%s\"", need_sep ? ",\n" : "", topic);
+		need_sep = true;
+	}
+	if (event_name) {
+		fix_escape_printf("%s\t\"EventName\": \"%s\"", need_sep ? ",\n" : "", event_name);
+		need_sep = true;
+	}
+	if (event_alias && strlen(event_alias)) {
+		fix_escape_printf("%s\t\"EventAlias\": \"%s\"", need_sep ? ",\n" : "", event_alias);
+		need_sep = true;
+	}
+	if (scale_unit && strlen(scale_unit)) {
+		fix_escape_printf("%s\t\"ScaleUnit\": \"%s\"", need_sep ? ",\n" : "",
+				  scale_unit);
+		need_sep = true;
+	}
+	if (event_type_desc) {
+		fix_escape_printf("%s\t\"EventType\": \"%s\"", need_sep ? ",\n" : "",
+				  event_type_desc);
+		need_sep = true;
+	}
+	if (deprecated) {
+		fix_escape_printf("%s\t\"Deprecated\": \"%s\"", need_sep ? ",\n" : "",
+				  deprecated ? "1" : "0");
+		need_sep = true;
+	}
+	if (desc) {
+		fix_escape_printf("%s\t\"BriefDescription\": \"%s\"", need_sep ? ",\n" : "", desc);
+		need_sep = true;
+	}
+	if (long_desc) {
+		fix_escape_printf("%s\t\"PublicDescription\": \"%s\"", need_sep ? ",\n" : "",
+				  long_desc);
+		need_sep = true;
+	}
+	if (encoding_desc) {
+		fix_escape_printf("%s\t\"Encoding\": \"%s\"", need_sep ? ",\n" : "", encoding_desc);
+		need_sep = true;
+	}
+	if (metric_name) {
+		fix_escape_printf("%s\t\"MetricName\": \"%s\"", need_sep ? ",\n" : "", metric_name);
+		need_sep = true;
+	}
+	if (metric_expr) {
+		fix_escape_printf("%s\t\"MetricExpr\": \"%s\"", need_sep ? ",\n" : "", metric_expr);
+		need_sep = true;
+	}
+	printf("%s}", need_sep ? "\n" : "");
+}
+
+static void json_print_metric(void *ps __maybe_unused, const char *group,
+			      const char *name, const char *desc,
+			      const char *long_desc, const char *expr,
+			      const char *unit)
+{
+	struct json_print_state *print_state = ps;
+	bool need_sep = false;
+
+	printf("%s{\n", print_state->need_sep ? ",\n" : "");
+	print_state->need_sep = true;
+	if (group) {
+		fix_escape_printf("\t\"MetricGroup\": \"%s\"", group);
+		need_sep = true;
+	}
+	if (name) {
+		fix_escape_printf("%s\t\"MetricName\": \"%s\"", need_sep ? ",\n" : "", name);
+		need_sep = true;
+	}
+	if (expr) {
+		fix_escape_printf("%s\t\"MetricExpr\": \"%s\"", need_sep ? ",\n" : "", expr);
+		need_sep = true;
+	}
+	if (unit) {
+		fix_escape_printf("%s\t\"ScaleUnit\": \"%s\"", need_sep ? ",\n" : "", unit);
+		need_sep = true;
+	}
+	if (desc) {
+		fix_escape_printf("%s\t\"BriefDescription\": \"%s\"", need_sep ? ",\n" : "", desc);
+		need_sep = true;
+	}
+	if (long_desc) {
+		fix_escape_printf("%s\t\"PublicDescription\": \"%s\"", need_sep ? ",\n" : "",
+				  long_desc);
+		need_sep = true;
+	}
+	printf("%s}", need_sep ? "\n" : "");
+}
+
 int cmd_list(int argc, const char **argv)
 {
 	int i, ret = 0;
-	struct print_state ps = {};
+	struct print_state default_ps = {};
+	struct print_state json_ps = {};
+	void *ps = &default_ps;
 	struct print_callbacks print_cb = {
 		.print_start = default_print_start,
 		.print_end = default_print_end,
@@ -240,15 +408,17 @@ int cmd_list(int argc, const char **argv)
 	};
 	const char *hybrid_name = NULL;
 	const char *unit_name = NULL;
+	bool json = false;
 	struct option list_options[] = {
-		OPT_BOOLEAN(0, "raw-dump", &ps.name_only, "Dump raw events"),
-		OPT_BOOLEAN('d', "desc", &ps.desc,
+		OPT_BOOLEAN(0, "raw-dump", &default_ps.name_only, "Dump raw events"),
+		OPT_BOOLEAN('j', "json", &json, "JSON encode events and metrics"),
+		OPT_BOOLEAN('d', "desc", &default_ps.desc,
 			    "Print extra event descriptions. --no-desc to not print."),
-		OPT_BOOLEAN('v', "long-desc", &ps.long_desc,
+		OPT_BOOLEAN('v', "long-desc", &default_ps.long_desc,
 			    "Print longer event descriptions."),
-		OPT_BOOLEAN(0, "details", &ps.detailed,
+		OPT_BOOLEAN(0, "details", &default_ps.detailed,
 			    "Print information on the perf event names and expressions used internally by events."),
-		OPT_BOOLEAN(0, "deprecated", &ps.deprecated,
+		OPT_BOOLEAN(0, "deprecated", &default_ps.deprecated,
 			    "Print deprecated events."),
 		OPT_STRING(0, "cputype", &hybrid_name, "hybrid cpu type",
 			   "Limit PMU or metric printing to the given hybrid PMU (e.g. core or atom)."),
@@ -272,28 +442,37 @@ int cmd_list(int argc, const char **argv)
 
 	setup_pager();
 
-	if (!ps.name_only)
+	if (!default_ps.name_only)
 		setup_pager();
 
-	ps.desc = !ps.long_desc;
-	ps.last_topic = strdup("");
-	assert(ps.last_topic);
-	ps.visited_metrics = strlist__new(NULL, NULL);
-	assert(ps.visited_metrics);
-	if (unit_name)
-		ps.pmu_glob = strdup(unit_name);
-	else if (hybrid_name) {
-		ps.pmu_glob = perf_pmu__hybrid_type_to_pmu(hybrid_name);
-		if (!ps.pmu_glob)
-			pr_warning("WARNING: hybrid cputype is not supported!\n");
+	if (json) {
+		print_cb = (struct print_callbacks){
+			.print_start = json_print_start,
+			.print_end = json_print_end,
+			.print_event = json_print_event,
+			.print_metric = json_print_metric,
+		};
+		ps = &json_ps;
+	} else {
+		default_ps.desc = !default_ps.long_desc;
+		default_ps.last_topic = strdup("");
+		assert(default_ps.last_topic);
+		default_ps.visited_metrics = strlist__new(NULL, NULL);
+		assert(default_ps.visited_metrics);
+		if (unit_name)
+			default_ps.pmu_glob = strdup(unit_name);
+		else if (hybrid_name) {
+			default_ps.pmu_glob = perf_pmu__hybrid_type_to_pmu(hybrid_name);
+			if (!default_ps.pmu_glob)
+				pr_warning("WARNING: hybrid cputype is not supported!\n");
+		}
 	}
-
-	print_cb.print_start(&ps);
+	print_cb.print_start(ps);
 
 	if (argc == 0) {
-		ps.metrics = true;
-		ps.metricgroups = true;
-		print_events(&print_cb, &ps);
+		default_ps.metrics = true;
+		default_ps.metricgroups = true;
+		print_events(&print_cb, ps);
 		goto out;
 	}
 
@@ -301,80 +480,75 @@ int cmd_list(int argc, const char **argv)
 		char *sep, *s;
 
 		if (strcmp(argv[i], "tracepoint") == 0)
-			print_tracepoint_events(&print_cb, &ps);
+			print_tracepoint_events(&print_cb, ps);
 		else if (strcmp(argv[i], "hw") == 0 ||
 			 strcmp(argv[i], "hardware") == 0)
-			print_symbol_events(&print_cb, &ps, PERF_TYPE_HARDWARE,
+			print_symbol_events(&print_cb, ps, PERF_TYPE_HARDWARE,
 					event_symbols_hw, PERF_COUNT_HW_MAX);
 		else if (strcmp(argv[i], "sw") == 0 ||
 			 strcmp(argv[i], "software") == 0) {
-			print_symbol_events(&print_cb, &ps, PERF_TYPE_SOFTWARE,
+			print_symbol_events(&print_cb, ps, PERF_TYPE_SOFTWARE,
 					event_symbols_sw, PERF_COUNT_SW_MAX);
-			print_tool_events(&print_cb, &ps);
+			print_tool_events(&print_cb, ps);
 		} else if (strcmp(argv[i], "cache") == 0 ||
 			 strcmp(argv[i], "hwcache") == 0)
-			print_hwcache_events(&print_cb, &ps);
+			print_hwcache_events(&print_cb, ps);
 		else if (strcmp(argv[i], "pmu") == 0)
-			print_pmu_events(&print_cb, &ps);
+			print_pmu_events(&print_cb, ps);
 		else if (strcmp(argv[i], "sdt") == 0)
-			print_sdt_events(&print_cb, &ps);
+			print_sdt_events(&print_cb, ps);
 		else if (strcmp(argv[i], "metric") == 0 || strcmp(argv[i], "metrics") == 0) {
-			ps.metricgroups = false;
-			ps.metrics = true;
-			metricgroup__print(&print_cb, &ps);
+			default_ps.metricgroups = false;
+			default_ps.metrics = true;
+			metricgroup__print(&print_cb, ps);
 		} else if (strcmp(argv[i], "metricgroup") == 0 ||
 			   strcmp(argv[i], "metricgroups") == 0) {
-			ps.metricgroups = true;
-			ps.metrics = false;
-			metricgroup__print(&print_cb, &ps);
+			default_ps.metricgroups = true;
+			default_ps.metrics = false;
+			metricgroup__print(&print_cb, ps);
 		} else if ((sep = strchr(argv[i], ':')) != NULL) {
-			int sep_idx;
-			char *old_pmu_glob = ps.pmu_glob;
+			char *old_pmu_glob = default_ps.pmu_glob;
 
-			sep_idx = sep - argv[i];
-			s = strdup(argv[i]);
-			if (s == NULL) {
+			default_ps.event_glob = strdup(argv[i]);
+			if (!default_ps.event_glob) {
 				ret = -1;
 				goto out;
 			}
 
-			s[sep_idx] = '\0';
-			ps.pmu_glob = s;
-			ps.event_glob = s + sep_idx + 1;
-			print_tracepoint_events(&print_cb, &ps);
-			print_sdt_events(&print_cb, &ps);
-			ps.metrics = true;
-			ps.metricgroups = true;
-			metricgroup__print(&print_cb, &ps);
-			free(s);
-			ps.pmu_glob = old_pmu_glob;
+			print_tracepoint_events(&print_cb, ps);
+			print_sdt_events(&print_cb, ps);
+			default_ps.metrics = true;
+			default_ps.metricgroups = true;
+			metricgroup__print(&print_cb, ps);
+			zfree(&default_ps.event_glob);
+			default_ps.pmu_glob = old_pmu_glob;
 		} else {
 			if (asprintf(&s, "*%s*", argv[i]) < 0) {
 				printf("Critical: Not enough memory! Trying to continue...\n");
 				continue;
 			}
-			ps.event_glob = s;
-			print_symbol_events(&print_cb, &ps, PERF_TYPE_HARDWARE,
+			default_ps.event_glob = s;
+			print_symbol_events(&print_cb, ps, PERF_TYPE_HARDWARE,
 					event_symbols_hw, PERF_COUNT_HW_MAX);
-			print_symbol_events(&print_cb, &ps, PERF_TYPE_SOFTWARE,
+			print_symbol_events(&print_cb, ps, PERF_TYPE_SOFTWARE,
 					event_symbols_sw, PERF_COUNT_SW_MAX);
-			print_tool_events(&print_cb, &ps);
-			print_hwcache_events(&print_cb, &ps);
-			print_pmu_events(&print_cb, &ps);
-			print_tracepoint_events(&print_cb, &ps);
-			print_sdt_events(&print_cb, &ps);
-			ps.metrics = true;
-			ps.metricgroups = true;
-			metricgroup__print(&print_cb, &ps);
+			print_tool_events(&print_cb, ps);
+			print_hwcache_events(&print_cb, ps);
+			print_pmu_events(&print_cb, ps);
+			print_tracepoint_events(&print_cb, ps);
+			print_sdt_events(&print_cb, ps);
+			default_ps.metrics = true;
+			default_ps.metricgroups = true;
+			metricgroup__print(&print_cb, ps);
 			free(s);
 		}
 	}
 
 out:
-	print_cb.print_end(&ps);
-	free(ps.pmu_glob);
-	free(ps.last_topic);
-	free(ps.last_metricgroups);
-	strlist__delete(ps.visited_metrics);
+	print_cb.print_end(ps);
+	free(default_ps.pmu_glob);
+	free(default_ps.last_topic);
+	free(default_ps.last_metricgroups);
+	strlist__delete(default_ps.visited_metrics);
 	return ret;
 }
