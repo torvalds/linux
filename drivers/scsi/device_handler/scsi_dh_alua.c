@@ -354,6 +354,8 @@ static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h,
 			    "%s: port group %x rel port %x\n",
 			    ALUA_DH_NAME, group_id, rel_port);
 
+	kref_get(&pg->kref);
+
 	/* Check for existing port group references */
 	spin_lock(&h->pg_lock);
 	old_pg = rcu_dereference_protected(h->pg, lockdep_is_held(&h->pg_lock));
@@ -373,10 +375,10 @@ static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h,
 		list_add_rcu(&h->node, &pg->dh_list);
 	spin_unlock_irqrestore(&pg->lock, flags);
 
-	alua_rtpg_queue(rcu_dereference_protected(h->pg,
-						  lockdep_is_held(&h->pg_lock)),
-			sdev, NULL, true);
 	spin_unlock(&h->pg_lock);
+
+	alua_rtpg_queue(pg, sdev, NULL, true);
+	kref_put(&pg->kref, release_port_group);
 
 	if (old_pg)
 		kref_put(&old_pg->kref, release_port_group);
@@ -986,6 +988,9 @@ static bool alua_rtpg_queue(struct alua_port_group *pg,
 {
 	int start_queue = 0;
 	unsigned long flags;
+
+	might_sleep();
+
 	if (WARN_ON_ONCE(!pg) || scsi_device_get(sdev))
 		return false;
 
@@ -996,11 +1001,17 @@ static bool alua_rtpg_queue(struct alua_port_group *pg,
 		force = true;
 	}
 	if (pg->rtpg_sdev == NULL) {
-		pg->interval = 0;
-		pg->flags |= ALUA_PG_RUN_RTPG;
-		kref_get(&pg->kref);
-		pg->rtpg_sdev = sdev;
-		start_queue = 1;
+		struct alua_dh_data *h = sdev->handler_data;
+
+		rcu_read_lock();
+		if (h && rcu_dereference(h->pg) == pg) {
+			pg->interval = 0;
+			pg->flags |= ALUA_PG_RUN_RTPG;
+			kref_get(&pg->kref);
+			pg->rtpg_sdev = sdev;
+			start_queue = 1;
+		}
+		rcu_read_unlock();
 	} else if (!(pg->flags & ALUA_PG_RUN_RTPG) && force) {
 		pg->flags |= ALUA_PG_RUN_RTPG;
 		/* Do not queue if the worker is already running */
