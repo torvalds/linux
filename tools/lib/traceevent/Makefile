@@ -234,11 +234,11 @@ install_pkgconfig:
 		$(call do_install_pkgconfig_file,$(prefix))
 
 install_headers:
-	$(call QUIET_INSTALL, headers) \
+	$(call QUIET_INSTALL, traceevent_headers) \
 		$(call do_install,event-parse.h,$(includedir_SQ),644); \
 		$(call do_install,event-utils.h,$(includedir_SQ),644); \
 		$(call do_install,trace-seq.h,$(includedir_SQ),644); \
-		$(call do_install,kbuffer.h,$(includedir_SQ),644)
+		$(call do_install,kbuffer.h,$(includedir_SQ),644);
 
 install: install_lib
 
