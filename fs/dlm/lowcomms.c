@@ -1830,7 +1830,7 @@ static const struct dlm_proto_ops dlm_sctp_ops = {
 
 int dlm_lowcomms_start(void)
 {
-	int error = -EINVAL;
+	int error;
 
 	init_local();
 	if (!dlm_local_count) {
