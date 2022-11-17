@@ -6,9 +6,17 @@ drivers/bluetooth/hci_uart.ko
 drivers/net/can/dev/can-dev.ko
 drivers/net/can/slcan/slcan.ko
 drivers/net/can/vcan.ko
+drivers/net/ppp/bsd_comp.ko
+drivers/net/ppp/ppp_deflate.ko
+drivers/net/ppp/ppp_generic.ko
+drivers/net/ppp/ppp_mppe.ko
+drivers/net/ppp/pppox.ko
+drivers/net/ppp/pptp.ko
+drivers/net/slip/slhc.ko
 drivers/usb/class/cdc-acm.ko
 drivers/usb/serial/ftdi_sio.ko
 drivers/usb/serial/usbserial.ko
+lib/crypto/libarc4.ko
 mm/zsmalloc.ko
 net/6lowpan/6lowpan.ko
 net/6lowpan/nhc_dest.ko
