@@ -310,7 +310,7 @@ static int atana33xc20_probe(struct dp_aux_ep_device *aux_ep)
 	ret = devm_add_action_or_reset(dev,  atana33xc20_runtime_disable, dev);
 	if (ret)
 		return ret;
-	pm_runtime_set_autosuspend_delay(dev, 1000);
+	pm_runtime_set_autosuspend_delay(dev, 2000);
 	pm_runtime_use_autosuspend(dev);
 	ret = devm_add_action_or_reset(dev,  atana33xc20_dont_use_autosuspend, dev);
 	if (ret)
