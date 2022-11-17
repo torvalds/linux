@@ -1406,9 +1406,7 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw, bool clear_vf)
 	mlx5_eswitch_unload_vf_vports(esw, esw->esw_funcs.num_vfs);
 	if (clear_vf)
 		mlx5_eswitch_clear_vf_vports_info(esw);
-	/* If disabling sriov in switchdev mode, free meta rules here
-	 * because it depends on num_vfs.
-	 */
+
 	if (esw->mode == MLX5_ESWITCH_OFFLOADS) {
 		struct devlink *devlink = priv_to_devlink(esw->dev);
 
