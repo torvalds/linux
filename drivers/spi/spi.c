@@ -2224,6 +2224,7 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 			   struct device_node *nc)
 {
 	u32 value;
+	u16 cs_setup;
 	int rc;
 
 	/* Mode (clock phase/polarity/etc.) */
@@ -2308,6 +2309,11 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 	/* Device speed */
 	if (!of_property_read_u32(nc, "spi-max-frequency", &value))
 		spi->max_speed_hz = value;
+
+	if (!of_property_read_u16(nc, "spi-cs-setup-ns", &cs_setup)) {
+		spi->cs_setup.value = cs_setup;
+		spi->cs_setup.unit = SPI_DELAY_UNIT_NSECS;
+	}
 
 	return 0;
 }
