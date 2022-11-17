@@ -3775,7 +3775,8 @@ void hl_sysfs_add_dev_vrm_attr(struct hl_device *hdev, struct attribute_group *d
 
 void hw_sob_get(struct hl_hw_sob *hw_sob);
 void hw_sob_put(struct hl_hw_sob *hw_sob);
-void hl_encaps_handle_do_release(struct kref *ref);
+void hl_encaps_release_handle_and_put_ctx(struct kref *ref);
+void hl_encaps_release_handle_and_put_sob_ctx(struct kref *ref);
 void hl_hw_queue_encaps_sig_set_sob_info(struct hl_device *hdev,
 			struct hl_cs *cs, struct hl_cs_job *job,
 			struct hl_cs_compl *cs_cmpl);

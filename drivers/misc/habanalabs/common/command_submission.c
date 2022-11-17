@@ -742,13 +742,11 @@ static void cs_do_release(struct kref *ref)
 		 */
 		if (hl_cs_cmpl->encaps_signals)
 			kref_put(&hl_cs_cmpl->encaps_sig_hdl->refcount,
-						hl_encaps_handle_do_release);
+					hl_encaps_release_handle_and_put_ctx);
 	}
 
-	if ((cs->type == CS_TYPE_WAIT || cs->type == CS_TYPE_COLLECTIVE_WAIT)
-			&& cs->encaps_signals)
-		kref_put(&cs->encaps_sig_hdl->refcount,
-					hl_encaps_handle_do_release);
+	if ((cs->type == CS_TYPE_WAIT || cs->type == CS_TYPE_COLLECTIVE_WAIT) && cs->encaps_signals)
+		kref_put(&cs->encaps_sig_hdl->refcount, hl_encaps_release_handle_and_put_ctx);
 
 out:
 	/* Must be called before hl_ctx_put because inside we use ctx to get
@@ -1011,6 +1009,34 @@ static void cs_rollback(struct hl_device *hdev, struct hl_cs *cs)
 		hl_complete_job(hdev, job);
 }
 
+/*
+ * release_reserved_encaps_signals() - release reserved encapsulated signals.
+ * @hdev: pointer to habanalabs device structure
+ *
+ * Release reserved encapsulated signals which weren't un-reserved, or for which a CS with
+ * encapsulated signals wasn't submitted and thus weren't released as part of CS roll-back.
+ * For these signals need also to put the refcount of the H/W SOB which was taken at the
+ * reservation.
+ */
+static void release_reserved_encaps_signals(struct hl_device *hdev)
+{
+	struct hl_ctx *ctx = hl_get_compute_ctx(hdev);
+	struct hl_cs_encaps_sig_handle *handle;
+	struct hl_encaps_signals_mgr *mgr;
+	u32 id;
+
+	if (!ctx)
+		return;
+
+	mgr = &ctx->sig_mgr;
+
+	idr_for_each_entry(&mgr->handles, handle, id)
+		if (handle->cs_seq == ULLONG_MAX)
+			kref_put(&handle->refcount, hl_encaps_release_handle_and_put_sob_ctx);
+
+	hl_ctx_put(ctx);
+}
+
 void hl_cs_rollback_all(struct hl_device *hdev, bool skip_wq_flush)
 {
 	int i;
@@ -1039,6 +1065,8 @@ void hl_cs_rollback_all(struct hl_device *hdev, bool skip_wq_flush)
 	}
 
 	force_complete_multi_cs(hdev);
+
+	release_reserved_encaps_signals(hdev);
 }
 
 static void
@@ -2001,6 +2029,8 @@ static int cs_ioctl_reserve_signals(struct hl_fpriv *hpriv,
 	 */
 	handle->pre_sob_val = prop->next_sob_val - handle->count;
 
+	handle->cs_seq = ULLONG_MAX;
+
 	*signals_count = prop->next_sob_val;
 	hdev->asic_funcs->hw_queues_unlock(hdev);
 
@@ -2350,10 +2380,8 @@ put_cs:
 	/* We finished with the CS in this function, so put the ref */
 	cs_put(cs);
 free_cs_chunk_array:
-	if (!wait_cs_submitted && cs_encaps_signals && handle_found &&
-							is_wait_cs)
-		kref_put(&encaps_sig_hdl->refcount,
-				hl_encaps_handle_do_release);
+	if (!wait_cs_submitted && cs_encaps_signals && handle_found && is_wait_cs)
+		kref_put(&encaps_sig_hdl->refcount, hl_encaps_release_handle_and_put_ctx);
 	kfree(cs_chunk_array);
 out:
 	return rc;
