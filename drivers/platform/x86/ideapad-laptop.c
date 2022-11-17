@@ -182,6 +182,12 @@ MODULE_PARM_DESC(ctrl_ps2_aux_port,
 	"Enable driver based PS/2 aux port en-/dis-abling on touchpad on/off toggle. "
 	"If you need this please report this to: platform-driver-x86@vger.kernel.org");
 
+static bool touchpad_ctrl_via_ec;
+module_param(touchpad_ctrl_via_ec, bool, 0444);
+MODULE_PARM_DESC(touchpad_ctrl_via_ec,
+	"Enable registering a 'touchpad' sysfs-attribute which can be used to manually "
+	"tell the EC to enable/disable the touchpad. This may not work on all models.");
+
 /*
  * shared data
  */
@@ -1654,24 +1660,6 @@ static const struct dmi_system_id ctrl_ps2_aux_port_list[] = {
 	{}
 };
 
-static const struct dmi_system_id no_touchpad_switch_list[] = {
-	{
-	.ident = "Lenovo Yoga 3 Pro 1370",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo YOGA 3"),
-		},
-	},
-	{
-	.ident = "ZhaoYang K4e-IML",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_PRODUCT_VERSION, "ZhaoYang K4e-IML"),
-		},
-	},
-	{}
-};
-
 static void ideapad_check_features(struct ideapad_private *priv)
 {
 	acpi_handle handle = priv->adev->handle;
@@ -1683,14 +1671,7 @@ static void ideapad_check_features(struct ideapad_private *priv)
 		hw_rfkill_switch || dmi_check_system(hw_rfkill_list);
 	priv->features.ctrl_ps2_aux_port =
 		ctrl_ps2_aux_port || dmi_check_system(ctrl_ps2_aux_port_list);
-
-	/* Most ideapads with ELAN0634 touchpad don't use EC touchpad switch */
-	if (acpi_dev_present("ELAN0634", NULL, -1))
-		priv->features.touchpad_ctrl_via_ec = 0;
-	else if (dmi_check_system(no_touchpad_switch_list))
-		priv->features.touchpad_ctrl_via_ec = 0;
-	else
-		priv->features.touchpad_ctrl_via_ec = 1;
+	priv->features.touchpad_ctrl_via_ec = touchpad_ctrl_via_ec;
 
 	if (!read_ec_data(handle, VPCCMD_R_FAN, &val))
 		priv->features.fan_mode = true;
