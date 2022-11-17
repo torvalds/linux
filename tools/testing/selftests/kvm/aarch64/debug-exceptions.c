@@ -241,7 +241,6 @@ static void guest_svc_handler(struct ex_regs *regs)
 
 enum single_step_op {
 	SINGLE_STEP_ENABLE = 0,
-	SINGLE_STEP_DISABLE = 1,
 };
 
 static void guest_code_ss(int test_cnt)
@@ -258,7 +257,7 @@ static void guest_code_ss(int test_cnt)
 		GUEST_SYNC(SINGLE_STEP_ENABLE);
 
 		/*
-		 * The userspace will veriry that the pc is as expected during
+		 * The userspace will verify that the pc is as expected during
 		 * single step execution between iter_ss_begin and iter_ss_end.
 		 */
 		asm volatile("iter_ss_begin:nop\n");
@@ -268,10 +267,8 @@ static void guest_code_ss(int test_cnt)
 		bvr = read_sysreg(dbgbvr0_el1);
 		wvr = read_sysreg(dbgwvr0_el1);
 
+		/* Userspace disables Single Step when the end is nigh. */
 		asm volatile("iter_ss_end:\n");
-
-		/* Disable Single Step execution */
-		GUEST_SYNC(SINGLE_STEP_DISABLE);
 
 		GUEST_ASSERT(bvr == w_bvr);
 		GUEST_ASSERT(wvr == w_wvr);
@@ -364,15 +361,12 @@ void test_single_step_from_userspace(int test_cnt)
 			TEST_ASSERT(cmd == UCALL_SYNC,
 				    "Unexpected ucall cmd 0x%lx", cmd);
 
-			if (uc.args[1] == SINGLE_STEP_ENABLE) {
-				debug.control = KVM_GUESTDBG_ENABLE |
-						KVM_GUESTDBG_SINGLESTEP;
-				ss_enable = true;
-			} else {
-				debug.control = KVM_GUESTDBG_ENABLE;
-				ss_enable = false;
-			}
+			TEST_ASSERT(uc.args[1] == SINGLE_STEP_ENABLE,
+				    "Unexpected ucall action 0x%lx", uc.args[1]);
 
+			debug.control = KVM_GUESTDBG_ENABLE |
+					KVM_GUESTDBG_SINGLESTEP;
+			ss_enable = true;
 			vcpu_guest_debug_set(vcpu, &debug);
 			continue;
 		}
@@ -384,6 +378,14 @@ void test_single_step_from_userspace(int test_cnt)
 		TEST_ASSERT(!test_pc || pc == test_pc,
 			    "Unexpected pc 0x%lx (expected 0x%lx)",
 			    pc, test_pc);
+
+		if ((pc + 4) == (uint64_t)&iter_ss_end) {
+			test_pc = 0;
+			debug.control = KVM_GUESTDBG_ENABLE;
+			ss_enable = false;
+			vcpu_guest_debug_set(vcpu, &debug);
+			continue;
+		}
 
 		/*
 		 * If the current pc is between iter_ss_bgin and
