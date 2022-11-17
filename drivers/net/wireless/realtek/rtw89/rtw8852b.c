@@ -318,27 +318,27 @@ static const struct rtw89_dig_regs rtw8852b_dig_regs = {
 };
 
 static const struct rtw89_btc_rf_trx_para rtw89_btc_8852b_rf_ul[] = {
-	{15, 0, 0, 7}, /* 0 -> original */
-	{15, 2, 0, 7}, /* 1 -> for BT-connected ACI issue && BTG co-rx */
-	{15, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
-	{15, 0, 0, 7}, /* 3- >reserved for shared-antenna */
-	{15, 0, 0, 7}, /* 4 ->reserved for shared-antenna */
-	{15, 0, 0, 7}, /* the below id is for non-shared-antenna free-run */
+	{255, 0, 0, 7}, /* 0 -> original */
+	{255, 2, 0, 7}, /* 1 -> for BT-connected ACI issue && BTG co-rx */
+	{255, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
+	{255, 0, 0, 7}, /* 3- >reserved for shared-antenna */
+	{255, 0, 0, 7}, /* 4 ->reserved for shared-antenna */
+	{255, 0, 0, 7}, /* the below id is for non-shared-antenna free-run */
 	{6, 1, 0, 7},
 	{13, 1, 0, 7},
 	{13, 1, 0, 7}
 };
 
 static const struct rtw89_btc_rf_trx_para rtw89_btc_8852b_rf_dl[] = {
-	{15, 0, 0, 7}, /* 0 -> original */
-	{15, 2, 0, 7}, /* 1 -> reserved for shared-antenna */
-	{15, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
-	{15, 0, 0, 7}, /* 3- >reserved for shared-antenna */
-	{15, 0, 0, 7}, /* 4 ->reserved for shared-antenna */
-	{15, 0, 0, 7}, /* the below id is for non-shared-antenna free-run */
-	{15, 1, 0, 7},
-	{15, 1, 0, 7},
-	{15, 1, 0, 7}
+	{255, 0, 0, 7}, /* 0 -> original */
+	{255, 2, 0, 7}, /* 1 -> reserved for shared-antenna */
+	{255, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
+	{255, 0, 0, 7}, /* 3- >reserved for shared-antenna */
+	{255, 0, 0, 7}, /* 4 ->reserved for shared-antenna */
+	{255, 0, 0, 7}, /* the below id is for non-shared-antenna free-run */
+	{255, 1, 0, 7},
+	{255, 1, 0, 7},
+	{255, 1, 0, 7}
 };
 
 static const struct rtw89_btc_fbtc_mreg rtw89_btc_8852b_mon_reg[] = {
