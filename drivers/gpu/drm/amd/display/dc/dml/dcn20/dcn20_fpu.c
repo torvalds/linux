@@ -565,7 +565,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 				.dppclk_mhz = 847.06,
 				.phyclk_mhz = 810.0,
 				.socclk_mhz = 953.0,
-				.dscclk_mhz = 489.0,
+				.dscclk_mhz = 300.0,
 				.dram_speed_mts = 2400.0,
 			},
 			{
@@ -576,7 +576,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 				.dppclk_mhz = 960.00,
 				.phyclk_mhz = 810.0,
 				.socclk_mhz = 278.0,
-				.dscclk_mhz = 287.67,
+				.dscclk_mhz = 342.86,
 				.dram_speed_mts = 2666.0,
 			},
 			{
@@ -587,7 +587,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 				.dppclk_mhz = 1028.57,
 				.phyclk_mhz = 810.0,
 				.socclk_mhz = 715.0,
-				.dscclk_mhz = 318.334,
+				.dscclk_mhz = 369.23,
 				.dram_speed_mts = 3200.0,
 			},
 			{
