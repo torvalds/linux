@@ -1519,12 +1519,8 @@ static void refresh_mounts(struct cifs_ses **sessions)
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
-		spin_lock(&server->srv_lock);
-		if (!server->is_dfs_conn) {
-			spin_unlock(&server->srv_lock);
+		if (!server->leaf_fullpath)
 			continue;
-		}
-		spin_unlock(&server->srv_lock);
 
 		list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
 			list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
@@ -1545,12 +1541,8 @@ static void refresh_mounts(struct cifs_ses **sessions)
 		list_del_init(&tcon->ulist);
 
 		mutex_lock(&server->refpath_lock);
-		if (server->origin_fullpath) {
-			if (server->leaf_fullpath && strcasecmp(server->leaf_fullpath,
-								server->origin_fullpath))
-				__refresh_tcon(server->leaf_fullpath + 1, sessions, tcon, false);
-			__refresh_tcon(server->origin_fullpath + 1, sessions, tcon, false);
-		}
+		if (server->leaf_fullpath)
+			__refresh_tcon(server->leaf_fullpath + 1, sessions, tcon, false);
 		mutex_unlock(&server->refpath_lock);
 
 		cifs_put_tcon(tcon);
