@@ -9,6 +9,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
 
 #include <sound/asoundef.h>
@@ -175,6 +176,7 @@ static const struct regmap_config mchp_spdiftx_regmap_config = {
 	.readable_reg = mchp_spdiftx_readable_reg,
 	.writeable_reg = mchp_spdiftx_writeable_reg,
 	.precious_reg = mchp_spdiftx_precious_reg,
+	.cache_type = REGCACHE_FLAT,
 };
 
 #define SPDIFTX_GCLK_RATIO	128
@@ -196,7 +198,6 @@ struct mchp_spdiftx_dev {
 	struct clk				*pclk;
 	struct clk				*gclk;
 	unsigned int				fmt;
-	unsigned int				gclk_enabled:1;
 };
 
 static inline int mchp_spdiftx_is_running(struct mchp_spdiftx_dev *dev)
@@ -486,10 +487,9 @@ static int mchp_spdiftx_hw_params(struct snd_pcm_substream *substream,
 	mchp_spdiftx_channel_status_write(dev);
 	spin_unlock_irqrestore(&ctrl->lock, flags);
 
-	if (dev->gclk_enabled) {
-		clk_disable_unprepare(dev->gclk);
-		dev->gclk_enabled = 0;
-	}
+	/* GCLK is enabled by runtime PM. */
+	clk_disable_unprepare(dev->gclk);
+
 	ret = clk_set_rate(dev->gclk, params_rate(params) *
 				      SPDIFTX_GCLK_RATIO);
 	if (ret) {
@@ -503,7 +503,7 @@ static int mchp_spdiftx_hw_params(struct snd_pcm_substream *substream,
 		dev_err(dev->dev, "unable to enable gclk: %d\n", ret);
 		return ret;
 	}
-	dev->gclk_enabled = 1;
+
 	dev_dbg(dev->dev, "%s(): GCLK set to %d\n", __func__,
 		params_rate(params) * SPDIFTX_GCLK_RATIO);
 
@@ -523,10 +523,6 @@ static int mchp_spdiftx_hw_free(struct snd_pcm_substream *substream,
 
 	regmap_write(dev->regmap, SPDIFTX_IDR,
 		     SPDIFTX_IR_TXUDR | SPDIFTX_IR_TXOVR);
-	if (dev->gclk_enabled) {
-		clk_disable_unprepare(dev->gclk);
-		dev->gclk_enabled = 0;
-	}
 
 	return regmap_write(dev->regmap, SPDIFTX_CR,
 			    SPDIFTX_CR_SWRST | SPDIFTX_CR_FCLR);
@@ -709,16 +705,8 @@ static struct snd_kcontrol_new mchp_spdiftx_ctrls[] = {
 static int mchp_spdiftx_dai_probe(struct snd_soc_dai *dai)
 {
 	struct mchp_spdiftx_dev *dev = snd_soc_dai_get_drvdata(dai);
-	int ret;
 
 	snd_soc_dai_init_dma_data(dai, &dev->playback, NULL);
-
-	ret = clk_prepare_enable(dev->pclk);
-	if (ret) {
-		dev_err(dev->dev,
-			"failed to enable the peripheral clock: %d\n", ret);
-		return ret;
-	}
 
 	/* Add controls */
 	snd_soc_add_dai_controls(dai, mchp_spdiftx_ctrls,
@@ -727,19 +715,9 @@ static int mchp_spdiftx_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static int mchp_spdiftx_dai_remove(struct snd_soc_dai *dai)
-{
-	struct mchp_spdiftx_dev *dev = snd_soc_dai_get_drvdata(dai);
-
-	clk_disable_unprepare(dev->pclk);
-
-	return 0;
-}
-
 static struct snd_soc_dai_driver mchp_spdiftx_dai = {
 	.name = "mchp-spdiftx",
 	.probe	= mchp_spdiftx_dai_probe,
-	.remove	= mchp_spdiftx_dai_remove,
 	.playback = {
 		.stream_name = "S/PDIF Playback",
 		.channels_min = 1,
@@ -762,6 +740,54 @@ static const struct of_device_id mchp_spdiftx_dt_ids[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mchp_spdiftx_dt_ids);
+
+static int mchp_spdiftx_runtime_suspend(struct device *dev)
+{
+	struct mchp_spdiftx_dev *spdiftx = dev_get_drvdata(dev);
+
+	regcache_cache_only(spdiftx->regmap, true);
+
+	clk_disable_unprepare(spdiftx->gclk);
+	clk_disable_unprepare(spdiftx->pclk);
+
+	return 0;
+}
+
+static int mchp_spdiftx_runtime_resume(struct device *dev)
+{
+	struct mchp_spdiftx_dev *spdiftx = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(spdiftx->pclk);
+	if (ret) {
+		dev_err(spdiftx->dev,
+			"failed to enable the peripheral clock: %d\n", ret);
+		return ret;
+	}
+	ret = clk_prepare_enable(spdiftx->gclk);
+	if (ret) {
+		dev_err(spdiftx->dev,
+			"failed to enable generic clock: %d\n", ret);
+		goto disable_pclk;
+	}
+
+	regcache_cache_only(spdiftx->regmap, false);
+	regcache_mark_dirty(spdiftx->regmap);
+	ret = regcache_sync(spdiftx->regmap);
+	if (ret) {
+		regcache_cache_only(spdiftx->regmap, true);
+		clk_disable_unprepare(spdiftx->gclk);
+disable_pclk:
+		clk_disable_unprepare(spdiftx->pclk);
+	}
+
+	return ret;
+}
+
+static const struct dev_pm_ops mchp_spdiftx_pm_ops = {
+	RUNTIME_PM_OPS(mchp_spdiftx_runtime_suspend, mchp_spdiftx_runtime_resume,
+		       NULL)
+};
 
 static int mchp_spdiftx_probe(struct platform_device *pdev)
 {
@@ -827,29 +853,59 @@ static int mchp_spdiftx_probe(struct platform_device *pdev)
 	dev->regmap = regmap;
 	platform_set_drvdata(pdev, dev);
 
+	pm_runtime_enable(dev->dev);
+	if (!pm_runtime_enabled(dev->dev)) {
+		err = mchp_spdiftx_runtime_resume(dev->dev);
+		if (err)
+			return err;
+	}
+
 	dev->playback.addr = (dma_addr_t)mem->start + SPDIFTX_CDR;
 	dev->playback.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 
 	err = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (err) {
 		dev_err(&pdev->dev, "failed to register PMC: %d\n", err);
-		return err;
+		goto pm_runtime_suspend;
 	}
 
 	err = devm_snd_soc_register_component(&pdev->dev,
 					      &mchp_spdiftx_component,
 					      &mchp_spdiftx_dai, 1);
-	if (err)
+	if (err) {
 		dev_err(&pdev->dev, "failed to register component: %d\n", err);
+		goto pm_runtime_suspend;
+	}
+
+	return 0;
+
+pm_runtime_suspend:
+	if (!pm_runtime_status_suspended(dev->dev))
+		mchp_spdiftx_runtime_suspend(dev->dev);
+	pm_runtime_disable(dev->dev);
 
 	return err;
 }
 
+static int mchp_spdiftx_remove(struct platform_device *pdev)
+{
+	struct mchp_spdiftx_dev *dev = platform_get_drvdata(pdev);
+
+	if (!pm_runtime_status_suspended(dev->dev))
+		mchp_spdiftx_runtime_suspend(dev->dev);
+
+	pm_runtime_disable(dev->dev);
+
+	return 0;
+}
+
 static struct platform_driver mchp_spdiftx_driver = {
 	.probe	= mchp_spdiftx_probe,
+	.remove = mchp_spdiftx_remove,
 	.driver	= {
 		.name	= "mchp_spdiftx",
 		.of_match_table = of_match_ptr(mchp_spdiftx_dt_ids),
+		.pm = pm_ptr(&mchp_spdiftx_pm_ops)
 	},
 };
 
