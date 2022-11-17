@@ -23,6 +23,7 @@ MODULE_DEVICE_TABLE(x86cpu, ifs_cpu_ids);
 static struct ifs_device ifs_device = {
 	.data = {
 		.integrity_cap_bit = MSR_INTEGRITY_CAPS_PERIODIC_BIST_BIT,
+		.test_num = 0,
 	},
 	.misc = {
 		.name = "intel_ifs_0",

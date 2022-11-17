@@ -33,13 +33,23 @@
  * The driver loads the tests into memory reserved BIOS local to each CPU
  * socket in a two step process using writes to MSRs to first load the
  * SHA hashes for the test. Then the tests themselves. Status MSRs provide
- * feedback on the success/failure of these steps. When a new test file
- * is installed it can be loaded by writing to the driver reload file::
+ * feedback on the success/failure of these steps.
  *
- *   # echo 1 > /sys/devices/virtual/misc/intel_ifs_0/reload
+ * The test files are kept in a fixed location: /lib/firmware/intel/ifs_0/
+ * For e.g if there are 3 test files, they would be named in the following
+ * fashion:
+ * ff-mm-ss-01.scan
+ * ff-mm-ss-02.scan
+ * ff-mm-ss-03.scan
+ * (where ff refers to family, mm indicates model and ss indicates stepping)
  *
- * Similar to microcode, the current version of the scan tests is stored
- * in a fixed location: /lib/firmware/intel/ifs.0/family-model-stepping.scan
+ * A different test file can be loaded by writing the numerical portion
+ * (e.g 1, 2 or 3 in the above scenario) into the curent_batch file.
+ * To load ff-mm-ss-02.scan, the following command can be used::
+ *
+ *   # echo 2 > /sys/devices/virtual/misc/intel_ifs_0/current_batch
+ *
+ * The above file can also be read to know the currently loaded image.
  *
  * Running tests
  * -------------
@@ -209,6 +219,7 @@ struct ifs_data {
 	int	status;
 	u64	scan_details;
 	u32	cur_batch;
+	int	test_num;
 };
 
 struct ifs_work {
@@ -229,7 +240,7 @@ static inline struct ifs_data *ifs_get_data(struct device *dev)
 	return &d->data;
 }
 
-void ifs_load_firmware(struct device *dev);
+int ifs_load_firmware(struct device *dev);
 int do_core_test(int cpu, struct device *dev);
 const struct attribute_group **ifs_get_groups(void);
 

@@ -253,17 +253,18 @@ static int image_sanity_check(struct device *dev, const struct microcode_header_
 
 /*
  * Load ifs image. Before loading ifs module, the ifs image must be located
- * in /lib/firmware/intel/ifs and named as {family/model/stepping}.{testname}.
+ * in /lib/firmware/intel/ifs_x/ and named as family-model-stepping-02x.{testname}.
  */
-void ifs_load_firmware(struct device *dev)
+int ifs_load_firmware(struct device *dev)
 {
 	struct ifs_data *ifsd = ifs_get_data(dev);
 	const struct firmware *fw;
-	char scan_path[32];
-	int ret;
+	char scan_path[64];
+	int ret = -EINVAL;
 
-	snprintf(scan_path, sizeof(scan_path), "intel/ifs/%02x-%02x-%02x.scan",
-		 boot_cpu_data.x86, boot_cpu_data.x86_model, boot_cpu_data.x86_stepping);
+	snprintf(scan_path, sizeof(scan_path), "intel/ifs_%d/%02x-%02x-%02x-%02x.scan",
+		 ifsd->test_num, boot_cpu_data.x86, boot_cpu_data.x86_model,
+		 boot_cpu_data.x86_stepping, ifsd->cur_batch);
 
 	ret = request_firmware_direct(&fw, scan_path, dev);
 	if (ret) {
@@ -279,8 +280,13 @@ void ifs_load_firmware(struct device *dev)
 	ifs_hash_ptr = (u64)(ifs_header_ptr + 1);
 
 	ret = scan_chunks_sanity_check(dev);
+	if (ret)
+		dev_err(dev, "Load failure for batch: %02x\n", ifsd->cur_batch);
+
 release:
 	release_firmware(fw);
 done:
 	ifsd->loaded = (ret == 0);
+
+	return ret;
 }
