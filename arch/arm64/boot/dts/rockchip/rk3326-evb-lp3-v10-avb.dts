@@ -80,7 +80,7 @@
 &rkisp1 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&cif_clkout_m0 &dvp_d0d1_m0 &dvp_d2d9_m0>;
+	pinctrl-0 = <&cif_clkout_m0 &dvp_d2d9_m0>;
 	port {
 		#address-cells = <1>;
 		#size-cells = <0>;
