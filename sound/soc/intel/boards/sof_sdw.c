@@ -543,6 +543,13 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 		.codec_type = SOF_SDW_CODEC_TYPE_AMP,
 	},
 	{
+		.part_id = 0x1318,
+		.direction = {true, true},
+		.dai_name = "rt1318-aif",
+		.init = sof_sdw_rt1318_init,
+		.codec_type = SOF_SDW_CODEC_TYPE_AMP,
+	},
+	{
 		.part_id = 0x714,
 		.version_id = 3,
 		.direction = {false, true},
