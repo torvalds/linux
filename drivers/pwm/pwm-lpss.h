@@ -10,8 +10,10 @@
 #ifndef __PWM_LPSS_H
 #define __PWM_LPSS_H
 
-#include <linux/device.h>
 #include <linux/pwm.h>
+#include <linux/types.h>
+
+struct device;
 
 #define LPSS_MAX_PWMS			4
 
