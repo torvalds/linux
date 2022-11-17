@@ -97,14 +97,14 @@ uint32_t dcn32_helper_calculate_num_ways_for_subvp(struct dc *dc, struct dc_stat
 			 * FLOOR(vp_x_start, blk_width)
 			 */
 			full_vp_width_blk_aligned = ((pipe->plane_res.scl_data.viewport.x +
-					pipe->plane_res.scl_data.viewport.width + mblk_width - 1) / mblk_width * mblk_width) +
+					pipe->plane_res.scl_data.viewport.width + mblk_width - 1) / mblk_width * mblk_width) -
 					(pipe->plane_res.scl_data.viewport.x / mblk_width * mblk_width);
 
 			/* full_vp_height_blk_aligned = FLOOR(vp_y_start + full_vp_height + blk_height - 1, blk_height) -
 			 * FLOOR(vp_y_start, blk_height)
 			 */
 			full_vp_height_blk_aligned = ((pipe->plane_res.scl_data.viewport.y +
-					full_vp_height + mblk_height - 1) / mblk_height * mblk_height) +
+					full_vp_height + mblk_height - 1) / mblk_height * mblk_height) -
 					(pipe->plane_res.scl_data.viewport.y / mblk_height * mblk_height);
 
 			/* mall_alloc_width_blk_aligned_l/c = full_vp_width_blk_aligned_l/c */
