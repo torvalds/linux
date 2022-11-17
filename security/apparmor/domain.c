@@ -323,7 +323,7 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 		size = vfs_getxattr_alloc(&nop_mnt_idmap, d, attach->xattrs[i],
 					  &value, value_size, GFP_KERNEL);
 		if (size >= 0) {
-			u32 index, perm;
+			struct aa_perms *perms;
 
 			/*
 			 * Check the xattr presence before value. This ensure
@@ -335,9 +335,8 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 			/* Check xattr value */
 			state = aa_dfa_match_len(attach->xmatch->dfa, state,
 						 value, size);
-			index = ACCEPT_TABLE(attach->xmatch->dfa)[state];
-			perm = attach->xmatch->perms[index].allow;
-			if (!(perm & MAY_EXEC)) {
+			perms = aa_lookup_perms(attach->xmatch, state);
+			if (!(perms->allow & MAY_EXEC)) {
 				ret = -EINVAL;
 				goto out;
 			}
@@ -415,15 +414,14 @@ restart:
 		if (attach->xmatch->dfa) {
 			unsigned int count;
 			aa_state_t state;
-			u32 index, perm;
+			struct aa_perms *perms;
 
 			state = aa_dfa_leftmatch(attach->xmatch->dfa,
 					attach->xmatch->start[AA_CLASS_XMATCH],
 					name, &count);
-			index = ACCEPT_TABLE(attach->xmatch->dfa)[state];
-			perm = attach->xmatch->perms[index].allow;
+			perms = aa_lookup_perms(attach->xmatch, state);
 			/* any accepting state means a valid match. */
-			if (perm & MAY_EXEC) {
+			if (perms->allow & MAY_EXEC) {
 				int ret = 0;
 
 				if (count < candidate_len)
