@@ -16,8 +16,13 @@
 #define line_to_vin2_dev(ptr_line) \
 		container_of(vin_line_array(ptr_line), struct stf_vin2_dev, line)
 
-#define VIN_FRAME_DROP_MAX_VAL 30
+#define VIN_FRAME_DROP_MAX_VAL 90
 #define VIN_FRAME_DROP_MIN_VAL 4
+#define VIN_FRAME_PER_SEC_MAX_VAL 90
+
+/* ISP ctrl need 1 sec to let frames become stable. */
+#define VIN_FRAME_DROP_SEC_FOR_ISP_CTRL 1
+
 
 // #define VIN_TWO_BUFFER
 
@@ -312,15 +317,33 @@ exit:
 static unsigned int get_frame_skip(struct vin_line *line)
 {
 	unsigned int frame_skip = 0;
+	unsigned int isp_ctrl_skip_frames = 0;
 	struct media_entity *sensor;
+	struct v4l2_subdev_frame_interval fi;
 
 	sensor = stfcamss_find_sensor(&line->subdev.entity);
 	if (sensor) {
+		int fps = 0;
 		struct v4l2_subdev *subdev =
 					media_entity_to_v4l2_subdev(sensor);
 
+		if (subdev->ops->video->g_frame_interval) {
+			if (!subdev->ops->video->g_frame_interval(subdev, &fi))
+				fps = fi.interval.denominator;
+
+			if (fps > 0 && fps <= 90)
+				isp_ctrl_skip_frames = fps * VIN_FRAME_DROP_SEC_FOR_ISP_CTRL;
+		}
+		if (!fps)
+			st_debug(ST_VIN, "%s, Failed to get sensor fps !\n", __func__);
+
+		if (isp_ctrl_skip_frames <= VIN_FRAME_DROP_MIN_VAL)
+			isp_ctrl_skip_frames = VIN_FRAME_DROP_MIN_VAL;
+
 		v4l2_subdev_call(subdev, sensor, g_skip_frames, &frame_skip);
-		frame_skip += VIN_FRAME_DROP_MIN_VAL;
+
+		frame_skip += isp_ctrl_skip_frames;
+
 		if (frame_skip > VIN_FRAME_DROP_MAX_VAL)
 			frame_skip = VIN_FRAME_DROP_MAX_VAL;
 		st_debug(ST_VIN, "%s, frame_skip %d\n", __func__, frame_skip);
