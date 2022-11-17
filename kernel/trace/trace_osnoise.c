@@ -49,6 +49,19 @@
 #define DEFAULT_TIMERLAT_PRIO	95			/* FIFO 95 */
 
 /*
+ * osnoise/options entries.
+ */
+enum osnoise_options_index {
+	OSN_DEFAULTS = 0,
+	OSN_MAX
+};
+
+static const char * const osnoise_options_str[OSN_MAX] = { "DEFAULTS" };
+
+#define OSN_DEFAULT_OPTIONS	0
+unsigned long osnoise_options	= OSN_DEFAULT_OPTIONS;
+
+/*
  * trace_array of the enabled osnoise/timerlat instances.
  */
 struct osnoise_instance {
@@ -1861,6 +1874,150 @@ static void osnoise_init_hotplug_support(void)
 #endif /* CONFIG_HOTPLUG_CPU */
 
 /*
+ * seq file functions for the osnoise/options file.
+ */
+static void *s_options_start(struct seq_file *s, loff_t *pos)
+{
+	int option = *pos;
+
+	mutex_lock(&interface_lock);
+
+	if (option >= OSN_MAX)
+		return NULL;
+
+	return pos;
+}
+
+static void *s_options_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	int option = ++(*pos);
+
+	if (option >= OSN_MAX)
+		return NULL;
+
+	return pos;
+}
+
+static int s_options_show(struct seq_file *s, void *v)
+{
+	loff_t *pos = v;
+	int option = *pos;
+
+	if (option == OSN_DEFAULTS) {
+		if (osnoise_options == OSN_DEFAULT_OPTIONS)
+			seq_printf(s, "%s", osnoise_options_str[option]);
+		else
+			seq_printf(s, "NO_%s", osnoise_options_str[option]);
+		goto out;
+	}
+
+	if (test_bit(option, &osnoise_options))
+		seq_printf(s, "%s", osnoise_options_str[option]);
+	else
+		seq_printf(s, "NO_%s", osnoise_options_str[option]);
+
+out:
+	if (option != OSN_MAX)
+		seq_puts(s, " ");
+
+	return 0;
+}
+
+static void s_options_stop(struct seq_file *s, void *v)
+{
+	seq_puts(s, "\n");
+	mutex_unlock(&interface_lock);
+}
+
+static const struct seq_operations osnoise_options_seq_ops = {
+	.start		= s_options_start,
+	.next		= s_options_next,
+	.show		= s_options_show,
+	.stop		= s_options_stop
+};
+
+static int osnoise_options_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &osnoise_options_seq_ops);
+};
+
+/**
+ * osnoise_options_write - Write function for "options" entry
+ * @filp: The active open file structure
+ * @ubuf: The user buffer that contains the value to write
+ * @cnt: The maximum number of bytes to write to "file"
+ * @ppos: The current position in @file
+ *
+ * Writing the option name sets the option, writing the "NO_"
+ * prefix in front of the option name disables it.
+ *
+ * Writing "DEFAULTS" resets the option values to the default ones.
+ */
+static ssize_t osnoise_options_write(struct file *filp, const char __user *ubuf,
+				     size_t cnt, loff_t *ppos)
+{
+	int running, option, enable, retval;
+	char buf[256], *option_str;
+
+	if (cnt >= 256)
+		return -EINVAL;
+
+	if (copy_from_user(buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+
+	if (strncmp(buf, "NO_", 3)) {
+		option_str = strstrip(buf);
+		enable = true;
+	} else {
+		option_str = strstrip(&buf[3]);
+		enable = false;
+	}
+
+	option = match_string(osnoise_options_str, OSN_MAX, option_str);
+	if (option < 0)
+		return -EINVAL;
+
+	/*
+	 * trace_types_lock is taken to avoid concurrency on start/stop.
+	 */
+	mutex_lock(&trace_types_lock);
+	running = osnoise_has_registered_instances();
+	if (running)
+		stop_per_cpu_kthreads();
+
+	mutex_lock(&interface_lock);
+	/*
+	 * avoid CPU hotplug operations that might read options.
+	 */
+	cpus_read_lock();
+
+	retval = cnt;
+
+	if (enable) {
+		if (option == OSN_DEFAULTS)
+			osnoise_options = OSN_DEFAULT_OPTIONS;
+		else
+			set_bit(option, &osnoise_options);
+	} else {
+		if (option == OSN_DEFAULTS)
+			retval = -EINVAL;
+		else
+			clear_bit(option, &osnoise_options);
+	}
+
+	cpus_read_unlock();
+	mutex_unlock(&interface_lock);
+
+	if (running)
+		start_per_cpu_kthreads();
+	mutex_unlock(&trace_types_lock);
+
+	return retval;
+}
+
+/*
  * osnoise_cpus_read - Read function for reading the "cpus" file
  * @filp: The active open file structure
  * @ubuf: The userspace provided buffer to read value into
@@ -2042,6 +2199,14 @@ static const struct file_operations cpus_fops = {
 	.llseek		= generic_file_llseek,
 };
 
+static const struct file_operations osnoise_options_fops = {
+	.open		= osnoise_options_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+	.write		= osnoise_options_write
+};
+
 #ifdef CONFIG_TIMERLAT_TRACER
 #ifdef CONFIG_STACKTRACE
 static int init_timerlat_stack_tracefs(struct dentry *top_dir)
@@ -2125,6 +2290,11 @@ static int init_tracefs(void)
 		goto err;
 
 	tmp = trace_create_file("cpus", TRACE_MODE_WRITE, top_dir, NULL, &cpus_fops);
+	if (!tmp)
+		goto err;
+
+	tmp = trace_create_file("options", TRACE_MODE_WRITE, top_dir, NULL,
+				&osnoise_options_fops);
 	if (!tmp)
 		goto err;
 
