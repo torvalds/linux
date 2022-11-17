@@ -203,6 +203,13 @@ struct vcap_keyset_list {
 	enum vcap_keyfield_set *keysets; /* the list of keysets */
 };
 
+/* Client output printf-like function with destination */
+struct vcap_output_print {
+	__printf(2, 3)
+	void (*prf)(void *out, const char *fmt, ...);
+	void *dst;
+};
+
 /* Client supplied VCAP callback operations */
 struct vcap_operations {
 	/* validate port keyset operation */
@@ -252,10 +259,8 @@ struct vcap_operations {
 	/* informational */
 	int (*port_info)
 		(struct net_device *ndev,
-		 enum vcap_type vtype,
-		 int (*pf)(void *out, int arg, const char *fmt, ...),
-		 void *out,
-		 int arg);
+		 struct vcap_admin *admin,
+		 struct vcap_output_print *out);
 	/* enable/disable the lookups in a vcap instance */
 	int (*enable)
 		(struct net_device *ndev,

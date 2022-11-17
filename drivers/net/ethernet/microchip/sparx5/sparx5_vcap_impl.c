@@ -12,10 +12,12 @@
 
 #include "vcap_api.h"
 #include "vcap_api_client.h"
+#include "vcap_api_debugfs.h"
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
 #include "sparx5_vcap_impl.h"
 #include "sparx5_vcap_ag_api.h"
+#include "sparx5_vcap_debugfs.h"
 
 #define SUPER_VCAP_BLK_SIZE 3072 /* addresses per Super VCAP block */
 #define STREAMSIZE (64 * 4)  /* bytes in the VCAP cache area */
@@ -29,54 +31,6 @@
 	 ANA_ACL_VCAP_S2_KEY_SEL_IP6_MC_KEY_SEL_SET(_v6_mc) | \
 	 ANA_ACL_VCAP_S2_KEY_SEL_IP6_UC_KEY_SEL_SET(_v6_uc) | \
 	 ANA_ACL_VCAP_S2_KEY_SEL_ARP_KEY_SEL_SET(_arp))
-
-/* IS2 port keyset selection control */
-
-/* IS2 non-ethernet traffic type keyset generation */
-enum vcap_is2_port_sel_noneth {
-	VCAP_IS2_PS_NONETH_MAC_ETYPE,
-	VCAP_IS2_PS_NONETH_CUSTOM_1,
-	VCAP_IS2_PS_NONETH_CUSTOM_2,
-	VCAP_IS2_PS_NONETH_NO_LOOKUP
-};
-
-/* IS2 IPv4 unicast traffic type keyset generation */
-enum vcap_is2_port_sel_ipv4_uc {
-	VCAP_IS2_PS_IPV4_UC_MAC_ETYPE,
-	VCAP_IS2_PS_IPV4_UC_IP4_TCP_UDP_OTHER,
-	VCAP_IS2_PS_IPV4_UC_IP_7TUPLE,
-};
-
-/* IS2 IPv4 multicast traffic type keyset generation */
-enum vcap_is2_port_sel_ipv4_mc {
-	VCAP_IS2_PS_IPV4_MC_MAC_ETYPE,
-	VCAP_IS2_PS_IPV4_MC_IP4_TCP_UDP_OTHER,
-	VCAP_IS2_PS_IPV4_MC_IP_7TUPLE,
-	VCAP_IS2_PS_IPV4_MC_IP4_VID,
-};
-
-/* IS2 IPv6 unicast traffic type keyset generation */
-enum vcap_is2_port_sel_ipv6_uc {
-	VCAP_IS2_PS_IPV6_UC_MAC_ETYPE,
-	VCAP_IS2_PS_IPV6_UC_IP_7TUPLE,
-	VCAP_IS2_PS_IPV6_UC_IP6_STD,
-	VCAP_IS2_PS_IPV6_UC_IP4_TCP_UDP_OTHER,
-};
-
-/* IS2 IPv6 multicast traffic type keyset generation */
-enum vcap_is2_port_sel_ipv6_mc {
-	VCAP_IS2_PS_IPV6_MC_MAC_ETYPE,
-	VCAP_IS2_PS_IPV6_MC_IP_7TUPLE,
-	VCAP_IS2_PS_IPV6_MC_IP6_VID,
-	VCAP_IS2_PS_IPV6_MC_IP6_STD,
-	VCAP_IS2_PS_IPV6_MC_IP4_TCP_UDP_OTHER,
-};
-
-/* IS2 ARP traffic type keyset generation */
-enum vcap_is2_port_sel_arp {
-	VCAP_IS2_PS_ARP_MAC_ETYPE,
-	VCAP_IS2_PS_ARP_ARP,
-};
 
 static struct sparx5_vcap_inst {
 	enum vcap_type vtype; /* type of vcap */
@@ -548,15 +502,6 @@ static void sparx5_vcap_move(struct net_device *ndev, struct vcap_admin *admin,
 	sparx5_vcap_wait_super_update(sparx5);
 }
 
-/* Provide port information via a callback interface */
-static int sparx5_port_info(struct net_device *ndev, enum vcap_type vtype,
-			    int (*pf)(void *out, int arg, const char *fmt, ...),
-			    void *out, int arg)
-{
-	/* this will be added later */
-	return 0;
-}
-
 /* Enable all lookups in the VCAP instance */
 static int sparx5_vcap_enable(struct net_device *ndev,
 			      struct vcap_admin *admin,
@@ -702,6 +647,7 @@ int sparx5_vcap_init(struct sparx5 *sparx5)
 	const struct sparx5_vcap_inst *cfg;
 	struct vcap_control *ctrl;
 	struct vcap_admin *admin;
+	struct dentry *dir;
 	int err = 0, idx;
 
 	/* Create a VCAP control instance that owns the platform specific VCAP
@@ -740,6 +686,11 @@ int sparx5_vcap_init(struct sparx5 *sparx5)
 			sparx5_vcap_port_key_selection(sparx5, admin);
 		list_add_tail(&admin->list, &ctrl->list);
 	}
+	dir = vcap_debugfs(sparx5->dev, sparx5->debugfs_root, ctrl);
+	for (idx = 0; idx < SPX5_PORTS; ++idx)
+		if (sparx5->ports[idx])
+			vcap_port_debugfs(sparx5->dev, dir, ctrl,
+					  sparx5->ports[idx]->ndev);
 
 	return err;
 }

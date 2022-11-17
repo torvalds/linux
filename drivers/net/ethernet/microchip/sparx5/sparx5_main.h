@@ -17,6 +17,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/hrtimer.h>
+#include <linux/debugfs.h>
 
 #include "sparx5_main_regs.h"
 
@@ -292,6 +293,8 @@ struct sparx5 {
 	struct vcap_control *vcap_ctrl;
 	/* PGID allocation map */
 	u8 pgid_map[PGID_TABLE_SIZE];
+	/* Common root for debugfs */
+	struct dentry *debugfs_root;
 };
 
 /* sparx5_switchdev.c */

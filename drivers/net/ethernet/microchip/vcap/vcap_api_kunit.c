@@ -204,9 +204,9 @@ static void test_cache_move(struct net_device *ndev, struct vcap_admin *admin,
 }
 
 /* Provide port information via a callback interface */
-static int vcap_test_port_info(struct net_device *ndev, enum vcap_type vtype,
-			       int (*pf)(void *out, int arg, const char *fmt, ...),
-			       void *out, int arg)
+static int vcap_test_port_info(struct net_device *ndev,
+			       struct vcap_admin *admin,
+			       struct vcap_output_print *out)
 {
 	return 0;
 }
