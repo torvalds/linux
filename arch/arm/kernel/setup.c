@@ -1251,6 +1251,7 @@ static const char *hwcap_str[] = {
 	"evtstrm",
 	"fphp",
 	"asimdhp",
+	"asimddp",
 	NULL
 };
 
