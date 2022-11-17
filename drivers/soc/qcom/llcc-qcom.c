@@ -1015,6 +1015,7 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 	struct platform_device *llcc_edac;
 	const struct qcom_llcc_config *cfg;
 	const struct llcc_slice_config *llcc_cfg;
+	struct resource *res;
 	void __iomem *ch_reg = NULL;
 	u32 sz, ch_reg_sz, ch_reg_off, ch_num;
 
@@ -1074,8 +1075,10 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ch_reg = devm_platform_ioremap_resource_byname(pdev, "multi_ch_reg");
-	if (!IS_ERR(ch_reg)) {
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "multi_ch_reg");
+	if (res)
+		ch_reg = devm_ioremap_resource(&pdev->dev, res);
+	if (!IS_ERR_OR_NULL(ch_reg)) {
 		if (of_property_read_u32_index(dev->of_node, "multi-ch-off", 1, &ch_reg_sz)) {
 			dev_err(&pdev->dev,
 				"Couldn't get size of multi channel feature register\n");
