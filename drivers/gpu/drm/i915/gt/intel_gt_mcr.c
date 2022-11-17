@@ -730,16 +730,18 @@ void intel_gt_mcr_get_ss_steering(struct intel_gt *gt, unsigned int dss,
  *
  * Return: 0 if the register matches the desired condition, or -ETIMEDOUT.
  */
-int intel_gt_mcr_wait_for_reg_fw(struct intel_gt *gt,
-				 i915_mcr_reg_t reg,
-				 u32 mask,
-				 u32 value,
-				 unsigned int fast_timeout_us,
-				 unsigned int slow_timeout_ms)
+int intel_gt_mcr_wait_for_reg(struct intel_gt *gt,
+			      i915_mcr_reg_t reg,
+			      u32 mask,
+			      u32 value,
+			      unsigned int fast_timeout_us,
+			      unsigned int slow_timeout_ms)
 {
-	u32 reg_value = 0;
-#define done (((reg_value = intel_gt_mcr_read_any_fw(gt, reg)) & mask) == value)
 	int ret;
+
+	lockdep_assert_not_held(&gt->uncore->lock);
+
+#define done ((intel_gt_mcr_read_any(gt, reg) & mask) == value)
 
 	/* Catch any overuse of this function */
 	might_sleep_if(slow_timeout_ms);
