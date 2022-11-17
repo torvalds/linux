@@ -77,7 +77,7 @@ include $(srctree)/tools/scripts/Makefile.include
 all: fixdep $(LIBFILE)
 
 $(SYMBOL_IN): FORCE
-	$(MAKE) $(build)=libsymbol V=1
+	@$(MAKE) $(build)=libsymbol
 
 $(LIBFILE): $(SYMBOL_IN)
 	$(QUIET_AR)$(RM) $@ && $(AR) rcs $@ $(SYMBOL_IN)
@@ -101,7 +101,7 @@ install_lib: $(LIBFILE)
 		cp -fpR $(LIBFILE) $(DESTDIR)$(libdir_SQ)
 
 install_headers:
-	$(call QUIET_INSTALL, headers) \
+	$(call QUIET_INSTALL, libsymbol_headers) \
 		$(call do_install,kallsyms.h,$(prefix)/include/symbol,644);
 
 install: install_lib install_headers
