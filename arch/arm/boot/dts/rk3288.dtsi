@@ -820,6 +820,7 @@
 					 <&cru PCLK_MIPI_DSI1>,
 					 <&cru SCLK_EDP_24M>,
 					 <&cru SCLK_EDP>,
+					 <&cru SCLK_HDMI_CEC>,
 					 <&cru SCLK_ISP_JPE>,
 					 <&cru SCLK_ISP>,
 					 <&cru SCLK_RGA>;
