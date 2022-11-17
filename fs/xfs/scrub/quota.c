@@ -84,7 +84,7 @@ xchk_quota_item(
 	int			error = 0;
 
 	if (xchk_should_terminate(sc, &error))
-		return -ECANCELED;
+		return error;
 
 	/*
 	 * Except for the root dquot, the actual dquot we got must either have
