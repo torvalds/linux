@@ -48,8 +48,9 @@
 #define TAT_RESET	0x00
 #define TAT_FIELD	0xc0
 #define TAT_EXTHI	0x41
-#define TAT_COLOR	0x42
+#define TAT_FGCOLOR	0x42
 #define TAT_CHARS	0x43
+#define TAT_BGCOLOR	0x45
 #define TAT_TRANS	0x46
 
 /* Extended-Highlighting Bytes */

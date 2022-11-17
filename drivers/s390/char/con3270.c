@@ -42,8 +42,9 @@ static struct tty3270 *condev;
 static struct raw3270_fn tty3270_fn;
 
 struct tty3270_attribute {
-	unsigned char highlight;	/* Blink/reverse/underscore */
-	unsigned char f_color;		/* Foreground color */
+	unsigned char highlight;		/* Blink/reverse/underscore */
+	unsigned char f_color;			/* Foreground color */
+	unsigned char b_color;			/* Background color */
 };
 
 struct tty3270_cell {
@@ -205,10 +206,11 @@ static void tty3270_update_status(struct tty3270 *tp)
 
 static void tty3270_create_status(struct tty3270 *tp)
 {
-	static const unsigned char blueprint[] =
-		{ TO_SBA, 0, 0, TO_SF, TF_LOG, TO_SA, TAT_COLOR, TAC_GREEN,
-		  0, 0, 0, 0, 0, 0, 0, TO_SF, TF_LOG, TO_SA, TAT_COLOR,
-		  TAC_RESET };
+	static const unsigned char blueprint[] = {
+		TO_SBA, 0, 0, TO_SF, TF_LOG, TO_SA, TAT_FGCOLOR, TAC_GREEN,
+		0, 0, 0, 0, 0, 0, 0, TO_SF, TF_LOG, TO_SA, TAT_FGCOLOR,
+		TAC_RESET
+	};
 	struct string *line;
 	unsigned int offset;
 
@@ -302,9 +304,10 @@ static struct string *tty3270_alloc_string(struct tty3270 *tp, size_t size)
  */
 static void tty3270_blank_line(struct tty3270 *tp)
 {
-	static const unsigned char blueprint[] =
-		{ TO_SBA, 0, 0, TO_SA, TAT_EXTHI, TAX_RESET,
-		  TO_SA, TAT_COLOR, TAC_RESET, TO_RA, 0, 0, 0 };
+	static const unsigned char blueprint[] = {
+		TO_SBA, 0, 0, TO_SA, TAT_EXTHI, TAX_RESET,
+		TO_SA, TAT_FGCOLOR, TAC_RESET, TO_RA, 0, 0, 0,
+	};
 	struct string *s;
 
 	s = tty3270_alloc_string(tp, sizeof(blueprint));
@@ -1089,7 +1092,7 @@ static void tty3270_convert_line(struct tty3270 *tp, int line_nr)
 	struct tty3270_cell *cell;
 	struct string *s, *n;
 	unsigned char highlight;
-	unsigned char f_color;
+	unsigned char f_color, b_color;
 	char *cp;
 	int flen, i;
 
@@ -1099,6 +1102,7 @@ static void tty3270_convert_line(struct tty3270 *tp, int line_nr)
 	flen += line->len;
 	highlight = TAX_RESET;
 	f_color = TAC_RESET;
+	b_color = TAC_RESET;
 	for (i = 0, cell = line->cells; i < line->len; i++, cell++) {
 		if (cell->attributes.highlight != highlight) {
 			flen += 3;	/* TO_SA to switch highlight. */
@@ -1108,10 +1112,16 @@ static void tty3270_convert_line(struct tty3270 *tp, int line_nr)
 			flen += 3;	/* TO_SA to switch color. */
 			f_color = cell->attributes.f_color;
 		}
+		if (cell->attributes.b_color != b_color) {
+			flen += 3;	/* TO_SA to switch color. */
+			b_color = cell->attributes.b_color;
+		}
 	}
 	if (highlight != TAX_RESET)
 		flen += 3;	/* TO_SA to reset hightlight. */
 	if (f_color != TAC_RESET)
+		flen += 3;	/* TO_SA to reset color. */
+	if (b_color != TAC_RESET)
 		flen += 3;	/* TO_SA to reset color. */
 	if (line->len < tp->view.cols)
 		flen += 4;	/* Postfix (TO_RA). */
@@ -1143,6 +1153,7 @@ static void tty3270_convert_line(struct tty3270 *tp, int line_nr)
 
 	highlight = TAX_RESET;
 	f_color = TAC_RESET;
+	b_color = TAC_RESET;
 	for (i = 0, cell = line->cells; i < line->len; i++, cell++) {
 		if (cell->attributes.highlight != highlight) {
 			*cp++ = TO_SA;
@@ -1152,10 +1163,17 @@ static void tty3270_convert_line(struct tty3270 *tp, int line_nr)
 		}
 		if (cell->attributes.f_color != f_color) {
 			*cp++ = TO_SA;
-			*cp++ = TAT_COLOR;
+			*cp++ = TAT_FGCOLOR;
 			*cp++ = cell->attributes.f_color;
 			f_color = cell->attributes.f_color;
 		}
+		if (cell->attributes.b_color != b_color) {
+			*cp++ = TO_SA;
+			*cp++ = TAT_BGCOLOR;
+			*cp++ = cell->attributes.b_color;
+			b_color = cell->attributes.b_color;
+		}
+
 		*cp++ = cell->character;
 	}
 	if (highlight != TAX_RESET) {
@@ -1165,7 +1183,12 @@ static void tty3270_convert_line(struct tty3270 *tp, int line_nr)
 	}
 	if (f_color != TAC_RESET) {
 		*cp++ = TO_SA;
-		*cp++ = TAT_COLOR;
+		*cp++ = TAT_FGCOLOR;
+		*cp++ = TAC_RESET;
+	}
+	if (b_color != TAC_RESET) {
+		*cp++ = TO_SA;
+		*cp++ = TAT_BGCOLOR;
 		*cp++ = TAC_RESET;
 	}
 	if (line->len < tp->view.cols) {
@@ -1229,6 +1252,7 @@ static void tty3270_reset_attributes(struct tty3270_attribute *attr)
 {
 	attr->highlight = TAX_RESET;
 	attr->f_color = TAC_RESET;
+	attr->b_color = TAC_RESET;
 }
 
 static void tty3270_reset_cell(struct tty3270 *tp, struct tty3270_cell *cell)
@@ -1309,29 +1333,36 @@ static void tty3270_erase_line(struct tty3270 *tp, int mode)
 {
 	struct tty3270_line *line;
 	struct tty3270_cell *cell;
-	int i;
+	int i, start, end;
 
 	line = tp->screen + tp->cy;
+
 	switch (mode) {
 	case 0:
-		line->len = tp->cx;
+		start = tp->cx;
+		end = tp->view.cols;
 		break;
 	case 1:
-		for (i = 0; i < tp->cx; i++) {
-			cell = line->cells + i;
-			cell->character = ' ';
-			cell->attributes.highlight = TAX_RESET;
-			cell->attributes.f_color = TAC_RESET;
-		}
-		if (line->len <= tp->cx)
-			line->len = tp->cx + 1;
+		start = 0;
+		end = tp->cx;
 		break;
 	case 2:
-		line->len = 0;
+		start = 0;
+		end = tp->view.cols;
 		break;
 	default:
 		return;
 	}
+
+	for (i = start; i < end; i++) {
+		cell = line->cells + i;
+		tty3270_reset_cell(tp, cell);
+		cell->attributes.b_color = tp->attributes.b_color;
+	}
+
+	if (line->len <= end)
+		line->len = end;
+
 	tty3270_convert_line(tp, tp->cy);
 }
 
@@ -1376,7 +1407,7 @@ static void tty3270_erase_display(struct tty3270 *tp, int mode)
  */
 static void tty3270_set_attributes(struct tty3270 *tp)
 {
-	static unsigned char f_colors[] = {
+	static unsigned char colors[] = {
 		TAC_DEFAULT, TAC_RED, TAC_GREEN, TAC_YELLOW, TAC_BLUE,
 		TAC_PINK, TAC_TURQ, TAC_WHITE, 0, TAC_DEFAULT
 	};
@@ -1420,7 +1451,19 @@ static void tty3270_set_attributes(struct tty3270 *tp)
 		case 36:	/* Cyan */
 		case 37:	/* White */
 		case 39:	/* Black */
-			tp->attributes.f_color = f_colors[attr - 30];
+			tp->attributes.f_color = colors[attr - 30];
+			break;
+		/* Background color. */
+		case 40:	/* Black */
+		case 41:	/* Red */
+		case 42:	/* Green */
+		case 43:	/* Yellow */
+		case 44:	/* Blue */
+		case 45:	/* Magenta */
+		case 46:	/* Cyan */
+		case 47:	/* White */
+		case 49:	/* Black */
+			tp->attributes.b_color = colors[attr - 40];
 			break;
 		}
 	}
@@ -1433,10 +1476,20 @@ static inline int tty3270_getpar(struct tty3270 *tp, int ix)
 
 static void tty3270_goto_xy(struct tty3270 *tp, int cx, int cy)
 {
+	struct tty3270_line *line;
+	struct tty3270_cell *cell;
 	int max_cx = max(0, cx);
 	int max_cy = max(0, cy);
 
 	tp->cx = min_t(int, tp->view.cols - 1, max_cx);
+	line = tp->screen + tp->cy;
+	while (line->len < tp->cx) {
+		cell = line->cells + line->len;
+		cell->character = ' ';
+		cell->attributes = tp->attributes;
+		line->len++;
+	}
+
 	cy = min_t(int, tp->view.rows - 3, max_cy);
 	if (cy != tp->cy) {
 		tty3270_convert_line(tp, tp->cy);
