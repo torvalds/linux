@@ -172,7 +172,7 @@
 };
 
 &hdmi {
-	pinctrl-0 = <&hdmi_ddc>, <&hdmi_cec>;
+	pinctrl-0 = <&hdmi_ddc>, <&hdmi_cec_c0>;
 };
 
 &i2c0 {
