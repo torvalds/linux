@@ -39,7 +39,7 @@ struct pinctrl_map;
  * @PIN_CONFIG_BIAS_PULL_DOWN: the pin will be pulled down (usually with high
  *	impedance to GROUND). If the argument is != 0 pull-down is enabled,
  *	the value is interpreted by the driver and can be custom or an SI unit
- *  such as ohms.
+ *  	such as Ohms.
  * @PIN_CONFIG_BIAS_PULL_PIN_DEFAULT: the pin will be pulled up or down based
  *	on embedded knowledge of the controller hardware, like current mux
  *	function. The pull direction and possibly strength too will normally
@@ -51,7 +51,7 @@ struct pinctrl_map;
  * @PIN_CONFIG_BIAS_PULL_UP: the pin will be pulled up (usually with high
  *	impedance to VDD). If the argument is != 0 pull-up is enabled,
  *	the value is interpreted by the driver and can be custom or an SI unit
- *  such as ohms.
+ *	such as Ohms.
  * @PIN_CONFIG_DRIVE_OPEN_DRAIN: the pin will be driven with open drain (open
  *	collector) which means it is usually wired with other output ports
  *	which are then pulled up with an external resistor. Setting this
