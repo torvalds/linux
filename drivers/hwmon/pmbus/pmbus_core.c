@@ -2827,9 +2827,13 @@ static int pmbus_regulator_get_error_flags(struct regulator_dev *rdev, unsigned 
 	if (status < 0)
 		return status;
 
-	if (pmbus_regulator_is_enabled(rdev) && (status & PB_STATUS_OFF))
-		*flags |= REGULATOR_ERROR_FAIL;
+	if (pmbus_regulator_is_enabled(rdev)) {
+		if (status & PB_STATUS_OFF)
+			*flags |= REGULATOR_ERROR_FAIL;
 
+		if (status & PB_STATUS_POWER_GOOD_N)
+			*flags |= REGULATOR_ERROR_REGULATION_OUT;
+	}
 	/*
 	 * Unlike most other status bits, PB_STATUS_{IOUT_OC,VOUT_OV} are
 	 * defined strictly as fault indicators (not warnings).
