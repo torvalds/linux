@@ -189,7 +189,7 @@ int __exfat_truncate(struct inode *inode, loff_t new_size)
 	return 0;
 }
 
-void exfat_truncate(struct inode *inode, loff_t size)
+void exfat_truncate(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
@@ -310,7 +310,7 @@ int exfat_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		 * __exfat_write_inode() is called from exfat_truncate(), inode
 		 * is already written by it, so mark_inode_dirty() is unneeded.
 		 */
-		exfat_truncate(inode, attr->ia_size);
+		exfat_truncate(inode);
 		up_write(&EXFAT_I(inode)->truncate_lock);
 	} else
 		mark_inode_dirty(inode);
