@@ -787,7 +787,7 @@ static int st_ism330dhcx_read_raw(struct iio_dev *iio_dev,
 		case IIO_ANGL_VEL: {
 			*val = 0;
 			*val2 = sensor->gain;
-			ret = IIO_VAL_INT_PLUS_MICRO;
+			ret = IIO_VAL_INT_PLUS_NANO;
 			}
 			break;
 		default:
