@@ -716,8 +716,16 @@ struct drm_mode_config {
 	/**
 	 * @legacy_tv_mode_property: Optional TV property to select
 	 * the output TV mode.
+	 *
+	 * Superseded by @tv_mode_property
 	 */
 	struct drm_property *legacy_tv_mode_property;
+
+	/**
+	 * @tv_mode_property: Optional TV property to select the TV
+	 * standard output on the connector.
+	 */
+	struct drm_property *tv_mode_property;
 
 	/**
 	 * @tv_left_margin_property: Optional TV property to set the left
