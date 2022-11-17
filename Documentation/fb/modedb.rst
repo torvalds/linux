@@ -29,7 +29,10 @@ Things between square brackets are optional.
 Valid names are::
 
   - NSTC: 480i output, with the CCIR System-M TV mode and NTSC color encoding
+  - NTSC-J: 480i output, with the CCIR System-M TV mode, the NTSC color
+    encoding, and a black level equal to the blanking level.
   - PAL: 576i output, with the CCIR System-B TV mode and PAL color encoding
+  - PAL-M: 480i output, with the CCIR System-M TV mode and PAL color encoding
 
 If 'M' is specified in the mode_option argument (after <yres> and before
 <bpp> and <refresh>, if specified) the timings will be calculated using

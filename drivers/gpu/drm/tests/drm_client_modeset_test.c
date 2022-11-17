@@ -150,7 +150,9 @@ static void drm_test_pick_cmdline_named(struct kunit *test)
 static const
 struct drm_connector_pick_cmdline_mode_test drm_connector_pick_cmdline_mode_tests[] = {
 	TEST_CMDLINE("NTSC", drm_mode_analog_ntsc_480i),
+	TEST_CMDLINE("NTSC-J", drm_mode_analog_ntsc_480i),
 	TEST_CMDLINE("PAL", drm_mode_analog_pal_576i),
+	TEST_CMDLINE("PAL-M", drm_mode_analog_ntsc_480i),
 };
 
 static void
