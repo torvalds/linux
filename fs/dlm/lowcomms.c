@@ -472,10 +472,9 @@ int dlm_lowcomms_addr(int nodeid, struct sockaddr_storage *addr, int len)
 /* Data available on socket or listen socket received a connect */
 static void lowcomms_data_ready(struct sock *sk)
 {
-	struct connection *con;
+	struct connection *con = sock2con(sk);
 
-	con = sock2con(sk);
-	if (con && !test_and_set_bit(CF_READ_PENDING, &con->flags))
+	if (!test_and_set_bit(CF_READ_PENDING, &con->flags))
 		queue_work(recv_workqueue, &con->rwork);
 }
 
@@ -486,11 +485,7 @@ static void lowcomms_listen_data_ready(struct sock *sk)
 
 static void lowcomms_write_space(struct sock *sk)
 {
-	struct connection *con;
-
-	con = sock2con(sk);
-	if (!con)
-		return;
+	struct connection *con = sock2con(sk);
 
 	if (!test_and_set_bit(CF_CONNECTED, &con->flags)) {
 		log_print("connected to node %d", con->nodeid);
@@ -573,13 +568,9 @@ int dlm_lowcomms_nodes_set_mark(int nodeid, unsigned int mark)
 
 static void lowcomms_error_report(struct sock *sk)
 {
-	struct connection *con;
+	struct connection *con = sock2con(sk);
 	void (*orig_report)(struct sock *) = NULL;
 	struct inet_sock *inet;
-
-	con = sock2con(sk);
-	if (con == NULL)
-		goto out;
 
 	orig_report = listen_sock.sk_error_report;
 
