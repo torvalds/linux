@@ -196,7 +196,7 @@ static void __apply_alternatives(const struct alt_region *region,
 	}
 }
 
-void apply_alternatives_vdso(void)
+static void apply_alternatives_vdso(void)
 {
 	struct alt_region region;
 	const struct elf64_hdr *hdr;
