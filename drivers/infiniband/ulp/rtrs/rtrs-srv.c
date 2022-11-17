@@ -1950,22 +1950,21 @@ static int rtrs_srv_rdma_cm_handler(struct rdma_cm_id *cm_id,
 {
 	struct rtrs_srv_path *srv_path = NULL;
 	struct rtrs_path *s = NULL;
+	struct rtrs_con *c = NULL;
 
-	if (ev->event != RDMA_CM_EVENT_CONNECT_REQUEST) {
-		struct rtrs_con *c = cm_id->context;
-
-		s = c->path;
-		srv_path = to_srv_path(s);
-	}
-
-	switch (ev->event) {
-	case RDMA_CM_EVENT_CONNECT_REQUEST:
+	if (ev->event == RDMA_CM_EVENT_CONNECT_REQUEST)
 		/*
 		 * In case of error cma.c will destroy cm_id,
 		 * see cma_process_remove()
 		 */
 		return rtrs_rdma_connect(cm_id, ev->param.conn.private_data,
 					  ev->param.conn.private_data_len);
+
+	c = cm_id->context;
+	s = c->path;
+	srv_path = to_srv_path(s);
+
+	switch (ev->event) {
 	case RDMA_CM_EVENT_ESTABLISHED:
 		/* Nothing here */
 		break;
