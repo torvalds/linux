@@ -141,6 +141,9 @@ static struct cmn2asic_msg_mapping smu_v13_0_0_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(PrepareMp1ForUnload,		PPSMC_MSG_PrepareMp1ForUnload,         0),
 	MSG_MAP(DFCstateControl,		PPSMC_MSG_SetExternalClientDfCstateAllow, 0),
 	MSG_MAP(ArmD3,				PPSMC_MSG_ArmD3,                       0),
+	MSG_MAP(SetNumBadMemoryPagesRetired,	PPSMC_MSG_SetNumBadMemoryPagesRetired,   0),
+	MSG_MAP(SetBadMemoryPagesRetiredFlagsPerChannel,
+			    PPSMC_MSG_SetBadMemoryPagesRetiredFlagsPerChannel,   0),
 };
 
 static struct cmn2asic_mapping smu_v13_0_0_clk_map[SMU_CLK_COUNT] = {
@@ -1838,6 +1841,40 @@ static void smu_v13_0_0_set_smu_mailbox_registers(struct smu_context *smu)
 	smu->debug_resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_54);
 }
 
+static int smu_v13_0_0_smu_send_bad_mem_page_num(struct smu_context *smu,
+		uint32_t size)
+{
+	int ret = 0;
+
+	/* message SMU to update the bad page number on SMUBUS */
+	ret = smu_cmn_send_smc_msg_with_param(smu,
+					  SMU_MSG_SetNumBadMemoryPagesRetired,
+					  size, NULL);
+	if (ret)
+		dev_err(smu->adev->dev,
+			  "[%s] failed to message SMU to update bad memory pages number\n",
+			  __func__);
+
+	return ret;
+}
+
+static int smu_v13_0_0_send_bad_mem_channel_flag(struct smu_context *smu,
+		uint32_t size)
+{
+	int ret = 0;
+
+	/* message SMU to update the bad channel info on SMUBUS */
+	ret = smu_cmn_send_smc_msg_with_param(smu,
+				  SMU_MSG_SetBadMemoryPagesRetiredFlagsPerChannel,
+				  size, NULL);
+	if (ret)
+		dev_err(smu->adev->dev,
+			  "[%s] failed to message SMU to update bad memory pages channel info\n",
+			  __func__);
+
+	return ret;
+}
+
 static const struct pptable_funcs smu_v13_0_0_ppt_funcs = {
 	.get_allowed_feature_mask = smu_v13_0_0_get_allowed_feature_mask,
 	.set_default_dpm_table = smu_v13_0_0_set_default_dpm_table,
@@ -1908,6 +1945,8 @@ static const struct pptable_funcs smu_v13_0_0_ppt_funcs = {
 	.mode1_reset = smu_v13_0_0_mode1_reset,
 	.set_mp1_state = smu_v13_0_0_set_mp1_state,
 	.set_df_cstate = smu_v13_0_0_set_df_cstate,
+	.send_hbm_bad_pages_num = smu_v13_0_0_smu_send_bad_mem_page_num,
+	.send_hbm_bad_channel_flag = smu_v13_0_0_send_bad_mem_channel_flag,
 };
 
 void smu_v13_0_0_set_ppt_funcs(struct smu_context *smu)
