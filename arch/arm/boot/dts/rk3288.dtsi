@@ -19,6 +19,8 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		dsi0 = &dsi0;
+		dsi1 = &dsi1;
 		ethernet0 = &gmac;
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
