@@ -127,6 +127,7 @@ struct starfive_wdt_variant {
 	u32 int_clr;
 	u32 int_mask;
 	u32 unlock;
+	u32 enter_irq_status;
 	struct starfive_wdt_variant_t *variant;
 };
 
@@ -143,8 +144,7 @@ struct starfive_wdt {
 	void __iomem *base;
 	spinlock_t lock;
 
-	unsigned int interrupt_flag;
-	struct resource *wdt_irq;
+	int irq;
 };
 
 #ifdef CONFIG_OF
@@ -181,6 +181,7 @@ static const struct starfive_wdt_variant drv_data_jh7110 = {
 	.value = JH7110_WDOGVALUE,
 	.int_clr = JH7110_WDOGINTCLR,
 	.unlock = JH7110_WDOGLOCK,
+	.enter_irq_status = JH7110_WDOGIMS,
 	.variant = &jh7110_variant,
 };
 
@@ -354,6 +355,12 @@ static void starfive_wdt_disable_reset(struct starfive_wdt *wdt)
 	writel(val, wdt->base + wdt->drv_data->control);
 }
 
+static bool starfive_wdt_enter_irq_status(struct starfive_wdt *wdt)
+{
+	/* interrupt status whether has entered from the counter */
+	return !!readl(wdt->base + wdt->drv_data->enter_irq_status);
+}
+
 static void starfive_wdt_int_clr(struct starfive_wdt *wdt)
 {
 	void __iomem *addr;
@@ -374,6 +381,9 @@ static void starfive_wdt_int_clr(struct starfive_wdt *wdt)
 
 	if (!ret)
 		writel(STARFIVE_WATCHDOG_INTCLR, addr);
+
+	if (starfive_wdt_enter_irq_status(wdt))
+		enable_irq(wdt->irq);
 }
 
 static inline void starfive_wdt_set_count(struct starfive_wdt *wdt, u32 val)
@@ -438,19 +448,18 @@ static unsigned int starfive_wdt_get_timeleft(struct watchdog_device *wdd)
 {
 	struct starfive_wdt *wdt = watchdog_get_drvdata(wdd);
 	u32 count;
+	u32 irq_status;
 
 	starfive_wdt_unlock(wdt);
-	count = starfive_wdt_get_count(wdt) + (1 - wdt->interrupt_flag) * wdt->count;
+	/*
+	 * Because set half count value,
+	 * timeleft value should add the count value before first timeout.
+	 */
+	irq_status = starfive_wdt_enter_irq_status(wdt) ? 1 : 0;
+	count = starfive_wdt_get_count(wdt) + (1 - irq_status) * wdt->count;
 	starfive_wdt_lock(wdt);
 
 	return starfive_wdt_ticks_to_sec(wdt, count);
-}
-
-static void starfive_wdt_irq_flag_clr(struct starfive_wdt *wdt)
-{
-	if (wdt->interrupt_flag)
-		enable_irq(wdt->wdt_irq->start);
-	wdt->interrupt_flag = 0;
 }
 
 static int starfive_wdt_keepalive(struct watchdog_device *wdd)
@@ -461,7 +470,6 @@ static int starfive_wdt_keepalive(struct watchdog_device *wdd)
 
 	starfive_wdt_unlock(wdt);
 	starfive_wdt_int_clr(wdt);
-	starfive_wdt_irq_flag_clr(wdt);
 	starfive_wdt_set_relod_count(wdt, wdt->count);
 	starfive_wdt_lock(wdt);
 
@@ -479,9 +487,8 @@ static irqreturn_t starfive_wdt_interrupt_handler(int irq, void *data)
 	struct platform_device *pdev = data;
 	struct starfive_wdt *wdt = platform_get_drvdata(pdev);
 
-	/* Clear the IRQ status and set flag. */
-	disable_irq_nosync(wdt->wdt_irq->start);
-	wdt->interrupt_flag = 1;
+	/* Disable the IRQ and avoid re-entry interrupt. */
+	disable_irq_nosync(wdt->irq);
 
 	return IRQ_HANDLED;
 }
@@ -528,7 +535,7 @@ static int starfive_wdt_start(struct watchdog_device *wdd)
 	else
 		starfive_wdt_enable_reset(wdt);
 
-	starfive_wdt_irq_flag_clr(wdt);
+	starfive_wdt_int_clr(wdt);
 	starfive_wdt_set_count(wdt, wdt->count);
 	starfive_wdt_int_enable(wdt);
 	starfive_wdt_enable(wdt);
@@ -554,7 +561,6 @@ static int starfive_wdt_restart(struct watchdog_device *wdd, unsigned long actio
 	else
 		starfive_wdt_enable_reset(wdt);
 
-	starfive_wdt_irq_flag_clr(wdt);
 	/* put initial values into count and data */
 	starfive_wdt_set_count(wdt, wdt->count);
 
@@ -582,6 +588,10 @@ static int starfive_wdt_set_timeout(struct watchdog_device *wdd,
 	if (timeout < 1)
 		return -EINVAL;
 
+	/*
+	 * This watchdog takes twice timeouts to reset.
+	 * In order to reduce time to reset, should set half count value.
+	 */
 	count = timeout * freq / 2;
 
 	if (count > STARFIVE_WATCHDOG_MAXCNT) {
@@ -596,7 +606,6 @@ static int starfive_wdt_set_timeout(struct watchdog_device *wdd,
 
 	starfive_wdt_unlock(wdt);
 	starfive_wdt_disable(wdt);
-	starfive_wdt_irq_flag_clr(wdt);
 	starfive_wdt_set_relod_count(wdt, count);
 	starfive_wdt_enable(wdt);
 	starfive_wdt_lock(wdt);
@@ -650,7 +659,6 @@ static int starfive_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct starfive_wdt *wdt;
-	struct resource *wdt_irq;
 	int started = 0;
 	int ret;
 
@@ -666,14 +674,11 @@ static int starfive_wdt_probe(struct platform_device *pdev)
 
 	wdt->drv_data = starfive_get_wdt_drv_data(pdev);
 
-	wdt_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (wdt_irq == NULL) {
-		dev_err(dev, "no irq resource specified\n");
-		ret = -ENOENT;
-		goto err;
+	wdt->irq = platform_get_irq(pdev, 0);
+	if (wdt->irq < 0) {
+		dev_err(dev, "can not find irq.\n");
+		return wdt->irq;
 	}
-	wdt->wdt_irq = wdt_irq;
-	starfive_wdt_irq_flag_clr(wdt);
 
 	/* get the memory region for the watchdog timer */
 	wdt->base = devm_platform_ioremap_resource(pdev, 0);
@@ -712,7 +717,7 @@ static int starfive_wdt_probe(struct platform_device *pdev)
 					 STARFIVE_WATCHDOG_DEFAULT_TIME);
 	}
 
-	ret = devm_request_irq(dev, wdt_irq->start, starfive_wdt_interrupt_handler, 0,
+	ret = devm_request_irq(dev, wdt->irq, starfive_wdt_interrupt_handler, 0,
 			       pdev->name, pdev);
 	if (ret != 0) {
 		dev_err(dev, "failed to install irq (%d)\n", ret);
@@ -816,7 +821,6 @@ static int starfive_wdt_resume(struct device *dev)
 
 	starfive_wdt_unlock(wdt);
 
-	starfive_wdt_irq_flag_clr(wdt);
 	/* Restore watchdog state. */
 	starfive_wdt_set_relod_count(wdt, wdt->reload);
 
