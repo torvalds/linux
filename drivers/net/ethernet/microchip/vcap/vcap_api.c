@@ -1054,6 +1054,7 @@ int vcap_add_rule(struct vcap_rule *rule)
 	if (ret)
 		return ret;
 	/* Insert the new rule in the list of vcap rules */
+	mutex_lock(&ri->admin->lock);
 	ret = vcap_insert_rule(ri, &move);
 	if (ret < 0) {
 		pr_err("%s:%d: could not insert rule in vcap list: %d\n",
@@ -1072,6 +1073,7 @@ int vcap_add_rule(struct vcap_rule *rule)
 	if (ret)
 		pr_err("%s:%d: rule write error: %d\n", __func__, __LINE__, ret);
 out:
+	mutex_unlock(&ri->admin->lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(vcap_add_rule);
@@ -1221,9 +1223,11 @@ int vcap_del_rule(struct vcap_control *vctrl, struct net_device *ndev, u32 id)
 		gap = vcap_fill_rule_gap(ri);
 
 	/* Delete the rule from the list of rules and the cache */
+	mutex_lock(&admin->lock);
 	list_del(&ri->list);
 	vctrl->ops->init(ndev, admin, admin->last_used_addr, ri->size + gap);
 	kfree(ri);
+	mutex_unlock(&admin->lock);
 
 	/* Update the last used address, set to default when no rules */
 	if (list_empty(&admin->rules)) {
@@ -1246,6 +1250,8 @@ int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin)
 
 	if (ret)
 		return ret;
+
+	mutex_lock(&admin->lock);
 	list_for_each_entry_safe(ri, next_ri, &admin->rules, list) {
 		vctrl->ops->init(ri->ndev, admin, ri->addr, ri->size);
 		list_del(&ri->list);
@@ -1258,6 +1264,7 @@ int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin)
 		list_del(&eport->list);
 		kfree(eport);
 	}
+	mutex_unlock(&admin->lock);
 
 	return 0;
 }
@@ -1687,10 +1694,13 @@ int vcap_enable_lookups(struct vcap_control *vctrl, struct net_device *ndev,
 	if (chain_id) {
 		if (vcap_is_enabled(admin, ndev, cookie))
 			return -EADDRINUSE;
+		mutex_lock(&admin->lock);
 		vcap_enable(admin, ndev, cookie);
 	} else {
+		mutex_lock(&admin->lock);
 		vcap_disable(admin, ndev, cookie);
 	}
+	mutex_unlock(&admin->lock);
 
 	return 0;
 }

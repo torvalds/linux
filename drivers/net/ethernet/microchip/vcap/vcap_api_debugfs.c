@@ -625,6 +625,7 @@ static int vcap_show_admin(struct vcap_control *vctrl,
 	int ret = 0;
 
 	vcap_show_admin_info(vctrl, admin, out);
+	mutex_lock(&admin->lock);
 	list_for_each_entry(elem, &admin->rules, list) {
 		ri = vcap_dup_rule(elem);
 		if (IS_ERR(ri))
@@ -638,6 +639,7 @@ static int vcap_show_admin(struct vcap_control *vctrl,
 free_rule:
 		vcap_free_rule((struct vcap_rule *)ri);
 	}
+	mutex_unlock(&admin->lock);
 	return ret;
 }
 
