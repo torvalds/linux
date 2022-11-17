@@ -2261,6 +2261,8 @@ struct rtw89_vif {
 	bool wowlan_magic;
 	bool is_hesta;
 	bool last_a_ctrl;
+	bool dyn_tb_bedge_en;
+	u8 def_tri_idx;
 	struct work_struct update_beacon_work;
 	struct rtw89_addr_cam_entry addr_cam;
 	struct rtw89_bssid_cam_entry bssid_cam;
@@ -2646,6 +2648,11 @@ struct rtw89_dig_regs {
 	struct rtw89_reg_def p1_s20_pagcugc_en;
 };
 
+struct rtw89_phy_ul_tb_info {
+	bool dyn_tb_tri_en;
+	u8 def_if_bandedge;
+};
+
 struct rtw89_chip_info {
 	enum rtw89_core_chip_id chip_id;
 	const struct rtw89_chip_ops *ops;
@@ -2663,6 +2670,7 @@ struct rtw89_chip_info {
 	u8 support_chanctx_num;
 	u8 support_bands;
 	bool support_bw160;
+	bool support_ul_tb_ctrl;
 	bool hw_sec_hdr;
 	u8 rf_path_num;
 	u8 tx_nss;
@@ -3585,6 +3593,7 @@ struct rtw89_dev {
 	struct rtw89_phy_ch_info ch_info;
 	struct rtw89_phy_bb_gain_info bb_gain;
 	struct rtw89_phy_efuse_gain efuse_gain;
+	struct rtw89_phy_ul_tb_info ul_tb_info;
 
 	struct delayed_work track_work;
 	struct delayed_work coex_act1_work;

@@ -2,6 +2,7 @@
 /* Copyright(c) 2019-2020  Realtek Corporation
  */
 
+#include "coex.h"
 #include "debug.h"
 #include "fw.h"
 #include "mac.h"
@@ -9,7 +10,7 @@
 #include "ps.h"
 #include "reg.h"
 #include "sar.h"
-#include "coex.h"
+#include "util.h"
 
 static u16 get_max_amsdu_len(struct rtw89_dev *rtwdev,
 			     const struct rtw89_ra_report *report)
@@ -2794,6 +2795,129 @@ void rtw89_phy_cfo_parse(struct rtw89_dev *rtwdev, s16 cfo_val,
 	cfo->packet_count++;
 }
 
+void rtw89_phy_ul_tb_assoc(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	struct rtw89_phy_ul_tb_info *ul_tb_info = &rtwdev->ul_tb_info;
+
+	if (!chip->support_ul_tb_ctrl)
+		return;
+
+	rtwvif->def_tri_idx =
+		rtw89_phy_read32_mask(rtwdev, R_DCFO_OPT, B_TXSHAPE_TRIANGULAR_CFG);
+
+	if (chip->chip_id == RTL8852B && rtwdev->hal.cv > CHIP_CBV)
+		rtwvif->dyn_tb_bedge_en = false;
+	else if (chan->band_type >= RTW89_BAND_5G &&
+		 chan->band_width >= RTW89_CHANNEL_WIDTH_40)
+		rtwvif->dyn_tb_bedge_en = true;
+	else
+		rtwvif->dyn_tb_bedge_en = false;
+
+	rtw89_debug(rtwdev, RTW89_DBG_UL_TB,
+		    "[ULTB] def_if_bandedge=%d, def_tri_idx=%d\n",
+		    ul_tb_info->def_if_bandedge, rtwvif->def_tri_idx);
+	rtw89_debug(rtwdev, RTW89_DBG_UL_TB,
+		    "[ULTB] dyn_tb_begde_en=%d, dyn_tb_tri_en=%d\n",
+		    rtwvif->dyn_tb_bedge_en, ul_tb_info->dyn_tb_tri_en);
+}
+
+struct rtw89_phy_ul_tb_check_data {
+	bool valid;
+	bool high_tf_client;
+	bool low_tf_client;
+	bool dyn_tb_bedge_en;
+	u8 def_tri_idx;
+};
+
+static
+void rtw89_phy_ul_tb_ctrl_check(struct rtw89_dev *rtwdev,
+				struct rtw89_vif *rtwvif,
+				struct rtw89_phy_ul_tb_check_data *ul_tb_data)
+{
+	struct rtw89_traffic_stats *stats = &rtwdev->stats;
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+
+	if (rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION)
+		return;
+
+	if (!vif->cfg.assoc)
+		return;
+
+	if (stats->rx_tf_periodic > UL_TB_TF_CNT_L2H_TH)
+		ul_tb_data->high_tf_client = true;
+	else if (stats->rx_tf_periodic < UL_TB_TF_CNT_H2L_TH)
+		ul_tb_data->low_tf_client = true;
+
+	ul_tb_data->valid = true;
+	ul_tb_data->def_tri_idx = rtwvif->def_tri_idx;
+	ul_tb_data->dyn_tb_bedge_en = rtwvif->dyn_tb_bedge_en;
+}
+
+void rtw89_phy_ul_tb_ctrl_track(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_phy_ul_tb_info *ul_tb_info = &rtwdev->ul_tb_info;
+	struct rtw89_phy_ul_tb_check_data ul_tb_data = {};
+	struct rtw89_vif *rtwvif;
+
+	if (!chip->support_ul_tb_ctrl)
+		return;
+
+	if (rtwdev->total_sta_assoc != 1)
+		return;
+
+	rtw89_for_each_rtwvif(rtwdev, rtwvif)
+		rtw89_phy_ul_tb_ctrl_check(rtwdev, rtwvif, &ul_tb_data);
+
+	if (!ul_tb_data.valid)
+		return;
+
+	if (ul_tb_data.dyn_tb_bedge_en) {
+		if (ul_tb_data.high_tf_client) {
+			rtw89_phy_write32_mask(rtwdev, R_BANDEDGE, B_BANDEDGE_EN, 0);
+			rtw89_debug(rtwdev, RTW89_DBG_UL_TB,
+				    "[ULTB] Turn off if_bandedge\n");
+		} else if (ul_tb_data.low_tf_client) {
+			rtw89_phy_write32_mask(rtwdev, R_BANDEDGE, B_BANDEDGE_EN,
+					       ul_tb_info->def_if_bandedge);
+			rtw89_debug(rtwdev, RTW89_DBG_UL_TB,
+				    "[ULTB] Set to default if_bandedge = %d\n",
+				    ul_tb_info->def_if_bandedge);
+		}
+	}
+
+	if (ul_tb_info->dyn_tb_tri_en) {
+		if (ul_tb_data.high_tf_client) {
+			rtw89_phy_write32_mask(rtwdev, R_DCFO_OPT,
+					       B_TXSHAPE_TRIANGULAR_CFG, 0);
+			rtw89_debug(rtwdev, RTW89_DBG_UL_TB,
+				    "[ULTB] Turn off Tx triangle\n");
+		} else if (ul_tb_data.low_tf_client) {
+			rtw89_phy_write32_mask(rtwdev, R_DCFO_OPT,
+					       B_TXSHAPE_TRIANGULAR_CFG,
+					       ul_tb_data.def_tri_idx);
+			rtw89_debug(rtwdev, RTW89_DBG_UL_TB,
+				    "[ULTB] Set to default tx_shap_idx = %d\n",
+				    ul_tb_data.def_tri_idx);
+		}
+	}
+}
+
+static void rtw89_phy_ul_tb_info_init(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_phy_ul_tb_info *ul_tb_info = &rtwdev->ul_tb_info;
+
+	if (!chip->support_ul_tb_ctrl)
+		return;
+
+	ul_tb_info->dyn_tb_tri_en = true;
+	ul_tb_info->def_if_bandedge =
+		rtw89_phy_read32_mask(rtwdev, R_BANDEDGE, B_BANDEDGE_EN);
+}
+
 static void rtw89_phy_stat_thermal_update(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_phy_stat *phystat = &rtwdev->phystat;
@@ -3980,6 +4104,7 @@ void rtw89_phy_dm_init(struct rtw89_dev *rtwdev)
 	rtw89_physts_parsing_init(rtwdev);
 	rtw89_phy_dig_init(rtwdev);
 	rtw89_phy_cfo_init(rtwdev);
+	rtw89_phy_ul_tb_info_init(rtwdev);
 
 	rtw89_phy_init_rf_nctl(rtwdev);
 	rtw89_chip_rfk_init(rtwdev);

@@ -2237,6 +2237,7 @@ static void rtw89_track_work(struct work_struct *work)
 	rtw89_phy_ra_update(rtwdev);
 	rtw89_phy_cfo_track(rtwdev);
 	rtw89_phy_tx_path_div_track(rtwdev);
+	rtw89_phy_ul_tb_ctrl_track(rtwdev);
 
 	if (rtwdev->lps_enabled && !rtwdev->btc.lps)
 		rtw89_enter_lps_track(rtwdev);
@@ -2560,6 +2561,7 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 		rtw89_btc_ntfy_role_info(rtwdev, rtwvif, rtwsta,
 					 BTC_ROLE_MSTS_STA_CONN_END);
 		rtw89_core_get_no_ul_ofdma_htc(rtwdev, &rtwsta->htc_template);
+		rtw89_phy_ul_tb_assoc(rtwdev, rtwvif);
 	}
 
 	return ret;
