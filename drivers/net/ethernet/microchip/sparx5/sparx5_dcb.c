@@ -90,7 +90,7 @@ static int sparx5_dcb_app_validate(struct net_device *dev,
 static int sparx5_dcb_apptrust_validate(struct net_device *dev, u8 *selectors,
 					int nselectors, int *err)
 {
-	bool match;
+	bool match = false;
 	int i, ii;
 
 	for (i = 0; i < ARRAY_SIZE(sparx5_dcb_apptrust_policies); i++) {
