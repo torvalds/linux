@@ -234,6 +234,106 @@ static int vcap_addr_keyset(struct vcap_control *vctrl,
 					  admin->cache.maskstream, false, 0);
 }
 
+static int vcap_read_rule(struct vcap_rule_internal *ri)
+{
+	struct vcap_admin *admin = ri->admin;
+	int sw_idx, ent_idx = 0, act_idx = 0;
+	u32 addr = ri->addr;
+
+	if (!ri->size || !ri->keyset_sw_regs || !ri->actionset_sw_regs) {
+		pr_err("%s:%d: rule is empty\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+	vcap_erase_cache(ri);
+	/* Use the values in the streams to read the VCAP cache */
+	for (sw_idx = 0; sw_idx < ri->size; sw_idx++, addr++) {
+		ri->vctrl->ops->update(ri->ndev, admin, VCAP_CMD_READ,
+				       VCAP_SEL_ALL, addr);
+		ri->vctrl->ops->cache_read(ri->ndev, admin,
+					   VCAP_SEL_ENTRY, ent_idx,
+					   ri->keyset_sw_regs);
+		ri->vctrl->ops->cache_read(ri->ndev, admin,
+					   VCAP_SEL_ACTION, act_idx,
+					   ri->actionset_sw_regs);
+		if (sw_idx == 0)
+			ri->vctrl->ops->cache_read(ri->ndev, admin,
+						   VCAP_SEL_COUNTER,
+						   ri->counter_id, 0);
+		ent_idx += ri->keyset_sw_regs;
+		act_idx += ri->actionset_sw_regs;
+	}
+	return 0;
+}
+
+static void vcap_show_admin_rule(struct vcap_control *vctrl,
+				 struct vcap_admin *admin,
+				 struct vcap_output_print *out,
+				 struct vcap_rule_internal *ri)
+{
+	ri->counter.value = admin->cache.counter;
+	ri->counter.sticky = admin->cache.sticky;
+	out->prf(out->dst,
+		 "rule: %u, addr: [%d,%d], X%d, ctr[%d]: %d, hit: %d\n",
+		 ri->data.id, ri->addr, ri->addr + ri->size - 1, ri->size,
+		 ri->counter_id, ri->counter.value, ri->counter.sticky);
+	out->prf(out->dst, "  chain_id: %d\n", ri->data.vcap_chain_id);
+	out->prf(out->dst, "  user: %d\n", ri->data.user);
+	out->prf(out->dst, "  priority: %d\n", ri->data.priority);
+	out->prf(out->dst, "  keyset: %s\n",
+		 vcap_keyset_name(vctrl, ri->data.keyset));
+	out->prf(out->dst, "  actionset: %s\n",
+		 vcap_actionset_name(vctrl, ri->data.actionset));
+}
+
+static void vcap_show_admin_info(struct vcap_control *vctrl,
+				 struct vcap_admin *admin,
+				 struct vcap_output_print *out)
+{
+	const struct vcap_info *vcap = &vctrl->vcaps[admin->vtype];
+
+	out->prf(out->dst, "name: %s\n", vcap->name);
+	out->prf(out->dst, "rows: %d\n", vcap->rows);
+	out->prf(out->dst, "sw_count: %d\n", vcap->sw_count);
+	out->prf(out->dst, "sw_width: %d\n", vcap->sw_width);
+	out->prf(out->dst, "sticky_width: %d\n", vcap->sticky_width);
+	out->prf(out->dst, "act_width: %d\n", vcap->act_width);
+	out->prf(out->dst, "default_cnt: %d\n", vcap->default_cnt);
+	out->prf(out->dst, "require_cnt_dis: %d\n", vcap->require_cnt_dis);
+	out->prf(out->dst, "version: %d\n", vcap->version);
+	out->prf(out->dst, "vtype: %d\n", admin->vtype);
+	out->prf(out->dst, "vinst: %d\n", admin->vinst);
+	out->prf(out->dst, "first_cid: %d\n", admin->first_cid);
+	out->prf(out->dst, "last_cid: %d\n", admin->last_cid);
+	out->prf(out->dst, "lookups: %d\n", admin->lookups);
+	out->prf(out->dst, "first_valid_addr: %d\n", admin->first_valid_addr);
+	out->prf(out->dst, "last_valid_addr: %d\n", admin->last_valid_addr);
+	out->prf(out->dst, "last_used_addr: %d\n", admin->last_used_addr);
+}
+
+static int vcap_show_admin(struct vcap_control *vctrl,
+			   struct vcap_admin *admin,
+			   struct vcap_output_print *out)
+{
+	struct vcap_rule_internal *elem, *ri;
+	int ret = 0;
+
+	vcap_show_admin_info(vctrl, admin, out);
+	list_for_each_entry(elem, &admin->rules, list) {
+		ri = vcap_dup_rule(elem);
+		if (IS_ERR(ri))
+			goto free_rule;
+		/* Read data from VCAP */
+		ret = vcap_read_rule(ri);
+		if (ret)
+			goto free_rule;
+		out->prf(out->dst, "\n");
+		vcap_show_admin_rule(vctrl, admin, out, ri);
+free_rule:
+		vcap_free_rule((struct vcap_rule *)ri);
+	}
+	return ret;
+}
+
 static int vcap_show_admin_raw(struct vcap_control *vctrl,
 			       struct vcap_admin *admin,
 			       struct vcap_output_print *out)
@@ -313,6 +413,19 @@ void vcap_port_debugfs(struct device *dev, struct dentry *parent,
 }
 EXPORT_SYMBOL_GPL(vcap_port_debugfs);
 
+/* Show the full VCAP instance data (rules with all fields) */
+static int vcap_debugfs_show(struct seq_file *m, void *unused)
+{
+	struct vcap_admin_debugfs_info *info = m->private;
+	struct vcap_output_print out = {
+		.prf = (void *)seq_printf,
+		.dst = m,
+	};
+
+	return vcap_show_admin(info->vctrl, info->admin, &out);
+}
+DEFINE_SHOW_ATTRIBUTE(vcap_debugfs);
+
 /* Show the raw VCAP instance data (rules with address info) */
 static int vcap_raw_debugfs_show(struct seq_file *m, void *unused)
 {
@@ -347,6 +460,9 @@ struct dentry *vcap_debugfs(struct device *dev, struct dentry *parent,
 		info->admin = admin;
 		debugfs_create_file(name, 0444, dir, info,
 				    &vcap_raw_debugfs_fops);
+		sprintf(name, "%s_%d", vctrl->vcaps[admin->vtype].name,
+			admin->vinst);
+		debugfs_create_file(name, 0444, dir, info, &vcap_debugfs_fops);
 	}
 	return dir;
 }

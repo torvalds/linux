@@ -43,6 +43,10 @@ struct vcap_stream_iter {
 
 /* Check that the control has a valid set of callbacks */
 int vcap_api_check(struct vcap_control *ctrl);
+/* Make a shallow copy of the rule without the fields */
+struct vcap_rule_internal *vcap_dup_rule(struct vcap_rule_internal *ri);
+/* Erase the VCAP cache area used or encoding and decoding */
+void vcap_erase_cache(struct vcap_rule_internal *ri);
 
 /* Iterator functionality */
 
@@ -70,4 +74,14 @@ vcap_keyfield_typegroup(struct vcap_control *vctrl,
 const struct vcap_field *vcap_keyfields(struct vcap_control *vctrl,
 					enum vcap_type vt,
 					enum vcap_keyfield_set keyset);
+
+/* Actionset and actionfield functionality */
+
+/* Map actionset id to a string with the actionset name */
+const char *vcap_actionset_name(struct vcap_control *vctrl,
+				enum vcap_actionfield_set actionset);
+/* Map key field id to a string with the key name */
+const char *vcap_actionfield_name(struct vcap_control *vctrl,
+				  enum vcap_action_field action);
+
 #endif /* __VCAP_API_PRIVATE__ */

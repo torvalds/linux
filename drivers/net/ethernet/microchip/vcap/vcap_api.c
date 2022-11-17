@@ -502,7 +502,7 @@ int vcap_api_check(struct vcap_control *ctrl)
 	return 0;
 }
 
-static void vcap_erase_cache(struct vcap_rule_internal *ri)
+void vcap_erase_cache(struct vcap_rule_internal *ri)
 {
 	ri->vctrl->ops->cache_erase(ri->admin);
 }
@@ -578,7 +578,7 @@ int vcap_lookup_rule_by_cookie(struct vcap_control *vctrl, u64 cookie)
 EXPORT_SYMBOL_GPL(vcap_lookup_rule_by_cookie);
 
 /* Make a shallow copy of the rule without the fields */
-static struct vcap_rule_internal *vcap_dup_rule(struct vcap_rule_internal *ri)
+struct vcap_rule_internal *vcap_dup_rule(struct vcap_rule_internal *ri)
 {
 	struct vcap_rule_internal *duprule;
 
@@ -782,9 +782,16 @@ const char *vcap_keyfield_name(struct vcap_control *vctrl,
 }
 EXPORT_SYMBOL_GPL(vcap_keyfield_name);
 
+/* map actionset id to a string with the actionset name */
+const char *vcap_actionset_name(struct vcap_control *vctrl,
+				enum vcap_actionfield_set actionset)
+{
+	return vctrl->stats->actionfield_set_names[actionset];
+}
+
 /* map action field id to a string with the action name */
-static const char *vcap_actionfield_name(struct vcap_control *vctrl,
-					 enum vcap_action_field action)
+const char *vcap_actionfield_name(struct vcap_control *vctrl,
+				  enum vcap_action_field action)
 {
 	return vctrl->stats->actionfield_names[action];
 }
