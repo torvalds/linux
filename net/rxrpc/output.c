@@ -202,7 +202,6 @@ static void rxrpc_cancel_rtt_probe(struct rxrpc_call *call,
 static int rxrpc_send_ack_packet(struct rxrpc_local *local, struct rxrpc_txbuf *txb)
 {
 	struct rxrpc_connection *conn;
-	struct rxrpc_ack_buffer *pkt;
 	struct rxrpc_call *call = txb->call;
 	struct msghdr msg;
 	struct kvec iov[1];
@@ -270,7 +269,6 @@ static int rxrpc_send_ack_packet(struct rxrpc_local *local, struct rxrpc_txbuf *
 		rxrpc_set_keepalive(call);
 	}
 
-	kfree(pkt);
 	return ret;
 }
 
