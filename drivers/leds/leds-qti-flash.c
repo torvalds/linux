@@ -938,6 +938,14 @@ static int qti_flash_led_calc_max_avail_current(
 		vph_flash_uv, vin_flash_uv, p_flash_fw;
 	union power_supply_propval prop = {};
 
+	if (!led->batt_psy)
+		led->batt_psy = power_supply_get_by_name("battery");
+
+	if (!led->batt_psy) {
+		*max_current_ma = MAX_FLASH_CURRENT_MA;
+		return 0;
+	}
+
 	rc = qti_battery_charger_get_prop("battery", BATTERY_RESISTANCE,
 						&rbatt_uohm);
 	if (rc < 0) {
@@ -949,14 +957,6 @@ static int qti_flash_led_calc_max_avail_current(
 	if (!rbatt_uohm) {
 		*max_current_ma = MAX_FLASH_CURRENT_MA;
 		return 0;
-	}
-
-	if (!led->batt_psy)
-		led->batt_psy = power_supply_get_by_name("battery");
-
-	if (!led->batt_psy) {
-		pr_err("Failed to get battery power supply, rc=%d\n", rc);
-		return -EINVAL;
 	}
 
 	rc = power_supply_get_property(led->batt_psy,
