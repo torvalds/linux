@@ -355,6 +355,7 @@ static int mchp_spdiftx_hw_params(struct snd_pcm_substream *substream,
 	struct mchp_spdiftx_mixer_control *ctrl = &dev->control;
 	u32 mr;
 	unsigned int bps = params_physical_width(params) / 8;
+	unsigned char aes3;
 	int ret;
 
 	dev_dbg(dev->dev, "%s() rate=%u format=%#x width=%u channels=%u\n",
@@ -440,48 +441,48 @@ static int mchp_spdiftx_hw_params(struct snd_pcm_substream *substream,
 
 	mr |= SPDIFTX_MR_BPS(bps);
 
-	spin_lock_irqsave(&ctrl->lock, flags);
-	ctrl->ch_stat[3] &= ~IEC958_AES3_CON_FS;
 	switch (params_rate(params)) {
 	case 22050:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_22050;
+		aes3 = IEC958_AES3_CON_FS_22050;
 		break;
 	case 24000:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_24000;
+		aes3 = IEC958_AES3_CON_FS_24000;
 		break;
 	case 32000:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_32000;
+		aes3 = IEC958_AES3_CON_FS_32000;
 		break;
 	case 44100:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_44100;
+		aes3 = IEC958_AES3_CON_FS_44100;
 		break;
 	case 48000:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_48000;
+		aes3 = IEC958_AES3_CON_FS_48000;
 		break;
 	case 88200:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_88200;
+		aes3 = IEC958_AES3_CON_FS_88200;
 		break;
 	case 96000:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_96000;
+		aes3 = IEC958_AES3_CON_FS_96000;
 		break;
 	case 176400:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_176400;
+		aes3 = IEC958_AES3_CON_FS_176400;
 		break;
 	case 192000:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_192000;
+		aes3 = IEC958_AES3_CON_FS_192000;
 		break;
 	case 8000:
 	case 11025:
 	case 16000:
 	case 64000:
-		ctrl->ch_stat[3] |= IEC958_AES3_CON_FS_NOTID;
+		aes3 = IEC958_AES3_CON_FS_NOTID;
 		break;
 	default:
 		dev_err(dev->dev, "unsupported sample frequency: %u\n",
 			params_rate(params));
-		spin_unlock_irqrestore(&ctrl->lock, flags);
 		return -EINVAL;
 	}
+	spin_lock_irqsave(&ctrl->lock, flags);
+	ctrl->ch_stat[3] &= ~IEC958_AES3_CON_FS;
+	ctrl->ch_stat[3] |= aes3;
 	mchp_spdiftx_channel_status_write(dev);
 	spin_unlock_irqrestore(&ctrl->lock, flags);
 
