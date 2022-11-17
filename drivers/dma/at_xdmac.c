@@ -533,7 +533,6 @@ static void at_xdmac_start_xfer(struct at_xdmac_chan *atchan,
 		 at_xdmac_chan_read(atchan, AT_XDMAC_CSA),
 		 at_xdmac_chan_read(atchan, AT_XDMAC_CDA),
 		 at_xdmac_chan_read(atchan, AT_XDMAC_CUBC));
-
 }
 
 static dma_cookie_t at_xdmac_tx_submit(struct dma_async_tx_descriptor *tx)
