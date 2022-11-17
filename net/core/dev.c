@@ -6399,9 +6399,9 @@ void napi_disable(struct napi_struct *n)
 
 	val = READ_ONCE(n->state);
 	do {
-		if (val & (NAPIF_STATE_SCHED | NAPIF_STATE_NPSVC)) {
+		while (val & (NAPIF_STATE_SCHED | NAPIF_STATE_NPSVC)) {
 			usleep_range(20, 200);
-			continue;
+			val = READ_ONCE(n->state);
 		}
 
 		new = val | NAPIF_STATE_SCHED | NAPIF_STATE_NPSVC;
