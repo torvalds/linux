@@ -2299,7 +2299,10 @@ static int mtk_open(struct net_device *dev)
 		int err = mtk_start_dma(eth);
 
 		if (err)
+		if (err) {
+			phylink_disconnect_phy(mac->phylink);
 			return err;
+		}
 
 		mtk_gdm_config(eth, MTK_GDMA_TO_PDMA);
 
