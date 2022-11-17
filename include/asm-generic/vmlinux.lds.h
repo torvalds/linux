@@ -193,17 +193,15 @@
 # endif
 #endif
 
-#define BOUNDED_SECTION_PRE_LABEL(_sec_, _label_, _s_, _e_)		\
-	_s_##_label_ = .;						\
-	KEEP(*(.gnu.linkonce.##_sec_))					\
+#define BOUNDED_SECTION_PRE_LABEL(_sec_, _label_, _BEGIN_, _END_)	\
+	_BEGIN_##_label_ = .;						\
 	KEEP(*(_sec_))							\
-	_e_##_label_ = .;
+	_END_##_label_ = .;
 
-#define BOUNDED_SECTION_POST_LABEL(_sec_, _label_, _s_, _e_)		\
-	_label_##_s_ = .;						\
-	KEEP(*(.gnu.linkonce.##_sec_))					\
+#define BOUNDED_SECTION_POST_LABEL(_sec_, _label_, _BEGIN_, _END_)	\
+	_label_##_BEGIN_ = .;						\
 	KEEP(*(_sec_))							\
-	_label_##_e_ = .;
+	_label_##_END_ = .;
 
 #define BOUNDED_SECTION_BY(_sec_, _label_)				\
 	BOUNDED_SECTION_PRE_LABEL(_sec_, _label_, __start, __stop)
