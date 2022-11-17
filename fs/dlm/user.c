@@ -884,8 +884,7 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 		goto try_another;
 	case DLM_DEQUEUE_CALLBACK_LAST:
 		list_del_init(&lkb->lkb_cb_list);
-		/* TODO */
-		lkb->lkb_flags &= ~DLM_IFL_NEED_SCHED;
+		lkb->lkb_flags &= ~DLM_IFL_CB_PENDING;
 		break;
 	case DLM_DEQUEUE_CALLBACK_SUCCESS:
 		break;

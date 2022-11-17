@@ -45,8 +45,7 @@ void dlm_purge_lkb_callbacks(struct dlm_lkb *lkb)
 		kref_put(&cb->ref, dlm_release_callback);
 	}
 
-	/* TODO */
-	lkb->lkb_flags &= ~DLM_IFL_NEED_SCHED;
+	lkb->lkb_flags &= ~DLM_IFL_CB_PENDING;
 
 	/* invalidate */
 	dlm_callback_set_last_ptr(&lkb->lkb_last_cast, NULL);
@@ -104,8 +103,8 @@ int dlm_enqueue_lkb_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
 	cb->sb_status = status;
 	cb->sb_flags = (sbflags & 0x000000FF);
 	kref_init(&cb->ref);
-	if (!(lkb->lkb_flags & DLM_IFL_NEED_SCHED)) {
-		lkb->lkb_flags |= DLM_IFL_NEED_SCHED;
+	if (!(lkb->lkb_flags & DLM_IFL_CB_PENDING)) {
+		lkb->lkb_flags |= DLM_IFL_CB_PENDING;
 		rv = DLM_ENQUEUE_CALLBACK_NEED_SCHED;
 	}
 	list_add_tail(&cb->list, &lkb->lkb_callbacks);
@@ -210,7 +209,7 @@ void dlm_callback_work(struct work_struct *work)
 		spin_lock(&lkb->lkb_cb_lock);
 		rv = dlm_dequeue_lkb_callback(lkb, &cb);
 		if (rv == DLM_DEQUEUE_CALLBACK_EMPTY) {
-			lkb->lkb_flags &= ~DLM_IFL_NEED_SCHED;
+			lkb->lkb_flags &= ~DLM_IFL_CB_PENDING;
 			spin_unlock(&lkb->lkb_cb_lock);
 			break;
 		}
