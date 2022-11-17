@@ -3624,6 +3624,37 @@ static int __spi_validate_bits_per_word(struct spi_controller *ctlr,
 }
 
 /**
+ * spi_set_cs_timing - configure CS setup, hold, and inactive delays
+ * @spi: the device that requires specific CS timing configuration
+ *
+ * Return: zero on success, else a negative error code.
+ */
+static int spi_set_cs_timing(struct spi_device *spi)
+{
+	struct device *parent = spi->controller->dev.parent;
+	int status = 0;
+
+	if (spi->controller->set_cs_timing && !spi->cs_gpiod) {
+		if (spi->controller->auto_runtime_pm) {
+			status = pm_runtime_get_sync(parent);
+			if (status < 0) {
+				pm_runtime_put_noidle(parent);
+				dev_err(&spi->controller->dev, "Failed to power device: %d\n",
+					status);
+				return status;
+			}
+
+			status = spi->controller->set_cs_timing(spi);
+			pm_runtime_mark_last_busy(parent);
+			pm_runtime_put_autosuspend(parent);
+		} else {
+			status = spi->controller->set_cs_timing(spi);
+		}
+	}
+	return status;
+}
+
+/**
  * spi_setup - setup SPI mode and clock rate
  * @spi: the device whose settings are being modified
  * Context: can sleep, and no requests are queued to the device
@@ -3717,6 +3748,12 @@ int spi_setup(struct spi_device *spi)
 				status);
 			return status;
 		}
+	}
+
+	status = spi_set_cs_timing(spi);
+	if (status) {
+		mutex_unlock(&spi->controller->io_mutex);
+		return status;
 	}
 
 	if (spi->controller->auto_runtime_pm && spi->controller->set_cs) {
