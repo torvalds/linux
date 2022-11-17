@@ -2371,6 +2371,12 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 	}
 	if (nn->cap & NFP_NET_CFG_CTRL_RSS_ANY)
 		netdev->hw_features |= NETIF_F_RXHASH;
+
+#ifdef CONFIG_NFP_NET_IPSEC
+	if (nn->cap_w1 & NFP_NET_CFG_CTRL_IPSEC)
+		netdev->hw_features |= NETIF_F_HW_ESP | NETIF_F_HW_ESP_TX_CSUM;
+#endif
+
 	if (nn->cap & NFP_NET_CFG_CTRL_VXLAN) {
 		if (nn->cap & NFP_NET_CFG_CTRL_LSO) {
 			netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL |
