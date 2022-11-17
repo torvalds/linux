@@ -316,7 +316,7 @@ static int vcap_encode_rule_keyset(struct vcap_rule_internal *ri)
 }
 
 /* Return the list of actionfields for the actionset */
-static const struct vcap_field *
+const struct vcap_field *
 vcap_actionfields(struct vcap_control *vctrl,
 		  enum vcap_type vt, enum vcap_actionfield_set actionset)
 {
@@ -326,7 +326,7 @@ vcap_actionfields(struct vcap_control *vctrl,
 	return vctrl->vcaps[vt].actionfield_set_map[actionset];
 }
 
-static const struct vcap_set *
+const struct vcap_set *
 vcap_actionfieldset(struct vcap_control *vctrl,
 		    enum vcap_type vt, enum vcap_actionfield_set actionset)
 {
@@ -342,7 +342,7 @@ vcap_actionfieldset(struct vcap_control *vctrl,
 }
 
 /* Return the typegroup table for the matching actionset (using subword size) */
-static const struct vcap_typegroup *
+const struct vcap_typegroup *
 vcap_actionfield_typegroup(struct vcap_control *vctrl,
 			   enum vcap_type vt, enum vcap_actionfield_set actionset)
 {
@@ -355,9 +355,9 @@ vcap_actionfield_typegroup(struct vcap_control *vctrl,
 }
 
 /* Return the number of actionfields in the actionset */
-static int vcap_actionfield_count(struct vcap_control *vctrl,
-				  enum vcap_type vt,
-				  enum vcap_actionfield_set actionset)
+int vcap_actionfield_count(struct vcap_control *vctrl,
+			   enum vcap_type vt,
+			   enum vcap_actionfield_set actionset)
 {
 	/* Check that the actionset exists in the vcap actionset list */
 	if (actionset >= vctrl->vcaps[vt].actionfield_set_size)

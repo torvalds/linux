@@ -77,6 +77,22 @@ const struct vcap_field *vcap_keyfields(struct vcap_control *vctrl,
 
 /* Actionset and actionfield functionality */
 
+/* Return the actionset information for the actionset */
+const struct vcap_set *
+vcap_actionfieldset(struct vcap_control *vctrl,
+		    enum vcap_type vt, enum vcap_actionfield_set actionset);
+/* Return the number of actionfields in the actionset */
+int vcap_actionfield_count(struct vcap_control *vctrl,
+			   enum vcap_type vt,
+			   enum vcap_actionfield_set actionset);
+/* Return the typegroup table for the matching actionset (using subword size) */
+const struct vcap_typegroup *
+vcap_actionfield_typegroup(struct vcap_control *vctrl, enum vcap_type vt,
+			   enum vcap_actionfield_set actionset);
+/* Return the list of actionfields for the actionset */
+const struct vcap_field *
+vcap_actionfields(struct vcap_control *vctrl,
+		  enum vcap_type vt, enum vcap_actionfield_set actionset);
 /* Map actionset id to a string with the actionset name */
 const char *vcap_actionset_name(struct vcap_control *vctrl,
 				enum vcap_actionfield_set actionset);
