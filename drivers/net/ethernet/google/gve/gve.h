@@ -563,6 +563,7 @@ struct gve_priv {
 	u32 adminq_report_stats_cnt;
 	u32 adminq_report_link_speed_cnt;
 	u32 adminq_get_ptype_map_cnt;
+	u32 adminq_verify_driver_compatibility_cnt;
 
 	/* Global stats */
 	u32 interface_up_cnt; /* count of times interface turned up since last reset */
