@@ -13,6 +13,7 @@
 
 static bool wed_enable;
 module_param(wed_enable, bool, 0644);
+MODULE_PARM_DESC(wed_enable, "Enable Wireless Ethernet Dispatch support");
 
 static const u32 mt7915_reg[] = {
 	[INT_SOURCE_CSR]		= 0xd7010,
