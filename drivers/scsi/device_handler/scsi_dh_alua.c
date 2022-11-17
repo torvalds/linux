@@ -324,7 +324,6 @@ static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h,
 	struct alua_port_group *pg, *old_pg = NULL;
 	bool pg_updated = false;
 	unsigned long flags;
-	bool put_sdev;
 
 	group_id = scsi_vpd_tpg_id(sdev, &rel_port);
 	if (group_id < 0) {
@@ -374,13 +373,10 @@ static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h,
 		list_add_rcu(&h->node, &pg->dh_list);
 	spin_unlock_irqrestore(&pg->lock, flags);
 
-	put_sdev = alua_rtpg_queue(rcu_dereference_protected(h->pg,
+	alua_rtpg_queue(rcu_dereference_protected(h->pg,
 						  lockdep_is_held(&h->pg_lock)),
 			sdev, NULL, true);
 	spin_unlock(&h->pg_lock);
-
-	if (put_sdev)
-		scsi_device_put(sdev);
 
 	if (old_pg)
 		kref_put(&old_pg->kref, release_port_group);
@@ -982,10 +978,9 @@ queue_rtpg:
  *         RTPG already has been scheduled.
  *
  * Returns true if and only if alua_rtpg_work() will be called asynchronously.
- * That function is responsible for calling @qdata->fn(). If this function
- * returns true, the caller is responsible for invoking scsi_device_put(@sdev).
+ * That function is responsible for calling @qdata->fn().
  */
-static bool __must_check alua_rtpg_queue(struct alua_port_group *pg,
+static bool alua_rtpg_queue(struct alua_port_group *pg,
 			    struct scsi_device *sdev,
 			    struct alua_queue_data *qdata, bool force)
 {
@@ -1024,6 +1019,8 @@ static bool __must_check alua_rtpg_queue(struct alua_port_group *pg,
 		else
 			kref_put(&pg->kref, release_port_group);
 	}
+	if (sdev)
+		scsi_device_put(sdev);
 
 	return true;
 }
@@ -1130,12 +1127,10 @@ static int alua_activate(struct scsi_device *sdev,
 	rcu_read_unlock();
 	mutex_unlock(&h->init_mutex);
 
-	if (alua_rtpg_queue(pg, sdev, qdata, true)) {
-		scsi_device_put(sdev);
+	if (alua_rtpg_queue(pg, sdev, qdata, true))
 		fn = NULL;
-	} else {
+	else
 		err = SCSI_DH_DEV_OFFLINED;
-	}
 	kref_put(&pg->kref, release_port_group);
 out:
 	if (fn)
@@ -1161,9 +1156,7 @@ static void alua_check(struct scsi_device *sdev, bool force)
 		return;
 	}
 	rcu_read_unlock();
-
-	if (alua_rtpg_queue(pg, sdev, NULL, force))
-		scsi_device_put(sdev);
+	alua_rtpg_queue(pg, sdev, NULL, force);
 	kref_put(&pg->kref, release_port_group);
 }
 
