@@ -1159,7 +1159,7 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 	struct kvm *kvm = vcpu->kvm;
 	struct tdp_iter iter;
 	struct kvm_mmu_page *sp;
-	int ret;
+	int ret = RET_PF_RETRY;
 
 	kvm_mmu_hugepage_adjust(vcpu, fault);
 
@@ -1168,23 +1168,25 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 	rcu_read_lock();
 
 	tdp_mmu_for_each_pte(iter, mmu, fault->gfn, fault->gfn + 1) {
+		int r;
+
 		if (fault->nx_huge_page_workaround_enabled)
 			disallowed_hugepage_adjust(fault, iter.old_spte, iter.level);
 
 		if (iter.level == fault->goal_level)
 			break;
 
-		/* Step down into the lower level page table if it exists. */
-		if (is_shadow_present_pte(iter.old_spte) &&
-		    !is_large_pte(iter.old_spte))
-			continue;
-
 		/*
 		 * If SPTE has been frozen by another thread, just give up and
 		 * retry, avoiding unnecessary page table allocation and free.
 		 */
 		if (is_removed_spte(iter.old_spte))
-			break;
+			goto retry;
+
+		/* Step down into the lower level page table if it exists. */
+		if (is_shadow_present_pte(iter.old_spte) &&
+		    !is_large_pte(iter.old_spte))
+			continue;
 
 		/*
 		 * The SPTE is either non-present or points to a huge page that
@@ -1196,13 +1198,17 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		sp->nx_huge_page_disallowed = fault->huge_page_disallowed;
 
 		if (is_shadow_present_pte(iter.old_spte))
-			ret = tdp_mmu_split_huge_page(kvm, &iter, sp, true);
+			r = tdp_mmu_split_huge_page(kvm, &iter, sp, true);
 		else
-			ret = tdp_mmu_link_sp(kvm, &iter, sp, true);
+			r = tdp_mmu_link_sp(kvm, &iter, sp, true);
 
-		if (ret) {
+		/*
+		 * Also force the guest to retry the access if the upper level SPTEs
+		 * aren't in place.
+		 */
+		if (r) {
 			tdp_mmu_free_sp(sp);
-			break;
+			goto retry;
 		}
 
 		if (fault->huge_page_disallowed &&
@@ -1213,18 +1219,10 @@ int kvm_tdp_mmu_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		}
 	}
 
-	/*
-	 * Force the guest to retry the access if the upper level SPTEs aren't
-	 * in place, or if the target leaf SPTE is frozen by another CPU.
-	 */
-	if (iter.level != fault->goal_level || is_removed_spte(iter.old_spte)) {
-		rcu_read_unlock();
-		return RET_PF_RETRY;
-	}
-
 	ret = tdp_mmu_map_handle_target_level(vcpu, fault, &iter);
-	rcu_read_unlock();
 
+retry:
+	rcu_read_unlock();
 	return ret;
 }
 
