@@ -474,17 +474,13 @@
 /* ethernet reset control register */
 #define ETHSYS_RSTCTRL			0x34
 #define RSTCTRL_FE			BIT(6)
-#define RSTCTRL_PPE			BIT(31)
-#define RSTCTRL_PPE1			BIT(30)
+#define RSTCTRL_PPE0			BIT(31)
+#define RSTCTRL_PPE0_V2			BIT(30)
+#define RSTCTRL_PPE1			BIT(31)
 #define RSTCTRL_ETH			BIT(23)
 
 /* ethernet reset check idle register */
 #define ETHSYS_FE_RST_CHK_IDLE_EN	0x28
-
-/* ethernet reset control register */
-#define ETHSYS_RSTCTRL		0x34
-#define RSTCTRL_FE		BIT(6)
-#define RSTCTRL_PPE		BIT(31)
 
 /* ethernet dma channel agent map */
 #define ETHSYS_DMA_AG_MAP	0x408
