@@ -1456,7 +1456,7 @@ at_xdmac_prep_dma_memset_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 static enum dma_status
 at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
-		struct dma_tx_state *txstate)
+		   struct dma_tx_state *txstate)
 {
 	struct at_xdmac_chan	*atchan = to_at_xdmac_chan(chan);
 	struct at_xdmac		*atxdmac = to_at_xdmac(atchan->chan.device);
