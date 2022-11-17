@@ -567,6 +567,8 @@ static bool rockchip_sai_wr_reg(struct device *dev, unsigned int reg)
 	case SAI_RX_SLOT_MASK1:
 	case SAI_RX_SLOT_MASK2:
 	case SAI_RX_SLOT_MASK3:
+	case SAI_TX_SHIFT:
+	case SAI_RX_SHIFT:
 		return true;
 	default:
 		return false;
@@ -599,6 +601,11 @@ static bool rockchip_sai_rd_reg(struct device *dev, unsigned int reg)
 	case SAI_RX_SLOT_MASK1:
 	case SAI_RX_SLOT_MASK2:
 	case SAI_RX_SLOT_MASK3:
+	case SAI_TX_DATA_CNT:
+	case SAI_RX_DATA_CNT:
+	case SAI_TX_SHIFT:
+	case SAI_RX_SHIFT:
+	case SAI_VERSION:
 		return true;
 	default:
 		return false;
@@ -616,6 +623,8 @@ static bool rockchip_sai_volatile_reg(struct device *dev, unsigned int reg)
 	case SAI_RXFIFOLR:
 	case SAI_TXDR:
 	case SAI_RXDR:
+	case SAI_TX_DATA_CNT:
+	case SAI_RX_DATA_CNT:
 		return true;
 	default:
 		return false;
