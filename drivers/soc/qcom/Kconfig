@@ -96,6 +96,15 @@ config QCOM_QMI_HELPERS
 	tristate
 	depends on NET
 
+config QCOM_RAMP_CTRL
+	tristate "Qualcomm Ramp Controller driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  The Ramp Controller is used to program the sequence ID for pulse
+	  swallowing, enable sequence and link sequence IDs for the CPU
+	  cores on some Qualcomm SoCs.
+	  Say y here to enable support for the ramp controller.
+
 config QCOM_RMTFS_MEM
 	tristate "Qualcomm Remote Filesystem memory driver"
 	depends on ARCH_QCOM
