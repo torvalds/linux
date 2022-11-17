@@ -203,7 +203,6 @@ rtrs_srv_destroy_once_sysfs_root_folders(struct rtrs_srv_path *srv_path)
 
 	mutex_lock(&srv->paths_mutex);
 	if (!--srv->dev_ref) {
-		kobject_del(srv->kobj_paths);
 		kobject_put(srv->kobj_paths);
 		mutex_unlock(&srv->paths_mutex);
 		device_del(&srv->dev);
