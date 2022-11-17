@@ -53,12 +53,13 @@
  */
 enum osnoise_options_index {
 	OSN_DEFAULTS = 0,
+	OSN_WORKLOAD,
 	OSN_MAX
 };
 
-static const char * const osnoise_options_str[OSN_MAX] = { "DEFAULTS" };
+static const char * const osnoise_options_str[OSN_MAX] = { "DEFAULTS", "OSNOISE_WORKLOAD" };
 
-#define OSN_DEFAULT_OPTIONS	0
+#define OSN_DEFAULT_OPTIONS	0x2
 unsigned long osnoise_options	= OSN_DEFAULT_OPTIONS;
 
 /*
@@ -1186,11 +1187,12 @@ trace_sched_switch_callback(void *data, bool preempt,
 			    unsigned int prev_state)
 {
 	struct osnoise_variables *osn_var = this_cpu_osn_var();
+	int workload = test_bit(OSN_WORKLOAD, &osnoise_options);
 
-	if (p->pid != osn_var->pid)
+	if ((p->pid != osn_var->pid) || !workload)
 		thread_exit(osn_var, p);
 
-	if (n->pid != osn_var->pid)
+	if ((n->pid != osn_var->pid) || !workload)
 		thread_entry(osn_var, n);
 }
 
@@ -1723,9 +1725,16 @@ static void stop_kthread(unsigned int cpu)
 	struct task_struct *kthread;
 
 	kthread = per_cpu(per_cpu_osnoise_var, cpu).kthread;
-	if (kthread)
+	if (kthread) {
 		kthread_stop(kthread);
-	per_cpu(per_cpu_osnoise_var, cpu).kthread = NULL;
+		per_cpu(per_cpu_osnoise_var, cpu).kthread = NULL;
+	} else {
+		if (!test_bit(OSN_WORKLOAD, &osnoise_options)) {
+			per_cpu(per_cpu_osnoise_var, cpu).sampling = false;
+			barrier();
+			return;
+		}
+	}
 }
 
 /*
@@ -1759,6 +1768,13 @@ static int start_kthread(unsigned int cpu)
 		snprintf(comm, 24, "timerlat/%d", cpu);
 		main = timerlat_main;
 	} else {
+		/* if no workload, just return */
+		if (!test_bit(OSN_WORKLOAD, &osnoise_options)) {
+			per_cpu(per_cpu_osnoise_var, cpu).sampling = true;
+			barrier();
+			return 0;
+		}
+
 		snprintf(comm, 24, "osnoise/%d", cpu);
 	}
 
