@@ -179,14 +179,12 @@ static inline void synchronize_syncpt_base(struct host1x_job *job)
 static void host1x_channel_set_streamid(struct host1x_channel *channel)
 {
 #if HOST1X_HW >= 6
-	u32 sid = 0x7f;
-#ifdef CONFIG_IOMMU_API
-	struct iommu_fwspec *spec = dev_iommu_fwspec_get(channel->dev->parent);
-	if (spec)
-		sid = spec->ids[0] & 0xffff;
-#endif
+	u32 stream_id;
 
-	host1x_ch_writel(channel, sid, HOST1X_CHANNEL_SMMU_STREAMID);
+	if (!tegra_dev_iommu_get_stream_id(channel->dev->parent, &stream_id))
+		stream_id = TEGRA_STREAM_ID_BYPASS;
+
+	host1x_ch_writel(channel, stream_id, HOST1X_CHANNEL_SMMU_STREAMID);
 #endif
 }
 
