@@ -887,7 +887,7 @@ int pkvm_load_pvmfw_pages(struct pkvm_hyp_vm *vm, u64 ipa, phys_addr_t phys,
 	return 0;
 }
 
-void pkvm_clear_pvmfw_pages(void)
+void pkvm_poison_pvmfw_pages(void)
 {
 	void *addr = hyp_phys_to_virt(pvmfw_base);
 

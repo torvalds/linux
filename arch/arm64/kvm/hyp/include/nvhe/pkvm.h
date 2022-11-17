@@ -133,6 +133,6 @@ static inline bool pkvm_ipa_in_pvmfw_region(struct pkvm_hyp_vm *vm, u64 ipa)
 
 int pkvm_load_pvmfw_pages(struct pkvm_hyp_vm *vm, u64 ipa, phys_addr_t phys,
 			  u64 size);
-void pkvm_clear_pvmfw_pages(void);
+void pkvm_poison_pvmfw_pages(void);
 
 #endif /* __ARM64_KVM_NVHE_PKVM_H__ */

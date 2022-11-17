@@ -250,7 +250,7 @@ static unsigned long psci_0_2_handler(u64 func_id, struct kvm_cpu_context *host_
 	 */
 	case PSCI_0_2_FN_SYSTEM_OFF:
 	case PSCI_0_2_FN_SYSTEM_RESET:
-		pkvm_clear_pvmfw_pages();
+		pkvm_poison_pvmfw_pages();
 		return psci_forward(host_ctxt);
 	case PSCI_0_2_FN64_CPU_SUSPEND:
 		return psci_cpu_suspend(func_id, host_ctxt);
@@ -265,7 +265,7 @@ static unsigned long psci_1_0_handler(u64 func_id, struct kvm_cpu_context *host_
 {
 	switch (func_id) {
 	case PSCI_1_1_FN64_SYSTEM_RESET2:
-		pkvm_clear_pvmfw_pages();
+		pkvm_poison_pvmfw_pages();
 		fallthrough;
 	case PSCI_1_0_FN_PSCI_FEATURES:
 	case PSCI_1_0_FN_SET_SUSPEND_MODE:
