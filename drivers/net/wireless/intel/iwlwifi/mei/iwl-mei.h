@@ -220,6 +220,7 @@ struct iwl_mei_nvm {
 /**
  * enum iwl_mei_pairwise_cipher - cipher for UCAST key
  * @IWL_MEI_CIPHER_NONE: none
+ * @IWL_MEI_CIPHER_TKIP: tkip
  * @IWL_MEI_CIPHER_CCMP: ccmp
  * @IWL_MEI_CIPHER_GCMP: gcmp
  * @IWL_MEI_CIPHER_GCMP_256: gcmp 256
@@ -228,6 +229,7 @@ struct iwl_mei_nvm {
  */
 enum iwl_mei_pairwise_cipher {
 	IWL_MEI_CIPHER_NONE	= 0,
+	IWL_MEI_CIPHER_TKIP	= 2,
 	IWL_MEI_CIPHER_CCMP	= 4,
 	IWL_MEI_CIPHER_GCMP	= 8,
 	IWL_MEI_CIPHER_GCMP_256 = 9,
@@ -446,9 +448,25 @@ void iwl_mei_host_associated(const struct iwl_mei_conn_info *conn_info,
 void iwl_mei_host_disassociated(void);
 
 /**
- * iwl_mei_device_down() - must be called when the device is down
+ * iwl_mei_device_state() - must be called when the device changes up/down state
+ * @up: true if the device is up, false otherwise.
  */
-void iwl_mei_device_down(void);
+void iwl_mei_device_state(bool up);
+
+/**
+ * iwl_mei_pldr_req() - must be called before loading the fw
+ *
+ * Return: 0 if the PLDR flow was successful and the fw can be loaded, negative
+ *	value otherwise.
+ */
+int iwl_mei_pldr_req(void);
+
+/**
+ * iwl_mei_alive_notif() - must be called when alive notificaiton is received
+ * @success: true if received alive notification, false if waiting for the
+ *	notificaiton timed out.
+ */
+void iwl_mei_alive_notif(bool success);
 
 #else
 
@@ -497,7 +515,13 @@ static inline void iwl_mei_host_associated(const struct iwl_mei_conn_info *conn_
 static inline void iwl_mei_host_disassociated(void)
 {}
 
-static inline void iwl_mei_device_down(void)
+static inline void iwl_mei_device_state(bool up)
+{}
+
+static inline int iwl_mei_pldr_req(void)
+{ return 0; }
+
+static inline void iwl_mei_alive_notif(bool success)
 {}
 
 #endif /* CONFIG_IWLMEI */

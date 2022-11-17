@@ -1954,6 +1954,9 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		if (vif->cfg.assoc)
 			return ret;
 
+		/* first remove remaining keys */
+		iwl_mvm_sec_key_remove_ap(mvm, vif);
+
 		/* unassoc - go ahead - remove the AP STA now */
 		mvmvif->ap_sta_id = IWL_MVM_INVALID_STA;
 	}
