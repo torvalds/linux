@@ -2209,46 +2209,46 @@
 							 GPIO_ACTIVE_LOW>;
 			};
 		};
-	};
 
-	pcie@14160000 {
-		status = "okay";
+		pcie@14160000 {
+			status = "okay";
 
-		vddio-pex-ctl-supply = <&vdd_1v8ao>;
+			vddio-pex-ctl-supply = <&vdd_1v8ao>;
 
-		phys = <&p2u_hsio_11>;
-		phy-names = "p2u-0";
-	};
+			phys = <&p2u_hsio_11>;
+			phy-names = "p2u-0";
+		};
 
-	pcie@141a0000 {
-		status = "okay";
+		pcie@141a0000 {
+			status = "okay";
 
-		vddio-pex-ctl-supply = <&vdd_1v8ao>;
+			vddio-pex-ctl-supply = <&vdd_1v8ao>;
 
-		phys = <&p2u_nvhs_0>, <&p2u_nvhs_1>, <&p2u_nvhs_2>,
-		       <&p2u_nvhs_3>, <&p2u_nvhs_4>, <&p2u_nvhs_5>,
-		       <&p2u_nvhs_6>, <&p2u_nvhs_7>;
+			phys = <&p2u_nvhs_0>, <&p2u_nvhs_1>, <&p2u_nvhs_2>,
+			       <&p2u_nvhs_3>, <&p2u_nvhs_4>, <&p2u_nvhs_5>,
+			       <&p2u_nvhs_6>, <&p2u_nvhs_7>;
 
-		phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3", "p2u-4",
-			    "p2u-5", "p2u-6", "p2u-7";
-	};
+			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3", "p2u-4",
+				    "p2u-5", "p2u-6", "p2u-7";
+		};
 
-	pcie-ep@141a0000 {
-		status = "disabled";
+		pcie-ep@141a0000 {
+			status = "disabled";
 
-		vddio-pex-ctl-supply = <&vdd_1v8ao>;
+			vddio-pex-ctl-supply = <&vdd_1v8ao>;
 
-		reset-gpios = <&gpio TEGRA194_MAIN_GPIO(GG, 1) GPIO_ACTIVE_LOW>;
+			reset-gpios = <&gpio TEGRA194_MAIN_GPIO(GG, 1) GPIO_ACTIVE_LOW>;
 
-		nvidia,refclk-select-gpios = <&gpio_aon TEGRA194_AON_GPIO(AA, 5)
-					      GPIO_ACTIVE_HIGH>;
+			nvidia,refclk-select-gpios = <&gpio_aon TEGRA194_AON_GPIO(AA, 5)
+						      GPIO_ACTIVE_HIGH>;
 
-		phys = <&p2u_nvhs_0>, <&p2u_nvhs_1>, <&p2u_nvhs_2>,
-		       <&p2u_nvhs_3>, <&p2u_nvhs_4>, <&p2u_nvhs_5>,
-		       <&p2u_nvhs_6>, <&p2u_nvhs_7>;
+			phys = <&p2u_nvhs_0>, <&p2u_nvhs_1>, <&p2u_nvhs_2>,
+			       <&p2u_nvhs_3>, <&p2u_nvhs_4>, <&p2u_nvhs_5>,
+			       <&p2u_nvhs_6>, <&p2u_nvhs_7>;
 
-		phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3", "p2u-4",
-			    "p2u-5", "p2u-6", "p2u-7";
+			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3", "p2u-4",
+				    "p2u-5", "p2u-6", "p2u-7";
+		};
 	};
 
 	fan: pwm-fan {
