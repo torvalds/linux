@@ -1034,21 +1034,6 @@
 		status = "disabled";
 	};
 
-	spdif: sound@ff88b0000 {
-		compatible = "rockchip,rk3288-spdif", "rockchip,rk3066-spdif";
-		reg = <0x0 0xff8b0000 0x0 0x10000>;
-		#sound-dai-cells = <0>;
-		clocks = <&cru SCLK_SPDIF8CH>, <&cru HCLK_SPDIF8CH>;
-		clock-names = "mclk", "hclk";
-		dmas = <&dmac_bus_s 3>;
-		dma-names = "tx";
-		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&spdif_tx>;
-		rockchip,grf = <&grf>;
-		status = "disabled";
-	};
-
 	i2s: i2s@ff890000 {
 		compatible = "rockchip,rk3288-i2s", "rockchip,rk3066-i2s";
 		reg = <0x0 0xff890000 0x0 0x10000>;
@@ -1077,6 +1062,21 @@
 		resets = <&cru SRST_CRYPTO>;
 		reset-names = "crypto-rst";
 		status = "okay";
+	};
+
+	spdif: sound@ff8b0000 {
+		compatible = "rockchip,rk3288-spdif", "rockchip,rk3066-spdif";
+		reg = <0x0 0xff8b0000 0x0 0x10000>;
+		#sound-dai-cells = <0>;
+		clocks = <&cru SCLK_SPDIF8CH>, <&cru HCLK_SPDIF8CH>;
+		clock-names = "mclk", "hclk";
+		dmas = <&dmac_bus_s 3>;
+		dma-names = "tx";
+		interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spdif_tx>;
+		rockchip,grf = <&grf>;
+		status = "disabled";
 	};
 
 	iep_mmu: iommu@ff900800 {
