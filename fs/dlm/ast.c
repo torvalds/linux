@@ -186,7 +186,7 @@ void dlm_callback_work(struct work_struct *work)
 	spin_unlock(&lkb->lkb_cb_lock);
 
 	if (WARN_ON(rv == DLM_DEQUEUE_CALLBACK_EMPTY))
-		return;
+		goto out;
 
 	for (;;) {
 		castfn = lkb->lkb_astfn;
@@ -217,6 +217,7 @@ void dlm_callback_work(struct work_struct *work)
 		spin_unlock(&lkb->lkb_cb_lock);
 	}
 
+out:
 	/* undo kref_get from dlm_add_callback, may cause lkb to be freed */
 	dlm_put_lkb(lkb);
 }
