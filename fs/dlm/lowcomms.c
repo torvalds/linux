@@ -176,7 +176,6 @@ static DEFINE_SPINLOCK(dlm_node_addrs_spin);
 static struct listen_connection listen_con;
 static struct sockaddr_storage *dlm_local_addr[DLM_MAX_ADDR_COUNT];
 static int dlm_local_count;
-int dlm_allow_conn;
 
 /* Work queues */
 static struct workqueue_struct *recv_workqueue;
@@ -190,6 +189,11 @@ static const struct dlm_proto_ops *dlm_proto_ops;
 
 static void process_recv_sockets(struct work_struct *work);
 static void process_send_sockets(struct work_struct *work);
+
+bool dlm_lowcomms_is_running(void)
+{
+	return !!listen_con.sock;
+}
 
 static void writequeue_entry_ctor(void *data)
 {
@@ -511,9 +515,6 @@ static void lowcomms_data_ready(struct sock *sk)
 
 static void lowcomms_listen_data_ready(struct sock *sk)
 {
-	if (!dlm_allow_conn)
-		return;
-
 	queue_work(recv_workqueue, &listen_con.rwork);
 }
 
@@ -1689,10 +1690,7 @@ void dlm_lowcomms_shutdown(void)
 {
 	int idx;
 
-	/* Set all the flags to prevent any
-	 * socket activity.
-	 */
-	dlm_allow_conn = 0;
+	restore_callbacks(listen_con.sock);
 
 	if (recv_workqueue)
 		flush_workqueue(recv_workqueue);
@@ -1995,8 +1993,6 @@ int dlm_lowcomms_start(void)
 	if (error)
 		goto fail_local;
 
-	dlm_allow_conn = 1;
-
 	/* Start listening */
 	switch (dlm_config.ci_protocol) {
 	case DLM_PROTO_TCP:
@@ -2021,7 +2017,6 @@ int dlm_lowcomms_start(void)
 fail_listen:
 	dlm_proto_ops = NULL;
 fail_proto_ops:
-	dlm_allow_conn = 0;
 	work_stop();
 fail_local:
 	deinit_local();
