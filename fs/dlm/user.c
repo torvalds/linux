@@ -214,7 +214,7 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 	switch (rv) {
 	case DLM_ENQUEUE_CALLBACK_FAILURE:
 		spin_unlock(&proc->asts_spin);
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		goto out;
 	case DLM_ENQUEUE_CALLBACK_NEED_SCHED:
 		kref_get(&lkb->lkb_ref);
@@ -224,7 +224,7 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 	case DLM_ENQUEUE_CALLBACK_SUCCESS:
 		break;
 	default:
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		break;
 	}
 	spin_unlock(&proc->asts_spin);
@@ -880,7 +880,7 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 		spin_unlock(&proc->asts_spin);
 		/* removes ref for proc->asts, may cause lkb to be freed */
 		dlm_put_lkb(lkb);
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		goto try_another;
 	case DLM_DEQUEUE_CALLBACK_LAST:
 		list_del_init(&lkb->lkb_cb_list);
@@ -890,7 +890,7 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 	case DLM_DEQUEUE_CALLBACK_SUCCESS:
 		break;
 	default:
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		break;
 	}
 	spin_unlock(&proc->asts_spin);

@@ -161,12 +161,12 @@ void dlm_add_cb(struct dlm_lkb *lkb, uint32_t flags, int mode, int status,
 		spin_unlock(&ls->ls_cb_lock);
 		break;
 	case DLM_ENQUEUE_CALLBACK_FAILURE:
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		break;
 	case DLM_ENQUEUE_CALLBACK_SUCCESS:
 		break;
 	default:
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		break;
 	}
 	spin_unlock(&lkb->lkb_cb_lock);
@@ -185,7 +185,7 @@ void dlm_callback_work(struct work_struct *work)
 	rv = dlm_dequeue_lkb_callback(lkb, &cb);
 	spin_unlock(&lkb->lkb_cb_lock);
 
-	if (WARN_ON(rv == DLM_DEQUEUE_CALLBACK_EMPTY))
+	if (WARN_ON_ONCE(rv == DLM_DEQUEUE_CALLBACK_EMPTY))
 		goto out;
 
 	for (;;) {
