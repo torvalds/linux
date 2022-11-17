@@ -396,17 +396,6 @@ long get_tagged_addr_ctrl(struct task_struct *task);
 #define GET_TAGGED_ADDR_CTRL()		get_tagged_addr_ctrl(current)
 #endif
 
-/*
- * For CONFIG_GCC_PLUGIN_STACKLEAK
- *
- * These need to be macros because otherwise we get stuck in a nightmare
- * of header definitions for the use of task_stack_page.
- */
-
-/*
- * The top of the current task's task stack
- */
-#define current_top_of_stack()	((unsigned long)current->stack + THREAD_SIZE)
 #define on_thread_stack()	(on_task_stack(current, current_stack_pointer, 1))
 
 #endif /* __ASSEMBLY__ */
