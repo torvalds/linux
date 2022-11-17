@@ -242,6 +242,20 @@
 	};
 };
 
+&cif_new {
+	status = "okay";
+
+	ports {
+		port@0 {
+			cif_in_bcam: endpoint@0 {
+				remote-endpoint = <&gc2145_out>;
+				vsync-active = <0>;
+				hsync-active = <1>;
+			};
+		};
+	};
+};
+
 &codec{
 	spk-ctl-gpios = <&gpio0 RK_PD6 GPIO_ACTIVE_HIGH>;
 	hp-ctl-gpios = <&gpio3 RK_PC4 GPIO_ACTIVE_LOW>;
@@ -262,20 +276,6 @@
 
 &cpu0 {
 	cpu-supply = <&vdd_arm>;
-};
-
-&cif_new {
-	status = "okay";
-
-	ports {
-		port@0 {
-			cif_in_bcam: endpoint@0 {
-				remote-endpoint = <&gc2145_out>;
-				vsync-active = <0>;
-				hsync-active = <1>;
-			};
-		};
-	};
 };
 
 &display_subsystem {
@@ -785,6 +785,10 @@
 	#sound-dai-cells = <0>;
 };
 
+&mpp_srv {
+	status = "okay";
+};
+
 &pinctrl {
 	codec{
 		spk_ctl_h: spk-ctl-h{
@@ -895,19 +899,6 @@
 	vref-supply = <&vcc_io>;
 };
 
-&sdmmc {
-	cap-mmc-highspeed;
-	cap-sd-highspeed;
-	supports-sd;
-	vmmc-supply = <&vcc_sdmmc>;
-	broken-cd;
-	card-detect-delay = <800>;
-	ignore-pm-notify;
-	keep-power-in-suspend;
-	cd-gpios = <&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>; /* CD GPIO */
-	status = "disabled";
-};
-
 &sdio {
 	max-frequency = <50000000>;
 	supports-sdio;
@@ -923,18 +914,25 @@
 	status = "okay";
 };
 
+&sdmmc {
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	supports-sd;
+	vmmc-supply = <&vcc_sdmmc>;
+	broken-cd;
+	card-detect-delay = <800>;
+	ignore-pm-notify;
+	keep-power-in-suspend;
+	cd-gpios = <&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>; /* CD GPIO */
+	status = "disabled";
+};
+
 &spdif{
 	compatible = "rockchip,rk3188-spdif";
 	status = "okay";
 	i2c-scl-rising-time-ns = <450>;
 	i2c-scl-falling-time-ns = <15>;
 	#sound-dai-cells = <0>;
-};
-
-&uart0{
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_xfer &uart0_cts>;
-	status = "okay";
 };
 
 &u2phy {
@@ -950,6 +948,12 @@
 	};
 };
 
+&uart0{
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_xfer &uart0_cts>;
+	status = "okay";
+};
+
 &usb_host_ehci {
 	status = "okay";
 };
@@ -962,19 +966,19 @@
 	status = "okay";
 };
 
-&vop {
-	status = "okay";
-};
-
-&vop_mmu {
-	status = "okay";
-};
-
 &vdpu {
 	status = "okay";
 };
 
 &vepu {
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
 	status = "okay";
 };
 

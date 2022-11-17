@@ -139,25 +139,6 @@
 	};
 };
 
-&codec {
-	#sound-dai-cells = <0>;
-	spk-ctl-gpios = <&gpio2 9 GPIO_ACTIVE_HIGH>;
-	spk-mute-delay = <200>;
-	hp-mute-delay = <100>;
-	rk312x_for_mid = <0>;
-	is_rk3128 = <0>;
-	spk_volume = <25>;
-	hp_volume = <25>;
-	capture_volume = <26>;
-	gpio_debug = <1>;
-	codec_hp_det = <0>;
-	status = "okay";
-};
-
-&cpu0 {
-	cpu-supply = <&vdd_arm>;
-};
-
 &cif_new {
 	status = "okay";
 
@@ -176,6 +157,25 @@
 			};
 		};
 	};
+};
+
+&codec {
+	#sound-dai-cells = <0>;
+	spk-ctl-gpios = <&gpio2 9 GPIO_ACTIVE_HIGH>;
+	spk-mute-delay = <200>;
+	hp-mute-delay = <100>;
+	rk312x_for_mid = <0>;
+	is_rk3128 = <0>;
+	spk_volume = <25>;
+	hp_volume = <25>;
+	capture_volume = <26>;
+	gpio_debug = <1>;
+	codec_hp_det = <0>;
+	status = "okay";
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_arm>;
 };
 
 &display_subsystem {
@@ -751,6 +751,10 @@
 	status = "okay";
 };
 
+&mpp_srv {
+	status = "okay";
+};
+
 &nandc {
 	status = "okay";
 };
@@ -792,16 +796,6 @@
 	vref-supply = <&vccadc_ref>;
 };
 
-&sdmmc {
-	cap-mmc-highspeed;
-	supports-sd;
-	card-detect-delay = <800>;
-	ignore-pm-notify;
-	keep-power-in-suspend;
-	cd-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>; /* CD GPIO */
-	status = "disabled";
-};
-
 &sdio {
 	bus-width = <4>;
 	max-frequency = <50000000>;
@@ -812,6 +806,16 @@
 	supports-rk912;
 	/delete-property/ non-removable;
 	status = "okay";
+};
+
+&sdmmc {
+	cap-mmc-highspeed;
+	supports-sd;
+	card-detect-delay = <800>;
+	ignore-pm-notify;
+	keep-power-in-suspend;
+	cd-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>; /* CD GPIO */
+	status = "disabled";
 };
 
 &tsadc {
@@ -849,6 +853,14 @@
 	status = "okay";
 };
 
+&vdpu {
+	status = "okay";
+};
+
+&vepu {
+	status = "okay";
+};
+
 &video_phy {
 	status = "okay";
 };
@@ -858,14 +870,6 @@
 };
 
 &vop_mmu {
-	status = "okay";
-};
-
-&vdpu {
-	status = "okay";
-};
-
-&vepu {
 	status = "okay";
 };
 
