@@ -39,7 +39,6 @@ struct xchk_ag {
 
 	/* AG btree roots */
 	struct xfs_buf		*agf_bp;
-	struct xfs_buf		*agfl_bp;
 	struct xfs_buf		*agi_bp;
 
 	/* AG btrees */

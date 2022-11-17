@@ -424,10 +424,6 @@ xchk_ag_read_headers(
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGF))
 		return error;
 
-	error = xfs_alloc_read_agfl(sa->pag, sc->tp, &sa->agfl_bp);
-	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGFL))
-		return error;
-
 	return 0;
 }
 
@@ -515,10 +511,6 @@ xchk_ag_free(
 	struct xchk_ag		*sa)
 {
 	xchk_ag_btcur_free(sa);
-	if (sa->agfl_bp) {
-		xfs_trans_brelse(sc->tp, sa->agfl_bp);
-		sa->agfl_bp = NULL;
-	}
 	if (sa->agf_bp) {
 		xfs_trans_brelse(sc->tp, sa->agf_bp);
 		sa->agf_bp = NULL;
