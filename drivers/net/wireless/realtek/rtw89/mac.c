@@ -3600,6 +3600,13 @@ int rtw89_mac_set_macid_pause(struct rtw89_dev *rtwdev, u8 macid, bool pause)
 	u8 grp = macid >> 5;
 	int ret;
 
+	/* If this is called by change_interface() in the case of P2P, it could
+	 * be power-off, so ignore this operation.
+	 */
+	if (test_bit(RTW89_FLAG_CHANGING_INTERFACE, rtwdev->flags) &&
+	    !test_bit(RTW89_FLAG_POWERON, rtwdev->flags))
+		return 0;
+
 	ret = rtw89_mac_check_mac_en(rtwdev, RTW89_MAC_0, RTW89_CMAC_SEL);
 	if (ret)
 		return ret;

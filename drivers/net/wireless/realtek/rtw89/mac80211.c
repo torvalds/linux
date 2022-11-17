@@ -174,6 +174,9 @@ static int rtw89_ops_change_interface(struct ieee80211_hw *hw,
 				      enum nl80211_iftype type, bool p2p)
 {
 	struct rtw89_dev *rtwdev = hw->priv;
+	int ret;
+
+	set_bit(RTW89_FLAG_CHANGING_INTERFACE, rtwdev->flags);
 
 	rtw89_debug(rtwdev, RTW89_DBG_STATE, "change vif %pM (%d)->(%d), p2p (%d)->(%d)\n",
 		    vif->addr, vif->type, type, vif->p2p, p2p);
@@ -183,7 +186,13 @@ static int rtw89_ops_change_interface(struct ieee80211_hw *hw,
 	vif->type = type;
 	vif->p2p = p2p;
 
-	return rtw89_ops_add_interface(hw, vif);
+	ret = rtw89_ops_add_interface(hw, vif);
+	if (ret)
+		rtw89_warn(rtwdev, "failed to change interface %d\n", ret);
+
+	clear_bit(RTW89_FLAG_CHANGING_INTERFACE, rtwdev->flags);
+
+	return ret;
 }
 
 static void rtw89_ops_configure_filter(struct ieee80211_hw *hw,
