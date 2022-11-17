@@ -31,6 +31,7 @@
 #define HWCAP_FPHP	(1 << 22)
 #define HWCAP_ASIMDHP	(1 << 23)
 #define HWCAP_ASIMDDP	(1 << 24)
+#define HWCAP_ASIMDFHM	(1 << 25)
 
 /*
  * HWCAP2 flags - for elf_hwcap2 (in kernel) and AT_HWCAP2

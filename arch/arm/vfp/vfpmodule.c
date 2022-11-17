@@ -845,6 +845,12 @@ static int __init vfp_init(void)
 		isar6 = read_cpuid_ext(CPUID_EXT_ISAR6);
 		if (cpuid_feature_extract_field(isar6, 4) == 0x1)
 			elf_hwcap |= HWCAP_ASIMDDP;
+		/*
+		 * Check for the presence of Advanced SIMD Floating point
+		 * half-precision multiplication instructions.
+		 */
+		if (cpuid_feature_extract_field(isar6, 8) == 0x1)
+			elf_hwcap |= HWCAP_ASIMDFHM;
 
 	/* Extract the architecture version on pre-cpuid scheme */
 	} else {
