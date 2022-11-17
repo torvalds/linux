@@ -1253,6 +1253,7 @@ static const char *hwcap_str[] = {
 	"asimdhp",
 	"asimddp",
 	"asimdfhm",
+	"asimdbf16",
 	NULL
 };
 
