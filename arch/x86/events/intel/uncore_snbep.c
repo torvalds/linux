@@ -1372,6 +1372,28 @@ static struct pci_driver snbep_uncore_pci_driver = {
 
 #define NODE_ID_MASK	0x7
 
+/* Each three bits from 0 to 23 of GIDNIDMAP register correspond Node ID. */
+#define GIDNIDMAP(config, id)	(((config) >> (3 * (id))) & 0x7)
+
+static int upi_nodeid_groupid(struct pci_dev *ubox_dev, int nodeid_loc, int idmap_loc,
+			      int *nodeid, int *groupid)
+{
+	int ret;
+
+	/* get the Node ID of the local register */
+	ret = pci_read_config_dword(ubox_dev, nodeid_loc, nodeid);
+	if (ret)
+		goto err;
+
+	*nodeid = *nodeid & NODE_ID_MASK;
+	/* get the Node ID mapping */
+	ret = pci_read_config_dword(ubox_dev, idmap_loc, groupid);
+	if (ret)
+		goto err;
+err:
+	return ret;
+}
+
 /*
  * build pci bus to socket mapping
  */
@@ -1397,13 +1419,8 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 		 * the topology.
 		 */
 		if (nr_node_ids <= 8) {
-			/* get the Node ID of the local register */
-			err = pci_read_config_dword(ubox_dev, nodeid_loc, &config);
-			if (err)
-				break;
-			nodeid = config & NODE_ID_MASK;
-			/* get the Node ID mapping */
-			err = pci_read_config_dword(ubox_dev, idmap_loc, &config);
+			err = upi_nodeid_groupid(ubox_dev, nodeid_loc, idmap_loc,
+						 &nodeid, &config);
 			if (err)
 				break;
 
@@ -1421,7 +1438,7 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 			 * to a particular node.
 			 */
 			for (i = 0; i < 8; i++) {
-				if (nodeid == ((config >> (3 * i)) & 0x7)) {
+				if (nodeid == GIDNIDMAP(config, i)) {
 					if (topology_max_die_per_package() > 1)
 						die_id = i;
 					else
