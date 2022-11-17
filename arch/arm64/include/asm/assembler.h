@@ -615,17 +615,6 @@ alternative_endif
 	.endm
 
 /*
- * Perform the reverse of offset_ttbr1.
- * bic is used as it can cover the immediate value and, in future, won't need
- * to be nop'ed out when dealing with 52-bit kernel VAs.
- */
-	.macro	restore_ttbr1, ttbr
-#ifdef CONFIG_ARM64_VA_BITS_52
-	bic	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
-#endif
-	.endm
-
-/*
  * Arrange a physical address in a TTBR register, taking care of 52-bit
  * addresses.
  *
