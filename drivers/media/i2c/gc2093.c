@@ -1000,7 +1000,7 @@ static int __gc2093_stop_stream(struct gc2093 *gc2093)
 	gc2093->has_init_exp = false;
 	if (gc2093->is_thunderboot) {
 		gc2093->is_first_streamoff = true;
-		return 0;
+		pm_runtime_put(gc2093->dev);
 	}
 	return gc2093_write_reg(gc2093, GC2093_REG_CTRL_MODE,
 				GC2093_MODE_SW_STANDBY);
@@ -1517,7 +1517,10 @@ static int gc2093_probe(struct i2c_client *client,
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	pm_runtime_idle(dev);
+	if (gc2093->is_thunderboot)
+		pm_runtime_get_sync(dev);
+	else
+		pm_runtime_idle(dev);
 
 	return 0;
 
