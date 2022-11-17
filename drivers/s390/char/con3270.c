@@ -1732,6 +1732,8 @@ static void tty3270_do_write(struct tty3270 *tp, struct tty_struct *tty,
 		}
 
 		switch (buf[i_msg]) {
+		case 0x00:
+			break;
 		case 0x07:		/* '\a' -- Alarm */
 			tp->wcc |= TW_PLUSALARM;
 			break;
