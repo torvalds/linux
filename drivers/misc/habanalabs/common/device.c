@@ -386,6 +386,23 @@ bool hl_ctrl_device_operational(struct hl_device *hdev,
 	}
 }
 
+static void print_idle_status_mask(struct hl_device *hdev, const char *message,
+					u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE])
+{
+	u32 pad_width[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {};
+
+	BUILD_BUG_ON(HL_BUSY_ENGINES_MASK_EXT_SIZE != 4);
+
+	pad_width[3] = idle_mask[3] ? 16 : 0;
+	pad_width[2] = idle_mask[2] || pad_width[3] ? 16 : 0;
+	pad_width[1] = idle_mask[1] || pad_width[2] ? 16 : 0;
+	pad_width[0] = idle_mask[0] || pad_width[1] ? 16 : 0;
+
+	dev_err(hdev->dev, "%s (mask %0*llx_%0*llx_%0*llx_%0*llx)\n",
+		message, pad_width[3], idle_mask[3], pad_width[2], idle_mask[2],
+		pad_width[1], idle_mask[1], pad_width[0], idle_mask[0]);
+}
+
 static void hpriv_release(struct kref *ref)
 {
 	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
@@ -416,9 +433,8 @@ static void hpriv_release(struct kref *ref)
 		device_is_idle = hdev->asic_funcs->is_device_idle(hdev, idle_mask,
 							HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL);
 	if (!device_is_idle) {
-		dev_err(hdev->dev,
-			"device not idle after user context is closed (0x%llx_%llx_%llx_%llx)\n",
-			idle_mask[3], idle_mask[2], idle_mask[1], idle_mask[0]);
+		print_idle_status_mask(hdev, "device is not idle after user context is closed",
+					idle_mask);
 		reset_device = true;
 	}
 
@@ -1673,9 +1689,8 @@ kill_processes:
 
 	/* If device is not idle fail the reset process */
 	if (!hdev->asic_funcs->is_device_idle(hdev, idle_mask,
-			HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL)) {
-		dev_err(hdev->dev, "device is not idle (mask 0x%llx_%llx_%llx_%llx) after reset\n",
-			idle_mask[3], idle_mask[2], idle_mask[1], idle_mask[0]);
+						HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL)) {
+		print_idle_status_mask(hdev, "device is not idle after reset", idle_mask);
 		rc = -EIO;
 		goto out_err;
 	}
