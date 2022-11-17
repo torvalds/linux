@@ -1165,8 +1165,10 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 
 	eproto = tracepoint_string("rxkad_tkt_short");
 	abort_code = RXKADPACKETSHORT;
-	if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header) + sizeof(*response),
-			  ticket, ticket_len) < 0)
+	ret = skb_copy_bits(skb, sizeof(struct rxrpc_wire_header) + sizeof(*response),
+			    ticket, ticket_len);
+	if (ret < 0)
+		goto temporary_error_free_ticket;
 
 	ret = rxkad_decrypt_ticket(conn, server_key, skb, ticket, ticket_len,
 				   &session_key, &expiry, _abort_code);
