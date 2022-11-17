@@ -392,6 +392,8 @@ do {									\
 
 void __cmpxchg_user_key_called_with_bad_pointer(void);
 
+#define CMPXCHG_USER_KEY_MAX_LOOPS 128
+
 static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 					      __uint128_t old, __uint128_t new,
 					      unsigned long key, int size)
@@ -401,6 +403,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 	switch (size) {
 	case 1: {
 		unsigned int prev, shift, mask, _old, _new;
+		unsigned long count;
 
 		shift = (3 ^ (address & 3)) << 3;
 		address ^= address & 3;
@@ -410,6 +413,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 		asm volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
+			"	llill	%[count],%[max_loops]\n"
 			"0:	l	%[prev],%[address]\n"
 			"1:	nr	%[prev],%[mask]\n"
 			"	xilf	%[mask],0xffffffff\n"
@@ -421,7 +425,8 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 			"	xr	%[tmp],%[prev]\n"
 			"	xr	%[new],%[tmp]\n"
 			"	nr	%[tmp],%[mask]\n"
-			"	jz	2b\n"
+			"	jnz	5f\n"
+			"	brct	%[count],2b\n"
 			"5:	sacf	768\n"
 			"	spka	%[default_key]\n"
 			EX_TABLE_UA_LOAD_REG(0b, 5b, %[rc], %[prev])
@@ -433,15 +438,20 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 			  [address] "+Q" (*(int *)address),
 			  [tmp] "+&d" (_old),
 			  [new] "+&d" (_new),
-			  [mask] "+&d" (mask)
-			: [key] "a" (key << 4),
-			  [default_key] "J" (PAGE_DEFAULT_KEY)
+			  [mask] "+&d" (mask),
+			  [count] "=a" (count)
+			: [key] "%[count]" (key << 4),
+			  [default_key] "J" (PAGE_DEFAULT_KEY),
+			  [max_loops] "J" (CMPXCHG_USER_KEY_MAX_LOOPS)
 			: "memory", "cc");
 		*(unsigned char *)uval = prev >> shift;
+		if (!count)
+			rc = -EAGAIN;
 		return rc;
 	}
 	case 2: {
 		unsigned int prev, shift, mask, _old, _new;
+		unsigned long count;
 
 		shift = (2 ^ (address & 2)) << 3;
 		address ^= address & 2;
@@ -451,6 +461,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 		asm volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
+			"	llill	%[count],%[max_loops]\n"
 			"0:	l	%[prev],%[address]\n"
 			"1:	nr	%[prev],%[mask]\n"
 			"	xilf	%[mask],0xffffffff\n"
@@ -462,7 +473,8 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 			"	xr	%[tmp],%[prev]\n"
 			"	xr	%[new],%[tmp]\n"
 			"	nr	%[tmp],%[mask]\n"
-			"	jz	2b\n"
+			"	jnz	5f\n"
+			"	brct	%[count],2b\n"
 			"5:	sacf	768\n"
 			"	spka	%[default_key]\n"
 			EX_TABLE_UA_LOAD_REG(0b, 5b, %[rc], %[prev])
@@ -474,11 +486,15 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 			  [address] "+Q" (*(int *)address),
 			  [tmp] "+&d" (_old),
 			  [new] "+&d" (_new),
-			  [mask] "+&d" (mask)
-			: [key] "a" (key << 4),
-			  [default_key] "J" (PAGE_DEFAULT_KEY)
+			  [mask] "+&d" (mask),
+			  [count] "=a" (count)
+			: [key] "%[count]" (key << 4),
+			  [default_key] "J" (PAGE_DEFAULT_KEY),
+			  [max_loops] "J" (CMPXCHG_USER_KEY_MAX_LOOPS)
 			: "memory", "cc");
 		*(unsigned short *)uval = prev >> shift;
+		if (!count)
+			rc = -EAGAIN;
 		return rc;
 	}
 	case 4:	{
@@ -568,6 +584,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
  *
  * Return:     0: cmpxchg executed
  *	       -EFAULT: an exception happened when trying to access *@ptr
+ *	       -EAGAIN: maxed out number of retries (byte and short only)
  */
 #define cmpxchg_user_key(ptr, uval, old, new, key)			\
 ({									\
