@@ -396,7 +396,5 @@ long get_tagged_addr_ctrl(struct task_struct *task);
 #define GET_TAGGED_ADDR_CTRL()		get_tagged_addr_ctrl(current)
 #endif
 
-#define on_thread_stack()	(on_task_stack(current, current_stack_pointer, 1))
-
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_PROCESSOR_H */
