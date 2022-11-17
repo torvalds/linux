@@ -183,11 +183,18 @@ struct uncore_iio_topology {
 	int segment;
 };
 
+struct uncore_upi_topology {
+	int die_to;
+	int pmu_idx_to;
+	int enabled;
+};
+
 struct intel_uncore_topology {
 	int pmu_idx;
 	union {
 		void *untyped;
 		struct uncore_iio_topology *iio;
+		struct uncore_upi_topology *upi;
 	};
 };
 

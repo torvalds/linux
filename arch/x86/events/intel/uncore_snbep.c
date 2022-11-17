@@ -3774,11 +3774,13 @@ static int die_to_cpu(int die)
 
 enum {
 	IIO_TOPOLOGY_TYPE,
+	UPI_TOPOLOGY_TYPE,
 	TOPOLOGY_MAX
 };
 
 static const size_t topology_size[TOPOLOGY_MAX] = {
-	sizeof(*((struct intel_uncore_topology *)NULL)->iio)
+	sizeof(*((struct intel_uncore_topology *)NULL)->iio),
+	sizeof(*((struct intel_uncore_topology *)NULL)->upi)
 };
 
 static int pmu_alloc_topology(struct intel_uncore_type *type, int topology_type)
