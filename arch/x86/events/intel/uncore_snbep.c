@@ -3837,14 +3837,14 @@ static void pmu_free_topology(struct intel_uncore_type *type)
 	}
 }
 
-static int skx_iio_get_topology(struct intel_uncore_type *type)
+static int skx_pmu_get_topology(struct intel_uncore_type *type,
+				 int (*topology_cb)(struct intel_uncore_type*, int, int, u64))
 {
 	int die, ret = -EPERM;
-	u64 configuration;
-	int idx;
+	u64 cpu_bus_msr;
 
 	for (die = 0; die < uncore_max_dies(); die++) {
-		ret = skx_msr_cpu_bus_read(die_to_cpu(die), &configuration);
+		ret = skx_msr_cpu_bus_read(die_to_cpu(die), &cpu_bus_msr);
 		if (ret)
 			break;
 
@@ -3852,15 +3852,33 @@ static int skx_iio_get_topology(struct intel_uncore_type *type)
 		if (ret < 0)
 			break;
 
-		for (idx = 0; idx < type->num_boxes; idx++) {
-			type->topology[die][idx].pmu_idx = idx;
-			type->topology[die][idx].iio->segment = ret;
-			type->topology[die][idx].iio->pci_bus_no =
-				(configuration >> (idx * BUS_NUM_STRIDE)) & 0xff;
-		}
+		ret = topology_cb(type, ret, die, cpu_bus_msr);
+		if (ret)
+			break;
 	}
 
 	return ret;
+}
+
+static int skx_iio_topology_cb(struct intel_uncore_type *type, int segment,
+				int die, u64 cpu_bus_msr)
+{
+	int idx;
+	struct intel_uncore_topology *t;
+
+	for (idx = 0; idx < type->num_boxes; idx++) {
+		t = &type->topology[die][idx];
+		t->pmu_idx = idx;
+		t->iio->segment = segment;
+		t->iio->pci_bus_no = (cpu_bus_msr >> (idx * BUS_NUM_STRIDE)) & 0xff;
+	}
+
+	return 0;
+}
+
+static int skx_iio_get_topology(struct intel_uncore_type *type)
+{
+	return skx_pmu_get_topology(type, skx_iio_topology_cb);
 }
 
 static struct attribute_group skx_iio_mapping_group = {
