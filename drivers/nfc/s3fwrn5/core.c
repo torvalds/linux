@@ -105,6 +105,7 @@ static int s3fwrn5_nci_send(struct nci_dev *ndev, struct sk_buff *skb)
 	mutex_lock(&info->mutex);
 
 	if (s3fwrn5_get_mode(info) != S3FWRN5_MODE_NCI) {
+		kfree_skb(skb);
 		mutex_unlock(&info->mutex);
 		return -EINVAL;
 	}
