@@ -604,7 +604,7 @@ static int exfat_find(struct inode *dir, struct qstr *qname,
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_inode_info *ei = EXFAT_I(dir);
 	struct exfat_dentry *ep, *ep2;
-	struct exfat_entry_set_cache *es;
+	struct exfat_entry_set_cache es;
 	/* for optimized dir & entry to prevent long traverse of cluster chain */
 	struct exfat_hint hint_opt;
 
@@ -644,11 +644,10 @@ static int exfat_find(struct inode *dir, struct qstr *qname,
 	if (cdir.flags & ALLOC_NO_FAT_CHAIN)
 		cdir.size -= dentry / sbi->dentries_per_clu;
 	dentry = hint_opt.eidx;
-	es = exfat_get_dentry_set(sb, &cdir, dentry, ES_2_ENTRIES);
-	if (!es)
+	if (exfat_get_dentry_set(&es, sb, &cdir, dentry, ES_2_ENTRIES))
 		return -EIO;
-	ep = exfat_get_dentry_cached(es, 0);
-	ep2 = exfat_get_dentry_cached(es, 1);
+	ep = exfat_get_dentry_cached(&es, 0);
+	ep2 = exfat_get_dentry_cached(&es, 1);
 
 	info->type = exfat_get_entry_type(ep);
 	info->attr = le16_to_cpu(ep->dentry.file.attr);
@@ -677,7 +676,7 @@ static int exfat_find(struct inode *dir, struct qstr *qname,
 			     ep->dentry.file.access_time,
 			     ep->dentry.file.access_date,
 			     0);
-	exfat_free_dentry_set(es, false);
+	exfat_free_dentry_set(&es, false);
 
 	if (ei->start_clu == EXFAT_FREE_CLUSTER) {
 		exfat_fs_error(sb,
