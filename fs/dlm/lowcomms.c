@@ -569,10 +569,7 @@ int dlm_lowcomms_nodes_set_mark(int nodeid, unsigned int mark)
 static void lowcomms_error_report(struct sock *sk)
 {
 	struct connection *con = sock2con(sk);
-	void (*orig_report)(struct sock *) = NULL;
 	struct inet_sock *inet;
-
-	orig_report = listen_sock.sk_error_report;
 
 	inet = inet_sk(sk);
 	switch (sk->sk_family) {
@@ -618,8 +615,7 @@ static void lowcomms_error_report(struct sock *sk)
 		queue_work(send_workqueue, &con->swork);
 
 out:
-	if (orig_report)
-		orig_report(sk);
+	listen_sock.sk_error_report(sk);
 }
 
 static void restore_callbacks(struct socket *sock)
