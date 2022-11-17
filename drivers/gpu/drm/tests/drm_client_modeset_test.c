@@ -96,3 +96,8 @@ static struct kunit_suite drm_test_pick_cmdline_test_suite = {
 };
 
 kunit_test_suite(drm_test_pick_cmdline_test_suite);
+
+/*
+ * This file is included directly by drm_client_modeset.c so we can't
+ * use any MODULE_* macro here.
+ */
