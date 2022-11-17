@@ -3954,6 +3954,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	struct dc_state *context;
 	enum surface_update_type update_type;
 	int i;
+	struct mall_temp_config mall_temp_config;
 
 	/* In cases where MPO and split or ODM are used transitions can
 	 * cause underflow. Apply stream configuration with minimal pipe
@@ -3985,11 +3986,29 @@ bool dc_update_planes_and_stream(struct dc *dc,
 
 	/* on plane removal, minimal state is the new one */
 	if (force_minimal_pipe_splitting && !is_plane_addition) {
+		/* Since all phantom pipes are removed in full validation,
+		 * we have to save and restore the subvp/mall config when
+		 * we do a minimal transition since the flags marking the
+		 * pipe as subvp/phantom will be cleared (dc copy constructor
+		 * creates a shallow copy).
+		 */
+		if (dc->res_pool->funcs->save_mall_state)
+			dc->res_pool->funcs->save_mall_state(dc, context, &mall_temp_config);
 		if (!commit_minimal_transition_state(dc, context)) {
 			dc_release_state(context);
 			return false;
 		}
+		if (dc->res_pool->funcs->restore_mall_state)
+			dc->res_pool->funcs->restore_mall_state(dc, context, &mall_temp_config);
 
+		/* If we do a minimal transition with plane removal and the context
+		 * has subvp we also have to retain back the phantom stream / planes
+		 * since the refcount is decremented as part of the min transition
+		 * (we commit a state with no subvp, so the phantom streams / planes
+		 * had to be removed).
+		 */
+		if (dc->res_pool->funcs->retain_phantom_pipes)
+			dc->res_pool->funcs->retain_phantom_pipes(dc, context);
 		update_type = UPDATE_TYPE_FULL;
 	}
 

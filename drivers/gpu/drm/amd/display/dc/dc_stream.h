@@ -160,6 +160,17 @@ struct mall_stream_config {
 	struct dc_stream_state *paired_stream;	// master / slave stream
 };
 
+/* Temp struct used to save and restore MALL config
+ * during validation.
+ *
+ * TODO: Move MALL config into dc_state instead of stream struct
+ * to avoid needing to save/restore.
+ */
+struct mall_temp_config {
+	struct mall_stream_config mall_stream_config[MAX_PIPES];
+	bool is_phantom_plane[MAX_PIPES];
+};
+
 struct dc_stream_state {
 	// sink is deprecated, new code should not reference
 	// this pointer

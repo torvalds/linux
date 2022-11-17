@@ -45,17 +45,6 @@
 extern struct _vcs_dpi_ip_params_st dcn3_2_ip;
 extern struct _vcs_dpi_soc_bounding_box_st dcn3_2_soc;
 
-/* Temp struct used to save and restore MALL config
- * during validation.
- *
- * TODO: Move MALL config into dc_state instead of stream struct
- * to avoid needing to save/restore.
- */
-struct mall_temp_config {
-	struct mall_stream_config mall_stream_config[MAX_PIPES];
-	bool is_phantom_plane[MAX_PIPES];
-};
-
 struct dcn32_resource_pool {
 	struct resource_pool base;
 };
