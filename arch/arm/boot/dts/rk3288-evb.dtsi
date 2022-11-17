@@ -197,6 +197,15 @@
 		regulator-boot-on;
 	};
 
+	vcc_otg_vbus: otg-vbus-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&otg_vbus_drv>;
+		regulator-name = "vcc_otg_vbus";
+	};
+
 	vcc_phy: vcc-phy-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -447,6 +456,10 @@
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins = <0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
+
+		otg_vbus_drv: otg-bus-drv {
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
 	};
 
 	eth_phy {
@@ -461,10 +474,20 @@
 };
 
 &usb_host0_ehci {
+	rockchip-relinquish-port;
+	status = "okay";
+};
+
+&usb_host0_ohci {
 	status = "okay";
 };
 
 &usb_host1 {
+	status = "okay";
+};
+
+&usb_otg {
+	vbus-supply = <&vcc_otg_vbus>;
 	status = "okay";
 };
 
