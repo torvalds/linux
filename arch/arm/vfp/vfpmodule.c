@@ -857,6 +857,12 @@ static int __init vfp_init(void)
 		 */
 		if (cpuid_feature_extract_field(isar6, 20) == 0x1)
 			elf_hwcap |= HWCAP_ASIMDBF16;
+		/*
+		 * Check for the presence of Advanced SIMD and floating point
+		 * Int8 matrix multiplication instructions instructions.
+		 */
+		if (cpuid_feature_extract_field(isar6, 24) == 0x1)
+			elf_hwcap |= HWCAP_I8MM;
 
 	/* Extract the architecture version on pre-cpuid scheme */
 	} else {

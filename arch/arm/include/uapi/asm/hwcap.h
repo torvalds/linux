@@ -33,6 +33,7 @@
 #define HWCAP_ASIMDDP	(1 << 24)
 #define HWCAP_ASIMDFHM	(1 << 25)
 #define HWCAP_ASIMDBF16	(1 << 26)
+#define HWCAP_I8MM	(1 << 27)
 
 /*
  * HWCAP2 flags - for elf_hwcap2 (in kernel) and AT_HWCAP2
