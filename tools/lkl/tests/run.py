@@ -63,6 +63,7 @@ tests = [
     'lklfuse.sh -t btrfs',
     'lklfuse.sh -t vfat',
     'lklfuse.sh -t xfs',
+    'config',
     'hijack-test.sh',
     'disk-vfio-pci.sh -t ext4 run',
     'disk-vfio-pci.sh -t btrfs run',

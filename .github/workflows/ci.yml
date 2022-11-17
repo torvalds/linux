@@ -13,9 +13,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - displayTargetName: ubuntu-20.04
+          - displayTargetName: ubuntu-22.04
             os: unix
-            runs_on: ubuntu-20.04
+            runs_on: ubuntu-22.04
             shell: bash
           - displayTargetName: windows-2019
             os: windows
@@ -87,7 +87,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt update -y
-          sudo apt install -y ccache
+          sudo apt install -y ccache libjsmn-dev
       - name: Install patched binutils for Windows
         if: runner.os == 'Windows'
         run: |

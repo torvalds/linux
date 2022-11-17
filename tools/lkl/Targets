@@ -25,4 +25,4 @@ progs-y += tests/boot
 progs-y += tests/disk
 progs-y += tests/disk-vfio-pci
 progs-y += tests/net-test
-
+progs-y += tests/config

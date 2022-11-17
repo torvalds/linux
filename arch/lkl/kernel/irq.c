@@ -32,7 +32,7 @@ static inline unsigned long test_and_clear_irq_index_status(void)
 
 static inline unsigned long test_and_clear_irq_status(int index)
 {
-	if (!&irq_status[index])
+	if (!irq_status[index])
 		return 0;
 	return __sync_fetch_and_and(&irq_status[index], 0);
 }

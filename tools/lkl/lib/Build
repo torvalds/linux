@@ -23,5 +23,4 @@ liblkl-$(LKL_HOST_CONFIG_VIRTIO_NET_VDE) += virtio_net_vde.o
 liblkl-$(LKL_HOST_CONFIG_VIRTIO_NET_FD) += virtio_net_pipe.o
 liblkl-$(LKL_HOST_CONFIG_NT64) += virtio_net_wintap.o
 liblkl-$(LKL_HOST_CONFIG_VFIO_PCI) += vfio_pci.o
-liblkl-y += ../../perf/pmu-events/jsmn.o
 liblkl-y += config.o
