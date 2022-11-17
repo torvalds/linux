@@ -3924,7 +3924,7 @@ static void pmu_clear_mapping_attr(const struct attribute_group **groups,
 	}
 }
 
-static int
+static void
 pmu_set_mapping(struct intel_uncore_type *type, struct attribute_group *ag,
 		ssize_t (*show)(struct device*, struct device_attribute*, char*),
 		int topology_type)
@@ -3942,8 +3942,6 @@ pmu_set_mapping(struct intel_uncore_type *type, struct attribute_group *ag,
 	ret = type->get_topology(type);
 	if (ret < 0)
 		goto clear_topology;
-
-	ret = -ENOMEM;
 
 	/* One more for NULL. */
 	attrs = kcalloc((uncore_max_dies() + 1), sizeof(*attrs), GFP_KERNEL);
@@ -3968,7 +3966,7 @@ pmu_set_mapping(struct intel_uncore_type *type, struct attribute_group *ag,
 	}
 	ag->attrs = attrs;
 
-	return 0;
+	return;
 err:
 	for (; die >= 0; die--)
 		kfree(eas[die].attr.attr.name);
@@ -3979,7 +3977,6 @@ clear_topology:
 	pmu_free_topology(type);
 clear_attr_update:
 	pmu_clear_mapping_attr(type->attr_update, ag);
-	return ret;
 }
 
 static void
@@ -3998,15 +3995,15 @@ pmu_cleanup_mapping(struct intel_uncore_type *type, struct attribute_group *ag)
 	pmu_free_topology(type);
 }
 
-static int
+static void
 pmu_iio_set_mapping(struct intel_uncore_type *type, struct attribute_group *ag)
 {
-	return pmu_set_mapping(type, ag, skx_iio_mapping_show, IIO_TOPOLOGY_TYPE);
+	pmu_set_mapping(type, ag, skx_iio_mapping_show, IIO_TOPOLOGY_TYPE);
 }
 
-static int skx_iio_set_mapping(struct intel_uncore_type *type)
+static void skx_iio_set_mapping(struct intel_uncore_type *type)
 {
-	return pmu_iio_set_mapping(type, &skx_iio_mapping_group);
+	pmu_iio_set_mapping(type, &skx_iio_mapping_group);
 }
 
 static void skx_iio_cleanup_mapping(struct intel_uncore_type *type)
@@ -4382,15 +4379,15 @@ static const struct attribute_group *skx_upi_attr_update[] = {
 	NULL
 };
 
-static int
+static void
 pmu_upi_set_mapping(struct intel_uncore_type *type, struct attribute_group *ag)
 {
-	return pmu_set_mapping(type, ag, skx_upi_mapping_show, UPI_TOPOLOGY_TYPE);
+	pmu_set_mapping(type, ag, skx_upi_mapping_show, UPI_TOPOLOGY_TYPE);
 }
 
-static int skx_upi_set_mapping(struct intel_uncore_type *type)
+static void skx_upi_set_mapping(struct intel_uncore_type *type)
 {
-	return pmu_upi_set_mapping(type, &skx_upi_mapping_group);
+	pmu_upi_set_mapping(type, &skx_upi_mapping_group);
 }
 
 static void skx_upi_cleanup_mapping(struct intel_uncore_type *type)
@@ -4773,9 +4770,9 @@ static int snr_iio_get_topology(struct intel_uncore_type *type)
 	return sad_cfg_iio_topology(type, snr_sad_pmon_mapping);
 }
 
-static int snr_iio_set_mapping(struct intel_uncore_type *type)
+static void snr_iio_set_mapping(struct intel_uncore_type *type)
 {
-	return pmu_iio_set_mapping(type, &snr_iio_mapping_group);
+	pmu_iio_set_mapping(type, &snr_iio_mapping_group);
 }
 
 static void snr_iio_cleanup_mapping(struct intel_uncore_type *type)
@@ -5391,14 +5388,14 @@ static int icx_iio_get_topology(struct intel_uncore_type *type)
 	return sad_cfg_iio_topology(type, icx_sad_pmon_mapping);
 }
 
-static int icx_iio_set_mapping(struct intel_uncore_type *type)
+static void icx_iio_set_mapping(struct intel_uncore_type *type)
 {
 	/* Detect ICX-D system. This case is not supported */
 	if (boot_cpu_data.x86_model == INTEL_FAM6_ICELAKE_D) {
 		pmu_clear_mapping_attr(type->attr_update, &icx_iio_mapping_group);
-		return -EPERM;
+		return;
 	}
-	return pmu_iio_set_mapping(type, &icx_iio_mapping_group);
+	pmu_iio_set_mapping(type, &icx_iio_mapping_group);
 }
 
 static void icx_iio_cleanup_mapping(struct intel_uncore_type *type)
@@ -5656,9 +5653,9 @@ static const struct attribute_group *icx_upi_attr_update[] = {
 	NULL
 };
 
-static int icx_upi_set_mapping(struct intel_uncore_type *type)
+static void icx_upi_set_mapping(struct intel_uncore_type *type)
 {
-	return pmu_upi_set_mapping(type, &icx_upi_mapping_group);
+	pmu_upi_set_mapping(type, &icx_upi_mapping_group);
 }
 
 static void icx_upi_cleanup_mapping(struct intel_uncore_type *type)
@@ -6125,9 +6122,9 @@ static const struct attribute_group *spr_upi_attr_update[] = {
 
 #define SPR_UPI_REGS_ADDR_DEVICE_LINK0	0x01
 
-static int spr_upi_set_mapping(struct intel_uncore_type *type)
+static void spr_upi_set_mapping(struct intel_uncore_type *type)
 {
-	return pmu_upi_set_mapping(type, &spr_upi_mapping_group);
+	pmu_upi_set_mapping(type, &spr_upi_mapping_group);
 }
 
 static void spr_upi_cleanup_mapping(struct intel_uncore_type *type)
