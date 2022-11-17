@@ -254,8 +254,8 @@ test_vcap_xn_rule_creator(struct kunit *test, int cid, enum vcap_user user,
 			  u16 priority,
 			  int id, int size, int expected_addr)
 {
-	struct vcap_rule *rule = 0;
-	struct vcap_rule_internal *ri = 0;
+	struct vcap_rule *rule;
+	struct vcap_rule_internal *ri;
 	enum vcap_keyfield_set keyset = VCAP_KFS_NO_VALUE;
 	enum vcap_actionfield_set actionset = VCAP_AFS_NO_VALUE;
 	int ret;
@@ -339,7 +339,7 @@ static void vcap_api_set_bit_1_test(struct kunit *test)
 		.sw_width = 52,
 		.reg_idx = 1,
 		.reg_bitpos = 20,
-		.tg = 0
+		.tg = NULL,
 	};
 	u32 stream[2] = {0};
 
@@ -356,7 +356,7 @@ static void vcap_api_set_bit_0_test(struct kunit *test)
 		.sw_width = 52,
 		.reg_idx = 2,
 		.reg_bitpos = 11,
-		.tg = 0
+		.tg = NULL,
 	};
 	u32 stream[3] = {~0, ~0, ~0};
 
@@ -1324,8 +1324,8 @@ static void vcap_api_encode_rule_test(struct kunit *test)
 			.actionstream = actdata,
 		},
 	};
-	struct vcap_rule *rule = 0;
-	struct vcap_rule_internal *ri = 0;
+	struct vcap_rule *rule;
+	struct vcap_rule_internal *ri;
 	int vcap_chain_id = 10005;
 	enum vcap_user user = VCAP_USER_VCAP_UTIL;
 	u16 priority = 10;
