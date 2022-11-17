@@ -1543,7 +1543,7 @@ static size_t btf_dump_name_dups(struct btf_dump *d, struct hashmap *name_map,
 	if (!new_name)
 		return 1;
 
-	hashmap__find(name_map, orig_name, &dup_cnt);
+	(void)hashmap__find(name_map, orig_name, &dup_cnt);
 	dup_cnt++;
 
 	err = hashmap__set(name_map, new_name, dup_cnt, &old_name, NULL);
