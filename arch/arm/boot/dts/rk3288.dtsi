@@ -1139,6 +1139,24 @@
 		status = "disabled";
 	};
 
+	rkisp1: rkisp1@ff910000 {
+		compatible = "rockchip,rk3288-rkisp1";
+		reg = <0x0 0xff910000 0x0 0x4000>;
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp_irq";
+		clocks = <&cru SCLK_ISP>, <&cru ACLK_ISP>,
+			<&cru HCLK_ISP>, <&cru PCLK_ISP_IN>,
+			<&cru SCLK_ISP_JPE>;
+		clock-names = "clk_isp", "aclk_isp",
+			"hclk_isp", "pclk_isp_in",
+			"sclk_isp_jpe";
+		assigned-clocks = <&cru SCLK_ISP>, <&cru SCLK_ISP_JPE>;
+		assigned-clock-rates = <400000000>, <400000000>;
+		power-domains = <&power RK3288_PD_VIO>;
+		iommus = <&isp_mmu>;
+		status = "disabled";
+	};
+
 	isp_mmu: iommu@ff914000 {
 		compatible = "rockchip,iommu";
 		reg = <0x0 0xff914000 0x0 0x100>, <0x0 0xff915000 0x0 0x100>;
@@ -1283,6 +1301,24 @@
 		power-domains = <&power RK3288_PD_VIO>;
 		#iommu-cells = <0>;
 		rockchip,disable-device-link-resume;
+		status = "disabled";
+	};
+
+	cif: cif@ff950000 {
+		compatible = "rockchip,cif", "rockchip,rk3288-cif";
+		reg = <0x0 0xff950000 0x0 0x400>;
+		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VIP>, <&cru HCLK_VIP>,
+			<&cru PCLK_VIP_IN>, <&cru SCLK_VIP_OUT>;
+		clock-names = "aclk_cif0", "hclk_cif0",
+				"cif0_in", "cif0_out";
+		resets = <&cru SRST_VIP>;
+		reset-names = "rst_cif";
+		pinctrl-names = "cif_pin_all";
+		pinctrl-0 = <&isp_mipi &isp_dvp_d2d9 &isp_dvp_d10d11>;
+		rockchip,grf = <&grf>;
+		rockchip,cru = <&cru>;
+		power-domains = <&power RK3288_PD_VIO>;
 		status = "disabled";
 	};
 
@@ -2416,6 +2452,33 @@
 				rockchip,pins =
 					/* ISP_FLASHTRIGOU */
 					<7 RK_PB5 2 &pcfg_pull_none>;
+			};
+		};
+
+		cif_pin {
+			cif_dvp_d0d1: cif-dvp-d0d1 {
+				rockchip,pins =	<2 RK_PB4 1 &pcfg_pull_none>, /* cif_data0 */
+						<2 RK_PB5 1 &pcfg_pull_none>; /* cif_data1 */
+			};
+
+			cif_dvp_d2d9: cif-dvp-d2d9 {
+				rockchip,pins =	<2 RK_PA0 1 &pcfg_pull_none>, /* cif_data2 */
+						<2 RK_PA1 1 &pcfg_pull_none>, /* cif_data3 */
+						<2 RK_PA2 1 &pcfg_pull_none>, /* cif_data4 */
+						<2 RK_PA3 1 &pcfg_pull_none>, /* cif_data5 */
+						<2 RK_PA4 1 &pcfg_pull_none>, /* cif_data6 */
+						<2 RK_PA5 1 &pcfg_pull_none>, /* cif_data7 */
+						<2 RK_PA6 1 &pcfg_pull_none>, /* cif_data8 */
+						<2 RK_PA7 1 &pcfg_pull_none>, /* cif_data9 */
+						<2 RK_PB0 1 &pcfg_pull_none>, /* cif_sync */
+						<2 RK_PB1 1 &pcfg_pull_none>, /* cif_href */
+						<2 RK_PB2 1 &pcfg_pull_none>, /* cif_clkin */
+						<2 RK_PB3 1 &pcfg_pull_none>; /* cif_clkout */
+			};
+
+			cif_dvp_d10d11: cif-dvp-d10d11 {
+				rockchip,pins = <2 RK_PB6 1 &pcfg_pull_none>, /* cif_data10 */
+						<2 RK_PB7 1 &pcfg_pull_none>; /* cif_data11 */
 			};
 		};
 	};
