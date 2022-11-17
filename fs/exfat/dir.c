@@ -818,7 +818,7 @@ int exfat_get_dentry_set(struct exfat_entry_set_cache *es,
 		unsigned int type)
 {
 	int ret, i, num_bh;
-	unsigned int off, byte_offset, clu = 0;
+	unsigned int off;
 	sector_t sec;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_dentry *ep;
@@ -831,26 +831,15 @@ int exfat_get_dentry_set(struct exfat_entry_set_cache *es,
 		return -EIO;
 	}
 
-	byte_offset = EXFAT_DEN_TO_B(entry);
-	ret = exfat_walk_fat_chain(sb, p_dir, byte_offset, &clu);
+	ret = exfat_find_location(sb, p_dir, entry, &sec, &off);
 	if (ret)
 		return ret;
 
 	memset(es, 0, sizeof(*es));
 	es->sb = sb;
 	es->modified = false;
-
-	/* byte offset in cluster */
-	byte_offset = EXFAT_CLU_OFFSET(byte_offset, sbi);
-
-	/* byte offset in sector */
-	off = EXFAT_BLK_OFFSET(byte_offset, sb);
 	es->start_off = off;
 	es->bh = es->__bh;
-
-	/* sector offset in cluster */
-	sec = EXFAT_B_TO_BLK(byte_offset, sb);
-	sec += exfat_cluster_to_sector(sbi, clu);
 
 	bh = sb_bread(sb, sec);
 	if (!bh)
@@ -878,6 +867,8 @@ int exfat_get_dentry_set(struct exfat_entry_set_cache *es,
 	for (i = 1; i < num_bh; i++) {
 		/* get the next sector */
 		if (exfat_is_last_sector_in_cluster(sbi, sec)) {
+			unsigned int clu = exfat_sector_to_cluster(sbi, sec);
+
 			if (p_dir->flags == ALLOC_NO_FAT_CHAIN)
 				clu++;
 			else if (exfat_get_next_cluster(sb, &clu))
