@@ -479,10 +479,10 @@ static void dlm_receive_buffer_3_2_trace(uint32_t seq, union dlm_packet *p)
 {
 	switch (p->header.h_cmd) {
 	case DLM_MSG:
-		trace_dlm_recv_message(seq, &p->message);
+		trace_dlm_recv_message(dlm_our_nodeid(), seq, &p->message);
 		break;
 	case DLM_RCOM:
-		trace_dlm_recv_rcom(seq, &p->rcom);
+		trace_dlm_recv_rcom(dlm_our_nodeid(), seq, &p->rcom);
 		break;
 	default:
 		break;
@@ -1151,11 +1151,13 @@ static void dlm_midcomms_commit_msg_3_2_trace(const struct dlm_mhandle *mh,
 {
 	switch (mh->inner_p->header.h_cmd) {
 	case DLM_MSG:
-		trace_dlm_send_message(mh->seq, &mh->inner_p->message,
+		trace_dlm_send_message(mh->node->nodeid, mh->seq,
+				       &mh->inner_p->message,
 				       name, namelen);
 		break;
 	case DLM_RCOM:
-		trace_dlm_send_rcom(mh->seq, &mh->inner_p->rcom);
+		trace_dlm_send_rcom(mh->node->nodeid, mh->seq,
+				    &mh->inner_p->rcom);
 		break;
 	default:
 		/* nothing to trace */
