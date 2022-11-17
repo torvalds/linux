@@ -8,6 +8,7 @@
 #include <dt-bindings/pinctrl/pinctrl-tegra-io-pad.h>
 #include <dt-bindings/power/tegra234-powergate.h>
 #include <dt-bindings/reset/tegra234-reset.h>
+#include <dt-bindings/thermal/tegra234-bpmp-thermal.h>
 
 / {
 	compatible = "nvidia,tegra234";
@@ -3027,6 +3028,11 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};
+
+		bpmp_thermal: thermal {
+			compatible = "nvidia,tegra186-bpmp-thermal";
+			#thermal-sensor-cells = <1>;
+		};
 	};
 
 	cpus {
@@ -3515,6 +3521,53 @@
 		assigned-clock-parents = <0>,
 					 <&bpmp TEGRA234_CLK_PLLA>,
 					 <&bpmp TEGRA234_CLK_PLLA_OUT0>;
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_CPU>;
+			status = "disabled";
+		};
+
+		gpu-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_GPU>;
+			status = "disabled";
+		};
+
+		cv0-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_CV0>;
+			status = "disabled";
+		};
+
+		cv1-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_CV1>;
+			status = "disabled";
+		};
+
+		cv2-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_CV2>;
+			status = "disabled";
+		};
+
+		soc0-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_SOC0>;
+			status = "disabled";
+		};
+
+		soc1-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_SOC1>;
+			status = "disabled";
+		};
+
+		soc2-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_SOC2>;
+			status = "disabled";
+		};
+
+		tj-thermal {
+			thermal-sensors = <&{/bpmp/thermal} TEGRA234_BPMP_THERMAL_ZONE_TJ_MAX>;
+			status = "disabled";
+		};
 	};
 
 	timer {
