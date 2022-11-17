@@ -2564,6 +2564,8 @@ int nfp_net_init(struct nfp_net *nn)
 		err = nfp_net_tls_init(nn);
 		if (err)
 			goto err_clean_mbox;
+
+		nfp_net_ipsec_init(nn);
 	}
 
 	nfp_net_vecs_init(nn);
@@ -2587,6 +2589,7 @@ void nfp_net_clean(struct nfp_net *nn)
 		return;
 
 	unregister_netdev(nn->dp.netdev);
+	nfp_net_ipsec_clean(nn);
 	nfp_ccm_mbox_clean(nn);
 	nfp_net_reconfig_wait_posted(nn);
 }
