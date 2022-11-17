@@ -13,6 +13,7 @@
 
 #else	/* !CONFIG_MEMORY_RELINQUISH */
 
+static inline bool kvm_has_memrelinquish_services(void) { return false; }
 static inline void page_relinquish(struct page *page) { }
 
 #endif	/* CONFIG_MEMORY_RELINQUISH */

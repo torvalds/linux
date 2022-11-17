@@ -36,6 +36,12 @@ void kvm_init_memrelinquish_services(void)
 	memshare_granule_sz = res.a0;
 }
 
+bool kvm_has_memrelinquish_services(void)
+{
+	return !!memshare_granule_sz;
+}
+EXPORT_SYMBOL_GPL(kvm_has_memrelinquish_services);
+
 void page_relinquish(struct page *page)
 {
 	phys_addr_t phys, end;
