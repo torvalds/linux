@@ -631,7 +631,6 @@ out:
 	b->flags		= 0;
 	b->written		= 0;
 	b->nsets		= 0;
-	b->write_type		= 0;
 	b->sib_u64s[0]		= 0;
 	b->sib_u64s[1]		= 0;
 	b->whiteout_u64s	= 0;

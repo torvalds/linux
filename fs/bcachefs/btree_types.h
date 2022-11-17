@@ -77,7 +77,6 @@ struct btree {
 	u8			nsets;
 	u8			nr_key_bits;
 	u16			version_ondisk;
-	u8			write_type;
 
 	struct bkey_format	format;
 
@@ -445,6 +444,23 @@ struct btree_trans {
 	struct replicas_delta_list *fs_usage_deltas;
 };
 
+#define BCH_BTREE_WRITE_TYPES()						\
+	x(initial,		0)					\
+	x(init_next_bset,	1)					\
+	x(cache_reclaim,	2)					\
+	x(journal_reclaim,	3)					\
+	x(interior,		4)
+
+enum btree_write_type {
+#define x(t, n) BTREE_WRITE_##t,
+	BCH_BTREE_WRITE_TYPES()
+#undef x
+	BTREE_WRITE_TYPE_NR,
+};
+
+#define BTREE_WRITE_TYPE_MASK	(roundup_pow_of_two(BTREE_WRITE_TYPE_NR) - 1)
+#define BTREE_WRITE_TYPE_BITS	ilog2(roundup_pow_of_two(BTREE_WRITE_TYPE_NR))
+
 #define BTREE_FLAGS()							\
 	x(read_in_flight)						\
 	x(read_error)							\
@@ -464,6 +480,8 @@ struct btree_trans {
 	x(never_write)
 
 enum btree_flags {
+	/* First bits for btree node write type */
+	BTREE_NODE_FLAGS_START = BTREE_WRITE_TYPE_BITS - 1,
 #define x(flag)	BTREE_NODE_##flag,
 	BTREE_FLAGS()
 #undef x

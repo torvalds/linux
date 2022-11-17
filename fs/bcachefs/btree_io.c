@@ -1636,6 +1636,7 @@ static void __btree_node_write_done(struct bch_fs *c, struct btree *b)
 {
 	struct btree_write *w = btree_prev_write(b);
 	unsigned long old, new, v;
+	unsigned type = 0;
 
 	bch2_btree_complete_write(c, b, w);
 
@@ -1654,6 +1655,9 @@ static void __btree_node_write_done(struct bch_fs *c, struct btree *b)
 			new |=  (1U << BTREE_NODE_write_in_flight_inner);
 			new |=  (1U << BTREE_NODE_just_written);
 			new ^=  (1U << BTREE_NODE_write_idx);
+
+			type = new & BTREE_WRITE_TYPE_MASK;
+			new &= ~BTREE_WRITE_TYPE_MASK;
 		} else {
 			new &= ~(1U << BTREE_NODE_write_in_flight);
 			new &= ~(1U << BTREE_NODE_write_in_flight_inner);
@@ -1661,7 +1665,7 @@ static void __btree_node_write_done(struct bch_fs *c, struct btree *b)
 	} while ((v = cmpxchg(&b->flags, old, new)) != old);
 
 	if (new & (1U << BTREE_NODE_write_in_flight))
-		__bch2_btree_node_write(c, b, BTREE_WRITE_ALREADY_STARTED|b->write_type);
+		__bch2_btree_node_write(c, b, BTREE_WRITE_ALREADY_STARTED|type);
 	else
 		wake_up_bit(&b->flags, BTREE_NODE_write_in_flight);
 }
@@ -1846,6 +1850,10 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, unsigned flags)
 		if (old & (1 << BTREE_NODE_write_in_flight))
 			return;
 
+		if (flags & BTREE_WRITE_ONLY_IF_NEED)
+			type = new & BTREE_WRITE_TYPE_MASK;
+		new &= ~BTREE_WRITE_TYPE_MASK;
+
 		new &= ~(1 << BTREE_NODE_dirty);
 		new &= ~(1 << BTREE_NODE_need_write);
 		new |=  (1 << BTREE_NODE_write_in_flight);
@@ -1857,10 +1865,6 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b, unsigned flags)
 	if (new & (1U << BTREE_NODE_need_write))
 		return;
 do_write:
-	if ((flags & BTREE_WRITE_ONLY_IF_NEED))
-		type = b->write_type;
-	b->write_type = 0;
-
 	BUG_ON((type == BTREE_WRITE_initial) != (b->written == 0));
 
 	atomic_dec(&c->btree_cache.dirty);

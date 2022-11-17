@@ -627,23 +627,6 @@ typedef struct {
 #define BCACHEFS_ROOT_SUBVOL_INUM					\
 	((subvol_inum) { BCACHEFS_ROOT_SUBVOL,	BCACHEFS_ROOT_INO })
 
-#define BCH_BTREE_WRITE_TYPES()						\
-	x(initial,		0)					\
-	x(init_next_bset,	1)					\
-	x(cache_reclaim,	2)					\
-	x(journal_reclaim,	3)					\
-	x(interior,		4)
-
-enum btree_write_type {
-#define x(t, n) BTREE_WRITE_##t,
-	BCH_BTREE_WRITE_TYPES()
-#undef x
-	BTREE_WRITE_TYPE_NR,
-};
-
-#define BTREE_WRITE_TYPE_MASK	(roundup_pow_of_two(BTREE_WRITE_TYPE_NR) - 1)
-#define BTREE_WRITE_TYPE_BITS	ilog2(BTREE_WRITE_TYPE_MASK)
-
 struct bch_fs {
 	struct closure		cl;
 
