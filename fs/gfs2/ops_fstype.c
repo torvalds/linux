@@ -1590,12 +1590,6 @@ static int gfs2_reconfigure(struct fs_context *fc)
 		fc->sb_flags |= SB_RDONLY;
 
 	if ((sb->s_flags ^ fc->sb_flags) & SB_RDONLY) {
-		struct gfs2_holder freeze_gh;
-
-		error = gfs2_freeze_lock_shared(sdp, &freeze_gh, 0);
-		if (error)
-			return -EINVAL;
-
 		if (fc->sb_flags & SB_RDONLY) {
 			gfs2_make_fs_ro(sdp);
 		} else {
@@ -1603,7 +1597,6 @@ static int gfs2_reconfigure(struct fs_context *fc)
 			if (error)
 				errorfc(fc, "unable to remount read-write");
 		}
-		gfs2_freeze_unlock(&freeze_gh);
 	}
 	sdp->sd_args = *newargs;
 
