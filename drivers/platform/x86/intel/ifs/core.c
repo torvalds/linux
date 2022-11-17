@@ -4,6 +4,7 @@
 #include <linux/module.h>
 #include <linux/kdev_t.h>
 #include <linux/semaphore.h>
+#include <linux/slab.h>
 
 #include <asm/cpu_device_id.h>
 
@@ -34,6 +35,7 @@ static int __init ifs_init(void)
 {
 	const struct x86_cpu_id *m;
 	u64 msrval;
+	int ret;
 
 	m = x86_match_cpu(ifs_cpu_ids);
 	if (!m)
@@ -50,16 +52,26 @@ static int __init ifs_init(void)
 
 	ifs_device.misc.groups = ifs_get_groups();
 
-	if ((msrval & BIT(ifs_device.data.integrity_cap_bit)) &&
-	    !misc_register(&ifs_device.misc))
-		return 0;
+	if (!(msrval & BIT(ifs_device.data.integrity_cap_bit)))
+		return -ENODEV;
 
-	return -ENODEV;
+	ifs_device.data.pkg_auth = kmalloc_array(topology_max_packages(), sizeof(bool), GFP_KERNEL);
+	if (!ifs_device.data.pkg_auth)
+		return -ENOMEM;
+
+	ret = misc_register(&ifs_device.misc);
+	if (ret) {
+		kfree(ifs_device.data.pkg_auth);
+		return ret;
+	}
+
+	return 0;
 }
 
 static void __exit ifs_exit(void)
 {
 	misc_deregister(&ifs_device.misc);
+	kfree(ifs_device.data.pkg_auth);
 }
 
 module_init(ifs_init);
