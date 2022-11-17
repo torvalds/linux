@@ -198,6 +198,7 @@ struct mchp_spdiftx_dev {
 	struct clk				*pclk;
 	struct clk				*gclk;
 	unsigned int				fmt;
+	unsigned int				suspend_irq;
 };
 
 static inline int mchp_spdiftx_is_running(struct mchp_spdiftx_dev *dev)
@@ -318,16 +319,25 @@ static int mchp_spdiftx_trigger(struct snd_pcm_substream *substream, int cmd,
 	running = !!(mr & SPDIFTX_MR_TXEN_ENABLE);
 
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_START:
+		regmap_write(dev->regmap, SPDIFTX_IER, dev->suspend_irq |
+			     SPDIFTX_IR_TXUDR | SPDIFTX_IR_TXOVR);
+		dev->suspend_irq = 0;
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (!running) {
 			mr &= ~SPDIFTX_MR_TXEN_MASK;
 			mr |= SPDIFTX_MR_TXEN_ENABLE;
 		}
 		break;
-	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
+		regmap_read(dev->regmap, SPDIFTX_IMR, &dev->suspend_irq);
+		fallthrough;
+	case SNDRV_PCM_TRIGGER_STOP:
+		regmap_write(dev->regmap, SPDIFTX_IDR, dev->suspend_irq |
+			     SPDIFTX_IR_TXUDR | SPDIFTX_IR_TXOVR);
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (running) {
 			mr &= ~SPDIFTX_MR_TXEN_MASK;
@@ -507,10 +517,6 @@ static int mchp_spdiftx_hw_params(struct snd_pcm_substream *substream,
 	dev_dbg(dev->dev, "%s(): GCLK set to %d\n", __func__,
 		params_rate(params) * SPDIFTX_GCLK_RATIO);
 
-	/* Enable interrupts */
-	regmap_write(dev->regmap, SPDIFTX_IER,
-		     SPDIFTX_IR_TXUDR | SPDIFTX_IR_TXOVR);
-
 	regmap_write(dev->regmap, SPDIFTX_MR, mr);
 
 	return 0;
@@ -520,9 +526,6 @@ static int mchp_spdiftx_hw_free(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct mchp_spdiftx_dev *dev = snd_soc_dai_get_drvdata(dai);
-
-	regmap_write(dev->regmap, SPDIFTX_IDR,
-		     SPDIFTX_IR_TXUDR | SPDIFTX_IR_TXOVR);
 
 	return regmap_write(dev->regmap, SPDIFTX_CR,
 			    SPDIFTX_CR_SWRST | SPDIFTX_CR_FCLR);
@@ -785,6 +788,7 @@ disable_pclk:
 }
 
 static const struct dev_pm_ops mchp_spdiftx_pm_ops = {
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 	RUNTIME_PM_OPS(mchp_spdiftx_runtime_suspend, mchp_spdiftx_runtime_resume,
 		       NULL)
 };
