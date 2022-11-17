@@ -1557,7 +1557,7 @@ static void tty3270_goto_xy(struct tty3270 *tp, int cx, int cy)
  */
 static void tty3270_escape_sequence(struct tty3270 *tp, char ch)
 {
-	enum { ESnormal, ESesc, ESsquare, ESgetpars };
+	enum { ESnormal, ESesc, ESsquare, ESparen, ESgetpars };
 
 	if (tp->esc_state == ESnormal) {
 		if (ch == 0x1b)
@@ -1570,6 +1570,9 @@ static void tty3270_escape_sequence(struct tty3270 *tp, char ch)
 		switch (ch) {
 		case '[':
 			tp->esc_state = ESsquare;
+			break;
+		case '(':
+			tp->esc_state = ESparen;
 			break;
 		case 'E':
 			tty3270_cr(tp);
@@ -1604,15 +1607,28 @@ static void tty3270_escape_sequence(struct tty3270 *tp, char ch)
 		}
 		return;
 	}
-	if (tp->esc_state == ESsquare) {
+
+	switch (tp->esc_state) {
+	case ESparen:
+		tp->esc_state = ESnormal;
+		switch (ch) {
+		case 'B':
+			tp->attributes.alternate_charset = 0;
+			break;
+		case '0':
+			tp->attributes.alternate_charset = 1;
+			break;
+		}
+		return;
+	case ESsquare:
 		tp->esc_state = ESgetpars;
 		memset(tp->esc_par, 0, sizeof(tp->esc_par));
 		tp->esc_npar = 0;
 		tp->esc_ques = (ch == '?');
 		if (tp->esc_ques)
 			return;
-	}
-	if (tp->esc_state == ESgetpars) {
+		fallthrough;
+	case ESgetpars:
 		if (ch == ';' && tp->esc_npar < ESCAPE_NPAR - 1) {
 			tp->esc_npar++;
 			return;
@@ -1622,6 +1638,9 @@ static void tty3270_escape_sequence(struct tty3270 *tp, char ch)
 			tp->esc_par[tp->esc_npar] += ch - '0';
 			return;
 		}
+		break;
+	default:
+		break;
 	}
 	tp->esc_state = ESnormal;
 	if (ch == 'n' && !tp->esc_ques) {
