@@ -77,6 +77,7 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 	__u32 len = sizeof(info);
 	struct epoll_event *e;
 	struct ring *r;
+	__u64 mmap_sz;
 	void *tmp;
 	int err;
 
@@ -115,8 +116,7 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 	r->mask = info.max_entries - 1;
 
 	/* Map writable consumer page */
-	tmp = mmap(NULL, rb->page_size, PROT_READ | PROT_WRITE, MAP_SHARED,
-		   map_fd, 0);
+	tmp = mmap(NULL, rb->page_size, PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, 0);
 	if (tmp == MAP_FAILED) {
 		err = -errno;
 		pr_warn("ringbuf: failed to mmap consumer page for map fd=%d: %d\n",
@@ -129,8 +129,12 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 	 * data size to allow simple reading of samples that wrap around the
 	 * end of a ring buffer. See kernel implementation for details.
 	 * */
-	tmp = mmap(NULL, rb->page_size + 2 * info.max_entries, PROT_READ,
-		   MAP_SHARED, map_fd, rb->page_size);
+	mmap_sz = rb->page_size + 2 * (__u64)info.max_entries;
+	if (mmap_sz != (__u64)(size_t)mmap_sz) {
+		pr_warn("ringbuf: ring buffer size (%u) is too big\n", info.max_entries);
+		return libbpf_err(-E2BIG);
+	}
+	tmp = mmap(NULL, (size_t)mmap_sz, PROT_READ, MAP_SHARED, map_fd, rb->page_size);
 	if (tmp == MAP_FAILED) {
 		err = -errno;
 		ringbuf_unmap_ring(rb, r);
@@ -348,6 +352,7 @@ static int user_ringbuf_map(struct user_ring_buffer *rb, int map_fd)
 {
 	struct bpf_map_info info;
 	__u32 len = sizeof(info);
+	__u64 mmap_sz;
 	void *tmp;
 	struct epoll_event *rb_epoll;
 	int err;
@@ -384,8 +389,13 @@ static int user_ringbuf_map(struct user_ring_buffer *rb, int map_fd)
 	 * simple reading and writing of samples that wrap around the end of
 	 * the buffer.  See the kernel implementation for details.
 	 */
-	tmp = mmap(NULL, rb->page_size + 2 * info.max_entries,
-		   PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, rb->page_size);
+	mmap_sz = rb->page_size + 2 * (__u64)info.max_entries;
+	if (mmap_sz != (__u64)(size_t)mmap_sz) {
+		pr_warn("user ringbuf: ring buf size (%u) is too big\n", info.max_entries);
+		return -E2BIG;
+	}
+	tmp = mmap(NULL, (size_t)mmap_sz, PROT_READ | PROT_WRITE, MAP_SHARED,
+		   map_fd, rb->page_size);
 	if (tmp == MAP_FAILED) {
 		err = -errno;
 		pr_warn("user ringbuf: failed to mmap data pages for map fd=%d: %d\n",
@@ -475,6 +485,10 @@ void *user_ring_buffer__reserve(struct user_ring_buffer *rb, __u32 size)
 	/* 64-bit to avoid overflow in case of extreme application behavior */
 	__u64 cons_pos, prod_pos;
 	struct ringbuf_hdr *hdr;
+
+	/* The top two bits are used as special flags */
+	if (size & (BPF_RINGBUF_BUSY_BIT | BPF_RINGBUF_DISCARD_BIT))
+		return errno = E2BIG, NULL;
 
 	/* Synchronizes with smp_store_release() in __bpf_user_ringbuf_peek() in
 	 * the kernel.
