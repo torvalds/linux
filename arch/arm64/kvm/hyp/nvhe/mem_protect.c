@@ -1078,11 +1078,11 @@ static int guest_complete_donation(u64 addr, const struct pkvm_mem_transition *t
 	u64 size = tx->nr_pages * PAGE_SIZE;
 	int err;
 
-	if (tx->initiator.id == PKVM_ID_HOST &&
-	    pkvm_ipa_in_pvmfw_region(vm, addr)) {
+	if (pkvm_ipa_range_has_pvmfw(vm, addr, addr + size)) {
 		if (WARN_ON(!pkvm_hyp_vcpu_is_protected(vcpu)))
 			return -EPERM;
 
+		WARN_ON(tx->initiator.id != PKVM_ID_HOST);
 		err = pkvm_load_pvmfw_pages(vm, addr, phys, size);
 		if (err)
 			return err;
