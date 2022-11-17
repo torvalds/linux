@@ -1332,10 +1332,10 @@ static int __gc3003_stop_stream(struct gc3003 *gc3003)
 	int ret;
 
 	gc3003->has_init_exp = false;
-
-	if (gc3003->is_thunderboot)
+	if (gc3003->is_thunderboot) {
 		gc3003->is_first_streamoff = true;
-
+		pm_runtime_put(&gc3003->client->dev);
+	}
 	ret = gc3003_write_array(gc3003->client, gc3003->cur_mode->stand_by_reg_list);
 
 	return ret;
@@ -1994,7 +1994,10 @@ static int gc3003_probe(struct i2c_client *client,
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	pm_runtime_idle(dev);
+	if (gc3003->is_thunderboot)
+		pm_runtime_get_sync(dev);
+	else
+		pm_runtime_idle(dev);
 
 	return 0;
 
