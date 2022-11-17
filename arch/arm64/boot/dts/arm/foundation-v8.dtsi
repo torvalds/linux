@@ -85,6 +85,11 @@
 			     <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	spe-pmu {
+		compatible = "arm,statistical-profiling-extension-v1";
+		interrupts = <GIC_PPI 5 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	watchdog@2a440000 {
 		compatible = "arm,sbsa-gwdt";
 		reg = <0x0 0x2a440000 0 0x1000>,
