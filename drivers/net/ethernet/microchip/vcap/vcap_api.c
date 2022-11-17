@@ -1249,9 +1249,9 @@ int vcap_del_rule(struct vcap_control *vctrl, struct net_device *ndev, u32 id)
 	vctrl->ops->init(ndev, admin, admin->last_used_addr, ri->size + gap);
 	kfree(ri);
 
-	/* Update the last used address */
+	/* Update the last used address, set to default when no rules */
 	if (list_empty(&admin->rules)) {
-		admin->last_used_addr = admin->last_valid_addr;
+		admin->last_used_addr = admin->last_valid_addr + 1;
 	} else {
 		elem = list_last_entry(&admin->rules, struct vcap_rule_internal,
 				       list);
