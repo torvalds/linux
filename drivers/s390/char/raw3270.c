@@ -421,8 +421,19 @@ raw3270_size_device_vm(struct raw3270 *rp)
 	int rc, model;
 	struct ccw_dev_id dev_id;
 	struct diag210 diag_data;
+	struct diag8c diag8c_data;
 
 	ccw_device_get_id(rp->cdev, &dev_id);
+	rc = diag8c(&diag8c_data, &dev_id);
+	if (!rc) {
+		rp->model = 2;
+		rp->rows = diag8c_data.height;
+		rp->cols = diag8c_data.width;
+		if (diag8c_data.flags & 1)
+			set_bit(RAW3270_FLAGS_14BITADDR, &rp->flags);
+		return;
+	}
+
 	diag_data.vrdcdvno = dev_id.devno;
 	diag_data.vrdclen = sizeof(struct diag210);
 	rc = diag210(&diag_data);
