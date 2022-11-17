@@ -44,5 +44,6 @@
 #define HWCAP2_SHA2	(1 << 3)
 #define HWCAP2_CRC32	(1 << 4)
 #define HWCAP2_SB	(1 << 5)
+#define HWCAP2_SSBS	(1 << 6)
 
 #endif /* _UAPI__ASMARM_HWCAP_H */
