@@ -776,3 +776,7 @@ struct dentry *vcap_debugfs(struct device *dev, struct dentry *parent,
 	return dir;
 }
 EXPORT_SYMBOL_GPL(vcap_debugfs);
+
+#ifdef CONFIG_VCAP_KUNIT_TEST
+#include "vcap_api_debugfs_kunit.c"
+#endif
