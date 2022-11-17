@@ -1802,6 +1802,10 @@ static int calculate_effective_freq(struct pl022 *pl022, int freq, struct
 	WARN(!best_freq, "pl022: Matching cpsdvsr and scr not found for %d Hz rate\n",
 			freq);
 
+	if (best_freq != freq)
+		dev_warn(&pl022->adev->dev,
+		"Requested frequency: %d Hz is unsupported,select by default %d Hz\n",
+			freq, best_freq);
 	clk_freq->cpsdvsr = (u8) (best_cpsdvsr & 0xFF);
 	clk_freq->scr = (u8) (best_scr & 0xFF);
 	dev_dbg(&pl022->adev->dev,
@@ -1841,6 +1845,7 @@ static const struct pl022_config_chip pl022_default_chip_info = {
  * controller hardware here, that is not done until the actual transfer
  * commence.
  */
+
 static int pl022_setup(struct spi_device *spi)
 {
 	struct pl022_config_chip const *chip_info;
@@ -2537,6 +2542,7 @@ static int starfive_of_pl022_probe(struct platform_device *pdev)
 	};
 	struct amba_device *pcdev;
 	struct device *dev = &pdev->dev;
+	struct pl022 *pl022;
 
 	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev), GFP_KERNEL);
 	if (!pcdev)
@@ -2562,7 +2568,7 @@ static int starfive_of_pl022_probe(struct platform_device *pdev)
 
 	ret = pl022_probe(pcdev, &id);
 
-	struct pl022 *pl022 = amba_get_drvdata(pcdev);
+	pl022 = amba_get_drvdata(pcdev);
 
 	pl022->master->dev.parent = &pdev->dev;
 	platform_set_drvdata(pdev, pl022);
