@@ -301,7 +301,7 @@ examples:
             };
 
             conn-therm@47 {
-                reg = <PM8350_ADC7_AMUX_THM4_100K_PU>;
+                reg = <PM8350_ADC7_AMUX_THM4_100K_PU(1)>;
                 qcom,ratiometric;
                 qcom,hw-settle-time = <200>;
             };
