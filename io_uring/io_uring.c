@@ -854,19 +854,14 @@ static void __io_req_complete_put(struct io_kiocb *req)
 	}
 }
 
-void __io_req_complete_post(struct io_kiocb *req)
-{
-	if (!(req->flags & REQ_F_CQE_SKIP))
-		__io_fill_cqe_req(req->ctx, req);
-	__io_req_complete_put(req);
-}
-
 void io_req_complete_post(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
 	io_cq_lock(ctx);
-	__io_req_complete_post(req);
+	if (!(req->flags & REQ_F_CQE_SKIP))
+		__io_fill_cqe_req(ctx, req);
+	__io_req_complete_put(req);
 	io_cq_unlock_post(ctx);
 }
 
