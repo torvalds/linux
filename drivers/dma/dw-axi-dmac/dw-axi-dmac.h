@@ -99,10 +99,12 @@ struct axi_dma_chip {
 	void __iomem		*apb_regs;
 	struct clk		*core_clk;
 	struct clk		*cfgr_clk;
+	struct clk		*axi_clk;
 	struct dw_axi_dma	*dw;
 	struct dma_multi	multi;
 	struct reset_control	*rst_core;
 	struct reset_control	*rst_cfgr;
+	struct reset_control	*rst_axi;
 };
 
 /* LLI == Linked List Item */

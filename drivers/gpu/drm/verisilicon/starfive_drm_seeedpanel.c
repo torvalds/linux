@@ -355,7 +355,6 @@ static int seeed_panel_get_modes(struct drm_panel *panel,
 	connector->display_info.height_mm = 86;
 	drm_display_info_set_bus_formats(&connector->display_info,
 				&bus_format, 1);
-
 	return num;
 }
 
@@ -380,7 +379,6 @@ static int seeed_panel_probe(struct i2c_client *client, const struct i2c_device_
 		.channel = 0, //0,
 		.node = NULL,
 	};
-
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_warn(&client->dev,
 			 "I2C adapter doesn't support I2C_FUNC_SMBUS_BYTE\n");
@@ -506,7 +504,7 @@ static struct mipi_dsi_driver seeed_dsi_driver = {
 	.probe = seeed_dsi_probe,
 };
 
-int init_seeed_panel(void)
+static int __init init_seeed_panel(void)
 {
 	int err;
 
@@ -514,14 +512,16 @@ int init_seeed_panel(void)
 	err = i2c_add_driver(&seeed_panel_driver);
 	return err;
 }
-EXPORT_SYMBOL(init_seeed_panel);
+module_init(init_seeed_panel);
 
-void exit_seeed_panel(void)
+static void __exit exit_seeed_panel(void)
 {
 	i2c_del_driver(&seeed_panel_driver);
 	mipi_dsi_driver_unregister(&seeed_dsi_driver);
 }
-EXPORT_SYMBOL(exit_seeed_panel);
+module_exit(exit_seeed_panel);
 
-MODULE_DESCRIPTION("A driver for seeed_panel");
-MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Eric Anholt <eric@anholt.net>");
+MODULE_DESCRIPTION("Raspberry Pi 7-inch touchscreen driver");
+MODULE_LICENSE("GPL v2");
+

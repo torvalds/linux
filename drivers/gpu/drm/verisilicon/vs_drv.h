@@ -68,10 +68,4 @@ static inline bool is_iommu_enabled(struct drm_device *dev)
 extern struct platform_driver inno_hdmi_driver;
 #endif
 
-#ifdef CONFIG_STARFIVE_DSI
-extern int init_seeed_panel(void);
-extern void exit_seeed_panel(void);
-extern struct platform_driver starfive_dsi_platform_driver;
-#endif
-
 #endif /* __VS_DRV_H__ */

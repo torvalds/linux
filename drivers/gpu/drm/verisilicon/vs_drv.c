@@ -7,6 +7,7 @@
 #include <linux/component.h>
 #include <linux/iommu.h>
 #include <linux/version.h>
+#include <linux/delay.h>
 
 #include <drm/drm_of.h>
 #include <drm/drm_crtc.h>
@@ -34,6 +35,10 @@
 #include "vs_dc.h"
 #include "vs_virtual.h"
 #include "dw_mipi_dsi.h"
+
+#include <linux/pm_runtime.h>
+#include <linux/clk.h>
+#include <linux/reset.h>
 
 extern struct platform_driver starfive_encoder_driver;
 
@@ -299,9 +304,6 @@ static struct platform_driver *drm_sub_drivers[] = {
 #ifdef CONFIG_STARFIVE_INNO_HDMI
 	&inno_hdmi_driver,
 #endif
-#ifdef CONFIG_STARFIVE_DSI
-	&starfive_dsi_platform_driver,
-#endif
 
 	&simple_encoder_driver,
 
@@ -415,6 +417,7 @@ static int vs_drm_platform_remove(struct platform_device *pdev)
 static int vs_drm_suspend(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
+	dev_info(dev, "vs_drm_suspend\n");
 
 	return drm_mode_config_helper_suspend(drm);
 }
@@ -422,13 +425,13 @@ static int vs_drm_suspend(struct device *dev)
 static int vs_drm_resume(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
+	dev_info(dev, "vs_drm_resume\n");
 
 	return drm_mode_config_helper_resume(drm);
 }
 #endif
 
 static SIMPLE_DEV_PM_OPS(vs_drm_pm_ops, vs_drm_suspend, vs_drm_resume);
-
 
 static const struct of_device_id vs_drm_dt_ids[] = {
 
