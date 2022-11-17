@@ -369,7 +369,7 @@ void test_single_step_from_userspace(int test_cnt)
 						KVM_GUESTDBG_SINGLESTEP;
 				ss_enable = true;
 			} else {
-				debug.control = SINGLE_STEP_DISABLE;
+				debug.control = KVM_GUESTDBG_ENABLE;
 				ss_enable = false;
 			}
 
