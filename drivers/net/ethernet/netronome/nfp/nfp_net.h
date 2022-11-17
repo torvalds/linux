@@ -541,6 +541,7 @@ struct nfp_net_dp {
  * @id:			vNIC id within the PF (0 for VFs)
  * @fw_ver:		Firmware version
  * @cap:                Capabilities advertised by the Firmware
+ * @cap_w1:             Extended capabilities word advertised by the Firmware
  * @max_mtu:            Maximum support MTU advertised by the Firmware
  * @rss_hfunc:		RSS selected hash function
  * @rss_cfg:            RSS configuration
@@ -617,6 +618,7 @@ struct nfp_net {
 	u32 id;
 
 	u32 cap;
+	u32 cap_w1;
 	u32 max_mtu;
 
 	u8 rss_hfunc;
