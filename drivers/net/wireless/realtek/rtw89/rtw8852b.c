@@ -2512,6 +2512,7 @@ const struct rtw89_chip_info rtw8852b_chip_info = {
 	.c2h_ctrl_reg		= R_AX_C2HREG_CTRL,
 	.c2h_regs		= rtw8852b_c2h_regs,
 	.page_regs		= &rtw8852b_page_regs,
+	.cfo_src_fd		= true,
 	.dcfo_comp		= &rtw8852b_dcfo_comp,
 	.dcfo_comp_sft		= 3,
 	.imr_info		= &rtw8852b_imr_info,

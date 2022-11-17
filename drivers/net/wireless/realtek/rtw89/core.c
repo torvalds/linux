@@ -1196,7 +1196,11 @@ static void rtw89_core_parse_phy_status_ie01(struct rtw89_dev *rtwdev, u8 *addr,
 	if (phy_ppdu->rate < RTW89_HW_RATE_OFDM6)
 		return;
 	/* sign conversion for S(12,2) */
-	cfo = sign_extend32(RTW89_GET_PHY_STS_IE01_CFO(addr), 11);
+	if (rtwdev->chip->cfo_src_fd)
+		cfo = sign_extend32(RTW89_GET_PHY_STS_IE01_FD_CFO(addr), 11);
+	else
+		cfo = sign_extend32(RTW89_GET_PHY_STS_IE01_PREMB_CFO(addr), 11);
+
 	rtw89_phy_cfo_parse(rtwdev, cfo, phy_ppdu);
 }
 
