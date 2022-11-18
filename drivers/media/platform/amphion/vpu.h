@@ -13,6 +13,7 @@
 #include <linux/mailbox_controller.h>
 #include <linux/kfifo.h>
 
+#define VPU_TIMEOUT_WAKEUP	msecs_to_jiffies(200)
 #define VPU_TIMEOUT		msecs_to_jiffies(1000)
 #define VPU_INST_NULL_ID	(-1L)
 #define VPU_MSG_BUFFER_SIZE	(8192)
