@@ -17,6 +17,7 @@
 #include "util/metricgroup.h"
 #include "util/string2.h"
 #include "util/strlist.h"
+#include "util/strbuf.h"
 #include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
 #include <linux/zalloc.h>
@@ -250,45 +251,56 @@ static void json_print_end(void *ps)
 	printf("%s]\n", print_state->need_sep ? "\n" : "");
 }
 
-static void fix_escape_printf(const char *fmt, ...)
+static void fix_escape_printf(struct strbuf *buf, const char *fmt, ...)
 {
 	va_list args;
-	char buf[2048];
-	size_t buf_pos = 0;
 
 	va_start(args, fmt);
+	strbuf_setlen(buf, 0);
 	for (size_t fmt_pos = 0; fmt_pos < strlen(fmt); fmt_pos++) {
 		switch (fmt[fmt_pos]) {
-		case '%': {
-			const char *s = va_arg(args, const char*);
-
+		case '%':
 			fmt_pos++;
-			assert(fmt[fmt_pos] == 's');
-			for (size_t s_pos = 0; s_pos < strlen(s); s_pos++) {
-				switch (s[s_pos]) {
-				case '\\':
-					__fallthrough;
-				case '\"':
-					buf[buf_pos++] = '\\';
-					assert(buf_pos < sizeof(buf));
-					__fallthrough;
-				default:
-					buf[buf_pos++] = s[s_pos];
-					assert(buf_pos < sizeof(buf));
-					break;
+			switch (fmt[fmt_pos]) {
+			case 's': {
+				const char *s = va_arg(args, const char*);
+
+				strbuf_addstr(buf, s);
+				break;
+			}
+			case 'S': {
+				const char *s = va_arg(args, const char*);
+
+				for (size_t s_pos = 0; s_pos < strlen(s); s_pos++) {
+					switch (s[s_pos]) {
+					case '\n':
+						strbuf_addstr(buf, "\\n");
+						break;
+					case '\\':
+						__fallthrough;
+					case '\"':
+						strbuf_addch(buf, '\\');
+						__fallthrough;
+					default:
+						strbuf_addch(buf, s[s_pos]);
+						break;
+					}
 				}
+				break;
+			}
+			default:
+				pr_err("Unexpected format character '%c'\n", fmt[fmt_pos]);
+				strbuf_addch(buf, '%');
+				strbuf_addch(buf, fmt[fmt_pos]);
 			}
 			break;
-		}
 		default:
-			buf[buf_pos++] = fmt[fmt_pos];
-			assert(buf_pos < sizeof(buf));
+			strbuf_addch(buf, fmt[fmt_pos]);
 			break;
 		}
 	}
 	va_end(args);
-	buf[buf_pos] = '\0';
-	fputs(buf, stdout);
+	fputs(buf->buf, stdout);
 }
 
 static void json_print_event(void *ps, const char *pmu_name, const char *topic,
@@ -301,62 +313,71 @@ static void json_print_event(void *ps, const char *pmu_name, const char *topic,
 {
 	struct json_print_state *print_state = ps;
 	bool need_sep = false;
+	struct strbuf buf;
 
+	strbuf_init(&buf, 0);
 	printf("%s{\n", print_state->need_sep ? ",\n" : "");
 	print_state->need_sep = true;
 	if (pmu_name) {
-		fix_escape_printf("\t\"Unit\": \"%s\"", pmu_name);
+		fix_escape_printf(&buf, "\t\"Unit\": \"%S\"", pmu_name);
 		need_sep = true;
 	}
 	if (topic) {
-		fix_escape_printf("%s\t\"Topic\": \"%s\"", need_sep ? ",\n" : "", topic);
+		fix_escape_printf(&buf, "%s\t\"Topic\": \"%S\"", need_sep ? ",\n" : "", topic);
 		need_sep = true;
 	}
 	if (event_name) {
-		fix_escape_printf("%s\t\"EventName\": \"%s\"", need_sep ? ",\n" : "", event_name);
+		fix_escape_printf(&buf, "%s\t\"EventName\": \"%S\"", need_sep ? ",\n" : "",
+				  event_name);
 		need_sep = true;
 	}
 	if (event_alias && strlen(event_alias)) {
-		fix_escape_printf("%s\t\"EventAlias\": \"%s\"", need_sep ? ",\n" : "", event_alias);
+		fix_escape_printf(&buf, "%s\t\"EventAlias\": \"%S\"", need_sep ? ",\n" : "",
+				  event_alias);
 		need_sep = true;
 	}
 	if (scale_unit && strlen(scale_unit)) {
-		fix_escape_printf("%s\t\"ScaleUnit\": \"%s\"", need_sep ? ",\n" : "",
+		fix_escape_printf(&buf, "%s\t\"ScaleUnit\": \"%S\"", need_sep ? ",\n" : "",
 				  scale_unit);
 		need_sep = true;
 	}
 	if (event_type_desc) {
-		fix_escape_printf("%s\t\"EventType\": \"%s\"", need_sep ? ",\n" : "",
+		fix_escape_printf(&buf, "%s\t\"EventType\": \"%S\"", need_sep ? ",\n" : "",
 				  event_type_desc);
 		need_sep = true;
 	}
 	if (deprecated) {
-		fix_escape_printf("%s\t\"Deprecated\": \"%s\"", need_sep ? ",\n" : "",
+		fix_escape_printf(&buf, "%s\t\"Deprecated\": \"%S\"", need_sep ? ",\n" : "",
 				  deprecated ? "1" : "0");
 		need_sep = true;
 	}
 	if (desc) {
-		fix_escape_printf("%s\t\"BriefDescription\": \"%s\"", need_sep ? ",\n" : "", desc);
+		fix_escape_printf(&buf, "%s\t\"BriefDescription\": \"%S\"", need_sep ? ",\n" : "",
+				  desc);
 		need_sep = true;
 	}
 	if (long_desc) {
-		fix_escape_printf("%s\t\"PublicDescription\": \"%s\"", need_sep ? ",\n" : "",
+		fix_escape_printf(&buf, "%s\t\"PublicDescription\": \"%S\"", need_sep ? ",\n" : "",
 				  long_desc);
 		need_sep = true;
 	}
 	if (encoding_desc) {
-		fix_escape_printf("%s\t\"Encoding\": \"%s\"", need_sep ? ",\n" : "", encoding_desc);
+		fix_escape_printf(&buf, "%s\t\"Encoding\": \"%S\"", need_sep ? ",\n" : "",
+				  encoding_desc);
 		need_sep = true;
 	}
 	if (metric_name) {
-		fix_escape_printf("%s\t\"MetricName\": \"%s\"", need_sep ? ",\n" : "", metric_name);
+		fix_escape_printf(&buf, "%s\t\"MetricName\": \"%S\"", need_sep ? ",\n" : "",
+				  metric_name);
 		need_sep = true;
 	}
 	if (metric_expr) {
-		fix_escape_printf("%s\t\"MetricExpr\": \"%s\"", need_sep ? ",\n" : "", metric_expr);
+		fix_escape_printf(&buf, "%s\t\"MetricExpr\": \"%S\"", need_sep ? ",\n" : "",
+				  metric_expr);
 		need_sep = true;
 	}
 	printf("%s}", need_sep ? "\n" : "");
+	strbuf_release(&buf);
 }
 
 static void json_print_metric(void *ps __maybe_unused, const char *group,
@@ -366,35 +387,39 @@ static void json_print_metric(void *ps __maybe_unused, const char *group,
 {
 	struct json_print_state *print_state = ps;
 	bool need_sep = false;
+	struct strbuf buf;
 
+	strbuf_init(&buf, 0);
 	printf("%s{\n", print_state->need_sep ? ",\n" : "");
 	print_state->need_sep = true;
 	if (group) {
-		fix_escape_printf("\t\"MetricGroup\": \"%s\"", group);
+		fix_escape_printf(&buf, "\t\"MetricGroup\": \"%S\"", group);
 		need_sep = true;
 	}
 	if (name) {
-		fix_escape_printf("%s\t\"MetricName\": \"%s\"", need_sep ? ",\n" : "", name);
+		fix_escape_printf(&buf, "%s\t\"MetricName\": \"%S\"", need_sep ? ",\n" : "", name);
 		need_sep = true;
 	}
 	if (expr) {
-		fix_escape_printf("%s\t\"MetricExpr\": \"%s\"", need_sep ? ",\n" : "", expr);
+		fix_escape_printf(&buf, "%s\t\"MetricExpr\": \"%S\"", need_sep ? ",\n" : "", expr);
 		need_sep = true;
 	}
 	if (unit) {
-		fix_escape_printf("%s\t\"ScaleUnit\": \"%s\"", need_sep ? ",\n" : "", unit);
+		fix_escape_printf(&buf, "%s\t\"ScaleUnit\": \"%S\"", need_sep ? ",\n" : "", unit);
 		need_sep = true;
 	}
 	if (desc) {
-		fix_escape_printf("%s\t\"BriefDescription\": \"%s\"", need_sep ? ",\n" : "", desc);
+		fix_escape_printf(&buf, "%s\t\"BriefDescription\": \"%S\"", need_sep ? ",\n" : "",
+				  desc);
 		need_sep = true;
 	}
 	if (long_desc) {
-		fix_escape_printf("%s\t\"PublicDescription\": \"%s\"", need_sep ? ",\n" : "",
+		fix_escape_printf(&buf, "%s\t\"PublicDescription\": \"%S\"", need_sep ? ",\n" : "",
 				  long_desc);
 		need_sep = true;
 	}
 	printf("%s}", need_sep ? "\n" : "");
+	strbuf_release(&buf);
 }
 
 int cmd_list(int argc, const char **argv)
