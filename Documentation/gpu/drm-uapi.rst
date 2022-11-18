@@ -402,19 +402,19 @@ It's possible to run the IGT-tests in a VM in two ways:
 	1. Use IGT inside a VM
 	2. Use IGT from the host machine and write the results in a shared directory.
 
-As follow, there is an example of using a VM with a shared directory with
-the host machine to run igt-tests. As an example it's used virtme::
+Following is an example of using a VM with a shared directory with
+the host machine to run igt-tests. This example uses virtme::
 
 	$ virtme-run --rwdir /path/for/shared_dir --kdir=path/for/kernel/directory --mods=auto
 
-Run the igt-tests in the guest machine, as example it's ran the 'kms_flip'
+Run the igt-tests in the guest machine. This example runs the 'kms_flip'
 tests::
 
 	$ /path/for/igt-gpu-tools/scripts/run-tests.sh -p -s -t "kms_flip.*" -v
 
-In this example, instead of build the igt_runner, Piglit is used
-(-p option); it's created html summary of the tests results and it's saved
-in the folder "igt-gpu-tools/results"; it's executed only the igt-tests
+In this example, instead of building the igt_runner, Piglit is used
+(-p option). It creates an HTML summary of the test results and saves
+them in the folder "igt-gpu-tools/results". It executes only the igt-tests
 matching the -t option.
 
 Display CRC Support
