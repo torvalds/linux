@@ -155,8 +155,7 @@ static void max7359_initialize(struct i2c_client *client)
 	max7359_fall_deepsleep(client);
 }
 
-static int max7359_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+static int max7359_probe(struct i2c_client *client)
 {
 	const struct matrix_keymap_data *keymap_data =
 			dev_get_platdata(&client->dev);
@@ -283,7 +282,7 @@ static struct i2c_driver max7359_i2c_driver = {
 		.name = "max7359",
 		.pm   = &max7359_pm,
 	},
-	.probe		= max7359_probe,
+	.probe_new	= max7359_probe,
 	.id_table	= max7359_ids,
 };
 
