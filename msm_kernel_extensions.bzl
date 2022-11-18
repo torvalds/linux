@@ -1,4 +1,4 @@
-def define_extras(target):
+def define_extras(target, flavor = None):
     return
 
 def get_build_config_fragments(target):
