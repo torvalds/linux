@@ -52,9 +52,9 @@ static const struct regmap_config mc13xxx_regmap_i2c_config = {
 	.cache_type = REGCACHE_NONE,
 };
 
-static int mc13xxx_i2c_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int mc13xxx_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct mc13xxx *mc13xxx;
 	int ret;
 
@@ -96,7 +96,7 @@ static struct i2c_driver mc13xxx_i2c_driver = {
 		.name = "mc13xxx",
 		.of_match_table = mc13xxx_dt_ids,
 	},
-	.probe = mc13xxx_i2c_probe,
+	.probe_new = mc13xxx_i2c_probe,
 	.remove = mc13xxx_i2c_remove,
 };
 
