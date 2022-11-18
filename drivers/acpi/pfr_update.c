@@ -178,7 +178,7 @@ static int query_capability(struct pfru_update_cap_info *cap_hdr,
 	ret = 0;
 
 free_acpi_buffer:
-	kfree(out_obj);
+	ACPI_FREE(out_obj);
 
 	return ret;
 }
@@ -224,7 +224,7 @@ static int query_buffer(struct pfru_com_buf_info *info,
 	ret = 0;
 
 free_acpi_buffer:
-	kfree(out_obj);
+	ACPI_FREE(out_obj);
 
 	return ret;
 }
@@ -385,7 +385,7 @@ static int start_update(int action, struct pfru_device *pfru_dev)
 	ret = 0;
 
 free_acpi_buffer:
-	kfree(out_obj);
+	ACPI_FREE(out_obj);
 
 	return ret;
 }
