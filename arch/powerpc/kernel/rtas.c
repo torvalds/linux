@@ -7,6 +7,8 @@
  * Copyright (C) 2001 IBM.
  */
 
+#define pr_fmt(fmt)	"rtas: " fmt
+
 #include <linux/capability.h>
 #include <linux/delay.h>
 #include <linux/export.h>
@@ -718,8 +720,7 @@ static int rtas_error_rc(int rtas_rc)
 			rc = -ENODEV;
 			break;
 		default:
-			printk(KERN_ERR "%s: unexpected RTAS error %d\n",
-					__func__, rtas_rc);
+			pr_err("%s: unexpected error %d\n", __func__, rtas_rc);
 			rc = -ERANGE;
 			break;
 	}
@@ -923,8 +924,8 @@ void __noreturn rtas_restart(char *cmd)
 {
 	if (rtas_flash_term_hook)
 		rtas_flash_term_hook(SYS_RESTART);
-	printk("RTAS system-reboot returned %d\n",
-	       rtas_call(rtas_token("system-reboot"), 0, 1, NULL));
+	pr_emerg("system-reboot returned %d\n",
+		 rtas_call(rtas_token("system-reboot"), 0, 1, NULL));
 	for (;;);
 }
 
@@ -933,8 +934,8 @@ void rtas_power_off(void)
 	if (rtas_flash_term_hook)
 		rtas_flash_term_hook(SYS_POWER_OFF);
 	/* allow power on only with power button press */
-	printk("RTAS power-off returned %d\n",
-	       rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1));
+	pr_emerg("power-off returned %d\n",
+		 rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1));
 	for (;;);
 }
 
@@ -943,8 +944,8 @@ void __noreturn rtas_halt(void)
 	if (rtas_flash_term_hook)
 		rtas_flash_term_hook(SYS_HALT);
 	/* allow power on only with power button press */
-	printk("RTAS power-off returned %d\n",
-	       rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1));
+	pr_emerg("power-off returned %d\n",
+		 rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1));
 	for (;;);
 }
 
@@ -978,7 +979,7 @@ void rtas_os_term(char *str)
 	} while (rtas_busy_delay_time(status));
 
 	if (status != 0)
-		printk(KERN_EMERG "ibm,os-term call failed %d\n", status);
+		pr_emerg("ibm,os-term call failed %d\n", status);
 }
 
 /**
