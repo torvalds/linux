@@ -9,6 +9,7 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
 #include <asm/assembler.h>
 
 /* Context structure */
@@ -351,7 +352,7 @@
 	 */
 	.text
 .align 3
-SYM_FUNC_START(sm3_neon_transform)
+SYM_TYPED_FUNC_START(sm3_neon_transform)
 	ldp		ra, rb, [RSTATE, #0]
 	ldp		rc, rd, [RSTATE, #8]
 	ldp		re, rf, [RSTATE, #16]
