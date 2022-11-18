@@ -21,9 +21,9 @@ static const struct regmap_config st_lsm6dsx_i2c_regmap_config = {
 	.val_bits = 8,
 };
 
-static int st_lsm6dsx_i2c_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int st_lsm6dsx_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	int hw_id = id->driver_data;
 	struct regmap *regmap;
 
@@ -152,7 +152,7 @@ static struct i2c_driver st_lsm6dsx_driver = {
 		.pm = pm_sleep_ptr(&st_lsm6dsx_pm_ops),
 		.of_match_table = st_lsm6dsx_i2c_of_match,
 	},
-	.probe = st_lsm6dsx_i2c_probe,
+	.probe_new = st_lsm6dsx_i2c_probe,
 	.id_table = st_lsm6dsx_i2c_id_table,
 };
 module_i2c_driver(st_lsm6dsx_driver);
