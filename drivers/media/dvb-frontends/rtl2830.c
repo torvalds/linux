@@ -768,8 +768,7 @@ static int rtl2830_regmap_gather_write(void *context, const void *reg,
 	return 0;
 }
 
-static int rtl2830_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int rtl2830_probe(struct i2c_client *client)
 {
 	struct rtl2830_platform_data *pdata = client->dev.platform_data;
 	struct rtl2830_dev *dev;
@@ -887,7 +886,7 @@ static struct i2c_driver rtl2830_driver = {
 		.name			= "rtl2830",
 		.suppress_bind_attrs	= true,
 	},
-	.probe		= rtl2830_probe,
+	.probe_new	= rtl2830_probe,
 	.remove		= rtl2830_remove,
 	.id_table	= rtl2830_id_table,
 };
