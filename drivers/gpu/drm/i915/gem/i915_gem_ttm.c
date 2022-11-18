@@ -1013,9 +1013,6 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 	}
 
-	if (i915_ttm_cpu_maps_iomem(bo->resource))
-		wakeref = intel_runtime_pm_get(&to_i915(obj->base.dev)->runtime_pm);
-
 	if (!i915_ttm_resource_mappable(bo->resource)) {
 		int err = -ENODEV;
 		int i;
@@ -1041,6 +1038,9 @@ static vm_fault_t vm_fault_ttm(struct vm_fault *vmf)
 			goto out_rpm;
 		}
 	}
+
+	if (i915_ttm_cpu_maps_iomem(bo->resource))
+		wakeref = intel_runtime_pm_get(&to_i915(obj->base.dev)->runtime_pm);
 
 	if (drm_dev_enter(dev, &idx)) {
 		ret = ttm_bo_vm_fault_reserved(vmf, vmf->vma->vm_page_prot,
