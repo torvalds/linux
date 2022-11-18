@@ -646,7 +646,7 @@
 			};
 		};
 
-		gpu_thermal: gpu_thermal {
+		gpu_thermal: gpu-thermal {
 			polling-delay-passive = <100>; /* milliseconds */
 			polling-delay = <5000>; /* milliseconds */
 
