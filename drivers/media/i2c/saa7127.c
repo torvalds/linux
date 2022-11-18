@@ -708,9 +708,9 @@ static const struct v4l2_subdev_ops saa7127_ops = {
 
 /* ----------------------------------------------------------------------- */
 
-static int saa7127_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int saa7127_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct saa7127_state *state;
 	struct v4l2_subdev *sd;
 	struct v4l2_sliced_vbi_data vbi = { 0, 0, 0, 0 };  /* set to disabled */
@@ -810,7 +810,7 @@ static struct i2c_driver saa7127_driver = {
 	.driver = {
 		.name	= "saa7127",
 	},
-	.probe		= saa7127_probe,
+	.probe_new	= saa7127_probe,
 	.remove		= saa7127_remove,
 	.id_table	= saa7127_id,
 };
