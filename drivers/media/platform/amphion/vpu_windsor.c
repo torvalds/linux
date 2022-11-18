@@ -658,6 +658,7 @@ int vpu_windsor_get_stream_buffer_size(struct vpu_shared_addr *shared)
 }
 
 static struct vpu_pair windsor_cmds[] = {
+	{VPU_CMD_ID_NOOP, GTB_ENC_CMD_NOOP},
 	{VPU_CMD_ID_CONFIGURE_CODEC, GTB_ENC_CMD_CONFIGURE_CODEC},
 	{VPU_CMD_ID_START, GTB_ENC_CMD_STREAM_START},
 	{VPU_CMD_ID_STOP, GTB_ENC_CMD_STREAM_STOP},
