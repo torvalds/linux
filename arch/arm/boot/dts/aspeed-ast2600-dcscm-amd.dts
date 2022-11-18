@@ -237,6 +237,10 @@
 	status = "okay";
 };
 
+&i2c13 {
+	status = "okay";
+};
+
 &i2c14 {
 	status = "okay";
 };
