@@ -254,7 +254,7 @@ struct panfrost_dump_object_header {
 			__u64 nbos;
 		} reghdr;
 
-		struct pan_bomap_hdr {
+		struct {
 			__u32 valid;
 			__u64 iova;
 			__u32 data[2];

@@ -428,9 +428,10 @@ probe_range(struct mm_struct *mm, unsigned long addr, unsigned long len)
 {
 	VMA_ITERATOR(vmi, mm, addr);
 	struct vm_area_struct *vma;
+	unsigned long end = addr + len;
 
 	mmap_read_lock(mm);
-	for_each_vma_range(vmi, vma, addr + len) {
+	for_each_vma_range(vmi, vma, end) {
 		/* Check for holes, note that we also update the addr below */
 		if (vma->vm_start > addr)
 			break;
@@ -442,7 +443,7 @@ probe_range(struct mm_struct *mm, unsigned long addr, unsigned long len)
 	}
 	mmap_read_unlock(mm);
 
-	if (vma)
+	if (vma || addr < end)
 		return -EFAULT;
 	return 0;
 }
