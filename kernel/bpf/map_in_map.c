@@ -30,11 +30,6 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 		goto put;
 	}
 
-	if (btf_record_has_field(inner_map->record, BPF_SPIN_LOCK)) {
-		ret = -ENOTSUPP;
-		goto put;
-	}
-
 	inner_map_meta_size = sizeof(*inner_map_meta);
 	/* In some cases verifier needs to access beyond just base map. */
 	if (inner_map->ops == &array_map_ops)
