@@ -499,8 +499,7 @@ static void tps6586x_print_version(struct i2c_client *client, int version)
 	dev_info(&client->dev, "Found %s, VERSIONCRC is %02x\n", name, version);
 }
 
-static int tps6586x_i2c_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+static int tps6586x_i2c_probe(struct i2c_client *client)
 {
 	struct tps6586x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct tps6586x *tps6586x;
@@ -624,7 +623,7 @@ static struct i2c_driver tps6586x_driver = {
 		.of_match_table = of_match_ptr(tps6586x_of_match),
 		.pm	= &tps6586x_pm_ops,
 	},
-	.probe		= tps6586x_i2c_probe,
+	.probe_new	= tps6586x_i2c_probe,
 	.remove		= tps6586x_i2c_remove,
 	.id_table	= tps6586x_id_table,
 };
