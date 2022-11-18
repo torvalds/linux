@@ -4181,21 +4181,15 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 
 	r = amdgpu_device_ip_resume(adev);
 
-	/* no matter what r is, always need to properly release full GPU */
-	if (amdgpu_sriov_vf(adev)) {
-		amdgpu_virt_init_data_exchange(adev);
-		amdgpu_virt_release_full_gpu(adev, true);
-	}
-
 	if (r) {
 		dev_err(adev->dev, "amdgpu_device_ip_resume failed (%d).\n", r);
-		return r;
+		goto exit;
 	}
 	amdgpu_fence_driver_hw_init(adev);
 
 	r = amdgpu_device_ip_late_init(adev);
 	if (r)
-		return r;
+		goto exit;
 
 	queue_delayed_work(system_wq, &adev->delayed_init_work,
 			   msecs_to_jiffies(AMDGPU_RESUME_MS));
@@ -4203,12 +4197,19 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 	if (!adev->in_s0ix) {
 		r = amdgpu_amdkfd_resume(adev, adev->in_runpm);
 		if (r)
-			return r;
+			goto exit;
 	}
 
+exit:
+	if (amdgpu_sriov_vf(adev)) {
+		amdgpu_virt_init_data_exchange(adev);
+		amdgpu_virt_release_full_gpu(adev, true);
+	}
+
+	if (r)
+		return r;
+
 	/* Make sure IB tests flushed */
-	if (amdgpu_sriov_vf(adev))
-		amdgpu_irq_gpu_reset_resume_helper(adev);
 	flush_delayed_work(&adev->delayed_init_work);
 
 	if (adev->in_s0ix) {
