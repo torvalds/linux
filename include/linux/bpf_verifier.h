@@ -323,7 +323,21 @@ struct bpf_verifier_state {
 	u32 branches;
 	u32 insn_idx;
 	u32 curframe;
-	u32 active_spin_lock;
+	/* For every reg representing a map value or allocated object pointer,
+	 * we consider the tuple of (ptr, id) for them to be unique in verifier
+	 * context and conside them to not alias each other for the purposes of
+	 * tracking lock state.
+	 */
+	struct {
+		/* This can either be reg->map_ptr or reg->btf. If ptr is NULL,
+		 * there's no active lock held, and other fields have no
+		 * meaning. If non-NULL, it indicates that a lock is held and
+		 * id member has the reg->id of the register which can be >= 0.
+		 */
+		void *ptr;
+		/* This will be reg->id */
+		u32 id;
+	} active_lock;
 	bool speculative;
 
 	/* first and last insn idx of this verifier state */
