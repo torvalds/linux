@@ -418,20 +418,6 @@ void ttm_bo_put(struct ttm_buffer_object *bo)
 }
 EXPORT_SYMBOL(ttm_bo_put);
 
-int ttm_bo_lock_delayed_workqueue(struct ttm_device *bdev)
-{
-	return cancel_delayed_work_sync(&bdev->wq);
-}
-EXPORT_SYMBOL(ttm_bo_lock_delayed_workqueue);
-
-void ttm_bo_unlock_delayed_workqueue(struct ttm_device *bdev, int resched)
-{
-	if (resched)
-		schedule_delayed_work(&bdev->wq,
-				      ((HZ / 100) < 1) ? 1 : HZ / 100);
-}
-EXPORT_SYMBOL(ttm_bo_unlock_delayed_workqueue);
-
 static int ttm_bo_bounce_temp_buffer(struct ttm_buffer_object *bo,
 				     struct ttm_resource **mem,
 				     struct ttm_operation_ctx *ctx,

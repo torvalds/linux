@@ -3983,10 +3983,8 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 	}
 	amdgpu_fence_driver_hw_fini(adev);
 
-	if (adev->mman.initialized) {
+	if (adev->mman.initialized)
 		flush_delayed_work(&adev->mman.bdev.wq);
-		ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);
-	}
 
 	if (adev->pm_sysfs_en)
 		amdgpu_pm_sysfs_fini(adev);

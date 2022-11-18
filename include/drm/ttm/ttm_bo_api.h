@@ -291,22 +291,6 @@ void ttm_bo_set_bulk_move(struct ttm_buffer_object *bo,
 			  struct ttm_lru_bulk_move *bulk);
 
 /**
- * ttm_bo_lock_delayed_workqueue
- *
- * Prevent the delayed workqueue from running.
- * Returns
- * True if the workqueue was queued at the time
- */
-int ttm_bo_lock_delayed_workqueue(struct ttm_device *bdev);
-
-/**
- * ttm_bo_unlock_delayed_workqueue
- *
- * Allows the delayed workqueue to run.
- */
-void ttm_bo_unlock_delayed_workqueue(struct ttm_device *bdev, int resched);
-
-/**
  * ttm_bo_eviction_valuable
  *
  * @bo: The buffer object to evict
