@@ -19,7 +19,7 @@
 #define STM32_SMC_WRITE_SHADOW		0x03
 #define STM32_SMC_READ_OTP		0x04
 
-/* shadow registers offest */
+/* shadow registers offset */
 #define STM32MP15_BSEC_DATA0		0x200
 
 struct stm32_romem_cfg {
