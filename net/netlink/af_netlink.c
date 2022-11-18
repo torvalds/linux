@@ -2514,7 +2514,7 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
 		if (!nlmsg_append(skb, nlmsg_len(nlh)))
 			goto err_bad_put;
 
-		memcpy(errmsg->msg.nlmsg_data, nlh->nlmsg_data,
+		memcpy(nlmsg_data(&errmsg->msg), nlmsg_data(nlh),
 		       nlmsg_len(nlh));
 	}
 
