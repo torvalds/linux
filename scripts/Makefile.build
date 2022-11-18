@@ -38,11 +38,7 @@ subdir-ccflags-y :=
 
 include $(srctree)/scripts/Kbuild.include
 include $(srctree)/scripts/Makefile.compiler
-
-# The filename Kbuild has precedence over Makefile
-kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
-include $(or $(wildcard $(kbuild-dir)/Kbuild),$(kbuild-dir)/Makefile)
-
+include $(kbuild-file)
 include $(srctree)/scripts/Makefile.lib
 
 # Do not include hostprogs rules unless needed.
