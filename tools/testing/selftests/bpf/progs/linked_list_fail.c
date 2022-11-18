@@ -59,10 +59,12 @@ CHECK(kptr, push_back, &f->head);
 CHECK(kptr, pop_front, &f->head);
 CHECK(kptr, pop_back, &f->head);
 
+/* FIXME
 CHECK(global, push_front, &ghead);
 CHECK(global, push_back, &ghead);
 CHECK(global, pop_front, &ghead);
 CHECK(global, pop_back, &ghead);
+*/
 
 CHECK(map, push_front, &v->head);
 CHECK(map, push_back, &v->head);
@@ -89,23 +91,15 @@ CHECK(inner_map, pop_back, &iv->head);
 
 #define CHECK_OP(op)                                           \
 	CHECK(kptr_kptr, op, &f1->lock, &f2->head);            \
-	CHECK(kptr_global, op, &f1->lock, &ghead);             \
 	CHECK(kptr_map, op, &f1->lock, &v->head);              \
 	CHECK(kptr_inner_map, op, &f1->lock, &iv->head);       \
                                                                \
-	CHECK(global_global, op, &glock2, &ghead);             \
-	CHECK(global_kptr, op, &glock, &f1->head);             \
-	CHECK(global_map, op, &glock, &v->head);               \
-	CHECK(global_inner_map, op, &glock, &iv->head);        \
-                                                               \
 	CHECK(map_map, op, &v->lock, &v2->head);               \
 	CHECK(map_kptr, op, &v->lock, &f2->head);              \
-	CHECK(map_global, op, &v->lock, &ghead);               \
 	CHECK(map_inner_map, op, &v->lock, &iv->head);         \
                                                                \
 	CHECK(inner_map_inner_map, op, &iv->lock, &iv2->head); \
 	CHECK(inner_map_kptr, op, &iv->lock, &f2->head);       \
-	CHECK(inner_map_global, op, &iv->lock, &ghead);        \
 	CHECK(inner_map_map, op, &iv->lock, &v->head);
 
 CHECK_OP(push_front);
@@ -117,6 +111,7 @@ CHECK_OP(pop_back);
 #undef CHECK_OP
 #undef INIT
 
+/* FIXME
 SEC("?kprobe/xyz")
 int map_compat_kprobe(void *ctx)
 {
@@ -158,6 +153,7 @@ int map_compat_raw_tp_w(void *ctx)
 	bpf_list_push_front(&ghead, NULL);
 	return 0;
 }
+*/
 
 SEC("?tc")
 int obj_type_id_oor(void *ctx)
@@ -303,6 +299,7 @@ int direct_write_node(void *ctx)
 	return 0;
 }
 
+/* FIXME
 static __always_inline
 int write_after_op(void (*push_op)(void *head, void *node))
 {
@@ -506,6 +503,7 @@ int incorrect_head_var_off2(struct __sk_buff *ctx)
 
 	return 0;
 }
+*/
 
 SEC("?tc")
 int incorrect_head_off1(void *ctx)
@@ -529,6 +527,7 @@ int incorrect_head_off1(void *ctx)
 	return 0;
 }
 
+/* FIXME
 SEC("?tc")
 int incorrect_head_off2(void *ctx)
 {
@@ -545,6 +544,7 @@ int incorrect_head_off2(void *ctx)
 
 	return 0;
 }
+*/
 
 static __always_inline
 int pop_ptr_off(void *(*op)(void *head))

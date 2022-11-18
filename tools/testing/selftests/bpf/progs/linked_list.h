@@ -47,10 +47,12 @@ struct {
 	},
 };
 
+/* FIXME
 #define private(name) SEC(".data." #name) __hidden __attribute__((aligned(8)))
 
 private(A) struct bpf_spin_lock glock;
 private(A) struct bpf_list_head ghead __contains(foo, node);
 private(B) struct bpf_spin_lock glock2;
 
+*/
 #endif
