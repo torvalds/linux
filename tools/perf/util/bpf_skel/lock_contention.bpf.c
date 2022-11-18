@@ -40,10 +40,10 @@ struct {
 
 /* maintain timestamp at the beginning of contention */
 struct {
-	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
-	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__uint(type, BPF_MAP_TYPE_HASH);
 	__type(key, int);
 	__type(value, struct tstamp_data);
+	__uint(max_entries, MAX_ENTRIES);
 } tstamp SEC(".maps");
 
 /* actual lock contention statistics */
@@ -103,17 +103,27 @@ static inline int can_record(void)
 SEC("tp_btf/contention_begin")
 int contention_begin(u64 *ctx)
 {
-	struct task_struct *curr;
+	__u32 pid;
 	struct tstamp_data *pelem;
 
 	if (!enabled || !can_record())
 		return 0;
 
-	curr = bpf_get_current_task_btf();
-	pelem = bpf_task_storage_get(&tstamp, curr, NULL,
-				     BPF_LOCAL_STORAGE_GET_F_CREATE);
-	if (!pelem || pelem->lock)
+	pid = bpf_get_current_pid_tgid();
+	pelem = bpf_map_lookup_elem(&tstamp, &pid);
+	if (pelem && pelem->lock)
 		return 0;
+
+	if (pelem == NULL) {
+		struct tstamp_data zero = {};
+
+		bpf_map_update_elem(&tstamp, &pid, &zero, BPF_ANY);
+		pelem = bpf_map_lookup_elem(&tstamp, &pid);
+		if (pelem == NULL) {
+			lost++;
+			return 0;
+		}
+	}
 
 	pelem->timestamp = bpf_ktime_get_ns();
 	pelem->lock = (__u64)ctx[0];
@@ -128,7 +138,7 @@ int contention_begin(u64 *ctx)
 SEC("tp_btf/contention_end")
 int contention_end(u64 *ctx)
 {
-	struct task_struct *curr;
+	__u32 pid;
 	struct tstamp_data *pelem;
 	struct contention_key key;
 	struct contention_data *data;
@@ -137,8 +147,8 @@ int contention_end(u64 *ctx)
 	if (!enabled)
 		return 0;
 
-	curr = bpf_get_current_task_btf();
-	pelem = bpf_task_storage_get(&tstamp, curr, NULL, 0);
+	pid = bpf_get_current_pid_tgid();
+	pelem = bpf_map_lookup_elem(&tstamp, &pid);
 	if (!pelem || pelem->lock != ctx[0])
 		return 0;
 
@@ -156,7 +166,7 @@ int contention_end(u64 *ctx)
 		};
 
 		bpf_map_update_elem(&lock_stat, &key, &first, BPF_NOEXIST);
-		pelem->lock = 0;
+		bpf_map_delete_elem(&tstamp, &pid);
 		return 0;
 	}
 
@@ -169,7 +179,7 @@ int contention_end(u64 *ctx)
 	if (data->min_time > duration)
 		data->min_time = duration;
 
-	pelem->lock = 0;
+	bpf_map_delete_elem(&tstamp, &pid);
 	return 0;
 }
 
