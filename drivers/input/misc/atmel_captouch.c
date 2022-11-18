@@ -161,8 +161,7 @@ out:
 /*
  * Probe function to setup the device, input system and interrupt
  */
-static int atmel_captouch_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int atmel_captouch_probe(struct i2c_client *client)
 {
 	struct atmel_captouch_device *capdev;
 	struct device *dev = &client->dev;
@@ -264,7 +263,7 @@ static const struct i2c_device_id atmel_captouch_id[] = {
 MODULE_DEVICE_TABLE(i2c, atmel_captouch_id);
 
 static struct i2c_driver atmel_captouch_driver = {
-	.probe		= atmel_captouch_probe,
+	.probe_new	= atmel_captouch_probe,
 	.id_table	= atmel_captouch_id,
 	.driver		= {
 		.name	= "atmel_captouch",
