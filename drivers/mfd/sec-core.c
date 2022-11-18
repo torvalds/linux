@@ -305,8 +305,7 @@ sec_pmic_i2c_parse_dt_pdata(struct device *dev)
 	return pd;
 }
 
-static int sec_pmic_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int sec_pmic_probe(struct i2c_client *i2c)
 {
 	const struct regmap_config *regmap;
 	struct sec_platform_data *pdata;
@@ -498,7 +497,7 @@ static struct i2c_driver sec_pmic_driver = {
 		   .pm = &sec_pmic_pm_ops,
 		   .of_match_table = sec_dt_match,
 	},
-	.probe = sec_pmic_probe,
+	.probe_new = sec_pmic_probe,
 	.shutdown = sec_pmic_shutdown,
 };
 module_i2c_driver(sec_pmic_driver);
