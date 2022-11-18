@@ -164,8 +164,7 @@ static const struct of_device_id tps65090_of_match[] = {
 };
 #endif
 
-static int tps65090_i2c_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int tps65090_i2c_probe(struct i2c_client *client)
 {
 	struct tps65090_platform_data *pdata = dev_get_platdata(&client->dev);
 	int irq_base = 0;
@@ -238,7 +237,7 @@ static struct i2c_driver tps65090_driver = {
 		.suppress_bind_attrs = true,
 		.of_match_table = of_match_ptr(tps65090_of_match),
 	},
-	.probe		= tps65090_i2c_probe,
+	.probe_new	= tps65090_i2c_probe,
 	.id_table	= tps65090_id_table,
 };
 
