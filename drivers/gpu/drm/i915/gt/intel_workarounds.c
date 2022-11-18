@@ -3010,7 +3010,7 @@ general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_li
 static void
 engine_init_workarounds(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 {
-	if (I915_SELFTEST_ONLY(GRAPHICS_VER(engine->i915) < 4))
+	if (GRAPHICS_VER(engine->i915) < 4)
 		return;
 
 	engine_fake_wa_init(engine, wal);
@@ -3034,9 +3034,6 @@ engine_init_workarounds(struct intel_engine_cs *engine, struct i915_wa_list *wal
 void intel_engine_init_workarounds(struct intel_engine_cs *engine)
 {
 	struct i915_wa_list *wal = &engine->wa_list;
-
-	if (GRAPHICS_VER(engine->i915) < 4)
-		return;
 
 	wa_init_start(wal, engine->gt, "engine", engine->name);
 	engine_init_workarounds(engine, wal);
