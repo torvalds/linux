@@ -52,6 +52,7 @@ static void trace_event_probe_cleanup(struct trace_eprobe *ep)
 	kfree(ep->event_system);
 	if (ep->event)
 		trace_event_put_ref(ep->event);
+	kfree(ep->filter_str);
 	kfree(ep);
 }
 
