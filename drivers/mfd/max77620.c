@@ -494,9 +494,9 @@ static void max77620_pm_power_off(void)
 			   MAX77620_ONOFFCNFG1_SFT_RST);
 }
 
-static int max77620_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int max77620_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	const struct regmap_config *rmap_config;
 	struct max77620_chip *chip;
 	const struct mfd_cell *mfd_cells;
@@ -701,7 +701,7 @@ static struct i2c_driver max77620_driver = {
 		.name = "max77620",
 		.pm = &max77620_pm_ops,
 	},
-	.probe = max77620_probe,
+	.probe_new = max77620_probe,
 	.id_table = max77620_id,
 };
 builtin_i2c_driver(max77620_driver);
