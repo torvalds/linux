@@ -810,10 +810,8 @@
 		compatible = "rockchip,rv1106-codec";
 		reg = <0xff480000 0x1000>;
 		rockchip,grf = <&grf>;
-		clocks = <&cru PCLK_ACODEC>,
-			 <&cru MCLK_ACODEC_TX>,
-			 <&cru MCLK_I2S0_8CH_TX>;
-		clock-names = "pclk_acodec", "mclk_acodec", "mclk_cpu";
+		clocks = <&cru PCLK_ACODEC>, <&cru MCLK_ACODEC_TX>;
+		clock-names = "pclk_acodec", "mclk_acodec";
 		resets = <&cru SRST_P_ACODEC>;
 		reset-names = "acodec-reset";
 		acodec,micbias;
