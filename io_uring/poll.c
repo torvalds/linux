@@ -246,6 +246,8 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 			continue;
 		if (req->apoll_events & EPOLLONESHOT)
 			return IOU_POLL_DONE;
+		if (io_is_uring_fops(req->file))
+			return IOU_POLL_DONE;
 
 		/* multishot, just fill a CQE and proceed */
 		if (!(req->flags & REQ_F_APOLL_MULTISHOT)) {
