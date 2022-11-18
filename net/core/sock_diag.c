@@ -30,7 +30,10 @@ u64 __sock_gen_cookie(struct sock *sk)
 	if (!res) {
 		u64 new = gen_cookie_next(&sock_cookie);
 
-		atomic64_try_cmpxchg(&sk->sk_cookie, &res, new);
+		atomic64_cmpxchg(&sk->sk_cookie, res, new);
+
+		/* Another thread might have changed sk_cookie before us. */
+		res = atomic64_read(&sk->sk_cookie);
 	}
 	return res;
 }
