@@ -1217,7 +1217,7 @@ static void handle___pkvm_register_hcall(struct kvm_cpu_context *host_ctxt)
 static void
 handle___pkvm_close_module_registration(struct kvm_cpu_context *host_ctxt)
 {
-	cpu_reg(host_ctxt, 1) = __pkvm_close_module_registration();
+	cpu_reg(host_ctxt, 1) = __pkvm_close_late_module_registration();
 }
 
 static void handle___pkvm_load_tracing(struct kvm_cpu_context *host_ctxt)
