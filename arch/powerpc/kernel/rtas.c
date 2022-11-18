@@ -353,6 +353,9 @@ int rtas_service_present(const char *service)
 EXPORT_SYMBOL(rtas_service_present);
 
 #ifdef CONFIG_RTAS_ERROR_LOGGING
+
+static u32 rtas_error_log_max __ro_after_init = RTAS_ERROR_LOG_MAX;
+
 /*
  * Return the firmware-specified size of the error log buffer
  *  for all rtas calls that require an error buffer argument.
@@ -360,20 +363,29 @@ EXPORT_SYMBOL(rtas_service_present);
  */
 int rtas_get_error_log_max(void)
 {
-	static int rtas_error_log_max;
-	if (rtas_error_log_max)
-		return rtas_error_log_max;
-
-	rtas_error_log_max = rtas_token ("rtas-error-log-max");
-	if ((rtas_error_log_max == RTAS_UNKNOWN_SERVICE) ||
-	    (rtas_error_log_max > RTAS_ERROR_LOG_MAX)) {
-		printk (KERN_WARNING "RTAS: bad log buffer size %d\n",
-			rtas_error_log_max);
-		rtas_error_log_max = RTAS_ERROR_LOG_MAX;
-	}
 	return rtas_error_log_max;
 }
 EXPORT_SYMBOL(rtas_get_error_log_max);
+
+static void __init init_error_log_max(void)
+{
+	static const char propname[] __initconst = "rtas-error-log-max";
+	u32 max;
+
+	if (of_property_read_u32(rtas.dev, propname, &max)) {
+		pr_warn("%s not found, using default of %u\n",
+			propname, RTAS_ERROR_LOG_MAX);
+		max = RTAS_ERROR_LOG_MAX;
+	}
+
+	if (max > RTAS_ERROR_LOG_MAX) {
+		pr_warn("%s = %u, clamping max error log size to %u\n",
+			propname, max, RTAS_ERROR_LOG_MAX);
+		max = RTAS_ERROR_LOG_MAX;
+	}
+
+	rtas_error_log_max = max;
+}
 
 
 static char rtas_err_buf[RTAS_ERROR_LOG_MAX];
@@ -432,6 +444,7 @@ static char *__fetch_rtas_last_error(char *altbuf)
 #else /* CONFIG_RTAS_ERROR_LOGGING */
 #define __fetch_rtas_last_error(x)	NULL
 #define get_errorlog_buffer()		NULL
+static void __init init_error_log_max(void) {}
 #endif
 
 
@@ -1339,6 +1352,8 @@ void __init rtas_initialize(void)
 	rtas.size = size;
 	no_entry = of_property_read_u32(rtas.dev, "linux,rtas-entry", &entry);
 	rtas.entry = no_entry ? rtas.base : entry;
+
+	init_error_log_max();
 
 	/*
 	 * Discover these now to avoid device tree lookups in the
