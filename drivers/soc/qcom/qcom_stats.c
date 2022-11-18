@@ -44,6 +44,7 @@
 
 #define DDR_STATS_MAGIC_KEY_ADDR	0x0
 #define DDR_STATS_NUM_MODES_ADDR	0x4
+#define DDR_STATS_ENTRY_ADDR		0x8
 #define DDR_STATS_NAME_ADDR		0x0
 #define DDR_STATS_COUNT_ADDR		0x4
 #define DDR_STATS_DURATION_ADDR		0x8
@@ -189,7 +190,7 @@ static u64 qcom_stats_fill_ddr_stats(void __iomem *reg, struct sleep_stats *data
 		return 0;
 	}
 
-	reg += DDR_STATS_NUM_MODES_ADDR + 0x4;
+	reg += DDR_STATS_ENTRY_ADDR;
 
 	for (i = 0; i < *entry_count; i++) {
 		data[i].stat_type = readl_relaxed(reg + DDR_STATS_NAME_ADDR);
@@ -411,7 +412,7 @@ int ddr_stats_get_freq_count(void)
 		return 0;
 	}
 
-	reg += DDR_STATS_NUM_MODES_ADDR + 0x4;
+	reg += DDR_STATS_ENTRY_ADDR;
 
 	for (i = 0; i < entry_count; i++) {
 		name = readl_relaxed(reg + DDR_STATS_NAME_ADDR);
@@ -496,15 +497,16 @@ int ddr_stats_get_ss_vote_info(int ss_count,
 		return ret;
 	}
 
-	entry_count = readl_relaxed(drv->base + DDR_STATS_NUM_MODES_ADDR);
+	reg = drv->base + drv->config->ddr_stats_offset;
+	entry_count = readl_relaxed(reg + DDR_STATS_NUM_MODES_ADDR);
 	if (entry_count > DDR_STATS_MAX_NUM_MODES) {
 		pr_err("Invalid entry count\n");
 		mutex_unlock(&drv->lock);
 		return -EINVAL;
 	}
 
-	vote_offset = entry_count * (sizeof(struct sleep_stats) - sizeof(u64));
-	reg = drv->base + drv->config->ddr_stats_offset;
+	vote_offset = DDR_STATS_ENTRY_ADDR;
+	vote_offset +=  entry_count * (sizeof(struct sleep_stats) - 2 * sizeof(u64));
 
 	for (i = 0; i < ss_count; i++, reg += sizeof(u32)) {
 		val[i] = readl_relaxed(reg + vote_offset);
