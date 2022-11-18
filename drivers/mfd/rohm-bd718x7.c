@@ -127,8 +127,7 @@ static int bd718xx_init_press_duration(struct regmap *regmap,
 	return 0;
 }
 
-static int bd718xx_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int bd718xx_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap *regmap;
 	struct regmap_irq_chip_data *irq_data;
@@ -215,7 +214,7 @@ static struct i2c_driver bd718xx_i2c_driver = {
 		.name = "rohm-bd718x7",
 		.of_match_table = bd718xx_of_match,
 	},
-	.probe = bd718xx_i2c_probe,
+	.probe_new = bd718xx_i2c_probe,
 };
 
 static int __init bd718xx_i2c_init(void)
