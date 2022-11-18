@@ -1432,9 +1432,9 @@ static const char *ltr501_match_acpi_device(struct device *dev, int *chip_idx)
 	return dev_name(dev);
 }
 
-static int ltr501_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ltr501_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	static const char * const regulator_names[] = { "vdd", "vddio" };
 	struct ltr501_data *data;
 	struct iio_dev *indio_dev;
@@ -1641,7 +1641,7 @@ static struct i2c_driver ltr501_driver = {
 		.pm	= pm_sleep_ptr(&ltr501_pm_ops),
 		.acpi_match_table = ACPI_PTR(ltr_acpi_match),
 	},
-	.probe  = ltr501_probe,
+	.probe_new = ltr501_probe,
 	.remove	= ltr501_remove,
 	.id_table = ltr501_id,
 };
