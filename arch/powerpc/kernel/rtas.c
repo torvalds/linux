@@ -1050,8 +1050,6 @@ noinstr struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log
 	return NULL;
 }
 
-#ifdef CONFIG_PPC_RTAS_FILTER
-
 /*
  * The sys_rtas syscall, as originally designed, allows root to pass
  * arbitrary physical addresses to RTAS calls. A number of RTAS calls
@@ -1199,20 +1197,6 @@ static void __init rtas_syscall_filter_init(void)
 	for (i = 0; i < ARRAY_SIZE(rtas_filters); i++)
 		rtas_filters[i].token = rtas_token(rtas_filters[i].name);
 }
-
-#else
-
-static bool block_rtas_call(int token, int nargs,
-			    struct rtas_args *args)
-{
-	return false;
-}
-
-static void __init rtas_syscall_filter_init(void)
-{
-}
-
-#endif /* CONFIG_PPC_RTAS_FILTER */
 
 /* We assume to be passed big endian arguments */
 SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
