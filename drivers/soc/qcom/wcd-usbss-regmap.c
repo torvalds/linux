@@ -500,4 +500,6 @@ struct regmap_config wcd_usbss_regmap_config = {
 	.writeable_reg = wcd_usbss_writeable_register,
 	.reg_format_endian = REGMAP_ENDIAN_NATIVE,
 	.val_format_endian = REGMAP_ENDIAN_NATIVE,
+	.use_single_read = true,
+	.use_single_write = true,
 };
