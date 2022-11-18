@@ -157,8 +157,7 @@ static const struct v4l2_subdev_ops tw9906_ops = {
 	.video = &tw9906_video_ops,
 };
 
-static int tw9906_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int tw9906_probe(struct i2c_client *client)
 {
 	struct tw9906 *dec;
 	struct v4l2_subdev *sd;
@@ -223,7 +222,7 @@ static struct i2c_driver tw9906_driver = {
 	.driver = {
 		.name	= "tw9906",
 	},
-	.probe = tw9906_probe,
+	.probe_new = tw9906_probe,
 	.remove = tw9906_remove,
 	.id_table = tw9906_id,
 };
