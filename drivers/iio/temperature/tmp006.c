@@ -212,8 +212,7 @@ static void tmp006_powerdown_cleanup(void *dev)
 	tmp006_power(dev, false);
 }
 
-static int tmp006_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int tmp006_probe(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev;
 	struct tmp006_data *data;
@@ -284,7 +283,7 @@ static struct i2c_driver tmp006_driver = {
 		.name	= "tmp006",
 		.pm	= pm_sleep_ptr(&tmp006_pm_ops),
 	},
-	.probe = tmp006_probe,
+	.probe_new = tmp006_probe,
 	.id_table = tmp006_id,
 };
 module_i2c_driver(tmp006_driver);
