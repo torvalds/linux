@@ -1670,7 +1670,7 @@ static int gfx_v9_4_3_xcc_kiq_init_register(struct amdgpu_ring *ring,
 	return 0;
 }
 
-static int gfx_v9_4_3_xcc_kiq_fini_register(struct amdgpu_ring *ring,
+static int gfx_v9_4_3_xcc_q_fini_register(struct amdgpu_ring *ring,
 					    int xcc_id)
 {
 	struct amdgpu_device *adev = ring->adev;
@@ -1688,7 +1688,7 @@ static int gfx_v9_4_3_xcc_kiq_fini_register(struct amdgpu_ring *ring,
 		}
 
 		if (j == AMDGPU_MAX_USEC_TIMEOUT) {
-			DRM_DEBUG("KIQ dequeue request failed.\n");
+			DRM_DEBUG("%s dequeue request failed.\n", ring->name);
 
 			/* Manual disable if dequeue request times out */
 			WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_ACTIVE, 0);
@@ -1788,6 +1788,27 @@ static int gfx_v9_4_3_xcc_kcq_init_queue(struct amdgpu_ring *ring, int xcc_id)
 		ring->wptr = 0;
 		atomic64_set((atomic64_t *)&adev->wb.wb[ring->wptr_offs], 0);
 		amdgpu_ring_clear_ring(ring);
+	}
+
+	return 0;
+}
+
+static int gfx_v9_4_3_xcc_kcq_fini_register(struct amdgpu_device *adev, int xcc_id)
+{
+	struct amdgpu_ring *ring;
+	int j;
+
+	for (j = 0; j < adev->gfx.num_compute_rings; j++) {
+		ring = &adev->gfx.compute_ring[j +  xcc_id * adev->gfx.num_compute_rings];
+		if (!amdgpu_in_reset(adev) && !adev->in_suspend) {
+			mutex_lock(&adev->srbm_mutex);
+			soc15_grbm_select(adev, ring->me,
+					ring->pipe,
+					ring->queue, 0, GET_INST(GC, xcc_id));
+			gfx_v9_4_3_xcc_q_fini_register(ring, xcc_id);
+			soc15_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, xcc_id));
+			mutex_unlock(&adev->srbm_mutex);
+		}
 	}
 
 	return 0;
@@ -1923,12 +1944,13 @@ static void gfx_v9_4_3_xcc_fini(struct amdgpu_device *adev, int xcc_id)
 				  adev->gfx.kiq[xcc_id].ring.pipe,
 				  adev->gfx.kiq[xcc_id].ring.queue, 0,
 				  GET_INST(GC, xcc_id));
-		gfx_v9_4_3_xcc_kiq_fini_register(&adev->gfx.kiq[xcc_id].ring,
+		gfx_v9_4_3_xcc_q_fini_register(&adev->gfx.kiq[xcc_id].ring,
 						 xcc_id);
 		soc15_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, xcc_id));
 		mutex_unlock(&adev->srbm_mutex);
 	}
 
+	gfx_v9_4_3_xcc_kcq_fini_register(adev, xcc_id);
 	gfx_v9_4_3_xcc_cp_enable(adev, false, xcc_id);
 
 	/* Skip suspend with A+A reset */
