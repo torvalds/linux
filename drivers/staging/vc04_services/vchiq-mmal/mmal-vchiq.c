@@ -1648,7 +1648,7 @@ int vchiq_mmal_component_init(struct vchiq_mmal_instance *instance,
 	for (idx = 0; idx < VCHIQ_MMAL_MAX_COMPONENTS; idx++) {
 		if (!instance->component[idx].in_use) {
 			component = &instance->component[idx];
-			component->in_use = 1;
+			component->in_use = true;
 			break;
 		}
 	}
@@ -1724,7 +1724,7 @@ release_component:
 	destroy_component(instance, component);
 unlock:
 	if (component)
-		component->in_use = 0;
+		component->in_use = false;
 	mutex_unlock(&instance->vchiq_mutex);
 
 	return ret;
@@ -1747,7 +1747,7 @@ int vchiq_mmal_component_finalise(struct vchiq_mmal_instance *instance,
 
 	ret = destroy_component(instance, component);
 
-	component->in_use = 0;
+	component->in_use = false;
 
 	mutex_unlock(&instance->vchiq_mutex);
 
