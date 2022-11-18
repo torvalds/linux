@@ -5,7 +5,7 @@
 # Leo Yan <leo.yan@linaro.org>, 2022
 
 skip_if_no_mem_event() {
-	perf mem record -e list 2>&1 | egrep -q 'available' && return 0
+	perf mem record -e list 2>&1 | grep -E -q 'available' && return 0
 	return 2
 }
 
@@ -48,7 +48,7 @@ echo "Recording workload..."
 # perf mem/c2c internally uses IBS PMU on AMD CPU which doesn't support
 # user/kernel filtering and per-process monitoring, spin program on
 # specific CPU and test in per-CPU mode.
-is_amd=$(egrep -c 'vendor_id.*AuthenticAMD' /proc/cpuinfo)
+is_amd=$(grep -E -c 'vendor_id.*AuthenticAMD' /proc/cpuinfo)
 if (($is_amd >= 1)); then
 	perf mem record -o ${PERF_DATA} -C 0 -- taskset -c 0 $TEST_PROGRAM &
 else
