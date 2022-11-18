@@ -204,9 +204,9 @@ static int adp5520_remove_subdevs(struct adp5520_chip *chip)
 	return device_for_each_child(chip->dev, NULL, __remove_subdev);
 }
 
-static int adp5520_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+static int adp5520_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct adp5520_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct platform_device *pdev;
 	struct adp5520_chip *chip;
@@ -342,7 +342,7 @@ static struct i2c_driver adp5520_driver = {
 		.pm			= &adp5520_pm,
 		.suppress_bind_attrs	= true,
 	},
-	.probe		= adp5520_probe,
+	.probe_new	= adp5520_probe,
 	.id_table	= adp5520_id,
 };
 builtin_i2c_driver(adp5520_driver);
