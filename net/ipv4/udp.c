@@ -235,7 +235,7 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 	struct udp_table *udptable = sk->sk_prot->h.udp_table;
 	struct udp_hslot *hslot, *hslot2;
 	struct net *net = sock_net(sk);
-	int error = 1;
+	int error = -EADDRINUSE;
 
 	if (!snum) {
 		DECLARE_BITMAP(bitmap, PORTS_PER_CHAIN);
