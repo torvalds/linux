@@ -534,6 +534,26 @@
 	firmware-name = "qcom/sm8350/Sony/sagami/modem.mbn";
 };
 
+&pm8350_gpios {
+	gpio-line-names = "ASSIGN1_THERM", /* GPIO_1 */
+			  "LCD_ID",
+			  "SDR_MMW_THERM",
+			  "RF_ID",
+			  "NC",
+			  "FP_LDO_EN",
+			  "SP_ARI_PWR_ALARM",
+			  "NC",
+			  "G_ASSIST_N",
+			  "PM8350_OPTION"; /* GPIO_10 */
+};
+
+&pmk8350_gpios {
+	gpio-line-names = "NC", /* GPIO_1 */
+			  "NC",
+			  "VOL_DOWN_N",
+			  "PMK8350_OPTION";
+};
+
 &pmk8350_rtc {
 	status = "okay";
 };
