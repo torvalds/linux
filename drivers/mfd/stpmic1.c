@@ -116,8 +116,7 @@ static const struct regmap_irq_chip stpmic1_regmap_irq_chip = {
 	.num_irqs = ARRAY_SIZE(stpmic1_irqs),
 };
 
-static int stpmic1_probe(struct i2c_client *i2c,
-			 const struct i2c_device_id *id)
+static int stpmic1_probe(struct i2c_client *i2c)
 {
 	struct stpmic1 *ddata;
 	struct device *dev = &i2c->dev;
@@ -203,7 +202,7 @@ static struct i2c_driver stpmic1_driver = {
 		.of_match_table = of_match_ptr(stpmic1_of_match),
 		.pm = &stpmic1_pm,
 	},
-	.probe = stpmic1_probe,
+	.probe_new = stpmic1_probe,
 };
 
 module_i2c_driver(stpmic1_driver);
