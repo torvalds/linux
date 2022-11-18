@@ -2874,11 +2874,6 @@ static bool filemap_map_pmd(struct vm_fault *vmf, struct page *page)
 	}
 
 	if (pmd_none(*vmf->pmd)) {
-		if (vmf->flags & FAULT_FLAG_SPECULATIVE) {
-			unlock_page(page);
-			put_page(page);
-			return true;
-		}
 		vmf->ptl = pmd_lock(mm, vmf->pmd);
 		if (likely(pmd_none(*vmf->pmd))) {
 			mm_inc_nr_ptes(mm);
@@ -2976,20 +2971,16 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 	XA_STATE(xas, &mapping->i_pages, start_pgoff);
 	struct page *head, *page;
 	unsigned int mmap_miss = READ_ONCE(file->f_ra.mmap_miss);
-	vm_fault_t ret = 0;
+	vm_fault_t ret = (vmf->flags & FAULT_FLAG_SPECULATIVE) ?
+		VM_FAULT_RETRY : 0;
 
 	rcu_read_lock();
 	head = first_map_page(mapping, &xas, end_pgoff);
 	if (!head)
 		goto out;
 
-	if (filemap_map_pmd(vmf, head)) {
-		if (pmd_none(*vmf->pmd) &&
-				vmf->flags & FAULT_FLAG_SPECULATIVE) {
-			ret = VM_FAULT_RETRY;
-			goto out;
-		}
-
+	if (!(vmf->flags & FAULT_FLAG_SPECULATIVE) &&
+	    filemap_map_pmd(vmf, head)) {
 		ret = VM_FAULT_NOPAGE;
 		goto out;
 	}
@@ -2998,7 +2989,6 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 	if (!pte_map_lock_addr(vmf, addr)) {
 		unlock_page(head);
 		put_page(head);
-		ret = VM_FAULT_RETRY;
 		goto out;
 	}
 
