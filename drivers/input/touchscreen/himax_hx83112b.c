@@ -265,8 +265,7 @@ static irqreturn_t himax_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int himax_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int himax_probe(struct i2c_client *client)
 {
 	int error;
 	struct device *dev = &client->dev;
@@ -350,7 +349,7 @@ MODULE_DEVICE_TABLE(of, himax_of_match);
 #endif
 
 static struct i2c_driver himax_ts_driver = {
-	.probe = himax_probe,
+	.probe_new = himax_probe,
 	.id_table = himax_ts_id,
 	.driver = {
 		.name = "Himax-hx83112b-TS",
