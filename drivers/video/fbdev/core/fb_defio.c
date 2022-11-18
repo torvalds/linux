@@ -332,19 +332,3 @@ void fb_deferred_io_cleanup(struct fb_info *info)
 	mutex_destroy(&fbdefio->lock);
 }
 EXPORT_SYMBOL_GPL(fb_deferred_io_cleanup);
-
-void fb_deferred_io_schedule_flush(struct fb_info *info)
-{
-	struct fb_deferred_io *fbdefio = info->fbdefio;
-
-	if (WARN_ON_ONCE(!fbdefio))
-		return; /* bug in driver logic */
-
-	/*
-	 * There's no requirement from callers to schedule the
-	 * flush immediately. Rather schedule the worker with a
-	 * delay and let a few more writes pile up.
-	 */
-	schedule_delayed_work(&info->deferred_work, fbdefio->delay);
-}
-EXPORT_SYMBOL_GPL(fb_deferred_io_schedule_flush);
