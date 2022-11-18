@@ -3061,7 +3061,7 @@ static bool update_planes_and_stream_state(struct dc *dc,
 		 * Ensures that we have enough pipes for newly added MPO planes
 		 */
 		if (dc->res_pool->funcs->remove_phantom_pipes)
-			dc->res_pool->funcs->remove_phantom_pipes(dc, context);
+			dc->res_pool->funcs->remove_phantom_pipes(dc, context, false);
 
 		/*remove old surfaces from context */
 		if (!dc_rem_all_planes_for_stream(dc, stream, context)) {

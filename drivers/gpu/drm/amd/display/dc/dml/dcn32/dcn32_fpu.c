@@ -1203,7 +1203,7 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 		// If SubVP pipe config is unsupported (or cannot be used for UCLK switching)
 		// remove phantom pipes and repopulate dml pipes
 		if (!found_supported_config) {
-			dc->res_pool->funcs->remove_phantom_pipes(dc, context);
+			dc->res_pool->funcs->remove_phantom_pipes(dc, context, false);
 			vba->DRAMClockChangeSupport[*vlevel][vba->maxMpcComb] = dm_dram_clock_change_unsupported;
 			*pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, false);
 
@@ -1518,7 +1518,7 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 		return false;
 
 	// For each full update, remove all existing phantom pipes first
-	dc->res_pool->funcs->remove_phantom_pipes(dc, context);
+	dc->res_pool->funcs->remove_phantom_pipes(dc, context, fast_validate);
 
 	dc->res_pool->funcs->update_soc_for_wm_a(dc, context);
 
