@@ -332,8 +332,7 @@ static inline void aat2870_init_debugfs(struct aat2870_data *aat2870)
 }
 #endif /* CONFIG_DEBUG_FS */
 
-static int aat2870_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int aat2870_i2c_probe(struct i2c_client *client)
 {
 	struct aat2870_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct aat2870_data *aat2870;
@@ -454,7 +453,7 @@ static struct i2c_driver aat2870_i2c_driver = {
 		.pm			= &aat2870_pm_ops,
 		.suppress_bind_attrs	= true,
 	},
-	.probe		= aat2870_i2c_probe,
+	.probe_new	= aat2870_i2c_probe,
 	.id_table	= aat2870_i2c_id_table,
 };
 
