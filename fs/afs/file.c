@@ -58,14 +58,15 @@ const struct address_space_operations afs_file_aops = {
 	.invalidate_folio = afs_invalidate_folio,
 	.write_begin	= afs_write_begin,
 	.write_end	= afs_write_end,
-	.writepage	= afs_writepage,
 	.writepages	= afs_writepages,
+	.migrate_folio	= filemap_migrate_folio,
 };
 
 const struct address_space_operations afs_symlink_aops = {
 	.read_folio	= afs_symlink_read_folio,
 	.release_folio	= afs_release_folio,
 	.invalidate_folio = afs_invalidate_folio,
+	.migrate_folio	= filemap_migrate_folio,
 };
 
 static const struct vm_operations_struct afs_vm_ops = {
