@@ -257,14 +257,12 @@ static const char *clx_name(unsigned int clx)
  * @sw: Router to enable CLx for
  * @clx: The CLx state to enable
  *
- * Enable CLx state only for first hop router. That is the most common
- * use-case, that is intended for better thermal management, and so helps
- * to improve performance. CLx is enabled only if both sides of the link
- * support CLx, and if both sides of the link are not configured as two
- * single lane links and only if the link is not inter-domain link. The
- * complete set of conditions is described in CM Guide 1.0 section 8.1.
+ * CLx is enabled only if both sides of the link support CLx, and if both sides
+ * of the link are not configured as two single lane links and only if the link
+ * is not inter-domain link. The complete set of conditions is described in CM
+ * Guide 1.0 section 8.1.
  *
- * Return: Returns 0 on success or an error code on failure.
+ * Returns %0 on success or an error code on failure.
  */
 int tb_switch_clx_enable(struct tb_switch *sw, unsigned int clx)
 {
@@ -282,10 +280,6 @@ int tb_switch_clx_enable(struct tb_switch *sw, unsigned int clx)
 
 	if (!tb_switch_clx_is_supported(parent_sw) ||
 	    !tb_switch_clx_is_supported(sw))
-		return 0;
-
-	/* Enable CLx only for first hop router (depth = 1) */
-	if (tb_route(tb_switch_parent(sw)))
 		return 0;
 
 	/* CL2 is not yet supported */
@@ -340,7 +334,7 @@ int tb_switch_clx_enable(struct tb_switch *sw, unsigned int clx)
  * Disables all CL states of the given router. Can be called on any
  * router and if the states were not enabled already does nothing.
  *
- * Return: Returns 0 on success or an error code on failure.
+ * Returns %0 on success or an error code on failure.
  */
 int tb_switch_clx_disable(struct tb_switch *sw)
 {
@@ -349,10 +343,6 @@ int tb_switch_clx_disable(struct tb_switch *sw)
 	int ret;
 
 	if (!tb_switch_clx_is_supported(sw))
-		return 0;
-
-	/* Disable CLx only for first hop router (depth = 1) */
-	if (tb_route(tb_switch_parent(sw)))
 		return 0;
 
 	if (!clx)
