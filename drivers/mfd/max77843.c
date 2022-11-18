@@ -93,9 +93,9 @@ err_chg_i2c:
 	return ret;
 }
 
-static int max77843_probe(struct i2c_client *i2c,
-			  const struct i2c_device_id *id)
+static int max77843_probe(struct i2c_client *i2c)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	struct max77693_dev *max77843;
 	unsigned int reg_data;
 	int ret;
@@ -208,7 +208,7 @@ static struct i2c_driver max77843_i2c_driver = {
 		.of_match_table = max77843_dt_match,
 		.suppress_bind_attrs = true,
 	},
-	.probe = max77843_probe,
+	.probe_new = max77843_probe,
 	.id_table = max77843_id,
 };
 
