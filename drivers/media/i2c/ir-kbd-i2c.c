@@ -757,8 +757,9 @@ static int zilog_tx_duty_cycle(struct rc_dev *dev, u32 duty_cycle)
 	return 0;
 }
 
-static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int ir_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	char *ir_codes = NULL;
 	const char *name = NULL;
 	u64 rc_proto = RC_PROTO_BIT_UNKNOWN;
@@ -987,7 +988,7 @@ static struct i2c_driver ir_kbd_driver = {
 	.driver = {
 		.name   = "ir-kbd-i2c",
 	},
-	.probe          = ir_probe,
+	.probe_new      = ir_probe,
 	.remove         = ir_remove,
 	.id_table       = ir_kbd_id,
 };
