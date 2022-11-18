@@ -6,6 +6,7 @@
 #include "ice_devlink.h"
 #include "ice_sriov.h"
 #include "ice_tc_lib.h"
+#include "ice_dcb_lib.h"
 
 /**
  * ice_repr_get_sw_port_id - get port ID associated with representor
@@ -389,6 +390,7 @@ static void ice_repr_rem(struct ice_vf *vf)
  */
 void ice_repr_rem_from_all_vfs(struct ice_pf *pf)
 {
+	struct devlink *devlink;
 	struct ice_vf *vf;
 	unsigned int bkt;
 
@@ -396,6 +398,14 @@ void ice_repr_rem_from_all_vfs(struct ice_pf *pf)
 
 	ice_for_each_vf(pf, bkt, vf)
 		ice_repr_rem(vf);
+
+	/* since all port representors are destroyed, there is
+	 * no point in keeping the nodes
+	 */
+	devlink = priv_to_devlink(pf);
+	devl_lock(devlink);
+	devl_rate_nodes_destroy(devlink);
+	devl_unlock(devlink);
 }
 
 /**
@@ -404,6 +414,7 @@ void ice_repr_rem_from_all_vfs(struct ice_pf *pf)
  */
 int ice_repr_add_for_all_vfs(struct ice_pf *pf)
 {
+	struct devlink *devlink;
 	struct ice_vf *vf;
 	unsigned int bkt;
 	int err;
@@ -415,6 +426,13 @@ int ice_repr_add_for_all_vfs(struct ice_pf *pf)
 		if (err)
 			goto err;
 	}
+
+	/* only export if ADQ and DCB disabled */
+	if (ice_is_adq_active(pf) || ice_is_dcb_active(pf))
+		return 0;
+
+	devlink = priv_to_devlink(pf);
+	ice_devlink_rate_init_tx_topology(devlink, ice_get_main_vsi(pf));
 
 	return 0;
 

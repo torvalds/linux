@@ -8580,6 +8580,12 @@ static int ice_setup_tc_mqprio_qdisc(struct net_device *netdev, void *type_data)
 	switch (mode) {
 	case TC_MQPRIO_MODE_CHANNEL:
 
+		if (pf->hw.port_info->is_custom_tx_enabled) {
+			dev_err(dev, "Custom Tx scheduler feature enabled, can't configure ADQ\n");
+			return -EBUSY;
+		}
+		ice_tear_down_devlink_rate_tree(pf);
+
 		ret = ice_validate_mqprio_qopt(vsi, mqprio_qopt);
 		if (ret) {
 			netdev_err(netdev, "failed to validate_mqprio_qopt(), ret %d\n",

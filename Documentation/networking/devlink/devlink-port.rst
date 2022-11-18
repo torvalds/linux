@@ -191,13 +191,44 @@ API allows to configure following rate object's parameters:
 ``tx_max``
   Maximum TX rate value.
 
+``tx_priority``
+  Allows for usage of strict priority arbiter among siblings. This
+  arbitration scheme attempts to schedule nodes based on their priority
+  as long as the nodes remain within their bandwidth limit. The higher the
+  priority the higher the probability that the node will get selected for
+  scheduling.
+
+``tx_weight``
+  Allows for usage of Weighted Fair Queuing arbitration scheme among
+  siblings. This arbitration scheme can be used simultaneously with the
+  strict priority. As a node is configured with a higher rate it gets more
+  BW relative to it's siblings. Values are relative like a percentage
+  points, they basically tell how much BW should node take relative to
+  it's siblings.
+
 ``parent``
   Parent node name. Parent node rate limits are considered as additional limits
   to all node children limits. ``tx_max`` is an upper limit for children.
   ``tx_share`` is a total bandwidth distributed among children.
 
+``tx_priority`` and ``tx_weight`` can be used simultaneously. In that case
+nodes with the same priority form a WFQ subgroup in the sibling group
+and arbitration among them is based on assigned weights.
+
+Arbitration flow from the high level:
+#. Choose a node, or group of nodes with the highest priority that stays
+   within the BW limit and are not blocked. Use ``tx_priority`` as a
+   parameter for this arbitration.
+#. If group of nodes have the same priority perform WFQ arbitration on
+   that subgroup. Use ``tx_weight`` as a parameter for this arbitration.
+#. Select the winner node, and continue arbitration flow among it's children,
+   until leaf node is reached, and the winner is established.
+#. If all the nodes from the highest priority sub-group are satisfied, or
+   overused their assigned BW, move to the lower priority nodes.
+
 Driver implementations are allowed to support both or either rate object types
-and setting methods of their parameters.
+and setting methods of their parameters. Additionally driver implementation
+may export nodes/leafs and their child-parent relationships.
 
 Terms and Definitions
 =====================
