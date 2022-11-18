@@ -194,9 +194,9 @@ static int tca6416_setup_registers(struct tca6416_keypad_chip *chip)
 	return 0;
 }
 
-static int tca6416_keypad_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int tca6416_keypad_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct tca6416_keys_platform_data *pdata;
 	struct tca6416_keypad_chip *chip;
 	struct input_dev *input;
@@ -352,7 +352,7 @@ static struct i2c_driver tca6416_keypad_driver = {
 		.name	= "tca6416-keypad",
 		.pm	= &tca6416_keypad_dev_pm_ops,
 	},
-	.probe		= tca6416_keypad_probe,
+	.probe_new	= tca6416_keypad_probe,
 	.remove		= tca6416_keypad_remove,
 	.id_table	= tca6416_id,
 };
