@@ -320,8 +320,8 @@ intel_dvo_detect(struct drm_connector *_connector, bool force)
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
 
-	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-		      connector->base.base.id, connector->base.name);
+	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s]\n",
+		    connector->base.base.id, connector->base.name);
 
 	if (!INTEL_DISPLAY_ENABLED(i915))
 		return connector_status_disconnected;
