@@ -415,12 +415,88 @@ static int intel_dvo_connector_type(const struct intel_dvo_device *dvo)
 	}
 }
 
+static bool intel_dvo_init_dev(struct drm_i915_private *dev_priv,
+			       struct intel_dvo *intel_dvo,
+			       const struct intel_dvo_device *dvo)
+{
+	struct i2c_adapter *i2c;
+	u32 dpll[I915_MAX_PIPES];
+	enum pipe pipe;
+	int gpio;
+	bool ret;
+
+	/*
+	 * Allow the I2C driver info to specify the GPIO to be used in
+	 * special cases, but otherwise default to what's defined
+	 * in the spec.
+	 */
+	if (intel_gmbus_is_valid_pin(dev_priv, dvo->gpio))
+		gpio = dvo->gpio;
+	else if (dvo->type == INTEL_DVO_CHIP_LVDS)
+		gpio = GMBUS_PIN_SSC;
+	else
+		gpio = GMBUS_PIN_DPB;
+
+	/*
+	 * Set up the I2C bus necessary for the chip we're probing.
+	 * It appears that everything is on GPIOE except for panels
+	 * on i830 laptops, which are on GPIOB (DVOA).
+	 */
+	i2c = intel_gmbus_get_adapter(dev_priv, gpio);
+
+	intel_dvo->dev = *dvo;
+
+	/*
+	 * GMBUS NAK handling seems to be unstable, hence let the
+	 * transmitter detection run in bit banging mode for now.
+	 */
+	intel_gmbus_force_bit(i2c, true);
+
+	/*
+	 * ns2501 requires the DVO 2x clock before it will
+	 * respond to i2c accesses, so make sure we have
+	 * the clock enabled before we attempt to initialize
+	 * the device.
+	 */
+	for_each_pipe(dev_priv, pipe) {
+		dpll[pipe] = intel_de_read(dev_priv, DPLL(pipe));
+		intel_de_write(dev_priv, DPLL(pipe),
+			       dpll[pipe] | DPLL_DVO_2X_MODE);
+	}
+
+	ret = dvo->dev_ops->init(&intel_dvo->dev, i2c);
+
+	/* restore the DVO 2x clock state to original */
+	for_each_pipe(dev_priv, pipe) {
+		intel_de_write(dev_priv, DPLL(pipe), dpll[pipe]);
+	}
+
+	intel_gmbus_force_bit(i2c, false);
+
+	return ret;
+}
+
+static bool intel_dvo_probe(struct drm_i915_private *dev_priv,
+			    struct intel_dvo *intel_dvo)
+{
+	int i;
+
+	/* Now, try to find a controller */
+	for (i = 0; i < ARRAY_SIZE(intel_dvo_devices); i++) {
+		if (intel_dvo_init_dev(dev_priv, intel_dvo,
+				       &intel_dvo_devices[i]))
+			return true;
+	}
+
+	return false;
+}
+
 void intel_dvo_init(struct drm_i915_private *dev_priv)
 {
 	struct intel_encoder *intel_encoder;
 	struct intel_dvo *intel_dvo;
 	struct intel_connector *intel_connector;
-	int i;
+	struct drm_connector *connector;
 
 	intel_dvo = kzalloc(sizeof(*intel_dvo), GFP_KERNEL);
 	if (!intel_dvo)
@@ -431,6 +507,8 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 		kfree(intel_dvo);
 		return;
 	}
+
+	connector = &intel_connector->base;
 
 	intel_dvo->attached_connector = intel_connector;
 
@@ -444,112 +522,51 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 	intel_encoder->pre_enable = intel_dvo_pre_enable;
 	intel_connector->get_hw_state = intel_dvo_connector_get_hw_state;
 
-	/* Now, try to find a controller */
-	for (i = 0; i < ARRAY_SIZE(intel_dvo_devices); i++) {
-		struct drm_connector *connector = &intel_connector->base;
-		const struct intel_dvo_device *dvo = &intel_dvo_devices[i];
-		struct i2c_adapter *i2c;
-		int gpio;
-		bool dvoinit;
-		enum pipe pipe;
-		u32 dpll[I915_MAX_PIPES];
-
-		/*
-		 * Allow the I2C driver info to specify the GPIO to be used in
-		 * special cases, but otherwise default to what's defined
-		 * in the spec.
-		 */
-		if (intel_gmbus_is_valid_pin(dev_priv, dvo->gpio))
-			gpio = dvo->gpio;
-		else if (dvo->type == INTEL_DVO_CHIP_LVDS)
-			gpio = GMBUS_PIN_SSC;
-		else
-			gpio = GMBUS_PIN_DPB;
-
-		/*
-		 * Set up the I2C bus necessary for the chip we're probing.
-		 * It appears that everything is on GPIOE except for panels
-		 * on i830 laptops, which are on GPIOB (DVOA).
-		 */
-		i2c = intel_gmbus_get_adapter(dev_priv, gpio);
-
-		intel_dvo->dev = *dvo;
-
-		/*
-		 * GMBUS NAK handling seems to be unstable, hence let the
-		 * transmitter detection run in bit banging mode for now.
-		 */
-		intel_gmbus_force_bit(i2c, true);
-
-		/*
-		 * ns2501 requires the DVO 2x clock before it will
-		 * respond to i2c accesses, so make sure we have
-		 * have the clock enabled before we attempt to
-		 * initialize the device.
-		 */
-		for_each_pipe(dev_priv, pipe) {
-			dpll[pipe] = intel_de_read(dev_priv, DPLL(pipe));
-			intel_de_write(dev_priv, DPLL(pipe),
-				       dpll[pipe] | DPLL_DVO_2X_MODE);
-		}
-
-		dvoinit = dvo->dev_ops->init(&intel_dvo->dev, i2c);
-
-		/* restore the DVO 2x clock state to original */
-		for_each_pipe(dev_priv, pipe) {
-			intel_de_write(dev_priv, DPLL(pipe), dpll[pipe]);
-		}
-
-		intel_gmbus_force_bit(i2c, false);
-
-		if (!dvoinit)
-			continue;
-
-		intel_encoder->type = INTEL_OUTPUT_DVO;
-		intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
-		intel_encoder->port = intel_dvo_port(dvo->dvo_reg);
-		intel_encoder->pipe_mask = ~0;
-
-		if (dvo->type != INTEL_DVO_CHIP_LVDS)
-			intel_encoder->cloneable = BIT(INTEL_OUTPUT_ANALOG) |
-				BIT(INTEL_OUTPUT_DVO);
-
-		drm_encoder_init(&dev_priv->drm, &intel_encoder->base,
-				 &intel_dvo_enc_funcs,
-				 intel_dvo_encoder_type(dvo),
-				 "DVO %c", port_name(intel_encoder->port));
-
-		if (dvo->type == INTEL_DVO_CHIP_TMDS)
-			intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT |
-				DRM_CONNECTOR_POLL_DISCONNECT;
-
-		drm_connector_init(&dev_priv->drm, connector,
-				   &intel_dvo_connector_funcs,
-				   intel_dvo_connector_type(dvo));
-
-		drm_connector_helper_add(connector,
-					 &intel_dvo_connector_helper_funcs);
-		connector->display_info.subpixel_order = SubPixelHorizontalRGB;
-
-		intel_connector_attach_encoder(intel_connector, intel_encoder);
-		if (dvo->type == INTEL_DVO_CHIP_LVDS) {
-			/*
-			 * For our LVDS chipsets, we should hopefully be able
-			 * to dig the fixed panel mode out of the BIOS data.
-			 * However, it's in a different format from the BIOS
-			 * data on chipsets with integrated LVDS (stored in AIM
-			 * headers, likely), so for now, just get the current
-			 * mode being output through DVO.
-			 */
-			intel_panel_add_encoder_fixed_mode(intel_connector,
-							   intel_encoder);
-
-			intel_panel_init(intel_connector);
-		}
-
+	if (!intel_dvo_probe(dev_priv, intel_dvo)) {
+		kfree(intel_dvo);
+		intel_connector_free(intel_connector);
 		return;
 	}
 
-	kfree(intel_dvo);
-	intel_connector_free(intel_connector);
+	intel_encoder->type = INTEL_OUTPUT_DVO;
+	intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
+	intel_encoder->port = intel_dvo_port(intel_dvo->dev.dvo_reg);
+	intel_encoder->pipe_mask = ~0;
+
+	if (intel_dvo->dev.type != INTEL_DVO_CHIP_LVDS)
+		intel_encoder->cloneable = BIT(INTEL_OUTPUT_ANALOG) |
+			BIT(INTEL_OUTPUT_DVO);
+
+	drm_encoder_init(&dev_priv->drm, &intel_encoder->base,
+			 &intel_dvo_enc_funcs,
+			 intel_dvo_encoder_type(&intel_dvo->dev),
+			 "DVO %c", port_name(intel_encoder->port));
+
+	if (intel_dvo->dev.type == INTEL_DVO_CHIP_TMDS)
+		intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT |
+			DRM_CONNECTOR_POLL_DISCONNECT;
+
+	drm_connector_init(&dev_priv->drm, connector,
+			   &intel_dvo_connector_funcs,
+			   intel_dvo_connector_type(&intel_dvo->dev));
+
+	drm_connector_helper_add(connector,
+				 &intel_dvo_connector_helper_funcs);
+	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
+
+	intel_connector_attach_encoder(intel_connector, intel_encoder);
+	if (intel_dvo->dev.type == INTEL_DVO_CHIP_LVDS) {
+		/*
+		 * For our LVDS chipsets, we should hopefully be able
+		 * to dig the fixed panel mode out of the BIOS data.
+		 * However, it's in a different format from the BIOS
+		 * data on chipsets with integrated LVDS (stored in AIM
+		 * headers, likely), so for now, just get the current
+		 * mode being output through DVO.
+		 */
+		intel_panel_add_encoder_fixed_mode(intel_connector,
+						   intel_encoder);
+
+		intel_panel_init(intel_connector);
+	}
 }
