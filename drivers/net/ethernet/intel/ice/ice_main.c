@@ -3145,15 +3145,15 @@ static irqreturn_t ice_misc_intr(int __always_unused irq, void *data)
  */
 static irqreturn_t ice_misc_intr_thread_fn(int __always_unused irq, void *data)
 {
-	irqreturn_t ret = IRQ_HANDLED;
 	struct ice_pf *pf = data;
-	bool irq_handled;
 
-	irq_handled = ice_ptp_process_ts(pf);
-	if (!irq_handled)
-		ret = IRQ_WAKE_THREAD;
+	if (ice_is_reset_in_progress(pf->state))
+		return IRQ_HANDLED;
 
-	return ret;
+	while (!ice_ptp_process_ts(pf))
+		usleep_range(50, 100);
+
+	return IRQ_HANDLED;
 }
 
 /**

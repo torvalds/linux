@@ -614,11 +614,14 @@ static u64 ice_ptp_extend_40b_ts(struct ice_pf *pf, u64 in_tstamp)
  * 2) extend the 40b timestamp value to get a 64bit timestamp
  * 3) send that timestamp to the stack
  *
- * After looping, if we still have waiting SKBs, return true. This may cause us
- * effectively poll even when not strictly necessary. We do this because it's
- * possible a new timestamp was requested around the same time as the interrupt.
- * In some cases hardware might not interrupt us again when the timestamp is
- * captured.
+ * Returns true if all timestamps were handled, and false if any slots remain
+ * without a timestamp.
+ *
+ * After looping, if we still have waiting SKBs, return false. This may cause
+ * us effectively poll even when not strictly necessary. We do this because
+ * it's possible a new timestamp was requested around the same time as the
+ * interrupt. In some cases hardware might not interrupt us again when the
+ * timestamp is captured.
  *
  * Note that we only take the tracking lock when clearing the bit and when
  * checking if we need to re-queue this task. The only place where bits can be
@@ -641,7 +644,7 @@ static bool ice_ptp_tx_tstamp(struct ice_ptp_tx *tx)
 	u8 idx;
 
 	if (!tx->init)
-		return false;
+		return true;
 
 	ptp_port = container_of(tx, struct ice_ptp_port, tx);
 	pf = ptp_port_to_pf(ptp_port);
@@ -2381,10 +2384,7 @@ s8 ice_ptp_request_ts(struct ice_ptp_tx *tx, struct sk_buff *skb)
  */
 bool ice_ptp_process_ts(struct ice_pf *pf)
 {
-	if (pf->ptp.port.tx.init)
-		return ice_ptp_tx_tstamp(&pf->ptp.port.tx);
-
-	return false;
+	return ice_ptp_tx_tstamp(&pf->ptp.port.tx);
 }
 
 static void ice_ptp_periodic_work(struct kthread_work *work)
