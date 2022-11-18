@@ -347,6 +347,17 @@ static struct ctl_table sctp_net_table[] = {
 		.extra1		= &max_autoclose_min,
 		.extra2		= &max_autoclose_max,
 	},
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	{
+		.procname	= "l3mdev_accept",
+		.data		= &init_net.sctp.l3mdev_accept,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	},
+#endif
 	{
 		.procname	= "pf_enable",
 		.data		= &init_net.sctp.pf_enable,
