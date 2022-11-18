@@ -126,8 +126,7 @@ static irqreturn_t qt1070_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int qt1070_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int qt1070_probe(struct i2c_client *client)
 {
 	struct qt1070_data *data;
 	struct input_dev *input;
@@ -274,7 +273,7 @@ static struct i2c_driver qt1070_driver = {
 		.pm	= &qt1070_pm_ops,
 	},
 	.id_table	= qt1070_id,
-	.probe		= qt1070_probe,
+	.probe_new	= qt1070_probe,
 	.remove		= qt1070_remove,
 };
 
