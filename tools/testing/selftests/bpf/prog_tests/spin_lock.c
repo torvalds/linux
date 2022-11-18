@@ -68,6 +68,12 @@ static void test_spin_lock_fail_prog(const char *prog_name, const char *err_msg)
 	if (!ASSERT_ERR(ret, "test_spin_lock_fail__load must fail"))
 		goto end;
 
+	/* Skip check if JIT does not support kfuncs */
+	if (strstr(log_buf, "JIT does not support calling kernel function")) {
+		test__skip();
+		goto end;
+	}
+
 	if (!ASSERT_OK_PTR(strstr(log_buf, err_msg), "expected error message")) {
 		fprintf(stderr, "Expected: %s\n", err_msg);
 		fprintf(stderr, "Verifier: %s\n", log_buf);
