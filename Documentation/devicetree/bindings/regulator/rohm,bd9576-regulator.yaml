@@ -21,7 +21,7 @@ description: |
   regulator-voutl1, regulator-vouts1
 
 patternProperties:
-  "regulator-.+":
+  "^regulator-.+$":
     type: object
     description:
       Properties for single regulator.

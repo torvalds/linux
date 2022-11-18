@@ -24,7 +24,7 @@ properties:
     type: object
 
     patternProperties:
-      "regulator-.+":
+      "^regulator-.+$":
         $ref: "regulator.yaml#"
 
     additionalProperties: false
