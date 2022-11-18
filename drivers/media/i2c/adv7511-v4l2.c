@@ -1763,7 +1763,7 @@ static void adv7511_init_setup(struct v4l2_subdev *sd)
 	adv7511_cec_write(sd, 0x4e, ratio << 2);
 }
 
-static int adv7511_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int adv7511_probe(struct i2c_client *client)
 {
 	struct adv7511_state *state;
 	struct adv7511_platform_data *pdata = client->dev.platform_data;
@@ -1957,7 +1957,7 @@ static struct i2c_driver adv7511_driver = {
 	.driver = {
 		.name = "adv7511-v4l2",
 	},
-	.probe = adv7511_probe,
+	.probe_new = adv7511_probe,
 	.remove = adv7511_remove,
 	.id_table = adv7511_id,
 };
