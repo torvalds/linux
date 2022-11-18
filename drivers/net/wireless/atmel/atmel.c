@@ -2570,7 +2570,7 @@ static const iw_handler atmel_handler[] =
 
 static const iw_handler atmel_private_handler[] =
 {
-	IW_HANDLER(SIOCIWFIRSTPRIV,	NULL),
+	NULL,				/* SIOCIWFIRSTPRIV */
 };
 
 struct atmel_priv_ioctl {

@@ -85,15 +85,31 @@ static int rtw89_fw_hdr_parser(struct rtw89_dev *rtwdev, const u8 *fw, u32 len,
 {
 	struct rtw89_fw_hdr_section_info *section_info;
 	const u8 *fw_end = fw + len;
+	const u8 *fwdynhdr;
 	const u8 *bin;
+	u32 base_hdr_len;
 	u32 i;
 
 	if (!info)
 		return -EINVAL;
 
 	info->section_num = GET_FW_HDR_SEC_NUM(fw);
-	info->hdr_len = RTW89_FW_HDR_SIZE +
-			info->section_num * RTW89_FW_SECTION_HDR_SIZE;
+	base_hdr_len = RTW89_FW_HDR_SIZE +
+		       info->section_num * RTW89_FW_SECTION_HDR_SIZE;
+	info->dynamic_hdr_en = GET_FW_HDR_DYN_HDR(fw);
+
+	if (info->dynamic_hdr_en) {
+		info->hdr_len = GET_FW_HDR_LEN(fw);
+		info->dynamic_hdr_len = info->hdr_len - base_hdr_len;
+		fwdynhdr = fw + base_hdr_len;
+		if (GET_FW_DYNHDR_LEN(fwdynhdr) != info->dynamic_hdr_len) {
+			rtw89_err(rtwdev, "[ERR]invalid fw dynamic header len\n");
+			return -EINVAL;
+		}
+	} else {
+		info->hdr_len = base_hdr_len;
+		info->dynamic_hdr_len = 0;
+	}
 
 	bin = fw + info->hdr_len;
 
@@ -515,6 +531,11 @@ int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type)
 	u8 val;
 	int ret;
 
+	rtw89_mac_disable_cpu(rtwdev);
+	ret = rtw89_mac_enable_cpu(rtwdev, 0, true);
+	if (ret)
+		return ret;
+
 	if (!fw || !len) {
 		rtw89_err(rtwdev, "fw type %d isn't recognized\n", type);
 		return -ENOENT;
@@ -534,7 +555,7 @@ int rtw89_fw_download(struct rtw89_dev *rtwdev, enum rtw89_fw_type type)
 		goto fwdl_err;
 	}
 
-	ret = rtw89_fw_download_hdr(rtwdev, fw, info.hdr_len);
+	ret = rtw89_fw_download_hdr(rtwdev, fw, info.hdr_len - info.dynamic_hdr_len);
 	if (ret) {
 		ret = -EBUSY;
 		goto fwdl_err;
@@ -846,6 +867,56 @@ fail:
 	dev_kfree_skb_any(skb);
 
 	return ret;
+}
+
+static int rtw89_fw_h2c_add_wow_fw_ofld(struct rtw89_dev *rtwdev,
+					struct rtw89_vif *rtwvif,
+					enum rtw89_fw_pkt_ofld_type type,
+					u8 *id)
+{
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct rtw89_pktofld_info *info;
+	struct sk_buff *skb;
+	int ret;
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	switch (type) {
+	case RTW89_PKT_OFLD_TYPE_PS_POLL:
+		skb = ieee80211_pspoll_get(rtwdev->hw, vif);
+		break;
+	case RTW89_PKT_OFLD_TYPE_PROBE_RSP:
+		skb = ieee80211_proberesp_get(rtwdev->hw, vif);
+		break;
+	case RTW89_PKT_OFLD_TYPE_NULL_DATA:
+		skb = ieee80211_nullfunc_get(rtwdev->hw, vif, -1, false);
+		break;
+	case RTW89_PKT_OFLD_TYPE_QOS_NULL:
+		skb = ieee80211_nullfunc_get(rtwdev->hw, vif, -1, true);
+		break;
+	default:
+		goto err;
+	}
+
+	if (!skb)
+		goto err;
+
+	list_add_tail(&info->list, &rtw_wow->pkt_list);
+	ret = rtw89_fw_h2c_add_pkt_offload(rtwdev, &info->id, skb);
+	kfree_skb(skb);
+
+	if (ret)
+		return ret;
+
+	*id = info->id;
+	return 0;
+
+err:
+	kfree(info);
+	return -ENOMEM;
 }
 
 #define H2C_GENERAL_PKT_LEN 6
@@ -2879,6 +2950,7 @@ int rtw89_fw_h2c_pkt_drop(struct rtw89_dev *rtwdev,
 	case RTW89_PKT_DROP_SEL_MACID_BK_ONCE:
 	case RTW89_PKT_DROP_SEL_MACID_VI_ONCE:
 	case RTW89_PKT_DROP_SEL_MACID_VO_ONCE:
+	case RTW89_PKT_DROP_SEL_BAND_ONCE:
 		break;
 	default:
 		rtw89_debug(rtwdev, RTW89_DBG_FW,
@@ -2894,6 +2966,14 @@ int rtw89_fw_h2c_pkt_drop(struct rtw89_dev *rtwdev,
 	RTW89_SET_FWCMD_PKT_DROP_PORT(skb->data, params->port);
 	RTW89_SET_FWCMD_PKT_DROP_MBSSID(skb->data, params->mbssid);
 	RTW89_SET_FWCMD_PKT_DROP_ROLE_A_INFO_TF_TRS(skb->data, params->tf_trs);
+	RTW89_SET_FWCMD_PKT_DROP_MACID_BAND_SEL_0(skb->data,
+						  params->macid_band_sel[0]);
+	RTW89_SET_FWCMD_PKT_DROP_MACID_BAND_SEL_1(skb->data,
+						  params->macid_band_sel[1]);
+	RTW89_SET_FWCMD_PKT_DROP_MACID_BAND_SEL_2(skb->data,
+						  params->macid_band_sel[2]);
+	RTW89_SET_FWCMD_PKT_DROP_MACID_BAND_SEL_3(skb->data,
+						  params->macid_band_sel[3]);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC,
@@ -2911,5 +2991,236 @@ int rtw89_fw_h2c_pkt_drop(struct rtw89_dev *rtwdev,
 
 fail:
 	dev_kfree_skb_any(skb);
+	return ret;
+}
+
+#define H2C_KEEP_ALIVE_LEN 4
+int rtw89_fw_h2c_keep_alive(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			    bool enable)
+{
+	struct sk_buff *skb;
+	u8 pkt_id = 0;
+	int ret;
+
+	if (enable) {
+		ret = rtw89_fw_h2c_add_wow_fw_ofld(rtwdev, rtwvif,
+						   RTW89_PKT_OFLD_TYPE_NULL_DATA, &pkt_id);
+		if (ret)
+			return -EPERM;
+	}
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_KEEP_ALIVE_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for keep alive\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, H2C_KEEP_ALIVE_LEN);
+
+	RTW89_SET_KEEP_ALIVE_ENABLE(skb->data, enable);
+	RTW89_SET_KEEP_ALIVE_PKT_NULL_ID(skb->data, pkt_id);
+	RTW89_SET_KEEP_ALIVE_PERIOD(skb->data, 5);
+	RTW89_SET_KEEP_ALIVE_MACID(skb->data, rtwvif->mac_id);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MAC_WOW,
+			      H2C_FUNC_KEEP_ALIVE, 0, 1,
+			      H2C_KEEP_ALIVE_LEN);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
+#define H2C_DISCONNECT_DETECT_LEN 8
+int rtw89_fw_h2c_disconnect_detect(struct rtw89_dev *rtwdev,
+				   struct rtw89_vif *rtwvif, bool enable)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct sk_buff *skb;
+	u8 macid = rtwvif->mac_id;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_DISCONNECT_DETECT_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for keep alive\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, H2C_DISCONNECT_DETECT_LEN);
+
+	if (test_bit(RTW89_WOW_FLAG_EN_DISCONNECT, rtw_wow->flags)) {
+		RTW89_SET_DISCONNECT_DETECT_ENABLE(skb->data, enable);
+		RTW89_SET_DISCONNECT_DETECT_DISCONNECT(skb->data, !enable);
+		RTW89_SET_DISCONNECT_DETECT_MAC_ID(skb->data, macid);
+		RTW89_SET_DISCONNECT_DETECT_CHECK_PERIOD(skb->data, 100);
+		RTW89_SET_DISCONNECT_DETECT_TRY_PKT_COUNT(skb->data, 5);
+	}
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MAC_WOW,
+			      H2C_FUNC_DISCONNECT_DETECT, 0, 1,
+			      H2C_DISCONNECT_DETECT_LEN);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
+#define H2C_WOW_GLOBAL_LEN 8
+int rtw89_fw_h2c_wow_global(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+			    bool enable)
+{
+	struct sk_buff *skb;
+	u8 macid = rtwvif->mac_id;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_WOW_GLOBAL_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for keep alive\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, H2C_WOW_GLOBAL_LEN);
+
+	RTW89_SET_WOW_GLOBAL_ENABLE(skb->data, enable);
+	RTW89_SET_WOW_GLOBAL_MAC_ID(skb->data, macid);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MAC_WOW,
+			      H2C_FUNC_WOW_GLOBAL, 0, 1,
+			      H2C_WOW_GLOBAL_LEN);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
+#define H2C_WAKEUP_CTRL_LEN 4
+int rtw89_fw_h2c_wow_wakeup_ctrl(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif *rtwvif,
+				 bool enable)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct sk_buff *skb;
+	u8 macid = rtwvif->mac_id;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_WAKEUP_CTRL_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for keep alive\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, H2C_WAKEUP_CTRL_LEN);
+
+	if (rtw_wow->pattern_cnt)
+		RTW89_SET_WOW_WAKEUP_CTRL_PATTERN_MATCH_ENABLE(skb->data, enable);
+	if (test_bit(RTW89_WOW_FLAG_EN_MAGIC_PKT, rtw_wow->flags))
+		RTW89_SET_WOW_WAKEUP_CTRL_MAGIC_ENABLE(skb->data, enable);
+	if (test_bit(RTW89_WOW_FLAG_EN_DISCONNECT, rtw_wow->flags))
+		RTW89_SET_WOW_WAKEUP_CTRL_DEAUTH_ENABLE(skb->data, enable);
+
+	RTW89_SET_WOW_WAKEUP_CTRL_MAC_ID(skb->data, macid);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MAC_WOW,
+			      H2C_FUNC_WAKEUP_CTRL, 0, 1,
+			      H2C_WAKEUP_CTRL_LEN);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
+#define H2C_WOW_CAM_UPD_LEN 24
+int rtw89_fw_wow_cam_update(struct rtw89_dev *rtwdev,
+			    struct rtw89_wow_cam_info *cam_info)
+{
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_WOW_CAM_UPD_LEN);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for keep alive\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, H2C_WOW_CAM_UPD_LEN);
+
+	RTW89_SET_WOW_CAM_UPD_R_W(skb->data, cam_info->r_w);
+	RTW89_SET_WOW_CAM_UPD_IDX(skb->data, cam_info->idx);
+	if (cam_info->valid) {
+		RTW89_SET_WOW_CAM_UPD_WKFM1(skb->data, cam_info->mask[0]);
+		RTW89_SET_WOW_CAM_UPD_WKFM2(skb->data, cam_info->mask[1]);
+		RTW89_SET_WOW_CAM_UPD_WKFM3(skb->data, cam_info->mask[2]);
+		RTW89_SET_WOW_CAM_UPD_WKFM4(skb->data, cam_info->mask[3]);
+		RTW89_SET_WOW_CAM_UPD_CRC(skb->data, cam_info->crc);
+		RTW89_SET_WOW_CAM_UPD_NEGATIVE_PATTERN_MATCH(skb->data,
+							     cam_info->negative_pattern_match);
+		RTW89_SET_WOW_CAM_UPD_SKIP_MAC_HDR(skb->data,
+						   cam_info->skip_mac_hdr);
+		RTW89_SET_WOW_CAM_UPD_UC(skb->data, cam_info->uc);
+		RTW89_SET_WOW_CAM_UPD_MC(skb->data, cam_info->mc);
+		RTW89_SET_WOW_CAM_UPD_BC(skb->data, cam_info->bc);
+	}
+	RTW89_SET_WOW_CAM_UPD_VALID(skb->data, cam_info->valid);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MAC_WOW,
+			      H2C_FUNC_WOW_CAM_UPD, 0, 1,
+			      H2C_WOW_CAM_UPD_LEN);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
 	return ret;
 }

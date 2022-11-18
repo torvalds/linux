@@ -801,6 +801,11 @@ bool rtw89_phy_write_rf_v1(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 }
 EXPORT_SYMBOL(rtw89_phy_write_rf_v1);
 
+static bool rtw89_chip_rf_v1(struct rtw89_dev *rtwdev)
+{
+	return rtwdev->chip->ops->write_rf == rtw89_phy_write_rf_v1;
+}
+
 static void rtw89_phy_bb_reset(struct rtw89_dev *rtwdev,
 			       enum rtw89_phy_idx phy_idx)
 {
@@ -1123,6 +1128,24 @@ out:
 	return ret;
 }
 
+static void rtw89_phy_config_rf_reg_noio(struct rtw89_dev *rtwdev,
+					 const struct rtw89_reg2_def *reg,
+					 enum rtw89_rf_path rf_path,
+					 void *extra_data)
+{
+	u32 addr = reg->addr;
+
+	if (addr == 0xfe || addr == 0xfd || addr == 0xfc || addr == 0xfb ||
+	    addr == 0xfa || addr == 0xf9)
+		return;
+
+	if (rtw89_chip_rf_v1(rtwdev) && addr < 0x100)
+		return;
+
+	rtw89_phy_cofig_rf_reg_store(rtwdev, reg, rf_path,
+				     (struct rtw89_fw_h2c_rf_reg_info *)extra_data);
+}
+
 static void rtw89_phy_config_rf_reg(struct rtw89_dev *rtwdev,
 				    const struct rtw89_reg2_def *reg,
 				    enum rtw89_rf_path rf_path,
@@ -1335,7 +1358,7 @@ static u32 rtw89_phy_nctl_poll(struct rtw89_dev *rtwdev)
 	return rtw89_phy_read32(rtwdev, 0x8080);
 }
 
-void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev)
+void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev, bool noio)
 {
 	void (*config)(struct rtw89_dev *rtwdev, const struct rtw89_reg2_def *reg,
 		       enum rtw89_rf_path rf_path, void *data);
@@ -1351,7 +1374,11 @@ void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev)
 	for (path = RF_PATH_A; path < chip->rf_path_num; path++) {
 		rf_table = chip->rf_table[path];
 		rf_reg_info->rf_path = rf_table->rf_path;
-		config = rf_table->config ? rf_table->config : rtw89_phy_config_rf_reg;
+		if (noio)
+			config = rtw89_phy_config_rf_reg_noio;
+		else
+			config = rf_table->config ? rf_table->config :
+				 rtw89_phy_config_rf_reg;
 		rtw89_phy_init_reg(rtwdev, rf_table, config, (void *)rf_reg_info);
 		if (rtw89_phy_config_rf_reg_fw(rtwdev, rf_reg_info))
 			rtw89_warn(rtwdev, "rf path %d reg h2c config failed\n",

@@ -637,6 +637,8 @@ struct ath10k_hw_params {
 	bool hw_restart_disconnect;
 
 	bool use_fw_tx_credits;
+
+	bool delay_unmap_buffer;
 };
 
 struct htt_resp;
