@@ -30,14 +30,14 @@
 		.gpio_base = (g),			\
 	}
 
-#define ICL_COMMUNITY(b, s, e, ie, g)			\
+#define ICL_COMMUNITY(b, s, e, g, v)			\
 	{						\
 		.barno = (b),				\
 		.padown_offset = ICL_PAD_OWN,		\
 		.padcfglock_offset = ICL_PADCFGLOCK,	\
 		.hostown_offset = ICL_HOSTSW_OWN,	\
 		.is_offset = ICL_GPI_IS,		\
-		.ie_offset = (ie),			\
+		.ie_offset = ICL_##v##_GPI_IE,		\
 		.pin_base = (s),			\
 		.npins = ((e) - (s) + 1),		\
 		.gpps = (g),				\
@@ -45,10 +45,10 @@
 	}
 
 #define ICL_LP_COMMUNITY(b, s, e, g)			\
-	ICL_COMMUNITY(b, s, e, ICL_LP_GPI_IE, g)
+	ICL_COMMUNITY(b, s, e, g, LP)
 
 #define ICL_N_COMMUNITY(b, s, e, g)			\
-	ICL_COMMUNITY(b, s, e, ICL_N_GPI_IE, g)
+	ICL_COMMUNITY(b, s, e, g, N)
 
 /* Ice Lake-LP */
 static const struct pinctrl_pin_desc icllp_pins[] = {
