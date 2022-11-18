@@ -210,7 +210,7 @@ static int cst3xx_bootloader_enter(struct i2c_client *client)
 {
 	int err;
 	u8 retry;
-	u32 tmp;
+	u32 tmp = 0;
 	unsigned char buf[3];
 
 	for (retry = 0; retry < 5; retry++) {
