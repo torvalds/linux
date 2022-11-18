@@ -354,6 +354,14 @@
 
 &i2c2 {
 	status = "okay";
+	smpro@4f {
+		compatible = "ampere,smpro";
+		reg = <0x4f>;
+	};
+	smpro@4e {
+		compatible = "ampere,smpro";
+		reg = <0x4e>;
+	};
 };
 
 &i2c3 {
