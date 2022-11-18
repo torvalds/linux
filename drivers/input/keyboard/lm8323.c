@@ -615,8 +615,7 @@ static ssize_t lm8323_set_disable(struct device *dev,
 }
 static DEVICE_ATTR(disable_kp, 0644, lm8323_show_disable, lm8323_set_disable);
 
-static int lm8323_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int lm8323_probe(struct i2c_client *client)
 {
 	struct lm8323_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct input_dev *idev;
@@ -829,7 +828,7 @@ static struct i2c_driver lm8323_i2c_driver = {
 		.name	= "lm8323",
 		.pm	= &lm8323_pm_ops,
 	},
-	.probe		= lm8323_probe,
+	.probe_new	= lm8323_probe,
 	.remove		= lm8323_remove,
 	.id_table	= lm8323_id,
 };
