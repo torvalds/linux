@@ -352,9 +352,9 @@ tc3589x_of_probe(struct device *dev, enum tc3589x_version *version)
 	return pdata;
 }
 
-static int tc3589x_probe(struct i2c_client *i2c,
-				   const struct i2c_device_id *id)
+static int tc3589x_probe(struct i2c_client *i2c)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	struct device_node *np = i2c->dev.of_node;
 	struct tc3589x_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct tc3589x *tc3589x;
@@ -486,7 +486,7 @@ static struct i2c_driver tc3589x_driver = {
 		.pm	= &tc3589x_dev_pm_ops,
 		.of_match_table = of_match_ptr(tc3589x_match),
 	},
-	.probe		= tc3589x_probe,
+	.probe_new	= tc3589x_probe,
 	.remove		= tc3589x_remove,
 	.id_table	= tc3589x_id,
 };
