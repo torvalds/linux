@@ -1579,9 +1579,9 @@ static void max1363_reg_disable(void *reg)
 	regulator_disable(reg);
 }
 
-static int max1363_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int max1363_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	int ret;
 	struct max1363_state *st;
 	struct iio_dev *indio_dev;
@@ -1718,7 +1718,7 @@ static struct i2c_driver max1363_driver = {
 		.name = "max1363",
 		.of_match_table = max1363_of_match,
 	},
-	.probe = max1363_probe,
+	.probe_new = max1363_probe,
 	.id_table = max1363_id,
 };
 module_i2c_driver(max1363_driver);
