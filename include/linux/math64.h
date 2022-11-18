@@ -284,6 +284,16 @@ static inline u64 mul_u64_u32_div(u64 a, u32 mul, u32 divisor)
 
 u64 mul_u64_u64_div_u64(u64 a, u64 mul, u64 div);
 
+/**
+ * DIV64_U64_ROUND_UP - unsigned 64bit divide with 64bit divisor rounded up
+ * @ll: unsigned 64bit dividend
+ * @d: unsigned 64bit divisor
+ *
+ * Divide unsigned 64bit dividend by unsigned 64bit divisor
+ * and round up.
+ *
+ * Return: dividend / divisor rounded up
+ */
 #define DIV64_U64_ROUND_UP(ll, d)	\
 	({ u64 _tmp = (d); div64_u64((ll) + _tmp - 1, _tmp); })
 
