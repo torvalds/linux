@@ -901,7 +901,7 @@ static int trace_eprobe_tp_update_arg(struct trace_eprobe *ep, const char *argv[
 
 static int trace_eprobe_parse_filter(struct trace_eprobe *ep, int argc, const char *argv[])
 {
-	struct event_filter *dummy;
+	struct event_filter *dummy = NULL;
 	int i, ret, len = 0;
 	char *p;
 
