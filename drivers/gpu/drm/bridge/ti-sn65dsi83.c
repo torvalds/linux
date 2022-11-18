@@ -653,9 +653,9 @@ static int sn65dsi83_host_attach(struct sn65dsi83 *ctx)
 	return 0;
 }
 
-static int sn65dsi83_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int sn65dsi83_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	enum sn65dsi83_model model;
 	struct sn65dsi83 *ctx;
@@ -730,7 +730,7 @@ static const struct of_device_id sn65dsi83_match_table[] = {
 MODULE_DEVICE_TABLE(of, sn65dsi83_match_table);
 
 static struct i2c_driver sn65dsi83_driver = {
-	.probe = sn65dsi83_probe,
+	.probe_new = sn65dsi83_probe,
 	.remove = sn65dsi83_remove,
 	.id_table = sn65dsi83_id,
 	.driver = {
