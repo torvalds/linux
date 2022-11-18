@@ -155,8 +155,7 @@ static int egalax_firmware_version(struct i2c_client *client)
 	return 0;
 }
 
-static int egalax_ts_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int egalax_ts_probe(struct i2c_client *client)
 {
 	struct egalax_ts *ts;
 	struct input_dev *input_dev;
@@ -264,7 +263,7 @@ static struct i2c_driver egalax_ts_driver = {
 		.of_match_table	= egalax_ts_dt_ids,
 	},
 	.id_table	= egalax_ts_id,
-	.probe		= egalax_ts_probe,
+	.probe_new	= egalax_ts_probe,
 };
 
 module_i2c_driver(egalax_ts_driver);
