@@ -144,8 +144,7 @@ static int max8925_dt_init(struct device_node *np, struct device *dev,
 	return 0;
 }
 
-static int max8925_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int max8925_probe(struct i2c_client *client)
 {
 	struct max8925_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct max8925_chip *chip;
@@ -242,7 +241,7 @@ static struct i2c_driver max8925_driver = {
 		.pm     = &max8925_pm_ops,
 		.of_match_table = max8925_dt_ids,
 	},
-	.probe		= max8925_probe,
+	.probe_new	= max8925_probe,
 	.remove		= max8925_remove,
 	.id_table	= max8925_id_table,
 };
