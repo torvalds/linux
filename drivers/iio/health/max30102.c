@@ -513,9 +513,9 @@ static const struct iio_info max30102_info = {
 	.read_raw = max30102_read_raw,
 };
 
-static int max30102_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int max30102_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct max30102_data *data;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -631,7 +631,7 @@ static struct i2c_driver max30102_driver = {
 		.name	= MAX30102_DRV_NAME,
 		.of_match_table	= max30102_dt_ids,
 	},
-	.probe		= max30102_probe,
+	.probe_new	= max30102_probe,
 	.remove		= max30102_remove,
 	.id_table	= max30102_id,
 };
