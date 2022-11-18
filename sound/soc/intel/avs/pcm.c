@@ -1394,9 +1394,29 @@ static int avs_component_hda_open(struct snd_soc_component *component,
 
 	if (!rtd->dai_link->no_pcm) {
 		struct snd_pcm_hardware hwparams = avs_pcm_hardware;
+		struct snd_soc_pcm_runtime *be;
+		struct snd_soc_dpcm *dpcm;
+		int dir = substream->stream;
+
+		/*
+		 * Support the DPCM reparenting while still fulfilling expectations of HDAudio
+		 * common code - a valid stream pointer at substream->runtime->private_data -
+		 * by having all FEs point to the same private data.
+		 */
+		for_each_dpcm_be(rtd, dir, dpcm) {
+			struct snd_pcm_substream *be_substream;
+
+			be = dpcm->be;
+			if (be->dpcm[dir].users == 1)
+				break;
+
+			be_substream = snd_soc_dpcm_get_substream(be, dir);
+			substream->runtime->private_data = be_substream->runtime->private_data;
+			break;
+		}
 
 		/* RESUME unsupported for de-coupled HD-Audio capture. */
-		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		if (dir == SNDRV_PCM_STREAM_CAPTURE)
 			hwparams.info &= ~SNDRV_PCM_INFO_RESUME;
 
 		return snd_soc_set_runtime_hwparams(substream, &hwparams);
