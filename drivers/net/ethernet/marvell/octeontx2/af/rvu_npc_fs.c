@@ -47,6 +47,19 @@ static const char * const npc_flow_names[] = {
 	[NPC_UNKNOWN]	= "unknown",
 };
 
+bool npc_is_feature_supported(struct rvu *rvu, u64 features, u8 intf)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	u64 mcam_features;
+	u64 unsupported;
+
+	mcam_features = is_npc_intf_tx(intf) ? mcam->tx_features : mcam->rx_features;
+	unsupported = (mcam_features ^ features) & ~mcam_features;
+
+	/* Return false if at least one of the input flows is not extracted */
+	return !unsupported;
+}
+
 const char *npc_get_field_name(u8 hdr)
 {
 	if (hdr >= ARRAY_SIZE(npc_flow_names))
@@ -436,8 +449,6 @@ static void npc_scan_ldata(struct rvu *rvu, int blkaddr, u8 lid,
 	nr_bytes = FIELD_GET(NPC_BYTESM, cfg) + 1;
 	hdr = FIELD_GET(NPC_HDR_OFFSET, cfg);
 	key = FIELD_GET(NPC_KEY_OFFSET, cfg);
-	start_kwi = key / 8;
-	offset = (key * 8) % 64;
 
 	/* For Tx, Layer A has NIX_INST_HDR_S(64 bytes) preceding
 	 * ethernet header.
@@ -452,13 +463,18 @@ static void npc_scan_ldata(struct rvu *rvu, int blkaddr, u8 lid,
 
 #define NPC_SCAN_HDR(name, hlid, hlt, hstart, hlen)			       \
 do {									       \
+	start_kwi = key / 8;						       \
+	offset = (key * 8) % 64;					       \
 	if (lid == (hlid) && lt == (hlt)) {				       \
 		if ((hstart) >= hdr &&					       \
 		    ((hstart) + (hlen)) <= (hdr + nr_bytes)) {	               \
 			bit_offset = (hdr + nr_bytes - (hstart) - (hlen)) * 8; \
 			npc_set_layer_mdata(mcam, (name), cfg, lid, lt, intf); \
+			offset += bit_offset;				       \
+			start_kwi += offset / 64;			       \
+			offset %= 64;					       \
 			npc_set_kw_masks(mcam, (name), (hlen) * 8,	       \
-					 start_kwi, offset + bit_offset, intf);\
+					 start_kwi, offset, intf);	       \
 		}							       \
 	}								       \
 } while (0)
@@ -650,9 +666,9 @@ static int npc_check_unsupported_flows(struct rvu *rvu, u64 features, u8 intf)
 
 	unsupported = (*mcam_features ^ features) & ~(*mcam_features);
 	if (unsupported) {
-		dev_info(rvu->dev, "Unsupported flow(s):\n");
+		dev_warn(rvu->dev, "Unsupported flow(s):\n");
 		for_each_set_bit(bit, (unsigned long *)&unsupported, 64)
-			dev_info(rvu->dev, "%s ", npc_get_field_name(bit));
+			dev_warn(rvu->dev, "%s ", npc_get_field_name(bit));
 		return -EOPNOTSUPP;
 	}
 
@@ -1007,8 +1023,20 @@ static void npc_update_rx_entry(struct rvu *rvu, struct rvu_pfvf *pfvf,
 	action.match_id = req->match_id;
 	action.flow_key_alg = req->flow_key_alg;
 
-	if (req->op == NIX_RX_ACTION_DEFAULT && pfvf->def_ucast_rule)
-		action = pfvf->def_ucast_rule->rx_action;
+	if (req->op == NIX_RX_ACTION_DEFAULT) {
+		if (pfvf->def_ucast_rule) {
+			action = pfvf->def_ucast_rule->rx_action;
+		} else {
+			/* For profiles which do not extract DMAC, the default
+			 * unicast entry is unused. Hence modify action for the
+			 * requests which use same action as default unicast
+			 * entry
+			 */
+			*(u64 *)&action = 0;
+			action.pf_func = target;
+			action.op = NIX_RX_ACTIONOP_UCAST;
+		}
+	}
 
 	entry->action = *(u64 *)&action;
 
@@ -1239,18 +1267,19 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 	if (npc_check_field(rvu, blkaddr, NPC_DMAC, req->intf))
 		goto process_flow;
 
-	if (is_pffunc_af(req->hdr.pcifunc)) {
+	if (is_pffunc_af(req->hdr.pcifunc) &&
+	    req->features & BIT_ULL(NPC_DMAC)) {
 		if (is_unicast_ether_addr(req->packet.dmac)) {
-			dev_err(rvu->dev,
-				"%s: mkex profile does not support ucast flow\n",
-				__func__);
+			dev_warn(rvu->dev,
+				 "%s: mkex profile does not support ucast flow\n",
+				 __func__);
 			return NPC_FLOW_NOT_SUPPORTED;
 		}
 
 		if (!npc_is_field_present(rvu, NPC_LXMB, req->intf)) {
-			dev_err(rvu->dev,
-				"%s: mkex profile does not support bcast/mcast flow",
-				__func__);
+			dev_warn(rvu->dev,
+				 "%s: mkex profile does not support bcast/mcast flow",
+				 __func__);
 			return NPC_FLOW_NOT_SUPPORTED;
 		}
 
@@ -1600,6 +1629,25 @@ int npc_install_mcam_drop_rule(struct rvu *rvu, int mcam_idx, u16 *counter_idx,
 
 	/* disable entry at Bank 0, index 0 */
 	npc_enable_mcam_entry(rvu, mcam, blkaddr, mcam_idx, false);
+
+	return 0;
+}
+
+int rvu_mbox_handler_npc_get_field_status(struct rvu *rvu,
+					  struct npc_get_field_status_req *req,
+					  struct npc_get_field_status_rsp *rsp)
+{
+	int blkaddr;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
+
+	if (!is_npc_interface_valid(rvu, req->intf))
+		return NPC_FLOW_INTF_INVALID;
+
+	if (npc_check_field(rvu, blkaddr, req->field, req->intf))
+		rsp->enable = 1;
 
 	return 0;
 }
