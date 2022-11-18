@@ -12,6 +12,7 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 	struct bpf_map *inner_map, *inner_map_meta;
 	u32 inner_map_meta_size;
 	struct fd f;
+	int ret;
 
 	f = fdget(inner_map_ufd);
 	inner_map = __bpf_map_get(f);
@@ -20,18 +21,18 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 
 	/* Does not support >1 level map-in-map */
 	if (inner_map->inner_map_meta) {
-		fdput(f);
-		return ERR_PTR(-EINVAL);
+		ret = -EINVAL;
+		goto put;
 	}
 
 	if (!inner_map->ops->map_meta_equal) {
-		fdput(f);
-		return ERR_PTR(-ENOTSUPP);
+		ret = -ENOTSUPP;
+		goto put;
 	}
 
 	if (btf_record_has_field(inner_map->record, BPF_SPIN_LOCK)) {
-		fdput(f);
-		return ERR_PTR(-ENOTSUPP);
+		ret = -ENOTSUPP;
+		goto put;
 	}
 
 	inner_map_meta_size = sizeof(*inner_map_meta);
@@ -41,8 +42,8 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 
 	inner_map_meta = kzalloc(inner_map_meta_size, GFP_USER);
 	if (!inner_map_meta) {
-		fdput(f);
-		return ERR_PTR(-ENOMEM);
+		ret = -ENOMEM;
+		goto put;
 	}
 
 	inner_map_meta->map_type = inner_map->map_type;
@@ -50,16 +51,27 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 	inner_map_meta->value_size = inner_map->value_size;
 	inner_map_meta->map_flags = inner_map->map_flags;
 	inner_map_meta->max_entries = inner_map->max_entries;
+
 	inner_map_meta->record = btf_record_dup(inner_map->record);
 	if (IS_ERR(inner_map_meta->record)) {
-		struct bpf_map *err_ptr = ERR_CAST(inner_map_meta->record);
 		/* btf_record_dup returns NULL or valid pointer in case of
 		 * invalid/empty/valid, but ERR_PTR in case of errors. During
 		 * equality NULL or IS_ERR is equivalent.
 		 */
-		kfree(inner_map_meta);
-		fdput(f);
-		return err_ptr;
+		ret = PTR_ERR(inner_map_meta->record);
+		goto free;
+	}
+	if (inner_map_meta->record) {
+		struct btf_field_offs *field_offs;
+		/* If btf_record is !IS_ERR_OR_NULL, then field_offs is always
+		 * valid.
+		 */
+		field_offs = kmemdup(inner_map->field_offs, sizeof(*inner_map->field_offs), GFP_KERNEL | __GFP_NOWARN);
+		if (!field_offs) {
+			ret = -ENOMEM;
+			goto free_rec;
+		}
+		inner_map_meta->field_offs = field_offs;
 	}
 	if (inner_map->btf) {
 		btf_get(inner_map->btf);
@@ -76,10 +88,18 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 
 	fdput(f);
 	return inner_map_meta;
+free_rec:
+	btf_record_free(inner_map_meta->record);
+free:
+	kfree(inner_map_meta);
+put:
+	fdput(f);
+	return ERR_PTR(ret);
 }
 
 void bpf_map_meta_free(struct bpf_map *map_meta)
 {
+	kfree(map_meta->field_offs);
 	bpf_map_free_record(map_meta);
 	btf_put(map_meta->btf);
 	kfree(map_meta);
