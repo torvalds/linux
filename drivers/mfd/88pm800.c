@@ -528,8 +528,7 @@ out:
 	return ret;
 }
 
-static int pm800_probe(struct i2c_client *client,
-				 const struct i2c_device_id *id)
+static int pm800_probe(struct i2c_client *client)
 {
 	int ret = 0;
 	struct pm80x_chip *chip;
@@ -599,7 +598,7 @@ static struct i2c_driver pm800_driver = {
 		.name = "88PM800",
 		.pm = &pm80x_pm_ops,
 		},
-	.probe = pm800_probe,
+	.probe_new = pm800_probe,
 	.remove = pm800_remove,
 	.id_table = pm80x_id_table,
 };
