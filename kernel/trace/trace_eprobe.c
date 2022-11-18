@@ -567,6 +567,9 @@ static void eprobe_trigger_func(struct event_trigger_data *data,
 	if (unlikely(!rec))
 		return;
 
+	if (unlikely(!rec))
+		return;
+
 	__eprobe_trace_func(edata, rec);
 }
 
