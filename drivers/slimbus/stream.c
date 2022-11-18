@@ -414,6 +414,9 @@ int slim_stream_disable(struct slim_stream_runtime *stream)
 	struct slim_controller *ctrl = stream->dev->ctrl;
 	int ret, i;
 
+	if (!stream->ports || !stream->num_ports)
+		return -EINVAL;
+
 	if (ctrl->disable_stream)
 		ctrl->disable_stream(stream);
 
@@ -444,6 +447,9 @@ EXPORT_SYMBOL_GPL(slim_stream_disable);
 int slim_stream_unprepare(struct slim_stream_runtime *stream)
 {
 	int i;
+
+	if (!stream->ports || !stream->num_ports)
+		return -EINVAL;
 
 	for (i = 0; i < stream->num_ports; i++)
 		slim_disconnect_port(stream, &stream->ports[i]);
