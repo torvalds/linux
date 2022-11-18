@@ -410,8 +410,7 @@ static void stmfx_chip_exit(struct i2c_client *client)
 	}
 }
 
-static int stmfx_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int stmfx_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct stmfx *stmfx;
@@ -556,7 +555,7 @@ static struct i2c_driver stmfx_driver = {
 		.of_match_table = stmfx_of_match,
 		.pm = &stmfx_dev_pm_ops,
 	},
-	.probe = stmfx_probe,
+	.probe_new = stmfx_probe,
 	.remove = stmfx_remove,
 };
 module_i2c_driver(stmfx_driver);
