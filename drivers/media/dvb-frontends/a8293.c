@@ -62,8 +62,7 @@ err:
 	return ret;
 }
 
-static int a8293_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int a8293_probe(struct i2c_client *client)
 {
 	struct a8293_dev *dev;
 	struct a8293_platform_data *pdata = client->dev.platform_data;
@@ -118,7 +117,7 @@ static struct i2c_driver a8293_driver = {
 		.name	= "a8293",
 		.suppress_bind_attrs = true,
 	},
-	.probe		= a8293_probe,
+	.probe_new	= a8293_probe,
 	.remove		= a8293_remove,
 	.id_table	= a8293_id_table,
 };
