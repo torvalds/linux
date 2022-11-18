@@ -29,6 +29,7 @@
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
 #include <linux/soc/qcom/qcom_aoss.h>
+#include <soc/qcom/secure_buffer.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/rproc_qcom.h>
@@ -49,6 +50,7 @@ static struct icc_path *scm_perf_client;
 static int scm_pas_bw_count;
 static DEFINE_MUTEX(scm_pas_bw_mutex);
 bool timeout_disabled;
+static bool mpss_dsm_mem_setup;
 
 struct adsp_data {
 	int crash_reason_smem;
@@ -63,6 +65,7 @@ struct adsp_data {
 	bool auto_boot;
 	bool dma_phys_below_32b;
 	bool decrypt_shutdown;
+	bool needs_dsm_mem_setup;
 
 	char **active_pd_names;
 	char **proxy_pd_names;
@@ -952,6 +955,43 @@ out:
 	return ret;
 }
 
+static int setup_mpss_dsm_mem(struct platform_device *pdev)
+{
+	struct qcom_scm_vmperm newvm[1];
+	struct device_node *node;
+	struct resource res;
+	phys_addr_t mem_phys;
+	int curr_perm;
+	u64 mem_size;
+	int ret;
+	newvm[0].vmid = QCOM_SCM_VMID_MSS_MSA;
+	newvm[0].perm = QCOM_SCM_PERM_RW;
+	curr_perm = BIT(QCOM_SCM_VMID_HLOS);
+
+	node = of_parse_phandle(pdev->dev.of_node, "mpss_dsm_mem_reg", 0);
+	if (!node) {
+		dev_err(&pdev->dev, "mpss dsm mem region is missing\n");
+		return -EINVAL;
+	}
+
+	ret = of_address_to_resource(node, 0, &res);
+	if (ret) {
+		dev_err(&pdev->dev, "address to resource failed for mpss dsm mem\n");
+		return ret;
+	}
+
+	mem_phys = res.start;
+	mem_size = resource_size(&res);
+	ret = qcom_scm_assign_mem(mem_phys, mem_size, &curr_perm, newvm, 1);
+	if (ret) {
+		dev_err(&pdev->dev, "hyp assign for mpss dsm mem failed\n");
+		return ret;
+	}
+
+	mpss_dsm_mem_setup = true;
+	return 0;
+}
+
 static int adsp_probe(struct platform_device *pdev)
 {
 	const struct adsp_data *desc;
@@ -974,6 +1014,15 @@ static int adsp_probe(struct platform_device *pdev)
 				      &fw_name);
 	if (ret < 0 && ret != -EINVAL)
 		return ret;
+
+	if (desc->needs_dsm_mem_setup && !mpss_dsm_mem_setup &&
+			!strcmp(fw_name, "modem.mdt")) {
+		ret = setup_mpss_dsm_mem(pdev);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to setup mpss dsm mem\n");
+			return -EINVAL;
+		}
+	}
 
 	if (desc->minidump_id)
 		ops = &adsp_minidump_ops;
@@ -1469,6 +1518,7 @@ static const struct adsp_data pineapple_mpss_resource = {
 	.uses_elf64 = true,
 	.has_aggre2_clk = false,
 	.auto_boot = false,
+	.needs_dsm_mem_setup = true,
 	.ssr_name = "mpss",
 	.sysmon_name = "modem",
 	.qmp_name = "modem",
