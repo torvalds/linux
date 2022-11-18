@@ -183,8 +183,7 @@ static const struct regmap_config pcf50633_regmap_config = {
 	.val_bits = 8,
 };
 
-static int pcf50633_probe(struct i2c_client *client,
-				const struct i2c_device_id *ids)
+static int pcf50633_probe(struct i2c_client *client)
 {
 	struct pcf50633 *pcf;
 	struct platform_device *pdev;
@@ -303,7 +302,7 @@ static struct i2c_driver pcf50633_driver = {
 		.pm	= &pcf50633_pm,
 	},
 	.id_table = pcf50633_id_table,
-	.probe = pcf50633_probe,
+	.probe_new = pcf50633_probe,
 	.remove = pcf50633_remove,
 };
 
