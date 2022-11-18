@@ -855,8 +855,7 @@ static int cyttsp5_probe(struct device *dev, struct regmap *regmap, int irq,
 	return cyttsp5_setup_input_device(dev);
 }
 
-static int cyttsp5_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int cyttsp5_i2c_probe(struct i2c_client *client)
 {
 	struct regmap *regmap;
 	static const struct regmap_config config = {
@@ -891,7 +890,7 @@ static struct i2c_driver cyttsp5_i2c_driver = {
 		.name = CYTTSP5_NAME,
 		.of_match_table = cyttsp5_of_match,
 	},
-	.probe = cyttsp5_i2c_probe,
+	.probe_new = cyttsp5_i2c_probe,
 	.id_table = cyttsp5_i2c_id,
 };
 module_i2c_driver(cyttsp5_i2c_driver);
