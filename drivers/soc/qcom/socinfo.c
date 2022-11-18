@@ -293,6 +293,10 @@ struct socinfo {
 	/* Version 18 */
 	__le32 num_kvps;
 	__le32 kvps_offset;
+	/* Version 19 */
+	__le32 num_func_clusters;
+	__le32 boot_cluster;
+	__le32 boot_core;
 } *socinfo;
 
 #define PART_NAME_MAX		32
@@ -1246,6 +1250,8 @@ static void socinfo_populate_sysfs(struct qcom_socinfo *qcom_socinfo)
 	int i = 0;
 
 	switch (socinfo_format) {
+	case SOCINFO_VERSION(0, 19):
+		fallthrough;
 	case SOCINFO_VERSION(0, 18):
 		fallthrough;
 	case SOCINFO_VERSION(0, 17):
@@ -1627,6 +1633,39 @@ static void socinfo_print(void)
 			socinfo->kvps_offset);
 		break;
 
+	case SOCINFO_VERSION(0, 19):
+		pr_info("v%u.%u, id=%u, ver=%u.%u, raw_id=%u, raw_ver=%u, hw_plat=%u, hw_plat_ver=%u\n accessory_chip=%u, hw_plat_subtype=%u, pmic_model=%u, pmic_die_revision=%u foundry_id=%u serial_number=%u num_pmics=%u chip_family=0x%x raw_device_family=0x%x raw_device_number=0x%x nproduct_id=0x%x num_clusters=0x%x ncluster_array_offset=0x%x num_defective_parts=0x%x ndefective_parts_array_offset=0x%x nmodem_supported=0x%x feature_code=0x%x pcode=0x%x sku=%s hw_plat_oem_variant=%u num_kvps=%u kvps_offset=%u num_func_clusters=%u boot_cluster=%u boot_core=%u\n",
+			f_maj, f_min, socinfo->id, v_maj, v_min,
+			socinfo->raw_id, socinfo->raw_ver,
+			socinfo->hw_plat,
+			socinfo->plat_ver,
+			socinfo->accessory_chip,
+			socinfo->hw_plat_subtype,
+			socinfo->pmic_model,
+			socinfo->pmic_die_rev,
+			socinfo->foundry_id,
+			socinfo->serial_num,
+			socinfo->num_pmics,
+			socinfo->chip_family,
+			socinfo->raw_device_family,
+			socinfo->raw_device_num,
+			socinfo->nproduct_id,
+			socinfo->num_clusters,
+			socinfo->ncluster_array_offset,
+			socinfo->num_defective_parts,
+			socinfo->ndefective_parts_array_offset,
+			socinfo->nmodem_supported,
+			socinfo->feature_code,
+			socinfo->pcode,
+			sku ? sku : "Unknown",
+			socinfo->hw_plat_oem_variant,
+			socinfo->num_kvps,
+			socinfo->kvps_offset,
+			socinfo->num_func_clusters,
+			socinfo->boot_cluster,
+			socinfo->boot_core);
+		break;
+
 	default:
 		pr_err("Unknown format found: v%u.%u\n", f_maj, f_min);
 		break;
@@ -1921,6 +1960,8 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 			   &qcom_socinfo->info.fmt);
 
 	switch (qcom_socinfo->info.fmt) {
+	case SOCINFO_VERSION(0, 19):
+		fallthrough;
 	case SOCINFO_VERSION(0, 18):
 		fallthrough;
 	case SOCINFO_VERSION(0, 17):
