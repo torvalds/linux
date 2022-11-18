@@ -15,6 +15,7 @@ if HID_SUPPORT
 config HID
 	tristate "HID bus core support"
 	default y
+	depends on INPUT
 	help
 	  A human interface device (HID) is a type of computer device that
 	  interacts directly with and takes input from humans. The term "HID"
