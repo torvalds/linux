@@ -1365,9 +1365,6 @@ static struct dsa_port *dsa_port_touch(struct dsa_switch *ds, int index)
 
 static int dsa_port_parse_user(struct dsa_port *dp, const char *name)
 {
-	if (!name)
-		name = "eth%d";
-
 	dp->type = DSA_PORT_TYPE_USER;
 	dp->name = name;
 
