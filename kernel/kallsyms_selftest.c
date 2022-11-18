@@ -133,7 +133,7 @@ static void test_kallsyms_compression_ratio(void)
 			off++;
 		}
 		off += len;
-	};
+	}
 
 	/*
 	 * 1. The length fields is not counted
