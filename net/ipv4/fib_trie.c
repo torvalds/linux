@@ -126,7 +126,7 @@ struct key_vector {
 		/* This list pointer if valid if (pos | bits) == 0 (LEAF) */
 		struct hlist_head leaf;
 		/* This array is valid if (pos | bits) > 0 (TNODE) */
-		struct key_vector __rcu *tnode[0];
+		DECLARE_FLEX_ARRAY(struct key_vector __rcu *, tnode);
 	};
 };
 
