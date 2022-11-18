@@ -228,6 +228,13 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 			return IOU_POLL_DONE;
 		if (v & IO_POLL_CANCEL_FLAG)
 			return -ECANCELED;
+		/*
+		 * cqe.res contains only events of the first wake up
+		 * and all others are be lost. Redo vfs_poll() to get
+		 * up to date state.
+		 */
+		if ((v & IO_POLL_REF_MASK) != 1)
+			req->cqe.res = 0;
 
 		/* the mask was stashed in __io_poll_execute */
 		if (!req->cqe.res) {
@@ -238,6 +245,8 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 		if ((unlikely(!req->cqe.res)))
 			continue;
 		if (req->apoll_events & EPOLLONESHOT)
+			return IOU_POLL_DONE;
+		if (io_is_uring_fops(req->file))
 			return IOU_POLL_DONE;
 
 		/* multishot, just fill a CQE and proceed */
@@ -257,6 +266,9 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 			if (ret < 0)
 				return ret;
 		}
+
+		/* force the next iteration to vfs_poll() */
+		req->cqe.res = 0;
 
 		/*
 		 * Release all references, retry if someone tried to restart
