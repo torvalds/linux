@@ -594,7 +594,7 @@ ps3)
     # reached, then enter the system reset vector of the partially decompressed
     # image.  No warning is issued.
     rm -f "$odir"/{otheros,otheros-too-big}.bld
-    size=$(${CROSS}nm --no-sort --radix=d "$ofile" | egrep ' _end$' | cut -d' ' -f1)
+    size=$(${CROSS}nm --no-sort --radix=d "$ofile" | grep -E ' _end$' | cut -d' ' -f1)
     bld="otheros.bld"
     if [ $size -gt $((0x1000000)) ]; then
         bld="otheros-too-big.bld"
