@@ -73,7 +73,6 @@ struct rv1106_codec_priv {
 	struct regmap *grf;
 	struct clk *pclk_acodec;
 	struct clk *mclk_acodec;
-	struct clk *mclk_cpu;
 	struct gpio_desc *pa_ctl_gpio;
 	struct snd_soc_component *component;
 
@@ -1607,11 +1606,29 @@ static void rv1106_pcm_shutdown(struct snd_pcm_substream *substream,
 	regcache_sync(rv1106->regmap);
 }
 
+static int rv1106_set_sysclk(struct snd_soc_dai *dai, int clk_id,
+			     unsigned int freq, int dir)
+{
+	struct snd_soc_component *component = dai->component;
+	struct rv1106_codec_priv *rv1106 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	if (!freq)
+		return 0;
+
+	ret = clk_set_rate(rv1106->mclk_acodec, freq);
+	if (ret)
+		dev_err(&rv1106->dev, "Failed to set mclk %d\n", ret);
+
+	return ret;
+}
+
 static const struct snd_soc_dai_ops rv1106_dai_ops = {
 	.hw_params = rv1106_hw_params,
 	.set_fmt = rv1106_set_dai_fmt,
 	.mute_stream = rv1106_mute_stream,
 	.shutdown = rv1106_pcm_shutdown,
+	.set_sysclk = rv1106_set_sysclk,
 };
 
 static struct snd_soc_dai_driver rv1106_dai[] = {
@@ -2075,11 +2092,6 @@ static int rv1106_platform_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(rv1106->mclk_acodec),
 				    "Can't get acodec mclk_acodec\n");
 
-	rv1106->mclk_cpu = devm_clk_get(&pdev->dev, "mclk_cpu");
-	if (IS_ERR(rv1106->mclk_cpu))
-		return dev_err_probe(&pdev->dev, PTR_ERR(rv1106->mclk_cpu),
-				    "Can't get acodec mclk_cpu\n");
-
 	ret = rv1106_codec_sysfs_init(pdev, rv1106);
 	if (ret < 0)
 		return dev_err_probe(&pdev->dev, ret, "Sysfs init failed\n");
@@ -2105,15 +2117,6 @@ static int rv1106_platform_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to enable acodec mclk_acodec: %d\n", ret);
 		goto failed_1;
 	}
-
-	/**
-	 * In PERICRU_PERICLKSEL_CON08, the mclk_acodec_t/rx_div are div 4
-	 * by default, we need to calibrate once, make the div is 1 and keep
-	 * the rate of mclk_acodec is the same with mclk_i2s.
-	 *
-	 * FIXME: need to handle div dynamically if the DSMAUDIO is enabled.
-	 */
-	clk_set_rate(rv1106->mclk_acodec, clk_get_rate(rv1106->mclk_cpu));
 
 	rv1106_codec_check_micbias(rv1106, np);
 
