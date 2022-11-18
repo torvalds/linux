@@ -324,6 +324,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 
 		if (!prop->supports_advanced_cpucp_rc) {
 			dev_dbg(hdev->dev, "F/W ERROR %d for CPU packet %d\n", rc, opcode);
+			rc = -EIO;
 			goto scrub_descriptor;
 		}
 
