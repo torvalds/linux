@@ -17,6 +17,9 @@ description: |
   define and might require dynamic reading of the NVMEM device in order to
   perform their parsing. The nvmem-layout container is here to describe these.
 
+oneOf:
+  - $ref: kontron,sl28-vpd.yaml
+
 properties:
   compatible: true
 
