@@ -358,9 +358,9 @@ static void max77836_remove(struct max14577 *max14577)
 	i2c_unregister_device(max14577->i2c_pmic);
 }
 
-static int max14577_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
+static int max14577_i2c_probe(struct i2c_client *i2c)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	struct max14577 *max14577;
 	struct max14577_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct device_node *np = i2c->dev.of_node;
@@ -523,7 +523,7 @@ static struct i2c_driver max14577_i2c_driver = {
 		.pm = &max14577_pm,
 		.of_match_table = max14577_dt_match,
 	},
-	.probe = max14577_i2c_probe,
+	.probe_new = max14577_i2c_probe,
 	.remove = max14577_i2c_remove,
 	.id_table = max14577_i2c_id,
 };
