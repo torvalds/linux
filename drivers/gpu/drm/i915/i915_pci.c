@@ -1117,6 +1117,7 @@ static const struct intel_device_info pvc_info = {
 	XE_LPD_FEATURES,	\
 	.__runtime.display.ip.ver = 14,	\
 	.display.has_cdclk_crawl = 1, \
+	.display.has_cdclk_squash = 1, \
 	.__runtime.fbc_mask = BIT(INTEL_FBC_A) | BIT(INTEL_FBC_B)
 
 static const struct intel_gt_definition xelpmp_extra_gt[] = {
