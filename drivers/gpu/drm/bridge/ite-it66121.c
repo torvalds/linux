@@ -1512,8 +1512,7 @@ static int it66121_audio_codec_init(struct it66121_ctx *ctx, struct device *dev)
 	return PTR_ERR_OR_ZERO(ctx->audio.pdev);
 }
 
-static int it66121_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int it66121_probe(struct i2c_client *client)
 {
 	u32 revision_id, vendor_ids[2] = { 0 }, device_ids[2] = { 0 };
 	struct device_node *ep;
@@ -1649,7 +1648,7 @@ static struct i2c_driver it66121_driver = {
 		.name	= "it66121",
 		.of_match_table = it66121_dt_match,
 	},
-	.probe = it66121_probe,
+	.probe_new = it66121_probe,
 	.remove = it66121_remove,
 	.id_table = it66121_id,
 };
