@@ -19,6 +19,7 @@ description: |
 
 oneOf:
   - $ref: kontron,sl28-vpd.yaml
+  - $ref: onie,tlv-layout.yaml
 
 properties:
   compatible: true
