@@ -1727,7 +1727,8 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int primary)
 	/*
 	 * No changes, easy!
 	 */
-	if (!(pgprot_val(cpa->mask_set) | pgprot_val(cpa->mask_clr)))
+	if (!(pgprot_val(cpa->mask_set) | pgprot_val(cpa->mask_clr)) &&
+	    !cpa->force_split)
 		return ret;
 
 	while (rempages) {
