@@ -109,7 +109,7 @@ static bool ufs_mtk_is_pmc_via_fastauto(struct ufs_hba *hba)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 
-	return (host->caps & UFS_MTK_CAP_PMC_VIA_FASTAUTO);
+	return !!(host->caps & UFS_MTK_CAP_PMC_VIA_FASTAUTO);
 }
 
 static void ufs_mtk_cfg_unipro_cg(struct ufs_hba *hba, bool enable)
