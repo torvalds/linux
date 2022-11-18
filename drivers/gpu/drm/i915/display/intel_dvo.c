@@ -118,8 +118,6 @@ struct intel_dvo {
 	struct intel_dvo_device dev;
 
 	struct intel_connector *attached_connector;
-
-	bool panel_wants_dither;
 };
 
 static struct intel_dvo *enc_to_dvo(struct intel_encoder *encoder)
@@ -531,8 +529,6 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 							   intel_encoder);
 
 			intel_panel_init(intel_connector);
-
-			intel_dvo->panel_wants_dither = true;
 		}
 
 		return;
