@@ -18747,6 +18747,8 @@ F:	drivers/char/random.c
 F:	drivers/virt/vmgenid.c
 F:	include/vdso/getrandom.h
 F:	lib/vdso/getrandom.c
+F:	arch/x86/entry/vdso/vgetrandom*
+F:	arch/x86/include/asm/vdso/getrandom*
 
 RAPIDIO SUBSYSTEM
 M:	Matt Porter <mporter@kernel.crashing.org>
