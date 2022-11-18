@@ -230,8 +230,7 @@ err_i2c_write:
 	return ret;
 }
 
-static int mpr_touchkey_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int mpr_touchkey_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct regulator *vdd_supply;
@@ -390,7 +389,7 @@ static struct i2c_driver mpr_touchkey_driver = {
 		.of_match_table = of_match_ptr(mpr121_touchkey_dt_match_table),
 	},
 	.id_table	= mpr121_id,
-	.probe		= mpr_touchkey_probe,
+	.probe_new	= mpr_touchkey_probe,
 };
 
 module_i2c_driver(mpr_touchkey_driver);
