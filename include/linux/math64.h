@@ -120,6 +120,8 @@ extern s64 div64_s64(s64 dividend, s64 divisor);
  * This is the most common 64bit divide and should be used if possible,
  * as many 32bit archs can optimize this variant better than a full 64bit
  * divide.
+ *
+ * Return: dividend / divisor
  */
 #ifndef div_u64
 static inline u64 div_u64(u64 dividend, u32 divisor)
@@ -133,6 +135,8 @@ static inline u64 div_u64(u64 dividend, u32 divisor)
  * div_s64 - signed 64bit divide with 32bit divisor
  * @dividend: signed 64bit dividend
  * @divisor: signed 32bit divisor
+ *
+ * Return: dividend / divisor
  */
 #ifndef div_s64
 static inline s64 div_s64(s64 dividend, s32 divisor)
