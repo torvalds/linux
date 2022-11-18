@@ -958,6 +958,14 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 efi_loaded_image_t *image,
 				 efi_handle_t image_handle);
 
+/* shared entrypoint between the normal stub and the zboot stub */
+efi_status_t efi_stub_common(efi_handle_t handle,
+			     efi_loaded_image_t *image,
+			     unsigned long image_addr,
+			     char *cmdline_ptr);
+
+efi_status_t efi_handle_cmdline(efi_loaded_image_t *image, char **cmdline_ptr);
+
 asmlinkage void __noreturn efi_enter_kernel(unsigned long entrypoint,
 					    unsigned long fdt_addr,
 					    unsigned long fdt_size);
@@ -974,6 +982,13 @@ efi_enable_reset_attack_mitigation(void) { }
 #endif
 
 void efi_retrieve_tpm2_eventlog(void);
+
+struct screen_info *alloc_screen_info(void);
+void free_screen_info(struct screen_info *si);
+
+void efi_cache_sync_image(unsigned long image_base,
+			  unsigned long alloc_size,
+			  unsigned long code_size);
 
 struct efi_smbios_record {
 	u8	type;

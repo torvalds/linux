@@ -52,6 +52,27 @@ void __init efi_runtime_init(void)
 	set_bit(EFI_RUNTIME_SERVICES, &efi.flags);
 }
 
+unsigned long __initdata screen_info_table = EFI_INVALID_TABLE_ADDR;
+
+static void __init init_screen_info(void)
+{
+	struct screen_info *si;
+
+	if (screen_info_table == EFI_INVALID_TABLE_ADDR)
+		return;
+
+	si = early_memremap(screen_info_table, sizeof(*si));
+	if (!si) {
+		pr_err("Could not map screen_info config table\n");
+		return;
+	}
+	screen_info = *si;
+	memset(si, 0, sizeof(*si));
+	early_memunmap(si, sizeof(*si));
+
+	memblock_reserve(screen_info.lfb_base, screen_info.lfb_size);
+}
+
 void __init efi_init(void)
 {
 	int size;
@@ -80,8 +101,7 @@ void __init efi_init(void)
 
 	set_bit(EFI_CONFIG_TABLES, &efi.flags);
 
-	if (screen_info.orig_video_isVGA == VIDEO_TYPE_EFI)
-		memblock_reserve(screen_info.lfb_base, screen_info.lfb_size);
+	init_screen_info();
 
 	if (boot_memmap == EFI_INVALID_TABLE_ADDR)
 		return;

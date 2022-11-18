@@ -10,7 +10,6 @@
 #error This file should only be included in vmlinux.lds.S
 #endif
 
-PROVIDE(__efistub_kernel_size		= _edata - _text);
 PROVIDE(__efistub_primary_entry_offset	= primary_entry - _text);
 
 /*
@@ -22,13 +21,6 @@ PROVIDE(__efistub_primary_entry_offset	= primary_entry - _text);
  * linked at. The routines below are all implemented in assembler in a
  * position independent manner
  */
-PROVIDE(__efistub_memcmp		= __pi_memcmp);
-PROVIDE(__efistub_memchr		= __pi_memchr);
-PROVIDE(__efistub_strlen		= __pi_strlen);
-PROVIDE(__efistub_strnlen		= __pi_strnlen);
-PROVIDE(__efistub_strcmp		= __pi_strcmp);
-PROVIDE(__efistub_strncmp		= __pi_strncmp);
-PROVIDE(__efistub_strrchr		= __pi_strrchr);
 PROVIDE(__efistub_dcache_clean_poc	= __pi_dcache_clean_poc);
 
 PROVIDE(__efistub__text			= _text);
