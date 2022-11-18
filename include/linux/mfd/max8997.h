@@ -110,8 +110,6 @@ enum max8997_haptic_pwm_divisor {
 
 /**
  * max8997_haptic_platform_data
- * @pwm_channel_id: channel number of PWM device
- *		    valid for MAX8997_EXTERNAL_MODE
  * @pwm_period: period in nano second for PWM device
  *		valid for MAX8997_EXTERNAL_MODE
  * @type: motor type
@@ -128,7 +126,6 @@ enum max8997_haptic_pwm_divisor {
  *     [0 - 255]: available period
  */
 struct max8997_haptic_platform_data {
-	unsigned int pwm_channel_id;
 	unsigned int pwm_period;
 
 	enum max8997_haptic_motor_type type;
