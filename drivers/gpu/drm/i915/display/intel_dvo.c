@@ -453,7 +453,6 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 		bool dvoinit;
 		enum pipe pipe;
 		u32 dpll[I915_MAX_PIPES];
-		enum port port;
 
 		/*
 		 * Allow the I2C driver info to specify the GPIO to be used in
@@ -506,20 +505,19 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 		if (!dvoinit)
 			continue;
 
-		port = intel_dvo_port(dvo->dvo_reg);
-		drm_encoder_init(&dev_priv->drm, &intel_encoder->base,
-				 &intel_dvo_enc_funcs,
-				 intel_dvo_encoder_type(dvo),
-				 "DVO %c", port_name(port));
-
 		intel_encoder->type = INTEL_OUTPUT_DVO;
 		intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
-		intel_encoder->port = port;
+		intel_encoder->port = intel_dvo_port(dvo->dvo_reg);
 		intel_encoder->pipe_mask = ~0;
 
 		if (dvo->type != INTEL_DVO_CHIP_LVDS)
 			intel_encoder->cloneable = BIT(INTEL_OUTPUT_ANALOG) |
 				BIT(INTEL_OUTPUT_DVO);
+
+		drm_encoder_init(&dev_priv->drm, &intel_encoder->base,
+				 &intel_dvo_enc_funcs,
+				 intel_dvo_encoder_type(dvo),
+				 "DVO %c", port_name(intel_encoder->port));
 
 		if (dvo->type == INTEL_DVO_CHIP_TMDS)
 			intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT |
