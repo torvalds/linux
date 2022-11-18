@@ -74,17 +74,19 @@ static void wordwrap(const char *s, int start, int max, int corr)
 {
 	int column = start;
 	int n;
+	bool saw_newline = false;
 
 	while (*s) {
-		int wlen = strcspn(s, " \t");
+		int wlen = strcspn(s, " \t\n");
 
-		if (column + wlen >= max && column > start) {
+		if ((column + wlen >= max && column > start) || saw_newline) {
 			printf("\n%*s", start, "");
 			column = start + corr;
 		}
 		n = printf("%s%.*s", column > start ? " " : "", wlen, s);
 		if (n <= 0)
 			break;
+		saw_newline = s[wlen] == '\n';
 		s += wlen;
 		column += n;
 		s = skip_spaces(s);
@@ -146,7 +148,7 @@ static void default_print_event(void *ps, const char *pmu_name, const char *topi
 		wordwrap(desc, 8, pager_get_columns(), 0);
 		printf("]\n");
 	}
-
+	long_desc = long_desc ?: desc;
 	if (long_desc && print_state->long_desc) {
 		printf("%*s", 8, "[");
 		wordwrap(long_desc, 8, pager_get_columns(), 0);
@@ -154,7 +156,8 @@ static void default_print_event(void *ps, const char *pmu_name, const char *topi
 	}
 
 	if (print_state->detailed && encoding_desc) {
-		printf("%*s%s", 8, "", encoding_desc);
+		printf("%*s", 8, "");
+		wordwrap(encoding_desc, 8, pager_get_columns(), 0);
 		if (metric_name)
 			printf(" MetricName: %s", metric_name);
 		if (metric_expr)
