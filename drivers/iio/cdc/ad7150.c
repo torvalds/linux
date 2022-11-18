@@ -536,9 +536,9 @@ static const struct iio_info ad7150_info_no_irq = {
 	.read_raw = &ad7150_read_raw,
 };
 
-static int ad7150_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ad7150_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct ad7150_chip_info *chip;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -647,7 +647,7 @@ static struct i2c_driver ad7150_driver = {
 		.name = "ad7150",
 		.of_match_table = ad7150_of_match,
 	},
-	.probe = ad7150_probe,
+	.probe_new = ad7150_probe,
 	.id_table = ad7150_id,
 };
 module_i2c_driver(ad7150_driver);
