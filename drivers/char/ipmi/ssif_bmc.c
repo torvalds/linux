@@ -797,7 +797,7 @@ static int ssif_bmc_cb(struct i2c_client *client, enum i2c_slave_event event, u8
 	return ret;
 }
 
-static int ssif_bmc_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int ssif_bmc_probe(struct i2c_client *client)
 {
 	struct ssif_bmc_ctx *ssif_bmc;
 	int ret;
@@ -860,7 +860,7 @@ static struct i2c_driver ssif_bmc_driver = {
 		.name           = DEVICE_NAME,
 		.of_match_table = ssif_bmc_match,
 	},
-	.probe          = ssif_bmc_probe,
+	.probe_new      = ssif_bmc_probe,
 	.remove         = ssif_bmc_remove,
 	.id_table       = ssif_bmc_id,
 };
