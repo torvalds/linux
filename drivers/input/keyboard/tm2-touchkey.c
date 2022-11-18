@@ -181,8 +181,7 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int tm2_touchkey_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int tm2_touchkey_probe(struct i2c_client *client)
 {
 	struct device_node *np = client->dev.of_node;
 	struct tm2_touchkey_data *touchkey;
@@ -357,7 +356,7 @@ static struct i2c_driver tm2_touchkey_driver = {
 		.pm = &tm2_touchkey_pm_ops,
 		.of_match_table = of_match_ptr(tm2_touchkey_of_match),
 	},
-	.probe = tm2_touchkey_probe,
+	.probe_new = tm2_touchkey_probe,
 	.id_table = tm2_touchkey_id_table,
 };
 module_i2c_driver(tm2_touchkey_driver);
