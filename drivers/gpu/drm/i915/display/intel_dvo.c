@@ -387,13 +387,26 @@ static enum port intel_dvo_port(i915_reg_t dvo_reg)
 		return PORT_C;
 }
 
+static int intel_dvo_encoder_type(const struct intel_dvo_device *dvo)
+{
+	switch (dvo->type) {
+	case INTEL_DVO_CHIP_TMDS:
+		return DRM_MODE_ENCODER_TMDS;
+	case INTEL_DVO_CHIP_LVDS_NO_FIXED:
+	case INTEL_DVO_CHIP_LVDS:
+		return DRM_MODE_ENCODER_LVDS;
+	default:
+		MISSING_CASE(dvo->type);
+		return DRM_MODE_ENCODER_NONE;
+	}
+}
+
 void intel_dvo_init(struct drm_i915_private *dev_priv)
 {
 	struct intel_encoder *intel_encoder;
 	struct intel_dvo *intel_dvo;
 	struct intel_connector *intel_connector;
 	int i;
-	int encoder_type = DRM_MODE_ENCODER_NONE;
 
 	intel_dvo = kzalloc(sizeof(*intel_dvo), GFP_KERNEL);
 	if (!intel_dvo)
@@ -481,7 +494,8 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 
 		port = intel_dvo_port(dvo->dvo_reg);
 		drm_encoder_init(&dev_priv->drm, &intel_encoder->base,
-				 &intel_dvo_enc_funcs, encoder_type,
+				 &intel_dvo_enc_funcs,
+				 intel_dvo_encoder_type(dvo),
 				 "DVO %c", port_name(port));
 
 		intel_encoder->type = INTEL_OUTPUT_DVO;
@@ -500,14 +514,12 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 			drm_connector_init(&dev_priv->drm, connector,
 					   &intel_dvo_connector_funcs,
 					   DRM_MODE_CONNECTOR_DVII);
-			encoder_type = DRM_MODE_ENCODER_TMDS;
 			break;
 		case INTEL_DVO_CHIP_LVDS_NO_FIXED:
 		case INTEL_DVO_CHIP_LVDS:
 			drm_connector_init(&dev_priv->drm, connector,
 					   &intel_dvo_connector_funcs,
 					   DRM_MODE_CONNECTOR_LVDS);
-			encoder_type = DRM_MODE_ENCODER_LVDS;
 			break;
 		}
 
