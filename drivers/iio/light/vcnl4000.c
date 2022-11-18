@@ -1180,9 +1180,9 @@ static int vcnl4010_probe_trigger(struct iio_dev *indio_dev)
 	return devm_iio_trigger_register(&client->dev, trigger);
 }
 
-static int vcnl4000_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int vcnl4000_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct vcnl4000_data *data;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -1326,7 +1326,7 @@ static struct i2c_driver vcnl4000_driver = {
 		.pm	= pm_ptr(&vcnl4000_pm_ops),
 		.of_match_table = vcnl_4000_of_match,
 	},
-	.probe  = vcnl4000_probe,
+	.probe_new = vcnl4000_probe,
 	.id_table = vcnl4000_id,
 	.remove	= vcnl4000_remove,
 };
