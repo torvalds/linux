@@ -3265,8 +3265,7 @@ static void it6505_shutdown(struct i2c_client *client)
 		it6505_lane_off(it6505);
 }
 
-static int it6505_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int it6505_i2c_probe(struct i2c_client *client)
 {
 	struct it6505 *it6505;
 	struct device *dev = &client->dev;
@@ -3387,7 +3386,7 @@ static struct i2c_driver it6505_i2c_driver = {
 		.of_match_table = it6505_of_match,
 		.pm = &it6505_bridge_pm_ops,
 	},
-	.probe = it6505_i2c_probe,
+	.probe_new = it6505_i2c_probe,
 	.remove = it6505_i2c_remove,
 	.shutdown = it6505_shutdown,
 	.id_table = it6505_id,
