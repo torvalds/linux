@@ -68,6 +68,11 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 		}
 		inner_map_meta->field_offs = field_offs;
 	}
+	/* Note: We must use the same BTF, as we also used btf_record_dup above
+	 * which relies on BTF being same for both maps, as some members like
+	 * record->fields.list_head have pointers like value_rec pointing into
+	 * inner_map->btf.
+	 */
 	if (inner_map->btf) {
 		btf_get(inner_map->btf);
 		inner_map_meta->btf = inner_map->btf;

@@ -3648,6 +3648,9 @@ struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type
 		return NULL;
 
 	cnt = ret;
+	/* This needs to be kzalloc to zero out padding and unused fields, see
+	 * comment in btf_record_equal.
+	 */
 	rec = kzalloc(offsetof(struct btf_record, fields[cnt]), GFP_KERNEL | __GFP_NOWARN);
 	if (!rec)
 		return ERR_PTR(-ENOMEM);
