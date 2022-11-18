@@ -229,6 +229,10 @@
 	};
 };
 
+&remoteproc_mpss {
+	memory-region = <&mpss_adsp_mem>;
+};
+
 &usb {
 	status = "okay";
 };
