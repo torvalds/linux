@@ -1065,8 +1065,7 @@ static int sii902x_init(struct sii902x *sii902x)
 	return i2c_mux_add_adapter(sii902x->i2cmux, 0, 0, 0);
 }
 
-static int sii902x_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int sii902x_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *endpoint;
@@ -1151,7 +1150,7 @@ static const struct i2c_device_id sii902x_i2c_ids[] = {
 MODULE_DEVICE_TABLE(i2c, sii902x_i2c_ids);
 
 static struct i2c_driver sii902x_driver = {
-	.probe = sii902x_probe,
+	.probe_new = sii902x_probe,
 	.remove = sii902x_remove,
 	.driver = {
 		.name = "sii902x",
