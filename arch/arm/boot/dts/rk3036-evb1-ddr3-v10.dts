@@ -1,0 +1,632 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3036.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "Rockchip RK3036 EVB1 DDR3 V10 Board";
+	compatible = "rockchip,rk3036-evb1-ddr3-v10", "rockchip,rk3036";
+
+	chosen {
+		bootargs = "console=uart8250,mmio32,0x20068000 rw root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x60000000 0x20000000>;
+	};
+
+	multi_sound: multi-sound {
+		status = "okay";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,hdmi-codec";
+		rockchip,cpu = <&i2s>;
+		rockchip,codec = <&acodec>, <&hdmi>;
+	};
+
+	vdd_arm: vdd-arm-regulator {
+		 compatible = "pwm-regulator";
+		 rockchip,pwm_id = <2>;
+		 pwms = <&pwm2 0 25000 0>;
+		 regulator-name = "vdd_arm";
+		 regulator-init-microvolt = <1100000>;
+		 regulator-min-microvolt = <950000>;
+		 regulator-max-microvolt = <1400000>;
+		 regulator-always-on;
+		 regulator-boot-on;
+	 };
+
+	vcc_host: vcc-host-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_host";
+		gpio = <&gpio2 RK_PD5 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&host_vbus_drv>;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	xin32k: xin32k {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "xin32k";
+		#clock-cells = <0>;
+	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+
+		wifi_chip_type = "rk915";
+		WIFI,poweren_gpio = <&gpio0 RK_PD2 GPIO_ACTIVE_HIGH>;
+		WIFI,host_wake_irq = <&gpio1 RK_PA2 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
+&acodec {
+	spk_ctl_io = <&gpio2 RK_PD6 GPIO_ACTIVE_HIGH>;
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&cpu0 {
+	cpu-supply = <&vdd_arm>;
+};
+
+&cpu0_opp_table {
+	/delete-node/ opp-408000000;
+	/delete-node/ opp-1200000000;
+};
+
+&emac {
+	pinctrl-names = "default";
+	pinctrl-0 = <&emac_xfer>, <&emac_mdio>;
+	phy = <&phy0>;
+	phy-reset-gpios = <&gpio2 RK_PC6 GPIO_ACTIVE_LOW>; /* PHY_RST */
+	phy-reset-duration = <10>; /* millisecond */
+
+
+	/* If you're going to use Ethernet, you need an external clock
+	 * This is just a test(e.g: the accurate 50MHz what mac_ref need)
+	 * so cpu The frequency should be set to 600M
+	 */
+	assigned-clock-parents = <&cru PLL_APLL>;
+	status = "okay";
+
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
+&emmc {
+	rockchip,default-sample-phase = <0>;
+	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+	mali-supply = <&vdd_arm>;
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hevc {
+	status = "okay";
+};
+
+&hevc_mmu {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+};
+
+&i2c2 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	rtc@51 {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rtc_int>;
+		#clock-cells = <0>;
+		clock-output-names = "xin32k";
+	};
+
+	es8311: es8311@18 {
+		compatible = "everest,es8311";
+		reg = <0x18>;
+		//clocks = <&cru SCLK_I2S_OUT>;
+		clock-names = "mclk";
+		adc-pga-gain = <8>;
+		adc-volume = <0xdf>;
+		dac-volume = <0xbf>;
+		aec-mode = "dac left, adc right";
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&i2s_mclk>;
+
+		/*
+		 * in rk3036-evb-v10,es8311 is not actually connected
+		 * to PA,so we don't need spk-ctl-gpios
+		 */
+		/*spk-ctl-gpios = ;*/
+
+		#sound-dai-cells = <0>;
+	};
+
+	rk628: rk628@50 {
+		compatible = "rockchip,rk628";
+		reg = <0x50>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+		reset-gpios = <&gpio0 RK_PA3 GPIO_ACTIVE_LOW>;
+		plugin-det-gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_LOW>;
+		status = "okay";
+		rk628,hdmi-in;
+		rk628-dsi {
+			//rockchip,dual-channel;
+			dsi,eotp;
+			dsi,video-mode;
+			dsi,format = "rgb888";
+			dsi,lanes  = <4>;
+			status = "okay";
+
+			rk628-panel {
+				panel-init-sequence = [
+					39 00 04 ff 98 81 03
+					15 00 02 01 00
+					15 00 02 02 00
+					15 00 02 03 53
+					15 00 02 04 53
+					15 00 02 05 13
+					15 00 02 06 04
+					15 00 02 07 02
+					15 00 02 08 02
+					15 00 02 09 00
+					15 00 02 0a 00
+					15 00 02 0b 00
+					15 00 02 0c 00
+					15 00 02 0d 00
+					15 00 02 0e 00
+					15 00 02 0f 00
+					15 00 02 10 00
+					15 00 02 11 00
+					15 00 02 12 00
+					15 00 02 13 00
+					15 00 02 14 00
+					15 00 02 15 08
+					15 00 02 16 10
+					15 00 02 17 00
+					15 00 02 18 08
+					15 00 02 19 00
+					15 00 02 1a 00
+					15 00 02 1b 00
+					15 00 02 1c 00
+					15 00 02 1d 00
+					15 00 02 1e c0
+					15 00 02 1f 80
+					15 00 02 20 02
+					15 00 02 21 09
+					15 00 02 22 00
+					15 00 02 23 00
+					15 00 02 24 00
+					15 00 02 25 00
+					15 00 02 26 00
+					15 00 02 27 00
+					15 00 02 28 55
+					15 00 02 29 03
+					15 00 02 2a 00
+					15 00 02 2b 00
+					15 00 02 2c 00
+					15 00 02 2d 00
+					15 00 02 2e 00
+					15 00 02 2f 00
+					15 00 02 30 00
+					15 00 02 31 00
+					15 00 02 32 00
+					15 00 02 33 00
+					15 00 02 34 04
+					15 00 02 35 05
+					15 00 02 36 05
+					15 00 02 37 00
+					15 00 02 38 3c
+					15 00 02 39 35
+					15 00 02 3a 00
+					15 00 02 3b 40
+					15 00 02 3c 00
+					15 00 02 3d 00
+					15 00 02 3e 00
+					15 00 02 3f 00
+					15 00 02 40 00
+					15 00 02 41 88
+					15 00 02 42 00
+					15 00 02 43 00
+					15 00 02 44 1f
+					15 00 02 50 01
+					15 00 02 51 23
+					15 00 02 52 45
+					15 00 02 53 67
+					15 00 02 54 89
+					15 00 02 55 ab
+					15 00 02 56 01
+					15 00 02 57 23
+					15 00 02 58 45
+					15 00 02 59 67
+					15 00 02 5a 89
+					15 00 02 5b ab
+					15 00 02 5c cd
+					15 00 02 5d ef
+					15 00 02 5e 03
+					15 00 02 5f 14
+					15 00 02 60 15
+					15 00 02 61 0c
+					15 00 02 62 0d
+					15 00 02 63 0e
+					15 00 02 64 0f
+					15 00 02 65 10
+					15 00 02 66 11
+					15 00 02 67 08
+					15 00 02 68 02
+					15 00 02 69 0a
+					15 00 02 6a 02
+					15 00 02 6b 02
+					15 00 02 6c 02
+					15 00 02 6d 02
+					15 00 02 6e 02
+					15 00 02 6f 02
+					15 00 02 70 02
+					15 00 02 71 02
+					15 00 02 72 06
+					15 00 02 73 02
+					15 00 02 74 02
+					15 00 02 75 14
+					15 00 02 76 15
+					15 00 02 77 0f
+					15 00 02 78 0e
+					15 00 02 79 0d
+					15 00 02 7a 0c
+					15 00 02 7b 11
+					15 00 02 7c 10
+					15 00 02 7d 06
+					15 00 02 7e 02
+					15 00 02 7f 0a
+					15 00 02 80 02
+					15 00 02 81 02
+					15 00 02 82 02
+					15 00 02 83 02
+					15 00 02 84 02
+					15 00 02 85 02
+					15 00 02 86 02
+					15 00 02 87 02
+					15 00 02 88 08
+					15 00 02 89 02
+					15 00 02 8a 02
+					39 00 04 ff 98 81 04
+					15 00 02 00 80
+					15 00 02 70 00
+					15 00 02 71 00
+					15 00 02 66 fe
+					15 00 02 82 15
+					15 00 02 84 15
+					15 00 02 85 15
+					15 00 02 3a 24
+					15 00 02 32 ac
+					15 00 02 8c 80
+					15 00 02 3c f5
+					15 00 02 88 33
+					39 00 04 ff 98 81 01
+					15 00 02 22 0a
+					15 00 02 31 00
+					15 00 02 53 78
+					15 00 02 55 7b
+					15 00 02 60 20
+					15 00 02 61 00
+					15 00 02 62 0d
+					15 00 02 63 00
+					15 00 02 a0 00
+					15 00 02 a1 10
+					15 00 02 a2 1c
+					15 00 02 a3 13
+					15 00 02 a4 15
+					15 00 02 a5 26
+					15 00 02 a6 1a
+					15 00 02 a7 1d
+					15 00 02 a8 67
+					15 00 02 a9 1c
+					15 00 02 aa 29
+					15 00 02 ab 5b
+					15 00 02 ac 26
+					15 00 02 ad 28
+					15 00 02 ae 5c
+					15 00 02 af 30
+					15 00 02 b0 31
+					15 00 02 b1 32
+					15 00 02 b2 00
+					15 00 02 b1 2e
+					15 00 02 b2 32
+					15 00 02 b3 00
+					15 00 02 c0 00
+					15 00 02 c1 10
+					15 00 02 c2 1c
+					15 00 02 c3 13
+					15 00 02 c4 15
+					15 00 02 c5 26
+					15 00 02 c6 1a
+					15 00 02 c7 1d
+					15 00 02 c8 67
+					15 00 02 c9 1c
+					15 00 02 ca 29
+					15 00 02 cb 5b
+					15 00 02 cc 26
+					15 00 02 cd 28
+					15 00 02 ce 5c
+					15 00 02 cf 30
+					15 00 02 d0 31
+					15 00 02 d1 2e
+					15 00 02 d2 32
+					15 00 02 d3 00
+					39 00 04 ff 98 81 00
+					05 00 01 11
+					05 01 01 29
+				];
+			};
+		};
+
+		display-timings {
+
+			src-timing {
+				clock-frequency = <65000000>;
+				hactive = <720>;
+				vactive = <1280>;
+				hfront-porch = <48>;
+				hsync-len = <8>;
+				hback-porch = <52>;
+				vfront-porch = <16>;
+				vsync-len = <6>;
+				vback-porch = <15>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			dst-timing {
+				clock-frequency = <65000000>;
+				hactive = <720>;
+				vactive = <1280>;
+				hfront-porch = <48>;
+				hsync-len = <8>;
+				hback-porch = <52>;
+				vfront-porch = <16>;
+				vsync-len = <6>;
+				vback-porch = <15>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+	};
+};
+
+&i2s {
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&mpp_srv {
+	status = "okay";
+};
+
+&pinctrl {
+	usb {
+		host_vbus_drv: host-vbus-drv {
+			rockchip,pins = <2 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	hym8563 {
+		rtc_int: rtc-int {
+			rockchip,pins = <2 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&pwm2 {
+	status = "okay";
+};
+
+&pwm3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm3_pin>;
+	compatible = "rockchip,remotectl-pwm";
+	remote_pwm_id = <3>;
+	handle_cpu_id = <1>;
+	remote_support_psci = <1>;
+
+	ir_key1 {
+		rockchip,usercode = <0x4040>;
+		rockchip,key_table =
+			<0xf2	KEY_REPLY>,
+			<0xba	KEY_BACK>,
+			<0xf4	KEY_UP>,
+			<0xf1	KEY_DOWN>,
+			<0xef	KEY_LEFT>,
+			<0xee	KEY_RIGHT>,
+			<0xbd	KEY_HOME>,
+			<0xea	KEY_VOLUMEUP>,
+			<0xe3	KEY_VOLUMEDOWN>,
+			<0xe2	KEY_SEARCH>,
+			<0xb2	KEY_POWER>,
+			<0xbc	KEY_MUTE>,
+			<0xec	KEY_MENU>,
+			<0xbf	0x190>,
+			<0xe0	0x191>,
+			<0xe1	0x192>,
+			<0xe9	183>,
+			<0xe6	248>,
+			<0xe8	185>,
+			<0xe7	186>,
+			<0xf0	388>,
+			<0xbe	0x175>;
+	};
+
+	ir_key2 {
+		rockchip,usercode = <0xff00>;
+		rockchip,key_table =
+			<0xf9	KEY_HOME>,
+			<0xbf	KEY_BACK>,
+			<0xfb	KEY_MENU>,
+			<0xaa	KEY_REPLY>,
+			<0xb9	KEY_UP>,
+			<0xe9	KEY_DOWN>,
+			<0xb8	KEY_LEFT>,
+			<0xea	KEY_RIGHT>,
+			<0xeb	KEY_VOLUMEDOWN>,
+			<0xef	KEY_VOLUMEUP>,
+			<0xf7	KEY_MUTE>,
+			<0xe7	KEY_POWER>,
+			<0xfc	KEY_POWER>,
+			<0xa9	KEY_VOLUMEDOWN>,
+			<0xa8	KEY_PLAYPAUSE>,
+			<0xe0	KEY_VOLUMEDOWN>,
+			<0xa5	KEY_VOLUMEDOWN>,
+			<0xab	183>,
+			<0xb7	388>,
+			<0xe8	388>,
+			<0xf8	184>,
+			<0xaf	185>,
+			<0xed	KEY_VOLUMEDOWN>,
+			<0xee	186>,
+			<0xb3	KEY_VOLUMEDOWN>,
+			<0xf1	KEY_VOLUMEDOWN>,
+			<0xf2	KEY_VOLUMEDOWN>,
+			<0xf3	KEY_SEARCH>,
+			<0xb4	KEY_VOLUMEDOWN>,
+			<0xa4	KEY_SETUP>,
+			<0xbe	KEY_SEARCH>;
+	};
+
+	ir_key3 {
+		rockchip,usercode = <0x1dcc>;
+		rockchip,key_table =
+			<0xee	KEY_REPLY>,
+			<0xf0	KEY_BACK>,
+			<0xf8	KEY_UP>,
+			<0xbb	KEY_DOWN>,
+			<0xef	KEY_LEFT>,
+			<0xed	KEY_RIGHT>,
+			<0xfc	KEY_HOME>,
+			<0xf1	KEY_VOLUMEUP>,
+			<0xfd	KEY_VOLUMEDOWN>,
+			<0xb7	KEY_SEARCH>,
+			<0xff	KEY_POWER>,
+			<0xf3	KEY_MUTE>,
+			<0xbf	KEY_MENU>,
+			<0xf9	0x191>,
+			<0xf5	0x192>,
+			<0xb3	388>,
+			<0xbe	KEY_1>,
+			<0xba	KEY_2>,
+			<0xb2	KEY_3>,
+			<0xbd	KEY_4>,
+			<0xf9	KEY_5>,
+			<0xb1	KEY_6>,
+			<0xfc	KEY_7>,
+			<0xf8	KEY_8>,
+			<0xb0	KEY_9>,
+			<0xb6	KEY_0>,
+			<0xb5	KEY_BACKSPACE>;
+	};
+};
+
+&sdio {
+	bus-width = <4>;
+	max_frequency = <50000000>;
+	cap-sd-highspeed;
+	supports-sdio;
+	ignore-pm-notify;
+	keep-power-in-suspend;
+	supports-rk912;
+	/delete-property/ non-removable;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdio_clk &sdio_cmd &sdio_bus4>;
+
+	//status = "okay";
+};
+
+&sdmmc {
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	card-detect-delay = <200>;
+	disable-wp;
+	num-slots = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc_clk>, <&sdmmc_cmd>, <&sdmmc_cd>, <&sdmmc_bus4>;
+	supports-sd;
+	status = "disabled";
+};
+
+&sfc {
+	status = "okay";
+};
+
+&tve {
+	status = "okay";
+};
+
+&uart0 {
+	pinctrl-0 = <&uart0_xfer>, <&uart0_cts>;
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&usb_host {
+	status = "okay";
+};
+
+&usb_otg {
+	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};
+
+&vdpu {
+	status = "okay";
+};
+
+&vpu_mmu {
+	status = "okay";
+};
+
+&wdt {
+	status = "okay";
+};
+
