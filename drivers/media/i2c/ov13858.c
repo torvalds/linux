@@ -1698,8 +1698,7 @@ static void ov13858_free_controls(struct ov13858 *ov13858)
 	mutex_destroy(&ov13858->mutex);
 }
 
-static int ov13858_probe(struct i2c_client *client,
-			 const struct i2c_device_id *devid)
+static int ov13858_probe(struct i2c_client *client)
 {
 	struct ov13858 *ov13858;
 	int ret;
@@ -1807,7 +1806,7 @@ static struct i2c_driver ov13858_i2c_driver = {
 		.pm = &ov13858_pm_ops,
 		.acpi_match_table = ACPI_PTR(ov13858_acpi_ids),
 	},
-	.probe = ov13858_probe,
+	.probe_new = ov13858_probe,
 	.remove = ov13858_remove,
 	.id_table = ov13858_id_table,
 };
