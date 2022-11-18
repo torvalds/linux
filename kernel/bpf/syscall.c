@@ -1010,7 +1010,7 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 				if (map->map_type != BPF_MAP_TYPE_HASH &&
 				    map->map_type != BPF_MAP_TYPE_LRU_HASH &&
 				    map->map_type != BPF_MAP_TYPE_ARRAY) {
-					return -EOPNOTSUPP;
+					ret = -EOPNOTSUPP;
 					goto free_map_tab;
 				}
 				break;
