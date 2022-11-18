@@ -9,6 +9,11 @@
 #include <net/dsa.h>
 #include "dsa_priv.h"
 
+#define KSZ8795_NAME "ksz8795"
+#define KSZ9477_NAME "ksz9477"
+#define KSZ9893_NAME "ksz9893"
+#define LAN937X_NAME "lan937x"
+
 /* Typically only one byte is used for tail tag. */
 #define KSZ_EGRESS_TAG_LEN		1
 #define KSZ_INGRESS_TAG_LEN		1
@@ -74,7 +79,7 @@ static struct sk_buff *ksz8795_rcv(struct sk_buff *skb, struct net_device *dev)
 }
 
 static const struct dsa_device_ops ksz8795_netdev_ops = {
-	.name	= "ksz8795",
+	.name	= KSZ8795_NAME,
 	.proto	= DSA_TAG_PROTO_KSZ8795,
 	.xmit	= ksz8795_xmit,
 	.rcv	= ksz8795_rcv,
@@ -82,7 +87,7 @@ static const struct dsa_device_ops ksz8795_netdev_ops = {
 };
 
 DSA_TAG_DRIVER(ksz8795_netdev_ops);
-MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_KSZ8795);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_KSZ8795, KSZ8795_NAME);
 
 /*
  * For Ingress (Host -> KSZ9477), 2 bytes are added before FCS.
@@ -147,7 +152,7 @@ static struct sk_buff *ksz9477_rcv(struct sk_buff *skb, struct net_device *dev)
 }
 
 static const struct dsa_device_ops ksz9477_netdev_ops = {
-	.name	= "ksz9477",
+	.name	= KSZ9477_NAME,
 	.proto	= DSA_TAG_PROTO_KSZ9477,
 	.xmit	= ksz9477_xmit,
 	.rcv	= ksz9477_rcv,
@@ -155,7 +160,7 @@ static const struct dsa_device_ops ksz9477_netdev_ops = {
 };
 
 DSA_TAG_DRIVER(ksz9477_netdev_ops);
-MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_KSZ9477);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_KSZ9477, KSZ9477_NAME);
 
 #define KSZ9893_TAIL_TAG_OVERRIDE	BIT(5)
 #define KSZ9893_TAIL_TAG_LOOKUP		BIT(6)
@@ -183,7 +188,7 @@ static struct sk_buff *ksz9893_xmit(struct sk_buff *skb,
 }
 
 static const struct dsa_device_ops ksz9893_netdev_ops = {
-	.name	= "ksz9893",
+	.name	= KSZ9893_NAME,
 	.proto	= DSA_TAG_PROTO_KSZ9893,
 	.xmit	= ksz9893_xmit,
 	.rcv	= ksz9477_rcv,
@@ -191,7 +196,7 @@ static const struct dsa_device_ops ksz9893_netdev_ops = {
 };
 
 DSA_TAG_DRIVER(ksz9893_netdev_ops);
-MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_KSZ9893);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_KSZ9893, KSZ9893_NAME);
 
 /* For xmit, 2 bytes are added before FCS.
  * ---------------------------------------------------------------------------
@@ -241,7 +246,7 @@ static struct sk_buff *lan937x_xmit(struct sk_buff *skb,
 }
 
 static const struct dsa_device_ops lan937x_netdev_ops = {
-	.name	= "lan937x",
+	.name	= LAN937X_NAME,
 	.proto	= DSA_TAG_PROTO_LAN937X,
 	.xmit	= lan937x_xmit,
 	.rcv	= ksz9477_rcv,
@@ -249,7 +254,7 @@ static const struct dsa_device_ops lan937x_netdev_ops = {
 };
 
 DSA_TAG_DRIVER(lan937x_netdev_ops);
-MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_LAN937X);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_LAN937X, LAN937X_NAME);
 
 static struct dsa_tag_driver *dsa_tag_driver_array[] = {
 	&DSA_TAG_DRIVER_NAME(ksz8795_netdev_ops),

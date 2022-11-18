@@ -79,16 +79,18 @@ const char *dsa_tag_protocol_to_str(const struct dsa_device_ops *ops)
 /* Function takes a reference on the module owning the tagger,
  * so dsa_tag_driver_put must be called afterwards.
  */
-const struct dsa_device_ops *dsa_find_tagger_by_name(const char *buf)
+const struct dsa_device_ops *dsa_tag_driver_get_by_name(const char *name)
 {
 	const struct dsa_device_ops *ops = ERR_PTR(-ENOPROTOOPT);
 	struct dsa_tag_driver *dsa_tag_driver;
+
+	request_module("%s%s", DSA_TAG_DRIVER_ALIAS, name);
 
 	mutex_lock(&dsa_tag_drivers_lock);
 	list_for_each_entry(dsa_tag_driver, &dsa_tag_drivers_list, list) {
 		const struct dsa_device_ops *tmp = dsa_tag_driver->ops;
 
-		if (!sysfs_streq(buf, tmp->name))
+		if (strcmp(name, tmp->name))
 			continue;
 
 		if (!try_module_get(dsa_tag_driver->owner))
@@ -102,13 +104,13 @@ const struct dsa_device_ops *dsa_find_tagger_by_name(const char *buf)
 	return ops;
 }
 
-const struct dsa_device_ops *dsa_tag_driver_get(int tag_protocol)
+const struct dsa_device_ops *dsa_tag_driver_get_by_id(int tag_protocol)
 {
 	struct dsa_tag_driver *dsa_tag_driver;
 	const struct dsa_device_ops *ops;
 	bool found = false;
 
-	request_module("%s%d", DSA_TAG_DRIVER_ALIAS, tag_protocol);
+	request_module("%sid-%d", DSA_TAG_DRIVER_ALIAS, tag_protocol);
 
 	mutex_lock(&dsa_tag_drivers_lock);
 	list_for_each_entry(dsa_tag_driver, &dsa_tag_drivers_list, list) {

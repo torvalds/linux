@@ -17,6 +17,81 @@
 
 #define DSA_MAX_NUM_OFFLOADING_BRIDGES		BITS_PER_LONG
 
+/* Create 2 modaliases per tagging protocol, one to auto-load the module
+ * given the ID reported by get_tag_protocol(), and the other by name.
+ */
+#define DSA_TAG_DRIVER_ALIAS "dsa_tag:"
+#define MODULE_ALIAS_DSA_TAG_DRIVER(__proto, __name) \
+	MODULE_ALIAS(DSA_TAG_DRIVER_ALIAS __name); \
+	MODULE_ALIAS(DSA_TAG_DRIVER_ALIAS "id-" \
+		     __stringify(__proto##_VALUE))
+
+struct dsa_tag_driver {
+	const struct dsa_device_ops *ops;
+	struct list_head list;
+	struct module *owner;
+};
+
+void dsa_tag_drivers_register(struct dsa_tag_driver *dsa_tag_driver_array[],
+			      unsigned int count,
+			      struct module *owner);
+void dsa_tag_drivers_unregister(struct dsa_tag_driver *dsa_tag_driver_array[],
+				unsigned int count);
+
+#define dsa_tag_driver_module_drivers(__dsa_tag_drivers_array, __count)	\
+static int __init dsa_tag_driver_module_init(void)			\
+{									\
+	dsa_tag_drivers_register(__dsa_tag_drivers_array, __count,	\
+				 THIS_MODULE);				\
+	return 0;							\
+}									\
+module_init(dsa_tag_driver_module_init);				\
+									\
+static void __exit dsa_tag_driver_module_exit(void)			\
+{									\
+	dsa_tag_drivers_unregister(__dsa_tag_drivers_array, __count);	\
+}									\
+module_exit(dsa_tag_driver_module_exit)
+
+/**
+ * module_dsa_tag_drivers() - Helper macro for registering DSA tag
+ * drivers
+ * @__ops_array: Array of tag driver structures
+ *
+ * Helper macro for DSA tag drivers which do not do anything special
+ * in module init/exit. Each module may only use this macro once, and
+ * calling it replaces module_init() and module_exit().
+ */
+#define module_dsa_tag_drivers(__ops_array)				\
+dsa_tag_driver_module_drivers(__ops_array, ARRAY_SIZE(__ops_array))
+
+#define DSA_TAG_DRIVER_NAME(__ops) dsa_tag_driver ## _ ## __ops
+
+/* Create a static structure we can build a linked list of dsa_tag
+ * drivers
+ */
+#define DSA_TAG_DRIVER(__ops)						\
+static struct dsa_tag_driver DSA_TAG_DRIVER_NAME(__ops) = {		\
+	.ops = &__ops,							\
+}
+
+/**
+ * module_dsa_tag_driver() - Helper macro for registering a single DSA tag
+ * driver
+ * @__ops: Single tag driver structures
+ *
+ * Helper macro for DSA tag drivers which do not do anything special
+ * in module init/exit. Each module may only use this macro once, and
+ * calling it replaces module_init() and module_exit().
+ */
+#define module_dsa_tag_driver(__ops)					\
+DSA_TAG_DRIVER(__ops);							\
+									\
+static struct dsa_tag_driver *dsa_tag_driver_array[] =	{		\
+	&DSA_TAG_DRIVER_NAME(__ops)					\
+};									\
+module_dsa_tag_drivers(dsa_tag_driver_array)
+
 enum {
 	DSA_NOTIFIER_AGEING_TIME,
 	DSA_NOTIFIER_BRIDGE_JOIN,
@@ -168,9 +243,9 @@ struct dsa_slave_priv {
 };
 
 /* dsa.c */
-const struct dsa_device_ops *dsa_tag_driver_get(int tag_protocol);
+const struct dsa_device_ops *dsa_tag_driver_get_by_id(int tag_protocol);
+const struct dsa_device_ops *dsa_tag_driver_get_by_name(const char *name);
 void dsa_tag_driver_put(const struct dsa_device_ops *ops);
-const struct dsa_device_ops *dsa_find_tagger_by_name(const char *buf);
 
 bool dsa_db_equal(const struct dsa_db *a, const struct dsa_db *b);
 
