@@ -11,7 +11,7 @@
 #define RT1308_MAX_BQ_REG 480
 #define RT1316_MAX_BQ_REG 580
 
-static const u8 dell_0a5d_bq_params[] = {
+static const u8 __maybe_unused dell_0a5d_bq_params[] = {
 	0xb0, 0xc5, 0x00,  /* address: 0xc5b0; data: 0x00 */
 	0xb1, 0xc5, 0x32,
 	0xb2, 0xc5, 0x44,
@@ -160,7 +160,7 @@ static const u8 dell_0a5d_bq_params[] = {
 	0x50, 0xc5, 0x01,
 };
 
-static const u8 dell_0b00_bq_params[] = {
+static const u8 __maybe_unused dell_0b00_bq_params[] = {
 	0x03, 0xc2, 0x00,
 	0x04, 0xc2, 0xb2,
 	0x05, 0xc2, 0xe0,
