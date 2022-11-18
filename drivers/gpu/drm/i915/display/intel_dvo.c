@@ -219,14 +219,14 @@ static void intel_enable_dvo(struct intel_atomic_state *state,
 }
 
 static enum drm_mode_status
-intel_dvo_mode_valid(struct drm_connector *connector,
+intel_dvo_mode_valid(struct drm_connector *_connector,
 		     struct drm_display_mode *mode)
 {
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct intel_dvo *intel_dvo = intel_attached_dvo(intel_connector);
+	struct intel_connector *connector = to_intel_connector(_connector);
+	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
 	const struct drm_display_mode *fixed_mode =
-		intel_panel_fixed_mode(intel_connector, mode);
-	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+		intel_panel_fixed_mode(connector, mode);
+	int max_dotclk = to_i915(connector->base.dev)->max_dotclk_freq;
 	int target_clock = mode->clock;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
@@ -237,7 +237,7 @@ intel_dvo_mode_valid(struct drm_connector *connector,
 	if (fixed_mode) {
 		enum drm_mode_status status;
 
-		status = intel_panel_mode_valid(intel_connector, mode);
+		status = intel_panel_mode_valid(connector, mode);
 		if (status != MODE_OK)
 			return status;
 
@@ -315,13 +315,14 @@ static void intel_dvo_pre_enable(struct intel_atomic_state *state,
 }
 
 static enum drm_connector_status
-intel_dvo_detect(struct drm_connector *connector, bool force)
+intel_dvo_detect(struct drm_connector *_connector, bool force)
 {
-	struct drm_i915_private *i915 = to_i915(connector->dev);
-	struct intel_dvo *intel_dvo = intel_attached_dvo(to_intel_connector(connector));
+	struct intel_connector *connector = to_intel_connector(_connector);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-		      connector->base.id, connector->name);
+		      connector->base.base.id, connector->base.name);
 
 	if (!INTEL_DISPLAY_ENABLED(i915))
 		return connector_status_disconnected;
@@ -329,9 +330,10 @@ intel_dvo_detect(struct drm_connector *connector, bool force)
 	return intel_dvo->dev.dev_ops->detect(&intel_dvo->dev);
 }
 
-static int intel_dvo_get_modes(struct drm_connector *connector)
+static int intel_dvo_get_modes(struct drm_connector *_connector)
 {
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+	struct intel_connector *connector = to_intel_connector(_connector);
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	int num_modes;
 
 	/*
@@ -340,12 +342,12 @@ static int intel_dvo_get_modes(struct drm_connector *connector)
 	 * (TV-out, for example), but for now with just TMDS and LVDS,
 	 * that's not the case.
 	 */
-	num_modes = intel_ddc_get_modes(connector,
+	num_modes = intel_ddc_get_modes(&connector->base,
 					intel_gmbus_get_adapter(dev_priv, GMBUS_PIN_DPC));
 	if (num_modes)
 		return num_modes;
 
-	return intel_panel_get_modes(to_intel_connector(connector));
+	return intel_panel_get_modes(connector);
 }
 
 static const struct drm_connector_funcs intel_dvo_connector_funcs = {
@@ -493,68 +495,66 @@ static bool intel_dvo_probe(struct drm_i915_private *dev_priv,
 
 void intel_dvo_init(struct drm_i915_private *dev_priv)
 {
-	struct intel_encoder *intel_encoder;
+	struct intel_connector *connector;
+	struct intel_encoder *encoder;
 	struct intel_dvo *intel_dvo;
-	struct intel_connector *intel_connector;
-	struct drm_connector *connector;
 
 	intel_dvo = kzalloc(sizeof(*intel_dvo), GFP_KERNEL);
 	if (!intel_dvo)
 		return;
 
-	intel_connector = intel_connector_alloc();
-	if (!intel_connector) {
+	connector = intel_connector_alloc();
+	if (!connector) {
 		kfree(intel_dvo);
 		return;
 	}
 
-	connector = &intel_connector->base;
+	intel_dvo->attached_connector = connector;
 
-	intel_dvo->attached_connector = intel_connector;
+	encoder = &intel_dvo->base;
 
-	intel_encoder = &intel_dvo->base;
-
-	intel_encoder->disable = intel_disable_dvo;
-	intel_encoder->enable = intel_enable_dvo;
-	intel_encoder->get_hw_state = intel_dvo_get_hw_state;
-	intel_encoder->get_config = intel_dvo_get_config;
-	intel_encoder->compute_config = intel_dvo_compute_config;
-	intel_encoder->pre_enable = intel_dvo_pre_enable;
-	intel_connector->get_hw_state = intel_dvo_connector_get_hw_state;
+	encoder->disable = intel_disable_dvo;
+	encoder->enable = intel_enable_dvo;
+	encoder->get_hw_state = intel_dvo_get_hw_state;
+	encoder->get_config = intel_dvo_get_config;
+	encoder->compute_config = intel_dvo_compute_config;
+	encoder->pre_enable = intel_dvo_pre_enable;
+	connector->get_hw_state = intel_dvo_connector_get_hw_state;
 
 	if (!intel_dvo_probe(dev_priv, intel_dvo)) {
 		kfree(intel_dvo);
-		intel_connector_free(intel_connector);
+		intel_connector_free(connector);
 		return;
 	}
 
-	intel_encoder->type = INTEL_OUTPUT_DVO;
-	intel_encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
-	intel_encoder->port = intel_dvo_port(intel_dvo->dev.dvo_reg);
-	intel_encoder->pipe_mask = ~0;
+	encoder->type = INTEL_OUTPUT_DVO;
+	encoder->power_domain = POWER_DOMAIN_PORT_OTHER;
+	encoder->port = intel_dvo_port(intel_dvo->dev.dvo_reg);
+	encoder->pipe_mask = ~0;
 
 	if (intel_dvo->dev.type != INTEL_DVO_CHIP_LVDS)
-		intel_encoder->cloneable = BIT(INTEL_OUTPUT_ANALOG) |
+		encoder->cloneable = BIT(INTEL_OUTPUT_ANALOG) |
 			BIT(INTEL_OUTPUT_DVO);
 
-	drm_encoder_init(&dev_priv->drm, &intel_encoder->base,
+	drm_encoder_init(&dev_priv->drm, &encoder->base,
 			 &intel_dvo_enc_funcs,
 			 intel_dvo_encoder_type(&intel_dvo->dev),
-			 "DVO %c", port_name(intel_encoder->port));
+			 "DVO %c", port_name(encoder->port));
 
 	if (intel_dvo->dev.type == INTEL_DVO_CHIP_TMDS)
-		intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT |
+		connector->polled = DRM_CONNECTOR_POLL_CONNECT |
 			DRM_CONNECTOR_POLL_DISCONNECT;
 
-	drm_connector_init(&dev_priv->drm, connector,
+	drm_connector_init(&dev_priv->drm, &connector->base,
 			   &intel_dvo_connector_funcs,
 			   intel_dvo_connector_type(&intel_dvo->dev));
 
-	drm_connector_helper_add(connector,
+	drm_connector_helper_add(&connector->base,
 				 &intel_dvo_connector_helper_funcs);
-	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
+	connector->base.display_info.subpixel_order = SubPixelHorizontalRGB;
 
-	intel_connector_attach_encoder(intel_connector, intel_encoder);
+	intel_connector_attach_encoder(connector, encoder);
+
 	if (intel_dvo->dev.type == INTEL_DVO_CHIP_LVDS) {
 		/*
 		 * For our LVDS chipsets, we should hopefully be able
@@ -564,9 +564,8 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 		 * headers, likely), so for now, just get the current
 		 * mode being output through DVO.
 		 */
-		intel_panel_add_encoder_fixed_mode(intel_connector,
-						   intel_encoder);
+		intel_panel_add_encoder_fixed_mode(connector, encoder);
 
-		intel_panel_init(intel_connector);
+		intel_panel_init(connector);
 	}
 }
