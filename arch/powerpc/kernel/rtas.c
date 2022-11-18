@@ -467,6 +467,64 @@ void rtas_call_unlocked(struct rtas_args *args, int token, int nargs, int nret, 
 static int ibm_open_errinjct_token;
 static int ibm_errinjct_token;
 
+/**
+ * rtas_call() - Invoke an RTAS firmware function.
+ * @token: Identifies the function being invoked.
+ * @nargs: Number of input parameters. Does not include token.
+ * @nret: Number of output parameters, including the call status.
+ * @outputs: Array of @nret output words.
+ * @....: List of @nargs input parameters.
+ *
+ * Invokes the RTAS function indicated by @token, which the caller
+ * should obtain via rtas_token().
+ *
+ * The @nargs and @nret arguments must match the number of input and
+ * output parameters specified for the RTAS function.
+ *
+ * rtas_call() returns RTAS status codes, not conventional Linux errno
+ * values. Callers must translate any failure to an appropriate errno
+ * in syscall context. Most callers of RTAS functions that can return
+ * -2 or 990x should use rtas_busy_delay() to correctly handle those
+ * statuses before calling again.
+ *
+ * The return value descriptions are adapted from 7.2.8 [RTAS] Return
+ * Codes of the PAPR and CHRP specifications.
+ *
+ * Context: Process context preferably, interrupt context if
+ *          necessary.  Acquires an internal spinlock and may perform
+ *          GFP_ATOMIC slab allocation in error path. Unsafe for NMI
+ *          context.
+ * Return:
+ * *                          0 - RTAS function call succeeded.
+ * *                         -1 - RTAS function encountered a hardware or
+ *                                platform error, or the token is invalid,
+ *                                or the function is restricted by kernel policy.
+ * *                         -2 - Specs say "A necessary hardware device was busy,
+ *                                and the requested function could not be
+ *                                performed. The operation should be retried at
+ *                                a later time." This is misleading, at least with
+ *                                respect to current RTAS implementations. What it
+ *                                usually means in practice is that the function
+ *                                could not be completed while meeting RTAS's
+ *                                deadline for returning control to the OS (250us
+ *                                for PAPR/PowerVM, typically), but the call may be
+ *                                immediately reattempted to resume work on it.
+ * *                         -3 - Parameter error.
+ * *                         -7 - Unexpected state change.
+ * *                9000...9899 - Vendor-specific success codes.
+ * *                9900...9905 - Advisory extended delay. Caller should try
+ *                                again after ~10^x ms has elapsed, where x is
+ *                                the last digit of the status [0-5]. Again going
+ *                                beyond the PAPR text, 990x on PowerVM indicates
+ *                                contention for RTAS-internal resources. Other
+ *                                RTAS call sequences in progress should be
+ *                                allowed to complete before reattempting the
+ *                                call.
+ * *                      -9000 - Multi-level isolation error.
+ * *              -9999...-9004 - Vendor-specific error codes.
+ * * Additional negative values - Function-specific error.
+ * * Additional positive values - Function-specific success.
+ */
 int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 {
 	va_list list;
