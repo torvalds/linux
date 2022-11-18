@@ -1425,7 +1425,7 @@ void find_first_clear_extent_bit(struct extent_io_tree *tree, u64 start,
 				 u64 *start_ret, u64 *end_ret, u32 bits)
 {
 	struct extent_state *state;
-	struct extent_state *prev = NULL, *next;
+	struct extent_state *prev = NULL, *next = NULL;
 
 	spin_lock(&tree->lock);
 
