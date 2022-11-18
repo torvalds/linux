@@ -4743,6 +4743,8 @@ static int sad_cfg_iio_topology(struct intel_uncore_type *type, u8 *sad_pmon_map
 		type->topology[die][stack_id].iio->pci_bus_no = dev->bus->number;
 	}
 
+	pci_dev_put(dev);
+
 	return ret;
 }
 
