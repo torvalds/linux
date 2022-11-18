@@ -599,7 +599,6 @@ static int bch2_inode_delete_keys(struct btree_trans *trans,
 	 * iterator:
 	 */
 	bch2_trans_iter_init(trans, &iter, id, POS(inum.inum, 0),
-			     BTREE_ITER_NOT_EXTENTS|
 			     BTREE_ITER_INTENT);
 
 	while (1) {
@@ -621,6 +620,14 @@ static int bch2_inode_delete_keys(struct btree_trans *trans,
 
 		bkey_init(&delete.k);
 		delete.k.p = iter.pos;
+
+		if (iter.flags & BTREE_ITER_IS_EXTENTS) {
+			bch2_key_resize(&delete.k, k.k->p.offset - iter.pos.offset);
+
+			ret = bch2_extent_trim_atomic(trans, &iter, &delete);
+			if (ret)
+				goto err;
+		}
 
 		ret = bch2_trans_update(trans, &iter, &delete, 0) ?:
 		      bch2_trans_commit(trans, NULL, NULL,
