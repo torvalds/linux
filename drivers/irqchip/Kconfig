@@ -538,17 +538,8 @@ config TI_PRUSS_INTC
 	  different processors within the SoC.
 
 config RISCV_INTC
-	bool "RISC-V Local Interrupt Controller"
+	bool
 	depends on RISCV
-	default y
-	help
-	   This enables support for the per-HART local interrupt controller
-	   found in standard RISC-V systems.  The per-HART local interrupt
-	   controller handles timer interrupts, software interrupts, and
-	   hardware interrupts. Without a per-HART local interrupt controller,
-	   a RISC-V system will be unable to handle any interrupts.
-
-	   If you don't know what to do here, say Y.
 
 config SIFIVE_PLIC
 	bool
