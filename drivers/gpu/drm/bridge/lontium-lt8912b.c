@@ -702,8 +702,7 @@ static int lt8912_put_dt(struct lt8912 *lt)
 	return 0;
 }
 
-static int lt8912_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int lt8912_probe(struct i2c_client *client)
 {
 	static struct lt8912 *lt;
 	int ret = 0;
@@ -775,7 +774,7 @@ static struct i2c_driver lt8912_i2c_driver = {
 		.name = "lt8912",
 		.of_match_table = lt8912_dt_match,
 	},
-	.probe = lt8912_probe,
+	.probe_new = lt8912_probe,
 	.remove = lt8912_remove,
 	.id_table = lt8912_id,
 };
