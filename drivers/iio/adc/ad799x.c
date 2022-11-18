@@ -775,9 +775,9 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	},
 };
 
-static int ad799x_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int ad799x_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	int ret;
 	int extra_config = 0;
 	struct ad799x_state *st;
@@ -968,7 +968,7 @@ static struct i2c_driver ad799x_driver = {
 		.name = "ad799x",
 		.pm = pm_sleep_ptr(&ad799x_pm_ops),
 	},
-	.probe = ad799x_probe,
+	.probe_new = ad799x_probe,
 	.remove = ad799x_remove,
 	.id_table = ad799x_id,
 };
