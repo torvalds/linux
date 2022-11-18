@@ -116,8 +116,7 @@ static const struct of_device_id as3711_of_match[] = {
 };
 #endif
 
-static int as3711_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int as3711_i2c_probe(struct i2c_client *client)
 {
 	struct as3711 *as3711;
 	struct as3711_platform_data *pdata;
@@ -202,7 +201,7 @@ static struct i2c_driver as3711_i2c_driver = {
 		   .name = "as3711",
 		   .of_match_table = of_match_ptr(as3711_of_match),
 	},
-	.probe = as3711_i2c_probe,
+	.probe_new = as3711_i2c_probe,
 	.id_table = as3711_i2c_id,
 };
 
