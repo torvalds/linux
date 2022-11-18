@@ -22,16 +22,15 @@
 /* shadow registers offest */
 #define STM32MP15_BSEC_DATA0		0x200
 
-/* 32 (x 32-bits) lower shadow registers */
-#define STM32MP15_BSEC_NUM_LOWER	32
-
 struct stm32_romem_cfg {
 	int size;
+	u8 lower;
 };
 
 struct stm32_romem_priv {
 	void __iomem *base;
 	struct nvmem_config cfg;
+	u8 lower;
 };
 
 static int stm32_romem_read(void *context, unsigned int offset, void *buf,
@@ -85,7 +84,7 @@ static int stm32_bsec_read(void *context, unsigned int offset, void *buf,
 	for (i = roffset; (i < roffset + rbytes); i += 4) {
 		u32 otp = i >> 2;
 
-		if (otp < STM32MP15_BSEC_NUM_LOWER) {
+		if (otp < priv->lower) {
 			/* read lower data from shadow registers */
 			val = readl_relaxed(
 				priv->base + STM32MP15_BSEC_DATA0 + i);
@@ -159,6 +158,8 @@ static int stm32_romem_probe(struct platform_device *pdev)
 	priv->cfg.priv = priv;
 	priv->cfg.owner = THIS_MODULE;
 
+	priv->lower = 0;
+
 	cfg = (const struct stm32_romem_cfg *)
 		of_match_device(dev->driver->of_match_table, dev)->data;
 	if (!cfg) {
@@ -167,6 +168,7 @@ static int stm32_romem_probe(struct platform_device *pdev)
 		priv->cfg.reg_read = stm32_romem_read;
 	} else {
 		priv->cfg.size = cfg->size;
+		priv->lower = cfg->lower;
 		priv->cfg.reg_read = stm32_bsec_read;
 		priv->cfg.reg_write = stm32_bsec_write;
 	}
@@ -174,8 +176,17 @@ static int stm32_romem_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(devm_nvmem_register(dev, &priv->cfg));
 }
 
+/*
+ * STM32MP15 BSEC OTP regions: 4096 OTP bits (with 3072 effective bits)
+ * => 96 x 32-bits data words
+ * - Lower: 1K bits, 2:1 redundancy, incremental bit programming
+ *   => 32 (x 32-bits) lower shadow registers = words 0 to 31
+ * - Upper: 2K bits, ECC protection, word programming only
+ *   => 64 (x 32-bits) = words 32 to 95
+ */
 static const struct stm32_romem_cfg stm32mp15_bsec_cfg = {
-	.size = 384, /* 96 x 32-bits data words */
+	.size = 384,
+	.lower = 32,
 };
 
 static const struct of_device_id stm32_romem_of_match[] = {
