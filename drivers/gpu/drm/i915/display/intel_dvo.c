@@ -401,6 +401,20 @@ static int intel_dvo_encoder_type(const struct intel_dvo_device *dvo)
 	}
 }
 
+static int intel_dvo_connector_type(const struct intel_dvo_device *dvo)
+{
+	switch (dvo->type) {
+	case INTEL_DVO_CHIP_TMDS:
+		return DRM_MODE_CONNECTOR_DVII;
+	case INTEL_DVO_CHIP_LVDS_NO_FIXED:
+	case INTEL_DVO_CHIP_LVDS:
+		return DRM_MODE_CONNECTOR_LVDS;
+	default:
+		MISSING_CASE(dvo->type);
+		return DRM_MODE_CONNECTOR_Unknown;
+	}
+}
+
 void intel_dvo_init(struct drm_i915_private *dev_priv)
 {
 	struct intel_encoder *intel_encoder;
@@ -507,21 +521,13 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 			intel_encoder->cloneable = BIT(INTEL_OUTPUT_ANALOG) |
 				BIT(INTEL_OUTPUT_DVO);
 
-		switch (dvo->type) {
-		case INTEL_DVO_CHIP_TMDS:
+		if (dvo->type == INTEL_DVO_CHIP_TMDS)
 			intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT |
 				DRM_CONNECTOR_POLL_DISCONNECT;
-			drm_connector_init(&dev_priv->drm, connector,
-					   &intel_dvo_connector_funcs,
-					   DRM_MODE_CONNECTOR_DVII);
-			break;
-		case INTEL_DVO_CHIP_LVDS_NO_FIXED:
-		case INTEL_DVO_CHIP_LVDS:
-			drm_connector_init(&dev_priv->drm, connector,
-					   &intel_dvo_connector_funcs,
-					   DRM_MODE_CONNECTOR_LVDS);
-			break;
-		}
+
+		drm_connector_init(&dev_priv->drm, connector,
+				   &intel_dvo_connector_funcs,
+				   intel_dvo_connector_type(dvo));
 
 		drm_connector_helper_add(connector,
 					 &intel_dvo_connector_helper_funcs);
