@@ -138,7 +138,8 @@ Contact:	"Chao Yu" <yuchao0@huawei.com>
 Description:	Controls discard granularity of inner discard thread. Inner thread
 		will not issue discards with size that is smaller than granularity.
 		The unit size is one block(4KB), now only support configuring
-		in range of [1, 512]. Default value is 4(=16KB).
+		in range of [1, 512]. Default value is 16.
+		For small devices, default value is 1.
 
 What:		/sys/fs/f2fs/<disk>/umount_discard_timeout
 Date:		January 2019
