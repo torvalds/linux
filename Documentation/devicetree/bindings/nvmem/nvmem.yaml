@@ -67,6 +67,7 @@ examples:
       #include <dt-bindings/gpio/gpio.h>
 
       qfprom: eeprom@700000 {
+          compatible = "qcom,msm8974-qfprom", "qcom,qfprom";
           #address-cells = <1>;
           #size-cells = <1>;
           reg = <0x00700000 0x100000>;
