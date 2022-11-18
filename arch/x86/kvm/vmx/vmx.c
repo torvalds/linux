@@ -7172,7 +7172,7 @@ static fastpath_t vmx_exit_handlers_fastpath(struct kvm_vcpu *vcpu)
 
 static noinstr void vmx_vcpu_enter_exit(struct kvm_vcpu *vcpu,
 					struct vcpu_vmx *vmx,
-					unsigned long flags)
+					unsigned int flags)
 {
 	guest_state_enter_irqoff();
 
