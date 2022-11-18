@@ -919,21 +919,29 @@ static int qcom_slim_ngd_xfer_msg_sync(struct slim_controller *ctrl,
 	DECLARE_COMPLETION_ONSTACK(done);
 	int ret, timeout;
 
-	pm_runtime_get_sync(ctrl->dev);
+	ret = pm_runtime_get_sync(ctrl->dev);
+	if (ret < 0)
+		goto pm_put;
 
 	txn->comp = &done;
 
 	ret = qcom_slim_ngd_xfer_msg(ctrl, txn);
 	if (ret)
-		return ret;
+		goto pm_put;
 
 	timeout = wait_for_completion_timeout(&done, HZ);
 	if (!timeout) {
 		dev_err(ctrl->dev, "TX timed out:MC:0x%x,mt:0x%x", txn->mc,
 				txn->mt);
-		return -ETIMEDOUT;
+		ret = -ETIMEDOUT;
+		goto pm_put;
 	}
 	return 0;
+
+pm_put:
+	pm_runtime_put(ctrl->dev);
+
+	return ret;
 }
 
 static int qcom_slim_ngd_enable_stream(struct slim_stream_runtime *rt)
