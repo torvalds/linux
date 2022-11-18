@@ -52,12 +52,14 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 	inner_map_meta->max_entries = inner_map->max_entries;
 	inner_map_meta->record = btf_record_dup(inner_map->record);
 	if (IS_ERR(inner_map_meta->record)) {
+		struct bpf_map *err_ptr = ERR_CAST(inner_map_meta->record);
 		/* btf_record_dup returns NULL or valid pointer in case of
 		 * invalid/empty/valid, but ERR_PTR in case of errors. During
 		 * equality NULL or IS_ERR is equivalent.
 		 */
+		kfree(inner_map_meta);
 		fdput(f);
-		return ERR_CAST(inner_map_meta->record);
+		return err_ptr;
 	}
 	if (inner_map->btf) {
 		btf_get(inner_map->btf);
