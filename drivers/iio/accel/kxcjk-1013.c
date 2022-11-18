@@ -1424,9 +1424,9 @@ static const char *kxcjk1013_match_acpi_device(struct device *dev,
 	return dev_name(dev);
 }
 
-static int kxcjk1013_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int kxcjk1013_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	static const char * const regulator_names[] = { "vdd", "vddio" };
 	struct kxcjk1013_data *data;
 	struct iio_dev *indio_dev;
@@ -1732,7 +1732,7 @@ static struct i2c_driver kxcjk1013_driver = {
 		.of_match_table = kxcjk1013_of_match,
 		.pm	= &kxcjk1013_pm_ops,
 	},
-	.probe		= kxcjk1013_probe,
+	.probe_new	= kxcjk1013_probe,
 	.remove		= kxcjk1013_remove,
 	.id_table	= kxcjk1013_id,
 };
