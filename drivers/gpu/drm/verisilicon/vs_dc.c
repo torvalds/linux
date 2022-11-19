@@ -306,69 +306,31 @@ static void plda_clk_rst_deinit(struct device *dev)
 }
 #endif
 
-
 static int vs_dc_get_clock(struct device *dev, struct vs_dc *dc)
 {
-	dc->cpu_axi = devm_clk_get(dev, "noc_cpu");
-	if (IS_ERR(dc->cpu_axi)) {
-		dev_err(dev, "---cpu_axi get error\n");
-		return PTR_ERR(dc->cpu_axi);
-	}
-
-	dc->axicfg0_axi = devm_clk_get(dev, "noc_cfg0");
-	if (IS_ERR(dc->axicfg0_axi)) {
-		dev_err(dev, "---axicfg0_axi get error\n");
-		return PTR_ERR(dc->axicfg0_axi);
-	}
-
 	dc->disp_axi = devm_clk_get(dev, "noc_disp");
 	if (IS_ERR(dc->disp_axi)) {
 		dev_err(dev, "---disp_axi get error\n");
 		return PTR_ERR(dc->disp_axi);
 	}
 
-	dc->stg_axi = devm_clk_get(dev, "noc_stg");
-	if (IS_ERR(dc->stg_axi)) {
-		dev_err(dev, "---stg_axi get error\n");
-		return PTR_ERR(dc->stg_axi);
-	}
 	return 0;
 }
 
 static int  vs_dc_clock_enable(struct device *dev, struct vs_dc *dc)
 {
 	int ret;
-	/*clk_prepare_enable(dc->sys_clk);*/
-	ret = clk_prepare_enable(dc->cpu_axi);
-	if (ret) {
-		dev_err(dev, "failed to prepare/enable cpu_axi\n");
-		return ret;
-	}
-	ret = clk_prepare_enable(dc->axicfg0_axi);
-	if (ret) {
-		dev_err(dev, "failed to prepare/enable axicfg0_axi\n");
-		return ret;
-	}
 	ret = clk_prepare_enable(dc->disp_axi);
 	if (ret) {
 		dev_err(dev, "failed to prepare/enable disp_axi\n");
 		return ret;
 	}
-	ret = clk_prepare_enable(dc->stg_axi);
-	if (ret) {
-		dev_err(dev, "failed to prepare/enable stg_axi\n");
-		return ret;
-	}
-
-	return ret;
+	return 0;
 }
 
 static void  vs_dc_clock_disable(struct vs_dc *dc)
 {
-	clk_disable_unprepare(dc->cpu_axi);
-	clk_disable_unprepare(dc->axicfg0_axi);
 	clk_disable_unprepare(dc->disp_axi);
-	clk_disable_unprepare(dc->stg_axi);
 }
 
 static int vs_dc_vouttop_get_clock(struct device *dev, struct vs_dc *dc)
@@ -384,31 +346,11 @@ static int vs_dc_vouttop_get_clock(struct device *dev, struct vs_dc *dc)
 		dev_err(dev, "failed to get vout_axi\n");
 		return PTR_ERR(dc->vout_axi);
 	}
-
-	dc->ahb1 = devm_clk_get(dev, "ahb1");
-	if (IS_ERR(dc->ahb1)) {
-		dev_err(dev, "failed to get ahb1\n");
-		return PTR_ERR(dc->ahb1);
-	}
-
 	dc->vout_ahb = devm_clk_get(dev, "top_vout_ahb");
 	if (IS_ERR(dc->vout_ahb)) {
 		dev_err(dev, "failed to get vout_ahb\n");
 		return PTR_ERR(dc->vout_ahb);
 	}
-
-	dc->hdmitx0_mclk = devm_clk_get(dev, "top_vout_hdmiTX0");
-	if (IS_ERR(dc->hdmitx0_mclk)) {
-		dev_err(dev, "failed to get hdmitx0_mclk\n");
-		return PTR_ERR(dc->hdmitx0_mclk);
-	}
-
-	dc->bclk_mst = devm_clk_get(dev, "i2stx");
-	if (IS_ERR(dc->bclk_mst)) {
-		dev_err(dev, "failed to get bclk_mst\n");
-		return PTR_ERR(dc->bclk_mst);
-	}
-
 	return 0;
 }
 
@@ -426,21 +368,6 @@ static int  vs_dc_vouttop_clock_enable(struct device *dev, struct vs_dc *dc)
 		dev_err(dev, "failed to prepare/enable vout_axi\n");
 		return ret;
 	}
-	ret = clk_prepare_enable(dc->ahb1);
-	if (ret) {
-		dev_err(dev, "failed to prepare/enable ahb1\n");
-		return ret;
-	}
-	ret = clk_prepare_enable(dc->hdmitx0_mclk);
-	if (ret) {
-		dev_err(dev, "failed to prepare/enable hdmitx0_mclk\n");
-		return ret;
-	}
-	ret = clk_prepare_enable(dc->bclk_mst);
-	if (ret) {
-		dev_err(dev, "failed to prepare/enable bclk_mst\n");
-		return ret;
-	}
 	return ret;
 }
 
@@ -448,9 +375,6 @@ static void  vs_dc_vouttop_clock_disable(struct vs_dc *dc)
 {
 	clk_disable_unprepare(dc->vout_src);
 	clk_disable_unprepare(dc->vout_axi);
-	clk_disable_unprepare(dc->ahb1);
-	clk_disable_unprepare(dc->hdmitx0_mclk);
-	clk_disable_unprepare(dc->bclk_mst);
 }
 
 static int vs_dc_dc8200_get_clock(struct device *dev, struct vs_dc *dc)
@@ -529,7 +453,59 @@ static void  vs_dc_dc8200_clock_disable(struct vs_dc *dc)
 	clk_disable_unprepare(dc->dc8200_ahb);
 }
 
-static int dc_vout_clk_rst_init(struct device *dev, struct vs_dc *dc)
+static void vs_vout_reset_get(struct device *dev, struct vs_dc *dc)
+{
+	//dc->rst_vout_src=reset_control_get_shared(dev, "rst_vout_src");
+	dc->rst_vout_src = reset_control_get_shared(dev, "rst_vout_src");
+	if (IS_ERR(dc->rst_vout_src))
+		dev_err(dev, "failed to get rst_vout_src\n");
+	dc->noc_disp = reset_control_get_shared(dev, "rst_noc_disp");
+	if (IS_ERR(dc->noc_disp))
+		dev_err(dev, "failed to get rst_noc_disp\n");
+}
+
+static void vs_vout_reset_deassert(struct vs_dc *dc)
+{
+	reset_control_deassert(dc->rst_vout_src);//no!
+	reset_control_deassert(dc->noc_disp);//ok
+}
+
+/*
+static void vs_vout_reset_assert(struct vs_dc *dc)
+{
+	reset_control_assert(dc->rst_vout_src);//no!
+	reset_control_assert(dc->noc_disp);//ok
+}
+*/
+
+static void vs_dc8200_reset_get(struct device *dev, struct vs_dc *dc)
+{
+	dc->dc8200_rst_axi = reset_control_get_shared(dev, "rst_axi");
+	if (IS_ERR(dc->dc8200_rst_axi))
+		dev_err(dev, "failed to get dc8200_rst_axi\n");
+	dc->dc8200_rst_core = reset_control_get_shared(dev, "rst_ahb");
+	if (IS_ERR(dc->dc8200_rst_core))
+		dev_err(dev, "failed to get dc8200_rst_core\n");
+	dc->dc8200_rst_ahb = reset_control_get_shared(dev, "rst_core");
+	if (IS_ERR(dc->dc8200_rst_core))
+		dev_err(dev, "failed to get dc8200_rst_core\n");
+}
+
+static void vs_dc8200_reset_deassert(struct vs_dc *dc)
+{
+	reset_control_deassert(dc->dc8200_rst_axi);
+	reset_control_deassert(dc->dc8200_rst_core);//ok
+	reset_control_deassert(dc->dc8200_rst_ahb);
+}
+
+static void vs_dc8200_reset_assert(struct vs_dc *dc)
+{
+	reset_control_assert(dc->dc8200_rst_axi);
+	reset_control_assert(dc->dc8200_rst_core);//ok
+	reset_control_assert(dc->dc8200_rst_ahb);
+}
+
+static int dc_vout_clk_get(struct device *dev, struct vs_dc *dc)
 {
 	int ret;
 	ret = vs_dc_get_clock(dev, dc);
@@ -537,16 +513,27 @@ static int dc_vout_clk_rst_init(struct device *dev, struct vs_dc *dc)
 		dev_err(dev, "failed to get clock\n");
 		return ret;
 	}
+	ret = vs_dc_vouttop_get_clock(dev, dc);
+	if (ret) {
+		dev_err(dev, "failed to get clock\n");
+		return ret;
+	}
+	ret = vs_dc_dc8200_get_clock(dev, dc);
+	if (ret) {
+		dev_err(dev, "failed to get clock\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int dc_vout_clk_enable(struct device *dev, struct vs_dc *dc)
+{
+	int ret;
 
 	ret = vs_dc_clock_enable(dev, dc);
 	if (ret) {
 		dev_err(dev, "failed to enable clock\n");
-		return ret;
-	}
-
-	ret = vs_dc_vouttop_get_clock(dev, dc);
-	if (ret) {
-		dev_err(dev, "failed to get clock\n");
 		return ret;
 	}
 
@@ -556,33 +543,14 @@ static int dc_vout_clk_rst_init(struct device *dev, struct vs_dc *dc)
 		return ret;
 	}
 
-	ret = vs_dc_dc8200_get_clock(dev, dc);
-	if (ret) {
-		dev_err(dev, "failed to get clock\n");
-		return ret;
-	}
-
 	ret = vs_dc_dc8200_clock_enable(dev, dc);
 	if (ret) {
 		dev_err(dev, "failed to enable clock\n");
 		return ret;
 	}
 
-	dc->vout_resets = devm_reset_control_array_get_exclusive(dev);
-	if (IS_ERR(dc->vout_resets)) {
-		ret = PTR_ERR(dc->vout_resets);
-		dev_err(dev, "faied to get vout resets controls\n");
-	}
-
-	ret = reset_control_deassert(dc->vout_resets);
-	if (ret){
-		dev_err(dev, "deassert error.\n");
-		return ret;
-	}
-
-	return ret;
+	return 0;
 }
-
 
 static int syscon_panel_parse_dt(struct device *dev)
 {
@@ -662,7 +630,6 @@ int sys_dispctrl_clk_standard(struct vs_dc *dc, struct device *dev)
 static void dc_deinit(struct device *dev)
 {
 	struct vs_dc *dc = dev_get_drvdata(dev);
-	struct platform_device *pdev = to_platform_device(dev);
 	int ret;
 	dc_hw_enable_interrupt(&dc->hw, 0);
 	dc_hw_deinit(&dc->hw);
@@ -672,9 +639,6 @@ static void dc_deinit(struct device *dev)
 	ret = reset_control_assert(dc->vout_resets);
 	if (ret)
 		dev_err(dev, "assert vout resets error.\n");
-
-	pm_runtime_put_sync(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
 }
 
 
@@ -682,7 +646,6 @@ static void dc_deinit(struct device *dev)
 static int dc_init(struct device *dev)
 {
 	struct vs_dc *dc = dev_get_drvdata(dev);
-	struct platform_device *pdev = to_platform_device(dev);
 	int ret;
 
 	dc->first_frame = true;
@@ -693,17 +656,28 @@ static int dc_init(struct device *dev)
 		return ret;
 	}
 
-	pm_runtime_enable(&pdev->dev);
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "dc_init: failed to get pm runtime: %d\n", ret);
+	ret = dc_vout_clk_get(dev, dc);
+	if (ret) {
+		dev_err(dev, "failed to get clock\n");
 		return ret;
 	}
-
-	ret = dc_vout_clk_rst_init(dev, dc);
+	vs_vout_reset_get(dev, dc);
+	vs_dc8200_reset_get(dev, dc);
 
 	ret = sys_dispctrl_clk_standard(dc, dev);
 
+	ret = dc_vout_clk_enable(dev, dc);
+	if (ret) {
+		dev_err(dev, "failed to enable clock\n");
+		//return ret;
+	}
+	//vs_vout_reset_deassert(dc);
+	vs_dc8200_reset_deassert(dc);
+	ret = clk_prepare_enable(dc->vout_top_lcd);
+	if (ret)
+		dev_err(dev, "failed to prepare/enable vout_top_lcd\n");
+
+	vs_vout_reset_deassert(dc);
 #ifdef CONFIG_DRM_I2C_NXP_TDA998X//tda998x-rgb2hdmi
 	regmap_update_bits(dc->dss_regmap, 0x4, BIT(20), 1<<20);
 #endif
@@ -730,14 +704,16 @@ static int dc_init(struct device *dev)
 		return PTR_ERR(dc->vout_top_lcd);
 	}
 
-	ret = clk_set_parent(dc->vout_top_lcd, dc->dc8200_clk_pix1_out);
+	dc->init_finished = false;
 
+	ret = clk_set_parent(dc->vout_top_lcd, dc->dc8200_clk_pix1_out);
+/*
 	ret = clk_prepare_enable(dc->vout_top_lcd);
 	if (ret) {
 		dev_err(dev, "failed to prepare/enable vout_top_lcd\n");
 		return ret;
 	}
-
+*/
 	ret = dc_hw_init(&dc->hw);
 	if (ret) {
 		dev_err(dev, "failed to init DC HW\n");
@@ -769,7 +745,28 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc)
 	struct vs_crtc_state *crtc_state = to_vs_crtc_state(crtc->state);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	struct dc_hw_display display;
+	int ret;
 
+	if (dc->init_finished == false) {
+		ret = dc_vout_clk_enable(dev, dc);
+		if (ret)
+			dev_err(dev, "failed to enable clock\n");
+
+		vs_dc8200_reset_deassert(dc);
+		ret = clk_prepare_enable(dc->vout_top_lcd);
+		if (ret)
+			dev_err(dev, "failed to prepare/enable vout_top_lcd\n");
+
+		regmap_update_bits(dc->dss_regmap, 0x4, BIT(20), 1<<20);
+
+		regmap_update_bits(dc->dss_regmap, 0x8, BIT(3), 1<<3);
+
+		ret = dc_hw_init(&dc->hw);
+		if (ret)
+			dev_err(dev, "failed to init DC HW\n");
+
+		dc->init_finished = true;
+	}
 	display.bus_format = crtc_state->output_fmt;
 	display.h_active = mode->hdisplay;
 	display.h_total = mode->htotal;
@@ -805,20 +802,29 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc)
 
 	display.enable = true;
 
+	clk_set_rate(dc->dc8200_pix0, mode->clock * 1000);
+	dc->pix_clk_rate = mode->clock;
+
 	if (crtc_state->encoder_type == DRM_MODE_ENCODER_DSI){
+		/*
 		if (dc->pix_clk_rate != mode->clock) {
 			clk_set_rate(dc->dc8200_pix0, mode->clock * 1000);
 			dc->pix_clk_rate = mode->clock;
 		}
+		*/
 
 		clk_set_parent(dc->dc8200_clk_pix1, dc->dc8200_pix0);
 		dc_hw_set_out(&dc->hw, OUT_DPI, display.id);
 	} else {
+		/*
 		if (dc->pix_clk_rate != mode->clock) {
 			clk_set_rate(dc->dc8200_pix0, mode->clock * 1000);
 			dc->pix_clk_rate = mode->clock;
 		}
+		*/
+
 		clk_set_parent(dc->dc8200_clk_pix1, dc->dc8200_pix0);
+		clk_set_parent(dc->vout_top_lcd, dc->dc8200_clk_pix1_out);
 		clk_set_parent(dc->dc8200_clk_pix0, dc->hdmitx0_pixelclk);
 		dc_hw_set_out(&dc->hw, OUT_DP, display.id);
 	}
@@ -829,6 +835,10 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc)
 	else
 		dc_hw_enable_mmu_prefetch(&dc->hw, false);
 #endif
+
+	//regmap_update_bits(dc->dss_regmap, 0x4, BIT(20), 1 << 20);
+
+	//regmap_update_bits(dc->dss_regmap, 0x8, BIT(3), 1 << 3);
 
 	dc_hw_setup_display(&dc->hw, &display);
 }
@@ -841,7 +851,33 @@ static void vs_dc_disable(struct device *dev, struct drm_crtc *crtc)
 	display.id = to_vs_display_id(dc, crtc);
 	display.enable = false;
 
-	dc_hw_setup_display(&dc->hw, &display);
+	if (dc->init_finished == true) {
+
+		dc_hw_setup_display(&dc->hw, &display);
+
+		clk_disable_unprepare(dc->vout_top_lcd);
+		/*dc8200 asrt*/
+		vs_dc8200_reset_assert(dc);
+
+		/*dc8200 clk disable*/
+		vs_dc_dc8200_clock_disable(dc);
+
+		/*vouttop clk disable*/
+		vs_dc_vouttop_clock_disable(dc);
+
+		/*vout clk disable*/
+		vs_dc_clock_disable(dc);
+
+		/*297000000 reset the pixclk channel*/
+		clk_set_rate(dc->dc8200_pix0, 1000);
+
+		/*reset the parent pixclk  channel*/
+		clk_set_parent(dc->dc8200_clk_pix1, dc->hdmitx0_pixelclk);
+		clk_set_parent(dc->vout_top_lcd, dc->dc8200_clk_pix0_out);
+		clk_set_parent(dc->dc8200_clk_pix0, dc->dc8200_pix0);
+
+		dc->init_finished = false;
+	}
 }
 
 static bool vs_dc_mode_fixup(struct device *dev,
@@ -1520,6 +1556,19 @@ static int dc_bind(struct device *dev, struct device *master, void *data)
 	dc->funcs = &dc_funcs;
 
 	vs_drm_update_pitch_alignment(drm_dev, dc_info->pitch_alignment);
+
+	clk_disable_unprepare(dc->vout_top_lcd);
+/*dc8200 asrt*/
+	vs_dc8200_reset_assert(dc);
+
+/*dc8200 clk disable*/
+	vs_dc_dc8200_clock_disable(dc);
+
+/*vouttop clk disable*/
+	vs_dc_vouttop_clock_disable(dc);
+
+/*vout clk disable*/
+	vs_dc_clock_disable(dc);
 
 	return 0;
 

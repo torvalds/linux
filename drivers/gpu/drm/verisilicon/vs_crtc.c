@@ -189,7 +189,6 @@ static int vs_crtc_late_register(struct drm_crtc *crtc)
 static int vs_crtc_enable_vblank(struct drm_crtc *crtc)
 {
 	struct vs_crtc *vs_crtc = to_vs_crtc(crtc);
-	//struct vs_crtc_state *vs_crtc_state = to_vs_crtc_state(crtc->state);
 
 	vs_crtc->funcs->enable_vblank(vs_crtc->dev, true);
 
@@ -303,7 +302,6 @@ static void vs_crtc_atomic_begin(struct drm_crtc *crtc,
 	struct device *dev = vs_crtc->dev;
 	struct drm_property_blob *blob = crtc->state->gamma_lut;
 	struct drm_color_lut *lut;
-	//struct vs_crtc_state *vs_crtc_state = to_vs_crtc_state(crtc->state);
 
 	if (crtc_state->color_mgmt_changed) {
 		if ((blob) && (blob->length)) {

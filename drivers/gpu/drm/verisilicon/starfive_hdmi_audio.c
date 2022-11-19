@@ -228,27 +228,7 @@ static int starfive_hdmi_audio_hw_params(struct snd_pcm_substream *substream,
 
 static int starfive_hdmi_audio_probe(struct snd_soc_component *component)
 {
-	struct inno_hdmi *priv = snd_soc_component_get_drvdata(component);
-
-	/* Use external CTS source */
-	hdmi_modb(priv, AUDIO_CFG, CTS_SOURCE_SEL_MASK, CTS_EXTER);
-
-	/* select I2S type */
-	hdmi_modb(priv, AUDIO_CFG, AUDIO_TYPE_SEL_MASK, AUDIO_SEL_I2S);
-
-	/* MCLK ratio 0:128fs, 1:256fs, 2:384fs, 3:512fs */
-	hdmi_modb(priv, AUDIO_CFG, MCLK_RATIO_MASK, MCLK_256FS);
-
-	/* I2S format 0:standard, 1:right-justified, 2:left-justified */
-	hdmi_modb(priv, PINS_ENA, I2S_FORMAT_MASK, STANDARD_MODE);
-
-	/* Audio channel input */
-	hdmi_writeb(priv, CHANNEL_INPUT, CHANNEL0_I2S0 | CHANNEL1_I2S1 |
-				CHANNEL2_I2S2 | CHANNEL3_I2S3);
-
-	/* Audio mute */
-	hdmi_modb(priv, DEV_MUTE, AUDIO_MUTE_MASK, AUDIO_MUTE);
-
+	/* In this time, HDMI has suspend and cannot read and write register. */
 	return 0;
 }
 
@@ -287,6 +267,26 @@ int starfive_hdmi_audio_init(struct inno_hdmi *hdmi)
 		dev_err(hdmi->dev, "HDMI&AUDIO: not able to register dai\n");
 		return ret;
 	}
+
+	/* Use external CTS source */
+	hdmi_modb(hdmi, AUDIO_CFG, CTS_SOURCE_SEL_MASK, CTS_EXTER);
+
+	/* select I2S type */
+	hdmi_modb(hdmi, AUDIO_CFG, AUDIO_TYPE_SEL_MASK, AUDIO_SEL_I2S);
+
+	/* MCLK ratio 0:128fs, 1:256fs, 2:384fs, 3:512fs */
+	hdmi_modb(hdmi, AUDIO_CFG, MCLK_RATIO_MASK, MCLK_256FS);
+
+	/* I2S format 0:standard, 1:right-justified, 2:left-justified */
+	hdmi_modb(hdmi, PINS_ENA, I2S_FORMAT_MASK, STANDARD_MODE);
+
+	/* Audio channel input */
+	hdmi_writeb(hdmi, CHANNEL_INPUT, CHANNEL0_I2S0 | CHANNEL1_I2S1 |
+				CHANNEL2_I2S2 | CHANNEL3_I2S3);
+
+	/* Audio mute */
+	hdmi_modb(hdmi, DEV_MUTE, AUDIO_MUTE_MASK, AUDIO_MUTE);
+
 	dev_info(hdmi->dev, "HDMI&AUDIO register done.\n");
 
 	return 0;

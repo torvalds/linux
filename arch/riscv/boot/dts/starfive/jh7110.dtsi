@@ -57,7 +57,6 @@
 			i-tlb-sets = <1>;
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
-			cpu-idle-states = <&CPU_NONRET_0_0>;
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imac";
 			tlb-split;
@@ -85,7 +84,6 @@
 			i-tlb-sets = <1>;
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
-			cpu-idle-states = <&CPU_NONRET_0_0>;
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imafdc";
 			tlb-split;
@@ -114,7 +112,6 @@
 			i-tlb-sets = <1>;
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
-			cpu-idle-states = <&CPU_NONRET_0_0>;
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imafdc";
 			tlb-split;
@@ -143,7 +140,6 @@
 			i-tlb-sets = <1>;
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
-			cpu-idle-states = <&CPU_NONRET_0_0>;
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imafdc";
 			tlb-split;
@@ -172,7 +168,6 @@
 			i-tlb-sets = <1>;
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
-			cpu-idle-states = <&CPU_NONRET_0_0>;
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imafdc";
 			tlb-split;
@@ -184,17 +179,6 @@
 				compatible = "riscv,cpu-intc";
 				interrupt-controller;
 			};
-		};
-	};
-
-	idle-states {
-		CPU_NONRET_0_0: cpu-nonretentive-0-0 {
-			compatible = "riscv,idle-state";
-			riscv,sbi-suspend-param = <0x80000000>;
-			entry-latency-us = <600>;
-			exit-latency-us = <1100>;
-			min-residency-us = <2700>;
-			wakeup-latency-us = <1500>;
 		};
 	};
 
@@ -556,11 +540,13 @@
 			compatible = "starfive,jh7110-dma", "snps,axi-dma-1.01a";
 			reg = <0x0 0x16050000 0x0 0x10000>;
 			clocks = <&clkgen JH7110_DMA1P_CLK_AXI>,
-				 <&clkgen JH7110_DMA1P_CLK_AHB>;
-			clock-names = "core-clk", "cfgr-clk";
+				 <&clkgen JH7110_DMA1P_CLK_AHB>,
+				 <&clkgen JH7110_NOC_BUS_CLK_STG_AXI>;
+			clock-names = "core-clk", "cfgr-clk", "stg_clk";
 			resets = <&rstgen RSTN_U0_DW_DMA1P_AXI>,
-				 <&rstgen RSTN_U0_DW_DMA1P_AHB>;
-			reset-names = "rst_axi", "rst_ahb";
+				 <&rstgen RSTN_U0_DW_DMA1P_AHB>,
+				 <&rstgen RSTN_U0_NOC_BUS_STG_AXI_N>;
+			reset-names = "rst_axi", "rst_ahb", "rst_stg";
 			interrupts = <73>;
 			#dma-cells = <2>;
 			dma-channels = <4>;
@@ -1577,51 +1563,34 @@
 			      <0x0 0x17030000 0x0 0x1000>;
 			interrupts = <95>;
 			status = "disabled";
-			clocks = <&clkgen JH7110_NOC_BUS_CLK_CPU_AXI>,
-				 <&clkgen JH7110_NOC_BUS_CLK_AXICFG0_AXI>,
-				 <&clkgen JH7110_NOC_BUS_CLK_GPU_AXI>,
-				 <&clkgen JH7110_NOC_BUS_CLK_VDEC_AXI>,
-				 <&clkgen JH7110_NOC_BUS_CLK_VENC_AXI>,
-				 <&clkgen JH7110_NOC_BUS_CLK_DISP_AXI>,
-				 <&clkgen JH7110_NOC_BUS_CLK_ISP_AXI>,
-				 <&clkgen JH7110_NOC_BUS_CLK_STG_AXI>,
-				 <&clkgen JH7110_VOUT_SRC>,
-				 <&clkgen JH7110_VOUT_TOP_CLK_VOUT_AXI>,
-				 <&clkgen JH7110_AHB1>,
-				 <&clkgen JH7110_VOUT_TOP_CLK_VOUT_AHB>,
-				 <&clkgen JH7110_VOUT_TOP_CLK_HDMITX0_MCLK>,
-				 <&clkgen JH7110_I2STX_4CH0_BCLK_MST>,
-				 <&clkvout JH7110_U0_DC8200_CLK_PIX0>,
-				 <&clkvout JH7110_U0_DC8200_CLK_PIX1>,
-				 <&clkvout JH7110_U0_DC8200_CLK_AXI>,
-				 <&clkvout JH7110_U0_DC8200_CLK_CORE>,
-				 <&clkvout JH7110_U0_DC8200_CLK_AHB>,
-				 <&clkgen JH7110_VOUT_TOP_CLK_VOUT_AXI>,
-				 <&clkvout JH7110_DOM_VOUT_TOP_LCD_CLK>,
-				 <&hdmitx0_pixelclk>,
-				 <&clkvout JH7110_DC8200_PIX0>,
-				 <&clkvout JH7110_U0_DC8200_CLK_PIX0_OUT>,
-				 <&clkvout JH7110_U0_DC8200_CLK_PIX1_OUT>;
-			clock-names = "noc_cpu","noc_cfg0","noc_gpu","noc_vdec","noc_venc",
-					"noc_disp","noc_isp","noc_stg","vout_src",
-					"top_vout_axi","ahb1","top_vout_ahb",
-					"top_vout_hdmiTX0","i2stx","pix_clk","vout_pix1",
-					"axi_clk","core_clk","vout_ahb",
-					"vout_top_axi","vout_top_lcd","hdmitx0_pixelclk","dc8200_pix0",
-					"dc8200_pix0_out","dc8200_pix1_out";
+			clocks = <&clkgen JH7110_NOC_BUS_CLK_DISP_AXI>,
+			<&clkgen JH7110_VOUT_SRC>,
+			<&clkgen JH7110_VOUT_TOP_CLK_VOUT_AXI>,
+			<&clkgen JH7110_VOUT_TOP_CLK_VOUT_AHB>,
+			<&clkvout JH7110_U0_DC8200_CLK_PIX0>,
+			<&clkvout JH7110_U0_DC8200_CLK_PIX1>,
+			<&clkvout JH7110_U0_DC8200_CLK_AXI>,
+			<&clkvout JH7110_U0_DC8200_CLK_CORE>,
+			<&clkvout JH7110_U0_DC8200_CLK_AHB>,
+			<&clkgen JH7110_VOUT_TOP_CLK_VOUT_AXI>,
+			<&clkvout JH7110_DOM_VOUT_TOP_LCD_CLK>,
+			<&hdmitx0_pixelclk>,
+			<&clkvout JH7110_DC8200_PIX0>,
+			<&clkvout JH7110_U0_DC8200_CLK_PIX0_OUT>,
+			<&clkvout JH7110_U0_DC8200_CLK_PIX1_OUT>;
+			clock-names = "noc_disp","vout_src",
+			   "top_vout_axi","top_vout_ahb",
+			   "pix_clk","vout_pix1",
+			   "axi_clk","core_clk","vout_ahb",
+			   "vout_top_axi","vout_top_lcd","hdmitx0_pixelclk","dc8200_pix0",
+			   "dc8200_pix0_out","dc8200_pix1_out";
 			resets = <&rstgen RSTN_U0_DOM_VOUT_TOP_SRC>,
 				 <&rstgen RSTN_U0_DC8200_AXI>,
 				 <&rstgen RSTN_U0_DC8200_AHB>,
 				 <&rstgen RSTN_U0_DC8200_CORE>,
-				 <&rstgen RSTN_U0_NOC_BUS_CPU_AXI_N>,
-				 <&rstgen RSTN_U0_NOC_BUS_AXICFG0_AXI_N>,
-				 <&rstgen RSTN_U0_NOC_BUS_APB_BUS_N>,
-				 <&rstgen RSTN_U0_NOC_BUS_DISP_AXI_N>,
-				 <&rstgen RSTN_U0_NOC_BUS_STG_AXI_N>;
+				 <&rstgen RSTN_U0_NOC_BUS_DISP_AXI_N>;
 			reset-names = "rst_vout_src","rst_axi","rst_ahb","rst_core",
-					"rst_noc_cpu","rst_noc_axicfg0","rst_noc_apb",
-					"rst_noc_disp","rst_noc_stg";
-			power-domains = <&pwrc JH7110_PD_VOUT>;
+					"rst_noc_disp";
 		};
 
 		dsi_output: dsi-output {
@@ -1679,7 +1648,7 @@
 				 <&clkvout JH7110_U0_HDMI_TX_CLK_MCLK>,
 				 <&clkvout JH7110_U0_HDMI_TX_CLK_BCLK>,
 				 <&hdmitx0_pixelclk>;
-			clock-names = "sysclk", "mclk", "bclk", "pclk";
+			clock-names = "sysclk", "mclk","bclk","pclk";
 			resets = <&rstgen RSTN_U0_HDMI_TX_HDMI>;
 			reset-names = "hdmi_tx";
 			#sound-dai-cells = <0>;

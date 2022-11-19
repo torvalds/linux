@@ -1106,15 +1106,17 @@ static int imx219_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&imx219->mutex);
-	if (imx219->streaming && enable)
-		goto unlock;
 
 	if (enable) {
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0) {
 			pm_runtime_put_noidle(&client->dev);
+			mutex_unlock(&imx219->mutex);
 			return ret;
 		}
+
+		if (imx219->streaming)
+			goto unlock;
 
 		/*
 		 * Apply default & customized values

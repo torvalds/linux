@@ -68,6 +68,4 @@ static inline bool is_iommu_enabled(struct drm_device *dev)
 extern struct platform_driver inno_hdmi_driver;
 #endif
 
-
-
 #endif /* __VS_DRV_H__ */
