@@ -740,6 +740,11 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio)
 }
 EXPORT_SYMBOL(bdi_set_max_ratio);
 
+u64 bdi_get_min_bytes(struct backing_dev_info *bdi)
+{
+	return bdi_get_bytes(bdi->min_ratio);
+}
+
 u64 bdi_get_max_bytes(struct backing_dev_info *bdi)
 {
 	return bdi_get_bytes(bdi->max_ratio);
