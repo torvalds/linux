@@ -44,10 +44,28 @@
 #define __round_mask(x, y) ((__typeof__(x))((y) - 1))
 #define round_up(x, y) ((((x) - 1) | __round_mask(x, y)) + 1)
 
+struct nvram_content_auth_err_sts {
+	uint64_t reserved:3;
+	uint64_t sdsi_content_auth_err:1;
+	uint64_t reserved1:1;
+	uint64_t sdsi_metering_auth_err:1;
+	uint64_t reserved2:58;
+};
+
 struct enabled_features {
 	uint64_t reserved:3;
 	uint64_t sdsi:1;
-	uint64_t reserved1:60;
+	uint64_t reserved1:8;
+	uint64_t attestation:1;
+	uint64_t reserved2:13;
+	uint64_t metering:1;
+	uint64_t reserved3:37;
+};
+
+struct key_provision_status {
+	uint64_t reserved:1;
+	uint64_t license_key_provisioned:1;
+	uint64_t reserved2:62;
 };
 
 struct auth_fail_count {
@@ -65,15 +83,23 @@ struct availability {
 	uint64_t reserved2:10;
 };
 
+struct nvram_update_limit {
+	uint64_t reserved:12;
+	uint64_t sdsi_50_pct:1;
+	uint64_t sdsi_75_pct:1;
+	uint64_t sdsi_90_pct:1;
+	uint64_t reserved2:49;
+};
+
 struct sdsi_regs {
 	uint64_t ppin;
-	uint64_t reserved;
+	struct nvram_content_auth_err_sts auth_err_sts;
 	struct enabled_features en_features;
-	uint64_t reserved1;
+	struct key_provision_status key_prov_sts;
 	struct auth_fail_count auth_fail_count;
 	struct availability prov_avail;
-	uint64_t reserved2;
-	uint64_t reserved3;
+	struct nvram_update_limit limits;
+	uint64_t pcu_cr3_capid_cfg;
 	uint64_t socket_id;
 };
 
@@ -205,8 +231,18 @@ static int sdsi_read_reg(struct sdsi_dev *s)
 	printf("Socket information for device %s\n", s->dev_name);
 	printf("\n");
 	printf("PPIN:                           0x%lx\n", s->regs.ppin);
+	printf("NVRAM Content Authorization Error Status\n");
+	printf("    SDSi Auth Err Sts:          %s\n", !!s->regs.auth_err_sts.sdsi_content_auth_err ? "Error" : "Okay");
+
+	if (!!s->regs.en_features.metering)
+		printf("    Metering Auth Err Sts:      %s\n", !!s->regs.auth_err_sts.sdsi_metering_auth_err ? "Error" : "Okay");
+
 	printf("Enabled Features\n");
 	printf("    On Demand:                  %s\n", !!s->regs.en_features.sdsi ? "Enabled" : "Disabled");
+	printf("    Attestation:                %s\n", !!s->regs.en_features.attestation ? "Enabled" : "Disabled");
+	printf("    On Demand:                  %s\n", !!s->regs.en_features.sdsi ? "Enabled" : "Disabled");
+	printf("    Metering:                   %s\n", !!s->regs.en_features.metering ? "Enabled" : "Disabled");
+	printf("License Key (AKC) Provisioned:  %s\n", !!s->regs.key_prov_sts.license_key_provisioned ? "Yes" : "No");
 	printf("Authorization Failure Count\n");
 	printf("    AKC Failure Count:          %d\n", s->regs.auth_fail_count.key_failure_count);
 	printf("    AKC Failure Threshold:      %d\n", s->regs.auth_fail_count.key_failure_threshold);
@@ -215,6 +251,10 @@ static int sdsi_read_reg(struct sdsi_dev *s)
 	printf("Provisioning Availability\n");
 	printf("    Updates Available:          %d\n", s->regs.prov_avail.available);
 	printf("    Updates Threshold:          %d\n", s->regs.prov_avail.threshold);
+	printf("NVRAM Udate Limit\n");
+	printf("    50%% Limit Reached:         %s\n", !!s->regs.limits.sdsi_50_pct ? "Yes" : "No");
+	printf("    75%% Limit Reached:         %s\n", !!s->regs.limits.sdsi_75_pct ? "Yes" : "No");
+	printf("    90%% Limit Reached:         %s\n", !!s->regs.limits.sdsi_90_pct ? "Yes" : "No");
 	printf("Socket ID:                      %ld\n", s->regs.socket_id & 0xF);
 
 	return 0;
