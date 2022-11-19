@@ -2218,8 +2218,9 @@ int perf_event__synthesize_build_id(struct perf_tool *tool, struct dso *pos, u16
 	len = pos->long_name_len + 1;
 	len = PERF_ALIGN(len, NAME_ALIGN);
 	memcpy(&ev.build_id.build_id, pos->bid.data, sizeof(pos->bid.data));
+	ev.build_id.size = pos->bid.size;
 	ev.build_id.header.type = PERF_RECORD_HEADER_BUILD_ID;
-	ev.build_id.header.misc = misc;
+	ev.build_id.header.misc = misc | PERF_RECORD_MISC_BUILD_ID_SIZE;
 	ev.build_id.pid = machine->pid;
 	ev.build_id.header.size = sizeof(ev.build_id) + len;
 	memcpy(&ev.build_id.filename, pos->long_name, pos->long_name_len);
