@@ -103,7 +103,7 @@ static void __attribute__((__flatten__)) guest_code(struct svm_test_data *svm,
 
 	/* Intercept RDMSR 0xc0000100 */
 	vmcb->control.intercept |= 1ULL << INTERCEPT_MSR_PROT;
-	set_bit(2 * (MSR_FS_BASE & 0x1fff), svm->msr + 0x800);
+	__set_bit(2 * (MSR_FS_BASE & 0x1fff), svm->msr + 0x800);
 	run_guest(vmcb, svm->vmcb_gpa);
 	GUEST_ASSERT(vmcb->control.exit_code == SVM_EXIT_MSR);
 	vmcb->save.rip += 2; /* rdmsr */
@@ -115,7 +115,7 @@ static void __attribute__((__flatten__)) guest_code(struct svm_test_data *svm,
 	vmcb->save.rip += 2; /* rdmsr */
 
 	/* Intercept RDMSR 0xc0000101 without telling KVM about it */
-	set_bit(2 * (MSR_GS_BASE & 0x1fff), svm->msr + 0x800);
+	__set_bit(2 * (MSR_GS_BASE & 0x1fff), svm->msr + 0x800);
 	/* Make sure HV_VMX_ENLIGHTENED_CLEAN_FIELD_MSR_BITMAP is set */
 	vmcb->control.clean |= HV_VMCB_NESTED_ENLIGHTENMENTS;
 	run_guest(vmcb, svm->vmcb_gpa);

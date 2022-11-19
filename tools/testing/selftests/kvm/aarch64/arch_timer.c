@@ -222,7 +222,7 @@ static void *test_vcpu_run(void *arg)
 
 	/* Currently, any exit from guest is an indication of completion */
 	pthread_mutex_lock(&vcpu_done_map_lock);
-	set_bit(vcpu_idx, vcpu_done_map);
+	__set_bit(vcpu_idx, vcpu_done_map);
 	pthread_mutex_unlock(&vcpu_done_map_lock);
 
 	switch (get_ucall(vcpu, &uc)) {
