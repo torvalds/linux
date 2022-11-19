@@ -884,6 +884,8 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 
 		if (data->u.runstate.state <= RUNSTATE_offline)
 			kvm_xen_update_runstate(vcpu, data->u.runstate.state);
+		else if (vcpu->arch.xen.runstate_cache.active)
+			kvm_xen_update_runstate_guest(vcpu, false);
 		r = 0;
 		break;
 

@@ -88,14 +88,20 @@ struct pvclock_wall_clock {
 } __attribute__((__packed__));
 
 struct vcpu_runstate_info {
-    uint32_t state;
-    uint64_t state_entry_time;
-    uint64_t time[4];
+	uint32_t state;
+	uint64_t state_entry_time;
+	uint64_t time[5]; /* Extra field for overrun check */
 };
 
+struct compat_vcpu_runstate_info {
+	uint32_t state;
+	uint64_t state_entry_time;
+	uint64_t time[5];
+} __attribute__((__packed__));;
+
 struct arch_vcpu_info {
-    unsigned long cr2;
-    unsigned long pad; /* sizeof(vcpu_info_t) == 64 */
+	unsigned long cr2;
+	unsigned long pad; /* sizeof(vcpu_info_t) == 64 */
 };
 
 struct vcpu_info {
@@ -1013,22 +1019,91 @@ int main(int argc, char *argv[])
 				       runstate_names[i], rs->time[i]);
 			}
 		}
-		TEST_ASSERT(rs->state == rst.u.runstate.state, "Runstate mismatch");
-		TEST_ASSERT(rs->state_entry_time == rst.u.runstate.state_entry_time,
-			    "State entry time mismatch");
-		TEST_ASSERT(rs->time[RUNSTATE_running] == rst.u.runstate.time_running,
-			    "Running time mismatch");
-		TEST_ASSERT(rs->time[RUNSTATE_runnable] == rst.u.runstate.time_runnable,
-			    "Runnable time mismatch");
-		TEST_ASSERT(rs->time[RUNSTATE_blocked] == rst.u.runstate.time_blocked,
-			    "Blocked time mismatch");
-		TEST_ASSERT(rs->time[RUNSTATE_offline] == rst.u.runstate.time_offline,
-			    "Offline time mismatch");
 
-		TEST_ASSERT(rs->state_entry_time == rs->time[0] +
-			    rs->time[1] + rs->time[2] + rs->time[3],
-			    "runstate times don't add up");
+		/*
+		 * Exercise runstate info at all points across the page boundary, in
+		 * 32-bit and 64-bit mode. In particular, test the case where it is
+		 * configured in 32-bit mode and then switched to 64-bit mode while
+		 * active, which takes it onto the second page.
+		 */
+		unsigned long runstate_addr;
+		struct compat_vcpu_runstate_info *crs;
+		for (runstate_addr = SHINFO_REGION_GPA + PAGE_SIZE + PAGE_SIZE - sizeof(*rs) - 4;
+		     runstate_addr < SHINFO_REGION_GPA + PAGE_SIZE + PAGE_SIZE + 4; runstate_addr++) {
+
+			rs = addr_gpa2hva(vm, runstate_addr);
+			crs = (void *)rs;
+
+			memset(rs, 0xa5, sizeof(*rs));
+
+			/* Set to compatibility mode */
+			lm.u.long_mode = 0;
+			vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &lm);
+
+			/* Set runstate to new address (kernel will write it) */
+			struct kvm_xen_vcpu_attr st = {
+				.type = KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_ADDR,
+				.u.gpa = runstate_addr,
+			};
+			vcpu_ioctl(vcpu, KVM_XEN_VCPU_SET_ATTR, &st);
+
+			if (verbose)
+				printf("Compatibility runstate at %08lx\n", runstate_addr);
+
+			TEST_ASSERT(crs->state == rst.u.runstate.state, "Runstate mismatch");
+			TEST_ASSERT(crs->state_entry_time == rst.u.runstate.state_entry_time,
+				    "State entry time mismatch");
+			TEST_ASSERT(crs->time[RUNSTATE_running] == rst.u.runstate.time_running,
+				    "Running time mismatch");
+			TEST_ASSERT(crs->time[RUNSTATE_runnable] == rst.u.runstate.time_runnable,
+				    "Runnable time mismatch");
+			TEST_ASSERT(crs->time[RUNSTATE_blocked] == rst.u.runstate.time_blocked,
+				    "Blocked time mismatch");
+			TEST_ASSERT(crs->time[RUNSTATE_offline] == rst.u.runstate.time_offline,
+				    "Offline time mismatch");
+			TEST_ASSERT(crs->time[RUNSTATE_offline + 1] == 0xa5a5a5a5a5a5a5a5ULL,
+				    "Structure overrun");
+			TEST_ASSERT(crs->state_entry_time == crs->time[0] +
+				    crs->time[1] + crs->time[2] + crs->time[3],
+				    "runstate times don't add up");
+
+
+			/* Now switch to 64-bit mode */
+			lm.u.long_mode = 1;
+			vm_ioctl(vm, KVM_XEN_HVM_SET_ATTR, &lm);
+
+			memset(rs, 0xa5, sizeof(*rs));
+
+			/* Don't change the address, just trigger a write */
+			struct kvm_xen_vcpu_attr adj = {
+				.type = KVM_XEN_VCPU_ATTR_TYPE_RUNSTATE_ADJUST,
+				.u.runstate.state = (uint64_t)-1
+			};
+			vcpu_ioctl(vcpu, KVM_XEN_VCPU_SET_ATTR, &adj);
+
+			if (verbose)
+				printf("64-bit runstate at %08lx\n", runstate_addr);
+
+			TEST_ASSERT(rs->state == rst.u.runstate.state, "Runstate mismatch");
+			TEST_ASSERT(rs->state_entry_time == rst.u.runstate.state_entry_time,
+				    "State entry time mismatch");
+			TEST_ASSERT(rs->time[RUNSTATE_running] == rst.u.runstate.time_running,
+				    "Running time mismatch");
+			TEST_ASSERT(rs->time[RUNSTATE_runnable] == rst.u.runstate.time_runnable,
+				    "Runnable time mismatch");
+			TEST_ASSERT(rs->time[RUNSTATE_blocked] == rst.u.runstate.time_blocked,
+				    "Blocked time mismatch");
+			TEST_ASSERT(rs->time[RUNSTATE_offline] == rst.u.runstate.time_offline,
+				    "Offline time mismatch");
+			TEST_ASSERT(rs->time[RUNSTATE_offline + 1] == 0xa5a5a5a5a5a5a5a5ULL,
+				    "Structure overrun");
+
+			TEST_ASSERT(rs->state_entry_time == rs->time[0] +
+				    rs->time[1] + rs->time[2] + rs->time[3],
+				    "runstate times don't add up");
+		}
 	}
+
 	kvm_vm_free(vm);
 	return 0;
 }
