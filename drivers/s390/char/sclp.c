@@ -69,7 +69,7 @@ static struct init_sccb *sclp_init_sccb;
 /* Number of console pages to allocate, used by sclp_con.c and sclp_vt220.c */
 int sclp_console_pages = SCLP_CONSOLE_PAGES;
 /* Flag to indicate if buffer pages are dropped on buffer full condition */
-int sclp_console_drop = 1;
+bool sclp_console_drop = true;
 /* Number of times the console dropped buffer pages */
 unsigned long sclp_console_full;
 
@@ -195,12 +195,7 @@ __setup("sclp_con_pages=", sclp_setup_console_pages);
 
 static int __init sclp_setup_console_drop(char *str)
 {
-	int drop, rc;
-
-	rc = kstrtoint(str, 0, &drop);
-	if (!rc)
-		sclp_console_drop = drop;
-	return 1;
+	return kstrtobool(str, &sclp_console_drop) == 0;
 }
 
 __setup("sclp_con_drop=", sclp_setup_console_drop);
