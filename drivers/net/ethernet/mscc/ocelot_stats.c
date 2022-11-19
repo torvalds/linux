@@ -602,7 +602,7 @@ EXPORT_SYMBOL(ocelot_port_get_stats64);
 static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 {
 	struct ocelot_stats_region *region = NULL;
-	unsigned int last;
+	unsigned int last = 0;
 	int i;
 
 	INIT_LIST_HEAD(&ocelot->stats_regions);
@@ -618,6 +618,12 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 					      GFP_KERNEL);
 			if (!region)
 				return -ENOMEM;
+
+			/* enum ocelot_stat must be kept sorted in the same
+			 * order as ocelot_stats_layout[i].reg in order to have
+			 * efficient bulking
+			 */
+			WARN_ON(last >= ocelot_stats_layout[i].reg);
 
 			region->base = ocelot_stats_layout[i].reg;
 			region->count = 1;
