@@ -719,6 +719,9 @@ static int __bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ra
 {
 	int ret = 0;
 
+	if (max_ratio > 100 * BDI_RATIO_SCALE)
+		return -EINVAL;
+
 	spin_lock_bh(&bdi_lock);
 	if (bdi->min_ratio > max_ratio) {
 		ret = -EINVAL;
@@ -731,6 +734,11 @@ static int __bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ra
 	return ret;
 }
 
+int bdi_set_max_ratio_no_scale(struct backing_dev_info *bdi, unsigned int max_ratio)
+{
+	return __bdi_set_max_ratio(bdi, max_ratio);
+}
+
 int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio)
 {
 	return __bdi_set_min_ratio(bdi, min_ratio * BDI_RATIO_SCALE);
@@ -738,9 +746,6 @@ int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio)
 
 int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio)
 {
-	if (max_ratio > 100)
-		return -EINVAL;
-
 	return __bdi_set_max_ratio(bdi, max_ratio * BDI_RATIO_SCALE);
 }
 EXPORT_SYMBOL(bdi_set_max_ratio);
