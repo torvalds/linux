@@ -1205,12 +1205,20 @@ static ssize_t con_pages_show(struct device_driver *dev, char *buf)
 
 static DRIVER_ATTR_RO(con_pages);
 
+static ssize_t con_drop_store(struct device_driver *dev, const char *buf, size_t count)
+{
+	int rc;
+
+	rc = kstrtobool(buf, &sclp_console_drop);
+	return rc ?: count;
+}
+
 static ssize_t con_drop_show(struct device_driver *dev, char *buf)
 {
 	return sysfs_emit(buf, "%i\n", sclp_console_drop);
 }
 
-static DRIVER_ATTR_RO(con_drop);
+static DRIVER_ATTR_RW(con_drop);
 
 static ssize_t con_full_show(struct device_driver *dev, char *buf)
 {
