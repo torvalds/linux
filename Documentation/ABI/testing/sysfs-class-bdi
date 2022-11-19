@@ -44,6 +44,21 @@ Description:
 
 	(read-write)
 
+What:		/sys/class/bdi/<bdi>/min_ratio_fine
+Date:		November 2022
+Contact:	Stefan Roesch <shr@devkernel.io>
+Description:
+	Under normal circumstances each device is given a part of the
+	total write-back cache that relates to its current average
+	writeout speed in relation to the other devices.
+
+	The 'min_ratio_fine' parameter allows assigning a minimum reserve
+	of the write-back cache to a particular device. The value is
+	expressed as part of 1 million. For example, this is useful for
+	providing a minimum QoS.
+
+	(read-write)
+
 What:		/sys/class/bdi/<bdi>/max_ratio
 Date:		January 2008
 Contact:	Peter Zijlstra <a.p.zijlstra@chello.nl>
