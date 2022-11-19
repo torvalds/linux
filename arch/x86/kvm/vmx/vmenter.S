@@ -69,8 +69,8 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	 */
 	push %_ASM_ARG2
 
-	/* Copy @flags to BL, _ASM_ARG3 is volatile. */
-	mov %_ASM_ARG3B, %bl
+	/* Copy @flags to EBX, _ASM_ARG3 is volatile. */
+	mov %_ASM_ARG3L, %ebx
 
 	lea (%_ASM_SP), %_ASM_ARG2
 	call vmx_update_host_rsp
@@ -106,7 +106,7 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	mov (%_ASM_SP), %_ASM_AX
 
 	/* Check if vmlaunch or vmresume is needed */
-	testb $VMX_RUN_VMRESUME, %bl
+	test $VMX_RUN_VMRESUME, %ebx
 
 	/* Load guest registers.  Don't clobber flags. */
 	mov VCPU_RCX(%_ASM_AX), %_ASM_CX
@@ -128,7 +128,7 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	/* Load guest RAX.  This kills the @regs pointer! */
 	mov VCPU_RAX(%_ASM_AX), %_ASM_AX
 
-	/* Check EFLAGS.ZF from 'testb' above */
+	/* Check EFLAGS.ZF from 'test VMX_RUN_VMRESUME' above */
 	jz .Lvmlaunch
 
 	/*
