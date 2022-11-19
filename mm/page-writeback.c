@@ -13,6 +13,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/math64.h>
 #include <linux/export.h>
 #include <linux/spinlock.h>
 #include <linux/fs.h>
@@ -650,6 +651,28 @@ void wb_domain_exit(struct wb_domain *dom)
  */
 static unsigned int bdi_min_ratio;
 
+static int bdi_check_pages_limit(unsigned long pages)
+{
+	unsigned long max_dirty_pages = global_dirtyable_memory();
+
+	if (pages > max_dirty_pages)
+		return -EINVAL;
+
+	return 0;
+}
+
+static unsigned long bdi_ratio_from_pages(unsigned long pages)
+{
+	unsigned long background_thresh;
+	unsigned long dirty_thresh;
+	unsigned long ratio;
+
+	global_dirty_limits(&background_thresh, &dirty_thresh);
+	ratio = div64_u64(pages * 100ULL * BDI_RATIO_SCALE, dirty_thresh);
+
+	return ratio;
+}
+
 static u64 bdi_get_bytes(unsigned int ratio)
 {
 	unsigned long background_thresh;
@@ -720,6 +743,20 @@ EXPORT_SYMBOL(bdi_set_max_ratio);
 u64 bdi_get_max_bytes(struct backing_dev_info *bdi)
 {
 	return bdi_get_bytes(bdi->max_ratio);
+}
+
+int bdi_set_max_bytes(struct backing_dev_info *bdi, u64 max_bytes)
+{
+	int ret;
+	unsigned long pages = max_bytes >> PAGE_SHIFT;
+	unsigned long max_ratio;
+
+	ret = bdi_check_pages_limit(pages);
+	if (ret)
+		return ret;
+
+	max_ratio = bdi_ratio_from_pages(pages);
+	return __bdi_set_max_ratio(bdi, max_ratio);
 }
 
 int bdi_set_strict_limit(struct backing_dev_info *bdi, unsigned int strict_limit)
