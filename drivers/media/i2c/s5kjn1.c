@@ -9,6 +9,9 @@
  * V0.0X01.0X02
  * 1. set binning output 32 pixel aligned.
  * 2. fix channel info omitted copy from user issue.
+ * V0.0X01.0X03
+ * 1. add delays in setting to fix probability wrong reg write.
+ * 2. add register setting readback check support.
  */
 //#define DEBUG
 #include <linux/clk.h>
@@ -34,7 +37,10 @@
 #include <linux/of_graph.h>
 #include "otp_eeprom.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
+
+/* verify default register values */
+//#define CHECK_REG_VALUE
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -184,9 +190,9 @@ static const struct regval s5kjn1_10bit_4080x3072_dphy_30fps_regs[] = {
 
 	{0x6028, 0x4000}, // Init setting
 	{0x6010, 0x0001},
-	//p5
+	{DELAY_MS, 5}, //Delay 5ms
 	{0x6226, 0x0001},
-	//p10
+	{DELAY_MS, 10}, //Delay 10ms
 
 	{0x6028, 0x2400}, //Global, Analog setting
 	{0x602A, 0x1354},
@@ -510,9 +516,9 @@ static const struct regval s5kjn1_10bit_8128x6144_dphy_10fps_regs[] = {
 
 	{0x6028, 0x4000}, // Init setting
 	{0x6010, 0x0001},
-	//p5
+	{DELAY_MS, 5}, //Delay 5ms
 	{0x6226, 0x0001},
-	//p10
+	{DELAY_MS, 10}, //Delay 10ms
 	{0x6028, 0x2400}, //Global, Analog setting
 	{0x11d2, 0x00FF}, //Global, Analog setting
 
@@ -986,6 +992,46 @@ static int s5kjn1_read_reg(struct i2c_client *client,
 
 	return 0;
 }
+
+/* Check Register value */
+#ifdef CHECK_REG_VALUE
+static int s5kjn1_reg_verify(struct i2c_client *client,
+			     const struct regval *regs)
+{
+	u32 i;
+	int ret = 0;
+	u32 value;
+
+	for (i = 0; ret == 0 && regs[i].addr != REG_NULL; i++) {
+		if (regs[i].addr == 0x6028 && regs[i].val == 0x4000) {
+			ret = s5kjn1_write_reg(client, regs[i].addr,
+					       S5KJN1_REG_VALUE_16BIT, regs[i].val);
+			if (ret)
+				dev_err(&client->dev, "%s failed !\n", __func__);
+			continue;
+		} else if (regs[i].addr == 0x6028 && regs[i].val == 0x2400) {
+			ret = s5kjn1_write_reg(client, 0x602C,
+					       S5KJN1_REG_VALUE_16BIT, regs[i].val);
+			if (ret)
+				dev_err(&client->dev, "%s failed !\n", __func__);
+			continue;
+		} else if (regs[i].addr == 0x602A) {
+			ret = s5kjn1_write_reg(client, 0x602E,
+					       S5KJN1_REG_VALUE_16BIT, regs[i].val);
+			if (ret)
+				dev_err(&client->dev, "%s failed !\n", __func__);
+			continue;
+		}
+		ret = s5kjn1_read_reg(client, regs[i].addr,
+			  S5KJN1_REG_VALUE_16BIT, &value);
+		if (value != regs[i].val) {
+			dev_info(&client->dev, "%s: 0x%04x is 0x%x instead of 0x%x\n",
+				 __func__, regs[i].addr, value, regs[i].val);
+		}
+	}
+	return ret;
+}
+#endif
 
 static int s5kjn1_get_reso_dist(const struct s5kjn1_mode *mode,
 				struct v4l2_mbus_framefmt *framefmt)
@@ -1481,6 +1527,14 @@ static int __s5kjn1_start_stream(struct s5kjn1 *s5kjn1)
 			return ret;
 	}
 
+#ifdef CHECK_REG_VALUE
+	/* verify default values to make sure everything has */
+	/* been written correctly as expected */
+	dev_info(&s5kjn1->client->dev, "%s:Check register value!\n", __func__);
+	ret = s5kjn1_reg_verify(s5kjn1->client, s5kjn1->cur_mode->reg_list);
+	if (ret)
+		return ret;
+#endif
 	/* In case these controls are set before streaming */
 	ret = __v4l2_ctrl_handler_setup(&s5kjn1->ctrl_handler);
 	if (ret)
