@@ -877,13 +877,10 @@ int inet_bhash2_update_saddr(struct inet_bind_hashbucket *prev_saddr, struct soc
 
 	head2 = inet_bhashfn_portaddr(hinfo, sk, net, port);
 
-	if (prev_saddr) {
-		spin_lock_bh(&prev_saddr->lock);
-		__sk_del_bind2_node(sk);
-		inet_bind2_bucket_destroy(hinfo->bind2_bucket_cachep,
-					  inet_csk(sk)->icsk_bind2_hash);
-		spin_unlock_bh(&prev_saddr->lock);
-	}
+	spin_lock_bh(&prev_saddr->lock);
+	__sk_del_bind2_node(sk);
+	inet_bind2_bucket_destroy(hinfo->bind2_bucket_cachep, inet_csk(sk)->icsk_bind2_hash);
+	spin_unlock_bh(&prev_saddr->lock);
 
 	spin_lock_bh(&head2->lock);
 	tb2 = inet_bind2_bucket_find(head2, net, port, l3mdev, sk);
