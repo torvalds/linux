@@ -313,12 +313,12 @@ static int adc5_decimation_from_dt(u32 value,
 }
 
 static int adc5_gen3_read_voltage_data(struct adc5_chip *adc, u16 *data,
-				struct adc5_channel_prop *prop)
+				u8 sdam_index)
 {
 	int ret;
 	u8 rslt[2];
 
-	ret = adc5_read(adc, prop->sdam_index, ADC5_GEN3_CH0_DATA0, rslt, 2);
+	ret = adc5_read(adc, sdam_index, ADC5_GEN3_CH0_DATA0, rslt, 2);
 	if (ret < 0)
 		return ret;
 
@@ -444,7 +444,11 @@ static int adc5_gen3_do_conversion(struct adc5_chip *adc,
 	int ret;
 	unsigned long rc;
 	unsigned int time_pending_ms;
-	u8 val;
+	u8 val, sdam_index = prop->sdam_index;
+
+	/* Reserve channel 0 of first SDAM for immediate conversions */
+	if (prop->adc_tm)
+		sdam_index = 0;
 
 	mutex_lock(&adc->lock);
 	ret = adc5_gen3_poll_wait_hs(adc, 0);
@@ -471,23 +475,23 @@ static int adc5_gen3_do_conversion(struct adc5_chip *adc,
 	pr_debug("ADC channel %s EOC took %u ms\n", prop->datasheet_name,
 		ADC5_GEN3_CONV_TIMEOUT_MS - time_pending_ms);
 
-	ret = adc5_gen3_read_voltage_data(adc, data_volt, prop);
+	ret = adc5_gen3_read_voltage_data(adc, data_volt, sdam_index);
 	if (ret < 0)
 		goto unlock;
 
 	val = BIT(0);
-	ret = adc5_write(adc, prop->sdam_index, ADC5_GEN3_EOC_CLR, &val, 1);
+	ret = adc5_write(adc, sdam_index, ADC5_GEN3_EOC_CLR, &val, 1);
 	if (ret < 0)
 		goto unlock;
 
 	/* To indicate conversion request is only to clear a status */
 	val = 0;
-	ret = adc5_write(adc, prop->sdam_index, ADC5_GEN3_PERPH_CH, &val, 1);
+	ret = adc5_write(adc, sdam_index, ADC5_GEN3_PERPH_CH, &val, 1);
 	if (ret < 0)
 		goto unlock;
 
 	val = ADC5_GEN3_CONV_REQ_REQ;
-	ret = adc5_write(adc, prop->sdam_index, ADC5_GEN3_CONV_REQ, &val, 1);
+	ret = adc5_write(adc, sdam_index, ADC5_GEN3_CONV_REQ, &val, 1);
 
 unlock:
 	mutex_unlock(&adc->lock);
