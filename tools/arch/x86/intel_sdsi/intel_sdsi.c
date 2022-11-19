@@ -35,8 +35,10 @@
 #define SDSI_DEV		"intel_vsec.sdsi"
 #define AUX_DEV_PATH		"/sys/bus/auxiliary/devices/"
 #define SDSI_PATH		(AUX_DEV_DIR SDSI_DEV)
-#define GUID			0x6dd191
-#define REGISTERS_MIN_SIZE	72
+#define GUID_V1			0x6dd191
+#define REGS_SIZE_GUID_V1	72
+#define GUID_V2			0xF210D9EF
+#define REGS_SIZE_GUID_V2	80
 #define STATE_CERT_MAX_SIZE	4096
 #define STATE_MAX_NUM_LICENSES	16
 #define STATE_MAX_NUM_IN_BUNDLE	(uint32_t)8
@@ -100,9 +102,17 @@ struct sdsi_regs {
 	struct availability prov_avail;
 	struct nvram_update_limit limits;
 	uint64_t pcu_cr3_capid_cfg;
-	uint64_t socket_id;
+	union {
+		struct {
+			uint64_t socket_id;
+		} v1;
+		struct {
+			uint64_t reserved;
+			uint64_t socket_id;
+			uint64_t reserved2;
+		} v2;
+	} extra;
 };
-
 #define CONTENT_TYPE_LK_ENC		0xD
 #define CONTENT_TYPE_LK_BLOB_ENC	0xE
 
@@ -146,7 +156,7 @@ struct sdsi_dev {
 	struct state_certificate sc;
 	char *dev_name;
 	char *dev_path;
-	int guid;
+	uint32_t guid;
 };
 
 enum command {
@@ -199,7 +209,7 @@ static int sdsi_update_registers(struct sdsi_dev *s)
 		return -1;
 	}
 
-	if (s->guid != GUID) {
+	if (s->guid != GUID_V1 && s->guid != GUID_V2) {
 		fprintf(stderr, "Unrecognized guid, 0x%x\n", s->guid);
 		fclose(regs_ptr);
 		return -1;
@@ -207,7 +217,8 @@ static int sdsi_update_registers(struct sdsi_dev *s)
 
 	/* Update register info for this guid */
 	ret = fread(&s->regs, sizeof(uint8_t), sizeof(s->regs), regs_ptr);
-	if (ret != sizeof(s->regs)) {
+	if ((s->guid == GUID_V1 && ret != REGS_SIZE_GUID_V1) ||
+	    (s->guid == GUID_V2 && ret != REGS_SIZE_GUID_V2)) {
 		fprintf(stderr, "Could not read 'registers' file\n");
 		fclose(regs_ptr);
 		return -1;
@@ -252,10 +263,13 @@ static int sdsi_read_reg(struct sdsi_dev *s)
 	printf("    Updates Available:          %d\n", s->regs.prov_avail.available);
 	printf("    Updates Threshold:          %d\n", s->regs.prov_avail.threshold);
 	printf("NVRAM Udate Limit\n");
-	printf("    50%% Limit Reached:         %s\n", !!s->regs.limits.sdsi_50_pct ? "Yes" : "No");
-	printf("    75%% Limit Reached:         %s\n", !!s->regs.limits.sdsi_75_pct ? "Yes" : "No");
-	printf("    90%% Limit Reached:         %s\n", !!s->regs.limits.sdsi_90_pct ? "Yes" : "No");
-	printf("Socket ID:                      %ld\n", s->regs.socket_id & 0xF);
+	printf("    50%% Limit Reached:          %s\n", !!s->regs.limits.sdsi_50_pct ? "Yes" : "No");
+	printf("    75%% Limit Reached:          %s\n", !!s->regs.limits.sdsi_75_pct ? "Yes" : "No");
+	printf("    90%% Limit Reached:          %s\n", !!s->regs.limits.sdsi_90_pct ? "Yes" : "No");
+	if (s->guid == GUID_V1)
+		printf("Socket ID:                      %ld\n", s->regs.extra.v1.socket_id & 0xF);
+	else
+		printf("Socket ID:                      %ld\n", s->regs.extra.v2.socket_id & 0xF);
 
 	return 0;
 }
