@@ -9,6 +9,10 @@
 #include <linux/workqueue.h>
 #include "ocelot.h"
 
+static const struct ocelot_stat_layout ocelot_stats_layout[OCELOT_NUM_STATS] = {
+	OCELOT_COMMON_STATS,
+};
+
 /* Read the counters from hardware and keep them in region->buf.
  * Caller must hold &ocelot->stat_view_lock.
  */
@@ -93,10 +97,10 @@ void ocelot_get_strings(struct ocelot *ocelot, int port, u32 sset, u8 *data)
 		return;
 
 	for (i = 0; i < OCELOT_NUM_STATS; i++) {
-		if (ocelot->stats_layout[i].name[0] == '\0')
+		if (ocelot_stats_layout[i].name[0] == '\0')
 			continue;
 
-		memcpy(data + i * ETH_GSTRING_LEN, ocelot->stats_layout[i].name,
+		memcpy(data + i * ETH_GSTRING_LEN, ocelot_stats_layout[i].name,
 		       ETH_GSTRING_LEN);
 	}
 }
@@ -137,7 +141,7 @@ int ocelot_get_sset_count(struct ocelot *ocelot, int port, int sset)
 		return -EOPNOTSUPP;
 
 	for (i = 0; i < OCELOT_NUM_STATS; i++)
-		if (ocelot->stats_layout[i].name[0] != '\0')
+		if (ocelot_stats_layout[i].name[0] != '\0')
 			num_stats++;
 
 	return num_stats;
@@ -154,7 +158,7 @@ static void ocelot_port_ethtool_stats_cb(struct ocelot *ocelot, int port,
 	for (i = 0; i < OCELOT_NUM_STATS; i++) {
 		int index = port * OCELOT_NUM_STATS + i;
 
-		if (ocelot->stats_layout[i].name[0] == '\0')
+		if (ocelot_stats_layout[i].name[0] == '\0')
 			continue;
 
 		*data++ = ocelot->stats[index];
@@ -389,10 +393,10 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 	INIT_LIST_HEAD(&ocelot->stats_regions);
 
 	for (i = 0; i < OCELOT_NUM_STATS; i++) {
-		if (!ocelot->stats_layout[i].reg)
+		if (!ocelot_stats_layout[i].reg)
 			continue;
 
-		if (region && ocelot->stats_layout[i].reg == last + 4) {
+		if (region && ocelot_stats_layout[i].reg == last + 4) {
 			region->count++;
 		} else {
 			region = devm_kzalloc(ocelot->dev, sizeof(*region),
@@ -400,12 +404,12 @@ static int ocelot_prepare_stats_regions(struct ocelot *ocelot)
 			if (!region)
 				return -ENOMEM;
 
-			region->base = ocelot->stats_layout[i].reg;
+			region->base = ocelot_stats_layout[i].reg;
 			region->count = 1;
 			list_add_tail(&region->node, &ocelot->stats_regions);
 		}
 
-		last = ocelot->stats_layout[i].reg;
+		last = ocelot_stats_layout[i].reg;
 	}
 
 	list_for_each_entry(region, &ocelot->stats_regions, node) {

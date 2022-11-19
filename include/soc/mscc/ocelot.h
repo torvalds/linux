@@ -967,7 +967,6 @@ struct ocelot {
 	struct regmap			*targets[TARGET_MAX];
 	struct regmap_field		*regfields[REGFIELD_MAX];
 	const u32 *const		*map;
-	const struct ocelot_stat_layout	*stats_layout;
 	struct list_head		stats_regions;
 
 	u32				pool_size[OCELOT_SB_NUM][OCELOT_SB_POOL_NUM];
