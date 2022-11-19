@@ -222,7 +222,7 @@ static struct kwork_atom *atom_new(struct perf_kwork *kwork,
 	list_add_tail(&page->list, &kwork->atom_page_list);
 
 found_atom:
-	set_bit(i, page->bitmap);
+	__set_bit(i, page->bitmap);
 	atom->time = sample->time;
 	atom->prev = NULL;
 	atom->page_addr = page;
@@ -235,8 +235,8 @@ static void atom_free(struct kwork_atom *atom)
 	if (atom->prev != NULL)
 		atom_free(atom->prev);
 
-	clear_bit(atom->bit_inpage,
-		  ((struct kwork_atom_page *)atom->page_addr)->bitmap);
+	__clear_bit(atom->bit_inpage,
+		    ((struct kwork_atom_page *)atom->page_addr)->bitmap);
 }
 
 static void atom_del(struct kwork_atom *atom)

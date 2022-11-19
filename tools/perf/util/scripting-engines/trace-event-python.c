@@ -934,7 +934,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 
 	sprintf(handler_name, "%s__%s", event->system, event->name);
 
-	if (!test_and_set_bit(event->id, events_defined))
+	if (!__test_and_set_bit(event->id, events_defined))
 		define_event_symbols(event, handler_name, event->print_fmt.args);
 
 	handler = get_handler(handler_name);

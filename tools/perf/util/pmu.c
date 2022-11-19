@@ -1533,7 +1533,7 @@ void perf_pmu__set_format(unsigned long *bits, long from, long to)
 
 	memset(bits, 0, BITS_TO_BYTES(PERF_PMU_FORMAT_BITS));
 	for (b = from; b <= to; b++)
-		set_bit(b, bits);
+		__set_bit(b, bits);
 }
 
 void perf_pmu__del_formats(struct list_head *formats)

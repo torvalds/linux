@@ -33,7 +33,7 @@ static unsigned long *get_bitmap(const char *str, int nbits)
 		int i;
 
 		perf_cpu_map__for_each_cpu(cpu, i, map)
-			set_bit(cpu.cpu, bm);
+			__set_bit(cpu.cpu, bm);
 	}
 
 	if (map)
