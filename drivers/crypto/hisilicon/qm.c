@@ -5468,8 +5468,14 @@ int hisi_qm_resume(struct device *dev)
 	}
 
 	ret = hisi_qm_start(qm);
-	if (ret)
-		pci_err(pdev, "failed to start qm(%d)\n", ret);
+	if (ret) {
+		if (qm_check_dev_error(qm)) {
+			pci_info(pdev, "failed to start qm due to device error, device will be reset!\n");
+			return 0;
+		}
+
+		pci_err(pdev, "failed to start qm(%d)!\n", ret);
+	}
 
 	return ret;
 }
