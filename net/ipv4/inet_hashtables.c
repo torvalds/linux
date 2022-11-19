@@ -871,7 +871,7 @@ static void inet_update_saddr(struct sock *sk, void *saddr, int family)
 #endif
 }
 
-int inet_bhash2_update_saddr(struct sock *sk, void *saddr, int family)
+static int __inet_bhash2_update_saddr(struct sock *sk, void *saddr, int family, bool reset)
 {
 	struct inet_hashinfo *hinfo = tcp_or_dccp_get_hashinfo(sk);
 	struct inet_bind_hashbucket *head, *head2;
@@ -883,7 +883,11 @@ int inet_bhash2_update_saddr(struct sock *sk, void *saddr, int family)
 
 	if (!inet_csk(sk)->icsk_bind2_hash) {
 		/* Not bind()ed before. */
-		inet_update_saddr(sk, saddr, family);
+		if (reset)
+			inet_reset_saddr(sk);
+		else
+			inet_update_saddr(sk, saddr, family);
+
 		return 0;
 	}
 
@@ -892,8 +896,19 @@ int inet_bhash2_update_saddr(struct sock *sk, void *saddr, int family)
 	 * allocation fails.
 	 */
 	new_tb2 = kmem_cache_alloc(hinfo->bind2_bucket_cachep, GFP_ATOMIC);
-	if (!new_tb2)
+	if (!new_tb2) {
+		if (reset) {
+			/* The (INADDR_ANY, port) bucket might have already
+			 * been freed, then we cannot fixup icsk_bind2_hash,
+			 * so we give up and unlink sk from bhash/bhash2 not
+			 * to leave inconsistency in bhash2.
+			 */
+			inet_put_port(sk);
+			inet_reset_saddr(sk);
+		}
+
 		return -ENOMEM;
+	}
 
 	bhash = inet_bhashfn(net, port, hinfo->bhash_size);
 	head = &hinfo->bhash[bhash];
@@ -909,7 +924,10 @@ int inet_bhash2_update_saddr(struct sock *sk, void *saddr, int family)
 	inet_bind2_bucket_destroy(hinfo->bind2_bucket_cachep, inet_csk(sk)->icsk_bind2_hash);
 	spin_unlock(&head2->lock);
 
-	inet_update_saddr(sk, saddr, family);
+	if (reset)
+		inet_reset_saddr(sk);
+	else
+		inet_update_saddr(sk, saddr, family);
 
 	head2 = inet_bhashfn_portaddr(hinfo, sk, net, port);
 
@@ -930,7 +948,19 @@ int inet_bhash2_update_saddr(struct sock *sk, void *saddr, int family)
 
 	return 0;
 }
+
+int inet_bhash2_update_saddr(struct sock *sk, void *saddr, int family)
+{
+	return __inet_bhash2_update_saddr(sk, saddr, family, false);
+}
 EXPORT_SYMBOL_GPL(inet_bhash2_update_saddr);
+
+void inet_bhash2_reset_saddr(struct sock *sk)
+{
+	if (!(sk->sk_userlocks & SOCK_BINDADDR_LOCK))
+		__inet_bhash2_update_saddr(sk, NULL, 0, true);
+}
+EXPORT_SYMBOL_GPL(inet_bhash2_reset_saddr);
 
 /* RFC 6056 3.3.4.  Algorithm 4: Double-Hash Port Selection Algorithm
  * Note that we use 32bit integers (vs RFC 'short integers')
