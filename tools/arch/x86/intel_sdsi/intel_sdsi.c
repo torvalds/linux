@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * sdsi: Intel Software Defined Silicon tool for provisioning certificates
- * and activation payloads on supported cpus.
+ * sdsi: Intel On Demand (formerly Software Defined Silicon) tool for
+ * provisioning certificates and activation payloads on supported cpus.
  *
  * See https://github.com/intel/intel-sdsi/blob/master/os-interface.rst
  * for register descriptions.
@@ -150,7 +150,7 @@ static void sdsi_list_devices(void)
 	}
 
 	if (!found)
-		fprintf(stderr, "No sdsi devices found.\n");
+		fprintf(stderr, "No On Demand devices found.\n");
 }
 
 static int sdsi_update_registers(struct sdsi_dev *s)
@@ -206,7 +206,7 @@ static int sdsi_read_reg(struct sdsi_dev *s)
 	printf("\n");
 	printf("PPIN:                           0x%lx\n", s->regs.ppin);
 	printf("Enabled Features\n");
-	printf("    SDSi:                       %s\n", !!s->regs.en_features.sdsi ? "Enabled" : "Disabled");
+	printf("    On Demand:                  %s\n", !!s->regs.en_features.sdsi ? "Enabled" : "Disabled");
 	printf("Authorization Failure Count\n");
 	printf("    AKC Failure Count:          %d\n", s->regs.auth_fail_count.key_failure_count);
 	printf("    AKC Failure Threshold:      %d\n", s->regs.auth_fail_count.key_failure_threshold);
@@ -428,7 +428,7 @@ static int sdsi_provision_akc(struct sdsi_dev *s, char *bin_file)
 		return ret;
 
 	if (!s->regs.en_features.sdsi) {
-		fprintf(stderr, "SDSi feature is present but not enabled. Unable to provision");
+		fprintf(stderr, "On Demand feature is present but not enabled. Unable to provision");
 		return -1;
 	}
 
@@ -458,7 +458,7 @@ static int sdsi_provision_cap(struct sdsi_dev *s, char *bin_file)
 		return ret;
 
 	if (!s->regs.en_features.sdsi) {
-		fprintf(stderr, "SDSi feature is present but not enabled. Unable to provision");
+		fprintf(stderr, "On Demand feature is present but not enabled. Unable to provision");
 		return -1;
 	}
 
