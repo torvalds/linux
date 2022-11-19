@@ -845,4 +845,14 @@ config MSM_PERFORMANCE
           fmin and fmax. The user space can request  the cpu freq change by
           writing cpu#:freq values
 
+config QCOM_PANEL_EVENT_NOTIFIER
+	tristate "panel event notifier"
+	depends on DRM
+	help
+	  Enabling this option adds panel event notifier driver.
+	  This driver is responsible for notifying clients interested in display
+	  panel events such as panel on , panel off, fps change etc.  Clients
+	  can use these notifications for power saving or align its operations
+	  with display panel power state.
+
 endmenu

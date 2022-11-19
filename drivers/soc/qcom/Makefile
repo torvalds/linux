@@ -80,3 +80,4 @@ wcd_usbss_i2c-y	+= wcd-usbss-regmap.o
 wcd_usbss_i2c-y += wcd-usbss-tables.o
 wcd_usbss_i2c-y += wcd-usbss-utils.o
 wcd_usbss_i2c-y += wcd939x-i2c.o
+obj-$(CONFIG_QCOM_PANEL_EVENT_NOTIFIER) += panel_event_notifier.o
