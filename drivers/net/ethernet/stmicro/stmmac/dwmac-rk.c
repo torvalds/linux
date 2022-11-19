@@ -67,6 +67,7 @@ struct rk_priv_data {
 	struct clk *pclk_mac;
 	struct clk *clk_phy;
 	struct clk *pclk_xpcs;
+	struct clk *clk_xpcs_eee;
 
 	struct reset_control *phy_reset;
 
@@ -1908,8 +1909,10 @@ static int rk_gmac_clk_init(struct plat_stmmacenet_data *plat)
 		   bsp_priv->phy_iface == PHY_INTERFACE_MODE_QSGMII) {
 		bsp_priv->pclk_xpcs = devm_clk_get(dev, "pclk_xpcs");
 		if (IS_ERR(bsp_priv->pclk_xpcs))
-			dev_err(dev, "cannot get clock %s\n",
-				"pclk_xpcs");
+			dev_err(dev, "cannot get clock %s\n", "pclk_xpcs");
+		bsp_priv->clk_xpcs_eee = devm_clk_get(dev, "clk_xpcs_eee");
+		if (IS_ERR(bsp_priv->clk_xpcs_eee))
+			dev_err(dev, "cannot get clock %s\n", "clk_xpcs_eee");
 	}
 
 	bsp_priv->clk_mac_speed = devm_clk_get(dev, "clk_mac_speed");
@@ -1977,6 +1980,9 @@ static int gmac_clk_enable(struct rk_priv_data *bsp_priv, bool enable)
 			if (!IS_ERR(bsp_priv->pclk_xpcs))
 				clk_prepare_enable(bsp_priv->pclk_xpcs);
 
+			if (!IS_ERR(bsp_priv->clk_xpcs_eee))
+				clk_prepare_enable(bsp_priv->clk_xpcs_eee);
+
 			if (bsp_priv->ops && bsp_priv->ops->set_clock_selection)
 				bsp_priv->ops->set_clock_selection(bsp_priv,
 					       bsp_priv->clock_input, true);
@@ -2013,6 +2019,8 @@ static int gmac_clk_enable(struct rk_priv_data *bsp_priv, bool enable)
 			clk_disable_unprepare(bsp_priv->clk_mac_speed);
 
 			clk_disable_unprepare(bsp_priv->pclk_xpcs);
+
+			clk_disable_unprepare(bsp_priv->clk_xpcs_eee);
 
 			/**
 			 * if (!IS_ERR(bsp_priv->clk_mac))
