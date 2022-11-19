@@ -69,6 +69,16 @@ Description:
 		the CPU configuration is updated. A cold reboot is required to
 		fully activate the feature. Mailbox command.
 
+What:		/sys/bus/auxiliary/devices/intel_vsec.sdsi.X/meter_certificate
+Date:		Nov 2022
+KernelVersion:	6.2
+Contact:	"David E. Box" <david.e.box@linux.intel.com>
+Description:
+		(RO) Used to read back the current meter certificate for the CPU
+		from Intel On Demand hardware. The meter certificate contains
+		utilization metrics of On Demand enabled features. Mailbox
+		command.
+
 What:		/sys/bus/auxiliary/devices/intel_vsec.sdsi.X/state_certificate
 Date:		Feb 2022
 KernelVersion:	5.18

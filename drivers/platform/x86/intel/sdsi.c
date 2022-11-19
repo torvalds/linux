@@ -41,6 +41,7 @@
 
 #define SDSI_ENABLED_FEATURES_OFFSET	16
 #define SDSI_FEATURE_SDSI		BIT(3)
+#define SDSI_FEATURE_METERING		BIT(26)
 
 #define SDSI_SOCKET_ID_OFFSET		64
 #define SDSI_SOCKET_ID			GENMASK(3, 0)
@@ -83,9 +84,10 @@
 #define GUID_V2_REGS_SIZE		80
 
 enum sdsi_command {
-	SDSI_CMD_PROVISION_AKC		= 0x04,
-	SDSI_CMD_PROVISION_CAP		= 0x08,
-	SDSI_CMD_READ_STATE		= 0x10,
+	SDSI_CMD_PROVISION_AKC		= 0x0004,
+	SDSI_CMD_PROVISION_CAP		= 0x0008,
+	SDSI_CMD_READ_STATE		= 0x0010,
+	SDSI_CMD_READ_METER		= 0x0014,
 };
 
 struct sdsi_mbox_info {
@@ -401,13 +403,10 @@ static ssize_t provision_cap_write(struct file *filp, struct kobject *kobj,
 }
 static BIN_ATTR_WO(provision_cap, SDSI_SIZE_WRITE_MSG);
 
-static long state_certificate_read(struct file *filp, struct kobject *kobj,
-				   struct bin_attribute *attr, char *buf, loff_t off,
-				   size_t count)
+static ssize_t
+certificate_read(u64 command, struct sdsi_priv *priv, char *buf, loff_t off,
+		 size_t count)
 {
-	struct device *dev = kobj_to_dev(kobj);
-	struct sdsi_priv *priv = dev_get_drvdata(dev);
-	u64 command = SDSI_CMD_READ_STATE;
 	struct sdsi_mbox_info info;
 	size_t size;
 	int ret;
@@ -444,7 +443,30 @@ free_buffer:
 
 	return size;
 }
-static BIN_ATTR(state_certificate, 0400, state_certificate_read, NULL, SDSI_SIZE_READ_MSG);
+
+static ssize_t
+state_certificate_read(struct file *filp, struct kobject *kobj,
+		       struct bin_attribute *attr, char *buf, loff_t off,
+		       size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct sdsi_priv *priv = dev_get_drvdata(dev);
+
+	return certificate_read(SDSI_CMD_READ_STATE, priv, buf, off, count);
+}
+static BIN_ATTR_ADMIN_RO(state_certificate, SDSI_SIZE_READ_MSG);
+
+static ssize_t
+meter_certificate_read(struct file *filp, struct kobject *kobj,
+		       struct bin_attribute *attr, char *buf, loff_t off,
+		       size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct sdsi_priv *priv = dev_get_drvdata(dev);
+
+	return certificate_read(SDSI_CMD_READ_METER, priv, buf, off, count);
+}
+static BIN_ATTR_ADMIN_RO(meter_certificate, SDSI_SIZE_READ_MSG);
 
 static ssize_t registers_read(struct file *filp, struct kobject *kobj,
 			      struct bin_attribute *attr, char *buf, loff_t off,
@@ -470,11 +492,12 @@ static ssize_t registers_read(struct file *filp, struct kobject *kobj,
 
 	return count;
 }
-static BIN_ATTR(registers, 0400, registers_read, NULL, SDSI_SIZE_REGS);
+static BIN_ATTR_ADMIN_RO(registers, SDSI_SIZE_REGS);
 
 static struct bin_attribute *sdsi_bin_attrs[] = {
 	&bin_attr_registers,
 	&bin_attr_state_certificate,
+	&bin_attr_meter_certificate,
 	&bin_attr_provision_akc,
 	&bin_attr_provision_cap,
 	NULL
@@ -493,6 +516,10 @@ sdsi_battr_is_visible(struct kobject *kobj, struct bin_attribute *attr, int n)
 	/* All other attributes not visible if BIOS has not enabled On Demand */
 	if (!(priv->features & SDSI_FEATURE_SDSI))
 		return 0;
+
+	if (attr == &bin_attr_meter_certificate)
+		return (priv->features & SDSI_FEATURE_METERING) ?
+				attr->attr.mode : 0;
 
 	return attr->attr.mode;
 }
