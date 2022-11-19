@@ -297,7 +297,8 @@ static int djn_hx83112b_bl_update_status(struct backlight_device *bl)
 
 	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
 
-	ret = mipi_dsi_dcs_set_display_brightness_large(dsi, brightness);
+	// This panel needs the high and low bytes swapped for the brightness value
+	ret = mipi_dsi_dcs_set_display_brightness(dsi, swab16(brightness));
 	if (ret < 0)
 		return ret;
 
