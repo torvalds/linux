@@ -27,9 +27,8 @@
 #define ACCESS_TYPE_LOCAL		3
 
 #define SDSI_MIN_SIZE_DWORDS		276
-#define SDSI_SIZE_CONTROL		8
 #define SDSI_SIZE_MAILBOX		1024
-#define SDSI_SIZE_REGS			72
+#define SDSI_SIZE_REGS			80
 #define SDSI_SIZE_CMD			sizeof(u64)
 
 /*
@@ -76,6 +75,13 @@
 #define DT_TBIR				GENMASK(2, 0)
 #define DT_OFFSET(v)			((v) & GENMASK(31, 3))
 
+#define SDSI_GUID_V1			0x006DD191
+#define GUID_V1_CNTRL_SIZE		8
+#define GUID_V1_REGS_SIZE		72
+#define SDSI_GUID_V2			0xF210D9EF
+#define GUID_V2_CNTRL_SIZE		16
+#define GUID_V2_REGS_SIZE		80
+
 enum sdsi_command {
 	SDSI_CMD_PROVISION_AKC		= 0x04,
 	SDSI_CMD_PROVISION_CAP		= 0x08,
@@ -100,6 +106,9 @@ struct sdsi_priv {
 	void __iomem		*control_addr;
 	void __iomem		*mbox_addr;
 	void __iomem		*regs_addr;
+	int			control_size;
+	int			maibox_size;
+	int			registers_size;
 	u32			guid;
 	u32			features;
 };
@@ -444,6 +453,18 @@ static ssize_t registers_read(struct file *filp, struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct sdsi_priv *priv = dev_get_drvdata(dev);
 	void __iomem *addr = priv->regs_addr;
+	int size =  priv->registers_size;
+
+	/*
+	 * The check below is performed by the sysfs caller based on the static
+	 * file size. But this may be greater than the actual size which is based
+	 * on the GUID. So check here again based on actual size before reading.
+	 */
+	if (off >= size)
+		return 0;
+
+	if (off + count > size)
+		count = size - off;
 
 	memcpy_fromio(buf, addr + off, count);
 
@@ -496,6 +517,24 @@ static const struct attribute_group sdsi_group = {
 };
 __ATTRIBUTE_GROUPS(sdsi);
 
+static int sdsi_get_layout(struct sdsi_priv *priv, struct disc_table *table)
+{
+	switch (table->guid) {
+	case SDSI_GUID_V1:
+		priv->control_size = GUID_V1_CNTRL_SIZE;
+		priv->registers_size = GUID_V1_REGS_SIZE;
+		break;
+	case SDSI_GUID_V2:
+		priv->control_size = GUID_V2_CNTRL_SIZE;
+		priv->registers_size = GUID_V2_REGS_SIZE;
+		break;
+	default:
+		dev_err(priv->dev, "Unrecognized GUID 0x%x\n", table->guid);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int sdsi_map_mbox_registers(struct sdsi_priv *priv, struct pci_dev *parent,
 				   struct disc_table *disc_table, struct resource *disc_res)
 {
@@ -537,7 +576,7 @@ static int sdsi_map_mbox_registers(struct sdsi_priv *priv, struct pci_dev *paren
 	if (IS_ERR(priv->control_addr))
 		return PTR_ERR(priv->control_addr);
 
-	priv->mbox_addr = priv->control_addr + SDSI_SIZE_CONTROL;
+	priv->mbox_addr = priv->control_addr + priv->control_size;
 	priv->regs_addr = priv->mbox_addr + SDSI_SIZE_MAILBOX;
 
 	priv->features = readq(priv->regs_addr + SDSI_ENABLED_FEATURES_OFFSET);
@@ -571,6 +610,11 @@ static int sdsi_probe(struct auxiliary_device *auxdev, const struct auxiliary_de
 	memcpy_fromio(&disc_table, disc_addr, DISC_TABLE_SIZE);
 
 	priv->guid = disc_table.guid;
+
+	/* Get guid based layout info */
+	ret = sdsi_get_layout(priv, &disc_table);
+	if (ret)
+		return ret;
 
 	/* Map the SDSi mailbox registers */
 	ret = sdsi_map_mbox_registers(priv, intel_cap_dev->pcidev, &disc_table, disc_res);
