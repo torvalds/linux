@@ -650,6 +650,18 @@ void wb_domain_exit(struct wb_domain *dom)
  */
 static unsigned int bdi_min_ratio;
 
+static u64 bdi_get_bytes(unsigned int ratio)
+{
+	unsigned long background_thresh;
+	unsigned long dirty_thresh;
+	u64 bytes;
+
+	global_dirty_limits(&background_thresh, &dirty_thresh);
+	bytes = (dirty_thresh * PAGE_SIZE * ratio) / BDI_RATIO_SCALE / 100;
+
+	return bytes;
+}
+
 int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio)
 {
 	unsigned int delta;
@@ -700,6 +712,11 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned max_ratio)
 	return ret;
 }
 EXPORT_SYMBOL(bdi_set_max_ratio);
+
+u64 bdi_get_max_bytes(struct backing_dev_info *bdi)
+{
+	return bdi_get_bytes(bdi->max_ratio);
+}
 
 int bdi_set_strict_limit(struct backing_dev_info *bdi, unsigned int strict_limit)
 {
