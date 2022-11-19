@@ -40,6 +40,7 @@
 #include <soc/qcom/crm.h>
 #include <linux/pinctrl/qcom-pinctrl.h>
 #include <soc/qcom/pcie-pdc.h>
+#include <linux/random.h>
 
 #include "../pci.h"
 
@@ -132,6 +133,8 @@
 #define PCIE20_DEVICE_CONTROL_STATUS (0x78)
 #define PCIE20_DEVICE_CONTROL2_STATUS2 (0x98)
 #define PCIE20_PCI_MSI_CAP_ID_NEXT_CTRL_REG (0x50)
+
+#define PCIE20_PIPE_LOOPBACK_CONTROL	(0x8b8)
 
 #define PCIE20_AUX_CLK_FREQ_REG (0xb40)
 #define PCIE20_ACK_F_ASPM_CTRL_REG (0x70c)
@@ -492,6 +495,8 @@ enum msm_pcie_debugfs_option {
 	MSM_PCIE_FORCE_GEN2,
 	MSM_PCIE_FORCE_GEN3,
 	MSM_PCIE_TRIGGER_SBR,
+	MSM_PCIE_REMOTE_LOOPBACK,
+	MSM_PCIE_LOCAL_LOOPBACK,
 	MSM_PCIE_MAX_DEBUGFS_OPTION
 };
 
@@ -521,6 +526,8 @@ static const char * const
 	"SET MAXIMUM LINK SPEED TO GEN 2",
 	"SET MAXIMUM LINK SPEED TO GEN 3",
 	"Trigger SBR",
+	"PCIE REMOTE LOOPBACK",
+	"PCIE LOCAL LOOPBACK",
 };
 
 /* gpio info structure */
@@ -1350,6 +1357,9 @@ static void msm_pcie_config_link_pm(struct msm_pcie_dev_t *dev, bool enable);
 static int msm_pcie_set_link_width(struct msm_pcie_dev_t *pcie_dev,
 				   u16 target_link_width);
 
+static void msm_pcie_disable(struct msm_pcie_dev_t *dev);
+static int msm_pcie_enable(struct msm_pcie_dev_t *dev);
+
 static u32 msm_pcie_reg_copy(struct msm_pcie_dev_t *dev,
 		u8 *buf, u32 size, u8 reg_len,
 		enum msm_pcie_reg_dump_type_t type)
@@ -1691,6 +1701,174 @@ static void pcie_dm_core_dump(struct msm_pcie_dev_t *dev)
 			readl_relaxed(dev->dm_core + (i + 24)),
 			readl_relaxed(dev->dm_core + (i + 28)));
 	}
+}
+
+/**
+ * msm_pcie_loopback - configure RC in loopback mode and test loopback mode
+ * @dev: root commpex
+ * @local: If true then use local loopback else use remote loopback
+ */
+static void msm_pcie_loopback(struct msm_pcie_dev_t *dev, bool local)
+{
+	/* PCIe DBI base + 8MB as initial PCIe address to be translated to target address */
+	phys_addr_t loopback_lbar_phy =
+		dev->res[MSM_PCIE_RES_DM_CORE].resource->start + SZ_8M;
+	u8 *src_vir_addr = (u8 *) ioremap(loopback_lbar_phy, SZ_4K);
+	void __iomem *iatu_base_vir;
+	u32 dbi_base_addr = dev->res[MSM_PCIE_RES_DM_CORE].resource->start;
+	u32 iatu_base_phy, iatu_ctrl1_offset, iatu_ctrl2_offset, iatu_lbar_offset, iatu_ubar_offset,
+	iatu_lar_offset, iatu_ltar_offset, iatu_utar_offset;
+	/* todo: modify if want to use a different iATU region. Default is 1 */
+	u32 iatu_n = 1;
+	u32 type = 0x0;
+	dma_addr_t loopback_dst_addr;
+	u8 *loopback_dst_vir;
+	u32 ltar_addr_lo;
+	bool loopback_test_fail = false;
+	int i = 0;
+
+	/*
+	 * Use platform dev to get buffer. Doing so will
+	 * require change in PCIe platform devicetree to have SMMU/IOMMU tied to
+	 * this device and memory region created which can be accessed by PCIe controller.
+	 * Refer to change change-id: I15333e3dbf6e67d59538a807ed9622ea10c56554
+	 */
+
+	PCIE_DBG_FS(dev, "PCIe: RC%d: Allocate 4K DDR memory and map LBAR.\n", dev->rc_idx);
+
+	if (dma_set_mask_and_coherent(&dev->pdev->dev, DMA_BIT_MASK(64))) {
+		PCIE_ERR(dev, "PCIe: RC%d: DMA set mask failed\n", dev->rc_idx);
+		iounmap(src_vir_addr);
+		return;
+	}
+
+	loopback_dst_vir = dma_alloc_coherent(&dev->pdev->dev, SZ_4K,
+				&loopback_dst_addr, GFP_KERNEL);
+	if (!loopback_dst_vir) {
+		PCIE_DBG_FS(dev, "PCIe: RC%d: failed to dma_alloc_coherent.\n", dev->rc_idx);
+		iounmap(src_vir_addr);
+		return;
+	}
+
+	PCIE_DBG_FS(dev, "PCIe: RC%d: VIR DDR memory address: 0x%pK\n",
+				dev->rc_idx, loopback_dst_vir);
+
+	PCIE_DBG_FS(dev, "PCIe: RC%d: IOVA DDR memory address: %pad\n",
+				dev->rc_idx, &loopback_dst_addr);
+
+	ltar_addr_lo = lower_32_bits(loopback_dst_addr);
+
+	/* need to 4K aligned */
+	ltar_addr_lo = rounddown(ltar_addr_lo, SZ_4K);
+	if (local) {
+		PCIE_DBG_FS(dev, "PCIe: RC%d: Configure Local Loopback.\n", dev->rc_idx);
+
+		/* Disable Gen3 equalization */
+		msm_pcie_write_mask(dev->dm_core + PCIE_GEN3_RELATED,
+				0, BIT(16));
+
+		PCIE_DBG_FS(dev, "PCIe: RC%d: 0x%x: 0x%x\n",
+				dev->rc_idx, dbi_base_addr + PCIE_GEN3_RELATED,
+				readl_relaxed(dev->dm_core + PCIE_GEN3_RELATED));
+
+		/* Enable pipe loopback */
+		msm_pcie_write_mask(dev->dm_core +  PCIE20_PIPE_LOOPBACK_CONTROL,
+				 0, BIT(31));
+
+		PCIE_DBG_FS(dev, "PCIe: RC%d: 0x%x: 0x%x\n",
+				dev->rc_idx, dbi_base_addr + PCIE20_PIPE_LOOPBACK_CONTROL,
+				readl_relaxed(dev->dm_core + PCIE20_PIPE_LOOPBACK_CONTROL));
+	} else {
+		PCIE_DBG_FS(dev, "PCIe: RC%d: Configure remote Loopback.\n", dev->rc_idx);
+	}
+
+	/* Enable Loopback */
+	msm_pcie_write_mask(dev->dm_core +  PCIE20_PORT_LINK_CTRL_REG, 0, BIT(2));
+
+	/* Set BME for RC */
+	msm_pcie_write_mask(dev->dm_core + PCIE20_COMMAND_STATUS, 0, BIT(2)|BIT(1));
+	PCIE_DBG_FS(dev, "PCIe: RC%d: 0x%x: 0x%x\n",
+			dev->rc_idx, dbi_base_addr + PCIE20_PORT_LINK_CTRL_REG,
+			readl_relaxed(dev->dm_core + PCIE20_PORT_LINK_CTRL_REG));
+
+	iatu_base_vir = dev->iatu;
+	iatu_base_phy = dev->res[MSM_PCIE_RES_IATU].resource->start;
+
+	iatu_ctrl1_offset = PCIE_IATU_CTRL1(iatu_n);
+	iatu_ctrl2_offset = PCIE_IATU_CTRL2(iatu_n);
+	iatu_lbar_offset = PCIE_IATU_LBAR(iatu_n);
+	iatu_ubar_offset = PCIE_IATU_UBAR(iatu_n);
+	iatu_lar_offset = PCIE_IATU_LAR(iatu_n);
+	iatu_ltar_offset = PCIE_IATU_LTAR(iatu_n);
+	iatu_utar_offset = PCIE_IATU_UTAR(iatu_n);
+
+	PCIE_DBG_FS(dev, "PCIe: RC%d: Setup iATU.\n", dev->rc_idx);
+	/* Switch off region before changing it */
+	msm_pcie_write_reg(iatu_base_vir, iatu_ctrl2_offset, 0);
+
+	/* Setup for address matching */
+	writel_relaxed(type, iatu_base_vir + iatu_ctrl1_offset);
+	PCIE_DBG_FS(dev, "PCIe: RC%d: PCIE20_PLR_IATU_CTRL1:\t0x%x: 0x%x\n",
+			dev->rc_idx, iatu_base_phy + iatu_ctrl1_offset,
+			readl_relaxed(iatu_base_vir + iatu_ctrl1_offset));
+
+	/* Program base address to be translated */
+	writel_relaxed(loopback_lbar_phy, iatu_base_vir + iatu_lbar_offset);
+	PCIE_DBG_FS(dev, "PCIe: RC%d: PCIE20_PLR_IATU_LBAR:\t0x%x: 0x%x\n",
+			dev->rc_idx, iatu_base_phy + iatu_lbar_offset,
+			readl_relaxed(iatu_base_vir + iatu_lbar_offset));
+
+	writel_relaxed(0x0, iatu_base_vir + iatu_ubar_offset);
+	PCIE_DBG_FS(dev, "PCIe: RC%d: PCIE20_PLR_IATU_UBAR:\t0x%x: 0x%x\n",
+			dev->rc_idx, iatu_base_phy + iatu_ubar_offset,
+			readl_relaxed(iatu_base_vir + iatu_ubar_offset));
+
+	/* Program end address to be translated */
+	writel_relaxed(loopback_lbar_phy + 0x1FFF, iatu_base_vir + iatu_lar_offset);
+	PCIE_DBG_FS(dev, "PCIe: RC%d: PCIE20_PLR_IATU_LAR:\t0x%x: 0x%x\n",
+			dev->rc_idx, iatu_base_phy + iatu_lar_offset,
+			readl_relaxed(iatu_base_vir + iatu_lar_offset));
+
+	/* Program base address of tranlated (new address) */
+	writel_relaxed(ltar_addr_lo, iatu_base_vir + iatu_ltar_offset);
+	PCIE_DBG_FS(dev, "PCIe: RC%d: PCIE20_PLR_IATU_LTAR:\t0x%x: 0x%x\n",
+		dev->rc_idx, iatu_base_phy + iatu_ltar_offset,
+		readl_relaxed(iatu_base_vir + iatu_ltar_offset));
+
+	writel_relaxed(upper_32_bits(loopback_dst_addr), iatu_base_vir + iatu_utar_offset);
+	PCIE_DBG_FS(dev, "PCIe: RC%d: PCIE20_PLR_IATU_UTAR:\t0x%x: 0x%x\n",
+			dev->rc_idx, iatu_base_phy + iatu_utar_offset,
+			readl_relaxed(iatu_base_vir + iatu_utar_offset));
+
+	/* Enable this iATU region */
+	writel_relaxed(BIT(31), iatu_base_vir + iatu_ctrl2_offset);
+	PCIE_DBG_FS(dev, "PCIe: RC%d: PCIE20_PLR_IATU_CTRL2:\t0x%x: 0x%x\n",
+			dev->rc_idx, iatu_base_phy + iatu_ctrl2_offset,
+			readl_relaxed(iatu_base_vir + iatu_ctrl2_offset));
+
+	PCIE_DBG_FS(dev, "PCIe RC%d: LTSSM_STATE: %s\n", dev->rc_idx,
+		TO_LTSSM_STR((readl_relaxed(dev->elbi + PCIE20_ELBI_SYS_STTS) >> 12) & 0x3f));
+
+	/* Fill the src buffer with random data */
+	get_random_bytes(src_vir_addr, SZ_4K);
+	usleep_range(100, 101);
+	for (i = 0; i < SZ_4K; i++) {
+		if (src_vir_addr[i] != loopback_dst_vir[i]) {
+			PCIE_DBG_FS(dev, "PCIe: RC%d: exp %x: got %x\n",
+				dev->rc_idx, src_vir_addr[i], loopback_dst_vir[i]);
+			loopback_test_fail = true;
+		}
+	}
+
+	if (loopback_test_fail)
+		PCIE_DBG_FS(dev, "PCIe: RC%d: %s Loopback Test failed\n",
+				dev->rc_idx, local ? "Local" : "Remote");
+	else
+		PCIE_DBG_FS(dev, "PCIe: RC%d: %s Loopback Test Passed\n",
+				dev->rc_idx, local ? "Local" : "Remote");
+
+	iounmap(src_vir_addr);
+	dma_free_coherent(&dev->pdev->dev, SZ_4K, loopback_dst_vir, loopback_dst_addr);
 }
 
 static void msm_pcie_show_status(struct msm_pcie_dev_t *dev)
@@ -2108,6 +2286,42 @@ static void msm_pcie_sel_debug_testcase(struct msm_pcie_dev_t *dev,
 			msm_pcie_write_mask(dev->dm_core + PCIE20_BRIDGE_CTRL,
 					    PCIE20_BRIDGE_CTRL_SBR, 0);
 		}
+		break;
+	case MSM_PCIE_REMOTE_LOOPBACK:
+		PCIE_DBG_FS(dev, "\n\nPCIe: RC%d: Move to remote loopback mode\n\n",
+			dev->rc_idx);
+		if (!dev->enumerated) {
+			PCIE_DBG_FS(dev, "\n\nPCIe: RC%d: the link is not up yet\n\n",
+				dev->rc_idx);
+			break;
+		}
+
+		/* link needs to be in L0 for remote loopback */
+		msm_pcie_config_l0s_disable_all(dev, dev->dev->bus);
+		dev->l0s_supported = false;
+
+		msm_pcie_config_l1_disable_all(dev, dev->dev->bus);
+		dev->l1_supported = false;
+
+		msm_pcie_loopback(dev, false);
+		break;
+	case MSM_PCIE_LOCAL_LOOPBACK:
+		PCIE_DBG_FS(dev, "\n\nPCIe: RC%d: Move to local loopback mode\n\n", dev->rc_idx);
+		if (dev->enumerated) {
+			/* As endpoint is already connected use remote loopback */
+			PCIE_DBG_FS(dev,
+				"\n\nPCIe: RC%d: EP is already enumerated, use remote loopback mode\n\n",
+						dev->rc_idx);
+			break;
+		}
+		/* keep resources on because we will fail to enable as ep is not connected */
+		msm_pcie_keep_resources_on |= BIT(dev->rc_idx);
+
+		/* Enable all the PCIe resources */
+		if (!dev->enumerated)
+			msm_pcie_enable(dev);
+
+		msm_pcie_loopback(dev, true);
 		break;
 	default:
 		PCIE_DBG_FS(dev, "Invalid testcase: %d.\n", testcase);
