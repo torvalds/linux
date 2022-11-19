@@ -41,7 +41,8 @@
 #define SDSI_SIZE_READ_MSG		(SDSI_SIZE_MAILBOX * 4)
 
 #define SDSI_ENABLED_FEATURES_OFFSET	16
-#define SDSI_ENABLED			BIT(3)
+#define SDSI_FEATURE_SDSI		BIT(3)
+
 #define SDSI_SOCKET_ID_OFFSET		64
 #define SDSI_SOCKET_ID			GENMASK(3, 0)
 
@@ -100,7 +101,7 @@ struct sdsi_priv {
 	void __iomem		*mbox_addr;
 	void __iomem		*regs_addr;
 	u32			guid;
-	bool			sdsi_enabled;
+	u32			features;
 };
 
 /* SDSi mailbox operations must be performed using 64bit mov instructions */
@@ -332,9 +333,6 @@ static ssize_t sdsi_provision(struct sdsi_priv *priv, char *buf, size_t count,
 	struct sdsi_mbox_info info;
 	int ret;
 
-	if (!priv->sdsi_enabled)
-		return -EPERM;
-
 	if (count > (SDSI_SIZE_WRITE_MSG - SDSI_SIZE_CMD))
 		return -EOVERFLOW;
 
@@ -405,9 +403,6 @@ static long state_certificate_read(struct file *filp, struct kobject *kobj,
 	size_t size;
 	int ret;
 
-	if (!priv->sdsi_enabled)
-		return -EPERM;
-
 	if (off)
 		return 0;
 
@@ -464,6 +459,23 @@ static struct bin_attribute *sdsi_bin_attrs[] = {
 	NULL
 };
 
+static umode_t
+sdsi_battr_is_visible(struct kobject *kobj, struct bin_attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct sdsi_priv *priv = dev_get_drvdata(dev);
+
+	/* Registers file is always readable if the device is present */
+	if (attr == &bin_attr_registers)
+		return attr->attr.mode;
+
+	/* All other attributes not visible if BIOS has not enabled On Demand */
+	if (!(priv->features & SDSI_FEATURE_SDSI))
+		return 0;
+
+	return attr->attr.mode;
+}
+
 static ssize_t guid_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct sdsi_priv *priv = dev_get_drvdata(dev);
@@ -480,6 +492,7 @@ static struct attribute *sdsi_attrs[] = {
 static const struct attribute_group sdsi_group = {
 	.attrs = sdsi_attrs,
 	.bin_attrs = sdsi_bin_attrs,
+	.is_bin_visible = sdsi_battr_is_visible,
 };
 __ATTRIBUTE_GROUPS(sdsi);
 
@@ -490,7 +503,6 @@ static int sdsi_map_mbox_registers(struct sdsi_priv *priv, struct pci_dev *paren
 	u32 size = FIELD_GET(DT_SIZE, disc_table->access_info);
 	u32 tbir = FIELD_GET(DT_TBIR, disc_table->offset);
 	u32 offset = DT_OFFSET(disc_table->offset);
-	u32 features_offset;
 	struct resource res = {};
 
 	/* Starting location of SDSi MMIO region based on access type */
@@ -528,8 +540,7 @@ static int sdsi_map_mbox_registers(struct sdsi_priv *priv, struct pci_dev *paren
 	priv->mbox_addr = priv->control_addr + SDSI_SIZE_CONTROL;
 	priv->regs_addr = priv->mbox_addr + SDSI_SIZE_MAILBOX;
 
-	features_offset = readq(priv->regs_addr + SDSI_ENABLED_FEATURES_OFFSET);
-	priv->sdsi_enabled = !!(features_offset & SDSI_ENABLED);
+	priv->features = readq(priv->regs_addr + SDSI_ENABLED_FEATURES_OFFSET);
 
 	return 0;
 }
