@@ -1200,21 +1200,21 @@ static struct notifier_block sclp_reboot_notifier = {
 
 static ssize_t con_pages_show(struct device_driver *dev, char *buf)
 {
-	return sprintf(buf, "%i\n", sclp_console_pages);
+	return sysfs_emit(buf, "%i\n", sclp_console_pages);
 }
 
 static DRIVER_ATTR_RO(con_pages);
 
 static ssize_t con_drop_show(struct device_driver *dev, char *buf)
 {
-	return sprintf(buf, "%i\n", sclp_console_drop);
+	return sysfs_emit(buf, "%i\n", sclp_console_drop);
 }
 
 static DRIVER_ATTR_RO(con_drop);
 
 static ssize_t con_full_show(struct device_driver *dev, char *buf)
 {
-	return sprintf(buf, "%lu\n", sclp_console_full);
+	return sysfs_emit(buf, "%lu\n", sclp_console_full);
 }
 
 static DRIVER_ATTR_RO(con_full);
