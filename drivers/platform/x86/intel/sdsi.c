@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Intel Software Defined Silicon driver
+ * Intel On Demand (Software Defined Silicon) driver
  *
  * Copyright (c) 2022, Intel Corporation.
  * All Rights Reserved.
@@ -586,5 +586,5 @@ static struct auxiliary_driver sdsi_aux_driver = {
 module_auxiliary_driver(sdsi_aux_driver);
 
 MODULE_AUTHOR("David E. Box <david.e.box@linux.intel.com>");
-MODULE_DESCRIPTION("Intel Software Defined Silicon driver");
+MODULE_DESCRIPTION("Intel On Demand (SDSi) driver");
 MODULE_LICENSE("GPL");
