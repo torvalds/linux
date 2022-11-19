@@ -685,7 +685,7 @@ static u64 bdi_get_bytes(unsigned int ratio)
 	return bytes;
 }
 
-int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio)
+static int __bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio)
 {
 	unsigned int delta;
 	int ret = 0;
@@ -729,6 +729,11 @@ static int __bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ra
 	spin_unlock_bh(&bdi_lock);
 
 	return ret;
+}
+
+int bdi_set_min_ratio(struct backing_dev_info *bdi, unsigned int min_ratio)
+{
+	return __bdi_set_min_ratio(bdi, min_ratio * BDI_RATIO_SCALE);
 }
 
 int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio)
