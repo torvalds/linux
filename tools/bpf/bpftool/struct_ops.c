@@ -63,10 +63,8 @@ static __s32 get_map_info_type_id(void)
 		return map_info_type_id;
 
 	kern_btf = get_btf_vmlinux();
-	if (libbpf_get_error(kern_btf)) {
-		map_info_type_id = PTR_ERR(kern_btf);
-		return map_info_type_id;
-	}
+	if (!kern_btf)
+		return 0;
 
 	map_info_type_id = btf__find_by_name_kind(kern_btf, "bpf_map_info",
 						  BTF_KIND_STRUCT);
