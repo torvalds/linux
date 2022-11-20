@@ -510,10 +510,9 @@ int main(int argc, char **argv)
 			break;
 		case 'B':
 			base_btf = btf__parse(optarg, NULL);
-			if (libbpf_get_error(base_btf)) {
-				p_err("failed to parse base BTF at '%s': %ld\n",
-				      optarg, libbpf_get_error(base_btf));
-				base_btf = NULL;
+			if (!base_btf) {
+				p_err("failed to parse base BTF at '%s': %d\n",
+				      optarg, -errno);
 				return -1;
 			}
 			break;

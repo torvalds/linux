@@ -322,7 +322,7 @@ static void show_prog_metadata(int fd, __u32 num_maps)
 		return;
 
 	btf = btf__load_from_kernel_by_id(map_info.btf_id);
-	if (libbpf_get_error(btf))
+	if (!btf)
 		goto out_free;
 
 	t_datasec = btf__type_by_id(btf, map_info.btf_value_type_id);
@@ -726,7 +726,7 @@ prog_dump(struct bpf_prog_info *info, enum dump_mode mode,
 
 	if (info->btf_id) {
 		btf = btf__load_from_kernel_by_id(info->btf_id);
-		if (libbpf_get_error(btf)) {
+		if (!btf) {
 			p_err("failed to get btf");
 			return -1;
 		}
@@ -1663,7 +1663,7 @@ static int load_with_options(int argc, char **argv, bool first_prog_only)
 		open_opts.kernel_log_level = 1 + 2 + 4;
 
 	obj = bpf_object__open_file(file, &open_opts);
-	if (libbpf_get_error(obj)) {
+	if (!obj) {
 		p_err("failed to open object file");
 		goto err_free_reuse_maps;
 	}
@@ -1882,7 +1882,7 @@ static int do_loader(int argc, char **argv)
 		open_opts.kernel_log_level = 1 + 2 + 4;
 
 	obj = bpf_object__open_file(file, &open_opts);
-	if (libbpf_get_error(obj)) {
+	if (!obj) {
 		p_err("failed to open object file");
 		goto err_close_obj;
 	}
@@ -2199,7 +2199,7 @@ static char *profile_target_name(int tgt_fd)
 	}
 
 	btf = btf__load_from_kernel_by_id(info.btf_id);
-	if (libbpf_get_error(btf)) {
+	if (!btf) {
 		p_err("failed to load btf for prog FD %d", tgt_fd);
 		goto out;
 	}

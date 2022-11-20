@@ -786,18 +786,18 @@ static int get_map_kv_btf(const struct bpf_map_info *info, struct btf **btf)
 	if (info->btf_vmlinux_value_type_id) {
 		if (!btf_vmlinux) {
 			btf_vmlinux = libbpf_find_kernel_btf();
-			err = libbpf_get_error(btf_vmlinux);
-			if (err) {
+			if (!btf_vmlinux) {
 				p_err("failed to get kernel btf");
-				return err;
+				return -errno;
 			}
 		}
 		*btf = btf_vmlinux;
 	} else if (info->btf_value_type_id) {
 		*btf = btf__load_from_kernel_by_id(info->btf_id);
-		err = libbpf_get_error(*btf);
-		if (err)
+		if (!*btf) {
+			err = -errno;
 			p_err("failed to get btf");
+		}
 	} else {
 		*btf = NULL;
 	}
@@ -807,14 +807,13 @@ static int get_map_kv_btf(const struct bpf_map_info *info, struct btf **btf)
 
 static void free_map_kv_btf(struct btf *btf)
 {
-	if (!libbpf_get_error(btf) && btf != btf_vmlinux)
+	if (btf != btf_vmlinux)
 		btf__free(btf);
 }
 
 static void free_btf_vmlinux(void)
 {
-	if (!libbpf_get_error(btf_vmlinux))
-		btf__free(btf_vmlinux);
+	btf__free(btf_vmlinux);
 }
 
 static int
