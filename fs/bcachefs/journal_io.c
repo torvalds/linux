@@ -1106,7 +1106,7 @@ int bch2_journal_read(struct bch_fs *c, u64 *blacklist_seq, u64 *start_seq)
 	struct bch_dev *ca;
 	unsigned iter;
 	struct printbuf buf = PRINTBUF;
-	bool degraded = false;
+	bool degraded = false, last_write_torn = false;
 	u64 seq, last_seq = 0;
 	int ret = 0;
 
@@ -1142,8 +1142,13 @@ int bch2_journal_read(struct bch_fs *c, u64 *blacklist_seq, u64 *start_seq)
 	/*
 	 * Find most recent flush entry, and ignore newer non flush entries -
 	 * those entries will be blacklisted:
+	 *
+	 *
+	 * XXX check for torn write on last journal entry
 	 */
 	genradix_for_each_reverse(&c->journal_entries, radix_iter, _i) {
+		int write = READ;
+
 		i = *_i;
 
 		if (!i || i->ignore)
@@ -1152,21 +1157,27 @@ int bch2_journal_read(struct bch_fs *c, u64 *blacklist_seq, u64 *start_seq)
 		if (!*start_seq)
 			*blacklist_seq = *start_seq = le64_to_cpu(i->j.seq) + 1;
 
-		if (!JSET_NO_FLUSH(&i->j)) {
-			int write = READ;
-			if (journal_entry_err_on(le64_to_cpu(i->j.last_seq) > le64_to_cpu(i->j.seq),
-						 c, &i->j, NULL,
-						 "invalid journal entry: last_seq > seq (%llu > %llu)",
-						 le64_to_cpu(i->j.last_seq),
-						 le64_to_cpu(i->j.seq)))
-				i->j.last_seq = i->j.seq;
-
-			last_seq	= le64_to_cpu(i->j.last_seq);
-			*blacklist_seq	= le64_to_cpu(i->j.seq) + 1;
-			break;
+		if (JSET_NO_FLUSH(&i->j)) {
+			journal_replay_free(c, i);
+			continue;
 		}
 
-		journal_replay_free(c, i);
+		if (!last_write_torn && !i->csum_good) {
+			last_write_torn = true;
+			journal_replay_free(c, i);
+			continue;
+		}
+
+		if (journal_entry_err_on(le64_to_cpu(i->j.last_seq) > le64_to_cpu(i->j.seq),
+					 c, &i->j, NULL,
+					 "invalid journal entry: last_seq > seq (%llu > %llu)",
+					 le64_to_cpu(i->j.last_seq),
+					 le64_to_cpu(i->j.seq)))
+			i->j.last_seq = i->j.seq;
+
+		last_seq	= le64_to_cpu(i->j.last_seq);
+		*blacklist_seq	= le64_to_cpu(i->j.seq) + 1;
+		break;
 	}
 
 	if (!*start_seq) {
