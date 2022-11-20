@@ -19,7 +19,7 @@
  */
 #define BPF_MAX_VAR_SIZ	(1 << 29)
 /* size of type_str_buf in bpf_verifier. */
-#define TYPE_STR_BUF_LEN 64
+#define TYPE_STR_BUF_LEN 128
 
 /* Liveness marks, used for registers and spilled-regs (in stack slots).
  * Read marks propagate upwards until they find a write mark; they record that
