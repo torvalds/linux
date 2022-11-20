@@ -680,4 +680,11 @@ static inline bool bpf_prog_check_recur(const struct bpf_prog *prog)
 	}
 }
 
+#define BPF_REG_TRUSTED_MODIFIERS (MEM_ALLOC | PTR_TRUSTED)
+
+static inline bool bpf_type_has_unsafe_modifiers(u32 type)
+{
+	return type_flag(type) & ~BPF_REG_TRUSTED_MODIFIERS;
+}
+
 #endif /* _LINUX_BPF_VERIFIER_H */

@@ -543,6 +543,35 @@ enum bpf_type_flag {
 	 */
 	MEM_ALLOC		= BIT(11 + BPF_BASE_TYPE_BITS),
 
+	/* PTR was passed from the kernel in a trusted context, and may be
+	 * passed to KF_TRUSTED_ARGS kfuncs or BPF helper functions.
+	 * Confusingly, this is _not_ the opposite of PTR_UNTRUSTED above.
+	 * PTR_UNTRUSTED refers to a kptr that was read directly from a map
+	 * without invoking bpf_kptr_xchg(). What we really need to know is
+	 * whether a pointer is safe to pass to a kfunc or BPF helper function.
+	 * While PTR_UNTRUSTED pointers are unsafe to pass to kfuncs and BPF
+	 * helpers, they do not cover all possible instances of unsafe
+	 * pointers. For example, a pointer that was obtained from walking a
+	 * struct will _not_ get the PTR_UNTRUSTED type modifier, despite the
+	 * fact that it may be NULL, invalid, etc. This is due to backwards
+	 * compatibility requirements, as this was the behavior that was first
+	 * introduced when kptrs were added. The behavior is now considered
+	 * deprecated, and PTR_UNTRUSTED will eventually be removed.
+	 *
+	 * PTR_TRUSTED, on the other hand, is a pointer that the kernel
+	 * guarantees to be valid and safe to pass to kfuncs and BPF helpers.
+	 * For example, pointers passed to tracepoint arguments are considered
+	 * PTR_TRUSTED, as are pointers that are passed to struct_ops
+	 * callbacks. As alluded to above, pointers that are obtained from
+	 * walking PTR_TRUSTED pointers are _not_ trusted. For example, if a
+	 * struct task_struct *task is PTR_TRUSTED, then accessing
+	 * task->last_wakee will lose the PTR_TRUSTED modifier when it's stored
+	 * in a BPF register. Similarly, pointers passed to certain programs
+	 * types such as kretprobes are not guaranteed to be valid, as they may
+	 * for example contain an object that was recently freed.
+	 */
+	PTR_TRUSTED		= BIT(12 + BPF_BASE_TYPE_BITS),
+
 	__BPF_TYPE_FLAG_MAX,
 	__BPF_TYPE_LAST_FLAG	= __BPF_TYPE_FLAG_MAX - 1,
 };
@@ -636,6 +665,7 @@ enum bpf_return_type {
 	RET_PTR_TO_RINGBUF_MEM_OR_NULL	= PTR_MAYBE_NULL | MEM_RINGBUF | RET_PTR_TO_MEM,
 	RET_PTR_TO_DYNPTR_MEM_OR_NULL	= PTR_MAYBE_NULL | RET_PTR_TO_MEM,
 	RET_PTR_TO_BTF_ID_OR_NULL	= PTR_MAYBE_NULL | RET_PTR_TO_BTF_ID,
+	RET_PTR_TO_BTF_ID_TRUSTED	= PTR_TRUSTED	 | RET_PTR_TO_BTF_ID,
 
 	/* This must be the last entry. Its purpose is to ensure the enum is
 	 * wide enough to hold the higher bits reserved for bpf_type_flag.

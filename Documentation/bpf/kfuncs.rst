@@ -161,22 +161,20 @@ KF_ACQUIRE and KF_RET_NULL flags.
 --------------------------
 
 The KF_TRUSTED_ARGS flag is used for kfuncs taking pointer arguments. It
-indicates that the all pointer arguments will always have a guaranteed lifetime,
-and pointers to kernel objects are always passed to helpers in their unmodified
-form (as obtained from acquire kfuncs).
+indicates that the all pointer arguments are valid, and that all pointers to
+BTF objects have been passed in their unmodified form (that is, at a zero
+offset, and without having been obtained from walking another pointer).
 
-It can be used to enforce that a pointer to a refcounted object acquired from a
-kfunc or BPF helper is passed as an argument to this kfunc without any
-modifications (e.g. pointer arithmetic) such that it is trusted and points to
-the original object.
+There are two types of pointers to kernel objects which are considered "valid":
 
-Meanwhile, it is also allowed pass pointers to normal memory to such kfuncs,
-but those can have a non-zero offset.
+1. Pointers which are passed as tracepoint or struct_ops callback arguments.
+2. Pointers which were returned from a KF_ACQUIRE or KF_KPTR_GET kfunc.
 
-This flag is often used for kfuncs that operate (change some property, perform
-some operation) on an object that was obtained using an acquire kfunc. Such
-kfuncs need an unchanged pointer to ensure the integrity of the operation being
-performed on the expected object.
+Pointers to non-BTF objects (e.g. scalar pointers) may also be passed to
+KF_TRUSTED_ARGS kfuncs, and may have a non-zero offset.
+
+The definition of "valid" pointers is subject to change at any time, and has
+absolutely no ABI stability guarantees.
 
 2.4.6 KF_SLEEPABLE flag
 -----------------------

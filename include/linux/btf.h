@@ -19,36 +19,53 @@
 #define KF_RELEASE	(1 << 1) /* kfunc is a release function */
 #define KF_RET_NULL	(1 << 2) /* kfunc returns a pointer that may be NULL */
 #define KF_KPTR_GET	(1 << 3) /* kfunc returns reference to a kptr */
-/* Trusted arguments are those which are meant to be referenced arguments with
- * unchanged offset. It is used to enforce that pointers obtained from acquire
- * kfuncs remain unmodified when being passed to helpers taking trusted args.
+/* Trusted arguments are those which are guaranteed to be valid when passed to
+ * the kfunc. It is used to enforce that pointers obtained from either acquire
+ * kfuncs, or from the main kernel on a tracepoint or struct_ops callback
+ * invocation, remain unmodified when being passed to helpers taking trusted
+ * args.
  *
- * Consider
- *	struct foo {
- *		int data;
- *		struct foo *next;
- *	};
+ * Consider, for example, the following new task tracepoint:
  *
- *	struct bar {
- *		int data;
- *		struct foo f;
- *	};
+ *	SEC("tp_btf/task_newtask")
+ *	int BPF_PROG(new_task_tp, struct task_struct *task, u64 clone_flags)
+ *	{
+ *		...
+ *	}
  *
- *	struct foo *f = alloc_foo(); // Acquire kfunc
- *	struct bar *b = alloc_bar(); // Acquire kfunc
+ * And the following kfunc:
  *
- * If a kfunc set_foo_data() wants to operate only on the allocated object, it
- * will set the KF_TRUSTED_ARGS flag, which will prevent unsafe usage like:
+ *	BTF_ID_FLAGS(func, bpf_task_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
  *
- *	set_foo_data(f, 42);	   // Allowed
- *	set_foo_data(f->next, 42); // Rejected, non-referenced pointer
- *	set_foo_data(&f->next, 42);// Rejected, referenced, but wrong type
- *	set_foo_data(&b->f, 42);   // Rejected, referenced, but bad offset
+ * All invocations to the kfunc must pass the unmodified, unwalked task:
  *
- * In the final case, usually for the purposes of type matching, it is deduced
- * by looking at the type of the member at the offset, but due to the
- * requirement of trusted argument, this deduction will be strict and not done
- * for this case.
+ *	bpf_task_acquire(task);		    // Allowed
+ *	bpf_task_acquire(task->last_wakee); // Rejected, walked task
+ *
+ * Programs may also pass referenced tasks directly to the kfunc:
+ *
+ *	struct task_struct *acquired;
+ *
+ *	acquired = bpf_task_acquire(task);	// Allowed, same as above
+ *	bpf_task_acquire(acquired);		// Allowed
+ *	bpf_task_acquire(task);			// Allowed
+ *	bpf_task_acquire(acquired->last_wakee); // Rejected, walked task
+ *
+ * Programs may _not_, however, pass a task from an arbitrary fentry/fexit, or
+ * kprobe/kretprobe to the kfunc, as BPF cannot guarantee that all of these
+ * pointers are guaranteed to be safe. For example, the following BPF program
+ * would be rejected:
+ *
+ * SEC("kretprobe/free_task")
+ * int BPF_PROG(free_task_probe, struct task_struct *tsk)
+ * {
+ *	struct task_struct *acquired;
+ *
+ *	acquired = bpf_task_acquire(acquired); // Rejected, not a trusted pointer
+ *	bpf_task_release(acquired);
+ *
+ *	return 0;
+ * }
  */
 #define KF_TRUSTED_ARGS (1 << 4) /* kfunc only takes trusted pointer arguments */
 #define KF_SLEEPABLE    (1 << 5) /* kfunc may sleep */
