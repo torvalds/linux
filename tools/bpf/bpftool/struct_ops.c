@@ -511,10 +511,9 @@ static int do_register(int argc, char **argv)
 			continue;
 
 		link = bpf_map__attach_struct_ops(map);
-		if (libbpf_get_error(link)) {
+		if (!link) {
 			p_err("can't register struct_ops %s: %s",
-			      bpf_map__name(map),
-			      strerror(-PTR_ERR(link)));
+			      bpf_map__name(map), strerror(errno));
 			nr_errs++;
 			continue;
 		}
