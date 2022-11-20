@@ -1760,8 +1760,6 @@ void *bpf_obj_new_impl(u64 local_type_id__k, void *meta__ign)
 	u64 size = local_type_id__k;
 	void *p;
 
-	if (unlikely(!bpf_global_ma_set))
-		return NULL;
 	p = bpf_mem_alloc(&bpf_global_ma, size);
 	if (!p)
 		return NULL;
