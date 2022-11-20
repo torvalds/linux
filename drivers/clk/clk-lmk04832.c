@@ -282,7 +282,7 @@ static bool lmk04832_regmap_rd_regs(struct device *dev, unsigned int reg)
 	default:
 		return false;
 	};
-};
+}
 
 static bool lmk04832_regmap_wr_regs(struct device *dev, unsigned int reg)
 {
@@ -305,7 +305,7 @@ static bool lmk04832_regmap_wr_regs(struct device *dev, unsigned int reg)
 	default:
 		return false;
 	};
-};
+}
 
 static const struct regmap_config regmap_config = {
 	.name = "lmk04832",
@@ -403,7 +403,7 @@ static unsigned long lmk04832_vco_recalc_rate(struct clk_hw *hw,
 				       pll2_misc)) * pll2_n * pll2_p[p] / pll2_r;
 
 	return vco_rate;
-};
+}
 
 /**
  * lmk04832_check_vco_ranges - Check requested VCO frequency against VCO ranges
@@ -509,7 +509,7 @@ static long lmk04832_vco_round_rate(struct clk_hw *hw, unsigned long rate,
 		return -EINVAL;
 
 	return vco_rate;
-};
+}
 
 static int lmk04832_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 				 unsigned long prate)
@@ -568,7 +568,7 @@ static int lmk04832_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	return regmap_write(lmk->regmap, LMK04832_REG_PLL2_N_2,
 			    FIELD_GET(0x0000ff, n));
-};
+}
 
 static const struct clk_ops lmk04832_vco_ops = {
 	.is_enabled = lmk04832_vco_is_enabled,
@@ -1063,7 +1063,7 @@ static unsigned long lmk04832_dclk_recalc_rate(struct clk_hw *hw,
 	rate = DIV_ROUND_CLOSEST(prate, dclk_div);
 
 	return rate;
-};
+}
 
 static long lmk04832_dclk_round_rate(struct clk_hw *hw, unsigned long rate,
 				     unsigned long *prate)
@@ -1085,7 +1085,7 @@ static long lmk04832_dclk_round_rate(struct clk_hw *hw, unsigned long rate,
 		return -EINVAL;
 
 	return dclk_rate;
-};
+}
 
 static int lmk04832_dclk_set_rate(struct clk_hw *hw, unsigned long rate,
 				  unsigned long prate)
@@ -1147,7 +1147,7 @@ static int lmk04832_dclk_set_rate(struct clk_hw *hw, unsigned long rate,
 		dev_err(lmk->dev, "SYNC sequence failed\n");
 
 	return ret;
-};
+}
 
 static const struct clk_ops lmk04832_dclk_ops = {
 	.is_enabled = lmk04832_dclk_is_enabled,
@@ -1551,6 +1551,7 @@ static void lmk04832_remove(struct spi_device *spi)
 	clk_disable_unprepare(lmk->oscin);
 	of_clk_del_provider(spi->dev.of_node);
 }
+
 static const struct spi_device_id lmk04832_id[] = {
 	{ "lmk04832", LMK04832 },
 	{}
