@@ -1884,6 +1884,11 @@ void *bpf_cast_to_kern_ctx(void *obj)
 	return obj;
 }
 
+void *bpf_rdonly_cast(void *obj__ign, u32 btf_id__k)
+{
+	return obj__ign;
+}
+
 __diag_pop();
 
 BTF_SET8_START(generic_btf_ids)
@@ -1913,6 +1918,7 @@ BTF_ID(func, bpf_task_release)
 
 BTF_SET8_START(common_btf_ids)
 BTF_ID_FLAGS(func, bpf_cast_to_kern_ctx)
+BTF_ID_FLAGS(func, bpf_rdonly_cast)
 BTF_SET8_END(common_btf_ids)
 
 static const struct btf_kfunc_id_set common_kfunc_set = {

@@ -8153,6 +8153,7 @@ enum special_kfunc_type {
 	KF_bpf_list_pop_front,
 	KF_bpf_list_pop_back,
 	KF_bpf_cast_to_kern_ctx,
+	KF_bpf_rdonly_cast,
 };
 
 BTF_SET_START(special_kfunc_set)
@@ -8163,6 +8164,7 @@ BTF_ID(func, bpf_list_push_back)
 BTF_ID(func, bpf_list_pop_front)
 BTF_ID(func, bpf_list_pop_back)
 BTF_ID(func, bpf_cast_to_kern_ctx)
+BTF_ID(func, bpf_rdonly_cast)
 BTF_SET_END(special_kfunc_set)
 
 BTF_ID_LIST(special_kfunc_list)
@@ -8173,6 +8175,7 @@ BTF_ID(func, bpf_list_push_back)
 BTF_ID(func, bpf_list_pop_front)
 BTF_ID(func, bpf_list_pop_back)
 BTF_ID(func, bpf_cast_to_kern_ctx)
+BTF_ID(func, bpf_rdonly_cast)
 
 static enum kfunc_ptr_arg_type
 get_kfunc_ptr_arg_type(struct bpf_verifier_env *env,
@@ -8809,6 +8812,7 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	u32 i, nargs, func_id, ptr_type_id;
 	int err, insn_idx = *insn_idx_p;
 	const struct btf_param *args;
+	const struct btf_type *ret_t;
 	struct btf *desc_btf;
 	u32 *kfunc_flags;
 
@@ -8888,7 +8892,6 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 
 		if (meta.btf == btf_vmlinux && btf_id_set_contains(&special_kfunc_set, meta.func_id)) {
 			if (meta.func_id == special_kfunc_list[KF_bpf_obj_new_impl]) {
-				const struct btf_type *ret_t;
 				struct btf *ret_btf;
 				u32 ret_btf_id;
 
@@ -8941,6 +8944,18 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 				regs[BPF_REG_0].type = PTR_TO_BTF_ID | PTR_TRUSTED;
 				regs[BPF_REG_0].btf = desc_btf;
 				regs[BPF_REG_0].btf_id = meta.ret_btf_id;
+			} else if (meta.func_id == special_kfunc_list[KF_bpf_rdonly_cast]) {
+				ret_t = btf_type_by_id(desc_btf, meta.arg_constant.value);
+				if (!ret_t || !btf_type_is_struct(ret_t)) {
+					verbose(env,
+						"kfunc bpf_rdonly_cast type ID argument must be of a struct\n");
+					return -EINVAL;
+				}
+
+				mark_reg_known_zero(env, regs, BPF_REG_0);
+				regs[BPF_REG_0].type = PTR_TO_BTF_ID | PTR_UNTRUSTED;
+				regs[BPF_REG_0].btf = desc_btf;
+				regs[BPF_REG_0].btf_id = meta.arg_constant.value;
 			} else {
 				verbose(env, "kernel function %s unhandled dynamic return type\n",
 					meta.func_name);
@@ -15194,7 +15209,8 @@ static int fixup_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		insn_buf[1] = addr[1];
 		insn_buf[2] = *insn;
 		*cnt = 3;
-	} else if (desc->func_id == special_kfunc_list[KF_bpf_cast_to_kern_ctx]) {
+	} else if (desc->func_id == special_kfunc_list[KF_bpf_cast_to_kern_ctx] ||
+		   desc->func_id == special_kfunc_list[KF_bpf_rdonly_cast]) {
 		insn_buf[0] = BPF_MOV64_REG(BPF_REG_0, BPF_REG_1);
 		*cnt = 1;
 	}
