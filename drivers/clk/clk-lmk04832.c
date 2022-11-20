@@ -12,12 +12,10 @@
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/gcd.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
-#include <linux/uaccess.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 
