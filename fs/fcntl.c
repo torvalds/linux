@@ -10,6 +10,7 @@
 #include <linux/mm.h>
 #include <linux/sched/task.h>
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>
 #include <linux/capability.h>

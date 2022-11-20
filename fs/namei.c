@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/namei.h>
 #include <linux/pagemap.h>
 #include <linux/sched/mm.h>

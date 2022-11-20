@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/ktime.h>
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/pagemap.h>
 #include <linux/rxrpc.h>
 #include <linux/key.h>

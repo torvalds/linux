@@ -15,6 +15,7 @@
  /* want to reuse a stale file handle and only the caller knows the file info */
 
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/kernel.h>
 #include <linux/vfs.h>
 #include <linux/slab.h>

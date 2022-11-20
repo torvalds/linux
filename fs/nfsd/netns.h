@@ -10,6 +10,7 @@
 
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
+#include <linux/filelock.h>
 #include <linux/percpu_counter.h>
 #include <linux/siphash.h>
 

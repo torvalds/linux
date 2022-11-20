@@ -5,6 +5,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 

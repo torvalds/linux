@@ -12,6 +12,7 @@
 #include <linux/ethtool.h>
 #include <linux/falloc.h>
 #include <linux/mount.h>
+#include <linux/filelock.h>
 
 #include "glob.h"
 #include "smbfsctl.h"

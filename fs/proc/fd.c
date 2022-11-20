@@ -12,6 +12,7 @@
 #include <linux/file.h>
 #include <linux/seq_file.h>
 #include <linux/fs.h>
+#include <linux/filelock.h>
 
 #include <linux/proc_fs.h>
 

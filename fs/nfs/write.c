@@ -25,6 +25,7 @@
 #include <linux/freezer.h>
 #include <linux/wait.h>
 #include <linux/iversion.h>
+#include <linux/filelock.h>
 
 #include <linux/uaccess.h>
 #include <linux/sched/mm.h>

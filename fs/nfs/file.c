@@ -31,6 +31,7 @@
 #include <linux/swap.h>
 
 #include <linux/uaccess.h>
+#include <linux/filelock.h>
 
 #include "delegation.h"
 #include "internal.h"

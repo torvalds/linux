@@ -21,6 +21,7 @@
 #include <linux/nfs_page.h>
 #include <linux/nfs_mount.h>
 #include <linux/export.h>
+#include <linux/filelock.h>
 
 #include "internal.h"
 #include "pnfs.h"

@@ -7,6 +7,7 @@
 #include <linux/uaccess.h>
 #include <linux/compat.h>
 #include <asm/unistd.h>
+#include <linux/filelock.h>
 
 static bool nsec_valid(long nsec)
 {
