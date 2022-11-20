@@ -1901,9 +1901,18 @@ static const struct btf_kfunc_id_set generic_kfunc_set = {
 	.set   = &generic_btf_ids,
 };
 
+
 BTF_ID_LIST(generic_dtor_ids)
 BTF_ID(struct, task_struct)
 BTF_ID(func, bpf_task_release)
+
+BTF_SET8_START(common_btf_ids)
+BTF_SET8_END(common_btf_ids)
+
+static const struct btf_kfunc_id_set common_kfunc_set = {
+	.owner = THIS_MODULE,
+	.set   = &common_btf_ids,
+};
 
 static int __init kfunc_init(void)
 {
@@ -1918,9 +1927,10 @@ static int __init kfunc_init(void)
 	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &generic_kfunc_set);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &generic_kfunc_set);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &generic_kfunc_set);
-	return ret ?: register_btf_id_dtor_kfuncs(generic_dtors,
+	ret = ret ?: register_btf_id_dtor_kfuncs(generic_dtors,
 						  ARRAY_SIZE(generic_dtors),
 						  THIS_MODULE);
+	return ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_UNSPEC, &common_kfunc_set);
 }
 
 late_initcall(kfunc_init);
