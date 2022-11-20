@@ -19,7 +19,7 @@
  */
 #define BPF_MAX_VAR_SIZ	(1 << 29)
 /* size of type_str_buf in bpf_verifier. */
-#define TYPE_STR_BUF_LEN 64
+#define TYPE_STR_BUF_LEN 128
 
 /* Liveness marks, used for registers and spilled-regs (in stack slots).
  * Read marks propagate upwards until they find a write mark; they record that
@@ -678,6 +678,13 @@ static inline bool bpf_prog_check_recur(const struct bpf_prog *prog)
 	default:
 		return true;
 	}
+}
+
+#define BPF_REG_TRUSTED_MODIFIERS (MEM_ALLOC | PTR_TRUSTED)
+
+static inline bool bpf_type_has_unsafe_modifiers(u32 type)
+{
+	return type_flag(type) & ~BPF_REG_TRUSTED_MODIFIERS;
 }
 
 #endif /* _LINUX_BPF_VERIFIER_H */

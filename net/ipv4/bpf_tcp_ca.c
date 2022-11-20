@@ -61,7 +61,9 @@ static bool bpf_tcp_ca_is_valid_access(int off, int size,
 	if (!bpf_tracing_btf_ctx_access(off, size, type, prog, info))
 		return false;
 
-	if (info->reg_type == PTR_TO_BTF_ID && info->btf_id == sock_id)
+	if (base_type(info->reg_type) == PTR_TO_BTF_ID &&
+	    !bpf_type_has_unsafe_modifiers(info->reg_type) &&
+	    info->btf_id == sock_id)
 		/* promote it to tcp_sock */
 		info->btf_id = tcp_sock_id;
 
