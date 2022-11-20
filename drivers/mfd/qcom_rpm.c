@@ -672,21 +672,11 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	if (ret)
 		dev_warn(&pdev->dev, "failed to mark wakeup irq as wakeup\n");
 
-	return of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
-}
-
-static int qcom_rpm_remove(struct platform_device *pdev)
-{
-	struct qcom_rpm *rpm = dev_get_drvdata(&pdev->dev);
-
-	of_platform_depopulate(&pdev->dev);
-
-	return 0;
+	return devm_of_platform_populate(&pdev->dev);
 }
 
 static struct platform_driver qcom_rpm_driver = {
 	.probe = qcom_rpm_probe,
-	.remove = qcom_rpm_remove,
 	.driver  = {
 		.name  = "qcom_rpm",
 		.of_match_table = qcom_rpm_of_match,
