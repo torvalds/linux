@@ -1073,8 +1073,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 	/* Enable tuning iff we have an SCC and a supported mode */
 	if (priv->scc_ctl && (host->mmc->caps & MMC_CAP_UHS_SDR104 ||
-	    host->mmc->caps2 & (MMC_CAP2_HS200_1_8V_SDR |
-				MMC_CAP2_HS400_1_8V))) {
+	    host->mmc->caps2 & MMC_CAP2_HSX00_1_8V)) {
 		const struct renesas_sdhi_scc *taps = of_data->taps;
 		bool use_4tap = sdhi_has_quirk(priv, hs400_4taps);
 		bool hit = false;
