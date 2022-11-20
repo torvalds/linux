@@ -175,14 +175,14 @@ enum lmk04832_device_types {
 };
 
 /**
- * lmk04832_device_info - Holds static device information that is specific to
- *                        the chip revision
+ * struct lmk04832_device_info - Holds static device information that is
+ *                               specific to the chip revision
  *
- * pid:          Product Identifier
- * maskrev:      IC version identifier
- * num_channels: Number of available output channels (clkout count)
- * vco0_range:   {min, max} of the VCO0 operating range (in MHz)
- * vco1_range:   {min, max} of the VCO1 operating range (in MHz)
+ * @pid:          Product Identifier
+ * @maskrev:      IC version identifier
+ * @num_channels: Number of available output channels (clkout count)
+ * @vco0_range:   {min, max} of the VCO0 operating range (in MHz)
+ * @vco1_range:   {min, max} of the VCO1 operating range (in MHz)
  */
 struct lmk04832_device_info {
 	u16 pid;
@@ -412,7 +412,7 @@ static unsigned long lmk04832_vco_recalc_rate(struct clk_hw *hw,
  * The LMK04832 has 2 internal VCO, each with independent operating ranges.
  * Use the device_info structure to determine which VCO to use based on rate.
  *
- * Returns VCO_MUX value or negative errno.
+ * Returns: VCO_MUX value or negative errno.
  */
 static int lmk04832_check_vco_ranges(struct lmk04832 *lmk, unsigned long rate)
 {
@@ -449,7 +449,7 @@ static int lmk04832_check_vco_ranges(struct lmk04832 *lmk, unsigned long rate)
  *
  *	VCO = OSCin * 2 * PLL2_N * PLL2_P / PLL2_R
  *
- * Returns vco rate or negative errno.
+ * Returns: vco rate or negative errno.
  */
 static long lmk04832_calc_pll2_params(unsigned long prate, unsigned long rate,
 				      unsigned int *n, unsigned int *p,
