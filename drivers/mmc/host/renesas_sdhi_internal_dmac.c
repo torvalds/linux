@@ -285,7 +285,7 @@ renesas_sdhi_internal_dmac_enable_dma(struct tmio_mmc_host *host, bool enable)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
 	u32 dma_irqs = INFO1_DTRANEND0 |
-			(priv->quirks && priv->quirks->old_info1_layout ?
+			(sdhi_has_quirk(priv, old_info1_layout) ?
 			INFO1_DTRANEND1_OLD : INFO1_DTRANEND1);
 
 	if (!host->chan_tx || !host->chan_rx)
@@ -318,7 +318,7 @@ static bool renesas_sdhi_internal_dmac_dma_irq(struct tmio_mmc_host *host)
 	struct renesas_sdhi_dma *dma_priv = &priv->dma_priv;
 
 	u32 dma_irqs = INFO1_DTRANEND0 |
-			(priv->quirks && priv->quirks->old_info1_layout ?
+			(sdhi_has_quirk(priv, old_info1_layout) ?
 			INFO1_DTRANEND1_OLD : INFO1_DTRANEND1);
 	u32 status = readl(host->ctl + DM_CM_INFO1);
 
@@ -396,7 +396,7 @@ renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 	struct scatterlist *sg = host->sg_ptr;
 	u32 dtran_mode = DTRAN_MODE_BUS_WIDTH;
 
-	if (!(priv->quirks && priv->quirks->fixed_addr_mode))
+	if (!sdhi_has_quirk(priv, fixed_addr_mode))
 		dtran_mode |= DTRAN_MODE_ADDR_MODE;
 
 	if (!renesas_sdhi_internal_dmac_map(host, data, COOKIE_MAPPED))
@@ -404,7 +404,7 @@ renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 
 	if (data->flags & MMC_DATA_READ) {
 		dtran_mode |= DTRAN_MODE_CH_NUM_CH1;
-		if (priv->quirks && priv->quirks->dma_one_rx_only &&
+		if (sdhi_has_quirk(priv, dma_one_rx_only) &&
 		    test_and_set_bit(SDHI_INTERNAL_DMAC_RX_IN_USE, &global_flags))
 			goto force_pio_with_unmap;
 	} else {

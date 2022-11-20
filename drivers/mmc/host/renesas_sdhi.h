@@ -38,6 +38,8 @@ struct renesas_sdhi_of_data {
 
 #define SDHI_CALIB_TABLE_MAX 32
 
+#define sdhi_has_quirk(p, q) ((p)->quirks && (p)->quirks->q)
+
 struct renesas_sdhi_quirks {
 	bool hs400_disabled;
 	bool hs400_4taps;
