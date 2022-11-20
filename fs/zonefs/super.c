@@ -1922,18 +1922,18 @@ static int __init zonefs_init(void)
 	if (ret)
 		return ret;
 
-	ret = register_filesystem(&zonefs_type);
+	ret = zonefs_sysfs_init();
 	if (ret)
 		goto destroy_inodecache;
 
-	ret = zonefs_sysfs_init();
+	ret = register_filesystem(&zonefs_type);
 	if (ret)
-		goto unregister_fs;
+		goto sysfs_exit;
 
 	return 0;
 
-unregister_fs:
-	unregister_filesystem(&zonefs_type);
+sysfs_exit:
+	zonefs_sysfs_exit();
 destroy_inodecache:
 	zonefs_destroy_inodecache();
 
@@ -1942,9 +1942,9 @@ destroy_inodecache:
 
 static void __exit zonefs_exit(void)
 {
+	unregister_filesystem(&zonefs_type);
 	zonefs_sysfs_exit();
 	zonefs_destroy_inodecache();
-	unregister_filesystem(&zonefs_type);
 }
 
 MODULE_AUTHOR("Damien Le Moal");
