@@ -313,9 +313,9 @@ static void tusb320_typec_irq_handler(struct tusb320_priv *priv, u8 reg9)
 		typec_set_pwr_opmode(port, TYPEC_PWR_MODE_USB);
 }
 
-static irqreturn_t tusb320_irq_handler(int irq, void *dev_id)
+static irqreturn_t tusb320_state_update_handler(struct tusb320_priv *priv,
+						bool force_update)
 {
-	struct tusb320_priv *priv = dev_id;
 	unsigned int reg;
 
 	if (regmap_read(priv->regmap, TUSB320_REG9, &reg)) {
@@ -323,7 +323,7 @@ static irqreturn_t tusb320_irq_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	if (!(reg & TUSB320_REG9_INTERRUPT_STATUS))
+	if (!force_update && !(reg & TUSB320_REG9_INTERRUPT_STATUS))
 		return IRQ_NONE;
 
 	tusb320_extcon_irq_handler(priv, reg);
@@ -338,6 +338,13 @@ static irqreturn_t tusb320_irq_handler(int irq, void *dev_id)
 	regmap_write(priv->regmap, TUSB320_REG9, reg);
 
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t tusb320_irq_handler(int irq, void *dev_id)
+{
+	struct tusb320_priv *priv = dev_id;
+
+	return tusb320_state_update_handler(priv, false);
 }
 
 static const struct regmap_config tusb320_regmap_config = {
@@ -466,7 +473,7 @@ static int tusb320_probe(struct i2c_client *client,
 		return ret;
 
 	/* update initial state */
-	tusb320_irq_handler(client->irq, priv);
+	tusb320_state_update_handler(priv, true);
 
 	/* Reset chip to its default state */
 	ret = tusb320_reset(priv);
@@ -477,7 +484,7 @@ static int tusb320_probe(struct i2c_client *client,
 		 * State and polarity might change after a reset, so update
 		 * them again and make sure the interrupt status bit is cleared.
 		 */
-		tusb320_irq_handler(client->irq, priv);
+		tusb320_state_update_handler(priv, true);
 
 	ret = devm_request_threaded_irq(priv->dev, client->irq, NULL,
 					tusb320_irq_handler,
