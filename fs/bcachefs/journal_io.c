@@ -1106,7 +1106,6 @@ int bch2_journal_read(struct bch_fs *c, u64 *blacklist_seq, u64 *start_seq)
 	struct bch_dev *ca;
 	unsigned iter;
 	struct printbuf buf = PRINTBUF;
-	size_t keys = 0, entries = 0;
 	bool degraded = false;
 	u64 seq, last_seq = 0;
 	int ret = 0;
@@ -1137,7 +1136,8 @@ int bch2_journal_read(struct bch_fs *c, u64 *blacklist_seq, u64 *start_seq)
 	if (jlist.ret)
 		return jlist.ret;
 
-	*start_seq = 0;
+	*start_seq	= 0;
+	*blacklist_seq	= 0;
 
 	/*
 	 * Find most recent flush entry, and ignore newer non flush entries -
@@ -1150,7 +1150,7 @@ int bch2_journal_read(struct bch_fs *c, u64 *blacklist_seq, u64 *start_seq)
 			continue;
 
 		if (!*start_seq)
-			*start_seq = le64_to_cpu(i->j.seq) + 1;
+			*blacklist_seq = *start_seq = le64_to_cpu(i->j.seq) + 1;
 
 		if (!JSET_NO_FLUSH(&i->j)) {
 			int write = READ;
@@ -1179,6 +1179,13 @@ int bch2_journal_read(struct bch_fs *c, u64 *blacklist_seq, u64 *start_seq)
 		ret = -1;
 		goto err;
 	}
+
+	bch_info(c, "journal read done, replaying entries %llu-%llu",
+		 last_seq, *blacklist_seq - 1);
+
+	if (*start_seq != *blacklist_seq)
+		bch_info(c, "dropped unflushed entries %llu-%llu",
+			 *blacklist_seq, *start_seq - 1);
 
 	/* Drop blacklisted entries and entries older than last_seq: */
 	genradix_for_each(&c->journal_entries, radix_iter, _i) {
@@ -1252,8 +1259,6 @@ int bch2_journal_read(struct bch_fs *c, u64 *blacklist_seq, u64 *start_seq)
 	}
 
 	genradix_for_each(&c->journal_entries, radix_iter, _i) {
-		struct jset_entry *entry;
-		struct bkey_i *k, *_n;
 		struct bch_replicas_padded replicas = {
 			.e.data_type = BCH_DATA_journal,
 			.e.nr_required = 1,
@@ -1303,18 +1308,7 @@ int bch2_journal_read(struct bch_fs *c, u64 *blacklist_seq, u64 *start_seq)
 			if (ret)
 				goto err;
 		}
-
-		for_each_jset_key(k, _n, entry, &i->j)
-			keys++;
-		entries++;
 	}
-
-	bch_info(c, "journal read done, %zu keys in %zu entries, seq %llu",
-		 keys, entries, *start_seq);
-
-	if (*start_seq != *blacklist_seq)
-		bch_info(c, "dropped unflushed entries %llu-%llu",
-			 *blacklist_seq, *start_seq - 1);
 err:
 fsck_err:
 	printbuf_exit(&buf);
