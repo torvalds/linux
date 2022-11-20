@@ -78,7 +78,7 @@ int bch2_xattr_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	if (bkey_val_bytes(k.k) < sizeof(struct bch_xattr)) {
 		prt_printf(err, "incorrect value size (%zu < %zu)",
 		       bkey_val_bytes(k.k), sizeof(*xattr.v));
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	if (bkey_val_u64s(k.k) <
@@ -88,7 +88,7 @@ int bch2_xattr_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		       bkey_val_u64s(k.k),
 		       xattr_val_u64s(xattr.v->x_name_len,
 				      le16_to_cpu(xattr.v->x_val_len)));
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	/* XXX why +4 ? */
@@ -99,18 +99,18 @@ int bch2_xattr_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		       bkey_val_u64s(k.k),
 		       xattr_val_u64s(xattr.v->x_name_len,
 				      le16_to_cpu(xattr.v->x_val_len) + 4));
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	handler = bch2_xattr_type_to_handler(xattr.v->x_type);
 	if (!handler) {
 		prt_printf(err, "invalid type (%u)", xattr.v->x_type);
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	if (memchr(xattr.v->x_name, '\0', xattr.v->x_name_len)) {
 		prt_printf(err, "xattr name has invalid characters");
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	return 0;

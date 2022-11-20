@@ -26,7 +26,7 @@ static int bch2_sb_quota_validate(struct bch_sb *sb, struct bch_sb_field *f,
 	if (vstruct_bytes(&q->field) < sizeof(*q)) {
 		prt_printf(err, "wrong size (got %zu should be %zu)",
 		       vstruct_bytes(&q->field), sizeof(*q));
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_quota;
 	}
 
 	return 0;
@@ -64,13 +64,13 @@ int bch2_quota_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	if (k.k->p.inode >= QTYP_NR) {
 		prt_printf(err, "invalid quota type (%llu >= %u)",
 		       k.k->p.inode, QTYP_NR);
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	if (bkey_val_bytes(k.k) != sizeof(struct bch_quota)) {
 		prt_printf(err, "incorrect value size (%zu != %zu)",
 		       bkey_val_bytes(k.k), sizeof(struct bch_quota));
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	return 0;

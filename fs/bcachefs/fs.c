@@ -1767,8 +1767,11 @@ got_sb:
 	kfree(devs[0]);
 	kfree(devs);
 
-	if (IS_ERR(sb))
-		return ERR_CAST(sb);
+	if (IS_ERR(sb)) {
+		ret = PTR_ERR(sb);
+		ret = bch2_err_class(ret);
+		return ERR_PTR(ret);
+	}
 
 	c = sb->s_fs_info;
 

@@ -216,23 +216,23 @@ static int validate_sb_layout(struct bch_sb_layout *layout, struct printbuf *out
 	if (!uuid_equal(&layout->magic, &BCACHE_MAGIC) &&
 	    !uuid_equal(&layout->magic, &BCHFS_MAGIC)) {
 		prt_printf(out, "Not a bcachefs superblock layout");
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_layout;
 	}
 
 	if (layout->layout_type != 0) {
 		prt_printf(out, "Invalid superblock layout type %u",
 		       layout->layout_type);
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_layout_type;
 	}
 
 	if (!layout->nr_superblocks) {
 		prt_printf(out, "Invalid superblock layout: no superblocks");
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_layout_nr_superblocks;
 	}
 
 	if (layout->nr_superblocks > ARRAY_SIZE(layout->sb_offset)) {
 		prt_printf(out, "Invalid superblock layout: too many superblocks");
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_layout_nr_superblocks;
 	}
 
 	max_sectors = 1 << layout->sb_max_size_bits;
@@ -246,7 +246,7 @@ static int validate_sb_layout(struct bch_sb_layout *layout, struct printbuf *out
 			prt_printf(out, "Invalid superblock layout: superblocks overlap\n"
 			       "  (sb %u ends at %llu next starts at %llu",
 			       i - 1, prev_offset + max_sectors, offset);
-			return -EINVAL;
+			return -BCH_ERR_invalid_sb_layout_superblocks_overlap;
 		}
 		prev_offset = offset;
 	}
@@ -273,25 +273,25 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 	if (version    >= bcachefs_metadata_version_max) {
 		prt_printf(out, "Unsupported superblock version %u (min %u, max %u)",
 		       version, bcachefs_metadata_version_min, bcachefs_metadata_version_max);
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_version;
 	}
 
 	if (version_min < bcachefs_metadata_version_min) {
 		prt_printf(out, "Unsupported superblock version %u (min %u, max %u)",
 		       version_min, bcachefs_metadata_version_min, bcachefs_metadata_version_max);
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_version;
 	}
 
 	if (version_min > version) {
 		prt_printf(out, "Bad minimum version %u, greater than version field %u",
 		       version_min, version);
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_version;
 	}
 
 	if (sb->features[1] ||
 	    (le64_to_cpu(sb->features[0]) & (~0ULL << BCH_FEATURE_NR))) {
 		prt_printf(out, "Filesystem has incompatible features");
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_features;
 	}
 
 	block_size = le16_to_cpu(sb->block_size);
@@ -299,37 +299,37 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 	if (block_size > PAGE_SECTORS) {
 		prt_printf(out, "Block size too big (got %u, max %u)",
 		       block_size, PAGE_SECTORS);
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_block_size;
 	}
 
 	if (bch2_is_zero(sb->user_uuid.b, sizeof(sb->user_uuid))) {
 		prt_printf(out, "Bad user UUID (got zeroes)");
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_uuid;
 	}
 
 	if (bch2_is_zero(sb->uuid.b, sizeof(sb->uuid))) {
 		prt_printf(out, "Bad intenal UUID (got zeroes)");
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_uuid;
 	}
 
 	if (!sb->nr_devices ||
 	    sb->nr_devices > BCH_SB_MEMBERS_MAX) {
 		prt_printf(out, "Bad number of member devices %u (max %u)",
 		       sb->nr_devices, BCH_SB_MEMBERS_MAX);
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_too_many_members;
 	}
 
 	if (sb->dev_idx >= sb->nr_devices) {
 		prt_printf(out, "Bad dev_idx (got %u, nr_devices %u)",
 		       sb->dev_idx, sb->nr_devices);
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_dev_idx;
 	}
 
 	if (!sb->time_precision ||
 	    le32_to_cpu(sb->time_precision) > NSEC_PER_SEC) {
 		prt_printf(out, "Invalid time precision: %u (min 1, max %lu)",
 		       le32_to_cpu(sb->time_precision), NSEC_PER_SEC);
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_time_precision;
 	}
 
 	if (rw == READ) {
@@ -366,15 +366,15 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 
 	vstruct_for_each(sb, f) {
 		if (!f->u64s) {
-			prt_printf(out, "Invalid superblock: optional with size 0 (type %u)",
+			prt_printf(out, "Invalid superblock: optional field with size 0 (type %u)",
 			       le32_to_cpu(f->type));
-			return -EINVAL;
+			return -BCH_ERR_invalid_sb_field_size;
 		}
 
 		if (vstruct_next(f) > vstruct_last(sb)) {
 			prt_printf(out, "Invalid superblock: optional field extends past end of superblock (type %u)",
 			       le32_to_cpu(f->type));
-			return -EINVAL;
+			return -BCH_ERR_invalid_sb_field_size;
 		}
 	}
 
@@ -382,7 +382,7 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 	mi = bch2_sb_get_members(sb);
 	if (!mi) {
 		prt_printf(out, "Invalid superblock: member info area missing");
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_members_missing;
 	}
 
 	ret = bch2_sb_field_validate(sb, &mi->field, out);
@@ -544,7 +544,7 @@ reread:
 	if (!uuid_equal(&sb->sb->magic, &BCACHE_MAGIC) &&
 	    !uuid_equal(&sb->sb->magic, &BCHFS_MAGIC)) {
 		prt_printf(err, "Not a bcachefs superblock");
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_magic;
 	}
 
 	version		= le16_to_cpu(sb->sb->version);
@@ -555,13 +555,13 @@ reread:
 	if (version    >= bcachefs_metadata_version_max) {
 		prt_printf(err, "Unsupported superblock version %u (min %u, max %u)",
 		       version, bcachefs_metadata_version_min, bcachefs_metadata_version_max);
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_version;
 	}
 
 	if (version_min < bcachefs_metadata_version_min) {
 		prt_printf(err, "Unsupported superblock version %u (min %u, max %u)",
 		       version_min, bcachefs_metadata_version_min, bcachefs_metadata_version_max);
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_version;
 	}
 
 	bytes = vstruct_bytes(sb->sb);
@@ -569,7 +569,7 @@ reread:
 	if (bytes > 512 << sb->sb->layout.sb_max_size_bits) {
 		prt_printf(err, "Invalid superblock: too big (got %zu bytes, layout max %lu)",
 		       bytes, 512UL << sb->sb->layout.sb_max_size_bits);
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_too_big;
 	}
 
 	if (bytes > sb->buffer_size) {
@@ -580,7 +580,7 @@ reread:
 
 	if (BCH_SB_CSUM_TYPE(sb->sb) >= BCH_CSUM_NR) {
 		prt_printf(err, "unknown checksum type %llu", BCH_SB_CSUM_TYPE(sb->sb));
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_csum_type;
 	}
 
 	/* XXX: verify MACs */
@@ -589,7 +589,7 @@ reread:
 
 	if (bch2_crc_cmp(csum, sb->sb->csum)) {
 		prt_printf(err, "bad checksum");
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_csum;
 	}
 
 	sb->seq = le64_to_cpu(sb->sb->seq);
@@ -703,7 +703,7 @@ got_super:
 		prt_printf(&err, "block size (%u) smaller than device block size (%u)",
 		       le16_to_cpu(sb->sb->block_size) << 9,
 		       bdev_logical_block_size(sb->bdev));
-		ret = -EINVAL;
+		ret = -BCH_ERR_block_size_too_small;
 		goto err;
 	}
 
@@ -958,7 +958,7 @@ static int bch2_sb_members_validate(struct bch_sb *sb,
 	if ((void *) (mi->members + sb->nr_devices) >
 	    vstruct_end(&mi->field)) {
 		prt_printf(err, "too many devices for section size");
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_members;
 	}
 
 	for (i = 0; i < sb->nr_devices; i++) {
@@ -970,28 +970,28 @@ static int bch2_sb_members_validate(struct bch_sb *sb,
 		if (le64_to_cpu(m->nbuckets) > LONG_MAX) {
 			prt_printf(err, "device %u: too many buckets (got %llu, max %lu)",
 			       i, le64_to_cpu(m->nbuckets), LONG_MAX);
-			return -EINVAL;
+			return -BCH_ERR_invalid_sb_members;
 		}
 
 		if (le64_to_cpu(m->nbuckets) -
 		    le16_to_cpu(m->first_bucket) < BCH_MIN_NR_NBUCKETS) {
 			prt_printf(err, "device %u: not enough buckets (got %llu, max %u)",
 			       i, le64_to_cpu(m->nbuckets), BCH_MIN_NR_NBUCKETS);
-			return -EINVAL;
+			return -BCH_ERR_invalid_sb_members;
 		}
 
 		if (le16_to_cpu(m->bucket_size) <
 		    le16_to_cpu(sb->block_size)) {
 			prt_printf(err, "device %u: bucket size %u smaller than block size %u",
 			       i, le16_to_cpu(m->bucket_size), le16_to_cpu(sb->block_size));
-			return -EINVAL;
+			return -BCH_ERR_invalid_sb_members;
 		}
 
 		if (le16_to_cpu(m->bucket_size) <
 		    BCH_SB_BTREE_NODE_SIZE(sb)) {
 			prt_printf(err, "device %u: bucket size %u smaller than btree node size %llu",
 			       i, le16_to_cpu(m->bucket_size), BCH_SB_BTREE_NODE_SIZE(sb));
-			return -EINVAL;
+			return -BCH_ERR_invalid_sb_members;
 		}
 	}
 
@@ -1123,12 +1123,12 @@ static int bch2_sb_crypt_validate(struct bch_sb *sb,
 	if (vstruct_bytes(&crypt->field) < sizeof(*crypt)) {
 		prt_printf(err, "wrong size (got %zu should be %zu)",
 		       vstruct_bytes(&crypt->field), sizeof(*crypt));
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_crypt;
 	}
 
 	if (BCH_CRYPT_KDF_TYPE(crypt)) {
 		prt_printf(err, "bad kdf type %llu", BCH_CRYPT_KDF_TYPE(crypt));
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_crypt;
 	}
 
 	return 0;
@@ -1365,7 +1365,7 @@ static int bch2_sb_clean_validate(struct bch_sb *sb,
 	if (vstruct_bytes(&clean->field) < sizeof(*clean)) {
 		prt_printf(err, "wrong size (got %zu should be %zu)",
 		       vstruct_bytes(&clean->field), sizeof(*clean));
-		return -EINVAL;
+		return -BCH_ERR_invalid_sb_clean;
 	}
 
 	return 0;

@@ -880,7 +880,7 @@ int bch2_fs_start(struct bch_fs *c)
 	struct bch_dev *ca;
 	time64_t now = ktime_get_real_seconds();
 	unsigned i;
-	int ret = -EINVAL;
+	int ret;
 
 	down_write(&c->state_lock);
 
@@ -917,9 +917,9 @@ int bch2_fs_start(struct bch_fs *c)
 	if (ret)
 		goto err;
 
-	ret = -EINVAL;
 	if (bch2_fs_init_fault("fs_start")) {
 		bch_err(c, "fs_start fault injected");
+		ret = -EINVAL;
 		goto err;
 	}
 
@@ -942,46 +942,43 @@ out:
 	return ret;
 err:
 	bch_err(c, "error starting filesystem: %s", bch2_err_str(ret));
-
-	if (ret < -BCH_ERR_START)
-		ret = -EINVAL;
 	goto out;
 }
 
-static const char *bch2_dev_may_add(struct bch_sb *sb, struct bch_fs *c)
+static int bch2_dev_may_add(struct bch_sb *sb, struct bch_fs *c)
 {
 	struct bch_sb_field_members *sb_mi;
 
 	sb_mi = bch2_sb_get_members(sb);
 	if (!sb_mi)
-		return "Invalid superblock: member info area missing";
+		return -BCH_ERR_member_info_missing;
 
 	if (le16_to_cpu(sb->block_size) != block_sectors(c))
-		return "mismatched block size";
+		return -BCH_ERR_mismatched_block_size;
 
 	if (le16_to_cpu(sb_mi->members[sb->dev_idx].bucket_size) <
 	    BCH_SB_BTREE_NODE_SIZE(c->disk_sb.sb))
-		return "new cache bucket size is too small";
+		return -BCH_ERR_bucket_size_too_small;
 
-	return NULL;
+	return 0;
 }
 
-static const char *bch2_dev_in_fs(struct bch_sb *fs, struct bch_sb *sb)
+static int bch2_dev_in_fs(struct bch_sb *fs, struct bch_sb *sb)
 {
 	struct bch_sb *newest =
 		le64_to_cpu(fs->seq) > le64_to_cpu(sb->seq) ? fs : sb;
 	struct bch_sb_field_members *mi = bch2_sb_get_members(newest);
 
 	if (!uuid_equal(&fs->uuid, &sb->uuid))
-		return "device not a member of filesystem";
+		return -BCH_ERR_device_not_a_member_of_filesystem;
 
 	if (!bch2_dev_exists(newest, mi, sb->dev_idx))
-		return "device has been removed";
+		return -BCH_ERR_device_has_been_removed;
 
 	if (fs->block_size != sb->block_size)
-		return "mismatched block size";
+		return -BCH_ERR_mismatched_block_size;
 
-	return NULL;
+	return 0;
 }
 
 /* Device startup/shutdown: */
@@ -1179,22 +1176,16 @@ static int __bch2_dev_attach_bdev(struct bch_dev *ca, struct bch_sb_handle *sb)
 	if (bch2_dev_is_online(ca)) {
 		bch_err(ca, "already have device online in slot %u",
 			sb->sb->dev_idx);
-		return -EINVAL;
+		return -BCH_ERR_device_already_online;
 	}
 
 	if (get_capacity(sb->bdev->bd_disk) <
 	    ca->mi.bucket_size * ca->mi.nbuckets) {
 		bch_err(ca, "cannot online: device too small");
-		return -EINVAL;
+		return -BCH_ERR_device_size_too_small;
 	}
 
 	BUG_ON(!percpu_ref_is_zero(&ca->io_ref));
-
-	if (get_capacity(sb->bdev->bd_disk) <
-	    ca->mi.bucket_size * ca->mi.nbuckets) {
-		bch_err(ca, "device too small");
-		return -EINVAL;
-	}
 
 	ret = bch2_dev_journal_init(ca, sb->sb);
 	if (ret)
@@ -1370,7 +1361,7 @@ int __bch2_dev_set_state(struct bch_fs *c, struct bch_dev *ca,
 		return 0;
 
 	if (!bch2_dev_state_allowed(c, ca, new_state, flags))
-		return -EINVAL;
+		return -BCH_ERR_device_state_not_allowed;
 
 	if (new_state != BCH_MEMBER_STATE_rw)
 		__bch2_dev_read_only(c, ca);
@@ -1433,7 +1424,7 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 {
 	struct bch_sb_field_members *mi;
 	unsigned dev_idx = ca->dev_idx, data;
-	int ret = -EINVAL;
+	int ret;
 
 	down_write(&c->state_lock);
 
@@ -1445,6 +1436,7 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 
 	if (!bch2_dev_state_allowed(c, ca, BCH_MEMBER_STATE_failed, flags)) {
 		bch_err(ca, "Cannot remove without losing data");
+		ret = -BCH_ERR_device_state_not_allowed;
 		goto err;
 	}
 
@@ -1530,7 +1522,6 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 {
 	struct bch_opts opts = bch2_opts_empty();
 	struct bch_sb_handle sb;
-	const char *err;
 	struct bch_dev *ca = NULL;
 	struct bch_sb_field_members *mi;
 	struct bch_member dev_mi;
@@ -1555,10 +1546,9 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		}
 	}
 
-	err = bch2_dev_may_add(sb.sb, c);
-	if (err) {
-		bch_err(c, "device add error: %s", err);
-		ret = -EINVAL;
+	ret = bch2_dev_may_add(sb.sb, c);
+	if (ret) {
+		bch_err(c, "device add error: %s", bch2_err_str(ret));
 		goto err;
 	}
 
@@ -1692,7 +1682,6 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 	struct bch_sb_field_members *mi;
 	struct bch_dev *ca;
 	unsigned dev_idx;
-	const char *err;
 	int ret;
 
 	down_write(&c->state_lock);
@@ -1705,9 +1694,9 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 
 	dev_idx = sb.sb->dev_idx;
 
-	err = bch2_dev_in_fs(c->disk_sb.sb, sb.sb);
-	if (err) {
-		bch_err(c, "error bringing %s online: %s", path, err);
+	ret = bch2_dev_in_fs(c->disk_sb.sb, sb.sb);
+	if (ret) {
+		bch_err(c, "error bringing %s online: %s", path, bch2_err_str(ret));
 		goto err;
 	}
 
@@ -1741,7 +1730,7 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 err:
 	up_write(&c->state_lock);
 	bch2_free_super(&sb);
-	return -EINVAL;
+	return ret;
 }
 
 int bch2_dev_offline(struct bch_fs *c, struct bch_dev *ca, int flags)
@@ -1757,7 +1746,7 @@ int bch2_dev_offline(struct bch_fs *c, struct bch_dev *ca, int flags)
 	if (!bch2_dev_state_allowed(c, ca, BCH_MEMBER_STATE_failed, flags)) {
 		bch_err(ca, "Cannot offline required disk");
 		up_write(&c->state_lock);
-		return -EINVAL;
+		return -BCH_ERR_device_state_not_allowed;
 	}
 
 	__bch2_dev_offline(c, ca);
@@ -1783,7 +1772,7 @@ int bch2_dev_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	    get_capacity(ca->disk_sb.bdev->bd_disk) <
 	    ca->mi.bucket_size * nbuckets) {
 		bch_err(ca, "New size larger than device");
-		ret = -EINVAL;
+		ret = -BCH_ERR_device_size_too_small;
 		goto err;
 	}
 
@@ -1836,7 +1825,6 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 	struct bch_fs *c = NULL;
 	struct bch_sb_field_members *mi;
 	unsigned i, best_sb = 0;
-	const char *err;
 	struct printbuf errbuf = PRINTBUF;
 	int ret = 0;
 
@@ -1880,8 +1868,8 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 			continue;
 		}
 
-		err = bch2_dev_in_fs(sb[best_sb].sb, sb[i].sb);
-		if (err)
+		ret = bch2_dev_in_fs(sb[best_sb].sb, sb[i].sb);
+		if (ret)
 			goto err_print;
 		i++;
 	}
@@ -1902,9 +1890,10 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 	}
 	up_write(&c->state_lock);
 
-	err = "insufficient devices";
-	if (!bch2_fs_may_start(c))
+	if (!bch2_fs_may_start(c)) {
+		ret = -BCH_ERR_insufficient_devices_to_start;
 		goto err_print;
+	}
 
 	if (!c->opts.nostart) {
 		ret = bch2_fs_start(c);
@@ -1919,8 +1908,7 @@ out:
 	return c;
 err_print:
 	pr_err("bch_fs_open err opening %s: %s",
-	       devices[0], err);
-	ret = -EINVAL;
+	       devices[0], bch2_err_str(ret));
 err:
 	if (!IS_ERR_OR_NULL(c))
 		bch2_fs_stop(c);

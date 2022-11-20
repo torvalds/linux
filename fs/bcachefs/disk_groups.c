@@ -27,7 +27,7 @@ static int bch2_sb_disk_groups_validate(struct bch_sb *sb,
 	struct bch_sb_field_members *mi = bch2_sb_get_members(sb);
 	unsigned nr_groups = disk_groups_nr(groups);
 	unsigned i, len;
-	int ret = -EINVAL;
+	int ret = 0;
 
 	for (i = 0; i < sb->nr_devices; i++) {
 		struct bch_member *m = mi->members + i;
@@ -41,12 +41,12 @@ static int bch2_sb_disk_groups_validate(struct bch_sb *sb,
 		if (g >= nr_groups) {
 			prt_printf(err, "disk %u has invalid label %u (have %u)",
 			       i, g, nr_groups);
-			return -EINVAL;
+			return -BCH_ERR_invalid_sb_disk_groups;
 		}
 
 		if (BCH_GROUP_DELETED(&groups->entries[g])) {
 			prt_printf(err, "disk %u has deleted label %u", i, g);
-			return -EINVAL;
+			return -BCH_ERR_invalid_sb_disk_groups;
 		}
 	}
 
@@ -62,7 +62,7 @@ static int bch2_sb_disk_groups_validate(struct bch_sb *sb,
 		len = strnlen(g->label, sizeof(g->label));
 		if (!len) {
 			prt_printf(err, "label %u empty", i);
-			return -EINVAL;
+			return -BCH_ERR_invalid_sb_disk_groups;
 		}
 	}
 
@@ -79,13 +79,12 @@ static int bch2_sb_disk_groups_validate(struct bch_sb *sb,
 			prt_printf(err, "duplicate label %llu.%.*s",
 			       BCH_GROUP_PARENT(g),
 			       (int) sizeof(g->label), g->label);
+			ret = -BCH_ERR_invalid_sb_disk_groups;
 			goto err;
 		}
-
-	ret = 0;
 err:
 	kfree(sorted);
-	return 0;
+	return ret;
 }
 
 static void bch2_sb_disk_groups_to_text(struct printbuf *out,

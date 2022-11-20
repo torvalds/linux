@@ -109,24 +109,24 @@ int bch2_stripe_invalid(const struct bch_fs *c, struct bkey_s_c k,
 
 	if (bkey_eq(k.k->p, POS_MIN)) {
 		prt_printf(err, "stripe at POS_MIN");
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	if (k.k->p.inode) {
 		prt_printf(err, "nonzero inode field");
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	if (bkey_val_bytes(k.k) < sizeof(*s)) {
 		prt_printf(err, "incorrect value size (%zu < %zu)",
 		       bkey_val_bytes(k.k), sizeof(*s));
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	if (bkey_val_u64s(k.k) < stripe_val_u64s(s)) {
 		prt_printf(err, "incorrect value size (%zu < %u)",
 		       bkey_val_u64s(k.k), stripe_val_u64s(s));
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	return bch2_bkey_ptrs_invalid(c, k, rw, err);

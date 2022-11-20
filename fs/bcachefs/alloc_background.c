@@ -302,7 +302,7 @@ int bch2_alloc_v1_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	if (bkey_val_u64s(a.k) < bch_alloc_v1_val_u64s(a.v)) {
 		prt_printf(err, "incorrect value size (%zu < %u)",
 		       bkey_val_u64s(a.k), bch_alloc_v1_val_u64s(a.v));
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	return 0;
@@ -315,7 +315,7 @@ int bch2_alloc_v2_invalid(const struct bch_fs *c, struct bkey_s_c k,
 
 	if (bch2_alloc_unpack_v2(&u, k)) {
 		prt_printf(err, "unpack error");
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	return 0;
@@ -328,7 +328,7 @@ int bch2_alloc_v3_invalid(const struct bch_fs *c, struct bkey_s_c k,
 
 	if (bch2_alloc_unpack_v3(&u, k)) {
 		prt_printf(err, "unpack error");
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	return 0;
@@ -342,14 +342,14 @@ int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	if (bkey_val_bytes(k.k) != sizeof(struct bch_alloc_v4)) {
 		prt_printf(err, "bad val size (%zu != %zu)",
 		       bkey_val_bytes(k.k), sizeof(struct bch_alloc_v4));
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	if (rw == WRITE) {
 		if (alloc_data_type(*a.v, a.v->data_type) != a.v->data_type) {
 			prt_printf(err, "invalid data type (got %u should be %u)",
 			       a.v->data_type, alloc_data_type(*a.v, a.v->data_type));
-			return -EINVAL;
+			return -BCH_ERR_invalid_bkey;
 		}
 
 		switch (a.v->data_type) {
@@ -360,7 +360,7 @@ int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k,
 			    a.v->cached_sectors ||
 			    a.v->stripe) {
 				prt_printf(err, "empty data type free but have data");
-				return -EINVAL;
+				return -BCH_ERR_invalid_bkey;
 			}
 			break;
 		case BCH_DATA_sb:
@@ -371,7 +371,7 @@ int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k,
 			if (!a.v->dirty_sectors) {
 				prt_printf(err, "data_type %s but dirty_sectors==0",
 				       bch2_data_types[a.v->data_type]);
-				return -EINVAL;
+				return -BCH_ERR_invalid_bkey;
 			}
 			break;
 		case BCH_DATA_cached:
@@ -379,20 +379,20 @@ int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k,
 			    a.v->dirty_sectors ||
 			    a.v->stripe) {
 				prt_printf(err, "data type inconsistency");
-				return -EINVAL;
+				return -BCH_ERR_invalid_bkey;
 			}
 
 			if (!a.v->io_time[READ] &&
 			    test_bit(BCH_FS_CHECK_ALLOC_TO_LRU_REFS_DONE, &c->flags)) {
 				prt_printf(err, "cached bucket with read_time == 0");
-				return -EINVAL;
+				return -BCH_ERR_invalid_bkey;
 			}
 			break;
 		case BCH_DATA_stripe:
 			if (!a.v->stripe) {
 				prt_printf(err, "data_type %s but stripe==0",
 				       bch2_data_types[a.v->data_type]);
-				return -EINVAL;
+				return -BCH_ERR_invalid_bkey;
 			}
 			break;
 		}

@@ -42,7 +42,7 @@ static int empty_val_key_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	if (bkey_val_bytes(k.k)) {
 		prt_printf(err, "incorrect value size (%zu != 0)",
 		       bkey_val_bytes(k.k));
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	return 0;
@@ -58,7 +58,7 @@ static int key_type_cookie_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	if (bkey_val_bytes(k.k) != sizeof(struct bch_cookie)) {
 		prt_printf(err, "incorrect value size (%zu != %zu)",
 		       bkey_val_bytes(k.k), sizeof(struct bch_cookie));
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	return 0;
@@ -99,7 +99,7 @@ static int key_type_set_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	if (bkey_val_bytes(k.k)) {
 		prt_printf(err, "incorrect value size (%zu != %zu)",
 		       bkey_val_bytes(k.k), sizeof(struct bch_cookie));
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	return 0;
@@ -127,7 +127,7 @@ int bch2_bkey_val_invalid(struct bch_fs *c, struct bkey_s_c k,
 {
 	if (k.k->type >= KEY_TYPE_MAX) {
 		prt_printf(err, "invalid type (%u >= %u)", k.k->type, KEY_TYPE_MAX);
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	return bch2_bkey_ops[k.k->type].key_invalid(c, k, rw, err);
@@ -203,30 +203,30 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 {
 	if (k.k->u64s < BKEY_U64s) {
 		prt_printf(err, "u64s too small (%u < %zu)", k.k->u64s, BKEY_U64s);
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	if (!(bch2_key_types_allowed[type] & (1U << k.k->type))) {
 		prt_printf(err, "invalid key type for btree %s (%s)",
 			   bch2_btree_ids[type], bch2_bkey_types[k.k->type]);
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	if (btree_node_type_is_extents(type) && !bkey_whiteout(k.k)) {
 		if (k.k->size == 0) {
 			prt_printf(err, "size == 0");
-			return -EINVAL;
+			return -BCH_ERR_invalid_bkey;
 		}
 
 		if (k.k->size > k.k->p.offset) {
 			prt_printf(err, "size greater than offset (%u > %llu)",
 			       k.k->size, k.k->p.offset);
-			return -EINVAL;
+			return -BCH_ERR_invalid_bkey;
 		}
 	} else {
 		if (k.k->size) {
 			prt_printf(err, "size != 0");
-			return -EINVAL;
+			return -BCH_ERR_invalid_bkey;
 		}
 	}
 
@@ -234,20 +234,20 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 	    !btree_type_has_snapshots(type) &&
 	    k.k->p.snapshot) {
 		prt_printf(err, "nonzero snapshot");
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	if (type != BKEY_TYPE_btree &&
 	    btree_type_has_snapshots(type) &&
 	    !k.k->p.snapshot) {
 		prt_printf(err, "snapshot == 0");
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	if (type != BKEY_TYPE_btree &&
 	    bkey_eq(k.k->p, POS_MAX)) {
 		prt_printf(err, "key at POS_MAX");
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	return 0;
@@ -266,12 +266,12 @@ int bch2_bkey_in_btree_node(struct btree *b, struct bkey_s_c k,
 {
 	if (bpos_lt(k.k->p, b->data->min_key)) {
 		prt_printf(err, "key before start of btree node");
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	if (bpos_gt(k.k->p, b->data->max_key)) {
 		prt_printf(err, "key past end of btree node");
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	return 0;

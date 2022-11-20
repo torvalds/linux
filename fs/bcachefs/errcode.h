@@ -67,7 +67,45 @@
 	x(BCH_ERR_fsck,			fsck_repair_unimplemented)		\
 	x(BCH_ERR_fsck,			fsck_repair_impossible)			\
 	x(0,				need_snapshot_cleanup)			\
-	x(0,				need_topology_repair)
+	x(0,				need_topology_repair)			\
+	x(EINVAL,			device_state_not_allowed)		\
+	x(EINVAL,			member_info_missing)			\
+	x(EINVAL,			mismatched_block_size)			\
+	x(EINVAL,			block_size_too_small)			\
+	x(EINVAL,			bucket_size_too_small)			\
+	x(EINVAL,			device_size_too_small)			\
+	x(EINVAL,			device_not_a_member_of_filesystem)	\
+	x(EINVAL,			device_has_been_removed)		\
+	x(EINVAL,			device_already_online)			\
+	x(EINVAL,			insufficient_devices_to_start)		\
+	x(EINVAL,			invalid)				\
+	x(BCH_ERR_invalid,		invalid_sb)				\
+	x(BCH_ERR_invalid_sb,		invalid_sb_magic)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_version)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_features)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_too_big)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_csum_type)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_csum)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_block_size)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_uuid)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_too_many_members)		\
+	x(BCH_ERR_invalid_sb,		invalid_sb_dev_idx)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_time_precision)		\
+	x(BCH_ERR_invalid_sb,		invalid_sb_field_size)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_layout)			\
+	x(BCH_ERR_invalid_sb_layout,	invalid_sb_layout_type)			\
+	x(BCH_ERR_invalid_sb_layout,	invalid_sb_layout_nr_superblocks)	\
+	x(BCH_ERR_invalid_sb_layout,	invalid_sb_layout_superblocks_overlap)	\
+	x(BCH_ERR_invalid_sb,		invalid_sb_members_missing)		\
+	x(BCH_ERR_invalid_sb,		invalid_sb_members)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_disk_groups)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_replicas)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_journal)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_journal_seq_blacklist)	\
+	x(BCH_ERR_invalid_sb,		invalid_sb_crypt)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_clean)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_quota)			\
+	x(BCH_ERR_invalid,		invalid_bkey)				\
 
 enum bch_errcode {
 	BCH_ERR_START		= 2048,

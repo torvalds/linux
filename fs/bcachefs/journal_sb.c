@@ -22,7 +22,7 @@ static int bch2_sb_journal_validate(struct bch_sb *sb,
 {
 	struct bch_sb_field_journal *journal = field_to_type(f, journal);
 	struct bch_member *m = bch2_sb_get_members(sb)->members + sb->dev_idx;
-	int ret = -EINVAL;
+	int ret = -BCH_ERR_invalid_sb_journal;
 	unsigned nr;
 	unsigned i;
 	u64 *b;
@@ -105,7 +105,7 @@ static int bch2_sb_journal_v2_validate(struct bch_sb *sb,
 {
 	struct bch_sb_field_journal_v2 *journal = field_to_type(f, journal_v2);
 	struct bch_member *m = bch2_sb_get_members(sb)->members + sb->dev_idx;
-	int ret = -EINVAL;
+	int ret = -BCH_ERR_invalid_sb_journal;
 	unsigned nr;
 	unsigned i;
 	struct u64_range *b;

@@ -85,7 +85,7 @@ int bch2_reflink_v_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	if (bkey_val_bytes(r.k) < sizeof(*r.v)) {
 		prt_printf(err, "incorrect value size (%zu < %zu)",
 		       bkey_val_bytes(r.k), sizeof(*r.v));
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	return bch2_bkey_ptrs_invalid(c, k, rw, err);
@@ -136,7 +136,7 @@ int bch2_indirect_inline_data_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	if (bkey_val_bytes(k.k) < sizeof(struct bch_indirect_inline_data)) {
 		prt_printf(err, "incorrect value size (%zu < %zu)",
 		       bkey_val_bytes(k.k), sizeof(struct bch_indirect_inline_data));
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	return 0;

@@ -33,13 +33,13 @@ int bch2_snapshot_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	if (bkey_gt(k.k->p, POS(0, U32_MAX)) ||
 	    bkey_lt(k.k->p, POS(0, 1))) {
 		prt_printf(err, "bad pos");
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	if (bkey_val_bytes(k.k) != sizeof(struct bch_snapshot)) {
 		prt_printf(err, "bad val size (%zu != %zu)",
 		       bkey_val_bytes(k.k), sizeof(struct bch_snapshot));
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	s = bkey_s_c_to_snapshot(k);
@@ -48,18 +48,18 @@ int bch2_snapshot_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	if (id && id <= k.k->p.offset) {
 		prt_printf(err, "bad parent node (%u <= %llu)",
 		       id, k.k->p.offset);
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	if (le32_to_cpu(s.v->children[0]) < le32_to_cpu(s.v->children[1])) {
 		prt_printf(err, "children not normalized");
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	if (s.v->children[0] &&
 	    s.v->children[0] == s.v->children[1]) {
 		prt_printf(err, "duplicate child nodes");
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	for (i = 0; i < 2; i++) {
@@ -68,7 +68,7 @@ int bch2_snapshot_invalid(const struct bch_fs *c, struct bkey_s_c k,
 		if (id >= k.k->p.offset) {
 			prt_printf(err, "bad child node (%u >= %llu)",
 			       id, k.k->p.offset);
-			return -EINVAL;
+			return -BCH_ERR_invalid_bkey;
 		}
 	}
 
@@ -773,13 +773,13 @@ int bch2_subvolume_invalid(const struct bch_fs *c, struct bkey_s_c k,
 	if (bkey_lt(k.k->p, SUBVOL_POS_MIN) ||
 	    bkey_gt(k.k->p, SUBVOL_POS_MAX)) {
 		prt_printf(err, "invalid pos");
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	if (bkey_val_bytes(k.k) != sizeof(struct bch_subvolume)) {
 		prt_printf(err, "incorrect value size (%zu != %zu)",
 		       bkey_val_bytes(k.k), sizeof(struct bch_subvolume));
-		return -EINVAL;
+		return -BCH_ERR_invalid_bkey;
 	}
 
 	return 0;
