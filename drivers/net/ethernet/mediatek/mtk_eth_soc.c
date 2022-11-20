@@ -4147,13 +4147,13 @@ static int mtk_probe(struct platform_device *pdev)
 						   eth->soc->offload_version, i);
 			if (!eth->ppe[i]) {
 				err = -ENOMEM;
-				goto err_free_dev;
+				goto err_deinit_mdio;
 			}
 		}
 
 		err = mtk_eth_offload_init(eth);
 		if (err)
-			goto err_free_dev;
+			goto err_deinit_mdio;
 	}
 
 	for (i = 0; i < MTK_MAX_DEVS; i++) {
