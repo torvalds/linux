@@ -71,6 +71,7 @@ trace_printk                             # trace_printk__load unexpected error: 
 trace_vprintk                            # trace_vprintk__open_and_load unexpected error: -9                           (?)
 tracing_struct                           # failed to auto-attach: -524                                                 (trampoline)
 trampoline_count                         # prog 'prog1': failed to attach: ERROR: strerror_r(-524)=22                  (trampoline)
+type_cast                                # JIT does not support calling kernel function
 unpriv_bpf_disabled                      # fentry
 user_ringbuf                             # failed to find kernel BTF type ID of '__s390x_sys_prctl': -3                (?)
 verif_stats                              # trace_vprintk__open_and_load unexpected error: -9                           (?)
