@@ -199,6 +199,7 @@ DEFINE_IDR(btf_idr);
 DEFINE_SPINLOCK(btf_idr_lock);
 
 enum btf_kfunc_hook {
+	BTF_KFUNC_HOOK_COMMON,
 	BTF_KFUNC_HOOK_XDP,
 	BTF_KFUNC_HOOK_TC,
 	BTF_KFUNC_HOOK_STRUCT_OPS,
@@ -5602,6 +5603,26 @@ static int btf_translate_to_vmlinux(struct bpf_verifier_log *log,
 	return kern_ctx_type->type;
 }
 
+int get_kern_ctx_btf_id(struct bpf_verifier_log *log, enum bpf_prog_type prog_type)
+{
+	const struct btf_member *kctx_member;
+	const struct btf_type *conv_struct;
+	const struct btf_type *kctx_type;
+	u32 kctx_type_id;
+
+	conv_struct = bpf_ctx_convert.t;
+	/* get member for kernel ctx type */
+	kctx_member = btf_type_member(conv_struct) + bpf_ctx_convert_map[prog_type] * 2 + 1;
+	kctx_type_id = kctx_member->type;
+	kctx_type = btf_type_by_id(btf_vmlinux, kctx_type_id);
+	if (!btf_type_is_struct(kctx_type)) {
+		bpf_log(log, "kern ctx type id %u is not a struct\n", kctx_type_id);
+		return -EINVAL;
+	}
+
+	return kctx_type_id;
+}
+
 BTF_ID_LIST(bpf_ctx_convert_btf_id)
 BTF_ID(struct, bpf_ctx_convert)
 
@@ -7531,6 +7552,8 @@ static u32 *__btf_kfunc_id_set_contains(const struct btf *btf,
 static int bpf_prog_type_to_kfunc_hook(enum bpf_prog_type prog_type)
 {
 	switch (prog_type) {
+	case BPF_PROG_TYPE_UNSPEC:
+		return BTF_KFUNC_HOOK_COMMON;
 	case BPF_PROG_TYPE_XDP:
 		return BTF_KFUNC_HOOK_XDP;
 	case BPF_PROG_TYPE_SCHED_CLS:
@@ -7559,6 +7582,11 @@ u32 *btf_kfunc_id_set_contains(const struct btf *btf,
 			       u32 kfunc_btf_id)
 {
 	enum btf_kfunc_hook hook;
+	u32 *kfunc_flags;
+
+	kfunc_flags = __btf_kfunc_id_set_contains(btf, BTF_KFUNC_HOOK_COMMON, kfunc_btf_id);
+	if (kfunc_flags)
+		return kfunc_flags;
 
 	hook = bpf_prog_type_to_kfunc_hook(prog_type);
 	return __btf_kfunc_id_set_contains(btf, hook, kfunc_btf_id);

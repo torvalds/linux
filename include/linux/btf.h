@@ -487,6 +487,7 @@ const struct btf_member *
 btf_get_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
 		      const struct btf_type *t, enum bpf_prog_type prog_type,
 		      int arg);
+int get_kern_ctx_btf_id(struct bpf_verifier_log *log, enum bpf_prog_type prog_type);
 bool btf_types_are_same(const struct btf *btf1, u32 id1,
 			const struct btf *btf2, u32 id2);
 #else
@@ -530,6 +531,10 @@ btf_get_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
 		      int arg)
 {
 	return NULL;
+}
+static inline int get_kern_ctx_btf_id(struct bpf_verifier_log *log,
+				      enum bpf_prog_type prog_type) {
+	return -EINVAL;
 }
 static inline bool btf_types_are_same(const struct btf *btf1, u32 id1,
 				      const struct btf *btf2, u32 id2)
