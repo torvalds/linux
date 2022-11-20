@@ -39,6 +39,8 @@ properties:
               - sifive,u5
               - sifive,u7
               - canaan,k210
+              - thead,c906
+              - thead,c910
           - const: riscv
       - items:
           - enum:
