@@ -7846,8 +7846,6 @@ int devlink_health_report(struct devlink_health_reporter *reporter,
 		return -ECANCELED;
 	}
 
-	reporter->health_state = DEVLINK_HEALTH_REPORTER_STATE_ERROR;
-
 	if (reporter->auto_dump) {
 		mutex_lock(&reporter->dump_lock);
 		/* store current dump of current error, for later analysis */
