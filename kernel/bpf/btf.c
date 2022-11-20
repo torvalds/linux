@@ -5603,6 +5603,26 @@ static int btf_translate_to_vmlinux(struct bpf_verifier_log *log,
 	return kern_ctx_type->type;
 }
 
+int get_kern_ctx_btf_id(struct bpf_verifier_log *log, enum bpf_prog_type prog_type)
+{
+	const struct btf_member *kctx_member;
+	const struct btf_type *conv_struct;
+	const struct btf_type *kctx_type;
+	u32 kctx_type_id;
+
+	conv_struct = bpf_ctx_convert.t;
+	/* get member for kernel ctx type */
+	kctx_member = btf_type_member(conv_struct) + bpf_ctx_convert_map[prog_type] * 2 + 1;
+	kctx_type_id = kctx_member->type;
+	kctx_type = btf_type_by_id(btf_vmlinux, kctx_type_id);
+	if (!btf_type_is_struct(kctx_type)) {
+		bpf_log(log, "kern ctx type id %u is not a struct\n", kctx_type_id);
+		return -EINVAL;
+	}
+
+	return kctx_type_id;
+}
+
 BTF_ID_LIST(bpf_ctx_convert_btf_id)
 BTF_ID(struct, bpf_ctx_convert)
 

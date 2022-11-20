@@ -1879,6 +1879,11 @@ void bpf_task_release(struct task_struct *p)
 	put_task_struct_rcu_user(p);
 }
 
+void *bpf_cast_to_kern_ctx(void *obj)
+{
+	return obj;
+}
+
 __diag_pop();
 
 BTF_SET8_START(generic_btf_ids)
@@ -1907,6 +1912,7 @@ BTF_ID(struct, task_struct)
 BTF_ID(func, bpf_task_release)
 
 BTF_SET8_START(common_btf_ids)
+BTF_ID_FLAGS(func, bpf_cast_to_kern_ctx)
 BTF_SET8_END(common_btf_ids)
 
 static const struct btf_kfunc_id_set common_kfunc_set = {
