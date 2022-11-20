@@ -1802,11 +1802,6 @@ err_unpin:
 	else
 		bpf_object__unpin_programs(obj, pinfile);
 err_close_obj:
-	if (!legacy_libbpf) {
-		p_info("Warning: bpftool is now running in libbpf strict mode and has more stringent requirements about BPF programs.\n"
-		       "If it used to work for this object file but now doesn't, see --legacy option for more details.\n");
-	}
-
 	bpf_object__close(obj);
 err_free_reuse_maps:
 	for (i = 0; i < old_map_fds; i++)

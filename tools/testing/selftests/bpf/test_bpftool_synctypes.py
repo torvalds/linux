@@ -309,11 +309,11 @@ class MainHeaderFileExtractor(SourceFileExtractor):
         commands), which looks to the lists of options in other source files
         but has different start and end markers:
 
-            "OPTIONS := { {-j|--json} [{-p|--pretty}] | {-d|--debug} | {-l|--legacy}"
+            "OPTIONS := { {-j|--json} [{-p|--pretty}] | {-d|--debug}"
 
         Return a set containing all options, such as:
 
-            {'-p', '-d', '--legacy', '--pretty', '--debug', '--json', '-l', '-j'}
+            {'-p', '-d', '--pretty', '--debug', '--json', '-j'}
         """
         start_marker = re.compile(f'"OPTIONS :=')
         pattern = re.compile('([\w-]+) ?(?:\||}[ }\]"])')
@@ -336,7 +336,7 @@ class ManSubstitutionsExtractor(SourceFileExtractor):
 
         Return a set containing all options, such as:
 
-            {'-p', '-d', '--legacy', '--pretty', '--debug', '--json', '-l', '-j'}
+            {'-p', '-d', '--pretty', '--debug', '--json', '-j'}
         """
         start_marker = re.compile('\|COMMON_OPTIONS\| replace:: {')
         pattern = re.compile('\*\*([\w/-]+)\*\*')
