@@ -1472,6 +1472,7 @@ void collapse_pte_mapped_thp(struct mm_struct *mm, unsigned long addr)
 	if (!pmd)
 		goto drop_hpage;
 
+	vm_write_begin(vma);
 	start_pte = pte_offset_map_lock(mm, pmd, haddr, &ptl);
 
 	/* step 1: check all mapped PTEs are to the right huge page */
@@ -1521,6 +1522,7 @@ void collapse_pte_mapped_thp(struct mm_struct *mm, unsigned long addr)
 	ptl = pmd_lock(vma->vm_mm, pmd);
 	_pmd = pmdp_collapse_flush(vma, haddr, pmd);
 	spin_unlock(ptl);
+	vm_write_end(vma);
 	mm_dec_nr_ptes(mm);
 	pte_free(mm, pmd_pgtable(_pmd));
 
@@ -1531,6 +1533,7 @@ drop_hpage:
 
 abort:
 	pte_unmap_unlock(start_pte, ptl);
+	vm_write_end(vma);
 	goto drop_hpage;
 }
 
@@ -1602,10 +1605,12 @@ static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
 		 */
 		if (mmap_write_trylock(mm)) {
 			if (!khugepaged_test_exit(mm)) {
+				vm_write_begin(vma);
 				spinlock_t *ptl = pmd_lock(mm, pmd);
 				/* assume page table is clear */
 				_pmd = pmdp_collapse_flush(vma, addr, pmd);
 				spin_unlock(ptl);
+				vm_write_end(vma);
 				mm_dec_nr_ptes(mm);
 				pte_free(mm, pmd_pgtable(_pmd));
 			}
