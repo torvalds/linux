@@ -3281,7 +3281,7 @@ error_handler_free:
 	return ret;
 }
 
-static int ov08x40_remove(struct i2c_client *client)
+static void ov08x40_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov08x40 *ov08x = to_ov08x40(sd);
@@ -3292,8 +3292,6 @@ static int ov08x40_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops ov08x40_pm_ops = {
