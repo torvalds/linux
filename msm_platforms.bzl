@@ -3,7 +3,7 @@ load(":kalama_tuivm.bzl", "define_kalama_tuivm")
 load(":pineapple.bzl", "define_pineapple")
 load(":pineapple_tuivm.bzl", "define_pineapple_tuivm")
 load("//build/kernel/kleaf:kernel.bzl", "ddk_headers")
-load("//build/bazel_extensions:msm_kernel_extensions.bzl", "define_top_level_rules")
+load("//build:msm_kernel_extensions.bzl", "define_top_level_rules")
 
 def _define_ddk_headers():
     ddk_headers(

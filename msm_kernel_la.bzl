@@ -11,7 +11,7 @@ load(
     "merged_kernel_uapi_headers",
 )
 load(
-    "//build/bazel_extensions:msm_kernel_extensions.bzl",
+    "//build:msm_kernel_extensions.bzl",
     "define_extras",
     "get_build_config_fragments",
     "get_dtb_list",
