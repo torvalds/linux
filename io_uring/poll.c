@@ -116,6 +116,8 @@ static void io_poll_req_insert_locked(struct io_kiocb *req)
 	struct io_hash_table *table = &req->ctx->cancel_table_locked;
 	u32 index = hash_long(req->cqe.user_data, table->hash_bits);
 
+	lockdep_assert_held(&req->ctx->uring_lock);
+
 	hlist_add_head(&req->hash_node, &table->hbs[index].list);
 }
 
@@ -226,6 +228,13 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 			return IOU_POLL_DONE;
 		if (v & IO_POLL_CANCEL_FLAG)
 			return -ECANCELED;
+		/*
+		 * cqe.res contains only events of the first wake up
+		 * and all others are be lost. Redo vfs_poll() to get
+		 * up to date state.
+		 */
+		if ((v & IO_POLL_REF_MASK) != 1)
+			req->cqe.res = 0;
 
 		/* the mask was stashed in __io_poll_execute */
 		if (!req->cqe.res) {
@@ -236,6 +245,8 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 		if ((unlikely(!req->cqe.res)))
 			continue;
 		if (req->apoll_events & EPOLLONESHOT)
+			return IOU_POLL_DONE;
+		if (io_is_uring_fops(req->file))
 			return IOU_POLL_DONE;
 
 		/* multishot, just fill a CQE and proceed */
@@ -255,6 +266,9 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 			if (ret < 0)
 				return ret;
 		}
+
+		/* force the next iteration to vfs_poll() */
+		req->cqe.res = 0;
 
 		/*
 		 * Release all references, retry if someone tried to restart
@@ -394,7 +408,8 @@ static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 	return 1;
 }
 
-static void io_poll_double_prepare(struct io_kiocb *req)
+/* fails only when polling is already completing by the first entry */
+static bool io_poll_double_prepare(struct io_kiocb *req)
 {
 	struct wait_queue_head *head;
 	struct io_poll *poll = io_poll_get_single(req);
@@ -403,20 +418,20 @@ static void io_poll_double_prepare(struct io_kiocb *req)
 	rcu_read_lock();
 	head = smp_load_acquire(&poll->head);
 	/*
-	 * poll arm may not hold ownership and so race with
-	 * io_poll_wake() by modifying req->flags. There is only one
-	 * poll entry queued, serialise with it by taking its head lock.
+	 * poll arm might not hold ownership and so race for req->flags with
+	 * io_poll_wake(). There is only one poll entry queued, serialise with
+	 * it by taking its head lock. As we're still arming the tw hanlder
+	 * is not going to be run, so there are no races with it.
 	 */
-	if (head)
+	if (head) {
 		spin_lock_irq(&head->lock);
-
-	req->flags |= REQ_F_DOUBLE_POLL;
-	if (req->opcode == IORING_OP_POLL_ADD)
-		req->flags |= REQ_F_ASYNC_DATA;
-
-	if (head)
+		req->flags |= REQ_F_DOUBLE_POLL;
+		if (req->opcode == IORING_OP_POLL_ADD)
+			req->flags |= REQ_F_ASYNC_DATA;
 		spin_unlock_irq(&head->lock);
+	}
 	rcu_read_unlock();
+	return !!head;
 }
 
 static void __io_queue_proc(struct io_poll *poll, struct io_poll_table *pt,
@@ -454,7 +469,11 @@ static void __io_queue_proc(struct io_poll *poll, struct io_poll_table *pt,
 		/* mark as double wq entry */
 		wqe_private |= IO_WQE_F_DOUBLE;
 		io_init_poll_iocb(poll, first->events, first->wait.func);
-		io_poll_double_prepare(req);
+		if (!io_poll_double_prepare(req)) {
+			/* the request is completing, just back off */
+			kfree(poll);
+			return;
+		}
 		*poll_ptr = poll;
 	} else {
 		/* fine to modify, there is no poll queued to race with us */

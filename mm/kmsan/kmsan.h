@@ -124,6 +124,8 @@ static __always_inline bool kmsan_in_runtime(void)
 {
 	if ((hardirq_count() >> HARDIRQ_SHIFT) > 1)
 		return true;
+	if (in_nmi())
+		return true;
 	return kmsan_get_context()->kmsan_in_runtime;
 }
 

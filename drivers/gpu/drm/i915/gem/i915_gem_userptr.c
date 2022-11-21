@@ -129,7 +129,7 @@ static void i915_gem_object_userptr_drop_ref(struct drm_i915_gem_object *obj)
 static int i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 {
 	const unsigned long num_pages = obj->base.size >> PAGE_SHIFT;
-	unsigned int max_segment = i915_sg_segment_size();
+	unsigned int max_segment = i915_sg_segment_size(obj->base.dev->dev);
 	struct sg_table *st;
 	unsigned int sg_page_sizes;
 	struct page **pvec;
@@ -428,9 +428,10 @@ probe_range(struct mm_struct *mm, unsigned long addr, unsigned long len)
 {
 	VMA_ITERATOR(vmi, mm, addr);
 	struct vm_area_struct *vma;
+	unsigned long end = addr + len;
 
 	mmap_read_lock(mm);
-	for_each_vma_range(vmi, vma, addr + len) {
+	for_each_vma_range(vmi, vma, end) {
 		/* Check for holes, note that we also update the addr below */
 		if (vma->vm_start > addr)
 			break;
@@ -442,7 +443,7 @@ probe_range(struct mm_struct *mm, unsigned long addr, unsigned long len)
 	}
 	mmap_read_unlock(mm);
 
-	if (vma)
+	if (vma || addr < end)
 		return -EFAULT;
 	return 0;
 }

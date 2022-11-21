@@ -9,6 +9,7 @@
 
 #define DISABLE_BRANCH_PROFILING
 
+#define __NO_FORTIFY
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
