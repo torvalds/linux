@@ -242,8 +242,12 @@ int vpu_process_capture_buffer(struct vpu_inst *inst)
 
 struct vb2_v4l2_buffer *vpu_next_src_buf(struct vpu_inst *inst)
 {
-	struct vb2_v4l2_buffer *src_buf = v4l2_m2m_next_src_buf(inst->fh.m2m_ctx);
+	struct vb2_v4l2_buffer *src_buf = NULL;
 
+	if (!inst->fh.m2m_ctx)
+		return NULL;
+
+	src_buf = v4l2_m2m_next_src_buf(inst->fh.m2m_ctx);
 	if (!src_buf || vpu_get_buffer_state(src_buf) == VPU_BUF_STATE_IDLE)
 		return NULL;
 
@@ -266,7 +270,7 @@ void vpu_skip_frame(struct vpu_inst *inst, int count)
 	enum vb2_buffer_state state;
 	int i = 0;
 
-	if (count <= 0)
+	if (count <= 0 || !inst->fh.m2m_ctx)
 		return;
 
 	while (i < count) {
