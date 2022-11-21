@@ -167,7 +167,7 @@ dsa_devlink_sb_occ_tc_port_bind_get(struct devlink_port *dlp,
 							p_max);
 }
 
-const struct devlink_ops dsa_devlink_ops = {
+static const struct devlink_ops dsa_devlink_ops = {
 	.info_get			= dsa_devlink_info_get,
 	.sb_pool_get			= dsa_devlink_sb_pool_get,
 	.sb_pool_set			= dsa_devlink_sb_pool_set,
@@ -352,4 +352,40 @@ void dsa_port_devlink_teardown(struct dsa_port *dp)
 		ds->ops->port_teardown(ds, dp->index);
 
 	devlink_port_fini(dlp);
+}
+
+void dsa_switch_devlink_register(struct dsa_switch *ds)
+{
+	devlink_register(ds->devlink);
+}
+
+void dsa_switch_devlink_unregister(struct dsa_switch *ds)
+{
+	devlink_unregister(ds->devlink);
+}
+
+int dsa_switch_devlink_alloc(struct dsa_switch *ds)
+{
+	struct dsa_devlink_priv *dl_priv;
+	struct devlink *dl;
+
+	/* Add the switch to devlink before calling setup, so that setup can
+	 * add dpipe tables
+	 */
+	dl = devlink_alloc(&dsa_devlink_ops, sizeof(*dl_priv), ds->dev);
+	if (!dl)
+		return -ENOMEM;
+
+	ds->devlink = dl;
+
+	dl_priv = devlink_priv(ds->devlink);
+	dl_priv->ds = ds;
+
+	return 0;
+}
+
+void dsa_switch_devlink_free(struct dsa_switch *ds)
+{
+	devlink_free(ds->devlink);
+	ds->devlink = NULL;
 }

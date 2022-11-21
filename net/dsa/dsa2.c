@@ -15,7 +15,6 @@
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
-#include <net/devlink.h>
 #include <net/sch_generic.h>
 
 #include "devlink.h"
@@ -627,7 +626,6 @@ static void dsa_switch_teardown_tag_protocol(struct dsa_switch *ds)
 
 static int dsa_switch_setup(struct dsa_switch *ds)
 {
-	struct dsa_devlink_priv *dl_priv;
 	struct device_node *dn;
 	int err;
 
@@ -641,15 +639,9 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 	 */
 	ds->phys_mii_mask |= dsa_user_ports(ds);
 
-	/* Add the switch to devlink before calling setup, so that setup can
-	 * add dpipe tables
-	 */
-	ds->devlink =
-		devlink_alloc(&dsa_devlink_ops, sizeof(*dl_priv), ds->dev);
-	if (!ds->devlink)
-		return -ENOMEM;
-	dl_priv = devlink_priv(ds->devlink);
-	dl_priv->ds = ds;
+	err = dsa_switch_devlink_alloc(ds);
+	if (err)
+		return err;
 
 	err = dsa_switch_register_notifier(ds);
 	if (err)
@@ -682,7 +674,7 @@ static int dsa_switch_setup(struct dsa_switch *ds)
 			goto free_slave_mii_bus;
 	}
 
-	devlink_register(ds->devlink);
+	dsa_switch_devlink_register(ds);
 
 	ds->setup = true;
 	return 0;
@@ -696,8 +688,7 @@ teardown:
 unregister_notifier:
 	dsa_switch_unregister_notifier(ds);
 devlink_free:
-	devlink_free(ds->devlink);
-	ds->devlink = NULL;
+	dsa_switch_devlink_free(ds);
 	return err;
 }
 
@@ -706,7 +697,7 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 	if (!ds->setup)
 		return;
 
-	devlink_unregister(ds->devlink);
+	dsa_switch_devlink_unregister(ds);
 
 	if (ds->slave_mii_bus && ds->ops->phy_read) {
 		mdiobus_unregister(ds->slave_mii_bus);
@@ -721,8 +712,7 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 
 	dsa_switch_unregister_notifier(ds);
 
-	devlink_free(ds->devlink);
-	ds->devlink = NULL;
+	dsa_switch_devlink_free(ds);
 
 	ds->setup = false;
 }
