@@ -2,6 +2,7 @@
 # the core
 obj-$(CONFIG_NET_DSA) += dsa_core.o
 dsa_core-y += \
+	devlink.o \
 	dsa.o \
 	dsa2.o \
 	master.o \
