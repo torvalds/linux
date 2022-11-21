@@ -176,6 +176,11 @@ static inline unsigned int __io_cqring_events(struct io_ring_ctx *ctx)
 	return ctx->cached_cq_tail - READ_ONCE(ctx->rings->cq.head);
 }
 
+static inline unsigned int __io_cqring_events_user(struct io_ring_ctx *ctx)
+{
+	return READ_ONCE(ctx->rings->cq.tail) - READ_ONCE(ctx->rings->cq.head);
+}
+
 static bool io_match_linked(struct io_kiocb *head)
 {
 	struct io_kiocb *req;
@@ -1763,7 +1768,7 @@ int io_poll_issue(struct io_kiocb *req, bool *locked)
 	io_tw_lock(req->ctx, locked);
 	if (unlikely(req->task->flags & PF_EXITING))
 		return -EFAULT;
-	return io_issue_sqe(req, IO_URING_F_NONBLOCK);
+	return io_issue_sqe(req, IO_URING_F_NONBLOCK|IO_URING_F_MULTISHOT);
 }
 
 struct io_wq_work *io_wq_free_work(struct io_wq_work *work)
@@ -2315,7 +2320,7 @@ static inline bool io_has_work(struct io_ring_ctx *ctx)
 static inline bool io_should_wake(struct io_wait_queue *iowq)
 {
 	struct io_ring_ctx *ctx = iowq->ctx;
-	int dist = ctx->cached_cq_tail - (int) iowq->cq_tail;
+	int dist = READ_ONCE(ctx->rings->cq.tail) - (int) iowq->cq_tail;
 
 	/*
 	 * Wake up if we have enough events, or if a timeout occurred since we
@@ -2399,7 +2404,8 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 			return ret;
 		io_cqring_overflow_flush(ctx);
 
-		if (io_cqring_events(ctx) >= min_events)
+		/* if user messes with these they will just get an early return */
+		if (__io_cqring_events_user(ctx) >= min_events)
 			return 0;
 	} while (ret > 0);
 

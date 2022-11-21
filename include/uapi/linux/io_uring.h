@@ -222,7 +222,7 @@ enum io_uring_op {
 
 /*
  * sqe->uring_cmd_flags
- * IORING_URING_CMD_FIXED	use registered buffer; pass thig flag
+ * IORING_URING_CMD_FIXED	use registered buffer; pass this flag
  *				along with setting sqe->buf_index.
  */
 #define IORING_URING_CMD_FIXED	(1U << 0)

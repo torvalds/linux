@@ -203,7 +203,7 @@ static int lan9662_otp_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id lan9662_otp_match[] = {
-	{ .compatible = "microchip,lan9662-otp", },
+	{ .compatible = "microchip,lan9662-otpc", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, lan9662_otp_match);
