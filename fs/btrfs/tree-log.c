@@ -3694,15 +3694,29 @@ static int process_dir_items_leaf(struct btrfs_trans_handle *trans,
 				  u64 *last_old_dentry_offset)
 {
 	struct btrfs_root *log = inode->root->log_root;
-	struct extent_buffer *src = path->nodes[0];
-	const int nritems = btrfs_header_nritems(src);
+	struct extent_buffer *src;
+	const int nritems = btrfs_header_nritems(path->nodes[0]);
 	const u64 ino = btrfs_ino(inode);
 	bool last_found = false;
 	int batch_start = 0;
 	int batch_size = 0;
 	int i;
 
-	for (i = path->slots[0]; i < nritems; i++) {
+	/*
+	 * We need to clone the leaf, release the read lock on it, and use the
+	 * clone before modifying the log tree. See the comment at copy_items()
+	 * about why we need to do this.
+	 */
+	src = btrfs_clone_extent_buffer(path->nodes[0]);
+	if (!src)
+		return -ENOMEM;
+
+	i = path->slots[0];
+	btrfs_release_path(path);
+	path->nodes[0] = src;
+	path->slots[0] = i;
+
+	for (; i < nritems; i++) {
 		struct btrfs_dir_item *di;
 		struct btrfs_key key;
 		int ret;
@@ -4303,7 +4317,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_root *log = inode->root->log_root;
 	struct btrfs_file_extent_item *extent;
-	struct extent_buffer *src = src_path->nodes[0];
+	struct extent_buffer *src;
 	int ret = 0;
 	struct btrfs_key *ins_keys;
 	u32 *ins_sizes;
@@ -4313,6 +4327,43 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 	int dst_index;
 	const bool skip_csum = (inode->flags & BTRFS_INODE_NODATASUM);
 	const u64 i_size = i_size_read(&inode->vfs_inode);
+
+	/*
+	 * To keep lockdep happy and avoid deadlocks, clone the source leaf and
+	 * use the clone. This is because otherwise we would be changing the log
+	 * tree, to insert items from the subvolume tree or insert csum items,
+	 * while holding a read lock on a leaf from the subvolume tree, which
+	 * creates a nasty lock dependency when COWing log tree nodes/leaves:
+	 *
+	 * 1) Modifying the log tree triggers an extent buffer allocation while
+	 *    holding a write lock on a parent extent buffer from the log tree.
+	 *    Allocating the pages for an extent buffer, or the extent buffer
+	 *    struct, can trigger inode eviction and finally the inode eviction
+	 *    will trigger a release/remove of a delayed node, which requires
+	 *    taking the delayed node's mutex;
+	 *
+	 * 2) Allocating a metadata extent for a log tree can trigger the async
+	 *    reclaim thread and make us wait for it to release enough space and
+	 *    unblock our reservation ticket. The reclaim thread can start
+	 *    flushing delayed items, and that in turn results in the need to
+	 *    lock delayed node mutexes and in the need to write lock extent
+	 *    buffers of a subvolume tree - all this while holding a write lock
+	 *    on the parent extent buffer in the log tree.
+	 *
+	 * So one task in scenario 1) running in parallel with another task in
+	 * scenario 2) could lead to a deadlock, one wanting to lock a delayed
+	 * node mutex while having a read lock on a leaf from the subvolume,
+	 * while the other is holding the delayed node's mutex and wants to
+	 * write lock the same subvolume leaf for flushing delayed items.
+	 */
+	src = btrfs_clone_extent_buffer(src_path->nodes[0]);
+	if (!src)
+		return -ENOMEM;
+
+	i = src_path->slots[0];
+	btrfs_release_path(src_path);
+	src_path->nodes[0] = src;
+	src_path->slots[0] = i;
 
 	ins_data = kmalloc(nr * sizeof(struct btrfs_key) +
 			   nr * sizeof(u32), GFP_NOFS);
