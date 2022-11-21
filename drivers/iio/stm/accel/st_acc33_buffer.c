@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics st_acc33 sensor driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2016 STMicroelectronics Inc.
- *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
- *
- * Licensed under the GPL-2.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -289,7 +288,3 @@ int st_acc33_fifo_setup(struct st_acc33_hw *hw)
 
 	return 0;
 }
-
-MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
-MODULE_DESCRIPTION("STMicroelectronics st_acc33 buffer driver");
-MODULE_LICENSE("GPL v2");
