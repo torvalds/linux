@@ -22,6 +22,7 @@
 #include "master.h"
 #include "port.h"
 #include "slave.h"
+#include "switch.h"
 #include "tag.h"
 
 static DEFINE_MUTEX(dsa2_mutex);

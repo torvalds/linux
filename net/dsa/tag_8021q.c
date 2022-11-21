@@ -9,6 +9,7 @@
 
 #include "dsa_priv.h"
 #include "port.h"
+#include "switch.h"
 #include "tag.h"
 
 /* Binary structure of the fake 12-bit VID field (when the TPID is

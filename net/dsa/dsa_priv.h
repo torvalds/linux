@@ -155,10 +155,6 @@ bool dsa_schedule_work(struct work_struct *work);
 /* netlink.c */
 extern struct rtnl_link_ops dsa_link_ops __read_mostly;
 
-/* switch.c */
-int dsa_switch_register_notifier(struct dsa_switch *ds);
-void dsa_switch_unregister_notifier(struct dsa_switch *ds);
-
 static inline bool dsa_switch_supports_uc_filtering(struct dsa_switch *ds)
 {
 	return ds->ops->port_fdb_add && ds->ops->port_fdb_del &&
