@@ -25,7 +25,7 @@
  * and thus @kobj should have a namespace tag associated with it.  Returns
  * %NULL otherwise.
  */
-const void *kobject_namespace(struct kobject *kobj)
+const void *kobject_namespace(const struct kobject *kobj)
 {
 	const struct kobj_ns_type_operations *ns_ops = kobj_ns_ops(kobj);
 
@@ -1039,7 +1039,7 @@ int kobj_ns_type_registered(enum kobj_ns_type type)
 	return registered;
 }
 
-const struct kobj_ns_type_operations *kobj_child_ns_ops(struct kobject *parent)
+const struct kobj_ns_type_operations *kobj_child_ns_ops(const struct kobject *parent)
 {
 	const struct kobj_ns_type_operations *ops = NULL;
 
@@ -1049,7 +1049,7 @@ const struct kobj_ns_type_operations *kobj_child_ns_ops(struct kobject *parent)
 	return ops;
 }
 
-const struct kobj_ns_type_operations *kobj_ns_ops(struct kobject *kobj)
+const struct kobj_ns_type_operations *kobj_ns_ops(const struct kobject *kobj)
 {
 	return kobj_child_ns_ops(kobj->parent);
 }
