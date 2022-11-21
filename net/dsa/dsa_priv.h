@@ -247,6 +247,8 @@ const struct dsa_device_ops *dsa_tag_driver_get_by_id(int tag_protocol);
 const struct dsa_device_ops *dsa_tag_driver_get_by_name(const char *name);
 void dsa_tag_driver_put(const struct dsa_device_ops *ops);
 
+struct net_device *dsa_dev_to_net_device(struct device *dev);
+
 bool dsa_db_equal(const struct dsa_db *a, const struct dsa_db *b);
 
 bool dsa_schedule_work(struct work_struct *work);

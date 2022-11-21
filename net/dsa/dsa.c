@@ -182,7 +182,6 @@ struct net_device *dsa_dev_to_net_device(struct device *dev)
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(dsa_dev_to_net_device);
 
 /* Determine if we should defer delivery of skb until we have a rx timestamp.
  *
