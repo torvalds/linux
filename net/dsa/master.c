@@ -11,7 +11,7 @@
 #include <linux/netlink.h>
 #include <net/dsa.h>
 
-#include "dsa_priv.h"
+#include "dsa.h"
 #include "master.h"
 #include "port.h"
 #include "tag.h"

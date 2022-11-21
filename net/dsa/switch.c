@@ -12,6 +12,7 @@
 #include <linux/if_vlan.h>
 #include <net/switchdev.h>
 
+#include "dsa.h"
 #include "dsa_priv.h"
 #include "port.h"
 #include "slave.h"

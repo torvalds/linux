@@ -43,11 +43,6 @@ struct dsa_standalone_event_work {
 	u16 vid;
 };
 
-/* dsa.c */
-bool dsa_db_equal(const struct dsa_db *a, const struct dsa_db *b);
-
-bool dsa_schedule_work(struct work_struct *work);
-
 /* netlink.c */
 extern struct rtnl_link_ops dsa_link_ops __read_mostly;
 
@@ -65,33 +60,10 @@ static inline bool dsa_switch_supports_mc_filtering(struct dsa_switch *ds)
 	       !ds->needs_standalone_vlan_filtering;
 }
 
-/* dsa2.c */
-void dsa_lag_map(struct dsa_switch_tree *dst, struct dsa_lag *lag);
-void dsa_lag_unmap(struct dsa_switch_tree *dst, struct dsa_lag *lag);
-struct dsa_lag *dsa_tree_lag_find(struct dsa_switch_tree *dst,
-				  const struct net_device *lag_dev);
-struct net_device *dsa_tree_find_first_master(struct dsa_switch_tree *dst);
-int dsa_tree_change_tag_proto(struct dsa_switch_tree *dst,
-			      const struct dsa_device_ops *tag_ops,
-			      const struct dsa_device_ops *old_tag_ops);
-void dsa_tree_master_admin_state_change(struct dsa_switch_tree *dst,
-					struct net_device *master,
-					bool up);
-void dsa_tree_master_oper_state_change(struct dsa_switch_tree *dst,
-				       struct net_device *master,
-				       bool up);
-unsigned int dsa_bridge_num_get(const struct net_device *bridge_dev, int max);
-void dsa_bridge_num_put(const struct net_device *bridge_dev,
-			unsigned int bridge_num);
-struct dsa_bridge *dsa_tree_bridge_find(struct dsa_switch_tree *dst,
-					const struct net_device *br);
-
 /* tag_8021q.c */
 int dsa_switch_tag_8021q_vlan_add(struct dsa_switch *ds,
 				  struct dsa_notifier_tag_8021q_vlan_info *info);
 int dsa_switch_tag_8021q_vlan_del(struct dsa_switch *ds,
 				  struct dsa_notifier_tag_8021q_vlan_info *info);
-
-extern struct list_head dsa_tree_list;
 
 #endif

@@ -3,7 +3,7 @@
 obj-$(CONFIG_NET_DSA) += dsa_core.o
 dsa_core-y += \
 	devlink.o \
-	dsa2.o \
+	dsa.o \
 	master.o \
 	netlink.o \
 	port.o \

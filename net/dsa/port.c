@@ -12,7 +12,7 @@
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 
-#include "dsa_priv.h"
+#include "dsa.h"
 #include "port.h"
 #include "slave.h"
 #include "switch.h"

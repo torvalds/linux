@@ -20,6 +20,7 @@
 #include <net/sch_generic.h>
 
 #include "devlink.h"
+#include "dsa.h"
 #include "dsa_priv.h"
 #include "master.h"
 #include "port.h"
