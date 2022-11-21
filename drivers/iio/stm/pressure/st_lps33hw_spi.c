@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics lps33hw spi driver
  *
- * Copyright 2017 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
+ * Copyright 2017 STMicroelectronics Inc.
  */
 
 #include <linux/spi/spi.h>
@@ -92,6 +92,6 @@ static struct spi_driver st_lps33hw_spi_driver = {
 };
 module_spi_driver(st_lps33hw_spi_driver);
 
-MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics lps33hw spi driver");
 MODULE_LICENSE("GPL v2");

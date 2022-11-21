@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics lps33hw i2c driver
  *
- * Copyright 2017 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
+ * Copyright 2017 STMicroelectronics Inc.
  */
 
 #include <linux/i2c.h>
@@ -86,5 +86,5 @@ static struct i2c_driver st_lps33hw_i2c_driver = {
 module_i2c_driver(st_lps33hw_i2c_driver);
 
 MODULE_DESCRIPTION("STMicroelectronics lps33hw i2c driver");
-MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_LICENSE("GPL v2");
