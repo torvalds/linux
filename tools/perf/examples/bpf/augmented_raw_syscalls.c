@@ -38,23 +38,6 @@ struct __augmented_syscalls__ {
 } __augmented_syscalls__ SEC(".maps");
 
 /*
- * string_args_len: one per syscall arg, 0 means not a string or don't copy it,
- * 		    PATH_MAX for copying everything, any other value to limit
- * 		    it a la 'strace -s strsize'.
- */
-struct syscall {
-	bool	enabled;
-	__u16	string_args_len[6];
-};
-
-struct syscalls {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__type(key, int);
-	__type(value, struct syscall);
-	__uint(max_entries, 512);
-} syscalls SEC(".maps");
-
-/*
  * What to augment at entry?
  *
  * Pointer arg payloads (filenames, etc) passed from userspace to the kernel
