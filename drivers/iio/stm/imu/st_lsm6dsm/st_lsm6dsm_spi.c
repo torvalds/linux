@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics lsm6dsm spi driver
  *
- * Copyright 2016 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Denis Ciocca <denis.ciocca@st.com>
+ * Copyright 2016 STMicroelectronics Inc.
  */
 
 #include <linux/kernel.h>
@@ -193,6 +193,6 @@ static struct spi_driver st_lsm6dsm_driver = {
 };
 module_spi_driver(st_lsm6dsm_driver);
 
-MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics lsm6dsm spi driver");
 MODULE_LICENSE("GPL v2");

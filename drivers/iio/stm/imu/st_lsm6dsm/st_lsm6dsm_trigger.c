@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics lsm6dsm trigger driver
  *
- * Copyright 2016 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Denis Ciocca <denis.ciocca@st.com>
+ * Copyright 2016 STMicroelectronics Inc.
  */
 
 #include <linux/kernel.h>
@@ -242,7 +242,3 @@ void st_lsm6dsm_deallocate_triggers(struct lsm6dsm_data *cdata)
 		iio_trigger_unregister(cdata->trig[i]);
 }
 EXPORT_SYMBOL(st_lsm6dsm_deallocate_triggers);
-
-MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
-MODULE_DESCRIPTION("STMicroelectronics lsm6dsm trigger driver");
-MODULE_LICENSE("GPL v2");

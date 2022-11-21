@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics lsm6dsm buffer driver
  *
- * Copyright 2016 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Denis Ciocca <denis.ciocca@st.com>
+ * Copyright 2016 STMicroelectronics Inc.
  */
 
 #include <linux/module.h>
@@ -683,7 +683,3 @@ void st_lsm6dsm_deallocate_rings(struct lsm6dsm_data *cdata)
 	iio_triggered_buffer_cleanup(cdata->indio_dev[ST_MASK_ID_ACCEL]);
 	iio_triggered_buffer_cleanup(cdata->indio_dev[ST_MASK_ID_GYRO]);
 }
-
-MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
-MODULE_DESCRIPTION("STMicroelectronics lsm6dsm buffer driver");
-MODULE_LICENSE("GPL v2");

@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics lsm6dsm core driver
  *
- * Copyright 2016 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Denis Ciocca <denis.ciocca@st.com>
+ * Copyright 2016 STMicroelectronics Inc.
  */
 
 #include <linux/kernel.h>
@@ -3444,6 +3444,6 @@ int __maybe_unused st_lsm6dsm_common_resume(struct lsm6dsm_data *cdata)
 EXPORT_SYMBOL(st_lsm6dsm_common_resume);
 #endif /* CONFIG_PM */
 
-MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics lsm6dsm core driver");
 MODULE_LICENSE("GPL v2");

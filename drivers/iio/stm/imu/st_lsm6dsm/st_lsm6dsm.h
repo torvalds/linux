@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics lsm6dsm driver
  *
- * Copyright 2016 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Denis Ciocca <denis.ciocca@st.com>
+ * Copyright 2016 STMicroelectronics Inc.
  */
 
 #ifndef ST_LSM6DSM_H
