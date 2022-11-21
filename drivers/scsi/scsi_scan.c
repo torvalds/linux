@@ -1920,7 +1920,7 @@ static void do_scsi_scan_host(struct Scsi_Host *shost)
 			msleep(10);
 	} else {
 		scsi_scan_host_selected(shost, SCAN_WILD_CARD, SCAN_WILD_CARD,
-				SCAN_WILD_CARD, 0);
+				SCAN_WILD_CARD, SCSI_SCAN_INITIAL);
 	}
 }
 
