@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics stts22h temperature driver
  *
- * Copyright 2021 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Mario Tesi <mario.tesi@st.com>
+ * Copyright 2021 STMicroelectronics Inc.
  */
 
 #ifndef ST_STTS22H_H
