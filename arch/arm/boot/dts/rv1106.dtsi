@@ -815,6 +815,7 @@
 		resets = <&cru SRST_P_ACODEC>;
 		reset-names = "acodec-reset";
 		acodec,micbias;
+		init-mic-gain = <0x22>; /* Left:20dB Right:20dB */
 		status = "disabled";
 	};
 
