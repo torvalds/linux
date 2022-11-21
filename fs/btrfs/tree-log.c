@@ -365,11 +365,25 @@ static int process_one_buffer(struct btrfs_root *log,
 	return ret;
 }
 
-static int do_overwrite_item(struct btrfs_trans_handle *trans,
-			     struct btrfs_root *root,
-			     struct btrfs_path *path,
-			     struct extent_buffer *eb, int slot,
-			     struct btrfs_key *key)
+/*
+ * Item overwrite used by replay and tree logging.  eb, slot and key all refer
+ * to the src data we are copying out.
+ *
+ * root is the tree we are copying into, and path is a scratch
+ * path for use in this function (it should be released on entry and
+ * will be released on exit).
+ *
+ * If the key is already in the destination tree the existing item is
+ * overwritten.  If the existing item isn't big enough, it is extended.
+ * If it is too large, it is truncated.
+ *
+ * If the key isn't in the destination yet, a new item is inserted.
+ */
+static int overwrite_item(struct btrfs_trans_handle *trans,
+			  struct btrfs_root *root,
+			  struct btrfs_path *path,
+			  struct extent_buffer *eb, int slot,
+			  struct btrfs_key *key)
 {
 	int ret;
 	u32 item_size;
@@ -386,22 +400,10 @@ static int do_overwrite_item(struct btrfs_trans_handle *trans,
 	item_size = btrfs_item_size(eb, slot);
 	src_ptr = btrfs_item_ptr_offset(eb, slot);
 
-	/* Our caller must have done a search for the key for us. */
-	ASSERT(path->nodes[0] != NULL);
-
-	/*
-	 * And the slot must point to the exact key or the slot where the key
-	 * should be at (the first item with a key greater than 'key')
-	 */
-	if (path->slots[0] < btrfs_header_nritems(path->nodes[0])) {
-		struct btrfs_key found_key;
-
-		btrfs_item_key_to_cpu(path->nodes[0], &found_key, path->slots[0]);
-		ret = btrfs_comp_cpu_keys(&found_key, key);
-		ASSERT(ret >= 0);
-	} else {
-		ret = 1;
-	}
+	/* Look for the key in the destination tree. */
+	ret = btrfs_search_slot(NULL, root, key, path, 0, 0);
+	if (ret < 0)
+		return ret;
 
 	if (ret == 0) {
 		char *src_copy;
@@ -577,36 +579,6 @@ no_copy:
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 	btrfs_release_path(path);
 	return 0;
-}
-
-/*
- * Item overwrite used by replay and tree logging.  eb, slot and key all refer
- * to the src data we are copying out.
- *
- * root is the tree we are copying into, and path is a scratch
- * path for use in this function (it should be released on entry and
- * will be released on exit).
- *
- * If the key is already in the destination tree the existing item is
- * overwritten.  If the existing item isn't big enough, it is extended.
- * If it is too large, it is truncated.
- *
- * If the key isn't in the destination yet, a new item is inserted.
- */
-static int overwrite_item(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root,
-			  struct btrfs_path *path,
-			  struct extent_buffer *eb, int slot,
-			  struct btrfs_key *key)
-{
-	int ret;
-
-	/* Look for the key in the destination tree. */
-	ret = btrfs_search_slot(NULL, root, key, path, 0, 0);
-	if (ret < 0)
-		return ret;
-
-	return do_overwrite_item(trans, root, path, eb, slot, key);
 }
 
 static int read_alloc_one_name(struct extent_buffer *eb, void *start, int len,
@@ -5406,7 +5378,7 @@ struct btrfs_dir_list {
  *    has a size that doesn't match the sum of the lengths of all the logged
  *    names - this is ok, not a problem, because at log replay time we set the
  *    directory's i_size to the correct value (see replay_one_name() and
- *    do_overwrite_item()).
+ *    overwrite_item()).
  */
 static int log_new_dir_dentries(struct btrfs_trans_handle *trans,
 				struct btrfs_inode *start_inode,
