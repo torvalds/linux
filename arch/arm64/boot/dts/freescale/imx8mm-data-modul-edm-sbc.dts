@@ -46,6 +46,12 @@
 		clock-frequency = <25000000>;
 	};
 
+	clk_xtal32k: clk-xtal32k {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+	};
+
 	panel: panel {
 		backlight = <&backlight>;
 		power-supply = <&reg_panel_vcc>;
@@ -77,12 +83,11 @@
 		enable-active-high;
 	};
 
-	watchdog-gpio {
+	watchdog {
 		/* TPS3813 */
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_watchdog_gpio>;
 		compatible = "linux,wdt-gpio";
-		always-enabled;
 		gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
 		hw_algo = "level";
 		/* Reset triggers in 2..3 seconds */
@@ -114,15 +119,15 @@
 	ddrc_opp_table: opp-table {
 		compatible = "operating-points-v2";
 
-		opp-25M {
+		opp-25000000 {
 			opp-hz = /bits/ 64 <25000000>;
 		};
 
-		opp-100M {
+		opp-100000000 {
 			opp-hz = /bits/ 64 <100000000>;
 		};
 
-		opp-750M {
+		opp-750000000 {
 			opp-hz = /bits/ 64 <750000000>;
 		};
 	};
@@ -183,8 +188,6 @@
 			reset-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <10000>;
 			reset-deassert-us = <10000>;
-			qca,clk-out-frequency = <125000000>;
-			qca,clk-out-strength = <AR803X_STRENGTH_FULL>;
 			qca,keep-pll-enabled;
 			vddio-supply = <&vddio>;
 
@@ -271,6 +274,9 @@
 	pmic: pmic@4b {
 		compatible = "rohm,bd71847";
 		reg = <0x4b>;
+		#clock-cells = <0>;
+		clocks = <&clk_xtal32k 0>;
+		clock-output-names = "clk-32k-out";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pmic>;
 		interrupt-parent = <&gpio1>;
@@ -926,6 +932,10 @@
 	assigned-clock-rates = <22579200>;
 	/* Disabled by default, unless display board plugged in. */
 	status = "disabled";
+};
+
+&snvs_rtc {
+	clocks = <&pmic>;
 };
 
 &uart1 {

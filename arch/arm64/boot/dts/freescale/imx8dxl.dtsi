@@ -59,6 +59,7 @@
 
 		A35_L2: l2-cache0 {
 			compatible = "cache";
+			cache-level = <2>;
 		};
 	};
 
@@ -131,6 +132,12 @@
 			#clock-cells = <2>;
 			clocks = <&xtal32k &xtal24m>;
 			clock-names = "xtal_32KHz", "xtal_24Mhz";
+		};
+
+		scu_gpio: gpio {
+			compatible = "fsl,imx8qxp-sc-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		iomuxc: pinctrl {
