@@ -581,23 +581,14 @@ void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
 		io_eventfd_flush_signal(ctx);
 }
 
-static inline void io_cqring_ev_posted(struct io_ring_ctx *ctx)
-{
-	io_commit_cqring_flush(ctx);
-	io_cqring_wake(ctx);
-}
-
-static inline void __io_cq_unlock_post(struct io_ring_ctx *ctx)
+void io_cq_unlock_post(struct io_ring_ctx *ctx)
 	__releases(ctx->completion_lock)
 {
 	io_commit_cqring(ctx);
 	spin_unlock(&ctx->completion_lock);
-	io_cqring_ev_posted(ctx);
-}
 
-void io_cq_unlock_post(struct io_ring_ctx *ctx)
-{
-	__io_cq_unlock_post(ctx);
+	io_commit_cqring_flush(ctx);
+	io_cqring_wake(ctx);
 }
 
 /* Returns true if there are no backlogged entries after the flush */
@@ -1346,7 +1337,7 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 		if (!(req->flags & REQ_F_CQE_SKIP))
 			__io_fill_cqe_req(ctx, req);
 	}
-	__io_cq_unlock_post(ctx);
+	io_cq_unlock_post(ctx);
 
 	io_free_batch_list(ctx, state->compl_reqs.first);
 	INIT_WQ_LIST(&state->compl_reqs);
