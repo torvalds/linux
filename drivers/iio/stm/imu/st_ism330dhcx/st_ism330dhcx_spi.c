@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics st_ism330dhcx spi driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2020 STMicroelectronics Inc.
- *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -103,6 +102,6 @@ static struct spi_driver st_ism330dhcx_driver = {
 };
 module_spi_driver(st_ism330dhcx_driver);
 
-MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics st_ism330dhcx spi driver");
 MODULE_LICENSE("GPL v2");

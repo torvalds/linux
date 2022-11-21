@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics st_ism330dhcx FIFO buffer library driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2020 STMicroelectronics Inc.
- *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
- *
- * Licensed under the GPL-2.
  */
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -1022,4 +1021,3 @@ int st_ism330dhcx_buffers_setup(struct st_ism330dhcx_hw *hw)
 
 	return devm_iio_trigger_register(hw->dev, sensor->trig);
 }
-

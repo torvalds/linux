@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 st_ism330dhcx-y := st_ism330dhcx_core.o st_ism330dhcx_buffer.o \
 		st_ism330dhcx_shub.o st_ism330dhcx_embfunc.o
 

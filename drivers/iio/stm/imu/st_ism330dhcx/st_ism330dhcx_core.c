@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics st_ism330dhcx sensor driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2020 STMicroelectronics Inc.
- *
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -1874,6 +1873,6 @@ const struct dev_pm_ops st_ism330dhcx_pm_ops = {
 };
 EXPORT_SYMBOL(st_ism330dhcx_pm_ops);
 
-MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics st_ism330dhcx driver");
 MODULE_LICENSE("GPL v2");
