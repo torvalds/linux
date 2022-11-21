@@ -1295,6 +1295,8 @@ struct intel_crtc_state {
 	/* Forward Error correction State */
 	bool fec_enable;
 
+	bool sdp_split_enable;
+
 	/* Pointer to master transcoder in case of tiled displays */
 	enum transcoder master_transcoder;
 
