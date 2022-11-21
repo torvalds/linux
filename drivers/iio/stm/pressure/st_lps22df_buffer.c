@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics lps22df buffer driver
  *
- * Copyright 2021 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Mario Tesi <mario.tesi@st.com>
+ * Copyright 2021 STMicroelectronics Inc.
  */
 
 #include <linux/interrupt.h>
@@ -305,7 +305,3 @@ int st_lps22df_allocate_buffers(struct st_lps22df_hw *hw)
 
 	return 0;
 }
-
-MODULE_DESCRIPTION("STMicroelectronics lps22df buffer driver");
-MODULE_AUTHOR("Mario Tesi <mario.tesi@st.com>");
-MODULE_LICENSE("GPL v2");

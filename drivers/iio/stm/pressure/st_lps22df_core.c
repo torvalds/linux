@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics lps22df driver
  *
- * Copyright 2021 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Mario Tesi <mario.tesi@st.com>
+ * Copyright 2021 STMicroelectronics Inc.
  */
 
 #include <linux/kernel.h>
@@ -457,5 +457,5 @@ int st_lps22df_common_probe(struct device *dev, int irq, const char *name,
 EXPORT_SYMBOL(st_lps22df_common_probe);
 
 MODULE_DESCRIPTION("STMicroelectronics lps22df driver");
-MODULE_AUTHOR("Mario Tesi <mario.tesi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_LICENSE("GPL v2");
