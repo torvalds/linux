@@ -120,7 +120,7 @@ static struct platform_driver pwm_ir_driver = {
 	.probe = pwm_ir_probe,
 	.driver = {
 		.name	= DRIVER_NAME,
-		.of_match_table = of_match_ptr(pwm_ir_of_match),
+		.of_match_table = pwm_ir_of_match,
 	},
 };
 module_platform_driver(pwm_ir_driver);
