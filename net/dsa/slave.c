@@ -24,6 +24,7 @@
 
 #include "dsa_priv.h"
 #include "port.h"
+#include "master.h"
 
 static void dsa_slave_standalone_event_work(struct work_struct *work)
 {

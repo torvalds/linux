@@ -19,6 +19,7 @@
 
 #include "devlink.h"
 #include "dsa_priv.h"
+#include "master.h"
 #include "port.h"
 
 static DEFINE_MUTEX(dsa2_mutex);
