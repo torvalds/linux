@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics lsm6ds3 trigger driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2014-2016 STMicroelectronics Inc.
- *
- * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -209,7 +208,3 @@ void st_lsm6ds3_deallocate_triggers(struct lsm6ds3_data *cdata)
 		iio_trigger_unregister(cdata->trig[i]);
 }
 EXPORT_SYMBOL(st_lsm6ds3_deallocate_triggers);
-
-MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
-MODULE_DESCRIPTION("STMicroelectronics lsm6ds3 trigger driver");
-MODULE_LICENSE("GPL v2");

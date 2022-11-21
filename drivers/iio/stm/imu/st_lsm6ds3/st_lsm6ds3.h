@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * STMicroelectronics lsm6ds3 driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2014-2016 STMicroelectronics Inc.
- *
- * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #ifndef ST_LSM6DS3_H
