@@ -8,6 +8,7 @@
 #include <linux/dsa/8021q.h>
 
 #include "dsa_priv.h"
+#include "port.h"
 
 /* Binary structure of the fake 12-bit VID field (when the TPID is
  * ETH_P_DSA_8021Q):

@@ -13,6 +13,7 @@
 #include <net/switchdev.h>
 
 #include "dsa_priv.h"
+#include "port.h"
 
 static unsigned int dsa_switch_fastest_ageing_time(struct dsa_switch *ds,
 						   unsigned int ageing_time)

@@ -13,6 +13,7 @@
 #include <linux/of_net.h>
 
 #include "dsa_priv.h"
+#include "port.h"
 
 /**
  * dsa_port_notify - Notify the switching fabric of changes to a port
