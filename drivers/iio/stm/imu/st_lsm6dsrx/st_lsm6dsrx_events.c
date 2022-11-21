@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * STMicroelectronics st_lsm6dsrx events function sensor driver
+ *
+ * MEMS Software Solutions Team
  *
  * Copyright 2022 STMicroelectronics Inc.
  */

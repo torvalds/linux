@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics st_lsm6dsrx sensor driver
  *
- * Copyright 2021 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Tesi Mario <mario.tesi@st.com>
+ * Copyright 2021 STMicroelectronics Inc.
  */
 
 #include <linux/kernel.h>
@@ -1956,6 +1956,6 @@ const struct dev_pm_ops st_lsm6dsrx_pm_ops = {
 };
 EXPORT_SYMBOL(st_lsm6dsrx_pm_ops);
 
-MODULE_AUTHOR("Mario Tesi <mario.tesi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics st_lsm6dsrx driver");
 MODULE_LICENSE("GPL v2");

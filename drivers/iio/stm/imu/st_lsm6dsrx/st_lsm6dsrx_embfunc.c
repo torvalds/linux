@@ -2,6 +2,8 @@
 /*
  * STMicroelectronics st_lsm6dsrx embedded function sensor driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2022 STMicroelectronics Inc.
  */
 
