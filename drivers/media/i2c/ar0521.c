@@ -14,17 +14,17 @@
 #include <media/v4l2-subdev.h>
 
 /* External clock (extclk) frequencies */
-#define AR0521_EXTCLK_MIN	  (10 * 1000 * 1000)
-#define AR0521_EXTCLK_MAX	  (48 * 1000 * 1000)
+#define AR0521_EXTCLK_MIN		(10 * 1000 * 1000)
+#define AR0521_EXTCLK_MAX		(48 * 1000 * 1000)
 
 /* PLL and PLL2 */
-#define AR0521_PLL_MIN		 (320 * 1000 * 1000)
-#define AR0521_PLL_MAX		(1280 * 1000 * 1000)
+#define AR0521_PLL_MIN			(320 * 1000 * 1000)
+#define AR0521_PLL_MAX			(1280 * 1000 * 1000)
 
 /* Effective pixel sample rate on the pixel array. */
-#define AR0521_PIXEL_CLOCK_RATE	 (184 * 1000 * 1000)
-#define AR0521_PIXEL_CLOCK_MIN	 (168 * 1000 * 1000)
-#define AR0521_PIXEL_CLOCK_MAX	 (414 * 1000 * 1000)
+#define AR0521_PIXEL_CLOCK_RATE		(184 * 1000 * 1000)
+#define AR0521_PIXEL_CLOCK_MIN		(168 * 1000 * 1000)
+#define AR0521_PIXEL_CLOCK_MAX		(414 * 1000 * 1000)
 
 #define AR0521_NATIVE_WIDTH		2604u
 #define AR0521_NATIVE_HEIGHT		1964u
@@ -33,15 +33,15 @@
 #define AR0521_MAX_X_ADDR_END		2603u
 #define AR0521_MAX_Y_ADDR_END		1955u
 
-#define AR0521_WIDTH_MIN	       8u
-#define AR0521_WIDTH_MAX	    2592u
-#define AR0521_HEIGHT_MIN	       8u
-#define AR0521_HEIGHT_MAX	    1944u
+#define AR0521_WIDTH_MIN		8u
+#define AR0521_WIDTH_MAX		2592u
+#define AR0521_HEIGHT_MIN		8u
+#define AR0521_HEIGHT_MAX		1944u
 
-#define AR0521_WIDTH_BLANKING_MIN     572u
-#define AR0521_HEIGHT_BLANKING_MIN     38u /* must be even */
-#define AR0521_TOTAL_HEIGHT_MAX     65535u /* max_frame_length_lines */
-#define AR0521_TOTAL_WIDTH_MAX      65532u /* max_line_length_pck */
+#define AR0521_WIDTH_BLANKING_MIN	572u
+#define AR0521_HEIGHT_BLANKING_MIN	38u /* must be even */
+#define AR0521_TOTAL_HEIGHT_MAX		65535u /* max_frame_length_lines */
+#define AR0521_TOTAL_WIDTH_MAX		65532u /* max_line_length_pck */
 
 #define AR0521_ANA_GAIN_MIN		0x00
 #define AR0521_ANA_GAIN_MAX		0x3f
