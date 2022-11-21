@@ -1556,6 +1556,9 @@ bool dc_validate_boot_timing(const struct dc *dc,
 	if (tg_inst >= dc->res_pool->timing_generator_count)
 		return false;
 
+	if (tg_inst != link->link_enc->preferred_engine)
+		return false;
+
 	tg = dc->res_pool->timing_generators[tg_inst];
 
 	if (!tg->funcs->get_hw_timing)
