@@ -353,7 +353,6 @@ int kgd2kfd_init(void);
 void kgd2kfd_exit(void);
 struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf);
 bool kgd2kfd_device_init(struct kfd_dev *kfd,
-			 struct drm_device *ddev,
 			 const struct kgd2kfd_shared_resources *gpu_resources);
 void kgd2kfd_device_exit(struct kfd_dev *kfd);
 void kgd2kfd_suspend(struct kfd_dev *kfd, bool run_pm);
@@ -381,7 +380,7 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 }
 
 static inline
-bool kgd2kfd_device_init(struct kfd_dev *kfd, struct drm_device *ddev,
+bool kgd2kfd_device_init(struct kfd_dev *kfd,
 				const struct kgd2kfd_shared_resources *gpu_resources)
 {
 	return false;

@@ -101,15 +101,23 @@ static const struct efx_sw_stat_desc efx_sw_stat_desc[] = {
 
 #define EFX_ETHTOOL_SW_STAT_COUNT ARRAY_SIZE(efx_sw_stat_desc)
 
+static const char efx_ethtool_priv_flags_strings[][ETH_GSTRING_LEN] = {
+	"log-tc-errors",
+};
+
+#define EFX_ETHTOOL_PRIV_FLAGS_LOG_TC_ERRS		BIT(0)
+
+#define EFX_ETHTOOL_PRIV_FLAGS_COUNT ARRAY_SIZE(efx_ethtool_priv_flags_strings)
+
 void efx_ethtool_get_drvinfo(struct net_device *net_dev,
 			     struct ethtool_drvinfo *info)
 {
 	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
-	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strscpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
 	efx_mcdi_print_fwver(efx, info->fw_version,
 			     sizeof(info->fw_version));
-	strlcpy(info->bus_info, pci_name(efx->pci_dev), sizeof(info->bus_info));
+	strscpy(info->bus_info, pci_name(efx->pci_dev), sizeof(info->bus_info));
 }
 
 u32 efx_ethtool_get_msglevel(struct net_device *net_dev)
@@ -452,6 +460,8 @@ int efx_ethtool_get_sset_count(struct net_device *net_dev, int string_set)
 		       efx_ptp_describe_stats(efx, NULL);
 	case ETH_SS_TEST:
 		return efx_ethtool_fill_self_tests(efx, NULL, NULL, NULL);
+	case ETH_SS_PRIV_FLAGS:
+		return EFX_ETHTOOL_PRIV_FLAGS_COUNT;
 	default:
 		return -EINVAL;
 	}
@@ -468,7 +478,7 @@ void efx_ethtool_get_strings(struct net_device *net_dev,
 		strings += (efx->type->describe_stats(efx, strings) *
 			    ETH_GSTRING_LEN);
 		for (i = 0; i < EFX_ETHTOOL_SW_STAT_COUNT; i++)
-			strlcpy(strings + i * ETH_GSTRING_LEN,
+			strscpy(strings + i * ETH_GSTRING_LEN,
 				efx_sw_stat_desc[i].name, ETH_GSTRING_LEN);
 		strings += EFX_ETHTOOL_SW_STAT_COUNT * ETH_GSTRING_LEN;
 		strings += (efx_describe_per_queue_stats(efx, strings) *
@@ -478,10 +488,37 @@ void efx_ethtool_get_strings(struct net_device *net_dev,
 	case ETH_SS_TEST:
 		efx_ethtool_fill_self_tests(efx, NULL, strings, NULL);
 		break;
+	case ETH_SS_PRIV_FLAGS:
+		for (i = 0; i < EFX_ETHTOOL_PRIV_FLAGS_COUNT; i++)
+			strscpy(strings + i * ETH_GSTRING_LEN,
+				efx_ethtool_priv_flags_strings[i],
+				ETH_GSTRING_LEN);
+		break;
 	default:
 		/* No other string sets */
 		break;
 	}
+}
+
+u32 efx_ethtool_get_priv_flags(struct net_device *net_dev)
+{
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
+	u32 ret_flags = 0;
+
+	if (efx->log_tc_errs)
+		ret_flags |= EFX_ETHTOOL_PRIV_FLAGS_LOG_TC_ERRS;
+
+	return ret_flags;
+}
+
+int efx_ethtool_set_priv_flags(struct net_device *net_dev, u32 flags)
+{
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
+
+	efx->log_tc_errs =
+		!!(flags & EFX_ETHTOOL_PRIV_FLAGS_LOG_TC_ERRS);
+
+	return 0;
 }
 
 void efx_ethtool_get_stats(struct net_device *net_dev,

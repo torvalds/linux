@@ -443,6 +443,67 @@ static struct device_attribute dev_attr_group_traffic_class_b =
 		__ATTR(traffic_class_b, 0644, group_traffic_class_b_show,
 		       group_traffic_class_b_store);
 
+static ssize_t group_desc_progress_limit_show(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct idxd_group *group = confdev_to_group(dev);
+
+	return sysfs_emit(buf, "%d\n", group->desc_progress_limit);
+}
+
+static ssize_t group_desc_progress_limit_store(struct device *dev,
+					       struct device_attribute *attr,
+					       const char *buf, size_t count)
+{
+	struct idxd_group *group = confdev_to_group(dev);
+	int val, rc;
+
+	rc = kstrtoint(buf, 10, &val);
+	if (rc < 0)
+		return -EINVAL;
+
+	if (val & ~GENMASK(1, 0))
+		return -EINVAL;
+
+	group->desc_progress_limit = val;
+	return count;
+}
+
+static struct device_attribute dev_attr_group_desc_progress_limit =
+		__ATTR(desc_progress_limit, 0644, group_desc_progress_limit_show,
+		       group_desc_progress_limit_store);
+
+static ssize_t group_batch_progress_limit_show(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
+{
+	struct idxd_group *group = confdev_to_group(dev);
+
+	return sysfs_emit(buf, "%d\n", group->batch_progress_limit);
+}
+
+static ssize_t group_batch_progress_limit_store(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf, size_t count)
+{
+	struct idxd_group *group = confdev_to_group(dev);
+	int val, rc;
+
+	rc = kstrtoint(buf, 10, &val);
+	if (rc < 0)
+		return -EINVAL;
+
+	if (val & ~GENMASK(1, 0))
+		return -EINVAL;
+
+	group->batch_progress_limit = val;
+	return count;
+}
+
+static struct device_attribute dev_attr_group_batch_progress_limit =
+		__ATTR(batch_progress_limit, 0644, group_batch_progress_limit_show,
+		       group_batch_progress_limit_store);
 static struct attribute *idxd_group_attributes[] = {
 	&dev_attr_group_work_queues.attr,
 	&dev_attr_group_engines.attr,
@@ -454,11 +515,35 @@ static struct attribute *idxd_group_attributes[] = {
 	&dev_attr_group_read_buffers_reserved.attr,
 	&dev_attr_group_traffic_class_a.attr,
 	&dev_attr_group_traffic_class_b.attr,
+	&dev_attr_group_desc_progress_limit.attr,
+	&dev_attr_group_batch_progress_limit.attr,
 	NULL,
 };
 
+static bool idxd_group_attr_progress_limit_invisible(struct attribute *attr,
+						     struct idxd_device *idxd)
+{
+	return (attr == &dev_attr_group_desc_progress_limit.attr ||
+		attr == &dev_attr_group_batch_progress_limit.attr) &&
+		!idxd->hw.group_cap.progress_limit;
+}
+
+static umode_t idxd_group_attr_visible(struct kobject *kobj,
+				       struct attribute *attr, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct idxd_group *group = confdev_to_group(dev);
+	struct idxd_device *idxd = group->idxd;
+
+	if (idxd_group_attr_progress_limit_invisible(attr, idxd))
+		return 0;
+
+	return attr->mode;
+}
+
 static const struct attribute_group idxd_group_attribute_group = {
 	.attrs = idxd_group_attributes,
+	.is_visible = idxd_group_attr_visible,
 };
 
 static const struct attribute_group *idxd_group_attribute_groups[] = {
@@ -973,7 +1058,7 @@ static ssize_t wq_ats_disable_show(struct device *dev, struct device_attribute *
 {
 	struct idxd_wq *wq = confdev_to_wq(dev);
 
-	return sysfs_emit(buf, "%u\n", wq->ats_dis);
+	return sysfs_emit(buf, "%u\n", test_bit(WQ_FLAG_ATS_DISABLE, &wq->flags));
 }
 
 static ssize_t wq_ats_disable_store(struct device *dev, struct device_attribute *attr,
@@ -994,7 +1079,10 @@ static ssize_t wq_ats_disable_store(struct device *dev, struct device_attribute 
 	if (rc < 0)
 		return rc;
 
-	wq->ats_dis = ats_dis;
+	if (ats_dis)
+		set_bit(WQ_FLAG_ATS_DISABLE, &wq->flags);
+	else
+		clear_bit(WQ_FLAG_ATS_DISABLE, &wq->flags);
 
 	return count;
 }
@@ -1055,6 +1143,68 @@ static ssize_t wq_enqcmds_retries_store(struct device *dev, struct device_attrib
 static struct device_attribute dev_attr_wq_enqcmds_retries =
 		__ATTR(enqcmds_retries, 0644, wq_enqcmds_retries_show, wq_enqcmds_retries_store);
 
+static ssize_t wq_op_config_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+
+	return sysfs_emit(buf, "%*pb\n", IDXD_MAX_OPCAP_BITS, wq->opcap_bmap);
+}
+
+static int idxd_verify_supported_opcap(struct idxd_device *idxd, unsigned long *opmask)
+{
+	int bit;
+
+	/*
+	 * The OPCAP is defined as 256 bits that represents each operation the device
+	 * supports per bit. Iterate through all the bits and check if the input mask
+	 * is set for bits that are not set in the OPCAP for the device. If no OPCAP
+	 * bit is set and input mask has the bit set, then return error.
+	 */
+	for_each_set_bit(bit, opmask, IDXD_MAX_OPCAP_BITS) {
+		if (!test_bit(bit, idxd->opcap_bmap))
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static ssize_t wq_op_config_store(struct device *dev, struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct idxd_wq *wq = confdev_to_wq(dev);
+	struct idxd_device *idxd = wq->idxd;
+	unsigned long *opmask;
+	int rc;
+
+	if (wq->state != IDXD_WQ_DISABLED)
+		return -EPERM;
+
+	opmask = bitmap_zalloc(IDXD_MAX_OPCAP_BITS, GFP_KERNEL);
+	if (!opmask)
+		return -ENOMEM;
+
+	rc = bitmap_parse(buf, count, opmask, IDXD_MAX_OPCAP_BITS);
+	if (rc < 0)
+		goto err;
+
+	rc = idxd_verify_supported_opcap(idxd, opmask);
+	if (rc < 0)
+		goto err;
+
+	bitmap_copy(wq->opcap_bmap, opmask, IDXD_MAX_OPCAP_BITS);
+
+	bitmap_free(opmask);
+	return count;
+
+err:
+	bitmap_free(opmask);
+	return rc;
+}
+
+static struct device_attribute dev_attr_wq_op_config =
+		__ATTR(op_config, 0644, wq_op_config_show, wq_op_config_store);
+
 static struct attribute *idxd_wq_attributes[] = {
 	&dev_attr_wq_clients.attr,
 	&dev_attr_wq_state.attr,
@@ -1072,11 +1222,33 @@ static struct attribute *idxd_wq_attributes[] = {
 	&dev_attr_wq_ats_disable.attr,
 	&dev_attr_wq_occupancy.attr,
 	&dev_attr_wq_enqcmds_retries.attr,
+	&dev_attr_wq_op_config.attr,
 	NULL,
 };
 
+static bool idxd_wq_attr_op_config_invisible(struct attribute *attr,
+					     struct idxd_device *idxd)
+{
+	return attr == &dev_attr_wq_op_config.attr &&
+	       !idxd->hw.wq_cap.op_config;
+}
+
+static umode_t idxd_wq_attr_visible(struct kobject *kobj,
+				    struct attribute *attr, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct idxd_wq *wq = confdev_to_wq(dev);
+	struct idxd_device *idxd = wq->idxd;
+
+	if (idxd_wq_attr_op_config_invisible(attr, idxd))
+		return 0;
+
+	return attr->mode;
+}
+
 static const struct attribute_group idxd_wq_attribute_group = {
 	.attrs = idxd_wq_attributes,
+	.is_visible = idxd_wq_attr_visible,
 };
 
 static const struct attribute_group *idxd_wq_attribute_groups[] = {
@@ -1088,6 +1260,7 @@ static void idxd_conf_wq_release(struct device *dev)
 {
 	struct idxd_wq *wq = confdev_to_wq(dev);
 
+	bitmap_free(wq->opcap_bmap);
 	kfree(wq->wqcfg);
 	kfree(wq);
 }
@@ -1177,14 +1350,8 @@ static ssize_t op_cap_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
 	struct idxd_device *idxd = confdev_to_idxd(dev);
-	int i, rc = 0;
 
-	for (i = 0; i < 4; i++)
-		rc += sysfs_emit_at(buf, rc, "%#llx ", idxd->hw.opcap.bits[i]);
-
-	rc--;
-	rc += sysfs_emit_at(buf, rc, "\n");
-	return rc;
+	return sysfs_emit(buf, "%*pb\n", IDXD_MAX_OPCAP_BITS, idxd->opcap_bmap);
 }
 static DEVICE_ATTR_RO(op_cap);
 
@@ -1405,9 +1572,11 @@ static void idxd_conf_device_release(struct device *dev)
 	struct idxd_device *idxd = confdev_to_idxd(dev);
 
 	kfree(idxd->groups);
+	bitmap_free(idxd->wq_enable_map);
 	kfree(idxd->wqs);
 	kfree(idxd->engines);
 	ida_free(&idxd_ida, idxd->id);
+	bitmap_free(idxd->opcap_bmap);
 	kfree(idxd);
 }
 

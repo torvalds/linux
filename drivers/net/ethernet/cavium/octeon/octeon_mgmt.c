@@ -1342,7 +1342,7 @@ static void octeon_mgmt_poll_controller(struct net_device *netdev)
 static void octeon_mgmt_get_drvinfo(struct net_device *netdev,
 				    struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
 }
 
 static int octeon_mgmt_nway_reset(struct net_device *dev)
@@ -1396,8 +1396,8 @@ static int octeon_mgmt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, netdev);
 	p = netdev_priv(netdev);
-	netif_napi_add(netdev, &p->napi, octeon_mgmt_napi_poll,
-		       OCTEON_MGMT_NAPI_WEIGHT);
+	netif_napi_add_weight(netdev, &p->napi, octeon_mgmt_napi_poll,
+			      OCTEON_MGMT_NAPI_WEIGHT);
 
 	p->netdev = netdev;
 	p->dev = &pdev->dev;

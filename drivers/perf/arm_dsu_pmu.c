@@ -639,6 +639,7 @@ static int dsu_pmu_dt_get_cpus(struct device *dev, cpumask_t *mask)
 static int dsu_pmu_acpi_get_cpus(struct device *dev, cpumask_t *mask)
 {
 #ifdef CONFIG_ACPI
+	struct acpi_device *parent_adev = acpi_dev_parent(ACPI_COMPANION(dev));
 	int cpu;
 
 	/*
@@ -653,8 +654,7 @@ static int dsu_pmu_acpi_get_cpus(struct device *dev, cpumask_t *mask)
 			continue;
 
 		acpi_dev = ACPI_COMPANION(cpu_dev);
-		if (acpi_dev &&
-			acpi_dev->parent == ACPI_COMPANION(dev)->parent)
+		if (acpi_dev && acpi_dev_parent(acpi_dev) == parent_adev)
 			cpumask_set_cpu(cpu, mask);
 	}
 #endif

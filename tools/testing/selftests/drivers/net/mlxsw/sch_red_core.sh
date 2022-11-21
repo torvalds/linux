@@ -135,14 +135,16 @@ h2_create()
 	# cause packets to fail to queue up at $swp3 due to shared buffer
 	# quotas, and the test to spuriously fail.
 	#
-	# Prevent this by setting the speed of $h2 to 1Gbps.
+	# Prevent this by adding a shaper which limits the traffic in $h2 to
+	# 1Gbps.
 
-	ethtool -s $h2 speed 1000 autoneg off
+	tc qdisc replace dev $h2 root handle 10: tbf rate 1gbit \
+		burst 128K limit 1G
 }
 
 h2_destroy()
 {
-	ethtool -s $h2 autoneg on
+	tc qdisc del dev $h2 root handle 10:
 	tc qdisc del dev $h2 clsact
 	host_destroy $h2
 }
@@ -150,12 +152,10 @@ h2_destroy()
 h3_create()
 {
 	host_create $h3 3
-	ethtool -s $h3 speed 1000 autoneg off
 }
 
 h3_destroy()
 {
-	ethtool -s $h3 autoneg on
 	host_destroy $h3
 }
 
@@ -199,8 +199,9 @@ switch_create()
 		done
 	done
 
-	for intf in $swp2 $swp3 $swp4 $swp5; do
-		ethtool -s $intf speed 1000 autoneg off
+	for intf in $swp3 $swp4; do
+		tc qdisc replace dev $intf root handle 1: tbf rate 1gbit \
+			burst 128K limit 1G
 	done
 
 	ip link set dev br1_10 up
@@ -220,15 +221,13 @@ switch_destroy()
 
 	devlink_port_pool_th_restore $swp3 8
 
-	tc qdisc del dev $swp3 root 2>/dev/null
-
 	ip link set dev br2_11 down
 	ip link set dev br2_10 down
 	ip link set dev br1_11 down
 	ip link set dev br1_10 down
 
-	for intf in $swp5 $swp4 $swp3 $swp2; do
-		ethtool -s $intf autoneg on
+	for intf in $swp4 $swp3; do
+		tc qdisc del dev $intf root handle 1:
 	done
 
 	for intf in $swp5 $swp3 $swp2 $swp4 $swp1; do
@@ -536,7 +535,7 @@ do_red_test()
 	check_err $? "backlog $backlog / $limit Got $pct% marked packets, expected == 0."
 	local diff=$((limit - backlog))
 	pct=$((100 * diff / limit))
-	((0 <= pct && pct <= 10))
+	((-10 <= pct && pct <= 10))
 	check_err $? "backlog $backlog / $limit expected <= 10% distance"
 	log_test "TC $((vlan - 10)): RED backlog > limit"
 

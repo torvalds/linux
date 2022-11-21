@@ -37,7 +37,6 @@ static const struct nla_policy csum_policy[TCA_CSUM_MAX + 1] = {
 	[TCA_CSUM_PARMS] = { .len = sizeof(struct tc_csum), },
 };
 
-static unsigned int csum_net_id;
 static struct tc_action_ops act_csum_ops;
 
 static int tcf_csum_init(struct net *net, struct nlattr *nla,
@@ -45,7 +44,7 @@ static int tcf_csum_init(struct net *net, struct nlattr *nla,
 			 struct tcf_proto *tp,
 			 u32 flags, struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, csum_net_id);
+	struct tc_action_net *tn = net_generic(net, act_csum_ops.net_id);
 	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct tcf_csum_params *params_new;
 	struct nlattr *tb[TCA_CSUM_MAX + 1];
@@ -673,23 +672,6 @@ static void tcf_csum_cleanup(struct tc_action *a)
 		kfree_rcu(params, rcu);
 }
 
-static int tcf_csum_walker(struct net *net, struct sk_buff *skb,
-			   struct netlink_callback *cb, int type,
-			   const struct tc_action_ops *ops,
-			   struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, csum_net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_csum_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, csum_net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static size_t tcf_csum_get_fill_size(const struct tc_action *act)
 {
 	return nla_total_size(sizeof(struct tc_csum));
@@ -722,8 +704,6 @@ static struct tc_action_ops act_csum_ops = {
 	.dump		= tcf_csum_dump,
 	.init		= tcf_csum_init,
 	.cleanup	= tcf_csum_cleanup,
-	.walk		= tcf_csum_walker,
-	.lookup		= tcf_csum_search,
 	.get_fill_size  = tcf_csum_get_fill_size,
 	.offload_act_setup = tcf_csum_offload_act_setup,
 	.size		= sizeof(struct tcf_csum),
@@ -731,20 +711,20 @@ static struct tc_action_ops act_csum_ops = {
 
 static __net_init int csum_init_net(struct net *net)
 {
-	struct tc_action_net *tn = net_generic(net, csum_net_id);
+	struct tc_action_net *tn = net_generic(net, act_csum_ops.net_id);
 
 	return tc_action_net_init(net, tn, &act_csum_ops);
 }
 
 static void __net_exit csum_exit_net(struct list_head *net_list)
 {
-	tc_action_net_exit(net_list, csum_net_id);
+	tc_action_net_exit(net_list, act_csum_ops.net_id);
 }
 
 static struct pernet_operations csum_net_ops = {
 	.init = csum_init_net,
 	.exit_batch = csum_exit_net,
-	.id   = &csum_net_id,
+	.id   = &act_csum_ops.net_id,
 	.size = sizeof(struct tc_action_net),
 };
 

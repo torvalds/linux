@@ -112,19 +112,16 @@ static void si_dma_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq,
 
 static void si_dma_stop(struct amdgpu_device *adev)
 {
-	struct amdgpu_ring *ring;
 	u32 rb_cntl;
 	unsigned i;
 
+	amdgpu_sdma_unset_buffer_funcs_helper(adev);
+
 	for (i = 0; i < adev->sdma.num_instances; i++) {
-		ring = &adev->sdma.instance[i].ring;
 		/* dma0 */
 		rb_cntl = RREG32(DMA_RB_CNTL + sdma_offsets[i]);
 		rb_cntl &= ~DMA_RB_ENABLE;
 		WREG32(DMA_RB_CNTL + sdma_offsets[i], rb_cntl);
-
-		if (adev->mman.buffer_funcs_ring == ring)
-			amdgpu_ttm_set_buffer_funcs_status(adev, false);
 	}
 }
 

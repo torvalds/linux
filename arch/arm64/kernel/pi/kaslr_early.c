@@ -94,11 +94,9 @@ asmlinkage u64 kaslr_early_init(void *fdt)
 
 	seed = get_kaslr_seed(fdt);
 	if (!seed) {
-#ifdef CONFIG_ARCH_RANDOM
-		 if (!__early_cpu_has_rndr() ||
-		     !__arm64_rndr((unsigned long *)&seed))
-#endif
-		return 0;
+		if (!__early_cpu_has_rndr() ||
+		    !__arm64_rndr((unsigned long *)&seed))
+			return 0;
 	}
 
 	/*

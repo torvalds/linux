@@ -29,6 +29,9 @@
 		ethernet3 = &mscc_felix_port1;
 		ethernet4 = &mscc_felix_port2;
 		ethernet5 = &mscc_felix_port3;
+		ethernet6 = &mscc_felix_port4;
+		ethernet7 = &mscc_felix_port5;
+		ethernet8 = &enetc_port3;
 	};
 
 	chosen {
@@ -148,6 +151,10 @@
 };
 
 &enetc_port2 {
+	status = "okay";
+};
+
+&enetc_port3 {
 	status = "okay";
 };
 
@@ -278,7 +285,10 @@
 };
 
 &mscc_felix_port4 {
-	ethernet = <&enetc_port2>;
+	status = "okay";
+};
+
+&mscc_felix_port5 {
 	status = "okay";
 };
 

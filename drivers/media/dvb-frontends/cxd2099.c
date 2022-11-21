@@ -664,14 +664,12 @@ err:
 	return ret;
 }
 
-static int cxd2099_remove(struct i2c_client *client)
+static void cxd2099_remove(struct i2c_client *client)
 {
 	struct cxd *ci = i2c_get_clientdata(client);
 
 	regmap_exit(ci->regmap);
 	kfree(ci);
-
-	return 0;
 }
 
 static const struct i2c_device_id cxd2099_id[] = {

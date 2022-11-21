@@ -526,43 +526,38 @@ void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _size_byte, u8 *pbuf)
 	Hal_EfuseReadEFuse88E(Adapter, 0, _size_byte, pbuf);
 }
 
-static void dump_chip_info(struct HAL_VERSION chip_vers)
+static void dump_chip_info(struct adapter *adapter, struct HAL_VERSION chip_vers)
 {
-	uint cnt = 0;
-	char buf[128];
-
-	cnt += sprintf((buf + cnt), "Chip Version Info: CHIP_8188E_");
-	cnt += sprintf((buf + cnt), "%s_", IS_NORMAL_CHIP(chip_vers) ?
-		       "Normal_Chip" : "Test_Chip");
-	cnt += sprintf((buf + cnt), "%s_", IS_CHIP_VENDOR_TSMC(chip_vers) ?
-		       "TSMC" : "UMC");
+	struct net_device *netdev = adapter->pnetdev;
+	char *cut = NULL;
+	char buf[25];
 
 	switch (chip_vers.CUTVersion) {
 	case A_CUT_VERSION:
-		cnt += sprintf((buf + cnt), "A_CUT_");
+		cut = "A_CUT";
 		break;
 	case B_CUT_VERSION:
-		cnt += sprintf((buf + cnt), "B_CUT_");
+		cut = "B_CUT";
 		break;
 	case C_CUT_VERSION:
-		cnt += sprintf((buf + cnt), "C_CUT_");
+		cut = "C_CUT";
 		break;
 	case D_CUT_VERSION:
-		cnt += sprintf((buf + cnt), "D_CUT_");
+		cut = "D_CUT";
 		break;
 	case E_CUT_VERSION:
-		cnt += sprintf((buf + cnt), "E_CUT_");
+		cut = "E_CUT";
 		break;
 	default:
-		cnt += sprintf((buf + cnt), "UNKNOWN_CUT(%d)_", chip_vers.CUTVersion);
+		snprintf(buf, sizeof(buf), "UNKNOWN_CUT(%d)", chip_vers.CUTVersion);
+		cut = buf;
 		break;
 	}
 
-	cnt += sprintf((buf + cnt), "1T1R_");
-
-	cnt += sprintf((buf + cnt), "RomVer(%d)\n", 0);
-
-	pr_info("%s", buf);
+	netdev_dbg(netdev, "Chip Version Info: CHIP_8188E_%s_%s_%s_1T1R_RomVer(%d)\n",
+		   IS_NORMAL_CHIP(chip_vers) ? "Normal_Chip" : "Test_Chip",
+		   IS_CHIP_VENDOR_TSMC(chip_vers) ? "TSMC" : "UMC",
+		   cut, 0);
 }
 
 void rtl8188e_read_chip_version(struct adapter *padapter)
@@ -581,7 +576,7 @@ void rtl8188e_read_chip_version(struct adapter *padapter)
 	ChipVersion.VendorType = ((value32 & VENDOR_ID) ? CHIP_VENDOR_UMC : CHIP_VENDOR_TSMC);
 	ChipVersion.CUTVersion = (value32 & CHIP_VER_RTL_MASK) >> CHIP_VER_RTL_SHIFT; /*  IC version (CUT) */
 
-	dump_chip_info(ChipVersion);
+	dump_chip_info(padapter, ChipVersion);
 
 	pHalData->VersionID = ChipVersion;
 }
@@ -688,6 +683,7 @@ Hal_EfuseParseIDCode88E(
 	)
 {
 	struct eeprom_priv *pEEPROM = &padapter->eeprompriv;
+	struct net_device *netdev = padapter->pnetdev;
 	u16			EEPROMId;
 
 	/*  Check 0x8129 again for making sure autoload status!! */
@@ -699,7 +695,7 @@ Hal_EfuseParseIDCode88E(
 		pEEPROM->bautoload_fail_flag = false;
 	}
 
-	pr_info("EEPROM ID = 0x%04x\n", EEPROMId);
+	netdev_dbg(netdev, "EEPROM ID = 0x%04x\n", EEPROMId);
 }
 
 static void Hal_ReadPowerValueFromPROM_8188E(struct txpowerinfo24g *pwrInfo24G, u8 *PROMContent, bool AutoLoadFail)

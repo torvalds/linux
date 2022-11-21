@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/brcm,bcm2711-hdmi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom BCM2711 HDMI Controller Device Tree Bindings
+title: Broadcom BCM2711 HDMI Controller
 
 maintainers:
   - Eric Anholt <eric@anholt.net>

@@ -39,7 +39,12 @@ enum opal_response_token {
 #define FIRST_TPER_SESSION_NUM	4096
 
 #define TPER_SYNC_SUPPORTED 0x01
+/* FC_LOCKING features */
+#define LOCKING_SUPPORTED_MASK 0x01
+#define LOCKING_ENABLED_MASK 0x02
+#define LOCKED_MASK 0x04
 #define MBR_ENABLED_MASK 0x10
+#define MBR_DONE_MASK 0x20
 
 #define TINY_ATOM_DATA_MASK 0x3F
 #define TINY_ATOM_SIGNED 0x40

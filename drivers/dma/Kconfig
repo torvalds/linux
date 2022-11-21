@@ -180,7 +180,7 @@ config DMA_SUN6I
 
 config DW_AXI_DMAC
 	tristate "Synopsys DesignWare AXI DMA support"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on HAS_IOMEM
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS

@@ -906,7 +906,7 @@ static void max310x_break_ctl(struct uart_port *port, int break_state)
 
 static void max310x_set_termios(struct uart_port *port,
 				struct ktermios *termios,
-				struct ktermios *old)
+				const struct ktermios *old)
 {
 	unsigned int lcr = 0, flow = 0;
 	int baud;
@@ -1616,11 +1616,9 @@ static int max310x_i2c_probe(struct i2c_client *client)
 			     regmaps, client->irq);
 }
 
-static int max310x_i2c_remove(struct i2c_client *client)
+static void max310x_i2c_remove(struct i2c_client *client)
 {
 	max310x_remove(&client->dev);
-
-	return 0;
 }
 
 static struct i2c_driver max310x_i2c_driver = {

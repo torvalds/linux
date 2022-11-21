@@ -24,7 +24,7 @@
 #include "priv.h"
 
 static int
-gk104_top_oneinit(struct nvkm_top *top)
+gk104_top_parse(struct nvkm_top *top)
 {
 	struct nvkm_subdev *subdev = &top->subdev;
 	struct nvkm_device *device = subdev->device;
@@ -108,7 +108,7 @@ gk104_top_oneinit(struct nvkm_top *top)
 
 static const struct nvkm_top_func
 gk104_top = {
-	.oneinit = gk104_top_oneinit,
+	.parse = gk104_top_parse,
 };
 
 int

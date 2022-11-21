@@ -873,7 +873,7 @@ int dev_pm_opp_config_clks_simple(struct device *dev,
 		}
 	}
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_config_clks_simple);
 

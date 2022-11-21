@@ -354,7 +354,7 @@ void st_sensors_dev_name_probe(struct device *dev, char *name, int len)
 		return;
 
 	/* The name from the match takes precedence if present */
-	strlcpy(name, match, len);
+	strscpy(name, match, len);
 }
 EXPORT_SYMBOL_NS(st_sensors_dev_name_probe, IIO_ST_SENSORS);
 

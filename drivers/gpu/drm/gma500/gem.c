@@ -112,11 +112,11 @@ static void psb_gem_free_object(struct drm_gem_object *obj)
 {
 	struct psb_gem_object *pobj = to_psb_gem_object(obj);
 
-	drm_gem_object_release(obj);
-
 	/* Undo the mmap pin if we are destroying the object */
 	if (pobj->mmapping)
 		psb_gem_unpin(pobj);
+
+	drm_gem_object_release(obj);
 
 	WARN_ON(pobj->in_gart && !pobj->stolen);
 

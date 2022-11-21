@@ -944,8 +944,8 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 }
 
 static void f81534_set_termios(struct tty_struct *tty,
-				struct usb_serial_port *port,
-				struct ktermios *old_termios)
+			       struct usb_serial_port *port,
+			       const struct ktermios *old_termios)
 {
 	u8 new_lcr = 0;
 	int status;

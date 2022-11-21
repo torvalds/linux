@@ -229,7 +229,7 @@ static int amdgpu_discovery_read_binary_from_file(struct amdgpu_device *adev, ui
 		return r;
 	}
 
-	memcpy((u8 *)binary, (u8 *)fw->data, adev->mman.discovery_tmr_size);
+	memcpy((u8 *)binary, (u8 *)fw->data, fw->size);
 	release_firmware(fw);
 
 	return 0;

@@ -53,8 +53,6 @@
 #include <linux/input/sparse-keymap.h>
 #include <acpi/video.h>
 
-#define MSI_DRIVER_VERSION "0.5"
-
 #define MSI_LCD_LEVEL_MAX 9
 
 #define MSI_EC_COMMAND_WIRELESS 0x10
@@ -592,15 +590,22 @@ static int dmi_check_cb(const struct dmi_system_id *dmi)
 	return 1;
 }
 
+static unsigned long msi_work_delay(int msecs)
+{
+	if (quirks->ec_delay)
+		return msecs_to_jiffies(msecs);
+
+	return 0;
+}
+
 static const struct dmi_system_id msi_dmi_table[] __initconst = {
 	{
 		.ident = "MSI S270",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "MICRO-STAR INT'L CO.,LTD"),
+			DMI_MATCH(DMI_SYS_VENDOR, "MICRO-STAR INT"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MS-1013"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "0131"),
-			DMI_MATCH(DMI_CHASSIS_VENDOR,
-				  "MICRO-STAR INT'L CO.,LTD")
+			DMI_MATCH(DMI_CHASSIS_VENDOR, "MICRO-STAR INT")
 		},
 		.driver_data = &quirk_old_ec_model,
 		.callback = dmi_check_cb
@@ -633,8 +638,7 @@ static const struct dmi_system_id msi_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_SYS_VENDOR, "NOTEBOOK"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "SAM2000"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "0131"),
-			DMI_MATCH(DMI_CHASSIS_VENDOR,
-				  "MICRO-STAR INT'L CO.,LTD")
+			DMI_MATCH(DMI_CHASSIS_VENDOR, "MICRO-STAR INT")
 		},
 		.driver_data = &quirk_old_ec_model,
 		.callback = dmi_check_cb
@@ -705,6 +709,7 @@ static const struct dmi_system_id msi_dmi_table[] __initconst = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(dmi, msi_dmi_table);
 
 static int rfkill_bluetooth_set(void *data, bool blocked)
 {
@@ -785,7 +790,6 @@ static void msi_update_rfkill(struct work_struct *ignored)
 		msi_rfkill_set_state(rfk_threeg, !threeg_s);
 }
 static DECLARE_DELAYED_WORK(msi_rfkill_dwork, msi_update_rfkill);
-static DECLARE_WORK(msi_rfkill_work, msi_update_rfkill);
 
 static void msi_send_touchpad_key(struct work_struct *ignored)
 {
@@ -801,7 +805,6 @@ static void msi_send_touchpad_key(struct work_struct *ignored)
 		KEY_TOUCHPAD_ON : KEY_TOUCHPAD_OFF, 1, true);
 }
 static DECLARE_DELAYED_WORK(msi_touchpad_dwork, msi_send_touchpad_key);
-static DECLARE_WORK(msi_touchpad_work, msi_send_touchpad_key);
 
 static bool msi_laptop_i8042_filter(unsigned char data, unsigned char str,
 				struct serio *port)
@@ -819,20 +822,12 @@ static bool msi_laptop_i8042_filter(unsigned char data, unsigned char str,
 		extended = false;
 		switch (data) {
 		case 0xE4:
-			if (quirks->ec_delay) {
-				schedule_delayed_work(&msi_touchpad_dwork,
-					round_jiffies_relative(0.5 * HZ));
-			} else
-				schedule_work(&msi_touchpad_work);
+			schedule_delayed_work(&msi_touchpad_dwork, msi_work_delay(500));
 			break;
 		case 0x54:
 		case 0x62:
 		case 0x76:
-			if (quirks->ec_delay) {
-				schedule_delayed_work(&msi_rfkill_dwork,
-					round_jiffies_relative(0.5 * HZ));
-			} else
-				schedule_work(&msi_rfkill_work);
+			schedule_delayed_work(&msi_rfkill_dwork, msi_work_delay(500));
 			break;
 		}
 	}
@@ -899,12 +894,7 @@ static int rfkill_init(struct platform_device *sdev)
 	}
 
 	/* schedule to run rfkill state initial */
-	if (quirks->ec_delay) {
-		schedule_delayed_work(&msi_rfkill_init,
-			round_jiffies_relative(1 * HZ));
-	} else
-		schedule_work(&msi_rfkill_work);
-
+	schedule_delayed_work(&msi_rfkill_init, msi_work_delay(1000));
 	return 0;
 
 err_threeg:
@@ -921,8 +911,7 @@ err_bluetooth:
 	return retval;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int msi_laptop_resume(struct device *device)
+static int msi_scm_disable_hw_fn_handling(void)
 {
 	u8 data;
 	int result;
@@ -941,6 +930,12 @@ static int msi_laptop_resume(struct device *device)
 		return result;
 
 	return 0;
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int msi_laptop_resume(struct device *device)
+{
+	return msi_scm_disable_hw_fn_handling();
 }
 #endif
 
@@ -974,7 +969,6 @@ err_free_dev:
 
 static int __init load_scm_model_init(struct platform_device *sdev)
 {
-	u8 data;
 	int result;
 
 	if (!quirks->ec_read_only) {
@@ -988,12 +982,7 @@ static int __init load_scm_model_init(struct platform_device *sdev)
 	}
 
 	/* disable hardware control by fn key */
-	result = ec_read(MSI_STANDARD_EC_SCM_LOAD_ADDRESS, &data);
-	if (result < 0)
-		return result;
-
-	result = ec_write(MSI_STANDARD_EC_SCM_LOAD_ADDRESS,
-		data | MSI_STANDARD_EC_SCM_LOAD_MASK);
+	result = msi_scm_disable_hw_fn_handling();
 	if (result < 0)
 		return result;
 
@@ -1022,9 +1011,19 @@ fail_input:
 	rfkill_cleanup();
 
 fail_rfkill:
-
 	return result;
+}
 
+static void msi_scm_model_exit(void)
+{
+	if (!quirks->load_scm_model)
+		return;
+
+	i8042_remove_filter(msi_laptop_i8042_filter);
+	cancel_delayed_work_sync(&msi_touchpad_dwork);
+	input_unregister_device(msi_laptop_input_dev);
+	cancel_delayed_work_sync(&msi_rfkill_dwork);
+	rfkill_cleanup();
 }
 
 static int __init msi_init(void)
@@ -1048,8 +1047,7 @@ static int __init msi_init(void)
 		return -EINVAL;
 
 	/* Register backlight stuff */
-
-	if (quirks->old_ec_model ||
+	if (quirks->old_ec_model &&
 	    acpi_video_get_backlight_type() == acpi_backlight_vendor) {
 		struct backlight_properties props;
 		memset(&props, 0, sizeof(struct backlight_properties));
@@ -1068,7 +1066,7 @@ static int __init msi_init(void)
 
 	/* Register platform stuff */
 
-	msipf_device = platform_device_alloc("msi-laptop-pf", -1);
+	msipf_device = platform_device_alloc("msi-laptop-pf", PLATFORM_DEVID_NONE);
 	if (!msipf_device) {
 		ret = -ENOMEM;
 		goto fail_platform_driver;
@@ -1108,19 +1106,12 @@ static int __init msi_init(void)
 			set_auto_brightness(auto_brightness);
 	}
 
-	pr_info("driver " MSI_DRIVER_VERSION " successfully loaded\n");
-
 	return 0;
 
 fail_create_attr:
 	sysfs_remove_group(&msipf_device->dev.kobj, &msipf_attribute_group);
 fail_create_group:
-	if (quirks->load_scm_model) {
-		i8042_remove_filter(msi_laptop_i8042_filter);
-		cancel_delayed_work_sync(&msi_rfkill_dwork);
-		cancel_work_sync(&msi_rfkill_work);
-		rfkill_cleanup();
-	}
+	msi_scm_model_exit();
 fail_scm_model_init:
 	platform_device_del(msipf_device);
 fail_device_add:
@@ -1135,14 +1126,7 @@ fail_backlight:
 
 static void __exit msi_cleanup(void)
 {
-	if (quirks->load_scm_model) {
-		i8042_remove_filter(msi_laptop_i8042_filter);
-		input_unregister_device(msi_laptop_input_dev);
-		cancel_delayed_work_sync(&msi_rfkill_dwork);
-		cancel_work_sync(&msi_rfkill_work);
-		rfkill_cleanup();
-	}
-
+	msi_scm_model_exit();
 	sysfs_remove_group(&msipf_device->dev.kobj, &msipf_attribute_group);
 	if (!quirks->old_ec_model && threeg_exists)
 		device_remove_file(&msipf_device->dev, &dev_attr_threeg);
@@ -1155,8 +1139,6 @@ static void __exit msi_cleanup(void)
 		if (auto_brightness != 2)
 			set_auto_brightness(1);
 	}
-
-	pr_info("driver unloaded\n");
 }
 
 module_init(msi_init);
@@ -1164,16 +1146,4 @@ module_exit(msi_cleanup);
 
 MODULE_AUTHOR("Lennart Poettering");
 MODULE_DESCRIPTION("MSI Laptop Support");
-MODULE_VERSION(MSI_DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-MODULE_ALIAS("dmi:*:svnMICRO-STARINT'LCO.,LTD:pnMS-1013:pvr0131*:cvnMICRO-STARINT'LCO.,LTD:ct10:*");
-MODULE_ALIAS("dmi:*:svnMicro-StarInternational:pnMS-1058:pvr0581:rvnMSI:rnMS-1058:*:ct10:*");
-MODULE_ALIAS("dmi:*:svnMicro-StarInternational:pnMS-1412:*:rvnMSI:rnMS-1412:*:cvnMICRO-STARINT'LCO.,LTD:ct10:*");
-MODULE_ALIAS("dmi:*:svnNOTEBOOK:pnSAM2000:pvr0131*:cvnMICRO-STARINT'LCO.,LTD:ct10:*");
-MODULE_ALIAS("dmi:*:svnMICRO-STARINTERNATIONAL*:pnMS-N034:*");
-MODULE_ALIAS("dmi:*:svnMICRO-STARINTERNATIONAL*:pnMS-N051:*");
-MODULE_ALIAS("dmi:*:svnMICRO-STARINTERNATIONAL*:pnMS-N014:*");
-MODULE_ALIAS("dmi:*:svnMicro-StarInternational*:pnCR620:*");
-MODULE_ALIAS("dmi:*:svnMicro-StarInternational*:pnU270series:*");
-MODULE_ALIAS("dmi:*:svnMICRO-STARINTERNATIONAL*:pnU90/U100:*");

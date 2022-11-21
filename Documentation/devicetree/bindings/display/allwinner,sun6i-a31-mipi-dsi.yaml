@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/allwinner,sun6i-a31-mipi-dsi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A31 MIPI-DSI Controller Device Tree Bindings
+title: Allwinner A31 MIPI-DSI Controller
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
@@ -12,9 +12,14 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - allwinner,sun6i-a31-mipi-dsi
-      - allwinner,sun50i-a64-mipi-dsi
+    oneOf:
+      - enum:
+          - allwinner,sun6i-a31-mipi-dsi
+          - allwinner,sun50i-a64-mipi-dsi
+          - allwinner,sun50i-a100-mipi-dsi
+      - items:
+          - const: allwinner,sun20i-d1-mipi-dsi
+          - const: allwinner,sun50i-a100-mipi-dsi
 
   reg:
     maxItems: 1
@@ -59,7 +64,6 @@ required:
   - phys
   - phy-names
   - resets
-  - vcc-dsi-supply
   - port
 
 allOf:
@@ -68,7 +72,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: allwinner,sun6i-a31-mipi-dsi
+            enum:
+              - allwinner,sun6i-a31-mipi-dsi
+              - allwinner,sun50i-a100-mipi-dsi
 
     then:
       properties:
@@ -78,16 +84,22 @@ allOf:
       required:
         - clock-names
 
+    else:
+      properties:
+        clocks:
+          maxItems: 1
+
   - if:
       properties:
         compatible:
           contains:
-            const: allwinner,sun50i-a64-mipi-dsi
+            enum:
+              - allwinner,sun6i-a31-mipi-dsi
+              - allwinner,sun50i-a64-mipi-dsi
 
     then:
-      properties:
-        clocks:
-          minItems: 1
+      required:
+        - vcc-dsi-supply
 
 unevaluatedProperties: false
 

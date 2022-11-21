@@ -421,7 +421,9 @@ static bool soc21_need_full_reset(struct amdgpu_device *adev)
 {
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(11, 0, 0):
+		return amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC);
 	case IP_VERSION(11, 0, 2):
+	case IP_VERSION(11, 0, 3):
 		return false;
 	default:
 		return true;
@@ -582,10 +584,6 @@ static int soc21_common_early_init(void *handle)
 			AMD_PG_SUPPORT_JPEG |
 			AMD_PG_SUPPORT_ATHUB |
 			AMD_PG_SUPPORT_MMHUB;
-		if (amdgpu_sriov_vf(adev)) {
-			adev->cg_flags = 0;
-			adev->pg_flags = 0;
-		}
 		adev->external_rev_id = adev->rev_id + 0x1; // TODO: need update
 		break;
 	case IP_VERSION(11, 0, 2):
@@ -628,26 +626,30 @@ static int soc21_common_early_init(void *handle)
 			AMD_CG_SUPPORT_JPEG_MGCG;
 		adev->pg_flags =
 			AMD_PG_SUPPORT_GFX_PG |
+			AMD_PG_SUPPORT_VCN |
+			AMD_PG_SUPPORT_VCN_DPG |
 			AMD_PG_SUPPORT_JPEG;
 		adev->external_rev_id = adev->rev_id + 0x1;
 		break;
 	case IP_VERSION(11, 0, 3):
 		adev->cg_flags = AMD_CG_SUPPORT_VCN_MGCG |
-			AMD_CG_SUPPORT_JPEG_MGCG;
+			AMD_CG_SUPPORT_JPEG_MGCG |
+			AMD_CG_SUPPORT_GFX_CGCG |
+			AMD_CG_SUPPORT_GFX_CGLS |
+			AMD_CG_SUPPORT_REPEATER_FGCG |
+			AMD_CG_SUPPORT_GFX_MGCG;
 		adev->pg_flags = AMD_PG_SUPPORT_VCN |
 			AMD_PG_SUPPORT_VCN_DPG |
 			AMD_PG_SUPPORT_JPEG;
-		if (amdgpu_sriov_vf(adev)) {
-			/* hypervisor control CG and PG enablement */
-			adev->cg_flags = 0;
-			adev->pg_flags = 0;
-		}
 		adev->external_rev_id = adev->rev_id + 0x20;
 		break;
 	default:
 		/* FIXME: not supported yet */
 		return -EINVAL;
 	}
+
+	if (amdgpu_sriov_vf(adev))
+		amdgpu_virt_init_setting(adev);
 
 	return 0;
 }

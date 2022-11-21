@@ -38,9 +38,6 @@
 #include "irq.h"
 #include "fpu.h"
 
-/* "Hv#1" signature */
-#define HYPERV_CPUID_SIGNATURE_EAX 0x31237648
-
 #define KVM_HV_MAX_SPARSE_VCPU_SET_BITS DIV_ROUND_UP(KVM_MAX_VCPUS, 64)
 
 static void stimer_mark_pending(struct kvm_vcpu_hv_stimer *stimer,
@@ -934,10 +931,13 @@ static void stimer_init(struct kvm_vcpu_hv_stimer *stimer, int timer_index)
 	stimer_prepare_msg(stimer);
 }
 
-static int kvm_hv_vcpu_init(struct kvm_vcpu *vcpu)
+int kvm_hv_vcpu_init(struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu_hv *hv_vcpu;
+	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
 	int i;
+
+	if (hv_vcpu)
+		return 0;
 
 	hv_vcpu = kzalloc(sizeof(struct kvm_vcpu_hv), GFP_KERNEL_ACCOUNT);
 	if (!hv_vcpu)
@@ -962,11 +962,9 @@ int kvm_hv_activate_synic(struct kvm_vcpu *vcpu, bool dont_zero_synic_pages)
 	struct kvm_vcpu_hv_synic *synic;
 	int r;
 
-	if (!to_hv_vcpu(vcpu)) {
-		r = kvm_hv_vcpu_init(vcpu);
-		if (r)
-			return r;
-	}
+	r = kvm_hv_vcpu_init(vcpu);
+	if (r)
+		return r;
 
 	synic = to_hv_synic(vcpu);
 
@@ -1660,10 +1658,8 @@ int kvm_hv_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data, bool host)
 	if (!host && !vcpu->arch.hyperv_enabled)
 		return 1;
 
-	if (!to_hv_vcpu(vcpu)) {
-		if (kvm_hv_vcpu_init(vcpu))
-			return 1;
-	}
+	if (kvm_hv_vcpu_init(vcpu))
+		return 1;
 
 	if (kvm_hv_msr_partition_wide(msr)) {
 		int r;
@@ -1683,10 +1679,8 @@ int kvm_hv_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata, bool host)
 	if (!host && !vcpu->arch.hyperv_enabled)
 		return 1;
 
-	if (!to_hv_vcpu(vcpu)) {
-		if (kvm_hv_vcpu_init(vcpu))
-			return 1;
-	}
+	if (kvm_hv_vcpu_init(vcpu))
+		return 1;
 
 	if (kvm_hv_msr_partition_wide(msr)) {
 		int r;
@@ -1987,49 +1981,49 @@ ret_success:
 	return HV_STATUS_SUCCESS;
 }
 
-void kvm_hv_set_cpuid(struct kvm_vcpu *vcpu)
+void kvm_hv_set_cpuid(struct kvm_vcpu *vcpu, bool hyperv_enabled)
 {
+	struct kvm_vcpu_hv *hv_vcpu = to_hv_vcpu(vcpu);
 	struct kvm_cpuid_entry2 *entry;
-	struct kvm_vcpu_hv *hv_vcpu;
 
-	entry = kvm_find_cpuid_entry(vcpu, HYPERV_CPUID_INTERFACE);
-	if (entry && entry->eax == HYPERV_CPUID_SIGNATURE_EAX) {
-		vcpu->arch.hyperv_enabled = true;
-	} else {
-		vcpu->arch.hyperv_enabled = false;
+	vcpu->arch.hyperv_enabled = hyperv_enabled;
+
+	if (!hv_vcpu) {
+		/*
+		 * KVM should have already allocated kvm_vcpu_hv if Hyper-V is
+		 * enabled in CPUID.
+		 */
+		WARN_ON_ONCE(vcpu->arch.hyperv_enabled);
 		return;
 	}
 
-	if (!to_hv_vcpu(vcpu) && kvm_hv_vcpu_init(vcpu))
-		return;
+	memset(&hv_vcpu->cpuid_cache, 0, sizeof(hv_vcpu->cpuid_cache));
 
-	hv_vcpu = to_hv_vcpu(vcpu);
+	if (!vcpu->arch.hyperv_enabled)
+		return;
 
 	entry = kvm_find_cpuid_entry(vcpu, HYPERV_CPUID_FEATURES);
 	if (entry) {
 		hv_vcpu->cpuid_cache.features_eax = entry->eax;
 		hv_vcpu->cpuid_cache.features_ebx = entry->ebx;
 		hv_vcpu->cpuid_cache.features_edx = entry->edx;
-	} else {
-		hv_vcpu->cpuid_cache.features_eax = 0;
-		hv_vcpu->cpuid_cache.features_ebx = 0;
-		hv_vcpu->cpuid_cache.features_edx = 0;
 	}
 
 	entry = kvm_find_cpuid_entry(vcpu, HYPERV_CPUID_ENLIGHTMENT_INFO);
 	if (entry) {
 		hv_vcpu->cpuid_cache.enlightenments_eax = entry->eax;
 		hv_vcpu->cpuid_cache.enlightenments_ebx = entry->ebx;
-	} else {
-		hv_vcpu->cpuid_cache.enlightenments_eax = 0;
-		hv_vcpu->cpuid_cache.enlightenments_ebx = 0;
 	}
 
 	entry = kvm_find_cpuid_entry(vcpu, HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES);
 	if (entry)
 		hv_vcpu->cpuid_cache.syndbg_cap_eax = entry->eax;
-	else
-		hv_vcpu->cpuid_cache.syndbg_cap_eax = 0;
+
+	entry = kvm_find_cpuid_entry(vcpu, HYPERV_CPUID_NESTED_FEATURES);
+	if (entry) {
+		hv_vcpu->cpuid_cache.nested_eax = entry->eax;
+		hv_vcpu->cpuid_cache.nested_ebx = entry->ebx;
+	}
 }
 
 int kvm_hv_set_enforce_cpuid(struct kvm_vcpu *vcpu, bool enforce)
@@ -2552,7 +2546,7 @@ int kvm_get_hv_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid,
 		case HYPERV_CPUID_NESTED_FEATURES:
 			ent->eax = evmcs_ver;
 			ent->eax |= HV_X64_NESTED_MSR_BITMAP;
-
+			ent->ebx |= HV_X64_NESTED_EVMCS1_PERF_GLOBAL_CTRL;
 			break;
 
 		case HYPERV_CPUID_SYNDBG_VENDOR_AND_MAX_FUNCTIONS:

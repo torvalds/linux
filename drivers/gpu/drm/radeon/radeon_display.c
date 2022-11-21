@@ -1604,8 +1604,6 @@ int radeon_modeset_init(struct radeon_device *rdev)
 
 	rdev->ddev->mode_config.fb_modifiers_not_supported = true;
 
-	rdev->ddev->mode_config.fb_base = rdev->mc.aper_base;
-
 	ret = radeon_modeset_create_props(rdev);
 	if (ret) {
 		return ret;

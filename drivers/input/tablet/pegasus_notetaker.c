@@ -319,7 +319,7 @@ static int pegasus_probe(struct usb_interface *intf,
 	pegasus->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	if (dev->manufacturer)
-		strlcpy(pegasus->name, dev->manufacturer,
+		strscpy(pegasus->name, dev->manufacturer,
 			sizeof(pegasus->name));
 
 	if (dev->product) {

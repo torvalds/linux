@@ -58,7 +58,7 @@
 #include <asm/smp.h>
 #include <asm/mmu_context.h>
 #include <asm/cpcmd.h>
-#include <asm/lowcore.h>
+#include <asm/abs_lowcore.h>
 #include <asm/nmi.h>
 #include <asm/irq.h>
 #include <asm/page.h>
@@ -74,6 +74,7 @@
 #include <asm/alternative.h>
 #include <asm/nospec-branch.h>
 #include <asm/mem_detect.h>
+#include <asm/maccess.h>
 #include <asm/uv.h>
 #include <asm/asm-offsets.h>
 #include "entry.h"
@@ -395,6 +396,7 @@ void __init arch_call_rest_init(void)
 {
 	unsigned long stack;
 
+	smp_reinit_ipl_cpu();
 	stack = stack_alloc();
 	if (!stack)
 		panic("Couldn't allocate kernel stack");
@@ -411,8 +413,9 @@ void __init arch_call_rest_init(void)
 static void __init setup_lowcore_dat_off(void)
 {
 	unsigned long int_psw_mask = PSW_KERNEL_BITS;
+	struct lowcore *abs_lc, *lc;
 	unsigned long mcck_stack;
-	struct lowcore *lc;
+	unsigned long flags;
 
 	if (IS_ENABLED(CONFIG_KASAN))
 		int_psw_mask |= PSW_MASK_DAT;
@@ -474,11 +477,14 @@ static void __init setup_lowcore_dat_off(void)
 	lc->restart_data = 0;
 	lc->restart_source = -1U;
 
-	put_abs_lowcore(restart_stack, lc->restart_stack);
-	put_abs_lowcore(restart_fn, lc->restart_fn);
-	put_abs_lowcore(restart_data, lc->restart_data);
-	put_abs_lowcore(restart_source, lc->restart_source);
-	put_abs_lowcore(restart_psw, lc->restart_psw);
+	abs_lc = get_abs_lowcore(&flags);
+	abs_lc->restart_stack = lc->restart_stack;
+	abs_lc->restart_fn = lc->restart_fn;
+	abs_lc->restart_data = lc->restart_data;
+	abs_lc->restart_source = lc->restart_source;
+	abs_lc->restart_psw = lc->restart_psw;
+	abs_lc->mcesad = lc->mcesad;
+	put_abs_lowcore(abs_lc, flags);
 
 	mcck_stack = (unsigned long)memblock_alloc(THREAD_SIZE, THREAD_SIZE);
 	if (!mcck_stack)
@@ -499,20 +505,25 @@ static void __init setup_lowcore_dat_off(void)
 
 static void __init setup_lowcore_dat_on(void)
 {
-	struct lowcore *lc = lowcore_ptr[0];
-	int cr;
+	struct lowcore *abs_lc;
+	unsigned long flags;
 
 	__ctl_clear_bit(0, 28);
 	S390_lowcore.external_new_psw.mask |= PSW_MASK_DAT;
 	S390_lowcore.svc_new_psw.mask |= PSW_MASK_DAT;
 	S390_lowcore.program_new_psw.mask |= PSW_MASK_DAT;
 	S390_lowcore.io_new_psw.mask |= PSW_MASK_DAT;
-	__ctl_store(S390_lowcore.cregs_save_area, 0, 15);
 	__ctl_set_bit(0, 28);
-	put_abs_lowcore(restart_flags, RESTART_FLAG_CTLREGS);
-	put_abs_lowcore(program_new_psw, lc->program_new_psw);
-	for (cr = 0; cr < ARRAY_SIZE(lc->cregs_save_area); cr++)
-		put_abs_lowcore(cregs_save_area[cr], lc->cregs_save_area[cr]);
+	__ctl_store(S390_lowcore.cregs_save_area, 0, 15);
+	if (abs_lowcore_map(0, lowcore_ptr[0], true))
+		panic("Couldn't setup absolute lowcore");
+	abs_lowcore_mapped = true;
+	abs_lc = get_abs_lowcore(&flags);
+	abs_lc->restart_flags = RESTART_FLAG_CTLREGS;
+	abs_lc->program_new_psw = S390_lowcore.program_new_psw;
+	memcpy(abs_lc->cregs_save_area, S390_lowcore.cregs_save_area,
+	       sizeof(abs_lc->cregs_save_area));
+	put_abs_lowcore(abs_lc, flags);
 }
 
 static struct resource code_resource = {
@@ -1018,10 +1029,10 @@ void __init setup_arch(char **cmdline_p)
 	reserve_crashkernel();
 #ifdef CONFIG_CRASH_DUMP
 	/*
-	 * Be aware that smp_save_dump_cpus() triggers a system reset.
+	 * Be aware that smp_save_dump_secondary_cpus() triggers a system reset.
 	 * Therefore CPU and device initialization should be done afterwards.
 	 */
-	smp_save_dump_cpus();
+	smp_save_dump_secondary_cpus();
 #endif
 
 	setup_resources();
@@ -1040,12 +1051,15 @@ void __init setup_arch(char **cmdline_p)
 	 * Create kernel page tables and switch to virtual addressing.
 	 */
         paging_init();
-
+	memcpy_real_init();
 	/*
 	 * After paging_init created the kernel page table, the new PSWs
 	 * in lowcore can now run with DAT enabled.
 	 */
 	setup_lowcore_dat_on();
+#ifdef CONFIG_CRASH_DUMP
+	smp_save_dump_ipl_cpu();
+#endif
 
         /* Setup default console */
 	conmode_default();

@@ -89,7 +89,8 @@ static void enable_memory_low_power(struct dc *dc)
 		REG_UPDATE(MMHUBBUB_MEM_PWR_CNTL, VGA_MEM_PWR_FORCE, 1);
 	}
 
-	if (dc->debug.enable_mem_low_power.bits.mpc)
+	if (dc->debug.enable_mem_low_power.bits.mpc &&
+		dc->res_pool->mpc->funcs->set_mpc_mem_lp_mode)
 		dc->res_pool->mpc->funcs->set_mpc_mem_lp_mode(dc->res_pool->mpc);
 
 
@@ -141,7 +142,8 @@ void dcn31_init_hw(struct dc *dc)
 
 	if (!dcb->funcs->is_accelerated_mode(dcb)) {
 		hws->funcs.bios_golden_init(dc);
-		hws->funcs.disable_vga(dc->hwseq);
+		if (hws->funcs.disable_vga)
+			hws->funcs.disable_vga(dc->hwseq);
 	}
 	// Initialize the dccg
 	if (res_pool->dccg->funcs->dccg_init)
@@ -535,11 +537,11 @@ static void dcn31_reset_back_end_for_pipe(
 			pipe_ctx->stream_res.tg,
 			OPTC_DSC_DISABLED, 0, 0);
 	pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
-
 	pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
 	if (pipe_ctx->stream_res.tg->funcs->set_odm_bypass)
 		pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
 				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
+	pipe_ctx->stream->link->phy_state.symclk_ref_cnts.otg = 0;
 
 	if (pipe_ctx->stream_res.tg->funcs->set_drr)
 		pipe_ctx->stream_res.tg->funcs->set_drr(
@@ -553,12 +555,9 @@ static void dcn31_reset_back_end_for_pipe(
 		 * screen only, the dpms_off would be true but
 		 * VBIOS lit up eDP, so check link status too.
 		 */
-		if (!pipe_ctx->stream->dpms_off || link->link_status.link_active) {
-			if (dc->hwss.update_phy_state)
-				dc->hwss.update_phy_state(dc->current_state, pipe_ctx, TX_OFF_SYMCLK_OFF);
-			else
-				core_link_disable_stream(pipe_ctx);
-		} else if (pipe_ctx->stream_res.audio)
+		if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
+			core_link_disable_stream(pipe_ctx);
+		else if (pipe_ctx->stream_res.audio)
 			dc->hwss.disable_audio_stream(pipe_ctx);
 
 		/* free acquired resources */

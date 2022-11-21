@@ -15,318 +15,6 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	soc {
-		gsbi@16400000 {
-			status = "okay";
-			qcom,mode = <GSBI_PROT_I2C_UART>;
-			serial@16440000 {
-				status = "okay";
-			};
-		};
-
-		amba {
-			/* eMMC */
-			sdcc1: mmc@12400000 {
-				status = "okay";
-			};
-
-			/* External micro SD card */
-			sdcc3: mmc@12180000 {
-				status = "okay";
-			};
-		};
-
-		rpm@108000 {
-			regulators {
-				compatible = "qcom,rpm-pm8921-regulators";
-				vin_lvs1_3_6-supply = <&pm8921_s4>;
-				vin_lvs2-supply = <&pm8921_s4>;
-				vin_lvs4_5_7-supply = <&pm8921_s4>;
-				vdd_ncp-supply = <&pm8921_l6>;
-				vdd_l1_l2_l12_l18-supply = <&pm8921_s4>;
-				vdd_l21_l23_l29-supply = <&pm8921_s8>;
-				vdd_l24-supply = <&pm8921_s1>;
-				vdd_l25-supply = <&pm8921_s1>;
-				vdd_l27-supply = <&pm8921_s7>;
-				vdd_l28-supply = <&pm8921_s7>;
-
-				/* Buck SMPS */
-				pm8921_s1: s1 {
-					regulator-always-on;
-					regulator-min-microvolt = <1225000>;
-					regulator-max-microvolt = <1225000>;
-					qcom,switch-mode-frequency = <3200000>;
-					bias-pull-down;
-				};
-
-				pm8921_s2: s2 {
-					regulator-min-microvolt = <1300000>;
-					regulator-max-microvolt = <1300000>;
-					qcom,switch-mode-frequency = <1600000>;
-					bias-pull-down;
-				};
-
-				pm8921_s3: s3 {
-					regulator-min-microvolt = <500000>;
-					regulator-max-microvolt = <1150000>;
-					qcom,switch-mode-frequency = <4800000>;
-					bias-pull-down;
-				};
-
-				pm8921_s4: s4 {
-					regulator-always-on;
-					regulator-min-microvolt = <1800000>;
-					regulator-max-microvolt = <1800000>;
-					qcom,switch-mode-frequency = <1600000>;
-					bias-pull-down;
-					qcom,force-mode = <QCOM_RPM_FORCE_MODE_AUTO>;
-				};
-
-				pm8921_s7: s7 {
-					regulator-min-microvolt = <1150000>;
-					regulator-max-microvolt = <1150000>;
-					qcom,switch-mode-frequency = <3200000>;
-					bias-pull-down;
-				};
-
-				pm8921_s8: s8 {
-					regulator-always-on;
-					regulator-min-microvolt = <2050000>;
-					regulator-max-microvolt = <2050000>;
-					qcom,switch-mode-frequency = <1600000>;
-					bias-pull-down;
-				};
-
-				/* PMOS LDO */
-				pm8921_l1: l1 {
-					regulator-always-on;
-					regulator-min-microvolt = <1050000>;
-					regulator-max-microvolt = <1050000>;
-					bias-pull-down;
-				};
-
-				pm8921_l2: l2 {
-					regulator-min-microvolt = <1200000>;
-					regulator-max-microvolt = <1200000>;
-					bias-pull-down;
-				};
-
-				pm8921_l3: l3 {
-					regulator-min-microvolt = <3075000>;
-					regulator-max-microvolt = <3075000>;
-					bias-pull-down;
-				};
-
-				pm8921_l4: l4 {
-					regulator-always-on;
-					regulator-min-microvolt = <1800000>;
-					regulator-max-microvolt = <1800000>;
-					bias-pull-down;
-				};
-
-				pm8921_l5: l5 {
-					regulator-min-microvolt = <2950000>;
-					regulator-max-microvolt = <2950000>;
-					bias-pull-down;
-				};
-
-				pm8921_l6: l6 {
-					regulator-min-microvolt = <2950000>;
-					regulator-max-microvolt = <2950000>;
-					bias-pull-down;
-				};
-
-				pm8921_l7: l7 {
-					regulator-always-on;
-					regulator-min-microvolt = <1850000>;
-					regulator-max-microvolt = <2950000>;
-					bias-pull-down;
-				};
-
-				pm8921_l8: l8 {
-					regulator-min-microvolt = <2800000>;
-					regulator-max-microvolt = <3000000>;
-					bias-pull-down;
-				};
-
-				pm8921_l9: l9 {
-					regulator-min-microvolt = <3000000>;
-					regulator-max-microvolt = <3000000>;
-					bias-pull-down;
-				};
-
-				pm8921_l10: l10 {
-					regulator-min-microvolt = <3000000>;
-					regulator-max-microvolt = <3000000>;
-					bias-pull-down;
-				};
-
-				pm8921_l11: l11 {
-					regulator-min-microvolt = <2850000>;
-					regulator-max-microvolt = <2850000>;
-					bias-pull-down;
-				};
-
-				pm8921_l12: l12 {
-					regulator-min-microvolt = <1200000>;
-					regulator-max-microvolt = <1200000>;
-					bias-pull-down;
-				};
-
-				pm8921_l14: l14 {
-					regulator-min-microvolt = <1800000>;
-					regulator-max-microvolt = <1800000>;
-					bias-pull-down;
-				};
-
-				pm8921_l15: l15 {
-					regulator-min-microvolt = <1800000>;
-					regulator-max-microvolt = <2950000>;
-					bias-pull-down;
-				};
-
-				pm8921_l16: l16 {
-					regulator-min-microvolt = <2800000>;
-					regulator-max-microvolt = <2800000>;
-					bias-pull-down;
-				};
-
-				pm8921_l17: l17 {
-					regulator-min-microvolt = <1800000>;
-					regulator-max-microvolt = <2950000>;
-					bias-pull-down;
-				};
-
-				pm8921_l18: l18 {
-					regulator-min-microvolt = <1300000>;
-					regulator-max-microvolt = <1300000>;
-					bias-pull-down;
-				};
-
-				pm8921_l21: l21 {
-					regulator-min-microvolt = <1900000>;
-					regulator-max-microvolt = <1900000>;
-					bias-pull-down;
-				};
-
-				pm8921_l22: l22 {
-					regulator-min-microvolt = <2750000>;
-					regulator-max-microvolt = <2750000>;
-					bias-pull-down;
-				};
-
-				pm8921_l23: l23 {
-					regulator-always-on;
-					regulator-min-microvolt = <1800000>;
-					regulator-max-microvolt = <1800000>;
-					bias-pull-down;
-				};
-
-				pm8921_l24: l24 {
-					regulator-min-microvolt = <750000>;
-					regulator-max-microvolt = <1150000>;
-					bias-pull-down;
-				};
-
-				pm8921_l25: l25 {
-					regulator-always-on;
-					regulator-min-microvolt = <1250000>;
-					regulator-max-microvolt = <1250000>;
-					bias-pull-down;
-				};
-
-				/* Low Voltage Switch */
-				pm8921_lvs1: lvs1 {
-					bias-pull-down;
-				};
-
-				pm8921_lvs2: lvs2 {
-					bias-pull-down;
-				};
-
-				pm8921_lvs3: lvs3 {
-					bias-pull-down;
-				};
-
-				pm8921_lvs4: lvs4 {
-					bias-pull-down;
-				};
-
-				pm8921_lvs5: lvs5 {
-					bias-pull-down;
-				};
-
-				pm8921_lvs6: lvs6 {
-					bias-pull-down;
-				};
-
-				pm8921_lvs7: lvs7 {
-					bias-pull-down;
-				};
-
-				pm8921_ncp: ncp {
-					regulator-min-microvolt = <1800000>;
-					regulator-max-microvolt = <1800000>;
-					qcom,switch-mode-frequency = <1600000>;
-				};
-			};
-		};
-
-		gsbi@16000000 {
-			status = "okay";
-			qcom,mode = <GSBI_PROT_SPI>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&spi1_default>;
-			spi@16080000 {
-				status = "okay";
-				ethernet@0 {
-					compatible = "micrel,ks8851";
-					reg = <0>;
-					interrupt-parent = <&msmgpio>;
-					interrupts = <90 8>;
-					spi-max-frequency = <5400000>;
-					vdd-supply = <&ext_l2>;
-					vdd-io-supply = <&pm8921_lvs6>;
-					reset-gpios = <&msmgpio 89 0>;
-				};
-			};
-		};
-
-		pinctrl@800000 {
-			spi1_default: spi1_default {
-				mux {
-					pins = "gpio6", "gpio7", "gpio9";
-					function = "gsbi1";
-				};
-
-				mosi {
-					pins = "gpio6";
-					drive-strength = <12>;
-					bias-disable;
-				};
-
-				miso {
-					pins = "gpio7";
-					drive-strength = <12>;
-					bias-disable;
-				};
-
-				cs {
-					pins = "gpio8";
-					drive-strength = <12>;
-					bias-disable;
-					output-low;
-				};
-
-				clk {
-					pins = "gpio9";
-					drive-strength = <12>;
-					bias-disable;
-				};
-			};
-		};
-	};
-
 	regulators {
 		compatible = "simple-bus";
 
@@ -337,6 +25,71 @@
 			startup-delay-us = <10000>;
 			enable-active-high;
 		};
+	};
+};
+
+&gsbi1 {
+	qcom,mode = <GSBI_PROT_SPI>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_default>;
+	status = "okay";
+};
+
+&gsbi1_spi {
+	status = "okay";
+
+	ethernet@0 {
+		compatible = "micrel,ks8851";
+		reg = <0>;
+		interrupt-parent = <&msmgpio>;
+		interrupts = <90 8>;
+		spi-max-frequency = <5400000>;
+		vdd-supply = <&ext_l2>;
+		vdd-io-supply = <&pm8921_lvs6>;
+		reset-gpios = <&msmgpio 89 0>;
+	};
+};
+
+&gsbi5 {
+	qcom,mode = <GSBI_PROT_I2C_UART>;
+	status = "okay";
+};
+
+&gsbi5_serial {
+	status = "okay";
+};
+
+&msmgpio {
+	spi1_default: spi1_default {
+		 mux {
+			pins = "gpio6", "gpio7", "gpio9";
+			function = "gsbi1";
+		 };
+
+		 mosi {
+			pins = "gpio6";
+			drive-strength = <12>;
+			bias-disable;
+		 };
+
+		 miso {
+			pins = "gpio7";
+			drive-strength = <12>;
+			bias-disable;
+		 };
+
+		 cs {
+			pins = "gpio8";
+			drive-strength = <12>;
+			bias-disable;
+			output-low;
+		 };
+
+		 clk {
+			pins = "gpio9";
+			drive-strength = <12>;
+			bias-disable;
+		 };
 	};
 };
 
@@ -351,4 +104,250 @@
 		keypad,num-rows = <1>;
 		keypad,num-columns = <5>;
 	};
+};
+
+&rpm {
+	regulators {
+		compatible = "qcom,rpm-pm8921-regulators";
+		vin_lvs1_3_6-supply = <&pm8921_s4>;
+		vin_lvs2-supply = <&pm8921_s4>;
+		vin_lvs4_5_7-supply = <&pm8921_s4>;
+		vdd_ncp-supply = <&pm8921_l6>;
+		vdd_l1_l2_l12_l18-supply = <&pm8921_s4>;
+		vdd_l21_l23_l29-supply = <&pm8921_s8>;
+		vdd_l24-supply = <&pm8921_s1>;
+		vdd_l25-supply = <&pm8921_s1>;
+		vdd_l27-supply = <&pm8921_s7>;
+		vdd_l28-supply = <&pm8921_s7>;
+
+		/* Buck SMPS */
+		pm8921_s1: s1 {
+			regulator-always-on;
+			regulator-min-microvolt = <1225000>;
+			regulator-max-microvolt = <1225000>;
+			qcom,switch-mode-frequency = <3200000>;
+			bias-pull-down;
+		};
+
+		pm8921_s2: s2 {
+			regulator-min-microvolt = <1300000>;
+			regulator-max-microvolt = <1300000>;
+			qcom,switch-mode-frequency = <1600000>;
+			bias-pull-down;
+		};
+
+		pm8921_s3: s3 {
+			regulator-min-microvolt = <500000>;
+			regulator-max-microvolt = <1150000>;
+			qcom,switch-mode-frequency = <4800000>;
+			bias-pull-down;
+		};
+
+		pm8921_s4: s4 {
+			regulator-always-on;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			qcom,switch-mode-frequency = <1600000>;
+			bias-pull-down;
+			qcom,force-mode = <QCOM_RPM_FORCE_MODE_AUTO>;
+		};
+
+		pm8921_s7: s7 {
+			regulator-min-microvolt = <1150000>;
+			regulator-max-microvolt = <1150000>;
+			qcom,switch-mode-frequency = <3200000>;
+			bias-pull-down;
+		};
+
+		pm8921_s8: s8 {
+			regulator-always-on;
+			regulator-min-microvolt = <2050000>;
+			regulator-max-microvolt = <2050000>;
+			qcom,switch-mode-frequency = <1600000>;
+			bias-pull-down;
+		};
+
+		/* PMOS LDO */
+		pm8921_l1: l1 {
+			regulator-always-on;
+			regulator-min-microvolt = <1050000>;
+			regulator-max-microvolt = <1050000>;
+			bias-pull-down;
+		};
+
+		pm8921_l2: l2 {
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			bias-pull-down;
+		};
+
+		pm8921_l3: l3 {
+			regulator-min-microvolt = <3075000>;
+			regulator-max-microvolt = <3075000>;
+			bias-pull-down;
+		};
+
+		pm8921_l4: l4 {
+			regulator-always-on;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			bias-pull-down;
+		};
+
+		pm8921_l5: l5 {
+			regulator-min-microvolt = <2950000>;
+			regulator-max-microvolt = <2950000>;
+			bias-pull-down;
+		};
+
+		pm8921_l6: l6 {
+			regulator-min-microvolt = <2950000>;
+			regulator-max-microvolt = <2950000>;
+			bias-pull-down;
+		};
+
+		pm8921_l7: l7 {
+			regulator-always-on;
+			regulator-min-microvolt = <1850000>;
+			regulator-max-microvolt = <2950000>;
+			bias-pull-down;
+		};
+
+		pm8921_l8: l8 {
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <3000000>;
+			bias-pull-down;
+		};
+
+		pm8921_l9: l9 {
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			bias-pull-down;
+		};
+
+		pm8921_l10: l10 {
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
+			bias-pull-down;
+		};
+
+		pm8921_l11: l11 {
+			regulator-min-microvolt = <2850000>;
+			regulator-max-microvolt = <2850000>;
+			bias-pull-down;
+		};
+
+		pm8921_l12: l12 {
+			regulator-min-microvolt = <1200000>;
+			regulator-max-microvolt = <1200000>;
+			bias-pull-down;
+		};
+
+		pm8921_l14: l14 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			bias-pull-down;
+		};
+
+		pm8921_l15: l15 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <2950000>;
+			bias-pull-down;
+		};
+
+		pm8921_l16: l16 {
+			regulator-min-microvolt = <2800000>;
+			regulator-max-microvolt = <2800000>;
+			bias-pull-down;
+		};
+
+		pm8921_l17: l17 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <2950000>;
+			bias-pull-down;
+		};
+
+		pm8921_l18: l18 {
+			regulator-min-microvolt = <1300000>;
+			regulator-max-microvolt = <1300000>;
+			bias-pull-down;
+		};
+
+		pm8921_l21: l21 {
+			regulator-min-microvolt = <1900000>;
+			regulator-max-microvolt = <1900000>;
+			bias-pull-down;
+		};
+
+		pm8921_l22: l22 {
+			regulator-min-microvolt = <2750000>;
+			regulator-max-microvolt = <2750000>;
+			bias-pull-down;
+		};
+
+		pm8921_l23: l23 {
+			regulator-always-on;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			bias-pull-down;
+		};
+
+		pm8921_l24: l24 {
+			regulator-min-microvolt = <750000>;
+			regulator-max-microvolt = <1150000>;
+			bias-pull-down;
+		};
+
+		pm8921_l25: l25 {
+			regulator-always-on;
+			regulator-min-microvolt = <1250000>;
+			regulator-max-microvolt = <1250000>;
+			bias-pull-down;
+		};
+
+		/* Low Voltage Switch */
+		pm8921_lvs1: lvs1 {
+			bias-pull-down;
+		};
+
+		pm8921_lvs2: lvs2 {
+			bias-pull-down;
+		};
+
+		pm8921_lvs3: lvs3 {
+			bias-pull-down;
+		};
+
+		pm8921_lvs4: lvs4 {
+			bias-pull-down;
+		};
+
+		pm8921_lvs5: lvs5 {
+			bias-pull-down;
+		};
+
+		pm8921_lvs6: lvs6 {
+			bias-pull-down;
+		};
+
+		pm8921_lvs7: lvs7 {
+			bias-pull-down;
+		};
+
+		pm8921_ncp: ncp {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
+			qcom,switch-mode-frequency = <1600000>;
+		};
+	};
+};
+
+/* eMMC */
+&sdcc1 {
+	status = "okay";
+};
+
+/* External micro SD card */
+&sdcc3 {
+	status = "okay";
 };

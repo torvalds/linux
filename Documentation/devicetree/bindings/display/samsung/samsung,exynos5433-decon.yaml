@@ -24,7 +24,6 @@ properties:
       - samsung,exynos5433-decon-tv
 
   clocks:
-    minItems: 11
     maxItems: 11
 
   clock-names:
@@ -59,7 +58,6 @@ properties:
       - const: te
 
   iommus:
-    minItems: 2
     maxItems: 2
 
   iommu-names:

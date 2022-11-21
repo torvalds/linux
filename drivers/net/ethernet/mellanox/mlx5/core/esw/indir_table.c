@@ -78,12 +78,16 @@ mlx5_esw_indir_table_needed(struct mlx5_eswitch *esw,
 			    struct mlx5_core_dev *dest_mdev)
 {
 	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
+	bool vf_sf_vport;
+
+	vf_sf_vport = mlx5_eswitch_is_vf_vport(esw, vport_num) ||
+		      mlx5_esw_is_sf_vport(esw, vport_num);
 
 	/* Use indirect table for all IP traffic from UL to VF with vport
 	 * destination when source rewrite flag is set.
 	 */
 	return esw_attr->in_rep->vport == MLX5_VPORT_UPLINK &&
-		mlx5_eswitch_is_vf_vport(esw, vport_num) &&
+		vf_sf_vport &&
 		esw->dev == dest_mdev &&
 		attr->ip_version &&
 		attr->flags & MLX5_ATTR_FLAG_SRC_REWRITE;

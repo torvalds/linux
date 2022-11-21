@@ -4,8 +4,10 @@
  */
 
 #include "i915_drv.h"
+#include "i915_pci.h"
 #include "i915_reg.h"
 #include "intel_memory_region.h"
+#include "intel_pci_config.h"
 #include "intel_region_lmem.h"
 #include "intel_region_ttm.h"
 #include "gem/i915_gem_lmem.h"
@@ -45,7 +47,6 @@ _resize_bar(struct drm_i915_private *i915, int resno, resource_size_t size)
 	drm_info(&i915->drm, "BAR%d resized to %dM\n", resno, 1 << bar_size);
 }
 
-#define LMEM_BAR_NUM 2
 static void i915_resize_lmem_bar(struct drm_i915_private *i915, resource_size_t lmem_size)
 {
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
@@ -56,15 +57,14 @@ static void i915_resize_lmem_bar(struct drm_i915_private *i915, resource_size_t 
 	u32 pci_cmd;
 	int i;
 
-	current_size = roundup_pow_of_two(pci_resource_len(pdev, LMEM_BAR_NUM));
+	current_size = roundup_pow_of_two(pci_resource_len(pdev, GEN12_LMEM_BAR));
 
 	if (i915->params.lmem_bar_size) {
 		u32 bar_sizes;
 
 		rebar_size = i915->params.lmem_bar_size *
 			(resource_size_t)SZ_1M;
-		bar_sizes = pci_rebar_get_possible_sizes(pdev,
-							 LMEM_BAR_NUM);
+		bar_sizes = pci_rebar_get_possible_sizes(pdev, GEN12_LMEM_BAR);
 
 		if (rebar_size == current_size)
 			return;
@@ -107,7 +107,7 @@ static void i915_resize_lmem_bar(struct drm_i915_private *i915, resource_size_t 
 	pci_write_config_dword(pdev, PCI_COMMAND,
 			       pci_cmd & ~PCI_COMMAND_MEMORY);
 
-	_resize_bar(i915, LMEM_BAR_NUM, rebar_size);
+	_resize_bar(i915, GEN12_LMEM_BAR, rebar_size);
 
 	pci_assign_unassigned_bus_resources(pdev->bus);
 	pci_write_config_dword(pdev, PCI_COMMAND, pci_cmd);
@@ -202,6 +202,9 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 	if (!IS_DGFX(i915))
 		return ERR_PTR(-ENODEV);
 
+	if (!i915_pci_resource_valid(pdev, GEN12_LMEM_BAR))
+		return ERR_PTR(-ENXIO);
+
 	if (HAS_FLAT_CCS(i915)) {
 		resource_size_t lmem_range;
 		u64 tile_stolen, flat_ccs_base;
@@ -236,8 +239,8 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 				  mul_u32_u32(i915->params.lmem_size, SZ_1M));
 	}
 
-	io_start = pci_resource_start(pdev, 2);
-	io_size = min(pci_resource_len(pdev, 2), lmem_size);
+	io_start = pci_resource_start(pdev, GEN12_LMEM_BAR);
+	io_size = min(pci_resource_len(pdev, GEN12_LMEM_BAR), lmem_size);
 	if (!io_size)
 		return ERR_PTR(-EIO);
 

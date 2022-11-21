@@ -32,6 +32,7 @@ properties:
 patternProperties:
   "^pcie-phy@[0-9]+$":
     type: object
+    additionalProperties: false
     description: >
       PCIe PHY child nodes
 

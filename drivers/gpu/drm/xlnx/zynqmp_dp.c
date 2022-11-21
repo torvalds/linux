@@ -11,16 +11,12 @@
 
 #include <drm/display/drm_dp_helper.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_connector.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_encoder.h>
-#include <drm/drm_managed.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_of.h>
-#include <drm/drm_probe_helper.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -31,10 +27,12 @@
 #include <linux/pm_runtime.h>
 #include <linux/phy/phy.h>
 #include <linux/reset.h>
+#include <linux/slab.h>
 
 #include "zynqmp_disp.h"
 #include "zynqmp_dp.h"
 #include "zynqmp_dpsub.h"
+#include "zynqmp_kms.h"
 
 static uint zynqmp_dp_aux_timeout_ms = 50;
 module_param_named(aux_timeout_ms, zynqmp_dp_aux_timeout_ms, uint, 0444);
@@ -277,14 +275,13 @@ struct zynqmp_dp_config {
 
 /**
  * struct zynqmp_dp - Xilinx DisplayPort core
- * @encoder: the drm encoder structure
- * @connector: the drm connector structure
  * @dev: device structure
  * @dpsub: Display subsystem
- * @drm: DRM core
  * @iomem: device I/O memory for register access
  * @reset: reset controller
  * @irq: irq
+ * @bridge: DRM bridge for the DP encoder
+ * @next_bridge: The downstream bridge
  * @config: IP core configuration from DTS
  * @aux: aux channel
  * @phy: PHY handles for DP lanes
@@ -298,14 +295,14 @@ struct zynqmp_dp_config {
  * @train_set: set of training data
  */
 struct zynqmp_dp {
-	struct drm_encoder encoder;
-	struct drm_connector connector;
 	struct device *dev;
 	struct zynqmp_dpsub *dpsub;
-	struct drm_device *drm;
 	void __iomem *iomem;
 	struct reset_control *reset;
 	int irq;
+
+	struct drm_bridge bridge;
+	struct drm_bridge *next_bridge;
 
 	struct zynqmp_dp_config config;
 	struct drm_dp_aux aux;
@@ -321,14 +318,9 @@ struct zynqmp_dp {
 	u8 train_set[ZYNQMP_DP_MAX_LANES];
 };
 
-static inline struct zynqmp_dp *encoder_to_dp(struct drm_encoder *encoder)
+static inline struct zynqmp_dp *bridge_to_dp(struct drm_bridge *bridge)
 {
-	return container_of(encoder, struct zynqmp_dp, encoder);
-}
-
-static inline struct zynqmp_dp *connector_to_dp(struct drm_connector *connector)
-{
-	return container_of(connector, struct zynqmp_dp, connector);
+	return container_of(bridge, struct zynqmp_dp, bridge);
 }
 
 static void zynqmp_dp_write(struct zynqmp_dp *dp, int offset, u32 val)
@@ -1064,7 +1056,7 @@ static int zynqmp_dp_aux_init(struct zynqmp_dp *dp)
 
 	dp->aux.name = "ZynqMP DP AUX";
 	dp->aux.dev = dp->dev;
-	dp->aux.drm_dev = dp->drm;
+	dp->aux.drm_dev = dp->bridge.dev;
 	dp->aux.transfer = zynqmp_dp_aux_transfer;
 
 	return drm_dp_aux_register(&dp->aux);
@@ -1101,6 +1093,7 @@ static void zynqmp_dp_update_misc(struct zynqmp_dp *dp)
 /**
  * zynqmp_dp_set_format - Set the input format
  * @dp: DisplayPort IP core structure
+ * @info: Display info
  * @format: input format
  * @bpc: bits per component
  *
@@ -1109,10 +1102,10 @@ static void zynqmp_dp_update_misc(struct zynqmp_dp *dp)
  * Return: 0 on success, or -EINVAL.
  */
 static int zynqmp_dp_set_format(struct zynqmp_dp *dp,
+				const struct drm_display_info *info,
 				enum zynqmp_dpsub_format format,
 				unsigned int bpc)
 {
-	static const struct drm_display_info *display;
 	struct zynqmp_dp_config *config = &dp->config;
 	unsigned int num_colors;
 
@@ -1145,12 +1138,11 @@ static int zynqmp_dp_set_format(struct zynqmp_dp *dp,
 		return -EINVAL;
 	}
 
-	display = &dp->connector.display_info;
-	if (display->bpc && bpc > display->bpc) {
+	if (info && info->bpc && bpc > info->bpc) {
 		dev_warn(dp->dev,
 			 "downgrading requested %ubpc to display limit %ubpc\n",
-			 bpc, display->bpc);
-		bpc = display->bpc;
+			 bpc, info->bpc);
+		bpc = info->bpc;
 	}
 
 	config->misc0 &= ~ZYNQMP_DP_MAIN_STREAM_MISC0_BPC_MASK;
@@ -1195,7 +1187,7 @@ static int zynqmp_dp_set_format(struct zynqmp_dp *dp,
  */
 static void
 zynqmp_dp_encoder_mode_set_transfer_unit(struct zynqmp_dp *dp,
-					 struct drm_display_mode *mode)
+					 const struct drm_display_mode *mode)
 {
 	u32 tu = ZYNQMP_DP_MSA_TRANSFER_UNIT_SIZE_TU_SIZE_DEF;
 	u32 bw, vid_kbytes, avg_bytes_per_tu, init_wait;
@@ -1255,12 +1247,12 @@ static void zynqmp_dp_encoder_mode_set_stream(struct zynqmp_dp *dp,
 	zynqmp_dp_write(dp, ZYNQMP_DP_MAIN_STREAM_VSTART,
 			mode->vtotal - mode->vsync_start);
 
-	/* In synchronous mode, set the diviers */
+	/* In synchronous mode, set the dividers */
 	if (dp->config.misc0 & ZYNQMP_DP_MAIN_STREAM_MISC0_SYNC_LOCK) {
 		reg = drm_dp_bw_code_to_link_rate(dp->mode.bw_code);
 		zynqmp_dp_write(dp, ZYNQMP_DP_MAIN_STREAM_N_VID, reg);
 		zynqmp_dp_write(dp, ZYNQMP_DP_MAIN_STREAM_M_VID, mode->clock);
-		rate = zynqmp_disp_get_audio_clk_rate(dp->dpsub->disp);
+		rate = zynqmp_dpsub_get_audio_clk_rate(dp->dpsub);
 		if (rate) {
 			dev_dbg(dp->dev, "Audio rate: %d\n", rate / 512);
 			zynqmp_dp_write(dp, ZYNQMP_DP_TX_N_AUD, reg);
@@ -1269,7 +1261,7 @@ static void zynqmp_dp_encoder_mode_set_stream(struct zynqmp_dp *dp,
 	}
 
 	/* Only 2 channel audio is supported now */
-	if (zynqmp_disp_audio_enabled(dp->dpsub->disp))
+	if (zynqmp_dpsub_audio_enabled(dp->dpsub))
 		zynqmp_dp_write(dp, ZYNQMP_DP_TX_AUDIO_CHANNELS, 1);
 
 	zynqmp_dp_write(dp, ZYNQMP_DP_USER_PIX_WIDTH, 1);
@@ -1281,13 +1273,254 @@ static void zynqmp_dp_encoder_mode_set_stream(struct zynqmp_dp *dp,
 }
 
 /* -----------------------------------------------------------------------------
- * DRM Connector
+ * DISP Configuration
  */
 
-static enum drm_connector_status
-zynqmp_dp_connector_detect(struct drm_connector *connector, bool force)
+static void zynqmp_dp_disp_enable(struct zynqmp_dp *dp,
+				  struct drm_bridge_state *old_bridge_state)
 {
-	struct zynqmp_dp *dp = connector_to_dp(connector);
+	enum zynqmp_dpsub_layer_id layer_id;
+	struct zynqmp_disp_layer *layer;
+	const struct drm_format_info *info;
+
+	if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_VIDEO))
+		layer_id = ZYNQMP_DPSUB_LAYER_VID;
+	else if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_GFX))
+		layer_id = ZYNQMP_DPSUB_LAYER_GFX;
+	else
+		return;
+
+	layer = dp->dpsub->layers[layer_id];
+
+	/* TODO: Make the format configurable. */
+	info = drm_format_info(DRM_FORMAT_YUV422);
+	zynqmp_disp_layer_set_format(layer, info);
+	zynqmp_disp_layer_enable(layer, ZYNQMP_DPSUB_LAYER_LIVE);
+
+	if (layer_id == ZYNQMP_DPSUB_LAYER_GFX)
+		zynqmp_disp_blend_set_global_alpha(dp->dpsub->disp, true, 255);
+	else
+		zynqmp_disp_blend_set_global_alpha(dp->dpsub->disp, false, 0);
+
+	zynqmp_disp_enable(dp->dpsub->disp);
+}
+
+static void zynqmp_dp_disp_disable(struct zynqmp_dp *dp,
+				   struct drm_bridge_state *old_bridge_state)
+{
+	struct zynqmp_disp_layer *layer;
+
+	if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_VIDEO))
+		layer = dp->dpsub->layers[ZYNQMP_DPSUB_LAYER_VID];
+	else if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_GFX))
+		layer = dp->dpsub->layers[ZYNQMP_DPSUB_LAYER_GFX];
+	else
+		return;
+
+	zynqmp_disp_disable(dp->dpsub->disp);
+	zynqmp_disp_layer_disable(layer);
+}
+
+/* -----------------------------------------------------------------------------
+ * DRM Bridge
+ */
+
+static int zynqmp_dp_bridge_attach(struct drm_bridge *bridge,
+				   enum drm_bridge_attach_flags flags)
+{
+	struct zynqmp_dp *dp = bridge_to_dp(bridge);
+	int ret;
+
+	/* Initialize and register the AUX adapter. */
+	ret = zynqmp_dp_aux_init(dp);
+	if (ret) {
+		dev_err(dp->dev, "failed to initialize DP aux\n");
+		return ret;
+	}
+
+	if (dp->next_bridge) {
+		ret = drm_bridge_attach(bridge->encoder, dp->next_bridge,
+					bridge, flags);
+		if (ret < 0)
+			goto error;
+	}
+
+	/* Now that initialisation is complete, enable interrupts. */
+	zynqmp_dp_write(dp, ZYNQMP_DP_INT_EN, ZYNQMP_DP_INT_ALL);
+
+	return 0;
+
+error:
+	zynqmp_dp_aux_cleanup(dp);
+	return ret;
+}
+
+static void zynqmp_dp_bridge_detach(struct drm_bridge *bridge)
+{
+	struct zynqmp_dp *dp = bridge_to_dp(bridge);
+
+	zynqmp_dp_aux_cleanup(dp);
+}
+
+static enum drm_mode_status
+zynqmp_dp_bridge_mode_valid(struct drm_bridge *bridge,
+			    const struct drm_display_info *info,
+			    const struct drm_display_mode *mode)
+{
+	struct zynqmp_dp *dp = bridge_to_dp(bridge);
+	int rate;
+
+	if (mode->clock > ZYNQMP_MAX_FREQ) {
+		dev_dbg(dp->dev, "filtered mode %s for high pixel rate\n",
+			mode->name);
+		drm_mode_debug_printmodeline(mode);
+		return MODE_CLOCK_HIGH;
+	}
+
+	/* Check with link rate and lane count */
+	rate = zynqmp_dp_max_rate(dp->link_config.max_rate,
+				  dp->link_config.max_lanes, dp->config.bpp);
+	if (mode->clock > rate) {
+		dev_dbg(dp->dev, "filtered mode %s for high pixel rate\n",
+			mode->name);
+		drm_mode_debug_printmodeline(mode);
+		return MODE_CLOCK_HIGH;
+	}
+
+	return MODE_OK;
+}
+
+static void zynqmp_dp_bridge_atomic_enable(struct drm_bridge *bridge,
+					   struct drm_bridge_state *old_bridge_state)
+{
+	struct zynqmp_dp *dp = bridge_to_dp(bridge);
+	struct drm_atomic_state *state = old_bridge_state->base.state;
+	const struct drm_crtc_state *crtc_state;
+	const struct drm_display_mode *adjusted_mode;
+	const struct drm_display_mode *mode;
+	struct drm_connector *connector;
+	struct drm_crtc *crtc;
+	unsigned int i;
+	int rate;
+	int ret;
+
+	pm_runtime_get_sync(dp->dev);
+
+	zynqmp_dp_disp_enable(dp, old_bridge_state);
+
+	/*
+	 * Retrieve the CRTC mode and adjusted mode. This requires a little
+	 * dance to go from the bridge to the encoder, to the connector and to
+	 * the CRTC.
+	 */
+	connector = drm_atomic_get_new_connector_for_encoder(state,
+							     bridge->encoder);
+	crtc = drm_atomic_get_new_connector_state(state, connector)->crtc;
+	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	adjusted_mode = &crtc_state->adjusted_mode;
+	mode = &crtc_state->mode;
+
+	zynqmp_dp_set_format(dp, &connector->display_info,
+			     ZYNQMP_DPSUB_FORMAT_RGB, 8);
+
+	/* Check again as bpp or format might have been changed */
+	rate = zynqmp_dp_max_rate(dp->link_config.max_rate,
+				  dp->link_config.max_lanes, dp->config.bpp);
+	if (mode->clock > rate) {
+		dev_err(dp->dev, "mode %s has too high pixel rate\n",
+			mode->name);
+		drm_mode_debug_printmodeline(mode);
+	}
+
+	/* Configure the mode */
+	ret = zynqmp_dp_mode_configure(dp, adjusted_mode->clock, 0);
+	if (ret < 0) {
+		pm_runtime_put_sync(dp->dev);
+		return;
+	}
+
+	zynqmp_dp_encoder_mode_set_transfer_unit(dp, adjusted_mode);
+	zynqmp_dp_encoder_mode_set_stream(dp, adjusted_mode);
+
+	/* Enable the encoder */
+	dp->enabled = true;
+	zynqmp_dp_update_misc(dp);
+	if (zynqmp_dpsub_audio_enabled(dp->dpsub))
+		zynqmp_dp_write(dp, ZYNQMP_DP_TX_AUDIO_CONTROL, 1);
+	zynqmp_dp_write(dp, ZYNQMP_DP_TX_PHY_POWER_DOWN, 0);
+	if (dp->status == connector_status_connected) {
+		for (i = 0; i < 3; i++) {
+			ret = drm_dp_dpcd_writeb(&dp->aux, DP_SET_POWER,
+						 DP_SET_POWER_D0);
+			if (ret == 1)
+				break;
+			usleep_range(300, 500);
+		}
+		/* Some monitors take time to wake up properly */
+		msleep(zynqmp_dp_power_on_delay_ms);
+	}
+	if (ret != 1)
+		dev_dbg(dp->dev, "DP aux failed\n");
+	else
+		zynqmp_dp_train_loop(dp);
+	zynqmp_dp_write(dp, ZYNQMP_DP_SOFTWARE_RESET,
+			ZYNQMP_DP_SOFTWARE_RESET_ALL);
+	zynqmp_dp_write(dp, ZYNQMP_DP_MAIN_STREAM_ENABLE, 1);
+}
+
+static void zynqmp_dp_bridge_atomic_disable(struct drm_bridge *bridge,
+					    struct drm_bridge_state *old_bridge_state)
+{
+	struct zynqmp_dp *dp = bridge_to_dp(bridge);
+
+	dp->enabled = false;
+	cancel_delayed_work(&dp->hpd_work);
+	zynqmp_dp_write(dp, ZYNQMP_DP_MAIN_STREAM_ENABLE, 0);
+	drm_dp_dpcd_writeb(&dp->aux, DP_SET_POWER, DP_SET_POWER_D3);
+	zynqmp_dp_write(dp, ZYNQMP_DP_TX_PHY_POWER_DOWN,
+			ZYNQMP_DP_TX_PHY_POWER_DOWN_ALL);
+	if (zynqmp_dpsub_audio_enabled(dp->dpsub))
+		zynqmp_dp_write(dp, ZYNQMP_DP_TX_AUDIO_CONTROL, 0);
+
+	zynqmp_dp_disp_disable(dp, old_bridge_state);
+
+	pm_runtime_put_sync(dp->dev);
+}
+
+#define ZYNQMP_DP_MIN_H_BACKPORCH	20
+
+static int zynqmp_dp_bridge_atomic_check(struct drm_bridge *bridge,
+					 struct drm_bridge_state *bridge_state,
+					 struct drm_crtc_state *crtc_state,
+					 struct drm_connector_state *conn_state)
+{
+	struct zynqmp_dp *dp = bridge_to_dp(bridge);
+	struct drm_display_mode *mode = &crtc_state->mode;
+	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
+	int diff = mode->htotal - mode->hsync_end;
+
+	/*
+	 * ZynqMP DP requires horizontal backporch to be greater than 12.
+	 * This limitation may not be compatible with the sink device.
+	 */
+	if (diff < ZYNQMP_DP_MIN_H_BACKPORCH) {
+		int vrefresh = (adjusted_mode->clock * 1000) /
+			       (adjusted_mode->vtotal * adjusted_mode->htotal);
+
+		dev_dbg(dp->dev, "hbackporch adjusted: %d to %d",
+			diff, ZYNQMP_DP_MIN_H_BACKPORCH - diff);
+		diff = ZYNQMP_DP_MIN_H_BACKPORCH - diff;
+		adjusted_mode->htotal += diff;
+		adjusted_mode->clock = adjusted_mode->vtotal *
+				       adjusted_mode->htotal * vrefresh / 1000;
+	}
+
+	return 0;
+}
+
+static enum drm_connector_status zynqmp_dp_bridge_detect(struct drm_bridge *bridge)
+{
+	struct zynqmp_dp *dp = bridge_to_dp(bridge);
 	struct zynqmp_dp_link_config *link_config = &dp->link_config;
 	u32 state, i;
 	int ret;
@@ -1327,192 +1560,26 @@ disconnected:
 	return connector_status_disconnected;
 }
 
-static int zynqmp_dp_connector_get_modes(struct drm_connector *connector)
+static struct edid *zynqmp_dp_bridge_get_edid(struct drm_bridge *bridge,
+					      struct drm_connector *connector)
 {
-	struct zynqmp_dp *dp = connector_to_dp(connector);
-	struct edid *edid;
-	int ret;
+	struct zynqmp_dp *dp = bridge_to_dp(bridge);
 
-	edid = drm_get_edid(connector, &dp->aux.ddc);
-	if (!edid)
-		return 0;
-
-	drm_connector_update_edid_property(connector, edid);
-	ret = drm_add_edid_modes(connector, edid);
-	kfree(edid);
-
-	return ret;
+	return drm_get_edid(connector, &dp->aux.ddc);
 }
 
-static struct drm_encoder *
-zynqmp_dp_connector_best_encoder(struct drm_connector *connector)
-{
-	struct zynqmp_dp *dp = connector_to_dp(connector);
-
-	return &dp->encoder;
-}
-
-static int zynqmp_dp_connector_mode_valid(struct drm_connector *connector,
-					  struct drm_display_mode *mode)
-{
-	struct zynqmp_dp *dp = connector_to_dp(connector);
-	u8 max_lanes = dp->link_config.max_lanes;
-	u8 bpp = dp->config.bpp;
-	int max_rate = dp->link_config.max_rate;
-	int rate;
-
-	if (mode->clock > ZYNQMP_MAX_FREQ) {
-		dev_dbg(dp->dev, "filtered the mode, %s,for high pixel rate\n",
-			mode->name);
-		drm_mode_debug_printmodeline(mode);
-		return MODE_CLOCK_HIGH;
-	}
-
-	/* Check with link rate and lane count */
-	rate = zynqmp_dp_max_rate(max_rate, max_lanes, bpp);
-	if (mode->clock > rate) {
-		dev_dbg(dp->dev, "filtered the mode, %s,for high pixel rate\n",
-			mode->name);
-		drm_mode_debug_printmodeline(mode);
-		return MODE_CLOCK_HIGH;
-	}
-
-	return MODE_OK;
-}
-
-static const struct drm_connector_funcs zynqmp_dp_connector_funcs = {
-	.detect			= zynqmp_dp_connector_detect,
-	.fill_modes		= drm_helper_probe_single_connector_modes,
-	.destroy		= drm_connector_cleanup,
-	.atomic_duplicate_state	= drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state	= drm_atomic_helper_connector_destroy_state,
-	.reset			= drm_atomic_helper_connector_reset,
-};
-
-static const struct drm_connector_helper_funcs
-zynqmp_dp_connector_helper_funcs = {
-	.get_modes	= zynqmp_dp_connector_get_modes,
-	.best_encoder	= zynqmp_dp_connector_best_encoder,
-	.mode_valid	= zynqmp_dp_connector_mode_valid,
-};
-
-/* -----------------------------------------------------------------------------
- * DRM Encoder
- */
-
-static void zynqmp_dp_encoder_enable(struct drm_encoder *encoder)
-{
-	struct zynqmp_dp *dp = encoder_to_dp(encoder);
-	unsigned int i;
-	int ret = 0;
-
-	pm_runtime_get_sync(dp->dev);
-	dp->enabled = true;
-	zynqmp_dp_update_misc(dp);
-	if (zynqmp_disp_audio_enabled(dp->dpsub->disp))
-		zynqmp_dp_write(dp, ZYNQMP_DP_TX_AUDIO_CONTROL, 1);
-	zynqmp_dp_write(dp, ZYNQMP_DP_TX_PHY_POWER_DOWN, 0);
-	if (dp->status == connector_status_connected) {
-		for (i = 0; i < 3; i++) {
-			ret = drm_dp_dpcd_writeb(&dp->aux, DP_SET_POWER,
-						 DP_SET_POWER_D0);
-			if (ret == 1)
-				break;
-			usleep_range(300, 500);
-		}
-		/* Some monitors take time to wake up properly */
-		msleep(zynqmp_dp_power_on_delay_ms);
-	}
-	if (ret != 1)
-		dev_dbg(dp->dev, "DP aux failed\n");
-	else
-		zynqmp_dp_train_loop(dp);
-	zynqmp_dp_write(dp, ZYNQMP_DP_SOFTWARE_RESET,
-			ZYNQMP_DP_SOFTWARE_RESET_ALL);
-	zynqmp_dp_write(dp, ZYNQMP_DP_MAIN_STREAM_ENABLE, 1);
-}
-
-static void zynqmp_dp_encoder_disable(struct drm_encoder *encoder)
-{
-	struct zynqmp_dp *dp = encoder_to_dp(encoder);
-
-	dp->enabled = false;
-	cancel_delayed_work(&dp->hpd_work);
-	zynqmp_dp_write(dp, ZYNQMP_DP_MAIN_STREAM_ENABLE, 0);
-	drm_dp_dpcd_writeb(&dp->aux, DP_SET_POWER, DP_SET_POWER_D3);
-	zynqmp_dp_write(dp, ZYNQMP_DP_TX_PHY_POWER_DOWN,
-			ZYNQMP_DP_TX_PHY_POWER_DOWN_ALL);
-	if (zynqmp_disp_audio_enabled(dp->dpsub->disp))
-		zynqmp_dp_write(dp, ZYNQMP_DP_TX_AUDIO_CONTROL, 0);
-	pm_runtime_put_sync(dp->dev);
-}
-
-static void
-zynqmp_dp_encoder_atomic_mode_set(struct drm_encoder *encoder,
-				  struct drm_crtc_state *crtc_state,
-				  struct drm_connector_state *connector_state)
-{
-	struct zynqmp_dp *dp = encoder_to_dp(encoder);
-	struct drm_display_mode *mode = &crtc_state->mode;
-	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
-	u8 max_lanes = dp->link_config.max_lanes;
-	u8 bpp = dp->config.bpp;
-	int rate, max_rate = dp->link_config.max_rate;
-	int ret;
-
-	zynqmp_dp_set_format(dp, ZYNQMP_DPSUB_FORMAT_RGB, 8);
-
-	/* Check again as bpp or format might have been chagned */
-	rate = zynqmp_dp_max_rate(max_rate, max_lanes, bpp);
-	if (mode->clock > rate) {
-		dev_err(dp->dev, "the mode, %s,has too high pixel rate\n",
-			mode->name);
-		drm_mode_debug_printmodeline(mode);
-	}
-
-	ret = zynqmp_dp_mode_configure(dp, adjusted_mode->clock, 0);
-	if (ret < 0)
-		return;
-
-	zynqmp_dp_encoder_mode_set_transfer_unit(dp, adjusted_mode);
-	zynqmp_dp_encoder_mode_set_stream(dp, adjusted_mode);
-}
-
-#define ZYNQMP_DP_MIN_H_BACKPORCH	20
-
-static int
-zynqmp_dp_encoder_atomic_check(struct drm_encoder *encoder,
-			       struct drm_crtc_state *crtc_state,
-			       struct drm_connector_state *conn_state)
-{
-	struct drm_display_mode *mode = &crtc_state->mode;
-	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
-	int diff = mode->htotal - mode->hsync_end;
-
-	/*
-	 * ZynqMP DP requires horizontal backporch to be greater than 12.
-	 * This limitation may not be compatible with the sink device.
-	 */
-	if (diff < ZYNQMP_DP_MIN_H_BACKPORCH) {
-		int vrefresh = (adjusted_mode->clock * 1000) /
-			       (adjusted_mode->vtotal * adjusted_mode->htotal);
-
-		dev_dbg(encoder->dev->dev, "hbackporch adjusted: %d to %d",
-			diff, ZYNQMP_DP_MIN_H_BACKPORCH - diff);
-		diff = ZYNQMP_DP_MIN_H_BACKPORCH - diff;
-		adjusted_mode->htotal += diff;
-		adjusted_mode->clock = adjusted_mode->vtotal *
-				       adjusted_mode->htotal * vrefresh / 1000;
-	}
-
-	return 0;
-}
-
-static const struct drm_encoder_helper_funcs zynqmp_dp_encoder_helper_funcs = {
-	.enable			= zynqmp_dp_encoder_enable,
-	.disable		= zynqmp_dp_encoder_disable,
-	.atomic_mode_set	= zynqmp_dp_encoder_atomic_mode_set,
-	.atomic_check		= zynqmp_dp_encoder_atomic_check,
+static const struct drm_bridge_funcs zynqmp_dp_bridge_funcs = {
+	.attach = zynqmp_dp_bridge_attach,
+	.detach = zynqmp_dp_bridge_detach,
+	.mode_valid = zynqmp_dp_bridge_mode_valid,
+	.atomic_enable = zynqmp_dp_bridge_atomic_enable,
+	.atomic_disable = zynqmp_dp_bridge_atomic_disable,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_check = zynqmp_dp_bridge_atomic_check,
+	.detect = zynqmp_dp_bridge_detect,
+	.get_edid = zynqmp_dp_bridge_get_edid,
 };
 
 /* -----------------------------------------------------------------------------
@@ -1543,12 +1610,12 @@ void zynqmp_dp_disable_vblank(struct zynqmp_dp *dp)
 
 static void zynqmp_dp_hpd_work_func(struct work_struct *work)
 {
-	struct zynqmp_dp *dp;
+	struct zynqmp_dp *dp = container_of(work, struct zynqmp_dp,
+					    hpd_work.work);
+	enum drm_connector_status status;
 
-	dp = container_of(work, struct zynqmp_dp, hpd_work.work);
-
-	if (dp->drm)
-		drm_helper_hpd_irq_event(dp->drm);
+	status = zynqmp_dp_bridge_detect(&dp->bridge);
+	drm_bridge_hpd_notify(&dp->bridge, status);
 }
 
 static irqreturn_t zynqmp_dp_irq_handler(int irq, void *data)
@@ -1570,7 +1637,7 @@ static irqreturn_t zynqmp_dp_irq_handler(int irq, void *data)
 	zynqmp_dp_write(dp, ZYNQMP_DP_INT_STATUS, status);
 
 	if (status & ZYNQMP_DP_INT_VBLANK_START)
-		zynqmp_disp_handle_vblank(dp->dpsub->disp);
+		zynqmp_dpsub_drm_handle_vblank(dp->dpsub);
 
 	if (status & ZYNQMP_DP_INT_HPD_EVENT)
 		schedule_delayed_work(&dp->hpd_work, 0);
@@ -1599,94 +1666,76 @@ handled:
  * Initialization & Cleanup
  */
 
-int zynqmp_dp_drm_init(struct zynqmp_dpsub *dpsub)
-{
-	struct zynqmp_dp *dp = dpsub->dp;
-	struct drm_encoder *encoder = &dp->encoder;
-	struct drm_connector *connector = &dp->connector;
-	int ret;
-
-	dp->config.misc0 &= ~ZYNQMP_DP_MAIN_STREAM_MISC0_SYNC_LOCK;
-	zynqmp_dp_set_format(dp, ZYNQMP_DPSUB_FORMAT_RGB, 8);
-
-	/* Create the DRM encoder and connector. */
-	encoder->possible_crtcs |= zynqmp_disp_get_crtc_mask(dpsub->disp);
-	drm_simple_encoder_init(dp->drm, encoder, DRM_MODE_ENCODER_TMDS);
-	drm_encoder_helper_add(encoder, &zynqmp_dp_encoder_helper_funcs);
-
-	connector->polled = DRM_CONNECTOR_POLL_HPD;
-	ret = drm_connector_init(encoder->dev, connector,
-				 &zynqmp_dp_connector_funcs,
-				 DRM_MODE_CONNECTOR_DisplayPort);
-	if (ret) {
-		dev_err(dp->dev, "failed to create the DRM connector\n");
-		return ret;
-	}
-
-	drm_connector_helper_add(connector, &zynqmp_dp_connector_helper_funcs);
-	drm_connector_register(connector);
-	drm_connector_attach_encoder(connector, encoder);
-
-	/* Initialize and register the AUX adapter. */
-	ret = zynqmp_dp_aux_init(dp);
-	if (ret) {
-		dev_err(dp->dev, "failed to initialize DP aux\n");
-		return ret;
-	}
-
-	/* Now that initialisation is complete, enable interrupts. */
-	zynqmp_dp_write(dp, ZYNQMP_DP_INT_EN, ZYNQMP_DP_INT_ALL);
-
-	return 0;
-}
-
-int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
+int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub)
 {
 	struct platform_device *pdev = to_platform_device(dpsub->dev);
+	struct drm_bridge *bridge;
 	struct zynqmp_dp *dp;
 	struct resource *res;
 	int ret;
 
-	dp = drmm_kzalloc(drm, sizeof(*dp), GFP_KERNEL);
+	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
 	if (!dp)
 		return -ENOMEM;
 
 	dp->dev = &pdev->dev;
 	dp->dpsub = dpsub;
 	dp->status = connector_status_disconnected;
-	dp->drm = drm;
 
 	INIT_DELAYED_WORK(&dp->hpd_work, zynqmp_dp_hpd_work_func);
-
-	dpsub->dp = dp;
 
 	/* Acquire all resources (IOMEM, IRQ and PHYs). */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dp");
 	dp->iomem = devm_ioremap_resource(dp->dev, res);
-	if (IS_ERR(dp->iomem))
-		return PTR_ERR(dp->iomem);
+	if (IS_ERR(dp->iomem)) {
+		ret = PTR_ERR(dp->iomem);
+		goto err_free;
+	}
 
 	dp->irq = platform_get_irq(pdev, 0);
-	if (dp->irq < 0)
-		return dp->irq;
+	if (dp->irq < 0) {
+		ret = dp->irq;
+		goto err_free;
+	}
 
 	dp->reset = devm_reset_control_get(dp->dev, NULL);
 	if (IS_ERR(dp->reset)) {
 		if (PTR_ERR(dp->reset) != -EPROBE_DEFER)
 			dev_err(dp->dev, "failed to get reset: %ld\n",
 				PTR_ERR(dp->reset));
-		return PTR_ERR(dp->reset);
+		ret = PTR_ERR(dp->reset);
+		goto err_free;
 	}
 
 	ret = zynqmp_dp_reset(dp, false);
 	if (ret < 0)
-		return ret;
+		goto err_free;
 
 	ret = zynqmp_dp_phy_probe(dp);
 	if (ret)
 		goto err_reset;
 
+	/* Initialize the bridge. */
+	bridge = &dp->bridge;
+	bridge->funcs = &zynqmp_dp_bridge_funcs;
+	bridge->ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID
+		    | DRM_BRIDGE_OP_HPD;
+	bridge->type = DRM_MODE_CONNECTOR_DisplayPort;
+	dpsub->bridge = bridge;
+
+	/*
+	 * Acquire the next bridge in the chain. Ignore errors caused by port@5
+	 * not being connected for backward-compatibility with older DTs.
+	 */
+	ret = drm_of_find_panel_or_bridge(dp->dev->of_node, 5, 0, NULL,
+					  &dp->next_bridge);
+	if (ret < 0 && ret != -ENODEV)
+		goto err_reset;
+
 	/* Initialize the hardware. */
+	dp->config.misc0 &= ~ZYNQMP_DP_MAIN_STREAM_MISC0_SYNC_LOCK;
+	zynqmp_dp_set_format(dp, NULL, ZYNQMP_DPSUB_FORMAT_RGB, 8);
+
 	zynqmp_dp_write(dp, ZYNQMP_DP_TX_PHY_POWER_DOWN,
 			ZYNQMP_DP_TX_PHY_POWER_DOWN_ALL);
 	zynqmp_dp_set(dp, ZYNQMP_DP_PHY_RESET, ZYNQMP_DP_PHY_RESET_ALL_RESET);
@@ -1710,6 +1759,8 @@ int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub, struct drm_device *drm)
 	if (ret < 0)
 		goto err_phy_exit;
 
+	dpsub->dp = dp;
+
 	dev_dbg(dp->dev, "ZynqMP DisplayPort Tx probed with %u lanes\n",
 		dp->num_lanes);
 
@@ -1719,7 +1770,8 @@ err_phy_exit:
 	zynqmp_dp_phy_exit(dp);
 err_reset:
 	zynqmp_dp_reset(dp, true);
-
+err_free:
+	kfree(dp);
 	return ret;
 }
 
@@ -1731,7 +1783,6 @@ void zynqmp_dp_remove(struct zynqmp_dpsub *dpsub)
 	disable_irq(dp->irq);
 
 	cancel_delayed_work_sync(&dp->hpd_work);
-	zynqmp_dp_aux_cleanup(dp);
 
 	zynqmp_dp_write(dp, ZYNQMP_DP_TRANSMITTER_ENABLE, 0);
 	zynqmp_dp_write(dp, ZYNQMP_DP_INT_DS, 0xffffffff);

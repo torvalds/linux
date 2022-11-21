@@ -163,7 +163,6 @@ static int ahci_da850_probe(struct platform_device *pdev)
 	struct ahci_host_priv *hpriv;
 	void __iomem *pwrdn_reg;
 	struct resource *res;
-	struct clk *clk;
 	u32 mpy;
 	int rc;
 
@@ -172,36 +171,28 @@ static int ahci_da850_probe(struct platform_device *pdev)
 		return PTR_ERR(hpriv);
 
 	/*
-	 * Internally ahci_platform_get_resources() calls clk_get(dev, NULL)
-	 * when trying to obtain the functional clock. This SATA controller
-	 * uses two clocks for which we specify two connection ids. If we don't
-	 * have the functional clock at this point - call clk_get() again with
-	 * con_id = "fck".
+	 * Internally ahci_platform_get_resources() calls the bulk clocks
+	 * get method or falls back to using a single clk_get_optional().
+	 * This AHCI SATA controller uses two clocks: functional clock
+	 * with "fck" connection id and external reference clock with
+	 * "refclk" id. If we haven't got all of them re-try the clocks
+	 * getting procedure with the explicitly specified ids.
 	 */
-	if (!hpriv->clks[0]) {
-		clk = clk_get(dev, "fck");
-		if (IS_ERR(clk))
-			return PTR_ERR(clk);
+	if (hpriv->n_clks < 2) {
+		hpriv->clks = devm_kcalloc(dev, 2, sizeof(*hpriv->clks), GFP_KERNEL);
+		if (!hpriv->clks)
+			return -ENOMEM;
 
-		hpriv->clks[0] = clk;
+		hpriv->clks[0].id = "fck";
+		hpriv->clks[1].id = "refclk";
+		hpriv->n_clks = 2;
+
+		rc = devm_clk_bulk_get(dev, hpriv->n_clks, hpriv->clks);
+		if (rc)
+			return rc;
 	}
 
-	/*
-	 * The second clock used by ahci-da850 is the external REFCLK. If we
-	 * didn't get it from ahci_platform_get_resources(), let's try to
-	 * specify the con_id in clk_get().
-	 */
-	if (!hpriv->clks[1]) {
-		clk = clk_get(dev, "refclk");
-		if (IS_ERR(clk)) {
-			dev_err(dev, "unable to obtain the reference clock");
-			return -ENODEV;
-		}
-
-		hpriv->clks[1] = clk;
-	}
-
-	mpy = ahci_da850_calculate_mpy(clk_get_rate(hpriv->clks[1]));
+	mpy = ahci_da850_calculate_mpy(clk_get_rate(hpriv->clks[1].clk));
 	if (mpy == 0) {
 		dev_err(dev, "invalid REFCLK multiplier value: 0x%x", mpy);
 		return -EINVAL;

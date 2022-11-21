@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/ak4642.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: AK4642 I2C transmitter Device Tree Bindings
+title: AK4642 I2C transmitter
 
 maintainers:
   - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>

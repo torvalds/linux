@@ -11,6 +11,11 @@
 
 #if IS_ENABLED(CONFIG_MTK_SMI)
 
+enum iommu_atf_cmd {
+	IOMMU_ATF_CMD_CONFIG_SMI_LARB,		/* For mm master to en/disable iommu */
+	IOMMU_ATF_CMD_MAX,
+};
+
 #define MTK_SMI_MMU_EN(port)	BIT(port)
 
 struct mtk_smi_larb_iommu {

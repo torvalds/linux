@@ -4,7 +4,7 @@ Required properties:
 - compatible:	"ti,dra7-dma-crossbar" for DRA7xx DMA crossbar
 		"ti,am335x-edma-crossbar" for AM335x and AM437x
 - reg:		Memory map for accessing module
-- #dma-cells:	Should be set to to match with the DMA controller's dma-cells
+- #dma-cells:	Should be set to match with the DMA controller's dma-cells
 		for ti,dra7-dma-crossbar and <3> for ti,am335x-edma-crossbar.
 - dma-requests:	Number of DMA requests the crossbar can receive
 - dma-masters:	phandle pointing to the DMA controller

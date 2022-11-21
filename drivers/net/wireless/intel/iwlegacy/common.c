@@ -1870,15 +1870,15 @@ il_set_ht_add_station(struct il_priv *il, u8 idx, struct ieee80211_sta *sta)
 		goto done;
 
 	D_ASSOC("spatial multiplexing power save mode: %s\n",
-		(sta->smps_mode == IEEE80211_SMPS_STATIC) ? "static" :
-		(sta->smps_mode == IEEE80211_SMPS_DYNAMIC) ? "dynamic" :
+		(sta->deflink.smps_mode == IEEE80211_SMPS_STATIC) ? "static" :
+		(sta->deflink.smps_mode == IEEE80211_SMPS_DYNAMIC) ? "dynamic" :
 		"disabled");
 
 	sta_flags = il->stations[idx].sta.station_flags;
 
 	sta_flags &= ~(STA_FLG_RTS_MIMO_PROT_MSK | STA_FLG_MIMO_DIS_MSK);
 
-	switch (sta->smps_mode) {
+	switch (sta->deflink.smps_mode) {
 	case IEEE80211_SMPS_STATIC:
 		sta_flags |= STA_FLG_MIMO_DIS_MSK;
 		break;
@@ -1888,7 +1888,7 @@ il_set_ht_add_station(struct il_priv *il, u8 idx, struct ieee80211_sta *sta)
 	case IEEE80211_SMPS_OFF:
 		break;
 	default:
-		IL_WARN("Invalid MIMO PS mode %d\n", sta->smps_mode);
+		IL_WARN("Invalid MIMO PS mode %d\n", sta->deflink.smps_mode);
 		break;
 	}
 

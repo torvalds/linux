@@ -14,8 +14,6 @@
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
 
-extern const struct plat_smp_ops loongson3_smp_ops;
-
 #define LOONGSON_REG(x) \
 	(*(volatile u32 *)((char *)TO_UNCACHE(LOONGSON_REG_BASE) + (x)))
 

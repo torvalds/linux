@@ -89,13 +89,13 @@ static void amdgpu_dm_set_crc_window_default(struct drm_crtc *crtc)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	acrtc->dm_irq_params.crc_window.x_start = 0;
-	acrtc->dm_irq_params.crc_window.y_start = 0;
-	acrtc->dm_irq_params.crc_window.x_end = 0;
-	acrtc->dm_irq_params.crc_window.y_end = 0;
-	acrtc->dm_irq_params.crc_window.activated = false;
-	acrtc->dm_irq_params.crc_window.update_win = false;
-	acrtc->dm_irq_params.crc_window.skip_frame_cnt = 0;
+	acrtc->dm_irq_params.window_param.x_start = 0;
+	acrtc->dm_irq_params.window_param.y_start = 0;
+	acrtc->dm_irq_params.window_param.x_end = 0;
+	acrtc->dm_irq_params.window_param.y_end = 0;
+	acrtc->dm_irq_params.window_param.activated = false;
+	acrtc->dm_irq_params.window_param.update_win = false;
+	acrtc->dm_irq_params.window_param.skip_frame_cnt = 0;
 	spin_unlock_irq(&drm_dev->event_lock);
 }
 
@@ -123,6 +123,8 @@ static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 	phy_id = crc_rd_wrk->phy_inst;
 	spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);
 
+	mutex_lock(&psp->securedisplay_context.mutex);
+
 	psp_prep_securedisplay_cmd_buf(psp, &securedisplay_cmd,
 						TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC);
 	securedisplay_cmd->securedisplay_in_message.send_roi_crc.phy_id =
@@ -133,6 +135,24 @@ static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 			psp_securedisplay_parse_resp_status(psp, securedisplay_cmd->status);
 		}
 	}
+
+	mutex_unlock(&psp->securedisplay_context.mutex);
+}
+
+static void
+amdgpu_dm_forward_crc_window(struct work_struct *work)
+{
+	struct crc_fw_work *crc_fw_wrk;
+	struct amdgpu_display_manager *dm;
+
+	crc_fw_wrk = container_of(work, struct crc_fw_work, forward_roi_work);
+	dm = crc_fw_wrk->dm;
+
+	mutex_lock(&dm->dc_lock);
+	dc_stream_forward_crc_window(dm->dc, &crc_fw_wrk->rect, crc_fw_wrk->stream, crc_fw_wrk->is_stop_cmd);
+	mutex_unlock(&dm->dc_lock);
+
+	kfree(crc_fw_wrk);
 }
 
 bool amdgpu_dm_crc_window_is_activated(struct drm_crtc *crtc)
@@ -142,7 +162,7 @@ bool amdgpu_dm_crc_window_is_activated(struct drm_crtc *crtc)
 	bool ret = false;
 
 	spin_lock_irq(&drm_dev->event_lock);
-	ret = acrtc->dm_irq_params.crc_window.activated;
+	ret = acrtc->dm_irq_params.window_param.activated;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return ret;
@@ -187,9 +207,11 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 			if (adev->dm.crc_rd_wrk) {
 				flush_work(&adev->dm.crc_rd_wrk->notify_ta_work);
 				spin_lock_irq(&adev->dm.crc_rd_wrk->crc_rd_work_lock);
+
 				if (adev->dm.crc_rd_wrk->crtc == crtc) {
-					dc_stream_stop_dmcu_crc_win_update(stream_state->ctx->dc,
-									dm_crtc_state->stream);
+					/* stop ROI update on this crtc */
+					dc_stream_forward_crc_window(stream_state->ctx->dc,
+							NULL, stream_state, true);
 					adev->dm.crc_rd_wrk->crtc = NULL;
 				}
 				spin_unlock_irq(&adev->dm.crc_rd_wrk->crc_rd_work_lock);
@@ -439,14 +461,9 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 	enum amdgpu_dm_pipe_crc_source cur_crc_src;
 	struct amdgpu_crtc *acrtc = NULL;
 	struct amdgpu_device *adev = NULL;
-	struct crc_rd_work *crc_rd_wrk = NULL;
-	struct crc_params *crc_window = NULL, tmp_window;
+	struct crc_rd_work *crc_rd_wrk;
+	struct crc_fw_work *crc_fw_wrk;
 	unsigned long flags1, flags2;
-	struct crtc_position position;
-	uint32_t v_blank;
-	uint32_t v_back_porch;
-	uint32_t crc_window_latch_up_line;
-	struct dc_crtc_timing *timing_out;
 
 	if (crtc == NULL)
 		return;
@@ -458,74 +475,54 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 	spin_lock_irqsave(&drm_dev->event_lock, flags1);
 	stream_state = acrtc->dm_irq_params.stream;
 	cur_crc_src = acrtc->dm_irq_params.crc_src;
-	timing_out = &stream_state->timing;
 
 	/* Early return if CRC capture is not enabled. */
 	if (!amdgpu_dm_is_valid_crc_source(cur_crc_src))
 		goto cleanup;
 
-	if (dm_is_crc_source_crtc(cur_crc_src)) {
-		if (acrtc->dm_irq_params.crc_window.activated) {
-			if (acrtc->dm_irq_params.crc_window.update_win) {
-				if (acrtc->dm_irq_params.crc_window.skip_frame_cnt) {
-					acrtc->dm_irq_params.crc_window.skip_frame_cnt -= 1;
-					goto cleanup;
-				}
-				crc_window = &tmp_window;
+	if (!dm_is_crc_source_crtc(cur_crc_src))
+		goto cleanup;
 
-				tmp_window.windowa_x_start =
-							acrtc->dm_irq_params.crc_window.x_start;
-				tmp_window.windowa_y_start =
-							acrtc->dm_irq_params.crc_window.y_start;
-				tmp_window.windowa_x_end =
-							acrtc->dm_irq_params.crc_window.x_end;
-				tmp_window.windowa_y_end =
-							acrtc->dm_irq_params.crc_window.y_end;
-				tmp_window.windowb_x_start =
-							acrtc->dm_irq_params.crc_window.x_start;
-				tmp_window.windowb_y_start =
-							acrtc->dm_irq_params.crc_window.y_start;
-				tmp_window.windowb_x_end =
-							acrtc->dm_irq_params.crc_window.x_end;
-				tmp_window.windowb_y_end =
-							acrtc->dm_irq_params.crc_window.y_end;
+	if (!acrtc->dm_irq_params.window_param.activated)
+		goto cleanup;
 
-				dc_stream_forward_dmcu_crc_window(stream_state->ctx->dc,
-									stream_state, crc_window);
+	if (acrtc->dm_irq_params.window_param.update_win) {
+		if (acrtc->dm_irq_params.window_param.skip_frame_cnt) {
+			acrtc->dm_irq_params.window_param.skip_frame_cnt -= 1;
+			goto cleanup;
+		}
 
-				acrtc->dm_irq_params.crc_window.update_win = false;
+		/* prepare work for dmub to update ROI */
+		crc_fw_wrk = kzalloc(sizeof(*crc_fw_wrk), GFP_ATOMIC);
+		if (!crc_fw_wrk)
+			goto cleanup;
 
-				dc_stream_get_crtc_position(stream_state->ctx->dc, &stream_state, 1,
-					&position.vertical_count,
-					&position.nominal_vcount);
+		INIT_WORK(&crc_fw_wrk->forward_roi_work, amdgpu_dm_forward_crc_window);
+		crc_fw_wrk->dm = &adev->dm;
+		crc_fw_wrk->stream = stream_state;
+		crc_fw_wrk->rect.x = acrtc->dm_irq_params.window_param.x_start;
+		crc_fw_wrk->rect.y = acrtc->dm_irq_params.window_param.y_start;
+		crc_fw_wrk->rect.width = acrtc->dm_irq_params.window_param.x_end -
+								acrtc->dm_irq_params.window_param.x_start;
+		crc_fw_wrk->rect.height = acrtc->dm_irq_params.window_param.y_end -
+								acrtc->dm_irq_params.window_param.y_start;
+		schedule_work(&crc_fw_wrk->forward_roi_work);
 
-				v_blank = timing_out->v_total - timing_out->v_border_top -
-					timing_out->v_addressable - timing_out->v_border_bottom;
+		acrtc->dm_irq_params.window_param.update_win = false;
+		acrtc->dm_irq_params.window_param.skip_frame_cnt = 1;
 
-				v_back_porch = v_blank - timing_out->v_front_porch -
-					timing_out->v_sync_width;
+	} else {
+		if (acrtc->dm_irq_params.window_param.skip_frame_cnt) {
+			acrtc->dm_irq_params.window_param.skip_frame_cnt -= 1;
+			goto cleanup;
+		}
 
-				crc_window_latch_up_line = v_back_porch + timing_out->v_sync_width;
-
-				/* take 3 lines margin*/
-				if ((position.vertical_count + 3) >= crc_window_latch_up_line)
-					acrtc->dm_irq_params.crc_window.skip_frame_cnt = 1;
-				else
-					acrtc->dm_irq_params.crc_window.skip_frame_cnt = 0;
-			} else {
-				if (acrtc->dm_irq_params.crc_window.skip_frame_cnt == 0) {
-					if (adev->dm.crc_rd_wrk) {
-						crc_rd_wrk = adev->dm.crc_rd_wrk;
-						spin_lock_irqsave(&crc_rd_wrk->crc_rd_work_lock, flags2);
-						crc_rd_wrk->phy_inst =
-							stream_state->link->link_enc_hw_inst;
-						spin_unlock_irqrestore(&crc_rd_wrk->crc_rd_work_lock, flags2);
-						schedule_work(&crc_rd_wrk->notify_ta_work);
-					}
-				} else {
-					acrtc->dm_irq_params.crc_window.skip_frame_cnt -= 1;
-				}
-			}
+		if (adev->dm.crc_rd_wrk) {
+			crc_rd_wrk = adev->dm.crc_rd_wrk;
+			spin_lock_irqsave(&crc_rd_wrk->crc_rd_work_lock, flags2);
+			crc_rd_wrk->phy_inst = stream_state->link->link_enc_hw_inst;
+			spin_unlock_irqrestore(&crc_rd_wrk->crc_rd_work_lock, flags2);
+			schedule_work(&crc_rd_wrk->notify_ta_work);
 		}
 	}
 

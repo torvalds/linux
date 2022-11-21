@@ -134,8 +134,8 @@ static void intel_dump_plane_state(const struct intel_plane_state *plane_state)
 		    plane->base.base.id, plane->base.name,
 		    fb->base.id, fb->width, fb->height, &fb->format->format,
 		    fb->modifier, str_yes_no(plane_state->uapi.visible));
-	drm_dbg_kms(&i915->drm, "\trotation: 0x%x, scaler: %d\n",
-		    plane_state->hw.rotation, plane_state->scaler_id);
+	drm_dbg_kms(&i915->drm, "\trotation: 0x%x, scaler: %d, scaling_filter: %d\n",
+		    plane_state->hw.rotation, plane_state->scaler_id, plane_state->hw.scaling_filter);
 	if (plane_state->uapi.visible)
 		drm_dbg_kms(&i915->drm,
 			    "\tsrc: " DRM_RECT_FP_FMT " dst: " DRM_RECT_FMT "\n",
@@ -262,10 +262,11 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 
 	if (DISPLAY_VER(i915) >= 9)
 		drm_dbg_kms(&i915->drm,
-			    "num_scalers: %d, scaler_users: 0x%x, scaler_id: %d\n",
+			    "num_scalers: %d, scaler_users: 0x%x, scaler_id: %d, scaling_filter: %d\n",
 			    crtc->num_scalers,
 			    pipe_config->scaler_state.scaler_users,
-			    pipe_config->scaler_state.scaler_id);
+			    pipe_config->scaler_state.scaler_id,
+			    pipe_config->hw.scaling_filter);
 
 	if (HAS_GMCH(i915))
 		drm_dbg_kms(&i915->drm,
@@ -297,11 +298,13 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 			    pipe_config->csc_mode, pipe_config->gamma_mode,
 			    pipe_config->gamma_enable, pipe_config->csc_enable);
 
-	drm_dbg_kms(&i915->drm, "degamma lut: %d entries, gamma lut: %d entries\n",
-		    pipe_config->hw.degamma_lut ?
-		    drm_color_lut_size(pipe_config->hw.degamma_lut) : 0,
-		    pipe_config->hw.gamma_lut ?
-		    drm_color_lut_size(pipe_config->hw.gamma_lut) : 0);
+	drm_dbg_kms(&i915->drm, "pre csc lut: %s%d entries, post csc lut: %d entries\n",
+		    pipe_config->pre_csc_lut && pipe_config->pre_csc_lut ==
+		    i915->display.color.glk_linear_degamma_lut ? "(linear) " : "",
+		    pipe_config->pre_csc_lut ?
+		    drm_color_lut_size(pipe_config->pre_csc_lut) : 0,
+		    pipe_config->post_csc_lut ?
+		    drm_color_lut_size(pipe_config->post_csc_lut) : 0);
 
 dump_planes:
 	if (!state)

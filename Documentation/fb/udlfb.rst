@@ -86,17 +86,24 @@ Module Options
 Special configuration for udlfb is usually unnecessary. There are a few
 options, however.
 
-From the command line, pass options to modprobe
-modprobe udlfb fb_defio=0 console=1 shadow=1
+From the command line, pass options to modprobe::
 
-Or modify options on the fly at /sys/module/udlfb/parameters directory via
-sudo nano fb_defio
-change the parameter in place, and save the file.
+  modprobe udlfb fb_defio=0 console=1 shadow=1
 
-Unplug/replug USB device to apply with new settings
+Or change options on the fly by editing
+/sys/module/udlfb/parameters/PARAMETER_NAME ::
 
-Or for permanent option, create file like /etc/modprobe.d/udlfb.conf with text
-options udlfb fb_defio=0 console=1 shadow=1
+  cd /sys/module/udlfb/parameters
+  ls # to see a list of parameter names
+  sudo nano PARAMETER_NAME
+  # change the parameter in place, and save the file.
+
+Unplug/replug USB device to apply with new settings.
+
+Or to apply options permanently, create a modprobe configuration file
+like /etc/modprobe.d/udlfb.conf with text::
+
+  options udlfb fb_defio=0 console=1 shadow=1
 
 Accepted boolean options:
 

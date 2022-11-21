@@ -256,23 +256,23 @@ static struct cifs_swn_reg *cifs_find_swn_reg(struct cifs_tcon *tcon)
 	const char *share_name;
 	const char *net_name;
 
-	net_name = extract_hostname(tcon->treeName);
+	net_name = extract_hostname(tcon->tree_name);
 	if (IS_ERR(net_name)) {
 		int ret;
 
 		ret = PTR_ERR(net_name);
 		cifs_dbg(VFS, "%s: failed to extract host name from target '%s': %d\n",
-				__func__, tcon->treeName, ret);
+				__func__, tcon->tree_name, ret);
 		return ERR_PTR(-EINVAL);
 	}
 
-	share_name = extract_sharename(tcon->treeName);
+	share_name = extract_sharename(tcon->tree_name);
 	if (IS_ERR(share_name)) {
 		int ret;
 
 		ret = PTR_ERR(share_name);
 		cifs_dbg(VFS, "%s: failed to extract share name from target '%s': %d\n",
-				__func__, tcon->treeName, ret);
+				__func__, tcon->tree_name, ret);
 		kfree(net_name);
 		return ERR_PTR(-EINVAL);
 	}
@@ -335,14 +335,14 @@ static struct cifs_swn_reg *cifs_get_swn_reg(struct cifs_tcon *tcon)
 		goto fail;
 	}
 
-	reg->net_name = extract_hostname(tcon->treeName);
+	reg->net_name = extract_hostname(tcon->tree_name);
 	if (IS_ERR(reg->net_name)) {
 		ret = PTR_ERR(reg->net_name);
 		cifs_dbg(VFS, "%s: failed to extract host name from target: %d\n", __func__, ret);
 		goto fail_idr;
 	}
 
-	reg->share_name = extract_sharename(tcon->treeName);
+	reg->share_name = extract_sharename(tcon->tree_name);
 	if (IS_ERR(reg->share_name)) {
 		ret = PTR_ERR(reg->share_name);
 		cifs_dbg(VFS, "%s: failed to extract share name from target: %d\n", __func__, ret);

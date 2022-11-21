@@ -169,8 +169,6 @@ extern void __printk_safe_exit(void);
 #define printk_deferred_enter __printk_safe_enter
 #define printk_deferred_exit __printk_safe_exit
 
-extern bool pr_flush(int timeout_ms, bool reset_on_progress);
-
 /*
  * Please don't use printk_ratelimit(), because it shares ratelimiting state
  * with all other unrelated printk_ratelimit() callsites.  Instead use
@@ -219,11 +217,6 @@ static inline void printk_deferred_enter(void)
 
 static inline void printk_deferred_exit(void)
 {
-}
-
-static inline bool pr_flush(int timeout_ms, bool reset_on_progress)
-{
-	return true;
 }
 
 static inline int printk_ratelimit(void)

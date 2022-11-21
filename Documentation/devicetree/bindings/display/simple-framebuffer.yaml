@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/simple-framebuffer.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Simple Framebuffer Device Tree Bindings
+title: Simple Framebuffer
 
 maintainers:
   - Hans de Goede <hdegoede@redhat.com>

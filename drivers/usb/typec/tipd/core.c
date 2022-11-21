@@ -857,15 +857,13 @@ err_clear_mask:
 	return ret;
 }
 
-static int tps6598x_remove(struct i2c_client *client)
+static void tps6598x_remove(struct i2c_client *client)
 {
 	struct tps6598x *tps = i2c_get_clientdata(client);
 
 	tps6598x_disconnect(tps, 0);
 	typec_unregister_port(tps->port);
 	usb_role_switch_put(tps->role_sw);
-
-	return 0;
 }
 
 static const struct of_device_id tps6598x_of_match[] = {

@@ -7,20 +7,6 @@
 #include <subdev/bios.h>
 #include <subdev/bios/i2c.h>
 
-struct nvkm_i2c_ntfy_req {
-#define NVKM_I2C_PLUG                                                      0x01
-#define NVKM_I2C_UNPLUG                                                    0x02
-#define NVKM_I2C_IRQ                                                       0x04
-#define NVKM_I2C_DONE                                                      0x08
-#define NVKM_I2C_ANY                                                       0x0f
-	u8 mask;
-	u8 port;
-};
-
-struct nvkm_i2c_ntfy_rep {
-	u8 mask;
-};
-
 struct nvkm_i2c_bus_probe {
 	struct i2c_board_info dev;
 	u8 udelay; /* set to 0 to use the standard delay */
@@ -79,6 +65,11 @@ struct nvkm_i2c {
 	struct list_head bus;
 	struct list_head aux;
 
+#define NVKM_I2C_PLUG   BIT(0)
+#define NVKM_I2C_UNPLUG BIT(1)
+#define NVKM_I2C_IRQ    BIT(2)
+#define NVKM_I2C_DONE   BIT(3)
+#define NVKM_I2C_ANY   (NVKM_I2C_PLUG | NVKM_I2C_UNPLUG | NVKM_I2C_IRQ | NVKM_I2C_DONE)
 	struct nvkm_event event;
 };
 

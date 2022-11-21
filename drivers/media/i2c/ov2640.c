@@ -1271,7 +1271,7 @@ err_clk:
 	return ret;
 }
 
-static int ov2640_remove(struct i2c_client *client)
+static void ov2640_remove(struct i2c_client *client)
 {
 	struct ov2640_priv       *priv = to_ov2640(client);
 
@@ -1281,7 +1281,6 @@ static int ov2640_remove(struct i2c_client *client)
 	media_entity_cleanup(&priv->subdev.entity);
 	v4l2_device_unregister_subdev(&priv->subdev);
 	clk_disable_unprepare(priv->clk);
-	return 0;
 }
 
 static const struct i2c_device_id ov2640_id[] = {

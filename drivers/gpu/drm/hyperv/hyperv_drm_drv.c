@@ -11,7 +11,7 @@
 #include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_helper.h>
+#include <drm/drm_fbdev_generic.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
@@ -22,9 +22,6 @@
 #define DRIVER_DATE "2020"
 #define DRIVER_MAJOR 1
 #define DRIVER_MINOR 0
-
-#define PCI_VENDOR_ID_MICROSOFT 0x1414
-#define PCI_DEVICE_ID_HYPERV_VIDEO 0x5353
 
 DEFINE_DRM_GEM_FOPS(hv_fops);
 
@@ -133,7 +130,6 @@ static int hyperv_vmbus_probe(struct hv_device *hdev,
 	}
 
 	ret = hyperv_setup_vram(hv, hdev);
-
 	if (ret)
 		goto err_vmbus_close;
 
@@ -146,22 +142,22 @@ static int hyperv_vmbus_probe(struct hv_device *hdev,
 	if (ret)
 		drm_warn(dev, "Failed to update vram location.\n");
 
-	hv->dirt_needed = true;
-
 	ret = hyperv_mode_config_init(hv);
 	if (ret)
-		goto err_vmbus_close;
+		goto err_free_mmio;
 
 	ret = drm_dev_register(dev, 0);
 	if (ret) {
 		drm_err(dev, "Failed to register drm driver.\n");
-		goto err_vmbus_close;
+		goto err_free_mmio;
 	}
 
 	drm_fbdev_generic_setup(dev, 0);
 
 	return 0;
 
+err_free_mmio:
+	vmbus_free_mmio(hv->mem->start, hv->fb_size);
 err_vmbus_close:
 	vmbus_close(hdev->channel);
 err_hv_set_drv_data:

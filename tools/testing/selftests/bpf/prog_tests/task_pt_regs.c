@@ -4,7 +4,7 @@
 #include "test_task_pt_regs.skel.h"
 
 /* uprobe attach point */
-static void trigger_func(void)
+static noinline void trigger_func(void)
 {
 	asm volatile ("");
 }

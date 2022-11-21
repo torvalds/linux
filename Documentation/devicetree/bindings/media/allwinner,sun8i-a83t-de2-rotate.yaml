@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/media/allwinner,sun8i-a83t-de2-rotate.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A83T DE2 Rotate Device Tree Bindings
+title: Allwinner A83T DE2 Rotate
 
 maintainers:
   - Jernej Skrabec <jernej.skrabec@siol.net>

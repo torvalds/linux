@@ -4,9 +4,9 @@ CFLAGS += -I. -I../../include -g -Og -Wall -D_LGPL_SOURCE -fsanitize=address \
 	  -fsanitize=undefined
 LDFLAGS += -fsanitize=address -fsanitize=undefined
 LDLIBS+= -lpthread -lurcu
-TARGETS = main idr-test multiorder xarray
+TARGETS = main idr-test multiorder xarray maple
 CORE_OFILES := xarray.o radix-tree.o idr.o linux.o test.o find_bit.o bitmap.o \
-			 slab.o
+			 slab.o maple.o
 OFILES = main.o $(CORE_OFILES) regression1.o regression2.o regression3.o \
 	 regression4.o tag_check.o multiorder.o idr-test.o iteration_check.o \
 	 iteration_check_2.o benchmark.o
@@ -29,6 +29,8 @@ idr-test: idr-test.o $(CORE_OFILES)
 
 xarray: $(CORE_OFILES)
 
+maple: $(CORE_OFILES)
+
 multiorder: multiorder.o $(CORE_OFILES)
 
 clean:
@@ -40,6 +42,7 @@ $(OFILES): Makefile *.h */*.h generated/map-shift.h \
 	../../include/linux/*.h \
 	../../include/asm/*.h \
 	../../../include/linux/xarray.h \
+	../../../include/linux/maple_tree.h \
 	../../../include/linux/radix-tree.h \
 	../../../include/linux/idr.h
 
@@ -50,6 +53,8 @@ idr.c: ../../../lib/idr.c
 	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
 
 xarray.o: ../../../lib/xarray.c ../../../lib/test_xarray.c
+
+maple.o: ../../../lib/maple_tree.c ../../../lib/test_maple_tree.c
 
 generated/map-shift.h:
 	@if ! grep -qws $(SHIFT) generated/map-shift.h; then		\

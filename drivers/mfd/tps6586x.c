@@ -579,7 +579,7 @@ err_mfd_add:
 	return ret;
 }
 
-static int tps6586x_i2c_remove(struct i2c_client *client)
+static void tps6586x_i2c_remove(struct i2c_client *client)
 {
 	struct tps6586x *tps6586x = i2c_get_clientdata(client);
 
@@ -587,7 +587,6 @@ static int tps6586x_i2c_remove(struct i2c_client *client)
 	mfd_remove_devices(tps6586x->dev);
 	if (client->irq)
 		free_irq(client->irq, tps6586x);
-	return 0;
 }
 
 static int __maybe_unused tps6586x_i2c_suspend(struct device *dev)

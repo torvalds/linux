@@ -121,7 +121,7 @@ config KDB_DEFAULT_ENABLE
 
 config KDB_KEYBOARD
 	bool "KGDB_KDB: keyboard as input device"
-	depends on VT && KGDB_KDB
+	depends on VT && KGDB_KDB && !PARISC
 	default n
 	help
 	  KDB can use a PS/2 type keyboard for an input device

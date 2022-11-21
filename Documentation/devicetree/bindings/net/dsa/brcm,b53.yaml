@@ -169,7 +169,6 @@ examples:
 
                 port@8 {
                     reg = <8>;
-                    label = "cpu";
                     phy-mode = "rgmii-txid";
                     ethernet = <&eth0>;
                     fixed-link {
@@ -252,8 +251,9 @@ examples:
 
                 port@8 {
                     ethernet = <&amac2>;
-                    label = "cpu";
                     reg = <8>;
+                    phy-mode = "internal";
+
                     fixed-link {
                         speed = <1000>;
                         full-duplex;

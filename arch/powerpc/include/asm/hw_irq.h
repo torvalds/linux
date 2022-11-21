@@ -113,7 +113,14 @@ static inline void __hard_RI_enable(void)
 
 static inline notrace unsigned long irq_soft_mask_return(void)
 {
-	return READ_ONCE(local_paca->irq_soft_mask);
+	unsigned long flags;
+
+	asm volatile(
+		"lbz %0,%1(13)"
+		: "=r" (flags)
+		: "i" (offsetof(struct paca_struct, irq_soft_mask)));
+
+	return flags;
 }
 
 /*
@@ -140,8 +147,12 @@ static inline notrace void irq_soft_mask_set(unsigned long mask)
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
 		WARN_ON(mask && !(mask & IRQS_DISABLED));
 
-	WRITE_ONCE(local_paca->irq_soft_mask, mask);
-	barrier();
+	asm volatile(
+		"stb %0,%1(13)"
+		:
+		: "r" (mask),
+		  "i" (offsetof(struct paca_struct, irq_soft_mask))
+		: "memory");
 }
 
 static inline notrace unsigned long irq_soft_mask_set_return(unsigned long mask)
@@ -282,7 +293,8 @@ static inline bool pmi_irq_pending(void)
 	flags = irq_soft_mask_set_return(IRQS_ALL_DISABLED);		\
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;			\
 	if (!arch_irqs_disabled_flags(flags)) {				\
-		WRITE_ONCE(local_paca->saved_r1, current_stack_pointer);\
+		asm volatile("std%X0 %1,%0" : "=m" (local_paca->saved_r1) \
+					    : "r" (current_stack_pointer)); \
 		trace_hardirqs_off();					\
 	}								\
 } while(0)
@@ -458,6 +470,30 @@ static inline void irq_soft_mask_regs_set_state(struct pt_regs *regs, unsigned l
 {
 }
 #endif /* CONFIG_PPC64 */
+
+static inline unsigned long mtmsr_isync_irqsafe(unsigned long msr)
+{
+#ifdef CONFIG_PPC64
+	if (arch_irqs_disabled()) {
+		/*
+		 * With soft-masking, MSR[EE] can change from 1 to 0
+		 * asynchronously when irqs are disabled, and we don't want to
+		 * set MSR[EE] back to 1 here if that has happened. A race-free
+		 * way to do this is ensure EE is already 0. Another way it
+		 * could be done is with a RESTART_TABLE handler, but that's
+		 * probably overkill here.
+		 */
+		msr &= ~MSR_EE;
+		mtmsr_isync(msr);
+		irq_soft_mask_set(IRQS_ALL_DISABLED);
+		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+	} else
+#endif
+		mtmsr_isync(msr);
+
+	return msr;
+}
+
 
 #define ARCH_IRQ_INIT_FLAGS	IRQ_NOREQUEST
 

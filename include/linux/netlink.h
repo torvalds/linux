@@ -71,6 +71,8 @@ netlink_kernel_create(struct net *net, int unit, struct netlink_kernel_cfg *cfg)
  *	%NL_SET_ERR_MSG
  * @bad_attr: attribute with error
  * @policy: policy for a bad attribute
+ * @miss_type: attribute type which was missing
+ * @miss_nest: nest missing an attribute (%NULL if missing top level attr)
  * @cookie: cookie data to return to userspace (for success)
  * @cookie_len: actual cookie data length
  */
@@ -78,6 +80,8 @@ struct netlink_ext_ack {
 	const char *_msg;
 	const struct nlattr *bad_attr;
 	const struct nla_policy *policy;
+	const struct nlattr *miss_nest;
+	u16 miss_type;
 	u8 cookie[NETLINK_MAX_COOKIE_LEN];
 	u8 cookie_len;
 };
@@ -125,6 +129,26 @@ struct netlink_ext_ack {
 
 #define NL_SET_ERR_MSG_ATTR(extack, attr, msg)		\
 	NL_SET_ERR_MSG_ATTR_POL(extack, attr, NULL, msg)
+
+#define NL_SET_ERR_ATTR_MISS(extack, nest, type)  do {	\
+	struct netlink_ext_ack *__extack = (extack);	\
+							\
+	if (__extack) {					\
+		__extack->miss_nest = (nest);		\
+		__extack->miss_type = (type);		\
+	}						\
+} while (0)
+
+#define NL_REQ_ATTR_CHECK(extack, nest, tb, type) ({		\
+	struct nlattr **__tb = (tb);				\
+	u32 __attr = (type);					\
+	int __retval;						\
+								\
+	__retval = !__tb[__attr];				\
+	if (__retval)						\
+		NL_SET_ERR_ATTR_MISS((extack), (nest), __attr);	\
+	__retval;						\
+})
 
 static inline void nl_set_extack_cookie_u64(struct netlink_ext_ack *extack,
 					    u64 cookie)

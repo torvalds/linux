@@ -55,6 +55,12 @@ properties:
       - const: apb_pclk
       - const: atclk
 
+  iommus:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
   arm,buffer-size:
     $ref: /schemas/types.yaml#/definitions/uint32
     deprecated: true

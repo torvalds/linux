@@ -37,6 +37,7 @@
 
 struct drm_printer;
 struct drm_i915_private;
+struct intel_gt_definition;
 
 /* Keep in gen based order, and chronological order within a gen */
 enum intel_platform {
@@ -145,13 +146,13 @@ enum intel_ppgtt_type {
 	/* Keep has_* in alphabetical order */ \
 	func(has_64bit_reloc); \
 	func(has_64k_pages); \
-	func(needs_compact_pt); \
 	func(gpu_reset_clobbers_display); \
 	func(has_reset_engine); \
 	func(has_3d_pipeline); \
 	func(has_4tile); \
 	func(has_flat_ccs); \
 	func(has_global_mocs); \
+	func(has_gmd_id); \
 	func(has_gt_uc); \
 	func(has_heci_pxp); \
 	func(has_heci_gscfi); \
@@ -163,8 +164,9 @@ enum intel_ppgtt_type {
 	func(has_logical_ring_elsq); \
 	func(has_media_ratio_mode); \
 	func(has_mslice_steering); \
+	func(has_oa_bpc_reporting); \
+	func(has_oa_slice_contrib_limits); \
 	func(has_one_eu_per_fuse_bit); \
-	func(has_pooled_eu); \
 	func(has_pxp); \
 	func(has_rc6); \
 	func(has_rc6p); \
@@ -180,14 +182,12 @@ enum intel_ppgtt_type {
 	/* Keep in alphabetical order */ \
 	func(cursor_needs_physical); \
 	func(has_cdclk_crawl); \
-	func(has_dmc); \
+	func(has_cdclk_squash); \
 	func(has_ddi); \
 	func(has_dp_mst); \
 	func(has_dsb); \
-	func(has_dsc); \
 	func(has_fpga_dbg); \
 	func(has_gmch); \
-	func(has_hdcp); \
 	func(has_hotplug); \
 	func(has_hti); \
 	func(has_ipc); \
@@ -198,27 +198,76 @@ enum intel_ppgtt_type {
 	func(overlay_needs_physical); \
 	func(supports_tv);
 
-struct ip_version {
+struct intel_ip_version {
 	u8 ver;
 	u8 rel;
+	u8 step;
 };
 
-struct intel_device_info {
-	struct ip_version graphics;
-	struct ip_version media;
+struct intel_runtime_info {
+	/*
+	 * Single "graphics" IP version that represents
+	 * render, compute and copy behavior.
+	 */
+	struct {
+		struct intel_ip_version ip;
+	} graphics;
+	struct {
+		struct intel_ip_version ip;
+	} media;
+	struct {
+		struct intel_ip_version ip;
+	} display;
+
+	/*
+	 * Platform mask is used for optimizing or-ed IS_PLATFORM calls into
+	 * single runtime conditionals, and also to provide groundwork for
+	 * future per platform, or per SKU build optimizations.
+	 *
+	 * Array can be extended when necessary if the corresponding
+	 * BUILD_BUG_ON is hit.
+	 */
+	u32 platform_mask[2];
+
+	u16 device_id;
 
 	intel_engine_mask_t platform_engine_mask; /* Engines supported by the HW */
 
-	enum intel_platform platform;
+	u32 rawclk_freq;
 
-	unsigned int dma_mask_size; /* available DMA address bits */
+	struct intel_step_info step;
+
+	unsigned int page_sizes; /* page sizes supported by the HW */
 
 	enum intel_ppgtt_type ppgtt_type;
 	unsigned int ppgtt_size; /* log2, e.g. 31/32/48 bits */
 
-	unsigned int page_sizes; /* page sizes supported by the HW */
-
 	u32 memory_regions; /* regions supported by the HW */
+
+	bool has_pooled_eu;
+
+	/* display */
+	struct {
+		u8 pipe_mask;
+		u8 cpu_transcoder_mask;
+
+		u8 num_sprites[I915_MAX_PIPES];
+		u8 num_scalers[I915_MAX_PIPES];
+
+		u8 fbc_mask;
+
+		bool has_hdcp;
+		bool has_dmc;
+		bool has_dsc;
+	};
+};
+
+struct intel_device_info {
+	enum intel_platform platform;
+
+	unsigned int dma_mask_size; /* available DMA address bits */
+
+	const struct intel_gt_definition *extra_gt_list;
 
 	u8 gt; /* GT number, 0 if undefined */
 
@@ -227,12 +276,6 @@ struct intel_device_info {
 #undef DEFINE_FLAG
 
 	struct {
-		u8 ver;
-		u8 rel;
-
-		u8 pipe_mask;
-		u8 cpu_transcoder_mask;
-		u8 fbc_mask;
 		u8 abox_mask;
 
 		struct {
@@ -259,27 +302,11 @@ struct intel_device_info {
 			u32 gamma_lut_tests;
 		} color;
 	} display;
-};
 
-struct intel_runtime_info {
 	/*
-	 * Platform mask is used for optimizing or-ed IS_PLATFORM calls into
-	 * into single runtime conditionals, and also to provide groundwork
-	 * for future per platform, or per SKU build optimizations.
-	 *
-	 * Array can be extended when necessary if the corresponding
-	 * BUILD_BUG_ON is hit.
+	 * Initial runtime info. Do not access outside of i915_driver_create().
 	 */
-	u32 platform_mask[2];
-
-	u16 device_id;
-
-	u8 num_sprites[I915_MAX_PIPES];
-	u8 num_scalers[I915_MAX_PIPES];
-
-	u32 rawclk_freq;
-
-	struct intel_step_info step;
+	const struct intel_runtime_info __runtime;
 };
 
 struct intel_driver_caps {
@@ -289,13 +316,12 @@ struct intel_driver_caps {
 
 const char *intel_platform_name(enum intel_platform platform);
 
-void intel_device_info_subplatform_init(struct drm_i915_private *dev_priv);
+void intel_device_info_runtime_init_early(struct drm_i915_private *dev_priv);
 void intel_device_info_runtime_init(struct drm_i915_private *dev_priv);
 
-void intel_device_info_print_static(const struct intel_device_info *info,
-				    struct drm_printer *p);
-void intel_device_info_print_runtime(const struct intel_runtime_info *info,
-				     struct drm_printer *p);
+void intel_device_info_print(const struct intel_device_info *info,
+			     const struct intel_runtime_info *runtime,
+			     struct drm_printer *p);
 
 void intel_driver_caps_print(const struct intel_driver_caps *caps,
 			     struct drm_printer *p);

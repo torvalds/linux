@@ -242,11 +242,11 @@ static ssize_t firmware_version_show(struct device *dev,
 
 	if (ctx->fw_version.type == 0 && ctx->fw_version.major == 0 &&
 	    ctx->fw_version.minor == 0 && ctx->fw_version.build == 0)
-		return sprintf(buf, "FW not yet loaded\n");
+		return sysfs_emit(buf, "FW not yet loaded\n");
 	else
-		return sprintf(buf, "v%02x.%02x.%02x.%02x\n",
-			       ctx->fw_version.type, ctx->fw_version.major,
-			       ctx->fw_version.minor, ctx->fw_version.build);
+		return sysfs_emit(buf, "v%02x.%02x.%02x.%02x\n",
+				  ctx->fw_version.type, ctx->fw_version.major,
+				  ctx->fw_version.minor, ctx->fw_version.build);
 
 }
 

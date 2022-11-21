@@ -4,9 +4,6 @@
 /*          Kai Shen <kaishen@linux.alibaba.com> */
 /* Copyright (c) 2020-2022, Alibaba Group. */
 
-#include <rdma/ib_verbs.h>
-
-#include "erdma_hw.h"
 #include "erdma_verbs.h"
 
 static void *get_next_valid_cqe(struct erdma_cq *cq)
@@ -62,7 +59,6 @@ static const enum ib_wc_opcode wc_mapping_table[ERDMA_NUM_OPCODES] = {
 	[ERDMA_OP_RECV_IMM] = IB_WC_RECV_RDMA_WITH_IMM,
 	[ERDMA_OP_RECV_INV] = IB_WC_RECV,
 	[ERDMA_OP_WRITE_WITH_IMM] = IB_WC_RDMA_WRITE,
-	[ERDMA_OP_INVALIDATE] = IB_WC_LOCAL_INV,
 	[ERDMA_OP_RSP_SEND_IMM] = IB_WC_RECV,
 	[ERDMA_OP_SEND_WITH_INV] = IB_WC_SEND,
 	[ERDMA_OP_REG_MR] = IB_WC_REG_MR,

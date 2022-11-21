@@ -15,14 +15,12 @@
 #include "io_uring.h"
 #include "openclose.h"
 #include "rsrc.h"
-#include "notif.h"
 
 struct io_rsrc_update {
 	struct file			*file;
 	u64				arg;
 	u32				nr_args;
 	u32				offset;
-	int				type;
 };
 
 static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
@@ -343,7 +341,7 @@ __cold static int io_rsrc_ref_quiesce(struct io_rsrc_data *data,
 		flush_delayed_work(&ctx->rsrc_put_work);
 		reinit_completion(&data->done);
 
-		ret = io_run_task_work_sig();
+		ret = io_run_task_work_sig(ctx);
 		mutex_lock(&ctx->uring_lock);
 	} while (ret >= 0);
 	data->quiesce = false;
@@ -655,7 +653,7 @@ __cold int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
 	return -EINVAL;
 }
 
-int io_rsrc_update_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+int io_files_update_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_rsrc_update *up = io_kiocb_to_cmd(req, struct io_rsrc_update);
 
@@ -669,7 +667,6 @@ int io_rsrc_update_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (!up->nr_args)
 		return -EINVAL;
 	up->arg = READ_ONCE(sqe->addr);
-	up->type = READ_ONCE(sqe->ioprio);
 	return 0;
 }
 
@@ -712,7 +709,7 @@ static int io_files_update_with_index_alloc(struct io_kiocb *req,
 	return ret;
 }
 
-static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
+int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_rsrc_update *up = io_kiocb_to_cmd(req, struct io_rsrc_update);
 	struct io_ring_ctx *ctx = req->ctx;
@@ -741,54 +738,6 @@ static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 	return IOU_OK;
 }
 
-static int io_notif_update(struct io_kiocb *req, unsigned int issue_flags)
-{
-	struct io_rsrc_update *up = io_kiocb_to_cmd(req, struct io_rsrc_update);
-	struct io_ring_ctx *ctx = req->ctx;
-	unsigned len = up->nr_args;
-	unsigned idx_end, idx = up->offset;
-	int ret = 0;
-
-	io_ring_submit_lock(ctx, issue_flags);
-	if (unlikely(check_add_overflow(idx, len, &idx_end))) {
-		ret = -EOVERFLOW;
-		goto out;
-	}
-	if (unlikely(idx_end > ctx->nr_notif_slots)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	for (; idx < idx_end; idx++) {
-		struct io_notif_slot *slot = &ctx->notif_slots[idx];
-
-		if (!slot->notif)
-			continue;
-		if (up->arg)
-			slot->tag = up->arg;
-		io_notif_slot_flush_submit(slot, issue_flags);
-	}
-out:
-	io_ring_submit_unlock(ctx, issue_flags);
-	if (ret < 0)
-		req_set_fail(req);
-	io_req_set_res(req, ret, 0);
-	return IOU_OK;
-}
-
-int io_rsrc_update(struct io_kiocb *req, unsigned int issue_flags)
-{
-	struct io_rsrc_update *up = io_kiocb_to_cmd(req, struct io_rsrc_update);
-
-	switch (up->type) {
-	case IORING_RSRC_UPDATE_FILES:
-		return io_files_update(req, issue_flags);
-	case IORING_RSRC_UPDATE_NOTIF:
-		return io_notif_update(req, issue_flags);
-	}
-	return -EINVAL;
-}
-
 int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
 			  struct io_rsrc_node *node, void *rsrc)
 {
@@ -808,20 +757,17 @@ int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
 
 void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
 {
-#if !defined(IO_URING_SCM_ALL)
 	int i;
 
 	for (i = 0; i < ctx->nr_user_files; i++) {
 		struct file *file = io_file_from_index(&ctx->file_table, i);
 
-		if (!file)
-			continue;
-		if (io_fixed_file_slot(&ctx->file_table, i)->file_ptr & FFS_SCM)
+		/* skip scm accounted files, they'll be freed by ->ring_sock */
+		if (!file || io_file_need_scm(file))
 			continue;
 		io_file_bitmap_clear(&ctx->file_table, i);
 		fput(file);
 	}
-#endif
 
 #if defined(CONFIG_UNIX)
 	if (ctx->ring_sock) {
@@ -906,6 +852,7 @@ int __io_scm_file_account(struct io_ring_ctx *ctx, struct file *file)
 
 		UNIXCB(skb).fp = fpl;
 		skb->sk = sk;
+		skb->scm_io_uring = 1;
 		skb->destructor = unix_destruct_scm;
 		refcount_add(skb->truesize, &sk->sk_wmem_alloc);
 	}

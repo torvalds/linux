@@ -19,9 +19,6 @@ extern unsigned long parisc_pat_pdc_cap; /* PDC capabilities (PAT) */
 #define PDC_TYPE_SYSTEM_MAP	 1 /* 32-bit, but supports PDC_SYSTEM_MAP */
 #define PDC_TYPE_SNAKE		 2 /* Doesn't support SYSTEM_MAP */
 
-void pdc_console_init(void);	/* in pdc_console.c */
-void pdc_console_restart(void);
-
 void setup_pdc(void);		/* in inventory.c */
 
 /* wrapper-functions from pdc.c */

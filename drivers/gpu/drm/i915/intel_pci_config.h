@@ -6,6 +6,31 @@
 #ifndef __INTEL_PCI_CONFIG_H__
 #define __INTEL_PCI_CONFIG_H__
 
+/* PCI BARs */
+#define GEN2_GMADR_BAR				0
+#define GEN2_MMADR_BAR				1 /* MMIO+GTT, despite the name */
+#define GEN2_IO_BAR				2 /* 85x/865 */
+
+#define GEN3_MMADR_BAR				0 /* MMIO only */
+#define GEN3_IO_BAR				1
+#define GEN3_GMADR_BAR				2
+#define GEN3_GTTADR_BAR				3 /* GTT only */
+
+#define GEN4_GTTMMADR_BAR			0 /* MMIO+GTT */
+#define GEN4_GMADR_BAR				2
+#define GEN4_IO_BAR				4
+
+#define GEN12_LMEM_BAR				2
+
+static inline int intel_mmio_bar(int graphics_ver)
+{
+	switch (graphics_ver) {
+	case 2: return GEN2_MMADR_BAR;
+	case 3: return GEN3_MMADR_BAR;
+	default: return GEN4_GTTMMADR_BAR;
+	}
+}
+
 /* BSM in include/drm/i915_drm.h */
 
 #define MCHBAR_I915				0x44

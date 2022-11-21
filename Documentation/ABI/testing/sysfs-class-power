@@ -364,7 +364,10 @@ Date:		April 2019
 Contact:	linux-pm@vger.kernel.org
 Description:
 		Represents a battery percentage level, above which charging will
-		stop.
+		stop. Not all hardware is capable of setting this to an arbitrary
+		percentage. Drivers will round written values to the nearest
+		supported value. Reading back the value will show the actual
+		threshold set by the driver.
 
 		Access: Read, Write
 

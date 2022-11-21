@@ -1192,7 +1192,7 @@ nv04_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 		return -ENOMEM;
 	nvkm_object_ctor(&nv04_gr_chan, oclass, &chan->object);
 	chan->gr = gr;
-	chan->chid = fifoch->chid;
+	chan->chid = fifoch->id;
 	*pobject = &chan->object;
 
 	*ctx_reg(chan, NV04_PGRAPH_DEBUG_3) = 0xfad4ff31;

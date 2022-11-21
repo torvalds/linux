@@ -5,7 +5,6 @@
 /* Package definitions */
 #define PINCTRL_NMK_STN8815	0
 #define PINCTRL_NMK_DB8500	1
-#define PINCTRL_NMK_DB8540	2
 
 /* Alternate functions: function C is set in hw by setting both A and B */
 #define NMK_GPIO_ALT_GPIO	0
@@ -105,20 +104,20 @@ struct nmk_function {
 
 /**
  * struct nmk_pingroup - describes a Nomadik pin group
- * @name: the name of this specific pin group
- * @pins: an array of discrete physical pins used in this group, taken
- *	from the driver-local pin enumeration space
- * @num_pins: the number of pins in this group array, i.e. the number of
- *	elements in .pins so we can iterate over that array
+ * @grp: Generic data of the pin group (name and pins)
  * @altsetting: the altsetting to apply to all pins in this group to
  *	configure them to be used by a function
  */
 struct nmk_pingroup {
-	const char *name;
-	const unsigned int *pins;
-	const unsigned npins;
+	struct pingroup grp;
 	int altsetting;
 };
+
+#define NMK_PIN_GROUP(a, b)							\
+	{									\
+		.grp = PINCTRL_PINGROUP(#a, a##_pins, ARRAY_SIZE(a##_pins)),	\
+		.altsetting = b,						\
+	}
 
 /**
  * struct nmk_pinctrl_soc_data - Nomadik pin controller per-SoC configuration
@@ -168,19 +167,6 @@ void nmk_pinctrl_db8500_init(const struct nmk_pinctrl_soc_data **soc);
 
 static inline void
 nmk_pinctrl_db8500_init(const struct nmk_pinctrl_soc_data **soc)
-{
-}
-
-#endif
-
-#ifdef CONFIG_PINCTRL_DB8540
-
-void nmk_pinctrl_db8540_init(const struct nmk_pinctrl_soc_data **soc);
-
-#else
-
-static inline void
-nmk_pinctrl_db8540_init(const struct nmk_pinctrl_soc_data **soc)
 {
 }
 

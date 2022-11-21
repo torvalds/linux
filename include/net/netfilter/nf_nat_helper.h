@@ -38,4 +38,5 @@ bool nf_nat_mangle_udp_packet(struct sk_buff *skb, struct nf_conn *ct,
  * to port ct->master->saved_proto. */
 void nf_nat_follow_master(struct nf_conn *ct, struct nf_conntrack_expect *this);
 
+u16 nf_nat_exp_find_port(struct nf_conntrack_expect *exp, u16 port);
 #endif

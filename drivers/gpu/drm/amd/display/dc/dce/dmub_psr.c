@@ -393,17 +393,22 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 	if (copy_settings_data->dsc_enable_status &&
 		link->dpcd_caps.sink_dev_id == DP_DEVICE_ID_38EC11 &&
 		!memcmp(link->dpcd_caps.sink_dev_id_str, DP_SINK_DEVICE_STR_ID_1,
-			sizeof(link->dpcd_caps.sink_dev_id_str)))
+			sizeof(DP_SINK_DEVICE_STR_ID_1)))
 		link->psr_settings.force_ffu_mode = 1;
 	else
 		link->psr_settings.force_ffu_mode = 0;
 	copy_settings_data->force_ffu_mode = link->psr_settings.force_ffu_mode;
 
-	if (link->fec_state == dc_link_fec_enabled &&
+	if (((link->dpcd_caps.fec_cap.bits.FEC_CAPABLE &&
+		!link->dc->debug.disable_fec) &&
+		(link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT &&
+		!link->panel_config.dsc.disable_dsc_edp &&
+		link->dc->caps.edp_dsc_support)) &&
+		link->dpcd_caps.sink_dev_id == DP_DEVICE_ID_38EC11 &&
 		(!memcmp(link->dpcd_caps.sink_dev_id_str, DP_SINK_DEVICE_STR_ID_1,
-			sizeof(link->dpcd_caps.sink_dev_id_str)) ||
+			sizeof(DP_SINK_DEVICE_STR_ID_1)) ||
 		!memcmp(link->dpcd_caps.sink_dev_id_str, DP_SINK_DEVICE_STR_ID_2,
-			sizeof(link->dpcd_caps.sink_dev_id_str))))
+			sizeof(DP_SINK_DEVICE_STR_ID_2))))
 		copy_settings_data->debug.bitfields.force_wakeup_by_tps3 = 1;
 	else
 		copy_settings_data->debug.bitfields.force_wakeup_by_tps3 = 0;

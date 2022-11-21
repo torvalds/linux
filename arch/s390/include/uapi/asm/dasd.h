@@ -183,6 +183,18 @@ typedef struct format_data_t {
 } format_data_t;
 
 /*
+ * struct dasd_copypair_swap_data_t
+ * represents all data necessary to issue a swap of the copy pair relation
+ */
+struct dasd_copypair_swap_data_t {
+	char primary[20]; /* BUSID of primary */
+	char secondary[20]; /* BUSID of secondary */
+
+	/* Reserved for future updates. */
+	__u8 reserved[64];
+};
+
+/*
  * values to be used for format_data_t.intensity
  * 0/8: normal format
  * 1/9: also write record zero
@@ -326,6 +338,8 @@ struct dasd_snid_ioctl_data {
 #define BIODASDSATTR   _IOW(DASD_IOCTL_LETTER,2,attrib_data_t)
 /* Release Allocated Space */
 #define BIODASDRAS     _IOW(DASD_IOCTL_LETTER, 3, format_data_t)
+/* Swap copy pair relation */
+#define BIODASDCOPYPAIRSWAP _IOW(DASD_IOCTL_LETTER, 4, struct dasd_copypair_swap_data_t)
 
 /* Get Sense Path Group ID (SNID) data */
 #define BIODASDSNID    _IOWR(DASD_IOCTL_LETTER, 1, struct dasd_snid_ioctl_data)

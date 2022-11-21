@@ -32,6 +32,7 @@
 #define ADL_P_DEVICE_ID		0x51FC
 #define ADL_N_DEVICE_ID		0x54FC
 #define RPL_S_DEVICE_ID		0x7A78
+#define MTL_P_DEVICE_ID		0x7E45
 
 #define	REVISION_ID_CHT_A0	0x6
 #define	REVISION_ID_CHT_Ax_SI	0x0

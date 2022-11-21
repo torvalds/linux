@@ -19,9 +19,9 @@
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
 #include "intel_frontbuffer.h"
-#include "intel_pm.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
+#include "skl_watermark.h"
 
 /* Cursor formats */
 static const u32 intel_cursor_formats[] = {
@@ -631,8 +631,10 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	 *
 	 * FIXME bigjoiner fastpath would be good
 	 */
-	if (!crtc_state->hw.active || intel_crtc_needs_modeset(crtc_state) ||
-	    crtc_state->update_pipe || crtc_state->bigjoiner_pipes)
+	if (!crtc_state->hw.active ||
+	    intel_crtc_needs_modeset(crtc_state) ||
+	    intel_crtc_needs_fastset(crtc_state) ||
+	    crtc_state->bigjoiner_pipes)
 		goto slow;
 
 	/*

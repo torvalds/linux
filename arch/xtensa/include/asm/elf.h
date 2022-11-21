@@ -93,6 +93,10 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 #define elf_check_arch(x) ( ( (x)->e_machine == EM_XTENSA )  || \
 			    ( (x)->e_machine == EM_XTENSA_OLD ) )
 
+#define ELFOSABI_XTENSA_FDPIC 65
+#define elf_check_fdpic(x) ((x)->e_ident[EI_OSABI] == ELFOSABI_XTENSA_FDPIC)
+#define ELF_FDPIC_CORE_EFLAGS 0
+
 /*
  * These are used to set parameters in the core dumps.
  */
@@ -153,10 +157,22 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
  */
 
 #define ELF_PLAT_INIT(_r, load_addr) \
-	do { _r->areg[0]=0; /*_r->areg[1]=0;*/ _r->areg[2]=0;  _r->areg[3]=0;  \
-	     _r->areg[4]=0;  _r->areg[5]=0;    _r->areg[6]=0;  _r->areg[7]=0;  \
-	     _r->areg[8]=0;  _r->areg[9]=0;    _r->areg[10]=0; _r->areg[11]=0; \
-	     _r->areg[12]=0; _r->areg[13]=0;   _r->areg[14]=0; _r->areg[15]=0; \
+	do { \
+		(_r)->areg[0]  = 0; /*(_r)->areg[1] = 0;*/ \
+		(_r)->areg[2]  = 0; (_r)->areg[3]  = 0; \
+		(_r)->areg[4]  = 0; (_r)->areg[5]  = 0; \
+		(_r)->areg[6]  = 0; (_r)->areg[7]  = 0; \
+		(_r)->areg[8]  = 0; (_r)->areg[9]  = 0; \
+		(_r)->areg[10] = 0; (_r)->areg[11] = 0; \
+		(_r)->areg[12] = 0; (_r)->areg[13] = 0; \
+		(_r)->areg[14] = 0; (_r)->areg[15] = 0; \
+	} while (0)
+
+#define ELF_FDPIC_PLAT_INIT(_r, _exec_map_addr, _interp_map_addr, dynamic_addr) \
+	do { \
+		(_r)->areg[4] = _exec_map_addr; \
+		(_r)->areg[5] = _interp_map_addr; \
+		(_r)->areg[6] = dynamic_addr; \
 	} while (0)
 
 typedef struct {

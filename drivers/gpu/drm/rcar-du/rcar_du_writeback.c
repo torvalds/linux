@@ -166,8 +166,8 @@ static int rcar_du_wb_enc_atomic_check(struct drm_encoder *encoder,
 
 	wb_state->format = rcar_du_format_info(fb->format->format);
 	if (wb_state->format == NULL) {
-		dev_dbg(dev->dev, "%s: unsupported format %08x\n", __func__,
-			fb->format->format);
+		dev_dbg(dev->dev, "%s: unsupported format %p4cc\n", __func__,
+			&fb->format->format);
 		return -EINVAL;
 	}
 

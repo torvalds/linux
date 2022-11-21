@@ -2129,6 +2129,7 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 	else
 		error = locks_lock_file_wait(f.file, &fl);
 
+	locks_release_private(&fl);
  out_putf:
 	fdput(f);
 

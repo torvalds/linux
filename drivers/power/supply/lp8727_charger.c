@@ -590,13 +590,12 @@ static int lp8727_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	return 0;
 }
 
-static int lp8727_remove(struct i2c_client *cl)
+static void lp8727_remove(struct i2c_client *cl)
 {
 	struct lp8727_chg *pchg = i2c_get_clientdata(cl);
 
 	lp8727_release_irq(pchg);
 	lp8727_unregister_psy(pchg);
-	return 0;
 }
 
 static const struct of_device_id lp8727_dt_ids[] = {

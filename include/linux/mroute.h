@@ -17,7 +17,7 @@ static inline int ip_mroute_opt(int opt)
 }
 
 int ip_mroute_setsockopt(struct sock *, int, sockptr_t, unsigned int);
-int ip_mroute_getsockopt(struct sock *, int, char __user *, int __user *);
+int ip_mroute_getsockopt(struct sock *, int, sockptr_t, sockptr_t);
 int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg);
 int ipmr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg);
 int ip_mr_init(void);
@@ -29,8 +29,8 @@ static inline int ip_mroute_setsockopt(struct sock *sock, int optname,
 	return -ENOPROTOOPT;
 }
 
-static inline int ip_mroute_getsockopt(struct sock *sock, int optname,
-				       char __user *optval, int __user *optlen)
+static inline int ip_mroute_getsockopt(struct sock *sk, int optname,
+				       sockptr_t optval, sockptr_t optlen)
 {
 	return -ENOPROTOOPT;
 }

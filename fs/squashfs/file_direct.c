@@ -74,7 +74,7 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 	/* Decompress directly into the page cache buffers */
 	res = squashfs_read_data(inode->i_sb, block, bsize, NULL, actor);
 
-	kfree(actor);
+	squashfs_page_actor_free(actor);
 
 	if (res < 0)
 		goto mark_errored;

@@ -22,30 +22,30 @@ static ssize_t state_show(struct slave *slave, char *buf)
 {
 	switch (bond_slave_state(slave)) {
 	case BOND_STATE_ACTIVE:
-		return sprintf(buf, "active\n");
+		return sysfs_emit(buf, "active\n");
 	case BOND_STATE_BACKUP:
-		return sprintf(buf, "backup\n");
+		return sysfs_emit(buf, "backup\n");
 	default:
-		return sprintf(buf, "UNKNOWN\n");
+		return sysfs_emit(buf, "UNKNOWN\n");
 	}
 }
 static SLAVE_ATTR_RO(state);
 
 static ssize_t mii_status_show(struct slave *slave, char *buf)
 {
-	return sprintf(buf, "%s\n", bond_slave_link_status(slave->link));
+	return sysfs_emit(buf, "%s\n", bond_slave_link_status(slave->link));
 }
 static SLAVE_ATTR_RO(mii_status);
 
 static ssize_t link_failure_count_show(struct slave *slave, char *buf)
 {
-	return sprintf(buf, "%d\n", slave->link_failure_count);
+	return sysfs_emit(buf, "%d\n", slave->link_failure_count);
 }
 static SLAVE_ATTR_RO(link_failure_count);
 
 static ssize_t perm_hwaddr_show(struct slave *slave, char *buf)
 {
-	return sprintf(buf, "%*phC\n",
+	return sysfs_emit(buf, "%*phC\n",
 		       slave->dev->addr_len,
 		       slave->perm_hwaddr);
 }
@@ -53,7 +53,7 @@ static SLAVE_ATTR_RO(perm_hwaddr);
 
 static ssize_t queue_id_show(struct slave *slave, char *buf)
 {
-	return sprintf(buf, "%d\n", slave->queue_id);
+	return sysfs_emit(buf, "%d\n", slave->queue_id);
 }
 static SLAVE_ATTR_RO(queue_id);
 
@@ -64,11 +64,11 @@ static ssize_t ad_aggregator_id_show(struct slave *slave, char *buf)
 	if (BOND_MODE(slave->bond) == BOND_MODE_8023AD) {
 		agg = SLAVE_AD_INFO(slave)->port.aggregator;
 		if (agg)
-			return sprintf(buf, "%d\n",
-				       agg->aggregator_identifier);
+			return sysfs_emit(buf, "%d\n",
+					  agg->aggregator_identifier);
 	}
 
-	return sprintf(buf, "N/A\n");
+	return sysfs_emit(buf, "N/A\n");
 }
 static SLAVE_ATTR_RO(ad_aggregator_id);
 
@@ -79,11 +79,11 @@ static ssize_t ad_actor_oper_port_state_show(struct slave *slave, char *buf)
 	if (BOND_MODE(slave->bond) == BOND_MODE_8023AD) {
 		ad_port = &SLAVE_AD_INFO(slave)->port;
 		if (ad_port->aggregator)
-			return sprintf(buf, "%u\n",
+			return sysfs_emit(buf, "%u\n",
 				       ad_port->actor_oper_port_state);
 	}
 
-	return sprintf(buf, "N/A\n");
+	return sysfs_emit(buf, "N/A\n");
 }
 static SLAVE_ATTR_RO(ad_actor_oper_port_state);
 
@@ -94,11 +94,11 @@ static ssize_t ad_partner_oper_port_state_show(struct slave *slave, char *buf)
 	if (BOND_MODE(slave->bond) == BOND_MODE_8023AD) {
 		ad_port = &SLAVE_AD_INFO(slave)->port;
 		if (ad_port->aggregator)
-			return sprintf(buf, "%u\n",
+			return sysfs_emit(buf, "%u\n",
 				       ad_port->partner_oper.port_state);
 	}
 
-	return sprintf(buf, "N/A\n");
+	return sysfs_emit(buf, "N/A\n");
 }
 static SLAVE_ATTR_RO(ad_partner_oper_port_state);
 

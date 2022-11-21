@@ -364,6 +364,9 @@ struct _vcs_dpi_ip_params_st {
 	unsigned int max_num_dp2p0_outputs;
 	unsigned int max_num_dp2p0_streams;
 	unsigned int VBlankNomDefaultUS;
+
+	/* DM workarounds */
+	double dsc_delay_factor_wa; // TODO: Remove after implementing root cause fix
 };
 
 struct _vcs_dpi_display_xfc_params_st {
@@ -510,6 +513,7 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned int htotal;
 	unsigned int vtotal;
 	unsigned int vfront_porch;
+	unsigned int vblank_nom;
 	unsigned int vactive;
 	unsigned int hactive;
 	unsigned int vstartup_start;

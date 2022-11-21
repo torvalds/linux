@@ -12,12 +12,6 @@ struct nvkm_engine {
 	const struct nvkm_engine_func *func;
 	struct nvkm_subdev subdev;
 	spinlock_t lock;
-
-	struct {
-		refcount_t refcount;
-		struct mutex mutex;
-		bool enabled;
-	} use;
 };
 
 struct nvkm_engine_func {
@@ -27,6 +21,7 @@ struct nvkm_engine_func {
 	int (*info)(struct nvkm_engine *, u64 mthd, u64 *data);
 	int (*init)(struct nvkm_engine *);
 	int (*fini)(struct nvkm_engine *, bool suspend);
+	int (*reset)(struct nvkm_engine *);
 	void (*intr)(struct nvkm_engine *);
 	void (*tile)(struct nvkm_engine *, int region, struct nvkm_fb_tile *);
 	bool (*chsw_load)(struct nvkm_engine *);
@@ -54,6 +49,7 @@ int nvkm_engine_new_(const struct nvkm_engine_func *, struct nvkm_device *,
 
 struct nvkm_engine *nvkm_engine_ref(struct nvkm_engine *);
 void nvkm_engine_unref(struct nvkm_engine **);
+int nvkm_engine_reset(struct nvkm_engine *);
 void nvkm_engine_tile(struct nvkm_engine *, int region);
 bool nvkm_engine_chsw_load(struct nvkm_engine *);
 #endif

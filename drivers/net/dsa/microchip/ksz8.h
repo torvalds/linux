@@ -17,8 +17,8 @@ u32 ksz8_get_port_addr(int port, int offset);
 void ksz8_cfg_port_member(struct ksz_device *dev, int port, u8 member);
 void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port);
 void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port);
-void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val);
-void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val);
+int ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val);
+int ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val);
 int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 			 u8 *fid, u8 *src_port, u8 *timestamp, u16 *entries);
 int ksz8_r_sta_mac_table(struct ksz_device *dev, u16 addr,

@@ -725,8 +725,8 @@ static struct net_device_stats *dnet_get_stats(struct net_device *dev)
 static void dnet_get_drvinfo(struct net_device *dev,
 			     struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->bus_info, "0", sizeof(info->bus_info));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->bus_info, "0", sizeof(info->bus_info));
 }
 
 static const struct ethtool_ops dnet_ethtool_ops = {
@@ -788,7 +788,7 @@ static int dnet_probe(struct platform_device *pdev)
 	}
 
 	dev->netdev_ops = &dnet_netdev_ops;
-	netif_napi_add(dev, &bp->napi, dnet_poll, 64);
+	netif_napi_add(dev, &bp->napi, dnet_poll);
 	dev->ethtool_ops = &dnet_ethtool_ops;
 
 	dev->base_addr = (unsigned long)bp->regs;

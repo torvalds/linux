@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/ti,k3-am654-cpsw-nuss.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: The TI AM654x/J721E/AM642x SoC Gigabit Ethernet MAC (Media Access Controller) Device Tree Bindings
+title: The TI AM654x/J721E/AM642x SoC Gigabit Ethernet MAC (Media Access Controller)
 
 maintainers:
   - Grygorii Strashko <grygorii.strashko@ti.com>
@@ -55,6 +55,7 @@ properties:
   compatible:
     enum:
       - ti,am654-cpsw-nuss
+      - ti,j7200-cpswxg-nuss
       - ti,j721e-cpsw-nuss
       - ti,am642-cpsw-nuss
 
@@ -110,16 +111,17 @@ properties:
         const: 0
 
     patternProperties:
-      port@[1-2]:
+      "^port@[1-4]$":
         type: object
         description: CPSWxG NUSS external ports
 
         $ref: ethernet-controller.yaml#
+        unevaluatedProperties: false
 
         properties:
           reg:
             minimum: 1
-            maximum: 2
+            maximum: 4
             description: CPSW port number
 
           phys:
@@ -177,6 +179,19 @@ required:
   - dma-names
   - '#address-cells'
   - '#size-cells'
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: ti,j7200-cpswxg-nuss
+    then:
+      properties:
+        ethernet-ports:
+          patternProperties:
+            "^port@[3-4]$": false
 
 additionalProperties: false
 
