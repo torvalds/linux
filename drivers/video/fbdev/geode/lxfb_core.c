@@ -647,7 +647,12 @@ static int __init lxfb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("lxfb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("lxfb", &option))
 		return -ENODEV;
 

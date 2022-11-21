@@ -779,6 +779,9 @@ static struct pci_driver gxt4500_driver = {
 
 static int gxt4500_init(void)
 {
+	if (fb_modesetting_disabled("gxt4500"))
+		return -ENODEV;
+
 #ifndef MODULE
 	if (fb_get_options("gxt4500", &mode_option))
 		return -ENODEV;

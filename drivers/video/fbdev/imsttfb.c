@@ -1617,7 +1617,12 @@ static int __init imsttfb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("imsttfb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("imsttfb", &option))
 		return -ENODEV;
 

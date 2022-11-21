@@ -124,9 +124,8 @@ static unsigned long long
 vc4_hdmi_encoder_compute_mode_clock(const struct drm_display_mode *mode,
 				    unsigned int bpc, enum vc4_hdmi_output_format fmt);
 
-static bool vc4_hdmi_supports_scrambling(struct drm_encoder *encoder)
+static bool vc4_hdmi_supports_scrambling(struct vc4_hdmi *vc4_hdmi)
 {
-	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 	struct drm_display_info *display = &vc4_hdmi->connector.display_info;
 
 	lockdep_assert_held(&vc4_hdmi->mutex);
@@ -319,9 +318,8 @@ out:
 static int vc4_hdmi_reset_link(struct drm_connector *connector,
 			       struct drm_modeset_acquire_ctx *ctx)
 {
-	struct drm_device *drm = connector->dev;
-	struct vc4_hdmi *vc4_hdmi = connector_to_vc4_hdmi(connector);
-	struct drm_encoder *encoder = &vc4_hdmi->encoder.base;
+	struct drm_device *drm;
+	struct vc4_hdmi *vc4_hdmi;
 	struct drm_connector_state *conn_state;
 	struct drm_crtc_state *crtc_state;
 	struct drm_crtc *crtc;
@@ -332,6 +330,7 @@ static int vc4_hdmi_reset_link(struct drm_connector *connector,
 	if (!connector)
 		return 0;
 
+	drm = connector->dev;
 	ret = drm_modeset_lock(&drm->mode_config.connection_mutex, ctx);
 	if (ret)
 		return ret;
@@ -349,7 +348,8 @@ static int vc4_hdmi_reset_link(struct drm_connector *connector,
 	if (!crtc_state->active)
 		return 0;
 
-	if (!vc4_hdmi_supports_scrambling(encoder))
+	vc4_hdmi = connector_to_vc4_hdmi(connector);
+	if (!vc4_hdmi_supports_scrambling(vc4_hdmi))
 		return 0;
 
 	scrambling_needed = vc4_hdmi_mode_needs_scrambling(&vc4_hdmi->saved_adjusted_mode,
@@ -867,7 +867,7 @@ static void vc4_hdmi_enable_scrambling(struct drm_encoder *encoder)
 
 	lockdep_assert_held(&vc4_hdmi->mutex);
 
-	if (!vc4_hdmi_supports_scrambling(encoder))
+	if (!vc4_hdmi_supports_scrambling(vc4_hdmi))
 		return;
 
 	if (!vc4_hdmi_mode_needs_scrambling(mode,

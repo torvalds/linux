@@ -1057,7 +1057,12 @@ static int __init vmlfb_init(void)
 
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("vmlfb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options(MODULE_NAME, &option))
 		return -ENODEV;
 #endif

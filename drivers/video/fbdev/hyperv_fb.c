@@ -59,7 +59,6 @@
 
 #include <linux/hyperv.h>
 
-
 /* Hyper-V Synthetic Video Protocol definitions and structures */
 #define MAX_VMBUS_PKT_SIZE 0x4000
 
@@ -1362,6 +1361,9 @@ static struct pci_driver hvfb_pci_stub_driver = {
 static int __init hvfb_drv_init(void)
 {
 	int ret;
+
+	if (fb_modesetting_disabled("hyper_fb"))
+		return -ENODEV;
 
 	ret = vmbus_driver_register(&hvfb_drv);
 	if (ret != 0)

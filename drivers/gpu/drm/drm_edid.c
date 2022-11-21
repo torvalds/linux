@@ -2807,6 +2807,8 @@ u32 drm_edid_get_panel_id(struct i2c_adapter *adapter)
 
 	if (edid_block_status_valid(status, edid_block_tag(base_block)))
 		panel_id = edid_extract_panel_id(base_block);
+	else
+		edid_block_dump(KERN_NOTICE, base_block, 0);
 
 	kfree(base_block);
 

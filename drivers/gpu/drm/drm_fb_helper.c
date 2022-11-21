@@ -367,9 +367,8 @@ static void drm_fb_helper_resume_worker(struct work_struct *work)
 	console_unlock();
 }
 
-static void drm_fb_helper_damage_work(struct work_struct *work)
+static void drm_fb_helper_fb_dirty(struct drm_fb_helper *helper)
 {
-	struct drm_fb_helper *helper = container_of(work, struct drm_fb_helper, damage_work);
 	struct drm_device *dev = helper->dev;
 	struct drm_clip_rect *clip = &helper->damage_clip;
 	struct drm_clip_rect clip_copy;
@@ -419,7 +418,6 @@ void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 	INIT_LIST_HEAD(&helper->kernel_fb_list);
 	spin_lock_init(&helper->damage_lock);
 	INIT_WORK(&helper->resume_work, drm_fb_helper_resume_worker);
-	INIT_WORK(&helper->damage_work, drm_fb_helper_damage_work);
 	helper->damage_clip.x1 = helper->damage_clip.y1 = ~0;
 	mutex_init(&helper->lock);
 	helper->funcs = funcs;
@@ -551,7 +549,6 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 		return;
 
 	cancel_work_sync(&fb_helper->resume_work);
-	cancel_work_sync(&fb_helper->damage_work);
 
 	info = fb_helper->info;
 	if (info) {
@@ -576,8 +573,8 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 }
 EXPORT_SYMBOL(drm_fb_helper_fini);
 
-static void drm_fb_helper_damage(struct drm_fb_helper *helper, u32 x, u32 y,
-				 u32 width, u32 height)
+static void drm_fb_helper_add_damage_clip(struct drm_fb_helper *helper, u32 x, u32 y,
+					  u32 width, u32 height)
 {
 	struct drm_clip_rect *clip = &helper->damage_clip;
 	unsigned long flags;
@@ -588,8 +585,21 @@ static void drm_fb_helper_damage(struct drm_fb_helper *helper, u32 x, u32 y,
 	clip->x2 = max_t(u32, clip->x2, x + width);
 	clip->y2 = max_t(u32, clip->y2, y + height);
 	spin_unlock_irqrestore(&helper->damage_lock, flags);
+}
 
-	schedule_work(&helper->damage_work);
+static void drm_fb_helper_damage(struct drm_fb_helper *helper, u32 x, u32 y,
+				 u32 width, u32 height)
+{
+	struct fb_info *info = helper->info;
+
+	drm_fb_helper_add_damage_clip(helper, x, y, width, height);
+
+	/*
+	 * The current fbdev emulation only flushes buffers if a damage
+	 * update is necessary. And we can assume that deferred I/O has
+	 * been enabled as damage updates require deferred I/O for mmap.
+	 */
+	fb_deferred_io_schedule_flush(info);
 }
 
 /*
@@ -644,22 +654,26 @@ void drm_fb_helper_deferred_io(struct fb_info *info, struct list_head *pagerefli
 		min_off = min(min_off, start);
 		max_off = max(max_off, end);
 	}
-	if (min_off >= max_off)
-		return;
 
-	if (helper->funcs->fb_dirty) {
-		/*
-		 * As we can only track pages, we might reach beyond the end
-		 * of the screen and account for non-existing scanlines. Hence,
-		 * keep the covered memory area within the screen buffer.
-		 */
-		max_off = min(max_off, info->screen_size);
+	/*
+	 * As we can only track pages, we might reach beyond the end
+	 * of the screen and account for non-existing scanlines. Hence,
+	 * keep the covered memory area within the screen buffer.
+	 */
+	max_off = min(max_off, info->screen_size);
 
+	if (min_off < max_off) {
 		drm_fb_helper_memory_range_to_clip(info, min_off, max_off - min_off, &damage_area);
-		drm_fb_helper_damage(helper, damage_area.x1, damage_area.y1,
-				     drm_rect_width(&damage_area),
-				     drm_rect_height(&damage_area));
+		drm_fb_helper_add_damage_clip(helper, damage_area.x1, damage_area.y1,
+					      drm_rect_width(&damage_area),
+					      drm_rect_height(&damage_area));
 	}
+
+	/*
+	 * Flushes all dirty pages from mmap's pageref list and the
+	 * areas that have been written by struct fb_ops callbacks.
+	 */
+	drm_fb_helper_fb_dirty(helper);
 }
 EXPORT_SYMBOL(drm_fb_helper_deferred_io);
 
