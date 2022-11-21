@@ -384,7 +384,6 @@ int dsa_port_change_master(struct dsa_port *dp, struct net_device *master,
 			   struct netlink_ext_ack *extack);
 
 /* slave.c */
-extern const struct dsa_device_ops notag_netdev_ops;
 extern struct notifier_block dsa_slave_switchdev_notifier;
 extern struct notifier_block dsa_slave_switchdev_blocking_notifier;
 

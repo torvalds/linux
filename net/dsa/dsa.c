@@ -18,22 +18,6 @@
 static LIST_HEAD(dsa_tag_drivers_list);
 static DEFINE_MUTEX(dsa_tag_drivers_lock);
 
-static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
-					    struct net_device *dev)
-{
-	/* Just return the original SKB */
-	return skb;
-}
-
-static const struct dsa_device_ops none_ops = {
-	.name	= "none",
-	.proto	= DSA_TAG_PROTO_NONE,
-	.xmit	= dsa_slave_notag_xmit,
-	.rcv	= NULL,
-};
-
-DSA_TAG_DRIVER(none_ops);
-
 static void dsa_tag_driver_register(struct dsa_tag_driver *dsa_tag_driver,
 				    struct module *owner)
 {
@@ -551,9 +535,6 @@ static int __init dsa_init_module(void)
 
 	dev_add_pack(&dsa_pack_type);
 
-	dsa_tag_driver_register(&DSA_TAG_DRIVER_NAME(none_ops),
-				THIS_MODULE);
-
 	rc = rtnl_link_register(&dsa_link_ops);
 	if (rc)
 		goto netlink_register_fail;
@@ -561,7 +542,6 @@ static int __init dsa_init_module(void)
 	return 0;
 
 netlink_register_fail:
-	dsa_tag_driver_unregister(&DSA_TAG_DRIVER_NAME(none_ops));
 	dsa_slave_unregister_notifier();
 	dev_remove_pack(&dsa_pack_type);
 register_notifier_fail:
@@ -574,7 +554,6 @@ module_init(dsa_init_module);
 static void __exit dsa_cleanup_module(void)
 {
 	rtnl_link_unregister(&dsa_link_ops);
-	dsa_tag_driver_unregister(&DSA_TAG_DRIVER_NAME(none_ops));
 
 	dsa_slave_unregister_notifier();
 	dev_remove_pack(&dsa_pack_type);
