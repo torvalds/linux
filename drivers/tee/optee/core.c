@@ -188,7 +188,7 @@ void optee_remove_common(struct optee *optee)
 static int smc_abi_rc;
 static int ffa_abi_rc;
 
-static int optee_core_init(void)
+static int __init optee_core_init(void)
 {
 	/*
 	 * The kernel may have crashed at the same time that all available
@@ -210,7 +210,7 @@ static int optee_core_init(void)
 }
 module_init(optee_core_init);
 
-static void optee_core_exit(void)
+static void __exit optee_core_exit(void)
 {
 	if (!smc_abi_rc)
 		optee_smc_abi_unregister();
