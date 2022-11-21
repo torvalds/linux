@@ -164,8 +164,8 @@ static void RGA2_set_mode_ctrl(u8 *base, struct rga2_req *msg)
 
 	bRGA_MODE_CTL = (u32 *) (base + RGA2_MODE_CTRL_OFFSET);
 
-	if (msg->render_mode == 4)
-		render_mode = 3;
+	if (msg->render_mode == UPDATE_PALETTE_TABLE_MODE)
+		render_mode = 0x3;
 
 	reg =
 		((reg & (~m_RGA2_MODE_CTRL_SW_RENDER_MODE)) |
