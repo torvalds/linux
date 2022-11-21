@@ -4719,9 +4719,25 @@ static int dwc3_msm_vbus_notifier(struct notifier_block *nb,
 	/* detect USB spoof disconnect/connect notification with EUD device */
 	eud_str = strnstr(edev_name, "eud", strlen(edev_name));
 	if (eud_str) {
+		int spoof;
+
+		spoof = extcon_get_state(edev, EXTCON_JIG);
+
 		if (mdwc->eud_active == event)
 			return NOTIFY_DONE;
+
 		mdwc->eud_active = event;
+
+		/*
+		 * In case EUD is enabled by the module param, if DWC3 is
+		 * operating in SS, ignore any connect/disconnect changes.  This
+		 * allows for the link to be uninterrupted, as EUD affects the
+		 * HS path.  Only listen for if there are spoof
+		 * connect/disconnect commands.
+		 */
+		if (dwc && dwc->gadget->speed >= USB_SPEED_SUPER && !spoof)
+			return NOTIFY_DONE;
+
 		mdwc->check_eud_state = true;
 	} else {
 		if (mdwc->vbus_active == event)
