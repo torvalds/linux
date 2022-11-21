@@ -440,13 +440,6 @@ static inline int pwm_config(struct pwm_device *pwm, int duty_ns,
 	return -EINVAL;
 }
 
-static inline int pwm_capture(struct pwm_device *pwm,
-			      struct pwm_capture *result,
-			      unsigned long timeout)
-{
-	return -EINVAL;
-}
-
 static inline int pwm_enable(struct pwm_device *pwm)
 {
 	might_sleep();
@@ -456,6 +449,13 @@ static inline int pwm_enable(struct pwm_device *pwm)
 static inline void pwm_disable(struct pwm_device *pwm)
 {
 	might_sleep();
+}
+
+static inline int pwm_capture(struct pwm_device *pwm,
+			      struct pwm_capture *result,
+			      unsigned long timeout)
+{
+	return -EINVAL;
 }
 
 static inline int pwm_set_chip_data(struct pwm_device *pwm, void *data)
