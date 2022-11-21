@@ -54,7 +54,6 @@ void dump_sp_dmem(struct atomisp_device *isp, unsigned int addr,
 		  unsigned int size);
 struct camera_mipi_info *atomisp_to_sensor_mipi_info(struct v4l2_subdev *sd);
 struct atomisp_video_pipe *atomisp_to_video_pipe(struct video_device *dev);
-struct atomisp_acc_pipe *atomisp_to_acc_pipe(struct video_device *dev);
 int atomisp_reset(struct atomisp_device *isp);
 void atomisp_flush_bufs_and_wakeup(struct atomisp_sub_device *asd);
 void atomisp_clear_css_buffer_counters(struct atomisp_sub_device *asd);
@@ -66,8 +65,7 @@ bool atomisp_buffers_queued_pipe(struct atomisp_video_pipe *pipe);
 /* Interrupt functions */
 void atomisp_msi_irq_init(struct atomisp_device *isp);
 void atomisp_msi_irq_uninit(struct atomisp_device *isp);
-void atomisp_wdt_work(struct work_struct *work);
-void atomisp_wdt(struct timer_list *t);
+void atomisp_assert_recovery_work(struct work_struct *work);
 void atomisp_setup_flash(struct atomisp_sub_device *asd);
 irqreturn_t atomisp_isr(int irq, void *dev);
 irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr);
@@ -268,8 +266,7 @@ int atomisp_get_sensor_mode_data(struct atomisp_sub_device *asd,
 int atomisp_try_fmt(struct video_device *vdev, struct v4l2_pix_format *f,
 		    bool *res_overflow);
 
-int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f);
-int atomisp_set_fmt_file(struct video_device *vdev, struct v4l2_format *f);
+int atomisp_set_fmt(struct file *file, void *fh, struct v4l2_format *f);
 
 int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 			      struct atomisp_shading_table *shading_table);
@@ -300,8 +297,6 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		      bool q_buffers, enum atomisp_input_stream_id stream_id);
 
 void atomisp_css_flush(struct atomisp_device *isp);
-int atomisp_source_pad_to_stream_id(struct atomisp_sub_device *asd,
-				    uint16_t source_pad);
 
 /* Events. Only one event has to be exported for now. */
 void atomisp_eof_event(struct atomisp_sub_device *asd, uint8_t exp_id);
@@ -324,8 +319,6 @@ void atomisp_flush_params_queue(struct atomisp_video_pipe *asd);
 int atomisp_exp_id_unlock(struct atomisp_sub_device *asd, int *exp_id);
 int atomisp_exp_id_capture(struct atomisp_sub_device *asd, int *exp_id);
 
-/* Function to update Raw Buffer bitmap */
-int atomisp_set_raw_buffer_bitmap(struct atomisp_sub_device *asd, int exp_id);
 void atomisp_init_raw_buffer_bitmap(struct atomisp_sub_device *asd);
 
 /* Function to enable/disable zoom for capture pipe */

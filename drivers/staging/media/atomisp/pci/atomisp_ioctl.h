@@ -34,26 +34,20 @@ atomisp_format_bridge *atomisp_get_format_bridge(unsigned int pixelformat);
 const struct
 atomisp_format_bridge *atomisp_get_format_bridge_from_mbus(u32 mbus_code);
 
+int atomisp_pipe_check(struct atomisp_video_pipe *pipe, bool streaming_ok);
+
 int atomisp_alloc_css_stat_bufs(struct atomisp_sub_device *asd,
 				uint16_t stream_id);
 
-int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type);
-int __atomisp_reqbufs(struct file *file, void *fh,
-		      struct v4l2_requestbuffers *req);
-
-int atomisp_reqbufs(struct file *file, void *fh,
-		    struct v4l2_requestbuffers *req);
+int atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type);
+int atomisp_reqbufs(struct file *file, void *fh, struct v4l2_requestbuffers *req);
 
 enum ia_css_pipe_id atomisp_get_css_pipe_id(struct atomisp_sub_device
 	*asd);
 
 void atomisp_videobuf_free_buf(struct videobuf_buffer *vb);
 
-extern const struct v4l2_file_operations atomisp_file_fops;
-
 extern const struct v4l2_ioctl_ops atomisp_ioctl_ops;
-
-extern const struct v4l2_ioctl_ops atomisp_file_ioctl_ops;
 
 unsigned int atomisp_streaming_count(struct atomisp_device *isp);
 

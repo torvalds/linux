@@ -14,6 +14,7 @@
 
 #include "kmsan.h"
 #include <linux/gfp.h>
+#include <linux/kmsan_string.h>
 #include <linux/mm.h>
 #include <linux/uaccess.h>
 

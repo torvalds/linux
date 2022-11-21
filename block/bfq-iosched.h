@@ -369,11 +369,7 @@ struct bfq_queue {
 	unsigned long split_time; /* time of last split */
 
 	unsigned long first_IO_time; /* time of first I/O for this queue */
-
 	unsigned long creation_time; /* when this queue is created */
-
-	/* max service rate measured so far */
-	u32 max_service_rate;
 
 	/*
 	 * Pointer to the waker queue for this queue, i.e., to the

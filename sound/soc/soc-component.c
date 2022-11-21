@@ -1213,9 +1213,11 @@ int snd_soc_pcm_component_pm_runtime_get(struct snd_soc_pcm_runtime *rtd,
 	int i;
 
 	for_each_rtd_components(rtd, i, component) {
-		int ret = pm_runtime_resume_and_get(component->dev);
-		if (ret < 0 && ret != -EACCES)
+		int ret = pm_runtime_get_sync(component->dev);
+		if (ret < 0 && ret != -EACCES) {
+			pm_runtime_put_noidle(component->dev);
 			return soc_component_ret(component, ret);
+		}
 		/* mark stream if succeeded */
 		soc_component_mark_push(component, stream, pm);
 	}

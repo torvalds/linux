@@ -618,7 +618,8 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
 	struct vm_area_struct *expand)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	struct vm_area_struct *next_next, *next = find_vma(mm, vma->vm_end);
+	struct vm_area_struct *next_next = NULL;	/* uninit var warning */
+	struct vm_area_struct *next = find_vma(mm, vma->vm_end);
 	struct vm_area_struct *orig_vma = vma;
 	struct address_space *mapping = NULL;
 	struct rb_root_cached *root = NULL;
@@ -2625,14 +2626,14 @@ cannot_expand:
 		if (error)
 			goto unmap_and_free_vma;
 
-		/* Can addr have changed??
-		 *
-		 * Answer: Yes, several device drivers can do it in their
-		 *         f_op->mmap method. -DaveM
+		/*
+		 * Expansion is handled above, merging is handled below.
+		 * Drivers should not alter the address of the VMA.
 		 */
-		WARN_ON_ONCE(addr != vma->vm_start);
-
-		addr = vma->vm_start;
+		if (WARN_ON((addr != vma->vm_start))) {
+			error = -EINVAL;
+			goto close_and_free_vma;
+		}
 		mas_reset(&mas);
 
 		/*
@@ -2654,7 +2655,6 @@ cannot_expand:
 				vm_area_free(vma);
 				vma = merge;
 				/* Update vm_flags to pick up the change. */
-				addr = vma->vm_start;
 				vm_flags = vma->vm_flags;
 				goto unmap_writable;
 			}
@@ -2674,6 +2674,8 @@ cannot_expand:
 		error = -EINVAL;
 		if (file)
 			goto close_and_free_vma;
+		else if (vma->vm_file)
+			goto unmap_and_free_vma;
 		else
 			goto free_vma;
 	}
@@ -2681,6 +2683,8 @@ cannot_expand:
 	if (mas_preallocate(&mas, vma, GFP_KERNEL)) {
 		error = -ENOMEM;
 		if (file)
+			goto close_and_free_vma;
+		else if (vma->vm_file)
 			goto unmap_and_free_vma;
 		else
 			goto free_vma;
@@ -2751,7 +2755,7 @@ unmap_and_free_vma:
 
 	/* Undo any partial mapping done by a device driver. */
 	unmap_region(mm, mas.tree, vma, prev, next, vma->vm_start, vma->vm_end);
-	if (vm_flags & VM_SHARED)
+	if (file && (vm_flags & VM_SHARED))
 		mapping_unmap_writable(file->f_mapping);
 free_vma:
 	vm_area_free(vma);
@@ -2851,6 +2855,9 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
 
 			if (next->vm_flags != vma->vm_flags)
 				goto out;
+
+			if (start + size <= next->vm_end)
+				break;
 
 			prev = next;
 		}

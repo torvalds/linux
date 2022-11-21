@@ -199,6 +199,13 @@ static int loongson_hotkey_resume(struct device *dev)
 	struct key_entry ke;
 	struct backlight_device *bd;
 
+	bd = backlight_device_get_by_type(BACKLIGHT_PLATFORM);
+	if (bd) {
+		loongson_laptop_backlight_update(bd) ?
+		pr_warn("Loongson_backlight: resume brightness failed") :
+		pr_info("Loongson_backlight: resume brightness %d\n", bd->props.brightness);
+	}
+
 	/*
 	 * Only if the firmware supports SW_LID event model, we can handle the
 	 * event. This is for the consideration of development board without EC.
@@ -226,13 +233,6 @@ static int loongson_hotkey_resume(struct device *dev)
 			ke.sw.code = SW_LID;
 			sparse_keymap_report_entry(generic_inputdev, &ke, 1, true);
 		}
-	}
-
-	bd = backlight_device_get_by_type(BACKLIGHT_PLATFORM);
-	if (bd) {
-		loongson_laptop_backlight_update(bd) ?
-		pr_warn("Loongson_backlight: resume brightness failed") :
-		pr_info("Loongson_backlight: resume brightness %d\n", bd->props.brightness);
 	}
 
 	return 0;
@@ -448,6 +448,7 @@ static int __init event_init(struct generic_sub_driver *sub_driver)
 	if (ret < 0) {
 		pr_err("Failed to setup input device keymap\n");
 		input_free_device(generic_inputdev);
+		generic_inputdev = NULL;
 
 		return ret;
 	}
@@ -502,8 +503,11 @@ static int __init generic_subdriver_init(struct generic_sub_driver *sub_driver)
 	if (ret)
 		return -EINVAL;
 
-	if (sub_driver->init)
-		sub_driver->init(sub_driver);
+	if (sub_driver->init) {
+		ret = sub_driver->init(sub_driver);
+		if (ret)
+			goto err_out;
+	}
 
 	if (sub_driver->notify) {
 		ret = setup_acpi_notify(sub_driver);
@@ -519,7 +523,7 @@ static int __init generic_subdriver_init(struct generic_sub_driver *sub_driver)
 
 err_out:
 	generic_subdriver_exit(sub_driver);
-	return (ret < 0) ? ret : 0;
+	return ret;
 }
 
 static void generic_subdriver_exit(struct generic_sub_driver *sub_driver)

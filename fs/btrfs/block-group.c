@@ -774,10 +774,8 @@ int btrfs_cache_block_group(struct btrfs_block_group *cache, bool wait)
 
 	btrfs_queue_work(fs_info->caching_workers, &caching_ctl->work);
 out:
-	/* REVIEW */
 	if (wait && caching_ctl)
 		ret = btrfs_caching_ctl_wait_done(cache, caching_ctl);
-		/* wait_event(caching_ctl->wait, space_cache_v1_done(cache)); */
 	if (caching_ctl)
 		btrfs_put_caching_control(caching_ctl);
 

@@ -1388,6 +1388,14 @@ enum smu_cmn2asic_mapping_type {
 	CMN2ASIC_MAPPING_WORKLOAD,
 };
 
+enum smu_baco_seq {
+	BACO_SEQ_BACO = 0,
+	BACO_SEQ_MSR,
+	BACO_SEQ_BAMACO,
+	BACO_SEQ_ULPS,
+	BACO_SEQ_COUNT,
+};
+
 #define MSG_MAP(msg, index, valid_in_vf) \
 	[SMU_MSG_##msg] = {1, (index), (valid_in_vf)}
 

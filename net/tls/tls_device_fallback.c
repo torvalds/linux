@@ -346,7 +346,7 @@ static struct sk_buff *tls_enc_skb(struct tls_context *tls_ctx,
 		salt = tls_ctx->crypto_send.aes_gcm_256.salt;
 		break;
 	default:
-		return NULL;
+		goto free_req;
 	}
 	cipher_sz = &tls_cipher_size_desc[tls_ctx->crypto_send.info.cipher_type];
 	buf_len = cipher_sz->salt + cipher_sz->iv + TLS_AAD_SPACE_SIZE +
@@ -492,7 +492,8 @@ int tls_sw_fallback_init(struct sock *sk,
 		key = ((struct tls12_crypto_info_aes_gcm_256 *)crypto_info)->key;
 		break;
 	default:
-		return -EINVAL;
+		rc = -EINVAL;
+		goto free_aead;
 	}
 	cipher_sz = &tls_cipher_size_desc[crypto_info->cipher_type];
 

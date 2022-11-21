@@ -913,7 +913,7 @@ static void rkisp1_cap_stream_disable(struct rkisp1_capture *cap)
  *
  * Call s_stream(false) in the reverse order from
  * rkisp1_pipeline_stream_enable() and disable the DMA engine.
- * Should be called before media_pipeline_stop()
+ * Should be called before video_device_pipeline_stop()
  */
 static void rkisp1_pipeline_stream_disable(struct rkisp1_capture *cap)
 	__must_hold(&cap->rkisp1->stream_lock)
@@ -926,7 +926,7 @@ static void rkisp1_pipeline_stream_disable(struct rkisp1_capture *cap)
 	 * If the other capture is streaming, isp and sensor nodes shouldn't
 	 * be disabled, skip them.
 	 */
-	if (rkisp1->pipe.streaming_count < 2)
+	if (rkisp1->pipe.start_count < 2)
 		v4l2_subdev_call(&rkisp1->isp.sd, video, s_stream, false);
 
 	v4l2_subdev_call(&rkisp1->resizer_devs[cap->id].sd, video, s_stream,
@@ -937,7 +937,7 @@ static void rkisp1_pipeline_stream_disable(struct rkisp1_capture *cap)
  * rkisp1_pipeline_stream_enable - enable nodes in the pipeline
  *
  * Enable the DMA Engine and call s_stream(true) through the pipeline.
- * Should be called after media_pipeline_start()
+ * Should be called after video_device_pipeline_start()
  */
 static int rkisp1_pipeline_stream_enable(struct rkisp1_capture *cap)
 	__must_hold(&cap->rkisp1->stream_lock)
@@ -956,7 +956,7 @@ static int rkisp1_pipeline_stream_enable(struct rkisp1_capture *cap)
 	 * If the other capture is streaming, isp and sensor nodes are already
 	 * enabled, skip them.
 	 */
-	if (rkisp1->pipe.streaming_count > 1)
+	if (rkisp1->pipe.start_count > 1)
 		return 0;
 
 	ret = v4l2_subdev_call(&rkisp1->isp.sd, video, s_stream, true);
@@ -994,7 +994,7 @@ static void rkisp1_vb2_stop_streaming(struct vb2_queue *queue)
 
 	rkisp1_dummy_buf_destroy(cap);
 
-	media_pipeline_stop(&node->vdev.entity);
+	video_device_pipeline_stop(&node->vdev);
 
 	mutex_unlock(&cap->rkisp1->stream_lock);
 }
@@ -1008,7 +1008,7 @@ rkisp1_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 
 	mutex_lock(&cap->rkisp1->stream_lock);
 
-	ret = media_pipeline_start(entity, &cap->rkisp1->pipe);
+	ret = video_device_pipeline_start(&cap->vnode.vdev, &cap->rkisp1->pipe);
 	if (ret) {
 		dev_err(cap->rkisp1->dev, "start pipeline failed %d\n", ret);
 		goto err_ret_buffers;
@@ -1044,7 +1044,7 @@ err_pipe_pm_put:
 err_destroy_dummy:
 	rkisp1_dummy_buf_destroy(cap);
 err_pipeline_stop:
-	media_pipeline_stop(entity);
+	video_device_pipeline_stop(&cap->vnode.vdev);
 err_ret_buffers:
 	rkisp1_return_all_buffers(cap, VB2_BUF_STATE_QUEUED);
 	mutex_unlock(&cap->rkisp1->stream_lock);
@@ -1273,11 +1273,12 @@ static int rkisp1_capture_link_validate(struct media_link *link)
 	struct rkisp1_capture *cap = video_get_drvdata(vdev);
 	const struct rkisp1_capture_fmt_cfg *fmt =
 		rkisp1_find_fmt_cfg(cap, cap->pix.fmt.pixelformat);
-	struct v4l2_subdev_format sd_fmt;
+	struct v4l2_subdev_format sd_fmt = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		.pad = link->source->index,
+	};
 	int ret;
 
-	sd_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	sd_fmt.pad = link->source->index;
 	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &sd_fmt);
 	if (ret)
 		return ret;

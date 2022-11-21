@@ -236,7 +236,7 @@ EXPORT_SYMBOL_GPL(device_property_read_string);
  * Find a given string in a string array and if it is found return the
  * index back.
  *
- * Return: %0 if the property was found (success),
+ * Return: index, starting from %0, if the property was found (success),
  *	   %-EINVAL if given arguments are not valid,
  *	   %-ENODATA if the property does not have a value,
  *	   %-EPROTO if the property is not an array of strings,
@@ -457,7 +457,7 @@ EXPORT_SYMBOL_GPL(fwnode_property_read_string);
  * Find a given string in a string array and if it is found return the
  * index back.
  *
- * Return: %0 if the property was found (success),
+ * Return: index, starting from %0, if the property was found (success),
  *	   %-EINVAL if given arguments are not valid,
  *	   %-ENODATA if the property does not have a value,
  *	   %-EPROTO if the property is not an array of strings,
