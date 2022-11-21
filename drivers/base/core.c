@@ -2335,7 +2335,7 @@ static void device_release(struct kobject *kobj)
 	kfree(p);
 }
 
-static const void *device_namespace(struct kobject *kobj)
+static const void *device_namespace(const struct kobject *kobj)
 {
 	const struct device *dev = kobj_to_dev(kobj);
 	const void *ns = NULL;
@@ -2346,7 +2346,7 @@ static const void *device_namespace(struct kobject *kobj)
 	return ns;
 }
 
-static void device_get_ownership(struct kobject *kobj, kuid_t *uid, kgid_t *gid)
+static void device_get_ownership(const struct kobject *kobj, kuid_t *uid, kgid_t *gid)
 {
 	const struct device *dev = kobj_to_dev(kobj);
 
@@ -2986,9 +2986,9 @@ static void class_dir_release(struct kobject *kobj)
 }
 
 static const
-struct kobj_ns_type_operations *class_dir_child_ns_type(struct kobject *kobj)
+struct kobj_ns_type_operations *class_dir_child_ns_type(const struct kobject *kobj)
 {
-	struct class_dir *dir = to_class_dir(kobj);
+	const struct class_dir *dir = to_class_dir(kobj);
 	return dir->class->ns_type;
 }
 

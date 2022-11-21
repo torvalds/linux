@@ -62,7 +62,7 @@ static void class_release(struct kobject *kobj)
 	kfree(cp);
 }
 
-static const struct kobj_ns_type_operations *class_child_ns_type(struct kobject *kobj)
+static const struct kobj_ns_type_operations *class_child_ns_type(const struct kobject *kobj)
 {
 	struct subsys_private *cp = to_subsys_private(kobj);
 	struct class *class = cp->class;
