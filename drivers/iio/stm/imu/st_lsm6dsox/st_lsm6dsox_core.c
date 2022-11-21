@@ -2191,7 +2191,7 @@ int st_lsm6dsox_probe(struct device *dev, int irq, int hw_id,
 		return err;
 #endif /* CONFIG_PM && CONFIG_IIO_ST_LSM6DSOX_MAY_WAKEUP */
 
-	dev_info(dev, "Device probed v%s\n", ST_LSM6DSOX_DRV_VERSION);
+	dev_info(dev, "Device probed\n");
 
 	return 0;
 }
