@@ -21,6 +21,7 @@
 #include "dsa_priv.h"
 #include "master.h"
 #include "port.h"
+#include "slave.h"
 
 static DEFINE_MUTEX(dsa2_mutex);
 LIST_HEAD(dsa_tree_list);

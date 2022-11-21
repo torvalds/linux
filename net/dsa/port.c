@@ -14,6 +14,7 @@
 
 #include "dsa_priv.h"
 #include "port.h"
+#include "slave.h"
 
 /**
  * dsa_port_notify - Notify the switching fabric of changes to a port

@@ -14,6 +14,7 @@
 #include <net/dst_metadata.h>
 
 #include "dsa_priv.h"
+#include "slave.h"
 
 static LIST_HEAD(dsa_tag_drivers_list);
 static DEFINE_MUTEX(dsa_tag_drivers_lock);
