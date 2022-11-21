@@ -864,6 +864,14 @@ disconnect:
 	return err;
 }
 
+static void dsa_switch_teardown_tag_protocol(struct dsa_switch *ds)
+{
+	const struct dsa_device_ops *tag_ops = ds->dst->tag_ops;
+
+	if (tag_ops->disconnect)
+		tag_ops->disconnect(ds);
+}
+
 static int dsa_switch_setup(struct dsa_switch *ds)
 {
 	struct dsa_devlink_priv *dl_priv;
@@ -952,6 +960,8 @@ static void dsa_switch_teardown(struct dsa_switch *ds)
 		mdiobus_free(ds->slave_mii_bus);
 		ds->slave_mii_bus = NULL;
 	}
+
+	dsa_switch_teardown_tag_protocol(ds);
 
 	if (ds->ops->teardown)
 		ds->ops->teardown(ds);

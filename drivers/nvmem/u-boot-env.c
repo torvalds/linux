@@ -135,7 +135,7 @@ static int u_boot_env_parse(struct u_boot_env *priv)
 		break;
 	case U_BOOT_FORMAT_REDUNDANT:
 		crc32_offset = offsetof(struct u_boot_env_image_redundant, crc32);
-		crc32_data_offset = offsetof(struct u_boot_env_image_redundant, mark);
+		crc32_data_offset = offsetof(struct u_boot_env_image_redundant, data);
 		data_offset = offsetof(struct u_boot_env_image_redundant, data);
 		break;
 	}
