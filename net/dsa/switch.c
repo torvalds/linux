@@ -17,6 +17,7 @@
 #include "port.h"
 #include "slave.h"
 #include "switch.h"
+#include "tag_8021q.h"
 
 static unsigned int dsa_switch_fastest_ageing_time(struct dsa_switch *ds,
 						   unsigned int ageing_time)

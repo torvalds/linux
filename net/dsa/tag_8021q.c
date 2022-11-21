@@ -11,6 +11,7 @@
 #include "port.h"
 #include "switch.h"
 #include "tag.h"
+#include "tag_8021q.h"
 
 /* Binary structure of the fake 12-bit VID field (when the TPID is
  * ETH_P_DSA_8021Q):
@@ -62,6 +63,20 @@
 #define DSA_8021Q_PORT_MASK		GENMASK(3, 0)
 #define DSA_8021Q_PORT(x)		(((x) << DSA_8021Q_PORT_SHIFT) & \
 						 DSA_8021Q_PORT_MASK)
+
+struct dsa_tag_8021q_vlan {
+	struct list_head list;
+	int port;
+	u16 vid;
+	refcount_t refcount;
+};
+
+struct dsa_8021q_context {
+	struct dsa_switch *ds;
+	struct list_head vlans;
+	/* EtherType of RX VID, used for filtering on master interface */
+	__be16 proto;
+};
 
 u16 dsa_tag_8021q_bridge_vid(unsigned int bridge_num)
 {

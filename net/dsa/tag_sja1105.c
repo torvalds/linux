@@ -7,6 +7,7 @@
 #include <linux/packing.h>
 
 #include "tag.h"
+#include "tag_8021q.h"
 
 #define SJA1105_NAME				"sja1105"
 #define SJA1110_NAME				"sja1110"

@@ -16,6 +16,7 @@
 #include "port.h"
 #include "slave.h"
 #include "switch.h"
+#include "tag_8021q.h"
 
 /**
  * dsa_port_notify - Notify the switching fabric of changes to a port
