@@ -41,6 +41,13 @@ static void zonefs_account_active(struct inode *inode)
 		return;
 
 	/*
+	 * For zones that transitioned to the offline or readonly condition,
+	 * we only need to clear the active state.
+	 */
+	if (zi->i_flags & (ZONEFS_ZONE_OFFLINE | ZONEFS_ZONE_READONLY))
+		goto out;
+
+	/*
 	 * If the zone is active, that is, if it is explicitly open or
 	 * partially written, check if it was already accounted as active.
 	 */
@@ -53,6 +60,7 @@ static void zonefs_account_active(struct inode *inode)
 		return;
 	}
 
+out:
 	/* The zone is not active. If it was, update the active count */
 	if (zi->i_flags & ZONEFS_ZONE_ACTIVE) {
 		zi->i_flags &= ~ZONEFS_ZONE_ACTIVE;
@@ -324,6 +332,7 @@ static loff_t zonefs_check_zone_condition(struct inode *inode,
 		inode->i_flags |= S_IMMUTABLE;
 		inode->i_mode &= ~0777;
 		zone->wp = zone->start;
+		zi->i_flags |= ZONEFS_ZONE_OFFLINE;
 		return 0;
 	case BLK_ZONE_COND_READONLY:
 		/*
@@ -342,8 +351,10 @@ static loff_t zonefs_check_zone_condition(struct inode *inode,
 			zone->cond = BLK_ZONE_COND_OFFLINE;
 			inode->i_mode &= ~0777;
 			zone->wp = zone->start;
+			zi->i_flags |= ZONEFS_ZONE_OFFLINE;
 			return 0;
 		}
+		zi->i_flags |= ZONEFS_ZONE_READONLY;
 		inode->i_mode &= ~0222;
 		return i_size_read(inode);
 	case BLK_ZONE_COND_FULL:
