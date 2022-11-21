@@ -1441,7 +1441,9 @@ static int smu_v13_0_irq_process(struct amdgpu_device *adev,
 			case 0x8:
 				high = smu->thermal_range.software_shutdown_temp +
 					smu->thermal_range.software_shutdown_temp_offset;
-				high = min(SMU_THERMAL_MAXIMUM_ALERT_TEMP, high);
+				high = min_t(typeof(high),
+					     SMU_THERMAL_MAXIMUM_ALERT_TEMP,
+					     high);
 				dev_emerg(adev->dev, "Reduce soft CTF limit to %d (by an offset %d)\n",
 							high,
 							smu->thermal_range.software_shutdown_temp_offset);
@@ -1454,8 +1456,9 @@ static int smu_v13_0_irq_process(struct amdgpu_device *adev,
 				WREG32_SOC15(THM, 0, regTHM_THERMAL_INT_CTRL, data);
 				break;
 			case 0x9:
-				high = min(SMU_THERMAL_MAXIMUM_ALERT_TEMP,
-					smu->thermal_range.software_shutdown_temp);
+				high = min_t(typeof(high),
+					     SMU_THERMAL_MAXIMUM_ALERT_TEMP,
+					     smu->thermal_range.software_shutdown_temp);
 				dev_emerg(adev->dev, "Recover soft CTF limit to %d\n", high);
 
 				data = RREG32_SOC15(THM, 0, regTHM_THERMAL_INT_CTRL);
