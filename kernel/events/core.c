@@ -9328,7 +9328,10 @@ static int __perf_event_overflow(struct perf_event *event,
 			 */
 			WARN_ON_ONCE(event->pending_sigtrap != pending_id);
 		}
-		event->pending_addr = data->addr;
+
+		event->pending_addr = 0;
+		if (data->sample_flags & PERF_SAMPLE_ADDR)
+			event->pending_addr = data->addr;
 		irq_work_queue(&event->pending_irq);
 	}
 
