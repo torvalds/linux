@@ -476,13 +476,15 @@ static bool efx_tc_rx(struct efx_rx_queue *rx_queue, u32 mark)
 		goto out;
 	}
 
-	/* Update seen_gen unconditionally, to avoid a missed wakeup if
-	 * we race with efx_mae_stop_counters().
-	 */
-	efx->tc->seen_gen[type] = mark;
-	if (efx->tc->flush_counters &&
-	    (s32)(efx->tc->flush_gen[type] - mark) <= 0)
-		wake_up(&efx->tc->flush_wq);
+	if (type < EFX_TC_COUNTER_TYPE_MAX) {
+		/* Update seen_gen unconditionally, to avoid a missed wakeup if
+		 * we race with efx_mae_stop_counters().
+		 */
+		efx->tc->seen_gen[type] = mark;
+		if (efx->tc->flush_counters &&
+		    (s32)(efx->tc->flush_gen[type] - mark) <= 0)
+			wake_up(&efx->tc->flush_wq);
+	}
 out:
 	efx_free_rx_buffers(rx_queue, rx_buf, 1);
 	channel->rx_pkt_n_frags = 0;
