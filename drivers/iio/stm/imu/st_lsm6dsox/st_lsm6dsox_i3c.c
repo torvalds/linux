@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics st_lsm6dsox i3c driver
  *
- * Copyright 2020 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Mario Tesi <mario.tesi@st.com>
+ * Copyright 2020 STMicroelectronics Inc.
  */
 
 #include <linux/kernel.h>
@@ -54,6 +54,6 @@ static struct i3c_driver st_lsm6dsox_driver = {
 };
 module_i3c_driver(st_lsm6dsox_driver);
 
-MODULE_AUTHOR("Mario Tesi <mario.tesi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics st_lsm6dsox i3c driver");
 MODULE_LICENSE("GPL v2");

@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics st_lsm6dsox i2c driver
  *
- * Copyright 2021 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Tesi Mario <mario.tesi@st.com>
+ * Copyright 2021 STMicroelectronics Inc.
  */
 
 #include <linux/kernel.h>
@@ -90,6 +90,6 @@ static struct i2c_driver st_lsm6dsox_driver = {
 };
 module_i2c_driver(st_lsm6dsox_driver);
 
-MODULE_AUTHOR("Mario Tesi <mario.tesi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics st_lsm6dsox i2c driver");
 MODULE_LICENSE("GPL v2");

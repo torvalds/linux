@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics st_lsm6dsox spi driver
  *
- * Copyright 2021 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Tesi Mario <mario.tesi@st.com>
+ * Copyright 2021 STMicroelectronics Inc.
  */
 
 #include <linux/kernel.h>
@@ -89,6 +89,6 @@ static struct spi_driver st_lsm6dsox_driver = {
 };
 module_spi_driver(st_lsm6dsox_driver);
 
-MODULE_AUTHOR("Mario Tesi <mario.tesi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics st_lsm6dsox spi driver");
 MODULE_LICENSE("GPL v2");

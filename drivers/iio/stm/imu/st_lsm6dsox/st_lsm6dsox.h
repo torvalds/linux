@@ -2,9 +2,9 @@
 /*
  * STMicroelectronics st_lsm6dsox sensor driver
  *
- * Copyright 2021 STMicroelectronics Inc.
+ * MEMS Software Solutions Team
  *
- * Tesi Mario <mario.tesi@st.com>
+ * Copyright 2021 STMicroelectronics Inc.
  */
 
 #ifndef ST_LSM6DSOX_H
