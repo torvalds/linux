@@ -581,8 +581,7 @@ static void __init free_unused_memmap(void)
 void __init mem_init(void)
 {
 	if (swiotlb_force == SWIOTLB_FORCE ||
-	    max_pfn > PFN_DOWN(arm64_dma_phys_limit) ||
-	    cpus_have_cap(ARM64_WORKAROUND_NO_DMA_ALIAS))
+	    max_pfn > PFN_DOWN(arm64_dma_phys_limit))
 		swiotlb_init(1);
 	else
 		swiotlb_force = SWIOTLB_NO_FORCE;

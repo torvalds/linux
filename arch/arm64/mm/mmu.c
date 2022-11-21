@@ -502,7 +502,7 @@ static void __init map_mem(pgd_t *pgdp)
 	u64 i;
 
 	if (rodata_full || debug_pagealloc_enabled() ||
-	    IS_ENABLED(CONFIG_KFENCE) || cpus_have_cap(ARM64_WORKAROUND_NO_DMA_ALIAS))
+	    IS_ENABLED(CONFIG_KFENCE))
 		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
 
 	/*
