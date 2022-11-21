@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics lps22hh i2c driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2017 STMicroelectronics Inc.
- *
- * Armando Visconti <armando.visconti@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/i2c.h>
@@ -89,5 +88,5 @@ static struct i2c_driver st_lps22hh_i2c_driver = {
 module_i2c_driver(st_lps22hh_i2c_driver);
 
 MODULE_DESCRIPTION("STMicroelectronics lps22hh i2c driver");
-MODULE_AUTHOR("Armando Visconti <armando.visconti@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_LICENSE("GPL v2");
