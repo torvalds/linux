@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics st_mag40 driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2016 STMicroelectronics Inc.
- *
- * Armando Visconti <armando.visconti@st.com>
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/module.h>
@@ -178,6 +176,5 @@ static struct i2c_driver st_mag40_i2c_driver = {
 module_i2c_driver(st_mag40_i2c_driver);
 
 MODULE_DESCRIPTION("STMicroelectronics st_mag40 i2c driver");
-MODULE_AUTHOR("Armando Visconti <armando.visconti@st.com>");
-MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_LICENSE("GPL v2");

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics st_mag40 driver
  *
+ * MEMS Software Solutions Team
+ *
  * Copyright 2016 STMicroelectronics Inc.
- *
- * Matteo Dameno <matteo.dameno@st.com>
- * Armando Visconti <armando.visconti@st.com>
- * Lorenzo Bianconi <lorenzo.bianconi@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -388,6 +385,5 @@ EXPORT_SYMBOL(st_mag40_common_resume);
 #endif /* CONFIG_PM */
 
 MODULE_DESCRIPTION("STMicroelectronics st_mag40 driver");
-MODULE_AUTHOR("Armando Visconti <armando.visconti@st.com>");
-MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
+MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_LICENSE("GPL v2");
