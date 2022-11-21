@@ -130,10 +130,11 @@ it is deployed. Subfunction is created and deployed in unit of 1. Unlike
 SRIOV VFs, a subfunction doesn't require its own PCI virtual function.
 A subfunction communicates with the hardware through the parent PCI function.
 
-To use a subfunction, 3 steps setup sequence is followed.
-(1) create - create a subfunction;
-(2) configure - configure subfunction attributes;
-(3) deploy - deploy the subfunction;
+To use a subfunction, 3 steps setup sequence is followed:
+
+1) create - create a subfunction;
+2) configure - configure subfunction attributes;
+3) deploy - deploy the subfunction;
 
 Subfunction management is done using devlink port user interface.
 User performs setup on the subfunction management device.
@@ -216,13 +217,17 @@ nodes with the same priority form a WFQ subgroup in the sibling group
 and arbitration among them is based on assigned weights.
 
 Arbitration flow from the high level:
+
 #. Choose a node, or group of nodes with the highest priority that stays
    within the BW limit and are not blocked. Use ``tx_priority`` as a
    parameter for this arbitration.
+
 #. If group of nodes have the same priority perform WFQ arbitration on
    that subgroup. Use ``tx_weight`` as a parameter for this arbitration.
+
 #. Select the winner node, and continue arbitration flow among it's children,
    until leaf node is reached, and the winner is established.
+
 #. If all the nodes from the highest priority sub-group are satisfied, or
    overused their assigned BW, move to the lower priority nodes.
 
